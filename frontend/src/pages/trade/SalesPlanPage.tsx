@@ -67,7 +67,7 @@ interface ComparisonRow {
 }
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const rateColor = (r: number) => (r >= 100 ? '#1c7c3c' : r >= 80 ? '#c07a00' : '#c60a2e')
+const rateColor = (r: number) => (r >= 100 ? 'var(--ec-success)' : r >= 80 ? 'var(--ec-warn)' : 'var(--ec-danger)')
 const thisYear = () => Number(ymd(new Date()).slice(0, 4))
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1)
 
@@ -317,19 +317,19 @@ export default function SalesPlanPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {ok && <p style={{ background: '#eafaef', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {ok && <p style={{ background: '#eafaef', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-        <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600 }}>계획연도</span>
+        <span style={{ fontSize: 12.5, color: 'var(--ec-text)', fontWeight: 600 }}>계획연도</span>
         <button className="ec-btn" onClick={() => setYear((y) => y - 1)}>◀</button>
-        <b style={{ fontSize: 15, color: '#3c4553', minWidth: 54, textAlign: 'center' }}>{year}년</b>
+        <b style={{ fontSize: 15, color: 'var(--ec-text)', minWidth: 54, textAlign: 'center' }}>{year}년</b>
         <button className="ec-btn" onClick={() => setYear((y) => y + 1)}>▶</button>
-        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>
-          계획 <b style={{ color: '#3c4553', fontSize: 14 }}>{won(totals.plan)}</b>
-          <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--ec-label)' }}>
+          계획 <b style={{ color: 'var(--ec-text)', fontSize: 14 }}>{won(totals.plan)}</b>
+          <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
           실적 <b style={{ color: '#1c6b32', fontSize: 14 }}>{won(totals.actual)}</b>
-          <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+          <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
           달성률 <b style={{ color: rateColor(totals.rate), fontSize: 14 }}>{totals.rate.toFixed(1)}%</b>
         </div>
       </div>
@@ -419,7 +419,7 @@ export default function SalesPlanPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             {axes.map((ax, i) => (
               <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span style={{ fontSize: 12.5, color: '#5a626e', marginLeft: i ? 6 : 0 }}>표시조건{i + 1}</span>
+                <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: i ? 6 : 0 }}>표시조건{i + 1}</span>
                 <select className="ec-input" value={ax}
                         onChange={(e) => setAxis(i, e.target.value as Axis)} style={{ width: 130 }}>
                   {AXES.map((a) => <option key={a} value={a}>{a}</option>)}
@@ -463,12 +463,12 @@ export default function SalesPlanPage() {
         </EcCond>
         <EcCond label="최초작성일자">
           <input type="date" className="ec-input" value={madeFrom} onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
           <input type="date" className="ec-input" value={madeTo} onChange={(e) => setMadeTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="최종작업일자">
           <input type="date" className="ec-input" value={editedFrom} onChange={(e) => setEditedFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
           <input type="date" className="ec-input" value={editedTo} onChange={(e) => setEditedTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="설정">
@@ -518,7 +518,7 @@ export default function SalesPlanPage() {
               </thead>
               <tbody>
                 {groups.length === 0 ? (
-                  <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+                  <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
                 ) : groups.map((g) => (
                   <tr key={g.label}>
                     <td>{g.label}</td>
@@ -578,33 +578,33 @@ export default function SalesPlanPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11 + (withQty ? 3 : 0) + (withRate ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={11 + (withQty ? 3 : 0) + (withRate ? 1 : 0)} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11 + (withQty ? 3 : 0) + (withRate ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>{year}년 매출계획이 없습니다. 「매출계획 등록」으로 추가하세요.</td></tr>
+            <tr><td colSpan={11 + (withQty ? 3 : 0) + (withRate ? 1 : 0)} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>{year}년 매출계획이 없습니다. 「매출계획 등록」으로 추가하세요.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center' }}>
                 <input type="checkbox" checked={picked.has(r.id)} onChange={() => pick(r.id)} />
               </td>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', whiteSpace: 'nowrap' }}>
                 {dateText(r.planDate)}-{r.planNo}
               </td>
               <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{r.planYear}-{String(r.planMonth).padStart(2, '0')}</td>
-              <td style={{ textAlign: 'center', fontFamily: 'monospace', color: '#5a626e' }}>{dateText(r.expectedDate) || ''}</td>
-              <td style={{ color: '#5a626e' }}>{named(r.partnerName, r.partnerCode)}</td>
-              <td style={{ color: '#5a626e' }}>{named(r.employeeName, r.employeeCode)}</td>
-              <td style={{ color: '#5a626e' }}>{named(r.warehouseName, r.warehouseCode)}</td>
-              <td style={{ color: '#5a626e' }}>{named(r.projectName, r.projectCode)}</td>
-              <td>{named(r.itemName, r.itemCode)} <span style={{ color: '#9aa1ab', fontSize: 11 }}>{r.unit}</span></td>
+              <td style={{ textAlign: 'center', fontFamily: 'monospace', color: 'var(--ec-label)' }}>{dateText(r.expectedDate) || ''}</td>
+              <td style={{ color: 'var(--ec-label)' }}>{named(r.partnerName, r.partnerCode)}</td>
+              <td style={{ color: 'var(--ec-label)' }}>{named(r.employeeName, r.employeeCode)}</td>
+              <td style={{ color: 'var(--ec-label)' }}>{named(r.warehouseName, r.warehouseCode)}</td>
+              <td style={{ color: 'var(--ec-label)' }}>{named(r.projectName, r.projectCode)}</td>
+              <td>{named(r.itemName, r.itemCode)} <span style={{ color: 'var(--ec-text-hint)', fontSize: 11 }}>{r.unit}</span></td>
               {withQty && <td style={{ textAlign: 'right' }}>{won(r.planQty)}</td>}
               {withQty && <td style={{ textAlign: 'right' }}>{won(r.unitPrice)}</td>}
               <td style={{ textAlign: 'right' }}>{won(r.planAmount)}</td>
-              {withQty && <td style={{ textAlign: 'right', color: '#5a626e' }}>{won(r.actualQty)}</td>}
+              {withQty && <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{won(r.actualQty)}</td>}
               <td style={{ textAlign: 'right', fontWeight: 600, color: '#1c6b32' }}>{won(r.actualAmount)}</td>
               {withRate && <td style={{ textAlign: 'right', fontWeight: 700, color: rateColor(r.achieveRate) }}>{r.achieveRate.toFixed(1)}%</td>}
               <td style={{ textAlign: 'center' }}>
-                <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => remove(r.id)}>삭제</button>
+                <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: 'var(--ec-danger)' }} onClick={() => remove(r.id)}>삭제</button>
               </td>
             </tr>
           ))}
@@ -749,10 +749,10 @@ function PlanForm({
   }
 
   const cls = 'ec-input'
-  const lbl: React.CSSProperties = { fontSize: 12.5, color: '#3c4553', fontWeight: 600, display: 'block', marginBottom: 4 }
+  const lbl: React.CSSProperties = { fontSize: 12.5, color: 'var(--ec-text)', fontWeight: 600, display: 'block', marginBottom: 4 }
   return (
     <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 360 }}>
-      <div style={{ fontSize: 12, color: '#8a929c' }}>계획연도 <b style={{ color: '#3c4553' }}>{year}년</b></div>
+      <div style={{ fontSize: 12, color: 'var(--ec-text-hint)' }}>계획연도 <b style={{ color: 'var(--ec-text)' }}>{year}년</b></div>
       <div style={{ display: 'flex', gap: 10 }}>
         {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). label 로 감싸면 팝업 행 클릭이 안 먹어 div 로. */}
         <div style={{ flex: 2 }}><span style={lbl}>품목 *</span>

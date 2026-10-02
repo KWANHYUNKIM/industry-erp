@@ -185,19 +185,19 @@ export default function RequirementCalcPage() {
               const vs = versions.filter((v) => String(v.productId) === l.itemId)
               return (
                 <tr key={l.key}>
-                  <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{idx + 1}</td>
-                  <td className="pad" style={{ fontFamily: 'ui-monospace, monospace', color: '#5a626e' }}>{it?.code ?? ''}</td>
+                  <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{idx + 1}</td>
+                  <td className="pad" style={{ fontFamily: 'ui-monospace, monospace', color: 'var(--ec-label)' }}>{it?.code ?? ''}</td>
                   <td className="pad">
                     <CodePickerField label="품목" hideLabel fill placeholder="" emptyLabel="선택 해제"
                                      value={l.itemId} onChange={(v) => setLine(l.key, { itemId: v })} items={itemPicks} />
                   </td>
-                  <td className="pad" style={{ color: '#5a626e' }}>{it?.spec ?? ''}</td>
+                  <td className="pad" style={{ color: 'var(--ec-label)' }}>{it?.spec ?? ''}</td>
                   <td>
                     {vs.length > 1 ? (
                       <select className="cell" value={l.bomId} onChange={(e) => setLine(l.key, { bomId: e.target.value })}>
                         {vs.map((v) => <option key={v.id} value={v.defaultVersion ? '' : String(v.id)}>{v.versionName}{v.defaultVersion ? '(기본)' : ''}</option>)}
                       </select>
-                    ) : <span className="pad" style={{ color: '#8a929c', fontSize: 12 }}>{vs[0]?.versionName ?? ''}</span>}
+                    ) : <span className="pad" style={{ color: 'var(--ec-text-hint)', fontSize: 12 }}>{vs[0]?.versionName ?? ''}</span>}
                   </td>
                   <td>
                     <input className="cell" type="number" step="any" style={{ textAlign: 'right' }} disabled={!l.itemId}
@@ -208,7 +208,7 @@ export default function RequirementCalcPage() {
             })}
           </tbody>
         </table>
-        {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, margin: '8px 0' }}>{error}</p>}
+        {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, margin: '8px 0' }}>{error}</p>}
       </EcSlipShell>
 
       <Modal open={result != null} title="소요량" error={error} width={900} onClose={() => setResult(null)}>
@@ -241,11 +241,11 @@ export default function RequirementCalcPage() {
               </thead>
               <tbody>
                 {result.needs.every((g) => g.rows.length === 0) ? (
-                  <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
+                  <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
                 ) : result.needs.map((g, gi) => (
                   <Fragment key={gi}>
                     {g.owner && (
-                      <tr><td colSpan={6} style={{ background: '#f5f7fa', fontWeight: 700 }}>{g.owner.code} {g.owner.name}</td></tr>
+                      <tr><td colSpan={6} style={{ background: 'var(--ec-bg-page)', fontWeight: 700 }}>{g.owner.code} {g.owner.name}</td></tr>
                     )}
                     {g.rows.map((n) => {
                       const it = itemById.get(String(n.componentId))
@@ -255,9 +255,9 @@ export default function RequirementCalcPage() {
                           <td>{n.componentCode}</td>
                           <td>{n.componentName}{n.componentSpec ? ` [${n.componentSpec}]` : ''}</td>
                           <td style={{ textAlign: 'right' }}>{won(Number(n.quantity))}</td>
-                          <td style={{ textAlign: 'right', color: onHand < Number(n.quantity) ? '#c60a2e' : undefined }}>{won(onHand)}</td>
+                          <td style={{ textAlign: 'right', color: onHand < Number(n.quantity) ? 'var(--ec-danger)' : undefined }}>{won(onHand)}</td>
                           <td>{partnerName(it?.supplierId)}</td>
-                          <td style={{ color: '#c60a2e', fontSize: 12 }}>{onHand < Number(n.quantity) ? `부족 ${won(Number(n.quantity) - onHand)}` : ''}</td>
+                          <td style={{ color: 'var(--ec-danger)', fontSize: 12 }}>{onHand < Number(n.quantity) ? `부족 ${won(Number(n.quantity) - onHand)}` : ''}</td>
                         </tr>
                       )
                     })}
@@ -282,7 +282,7 @@ export default function RequirementCalcPage() {
             <thead><tr><th style={{ width: 30 }} /><th>작업지시서일자</th><th>품목코드</th><th>품목명</th><th style={{ textAlign: 'right' }}>잔량</th></tr></thead>
             <tbody>
               {orders.length === 0 ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
               ) : orders.map((o) => (
                 <tr key={o.id} style={{ cursor: 'pointer' }} onClick={() => setPicked((p) => (p.includes(o.id) ? p.filter((x) => x !== o.id) : [...p, o.id]))}>
                   <td style={{ textAlign: 'center' }}><input type="checkbox" readOnly checked={picked.includes(o.id)} /></td>

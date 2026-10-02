@@ -51,7 +51,7 @@ interface Staged {
 
 const num = (n: number) => n.toLocaleString()
 const signed = (n: number) => (n > 0 ? `+${num(n)}` : num(n))
-const diffColor = (n: number) => (n < 0 ? '#c60a2e' : n > 0 ? 'var(--ec-blue)' : '#9aa1ab')
+const diffColor = (n: number) => (n < 0 ? 'var(--ec-danger)' : n > 0 ? 'var(--ec-blue)' : 'var(--ec-text-hint)')
 
 export default function StocktakeStatusPage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
@@ -291,17 +291,17 @@ export default function StocktakeStatusPage() {
         </EcCond>
       </EcStatusPanel>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
         {mode === '내역' ? '건수' : '품목×창고'}{' '}
-        <b style={{ color: '#3c4553' }}>{num(mode === '내역' ? shown.length : summary.length)}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+        <b style={{ color: 'var(--ec-text)' }}>{num(mode === '내역' ? shown.length : summary.length)}</b>
+        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
         차이 <b style={{ color: diffColor(totals.diff), fontSize: 14 }}>{signed(totals.diff)}</b>
         {mismatched > 0 && (
           <>
-            <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
-            안 맞은 줄 <b style={{ color: '#c60a2e', fontSize: 14 }}>{num(mismatched)}</b>
+            <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+            안 맞은 줄 <b style={{ color: 'var(--ec-danger)', fontSize: 14 }}>{num(mismatched)}</b>
           </>
         )}
       </div>
@@ -351,33 +351,33 @@ export default function StocktakeStatusPage() {
                 <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
               ) : shown.map((r, i) => (
                 <tr key={r.id} style={r.diff !== 0 ? { background: '#fdf7f8' } : undefined}>
-                  <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+                  <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                   {/* 원본은 일자와 번호를 한 칸에 적는다. */}
                   <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{r.requestDate.replace(/-/g, '/')} {r.adjustNo}</td>
                   <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
                   {/* 규격은 줄에 없고 품목 마스터가 든다 — id 로 잇는다. */}
                   <td>{r.itemName}{specOf(r.itemId) ? ` [${specOf(r.itemId)}]` : ''}</td>
                   <td>{r.warehouseName}</td>
-                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(r.bookQty)}</td>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(r.bookQty)}</td>
                   <td style={{ textAlign: 'right' }}>{num(r.actualQty)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 700, color: diffColor(r.diff) }}>
-                    {signed(r.diff)} <span style={{ fontSize: 11, fontWeight: 400, color: '#9aa1ab' }}>{r.unit}</span>
+                    {signed(r.diff)} <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--ec-text-hint)' }}>{r.unit}</span>
                   </td>
-                  <td style={{ textAlign: 'center', color: r.status === 'APPLIED' ? '#2f8401' : r.status === 'REJECTED' ? '#c60a2e' : '#b6791b' }}>
+                  <td style={{ textAlign: 'center', color: r.status === 'APPLIED' ? '#2f8401' : r.status === 'REJECTED' ? 'var(--ec-danger)' : '#b6791b' }}>
                     {r.statusName}
                   </td>
-                  <td style={{ color: '#5a626e' }}>{r.reason ?? ''}</td>
+                  <td style={{ color: 'var(--ec-label)' }}>{r.reason ?? ''}</td>
                 </tr>
               ))}
             </tbody>
             {shown.length > 0 && (
               <tfoot>
                 <tr>
-                  <td colSpan={5} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{num(totals.book)}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{num(totals.actual)}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: diffColor(totals.diff) }}>{signed(totals.diff)}</td>
-                  <td colSpan={2} style={{ background: '#f5f7fa' }}></td>
+                  <td colSpan={5} style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>합계</td>
+                  <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>{num(totals.book)}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>{num(totals.actual)}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: diffColor(totals.diff) }}>{signed(totals.diff)}</td>
+                  <td colSpan={2} style={{ background: 'var(--ec-bg-page)' }}></td>
                 </tr>
               </tfoot>
             )}
@@ -409,15 +409,15 @@ export default function StocktakeStatusPage() {
                 <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
               ) : summary.map((g, i) => (
                 <tr key={g.k} style={g.diff !== 0 ? { background: '#fdf7f8' } : undefined}>
-                  <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+                  <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                   <td>{g.warehouseName}</td>
                   <td style={{ fontFamily: 'monospace' }}>{g.itemCode}</td>
                   <td>{g.itemName}</td>
-                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(g.count)}</td>
-                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(g.book)}</td>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(g.count)}</td>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(g.book)}</td>
                   <td style={{ textAlign: 'right' }}>{num(g.actual)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 700, color: diffColor(g.diff) }}>
-                    {signed(g.diff)} <span style={{ fontSize: 11, fontWeight: 400, color: '#9aa1ab' }}>{g.unit}</span>
+                    {signed(g.diff)} <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--ec-text-hint)' }}>{g.unit}</span>
                   </td>
                 </tr>
               ))}
@@ -425,10 +425,10 @@ export default function StocktakeStatusPage() {
             {summary.length > 0 && (
               <tfoot>
                 <tr>
-                  <td colSpan={5} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{num(totals.book)}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{num(totals.actual)}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: diffColor(totals.diff) }}>{signed(totals.diff)}</td>
+                  <td colSpan={5} style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>합계</td>
+                  <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>{num(totals.book)}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>{num(totals.actual)}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: diffColor(totals.diff) }}>{signed(totals.diff)}</td>
                 </tr>
               </tfoot>
             )}

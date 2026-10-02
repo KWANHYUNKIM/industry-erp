@@ -19,9 +19,9 @@ const TABS: { label: string; type: CheckType }[] = [
 
 const STATUS_COLOR: Record<BankCheck['status'], string> = {
   HELD: 'var(--ec-blue)',
-  DEPOSITED: '#1c7c3c',
-  PAID: '#1c7c3c',
-  DISHONORED: '#c60a2e',
+  DEPOSITED: 'var(--ec-success)',
+  PAID: 'var(--ec-success)',
+  DISHONORED: 'var(--ec-danger)',
 }
 
 /**
@@ -128,12 +128,12 @@ export default function CheckPage() {
         {TABS.map((t) => (
           <button key={t.type} onClick={() => { setType(t.type); setShowForm(false); setError('') }} className="no-ec" style={{
             padding: '6px 14px', fontSize: 12.5, border: 'none', cursor: 'pointer',
-            background: type === t.type ? '#fff' : 'transparent', color: type === t.type ? 'var(--ec-blue)' : '#5a626e',
+            background: type === t.type ? '#fff' : 'transparent', color: type === t.type ? 'var(--ec-blue)' : 'var(--ec-label)',
             fontWeight: type === t.type ? 700 : 400,
             borderBottom: type === t.type ? '2px solid var(--ec-blue)' : '2px solid transparent',
           }}>{t.label} ({count(t.type)})</button>
         ))}
-        <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 12, color: '#5a626e' }}>
+        <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 12, color: 'var(--ec-label)' }}>
           미처리 {held.length}건 · <b style={{ color: 'var(--ec-blue-dark)' }}>{won(heldTotal)}</b>
         </span>
       </div>
@@ -142,7 +142,7 @@ export default function CheckPage() {
         화면 조건 판의 <b>[기간]</b>. 서버가 이 구간만 준다 — 전에는 전 기간을 통째로 받았다.
         비워 두면 전 기간이다(미결제 건은 오래된 것이 살아 있어 기본으로 자르지 않는다).
       */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)' }}>
         <span>기간</span>
         <input type="date" className="ec-input" value={from2}
                onChange={(e) => setFrom2(e.target.value)} style={{ width: 140 }} />
@@ -151,8 +151,8 @@ export default function CheckPage() {
                onChange={(e) => setTo2(e.target.value)} style={{ width: 140 }} />
       </div>
 
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)' }}>{notice}</div>}
 
       <Modal error={error} open={showForm} title="수표 등록" onClose={() => setShowForm(false)}>{(
         <CheckForm
@@ -179,18 +179,18 @@ export default function CheckPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((c, i) => (
             <tr key={c.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{c.checkNo}</td>
               <td>{dateText(c.issueDate)}</td>
               <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(c.amount)}</td>
               <td>{c.bankName ?? ''}</td>
               <td>{c.partnerName ?? ''}</td>
-              <td style={{ color: '#5a626e' }}>{c.bankAccountName ?? ''}</td>
+              <td style={{ color: 'var(--ec-label)' }}>{c.bankAccountName ?? ''}</td>
               <td style={{ textAlign: 'center', color: STATUS_COLOR[c.status], fontWeight: 600 }}>{c.statusName}</td>
               <td>{dateText(c.settledDate) || ''}</td>
               <td style={{ textAlign: 'center' }}>
@@ -199,7 +199,7 @@ export default function CheckPage() {
                     {c.type === 'RECEIVED' ? (
                       <>
                         <button className="ec-btn ec-btn-primary" style={{ height: 20, padding: '0 8px' }} onClick={() => deposit(c)}>입금</button>
-                        <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => act(c, 'dishonor', '부도')}>부도</button>
+                        <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: 'var(--ec-danger)' }} onClick={() => act(c, 'dishonor', '부도')}>부도</button>
                       </>
                     ) : (
                       <button className="ec-btn ec-btn-primary" style={{ height: 20, padding: '0 8px' }} onClick={() => act(c, 'settle', '결제 확인')}>결제확인</button>
@@ -207,7 +207,7 @@ export default function CheckPage() {
                   </div>
                 )}
               </td>
-              <td style={{ color: '#5a626e' }}>{c.remark ?? ''}</td>
+              <td style={{ color: 'var(--ec-label)' }}>{c.remark ?? ''}</td>
             </tr>
           ))}
         </tbody>
@@ -290,7 +290,7 @@ function CheckForm({ type, banks, partners, onError, onSaved }: {
         </Field>
         <button className="ec-btn ec-btn-primary" onClick={submit} disabled={saving}>{saving ? '저장 중…' : '저장(F8)'}</button>
       </div>
-      <div style={{ marginTop: 8, fontSize: 11.5, color: '#8a929c' }}>
+      <div style={{ marginTop: 8, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
         {isIssued
           ? '※ 차)외상매입금 / 대)발행계좌의 예금계정으로 분개되고, 발행하는 순간 계좌 잔액이 줄어듭니다. 나중에 은행 인출이 확인되면 결제확인만 누르면 됩니다(회계는 이미 반영).'
           : '※ 차)받을수표 / 대)외상매출금으로 분개됩니다. 나중에 계좌에 입금하면 예금이 늘고 받을수표가 없어집니다. 부도가 나면 현금 없이 외상매출금으로 되돌아갑니다.'}
@@ -302,7 +302,7 @@ function CheckForm({ type, banks, partners, onError, onSaved }: {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label style={{ fontSize: 12.5 }}>
-      <div style={{ color: '#5a626e', marginBottom: 3 }}>{label}</div>
+      <div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>{label}</div>
       {children}
     </label>
   )

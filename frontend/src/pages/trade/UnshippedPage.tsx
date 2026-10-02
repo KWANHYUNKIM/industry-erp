@@ -431,15 +431,15 @@ export default function UnshippedPage() {
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
         미출하 라인 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{shown.length}</b>건
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-        미출하수량 합계 <b style={{ color: '#c60a2e', fontSize: 14 }}>{totalUnshipped.toLocaleString()}</b>
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
+        미출하수량 합계 <b style={{ color: 'var(--ec-danger)', fontSize: 14 }}>{totalUnshipped.toLocaleString()}</b>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       {notice && (
-        <p style={{ background: '#eef5ff', color: '#2b5b91', border: '1px solid #cfe0f5', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8, display: 'flex', alignItems: 'center' }}>
+        <p style={{ background: 'var(--ec-blue-wash)', color: 'var(--ec-navy)', border: '1px solid var(--ec-info-line)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8, display: 'flex', alignItems: 'center' }}>
           {notice}
           <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => navigate('/sales/shipment-order')}>출하지시서로 이동</button>
         </p>
@@ -461,17 +461,17 @@ export default function UnshippedPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : byItem.length === 0 ? (
-              <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : byItem.map((g, i) => (
               <tr key={g.itemId}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{g.itemCode}</td>
                 <td>{nameSpec(g)}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{g.orderCount.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{g.orderCount.toLocaleString()}</td>
                 <td style={{ textAlign: 'right' }}>{g.orderQty.toLocaleString()} {g.unit}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, color: g.unshippedQty > 0 ? '#c60a2e' : '#8a929c' }}>
+                <td style={{ textAlign: 'right', fontWeight: 700, color: g.unshippedQty > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>
                   {g.unshippedQty.toLocaleString()}
                 </td>
               </tr>
@@ -482,7 +482,7 @@ export default function UnshippedPage() {
               <td colSpan={3} style={{ textAlign: 'right' }}>합계 ({byItem.length}품목)</td>
               <td style={{ textAlign: 'right' }}>{byItem.reduce((a, g) => a + g.orderCount, 0).toLocaleString()}</td>
               <td style={{ textAlign: 'right' }}>{byItem.reduce((a, g) => a + g.orderQty, 0).toLocaleString()}</td>
-              <td style={{ textAlign: 'right', color: '#c60a2e' }}>{totalUnshipped.toLocaleString()}</td>
+              <td style={{ textAlign: 'right', color: 'var(--ec-danger)' }}>{totalUnshipped.toLocaleString()}</td>
             </tr>
           </tfoot>
         </table>
@@ -510,20 +510,20 @@ export default function UnshippedPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={`${r.orderId}-${r.itemId}-${i}`}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{dateText(r.orderDate)} {r.orderNo}</td>
               <td>[{r.itemCode}] {nameSpec(r)}</td>
               <td style={{ textAlign: 'right' }}>{r.orderQty.toLocaleString()} {r.unit}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700, color: r.unshippedQty > 0 ? '#c60a2e' : '#8a929c' }}>{r.unshippedQty.toLocaleString()}</td>
+              <td style={{ textAlign: 'right', fontWeight: 700, color: r.unshippedQty > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>{r.unshippedQty.toLocaleString()}</td>
               <td>{r.warehouseName ?? ''}</td>
               <td>{r.partnerName}</td>
-              <td style={{ color: '#8a929c' }}>{r.remark ?? ''}</td>
-              <td style={{ fontFamily: 'monospace', textAlign: 'center', color: r.dueDate ? 'var(--ec-text)' : '#9aa1ab' }}>{dateText(r.dueDate) || ''}</td>
+              <td style={{ color: 'var(--ec-text-hint)' }}>{r.remark ?? ''}</td>
+              <td style={{ fontFamily: 'monospace', textAlign: 'center', color: r.dueDate ? 'var(--ec-text)' : 'var(--ec-text-hint)' }}>{dateText(r.dueDate) || ''}</td>
               <td style={{ textAlign: 'center', color: statusColor(r.status), fontWeight: 700 }}>{r.statusName}</td>
               <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                 <input

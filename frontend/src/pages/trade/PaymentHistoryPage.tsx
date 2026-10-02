@@ -187,8 +187,8 @@ export default function PaymentHistoryPage() {
                            // 원본 [입금보고서작성] — FastEntry 의 입금보고서로 넘긴다.
                            { label: '입금보고서작성', onClick: () => navigate('/accounting/vouchers?type=DEPOSIT_REPORT') },
                            { label: 'Excel' }]}>
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {ok && <p style={{ background: '#eaf5ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {ok && <p style={{ background: '#eaf5ec', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
 
       <EcStatusPanel from={cond.from} to={cond.to} dateLabel="전표일자"
                      onPeriod={(r) => setC({ from: r.from, to: r.to })}>
@@ -220,10 +220,10 @@ export default function PaymentHistoryPage() {
                 onClick={() => reflect(false)}>회계반영</button>
         <button className="ec-btn" disabled={picked.length === 0}
                 onClick={() => reflect(true)}>반영취소</button>
-        <span style={{ fontSize: 11.5, color: '#8a929c' }}>
+        <span style={{ fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
           수금 차)현금·예금 / 대)외상매출금 · 지급 차)외상매입금 / 대)현금·예금
         </span>
-        <span style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>
+        <span style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--ec-label)' }}>
           합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{total.toLocaleString()}</b>
         </span>
       </div>
@@ -257,29 +257,29 @@ export default function PaymentHistoryPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ textAlign: 'center' }}>
                 <input type="checkbox" checked={picked.includes(r.id)} onChange={() => toggle(r.id)} />
               </td>
               <td style={{ fontFamily: 'monospace' }}>
                 {r.slipDate}
                 {r.createdAt && (
-                  <span style={{ color: '#9aa1ab', marginLeft: 4 }}>{r.createdAt.slice(11, 16)}</span>
+                  <span style={{ color: 'var(--ec-text-hint)', marginLeft: 4 }}>{r.createdAt.slice(11, 16)}</span>
                 )}
               </td>
-              <td style={{ color: '#5a626e', fontSize: 11.5 }}>{r.createdBy ?? ''}</td>
+              <td style={{ color: 'var(--ec-label)', fontSize: 11.5 }}>{r.createdBy ?? ''}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.docNo}</td>
               <td>{r.partnerName}</td>
-              <td style={{ textAlign: 'center', fontWeight: 700, color: r.vatType === '수금' ? '#1c7c3c' : '#c60a2e' }}>{r.vatType}</td>
+              <td style={{ textAlign: 'center', fontWeight: 700, color: r.vatType === '수금' ? 'var(--ec-success)' : 'var(--ec-danger)' }}>{r.vatType}</td>
               <td style={{ textAlign: 'right' }}>{r.totalAmount.toLocaleString()}</td>
               <td>{r.methodText || ''}</td>
               <td style={{ textAlign: 'center', fontWeight: 700, fontSize: 11.5,
-                           color: r.reflected ? '#1c7c3c' : '#c07a00' }}>
+                           color: r.reflected ? 'var(--ec-success)' : 'var(--ec-warn)' }}>
                 {r.reflected ? '반영' : '미반영'}
               </td>
               {/* 원본 [회계전표No.]. 반영했다는 표시만 있고 어느 분개인지 없으면 찾아갈 길이 없다. */}
@@ -287,9 +287,9 @@ export default function PaymentHistoryPage() {
                 {r.journalDocNo ? (
                   <Link to={`/accounting/journals?entryId=${r.journalEntryId}`}
                         style={{ color: 'var(--ec-blue)' }}>{r.journalDocNo}</Link>
-                ) : <span style={{ color: '#c9ced6' }}>—</span>}
+                ) : <span style={{ color: 'var(--ec-text-off)' }}>—</span>}
               </td>
-              <td style={{ color: '#8a929c' }}>{r.note ?? ''}</td>
+              <td style={{ color: 'var(--ec-text-hint)' }}>{r.note ?? ''}</td>
               <td style={{ textAlign: 'center' }}>
                 <button onClick={() => printReceipt(r)} style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>
                   {r.vatType === '수금' ? '영수증' : '지급증'}

@@ -113,14 +113,14 @@ export default function NonCashPage() {
         {(['전체', ...TYPES.map((t) => t.type)] as const).map((t) => (
           <button key={t} onClick={() => setFilter(t)} className="no-ec" style={{
             padding: '6px 14px', fontSize: 12.5, border: 'none', cursor: 'pointer',
-            background: filter === t ? '#fff' : 'transparent', color: filter === t ? 'var(--ec-blue)' : '#5a626e',
+            background: filter === t ? '#fff' : 'transparent', color: filter === t ? 'var(--ec-blue)' : 'var(--ec-label)',
             fontWeight: filter === t ? 700 : 400,
             borderBottom: filter === t ? '2px solid var(--ec-blue)' : '2px solid transparent',
           }}>
             {t === '전체' ? '전체' : TYPES.find((x) => x.type === t)!.label} ({count(t)})
           </button>
         ))}
-        <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 11.5, color: '#8a929c' }}>
+        <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
           현금·예금이 움직이는 거래는 현금거래·계좌입출금 화면에서 처리합니다.
         </span>
       </div>
@@ -129,7 +129,7 @@ export default function NonCashPage() {
         화면 조건 판의 <b>[기간]</b>. 서버가 이 구간만 준다 — 전에는 전 기간을 통째로 받았다.
         비워 두면 전 기간이다(미결제 건은 오래된 것이 살아 있어 기본으로 자르지 않는다).
       */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)' }}>
         <span>기간</span>
         <input type="date" className="ec-input" value={from2}
                onChange={(e) => setFrom2(e.target.value)} style={{ width: 140 }} />
@@ -138,11 +138,11 @@ export default function NonCashPage() {
                onChange={(e) => setTo2(e.target.value)} style={{ width: 140 }} />
       </div>
 
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {cut.truncated && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#fff8e1', border: '1px solid #f0d58a', color: '#7a5b00' }}>
+      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {cut.truncated && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-warn-bg)', border: '1px solid #f0d58a', color: '#7a5b00' }}>
         기간 안에 {cut.total.toLocaleString()}건 — 앞 5,000건만 보입니다. 기간을 좁히거나 [오천건이상조회] 를 누르세요.
       </div>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)' }}>{notice}</div>}
 
       <Modal error={error} open={showForm} title="비현금거래 (대체전표) 등록" onClose={() => setShowForm(false)}>{(
         <NonCashForm
@@ -168,21 +168,21 @@ export default function NonCashPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((t, i) => (
             <tr key={t.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{t.txnNo}</td>
               <td>{dateText(t.txnDate)}</td>
               <td style={{ color: 'var(--ec-blue)' }}>{t.typeName}</td>
               <td>{t.debitAccountCode} {t.debitAccountName}</td>
-              <td style={{ color: '#5a626e' }}>{t.creditAccountCode} {t.creditAccountName}</td>
+              <td style={{ color: 'var(--ec-label)' }}>{t.creditAccountCode} {t.creditAccountName}</td>
               <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(t.amount)}</td>
               <td>{t.partnerName ?? ''}</td>
               <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{t.journalDocNo ?? ''}</td>
-              <td style={{ color: '#5a626e' }}>{t.description ?? ''}</td>
+              <td style={{ color: 'var(--ec-label)' }}>{t.description ?? ''}</td>
             </tr>
           ))}
         </tbody>
@@ -249,7 +249,7 @@ function NonCashForm({ accounts, partners, onError, onSaved }: {
 
         {conf.debit === 'fixed' ? (
           <Field label="차변">
-            <div className="ec-input" style={{ width: 160, background: '#f5f7fa', color: '#5a626e', lineHeight: '22px' }}>
+            <div className="ec-input" style={{ width: 160, background: 'var(--ec-bg-page)', color: 'var(--ec-label)', lineHeight: '22px' }}>
               {type === 'OFFSET' ? '251 외상매입금' : '835 대손상각비'}
             </div>
           </Field>
@@ -264,7 +264,7 @@ function NonCashForm({ accounts, partners, onError, onSaved }: {
 
         {conf.credit === 'fixed' ? (
           <Field label="대변">
-            <div className="ec-input" style={{ width: 160, background: '#f5f7fa', color: '#5a626e', lineHeight: '22px' }}>
+            <div className="ec-input" style={{ width: 160, background: 'var(--ec-bg-page)', color: 'var(--ec-label)', lineHeight: '22px' }}>
               {type === 'ACCRUAL' ? '253 미지급금' : '108 외상매출금'}
             </div>
           </Field>
@@ -289,7 +289,7 @@ function NonCashForm({ accounts, partners, onError, onSaved }: {
         </Field>
         <button className="ec-btn ec-btn-primary" onClick={submit} disabled={saving}>{saving ? '저장 중…' : '저장(F8)'}</button>
       </div>
-      <div style={{ marginTop: 8, fontSize: 11.5, color: '#8a929c' }}>
+      <div style={{ marginTop: 8, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
         ※ {conf.label} → <b>{conf.formula}</b> 로 분개됩니다. 현금·당좌예금·보통예금은 선택할 수 없습니다(현금이 움직이면 비현금거래가 아닙니다).
       </div>
     </div>
@@ -300,7 +300,7 @@ function NonCashForm({ accounts, partners, onError, onSaved }: {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ fontSize: 12.5 }}>
-      <div style={{ color: '#5a626e', marginBottom: 3 }}>{label}</div>
+      <div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>{label}</div>
       {children}
     </div>
   )

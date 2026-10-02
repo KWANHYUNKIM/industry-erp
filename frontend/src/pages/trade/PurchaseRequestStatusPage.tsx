@@ -39,8 +39,8 @@ const STATUS_LABEL: Record<PurchaseOrderStatus, string> = {
   ORDERED: '발주확정', RECEIVED: '입고전환', CANCELLED: '취소',
 }
 const STATUS_COLOR: Record<PurchaseOrderStatus, string> = {
-  REQUESTED: '#c07a00', PLANNED: '#8a929c', PRICED: '#7a5bb5',
-  ORDERED: 'var(--ec-blue)', RECEIVED: '#1c7c3c', CANCELLED: '#9aa1ab',
+  REQUESTED: 'var(--ec-warn)', PLANNED: 'var(--ec-text-hint)', PRICED: '#7a5bb5',
+  ORDERED: 'var(--ec-blue)', RECEIVED: 'var(--ec-success)', CANCELLED: 'var(--ec-text-hint)',
 }
 
 interface SummaryRow {
@@ -418,7 +418,7 @@ export default function PurchaseRequestStatusPage({
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       {/* 발주 파이프라인 집계 카드 — 클릭하면 해당 상태로 전환 */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
@@ -432,18 +432,18 @@ export default function PurchaseRequestStatusPage({
               style={{
                 flex: '1 1 0', minWidth: 130, textAlign: 'left', cursor: 'pointer',
                 border: active ? `1.5px solid ${STATUS_COLOR[st]}` : '1px solid #d9dee5',
-                background: active ? '#fff' : '#fbfcfe',
+                background: active ? '#fff' : 'var(--ec-bg-page)',
                 borderRadius: 5, padding: '8px 12px',
-                boxShadow: active ? `0 1px 4px ${STATUS_COLOR[st]}22` : 'none',
+                boxShadow: active ? `0 1px 4px color-mix(in srgb, ${STATUS_COLOR[st]} 13%, transparent)` : 'none',
               }}
             >
               <div style={{ fontSize: 11.5, fontWeight: 700, color: STATUS_COLOR[st], marginBottom: 3 }}>
                 {STATUS_LABEL[st]}
               </div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: '#3c4553', lineHeight: 1 }}>
-                {(s?.count ?? 0).toLocaleString()}<span style={{ fontSize: 11, fontWeight: 400, color: '#9aa1ab' }}> 건</span>
+              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--ec-text)', lineHeight: 1 }}>
+                {(s?.count ?? 0).toLocaleString()}<span style={{ fontSize: 11, fontWeight: 400, color: 'var(--ec-text-hint)' }}> 건</span>
               </div>
-              <div style={{ fontSize: 11, color: '#8a929c', marginTop: 3 }}>
+              <div style={{ fontSize: 11, color: 'var(--ec-text-hint)', marginTop: 3 }}>
                 {(s?.supplyAmount ?? 0).toLocaleString()}
               </div>
             </button>
@@ -664,16 +664,16 @@ export default function PurchaseRequestStatusPage({
       </EcStatusPanel>
 
       {prevTotals && (
-        <div style={{ marginBottom: 8, fontSize: 12.5, textAlign: 'right', color: '#5a626e' }}>
+        <div style={{ marginBottom: 8, fontSize: 12.5, textAlign: 'right', color: 'var(--ec-label)' }}>
           <span style={{ color: 'var(--ec-label)' }}>
             비교기간({prevRange!.from.replace(/-/g, '/')} ~ {prevRange!.to.replace(/-/g, '/')})
           </span>
-          <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+          <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
           건수 {prevTotals.count.toLocaleString()} → {shown.length.toLocaleString()}
-          <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+          <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
           공급가액 {prevTotals.supply.toLocaleString()} → {totals.supply.toLocaleString()}
           {prevTotals.supply > 0 && (
-            <span style={{ marginLeft: 4, color: totals.supply >= prevTotals.supply ? '#1c7c3c' : '#c60a2e' }}>
+            <span style={{ marginLeft: 4, color: totals.supply >= prevTotals.supply ? 'var(--ec-success)' : 'var(--ec-danger)' }}>
               ({totals.supply >= prevTotals.supply ? '+' : ''}
               {Math.round(((totals.supply - prevTotals.supply) / prevTotals.supply) * 100)}%)
             </span>
@@ -681,15 +681,15 @@ export default function PurchaseRequestStatusPage({
         </div>
       )}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
         <span style={{ color: STATUS_COLOR[status], fontWeight: 700 }}>{STATUS_LABEL[status]}</span>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
-        건수 <b style={{ color: '#3c4553' }}>{shown.length.toLocaleString()}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
-        수량 <b style={{ color: '#3c4553', fontSize: 14 }}>{totals.qty.toLocaleString()}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+        건수 <b style={{ color: 'var(--ec-text)' }}>{shown.length.toLocaleString()}</b>
+        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+        수량 <b style={{ color: 'var(--ec-text)', fontSize: 14 }}>{totals.qty.toLocaleString()}</b>
+        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
         공급가액 <b style={{ color: '#1c6b32', fontSize: 14 }}>{totals.supply.toLocaleString()}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
         부가세 <b style={{ color: '#1c6b32', fontSize: 14 }}>{totals.vat.toLocaleString()}</b>
       </div>
       {view === '그래프' ? (
@@ -717,12 +717,12 @@ export default function PurchaseRequestStatusPage({
               <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
             ) : grouped.map((g, i) => (
               <tr key={g.partner}>
-                <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td>{g.partner}</td>
                 <td style={{ textAlign: 'right' }}>{g.count.toLocaleString()}</td>
                 <td style={{ textAlign: 'right' }}>{g.qty.toLocaleString()}</td>
                 <td style={{ textAlign: 'right' }}>{g.supply.toLocaleString()}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{g.vat.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{g.vat.toLocaleString()}</td>
               </tr>
             ))}
           </tbody>
@@ -776,27 +776,27 @@ export default function PurchaseRequestStatusPage({
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
+            <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>
               {rows.length === 0 ? `${STATUS_LABEL[status]} 상태의 발주서가 없습니다.` : '검색조건에 맞는 자료가 없습니다.'}
             </td></tr>
           ) : sort.sorted.map((r, i) => (
             <tr key={r.key}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{dateText(r.date)} {r.orderNo}</td>
-              <td style={{ fontFamily: 'monospace', color: r.dueDate ? '#5a626e' : '#c5cbd3' }}>{dateText(r.dueDate) || ''}</td>
-              <td style={{ color: r.warehouse ? undefined : '#c5cbd3' }}>{r.warehouse || ''}</td>
-              <td style={{ color: r.employee ? undefined : '#c5cbd3' }}>{r.employee || ''}</td>
+              <td style={{ fontFamily: 'monospace', color: r.dueDate ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{dateText(r.dueDate) || ''}</td>
+              <td style={{ color: r.warehouse ? undefined : 'var(--ec-text-off)' }}>{r.warehouse || ''}</td>
+              <td style={{ color: r.employee ? undefined : 'var(--ec-text-off)' }}>{r.employee || ''}</td>
               {/* 규격을 감싸는 꼴을 머리와 맞춘다 — 화면마다 다르다. */}
               <td>{r.itemName}{r.spec ? (title === '발주요청현황' ? ` (${r.spec})` : ` [${r.spec}]`) : ''}</td>
               <td style={{ textAlign: 'right' }}>{r.qty.toLocaleString()}</td>
               <td style={{ textAlign: 'right' }}>{r.unitPrice.toLocaleString()}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: '#1c6b32' }}>{r.supply.toLocaleString()}</td>
               <td>{r.partner}</td>
-              <td style={{ textAlign: 'right', color: '#8a929c' }}>{r.vat.toLocaleString()}</td>
-              <td style={{ color: r.ref ? '#5a626e' : '#c5cbd3' }}>{r.ref || ''}</td>
-              <td style={{ color: '#8a929c' }}>{r.remark}</td>
+              <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{r.vat.toLocaleString()}</td>
+              <td style={{ color: r.ref ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{r.ref || ''}</td>
+              <td style={{ color: 'var(--ec-text-hint)' }}>{r.remark}</td>
             </tr>
           ))}
         </tbody>

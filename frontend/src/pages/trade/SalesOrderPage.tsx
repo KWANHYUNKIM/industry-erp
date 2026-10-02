@@ -15,7 +15,7 @@ import { dateText } from '../../utils/dateText'
 
 type OrderStatus = 'RECEIVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED'
 const STATUS_LABEL: Record<OrderStatus, string> = { RECEIVED: '접수', IN_PROGRESS: '진행중', COMPLETED: '완료', CANCELED: '취소' }
-const STATUS_COLOR: Record<OrderStatus, string> = { RECEIVED: '#c07a00', IN_PROGRESS: 'var(--ec-blue)', COMPLETED: '#1c7c3c', CANCELED: '#8a929c' }
+const STATUS_COLOR: Record<OrderStatus, string> = { RECEIVED: 'var(--ec-warn)', IN_PROGRESS: 'var(--ec-blue)', COMPLETED: 'var(--ec-success)', CANCELED: 'var(--ec-text-hint)' }
 const NEXT: Record<OrderStatus, OrderStatus | null> = { RECEIVED: 'IN_PROGRESS', IN_PROGRESS: 'COMPLETED', COMPLETED: null, CANCELED: null }
 
 interface OrderLine { itemId: number; itemName: string; unit: string; quantity: number; unitPrice: number; supplyAmount: number; vatAmount: number }
@@ -174,7 +174,7 @@ export default function SalesOrderPage() {
   const shown = byUpdated ? [...shownRows].sort((a, b) => ((a.updatedAt ?? '') < (b.updatedAt ?? '') ? 1 : (a.updatedAt ?? '') > (b.updatedAt ?? '') ? -1 : 0)) : sort.sorted
 
   const inputCls = 'ec-input'
-  const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 74 }
+  const th: React.CSSProperties = { background: 'var(--ec-bg-page)', fontWeight: 700, whiteSpace: 'nowrap', width: 74 }
 
 
   /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
@@ -268,7 +268,7 @@ export default function SalesOrderPage() {
             <tbody>
               {lines.map((l, idx) => (
                 <tr key={idx}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
+                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{idx + 1}</td>
                   <td>
                     <CodePickerField label="품목" hideLabel fill placeholder="품목 선택" emptyLabel="선택 해제"
                                      value={String(l.itemId)} onChange={(v) => updateLine(idx, 'itemId', v)}
@@ -277,18 +277,18 @@ export default function SalesOrderPage() {
                   <td><input type="number" className={`${inputCls} text-right`} style={{ width: '100%' }} value={l.quantity} onChange={(e) => updateLine(idx, 'quantity', e.target.value)} /></td>
                   <td><input type="number" className={`${inputCls} text-right`} style={{ width: '100%' }} value={l.unitPrice} onChange={(e) => updateLine(idx, 'unitPrice', e.target.value)} /></td>
                   <td style={{ textAlign: 'right' }}>{won(computed[idx].supply)}</td>
-                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(computed[idx].vat)}</td>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{won(computed[idx].vat)}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
-              <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+              <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
                 <td colSpan={4} style={{ textAlign: 'right' }}>합계</td>
                 <td style={{ textAlign: 'right' }}>{won(totals.supply)}</td>
                 {/* 부가세 열 아래에 부가세 포함 합계가 서 있었다(23회차) — 열마다 제 합을, 총액은 따로 한 줄. */}
                 <td style={{ textAlign: 'right' }}>{won(totals.vat)}</td>
               </tr>
-              <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+              <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
                 <td colSpan={4} style={{ textAlign: 'right' }}>합계금액 (부가세 포함)</td>
                 <td colSpan={2} style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(totals.total)}</td>
               </tr>
@@ -337,7 +337,7 @@ export default function SalesOrderPage() {
         {(['ALL', 'RECEIVED', 'IN_PROGRESS', 'COMPLETED', 'CANCELED'] as const).map((s) => (
           <button key={s} onClick={() => setStatusFilter(s)} className="no-ec" style={{
             padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
-            background: statusFilter === s ? 'var(--ec-blue)' : '#fff', color: statusFilter === s ? '#fff' : '#3a4453', fontWeight: statusFilter === s ? 700 : 400,
+            background: statusFilter === s ? 'var(--ec-blue)' : '#fff', color: statusFilter === s ? '#fff' : 'var(--ec-text)', fontWeight: statusFilter === s ? 700 : 400,
           }}>{s === 'ALL' ? '전체' : STATUS_LABEL[s]} ({s === 'ALL' ? orders.length : orders.filter((o) => o.status === s).length})</button>
         ))}
       </div>
@@ -359,10 +359,10 @@ export default function SalesOrderPage() {
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: "center", color: "#9aa1ab", padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: "center", color: "var(--ec-text-hint)", padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((o, i) => (
             <tr key={o.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{dateText(o.orderDate)} {o.orderNo}</td>
               <td>{o.partnerName}</td>
               <td>{o.employeeName ?? ''}</td>
@@ -370,12 +370,12 @@ export default function SalesOrderPage() {
               <td>{dateText(o.dueDate) || ''}</td>
               <td style={{ textAlign: 'right' }}>{won(o.totalAmount)}</td>
               <td style={{ textAlign: 'center', color: STATUS_COLOR[o.status], fontWeight: 700 }}>{o.statusName}</td>
-              <td style={{ color: '#5a626e' }}>{o.warehouseName ?? ''}</td>
-              <td style={{ color: '#5a626e' }}>{o.projectName ?? ''}</td>
+              <td style={{ color: 'var(--ec-label)' }}>{o.warehouseName ?? ''}</td>
+              <td style={{ color: 'var(--ec-label)' }}>{o.projectName ?? ''}</td>
               <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                 {NEXT[o.status] && <button className="no-ec" onClick={() => advance(o)} style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>→ {STATUS_LABEL[NEXT[o.status]!]}</button>}
-                {o.status !== 'COMPLETED' && o.status !== 'CANCELED' && <button className="no-ec" onClick={() => cancel(o)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>취소</button>}
-                <button className="no-ec" onClick={() => remove(o)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                {o.status !== 'COMPLETED' && o.status !== 'CANCELED' && <button className="no-ec" onClick={() => cancel(o)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>취소</button>}
+                <button className="no-ec" onClick={() => remove(o)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button>
               </td>
             </tr>
           ))}

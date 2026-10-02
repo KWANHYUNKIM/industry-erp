@@ -133,27 +133,27 @@ export default function MallItemMappingPage() {
     >
       <p className="mb-2 text-xs text-slate-500">(쇼핑몰, 몰품목코드) → 우리 품목 매핑. 주문 수집 시 품목이 지정되지 않으면 이 매핑으로 자동 연결됩니다.</p>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {ok && <p style={{ background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {ok && <p style={{ background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
 
       <Modal error={error} open={showForm} title={editId ? '품목코드연결 수정' : '품목코드연결 등록'} onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginTop: 8, marginBottom: 8 }}>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>쇼핑몰 *</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>쇼핑몰 *</div>
               <input className={inputCls} value={form.mall} disabled={!!editId} onChange={(e) => set('mall', e.target.value)} style={{ width: 150 }} placeholder="예: 스마트스토어" list="mapping-mall-list" />
               <datalist id="mapping-mall-list">{malls.map((m) => <option key={m.code} value={m.name} />)}</datalist></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>몰품목코드 *</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>몰품목코드 *</div>
               <input className={inputCls} value={form.mallProductCode} disabled={!!editId} onChange={(e) => set('mallProductCode', e.target.value)} style={{ width: 160 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>몰상품명</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>몰상품명</div>
               <input className={inputCls} value={form.mallProductName} onChange={(e) => set('mallProductName', e.target.value)} style={{ width: 200 }} /></label>
             {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). label 로 감싸면 팝업 행 클릭이 안 먹어 div 로. */}
-            <div style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>연결 품목 *</div>
+            <div style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>연결 품목 *</div>
               <CodePickerField label="연결 품목" hideLabel width={220} placeholder="품목" emptyLabel="선택 해제"
                                value={form.itemId} onChange={(v) => set('itemId', v)}
                                items={items.filter((it) => it.active !== false || String(it.id) === form.itemId).map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))} /></div>
             <button type="submit" className="ec-btn ec-btn-primary">{editId ? '수정' : '저장'}</button>
           </div>
-          {editId && <p style={{ fontSize: 11.5, color: '#8a929c', marginTop: 8 }}>쇼핑몰·몰품목코드는 키라 수정할 수 없습니다. 바꾸려면 삭제 후 재등록하세요.</p>}
+          {editId && <p style={{ fontSize: 11.5, color: 'var(--ec-text-hint)', marginTop: 8 }}>쇼핑몰·몰품목코드는 키라 수정할 수 없습니다. 바꾸려면 삭제 후 재등록하세요.</p>}
         </form>
       )}</Modal>
 
@@ -201,27 +201,27 @@ export default function MallItemMappingPage() {
         </tr></thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>연결된 품목코드가 없습니다. 우측 상단에서 등록하세요.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>연결된 품목코드가 없습니다. 우측 상단에서 등록하세요.</td></tr>
           ) : shown.map((m, i) => (
             <tr key={m.id} style={{ opacity: m.active ? 1 : 0.5 }}>
               <td style={{ textAlign: 'center' }}>
                 <input type="checkbox" checked={picked.has(m.id)} onChange={() => pick(m.id)} />
               </td>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace', color: mallCodeOf(m.mall) ? '#5a626e' : '#c9ced6' }}>{mallCodeOf(m.mall) || ''}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+              <td style={{ fontFamily: 'monospace', color: mallCodeOf(m.mall) ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{mallCodeOf(m.mall) || ''}</td>
               <td>{m.mall}</td>
-              <td style={{ fontFamily: 'monospace', color: '#8a929c' }}>{m.itemCode}</td>
+              <td style={{ fontFamily: 'monospace', color: 'var(--ec-text-hint)' }}>{m.itemCode}</td>
               <td>{m.itemName}</td>
               <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{m.mallProductCode}</td>
-              <td style={{ color: '#6b7280' }}>{m.mallProductName ?? ''}</td>
+              <td style={{ color: 'var(--ec-text-muted)' }}>{m.mallProductName ?? ''}</td>
               <td style={{ textAlign: 'center' }}>
-                <button className="no-ec" onClick={() => toggleActive(m)} style={{ border: '1px solid var(--ec-border)', background: m.active ? '#eaf6ec' : '#f2f3f5', color: m.active ? '#1c7c3c' : '#8a929c', cursor: 'pointer', fontSize: 11.5, padding: '2px 8px', borderRadius: 3 }}>{m.active ? '사용' : '중단'}</button>
+                <button className="no-ec" onClick={() => toggleActive(m)} style={{ border: '1px solid var(--ec-border)', background: m.active ? 'var(--ec-success-bg)' : 'var(--ec-bg-page)', color: m.active ? 'var(--ec-success)' : 'var(--ec-text-hint)', cursor: 'pointer', fontSize: 11.5, padding: '2px 8px', borderRadius: 3 }}>{m.active ? '사용' : '중단'}</button>
               </td>
               <td style={{ textAlign: 'center' }}>
                 <button className="no-ec" onClick={() => openEdit(m)} style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>수정</button>
-                <button className="no-ec" onClick={() => remove(m.id)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                <button className="no-ec" onClick={() => remove(m.id)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button>
               </td>
             </tr>
           ))}

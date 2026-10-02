@@ -172,7 +172,7 @@ export default function SubcontractReflectionPage() {
       </EcStatusPanel>
 
       {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-      {ok && <p style={{ marginBottom: 8, background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
+      {ok && <p style={{ marginBottom: 8, background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
 
       <table ref={tableRef} className="w-full text-left">
         <thead>
@@ -197,9 +197,9 @@ export default function SubcontractReflectionPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={mode === '전표별' ? 13 : 12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={mode === '전표별' ? 13 : 12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : groups.length === 0 ? (
-            <tr><td colSpan={mode === '전표별' ? 13 : 12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={mode === '전표별' ? 13 : 12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : groups.map((g) => (
             <Fragment key={g.key}>
               <tr>
@@ -229,7 +229,7 @@ export default function SubcontractReflectionPage() {
                 <td style={{ fontFamily: 'monospace' }}>{g.journalNo ?? ''}</td>
               </tr>
               {open.has(g.key) && g.rows.map((r) => (
-                <tr key={r.productionId} style={{ background: '#fafbfc', color: '#5a626e', fontSize: 12 }}>
+                <tr key={r.productionId} style={{ background: 'var(--ec-bg-page)', color: 'var(--ec-label)', fontSize: 12 }}>
                   <td />
                   <td colSpan={mode === '전표별' ? 2 : 1}>
                     {dateText(r.productionDate)} {r.prodNo} · {r.productName} {won(r.producedQty)} × {won(r.unitPrice)}

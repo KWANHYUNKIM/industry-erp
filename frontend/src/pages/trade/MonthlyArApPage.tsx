@@ -204,20 +204,20 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600 }}>연도</span>
+          <span style={{ fontSize: 12.5, color: 'var(--ec-text)', fontWeight: 600 }}>연도</span>
           <select className="ec-input" value={year} onChange={(e) => setYear(Number(e.target.value))} style={{ width: 100 }}>
             {years.map((y) => <option key={y} value={y}>{y}년</option>)}
           </select>
         </div>
         {/* 원본 조건 [거래처] — 이름은 응답에 진작 실려 오는데 거를 수가 없었다. */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600 }}>거래처</span>
+          <span style={{ fontSize: 12.5, color: 'var(--ec-text)', fontWeight: 600 }}>거래처</span>
           <CodePickerField label="거래처" hideLabel width={180} emptyLabel="전체"
                            value={partner} onChange={setPartner} items={pickers.partners} />
         </div>
         {/* 원본 차례: 거래처 → <b>거래처그룹1</b> → [대표거래처로 합산] → [거래처관리담당자] (사본 실측). */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600 }}>거래처그룹1</span>
+          <span style={{ fontSize: 12.5, color: 'var(--ec-text)', fontWeight: 600 }}>거래처그룹1</span>
           <CodePickerField label="거래처그룹1" hideLabel width={150} emptyLabel="전체"
                            value={partnerGroup} onChange={setPartnerGroup}
                            items={pgroups.groupOptions.map((g) => ({ value: g, name: g }))} />
@@ -227,7 +227,7 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
           <span style={{ color: partner ? undefined : '#a8b0ba' }}>대표거래처로 합산</span>
         </label>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600 }}>거래처관리담당자</span>
+          <span style={{ fontSize: 12.5, color: 'var(--ec-text)', fontWeight: 600 }}>거래처관리담당자</span>
           {/* 원본은 사람을 고르는 칸을 <b>코드도움</b>으로 둔다 — 거래처 칸과 같은 모양이다. */}
           <CodePickerField label="거래처관리담당자" hideLabel width={150} emptyLabel="전체"
                            value={manager} onChange={setManager}
@@ -237,16 +237,16 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
           {(['AR', 'AP'] as const).map((m) => (
             <button key={m} onClick={() => setMode(m)} className="no-ec" style={{
               padding: '5px 14px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
-              background: mode === m ? 'var(--ec-blue)' : '#fff', color: mode === m ? '#fff' : '#3a4453', fontWeight: mode === m ? 700 : 400,
+              background: mode === m ? 'var(--ec-blue)' : '#fff', color: mode === m ? '#fff' : 'var(--ec-text)', fontWeight: mode === m ? 700 : 400,
             }}>{m === 'AR' ? '채권(받을 돈)' : '채무(줄 돈)'}</button>
           ))}
         </div>
-        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>
-          연말잔액 <b style={{ color: closing >= 0 ? 'var(--ec-blue-dark)' : '#c60a2e', fontSize: 15 }}>{won(closing)}</b>
+        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--ec-label)' }}>
+          연말잔액 <b style={{ color: closing >= 0 ? 'var(--ec-blue-dark)' : 'var(--ec-danger)', fontSize: 15 }}>{won(closing)}</b>
         </div>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       {/*
         원본 격자(E040713): 거래처코드 · 거래처명 · 구분 · 이월잔액 · (기간의 달마다 한 열) · 잔액.
@@ -296,9 +296,9 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={16} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={16} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : byPartner.length === 0 ? (
-            <tr><td colSpan={16} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={16} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : byPartner.flatMap((r, ri) => {
             /*
              * <b>줄마다 [이월잔액]·[잔액] 칸의 뜻이 다르다</b> — 2026-09-21 원본 실측.
@@ -371,19 +371,19 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : rows.map((r) => (
             <tr key={r.month}>
               <td style={{ fontWeight: 600 }}>{r.month}월</td>
-              <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(r.opening)}</td>
-              <td style={{ textAlign: 'right', color: r.increase ? incColor : '#c5cbd3', fontWeight: r.increase ? 600 : 400 }}>{r.increase ? won(r.increase) : ''}</td>
-              <td style={{ textAlign: 'right', color: r.decrease ? decColor : '#c5cbd3', fontWeight: r.decrease ? 600 : 400 }}>{r.decrease ? won(r.decrease) : ''}</td>
+              <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{won(r.opening)}</td>
+              <td style={{ textAlign: 'right', color: r.increase ? incColor : 'var(--ec-text-off)', fontWeight: r.increase ? 600 : 400 }}>{r.increase ? won(r.increase) : ''}</td>
+              <td style={{ textAlign: 'right', color: r.decrease ? decColor : 'var(--ec-text-off)', fontWeight: r.decrease ? 600 : 400 }}>{r.decrease ? won(r.decrease) : ''}</td>
               <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(r.closing)}</td>
             </tr>
           ))}
         </tbody>
         <tfoot>
-          <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+          <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
             <td>연간합계</td>
             <td></td>
             <td style={{ textAlign: 'right', color: incColor }}>{won(totals.inc)}</td>

@@ -97,17 +97,17 @@ export default function ApprovalSettingPage() {
         {TABS.map((t) => (
           <button key={t} onClick={() => { setTab(t); setEditing(null); setEditingPreset(null); setError('') }} className="no-ec" style={{
             padding: '6px 14px', fontSize: 12.5, border: 'none', cursor: 'pointer',
-            background: tab === t ? '#fff' : 'transparent', color: tab === t ? 'var(--ec-blue)' : '#5a626e',
+            background: tab === t ? '#fff' : 'transparent', color: tab === t ? 'var(--ec-blue)' : 'var(--ec-label)',
             fontWeight: tab === t ? 700 : 400,
             borderBottom: tab === t ? '2px solid var(--ec-blue)' : '2px solid transparent',
           }}>{t} ({t === '공통양식등록' ? templates.length : presets.length})</button>
         ))}
       </div>
 
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)' }}>{notice}</div>}
 
-      {loading ? <p style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</p>
+      {loading ? <p style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</p>
         : tab === '공통양식등록' ? (
           <>
             {editing && (
@@ -133,24 +133,24 @@ export default function ApprovalSettingPage() {
               </thead>
               <tbody>
                 {templates.length === 0 ? (
-                  <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+                  <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
                 ) : templates.map((t, i) => (
                   <tr key={t.id}>
-                    <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                    <td style={{ textAlign: 'right', color: '#5a626e' }}>{t.sortOrder}</td>
+                    <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+                    <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{t.sortOrder}</td>
                     <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>{t.code}</td>
                     <td style={{ fontWeight: 600 }}>{t.name}</td>
-                    <td style={{ color: '#5a626e', fontSize: 12 }}>
+                    <td style={{ color: 'var(--ec-label)', fontSize: 12 }}>
                       {t.fieldSchema.length === 0
-                        ? <span style={{ color: '#9aa1ab' }}>자유서식 (본문만)</span>
+                        ? <span style={{ color: 'var(--ec-text-hint)' }}>자유서식 (본문만)</span>
                         : t.fieldSchema.map((f) => f.label).join(' · ')}
                     </td>
-                    <td style={{ textAlign: 'center', color: t.documentCount > 0 ? '#5a626e' : '#9aa1ab' }}>{t.documentCount}건</td>
-                    <td style={{ textAlign: 'center', color: t.active ? '#1c7c3c' : '#8a929c' }}>{t.active ? '사용' : '중지'}</td>
+                    <td style={{ textAlign: 'center', color: t.documentCount > 0 ? 'var(--ec-label)' : 'var(--ec-text-hint)' }}>{t.documentCount}건</td>
+                    <td style={{ textAlign: 'center', color: t.active ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>{t.active ? '사용' : '중지'}</td>
                     <td style={{ textAlign: 'center' }}>
                       <div style={{ display: 'inline-flex', gap: 3 }}>
                         <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => setEditing(t)}>수정</button>
-                        <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: t.documentCount > 0 ? '#c9ced6' : '#c60a2e' }}
+                        <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: t.documentCount > 0 ? 'var(--ec-text-off)' : 'var(--ec-danger)' }}
                           onClick={() => removeTemplate(t)}>삭제</button>
                       </div>
                     </td>
@@ -158,7 +158,7 @@ export default function ApprovalSettingPage() {
                 ))}
               </tbody>
             </table>
-            <div style={{ marginTop: 8, fontSize: 11.5, color: '#8a929c' }}>
+            <div style={{ marginTop: 8, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
               ※ 기안서가 한 건이라도 쓰인 양식은 삭제할 수 없습니다(그 기안서들이 양식을 가리킵니다). 사용중지로 내리면 새 기안에서만 사라지고 과거 문서는 그대로 열립니다.
             </div>
           </>
@@ -187,33 +187,33 @@ export default function ApprovalSettingPage() {
               </thead>
               <tbody>
                 {presets.length === 0 ? (
-                  <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+                  <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
                 ) : presets.map((p, i) => (
                   <tr key={p.id}>
-                    <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                    <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                     <td style={{ fontWeight: 600 }}>{p.name}</td>
-                    <td style={{ color: '#5a626e' }}>{p.formTemplateName ?? '공통(모든 양식)'}</td>
+                    <td style={{ color: 'var(--ec-label)' }}>{p.formTemplateName ?? '공통(모든 양식)'}</td>
                     <td>
                       {p.steps.map((s, idx) => (
                         <span key={s.stepOrder}>
-                          {idx > 0 && <span style={{ color: '#c9ced6', margin: '0 5px' }}>→</span>}
+                          {idx > 0 && <span style={{ color: 'var(--ec-text-off)', margin: '0 5px' }}>→</span>}
                           <span style={{ color: 'var(--ec-blue-dark)' }}>{s.approverName}</span>
-                          {s.department && <span style={{ color: '#9aa1ab', fontSize: 11.5 }}> ({s.department})</span>}
+                          {s.department && <span style={{ color: 'var(--ec-text-hint)', fontSize: 11.5 }}> ({s.department})</span>}
                         </span>
                       ))}
                     </td>
-                    <td style={{ textAlign: 'center', color: p.active ? '#1c7c3c' : '#8a929c' }}>{p.active ? '사용' : '중지'}</td>
+                    <td style={{ textAlign: 'center', color: p.active ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>{p.active ? '사용' : '중지'}</td>
                     <td style={{ textAlign: 'center' }}>
                       <div style={{ display: 'inline-flex', gap: 3 }}>
                         <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => setEditingPreset(p)}>수정</button>
-                        <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => removePreset(p)}>삭제</button>
+                        <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: 'var(--ec-danger)' }} onClick={() => removePreset(p)}>삭제</button>
                       </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <div style={{ marginTop: 8, fontSize: 11.5, color: '#8a929c' }}>
+            <div style={{ marginTop: 8, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
               ※ 결재선은 기안할 때 결재자를 하나씩 고르지 않으려고 미리 만들어 두는 순서입니다. 같은 결재자가 연속으로 오는 결재선은 저장되지 않습니다.
             </div>
           </>
@@ -297,13 +297,13 @@ function TemplateForm({ template, onError, onClose, onSaved }: {
           </select>
         </Field>
         {!isNew && (
-          <span style={{ fontSize: 11.5, color: '#8a929c', paddingBottom: 5 }}>
+          <span style={{ fontSize: 11.5, color: 'var(--ec-text-hint)', paddingBottom: 5 }}>
             양식코드는 바꿀 수 없습니다(기안서 {template.documentCount}건이 이 코드를 가리킵니다).
           </span>
         )}
       </div>
 
-      <div style={{ fontSize: 12.5, fontWeight: 700, color: '#5a626e', marginBottom: 4 }}>입력항목</div>
+      <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ec-label)', marginBottom: 4 }}>입력항목</div>
       <table className="w-full text-left">
         <thead>
           <tr>
@@ -317,12 +317,12 @@ function TemplateForm({ template, onError, onClose, onSaved }: {
         </thead>
         <tbody>
           {fields.length === 0 ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 14 }}>
+            <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 14 }}>
               입력항목이 없으면 자유서식(본문만)으로 작성합니다.
             </td></tr>
           ) : fields.map((f, i) => (
             <tr key={i}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td><input className="ec-input" value={f.key} onChange={(e) => setField(i, { key: e.target.value })} style={{ width: '100%' }} placeholder="startDate" /></td>
               <td><input className="ec-input" value={f.label} onChange={(e) => setField(i, { label: e.target.value })} style={{ width: '100%' }} placeholder="시작일" /></td>
               <td>
@@ -339,12 +339,12 @@ function TemplateForm({ template, onError, onClose, onSaved }: {
             </tr>
           ))}
           {preserved.map((f, i) => (
-            <tr key={`p-${i}`} style={{ background: '#f7f9fb' }}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>-</td>
-              <td style={{ color: '#8a929c' }}>{f.key}</td>
-              <td style={{ color: '#8a929c' }}>{f.label}</td>
-              <td style={{ color: '#8a929c' }}>{TYPE_LABEL[f.type] ?? f.type}</td>
-              <td colSpan={2} style={{ color: '#9aa1ab', fontSize: 11.5 }}>이 화면에서 편집하지 않고 그대로 보존합니다</td>
+            <tr key={`p-${i}`} style={{ background: 'var(--ec-bg-page)' }}>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>-</td>
+              <td style={{ color: 'var(--ec-text-hint)' }}>{f.key}</td>
+              <td style={{ color: 'var(--ec-text-hint)' }}>{f.label}</td>
+              <td style={{ color: 'var(--ec-text-hint)' }}>{TYPE_LABEL[f.type] ?? f.type}</td>
+              <td colSpan={2} style={{ color: 'var(--ec-text-hint)', fontSize: 11.5 }}>이 화면에서 편집하지 않고 그대로 보존합니다</td>
             </tr>
           ))}
         </tbody>
@@ -425,12 +425,12 @@ function PresetForm({ preset, templates, members, onError, onClose, onSaved }: {
         </Field>
       </div>
 
-      <div style={{ fontSize: 12.5, fontWeight: 700, color: '#5a626e', marginBottom: 4 }}>결재 순서</div>
+      <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ec-label)', marginBottom: 4 }}>결재 순서</div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         {approverIds.map((id, i) => (
           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             {i > 0 && <span style={{ color: 'var(--ec-blue)' }}>→</span>}
-            <span style={{ fontSize: 11.5, color: '#8a929c' }}>{i + 1}차</span>
+            <span style={{ fontSize: 11.5, color: 'var(--ec-text-hint)' }}>{i + 1}차</span>
             {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
             <CodePickerField label={`${i + 1}차 결재자`} hideLabel width={170} placeholder="결재자" emptyLabel="선택 해제"
                              value={id} onChange={(v) => setApprover(i, v)}
@@ -454,7 +454,7 @@ function PresetForm({ preset, templates, members, onError, onClose, onSaved }: {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label style={{ fontSize: 12.5 }}>
-      <div style={{ color: '#5a626e', marginBottom: 3 }}>{label}</div>
+      <div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>{label}</div>
       {children}
     </label>
   )

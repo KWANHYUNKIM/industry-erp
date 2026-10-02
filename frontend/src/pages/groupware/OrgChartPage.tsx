@@ -91,11 +91,11 @@ export default function OrgChartPage() {
     <EcListShell title="조직도관리" actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
         <button className="ec-btn ec-btn-primary" onClick={() => setEditing('new')}>+ 부서 등록</button>
-        <span style={{ fontSize: 12, color: '#9aa1ab' }}>부서를 클릭하면 소속 사원이 보입니다. 사원의 부서는 오른쪽에서 바로 바꿀 수 있습니다.</span>
+        <span style={{ fontSize: 12, color: 'var(--ec-text-hint)' }}>부서를 클릭하면 소속 사원이 보입니다. 사원의 부서는 오른쪽에서 바로 바꿀 수 있습니다.</span>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)' }}>{notice}</div>}
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
         {/* 좌: 부서 트리 */}
@@ -111,24 +111,24 @@ export default function OrgChartPage() {
             </thead>
             <tbody>
               {tree.length === 0 ? (
-                <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>부서가 없습니다. 「부서 등록」으로 조직도를 만드세요.</td></tr>
+                <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>부서가 없습니다. 「부서 등록」으로 조직도를 만드세요.</td></tr>
               ) : tree.map((d) => (
                 <tr
                   key={d.id}
                   onClick={() => setSelected(selected === d.id ? null : d.id)}
-                  style={{ cursor: 'pointer', background: selected === d.id ? '#eef5ff' : undefined }}
+                  style={{ cursor: 'pointer', background: selected === d.id ? 'var(--ec-blue-wash)' : undefined }}
                 >
                   <td style={{ paddingLeft: 8 + d.depth * 18 }}>
-                    <span style={{ color: '#c3c8cf', marginRight: 4 }}>{d.depth > 0 ? '└' : ''}</span>
+                    <span style={{ color: 'var(--ec-text-off)', marginRight: 4 }}>{d.depth > 0 ? '└' : ''}</span>
                     <span style={{ fontWeight: d.depth === 0 ? 700 : 400, color: d.active ? undefined : '#b0b6bd' }}>{d.name}</span>
                     {!d.active && <span style={{ marginLeft: 6, fontSize: 11, color: '#b0b6bd' }}>(비활성)</span>}
                   </td>
-                  <td style={{ fontFamily: 'monospace', color: '#8a929c' }}>{d.code}</td>
+                  <td style={{ fontFamily: 'monospace', color: 'var(--ec-text-hint)' }}>{d.code}</td>
                   <td style={{ textAlign: 'right' }}>{d.employeeCount}</td>
                   <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
                     <div style={{ display: 'inline-flex', gap: 3 }}>
                       <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => setEditing(d)}>수정</button>
-                      <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => remove(d)}>삭제</button>
+                      <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: 'var(--ec-danger)' }} onClick={() => remove(d)}>삭제</button>
                     </div>
                   </td>
                 </tr>
@@ -136,7 +136,7 @@ export default function OrgChartPage() {
             </tbody>
           </table>
           {unassigned.length > 0 && (
-            <p style={{ marginTop: 8, fontSize: 12, color: '#c60a2e' }}>
+            <p style={{ marginTop: 8, fontSize: 12, color: 'var(--ec-danger)' }}>
               미배치 사원 {unassigned.length}명 —{' '}
               <span onClick={() => setSelected(null)} style={{ cursor: 'pointer', textDecoration: 'underline' }}>보기</span>
             </p>
@@ -145,7 +145,7 @@ export default function OrgChartPage() {
 
         {/* 우: 소속 사원 */}
         <div style={{ flex: 1 }}>
-          <div style={{ padding: '6px 8px', background: '#f5f7fa', border: '1px solid var(--ec-border)', borderBottom: 'none', fontSize: 12.5, fontWeight: 700, color: 'var(--ec-blue-dark)' }}>
+          <div style={{ padding: '6px 8px', background: 'var(--ec-bg-page)', border: '1px solid var(--ec-border)', borderBottom: 'none', fontSize: 12.5, fontWeight: 700, color: 'var(--ec-blue-dark)' }}>
             {selectedDept ? `${selectedDept.name} 소속 사원` : '미배치 사원'} ({members.length}명)
           </div>
           <table className="w-full text-left">
@@ -160,10 +160,10 @@ export default function OrgChartPage() {
             </thead>
             <tbody>
               {members.length === 0 ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
               ) : members.map((e, i) => (
                 <tr key={e.id}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                   <td style={{ fontFamily: 'monospace' }}>{e.code}</td>
                   <td>{e.name}</td>
                   <td>{e.jobTitle}</td>
@@ -243,20 +243,20 @@ function DepartmentForm({ department, departments, onClose, onSaved }: {
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 460, maxWidth: '94vw', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: '#f5f7fa' }}>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: 'var(--ec-bg-page)' }}>
           <span style={{ fontWeight: 800, color: 'var(--ec-blue-dark)' }}>{department ? '부서 수정' : '부서 등록'}</span>
-          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: '#8a929c' }}>×</span>
+          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: 'var(--ec-text-hint)' }}>×</span>
         </div>
         <div style={{ padding: 16 }}>
-          {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+          {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
           <table className="w-full text-left">
             <tbody>
               <tr>
-                <th style={{ width: 90, background: '#f5f7fa' }}>부서명<span style={{ color: '#c60a2e' }}>*</span></th>
+                <th style={{ width: 90, background: 'var(--ec-bg-page)' }}>부서명<span style={{ color: 'var(--ec-danger)' }}>*</span></th>
                 <td><input className="ec-input" value={name} onChange={(e) => setName(e.target.value)} style={{ width: '100%' }} /></td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>부서코드</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>부서코드</th>
                 <td>
                   {department ? (
                     <span style={{ fontFamily: 'monospace' }}>{department.code}</span>
@@ -266,7 +266,7 @@ function DepartmentForm({ department, departments, onClose, onSaved }: {
                 </td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>상위 부서</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>상위 부서</th>
                 <td>
                   {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다. */}
                   <CodePickerField label="상위 부서" hideLabel width={200} emptyLabel="(최상위)"
@@ -275,12 +275,12 @@ function DepartmentForm({ department, departments, onClose, onSaved }: {
                 </td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>표시 순서</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>표시 순서</th>
                 <td><input className="ec-input" type="number" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} style={{ width: 100 }} /></td>
               </tr>
               {department && (
                 <tr>
-                  <th style={{ background: '#f5f7fa' }}>사용</th>
+                  <th style={{ background: 'var(--ec-bg-page)' }}>사용</th>
                   <td>
                     <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
                       <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} /> 사용

@@ -16,7 +16,7 @@ const TAB_STATUS: Record<Exclude<Tab, '전체'>, ContractStatus> = {
   작성: 'DRAFT', 발송: 'SENT', 서명완료: 'SIGNED', 해지: 'TERMINATED',
 }
 const statusColor = (s: ContractStatus) =>
-  s === 'SIGNED' ? '#1c7c3c' : s === 'TERMINATED' ? '#c60a2e' : s === 'SENT' ? 'var(--ec-blue)' : '#5a626e'
+  s === 'SIGNED' ? 'var(--ec-success)' : s === 'TERMINATED' ? 'var(--ec-danger)' : s === 'SENT' ? 'var(--ec-blue)' : 'var(--ec-label)'
 
 const TYPES: { value: ContractType; label: string }[] = [
   { value: 'PERMANENT', label: '정규직' },
@@ -92,11 +92,11 @@ export default function ContractPage() {
     <EcListShell title="전자근로계약" actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
         <button className="ec-btn ec-btn-primary" onClick={() => setShowForm(true)}>+ 근로계약 작성(F2)</button>
-        <span style={{ fontSize: 12, color: '#9aa1ab' }}>작성 → 발송 → 서명. 서명된 계약은 수정할 수 없고 해지만 됩니다.</span>
+        <span style={{ fontSize: 12, color: 'var(--ec-text-hint)' }}>작성 → 발송 → 서명. 서명된 계약은 수정할 수 없고 해지만 됩니다.</span>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)' }}>{notice}</div>}
 
       {/* 상태 필터는 원본에서 알약(pill)이다 — 선택된 것만 파란 알약으로 채워진다. */}
       <div className="ec-pills" style={{ marginBottom: 6 }}>
@@ -128,14 +128,14 @@ export default function ContractPage() {
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((c, i) => (
             <tr key={c.id} onClick={() => setViewing(c)} style={{ cursor: 'pointer' }}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>{c.contractNo}</td>
-              <td>{c.employeeName} <span style={{ color: '#9aa1ab', fontSize: 11 }}>{c.employeeCode}</span></td>
+              <td>{c.employeeName} <span style={{ color: 'var(--ec-text-hint)', fontSize: 11 }}>{c.employeeCode}</span></td>
               <td>{c.typeName}</td>
-              <td>{dateText(c.startDate)} ~ {c.endDate ?? <span style={{ color: '#9aa1ab' }}>기간없음</span>}</td>
+              <td>{dateText(c.startDate)} ~ {c.endDate ?? <span style={{ color: 'var(--ec-text-hint)' }}>기간없음</span>}</td>
               <td>{c.department || ''}</td>
               <td>{c.jobTitle || ''}</td>
               <td style={{ textAlign: 'right', fontWeight: 600 }}>{won(c.monthlySalary)}</td>
@@ -143,15 +143,15 @@ export default function ContractPage() {
               <td style={{ textAlign: 'center' }}>
                 <span style={{ color: statusColor(c.status) }}>{c.statusName}</span>
                 {c.status === 'SIGNED' && c.signedBy && (
-                  <div style={{ fontSize: 10.5, color: '#9aa1ab' }}>{c.signedBy} 서명</div>
+                  <div style={{ fontSize: 10.5, color: 'var(--ec-text-hint)' }}>{c.signedBy} 서명</div>
                 )}
               </td>
               <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
                 <div style={{ display: 'inline-flex', gap: 3 }}>
                   {c.status === 'DRAFT' && <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => act(c, 'send')}>발송</button>}
                   {c.status === 'SENT' && <button className="ec-btn ec-btn-primary" style={{ height: 20, padding: '0 8px' }} onClick={() => sign(c)}>서명</button>}
-                  {c.status === 'SIGNED' && <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => act(c, 'terminate')}>해지</button>}
-                  {(c.status === 'DRAFT' || c.status === 'SENT') && <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => remove(c)}>삭제</button>}
+                  {c.status === 'SIGNED' && <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: 'var(--ec-danger)' }} onClick={() => act(c, 'terminate')}>해지</button>}
+                  {(c.status === 'DRAFT' || c.status === 'SENT') && <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: 'var(--ec-danger)' }} onClick={() => remove(c)}>삭제</button>}
                   <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => setViewing(c)}>계약서</button>
                 </div>
               </td>
@@ -177,16 +177,16 @@ export default function ContractPage() {
 function ContractSheet({ contract: c, onClose }: { contract: EmploymentContract; onClose: () => void }) {
   const row = (label: string, value: React.ReactNode) => (
     <tr>
-      <th style={{ width: 110, background: '#f5f7fa' }}>{label}</th>
+      <th style={{ width: 110, background: 'var(--ec-bg-page)' }}>{label}</th>
       <td>{value}</td>
     </tr>
   )
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 640, maxWidth: '94vw', maxHeight: '90vh', overflow: 'auto', border: '1px solid var(--ec-border)', borderRadius: 4 }}>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: '#f5f7fa' }}>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: 'var(--ec-bg-page)' }}>
           <span style={{ fontWeight: 800, color: 'var(--ec-blue-dark)' }}>근로계약서 — {c.contractNo}</span>
-          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: '#8a929c' }}>×</span>
+          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: 'var(--ec-text-hint)' }}>×</span>
         </div>
         <div style={{ padding: 16 }}>
           <p style={{ textAlign: 'center', fontSize: 17, fontWeight: 800, margin: '4px 0 14px' }}>근 로 계 약 서</p>
@@ -204,11 +204,11 @@ function ContractSheet({ contract: c, onClose }: { contract: EmploymentContract;
               {row('상태', <span style={{ color: statusColor(c.status), fontWeight: 700 }}>{c.statusName}</span>)}
               {row('서명', c.signedAt
                 ? `${c.signedBy} · ${c.signedAt.replace('T', ' ').slice(0, 16)}`
-                : <span style={{ color: '#9aa1ab' }}>미서명</span>)}
+                : <span style={{ color: 'var(--ec-text-hint)' }}>미서명</span>)}
               {row('비고', c.remark || '-')}
             </tbody>
           </table>
-          <p style={{ marginTop: 12, fontSize: 11.5, color: '#9aa1ab' }}>
+          <p style={{ marginTop: 12, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
             ※ 계약서의 근로조건은 계약 시점의 값입니다. 이후 사원의 부서·급여가 바뀌어도 이 계약서는 바뀌지 않습니다.
           </p>
         </div>
@@ -282,23 +282,23 @@ function ContractForm({ employees, departments, onClose, onSaved }: {
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 640, maxWidth: '94vw', maxHeight: '90vh', overflow: 'auto', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: '#f5f7fa' }}>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: 'var(--ec-bg-page)' }}>
           <span style={{ fontWeight: 800, color: 'var(--ec-blue-dark)' }}>근로계약 작성</span>
-          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: '#8a929c' }}>×</span>
+          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: 'var(--ec-text-hint)' }}>×</span>
         </div>
         <div style={{ padding: 16 }}>
-          {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+          {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
           <table className="w-full text-left">
             <tbody>
               <tr>
-                <th style={{ width: 100, background: '#f5f7fa' }}>사원<span style={{ color: '#c60a2e' }}>*</span></th>
+                <th style={{ width: 100, background: 'var(--ec-bg-page)' }}>사원<span style={{ color: 'var(--ec-danger)' }}>*</span></th>
                 <td>
                   {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
                   <CodePickerField label="사원" hideLabel width={220} placeholder="사원" emptyLabel="선택 해제"
                                    value={employeeId} onChange={(v) => pickEmployee(v)}
                                    items={employees.map((e) => ({ value: String(e.id), code: e.code, name: e.name, sub: e.department || null }))} />
                 </td>
-                <th style={{ width: 90, background: '#f5f7fa' }}>계약 유형</th>
+                <th style={{ width: 90, background: 'var(--ec-bg-page)' }}>계약 유형</th>
                 <td>
                   <select className="ec-input" value={type} onChange={(e) => setType(e.target.value as ContractType)} style={{ width: 120 }}>
                     {TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
@@ -306,39 +306,39 @@ function ContractForm({ employees, departments, onClose, onSaved }: {
                 </td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>계약 시작일</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>계약 시작일</th>
                 <td><input type="date" className="ec-input" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ width: 150 }} /></td>
-                <th style={{ background: '#f5f7fa' }}>종료일</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>종료일</th>
                 <td>
                   <input type="date" className="ec-input" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ width: 150 }} disabled={type === 'PERMANENT'} />
-                  {type === 'PERMANENT' && <span style={{ marginLeft: 6, fontSize: 11.5, color: '#9aa1ab' }}>정규직은 기간 없음</span>}
+                  {type === 'PERMANENT' && <span style={{ marginLeft: 6, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>정규직은 기간 없음</span>}
                 </td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>소속 부서</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>소속 부서</th>
                 <td>
                   {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다. */}
                   <CodePickerField label="소속 부서" hideLabel width={220} emptyLabel="(미배치)"
                                    value={departmentId} onChange={setDepartmentId}
                                    items={departments.map((x) => ({ value: String(x.id), name: x.name }))} />
                 </td>
-                <th style={{ background: '#f5f7fa' }}>직위</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>직위</th>
                 <td><input className="ec-input" value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>월 급여</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>월 급여</th>
                 <td><input className="ec-input" type="number" value={monthlySalary} onChange={(e) => setMonthlySalary(e.target.value)} style={{ width: 150, textAlign: 'right' }} /></td>
-                <th style={{ background: '#f5f7fa' }}>주당 시간</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>주당 시간</th>
                 <td><input className="ec-input" type="number" value={weeklyHours} onChange={(e) => setWeeklyHours(e.target.value)} style={{ width: 80, textAlign: 'right' }} /></td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>근무 장소</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>근무 장소</th>
                 <td><input className="ec-input" value={workPlace} onChange={(e) => setWorkPlace(e.target.value)} placeholder="예: 본사 공장" style={{ width: 220 }} /></td>
-                <th style={{ background: '#f5f7fa' }}>담당 업무</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>담당 업무</th>
                 <td><input className="ec-input" value={duty} onChange={(e) => setDuty(e.target.value)} placeholder="예: 조립 공정" style={{ width: 150 }} /></td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>비고</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>비고</th>
                 <td colSpan={3}><input className="ec-input" value={remark} onChange={(e) => setRemark(e.target.value)} style={{ width: '100%' }} /></td>
               </tr>
             </tbody>

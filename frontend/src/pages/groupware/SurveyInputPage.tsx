@@ -131,7 +131,7 @@ export default function SurveyInputPage() {
     } catch (err) { setError(extractErrorMessage(err)) }
   }
 
-  const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 110 }
+  const th: React.CSSProperties = { background: 'var(--ec-bg-page)', fontWeight: 700, whiteSpace: 'nowrap', width: 110 }
   const radio = (name: string, checked: boolean, onChange: () => void, label: string) => (
     <label key={label} style={{ marginRight: 12, fontSize: 12 }}>
       <input type="radio" name={name} checked={checked} onChange={onChange} /> {label}
@@ -154,8 +154,8 @@ export default function SurveyInputPage() {
         { label: '리스트', onClick: () => navigate('/groupware/survey') },
       ]}
     >
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {ok && <p style={{ marginBottom: 8, background: '#eaf7ee', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
+      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {ok && <p style={{ marginBottom: 8, background: '#eaf7ee', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
 
       <table className="w-full text-left" style={{ marginBottom: 10 }}>
         <tbody>
@@ -250,7 +250,7 @@ export default function SurveyInputPage() {
             const usesOptions = TYPES.find((t) => t.value === r.type)?.options ?? false
             return (
               <tr key={i}>
-                <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td>
                   <select className="ec-input" value={r.type} onChange={(e) => patch(i, { type: e.target.value as QuestionType })} style={{ width: '100%' }}>
                     <option value="">선택</option>
@@ -293,12 +293,12 @@ export default function SurveyInputPage() {
             <div key={i} style={{ marginBottom: 12 }}>
               <div style={{ fontWeight: 600 }}>
                 {i + 1}. {r.content}
-                {r.required && <span style={{ color: '#c60a2e', marginLeft: 4 }}>*</span>}
+                {r.required && <span style={{ color: 'var(--ec-danger)', marginLeft: 4 }}>*</span>}
                 <span style={{ marginLeft: 6, color: 'var(--ec-label)', fontWeight: 400, fontSize: 11.5 }}>
                   {TYPES.find((t) => t.value === r.type)?.label}
                 </span>
               </div>
-              <div style={{ paddingLeft: 14, color: '#3c4553' }}>
+              <div style={{ paddingLeft: 14, color: 'var(--ec-text)' }}>
                 {r.options.filter(Boolean).map((o, oi) => <div key={oi}>· {o}</div>)}
               </div>
             </div>

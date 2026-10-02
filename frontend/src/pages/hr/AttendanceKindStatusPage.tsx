@@ -271,18 +271,18 @@ export default function AttendanceKindStatusPage() {
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        근태 <b style={{ color: '#3c4553' }}>{shown.length}</b>건
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+        근태 <b style={{ color: 'var(--ec-text)' }}>{shown.length}</b>건
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
         합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{days(totalDays)}</b>일
         {byKind.length > 0 && (
-          <span style={{ marginLeft: 10, color: '#8a929c' }}>
+          <span style={{ marginLeft: 10, color: 'var(--ec-text-hint)' }}>
             {byKind.map(([k, v]) => `${k} ${days(v)}일`).join(' · ')}
           </span>
         )}
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       <table className="w-full text-left">
         <thead>
@@ -304,12 +304,12 @@ export default function AttendanceKindStatusPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               {/* 원본은 [전표일자]를 눌러 그 근태 전표를 연다. 우리는 근태조회로 넘긴다. */}
               <td style={{ fontFamily: 'monospace' }}>
                 <Link to={`/hr/leave-list?emp=${encodeURIComponent(r.empName)}`}
@@ -319,15 +319,15 @@ export default function AttendanceKindStatusPage() {
                 {r.startDate}{r.endDate !== r.startDate ? ` ~ ${r.endDate}` : ''}
               </td>
               <td>{r.department ?? ''}</td>
-              <td style={{ color: r.jobTitle ? undefined : '#c9ced6' }}>{r.jobTitle ?? ''}</td>
-              <td style={{ fontFamily: 'monospace', color: r.empCode ? undefined : '#c9ced6' }}>{r.empCode ?? ''}</td>
+              <td style={{ color: r.jobTitle ? undefined : 'var(--ec-text-off)' }}>{r.jobTitle ?? ''}</td>
+              <td style={{ fontFamily: 'monospace', color: r.empCode ? undefined : 'var(--ec-text-off)' }}>{r.empCode ?? ''}</td>
               <td>{r.empName}</td>
               <td>{r.type}</td>
               <td style={{ textAlign: 'right', fontWeight: 600 }}>{days(r.days)}</td>
-              <td style={{ color: r.reason ? undefined : '#c9ced6' }}>{r.reason ?? ''}</td>
+              <td style={{ color: r.reason ? undefined : 'var(--ec-text-off)' }}>{r.reason ?? ''}</td>
               <td style={{
                 textAlign: 'center', fontWeight: 700,
-                color: r.status === 'APPROVED' ? '#1c7c3c' : r.status === 'PENDING' ? '#c07a00' : '#c60a2e',
+                color: r.status === 'APPROVED' ? 'var(--ec-success)' : r.status === 'PENDING' ? 'var(--ec-warn)' : 'var(--ec-danger)',
               }}>{r.statusName}</td>
             </tr>
           ))}

@@ -164,13 +164,13 @@ export default function VacationRemainPage() {
         </EcCond>
       </ul>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        사원 <b style={{ color: '#3c4553' }}>{shown.length}</b>명
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+        사원 <b style={{ color: 'var(--ec-text)' }}>{shown.length}</b>명
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
         잔여 합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{days(totals.remain)}</b>일
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       <table className="w-full text-left">
         <thead>
           <tr>
@@ -185,18 +185,18 @@ export default function VacationRemainPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.empName + i}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td>{r.leaveName}</td>
               <td>{r.department ?? ''}</td>
               <td>{r.empName}{r.active ? '' : ' (퇴사)'}</td>
               <td style={{ textAlign: 'right' }}>{days(r.totalDays)}</td>
               <td style={{ textAlign: 'right' }}>{days(r.usedDays)}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700, color: r.remainingDays <= 0 ? '#c60a2e' : undefined }}>{days(r.remainingDays)}</td>
+              <td style={{ textAlign: 'right', fontWeight: 700, color: r.remainingDays <= 0 ? 'var(--ec-danger)' : undefined }}>{days(r.remainingDays)}</td>
             </tr>
           ))}
         </tbody>

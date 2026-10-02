@@ -65,7 +65,7 @@ export default function BomStatusPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="생산품목" pick>
           <CodePickerField label="생산품목" hideLabel width={220} emptyLabel="전체" value={product} onChange={setProduct} items={picks} />
@@ -97,9 +97,9 @@ export default function BomStatusPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : rowCount === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.flatMap((b) => b.lines.map((l, i) => (
             <tr key={`${b.id}-${l.componentId}-${i}`} style={i === 0 ? { borderTop: '1px solid #d7dce3' } : undefined}>
               <td style={{ fontFamily: 'monospace' }}>{i === 0 ? b.productCode : ''}</td>

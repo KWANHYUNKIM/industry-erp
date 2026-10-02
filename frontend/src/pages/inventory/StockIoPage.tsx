@@ -9,7 +9,7 @@ import { dateText } from '../../utils/dateText'
 const inputCls = 'ec-input w-full'
 
 const today = () => ymd(new Date())
-const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 72 }
+const th: React.CSSProperties = { background: 'var(--ec-bg-page)', fontWeight: 700, whiteSpace: 'nowrap', width: 72 }
 
 export default function StockIoPage() {
   const [items, setItems] = useState<Item[]>([])
@@ -97,9 +97,9 @@ export default function StockIoPage() {
     <form ref={formRef} onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       {/* ☆ 제목 + 상단 툴바 */}
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ color: '#f5b301', fontSize: 14, marginRight: 4 }}>☆</span>
+        <span style={{ color: 'var(--ec-star)', fontSize: 14, marginRight: 4 }}>☆</span>
         <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ec-text)' }}>입출고 등록</span>
-        <span style={{ marginLeft: 10, fontSize: 11.5, color: '#8a929c' }}>입고·출고·조정 처리 시 재고 잔량 자동 반영</span>
+        <span style={{ marginLeft: 10, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>입고·출고·조정 처리 시 재고 잔량 자동 반영</span>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
           <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
           <button type="button" className="ec-btn">도움말</button>
@@ -149,7 +149,7 @@ export default function StockIoPage() {
                 <th style={th}>수량 *</th>
                 <td>
                   <input type="number" step="any" className="ec-input" value={form.quantity} onChange={(e) => set('quantity', e.target.value)} style={{ width: 140, textAlign: 'right' }} />
-                  <span style={{ margin: '0 6px', color: '#8a929c', fontSize: 12 }}>단가</span>
+                  <span style={{ margin: '0 6px', color: 'var(--ec-text-hint)', fontSize: 12 }}>단가</span>
                   <input type="number" step="any" className="ec-input" value={form.unitPrice} onChange={(e) => set('unitPrice', e.target.value)} style={{ width: 120, textAlign: 'right' }} />
                 </td>
               </tr>
@@ -164,8 +164,8 @@ export default function StockIoPage() {
             </tbody>
           </table>
 
-          {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-          {ok && <p style={{ background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
+          {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+          {ok && <p style={{ background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
 
           <button type="submit" className="ec-btn ec-btn-primary" style={{ width: '100%', height: 30 }}>등록</button>
         </div>
@@ -190,7 +190,7 @@ export default function StockIoPage() {
             </thead>
             <tbody>
               {history.length === 0 ? (
-                <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
               ) : history.map((t) => (
                 <tr key={t.id}>
                   <td>{dateText(t.transactionDate)}</td>
@@ -203,7 +203,7 @@ export default function StockIoPage() {
                     {t.quantityChange > 0 ? '+' : ''}{t.quantityChange.toLocaleString()}
                   </td>
                   <td style={{ textAlign: 'right' }}>{t.balanceAfter.toLocaleString()}</td>
-                  <td style={{ color: '#8a929c' }}>{t.note ?? ''}</td>
+                  <td style={{ color: 'var(--ec-text-hint)' }}>{t.note ?? ''}</td>
                 </tr>
               ))}
             </tbody>

@@ -21,7 +21,7 @@ interface Project {
 }
 
 const STATUS_COLOR: Record<Project['status'], string> = {
-  PLANNING: '#5a626e', IN_PROGRESS: '#c07a00', ON_HOLD: '#c60a2e', DONE: '#1c7c3c',
+  PLANNING: 'var(--ec-label)', IN_PROGRESS: 'var(--ec-warn)', ON_HOLD: 'var(--ec-danger)', DONE: 'var(--ec-success)',
 }
 
 /** 원본 [진행상태변경]이 고르게 하는 것들. 이름은 진척관리와 같아야 한다. */
@@ -131,7 +131,7 @@ export default function ConstructionSchedulePage() {
   }
 
   const inputCls = 'ec-input'
-  const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 84 }
+  const th: React.CSSProperties = { background: 'var(--ec-bg-page)', fontWeight: 700, whiteSpace: 'nowrap', width: 84 }
 
 
   /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
@@ -255,7 +255,7 @@ export default function ConstructionSchedulePage() {
         </div>
       )}</Modal>
 
-      {error && !showForm && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && !showForm && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
       <table className="w-full text-left">
         <thead>
@@ -280,7 +280,7 @@ export default function ConstructionSchedulePage() {
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center' }}>
@@ -290,14 +290,14 @@ export default function ConstructionSchedulePage() {
                   return next
                 })} />
               </td>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{dateText(r.startDate) || ''}</td>
               <td style={{ fontFamily: 'monospace' }}>{dateText(r.endDate) || ''}</td>
               <td style={{ fontWeight: 600 }}>{r.name}</td>
               <td>{r.manager ?? ''}</td>
               <td style={{ textAlign: 'center', fontWeight: 700, color: STATUS_COLOR[r.status] }}>{r.statusName}</td>
               <td style={{ textAlign: 'right' }}>{r.progress}%</td>
-              <td style={{ color: '#6b7280' }}>{r.remark ?? ''}</td>
+              <td style={{ color: 'var(--ec-text-muted)' }}>{r.remark ?? ''}</td>
               <td>{r.createdBy ?? ''}</td>
             </tr>
           ))}

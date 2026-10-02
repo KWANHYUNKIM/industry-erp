@@ -95,7 +95,7 @@ export default function SlipLoadModal({ open, onClose, onApply }: {
         </table>
       ) : (
         <>
-          <div style={{ display: 'flex', gap: 6, marginBottom: 6, fontSize: 11.5, color: '#8a929c' }}>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 6, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
             <button type="button" className="ec-btn ec-btn-sm" onClick={() => { setMenu(null); setRows([]) }}>← 메뉴검색</button>
             <span style={{ marginLeft: 'auto' }}>{dateText(PERIOD.from)} ~ {dateText(PERIOD.to)}</span>
           </div>
@@ -112,7 +112,7 @@ export default function SlipLoadModal({ open, onClose, onApply }: {
               </thead>
               <tbody>
                 {rows.length === 0 ? (
-                  <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
+                  <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
                 ) : rows.map((r) => (
                   <tr key={r.key} style={{ cursor: 'pointer' }}
                       onClick={() => setPicked((p) => (p.includes(r.key) ? p.filter((x) => x !== r.key) : [...p, r.key]))}>

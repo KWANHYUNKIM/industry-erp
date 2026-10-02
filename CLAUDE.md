@@ -375,7 +375,7 @@ node qa/screen-check.mjs          # 라우트 전부(약 8분) — 빈 화면, '
 node qa/screen-check.mjs sales    # 접두사(/sales)만. Git Bash 는 '/sales' 를 윈도 경로로 바꾸므로 슬래시 없이
 node qa/shot.mjs <시나리오.json>   # QA 기록용 캡처(조건 코드도움 고르기 step 지원)
 for f in qa/flows/*.json; do node qa/shot.mjs $f; done   # 화면을 사람처럼 써 보는 회귀 시험(입력→저장→안내, 만든 전표는 지움)
-bash qa/precommit.sh               # 커밋 전 — typecheck·test:unit·ui-check·dto-check·arch-check, 하나라도 실패하면 exit 1
+bash qa/precommit.sh               # 커밋 전 — typecheck·test:unit·ui-check·dto-check·arch-check·style-check, 하나라도 실패하면 exit 1
 ```
 
 `screen-check` 는 화면마다 알약 버튼과 [검색]을 눌러 JS 예외·실패한 API(4xx/5xx)도 모읍니다.
@@ -449,6 +449,10 @@ frontend/src/
   바뀌었는데 틀 전체가 인라인이라 한 군데도 따라가지 않았습니다).
 - **값은 재서 넣습니다.** 원본 여백이 6.3px·9px·11.7px 처럼 보여도 반올림하지 않습니다(원본 여백이 정수 × 0.9 로 그려짐) —
   반올림하면 버튼 폭·칸 높이가 1px 씩 어긋납니다. 새 값은 원본에서 재서 `tokens.css` 에 이름을 붙여 더합니다.
+- **`node qa/style-check.mjs` 가 막습니다(래칫, `precommit.sh` 포함).** 파일마다 인라인 `style={…}` 과 색 값
+  (`#fff`·`rgb(`)의 개수를 `qa/style-baseline.json` 에 적어 두고, 늘면 실패합니다(새 파일의 기준은 0).
+  줄여도 실패합니다 — `node qa/style-check.mjs --update` 로 기준을 조이세요. 2026-10-03 처음 잰 값은 인라인 13,609 · 색 5,651,
+  같은 날 화면 274개의 색을 토큰으로 바꿔 색은 831 로 줄었습니다.
 - 테두리는 `var(--ec-hair)`(0.5px, 레티나에서 기기 픽셀 1칸)입니다. 본문 틀(`.ec-frame`)만 원본도 1px 입니다.
 - Tailwind 둥글기·그림자는 `index.css` 가 원본 단계로 덮습니다(`rounded-lg` → 10, `rounded-xl/2xl` → 20, 그림자 없음).
   새 화면에서는 Tailwind 색·둥글기 대신 위 클래스를 쓰세요.

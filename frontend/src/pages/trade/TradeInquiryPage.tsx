@@ -47,7 +47,7 @@ const TAB_STATUS: Record<Exclude<SalesTab, '전체'>, SalesConfirmStatus> = {
   확인: 'CONFIRMED',
 }
 const confirmColor = (s?: SalesConfirmStatus) =>
-  s === 'CONFIRMED' ? '#1c7c3c' : s === 'IN_APPROVAL' ? 'var(--ec-blue)' : '#8a929c'
+  s === 'CONFIRMED' ? 'var(--ec-success)' : s === 'IN_APPROVAL' ? 'var(--ec-blue)' : 'var(--ec-text-hint)'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 /*
@@ -482,8 +482,8 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
         { label: '인쇄' },
       ]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {ok && <p style={{ background: '#eaf6ee', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {ok && <p style={{ background: '#eaf6ee', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
 
       {/*
         원본은 이 줄이 [상태 알약]…………[기간] 이다 — 왼쪽에 필터, 오른쪽 끝에 조회 기간.
@@ -504,7 +504,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
             ))}
           </div>
         )}
-        <span style={{ marginLeft: isSales ? 8 : 0, fontSize: 12, color: '#9aa1ab', whiteSpace: 'nowrap' }}>
+        <span style={{ marginLeft: isSales ? 8 : 0, fontSize: 12, color: 'var(--ec-text-hint)', whiteSpace: 'nowrap' }}>
           총 {shown.length}건 · 행을 클릭하면 품목 상세가 펼쳐집니다.
         </span>
         <span style={{ marginLeft: 'auto', display: 'inline-flex', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', gap: 6, fontSize: 12, color: '#62677e' }}>
@@ -590,13 +590,13 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
           <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>최초작성일자</span>
           <input type="date" className="ec-input" value={madeFrom} style={{ width: 130 }}
                  onChange={(e) => setMadeFrom(e.target.value)} />
-          <span style={{ color: '#9aa1ab' }}>~</span>
+          <span style={{ color: 'var(--ec-text-hint)' }}>~</span>
           <input type="date" className="ec-input" value={madeTo} style={{ width: 130 }}
                  onChange={(e) => setMadeTo(e.target.value)} />
           <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>{updatedLabel}</span>
           <input type="date" className="ec-input" value={updFrom} style={{ width: 130 }}
                  onChange={(e) => setUpdFrom(e.target.value)} />
-          <span style={{ color: '#9aa1ab' }}>~</span>
+          <span style={{ color: 'var(--ec-text-hint)' }}>~</span>
           <input type="date" className="ec-input" value={updTo} style={{ width: 130 }}
                  onChange={(e) => setUpdTo(e.target.value)} />
           {/*
@@ -653,7 +653,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={colCount} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={colCount} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((d, i) => (
             <Fragment key={d.id}>
               <tr className={i % 2 ? 'ec-list-alt' : undefined}
@@ -661,8 +661,8 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                 <td
                   style={{
                     textAlign: 'center',
-                    background: selected.has(d.id) ? 'var(--ec-blue-light)' : '#f3f3f3',
-                    color: selected.has(d.id) ? 'var(--ec-blue-dark)' : '#8a929c',
+                    background: selected.has(d.id) ? 'var(--ec-blue-light)' : 'var(--ec-report-stripe)',
+                    color: selected.has(d.id) ? 'var(--ec-blue-dark)' : 'var(--ec-text-hint)',
                     fontWeight: selected.has(d.id) ? 700 : 400,
                     cursor: 'pointer', userSelect: 'none',
                   }}
@@ -680,7 +680,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                   {d.lines[0]?.itemName ?? ''}{d.lines.length > 1 ? ` 외 ${d.lines.length - 1}건` : ''}
                 </td>
                 <td style={{ textAlign: 'right' }}>{won(d.totalAmount)}</td>
-                {!isSales && <td style={{ color: '#5a626e' }}>{d.projectName ?? ''}</td>}
+                {!isSales && <td style={{ color: 'var(--ec-label)' }}>{d.projectName ?? ''}</td>}
                 <td style={{ textAlign: 'center' }}>{tradeTypeOf(d)}</td>
                 <td>{d.warehouseName}</td>
                 <td style={{ textAlign: 'center' }}>
@@ -699,7 +699,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                   })()}
                 </td>
                 <td style={{ textAlign: 'right' }}>{won(d.supplyAmount)}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(d.vatAmount)}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{won(d.vatAmount)}</td>
                 <td>{d.createdBy ?? ''}</td>
                 {isSales && (
                   <>
@@ -710,7 +710,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                       {d.confirmStatus === 'CONFIRMED' ? (
                         <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => confirmAct(d, 'unconfirm')}>확인취소</button>
                       ) : d.confirmStatus === 'IN_APPROVAL' ? (
-                        <span style={{ color: '#c9ced6' }}>—</span>
+                        <span style={{ color: 'var(--ec-text-off)' }}>—</span>
                       ) : (
                         <button className="ec-btn ec-btn-primary" style={{ height: 20, padding: '0 8px' }} onClick={() => confirmAct(d, 'confirm')}>확인</button>
                       )}
@@ -719,7 +719,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                 )}
                 <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
                   {taxIssued.has(d.id) || invoiceOf.has(d.docNo) ? (
-                    <span style={{ color: '#1c7c3c', fontSize: 11.5 }}>{invoiceOf.get(d.docNo) ?? '발행됨'}</span>
+                    <span style={{ color: 'var(--ec-success)', fontSize: 11.5 }}>{invoiceOf.get(d.docNo) ?? '발행됨'}</span>
                   ) : (
                     <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => issueTaxInvoice(d)}>발행</button>
                   )}
@@ -727,7 +727,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
               </tr>
               {openId === d.id && (
                 <tr className="no-ec">
-                  <td colSpan={colCount} style={{ padding: 0, background: '#fafbfc' }}>
+                  <td colSpan={colCount} style={{ padding: 0, background: 'var(--ec-bg-page)' }}>
                     <table className="w-full text-left" style={{ margin: '4px 0' }}>
                       <thead>
                         {/*
@@ -752,15 +752,15 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                       <tbody>
                         {d.lines.map((l, li) => (
                           <tr key={li}>
-                            <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{li + 1}</td>
+                            <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{li + 1}</td>
                             <td style={{ fontFamily: 'monospace' }}>{l.itemCode}</td>
                             <td>{l.itemName}</td>
-                            <td style={{ color: '#5a626e' }}>{l.spec ?? ''}</td>
+                            <td style={{ color: 'var(--ec-label)' }}>{l.spec ?? ''}</td>
                             <td style={{ textAlign: 'right' }}>{won(l.quantity)} {l.unit}</td>
                             <td style={{ textAlign: 'right' }}>{won(l.unitPrice)}</td>
                             <td style={{ textAlign: 'right' }}>{won(l.supplyAmount)}</td>
-                            <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(l.vatAmount)}</td>
-                            <td style={{ color: '#5a626e' }}>{l.remark ?? ''}</td>
+                            <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{won(l.vatAmount)}</td>
+                            <td style={{ color: 'var(--ec-label)' }}>{l.remark ?? ''}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -774,17 +774,17 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                       <button className="ec-btn" onClick={() => returnDoc(d)}>반품처리</button>
                       <button
                         className="ec-btn"
-                        style={{ color: '#c60a2e', borderColor: '#e2b4bc' }}
+                        style={{ color: 'var(--ec-danger)', borderColor: '#e2b4bc' }}
                         onClick={() => deleteDoc(d)}
                       >
                         삭제
                       </button>
-                      <span style={{ fontSize: 11.5, color: '#8a929c' }}>
+                      <span style={{ fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
                         삭제하면 {isSales ? '출고' : '입고'}분이 재고로 되돌아갑니다.
                         회계반영·확인{isSales ? '' : ''}·세금계산서 발행 전표는 먼저 취소해야 합니다.
                       </span>
                     </div>
-                    {d.remark && <div style={{ padding: '2px 10px 8px', fontSize: 12, color: '#5a626e' }}>비고: {d.remark}</div>}
+                    {d.remark && <div style={{ padding: '2px 10px 8px', fontSize: 12, color: 'var(--ec-label)' }}>비고: {d.remark}</div>}
                     {isSales && <div style={{ padding: '0 10px 8px' }}><CustomFieldsPanel entityType="SALES" entityId={d.id} /></div>}
                     <div style={{ padding: '0 10px 8px' }}>
                       <EvidencePanel
@@ -801,7 +801,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
           ))}
         </tbody>
         <tfoot>
-          <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+          <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
             {/*
               합계행은 머리글과 칸 수가 정확히 같아야 숫자가 제 열 아래에 선다.
               앞 4칸(행머리·일자-No.·거래처·품목명) + 금액합계 + 5칸(거래유형·창고·회계반영·인쇄·불러온전표)

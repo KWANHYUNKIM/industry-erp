@@ -111,33 +111,33 @@ export default function CollectSourcePage() {
     ]}>
       <p className="mb-2 text-xs text-slate-500">데이터수집 화면이 실행하는 소스 목록입니다. 소스 = 우리 API 목록 GET 엔드포인트(예: /sales, /shipments). 여기서 추가하면 코드 배포 없이 수집 대상이 늘어납니다.</p>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {ok && <p style={{ background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {ok && <p style={{ background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
 
       <Modal error={error} open={showForm} title={editId ? '수집 소스 수정' : '수집 소스 등록'} onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginTop: 8, marginBottom: 8 }}>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>소스명 *</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>소스명 *</div>
               <input className={inputCls} value={form.name} onChange={(e) => set('name', e.target.value)} style={{ width: 180 }} placeholder="예: 견적 전표" /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>데이터코드</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>데이터코드</div>
               <input className={inputCls} value={form.code} onChange={(e) => set('code', e.target.value)} style={{ width: 120 }} placeholder="D001" /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>구분 *</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>구분 *</div>
               <input className={inputCls} value={form.category} onChange={(e) => set('category', e.target.value)} style={{ width: 110 }} placeholder="예: 영업" /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>엔드포인트 *</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>엔드포인트 *</div>
               <input className={inputCls} value={form.endpoint} onChange={(e) => set('endpoint', e.target.value)} style={{ width: 240 }} placeholder="예: /quotations" /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>정렬</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>정렬</div>
               <input className={`${inputCls} text-right`} type="number" value={form.sortOrder} onChange={(e) => set('sortOrder', e.target.value)} style={{ width: 70 }} /></label>
             <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
               <input type="checkbox" checked={form.paged} onChange={(e) => set('paged', e.target.checked)} /> 페이지응답(totalElements)
             </label>
             <button type="submit" className="ec-btn ec-btn-primary">{editId ? '수정' : '저장'}</button>
           </div>
-          <p style={{ fontSize: 11.5, color: '#8a929c', marginTop: 8 }}>엔드포인트는 배열을 반환하는 목록 GET 이어야 하며, 페이지 응답이면 '페이지응답'을 체크하세요(건수=totalElements).</p>
+          <p style={{ fontSize: 11.5, color: 'var(--ec-text-hint)', marginTop: 8 }}>엔드포인트는 배열을 반환하는 목록 GET 이어야 하며, 페이지 응답이면 '페이지응답'을 체크하세요(건수=totalElements).</p>
         </form>
       )}</Modal>
 
       {/* 원본 조건 차례: <b>데이터코드</b> · 데이터명 · 수집대상 · … · <b>최초작성일자</b> · <b>최종작업일자</b> */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)' }}>
         <span>데이터코드</span>
         <input className="ec-input" value={codeCond} placeholder="데이터코드"
                onChange={(e) => setCodeCond(e.target.value)} style={{ width: 120 }} />
@@ -174,30 +174,30 @@ export default function CollectSourcePage() {
         </tr></thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((s) => (
             <tr key={s.id} style={{ opacity: s.active ? 1 : 0.5 }}>
               <td style={{ textAlign: 'center' }}>
                 <input type="checkbox" checked={picked.has(s.id)} onChange={() => pick(s.id)} />
               </td>
               <td></td>
-              <td style={{ textAlign: 'right', color: '#9aa1ab' }}>{s.sortOrder}</td>
-              <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{s.code ?? ''}</td>
+              <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{s.sortOrder}</td>
+              <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{s.code ?? ''}</td>
               <td style={{ fontWeight: 600 }}>{s.name}</td>
               <td>{s.category}</td>
-              <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: '#5a626e' }}>GET /api{s.endpoint}</td>
+              <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: 'var(--ec-label)' }}>GET /api{s.endpoint}</td>
               <td style={{ textAlign: 'center' }}>{s.paged ? '●' : ''}</td>
               {/* 원본 [최초작성일자]·[최종작업일자] — 날짜만 적는다(시각은 표에서 뜻이 없다). */}
-              <td style={{ textAlign: 'center', color: '#5a626e' }}>{s.createdAt?.slice(0, 10) ?? ''}</td>
-              <td style={{ textAlign: 'center', color: '#5a626e' }}>{s.updatedAt?.slice(0, 10) ?? ''}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-label)' }}>{s.createdAt?.slice(0, 10) ?? ''}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-label)' }}>{s.updatedAt?.slice(0, 10) ?? ''}</td>
               <td style={{ textAlign: 'center' }}>
-                <button className="no-ec" onClick={() => toggleActive(s)} style={{ border: '1px solid var(--ec-border)', background: s.active ? '#eaf6ec' : '#f2f3f5', color: s.active ? '#1c7c3c' : '#8a929c', cursor: 'pointer', fontSize: 11.5, padding: '2px 8px', borderRadius: 3 }}>{s.active ? '사용' : '중단'}</button>
+                <button className="no-ec" onClick={() => toggleActive(s)} style={{ border: '1px solid var(--ec-border)', background: s.active ? 'var(--ec-success-bg)' : 'var(--ec-bg-page)', color: s.active ? 'var(--ec-success)' : 'var(--ec-text-hint)', cursor: 'pointer', fontSize: 11.5, padding: '2px 8px', borderRadius: 3 }}>{s.active ? '사용' : '중단'}</button>
               </td>
               <td style={{ textAlign: 'center' }}>
                 <button className="no-ec" onClick={() => openEdit(s)} style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>수정</button>
-                <button className="no-ec" onClick={() => remove(s.id)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                <button className="no-ec" onClick={() => remove(s.id)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button>
               </td>
             </tr>
           ))}

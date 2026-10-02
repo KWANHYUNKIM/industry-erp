@@ -29,7 +29,7 @@ const TAB_STATUS: Record<Exclude<Tab, '전체'>, PurchaseOrderStatus> = {
   발주확정: 'ORDERED', 입고전환: 'RECEIVED', 취소: 'CANCELLED',
 }
 const statusColor = (s: PurchaseOrderStatus) =>
-  s === 'RECEIVED' ? '#1c7c3c' : s === 'CANCELLED' ? '#8a929c' : s === 'ORDERED' ? 'var(--ec-blue)' : '#5a626e'
+  s === 'RECEIVED' ? 'var(--ec-success)' : s === 'CANCELLED' ? 'var(--ec-text-hint)' : s === 'ORDERED' ? 'var(--ec-blue)' : 'var(--ec-label)'
 
 /** GET /purchase-orders/{id}/history 한 줄 — 단계가 언제 누구 손에 바뀌었나. */
 interface HistoryRow {
@@ -353,13 +353,13 @@ export default function PurchaseOrderPage() {
     ]}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
         <button className="ec-btn" onClick={load}>새로고침</button>
-        <span style={{ marginLeft: 8, fontSize: 12, color: '#9aa1ab' }}>
+        <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--ec-text-hint)' }}>
           발주요청 → 발주계획 → 단가확정 → 발주확정 → 입고전환. 재고는 입고전환 시에만 증가합니다.
         </span>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)' }}>{notice}</div>}
 
       {/* 상태 필터는 원본에서 알약(pill)이다 — 선택된 것만 파란 알약으로 채워진다. */}
       {/* 원본 조건 차례: 발주No. · … · 창고 · … · 거래처 · 품목 */}
@@ -368,7 +368,7 @@ export default function PurchaseOrderPage() {
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from}
                  onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
           <input type="date" className="ec-input" value={to}
                  onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
           <span style={{ marginLeft: 6 }}>
@@ -424,7 +424,7 @@ export default function PurchaseOrderPage() {
         </EcCond>
         <EcCond label="납기일자">
           <input type="date" className="ec-input" value={dueFrom} onChange={(e) => setDueFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
           <input type="date" className="ec-input" value={dueTo} onChange={(e) => setDueTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="규격" pick>
@@ -462,12 +462,12 @@ export default function PurchaseOrderPage() {
         </EcCond>
         <EcCond label="최초작성일자">
           <input type="date" className="ec-input" value={madeFrom} onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
           <input type="date" className="ec-input" value={madeTo} onChange={(e) => setMadeTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="최종작업일자">
           <input type="date" className="ec-input" value={editedFrom} onChange={(e) => setEditedFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
           <input type="date" className="ec-input" value={editedTo} onChange={(e) => setEditedTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="기타">
@@ -517,19 +517,19 @@ export default function PurchaseOrderPage() {
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((po, i) => (
             <Fragment key={po.id}>
               <tr onClick={() => toggle(po.id)} style={{ cursor: 'pointer' }}>
                 <td style={{ textAlign: 'center' }}>
                   <input type="checkbox" checked={picked.has(po.id)} onChange={() => pick(po.id)} />
                 </td>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>
                   {openId === po.id ? '▾ ' : '▸ '}{po.orderDate} {po.orderNo}
                 </td>
                 <td>{po.partnerName}</td>
-                <td style={{ color: po.employeeName ? undefined : '#c9ced6' }}>{po.employeeName ?? ''}</td>
+                <td style={{ color: po.employeeName ? undefined : 'var(--ec-text-off)' }}>{po.employeeName ?? ''}</td>
                 {/* 여러 줄이면 첫 줄에 '외 N건' 을 붙인다 — 원본도 한 칸에 대표 품목을 적는다. */}
                 <td>
                   {po.lines[0]
@@ -540,11 +540,11 @@ export default function PurchaseOrderPage() {
                 </td>
                 <td style={{ textAlign: 'center' }}>{dateText(po.dueDate) || ''}</td>
                 <td style={{ textAlign: 'right' }}>{won(po.supplyAmount)}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(po.vatAmount)}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{won(po.vatAmount)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(po.totalAmount)}</td>
                 <td style={{ textAlign: 'center' }}><span style={{ color: statusColor(po.status) }}>{po.statusName}</span></td>
                 {/* 원본 [생성한 전표] — 입고로 넘어가며 만들어진 구매 전표를 가리킨다. */}
-                <td style={{ textAlign: 'center', color: po.convertedPurchaseId ? 'var(--ec-blue)' : '#c9ced6' }}>
+                <td style={{ textAlign: 'center', color: po.convertedPurchaseId ? 'var(--ec-blue)' : 'var(--ec-text-off)' }}>
                   {po.convertedPurchaseId ? `#${po.convertedPurchaseId}` : '-'}
                 </td>
                 <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
@@ -554,37 +554,37 @@ export default function PurchaseOrderPage() {
                     {(po.status === 'PLANNED' || po.status === 'PRICED') && <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => setPricing(po)}>단가확정</button>}
                     {po.status === 'PRICED' && <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => confirm(po)}>발주확정</button>}
                     {po.status === 'ORDERED' && <button className="ec-btn ec-btn-primary" style={{ height: 20, padding: '0 8px' }} onClick={() => receive(po)}>입고전환</button>}
-                    {po.status !== 'RECEIVED' && po.status !== 'CANCELLED' && <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => cancel(po)}>취소</button>}
-                    <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => remove(po)}>삭제</button>
+                    {po.status !== 'RECEIVED' && po.status !== 'CANCELLED' && <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: 'var(--ec-danger)' }} onClick={() => cancel(po)}>취소</button>}
+                    <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: 'var(--ec-danger)' }} onClick={() => remove(po)}>삭제</button>
                   </div>
                 </td>
               </tr>
               {openId === po.id && (
                 <tr className="no-ec">
-                  <td colSpan={13} style={{ padding: 0, background: '#fafbfc' }}>
+                  <td colSpan={13} style={{ padding: 0, background: 'var(--ec-bg-page)' }}>
                     <table className="w-full text-left" style={{ margin: '4px 0' }}>
                       <thead><tr><th style={{ width: 34 }}></th><th>품목코드</th><th>품목명</th><th style={{ textAlign: 'right' }}>수량</th><th style={{ textAlign: 'right' }}>단가</th><th style={{ textAlign: 'right' }}>공급가액</th><th style={{ textAlign: 'right' }}>부가세</th></tr></thead>
                       <tbody>
                         {po.lines.map((l) => (
                           <tr key={l.id}>
-                            <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{l.lineNo}</td>
+                            <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{l.lineNo}</td>
                             <td style={{ fontFamily: 'monospace' }}>{l.itemCode}</td>
                             <td>{l.itemName}{l.spec ? ` [${l.spec}]` : ''}</td>
                             <td style={{ textAlign: 'right' }}>{won(l.quantity)} {l.unit}</td>
                             <td style={{ textAlign: 'right' }}>{won(l.unitPrice)}</td>
                             <td style={{ textAlign: 'right' }}>{won(l.supplyAmount)}</td>
-                            <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(l.vatAmount)}</td>
+                            <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{won(l.vatAmount)}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                     {/* 진행이력 — 단계가 바뀐 자취. 아직 안 왔거나 하나도 없으면 그 사실을 적는다. */}
                     <div style={{ padding: '2px 6px 8px' }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: '#5a626e', margin: '2px 0 4px' }}>진행이력</div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ec-label)', margin: '2px 0 4px' }}>진행이력</div>
                       {hist[po.id] === undefined ? (
-                        <span style={{ fontSize: 12, color: '#9aa1ab' }}>불러오는 중…</span>
+                        <span style={{ fontSize: 12, color: 'var(--ec-text-hint)' }}>불러오는 중…</span>
                       ) : hist[po.id].length === 0 ? (
-                        <span style={{ fontSize: 12, color: '#9aa1ab' }}>기록된 단계 변경이 없습니다.</span>
+                        <span style={{ fontSize: 12, color: 'var(--ec-text-hint)' }}>기록된 단계 변경이 없습니다.</span>
                       ) : (
                         <table className="w-full text-left" style={{ maxWidth: 720 }}>
                           <thead><tr>
@@ -602,7 +602,7 @@ export default function PurchaseOrderPage() {
                                   <b>{h.toStatusName}</b>
                                 </td>
                                 <td>{h.changedBy ?? ''}</td>
-                                <td style={{ color: h.note ? undefined : '#c9ced6' }}>{h.note ?? ''}</td>
+                                <td style={{ color: h.note ? undefined : 'var(--ec-text-off)' }}>{h.note ?? ''}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -672,18 +672,18 @@ function PriceForm({ order, onClose, onSaved }: { order: PurchaseOrder; onClose:
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 640, maxWidth: '94vw', maxHeight: '90vh', overflow: 'auto', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: '#f5f7fa' }}>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: 'var(--ec-bg-page)' }}>
           <span style={{ fontWeight: 800, color: 'var(--ec-blue-dark)' }}>단가확정 — {order.orderNo} ({order.partnerName})</span>
-          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: '#8a929c' }}>×</span>
+          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: 'var(--ec-text-hint)' }}>×</span>
         </div>
         <div style={{ padding: 16 }}>
-          {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+          {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
           <table className="w-full text-left">
             <thead><tr><th style={{ width: 34 }}></th><th>품목</th><th style={{ textAlign: 'right' }}>수량</th><th style={{ width: 120, textAlign: 'right' }}>확정단가</th><th style={{ textAlign: 'right' }}>공급가액</th></tr></thead>
             <tbody>
               {order.lines.map((l) => (
                 <tr key={l.id}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{l.lineNo}</td>
+                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{l.lineNo}</td>
                   <td>{l.itemCode} {l.itemName}</td>
                   <td style={{ textAlign: 'right' }}>{won(l.quantity)} {l.unit}</td>
                   <td>
@@ -695,7 +695,7 @@ function PriceForm({ order, onClose, onSaved }: { order: PurchaseOrder; onClose:
               ))}
             </tbody>
             <tfoot>
-              <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+              <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
                 <td colSpan={3} style={{ textAlign: 'right' }}>공급가액 / 부가세 / 합계</td>
                 <td colSpan={2} style={{ textAlign: 'right' }}>{won(supply)} / {won(vat)} / <span style={{ color: 'var(--ec-blue-dark)' }}>{won(supply + vat)}</span></td>
               </tr>
@@ -703,7 +703,7 @@ function PriceForm({ order, onClose, onSaved }: { order: PurchaseOrder; onClose:
           </table>
         </div>
         <div style={{ display: 'flex', gap: 6, padding: '10px 16px', borderTop: '1px solid var(--ec-border)', alignItems: 'center' }}>
-          <label style={{ fontSize: 12.5, color: '#5a626e', display: 'flex', alignItems: 'center', gap: 5 }}>
+          <label style={{ fontSize: 12.5, color: 'var(--ec-label)', display: 'flex', alignItems: 'center', gap: 5 }}>
             유효기간
             <input type="date" className="ec-input" value={validUntil}
                    onChange={(e) => setValidUntil(e.target.value)} style={{ width: 145 }} />
@@ -884,34 +884,34 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 880, maxWidth: '96vw', maxHeight: '90vh', overflow: 'auto', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: '#f5f7fa' }}>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: 'var(--ec-bg-page)' }}>
           <span style={{ fontWeight: 800, color: 'var(--ec-blue-dark)' }}>발주요청</span>
-          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: '#8a929c' }}>×</span>
+          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: 'var(--ec-text-hint)' }}>×</span>
         </div>
         <div style={{ padding: 16 }}>
-          {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+          {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
           <table className="w-full text-left" style={{ marginBottom: 12 }}>
             <tbody>
               <tr>
-                <th style={{ width: 90, background: '#f5f7fa' }}>매입처<span style={{ color: '#c60a2e' }}>*</span></th>
+                <th style={{ width: 90, background: 'var(--ec-bg-page)' }}>매입처<span style={{ color: 'var(--ec-danger)' }}>*</span></th>
                 <td>
                   <CodePickerField label="매입처" hideLabel width={240} emptyLabel="선택 안 함" placeholder="매입처 선택"
                                    value={partnerId} onChange={choosePartner}
                                    items={partnerCodeItems(partners.filter((p) => p.type !== 'CUSTOMER'))} />
                 </td>
                 {/* 원본 발주서입력의 이름은 [발주일]이 아니라 <b>[일자]</b> 다(사본 실측). */}
-                <th style={{ width: 70, background: '#f5f7fa' }}>일자</th>
+                <th style={{ width: 70, background: 'var(--ec-bg-page)' }}>일자</th>
                 <td><input type="date" className="ec-input" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
                 {/* 원본 발주서입력의 이름은 [납기요청일]이 아니라 <b>[납기일자]</b> 다(사본 실측).
                     목록 열도 이미 [납기일자]라 <b>우리끼리도 어긋나</b> 있었다. */}
-                <th style={{ background: '#f5f7fa' }}>납기일자</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>납기일자</th>
                 <td><input type="date" className="ec-input" value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={{ width: 150 }} /></td>
 {/* 원본 차례: 담당자 · 거래유형 · 통화 · 참조 — 담당자가 거래유형보다 앞이다. */}
                 {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다 —
                     사원·창고가 몇십 개만 돼도 드롭다운으로는 코드로 못 찾는다. */}
-                <th style={{ background: '#f5f7fa' }}>담당자</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>담당자</th>
                 <td>
                   <CodePickerField label="담당자" hideLabel width={150} emptyLabel="담당자 선택"
                                    value={employeeId} onChange={setEmployeeId}
@@ -919,7 +919,7 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
                 </td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>거래유형</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>거래유형</th>
                 <td>
                   <select className="ec-input" value={taxable ? 'VAT' : 'FREE'} onChange={(e) => setTaxable(e.target.value === 'VAT')} style={{ width: 150 }}>
                     <option value="VAT">부가세율 적용</option>
@@ -927,7 +927,7 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
                   </select>
                 </td>
                 {/* 원본 발주서입력의 이름은 [창고]가 아니라 <b>[입고창고]</b> 다 — 목록 상세도 그렇게 적는다. */}
-                <th style={{ background: '#f5f7fa' }}>입고창고</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>입고창고</th>
                 <td>
                   <CodePickerField label="입고창고" hideLabel width={150} emptyLabel="창고 선택"
                                    value={warehouseId} onChange={setWarehouseId}
@@ -935,19 +935,19 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
                 </td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>통화</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>통화</th>
                 <td>
                   <select className="ec-input" value={currency} onChange={(e) => setCurrency(e.target.value)} style={{ width: 150 }}>
                     <option value="KRW">내자(KRW)</option>
                     {currencies.filter((c) => c.code !== 'KRW').map((c) => <option key={c.id} value={c.code}>{c.code} {c.name}</option>)}
                   </select>
                 </td>
-                <th style={{ background: '#f5f7fa' }}>참조</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>참조</th>
                 <td><input className="ec-input" value={remark} onChange={(e) => setRemark(e.target.value)} placeholder="참조/비고" style={{ width: '100%' }} /></td>
               </tr>
               <tr>
                 {/* 원본 발주서입력 차례의 <b>맨 뒤</b>가 [프로젝트]다(사본 실측). */}
-                <th style={{ background: '#f5f7fa' }}>프로젝트</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>프로젝트</th>
                 <td colSpan={3}>
                   <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="선택 안 함"
                                    value={projectId} onChange={setProjectId}
@@ -968,21 +968,21 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
             <tbody>
               {lines.map((l, i) => (
                 <tr key={i}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                   <td>
                     <CodePickerField label="품목" hideLabel fill placeholder="품목 선택" emptyLabel="선택 해제"
                                      value={l.itemId} onChange={(v) => pickItem(i, v)}
                                      items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, alias: it.searchKeyword, sub: it.spec }))} />
                   </td>
-                  <td style={{ color: '#6b7280' }}>{specOf(l.itemId)}</td>
+                  <td style={{ color: 'var(--ec-text-muted)' }}>{specOf(l.itemId)}</td>
                   <td>
                     <CodePickerField label="매입처" hideLabel fill emptyLabel="(헤더 매입처)" placeholder="(헤더 매입처)"
                                      value={l.partnerId} onChange={(v) => setLine(i, { partnerId: v })}
                                      items={partnerCodeItems(partners.filter((p) => p.type !== 'CUSTOMER'))} />
                   </td>
                   {/* [재고불러오기]가 채우는 두 칸. 누르기 전에는 '-' 다. */}
-                  <td style={{ textAlign: 'right', color: '#5a626e' }}>{stockCell(stockAllOf(l.itemId))}</td>
-                  <td style={{ textAlign: 'right', color: '#5a626e' }}>{stockCell(stockAtOf(l.itemId))}</td>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{stockCell(stockAllOf(l.itemId))}</td>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{stockCell(stockAtOf(l.itemId))}</td>
                   <td><input className="ec-input" type="number" value={l.quantity} onChange={(e) => setLine(i, { quantity: e.target.value })} style={{ width: '100%', textAlign: 'right' }} /></td>
                   <td><input className="ec-input" type="number" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: e.target.value })} style={{ width: '100%', textAlign: 'right' }} /></td>
                   <td style={{ textAlign: 'right' }}>{won(calc[i])}</td>
@@ -1009,15 +1009,15 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
                       )}
                     </td>
                   ))}
-                  <td style={{ color: '#6b7280' }}>{i + 1}</td>
-                  <td style={{ color: '#6b7280' }}>{unitOf(l.itemId)}</td>
-                  <td style={{ textAlign: 'right', color: '#6b7280' }}>{won(Math.round(Number(l.unitPrice || 0) * (taxable ? 1.1 : 1)))}</td>
+                  <td style={{ color: 'var(--ec-text-muted)' }}>{i + 1}</td>
+                  <td style={{ color: 'var(--ec-text-muted)' }}>{unitOf(l.itemId)}</td>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-text-muted)' }}>{won(Math.round(Number(l.unitPrice || 0) * (taxable ? 1.1 : 1)))}</td>
                   <td style={{ textAlign: 'center' }}>{lines.length > 1 && <button className="ec-btn" onClick={() => setLines((ls) => ls.filter((_, idx) => idx !== i))}>×</button>}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
-              <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+              <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
                 <td colSpan={8} style={{ textAlign: 'right' }}>공급가액 / 부가세 / 합계</td>
                 {/* 추가항목 열이 늘어난 만큼 여기도 늘어야 한다 — 안 그러면 합계가 엉뚱한 열 아래 붙는다. */}
                 <td style={{ textAlign: 'right' }} colSpan={6 + lineDefs.length}>{won(supply)} / {won(vat)} / <span style={{ color: 'var(--ec-blue-dark)' }}>{won(supply + vat)}</span></td>
@@ -1031,7 +1031,7 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
             <button type="button" className="ec-btn" disabled={stockBusy} onClick={loadStocks}>재고불러오기</button>
             <MyItemsNote note={myItems.note} />
             {stockLoaded && (
-              <span style={{ fontSize: 12, color: '#5a626e' }}>
+              <span style={{ fontSize: 12, color: 'var(--ec-label)' }}>
                 재고를 불러왔습니다{warehouseId ? '' : ' — [입고창고]를 고르면 창고수량도 찹니다'}.
               </span>
             )}

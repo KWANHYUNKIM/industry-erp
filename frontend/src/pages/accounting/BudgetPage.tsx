@@ -59,13 +59,13 @@ export default function BudgetPage() {
         <input type="month" className="ec-input" value={period} onChange={(e) => setPeriod(e.target.value)} style={{ width: 150 }} />
         <button className="ec-btn ec-btn-primary" onClick={load}>조회</button>
         <button className="ec-btn" onClick={() => setShowForm(true)}>+ 예산편성</button>
-        <span style={{ marginLeft: 8, fontSize: 12, color: '#9aa1ab' }}>
+        <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--ec-text-hint)' }}>
           집행실적은 그 달의 회계전표에서 계산합니다. 전표를 고치면 집행률이 함께 바뀝니다.
         </span>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)' }}>{notice}</div>}
 
       {status && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
@@ -91,17 +91,17 @@ export default function BudgetPage() {
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>
               편성된 예산이 없습니다. [+ 예산편성]으로 계정별 예산을 잡으세요.
             </td></tr>
           ) : rows.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.accountCode}</td>
               <td>{r.accountName}</td>
               <td style={{ textAlign: 'right' }}>{won(r.amount)}</td>
               <td style={{ textAlign: 'right' }}>{won(r.actual)}</td>
-              <td style={{ textAlign: 'right', color: r.over ? '#c60a2e' : undefined, fontWeight: r.over ? 700 : undefined }}>
+              <td style={{ textAlign: 'right', color: r.over ? 'var(--ec-danger)' : undefined, fontWeight: r.over ? 700 : undefined }}>
                 {won(r.remaining)}
               </td>
               <td>
@@ -109,19 +109,19 @@ export default function BudgetPage() {
                   <div style={{ flex: 1, height: 8, background: '#eef1f4', borderRadius: 4, overflow: 'hidden' }}>
                     <div style={{
                       width: `${Math.min(Number(r.executionRate), 100)}%`, height: '100%',
-                      background: r.over ? '#c60a2e' : Number(r.executionRate) >= 80 ? '#c07a00' : 'var(--ec-blue)',
+                      background: r.over ? 'var(--ec-danger)' : Number(r.executionRate) >= 80 ? 'var(--ec-warn)' : 'var(--ec-blue)',
                     }} />
                   </div>
-                  <span style={{ fontSize: 11.5, width: 48, textAlign: 'right', color: r.over ? '#c60a2e' : '#5a626e' }}>
+                  <span style={{ fontSize: 11.5, width: 48, textAlign: 'right', color: r.over ? 'var(--ec-danger)' : 'var(--ec-label)' }}>
                     {r.executionRate}%
                   </span>
                 </div>
               </td>
-              <td style={{ fontSize: 12, color: '#8a929c' }}>{r.over ? '예산 초과' : (r.remark ?? '')}</td>
+              <td style={{ fontSize: 12, color: 'var(--ec-text-hint)' }}>{r.over ? '예산 초과' : (r.remark ?? '')}</td>
               <td style={{ textAlign: 'center' }}>
                 <div style={{ display: 'inline-flex', gap: 3 }}>
                   <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => edit(r.id, r.accountName, r.amount)}>수정</button>
-                  <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => remove(r.id, r.accountName)}>삭제</button>
+                  <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: 'var(--ec-danger)' }} onClick={() => remove(r.id, r.accountName)}>삭제</button>
                 </div>
               </td>
             </tr>
@@ -143,9 +143,9 @@ export default function BudgetPage() {
 
 function Tile({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   return (
-    <div style={{ flex: 1, border: '1px solid var(--ec-border)', borderRadius: 3, padding: '8px 10px', background: strong ? '#eef5ff' : '#fff' }}>
-      <div style={{ fontSize: 11.5, color: '#8a929c' }}>{label}</div>
-      <div style={{ fontSize: 16, fontWeight: 700, color: strong ? 'var(--ec-blue-dark)' : '#2b3440' }}>{value}</div>
+    <div style={{ flex: 1, border: '1px solid var(--ec-border)', borderRadius: 3, padding: '8px 10px', background: strong ? 'var(--ec-blue-wash)' : '#fff' }}>
+      <div style={{ fontSize: 11.5, color: 'var(--ec-text-hint)' }}>{label}</div>
+      <div style={{ fontSize: 16, fontWeight: 700, color: strong ? 'var(--ec-blue-dark)' : 'var(--ec-text)' }}>{value}</div>
     </div>
   )
 }
@@ -177,16 +177,16 @@ function BudgetForm({ period, accounts, onClose, onSaved }: {
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 520, maxWidth: '94vw', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: '#f5f7fa' }}>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: 'var(--ec-bg-page)' }}>
           <span style={{ fontWeight: 800, color: 'var(--ec-blue-dark)' }}>예산편성 — {period}</span>
-          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: '#8a929c' }}>×</span>
+          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: 'var(--ec-text-hint)' }}>×</span>
         </div>
         <div style={{ padding: 16 }}>
-          {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+          {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
           <table className="w-full text-left">
             <tbody>
               <tr>
-                <th style={{ width: 90, background: '#f5f7fa' }}>계정과목<span style={{ color: '#c60a2e' }}>*</span></th>
+                <th style={{ width: 90, background: 'var(--ec-bg-page)' }}>계정과목<span style={{ color: 'var(--ec-danger)' }}>*</span></th>
                 <td>
                   <select className="ec-input" value={accountId} onChange={(e) => setAccountId(e.target.value)} style={{ width: '100%' }}>
                     <option value="">계정 선택</option>
@@ -195,11 +195,11 @@ function BudgetForm({ period, accounts, onClose, onSaved }: {
                 </td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>예산액<span style={{ color: '#c60a2e' }}>*</span></th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>예산액<span style={{ color: 'var(--ec-danger)' }}>*</span></th>
                 <td><input type="number" className="ec-input" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ width: 180, textAlign: 'right' }} /></td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>비고</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>비고</th>
                 <td><input className="ec-input" value={remark} onChange={(e) => setRemark(e.target.value)} style={{ width: '100%' }} /></td>
               </tr>
             </tbody>

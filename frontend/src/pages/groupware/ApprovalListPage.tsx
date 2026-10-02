@@ -353,7 +353,7 @@ export default function ApprovalListPage({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ color: '#f5b301', fontSize: 14, marginRight: 4 }}>☆</span>
+        <span style={{ color: 'var(--ec-star)', fontSize: 14, marginRight: 4 }}>☆</span>
         <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ec-text)' }}>{title}</span>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, position: 'relative' }}>
           <button className="ec-btn" onClick={load}>새로고침</button>
@@ -372,7 +372,7 @@ export default function ApprovalListPage({
           {optionOpen && (
             <>
               <div onClick={() => setOptionOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
-              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, zIndex: 41, background: '#fff', border: '1px solid #c9d1da', borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,.12)', minWidth: 150, padding: 4 }}>
+              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, zIndex: 41, background: '#fff', border: '1px solid var(--ec-line)', borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,.12)', minWidth: 150, padding: 4 }}>
                 {[
                   { label: 'Excel', run: () => { void doExcel() } },   // 원본 버튼 이름 그대로
                   { label: '인쇄', run: () => doPrint() },
@@ -386,9 +386,9 @@ export default function ApprovalListPage({
         </div>
       </div>
 
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {passedNotice && <p style={{ marginBottom: 8, background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{passedNotice}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {passedNotice && <p style={{ marginBottom: 8, background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{passedNotice}</p>}
+      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)' }}>{notice}</div>}
 
       {/* 상태 필터는 원본에서 알약(pill)이다 — 선택된 것만 파란 알약으로 채워진다. */}
       <div className="ec-pills" style={{ marginBottom: 6 }}>
@@ -409,20 +409,20 @@ export default function ApprovalListPage({
           기안서통합관리는 [일자], 내결재관리는 [기준일자]다. 한 이름으로 눌러 두면
           한쪽이 늘 틀린다(판매조회/구매조회에서 겪은 것과 같다).
         */}
-        <label style={{ fontSize: 12.5, color: '#5a626e' }}>{dateLabel}</label>
+        <label style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>{dateLabel}</label>
         <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
         <span style={{ color: 'var(--ec-label)' }}>~</span>
         <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
-        <label style={{ fontSize: 12.5, color: '#5a626e', marginLeft: 8 }}>기안자</label>
+        <label style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>기안자</label>
         <input className="ec-input" value={drafterCond} onChange={(e) => setDrafterCond(e.target.value)}
                style={{ width: 110 }} placeholder="기안자" />
-        <label style={{ fontSize: 12.5, color: '#5a626e', marginLeft: 8 }}>제목</label>
+        <label style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>제목</label>
         <input className="ec-input" value={titleCond} onChange={(e) => setTitleCond(e.target.value)}
                style={{ width: 140 }} placeholder="제목 일부" />
-        <label style={{ fontSize: 12.5, color: '#5a626e', marginLeft: 8 }}>내용</label>
+        <label style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>내용</label>
         <input className="ec-input" value={contentCond} onChange={(e) => setContentCond(e.target.value)}
                style={{ width: 140 }} placeholder="내용 일부" />
-        <label style={{ fontSize: 12.5, color: '#5a626e', marginLeft: 8 }}>결재라인</label>
+        <label style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>결재라인</label>
         <select className="ec-input" value={lineCond} onChange={(e) => setLineCond(e.target.value)} style={{ width: 130 }}>
           <option value="">전체</option>
           {approvers.map((a) => <option key={a} value={a}>{a}</option>)}
@@ -432,29 +432,29 @@ export default function ApprovalListPage({
           품의서 …)인데 원본은 그것을 <b>[구분]</b> 이라 부른다. 원본의 [출력양식]은 따로 있는
           <b>인쇄 양식</b>이라 다른 것이다 — 우리는 화면마다 인쇄 양식이 하나라 그 칸이 없다.
         */}
-        <label style={{ fontSize: 12.5, color: '#5a626e', marginLeft: 8 }}>구분</label>
+        <label style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>구분</label>
         <select className="ec-input" value={formType} onChange={(e) => setFormType(e.target.value)} style={{ width: 150 }}>
           <option value="">전체</option>
           {formTypes.map((f) => <option key={f} value={f}>{f}</option>)}
         </select>
-        <label style={{ fontSize: 12.5, color: '#5a626e', marginLeft: 8 }}>부서</label>
+        <label style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>부서</label>
         <select className="ec-input" value={dept} onChange={(e) => setDept(e.target.value)} style={{ width: 130 }}>
           <option value="">전체</option>
           {depts.map((d) => <option key={d} value={d}>{d}</option>)}
         </select>
-        <label style={{ fontSize: 12.5, color: '#5a626e', marginLeft: 8 }}>프로젝트</label>
+        <label style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>프로젝트</label>
         {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
         <CodePickerField label="프로젝트" hideLabel width={150} placeholder="프로젝트" emptyLabel="전체"
                          value={project} onChange={setProject} items={projects} />
-        <label style={{ fontSize: 12.5, color: '#5a626e', marginLeft: 8 }}>기안서No.</label>
+        <label style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>기안서No.</label>
         <input className="ec-input" value={docNoCond} onChange={(e) => setDocNoCond(e.target.value)}
                style={{ width: 140 }} placeholder="문서번호 일부" />
-        <label style={{ fontSize: 12.5, color: '#5a626e', marginLeft: 8 }}>첨부</label>
+        <label style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>첨부</label>
         <select className="ec-input" value={attachCond} style={{ width: 100 }}
                 onChange={(e) => setAttachCond(e.target.value as '전체' | '있음' | '없음')}>
           {(['전체', '있음', '없음'] as const).map((v) => <option key={v} value={v}>{v}</option>)}
         </select>
-        <label style={{ fontSize: 12.5, color: '#5a626e', marginLeft: 8 }}>라벨</label>
+        <label style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>라벨</label>
         <select className="ec-input" value={labelCond} onChange={(e) => setLabelCond(e.target.value)} style={{ width: 130 }}>
           <option value="">전체</option>
           {labels.map((x) => <option key={x} value={x}>{x}</option>)}
@@ -498,16 +498,16 @@ export default function ApprovalListPage({
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={colCount} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={colCount} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan={colCount} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={colCount} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : sort.sorted.map((r, i) => (
               <tr key={r.id} style={{ opacity: r.deleted ? 0.55 : 1 }}>
                 <td
                   style={{
                     textAlign: 'center',
-                    background: selected.has(r.id) ? 'var(--ec-blue-light)' : '#f3f3f3',
-                    color: selected.has(r.id) ? 'var(--ec-blue-dark)' : '#8a929c',
+                    background: selected.has(r.id) ? 'var(--ec-blue-light)' : 'var(--ec-report-stripe)',
+                    color: selected.has(r.id) ? 'var(--ec-blue-dark)' : 'var(--ec-text-hint)',
                     fontWeight: selected.has(r.id) ? 700 : 400,
                     cursor: 'pointer', userSelect: 'none',
                   }}
@@ -524,19 +524,19 @@ export default function ApprovalListPage({
                 <td>{r.currentApproverName ?? ''}</td>
                 <td style={{ textAlign: 'center' }}>
                   {r.deleted
-                    ? <span style={{ color: '#8a929c' }}>삭제</span>
+                    ? <span style={{ color: 'var(--ec-text-hint)' }}>삭제</span>
                     : <span style={{ color: statusColor(r.status) }}>{STATUS_LABEL[r.status]}</span>}
                 </td>
                 <td style={{ textAlign: 'center' }}>
                   {isMyTurn(r) ? (
                     <div style={{ display: 'inline-flex', gap: 3 }}>
                       <button className="ec-btn ec-btn-primary" style={{ height: 20, padding: '0 8px' }} onClick={() => act(r, 'approve')}>승인</button>
-                      <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => act(r, 'reject')}>반려</button>
+                      <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: 'var(--ec-danger)' }} onClick={() => act(r, 'reject')}>반려</button>
                     </div>
                   ) : r.status === 'DRAFTING' && isMine(r) && !r.deleted ? (
                     <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => submitDraft(r)}>상신</button>
                   ) : (
-                    <span style={{ color: '#c9ced6' }}>—</span>
+                    <span style={{ color: 'var(--ec-text-off)' }}>—</span>
                   )}
                 </td>
                 <td style={{ textAlign: 'center' }}>
@@ -547,14 +547,14 @@ export default function ApprovalListPage({
                 </td>
                 <td style={{ whiteSpace: 'nowrap' }}>
                   {r.vouchers.map((v) => (
-                    <span key={v.id} style={{ display: 'inline-block', marginRight: 4, padding: '1px 6px', borderRadius: 10, fontSize: 11, background: '#eef5ff', color: '#2b5b91' }}>
+                    <span key={v.id} style={{ display: 'inline-block', marginRight: 4, padding: '1px 6px', borderRadius: 10, fontSize: 11, background: 'var(--ec-blue-wash)', color: 'var(--ec-navy)' }}>
                       {VOUCHER_LABEL[v.voucherType] ?? v.voucherType} {v.voucherNo}
                     </span>
                   ))}
                 </td>
                 {scope === 'all' && <td>{r.lastActorName ?? ''}</td>}
                 {scope === 'all' && (
-                  <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: '#5a626e' }}>
+                  <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: 'var(--ec-label)' }}>
                     {r.lastActedAt ? r.lastActedAt.replace('T', ' ').slice(0, 16) : ''}
                   </td>
                 )}
@@ -564,7 +564,7 @@ export default function ApprovalListPage({
         </table>
       </div>
 
-      <div style={{ display: 'flex', gap: 6, marginTop: 10, paddingTop: 8, borderTop: '1px solid #eef1f5' }}>
+      <div style={{ display: 'flex', gap: 6, marginTop: 10, paddingTop: 8, borderTop: '1px solid var(--ec-line-soft)' }}>
         {/*
           **두 화면의 하단 버튼줄이 다르다** — 같은 컴포넌트를 쓴다고 같은 버튼을 달면 안 된다.
             내결재관리(mine)     : 신규(F2) · My도장/서명 · 보내기 · 결재/검토완료 · 라벨변경 · 인쇄 · Excel
@@ -607,11 +607,11 @@ export default function ApprovalListPage({
       {helpOpen && (
         <div onClick={() => setHelpOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, width: 460, maxWidth: '90vw', boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}>
-            <div style={{ padding: '10px 14px', borderBottom: '1px solid #e6eaef', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
+            <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--ec-line-soft)', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
               <span>{title} · 도움말</span>
               <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => setHelpOpen(false)}>닫기</button>
             </div>
-            <div style={{ padding: 14, fontSize: 12.5, lineHeight: 1.7, color: '#3c4553' }}>
+            <div style={{ padding: 14, fontSize: 12.5, lineHeight: 1.7, color: 'var(--ec-text)' }}>
               <ul style={{ paddingLeft: 16, margin: 0 }}>
                 <li>탭으로 <b>기안중·진행중·반려·결재·삭제</b> 상태별 문서를 걸러 봅니다.</li>
                 <li><b>ERP전표(건)</b> — 이 기안서에 연결된 판매·구매·지출 전표 건수입니다. 오른쪽 <b>연결전표</b>에 전표번호가 보입니다.</li>

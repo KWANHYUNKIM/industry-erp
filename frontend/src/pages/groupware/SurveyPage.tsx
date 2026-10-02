@@ -24,7 +24,7 @@ const TAB_STATUS: Record<Exclude<Tab, '전체'>, SurveyStatus> = {
   초안: 'DRAFT', 진행중: 'OPEN', 완료: 'CLOSED', 미발송: 'UNSENT',
 }
 const STATUS_COLOR: Record<SurveyStatus, string> = {
-  DRAFT: '#8a929c', OPEN: 'var(--ec-blue)', CLOSED: '#1c7c3c', UNSENT: '#c07a00',
+  DRAFT: 'var(--ec-text-hint)', OPEN: 'var(--ec-blue)', CLOSED: 'var(--ec-success)', UNSENT: 'var(--ec-warn)',
 }
 
 const dateOf = (iso: string | null) => (iso ? iso.slice(0, 10).replace(/-/g, '/') : '')
@@ -176,7 +176,7 @@ export default function SurveyPage() {
         </EcCond>
       </ul>
 
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
       <table className="w-full text-left">
         <colgroup>{COLS.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
@@ -196,8 +196,8 @@ export default function SurveyPage() {
                 title="눌러서 선택 (하단 [선택삭제])"
                 style={{
                   textAlign: 'center', cursor: 'pointer',
-                  background: selected.has(r.id) ? 'var(--ec-blue-light)' : '#f3f3f3',
-                  color: selected.has(r.id) ? 'var(--ec-blue-dark)' : '#8a929c',
+                  background: selected.has(r.id) ? 'var(--ec-blue-light)' : 'var(--ec-report-stripe)',
+                  color: selected.has(r.id) ? 'var(--ec-blue-dark)' : 'var(--ec-text-hint)',
                   fontWeight: selected.has(r.id) ? 700 : 400,
                 }}
               >
@@ -222,7 +222,7 @@ export default function SurveyPage() {
                 {/* 종료일이 지난 설문에 [응답하기] 를 띄우면 눌러도 400 만 난다 — 상태가 '진행중'
                     이어도 시간으로 닫히므로 expired 를 같이 본다. */}
                 {r.answeredByMe ? (
-                  <span style={{ color: '#1c7c3c' }}>참여</span>
+                  <span style={{ color: 'var(--ec-success)' }}>참여</span>
                 ) : r.status === 'OPEN' && !r.expired ? (
                   <button className="ec-btn ec-btn-sm ec-btn-primary" onClick={() => setAnswering(r)}>응답하기</button>
                 ) : (
@@ -289,7 +289,7 @@ function AnswerModal({ survey, onClose, onDone }: { survey: SurveyDoc; onClose: 
           <div key={q.id} style={{ marginBottom: 14 }}>
             <div style={{ fontWeight: 600, marginBottom: 4 }}>
               {q.seq}. {q.content}
-              {q.required && <span style={{ color: '#c60a2e', marginLeft: 4 }}>*</span>}
+              {q.required && <span style={{ color: 'var(--ec-danger)', marginLeft: 4 }}>*</span>}
             </div>
 
             {(q.type === 'SINGLE' || q.type === 'SINGLE_ETC') && q.options.map((o) => (
@@ -341,7 +341,7 @@ function AnswerModal({ survey, onClose, onDone }: { survey: SurveyDoc; onClose: 
           </div>
         ))}
 
-        {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+        {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
         <div style={{ marginTop: 10 }}>
           <button className="ec-btn ec-btn-primary" onClick={() => void submit()}>제출</button>
           <button className="ec-btn" style={{ marginLeft: 4 }} onClick={onClose}>닫기</button>
@@ -377,7 +377,7 @@ function ResultModal({ result, onClose }: { result: SurveyResult; onClose: () =>
                 </div>
               ))}
               {q.texts.length > 0 && (
-                <ul style={{ paddingLeft: 28, margin: '4px 0 0', color: '#3c4553' }}>
+                <ul style={{ paddingLeft: 28, margin: '4px 0 0', color: 'var(--ec-text)' }}>
                   {q.texts.map((t, i) => <li key={i}>{t}</li>)}
                 </ul>
               )}

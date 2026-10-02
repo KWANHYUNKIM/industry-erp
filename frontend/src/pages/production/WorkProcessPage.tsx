@@ -300,8 +300,8 @@ export default function WorkProcessPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {ok && <p style={{ background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {ok && <p style={{ background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
 
       <EcStatusPanel
         from={from} to={to}
@@ -360,9 +360,9 @@ export default function WorkProcessPage() {
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
         {rows.length}줄
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
         미작업량 합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{num(totalRemain)}</b>
       </div>
 
@@ -389,14 +389,14 @@ export default function WorkProcessPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
+              <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>
                 처리할 작업이 없습니다. 품목에 BOR(작업소요시간)이 있어야 여기 나옵니다.
               </td></tr>
             ) : capped.rows.map((r, i) => (
               <tr key={r.key}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab', whiteSpace: 'nowrap' }}>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)', whiteSpace: 'nowrap' }}>
                   <input type="checkbox" aria-label={`${r.wo.orderNo} ${r.workName} 선택`} checked={picked.has(r.key)}
                          onChange={() => setPicked((s) => { const n = new Set(s); if (n.has(r.key)) n.delete(r.key); else n.add(r.key); return n })} />
                   {' '}{i + 1}
@@ -405,16 +405,16 @@ export default function WorkProcessPage() {
                 <td style={{ fontFamily: 'monospace' }}>{r.wo.orderDate.replace(/-/g, '/')}</td>
                 <td>[{r.wo.productCode}] {r.wo.productName}</td>
                 <td style={{ textAlign: 'right' }}>{r.seq}</td>
-                <td>{r.workName} <span style={{ color: '#8a929c', fontSize: 11.5 }}>({r.processName})</span></td>
-                <td style={{ color: r.workItemLabel ? undefined : '#9aa1ab' }}>{r.workItemLabel || ''}</td>
+                <td>{r.workName} <span style={{ color: 'var(--ec-text-hint)', fontSize: 11.5 }}>({r.processName})</span></td>
+                <td style={{ color: r.workItemLabel ? undefined : 'var(--ec-text-hint)' }}>{r.workItemLabel || ''}</td>
                 <td style={{ textAlign: 'right' }}>{num(r.wo.plannedQty)}</td>
-                <td style={{ textAlign: 'right', color: '#5a626e' }}>{num(r.doneQty)}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{num(r.doneQty)}</td>
                 {/* 직전작업 기준이면 앞 공정이 덜 끝난 만큼 여기서 막힌다 */}
-                <td style={{ textAlign: 'right', fontWeight: 700, color: '#c60a2e' }}>
+                <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--ec-danger)' }}>
                   {num(r.remainQty)}
                   {prevBased && r.remainQty < r.wo.plannedQty - r.doneQty && (
                     <span title={`직전작업 완료 ${num(r.availableQty)}에 막혀 있습니다.`}
-                          style={{ color: '#c07a00' }}> *</span>
+                          style={{ color: 'var(--ec-warn)' }}> *</span>
                   )}
                 </td>
                 <td style={{ textAlign: 'right' }}>
@@ -440,13 +440,13 @@ export default function WorkProcessPage() {
           </tbody>
         </table>
         {rows.length > 300 && (
-          <p style={{ fontSize: 11.5, color: '#c07a00', marginTop: 6 }}>
+          <p style={{ fontSize: 11.5, color: 'var(--ec-warn)', marginTop: 6 }}>
             * 앞의 300줄만 보여 줍니다({rows.length}줄 중). 기간이나 품목을 좁혀 주세요.
           </p>
         )}
       </div>
 
-      <p style={{ marginTop: 8, fontSize: 11.5, color: '#8a929c' }}>
+      <p style={{ marginTop: 8, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
         * [잔량기준] 직전작업을 켜면 <b>앞 공정이 끝낸 만큼만</b> 처리할 수 있습니다.
         끄면 지시수량까지 열립니다 — 조립을 하나도 안 했는데 검사를 100개 했다고 적히는 것을 막는 장치입니다.
       </p>

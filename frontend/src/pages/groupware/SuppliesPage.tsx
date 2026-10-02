@@ -28,7 +28,7 @@ const RETURN_LABEL: Record<ReturnStatus, string> = {
   NOT_RETURNED: '미반납', RETURNED: '반납', UNSPECIFIED: '미지정',
 }
 const RETURN_COLOR: Record<ReturnStatus, string> = {
-  NOT_RETURNED: '#c60a2e', RETURNED: '#1c7c3c', UNSPECIFIED: 'var(--ec-label)',
+  NOT_RETURNED: 'var(--ec-danger)', RETURNED: 'var(--ec-success)', UNSPECIFIED: 'var(--ec-label)',
 }
 
 const VIEWS = ['기본', '일간', '월간', '공용품별'] as const
@@ -215,7 +215,7 @@ export default function SuppliesPage() {
     return [...map.entries()].sort((a, b) => a[0] < b[0] ? 1 : -1).map(([k, v]) => [k, v] as const)
   }, [shown, view])
 
-  const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 84 }
+  const th: React.CSSProperties = { background: 'var(--ec-bg-page)', fontWeight: 700, whiteSpace: 'nowrap', width: 84 }
   const COLS = ['2%', '8.5%', '4.6%', '4.6%', '13.5%', '25.3%', '14.4%', '13.5%', '13.5%']
 
   return (
@@ -321,7 +321,7 @@ export default function SuppliesPage() {
                 <tr key={s.id}>
                   <td>{s.code}</td><td>{s.name}</td><td>{s.category ?? ''}</td><td style={{ textAlign: 'center' }}>{s.unit ?? ''}</td>
                   <td style={{ textAlign: 'center' }}>
-                    <button className="ec-btn ec-btn-sm" style={{ color: '#c60a2e' }} onClick={() => void removeSupply(s)}>삭제</button>
+                    <button className="ec-btn ec-btn-sm" style={{ color: 'var(--ec-danger)' }} onClick={() => void removeSupply(s)}>삭제</button>
                   </td>
                 </tr>
               ))}
@@ -330,7 +330,7 @@ export default function SuppliesPage() {
         </div>
       )}</Modal>
 
-      {error && !showForm && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && !showForm && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
         {/* 왼쪽 보기 전환 — 원본은 [기본][일간][월간] 한 줄, [공용품별] 다음 줄이다. */}
@@ -383,7 +383,7 @@ export default function SuppliesPage() {
               </select>
             </EcCond>
             <EcCond label="전체시간표시">
-              <label style={{ fontSize: 12.5, color: '#5a626e', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <label style={{ fontSize: 12.5, color: 'var(--ec-label)', display: 'flex', alignItems: 'center', gap: 4 }}>
                 <input type="checkbox" checked={allDayCond} onChange={(e) => setAllDayCond(e.target.checked)} />
                 종일 잡힌 것도
               </label>
@@ -405,7 +405,7 @@ export default function SuppliesPage() {
                 <Fragment key={key || 'all'}>
                   {key && (
                     <tr>
-                      <td colSpan={9} style={{ background: '#f5f7fa', fontWeight: 700 }}>
+                      <td colSpan={9} style={{ background: 'var(--ec-bg-page)', fontWeight: 700 }}>
                         {key} <span style={{ color: 'var(--ec-label)', fontWeight: 400 }}>({list.length}건)</span>
                       </td>
                     </tr>
@@ -417,8 +417,8 @@ export default function SuppliesPage() {
                         title="눌러서 선택 (하단 [선택삭제])"
                         style={{
                           textAlign: 'center', cursor: 'pointer',
-                          background: selected.has(r.id) ? 'var(--ec-blue-light)' : '#f3f3f3',
-                          color: selected.has(r.id) ? 'var(--ec-blue-dark)' : '#8a929c',
+                          background: selected.has(r.id) ? 'var(--ec-blue-light)' : 'var(--ec-report-stripe)',
+                          color: selected.has(r.id) ? 'var(--ec-blue-dark)' : 'var(--ec-text-hint)',
                           fontWeight: selected.has(r.id) ? 700 : 400,
                         }}
                       >

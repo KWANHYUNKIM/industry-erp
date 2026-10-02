@@ -170,8 +170,8 @@ export default function PriceBulkScreen({ trade }: { trade: 'SALES' | 'PURCHASE'
         ]
         : [{ label: 'Excel' }]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {message && <p style={{ background: '#e9f6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{message}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {message && <p style={{ background: '#e9f6ec', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{message}</p>}
 
       <EcStatusPanel
         modes={MODES} mode={mode} onModeChange={(m) => setMode(m as Mode)}
@@ -278,9 +278,9 @@ function SlipGrid({ rows, edits, setEdits, loading, total, tableRef }: {
       </thead>
       <tbody>
         {loading ? (
-          <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+          <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
         ) : rows.length === 0 ? (
-          <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
         ) : rows.map((r) => {
           const v = edits[r.lineId]
           const next = v != null && v !== '' && !Number.isNaN(Number(v)) ? Number(v) : r.unitPrice
@@ -304,12 +304,12 @@ function SlipGrid({ rows, edits, setEdits, loading, total, tableRef }: {
                     onChange={(e) => setEdits((prev) => ({ ...prev, [r.lineId]: e.target.value }))}
                   />
                 ) : (
-                  <span title={r.lockReason ?? undefined} style={{ color: '#8a929c' }}>{won(r.unitPrice)} 🔒</span>
+                  <span title={r.lockReason ?? undefined} style={{ color: 'var(--ec-text-hint)' }}>{won(r.unitPrice)} 🔒</span>
                 )}
               </td>
               {/* 저장 전 미리보기 — 서버가 부가세를 다시 배분하므로 부가세 열은 저장 뒤에 맞는다. */}
               <td style={{ textAlign: 'right' }}>{won(Math.round(r.quantity * next))}</td>
-              <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(r.vatAmount)}</td>
+              <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{won(r.vatAmount)}</td>
             </tr>
           )
         })}
@@ -386,10 +386,10 @@ function ItemPriceGrid({ sale }: { sale: boolean }) {
 
   return (
     <>
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {message && <p style={{ background: '#e9f6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{message}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {message && <p style={{ background: '#e9f6ec', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{message}</p>}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-        <span style={{ fontSize: 12.5, color: '#5a626e' }}>변경방식</span>
+        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>변경방식</span>
         <select className="ec-input" style={{ width: 110 }} value={calc} onChange={(e) => setCalc(e.target.value as 'rate' | 'amount')}>
           <option value="rate">증감율(%)</option>
           <option value="amount">증감액</option>
@@ -398,7 +398,7 @@ function ItemPriceGrid({ sale }: { sale: boolean }) {
                placeholder={calc === 'rate' ? '예: 10, -5' : '예: 1000, -500'}
                value={value} onChange={(e) => setValue(e.target.value)} />
         <button className="ec-btn ec-btn-primary" onClick={apply} disabled={applying}>{applying ? '적용 중…' : '일괄적용'}</button>
-        <span style={{ fontSize: 12.5, color: '#8a929c' }}>선택 {selectedCount}건 · 앞으로 입력할 전표에 채워질 기준값입니다</span>
+        <span style={{ fontSize: 12.5, color: 'var(--ec-text-hint)' }}>선택 {selectedCount}건 · 앞으로 입력할 전표에 채워질 기준값입니다</span>
       </div>
       <table className="ec-grid w-full text-left">
         <thead>
@@ -417,9 +417,9 @@ function ItemPriceGrid({ sale }: { sale: boolean }) {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((r) => {
             const checked = selected.has(r.id)
             const cur = priceOf(r)
@@ -437,10 +437,10 @@ function ItemPriceGrid({ sale }: { sale: boolean }) {
                 </td>
                 <td style={{ fontFamily: 'monospace' }}>{r.code}</td>
                 <td>{r.name}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{avgOf(r) != null ? avgOf(r)!.toLocaleString('ko-KR') : ''}</td>
-                <td style={{ textAlign: 'right', color: cur > 0 ? undefined : '#c9ced6' }}>{cur.toLocaleString('ko-KR')}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{avgOf(r) != null ? avgOf(r)!.toLocaleString('ko-KR') : ''}</td>
+                <td style={{ textAlign: 'right', color: cur > 0 ? undefined : 'var(--ec-text-off)' }}>{cur.toLocaleString('ko-KR')}</td>
                 <td style={{ textAlign: 'right', fontWeight: checked ? 600 : 400 }}>{newPrice.toLocaleString('ko-KR')}</td>
-                <td style={{ textAlign: 'right', color: diff > 0 ? '#c60a2e' : diff < 0 ? '#1c7c3c' : '#9aa1ab' }}>{diff.toLocaleString('ko-KR')}</td>
+                <td style={{ textAlign: 'right', color: diff > 0 ? 'var(--ec-danger)' : diff < 0 ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>{diff.toLocaleString('ko-KR')}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600 }}>{rate.toLocaleString('ko-KR')}</td>
               </tr>
             )

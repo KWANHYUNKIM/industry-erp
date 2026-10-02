@@ -196,7 +196,7 @@ export default function LeaveListPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       <div className="ec-pills" style={{ marginBottom: 8 }}>
         {TABS.map((t) => (
@@ -255,9 +255,9 @@ export default function LeaveListPage() {
         </EcCond>
       </ul>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
         {shown.length}건
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
         근태수 합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{days(total)}</b>
       </div>
 
@@ -289,9 +289,9 @@ export default function LeaveListPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((r) => (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center' }}>
@@ -301,22 +301,22 @@ export default function LeaveListPage() {
                 <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>
                   {r.startDate === r.endDate ? r.startDate : `${r.startDate} ~ ${r.endDate}`}
                 </td>
-                <td style={{ fontFamily: 'monospace', color: r.empCode ? undefined : '#c9ced6' }}>{r.empCode ?? ''}</td>
+                <td style={{ fontFamily: 'monospace', color: r.empCode ? undefined : 'var(--ec-text-off)' }}>{r.empCode ?? ''}</td>
                 <td>{r.empName}</td>
                 <td>{r.type}</td>
                 <td style={{ textAlign: 'right' }}>{days(r.days)}</td>
-                <td style={{ textAlign: 'center', color: r.status === 'APPROVED' ? undefined : '#c9ced6' }}>
+                <td style={{ textAlign: 'center', color: r.status === 'APPROVED' ? undefined : 'var(--ec-text-off)' }}>
                   {r.status === 'APPROVED' ? `연차(${r.startDate.slice(0, 4)}년)` : '-'}
                 </td>
                 <td style={{ textAlign: 'center' }}>{r.reason ?? ''}</td>
-                <td style={{ textAlign: 'center', fontWeight: 700, color: r.status === 'APPROVED' ? '#1c7c3c' : r.status === 'REJECTED' ? '#c60a2e' : '#c07a00' }}>
+                <td style={{ textAlign: 'center', fontWeight: 700, color: r.status === 'APPROVED' ? 'var(--ec-success)' : r.status === 'REJECTED' ? 'var(--ec-danger)' : 'var(--ec-warn)' }}>
                   {r.statusName}
                 </td>
                 <td style={{ textAlign: 'center' }}>
                   {r.status === 'PENDING' && (
                     <>
-                      <button onClick={() => changeStatus(r, 'APPROVED')} style={{ color: '#1c7c3c', marginRight: 6, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>확인</button>
-                      <button onClick={() => changeStatus(r, 'REJECTED')} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>반려</button>
+                      <button onClick={() => changeStatus(r, 'APPROVED')} style={{ color: 'var(--ec-success)', marginRight: 6, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>확인</button>
+                      <button onClick={() => changeStatus(r, 'REJECTED')} style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>반려</button>
                     </>
                   )}
                 </td>

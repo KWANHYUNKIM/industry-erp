@@ -610,19 +610,19 @@ export default function AccountingReflectionPage() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
         {kindBtn('sales', '판매')}
         {kindBtn('purchase', '구매')}
-        <label style={{ marginLeft: 8, fontSize: 12.5, color: '#5a626e', display: 'flex', alignItems: 'center', gap: 4 }}>
+        <label style={{ marginLeft: 8, fontSize: 12.5, color: 'var(--ec-label)', display: 'flex', alignItems: 'center', gap: 4 }}>
           <input type="checkbox" checked={onlyUnreflected} onChange={(e) => setOnlyUnreflected(e.target.checked)} />
           미반영만 보기
         </label>
-        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>
-          미반영 <b style={{ color: '#c60a2e', fontSize: 14 }}>{unreflectedCount}</b>건
-          <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--ec-label)' }}>
+          미반영 <b style={{ color: 'var(--ec-danger)', fontSize: 14 }}>{unreflectedCount}</b>건
+          <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
           선택합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{selectedTotal.toLocaleString()}</b>원
         </div>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {ok && <p style={{ background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {ok && <p style={{ background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
 
       {mode === '품목별' ? (
         <table className="ec-grid w-full text-left">
@@ -643,9 +643,9 @@ export default function AccountingReflectionPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : lineRows.length === 0 ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : lineRows.map((r) => r.kind === 'subtotal' ? (
               <tr key={r.key} style={{ background: '#f3f6fa', fontWeight: 700 }}>
                 <td colSpan={7} style={{ textAlign: 'right' }}>{r.month} 계</td>
@@ -655,7 +655,7 @@ export default function AccountingReflectionPage() {
               </tr>
             ) : (
               <tr key={r.key}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{r.no}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{r.no}</td>
                 <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(r.slip.slipDate)} {r.slip.docNo}</td>
                 <td>{r.slip.partnerName}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.line.itemCode}</td>
@@ -664,7 +664,7 @@ export default function AccountingReflectionPage() {
                 <td style={{ textAlign: 'right' }}>{r.line.unitPrice.toLocaleString('ko-KR')}</td>
                 <td style={{ textAlign: 'right' }}>{r.line.supplyAmount.toLocaleString('ko-KR')}</td>
                 <td style={{ textAlign: 'right' }}>{r.line.vatAmount.toLocaleString('ko-KR')}</td>
-                <td style={{ color: '#8a929c' }}>{r.line.remark ?? ''}</td>
+                <td style={{ color: 'var(--ec-text-hint)' }}>{r.line.remark ?? ''}</td>
               </tr>
             ))}
           </tbody>
@@ -696,34 +696,34 @@ export default function AccountingReflectionPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : byPartner.length === 0 ? (
-              <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : byPartner.map((g, i) => {
               const partial = g.reflected > 0 && g.unreflected > 0
               return (
                 <tr key={g.partnerId}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                   <td>{g.partnerName}</td>
                   <td style={{ fontFamily: 'monospace', fontSize: 11.5 }}>
                     {g.firstDate === g.lastDate ? g.firstDate : `${g.firstDate} ~ ${g.lastDate}`}
                   </td>
                   <td style={{ textAlign: 'right' }}>
                     {g.reflected + g.unreflected}
-                    {g.unreflected > 0 && <span style={{ color: '#c60a2e' }}> (미 {g.unreflected})</span>}
+                    {g.unreflected > 0 && <span style={{ color: 'var(--ec-danger)' }}> (미 {g.unreflected})</span>}
                   </td>
                   <td style={{ textAlign: 'right' }}>{g.supply.toLocaleString('ko-KR')}</td>
-                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{g.vat.toLocaleString('ko-KR')}</td>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{g.vat.toLocaleString('ko-KR')}</td>
                   <td style={{ textAlign: 'right', fontWeight: 700 }}>{(g.supply + g.vat).toLocaleString('ko-KR')}</td>
-                  <td style={{ color: '#5a626e', fontSize: 11.5 }}>
+                  <td style={{ color: 'var(--ec-label)', fontSize: 11.5 }}>
                     {[...g.items].slice(0, 2).join(', ')}{g.items.size > 2 ? ` 외 ${g.items.size - 2}` : ''}
                   </td>
                   {/* 과세·면세가 섞인 거래처는 둘 다 적는다 — 하나로 적으면 거짓말이 된다. */}
-                  <td style={{ textAlign: 'center', fontSize: 11.5, color: '#5a626e' }}>
+                  <td style={{ textAlign: 'center', fontSize: 11.5, color: 'var(--ec-label)' }}>
                     {[...g.vatTypes].join('·')}
                   </td>
                   {/* 일부만 반영된 거래처를 표시하지 않으면 "이 거래처는 끝냈다" 고 착각한다. */}
-                  <td style={{ textAlign: 'center', fontWeight: 700, color: partial ? '#c07a00' : '#c9ced6' }}>
+                  <td style={{ textAlign: 'center', fontWeight: 700, color: partial ? 'var(--ec-warn)' : 'var(--ec-text-off)' }}>
                     {partial ? 'YES' : ''}
                   </td>
                   <td style={{ textAlign: 'center' }}>
@@ -732,7 +732,7 @@ export default function AccountingReflectionPage() {
                               onClick={() => reflectPartner(g.ids)}>
                         {g.ids.length}건 반영
                       </button>
-                    ) : <span style={{ color: '#1c7c3c', fontSize: 11.5 }}>완료</span>}
+                    ) : <span style={{ color: 'var(--ec-success)', fontSize: 11.5 }}>완료</span>}
                   </td>
                 </tr>
               )
@@ -770,13 +770,13 @@ export default function AccountingReflectionPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((s, i) => (
             <tr key={s.id}>
               <td style={{ textAlign: 'center' }}>
-                {s.reflected ? <span style={{ color: '#9aa1ab' }}>{i + 1}</span> : <input type="checkbox" checked={checked.has(s.id)} onChange={() => toggle(s.id)} />}
+                {s.reflected ? <span style={{ color: 'var(--ec-text-hint)' }}>{i + 1}</span> : <input type="checkbox" checked={checked.has(s.id)} onChange={() => toggle(s.id)} />}
               </td>
               <td style={{ fontFamily: 'monospace' }}>{dateText(s.slipDate)}</td>
               <td style={{ fontFamily: 'monospace' }}>{s.docNo}</td>
@@ -785,12 +785,12 @@ export default function AccountingReflectionPage() {
               <td>{s.warehouseName ?? ''}</td>
               <td style={{ textAlign: 'right' }}>{s.supplyAmount.toLocaleString('ko-KR')}</td>
               <td style={{ textAlign: 'right' }}>{s.vatAmount.toLocaleString('ko-KR')}</td>
-              <td style={{ textAlign: 'center', color: s.reflected ? '#1c7c3c' : '#c60a2e', fontWeight: 700 }}>{s.reflected ? '반영' : '미반영'}</td>
+              <td style={{ textAlign: 'center', color: s.reflected ? 'var(--ec-success)' : 'var(--ec-danger)', fontWeight: 700 }}>{s.reflected ? '반영' : '미반영'}</td>
               <td style={{ fontFamily: 'monospace', fontSize: 11.5 }}>
                 {s.journalDocNo ? (
                   <Link to={`/accounting/journals?entryId=${s.journalEntryId}`}
                         style={{ color: 'var(--ec-blue)' }}>{s.journalDocNo}</Link>
-                ) : <span style={{ color: '#c9ced6' }}>—</span>}
+                ) : <span style={{ color: 'var(--ec-text-off)' }}>—</span>}
               </td>
             </tr>
           ))}

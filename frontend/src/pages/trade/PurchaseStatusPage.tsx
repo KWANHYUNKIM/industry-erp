@@ -356,7 +356,7 @@ export default function PurchaseStatusPage() {
         { label: 'Excel(화면)' },
       ]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       {/* 조건 판은 현황 화면 공용이다(EcStatusPanel). 원본도 접히지 않고 펼쳐져 있다. */}
       <EcStatusPanel
@@ -445,28 +445,28 @@ export default function PurchaseStatusPage() {
         <EcCond label="수량">
           <input type="number" className="ec-input text-right" placeholder="이상" value={filters.qtyFrom}
                  onChange={(e) => setF({ qtyFrom: e.target.value })} style={{ width: 100 }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
           <input type="number" className="ec-input text-right" placeholder="이하" value={filters.qtyTo}
                  onChange={(e) => setF({ qtyTo: e.target.value })} style={{ width: 100 }} />
         </EcCond>
         <EcCond label="단가">
           <input type="number" className="ec-input text-right" placeholder="이상" value={filters.priceFrom}
                  onChange={(e) => setF({ priceFrom: e.target.value })} style={{ width: 110 }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
           <input type="number" className="ec-input text-right" placeholder="이하" value={filters.priceTo}
                  onChange={(e) => setF({ priceTo: e.target.value })} style={{ width: 110 }} />
         </EcCond>
         <EcCond label="공급가액">
           <input type="number" className="ec-input text-right" placeholder="이상" value={filters.supplyFrom}
                  onChange={(e) => setF({ supplyFrom: e.target.value })} style={{ width: 120 }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
           <input type="number" className="ec-input text-right" placeholder="이하" value={filters.supplyTo}
                  onChange={(e) => setF({ supplyTo: e.target.value })} style={{ width: 120 }} />
         </EcCond>
         <EcCond label="부가세">
           <input type="number" className="ec-input text-right" placeholder="이상" value={filters.vatFrom}
                  onChange={(e) => setF({ vatFrom: e.target.value })} style={{ width: 120 }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
           <input type="number" className="ec-input text-right" placeholder="이하" value={filters.vatTo}
                  onChange={(e) => setF({ vatTo: e.target.value })} style={{ width: 120 }} />
         </EcCond>
@@ -498,14 +498,14 @@ export default function PurchaseStatusPage() {
       </EcStatusPanel>
 
       {prevTotals && (
-        <div style={{ marginBottom: 8, fontSize: 12.5, textAlign: 'right', color: '#5a626e' }}>
+        <div style={{ marginBottom: 8, fontSize: 12.5, textAlign: 'right', color: 'var(--ec-label)' }}>
           <span style={{ color: 'var(--ec-label)' }}>
             비교기간({prevRange!.from.replace(/-/g, '/')} ~ {prevRange!.to.replace(/-/g, '/')})
           </span>
-          <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+          <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
           공급가액 {prevTotals.supply.toLocaleString()} → {totals.supply.toLocaleString()}
           {prevTotals.supply > 0 && (
-            <span style={{ marginLeft: 4, color: totals.supply >= prevTotals.supply ? '#1c7c3c' : '#c60a2e' }}>
+            <span style={{ marginLeft: 4, color: totals.supply >= prevTotals.supply ? 'var(--ec-success)' : 'var(--ec-danger)' }}>
               ({totals.supply >= prevTotals.supply ? '+' : ''}
               {Math.round(((totals.supply - prevTotals.supply) / prevTotals.supply) * 100)}%)
             </span>
@@ -513,11 +513,11 @@ export default function PurchaseStatusPage() {
         </div>
       )}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        건수 <b style={{ color: '#3c4553' }}>{shown.length.toLocaleString()}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+        건수 <b style={{ color: 'var(--ec-text)' }}>{shown.length.toLocaleString()}</b>
+        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
         공급가액 <b style={{ color: '#1c6b32', fontSize: 14 }}>{totals.supply.toLocaleString()}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
         부가세 <b style={{ color: '#1c6b32', fontSize: 14 }}>{totals.vat.toLocaleString()}</b>
       </div>
       {view === '그래프' ? (
@@ -538,16 +538,16 @@ export default function PurchaseStatusPage() {
           </thead>
           <tbody>
             {grouped.length === 0 ? (
-              <tr><td colSpan={group2 ? 8 : 7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={group2 ? 8 : 7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : grouped.map((g, i) => (
               <tr key={`${g.g1}|${g.g2}`}>
-                <td style={{ textAlign: 'center', color: '#8a929c', background: '#f3f3f3' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)', background: 'var(--ec-report-stripe)' }}>{i + 1}</td>
                 <td>{g.g1}</td>
                 {group2 && <td>{g.g2}</td>}
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{g.count.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{g.count.toLocaleString()}</td>
                 <td style={{ textAlign: 'right' }}>{g.qty.toLocaleString()}</td>
                 <td style={{ textAlign: 'right' }}>{g.supply.toLocaleString()}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{g.vat.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{g.vat.toLocaleString()}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700, color: '#1c6b32' }}>
                   {(g.supply + g.vat).toLocaleString()}
                 </td>
@@ -617,10 +617,10 @@ export default function PurchaseStatusPage() {
               총합계도 원본은 본문의 마지막 줄이다(tfoot 이 아니다) — 그래서 본문처럼 세로선이 없다.
             */}
             {loading ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             /* 그리는 것을 보고 판단한다 - 소계를 끼우는 사이에 shown 과 갈라질 수 있다. */
             ) : lineRows.length === 0 ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : (
               <>
                 {lineRows.map((x, i) => x.kind === 'subtotal' ? (

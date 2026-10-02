@@ -244,7 +244,7 @@ export default function CostBuildPage() {
                       onClick={() => setBasis(b)}>{b}</button>
             ))}
           </div>
-          <span style={{ marginLeft: 8, fontSize: 11.5, color: '#8a929c' }}>
+          <span style={{ marginLeft: 8, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
             총평균법은 그 달 매입 전체(금액 합 ÷ 수량 합)로 잽니다.
             선입선출법은 입고 레이어를 남기지 않아 아직 못 합니다.
           </span>
@@ -254,8 +254,8 @@ export default function CostBuildPage() {
       {expensePeriod && (
         <ProcessExpenseModal period={expensePeriod} onClose={() => setExpensePeriod(null)} />
       )}
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {ok && <p style={{ marginBottom: 8, background: '#eaf6ee', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
+      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {ok && <p style={{ marginBottom: 8, background: '#eaf6ee', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
 
       <Modal error={error} open={showForm} title="원가생성/수정 등록" onClose={() => setShowForm(false)}>{(
         <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginBottom: 10 }}>
@@ -264,7 +264,7 @@ export default function CostBuildPage() {
           </div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). label 로 감싸면 팝업 행 클릭이 안 먹어 div 로. */}
-            <div style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>품목 *</div>
+            <div style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>품목 *</div>
               {editId ? (
                 <input className="ec-input" value={editItemName ?? ''} disabled style={{ width: 180 }} />
               ) : (
@@ -273,28 +273,28 @@ export default function CostBuildPage() {
                                  items={items.filter((it) => it.active !== false).map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))} />
               )}
             </div>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>적용기간 *</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>적용기간 *</div>
               <input className="ec-input" placeholder="2026-06" value={form.period} onChange={(e) => set('period', e.target.value)} disabled={!!editId} style={{ width: 110 }} /></label>
           </div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginTop: 10 }}>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>표준재료비</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>표준재료비</div>
               <input className="ec-input text-right" type="number" step="any" value={form.materialCost} onChange={(e) => set('materialCost', e.target.value)} style={{ width: 110 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>표준노무비</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>표준노무비</div>
               <input className="ec-input text-right" type="number" step="any" value={form.laborCost} onChange={(e) => set('laborCost', e.target.value)} style={{ width: 110 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>표준경비</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>표준경비</div>
               <input className="ec-input text-right" type="number" step="any" value={form.overheadCost} onChange={(e) => set('overheadCost', e.target.value)} style={{ width: 110 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>실제재료비</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>실제재료비</div>
               <input className="ec-input text-right" type="number" step="any" value={form.actualMaterial} onChange={(e) => set('actualMaterial', e.target.value)} style={{ width: 110 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>실제노무비</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>실제노무비</div>
               <input className="ec-input text-right" type="number" step="any" value={form.actualLabor} onChange={(e) => set('actualLabor', e.target.value)} style={{ width: 110 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>실제경비</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>실제경비</div>
               <input className="ec-input text-right" type="number" step="any" value={form.actualOverhead} onChange={(e) => set('actualOverhead', e.target.value)} style={{ width: 110 }} /></label>
             <button className="ec-btn ec-btn-primary" onClick={submit}>저장</button>
           </div>
         </div>
       )}</Modal>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
         표준원가 합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{total.toLocaleString()}</b>
       </div>
       <table className="w-full text-left">
@@ -313,12 +313,12 @@ export default function CostBuildPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
               <td>{r.itemName}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.period}</td>
@@ -328,7 +328,7 @@ export default function CostBuildPage() {
               <td style={{ textAlign: 'right', fontWeight: 700 }}>{r.standardTotal.toLocaleString()}</td>
               <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                 <button className="no-ec" onClick={() => openEdit(r)} title="수정" style={{ border: 'none', background: 'none', color: 'var(--ec-blue-dark)', cursor: 'pointer', fontSize: 13, marginRight: 6 }}>수정</button>
-                <button className="no-ec" onClick={() => remove(r)} title="삭제" style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 13 }}>✕</button>
+                <button className="no-ec" onClick={() => remove(r)} title="삭제" style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 13 }}>✕</button>
               </td>
             </tr>
           ))}

@@ -154,7 +154,7 @@ export default function EcDrivePage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ color: '#f5b301', fontSize: 14, marginRight: 4 }}>☆</span>
+        <span style={{ color: 'var(--ec-star)', fontSize: 14, marginRight: 4 }}>☆</span>
         <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ec-text)' }}>ECDrive</span>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
           <input className="ec-input" placeholder="입력 후 [Enter]" value={keyword}
@@ -166,7 +166,7 @@ export default function EcDrivePage() {
         </div>
       </div>
 
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
       <div style={{ display: 'flex', gap: 10, flex: 1, minHeight: 0 }}>
         {/* 드라이브 트리 */}
@@ -181,12 +181,12 @@ export default function EcDrivePage() {
             <div key={t.key} onClick={() => setSel(t.key)} style={{
               padding: '7px 14px', fontSize: 12.5, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
               background: sel === t.key ? 'var(--ec-blue-light)' : undefined,
-              color: sel === t.key ? 'var(--ec-blue)' : '#3a4453', fontWeight: sel === t.key ? 700 : 400,
+              color: sel === t.key ? 'var(--ec-blue)' : 'var(--ec-text)', fontWeight: sel === t.key ? 700 : 400,
             }}>
               <span>{t.icon}</span>{t.label}
             </div>
           ))}
-          <div style={{ marginTop: 12, padding: '8px 14px', borderTop: '1px solid #eef1f5', fontSize: 11.5, color: '#8a929c' }}>
+          <div style={{ marginTop: 12, padding: '8px 14px', borderTop: '1px solid var(--ec-line-soft)', fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
             드라이브 사용용량<br /><strong style={{ color: 'var(--ec-text)' }}>{totalKB.toLocaleString()}KB</strong> 사용됨
           </div>
         </div>
@@ -221,7 +221,7 @@ export default function EcDrivePage() {
           </div>
 
           {/* 원본 ECDrive 조건 차례: <b>이름</b> · 최초작성자 · 최종수정자 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '8px 0', fontSize: 12.5, color: '#5a626e' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '8px 0', fontSize: 12.5, color: 'var(--ec-label)' }}>
             <span>이름</span>
             <input className="ec-input" value={nameCond} placeholder="파일·폴더 이름"
                    onChange={(e) => setNameCond(e.target.value)} style={{ width: 200 }} />
@@ -260,7 +260,7 @@ export default function EcDrivePage() {
                 <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
               ) : shown.map((d, i) => (
                 <tr key={d.id} title={d.uploader ? `올린 사람: ${d.uploader}` : undefined}>
-                  <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+                  <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                   <td>
                     {d.fileId ? (
                       <button onClick={() => download(d)} title="다운로드"
@@ -268,12 +268,12 @@ export default function EcDrivePage() {
                         📄 {d.name}
                       </button>
                     ) : (
-                      <span title="실제 파일 없음(메타데이터만)">📄 {d.name} <span style={{ color: '#9aa1ab', fontSize: 11 }}>(파일없음)</span></span>
+                      <span title="실제 파일 없음(메타데이터만)">📄 {d.name} <span style={{ color: 'var(--ec-text-hint)', fontSize: 11 }}>(파일없음)</span></span>
                     )}
                   </td>
                   <td style={{ textAlign: 'center' }}>{d.updatedAt ? d.updatedAt.replace('T', ' ').slice(0, 16) : ''}</td>
                   <td style={{ textAlign: 'right' }}>{fmtSize(d.sizeBytes)}</td>
-                  <td style={{ textAlign: 'center', cursor: 'pointer', color: d.important ? '#f0a500' : '#c8ced6' }}
+                  <td style={{ textAlign: 'center', cursor: 'pointer', color: d.important ? '#f0a500' : 'var(--ec-text-off)' }}
                       onClick={() => patch(d, { important: !d.important })}
                       title={d.important ? '중요 해제' : '중요 표시'}>
                     {d.important ? '★' : '☆'}
@@ -285,7 +285,7 @@ export default function EcDrivePage() {
                         <div onClick={() => setMenuFor(null)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
                         <div style={{
                           position: 'absolute', top: '100%', right: 4, marginTop: 2, zIndex: 41,
-                          background: '#fff', border: '1px solid #c9d1da', borderRadius: 3,
+                          background: '#fff', border: '1px solid var(--ec-line)', borderRadius: 3,
                           boxShadow: '0 4px 12px rgba(0,0,0,.12)', minWidth: 110, padding: 4, textAlign: 'left',
                         }}>
                           {(d.trashed
@@ -301,7 +301,7 @@ export default function EcDrivePage() {
                             <button key={m.label} onClick={() => { setMenuFor(null); void m.run() }}
                                     style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px',
                                              fontSize: 12, background: 'none', border: 0, cursor: 'pointer',
-                                             color: m.danger ? '#c60a2e' : undefined }}>
+                                             color: m.danger ? 'var(--ec-danger)' : undefined }}>
                               {m.label}
                             </button>
                           ))}
@@ -313,7 +313,7 @@ export default function EcDrivePage() {
               ))}
             </tbody>
           </table>
-          <div style={{ marginTop: 'auto', padding: '8px 12px', borderTop: '1px solid #eef1f5', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ marginTop: 'auto', padding: '8px 12px', borderTop: '1px solid var(--ec-line-soft)', display: 'flex', alignItems: 'center', gap: 8 }}>
             <button className="ec-btn ec-btn-primary" onClick={() => fileInput.current?.click()} disabled={uploading || sel === 'trash'}>
               {uploading ? '올리는 중…' : 'File'}
             </button>

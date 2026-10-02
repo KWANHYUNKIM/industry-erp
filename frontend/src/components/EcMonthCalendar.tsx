@@ -57,7 +57,7 @@ export default function EcMonthCalendar({
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', padding: '0 6px' }}>
         {['일', '월', '화', '수', '목', '금', '토'].map((d, i) => (
-          <div key={d} style={{ ...head, color: i === 0 ? '#c60a2e' : i === 6 ? 'var(--ec-blue)' : 'var(--ec-label)' }}>
+          <div key={d} style={{ ...head, color: i === 0 ? 'var(--ec-danger)' : i === 6 ? 'var(--ec-blue)' : 'var(--ec-label)' }}>
             {d}
           </div>
         ))}
@@ -82,8 +82,8 @@ export default function EcMonthCalendar({
                 fontSize: 12, borderRadius: 4,
                 background: picked ? 'var(--ec-blue)' : 'transparent',
                 color: picked ? '#fff'
-                  : otherMonth ? '#c8ced6'
-                  : d.getDay() === 0 ? '#c60a2e'
+                  : otherMonth ? 'var(--ec-text-off)'
+                  : d.getDay() === 0 ? 'var(--ec-danger)'
                   : d.getDay() === 6 ? 'var(--ec-blue)'
                   : '#000',
                 fontWeight: s === todayStr && !picked ? 700 : 400,

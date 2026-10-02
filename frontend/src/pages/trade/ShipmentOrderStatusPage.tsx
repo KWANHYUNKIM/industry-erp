@@ -316,14 +316,14 @@ export default function ShipmentOrderStatusPage() {
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        지시 <b style={{ color: '#3c4553' }}>{shown.length}</b>건
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-        지시수량 <b style={{ color: '#c07a00', fontSize: 14 }}>{num(totalQty)}</b>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+        지시 <b style={{ color: 'var(--ec-text)' }}>{shown.length}</b>건
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
+        지시수량 <b style={{ color: 'var(--ec-warn)', fontSize: 14 }}>{num(totalQty)}</b>
       </div>
 
       {error && (
-        <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>
+        <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>
           {error}
         </p>
       )}
@@ -343,23 +343,23 @@ export default function ShipmentOrderStatusPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : byItem.length === 0 ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : byItem.map((r, i) => (
               <tr key={r.itemId}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td>{r.spec ? r.name + '(' + r.spec + ')' : r.name}</td>
                 <td>{r.unit}</td>
                 <td style={{ textAlign: 'right' }}>{num(r.count)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600, color: '#c07a00' }}>{num(r.qty)}</td>
+                <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-warn)' }}>{num(r.qty)}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
             <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
               <td colSpan={4} style={{ textAlign: 'right' }}>합계 ({byItem.length}품목)</td>
-              <td style={{ textAlign: 'right', color: '#c07a00' }}>{num(totalQty)}</td>
+              <td style={{ textAlign: 'right', color: 'var(--ec-warn)' }}>{num(totalQty)}</td>
             </tr>
           </tfoot>
         </table>
@@ -387,27 +387,27 @@ export default function ShipmentOrderStatusPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : lines.length === 0 ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : lines.map(({ key, r, l }, i) => (
               <tr key={key}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(r.shipDate)} {r.shipNo}</td>
                 <td style={{ fontFamily: 'monospace' }}>{dateText(r.dueDate) || ''}</td>
                 <td>{itemLabel(l)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600 }}>{num(l.quantity)} {l.unit}</td>
                 <td>{r.warehouseName ?? ''}</td>
                 <td>{r.partnerName}</td>
-                <td style={{ color: r.contact ? undefined : '#c9ced6' }}>{r.contact ?? ''}</td>
-                <td style={{ color: '#8a929c' }}>{l.remark ?? r.remark ?? ''}</td>
+                <td style={{ color: r.contact ? undefined : 'var(--ec-text-off)' }}>{r.contact ?? ''}</td>
+                <td style={{ color: 'var(--ec-text-hint)' }}>{l.remark ?? r.remark ?? ''}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
             <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
               <td colSpan={4} style={{ textAlign: 'right' }}>합계 ({lines.length}줄)</td>
-              <td style={{ textAlign: 'right', color: '#c07a00' }}>
+              <td style={{ textAlign: 'right', color: 'var(--ec-warn)' }}>
                 {num(lines.reduce((n, x) => n + x.l.quantity, 0))}
               </td>
               <td colSpan={4}></td>

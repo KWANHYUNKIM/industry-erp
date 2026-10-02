@@ -20,7 +20,7 @@ import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 type AsStatus = 'RECEIVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED'
 const STATUSES: AsStatus[] = ['RECEIVED', 'IN_PROGRESS', 'COMPLETED', 'CANCELED']
 const LABEL: Record<AsStatus, string> = { RECEIVED: '접수', IN_PROGRESS: '처리중', COMPLETED: '완료', CANCELED: '취소' }
-const COLOR: Record<AsStatus, string> = { RECEIVED: '#c07a00', IN_PROGRESS: 'var(--ec-blue)', COMPLETED: '#1c7c3c', CANCELED: '#8a929c' }
+const COLOR: Record<AsStatus, string> = { RECEIVED: 'var(--ec-warn)', IN_PROGRESS: 'var(--ec-blue)', COMPLETED: 'var(--ec-success)', CANCELED: 'var(--ec-text-hint)' }
 
 interface AsRow {
   id: number; asNo: string; partnerId: number; partnerName: string; itemId: number; itemName: string
@@ -198,14 +198,14 @@ export default function AsStatusPage() {
       onSearch={load}
       actions={[{ label: '새로고침', onClick: load }, { label: '인쇄' }, { label: 'Excel' }]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <button className="ec-btn" onClick={openPanel}>
           상세검색 {panelOpen ? '▲' : '▼'}{activeCount > 0 ? ` (${activeCount})` : ''}
         </button>
         {activeCount > 0 && !panelOpen && (
-          <button className="ec-btn" onClick={resetDraft} style={{ fontSize: 12, color: '#8a929c' }}>조건 해제</button>
+          <button className="ec-btn" onClick={resetDraft} style={{ fontSize: 12, color: 'var(--ec-text-hint)' }}>조건 해제</button>
         )}
       </div>
 
@@ -214,18 +214,18 @@ export default function AsStatusPage() {
                      view={view} onViewChange={setView} />
       )}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        건수 <b style={{ color: '#3c4553' }}>{shown.length.toLocaleString()}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+        건수 <b style={{ color: 'var(--ec-text)' }}>{shown.length.toLocaleString()}</b>
+        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
         {STATUSES.map((s) => (
           <span key={s} style={{ marginLeft: 8 }}>
             {LABEL[s]} <b style={{ color: COLOR[s] }}>{stats.byStatus[s]}</b>
           </span>
         ))}
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
-        미완료 <b style={{ color: '#c07a00', fontSize: 14 }}>{stats.open}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
-        평균처리 <b style={{ color: '#3c4553' }}>{stats.avgDays === null ? '-' : `${stats.avgDays.toFixed(1)}일`}</b>
+        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+        미완료 <b style={{ color: 'var(--ec-warn)', fontSize: 14 }}>{stats.open}</b>
+        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+        평균처리 <b style={{ color: 'var(--ec-text)' }}>{stats.avgDays === null ? '-' : `${stats.avgDays.toFixed(1)}일`}</b>
       </div>
 
       {view === '그래프' ? (
@@ -267,35 +267,35 @@ export default function AsStatusPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={14} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
+            <tr><td colSpan={14} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>
               {rows.length === 0 ? 'A/S 내역이 없습니다.' : '검색조건에 맞는 자료가 없습니다.'}
             </td></tr>
           ) : sort.sorted.map((r, i) => {
             const days = r.status === 'COMPLETED' ? daysBetween(r.receiptDate, r.doneDate) : null
             return (
               <tr key={r.id}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 {/* 원본은 일자와 번호를 한 칸에 적는다. */}
                 <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(r.receiptDate)} {r.asNo}</td>
                 <td style={{ textAlign: 'center' }}>
                   <span style={{ color: COLOR[r.status], fontWeight: 700, fontSize: 12 }}>{r.statusName || LABEL[r.status]}</span>
                 </td>
-                <td style={{ color: r.warehouseName ? undefined : '#c5cbd3' }}>{r.warehouseName || ''}</td>
-                <td style={{ color: r.charge ? undefined : '#c5cbd3' }}>{r.charge || ''}</td>
+                <td style={{ color: r.warehouseName ? undefined : 'var(--ec-text-off)' }}>{r.warehouseName || ''}</td>
+                <td style={{ color: r.charge ? undefined : 'var(--ec-text-off)' }}>{r.charge || ''}</td>
                 <td>{r.partnerName}</td>
-                <td style={{ color: r.title ? undefined : '#c5cbd3' }}>{r.title || ''}</td>
-                <td style={{ fontFamily: 'monospace', color: r.itemCode ? undefined : '#c5cbd3' }}>{r.itemCode || ''}</td>
+                <td style={{ color: r.title ? undefined : 'var(--ec-text-off)' }}>{r.title || ''}</td>
+                <td style={{ fontFamily: 'monospace', color: r.itemCode ? undefined : 'var(--ec-text-off)' }}>{r.itemCode || ''}</td>
                 {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다. */}
                 <td>{r.itemName}{r.itemSpec ? ' [' + r.itemSpec + ']' : ''}</td>
                 {/* 관리항목은 품목 마스터에 붙는 값이라 줄에는 없다 - itemId 로 화면에서 잇는다. */}
-                <td style={{ color: '#5a626e' }}>{mgmt.nameOf(r.itemId)}</td>
+                <td style={{ color: 'var(--ec-label)' }}>{mgmt.nameOf(r.itemId)}</td>
                 {/* 원본 [적요] - A/S 전표의 적요는 수리내역이다(A/S소모현황과 같은 매핑). */}
-                <td style={{ color: r.repairNote ? '#5a626e' : '#c5cbd3', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.repairNote || ''}</td>
-                <td style={{ color: r.symptom ? undefined : '#c5cbd3', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.symptom || ''}</td>
-                <td style={{ fontFamily: 'monospace', color: r.doneDate ? '#5a626e' : '#c5cbd3' }}>{dateText(r.doneDate) || ''}</td>
-                <td style={{ textAlign: 'right', color: days === null ? '#c5cbd3' : '#3c4553' }}>{days === null ? '-' : `${days}일`}</td>
+                <td style={{ color: r.repairNote ? 'var(--ec-label)' : 'var(--ec-text-off)', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.repairNote || ''}</td>
+                <td style={{ color: r.symptom ? undefined : 'var(--ec-text-off)', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.symptom || ''}</td>
+                <td style={{ fontFamily: 'monospace', color: r.doneDate ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{dateText(r.doneDate) || ''}</td>
+                <td style={{ textAlign: 'right', color: days === null ? 'var(--ec-text-off)' : 'var(--ec-text)' }}>{days === null ? '-' : `${days}일`}</td>
               </tr>
             )
           })}
@@ -319,22 +319,22 @@ function SearchPanel({
   onViewChange: (v: '표' | '그래프') => void
 }) {
   const label: React.CSSProperties = {
-    width: 90, fontSize: 12.5, color: '#3c4553', fontWeight: 600,
+    width: 90, fontSize: 12.5, color: 'var(--ec-text)', fontWeight: 600,
     display: 'flex', alignItems: 'center', paddingRight: 8,
   }
   const rowStyle: React.CSSProperties = {
-    display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid #eef1f5',
+    display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid var(--ec-line-soft)',
   }
   return (
     <div
       onKeyDown={(e) => { if (e.key === 'Enter') onApply() }}
-      style={{ border: '1px solid #d4dae2', borderRadius: 4, background: '#fbfcfe', padding: '4px 14px 12px', marginBottom: 10 }}
+      style={{ border: '1px solid var(--ec-line)', borderRadius: 4, background: 'var(--ec-bg-page)', padding: '4px 14px 12px', marginBottom: 10 }}
     >
       <div style={rowStyle}>
         <span style={label}>기준일자</span>
         <input type="date" className="ec-input" value={draft.dateFrom}
           onChange={(e) => onChange({ dateFrom: e.target.value })} style={{ width: 150 }} />
-        <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-hint)' }}>~</span>
         <input type="date" className="ec-input" value={draft.dateTo}
           onChange={(e) => onChange({ dateTo: e.target.value })} style={{ width: 150 }} />
           <span style={{ marginLeft: 6 }}>
@@ -353,7 +353,7 @@ function SearchPanel({
         <span style={label}>수리일자</span>
         <input type="date" className="ec-input" value={draft.doneFrom}
           onChange={(e) => onChange({ doneFrom: e.target.value })} style={{ width: 150 }} />
-        <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-hint)' }}>~</span>
         <input type="date" className="ec-input" value={draft.doneTo}
           onChange={(e) => onChange({ doneTo: e.target.value })} style={{ width: 150 }} />
       </div>
@@ -421,7 +421,7 @@ function SearchPanel({
         <span style={label}>수리예정일자</span>
         <input type="date" className="ec-input" value={draft.schedFrom}
           onChange={(e) => onChange({ schedFrom: e.target.value })} style={{ width: 150 }} />
-        <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-hint)' }}>~</span>
         <input type="date" className="ec-input" value={draft.schedTo}
           onChange={(e) => onChange({ schedTo: e.target.value })} style={{ width: 150 }} />
       </div>

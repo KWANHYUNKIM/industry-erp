@@ -132,8 +132,8 @@ export default function DailyReportPage() {
   const kpis = [
     { label: '매출', sub: `${periodSum.sCount}건`, value: periodSum.sAmt, color: 'var(--ec-blue)' },
     { label: '매입', sub: `${periodSum.pCount}건`, value: periodSum.pAmt, color: '#a5561b' },
-    { label: '입고수량', sub: '기간', value: moveSum.inQty, color: '#1c7c3c' },
-    { label: '출고수량', sub: '기간', value: moveSum.outQty, color: '#c07a00' },
+    { label: '입고수량', sub: '기간', value: moveSum.inQty, color: 'var(--ec-success)' },
+    { label: '출고수량', sub: '기간', value: moveSum.outQty, color: 'var(--ec-warn)' },
   ]
 
   const reset = () => {
@@ -185,14 +185,14 @@ export default function DailyReportPage() {
         </EcCond>
       </EcStatusPanel>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       {/* KPI 카드 */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
         {kpis.map((k) => (
-          <div key={k.label} style={{ flex: '1 1 0', minWidth: 150, border: '1px solid #e2e6eb', borderRadius: 6, padding: '10px 14px', background: '#fbfcfe' }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: k.color }}>{k.label}<span style={{ fontSize: 11, fontWeight: 400, color: '#9aa1ab' }}> · {k.sub}</span></div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#3c4553', lineHeight: 1.2, marginTop: 4 }}>{won(k.value)}</div>
+          <div key={k.label} style={{ flex: '1 1 0', minWidth: 150, border: '1px solid #e2e6eb', borderRadius: 6, padding: '10px 14px', background: 'var(--ec-bg-page)' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: k.color }}>{k.label}<span style={{ fontSize: 11, fontWeight: 400, color: 'var(--ec-text-hint)' }}> · {k.sub}</span></div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--ec-text)', lineHeight: 1.2, marginTop: 4 }}>{won(k.value)}</div>
           </div>
         ))}
       </div>
@@ -220,19 +220,19 @@ export default function DailyReportPage() {
           ) : daily.map((r, i) => (
             <tr key={r.date}
                 onClick={() => setDate(r.date)}
-                style={{ cursor: 'pointer', background: r.date === date ? '#eef5ff' : undefined }}>
-              <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+                style={{ cursor: 'pointer', background: r.date === date ? 'var(--ec-blue-wash)' : undefined }}>
+              <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td>{r.date.replace(/-/g, '/')}</td>
-              <td style={{ textAlign: 'right', color: '#8a929c' }}>{r.sCount || ''}</td>
+              <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{r.sCount || ''}</td>
               <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{r.sAmt ? won(r.sAmt) : ''}</td>
-              <td style={{ textAlign: 'right', color: '#8a929c' }}>{r.pCount || ''}</td>
+              <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{r.pCount || ''}</td>
               <td style={{ textAlign: 'right', color: '#a5561b' }}>{r.pAmt ? won(r.pAmt) : ''}</td>
             </tr>
           ))}
         </tbody>
         {daily.length > 0 && (
           <tfoot>
-            <tr style={{ fontWeight: 700, background: '#f5f7fa' }}>
+            <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
               <td colSpan={2} style={{ textAlign: 'right' }}>합계</td>
               <td style={{ textAlign: 'right' }}>{won(periodSum.sCount)}</td>
               <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(periodSum.sAmt)}</td>
@@ -254,10 +254,10 @@ export default function DailyReportPage() {
               </thead>
               <tbody>
                 {daySales.length === 0 ? (
-                  <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>해당 일자 매출 없음</td></tr>
+                  <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 16 }}>해당 일자 매출 없음</td></tr>
                 ) : daySales.map((d, i) => (
                   <tr key={d.id}>
-                    <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                    <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                     <td style={{ fontFamily: 'monospace' }}>{d.docNo}</td>
                     <td>{d.partnerName}</td>
                     <td style={{ textAlign: 'right' }}>{won(d.supplyAmount)}</td>
@@ -266,7 +266,7 @@ export default function DailyReportPage() {
                 ))}
               </tbody>
               {daySales.length > 0 && (
-                <tfoot><tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+                <tfoot><tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
                   <td colSpan={3} style={{ textAlign: 'right' }}>합계</td>
                   <td style={{ textAlign: 'right' }}>{won(salesSum.supply)}</td>
                   <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(salesSum.total)}</td>
@@ -284,10 +284,10 @@ export default function DailyReportPage() {
               </thead>
               <tbody>
                 {dayPurch.length === 0 ? (
-                  <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>해당 일자 매입 없음</td></tr>
+                  <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 16 }}>해당 일자 매입 없음</td></tr>
                 ) : dayPurch.map((d, i) => (
                   <tr key={d.id}>
-                    <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                    <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                     <td style={{ fontFamily: 'monospace' }}>{d.docNo}</td>
                     <td>{d.partnerName}</td>
                     <td style={{ textAlign: 'right' }}>{won(d.supplyAmount)}</td>
@@ -296,7 +296,7 @@ export default function DailyReportPage() {
                 ))}
               </tbody>
               {dayPurch.length > 0 && (
-                <tfoot><tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+                <tfoot><tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
                   <td colSpan={3} style={{ textAlign: 'right' }}>합계</td>
                   <td style={{ textAlign: 'right' }}>{won(purchSum.supply)}</td>
                   <td style={{ textAlign: 'right', color: '#a5561b' }}>{won(purchSum.total)}</td>

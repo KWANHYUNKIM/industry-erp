@@ -119,11 +119,11 @@ export default function FixedAssetPage() {
         {TABS.map((t) => (
           <button key={t} onClick={() => { setTab(t); setShowForm(false); setError('') }} className="no-ec" style={{
             padding: '6px 14px', fontSize: 12.5, border: 'none', cursor: 'pointer',
-            background: tab === t ? '#fff' : 'transparent', color: tab === t ? 'var(--ec-blue)' : '#5a626e',
+            background: tab === t ? '#fff' : 'transparent', color: tab === t ? 'var(--ec-blue)' : 'var(--ec-label)',
             fontWeight: tab === t ? 700 : 400, borderBottom: tab === t ? '2px solid var(--ec-blue)' : '2px solid transparent',
           }}>{t} ({t === '자산목록' ? assets.length : deps.length})</button>
         ))}
-        <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 12, color: '#5a626e' }}>
+        <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 12, color: 'var(--ec-label)' }}>
           사용중 {inUse.length}건 · 취득가액 {won(totalCost)} · 장부가액 <b style={{ color: 'var(--ec-blue-dark)' }}>{won(totalBook)}</b>
         </span>
       </div>
@@ -133,7 +133,7 @@ export default function FixedAssetPage() {
         원본 고정자산대장은 이 계정에 <b>업무 권한이 없어</b> 조건 판을 못 봤다(2026-09-01 확인).
         원본을 열 수 있게 되면 그때 실측해서 묶음과 기본값을 맞춘다.
       */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', flexWrap: 'wrap' }}>
         <span>기간</span>
         <input type="date" className="ec-input" value={pFrom}
                onChange={(e) => setPFrom(e.target.value)} style={{ width: 140 }} />
@@ -145,17 +145,17 @@ export default function FixedAssetPage() {
       </div>
 
 
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)' }}>{notice}</div>}
 
       {tab === '감가상각' && (
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, border: '1px solid var(--ec-border)', background: '#fff', padding: 12, marginBottom: 8 }}>
           <label style={{ fontSize: 12.5 }}>
-            <div style={{ color: '#5a626e', marginBottom: 3 }}>귀속월</div>
+            <div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>귀속월</div>
             <input className="ec-input" type="month" value={period} onChange={(e) => setPeriod(e.target.value)} style={{ width: 140 }} />
           </label>
           <button className="ec-btn ec-btn-primary" onClick={runDepreciation}>감가상각 실행</button>
-          <span style={{ fontSize: 11.5, color: '#8a929c', paddingBottom: 5 }}>
+          <span style={{ fontSize: 11.5, color: 'var(--ec-text-hint)', paddingBottom: 5 }}>
             ※ 사용중 자산 전체를 상각하고 차)감가상각비 / 대)감가상각누계액 분개를 만듭니다.
             같은 달을 다시 실행해도 이중 상각되지 않습니다.
           </span>
@@ -166,7 +166,7 @@ export default function FixedAssetPage() {
         <AssetForm accounts={accounts} onError={setError} onSaved={() => { setShowForm(false); flash('자산을 등록했습니다.'); load() }} />
       )}</Modal>
 
-      {loading ? <p style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</p>
+      {loading ? <p style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</p>
         : tab === '자산목록' ? <AssetTable rows={assets} onDispose={dispose} />
         : <DepreciationTable rows={shownDeps} period={period} />}
     </EcListShell>
@@ -194,22 +194,22 @@ function AssetTable({ rows, onDispose }: { rows: FixedAsset[]; onDispose: (a: Fi
       </thead>
       <tbody>
         {rows.length === 0 ? (
-          <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
         ) : rows.map((a, i) => (
           <tr key={a.id}>
-            <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+            <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
             <td style={{ fontFamily: 'monospace' }}>{a.assetNo}</td>
             <td style={{ fontWeight: 600 }}>{a.name}</td>
-            <td style={{ color: '#5a626e' }}>{a.assetAccountName}</td>
+            <td style={{ color: 'var(--ec-label)' }}>{a.assetAccountName}</td>
             <td>{dateText(a.acquisitionDate)}</td>
             <td style={{ textAlign: 'right' }}>{won(a.acquisitionCost)}</td>
-            <td style={{ textAlign: 'center', color: '#5a626e' }}>
+            <td style={{ textAlign: 'center', color: 'var(--ec-label)' }}>
               {a.methodName}{a.declineRate ? ` ${a.declineRate}%` : ''}
             </td>
             <td style={{ textAlign: 'center' }}>{a.usefulLifeYears}년</td>
-            <td style={{ textAlign: 'right', color: '#c60a2e' }}>{won(a.accumulatedDepreciation)}</td>
+            <td style={{ textAlign: 'right', color: 'var(--ec-danger)' }}>{won(a.accumulatedDepreciation)}</td>
             <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(a.bookValue)}</td>
-            <td style={{ textAlign: 'center', color: a.status === 'IN_USE' ? '#1c7c3c' : '#8a929c' }}>
+            <td style={{ textAlign: 'center', color: a.status === 'IN_USE' ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>
               {a.statusName}{a.status === 'DISPOSED' && a.disposalDate ? ` (${a.disposalDate})` : ''}
             </td>
             <td style={{ textAlign: 'center' }}>
@@ -243,16 +243,16 @@ function DepreciationTable({ rows, period }: { rows: DepreciationRow[]; period: 
       </thead>
       <tbody>
         {rows.length === 0 ? (
-          <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
         ) : rows.map((r, i) => (
           <tr key={r.id}>
-            <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+            <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
             <td>{r.period}</td>
             <td style={{ fontFamily: 'monospace' }}>{r.assetNo}</td>
             <td>{r.assetName}</td>
             <td>{dateText(r.depreciationDate)}</td>
-            <td style={{ textAlign: 'right', fontWeight: 700, color: '#c60a2e' }}>{won(r.amount)}</td>
-            <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(r.accumulatedAfter)}</td>
+            <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--ec-danger)' }}>{won(r.amount)}</td>
+            <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{won(r.accumulatedAfter)}</td>
             <td style={{ textAlign: 'right' }}>{won(r.bookValueAfter)}</td>
             <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{r.journalDocNo ?? ''}</td>
           </tr>
@@ -260,7 +260,7 @@ function DepreciationTable({ rows, period }: { rows: DepreciationRow[]; period: 
       </tbody>
       {rows.length > 0 && (
         <tfoot>
-          <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+          <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
             <td colSpan={5} style={{ textAlign: 'right' }}>{period} 상각 합계</td>
             <td style={{ textAlign: 'right' }}>{won(total)}</td>
             <td colSpan={3}></td>
@@ -366,7 +366,7 @@ function AssetForm({ accounts, onError, onSaved }: {
         </Field>
         <button className="ec-btn ec-btn-primary" onClick={submit}>등록</button>
       </div>
-      <div style={{ marginTop: 8, fontSize: 11.5, color: '#8a929c' }}>
+      <div style={{ marginTop: 8, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
         ※ 정액법은 (취득가액 − 잔존가액) ÷ 내용연수를 매달 1/12씩, 정률법은 장부가액 × 상각률을 매달 1/12씩 상각합니다. 잔존가액 아래로는 내려가지 않습니다.
       </div>
     </div>
@@ -376,7 +376,7 @@ function AssetForm({ accounts, onError, onSaved }: {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label style={{ fontSize: 12.5 }}>
-      <div style={{ color: '#5a626e', marginBottom: 3 }}>{label}</div>
+      <div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>{label}</div>
       {children}
     </label>
   )

@@ -65,14 +65,14 @@ export default function JournalEntryPage() {
 
   return (
     <EcListShell title="일반전표입력" actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)' }}>
         <span>전표일자</span>
         <input type="date" className="ec-input" value={entryDate} onChange={(e) => setEntryDate(e.target.value)} style={{ width: 150 }} />
         <span style={{ marginLeft: 8 }}>적요</span>
         <input className="ec-input" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="예: 자본금 납입" style={{ width: 300 }} />
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       <table ref={tableRef} className="w-full text-left" style={{ maxWidth: 900 }}>
         <thead>
@@ -85,7 +85,7 @@ export default function JournalEntryPage() {
         <tbody>
           {rows.map((r, i) => (
             <tr key={i}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td>
                 <select className="ec-input" value={r.accountId} onChange={(e) => setRow(i, { accountId: e.target.value })} style={{ width: '100%' }}>
                   <option value="">계정 선택</option>
@@ -102,11 +102,11 @@ export default function JournalEntryPage() {
           ))}
         </tbody>
         <tfoot>
-          <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+          <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
             <td colSpan={2} style={{ textAlign: 'right' }}>합계</td>
             <td style={{ textAlign: 'right', color: '#1a4d8f' }}>{won(totalDebit)}</td>
             <td style={{ textAlign: 'right', color: '#a5561b' }}>{won(totalCredit)}</td>
-            <td colSpan={2} style={{ color: balanced ? '#1c7c3c' : '#c60a2e', fontSize: 12 }}>
+            <td colSpan={2} style={{ color: balanced ? 'var(--ec-success)' : 'var(--ec-danger)', fontSize: 12 }}>
               {totalDebit === 0 ? '' : balanced ? '대차평형 ✓' : `차액 ${won(Math.abs(totalDebit - totalCredit))}`}
             </td>
           </tr>

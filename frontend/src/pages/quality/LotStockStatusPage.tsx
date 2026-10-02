@@ -117,7 +117,7 @@ export default function LotStockStatusPage() {
         기준일자 시점의 로트 잔량. 그 날 뒤에 일어난 움직임을 되돌려 계산한다.
       </p>
 
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         {/* 원본 조건 차례: 구분 · 기준일자 · 유효기한 · 시리얼/로트No. · 창고 · 품목 · 재고수량 · 기타 */}
@@ -193,8 +193,8 @@ export default function LotStockStatusPage() {
         </EcCond>
       </ul>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
-        {dateText(asOf)} 시점 · 로트 <b style={{ color: '#3a4453' }}>{num(shown.length)}</b>건 ·
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)' }}>
+        {dateText(asOf)} 시점 · 로트 <b style={{ color: 'var(--ec-text)' }}>{num(shown.length)}</b>건 ·
         잔량 <b style={{ color: 'var(--ec-blue-dark)' }}>{num(totalQty)}</b>
       </div>
 
@@ -210,12 +210,12 @@ export default function LotStockStatusPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : grouped.length === 0 ? (
-              <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : grouped.map((g, i) => (
               <tr key={g.warehouse}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td>{g.warehouse}</td>
                 <td style={{ textAlign: 'right' }}>{num(g.lotCount)}</td>
                 <td style={{ textAlign: 'right' }}>{num(g.stockQty)}</td>
@@ -241,21 +241,21 @@ export default function LotStockStatusPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((l, i) => (
               <tr key={l.id}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{l.lotNo}</td>
-                <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{l.itemCode}</td>
+                <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{l.itemCode}</td>
                 <td>{l.itemName}</td>
-                <td style={{ color: '#5a626e' }}>{l.spec ?? ''}</td>
-                <td style={{ color: l.warehouseName ? undefined : '#c9ced6' }}>{l.warehouseName ?? '(미지정)'}</td>
+                <td style={{ color: 'var(--ec-label)' }}>{l.spec ?? ''}</td>
+                <td style={{ color: l.warehouseName ? undefined : 'var(--ec-text-off)' }}>{l.warehouseName ?? '(미지정)'}</td>
                 <td>{dateText(l.inboundDate)}</td>
-                <td style={{ color: l.expireDate ? '#5a626e' : '#c9ced6' }}>{dateText(l.expireDate) || ''}</td>
+                <td style={{ color: l.expireDate ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{dateText(l.expireDate) || ''}</td>
                 <td style={{ textAlign: 'right' }}>{num(l.stockQty)}</td>
-                <td style={{ textAlign: 'center', color: l.held ? '#c07a00' : '#5a626e' }}>{l.statusName}</td>
+                <td style={{ textAlign: 'center', color: l.held ? 'var(--ec-warn)' : 'var(--ec-label)' }}>{l.statusName}</td>
               </tr>
             ))}
           </tbody>

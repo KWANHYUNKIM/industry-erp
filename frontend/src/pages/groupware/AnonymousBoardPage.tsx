@@ -68,7 +68,7 @@ export default function AnonymousBoardPage() {
           </span>
         </div>
 
-        {error && <p style={{ marginTop: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+        {error && <p style={{ marginTop: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
         {/* 목록. 원본은 머리글 줄 없이 글만 쌓인다. */}
         <table className="w-full text-left" style={{ marginTop: 14 }}>
@@ -82,7 +82,7 @@ export default function AnonymousBoardPage() {
                   {when(p.createdAt)}
                 </td>
                 <td style={{ width: 50, textAlign: 'center' }}>
-                  <button className="ec-btn ec-btn-sm" style={{ color: '#c60a2e' }} onClick={() => remove(p.id)}>삭제</button>
+                  <button className="ec-btn ec-btn-sm" style={{ color: 'var(--ec-danger)' }} onClick={() => remove(p.id)}>삭제</button>
                 </td>
               </tr>
             ))}

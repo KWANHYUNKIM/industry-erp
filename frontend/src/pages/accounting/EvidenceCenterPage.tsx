@@ -105,7 +105,7 @@ export default function EvidenceCenterPage() {
     } catch (err) { alert(extractErrorMessage(err)) }
   }
 
-  const label = (t: string) => <div style={{ color: '#5a626e', marginBottom: 3 }}>{t}</div>
+  const label = (t: string) => <div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>{t}</div>
 
   return (
     <EcListShell
@@ -123,10 +123,10 @@ export default function EvidenceCenterPage() {
         </p>
       }
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {notice && <p style={{ background: '#eaf4ea', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{notice}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {notice && <p style={{ background: '#eaf4ea', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{notice}</p>}
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end', border: '1px solid var(--ec-border)', background: '#f7f9fb', padding: 10, marginBottom: 10 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end', border: '1px solid var(--ec-border)', background: 'var(--ec-bg-page)', padding: 10, marginBottom: 10 }}>
         <label style={{ fontSize: 12.5 }}>{label('전표일자')}
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
           <span style={{ margin: '0 4px' }}>~</span>
@@ -163,7 +163,7 @@ export default function EvidenceCenterPage() {
           { label: '첨부 용량', value: formatBytes(summary.bytes) },
         ].map((c) => (
           <div key={c.label} style={{ border: '1px solid var(--ec-border)', padding: '8px 14px', minWidth: 130 }}>
-            <div style={{ fontSize: 11.5, color: '#8a929c' }}>{c.label}</div>
+            <div style={{ fontSize: 11.5, color: 'var(--ec-text-hint)' }}>{c.label}</div>
             <div style={{ fontSize: 18, fontWeight: 700 }}>{c.value}</div>
           </div>
         ))}
@@ -186,9 +186,9 @@ export default function EvidenceCenterPage() {
         </tr></thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((r) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center' }}>
@@ -205,11 +205,11 @@ export default function EvidenceCenterPage() {
                           style={{ background: 'none', border: 0, padding: 0, color: 'var(--ec-blue)', cursor: 'pointer', textDecoration: 'underline', fontSize: 12.5 }}>
                     {r.fileName}
                   </button>
-                ) : <span style={{ color: '#9aa1ab' }}>첨부 없음</span>}
-                {r.note && <span style={{ color: '#5a626e' }}> · {r.note}</span>}
+                ) : <span style={{ color: 'var(--ec-text-hint)' }}>첨부 없음</span>}
+                {r.note && <span style={{ color: 'var(--ec-label)' }}> · {r.note}</span>}
               </td>
               <td style={{ textAlign: 'right' }}>{formatBytes(r.fileSize)}</td>
-              <td style={{ color: '#5a626e' }}>{r.worker ?? ''}</td>
+              <td style={{ color: 'var(--ec-label)' }}>{r.worker ?? ''}</td>
             </tr>
           ))}
         </tbody>

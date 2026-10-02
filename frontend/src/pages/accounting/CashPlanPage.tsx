@@ -46,13 +46,13 @@ export default function CashPlanPage() {
         <input type="month" className="ec-input" value={period} onChange={(e) => setPeriod(e.target.value)} style={{ width: 150 }} />
         <button className="ec-btn ec-btn-primary" onClick={load}>조회</button>
         <button className="ec-btn" onClick={() => setShowForm(true)}>+ 계획추가</button>
-        <span style={{ marginLeft: 8, fontSize: 12, color: '#9aa1ab' }}>
+        <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--ec-text-hint)' }}>
           실적은 그 달의 계좌 입출금을 집계합니다(현금 시재는 제외).
         </span>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)' }}>{notice}</div>}
 
       {status && (
         <table className="w-full text-left" style={{ marginBottom: 12 }}>
@@ -69,18 +69,18 @@ export default function CashPlanPage() {
               <td>수입</td>
               <td style={{ textAlign: 'right' }}>{won(status.plannedInflow)}</td>
               <td style={{ textAlign: 'right' }}>{won(status.actualInflow)}</td>
-              <td style={{ textAlign: 'right', color: status.inflowDiff < 0 ? '#c60a2e' : '#1c7c3c' }}>{signed(status.inflowDiff)}</td>
+              <td style={{ textAlign: 'right', color: status.inflowDiff < 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>{signed(status.inflowDiff)}</td>
             </tr>
             <tr>
               <td>지출</td>
               <td style={{ textAlign: 'right' }}>{won(status.plannedOutflow)}</td>
               <td style={{ textAlign: 'right' }}>{won(status.actualOutflow)}</td>
-              <td style={{ textAlign: 'right', color: status.outflowDiff > 0 ? '#c60a2e' : '#1c7c3c' }}>{signed(status.outflowDiff)}</td>
+              <td style={{ textAlign: 'right', color: status.outflowDiff > 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>{signed(status.outflowDiff)}</td>
             </tr>
-            <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+            <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
               <td>수지(수입 − 지출)</td>
               <td style={{ textAlign: 'right' }}>{won(status.plannedNet)}</td>
-              <td style={{ textAlign: 'right', color: status.actualNet < 0 ? '#c60a2e' : 'var(--ec-blue-dark)' }}>{won(status.actualNet)}</td>
+              <td style={{ textAlign: 'right', color: status.actualNet < 0 ? 'var(--ec-danger)' : 'var(--ec-blue-dark)' }}>{won(status.actualNet)}</td>
               <td style={{ textAlign: 'right' }}>{signed(status.actualNet - status.plannedNet)}</td>
             </tr>
           </tbody>
@@ -122,21 +122,21 @@ function PlanTable({ title, rows, onRemove }: {
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td>{r.category}</td>
               <td style={{ textAlign: 'right' }}>{won(r.amount)}</td>
-              <td style={{ fontSize: 12, color: '#8a929c' }}>{r.remark ?? ''}</td>
+              <td style={{ fontSize: 12, color: 'var(--ec-text-hint)' }}>{r.remark ?? ''}</td>
               <td style={{ textAlign: 'center' }}>
-                <button className="ec-btn" style={{ height: 20, padding: '0 6px', color: '#c60a2e' }} onClick={() => onRemove(r.id, r.category)}>×</button>
+                <button className="ec-btn" style={{ height: 20, padding: '0 6px', color: 'var(--ec-danger)' }} onClick={() => onRemove(r.id, r.category)}>×</button>
               </td>
             </tr>
           ))}
         </tbody>
         <tfoot>
-          <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+          <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
             <td colSpan={2} style={{ textAlign: 'right' }}>합계</td>
             <td style={{ textAlign: 'right' }}>{won(total)}</td>
             <td colSpan={2}></td>
@@ -173,16 +173,16 @@ function CashPlanForm({ period, onClose, onSaved }: { period: string; onClose: (
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 520, maxWidth: '94vw', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: '#f5f7fa' }}>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: 'var(--ec-bg-page)' }}>
           <span style={{ fontWeight: 800, color: 'var(--ec-blue-dark)' }}>자금계획 추가 — {period}</span>
-          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: '#8a929c' }}>×</span>
+          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: 'var(--ec-text-hint)' }}>×</span>
         </div>
         <div style={{ padding: 16 }}>
-          {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+          {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
           <table className="w-full text-left">
             <tbody>
               <tr>
-                <th style={{ width: 90, background: '#f5f7fa' }}>구분<span style={{ color: '#c60a2e' }}>*</span></th>
+                <th style={{ width: 90, background: 'var(--ec-bg-page)' }}>구분<span style={{ color: 'var(--ec-danger)' }}>*</span></th>
                 <td>
                   <select className="ec-input" value={type} onChange={(e) => setType(e.target.value as CashFlowType)} style={{ width: 140 }}>
                     <option value="INFLOW">수입</option>
@@ -191,18 +191,18 @@ function CashPlanForm({ period, onClose, onSaved }: { period: string; onClose: (
                 </td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>항목<span style={{ color: '#c60a2e' }}>*</span></th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>항목<span style={{ color: 'var(--ec-danger)' }}>*</span></th>
                 <td>
                   <input className="ec-input" value={category} onChange={(e) => setCategory(e.target.value)} style={{ width: '100%' }}
                     placeholder={type === 'INFLOW' ? '예: 매출대금 회수, 어음 만기결제' : '예: 급여 지급, 임차료, 원자재 대금'} />
                 </td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>금액<span style={{ color: '#c60a2e' }}>*</span></th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>금액<span style={{ color: 'var(--ec-danger)' }}>*</span></th>
                 <td><input type="number" className="ec-input" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ width: 180, textAlign: 'right' }} /></td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>비고</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>비고</th>
                 <td><input className="ec-input" value={remark} onChange={(e) => setRemark(e.target.value)} style={{ width: '100%' }} /></td>
               </tr>
             </tbody>

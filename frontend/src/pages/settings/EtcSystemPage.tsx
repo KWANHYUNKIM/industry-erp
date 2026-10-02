@@ -49,7 +49,7 @@ export default function EtcSystemPage() {
         title="기타관리시스템"
         actions={[{ label: '연동 설정', onClick: () => openConfig(SYSTEMS[0]) }]}
       >
-        <div style={{ marginBottom: 6, fontSize: 12, color: '#9aa1ab' }}>
+        <div style={{ marginBottom: 6, fontSize: 12, color: 'var(--ec-text-hint)' }}>
           ※ 아래 기능들은 표본 목록입니다. 실제 외부 연동/저장은 아직 연결되지 않았습니다. (백엔드 미연동)
         </div>
         <table className="w-full text-left">
@@ -65,10 +65,10 @@ export default function EtcSystemPage() {
           <tbody>
             {sort.sorted.map((s, i) => (
               <tr key={s.id}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td style={{ fontWeight: 600 }}>{s.name}</td>
-                <td style={{ color: '#5a626e' }}>{s.desc}</td>
-                <td style={{ textAlign: 'center', color: s.state === '사용중' ? '#1c7c3c' : '#8a929c', fontWeight: 700 }}>{s.state}</td>
+                <td style={{ color: 'var(--ec-label)' }}>{s.desc}</td>
+                <td style={{ textAlign: 'center', color: s.state === '사용중' ? 'var(--ec-success)' : 'var(--ec-text-hint)', fontWeight: 700 }}>{s.state}</td>
                 <td style={{ textAlign: 'center' }}>
                   <button className="ec-btn" style={{ height: 20, padding: '0 10px' }} onClick={() => openConfig(s)}>설정</button>
                 </td>
@@ -85,12 +85,12 @@ export default function EtcSystemPage() {
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         >
           <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, width: 460, maxWidth: '92vw', boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}>
-            <div style={{ padding: '10px 14px', borderBottom: '1px solid #e6eaef', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
+            <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--ec-line-soft)', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
               <span>{target.name} · 연동 설정</span>
               <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={close}>닫기</button>
             </div>
-            <div style={{ padding: 14, fontSize: 12.5, lineHeight: 1.7, color: '#3c4553' }}>
-              <p style={{ margin: '0 0 10px', color: '#5a626e' }}>{target.desc}</p>
+            <div style={{ padding: 14, fontSize: 12.5, lineHeight: 1.7, color: 'var(--ec-text)' }}>
+              <p style={{ margin: '0 0 10px', color: 'var(--ec-label)' }}>{target.desc}</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <label style={{ cursor: 'pointer' }}>
                   <input type="checkbox" checked={form.enabled} onChange={(e) => set('enabled', e.target.checked)} style={{ marginRight: 6, verticalAlign: 'middle' }} />
@@ -110,7 +110,7 @@ export default function EtcSystemPage() {
                 <p style={{ marginTop: 10, background: '#fff6e5', color: '#8a5a00', padding: '6px 10px', borderRadius: 3, fontSize: 12 }}>{saved}</p>
               )}
             </div>
-            <div style={{ padding: '10px 14px', borderTop: '1px solid #e6eaef', display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+            <div style={{ padding: '10px 14px', borderTop: '1px solid var(--ec-line-soft)', display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
               <button className="ec-btn ec-btn-primary" onClick={save}>저장</button>
               <button className="ec-btn" onClick={close}>취소</button>
             </div>

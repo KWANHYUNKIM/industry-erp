@@ -217,7 +217,7 @@ export default function DataExportPage() {
         { label: '건수 새로고침', onClick: loadCounts },
       ]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
         <label style={{ fontSize: 12.5 }}>기간&nbsp;
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} />
@@ -229,8 +229,8 @@ export default function DataExportPage() {
             <option>Excel</option><option>CSV</option><option>JSON</option>
           </select>
         </label>
-        <span style={{ fontSize: 11.5, color: '#8a929c' }}>* 기간은 일자 컬럼이 있는 전표성 데이터에만 적용</span>
-        <span style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>선택 <b style={{ color: 'var(--ec-blue-dark)' }}>{checked.size}</b> / {DATASETS.length}</span>
+        <span style={{ fontSize: 11.5, color: 'var(--ec-text-hint)' }}>* 기간은 일자 컬럼이 있는 전표성 데이터에만 적용</span>
+        <span style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--ec-label)' }}>선택 <b style={{ color: 'var(--ec-blue-dark)' }}>{checked.size}</b> / {DATASETS.length}</span>
       </div>
       <table className="w-full text-left">
         <thead>
@@ -252,9 +252,9 @@ export default function DataExportPage() {
                 <td style={{ textAlign: 'center' }}><input type="checkbox" checked={checked.has(d.id)} onChange={() => toggle(d.id)} /></td>
                 <td style={{ fontWeight: 700, color: 'var(--ec-blue-dark)' }}>{d.module}</td>
                 <td>{d.name}</td>
-                <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: '#5a626e' }}>{d.dateCol !== null ? '전표성(기간필터)' : '마스터'}</td>
-                <td style={{ textAlign: 'right', color: '#5a626e' }}>
-                  {loading ? '…' : c === null ? <span style={{ color: '#c60a2e' }}>조회실패</span> : (c ?? 0).toLocaleString()}
+                <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: 'var(--ec-label)' }}>{d.dateCol !== null ? '전표성(기간필터)' : '마스터'}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>
+                  {loading ? '…' : c === null ? <span style={{ color: 'var(--ec-danger)' }}>조회실패</span> : (c ?? 0).toLocaleString()}
                 </td>
               </tr>
             )

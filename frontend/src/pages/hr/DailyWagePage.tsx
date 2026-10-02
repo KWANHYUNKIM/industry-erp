@@ -90,19 +90,19 @@ export default function DailyWagePage() {
         <button className="ec-btn" onClick={pay} disabled={selected.length === 0}>
           지급 처리{selected.length > 0 ? ` (${selected.length})` : ''}
         </button>
-        <span style={{ marginLeft: 4, fontSize: 12, color: '#9aa1ab' }}>
+        <span style={{ marginLeft: 4, fontSize: 12, color: 'var(--ec-text-hint)' }}>
           일용근로소득세 = (일당 − 15만원) × 2.7%, 1,000원 미만은 소액부징수(0원).
         </span>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)' }}>{notice}</div>}
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
-        <Box label="인원 / 출역일수" value={`${data?.headcount ?? 0}명 / ${data?.workDays ?? 0}일`} color="var(--ec-blue-dark)" bg="#f7f9fb" />
-        <Box label="일당 합계" value={`${won(data?.totalWage ?? 0)} 원`} color="var(--ec-blue)" bg="#f7f9ff" />
-        <Box label="원천징수 (소득세+지방세)" value={`${won((data?.totalIncomeTax ?? 0) + (data?.totalLocalIncomeTax ?? 0))} 원`} color="#c60a2e" bg="#fdf6f6" />
-        <Box label="미지급 실지급액" value={`${won(data?.unpaidNetPay ?? 0)} 원`} color="#2f8401" bg="#f4faf5" />
+        <Box label="인원 / 출역일수" value={`${data?.headcount ?? 0}명 / ${data?.workDays ?? 0}일`} color="var(--ec-blue-dark)" bg="var(--ec-bg-page)" />
+        <Box label="일당 합계" value={`${won(data?.totalWage ?? 0)} 원`} color="var(--ec-blue)" bg="var(--ec-blue-wash)" />
+        <Box label="원천징수 (소득세+지방세)" value={`${won((data?.totalIncomeTax ?? 0) + (data?.totalLocalIncomeTax ?? 0))} 원`} color="var(--ec-danger)" bg="var(--ec-danger-bg)" />
+        <Box label="미지급 실지급액" value={`${won(data?.unpaidNetPay ?? 0)} 원`} color="#2f8401" bg="var(--ec-success-bg)" />
       </div>
 
       <table className="w-full text-left">
@@ -130,9 +130,9 @@ export default function DailyWagePage() {
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((r) => (
-            <tr key={r.id} style={{ background: selected.includes(r.id) ? '#eef5ff' : undefined }}>
+            <tr key={r.id} style={{ background: selected.includes(r.id) ? 'var(--ec-blue-wash)' : undefined }}>
               <td style={{ textAlign: 'center' }}>
                 <input type="checkbox" checked={selected.includes(r.id)} onChange={() => toggle(r.id)} disabled={r.paid} />
               </td>
@@ -142,27 +142,27 @@ export default function DailyWagePage() {
               <td>{r.department || ''}</td>
               <td style={{ textAlign: 'center' }}>{r.workHours}h</td>
               <td style={{ textAlign: 'right' }}>{won(r.dailyWage)}</td>
-              <td style={{ textAlign: 'right', color: r.incomeTax > 0 ? '#c60a2e' : '#c3c8cf' }}>{won(r.incomeTax)}</td>
-              <td style={{ textAlign: 'right', color: r.localIncomeTax > 0 ? '#c60a2e' : '#c3c8cf' }}>{won(r.localIncomeTax)}</td>
+              <td style={{ textAlign: 'right', color: r.incomeTax > 0 ? 'var(--ec-danger)' : 'var(--ec-text-off)' }}>{won(r.incomeTax)}</td>
+              <td style={{ textAlign: 'right', color: r.localIncomeTax > 0 ? 'var(--ec-danger)' : 'var(--ec-text-off)' }}>{won(r.localIncomeTax)}</td>
               <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(r.netPay)}</td>
               <td style={{ textAlign: 'center' }}>
                 {r.paid
-                  ? <span style={{ color: '#1c7c3c' }} title={r.journalNo ? `회계전표 ${r.journalNo}` : undefined}>지급 {r.paidDate}{r.journalNo ? ` · ${r.journalNo}` : ''}</span>
-                  : <span style={{ color: '#8a929c' }}>미지급</span>}
+                  ? <span style={{ color: 'var(--ec-success)' }} title={r.journalNo ? `회계전표 ${r.journalNo}` : undefined}>지급 {r.paidDate}{r.journalNo ? ` · ${r.journalNo}` : ''}</span>
+                  : <span style={{ color: 'var(--ec-text-hint)' }}>미지급</span>}
               </td>
               <td style={{ textAlign: 'center' }}>
-                {!r.paid && <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => remove(r)}>삭제</button>}
+                {!r.paid && <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: 'var(--ec-danger)' }} onClick={() => remove(r)}>삭제</button>}
               </td>
             </tr>
           ))}
         </tbody>
         {rows.length > 0 && (
           <tfoot>
-            <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+            <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
               <td colSpan={6} style={{ border: '1px solid var(--ec-border)', padding: '5px 8px' }}>합계 ({data?.workDays}일)</td>
               <td style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right' }}>{won(data?.totalWage ?? 0)}</td>
-              <td style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right', color: '#c60a2e' }}>{won(data?.totalIncomeTax ?? 0)}</td>
-              <td style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right', color: '#c60a2e' }}>{won(data?.totalLocalIncomeTax ?? 0)}</td>
+              <td style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right', color: 'var(--ec-danger)' }}>{won(data?.totalIncomeTax ?? 0)}</td>
+              <td style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right', color: 'var(--ec-danger)' }}>{won(data?.totalLocalIncomeTax ?? 0)}</td>
               <td style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right' }}>{won(data?.totalNetPay ?? 0)}</td>
               <td colSpan={2} style={{ border: '1px solid var(--ec-border)' }}></td>
             </tr>
@@ -184,7 +184,7 @@ export default function DailyWagePage() {
 function Box({ label, value, color, bg }: { label: string; value: string; color: string; bg: string }) {
   return (
     <div style={{ flex: 1, border: '1px solid var(--ec-border)', background: bg, padding: '10px 14px' }}>
-      <div style={{ fontSize: 12, color: '#5a626e' }}>{label}</div>
+      <div style={{ fontSize: 12, color: 'var(--ec-label)' }}>{label}</div>
       <div style={{ fontSize: 19, fontWeight: 800, color }}>{value}</div>
     </div>
   )
@@ -235,16 +235,16 @@ function DailyWorkForm({ employees, onClose, onSaved }: {
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 520, maxWidth: '94vw', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: '#f5f7fa' }}>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: 'var(--ec-bg-page)' }}>
           <span style={{ fontWeight: 800, color: 'var(--ec-blue-dark)' }}>일용직 출역 등록</span>
-          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: '#8a929c' }}>×</span>
+          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: 'var(--ec-text-hint)' }}>×</span>
         </div>
         <div style={{ padding: 16 }}>
-          {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+          {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
           <table className="w-full text-left">
             <tbody>
               <tr>
-                <th style={{ width: 90, background: '#f5f7fa' }}>사원<span style={{ color: '#c60a2e' }}>*</span></th>
+                <th style={{ width: 90, background: 'var(--ec-bg-page)' }}>사원<span style={{ color: 'var(--ec-danger)' }}>*</span></th>
                 <td colSpan={3}>
                   {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
                   <CodePickerField label="사원" hideLabel width={240} placeholder="사원" emptyLabel="선택 해제"
@@ -253,30 +253,30 @@ function DailyWorkForm({ employees, onClose, onSaved }: {
                 </td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>근무일</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>근무일</th>
                 <td><input type="date" className="ec-input" value={workDate} onChange={(e) => setWorkDate(e.target.value)} style={{ width: 150 }} /></td>
-                <th style={{ width: 80, background: '#f5f7fa' }}>근무시간</th>
+                <th style={{ width: 80, background: 'var(--ec-bg-page)' }}>근무시간</th>
                 <td><input className="ec-input" type="number" value={workHours} onChange={(e) => setWorkHours(e.target.value)} style={{ width: 70, textAlign: 'right' }} /></td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>일당<span style={{ color: '#c60a2e' }}>*</span></th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>일당<span style={{ color: 'var(--ec-danger)' }}>*</span></th>
                 <td colSpan={3}><input className="ec-input" type="number" value={dailyWage} onChange={(e) => setDailyWage(e.target.value)} style={{ width: 150, textAlign: 'right' }} /></td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>비고</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>비고</th>
                 <td colSpan={3}><input className="ec-input" value={remark} onChange={(e) => setRemark(e.target.value)} style={{ width: '100%' }} /></td>
               </tr>
             </tbody>
           </table>
 
-          <div style={{ marginTop: 10, padding: 10, background: '#f7f9fb', border: '1px solid var(--ec-border)', fontSize: 12.5 }}>
+          <div style={{ marginTop: 10, padding: 10, background: 'var(--ec-bg-page)', border: '1px solid var(--ec-border)', fontSize: 12.5 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>과세대상 (일당 − 15만원)</span><span>{won(taxable)} 원</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#c60a2e' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--ec-danger)' }}>
               <span>소득세 (2.7%){incomeTax === 0 && taxable > 0 ? ' · 소액부징수' : ''}</span><span>− {won(incomeTax)} 원</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#c60a2e' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--ec-danger)' }}>
               <span>지방소득세 (소득세의 10%)</span><span>− {won(localTax)} 원</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, borderTop: '1px solid var(--ec-border)', marginTop: 6, paddingTop: 6 }}>

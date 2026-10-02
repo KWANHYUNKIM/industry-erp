@@ -110,18 +110,18 @@ export default function ProcessExpenseModal({ period, onClose }: { period: strin
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, width: 860, maxWidth: '94vw', maxHeight: '86vh', overflow: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}>
-        <div style={{ padding: '10px 14px', borderBottom: '1px solid #e6eaef', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
+        <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--ec-line-soft)', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
           <span>노무비/경비등록 · {period}</span>
           <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={onClose}>닫기</button>
         </div>
         <div style={{ padding: 14 }}>
-          <p style={{ margin: '0 0 10px', fontSize: 12, color: '#5a626e' }}>
+          <p style={{ margin: '0 0 10px', fontSize: 12, color: 'var(--ec-label)' }}>
             그 달 <b>공정별로 실제 들어간</b> 노무비·경비 총액을 적습니다.
             실제원가 계산이 이 값을 <b>표준 작업시간 비율</b>로 품목에 나눠 붙입니다.
           </p>
-          {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+          {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
-          <form onSubmit={submit} style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid #e6eaef' }}>
+          <form onSubmit={submit} style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid var(--ec-line-soft)' }}>
             <div style={{ width: 200 }}>
               <CodePickerField
                 label="공정 *" placeholder="공정 선택"
@@ -137,17 +137,17 @@ export default function ProcessExpenseModal({ period, onClose }: { period: strin
               />
             </div>
             <label style={{ fontSize: 12.5 }}>
-              <div style={{ color: '#5a626e', marginBottom: 3 }}>노무비</div>
+              <div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>노무비</div>
               <input className="ec-input text-right" type="number" step="any" value={form.laborCost}
                      onChange={(e) => set('laborCost', e.target.value)} style={{ width: 130 }} />
             </label>
             <label style={{ fontSize: 12.5 }}>
-              <div style={{ color: '#5a626e', marginBottom: 3 }}>경비</div>
+              <div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>경비</div>
               <input className="ec-input text-right" type="number" step="any" value={form.overheadCost}
                      onChange={(e) => set('overheadCost', e.target.value)} style={{ width: 130 }} />
             </label>
             <label style={{ fontSize: 12.5, flex: 1, minWidth: 140 }}>
-              <div style={{ color: '#5a626e', marginBottom: 3 }}>적요</div>
+              <div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>적요</div>
               <input className="ec-input w-full" value={form.remark} onChange={(e) => set('remark', e.target.value)} />
             </label>
             <button type="submit" className="ec-btn ec-btn-primary">{editId ? '저장' : '추가'}</button>
@@ -174,9 +174,9 @@ export default function ProcessExpenseModal({ period, onClose }: { period: strin
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
               ) : rows.length === 0 ? (
-                <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
               ) : groupPreservingOrder(rows, (r) => r.processName).map((g) => {
                 // 소계는 그 묶음 줄만 더한다 — 화면에 안 보이는 줄이 섞이면 합계와 어긋난다.
                 const sub = g.rows.reduce(
@@ -186,16 +186,16 @@ export default function ProcessExpenseModal({ period, onClose }: { period: strin
                   <Fragment key={g.name}>
                     {g.rows.map((r, i) => (
                 <tr key={r.id}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                   <td>{r.processName}</td>
                   <td style={{ fontFamily: 'monospace' }}>{r.warehouseCode ?? ''}</td>
-                  <td style={{ color: r.warehouseName ? undefined : '#8a929c' }}>{r.warehouseName ?? '전사 공통'}</td>
+                  <td style={{ color: r.warehouseName ? undefined : 'var(--ec-text-hint)' }}>{r.warehouseName ?? '전사 공통'}</td>
                   <td style={{ textAlign: 'right' }}>{won(r.laborCost)}</td>
                   <td style={{ textAlign: 'right' }}>{won(r.overheadCost)}</td>
-                  <td style={{ color: '#5a626e' }}>{r.remark ?? ''}</td>
+                  <td style={{ color: 'var(--ec-label)' }}>{r.remark ?? ''}</td>
                   <td style={{ textAlign: 'center' }}>
                     <button onClick={() => openEdit(r)} style={{ color: 'var(--ec-blue)', marginRight: 8, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>수정</button>
-                    <button onClick={() => remove(r)} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                    <button onClick={() => remove(r)} style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
                   </td>
                 </tr>
                     ))}

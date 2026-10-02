@@ -33,7 +33,7 @@ import { usePartnerManagers } from '../../utils/partnerManagers'
  * [관리항목]만 여전히 없다 — 그건 품목 마스터에 붙는 값이라 출하 전표에는 없다.
  */
 type ShipStatus = 'READY' | 'SHIPPED' | 'CANCELED'
-const STATUS_COLOR: Record<ShipStatus, string> = { READY: '#b6791b', SHIPPED: '#1c7c3c', CANCELED: '#8a929c' }
+const STATUS_COLOR: Record<ShipStatus, string> = { READY: '#b6791b', SHIPPED: 'var(--ec-success)', CANCELED: 'var(--ec-text-hint)' }
 
 /** 원본 조건 [규격]. 서버는 진작 보내는데 이 화면이 안 받아 두고 있었다. */
 interface ShipLine { itemId: number; itemCode: string; itemName: string; spec: string | null; unit: string; quantity: number; unitPrice: number; amount: number }
@@ -347,9 +347,9 @@ export default function ShipmentInquiryPage() {
           </label>
         </EcCond>
       </EcStatusPanel>
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#9aa1ab', textAlign: 'right' }}>총 {shown.length}건 · 행을 클릭하면 품목 상세가 펼쳐집니다.</div>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-text-hint)', textAlign: 'right' }}>총 {shown.length}건 · 행을 클릭하면 품목 상세가 펼쳐집니다.</div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       {/*
         상태 필터는 원본에서 알약(pill)이다 — 선택된 것만 파란 알약으로 채워진다.
@@ -397,17 +397,17 @@ export default function ShipmentInquiryPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <Fragment key={r.id}>
               <tr onClick={() => setOpenId(openId === r.id ? null : r.id)} style={{ cursor: 'pointer' }}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 {/* 원본은 일자와 번호를 한 칸에 적는다. */}
                 <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>{openId === r.id ? '▾ ' : '▸ '}{dateText(r.shipDate)} {r.shipNo}</td>
                 <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: r.salesOrderNo ? 'var(--ec-blue-dark)' : '#b6bcc4' }}>{r.salesOrderNo ?? '직접등록'}</td>
-                <td style={{ color: r.warehouseName ? undefined : '#c5cbd3' }}>{r.warehouseName ?? ''}</td>
+                <td style={{ color: r.warehouseName ? undefined : 'var(--ec-text-off)' }}>{r.warehouseName ?? ''}</td>
                 <td>{r.lines[0]?.itemName}{r.lines.length > 1 ? ` 외 ${r.lines.length - 1}건` : ''}</td>
                 <td style={{ textAlign: 'right' }}>{won(r.totalQuantity)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(r.totalAmount)}</td>
@@ -421,7 +421,7 @@ export default function ShipmentInquiryPage() {
               </tr>
               {openId === r.id && (
                 <tr className="no-ec">
-                  <td colSpan={11} style={{ padding: 0, background: '#fafbfc' }}>
+                  <td colSpan={11} style={{ padding: 0, background: 'var(--ec-bg-page)' }}>
                     <table className="w-full text-left" style={{ margin: '4px 0' }}>
                       <thead>
                         <tr><th style={{ width: 34 }}></th><th>품목코드</th><th>품목명</th><th style={{ textAlign: 'right' }}>수량</th><th style={{ textAlign: 'right' }}>단가</th><th style={{ textAlign: 'right' }}>금액</th></tr>
@@ -429,7 +429,7 @@ export default function ShipmentInquiryPage() {
                       <tbody>
                         {r.lines.map((l, li) => (
                           <tr key={li}>
-                            <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{li + 1}</td>
+                            <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{li + 1}</td>
                             <td style={{ fontFamily: 'monospace' }}>{l.itemCode}</td>
                             <td>{l.itemName}</td>
                             <td style={{ textAlign: 'right' }}>{won(l.quantity)} {l.unit}</td>
@@ -439,7 +439,7 @@ export default function ShipmentInquiryPage() {
                         ))}
                       </tbody>
                     </table>
-                    {r.remark && <div style={{ padding: '2px 10px 8px', fontSize: 12, color: '#5a626e' }}>비고: {r.remark}</div>}
+                    {r.remark && <div style={{ padding: '2px 10px 8px', fontSize: 12, color: 'var(--ec-label)' }}>비고: {r.remark}</div>}
                   </td>
                 </tr>
               )}
@@ -447,7 +447,7 @@ export default function ShipmentInquiryPage() {
           ))}
         </tbody>
         <tfoot>
-          <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+          <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
             <td colSpan={5} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
             <td style={{ textAlign: 'right' }}>{won(totals.qty)}</td>
             <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(totals.amount)}</td>

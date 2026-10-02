@@ -20,7 +20,7 @@ const won = (n: number) => n.toLocaleString('ko-KR')
 
 type AsStatus = 'RECEIVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED'
 const LABEL: Record<AsStatus, string> = { RECEIVED: '접수', IN_PROGRESS: '처리중', COMPLETED: '완료', CANCELED: '취소' }
-const COLOR: Record<AsStatus, string> = { RECEIVED: '#c07a00', IN_PROGRESS: 'var(--ec-blue)', COMPLETED: '#1c7c3c', CANCELED: '#8a929c' }
+const COLOR: Record<AsStatus, string> = { RECEIVED: 'var(--ec-warn)', IN_PROGRESS: 'var(--ec-blue)', COMPLETED: 'var(--ec-success)', CANCELED: 'var(--ec-text-hint)' }
 const NEXT: Record<AsStatus, AsStatus | null> = { RECEIVED: 'IN_PROGRESS', IN_PROGRESS: 'COMPLETED', COMPLETED: null, CANCELED: null }
 
 interface AsRow {
@@ -303,7 +303,7 @@ export default function AsManagePage() {
   const openCount = rows.filter((r) => r.status === 'RECEIVED' || r.status === 'IN_PROGRESS').length
 
   const inputCls = 'ec-input'
-  const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 74 }
+  const th: React.CSSProperties = { background: 'var(--ec-bg-page)', fontWeight: 700, whiteSpace: 'nowrap', width: 74 }
 
   return (
     <EcListShell
@@ -381,7 +381,7 @@ export default function AsManagePage() {
           <p className="mb-2 text-xs text-slate-500">A/S 수리에 사용한 부품. 등록 시 창고 재고가 차감되고, 삭제 시 복원됩니다.</p>
           {/* 취소한 A/S 에는 부품을 못 쓴다 — 서버도 거절한다(QA 54회차). 지우기(재고 복원)는 그대로 된다. */}
           {partsFor?.status === 'CANCELED'
-            ? <p style={{ marginBottom: 10, fontSize: 12.5, color: '#8a929c' }}>취소된 A/S 입니다 — 소모부품을 더 쓸 수 없습니다.</p>
+            ? <p style={{ marginBottom: 10, fontSize: 12.5, color: 'var(--ec-text-hint)' }}>취소된 A/S 입니다 — 소모부품을 더 쓸 수 없습니다.</p>
             : <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 10 }}>
             {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
             <CodePickerField label="부품(품목)" hideLabel width={180} placeholder="부품(품목)" emptyLabel="선택 해제"
@@ -395,7 +395,7 @@ export default function AsManagePage() {
             <input className="ec-input text-right" type="number" placeholder="단가" value={partForm.unitPrice} onChange={(e) => setPartForm((f) => ({ ...f, unitPrice: e.target.value }))} style={{ width: 100 }} />
             <button className="ec-btn ec-btn-primary" onClick={addPart}>추가(재고차감)</button>
           </div>}
-          {partError && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{partError}</p>}
+          {partError && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{partError}</p>}
           <table className="w-full text-left">
             <thead>
               {/*
@@ -407,17 +407,17 @@ export default function AsManagePage() {
             </thead>
             <tbody>
               {parts.length === 0 ? (
-                <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 14 }}>소모부품 없음</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 14 }}>소모부품 없음</td></tr>
               ) : parts.map((p, i) => (
                 <tr key={p.id}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                   <td>{p.itemName}</td>
                   <td>{p.warehouseName}</td>
                   <td style={{ textAlign: 'right' }}>{won(p.quantity)}</td>
                   <td style={{ textAlign: 'right' }}>{p.unitPrice != null ? won(p.unitPrice) : ''}</td>
                   <td style={{ textAlign: 'right', fontWeight: 600 }}>{p.amount != null ? won(p.amount) : ''}</td>
-                  <td style={{ color: '#5a626e' }}>{p.remark ?? ''}</td>
-                  <td style={{ textAlign: 'center' }}><button className="no-ec" onClick={() => delPart(p)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>삭제</button></td>
+                  <td style={{ color: 'var(--ec-label)' }}>{p.remark ?? ''}</td>
+                  <td style={{ textAlign: 'center' }}><button className="no-ec" onClick={() => delPart(p)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button></td>
                 </tr>
               ))}
             </tbody>
@@ -425,15 +425,15 @@ export default function AsManagePage() {
         </div>
       )}</Modal>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)' }}>
         {/* 원본 첫 줄은 <b>[기준일자]</b>(접수한 날)고 [수리예정일자]는 둘째 줄이다(2026-09-08 실측). */}
         <span>기준일자</span>
         <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-        <span style={{ color: '#9aa1ab' }}>~</span>
+        <span style={{ color: 'var(--ec-text-hint)' }}>~</span>
         <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
         <span style={{ marginLeft: 8 }}>수리예정일자</span>
         <input type="date" className="ec-input" value={schedFrom} onChange={(e) => setSchedFrom(e.target.value)} style={{ width: 140 }} />
-        <span style={{ color: '#9aa1ab' }}>~</span>
+        <span style={{ color: 'var(--ec-text-hint)' }}>~</span>
         <input type="date" className="ec-input" value={schedTo} onChange={(e) => setSchedTo(e.target.value)} style={{ width: 140 }} />
         {/* 원본 차례: 수리예정일자 · <b>창고</b> · 거래처 · 품목 · 프로젝트 · 담당자 · 제목. */}
         <span style={{ marginLeft: 8 }}>창고</span>
@@ -491,11 +491,11 @@ export default function AsManagePage() {
                            .map((n) => ({ value: n, name: n }))} />
         <span style={{ marginLeft: 8 }}>최초작성일자</span>
         <input type="date" className="ec-input" value={madeFrom} onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
-        <span style={{ color: '#9aa1ab' }}>~</span>
+        <span style={{ color: 'var(--ec-text-hint)' }}>~</span>
         <input type="date" className="ec-input" value={madeTo} onChange={(e) => setMadeTo(e.target.value)} style={{ width: 140 }} />
         <span style={{ marginLeft: 8 }}>최종작업일자</span>
         <input type="date" className="ec-input" value={editedFrom} onChange={(e) => setEditedFrom(e.target.value)} style={{ width: 140 }} />
-        <span style={{ color: '#9aa1ab' }}>~</span>
+        <span style={{ color: 'var(--ec-text-hint)' }}>~</span>
         <input type="date" className="ec-input" value={editedTo} onChange={(e) => setEditedTo(e.target.value)} style={{ width: 140 }} />
       </div>
 
@@ -505,7 +505,7 @@ export default function AsManagePage() {
         {(['ALL', 'RECEIVED', 'IN_PROGRESS', 'COMPLETED', 'CANCELED'] as const).map((s) => (
           <button key={s} onClick={() => setStatusFilter(s)} className="no-ec" style={{
             padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
-            background: statusFilter === s ? 'var(--ec-blue)' : '#fff', color: statusFilter === s ? '#fff' : '#3a4453', fontWeight: statusFilter === s ? 700 : 400,
+            background: statusFilter === s ? 'var(--ec-blue)' : '#fff', color: statusFilter === s ? '#fff' : 'var(--ec-text)', fontWeight: statusFilter === s ? 700 : 400,
           }}>{s === 'ALL' ? '전체' : LABEL[s]} ({s === 'ALL' ? rows.length : rows.filter((r) => r.status === s).length})</button>
         ))}
       </div>
@@ -538,10 +538,10 @@ export default function AsManagePage() {
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={14} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => [
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{dateNo(r)}</td>
               <td>{r.title ?? ''}</td>
               <td>{r.partnerName}</td>
@@ -567,16 +567,16 @@ export default function AsManagePage() {
               <td>{dateText(r.doneDate) || ''}</td>
               <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                 {NEXT[r.status] && <button className="no-ec" onClick={() => advance(r)} style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>→ {LABEL[NEXT[r.status]!]}</button>}
-                <button className="no-ec" onClick={() => openParts(r)} style={{ border: 'none', background: 'none', color: '#5a626e', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>부품</button>
-                {r.status !== 'COMPLETED' && r.status !== 'CANCELED' && <button className="no-ec" onClick={() => cancel(r)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>취소</button>}
+                <button className="no-ec" onClick={() => openParts(r)} style={{ border: 'none', background: 'none', color: 'var(--ec-label)', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>부품</button>
+                {r.status !== 'COMPLETED' && r.status !== 'CANCELED' && <button className="no-ec" onClick={() => cancel(r)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>취소</button>}
               </td>
             </tr>,
             openDetail === r.id ? (
               /* 펼친 줄 — 그 접수에 쓴 부품. 아직 안 썼으면 그렇게 적는다(빈 표를 그리지 않는다). */
               <tr key={`${r.id}-detail`}>
-                <td colSpan={14} style={{ background: '#fbfcfe', padding: '8px 14px' }}>
+                <td colSpan={14} style={{ background: 'var(--ec-bg-page)', padding: '8px 14px' }}>
                   {detailParts.length === 0 ? (
-                    <span style={{ fontSize: 12, color: '#9aa1ab' }}>쓴 부품이 없습니다.</span>
+                    <span style={{ fontSize: 12, color: 'var(--ec-text-hint)' }}>쓴 부품이 없습니다.</span>
                   ) : (
                     <table className="w-full text-left" style={{ maxWidth: 720 }}>
                       <thead><tr>
@@ -589,13 +589,13 @@ export default function AsManagePage() {
                       <tbody>
                         {detailParts.map((pt, k) => (
                           <tr key={pt.id}>
-                            <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{k + 1}</td>
+                            <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{k + 1}</td>
                             <td>{pt.itemName}</td>
-                            <td style={{ color: '#5a626e' }}>{pt.warehouseName}</td>
+                            <td style={{ color: 'var(--ec-label)' }}>{pt.warehouseName}</td>
                             <td style={{ textAlign: 'right' }}>{won(pt.quantity)}</td>
                             <td style={{ textAlign: 'right' }}>{pt.unitPrice != null ? won(pt.unitPrice) : ''}</td>
                             <td style={{ textAlign: 'right', fontWeight: 600 }}>{pt.amount != null ? won(pt.amount) : ''}</td>
-                            <td style={{ color: '#5a626e' }}>{pt.remark ?? ''}</td>
+                            <td style={{ color: 'var(--ec-label)' }}>{pt.remark ?? ''}</td>
                           </tr>
                         ))}
                       </tbody>

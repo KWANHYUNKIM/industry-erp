@@ -166,26 +166,26 @@ export default function LateArrivalPage() {
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', display: 'flex', alignItems: 'center' }}>
-        <span style={{ color: '#9aa1ab' }}>출근기준 {WORK_START} 이후 = 지각</span>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', display: 'flex', alignItems: 'center' }}>
+        <span style={{ color: 'var(--ec-text-hint)' }}>출근기준 {WORK_START} 이후 = 지각</span>
         <span style={{ marginLeft: 'auto' }}>
-          지각 <b style={{ color: '#c60a2e', fontSize: 14 }}>{late.length}</b>건
-          <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-          총 지각시간 <b style={{ color: '#c07a00', fontSize: 14 }}>{totalMin.toLocaleString()}</b>분
+          지각 <b style={{ color: 'var(--ec-danger)', fontSize: 14 }}>{late.length}</b>건
+          <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
+          총 지각시간 <b style={{ color: 'var(--ec-warn)', fontSize: 14 }}>{totalMin.toLocaleString()}</b>분
         </span>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       {/* 사원별 지각 요약 */}
       {byEmp.length > 0 && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
           {byEmp.slice(0, 8).map((e) => (
-            <div key={e.label} style={{ border: '1px solid #e2e6eb', borderRadius: 5, padding: '6px 12px', background: '#fbfcfe', minWidth: 120 }}>
-              <div style={{ fontSize: 12.5, fontWeight: 700, color: '#3c4553' }}>{e.label}
-                <span style={{ fontSize: 11, fontWeight: 400, color: '#9aa1ab' }}> {e.sub}</span></div>
-              <div style={{ fontSize: 11.5, color: '#8a929c', marginTop: 2 }}>
-                <b style={{ color: '#c60a2e', fontSize: 13 }}>{e.count}</b>회 · {e.totalMin.toLocaleString()}분
+            <div key={e.label} style={{ border: '1px solid #e2e6eb', borderRadius: 5, padding: '6px 12px', background: 'var(--ec-bg-page)', minWidth: 120 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ec-text)' }}>{e.label}
+                <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--ec-text-hint)' }}> {e.sub}</span></div>
+              <div style={{ fontSize: 11.5, color: 'var(--ec-text-hint)', marginTop: 2 }}>
+                <b style={{ color: 'var(--ec-danger)', fontSize: 13 }}>{e.count}</b>회 · {e.totalMin.toLocaleString()}분
               </div>
             </div>
           ))}
@@ -204,17 +204,17 @@ export default function LateArrivalPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : late.length === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={mono}>{dateText(r.date)}</td>
               <td>{r.empName}</td>
               <td>{r.department ?? ''}</td>
-              <td style={{ ...mono, textAlign: 'center', color: '#c07a00', fontWeight: 600 }}>{r.clockIn ?? ''}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700, color: '#c60a2e' }}>{r.lateMin.toLocaleString()}분</td>
+              <td style={{ ...mono, textAlign: 'center', color: 'var(--ec-warn)', fontWeight: 600 }}>{r.clockIn ?? ''}</td>
+              <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--ec-danger)' }}>{r.lateMin.toLocaleString()}분</td>
               <td>{r.note ?? ''}</td>
             </tr>
           ))}

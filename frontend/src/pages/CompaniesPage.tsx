@@ -69,20 +69,20 @@ export default function CompaniesPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : companies.length === 0 ? (
-            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : (
             sort.sorted.map((c, idx) => (
               <tr key={c.id}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{idx + 1}</td>
                 <td style={{ fontFamily: 'monospace', fontWeight: 700 }}>
                   {c.code}
-                  {c.schemaName === 'public' && <span style={{ marginLeft: 6, fontSize: 10.5, color: '#9aa1ab' }}>본사</span>}
+                  {c.schemaName === 'public' && <span style={{ marginLeft: 6, fontSize: 10.5, color: 'var(--ec-text-hint)' }}>본사</span>}
                 </td>
                 <td>{c.name}</td>
-                <td style={{ fontFamily: 'monospace', color: '#6b7280' }}>{c.schemaName}</td>
-                <td style={{ textAlign: 'center', color: c.active ? '#1c7c3c' : '#9aa1ab' }}>
+                <td style={{ fontFamily: 'monospace', color: 'var(--ec-text-muted)' }}>{c.schemaName}</td>
+                <td style={{ textAlign: 'center', color: c.active ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>
                   {c.active ? '사용' : '중지'}
                 </td>
               </tr>
@@ -124,7 +124,7 @@ function CreateCompanyForm({ onCreated }: { onCreated: (c: Company) => void }) {
 
   return (
     <form onSubmit={submit}>
-      <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 10 }}>
+      <p style={{ fontSize: 12, color: 'var(--ec-text-muted)', marginBottom: 10 }}>
         회사코드는 자동 발급됩니다. 회사마다 데이터가 완전히 분리되며, 아래 관리자 계정으로 그 회사에 처음 로그인합니다.
       </p>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -146,7 +146,7 @@ function CreateCompanyForm({ onCreated }: { onCreated: (c: Company) => void }) {
         </div>
       </div>
 
-      {error && <p style={{ marginTop: 10, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p style={{ marginTop: 10, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
       <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
         <button type="submit" disabled={submitting} className="ec-btn ec-btn-primary">

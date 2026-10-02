@@ -41,9 +41,9 @@ type Mode = '내역' | '집계'
 const MODES = ['내역', '집계'] as const
 
 const STATUS_COLOR: Record<ShipStatus, string> = {
-  READY: '#c07a00',
-  SHIPPED: '#1c7c3c',
-  CANCELED: '#9aa1ab',
+  READY: 'var(--ec-warn)',
+  SHIPPED: 'var(--ec-success)',
+  CANCELED: 'var(--ec-text-hint)',
 }
 
 interface ShipLine {
@@ -330,21 +330,21 @@ export default function ShipmentPage() {
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        출하 <b style={{ color: '#3c4553' }}>{shown.length}</b>건
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+        출하 <b style={{ color: 'var(--ec-text)' }}>{shown.length}</b>건
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
         출하수량 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{won(totals.qty)}</b>
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
         출하금액 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{won(totals.amount)}</b>
         {prevTotals && prevRange && (
-          <span style={{ marginLeft: 10, color: '#8a929c' }}>
+          <span style={{ marginLeft: 10, color: 'var(--ec-text-hint)' }}>
             비교기간({prevRange.from.replace(/-/g, '/')} ~ {prevRange.to.replace(/-/g, '/')})
             {' '}{prevTotals.count}건 · 수량 {won(prevTotals.qty)} · 금액 {won(prevTotals.amount)}
           </span>
         )}
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       {view === '그래프' ? (
         <EcBarChart rows={chartRows} unit=" 원" emptyText="조회된 출하가 없습니다." />
@@ -361,14 +361,14 @@ export default function ShipmentPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : byPartner.length === 0 ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : byPartner.map((g, i) => (
               <tr key={g.partnerId}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td>{g.name}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(g.count)}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{won(g.count)}</td>
                 <td style={{ textAlign: 'right' }}>{won(g.qty)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(g.amount)}</td>
               </tr>
@@ -406,12 +406,12 @@ export default function ShipmentPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : lines.length === 0 ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : lines.map((x, i) => (
               <tr key={x.key}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(x.r.shipDate)} {x.r.shipNo}</td>
                 {/*
                   원본 열 이름이 [품목명(규격)] 이라 규격을 괄호에 붙인다. 품목코드는
@@ -421,10 +421,10 @@ export default function ShipmentPage() {
                 <td style={{ textAlign: 'right' }}>{won(x.l.quantity)} {x.l.unit}</td>
                 <td style={{ textAlign: 'right' }}>{won(x.l.unitPrice)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(x.l.amount)}</td>
-                <td style={{ color: x.r.warehouseName ? undefined : '#c9ced6' }}>{x.r.warehouseName ?? ''}</td>
+                <td style={{ color: x.r.warehouseName ? undefined : 'var(--ec-text-off)' }}>{x.r.warehouseName ?? ''}</td>
                 <td>{x.r.partnerName}</td>
                 {/* 줄 적요가 없으면 전표 적요를 보여 준다 — 원본도 한 칸이다. */}
-                <td style={{ color: '#8a929c' }}>{x.l.remark || x.r.remark || ''}</td>
+                <td style={{ color: 'var(--ec-text-hint)' }}>{x.l.remark || x.r.remark || ''}</td>
                 <td style={{ textAlign: 'center', color: STATUS_COLOR[x.r.status], fontWeight: 700 }}>{x.r.statusName}</td>
               </tr>
             ))}

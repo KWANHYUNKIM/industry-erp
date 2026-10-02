@@ -269,7 +269,7 @@ const ReceiptInquiryPage = lazy(() => import('../pages/production/ReceiptInquiry
  *  그래서 모듈별 레이아웃 래퍼 없이 모든 화면이 EcountLayout 아래 평평하게 붙는다. */
 export default function AppRouter() {
   return (
-    <Suspense fallback={<div style={{ padding: 24, color: '#8a929c', fontSize: 13 }}>화면을 불러오는 중…</div>}>
+    <Suspense fallback={<div style={{ padding: 24, color: 'var(--ec-text-hint)', fontSize: 13 }}>화면을 불러오는 중…</div>}>
       <Routes>
       <Route path="/login" element={<LoginPage />} />
 

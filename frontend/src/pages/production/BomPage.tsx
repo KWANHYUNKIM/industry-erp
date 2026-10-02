@@ -178,7 +178,7 @@ export default function BomPage() {
       actions={[{ label: 'Excel' }]}
     >
       {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-      {ok && <p style={{ marginBottom: 8, background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
+      {ok && <p style={{ marginBottom: 8, background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
 
       <Modal error={error} open={showForm} title="BOM(자재명세서) 등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginTop: 8, marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
@@ -186,20 +186,20 @@ export default function BomPage() {
           <table className="w-full text-left" style={{ marginBottom: 10, maxWidth: 720 }}>
             <tbody>
               <tr>
-                <th style={{ background: '#f5f7fa', fontWeight: 700, width: 120 }}>제품(생산 대상) *</th>
+                <th style={{ background: 'var(--ec-bg-page)', fontWeight: 700, width: 120 }}>제품(생산 대상) *</th>
                 <td>
                   {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
                   <CodePickerField label="제품" hideLabel width={240} placeholder="제품" emptyLabel="선택 해제"
                                    value={productId} onChange={setProductId} items={itemCodes} />
                 </td>
-                <th style={{ background: '#f5f7fa', fontWeight: 700, width: 60 }}>비고</th>
+                <th style={{ background: 'var(--ec-bg-page)', fontWeight: 700, width: 60 }}>비고</th>
                 <td><input className={inputCls} value={remark} onChange={(e) => setRemark(e.target.value)} style={{ minWidth: 200 }} /></td>
               </tr>
               <tr>
                 {/* 원본 품목별BOM조회 [BOM버전] · [기본BOM]. 같은 이름이면 그 버전을 고치고, 새 이름이면 버전이 하나 는다. */}
-                <th style={{ background: '#f5f7fa', fontWeight: 700 }}>BOM버전</th>
+                <th style={{ background: 'var(--ec-bg-page)', fontWeight: 700 }}>BOM버전</th>
                 <td><input className={inputCls} value={versionName} onChange={(e) => setVersionName(e.target.value)} style={{ width: 160 }} /></td>
-                <th style={{ background: '#f5f7fa', fontWeight: 700 }}>기본BOM</th>
+                <th style={{ background: 'var(--ec-bg-page)', fontWeight: 700 }}>기본BOM</th>
                 <td>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12.5 }}>
                     <input type="checkbox" checked={makeDefault} onChange={(e) => setMakeDefault(e.target.checked)} />
@@ -210,7 +210,7 @@ export default function BomPage() {
             </tbody>
           </table>
 
-          <div style={{ fontSize: 12.5, fontWeight: 700, color: '#5a626e', margin: '6px 0 4px' }}>구성 자재 (제품 1단위당 소요량)</div>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ec-label)', margin: '6px 0 4px' }}>구성 자재 (제품 1단위당 소요량)</div>
           <table ref={tableRef} className="w-full text-left" style={{ maxWidth: 720 }}>
             <thead>
               <tr><th>자재</th><th style={{ width: 150, textAlign: 'right' }}>소요량</th><th style={{ width: 40 }}></th></tr>
@@ -249,7 +249,7 @@ export default function BomPage() {
         {CAT_TABS.map((t) => (
           <button key={t.label} onClick={() => setCatTab(t.label)} className="no-ec" style={{
             padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
-            background: catTab === t.label ? 'var(--ec-blue)' : '#fff', color: catTab === t.label ? '#fff' : '#3a4453', fontWeight: catTab === t.label ? 700 : 400,
+            background: catTab === t.label ? 'var(--ec-blue)' : '#fff', color: catTab === t.label ? '#fff' : 'var(--ec-text)', fontWeight: catTab === t.label ? 700 : 400,
           }}>{t.label}</button>
         ))}
       </div>
@@ -266,9 +266,9 @@ export default function BomPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : itemRows.length === 0 ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : itemRows.map(({ it, bom }) => (
             <tr key={it.id}>
               <td style={{ fontFamily: 'monospace' }}>{it.code}</td>
@@ -283,7 +283,7 @@ export default function BomPage() {
                   <button onClick={() => void openTree(bom, 'F')} className="no-ec" style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12 }}>정전개</button>
                   <button onClick={() => void openTree(bom, 'R')} className="no-ec" style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12 }}>역전개</button>
                   <button onClick={() => void openTree(bom, 'L')} className="no-ec" style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12 }}>원재료리스트</button>
-                  <button onClick={() => remove(bom)} className="no-ec" style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                  <button onClick={() => remove(bom)} className="no-ec" style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button>
                 </>) : null}
               </td>
             </tr>
@@ -313,7 +313,7 @@ export default function BomPage() {
                 </thead>
                 <tbody>
                   {tree.rows.length === 0 ? (
-                    <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
+                    <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
                   ) : visibleRows(tree.rows).map(({ r, i }) => (
                     <tr key={i}>
                       <td style={{ paddingLeft: 8 + r.level * 18 }}>
@@ -327,7 +327,7 @@ export default function BomPage() {
                       </td>
                       <td style={{ textAlign: 'right' }}>{r.level === 0 ? '' : Number(r.qty).toLocaleString('ko-KR', { maximumFractionDigits: 4 })}</td>
                       <td style={{ textAlign: 'right' }}>{r.level === 0 || tree.kind === 'L' ? '' : Number(r.totalQty).toLocaleString('ko-KR', { maximumFractionDigits: 4 })}</td>
-                      <td style={{ color: '#8a929c', fontSize: 12 }}>{r.versionName ? `BOM ${r.versionName}` : ''}</td>
+                      <td style={{ color: 'var(--ec-text-hint)', fontSize: 12 }}>{r.versionName ? `BOM ${r.versionName}` : ''}</td>
                     </tr>
                   ))}
                 </tbody>

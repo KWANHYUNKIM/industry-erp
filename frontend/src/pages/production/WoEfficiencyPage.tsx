@@ -425,13 +425,13 @@ export default function WoEfficiencyPage() {
         </EcCond>
       </EcStatusPanel>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        작업지시 <b style={{ color: '#3c4553' }}>{shown.length}</b>건
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+        작업지시 <b style={{ color: 'var(--ec-text)' }}>{shown.length}</b>건
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
         평균 달성효율 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{avgEff}%</b>
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-        소모 차이 합계 <b style={{ color: consumeTotal < 0 ? '#c60a2e' : '#1c7c3c', fontSize: 14 }}>{won(consumeTotal)}</b>
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
+        소모 차이 합계 <b style={{ color: consumeTotal < 0 ? 'var(--ec-danger)' : 'var(--ec-success)', fontSize: 14 }}>{won(consumeTotal)}</b>
       </div>
       <table className="w-full text-left">
         <thead>
@@ -476,9 +476,9 @@ export default function WoEfficiencyPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={15} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={15} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.flatMap((r, i) => {
             const e = efficiency.get(r.id)
             const qtyDiff = r.producedQty - r.plannedQty
@@ -489,28 +489,28 @@ export default function WoEfficiencyPage() {
             const detail = (e?.rows ?? []).filter((x) => x.stdQty !== 0 || x.actualQty !== 0)
             const rows = [(
               <tr key={r.id}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{r.orderNo}</td>
                 <td>[{r.productCode}] {r.productName}</td>
                 <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(r.dueDate) || ''}</td>
                 <td style={{ textAlign: 'right' }}>{r.plannedQty.toLocaleString('ko-KR')}</td>
                 <td style={{ textAlign: 'right' }}>{r.producedQty.toLocaleString('ko-KR')}</td>
-                <td style={{ textAlign: 'right', color: qtyDiff < 0 ? '#c60a2e' : qtyDiff > 0 ? '#1c7c3c' : '#8a929c' }}>
+                <td style={{ textAlign: 'right', color: qtyDiff < 0 ? 'var(--ec-danger)' : qtyDiff > 0 ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>
                   {qtyDiff.toLocaleString('ko-KR')}
                 </td>
                 <td style={{ textAlign: 'right' }}>{won(e?.std.amount ?? 0)}</td>
                 <td style={{ textAlign: 'right' }}>{won(e?.act.amount ?? 0)}</td>
                 {/* 표준 − 실제. 음수면 자재를 더 썼다는 뜻이다. */}
-                <td style={{ textAlign: 'right', fontWeight: 700, color: consumeDiff < 0 ? '#c60a2e' : consumeDiff > 0 ? '#1c7c3c' : '#8a929c' }}>
+                <td style={{ textAlign: 'right', fontWeight: 700, color: consumeDiff < 0 ? 'var(--ec-danger)' : consumeDiff > 0 ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>
                   {won(consumeDiff)}
                   {unknown > 0 && (
-                    <span title={'단가를 모르는 자재 ' + unknown + '건은 빼고 셌습니다.'} style={{ color: '#c07a00' }}> *</span>
+                    <span title={'단가를 모르는 자재 ' + unknown + '건은 빼고 셌습니다.'} style={{ color: 'var(--ec-warn)' }}> *</span>
                   )}
                 </td>
-                <td style={{ textAlign: 'right', color: '#5a626e' }}>{e && e.time.standard ? won(e.time.standard) + '분' : ''}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{e && e.time.standard ? won(e.time.standard) + '분' : ''}</td>
                 <td style={{ textAlign: 'right' }}>{e && e.time.actual ? won(e.time.actual) + '분' : ''}</td>
                 {/* 표준 − 실제. 음수면 예정보다 오래 걸렸다는 뜻이다(소모 차이와 같은 방향). */}
-                <td style={{ textAlign: 'right', fontWeight: 700, color: timeDiff < 0 ? '#c60a2e' : timeDiff > 0 ? '#1c7c3c' : '#8a929c' }}>
+                <td style={{ textAlign: 'right', fontWeight: 700, color: timeDiff < 0 ? 'var(--ec-danger)' : timeDiff > 0 ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>
                   {e && (e.time.standard || e.time.actual) ? won(timeDiff) + '분' : ''}
                 </td>
                 <td>
@@ -522,24 +522,24 @@ export default function WoEfficiencyPage() {
                     })} style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>
                       {expanded ? '접기' : '펼치기 (' + detail.length + ')'}
                     </button>
-                  ) : <span style={{ color: '#c9ced6' }}>-</span>}
+                  ) : <span style={{ color: 'var(--ec-text-off)' }}>-</span>}
                 </td>
-                <td style={{ textAlign: 'center', fontWeight: 700, color: r.status === 'COMPLETED' ? '#1c7c3c' : r.status === 'IN_PROGRESS' ? '#c07a00' : '#8a929c' }}>{r.statusName}</td>
+                <td style={{ textAlign: 'center', fontWeight: 700, color: r.status === 'COMPLETED' ? 'var(--ec-success)' : r.status === 'IN_PROGRESS' ? 'var(--ec-warn)' : 'var(--ec-text-hint)' }}>{r.statusName}</td>
               </tr>
             )]
             if (expanded) {
               for (const d of detail) {
                 rows.push(
-                  <tr key={r.id + '-' + d.componentId} style={{ background: '#fafbfc' }}>
+                  <tr key={r.id + '-' + d.componentId} style={{ background: 'var(--ec-bg-page)' }}>
                     <td></td>
-                    <td colSpan={2} style={{ paddingLeft: 18, color: '#5a626e' }}>└ {d.componentName}</td>
+                    <td colSpan={2} style={{ paddingLeft: 18, color: 'var(--ec-label)' }}>└ {d.componentName}</td>
                     <td></td>
-                    <td style={{ textAlign: 'right', color: '#8a929c' }}>{d.stdQty.toLocaleString('ko-KR')}</td>
-                    <td style={{ textAlign: 'right', color: '#8a929c' }}>{d.actualQty.toLocaleString('ko-KR')}</td>
-                    <td style={{ textAlign: 'right', color: '#8a929c' }}>{(d.actualQty - d.stdQty).toLocaleString('ko-KR')}</td>
+                    <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{d.stdQty.toLocaleString('ko-KR')}</td>
+                    <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{d.actualQty.toLocaleString('ko-KR')}</td>
+                    <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{(d.actualQty - d.stdQty).toLocaleString('ko-KR')}</td>
                     <td style={{ textAlign: 'right' }}>{d.stdAmount != null ? won(d.stdAmount) : ''}</td>
                     <td style={{ textAlign: 'right' }}>{d.actualAmount != null ? won(d.actualAmount) : ''}</td>
-                    <td style={{ textAlign: 'right', color: d.diffAmount != null && d.diffAmount < 0 ? '#c60a2e' : '#5a626e' }}>
+                    <td style={{ textAlign: 'right', color: d.diffAmount != null && d.diffAmount < 0 ? 'var(--ec-danger)' : 'var(--ec-label)' }}>
                       {d.diffAmount != null ? won(d.diffAmount) : '단가 없음'}
                     </td>
                     {/* 시간 표준·실제·차이 · 하위공정 · 진행상태 — 자재 줄에는 없다 */}

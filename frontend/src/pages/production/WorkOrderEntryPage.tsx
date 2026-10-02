@@ -287,7 +287,7 @@ export default function WorkOrderEntryPage() {
             <div className="title">작업지시No.</div>
             <div className="form">
               <input className="ec-input" readOnly value={editNo ?? '(저장 시 자동채번)'}
-                     style={{ width: 170, background: '#f4f5f7', color: '#8a929c' }} />
+                     style={{ width: 170, background: '#f4f5f7', color: 'var(--ec-text-hint)' }} />
             </div>
           </li>
           <li>
@@ -350,13 +350,13 @@ export default function WorkOrderEntryPage() {
                 const it = itemById.get(l.productId)
                 return (
                   <tr key={l.key}>
-                    <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{idx + 1}</td>
-                    <td className="pad" style={{ fontFamily: 'ui-monospace, monospace', color: '#5a626e', overflow: 'hidden', whiteSpace: 'nowrap' }}>{it?.code ?? ''}</td>
+                    <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{idx + 1}</td>
+                    <td className="pad" style={{ fontFamily: 'ui-monospace, monospace', color: 'var(--ec-label)', overflow: 'hidden', whiteSpace: 'nowrap' }}>{it?.code ?? ''}</td>
                     <td className="pad">
                       <CodePickerField label="품목" hideLabel fill placeholder="" emptyLabel="선택 해제"
                                        value={l.productId} onChange={(v) => setLine(l.key, { productId: v })} items={itemPicks} />
                     </td>
-                    <td className="pad" style={{ color: '#5a626e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it?.spec ?? ''}</td>
+                    <td className="pad" style={{ color: 'var(--ec-label)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it?.spec ?? ''}</td>
                     <td>
                       <input className="cell" type="number" step="any" style={{ textAlign: 'right' }} disabled={!l.productId}
                              value={l.qty} onChange={(e) => setLine(l.key, { qty: e.target.value })} />
@@ -365,9 +365,9 @@ export default function WorkOrderEntryPage() {
                       <CodePickerField label="생산공장" hideLabel fill placeholder="" emptyLabel="선택 해제"
                                        value={l.warehouseId} onChange={(v) => setLine(l.key, { warehouseId: v })} items={factoryPicks} />
                     </td>
-                    <td className="pad" style={{ textAlign: 'right', color: '#8a929c' }}>{l.produced > 0 ? won(l.produced) : ''}</td>
-                    <td className="pad" style={{ textAlign: 'right', color: '#5a626e' }}>{stockAll(l.productId) == null ? '' : won(stockAll(l.productId)!)}</td>
-                    <td className="pad" style={{ textAlign: 'right', color: '#5a626e' }}>{stockAt(l.productId, l.warehouseId) == null ? '' : won(stockAt(l.productId, l.warehouseId)!)}</td>
+                    <td className="pad" style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{l.produced > 0 ? won(l.produced) : ''}</td>
+                    <td className="pad" style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{stockAll(l.productId) == null ? '' : won(stockAll(l.productId)!)}</td>
+                    <td className="pad" style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{stockAt(l.productId, l.warehouseId) == null ? '' : won(stockAt(l.productId, l.warehouseId)!)}</td>
                   </tr>
                 )
               })}
@@ -382,8 +382,8 @@ export default function WorkOrderEntryPage() {
           </table>
         </div>
 
-        {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, margin: '8px 0' }}>{error}</p>}
-        {ok && <p style={{ background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, margin: '8px 0' }}>{ok}</p>}
+        {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, margin: '8px 0' }}>{error}</p>}
+        {ok && <p style={{ background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, margin: '8px 0' }}>{ok}</p>}
       </EcSlipShell>
       <SlipLoadModal open={slipLoadOpen} onClose={() => setSlipLoadOpen(false)} onApply={applyLoadedSlips} />
       <SalesOrderPickModal open={orderOpen} onClose={() => setOrderOpen(false)} onApply={applyOrders} />

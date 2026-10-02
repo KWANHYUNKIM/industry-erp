@@ -101,7 +101,7 @@ interface ProductionRow {
 const num = (n: number) => n.toLocaleString('ko-KR')
 const won = (n: number | null) => (n == null ? '기준 없음' : Math.round(n).toLocaleString('ko-KR'))
 /** 불리(원가 증가)는 붉게, 유리는 푸르게. 못 재면 회색. */
-const varColor = (n: number | null) => (n == null ? '#c9ced6' : n > 0 ? '#c60a2e' : n < 0 ? '#1c7c3c' : '#8a929c')
+const varColor = (n: number | null) => (n == null ? 'var(--ec-text-off)' : n > 0 ? 'var(--ec-danger)' : n < 0 ? 'var(--ec-success)' : 'var(--ec-text-hint)')
 
 export default function VariancePage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
@@ -327,7 +327,7 @@ export default function VariancePage() {
       ]}
       signLine={signBox}
     >
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="구분">
           <div className="ec-pills">
@@ -385,12 +385,12 @@ export default function VariancePage() {
         </EcCond>
       </ul>
 
-      <div style={{ marginBottom: 8, fontSize: 11.5, color: '#8a929c', textAlign: 'right' }}>
+      <div style={{ marginBottom: 8, fontSize: 11.5, color: 'var(--ec-text-hint)', textAlign: 'right' }}>
         양수는 원가가 늘어난 쪽(불리), 음수는 줄어든 쪽입니다.
       </div>
 
       {loading ? (
-        <p style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</p>
+        <p style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</p>
       ) : mode === '원가비교집계표' ? (
         <table className="ec-grid w-full text-left">
           <thead>
@@ -426,26 +426,26 @@ export default function VariancePage() {
           </thead>
           <tbody>
             {compareRows.length === 0 ? (
-              <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : compareRows.map((r, i) => (
               <tr key={r.id}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
                 <td>{r.itemName}{specOf(r.itemId) ? ` [${specOf(r.itemId)}]` : ''}</td>
-                <td style={{ color: '#5a626e' }}>{categoryOf(r.itemId)}</td>
+                <td style={{ color: 'var(--ec-label)' }}>{categoryOf(r.itemId)}</td>
                 {/* BOR 이 없는 품목(사 오는 원재료)은 빈칸이다 — 원본도 그렇다. */}
-                <td style={{ color: '#5a626e' }}>{processOf(r.itemId)}</td>
+                <td style={{ color: 'var(--ec-label)' }}>{processOf(r.itemId)}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.period}</td>
                 {/* 생산실적이 없으면 0 이 아니라 '—' 다 — 0 으로 채우면 차이가 사라진다. */}
-                <td style={{ textAlign: 'right', color: r.producedQty === null ? '#c5cbd3' : undefined }}>
+                <td style={{ textAlign: 'right', color: r.producedQty === null ? 'var(--ec-text-off)' : undefined }}>
                   {r.producedQty === null ? '—' : num(r.producedQty)}
                 </td>
                 <td style={{ textAlign: 'right' }}>{num(r.standardTotal)}</td>
-                <td style={{ textAlign: 'right', color: '#5a626e' }}>
+                <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>
                   {r.stdAmount === null ? '—' : num(r.stdAmount)}
                 </td>
                 <td style={{ textAlign: 'right' }}>{num(r.actualTotal)}</td>
-                <td style={{ textAlign: 'right', color: '#5a626e' }}>
+                <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>
                   {r.actAmount === null ? '—' : num(r.actAmount)}
                 </td>
                 <td style={{ textAlign: 'right', color: varColor(r.variance) }}>
@@ -462,9 +462,9 @@ export default function VariancePage() {
                 {/* 생산수량 합 — 모르는 줄(실적 없음)은 빼고 더한다. */}
                 <td style={{ textAlign: 'right' }}>{num(compareRows.reduce((n, r) => n + (r.producedQty ?? 0), 0))}</td>
                 <td style={{ textAlign: 'right' }}>{num(compareRows.reduce((n, r) => n + r.standardTotal, 0))}</td>
-                <td style={{ textAlign: 'right', color: '#5a626e' }}>{num(compareRows.reduce((n, r) => n + (r.stdAmount ?? 0), 0))}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{num(compareRows.reduce((n, r) => n + (r.stdAmount ?? 0), 0))}</td>
                 <td style={{ textAlign: 'right' }}>{num(compareRows.reduce((n, r) => n + r.actualTotal, 0))}</td>
-                <td style={{ textAlign: 'right', color: '#5a626e' }}>{num(compareRows.reduce((n, r) => n + (r.actAmount ?? 0), 0))}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{num(compareRows.reduce((n, r) => n + (r.actAmount ?? 0), 0))}</td>
                 {/* 원본 [차이]는 금액 차이다 — 합계도 금액으로 더한다. */}
                 <td style={{ textAlign: 'right', color: varColor(compareRows.reduce((n, r) => n + (r.diffAmount ?? 0), 0)) }}>
                   {num(compareRows.reduce((n, r) => n + (r.diffAmount ?? 0), 0))}
@@ -490,13 +490,13 @@ export default function VariancePage() {
           </thead>
           <tbody>
             {priceRows.length === 0 ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : priceRows.map((r, i) => (
               <tr key={r.itemId}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.code}</td>
                 <td>{r.name}</td>
-                <td style={{ textAlign: 'right', color: r.stdPrice == null ? '#c9ced6' : undefined }}>{won(r.stdPrice)}</td>
+                <td style={{ textAlign: 'right', color: r.stdPrice == null ? 'var(--ec-text-off)' : undefined }}>{won(r.stdPrice)}</td>
                 <td style={{ textAlign: 'right' }}>{won(r.actualPrice)}</td>
                 <td style={{ textAlign: 'right', color: varColor(r.stdPrice == null || r.actualPrice == null ? null : r.actualPrice - r.stdPrice) }}>
                   {r.stdPrice == null || r.actualPrice == null ? '-' : num(Math.round(r.actualPrice - r.stdPrice))}
@@ -533,16 +533,16 @@ export default function VariancePage() {
           </thead>
           <tbody>
             {qtyRows.length === 0 ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : qtyRows.map((r, i) => (
               <tr key={r.itemId}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.code}</td>
                 <td>{r.name}</td>
-                <td style={{ textAlign: 'right', color: '#5a626e' }}>{num(r.stdQty)}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{num(r.stdQty)}</td>
                 <td style={{ textAlign: 'right' }}>{num(r.actualQty)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700, color: varColor(r.diffQty) }}>{num(r.diffQty)}</td>
-                <td style={{ textAlign: 'right', color: r.price == null ? '#c9ced6' : '#5a626e' }}>{won(r.price)}</td>
+                <td style={{ textAlign: 'right', color: r.price == null ? 'var(--ec-text-off)' : 'var(--ec-label)' }}>{won(r.price)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700, color: varColor(r.amount) }}>{won(r.amount)}</td>
               </tr>
             ))}
@@ -580,17 +580,17 @@ export default function VariancePage() {
           </thead>
           <tbody>
             {laborRows.length === 0 ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : laborRows.map((r, i) => (
               <tr key={r.id}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
                 <td>{r.itemName}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.period}</td>
-                <td style={{ textAlign: 'right', color: '#5a626e' }}>{num(r.laborCost)}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{num(r.laborCost)}</td>
                 <td style={{ textAlign: 'right' }}>{num(r.actualLabor)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700, color: varColor(r.laborVar) }}>{won(r.laborVar)}</td>
-                <td style={{ textAlign: 'right', color: '#5a626e' }}>{num(r.overheadCost)}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{num(r.overheadCost)}</td>
                 <td style={{ textAlign: 'right' }}>{num(r.actualOverhead)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700, color: varColor(r.overheadVar) }}>{won(r.overheadVar)}</td>
               </tr>

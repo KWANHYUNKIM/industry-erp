@@ -1,0 +1,1122 @@
+{
+ "app/layout/EcountLayout.tsx": {
+  "inline": 25,
+  "color": 9
+ },
+ "app/router.tsx": {
+  "inline": 1,
+  "color": 0
+ },
+ "components/AppBarPanel.tsx": {
+  "inline": 36,
+  "color": 12
+ },
+ "components/CodePickerField.tsx": {
+  "inline": 29,
+  "color": 4
+ },
+ "components/CustomFieldsPanel.tsx": {
+  "inline": 12,
+  "color": 0
+ },
+ "components/EcBarChart.tsx": {
+  "inline": 8,
+  "color": 1
+ },
+ "components/EcDateField.tsx": {
+  "inline": 5,
+  "color": 0
+ },
+ "components/EcFileDrop.tsx": {
+  "inline": 5,
+  "color": 2
+ },
+ "components/EcListShell.tsx": {
+  "inline": 6,
+  "color": 0
+ },
+ "components/EcMonthCalendar.tsx": {
+  "inline": 9,
+  "color": 5
+ },
+ "components/EcRowCap.tsx": {
+  "inline": 1,
+  "color": 1
+ },
+ "components/EcSlipShell.tsx": {
+  "inline": 15,
+  "color": 7
+ },
+ "components/EcStatusPanel.tsx": {
+  "inline": 7,
+  "color": 0
+ },
+ "components/EvidencePanel.tsx": {
+  "inline": 25,
+  "color": 1
+ },
+ "components/GroupMasterModal.tsx": {
+  "inline": 24,
+  "color": 5
+ },
+ "components/MessengerPanel.tsx": {
+  "inline": 46,
+  "color": 16
+ },
+ "components/Modal.tsx": {
+  "inline": 1,
+  "color": 0
+ },
+ "components/MyItemsButton.tsx": {
+  "inline": 1,
+  "color": 0
+ },
+ "components/SuggestInput.tsx": {
+  "inline": 2,
+  "color": 0
+ },
+ "components/TableContextMenu.tsx": {
+  "inline": 8,
+  "color": 5
+ },
+ "features/approval/components/ApprovalDetailModal.tsx": {
+  "inline": 43,
+  "color": 4
+ },
+ "features/approval/components/ApprovalFormFields.tsx": {
+  "inline": 13,
+  "color": 0
+ },
+ "features/item/components/ItemSuggestInput.tsx": {
+  "inline": 1,
+  "color": 0
+ },
+ "features/salesorder/components/SalesOrderPickModal.tsx": {
+  "inline": 10,
+  "color": 0
+ },
+ "features/slipload/components/SlipLoadModal.tsx": {
+  "inline": 13,
+  "color": 0
+ },
+ "pages/accounting/AccountDetailPage.tsx": {
+  "inline": 22,
+  "color": 2
+ },
+ "pages/accounting/AccountFlowPage.tsx": {
+  "inline": 18,
+  "color": 2
+ },
+ "pages/accounting/AccountLedgerPage.tsx": {
+  "inline": 13,
+  "color": 3
+ },
+ "pages/accounting/AccountPartnerLedgerPage.tsx": {
+  "inline": 51,
+  "color": 2
+ },
+ "pages/accounting/AccountRemarkLedgerPage.tsx": {
+  "inline": 38,
+  "color": 2
+ },
+ "pages/accounting/AccountsPage.tsx": {
+  "inline": 32,
+  "color": 7
+ },
+ "pages/accounting/ActualCostPage.tsx": {
+  "inline": 101,
+  "color": 4
+ },
+ "pages/accounting/ArApAgingPage.tsx": {
+  "inline": 20,
+  "color": 2
+ },
+ "pages/accounting/BalanceSheetPage.tsx": {
+  "inline": 15,
+  "color": 0
+ },
+ "pages/accounting/BankCardPage.tsx": {
+  "inline": 149,
+  "color": 3
+ },
+ "pages/accounting/BudgetPage.tsx": {
+  "inline": 48,
+  "color": 5
+ },
+ "pages/accounting/CashBookPage.tsx": {
+  "inline": 21,
+  "color": 1
+ },
+ "pages/accounting/CashDetailPage.tsx": {
+  "inline": 92,
+  "color": 3
+ },
+ "pages/accounting/CashFlowListPage.tsx": {
+  "inline": 28,
+  "color": 2
+ },
+ "pages/accounting/CashPlanPage.tsx": {
+  "inline": 55,
+  "color": 3
+ },
+ "pages/accounting/CashTxnPage.tsx": {
+  "inline": 19,
+  "color": 2
+ },
+ "pages/accounting/CheckFlowPage.tsx": {
+  "inline": 22,
+  "color": 1
+ },
+ "pages/accounting/CheckHoldingPage.tsx": {
+  "inline": 18,
+  "color": 2
+ },
+ "pages/accounting/CheckLedgerPage.tsx": {
+  "inline": 30,
+  "color": 2
+ },
+ "pages/accounting/CheckListPage.tsx": {
+  "inline": 25,
+  "color": 0
+ },
+ "pages/accounting/CheckPage.tsx": {
+  "inline": 45,
+  "color": 2
+ },
+ "pages/accounting/ContractPage.tsx": {
+  "inline": 64,
+  "color": 2
+ },
+ "pages/accounting/CorporateTaxPage.tsx": {
+  "inline": 85,
+  "color": 8
+ },
+ "pages/accounting/CostBuildPage.tsx": {
+  "inline": 57,
+  "color": 3
+ },
+ "pages/accounting/CostStatementPage.tsx": {
+  "inline": 21,
+  "color": 0
+ },
+ "pages/accounting/DailyProfitPage.tsx": {
+  "inline": 53,
+  "color": 8
+ },
+ "pages/accounting/DayMonthSheetPage.tsx": {
+  "inline": 46,
+  "color": 3
+ },
+ "pages/accounting/EvidenceCenterPage.tsx": {
+  "inline": 42,
+  "color": 1
+ },
+ "pages/accounting/ExpenseDetailPage.tsx": {
+  "inline": 49,
+  "color": 0
+ },
+ "pages/accounting/ExpenseListPage.tsx": {
+  "inline": 24,
+  "color": 0
+ },
+ "pages/accounting/ExpensePage.tsx": {
+  "inline": 54,
+  "color": 2
+ },
+ "pages/accounting/FastVoucherPage.tsx": {
+  "inline": 65,
+  "color": 4
+ },
+ "pages/accounting/FixedAssetFlowPage.tsx": {
+  "inline": 26,
+  "color": 2
+ },
+ "pages/accounting/FixedAssetLedgerPage.tsx": {
+  "inline": 26,
+  "color": 2
+ },
+ "pages/accounting/FixedAssetMovementPage.tsx": {
+  "inline": 43,
+  "color": 2
+ },
+ "pages/accounting/FixedAssetPage.tsx": {
+  "inline": 74,
+  "color": 3
+ },
+ "pages/accounting/FixedAssetSlipListPage.tsx": {
+  "inline": 22,
+  "color": 0
+ },
+ "pages/accounting/FundDailyPage.tsx": {
+  "inline": 41,
+  "color": 2
+ },
+ "pages/accounting/FundStatusPage.tsx": {
+  "inline": 32,
+  "color": 2
+ },
+ "pages/accounting/IncomePage.tsx": {
+  "inline": 68,
+  "color": 6
+ },
+ "pages/accounting/IncomeStatementPage.tsx": {
+  "inline": 20,
+  "color": 0
+ },
+ "pages/accounting/ItemCostPage.tsx": {
+  "inline": 28,
+  "color": 5
+ },
+ "pages/accounting/JournalBookPage.tsx": {
+  "inline": 25,
+  "color": 2
+ },
+ "pages/accounting/JournalEntryPage.tsx": {
+  "inline": 22,
+  "color": 2
+ },
+ "pages/accounting/JournalHistoryPage.tsx": {
+  "inline": 34,
+  "color": 0
+ },
+ "pages/accounting/JournalListPage.tsx": {
+  "inline": 34,
+  "color": 5
+ },
+ "pages/accounting/JournalStatusPage.tsx": {
+  "inline": 32,
+  "color": 2
+ },
+ "pages/accounting/MonthlyCostPage.tsx": {
+  "inline": 15,
+  "color": 0
+ },
+ "pages/accounting/MonthlyPnlPage.tsx": {
+  "inline": 14,
+  "color": 0
+ },
+ "pages/accounting/MonthlyProfitPage.tsx": {
+  "inline": 51,
+  "color": 7
+ },
+ "pages/accounting/NonCashPage.tsx": {
+  "inline": 40,
+  "color": 4
+ },
+ "pages/accounting/NoteFlowPage.tsx": {
+  "inline": 26,
+  "color": 0
+ },
+ "pages/accounting/NoteHoldingPage.tsx": {
+  "inline": 23,
+  "color": 0
+ },
+ "pages/accounting/NoteLedgerPage.tsx": {
+  "inline": 35,
+  "color": 1
+ },
+ "pages/accounting/NoteListPage.tsx": {
+  "inline": 27,
+  "color": 0
+ },
+ "pages/accounting/OtherWithholdingPage.tsx": {
+  "inline": 77,
+  "color": 4
+ },
+ "pages/accounting/PartnerAccountLedgerPage.tsx": {
+  "inline": 54,
+  "color": 2
+ },
+ "pages/accounting/PartnerTxListPage.tsx": {
+  "inline": 39,
+  "color": 2
+ },
+ "pages/accounting/PaymentMastersPage.tsx": {
+  "inline": 123,
+  "color": 2
+ },
+ "pages/accounting/ProcessExpenseModal.tsx": {
+  "inline": 42,
+  "color": 4
+ },
+ "pages/accounting/ProfitSummaryPage.tsx": {
+  "inline": 18,
+  "color": 4
+ },
+ "pages/accounting/ProjectPlanPage.tsx": {
+  "inline": 100,
+  "color": 1
+ },
+ "pages/accounting/ProjectProfitPage.tsx": {
+  "inline": 33,
+  "color": 7
+ },
+ "pages/accounting/PromissoryNotePage.tsx": {
+  "inline": 61,
+  "color": 4
+ },
+ "pages/accounting/StandardCostPage.tsx": {
+  "inline": 52,
+  "color": 0
+ },
+ "pages/accounting/TaxInvoiceJournalPage.tsx": {
+  "inline": 35,
+  "color": 2
+ },
+ "pages/accounting/TaxInvoicePage.tsx": {
+  "inline": 29,
+  "color": 1
+ },
+ "pages/accounting/TransferListPage.tsx": {
+  "inline": 26,
+  "color": 2
+ },
+ "pages/accounting/TrialBalancePage.tsx": {
+  "inline": 27,
+  "color": 5
+ },
+ "pages/accounting/VariancePage.tsx": {
+  "inline": 103,
+  "color": 0
+ },
+ "pages/accounting/VatBookPage.tsx": {
+  "inline": 47,
+  "color": 2
+ },
+ "pages/accounting/VatSummaryPage.tsx": {
+  "inline": 24,
+  "color": 5
+ },
+ "pages/accounting/WithholdingPage.tsx": {
+  "inline": 61,
+  "color": 2
+ },
+ "pages/CompaniesPage.tsx": {
+  "inline": 15,
+  "color": 2
+ },
+ "pages/datacenter/CollectSourcePage.tsx": {
+  "inline": 54,
+  "color": 1
+ },
+ "pages/datacenter/DataCollectPage.tsx": {
+  "inline": 39,
+  "color": 3
+ },
+ "pages/datacenter/DataExportPage.tsx": {
+  "inline": 17,
+  "color": 0
+ },
+ "pages/datacenter/MedicalDeviceReportPage.tsx": {
+  "inline": 91,
+  "color": 1
+ },
+ "pages/groupware/AnonymousBoardPage.tsx": {
+  "inline": 11,
+  "color": 0
+ },
+ "pages/groupware/ApprovalDraftPage.tsx": {
+  "inline": 71,
+  "color": 10
+ },
+ "pages/groupware/ApprovalListPage.tsx": {
+  "inline": 82,
+  "color": 5
+ },
+ "pages/groupware/ApprovalSettingPage.tsx": {
+  "inline": 89,
+  "color": 3
+ },
+ "pages/groupware/AttendancePage.tsx": {
+  "inline": 46,
+  "color": 6
+ },
+ "pages/groupware/BusinessCardPage.tsx": {
+  "inline": 57,
+  "color": 3
+ },
+ "pages/groupware/ConstructionSchedulePage.tsx": {
+  "inline": 50,
+  "color": 1
+ },
+ "pages/groupware/CrmPage.tsx": {
+  "inline": 40,
+  "color": 2
+ },
+ "pages/groupware/EcDrivePage.tsx": {
+  "inline": 40,
+  "color": 5
+ },
+ "pages/groupware/FieldWorkPage.tsx": {
+  "inline": 56,
+  "color": 6
+ },
+ "pages/groupware/KeyNoticePage.tsx": {
+  "inline": 25,
+  "color": 0
+ },
+ "pages/groupware/MailPage.tsx": {
+  "inline": 93,
+  "color": 9
+ },
+ "pages/groupware/OrgChartPage.tsx": {
+  "inline": 51,
+  "color": 5
+ },
+ "pages/groupware/ProjectPage.tsx": {
+  "inline": 40,
+  "color": 4
+ },
+ "pages/groupware/SchedulePage.tsx": {
+  "inline": 46,
+  "color": 1
+ },
+ "pages/groupware/ShortMessagePage.tsx": {
+  "inline": 39,
+  "color": 3
+ },
+ "pages/groupware/SuppliesPage.tsx": {
+  "inline": 62,
+  "color": 1
+ },
+ "pages/groupware/SurveyInputPage.tsx": {
+  "inline": 45,
+  "color": 1
+ },
+ "pages/groupware/SurveyPage.tsx": {
+  "inline": 61,
+  "color": 0
+ },
+ "pages/groupware/SurveyStatusPage.tsx": {
+  "inline": 82,
+  "color": 0
+ },
+ "pages/groupware/SwSchedulePage.tsx": {
+  "inline": 44,
+  "color": 1
+ },
+ "pages/groupware/WorkLogPage.tsx": {
+  "inline": 54,
+  "color": 6
+ },
+ "pages/groupware/WorkPage.tsx": {
+  "inline": 58,
+  "color": 2
+ },
+ "pages/hr/AttendanceInputPage.tsx": {
+  "inline": 19,
+  "color": 1
+ },
+ "pages/hr/AttendanceKindStatusPage.tsx": {
+  "inline": 45,
+  "color": 0
+ },
+ "pages/hr/AttendanceListPage.tsx": {
+  "inline": 12,
+  "color": 0
+ },
+ "pages/hr/AttendanceStatusPage.tsx": {
+  "inline": 54,
+  "color": 0
+ },
+ "pages/hr/ContractPage.tsx": {
+  "inline": 73,
+  "color": 5
+ },
+ "pages/hr/DailyWagePage.tsx": {
+  "inline": 67,
+  "color": 4
+ },
+ "pages/hr/DailyWorkHoursPage.tsx": {
+  "inline": 35,
+  "color": 3
+ },
+ "pages/hr/EmployeePage.tsx": {
+  "inline": 39,
+  "color": 1
+ },
+ "pages/hr/EmployeePerformancePage.tsx": {
+  "inline": 32,
+  "color": 2
+ },
+ "pages/hr/HrRecordPage.tsx": {
+  "inline": 51,
+  "color": 4
+ },
+ "pages/hr/LateArrivalPage.tsx": {
+  "inline": 26,
+  "color": 1
+ },
+ "pages/hr/LeaveInputPage.tsx": {
+  "inline": 40,
+  "color": 1
+ },
+ "pages/hr/LeaveListPage.tsx": {
+  "inline": 42,
+  "color": 0
+ },
+ "pages/hr/PayrollPage.tsx": {
+  "inline": 69,
+  "color": 9
+ },
+ "pages/hr/PaySettingPage.tsx": {
+  "inline": 133,
+  "color": 4
+ },
+ "pages/hr/VacationRemainPage.tsx": {
+  "inline": 36,
+  "color": 0
+ },
+ "pages/hr/VacationUsePage.tsx": {
+  "inline": 33,
+  "color": 1
+ },
+ "pages/hr/WorkIntegratedPage.tsx": {
+  "inline": 54,
+  "color": 5
+ },
+ "pages/inventory/AdjustListPage.tsx": {
+  "inline": 18,
+  "color": 0
+ },
+ "pages/inventory/BomStockPage.tsx": {
+  "inline": 37,
+  "color": 5
+ },
+ "pages/inventory/CurrentStockPage.tsx": {
+  "inline": 51,
+  "color": 4
+ },
+ "pages/inventory/DailyReportPage.tsx": {
+  "inline": 58,
+  "color": 7
+ },
+ "pages/inventory/DailyStockPage.tsx": {
+  "inline": 45,
+  "color": 4
+ },
+ "pages/inventory/ExecutiveReportPage.tsx": {
+  "inline": 53,
+  "color": 5
+ },
+ "pages/inventory/ItemsPage.tsx": {
+  "inline": 75,
+  "color": 6
+ },
+ "pages/inventory/ManageItemsPage.tsx": {
+  "inline": 30,
+  "color": 1
+ },
+ "pages/inventory/PriceOrderPage.tsx": {
+  "inline": 25,
+  "color": 1
+ },
+ "pages/inventory/ReportsPage.tsx": {
+  "inline": 42,
+  "color": 6
+ },
+ "pages/inventory/SpecialPriceGroupPage.tsx": {
+  "inline": 20,
+  "color": 0
+ },
+ "pages/inventory/StagedAdjustmentPage.tsx": {
+  "inline": 46,
+  "color": 3
+ },
+ "pages/inventory/StagedProgressPage.tsx": {
+  "inline": 21,
+  "color": 5
+ },
+ "pages/inventory/StockAnalysisPage.tsx": {
+  "inline": 48,
+  "color": 4
+ },
+ "pages/inventory/StockIoPage.tsx": {
+  "inline": 36,
+  "color": 7
+ },
+ "pages/inventory/StockLedgerPage.tsx": {
+  "inline": 68,
+  "color": 13
+ },
+ "pages/inventory/StockMoveListPage.tsx": {
+  "inline": 18,
+  "color": 0
+ },
+ "pages/inventory/StockMovementPage.tsx": {
+  "inline": 63,
+  "color": 4
+ },
+ "pages/inventory/StockMoveStatusPage.tsx": {
+  "inline": 70,
+  "color": 1
+ },
+ "pages/inventory/StockRecalcPage.tsx": {
+  "inline": 35,
+  "color": 1
+ },
+ "pages/inventory/StocktakeListPage.tsx": {
+  "inline": 19,
+  "color": 0
+ },
+ "pages/inventory/StocktakePage.tsx": {
+  "inline": 27,
+  "color": 2
+ },
+ "pages/inventory/StocktakeStatusPage.tsx": {
+  "inline": 67,
+  "color": 4
+ },
+ "pages/inventory/TransferPage.tsx": {
+  "inline": 70,
+  "color": 3
+ },
+ "pages/inventory/TransferStatusPage.tsx": {
+  "inline": 64,
+  "color": 2
+ },
+ "pages/inventory/WarehousesPage.tsx": {
+  "inline": 51,
+  "color": 8
+ },
+ "pages/inventory/WarehouseStockPage.tsx": {
+  "inline": 52,
+  "color": 4
+ },
+ "pages/inventory/WmsPage.tsx": {
+  "inline": 75,
+  "color": 6
+ },
+ "pages/MyPageDashboard.tsx": {
+  "inline": 65,
+  "color": 21
+ },
+ "pages/production/BomPage.tsx": {
+  "inline": 52,
+  "color": 4
+ },
+ "pages/production/BomStatusPage.tsx": {
+  "inline": 13,
+  "color": 1
+ },
+ "pages/production/BorPage.tsx": {
+  "inline": 46,
+  "color": 3
+ },
+ "pages/production/IssuePage.tsx": {
+  "inline": 76,
+  "color": 4
+ },
+ "pages/production/IssueStatusPage.tsx": {
+  "inline": 97,
+  "color": 8
+ },
+ "pages/production/MrpPage.tsx": {
+  "inline": 121,
+  "color": 0
+ },
+ "pages/production/PlanningPage.tsx": {
+  "inline": 31,
+  "color": 2
+ },
+ "pages/production/ProcessOperationModal.tsx": {
+  "inline": 32,
+  "color": 3
+ },
+ "pages/production/ProcessPage.tsx": {
+  "inline": 32,
+  "color": 1
+ },
+ "pages/production/ProductionIssueStatusPage.tsx": {
+  "inline": 128,
+  "color": 8
+ },
+ "pages/production/ProductionResultPage.tsx": {
+  "inline": 106,
+  "color": 0
+ },
+ "pages/production/PurchaseTaxStockPage.tsx": {
+  "inline": 43,
+  "color": 2
+ },
+ "pages/production/ReceiptInquiryPage.tsx": {
+  "inline": 32,
+  "color": 1
+ },
+ "pages/production/ReceiptStatusPage.tsx": {
+  "inline": 96,
+  "color": 0
+ },
+ "pages/production/RequirementCalcPage.tsx": {
+  "inline": 47,
+  "color": 0
+ },
+ "pages/production/ResourcePage.tsx": {
+  "inline": 34,
+  "color": 1
+ },
+ "pages/production/SubcontractReflectionPage.tsx": {
+  "inline": 36,
+  "color": 0
+ },
+ "pages/production/TimeCalcPage.tsx": {
+  "inline": 36,
+  "color": 1
+ },
+ "pages/production/WoEfficiencyPage.tsx": {
+  "inline": 54,
+  "color": 0
+ },
+ "pages/production/WoProgressPage.tsx": {
+  "inline": 99,
+  "color": 3
+ },
+ "pages/production/WorkOrderEntryPage.tsx": {
+  "inline": 39,
+  "color": 1
+ },
+ "pages/production/WorkOrderPage.tsx": {
+  "inline": 53,
+  "color": 3
+ },
+ "pages/production/WorkProcessPage.tsx": {
+  "inline": 42,
+  "color": 0
+ },
+ "pages/production/WorkResultInquiryPage.tsx": {
+  "inline": 44,
+  "color": 0
+ },
+ "pages/production/WorkResultListPage.tsx": {
+  "inline": 112,
+  "color": 0
+ },
+ "pages/production/WorkResultPage.tsx": {
+  "inline": 75,
+  "color": 3
+ },
+ "pages/production/WoStatusPage.tsx": {
+  "inline": 82,
+  "color": 0
+ },
+ "pages/quality/AsConsumptionPage.tsx": {
+  "inline": 57,
+  "color": 0
+ },
+ "pages/quality/AsManagePage.tsx": {
+  "inline": 112,
+  "color": 3
+ },
+ "pages/quality/AsRepairListPage.tsx": {
+  "inline": 19,
+  "color": 2
+ },
+ "pages/quality/AsRepairStatusPage.tsx": {
+  "inline": 21,
+  "color": 2
+ },
+ "pages/quality/AsStatusPage.tsx": {
+  "inline": 86,
+  "color": 0
+ },
+ "pages/quality/DefectReportPage.tsx": {
+  "inline": 42,
+  "color": 1
+ },
+ "pages/quality/LotLedgerPage.tsx": {
+  "inline": 54,
+  "color": 10
+ },
+ "pages/quality/LotStockComparePage.tsx": {
+  "inline": 25,
+  "color": 1
+ },
+ "pages/quality/LotStockStatusPage.tsx": {
+  "inline": 42,
+  "color": 0
+ },
+ "pages/quality/LotTxListPage.tsx": {
+  "inline": 23,
+  "color": 0
+ },
+ "pages/quality/LotTxStatusPage.tsx": {
+  "inline": 42,
+  "color": 0
+ },
+ "pages/quality/QualityInspectionPage.tsx": {
+  "inline": 60,
+  "color": 1
+ },
+ "pages/quality/QualityRequestPage.tsx": {
+  "inline": 78,
+  "color": 3
+ },
+ "pages/quality/QualityRequestStatusPage.tsx": {
+  "inline": 21,
+  "color": 2
+ },
+ "pages/quality/QualityStatusPage.tsx": {
+  "inline": 75,
+  "color": 2
+ },
+ "pages/quality/SerialLotPage.tsx": {
+  "inline": 66,
+  "color": 1
+ },
+ "pages/quality/UninspectedPage.tsx": {
+  "inline": 26,
+  "color": 2
+ },
+ "pages/RolesPage.tsx": {
+  "inline": 25,
+  "color": 3
+ },
+ "pages/settings/CommonCodePage.tsx": {
+  "inline": 62,
+  "color": 3
+ },
+ "pages/settings/CompanyInfoPage.tsx": {
+  "inline": 57,
+  "color": 3
+ },
+ "pages/settings/CurrencyPage.tsx": {
+  "inline": 68,
+  "color": 4
+ },
+ "pages/settings/CustomFieldPage.tsx": {
+  "inline": 43,
+  "color": 1
+ },
+ "pages/settings/DownloadPage.tsx": {
+  "inline": 25,
+  "color": 9
+ },
+ "pages/settings/EtcSystemPage.tsx": {
+  "inline": 25,
+  "color": 5
+ },
+ "pages/settings/PreferencesPage.tsx": {
+  "inline": 25,
+  "color": 2
+ },
+ "pages/settings/PrintSignLinePage.tsx": {
+  "inline": 50,
+  "color": 4
+ },
+ "pages/settings/SecurityPage.tsx": {
+  "inline": 39,
+  "color": 0
+ },
+ "pages/trade/AccountingReflectionPage.tsx": {
+  "inline": 92,
+  "color": 1
+ },
+ "pages/trade/ArApStatusPage.tsx": {
+  "inline": 67,
+  "color": 0
+ },
+ "pages/trade/CollectionPage.tsx": {
+  "inline": 31,
+  "color": 0
+ },
+ "pages/trade/ConditionSearchPage.tsx": {
+  "inline": 30,
+  "color": 0
+ },
+ "pages/trade/DiscountStatusPage.tsx": {
+  "inline": 37,
+  "color": 0
+ },
+ "pages/trade/ExportPage.tsx": {
+  "inline": 90,
+  "color": 41
+ },
+ "pages/trade/ItemEntryPage.tsx": {
+  "inline": 25,
+  "color": 2
+ },
+ "pages/trade/LedgerPage.tsx": {
+  "inline": 118,
+  "color": 13
+ },
+ "pages/trade/MallAccountPage.tsx": {
+  "inline": 36,
+  "color": 1
+ },
+ "pages/trade/MallItemMappingPage.tsx": {
+  "inline": 41,
+  "color": 1
+ },
+ "pages/trade/MallPage.tsx": {
+  "inline": 115,
+  "color": 10
+ },
+ "pages/trade/MonthlyArApPage.tsx": {
+  "inline": 50,
+  "color": 5
+ },
+ "pages/trade/MonthlyCumulativePage.tsx": {
+  "inline": 61,
+  "color": 2
+ },
+ "pages/trade/OrderStagePage.tsx": {
+  "inline": 41,
+  "color": 3
+ },
+ "pages/trade/OrderTypePage.tsx": {
+  "inline": 45,
+  "color": 2
+ },
+ "pages/trade/PartnerEntryPage.tsx": {
+  "inline": 24,
+  "color": 1
+ },
+ "pages/trade/PartnerLedgerPage.tsx": {
+  "inline": 51,
+  "color": 2
+ },
+ "pages/trade/PartnersPage.tsx": {
+  "inline": 61,
+  "color": 9
+ },
+ "pages/trade/PayablePage.tsx": {
+  "inline": 54,
+  "color": 7
+ },
+ "pages/trade/PaymentComparePage.tsx": {
+  "inline": 46,
+  "color": 0
+ },
+ "pages/trade/PaymentHistoryPage.tsx": {
+  "inline": 42,
+  "color": 1
+ },
+ "pages/trade/PivotSummaryPage.tsx": {
+  "inline": 76,
+  "color": 6
+ },
+ "pages/trade/PriceBulkScreen.tsx": {
+  "inline": 45,
+  "color": 3
+ },
+ "pages/trade/PriceMovementPage.tsx": {
+  "inline": 90,
+  "color": 2
+ },
+ "pages/trade/PriceRequestListPage.tsx": {
+  "inline": 25,
+  "color": 2
+ },
+ "pages/trade/PriceRequestProgressPage.tsx": {
+  "inline": 50,
+  "color": 5
+ },
+ "pages/trade/PurchaseOrderPage.tsx": {
+  "inline": 162,
+  "color": 6
+ },
+ "pages/trade/PurchaseOrderStatusPage.tsx": {
+  "inline": 144,
+  "color": 6
+ },
+ "pages/trade/PurchasePlanListPage.tsx": {
+  "inline": 29,
+  "color": 2
+ },
+ "pages/trade/PurchaseRequestListPage.tsx": {
+  "inline": 27,
+  "color": 2
+ },
+ "pages/trade/PurchaseRequestStatusPage.tsx": {
+  "inline": 80,
+  "color": 7
+ },
+ "pages/trade/PurchaseStatusPage.tsx": {
+  "inline": 85,
+  "color": 5
+ },
+ "pages/trade/QuotationPage.tsx": {
+  "inline": 105,
+  "color": 3
+ },
+ "pages/trade/SalesOrderPage.tsx": {
+  "inline": 60,
+  "color": 3
+ },
+ "pages/trade/SalesOrderStatusPage.tsx": {
+  "inline": 72,
+  "color": 3
+ },
+ "pages/trade/SalesPlanPage.tsx": {
+  "inline": 126,
+  "color": 3
+ },
+ "pages/trade/SalesPurchaseSummaryPage.tsx": {
+  "inline": 67,
+  "color": 5
+ },
+ "pages/trade/SalesStatusPage.tsx": {
+  "inline": 76,
+  "color": 1
+ },
+ "pages/trade/SettlementPage.tsx": {
+  "inline": 20,
+  "color": 4
+ },
+ "pages/trade/ShipmentInquiryPage.tsx": {
+  "inline": 51,
+  "color": 2
+ },
+ "pages/trade/ShipmentOrderPage.tsx": {
+  "inline": 89,
+  "color": 3
+ },
+ "pages/trade/ShipmentOrderStatusPage.tsx": {
+  "inline": 39,
+  "color": 0
+ },
+ "pages/trade/ShipmentPage.tsx": {
+  "inline": 45,
+  "color": 0
+ },
+ "pages/trade/SpecialPricePage.tsx": {
+  "inline": 56,
+  "color": 3
+ },
+ "pages/trade/StatementPrintPage.tsx": {
+  "inline": 53,
+  "color": 1
+ },
+ "pages/trade/TradeEntry.tsx": {
+  "inline": 177,
+  "color": 13
+ },
+ "pages/trade/TradeHistoryPage.tsx": {
+  "inline": 59,
+  "color": 6
+ },
+ "pages/trade/TradeInquiryPage.tsx": {
+  "inline": 81,
+  "color": 5
+ },
+ "pages/trade/UnorderedStatusPage.tsx": {
+  "inline": 58,
+  "color": 4
+ },
+ "pages/trade/UnpurchasedStatusPage.tsx": {
+  "inline": 141,
+  "color": 4
+ },
+ "pages/trade/UnshippedPage.tsx": {
+  "inline": 58,
+  "color": 2
+ },
+ "pages/trade/UnsoldStatusPage.tsx": {
+  "inline": 80,
+  "color": 5
+ },
+ "pages/UsersPage.tsx": {
+  "inline": 21,
+  "color": 1
+ }
+}

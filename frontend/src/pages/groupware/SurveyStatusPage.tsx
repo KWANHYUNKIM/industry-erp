@@ -130,7 +130,7 @@ export default function SurveyStatusPage() {
     })
   }, [rows, from, to, scope, progress, useEnd, endFrom, endTo, title, question, writer, postNo, users])
 
-  const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 110 }
+  const th: React.CSSProperties = { background: 'var(--ec-bg-page)', fontWeight: 700, whiteSpace: 'nowrap', width: 110 }
   /**
    * <b>원본 격자의 줄</b> — 펼친 설문의 <b>응답 × 질문</b> 하나가 한 줄이다.
    * 설문 머리(작성일·게시글번호·설문종료일·제목)는 줄마다 되풀이된다 — 원본이 그렇다.
@@ -269,7 +269,7 @@ export default function SurveyStatusPage() {
         </tbody>
       </table>
 
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
       <table className="w-full text-left">
         <colgroup>
@@ -302,7 +302,7 @@ export default function SurveyStatusPage() {
             </td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id} onClick={() => openDetail(r.id)} style={{ cursor: 'pointer' }}>
-              <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ textAlign: 'center' }}>{(r.createdAt ?? '').slice(0, 10).replace(/-/g, '/')}</td>
               <td style={{ textAlign: 'center' }}>{r.postNo}</td>
               <td style={{ textAlign: 'center' }}>{(r.endAt ?? '').slice(0, 10).replace(/-/g, '/')}</td>
@@ -318,10 +318,10 @@ export default function SurveyStatusPage() {
         {shown.length > 0 && (
           <tfoot>
             <tr>
-              <td colSpan={7} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
-              <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{totals.targets.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{totals.responses.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>
+              <td colSpan={7} style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>합계</td>
+              <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>{totals.targets.toLocaleString()}</td>
+              <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>{totals.responses.toLocaleString()}</td>
+              <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>
                 {totals.targets > 0 ? Math.round((totals.responses * 100) / totals.targets) : 0}%
               </td>
             </tr>
@@ -356,7 +356,7 @@ export default function SurveyStatusPage() {
             응답 내역 {detail.length > 0 && `(${detail.length}건)`}
           </h3>
           {detailErr ? (
-            <p style={{ color: '#c60a2e', fontSize: 12.5, margin: '0 0 10px' }}>{detailErr}</p>
+            <p style={{ color: 'var(--ec-danger)', fontSize: 12.5, margin: '0 0 10px' }}>{detailErr}</p>
           ) : (
             <table className="w-full text-left" style={{ marginBottom: 14 }}>
               <thead>

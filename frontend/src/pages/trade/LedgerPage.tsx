@@ -26,7 +26,7 @@ const won = (n: number) => n.toLocaleString('ko-KR')
 const balanceStyle = (n: number, positive: string) => ({
   textAlign: 'right' as const,
   fontWeight: 600,
-  color: n > 0 ? positive : n < 0 ? '#c60a2e' : '#bbb',
+  color: n > 0 ? positive : n < 0 ? 'var(--ec-danger)' : '#bbb',
 })
 
 /** 음수 잔액에 붙이는 꼬리표. 숫자만으로는 무슨 뜻인지 알 수 없다. */
@@ -498,19 +498,19 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
 
       {/* 요약 박스 */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
-        {showAr && <div style={{ flex: 1, border: '1px solid var(--ec-border)', background: '#f7f9ff', padding: '12px 16px' }}>
+        {showAr && <div style={{ flex: 1, border: '1px solid var(--ec-border)', background: 'var(--ec-blue-wash)', padding: '12px 16px' }}>
           <div style={{ fontSize: 12, color: 'var(--ec-blue-dark)' }}>총 채권 (받을 돈)</div>
           <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--ec-blue)' }}>{won(totalReceivable)} <span style={{ fontSize: 13, fontWeight: 400 }}>원</span></div>
         </div>}
-        {showAp && <div style={{ flex: 1, border: '1px solid var(--ec-border)', background: '#f4faf5', padding: '12px 16px' }}>
+        {showAp && <div style={{ flex: 1, border: '1px solid var(--ec-border)', background: 'var(--ec-success-bg)', padding: '12px 16px' }}>
           <div style={{ fontSize: 12, color: '#1c6b32' }}>총 채무 (줄 돈)</div>
           <div style={{ fontSize: 22, fontWeight: 800, color: '#2f8401' }}>{won(totalPayable)} <span style={{ fontSize: 13, fontWeight: 400 }}>원</span></div>
         </div>}
       </div>
 
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
       {byDoc && entryCut.truncated && (
-        <p style={{ marginBottom: 8, background: '#fff8e1', border: '1px solid #f0d58a', color: '#7a5b00', padding: '5px 8px', fontSize: 12, borderRadius: 3 }}>
+        <p style={{ marginBottom: 8, background: 'var(--ec-warn-bg)', border: '1px solid #f0d58a', color: '#7a5b00', padding: '5px 8px', fontSize: 12, borderRadius: 3 }}>
           기간 안에 원장 줄이 {entryCut.total.toLocaleString()}줄 — 앞(이른 날짜) 5,000줄만 보입니다. {group}의 합계도 거기까지입니다. 기간을 좁히거나 [오천건이상조회] 를 누르세요.
         </p>
       )}
@@ -530,21 +530,21 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={3 + (showAr ? 1 : 0) + (showAp ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={3 + (showAr ? 1 : 0) + (showAp ? 1 : 0)} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : byManager.length === 0 ? (
-              <tr><td colSpan={3 + (showAr ? 1 : 0) + (showAp ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={3 + (showAr ? 1 : 0) + (showAp ? 1 : 0)} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : byManager.map((g, i) => (
               <tr key={g.key}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ color: g.key === '(미지정)' ? '#9aa1ab' : undefined }}>{g.key}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(g.count)}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+                <td style={{ color: g.key === '(미지정)' ? 'var(--ec-text-hint)' : undefined }}>{g.key}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{won(g.count)}</td>
                 {showAr && <td style={balanceStyle(g.receivable, 'var(--ec-blue)')}>{won(g.receivable)}{balanceNote(g.receivable, '채권')}</td>}
                 {showAp && <td style={balanceStyle(g.payable, '#2f8401')}>{won(g.payable)}{balanceNote(g.payable, '채무')}</td>}
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+            <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
               <td colSpan={2} style={{ border: '1px solid var(--ec-border)', padding: '5px 8px' }}>합계</td>
               <td style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right' }}>{won(shownRolled.length)}</td>
               {showAr && <td style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right', color: 'var(--ec-blue)' }}>{won(totalReceivable)}</td>}
@@ -572,7 +572,7 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
             </tr>
           </thead>
           <tbody>
-            <tr style={{ background: '#f7f9fb', color: '#6b7280' }}>
+            <tr style={{ background: 'var(--ec-bg-page)', color: 'var(--ec-text-muted)' }}>
               <td style={{ textAlign: 'center' }}></td>
               <td colSpan={group === '전표별' ? 4 : 2}>기초잔액 ({dateText(from)} 전날까지)</td>
               <td style={{ textAlign: 'right' }}></td>
@@ -580,22 +580,22 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
               <td style={{ textAlign: 'right' }}>{won(moveTotal.opening)}</td>
             </tr>
             {entryRows.length === 0 ? (
-              <tr><td colSpan={group === '전표별' ? 7 : 5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={group === '전표별' ? 7 : 5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : entryRows.map((e, i) => (
               <tr key={`${e.key}-${e.docNo ?? ''}-${i}`}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td>{group === '월별' ? e.date : dateText(e.date)}</td>
                 {group === '전표별' && <td style={{ fontFamily: 'monospace' }}>{e.docNo ?? ''}</td>}
                 <td style={{ textAlign: 'center' }}>{e.kind}</td>
                 {group === '전표별' && <td>{e.name}</td>}
-                <td style={{ textAlign: 'right', color: e.increase === 0 ? '#c9ced6' : undefined }}>{won(e.increase)}</td>
-                <td style={{ textAlign: 'right', color: e.decrease === 0 ? '#c9ced6' : undefined }}>{won(e.decrease)}</td>
+                <td style={{ textAlign: 'right', color: e.increase === 0 ? 'var(--ec-text-off)' : undefined }}>{won(e.increase)}</td>
+                <td style={{ textAlign: 'right', color: e.decrease === 0 ? 'var(--ec-text-off)' : undefined }}>{won(e.decrease)}</td>
                 <td style={balanceStyle(e.balance, showAr ? 'var(--ec-blue)' : '#2f8401')}>{won(e.balance)}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+            <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
               <td colSpan={group === '전표별' ? 5 : 3} style={{ textAlign: 'right' }}>합계 ({entryRows.length}줄)</td>
               <td style={{ textAlign: 'right' }}>{won(entryTotal.inc)}</td>
               <td style={{ textAlign: 'right' }}>{won(entryTotal.dec)}</td>
@@ -621,16 +621,16 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
           </thead>
           <tbody>
             {movesRolled.length === 0 ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : movesRolled.map((m, i) => (
               <tr key={m.partnerId}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td>{m.name}</td>
                 <td style={{ textAlign: 'right' }}>{won(m.opening)}</td>
                 <td style={{ textAlign: 'right' }}>{won(m.stockAmount)}</td>
-                <td style={{ textAlign: 'right', color: m.accountingAmount === 0 ? '#c9ced6' : undefined }}>{won(m.accountingAmount)}</td>
+                <td style={{ textAlign: 'right', color: m.accountingAmount === 0 ? 'var(--ec-text-off)' : undefined }}>{won(m.accountingAmount)}</td>
                 <td style={{ textAlign: 'right' }}>{won(m.settledAmount)}</td>
-                <td style={{ textAlign: 'right', color: m.otherDiff === 0 ? '#c9ced6' : '#c07a00', fontWeight: m.otherDiff === 0 ? 400 : 700 }}>
+                <td style={{ textAlign: 'right', color: m.otherDiff === 0 ? 'var(--ec-text-off)' : 'var(--ec-warn)', fontWeight: m.otherDiff === 0 ? 400 : 700 }}>
                   {won(m.otherDiff)}
                 </td>
                 <td style={balanceStyle(m.closing, showAr ? 'var(--ec-blue)' : '#2f8401')}>
@@ -640,13 +640,13 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
             ))}
           </tbody>
           <tfoot>
-            <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+            <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
               <td colSpan={2} style={{ textAlign: 'right' }}>합계 ({movesRolled.length}곳)</td>
               <td style={{ textAlign: 'right' }}>{won(moveTotal.opening)}</td>
               <td style={{ textAlign: 'right' }}>{won(moveTotal.stock)}</td>
               <td style={{ textAlign: 'right' }}>{won(moveTotal.acct)}</td>
               <td style={{ textAlign: 'right' }}>{won(moveTotal.settled)}</td>
-              <td style={{ textAlign: 'right', color: moveTotal.other === 0 ? undefined : '#c07a00' }}>{won(moveTotal.other)}</td>
+              <td style={{ textAlign: 'right', color: moveTotal.other === 0 ? undefined : 'var(--ec-warn)' }}>{won(moveTotal.other)}</td>
               <td style={{ textAlign: 'right', color: showAr ? 'var(--ec-blue)' : '#2f8401' }}>{won(moveTotal.closing)}</td>
             </tr>
           </tfoot>
@@ -669,12 +669,12 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={6 + (showAr ? 1 : 0) + (showAp ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={6 + (showAr ? 1 : 0) + (showAp ? 1 : 0)} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shownRolled.length === 0 ? (
-            <tr><td colSpan={6 + (showAr ? 1 : 0) + (showAp ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={6 + (showAr ? 1 : 0) + (showAp ? 1 : 0)} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((r, idx) => (
             <tr key={r.partnerId}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{idx + 1}</td>
               {/* 원본은 코드·이름을 눌러 그 거래처를 연다(사본 실측). */}
               <td style={{ fontFamily: 'monospace' }}>
                 <Link to={`/sales/partners?q=${encodeURIComponent(r.code)}`} style={{ color: 'var(--ec-blue)' }}>{r.code}</Link>
@@ -683,7 +683,7 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
                 <Link to={`/sales/partners?q=${encodeURIComponent(r.name)}`} style={{ color: 'var(--ec-blue)' }}>{r.name}</Link>
               </td>
               <td style={{ textAlign: 'center' }}>{r.typeName}</td>
-              <td style={{ color: '#6b7280' }}>{aliasOf.get(r.partnerId) ?? ''}</td>
+              <td style={{ color: 'var(--ec-text-muted)' }}>{aliasOf.get(r.partnerId) ?? ''}</td>
               {showAr && <td style={balanceStyle(r.receivable, 'var(--ec-blue)')}>{won(r.receivable)}{balanceNote(r.receivable, '채권')}</td>}
               {showAp && <td style={balanceStyle(r.payable, '#2f8401')}>{won(r.payable)}{balanceNote(r.payable, '채무')}</td>}
               <td>
@@ -698,7 +698,7 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
         </tbody>
         {shownRolled.length > 0 && (
           <tfoot>
-            <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+            <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
               <td colSpan={5} style={{ border: '1px solid var(--ec-border)', padding: '5px 8px' }}>합계</td>
               {showAr && <td style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right', color: 'var(--ec-blue)' }}>{won(totalReceivable)}</td>}
               {showAp && <td style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right', color: '#2f8401' }}>{won(totalPayable)}</td>}
@@ -733,7 +733,7 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
         </>
       )}
 
-      <p style={{ marginTop: 10, fontSize: 11.5, color: '#9aa1ab' }}>
+      <p style={{ marginTop: 10, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
         ※ 채권 = 판매 합계 − 수금 ± 회계전표가 외상매출금을 직접 움직인 것(어음·수표·상계 등),
         채무 = 구매 합계 − 지급 ± 외상매입금을 직접 움직인 것(지급어음·외주비 회계반영 등). 수금·지급 등록은 「수금현황」·「지급현황」에서 합니다.
         <br />※ 채권이 음수면 받을 돈보다 더 받은 것(선수금), 채무가 음수면 줄 돈보다 더 준 것(선급금)입니다.

@@ -158,21 +158,21 @@ export default function LeaveInputPage() {
       <Modal error={error} open={bulkOpen} title="근태일괄입력" onClose={() => setBulkOpen(false)}>{(
         <div style={{ padding: 4, minWidth: 460 }}>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 10 }}>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>근태항목</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>근태항목</div>
               <select className="ec-input" value={bulkForm.type} style={{ width: 110 }}
                       onChange={(e) => setBulkForm((f) => ({ ...f, type: e.target.value }))}>
                 {TYPES.map((t) => <option key={t}>{t}</option>)}
               </select></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>기간</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>기간</div>
               <input type="date" className="ec-input" value={bulkForm.startDate} style={{ width: 140 }}
                      onChange={(e) => setBulkForm((f) => ({ ...f, startDate: e.target.value }))} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>~</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>~</div>
               <input type="date" className="ec-input" value={bulkForm.endDate} style={{ width: 140 }}
                      onChange={(e) => setBulkForm((f) => ({ ...f, endDate: e.target.value }))} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>근태(일)</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>근태(일)</div>
               <input type="number" step="any" className="ec-input" value={bulkForm.days} style={{ width: 80, textAlign: 'right' }}
                      onChange={(e) => setBulkForm((f) => ({ ...f, days: e.target.value }))} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>적요</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>적요</div>
               <input className="ec-input" value={bulkForm.reason} style={{ width: 160 }}
                      onChange={(e) => setBulkForm((f) => ({ ...f, reason: e.target.value }))} /></label>
           </div>
@@ -191,7 +191,7 @@ export default function LeaveInputPage() {
             ))}
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, marginTop: 10 }}>
-            <span style={{ marginRight: 'auto', fontSize: 11.5, color: '#8a929c' }}>
+            <span style={{ marginRight: 'auto', fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
               고른 {bulkUsers.size}명만큼 줄을 깝니다. <b>저장은 아직 아닙니다</b> — 확인하고 [저장(F8)] 하세요.
             </span>
             <button className="ec-btn ec-btn-primary" onClick={fillBulk}>줄 깔기</button>
@@ -199,14 +199,14 @@ export default function LeaveInputPage() {
         </div>
       )}</Modal>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {ok && <p style={{ background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {ok && <p style={{ background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-        <span style={{ fontSize: 12.5, color: '#5a626e' }}>일자</span>
+        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>일자</span>
         <input className="ec-input" type="date" value={baseDate}
                onChange={(e) => changeBaseDate(e.target.value)} style={{ width: 150 }} />
-        <span style={{ fontSize: 11.5, color: '#8a929c' }}>
+        <span style={{ fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
           여러 사원의 근태를 한 번에 넣습니다. 출퇴근 시각은 [출/퇴근기록부(ID)]에서 다룹니다.
         </span>
       </div>
@@ -235,7 +235,7 @@ export default function LeaveInputPage() {
           <tbody>
             {lines.map((l, i) => (
               <tr key={l.key}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td>
                   <input className="ec-input" type="date" value={l.startDate}
                          onChange={(e) => setLine(l.key, { startDate: e.target.value })} />
@@ -256,7 +256,7 @@ export default function LeaveInputPage() {
                     {TYPES.map((t) => <option key={t}>{t}</option>)}
                   </select>
                 </td>
-                <td style={{ color: '#6b7280' }}>
+                <td style={{ color: 'var(--ec-text-muted)' }}>
                   {/* 연차·반차만 연차 잔여에서 빠진다 — 병가·경조·공가·기타는 따로 간다(QA 61회차). */}
                   {!l.startDate ? '' : ANNUAL_TYPES.includes(l.type) ? `연차(${l.startDate.slice(0, 4)}년)` : '— (연차 차감 없음)'}
                 </td>
@@ -281,7 +281,7 @@ export default function LeaveInputPage() {
         </table>
       </div>
 
-      <p style={{ marginTop: 8, fontSize: 11.5, color: '#8a929c' }}>
+      <p style={{ marginTop: 8, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
         * 근태(일)는 <b>기간 안</b>이어야 합니다. 하루짜리에 100일을 넣으면 잔여일수가 통째로 틀어집니다.
         반차(0.5)와 시간 단위(0.125 = 1시간)도 그대로 들어갑니다.
       </p>

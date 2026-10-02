@@ -244,17 +244,17 @@ export default function BankCardPage() {
         {TABS.map((t) => (
           <button key={t} onClick={() => switchTab(t)} className="no-ec" style={{
             padding: '6px 14px', fontSize: 12.5, border: 'none', cursor: 'pointer',
-            background: tab === t ? '#fff' : 'transparent', color: tab === t ? 'var(--ec-blue)' : '#5a626e',
+            background: tab === t ? '#fff' : 'transparent', color: tab === t ? 'var(--ec-blue)' : 'var(--ec-label)',
             fontWeight: tab === t ? 700 : 400, borderBottom: tab === t ? '2px solid var(--ec-blue)' : '2px solid transparent',
           }}>{t} ({count(t)})</button>
         ))}
-        <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 12, color: '#5a626e' }}>
+        <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 12, color: 'var(--ec-label)' }}>
           사용중 계좌 잔액 합계 <b style={{ color: 'var(--ec-blue-dark)' }}>{won(totalBalance)}</b>
         </span>
       </div>
 
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)' }}>{notice}</div>}
 
       <Modal error={error} open={(showForm || !!editAccount) && tab === '계좌등록'}
              title={editAccount ? '계좌 수정' : '계좌/카드 등록'}
@@ -327,7 +327,7 @@ export default function BankCardPage() {
         </ul>
       )}
 
-      {loading ? <p style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</p>
+      {loading ? <p style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</p>
         : tab === '계좌등록' ? <BankAccountTable rows={shownAccounts} onEdit={setEditAccount} picked={picked} onPick={pick} />
         : tab === '카드등록' ? <CardTable rows={shownCards} onEdit={setEditCard} picked={picked} onPick={pick} />
         : tab === '계좌입출금' ? (
@@ -337,7 +337,7 @@ export default function BankCardPage() {
               말이 없으면 "1만 2천 건" 이라 써 놓고 5천 줄만 그리는 꼴이 된다.
             */}
             {txnTruncated && (
-              <p style={{ background: '#fff8e1', color: '#7a5b00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>
+              <p style={{ background: 'var(--ec-warn-bg)', color: '#7a5b00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>
                 모두 {txnTotal.toLocaleString('ko-KR')}건 중 앞 {txns.length.toLocaleString('ko-KR')}건만 보고 있습니다.
                 {' '}
                 <button className="ec-btn" style={{ marginLeft: 4 }} onClick={() => void loadAllTxns()}>오천건이상조회</button>
@@ -402,24 +402,24 @@ function BankAccountTable({ rows, onEdit, picked, onPick }: {
       </thead>
       <tbody>
         {rows.length === 0 ? (
-          <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
         ) : rows.map((r, i) => (
           <tr key={r.id}>
             <td style={{ textAlign: 'center' }}>
               <input type="checkbox" checked={picked.has(r.id)} onChange={() => onPick(r.id)} />
             </td>
-            <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-            <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{r.code ?? ''}</td>
+            <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+            <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{r.code ?? ''}</td>
             <td>{r.name ?? ''}</td>
             <td>{r.bankName}</td>
             <td style={{ fontFamily: 'monospace' }}>{r.accountNo}</td>
             <td>{r.holder ?? ''}</td>
-            <td style={{ color: '#5a626e' }}>{r.glAccountCode} {r.glAccountName}</td>
+            <td style={{ color: 'var(--ec-label)' }}>{r.glAccountCode} {r.glAccountName}</td>
             <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(r.balance)}</td>
-            <td style={{ color: '#5a626e' }}>{r.remark ?? ''}</td>
+            <td style={{ color: 'var(--ec-label)' }}>{r.remark ?? ''}</td>
             {/* 안 정한 통장은 원화라 흐리게 둔다 — 지어내지 않는다. */}
-            <td style={{ textAlign: 'center', color: r.currencyName ? '#5a626e' : '#c9ced6' }}>{r.currencyName ?? '원화'}</td>
-            <td style={{ textAlign: 'center', color: r.active ? '#1c7c3c' : '#8a929c' }}>{r.active ? '사용' : '중지'}</td>
+            <td style={{ textAlign: 'center', color: r.currencyName ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{r.currencyName ?? '원화'}</td>
+            <td style={{ textAlign: 'center', color: r.active ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>{r.active ? '사용' : '중지'}</td>
             <td style={{ textAlign: 'center' }}>
               <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => onEdit(r)}>수정</button>
             </td>
@@ -457,23 +457,23 @@ function CardTable({ rows, onEdit, picked, onPick }: {
       </thead>
       <tbody>
         {rows.length === 0 ? (
-          <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
         ) : rows.map((r, i) => (
           <tr key={r.id}>
             <td style={{ textAlign: 'center' }}>
               <input type="checkbox" checked={picked.has(r.id)} onChange={() => onPick(r.id)} />
             </td>
-            <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-            <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{r.code ?? ''}</td>
+            <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+            <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{r.code ?? ''}</td>
             <td style={{ fontWeight: 600 }}>{r.cardName}</td>
             <td>{r.cardCompany}</td>
             <td style={{ fontFamily: 'monospace' }}>{r.cardNo}</td>
-            <td style={{ textAlign: 'center', color: r.type === 'CORPORATE' ? 'var(--ec-blue)' : '#5a626e' }}>{r.typeName}</td>
+            <td style={{ textAlign: 'center', color: r.type === 'CORPORATE' ? 'var(--ec-blue)' : 'var(--ec-label)' }}>{r.typeName}</td>
             <td>{r.ownerName ?? ''}</td>
-            <td style={{ color: '#5a626e' }}>{r.settlementAccountName ?? ''}</td>
-            <td style={{ color: '#5a626e' }}>{r.glAccountName ?? ''}</td>
+            <td style={{ color: 'var(--ec-label)' }}>{r.settlementAccountName ?? ''}</td>
+            <td style={{ color: 'var(--ec-label)' }}>{r.glAccountName ?? ''}</td>
             <td style={{ textAlign: 'center' }}>{r.settlementDay ? `${r.settlementDay}일` : ''}</td>
-            <td style={{ textAlign: 'center', color: r.active ? '#1c7c3c' : '#8a929c' }}>{r.active ? '사용' : '중지'}</td>
+            <td style={{ textAlign: 'center', color: r.active ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>{r.active ? '사용' : '중지'}</td>
             <td style={{ textAlign: 'center' }}>
               <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => onEdit(r)}>수정</button>
             </td>
@@ -507,22 +507,22 @@ function BankTxnTable({ rows, onRemove }: { rows: BankTxn[]; onRemove: (r: BankT
       </thead>
       <tbody>
         {rows.length === 0 ? (
-          <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
         ) : sort.sorted.map((r, i) => (
           <tr key={r.id}>
-            <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+            <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
             <td style={{ fontFamily: 'monospace' }}>{r.txnNo}</td>
             <td>{dateText(r.txnDate)}</td>
             <td>{r.bankName} {r.accountNo}</td>
-            <td style={{ textAlign: 'center', fontWeight: 700, color: r.deposit ? '#1c7c3c' : '#c60a2e' }}>{r.directionName}</td>
+            <td style={{ textAlign: 'center', fontWeight: 700, color: r.deposit ? 'var(--ec-success)' : 'var(--ec-danger)' }}>{r.directionName}</td>
             <td style={{ textAlign: 'right', fontWeight: 600 }}>{won(r.amount)}</td>
-            <td style={{ color: '#5a626e' }}>{r.counterAccountName}</td>
+            <td style={{ color: 'var(--ec-label)' }}>{r.counterAccountName}</td>
             <td>{r.partnerName ?? ''}</td>
             <td style={{ textAlign: 'right' }}>{won(r.balanceAfter)}</td>
             <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{r.journalDocNo ?? ''}</td>
-            <td style={{ color: '#5a626e' }}>{r.description ?? ''}</td>
+            <td style={{ color: 'var(--ec-label)' }}>{r.description ?? ''}</td>
             <td style={{ textAlign: 'center' }}>
-              <button className="no-ec" onClick={() => onRemove(r)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+              <button className="no-ec" onClick={() => onRemove(r)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button>
             </td>
           </tr>
         ))}
@@ -553,21 +553,21 @@ function CardUsageTable({ rows, onRemove }: { rows: CardUsage[]; onRemove: (r: C
       </thead>
       <tbody>
         {rows.length === 0 ? (
-          <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
         ) : sort.sorted.map((r, i) => (
           <tr key={r.id}>
-            <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+            <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
             <td style={{ fontFamily: 'monospace' }}>{r.usageNo}</td>
             <td>{dateText(r.usageDate)}</td>
             <td>{r.cardCompany} {r.cardName}</td>
             <td style={{ fontWeight: 600 }}>{r.merchant}</td>
-            <td style={{ color: '#5a626e' }}>{r.expenseAccountName}</td>
+            <td style={{ color: 'var(--ec-label)' }}>{r.expenseAccountName}</td>
             <td style={{ textAlign: 'right' }}>{won(r.supplyAmount)}</td>
-            <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(r.vatAmount)}</td>
+            <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{won(r.vatAmount)}</td>
             <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(r.totalAmount)}</td>
             <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{r.journalDocNo ?? ''}</td>
             <td style={{ textAlign: 'center' }}>
-              <button className="no-ec" onClick={() => onRemove(r)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+              <button className="no-ec" onClick={() => onRemove(r)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button>
             </td>
           </tr>
         ))}
@@ -588,7 +588,7 @@ function Panel({ title, hint, children, onSubmit, submitLabel }: {
         {children}
         <button className="ec-btn ec-btn-primary" onClick={onSubmit}>{submitLabel}</button>
       </div>
-      <div style={{ marginTop: 8, fontSize: 11.5, color: '#8a929c' }}>{hint}</div>
+      <div style={{ marginTop: 8, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>{hint}</div>
     </div>
   )
 }
@@ -596,7 +596,7 @@ function Panel({ title, hint, children, onSubmit, submitLabel }: {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label style={{ fontSize: 12.5 }}>
-      <div style={{ color: '#5a626e', marginBottom: 3 }}>{label}</div>
+      <div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>{label}</div>
       {children}
     </label>
   )
@@ -830,7 +830,7 @@ function BankTxnForm({ accounts, glAccounts, partners, onError, onSaved }: {
         </select>
       </Field>
       <Field label="현재 잔액">
-        <div className="ec-input" style={{ width: 110, textAlign: 'right', background: '#f5f7fa', color: '#5a626e', lineHeight: '22px' }}>
+        <div className="ec-input" style={{ width: 110, textAlign: 'right', background: 'var(--ec-bg-page)', color: 'var(--ec-label)', lineHeight: '22px' }}>
           {selected ? won(selected.balance) : '-'}
         </div>
       </Field>

@@ -236,7 +236,7 @@ export default function CurrentStockPage() {
       </EcStatusPanel>
 
       {cond.date !== today && (
-        <p style={{ marginBottom: 8, background: '#eef3ff', border: '1px solid #cfe0f5', color: '#2b5b91', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
+        <p style={{ marginBottom: 8, background: '#eef3ff', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
           <b>{cond.date}</b> 시점의 재고입니다. 현재고에서 그 뒤의 입출고를 빼서 냅니다.
         </p>
       )}
@@ -244,19 +244,19 @@ export default function CurrentStockPage() {
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 6, fontSize: 12.5, color: '#5a6472' }}>
         <span>품목 × 창고 현재고</span>
         <span style={{ marginLeft: 'auto' }}>
-          건수 <b style={{ color: '#3c4553' }}>{shown.length.toLocaleString()}</b>
-          <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
-          수량 <b style={{ color: '#3c4553', fontSize: 14 }}>{totalQty.toLocaleString()}</b>
+          건수 <b style={{ color: 'var(--ec-text)' }}>{shown.length.toLocaleString()}</b>
+          <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+          수량 <b style={{ color: 'var(--ec-text)', fontSize: 14 }}>{totalQty.toLocaleString()}</b>
           {belowCount > 0 && (
             <>
-              <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
-              안전재고 미달 <b style={{ color: '#c60a2e', fontSize: 14 }}>{belowCount}</b>건
+              <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+              안전재고 미달 <b style={{ color: 'var(--ec-danger)', fontSize: 14 }}>{belowCount}</b>건
             </>
           )}
         </span>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       <div className="overflow-x-auto">
         <div className="ec-report-frame">
@@ -310,18 +310,18 @@ export default function CurrentStockPage() {
             ) : (
               shown.map((r, idx) => (
                 <tr key={`${r.itemId}-${r.warehouseId}`} style={r.belowSafety ? { background: '#fdf1f3' } : undefined}>
-                  <td style={{ textAlign: 'center', color: '#8a929c' }}>{idx + 1}</td>
+                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{idx + 1}</td>
                   <td>{r.itemCode}</td>
                   {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다. */}
                   <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
                   <td>{r.warehouseName}</td>
-                  <td style={{ textAlign: 'right', color: r.belowSafety ? '#c60a2e' : undefined }}>
+                  <td style={{ textAlign: 'right', color: r.belowSafety ? 'var(--ec-danger)' : undefined }}>
                     {r.quantity.toLocaleString()}
                   </td>
-                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{r.safetyStock.toLocaleString()}</td>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{r.safetyStock.toLocaleString()}</td>
                   <td style={{ textAlign: 'center' }}>
                     {r.belowSafety
-                      ? <span style={{ color: '#c60a2e', fontWeight: 700 }}>부족</span>
+                      ? <span style={{ color: 'var(--ec-danger)', fontWeight: 700 }}>부족</span>
                       : <span style={{ color: '#2f8401' }}>정상</span>}
                   </td>
                 </tr>
@@ -368,7 +368,7 @@ export default function CurrentStockPage() {
                       <td style={{ fontWeight: 600 }}>{g.label}</td>
                       <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
                       <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.sums.qty.toLocaleString()}</td>
-                      <td style={{ textAlign: 'right', fontFamily: 'monospace', color: '#8a929c' }}>
+                      <td style={{ textAlign: 'right', fontFamily: 'monospace', color: 'var(--ec-text-hint)' }}>
                         {g.sums.safety.toLocaleString()}
                       </td>
                     </tr>

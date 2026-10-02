@@ -160,7 +160,7 @@ export default function SettlementPage() {
               <label className="mb-1 block text-xs text-slate-600">금액 *</label>
               <input type="number" className={`${inputCls} text-right`} style={{ width: '100%' }} value={amount} onChange={(e) => setAmount(e.target.value)} />
               {open != null && (
-                <div style={{ marginTop: 3, fontSize: 11.5, color: over ? '#b45309' : '#8a929c' }}>
+                <div style={{ marginTop: 3, fontSize: 11.5, color: over ? '#b45309' : 'var(--ec-text-hint)' }}>
                   {type === 'RECEIPT' ? '받을 돈(채권)' : '줄 돈(채무)'} {won(open)}원
                   {over && ` — ${won(Number(amount) - Math.max(open, 0))}원 넘습니다(${type === 'RECEIPT' ? '선수금' : '선급금'}으로 남음)`}
                   {open < 0 && ` — ${type === 'RECEIPT' ? '받을 돈이 음수 = 돌려줄 돈입니다. 환불은 금액을 음수로' : '줄 돈이 음수 = 돌려받을 돈입니다. 환급은 금액을 음수로'}`}
@@ -212,10 +212,10 @@ export default function SettlementPage() {
           </thead>
           <tbody>
             {rows.length === 0 ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : sort.sorted.map((r, idx) => (
               <tr key={r.id}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{idx + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.docNo}</td>
                 <td>{dateText(r.settleDate)}</td>
                 <td><span style={{ color: r.type === 'RECEIPT' ? 'var(--ec-blue)' : '#2f8401', fontWeight: 700 }}>{r.typeName}</span></td>
@@ -224,7 +224,7 @@ export default function SettlementPage() {
                 <td style={{ textAlign: 'right', fontWeight: 600, color: r.type === 'RECEIPT' ? 'var(--ec-blue)' : '#2f8401' }}>{won(r.amount)}</td>
                 <td>{r.note ?? ''}</td>
                 <td style={{ textAlign: 'center' }}>
-                  <button className="ec-btn ec-btn-sm" style={{ color: '#c60a2e' }} onClick={() => remove(r)}>삭제</button>
+                  <button className="ec-btn ec-btn-sm" style={{ color: 'var(--ec-danger)' }} onClick={() => remove(r)}>삭제</button>
                 </td>
               </tr>
             ))}

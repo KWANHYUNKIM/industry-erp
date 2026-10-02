@@ -65,7 +65,7 @@ export default function MessengerPanel({ onUnreadChange }: { onUnreadChange?: ()
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       {error && (
-        <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, margin: '10px 12px 0' }}>
+        <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, margin: '10px 12px 0' }}>
           {error}
         </p>
       )}
@@ -109,7 +109,7 @@ function RoomList({ rooms, onOpen, onNew }: { rooms: ChatRoom[]; onOpen: (r: Cha
       </div>
       <div style={{ flex: 1, overflow: 'auto' }}>
         {rooms.length === 0 ? (
-          <p style={{ textAlign: 'center', color: '#9aa1ab', padding: 24, fontSize: 12.5 }}>
+          <p style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 24, fontSize: 12.5 }}>
             대화방이 없습니다.<br />[새 대화]로 시작하세요.
           </p>
         ) : rooms.map((r) => (
@@ -118,7 +118,7 @@ function RoomList({ rooms, onOpen, onNew }: { rooms: ChatRoom[]; onOpen: (r: Cha
             onClick={() => onOpen(r)}
             style={{
               display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
-              borderBottom: '1px solid #eef1f5', cursor: 'pointer',
+              borderBottom: '1px solid var(--ec-line-soft)', cursor: 'pointer',
               background: r.unread > 0 ? '#f4f8fd' : '#fff',
             }}
           >
@@ -128,8 +128,8 @@ function RoomList({ rooms, onOpen, onNew }: { rooms: ChatRoom[]; onOpen: (r: Cha
                 <span style={{ fontSize: 12.5, fontWeight: 700, color: '#2b3340', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {r.title}
                 </span>
-                {!r.direct && <span style={{ fontSize: 11, color: '#9aa1ab' }}>{r.memberCount}</span>}
-                <span style={{ marginLeft: 'auto', fontSize: 11, color: '#9aa1ab', whiteSpace: 'nowrap' }}>
+                {!r.direct && <span style={{ fontSize: 11, color: 'var(--ec-text-hint)' }}>{r.memberCount}</span>}
+                <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--ec-text-hint)', whiteSpace: 'nowrap' }}>
                   {shortTime(r.lastMessageAt)}
                 </span>
               </div>
@@ -139,7 +139,7 @@ function RoomList({ rooms, onOpen, onNew }: { rooms: ChatRoom[]; onOpen: (r: Cha
                 </span>
                 {r.unread > 0 && (
                   <span style={{
-                    minWidth: 16, height: 16, padding: '0 4px', borderRadius: 8, background: '#c60a2e',
+                    minWidth: 16, height: 16, padding: '0 4px', borderRadius: 8, background: 'var(--ec-danger)',
                     color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>{r.unread}</span>
                 )}
@@ -222,17 +222,17 @@ function NewChat({ meId, onCancel, onCreated, onError }: {
 
       <div style={{ flex: 1, overflow: 'auto' }}>
         {matched.length === 0 ? (
-          <p style={{ textAlign: 'center', color: '#9aa1ab', padding: 24, fontSize: 12.5 }}>해당하는 사용자가 없습니다.</p>
+          <p style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 24, fontSize: 12.5 }}>해당하는 사용자가 없습니다.</p>
         ) : matched.map((u) => (
           <label key={u.id} style={{
             display: 'flex', alignItems: 'center', gap: 9, padding: '8px 12px',
-            borderBottom: '1px solid #eef1f5', cursor: 'pointer',
+            borderBottom: '1px solid var(--ec-line-soft)', cursor: 'pointer',
             background: picked.includes(u.id) ? 'var(--ec-blue-light)' : '#fff',
           }}>
             <input type="checkbox" checked={picked.includes(u.id)} onChange={() => toggle(u.id)} />
             <Avatar label={u.name} group={false} />
             <span style={{ fontSize: 12.5, color: '#2b3340', fontWeight: 600 }}>{u.name}</span>
-            <span style={{ fontSize: 11.5, color: '#9aa1ab' }}>{u.department ?? ''}</span>
+            <span style={{ fontSize: 11.5, color: 'var(--ec-text-hint)' }}>{u.department ?? ''}</span>
           </label>
         ))}
       </div>
@@ -365,28 +365,28 @@ function RoomView({ room, meId, messages, setMessages, setRoom, onBack, onError,
         </div>
         {!room.direct && <button className="ec-btn" onClick={rename}>이름변경</button>}
         {!room.direct && <button className="ec-btn" onClick={invite}>초대</button>}
-        <button className="ec-btn" style={{ color: '#c60a2e' }} onClick={leave}>나가기</button>
+        <button className="ec-btn" style={{ color: 'var(--ec-danger)' }} onClick={leave}>나가기</button>
       </div>
 
       {showMembers && (
-        <div style={{ padding: '6px 12px', background: '#f7f9fc', borderBottom: '1px solid var(--ec-border)', fontSize: 11.5, color: '#5a626e' }}>
+        <div style={{ padding: '6px 12px', background: '#f7f9fc', borderBottom: '1px solid var(--ec-border)', fontSize: 11.5, color: 'var(--ec-label)' }}>
           {room.members.map((m) => m.name + (m.department ? ` (${m.department})` : '')).join(' · ')}
         </div>
       )}
 
       <div style={{ flex: 1, overflow: 'auto', padding: 12, background: '#eef1f6' }}>
         {messages.length === 0 && (
-          <p style={{ textAlign: 'center', color: '#9aa1ab', padding: 20, fontSize: 12.5 }}>첫 메시지를 보내보세요.</p>
+          <p style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20, fontSize: 12.5 }}>첫 메시지를 보내보세요.</p>
         )}
         {messages.map((m, i) => {
           const showDate = i === 0 || dayOf(m.sentAt) !== dayOf(messages[i - 1].sentAt)
           return (
             <div key={m.id}>
               {showDate && (
-                <div style={{ textAlign: 'center', margin: '8px 0', fontSize: 11, color: '#8a929c' }}>{dayOf(m.sentAt)}</div>
+                <div style={{ textAlign: 'center', margin: '8px 0', fontSize: 11, color: 'var(--ec-text-hint)' }}>{dayOf(m.sentAt)}</div>
               )}
               {m.system ? (
-                <div style={{ textAlign: 'center', margin: '6px 0', fontSize: 11, color: '#8a929c' }}>{m.content}</div>
+                <div style={{ textAlign: 'center', margin: '6px 0', fontSize: 11, color: 'var(--ec-text-hint)' }}>{m.content}</div>
               ) : (
                 <Bubble message={m} mine={m.senderId === meId} showSender={!room.direct} />
               )}
@@ -429,7 +429,7 @@ function Bubble({ message, mine, showSender }: { message: ChatMessage; mine: boo
         }}>
           {message.content}
         </div>
-        <span style={{ fontSize: 10, color: '#8a929c', whiteSpace: 'nowrap' }}>{hhmm(message.sentAt)}</span>
+        <span style={{ fontSize: 10, color: 'var(--ec-text-hint)', whiteSpace: 'nowrap' }}>{hhmm(message.sentAt)}</span>
       </div>
     </div>
   )

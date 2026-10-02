@@ -167,7 +167,7 @@ export default function SchedulePage() {
       || (r.location ?? '').includes(keyword))
 
   const inputCls = 'ec-input'
-  const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 74 }
+  const th: React.CSSProperties = { background: 'var(--ec-bg-page)', fontWeight: 700, whiteSpace: 'nowrap', width: 74 }
 
   return (
     <EcListShell
@@ -191,7 +191,7 @@ export default function SchedulePage() {
       {/* 원본 왼쪽의 캘린더 고르기. 우리 화면은 좌우가 달력·목록이라 위에 한 줄로 둔다. */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, padding: '6px 10px',
-        border: '1px solid var(--ec-border)', background: '#f7f9fb', flexWrap: 'wrap',
+        border: '1px solid var(--ec-border)', background: 'var(--ec-bg-page)', flexWrap: 'wrap',
       }}>
         <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>캘린더</span>
         <div className="ec-pills">
@@ -207,7 +207,7 @@ export default function SchedulePage() {
             {owners.map((o) => <option key={o} value={o}>{o}</option>)}
           </select>
         )}
-        <span style={{ marginLeft: 'auto', fontSize: 11.5, color: '#8a929c' }}>
+        <span style={{ marginLeft: 'auto', fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
           내 캘린더는 내가 만들었거나 담당·참석자에 내가 있는 일정입니다.
         </span>
       </div>
@@ -258,7 +258,7 @@ export default function SchedulePage() {
         </form>
       )}</Modal>
 
-      {error && !showForm && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && !showForm && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
         <EcMonthCalendar
@@ -342,8 +342,8 @@ export default function SchedulePage() {
                     title="눌러서 선택 (하단 [선택삭제])"
                     style={{
                       textAlign: 'center', cursor: 'pointer',
-                      background: selected.has(r.id) ? 'var(--ec-blue-light)' : '#f3f3f3',
-                      color: selected.has(r.id) ? 'var(--ec-blue-dark)' : '#8a929c',
+                      background: selected.has(r.id) ? 'var(--ec-blue-light)' : 'var(--ec-report-stripe)',
+                      color: selected.has(r.id) ? 'var(--ec-blue-dark)' : 'var(--ec-text-hint)',
                       fontWeight: selected.has(r.id) ? 700 : 400,
                     }}
                   >

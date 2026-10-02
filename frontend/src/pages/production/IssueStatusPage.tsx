@@ -397,7 +397,7 @@ export default function IssueStatusPage() {
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
               <input type="checkbox" checked={ratio} onChange={(e) => setRatio(e.target.checked)} /> 비율표시
             </label>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: agg2 ? undefined : '#9aa1ab' }}
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: agg2 ? undefined : 'var(--ec-text-hint)' }}
                    title="집계조건2 를 고르면 그 값을 열로 펼칩니다">
               <input type="checkbox" checked={pivot} disabled={!agg2} onChange={(e) => setPivot(e.target.checked)} /> 가로보기
             </label>
@@ -496,9 +496,9 @@ export default function IssueStatusPage() {
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        불출 <b style={{ color: '#3c4553' }}>{shown.length}</b>건
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+        불출 <b style={{ color: 'var(--ec-text)' }}>{shown.length}</b>건
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
         불출수량 <b style={{ color: '#a5561b', fontSize: 14 }}>{num(totalQty)}</b>
       </div>
       {mode === '집계' && prevRange && prevRows && (() => {
@@ -510,14 +510,14 @@ export default function IssueStatusPage() {
         const ca = shown.reduce((n, r) => n + (amountOf(r) ?? 0), 0)
         const pct = (a: number, b: number) => (b > 0 ? ` (${a >= b ? '+' : ''}${Math.round(((a - b) / b) * 100)}%)` : '')
         return (
-          <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+          <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
             비교기간({prevRange.from.replace(/-/g, '/')} ~ {prevRange.to.replace(/-/g, '/')})
             수량 {num(pq)} → {num(totalQty)}{pct(totalQty, pq)} · 생산금액 {won(pa)} → {won(ca)}{pct(ca, pa)}
           </div>
         )
       })()}
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       {view === '그래프' ? (
         <EcBarChart rows={chartRows} unit=" 개" emptyText="조회된 불출이 없습니다." />
@@ -540,7 +540,7 @@ export default function IssueStatusPage() {
             <tbody>
               {lines.map(([k, m], i) => (
                 <tr key={k}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                   {code1 && <td style={{ fontFamily: 'monospace' }}>{codes1.get(k)}</td>}
                   <td>{k}</td>
                   {cols.map((c) => <td key={c} style={{ textAlign: 'right' }}>{m.get(c) ? num(m.get(c)!) : ''}</td>)}
@@ -576,19 +576,19 @@ export default function IssueStatusPage() {
           </thead>
           <tbody>
             {aggRows.length === 0 ? (
-              <tr><td colSpan={(agg2 ? 6 : 5) + (ratio ? 1 : 0) + extraCols} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={(agg2 ? 6 : 5) + (ratio ? 1 : 0) + extraCols} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : aggRows.map((g, i) => (
               <tr key={`${g.g1}|${g.g2}|${g.g3}`}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 {code1 && <td style={{ fontFamily: 'monospace' }}>{codes1.get(g.g1)}</td>}
                 <td>{g.g1}</td>
                 {code2 && <td style={{ fontFamily: 'monospace' }}>{codes2.get(g.g2)}</td>}
                 {agg2 && <td>{g.g2}</td>}
                 {code3 && <td style={{ fontFamily: 'monospace' }}>{codes3.get(g.g3 ?? '')}</td>}
                 {agg3 && <td>{g.g3}</td>}
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(g.count)}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(g.count)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{num(g.qty)}</td>
-                {ratio && <td style={{ textAlign: 'right', color: '#5a626e' }}>{totalQty ? (Math.round((g.qty / totalQty) * 1000) / 10).toFixed(1) : '0.0'}</td>}
+                {ratio && <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{totalQty ? (Math.round((g.qty / totalQty) * 1000) / 10).toFixed(1) : '0.0'}</td>}
                 <td style={{ textAlign: 'right' }}>{won(g.supply)}</td>
               </tr>
             ))}
@@ -618,16 +618,16 @@ export default function IssueStatusPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : byItem.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : byItem.map((g, i) => (
               <tr key={g.itemId}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{g.itemCode}</td>
                 <td>{g.itemName}</td>
                 <td>{g.unit}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(g.count)}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(g.count)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{num(g.totalQty)}</td>
                 <td style={{ fontFamily: 'monospace' }}>{dateText(g.lastDate)}</td>
               </tr>
@@ -670,21 +670,21 @@ export default function IssueStatusPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : listRows.length === 0 ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : listRows.map((r, i) => (
               <tr key={r.id}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 {/* 원본은 일자와 번호를 한 칸에 적는다. */}
                 <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(r.issueDate)} {r.issueNo}</td>
                 <td>{r.warehouseName}</td>
-                <td style={{ color: r.toWarehouseName ? undefined : '#c9ced6' }}>{r.toWarehouseName ?? ''}</td>
+                <td style={{ color: r.toWarehouseName ? undefined : 'var(--ec-text-off)' }}>{r.toWarehouseName ?? ''}</td>
                 <td>{r.itemName}{r.itemSpec ? ' [' + r.itemSpec + ']' : ''}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{num(r.qty)} {r.unit}</td>
                 <td style={{ textAlign: 'right' }}>{(() => { const a = 'slipAmount' in r ? (r as { slipAmount: number | null }).slipAmount : amountOf(r); return a == null ? '' : won(a) })()}</td>
-                <td style={{ color: r.note ? undefined : '#c9ced6' }}>{r.note ?? ''}</td>
-                <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{r.workOrderNo}</td>
+                <td style={{ color: r.note ? undefined : 'var(--ec-text-off)' }}>{r.note ?? ''}</td>
+                <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{r.workOrderNo}</td>
               </tr>
             ))}
           </tbody>

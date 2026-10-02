@@ -141,7 +141,7 @@ export default function StandardCostPage() {
   return (
     <EcListShell title="표준원가현황" search={keyword} onSearchChange={setKeyword}
       newLabel="새로고침" onNew={load} actions={[{ label: '검색(F8)', primary: true, onClick: load }, { label: 'Excel' }]} signLine={signBox}>
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준월">
           <select className="ec-input" value={period} onChange={(e) => setPeriod(e.target.value)} style={{ width: 140 }}>
@@ -204,9 +204,9 @@ export default function StandardCostPage() {
           </label>
         </EcCond>
       </ul>
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        품목 <b style={{ color: '#3c4553' }}>{shown.length}</b>개
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+        품목 <b style={{ color: 'var(--ec-text)' }}>{shown.length}</b>개
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
         합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{total.toLocaleString('ko-KR')}</b>
       </div>
       <table className="w-full text-left">
@@ -252,17 +252,17 @@ export default function StandardCostPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
               <td>{r.itemName}{specOf(r.itemId) ? ` [${specOf(r.itemId)}]` : ''}</td>
-              <td style={{ color: '#5a626e' }}>{catOf.get(r.itemId) ?? ''}</td>
+              <td style={{ color: 'var(--ec-label)' }}>{catOf.get(r.itemId) ?? ''}</td>
               {/* BOR 이 없는 품목(사 오는 원재료)은 빈칸이다 — 원본도 그렇다. */}
-              <td style={{ color: '#5a626e' }}>{processOf(r.itemId)}</td>
+              <td style={{ color: 'var(--ec-label)' }}>{processOf(r.itemId)}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.period}</td>
               <td style={{ textAlign: 'right' }}>{r.materialCost.toLocaleString()}</td>
               <td style={{ textAlign: 'right' }}>{r.laborCost.toLocaleString()}</td>

@@ -49,39 +49,30 @@ function Widget({ def, edit, busy, refreshable, onRefresh, onMove, onRemove, chi
   // ⋮ 옵션 드롭다운 (숨기기·좌우 이동) — 편집모드가 아니어도 위젯 단위로 조작
   const [menuOpen, setMenuOpen] = useState(false)
   return (
-    <div style={{ background: '#fff', border: edit ? '1px dashed var(--ec-blue)' : '1px solid var(--ec-border)', borderRadius: 4, boxShadow: 'var(--ec-shadow)', display: 'flex', flexDirection: 'column', minHeight: 120 }}>
-      <div style={{ display: 'flex', alignItems: 'center', height: 34, padding: '0 10px', borderBottom: '1px solid #eef1f5', background: edit ? '#f5f8ff' : undefined }}>
-        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ec-text)' }}>{def.title}</span>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, color: '#aab0b8', fontSize: 12, position: 'relative' }}>
+    <div className={`ec-widget${edit ? ' editing' : ''}`}>
+      <div className="ec-widget-head">
+        <span className="name">{def.title}</span>
+        <div className="tools">
           {edit ? (
             <>
-              <span title="왼쪽으로" style={{ cursor: 'pointer' }} onClick={() => onMove(-1)}>◀</span>
-              <span title="오른쪽으로" style={{ cursor: 'pointer' }} onClick={() => onMove(1)}>▶</span>
-              <span title="제거" style={{ cursor: 'pointer', color: '#c60a2e' }} onClick={onRemove}>✕</span>
+              <button title="왼쪽으로" onClick={() => onMove(-1)}>◀</button>
+              <button title="오른쪽으로" onClick={() => onMove(1)}>▶</button>
+              <button title="제거" className="danger" onClick={onRemove}>✕</button>
             </>
           ) : (
             <>
-              {def.to && <Link to={def.to} title="이동" style={{ color: '#aab0b8', textDecoration: 'none' }}>↗</Link>}
-              <span
+              {def.to && <Link to={def.to} title="이동">↗</Link>}
+              <button
                 title={refreshable ? '새로고침' : '새로고침할 데이터가 없는 위젯입니다'}
+                disabled={!refreshable}
+                className={busy ? 'spin' : undefined}
                 onClick={() => { if (refreshable && !busy) onRefresh() }}
-                style={{
-                  cursor: refreshable ? 'pointer' : 'default',
-                  color: refreshable ? (busy ? 'var(--ec-blue)' : '#aab0b8') : '#d5d9de',
-                  display: 'inline-block',
-                  transition: 'transform .6s',
-                  transform: busy ? 'rotate(360deg)' : undefined,
-                }}
-              >⟳</span>
-              <span title="옵션" style={{ cursor: 'pointer' }} onClick={() => setMenuOpen((v) => !v)}>⋮</span>
+              >⟳</button>
+              <button title="옵션" onClick={() => setMenuOpen((v) => !v)}>⋮</button>
               {menuOpen && (
                 <>
-                  <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
-                  <div style={{
-                    position: 'absolute', top: '100%', right: 0, marginTop: 4, zIndex: 41,
-                    background: '#fff', border: '1px solid #c9d1da', borderRadius: 3,
-                    boxShadow: '0 4px 12px rgba(0,0,0,.12)', minWidth: 130, padding: 4, color: '#3a4453',
-                  }}>
+                  <div className="ec-backdrop-clear" onClick={() => setMenuOpen(false)} />
+                  <div className="ec-menu">
                     {[
                       { label: '⟳ 새로고침', run: () => { if (refreshable) onRefresh() }, disabled: !refreshable },
                       { label: '◀ 왼쪽으로 이동', run: () => onMove(-1) },
@@ -91,13 +82,8 @@ function Widget({ def, edit, busy, refreshable, onRefresh, onMove, onRemove, chi
                       <button
                         key={m.label}
                         disabled={m.disabled}
+                        className={m.danger ? 'danger' : undefined}
                         onClick={() => { setMenuOpen(false); m.run() }}
-                        style={{
-                          display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px',
-                          fontSize: 12, background: 'none', border: 0,
-                          cursor: m.disabled ? 'default' : 'pointer',
-                          color: m.disabled ? '#c0c5cc' : m.danger ? '#c60a2e' : '#3a4453',
-                        }}
                       >
                         {m.label}
                       </button>
@@ -109,7 +95,7 @@ function Widget({ def, edit, busy, refreshable, onRefresh, onMove, onRemove, chi
           )}
         </div>
       </div>
-      <div style={{ padding: 8, flex: 1 }}>{children}</div>
+      <div className="ec-widget-body">{children}</div>
     </div>
   )
 }
@@ -124,19 +110,19 @@ const REGISTRY: WidgetDef[] = [
           <thead><tr><th>품목코드</th><th>품명</th><th>창고</th><th style={{ textAlign: 'right' }}>현재고</th><th>상태</th></tr></thead>
           <tbody>
             {d.stock.length === 0 ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab' }}>재고 없음</td></tr>
+              <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>재고 없음</td></tr>
             ) : d.stock.slice(0, WIDGET_ROWS).map((s) => (
               <tr key={`${s.itemId}-${s.warehouseId}`}>
                 <td style={{ fontFamily: 'monospace' }}>{s.itemCode}</td>
                 <td>{s.itemName}</td>
                 <td>{s.warehouseName}</td>
                 <td style={{ textAlign: 'right', color: s.belowSafety ? 'var(--ec-blue)' : undefined, fontWeight: 600 }}>{won(s.quantity)} {s.unit}</td>
-                <td>{s.belowSafety ? <span style={{ color: '#c60a2e' }}>부족</span> : <span style={{ color: '#2f8401' }}>정상</span>}</td>
+                <td>{s.belowSafety ? <span style={{ color: 'var(--ec-danger)' }}>부족</span> : <span style={{ color: '#2f8401' }}>정상</span>}</td>
               </tr>
             ))}
           </tbody>
         </table>
-        {d.belowCount > 0 && <div style={{ marginTop: 6, fontSize: 11, color: '#c60a2e' }}>⚠ 안전재고 미달 {d.belowCount}건</div>}
+        {d.belowCount > 0 && <div style={{ marginTop: 6, fontSize: 11, color: 'var(--ec-danger)' }}>⚠ 안전재고 미달 {d.belowCount}건</div>}
       </>
     ),
   },
@@ -147,20 +133,20 @@ const REGISTRY: WidgetDef[] = [
         <thead><tr><th>거래처</th><th>구분</th><th style={{ textAlign: 'right' }}>채권</th><th style={{ textAlign: 'right' }}>채무</th></tr></thead>
         <tbody>
           {d.balances.length === 0 ? (
-            <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab' }}>거래처 없음</td></tr>
+            <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>거래처 없음</td></tr>
           ) : d.balances.slice(0, WIDGET_ROWS).map((b) => (
             <tr key={b.partnerId}>
               <td>{b.name}</td>
               <td>{b.typeName}</td>
               {/* 음수는 0 이 아니다 — 채권 음수는 선수금, 채무 음수는 선급금이다.
                   회색으로 죽이면 잔액 0 과 구분이 안 된다. */}
-              <td style={{ textAlign: 'right', color: b.receivable > 0 ? 'var(--ec-blue)' : b.receivable < 0 ? '#c60a2e' : '#bbb' }}>{won(b.receivable)}</td>
-              <td style={{ textAlign: 'right', color: b.payable > 0 ? '#2f8401' : b.payable < 0 ? '#c60a2e' : '#bbb' }}>{won(b.payable)}</td>
+              <td style={{ textAlign: 'right', color: b.receivable > 0 ? 'var(--ec-blue)' : b.receivable < 0 ? 'var(--ec-danger)' : '#bbb' }}>{won(b.receivable)}</td>
+              <td style={{ textAlign: 'right', color: b.payable > 0 ? '#2f8401' : b.payable < 0 ? 'var(--ec-danger)' : '#bbb' }}>{won(b.payable)}</td>
             </tr>
           ))}
         </tbody>
         <tfoot>
-          <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+          <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
             <td colSpan={2} style={{ border: '1px solid var(--ec-border)', padding: '4px 8px' }}>합계</td>
             <td style={{ border: '1px solid var(--ec-border)', padding: '4px 8px', textAlign: 'right', color: 'var(--ec-blue)' }}>{won(d.totalReceivable)}</td>
             <td style={{ border: '1px solid var(--ec-border)', padding: '4px 8px', textAlign: 'right', color: '#2f8401' }}>{won(d.totalPayable)}</td>
@@ -176,7 +162,7 @@ const REGISTRY: WidgetDef[] = [
         <thead><tr><th>전표번호</th><th>일자</th><th>거래처</th><th style={{ textAlign: 'right' }}>합계금액</th></tr></thead>
         <tbody>
           {d.sales.length === 0 ? (
-            <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab' }}>판매 내역 없음</td></tr>
+            <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>판매 내역 없음</td></tr>
           ) : d.sales.slice(0, WIDGET_ROWS).map((s) => (
             <tr key={s.id}>
               <td style={{ fontFamily: 'monospace' }}>{s.docNo}</td>
@@ -196,7 +182,7 @@ const REGISTRY: WidgetDef[] = [
         <thead><tr><th>전표번호</th><th>일자</th><th>거래처</th><th style={{ textAlign: 'right' }}>합계금액</th></tr></thead>
         <tbody>
           {d.purchases.length === 0 ? (
-            <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab' }}>구매 내역 없음</td></tr>
+            <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>구매 내역 없음</td></tr>
           ) : d.purchases.slice(0, WIDGET_ROWS).map((p) => (
             <tr key={p.id}>
               <td style={{ fontFamily: 'monospace' }}>{p.docNo}</td>
@@ -217,29 +203,29 @@ const REGISTRY: WidgetDef[] = [
         <tbody>
           <tr><td>매출</td><td style={{ textAlign: 'right' }}>{won(d.vat.salesSupply)}</td><td style={{ textAlign: 'right' }}>{won(d.vat.salesVat)}</td><td style={{ textAlign: 'right', fontWeight: 600 }}>{won(d.vat.salesTotal)}</td></tr>
           <tr><td>매입</td><td style={{ textAlign: 'right' }}>{won(d.vat.purchaseSupply)}</td><td style={{ textAlign: 'right' }}>{won(d.vat.purchaseVat)}</td><td style={{ textAlign: 'right', fontWeight: 600 }}>{won(d.vat.purchaseTotal)}</td></tr>
-          <tr style={{ background: '#f7f9fb' }}><td style={{ fontWeight: 700 }}>납부세액</td><td colSpan={3} style={{ textAlign: 'right', fontWeight: 700, color: 'var(--ec-blue)' }}>{won(d.vat.vatPayable)} 원</td></tr>
+          <tr style={{ background: 'var(--ec-bg-page)' }}><td style={{ fontWeight: 700 }}>납부세액</td><td colSpan={3} style={{ textAlign: 'right', fontWeight: 700, color: 'var(--ec-blue)' }}>{won(d.vat.vatPayable)} 원</td></tr>
         </tbody>
       </table>
-    ) : <div style={{ textAlign: 'center', color: '#9aa1ab', padding: 10 }}>데이터 없음</div>,
+    ) : <div style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 10 }}>데이터 없음</div>,
   },
   {
     id: 'profit', title: '손익요약', group: '회계', to: '/accounting/profit',
     render: (d) => d.profit ? (
       <div style={{ display: 'flex', gap: 10 }}>
-        <div style={{ flex: 1, textAlign: 'center', padding: '12px 6px', border: '1px solid #e6e9ee', borderRadius: 3, background: '#f9fbfd' }}>
+        <div style={{ flex: 1, textAlign: 'center', padding: '12px 6px', border: '1px solid #e6e9ee', borderRadius: 3, background: 'var(--ec-bg-page)' }}>
           <div style={{ fontSize: 11, color: '#5a6472' }}>총매출</div>
           <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--ec-blue)' }}>{won(d.profit.totalSales)}</div>
         </div>
-        <div style={{ flex: 1, textAlign: 'center', padding: '12px 6px', border: '1px solid #e6e9ee', borderRadius: 3, background: '#f9fbfd' }}>
+        <div style={{ flex: 1, textAlign: 'center', padding: '12px 6px', border: '1px solid #e6e9ee', borderRadius: 3, background: 'var(--ec-bg-page)' }}>
           <div style={{ fontSize: 11, color: '#5a6472' }}>총원가</div>
           <div style={{ fontSize: 16, fontWeight: 700, color: '#812d03' }}>{won(d.profit.totalCost)}</div>
         </div>
-        <div style={{ flex: 1, textAlign: 'center', padding: '12px 6px', border: '1px solid #e6e9ee', borderRadius: 3, background: '#f9fbfd' }}>
+        <div style={{ flex: 1, textAlign: 'center', padding: '12px 6px', border: '1px solid #e6e9ee', borderRadius: 3, background: 'var(--ec-bg-page)' }}>
           <div style={{ fontSize: 11, color: '#5a6472' }}>매출총이익 ({d.profit.marginRate}%)</div>
           <div style={{ fontSize: 16, fontWeight: 700, color: '#2f8401' }}>{won(d.profit.grossProfit)}</div>
         </div>
       </div>
-    ) : <div style={{ textAlign: 'center', color: '#9aa1ab', padding: 10 }}>데이터 없음</div>,
+    ) : <div style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 10 }}>데이터 없음</div>,
   },
   {
     id: 'shortcuts', title: '업무 바로가기', group: '공통',
@@ -266,7 +252,7 @@ const REGISTRY: WidgetDef[] = [
   {
     id: 'buildStatus', title: '시스템 구축 현황', group: '공통',
     render: () => (
-      <div style={{ fontSize: 12, lineHeight: 1.9, color: '#3a4453' }}>
+      <div style={{ fontSize: 12, lineHeight: 1.9, color: 'var(--ec-text)' }}>
         <div>✅ 재고관리 · 품목·창고·입출고·현재고</div>
         <div>✅ 판매/구매 · 거래처·판매·구매·채권채무</div>
         <div>✅ 생산관리 · BOM·작업지시·생산실적</div>
@@ -389,7 +375,7 @@ export default function MyPageDashboard() {
                   const on = order.includes(w.id)
                   return (
                     <button key={w.id} className="ec-btn" onClick={() => (on ? removeWidget(w.id) : addWidget(w.id))}
-                      style={{ background: on ? 'var(--ec-blue-light)' : '#fff', color: on ? 'var(--ec-blue-dark)' : '#5a626e', fontWeight: on ? 700 : 400 }}>
+                      style={{ background: on ? 'var(--ec-blue-light)' : '#fff', color: on ? 'var(--ec-blue-dark)' : 'var(--ec-label)', fontWeight: on ? 700 : 400 }}>
                       {on ? '☑' : '☐'} {w.title}
                     </button>
                   )
@@ -401,11 +387,11 @@ export default function MyPageDashboard() {
       )}
 
       {placed.length === 0 ? (
-        <div style={{ textAlign: 'center', color: '#9aa1ab', padding: 40, border: '1px dashed var(--ec-border)', borderRadius: 3 }}>
+        <div style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 40, border: '1px dashed var(--ec-border)', borderRadius: 3 }}>
           표시할 위젯이 없습니다. <b>My위젯선택</b>에서 위젯을 추가하세요.
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+        <div className="ec-widgets">
           {placed.map((w) => (
             <Widget
               key={w.id}

@@ -283,7 +283,7 @@ export default function MonthlyProfitPage() {
       ]}
       signLine={signBox}
     >
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>연도</span>
@@ -416,21 +416,21 @@ export default function MonthlyProfitPage() {
       </ul>
 
       {unknownCost > 0 && (
-        <p style={{ marginBottom: 8, background: '#fff7e6', border: '1px solid #ffe0a3', color: '#8a5a00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
+        <p style={{ marginBottom: 8, background: 'var(--ec-warn-bg)', border: '1px solid #ffe0a3', color: '#8a5a00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
           <b>{num(unknownCost)}</b>개 라인의 {basis} 를 찾지 못했습니다. 그 줄의 원가·이익은 <b>'—'</b> 로 두고
           합계에서도 뺐습니다 — 0 으로 채우면 이익이 매출 전액으로 부풀어 오릅니다.
         </p>
       )}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
         판매액 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{won(totals.revenue)}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
-        원가 <b style={{ color: allUnknown ? '#c9ced6' : '#a5561b', fontSize: 14 }}>{allUnknown ? '—' : won(totals.cost)}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
-        이익 <b style={{ color: allUnknown ? '#c9ced6' : totals.profit < 0 ? '#c60a2e' : '#1c7c3c', fontSize: 14 }}>
+        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+        원가 <b style={{ color: allUnknown ? 'var(--ec-text-off)' : '#a5561b', fontSize: 14 }}>{allUnknown ? '—' : won(totals.cost)}</b>
+        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+        이익 <b style={{ color: allUnknown ? 'var(--ec-text-off)' : totals.profit < 0 ? 'var(--ec-danger)' : 'var(--ec-success)', fontSize: 14 }}>
           {allUnknown ? '—' : won(totals.profit)}
         </b>
-        {!allUnknown && <span style={{ color: '#9aa1ab' }}> ({rate(totals.profit, totals.knownRevenue)}%)</span>}
+        {!allUnknown && <span style={{ color: 'var(--ec-text-hint)' }}> ({rate(totals.profit, totals.knownRevenue)}%)</span>}
       </div>
 
       <div ref={tableRef} className="overflow-x-auto">
@@ -477,31 +477,31 @@ export default function MonthlyProfitPage() {
             ) : rows.length === 0 ? (
               <tr><td colSpan={colCount} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
             ) : rows.map((r, i) => {
-              const color = r.profit === null ? '#c9ced6' : r.profit > 0 ? '#1c7c3c' : r.profit < 0 ? '#c60a2e' : undefined
+              const color = r.profit === null ? 'var(--ec-text-off)' : r.profit > 0 ? 'var(--ec-success)' : r.profit < 0 ? 'var(--ec-danger)' : undefined
               return (
                 <tr key={r.key}>
-                  <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+                  <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                   {heads.map((h, hi) => (
                     <td key={h} style={hi === 0 && mode === '품목별' ? { fontFamily: 'monospace' } : undefined}>
                       {r.label[hi]}
                     </td>
                   ))}
-                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(r.count)}</td>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(r.count)}</td>
                   <td style={{ textAlign: 'right' }}>{num(r.qty)}</td>
                   <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(r.revenue)}</td>
-                  <td style={{ textAlign: 'right', color: r.cost === null ? '#c9ced6' : '#a5561b' }}>
+                  <td style={{ textAlign: 'right', color: r.cost === null ? 'var(--ec-text-off)' : '#a5561b' }}>
                     {r.cost === null ? '—' : won(r.cost)}
                   </td>
                   <td style={{ textAlign: 'right', fontWeight: 700, color }}>
                     {r.profit === null ? '—' : won(r.profit)}
                   </td>
-                  <td style={{ textAlign: 'right', color: r.profit === null ? '#c9ced6' : '#9aa1ab' }}>
+                  <td style={{ textAlign: 'right', color: r.profit === null ? 'var(--ec-text-off)' : 'var(--ec-text-hint)' }}>
                     {r.profit === null ? '—' : `${rate(r.profit, r.revenue)}%`}
                   </td>
-                  <td style={{ textAlign: 'right', color: r.extra === 0 ? '#c9ced6' : '#a5561b' }}>
+                  <td style={{ textAlign: 'right', color: r.extra === 0 ? 'var(--ec-text-off)' : '#a5561b' }}>
                     {r.extra === 0 ? '—' : won(r.extra)}
                   </td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, color: r.profit === null ? '#c9ced6' : (r.profit - r.extra) < 0 ? '#c60a2e' : '#1c7c3c' }}>
+                  <td style={{ textAlign: 'right', fontWeight: 700, color: r.profit === null ? 'var(--ec-text-off)' : (r.profit - r.extra) < 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>
                     {r.profit === null ? '—' : won(r.profit - r.extra)}
                   </td>
                 </tr>
@@ -511,22 +511,22 @@ export default function MonthlyProfitPage() {
           {rows.length > 0 && (
             <tfoot>
               <tr>
-                <td colSpan={colCount - 7} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{num(totals.qty)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: 'var(--ec-blue)' }}>{won(totals.revenue)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: allUnknown ? '#c9ced6' : '#a5561b' }}>
+                <td colSpan={colCount - 7} style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>합계</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>{num(totals.qty)}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: 'var(--ec-blue)' }}>{won(totals.revenue)}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: allUnknown ? 'var(--ec-text-off)' : '#a5561b' }}>
                   {allUnknown ? '—' : won(totals.cost)}
                 </td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: allUnknown ? '#c9ced6' : totals.profit < 0 ? '#c60a2e' : '#1c7c3c' }}>
+                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: allUnknown ? 'var(--ec-text-off)' : totals.profit < 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>
                   {allUnknown ? '—' : won(totals.profit)}
                 </td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: allUnknown ? '#c9ced6' : '#9aa1ab' }}>
+                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: allUnknown ? 'var(--ec-text-off)' : 'var(--ec-text-hint)' }}>
                   {allUnknown ? '—' : `${rate(totals.profit, totals.knownRevenue)}%`}
                 </td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: extraTotals.extra === 0 ? '#c9ced6' : '#a5561b' }}>
+                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: extraTotals.extra === 0 ? 'var(--ec-text-off)' : '#a5561b' }}>
                   {extraTotals.extra === 0 ? '—' : won(extraTotals.extra)}
                 </td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: allUnknown ? '#c9ced6' : extraTotals.profitWithExtra < 0 ? '#c60a2e' : '#1c7c3c' }}>
+                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: allUnknown ? 'var(--ec-text-off)' : extraTotals.profitWithExtra < 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>
                   {allUnknown ? '—' : won(extraTotals.profitWithExtra)}
                 </td>
               </tr>

@@ -122,18 +122,18 @@ export default function PartnerEntryPage() {
       onSearch={load}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-        <span style={{ fontSize: 12.5, color: '#5a626e' }}>거래처</span>
+        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>거래처</span>
         <CodePickerField label="거래처" hideLabel width={220} emptyLabel="전체" placeholder="거래처"
                          value={String(partnerId)} onChange={(v) => setPartnerId(v ? Number(v) : '')}
                          items={partnerCodeItems(partners)} />
         {selectedPartner && (
-          <span style={{ fontSize: 12.5, color: '#8a929c' }}>
+          <span style={{ fontSize: 12.5, color: 'var(--ec-text-hint)' }}>
             {selectedPartner.typeName}{selectedPartner.manager ? ` · 담당 ${selectedPartner.manager}` : ''}{selectedPartner.phone ? ` · ${selectedPartner.phone}` : ''}
           </span>
         )}
-        <span style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>
+        <span style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--ec-label)' }}>
           공급가액 합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{total.toLocaleString()}</b>
         </span>
       </div>
@@ -149,10 +149,10 @@ export default function PartnerEntryPage() {
             {l.label}
           </Link>
         ) : (
-          <span key={l.label} className="ec-btn" style={{ color: '#c9ced6', cursor: 'default' }}>{l.label}</span>
+          <span key={l.label} className="ec-btn" style={{ color: 'var(--ec-text-off)', cursor: 'default' }}>{l.label}</span>
         )))}
         {!selectedPartner && (
-          <span style={{ fontSize: 11.5, color: '#8a929c', alignSelf: 'center' }}>
+          <span style={{ fontSize: 11.5, color: 'var(--ec-text-hint)', alignSelf: 'center' }}>
             거래처를 먼저 고르세요.
           </span>
         )}
@@ -170,16 +170,16 @@ export default function PartnerEntryPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.key}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{dateText(r.date)}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.docNo}</td>
               <td>{r.partner}</td>
-              <td style={{ textAlign: 'center', fontWeight: 700, color: r.gubun === '판매' ? '#1c56b0' : '#c07a00' }}>{r.gubun}</td>
+              <td style={{ textAlign: 'center', fontWeight: 700, color: r.gubun === '판매' ? '#1c56b0' : 'var(--ec-warn)' }}>{r.gubun}</td>
               <td>{r.itemName}</td>
               <td style={{ textAlign: 'right' }}>{r.qty.toLocaleString()}</td>
               <td style={{ textAlign: 'right' }}>{r.unitPrice.toLocaleString()}</td>

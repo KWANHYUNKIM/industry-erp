@@ -212,19 +212,17 @@ export default function EcListShell({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-      {/* 상단: ☆제목 + 검색 */}
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ color: '#f5b301', fontSize: 14, marginRight: 4 }}>☆</span>
-        <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ec-text)' }}>{title}</span>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, position: 'relative' }}>
+      {/* 상단: ★제목 + 검색 (styles/shell.css .ec-page-head) */}
+      <div className="ec-page-head">
+        <span className="ec-page-title">{title}</span>
+        <div className="tools" style={{ position: 'relative' }}>
           {searchable && <>
             <input
-              className="ec-input"
+              className="ec-input ec-quick"
               placeholder="입력 후 [Enter]"
               value={searchValue}
               onChange={(e) => changeSearch(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') runSearch() }}
-              style={{ width: 160 }}
             />
             <button className="ec-btn ec-btn-primary" onClick={runSearch}>Search(F3)</button>
           </>}
@@ -233,30 +231,14 @@ export default function EcListShell({
 
           {optionOpen && (
             <>
-              <div
-                onClick={() => setOptionOpen(false)}
-                style={{ position: 'fixed', inset: 0, zIndex: 40 }}
-              />
-              <div
-                style={{
-                  position: 'absolute', top: '100%', right: 0, marginTop: 4, zIndex: 41,
-                  background: '#fff', border: '1px solid #c9d1da', borderRadius: 3,
-                  boxShadow: '0 4px 12px rgba(0,0,0,.12)', minWidth: 150, padding: 4,
-                }}
-              >
+              <div className="ec-backdrop-clear" onClick={() => setOptionOpen(false)} />
+              <div className="ec-menu">
                 {[
                   { label: 'Excel 내려받기', run: doExcel },
                   { label: '인쇄', run: doPrint },
                   { label: '검색조건 초기화', run: async () => { setLocalSearch(''); filterRows('') } },
                 ].map((m) => (
-                  <button
-                    key={m.label}
-                    onClick={() => { setOptionOpen(false); void m.run() }}
-                    style={{
-                      display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px',
-                      fontSize: 12, background: 'none', border: 0, cursor: 'pointer',
-                    }}
-                  >
+                  <button key={m.label} onClick={() => { setOptionOpen(false); void m.run() }}>
                     {m.label}
                   </button>
                 ))}
@@ -266,14 +248,7 @@ export default function EcListShell({
         </div>
       </div>
 
-      {notice && (
-        <div style={{
-          marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3,
-          background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91',
-        }}>
-          {notice}
-        </div>
-      )}
+      {notice && <div className="ec-notice">{notice}</div>}
 
       {/* 그리드 본문 */}
       <div ref={bodyRef} style={{ flex: 1, minHeight: 0 }}>{children}</div>
@@ -289,14 +264,8 @@ export default function EcListShell({
         onFlash={flash}
       />
 
-      {/* 하단 액션 툴바. 버튼이 하나도 없으면 구분선만 남아 빈 띠로 보이므로 아예 그리지 않는다. */}
-      <div
-        ref={toolbarRef}
-        style={{
-          display: hasBottom ? 'flex' : 'none',
-          gap: 6, marginTop: 10, paddingTop: 8, borderTop: '1px solid #eef1f5',
-        }}
-      >
+      {/* 하단 버튼줄 — 원본처럼 본문 틀 바닥에 붙는다. 버튼이 하나도 없으면 빈 띠로 보이므로 아예 그리지 않는다. */}
+      <div ref={toolbarRef} className="ec-footer" style={hasBottom ? undefined : { display: 'none' }}>
         {(onNew || renderForm) && (
           <button
             className="ec-btn ec-btn-primary"
@@ -307,8 +276,7 @@ export default function EcListShell({
         )}
         {resolved.map((a, i) => (
           <button key={i} className={`ec-btn${a.primary ? ' ec-btn-primary' : ''}`}
-                  onClick={a.onClick} disabled={a.disabled}
-                  style={a.disabled ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}>
+                  onClick={a.onClick} disabled={a.disabled}>
             {a.label}
           </button>
         ))}
@@ -325,45 +293,22 @@ export default function EcListShell({
         </Modal>
       )}
 
-      {helpOpen && (
-        <div
-          onClick={() => setHelpOpen(false)}
-          style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: '#fff', borderRadius: 4, width: 420, maxWidth: '90vw',
-              boxShadow: '0 10px 30px rgba(0,0,0,.2)',
-            }}
-          >
-            <div style={{
-              padding: '10px 14px', borderBottom: '1px solid #e6eaef',
-              fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center',
-            }}>
-              <span>{title} · 도움말</span>
-              <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => setHelpOpen(false)}>닫기</button>
-            </div>
-            <div style={{ padding: 14, fontSize: 12.5, lineHeight: 1.7, color: '#3c4553' }}>
-              {help ?? (
-                <ul style={{ paddingLeft: 16, margin: 0 }}>
-                  <li><b>Search(F3)</b> — 목록에서 입력한 낱말이 포함된 행만 추립니다.</li>
-                  <li><b>Excel</b> — 지금 화면에 보이는 표를 .xlsx 파일로 내려받습니다.</li>
-                  <li><b>인쇄</b> — 화면의 표를 인쇄용 서식으로 출력합니다.</li>
-                  <li><b>Option</b> — 내려받기·인쇄·검색조건 초기화를 모아둔 메뉴입니다.</li>
-                  <li><b>표 우클릭</b> — 맨 위에 <b>등록·수정·삭제</b>가 있습니다. 이어서 행 상세·복사,
-                    이 값으로 검색, 열 숨기기(다시 조회하면 원래대로), 화면 기능이 나옵니다.
-                    수정·삭제가 흐리게 보이면 그 화면에 해당 기능이 없다는 뜻입니다.
-                    Shift+우클릭은 브라우저 기본 메뉴입니다.</li>
-                </ul>
-              )}
-            </div>
-          </div>
+      <Modal open={helpOpen} title={`${title} · 도움말`} width={420} onClose={() => setHelpOpen(false)}>
+        <div style={{ lineHeight: 1.7 }}>
+          {help ?? (
+            <ul style={{ paddingLeft: 16, margin: 0 }}>
+              <li><b>Search(F3)</b> — 목록에서 입력한 낱말이 포함된 행만 추립니다.</li>
+              <li><b>Excel</b> — 지금 화면에 보이는 표를 .xlsx 파일로 내려받습니다.</li>
+              <li><b>인쇄</b> — 화면의 표를 인쇄용 서식으로 출력합니다.</li>
+              <li><b>Option</b> — 내려받기·인쇄·검색조건 초기화를 모아둔 메뉴입니다.</li>
+              <li><b>표 우클릭</b> — 맨 위에 <b>등록·수정·삭제</b>가 있습니다. 이어서 행 상세·복사,
+                이 값으로 검색, 열 숨기기(다시 조회하면 원래대로), 화면 기능이 나옵니다.
+                수정·삭제가 흐리게 보이면 그 화면에 해당 기능이 없다는 뜻입니다.
+                Shift+우클릭은 브라우저 기본 메뉴입니다.</li>
+            </ul>
+          )}
         </div>
-      )}
+      </Modal>
     </div>
   )
 }

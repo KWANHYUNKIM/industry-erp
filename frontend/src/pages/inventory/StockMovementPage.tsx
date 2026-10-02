@@ -341,14 +341,14 @@ export default function StockMovementPage() {
         </EcCond>
       </EcStatusPanel>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
         {mode === '집계' ? '품목' : mode === '일별' ? '일수' : '월수'}{' '}
-        <b style={{ color: '#3c4553' }}>{(mode === '집계' ? shown.length : shownBuckets.length).toLocaleString()}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+        <b style={{ color: 'var(--ec-text)' }}>{(mode === '집계' ? shown.length : shownBuckets.length).toLocaleString()}</b>
+        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
         입고계 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{num(totals.inQty)}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
         출고계 <b style={{ color: '#a5561b', fontSize: 14 }}>{num(totals.outQty)}</b>
       </div>
 
@@ -377,9 +377,9 @@ export default function StockMovementPage() {
               <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
             ) : shownBuckets.map((b, i) => (
               <tr key={b.key}>
-                <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td>{b.key.replace(/-/g, '/')}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(b.count)}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(b.count)}</td>
                 <td style={{ textAlign: 'right' }}>{num(b.opening)}</td>
                 <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{num(b.inQty)}</td>
                 <td style={{ textAlign: 'right', color: '#a5561b' }}>{num(b.outQty)}</td>
@@ -390,11 +390,11 @@ export default function StockMovementPage() {
           {shownBuckets.length > 0 && (
             <tfoot>
               <tr>
-                <td colSpan={3} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{num(shownBuckets[0].opening)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{num(totals.inQty)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{num(totals.outQty)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>
+                <td colSpan={3} style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>합계</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>{num(shownBuckets[0].opening)}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>{num(totals.inQty)}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>{num(totals.outQty)}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>
                   {num(shownBuckets[shownBuckets.length - 1].closing)}
                 </td>
               </tr>
@@ -429,28 +429,28 @@ export default function StockMovementPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>
               {rows.length === 0 ? '해당 기간의 재고 변동이 없습니다.' : '조건에 맞는 자료가 없습니다.'}
             </td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.itemId}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
               <td>{r.itemName}</td>
-              <td style={{ color: '#5a626e' }}>{specOf(r.itemId)}</td>
-              <td style={{ textAlign: 'center', color: '#8a929c' }}>{r.unit}</td>
-              <td style={{ textAlign: 'right', color: '#5a626e' }}>{num(r.opening)}</td>
-              <td style={{ textAlign: 'right', color: r.inQty ? 'var(--ec-blue)' : '#c5cbd3', fontWeight: r.inQty ? 600 : 400 }}>{r.inQty ? num(r.inQty) : ''}</td>
-              <td style={{ textAlign: 'right', color: r.outQty ? '#a5561b' : '#c5cbd3', fontWeight: r.outQty ? 600 : 400 }}>{r.outQty ? num(r.outQty) : ''}</td>
+              <td style={{ color: 'var(--ec-label)' }}>{specOf(r.itemId)}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{r.unit}</td>
+              <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{num(r.opening)}</td>
+              <td style={{ textAlign: 'right', color: r.inQty ? 'var(--ec-blue)' : 'var(--ec-text-off)', fontWeight: r.inQty ? 600 : 400 }}>{r.inQty ? num(r.inQty) : ''}</td>
+              <td style={{ textAlign: 'right', color: r.outQty ? '#a5561b' : 'var(--ec-text-off)', fontWeight: r.outQty ? 600 : 400 }}>{r.outQty ? num(r.outQty) : ''}</td>
               <td style={{ textAlign: 'right', fontWeight: 700 }}>{num(r.closing)}</td>
             </tr>
           ))}
         </tbody>
         {shown.length > 0 && (
           <tfoot>
-            <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+            <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
               <td colSpan={5} style={{ textAlign: 'right' }}>합계</td>
               <td style={{ textAlign: 'right' }}>{num(totals.opening)}</td>
               <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{num(totals.inQty)}</td>

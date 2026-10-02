@@ -6,7 +6,7 @@ import { useTableSort } from '../../utils/useTableSort'
 
 type Division = 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE'
 const DIV_LABEL: Record<Division, string> = { ASSET: '자산', LIABILITY: '부채', EQUITY: '자본', REVENUE: '수익', EXPENSE: '비용' }
-const DIV_COLOR: Record<Division, string> = { ASSET: '#1c6fb0', LIABILITY: '#c07a00', EQUITY: '#7a5cc0', REVENUE: '#1c7c3c', EXPENSE: '#c60a2e' }
+const DIV_COLOR: Record<Division, string> = { ASSET: '#1c6fb0', LIABILITY: 'var(--ec-warn)', EQUITY: '#7a5cc0', REVENUE: 'var(--ec-success)', EXPENSE: 'var(--ec-danger)' }
 const DIVISIONS: Division[] = ['ASSET', 'LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE']
 
 interface Account {
@@ -94,21 +94,21 @@ export default function AccountsPage() {
       onNew={() => setShowForm(true)}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
       <Modal error={error} open={showForm} title="계정과목등록" onClose={() => setShowForm(false)}>{(
         <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginBottom: 10 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>계정과목 등록</div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>계정코드 *</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>계정코드 *</div>
               <input className="ec-input" value={form.code} onChange={(e) => set('code', e.target.value)} style={{ width: 100 }} placeholder="811" /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>계정과목명 *</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>계정과목명 *</div>
               <input className="ec-input" value={form.name} onChange={(e) => set('name', e.target.value)} style={{ width: 200 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>구분 *</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>구분 *</div>
               <select className="ec-input" value={form.division} onChange={(e) => set('division', e.target.value)} style={{ width: 100 }}>
                 {DIVISIONS.map((d) => <option key={d} value={d}>{DIV_LABEL[d]}</option>)}
               </select></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>세부분류</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>세부분류</div>
               <input className="ec-input" value={form.detailCategory} onChange={(e) => set('detailCategory', e.target.value)} style={{ width: 160 }} placeholder="판매관리비" /></label>
             <button className="ec-btn ec-btn-primary" onClick={submit}>저장</button>
           </div>
@@ -120,7 +120,7 @@ export default function AccountsPage() {
           <button key={d} onClick={() => setDiv(d)} className="no-ec" style={{
             padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
             background: div === d ? 'var(--ec-blue)' : '#fff',
-            color: div === d ? '#fff' : '#3a4453',
+            color: div === d ? '#fff' : 'var(--ec-text)',
             fontWeight: div === d ? 700 : 400,
           }}>{d === '전체' ? '전체' : DIV_LABEL[d]}</button>
         ))}
@@ -138,12 +138,12 @@ export default function AccountsPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.code}</td>
               <td style={{ color: r.active ? undefined : '#b3b8bf' }}>{r.name}</td>
               <td style={{ textAlign: 'center', color: DIV_COLOR[r.division], fontWeight: 700 }}>{r.divisionName}</td>
@@ -151,7 +151,7 @@ export default function AccountsPage() {
               <td style={{ textAlign: 'center' }}>
                 <button className="no-ec" onClick={() => toggleActive(r)} style={{
                   border: '1px solid var(--ec-border)', borderRadius: 3, cursor: 'pointer', fontSize: 11.5, padding: '2px 8px',
-                  background: r.active ? '#eaf6ec' : '#f5f5f5', color: r.active ? '#1c7c3c' : '#9aa1ab',
+                  background: r.active ? 'var(--ec-success-bg)' : '#f5f5f5', color: r.active ? 'var(--ec-success)' : 'var(--ec-text-hint)',
                 }}>{r.active ? '사용' : '중단'}</button>
               </td>
             </tr>

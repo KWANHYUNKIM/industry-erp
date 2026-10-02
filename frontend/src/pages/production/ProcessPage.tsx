@@ -166,7 +166,7 @@ export default function ProcessPage() {
                 { label: '새로고침', onClick: load },
                 { label: 'Excel' }]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       <Modal error={error} open={showForm} title={editId ? '공정수정' : '공정등록'} onClose={() => { setShowForm(false); setEditId(null) }}>{(
         <form onSubmit={submit} style={{ marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
@@ -195,7 +195,7 @@ export default function ProcessPage() {
               <label className="mb-1 block text-sm text-slate-600">순번</label>
               <input type="number" className={inputCls} style={{ textAlign: 'right' }} value={form.sortOrder}
                      onChange={(e) => setForm({ ...form, sortOrder: e.target.value })} />
-              <p style={{ fontSize: 11.5, color: '#8a929c', marginTop: 3 }}>
+              <p style={{ fontSize: 11.5, color: 'var(--ec-text-hint)', marginTop: 3 }}>
                 공정을 고르는 자리마다 이 순서로 나옵니다.
               </p>
             </div>
@@ -252,9 +252,9 @@ export default function ProcessPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center' }}>
@@ -277,7 +277,7 @@ export default function ProcessPage() {
                   {r.name}
                 </button>
               </td>
-              <td style={{ color: '#5a626e' }}>{r.sortOrder}</td>
+              <td style={{ color: 'var(--ec-label)' }}>{r.sortOrder}</td>
               <td>{r.workcenter ?? ''}</td>
               <td style={{ textAlign: 'right' }}>{r.stdTimeMin.toLocaleString()}</td>
               <td style={{ textAlign: 'right' }}>{r.costPerHr.toLocaleString()}</td>
@@ -289,19 +289,19 @@ export default function ProcessPage() {
                 <button className="ec-btn no-ec" onClick={() => toggleActive(r)}
                         style={{
                           border: 'none', background: 'none', cursor: 'pointer', fontSize: 11.5,
-                          fontWeight: 700, color: r.active ? '#1c7c3c' : '#c07a00',
+                          fontWeight: 700, color: r.active ? 'var(--ec-success)' : 'var(--ec-warn)',
                         }}>
                   {r.active ? '사용' : '사용중단'}
                 </button>
               </td>
               <td style={{ textAlign: 'center' }}>
-                <button onClick={() => remove(r)} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                <button onClick={() => remove(r)} style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-      <div style={{ textAlign: 'right', marginTop: 6, color: '#6b7280' }}>
+      <div style={{ textAlign: 'right', marginTop: 6, color: 'var(--ec-text-muted)' }}>
         표준시간 합계: <b>{total.toLocaleString()}</b> 분
       </div>
     </EcListShell>

@@ -191,12 +191,12 @@ export default function EmployeePage() {
       onNew={openNew}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
     >
-      <p style={{ marginBottom: 8, fontSize: 11.5, color: '#8a929c' }}>
+      <p style={{ marginBottom: 8, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
         기본급을 클릭해 바로 고칠 수 있습니다. 급여계산 시 이 값이 기준이 됩니다.
         퇴사자는 지우지 않고 <b>사용중단</b>으로 내립니다 — 지난 전표의 담당자가 사라지면 안 됩니다.
       </p>
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)' }}>{notice}</div>}
 
       {/* 원본 조건 차례: 사원(담당)코드 · 사원(담당)명 · … · 사용구분 (사본 실측) */}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
@@ -300,7 +300,7 @@ export default function EmployeePage() {
                 <label className="mb-1 block text-sm text-slate-600">퇴사일</label>
                 <input type="date" className={inputCls} value={form.resignDate}
                        onChange={(e) => setForm({ ...form, resignDate: e.target.value })} />
-                <p style={{ fontSize: 11, color: '#8a929c', marginTop: 3 }}>
+                <p style={{ fontSize: 11, color: 'var(--ec-text-hint)', marginTop: 3 }}>
                   넣으면 사용중단으로 함께 내려갑니다.
                 </p>
               </div>
@@ -337,10 +337,10 @@ export default function EmployeePage() {
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((e, i) => (
-            <tr key={e.id} style={{ color: e.active ? undefined : '#9aa1ab' }}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+            <tr key={e.id} style={{ color: e.active ? undefined : 'var(--ec-text-hint)' }}>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{e.code}</td>
               <td>{e.name}</td>
               <td>{e.department}</td>
@@ -356,7 +356,7 @@ export default function EmployeePage() {
                 <button className="no-ec" onClick={() => toggleActive(e)}
                         style={{
                           border: 'none', background: 'none', cursor: 'pointer', fontSize: 11.5,
-                          fontWeight: 700, color: e.active ? '#1c7c3c' : '#c07a00',
+                          fontWeight: 700, color: e.active ? 'var(--ec-success)' : 'var(--ec-warn)',
                         }}>
                   {e.active ? '사용' : '사용중단'}
                 </button>

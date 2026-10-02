@@ -257,15 +257,15 @@ export default function PaymentComparePage() {
         </EcCond>
       </EcStatusPanel>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        불일치 <b style={{ color: '#c60a2e', fontSize: 14 }}>{mismatchCount}</b>건 / 전체 {shown.length}건
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+        불일치 <b style={{ color: 'var(--ec-danger)', fontSize: 14 }}>{mismatchCount}</b>건 / 전체 {shown.length}건
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
         판매 <b>{totals.sale.toLocaleString('ko-KR')}</b>
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
         결제 <b>{totals.pay.toLocaleString('ko-KR')}</b>
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-        차이 <b style={{ color: totals.sale - totals.pay ? '#c60a2e' : '#1c7c3c' }}>
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
+        차이 <b style={{ color: totals.sale - totals.pay ? 'var(--ec-danger)' : 'var(--ec-success)' }}>
           {(totals.sale - totals.pay).toLocaleString('ko-KR')}
         </b>
       </div>
@@ -291,36 +291,36 @@ export default function PaymentComparePage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : capped.rows.map((r, i) => {
               const diff = r.saleTotal - r.payTotal
               const same = Math.abs(diff) < 0.005
               return (
                 <tr key={r.key}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                   <td style={{ fontFamily: 'monospace' }}>{r.date.replace(/-/g, '/')}</td>
                   <td>{r.partnerName}</td>
-                  <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: '#5a626e' }}>
+                  <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: 'var(--ec-label)' }}>
                     {r.saleDocNos.length === 0
-                      ? <span style={{ color: '#c9ced6' }}>없음</span>
+                      ? <span style={{ color: 'var(--ec-text-off)' }}>없음</span>
                       : `${r.saleDocNos[0]}${r.saleDocNos.length > 1 ? ` 외 ${r.saleDocNos.length - 1}` : ''}`}
                   </td>
                   <td style={{ textAlign: 'right' }}>{r.supplyAmount.toLocaleString('ko-KR')}</td>
                   <td style={{ textAlign: 'right' }}>{r.vatAmount.toLocaleString('ko-KR')}</td>
                   <td style={{ textAlign: 'right' }}>{r.saleTotal.toLocaleString('ko-KR')}</td>
-                  <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: '#5a626e' }}>
+                  <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: 'var(--ec-label)' }}>
                     {r.payDocNos.length === 0
-                      ? <span style={{ color: '#c9ced6' }}>없음</span>
+                      ? <span style={{ color: 'var(--ec-text-off)' }}>없음</span>
                       : `${r.payDocNos[0]}${r.payDocNos.length > 1 ? ` 외 ${r.payDocNos.length - 1}` : ''}`}
                   </td>
                   <td style={{ textAlign: 'right' }}>{r.payTotal.toLocaleString('ko-KR')}</td>
                   {/* 양수는 아직 못 받은 돈, 음수는 판 것보다 더 받은 돈(선수금) */}
-                  <td style={{ textAlign: 'right', fontWeight: 700, color: same ? '#9aa1ab' : diff > 0 ? '#c60a2e' : '#c07a00' }}>
+                  <td style={{ textAlign: 'right', fontWeight: 700, color: same ? 'var(--ec-text-hint)' : diff > 0 ? 'var(--ec-danger)' : 'var(--ec-warn)' }}>
                     {diff.toLocaleString('ko-KR')}
                   </td>
-                  <td style={{ textAlign: 'center', fontWeight: 700, color: same ? '#1c7c3c' : '#c60a2e' }}>
+                  <td style={{ textAlign: 'center', fontWeight: 700, color: same ? 'var(--ec-success)' : 'var(--ec-danger)' }}>
                     {same ? '일치' : '불일치'}
                   </td>
                 </tr>
@@ -366,7 +366,7 @@ export default function PaymentComparePage() {
                         <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.sums.sale.toLocaleString('ko-KR')}</td>
                         <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.sums.pay.toLocaleString('ko-KR')}</td>
                         <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700,
-                                     color: Math.abs(gap) < 0.005 ? '#9aa1ab' : '#c60a2e' }}>
+                                     color: Math.abs(gap) < 0.005 ? 'var(--ec-text-hint)' : 'var(--ec-danger)' }}>
                           {gap.toLocaleString('ko-KR')}
                         </td>
                       </tr>
@@ -378,7 +378,7 @@ export default function PaymentComparePage() {
           )
         })()}
         {shown.length > 300 && (
-          <p style={{ fontSize: 11.5, color: '#c07a00', marginTop: 6 }}>
+          <p style={{ fontSize: 11.5, color: 'var(--ec-warn)', marginTop: 6 }}>
             * 앞의 300줄만 보여 줍니다({shown.length}줄 중). 기간이나 거래처를 좁혀 주세요.
           </p>
         )}

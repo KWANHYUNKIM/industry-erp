@@ -32,6 +32,19 @@
   --ec-page-off: #868d93;                   /* 선택 안 된 쪽번호 */
   --ec-icon: #adb5bd;                       /* 코드도움 돋보기 */
   --ec-ok: #3da621;                         /* 격자의 ✓ */
+  --ec-star: rgb(242, 188, 60);             /* 화면 제목 앞 ★(즐겨찾기에 담긴 화면) */
+
+  --ec-text-hint: #868d93;                  /* 안내·빈 목록 글자(= 꺼진 쪽번호 색) */
+  --ec-text-off: #c5cbd3;                   /* 0 · 없음처럼 흐리게 둘 값(원본 미측정 — 옛 값 유지) */
+
+  /* ── 역할색 — 원본에서 아직 못 쟀다. 옛 값 그대로 이름만 붙였다(값을 바꿀 때는 원본을 재고) ── */
+  --ec-danger: #c60a2e;                     /* 음수 · 오류 · 필수(*) */
+  --ec-danger-bg: #fdecec;
+  --ec-success: #1c7c3c;                    /* 정상 · 사용 · 완료 */
+  --ec-success-bg: #eaf6ec;
+  --ec-warn: #c07a00;                       /* 대기 · 주의 */
+  --ec-warn-bg: #fff8e1;
+  --ec-info-line: #cfe0f5;                  /* 안내 줄 테두리 */
 
   /* ── 바탕 ── */
   --ec-bg-shell: #fbfcfc;                   /* 머리 메뉴 · 왼쪽 메뉴 */
@@ -68,9 +81,10 @@
   --ec-radius-panel: 20px;                  /* 입력 폼 판 · 2단 메뉴 판 · 본문 틀 위 모서리 */
   --ec-radius-pill: 30px;                   /* 알약 · 쪽번호 */
 
-  /* ── 그림자 — 원본은 2단 메뉴 판 하나에만 있다 ── */
+  /* ── 그림자 — 본문에는 없다. 떠 있는 것(2단 메뉴 · 펼침 메뉴 · 팝업)에만 ── */
   --ec-shadow-float: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --ec-shadow-pop: 0 4px 12px rgba(20, 36, 68, 0.12);  /* 드롭다운 · 자동완성(원본 미측정) */
+  --ec-shadow-pop: 0 10px 15px -3px rgba(0, 0, 0, 0.15), 0 4px 6px -4px rgba(0, 0, 0, 0.15); /* 펼침 메뉴 · 자동완성 */
+  --ec-shadow-modal: 0 25px 50px -12px rgba(0, 0, 0, 0.27);  /* 팝업창 */
 
   /* ── 틀 치수 ── */
   --ec-bookbar-h: 26px;

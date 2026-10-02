@@ -85,7 +85,7 @@ export default function UninspectedPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="일자(영업주기)">
           <input type="date" className="ec-input" value={asOf} onChange={(e) => setAsOf(e.target.value)} style={{ width: 145 }} />
@@ -110,7 +110,7 @@ export default function UninspectedPage() {
       </ul>
 
       <h3 style={{ fontSize: 13, fontWeight: 700, margin: '4px 0 6px' }}>
-        미검사현황 <span style={{ fontWeight: 400, color: '#8a929c' }}>~ {dateText(asOf)}</span>
+        미검사현황 <span style={{ fontWeight: 400, color: 'var(--ec-text-hint)' }}>~ {dateText(asOf)}</span>
       </h3>
       <table ref={tableRef} className="w-full text-left">
         <thead>
@@ -124,9 +124,9 @@ export default function UninspectedPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : months.length === 0 ? (
-            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : months.flatMap((g) => [
             ...g.rs.map((r) => (
               <tr key={r.id}>

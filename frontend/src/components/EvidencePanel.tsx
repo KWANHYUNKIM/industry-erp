@@ -76,9 +76,9 @@ export default function EvidencePanel({
   return (
     <div style={{ border: '1px solid var(--ec-border)', background: '#fbfcfd', padding: 10, marginTop: 6 }}>
       <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ec-blue-dark)', marginBottom: 6 }}>
-        증빙 {rows.length > 0 && <span style={{ color: '#5a626e', fontWeight: 400 }}>({rows.length}건)</span>}
+        증빙 {rows.length > 0 && <span style={{ color: 'var(--ec-label)', fontWeight: 400 }}>({rows.length}건)</span>}
       </div>
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '4px 8px', fontSize: 12, borderRadius: 3, marginBottom: 6 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '4px 8px', fontSize: 12, borderRadius: 3, marginBottom: 6 }}>{error}</p>}
 
       {rows.length > 0 && (
         <table className="w-full text-left" style={{ marginBottom: 8 }}>
@@ -101,13 +101,13 @@ export default function EvidencePanel({
                             style={{ background: 'none', border: 0, padding: 0, color: 'var(--ec-blue)', cursor: 'pointer', textDecoration: 'underline', fontSize: 12.5 }}>
                       {e.fileName}
                     </button>
-                  ) : <span style={{ color: '#9aa1ab' }}>첨부 없음</span>}
-                  {e.note && <span style={{ color: '#5a626e' }}> · {e.note}</span>}
+                  ) : <span style={{ color: 'var(--ec-text-hint)' }}>첨부 없음</span>}
+                  {e.note && <span style={{ color: 'var(--ec-label)' }}> · {e.note}</span>}
                 </td>
                 <td style={{ textAlign: 'right' }}>{formatBytes(e.fileSize)}</td>
-                <td style={{ color: '#5a626e' }}>{e.worker ?? ''}</td>
+                <td style={{ color: 'var(--ec-label)' }}>{e.worker ?? ''}</td>
                 <td style={{ textAlign: 'center' }}>
-                  <button onClick={() => remove(e)} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                  <button onClick={() => remove(e)} style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
                 </td>
               </tr>
             ))}
@@ -133,7 +133,7 @@ export default function EvidencePanel({
         </EcFileDrop>
         <input className="ec-input" value={note} onChange={(ev) => setNote(ev.target.value)} placeholder="적요(선택)" style={{ width: 180 }} />
         <button className="ec-btn ec-btn-primary" onClick={add} disabled={busy}>{busy ? '등록 중…' : '증빙 등록'}</button>
-        <span style={{ fontSize: 11.5, color: '#8a929c' }}>※ 파일 없이 증빙방법만 기록할 수도 있습니다(최대 10MB).</span>
+        <span style={{ fontSize: 11.5, color: 'var(--ec-text-hint)' }}>※ 파일 없이 증빙방법만 기록할 수도 있습니다(최대 10MB).</span>
       </div>
     </div>
   )

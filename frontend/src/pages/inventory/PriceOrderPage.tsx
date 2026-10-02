@@ -101,7 +101,7 @@ export default function PriceOrderPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ color: '#f5b301', fontSize: 14, marginRight: 4 }}>☆</span>
+        <span style={{ color: 'var(--ec-star)', fontSize: 14, marginRight: 4 }}>☆</span>
         <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ec-text)' }}>단가적용순서설정</span>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
           <button className="ec-btn" onClick={() => load(cat)}>새로고침</button>
@@ -109,13 +109,13 @@ export default function PriceOrderPage() {
         </div>
       </div>
 
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
       <div style={{ display: 'flex', gap: 2, marginBottom: 8, borderBottom: '1px solid var(--ec-border)' }}>
         {(['SALES', 'PURCHASE'] as const).map((t) => (
           <button key={t} onClick={() => setCat(t)} className="no-ec" style={{
             padding: '6px 16px', fontSize: 12.5, border: 'none', cursor: 'pointer',
-            background: cat === t ? '#fff' : 'transparent', color: cat === t ? 'var(--ec-blue)' : '#5a626e',
+            background: cat === t ? '#fff' : 'transparent', color: cat === t ? 'var(--ec-blue)' : 'var(--ec-label)',
             fontWeight: cat === t ? 700 : 400, borderBottom: cat === t ? '2px solid var(--ec-blue)' : '2px solid transparent',
           }}>{CAT_LABEL[t]}</button>
         ))}
@@ -133,10 +133,10 @@ export default function PriceOrderPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : lines.map((l, i) => (
               <tr key={l.functionName}>
-                <td style={{ color: l.active ? undefined : '#9aa1ab' }}>{l.functionName}</td>
+                <td style={{ color: l.active ? undefined : 'var(--ec-text-hint)' }}>{l.functionName}</td>
                 <td style={{ textAlign: 'right' }}>
                   <b style={{ marginRight: 6 }}>{i + 1}</b>
                   <button className="ec-btn" style={{ height: 20, padding: '0 6px' }} disabled={i === 0} onClick={() => move(i, -1)}>▲</button>
@@ -155,7 +155,7 @@ export default function PriceOrderPage() {
                     ? <Link to={DETAIL_LINK[l.functionName]!.to} style={{ color: 'var(--ec-blue)' }}>
                         {DETAIL_LINK[l.functionName]!.label}
                       </Link>
-                    : <span style={{ color: '#c9ced6' }}>—</span>}
+                    : <span style={{ color: 'var(--ec-text-off)' }}>—</span>}
                 </td>
               </tr>
             ))}

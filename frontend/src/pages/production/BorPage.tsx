@@ -192,7 +192,7 @@ export default function BorPage() {
       onNew={openCreate}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
       <Modal error={error} open={showForm} title={editId ? '작업 수정' : '작업 등록'} onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
@@ -242,7 +242,7 @@ export default function BorPage() {
               <label className="mb-1 block text-sm text-slate-600">생산수량</label>
               <input className="ec-input w-full text-right" type="number" step="any" value={form.baseQty}
                      onChange={(e) => set('baseQty', e.target.value)} />
-              <p style={{ fontSize: 11.5, color: '#8a929c', marginTop: 3 }}>
+              <p style={{ fontSize: 11.5, color: 'var(--ec-text-hint)', marginTop: 3 }}>
                 아래 작업시간이 <b>몇 개를 만드는 기준</b>인지. 1개 기준이면 1, 100개 로트 기준이면 100.
               </p>
             </div>
@@ -286,7 +286,7 @@ export default function BorPage() {
         <EcCond label="생산수량" span={2}>
           <input className="ec-input text-right" type="number" value={lotSize}
                  onChange={(e) => setLotSize(e.target.value)} style={{ width: 100 }} />
-          <span style={{ fontSize: 11.5, color: '#8a929c' }}>이 수량을 만들 때의 시간을 함께 보여 줍니다.</span>
+          <span style={{ fontSize: 11.5, color: 'var(--ec-text-hint)' }}>이 수량을 만들 때의 시간을 함께 보여 줍니다.</span>
         </EcCond>
       </ul>
 
@@ -329,43 +329,43 @@ export default function BorPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={15} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : noBor.length === 0 && shown.length === 0 ? (
-              <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={15} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((r, i) => {
               const first = i === 0 || shown[i - 1].productId !== r.productId
               return (
                 <tr key={r.id} style={first && i > 0 ? { borderTop: '2px solid #d7dce3' } : undefined}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                   <td style={{ fontFamily: 'monospace' }}>{first ? r.productCode : ''}</td>
                   <td>{first ? r.productName : ''}</td>
-                  <td style={{ color: '#5a626e' }}>{first ? (r.categoryName ? `[${r.categoryName}]` : '') : ''}</td>
+                  <td style={{ color: 'var(--ec-label)' }}>{first ? (r.categoryName ? `[${r.categoryName}]` : '') : ''}</td>
                   <td>{r.processName}</td>
-                  <td style={{ textAlign: 'right', color: '#5a626e' }}>{r.baseQty.toLocaleString('ko-KR')}</td>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{r.baseQty.toLocaleString('ko-KR')}</td>
                   {/* 원본 실측: 왼쪽이다 — 세는 수가 아니라 차례를 적는 칸이라 자릿수를 맞출 일이 없다. */}
                   <td>{r.seq}</td>
                   <td>{r.workName}</td>
                   <td style={{ textAlign: 'right' }}>{r.workHours.toLocaleString('ko-KR')}</td>
-                  <td style={{ fontFamily: 'monospace', color: r.workItemCode ? '#5a626e' : '#c9ced6' }}>{r.workItemCode ?? ''}</td>
-                  <td style={{ color: r.workItemName ? undefined : '#c9ced6' }}>{r.workItemName ?? ''}</td>
-                  <td style={{ textAlign: 'right', color: r.workQty != null ? undefined : '#c9ced6' }}>
+                  <td style={{ fontFamily: 'monospace', color: r.workItemCode ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{r.workItemCode ?? ''}</td>
+                  <td style={{ color: r.workItemName ? undefined : 'var(--ec-text-off)' }}>{r.workItemName ?? ''}</td>
+                  <td style={{ textAlign: 'right', color: r.workQty != null ? undefined : 'var(--ec-text-off)' }}>
                     {r.workQty != null ? r.workQty.toLocaleString('ko-KR') : '-'}
                   </td>
-                  <td style={{ textAlign: 'right', color: '#5a626e' }}>{r.hoursPerUnit.toFixed(4)}</td>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{r.hoursPerUnit.toFixed(4)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 700 }}>{hhmm(r.hoursPerUnit * lot)}</td>
                   <td style={{ textAlign: 'center' }}>
                     <button onClick={() => openEdit(r)} style={{ color: 'var(--ec-blue)', marginRight: 8, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>수정</button>
-                    <button onClick={() => remove(r)} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                    <button onClick={() => remove(r)} style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
                   </td>
                 </tr>
               )
             }).concat(noBor.map((it, k) => (
               <tr key={`nb${it.id}`} style={k === 0 && shown.length > 0 ? { borderTop: '2px solid #d7dce3' } : undefined}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{shown.length + k + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{shown.length + k + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{it.code}</td>
                 <td>{it.name}</td>
-                <td style={{ color: '#5a626e' }}>{it.categoryName ? `[${it.categoryName}]` : ''}</td>
-                <td colSpan={10} style={{ color: '#c9ced6' }}>BOR 없음</td>
+                <td style={{ color: 'var(--ec-label)' }}>{it.categoryName ? `[${it.categoryName}]` : ''}</td>
+                <td colSpan={10} style={{ color: 'var(--ec-text-off)' }}>BOR 없음</td>
                 <td style={{ textAlign: 'center' }}>
                   <button onClick={() => { setForm({ ...emptyForm, productId: String(it.id) }); setShowForm(true) }}
                           style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>BOR등록</button>

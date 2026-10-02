@@ -138,7 +138,7 @@ export default function CodePickerField({
   // 입력칸으로 전달돼 행 선택이 먹히지 않고 팝업이 닫히지 않는다(실제로 그렇게 동작했다).
   return (
     <div style={{ fontSize: 12.5, width: fill ? "100%" : undefined }}>
-      {!hideLabel && <div style={{ color: '#5a626e', marginBottom: 3 }}>{label}</div>}
+      {!hideLabel && <div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>{label}</div>}
 
       {pair ? (
         /* 전표 코드칸: [코드][🔍][명칭][×] — 원본 .control > .form-control-code */
@@ -172,7 +172,7 @@ export default function CodePickerField({
             style={{ background: disabled ? '#f4f5f7' : '#fff', cursor: disabled ? 'default' : 'pointer' }}
           />
           {!!selected && !disabled && (
-            <button type="button" className="ec-btn" onClick={clearAll} title="선택 해제" style={{ color: '#c60a2e' }}>
+            <button type="button" className="ec-btn" onClick={clearAll} title="선택 해제" style={{ color: 'var(--ec-danger)' }}>
               ×
             </button>
           )}
@@ -206,7 +206,7 @@ export default function CodePickerField({
             className="ec-btn"
             onClick={clearAll}
             title="선택 해제"
-            style={{ marginLeft: -1, padding: '0 6px', color: '#c60a2e' }}
+            style={{ marginLeft: -1, padding: '0 6px', color: 'var(--ec-danger)' }}
           >
             ×
           </button>
@@ -226,7 +226,7 @@ export default function CodePickerField({
             placeholder={items.some((i) => i.extra) ? '코드·이름 외에 대표자·전화·주소로도 찾습니다' : '코드 또는 이름으로 검색'}
             style={{ flex: 1 }}
           />
-          <span style={{ fontSize: 12.5, color: '#8a929c', alignSelf: 'center' }}>{shown.length}건</span>
+          <span style={{ fontSize: 12.5, color: 'var(--ec-text-hint)', alignSelf: 'center' }}>{shown.length}건</span>
         </div>
 
         <div style={{ maxHeight: 320, overflowY: 'auto', border: '1px solid var(--ec-border)' }}>
@@ -240,11 +240,11 @@ export default function CodePickerField({
             <tbody>
               {!multiple && (
                 <tr onClick={() => pick(null)} style={{ cursor: 'pointer' }}>
-                  <td colSpan={3} style={{ color: '#8a929c' }}>({emptyLabel})</td>
+                  <td colSpan={3} style={{ color: 'var(--ec-text-hint)' }}>({emptyLabel})</td>
                 </tr>
               )}
               {shown.length === 0 ? (
-                <tr><td colSpan={multiple ? 4 : 3} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>
+                <tr><td colSpan={multiple ? 4 : 3} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 16 }}>
                   검색 결과가 없습니다.
                 </td></tr>
               ) : shown.map((i) => {
@@ -262,7 +262,7 @@ export default function CodePickerField({
                     )}
                     <td style={{ fontFamily: 'monospace' }}>{i.code ?? ''}</td>
                     <td style={{ fontWeight: 600 }}>{i.name}</td>
-                    <td style={{ color: '#8a929c' }}>{i.sub ?? ''}</td>
+                    <td style={{ color: 'var(--ec-text-hint)' }}>{i.sub ?? ''}</td>
                   </tr>
                 )
               })}
@@ -272,9 +272,9 @@ export default function CodePickerField({
 
         {multiple && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
-            <span style={{ fontSize: 12.5, color: '#5a626e' }}>
+            <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>
               선택 <b style={{ color: 'var(--ec-blue)' }}>{picked.length}</b>명
-              {pickedItems.length > 0 && <span style={{ color: '#8a929c' }}> · {pickedItems.map((i) => i.name).join(', ')}</span>}
+              {pickedItems.length > 0 && <span style={{ color: 'var(--ec-text-hint)' }}> · {pickedItems.map((i) => i.name).join(', ')}</span>}
             </span>
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
               <button type="button" className="ec-btn" onClick={clearAll}>전체 해제</button>

@@ -67,13 +67,13 @@ export default function CommonCodePage() {
     <EcListShell title="공통코드" actions={[{ label: '새로고침', onClick: () => load() }, { label: 'Excel' }, { label: '인쇄' }]}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
         <button className="ec-btn ec-btn-primary" onClick={() => setShowGroupForm(true)}>+ 코드 그룹 등록</button>
-        <span style={{ fontSize: 12, color: '#9aa1ab' }}>
+        <span style={{ fontSize: 12, color: 'var(--ec-text-hint)' }}>
           카드사·결제대행사·추가항목유형 같은 목록을 여기서 관리합니다. 전표 상태처럼 로직이 걸린 값은 코드로 다루지 않습니다.
         </span>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)' }}>{notice}</div>}
 
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
         {/* 좌: 코드 그룹 */}
@@ -90,23 +90,23 @@ export default function CommonCodePage() {
             </thead>
             <tbody>
               {groups.length === 0 ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
               ) : groups.map((g, i) => (
                 <tr
                   key={g.id}
                   onClick={() => setSelectedId(g.id)}
-                  style={{ cursor: 'pointer', background: selectedId === g.id ? '#eef5ff' : undefined }}
+                  style={{ cursor: 'pointer', background: selectedId === g.id ? 'var(--ec-blue-wash)' : undefined }}
                 >
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                   <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>
                     {g.groupCode}
-                    {g.system && <span style={{ marginLeft: 4, fontSize: 10, color: '#8a929c' }}>시스템</span>}
+                    {g.system && <span style={{ marginLeft: 4, fontSize: 10, color: 'var(--ec-text-hint)' }}>시스템</span>}
                   </td>
                   <td style={{ fontWeight: 600 }}>{g.name}</td>
                   <td style={{ textAlign: 'right' }}>{g.codes.length}</td>
                   <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
                     {!g.system && (
-                      <button className="ec-btn" style={{ height: 20, padding: '0 6px', color: '#c60a2e' }} onClick={() => removeGroup(g)}>×</button>
+                      <button className="ec-btn" style={{ height: 20, padding: '0 6px', color: 'var(--ec-danger)' }} onClick={() => removeGroup(g)}>×</button>
                     )}
                   </td>
                 </tr>
@@ -114,13 +114,13 @@ export default function CommonCodePage() {
             </tbody>
           </table>
           {selected?.description && (
-            <p style={{ marginTop: 6, fontSize: 11.5, color: '#9aa1ab' }}>{selected.description}</p>
+            <p style={{ marginTop: 6, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>{selected.description}</p>
           )}
         </div>
 
         {/* 우: 선택한 그룹의 코드들 */}
         <div style={{ flex: 1 }}>
-          <div style={{ padding: '6px 8px', background: '#f5f7fa', border: '1px solid var(--ec-border)', borderBottom: 'none', fontSize: 12.5, fontWeight: 700, color: 'var(--ec-blue-dark)' }}>
+          <div style={{ padding: '6px 8px', background: 'var(--ec-bg-page)', border: '1px solid var(--ec-border)', borderBottom: 'none', fontSize: 12.5, fontWeight: 700, color: 'var(--ec-blue-dark)' }}>
             {selected ? `${selected.name} (${selected.groupCode})` : '코드 그룹을 선택하세요'}
           </div>
           <table className="w-full text-left">
@@ -138,25 +138,25 @@ export default function CommonCodePage() {
             </thead>
             <tbody>
               {!selected || selected.codes.length === 0 ? (
-                <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
               ) : selected.codes.map((c, i) => (
                 <tr key={c.id}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                   <td style={{ fontFamily: 'monospace' }}>{c.code}</td>
                   <td style={{ fontWeight: 600, color: c.active ? undefined : '#b0b6bd' }}>{c.name}</td>
-                  <td style={{ color: '#5a626e' }}>{c.value1 ?? ''}</td>
-                  <td style={{ color: '#5a626e' }}>{c.value2 ?? ''}</td>
+                  <td style={{ color: 'var(--ec-label)' }}>{c.value1 ?? ''}</td>
+                  <td style={{ color: 'var(--ec-label)' }}>{c.value2 ?? ''}</td>
                   <td style={{ textAlign: 'right' }}>{c.sortOrder}</td>
                   <td style={{ textAlign: 'center' }}>
                     <span
                       onClick={() => toggleActive(c)}
-                      style={{ cursor: 'pointer', color: c.active ? '#1c7c3c' : '#8a929c' }}
+                      style={{ cursor: 'pointer', color: c.active ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}
                     >
                       {c.active ? '사용' : '미사용'}
                     </span>
                   </td>
                   <td style={{ textAlign: 'center' }}>
-                    <button className="ec-btn" style={{ height: 20, padding: '0 6px', color: '#c60a2e' }} onClick={() => removeCode(c)}>×</button>
+                    <button className="ec-btn" style={{ height: 20, padding: '0 6px', color: 'var(--ec-danger)' }} onClick={() => removeCode(c)}>×</button>
                   </td>
                 </tr>
               ))}
@@ -240,27 +240,27 @@ function GroupForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => v
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 460, border: '1px solid var(--ec-border)', borderRadius: 4 }}>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: '#f5f7fa' }}>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: 'var(--ec-bg-page)' }}>
           <span style={{ fontWeight: 800, color: 'var(--ec-blue-dark)' }}>코드 그룹 등록</span>
-          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: '#8a929c' }}>×</span>
+          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: 'var(--ec-text-hint)' }}>×</span>
         </div>
         <div style={{ padding: 16 }}>
-          {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+          {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
           <table className="w-full text-left">
             <tbody>
               <tr>
-                <th style={{ width: 90, background: '#f5f7fa' }}>그룹코드<span style={{ color: '#c60a2e' }}>*</span></th>
+                <th style={{ width: 90, background: 'var(--ec-bg-page)' }}>그룹코드<span style={{ color: 'var(--ec-danger)' }}>*</span></th>
                 <td>
                   <input className="ec-input" value={groupCode} onChange={(e) => setGroupCode(e.target.value)} placeholder="예: SHIPPING_METHOD" style={{ width: 220 }} />
-                  <div style={{ fontSize: 11.5, color: '#9aa1ab', marginTop: 2 }}>영문 대문자로 저장됩니다.</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--ec-text-hint)', marginTop: 2 }}>영문 대문자로 저장됩니다.</div>
                 </td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>그룹명<span style={{ color: '#c60a2e' }}>*</span></th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>그룹명<span style={{ color: 'var(--ec-danger)' }}>*</span></th>
                 <td><input className="ec-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 배송방법" style={{ width: 220 }} /></td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>설명</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>설명</th>
                 <td><input className="ec-input" value={description} onChange={(e) => setDescription(e.target.value)} style={{ width: '100%' }} /></td>
               </tr>
             </tbody>

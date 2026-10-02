@@ -150,7 +150,7 @@ export default function TrialBalancePage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="조회일자">
           <input type="month" className="ec-input" value={from.slice(0, 7)} onChange={(e) => e.target.value && setFrom(`${e.target.value}-01`)} style={{ width: 130 }} />
@@ -187,7 +187,7 @@ export default function TrialBalancePage() {
               </tr>
             </thead>
             <tbody>
-              {all.length === 0 && <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>}
+              {all.length === 0 && <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>}
               {groups.map((g) => {
                 const bs = isBalanceSheet(g.division)
                 const bal = g.lines.reduce((s, l) => s + l.bal, 0)

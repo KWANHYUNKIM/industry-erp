@@ -46,5 +46,5 @@ export function useMyItemsPick(onApply: (items: MyItem[]) => void) {
 /** 훅이 들고 있는 알림을 단추 옆에 그린다. 없으면 아무것도 안 그린다. */
 export function MyItemsNote({ note }: { note: string }) {
   if (!note) return null
-  return <span style={{ fontSize: 12, color: '#5a626e', marginLeft: 6 }}>{note}</span>
+  return <span style={{ fontSize: 12, color: 'var(--ec-label)', marginLeft: 6 }}>{note}</span>
 }

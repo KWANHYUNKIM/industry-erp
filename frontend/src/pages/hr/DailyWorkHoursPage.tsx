@@ -23,8 +23,8 @@ const monthNow = () => {
 const hh = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1))
 /** 상태별 셀 색 — 지각/조퇴/결근을 시각적으로 구분 */
 function cellColor(status: string): string | undefined {
-  if (status === '지각' || status === '조퇴') return '#c07a00'
-  if (status === '결근') return '#c60a2e'
+  if (status === '지각' || status === '조퇴') return 'var(--ec-warn)'
+  if (status === '결근') return 'var(--ec-danger)'
   return undefined
 }
 
@@ -111,7 +111,7 @@ export default function DailyWorkHoursPage() {
   }, [matrix])
   const grandTotal = useMemo(() => matrix.reduce((s, e) => s + e.total, 0), [matrix])
 
-  const thBase: React.CSSProperties = { position: 'sticky', top: 0, background: '#f5f7fa', zIndex: 1, whiteSpace: 'nowrap' }
+  const thBase: React.CSSProperties = { position: 'sticky', top: 0, background: 'var(--ec-bg-page)', zIndex: 1, whiteSpace: 'nowrap' }
   const nameCol: React.CSSProperties = { position: 'sticky', left: 0, background: '#fff', zIndex: 1, whiteSpace: 'nowrap', minWidth: 90 }
 
   // 조건부 열이 있어 정적 검사(qa/ui-check.mjs)로는 칸 수를 셀 수 없다.
@@ -122,7 +122,7 @@ export default function DailyWorkHoursPage() {
   return (
     <EcListShell title="일별근무시간(ID)" search={keyword} onSearchChange={setKeyword} onSearch={load}
       onNew={undefined} actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)' }}>
         {/* 원본은 이 줄을 <b>[기간]</b> 이라 부른다(사본 실측) — 달로 고르는 것은 우리 방식이다. */}
         <span>기간</span>
         <input type="month" className="ec-input" value={month} onChange={(e) => setMonth(e.target.value)} style={{ width: 160 }} />
@@ -148,25 +148,25 @@ export default function DailyWorkHoursPage() {
                     onClick={() => setSubtotal(v)}>{v}</button>
           ))}
         </div>
-        <span style={{ marginLeft: 8, color: '#9aa1ab' }}>셀 = 그날 근무시간(h) · <span style={{ color: '#c07a00' }}>지각/조퇴</span> · <span style={{ color: '#c60a2e' }}>결근</span></span>
+        <span style={{ marginLeft: 8, color: 'var(--ec-text-hint)' }}>셀 = 그날 근무시간(h) · <span style={{ color: 'var(--ec-warn)' }}>지각/조퇴</span> · <span style={{ color: 'var(--ec-danger)' }}>결근</span></span>
         <span style={{ marginLeft: 'auto', fontSize: 12.5 }}>
-          {subtotal} <b style={{ color: '#3c4553' }}>{matrix.length}</b>{subtotal === '부서' ? '개' : '명'}
-          <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+          {subtotal} <b style={{ color: 'var(--ec-text)' }}>{matrix.length}</b>{subtotal === '부서' ? '개' : '명'}
+          <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
           총 근무시간 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{hh(grandTotal)}</b>h
         </span>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       <div style={{ overflowX: 'auto', border: '1px solid var(--ec-border)' }}>
         <table ref={tableRef} className="w-full text-left" style={{ borderCollapse: 'collapse', fontSize: 12 }}>
           <thead>
             <tr>
               <th style={{ ...thBase, ...nameCol, left: 0 }}>{subtotal}</th>
-              <th style={{ ...thBase, position: 'sticky', left: 90, background: '#f5f7fa', whiteSpace: 'nowrap' }}>부서</th>
+              <th style={{ ...thBase, position: 'sticky', left: 90, background: 'var(--ec-bg-page)', whiteSpace: 'nowrap' }}>부서</th>
               {days.map((d) => {
                 const dow = new Date(year, mon - 1, d).getDay()
-                const wk = dow === 0 ? '#c60a2e' : dow === 6 ? '#1c6fb5' : '#8a929c'
+                const wk = dow === 0 ? 'var(--ec-danger)' : dow === 6 ? '#1c6fb5' : 'var(--ec-text-hint)'
                 return <th key={d} style={{ ...thBase, textAlign: 'center', width: 30, color: wk }}>{d}</th>
               })}
               <th style={{ ...thBase, textAlign: 'right', color: 'var(--ec-blue)' }}>합계</th>
@@ -175,19 +175,19 @@ export default function DailyWorkHoursPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={days.length + 4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={days.length + 4} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : matrix.length === 0 ? (
-              <tr><td colSpan={days.length + 4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={days.length + 4} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : matrix.map((e) => (
               <tr key={e.empName}>
                 <td style={{ ...nameCol, fontWeight: 600 }}>{e.empName}</td>
-                <td style={{ whiteSpace: 'nowrap', color: '#5a626e' }}>{e.department ?? ''}</td>
+                <td style={{ whiteSpace: 'nowrap', color: 'var(--ec-label)' }}>{e.department ?? ''}</td>
                 {days.map((d) => {
                   const c = e.byDay.get(d)
                   const r = c?.only ?? null
                   return (
                     <td key={d} title={r ? `${r.clockIn ?? ''}~${r.clockOut ?? ''} (${r.status})` : c ? `${c.n}명` : ''}
-                      style={{ textAlign: 'center', color: c ? (r ? cellColor(r.status) : '#5a626e') : '#dfe3e8', fontWeight: r && cellColor(r.status) ? 700 : 400 }}>
+                      style={{ textAlign: 'center', color: c ? (r ? cellColor(r.status) : 'var(--ec-label)') : '#dfe3e8', fontWeight: r && cellColor(r.status) ? 700 : 400 }}>
                       {c ? (r && r.status === '결근' ? '결' : hh(c.hours)) : '·'}
                     </td>
                   )
@@ -199,10 +199,10 @@ export default function DailyWorkHoursPage() {
           </tbody>
           {matrix.length > 0 && (
             <tfoot>
-              <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
-                <td style={{ ...nameCol, background: '#f7f9fb' }}>일계</td>
+              <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
+                <td style={{ ...nameCol, background: 'var(--ec-bg-page)' }}>일계</td>
                 <td></td>
-                {days.map((d) => <td key={d} style={{ textAlign: 'center', color: '#5a626e' }}>{dayTotals.has(d) ? hh(dayTotals.get(d)!) : ''}</td>)}
+                {days.map((d) => <td key={d} style={{ textAlign: 'center', color: 'var(--ec-label)' }}>{dayTotals.has(d) ? hh(dayTotals.get(d)!) : ''}</td>)}
                 <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{hh(grandTotal)}</td>
                 <td></td>
               </tr>

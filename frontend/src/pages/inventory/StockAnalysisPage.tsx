@@ -260,21 +260,21 @@ export default function StockAnalysisPage() {
       </EcStatusPanel>
 
       {date !== today && (
-        <p style={{ marginBottom: 8, background: '#fff7e6', border: '1px solid #ffe0a3', color: '#8a5a00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
+        <p style={{ marginBottom: 8, background: 'var(--ec-warn-bg)', border: '1px solid #ffe0a3', color: '#8a5a00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
           지금 보는 것은 <b>기준일자 시점의 재고</b>입니다. 현재고에서 그 뒤의 입출고를 빼서 냅니다.
           숫자가 달라지지 않습니다.
         </p>
       )}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        품목 <b style={{ color: '#3c4553', fontSize: 14 }}>{won(totals.count)}</b>
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-        미달 <b style={{ color: '#c60a2e', fontSize: 14 }}>{won(totals.shortage)}</b>
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+        품목 <b style={{ color: 'var(--ec-text)', fontSize: 14 }}>{won(totals.count)}</b>
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
+        미달 <b style={{ color: 'var(--ec-danger)', fontSize: 14 }}>{won(totals.shortage)}</b>
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
         재고금액 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{won(totals.value)}</b>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       <table className="w-full text-left">
         <thead>
@@ -310,9 +310,9 @@ export default function StockAnalysisPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>
               {stocks.length === 0 ? '재고 자료가 없습니다.' : '조건에 맞는 자료가 없습니다.'}
             </td></tr>
           ) : rows.map((r, i) => {
@@ -320,18 +320,18 @@ export default function StockAnalysisPage() {
             const short = r.quantity < r.safetyStock
             return (
               <tr key={r.itemId}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
                 {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다. */}
                 <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
-                <td style={{ textAlign: 'center', color: '#8a929c' }}>{r.unit}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{r.unit}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600 }}>{won(r.quantity)}</td>
-                <td style={{ textAlign: 'right', color: '#5a626e' }}>{won(r.safetyStock)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600, color: diff < 0 ? '#c60a2e' : '#1c7c3c' }}>{diff > 0 ? '+' : ''}{won(diff)}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{won(r.safetyStock)}</td>
+                <td style={{ textAlign: 'right', fontWeight: 600, color: diff < 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>{diff > 0 ? '+' : ''}{won(diff)}</td>
                 <td style={{ textAlign: 'center' }}>
-                  <span style={{ background: short ? '#fdecec' : '#eaf6ec', color: short ? '#c60a2e' : '#1c7c3c', padding: '1px 7px', borderRadius: 3, fontSize: 11.5, fontWeight: 600 }}>{short ? '부족' : '적정'}</span>
+                  <span style={{ background: short ? 'var(--ec-danger-bg)' : 'var(--ec-success-bg)', color: short ? 'var(--ec-danger)' : 'var(--ec-success)', padding: '1px 7px', borderRadius: 3, fontSize: 11.5, fontWeight: 600 }}>{short ? '부족' : '적정'}</span>
                 </td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(r.unitPrice)}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{won(r.unitPrice)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(r.value)}</td>
                 {/* 수주가 남은 품목만 찍는다 — 0 을 찍으면 287줄이 전부 0 으로 덮인다(원본도 비운다). */}
                 <td style={{ textAlign: 'right', color: '#a5561b' }}>
@@ -343,7 +343,7 @@ export default function StockAnalysisPage() {
         </tbody>
         {rows.length > 0 && (
           <tfoot>
-            <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+            <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
               <td colSpan={9} style={{ textAlign: 'right' }}>재고금액 합계</td>
               <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(totals.value)}</td>
               <td style={{ textAlign: 'right', color: '#a5561b' }}>

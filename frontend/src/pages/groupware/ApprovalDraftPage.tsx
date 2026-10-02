@@ -265,7 +265,7 @@ export default function ApprovalDraftPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ color: '#f5b301', fontSize: 14, marginRight: 4 }}>☆</span>
+        <span style={{ color: 'var(--ec-star)', fontSize: 14, marginRight: 4 }}>☆</span>
         <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ec-text)' }}>{TITLE}</span>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, position: 'relative' }}>
           <input
@@ -283,7 +283,7 @@ export default function ApprovalDraftPage() {
           {optionOpen && (
             <>
               <div onClick={() => setOptionOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
-              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, zIndex: 41, background: '#fff', border: '1px solid #c9d1da', borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,.12)', minWidth: 150, padding: 4 }}>
+              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, zIndex: 41, background: '#fff', border: '1px solid var(--ec-line)', borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,.12)', minWidth: 150, padding: 4 }}>
                 {[
                   { label: 'Excel 내려받기', run: () => { void doExcel() } },
                   { label: '인쇄', run: () => doPrint() },
@@ -297,8 +297,8 @@ export default function ApprovalDraftPage() {
         </div>
       </div>
 
-      {error && !selected && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+      {error && !selected && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)' }}>{notice}</div>}
 
       {/*
         원본 기안서작성은 **전폭 양식 목록**이다 — 정렬순서·양식명·구분·결재문서 4열.
@@ -321,9 +321,9 @@ export default function ApprovalDraftPage() {
           <tbody>
             {templates.map((t) => (
               <tr key={t.id} onClick={() => selectForm(t)} style={{ cursor: 'pointer' }}>
-                <td style={{ textAlign: 'center', color: '#8a929c' }}>{String(t.sortOrder).padStart(2, '0')}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{String(t.sortOrder).padStart(2, '0')}</td>
                 <td>{t.name}</td>
-                <td style={{ color: '#8a929c' }}>기본</td>
+                <td style={{ color: 'var(--ec-text-hint)' }}>기본</td>
                 <td />
               </tr>
             ))}
@@ -353,15 +353,15 @@ export default function ApprovalDraftPage() {
               <table className="w-full text-left" style={{ marginBottom: 12 }}>
                 <tbody>
                   <tr>
-                    <th style={{ width: 130, background: '#f5f7fa' }}>일자</th>
+                    <th style={{ width: 130, background: 'var(--ec-bg-page)' }}>일자</th>
                     <td><input className="ec-input" type="date" value={draftDate} onChange={(e) => setDraftDate(e.target.value)} style={{ width: 150 }} /></td>
                   </tr>
                   <tr>
-                    <th style={{ background: '#f5f7fa' }}>제목<span style={{ color: '#c60a2e', marginLeft: 2 }}>*</span></th>
+                    <th style={{ background: 'var(--ec-bg-page)' }}>제목<span style={{ color: 'var(--ec-danger)', marginLeft: 2 }}>*</span></th>
                     <td><input className="ec-input" value={title} onChange={(e) => setTitle(e.target.value)} style={{ width: '100%' }} /></td>
                   </tr>
                   <tr>
-                    <th style={{ background: '#f5f7fa' }}>부서</th>
+                    <th style={{ background: 'var(--ec-bg-page)' }}>부서</th>
                     <td><input className="ec-input" value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="예: 부설연구소" style={{ width: 240 }} /></td>
                   </tr>
                   {/*
@@ -369,7 +369,7 @@ export default function ApprovalDraftPage() {
                     우리는 넷을 각각 별도 행으로 두어 같은 라벨이 네 번 나왔다.
                   */}
                   <tr>
-                    <th style={{ background: '#f5f7fa' }}>결재라인</th>
+                    <th style={{ background: 'var(--ec-bg-page)' }}>결재라인</th>
                     <td>
                       <div style={{ display: 'grid', gap: 4 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -385,7 +385,7 @@ export default function ApprovalDraftPage() {
                               sub: p.steps.map((st) => st.approverName).join(' → '),
                             }))}
                           />
-                          <span style={{ fontSize: 11.5, color: '#9aa1ab' }}>
+                          <span style={{ fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
                             {presets.length === 0
                               ? '저장된 결재선이 없습니다. [공통양식·결재선 설정]에서 만들 수 있습니다.'
                               : '고르면 아래 결재자가 그 순서대로 채워집니다.'}
@@ -394,7 +394,7 @@ export default function ApprovalDraftPage() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                           <span className="ec-line-tag">결재자</span>
                           {picker(approverIds, setApproverIds, '결재자 선택')}
-                          <span style={{ fontSize: 11.5, color: '#9aa1ab' }}>선택 순서대로 결재 진행</span>
+                          <span style={{ fontSize: 11.5, color: 'var(--ec-text-hint)' }}>선택 순서대로 결재 진행</span>
                           {chips(approverIds, setApproverIds, true)}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -412,7 +412,7 @@ export default function ApprovalDraftPage() {
                   </tr>
                   {/* 원본은 [구분]과 [출력양식]이 한 줄에 좌우로 놓인다. */}
                   <tr>
-                    <th style={{ background: '#f5f7fa' }}>구분</th>
+                    <th style={{ background: 'var(--ec-bg-page)' }}>구분</th>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
                         <input className="ec-input" value={category} onChange={(e) => setCategory(e.target.value)}
@@ -428,15 +428,15 @@ export default function ApprovalDraftPage() {
                     </td>
                   </tr>
                   <tr>
-                    <th style={{ background: '#f5f7fa' }}>기안서No.</th>
+                    <th style={{ background: 'var(--ec-bg-page)' }}>기안서No.</th>
                     <td>
                       <input className="ec-input" value="" readOnly placeholder="(저장 시 자동채번)"
-                             style={{ width: '100%', background: '#f7f8f9', color: '#8a929c' }} />
+                             style={{ width: '100%', background: '#f7f8f9', color: 'var(--ec-text-hint)' }} />
                     </td>
                   </tr>
                   <tr>
-                    <th style={{ background: '#f5f7fa' }}>결재문서</th>
-                    <td style={{ fontSize: 12, color: '#8a929c' }}>
+                    <th style={{ background: 'var(--ec-bg-page)' }}>결재문서</th>
+                    <td style={{ fontSize: 12, color: 'var(--ec-text-hint)' }}>
                       전표 · 출력물 —{' '}
                       <span style={{ color: '#62677e' }}>
                         저장한 뒤 [내결재관리]에서 판매·구매·비용 전표를 연결합니다.
@@ -444,7 +444,7 @@ export default function ApprovalDraftPage() {
                     </td>
                   </tr>
                   <tr>
-                    <th style={{ background: '#f5f7fa' }}>첨부</th>
+                    <th style={{ background: 'var(--ec-bg-page)' }}>첨부</th>
                     <td>
                       {/* 원본 기안서작성의 [여기에 파일 놓기]. 한 건만 붙는 자리다. */}
                       <EcFileDrop
@@ -461,7 +461,7 @@ export default function ApprovalDraftPage() {
                     </td>
                   </tr>
                   <tr>
-                    <th style={{ background: '#f5f7fa' }}>라벨</th>
+                    <th style={{ background: 'var(--ec-bg-page)' }}>라벨</th>
                     <td>
                       <input className="ec-input" value={labelText} onChange={(e) => setLabelText(e.target.value)}
                              placeholder="문서를 묶어 보는 꼬리표" style={{ width: 360 }} />
@@ -539,9 +539,9 @@ export default function ApprovalDraftPage() {
                 작성창이 열려 있으면 오류도 창 안에 띄운다. 예전엔 창 뒤(목록 위)에만 떠서, 필수 항목을 빠뜨리고
                 [저장/결재] 를 누르면 아무 일도 안 일어나는 것처럼 보였다(QA 15회차, 화면으로 기안해 보다 발견).
               */}
-              {error && <p style={{ marginTop: 10, marginBottom: 0, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+              {error && <p style={{ marginTop: 10, marginBottom: 0, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
-              <div style={{ display: 'flex', gap: 6, marginTop: 12, paddingTop: 8, borderTop: '1px solid #eef1f5', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: 6, marginTop: 12, paddingTop: 8, borderTop: '1px solid var(--ec-line-soft)', alignItems: 'center' }}>
                 {/* 원본 푸터: 저장/결재(F7)▴ · 임시저장/미리보기 · 양식샘플보기 · My도장/서명 · 닫기 */}
                 <button className="ec-btn ec-btn-primary" onClick={() => void save(false)} disabled={saving}>{saving ? '처리 중…' : '저장/결재(F7)'}</button>
                 <button className="ec-btn" onClick={() => void save(true)} disabled={saving}>임시저장/미리보기</button>
@@ -563,7 +563,7 @@ export default function ApprovalDraftPage() {
                 </button>
                 <button className="ec-btn" onClick={() => setSelected(null)}>닫기</button>
                 {missing.length > 0 && (
-                  <span style={{ fontSize: 11.5, color: '#c60a2e', marginLeft: 4 }}>미입력 필수: {missing.join(', ')}</span>
+                  <span style={{ fontSize: 11.5, color: 'var(--ec-danger)', marginLeft: 4 }}>미입력 필수: {missing.join(', ')}</span>
                 )}
               </div>
             </div>
@@ -573,11 +573,11 @@ export default function ApprovalDraftPage() {
       {helpOpen && (
         <div onClick={() => setHelpOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, width: 460, maxWidth: '90vw', boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}>
-            <div style={{ padding: '10px 14px', borderBottom: '1px solid #e6eaef', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
+            <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--ec-line-soft)', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
               <span>{TITLE} · 도움말</span>
               <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => setHelpOpen(false)}>닫기</button>
             </div>
-            <div style={{ padding: 14, fontSize: 12.5, lineHeight: 1.7, color: '#3c4553' }}>
+            <div style={{ padding: 14, fontSize: 12.5, lineHeight: 1.7, color: 'var(--ec-text)' }}>
               <ul style={{ paddingLeft: 16, margin: 0 }}>
                 <li>좌측 목록에서 <b>결재양식</b>을 고르면 그 양식이 요구하는 입력 항목이 자동으로 나타납니다.</li>
                 <li>양식별 항목은 서버의 <b>양식 마스터</b>가 정의합니다. 출장 양식의 <b>여비산정</b>처럼 표 항목은 합계가 자동 계산됩니다.</li>

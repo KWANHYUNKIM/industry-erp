@@ -301,19 +301,19 @@ export default function WarehouseStockPage() {
       </EcStatusPanel>
 
       {cond.date !== today && (
-        <p style={{ marginBottom: 8, background: '#fff7e6', border: '1px solid #ffe0a3', color: '#8a5a00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
+        <p style={{ marginBottom: 8, background: 'var(--ec-warn-bg)', border: '1px solid #ffe0a3', color: '#8a5a00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
           지금 보는 것은 <b>기준일자 시점의 재고</b>입니다. 현재고에서 그 뒤의 입출고를 빼서 냅니다.
           숫자가 달라지지 않습니다.
         </p>
       )}
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        품목 <b style={{ color: '#3c4553' }}>{num(shownItems.length)}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
-        창고 <b style={{ color: '#3c4553' }}>{num(shownWarehouses.length)}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+        품목 <b style={{ color: 'var(--ec-text)' }}>{num(shownItems.length)}</b>
+        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+        창고 <b style={{ color: 'var(--ec-text)' }}>{num(shownWarehouses.length)}</b>
+        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
         재고수량 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{num(grandTotal)}</b>
       </div>
 

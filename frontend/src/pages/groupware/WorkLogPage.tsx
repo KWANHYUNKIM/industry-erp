@@ -167,7 +167,7 @@ export default function WorkLogPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ color: '#f5b301', fontSize: 14, marginRight: 4 }}>☆</span>
+        <span style={{ color: 'var(--ec-star)', fontSize: 14, marginRight: 4 }}>☆</span>
         <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ec-text)' }}>업무일지</span>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, position: 'relative' }}>
           <button className="ec-btn" onClick={load}>새로고침</button>
@@ -186,7 +186,7 @@ export default function WorkLogPage() {
           {optionOpen && (
             <>
               <div onClick={() => setOptionOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
-              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, zIndex: 41, background: '#fff', border: '1px solid #c9d1da', borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,.12)', minWidth: 150, padding: 4 }}>
+              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, zIndex: 41, background: '#fff', border: '1px solid var(--ec-line)', borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,.12)', minWidth: 150, padding: 4 }}>
                 {[
                   { label: 'Excel 내려받기', run: () => { void doExcel() } },
                   { label: '인쇄', run: () => doPrint() },
@@ -200,8 +200,8 @@ export default function WorkLogPage() {
         </div>
       </div>
 
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)' }}>{notice}</div>}
 
       <Modal error={error} open={showForm} title="신규 등록" onClose={() => setShowForm(false)}>{(
         <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 16, marginBottom: 10 }}>
@@ -209,27 +209,27 @@ export default function WorkLogPage() {
           <table className="w-full text-left" style={{ marginBottom: 10 }}>
             <tbody>
               <tr>
-                <th style={{ width: 90, background: '#f5f7fa' }}>업무보고일</th>
-                <td><input className="ec-input" type="date" value={form.reportDate} onChange={(e) => set('reportDate', e.target.value)} style={{ width: 150 }} /> <span style={{ color: '#8a929c' }}>({dow(form.reportDate)})</span></td>
-                <th style={{ width: 90, background: '#f5f7fa' }}>부서</th>
+                <th style={{ width: 90, background: 'var(--ec-bg-page)' }}>업무보고일</th>
+                <td><input className="ec-input" type="date" value={form.reportDate} onChange={(e) => set('reportDate', e.target.value)} style={{ width: 150 }} /> <span style={{ color: 'var(--ec-text-hint)' }}>({dow(form.reportDate)})</span></td>
+                <th style={{ width: 90, background: 'var(--ec-bg-page)' }}>부서</th>
                 <td><input className="ec-input" value={form.department} onChange={(e) => set('department', e.target.value)} placeholder="미입력시 소속부서" style={{ width: 160 }} /></td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>프로젝트</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>프로젝트</th>
                 <td>
                   <CodePickerField label="프로젝트" hideLabel width={200} value={form.projectId}
                                    onChange={(v) => set('projectId', v)}
                                    items={projects.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))} />
                 </td>
-                <th style={{ background: '#f5f7fa' }}>거래처</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>거래처</th>
                 <td><input className="ec-input" value={form.partnerName} onChange={(e) => set('partnerName', e.target.value)} style={{ width: 200 }} /></td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>제목 *</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>제목 *</th>
                 <td colSpan={3}><input className="ec-input" value={form.title} onChange={(e) => set('title', e.target.value)} style={{ width: '100%' }} /></td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa', verticalAlign: 'top' }}>내용 *</th>
+                <th style={{ background: 'var(--ec-bg-page)', verticalAlign: 'top' }}>내용 *</th>
                 <td colSpan={3}><textarea value={form.content} onChange={(e) => set('content', e.target.value)} style={{ width: '100%', height: 120, border: '1px solid var(--ec-border)', padding: 8, fontSize: 13, resize: 'vertical', outline: 'none' }} /></td>
               </tr>
             </tbody>
@@ -348,12 +348,12 @@ export default function WorkLogPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : sort.sorted.map((r, i) => (
               <tr key={r.id}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{dateText(r.reportDate)}</td>
                 <td style={{ textAlign: 'center' }}>{dow(r.reportDate)}</td>
                 <td>{r.department ?? ''}</td>
@@ -367,7 +367,7 @@ export default function WorkLogPage() {
         </table>
       </div>
 
-      <div style={{ display: 'flex', gap: 6, marginTop: 10, paddingTop: 8, borderTop: '1px solid #eef1f5' }}>
+      <div style={{ display: 'flex', gap: 6, marginTop: 10, paddingTop: 8, borderTop: '1px solid var(--ec-line-soft)' }}>
         <button className="ec-btn ec-btn-primary" onClick={() => setShowForm((v) => !v)}>{showForm ? '입력닫기' : '신규(F2)'}</button>
         <button className="ec-btn" onClick={() => { void doExcel() }}>Excel</button>
       </div>
@@ -375,11 +375,11 @@ export default function WorkLogPage() {
       {helpOpen && (
         <div onClick={() => setHelpOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, width: 420, maxWidth: '90vw', boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}>
-            <div style={{ padding: '10px 14px', borderBottom: '1px solid #e6eaef', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
+            <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--ec-line-soft)', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
               <span>{TITLE} · 도움말</span>
               <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => setHelpOpen(false)}>닫기</button>
             </div>
-            <div style={{ padding: 14, fontSize: 12.5, lineHeight: 1.7, color: '#3c4553' }}>
+            <div style={{ padding: 14, fontSize: 12.5, lineHeight: 1.7, color: 'var(--ec-text)' }}>
               <ul style={{ paddingLeft: 16, margin: 0 }}>
                 <li><b>신규(F2)</b> — 상단 입력폼을 열어 업무보고일·제목·내용으로 일지를 작성합니다.</li>
                 <li><b>Search(F3)</b> — 제목·부서·거래처 등 입력한 낱말이 포함된 행만 추립니다.</li>

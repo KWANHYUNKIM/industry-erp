@@ -23,7 +23,7 @@ interface BalanceRes { code: string; name: string; typeName: string; receivable:
 interface Preview { header: string[]; rows: (string | number)[][]; rightCols: number[] }
 interface Report { id: number; category: string; name: string; desc: string; count: number; build: () => Preview }
 
-const catColor = (c: string) => ({ 재고: 'var(--ec-blue)', 영업: '#1c7c3c', 구매: '#c07a00', 회계: '#7a4dbf' }[c] ?? '#5a626e')
+const catColor = (c: string) => ({ 재고: 'var(--ec-blue)', 영업: 'var(--ec-success)', 구매: 'var(--ec-warn)', 회계: '#7a4dbf' }[c] ?? 'var(--ec-label)')
 const num = (v: number) => Number(v).toLocaleString()
 
 export default function ReportsPage() {
@@ -150,7 +150,7 @@ export default function ReportsPage() {
 
   return (
     <EcListShell title="출력물" actions={[{ label: '새로고침', onClick: load }, { label: '양식 관리', onClick: () => setFormMgmtOpen(true) }]}>
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       <table className="w-full text-left">
         <thead>
           <tr>
@@ -164,14 +164,14 @@ export default function ReportsPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ color: catColor(r.category), fontWeight: 700 }}>{r.category}</td>
               <td style={{ fontWeight: 600 }}>{r.name}</td>
-              <td style={{ color: '#5a626e' }}>{r.desc}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600, color: r.count > 0 ? 'var(--ec-blue-dark)' : '#9aa1ab' }}>{r.count.toLocaleString()}</td>
+              <td style={{ color: 'var(--ec-label)' }}>{r.desc}</td>
+              <td style={{ textAlign: 'right', fontWeight: 600, color: r.count > 0 ? 'var(--ec-blue-dark)' : 'var(--ec-text-hint)' }}>{r.count.toLocaleString()}</td>
               <td style={{ textAlign: 'center' }}>
                 <button className="ec-btn" style={{ height: 20, padding: '0 10px', marginRight: 4 }} onClick={() => openPreview(r)}>미리보기</button>
                 <button className="ec-btn" style={{ height: 20, padding: '0 10px' }} onClick={() => printReport(r)}>🖨 인쇄</button>
@@ -183,9 +183,9 @@ export default function ReportsPage() {
 
       {preview && (
         <div style={{ marginTop: 14, border: '1px solid #d5dae2', background: '#fff' }}>
-          <div style={{ display: 'flex', alignItems: 'center', padding: '6px 10px', borderBottom: '1px solid #eef1f5' }}>
+          <div style={{ display: 'flex', alignItems: 'center', padding: '6px 10px', borderBottom: '1px solid var(--ec-line-soft)' }}>
             <b style={{ fontSize: 13.5 }}>{preview.name}</b>
-            <span style={{ marginLeft: 8, fontSize: 12, color: '#8a929c' }}>총 {preview.data.rows.length.toLocaleString()}건 (미리보기 상위 30건)</span>
+            <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--ec-text-hint)' }}>총 {preview.data.rows.length.toLocaleString()}건 (미리보기 상위 30건)</span>
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
               <button className="ec-btn" style={{ height: 20, padding: '0 10px' }} onClick={() => window.print()}>🖨 인쇄</button>
               <button className="ec-btn" style={{ height: 20, padding: '0 10px' }} onClick={() => setPreview(null)}>닫기</button>
@@ -206,7 +206,7 @@ export default function ReportsPage() {
               </thead>
               <tbody>
                 {preview.data.rows.length === 0 ? (
-                  <tr><td colSpan={preview.data.header.length} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
+                  <tr><td colSpan={preview.data.header.length} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
                 ) : capRows(preview.data.rows, 30).rows.map((row, ri) => (
                   <tr key={ri}>
                     {row.map((c, ci) => (
@@ -223,27 +223,27 @@ export default function ReportsPage() {
       {formMgmtOpen && (
         <div onClick={() => setFormMgmtOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, width: 620, maxWidth: '94vw', maxHeight: '86vh', overflow: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}>
-            <div style={{ padding: '10px 14px', borderBottom: '1px solid #e6eaef', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
+            <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--ec-line-soft)', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
               <span>양식 관리 · 장표 양식 목록</span>
               <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => setFormMgmtOpen(false)}>닫기</button>
             </div>
-            <div style={{ padding: 14, fontSize: 12.5, color: '#3c4553' }}>
-              <p style={{ margin: '0 0 8px', color: '#5a626e' }}>이 화면에서 제공하는 장표(출력 양식) <b>{reports.length}</b>종입니다. 분류별로 어떤 양식이 있고 현재 출력 가능한 대상 건수가 얼마인지 확인할 수 있습니다.</p>
+            <div style={{ padding: 14, fontSize: 12.5, color: 'var(--ec-text)' }}>
+              <p style={{ margin: '0 0 8px', color: 'var(--ec-label)' }}>이 화면에서 제공하는 장표(출력 양식) <b>{reports.length}</b>종입니다. 분류별로 어떤 양식이 있고 현재 출력 가능한 대상 건수가 얼마인지 확인할 수 있습니다.</p>
               <table className="w-full text-left">
                 <thead><tr><th style={{ textAlign: 'center', width: 34 }}>No</th><th style={{ width: 80 }}>분류</th><th style={{ width: 180 }}>양식명</th><th>설명</th><th style={{ width: 80, textAlign: 'right' }}>대상</th></tr></thead>
                 <tbody>
                   {reports.map((r, i) => (
                     <tr key={r.id}>
-                      <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                      <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                       <td style={{ color: catColor(r.category), fontWeight: 700 }}>{r.category}</td>
                       <td style={{ fontWeight: 600 }}>{r.name}</td>
-                      <td style={{ color: '#5a626e' }}>{r.desc}</td>
-                      <td style={{ textAlign: 'right', fontWeight: 600, color: r.count > 0 ? 'var(--ec-blue-dark)' : '#9aa1ab' }}>{r.count.toLocaleString()}</td>
+                      <td style={{ color: 'var(--ec-label)' }}>{r.desc}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 600, color: r.count > 0 ? 'var(--ec-blue-dark)' : 'var(--ec-text-hint)' }}>{r.count.toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              <p style={{ margin: '8px 0 0', fontSize: 11.5, color: '#c07a00' }}>* 양식 신규 추가·레이아웃 편집·머리글/로고 커스터마이징은 백엔드 미연동입니다. 현재는 기본 제공 양식의 조회·미리보기·인쇄만 지원합니다.</p>
+              <p style={{ margin: '8px 0 0', fontSize: 11.5, color: 'var(--ec-warn)' }}>* 양식 신규 추가·레이아웃 편집·머리글/로고 커스터마이징은 백엔드 미연동입니다. 현재는 기본 제공 양식의 조회·미리보기·인쇄만 지원합니다.</p>
             </div>
           </div>
         </div>

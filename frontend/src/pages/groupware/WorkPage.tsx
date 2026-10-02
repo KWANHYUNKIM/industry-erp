@@ -227,7 +227,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ color: '#f5b301', fontSize: 14, marginRight: 4 }}>☆</span>
+        <span style={{ color: 'var(--ec-star)', fontSize: 14, marginRight: 4 }}>☆</span>
         <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ec-text)' }}>{title}</span>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
           <input className="ec-input" placeholder="입력 후 [Enter]" value={keyword} onChange={(e) => setKeyword(e.target.value)} style={{ width: 150 }} />
@@ -237,7 +237,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
         </div>
       </div>
 
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
       <Modal error={error} open={showForm} title="신규 등록" onClose={() => setShowForm(false)}>{(
         <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginBottom: 8 }}>
@@ -245,16 +245,16 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
           <table className="w-full text-left" style={{ marginBottom: 10 }}>
             <tbody>
               <tr>
-                <th style={{ width: 80, background: '#f5f7fa' }}>제목 *</th>
+                <th style={{ width: 80, background: 'var(--ec-bg-page)' }}>제목 *</th>
                 <td><input className="ec-input" value={form.title} onChange={(e) => set('title', e.target.value)} style={{ width: '100%' }} /></td>
-                <th style={{ width: 80, background: '#f5f7fa' }}>전달자</th>
+                <th style={{ width: 80, background: 'var(--ec-bg-page)' }}>전달자</th>
                 <td><input className="ec-input" value={form.forwardTo} onChange={(e) => set('forwardTo', e.target.value)} placeholder="공유대상" style={{ width: 160 }} /></td>
               </tr>
               <tr>
-                <th style={{ width: 80, background: '#f5f7fa' }}>참조자</th>
+                <th style={{ width: 80, background: 'var(--ec-bg-page)' }}>참조자</th>
                 <td><input className="ec-input" value={form.ccTo} onChange={(e) => set('ccTo', e.target.value)} placeholder="참조대상" style={{ width: '100%' }} /></td>
                 {/* 원본 WORK입력 폼의 [공지사항여부]. 켜면 목록 맨 위에 붙는다. */}
-                <th style={{ width: 80, background: '#f5f7fa' }}>공지사항여부</th>
+                <th style={{ width: 80, background: 'var(--ec-bg-page)' }}>공지사항여부</th>
                 <td>
                   <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, cursor: 'pointer' }}>
                     <input type="checkbox" checked={notice} onChange={(e) => setNotice(e.target.checked)} />
@@ -263,7 +263,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
                 </td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa', verticalAlign: 'top' }}>내용 *</th>
+                <th style={{ background: 'var(--ec-bg-page)', verticalAlign: 'top' }}>내용 *</th>
                 <td colSpan={3}><textarea value={form.content} onChange={(e) => set('content', e.target.value)} style={{ width: '100%', height: 100, border: '1px solid var(--ec-border)', padding: 8, fontSize: 13, resize: 'vertical', outline: 'none' }} /></td>
               </tr>
             </tbody>
@@ -328,17 +328,17 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((r, i) => (
               <Fragment key={r.id}>
               <tr>
                 <td
                   style={{
                     textAlign: 'center',
-                    background: selected.has(r.id) ? 'var(--ec-blue-light)' : '#f3f3f3',
-                    color: selected.has(r.id) ? 'var(--ec-blue-dark)' : '#8a929c',
+                    background: selected.has(r.id) ? 'var(--ec-blue-light)' : 'var(--ec-report-stripe)',
+                    color: selected.has(r.id) ? 'var(--ec-blue-dark)' : 'var(--ec-text-hint)',
                     fontWeight: selected.has(r.id) ? 700 : 400,
                     cursor: 'pointer', userSelect: 'none',
                   }}
@@ -355,9 +355,9 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
                           title="눌러서 내용을 폅니다"
                           style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer',
                                    font: 'inherit', color: 'var(--ec-blue-dark)', textAlign: 'left' }}>
-                    <span style={{ color: '#9aa1ab', marginRight: 4 }}>{opened.has(r.id) ? '▾' : '▸'}</span>
+                    <span style={{ color: 'var(--ec-text-hint)', marginRight: 4 }}>{opened.has(r.id) ? '▾' : '▸'}</span>
                     {r.notice && (
-                      <span style={{ color: '#c60a2e', fontWeight: 800, marginRight: 4 }}>[공지]</span>
+                      <span style={{ color: 'var(--ec-danger)', fontWeight: 800, marginRight: 4 }}>[공지]</span>
                     )}
                     {r.title}
                   </button>
@@ -365,10 +365,10 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
                 <td>{r.writerName ?? r.writer}</td>
                 <td>{r.forwardTo ?? ''}</td>
                 <td style={{ textAlign: 'center' }}>
-                  <span style={{ color: r.status === 'DONE' ? '#1c7c3c' : 'var(--ec-blue)', fontWeight: 700 }}>{r.statusName}</span>
+                  <span style={{ color: r.status === 'DONE' ? 'var(--ec-success)' : 'var(--ec-blue)', fontWeight: 700 }}>{r.statusName}</span>
                   {/* 원본 WORK입력 폼의 [완료일시]. 언제 끝난 일인지가 아무 데도 안 남아 있었다. */}
                   {r.completedAt && (
-                    <div style={{ color: '#9aa1ab', fontSize: 11 }}>{r.completedAt.slice(0, 16).replace('T', ' ')}</div>
+                    <div style={{ color: 'var(--ec-text-hint)', fontSize: 11 }}>{r.completedAt.slice(0, 16).replace('T', ' ')}</div>
                   )}
                 </td>
                 {/* 원본 [첨부]. 파일이 없으면 원본도 빈 칸이다. */}
@@ -377,10 +377,10 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
                     <span title={`${r.attachmentName} (${formatBytes(r.attachmentSize ?? 0)})`}
                           onClick={() => void downloadStoredFile(r.attachmentId!, r.attachmentName ?? '첨부')}
                           style={{ cursor: 'pointer', color: 'var(--ec-blue)' }}>📎</span>
-                  ) : <span style={{ color: '#c8ced6' }}>—</span>}
+                  ) : <span style={{ color: 'var(--ec-text-off)' }}>—</span>}
                 </td>
                 {/* 원본 [조회] — 글을 편 횟수다. 완료/재개는 하단 [진행상태변경]으로 옮겼다. */}
-                <td style={{ textAlign: 'center', color: '#5a626e' }}>{r.viewCount ?? 0}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-label)' }}>{r.viewCount ?? 0}</td>
               </tr>
               {opened.has(r.id) && (
                 <tr>
@@ -407,10 +407,10 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
                       </div>
                     ) : (
                       <>
-                        <div style={{ whiteSpace: 'pre-wrap', fontSize: 12.5, color: '#3c4553', minHeight: 20 }}>
+                        <div style={{ whiteSpace: 'pre-wrap', fontSize: 12.5, color: 'var(--ec-text)', minHeight: 20 }}>
                           {r.content}
                         </div>
-                        <div style={{ display: 'flex', gap: 4, marginTop: 8, paddingTop: 6, borderTop: '1px solid #eef1f5' }}>
+                        <div style={{ display: 'flex', gap: 4, marginTop: 8, paddingTop: 6, borderTop: '1px solid var(--ec-line-soft)' }}>
                           <button className="ec-btn" onClick={() => setEditing({
                             id: r.id, title: r.title, content: r.content, forwardTo: r.forwardTo ?? '',
                             ccTo: r.ccTo ?? '', notice: r.notice,
@@ -429,7 +429,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
         </table>
       </div>
 
-      <div style={{ display: 'flex', gap: 6, marginTop: 10, paddingTop: 8, borderTop: '1px solid #eef1f5' }}>
+      <div style={{ display: 'flex', gap: 6, marginTop: 10, paddingTop: 8, borderTop: '1px solid var(--ec-line-soft)' }}>
         {/*
           원본 하단: 신규(F2)·보내기·업무지원AI·진행상태변경·모두펼쳐보기·선택삭제·Excel·이력조회·웹자료올리기.
           받쳐 줄 기능이 있는 것만 둔다 — 보내기·업무지원AI·이력조회는 아직 없다.

@@ -11,7 +11,7 @@ import { dateText } from '../../utils/dateText'
 
 const today = () => ymd(new Date())
 
-const statusColor = (s: LotStatus) => (s === 'HOLD' ? '#c07a00' : s === 'SHIPPED' ? '#8a929c' : '#1c7c3c')
+const statusColor = (s: LotStatus) => (s === 'HOLD' ? 'var(--ec-warn)' : s === 'SHIPPED' ? 'var(--ec-text-hint)' : 'var(--ec-success)')
 
 /** 재고 II > 시리얼/로트No. — 로트별 입고/현재고/보류 추적 (실연동) */
 export default function SerialLotPage() {
@@ -154,29 +154,29 @@ export default function SerialLotPage() {
       onNew={() => setShowForm(true)}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
       <Modal error={error} open={showForm} title="시리얼/로트No. 등록" onClose={() => setShowForm(false)}>{(
         <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginTop: 8, marginBottom: 8 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>로트 등록(입고)</div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>로트No. *</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>로트No. *</div>
               <input className="ec-input" value={form.lotNo} onChange={(e) => set('lotNo', e.target.value)} placeholder="LOT-260707-01" style={{ width: 160 }} /></label>
             {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). label 로 감싸면 팝업 행 클릭이 안 먹어 div 로. */}
-            <div style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>품목 *</div>
+            <div style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>품목 *</div>
               <CodePickerField label="품목" hideLabel width={220} placeholder="품목" emptyLabel="선택 해제"
                                value={form.itemId} onChange={(v) => set('itemId', v)}
                                items={items.filter((it) => it.active !== false).map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))} /></div>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>창고</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>창고</div>
               <select className="ec-input" value={form.warehouseId} onChange={(e) => set('warehouseId', e.target.value)} style={{ width: 140 }}>
                 <option value="">(미지정)</option>
                 {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
               </select></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>입고일</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>입고일</div>
               <input className="ec-input" type="date" value={form.inboundDate} onChange={(e) => set('inboundDate', e.target.value)} style={{ width: 140 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>유효기한</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>유효기한</div>
               <input className="ec-input" type="date" value={form.expireDate} onChange={(e) => set('expireDate', e.target.value)} style={{ width: 140 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>입고수량 *</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>입고수량 *</div>
               <input className="ec-input" type="number" step="any" value={form.inboundQty} onChange={(e) => set('inboundQty', e.target.value)} style={{ width: 100 }} /></label>
             <button className="ec-btn ec-btn-primary" onClick={submit}>등록</button>
           </div>
@@ -199,7 +199,7 @@ export default function SerialLotPage() {
       </ul>
 
       <div style={{ marginBottom: 8 }}>
-        <label style={{ fontSize: 12.5, color: '#3a4453', cursor: 'pointer' }}>
+        <label style={{ fontSize: 12.5, color: 'var(--ec-text)', cursor: 'pointer' }}>
           <input type="checkbox" checked={onlyStock} onChange={(e) => setOnlyStock(e.target.checked)} style={{ marginRight: 5, verticalAlign: 'middle' }} />
           재고보유 로트만 보기
         </label>
@@ -233,19 +233,19 @@ export default function SerialLotPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => [
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.lotNo}</td>
               <td>{r.itemName}{r.spec ? `[${r.spec}]` : ''}</td>
-              <td style={{ color: '#5a626e' }}>{r.spec ?? ''}</td>
+              <td style={{ color: 'var(--ec-label)' }}>{r.spec ?? ''}</td>
               <td>{dateText(r.inboundDate)}</td>
               <td>{dateText(r.expireDate) || ''}</td>
               <td style={{ textAlign: 'right' }}>{r.inboundQty.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', fontWeight: r.stockQty > 0 ? 700 : 400, color: r.stockQty === 0 ? '#9aa1ab' : undefined }}>{r.stockQty.toLocaleString()}</td>
+              <td style={{ textAlign: 'right', fontWeight: r.stockQty > 0 ? 700 : 400, color: r.stockQty === 0 ? 'var(--ec-text-hint)' : undefined }}>{r.stockQty.toLocaleString()}</td>
               <td>{r.warehouseName ?? ''}</td>
               <td style={{ textAlign: 'center', color: statusColor(r.status), fontWeight: 700 }}>{r.statusName}</td>
               <td style={{ textAlign: 'center' }}>
@@ -257,15 +257,15 @@ export default function SerialLotPage() {
               <td style={{ textAlign: 'center' }}>
                 <button className="ec-btn" style={{ height: 20, padding: '0 6px' }} disabled={r.held || r.stockQty <= 0} onClick={() => consume(r)}>출고</button>
                 <button className="ec-btn" style={{ height: 20, padding: '0 6px', marginLeft: 3 }} onClick={() => adjust(r)}>실사</button>
-                <button className="ec-btn" style={{ height: 20, padding: '0 6px', marginLeft: 3, color: r.held ? '#1c7c3c' : '#c07a00' }} onClick={() => toggleHold(r)}>{r.held ? '해제' : '보류'}</button>
+                <button className="ec-btn" style={{ height: 20, padding: '0 6px', marginLeft: 3, color: r.held ? 'var(--ec-success)' : 'var(--ec-warn)' }} onClick={() => toggleHold(r)}>{r.held ? '해제' : '보류'}</button>
               </td>
             </tr>,
             openLot === r.lotNo ? (
               /* 펼친 줄 — 그 로트의 입출고. 움직인 적이 없으면 그렇게 적는다(빈 표를 그리지 않는다). */
               <tr key={`${r.id}-detail`}>
-                <td colSpan={12} style={{ background: '#fbfcfe', padding: '8px 14px' }}>
+                <td colSpan={12} style={{ background: 'var(--ec-bg-page)', padding: '8px 14px' }}>
                   {lotTx.filter((t) => t.lotNo === r.lotNo).length === 0 ? (
-                    <span style={{ fontSize: 12, color: '#9aa1ab' }}>움직인 내역이 없습니다.</span>
+                    <span style={{ fontSize: 12, color: 'var(--ec-text-hint)' }}>움직인 내역이 없습니다.</span>
                   ) : (
                     <table className="w-full text-left" style={{ maxWidth: 760 }}>
                       <thead><tr>
@@ -278,14 +278,14 @@ export default function SerialLotPage() {
                       <tbody>
                         {lotTx.filter((t) => t.lotNo === r.lotNo).map((t, k) => (
                           <tr key={t.id}>
-                            <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{k + 1}</td>
+                            <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{k + 1}</td>
                             <td style={{ fontFamily: 'monospace' }}>{dateText(t.txDate)}</td>
                             <td>{t.typeName}</td>
-                            <td style={{ textAlign: 'right', color: t.quantityChange < 0 ? '#c60a2e' : '#1c7c3c' }}>
+                            <td style={{ textAlign: 'right', color: t.quantityChange < 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>
                               {t.quantityChange.toLocaleString()}
                             </td>
                             <td style={{ textAlign: 'right', fontWeight: 600 }}>{t.balanceAfter.toLocaleString()}</td>
-                            <td style={{ color: '#8a929c' }}>{t.note ?? ''}</td>
+                            <td style={{ color: 'var(--ec-text-hint)' }}>{t.note ?? ''}</td>
                           </tr>
                         ))}
                       </tbody>

@@ -550,20 +550,20 @@ export default function ProductionIssueStatusPage() {
         </EcCond>
       </EcStatusPanel>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
         {mode === '거래별' ? '생산' : '묶음'}{' '}
-        <b style={{ color: '#3c4553' }}>{num(
+        <b style={{ color: 'var(--ec-text)' }}>{num(
           mode === '거래별' ? shown.length
             : mode === '생산품목별집계' ? byProduct.length
               : mode === '소모품목별집계' ? byMaterial.length
                 : mode === '생산품목라인별집계' ? byProductLine.length
                   : byItem.length,
         )}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
         입고 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{num(totals.inQty)}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
         소모 <b style={{ color: '#a5561b', fontSize: 14 }}>{num(totals.outQty)}</b>
       </div>
 
@@ -611,8 +611,8 @@ export default function ProductionIssueStatusPage() {
                   const dateNo = `${p.productionDate.replace(/-/g, '/')} ${p.prodNo}`
                   const pp = priceOf(p.productId, p.productionDate, prodBasis)
                   return [
-                    <tr key={`${p.id}-p`} style={{ background: '#fafbfc' }}>
-                      <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{++n}</td>
+                    <tr key={`${p.id}-p`} style={{ background: 'var(--ec-bg-page)' }}>
+                      <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{++n}</td>
                       <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{dateNo}</td>
                       <td style={{ fontFamily: 'monospace' }}>{p.productCode}</td>
                       <td>{p.productName}</td>
@@ -621,7 +621,7 @@ export default function ProductionIssueStatusPage() {
                       <td style={{ textAlign: 'right', fontWeight: 600 }}>{num(p.producedQty)}</td>
                       <td style={{ textAlign: 'right' }}></td>
                       <td style={{ textAlign: 'right' }}></td>
-                      <td style={{ textAlign: 'right', color: pp == null ? '#c9ced6' : '#5a626e' }}>{pp == null ? '' : won(pp)}</td>
+                      <td style={{ textAlign: 'right', color: pp == null ? 'var(--ec-text-off)' : 'var(--ec-label)' }}>{pp == null ? '' : won(pp)}</td>
                       <td style={{ textAlign: 'right' }}></td>
                       <td style={{ textAlign: 'right' }}></td>
                       <td style={{ textAlign: 'right' }}></td>
@@ -631,23 +631,23 @@ export default function ProductionIssueStatusPage() {
                       const over = r.gap < 0
                       return (
                         <tr key={`${p.id}-${r.componentId}`}>
-                          <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{++n}</td>
+                          <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{++n}</td>
                           <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{dateNo}</td>
                           <td style={{ fontFamily: 'monospace' }}>{p.productCode}</td>
                           <td>{p.productName}</td>
                           <td style={{ fontFamily: 'monospace' }}>{r.componentCode}</td>
                           <td>{r.componentName}</td>
                           <td style={{ textAlign: 'right' }}></td>
-                          <td style={{ textAlign: 'right', color: '#5a626e' }}>{num(r.stdQty)}</td>
+                          <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{num(r.stdQty)}</td>
                           <td style={{ textAlign: 'right' }}>{r.actualQty ? num(r.actualQty) : ''}</td>
                           <td style={{ textAlign: 'right' }}></td>
-                          <td style={{ textAlign: 'right', color: r.materialPrice == null ? '#c9ced6' : '#5a626e' }}>
+                          <td style={{ textAlign: 'right', color: r.materialPrice == null ? 'var(--ec-text-off)' : 'var(--ec-label)' }}>
                             {won(r.materialPrice)}
                           </td>
-                          <td style={{ textAlign: 'right', fontWeight: 700, color: over ? '#c60a2e' : r.gap > 0 ? '#1c7c3c' : '#9aa1ab' }}>
+                          <td style={{ textAlign: 'right', fontWeight: 700, color: over ? 'var(--ec-danger)' : r.gap > 0 ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>
                             {num(r.gap)}
                           </td>
-                          <td style={{ textAlign: 'right', fontWeight: 700, color: r.amount == null ? '#c9ced6' : over ? '#c60a2e' : undefined }}>
+                          <td style={{ textAlign: 'right', fontWeight: 700, color: r.amount == null ? 'var(--ec-text-off)' : over ? 'var(--ec-danger)' : undefined }}>
                             {won(r.amount)}
                           </td>
                         </tr>
@@ -659,7 +659,7 @@ export default function ProductionIssueStatusPage() {
             </tbody>
             {shown.length > 0 && (
               <tfoot>
-                <tr style={{ fontWeight: 700, background: '#f5f7fa' }}>
+                <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
                   <td colSpan={6} style={{ textAlign: 'right' }}>합계 ({flatRows.length}줄)</td>
                   <td style={{ textAlign: 'right' }}>{num(shown.reduce((n, p) => n + p.producedQty, 0))}</td>
                   <td style={{ textAlign: 'right' }}>{num(flatRows.reduce((n, r) => n + r.stdQty, 0))}</td>
@@ -671,7 +671,7 @@ export default function ProductionIssueStatusPage() {
                   <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>
                     {won(flatRows.reduce((n, r) => n + (r.amount ?? 0), 0))}
                     {flatRows.some((r) => r.amount == null) && (
-                      <span title="단가를 모르는 줄은 빼고 셌습니다." style={{ color: '#c07a00' }}> *</span>
+                      <span title="단가를 모르는 줄은 빼고 셌습니다." style={{ color: 'var(--ec-warn)' }}> *</span>
                     )}
                   </td>
                 </tr>
@@ -740,10 +740,10 @@ export default function ProductionIssueStatusPage() {
                 <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-grid)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
               ) : byProduct.map((g, i) => (
                 <tr key={g.itemId}>
-                  <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+                  <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                   <td style={{ fontFamily: 'monospace' }}>{g.code}</td>
                   <td>{g.name}</td>
-                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(g.count)}</td>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(g.count)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{num(g.qty)} {g.unit}</td>
                 </tr>
               ))}
@@ -774,10 +774,10 @@ export default function ProductionIssueStatusPage() {
                 <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-grid)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
               ) : byMaterial.map((g, i) => (
                 <tr key={g.itemId}>
-                  <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+                  <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                   <td style={{ fontFamily: 'monospace' }}>{g.code}</td>
                   <td>{g.name}</td>
-                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(g.count)}</td>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(g.count)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{num(g.qty)} {g.unit}</td>
                 </tr>
               ))}
@@ -808,10 +808,10 @@ export default function ProductionIssueStatusPage() {
                 <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-grid)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
               ) : byProductLine.map((g, i) => (
                 <tr key={g.key}>
-                  <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+                  <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                   <td>{g.product}</td>
                   <td>{g.material}</td>
-                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(g.count)}</td>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(g.count)}</td>
                   <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{num(g.producedQty)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{num(g.usedQty)} {g.unit}</td>
                 </tr>
@@ -844,7 +844,7 @@ export default function ProductionIssueStatusPage() {
               ) : byItem.map((g, i) => (
                 // 입고와 소모가 둘 다 있는 품목 = 만들어서 다시 쓰는 반제품. 눈에 띄게 둔다.
                 <tr key={g.itemId} style={g.inQty > 0 && g.outQty > 0 ? { background: '#f7f4ff' } : undefined}>
-                  <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+                  <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                   <td style={{ fontFamily: 'monospace' }}>{g.code}</td>
                   <td>
                     {g.name}
@@ -852,12 +852,12 @@ export default function ProductionIssueStatusPage() {
                       <span style={{ marginLeft: 8, fontSize: 11, color: '#6b4bb8' }}>반제품 · 만들어서 다시 씀</span>
                     )}
                   </td>
-                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{g.inCount || ''}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 600, color: g.inQty ? 'var(--ec-blue)' : '#c9ced6' }}>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{g.inCount || ''}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 600, color: g.inQty ? 'var(--ec-blue)' : 'var(--ec-text-off)' }}>
                     {g.inQty ? num(g.inQty) : '—'}
                   </td>
-                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{g.outCount || ''}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 600, color: g.outQty ? '#a5561b' : '#c9ced6' }}>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{g.outCount || ''}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 600, color: g.outQty ? '#a5561b' : 'var(--ec-text-off)' }}>
                     {g.outQty ? num(g.outQty) : '—'}
                   </td>
                 </tr>
@@ -866,10 +866,10 @@ export default function ProductionIssueStatusPage() {
             {byItem.length > 0 && (
               <tfoot>
                 <tr>
-                  <td colSpan={4} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: 'var(--ec-blue)' }}>{num(totals.inQty)}</td>
-                  <td style={{ background: '#f5f7fa' }}></td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: '#a5561b' }}>{num(totals.outQty)}</td>
+                  <td colSpan={4} style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>합계</td>
+                  <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: 'var(--ec-blue)' }}>{num(totals.inQty)}</td>
+                  <td style={{ background: 'var(--ec-bg-page)' }}></td>
+                  <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: '#a5561b' }}>{num(totals.outQty)}</td>
                 </tr>
               </tfoot>
             )}

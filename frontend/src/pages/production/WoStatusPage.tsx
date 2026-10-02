@@ -30,9 +30,9 @@ import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 type WoStatus = 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED'
 
 const STATUS_COLOR: Record<WoStatus, string> = {
-  PLANNED: '#8a929c',
-  IN_PROGRESS: '#c07a00',
-  COMPLETED: '#1c7c3c',
+  PLANNED: 'var(--ec-text-hint)',
+  IN_PROGRESS: 'var(--ec-warn)',
+  COMPLETED: 'var(--ec-success)',
 }
 
 interface Row {
@@ -392,7 +392,7 @@ export default function WoStatusPage() {
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                 <input type="checkbox" checked={codeIncl} onChange={(e) => setCodeIncl(e.target.checked)} /> 코드포함
               </label>
-              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: axis2 ? undefined : '#9aa1ab' }}
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: axis2 ? undefined : 'var(--ec-text-hint)' }}
                      title="집계조건2 를 고르면 그 값을 열로 펼칩니다">
                 <input type="checkbox" checked={pivot} disabled={!axis2} onChange={(e) => setPivot(e.target.checked)} /> 가로보기
               </label>
@@ -407,7 +407,7 @@ export default function WoStatusPage() {
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from}
                  onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
           <input type="date" className="ec-input" value={to}
                  onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
           <span style={{ marginLeft: 6 }}>
@@ -430,7 +430,7 @@ export default function WoStatusPage() {
         <EcCond label="납기일자">
           <input type="date" className="ec-input" value={dueFrom}
                  onChange={(e) => setDueFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
           <input type="date" className="ec-input" value={dueTo}
                  onChange={(e) => setDueTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
@@ -480,7 +480,7 @@ export default function WoStatusPage() {
         <EcCond label="수량">
           <input className="ec-input" type="number" value={qtyFrom}
                  onChange={(e) => setQtyFrom(e.target.value)} style={{ width: 110, textAlign: 'right' }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
           <input className="ec-input" type="number" value={qtyTo}
                  onChange={(e) => setQtyTo(e.target.value)} style={{ width: 110, textAlign: 'right' }} />
         </EcCond>
@@ -521,7 +521,7 @@ export default function WoStatusPage() {
         </EcCond>
       </ul>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       {mode === '집계' && prevRange && prevRows && (() => {
         const prev = prevRows.filter(matchCond)
         const pp = prev.reduce((n, r) => n + r.plannedQty, 0)
@@ -530,7 +530,7 @@ export default function WoStatusPage() {
         const cd = shown.reduce((n, r) => n + r.producedQty, 0)
         const pct = (a: number, b: number) => (b > 0 ? ` (${a >= b ? '+' : ''}${Math.round(((a - b) / b) * 100)}%)` : '')
         return (
-          <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+          <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
             비교기간({prevRange.from.replace(/-/g, '/')} ~ {prevRange.to.replace(/-/g, '/')})
             지시수량 {pp.toLocaleString()} → {cp.toLocaleString()}{pct(cp, pp)} · 생산수량 {pd.toLocaleString()} → {cd.toLocaleString()}{pct(cd, pd)}
           </div>
@@ -555,7 +555,7 @@ export default function WoStatusPage() {
             <tbody>
               {[...rowsBy.entries()].map(([k, m], i) => (
                 <tr key={k}>
-                  <td style={{ textAlign: 'center', color: '#8a929c', background: '#f3f3f3' }}>{i + 1}</td>
+                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)', background: 'var(--ec-report-stripe)' }}>{i + 1}</td>
                   <td>{k}</td>
                   {cols.map((c) => <td key={c} style={{ textAlign: 'right' }}>{m.get(c) ? m.get(c)!.toLocaleString() : ''}</td>)}
                   <td style={{ textAlign: 'right', fontWeight: 600 }}>{[...m.values()].reduce((a, v) => a + v, 0).toLocaleString()}</td>
@@ -588,18 +588,18 @@ export default function WoStatusPage() {
           </thead>
           <tbody>
             {grouped.length === 0 ? (
-              <tr><td colSpan={6 + (code1 ? 1 : 0) + (code2 ? 1 : 0) + (ratio ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={6 + (code1 ? 1 : 0) + (code2 ? 1 : 0) + (ratio ? 1 : 0)} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : grouped.map((g, i) => (
               <tr key={g.key}>
-                <td style={{ textAlign: 'center', color: '#8a929c', background: '#f3f3f3' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)', background: 'var(--ec-report-stripe)' }}>{i + 1}</td>
                 {code1 && <td style={{ fontFamily: 'monospace' }}>{g.c1}</td>}
                 {code2 && <td style={{ fontFamily: 'monospace' }}>{g.c2}</td>}
                 <td>{g.key}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{g.count.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{g.count.toLocaleString()}</td>
                 <td style={{ textAlign: 'right' }}>{g.planned.toLocaleString()}</td>
-                {ratio && <td style={{ textAlign: 'right', color: '#5a626e' }}>{totalPlanned ? (Math.round((g.planned / totalPlanned) * 1000) / 10).toFixed(1) : '0.0'}</td>}
+                {ratio && <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{totalPlanned ? (Math.round((g.planned / totalPlanned) * 1000) / 10).toFixed(1) : '0.0'}</td>}
                 <td style={{ textAlign: 'right' }}>{g.produced.toLocaleString()}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, color: g.remaining > 0 ? '#c60a2e' : '#8a929c' }}>{g.remaining.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, color: g.remaining > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>{g.remaining.toLocaleString()}</td>
               </tr>
             ))}
           </tbody>
@@ -637,20 +637,20 @@ export default function WoStatusPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : listRows.length === 0 ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : listRows.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{dateText(r.orderDate)} {r.orderNo}</td>
               <td>{r.productName}{r.productSpec ? `[${r.productSpec}]` : ''}</td>
               <td style={{ textAlign: 'right' }}>{r.plannedQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{r.producedQty.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', color: r.remainingQty > 0 ? '#c60a2e' : '#8a929c' }}>{r.remainingQty.toLocaleString()}</td>
+              <td style={{ textAlign: 'right', color: r.remainingQty > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>{r.remainingQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right' }}>{r.plannedQty ? Math.round((r.producedQty / r.plannedQty) * 100) : 0}</td>
-              <td style={{ color: r.partnerName ? undefined : '#c9ced6' }}>{r.partnerName ?? ''}</td>
-              <td style={{ color: r.employeeId ? undefined : '#c9ced6' }}>{empName(r.employeeId)}</td>
+              <td style={{ color: r.partnerName ? undefined : 'var(--ec-text-off)' }}>{r.partnerName ?? ''}</td>
+              <td style={{ color: r.employeeId ? undefined : 'var(--ec-text-off)' }}>{empName(r.employeeId)}</td>
               <td>{r.warehouseName}</td>
               <td style={{ fontFamily: 'monospace' }}>{dateText(r.dueDate) || ''}</td>
               <td style={{ textAlign: 'center', fontWeight: 700, color: STATUS_COLOR[r.status] }}>{r.statusName}</td>

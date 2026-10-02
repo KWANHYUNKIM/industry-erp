@@ -7,7 +7,7 @@ import Modal from '../../components/Modal'
 import CodePickerField from '../../components/CodePickerField'
 
 type PlanStatus = 'REVIEW' | 'CONFIRMED' | 'ORDERED'
-const COLOR: Record<PlanStatus, string> = { REVIEW: '#c07a00', CONFIRMED: 'var(--ec-blue)', ORDERED: '#1c7c3c' }
+const COLOR: Record<PlanStatus, string> = { REVIEW: 'var(--ec-warn)', CONFIRMED: 'var(--ec-blue)', ORDERED: 'var(--ec-success)' }
 
 interface Plan {
   id: number; productId: number; productCode: string; productName: string; productUnit: string
@@ -71,7 +71,7 @@ export default function PlanningPage() {
   const totalPlan = shown.reduce((s, p) => s + p.planQty, 0)
 
   const inputCls = 'ec-input'
-  const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 74 }
+  const th: React.CSSProperties = { background: 'var(--ec-bg-page)', fontWeight: 700, whiteSpace: 'nowrap', width: 74 }
 
 
   /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
@@ -121,7 +121,7 @@ export default function PlanningPage() {
 
       {ok && !showForm && <p className="mb-2 rounded bg-green-50 px-3 py-2 text-sm text-green-700">{ok}</p>}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
         계획수량 합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{totalPlan.toLocaleString()}</b>
       </div>
 
@@ -141,21 +141,21 @@ export default function PlanningPage() {
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((p, i) => (
             <tr key={p.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{p.planWeek}</td>
               <td>{p.productName}</td>
               <td style={{ textAlign: 'right' }}>{p.demandQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right' }}>{p.currentStock.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', color: p.shortage > 0 ? '#c60a2e' : '#bbb', fontWeight: p.shortage > 0 ? 700 : 400 }}>{p.shortage.toLocaleString()}</td>
+              <td style={{ textAlign: 'right', color: p.shortage > 0 ? 'var(--ec-danger)' : '#bbb', fontWeight: p.shortage > 0 ? 700 : 400 }}>{p.shortage.toLocaleString()}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{p.planQty.toLocaleString()} {p.productUnit}</td>
               <td style={{ textAlign: 'center', color: COLOR[p.status], fontWeight: 700 }}>{p.statusName}</td>
-              <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{p.workOrderNo ?? ''}</td>
+              <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{p.workOrderNo ?? ''}</td>
               <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                 {p.status === 'REVIEW' && <button className="no-ec" onClick={() => confirmPlan(p)} style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12 }}>확정</button>}
-                {p.status === 'CONFIRMED' && <button className="no-ec" onClick={() => makeWorkOrder(p)} style={{ border: 'none', background: 'none', color: '#1c7c3c', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>작업지시 생성</button>}
+                {p.status === 'CONFIRMED' && <button className="no-ec" onClick={() => makeWorkOrder(p)} style={{ border: 'none', background: 'none', color: 'var(--ec-success)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>작업지시 생성</button>}
               </td>
             </tr>
           ))}

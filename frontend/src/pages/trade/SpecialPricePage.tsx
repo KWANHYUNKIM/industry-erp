@@ -186,18 +186,18 @@ export default function SpecialPricePage() {
         ))}
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       {enabled && (!enabled.SALES || !enabled.PURCHASE) && (
         <p style={{ background: '#fdf7ec', color: '#8a6a1e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>
           단가적용순서설정에서 [거래처별특별단가] 가 {!enabled.SALES && !enabled.PURCHASE ? '영업·구매 모두' : !enabled.SALES ? '영업관리' : '구매관리'} '사용안함' 입니다 —
           여기 등록한 특별단가가 그쪽 전표에 걸리지 않습니다. <a href="/inventory/price-order" style={{ color: 'var(--ec-blue)' }}>단가적용순서설정</a> 에서 '사용' 으로 바꾸세요.
         </p>
       )}
-      {ok && <p style={{ background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
+      {ok && <p style={{ background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
 
       {/* 유효단가 조회(resolve) — 거래처별→그룹별 폴백 확인 */}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap', border: '1px solid var(--ec-border)', background: '#f7f9fb', padding: 10, marginBottom: 10 }}>
-        <span style={{ fontSize: 12, fontWeight: 700, color: '#3c4553' }}>유효단가 조회</span>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap', border: '1px solid var(--ec-border)', background: 'var(--ec-bg-page)', padding: 10, marginBottom: 10 }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ec-text)' }}>유효단가 조회</span>
         <select className={inputCls} value={rv.tradeType} onChange={(e) => setRv((s) => ({ ...s, tradeType: e.target.value as SpecialPriceType }))} style={{ width: 90 }}>
           <option value="SALES">판매</option><option value="PURCHASE">구매</option>
         </select>
@@ -208,10 +208,10 @@ export default function SpecialPricePage() {
         <CodePickerField label="거래처" hideLabel width={200} emptyLabel="선택 안 함" placeholder="거래처 선택"
                          value={rv.partnerId} onChange={(v) => setRv((s) => ({ ...s, partnerId: v }))}
                          items={partnerCodeItems(partners)} />
-        {rv.partnerId && <span style={{ fontSize: 11.5, color: '#8a929c' }}>단가그룹: {rvGroupHint || '(미지정)'}</span>}
+        {rv.partnerId && <span style={{ fontSize: 11.5, color: 'var(--ec-text-hint)' }}>단가그룹: {rvGroupHint || '(미지정)'}</span>}
         <button className="ec-btn" onClick={doResolve}>조회</button>
         {rvResult && (
-          <span style={{ fontSize: 12.5, fontWeight: 700, color: rvResult.found ? 'var(--ec-blue)' : '#8a929c' }}>
+          <span style={{ fontSize: 12.5, fontWeight: 700, color: rvResult.found ? 'var(--ec-blue)' : 'var(--ec-text-hint)' }}>
             {rvResult.found
               ? `특별단가 ${won(rvResult.unitPrice ?? 0)} (${rvResult.source === 'PARTNER' ? '거래처별' : `그룹별·${rvResult.priceGroup}`})`
               : '특별단가 없음 → 표준단가 적용'}
@@ -222,33 +222,33 @@ export default function SpecialPricePage() {
       <Modal error={error} open={showForm} title="특별단가 등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginTop: 8, marginBottom: 8 }}>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>구분 *</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>구분 *</div>
               <select className={inputCls} value={form.tradeType} onChange={(e) => { set('tradeType', e.target.value); set('priceGroup', '') }} style={{ width: 100 }}>
                 <option value="SALES">판매</option><option value="PURCHASE">구매</option>
               </select></label>
-            <div style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>품목 *</div>
+            <div style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>품목 *</div>
               <CodePickerField label="품목" hideLabel width={220} placeholder="품목" emptyLabel="선택 해제"
                                value={form.itemId} onChange={(v) => set('itemId', v)}
                                items={items.filter((i) => i.active !== false || String(i.id) === form.itemId).map((i) => ({ value: String(i.id), code: i.code, name: i.name, sub: i.spec, alias: i.searchKeyword }))} /></div>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>적용범위 *</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>적용범위 *</div>
               <select className={inputCls} value={form.scope} onChange={(e) => set('scope', e.target.value)} style={{ width: 120 }}>
                 <option value="partner">거래처별</option><option value="group">그룹별</option>
               </select></label>
             {form.scope === 'partner' ? (
-              <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>거래처 *</div>
+              <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>거래처 *</div>
                 <CodePickerField label="거래처" hideLabel width={220} emptyLabel="선택 안 함" placeholder="선택하세요"
                                  value={form.partnerId} onChange={(v) => set('partnerId', v)}
                                  items={partnerCodeItems(partners)} /></label>
             ) : (
-              <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>특별단가그룹 *</div>
+              <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>특별단가그룹 *</div>
                 <select className={inputCls} value={form.priceGroup} onChange={(e) => set('priceGroup', e.target.value)} style={{ width: 160 }}>
                   <option value="">선택하세요</option>
                   {groupOptions.map((g) => <option key={g} value={g}>{g}</option>)}
                 </select></label>
             )}
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>특별단가 *</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>특별단가 *</div>
               <input className={`${inputCls} text-right`} type="number" step="any" value={form.unitPrice} onChange={(e) => set('unitPrice', e.target.value)} style={{ width: 140 }} /></label>
-            <label style={{ fontSize: 12.5, flex: 1, minWidth: 160 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>비고</div>
+            <label style={{ fontSize: 12.5, flex: 1, minWidth: 160 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>비고</div>
               <input className={inputCls} value={form.remark} onChange={(e) => set('remark', e.target.value)} style={{ width: '100%' }} /></label>
             <button type="submit" className="ec-btn ec-btn-primary">저장</button>
           </div>
@@ -256,7 +256,7 @@ export default function SpecialPricePage() {
       )}</Modal>
 
       {/* 원본 조건 [사용구분]. 사용/중단이 표에는 찍히는데 거를 수가 없었다. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)' }}>
         <span>사용구분</span>
         <select className="ec-input" value={useCond} onChange={(e) => setUseCond(e.target.value as '전체' | '사용' | '중단')} style={{ width: 100 }}>
           <option>전체</option><option>사용</option><option>중단</option>
@@ -290,28 +290,28 @@ export default function SpecialPricePage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : visible.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 특별단가가 없습니다. 우측 상단에서 등록하세요.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 특별단가가 없습니다. 우측 상단에서 등록하세요.</td></tr>
           ) : visible.map((r, i) => (
             <tr key={r.id} style={{ opacity: r.active ? 1 : 0.5 }}>
               <td style={{ textAlign: 'center' }}>
                 <input type="checkbox" checked={picked.has(r.id)} onChange={() => pick(r.id)} />
               </td>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td>{typeLabel[r.tradeType]}</td>
-              <td><span style={{ fontFamily: 'monospace', color: '#8a929c', marginRight: 5 }}>{r.itemCode}</span>{r.itemName}</td>
-              <td style={{ color: '#5a626e' }}>{r.priceGroup ?? ''}</td>
-              <td style={{ color: '#5a626e' }}>{r.partnerName ?? ''}</td>
+              <td><span style={{ fontFamily: 'monospace', color: 'var(--ec-text-hint)', marginRight: 5 }}>{r.itemCode}</span>{r.itemName}</td>
+              <td style={{ color: 'var(--ec-label)' }}>{r.priceGroup ?? ''}</td>
+              <td style={{ color: 'var(--ec-label)' }}>{r.partnerName ?? ''}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(r.unitPrice)}</td>
-              <td style={{ color: '#6b7280' }}>{r.remark ?? ''}</td>
+              <td style={{ color: 'var(--ec-text-muted)' }}>{r.remark ?? ''}</td>
               <td style={{ textAlign: 'center' }}>
-                <button className="no-ec" onClick={() => toggleActive(r)} style={{ border: '1px solid var(--ec-border)', background: r.active ? '#eaf6ec' : '#f2f3f5', color: r.active ? '#1c7c3c' : '#8a929c', cursor: 'pointer', fontSize: 11.5, padding: '2px 8px', borderRadius: 3 }}>
+                <button className="no-ec" onClick={() => toggleActive(r)} style={{ border: '1px solid var(--ec-border)', background: r.active ? 'var(--ec-success-bg)' : 'var(--ec-bg-page)', color: r.active ? 'var(--ec-success)' : 'var(--ec-text-hint)', cursor: 'pointer', fontSize: 11.5, padding: '2px 8px', borderRadius: 3 }}>
                   {r.active ? '사용' : '사용중단'}
                 </button>
               </td>
               <td style={{ textAlign: 'center' }}>
-                <button className="no-ec" onClick={() => remove(r.id)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                <button className="no-ec" onClick={() => remove(r.id)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button>
               </td>
             </tr>
           ))}

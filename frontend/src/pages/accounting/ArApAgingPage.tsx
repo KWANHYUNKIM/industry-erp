@@ -137,7 +137,7 @@ export default function ArApAgingPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="조회일자">
           <input type="date" className="ec-input" value={asOf} onChange={(e) => e.target.value && setAsOf(e.target.value)} style={{ width: 145 }} />
@@ -174,9 +174,9 @@ export default function ArApAgingPage() {
       </ul>
 
       {loading ? (
-        <p style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</p>
+        <p style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</p>
       ) : !entries ? (
-        <p style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>계정을 선택하고 검색하세요.</p>
+        <p style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>계정을 선택하고 검색하세요.</p>
       ) : (
         <>
           <h3 style={{ fontSize: 20, fontWeight: 700, textAlign: 'center', margin: '6px 0 4px' }}>채권/채무회수기간표</h3>
@@ -195,7 +195,7 @@ export default function ArApAgingPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.length === 0 && <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>}
+              {rows.length === 0 && <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>}
               {rows.map((r) => (
                 <tr key={r.key}>
                   <td>{r.code}</td>

@@ -79,17 +79,17 @@ export default function PaySettingPage() {
         {TABS.map((t) => (
           <button key={t} onClick={() => { setTab(t); setShowItemForm(false); setEditingGroup(null); setError('') }} className="no-ec" style={{
             padding: '6px 14px', fontSize: 12.5, border: 'none', cursor: 'pointer',
-            background: tab === t ? '#fff' : 'transparent', color: tab === t ? 'var(--ec-blue)' : '#5a626e',
+            background: tab === t ? '#fff' : 'transparent', color: tab === t ? 'var(--ec-blue)' : 'var(--ec-label)',
             fontWeight: tab === t ? 700 : 400,
             borderBottom: tab === t ? '2px solid var(--ec-blue)' : '2px solid transparent',
           }}>{t} ({t === '수당/공제 항목' ? items.length : t === '수당/공제 그룹' ? groups.length : transfers.length})</button>
         ))}
       </div>
 
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)' }}>{notice}</div>}
 
-      {loading ? <p style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</p>
+      {loading ? <p style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</p>
         : tab === '수당/공제 항목' ? (
           <>
             {showItemForm && (
@@ -110,20 +110,20 @@ export default function PaySettingPage() {
               </thead>
               <tbody>
                 {items.length === 0 ? (
-                  <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+                  <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
                 ) : items.map((i, idx) => (
                   <tr key={i.id}>
-                    <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
+                    <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{idx + 1}</td>
                     <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>{i.code}</td>
                     <td style={{ fontWeight: 600 }}>{i.name}</td>
-                    <td style={{ textAlign: 'center', color: i.kind === 'ALLOWANCE' ? '#1c7c3c' : '#c60a2e' }}>{i.kindName}</td>
+                    <td style={{ textAlign: 'center', color: i.kind === 'ALLOWANCE' ? 'var(--ec-success)' : 'var(--ec-danger)' }}>{i.kindName}</td>
                     <td style={{ textAlign: 'center' }}>
-                      {i.kind === 'DEDUCTION' ? <span style={{ color: '#c9ced6' }}>-</span>
+                      {i.kind === 'DEDUCTION' ? <span style={{ color: 'var(--ec-text-off)' }}>-</span>
                         : i.taxable ? '과세' : <b style={{ color: 'var(--ec-blue)' }}>비과세</b>}
                     </td>
                     <td style={{ textAlign: 'right' }}>{won(i.defaultAmount)}</td>
-                    <td style={{ textAlign: 'center', color: i.active ? '#1c7c3c' : '#8a929c' }}>{i.active ? '사용' : '중지'}</td>
-                    <td style={{ color: '#8a929c', fontSize: 11.5 }}>
+                    <td style={{ textAlign: 'center', color: i.active ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>{i.active ? '사용' : '중지'}</td>
+                    <td style={{ color: 'var(--ec-text-hint)', fontSize: 11.5 }}>
                       {i.kind === 'ALLOWANCE' && !i.taxable && '4대보험·소득세 기준에서 빠집니다'}
                     </td>
                   </tr>
@@ -156,12 +156,12 @@ export default function PaySettingPage() {
               </thead>
               <tbody>
                 {groups.length === 0 ? (
-                  <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+                  <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
                 ) : groups.map((g, i) => (
                   <tr key={g.id}>
-                    <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                    <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                     <td style={{ fontWeight: 600 }}>{g.name}</td>
-                    <td style={{ fontSize: 12, color: '#5a626e' }}>
+                    <td style={{ fontSize: 12, color: 'var(--ec-label)' }}>
                       {g.lines.map((l) => (
                         <span key={l.payItemId} style={{ marginRight: 8 }}>
                           {l.name} {won(l.amount)}
@@ -169,20 +169,20 @@ export default function PaySettingPage() {
                         </span>
                       ))}
                     </td>
-                    <td style={{ textAlign: 'right', color: '#1c7c3c', fontWeight: 600 }}>{won(g.allowanceTotal)}</td>
-                    <td style={{ textAlign: 'right', color: '#c60a2e' }}>{won(g.deductionTotal)}</td>
-                    <td style={{ textAlign: 'center', color: g.active ? '#1c7c3c' : '#8a929c' }}>{g.active ? '사용' : '중지'}</td>
+                    <td style={{ textAlign: 'right', color: 'var(--ec-success)', fontWeight: 600 }}>{won(g.allowanceTotal)}</td>
+                    <td style={{ textAlign: 'right', color: 'var(--ec-danger)' }}>{won(g.deductionTotal)}</td>
+                    <td style={{ textAlign: 'center', color: g.active ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>{g.active ? '사용' : '중지'}</td>
                     <td style={{ textAlign: 'center' }}>
                       <div style={{ display: 'inline-flex', gap: 3 }}>
                         <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => setEditingGroup(g)}>수정</button>
-                        <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => removeGroup(g)}>삭제</button>
+                        <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: 'var(--ec-danger)' }} onClick={() => removeGroup(g)}>삭제</button>
                       </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <div style={{ marginTop: 8, fontSize: 11.5, color: '#8a929c' }}>
+            <div style={{ marginTop: 8, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
               ※ 급여계산 화면에서 그룹을 고르면 이 항목들이 명세 라인으로 들어갑니다. 비과세 수당은 지급은 되지만 4대보험·소득세 기준에서는 빠집니다.
             </div>
           </>
@@ -248,7 +248,7 @@ function ItemForm({ onError, onSaved }: { onError: (m: string) => void; onSaved:
         </Field>
         <button className="ec-btn ec-btn-primary" onClick={submit}>등록</button>
       </div>
-      <div style={{ marginTop: 8, fontSize: 11.5, color: '#8a929c' }}>
+      <div style={{ marginTop: 8, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
         ※ 비과세 수당(식대·차량유지비 등)은 지급은 되지만 4대보험·소득세 계산 기준(과세소득)에서 빠집니다.
       </div>
     </div>
@@ -344,16 +344,16 @@ function GroupForm({ group, items, onError, onClose, onSaved }: {
             const item = usable.find((x) => String(x.id) === l.payItemId)
             return (
               <tr key={i}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td>
                   <select className="ec-input" value={l.payItemId} onChange={(e) => pickItem(i, e.target.value)} style={{ width: '100%' }}>
                     <option value="">항목 선택</option>
                     {usable.map((x) => <option key={x.id} value={x.id}>{x.code} {x.name}</option>)}
                   </select>
                 </td>
-                <td style={{ textAlign: 'center', color: item?.kind === 'DEDUCTION' ? '#c60a2e' : '#1c7c3c' }}>{item?.kindName ?? ''}</td>
+                <td style={{ textAlign: 'center', color: item?.kind === 'DEDUCTION' ? 'var(--ec-danger)' : 'var(--ec-success)' }}>{item?.kindName ?? ''}</td>
                 <td style={{ textAlign: 'center' }}>
-                  {!item || item.kind === 'DEDUCTION' ? <span style={{ color: '#c9ced6' }}>-</span>
+                  {!item || item.kind === 'DEDUCTION' ? <span style={{ color: 'var(--ec-text-off)' }}>-</span>
                     : item.taxable ? '과세' : <b style={{ color: 'var(--ec-blue)' }}>비과세</b>}
                 </td>
                 <td>
@@ -367,12 +367,12 @@ function GroupForm({ group, items, onError, onClose, onSaved }: {
           })}
         </tbody>
         <tfoot>
-          <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+          <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
             <td colSpan={4} style={{ textAlign: 'right' }}>수당 / 공제 합계</td>
             <td style={{ textAlign: 'right' }}>
-              <span style={{ color: '#1c7c3c' }}>{won(total('ALLOWANCE'))}</span>
-              <span style={{ color: '#c9ced6' }}> / </span>
-              <span style={{ color: '#c60a2e' }}>{won(total('DEDUCTION'))}</span>
+              <span style={{ color: 'var(--ec-success)' }}>{won(total('ALLOWANCE'))}</span>
+              <span style={{ color: 'var(--ec-text-off)' }}> / </span>
+              <span style={{ color: 'var(--ec-danger)' }}>{won(total('DEDUCTION'))}</span>
             </td>
             <td></td>
           </tr>
@@ -473,7 +473,7 @@ function TransferTab({ transfers, onError, onDone }: {
             실지급 <b style={{ color: 'var(--ec-blue-dark)' }}>{won(totalNet)}</b>
           </div>
         </div>
-        <div style={{ marginTop: 8, fontSize: 11.5, color: '#8a929c' }}>
+        <div style={{ marginTop: 8, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
           ※ 확정된 급여명세만 이체합니다. 분개는 차)급여 지급총액 / 대)예수금 공제합계·예금 실지급액이며, 계좌 잔액과 입출금 내역도 함께 움직입니다. 같은 명세는 두 번 이체되지 않습니다.
         </div>
       </div>
@@ -494,11 +494,11 @@ function TransferTab({ transfers, onError, onDone }: {
           <tbody>
             {pending.map((p, i) => (
               <tr key={p.id}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td style={{ fontWeight: 600 }}>{p.employeeName}</td>
-                <td style={{ color: '#5a626e' }}>{p.department ?? ''}</td>
+                <td style={{ color: 'var(--ec-label)' }}>{p.department ?? ''}</td>
                 <td style={{ textAlign: 'right' }}>{won(p.baseSalary + p.allowanceTotal)}</td>
-                <td style={{ textAlign: 'right', color: '#c60a2e' }}>{won(p.deductionTotal)}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-danger)' }}>{won(p.deductionTotal)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(p.netPay)}</td>
                 <td></td>
               </tr>
@@ -525,26 +525,26 @@ function TransferTab({ transfers, onError, onDone }: {
         </thead>
         <tbody>
           {transfers.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : transfers.map((t, i) => (
             <Fragment key={t.id}>
               <tr onClick={() => setOpenId(openId === t.id ? null : t.id)} style={{ cursor: 'pointer' }}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>
                   {openId === t.id ? '▾ ' : '▸ '}{t.transferNo}
                 </td>
                 <td>{t.payMonth}</td>
                 <td>{dateText(t.transferDate)}</td>
-                <td style={{ color: '#5a626e' }}>{t.bankAccountName}</td>
+                <td style={{ color: 'var(--ec-label)' }}>{t.bankAccountName}</td>
                 <td style={{ textAlign: 'center' }}>{t.lines.length}명</td>
                 <td style={{ textAlign: 'right' }}>{won(t.totalPay)}</td>
-                <td style={{ textAlign: 'right', color: '#c60a2e' }}>{won(t.totalDeduction)}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-danger)' }}>{won(t.totalDeduction)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(t.netPay)}</td>
                 <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{t.journalDocNo ?? ''}</td>
               </tr>
               {openId === t.id && (
                 <tr className="no-ec">
-                  <td colSpan={10} style={{ padding: 0, background: '#fafbfc' }}>
+                  <td colSpan={10} style={{ padding: 0, background: 'var(--ec-bg-page)' }}>
                     <table className="w-full text-left" style={{ margin: '4px 0' }}>
                       <thead>
                         <tr>
@@ -558,9 +558,9 @@ function TransferTab({ transfers, onError, onDone }: {
                       <tbody>
                         {t.lines.map((l, idx) => (
                           <tr key={l.payslipId}>
-                            <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
+                            <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{idx + 1}</td>
                             <td>{l.employeeName}</td>
-                            <td style={{ color: '#5a626e' }}>{l.department ?? ''}</td>
+                            <td style={{ color: 'var(--ec-label)' }}>{l.department ?? ''}</td>
                             <td style={{ textAlign: 'right', fontWeight: 600 }}>{won(l.netPay)}</td>
                             <td></td>
                           </tr>
@@ -581,7 +581,7 @@ function TransferTab({ transfers, onError, onDone }: {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label style={{ fontSize: 12.5 }}>
-      <div style={{ color: '#5a626e', marginBottom: 3 }}>{label}</div>
+      <div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>{label}</div>
       {children}
     </label>
   )

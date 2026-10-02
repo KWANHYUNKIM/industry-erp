@@ -485,7 +485,7 @@ export default function IssuePage() {
                 { label: `선택삭제${checked.size ? ` (${checked.size})` : ''}`, onClick: removeChecked },
                 { label: 'Excel' }]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       {statusPick && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, padding: '6px 8px', border: '1px solid var(--ec-border)', background: '#fff' }}>
           <span style={{ fontSize: 12.5 }}>고른 {checked.size}줄의 전표를</span>
@@ -584,7 +584,7 @@ export default function IssuePage() {
                   </thead>
                   <tbody>
                     {woList.length === 0 ? (
-                      <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 12 }}>등록된 데이터가 없습니다.</td></tr>
+                      <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 12 }}>등록된 데이터가 없습니다.</td></tr>
                     ) : woList.map((w) => (
                       <tr key={w.id} style={{ cursor: 'pointer' }}
                           onClick={() => setWoPicked((p) => (p.includes(w.id) ? p.filter((x) => x !== w.id) : [...p, w.id]))}>
@@ -632,12 +632,12 @@ export default function IssuePage() {
             <tbody>
               {lines.map((l, idx) => (
                 <tr key={l.key}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
+                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{idx + 1}</td>
                   <td>
                     <CodePickerField label="자재" hideLabel fill emptyLabel="선택 해제"
                                      value={l.itemId} onChange={(v) => setLine(l.key, { itemId: v })}
                                      items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, alias: i.searchKeyword, sub: i.unit }))} />
-                    {l.workOrderNo && <div style={{ fontSize: 11, color: '#8a929c' }}>작업지시 {l.workOrderNo}</div>}
+                    {l.workOrderNo && <div style={{ fontSize: 11, color: 'var(--ec-text-hint)' }}>작업지시 {l.workOrderNo}</div>}
                   </td>
                   <td>
                     <input className={inputCls} value={l.lotNo ?? ''} maxLength={60} aria-label="시리얼/로트No."
@@ -647,15 +647,15 @@ export default function IssuePage() {
                     <input type="number" step="any" className={inputCls} style={{ textAlign: 'right' }}
                            value={l.qty} onChange={(e) => setLine(l.key, { qty: e.target.value })} />
                   </td>
-                  <td style={{ textAlign: 'right', color: '#5a626e' }}>{qtyCell(stockAllOf(l.itemId))}</td>
-                  <td style={{ textAlign: 'right', color: '#5a626e' }}>{qtyCell(stockAtOf(l.itemId, form.warehouseId))}</td>
-                  <td style={{ textAlign: 'right', color: '#5a626e' }}>{qtyCell(stockAtOf(l.itemId, form.toWarehouseId))}</td>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{qtyCell(stockAllOf(l.itemId))}</td>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{qtyCell(stockAtOf(l.itemId, form.warehouseId))}</td>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{qtyCell(stockAtOf(l.itemId, form.toWarehouseId))}</td>
                   <td>
                     <input className={inputCls} value={l.note} onChange={(e) => setLine(l.key, { note: e.target.value })} />
                   </td>
                   <td style={{ textAlign: 'center' }}>
                     <button type="button" onClick={() => setLines(lines.length > 1 ? lines.filter((x) => x.key !== l.key) : [emptyLine()])}
-                            style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                            style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
                   </td>
                 </tr>
               ))}
@@ -686,7 +686,7 @@ export default function IssuePage() {
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from}
                  onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
           <input type="date" className="ec-input" value={to}
                  onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
           <span style={{ marginLeft: 6 }}>
@@ -746,12 +746,12 @@ export default function IssuePage() {
         </EcCond>
         <EcCond label="최초작성일자">
           <input type="date" className="ec-input" value={madeFrom} onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
           <input type="date" className="ec-input" value={madeTo} onChange={(e) => setMadeTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="최종작업일자">
           <input type="date" className="ec-input" value={editedFrom} onChange={(e) => setEditedFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
           <input type="date" className="ec-input" value={editedTo} onChange={(e) => setEditedTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="기타">
@@ -818,9 +818,9 @@ export default function IssuePage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={15} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={15} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center' }}>
@@ -831,11 +831,11 @@ export default function IssuePage() {
                 })} />
               </td>
               <td style={{ fontFamily: 'monospace' }}>{dateNo(r)}</td>
-              <td style={{ color: r.employeeId ? undefined : '#c9ced6' }}>{empName(r.employeeId)}</td>
+              <td style={{ color: r.employeeId ? undefined : 'var(--ec-text-off)' }}>{empName(r.employeeId)}</td>
               <td>{r.warehouseName ?? ''}</td>
-              <td style={{ color: r.toWarehouseName ? undefined : '#c9ced6' }}>{r.toWarehouseName ?? ''}</td>
-              <td style={{ fontFamily: 'monospace', color: r.workOrderDate ? '#5a626e' : '#c9ced6' }}>{dateText(r.workOrderDate) || ''}</td>
-              <td style={{ fontFamily: 'monospace', color: r.productCode ? undefined : '#c9ced6' }}
+              <td style={{ color: r.toWarehouseName ? undefined : 'var(--ec-text-off)' }}>{r.toWarehouseName ?? ''}</td>
+              <td style={{ fontFamily: 'monospace', color: r.workOrderDate ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{dateText(r.workOrderDate) || ''}</td>
+              <td style={{ fontFamily: 'monospace', color: r.productCode ? undefined : 'var(--ec-text-off)' }}
                   title={r.productName ?? ''}>
                 {r.productCode ?? '-'}
               </td>
@@ -849,7 +849,7 @@ export default function IssuePage() {
                 <button onClick={() => printOne(r)} style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
               </td>
               <td style={{ textAlign: 'center' }}>
-                <button onClick={() => remove(r)} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                <button onClick={() => remove(r)} style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
               </td>
             </tr>
           ))}

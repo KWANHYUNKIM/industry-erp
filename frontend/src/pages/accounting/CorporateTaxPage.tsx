@@ -63,13 +63,13 @@ export default function CorporateTaxPage() {
     <EcListShell title="법인세" actions={[{ label: '새로고침', onClick: () => load() }, { label: 'Excel' }, { label: '인쇄' }]}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
         <button className="ec-btn ec-btn-primary" onClick={() => setShowForm(true)}>+ 사업연도 신고서(F2)</button>
-        <span style={{ fontSize: 12, color: '#9aa1ab' }}>
+        <span style={{ fontSize: 12, color: 'var(--ec-text-hint)' }}>
           당기순이익은 손익계산서에서 자동으로 가져옵니다. 세율 2억 이하 9% / 200억 이하 19% / 3,000억 이하 21% / 초과 24%.
         </span>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)' }}>{notice}</div>}
 
       <table className="w-full text-left" style={{ marginBottom: 12 }}>
         <thead>
@@ -88,17 +88,17 @@ export default function CorporateTaxPage() {
         </thead>
         <tbody>
           {returns.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : returns.map((r, i) => (
             <tr
               key={r.id}
               onClick={() => setSelectedId(r.id)}
-              style={{ cursor: 'pointer', background: selectedId === r.id ? '#eef5ff' : undefined }}
+              style={{ cursor: 'pointer', background: selectedId === r.id ? 'var(--ec-blue-wash)' : undefined }}
             >
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ fontWeight: 700 }}>{r.fiscalYear}년</td>
-              <td style={{ color: '#5a626e' }}>{r.periodFrom} ~ {r.periodTo}</td>
-              <td style={{ textAlign: 'right', color: r.netIncome < 0 ? '#c60a2e' : undefined }}>{won(r.netIncome)}</td>
+              <td style={{ color: 'var(--ec-label)' }}>{r.periodFrom} ~ {r.periodTo}</td>
+              <td style={{ textAlign: 'right', color: r.netIncome < 0 ? 'var(--ec-danger)' : undefined }}>{won(r.netIncome)}</td>
               <td style={{ textAlign: 'right' }}>{won(r.taxBase)}</td>
               <td style={{ textAlign: 'right' }}>{won(r.calculatedTax)}</td>
               <td style={{ textAlign: 'right', fontWeight: 600 }}>{won(r.totalTax)}</td>
@@ -106,7 +106,7 @@ export default function CorporateTaxPage() {
                 {won(r.payableTax)}{r.payableTax < 0 && <span style={{ fontSize: 11 }}> (환급)</span>}
               </td>
               <td style={{ textAlign: 'center' }}>
-                <span style={{ color: r.status === 'CONFIRMED' ? '#1c7c3c' : '#5a626e' }}>{r.statusName}</span>
+                <span style={{ color: r.status === 'CONFIRMED' ? 'var(--ec-success)' : 'var(--ec-label)' }}>{r.statusName}</span>
               </td>
               <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
                 <div style={{ display: 'inline-flex', gap: 3 }}>
@@ -114,7 +114,7 @@ export default function CorporateTaxPage() {
                     <>
                       <button className="ec-btn ec-btn-primary" style={{ height: 20, padding: '0 8px' }}
                         onClick={() => { setSelectedId(r.id); act('/confirm', `${r.fiscalYear}년 신고서 확정`) }}>확정</button>
-                      <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => removeReturn(r)}>삭제</button>
+                      <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: 'var(--ec-danger)' }} onClick={() => removeReturn(r)}>삭제</button>
                     </>
                   )}
                 </div>
@@ -128,7 +128,7 @@ export default function CorporateTaxPage() {
         <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
           {/* 좌: 계산 흐름 */}
           <div style={{ flex: '0 0 44%' }}>
-            <div style={{ padding: '6px 8px', background: '#f5f7fa', border: '1px solid var(--ec-border)', borderBottom: 'none', fontSize: 12.5, fontWeight: 700, color: 'var(--ec-blue-dark)' }}>
+            <div style={{ padding: '6px 8px', background: 'var(--ec-bg-page)', border: '1px solid var(--ec-border)', borderBottom: 'none', fontSize: 12.5, fontWeight: 700, color: 'var(--ec-blue-dark)' }}>
               {selected.fiscalYear}년 세액 계산
             </div>
             <table className="w-full text-left">
@@ -160,7 +160,7 @@ export default function CorporateTaxPage() {
 
           {/* 우: 세무조정 명세 */}
           <div style={{ flex: 1 }}>
-            <div style={{ padding: '6px 8px', background: '#f5f7fa', border: '1px solid var(--ec-border)', borderBottom: 'none', fontSize: 12.5, fontWeight: 700, color: 'var(--ec-blue-dark)' }}>
+            <div style={{ padding: '6px 8px', background: 'var(--ec-bg-page)', border: '1px solid var(--ec-border)', borderBottom: 'none', fontSize: 12.5, fontWeight: 700, color: 'var(--ec-blue-dark)' }}>
               세무조정 명세 ({selected.adjustments.length}건)
             </div>
             <table className="w-full text-left">
@@ -175,16 +175,16 @@ export default function CorporateTaxPage() {
               </thead>
               <tbody>
                 {selected.adjustments.length === 0 ? (
-                  <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
+                  <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
                 ) : selected.adjustments.map((a, i) => (
                   <tr key={a.id}>
-                    <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                    <td style={{ color: a.type === 'ADD' ? '#c60a2e' : '#2f8401' }}>{a.typeName}</td>
+                    <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+                    <td style={{ color: a.type === 'ADD' ? 'var(--ec-danger)' : '#2f8401' }}>{a.typeName}</td>
                     <td>{a.name}</td>
                     <td style={{ textAlign: 'right', fontWeight: 600 }}>{won(a.amount)}</td>
                     <td style={{ textAlign: 'center' }}>
                       {selected.status === 'DRAFT' && (
-                        <button className="ec-btn" style={{ height: 20, padding: '0 6px', color: '#c60a2e' }} onClick={() => removeAdjustment(a.id)}>×</button>
+                        <button className="ec-btn" style={{ height: 20, padding: '0 6px', color: 'var(--ec-danger)' }} onClick={() => removeAdjustment(a.id)}>×</button>
                       )}
                     </td>
                   </tr>
@@ -207,13 +207,13 @@ function Row({ label, value, sign, bold, highlight }: {
   label: string; value: number; sign?: 'add' | 'sub'; bold?: boolean; highlight?: boolean
 }) {
   return (
-    <tr style={{ background: highlight ? '#f7f9ff' : undefined }}>
-      <th style={{ background: '#f5f7fa', fontWeight: bold ? 700 : 400 }}>{label}</th>
+    <tr style={{ background: highlight ? 'var(--ec-blue-wash)' : undefined }}>
+      <th style={{ background: 'var(--ec-bg-page)', fontWeight: bold ? 700 : 400 }}>{label}</th>
       <td style={{
         textAlign: 'right',
         fontWeight: bold ? 800 : 400,
         color: highlight ? (value < 0 ? '#2f8401' : 'var(--ec-blue-dark)')
-          : sign === 'add' ? '#c60a2e' : sign === 'sub' ? '#2f8401' : undefined,
+          : sign === 'add' ? 'var(--ec-danger)' : sign === 'sub' ? '#2f8401' : undefined,
       }}>
         {won(value)}
       </td>
@@ -292,26 +292,26 @@ function EditAmounts({ taxReturn, onSaved }: { taxReturn: TaxReturn; onSaved: ()
   return (
     <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 440, border: '1px solid var(--ec-border)', borderRadius: 4 }}>
-        <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: '#f5f7fa', fontWeight: 800, color: 'var(--ec-blue-dark)' }}>
+        <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: 'var(--ec-bg-page)', fontWeight: 800, color: 'var(--ec-blue-dark)' }}>
           {taxReturn.fiscalYear}년 — 결손금·세액공제·기납부세액
         </div>
         <div style={{ padding: 16 }}>
           <table className="w-full text-left">
             <tbody>
               <tr>
-                <th style={{ width: 130, background: '#f5f7fa' }}>이월결손금</th>
+                <th style={{ width: 130, background: 'var(--ec-bg-page)' }}>이월결손금</th>
                 <td><input className="ec-input" type="number" value={lossCarryforward} onChange={(e) => setLoss(e.target.value)} style={{ width: 160, textAlign: 'right' }} /></td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>세액공제·감면</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>세액공제·감면</th>
                 <td><input className="ec-input" type="number" value={taxCredit} onChange={(e) => setCredit(e.target.value)} style={{ width: 160, textAlign: 'right' }} /></td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>가산세</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>가산세</th>
                 <td><input className="ec-input" type="number" value={penaltyTax} onChange={(e) => setPenalty(e.target.value)} style={{ width: 160, textAlign: 'right' }} /></td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>기납부세액</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>기납부세액</th>
                 <td><input className="ec-input" type="number" value={prepaidTax} onChange={(e) => setPrepaid(e.target.value)} style={{ width: 160, textAlign: 'right' }} /></td>
               </tr>
             </tbody>
@@ -353,32 +353,32 @@ function ReturnForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 460, border: '1px solid var(--ec-border)', borderRadius: 4 }}>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: '#f5f7fa' }}>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: 'var(--ec-bg-page)' }}>
           <span style={{ fontWeight: 800, color: 'var(--ec-blue-dark)' }}>사업연도 신고서 작성</span>
-          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: '#8a929c' }}>×</span>
+          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: 'var(--ec-text-hint)' }}>×</span>
         </div>
         <div style={{ padding: 16 }}>
-          {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+          {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
           <table className="w-full text-left">
             <tbody>
               <tr>
-                <th style={{ width: 120, background: '#f5f7fa' }}>사업연도<span style={{ color: '#c60a2e' }}>*</span></th>
+                <th style={{ width: 120, background: 'var(--ec-bg-page)' }}>사업연도<span style={{ color: 'var(--ec-danger)' }}>*</span></th>
                 <td>
                   <input className="ec-input" type="number" value={fiscalYear} onChange={(e) => setFiscalYear(e.target.value)} style={{ width: 100, textAlign: 'right' }} />
-                  <span style={{ marginLeft: 6, fontSize: 11.5, color: '#9aa1ab' }}>1/1 ~ 12/31 기준</span>
+                  <span style={{ marginLeft: 6, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>1/1 ~ 12/31 기준</span>
                 </td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>이월결손금</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>이월결손금</th>
                 <td><input className="ec-input" type="number" value={lossCarryforward} onChange={(e) => setLoss(e.target.value)} style={{ width: 160, textAlign: 'right' }} /></td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>기납부세액</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>기납부세액</th>
                 <td><input className="ec-input" type="number" value={prepaidTax} onChange={(e) => setPrepaid(e.target.value)} style={{ width: 160, textAlign: 'right' }} /></td>
               </tr>
             </tbody>
           </table>
-          <p style={{ marginTop: 10, fontSize: 11.5, color: '#9aa1ab' }}>
+          <p style={{ marginTop: 10, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
             결산서상 당기순이익은 해당 기간 손익계산서에서 자동으로 가져옵니다. 세무조정 항목은 만든 뒤에 추가합니다.
           </p>
         </div>

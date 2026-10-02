@@ -386,7 +386,7 @@ export default function PartnersPage() {
       ]}
     >
       {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-      {ok && <p style={{ marginBottom: 8, background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
+      {ok && <p style={{ marginBottom: 8, background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
 
       <label style={{ fontSize: 12.5, display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 8 }}>
         <input type="checkbox" checked={withStopped} onChange={(e) => setWithStopped(e.target.checked)} />
@@ -400,7 +400,7 @@ export default function PartnersPage() {
           .filter((k) => !k.endsWith('일자'))
           .map((k) => (
             <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-              <label style={{ fontSize: 12.5, color: '#5a626e' }}>{k}</label>
+              <label style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>{k}</label>
               <input className="ec-input" style={{ width: 120 }} value={cond[k]}
                      onChange={(e) => setCd(k, e.target.value)} />
             </span>
@@ -410,12 +410,12 @@ export default function PartnersPage() {
           2026-08 이면 그 달에 만든 거래처만 남는다. 그래서 날짜 칸이 아니라 글자 칸이다.
         */}
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-          <label style={{ fontSize: 12.5, color: '#5a626e' }}>최초작성일자</label>
+          <label style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>최초작성일자</label>
           <input className="ec-input" style={{ width: 120 }} placeholder="2026-08"
                  value={cond.최초작성일자} onChange={(e) => setCd('최초작성일자', e.target.value)} />
         </span>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-          <label style={{ fontSize: 12.5, color: '#5a626e' }}>최종수정일자</label>
+          <label style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>최종수정일자</label>
           <input className="ec-input" style={{ width: 120 }} placeholder="2026-08"
                  value={cond.최종수정일자} onChange={(e) => setCd('최종수정일자', e.target.value)} />
         </span>
@@ -771,12 +771,12 @@ export default function PartnersPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={14} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={14} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : (
               shown.map((p) => (
-                <tr key={p.id} style={{ color: p.active ? undefined : '#9aa1ab' }}>
+                <tr key={p.id} style={{ color: p.active ? undefined : 'var(--ec-text-hint)' }}>
                   <td style={{ textAlign: 'center' }}>
                     <input type="checkbox" checked={checked.has(p.id)} onChange={() => setChecked((prev) => {
                       const next = new Set(prev)
@@ -804,17 +804,17 @@ export default function PartnersPage() {
                   <td>{p.manager ?? ''}</td>
                   <td>{p.phone ?? ''}</td>
                   <td>{p.mobile ?? ''}</td>
-                  <td style={{ color: '#6b7280' }}>{p.searchKeyword ?? ''}</td>
-                  <td style={{ textAlign: 'center', color: p.active ? '#1c7c3c' : '#c60a2e' }}>
+                  <td style={{ color: 'var(--ec-text-muted)' }}>{p.searchKeyword ?? ''}</td>
+                  <td style={{ textAlign: 'center', color: p.active ? 'var(--ec-success)' : 'var(--ec-danger)' }}>
                     {p.active ? '사용' : '사용중단'}
                   </td>
                   {/* 원본은 계좌가 있으면 '등록', 없으면 빈칸이다. 계좌번호를 목록에 늘어놓지 않는다. */}
-                  <td style={{ textAlign: 'center', color: p.accountNo ? 'var(--ec-blue)' : '#c9ced6' }}>
+                  <td style={{ textAlign: 'center', color: p.accountNo ? 'var(--ec-blue)' : 'var(--ec-text-off)' }}>
                     {p.accountNo ? '등록' : ''}
                   </td>
                   <td>
                     <button onClick={() => openEdit(p)} style={{ color: 'var(--ec-blue)', marginRight: 8, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>수정</button>
-                    <button onClick={() => remove(p)} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                    <button onClick={() => remove(p)} style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
                   </td>
                 </tr>
               ))
@@ -860,7 +860,7 @@ export default function PartnersPage() {
               )}
             </div>
           </div>
-          <p style={{ marginTop: 8, fontSize: 11.5, color: '#8a929c' }}>
+          <p style={{ marginTop: 8, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
             고른 거래처의 그 칸만 바꿉니다. 나머지 값은 그대로 둡니다.
           </p>
           <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
@@ -889,11 +889,11 @@ export default function PartnersPage() {
       {webOpen && (
         <div onClick={() => setWebOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, width: 520, maxWidth: '92vw', boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}>
-            <div style={{ padding: '10px 14px', borderBottom: '1px solid #e6eaef', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
+            <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--ec-line-soft)', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
               <span>웹자료올리기 · 거래처 대량 등록</span>
               <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => setWebOpen(false)}>닫기</button>
             </div>
-            <div style={{ padding: 14, fontSize: 12.5, lineHeight: 1.7, color: '#3c4553' }}>
+            <div style={{ padding: 14, fontSize: 12.5, lineHeight: 1.7, color: 'var(--ec-text)' }}>
               <p style={{ margin: '0 0 8px' }}>엑셀/CSV 파일로 거래처를 한 번에 등록하는 기능입니다. 파일을 고르면 형식을 미리 확인할 수 있습니다.</p>
               {/* 원본 [웹자료올리기] 도 끌어다 놓을 수 있다. 파일 선택 버튼은 그대로 둔다. */}
               <EcFileDrop
@@ -901,14 +901,14 @@ export default function PartnersPage() {
                 onFiles={(fs) => onPickFile({ target: { files: fs } } as unknown as React.ChangeEvent<HTMLInputElement>)}
               />
               {webFile && (
-                <div style={{ marginTop: 10, border: '1px solid #e6eaef', borderRadius: 3, padding: 10, background: '#f9fbfd' }}>
+                <div style={{ marginTop: 10, border: '1px solid var(--ec-line-soft)', borderRadius: 3, padding: 10, background: 'var(--ec-bg-page)' }}>
                   <div><b>{webFile.name}</b> · 데이터 <b style={{ color: 'var(--ec-blue-dark)' }}>{webFile.total.toLocaleString()}</b>행 인식</div>
-                  {webFile.head.length > 0 && <div style={{ marginTop: 4, color: '#5a626e' }}>헤더: {webFile.head.join(' · ')}</div>}
+                  {webFile.head.length > 0 && <div style={{ marginTop: 4, color: 'var(--ec-label)' }}>헤더: {webFile.head.join(' · ')}</div>}
                 </div>
               )}
               <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <button className="ec-btn" disabled title="서버 업로드 API 미구현" style={{ opacity: .55, cursor: 'default' }}>업로드 실행 (백엔드 미연동)</button>
-                <span style={{ fontSize: 11.5, color: '#c07a00' }}>* 서버 일괄등록 API가 없어 미리보기까지만 제공합니다.</span>
+                <span style={{ fontSize: 11.5, color: 'var(--ec-warn)' }}>* 서버 일괄등록 API가 없어 미리보기까지만 제공합니다.</span>
               </div>
             </div>
           </div>

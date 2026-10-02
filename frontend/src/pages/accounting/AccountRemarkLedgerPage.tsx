@@ -111,7 +111,7 @@ export default function AccountRemarkLedgerPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="구분">
           {(['건별', '적요별'] as const).map((v) => (
@@ -137,11 +137,11 @@ export default function AccountRemarkLedgerPage() {
         </EcCond>
       </ul>
 
-      {truncated && <p style={{ fontSize: 12, color: '#c07a00', marginBottom: 6 }}>전표가 많아 앞부분만 받았습니다 — 기간을 좁혀 보세요.</p>}
+      {truncated && <p style={{ fontSize: 12, color: 'var(--ec-warn)', marginBottom: 6 }}>전표가 많아 앞부분만 받았습니다 — 기간을 좁혀 보세요.</p>}
       {loading ? (
-        <p style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</p>
+        <p style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</p>
       ) : !entries ? (
-        <p style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>계정을 선택하고 검색하세요.</p>
+        <p style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>계정을 선택하고 검색하세요.</p>
       ) : (
         <>
           <h3 style={{ fontSize: 20, fontWeight: 700, textAlign: 'center', margin: '6px 0 12px' }}>계정별적요별원장</h3>
@@ -158,7 +158,7 @@ export default function AccountRemarkLedgerPage() {
                 </thead>
                 <tbody>
                   {rows.length === 0 ? (
-                    <tr><td colSpan={3} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+                    <tr><td colSpan={3} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
                   ) : (
                     <tr>
                       <td>[{ETC_CODE}]</td>
@@ -177,7 +177,7 @@ export default function AccountRemarkLedgerPage() {
               </table>
             </>
           ) : rows.length === 0 ? (
-            <p style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</p>
+            <p style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</p>
           ) : (
             <>
               {head(` / ${ETC_CODE}(${ETC_NAME})`)}

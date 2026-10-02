@@ -264,10 +264,10 @@ export default function ExecutiveReportPage() {
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        매출 <b style={{ color: '#3c4553' }}>{report.saleCount}</b>건
-        <span style={{ margin: '0 8px', color: '#c9ced6' }}>|</span>
-        매입 <b style={{ color: '#3c4553' }}>{report.buyCount}</b>건
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+        매출 <b style={{ color: 'var(--ec-text)' }}>{report.saleCount}</b>건
+        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+        매입 <b style={{ color: 'var(--ec-text)' }}>{report.buyCount}</b>건
       </div>
 
       {/*
@@ -279,27 +279,27 @@ export default function ExecutiveReportPage() {
         기간 매출·매입·이익과 재고자산·채권/채무 종합. 매출총이익은 (기간 매출−기간 매입) 추정치.
         재고자산은 <b>취득원가</b>(실제 입고단가 → 없으면 품목 구매단가)로 평가합니다.
         {report.stockUnknown > 0 && (
-          <span style={{ color: '#c60a2e' }}>
+          <span style={{ color: 'var(--ec-danger)' }}>
             {' '}※ 평가단가를 못 찾은 재고 <b>{report.stockUnknown}</b>칸은 재고자산에서 빠져 있습니다
             (품목등록의 구매단가를 정하거나 입고 이력이 있어야 합니다).
           </span>
         )}
       </p>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       {loading ? (
-        <p style={{ textAlign: 'center', color: '#9aa1ab', padding: 30 }}>불러오는 중…</p>
+        <p style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 30 }}>불러오는 중…</p>
       ) : (
         <>
           {/* KPI 카드 */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginBottom: 16 }}>
             <Kpi label="매출액 (기간)" value={won(report.saleAmt)} color="var(--ec-blue)" />
             <Kpi label="매입액 (기간)" value={won(report.buyAmt)} color="#a5561b" />
-            <Kpi label="매출총이익 (추정)" value={won(report.grossProfit)} sub={`이익률 ${margin.toFixed(1)}%`} color={report.grossProfit >= 0 ? '#1c7c3c' : '#c60a2e'} />
-            <Kpi label="재고자산 (현재)" value={won(report.stockValue)} color="#3c4553" />
+            <Kpi label="매출총이익 (추정)" value={won(report.grossProfit)} sub={`이익률 ${margin.toFixed(1)}%`} color={report.grossProfit >= 0 ? 'var(--ec-success)' : 'var(--ec-danger)'} />
+            <Kpi label="재고자산 (현재)" value={won(report.stockValue)} color="var(--ec-text)" />
             <Kpi label="총 채권 (받을 돈)" value={won(report.receivable)} color="#1c6b32" />
-            <Kpi label="총 채무 (줄 돈)" value={won(report.payable)} color="#c60a2e" />
+            <Kpi label="총 채무 (줄 돈)" value={won(report.payable)} color="var(--ec-danger)" />
           </div>
 
           {/*
@@ -336,23 +336,23 @@ export default function ExecutiveReportPage() {
               {report.stockByCat.map(([name, amt]) => (
                 <tr key={name}>
                   <td>{name}</td>
-                  <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{dot(to)}</td>
+                  <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{dot(to)}</td>
                   <td style={{ textAlign: 'right' }}>{won(amt)}</td>
                 </tr>
               ))}
-              <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+              <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
                 <td>합계</td>
-                <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{dot(to)}</td>
+                <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{dot(to)}</td>
                 <td style={{ textAlign: 'right' }}>{won(report.stockValue)}</td>
               </tr>
               <tr>
                 <td>판매액</td>
-                <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{dot(from)} ~ {dot(to)}</td>
+                <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{dot(from)} ~ {dot(to)}</td>
                 <td style={{ textAlign: 'right' }}>{won(report.saleAmt)}</td>
               </tr>
               <tr>
                 <td>구매액</td>
-                <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{dot(from)} ~ {dot(to)}</td>
+                <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{dot(from)} ~ {dot(to)}</td>
                 <td style={{ textAlign: 'right' }}>{won(report.buyAmt)}</td>
               </tr>
               {/*
@@ -363,43 +363,43 @@ export default function ExecutiveReportPage() {
               */}
               <tr>
                 <td>미판매금액</td>
-                <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{dot(yearBefore(to))} ~ {dot(to)}</td>
+                <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{dot(yearBefore(to))} ~ {dot(to)}</td>
                 <td style={{ textAlign: 'right' }}>{won(report.unsoldAmt)}</td>
               </tr>
               <tr>
                 <td>미입고금액</td>
-                <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{dot(yearBefore(to))} ~ {dot(to)}</td>
+                <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{dot(yearBefore(to))} ~ {dot(to)}</td>
                 <td style={{ textAlign: 'right' }}>{won(report.unreceivedAmt)}</td>
               </tr>
               {/* 값은 기간 끝 시점의 잔액이다(위 실측). 칸에 적히는 글자는 원본대로 기간이다. */}
               <tr>
                 <td>채권</td>
-                <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{dot(from)} ~ {dot(to)}</td>
+                <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{dot(from)} ~ {dot(to)}</td>
                 <td style={{ textAlign: 'right' }}>{won(report.receivable)}</td>
               </tr>
               <tr>
                 <td>채무</td>
-                <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{dot(from)} ~ {dot(to)}</td>
+                <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{dot(from)} ~ {dot(to)}</td>
                 <td style={{ textAlign: 'right' }}>{won(report.payable)}</td>
               </tr>
               <tr>
                 <td>판매 할인액</td>
-                <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{dot(from)} ~ {dot(to)}</td>
+                <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{dot(from)} ~ {dot(to)}</td>
                 <td style={{ textAlign: 'right' }}>{won(report.saleDiscAmt)}</td>
               </tr>
               <tr>
                 <td>구매 할인액</td>
-                <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{dot(from)} ~ {dot(to)}</td>
+                <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{dot(from)} ~ {dot(to)}</td>
                 <td style={{ textAlign: 'right' }}>{won(report.buyDiscAmt)}</td>
               </tr>
               <tr>
                 <td>재고조정액</td>
-                <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{dot(from)} ~ {dot(to)}</td>
+                <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{dot(from)} ~ {dot(to)}</td>
                 <td style={{ textAlign: 'right' }}>{won(report.adjustAmt)}</td>
               </tr>
               <tr>
                 <td>자가사용액</td>
-                <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{dot(from)} ~ {dot(to)}</td>
+                <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{dot(from)} ~ {dot(to)}</td>
                 <td style={{ textAlign: 'right' }}>{won(report.selfUseAmt)}</td>
               </tr>
               {/*
@@ -416,7 +416,7 @@ export default function ExecutiveReportPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
             <TopTable title="매출 상위 거래처" rows={report.topSale} color="var(--ec-blue)" />
             <TopTable title="매입 상위 거래처" rows={report.topBuy} color="#a5561b" />
-            <TopTable title="재고금액 상위 품목" rows={report.topStock} color="#3c4553" />
+            <TopTable title="재고금액 상위 품목" rows={report.topStock} color="var(--ec-text)" />
           </div>
         </>
       )}
@@ -427,9 +427,9 @@ export default function ExecutiveReportPage() {
 function Kpi({ label, value, sub, color }: { label: string; value: string; sub?: string; color: string }) {
   return (
     <div style={{ border: '1px solid var(--ec-border)', borderRadius: 4, background: '#fff', padding: '12px 14px' }}>
-      <div style={{ fontSize: 12, color: '#8a929c', marginBottom: 6 }}>{label}</div>
+      <div style={{ fontSize: 12, color: 'var(--ec-text-hint)', marginBottom: 6 }}>{label}</div>
       <div style={{ fontSize: 20, fontWeight: 800, color }}>{value}</div>
-      {sub && <div style={{ fontSize: 11.5, color: '#8a929c', marginTop: 2 }}>{sub}</div>}
+      {sub && <div style={{ fontSize: 11.5, color: 'var(--ec-text-hint)', marginTop: 2 }}>{sub}</div>}
     </div>
   )
 }
@@ -438,16 +438,16 @@ function TopTable({ title, rows, color }: { title: string; rows: { key: string; 
   const max = rows.length ? rows[0].amount : 0
   return (
     <div style={{ border: '1px solid var(--ec-border)', borderRadius: 4, background: '#fff', padding: '10px 12px' }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: '#3c4553', marginBottom: 8 }}>{title}</div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ec-text)', marginBottom: 8 }}>{title}</div>
       {rows.length === 0 ? (
-        <div style={{ fontSize: 12, color: '#9aa1ab', padding: '10px 0', textAlign: 'center' }}>자료 없음</div>
+        <div style={{ fontSize: 12, color: 'var(--ec-text-hint)', padding: '10px 0', textAlign: 'center' }}>자료 없음</div>
       ) : rows.map((r, i) => (
         <div key={r.key} style={{ marginBottom: 7 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, marginBottom: 2 }}>
-            <span style={{ color: '#3c4553' }}><b style={{ color: '#9aa1ab', marginRight: 5 }}>{i + 1}</b>{r.name}</span>
+            <span style={{ color: 'var(--ec-text)' }}><b style={{ color: 'var(--ec-text-hint)', marginRight: 5 }}>{i + 1}</b>{r.name}</span>
             <b style={{ color }}>{won(r.amount)}</b>
           </div>
-          <div style={{ height: 4, background: '#eef1f5', borderRadius: 2 }}>
+          <div style={{ height: 4, background: 'var(--ec-line-soft)', borderRadius: 2 }}>
             <div style={{ height: '100%', width: `${max > 0 ? (r.amount / max) * 100 : 0}%`, background: color, borderRadius: 2 }} />
           </div>
         </div>

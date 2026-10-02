@@ -53,13 +53,13 @@ export default function WithholdingPage() {
         {(['이행상황신고서', '원천징수영수증'] as Tab[]).map((t) => (
           <button key={t} onClick={() => setTab(t)} className="no-ec" style={{
             padding: '6px 14px', fontSize: 12.5, border: 'none', cursor: 'pointer',
-            background: tab === t ? '#fff' : 'transparent', color: tab === t ? 'var(--ec-blue)' : '#5a626e',
+            background: tab === t ? '#fff' : 'transparent', color: tab === t ? 'var(--ec-blue)' : 'var(--ec-label)',
             fontWeight: tab === t ? 700 : 400, borderBottom: tab === t ? '2px solid var(--ec-blue)' : '2px solid transparent',
           }}>{t}</button>
         ))}
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       {tab === '이행상황신고서' ? (
         <>
@@ -68,7 +68,7 @@ export default function WithholdingPage() {
             <input type="month" className="ec-input" value={month} onChange={(e) => setMonth(e.target.value)} style={{ width: 150 }} />
             <button className="ec-btn ec-btn-primary" onClick={loadStatement}>조회</button>
             {stmt && stmt.draftCount > 0 && (
-              <span style={{ marginLeft: 8, fontSize: 12, color: '#c07a00' }}>
+              <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--ec-warn)' }}>
                 미확정 급여명세 {stmt.draftCount}건은 신고 대상에서 제외됩니다. 급여관리에서 확정하세요.
               </span>
             )}
@@ -103,18 +103,18 @@ export default function WithholdingPage() {
               <tbody>
                 {stmt.sections.map((s) => (
                   <tr key={s.code}>
-                    <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{s.code}</td>
+                    <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{s.code}</td>
                     <td>{s.name}</td>
                     <td style={{ textAlign: 'right' }}>{s.count.toLocaleString()}</td>
                     <td style={{ textAlign: 'right' }}>{won(s.grossPay)}</td>
                     <td style={{ textAlign: 'right' }}>{won(s.incomeTax)}</td>
-                    <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(s.localIncomeTax)}</td>
+                    <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{won(s.localIncomeTax)}</td>
                     <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(s.incomeTax + s.localIncomeTax)}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
-                <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+                <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
                   <td colSpan={3}>합계</td>
                   <td style={{ textAlign: 'right' }}>{won(stmt.sections.reduce((a, s) => a + s.grossPay, 0))}</td>
                   <td style={{ textAlign: 'right' }}>{won(stmt.grandIncomeTax)}</td>
@@ -137,17 +137,17 @@ export default function WithholdingPage() {
             </thead>
             <tbody>
               {!stmt || stmt.rows.length === 0 ? (
-                <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
+                <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>
                   확정된 급여명세가 없습니다.
                 </td></tr>
               ) : stmt.rows.map((r, i) => (
                 <tr key={r.payslipId}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                   <td style={{ fontFamily: 'monospace' }}>{r.employeeCode}</td>
                   <td>{r.employeeName}</td>
                   <td style={{ textAlign: 'right' }}>{won(r.grossPay)}</td>
                   <td style={{ textAlign: 'right' }}>{won(r.incomeTax)}</td>
-                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(r.localIncomeTax)}</td>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{won(r.localIncomeTax)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(r.totalWithheld)}</td>
                 </tr>
               ))}
@@ -160,7 +160,7 @@ export default function WithholdingPage() {
             <span style={{ fontSize: 12.5 }}>귀속연도</span>
             <input type="number" className="ec-input" value={year} onChange={(e) => setYear(Number(e.target.value))} style={{ width: 100 }} />
             <button className="ec-btn ec-btn-primary" onClick={loadReceipts}>조회</button>
-            <span style={{ marginLeft: 8, fontSize: 12, color: '#9aa1ab' }}>사원별 연간 근로소득·원천징수 합계</span>
+            <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--ec-text-hint)' }}>사원별 연간 근로소득·원천징수 합계</span>
           </div>
 
           <table className="w-full text-left">
@@ -177,19 +177,19 @@ export default function WithholdingPage() {
             </thead>
             <tbody>
               {receipts.length === 0 ? (
-                <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
+                <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>
                   해당 연도에 확정된 급여명세가 없습니다.
                 </td></tr>
               ) : receipts.map((r, i) => (
                 <tr key={r.employeeId}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                   <td style={{ fontFamily: 'monospace' }}>{r.employeeCode}</td>
                   <td>{r.employeeName}</td>
                   <td style={{ textAlign: 'center' }}>{r.months.length}</td>
                   <td style={{ textAlign: 'right' }}>{won(r.grossPay)}</td>
-                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(r.socialInsurance)}</td>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{won(r.socialInsurance)}</td>
                   <td style={{ textAlign: 'right' }}>{won(r.incomeTax)}</td>
-                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(r.localIncomeTax)}</td>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{won(r.localIncomeTax)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(r.totalWithheld)}</td>
                 </tr>
               ))}
@@ -203,9 +203,9 @@ export default function WithholdingPage() {
 
 function Tile({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   return (
-    <div style={{ flex: 1, border: '1px solid var(--ec-border)', borderRadius: 3, padding: '8px 10px', background: strong ? '#eef5ff' : '#fff' }}>
-      <div style={{ fontSize: 11.5, color: '#8a929c' }}>{label}</div>
-      <div style={{ fontSize: 16, fontWeight: 700, color: strong ? 'var(--ec-blue-dark)' : '#2b3440' }}>{value}</div>
+    <div style={{ flex: 1, border: '1px solid var(--ec-border)', borderRadius: 3, padding: '8px 10px', background: strong ? 'var(--ec-blue-wash)' : '#fff' }}>
+      <div style={{ fontSize: 11.5, color: 'var(--ec-text-hint)' }}>{label}</div>
+      <div style={{ fontSize: 16, fontWeight: 700, color: strong ? 'var(--ec-blue-dark)' : 'var(--ec-text)' }}>{value}</div>
     </div>
   )
 }

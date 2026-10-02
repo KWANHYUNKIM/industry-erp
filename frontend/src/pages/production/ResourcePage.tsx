@@ -186,13 +186,13 @@ export default function ResourcePage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       {/*
         원본 [사용여부] — <b>전체 · 사용 · 사용중단</b> 이고 [사용]이 켜진 채 뜬다(사본 실측).
         마스터는 지우지 않고 내리므로, 내린 것을 볼지 고르는 자리가 있어야 한다.
       */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)' }}>
         {/* 원본 조건 차례: 자원코드 · 자원명 · <b>위치 · 작업</b> · 사용구분 */}
         <span>위치</span>
         <input className="ec-input" value={locCond} onChange={(e) => setLocCond(e.target.value)}
@@ -284,27 +284,27 @@ export default function ResourcePage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r) => (
-            <tr key={r.id} style={{ color: r.active ? undefined : '#9aa1ab' }}>
+            <tr key={r.id} style={{ color: r.active ? undefined : 'var(--ec-text-hint)' }}>
               <td style={{ textAlign: 'center' }}>
                 <input type="checkbox" checked={checked.has(r.id)} onChange={() => toggle(r.id)} />
               </td>
               <td style={{ fontFamily: 'monospace' }}>{r.code}</td>
               <td>{r.name}</td>
-              <td style={{ color: r.warehouseName ? undefined : '#c9ced6' }}>{r.warehouseName ?? '안 정함'}</td>
-              <td style={{ color: r.processName ? undefined : '#c9ced6' }}>{r.processName ?? '안 정함'}</td>
+              <td style={{ color: r.warehouseName ? undefined : 'var(--ec-text-off)' }}>{r.warehouseName ?? '안 정함'}</td>
+              <td style={{ color: r.processName ? undefined : 'var(--ec-text-off)' }}>{r.processName ?? '안 정함'}</td>
               <td style={{ textAlign: 'center' }}>{r.type}</td>
               <td style={{ textAlign: 'right' }}>{r.capacity.toLocaleString()}</td>
               <td>{r.unit ?? ''}</td>
               <td style={{ textAlign: 'right' }}>{r.costPerHr.toLocaleString()}</td>
-              <td style={{ textAlign: 'center', color: r.active ? '#1c7c3c' : '#c60a2e' }}>
+              <td style={{ textAlign: 'center', color: r.active ? 'var(--ec-success)' : 'var(--ec-danger)' }}>
                 {r.active ? '사용' : '사용중단'}
               </td>
               <td style={{ textAlign: 'center' }}>
-                <button onClick={() => remove(r)} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                <button onClick={() => remove(r)} style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
               </td>
             </tr>
           ))}

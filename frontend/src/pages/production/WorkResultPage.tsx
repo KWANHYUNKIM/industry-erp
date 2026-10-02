@@ -291,7 +291,7 @@ export default function WorkResultPage() {
       onNew={() => setShowForm(true)}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       {/*
         격자가 열두 칸이라 기본 폭(640)으로는 팝업 밖으로 넘친다 — 브라우저로 열어 보고 알았다.
@@ -357,7 +357,7 @@ export default function WorkResultPage() {
                   </thead>
                   <tbody>
                     {woFull.length === 0 ? (
-                      <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 12 }}>등록된 데이터가 없습니다.</td></tr>
+                      <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 12 }}>등록된 데이터가 없습니다.</td></tr>
                     ) : woFull.map((w) => (
                       <tr key={w.id} style={{ cursor: 'pointer' }}
                           onClick={() => setWoPicked((p) => (p.includes(w.id) ? p.filter((x) => x !== w.id) : [...p, w.id]))}>
@@ -415,7 +415,7 @@ export default function WorkResultPage() {
             <tbody>
               {wrLines.map((l, idx) => (
                 <tr key={l.key}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
+                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{idx + 1}</td>
                   <td>
                     {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
                     <CodePickerField label="작업지시" hideLabel fill placeholder="작업지시" emptyLabel="선택 해제"
@@ -423,10 +423,10 @@ export default function WorkResultPage() {
                                      items={workOrders.map((w) => ({ value: String(w.id), code: w.orderNo, name: w.productName }))} />
                   </td>
                   {/* 생산품목 — 고른 작업지시가 가리키는 최종 품목이다. 사람이 고치는 칸이 아니다. */}
-                  <td style={{ fontFamily: 'monospace', color: '#6b7280' }}>
+                  <td style={{ fontFamily: 'monospace', color: 'var(--ec-text-muted)' }}>
                     {workOrders.find((w) => String(w.id) === l.workOrderId)?.productCode ?? ''}
                   </td>
-                  <td style={{ color: '#6b7280' }}>
+                  <td style={{ color: 'var(--ec-text-muted)' }}>
                     {workOrders.find((w) => String(w.id) === l.workOrderId)?.productName ?? ''}
                   </td>
                   <td>
@@ -442,11 +442,11 @@ export default function WorkResultPage() {
                                      value={l.workItemId} onChange={(v) => setWrLine(l.key, { workItemId: v })}
                                      items={items.map((x) => ({ value: String(x.id), code: x.code, name: x.name, sub: x.spec ?? undefined }))} />
                   </td>
-                  <td style={{ color: '#6b7280' }}>
+                  <td style={{ color: 'var(--ec-text-muted)' }}>
                     {items.find((x) => String(x.id) === l.workItemId)?.name ?? ''}
                   </td>
                   {/* 사람이 적는 칸이 아니다 — 양품·불량을 적으면 따라 는다. */}
-                  <td style={{ textAlign: 'right', color: '#6b7280', fontWeight: 600 }}>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-text-muted)', fontWeight: 600 }}>
                     {(Number(l.goodQty || 0) + Number(l.defectQty || 0)).toLocaleString()}
                   </td>
                   <td>
@@ -474,7 +474,7 @@ export default function WorkResultPage() {
                     <input className={inputCls} value={l.note} onChange={(e) => setWrLine(l.key, { note: e.target.value })} />
                   </td>
                   <td style={{ textAlign: 'center' }}>
-                    <button type="button" style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}
+                    <button type="button" style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}
                             onClick={() => setWrLines(wrLines.length > 1 ? wrLines.filter((x) => x.key !== l.key) : [emptyLine()])}>삭제</button>
                   </td>
                 </tr>
@@ -526,25 +526,25 @@ export default function WorkResultPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{dateText(r.workDate)}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.workOrderNo ?? ''}</td>
               <td>{r.process}</td>
-              <td style={{ color: r.warehouseName ? undefined : '#c9ced6' }}>{r.warehouseName ?? ''}</td>
+              <td style={{ color: r.warehouseName ? undefined : 'var(--ec-text-off)' }}>{r.warehouseName ?? ''}</td>
               <td>{r.productName ?? ''}</td>
-              <td style={{ color: r.resourceName ? undefined : '#c9ced6' }}>{r.resourceName ?? ''}</td>
+              <td style={{ color: r.resourceName ? undefined : 'var(--ec-text-off)' }}>{r.resourceName ?? ''}</td>
               <td>{r.worker ?? ''}</td>
               <td style={{ textAlign: 'right' }}>{r.goodQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right' }}>{r.defectQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right' }}>{r.workTimeMin.toLocaleString()}</td>
-              <td style={{ color: '#8a929c' }}>{r.note ?? ''}</td>
+              <td style={{ color: 'var(--ec-text-hint)' }}>{r.note ?? ''}</td>
               <td style={{ textAlign: 'center' }}>
-                <button onClick={() => remove(r)} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                <button onClick={() => remove(r)} style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
               </td>
             </tr>
           ))}
@@ -569,7 +569,7 @@ export default function WorkResultPage() {
           </thead>
           <tbody>
             {(linkRows ?? []).length === 0 ? (
-              <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 14 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 14 }}>등록된 데이터가 없습니다.</td></tr>
             ) : (linkRows ?? []).map((r) => (
               <tr key={r.id}>
                 <td>{dateText(r.productionDate)} {r.prodNo}</td>

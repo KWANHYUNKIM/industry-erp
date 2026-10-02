@@ -25,7 +25,7 @@ const TAB_STATUS: Record<Exclude<Tab, '전체'>, QuotationStatus> = {
   작성: 'DRAFT', 발송: 'SENT', 수주전환: 'CONVERTED', 취소: 'CANCELLED',
 }
 const statusColor = (s: QuotationStatus) =>
-  s === 'CONVERTED' ? '#1c7c3c' : s === 'CANCELLED' ? '#8a929c' : s === 'SENT' ? 'var(--ec-blue)' : '#5a626e'
+  s === 'CONVERTED' ? 'var(--ec-success)' : s === 'CANCELLED' ? 'var(--ec-text-hint)' : s === 'SENT' ? 'var(--ec-blue)' : 'var(--ec-label)'
 
 interface LineForm { itemId: string; quantity: string; unitPrice: string }
 const emptyLine = (): LineForm => ({ itemId: '', quantity: '', unitPrice: '' })
@@ -337,11 +337,11 @@ export default function QuotationPage() {
     ]}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
         <button className="ec-btn" onClick={load}>새로고침</button>
-        <span style={{ marginLeft: 8, fontSize: 12, color: '#9aa1ab' }}>견적 → 발송 → 수주전환. 부가세 10% 자동.</span>
+        <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--ec-text-hint)' }}>견적 → 발송 → 수주전환. 부가세 10% 자동.</span>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)' }}>{notice}</div>}
 
       {/* 상태 필터는 원본에서 알약(pill)이다 — 선택된 것만 파란 알약으로 채워진다. */}
       {/* 원본 조건 차례: … 거래처 · <b>품목</b> · 발송여부 */}
@@ -374,7 +374,7 @@ export default function QuotationPage() {
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from}
                  onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
           <input type="date" className="ec-input" value={to}
                  onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
           <span style={{ marginLeft: 6 }}>
@@ -457,7 +457,7 @@ export default function QuotationPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <input className="ec-input" type="date" style={{ width: 140 }} value={upFrom}
                    onChange={(e) => setUpFrom(e.target.value)} />
-            <span style={{ color: '#8a929c' }}>~</span>
+            <span style={{ color: 'var(--ec-text-hint)' }}>~</span>
             <input className="ec-input" type="date" style={{ width: 140 }} value={upTo}
                    onChange={(e) => setUpTo(e.target.value)} />
           </div>
@@ -500,13 +500,13 @@ export default function QuotationPage() {
             </tr></thead>
             <tbody>
               {summary.length === 0 ? (
-                <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
               ) : summary.map((g) => (
                 <tr key={g.partner}>
                   <td style={{ fontWeight: 600 }}>{g.partner}</td>
                   <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
                   <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--ec-blue)' }}>{g.supply.toLocaleString()}</td>
-                  <td style={{ textAlign: 'right', color: '#5a626e' }}>{g.vat.toLocaleString()}</td>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{g.vat.toLocaleString()}</td>
                 </tr>
               ))}
             </tbody>
@@ -549,60 +549,60 @@ export default function QuotationPage() {
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={15} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((q, i) => (
             <Fragment key={q.id}>
               <tr onClick={() => setOpenId(openId === q.id ? null : q.id)} style={{ cursor: 'pointer' }}>
                 <td style={{ textAlign: 'center' }}>
                   <input type="checkbox" checked={picked.has(q.id)} onChange={() => pick(q.id)} />
                 </td>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>
                   {openId === q.id ? '▾ ' : '▸ '}{dateNo(q)}
                 </td>
                 <td>{q.partnerName}</td>
                 <td>{q.createdBy ?? ''}</td>
-                <td style={{ color: '#5a626e' }}>
+                <td style={{ color: 'var(--ec-label)' }}>
                   {q.lines[0]?.itemName ?? ''}{q.lines.length > 1 ? ` 외 ${q.lines.length - 1}건` : ''}
                 </td>
                 <td>{q.validUntil ?? ''}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(q.totalAmount)}</td>
                 <td style={{ textAlign: 'center' }}><span style={{ color: statusColor(q.status) }}>{q.statusName}</span></td>
-                <td style={{ textAlign: 'center', color: '#1c7c3c', fontSize: 11.5 }}>
+                <td style={{ textAlign: 'center', color: 'var(--ec-success)', fontSize: 11.5 }}>
                   {/* 원본 '생성한전표' — 이 견적서에서 만들어진 전표. 우리는 수주만 만든다. */}
                   {q.convertedOrderId ? `수주 #${q.convertedOrderId}` : ''}
                 </td>
                 <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
                   <button className="ec-btn ec-btn-sm" onClick={() => printQuote(q)}>인쇄</button>
                 </td>
-                <td style={{ color: '#5a626e' }}>{q.remark ?? ''}</td>
+                <td style={{ color: 'var(--ec-label)' }}>{q.remark ?? ''}</td>
                 <td style={{ textAlign: 'right' }}>{won(q.supplyAmount)}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(q.vatAmount)}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{won(q.vatAmount)}</td>
                 <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
                   <div style={{ display: 'inline-flex', gap: 3 }}>
                     {q.status === 'DRAFT' && <button className="ec-btn ec-btn-sm" onClick={() => send(q)}>발송</button>}
                     {(q.status === 'DRAFT' || q.status === 'SENT') && <button className="ec-btn ec-btn-sm ec-btn-primary" onClick={() => convert(q)}>수주전환</button>}
-                    {q.status !== 'CONVERTED' && q.status !== 'CANCELLED' && <button className="ec-btn ec-btn-sm" style={{ color: '#c60a2e' }} onClick={() => cancel(q)}>취소</button>}
-                    <button className="ec-btn ec-btn-sm" style={{ color: '#c60a2e' }} onClick={() => remove(q)}>삭제</button>
+                    {q.status !== 'CONVERTED' && q.status !== 'CANCELLED' && <button className="ec-btn ec-btn-sm" style={{ color: 'var(--ec-danger)' }} onClick={() => cancel(q)}>취소</button>}
+                    <button className="ec-btn ec-btn-sm" style={{ color: 'var(--ec-danger)' }} onClick={() => remove(q)}>삭제</button>
                   </div>
                 </td>
               </tr>
               {openId === q.id && (
                 <tr className="no-ec">
-                  <td colSpan={15} style={{ padding: 0, background: '#fafbfc' }}>
+                  <td colSpan={15} style={{ padding: 0, background: 'var(--ec-bg-page)' }}>
                     <table className="w-full text-left" style={{ margin: '4px 0' }}>
                       {/* 원본 현황의 줄 칸이다 — 규격은 응답이 <code>spec</code> 으로 싣고 있었다. */}
                       <thead><tr><th style={{ width: 34 }}></th><th>품목코드</th><th>품목명(규격)</th><th style={{ textAlign: 'right' }}>수량</th><th style={{ textAlign: 'right' }}>단가</th><th style={{ textAlign: 'right' }}>공급가액</th><th style={{ textAlign: 'right' }}>부가세</th></tr></thead>
                       <tbody>
                         {q.lines.map((l) => (
                           <tr key={l.id}>
-                            <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{l.lineNo}</td>
+                            <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{l.lineNo}</td>
                             <td style={{ fontFamily: 'monospace' }}>{l.itemCode}</td>
                             <td>{l.itemName}{l.spec ? ` (${l.spec})` : ''}</td>
                             <td style={{ textAlign: 'right' }}>{won(l.quantity)} {l.unit}</td>
                             <td style={{ textAlign: 'right' }}>{won(l.unitPrice)}</td>
                             <td style={{ textAlign: 'right' }}>{won(l.supplyAmount)}</td>
-                            <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(l.vatAmount)}</td>
+                            <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{won(l.vatAmount)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -698,16 +698,16 @@ function QuotationForm({ items, partners, warehouses, projects, onClose, onSaved
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 720, maxWidth: '94vw', maxHeight: '90vh', overflow: 'auto', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: '#f5f7fa' }}>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: 'var(--ec-bg-page)' }}>
           <span style={{ fontWeight: 800, color: 'var(--ec-blue-dark)' }}>견적서 작성</span>
-          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: '#8a929c' }}>×</span>
+          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: 'var(--ec-text-hint)' }}>×</span>
         </div>
         <div style={{ padding: 16 }}>
-          {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+          {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
           <table className="w-full text-left" style={{ marginBottom: 12 }}>
             <tbody>
               <tr>
-                <th style={{ width: 90, background: '#f5f7fa' }}>거래처<span style={{ color: '#c60a2e' }}>*</span></th>
+                <th style={{ width: 90, background: 'var(--ec-bg-page)' }}>거래처<span style={{ color: 'var(--ec-danger)' }}>*</span></th>
                 <td>
                   {/*
                     드롭다운이었다 — 거래처가 수백 곳이면 스크롤로 찾아야 했고, 다른 입력칸(창고·프로젝트·품목)은
@@ -717,13 +717,13 @@ function QuotationForm({ items, partners, warehouses, projects, onClose, onSaved
                                    value={partnerId} onChange={choosePartner}
                                    items={partnerCodeItems(partners.filter((p) => p.type !== 'SUPPLIER'))} />
                 </td>
-                <th style={{ width: 70, background: '#f5f7fa' }}>견적일</th>
+                <th style={{ width: 70, background: 'var(--ec-bg-page)' }}>견적일</th>
                 <td><input type="date" className="ec-input" value={quoteDate} onChange={(e) => setQuoteDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>유효기한</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>유효기한</th>
                 <td><input type="date" className="ec-input" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} style={{ width: 150 }} /></td>
-                <th style={{ background: '#f5f7fa' }}>창고</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>창고</th>
                 <td>
                   <CodePickerField label="창고" hideLabel width={200} emptyLabel="선택 안 함"
                                    value={fWarehouse} onChange={setFWarehouse}
@@ -731,7 +731,7 @@ function QuotationForm({ items, partners, warehouses, projects, onClose, onSaved
                 </td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>프로젝트</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>프로젝트</th>
                 <td colSpan={3}>
                   <CodePickerField label="프로젝트" hideLabel width={240} emptyLabel="선택 안 함"
                                    value={fProject} onChange={setFProject}
@@ -746,7 +746,7 @@ function QuotationForm({ items, partners, warehouses, projects, onClose, onSaved
             <tbody>
               {lines.map((l, i) => (
                 <tr key={i}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                   <td>
                     <CodePickerField label="품목" hideLabel fill placeholder="품목 선택" emptyLabel="선택 해제"
                                      value={l.itemId} onChange={(v) => pickItem(i, v)}
@@ -760,7 +760,7 @@ function QuotationForm({ items, partners, warehouses, projects, onClose, onSaved
               ))}
             </tbody>
             <tfoot>
-              <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+              <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
                 <td colSpan={4} style={{ textAlign: 'right' }}>공급가액 / 부가세 / 합계</td>
                 <td style={{ textAlign: 'right' }} colSpan={2}>{won(supply)} / {won(vat)} / <span style={{ color: 'var(--ec-blue-dark)' }}>{won(supply + vat)}</span></td>
               </tr>

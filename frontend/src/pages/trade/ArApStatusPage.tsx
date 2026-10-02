@@ -227,14 +227,14 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
         </p>
       }
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end', border: '1px solid var(--ec-border)', background: '#f7f9fb', padding: 10, marginBottom: 10 }}>
-        <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>구분</div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end', border: '1px solid var(--ec-border)', background: 'var(--ec-bg-page)', padding: 10, marginBottom: 10 }}>
+        <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>구분</div>
           <select className="ec-input" value={mode} onChange={(e) => setMode(e.target.value as Mode)} style={{ width: 110 }}>
             {(Object.keys(MODE_LABEL) as Mode[]).map((m) => <option key={m} value={m}>{MODE_LABEL[m]}</option>)}
           </select></label>
-        <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>기준일자</div>
+        <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>기준일자</div>
           <input type="date" className="ec-input" value={asOf} onChange={(e) => setAsOf(e.target.value)} style={{ width: 150 }} /></label>
         {/*
           원본 기간 빠른선택 실측(2026-09-02):
@@ -259,7 +259,7 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
                          items={groups.map((g) => ({ value: g, name: g }))} />
         {/* 원본 차례는 거래처그룹들 뒤, 거래처관리담당자 앞이다(사본 실측). */}
         <div style={{ fontSize: 12.5 }}>
-          <div style={{ color: '#5a626e', marginBottom: 3 }}>대표거래처로 합산</div>
+          <div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>대표거래처로 합산</div>
           {/* 배열로 돌리면 라벨이 <b>글자로 남지 않아</b> 검사가 못 본다 — 그대로 편다. */}
           <div style={{ display: 'flex', gap: 10 }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -286,7 +286,7 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
           수천 줄 쌓이는 것을 막는 칸이다).
         */}
         <div style={{ fontSize: 12.5 }}>
-          <div style={{ color: '#5a626e', marginBottom: 3 }}>기타</div>
+          <div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>기타</div>
           <div style={{ display: 'flex', gap: 10 }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <input type="checkbox" checked={includeInactive} onChange={(e) => setIncludeInactive(e.target.checked)} />
@@ -300,7 +300,7 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
         </div>
         {/* 원본 [정렬/소계기준]. 데이터 보기형식 바로 앞줄이다(사본 실측). */}
         <div style={{ fontSize: 12.5 }}>
-          <div style={{ color: '#5a626e', marginBottom: 3 }}>정렬/소계기준</div>
+          <div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>정렬/소계기준</div>
           <div className="ec-pills">
             {SUBTOTALS.map((v) => (
               <button key={v} type="button" className={`ec-pill no-ec${subtotal === v ? ' active' : ''}`}
@@ -310,7 +310,7 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
         </div>
         {/* 원본 [데이터 보기형식]. 이 화면은 EcStatusPanel 을 쓰지 않아 여기에 둔다. */}
         <div style={{ fontSize: 12.5 }}>
-          <div style={{ color: '#5a626e', marginBottom: 3 }}>데이터 보기형식</div>
+          <div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>데이터 보기형식</div>
           <div className="ec-pills">
             {(['표', '그래프'] as const).map((v) => (
               <button key={v} type="button" className={`ec-pill no-ec${view === v ? ' active' : ''}`}
@@ -323,24 +323,24 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
       <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
         {showR && (
           <div style={{ border: '1px solid var(--ec-border)', padding: '8px 14px', minWidth: 160 }}>
-            <div style={{ fontSize: 11.5, color: '#8a929c' }}>채권 합계 ({asOf} 기준)</div>
+            <div style={{ fontSize: 11.5, color: 'var(--ec-text-hint)' }}>채권 합계 ({asOf} 기준)</div>
             <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--ec-blue-dark)' }}>{won(total.receivable)}</div>
           </div>
         )}
         {showP && (
           <div style={{ border: '1px solid var(--ec-border)', padding: '8px 14px', minWidth: 160 }}>
-            <div style={{ fontSize: 11.5, color: '#8a929c' }}>채무 합계 ({asOf} 기준)</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#c07a00' }}>{won(total.payable)}</div>
+            <div style={{ fontSize: 11.5, color: 'var(--ec-text-hint)' }}>채무 합계 ({asOf} 기준)</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--ec-warn)' }}>{won(total.payable)}</div>
           </div>
         )}
         {mode === 'BOTH' && (
           <div style={{ border: '1px solid var(--ec-border)', padding: '8px 14px', minWidth: 160 }}>
-            <div style={{ fontSize: 11.5, color: '#8a929c' }}>순채권(채권−채무)</div>
+            <div style={{ fontSize: 11.5, color: 'var(--ec-text-hint)' }}>순채권(채권−채무)</div>
             <div style={{ fontSize: 18, fontWeight: 700 }}>{won(total.receivable - total.payable)}</div>
           </div>
         )}
         <div style={{ border: '1px solid var(--ec-border)', padding: '8px 14px', minWidth: 110 }}>
-          <div style={{ fontSize: 11.5, color: '#8a929c' }}>거래처</div>
+          <div style={{ fontSize: 11.5, color: 'var(--ec-text-hint)' }}>거래처</div>
           <div style={{ fontSize: 18, fontWeight: 700 }}>{shown.length}</div>
         </div>
       </div>
@@ -396,20 +396,20 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
         </tr></thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={cols + 2} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={cols + 2} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={cols + 2} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={cols + 2} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.partnerId}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td>{r.code}</td>
               {/* 원본은 거래처명을 눌러 그 거래처를 연다(사본 실측). */}
               <td>
                 <Link to={`/sales/partners?q=${encodeURIComponent(r.name)}`} style={{ color: 'inherit' }}>{r.name}</Link>
-                {!r.active && <span style={{ color: '#c60a2e', fontSize: 11, marginLeft: 4 }}>(사용중단)</span>}
+                {!r.active && <span style={{ color: 'var(--ec-danger)', fontSize: 11, marginLeft: 4 }}>(사용중단)</span>}
               </td>
-              <td style={{ color: '#5a626e' }}>{r.partnerGroupName ?? ''}</td>
-              <td style={{ color: '#5a626e' }}>{r.manager ?? ''}</td>
+              <td style={{ color: 'var(--ec-label)' }}>{r.partnerGroupName ?? ''}</td>
+              <td style={{ color: 'var(--ec-label)' }}>{r.manager ?? ''}</td>
               {showR && <td style={{ textAlign: 'right' }}>{won(r.receivable)}</td>}
               {showP && <td style={{ textAlign: 'right' }}>{won(r.payable)}</td>}
               {mode === 'BOTH' && (

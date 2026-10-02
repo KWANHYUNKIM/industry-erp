@@ -78,7 +78,7 @@ export default function ApprovalFormFields({
             <tr key={head.key}>
               <td className="doc-label" colSpan={LABEL_SPAN}>
                 {head.rowLabel ?? head.label}
-                {group.some((f) => f.required) && <span style={{ color: '#c60a2e', marginLeft: 2 }}>*</span>}
+                {group.some((f) => f.required) && <span style={{ color: 'var(--ec-danger)', marginLeft: 2 }}>*</span>}
               </td>
               <td colSpan={COLS - LABEL_SPAN}>
                 {group.length === 1 && head.type === 'table' ? (
@@ -176,7 +176,7 @@ function TableField({
         <tbody>
           {rows.length === 0 && (
             <tr>
-              <td colSpan={columns.length + 1} style={{ textAlign: 'center', color: '#9aa1ab', padding: 10 }}>
+              <td colSpan={columns.length + 1} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 10 }}>
                 행을 추가하세요.
               </td>
             </tr>
@@ -205,13 +205,13 @@ function TableField({
           ))}
           {total !== null && (
             <tr>
-              <td colSpan={Math.max(1, columns.length - 1)} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>
+              <td colSpan={Math.max(1, columns.length - 1)} style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>
                 {field.totalLabel ?? '합계'}
               </td>
-              <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>
+              <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>
                 {total.toLocaleString()}
               </td>
-              <td style={{ background: '#f5f7fa' }} />
+              <td style={{ background: 'var(--ec-bg-page)' }} />
             </tr>
           )}
         </tbody>

@@ -487,7 +487,7 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
         </EcCond>
       </EcStatusPanel>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       {/*
         잘랐으면 <b>잘랐다고 말한다.</b> 말이 없으면 아래 합계와 집계가 전체인 줄 알고 읽는다 —
@@ -495,18 +495,18 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
         <b>받은 줄만</b> 센다는 뜻이라 같이 적는다.
       */}
       {truncated && (
-        <p style={{ background: '#fff8e1', color: '#7a5b00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>
+        <p style={{ background: 'var(--ec-warn-bg)', color: '#7a5b00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>
           기간에 걸린 {num(totalRows)}건 중 앞 {num(rows.length)}건만 보고 있습니다 — 아래 집계와 합계도 이 {num(rows.length)}건만 셉니다.
           {' '}
           <button className="ec-btn" style={{ marginLeft: 4 }} onClick={() => setAll(true)}>오천건이상조회</button>
         </p>
       )}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
         {mode === '내역' ? '건수' : '품목×창고'}{' '}
-        <b style={{ color: '#3c4553' }}>{num(mode === '내역' ? shown.length : summary.length)}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
-        증감계 <b style={{ color: totalChange < 0 ? '#c60a2e' : 'var(--ec-blue)', fontSize: 14 }}>{num(totalChange)}</b>
+        <b style={{ color: 'var(--ec-text)' }}>{num(mode === '내역' ? shown.length : summary.length)}</b>
+        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+        증감계 <b style={{ color: totalChange < 0 ? 'var(--ec-danger)' : 'var(--ec-blue)', fontSize: 14 }}>{num(totalChange)}</b>
       </div>
 
       <div className="overflow-x-auto" ref={tableRef}>
@@ -565,40 +565,40 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
                 <tr><td colSpan={cols} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
               ) : shown.map((r, i) => (
                 <tr key={r.id}>
-                  <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
-                  {kind === 'DEFECT' && <td style={{ color: '#5a626e' }}>{r.kind ?? ''}</td>}
-                  {kind === 'DEFECT' && <td style={{ color: '#5a626e' }}>{r.handling ?? ''}</td>}
+                  <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+                  {kind === 'DEFECT' && <td style={{ color: 'var(--ec-label)' }}>{r.kind ?? ''}</td>}
+                  {kind === 'DEFECT' && <td style={{ color: 'var(--ec-label)' }}>{r.handling ?? ''}</td>}
                   <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{r.adjustDate.replace(/-/g, '/')} {r.adjustNo}</td>
                   <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
                   {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다 — 우리는 칸을 따로 두고 있었다. */}
                   <td>{r.itemName}{r.spec ? ' [' + r.spec + ']' : ''}</td>
                   <td>{r.warehouseName}</td>
-                  <td style={{ color: '#5a626e' }}>{r.projectName ?? ''}</td>
-                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(r.beforeQty)}</td>
+                  <td style={{ color: 'var(--ec-label)' }}>{r.projectName ?? ''}</td>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(r.beforeQty)}</td>
                   <td style={{ textAlign: 'right' }}>{num(r.afterQty)}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, color: r.quantityChange < 0 ? '#c60a2e' : 'var(--ec-blue)' }}>
-                    {num(r.quantityChange)} <span style={{ fontSize: 11, fontWeight: 400, color: '#9aa1ab' }}>{r.unit}</span>
+                  <td style={{ textAlign: 'right', fontWeight: 700, color: r.quantityChange < 0 ? 'var(--ec-danger)' : 'var(--ec-blue)' }}>
+                    {num(r.quantityChange)} <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--ec-text-hint)' }}>{r.unit}</span>
                   </td>
 
                   {hasAmount && (
-                    <td style={{ textAlign: 'right', color: '#5a626e' }}>
+                    <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>
                       {amountOf(r.itemId, r.quantityChange) == null ? '' : num(amountOf(r.itemId, r.quantityChange)!)}
                     </td>
                   )}
-                  <td style={{ color: '#5a626e' }}>{empName(r.employeeId)}</td>
-                  <td style={{ color: '#5a626e' }}>{r.reason ?? ''}</td>
+                  <td style={{ color: 'var(--ec-label)' }}>{empName(r.employeeId)}</td>
+                  <td style={{ color: 'var(--ec-label)' }}>{r.reason ?? ''}</td>
                 </tr>
               ))}
             </tbody>
             {shown.length > 0 && (
               <tfoot>
                 <tr>
-                  <td colSpan={cols - 3 - (hasAmount ? 1 : 0)} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: totalChange < 0 ? '#c60a2e' : 'var(--ec-blue)' }}>{num(totalChange)}</td>
+                  <td colSpan={cols - 3 - (hasAmount ? 1 : 0)} style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>합계</td>
+                  <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: totalChange < 0 ? 'var(--ec-danger)' : 'var(--ec-blue)' }}>{num(totalChange)}</td>
                   {hasAmount && (
-                    <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{num(totalAmount)}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>{num(totalAmount)}</td>
                   )}
-                  <td colSpan={2} style={{ background: '#f5f7fa' }}></td>
+                  <td colSpan={2} style={{ background: 'var(--ec-bg-page)' }}></td>
                 </tr>
               </tfoot>
             )}
@@ -628,13 +628,13 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
                 <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
               ) : summary.map((g, i) => (
                 <tr key={g.k}>
-                  <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+                  <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                   <td>{g.warehouseName}</td>
                   <td style={{ fontFamily: 'monospace' }}>{g.itemCode}</td>
                   <td>{g.itemName}</td>
-                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(g.count)}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, color: g.change < 0 ? '#c60a2e' : 'var(--ec-blue)' }}>
-                    {num(g.change)} <span style={{ fontSize: 11, fontWeight: 400, color: '#9aa1ab' }}>{g.unit}</span>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(g.count)}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 700, color: g.change < 0 ? 'var(--ec-danger)' : 'var(--ec-blue)' }}>
+                    {num(g.change)} <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--ec-text-hint)' }}>{g.unit}</span>
                   </td>
                 </tr>
               ))}
@@ -642,8 +642,8 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
             {summary.length > 0 && (
               <tfoot>
                 <tr>
-                  <td colSpan={5} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: totalChange < 0 ? '#c60a2e' : 'var(--ec-blue)' }}>{num(totalChange)}</td>
+                  <td colSpan={5} style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>합계</td>
+                  <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: totalChange < 0 ? 'var(--ec-danger)' : 'var(--ec-blue)' }}>{num(totalChange)}</td>
                 </tr>
               </tfoot>
             )}

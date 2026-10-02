@@ -41,9 +41,9 @@ const mono = { fontFamily: 'monospace' as const }
 /** 원본은 소수 셋째 자리까지 채워 찍는다. */
 const days = formatDays
 function statusColor(s: VacationStatus) {
-  if (s === 'APPROVED') return '#1c7c3c'
-  if (s === 'REJECTED') return '#c60a2e'
-  return '#c07a00'
+  if (s === 'APPROVED') return 'var(--ec-success)'
+  if (s === 'REJECTED') return 'var(--ec-danger)'
+  return 'var(--ec-warn)'
 }
 
 export default function VacationUsePage() {
@@ -182,13 +182,13 @@ export default function VacationUsePage() {
         </EcCond>
       </ul>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        휴가 <b style={{ color: '#3c4553' }}>{shown.length}</b>건
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+        휴가 <b style={{ color: 'var(--ec-text)' }}>{shown.length}</b>건
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
         사용일수 합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{totalDays.toLocaleString('ko-KR')}</b>일
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       <table className="w-full text-left">
         <thead>
           <tr>
@@ -210,12 +210,12 @@ export default function VacationUsePage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : withRemain.map(({ row: r, grant, remain, first }, i) => (
             <tr key={r.id} style={first && i > 0 ? { borderTop: '2px solid #d7dce3' } : undefined}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={mono}>{r.docNo}</td>
               <td>{first ? r.empName : ''}</td>
               <td>{first ? (r.department ?? '') : ''}</td>
@@ -223,17 +223,17 @@ export default function VacationUsePage() {
               <td style={mono}>{dateText(r.startDate)}</td>
               <td style={mono}>{dateText(r.endDate)}</td>
               <td>{r.reason ?? ''}</td>
-              <td style={{ textAlign: 'right', color: '#5a626e' }}>{grant != null ? days(grant) : ''}</td>
+              <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{grant != null ? days(grant) : ''}</td>
               <td style={{ textAlign: 'right' }}>{days(r.days)}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700, color: remain != null && remain < 0 ? '#c60a2e' : undefined }}>
+              <td style={{ textAlign: 'right', fontWeight: 700, color: remain != null && remain < 0 ? 'var(--ec-danger)' : undefined }}>
                 {remain != null ? days(remain) : ''}
               </td>
               <td style={{ textAlign: 'center', fontWeight: 700, color: statusColor(r.status) }}>{r.statusName}</td>
               <td style={{ textAlign: 'center' }}>
                 {r.status === 'PENDING' ? (
                   <>
-                    <button onClick={() => changeStatus(r, 'APPROVED')} style={{ color: '#1c7c3c', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>승인</button>
-                    <button onClick={() => changeStatus(r, 'REJECTED')} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>반려</button>
+                    <button onClick={() => changeStatus(r, 'APPROVED')} style={{ color: 'var(--ec-success)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>승인</button>
+                    <button onClick={() => changeStatus(r, 'REJECTED')} style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>반려</button>
                   </>
                 ) : null}
               </td>

@@ -213,7 +213,7 @@ export default function WorkResultInquiryPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       <div className="ec-pills" style={{ marginBottom: 8 }}>
         <button type="button" className="ec-pill no-ec active">전체</button>
@@ -311,11 +311,11 @@ export default function WorkResultInquiryPage() {
         </EcCond>
       </ul>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
         {shown.length}건
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
         작업수량 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{num(totals.qty)}</b>
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
         작업시간 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{num(totals.time)}</b>분
       </div>
 
@@ -356,28 +356,28 @@ export default function WorkResultInquiryPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((r) => (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center' }}>
                   <input type="checkbox" checked={checked.has(r.id)} onChange={() => toggle(r.id)} />
                 </td>
                 <td style={{ fontFamily: 'monospace' }}>{dateText(r.workDate)} {r.resultNo}</td>
-                <td style={{ color: r.warehouseName ? undefined : '#c9ced6' }}>{r.warehouseName ?? ''}</td>
+                <td style={{ color: r.warehouseName ? undefined : 'var(--ec-text-off)' }}>{r.warehouseName ?? ''}</td>
                 {/* 원본은 '작업품목명[규격명]'. 안 적힌 옛 자료는 비워 둔다 — 공정명으로 채우면 또 거짓말이 된다. */}
-                <td style={{ color: r.workItemName ? undefined : '#c9ced6' }}>
+                <td style={{ color: r.workItemName ? undefined : 'var(--ec-text-off)' }}>
                   {r.workItemName ? `${r.workItemName}${r.workItemSpec ? `[${r.workItemSpec}]` : ''}` : '-'}
                 </td>
                 <td>{r.process}</td>
                 <td>{r.productName ? `[${r.productCode}] ${r.productName}` : ''}</td>
-                <td style={{ color: r.resourceName ? undefined : '#c9ced6' }}>{r.resourceName ?? ''}</td>
+                <td style={{ color: r.resourceName ? undefined : 'var(--ec-text-off)' }}>{r.resourceName ?? ''}</td>
                 <td>{r.worker ?? ''}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{num(r.goodQty + r.defectQty)}</td>
                 <td style={{ textAlign: 'right' }}>{num(r.workTimeMin)}</td>
-                <td style={{ fontFamily: 'monospace', color: r.workOrderNo ? '#5a626e' : '#c9ced6' }}>{r.workOrderNo ?? ''}</td>
-                <td style={{ color: '#8a929c' }}>{r.note ?? ''}</td>
+                <td style={{ fontFamily: 'monospace', color: r.workOrderNo ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{r.workOrderNo ?? ''}</td>
+                <td style={{ color: 'var(--ec-text-hint)' }}>{r.note ?? ''}</td>
                 <td style={{ textAlign: 'center' }}>
                   <button onClick={() => printOne(r)} style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
                 </td>

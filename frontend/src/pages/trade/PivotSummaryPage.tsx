@@ -275,7 +275,7 @@ export default function PivotSummaryPage() {
           {MODES.map((m) => (
             <button key={m} onClick={() => setMode(m)} className="no-ec" style={{
               padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
-              background: mode === m ? 'var(--ec-blue)' : '#fff', color: mode === m ? '#fff' : '#3a4453', fontWeight: mode === m ? 700 : 400,
+              background: mode === m ? 'var(--ec-blue)' : '#fff', color: mode === m ? '#fff' : 'var(--ec-text)', fontWeight: mode === m ? 700 : 400,
             }}>{m}</button>
           ))}
         </div>
@@ -287,7 +287,7 @@ export default function PivotSummaryPage() {
           {(['partner', 'item'] as const).map((g) => (
             <button key={g} onClick={() => setGroupBy(g)} className="no-ec" style={{
               padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
-              background: groupBy === g ? '#3c4553' : '#fff', color: groupBy === g ? '#fff' : '#3a4453', fontWeight: groupBy === g ? 700 : 400,
+              background: groupBy === g ? 'var(--ec-text)' : '#fff', color: groupBy === g ? '#fff' : 'var(--ec-text)', fontWeight: groupBy === g ? 700 : 400,
             }}>{g === 'partner' ? '거래처별' : '품목별'}</button>
           ))}
         </div>
@@ -353,7 +353,7 @@ export default function PivotSummaryPage() {
         <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <input className="ec-input" type="number" style={{ width: 90 }} value={range['qtyFrom'] ?? ''}
                  onChange={(e) => setR('qtyFrom', e.target.value)} />
-          <span style={{ color: '#9aa1ab' }}>~</span>
+          <span style={{ color: 'var(--ec-text-hint)' }}>~</span>
           <input className="ec-input" type="number" style={{ width: 90 }} value={range['qtyTo'] ?? ''}
                  onChange={(e) => setR('qtyTo', e.target.value)} />
         </span>
@@ -361,7 +361,7 @@ export default function PivotSummaryPage() {
         <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <input className="ec-input" type="number" style={{ width: 90 }} value={range['priceFrom'] ?? ''}
                  onChange={(e) => setR('priceFrom', e.target.value)} />
-          <span style={{ color: '#9aa1ab' }}>~</span>
+          <span style={{ color: 'var(--ec-text-hint)' }}>~</span>
           <input className="ec-input" type="number" style={{ width: 90 }} value={range['priceTo'] ?? ''}
                  onChange={(e) => setR('priceTo', e.target.value)} />
         </span>
@@ -369,7 +369,7 @@ export default function PivotSummaryPage() {
         <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <input className="ec-input" type="number" style={{ width: 90 }} value={range['supplyFrom'] ?? ''}
                  onChange={(e) => setR('supplyFrom', e.target.value)} />
-          <span style={{ color: '#9aa1ab' }}>~</span>
+          <span style={{ color: 'var(--ec-text-hint)' }}>~</span>
           <input className="ec-input" type="number" style={{ width: 90 }} value={range['supplyTo'] ?? ''}
                  onChange={(e) => setR('supplyTo', e.target.value)} />
         </span>
@@ -377,7 +377,7 @@ export default function PivotSummaryPage() {
         <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <input className="ec-input" type="number" style={{ width: 90 }} value={range['vatFrom'] ?? ''}
                  onChange={(e) => setR('vatFrom', e.target.value)} />
-          <span style={{ color: '#9aa1ab' }}>~</span>
+          <span style={{ color: 'var(--ec-text-hint)' }}>~</span>
           <input className="ec-input" type="number" style={{ width: 90 }} value={range['vatTo'] ?? ''}
                  onChange={(e) => setR('vatTo', e.target.value)} />
         </span>
@@ -388,7 +388,7 @@ export default function PivotSummaryPage() {
         <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <input className="ec-input" type="number" style={{ width: 90 }} value={range['extraFrom'] ?? ''}
                  onChange={(e) => setR('extraFrom', e.target.value)} />
-          <span style={{ color: '#9aa1ab' }}>~</span>
+          <span style={{ color: 'var(--ec-text-hint)' }}>~</span>
           <input className="ec-input" type="number" style={{ width: 90 }} value={range['extraTo'] ?? ''}
                  onChange={(e) => setR('extraTo', e.target.value)} />
         </span>
@@ -411,10 +411,10 @@ export default function PivotSummaryPage() {
                     onClick={() => setView(v)}>{v}</button>
           ))}
         </div>
-        <span style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>총계 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{won(colTotals.grand)}</b></span>
+        <span style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--ec-label)' }}>총계 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{won(colTotals.grand)}</b></span>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       {view === '그래프' ? (
         <EcBarChart unit=" 원" emptyText="조회된 자료가 없습니다."
@@ -434,7 +434,7 @@ export default function PivotSummaryPage() {
                 우리 [합계]는 열두 달 공급가액의 합이라 <b>원본 [합계](공급가액+부가세)와
                 다른 값</b>이다 — 이름이 겹치므로 우리 쪽은 [연간합계]라 부른다.
               */}
-              <th style={{ position: 'sticky', left: 0, background: '#f5f7fa', minWidth: 140 }}>{groupBy === 'partner' ? '거래처' : '품목'}</th>
+              <th style={{ position: 'sticky', left: 0, background: 'var(--ec-bg-page)', minWidth: 140 }}>{groupBy === 'partner' ? '거래처' : '품목'}</th>
               <th style={{ ...cell, textAlign: 'right', fontWeight: 700 }}>수량</th>
               <th style={{ ...cell, textAlign: 'right', fontWeight: 700 }}>공급가액</th>
               <th style={{ ...cell, textAlign: 'right', fontWeight: 700 }}>부가세</th>
@@ -445,25 +445,25 @@ export default function PivotSummaryPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={18} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={18} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={18} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={18} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : rows.map((r) => (
               <tr key={r.key}>
                 <td style={{ position: 'sticky', left: 0, background: '#fff', fontWeight: 600 }}>{r.name}</td>
                 <td style={{ ...cell, textAlign: 'right' }}>{r.qty ? won(r.qty) : ''}</td>
                 <td style={{ ...cell, textAlign: 'right' }}>{r.supply ? won(r.supply) : ''}</td>
-                <td style={{ ...cell, textAlign: 'right', color: '#8a929c' }}>{r.vat ? won(r.vat) : ''}</td>
+                <td style={{ ...cell, textAlign: 'right', color: 'var(--ec-text-hint)' }}>{r.vat ? won(r.vat) : ''}</td>
                 <td style={{ ...cell, textAlign: 'right', fontWeight: 700, color: 'var(--ec-blue)' }}>{won(r.supply + r.vat)}</td>
-                {r.months.map((v, i) => <td key={i} style={{ ...cell, color: v ? '#3c4553' : '#d0d5db' }}>{v ? won(v) : ''}</td>)}
+                {r.months.map((v, i) => <td key={i} style={{ ...cell, color: v ? 'var(--ec-text)' : '#d0d5db' }}>{v ? won(v) : ''}</td>)}
                 <td style={{ ...cell, textAlign: 'right', fontWeight: 700, color: 'var(--ec-blue)' }}>{won(r.total)}</td>
               </tr>
             ))}
           </tbody>
           {rows.length > 0 && (
             <tfoot>
-              <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
-                <td style={{ position: 'sticky', left: 0, background: '#f7f9fb' }}>합계</td>
+              <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
+                <td style={{ position: 'sticky', left: 0, background: 'var(--ec-bg-page)' }}>합계</td>
                 <td style={cell}>{won(colTotals.qty)}</td>
                 <td style={cell}>{won(colTotals.supply)}</td>
                 <td style={cell}>{won(colTotals.vat)}</td>

@@ -88,7 +88,7 @@ function MenuButton({
             style={{
               position: 'absolute', zIndex: 41, minWidth: 158, padding: 4,
               ...(up ? { bottom: '100%', marginBottom: 4 } : { top: '100%', marginTop: 4 }),
-              left: 0, background: '#fff', border: '1px solid #c9d1da', borderRadius: 3,
+              left: 0, background: '#fff', border: '1px solid var(--ec-line)', borderRadius: 3,
               boxShadow: '0 4px 12px rgba(0,0,0,.14)',
             }}
           >
@@ -101,7 +101,7 @@ function MenuButton({
                 style={{
                   display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px',
                   fontSize: 12, background: 'none', border: 0,
-                  cursor: m.onClick ? 'pointer' : 'default', color: m.onClick ? '#3c4553' : '#b0b7c0',
+                  cursor: m.onClick ? 'pointer' : 'default', color: m.onClick ? 'var(--ec-text)' : '#b0b7c0',
                   whiteSpace: 'nowrap',
                 }}
               >
@@ -201,7 +201,7 @@ export default function EcSlipShell({
           onClick={() => setBookmarked((v) => !v)}
           title={bookmarked ? '북마크 해제' : '북마크 추가'}
           className="no-ec"
-          style={{ border: 0, background: 'none', cursor: 'pointer', color: '#f5b301', fontSize: 14, padding: 0, marginRight: 2 }}
+          style={{ border: 0, background: 'none', cursor: 'pointer', color: 'var(--ec-star)', fontSize: 14, padding: 0, marginRight: 2 }}
         >
           {bookmarked ? '★' : '☆'}
         </button>
@@ -271,7 +271,7 @@ export default function EcSlipShell({
           )
         })}
         {savedAt && (
-          <span style={{ marginLeft: 'auto', fontSize: 11.5, color: '#8a929c' }}>{savedAt}</span>
+          <span style={{ marginLeft: 'auto', fontSize: 11.5, color: 'var(--ec-text-hint)' }}>{savedAt}</span>
         )}
       </div>
 
@@ -287,11 +287,11 @@ export default function EcSlipShell({
             onClick={(e) => e.stopPropagation()}
             style={{ background: '#fff', borderRadius: 4, width: 480, maxWidth: '90vw', boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}
           >
-            <div style={{ padding: '10px 14px', borderBottom: '1px solid #e6eaef', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
+            <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--ec-line-soft)', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
               <span>{title} · 도움말</span>
               <button type="button" className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => setHelpOpen(false)}>닫기</button>
             </div>
-            <div style={{ padding: 14, fontSize: 12.5, lineHeight: 1.7, color: '#3c4553', maxHeight: '60vh', overflowY: 'auto' }}>
+            <div style={{ padding: 14, fontSize: 12.5, lineHeight: 1.7, color: 'var(--ec-text)', maxHeight: '60vh', overflowY: 'auto' }}>
               {help}
             </div>
           </div>

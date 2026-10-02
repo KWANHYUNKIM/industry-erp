@@ -115,7 +115,7 @@ export default function CheckListPage({ type }: { type: CheckType }) {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
@@ -142,7 +142,7 @@ export default function CheckListPage({ type }: { type: CheckType }) {
         {/* 원본 [입력구분] — 우리 수표는 모두 수표관리 화면에서 직접 적는다. 연결전표에서 생기는 수표가 없다. */}
         <EcCond label="입력구분">
           {box('전체', direct, setDirect)}
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5, color: '#9aa1ab' }}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5, color: 'var(--ec-text-hint)' }}>
             <input type="checkbox" checked={false} disabled /> 연결전표
           </label>
           {box('직접입력', direct, setDirect)}
@@ -164,7 +164,7 @@ export default function CheckListPage({ type }: { type: CheckType }) {
       </ul>
 
       <h3 style={{ fontSize: 13, fontWeight: 700, margin: '4px 0 6px' }}>
-        {title} <span style={{ fontWeight: 400, color: '#8a929c' }}>{dateText(from)} ~ {dateText(to)}</span>
+        {title} <span style={{ fontWeight: 400, color: 'var(--ec-text-hint)' }}>{dateText(from)} ~ {dateText(to)}</span>
       </h3>
       <table ref={tableRef} className="w-full text-left">
         <thead>
@@ -181,9 +181,9 @@ export default function CheckListPage({ type }: { type: CheckType }) {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : moves.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : moves.map((m) => {
             const no = (m.inc ? m.c.issueJournalNo : m.c.settleJournalNo) ?? ''
             return (

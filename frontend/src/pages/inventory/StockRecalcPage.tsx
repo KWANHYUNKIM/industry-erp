@@ -92,28 +92,28 @@ export default function StockRecalcPage() {
         </div>
       }
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {notice && <p style={{ background: '#eaf4ea', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{notice}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {notice && <p style={{ background: '#eaf4ea', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{notice}</p>}
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end', border: '1px solid var(--ec-border)', background: '#f7f9fb', padding: 10, marginBottom: 10 }}>
-        <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>시작월</div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end', border: '1px solid var(--ec-border)', background: 'var(--ec-bg-page)', padding: 10, marginBottom: 10 }}>
+        <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>시작월</div>
           <input type="month" className="ec-input" value={fromMonth} onChange={(e) => setFromMonth(e.target.value)} style={{ width: 140 }} /></label>
-        <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>종료월</div>
+        <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>종료월</div>
           <input type="month" className="ec-input" value={toMonth} onChange={(e) => setToMonth(e.target.value)} style={{ width: 140 }} /></label>
         <button className="ec-btn" onClick={() => run(false)} disabled={busy}>{busy ? '처리 중…' : '점검'}</button>
         <button className="ec-btn ec-btn-primary" onClick={() => run(true)} disabled={busy}>잔량재집계(F8)</button>
-        <span style={{ fontSize: 12, color: '#8a929c' }}>※ 거래잔량 정규화는 선택한 기간, 현재고 대조는 전 기간입니다.</span>
+        <span style={{ fontSize: 12, color: 'var(--ec-text-hint)' }}>※ 거래잔량 정규화는 선택한 기간, 현재고 대조는 전 기간입니다.</span>
       </div>
 
       {result && (
         <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
           {[
-            { label: '점검한 거래', value: result.scannedTx.toLocaleString(), color: '#5a626e' },
-            { label: '거래잔량 어긋남', value: result.balanceMismatch.toLocaleString(), color: result.balanceMismatch ? '#c60a2e' : '#1c7c3c' },
-            { label: '현재고 어긋남', value: result.quantityMismatch.toLocaleString(), color: result.quantityMismatch ? '#c60a2e' : '#1c7c3c' },
+            { label: '점검한 거래', value: result.scannedTx.toLocaleString(), color: 'var(--ec-label)' },
+            { label: '거래잔량 어긋남', value: result.balanceMismatch.toLocaleString(), color: result.balanceMismatch ? 'var(--ec-danger)' : 'var(--ec-success)' },
+            { label: '현재고 어긋남', value: result.quantityMismatch.toLocaleString(), color: result.quantityMismatch ? 'var(--ec-danger)' : 'var(--ec-success)' },
           ].map((c) => (
             <div key={c.label} style={{ border: '1px solid var(--ec-border)', padding: '8px 14px', minWidth: 130 }}>
-              <div style={{ fontSize: 11.5, color: '#8a929c' }}>{c.label}</div>
+              <div style={{ fontSize: 11.5, color: 'var(--ec-text-hint)' }}>{c.label}</div>
               <div style={{ fontSize: 18, fontWeight: 700, color: c.color }}>{c.value}</div>
             </div>
           ))}
@@ -135,25 +135,25 @@ export default function StockRecalcPage() {
         </tr></thead>
         <tbody>
           {!result ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>기간을 정하고 ‘점검’을 누르세요.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>기간을 정하고 ‘점검’을 누르세요.</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: clean ? '#1c7c3c' : '#9aa1ab', padding: 20 }}>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: clean ? 'var(--ec-success)' : 'var(--ec-text-hint)', padding: 20 }}>
               {clean ? '이상 없습니다. 잔량이 수불 이력과 모두 일치합니다.' : '표시할 행이 없습니다.'}
             </td></tr>
           ) : rows.map((r, i) => (
             <tr key={`${r.itemId}:${r.warehouseId}`}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
               <td>{r.itemName}</td>
               <td>{r.warehouseName}</td>
               <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{num(r.opening)}</td>
               <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{r.txCount.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', fontFamily: 'monospace', color: r.balanceMismatch ? '#c60a2e' : '#8a929c', fontWeight: r.balanceMismatch ? 700 : 400 }}>
+              <td style={{ textAlign: 'right', fontFamily: 'monospace', color: r.balanceMismatch ? 'var(--ec-danger)' : 'var(--ec-text-hint)', fontWeight: r.balanceMismatch ? 700 : 400 }}>
                 {r.balanceMismatch.toLocaleString()}
               </td>
               <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{num(r.storedQuantity)}</td>
               <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{num(r.computedQuantity)}</td>
-              <td style={{ textAlign: 'right', fontFamily: 'monospace', color: Number(r.difference) ? '#c60a2e' : '#8a929c', fontWeight: Number(r.difference) ? 700 : 400 }}>
+              <td style={{ textAlign: 'right', fontFamily: 'monospace', color: Number(r.difference) ? 'var(--ec-danger)' : 'var(--ec-text-hint)', fontWeight: Number(r.difference) ? 700 : 400 }}>
                 {num(r.difference)}
               </td>
             </tr>

@@ -69,7 +69,7 @@ async function printOne(o: WorkOrder, empName: (id: number | null) => string) {
 }
 
 const statusColor = (s: string) =>
-  s === 'COMPLETED' ? '#1c7c3c' : s === 'IN_PROGRESS' ? '#b6791b' : '#7a828c'
+  s === 'COMPLETED' ? 'var(--ec-success)' : s === 'IN_PROGRESS' ? '#b6791b' : '#7a828c'
 
 /** 원본은 일자와 번호를 '2026/07/16 -1' 로 한 칸에 적는다(판매조회·견적서와 같은 규칙). */
 const dateNo = (o: { orderDate: string; orderNo: string }) => {
@@ -260,7 +260,7 @@ export default function WorkOrderPage() {
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from}
                  onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
           <input type="date" className="ec-input" value={to}
                  onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
           <span style={{ marginLeft: 6 }}>
@@ -304,7 +304,7 @@ export default function WorkOrderPage() {
         {/* 원본 차례: (품목그룹2·3·계층 · 발송여부) · 납기일자 · (오더관리번호) · 담당자 · 거래처관리담당자 · 적요 · 규격 … */}
         <EcCond label="납기일자">
           <input type="date" className="ec-input" value={dueFrom} onChange={(e) => setDueFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
           <input type="date" className="ec-input" value={dueTo} onChange={(e) => setDueTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="담당자" pick>
@@ -337,12 +337,12 @@ export default function WorkOrderPage() {
         </EcCond>
         <EcCond label="최초작성일자">
           <input type="date" className="ec-input" value={madeFrom} onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
           <input type="date" className="ec-input" value={madeTo} onChange={(e) => setMadeTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="최종작업일자">
           <input type="date" className="ec-input" value={editedFrom} onChange={(e) => setEditedFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
           <input type="date" className="ec-input" value={editedTo} onChange={(e) => setEditedTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="기타">
@@ -398,13 +398,13 @@ export default function WorkOrderPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={16} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={16} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={16} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={16} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : (
             sort.sorted.map((o, idx) => (
               <tr key={o.id}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab', whiteSpace: 'nowrap' }}>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)', whiteSpace: 'nowrap' }}>
                   <input type="checkbox" checked={checked.has(o.id)} style={{ marginRight: 3 }}
                          onChange={() => setChecked((c) => { const n = new Set(c); if (n.has(o.id)) n.delete(o.id); else n.add(o.id); return n })} />
                   {idx + 1}
@@ -413,10 +413,10 @@ export default function WorkOrderPage() {
                 <td style={{ fontFamily: 'monospace' }}>
                   <Link to={`/production/work-order-entry?no=${encodeURIComponent(o.orderNo)}`} style={{ color: 'var(--ec-blue)' }}>{dateNo(o)}</Link>
                 </td>
-                <td style={{ color: o.partnerName ? undefined : '#c9ced6' }}>{o.partnerName ?? ''}</td>
-                <td style={{ color: o.employeeId ? undefined : '#c9ced6' }}>{empName(o.employeeId)}</td>
+                <td style={{ color: o.partnerName ? undefined : 'var(--ec-text-off)' }}>{o.partnerName ?? ''}</td>
+                <td style={{ color: o.employeeId ? undefined : 'var(--ec-text-off)' }}>{empName(o.employeeId)}</td>
                 {/* 원본은 이름과 규격을 한 칸에 적는다 — productSpec 은 응답에 오는데 안 쓰고 있었다. */}
-                <td style={{ color: o.dueDate ? undefined : '#c9ced6' }}>{dateText(o.dueDate) || ''}</td>
+                <td style={{ color: o.dueDate ? undefined : 'var(--ec-text-off)' }}>{dateText(o.dueDate) || ''}</td>
                 <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue-dark)' }}>{o.orderNo}</td>
                 <td>{o.productName}{o.productSpec ? ` [${o.productSpec}]` : ''}</td>
                 <td>{o.warehouseName}</td>

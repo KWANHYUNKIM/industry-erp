@@ -49,7 +49,7 @@ const STATUS_LABEL: Record<OrderStatus, string> = {
   RECEIVED: '접수', IN_PROGRESS: '진행중', COMPLETED: '완료', CANCELED: '취소',
 }
 const STATUS_COLOR: Record<OrderStatus, string> = {
-  RECEIVED: '#c07a00', IN_PROGRESS: 'var(--ec-blue)', COMPLETED: '#1c7c3c', CANCELED: '#8a929c',
+  RECEIVED: 'var(--ec-warn)', IN_PROGRESS: 'var(--ec-blue)', COMPLETED: 'var(--ec-success)', CANCELED: 'var(--ec-text-hint)',
 }
 
 interface OrderLineResponse {
@@ -342,7 +342,7 @@ export default function SalesOrderStatusPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       {/*
         원본은 위 줄이 <b>[메뉴]</b>(현황★·집계)이고, 비교기간은 <b>[구분]</b> 안에 있다
@@ -424,28 +424,28 @@ export default function SalesOrderStatusPage() {
         <EcCond label="수량">
           <input className="ec-input" type="number" style={{ width: 90 }} value={filters.qtyFrom}
                  onChange={(e) => setF({ qtyFrom: e.target.value })} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
           <input className="ec-input" type="number" style={{ width: 90 }} value={filters.qtyTo}
                  onChange={(e) => setF({ qtyTo: e.target.value })} />
         </EcCond>
         <EcCond label="단가">
           <input className="ec-input" type="number" style={{ width: 100 }} value={filters.priceFrom}
                  onChange={(e) => setF({ priceFrom: e.target.value })} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
           <input className="ec-input" type="number" style={{ width: 100 }} value={filters.priceTo}
                  onChange={(e) => setF({ priceTo: e.target.value })} />
         </EcCond>
         <EcCond label="공급가액">
           <input className="ec-input" type="number" style={{ width: 110 }} value={filters.supplyFrom}
                  onChange={(e) => setF({ supplyFrom: e.target.value })} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
           <input className="ec-input" type="number" style={{ width: 110 }} value={filters.supplyTo}
                  onChange={(e) => setF({ supplyTo: e.target.value })} />
         </EcCond>
         <EcCond label="부가세">
           <input className="ec-input" type="number" style={{ width: 110 }} value={filters.vatFrom}
                  onChange={(e) => setF({ vatFrom: e.target.value })} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
           <input className="ec-input" type="number" style={{ width: 110 }} value={filters.vatTo}
                  onChange={(e) => setF({ vatTo: e.target.value })} />
         </EcCond>
@@ -482,25 +482,25 @@ export default function SalesOrderStatusPage() {
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        건수 <b style={{ color: '#3c4553' }}>{shown.length.toLocaleString()}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
-        <span title="출하완료만 뺀 수량입니다. 출하지시만 낸 수량은 아직 남은 것으로 셉니다 — 미출하현황은 출하지시도 빼므로 숫자가 다를 수 있습니다.">미출하수량(출하완료 기준)</span> <b style={{ color: '#c07a00', fontSize: 14 }}>{totals.unshipped.toLocaleString()}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+        건수 <b style={{ color: 'var(--ec-text)' }}>{shown.length.toLocaleString()}</b>
+        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+        <span title="출하완료만 뺀 수량입니다. 출하지시만 낸 수량은 아직 남은 것으로 셉니다 — 미출하현황은 출하지시도 빼므로 숫자가 다를 수 있습니다.">미출하수량(출하완료 기준)</span> <b style={{ color: 'var(--ec-warn)', fontSize: 14 }}>{totals.unshipped.toLocaleString()}</b>
+        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
         공급가액 <b style={{ color: '#1c6b32', fontSize: 14 }}>{totals.supply.toLocaleString()}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
         부가세 <b style={{ color: '#1c6b32', fontSize: 14 }}>{totals.vat.toLocaleString()}</b>
       </div>
 
       {prevTotals && (
-        <div style={{ marginBottom: 8, fontSize: 12.5, textAlign: 'right', color: '#5a626e' }}>
+        <div style={{ marginBottom: 8, fontSize: 12.5, textAlign: 'right', color: 'var(--ec-label)' }}>
           <span style={{ color: 'var(--ec-label)' }}>
             비교기간({prevRange!.from.replace(/-/g, '/')} ~ {prevRange!.to.replace(/-/g, '/')})
           </span>
-          <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+          <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
           건수 {prevTotals.count.toLocaleString()} → {shown.length.toLocaleString()}
           <Delta now={shown.length} prev={prevTotals.count} />
-          <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+          <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
           공급가액 {prevTotals.supply.toLocaleString()} → {totals.supply.toLocaleString()}
           <Delta now={totals.supply} prev={prevTotals.supply} />
         </div>
@@ -536,14 +536,14 @@ export default function SalesOrderStatusPage() {
               <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
             ) : grouped.map((g, i) => (
               <tr key={g.partner}>
-                <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td>{g.partner}</td>
                 <td style={{ textAlign: 'right' }}>{g.count.toLocaleString()}</td>
                 <td style={{ textAlign: 'right' }}>{g.qty.toLocaleString()}</td>
                 <td style={{ textAlign: 'right' }}>{g.shipped.toLocaleString()}</td>
-                <td style={{ textAlign: 'right', color: g.unshipped > 0 ? '#c07a00' : undefined }}>{g.unshipped.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', color: g.unshipped > 0 ? 'var(--ec-warn)' : undefined }}>{g.unshipped.toLocaleString()}</td>
                 <td style={{ textAlign: 'right' }}>{g.supply.toLocaleString()}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{g.vat.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{g.vat.toLocaleString()}</td>
               </tr>
             ))}
           </tbody>
@@ -585,16 +585,16 @@ export default function SalesOrderStatusPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
+            <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>
               {rows.length === 0 ? '주문 내역이 없습니다.' : '검색조건에 맞는 자료가 없습니다.'}
             </td></tr>
           ) : sort.sorted.map((r, i) => (
             <tr key={r.key}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{dateText(r.date)} {r.orderNo}</td>
-              <td style={{ fontFamily: 'monospace', color: r.dueDate ? '#5a626e' : '#c5cbd3' }}>{dateText(r.dueDate) || ''}</td>
+              <td style={{ fontFamily: 'monospace', color: r.dueDate ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{dateText(r.dueDate) || ''}</td>
               <td style={{ textAlign: 'center' }}>
                 <span style={{ color: STATUS_COLOR[r.status], fontWeight: 600, fontSize: 12 }}>
                   {r.statusName || STATUS_LABEL[r.status]}
@@ -602,13 +602,13 @@ export default function SalesOrderStatusPage() {
               </td>
               <td>{r.itemName}{r.spec ? ` (${r.spec})` : ''}</td>
               <td style={{ textAlign: 'right' }}>{r.qty.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', color: '#5a626e' }}>{r.shippedQty.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', fontWeight: r.unshipped > 0 ? 600 : 400, color: r.unshipped > 0 ? '#c07a00' : '#c5cbd3' }}>{r.unshipped.toLocaleString()}</td>
+              <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{r.shippedQty.toLocaleString()}</td>
+              <td style={{ textAlign: 'right', fontWeight: r.unshipped > 0 ? 600 : 400, color: r.unshipped > 0 ? 'var(--ec-warn)' : 'var(--ec-text-off)' }}>{r.unshipped.toLocaleString()}</td>
               <td style={{ textAlign: 'right' }}>{r.unitPrice.toLocaleString()}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: '#1c6b32' }}>{r.supply.toLocaleString()}</td>
               <td>{r.partner}</td>
-              <td style={{ textAlign: 'right', color: '#8a929c' }}>{r.vat.toLocaleString()}</td>
-              <td style={{ color: '#8a929c' }}>{r.remark ?? ''}</td>
+              <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{r.vat.toLocaleString()}</td>
+              <td style={{ color: 'var(--ec-text-hint)' }}>{r.remark ?? ''}</td>
             </tr>
           ))}
         </tbody>
@@ -624,7 +624,7 @@ function Delta({ now, prev }: { now: number; prev: number }) {
   const pct = Math.round(((now - prev) / prev) * 100)
   const up = now >= prev
   return (
-    <span style={{ marginLeft: 4, color: up ? '#1c7c3c' : '#c60a2e' }}>
+    <span style={{ marginLeft: 4, color: up ? 'var(--ec-success)' : 'var(--ec-danger)' }}>
       ({up ? '+' : ''}{pct}%)
     </span>
   )

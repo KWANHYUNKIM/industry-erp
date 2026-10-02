@@ -16,7 +16,7 @@ const FILES: DL[] = [
   { id: 7, category: '매뉴얼', name: '전자결재 사용 가이드', version: 'v1.1', size: '2.1 MB', date: '2026-06-28', guide: '기안서 작성부터 결재선 지정, 승인/반려 처리까지의 절차를 담고 있습니다.' },
 ]
 
-const catColor = (c: string) => ({ 프로그램: 'var(--ec-blue)', 엑셀양식: '#1c7c3c', 매뉴얼: '#7a5cc0' }[c] ?? '#5a626e')
+const catColor = (c: string) => ({ 프로그램: 'var(--ec-blue)', 엑셀양식: 'var(--ec-success)', 매뉴얼: '#7a5cc0' }[c] ?? 'var(--ec-label)')
 
 export default function DownloadPage() {
   const [target, setTarget] = useState<DL | null>(null)
@@ -49,7 +49,7 @@ export default function DownloadPage() {
         title="다운로드 자료실"
         actions={[{ label: '전체 선택 다운로드', onClick: downloadAll }]}
       >
-        <div style={{ marginBottom: 6, fontSize: 12, color: '#9aa1ab' }}>
+        <div style={{ marginBottom: 6, fontSize: 12, color: 'var(--ec-text-hint)' }}>
           ※ 아래는 표본 목록입니다. 실제 파일 저장소는 아직 연결되지 않았습니다. (백엔드 미연동)
         </div>
         {notice && (
@@ -72,11 +72,11 @@ export default function DownloadPage() {
           <tbody>
             {sort.sorted.map((f, i) => (
               <tr key={f.id}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td style={{ color: catColor(f.category), fontWeight: 700 }}>{f.category}</td>
                 <td>{f.name}</td>
                 <td style={{ fontFamily: 'monospace' }}>{f.version}</td>
-                <td style={{ textAlign: 'right', color: '#5a626e' }}>{f.size}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{f.size}</td>
                 <td>{dateText(f.date)}</td>
                 <td style={{ textAlign: 'center' }}>
                   <button className="ec-btn" style={{ height: 20, padding: '0 10px' }} onClick={() => openGuide(f)}>⬇ 받기</button>
@@ -94,21 +94,21 @@ export default function DownloadPage() {
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         >
           <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, width: 460, maxWidth: '92vw', boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}>
-            <div style={{ padding: '10px 14px', borderBottom: '1px solid #e6eaef', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
+            <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--ec-line-soft)', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
               <span>{target.name}</span>
               <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={close}>닫기</button>
             </div>
-            <div style={{ padding: 14, fontSize: 12.5, lineHeight: 1.7, color: '#3c4553' }}>
+            <div style={{ padding: 14, fontSize: 12.5, lineHeight: 1.7, color: 'var(--ec-text)' }}>
               <p style={{ margin: '0 0 10px', background: '#fff6e5', color: '#8a5a00', padding: '6px 10px', borderRadius: 3 }}>
                 내려받을 수 있는 실제 파일이 아직 없습니다. 자료실 저장소가 연결되면 이 자료를 내려받을 수 있습니다. (백엔드 미연동)
               </p>
-              <div style={{ fontSize: 12, color: '#9aa1ab', marginBottom: 6 }}>
+              <div style={{ fontSize: 12, color: 'var(--ec-text-hint)', marginBottom: 6 }}>
                 분류 {target.category} · 버전 {target.version} · 크기 {target.size} · 등록일 {target.date}
               </div>
               <div style={{ fontWeight: 700, color: 'var(--ec-blue-dark)', marginBottom: 2 }}>설치 / 사용 안내</div>
               <p style={{ margin: 0 }}>{target.guide}</p>
             </div>
-            <div style={{ padding: '10px 14px', borderTop: '1px solid #e6eaef', display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+            <div style={{ padding: '10px 14px', borderTop: '1px solid var(--ec-line-soft)', display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
               <button className="ec-btn" onClick={close}>확인</button>
             </div>
           </div>

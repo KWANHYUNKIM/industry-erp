@@ -252,30 +252,30 @@ export default function DailyStockPage() {
       </EcStatusPanel>
 
       {cond.date !== today && (
-        <p style={{ marginBottom: 8, background: '#fff7e6', border: '1px solid #ffe0a3', color: '#8a5a00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
+        <p style={{ marginBottom: 8, background: 'var(--ec-warn-bg)', border: '1px solid #ffe0a3', color: '#8a5a00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
           재고수량은 <b>기준일자 시점</b>입니다. 현재고에서 그 뒤의 입출고를 빼서 냅니다.
           수량은 달라지지 않습니다(월별원가는 기준일자의 월을 따릅니다).
         </p>
       )}
 
       {basis === '월별원가' && costNote && (
-        <p style={{ marginBottom: 8, background: '#fff7e6', border: '1px solid #ffe0a3', color: '#8a5a00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
+        <p style={{ marginBottom: 8, background: 'var(--ec-warn-bg)', border: '1px solid #ffe0a3', color: '#8a5a00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
           {costNote} 원가관리 &gt; 표준원가에서 만들거나 다른 기준을 고르세요.
         </p>
       )}
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        건수 <b style={{ color: '#3c4553' }}>{num(shown.length)}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
-        수량 <b style={{ color: '#3c4553', fontSize: 14 }}>{num(totalQty)}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+        건수 <b style={{ color: 'var(--ec-text)' }}>{num(shown.length)}</b>
+        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+        수량 <b style={{ color: 'var(--ec-text)', fontSize: 14 }}>{num(totalQty)}</b>
+        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
         재고금액({basis}) <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{won(totalAmount)}</b>
         {missing > 0 && (
           <>
-            <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
-            단가없음 <b style={{ color: '#c60a2e', fontSize: 14 }}>{num(missing)}</b>건
+            <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+            단가없음 <b style={{ color: 'var(--ec-danger)', fontSize: 14 }}>{num(missing)}</b>건
           </>
         )}
       </div>
@@ -313,17 +313,17 @@ export default function DailyStockPage() {
               <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((r, i) => (
               <tr key={`${r.itemId}-${r.warehouseId}`}>
-                <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
                 <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
                 <td>{r.warehouseName}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600 }}>
-                  {num(r.quantity)} <span style={{ fontSize: 11, fontWeight: 400, color: '#9aa1ab' }}>{r.unit}</span>
+                  {num(r.quantity)} <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--ec-text-hint)' }}>{r.unit}</span>
                 </td>
-                <td style={{ textAlign: 'right', color: r.price === null ? '#c60a2e' : '#5a626e' }}>
+                <td style={{ textAlign: 'right', color: r.price === null ? 'var(--ec-danger)' : 'var(--ec-label)' }}>
                   {r.price === null ? '단가없음' : won(r.price)}
                 </td>
-                <td style={{ textAlign: 'right', fontWeight: 700, color: r.amount === null ? '#c9ced6' : 'var(--ec-blue)' }}>
+                <td style={{ textAlign: 'right', fontWeight: 700, color: r.amount === null ? 'var(--ec-text-off)' : 'var(--ec-blue)' }}>
                   {r.amount === null ? '—' : won(r.amount)}
                 </td>
               </tr>
@@ -332,10 +332,10 @@ export default function DailyStockPage() {
           {shown.length > 0 && (
             <tfoot>
               <tr>
-                <td colSpan={4} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{num(totalQty)}</td>
-                <td style={{ background: '#f5f7fa' }}></td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: 'var(--ec-blue)' }}>{won(totalAmount)}</td>
+                <td colSpan={4} style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>합계</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>{num(totalQty)}</td>
+                <td style={{ background: 'var(--ec-bg-page)' }}></td>
+                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: 'var(--ec-blue)' }}>{won(totalAmount)}</td>
               </tr>
             </tfoot>
           )}

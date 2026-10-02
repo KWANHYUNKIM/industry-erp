@@ -91,7 +91,7 @@ export default function AsRepairListPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
@@ -118,7 +118,7 @@ export default function AsRepairListPage() {
         {(['전체', '진행중', '완료'] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)} className="no-ec" style={{
             padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
-            background: tab === t ? 'var(--ec-blue)' : '#fff', color: tab === t ? '#fff' : '#3a4453', fontWeight: tab === t ? 700 : 400,
+            background: tab === t ? 'var(--ec-blue)' : '#fff', color: tab === t ? '#fff' : 'var(--ec-text)', fontWeight: tab === t ? 700 : 400,
           }}>{t}</button>
         ))}
       </div>
@@ -138,12 +138,12 @@ export default function AsRepairListPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{yy(dayOf(r))} {r.asNo}</td>
               <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{yy(r.receiptDate)} {r.asNo}</td>
               <td>{r.partnerName}</td>

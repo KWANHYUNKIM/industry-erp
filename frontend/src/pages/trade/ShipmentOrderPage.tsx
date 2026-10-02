@@ -17,7 +17,7 @@ import { usePartnerManagers } from '../../utils/partnerManagers'
 
 /** 영업 > 출하지시서 — 출하지시(READY) 등록 → 출하처리(SHIPPED). 백엔드 /shipments 연동 */
 type ShipStatus = 'READY' | 'SHIPPED' | 'CANCELED'
-const STATUS_COLOR: Record<ShipStatus, string> = { READY: '#b6791b', SHIPPED: '#1c7c3c', CANCELED: '#8a929c' }
+const STATUS_COLOR: Record<ShipStatus, string> = { READY: '#b6791b', SHIPPED: 'var(--ec-success)', CANCELED: 'var(--ec-text-hint)' }
 
 /** 원본 조건 [규격]. 서버는 진작 보내는데 이 화면이 안 받아 두고 있었다. */
 interface ShipLine { itemId: number; itemCode: string; itemName: string; unit: string; spec: string | null; quantity: number; unitPrice: number; amount: number; remark: string | null }
@@ -323,7 +323,7 @@ export default function ShipmentOrderPage() {
   })
   const shown = sort.sorted
   const inputCls = 'ec-input'
-  const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 74 }
+  const th: React.CSSProperties = { background: 'var(--ec-bg-page)', fontWeight: 700, whiteSpace: 'nowrap', width: 74 }
 
 
   /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
@@ -485,7 +485,7 @@ export default function ShipmentOrderPage() {
                 <th style={th}>일자-No.</th>
                 <td>
                   <input type="date" className={inputCls} value={shipDate} onChange={(e) => setShipDate(e.target.value)} style={{ width: 150 }} />
-                  <span style={{ marginLeft: 6, fontSize: 11.5, color: '#9aa1ab' }}>번호는 저장할 때 매깁니다</span>
+                  <span style={{ marginLeft: 6, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>번호는 저장할 때 매깁니다</span>
                 </td>
               </tr>
               <tr>
@@ -500,7 +500,7 @@ export default function ShipmentOrderPage() {
                 <td>
                   <input type="date" className={inputCls} value={dueDate}
                          onChange={(e) => setDueDate(e.target.value)} style={{ width: 150 }} />
-                  <span style={{ fontSize: 11, color: '#8a929c', marginLeft: 6 }}>비우면 출하일자</span>
+                  <span style={{ fontSize: 11, color: 'var(--ec-text-hint)', marginLeft: 6 }}>비우면 출하일자</span>
                 </td>
               </tr>
               <tr>
@@ -554,15 +554,15 @@ export default function ShipmentOrderPage() {
             <tbody>
               {lines.map((l, idx) => (
                 <tr key={idx}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
+                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{idx + 1}</td>
                   <td>
                     <CodePickerField label="품목" hideLabel fill placeholder="품목" emptyLabel="선택 해제"
                                      value={l.itemId} onChange={(v) => updateLine(idx, 'itemId', v)}
                                      items={items.filter((it) => it.active !== false).map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))} />
                   </td>
                   {/* 고른 품목의 이름·규격 — 읽기만 한다. 품목 마스터가 가진 값이다. */}
-                  <td style={{ color: '#5a626e' }}>{itemById.get(l.itemId)?.name ?? ''}</td>
-                  <td style={{ color: '#5a626e' }}>{itemById.get(l.itemId)?.spec ?? ''}</td>
+                  <td style={{ color: 'var(--ec-label)' }}>{itemById.get(l.itemId)?.name ?? ''}</td>
+                  <td style={{ color: 'var(--ec-label)' }}>{itemById.get(l.itemId)?.spec ?? ''}</td>
                   <td><input type="number" className={`${inputCls} text-right`} style={{ width: '100%' }} value={l.quantity} onChange={(e) => updateLine(idx, 'quantity', e.target.value)} /></td>
                   <td><input type="number" className={`${inputCls} text-right`} style={{ width: '100%' }} value={l.unitPrice} onChange={(e) => updateLine(idx, 'unitPrice', e.target.value)} /></td>
                   <td style={{ textAlign: 'right' }}>{won(computed[idx])}</td>
@@ -572,7 +572,7 @@ export default function ShipmentOrderPage() {
               ))}
             </tbody>
             <tfoot>
-              <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+              <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
                 {/* 머리에 [품목명]·[규격]을 더했으니 여기도 2칸 늘린다 — 안 늘리면 합계가 엉뚱한 열 아래 붙는다. */}
                 <td colSpan={4} style={{ textAlign: 'right' }}>합계</td>
                 <td style={{ textAlign: 'right' }}>{won(totals.qty)}</td>
@@ -592,7 +592,7 @@ export default function ShipmentOrderPage() {
         </form>
       )}</Modal>
 
-      {!showForm && error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {!showForm && error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       <table className="w-full text-left">
         <thead>
@@ -628,7 +628,7 @@ export default function ShipmentOrderPage() {
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={15} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((s, i) => (
             <tr key={s.id}>
               <td style={{ textAlign: 'center' }}>
@@ -638,25 +638,25 @@ export default function ShipmentOrderPage() {
                   return next
                 })} />
               </td>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               {/* 원본은 일자와 번호를 한 칸에 적는다. */}
               <td style={{ fontFamily: 'monospace' }}>{dateText(s.shipDate)} {s.shipNo}</td>
               <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: s.salesOrderNo ? 'var(--ec-blue-dark)' : '#b6bcc4' }}>
                 {s.salesOrderNo ?? '직접등록'}
               </td>
-              <td style={{ color: s.dueDate ? undefined : '#c9ced6' }}>{dateText(s.dueDate) || ''}</td>
+              <td style={{ color: s.dueDate ? undefined : 'var(--ec-text-off)' }}>{dateText(s.dueDate) || ''}</td>
               <td>{s.partnerName}</td>
-              <td style={{ color: s.warehouseName ? undefined : '#c9ced6' }}>{s.warehouseName ?? ''}</td>
+              <td style={{ color: s.warehouseName ? undefined : 'var(--ec-text-off)' }}>{s.warehouseName ?? ''}</td>
               <td>{s.lines[0]?.itemName}{s.lines.length > 1 ? ` 외 ${s.lines.length - 1}건` : ''}</td>
               <td style={{ textAlign: 'right' }}>{won(s.totalQuantity)}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(s.totalAmount)}</td>
-              <td style={{ color: s.contact ? undefined : '#c9ced6' }}>{s.contact || ''}</td>
-              <td style={{ color: '#8a929c' }}>{s.remark ?? ''}</td>
+              <td style={{ color: s.contact ? undefined : 'var(--ec-text-off)' }}>{s.contact || ''}</td>
+              <td style={{ color: 'var(--ec-text-hint)' }}>{s.remark ?? ''}</td>
               <td style={{ textAlign: 'center', color: STATUS_COLOR[s.status], fontWeight: 700 }}>{s.statusName}</td>
               <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
-                {s.status === 'READY' && <button className="no-ec" onClick={() => advance(s)} style={{ border: 'none', background: 'none', color: '#1c7c3c', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>→ 출하완료</button>}
-                {s.status === 'READY' && <button className="no-ec" onClick={() => cancel(s)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>취소</button>}
-                <button className="no-ec" onClick={() => remove(s)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                {s.status === 'READY' && <button className="no-ec" onClick={() => advance(s)} style={{ border: 'none', background: 'none', color: 'var(--ec-success)', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>→ 출하완료</button>}
+                {s.status === 'READY' && <button className="no-ec" onClick={() => cancel(s)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>취소</button>}
+                <button className="no-ec" onClick={() => remove(s)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button>
               </td>
               <td style={{ textAlign: 'center' }}>
                 <button className="no-ec" onClick={() => printShipOrder(s, company)}

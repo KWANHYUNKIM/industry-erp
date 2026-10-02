@@ -82,24 +82,24 @@ export default function ItemEntryPage() {
       onSearch={load}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      <p style={{ marginBottom: 8, fontSize: 12.5, color: '#8a929c' }}>
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      <p style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-text-hint)' }}>
         전표 신규 입력은 <Link to="/sales/sell" style={{ color: 'var(--ec-blue-dark)', textDecoration: 'underline' }}>판매입력</Link> · <Link to="/sales/buy" style={{ color: 'var(--ec-blue-dark)', textDecoration: 'underline' }}>구매입력</Link> 메뉴에서 처리하세요.
       </p>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12.5, color: '#5a626e' }}>품목</span>
+        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>품목</span>
         {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). 지난 전표를 보는 자리라 중단 품목도 남긴다. */}
         <CodePickerField label="품목" hideLabel width={240} placeholder="품목" emptyLabel="전체"
                          value={String(itemId)} onChange={(v) => setItemId(v ? Number(v) : '')}
                          items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))} />
         {selectedItem && (
-          <span style={{ fontSize: 12.5, color: '#8a929c' }}>
+          <span style={{ fontSize: 12.5, color: 'var(--ec-text-hint)' }}>
             {selectedItem.spec ? `${selectedItem.spec} · ` : ''}{selectedItem.unit} · 표준단가 {selectedItem.unitPrice.toLocaleString()}
           </span>
         )}
-        <span style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>
+        <span style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--ec-label)' }}>
           판매 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{totals.saleAmt.toLocaleString()}</b>
-          <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+          <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
           구매 <b style={{ color: '#a5561b', fontSize: 14 }}>{totals.buyAmt.toLocaleString()}</b>
         </span>
       </div>
@@ -117,15 +117,15 @@ export default function ItemEntryPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.key}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{dateText(r.date)}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.docNo}</td>
-              <td style={{ textAlign: 'center', fontWeight: 700, color: r.gubun === '판매' ? '#1c56b0' : '#c07a00' }}>{r.gubun}</td>
+              <td style={{ textAlign: 'center', fontWeight: 700, color: r.gubun === '판매' ? '#1c56b0' : 'var(--ec-warn)' }}>{r.gubun}</td>
               <td>{r.partner}</td>
               <td>{r.itemName}</td>
               <td style={{ textAlign: 'right' }}>{r.qty.toLocaleString()}</td>

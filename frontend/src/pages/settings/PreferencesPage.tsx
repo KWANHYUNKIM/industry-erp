@@ -80,15 +80,15 @@ export default function PreferencesPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ color: '#f5b301', fontSize: 14, marginRight: 4 }}>☆</span>
+        <span style={{ color: 'var(--ec-star)', fontSize: 14, marginRight: 4 }}>☆</span>
         <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ec-text)' }}>환경설정</span>
       </div>
 
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {ok && <p style={{ marginBottom: 8, background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
+      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {ok && <p style={{ marginBottom: 8, background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
 
       {loading ? (
-        <p style={{ color: '#9aa1ab', padding: 20 }}>불러오는 중…</p>
+        <p style={{ color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</p>
       ) : (
         <>
           <div style={{ fontWeight: 700, fontSize: 12.5, color: 'var(--ec-blue-dark)', margin: '6px 0 4px' }}>기본 설정</div>
@@ -101,12 +101,12 @@ export default function PreferencesPage() {
             <label style={{ fontSize: 12.5 }}>기준통화&nbsp;
               <select className="ec-input" value={form.currency} onChange={(e) => setField('currency', e.target.value)}>
                 <option>KRW</option><option>USD</option><option>EUR</option><option>JPY</option>
-              </select><span style={{ marginLeft: 4, fontSize: 11, color: '#c07a00' }} title="저장은 되지만 아직 화면·전표에 반영하지 않습니다.">(미적용)</span>
+              </select><span style={{ marginLeft: 4, fontSize: 11, color: 'var(--ec-warn)' }} title="저장은 되지만 아직 화면·전표에 반영하지 않습니다.">(미적용)</span>
             </label>
             <label style={{ fontSize: 12.5 }}>금액 소수자리&nbsp;
               <select className="ec-input" value={String(form.decimals)} onChange={(e) => setField('decimals', Number(e.target.value))}>
                 <option>0</option><option>1</option><option>2</option>
-              </select><span style={{ marginLeft: 4, fontSize: 11, color: '#c07a00' }} title="저장은 되지만 아직 화면·전표에 반영하지 않습니다.">(미적용)</span>
+              </select><span style={{ marginLeft: 4, fontSize: 11, color: 'var(--ec-warn)' }} title="저장은 되지만 아직 화면·전표에 반영하지 않습니다.">(미적용)</span>
             </label>
           </div>
 
@@ -128,9 +128,9 @@ export default function PreferencesPage() {
                       QA 20회차: 이 다섯은 저장만 되고 아무 데서도 쓰지 않았다(설명은 그렇게 동작하는 것처럼 적혀 있었다).
                       적용하기 전까지 (미적용) 으로 밝힌다 — 특히 '단가 열람 권한 제한' 은 기본이 켜짐이라 숨겨지는 줄 알기 쉽다.
                     */}
-                    <span style={{ marginLeft: 4, fontSize: 11, color: '#c07a00', fontWeight: 400 }} title="저장은 되지만 아직 화면·전표에 반영하지 않습니다.">(미적용)</span>
+                    <span style={{ marginLeft: 4, fontSize: 11, color: 'var(--ec-warn)', fontWeight: 400 }} title="저장은 되지만 아직 화면·전표에 반영하지 않습니다.">(미적용)</span>
                   </td>
-                  <td style={{ color: '#5a626e' }}>{t.desc}</td>
+                  <td style={{ color: 'var(--ec-label)' }}>{t.desc}</td>
                   <td style={{ textAlign: 'center' }}>
                     <button
                       onClick={() => toggle(t.key)}

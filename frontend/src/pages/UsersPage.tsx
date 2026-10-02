@@ -99,17 +99,17 @@ export default function UsersPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : users.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : (
             sort.sorted.map((u, idx) => (
               <tr key={u.id}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{idx + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{u.username}</td>
                 <td>{u.name}</td>
                 <td>{u.department ?? ''}</td>
-                <td style={{ color: u.employeeId ? undefined : '#c9ced6' }}>{u.employeeId ? '연결됨' : '안 이음'}</td>
+                <td style={{ color: u.employeeId ? undefined : 'var(--ec-text-off)' }}>{u.employeeId ? '연결됨' : '안 이음'}</td>
                 <td>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                     {u.roles.map((r) => (
@@ -118,12 +118,12 @@ export default function UsersPage() {
                   </div>
                 </td>
                 <td style={{ textAlign: 'center' }}>
-                  <button onClick={() => toggleEnabled(u)} className="ec-btn" style={{ height: 20, padding: '0 8px', color: u.enabled ? '#1c7c3c' : '#9aa1ab' }}>
+                  <button onClick={() => toggleEnabled(u)} className="ec-btn" style={{ height: 20, padding: '0 8px', color: u.enabled ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>
                     {u.enabled ? '활성' : '비활성'}
                   </button>
                 </td>
                 <td style={{ textAlign: 'center' }}>
-                  <button onClick={() => remove(u)} className="no-ec" style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                  <button onClick={() => remove(u)} className="no-ec" style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button>
                 </td>
               </tr>
             ))
@@ -218,7 +218,7 @@ function CreateUserForm({ roles, onCreated }: { roles: Role[]; onCreated: () => 
                            emptyLabel="안 이음"
                            value={form.employeeId} onChange={(v) => update('employeeId', v)}
                            items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
-          <span style={{ fontSize: 11, color: '#8a929c' }}>이어 두면 근태현황에 직급·사원번호가 나옵니다</span>
+          <span style={{ fontSize: 11, color: 'var(--ec-text-hint)' }}>이어 두면 근태현황에 직급·사원번호가 나옵니다</span>
         </div>
         <div>
           <label className="mb-1 block text-sm text-slate-600">이메일</label>
@@ -245,12 +245,12 @@ function CreateUserForm({ roles, onCreated }: { roles: Role[]; onCreated: () => 
       {/* 권한을 전부 해제하면 예전에는 서버가 STAFF(권한 22개)를 조용히 붙였다.
           이제 서버가 거절하므로, 여기서도 눌리기 전에 이유를 보여 준다. */}
       {selectedRoles.length === 0 && (
-        <p style={{ marginTop: 8, color: '#c60a2e', fontSize: 12.5 }}>
+        <p style={{ marginTop: 8, color: 'var(--ec-danger)', fontSize: 12.5 }}>
           권한그룹을 하나 이상 선택하세요.
         </p>
       )}
 
-      {error && <p style={{ marginTop: 10, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p style={{ marginTop: 10, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
       <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
         <button

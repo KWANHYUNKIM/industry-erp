@@ -131,7 +131,7 @@ export default function VatBookPage() {
           </tr>
         </thead>
         <tbody>
-          {rs.length === 0 && <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>}
+          {rs.length === 0 && <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>}
           {months.map((mo) => {
             const ms = rs.filter((r) => r.date.slice(0, 7) === mo)
             const s = sum(ms)
@@ -196,7 +196,7 @@ export default function VatBookPage() {
           </tr>
         </thead>
         <tbody>
-          {gs.length === 0 && <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>}
+          {gs.length === 0 && <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>}
           {gs.map((g) => (
             <tr key={`${g.reg}${g.name}`}>
               <td>{g.reg}</td>
@@ -232,7 +232,7 @@ export default function VatBookPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="매출/매입구분">
           {MODES.map((v) => (
@@ -276,9 +276,9 @@ export default function VatBookPage() {
         </EcCond>
       </ul>
 
-      {truncated && <p style={{ fontSize: 12, color: '#c07a00', marginBottom: 6 }}>전표가 많아 앞부분만 받았습니다 — 기간을 좁혀 보세요.</p>}
+      {truncated && <p style={{ fontSize: 12, color: 'var(--ec-warn)', marginBottom: 6 }}>전표가 많아 앞부분만 받았습니다 — 기간을 좁혀 보세요.</p>}
       {loading ? (
-        <p style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</p>
+        <p style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</p>
       ) : (
         <>
           <h3 style={{ fontSize: 20, fontWeight: 700, textAlign: 'center', margin: '6px 0 12px' }}>매입/매출장</h3>

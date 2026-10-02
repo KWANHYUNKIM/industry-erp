@@ -141,7 +141,7 @@ export default function ExpenseDetailPage() {
   return (
     <EcListShell title="비용내역현황" search={keyword} onSearchChange={setKeyword}
       newLabel="새로고침" onNew={load} actions={[{ label: '인쇄' }, { label: 'Excel' }]}>
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         {/*
           원본 비용내역현황의 조건 차례는 <b>비용그룹 · 비용 · 사원 · 거래처 · 프로젝트</b> 다.
@@ -155,48 +155,48 @@ export default function ExpenseDetailPage() {
           바로잡았다. 예전에는 [기준일자]라 적어 놓고 사용일자를 걸러, 이름과 거르는
           값이 어긋나 있었다. 원본의 [기준일자]는 못 만든 것으로 남긴다.
         */}
-        <span style={{ fontSize: 12.5, color: '#3a4453' }}>사용일자</span>
+        <span style={{ fontSize: 12.5, color: 'var(--ec-text)' }}>사용일자</span>
         <input type="date" className="ec-input" value={from}
                onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-        <span style={{ margin: '0 2px', color: '#9aa1ab' }}>~</span>
+        <span style={{ margin: '0 2px', color: 'var(--ec-text-hint)' }}>~</span>
         <input type="date" className="ec-input" value={to}
                onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
         <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from}
           onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
-        <span style={{ fontSize: 12.5, color: '#3a4453' }}>비용그룹</span>
+        <span style={{ fontSize: 12.5, color: 'var(--ec-text)' }}>비용그룹</span>
         <select className="ec-input" value={groupCond} onChange={(e) => setGroupCond(e.target.value)} style={{ width: 150 }}>
           <option>전체</option>
           {groupNames.map((g) => <option key={g}>{g}</option>)}
         </select>
-        <span style={{ fontSize: 12.5, color: '#3a4453' }}>비용</span>
+        <span style={{ fontSize: 12.5, color: 'var(--ec-text)' }}>비용</span>
         <select className="ec-input" value={accountFilter} onChange={(e) => setAccountFilter(e.target.value)} style={{ width: 160 }}>
           <option>전체</option>
           {accountNames.map((a) => <option key={a}>{a}</option>)}
         </select>
-        <span style={{ fontSize: 12.5, color: '#3a4453' }}>사원</span>
+        <span style={{ fontSize: 12.5, color: 'var(--ec-text)' }}>사원</span>
         <input className="ec-input" value={empCond} onChange={(e) => setEmpCond(e.target.value)}
                placeholder="사용자명 일부" style={{ width: 130 }} />
-        <span style={{ fontSize: 12.5, color: '#3a4453' }}>거래처</span>
+        <span style={{ fontSize: 12.5, color: 'var(--ec-text)' }}>거래처</span>
         <CodePickerField label="거래처" hideLabel width={170} emptyLabel="전체"
                          value={partnerCond} onChange={setPartnerCond} items={partnerPick.partners} />
-        <span style={{ fontSize: 12.5, color: '#3a4453' }}>거래처그룹1</span>
+        <span style={{ fontSize: 12.5, color: 'var(--ec-text)' }}>거래처그룹1</span>
         <select className="ec-input" value={partnerGroupCond} style={{ width: 140 }}
                 onChange={(e) => setPartnerGroupCond(e.target.value)}>
           <option value="">전체</option>
           {pgroup.groupOptions.map((g) => <option key={g} value={g}>{g}</option>)}
         </select>
-        <span style={{ fontSize: 12.5, color: '#3a4453' }}>프로젝트</span>
+        <span style={{ fontSize: 12.5, color: 'var(--ec-text)' }}>프로젝트</span>
         <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
                          value={projectCond} onChange={setProjectCond} items={partnerPick.projects} />
-        <span style={{ fontSize: 12.5, color: '#3a4453' }}>결제수단</span>
+        <span style={{ fontSize: 12.5, color: 'var(--ec-text)' }}>결제수단</span>
         <select className="ec-input" value={payCond} onChange={(e) => setPayCond(e.target.value)} style={{ width: 110 }}>
           <option value="">전체</option>
           {[...new Set(rows.map((r) => r.paymentMethod).filter(Boolean))].map((m) => <option key={m as string}>{m}</option>)}
         </select>
-        <span style={{ fontSize: 12.5, color: '#3a4453' }}>적요</span>
+        <span style={{ fontSize: 12.5, color: 'var(--ec-text)' }}>적요</span>
         <input className="ec-input" value={remarkCond} placeholder="적요"
                onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 130 }} />
-        <span style={{ fontSize: 12.5, color: '#3a4453' }}>정렬/소계기준</span>
+        <span style={{ fontSize: 12.5, color: 'var(--ec-text)' }}>정렬/소계기준</span>
         <div className="ec-pills">
           {SUBTOTALS.map((v) => (
             <button key={v} type="button" className={`ec-pill no-ec${subtotal === v ? ' active' : ''}`}
@@ -204,14 +204,14 @@ export default function ExpenseDetailPage() {
           ))}
         </div>
         {/* 원본 조건 차례의 맨 끝 — [정렬/소계기준] 다음이다(2026-09-08 실측). */}
-        <span style={{ fontSize: 12.5, color: '#3a4453' }}>데이터 보기형식</span>
+        <span style={{ fontSize: 12.5, color: 'var(--ec-text)' }}>데이터 보기형식</span>
         <div className="ec-pills">
           {(['표', '그래프'] as const).map((v) => (
             <button key={v} type="button" className={`ec-pill no-ec${view === v ? ' active' : ''}`}
                     onClick={() => setView(v)}>{v}</button>
           ))}
         </div>
-        <span style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>
+        <span style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--ec-label)' }}>
           합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{total.toLocaleString()}</b> 원
         </span>
       </div>
@@ -239,19 +239,19 @@ export default function ExpenseDetailPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{r.docNo}</td>
-              <td style={{ color: '#5a626e' }}>{r.accountGroupName ?? ''}</td>
+              <td style={{ color: 'var(--ec-label)' }}>{r.accountGroupName ?? ''}</td>
               <td>{r.accountName}</td>
               {/* 원본 [사용자명]. 우리는 전표를 넣은 계정이 그 자리다 — 부서도 같이 적는다. */}
               <td>
                 {r.createdBy ?? ''}
-                {r.department && <span style={{ color: '#8a929c', fontSize: 11.5 }}> · {r.department}</span>}
+                {r.department && <span style={{ color: 'var(--ec-text-hint)', fontSize: 11.5 }}> · {r.department}</span>}
               </td>
               <td style={{ textAlign: 'right', fontWeight: 600 }}>{r.amount.toLocaleString('ko-KR')}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.expenseDate.replace(/-/g, '/')}</td>
@@ -262,7 +262,7 @@ export default function ExpenseDetailPage() {
         </tbody>
         {shown.length > 0 && (
           <tfoot>
-            <tr style={{ background: '#f5f7fa', fontWeight: 700 }}>
+            <tr style={{ background: 'var(--ec-bg-page)', fontWeight: 700 }}>
               <td colSpan={5} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
               <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{total.toLocaleString('ko-KR')}</td>
               <td colSpan={3}></td>

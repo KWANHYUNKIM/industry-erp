@@ -114,7 +114,7 @@ export default function FundDailyPage({ variant = 'daily' }: { variant?: 'daily'
   )
   const moveBody = (ms: Move[]) => (
     <tbody>
-      {ms.length === 0 && <tr><td colSpan={flow ? 5 : 6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 14 }}>등록된 데이터가 없습니다.</td></tr>}
+      {ms.length === 0 && <tr><td colSpan={flow ? 5 : 6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 14 }}>등록된 데이터가 없습니다.</td></tr>}
       {ms.map((m, i) => (
         <tr key={m.key}>
           <td style={{ textAlign: 'center' }}>{!flow && i > 0 && ms[i - 1].date === m.date ? '' : slash(m.date)}</td>
@@ -144,7 +144,7 @@ export default function FundDailyPage({ variant = 'daily' }: { variant?: 'daily'
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
@@ -156,9 +156,9 @@ export default function FundDailyPage({ variant = 'daily' }: { variant?: 'daily'
         </EcCond>
       </ul>
 
-      {truncated && <p style={{ fontSize: 12, color: '#c07a00', marginBottom: 6 }}>전표가 많아 앞부분만 받았습니다.</p>}
+      {truncated && <p style={{ fontSize: 12, color: 'var(--ec-warn)', marginBottom: 6 }}>전표가 많아 앞부분만 받았습니다.</p>}
       {loading ? (
-        <p style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</p>
+        <p style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</p>
       ) : (
         <>
           <h3 style={{ fontSize: 20, fontWeight: 700, textAlign: 'center', margin: '6px 0 4px' }}>{flow ? '자금증감내역' : '자금일보'}</h3>
@@ -180,7 +180,7 @@ export default function FundDailyPage({ variant = 'daily' }: { variant?: 'daily'
                   </tr>
                 </thead>
                 <tbody>
-                  {funds.length === 0 && <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 14 }}>등록된 데이터가 없습니다.</td></tr>}
+                  {funds.length === 0 && <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 14 }}>등록된 데이터가 없습니다.</td></tr>}
                   {funds.map((f) => (
                     <Fragment key={f.code}>
                       <tr>

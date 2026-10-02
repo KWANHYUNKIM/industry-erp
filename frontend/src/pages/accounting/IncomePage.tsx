@@ -55,7 +55,7 @@ export default function IncomePage() {
         {(['수입등록', '수입비용현황'] as Tab[]).map((t) => (
           <button key={t} onClick={() => setTab(t)} className="no-ec" style={{
             padding: '6px 14px', fontSize: 12.5, border: 'none', cursor: 'pointer',
-            background: tab === t ? '#fff' : 'transparent', color: tab === t ? 'var(--ec-blue)' : '#5a626e',
+            background: tab === t ? '#fff' : 'transparent', color: tab === t ? 'var(--ec-blue)' : 'var(--ec-label)',
             fontWeight: tab === t ? 700 : 400, borderBottom: tab === t ? '2px solid var(--ec-blue)' : '2px solid transparent',
           }}>{t}</button>
         ))}
@@ -63,17 +63,17 @@ export default function IncomePage() {
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
         <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-        <span style={{ color: '#8a929c' }}>~</span>
+        <span style={{ color: 'var(--ec-text-hint)' }}>~</span>
         <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
         <button className="ec-btn ec-btn-primary" onClick={load}>조회</button>
         {tab === '수입등록' && <button className="ec-btn" onClick={() => setShowForm(true)}>+ 수입등록</button>}
-        <span style={{ marginLeft: 8, fontSize: 12, color: '#9aa1ab' }}>
+        <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--ec-text-hint)' }}>
           매출 전표를 거치지 않는 수익(이자·임대료·잡이익)입니다. 등록하면 분개가 함께 생깁니다.
         </span>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)' }}>{notice}</div>}
 
       {tab === '수입등록' ? (
         <table className="w-full text-left">
@@ -88,10 +88,10 @@ export default function IncomePage() {
           </thead>
           <tbody>
             {rows.length === 0 ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : rows.map((i, idx) => (
               <tr key={i.id}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{idx + 1}</td>
                 <td>{dateText(i.incomeDate)}</td>
                 <td>{i.accountCode} {i.accountName}</td>
                 <td>{i.content}</td>
@@ -100,7 +100,7 @@ export default function IncomePage() {
                 <td>{i.receiptMethodName}{i.bankAccountName ? ` (${i.bankAccountName})` : ''}</td>
                 <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{i.journalDocNo ?? ''}</td>
                 <td style={{ textAlign: 'center' }}>
-                  <button className="ec-btn" style={{ height: 20, padding: '0 6px', color: '#c60a2e' }} onClick={() => remove(i)}>삭제</button>
+                  <button className="ec-btn" style={{ height: 20, padding: '0 6px', color: 'var(--ec-danger)' }} onClick={() => remove(i)}>삭제</button>
                 </td>
               </tr>
             ))}
@@ -136,9 +136,9 @@ export default function IncomePage() {
 
 function Tile({ label, value, strong, negative }: { label: string; value: string; strong?: boolean; negative?: boolean }) {
   return (
-    <div style={{ flex: 1, border: '1px solid var(--ec-border)', borderRadius: 3, padding: '8px 10px', background: strong ? '#eef5ff' : '#fff' }}>
-      <div style={{ fontSize: 11.5, color: '#8a929c' }}>{label}</div>
-      <div style={{ fontSize: 16, fontWeight: 700, color: negative ? '#c60a2e' : strong ? 'var(--ec-blue-dark)' : '#2b3440' }}>{value}</div>
+    <div style={{ flex: 1, border: '1px solid var(--ec-border)', borderRadius: 3, padding: '8px 10px', background: strong ? 'var(--ec-blue-wash)' : '#fff' }}>
+      <div style={{ fontSize: 11.5, color: 'var(--ec-text-hint)' }}>{label}</div>
+      <div style={{ fontSize: 16, fontWeight: 700, color: negative ? 'var(--ec-danger)' : strong ? 'var(--ec-blue-dark)' : 'var(--ec-text)' }}>{value}</div>
     </div>
   )
 }
@@ -156,10 +156,10 @@ function SummaryTable({ title, rows }: { title: string; rows: IncomeExpenseStatu
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((r, i) => (
             <tr key={r.accountId}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td>{r.accountCode} {r.accountName}</td>
               <td style={{ textAlign: 'right' }}>{won(r.amount)}</td>
               <td>
@@ -167,7 +167,7 @@ function SummaryTable({ title, rows }: { title: string; rows: IncomeExpenseStatu
                   <div style={{ flex: 1, height: 8, background: '#eef1f4', borderRadius: 4, overflow: 'hidden' }}>
                     <div style={{ width: `${Math.min(r.ratio, 100)}%`, height: '100%', background: 'var(--ec-blue)' }} />
                   </div>
-                  <span style={{ fontSize: 11.5, width: 42, textAlign: 'right', color: '#5a626e' }}>{r.ratio}%</span>
+                  <span style={{ fontSize: 11.5, width: 42, textAlign: 'right', color: 'var(--ec-label)' }}>{r.ratio}%</span>
                 </div>
               </td>
             </tr>
@@ -224,22 +224,22 @@ function IncomeForm({ accounts, banks, onClose, onSaved }: {
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 560, maxWidth: '94vw', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: '#f5f7fa' }}>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: 'var(--ec-bg-page)' }}>
           <span style={{ fontWeight: 800, color: 'var(--ec-blue-dark)' }}>수입등록</span>
-          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: '#8a929c' }}>×</span>
+          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: 'var(--ec-text-hint)' }}>×</span>
         </div>
         <div style={{ padding: 16 }}>
-          {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+          {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
           <table className="w-full text-left">
             <tbody>
               <tr>
-                <th style={{ width: 90, background: '#f5f7fa' }}>수입일</th>
+                <th style={{ width: 90, background: 'var(--ec-bg-page)' }}>수입일</th>
                 <td><input type="date" className="ec-input" value={incomeDate} onChange={(e) => setIncomeDate(e.target.value)} style={{ width: 150 }} /></td>
-                <th style={{ width: 70, background: '#f5f7fa' }}>부서</th>
+                <th style={{ width: 70, background: 'var(--ec-bg-page)' }}>부서</th>
                 <td><input className="ec-input" value={department} onChange={(e) => setDepartment(e.target.value)} style={{ width: 130 }} /></td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>수익계정<span style={{ color: '#c60a2e' }}>*</span></th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>수익계정<span style={{ color: 'var(--ec-danger)' }}>*</span></th>
                 <td colSpan={3}>
                   <select className="ec-input" value={accountId} onChange={(e) => setAccountId(e.target.value)} style={{ width: '100%' }}>
                     <option value="">수익 계정 선택</option>
@@ -248,17 +248,17 @@ function IncomeForm({ accounts, banks, onClose, onSaved }: {
                 </td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>내용<span style={{ color: '#c60a2e' }}>*</span></th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>내용<span style={{ color: 'var(--ec-danger)' }}>*</span></th>
                 <td colSpan={3}><input className="ec-input" value={content} onChange={(e) => setContent(e.target.value)} style={{ width: '100%' }} /></td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>거래처</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>거래처</th>
                 <td><input className="ec-input" value={partnerName} onChange={(e) => setPartnerName(e.target.value)} style={{ width: 150 }} /></td>
-                <th style={{ background: '#f5f7fa' }}>금액<span style={{ color: '#c60a2e' }}>*</span></th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>금액<span style={{ color: 'var(--ec-danger)' }}>*</span></th>
                 <td><input type="number" className="ec-input" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ width: 130, textAlign: 'right' }} /></td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>회수수단<span style={{ color: '#c60a2e' }}>*</span></th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>회수수단<span style={{ color: 'var(--ec-danger)' }}>*</span></th>
                 <td colSpan={3}>
                   <select className="ec-input" value={receiptMethod} onChange={(e) => setReceiptMethod(e.target.value as ReceiptMethod)} style={{ width: 130 }}>
                     <option value="CASH">현금</option>
@@ -275,9 +275,9 @@ function IncomeForm({ accounts, banks, onClose, onSaved }: {
               </tr>
             </tbody>
           </table>
-          <div style={{ marginTop: 10, padding: '8px 10px', background: '#f7f9fb', border: '1px solid var(--ec-border)', borderRadius: 3, fontSize: 12.5 }}>
+          <div style={{ marginTop: 10, padding: '8px 10px', background: 'var(--ec-bg-page)', border: '1px solid var(--ec-border)', borderRadius: 3, fontSize: 12.5 }}>
             분개 미리보기: 차){debitLabel} {amount ? won(Number(amount)) : 0} / 대){creditLabel} {amount ? won(Number(amount)) : 0}
-            {receiptMethod === 'BANK' && <span style={{ color: '#8a929c' }}> — 계좌 잔액도 함께 오릅니다.</span>}
+            {receiptMethod === 'BANK' && <span style={{ color: 'var(--ec-text-hint)' }}> — 계좌 잔액도 함께 오릅니다.</span>}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 6, padding: '10px 16px', borderTop: '1px solid var(--ec-border)' }}>

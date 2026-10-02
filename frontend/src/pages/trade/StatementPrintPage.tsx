@@ -242,9 +242,9 @@ export default function StatementPrintPage() {
         </p>
       }
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       {!supplier && !loading && (
-        <p style={{ background: '#fff7e6', color: '#8a5a00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>
+        <p style={{ background: 'var(--ec-warn-bg)', color: '#8a5a00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>
           회사정보가 등록돼 있지 않아 공급자 칸이 비어 인쇄됩니다. Self-Customizing &gt; 회사정보관리에서 먼저 등록하세요.
         </p>
       )}
@@ -325,10 +325,10 @@ export default function StatementPrintPage() {
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        명세서 <b style={{ color: '#3c4553' }}>{shown.length}</b>건
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+        명세서 <b style={{ color: 'var(--ec-text)' }}>{shown.length}</b>건
         {checked.length > 0 && <> · 선택 <b style={{ color: 'var(--ec-blue)' }}>{checked.length}</b>건</>}
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
         합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{total.toLocaleString('ko-KR')}</b>
       </div>
 
@@ -353,9 +353,9 @@ export default function StatementPrintPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={withReceivable ? 11 : 10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={withReceivable ? 11 : 10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={withReceivable ? 11 : 10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={withReceivable ? 11 : 10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((d) => (
             <Fragment key={d.id}>
             <tr>
@@ -367,11 +367,11 @@ export default function StatementPrintPage() {
               <td>{d.partnerName}</td>
               {/* 원본은 품목명[규격명] 을 이 자리에 적는다. 여러 줄이면 첫 품목 외 n. */}
               <td>
-                {d.lines.length === 0 ? <span style={{ color: '#c9ced6' }}>-</span> : (
+                {d.lines.length === 0 ? <span style={{ color: 'var(--ec-text-off)' }}>-</span> : (
                   <>
                     {d.lines[0].itemName}
-                    {d.lines[0].spec && <span style={{ color: '#8a929c' }}>[{d.lines[0].spec}]</span>}
-                    {d.lines.length > 1 && <span style={{ color: '#8a929c' }}> 외 {d.lines.length - 1}</span>}
+                    {d.lines[0].spec && <span style={{ color: 'var(--ec-text-hint)' }}>[{d.lines[0].spec}]</span>}
+                    {d.lines.length > 1 && <span style={{ color: 'var(--ec-text-hint)' }}> 외 {d.lines.length - 1}</span>}
                   </>
                 )}
               </td>
@@ -379,10 +379,10 @@ export default function StatementPrintPage() {
                 {d.lines.reduce((n, l) => n + l.quantity, 0).toLocaleString('ko-KR')}
               </td>
               <td style={{ textAlign: 'right' }}>{d.supplyAmount.toLocaleString('ko-KR')}</td>
-              <td style={{ textAlign: 'right', color: '#8a929c' }}>{d.vatAmount.toLocaleString('ko-KR')}</td>
+              <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{d.vatAmount.toLocaleString('ko-KR')}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{d.totalAmount.toLocaleString('ko-KR')}</td>
               {withReceivable && (
-                <td style={{ textAlign: 'right', color: (balances.get(d.partnerId) ?? 0) > 0 ? '#c60a2e' : '#8a929c' }}>
+                <td style={{ textAlign: 'right', color: (balances.get(d.partnerId) ?? 0) > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>
                   {balances.has(d.partnerId)
                     ? Math.round(balances.get(d.partnerId) ?? 0).toLocaleString('ko-KR')
                     : '-'}
@@ -398,14 +398,14 @@ export default function StatementPrintPage() {
               </td>
             </tr>
             {openId === d.id && d.lines.map((l, k) => (
-              <tr key={`${d.id}-${k}`} style={{ background: '#fafbfc' }}>
+              <tr key={`${d.id}-${k}`} style={{ background: 'var(--ec-bg-page)' }}>
                 <td colSpan={4}></td>
-                <td style={{ paddingLeft: 18, color: '#5a626e' }}>
+                <td style={{ paddingLeft: 18, color: 'var(--ec-label)' }}>
                   └ {l.itemName}{l.spec ? `[${l.spec}]` : ''}
                 </td>
-                <td style={{ textAlign: 'right', color: '#5a626e' }}>{l.quantity.toLocaleString('ko-KR')}</td>
-                <td style={{ textAlign: 'right', color: '#5a626e' }}>{l.supplyAmount.toLocaleString('ko-KR')}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{(l.vatAmount ?? 0).toLocaleString('ko-KR')}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{l.quantity.toLocaleString('ko-KR')}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{l.supplyAmount.toLocaleString('ko-KR')}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{(l.vatAmount ?? 0).toLocaleString('ko-KR')}</td>
                 <td colSpan={withReceivable ? 3 : 2}></td>
               </tr>
             ))}

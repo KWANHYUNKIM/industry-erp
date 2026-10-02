@@ -193,7 +193,7 @@ export default function TransferPage() {
         {TABS.map((t) => (
           <button key={t} onClick={() => switchTab(t)} className="no-ec" style={{
             padding: '6px 14px', fontSize: 12.5, border: 'none', cursor: 'pointer',
-            background: tab === t ? '#fff' : 'transparent', color: tab === t ? 'var(--ec-blue)' : '#5a626e',
+            background: tab === t ? '#fff' : 'transparent', color: tab === t ? 'var(--ec-blue)' : 'var(--ec-label)',
             fontWeight: tab === t ? 700 : 400, borderBottom: tab === t ? '2px solid var(--ec-blue)' : '2px solid transparent',
           }}>{t} ({count(t)})</button>
         ))}
@@ -205,7 +205,7 @@ export default function TransferPage() {
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from}
                  onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
           <input type="date" className="ec-input" value={to}
                  onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
           <span style={{ marginLeft: 6 }}>
@@ -242,8 +242,8 @@ export default function TransferPage() {
         </EcCond>
       </ul>
 
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {ok && <p style={{ marginBottom: 8, background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
+      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {ok && <p style={{ marginBottom: 8, background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
 
       <Modal error={error} open={showForm} title="기타이동 등록" onClose={() => setShowForm(false)}>{(tab === '창고이동'
         ? <TransferForm items={items} warehouses={warehouses} stock={stock} projects={projects} employees={employees} onError={setError} onSaved={saved} />
@@ -282,21 +282,21 @@ export default function TransferPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : shownTransfers.length === 0 ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : transferSort.sorted.map((r, i) => (
               <tr key={r.id}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.transferNo}</td>
                 <td>{dateText(r.transferDate)}</td>
                 <td>{r.itemName}</td>
                 <td>{r.fromWarehouseName}</td>
                 <td style={{ color: 'var(--ec-blue)' }}>{r.toWarehouseName}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600 }}>{num(r.quantity)} {r.unit}</td>
-                <td style={{ color: '#5a626e' }}>{r.reason ?? ''}</td>
+                <td style={{ color: 'var(--ec-label)' }}>{r.reason ?? ''}</td>
                 <td style={{ textAlign: 'center' }}>
-                  <button onClick={() => removeTransfer(r)} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                  <button onClick={() => removeTransfer(r)} style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
                 </td>
               </tr>
             ))}
@@ -320,24 +320,24 @@ export default function TransferPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : shownAdjustments.length === 0 ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : adjustSort.sorted.map((r, i) => (
               <tr key={r.id}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.adjustNo}</td>
                 <td>{dateText(r.adjustDate)}</td>
                 <td>{r.itemName}</td>
                 <td>{r.warehouseName}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(r.beforeQty)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, color: r.quantityChange < 0 ? '#c60a2e' : '#1c7c3c' }}>
+                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(r.beforeQty)}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, color: r.quantityChange < 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>
                   {r.quantityChange > 0 ? '+' : ''}{num(r.quantityChange)}
                 </td>
                 <td style={{ textAlign: 'right', fontWeight: 600 }}>{num(r.afterQty)} {r.unit}</td>
-                <td style={{ color: '#5a626e' }}>{r.reason ?? ''}</td>
+                <td style={{ color: 'var(--ec-label)' }}>{r.reason ?? ''}</td>
                 <td style={{ textAlign: 'center' }}>
-                  <button onClick={() => removeAdjustment(r)} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                  <button onClick={() => removeAdjustment(r)} style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
                 </td>
               </tr>
             ))}
@@ -419,7 +419,7 @@ function TransferForm({ items, warehouses, stock, projects, employees, onError, 
           const have = stock.find((x) => x.itemId === Number(form.itemId) && x.warehouseId === Number(form.fromWarehouseId))?.quantity ?? 0
           const short = form.quantity !== '' && Number(form.quantity) > have
           return (
-            <span style={{ fontSize: 12, paddingBottom: 6, color: short ? '#c60a2e' : '#5a626e' }}>
+            <span style={{ fontSize: 12, paddingBottom: 6, color: short ? 'var(--ec-danger)' : 'var(--ec-label)' }}>
               출고창고 재고 <b>{have.toLocaleString()}</b>{short ? ' — 부족' : ''}
             </span>
           )
@@ -439,7 +439,7 @@ function TransferForm({ items, warehouses, stock, projects, employees, onError, 
         </Field>
         <button className="ec-btn ec-btn-primary" onClick={submit}>이동처리</button>
       </div>
-      <div style={{ marginTop: 8, fontSize: 11.5, color: '#8a929c' }}>※ 출고창고 재고가 부족하면 이동이 거절됩니다(출고·입고 동시 처리).</div>
+      <div style={{ marginTop: 8, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>※ 출고창고 재고가 부족하면 이동이 거절됩니다(출고·입고 동시 처리).</div>
     </div>
   )
 }
@@ -530,7 +530,7 @@ function AdjustmentForm({ type, label, items, warehouses, stock, projects, emplo
           </select>
         </Field>
         <Field label={past ? `${form.adjustDate} 재고` : '현재고'}>
-          <div className="ec-input" style={{ width: 90, textAlign: 'right', background: '#f5f7fa', color: '#5a626e', lineHeight: '22px' }}>
+          <div className="ec-input" style={{ width: 90, textAlign: 'right', background: 'var(--ec-bg-page)', color: 'var(--ec-label)', lineHeight: '22px' }}>
             {current === null ? '-' : num(current)}
           </div>
         </Field>
@@ -544,7 +544,7 @@ function AdjustmentForm({ type, label, items, warehouses, stock, projects, emplo
           </Field>
         )}
         {isAdjust && diff !== null && (
-          <div style={{ fontSize: 12.5, paddingBottom: 5, color: diff === 0 ? '#8a929c' : diff < 0 ? '#c60a2e' : '#1c7c3c', fontWeight: 700 }}>
+          <div style={{ fontSize: 12.5, paddingBottom: 5, color: diff === 0 ? 'var(--ec-text-hint)' : diff < 0 ? 'var(--ec-danger)' : 'var(--ec-success)', fontWeight: 700 }}>
             증감 {diff > 0 ? '+' : ''}{num(diff)}
           </div>
         )}
@@ -563,7 +563,7 @@ function AdjustmentForm({ type, label, items, warehouses, stock, projects, emplo
         </Field>
         <button className="ec-btn ec-btn-primary" onClick={submit}>{label} 처리</button>
       </div>
-      <div style={{ marginTop: 8, fontSize: 11.5, color: '#8a929c' }}>
+      <div style={{ marginTop: 8, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
         {isAdjust
           ? '※ 실사수량과 그 일자 재고의 차이만큼 재고를 증감합니다(수불부에 조정으로 기록). 지난 날짜면 그 뒤 거래는 그대로 둡니다.'
           : `※ 입력 수량만큼 재고를 차감합니다. 현재고보다 많으면 ${label}가 거절됩니다.`}
@@ -575,7 +575,7 @@ function AdjustmentForm({ type, label, items, warehouses, stock, projects, emplo
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label style={{ fontSize: 12.5 }}>
-      <div style={{ color: '#5a626e', marginBottom: 3 }}>{label}</div>
+      <div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>{label}</div>
       {children}
     </label>
   )

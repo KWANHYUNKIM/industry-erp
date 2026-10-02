@@ -104,7 +104,7 @@ export default function AttendanceStatusPage() {
     }),
     [shown, subtotal])
 
-  const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 110 }
+  const th: React.CSSProperties = { background: 'var(--ec-bg-page)', fontWeight: 700, whiteSpace: 'nowrap', width: 110 }
   const num = (n: number) => n.toLocaleString('ko-KR')
 
   return (
@@ -181,7 +181,7 @@ export default function AttendanceStatusPage() {
         </tbody>
       </table>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       <table className="w-full text-left">
         <colgroup>
@@ -202,13 +202,13 @@ export default function AttendanceStatusPage() {
             <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={`${r.empName}-${i}`}>
-              <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td>{r.empName}</td>
               <td>{r.department ?? ''}</td>
               <td style={{ textAlign: 'right' }}>{num(r.workDays)}</td>
-              <td style={{ textAlign: 'right', color: r.lateDays ? '#c60a2e' : undefined }}>{num(r.lateDays)}</td>
-              <td style={{ textAlign: 'right', color: r.earlyLeaveDays ? '#c07a00' : undefined }}>{num(r.earlyLeaveDays)}</td>
-              <td style={{ textAlign: 'right', color: r.absentDays ? '#c60a2e' : undefined }}>{num(r.absentDays)}</td>
+              <td style={{ textAlign: 'right', color: r.lateDays ? 'var(--ec-danger)' : undefined }}>{num(r.lateDays)}</td>
+              <td style={{ textAlign: 'right', color: r.earlyLeaveDays ? 'var(--ec-warn)' : undefined }}>{num(r.earlyLeaveDays)}</td>
+              <td style={{ textAlign: 'right', color: r.absentDays ? 'var(--ec-danger)' : undefined }}>{num(r.absentDays)}</td>
               <td style={{ textAlign: 'right' }}>{r.totalWorkHours.toLocaleString('ko-KR', { maximumFractionDigits: 1 })}</td>
             </tr>
           ))}
@@ -216,12 +216,12 @@ export default function AttendanceStatusPage() {
         {shown.length > 0 && (
           <tfoot>
             <tr>
-              <td colSpan={3} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
-              <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{num(totals.workDays)}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{num(totals.lateDays)}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{num(totals.earlyLeaveDays)}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{num(totals.absentDays)}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>
+              <td colSpan={3} style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>합계</td>
+              <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>{num(totals.workDays)}</td>
+              <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>{num(totals.lateDays)}</td>
+              <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>{num(totals.earlyLeaveDays)}</td>
+              <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>{num(totals.absentDays)}</td>
+              <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>
                 {totals.totalWorkHours.toLocaleString('ko-KR', { maximumFractionDigits: 1 })}
               </td>
             </tr>
@@ -248,9 +248,9 @@ export default function AttendanceStatusPage() {
                   <td style={{ fontWeight: 600 }}>{g.label}</td>
                   <td style={{ textAlign: 'right' }}>{num(g.count)}</td>
                   <td style={{ textAlign: 'right' }}>{num(g.sums.workDays)}</td>
-                  <td style={{ textAlign: 'right', color: g.sums.lateDays ? '#c60a2e' : undefined }}>{num(g.sums.lateDays)}</td>
-                  <td style={{ textAlign: 'right', color: g.sums.earlyLeaveDays ? '#c07a00' : undefined }}>{num(g.sums.earlyLeaveDays)}</td>
-                  <td style={{ textAlign: 'right', color: g.sums.absentDays ? '#c60a2e' : undefined }}>{num(g.sums.absentDays)}</td>
+                  <td style={{ textAlign: 'right', color: g.sums.lateDays ? 'var(--ec-danger)' : undefined }}>{num(g.sums.lateDays)}</td>
+                  <td style={{ textAlign: 'right', color: g.sums.earlyLeaveDays ? 'var(--ec-warn)' : undefined }}>{num(g.sums.earlyLeaveDays)}</td>
+                  <td style={{ textAlign: 'right', color: g.sums.absentDays ? 'var(--ec-danger)' : undefined }}>{num(g.sums.absentDays)}</td>
                   <td style={{ textAlign: 'right' }}>
                     {g.sums.totalWorkHours.toLocaleString('ko-KR', { maximumFractionDigits: 1 })}
                   </td>

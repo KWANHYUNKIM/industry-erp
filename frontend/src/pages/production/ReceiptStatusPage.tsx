@@ -396,7 +396,7 @@ export default function ReceiptStatusPage() {
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
               <input type="checkbox" checked={ratio} onChange={(e) => setRatio(e.target.checked)} /> 비율표시
             </label>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: agg2 ? undefined : '#9aa1ab' }}
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: agg2 ? undefined : 'var(--ec-text-hint)' }}
                    title="집계조건2 를 고르면 그 값을 열로 펼칩니다">
               <input type="checkbox" checked={pivot} disabled={!agg2} onChange={(e) => setPivot(e.target.checked)} /> 가로보기
             </label>
@@ -513,14 +513,14 @@ export default function ReceiptStatusPage() {
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
         입고 전표 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{shown.length}</b>건
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
         입고수량 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{num(totalQty)}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
         생산금액 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{num(Math.round(amount.value))}</b>
         {amount.unknown > 0 && (
-          <span style={{ marginLeft: 6, color: '#c07a00' }}>※ 단가 미정 {amount.unknown}건 제외</span>
+          <span style={{ marginLeft: 6, color: 'var(--ec-warn)' }}>※ 단가 미정 {amount.unknown}건 제외</span>
         )}
       </div>
       {mode === '집계' && prevRange && prevRows && (() => {
@@ -531,14 +531,14 @@ export default function ReceiptStatusPage() {
         const pa = prev.reduce((n, r) => n + amt(r), 0)
         const pct = (a: number, b: number) => (b > 0 ? ` (${a >= b ? '+' : ''}${Math.round(((a - b) / b) * 100)}%)` : '')
         return (
-          <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+          <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
             비교기간({prevRange.from.replace(/-/g, '/')} ~ {prevRange.to.replace(/-/g, '/')})
             수량 {num(pq)} → {num(totalQty)}{pct(totalQty, pq)} · 생산금액 {num(Math.round(pa))} → {num(Math.round(amount.value))}{pct(amount.value, pa)}
           </div>
         )
       })()}
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       {view === '그래프' ? (
         <EcBarChart rows={chartRows} unit=" 개" emptyText="조회된 생산입고가 없습니다." />
@@ -561,7 +561,7 @@ export default function ReceiptStatusPage() {
             <tbody>
               {lines.map(([k, m], i) => (
                 <tr key={k}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                   {code1 && <td style={{ fontFamily: 'monospace' }}>{codes1.get(k)}</td>}
                   <td>{k}</td>
                   {cols.map((c) => <td key={c} style={{ textAlign: 'right' }}>{m.get(c) ? num(m.get(c)!) : ''}</td>)}
@@ -597,19 +597,19 @@ export default function ReceiptStatusPage() {
           </thead>
           <tbody>
             {aggRows.length === 0 ? (
-              <tr><td colSpan={(agg2 ? 6 : 5) + (ratio ? 1 : 0) + extraCols} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={(agg2 ? 6 : 5) + (ratio ? 1 : 0) + extraCols} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : aggRows.map((g, i) => (
               <tr key={`${g.g1}|${g.g2}|${g.g3}`}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 {code1 && <td style={{ fontFamily: 'monospace' }}>{codes1.get(g.g1)}</td>}
                 <td>{g.g1}</td>
                 {code2 && <td style={{ fontFamily: 'monospace' }}>{codes2.get(g.g2)}</td>}
                 {agg2 && <td>{g.g2}</td>}
                 {code3 && <td style={{ fontFamily: 'monospace' }}>{codes3.get(g.g3 ?? '')}</td>}
                 {agg3 && <td>{g.g3}</td>}
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(g.count)}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(g.count)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{num(g.qty)}</td>
-                {ratio && <td style={{ textAlign: 'right', color: '#5a626e' }}>{totalQty ? (Math.round((g.qty / totalQty) * 1000) / 10).toFixed(1) : '0.0'}</td>}
+                {ratio && <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{totalQty ? (Math.round((g.qty / totalQty) * 1000) / 10).toFixed(1) : '0.0'}</td>}
                 <td style={{ textAlign: 'right' }}>{num(Math.round(g.supply))}</td>
               </tr>
             ))}
@@ -637,15 +637,15 @@ export default function ReceiptStatusPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : byItem.length === 0 ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : byItem.map((g, i) => (
               <tr key={g.key}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{g.code}</td>
                 <td>{g.name}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(g.count)}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(g.count)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>
                   {num(g.qty)} {g.unit}
                 </td>
@@ -679,15 +679,15 @@ export default function ReceiptStatusPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : listRows.length === 0 ? (
-              <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : listRows.map((r, i) => (
               <tr key={r.id}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{dateText(r.productionDate)} {r.prodNo}</td>
-                <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{r.workOrderNo}</td>
-                <td style={{ color: r.fromWarehouseName ? undefined : '#c9ced6' }}>
+                <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{r.workOrderNo}</td>
+                <td style={{ color: r.fromWarehouseName ? undefined : 'var(--ec-text-off)' }}>
                   {r.fromWarehouseName ?? r.warehouseName}
                 </td>
                 <td>{r.warehouseName}</td>
@@ -695,12 +695,12 @@ export default function ReceiptStatusPage() {
                 <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>
                   {num(r.producedQty)} {r.productUnit}
                 </td>
-                <td style={{ textAlign: 'right', color: r.slipAmount == null ? '#c9ced6' : undefined }}>
+                <td style={{ textAlign: 'right', color: r.slipAmount == null ? 'var(--ec-text-off)' : undefined }}>
                   {r.slipAmount == null ? '-' : num(Math.round(r.slipAmount))}
                 </td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{r.matCount}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{r.matCount}</td>
                 <td>{r.createdBy ?? ''}</td>
-                <td style={{ color: '#8a929c' }}>{r.note ?? ''}</td>
+                <td style={{ color: 'var(--ec-text-hint)' }}>{r.note ?? ''}</td>
               </tr>
             ))}
           </tbody>

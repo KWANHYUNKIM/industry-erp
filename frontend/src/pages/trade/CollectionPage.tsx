@@ -173,7 +173,7 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
       ]}
       signLine={signBox}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       <EcStatusPanel
         from={cond.from} to={cond.to}
@@ -229,9 +229,9 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        건수 <b style={{ color: '#3c4553' }}>{shown.length.toLocaleString()}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+        건수 <b style={{ color: 'var(--ec-text)' }}>{shown.length.toLocaleString()}</b>
+        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
         {moneyLabel} 합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{total.toLocaleString()}</b>
       </div>
 
@@ -261,23 +261,23 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
             <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>
                 {r.settleDate.replace(/-/g, '/')} {r.docNo}
               </td>
               <td>{r.partnerName}</td>
               <td style={{ textAlign: 'right', fontWeight: 700 }}>{r.amount.toLocaleString()}</td>
               <td style={{ textAlign: 'center' }}>{r.method ?? ''}</td>
-              <td style={{ color: '#5a626e' }}>{r.note ?? ''}</td>
+              <td style={{ color: 'var(--ec-label)' }}>{r.note ?? ''}</td>
             </tr>
           ))}
         </tbody>
         {shown.length > 0 && (
           <tfoot>
             <tr>
-              <td colSpan={3} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계 ({shown.length}건)</td>
-              <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{total.toLocaleString()}</td>
-              <td colSpan={2} style={{ background: '#f5f7fa' }}></td>
+              <td colSpan={3} style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>합계 ({shown.length}건)</td>
+              <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>{total.toLocaleString()}</td>
+              <td colSpan={2} style={{ background: 'var(--ec-bg-page)' }}></td>
             </tr>
           </tfoot>
         )}

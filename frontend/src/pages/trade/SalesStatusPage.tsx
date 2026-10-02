@@ -361,7 +361,7 @@ export default function SalesStatusPage() {
         { label: 'Excel(화면)' },
       ]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       {/*
         조건 판은 현황 화면들이 공통으로 쓰므로 EcStatusPanel 로 뺐다.
@@ -482,28 +482,28 @@ export default function SalesStatusPage() {
         <EcCond label="수량">
           <input type="number" className="ec-input text-right" placeholder="이상" value={qtyFrom}
                  onChange={(e) => setQtyFrom(e.target.value)} style={{ width: 100 }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
           <input type="number" className="ec-input text-right" placeholder="이하" value={qtyTo}
                  onChange={(e) => setQtyTo(e.target.value)} style={{ width: 100 }} />
         </EcCond>
         <EcCond label="단가">
           <input type="number" className="ec-input text-right" placeholder="이상" value={priceFrom}
                  onChange={(e) => setPriceFrom(e.target.value)} style={{ width: 110 }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
           <input type="number" className="ec-input text-right" placeholder="이하" value={priceTo}
                  onChange={(e) => setPriceTo(e.target.value)} style={{ width: 110 }} />
         </EcCond>
         <EcCond label="공급가액">
           <input type="number" className="ec-input text-right" placeholder="이상" value={supplyFrom}
                  onChange={(e) => setSupplyFrom(e.target.value)} style={{ width: 120 }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
           <input type="number" className="ec-input text-right" placeholder="이하" value={supplyTo}
                  onChange={(e) => setSupplyTo(e.target.value)} style={{ width: 120 }} />
         </EcCond>
         <EcCond label="부가세">
           <input type="number" className="ec-input text-right" placeholder="이상" value={vatFrom}
                  onChange={(e) => setVatFrom(e.target.value)} style={{ width: 120 }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
           <input type="number" className="ec-input text-right" placeholder="이하" value={vatTo}
                  onChange={(e) => setVatTo(e.target.value)} style={{ width: 120 }} />
         </EcCond>
@@ -515,7 +515,7 @@ export default function SalesStatusPage() {
         <EcCond label="부대비용">
           <input type="number" className="ec-input text-right" placeholder="이상" value={extraFrom}
                  onChange={(e) => setExtraFrom(e.target.value)} style={{ width: 110 }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
           <input type="number" className="ec-input text-right" placeholder="이하" value={extraTo}
                  onChange={(e) => setExtraTo(e.target.value)} style={{ width: 110 }} />
         </EcCond>
@@ -528,14 +528,14 @@ export default function SalesStatusPage() {
       </EcStatusPanel>
 
       {prevTotals && (
-        <div style={{ marginBottom: 8, fontSize: 12.5, textAlign: 'right', color: '#5a626e' }}>
+        <div style={{ marginBottom: 8, fontSize: 12.5, textAlign: 'right', color: 'var(--ec-label)' }}>
           <span style={{ color: 'var(--ec-label)' }}>
             비교기간({prevRange!.from.replace(/-/g, '/')} ~ {prevRange!.to.replace(/-/g, '/')})
           </span>
-          <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+          <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
           공급가액 {prevTotals.supply.toLocaleString()} → {totals.supply.toLocaleString()}
           {prevTotals.supply > 0 && (
-            <span style={{ marginLeft: 4, color: totals.supply >= prevTotals.supply ? '#1c7c3c' : '#c60a2e' }}>
+            <span style={{ marginLeft: 4, color: totals.supply >= prevTotals.supply ? 'var(--ec-success)' : 'var(--ec-danger)' }}>
               ({totals.supply >= prevTotals.supply ? '+' : ''}
               {Math.round(((totals.supply - prevTotals.supply) / prevTotals.supply) * 100)}%)
             </span>
@@ -543,9 +543,9 @@ export default function SalesStatusPage() {
         </div>
       )}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
         공급가액 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{totals.supply.toLocaleString()}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
         부가세 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{totals.vat.toLocaleString()}</b>
       </div>
       {view === '그래프' ? (
@@ -566,16 +566,16 @@ export default function SalesStatusPage() {
           </thead>
           <tbody>
             {grouped.length === 0 ? (
-              <tr><td colSpan={group2 ? 8 : 7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={group2 ? 8 : 7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : grouped.map((g, i) => (
               <tr key={`${g.g1}|${g.g2}`}>
-                <td style={{ textAlign: 'center', color: '#8a929c', background: '#f3f3f3' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)', background: 'var(--ec-report-stripe)' }}>{i + 1}</td>
                 <td>{g.g1}</td>
                 {group2 && <td>{g.g2}</td>}
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{g.count.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{g.count.toLocaleString()}</td>
                 <td style={{ textAlign: 'right' }}>{g.qty.toLocaleString()}</td>
                 <td style={{ textAlign: 'right' }}>{g.supply.toLocaleString()}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{g.vat.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{g.vat.toLocaleString()}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--ec-blue-dark)' }}>
                   {(g.supply + g.vat).toLocaleString()}
                 </td>

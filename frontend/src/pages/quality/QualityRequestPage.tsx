@@ -7,7 +7,8 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import EcPeriodPicks, { ymd, periodOf, QUALITY_REQUEST_PICKS } from '../../components/EcPeriodPicks'
-import { dateText } from '../../utils/dateText'
+import { dateText } from '../../utils/dateText'
+
 import { printDocuments } from '../../utils/printDocument'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 
@@ -32,7 +33,7 @@ const TABS: { v: Tab; label: string }[] = [
   { v: 'INSPECTED', label: '검사완료' },
   { v: 'CANCELED', label: '취소' },
 ]
-const statusColor = (s: QualityRequestStatus) => (s === 'REQUESTED' ? '#c07a00' : s === 'INSPECTED' ? '#1c7c3c' : '#8a929c')
+const statusColor = (s: QualityRequestStatus) => (s === 'REQUESTED' ? 'var(--ec-warn)' : s === 'INSPECTED' ? 'var(--ec-success)' : 'var(--ec-text-hint)')
 
 /**
  * 원본 품질검사요청조회의 마지막 열 <b>[인쇄]</b> — 그 요청 한 건을 검사요청서로 찍는다.
@@ -196,7 +197,7 @@ export default function QualityRequestPage() {
         원본 조건 판 첫째 <b>[기준일자]</b> — 서버가 이 구간만 준다. 비우면 전 기간이다.
         빠른선택 줄이 없어 <b>기간을 매번 손으로 찍어야</b> 했다(원본에는 있다).
       */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', flexWrap: 'wrap' }}>
         <span>기준일자</span>
         <input type="date" className="ec-input" value={pFrom}
                onChange={(e) => setPFrom(e.target.value)} style={{ width: 140 }} />
@@ -207,53 +208,53 @@ export default function QualityRequestPage() {
                        onPick={(r) => { setPFrom(r.from); setPTo(r.to) }} />
       </div>
 
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {ok && <p style={{ marginBottom: 8, background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
+      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {ok && <p style={{ marginBottom: 8, background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
 
       <Modal error={error} open={showForm} title="품질검사요청 등록" onClose={() => setShowForm(false)}>{(
         <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginTop: 8, marginBottom: 8 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>검사요청 등록</div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>요청일자</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>요청일자</div>
               <input className={inputCls} type="date" value={form.requestDate} onChange={(e) => set('requestDate', e.target.value)} style={{ width: 140 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>검사구분</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>검사구분</div>
               <select className={inputCls} value={form.type} onChange={(e) => set('type', e.target.value)} style={{ width: 110 }}>
                 {TYPES.map((t) => <option key={t.v} value={t.v}>{t.label}</option>)}
               </select></label>
             {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). label 로 감싸면 팝업 행 클릭이 안 먹어 div 로. */}
-            <div style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>품목 *</div>
+            <div style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>품목 *</div>
               <CodePickerField label="품목" hideLabel width={220} placeholder="품목" emptyLabel="선택 해제"
                                value={form.itemId} onChange={(v) => set('itemId', v)}
                                items={items.filter((it) => it.active !== false).map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))} /></div>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>로트No.</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>로트No.</div>
               <input className={inputCls} value={form.lotNo} onChange={(e) => set('lotNo', e.target.value)} style={{ width: 150 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>요청수량 *</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>요청수량 *</div>
               <input className={inputCls} type="number" step="any" value={form.requestQty} onChange={(e) => set('requestQty', e.target.value)} style={{ width: 100 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>검사기한</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>검사기한</div>
               <input className={inputCls} type="date" value={form.dueDate} onChange={(e) => set('dueDate', e.target.value)} style={{ width: 140 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>요청자</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>요청자</div>
               <input className={inputCls} value={form.requester} onChange={(e) => set('requester', e.target.value)} placeholder="미입력시 본인" style={{ width: 110 }} /></label>
-            <label style={{ fontSize: 12.5, flex: 1, minWidth: 180 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>비고</div>
+            <label style={{ fontSize: 12.5, flex: 1, minWidth: 180 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>비고</div>
               <input className={inputCls} value={form.remark} onChange={(e) => set('remark', e.target.value)} style={{ width: '100%' }} /></label>
             {/*
               원본 [검사방법] — <b>전수 · 샘플링(%)</b> 둘이고 샘플링이면 옆에 비율을 적는다(실측).
               몇 개를 검사해 달라는 수량만으로는 <b>다 보라는 건지 몇 개만 보라는 건지</b>
               알 수 없어, 요청서를 받고 되물어야 했다.
             */}
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>검사방법</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>검사방법</div>
               <select className={inputCls} value={form.inspectMethod}
                       onChange={(e) => set('inspectMethod', e.target.value)} style={{ width: 110 }}>
                 <option value="">(미지정)</option>
                 <option value="전수">전수</option>
                 <option value="샘플링">샘플링</option>
               </select></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>샘플링(%)</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>샘플링(%)</div>
               <input className={inputCls} type="number" step="any" value={form.samplePercent}
                      disabled={form.inspectMethod !== '샘플링'}
                      onChange={(e) => set('samplePercent', e.target.value)}
                      style={{ width: 90, textAlign: 'right' }} /></label>
             {/* 원본 격자의 마지막이 [프로젝트] 다. 여기서 안 받으면 그 열이 늘 빈칸이다. */}
-            <div style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>프로젝트</div>
+            <div style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>프로젝트</div>
               <CodePickerField label="프로젝트" hideLabel width={150} placeholder="프로젝트" emptyLabel="선택 안 함"
                                value={form.projectId} onChange={(v) => set('projectId', v)}
                                items={projects.map((pj) => ({ value: String(pj.id), code: pj.code, name: pj.name }))} /></div>
@@ -266,7 +267,7 @@ export default function QualityRequestPage() {
         {TABS.map((t) => (
           <button key={t.v} onClick={() => setTab(t.v)} className="no-ec" style={{
             padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
-            background: tab === t.v ? 'var(--ec-blue)' : '#fff', color: tab === t.v ? '#fff' : '#3a4453', fontWeight: tab === t.v ? 700 : 400,
+            background: tab === t.v ? 'var(--ec-blue)' : '#fff', color: tab === t.v ? '#fff' : 'var(--ec-text)', fontWeight: tab === t.v ? 700 : 400,
           }}>{t.label} ({count(t.v)})</button>
         ))}
       </div>
@@ -359,37 +360,37 @@ export default function QualityRequestPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={16} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={16} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={16} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={16} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{dateText(r.requestDate)} {r.requestNo}</td>
               <td>{r.typeName}</td>
-              <td style={{ color: r.inspectMethod ? '#5a626e' : '#c9ced6' }}>
+              <td style={{ color: r.inspectMethod ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>
                 {r.inspectMethod
                   ? (r.inspectMethod === '샘플링' && r.samplePercent != null
                     ? `샘플링 ${r.samplePercent}%` : r.inspectMethod)
                   : '-'}
               </td>
-              <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{r.itemCode}</td>
+              <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{r.itemCode}</td>
               <td>{r.itemName}</td>
-              <td style={{ color: '#5a626e' }}>{r.spec ?? ''}</td>
+              <td style={{ color: 'var(--ec-label)' }}>{r.spec ?? ''}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.lotNo ?? ''}</td>
               <td style={{ textAlign: 'right' }}>{r.requestQty.toLocaleString()}</td>
-              <td style={{ color: r.dueDate ? '#5a626e' : '#c5cbd3' }}>{dateText(r.dueDate) || ''}</td>
-              <td style={{ color: '#5a626e' }}>{r.remark ?? ''}</td>
+              <td style={{ color: r.dueDate ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{dateText(r.dueDate) || ''}</td>
+              <td style={{ color: 'var(--ec-label)' }}>{r.remark ?? ''}</td>
               <td>{r.requester ?? ''}</td>
               <td style={{ textAlign: 'center', color: statusColor(r.status), fontWeight: 700 }}>{r.statusName}</td>
-              <td style={{ color: r.projectName ? '#5a626e' : '#c9ced6' }}>{r.projectName ?? ''}</td>
+              <td style={{ color: r.projectName ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{r.projectName ?? ''}</td>
               <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                 {r.status === 'REQUESTED' ? (
                   <>
-                    <button className="no-ec" onClick={() => advance(r, 'INSPECTED')} style={{ border: 'none', background: 'none', color: '#1c7c3c', cursor: 'pointer', fontSize: 12, marginRight: 8 }}>→ 검사완료</button>
-                    <button className="no-ec" onClick={() => advance(r, 'CANCELED')} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>취소</button>
+                    <button className="no-ec" onClick={() => advance(r, 'INSPECTED')} style={{ border: 'none', background: 'none', color: 'var(--ec-success)', cursor: 'pointer', fontSize: 12, marginRight: 8 }}>→ 검사완료</button>
+                    <button className="no-ec" onClick={() => advance(r, 'CANCELED')} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>취소</button>
                   </>
-                ) : <span style={{ color: '#c5cbd3', fontSize: 12 }}>—</span>}
+                ) : <span style={{ color: 'var(--ec-text-off)', fontSize: 12 }}>—</span>}
               </td>
               <td style={{ textAlign: 'center' }}>
                 <button className="no-ec" onClick={() => printRequest(r)}

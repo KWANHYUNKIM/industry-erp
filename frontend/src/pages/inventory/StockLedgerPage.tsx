@@ -403,13 +403,13 @@ export default function StockLedgerPage() {
         </EcCond>
       </EcStatusPanel>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       {/*
         잘라서 받았으면 <b>반드시 말한다.</b> 말 없이 앞부분만 보여 주면 사람은 그것이 전부인 줄
         알고 합계를 읽는다 — 틀린 숫자를 맞다고 믿게 하는 것이 안 보여 주는 것보다 나쁘다.
       */}
       {truncated && (
-        <p style={{ background: '#fff8e1', color: '#7a5b00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>
+        <p style={{ background: 'var(--ec-warn-bg)', color: '#7a5b00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>
           모두 {num(totalRows)}줄 중 앞 {num(rows.length)}줄만 보고 있습니다.
           기간을 좁히거나 품목·창고를 고르면 전부 볼 수 있고, 그대로 다 보려면 [오천건이상조회]를 누르세요.
         </p>
@@ -421,21 +421,21 @@ export default function StockLedgerPage() {
           {(['ALL', 'INBOUND', 'OUTBOUND', 'ADJUST'] as const).map((t) => (
             <button key={t} onClick={() => setTypeFilter(t)} className="no-ec" style={{
               padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
-              background: typeFilter === t ? 'var(--ec-blue)' : '#fff', color: typeFilter === t ? '#fff' : '#3a4453', fontWeight: typeFilter === t ? 700 : 400,
+              background: typeFilter === t ? 'var(--ec-blue)' : '#fff', color: typeFilter === t ? '#fff' : 'var(--ec-text)', fontWeight: typeFilter === t ? 700 : 400,
             }}>{t === 'ALL' ? '전체' : t === 'INBOUND' ? '입고' : t === 'OUTBOUND' ? '출고' : '조정'} ({t === 'ALL' ? rows.length : rows.filter((r) => r.type === t).length})</button>
           ))}
         </div>
-        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>
+        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--ec-label)' }}>
           {summary.singleScope && summary.opening != null && (
-            <>기초 <b style={{ color: '#3c4553', fontSize: 14 }}>{num(summary.opening)}</b><span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span></>
+            <>기초 <b style={{ color: 'var(--ec-text)', fontSize: 14 }}>{num(summary.opening)}</b><span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span></>
           )}
           입고계 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{num(summary.inQty)}</b>
-          <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+          <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
           출고계 <b style={{ color: '#a5561b', fontSize: 14 }}>{num(summary.outQty)}</b>
-          <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-          순증감 <b style={{ color: summary.net >= 0 ? '#1c7c3c' : '#c60a2e', fontSize: 14 }}>{summary.net > 0 ? '+' : ''}{num(summary.net)}</b>
+          <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
+          순증감 <b style={{ color: summary.net >= 0 ? 'var(--ec-success)' : 'var(--ec-danger)', fontSize: 14 }}>{summary.net > 0 ? '+' : ''}{num(summary.net)}</b>
           {summary.singleScope && summary.closing != null && (
-            <><span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>기말 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{num(summary.closing)}</b></>
+            <><span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>기말 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{num(summary.closing)}</b></>
           )}
         </div>
       </div>
@@ -572,7 +572,7 @@ export default function StockLedgerPage() {
               const c = TYPE_COLOR[r.type]
               out.push(
                 <tr key={r.id}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                   <td style={{ textAlign: 'center' }}>{dateText(r.transactionDate)}</td>
                   {/* [유형] 은 원본에 없는 우리 열이라 색 표시를 남긴다. */}
                   <td style={{ textAlign: 'center' }}>

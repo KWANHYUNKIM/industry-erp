@@ -212,13 +212,13 @@ export default function TimeCalcPage() {
         { label: '새로고침', onClick: load },
       ]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="일자" span="full">
           <input className="ec-input" type="date" value={baseDate}
                  onChange={(e) => setBaseDate(e.target.value)} style={{ width: 150 }} />
-          <span style={{ fontSize: 11.5, color: '#8a929c', marginLeft: 6 }}>
+          <span style={{ fontSize: 11.5, color: 'var(--ec-text-hint)', marginLeft: 6 }}>
             [작업지시 불러오기]를 누르면 이 날짜에 잡힌 지시를 아래 그리드에 담습니다.
           </span>
         </EcCond>
@@ -231,7 +231,7 @@ export default function TimeCalcPage() {
       </ul>
 
       {notice && (
-        <p style={{ marginBottom: 8, background: '#eef3ff', border: '1px solid #cfe0f5', color: '#2b5b91', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
+        <p style={{ marginBottom: 8, background: '#eef3ff', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
           {notice}
         </p>
       )}
@@ -258,13 +258,13 @@ export default function TimeCalcPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : results.map((r, i) => (
               /* map 이 돌려주는 바깥 요소에 key 를 단다. <> 에는 key 를 못 달아
                  React 가 "unique key" 경고를 낸다 — 조각이라도 Fragment 로 적는다. */
               <Fragment key={r.line.key}>
                 <tr>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                   <td>
                     <CodePickerField
                       label="생산품목" hideLabel width={210} placeholder="품목 선택"
@@ -273,7 +273,7 @@ export default function TimeCalcPage() {
                     />
                   </td>
                   <td>{r.item?.name ?? ''}</td>
-                  <td style={{ color: '#5a626e' }}>{r.item?.spec ?? ''}</td>
+                  <td style={{ color: 'var(--ec-label)' }}>{r.item?.spec ?? ''}</td>
                   <td style={{ textAlign: 'right' }}>
                     <input className="ec-input text-right" type="number" style={{ width: 90 }}
                            value={r.line.extraQty}
@@ -284,12 +284,12 @@ export default function TimeCalcPage() {
                            value={r.line.qty}
                            onChange={(e) => { setLine(r.line.key, { qty: e.target.value }); setCalculated(false) }} />
                   </td>
-                  <td style={{ textAlign: 'right', color: '#5a626e' }}>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>
                     {calculated && r.perUnit != null ? r.perUnit.toFixed(4) : ''}
                   </td>
                   <td style={{ textAlign: 'right', fontWeight: 700 }}>
                     {!calculated ? '' : r.hours == null
-                      ? (r.item ? <span style={{ color: '#c07a00' }}>라우팅 없음</span> : '')
+                      ? (r.item ? <span style={{ color: 'var(--ec-warn)' }}>라우팅 없음</span> : '')
                       : `${hhmm(r.hours)} (${r.hours.toFixed(2)}H)`}
                   </td>
                   <td style={{ textAlign: 'center' }}>
@@ -298,18 +298,18 @@ export default function TimeCalcPage() {
                               style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>
                         {openKey === r.line.key ? '접기' : `${r.ops.length}개`}
                       </button>
-                    ) : <span style={{ color: '#c9ced6' }}>-</span>}
+                    ) : <span style={{ color: 'var(--ec-text-off)' }}>-</span>}
                   </td>
                 </tr>
                 {calculated && openKey === r.line.key && r.ops.map((o) => (
-                  <tr key={`${r.line.key}-${o.seq}`} style={{ background: '#fafbfc' }}>
+                  <tr key={`${r.line.key}-${o.seq}`} style={{ background: 'var(--ec-bg-page)' }}>
                     <td></td>
-                    <td colSpan={3} style={{ paddingLeft: 18, color: '#5a626e' }}>
-                      └ {o.seq}. {o.workName} <span style={{ color: '#8a929c' }}>({o.processName})</span>
+                    <td colSpan={3} style={{ paddingLeft: 18, color: 'var(--ec-label)' }}>
+                      └ {o.seq}. {o.workName} <span style={{ color: 'var(--ec-text-hint)' }}>({o.processName})</span>
                     </td>
                     <td colSpan={2}></td>
-                    <td style={{ textAlign: 'right', color: '#5a626e' }}>{o.hoursPerUnit.toFixed(4)}</td>
-                    <td style={{ textAlign: 'right', color: '#5a626e' }}>{hhmm(o.hoursPerUnit * r.qty)}</td>
+                    <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{o.hoursPerUnit.toFixed(4)}</td>
+                    <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{hhmm(o.hoursPerUnit * r.qty)}</td>
                     <td></td>
                   </tr>
                 ))}
@@ -322,7 +322,7 @@ export default function TimeCalcPage() {
                 <td colSpan={7} style={{ textAlign: 'right' }}>
                   합계 ({results.filter((r) => r.item).length}품목)
                   {unknown > 0 && (
-                    <span style={{ color: '#c07a00', fontWeight: 400 }}> · 라우팅 없는 {unknown}품목은 뺐습니다</span>
+                    <span style={{ color: 'var(--ec-warn)', fontWeight: 400 }}> · 라우팅 없는 {unknown}품목은 뺐습니다</span>
                   )}
                 </td>
                 <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>
@@ -335,7 +335,7 @@ export default function TimeCalcPage() {
         </table>
       </div>
 
-      <p style={{ marginTop: 8, fontSize: 11.5, color: '#8a929c' }}>
+      <p style={{ marginTop: 8, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
         * 소요시간은 BOR(작업소요시간)에 적힌 <b>1개당 작업시간 × (수량 + 추가수량)</b> 입니다.
         라우팅을 세우지 않은 품목은 계산하지 않습니다 — 0 시간으로 두면 "안 걸린다" 로 읽힙니다.
       </p>

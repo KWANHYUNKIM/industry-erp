@@ -121,7 +121,7 @@ export default function PurchaseTaxStockPage({ kind = 'PURCHASE', list = false }
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
@@ -151,7 +151,7 @@ export default function PurchaseTaxStockPage({ kind = 'PURCHASE', list = false }
         )}
       </ul>
 
-      {!list && <h3 style={{ fontSize: 13, fontWeight: 700, margin: '4px 0 6px' }}>{sales ? '매출청구서현황' : '매입청구서현황'} <span style={{ fontWeight: 400, color: '#8a929c' }}>{dateText(from)} ~ {dateText(to)}</span></h3>}
+      {!list && <h3 style={{ fontSize: 13, fontWeight: 700, margin: '4px 0 6px' }}>{sales ? '매출청구서현황' : '매입청구서현황'} <span style={{ fontWeight: 400, color: 'var(--ec-text-hint)' }}>{dateText(from)} ~ {dateText(to)}</span></h3>}
       <table className="w-full text-left">
         <thead>
           <tr>
@@ -165,9 +165,9 @@ export default function PurchaseTaxStockPage({ kind = 'PURCHASE', list = false }
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : list ? [...shown].reverse().map((j) => {
             /* 조회(목록)는 최근 것이 위다 — 원본 2026/10/28 · 10/02 · 09/28 차례(실측). */
             const s = sumOf(j)

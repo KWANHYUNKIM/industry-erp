@@ -63,7 +63,7 @@ interface Row {
 }
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const rateColor = (r: number) => (r >= 5 ? '#c60a2e' : r >= 1 ? '#c07a00' : '#1c7c3c')
+const rateColor = (r: number) => (r >= 5 ? 'var(--ec-danger)' : r >= 1 ? 'var(--ec-warn)' : 'var(--ec-success)')
 
 export default function DefectReportPage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
@@ -357,15 +357,15 @@ export default function DefectReportPage() {
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
         전체 불량률 <b style={{ color: rateColor(overallRate), fontSize: 15 }}>{overallRate.toFixed(2)}%</b>
-        <span style={{ margin: '0 8px', color: '#c9ced6' }}>|</span>
+        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
         폐기계 <b style={{ color: '#6b3fb0', fontSize: 14 }}>{won(totals.disposed)}</b>
       </div>
 
       <p className="mb-2 text-xs text-slate-500">품목별 검사 불량률 + 불량처리·폐기 수량 종합. 불량률 = 검사불량 ÷ 검사수량. 불량률 높은 순.</p>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       {view === '그래프' ? (
         /* 표는 창고 순이지만 <b>그래프는 불량률 높은 순</b>이다 — 위 정렬 주석 참고. */
@@ -422,18 +422,18 @@ export default function DefectReportPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : groups.flatMap((g, gi) => [
             ...g.rows.map((r, i) => (
             <tr key={r.warehouseName + '\u0000' + r.itemId}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td>{r.warehouseCode}</td>
-              <td style={{ color: r.warehouseName === '(미지정)' ? '#9aa1ab' : undefined }}>{r.warehouseName}</td>
+              <td style={{ color: r.warehouseName === '(미지정)' ? 'var(--ec-text-hint)' : undefined }}>{r.warehouseName}</td>
               <td>{r.itemCode}</td>
               <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
-              <td style={{ textAlign: 'center', color: '#8a929c' }}>{r.unit}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{r.unit}</td>
               {/* 원본도 생산이 없는 줄은 <b>빈칸</b>이다(송풍기 줄) — 0 으로 찍지 않는다. */}
               <td style={{ textAlign: 'right' }}>{r.producedQty ? won(r.producedQty) : ''}</td>
               <td style={{ textAlign: 'right' }}>{won(r.inspectedQty)}</td>

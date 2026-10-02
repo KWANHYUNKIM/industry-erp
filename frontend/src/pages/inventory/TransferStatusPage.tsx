@@ -356,7 +356,7 @@ export default function TransferStatusPage() {
         <EcCond label="수량">
           <input className="ec-input" type="number" value={cond.qtyFrom}
                  onChange={(e) => setC({ qtyFrom: e.target.value })} style={{ width: 110, textAlign: 'right' }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
           <input className="ec-input" type="number" value={cond.qtyTo}
                  onChange={(e) => setC({ qtyTo: e.target.value })} style={{ width: 110, textAlign: 'right' }} />
         </EcCond>
@@ -379,12 +379,12 @@ export default function TransferStatusPage() {
         </EcCond>
       </EcStatusPanel>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
         {mode === '내역' ? '건수' : '이동경로'}{' '}
-        <b style={{ color: '#3c4553' }}>{num(mode === '내역' ? shown.length : summary.length)}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+        <b style={{ color: 'var(--ec-text)' }}>{num(mode === '내역' ? shown.length : summary.length)}</b>
+        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
         이동수량 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{num(totalQty)}</b>
       </div>
 
@@ -435,23 +435,23 @@ export default function TransferStatusPage() {
                 <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
               ) : shown.map((r, i) => (
                 <tr key={r.id}>
-                  <td style={{ textAlign: 'center', background: '#f3f3f3' }}>
+                  <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)' }}>
                     <input type="checkbox" checked={picked.has(r.id)} onChange={() => pick(r.id)} />
                   </td>
-                  <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+                  <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                   <td style={{ fontFamily: 'monospace' }}>
                     {r.transferDate.replace(/-/g, '/')} {r.transferNo}
                   </td>
                   <td style={{ color: '#a5561b' }}>{r.fromWarehouseName}</td>
                   <td style={{ color: 'var(--ec-blue)' }}>{r.toWarehouseName}</td>
-                  <td>{r.itemName}{r.spec ? `[${r.spec}]` : ''} <span style={{ fontSize: 11, color: '#9aa1ab' }}>{r.itemCode}</span></td>
+                  <td>{r.itemName}{r.spec ? `[${r.spec}]` : ''} <span style={{ fontSize: 11, color: 'var(--ec-text-hint)' }}>{r.itemCode}</span></td>
                   <td style={{ textAlign: 'right', fontWeight: 700 }}>
-                    {num(r.quantity)} <span style={{ fontSize: 11, fontWeight: 400, color: '#9aa1ab' }}>{r.unit}</span>
+                    {num(r.quantity)} <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--ec-text-hint)' }}>{r.unit}</span>
                   </td>
-                  <td style={{ textAlign: 'right', color: '#5a626e' }}>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>
                     {amountOf(r.itemId, r.quantity) == null ? '' : num(amountOf(r.itemId, r.quantity)!)}
                   </td>
-                  <td style={{ color: '#5a626e' }}>{r.reason ?? ''}</td>
+                  <td style={{ color: 'var(--ec-label)' }}>{r.reason ?? ''}</td>
                   <td style={{ textAlign: 'center' }}>
                     <button onClick={() => printTransfer(r)}
                             style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
@@ -462,10 +462,10 @@ export default function TransferStatusPage() {
             {shown.length > 0 && (
               <tfoot>
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: 'var(--ec-blue)' }}>{num(totalQty)}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{num(totalAmount)}</td>
-                  <td colSpan={2} style={{ background: '#f5f7fa' }}></td>
+                  <td colSpan={6} style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>합계</td>
+                  <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: 'var(--ec-blue)' }}>{num(totalQty)}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>{num(totalAmount)}</td>
+                  <td colSpan={2} style={{ background: 'var(--ec-bg-page)' }}></td>
                 </tr>
               </tfoot>
             )}
@@ -495,14 +495,14 @@ export default function TransferStatusPage() {
                 <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
               ) : summary.map((g, i) => (
                 <tr key={g.k}>
-                  <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+                  <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                   <td style={{ color: '#a5561b' }}>{g.from}</td>
                   <td style={{ color: 'var(--ec-blue)' }}>{g.to}</td>
                   <td style={{ fontFamily: 'monospace' }}>{g.itemCode}</td>
                   <td>{g.itemName}</td>
-                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(g.count)}</td>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(g.count)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 700 }}>
-                    {num(g.qty)} <span style={{ fontSize: 11, fontWeight: 400, color: '#9aa1ab' }}>{g.unit}</span>
+                    {num(g.qty)} <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--ec-text-hint)' }}>{g.unit}</span>
                   </td>
                 </tr>
               ))}
@@ -510,8 +510,8 @@ export default function TransferStatusPage() {
             {summary.length > 0 && (
               <tfoot>
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: 'var(--ec-blue)' }}>{num(totalQty)}</td>
+                  <td colSpan={6} style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>합계</td>
+                  <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: 'var(--ec-blue)' }}>{num(totalQty)}</td>
                 </tr>
               </tfoot>
             )}

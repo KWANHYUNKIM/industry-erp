@@ -119,13 +119,13 @@ export default function TransferListPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="구분">
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
             <input type="radio" name="tl-kind" checked readOnly /> 내역
           </label>
-          <label title="원본의 ○집계 판 — 아직 만들지 않았다" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 16, fontSize: 12.5, color: '#9aa1ab' }}>
+          <label title="원본의 ○집계 판 — 아직 만들지 않았다" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 16, fontSize: 12.5, color: 'var(--ec-text-hint)' }}>
             <input type="radio" name="tl-kind" disabled /> 집계
           </label>
           {UNITS.map((v) => (
@@ -160,7 +160,7 @@ export default function TransferListPage() {
         </EcCond>
       </ul>
 
-      {truncated && <p style={{ fontSize: 12, color: '#c07a00', marginBottom: 6 }}>전표가 많아 앞부분만 받았습니다 — 기간을 좁혀 보세요.</p>}
+      {truncated && <p style={{ fontSize: 12, color: 'var(--ec-warn)', marginBottom: 6 }}>전표가 많아 앞부분만 받았습니다 — 기간을 좁혀 보세요.</p>}
       <h3 style={{ fontSize: 20, fontWeight: 700, textAlign: 'center', margin: '6px 0 12px' }}>지출결의서이체리스트</h3>
       <table ref={tableRef} className="w-full text-left">
         <thead>
@@ -176,9 +176,9 @@ export default function TransferListPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : (
             <>
               {months.map((mo) => {

@@ -25,8 +25,8 @@ const LABEL: Record<PurchaseOrderStatus, string> = {
   ORDERED: '발주확정', RECEIVED: '입고전환', CANCELLED: '취소',
 }
 const COLOR: Record<PurchaseOrderStatus, string> = {
-  REQUESTED: '#c07a00', PLANNED: '#8a929c', PRICED: '#7a5bb5',
-  ORDERED: 'var(--ec-blue)', RECEIVED: '#1c7c3c', CANCELLED: '#c60a2e',
+  REQUESTED: 'var(--ec-warn)', PLANNED: 'var(--ec-text-hint)', PRICED: '#7a5bb5',
+  ORDERED: 'var(--ec-blue)', RECEIVED: 'var(--ec-success)', CANCELLED: 'var(--ec-danger)',
 }
 /** 오늘보다 지난 날짜인가. 목록에 날짜만 적어 두면 지났는지를 <b>사람이 세어야</b> 한다. */
 const expired = (d: string | null) => !!d && d < new Date().toISOString().slice(0, 10)
@@ -189,10 +189,10 @@ export default function PriceRequestProgressPage() {
         {(['ALL', ...PIPELINE, 'CANCELLED'] as const).map((s) => (
           <button key={s} onClick={() => setStatusFilter(s)} className="no-ec" style={{
             padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
-            background: statusFilter === s ? 'var(--ec-blue)' : '#fff', color: statusFilter === s ? '#fff' : '#3a4453', fontWeight: statusFilter === s ? 700 : 400,
+            background: statusFilter === s ? 'var(--ec-blue)' : '#fff', color: statusFilter === s ? '#fff' : 'var(--ec-text)', fontWeight: statusFilter === s ? 700 : 400,
           }}>{s === 'ALL' ? '전체' : LABEL[s]} ({count(s)})</button>
         ))}
-        <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 12.5, color: '#5a626e' }}>
+        <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 12.5, color: 'var(--ec-label)' }}>
           확정금액 합계 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{won(totalAmount)}</b>
         </span>
       </div>
@@ -204,7 +204,7 @@ export default function PriceRequestProgressPage() {
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from}
                  onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
           <input type="date" className="ec-input" value={to}
                  onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
           <span style={{ marginLeft: 6 }}>
@@ -257,7 +257,7 @@ export default function PriceRequestProgressPage() {
         </EcCond>
       </ul>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       <table className="w-full text-left">
         <thead>
@@ -281,12 +281,12 @@ export default function PriceRequestProgressPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((r, i) => [
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace', textAlign: 'center', color: 'var(--ec-blue-dark)', fontWeight: 600 }}>{r.orderNo}</td>
               <td style={{ fontFamily: 'monospace' }}>{dateText(r.orderDate)}</td>
               <td>{r.lines[0]?.itemName}{r.lines.length > 1 ? ` 외 ${r.lines.length - 1}건` : ''}</td>
@@ -294,7 +294,7 @@ export default function PriceRequestProgressPage() {
               <td>{r.partnerName}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(r.totalAmount)}</td>
               <td style={{ textAlign: 'center', fontFamily: 'monospace',
-                           color: expired(r.priceValidUntil) ? '#c60a2e' : '#5a626e',
+                           color: expired(r.priceValidUntil) ? 'var(--ec-danger)' : 'var(--ec-label)',
                            fontWeight: expired(r.priceValidUntil) ? 700 : 400 }}>
                 {r.priceValidUntil ?? ''}
               </td>
@@ -308,9 +308,9 @@ export default function PriceRequestProgressPage() {
             </tr>,
             openHistory === r.id ? (
               <tr key={`${r.id}-history`}>
-                <td colSpan={10} style={{ background: '#fbfcfe', padding: '8px 14px' }}>
+                <td colSpan={10} style={{ background: 'var(--ec-bg-page)', padding: '8px 14px' }}>
                   {history.length === 0 ? (
-                    <span style={{ fontSize: 12, color: '#9aa1ab' }}>자취가 없습니다.</span>
+                    <span style={{ fontSize: 12, color: 'var(--ec-text-hint)' }}>자취가 없습니다.</span>
                   ) : (
                     <table className="w-full text-left" style={{ maxWidth: 720 }}>
                       <thead><tr>
@@ -320,14 +320,14 @@ export default function PriceRequestProgressPage() {
                       <tbody>
                         {history.map((h, k) => (
                           <tr key={`${h.changedAt}-${k}`}>
-                            <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{k + 1}</td>
+                            <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{k + 1}</td>
                             <td style={{ fontFamily: 'monospace' }}>{h.changedAt.slice(0, 16).replace('T', ' ')}</td>
                             <td>
                               {h.fromStatusName ? `${h.fromStatusName} → ` : ''}
                               <b style={{ color: 'var(--ec-blue-dark)' }}>{h.toStatusName}</b>
                             </td>
-                            <td style={{ color: '#5a626e' }}>{h.changedBy ?? ''}</td>
-                            <td style={{ color: '#8a929c' }}>{h.note ?? ''}</td>
+                            <td style={{ color: 'var(--ec-label)' }}>{h.changedBy ?? ''}</td>
+                            <td style={{ color: 'var(--ec-text-hint)' }}>{h.note ?? ''}</td>
                           </tr>
                         ))}
                       </tbody>

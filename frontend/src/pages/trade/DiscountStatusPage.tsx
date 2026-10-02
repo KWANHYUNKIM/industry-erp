@@ -337,15 +337,15 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
         {shown.length}줄
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-        회계로 안 넘어간 금액 <b style={{ color: totals.org - totals.ref > 0 ? '#c60a2e' : '#1c7c3c', fontSize: 14 }}>
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
+        회계로 안 넘어간 금액 <b style={{ color: totals.org - totals.ref > 0 ? 'var(--ec-danger)' : 'var(--ec-success)', fontSize: 14 }}>
           {won(totals.org - totals.ref)}
         </b>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       {view === '그래프' ? (
         <EcBarChart rows={chartRows} unit=" 원" emptyText="조회된 자료가 없습니다." />
       ) : (
@@ -363,22 +363,22 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => {
             const diff = r.orgAmount - r.reflectedAmount
             return (
               <tr key={`${r.date}-${r.partner}`}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{monthDay(r.date)}</td>
                 <td>{r.partner}</td>
                 <td style={{ textAlign: 'right' }}>{won(r.orgAmount)}</td>
-                <td style={{ textAlign: 'right', color: r.reflectedAmount === 0 ? '#c9ced6' : undefined }}>
+                <td style={{ textAlign: 'right', color: r.reflectedAmount === 0 ? 'var(--ec-text-off)' : undefined }}>
                   {won(r.reflectedAmount)}
                 </td>
-                <td style={{ textAlign: 'right', fontWeight: 700, color: diff > 0 ? '#c60a2e' : '#8a929c' }}>{won(diff)}</td>
-                <td style={{ color: '#5a626e' }} title={r.docNos.join(', ')}>
+                <td style={{ textAlign: 'right', fontWeight: 700, color: diff > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>{won(diff)}</td>
+                <td style={{ color: 'var(--ec-label)' }} title={r.docNos.join(', ')}>
                   {r.remarks.length > 0 ? r.remarks.join(' / ') : r.docNos.join(', ')}
                 </td>
               </tr>
@@ -417,7 +417,7 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
                   <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
                   <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{won(g.sums.org)}</td>
                   <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{won(g.sums.ref)}</td>
-                  <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: g.sums.org - g.sums.ref > 0 ? '#c60a2e' : '#8a929c' }}>
+                  <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: g.sums.org - g.sums.ref > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>
                     {won(g.sums.org - g.sums.ref)}
                   </td>
                 </tr>

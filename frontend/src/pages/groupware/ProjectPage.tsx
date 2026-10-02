@@ -9,7 +9,7 @@ import { dateText } from '../../utils/dateText'
 
 type ProjectStatus = 'PLANNING' | 'IN_PROGRESS' | 'ON_HOLD' | 'DONE'
 const LABEL: Record<ProjectStatus, string> = { PLANNING: '기획', IN_PROGRESS: '진행중', ON_HOLD: '보류', DONE: '완료' }
-const COLOR: Record<ProjectStatus, string> = { PLANNING: '#8a929c', IN_PROGRESS: 'var(--ec-blue)', ON_HOLD: '#c07a00', DONE: '#1c7c3c' }
+const COLOR: Record<ProjectStatus, string> = { PLANNING: 'var(--ec-text-hint)', IN_PROGRESS: 'var(--ec-blue)', ON_HOLD: 'var(--ec-warn)', DONE: 'var(--ec-success)' }
 const STATUSES: ProjectStatus[] = ['PLANNING', 'IN_PROGRESS', 'ON_HOLD', 'DONE']
 
 interface Project {
@@ -113,7 +113,7 @@ export default function ProjectPage() {
   const shown = sort.sorted
 
   const inputCls = 'ec-input'
-  const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 74 }
+  const th: React.CSSProperties = { background: 'var(--ec-bg-page)', fontWeight: 700, whiteSpace: 'nowrap', width: 74 }
 
 
   /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
@@ -170,13 +170,13 @@ export default function ProjectPage() {
         </form>
       )}</Modal>
 
-      {error && !showForm && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && !showForm && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
       <div style={{ display: 'flex', gap: 2, marginBottom: 8 }}>
         {(['ALL', ...STATUSES] as const).map((s) => (
           <button key={s} onClick={() => setStatusFilter(s)} className="no-ec" style={{
             padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
-            background: statusFilter === s ? 'var(--ec-blue)' : '#fff', color: statusFilter === s ? '#fff' : '#3a4453', fontWeight: statusFilter === s ? 700 : 400,
+            background: statusFilter === s ? 'var(--ec-blue)' : '#fff', color: statusFilter === s ? '#fff' : 'var(--ec-text)', fontWeight: statusFilter === s ? 700 : 400,
           }}>{s === 'ALL' ? '전체' : LABEL[s]} ({s === 'ALL' ? rows.length : rows.filter((r) => r.status === s).length})</button>
         ))}
       </div>
@@ -197,10 +197,10 @@ export default function ProjectPage() {
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.code}</td>
               <td style={{ fontWeight: 600 }}>{r.name}</td>
               <td>{r.manager ?? ''}</td>
@@ -208,7 +208,7 @@ export default function ProjectPage() {
               <td>{dateText(r.endDate) || ''}</td>
               <td>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }} onClick={() => editProgress(r)} title="클릭하여 진척률 수정">
-                  <div style={{ flex: 1, height: 8, background: '#eef1f5', borderRadius: 4, overflow: 'hidden' }}>
+                  <div style={{ flex: 1, height: 8, background: 'var(--ec-line-soft)', borderRadius: 4, overflow: 'hidden' }}>
                     <div style={{ width: `${r.progress}%`, height: '100%', background: COLOR[r.status] }} />
                   </div>
                   <span style={{ width: 34, textAlign: 'right', fontSize: 11.5 }}>{r.progress}%</span>
@@ -226,7 +226,7 @@ export default function ProjectPage() {
               </td>
               <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                 <button className="ec-btn" style={{ height: 20, padding: '0 10px', marginRight: 4 }} onClick={() => editProgress(r)}>진척수정</button>
-                <button className="no-ec" onClick={() => remove(r)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                <button className="no-ec" onClick={() => remove(r)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button>
               </td>
             </tr>
           ))}

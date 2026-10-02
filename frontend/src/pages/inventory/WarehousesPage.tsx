@@ -172,7 +172,7 @@ export default function WarehousesPage() {
                 { label: '웹자료올리기', onClick: () => setWebOpen(true) }]}
     >
       {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-      {ok && <p style={{ marginBottom: 8, background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
+      {ok && <p style={{ marginBottom: 8, background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
 
       <Modal error={error} open={showForm} title={editId ? '창고수정' : '창고등록'} onClose={() => { setShowForm(false); setEditId(null) }}>{(
         <form onSubmit={submit} style={{ marginTop: 8, marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
@@ -231,7 +231,7 @@ export default function WarehousesPage() {
 
       <div className="overflow-x-auto">
       {/* 원본 조건 [사용구분]. 사용/중단이 표에는 찍히는데 거를 수가 없었다. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)' }}>
         <span>사용구분</span>
         <select className="ec-input" value={useCond} onChange={(e) => setUseCond(e.target.value as '전체' | '사용' | '중단')} style={{ width: 100 }}>
           <option>전체</option><option>사용</option><option>중단</option>
@@ -267,12 +267,12 @@ export default function WarehousesPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : (
               shown.map((w) => (
-                <tr key={w.id} style={{ color: w.active ? undefined : '#9aa1ab' }}>
+                <tr key={w.id} style={{ color: w.active ? undefined : 'var(--ec-text-hint)' }}>
                   <td style={{ textAlign: 'center' }}>
                     <input type="checkbox" checked={checked.has(w.id)} onChange={() => setChecked((prev) => {
                       const next = new Set(prev)
@@ -293,21 +293,21 @@ export default function WarehousesPage() {
                       {w.name}
                     </button>
                   </td>
-                  <td style={{ textAlign: 'center', color: w.kind === '창고' ? '#5a626e' : 'var(--ec-blue-dark)', fontWeight: w.kind === '창고' ? 400 : 700 }}>
+                  <td style={{ textAlign: 'center', color: w.kind === '창고' ? 'var(--ec-label)' : 'var(--ec-blue-dark)', fontWeight: w.kind === '창고' ? 400 : 700 }}>
                     {w.kind}
                   </td>
                   {/* 이름은 화면이 붙인다 — 서버는 id 만 준다(inventory 가 다른 모듈을 참조할 수 없다). */}
-                  <td style={{ textAlign: 'center', color: '#5a626e' }}>
+                  <td style={{ textAlign: 'center', color: 'var(--ec-label)' }}>
                     {processes.find((pr) => pr.id === w.processId)?.name ?? ''}
                   </td>
-                  <td style={{ textAlign: 'center', color: '#5a626e' }}>
+                  <td style={{ textAlign: 'center', color: 'var(--ec-label)' }}>
                     {partners.find((pt) => pt.id === w.outsourcingPartnerId)?.name ?? ''}
                   </td>
                   <td>{w.location ?? ''}</td>
                   <td style={{ textAlign: 'center' }}>{w.active ? 'YES' : 'NO'}</td>
-                  <td style={{ textAlign: 'center', color: '#5a626e' }}>{companyName ?? ''}</td>
+                  <td style={{ textAlign: 'center', color: 'var(--ec-label)' }}>{companyName ?? ''}</td>
                   <td>
-                    <button onClick={() => remove(w)} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                    <button onClick={() => remove(w)} style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
                   </td>
                 </tr>
               ))
@@ -327,21 +327,21 @@ export default function WarehousesPage() {
         return (
           <div onClick={() => setGroupOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, width: 560, maxWidth: '92vw', maxHeight: '84vh', overflow: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}>
-              <div style={{ padding: '10px 14px', borderBottom: '1px solid #e6eaef', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
+              <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--ec-line-soft)', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
                 <span>계층그룹 · 창고 위치별 분류</span>
                 <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => setGroupOpen(false)}>닫기</button>
               </div>
-              <div style={{ padding: 14, fontSize: 12.5, color: '#3c4553' }}>
-                <p style={{ margin: '0 0 8px', color: '#5a626e' }}>등록된 창고를 <b>위치</b> 기준으로 묶어 보여줍니다. 총 {warehouses.length}개 · {groups.size}개 그룹</p>
+              <div style={{ padding: 14, fontSize: 12.5, color: 'var(--ec-text)' }}>
+                <p style={{ margin: '0 0 8px', color: 'var(--ec-label)' }}>등록된 창고를 <b>위치</b> 기준으로 묶어 보여줍니다. 총 {warehouses.length}개 · {groups.size}개 그룹</p>
                 {Array.from(groups.entries()).map(([g, list]) => (
-                  <div key={g} style={{ marginBottom: 10, border: '1px solid #e6eaef', borderRadius: 3 }}>
-                    <div style={{ padding: '6px 10px', background: '#f5f8ff', fontWeight: 700, color: 'var(--ec-blue-dark)' }}>{g} <span style={{ color: '#8a929c', fontWeight: 400 }}>({list.length})</span></div>
+                  <div key={g} style={{ marginBottom: 10, border: '1px solid var(--ec-line-soft)', borderRadius: 3 }}>
+                    <div style={{ padding: '6px 10px', background: '#f5f8ff', fontWeight: 700, color: 'var(--ec-blue-dark)' }}>{g} <span style={{ color: 'var(--ec-text-hint)', fontWeight: 400 }}>({list.length})</span></div>
                     <div style={{ padding: '6px 10px', lineHeight: 1.8 }}>
-                      {list.map((w) => <span key={w.id} style={{ display: 'inline-block', marginRight: 10, color: '#3c4553' }}>[{w.code}] {w.name}</span>)}
+                      {list.map((w) => <span key={w.id} style={{ display: 'inline-block', marginRight: 10, color: 'var(--ec-text)' }}>[{w.code}] {w.name}</span>)}
                     </div>
                   </div>
                 ))}
-                <p style={{ margin: '4px 0 0', fontSize: 11.5, color: '#c07a00' }}>* 사용자 정의 그룹/계층 저장은 백엔드 미연동입니다. 현재는 위치값 기준 분류만 제공합니다.</p>
+                <p style={{ margin: '4px 0 0', fontSize: 11.5, color: 'var(--ec-warn)' }}>* 사용자 정의 그룹/계층 저장은 백엔드 미연동입니다. 현재는 위치값 기준 분류만 제공합니다.</p>
               </div>
             </div>
           </div>
@@ -351,11 +351,11 @@ export default function WarehousesPage() {
       {webOpen && (
         <div onClick={() => setWebOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, width: 520, maxWidth: '92vw', boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}>
-            <div style={{ padding: '10px 14px', borderBottom: '1px solid #e6eaef', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
+            <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--ec-line-soft)', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
               <span>웹자료올리기 · 창고 대량 등록</span>
               <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => setWebOpen(false)}>닫기</button>
             </div>
-            <div style={{ padding: 14, fontSize: 12.5, lineHeight: 1.7, color: '#3c4553' }}>
+            <div style={{ padding: 14, fontSize: 12.5, lineHeight: 1.7, color: 'var(--ec-text)' }}>
               <p style={{ margin: '0 0 8px' }}>엑셀/CSV 파일로 창고를 한 번에 등록하는 기능입니다. 파일을 고르면 형식을 미리 확인할 수 있습니다.</p>
               {/* 원본 [웹자료올리기] 도 끌어다 놓을 수 있다. 파일 선택 버튼은 그대로 둔다. */}
               <EcFileDrop
@@ -363,14 +363,14 @@ export default function WarehousesPage() {
                 onFiles={(fs) => onPickFile({ target: { files: fs } } as unknown as React.ChangeEvent<HTMLInputElement>)}
               />
               {webFile && (
-                <div style={{ marginTop: 10, border: '1px solid #e6eaef', borderRadius: 3, padding: 10, background: '#f9fbfd' }}>
+                <div style={{ marginTop: 10, border: '1px solid var(--ec-line-soft)', borderRadius: 3, padding: 10, background: 'var(--ec-bg-page)' }}>
                   <div><b>{webFile.name}</b> · 데이터 <b style={{ color: 'var(--ec-blue-dark)' }}>{webFile.total.toLocaleString()}</b>행 인식</div>
-                  {webFile.head.length > 0 && <div style={{ marginTop: 4, color: '#5a626e' }}>헤더: {webFile.head.join(' · ')}</div>}
+                  {webFile.head.length > 0 && <div style={{ marginTop: 4, color: 'var(--ec-label)' }}>헤더: {webFile.head.join(' · ')}</div>}
                 </div>
               )}
               <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <button className="ec-btn" disabled title="서버 업로드 API 미구현" style={{ opacity: .55, cursor: 'default' }}>업로드 실행 (백엔드 미연동)</button>
-                <span style={{ fontSize: 11.5, color: '#c07a00' }}>* 서버 일괄등록 API가 없어 미리보기까지만 제공합니다.</span>
+                <span style={{ fontSize: 11.5, color: 'var(--ec-warn)' }}>* 서버 일괄등록 API가 없어 미리보기까지만 제공합니다.</span>
               </div>
             </div>
           </div>

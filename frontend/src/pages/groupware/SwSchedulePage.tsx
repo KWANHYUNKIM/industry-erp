@@ -21,7 +21,7 @@ interface Project {
 }
 
 const STATUS_COLOR: Record<Project['status'], string> = {
-  PLANNING: '#5a626e', IN_PROGRESS: '#c07a00', ON_HOLD: '#c60a2e', DONE: '#1c7c3c',
+  PLANNING: 'var(--ec-label)', IN_PROGRESS: 'var(--ec-warn)', ON_HOLD: 'var(--ec-danger)', DONE: 'var(--ec-success)',
 }
 
 const today = () => ymd(new Date())
@@ -100,7 +100,7 @@ export default function SwSchedulePage() {
     .filter((r) => !title2 || r.name.includes(title2))
     .filter((r) => !keyword || r.name.includes(keyword) || (r.manager ?? '').includes(keyword))
   const inputCls = 'ec-input'
-  const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 84 }
+  const th: React.CSSProperties = { background: 'var(--ec-bg-page)', fontWeight: 700, whiteSpace: 'nowrap', width: 84 }
 
 
   /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
@@ -183,7 +183,7 @@ export default function SwSchedulePage() {
         </form>
       )}</Modal>
 
-      {error && !showForm && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && !showForm && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
       <table className="w-full text-left">
         <thead>
@@ -200,17 +200,17 @@ export default function SwSchedulePage() {
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.code ?? ''}</td>
               <td style={{ fontWeight: 600 }}>{r.name}</td>
               <td>{r.manager ?? ''}</td>
               <td style={{ fontFamily: 'monospace' }}>{dateText(r.endDate) || ''}</td>
               <td>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <div style={{ flex: 1, height: 8, background: '#eef1f5', borderRadius: 4, overflow: 'hidden' }}>
+                  <div style={{ flex: 1, height: 8, background: 'var(--ec-line-soft)', borderRadius: 4, overflow: 'hidden' }}>
                     <div style={{ width: `${Math.min(100, r.progress)}%`, height: '100%', background: STATUS_COLOR[r.status] }} />
                   </div>
                   <span style={{ width: 34, textAlign: 'right', fontSize: 11.5 }}>{r.progress}%</span>

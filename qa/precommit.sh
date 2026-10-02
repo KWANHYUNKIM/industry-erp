@@ -23,4 +23,5 @@ run unit      bash -c 'cd frontend && npm run -s test:unit'
 run ui-check  node qa/ui-check.mjs
 run dto-check node qa/dto-check.mjs
 run arch      node qa/arch-check.mjs
+run style     node qa/style-check.mjs
 exit $fail

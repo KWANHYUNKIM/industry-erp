@@ -18,7 +18,7 @@ const TAB_LABEL: Record<Tab, string> = {
   전체: '전체', DRAFT: '작성', SENT: '서명요청', SIGNED: '서명완료', TERMINATED: '해지',
 }
 const STATUS_COLOR: Record<BusinessContractStatus, string> = {
-  DRAFT: '#5a626e', SENT: 'var(--ec-blue)', SIGNED: '#1c7c3c', TERMINATED: '#8a929c',
+  DRAFT: 'var(--ec-label)', SENT: 'var(--ec-blue)', SIGNED: 'var(--ec-success)', TERMINATED: 'var(--ec-text-hint)',
 }
 
 /** 만료 30일 전부터 경고 */
@@ -126,15 +126,15 @@ export default function ContractPage() {
             {TAB_LABEL[t]} ({count(t)})
           </button>
         ))}
-        <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 12, color: '#5a626e' }}>
+        <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 12, color: 'var(--ec-label)' }}>
           유효계약 {active.length}건 · <b style={{ color: 'var(--ec-blue-dark)' }}>{won(activeTotal)}</b>
           {expiring.length > 0 && (
-            <b style={{ color: '#c60a2e', marginLeft: 8 }}>만료임박 {expiring.length}건</b>
+            <b style={{ color: 'var(--ec-danger)', marginLeft: 8 }}>만료임박 {expiring.length}건</b>
           )}
         </span>
       </div>
       {/* 화면 조건 판의 <b>[기간]</b> — 서버가 이 구간만 준다. 비우면 전 기간이다. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)' }}>
         <span>기간</span>
         <input type="date" className="ec-input" value={pFrom}
                onChange={(e) => setPFrom(e.target.value)} style={{ width: 140 }} />
@@ -144,8 +144,8 @@ export default function ContractPage() {
       </div>
 
 
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)' }}>{notice}</div>}
 
       <Modal error={error} open={showForm} title="계약관리 · 전자계약 등록" onClose={() => setShowForm(false)}>{(
         <ContractForm partners={partners} onError={setError}
@@ -169,26 +169,26 @@ export default function ContractPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((c, i) => {
             const warn = c.status === 'SIGNED' && c.daysToExpiry >= 0 && c.daysToExpiry <= EXPIRY_WARN_DAYS
             const expired = c.status === 'SIGNED' && c.daysToExpiry < 0
             return (
               <Fragment key={c.id}>
                 <tr onClick={() => setOpenId(openId === c.id ? null : c.id)} style={{ cursor: 'pointer' }}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                   <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>
                     {openId === c.id ? '▾ ' : '▸ '}{c.contractNo}
                   </td>
                   <td style={{ fontWeight: 600 }}>{c.title}</td>
-                  <td style={{ textAlign: 'center', color: '#5a626e' }}>{c.typeName}</td>
+                  <td style={{ textAlign: 'center', color: 'var(--ec-label)' }}>{c.typeName}</td>
                   <td>{c.partnerName}</td>
                   <td>{dateText(c.startDate)} ~ {dateText(c.endDate)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(c.amount)}</td>
                   <td style={{ textAlign: 'center', color: STATUS_COLOR[c.status], fontWeight: 600 }}>{c.statusName}</td>
-                  <td style={{ textAlign: 'center', color: expired ? '#8a929c' : warn ? '#c60a2e' : '#5a626e', fontWeight: warn ? 700 : 400 }}>
+                  <td style={{ textAlign: 'center', color: expired ? 'var(--ec-text-hint)' : warn ? 'var(--ec-danger)' : 'var(--ec-label)', fontWeight: warn ? 700 : 400 }}>
                     {c.status === 'TERMINATED' ? '-' : expired ? '만료' : `${c.daysToExpiry}일`}
                   </td>
                   <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
@@ -200,25 +200,25 @@ export default function ContractPage() {
                         <button className="ec-btn ec-btn-primary" style={{ height: 20, padding: '0 8px' }} onClick={() => sign(c)}>전자서명</button>
                       )}
                       {c.status === 'SIGNED' && (
-                        <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => terminate(c)}>해지</button>
+                        <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: 'var(--ec-danger)' }} onClick={() => terminate(c)}>해지</button>
                       )}
                     </div>
                   </td>
                 </tr>
                 {openId === c.id && (
                   <tr className="no-ec">
-                    <td colSpan={10} style={{ padding: '10px 14px', background: '#fafbfc' }}>
+                    <td colSpan={10} style={{ padding: '10px 14px', background: 'var(--ec-bg-page)' }}>
                       <div style={{ display: 'flex', gap: 30, fontSize: 12.5, flexWrap: 'wrap' }}>
                         <div>
-                          <div style={{ color: '#8a929c', marginBottom: 2 }}>결제조건</div>
+                          <div style={{ color: 'var(--ec-text-hint)', marginBottom: 2 }}>결제조건</div>
                           <div>{c.paymentTerms ?? '-'}</div>
                         </div>
                         <div>
-                          <div style={{ color: '#8a929c', marginBottom: 2 }}>서명요청</div>
+                          <div style={{ color: 'var(--ec-text-hint)', marginBottom: 2 }}>서명요청</div>
                           <div>{when(c.sentAt) || '-'}</div>
                         </div>
                         <div>
-                          <div style={{ color: '#8a929c', marginBottom: 2 }}>전자서명</div>
+                          <div style={{ color: 'var(--ec-text-hint)', marginBottom: 2 }}>전자서명</div>
                           <div>
                             {c.signedAt
                               ? <><b>{c.signerName}</b> · {when(c.signedAt)}</>
@@ -226,19 +226,19 @@ export default function ContractPage() {
                           </div>
                         </div>
                         <div style={{ flex: 1, minWidth: 220 }}>
-                          <div style={{ color: '#8a929c', marginBottom: 2 }}>동의문구</div>
-                          <div style={{ color: c.agreement ? '#1c7c3c' : '#9aa1ab' }}>{c.agreement ?? '-'}</div>
+                          <div style={{ color: 'var(--ec-text-hint)', marginBottom: 2 }}>동의문구</div>
+                          <div style={{ color: c.agreement ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>{c.agreement ?? '-'}</div>
                         </div>
                         {c.status === 'TERMINATED' && (
                           <div style={{ minWidth: 200 }}>
-                            <div style={{ color: '#8a929c', marginBottom: 2 }}>해지</div>
-                            <div style={{ color: '#c60a2e' }}>{c.terminatedDate} · {c.terminationReason}</div>
+                            <div style={{ color: 'var(--ec-text-hint)', marginBottom: 2 }}>해지</div>
+                            <div style={{ color: 'var(--ec-danger)' }}>{c.terminatedDate} · {c.terminationReason}</div>
                           </div>
                         )}
                       </div>
                       {c.content && (
                         <div style={{ marginTop: 10 }}>
-                          <div style={{ color: '#8a929c', fontSize: 12.5, marginBottom: 2 }}>계약 내용</div>
+                          <div style={{ color: 'var(--ec-text-hint)', fontSize: 12.5, marginBottom: 2 }}>계약 내용</div>
                           <div style={{ whiteSpace: 'pre-wrap', fontSize: 12.5, background: '#fff', border: '1px solid var(--ec-border)', padding: 8 }}>{c.content}</div>
                         </div>
                       )}
@@ -323,13 +323,13 @@ function ContractForm({ partners, onError, onSaved }: {
         </Field>
       </div>
       <div style={{ marginTop: 10 }}>
-        <div style={{ fontSize: 12.5, color: '#5a626e', marginBottom: 3 }}>계약 내용</div>
+        <div style={{ fontSize: 12.5, color: 'var(--ec-label)', marginBottom: 3 }}>계약 내용</div>
         <textarea className="ec-input" value={form.content} onChange={(e) => set('content', e.target.value)}
           style={{ width: '100%', height: 90, padding: 8, resize: 'vertical' }} placeholder="계약 조항을 입력하세요." />
       </div>
       <div style={{ display: 'flex', gap: 6, marginTop: 8, alignItems: 'center' }}>
         <button className="ec-btn ec-btn-primary" onClick={submit} disabled={saving}>{saving ? '저장 중…' : '저장(F8)'}</button>
-        <span style={{ fontSize: 11.5, color: '#8a929c' }}>
+        <span style={{ fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
           ※ 저장하면 작성 상태입니다. 서명요청을 보내야 상대가 전자서명할 수 있고, 서명이 끝난 계약만 유효계약으로 집계됩니다.
         </span>
       </div>
@@ -340,7 +340,7 @@ function ContractForm({ partners, onError, onSaved }: {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label style={{ fontSize: 12.5 }}>
-      <div style={{ color: '#5a626e', marginBottom: 3 }}>{label}</div>
+      <div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>{label}</div>
       {children}
     </label>
   )

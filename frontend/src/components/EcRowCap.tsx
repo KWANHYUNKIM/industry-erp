@@ -49,7 +49,7 @@ export default function EcRowCap({ capped, shown, total, hint, sums = true }: {
   if (!capped) return null
   return (
     <p style={{
-      background: '#fff8e1', color: '#7a5b00', padding: '6px 10px',
+      background: 'var(--ec-warn-bg)', color: '#7a5b00', padding: '6px 10px',
       fontSize: 12.5, borderRadius: 3, marginBottom: 8,
     }}>
       모두 {total.toLocaleString('ko-KR')}줄 중 앞 {shown.toLocaleString('ko-KR')}줄만 그렸습니다 —

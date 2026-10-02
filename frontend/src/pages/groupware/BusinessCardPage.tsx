@@ -73,12 +73,12 @@ export default function BusinessCardPage() {
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
         <button className="ec-btn ec-btn-primary" onClick={() => setEditing('new')}>+ 명함 등록(F2)</button>
-        <span style={{ fontSize: 12, color: '#9aa1ab', marginRight: 6 }}>
+        <span style={{ fontSize: 12, color: 'var(--ec-text-hint)', marginRight: 6 }}>
           이름·회사·연락처·메모로 검색됩니다. 거래처를 연결하면 상호가 자동으로 따라옵니다.
         </span>
         {allTags.length > 0 && (
           <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-            <span style={{ fontSize: 12, color: '#5a626e' }}>태그</span>
+            <span style={{ fontSize: 12, color: 'var(--ec-label)' }}>태그</span>
             <button className="ec-btn" style={{ height: 20, padding: '0 8px', fontWeight: tag === '' ? 700 : 400 }} onClick={() => setTag('')}>전체</button>
             {allTags.map((t) => (
               <button
@@ -94,8 +94,8 @@ export default function BusinessCardPage() {
         )}
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)' }}>{notice}</div>}
 
       <table ref={tableRef} className="w-full text-left">
         <thead>
@@ -114,33 +114,33 @@ export default function BusinessCardPage() {
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>
               {cards.length === 0 ? '등록된 명함이 없습니다.' : '검색 결과가 없습니다.'}
             </td></tr>
           ) : shown.map((c, i) => (
             <tr key={c.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ fontWeight: 700 }}>{c.name}</td>
               <td>
                 {c.companyName ?? '-'}
-                {c.partnerId && <span style={{ marginLeft: 4, fontSize: 10.5, color: '#1c7c3c' }}>거래처</span>}
+                {c.partnerId && <span style={{ marginLeft: 4, fontSize: 10.5, color: 'var(--ec-success)' }}>거래처</span>}
               </td>
-              <td style={{ color: '#5a626e' }}>
+              <td style={{ color: 'var(--ec-label)' }}>
                 {[c.department, c.jobTitle].filter(Boolean).join(' / ') || '-'}
               </td>
               <td style={{ fontFamily: 'monospace' }}>{c.mobile ?? ''}</td>
-              <td style={{ fontFamily: 'monospace', color: '#8a929c' }}>{c.phone ?? ''}</td>
+              <td style={{ fontFamily: 'monospace', color: 'var(--ec-text-hint)' }}>{c.phone ?? ''}</td>
               <td>{c.email ? <a href={`mailto:${c.email}`} style={{ color: 'var(--ec-blue)' }}>{c.email}</a> : ''}</td>
               <td>
                 {c.tags.map((t) => (
-                  <span key={t} style={{ marginRight: 3, fontSize: 11, padding: '1px 5px', background: '#eef5ff', border: '1px solid #cfe0f5', borderRadius: 8, color: '#2b5b91' }}>#{t}</span>
+                  <span key={t} style={{ marginRight: 3, fontSize: 11, padding: '1px 5px', background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', borderRadius: 8, color: 'var(--ec-navy)' }}>#{t}</span>
                 ))}
               </td>
-              <td style={{ color: '#8a929c' }}>{c.ownerName ?? ''}</td>
+              <td style={{ color: 'var(--ec-text-hint)' }}>{c.ownerName ?? ''}</td>
               <td style={{ textAlign: 'center' }}>
                 <div style={{ display: 'inline-flex', gap: 3 }}>
                   <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => setEditing(c)}>수정</button>
-                  <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => remove(c)}>삭제</button>
+                  <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: 'var(--ec-danger)' }} onClick={() => remove(c)}>삭제</button>
                 </div>
               </td>
             </tr>
@@ -220,18 +220,18 @@ function CardForm({ card, partners, users, onClose, onSaved }: {
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 600, maxWidth: '94vw', maxHeight: '90vh', overflow: 'auto', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: '#f5f7fa' }}>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: 'var(--ec-bg-page)' }}>
           <span style={{ fontWeight: 800, color: 'var(--ec-blue-dark)' }}>{card ? '명함 수정' : '명함 등록'}</span>
-          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: '#8a929c' }}>×</span>
+          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: 'var(--ec-text-hint)' }}>×</span>
         </div>
         <div style={{ padding: 16 }}>
-          {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+          {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
           <table className="w-full text-left">
             <tbody>
               <tr>
-                <th style={{ width: 90, background: '#f5f7fa' }}>이름<span style={{ color: '#c60a2e' }}>*</span></th>
+                <th style={{ width: 90, background: 'var(--ec-bg-page)' }}>이름<span style={{ color: 'var(--ec-danger)' }}>*</span></th>
                 <td><input className="ec-input" value={name} onChange={(e) => setName(e.target.value)} style={{ width: 150 }} /></td>
-                <th style={{ width: 70, background: '#f5f7fa' }}>보유자</th>
+                <th style={{ width: 70, background: 'var(--ec-bg-page)' }}>보유자</th>
                 <td>
                   {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
                   <CodePickerField label="보유자" hideLabel width={150} placeholder="보유자" emptyLabel="선택 안 함"
@@ -240,7 +240,7 @@ function CardForm({ card, partners, users, onClose, onSaved }: {
                 </td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>거래처</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>거래처</th>
                 <td colSpan={3}>
                 {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다 —
                     거래처가 몇백 개가 되면 이름으로도 코드로도 못 찾는다. */}
@@ -251,40 +251,40 @@ function CardForm({ card, partners, users, onClose, onSaved }: {
               </tr>
               {!partnerId && (
                 <tr>
-                  <th style={{ background: '#f5f7fa' }}>회사명<span style={{ color: '#c60a2e' }}>*</span></th>
+                  <th style={{ background: 'var(--ec-bg-page)' }}>회사명<span style={{ color: 'var(--ec-danger)' }}>*</span></th>
                   <td colSpan={3}>
                     <input className="ec-input" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="아직 거래 전인 잠재 고객 등" style={{ width: 240 }} />
                   </td>
                 </tr>
               )}
               <tr>
-                <th style={{ background: '#f5f7fa' }}>부서</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>부서</th>
                 <td><input className="ec-input" value={department} onChange={(e) => setDepartment(e.target.value)} style={{ width: 150 }} /></td>
-                <th style={{ background: '#f5f7fa' }}>직위</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>직위</th>
                 <td><input className="ec-input" value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>휴대폰</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>휴대폰</th>
                 <td><input className="ec-input" value={mobile} onChange={(e) => setMobile(e.target.value)} placeholder="010-0000-0000" style={{ width: 150 }} /></td>
-                <th style={{ background: '#f5f7fa' }}>전화</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>전화</th>
                 <td><input className="ec-input" value={phone} onChange={(e) => setPhone(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>이메일</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>이메일</th>
                 <td colSpan={3}><input className="ec-input" value={email} onChange={(e) => setEmail(e.target.value)} style={{ width: 240 }} /></td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>주소</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>주소</th>
                 <td colSpan={3}><input className="ec-input" value={address} onChange={(e) => setAddress(e.target.value)} style={{ width: '100%' }} /></td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>태그</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>태그</th>
                 <td colSpan={3}>
                   <input className="ec-input" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="쉼표로 구분 (예: 핵심, 구매팀)" style={{ width: '100%' }} />
                 </td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>메모</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>메모</th>
                 <td colSpan={3}>
                   <textarea className="ec-input" value={memo} onChange={(e) => setMemo(e.target.value)} rows={3} style={{ width: '100%', resize: 'vertical' }} />
                 </td>

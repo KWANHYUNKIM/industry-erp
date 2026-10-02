@@ -92,21 +92,21 @@ export default function RolesPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : roles.length === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : (
             sort.sorted.map((r, idx) => {
               const isAdmin = r.name === 'ADMIN'
               return (
                 <tr key={r.id}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
+                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{idx + 1}</td>
                   <td style={{ fontFamily: 'monospace' }}>
                     {r.name}
-                    {r.system && <span style={{ marginLeft: 6, fontSize: 10.5, color: '#9aa1ab' }}>기본</span>}
+                    {r.system && <span style={{ marginLeft: 6, fontSize: 10.5, color: 'var(--ec-text-hint)' }}>기본</span>}
                   </td>
                   <td>{r.displayName}</td>
-                  <td style={{ color: '#6b7280' }}>{r.description ?? ''}</td>
+                  <td style={{ color: 'var(--ec-text-muted)' }}>{r.description ?? ''}</td>
                   <td style={{ textAlign: 'center' }}>{r.userCount ?? 0}</td>
                   <td style={{ textAlign: 'center' }}>
                     {isAdmin
@@ -116,7 +116,7 @@ export default function RolesPage() {
                   <td style={{ textAlign: 'center' }}>
                     <button onClick={() => setEditing(r)} className="ec-btn" style={{ height: 20, padding: '0 8px' }}>편집</button>
                     {!r.system && (
-                      <button onClick={() => remove(r)} className="no-ec" style={{ marginLeft: 8, border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                      <button onClick={() => remove(r)} className="no-ec" style={{ marginLeft: 8, border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button>
                     )}
                   </td>
                 </tr>
@@ -235,13 +235,13 @@ function RoleForm({
               const allOn = items.every((p) => selected.has(p.code))
               return (
                 <div key={category} style={{ border: '1px solid #e6e9ee', borderRadius: 4, padding: '8px 10px' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: 12.5, color: '#3a4453', marginBottom: 6, paddingBottom: 4, borderBottom: '1px solid #eef1f4' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: 12.5, color: 'var(--ec-text)', marginBottom: 6, paddingBottom: 4, borderBottom: '1px solid #eef1f4' }}>
                     <input type="checkbox" checked={allOn} onChange={() => toggleCategory(items, !allOn)} />
                     {category}
                   </label>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     {items.map((p) => (
-                      <label key={p.code} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: '#4a5260' }}>
+                      <label key={p.code} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--ec-label)' }}>
                         <input type="checkbox" checked={selected.has(p.code)} onChange={() => toggle(p.code)} />
                         {p.name}
                       </label>
@@ -254,7 +254,7 @@ function RoleForm({
         )}
       </div>
 
-      {error && <p style={{ marginTop: 10, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p style={{ marginTop: 10, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
       <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
         <button type="button" onClick={onCancel} className="ec-btn">취소</button>

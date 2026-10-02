@@ -1189,14 +1189,14 @@ export default function EcountLayout() {
             onClick={(e) => e.stopPropagation()}
             style={{ background: '#fff', borderRadius: 5, width: 1040, maxWidth: '96vw', boxShadow: '0 12px 34px rgba(0,0,0,.22)' }}
           >
-            <div style={{ padding: '12px 16px', borderBottom: '1px solid #e6eaef', display: 'flex', alignItems: 'center' }}>
+            <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--ec-line-soft)', display: 'flex', alignItems: 'center' }}>
               <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--ec-text)' }}>사이트맵 · 전체 메뉴</span>
               <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => setSitemapOpen(false)}>닫기</button>
             </div>
 
             <div style={{ display: 'flex', minHeight: 380 }}>
               {/* 좌측 대메뉴 레일 */}
-              <div style={{ width: 168, flexShrink: 0, borderRight: '1px solid #e6eaef', padding: '8px 0', background: '#fafbfc' }}>
+              <div style={{ width: 168, flexShrink: 0, borderRight: '1px solid var(--ec-line-soft)', padding: '8px 0', background: 'var(--ec-bg-page)' }}>
                 {MENU.map((m, i) => (
                   !topOk(m) ? null :
                   <button
@@ -1206,7 +1206,7 @@ export default function EcountLayout() {
                     style={{
                       display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px',
                       background: i === sitemapIdx ? '#fff' : 'none', border: 0, cursor: 'pointer', fontSize: 13,
-                      color: i === sitemapIdx ? 'var(--ec-blue)' : '#3a4453',
+                      color: i === sitemapIdx ? 'var(--ec-blue)' : 'var(--ec-text)',
                       fontWeight: i === sitemapIdx ? 800 : 400,
                       borderLeft: i === sitemapIdx ? '3px solid var(--ec-blue)' : '3px solid transparent',
                     }}
@@ -1231,14 +1231,14 @@ export default function EcountLayout() {
                       isGroup(node) ? (
                         node.children.some(leafOk) ? (
                         <div key={node.label} style={{ marginBottom: 6 }}>
-                          <div style={{ fontWeight: 700, fontSize: 11.5, color: '#8a929c', margin: '4px 0 2px' }}>{node.label}</div>
+                          <div style={{ fontWeight: 700, fontSize: 11.5, color: 'var(--ec-text-hint)', margin: '4px 0 2px' }}>{node.label}</div>
                           {node.children.filter(leafOk).map((c) => (
                             <button
                               key={c.label} disabled={!c.to} onClick={() => c.to && gotoMenu(c.to)}
                               style={{
                                 display: 'block', width: '100%', textAlign: 'left', padding: '3px 6px 3px 12px',
                                 fontSize: 12, background: 'none', border: 0, borderRadius: 3,
-                                cursor: c.to ? 'pointer' : 'default', color: c.to ? '#3a4453' : '#b3b8bf',
+                                cursor: c.to ? 'pointer' : 'default', color: c.to ? 'var(--ec-text)' : '#b3b8bf',
                               }}
                               onMouseEnter={(e) => { if (c.to) e.currentTarget.style.background = 'var(--ec-blue-light)' }}
                               onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
@@ -1254,7 +1254,7 @@ export default function EcountLayout() {
                           style={{
                             display: 'block', width: '100%', textAlign: 'left', padding: '3px 6px',
                             fontSize: 12, background: 'none', border: 0, borderRadius: 3,
-                            cursor: node.to ? 'pointer' : 'default', color: node.to ? '#3a4453' : '#b3b8bf',
+                            cursor: node.to ? 'pointer' : 'default', color: node.to ? 'var(--ec-text)' : '#b3b8bf',
                           }}
                           onMouseEnter={(e) => { if (node.to) e.currentTarget.style.background = 'var(--ec-blue-light)' }}
                           onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}

@@ -508,15 +508,15 @@ export default function TableContextMenu({
         onContextMenu={(e) => e.preventDefault()}
         style={{
           position: 'fixed', left, top, zIndex: 80, width,
-          background: '#fff', border: '1px solid #c9d1da', borderRadius: 3,
+          background: '#fff', border: '1px solid var(--ec-line)', borderRadius: 3,
           boxShadow: '0 6px 18px rgba(20,36,68,.22)', padding: 4,
           // 메뉴 끝까지 굴려도 그 스크롤이 뒷장으로 넘어가지 않게 한다(넘어가면 메뉴가 닫힌다)
           maxHeight: 420, overflowY: 'auto', overscrollBehavior: 'contain',
         }}
       >
         {open.sections.map((sec, si) => (
-          <div key={sec.title} style={{ borderTop: si > 0 ? '1px solid #eef1f5' : undefined, paddingTop: si > 0 ? 3 : 0, marginTop: si > 0 ? 3 : 0 }}>
-            <div style={{ padding: '3px 8px', fontSize: 10.5, fontWeight: 700, color: '#9aa1ab' }}>{sec.title}</div>
+          <div key={sec.title} style={{ borderTop: si > 0 ? '1px solid var(--ec-line-soft)' : undefined, paddingTop: si > 0 ? 3 : 0, marginTop: si > 0 ? 3 : 0 }}>
+            <div style={{ padding: '3px 8px', fontSize: 10.5, fontWeight: 700, color: 'var(--ec-text-hint)' }}>{sec.title}</div>
             {sec.items.map((item, ii) => (
               <button
                 key={`${item.label}-${ii}`}
@@ -533,7 +533,7 @@ export default function TableContextMenu({
               >
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</span>
                 {item.hint && (
-                  <span style={{ marginLeft: 'auto', fontSize: 10.5, color: '#9aa1ab', maxWidth: 78, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ marginLeft: 'auto', fontSize: 10.5, color: 'var(--ec-text-hint)', maxWidth: 78, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {item.hint}
                   </span>
                 )}

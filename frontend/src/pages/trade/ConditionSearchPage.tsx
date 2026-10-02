@@ -108,7 +108,7 @@ export default function ConditionSearchPage() {
   }
 
   const inputCls = 'ec-input'
-  const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 110 }
+  const th: React.CSSProperties = { background: 'var(--ec-bg-page)', fontWeight: 700, whiteSpace: 'nowrap', width: 110 }
 
   function reset() {
     setFrom(monthStart); setTo(today)
@@ -127,7 +127,7 @@ export default function ConditionSearchPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       {/* 원본은 조건을 라벨 표로 세로로 쌓는다: 기준일자 / 거래처 / 프로젝트 / 종류 */}
       <table className="w-full text-left" style={{ marginBottom: 10 }}>
@@ -183,7 +183,7 @@ export default function ConditionSearchPage() {
       </table>
 
       {ran && basis === 'GROUP' && (
-        <p style={{ fontSize: 12, color: '#5a626e', marginBottom: 6 }}>
+        <p style={{ fontSize: 12, color: 'var(--ec-label)', marginBottom: 6 }}>
           연결거래처합산 대상: <b>{targetPartners.length}</b>개 거래처
           {targetPartners.length > 0 && ` (${targetPartners.map((p) => p.name).join(', ')})`}
         </p>
@@ -199,25 +199,25 @@ export default function ConditionSearchPage() {
         </tr></thead>
         <tbody>
           {!ran ? (
-            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>조건을 정하고 검색하세요.</td></tr>
+            <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>조건을 정하고 검색하세요.</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td>{r.name}</td>
               <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(r.sale)}</td>
-              <td style={{ textAlign: 'right', color: '#c07a00' }}>{won(r.purchase)}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600, color: r.net >= 0 ? '#1c7c3c' : '#c60a2e' }}>{won(r.net)}</td>
+              <td style={{ textAlign: 'right', color: 'var(--ec-warn)' }}>{won(r.purchase)}</td>
+              <td style={{ textAlign: 'right', fontWeight: 600, color: r.net >= 0 ? 'var(--ec-success)' : 'var(--ec-danger)' }}>{won(r.net)}</td>
             </tr>
           ))}
         </tbody>
         {ran && rows.length > 0 && (
-          <tfoot><tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+          <tfoot><tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
             <td colSpan={2} style={{ textAlign: 'right' }}>합계 ({BASIS_LABEL[basis]})</td>
             <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(totals.sale)}</td>
-            <td style={{ textAlign: 'right', color: '#c07a00' }}>{won(totals.purchase)}</td>
-            <td style={{ textAlign: 'right', color: totals.net >= 0 ? '#1c7c3c' : '#c60a2e' }}>{won(totals.net)}</td>
+            <td style={{ textAlign: 'right', color: 'var(--ec-warn)' }}>{won(totals.purchase)}</td>
+            <td style={{ textAlign: 'right', color: totals.net >= 0 ? 'var(--ec-success)' : 'var(--ec-danger)' }}>{won(totals.net)}</td>
           </tr></tfoot>
         )}
       </table>

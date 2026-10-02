@@ -126,7 +126,7 @@ export default function LotTxStatusPage() {
         기준일자 구간의 로트 움직임. [집계]로 바꾸면 고른 단위로 합쳐서 본다.
       </p>
 
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
 
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         {/* 원본 조건 차례: 구분 · 기준일자 · 유효기한 · 시리얼/로트No. · 창고 · 품목 · 전표구분 */}
@@ -194,8 +194,8 @@ export default function LotTxStatusPage() {
         </EcCond>
       </ul>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
-        {dateText(from)} ~ {dateText(to)} · 줄 <b style={{ color: '#3a4453' }}>{num(shown.length)}</b>건 ·
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)' }}>
+        {dateText(from)} ~ {dateText(to)} · 줄 <b style={{ color: 'var(--ec-text)' }}>{num(shown.length)}</b>건 ·
         수량합 <b style={{ color: 'var(--ec-blue-dark)' }}>{num(totalQty)}</b>
       </div>
 
@@ -211,12 +211,12 @@ export default function LotTxStatusPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : groups.length === 0 ? (
-              <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : groups.map((g, i) => (
               <tr key={g.label}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td>{g.label}</td>
                 <td style={{ textAlign: 'right' }}>{num(g.count)}</td>
                 <td style={{ textAlign: 'right' }}>{num(g.sums.qty)}</td>
@@ -242,20 +242,20 @@ export default function LotTxStatusPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((r, i) => (
               <tr key={r.id}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td>{dateText(r.txDate)}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.lotNo}</td>
-                <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{r.itemCode}</td>
+                <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{r.itemCode}</td>
                 <td>{r.itemName}</td>
-                <td style={{ color: r.warehouseName ? undefined : '#c9ced6' }}>{r.warehouseName ?? '(미지정)'}</td>
-                <td style={{ color: r.expireDate ? '#5a626e' : '#c9ced6' }}>{dateText(r.expireDate) || ''}</td>
+                <td style={{ color: r.warehouseName ? undefined : 'var(--ec-text-off)' }}>{r.warehouseName ?? '(미지정)'}</td>
+                <td style={{ color: r.expireDate ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{dateText(r.expireDate) || ''}</td>
                 <td>{r.typeName}</td>
-                <td style={{ textAlign: 'right', color: r.quantityChange < 0 ? '#c60a2e' : '#1c7c3c' }}>
+                <td style={{ textAlign: 'right', color: r.quantityChange < 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>
                   {num(r.quantityChange)}
                 </td>
                 <td style={{ textAlign: 'right' }}>{num(r.balanceAfter)}</td>

@@ -40,12 +40,12 @@ interface MergedRow {
 
 const mono = { fontFamily: 'monospace' as const }
 function statusColor(s: string | null) {
-  if (!s) return '#c5cbd3'
-  if (s === '정상') return '#1c7c3c'
-  if (s === '결근') return '#c60a2e'
-  return '#c07a00'
+  if (!s) return 'var(--ec-text-off)'
+  if (s === '정상') return 'var(--ec-success)'
+  if (s === '결근') return 'var(--ec-danger)'
+  return 'var(--ec-warn)'
 }
-const catColor: Record<string, string> = { 회의: '#2b6cb0', 출장: '#a5561b', 교육: '#1c7c3c', 기타: '#8a929c' }
+const catColor: Record<string, string> = { 회의: '#2b6cb0', 출장: '#a5561b', 교육: 'var(--ec-success)', 기타: 'var(--ec-text-hint)' }
 
 export default function WorkIntegratedPage() {
   const [att, setAtt] = useState<AttendanceRow[]>([])
@@ -203,7 +203,7 @@ export default function WorkIntegratedPage() {
                   onClick={() => setTab(t)}>{t}</button>
         ))}
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)' }}>
         <span>기간</span>
         <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 150 }} />
         <span>~</span>
@@ -264,15 +264,15 @@ export default function WorkIntegratedPage() {
                     onClick={() => setSubtotal(v)}>{v}</button>
           ))}
         </div>
-        <span style={{ marginLeft: 8, color: '#9aa1ab' }}>근태·일정을 사원명+일자로 통합</span>
+        <span style={{ marginLeft: 8, color: 'var(--ec-text-hint)' }}>근태·일정을 사원명+일자로 통합</span>
         <span style={{ marginLeft: 'auto', fontSize: 12.5 }}>
-          행 <b style={{ color: '#3c4553' }}>{rows.length}</b>
-          <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+          행 <b style={{ color: 'var(--ec-text)' }}>{rows.length}</b>
+          <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
           일정 <b style={{ color: '#2b6cb0', fontSize: 14 }}>{eventTotal}</b>건
         </span>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       <table className="w-full text-left">
         <thead>
@@ -287,24 +287,24 @@ export default function WorkIntegratedPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((r, i) => (
             <tr key={r.key}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={mono}>{dateText(r.date)}</td>
               <td>{r.name}</td>
-              <td style={{ color: '#5a626e' }}>{r.department ?? ''}</td>
+              <td style={{ color: 'var(--ec-label)' }}>{r.department ?? ''}</td>
               <td style={{ ...mono, textAlign: 'center' }}>{r.clockIn ?? ''}</td>
               <td style={{ ...mono, textAlign: 'center' }}>{r.clockOut ?? ''}</td>
               <td style={{ textAlign: 'center', fontWeight: 700, color: statusColor(r.status) }}>{r.status ?? ''}</td>
-              <td style={{ color: '#5a626e' }}>{r.note ?? ''}</td>
+              <td style={{ color: 'var(--ec-label)' }}>{r.note ?? ''}</td>
               <td>
-                {r.events.length === 0 ? <span style={{ color: '#c5cbd3' }}>-</span> : (
+                {r.events.length === 0 ? <span style={{ color: 'var(--ec-text-off)' }}>-</span> : (
                   <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                     {r.events.map((ev, ei) => (
-                      <span key={ei} style={{ fontSize: 11.5, padding: '1px 7px', borderRadius: 10, background: '#f1f4f8', color: catColor[ev.category ?? '기타'] ?? '#5a626e' }}>
+                      <span key={ei} style={{ fontSize: 11.5, padding: '1px 7px', borderRadius: 10, background: '#f1f4f8', color: catColor[ev.category ?? '기타'] ?? 'var(--ec-label)' }}>
                         {ev.category ? `[${ev.category}] ` : ''}{ev.startTime ? `${ev.startTime} ` : ''}{ev.title}
                       </span>
                     ))}
@@ -332,8 +332,8 @@ export default function WorkIntegratedPage() {
                 <tr key={g.label}>
                   <td style={{ fontWeight: 600 }}>{g.label}</td>
                   <td style={{ textAlign: 'right' }}>{g.sums.건수}</td>
-                  <td style={{ textAlign: 'right', color: g.sums.결근 ? '#c60a2e' : undefined }}>{g.sums.결근}</td>
-                  <td style={{ textAlign: 'right', color: g.sums.지각조퇴 ? '#c07a00' : undefined }}>{g.sums.지각조퇴}</td>
+                  <td style={{ textAlign: 'right', color: g.sums.결근 ? 'var(--ec-danger)' : undefined }}>{g.sums.결근}</td>
+                  <td style={{ textAlign: 'right', color: g.sums.지각조퇴 ? 'var(--ec-warn)' : undefined }}>{g.sums.지각조퇴}</td>
                   <td style={{ textAlign: 'right', color: g.sums.일정 ? '#2b6cb0' : undefined }}>{g.sums.일정}</td>
                 </tr>
               ))}

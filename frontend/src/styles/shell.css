@@ -392,19 +392,32 @@
   font-weight: 700;
 }
 
-/* ── 화면 머리(제목 줄) — 각 화면이 쓴다 ── */
+/* ── 화면 머리(제목 줄) — EcListShell · EcSlipShell 이 쓴다 ──
+   ec56 판매조회 실측: ★(금색 · 폭 22) + 제목 14px 700 · 여백 4.5 · 줄 높이 30 */
 .ec-page-head {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 26px;
-  margin-bottom: 10px;
+  gap: 5px;
+  min-height: 30px;
+  margin-bottom: 6px;
 }
 .ec-page-title {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 4.5px 0 0;
   font-size: var(--ec-fs-menu);
   font-weight: 700;
   line-height: 21px;
   color: var(--ec-ink);
+}
+.ec-page-title::before {
+  content: "★";
+  width: 22px;
+  font-size: 13px;
+  color: var(--ec-star);
+}
+.ec-page-title.off::before {
+  color: var(--ec-line);
 }
 .ec-page-head > .tools {
   margin-left: auto;
@@ -436,3 +449,192 @@
   color: #fff;
   font-weight: 700;
 }
+
+/* 빠른검색 칸 — 제목 줄 오른쪽(ec56 실측 폭 134) */
+.ec-quick {
+  width: 134px;
+}
+.ec-quick:focus {
+  border-color: var(--ec-line-focus);
+}
+
+/* 고르는 목록이 뜨는 작은 판([Option] 메뉴 · 메뉴검색 결과) */
+/* ec56 [Option] 펼침 실측: 판 여백 4.5 · 둥글기 20 · 그림자 / 항목 높이 27 · 여백 4.5px 9px · 둥글기 10 */
+.ec-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 41;
+  min-width: 133px;
+  padding: 4.5px;
+  background: #fff;
+  border: var(--ec-hair) solid var(--ec-line);
+  border-radius: var(--ec-radius-panel);
+  box-shadow: var(--ec-shadow-pop);
+}
+.ec-menu > button {
+  display: block;
+  width: 100%;
+  min-height: 27px;
+  padding: 4.5px 9px;
+  border: 0;
+  border-radius: var(--ec-radius);
+  background: none;
+  color: var(--ec-text);
+  font-size: var(--ec-fs);
+  text-align: left;
+  cursor: pointer;
+}
+.ec-menu > button:hover {
+  color: var(--ec-navy);            /* 원본은 바탕이 그대로다(측정) — 글자색만 */
+}
+.ec-backdrop-clear {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+
+/* 잠깐 뜨는 안내 줄(검색결과 n건 …) */
+.ec-notice {
+  margin-bottom: 6px;
+  padding: 5px 9px;
+  border: var(--ec-hair) solid #cfe0f5;
+  border-radius: var(--ec-radius);
+  background: var(--ec-blue-wash);
+  color: var(--ec-navy);
+  font-size: var(--ec-fs);
+}
+
+/* 하단 버튼줄 — 원본 .footer.footer-fixed: 본문 틀 바닥에 붙어 있고(스크롤해도 그 자리),
+   바탕은 본문 틀과 같고 윗선이 없다. 높이 38 · 여백 6.3px 9px · 버튼 사이 5 */
+.ec-footer {
+  position: sticky;
+  bottom: -10px;                 /* 본문 틀 아래 여백(10)까지 덮는다 */
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-height: var(--ec-footer-h);
+  margin: 10px -10px -10px;
+  padding: 6.3px 9px;
+  background: var(--ec-bg-page);
+}
+
+/* ── 팝업창(components/Modal) — ec56 거래처검색 창 실측 ──
+   뒤 화면을 어둡게 하지 않는다. 창은 본문 틀과 같은 바탕 · 둥글기 20 · 큰 그림자,
+   제목줄은 파란 바(높이 31 · 흰 글자 12px) 오른쪽 끝에 ✕(폭 36). */
+.ec-modal-back {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 56px 16px;
+  overflow: auto;
+  background: transparent;
+}
+.ec-modal {
+  max-width: 96vw;
+  background: var(--ec-bg-page);
+  border: var(--ec-hair) solid var(--ec-line);
+  border-radius: var(--ec-radius-panel);
+  box-shadow: var(--ec-shadow-modal);
+}
+.ec-modal-bar {
+  display: flex;
+  align-items: center;
+  height: 31px;
+  background: var(--ec-blue);
+  color: #fff;
+  border-radius: var(--ec-radius-panel) var(--ec-radius-panel) 0 0;
+}
+.ec-modal-bar > .name {
+  flex: 1;
+  padding: 0 0 0 9px;
+  font-size: var(--ec-fs);
+}
+.ec-modal-bar > .close {
+  width: 36px;
+  height: 31px;
+  border: 0;
+  border-radius: 0 var(--ec-radius-panel) 0 0;
+  background: none;
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+.ec-modal-body {
+  padding: 10px;
+}
+/* 저장 실패 같은 오류 한 줄 */
+.ec-error {
+  margin: 0 0 10px;
+  padding: 6px 10px;
+  border-radius: var(--ec-radius);
+  background: #fdecec;
+  color: #c60a2e;
+  font-size: var(--ec-fs);
+}
+
+/* ── MyPage 위젯 — ec56 MyPage 실측 ──
+   흰 판 · 머리카락 테두리 · 둥글기 20 · 사이 9 / 제목 15px 700(구분선 없음) · 머리 여백 8.1 13.5 4.5 · 본문 여백 9 13.5 13.5 */
+.ec-widgets {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+.ec-widget {
+  display: flex;
+  flex-direction: column;
+  min-height: 120px;
+  background: var(--ec-bg-panel);
+  border: var(--ec-hair) solid var(--ec-line);
+  border-radius: var(--ec-radius-panel);
+}
+.ec-widget.editing {
+  border: 1px dashed var(--ec-blue);
+}
+.ec-widget-head {
+  display: flex;
+  align-items: center;
+  padding: 8.1px 13.5px 4.5px;
+}
+.ec-widget-head > .name {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 28px;
+  color: var(--ec-ink);
+}
+.ec-widget-head > .tools {
+  position: relative;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.ec-widget-head > .tools > button,
+.ec-widget-head > .tools > a {
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: var(--ec-radius);
+  background: none;
+  color: var(--ec-icon);
+  font-size: 12px;
+  text-align: center;
+  text-decoration: none;
+  line-height: 22px;
+  cursor: pointer;
+}
+.ec-widget-head > .tools > :hover:not(:disabled) { color: var(--ec-navy); }
+.ec-widget-head > .tools > :disabled { cursor: default; opacity: 0.5; }
+.ec-widget-head > .tools > .spin { color: var(--ec-blue); transform: rotate(360deg); transition: transform .6s; }
+.ec-widget-body {
+  flex: 1;
+  padding: 9px 13.5px 13.5px;
+}
+.danger,
+.ec-menu > button.danger { color: var(--ec-danger); }
+.ec-menu > button:disabled { color: var(--ec-text-off); cursor: default; }

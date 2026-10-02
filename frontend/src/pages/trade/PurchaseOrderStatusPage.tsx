@@ -27,8 +27,8 @@ const STATUS_LABEL: Record<PurchaseOrderStatus, string> = {
   ORDERED: '발주확정', RECEIVED: '입고전환', CANCELLED: '취소',
 }
 const STATUS_COLOR: Record<PurchaseOrderStatus, string> = {
-  REQUESTED: '#8a929c', PLANNED: '#8a929c', PRICED: '#c07a00',
-  ORDERED: 'var(--ec-blue)', RECEIVED: '#1c7c3c', CANCELLED: '#c5cbd3',
+  REQUESTED: 'var(--ec-text-hint)', PLANNED: 'var(--ec-text-hint)', PRICED: 'var(--ec-warn)',
+  ORDERED: 'var(--ec-blue)', RECEIVED: 'var(--ec-success)', CANCELLED: 'var(--ec-text-off)',
 }
 
 interface Row {
@@ -311,7 +311,7 @@ export default function PurchaseOrderStatusPage() {
       onSearch={load}
       actions={[{ label: '새로고침', onClick: load }, { label: '인쇄' }, { label: 'Excel' }]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         {/* 원본 조건 판 첫째 <b>[구분]</b> — 내역·집계(사본 실측). */}
@@ -337,7 +337,7 @@ export default function PurchaseOrderStatusPage() {
           상세검색 {panelOpen ? '▲' : '▼'}{activeCount > 0 ? ` (${activeCount})` : ''}
         </button>
         {activeCount > 0 && !panelOpen && (
-          <button className="ec-btn" onClick={resetDraft} style={{ fontSize: 12, color: '#8a929c' }}>
+          <button className="ec-btn" onClick={resetDraft} style={{ fontSize: 12, color: 'var(--ec-text-hint)' }}>
             조건 해제
           </button>
         )}
@@ -353,18 +353,18 @@ export default function PurchaseOrderStatusPage() {
         />
       )}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        건수 <b style={{ color: '#3c4553' }}>{shown.length.toLocaleString()}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+        건수 <b style={{ color: 'var(--ec-text)' }}>{shown.length.toLocaleString()}</b>
+        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
         {/*
           <b>합계줄의 말이 조건 이름과 같으면 안 된다.</b> [수량]·[공급가액]·[부가세]를
           조건으로 만들고 나니, 합계줄에 적힌 같은 글자가 <b>조건 판보다 위에</b> 있어
           조건 차례가 어긋난 것으로 읽혔다. 합계는 '총' 을 붙여 구분한다.
         */}
-        총수량 <b style={{ color: '#3c4553', fontSize: 14 }}>{totals.qty.toLocaleString()}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+        총수량 <b style={{ color: 'var(--ec-text)', fontSize: 14 }}>{totals.qty.toLocaleString()}</b>
+        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
         총공급가액 <b style={{ color: '#1c6b32', fontSize: 14 }}>{totals.supply.toLocaleString()}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
         총부가세 <b style={{ color: '#1c6b32', fontSize: 14 }}>{totals.vat.toLocaleString()}</b>
       </div>
       {view === '그래프' ? (
@@ -390,16 +390,16 @@ export default function PurchaseOrderStatusPage() {
           </thead>
           <tbody>
             {grouped.length === 0 ? (
-              <tr><td colSpan={group2 ? 8 : 7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={group2 ? 8 : 7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : grouped.map((g, i) => (
               <tr key={`${g.g1}|${g.g2}`}>
-                <td style={{ textAlign: 'center', color: '#8a929c', background: '#f3f3f3' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)', background: 'var(--ec-report-stripe)' }}>{i + 1}</td>
                 <td>{g.g1}</td>
                 {group2 && <td>{g.g2}</td>}
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{g.count.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{g.count.toLocaleString()}</td>
                 <td style={{ textAlign: 'right' }}>{g.qty.toLocaleString()}</td>
                 <td style={{ textAlign: 'right' }}>{g.supply.toLocaleString()}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{g.vat.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{g.vat.toLocaleString()}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700, color: '#1c6b32' }}>{(g.supply + g.vat).toLocaleString()}</td>
               </tr>
             ))}
@@ -444,10 +444,10 @@ export default function PurchaseOrderStatusPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           /* 그리는 것을 보고 판단한다 - 소계를 끼우는 사이에 shown 과 갈라질 수 있다. */
           ) : lineRows.length === 0 ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
+            <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>
               {rows.length === 0 ? '발주 내역이 없습니다.' : '검색조건에 맞는 자료가 없습니다.'}
             </td></tr>
           ) : lineRows.map((x) => x.kind === 'subtotal' ? (
@@ -461,12 +461,12 @@ export default function PurchaseOrderStatusPage() {
             </tr>
           ) : (
             <tr key={x.key}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{x.no}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{x.no}</td>
               {/* 원본은 일자와 번호를 '2026/09/04 -1' 처럼 한 칸에 적는다. */}
               <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(x.r.date)} {x.r.orderNo}</td>
-              <td style={{ fontFamily: 'monospace', color: x.r.dueDate ? '#5a626e' : '#c5cbd3' }}>{dateText(x.r.dueDate) || ''}</td>
-              <td style={{ color: x.r.warehouse ? undefined : '#c5cbd3' }}>{x.r.warehouse || ''}</td>
-              <td style={{ color: x.r.employee ? undefined : '#c5cbd3' }}>{x.r.employee || ''}</td>
+              <td style={{ fontFamily: 'monospace', color: x.r.dueDate ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{dateText(x.r.dueDate) || ''}</td>
+              <td style={{ color: x.r.warehouse ? undefined : 'var(--ec-text-off)' }}>{x.r.warehouse || ''}</td>
+              <td style={{ color: x.r.employee ? undefined : 'var(--ec-text-off)' }}>{x.r.employee || ''}</td>
               <td style={{ textAlign: 'center' }}>
                 <span style={{ color: STATUS_COLOR[x.r.status], fontWeight: 600, fontSize: 12 }}>
                   {x.r.statusName || STATUS_LABEL[x.r.status]}
@@ -477,10 +477,10 @@ export default function PurchaseOrderStatusPage() {
               <td style={{ textAlign: 'right' }}>{x.r.qty.toLocaleString()}</td>
               <td style={{ textAlign: 'right' }}>{x.r.unitPrice.toLocaleString()}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: '#1c6b32' }}>{x.r.supply.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', color: '#8a929c' }}>{x.r.vat.toLocaleString()}</td>
+              <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{x.r.vat.toLocaleString()}</td>
               <td>{x.r.partner}</td>
               {/* 줄 적요가 있으면 그것을, 없으면 전표 적요를 찍는다 — 둘 다 진작 받아 두고 있었다. */}
-              <td style={{ color: '#5a626e' }}>{x.r.lineRemark || x.r.headRemark || ''}</td>
+              <td style={{ color: 'var(--ec-label)' }}>{x.r.lineRemark || x.r.headRemark || ''}</td>
             </tr>
           ))}
         </tbody>
@@ -508,17 +508,17 @@ function SearchPanel({
   onViewChange: (v: '표' | '그래프') => void
 }) {
   const label: React.CSSProperties = {
-    width: 90, fontSize: 12.5, color: '#3c4553', fontWeight: 600,
+    width: 90, fontSize: 12.5, color: 'var(--ec-text)', fontWeight: 600,
     display: 'flex', alignItems: 'center', paddingRight: 8,
   }
   const rowStyle: React.CSSProperties = {
-    display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid #eef1f5',
+    display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid var(--ec-line-soft)',
   }
   return (
     <div
       onKeyDown={(e) => { if (e.key === 'Enter') onApply() }}
       style={{
-        border: '1px solid #d4dae2', borderRadius: 4, background: '#fbfcfe',
+        border: '1px solid var(--ec-line)', borderRadius: 4, background: 'var(--ec-bg-page)',
         padding: '4px 14px 12px', marginBottom: 10,
       }}
     >
@@ -526,7 +526,7 @@ function SearchPanel({
         <span style={label}>기준일자</span>
         <input type="date" className="ec-input" value={draft.dateFrom}
           onChange={(e) => onChange({ dateFrom: e.target.value })} style={{ width: 150 }} />
-        <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-hint)' }}>~</span>
         <input type="date" className="ec-input" value={draft.dateTo}
           onChange={(e) => onChange({ dateTo: e.target.value })} style={{ width: 150 }} />
       </div>
@@ -551,7 +551,7 @@ function SearchPanel({
         <span style={label}>품목별납기일자</span>
         <input type="date" className="ec-input" value={draft.dueFrom}
           onChange={(e) => onChange({ dueFrom: e.target.value })} style={{ width: 150 }} />
-        <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-hint)' }}>~</span>
         <input type="date" className="ec-input" value={draft.dueTo}
           onChange={(e) => onChange({ dueTo: e.target.value })} style={{ width: 150 }} />
       </div>
@@ -630,7 +630,7 @@ function SearchPanel({
         <span style={label}>수량</span>
         <input className="ec-input" type="number" value={draft.qtyFrom}
           onChange={(e) => onChange({ qtyFrom: e.target.value })} style={{ width: 110, textAlign: 'right' }} />
-        <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-hint)' }}>~</span>
         <input className="ec-input" type="number" value={draft.qtyTo}
           onChange={(e) => onChange({ qtyTo: e.target.value })} style={{ width: 110, textAlign: 'right' }} />
       </div>
@@ -638,7 +638,7 @@ function SearchPanel({
         <span style={label}>단가</span>
         <input className="ec-input" type="number" value={draft.priceFrom}
           onChange={(e) => onChange({ priceFrom: e.target.value })} style={{ width: 110, textAlign: 'right' }} />
-        <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-hint)' }}>~</span>
         <input className="ec-input" type="number" value={draft.priceTo}
           onChange={(e) => onChange({ priceTo: e.target.value })} style={{ width: 110, textAlign: 'right' }} />
       </div>
@@ -646,7 +646,7 @@ function SearchPanel({
         <span style={label}>공급가액</span>
         <input className="ec-input" type="number" value={draft.supplyFrom}
           onChange={(e) => onChange({ supplyFrom: e.target.value })} style={{ width: 130, textAlign: 'right' }} />
-        <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-hint)' }}>~</span>
         <input className="ec-input" type="number" value={draft.supplyTo}
           onChange={(e) => onChange({ supplyTo: e.target.value })} style={{ width: 130, textAlign: 'right' }} />
       </div>
@@ -654,7 +654,7 @@ function SearchPanel({
         <span style={label}>부가세</span>
         <input className="ec-input" type="number" value={draft.vatFrom}
           onChange={(e) => onChange({ vatFrom: e.target.value })} style={{ width: 130, textAlign: 'right' }} />
-        <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-hint)' }}>~</span>
         <input className="ec-input" type="number" value={draft.vatTo}
           onChange={(e) => onChange({ vatTo: e.target.value })} style={{ width: 130, textAlign: 'right' }} />
       </div>
@@ -675,7 +675,7 @@ function SearchPanel({
           <option value="RECEIVED">입고전환</option>
           <option value="CANCELLED">취소</option>
         </select>
-        <label style={{ fontSize: 12.5, color: '#3c4553', display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', marginLeft: 20 }}>
+        <label style={{ fontSize: 12.5, color: 'var(--ec-text)', display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', marginLeft: 20 }}>
           <input type="checkbox" checked={draft.sortByDoc}
             onChange={(e) => onChange({ sortByDoc: e.target.checked })} />
           발주번호순(정렬)

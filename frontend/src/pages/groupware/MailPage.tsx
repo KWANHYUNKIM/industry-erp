@@ -25,7 +25,7 @@ const TABS = [
 type Tab = (typeof TABS)[number]
 
 const statusColor = (s: Mail['status']) =>
-  s === 'HANDLED' ? '#1c7c3c' : s === 'IN_PROGRESS' ? '#c07a00' : s === 'UNREAD' ? 'var(--ec-blue)' : '#8a929c'
+  s === 'HANDLED' ? 'var(--ec-success)' : s === 'IN_PROGRESS' ? 'var(--ec-warn)' : s === 'UNREAD' ? 'var(--ec-blue)' : 'var(--ec-text-hint)'
 
 /** 공용메일 — 사내메일(수신/발신)·공용 메일함·임시보관함(초안)·지운함(소프트삭제). 외부 메일서버 연동은 없다. */
 export default function MailPage() {
@@ -164,8 +164,8 @@ export default function MailPage() {
   return (
     <EcListShell title="공용메일" actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)' }}>{notice}</div>}
 
       {/* 원본은 위쪽 탭줄이 아니라 왼쪽 메일함 트리다 */}
       <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
@@ -185,12 +185,12 @@ export default function MailPage() {
                   padding: '6px 12px 6px 20px', fontSize: 12.5, cursor: 'pointer',
                   display: 'flex', alignItems: 'center',
                   background: tab === t ? 'var(--ec-blue-light)' : undefined,
-                  color: tab === t ? 'var(--ec-blue)' : '#3a4453',
+                  color: tab === t ? 'var(--ec-blue)' : 'var(--ec-text)',
                   fontWeight: tab === t ? 700 : 400,
                 }}>
                   {t}
                   {badge > 0 && (
-                    <span style={{ marginLeft: 'auto', fontSize: 11, background: quiet ? '#8a929c' : '#c60a2e', color: '#fff', borderRadius: 8, padding: '1px 6px' }}>
+                    <span style={{ marginLeft: 'auto', fontSize: 11, background: quiet ? 'var(--ec-text-hint)' : 'var(--ec-danger)', color: '#fff', borderRadius: 8, padding: '1px 6px' }}>
                       {badge}
                     </span>
                   )}
@@ -224,41 +224,41 @@ export default function MailPage() {
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((m, i) => (
             <tr key={m.id} onClick={() => rowClick(m)} style={{ cursor: 'pointer' }}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td>{tab === '보낸 메일함' || tab === '임시 보관함' ? (m.recipientName ?? <span style={{ color: '#c07a00' }}>미지정</span>) : (m.senderName ?? m.fromAddress)}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+              <td>{tab === '보낸 메일함' || tab === '임시 보관함' ? (m.recipientName ?? <span style={{ color: 'var(--ec-warn)' }}>미지정</span>) : (m.senderName ?? m.fromAddress)}</td>
               <td style={{ fontWeight: !m.deletedAt && m.status === 'UNREAD' && tab !== '임시 보관함' ? 700 : 400 }}>{m.subject}</td>
-              <td style={{ color: '#8a929c' }}>{when(tab === '지운 메일함' ? m.deletedAt : m.sentAt)}</td>
-              {tab === '공용메일함' && <td>{m.assigneeName ?? <span style={{ color: '#c07a00' }}>미배정</span>}</td>}
-              {tab === '스팸 메일함' && <td style={{ color: '#8a929c', fontSize: 12 }}>{m.spamReason ?? ''}</td>}
+              <td style={{ color: 'var(--ec-text-hint)' }}>{when(tab === '지운 메일함' ? m.deletedAt : m.sentAt)}</td>
+              {tab === '공용메일함' && <td>{m.assigneeName ?? <span style={{ color: 'var(--ec-warn)' }}>미배정</span>}</td>}
+              {tab === '스팸 메일함' && <td style={{ color: 'var(--ec-text-hint)', fontSize: 12 }}>{m.spamReason ?? ''}</td>}
               {tab === '스팸 메일함' ? (
                 <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
-                  <button className="no-ec" onClick={() => markSpam(m, false)} style={btnLink('#1c7c3c')}>스팸 해제</button>
+                  <button className="no-ec" onClick={() => markSpam(m, false)} style={btnLink('var(--ec-success)')}>스팸 해제</button>
                 </td>
               ) : tab === '임시 보관함' ? (
                 <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
                   <button className="no-ec" onClick={() => setEditDraft(m)} style={btnLink('var(--ec-blue)')}>수정</button>
-                  <button className="no-ec" onClick={() => trashMail(m)} style={btnLink('#c60a2e')}>삭제</button>
+                  <button className="no-ec" onClick={() => trashMail(m)} style={btnLink('var(--ec-danger)')}>삭제</button>
                 </td>
               ) : tab === '지운 메일함' ? (
                 <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
-                  <button className="no-ec" onClick={() => restoreMail(m)} style={btnLink('#1c7c3c')}>복원</button>
-                  <button className="no-ec" onClick={() => permanentDelete(m)} style={btnLink('#c60a2e')}>영구삭제</button>
+                  <button className="no-ec" onClick={() => restoreMail(m)} style={btnLink('var(--ec-success)')}>복원</button>
+                  <button className="no-ec" onClick={() => permanentDelete(m)} style={btnLink('var(--ec-danger)')}>영구삭제</button>
                 </td>
               ) : (
                 <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
                   {/* 수신확인함은 '받는 쪽이 읽었는가'를 보는 자리라 읽음/안읽음으로 적는다. */}
                   {tab === '수신확인함' ? (
-                    <span style={{ color: m.status === 'UNREAD' ? '#c07a00' : '#1c7c3c' }}>
+                    <span style={{ color: m.status === 'UNREAD' ? 'var(--ec-warn)' : 'var(--ec-success)' }}>
                       {m.status === 'UNREAD' ? '미확인' : '확인'}
                     </span>
                   ) : (
                     <span style={{ color: statusColor(m.status) }}>{m.statusName}</span>
                   )}
                   {(tab === '공용메일함' || tab === '받은 메일함') && (
-                    <button className="no-ec" onClick={() => markSpam(m, true)} style={btnLink('#c07a00')} title="스팸메일함으로 옮기기">스팸</button>
+                    <button className="no-ec" onClick={() => markSpam(m, true)} style={btnLink('var(--ec-warn)')} title="스팸메일함으로 옮기기">스팸</button>
                   )}
                 </td>
               )}
@@ -270,7 +270,7 @@ export default function MailPage() {
       {tab === '스팸 메일함' && (
         <div style={{ marginTop: 12, border: '1px solid var(--ec-border)', background: '#fbfcfd', padding: 10 }}>
           <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ec-blue-dark)', marginBottom: 6 }}>
-            스팸 분류 규칙 <span style={{ fontWeight: 400, color: '#8a929c', fontSize: 11.5 }}>
+            스팸 분류 규칙 <span style={{ fontWeight: 400, color: 'var(--ec-text-hint)', fontSize: 11.5 }}>
               — 공용메일 수신등록 시 이 규칙과 대조해 스팸함으로 가릅니다(부분일치, 대소문자 무시).
             </span>
           </div>
@@ -294,18 +294,18 @@ export default function MailPage() {
             </tr></thead>
             <tbody>
               {rules.length === 0 ? (
-                <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 14 }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 14 }}>등록된 데이터가 없습니다.</td></tr>
               ) : rules.map((r) => (
                 <tr key={r.id}>
                   <td>{r.kindName}</td>
                   <td style={{ fontFamily: 'monospace' }}>{r.pattern}</td>
                   <td style={{ textAlign: 'center' }}>
-                    <button className="no-ec" onClick={() => toggleRule(r)} style={btnLink(r.active ? '#1c7c3c' : '#8a929c')}>
+                    <button className="no-ec" onClick={() => toggleRule(r)} style={btnLink(r.active ? 'var(--ec-success)' : 'var(--ec-text-hint)')}>
                       {r.active ? '사용중' : '사용중단'}
                     </button>
                   </td>
                   <td style={{ textAlign: 'center' }}>
-                    <button className="no-ec" onClick={() => removeRule(r)} style={btnLink('#c60a2e')}>삭제</button>
+                    <button className="no-ec" onClick={() => removeRule(r)} style={btnLink('var(--ec-danger)')}>삭제</button>
                   </td>
                 </tr>
               ))}
@@ -365,49 +365,49 @@ function MailDetail({ mail, canAssign, canHandle, canTrash, inTrash, onAssign, o
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 640, maxWidth: '94vw', maxHeight: '90vh', overflow: 'auto', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: '#f5f7fa' }}>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: 'var(--ec-bg-page)' }}>
           <span style={{ fontWeight: 800, color: 'var(--ec-blue-dark)' }}>{mail.typeName}{inTrash && ' · 지운함'}</span>
-          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: '#8a929c' }}>×</span>
+          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: 'var(--ec-text-hint)' }}>×</span>
         </div>
         <div style={{ padding: 16 }}>
           <table className="w-full text-left" style={{ marginBottom: 10 }}>
             <tbody>
               <tr>
-                <th style={{ width: 90, background: '#f5f7fa' }}>제목</th>
+                <th style={{ width: 90, background: 'var(--ec-bg-page)' }}>제목</th>
                 <td colSpan={3} style={{ fontWeight: 700 }}>{mail.subject}</td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>보낸 사람</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>보낸 사람</th>
                 <td>{mail.senderName ?? mail.fromAddress}</td>
-                <th style={{ width: 80, background: '#f5f7fa' }}>일시</th>
+                <th style={{ width: 80, background: 'var(--ec-bg-page)' }}>일시</th>
                 <td>{when(mail.sentAt)}</td>
               </tr>
               {mail.type === 'SHARED' && (
                 <tr>
-                  <th style={{ background: '#f5f7fa' }}>담당자</th>
+                  <th style={{ background: 'var(--ec-bg-page)' }}>담당자</th>
                   <td>{mail.assigneeName ?? '미배정'}</td>
-                  <th style={{ background: '#f5f7fa' }}>상태</th>
+                  <th style={{ background: 'var(--ec-bg-page)' }}>상태</th>
                   <td style={{ color: statusColor(mail.status) }}>{mail.statusName}</td>
                 </tr>
               )}
               {mail.handleNote && (
                 <tr>
-                  <th style={{ background: '#f5f7fa' }}>처리 결과</th>
-                  <td colSpan={3}>{mail.handleNote} <span style={{ color: '#8a929c', fontSize: 12 }}>({mail.handledAt ? when(mail.handledAt) : ''})</span></td>
+                  <th style={{ background: 'var(--ec-bg-page)' }}>처리 결과</th>
+                  <td colSpan={3}>{mail.handleNote} <span style={{ color: 'var(--ec-text-hint)', fontSize: 12 }}>({mail.handledAt ? when(mail.handledAt) : ''})</span></td>
                 </tr>
               )}
             </tbody>
           </table>
           <div style={{ border: '1px solid var(--ec-border)', borderRadius: 3, padding: 12, minHeight: 120, whiteSpace: 'pre-wrap', fontSize: 13 }}>
-            {mail.body || <span style={{ color: '#9aa1ab' }}>(내용 없음)</span>}
+            {mail.body || <span style={{ color: 'var(--ec-text-hint)' }}>(내용 없음)</span>}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 6, padding: '10px 16px', borderTop: '1px solid var(--ec-border)' }}>
           {canAssign && <button className="ec-btn" onClick={onAssign}>담당자 배정</button>}
           {canHandle && <button className="ec-btn ec-btn-primary" onClick={onHandle}>처리 완료</button>}
           {inTrash && <button className="ec-btn" onClick={onRestore}>복원</button>}
-          {inTrash && <button className="ec-btn" style={{ color: '#c60a2e' }} onClick={onPermanentDelete}>영구삭제</button>}
-          {canTrash && <button className="ec-btn" style={{ color: '#c60a2e' }} onClick={onTrash}>삭제</button>}
+          {inTrash && <button className="ec-btn" style={{ color: 'var(--ec-danger)' }} onClick={onPermanentDelete}>영구삭제</button>}
+          {canTrash && <button className="ec-btn" style={{ color: 'var(--ec-danger)' }} onClick={onTrash}>삭제</button>}
           <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={onClose}>닫기</button>
         </div>
       </div>
@@ -466,19 +466,19 @@ function ComposeForm({ mode, initial, users, onClose, onSaved }: {
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 640, maxWidth: '94vw', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: '#f5f7fa' }}>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: 'var(--ec-bg-page)' }}>
           <span style={{ fontWeight: 800, color: 'var(--ec-blue-dark)' }}>
             {mode === 'internal' ? (isDraft ? '임시보관 메일 (수정/발송)' : '메일쓰기 (사내메일)') : '공용메일 수신등록'}
           </span>
-          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: '#8a929c' }}>×</span>
+          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: 'var(--ec-text-hint)' }}>×</span>
         </div>
         <div style={{ padding: 16 }}>
-          {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+          {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
           <table className="w-full text-left" style={{ marginBottom: 10 }}>
             <tbody>
               <tr>
-                <th style={{ width: 100, background: '#f5f7fa' }}>
-                  {mode === 'internal' ? '받는 사람' : '보낸 사람'}<span style={{ color: '#c60a2e' }}>*</span>
+                <th style={{ width: 100, background: 'var(--ec-bg-page)' }}>
+                  {mode === 'internal' ? '받는 사람' : '보낸 사람'}<span style={{ color: 'var(--ec-danger)' }}>*</span>
                 </th>
                 <td>
                   {mode === 'internal' ? (
@@ -493,7 +493,7 @@ function ComposeForm({ mode, initial, users, onClose, onSaved }: {
                 </td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>제목<span style={{ color: '#c60a2e' }}>*</span></th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>제목<span style={{ color: 'var(--ec-danger)' }}>*</span></th>
                 <td><input className="ec-input" value={subject} onChange={(e) => setSubject(e.target.value)} style={{ width: '100%' }} /></td>
               </tr>
             </tbody>

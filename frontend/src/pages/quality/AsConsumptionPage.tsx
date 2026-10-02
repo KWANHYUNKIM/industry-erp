@@ -222,18 +222,18 @@ export default function AsConsumptionPage() {
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', display: 'flex', alignItems: 'center' }}>
-        <span style={{ color: '#9aa1ab' }}>A/S 수리에 소모된 부품을 품목별로 집계. 소모부품은 A/S 관리에서 등록합니다.</span>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', display: 'flex', alignItems: 'center' }}>
+        <span style={{ color: 'var(--ec-text-hint)' }}>A/S 수리에 소모된 부품을 품목별로 집계. 소모부품은 A/S 관리에서 등록합니다.</span>
         <span style={{ marginLeft: 'auto' }}>
-          품목 <b style={{ color: '#3c4553' }}>{shown.length}</b>
-          <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-          소모수량 <b style={{ color: '#c07a00', fontSize: 14 }}>{won(totals.qty)}</b>
-          <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+          품목 <b style={{ color: 'var(--ec-text)' }}>{shown.length}</b>
+          <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
+          소모수량 <b style={{ color: 'var(--ec-warn)', fontSize: 14 }}>{won(totals.qty)}</b>
+          <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
           소모금액 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{won(totals.amount)}</b>
         </span>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       {mode === '내역' ? (
       /*
@@ -259,27 +259,27 @@ export default function AsConsumptionPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shownLines.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shownLines.map((l, i) => (
             <tr key={l.partId}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{l.asNo}</td>
               <td>{l.repairItemName}</td>
-              <td style={{ color: l.charge ? undefined : '#c5cbd3' }}>{l.charge || ''}</td>
+              <td style={{ color: l.charge ? undefined : 'var(--ec-text-off)' }}>{l.charge || ''}</td>
               <td>{l.itemName}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700, color: '#c07a00' }}>{won(l.quantity)}</td>
-              <td style={{ textAlign: 'right', color: '#5a626e' }}>{l.unitPrice != null ? won(l.unitPrice) : ''}</td>
+              <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--ec-warn)' }}>{won(l.quantity)}</td>
+              <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{l.unitPrice != null ? won(l.unitPrice) : ''}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{l.supplyAmount != null ? won(l.supplyAmount) : ''}</td>
             </tr>
           ))}
         </tbody>
         {shownLines.length > 0 && (
           <tfoot>
-            <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+            <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
               <td colSpan={5} style={{ textAlign: 'right' }}>합계</td>
-              <td style={{ textAlign: 'right', color: '#c07a00' }}>{won(lineTotals.qty)}</td>
+              <td style={{ textAlign: 'right', color: 'var(--ec-warn)' }}>{won(lineTotals.qty)}</td>
               <td></td>
               <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(lineTotals.amount)}</td>
             </tr>
@@ -299,24 +299,24 @@ export default function AsConsumptionPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.itemId}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td>{r.itemName}</td>
               <td style={{ textAlign: 'right' }}>{won(r.asCount)}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700, color: '#c07a00' }}>{won(r.totalQty)}</td>
+              <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--ec-warn)' }}>{won(r.totalQty)}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(r.totalAmount)}</td>
             </tr>
           ))}
         </tbody>
         {shown.length > 0 && (
           <tfoot>
-            <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+            <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
               <td colSpan={3} style={{ textAlign: 'right' }}>합계</td>
-              <td style={{ textAlign: 'right', color: '#c07a00' }}>{won(totals.qty)}</td>
+              <td style={{ textAlign: 'right', color: 'var(--ec-warn)' }}>{won(totals.qty)}</td>
               <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(totals.amount)}</td>
             </tr>
           </tfoot>
@@ -345,7 +345,7 @@ export default function AsConsumptionPage() {
                   <tr key={g.label}>
                     <td style={{ fontWeight: 600 }}>{g.label}</td>
                     <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
-                    <td style={{ textAlign: 'right', fontFamily: 'monospace', color: '#c07a00' }}>{won(g.sums.qty)}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace', color: 'var(--ec-warn)' }}>{won(g.sums.qty)}</td>
                     <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: 'var(--ec-blue)' }}>
                       {won(g.sums.amount)}
                     </td>

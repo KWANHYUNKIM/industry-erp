@@ -171,7 +171,7 @@ export default function TradeHistoryPage() {
     return s
   }, { saleSupply: 0, saleTotal: 0, buySupply: 0, buyTotal: 0 }), [shown])
 
-  const label: React.CSSProperties = { width: 56, fontSize: 12.5, color: '#3c4553', fontWeight: 600 }
+  const label: React.CSSProperties = { width: 56, fontSize: 12.5, color: 'var(--ec-text)', fontWeight: 600 }
   const saleCount = rows.filter((r) => r.kind === 'SALE').length
   const buyCount = rows.filter((r) => r.kind === 'PURCHASE').length
 
@@ -202,26 +202,26 @@ export default function TradeHistoryPage() {
           {(['ALL', 'SALE', 'PURCHASE'] as const).map((k) => (
             <button key={k} onClick={() => setKindFilter(k)} className="no-ec" style={{
               padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
-              background: kindFilter === k ? 'var(--ec-blue)' : '#fff', color: kindFilter === k ? '#fff' : '#3a4453', fontWeight: kindFilter === k ? 700 : 400,
+              background: kindFilter === k ? 'var(--ec-blue)' : '#fff', color: kindFilter === k ? '#fff' : 'var(--ec-text)', fontWeight: kindFilter === k ? 700 : 400,
             }}>{k === 'ALL' ? '전체' : KIND_COLOR[k].label} ({k === 'ALL' ? rows.length : k === 'SALE' ? saleCount : buyCount})</button>
           ))}
         </div>
-        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>
+        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--ec-label)' }}>
           판매 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{won(totals.saleTotal)}</b>
-          <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+          <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
           구매 <b style={{ color: '#a5561b', fontSize: 14 }}>{won(totals.buyTotal)}</b>
-          <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-          순액 <b style={{ color: (totals.saleTotal - totals.buyTotal) >= 0 ? '#1c7c3c' : '#c60a2e', fontSize: 14 }}>{won(totals.saleTotal - totals.buyTotal)}</b>
+          <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
+          순액 <b style={{ color: (totals.saleTotal - totals.buyTotal) >= 0 ? 'var(--ec-success)' : 'var(--ec-danger)', fontSize: 14 }}>{won(totals.saleTotal - totals.buyTotal)}</b>
         </div>
       </div>
 
       {/* 조회 조건 */}
-      <div style={{ border: '1px solid #d4dae2', borderRadius: 4, background: '#fbfcfe', padding: '10px 14px', marginBottom: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px' }}>
+      <div style={{ border: '1px solid var(--ec-line)', borderRadius: 4, background: 'var(--ec-bg-page)', padding: '10px 14px', marginBottom: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           {/* 원본 거래이력조회의 이름은 [기간]이 아니라 <b>[전표일자]</b> 다(사본 실측). */}
           <span style={label}>전표일자</span>
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 148 }} />
-          <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
+          <span style={{ margin: '0 6px', color: 'var(--ec-text-hint)' }}>~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 148 }} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -283,13 +283,13 @@ export default function TradeHistoryPage() {
           <span style={label}>금액</span>
           <input type="number" className="ec-input text-right" placeholder="이상" value={amountFrom}
                  onChange={(e) => setAmountFrom(e.target.value)} style={{ width: 120 }} />
-          <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
+          <span style={{ margin: '0 6px', color: 'var(--ec-text-hint)' }}>~</span>
           <input type="number" className="ec-input text-right" placeholder="이하" value={amountTo}
                  onChange={(e) => setAmountTo(e.target.value)} style={{ width: 120 }} />
         </div>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       <table className="w-full text-left">
         <thead>
@@ -310,16 +310,16 @@ export default function TradeHistoryPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>
               {rows.length === 0 ? '거래 내역이 없습니다.' : '조건에 맞는 자료가 없습니다.'}
             </td></tr>
           ) : sort.sorted.map((r, i) => {
             const c = KIND_COLOR[r.kind]
             return (
               <tr key={r.key}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{dateText(r.date)}</td>
                 <td style={{ textAlign: 'center' }}>
                   <span style={{ background: c.bg, color: c.fg, padding: '1px 6px', borderRadius: 3, fontSize: 11.5, fontWeight: 600 }}>{c.label}</span>
@@ -329,10 +329,10 @@ export default function TradeHistoryPage() {
                 <td>{r.itemSummary}</td>
                 <td style={{ textAlign: 'right' }}>{won(r.qty)}</td>
                 <td style={{ textAlign: 'right' }}>{won(r.supply)}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(r.vat)}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{won(r.vat)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: c.fg }}>{won(r.total)}</td>
-                <td style={{ color: '#5a626e' }}>{r.warehouseName}</td>
-                <td style={{ color: '#5a626e' }}>{r.employeeName ?? ''}</td>
+                <td style={{ color: 'var(--ec-label)' }}>{r.warehouseName}</td>
+                <td style={{ color: 'var(--ec-label)' }}>{r.employeeName ?? ''}</td>
               </tr>
             )
           })}

@@ -28,8 +28,8 @@ export default function VatSummaryPage() {
       .catch((err) => setError(extractErrorMessage(err)))
   }, [period])
 
-  if (error) return <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>
-  if (!d) return <p style={{ color: '#9aa1ab', padding: 12 }}>불러오는 중…</p>
+  if (error) return <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>
+  if (!d) return <p style={{ color: 'var(--ec-text-hint)', padding: 12 }}>불러오는 중…</p>
 
   const Row = ({ label, supply, vat, total }: { label: string; supply: number; vat: number; total: number }) => (
     <tr>
@@ -44,9 +44,9 @@ export default function VatSummaryPage() {
 
   return (
     <EcListShell title="매입매출·부가세" actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
-      <p style={{ marginBottom: 8, fontSize: 11.5, color: '#8a929c' }}>부가가치세 신고 기초자료 · 매출세액 − 매입세액(구매 + 비용) = 납부(환급)세액</p>
+      <p style={{ marginBottom: 8, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>부가가치세 신고 기초자료 · 매출세액 − 매입세액(구매 + 비용) = 납부(환급)세액</p>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5 }}>
-        <span style={{ color: '#5a626e' }}>과세기간</span>
+        <span style={{ color: 'var(--ec-label)' }}>과세기간</span>
         <input type="date" className="ec-input" value={period.from} onChange={(e) => setPeriod((p) => ({ ...p, from: e.target.value }))} style={{ width: 140 }} />
         ~
         <input type="date" className="ec-input" value={period.to} onChange={(e) => setPeriod((p) => ({ ...p, to: e.target.value }))} style={{ width: 140 }} />
@@ -67,14 +67,14 @@ export default function VatSummaryPage() {
           {/* 지출(비용)에 붙은 부가세 — 세금계산서 받은 비용의 매입세액도 공제한다(46·47회차). 공급가액은 비용관리에서 본다. */}
           <tr>
             <td style={{ fontWeight: 600 }}>비용 (매입세액)</td>
-            <td style={{ textAlign: 'right', color: '#9aa1ab' }}>—</td>
+            <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>—</td>
             <td style={{ textAlign: 'right' }}>{won(d.expenseVat ?? 0)}</td>
-            <td style={{ textAlign: 'right', color: '#9aa1ab' }}>—</td>
+            <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>—</td>
           </tr>
         </tbody>
       </table>
 
-      <div style={{ marginTop: 12, maxWidth: 720, border: '1px solid var(--ec-border)', background: refund ? '#f4faf5' : '#fdf7ec', padding: '14px 18px' }}>
+      <div style={{ marginTop: 12, maxWidth: 720, border: '1px solid var(--ec-border)', background: refund ? 'var(--ec-success-bg)' : '#fdf7ec', padding: '14px 18px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: 12.5, color: refund ? '#1c6b32' : '#8a6a1e' }}>
             {refund ? '환급 예상세액 (매입세액 > 매출세액)' : '납부 예상세액 (매출세액 − 매입세액)'}

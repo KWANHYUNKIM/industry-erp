@@ -131,7 +131,7 @@ export default function KeyNoticePage() {
 
   return (
     <EcListShell title="주요전달사항" searchable={false}>
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       <SectionTitle>1. 미확인쪽지보기</SectionTitle>
       <table className="w-full text-left" style={{ marginBottom: 12 }}>

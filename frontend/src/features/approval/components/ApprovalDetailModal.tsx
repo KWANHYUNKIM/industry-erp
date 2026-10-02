@@ -6,7 +6,7 @@ import type { ApprovalDoc, ApprovalField, ApprovalStatus } from '../../../types/
  */
 
 export const statusColor = (s: ApprovalStatus) =>
-  s === 'REJECTED' ? '#c60a2e' : s === 'APPROVED' ? '#1c7c3c' : 'var(--ec-blue)'
+  s === 'REJECTED' ? 'var(--ec-danger)' : s === 'APPROVED' ? 'var(--ec-success)' : 'var(--ec-blue)'
 
 /** 서버의 statusName 은 '완료'지만, 결재 화면은 탭 어휘('결재')로 통일한다. */
 export const STATUS_LABEL: Record<ApprovalStatus, string> = {
@@ -31,7 +31,7 @@ function FormDataView({ data, fields }: { data: Record<string, unknown>; fields:
 
   const row = (key: string, label: string, field?: ApprovalField) => (
     <tr key={key}>
-      <th style={{ width: 150, background: '#f5f7fa' }}>{label}</th>
+      <th style={{ width: 150, background: 'var(--ec-bg-page)' }}>{label}</th>
       <td>
         {Array.isArray(data[key])
           ? <RowsView rows={data[key] as Record<string, unknown>[]} field={field} />
@@ -42,7 +42,7 @@ function FormDataView({ data, fields }: { data: Record<string, unknown>; fields:
 
   return (
     <>
-      <div style={{ fontWeight: 700, fontSize: 12.5, color: '#5a626e', marginBottom: 6 }}>기안 항목</div>
+      <div style={{ fontWeight: 700, fontSize: 12.5, color: 'var(--ec-label)', marginBottom: 6 }}>기안 항목</div>
       <table className="w-full text-left" style={{ marginBottom: 14 }}>
         <tbody>
           {known.map((f) => row(f.key, f.label, f))}
@@ -54,7 +54,7 @@ function FormDataView({ data, fields }: { data: Record<string, unknown>; fields:
 }
 
 function RowsView({ rows, field }: { rows: Record<string, unknown>[]; field?: ApprovalField }) {
-  if (rows.length === 0) return <span style={{ color: '#9aa1ab' }}>(없음)</span>
+  if (rows.length === 0) return <span style={{ color: 'var(--ec-text-hint)' }}>(없음)</span>
 
   const cols = field?.columns ?? Array.from(new Set(rows.flatMap((r) => Object.keys(r)))).map((k) => ({ key: k, label: k }))
   const totalKey = field?.totalOf
@@ -71,10 +71,10 @@ function RowsView({ rows, field }: { rows: Record<string, unknown>[]; field?: Ap
         ))}
         {total !== null && (
           <tr>
-            <td colSpan={Math.max(1, cols.length - 1)} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>
+            <td colSpan={Math.max(1, cols.length - 1)} style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>
               {field?.totalLabel ?? '합계'}
             </td>
-            <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{total.toLocaleString()}</td>
+            <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>{total.toLocaleString()}</td>
           </tr>
         )}
       </tbody>
@@ -98,32 +98,32 @@ export default function ApprovalDetailModal({ doc, fields, isMyTurn, canDelete, 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 720, maxWidth: '92vw', maxHeight: '88vh', overflow: 'auto', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: '#f5f7fa' }}>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: 'var(--ec-bg-page)' }}>
           <span style={{ fontWeight: 800, color: 'var(--ec-blue-dark)' }}>{doc.formTypeName} | {doc.title}</span>
-          {doc.deleted && <span style={{ marginLeft: 8, fontSize: 11, background: '#f0f2f5', color: '#8a929c', padding: '1px 6px', borderRadius: 10 }}>삭제됨</span>}
-          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: '#8a929c' }}>×</span>
+          {doc.deleted && <span style={{ marginLeft: 8, fontSize: 11, background: '#f0f2f5', color: 'var(--ec-text-hint)', padding: '1px 6px', borderRadius: 10 }}>삭제됨</span>}
+          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: 'var(--ec-text-hint)' }}>×</span>
         </div>
         <div style={{ padding: 16 }}>
           <table className="w-full text-left" style={{ marginBottom: 12 }}>
             <tbody>
               <tr>
-                <th style={{ width: 90, background: '#f5f7fa' }}>기안No.</th><td style={{ fontFamily: 'monospace' }}>{doc.draftNo}</td>
-                <th style={{ width: 90, background: '#f5f7fa' }}>기안서No.</th><td style={{ fontFamily: 'monospace' }}>{doc.docNo}</td>
+                <th style={{ width: 90, background: 'var(--ec-bg-page)' }}>기안No.</th><td style={{ fontFamily: 'monospace' }}>{doc.draftNo}</td>
+                <th style={{ width: 90, background: 'var(--ec-bg-page)' }}>기안서No.</th><td style={{ fontFamily: 'monospace' }}>{doc.docNo}</td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>기안자</th><td>{doc.drafterName}</td>
-                <th style={{ background: '#f5f7fa' }}>기안일</th><td>{doc.draftDate}</td>
+                <th style={{ background: 'var(--ec-bg-page)' }}>기안자</th><td>{doc.drafterName}</td>
+                <th style={{ background: 'var(--ec-bg-page)' }}>기안일</th><td>{doc.draftDate}</td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>부서</th><td>{doc.department ?? ''}</td>
-                <th style={{ background: '#f5f7fa' }}>상태</th>
+                <th style={{ background: 'var(--ec-bg-page)' }}>부서</th><td>{doc.department ?? ''}</td>
+                <th style={{ background: 'var(--ec-bg-page)' }}>상태</th>
                 <td style={{ color: statusColor(doc.status), fontWeight: 700 }}>{doc.deleted ? '삭제' : STATUS_LABEL[doc.status]}</td>
               </tr>
               {(refs.length > 0 || shares.length > 0) && (
                 <tr>
-                  <th style={{ background: '#f5f7fa' }}>수신참조</th>
+                  <th style={{ background: 'var(--ec-bg-page)' }}>수신참조</th>
                   <td>{refs.map((p) => p.userName).join(', ') || '—'}</td>
-                  <th style={{ background: '#f5f7fa' }}>공유자</th>
+                  <th style={{ background: 'var(--ec-bg-page)' }}>공유자</th>
                   <td>{shares.map((p) => p.userName).join(', ') || '—'}</td>
                 </tr>
               )}
@@ -136,30 +136,30 @@ export default function ApprovalDetailModal({ doc, fields, isMyTurn, canDelete, 
             <div style={{ whiteSpace: 'pre-wrap', border: '1px solid var(--ec-border)', padding: 12, minHeight: 80, fontSize: 13, marginBottom: 14 }}>{doc.content}</div>
           )}
 
-          <div style={{ fontWeight: 700, fontSize: 12.5, color: '#5a626e', marginBottom: 6 }}>결재선</div>
+          <div style={{ fontWeight: 700, fontSize: 12.5, color: 'var(--ec-label)', marginBottom: 6 }}>결재선</div>
           <table className="w-full text-left" style={{ marginBottom: 14 }}>
             <thead><tr><th style={{ width: 44, textAlign: 'center' }}>순번</th><th>결재자</th><th style={{ textAlign: 'center' }}>상태</th><th>의견</th><th>처리일시</th></tr></thead>
             <tbody>
               {doc.lines.length === 0 ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 10 }}>결재선이 없습니다 (기안중).</td></tr>
+                <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 10 }}>결재선이 없습니다 (기안중).</td></tr>
               ) : doc.lines.map((l) => (
                 <tr key={l.id} style={{ background: l.stepOrder === doc.currentStep && doc.status === 'IN_PROGRESS' ? 'var(--ec-blue-light)' : undefined }}>
                   <td style={{ textAlign: 'center' }}>{l.stepOrder}</td>
                   <td>{l.approverName}</td>
-                  <td style={{ textAlign: 'center', color: l.status === 'REJECTED' ? '#c60a2e' : l.status === 'APPROVED' ? '#1c7c3c' : '#8a929c' }}>{l.statusName}</td>
+                  <td style={{ textAlign: 'center', color: l.status === 'REJECTED' ? 'var(--ec-danger)' : l.status === 'APPROVED' ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>{l.statusName}</td>
                   <td>{l.comment ?? ''}</td>
-                  <td style={{ color: '#8a929c' }}>{l.actedAt ? l.actedAt.replace('T', ' ').slice(0, 16) : ''}</td>
+                  <td style={{ color: 'var(--ec-text-hint)' }}>{l.actedAt ? l.actedAt.replace('T', ' ').slice(0, 16) : ''}</td>
                 </tr>
               ))}
             </tbody>
           </table>
 
-          <div style={{ fontWeight: 700, fontSize: 12.5, color: '#5a626e', marginBottom: 6 }}>연결전표 ({doc.voucherCount})</div>
+          <div style={{ fontWeight: 700, fontSize: 12.5, color: 'var(--ec-label)', marginBottom: 6 }}>연결전표 ({doc.voucherCount})</div>
           <table className="w-full text-left">
             <thead><tr><th style={{ width: 90 }}>구분</th><th>전표번호</th></tr></thead>
             <tbody>
               {doc.vouchers.length === 0 ? (
-                <tr><td colSpan={2} style={{ textAlign: 'center', color: '#9aa1ab', padding: 10 }}>연결된 ERP 전표가 없습니다.</td></tr>
+                <tr><td colSpan={2} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 10 }}>연결된 ERP 전표가 없습니다.</td></tr>
               ) : doc.vouchers.map((v) => (
                 <tr key={v.id}>
                   <td>{VOUCHER_LABEL[v.voucherType] ?? v.voucherType}</td>
@@ -172,10 +172,10 @@ export default function ApprovalDetailModal({ doc, fields, isMyTurn, canDelete, 
         <div style={{ display: 'flex', gap: 6, padding: '10px 16px', borderTop: '1px solid var(--ec-border)' }}>
           {isMyTurn && <>
             <button className="ec-btn ec-btn-primary" onClick={() => onAct(doc, 'approve')}>승인</button>
-            <button className="ec-btn" style={{ color: '#c60a2e' }} onClick={() => onAct(doc, 'reject')}>반려</button>
+            <button className="ec-btn" style={{ color: 'var(--ec-danger)' }} onClick={() => onAct(doc, 'reject')}>반려</button>
           </>}
           <button className="ec-btn" onClick={() => onCopy(doc)}>기안서복사</button>
-          {canDelete && <button className="ec-btn" style={{ color: '#c60a2e' }} onClick={() => onDelete(doc)}>삭제</button>}
+          {canDelete && <button className="ec-btn" style={{ color: 'var(--ec-danger)' }} onClick={() => onDelete(doc)}>삭제</button>}
           <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={onClose}>닫기</button>
         </div>
       </div>

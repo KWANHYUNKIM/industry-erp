@@ -251,7 +251,7 @@ export default function SalesPurchaseSummaryPage() {
     saleSupply: s.saleSupply + r.saleSupply, buySupply: s.buySupply + r.buySupply,
   }), { saleSupply: 0, buySupply: 0 }), [rows])
 
-  const label: React.CSSProperties = { width: 56, fontSize: 12.5, color: '#3c4553', fontWeight: 600 }
+  const label: React.CSSProperties = { width: 56, fontSize: 12.5, color: 'var(--ec-text)', fontWeight: 600 }
 
   return (
     <EcListShell
@@ -263,12 +263,12 @@ export default function SalesPurchaseSummaryPage() {
     >
       <p className="mb-2 text-xs text-slate-500">기간 내 판매·매입을 거래처별 또는 품목별로 집계. 순액 = 매출공급가 − 매입공급가.</p>
 
-      <div style={{ border: '1px solid #d4dae2', borderRadius: 4, background: '#fbfcfe', padding: '10px 14px', marginBottom: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px' }}>
+      <div style={{ border: '1px solid var(--ec-line)', borderRadius: 4, background: 'var(--ec-bg-page)', padding: '10px 14px', marginBottom: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px' }}>
         {/* 원본 첫째 조건은 [기준일자]다 — 우리는 [기간]이라 적고 있었다(2026-09-08 실측). */}
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={{ ...label, width: 66 }}>기준일자</span>
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 148 }} />
-          <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
+          <span style={{ margin: '0 6px', color: 'var(--ec-text-hint)' }}>~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 148 }} />
         </div>
         {/*
@@ -282,7 +282,7 @@ export default function SalesPurchaseSummaryPage() {
             {(['partner', 'item'] as const).map((g) => (
               <button key={g} onClick={() => setGroupBy(g)} className="no-ec" style={{
                 padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
-                background: groupBy === g ? 'var(--ec-blue)' : '#fff', color: groupBy === g ? '#fff' : '#3a4453', fontWeight: groupBy === g ? 700 : 400,
+                background: groupBy === g ? 'var(--ec-blue)' : '#fff', color: groupBy === g ? '#fff' : 'var(--ec-text)', fontWeight: groupBy === g ? 700 : 400,
               }}>{g === 'partner' ? '거래처별' : '품목별'}</button>
             ))}
           </div>
@@ -372,16 +372,16 @@ export default function SalesPurchaseSummaryPage() {
             <option value="">전체</option><option>과세</option><option>면세</option>
           </select>
         </div>
-        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>
+        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--ec-label)' }}>
           매출계 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{won(totals.saleSupply)}</b>
-          <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+          <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
           매입계 <b style={{ color: '#a5561b', fontSize: 14 }}>{won(totals.buySupply)}</b>
-          <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-          순액 <b style={{ color: (totals.saleSupply - totals.buySupply) >= 0 ? '#1c7c3c' : '#c60a2e', fontSize: 14 }}>{won(totals.saleSupply - totals.buySupply)}</b>
+          <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
+          순액 <b style={{ color: (totals.saleSupply - totals.buySupply) >= 0 ? 'var(--ec-success)' : 'var(--ec-danger)', fontSize: 14 }}>{won(totals.saleSupply - totals.buySupply)}</b>
         </div>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       <table className="w-full text-left">
         <thead>
@@ -397,32 +397,32 @@ export default function SalesPurchaseSummaryPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((r, i) => {
             const net = r.saleSupply - r.buySupply
             return (
               <tr key={r.key}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td>{r.name}</td>
-                <td style={{ textAlign: 'right', color: '#5a626e' }}>{groupBy === 'partner' ? won(r.saleCount) : won(r.saleQty)}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{groupBy === 'partner' ? won(r.saleCount) : won(r.saleQty)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(r.saleSupply)}</td>
-                <td style={{ textAlign: 'right', color: '#5a626e' }}>{groupBy === 'partner' ? won(r.buyCount) : won(r.buyQty)}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{groupBy === 'partner' ? won(r.buyCount) : won(r.buyQty)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{won(r.buySupply)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, color: net >= 0 ? '#1c7c3c' : '#c60a2e' }}>{won(net)}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, color: net >= 0 ? 'var(--ec-success)' : 'var(--ec-danger)' }}>{won(net)}</td>
               </tr>
             )
           })}
         </tbody>
         {rows.length > 0 && (
           <tfoot>
-            <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+            <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
               <td colSpan={3} style={{ textAlign: 'right' }}>합계</td>
               <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(totals.saleSupply)}</td>
               <td></td>
               <td style={{ textAlign: 'right', color: '#a5561b' }}>{won(totals.buySupply)}</td>
-              <td style={{ textAlign: 'right', color: (totals.saleSupply - totals.buySupply) >= 0 ? '#1c7c3c' : '#c60a2e' }}>{won(totals.saleSupply - totals.buySupply)}</td>
+              <td style={{ textAlign: 'right', color: (totals.saleSupply - totals.buySupply) >= 0 ? 'var(--ec-success)' : 'var(--ec-danger)' }}>{won(totals.saleSupply - totals.buySupply)}</td>
             </tr>
           </tfoot>
         )}

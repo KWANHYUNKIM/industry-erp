@@ -247,21 +247,21 @@ export default function LotLedgerPage() {
           {(['ALL', 'INBOUND', 'OUTBOUND', 'ADJUST'] as const).map((t) => (
             <button key={t} onClick={() => setTypeFilter(t)} className="no-ec" style={{
               padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
-              background: typeFilter === t ? 'var(--ec-blue)' : '#fff', color: typeFilter === t ? '#fff' : '#3a4453', fontWeight: typeFilter === t ? 700 : 400,
+              background: typeFilter === t ? 'var(--ec-blue)' : '#fff', color: typeFilter === t ? '#fff' : 'var(--ec-text)', fontWeight: typeFilter === t ? 700 : 400,
             }}>{t === 'ALL' ? '전체' : t === 'INBOUND' ? '입고' : t === 'OUTBOUND' ? '출고' : '조정'}</button>
           ))}
         </div>
-        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>
+        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--ec-label)' }}>
           입고계 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{num(totals.inQty)}</b>
-          <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+          <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
           출고계 <b style={{ color: '#a5561b', fontSize: 14 }}>{num(totals.outQty)}</b>
           {closing != null && (
-            <><span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>기말 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{num(closing)}</b></>
+            <><span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>기말 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{num(closing)}</b></>
           )}
         </div>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       {mode === '시리얼/로트별집계' ? (
         <table className="w-full text-left">
@@ -278,12 +278,12 @@ export default function LotLedgerPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : byLot.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : byLot.map((g, i) => (
               <tr key={g.lotNo}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{g.lotNo}</td>
                 <td>{g.itemName}</td>
                 <td style={{ textAlign: 'right' }}>{num(g.count)}</td>
@@ -311,9 +311,9 @@ export default function LotLedgerPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>
               {rows.length === 0 ? '로트 이력이 없습니다.' : '조건에 맞는 자료가 없습니다.'}
             </td></tr>
           ) : shown.map((r, i) => {
@@ -322,17 +322,17 @@ export default function LotLedgerPage() {
             const c = TYPE_COLOR[r.type]
             return (
               <tr key={r.id}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.lotNo}</td>
                 <td>{r.itemName}</td>
                 <td style={{ fontFamily: 'monospace' }}>{dateText(r.txDate)}</td>
                 <td style={{ textAlign: 'center' }}>
                   <span style={{ background: c.bg, color: c.fg, padding: '1px 6px', borderRadius: 3, fontSize: 11.5, fontWeight: 600 }}>{r.typeName}</span>
                 </td>
-                <td style={{ textAlign: 'right', color: inQ ? 'var(--ec-blue)' : '#c5cbd3', fontWeight: inQ ? 600 : 400 }}>{inQ ? num(inQ) : ''}</td>
-                <td style={{ textAlign: 'right', color: outQ ? '#a5561b' : '#c5cbd3', fontWeight: outQ ? 600 : 400 }}>{outQ ? num(outQ) : ''}</td>
+                <td style={{ textAlign: 'right', color: inQ ? 'var(--ec-blue)' : 'var(--ec-text-off)', fontWeight: inQ ? 600 : 400 }}>{inQ ? num(inQ) : ''}</td>
+                <td style={{ textAlign: 'right', color: outQ ? '#a5561b' : 'var(--ec-text-off)', fontWeight: outQ ? 600 : 400 }}>{outQ ? num(outQ) : ''}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600 }}>{num(r.balanceAfter)}</td>
-                <td style={{ color: '#8a929c' }}>{r.note ?? ''}</td>
+                <td style={{ color: 'var(--ec-text-hint)' }}>{r.note ?? ''}</td>
               </tr>
             )
           })}

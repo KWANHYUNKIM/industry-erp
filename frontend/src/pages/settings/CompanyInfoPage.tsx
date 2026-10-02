@@ -23,7 +23,7 @@ const EMPTY: CompanyForm = {
   tel: '', fax: '', email: '', zipcode: '', address: '', addressDetail: '',
 }
 
-const thStyle: React.CSSProperties = { width: 120, background: '#f5f7fa', textAlign: 'left', fontWeight: 700, color: '#3a4453', padding: '8px 10px', border: '1px solid var(--ec-border)', fontSize: 12.5 }
+const thStyle: React.CSSProperties = { width: 120, background: 'var(--ec-bg-page)', textAlign: 'left', fontWeight: 700, color: 'var(--ec-text)', padding: '8px 10px', border: '1px solid var(--ec-border)', fontSize: 12.5 }
 const tdStyle: React.CSSProperties = { padding: '6px 10px', border: '1px solid var(--ec-border)' }
 
 export default function CompanyInfoPage() {
@@ -91,15 +91,15 @@ export default function CompanyInfoPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ color: '#f5b301', fontSize: 14, marginRight: 4 }}>☆</span>
+        <span style={{ color: 'var(--ec-star)', fontSize: 14, marginRight: 4 }}>☆</span>
         <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ec-text)' }}>회사정보관리</span>
       </div>
 
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {ok && <p style={{ marginBottom: 8, background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
+      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {ok && <p style={{ marginBottom: 8, background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
 
       {loading ? (
-        <p style={{ color: '#9aa1ab', padding: 20 }}>불러오는 중…</p>
+        <p style={{ color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</p>
       ) : (
         <>
           <table style={{ borderCollapse: 'collapse', width: '100%', maxWidth: 760 }}>
@@ -165,18 +165,18 @@ export default function CompanyInfoPage() {
           }}
         >
           <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, width: 460, maxWidth: '92vw', boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}>
-            <div style={{ padding: '10px 14px', borderBottom: '1px solid #e6eaef', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
+            <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--ec-line-soft)', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
               <span>주소검색</span>
-              <span style={{ marginLeft: 8, fontSize: 11.5, fontWeight: 400, color: '#8a929c' }}>우편번호 API 미연동 · 직접 입력</span>
+              <span style={{ marginLeft: 8, fontSize: 11.5, fontWeight: 400, color: 'var(--ec-text-hint)' }}>우편번호 API 미연동 · 직접 입력</span>
               <button type="button" className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => setAddrOpen(false)}>닫기</button>
             </div>
             <div style={{ padding: 14, fontSize: 12.5 }}>
               <label style={{ display: 'block', marginBottom: 8 }}>
-                <span style={{ display: 'inline-block', width: 72, color: '#5a626e' }}>우편번호</span>
+                <span style={{ display: 'inline-block', width: 72, color: 'var(--ec-label)' }}>우편번호</span>
                 <input className="ec-input" value={addrZip} onChange={(e) => setAddrZip(e.target.value)} style={{ width: 120 }} placeholder="06236" />
               </label>
               <label style={{ display: 'block' }}>
-                <span style={{ display: 'inline-block', width: 72, color: '#5a626e' }}>도로명주소</span>
+                <span style={{ display: 'inline-block', width: 72, color: 'var(--ec-label)' }}>도로명주소</span>
                 <input className="ec-input" value={addrRoad} onChange={(e) => setAddrRoad(e.target.value)} style={{ width: 300 }} placeholder="서울특별시 강남구 테헤란로 123" />
               </label>
               <div style={{ display: 'flex', gap: 6, marginTop: 14, justifyContent: 'flex-end' }}>

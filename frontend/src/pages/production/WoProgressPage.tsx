@@ -606,15 +606,15 @@ export default function WoProgressPage() {
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        작업지시 <b style={{ color: '#3c4553' }}>{shown.length}</b>건
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+        작업지시 <b style={{ color: 'var(--ec-text)' }}>{shown.length}</b>건
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
         지시수량 <b>{num(totals.planned)}</b>
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
         생산수량 <b style={{ color: 'var(--ec-blue-dark)' }}>{num(totals.produced)}</b>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       {/*
         원본 [그래프로 보기]. 이 화면이 재는 것은 <b>얼마나 남았나</b> 다 —
@@ -639,20 +639,20 @@ export default function WoProgressPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((o, i) => {
               const g = issueBy.get(o.id)
               return (
                 <tr key={o.id}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                   <td style={{ fontFamily: 'monospace' }}>{o.orderNo}</td>
                   <td>[{o.productCode}] {o.productName}</td>
                   <td style={{ textAlign: 'right' }}>{num(o.plannedQty)}</td>
-                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(g?.count ?? 0)}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 600, color: g ? '#a5561b' : '#c9ced6' }}>{num(g?.qty ?? 0)}</td>
-                  <td style={{ fontFamily: 'monospace', color: g ? undefined : '#c9ced6' }}>{g?.last ?? ''}</td>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(g?.count ?? 0)}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 600, color: g ? '#a5561b' : 'var(--ec-text-off)' }}>{num(g?.qty ?? 0)}</td>
+                  <td style={{ fontFamily: 'monospace', color: g ? undefined : 'var(--ec-text-off)' }}>{g?.last ?? ''}</td>
                 </tr>
               )
             })}
@@ -682,14 +682,14 @@ export default function WoProgressPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : compareLines.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : compareLines.map((l, i) => {
               const diff = l.used - l.required
               return (
                 <tr key={l.key}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                   <td style={{ fontFamily: 'monospace' }}>{l.orderNo}</td>
                   <td>{l.product}</td>
                   <td style={{ color: l.required === 0 ? '#a5561b' : undefined }}>
@@ -697,7 +697,7 @@ export default function WoProgressPage() {
                   </td>
                   <td style={{ textAlign: 'right' }}>{num(l.required)}</td>
                   <td style={{ textAlign: 'right' }}>{num(l.used)}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 600, color: diff > 0 ? '#c60a2e' : diff < 0 ? '#1c7c3c' : '#8a929c' }}>
+                  <td style={{ textAlign: 'right', fontWeight: 600, color: diff > 0 ? 'var(--ec-danger)' : diff < 0 ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>
                     {diff > 0 ? '+' : ''}{num(diff)}
                   </td>
                 </tr>
@@ -721,21 +721,21 @@ export default function WoProgressPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((o, i) => {
               const g = resultBy.get(o.id)
               return (
                 <tr key={o.id}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                   <td style={{ fontFamily: 'monospace' }}>{o.orderNo}</td>
                   <td>[{o.productCode}] {o.productName}</td>
-                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(g?.count ?? 0)}</td>
-                  <td style={{ textAlign: 'right', color: '#1c7c3c', fontWeight: 600 }}>{num(g?.good ?? 0)}</td>
-                  <td style={{ textAlign: 'right', color: (g?.defect ?? 0) > 0 ? '#c60a2e' : '#8a929c' }}>{num(g?.defect ?? 0)}</td>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(g?.count ?? 0)}</td>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-success)', fontWeight: 600 }}>{num(g?.good ?? 0)}</td>
+                  <td style={{ textAlign: 'right', color: (g?.defect ?? 0) > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>{num(g?.defect ?? 0)}</td>
                   <td style={{ textAlign: 'right' }}>{num(g?.time ?? 0)}</td>
-                  <td style={{ fontFamily: 'monospace', color: g ? undefined : '#c9ced6' }}>{g?.last ?? ''}</td>
+                  <td style={{ fontFamily: 'monospace', color: g ? undefined : 'var(--ec-text-off)' }}>{g?.last ?? ''}</td>
                 </tr>
               )
             })}
@@ -743,8 +743,8 @@ export default function WoProgressPage() {
           <tfoot>
             <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
               <td colSpan={4} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
-              <td style={{ textAlign: 'right', color: '#1c7c3c' }}>{num(totals.good)}</td>
-              <td style={{ textAlign: 'right', color: '#c60a2e' }}>{num(totals.defect)}</td>
+              <td style={{ textAlign: 'right', color: 'var(--ec-success)' }}>{num(totals.good)}</td>
+              <td style={{ textAlign: 'right', color: 'var(--ec-danger)' }}>{num(totals.defect)}</td>
               <td colSpan={2}></td>
             </tr>
           </tfoot>
@@ -799,11 +799,11 @@ export default function WoProgressPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : progressRows.length === 0 ? (
-              <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : progressRows.map((r, i) => (r.sub ? (
-              <tr key={r.key} style={{ fontWeight: 700, background: '#f7f9fb' }}>
+              <tr key={r.key} style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
                 <td colSpan={3} style={{ textAlign: 'right' }}>{r.label}</td>
                 <td colSpan={2}></td>
                 <td style={{ textAlign: 'right' }}>{num(r.required)}</td>
@@ -814,7 +814,7 @@ export default function WoProgressPage() {
               </tr>
             ) : (
               <tr key={r.key}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{r.orderNo}</td>
                 <td>{r.label}</td>
                 <td>{r.process}</td>
@@ -824,7 +824,7 @@ export default function WoProgressPage() {
                 <td>{r.prodProcess}</td>
                 <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{r.prodDate ? `${dateText(r.prodDate)} ${r.prodNo}` : ''}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{r.produced ? num(r.produced) : ''}</td>
-                <td style={{ textAlign: 'right', color: r.unmade > 0 ? '#c60a2e' : '#8a929c' }}>{num(r.unmade)}</td>
+                <td style={{ textAlign: 'right', color: r.unmade > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>{num(r.unmade)}</td>
                 <td style={{ textAlign: 'right' }}>{num(r.onHand)}</td>
               </tr>
             )))}

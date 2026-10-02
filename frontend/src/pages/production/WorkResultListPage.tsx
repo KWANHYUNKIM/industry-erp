@@ -358,7 +358,7 @@ export default function WorkResultListPage() {
                 {AGG_AXES.filter((k) => k !== agg1 && k !== sub2).map((k) => <option key={k} value={k}>{k}</option>)}
               </select>
             </>)}
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: sub2 ? undefined : '#9aa1ab' }}
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: sub2 ? undefined : 'var(--ec-text-hint)' }}
                    title="집계조건2 를 고르면 그 값을 열로 펼칩니다">
               <input type="checkbox" checked={pivot} disabled={!sub2} onChange={(e) => setPivot(e.target.checked)} /> 가로보기
             </label>
@@ -455,14 +455,14 @@ export default function WorkResultListPage() {
         <EcCond label="수량">
           <input className="ec-input" type="number" value={qtyFrom}
                  onChange={(e) => setQtyFrom(e.target.value)} style={{ width: 110, textAlign: 'right' }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
           <input className="ec-input" type="number" value={qtyTo}
                  onChange={(e) => setQtyTo(e.target.value)} style={{ width: 110, textAlign: 'right' }} />
         </EcCond>
         <EcCond label="작업시간">
           <input className="ec-input" type="number" value={timeFrom}
                  onChange={(e) => setTimeFrom(e.target.value)} style={{ width: 110, textAlign: 'right' }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
           <input className="ec-input" type="number" value={timeTo}
                  onChange={(e) => setTimeTo(e.target.value)} style={{ width: 110, textAlign: 'right' }} />
         </EcCond>
@@ -484,26 +484,26 @@ export default function WorkResultListPage() {
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        작업 <b style={{ color: '#3c4553' }}>{shown.length}</b>건
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-        양품 <b style={{ color: '#1c7c3c', fontSize: 14 }}>{num(totals.good)}</b>
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-        불량 <b style={{ color: '#c60a2e', fontSize: 14 }}>{num(totals.defect)}</b>
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-        불량률 <b style={{ color: '#c60a2e', fontSize: 14 }}>{pct(totals.defect, totals.good)}%</b>
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-        표준 <b style={{ color: '#3c4553' }}>{num(time.standard)}</b>분
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+        작업 <b style={{ color: 'var(--ec-text)' }}>{shown.length}</b>건
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
+        양품 <b style={{ color: 'var(--ec-success)', fontSize: 14 }}>{num(totals.good)}</b>
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
+        불량 <b style={{ color: 'var(--ec-danger)', fontSize: 14 }}>{num(totals.defect)}</b>
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
+        불량률 <b style={{ color: 'var(--ec-danger)', fontSize: 14 }}>{pct(totals.defect, totals.good)}%</b>
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
+        표준 <b style={{ color: 'var(--ec-text)' }}>{num(time.standard)}</b>분
         <span style={{ margin: '0 2px' }}>/</span>
-        실제 <b style={{ color: '#3c4553' }}>{num(time.actual)}</b>분
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-        차이 <b style={{ color: time.diff < 0 ? '#c60a2e' : '#1c7c3c', fontSize: 14 }}>{gap(time.diff)}</b>
+        실제 <b style={{ color: 'var(--ec-text)' }}>{num(time.actual)}</b>분
+        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
+        차이 <b style={{ color: time.diff < 0 ? 'var(--ec-danger)' : 'var(--ec-success)', fontSize: 14 }}>{gap(time.diff)}</b>
         {time.unknown > 0 && (
-          <span style={{ marginLeft: 6, color: '#c07a00' }}>※ 표준 미정 {time.unknown}건 제외</span>
+          <span style={{ marginLeft: 6, color: 'var(--ec-warn)' }}>※ 표준 미정 {time.unknown}건 제외</span>
         )}
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       {mode === '집계' && prevRange && (() => {
         const prev = filterRows(prevRange.from, prevRange.to)
@@ -514,7 +514,7 @@ export default function WorkResultListPage() {
           return `${label} ${num(a)} → ${num(b)}${chg(b, a)}`
         }
         return (
-          <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+          <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
             비교기간({prevRange.from.replace(/-/g, '/')} ~ {prevRange.to.replace(/-/g, '/')})
             {' '}{line('양품', (r) => r.goodQty)} · {line('불량', (r) => r.defectQty)} · {line('작업시간(분)', (r) => r.workTimeMin)}
           </div>
@@ -539,7 +539,7 @@ export default function WorkResultListPage() {
             <tbody>
               {[...rowsBy.entries()].map(([k, m], i) => (
                 <tr key={k}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                   <td>{k}</td>
                   {cols.map((c) => <td key={c} style={{ textAlign: 'right' }}>{m.get(c) ? num(m.get(c)!) : ''}</td>)}
                   <td style={{ textAlign: 'right', fontWeight: 600 }}>{num([...m.values()].reduce((a, v) => a + v, 0))}</td>
@@ -573,20 +573,20 @@ export default function WorkResultListPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7 + (code1 ? 1 : 0) + (code2 ? 1 : 0) + (ratio ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={7 + (code1 ? 1 : 0) + (code2 ? 1 : 0) + (ratio ? 1 : 0)} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : byProcess.length === 0 ? (
-              <tr><td colSpan={7 + (code1 ? 1 : 0) + (code2 ? 1 : 0) + (ratio ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={7 + (code1 ? 1 : 0) + (code2 ? 1 : 0) + (ratio ? 1 : 0)} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : byProcess.map((g, i) => (
               <tr key={g.process}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 {code1 && <td style={{ fontFamily: 'monospace' }}>{g.c1}</td>}
                 {code2 && <td style={{ fontFamily: 'monospace' }}>{g.c2}</td>}
                 <td>{g.process}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(g.count)}</td>
-                <td style={{ textAlign: 'right', color: '#1c7c3c', fontWeight: 600 }}>{num(g.good)}</td>
-                {ratio && <td style={{ textAlign: 'right', color: '#5a626e' }}>{totals.good ? (Math.round((g.good / totals.good) * 1000) / 10).toFixed(1) : '0.0'}</td>}
-                <td style={{ textAlign: 'right', color: g.defect > 0 ? '#c60a2e' : '#8a929c' }}>{num(g.defect)}</td>
-                <td style={{ textAlign: 'right', color: g.defect > 0 ? '#c60a2e' : '#8a929c' }}>{pct(g.defect, g.good)}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(g.count)}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-success)', fontWeight: 600 }}>{num(g.good)}</td>
+                {ratio && <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{totals.good ? (Math.round((g.good / totals.good) * 1000) / 10).toFixed(1) : '0.0'}</td>}
+                <td style={{ textAlign: 'right', color: g.defect > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>{num(g.defect)}</td>
+                <td style={{ textAlign: 'right', color: g.defect > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>{pct(g.defect, g.good)}</td>
                 <td style={{ textAlign: 'right' }}>{num(g.time)}</td>
               </tr>
             ))}
@@ -595,10 +595,10 @@ export default function WorkResultListPage() {
             <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
               <td colSpan={2 + (code1 ? 1 : 0) + (code2 ? 1 : 0)} style={{ textAlign: 'right' }}>합계 ({byProcess.length}건 묶음)</td>
               <td style={{ textAlign: 'right' }}>{num(shown.length)}</td>
-              <td style={{ textAlign: 'right', color: '#1c7c3c' }}>{num(totals.good)}</td>
+              <td style={{ textAlign: 'right', color: 'var(--ec-success)' }}>{num(totals.good)}</td>
               {ratio && <td style={{ textAlign: 'right' }}>100.0</td>}
-              <td style={{ textAlign: 'right', color: '#c60a2e' }}>{num(totals.defect)}</td>
-              <td style={{ textAlign: 'right', color: '#c60a2e' }}>{pct(totals.defect, totals.good)}</td>
+              <td style={{ textAlign: 'right', color: 'var(--ec-danger)' }}>{num(totals.defect)}</td>
+              <td style={{ textAlign: 'right', color: 'var(--ec-danger)' }}>{pct(totals.defect, totals.good)}</td>
               <td style={{ textAlign: 'right' }}>{num(totals.time)}</td>
             </tr>
           </tfoot>
@@ -633,17 +633,17 @@ export default function WorkResultListPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={15} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
             ) : listRows.length === 0 ? (
-              <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={15} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : listRows.map((r, i) => (
               <tr key={r.id}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>
                   {/* 원본 [일자-No.] 는 작업내역 전표 번호다(작업지시서 번호가 아니다). */}
                   {r.workDate} {r.resultNo}
                 </td>
-                <td style={{ color: r.warehouseName ? undefined : '#c9ced6' }}>{r.warehouseName ?? ''}</td>
+                <td style={{ color: r.warehouseName ? undefined : 'var(--ec-text-off)' }}>{r.warehouseName ?? ''}</td>
                 {/*
                   <b>마스터에 없는 공정</b>은 그렇다고 말해 준다. 공정명은 자유입력이라
                   '조립 ' 처럼 한 글자만 달라도 마스터에 안 걸리는데, 그러면 아래
@@ -654,36 +654,36 @@ export default function WorkResultListPage() {
                   {r.process}
                   {r.processId == null && (
                     <span title="공정 마스터에 없는 이름이라 표준시간을 낼 수 없습니다"
-                          style={{ marginLeft: 4, fontSize: 11, color: '#c07a00' }}>· 마스터 없음</span>
+                          style={{ marginLeft: 4, fontSize: 11, color: 'var(--ec-warn)' }}>· 마스터 없음</span>
                   )}
                 </td>
                 <td>{r.productName ?? ''}</td>
                 {/* 작업품목. 안 적힌 옛 자료는 비워 둔다 — 생산품목으로 채우면 두 열이 늘 같아진다. */}
-                <td style={{ color: r.workItemName ? undefined : '#c9ced6' }}>
+                <td style={{ color: r.workItemName ? undefined : 'var(--ec-text-off)' }}>
                   {r.workItemName ? `${r.workItemName}${r.workItemSpec ? `[${r.workItemSpec}]` : ''}` : '-'}
                 </td>
                 <td style={{ textAlign: 'right' }}>{num(r.goodQty + r.defectQty)}</td>
                 <td>{r.worker ?? ''}</td>
                 <td>{r.resourceName ?? ''}</td>
-                <td style={{ textAlign: 'right', color: '#1c7c3c', fontWeight: 600 }}>{num(r.goodQty)}</td>
-                <td style={{ textAlign: 'right', color: r.defectQty > 0 ? '#c60a2e' : '#8a929c' }}>{num(r.defectQty)}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-success)', fontWeight: 600 }}>{num(r.goodQty)}</td>
+                <td style={{ textAlign: 'right', color: r.defectQty > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>{num(r.defectQty)}</td>
                 {/*
                   표준이 빈 까닭은 둘이고 <b>고치는 방법이 다르다</b> —
                   공정이 마스터에 안 걸렸으면 <b>이름을 고쳐야</b> 하고,
                   걸렸는데 없으면 그 품목·공정의 <b>BOR 을 세워야</b> 한다.
                   '-' 만 찍어 두면 어느 쪽인지 몰라 엉뚱한 데를 뒤진다.
                 */}
-                <td style={{ textAlign: 'right', color: r.standardTimeMin == null ? '#c9ced6' : undefined }}
+                <td style={{ textAlign: 'right', color: r.standardTimeMin == null ? 'var(--ec-text-off)' : undefined }}
                     title={r.standardTimeMin != null ? undefined
                       : r.processId == null ? '공정이 마스터에 없습니다 — 공정명을 고치세요'
                         : '이 품목·공정의 BOR(작업소요시간)이 없습니다'}>
                   {r.standardTimeMin == null ? '-' : num(r.standardTimeMin)}
                 </td>
                 <td style={{ textAlign: 'right' }}>{num(r.workTimeMin)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600, color: r.standardTimeMin == null ? '#c9ced6' : (r.standardTimeMin - r.workTimeMin) < 0 ? '#c60a2e' : '#1c7c3c' }}>
+                <td style={{ textAlign: 'right', fontWeight: 600, color: r.standardTimeMin == null ? 'var(--ec-text-off)' : (r.standardTimeMin - r.workTimeMin) < 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>
                   {r.standardTimeMin == null ? '-' : gap(r.standardTimeMin - r.workTimeMin)}
                 </td>
-                <td style={{ textAlign: 'right', color: r.defectQty > 0 ? '#c60a2e' : '#8a929c' }}>
+                <td style={{ textAlign: 'right', color: r.defectQty > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>
                   {pct(r.defectQty, r.goodQty)}
                 </td>
               </tr>
@@ -692,12 +692,12 @@ export default function WorkResultListPage() {
           <tfoot>
             <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
               <td colSpan={9} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
-              <td style={{ textAlign: 'right', color: '#1c7c3c' }}>{num(totals.good)}</td>
-              <td style={{ textAlign: 'right', color: '#c60a2e' }}>{num(totals.defect)}</td>
+              <td style={{ textAlign: 'right', color: 'var(--ec-success)' }}>{num(totals.good)}</td>
+              <td style={{ textAlign: 'right', color: 'var(--ec-danger)' }}>{num(totals.defect)}</td>
               <td style={{ textAlign: 'right' }}>{num(time.standard)}</td>
               <td style={{ textAlign: 'right' }}>{num(totals.time)}</td>
-              <td style={{ textAlign: 'right', color: time.diff < 0 ? '#c60a2e' : '#1c7c3c' }}>{gap(time.diff)}</td>
-              <td style={{ textAlign: 'right', color: '#c60a2e' }}>{pct(totals.defect, totals.good)}</td>
+              <td style={{ textAlign: 'right', color: time.diff < 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>{gap(time.diff)}</td>
+              <td style={{ textAlign: 'right', color: 'var(--ec-danger)' }}>{pct(totals.defect, totals.good)}</td>
             </tr>
           </tfoot>
         </table>

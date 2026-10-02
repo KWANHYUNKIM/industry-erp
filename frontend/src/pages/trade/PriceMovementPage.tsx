@@ -295,7 +295,7 @@ export default function PriceMovementPage() {
   }, [gubun, sales, purchases, mode, from, to, keyword, warehouse, partner, itemCond,
       partnerGroup, partnerMgr, category, itemGroup, project, employee])
 
-  const label: React.CSSProperties = { width: 44, fontSize: 12.5, color: '#3c4553', fontWeight: 600 }
+  const label: React.CSSProperties = { width: 44, fontSize: 12.5, color: 'var(--ec-text)', fontWeight: 600 }
 
   /*
    * [단가기준]으로 요약 칸이 켜지고 꺼지니 <b>정적으로는 못 세는 표</b>가 됐다.
@@ -315,7 +315,7 @@ export default function PriceMovementPage() {
     >
       <p className="mb-2 text-xs text-slate-500">품목별 실거래 단가의 최저·최고·평균·최근과 변동폭. 단가는 판매/매입 전표 라인에서 집계(변동폭 큰 순).</p>
 
-      <div style={{ border: '1px solid #d4dae2', borderRadius: 4, background: '#fbfcfe', padding: '10px 14px', marginBottom: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px' }}>
+      <div style={{ border: '1px solid var(--ec-line)', borderRadius: 4, background: 'var(--ec-bg-page)', padding: '10px 14px', marginBottom: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px' }}>
         {/* 원본 차례: <b>[구분]</b> 이 조건 판의 맨 앞이다(사본 실측). */}
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={label}>구분</span>
@@ -330,7 +330,7 @@ export default function PriceMovementPage() {
           {/* 원본 단가변동표는 이 줄을 <b>[기준일자]</b> 라고 부른다(사본 실측) — [기간]이 아니다. */}
           <span style={label}>기준일자</span>
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 148 }} />
-          <span style={{ margin: '0 6px', color: '#8a929c' }}>~</span>
+          <span style={{ margin: '0 6px', color: 'var(--ec-text-hint)' }}>~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 148 }} />
         </div>
         {/* 원본 조건 차례: 구분 · 기준일자 · <b>창고 · 거래처</b> · 품목 … */}
@@ -400,7 +400,7 @@ export default function PriceMovementPage() {
           {(['ALL', 'SALE', 'PURCHASE'] as const).map((m) => (
             <button key={m} onClick={() => setMode(m)} className="no-ec" style={{
               padding: '5px 14px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
-              background: mode === m ? 'var(--ec-blue)' : '#fff', color: mode === m ? '#fff' : '#3a4453', fontWeight: mode === m ? 700 : 400,
+              background: mode === m ? 'var(--ec-blue)' : '#fff', color: mode === m ? '#fff' : 'var(--ec-text)', fontWeight: mode === m ? 700 : 400,
             }}>{m === 'ALL' ? '전체' : m === 'SALE' ? '판매단가' : '매입단가'}</button>
           ))}
         </div>
@@ -442,10 +442,10 @@ export default function PriceMovementPage() {
             <input type="checkbox" checked={withFlat} onChange={(e) => setWithFlat(e.target.checked)} />변동없는단가포함
           </label>
         </div>
-        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>품목수 <b style={{ color: '#3c4553', fontSize: 14 }}>{rows.length}</b></div>
+        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--ec-label)' }}>품목수 <b style={{ color: 'var(--ec-text)', fontSize: 14 }}>{rows.length}</b></div>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
       {/*
         [전표별] 은 요약하지 않고 그대로 편다 — 요약표의 최고·최저가 <b>어느 전표였나</b>를
@@ -487,12 +487,12 @@ export default function PriceMovementPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : lineRows.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : lineRows.map((r, i) => (
             <tr key={r.key}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
               <td>{r.itemName}</td>
               <td>{r.spec ?? ''}</td>
@@ -501,10 +501,10 @@ export default function PriceMovementPage() {
               <td>{r.partner}</td>
               <td>{r.unit}</td>
               <td style={{ textAlign: 'right' }}>{r.quantity.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600, color: r.kind === 'SALE' ? undefined : '#c5cbd3' }}>
+              <td style={{ textAlign: 'right', fontWeight: 600, color: r.kind === 'SALE' ? undefined : 'var(--ec-text-off)' }}>
                 {r.kind === 'SALE' ? r.price.toLocaleString() : ''}
               </td>
-              <td style={{ textAlign: 'right', fontWeight: 600, color: r.kind === 'PURCHASE' ? undefined : '#c5cbd3' }}>
+              <td style={{ textAlign: 'right', fontWeight: 600, color: r.kind === 'PURCHASE' ? undefined : 'var(--ec-text-off)' }}>
                 {r.kind === 'PURCHASE' ? r.price.toLocaleString() : ''}
               </td>
             </tr>
@@ -548,9 +548,9 @@ export default function PriceMovementPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9 + (withMin ? 1 : 0) + (withMax ? 1 : 0) + (withAvg ? 1 : 0) + (showQty ? 1 : 0) + (showSwing ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9 + (withMin ? 1 : 0) + (withMax ? 1 : 0) + (withAvg ? 1 : 0) + (showQty ? 1 : 0) + (showSwing ? 1 : 0)} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={9 + (withMin ? 1 : 0) + (withMax ? 1 : 0) + (withAvg ? 1 : 0) + (showQty ? 1 : 0) + (showSwing ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
+            <tr><td colSpan={9 + (withMin ? 1 : 0) + (withMax ? 1 : 0) + (withAvg ? 1 : 0) + (showQty ? 1 : 0) + (showSwing ? 1 : 0)} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>
               {(mode === 'ALL' ? sales.length + purchases.length : mode === 'SALE' ? sales.length : purchases.length) === 0
                 ? '거래 내역이 없습니다.' : '조건에 맞는 자료가 없습니다.'}
             </td></tr>
@@ -559,34 +559,34 @@ export default function PriceMovementPage() {
             const vsStd = r.standard > 0 ? ((r.latest - r.standard) / r.standard) * 100 : 0
             return (
               <tr key={r.itemId}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
                 <td>{r.itemName}</td>
-                <td style={{ color: '#8a929c' }}>{r.spec ?? ''}</td>
-                <td style={{ textAlign: 'center', color: '#8a929c' }}>{r.unit}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(r.standard)}</td>
-                <td style={{ textAlign: 'right', color: '#5a626e' }}>{r.count}</td>
-                {showQty && <td style={{ textAlign: 'right', color: '#5a626e' }}>{r.quantity.toLocaleString()}</td>}
+                <td style={{ color: 'var(--ec-text-hint)' }}>{r.spec ?? ''}</td>
+                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{r.unit}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{won(r.standard)}</td>
+                <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{r.count}</td>
+                {showQty && <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{r.quantity.toLocaleString()}</td>}
                 {/* 거래가 한쪽만 있으면 다른 쪽은 빈칸이다 — 0 으로 채우지 않는다. */}
                 {mode === 'ALL' && (
-                  <td style={{ textAlign: 'right', color: r.saleAvg == null ? '#c5cbd3' : undefined }}>
+                  <td style={{ textAlign: 'right', color: r.saleAvg == null ? 'var(--ec-text-off)' : undefined }}>
                     {r.saleAvg == null ? '' : won(r.saleAvg)}
                   </td>
                 )}
                 {mode === 'ALL' && (
-                  <td style={{ textAlign: 'right', color: r.buyAvg == null ? '#c5cbd3' : undefined }}>
+                  <td style={{ textAlign: 'right', color: r.buyAvg == null ? 'var(--ec-text-off)' : undefined }}>
                     {r.buyAvg == null ? '' : won(r.buyAvg)}
                   </td>
                 )}
                 {mode !== 'ALL' && withMin && <td style={{ textAlign: 'right' }}>{won(r.min)}</td>}
                 {mode !== 'ALL' && withMax && <td style={{ textAlign: 'right' }}>{won(r.max)}</td>}
-                {mode !== 'ALL' && withAvg && <td style={{ textAlign: 'right', color: '#5a626e' }}>{won(r.avg)}</td>}
+                {mode !== 'ALL' && withAvg && <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{won(r.avg)}</td>}
                 {mode !== 'ALL' && (
                   <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(r.latest)}</td>
                 )}
-                {mode !== 'ALL' && showSwing && <td style={{ textAlign: 'right', fontWeight: range ? 600 : 400, color: range ? '#c07a00' : '#c5cbd3' }}>{range ? won(range) : ''}</td>}
+                {mode !== 'ALL' && showSwing && <td style={{ textAlign: 'right', fontWeight: range ? 600 : 400, color: range ? 'var(--ec-warn)' : 'var(--ec-text-off)' }}>{range ? won(range) : ''}</td>}
                 {mode !== 'ALL' && (
-                  <td style={{ textAlign: 'right', fontWeight: 600, color: vsStd > 0 ? '#1c7c3c' : vsStd < 0 ? '#c60a2e' : '#8a929c' }}>
+                  <td style={{ textAlign: 'right', fontWeight: 600, color: vsStd > 0 ? 'var(--ec-success)' : vsStd < 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>
                     {r.standard > 0 ? `${vsStd > 0 ? '+' : ''}${vsStd.toFixed(1)}%` : '-'}
                   </td>
                 )}

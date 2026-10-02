@@ -37,32 +37,19 @@ export default function Modal({
   if (!open) return null
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0, background: 'rgba(20,36,68,.38)', zIndex: 70,
-        display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-        padding: '56px 16px', overflow: 'auto',
-      }}
-    >
+    <div className="ec-modal-back" onClick={onClose}>
       <div
         role="dialog" aria-modal="true" aria-label={title}
+        className="ec-modal"
         onClick={(e) => e.stopPropagation()}
-        style={{
-          background: '#fff', borderRadius: 6, width, maxWidth: '96vw',
-          boxShadow: '0 18px 44px rgba(20,36,68,.28)',
-        }}
+        style={{ width }}
       >
-        <div style={{
-          padding: '11px 16px', borderBottom: '1px solid #e6eaef',
-          display: 'flex', alignItems: 'center', gap: 8,
-        }}>
-          <span style={{ color: '#f5b301', fontSize: 14 }}>☆</span>
-          <span style={{ fontWeight: 800, fontSize: 14.5, color: 'var(--ec-text)' }}>{title}</span>
-          <button className="ec-btn" style={{ marginLeft: 'auto', height: 24 }} onClick={onClose}>닫기</button>
+        <div className="ec-modal-bar">
+          <span className="name">{title}</span>
+          <button className="close" aria-label="닫기" title="닫기(ESC)" onClick={onClose}>✕</button>
         </div>
-        <div style={{ padding: 16 }}>
-          {error && <p ref={errorRef} role="alert" style={{ margin: '0 0 10px', background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+        <div className="ec-modal-body">
+          {error && <p ref={errorRef} role="alert" className="ec-error">{error}</p>}
           {children}
         </div>
       </div>

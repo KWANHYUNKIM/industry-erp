@@ -48,7 +48,7 @@ export default function SalesOrderPickModal({ open, onClose, onApply }: {
         {(['전체', '진행중', '완료'] as const).map((t) => (
           <button key={t} type="button" className={`ec-pill no-ec${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>{t}</button>
         ))}
-        <span style={{ marginLeft: 'auto', fontSize: 11.5, color: '#8a929c' }}>{dateText(ORDER_PERIOD.from)} ~ {dateText(ORDER_PERIOD.to)}</span>
+        <span style={{ marginLeft: 'auto', fontSize: 11.5, color: 'var(--ec-text-hint)' }}>{dateText(ORDER_PERIOD.from)} ~ {dateText(ORDER_PERIOD.to)}</span>
       </div>
       <div style={{ maxHeight: '55vh', overflowY: 'auto' }}>
         <table className="w-full text-left">
@@ -66,7 +66,7 @@ export default function SalesOrderPickModal({ open, onClose, onApply }: {
           </thead>
           <tbody>
             {shown.length === 0 ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((o) => (
               <tr key={o.id} style={{ cursor: 'pointer' }}
                   onClick={() => setPicked((p) => (p.includes(o.id) ? p.filter((x) => x !== o.id) : [...p, o.id]))}>

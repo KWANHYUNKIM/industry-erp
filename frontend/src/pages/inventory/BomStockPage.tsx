@@ -127,22 +127,22 @@ export default function BomStockPage() {
       </EcStatusPanel>
 
       {cond.date !== today && (
-        <p style={{ marginBottom: 8, background: '#fff7e6', border: '1px solid #ffe0a3', color: '#8a5a00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
+        <p style={{ marginBottom: 8, background: 'var(--ec-warn-bg)', border: '1px solid #ffe0a3', color: '#8a5a00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
           지금 보는 것은 <b>기준일자 시점의 재고</b>입니다. 현재고에서 그 뒤의 입출고를 빼서 냅니다.
           숫자가 달라지지 않습니다.
         </p>
       )}
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        모품목 <b style={{ color: '#3c4553' }}>{num(rows.length)}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+        모품목 <b style={{ color: 'var(--ec-text)' }}>{num(rows.length)}</b>
+        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
         환산가능수량 합 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{num(totalBuildable)}</b>
         {blocked > 0 && (
           <>
-            <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
-            생산불가 <b style={{ color: '#c60a2e', fontSize: 14 }}>{num(blocked)}</b>
+            <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+            생산불가 <b style={{ color: 'var(--ec-danger)', fontSize: 14 }}>{num(blocked)}</b>
           </>
         )}
       </div>
@@ -173,7 +173,7 @@ export default function BomStockPage() {
             ) : rows.map((r, i) => (
               <Fragment key={r.bom.id}>
                 <tr style={{ background: '#f2f6fc' }}>
-                  <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+                  <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
                   <td style={{ fontFamily: 'monospace', fontWeight: 700 }}>{r.bom.productCode}</td>
                   <td style={{ fontWeight: 700 }}>
                     {r.bom.productName}
@@ -184,23 +184,23 @@ export default function BomStockPage() {
                     )}
                   </td>
                   <td>{r.bom.productUnit}</td>
-                  <td style={{ textAlign: 'right', color: '#9aa1ab' }}>{r.lines.length}건</td>
-                  <td style={{ textAlign: 'right', color: '#9aa1ab' }}>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{r.lines.length}건</td>
+                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>
                     {num(stockOf.get(r.bom.productId) ?? 0)}
                   </td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, fontSize: 14, color: r.buildable === 0 ? '#c60a2e' : 'var(--ec-blue)' }}>
+                  <td style={{ textAlign: 'right', fontWeight: 700, fontSize: 14, color: r.buildable === 0 ? 'var(--ec-danger)' : 'var(--ec-blue)' }}>
                     {num(r.buildable)}
                   </td>
                 </tr>
                 {r.lines.map((l) => (
                   <tr key={`c-${r.bom.id}-${l.componentId}`}>
-                    <td style={{ textAlign: 'center', background: '#f3f3f3' }}></td>
-                    <td style={{ fontFamily: 'monospace', paddingLeft: 18, color: '#5a626e' }}>└ {l.componentCode}</td>
-                    <td style={{ color: '#5a626e' }}>{l.componentName}</td>
-                    <td style={{ color: '#8a929c' }}>{l.unit}</td>
+                    <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)' }}></td>
+                    <td style={{ fontFamily: 'monospace', paddingLeft: 18, color: 'var(--ec-label)' }}>└ {l.componentCode}</td>
+                    <td style={{ color: 'var(--ec-label)' }}>{l.componentName}</td>
+                    <td style={{ color: 'var(--ec-text-hint)' }}>{l.unit}</td>
                     <td style={{ textAlign: 'right' }}>{num(l.quantity)}</td>
                     <td style={{ textAlign: 'right' }}>{num(l.stockQty)}</td>
-                    <td style={{ textAlign: 'right', color: l.buildable === r.buildable ? '#a5561b' : '#8a929c', fontWeight: l.buildable === r.buildable ? 700 : 400 }}>
+                    <td style={{ textAlign: 'right', color: l.buildable === r.buildable ? '#a5561b' : 'var(--ec-text-hint)', fontWeight: l.buildable === r.buildable ? 700 : 400 }}>
                       {l.buildable === null ? '—' : num(l.buildable)}
                     </td>
                   </tr>
@@ -211,10 +211,10 @@ export default function BomStockPage() {
           {rows.length > 0 && (
             <tfoot>
               <tr>
-                <td colSpan={6} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>
+                <td colSpan={6} style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>
                   환산가능수량 합계 ({rows.length}품목)
                 </td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: 'var(--ec-blue)' }}>
+                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: 'var(--ec-blue)' }}>
                   {num(totalBuildable)}
                 </td>
               </tr>

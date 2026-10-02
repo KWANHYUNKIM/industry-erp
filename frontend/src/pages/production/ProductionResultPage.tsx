@@ -497,14 +497,14 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
             const wo = orderById.get(l.workOrderId)
             return (
               <tr key={l.key}>
-                <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{idx + 1}</td>
+                <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{idx + 1}</td>
                 {type === 'III' && (
                   <td className="pad">
                     <CodePickerField label="공정" hideLabel fill placeholder="" emptyLabel="선택 해제"
                                      value={l.processId} onChange={(v) => setLine(l.key, { processId: v })} items={processPicks} />
                   </td>
                 )}
-                <td className="pad" style={{ fontFamily: 'ui-monospace, monospace', color: '#5a626e', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                <td className="pad" style={{ fontFamily: 'ui-monospace, monospace', color: 'var(--ec-label)', overflow: 'hidden', whiteSpace: 'nowrap' }}>
                   {it?.code ?? ''}
                 </td>
                 <td>
@@ -517,11 +517,11 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
                                    onChange={(v) => setLine(l.key, { productId: v, workOrderId: v === l.productId ? l.workOrderId : '', unitPrice: '', amountTouched: false, bomId: v === l.productId ? l.bomId : '' })}
                                    items={itemPicks} />
                 </td>
-                <td className="pad" style={{ color: '#5a626e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it?.spec ?? ''}</td>
+                <td className="pad" style={{ color: 'var(--ec-label)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it?.spec ?? ''}</td>
                 <td>
                   {(() => {
                     const vs = bomVersions.filter((v) => String(v.productId) === l.productId)
-                    if (vs.length <= 1) return <span className="pad" style={{ color: '#8a929c', fontSize: 12 }}>{vs[0]?.versionName ?? ''}</span>
+                    if (vs.length <= 1) return <span className="pad" style={{ color: 'var(--ec-text-hint)', fontSize: 12 }}>{vs[0]?.versionName ?? ''}</span>
                     return (
                       <select className="cell" value={l.bomId} onChange={(e) => setLine(l.key, { bomId: e.target.value })}>
                         {vs.map((v) => <option key={v.id} value={v.defaultVersion ? '' : String(v.id)}>{v.versionName}{v.defaultVersion ? '(기본)' : ''}</option>)}
@@ -573,12 +573,12 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
                            value={l.laborMinutes} onChange={(e) => setLine(l.key, { laborMinutes: e.target.value })} />
                   </td>
                 )}
-                <td className="pad" style={{ color: '#5a626e', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                <td className="pad" style={{ color: 'var(--ec-label)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
                     title={wo ? `잔량 ${won(Number(wo.remainingQty))}` : undefined}>
                   {wo ? `${dateText(wo.orderDate)} ${wo.orderNo}` : ''}
                   {wo && (
                     <button type="button" className="no-ec" title="작업지시서 연결 끊기"
-                            style={{ marginLeft: 4, border: 0, background: 'none', color: '#c60a2e', cursor: 'pointer' }}
+                            style={{ marginLeft: 4, border: 0, background: 'none', color: 'var(--ec-danger)', cursor: 'pointer' }}
                             onClick={() => setLine(l.key, { workOrderId: '' })}>×</button>
                   )}
                 </td>
@@ -638,22 +638,22 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
             const proc = processes.find((p) => String(p.id) === owner?.processId)
             return (
               <tr key={m.key}>
-                <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{idx + 1}</td>
-                {type === 'III' && <td className="pad" style={{ color: '#5a626e' }}>{proc?.name ?? ''}</td>}
+                <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{idx + 1}</td>
+                {type === 'III' && <td className="pad" style={{ color: 'var(--ec-label)' }}>{proc?.name ?? ''}</td>}
                 <td>
                   <select className="cell" value={m.lineKey} onChange={(e) => setMat(m.key, { lineKey: e.target.value })}>
                     <option value="" />
                     {lineOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </td>
-                <td className="pad" style={{ fontFamily: 'ui-monospace, monospace', color: '#5a626e', overflow: 'hidden', whiteSpace: 'nowrap' }}>{c?.code ?? ''}</td>
+                <td className="pad" style={{ fontFamily: 'ui-monospace, monospace', color: 'var(--ec-label)', overflow: 'hidden', whiteSpace: 'nowrap' }}>{c?.code ?? ''}</td>
                 <td className="pad">
                   <CodePickerField label="소모품목" hideLabel fill placeholder="" emptyLabel="선택 해제"
                                    value={m.componentId}
                                    onChange={(v) => setMat(m.key, { componentId: v, lineKey: m.lineKey || (filled.length === 1 ? String(filled[0].key) : '') })}
                                    items={itemPicks} />
                 </td>
-                {type === 'II' && <td className="pad" style={{ color: '#5a626e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c?.spec ?? ''}</td>}
+                {type === 'II' && <td className="pad" style={{ color: 'var(--ec-label)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c?.spec ?? ''}</td>}
                 {type === 'III' && (
                   <td>
                     <input className="cell" type="number" step="any" style={{ textAlign: 'right' }} disabled={!m.componentId}
@@ -664,7 +664,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
                   <input className="cell" type="number" step="any" style={{ textAlign: 'right' }} disabled={!m.componentId}
                          value={m.qty} onChange={(e) => setMat(m.key, { qty: e.target.value })} />
                 </td>
-                {type === 'III' && <td className="pad" style={{ textAlign: 'right', color: '#8a929c' }}>{m.bomQty !== '' ? won(num(m.bomQty)) : ''}</td>}
+                {type === 'III' && <td className="pad" style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{m.bomQty !== '' ? won(num(m.bomQty)) : ''}</td>}
                 <td>
                   <input className="cell" disabled={!m.componentId} value={m.note} onChange={(e) => setMat(m.key, { note: e.target.value })} />
                 </td>
@@ -798,7 +798,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
                 <option value="ALL">전체</option>
               </select>
               <button type="button" className="ec-btn ec-btn-sm" onClick={() => void loadFactoryStock()}>재고불러오기</button>
-              <span style={{ fontSize: 11.5, color: '#8a929c', marginLeft: 6 }}>
+              <span style={{ fontSize: 11.5, color: 'var(--ec-text-hint)', marginLeft: 6 }}>
                 생산품목마다 BOM 소요량 × 수량으로 다시 채웁니다(지금 [소모] 줄은 지워집니다).
               </span>
             </>
@@ -807,8 +807,8 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
 
         <div ref={gridRef}>{tab === '생산' ? prodGrid : consumeGrid}</div>
 
-        {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, margin: '8px 0' }}>{error}</p>}
-        {ok && <p style={{ background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, margin: '8px 0' }}>{ok}</p>}
+        {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, margin: '8px 0' }}>{error}</p>}
+        {ok && <p style={{ background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, margin: '8px 0' }}>{ok}</p>}
       </EcSlipShell>
 
       <Modal open={woOpen} title="작업지시서조회" error={error} width={900} onClose={() => setWoOpen(false)}>
@@ -827,7 +827,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
             </thead>
             <tbody>
               {openOrders.length === 0 ? (
-                <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
               ) : openOrders.map((o) => (
                 <tr key={o.id} style={{ cursor: 'pointer' }}
                     onClick={() => setWoChecked((c) => (c.includes(o.id) ? c.filter((x) => x !== o.id) : [...c, o.id]))}>

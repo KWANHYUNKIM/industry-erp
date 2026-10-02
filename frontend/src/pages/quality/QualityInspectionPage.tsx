@@ -24,7 +24,7 @@ const RESULTS: { v: QualityResult; label: string }[] = [
   { v: 'FAIL', label: '불합격' },
 ]
 
-const resultColor = (r: QualityResult) => (r === 'FAIL' ? '#c60a2e' : r === 'CONDITIONAL' ? '#c07a00' : '#1c7c3c')
+const resultColor = (r: QualityResult) => (r === 'FAIL' ? 'var(--ec-danger)' : r === 'CONDITIONAL' ? 'var(--ec-warn)' : 'var(--ec-success)')
 
 /**
  * 재고 II > 품질관리 — 수입/공정/출하 검사성적 (실제 연동).
@@ -145,8 +145,8 @@ export default function QualityInspectionPage() {
       onNew={() => setShowForm(true)}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {ok && <p style={{ marginBottom: 8, background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
+      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {ok && <p style={{ marginBottom: 8, background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
 
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
@@ -172,35 +172,35 @@ export default function QualityInspectionPage() {
         <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginTop: 8, marginBottom: 8 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>검사성적 등록</div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>검사일자</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>검사일자</div>
               <input className={inputCls} type="date" value={form.inspectionDate} onChange={(e) => set('inspectionDate', e.target.value)} style={{ width: 140 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>검사구분</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>검사구분</div>
               <select className={inputCls} value={form.type} onChange={(e) => set('type', e.target.value)} style={{ width: 110 }}>
                 {TYPES.map((t) => <option key={t.v} value={t.v}>{t.label}</option>)}
               </select></label>
             {/* 긴 드롭다운이었다(QA 11회차). 코드도움은 <label> 로 감싸면 팝업의 클릭이 먹히지 않아 div 로 둔다. */}
-            <div style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>품목 *</div>
+            <div style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>품목 *</div>
               <CodePickerField label="품목" hideLabel width={220} placeholder="선택하세요" emptyLabel="선택 해제"
                                value={form.itemId} onChange={(v) => set('itemId', v)}
                                items={items.filter((it) => it.active !== false).map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))} /></div>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>로트No.</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>로트No.</div>
               <input className={inputCls} value={form.lotNo} onChange={(e) => set('lotNo', e.target.value)} style={{ width: 150 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>검사수량 *</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>검사수량 *</div>
               <input className={inputCls} type="number" step="any" value={form.inspectedQty} onChange={(e) => set('inspectedQty', e.target.value)} style={{ width: 90 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>불량수</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>불량수</div>
               <input className={inputCls} type="number" step="any" value={form.defectQty} onChange={(e) => set('defectQty', e.target.value)} style={{ width: 80 }} /></label>
             {/*
               원본 불량률파악보고서의 [불량유형]. 여기서 안 받으면 <b>그 조건이 걸 값이
               어디서도 안 생긴다.</b> 불량수가 0 이면 고를 것이 없다 — 전량 양품인데
               '치수불량' 이 붙어 있으면 헷갈리므로 서버도 버린다.
             */}
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>불량유형</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>불량유형</div>
               <select className={inputCls} value={form.defectType} disabled={Number(form.defectQty || 0) <= 0}
                       onChange={(e) => set('defectType', e.target.value)} style={{ width: 120 }}>
                 <option value="">(미지정)</option>
                 {defectTypes.map((d) => <option key={d.id} value={d.code}>{d.name}</option>)}
               </select></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>판정(자동)</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>판정(자동)</div>
               <select className={inputCls} value={form.result} onChange={(e) => set('result', e.target.value)} style={{ width: 120 }}>
                 <option value="">자동판정</option>
                 {RESULTS.map((r) => <option key={r.v} value={r.v}>{r.label}</option>)}
@@ -210,11 +210,11 @@ export default function QualityInspectionPage() {
               이 화면이 정할 데도, 보여 줄 데도 두지 않았다 — 불량률파악보고서는 그 값으로
               거르고 있었으니 늘 빈 채로 걸렸다.
             */}
-            <div style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>프로젝트</div>
+            <div style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>프로젝트</div>
               <CodePickerField label="프로젝트" hideLabel width={160} placeholder="(없음)" emptyLabel="선택 해제"
                                value={form.projectId} onChange={(v) => set('projectId', v)}
                                items={projects.map((pj) => ({ value: String(pj.id), code: pj.code, name: pj.name }))} /></div>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>검사자</div>
+            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>검사자</div>
               <input className={inputCls} value={form.inspector} onChange={(e) => set('inspector', e.target.value)} placeholder="미입력시 본인" style={{ width: 110 }} /></label>
             <button className="ec-btn ec-btn-primary" onClick={submit}>저장</button>
           </div>
@@ -242,12 +242,12 @@ export default function QualityInspectionPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : capped.rows.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
               <td style={{ fontFamily: 'monospace' }}>{r.inspectionNo}</td>
               <td>{dateText(r.inspectionDate)}</td>
               <td>{r.typeName}</td>
@@ -255,9 +255,9 @@ export default function QualityInspectionPage() {
               <td style={{ fontFamily: 'monospace' }}>{r.lotNo ?? ''}</td>
               <td style={{ textAlign: 'right' }}>{r.inspectedQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right' }}>{r.defectQty.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', color: r.defectRate >= 3 ? '#c60a2e' : undefined }}>{r.defectRate.toFixed(1)}</td>
+              <td style={{ textAlign: 'right', color: r.defectRate >= 3 ? 'var(--ec-danger)' : undefined }}>{r.defectRate.toFixed(1)}</td>
               <td style={{ textAlign: 'center', color: resultColor(r.result), fontWeight: 700 }}>{r.resultName}</td>
-              <td style={{ color: r.projectName ? '#5a626e' : '#c9ced6' }}>{r.projectName ?? ''}</td>
+              <td style={{ color: r.projectName ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{r.projectName ?? ''}</td>
               <td>{r.inspector ?? ''}</td>
             </tr>
           ))}

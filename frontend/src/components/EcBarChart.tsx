@@ -23,14 +23,14 @@ export default function EcBarChart({
 }) {
   const bars = toBars(topRows(rows, limit))
   if (bars.length === 0) {
-    return <p style={{ textAlign: 'center', color: '#9aa1ab', padding: 24, fontSize: 12.5 }}>{emptyText}</p>
+    return <p style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 24, fontSize: 12.5 }}>{emptyText}</p>
   }
   const allZero = bars.every((b) => b.percent === 0)
 
   return (
     <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: '12px 14px' }}>
       {allZero && (
-        <p style={{ margin: '0 0 8px', fontSize: 11.5, color: '#c07a00' }}>
+        <p style={{ margin: '0 0 8px', fontSize: 11.5, color: 'var(--ec-warn)' }}>
           값이 모두 0이라 막대를 그리지 않았습니다.
         </p>
       )}
@@ -43,12 +43,12 @@ export default function EcBarChart({
           <div style={{ flex: 1, background: 'var(--ec-body-bg)', height: 12, position: 'relative' }}>
             <div style={{
               width: `${b.percent}%`, height: '100%',
-              background: b.negative ? '#c60a2e' : 'var(--ec-blue)',
+              background: b.negative ? 'var(--ec-danger)' : 'var(--ec-blue)',
             }} />
           </div>
           <div style={{
             width: 130, flexShrink: 0, textAlign: 'right', fontSize: 11.5,
-            fontWeight: 600, color: b.negative ? '#c60a2e' : 'var(--ec-text)',
+            fontWeight: 600, color: b.negative ? 'var(--ec-danger)' : 'var(--ec-text)',
           }}>
             {b.value.toLocaleString('ko-KR')}{unit}
           </div>
