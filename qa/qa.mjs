@@ -1836,6 +1836,9 @@ async function scenarioFixedAsset() {
   eq('정액 월 상각액은 원 단위(1,000만/60 = 166,667)', Number(feb?.amount), 166_667)
   eq('두 번째 달도 상각된다(분개 출처가 자산이 아니라 상각 행)', Number(mar?.amount), 166_667)
   eq('두 달 뒤 장부가 = 10,000,000 − 333,334', Number(mar?.bookValueAfter), 9_666_666)
+  // 59회차 — 3월까지 상각한 자산을 2월 처분일로 받아 줬다. 누계액이 부풀어 처분손익이 틀린다.
+  await rejects('상각한 달보다 앞선 날짜로는 처분할 수 없다', 'POST', `/fixed-assets/${two.id}/dispose`,
+    { disposalDate: '2026-02-15', disposalAmount: 0 }, '2026-03')
   await must('POST', `/fixed-assets/${two.id}/dispose`, { disposalDate: '2026-03-31', disposalAmount: 0 })
 }
 

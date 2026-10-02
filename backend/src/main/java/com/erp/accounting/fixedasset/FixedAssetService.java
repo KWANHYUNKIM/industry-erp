@@ -171,6 +171,19 @@ public class FixedAssetService {
         if (req.disposalDate().isBefore(asset.getAcquisitionDate())) {
             throw ApiException.badRequest("처분일이 취득일보다 빠를 수 없습니다.");
         }
+        /*
+         * 처분한 뒤의 달에 상각이 이미 잡혀 있으면 누계액이 부풀어 처분손익이 틀리고, 없는 자산의 감가상각비가
+         * 남는다(QA 59회차 — 9월까지 상각한 자산을 7/15 처분일로 받아 줬다). 그 달들보다 뒤 날짜로 처분하게 한다.
+         */
+        String disposalMonth = YearMonth.from(req.disposalDate()).toString();
+        List<String> after = depreciationRepository.findPeriodsByAssetId(asset.getId()).stream()
+                .filter((p) -> p.compareTo(disposalMonth) > 0).sorted().toList();
+        if (!after.isEmpty()) {
+            throw ApiException.badRequest(String.format(
+                    "%s 은(는) 처분일(%s) 뒤 달 %s 에 감가상각이 이미 잡혀 있습니다 — 처분일을 %s 이후로 하세요.",
+                    asset.getAssetNo(), req.disposalDate(), String.join(", ", after),
+                    YearMonth.parse(after.get(after.size() - 1)).atEndOfMonth()));
+        }
 
         asset.setStatus(AssetStatus.DISPOSED);
         asset.setDisposalDate(req.disposalDate());
