@@ -906,5 +906,9 @@
  [
   "매입(세금)계산서조회(재고)",
   "production/PurchaseTaxStockPage.tsx"
+ ],
+ [
+  "A/S수리조회",
+  "quality/AsRepairListPage.tsx"
  ]
 ]

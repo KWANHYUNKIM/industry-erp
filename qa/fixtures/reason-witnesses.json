@@ -5418,5 +5418,14 @@
    "VatType"
   ],
   "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "A/S수리조회|발송여부": {
+  "claim": "발송 이력이 없다",
+  "absent": [
+   "mailed",
+   "sentAt",
+   "sendStatus"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
  }
 }

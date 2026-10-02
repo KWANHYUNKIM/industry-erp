@@ -1335,6 +1335,7 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     ['매출(세금)계산서현황(재고)', 'production/PurchaseTaxStockPage.tsx'],
     ['매출(세금)계산서조회(재고)', 'production/PurchaseTaxStockPage.tsx'],
     ['매입(세금)계산서조회(재고)', 'production/PurchaseTaxStockPage.tsx'],
+    ['A/S수리조회', 'quality/AsRepairListPage.tsx'],
     ['수령수표조회', 'accounting/CheckListPage.tsx'],
     ['발행수표조회', 'accounting/CheckListPage.tsx'],
     ['주문서현황', 'trade/SalesOrderStatusPage.tsx'],
@@ -4952,6 +4953,9 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
     ['품질검사조회|삭제구분', '검사는 지우면 행이 사라진다 — 삭제 표시만 남기는 칸이 없어 가를 것이 없다'],
     ['품질검사조회|발송여부', '검사 전표를 메일 · 문자로 보내지 않아 발송 이력이 없다'],
     ['품질검사조회|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    /* <b>A/S수리조회(E040606)</b> — 2026-10-03 원본 실측(AsRepairListPage). */
+    ['A/S수리조회|발송여부', 'A/S 를 메일 · 문자로 보내지 않아 발송 이력이 없다'],
+    ['A/S수리조회|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
     /* <b>A/S수리현황(E040611)</b> — 2026-10-03 원본 실측(AsRepairStatusPage). */
     ['A/S수리현황|구분', '원본 [집계] 판을 못 재서 내역 한 장만 세운다 — 지어낸 집계를 두지 않는다'],
     ['A/S수리현황|수리유형', 'A/S 가 유상 · 무상교환 같은 수리유형을 들지 않는다'],

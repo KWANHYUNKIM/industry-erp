@@ -91,6 +91,9 @@ export function periodOf(label: string, today = new Date(), fiscalStart?: number
     case '최근30일(+1개월)':
       return { from: ymd(addDays(t, -30)), to: ymd(addDays(t, 30)) }
     /* 재고조정진행단계(C000089)의 빠른선택 — 같은 '(+1개월)' 규칙(+30일)에 앞쪽만 40일이다(이름만 쟀다, 누르지 않았다). */
+    /* A/S수리조회(E040606)의 기본 — 2026-10-03 에 2026/04/01 ~ 2026/11/02 였다: 여섯 달 전 달의 1일 ~ 오늘 + 30일. */
+    case '6개월(+1개월)':
+      return { from: ymd(new Date(t.getFullYear(), t.getMonth() - 6, 1)), to: ymd(addDays(t, 30)) }
     case '최근40일(+1개월)':
       return { from: ymd(addDays(t, -40)), to: ymd(addDays(t, 30)) }
     // 현황 화면에서 쓰는 것들. '금월' 과 달리 월말이 아니라 **오늘**까지다.
@@ -277,6 +280,9 @@ export const SALES_TAX_STOCK_PICKS = [...BASE_PICKS, '직전분기', '직전반�
 
 /** 매출(세금)계산서조회(재고)(E040218) — A/S 묶음 끝에 <b>최근30일(+1개월)</b>, 기본도 그것(2026-10-03 원본 실측). */
 export const SALES_TAX_LIST_PICKS = [...BASE_PICKS, '직전분기', '직전반기', '종료일', '최근30일(+1개월)'] as const
+
+/** A/S수리조회(E040606) — 견적서 묶음 끝에 <b>6개월(+1개월)</b>, 기본도 그것(2026-10-03 원본 실측). */
+export const AS_REPAIR_LIST_PICKS = [...BASE_PICKS, '종료일', '최근30일(+1개월)', '6개월(+1개월)'] as const
 
 export const SELF_USE_PICKS = [...ORDER_DOC_PICKS, '최근30일(+1개월)'] as const
 

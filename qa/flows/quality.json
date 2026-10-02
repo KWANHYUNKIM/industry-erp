@@ -88,6 +88,14 @@
         "wait:2000",
         "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const rows=[...document.querySelectorAll('tbody tr')].filter((t)=>t.cells.length===7);return h==='|일자-No.|품목명[규격]|시리얼/로트No.|수량|전표구분|유효기한'&&rows.every((t)=>/\\.\\d\\d$/.test(t.cells[4].innerText.trim()))})()"
       ]
+    },
+    {
+      "name": "A/S수리조회 — 기본 6개월(+1개월), 열 수리번호 · 접수번호 · 거래처명 · 제목 · 수리내용 · 수리품목명 · 수리담당자명 · 금액, 날짜는 연도 두 자리",
+      "path": "/quality/as-repair-list",
+      "steps": [
+        "wait:2000",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const rows=[...document.querySelectorAll('tbody tr')].filter((t)=>t.cells.length===9);return h==='|수리번호|접수번호|거래처명|제목|수리내용|수리품목명|수리담당자명|금액'&&rows.every((t)=>/^\\d\\d\\/\\d\\d\\/\\d\\d /.test(t.cells[1].innerText.trim()))})()"
+      ]
     }
   ]
 }
