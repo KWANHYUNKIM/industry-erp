@@ -1,0 +1,31 @@
+{
+  "about": "수령수표증가현황 · 감소현황 — 받은수표 하나를 받고 오늘 입금해(API) 두 화면의 [일자-No.] 가 각각 받을 때 · 입금할 때 회계전표 번호인지 본다. 수표는 지울 길이 없어 남는다(qa.mjs 수표 시험과 같다).",
+  "shots": [
+    {
+      "name": "준비 — 받은수표 1장 받고 오늘 입금(API)",
+      "path": "/accounting/checks-in",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const p=(await window.__api('GET','/partners')).body.find((x)=>x.code==='QA-CUST');const acc=(await window.__api('GET','/bank-cards/accounts')).body[0];const no='QAFLOW-'+Date.now();const c=await window.__api('POST','/checks',{type:'RECEIVED',checkNo:no,amount:34567,issueDate:new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10),partnerId:p.id,remark:'QA 수표흐름'});const dep=await window.__api('POST','/checks/'+c.body.id+'/deposit',{bankAccountId:acc.id,depositDate:new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10)});sessionStorage.setItem('ckNo',no);return c.status+'/'+dep.status})()",
+        "expect:!!sessionStorage.getItem('ckNo')"
+      ]
+    },
+    {
+      "name": "수령수표증가현황 — 그 수표가 [수령] 줄로 뜨고 [일자-No.] 에 받을 때 회계전표 번호가 붙는다",
+      "path": "/accounting/checks-in",
+      "steps": [
+        "wait:2000",
+        "expect:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('ckNo')));if(!tr)return false;return tr.cells[4].innerText.trim()==='수령'&&/\\d{4}\\/\\d{2}\\/\\d{2}\\s+\\S+/.test(tr.cells[0].innerText.trim())})()"
+      ]
+    },
+    {
+      "name": "수령수표감소현황 — 같은 수표가 [입금완료] 줄로 뜨고 [일자-No.] 에 입금 회계전표 번호(V239 settle_journal_id)가 붙는다",
+      "path": "/accounting/checks-out",
+      "steps": [
+        "wait:2000",
+        "js:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('ckNo')));return tr?tr.cells[0].innerText:'(없음)'})()",
+        "expect:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('ckNo')));if(!tr)return false;return tr.cells[4].innerText.trim()==='입금완료'&&/\\d{4}\\/\\d{2}\\/\\d{2}\\s+\\S+/.test(tr.cells[0].innerText.trim())})()"
+      ]
+    }
+  ]
+}

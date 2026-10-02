@@ -5,6 +5,8 @@ import com.erp.accounting.journal.JournalService;
 import com.erp.common.ApiException;
 import com.erp.accounting.bankcard.BankAccount;
 import com.erp.accounting.journal.JournalEntry;
+import com.erp.accounting.journal.JournalEntryRepository;
+import com.erp.accounting.journal.JournalSourceType;
 import com.erp.accounting.bankcheck.dto.BankCheckDtos.CheckResponse;
 import com.erp.accounting.bankcheck.dto.BankCheckDtos.CreateCheckRequest;
 import com.erp.accounting.bankcheck.dto.BankCheckDtos.DepositRequest;
@@ -33,6 +35,7 @@ public class BankCheckService {
     private final BankAccountRepository bankAccountRepository;
     private final BusinessPartnerRepository partnerRepository;
     private final JournalService journalService;
+    private final JournalEntryRepository journalRepository;
     private final BankCardService bankCardService;
 
     @Transactional(readOnly = true)
@@ -47,9 +50,27 @@ public class BankCheckService {
      */
     @Transactional(readOnly = true)
     public List<CheckResponse> findAll(java.time.LocalDate from, java.time.LocalDate to) {
-        return checkRepository.findAllWithRefs(
+        List<BankCheck> checks = checkRepository.findAllWithRefs(
                 from != null ? from : java.time.LocalDate.of(1900, 1, 1),
-                to != null ? to : java.time.LocalDate.of(9999, 12, 31)).stream().map(CheckResponse::from).toList();
+                to != null ? to : java.time.LocalDate.of(9999, 12, 31));
+        /*
+         * 원본 수령수표증가 · 감소현황의 [일자-No.] — 받을 때 분개(source_id = 수표)와 손을 떠날 때 분개(settle_journal_id)의 번호.
+         * 한 번에 모아 찾는다(수표마다 따로 찾으면 N+1).
+         */
+        java.util.Map<Long, String> issueNo = new java.util.HashMap<>();
+        java.util.List<Long> ids = checks.stream().map(BankCheck::getId).toList();
+        if (!ids.isEmpty()) {
+            for (JournalEntry j : journalRepository.findBySourceTypeAndSourceIdIn(JournalSourceType.CHECK, ids)) {
+                issueNo.putIfAbsent(j.getSourceId(), j.getDocNo());
+            }
+        }
+        java.util.List<Long> settleIds = checks.stream().map(BankCheck::getSettleJournalId).filter(java.util.Objects::nonNull).toList();
+        java.util.Map<Long, String> settleNo = new java.util.HashMap<>();
+        for (JournalEntry j : journalRepository.findAllById(settleIds)) settleNo.put(j.getId(), j.getDocNo());
+        return checks.stream()
+                .map((c) -> CheckResponse.from(c, issueNo.get(c.getId()),
+                        c.getSettleJournalId() != null ? settleNo.get(c.getSettleJournalId()) : null))
+                .toList();
     }
 
     @Transactional
@@ -106,6 +127,7 @@ public class BankCheckService {
         c.setSettledDate(date);
 
         JournalEntry entry = journalService.createFromCheckDeposit(c, date, username);
+        c.setSettleJournalId(entry.getId());
         bankCardService.recordExternal(account.getId(), true, c.getAmount(), date,
                 "수표 입금 " + c.getCheckNo(), entry, username);
         return CheckResponse.from(c);
@@ -121,7 +143,7 @@ public class BankCheckService {
         LocalDate date = req.settledDate() != null ? req.settledDate() : LocalDate.now();
         c.setStatus(CheckStatus.DISHONORED);
         c.setSettledDate(date);
-        journalService.createFromCheckDishonor(c, date, username);
+        c.setSettleJournalId(journalService.createFromCheckDishonor(c, date, username).getId());
         return CheckResponse.from(c);
     }
 

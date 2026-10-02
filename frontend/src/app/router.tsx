@@ -68,6 +68,7 @@ const FastVoucherPage = lazy(() => import('../pages/accounting/FastVoucherPage')
 const NonCashPage = lazy(() => import('../pages/accounting/NonCashPage'))
 const CheckPage = lazy(() => import('../pages/accounting/CheckPage'))
 const CheckHoldingPage = lazy(() => import('../pages/accounting/CheckHoldingPage'))
+const CheckFlowPage = lazy(() => import('../pages/accounting/CheckFlowPage'))
 const ContractPage = lazy(() => import('../pages/accounting/ContractPage'))
 const CurrencyPage = lazy(() => import('../pages/settings/CurrencyPage'))
 const ExpensePage = lazy(() => import('../pages/accounting/ExpensePage'))
@@ -420,6 +421,8 @@ export default function AppRouter() {
         <Route path="/accounting/vouchers" element={<FastVoucherPage />} />
         <Route path="/accounting/non-cash" element={<NonCashPage />} />
         <Route path="/accounting/checks" element={<CheckPage />} />
+        <Route path="/accounting/checks-in" element={<CheckFlowPage flow="증가" />} />
+        <Route path="/accounting/checks-out" element={<CheckFlowPage flow="감소" />} />
         <Route path="/accounting/checks-held" element={<CheckHoldingPage type="RECEIVED" />} />
         <Route path="/accounting/checks-issued" element={<CheckHoldingPage type="ISSUED" />} />
         <Route path="/accounting/contracts" element={<ContractPage />} />

@@ -4897,5 +4897,61 @@
   "present": [
    "key={c.id}"
   ]
+ },
+ "수령수표증가현황|부서": {
+  "claim": "수표에 부서가 없다",
+  "absent": [
+   "Department",
+   "department"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/bankcheck/BankCheck.java"
+ },
+ "수령수표증가현황|프로젝트": {
+  "claim": "수표에 프로젝트가 없다",
+  "absent": [
+   "Project",
+   "project"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/bankcheck/BankCheck.java"
+ },
+ "수령수표증가현황|정렬/소계기준": {
+  "claim": "일자 오름차순 하나로 세운다",
+  "present": [
+   "dayOf(a) < dayOf(b)"
+  ]
+ },
+ "수령수표증가현황|데이터 보기형식": {
+  "claim": "수표 한 장이 한 줄인 목록이다",
+  "present": [
+   "key={c.id}"
+  ]
+ },
+ "수령수표감소현황|부서": {
+  "claim": "수표에 부서가 없다",
+  "absent": [
+   "Department",
+   "department"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/bankcheck/BankCheck.java"
+ },
+ "수령수표감소현황|프로젝트": {
+  "claim": "수표에 프로젝트가 없다",
+  "absent": [
+   "Project",
+   "project"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/bankcheck/BankCheck.java"
+ },
+ "수령수표감소현황|정렬/소계기준": {
+  "claim": "일자 오름차순 하나로 세운다",
+  "present": [
+   "dayOf(a) < dayOf(b)"
+  ]
+ },
+ "수령수표감소현황|데이터 보기형식": {
+  "claim": "수표 한 장이 한 줄인 목록이다",
+  "present": [
+   "key={c.id}"
+  ]
  }
 }

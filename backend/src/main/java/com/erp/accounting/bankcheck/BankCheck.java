@@ -61,6 +61,13 @@ public class BankCheck extends BaseTimeEntity {
     /** 받은수표를 입금하거나 발행수표가 인출된 날 */
     private LocalDate settledDate;
 
+    /**
+     * 손을 떠날 때(입금 · 부도) 만든 회계전표 id. 원본 수령수표감소현황의 [일자-No.] 가 이 전표다(V239).
+     * 받을 때의 분개는 source_id 로 이미 잇는다. 발행수표 결제는 분개가 없어 비어 있다.
+     */
+    @Column(name = "settle_journal_id")
+    private Long settleJournalId;
+
     @Column(length = 200)
     private String remark;
 

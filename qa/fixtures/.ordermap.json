@@ -806,5 +806,13 @@
  [
   "발행수표현황",
   "accounting/CheckHoldingPage.tsx"
+ ],
+ [
+  "수령수표증가현황",
+  "accounting/CheckFlowPage.tsx"
+ ],
+ [
+  "수령수표감소현황",
+  "accounting/CheckFlowPage.tsx"
  ]
 ]

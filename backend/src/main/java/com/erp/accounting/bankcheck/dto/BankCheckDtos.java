@@ -44,9 +44,15 @@ public final class BankCheckDtos {
             LocalDate issueDate, BigDecimal amount, String bankName,
             Long partnerId, String partnerName,
             Long bankAccountId, String bankAccountName,
-            LocalDate settledDate, String remark, String createdBy
+            LocalDate settledDate, String remark, String createdBy,
+            /* 원본 수령수표증가 · 감소현황의 [일자-No.] — 받을 때 · 손을 떠날 때 회계전표 번호. 목록에서만 채운다. */
+            String issueJournalNo, String settleJournalNo
     ) {
         public static CheckResponse from(BankCheck c) {
+            return from(c, null, null);
+        }
+
+        public static CheckResponse from(BankCheck c, String issueJournalNo, String settleJournalNo) {
             return new CheckResponse(
                     c.getId(), c.getCheckNo(), c.getType(), c.getType().getDisplayName(),
                     c.getStatus(), c.getStatus().getDisplayName(),
@@ -56,7 +62,7 @@ public final class BankCheckDtos {
                     c.getBankAccount() != null ? c.getBankAccount().getId() : null,
                     c.getBankAccount() != null
                             ? c.getBankAccount().getBankName() + " " + c.getBankAccount().getAccountNo() : null,
-                    c.getSettledDate(), c.getRemark(), c.getCreatedBy());
+                    c.getSettledDate(), c.getRemark(), c.getCreatedBy(), issueJournalNo, settleJournalNo);
         }
     }
 }
