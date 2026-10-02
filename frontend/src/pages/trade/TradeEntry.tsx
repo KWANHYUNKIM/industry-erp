@@ -622,8 +622,8 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
    * <p>서버가 이미 순서를 판단한다(거래처별 → 그 거래처의 단가그룹별). 화면은 부르기만 한다.
    * 못 찾으면 표준단가를 그대로 둔다 — 특별단가가 없다는 뜻이지 0 이라는 뜻이 아니다.
    */
-  async function applySpecialPrice(idx: number, itemId: string) {
-    const pid = partnerId
+  async function applySpecialPrice(idx: number, itemId: string, partnerOverride?: string) {
+    const pid = partnerOverride ?? partnerId
     if (!pid || !itemId) return
     try {
       const r = await api.get<{ found: boolean; unitPrice: number | null }>('/special-prices/resolve', {
@@ -632,6 +632,17 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
       if (!r.data.found || r.data.unitPrice == null) return
       setLines((ls) => ls.map((l, i) => (i === idx ? { ...l, unitPrice: String(r.data.unitPrice) } : l)))
     } catch { /* 특별단가를 못 읽어도 전표입력은 계속돼야 한다 */ }
+  }
+
+  /*
+   * 거래처를 <b>사람이 고르면</b> 이미 담긴 품목의 특별단가를 다시 찾는다. 예전엔 품목을 고를 때만 찾아서
+   * 품목을 먼저 담고 거래처를 나중에 고르면 특별단가가 안 걸렸다(49회차 — 한빛스마트홈 온습도 센서 2,200 이
+   * 0 으로 남았다). 전표를 불러오거나 반품으로 열 때는 이 길을 안 타 저장된 단가를 덮지 않는다.
+   */
+  function choosePartner(v: string) {
+    setPartnerId(v)
+    if (!v) return
+    lines.forEach((l, i) => { if (l.itemId) void applySpecialPrice(i, l.itemId, v) })
   }
 
   // ── 라인 편집 ─────────────────────────────────────────
@@ -1242,7 +1253,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
             <div className="form">
               <CodePickerField
                 label={cfg.partnerLabel} hideLabel pair
-                value={partnerId} onChange={setPartnerId}
+                value={partnerId} onChange={choosePartner}
                 items={partnerCodeItems(usablePartners)}
               />
             </div>
