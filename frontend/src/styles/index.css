@@ -1,29 +1,14 @@
 @import "tailwindcss";
 
-/* ===== 이카운트 실제 테마 토큰 (theme-blue #1f48d4) ===== */
+@import "./tokens.css";
+@import "./shell.css";
+
+/* 색·크기·둥글기는 tokens.css 가 단일 출처다. 이 파일은 그 토큰으로 부품(버튼·칸·격자·판)을 그린다. */
 :root {
-  --ec-blue: #1f48d4;         /* --theme-blue / --primary */
-  --ec-blue-dark: #183185;    /* --theme-deepblue */
-  --ec-blue-hover: #1b3da1;   /* --primary-hover */
-  --ec-blue-light: #d3daf7;   /* --primary-light */
-  --ec-lightblue: #668fe7;    /* --theme-lightblue */
-  --ec-bookmark-bg: #f4f6f9;
-  /* 아래 3개는 살아 있는 원본(loginad.ecount.com)에서 getComputedStyle 로 실측한 값이다.
-     짐작으로 고르지 말 것 — scratchpad/ecount-computed.md 에 대조표가 있다. */
-  --ec-border: #dee2e6;       /* rgb(222,226,230) — 원본의 기본 테두리 */
-  --ec-border-strong: #9bb0be;/* rgb(155,176,190) — 그리드 헤더 위쪽만 진하다 */
-  --ec-body-bg: #f7f8f9;      /* rgb(247,248,249) */
-  --ec-text: #142444;         /* --text (진네이비). 입력칸·버튼 글자색 */
-  --ec-text-grid: #000;       /* 그리드 셀은 순검정이다 */
-  --ec-label: #62677e;        /* rgb(98,103,126) — 헤더 폼 라벨 */
-  /* 그림자 토큰 (네이비 톤, 은은하게 — 카드/표/버튼에 입체감) */
-  --ec-shadow-sm: 0 1px 2px rgba(20, 36, 68, 0.08);
-  --ec-shadow: 0 1px 3px rgba(20, 36, 68, 0.10), 0 1px 2px rgba(20, 36, 68, 0.06);
-  --ec-shadow-lg: 0 6px 18px rgba(20, 36, 68, 0.14);
-  /* 원본 그대로: 맑은 고딕이 1순위다. DM Sans 를 앞에 두면 글자 폭·자간이 달라져
-     같은 픽셀값을 줘도 화면 인상이 안 맞는다. */
+  /* 맑은 고딕이 1순위다. 원본은 사용자 설정 글꼴(loginaa 는 돋움)을 따르지만 기본값이 맑은 고딕이고,
+     DM Sans 처럼 폭이 다른 글꼴을 앞에 두면 같은 px 를 줘도 인상이 안 맞는다. */
   font-family: "Malgun Gothic", "맑은 고딕", Arial, "Apple SD Gothic Neo", Gulim, sans-serif;
-  font-size: 12px;
+  font-size: var(--ec-fs);
   color-scheme: light;
 }
 
@@ -46,45 +31,44 @@ body {
   width: 100%;
   border-collapse: collapse;
   font-size: 12px;
-  background: #fff;
-  box-shadow: var(--ec-shadow);
+  background: var(--ec-bg-panel);
 }
-/* 원본 실측: th bg #f7f8f9 · padding 10px 3px 8px · 위 테두리만 #9bb0be · 글자 12px 검정 */
+/* 머리: 바탕 --ec-bg-page · 윗선만 --ec-line-head · 높이 35 */
 .ec-grid th {
-  background: var(--ec-body-bg);
-  border: 1px solid var(--ec-border);
-  border-top-color: var(--ec-border-strong);
-  padding: 10px 3px 8px;
+  background: var(--ec-bg-page);
+  border: var(--ec-hair) solid var(--ec-line);
+  border-top-color: var(--ec-line-head);
+  padding: var(--ec-pad-th);
   font-weight: 400;
   color: var(--ec-text-grid);
   white-space: nowrap;
 }
 .ec-grid td {
-  border: 1px solid var(--ec-border);
-  padding: 6px 3px;
+  border: var(--ec-hair) solid var(--ec-line);
+  padding: var(--ec-pad-td);
   color: var(--ec-text-grid);
 }
 .ec-grid tbody tr:nth-child(even) {
   background: #fafbfc;
 }
 .ec-grid tbody tr:hover {
-  background: var(--ec-blue-light);
+  background: var(--ec-bg-row-hover);
 }
 
 /* 이카운트풍 버튼 */
-/* 원본 실측: 푸터 버튼 h28 / padding 7px 10px / radius 5px / 흰 배경 / border #dee2e6.
-   그라데이션과 그림자는 원본에 없다(box-shadow: none). */
+/* ec56 실측: h26 · 여백 6.3px 9px · 둥글기 10 · 흰 바탕 · 머리카락 테두리. 그라데이션·그림자 없음. */
 .ec-btn {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  height: 28px;
-  padding: 0 10px;
-  font-size: 12px;
-  border: 1px solid var(--ec-border);
+  height: var(--ec-ctl-h);
+  padding: var(--ec-pad-btn);
+  font-size: var(--ec-fs);
+  line-height: 12px;
+  border: var(--ec-hair) solid var(--ec-line);
   background: #fff;
   color: var(--ec-text);
-  border-radius: 5px;
+  border-radius: var(--ec-radius);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -97,7 +81,25 @@ body {
   color: #fff;
 }
 .ec-btn-primary:hover {
-  background: var(--ec-blue-dark);
+  background: var(--ec-blue-hover);
+  border-color: var(--ec-blue-hover);
+}
+.ec-btn:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+/* 붙은 버튼 묶음([Email][▴] · [Fn] 붙은 빠른검색) — 맞닿는 쪽 모서리만 각지다. */
+.ec-btn-group {
+  display: inline-flex;
+}
+.ec-btn-group > :not(:first-child) {
+  margin-left: calc(-1 * var(--ec-hair));
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.ec-btn-group > :not(:last-child) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
 }
 /*
  * <b>기간 빠른선택</b>([금일][전일][금월] …)과 조건 판의 글자 버튼 — 2026-09-21 원본 재고현황
@@ -115,13 +117,13 @@ body {
 }
 
 /* 입력칸 */
-/* 원본 실측: h30 · padding 6px · radius 5px · border #dee2e6 */
+/* ec56 실측: h26 · 여백 5.4px · 둥글기 10 · 머리카락 테두리 · 글자 --ec-text */
 .ec-input {
-  height: 30px;
-  padding: 0 6px;
-  border: 1px solid var(--ec-border);
-  border-radius: 5px;
-  font-size: 12px;
+  height: var(--ec-ctl-h);
+  padding: var(--ec-pad-input);
+  border: var(--ec-hair) solid var(--ec-line);
+  border-radius: var(--ec-radius);
+  font-size: var(--ec-fs);
   color: var(--ec-text);
   background: #fff;
   outline: none;
@@ -138,7 +140,11 @@ body {
 }
 .ec-code > .ec-input:focus,
 .ec-input.ec-pick-input:focus {
-  background: rgb(238, 243, 255);
+  background: var(--ec-blue-wash);
+}
+.ec-input:disabled,
+.ec-input[readonly].ec-input-locked {
+  background: var(--ec-bg-disabled);
 }
 
 /* ============================================================
@@ -153,18 +159,18 @@ main table,
   border-collapse: collapse;
 }
 #root table:not(.no-ec) thead th {
-  background: var(--ec-body-bg) !important;
-  border: 1px solid var(--ec-border) !important;
-  border-top-color: var(--ec-border-strong) !important;
-  color: var(--ec-text-grid) !important;
-  padding: 10px 3px 8px !important;
+  background: var(--ec-bg-page) !important;
+  border: var(--ec-hair) solid var(--ec-line) !important;
+  border-top-color: var(--ec-line-head) !important;
+  color: var(--ec-ink) !important;
+  padding: var(--ec-pad-th) !important;
   font-weight: 400 !important;
   font-size: 12px !important;
   white-space: nowrap;
 }
 #root table:not(.no-ec) tbody td {
-  border: 1px solid var(--ec-border) !important;
-  padding: 6px 3px !important;
+  border: var(--ec-hair) solid var(--ec-line) !important;
+  padding: var(--ec-pad-td) !important;
   font-size: 12px !important;
 }
 /*
@@ -209,7 +215,7 @@ main table,
   border: 0;
   padding: 0;
   font: inherit;
-  color: rgb(25, 53, 140);
+  color: var(--ec-navy);
   cursor: pointer;
 }
 #root table:not(.no-ec) tbody td,
@@ -218,8 +224,8 @@ main table,
 }
 /* 합계줄 칸도 본문과 같은 여백이다(원본 [총합계] 6px 3px). 출력물(.ec-report)은 뒤에서 3px 로 덮는다. */
 #root table:not(.no-ec) tfoot td {
-  padding: 6px 3px !important;
-  border: 1px solid var(--ec-border) !important;
+  padding: var(--ec-pad-td) !important;
+  border: var(--ec-hair) solid var(--ec-line) !important;
   font-size: 12px !important;
 }
 /* 조회 목록 계열의 합계줄(판매현황 [총합계]) — 보통 굵기, 회색 247, 이름 가운데. 칸마다 칠한다(원본이 그렇다). */
@@ -230,8 +236,9 @@ main table,
   background: var(--ec-list-total-bg);
   font-weight: 400;
 }
+/* 줄에 마우스 — ec56 실측 tr 바탕 #f2f2f2(파랑이 아니다). */
 #root table:not(.no-ec) tbody tr:hover {
-  background: var(--ec-blue-light) !important;
+  background: var(--ec-bg-row-hover) !important;
 }
 
 /*
@@ -323,16 +330,18 @@ main table,
   font-weight: 700;
   background: var(--ec-report-stripe);
 }
-/* 목록 표를 살짝 띄워 카드처럼 (이카운트 격자 유지 + 입체감) */
+/* 원본 격자는 그림자가 없다(table.table-bordered box-shadow: none). */
 #root table:not(.no-ec) {
-  box-shadow: var(--ec-shadow);
+  box-shadow: none;
 }
 
-/* 패널은 각지게 유지하되(이카운트 위젯 느낌) 그림자로 입체감을 준다 */
-#root .rounded-2xl,
-#root .rounded-xl,
+/* Tailwind 둥글기 → 원본 단계로: 작은 것(칸·버튼)은 10, 판(폼·위젯)은 20. */
 #root .rounded-lg {
-  border-radius: 3px !important;
+  border-radius: var(--ec-radius) !important;
+}
+#root .rounded-2xl,
+#root .rounded-xl {
+  border-radius: var(--ec-radius-panel) !important;
 }
 #root .shadow-sm {
   box-shadow: var(--ec-shadow-sm) !important;
@@ -360,12 +369,15 @@ main table,
 /* 탭 활성 밑줄 */
 #root .border-indigo-600 { border-color: var(--ec-blue) !important; }
 
-/* 원본 실측: 입력칸 radius 는 5px 다(2px 로 각지게 하던 것을 되돌린다).
-   코드도움과 붙는 칸은 오른쪽만 각지므로 개별 규칙이 이길 수 있게 !important 를 뺀다. */
+/* ec56 실측: 입력칸 둥글기 10. 코드도움과 붙는 칸은 붙는 쪽만 각지므로 개별 규칙이 이길 수 있게 !important 를 뺀다. */
 #root input,
 #root select,
 #root textarea {
-  border-radius: 5px;
+  border-radius: var(--ec-radius);
+}
+#root input[type="checkbox"],
+#root input[type="radio"] {
+  border-radius: revert;
 }
 
 /* ============================================================
@@ -469,8 +481,11 @@ main table,
   gap: 0 24px;
   list-style: none;
   margin: 0;
-  padding: 6px 0;
-  background: #fff;
+  /* ec56 실측 .wrapper-form: 흰 판 · 여백 9 · 둥글기 20 · 머리카락 테두리 */
+  padding: 9px;
+  background: var(--ec-bg-panel);
+  border: var(--ec-hair) solid var(--ec-line);
+  border-radius: var(--ec-radius-panel);
 }
 .ec-form > li {
   display: flex;
@@ -514,9 +529,10 @@ main table,
 .ec-cond {
   list-style: none;
   margin: 0;
-  padding: 6px 8px 6px 0;
-  background: #fff;
-  border: 1px solid var(--ec-border);
+  padding: 9px 9px 9px 0;
+  background: var(--ec-bg-panel);
+  border: var(--ec-hair) solid var(--ec-line);
+  border-radius: var(--ec-radius-panel);
   display: grid;
   /*
    * 칸 최소 380, 남는 폭은 칸끼리 나눈다(1fr). 최대폭(440)을 두어 봤더니 auto-fill 이 칸 수를
@@ -602,7 +618,16 @@ main table,
 }
 .ec-code > .ec-input:not(:first-child),
 .ec-code > .ec-btn:not(:first-child) {
-  margin-left: -1px;
+  margin-left: calc(-1 * var(--ec-hair));
+}
+/* ec56 실측: [코드 10px 0 0 10px][🔍 각짐][명칭 0 10px 10px 0] — 붙는 쪽만 각지다. */
+.ec-code > :not(:first-child) {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.ec-code > :not(:last-child) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
 }
 .ec-code .code {
   width: 92px;
@@ -615,7 +640,8 @@ main table,
   flex: 1;
 }
 .ec-code .ec-btn {
-  padding: 0 6px;
+  padding: var(--ec-pad-btn);
+  color: var(--ec-icon);
 }
 
 /* 연/월/일 3분할 일자칸 (.wrapper-datepicker) */
@@ -638,11 +664,11 @@ main table,
   gap: 3px;
   padding: 5px 0;
 }
-/* 툴바 버튼. 원본 실측 h24 · 12px · padding 5px (11.5px 가 아니다) */
+/* 격자 툴바 버튼([찾기(F3)][정렬] …). ec56 실측 h22 · 여백 4.5px · 둥글기 10. */
 .ec-btn-sm {
-  height: 24px;
-  padding: 0 5px;
-  font-size: 12px;
+  height: var(--ec-ctl-h-sm);
+  padding: 0 4.5px;
+  font-size: var(--ec-fs);
 }
 .ec-toolbar .sep {
   width: 1px;
@@ -762,27 +788,29 @@ main table,
    선택된 것만 배경 #1f48d4 + radius 15px + 흰 글씨, 나머지는 배경 없이 #606c93.
    우리는 밑줄 탭이었다 — 같은 자리 같은 기능인데 생김새가 달랐다.
    ============================================================ */
+/* ec56 실측(2026-10-03): 알약 h25 · 여백 6.3px 11.7px · 둥글기 30 · 사이 5px.
+   선택 안 된 것도 바탕이 있다(#e7efff) — 예전 원본은 투명이었다. */
 .ec-pills {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: 5px;
 }
 .ec-pill {
-  height: 26px;
-  padding: 0 13px;
+  height: 25px;
+  padding: 0 11.7px;
   display: inline-flex;
   align-items: center;
-  font-size: 12px;
+  font-size: var(--ec-fs);
   font-weight: 400;
-  color: #606c93;
-  background: transparent;
+  color: var(--ec-pill-text);
+  background: var(--ec-bg-pill);
   border: 0;
-  border-radius: 15px;
+  border-radius: var(--ec-radius-pill);
   cursor: pointer;
   white-space: nowrap;
 }
 .ec-pill:hover {
-  background: #eef1f7;
+  color: var(--ec-navy);
 }
 .ec-pill.active {
   background: var(--ec-blue);
@@ -801,17 +829,17 @@ main table,
 /* 원본 실측: th padding 10px 3px 8px · 12px · 위 테두리 #9bb0be,
    td padding 6px 3px, **행 높이 41px**. 우리는 25~33px 로 훨씬 촘촘했다. */
 .ec-grid-input th {
-  background: var(--ec-body-bg);
-  border: 1px solid var(--ec-border);
-  border-top-color: var(--ec-border-strong);
-  padding: 10px 3px 8px;
+  background: var(--ec-bg-page);
+  border: var(--ec-hair) solid var(--ec-line);
+  border-top-color: var(--ec-line-head);
+  padding: var(--ec-pad-th);
   font-size: 12px;
   font-weight: 400;
   color: var(--ec-text-grid);
   white-space: nowrap;
 }
 .ec-grid-input td {
-  border: 1px solid var(--ec-border);
+  border: var(--ec-hair) solid var(--ec-line);
   padding: 0;
   font-size: 12px;
   color: var(--ec-text-grid);
@@ -843,18 +871,26 @@ main table,
 }
 
 /* 하단 고정 버튼줄 (.footer) */
+/* ec56 실측 .footer: 본문 틀과 같은 바탕, 윗선 없음, 높이 38, 버튼 사이 5px. */
 .ec-slip-footer {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
+  min-height: var(--ec-footer-h);
   margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px solid var(--ec-border);
+  background: var(--ec-bg-page);
 }
 /* 그룹버튼의 ▴ 화살표 (btn-arrow) */
 .ec-btn-arrow {
-  padding: 0 5px;
-  margin-left: -1px;
+  padding: 0 2.7px;
+  margin-left: calc(-1 * var(--ec-hair));
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+/* ▴ 앞의 본 버튼은 오른쪽 모서리가 각지다(ec56 실측 radius 10px 0 0 10px). */
+.ec-btn:has(+ .ec-btn-arrow) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 /*
@@ -878,9 +914,9 @@ main table,
   padding: 3px 0;
   list-style: none;
   background: #fff;
-  border: 1px solid var(--ec-border);
-  border-radius: 5px;
-  box-shadow: 0 4px 12px rgba(20, 36, 68, 0.12);
+  border: var(--ec-hair) solid var(--ec-line);
+  border-radius: var(--ec-radius);
+  box-shadow: var(--ec-shadow-pop);
   z-index: 60;
 }
 .ec-suggest-list > li {
@@ -893,7 +929,7 @@ main table,
   cursor: pointer;
 }
 .ec-suggest-list > li.active {
-  background: rgb(238, 243, 255);
+  background: var(--ec-blue-wash);
 }
 .ec-suggest-list > li b {
   color: var(--ec-blue);

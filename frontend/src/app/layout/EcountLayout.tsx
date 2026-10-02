@@ -449,6 +449,7 @@ const MENU: TopMenu[] = [
               { label: '매출(세금)계산서현황', to: '/accounting/sales-tax-journal' },
               { label: '매입(세금)계산서현황', to: '/accounting/purchase-tax-journal' },
               { label: '거래이력조회(회계)', to: '/accounting/journal-history' },
+              { label: '지출결의서이체리스트', to: '/accounting/transfer-list' },
             ],
           },
           {
@@ -849,6 +850,7 @@ export default function EcountLayout() {
   const [alertCount, setAlertCount] = useState(0)               // 알림 배지
   const [chatCount, setChatCount] = useState(0)                 // 메신저 미읽음 배지
   const [noteCount, setNoteCount] = useState(0)                 // 쪽지 안 읽은 수
+  const [userOpen, setUserOpen] = useState(false)               // 사용자 동그라미 → 이름·로그아웃
   const contentRef = useRef<HTMLDivElement>(null)               // 본문 영역(표 우클릭 메뉴가 감시)
 
   // 알림 배지 건수. 패널을 닫을 때(처리했을 수 있으므로) 다시 센다.
@@ -972,246 +974,181 @@ export default function EcountLayout() {
     window.setTimeout(() => setAppNotice(''), 2200)
   }
 
-  function tabBar(menu: TopMenu, activeTabIdx: number | null, floating: boolean) {
+  // 2단 메뉴 — 머리 메뉴 아래 떠 있는 흰 알약 판(styles/shell.css .ec-subnav)
+  function subnav(menu: TopMenu, activeTabIdx: number | null) {
+    if (menu.tabs.length < 2) return null
     return (
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 2, height: 34, padding: '0 8px',
-        background: '#fff',
-        ...(floating
-          ? { border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 8px 22px rgba(20,36,68,0.16)' }
-          : { borderBottom: '1px solid #e6e9ee' }),
-      }}>
+      <ul className="ec-subnav">
         {menu.tabs.map((tab, i) => {
           if (!tabOk(tab)) return null
-          const on = i === activeTabIdx
           return (
-            <button
-              key={tab.label}
-              onClick={() => { const to = firstAllowedTabRoute(tab); if (to) gotoMenu(to) }}
-              style={{
-                height: '100%', padding: '0 12px', background: 'none', border: 0, cursor: 'pointer',
-                fontSize: 12.5, whiteSpace: 'nowrap',
-                color: on ? 'var(--ec-blue)' : '#4a5260', fontWeight: on ? 700 : 400,
-                borderBottom: on && !floating ? '2px solid var(--ec-blue)' : '2px solid transparent',
-              }}
-            >
-              {tab.label}
-            </button>
+            <li key={tab.label}>
+              <button
+                className={`ec-subnav-item${i === activeTabIdx ? ' active' : ''}`}
+                onClick={() => { const to = firstAllowedTabRoute(tab); if (to) gotoMenu(to) }}
+              >
+                {tab.label}
+              </button>
+            </li>
           )
         })}
-      </div>
+      </ul>
     )
   }
 
-  function sidebarLeaf(leaf: Leaf, nested: boolean) {
+  function sidebarLeaf(leaf: Leaf) {
     const on = !!leaf.to && matchLength(leaf.to, location.pathname) > 0
     return (
       <button
         key={leaf.label}
+        className={`ec-lnb-leaf${on ? ' active' : ''}${leaf.to ? '' : ' off'}`}
         onClick={() => openLeaf(leaf)}
-        style={{
-          display: 'block', width: '100%', textAlign: 'left', border: 0, cursor: 'pointer',
-          padding: nested ? '6px 10px 6px 24px' : '6px 10px 6px 12px',
-          fontSize: 12.5, borderRadius: 0,
-          color: on ? 'var(--ec-blue)' : leaf.to ? '#3a4453' : '#b3b8bf',
-          background: on ? 'var(--ec-blue-light)' : 'transparent',
-          fontWeight: on ? 700 : 400,
-          borderLeft: on ? '3px solid var(--ec-blue)' : '3px solid transparent',
-        }}
       >
         {leaf.label}
       </button>
     )
   }
 
+  // 화면이 하나뿐인 메뉴(MyPage)는 원본처럼 왼쪽 메뉴 없이 본문을 넓게 쓴다
+  const leafCount = activeTab.nodes.reduce((n, node) => n + (isGroup(node) ? node.children.length : 1), 0)
+  const showLnb = leafCount > 1
+
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#fff' }}>
-      {/* ===== 최상단 북마크바 ===== */}
-      <div style={{ height: 32, display: 'flex', alignItems: 'center', padding: '0 12px', borderBottom: '1px solid #eef0f3', fontSize: 12, gap: 2 }}>
-        <span style={{ color: '#8a929c', marginRight: 4 }}>🔍</span>
-        <div style={{ position: 'relative' }}>
+    <div className="ec-shell">
+      {/* ===== 최상단 북마크 줄 ===== */}
+      <div className="ec-bookbar">
+        <div className="ec-bookbar-search">
+          <span className="icon">🔍</span>
           <input
-            className="ec-input"
             placeholder="메뉴검색"
             value={menuQuery}
             onChange={(e) => setMenuQuery(e.target.value)}
             onBlur={() => window.setTimeout(() => setMenuQuery(''), 150)}
             onKeyDown={(e) => { if (e.key === 'Enter' && menuMatches[0]) gotoMenu(menuMatches[0].to) }}
-            style={{ height: 22, width: 110, border: '1px solid #e2e6eb' }}
           />
+          <button className="ec-chip" onClick={() => { setSitemapIdx(topIdx); setSitemapOpen(true) }}>사이트맵</button>
           {menuMatches.length > 0 && (
-            <div style={{
-              position: 'absolute', top: '100%', left: 0, marginTop: 3, zIndex: 60,
-              background: '#fff', border: '1px solid #c9d1da', borderRadius: 3,
-              boxShadow: '0 6px 18px rgba(0,0,0,.14)', minWidth: 260, maxHeight: 320, overflowY: 'auto', padding: 4,
-            }}>
+            <div className="ec-popover" style={{ left: 0, right: 'auto', top: '100%', marginTop: 3, minWidth: 260, maxHeight: 320, overflowY: 'auto', padding: 4 }}>
               {menuMatches.map((x, i) => (
                 // onMouseDown로 input의 onBlur보다 먼저 이동을 처리한다
                 <button
                   key={`${x.to}-${i}`}
                   onMouseDown={(e) => { e.preventDefault(); gotoMenu(x.to) }}
-                  style={{
-                    display: 'block', width: '100%', textAlign: 'left', padding: '5px 8px',
-                    background: 'none', border: 0, cursor: 'pointer', borderRadius: 3,
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--ec-blue-light)' }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
+                  className="ec-lnb-leaf"
+                  style={{ color: 'var(--ec-text)' }}
                 >
-                  <span style={{ fontSize: 12.5, color: '#2a3242' }}>{x.label}</span>
-                  <span style={{ fontSize: 10.5, color: '#9aa1ab', marginLeft: 6 }}>{x.path}</span>
+                  {x.label}
+                  <span style={{ fontSize: 11, color: 'var(--ec-page-off)', marginLeft: 6, fontWeight: 400 }}>{x.path}</span>
                 </button>
               ))}
             </div>
           )}
         </div>
-        <button className="ec-btn" style={{ height: 22, marginRight: 8 }} onClick={() => { setSitemapIdx(topIdx); setSitemapOpen(true) }}>사이트맵</button>
+        {bookmarks.length === 0 && <span className="ec-bookbar-hint">★ 자주 사용하는 메뉴를 즐겨찾기로 추가할 수 있습니다 ★</span>}
         {bookmarks.map((b, i) => (
-          <NavLink key={b.path + i} to={b.path} style={({ isActive }) => ({
-            padding: '0 10px', height: 24, display: 'flex', alignItems: 'center', textDecoration: 'none',
-            color: isActive ? 'var(--ec-blue)' : '#4a5260', fontWeight: isActive ? 700 : 400,
-          })}>
+          <NavLink key={b.path + i} to={b.path} className={({ isActive }) => `ec-bookmark${isActive ? ' active' : ''}`}>
             {b.label}
           </NavLink>
         ))}
         {/* 지금 화면을 담거나 뺀다. 메뉴에 없는 화면은 이름을 붙일 수 없어 담지 않는다. */}
-        <button className="ec-btn no-ec" title={bookmarked ? '북마크에서 빼기' : '이 화면을 북마크에 담기'}
-                onClick={toggleBookmark} disabled={!currentLeaf}
-                style={{
-                  marginLeft: 6, height: 22, border: 'none', background: 'none',
-                  cursor: currentLeaf ? 'pointer' : 'default',
-                  color: bookmarked ? '#e8a33d' : '#c9ced6', fontSize: 13,
-                }}>
+        <button className={`ec-bookbar-star${bookmarked ? ' on' : ''}`} title={bookmarked ? '북마크에서 빼기' : '이 화면을 북마크에 담기'}
+                onClick={toggleBookmark} disabled={!currentLeaf}>
           {bookmarked ? '★' : '☆'}
         </button>
-        <span style={{ marginLeft: 'auto', color: '#b6bcc4' }}>📌</span>
+        <span className="ec-bookbar-pin">📌</span>
       </div>
 
-      {/* ===== 메인 영역: [메뉴+탭바+사이드바+본문] + [우측 세로 앱바] ===== */}
-      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          {/* 흰 메인메뉴 (로고 + 대메뉴 + 아바타) */}
-          <div style={{ height: 52, display: 'flex', alignItems: 'center', padding: '0 8px 0 16px', borderBottom: '1px solid #e6e9ee', boxShadow: '0 2px 5px rgba(20,36,68,0.06)', position: 'relative', zIndex: 30 }}
-               onMouseLeave={() => setHoverIdx(null)}>
-            <Link to="/" style={{ display: 'flex', alignItems: 'baseline', gap: 0, textDecoration: 'none', marginRight: 18 }}>
-              <span style={{ fontSize: 20, fontWeight: 900, color: 'var(--ec-blue)', letterSpacing: -0.5 }}>제조</span>
-              <span style={{ fontSize: 20, fontWeight: 900, color: '#222', letterSpacing: -0.5 }}>ERP</span>
-            </Link>
+      {/* ===== 머리 메뉴(1단) + 떠 있는 2단 메뉴 ===== */}
+      <div className="ec-gnb" onMouseLeave={() => setHoverIdx(null)}>
+        <Link to="/" className="ec-logo"><b>제조</b>ERP</Link>
+        <ul className="ec-gnb-menu">
+          {MENU.map((m, idx) => {
+            if (!topOk(m)) return null
+            return (
+              <li key={m.label} onMouseEnter={() => setHoverIdx(idx)}>
+                <button
+                  className={`ec-gnb-item${idx === topIdx ? ' active' : ''}`}
+                  onClick={() => { const to = firstAllowedTopRoute(m); if (to) gotoMenu(to) }}
+                >
+                  {m.label}
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+        {/* 다른 대메뉴에 마우스를 올리면 그 메뉴의 2단을, 아니면 지금 메뉴의 2단을 띄운다 */}
+        {hoverIdx !== null && hoverIdx !== topIdx ? subnav(MENU[hoverIdx], null) : subnav(activeTop, tabIdx)}
 
-            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', alignItems: 'center', height: '100%' }}>
-              {MENU.map((m, idx) => {
-                if (!topOk(m)) return null
-                const active = idx === topIdx
-                return (
-                  <li key={m.label} onMouseEnter={() => setHoverIdx(idx)} style={{ position: 'relative', height: '100%' }}>
-                    <div
-                      onClick={() => { const to = firstAllowedTopRoute(m); if (to) gotoMenu(to) }}
-                      style={{
-                        padding: '0 14px', height: '100%', display: 'flex', alignItems: 'center', cursor: 'pointer',
-                        fontSize: 14, fontWeight: active || hoverIdx === idx ? 700 : 500,
-                        color: active || hoverIdx === idx ? 'var(--ec-blue)' : '#2a3242',
-                        borderBottom: active ? '2px solid var(--ec-blue)' : '2px solid transparent',
-                      }}
-                    >
-                      {m.label}
-                    </div>
+        <div className="ec-gnb-right">
+          {companyName && <span className="ec-company">{companyName}</span>}
+          <button className="ec-avatar" title={user?.name} onClick={() => setUserOpen((o) => !o)}>👤</button>
+          {userOpen && (
+            <div className="ec-popover" onMouseLeave={() => setUserOpen(false)}>
+              <div style={{ fontWeight: 700, color: 'var(--ec-text)' }}>{user?.name}</div>
+              <div style={{ fontSize: 11, color: 'var(--ec-page-off)', marginBottom: 8 }}>{user?.roles.join(', ')}</div>
+              <button className="ec-btn" onClick={logout} style={{ width: '100%', justifyContent: 'center' }}>로그아웃</button>
+            </div>
+          )}
+        </div>
+      </div>
 
-                    {/* 다른 대메뉴를 호버하면 그 메뉴의 탭바를 띄운다 */}
-                    {hoverIdx === idx && idx !== topIdx && (
-                      <div style={{ position: 'absolute', top: 52, left: 0, zIndex: 40 }}>
-                        {tabBar(m, null, true)}
-                      </div>
-                    )}
-                  </li>
-                )
-              })}
-            </ul>
-
-            {/* 우측 사용자 아바타 */}
-            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, paddingRight: 6 }}>
-              {companyName && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 10px', background: '#eef1fb', borderRadius: 4, marginRight: 4 }}>
-                  <span style={{ fontSize: 12 }}>🏢</span>
-                  <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ec-blue-dark)' }}>{companyName}</span>
+      {/* ===== 왼쪽 메뉴 + 본문 틀 + 오른쪽 앱바 ===== */}
+      <div className="ec-body">
+        {showLnb && (
+          <aside className="ec-lnb">
+            {activeTab.nodes.map((node) => {
+              if (!isGroup(node)) return leafOk(node) ? sidebarLeaf(node) : null
+              const visibleChildren = node.children.filter(leafOk)
+              if (visibleChildren.length === 0) return null
+              const key = `${topIdx}/${tabIdx}/${node.label}`
+              const open = !collapsed[key]
+              return (
+                <div key={node.label}>
+                  <button
+                    className={`ec-lnb-group${open ? ' open' : ''}`}
+                    onClick={() => setCollapsed((c) => ({ ...c, [key]: open }))}
+                  >
+                    {node.label}
+                  </button>
+                  {open && <div className="ec-lnb-leaves">{visibleChildren.map((c) => sidebarLeaf(c))}</div>}
                 </div>
-              )}
-              <div style={{ textAlign: 'right', lineHeight: 1.3 }}>
-                <div style={{ fontSize: 12.5, color: '#2a3242', fontWeight: 600 }}>{user?.name}</div>
-                <div style={{ fontSize: 11, color: '#9aa1ab' }}>{user?.roles.join(', ')}</div>
+              )
+            })}
+          </aside>
+        )}
+
+        <div ref={contentRef} className={`ec-frame${showLnb ? '' : ' full'}`}>
+          {/* EcListShell 을 쓰지 않는 화면의 표에도 우클릭 메뉴를 붙인다.
+              셸이 있는 화면은 셸이 이벤트를 먼저 잡고 전파를 끊으므로 여기까지 오지 않는다. */}
+          <TableContextMenu containerRef={contentRef} toolbarRef={contentRef} />
+          {canRoute(location.pathname) ? (
+            <Outlet />
+          ) : (
+            <div style={{ padding: 48, textAlign: 'center', color: 'var(--ec-page-off)' }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>🔒</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--ec-text)', marginBottom: 6 }}>
+                접근 권한이 없습니다
               </div>
-              <div title={user?.name} style={{ width: 30, height: 30, borderRadius: '50%', background: '#eef1f6', border: '1px solid #dfe3e9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: '#8a929c' }}>👤</div>
-              <button className="ec-btn" onClick={logout} style={{ height: 24 }}>로그아웃</button>
+              <div style={{ fontSize: 13 }}>
+                이 메뉴에 대한 권한이 없습니다. 필요하면 관리자에게 권한을 요청하세요.
+              </div>
             </div>
-          </div>
-
-          {/* 활성 대메뉴의 탭바 */}
-          {tabBar(activeTop, tabIdx, false)}
-
-          {/* 좌측 사이드바 + 본문 */}
-          <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-            <aside style={{ width: 180, flexShrink: 0, background: '#fff', borderRight: '1px solid #e6e9ee', boxShadow: '2px 0 6px rgba(20,36,68,0.04)', padding: '8px 0', overflowY: 'auto', position: 'relative', zIndex: 5 }}>
-              {activeTab.nodes.map((node) => {
-                if (!isGroup(node)) return leafOk(node) ? sidebarLeaf(node, false) : null
-                const visibleChildren = node.children.filter(leafOk)
-                if (visibleChildren.length === 0) return null
-                const key = `${topIdx}/${tabIdx}/${node.label}`
-                const open = !collapsed[key]
-                return (
-                  <div key={node.label}>
-                    <button
-                      onClick={() => setCollapsed((c) => ({ ...c, [key]: open }))}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 4, width: '100%', textAlign: 'left',
-                        padding: '7px 10px 5px 12px', background: 'none', border: 0, cursor: 'pointer',
-                        fontSize: 12, fontWeight: 700, color: '#5b6472',
-                      }}
-                    >
-                      <span style={{ fontSize: 9, color: '#9aa1ab' }}>{open ? '▼' : '▶'}</span>
-                      {node.label}
-                    </button>
-                    {open && visibleChildren.map((c) => sidebarLeaf(c, true))}
-                  </div>
-                )
-              })}
-            </aside>
-
-            <div ref={contentRef} style={{ flex: 1, minWidth: 0, padding: 12, overflow: 'auto', background: 'var(--ec-body-bg)' }}>
-              {/* EcListShell 을 쓰지 않는 화면의 표에도 우클릭 메뉴를 붙인다.
-                  셸이 있는 화면은 셸이 이벤트를 먼저 잡고 전파를 끊으므로 여기까지 오지 않는다. */}
-              <TableContextMenu containerRef={contentRef} toolbarRef={contentRef} />
-              {canRoute(location.pathname) ? (
-                <Outlet />
-              ) : (
-                <div style={{ padding: 48, textAlign: 'center', color: '#8a929c' }}>
-                  <div style={{ fontSize: 40, marginBottom: 12 }}>🔒</div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: '#5b6472', marginBottom: 6 }}>
-                    접근 권한이 없습니다
-                  </div>
-                  <div style={{ fontSize: 13 }}>
-                    이 메뉴에 대한 권한이 없습니다. 필요하면 관리자에게 권한을 요청하세요.
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+          )}
         </div>
 
-        {/* 우측 세로 앱바 */}
-        <div style={{ width: 44, background: '#fff', borderLeft: '1px solid #e6e9ee', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 8, gap: 12, fontSize: 16, color: '#6b7280' }}>
+        {/* 오른쪽 세로 앱바 */}
+        <div className="ec-appbar">
           {APPS.map((a, i) => (
-            <span key={i} title={a.title} onClick={() => onApp(a)} style={{ cursor: 'pointer', position: 'relative' }}>
+            <button key={i} className="ec-appbar-btn" title={a.title} onClick={() => onApp(a)}>
               {a.icon}
               {((a.panel === 'notifications' && alertCount > 0)
                 || (a.panel === 'messenger' && chatCount > 0)
                 || (a.title === '쪽지' && noteCount > 0)) && (
-                <span style={{
-                  position: 'absolute', top: -4, right: -6, minWidth: 14, height: 14, padding: '0 3px',
-                  borderRadius: 7, background: '#c60a2e', color: '#fff', fontSize: 9, fontWeight: 700,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>{a.panel === 'messenger' ? (chatCount > 99 ? '99+' : chatCount)
+                <span className="ec-appbar-badge">{a.panel === 'messenger' ? (chatCount > 99 ? '99+' : chatCount)
                   : a.title === '쪽지' ? (noteCount > 99 ? '99+' : noteCount)
                     : alertCount}</span>
               )}
-            </span>
+            </button>
           ))}
         </div>
       </div>

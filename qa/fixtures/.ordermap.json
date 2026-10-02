@@ -1018,5 +1018,9 @@
  [
   "거래이력조회(회계)",
   "accounting/JournalHistoryPage.tsx"
+ ],
+ [
+  "지출결의서이체리스트",
+  "accounting/TransferListPage.tsx"
  ]
 ]
