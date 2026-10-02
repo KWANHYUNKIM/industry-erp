@@ -78,6 +78,7 @@ const IncomePage = lazy(() => import('../pages/accounting/IncomePage'))
 const QualityInspectionPage = lazy(() => import('../pages/quality/QualityInspectionPage'))
 const QualityRequestPage = lazy(() => import('../pages/quality/QualityRequestPage'))
 const UninspectedPage = lazy(() => import('../pages/quality/UninspectedPage'))
+const QualityRequestStatusPage = lazy(() => import('../pages/quality/QualityRequestStatusPage'))
 const DefectReportPage = lazy(() => import('../pages/quality/DefectReportPage'))
 const LotLedgerPage = lazy(() => import('../pages/quality/LotLedgerPage'))
 const QualityStatusPage = lazy(() => import('../pages/quality/QualityStatusPage'))
@@ -452,6 +453,7 @@ export default function AppRouter() {
         <Route path="/quality/inspection-status" element={<QualityStatusPage />} />
         <Route path="/quality/inspection-request" element={<QualityRequestPage />} />
         <Route path="/quality/uninspected" element={<UninspectedPage />} />
+        <Route path="/quality/request-status" element={<QualityRequestStatusPage />} />
         <Route path="/quality/defect-report" element={<DefectReportPage />} />
         <Route path="/quality/lot-ledger" element={<LotLedgerPage />} />
         <Route path="/quality/serial-lot" element={<SerialLotPage />} />

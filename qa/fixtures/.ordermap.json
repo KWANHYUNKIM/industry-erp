@@ -842,5 +842,9 @@
  [
   "미검사현황",
   "quality/UninspectedPage.tsx"
+ ],
+ [
+  "품질검사요청현황",
+  "quality/QualityRequestStatusPage.tsx"
  ]
 ]
