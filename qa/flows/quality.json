@@ -36,6 +36,15 @@
         "js:(()=>{const li=[...document.querySelectorAll('li')].find((l)=>l.textContent.trim().startsWith('적요'));const i=li.querySelector('input');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(i,'zz-없는-적요-zz');i.dispatchEvent(new Event('input',{bubbles:true}));return new Promise((r)=>setTimeout(()=>r(true),600))})()",
         "expect:![...document.querySelectorAll('table tbody tr')].some((t)=>t.innerText.includes('-'))||document.querySelectorAll('table tbody tr').length<=1"
       ]
+    },
+    {
+      "name": "시리얼/로트No.재고수불부 — 원본 차례(구분 · 기준일자 · 유효기한 · 시리얼/로트No. · 품목 · 재고수량 · 기타)로 서고, [재고수량] 1 · 0 · 기타는 켜짐 · [기타] 둘은 꺼짐으로 연다",
+      "path": "/quality/lot-ledger",
+      "steps": [
+        "wait:1800",
+        "expect:(()=>{const t=document.body.innerText;const ks=['구분','기준일자','유효기한','시리얼/로트No.','재고수량','기타'];let at=-1;for(const k of ks){const i=t.indexOf(k,at+1);if(i<0||i<at)return false;at=i}return true})()",
+        "expect:(()=>{const c=(x)=>[...document.querySelectorAll('label')].find((l)=>l.textContent.trim()===x)?.querySelector('input')?.checked;return c('1')===true&&c('0')===true&&c('기타')===true&&c('사용중단시리얼/로트포함')===false&&c('입출고수량0제외')===false})()"
+      ]
     }
   ]
 }

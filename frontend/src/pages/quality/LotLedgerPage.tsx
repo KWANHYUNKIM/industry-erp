@@ -62,6 +62,18 @@ export default function LotLedgerPage() {
   const [warehouse, setWarehouse] = useState('')
   const [item, setItem] = useState('')
   const [typeFilter, setTypeFilter] = useState<'ALL' | LotTxType>('ALL')
+  /*
+   * 원본 [유효기한] · [재고수량](2026-10-02 E040620 실측). 유효기한은 사용안함(기본) · 직접입력 · 금일 … 전월 — 고르면 유효기한이
+   * 그 구간인 로트만. 재고수량은 전체 · 1 · 0 · 기타 넷이 다 켜진 채 열린다 — 로트의 <b>기말 잔량</b>(기간 안 마지막 줄의 잔량)이
+   * 1 인가(시리얼 한 개) · 0 인가(다 나간 것) · 그 밖인가로 가른다.
+   */
+  const EXPIRY_OPTS = ['사용안함', '직접입력', '금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월'] as const
+  const [expiryOpt, setExpiryOpt] = useState<typeof EXPIRY_OPTS[number]>('사용안함')
+  const [expFrom, setExpFrom] = useState('')
+  const [expTo, setExpTo] = useState('')
+  const [qtyOne, setQtyOne] = useState(true)
+  const [qtyZero, setQtyZero] = useState(true)
+  const [qtyOther, setQtyOther] = useState(true)
   const [keyword, setKeyword] = useState('')
 
   async function load() {
@@ -86,9 +98,18 @@ export default function LotLedgerPage() {
     return [...m.values()].sort((a, b) => a.name.localeCompare(b.name, 'ko'))
   }, [rows])
 
+  /** 로트마다 기간 안 마지막 줄의 잔량 — [재고수량] 이 이 값으로 가른다. rows 는 로트별 시간순이다. */
+  const closingByLot = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const r of rows) m.set(r.lotNo, r.balanceAfter)
+    return m
+  }, [rows])
   const shown = useMemo(() => {
     const kw = keyword.trim()
     return rows.filter((r) => {
+      if (expiryOpt !== '사용안함' && (!r.expireDate || (expFrom && r.expireDate < expFrom) || (expTo && r.expireDate > expTo))) return false
+      const bal = closingByLot.get(r.lotNo) ?? 0
+      if (bal === 1 ? !qtyOne : bal === 0 ? !qtyZero : !qtyOther) return false
       /* [포함] 이라 이름 붙은 것은 기본이 '안 넣음' 이다 — 켜야 보인다. */
       if (!withHeld && r.held) return false
       /* [입출고수량0제외] — 움직이지 않은 줄(조정으로 0 이 찍힌 것)을 뺀다. */
@@ -100,7 +121,7 @@ export default function LotLedgerPage() {
       if (kw && !r.lotNo.includes(kw) && !r.itemName.includes(kw)) return false
       return true
     })
-  }, [rows, withHeld, hideZero, warehouse, item, lotNo, typeFilter, keyword])
+  }, [rows, withHeld, hideZero, warehouse, item, lotNo, typeFilter, keyword, expiryOpt, expFrom, expTo, qtyOne, qtyZero, qtyOther, closingByLot])
 
   const totals = useMemo(() => shown.reduce((s, r) => {
     if (r.quantityChange >= 0) s.inQty += r.quantityChange
@@ -164,7 +185,53 @@ export default function LotLedgerPage() {
           <EcPeriodPicks labels={LOT_LEDGER_PICKS} currentFrom={from}
                          onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
         </div>
-        {/* 원본 조건 차례: 기준일자 · … · [창고] · [품목]. */}
+        {/* 원본 조건 차례(2026-10-02): 구분 · 기준일자 · 유효기한 · 시리얼/로트No. · 품목 · 재고수량 · 기타. [창고]는 우리가 더 둔다. */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={label}>유효기한</span>
+          <select className="ec-input" value={expiryOpt} style={{ width: 120 }}
+                  onChange={(e) => {
+                    const v = e.target.value as typeof EXPIRY_OPTS[number]
+                    setExpiryOpt(v)
+                    const r = v === '사용안함' || v === '직접입력' ? null : periodOf(v)
+                    if (r) { setExpFrom(r.from); setExpTo(r.to) }
+                    if (v === '사용안함') { setExpFrom(''); setExpTo('') }
+                  }}>
+            {EXPIRY_OPTS.map((o) => <option key={o} value={o}>{o}</option>)}
+          </select>
+          {expiryOpt !== '사용안함' && (<>
+            <input type="date" className="ec-input" value={expFrom} onChange={(e) => { setExpFrom(e.target.value); setExpiryOpt('직접입력') }} style={{ width: 140 }} />
+            <span style={{ color: 'var(--ec-label)' }}>~</span>
+            <input type="date" className="ec-input" value={expTo} onChange={(e) => { setExpTo(e.target.value); setExpiryOpt('직접입력') }} style={{ width: 140 }} />
+          </>)}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={{ ...label, width: 96 }}>시리얼/로트No.</span>
+          <select className="ec-input" value={lotNo} onChange={(e) => setLotNo(e.target.value)} style={{ width: 200 }}>
+            <option value="">전체</option>
+            {lotNos.map((l) => <option key={l} value={l}>{l}</option>)}
+          </select>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={label}>품목</span>
+          {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
+          <CodePickerField label="품목" hideLabel width={200} placeholder="품목" emptyLabel="전체"
+                           value={item} onChange={setItem} items={items} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={label}>재고수량</span>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+            <input type="checkbox" checked={qtyOne && qtyZero && qtyOther} onChange={(e) => { setQtyOne(e.target.checked); setQtyZero(e.target.checked); setQtyOther(e.target.checked) }} /> 전체
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+            <input type="checkbox" checked={qtyOne} onChange={(e) => setQtyOne(e.target.checked)} /> 1
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+            <input type="checkbox" checked={qtyZero} onChange={(e) => setQtyZero(e.target.checked)} /> 0
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+            <input type="checkbox" checked={qtyOther} onChange={(e) => setQtyOther(e.target.checked)} /> 기타
+          </label>
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={label}>기타</span>
           <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
@@ -181,19 +248,6 @@ export default function LotLedgerPage() {
           <select className="ec-input" value={warehouse} onChange={(e) => setWarehouse(e.target.value)} style={{ width: 160 }}>
             <option value="">전체</option>
             {warehouses.map((w) => <option key={w} value={w}>{w}</option>)}
-          </select>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={label}>품목</span>
-          {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
-          <CodePickerField label="품목" hideLabel width={200} placeholder="품목" emptyLabel="전체"
-                           value={item} onChange={setItem} items={items} />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={label}>로트</span>
-          <select className="ec-input" value={lotNo} onChange={(e) => setLotNo(e.target.value)} style={{ width: 200 }}>
-            <option value="">전체</option>
-            {lotNos.map((l) => <option key={l} value={l}>{l}</option>)}
           </select>
         </div>
         <div style={{ display: 'flex', gap: 2 }}>
