@@ -36,6 +36,7 @@ const BomPage = lazy(() => import('../pages/production/BomPage'))
 const WorkOrderPage = lazy(() => import('../pages/production/WorkOrderPage'))
 const WorkOrderEntryPage = lazy(() => import('../pages/production/WorkOrderEntryPage'))
 const SubcontractReflectionPage = lazy(() => import('../pages/production/SubcontractReflectionPage'))
+const PurchaseTaxStockPage = lazy(() => import('../pages/production/PurchaseTaxStockPage'))
 const BomStatusPage = lazy(() => import('../pages/production/BomStatusPage'))
 const RequirementCalcPage = lazy(() => import('../pages/production/RequirementCalcPage'))
 const ProductionResultPage = lazy(() => import('../pages/production/ProductionResultPage'))
@@ -273,6 +274,7 @@ export default function AppRouter() {
         <Route path="/production/work-orders" element={<WorkOrderPage />} />
         <Route path="/production/work-order-entry" element={<WorkOrderEntryPage />} />
         <Route path="/production/subcontract-reflection" element={<SubcontractReflectionPage />} />
+        <Route path="/production/purchase-tax-status" element={<PurchaseTaxStockPage />} />
         <Route path="/production/bom-status" element={<BomStatusPage />} />
         <Route path="/production/requirement-calc" element={<RequirementCalcPage />} />
         {/*

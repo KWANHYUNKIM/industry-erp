@@ -210,6 +210,13 @@
       "steps": [
         "expect:(async()=>{const b=await fetch('/api/boms?versions=all',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json());const want=b.filter((x)=>x.defaultVersion).reduce((n,x)=>n+x.lines.length,0);const rows=[...document.querySelectorAll('table tbody tr')].filter((t)=>t.cells.length===7);const firsts=rows.filter((t)=>t.cells[0].innerText.trim()!=='').length;return want>0&&rows.length===want&&firsts<=b.filter((x)=>x.defaultVersion).length})()"
       ]
+    },
+    {
+      "name": "매입(세금)계산서현황(재고) — 구매·외주비에서 넘긴 매입 전표만, 달 소계 · 합계가 공급가액+부가세와 맞는다",
+      "path": "/production/purchase-tax-status",
+      "steps": [
+        "expect:(()=>{const rows=[...document.querySelectorAll('table tbody tr')].filter((t)=>/GL-/.test(t.innerText));const n=(t)=>Number(t.replace(/,/g,''));const s=rows.reduce((a,t)=>a+n(t.cells[4].innerText),0);const f=document.querySelector('table tfoot tr');return !f||(Math.abs(n(f.cells[3].innerText)-s)<1&&Math.abs(n(f.cells[1].innerText)+n(f.cells[2].innerText)-n(f.cells[3].innerText))<1)})()"
+      ]
     }
   ]
 }

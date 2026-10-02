@@ -174,7 +174,6 @@ const MENU: TopMenu[] = [
           { label: '생산입고 III', to: '/production/receipt-qr' },
           { label: '생산입고조회', to: '/production/receipt-inquiry' },
           { label: '생산입고현황', to: '/production/receipt-status' },
-          { label: '생산입고/소모현황 I', to: '/production/receipt-issue-status' },
           /*
            * 원본 생산/외주 탭 실측(사본 좌측 메뉴): … 생산입고/소모현황 I ·
            * <b>지급현황 · 외주비할인현황 · 거래처별채무 · 외주비회계반영</b>.
@@ -186,10 +185,14 @@ const MENU: TopMenu[] = [
            * <p>[외주비일괄회계반영]은 2026-10-02 에 만들었다(loginaa 실측) — 생산입고 I·II 의
            * 외주비합계·부가세를 외주처별 매입전표로 넘긴다.
            */
+          /* 원본 차례(2026-10-02 실측): … 생산입고현황 · [외주비회계반영] 외주비일괄회계반영 · [생산/외주현황] 생산입고/소모현황 I ·
+             거래처별채무 · 지급현황 · 외주비할인현황 · 매입(세금)계산서현황(재고). */
+          { label: '외주비일괄회계반영', to: '/production/subcontract-reflection' },
+          { label: '생산입고/소모현황 I', to: '/production/receipt-issue-status' },
+          { label: '거래처별채무', to: '/sales/ledger-payable' },
           { label: '지급현황', to: '/sales/payment' },
           { label: '외주비할인현황', to: '/sales/outsourcing-discount' },
-          { label: '거래처별채무', to: '/sales/ledger-payable' },
-          { label: '외주비일괄회계반영', to: '/production/subcontract-reflection' },
+          { label: '매입(세금)계산서현황(재고)', to: '/production/purchase-tax-status' },
         ],
       },
       { label: '기타이동', nodes: [{ label: '기타이동', to: '/inventory/transfer' }, { label: '재고실사', to: '/inventory/stocktake' }, { label: '단계별재고조정', to: '/inventory/staged-adjustment' }] },
