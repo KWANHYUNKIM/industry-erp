@@ -18,6 +18,7 @@ import com.erp.production.workorder.WorkOrderRepository;
 import com.erp.production.workresult.WorkResultRepository;
 import com.erp.production.production.ProductionService;
 import com.erp.inventory.stock.StockService;
+import com.erp.common.DocumentNoGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
@@ -52,6 +53,7 @@ public class ProductionActualInitializer implements CommandLineRunner {
     private final WorkResultRepository workResultRepository;
     private final StockService stockService;
     private final ProductionService productionService;
+    private final DocumentNoGenerator docNoGenerator;
 
     @Override
     @Transactional
@@ -169,6 +171,7 @@ public class ProductionActualInitializer implements CommandLineRunner {
                                 long good, long defect, int workTimeMin, LocalDate date) {
         workResultRepository.save(WorkResult.builder()
                 .workOrder(wo)
+                .resultNo(docNoGenerator.next("WR-", "work_results", "result_no", "work_date", date))
                 .process(process)
                 .worker(worker)
                 .goodQty(BigDecimal.valueOf(good))
@@ -194,6 +197,7 @@ public class ProductionActualInitializer implements CommandLineRunner {
     private void saveIssue(Item item, Warehouse wh, WorkOrder wo, String qty, LocalDate date) {
         materialIssueRepository.save(MaterialIssue.builder()
                 .item(item)
+                .issueNo(docNoGenerator.next("MI-", "material_issues", "issue_no", "issue_date", date))
                 .warehouse(wh)
                 .workOrder(wo)
                 .qty(new BigDecimal(qty))
