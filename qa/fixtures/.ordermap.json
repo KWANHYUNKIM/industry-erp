@@ -822,5 +822,9 @@
  [
   "발행수표감소현황",
   "accounting/CheckFlowPage.tsx"
+ ],
+ [
+  "수령수표거래내역",
+  "accounting/CheckLedgerPage.tsx"
  ]
 ]
