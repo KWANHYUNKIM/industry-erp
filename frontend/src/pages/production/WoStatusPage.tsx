@@ -100,7 +100,8 @@ export default function WoStatusPage() {
    * <p>판매·구매현황의 집계(utils/statusAggregate)는 <b>돈</b>을 더한다. 작업지시에는
    * 금액이 없어 그 계산을 그대로 쓸 수 없다 — 여기서는 <b>수량 셋</b>(지시·생산·잔량)을 센다.
    */
-  const [mode, setMode] = useState<'내역' | '집계'>('내역')
+  /* 원본 [구분] 내역 · 집계 · 라인별(2026-10-02 loginaa 실측). 내역은 전표 한 장이 한 줄(품목 외 n건), 라인별은 품목 줄마다. */
+  const [mode, setMode] = useState<'내역' | '집계' | '라인별'>('내역')
   const AXES = ['품목별', '창고별', '거래처별', '담당자별', '월별'] as const
   const [axis, setAxis] = useState<typeof AXES[number]>('품목별')
   /*
@@ -193,6 +194,27 @@ export default function WoStatusPage() {
     && (!remarkCond || (r.remark ?? '').includes(remarkCond))
     && (!statusCond || r.statusName === statusCond)
     && (!authorCond || (r.createdBy ?? '') === authorCond))
+  /**
+   * 원본 [내역] 은 전표 한 장이 한 줄이다 — 품목이 여럿이면 "첫 품목 외 n건", 수량은 합. [라인별] 은 품목 줄마다(예전 이 화면).
+   * 상태는 한 줄이라도 안 끝났으면 그 줄의 상태를 보인다.
+   */
+  const listRows = mode === '라인별' ? shown : (() => {
+    const bySlip = new Map<string, typeof shown>()
+    shown.forEach((r) => bySlip.set(r.orderNo, [...(bySlip.get(r.orderNo) ?? []), r]))
+    return [...bySlip.values()].map((ls) => {
+      const head = ls[0]
+      const open = ls.find((r) => r.status !== 'COMPLETED')
+      return {
+        ...head,
+        productName: ls.length > 1 ? `${head.productName} 외 ${ls.length - 1}건` : head.productName,
+        productSpec: ls.length > 1 ? null : head.productSpec,
+        plannedQty: ls.reduce((n, r) => n + r.plannedQty, 0),
+        producedQty: ls.reduce((n, r) => n + r.producedQty, 0),
+        remainingQty: ls.reduce((n, r) => n + r.remainingQty, 0),
+        status: (open ?? head).status, statusName: (open ?? head).statusName,
+      }
+    })
+  })()
 
   /** 고른 축으로 묶어 수량 셋을 더한다. 줄이 없으면 빈 배열이라 표가 스스로 비운다. */
   const grouped = useMemo(() => {
@@ -239,7 +261,7 @@ export default function WoStatusPage() {
         {/* 원본 조건 판 첫째 <b>[구분]</b> — 내역·집계(사본 실측). */}
         <EcCond label="구분">
           <div className="ec-pills">
-            {(['내역', '집계'] as const).map((m) => (
+            {(['내역', '집계', '라인별'] as const).map((m) => (
               <button key={m} type="button" className={`ec-pill no-ec${mode === m ? ' active' : ''}`}
                       onClick={() => setMode(m)}>{m}</button>
             ))}
@@ -432,9 +454,9 @@ export default function WoStatusPage() {
         <tbody>
           {loading ? (
             <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-          ) : shown.length === 0 ? (
+          ) : listRows.length === 0 ? (
             <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((r, i) => (
+          ) : listRows.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
               <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{dateText(r.orderDate)} {r.orderNo}</td>
