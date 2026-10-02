@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
-import { subtotalBy } from '../../utils/subtotalBy'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { stdVsActual } from '../../utils/woEfficiency'
 import CodePickerField from '../../components/CodePickerField'
@@ -264,14 +264,40 @@ export default function WorkResultListPage() {
   }
   const keyOf = (r: WorkResult) => (sub2 ? `${keyBy(agg1, r)} · ${keyBy(sub2, r)}` : keyBy(agg1, r))
 
+  /*
+   * 원본 집계 [기타] 가로보기 · 비율표시 · 코드포함과 조건 옆 정렬(코드순 기본 · 코드명순 · 수량 + 오름/내림) —
+   * 생산불출현황 · 작업지시서현황과 같은 판(2026-10-02 실측). 수량은 양품으로 센다. 코드는 생산품목 · 작업품목 축만
+   * (작업 · 생산공장 · 자원은 줄에 코드가 없다).
+   */
+  const [ratio, setRatio] = useState(false)
+  const [codeIncl, setCodeIncl] = useState(false)
+  const [pivot, setPivot] = useState(false)
+  const [aggSort, setAggSort] = useState<'코드순' | '코드명순' | '수량'>('코드순')
+  const [aggDesc, setAggDesc] = useState(false)
+  const CODE_LABEL: Partial<Record<AggAxis, string>> = { 생산품목: '생산품목코드', 작업품목: '작업품목코드' }
+  const codeBy = (k: AggAxis | '', r: WorkResult) => (k === '생산품목' ? r.productCode ?? '' : k === '작업품목' ? r.workItemCode ?? '' : '')
   const byProcess = useMemo(() => {
-    return subtotalBy(shown, keyOf, {
-      good: (r) => r.goodQty, defect: (r) => r.defectQty, time: (r) => r.workTimeMin,
-    })
-      .map((g) => ({ process: g.label, count: g.count, good: g.sums.good, defect: g.sums.defect, time: g.sums.time }))
-      .sort((a, b) => b.good - a.good)
+    const by = new Map<string, { process: string; k1: string; k2: string; c1: string; c2: string; count: number; good: number; defect: number; time: number }>()
+    for (const r of shown) {
+      const k = keyOf(r)
+      const cur = by.get(k) ?? { process: k, k1: keyBy(agg1, r), k2: sub2 ? keyBy(sub2, r) : '', c1: codeBy(agg1, r), c2: codeBy(sub2, r), count: 0, good: 0, defect: 0, time: 0 }
+      cur.count += 1
+      cur.good += r.goodQty
+      cur.defect += r.defectQty
+      cur.time += r.workTimeMin
+      by.set(k, cur)
+    }
+    /* 코드순 — 코드가 없는 축(날짜 · 작업 …)은 이름 그대로가 차례다. */
+    const sk = (g: { process: string; c1: string; c2: string }) => (aggSort === '코드순' ? `${g.c1 || g.process}\u0000${g.c2}\u0000${g.process}` : g.process)
+    const out = [...by.values()].sort((a, b) => aggSort === '수량' ? a.good - b.good : sk(a).localeCompare(sk(b), 'ko'))
+    return aggDesc ? out.reverse() : out
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }, [shown, agg1, sub2, mgmt.groupOptions])
+  }, [shown, agg1, sub2, mgmt.groupOptions, aggSort, aggDesc])
+  const code1 = codeIncl ? CODE_LABEL[agg1] : undefined
+  const code2 = codeIncl && sub2 ? CODE_LABEL[sub2] : undefined
+  /* 코드 · 비율 · 가로보기로 칸 수가 바뀐다 — 그려진 표를 직접 잰다. */
+  const aggRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(aggRef, '작업내역현황 집계', [agg1, sub2, ratio, codeIncl, pivot, mode])
   const [view, setView] = useState<'표' | '그래프'>('표')
   /* 원본 [그래프로 보기]. 작업내역은 <b>어느 공정에서 얼마나 나왔나</b> 를 보는 화면이다. */
   const chartRows = useMemo(() =>
@@ -303,11 +329,26 @@ export default function WorkResultListPage() {
             <select className="ec-input" value={agg1} onChange={(e) => setAgg1(e.target.value as AggAxis)} style={{ width: 110 }}>
               {AGG_AXES.map((k) => <option key={k} value={k}>{k}</option>)}
             </select>
+            <select className="ec-input" value={aggSort} onChange={(e) => setAggSort(e.target.value as typeof aggSort)} style={{ width: 84 }} title="정렬">
+              {(['코드순', '코드명순', '수량'] as const).map((k) => <option key={k} value={k}>{k}</option>)}
+            </select>
+            <button type="button" className="ec-btn" onClick={() => setAggDesc((d) => !d)} title={aggDesc ? '내림차순' : '오름차순'}
+                    style={{ padding: '0 6px', height: 24 }}>{aggDesc ? '↓' : '↑'}</button>
             집계조건2
             <select className="ec-input" value={sub2} onChange={(e) => setSub2(e.target.value as AggAxis | '')} style={{ width: 110 }}>
               <option value="">없음</option>
               {AGG_AXES.filter((k) => k !== agg1).map((k) => <option key={k} value={k}>{k}</option>)}
             </select>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: sub2 ? undefined : '#9aa1ab' }}
+                   title="집계조건2 를 고르면 그 값을 열로 펼칩니다">
+              <input type="checkbox" checked={pivot} disabled={!sub2} onChange={(e) => setPivot(e.target.checked)} /> 가로보기
+            </label>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+              <input type="checkbox" checked={ratio} onChange={(e) => setRatio(e.target.checked)} /> 비율표시
+            </label>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+              <input type="checkbox" checked={codeIncl} onChange={(e) => setCodeIncl(e.target.checked)} /> 코드포함
+            </label>
           </span>
         ) : mode === '내역' ? (
           <select className="ec-input" value={lineView} onChange={(e) => setLineView(e.target.value as '라인별' | '전표별' | '일별' | '월별' | '담당자별')}
@@ -447,14 +488,50 @@ export default function WorkResultListPage() {
 
       {view === '그래프' ? (
         <EcBarChart rows={chartRows} unit=" 개" emptyText="조회된 작업내역이 없습니다." />
-      ) : mode === '집계' ? (
-        <table className="w-full text-left">
+      ) : mode === '집계' && sub2 && pivot ? (() => {
+        const cols = [...new Set(byProcess.map((g) => g.k2))].sort((a, b) => a.localeCompare(b, 'ko'))
+        const rowsBy = new Map<string, Map<string, number>>()
+        byProcess.forEach((g) => { const m = rowsBy.get(g.k1) ?? new Map<string, number>(); m.set(g.k2, (m.get(g.k2) ?? 0) + g.good); rowsBy.set(g.k1, m) })
+        return (
+          <table ref={aggRef} className="w-full text-left">
+            <thead>
+              <tr>
+                <th style={{ width: 34 }}></th>
+                <th>{agg1} \ {sub2}</th>
+                {cols.map((c) => <th key={c} style={{ textAlign: 'right' }}>{c}</th>)}
+                <th style={{ textAlign: 'right' }}>합계</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...rowsBy.entries()].map(([k, m], i) => (
+                <tr key={k}>
+                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                  <td>{k}</td>
+                  {cols.map((c) => <td key={c} style={{ textAlign: 'right' }}>{m.get(c) ? num(m.get(c)!) : ''}</td>)}
+                  <td style={{ textAlign: 'right', fontWeight: 600 }}>{num([...m.values()].reduce((a, v) => a + v, 0))}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
+                <td colSpan={2} style={{ textAlign: 'right' }}>합계</td>
+                {cols.map((c) => <td key={c} style={{ textAlign: 'right' }}>{num(byProcess.filter((g) => g.k2 === c).reduce((a, g) => a + g.good, 0))}</td>)}
+                <td style={{ textAlign: 'right' }}>{num(totals.good)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        )
+      })() : mode === '집계' ? (
+        <table ref={aggRef} className="w-full text-left">
           <thead>
             <tr>
               <th style={{ width: 34 }}></th>
+              {code1 && <th style={{ width: 120 }}>{code1}</th>}
+              {code2 && <th style={{ width: 120 }}>{code2}</th>}
               <th>{sub2 ? `${agg1} · ${sub2}` : agg1}</th>
               <th style={{ width: 90, textAlign: 'right' }}>건수</th>
               <th style={{ width: 110, textAlign: 'right' }}>양품</th>
+              {ratio && <th style={{ width: 80, textAlign: 'right' }}>비율(%)</th>}
               <th style={{ width: 110, textAlign: 'right' }}>불량</th>
               <th style={{ width: 110, textAlign: 'right' }}>불량률(%)</th>
               <th style={{ width: 130, textAlign: 'right' }}>작업시간(분)</th>
@@ -462,15 +539,18 @@ export default function WorkResultListPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={7 + (code1 ? 1 : 0) + (code2 ? 1 : 0) + (ratio ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : byProcess.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={7 + (code1 ? 1 : 0) + (code2 ? 1 : 0) + (ratio ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : byProcess.map((g, i) => (
               <tr key={g.process}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                {code1 && <td style={{ fontFamily: 'monospace' }}>{g.c1}</td>}
+                {code2 && <td style={{ fontFamily: 'monospace' }}>{g.c2}</td>}
                 <td>{g.process}</td>
                 <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(g.count)}</td>
                 <td style={{ textAlign: 'right', color: '#1c7c3c', fontWeight: 600 }}>{num(g.good)}</td>
+                {ratio && <td style={{ textAlign: 'right', color: '#5a626e' }}>{totals.good ? (Math.round((g.good / totals.good) * 1000) / 10).toFixed(1) : '0.0'}</td>}
                 <td style={{ textAlign: 'right', color: g.defect > 0 ? '#c60a2e' : '#8a929c' }}>{num(g.defect)}</td>
                 <td style={{ textAlign: 'right', color: g.defect > 0 ? '#c60a2e' : '#8a929c' }}>{pct(g.defect, g.good)}</td>
                 <td style={{ textAlign: 'right' }}>{num(g.time)}</td>
@@ -479,9 +559,10 @@ export default function WorkResultListPage() {
           </tbody>
           <tfoot>
             <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={2} style={{ textAlign: 'right' }}>합계 ({byProcess.length}건 묶음)</td>
+              <td colSpan={2 + (code1 ? 1 : 0) + (code2 ? 1 : 0)} style={{ textAlign: 'right' }}>합계 ({byProcess.length}건 묶음)</td>
               <td style={{ textAlign: 'right' }}>{num(shown.length)}</td>
               <td style={{ textAlign: 'right', color: '#1c7c3c' }}>{num(totals.good)}</td>
+              {ratio && <td style={{ textAlign: 'right' }}>100.0</td>}
               <td style={{ textAlign: 'right', color: '#c60a2e' }}>{num(totals.defect)}</td>
               <td style={{ textAlign: 'right', color: '#c60a2e' }}>{pct(totals.defect, totals.good)}</td>
               <td style={{ textAlign: 'right' }}>{num(totals.time)}</td>
