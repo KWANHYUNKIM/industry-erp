@@ -127,6 +127,14 @@
         "wait:2500",
         "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim());const body=t.innerText;return h[0]==='재무제표표시명'&&h[1].endsWith('(기준)')&&['3. 매출총이익','5. 영업손익','8. 법인세비용차감전순손익','12. 당기순이익'].every((x)=>body.includes(x))})()"
       ]
+    },
+    {
+      "name": "원가명세서 — 재무제표표시명 | (기준) | (비교), Ⅳ. 당기총비용합계 · 기초재공품재고액 · 합 계 · 기말재공품재고액 · 당기제품제조원가",
+      "path": "/accounting/cost-statement",
+      "steps": [
+        "wait:3000",
+        "expect:(()=>{const t=document.querySelector('table');const body=t.innerText;return [...t.querySelectorAll('thead th')][0].innerText.trim()==='재무제표표시명'&&['Ⅳ. 당기총비용합계','기초재공품재고액','합 계','기말재공품재고액','당기제품제조원가'].every((x)=>body.includes(x))})()"
+      ]
     }
   ]
 }

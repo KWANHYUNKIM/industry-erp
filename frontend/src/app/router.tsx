@@ -66,6 +66,7 @@ const AccountRemarkLedgerPage = lazy(() => import('../pages/accounting/AccountRe
 const AccountFlowPage = lazy(() => import('../pages/accounting/AccountFlowPage'))
 const VatBookPage = lazy(() => import('../pages/accounting/VatBookPage'))
 const PartnerTxListPage = lazy(() => import('../pages/accounting/PartnerTxListPage'))
+const CostStatementPage = lazy(() => import('../pages/accounting/CostStatementPage'))
 const TrialBalancePage = lazy(() => import('../pages/accounting/TrialBalancePage'))
 const BalanceSheetPage = lazy(() => import('../pages/accounting/BalanceSheetPage'))
 const IncomeStatementPage = lazy(() => import('../pages/accounting/IncomeStatementPage'))
@@ -458,6 +459,7 @@ export default function AppRouter() {
         <Route path="/accounting/account-flow" element={<AccountFlowPage />} />
         <Route path="/accounting/vat-book" element={<VatBookPage />} />
         <Route path="/accounting/partner-tx-list" element={<PartnerTxListPage />} />
+        <Route path="/accounting/cost-statement" element={<CostStatementPage />} />
         <Route path="/accounting/trial-balance" element={<TrialBalancePage />} />
         <Route path="/accounting/balance-sheet" element={<BalanceSheetPage />} />
         <Route path="/accounting/income-statement" element={<IncomeStatementPage />} />

@@ -994,5 +994,9 @@
  [
   "손익계산서",
   "accounting/IncomeStatementPage.tsx"
+ ],
+ [
+  "원가명세서",
+  "accounting/CostStatementPage.tsx"
  ]
 ]

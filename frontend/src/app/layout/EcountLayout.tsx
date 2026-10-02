@@ -443,6 +443,7 @@ const MENU: TopMenu[] = [
               { label: '매입/매출장', to: '/accounting/vat-book' },
               { label: '거래처거래내역조회', to: '/accounting/partner-tx-list' },
               { label: '합계잔액시산표', to: '/accounting/trial-balance' },
+              { label: '원가명세서', to: '/accounting/cost-statement' },
             ],
           },
           {
