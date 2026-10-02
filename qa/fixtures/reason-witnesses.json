@@ -4802,5 +4802,44 @@
   "present": [
    "시리얼/로트No.(창고별)"
   ]
+ },
+ "시리얼/로트No.내역현황|거래처": {
+  "claim": "로트 움직임이 거래처를 들지 않는다",
+  "absent": [
+   "Partner",
+   "partner"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/lot/LotTransaction.java"
+ },
+ "시리얼/로트No.내역현황|프로젝트": {
+  "claim": "로트 움직임에 프로젝트가 없다",
+  "absent": [
+   "Project",
+   "project"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/lot/LotTransaction.java"
+ },
+ "시리얼/로트No.내역현황|담당자": {
+  "claim": "로트 움직임에 담당자가 없다",
+  "absent": [
+   "Employee",
+   "employee"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/lot/LotTransaction.java"
+ },
+ "시리얼/로트No.내역현황|udi코드": {
+  "claim": "로트에 UDI 칸이 없다",
+  "absent": [
+   "udi",
+   "Udi",
+   "UDI"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/lot"
+ },
+ "시리얼/로트No.내역현황|정렬/소계기준": {
+  "claim": "[구분] [집계]의 단위가 묶음을 맡는다",
+  "present": [
+   "전표별품목별"
+  ]
  }
 }

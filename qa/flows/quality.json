@@ -25,6 +25,17 @@
         "js:([...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='전체').querySelector('input').click(), new Promise((r)=>setTimeout(()=>r(true),600)))",
         "expect:![...document.querySelectorAll('table tbody tr')].some((t)=>/[0-9]/.test(t.innerText)&&!t.innerText.includes('없습니다'))"
       ]
+    },
+    {
+      "name": "시리얼/로트No.내역현황 — 원본 접힌 줄의 [관리항목] · [적요] 가 있고, 적요에 없는 낱말을 넣으면 줄이 빈다",
+      "path": "/quality/lot-tx-status",
+      "steps": [
+        "wait:1800",
+        "expect:document.body.innerText.includes('관리항목')&&document.body.innerText.includes('적요')",
+        "js:sessionStorage.setItem('ltxN', String(document.querySelectorAll('table tbody tr').length)); true",
+        "js:(()=>{const li=[...document.querySelectorAll('li')].find((l)=>l.textContent.trim().startsWith('적요'));const i=li.querySelector('input');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(i,'zz-없는-적요-zz');i.dispatchEvent(new Event('input',{bubbles:true}));return new Promise((r)=>setTimeout(()=>r(true),600))})()",
+        "expect:![...document.querySelectorAll('table tbody tr')].some((t)=>t.innerText.includes('-'))||document.querySelectorAll('table tbody tr').length<=1"
+      ]
     }
   ]
 }

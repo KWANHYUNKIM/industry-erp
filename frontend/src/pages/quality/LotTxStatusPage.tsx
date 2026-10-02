@@ -7,6 +7,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { LotTransaction } from '../../types/api'
 import { dateText } from '../../utils/dateText'
 import { subtotalBy } from '../../utils/subtotalBy'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
 
 /**
  * 재고 II &gt; 시리얼/로트No. &gt; <b>시리얼/로트No.내역현황</b> (이카운트 E040639)
@@ -54,6 +55,13 @@ export default function LotTxStatusPage() {
   const [item, setItem] = useState('')
   /* 원본 [전표구분] — 우리 로트 움직임의 유형(입고·출고·조정)이 그 자리다. */
   const [docType, setDocType] = useState('')
+  /*
+   * 원본 접힌 줄의 [관리항목] · [적요](2026-10-02 실측 — 접힌 줄: 프로젝트 · 관리항목 · 담당자 · 적요 · udi코드 · 문자형식2~5 ·
+   * 코드형추가항목1~3 · 숫자형식1~3 · 일자형식1~2). 관리항목은 품목 마스터의 값이라 itemId 로 잇고, 적요는 움직임의 비고다.
+   */
+  const mgmt = useItemMgmt()
+  const [mgmtCond, setMgmtCond] = useState('')
+  const [noteCond, setNoteCond] = useState('')
 
   async function load() {
     setLoading(true); setError('')
@@ -83,10 +91,13 @@ export default function LotTxStatusPage() {
       if (warehouse && r.warehouseName !== warehouse) return false
       if (item && r.itemName !== item) return false
       if (docType && r.typeName !== docType) return false
+      if (mgmtCond && !mgmt.hits([r.itemId], mgmtCond)) return false
+      if (noteCond && !(r.note ?? '').includes(noteCond)) return false
       if (kw && !r.lotNo.includes(kw) && !r.itemName.includes(kw)) return false
       return true
     })
-  }, [rows, expFrom, expTo, lotNo, warehouse, item, docType, keyword])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, expFrom, expTo, lotNo, warehouse, item, docType, keyword, mgmtCond, noteCond, mgmt.options])
 
   /** 원본 [구분]이 [집계] 일 때 고른 단위로 합친다. */
   const groups = useMemo(() => {
@@ -172,6 +183,14 @@ export default function LotTxStatusPage() {
           <CodePickerField label="전표구분" hideLabel width={140} emptyLabel="전체"
                            value={docType} onChange={setDocType}
                            items={docTypes.map((t) => ({ value: t, name: t }))} />
+        </EcCond>
+        <EcCond label="관리항목" pick>
+          <CodePickerField label="관리항목" hideLabel width={170} emptyLabel="전체"
+                           value={mgmtCond} onChange={setMgmtCond}
+                           items={mgmt.options.map((m) => ({ value: m, name: m }))} />
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" value={noteCond} onChange={(e) => setNoteCond(e.target.value)} style={{ width: 220 }} />
         </EcCond>
       </ul>
 
