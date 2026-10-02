@@ -326,6 +326,24 @@
         "js:new Promise((r)=>setTimeout(()=>{[...document.querySelectorAll('button')].find((b)=>b.textContent.trim()==='집계').click();setTimeout(()=>{const s=[...document.querySelectorAll('select')].find((x)=>[...x.options].some((o)=>o.value==='전월동일기간'));Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'전월동일기간');s.dispatchEvent(new Event('change',{bubbles:true}));setTimeout(()=>r(true),1500)},500)},1500))",
         "expect:/비교기간\\(\\d{4}\\/\\d{2}\\/\\d{2} ~ \\d{4}\\/\\d{2}\\/\\d{2}\\)/.test(document.body.innerText)"
       ]
+    },
+    {
+      "name": "생산불출현황 — ○집계 [비율표시]: 묶음마다 비율(%) 칸이 서고 합이 100 에 가깝다",
+      "path": "/production/issue-status",
+      "steps": [
+        "js:new Promise((r)=>setTimeout(()=>{[...document.querySelectorAll('button')].find((b)=>b.textContent.trim()==='집계').click();setTimeout(()=>{const s=[...document.querySelectorAll('select')].find((x)=>[...x.options].some((o)=>o.value==='분기별'));Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'월별');s.dispatchEvent(new Event('change',{bubbles:true}));setTimeout(()=>r(true),800)},500)},1500))",
+        "js:([...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='비율표시').querySelector('input').click(), new Promise((r)=>setTimeout(()=>r(true),600)))",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim());const i=h.indexOf('비율(%)');if(i<0)return false;const rows=[...document.querySelectorAll('table tbody tr')].filter((r)=>r.cells.length===h.length);if(rows.length===0)return true;const s=rows.reduce((a,r)=>a+Number(r.cells[i].innerText),0);return Math.abs(s-100)<1})()"
+      ]
+    },
+    {
+      "name": "생산입고현황 — ○집계 [비율표시]: 묶음마다 비율(%) 칸이 서고 합이 100 에 가깝다",
+      "path": "/production/receipt-status",
+      "steps": [
+        "js:new Promise((r)=>setTimeout(()=>{[...document.querySelectorAll('button')].find((b)=>b.textContent.trim()==='집계').click();setTimeout(()=>{const s=[...document.querySelectorAll('select')].find((x)=>[...x.options].some((o)=>o.value==='분기별'));Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'월별');s.dispatchEvent(new Event('change',{bubbles:true}));setTimeout(()=>r(true),800)},500)},1500))",
+        "js:([...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='비율표시').querySelector('input').click(), new Promise((r)=>setTimeout(()=>r(true),600)))",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim());const i=h.indexOf('비율(%)');if(i<0)return false;const rows=[...document.querySelectorAll('table tbody tr')].filter((r)=>r.cells.length===h.length);if(rows.length===0)return true;const s=rows.reduce((a,r)=>a+Number(r.cells[i].innerText),0);return Math.abs(s-100)<1})()"
+      ]
     }
   ]
 }

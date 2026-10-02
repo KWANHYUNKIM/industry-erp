@@ -116,9 +116,11 @@ export default function IssueStatusPage() {
   }, [prevRange?.from, prevRange?.to])
   const [agg1, setAgg1] = useState<GroupKey>('품목별')
   const [agg2, setAgg2] = useState<GroupKey | ''>('')
+  /** 원본 집계 [기타] 의 [비율표시] — 묶음마다 수량이 전체의 몇 % 인가. */
+  const [ratio, setRatio] = useState(false)
   /* 조건2 를 켜면 열이 하나 는다 — 렌더된 표를 직접 잰다. */
   const aggRef = useRef<HTMLTableElement>(null)
-  useTableColumnCheck(aggRef, '생산불출현황 집계', [agg2, mode])
+  useTableColumnCheck(aggRef, '생산불출현황 집계', [agg2, mode, ratio])
   const [lineView, setLineView] = useState<'라인별' | '전표별' | '품목별' | '일별' | '월별' | '전표별품목별' | '담당자별'>('라인별')
   const [view, setView] = useState<'표' | '그래프'>('표')
   const [warehouseId, setWarehouseId] = useState('')
@@ -340,6 +342,9 @@ export default function IssueStatusPage() {
               <option value="">없음</option>
               {AGG_KEYS.filter((k) => k !== agg1).map((k) => <option key={k} value={k}>{k}</option>)}
             </select>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+              <input type="checkbox" checked={ratio} onChange={(e) => setRatio(e.target.checked)} /> 비율표시
+            </label>
           </span>
         ) : mode === '내역' ? (
           <select className="ec-input" value={lineView} onChange={(e) => setLineView(e.target.value as '라인별' | '전표별' | '품목별' | '일별' | '월별' | '전표별품목별' | '담당자별')}
@@ -466,12 +471,13 @@ export default function IssueStatusPage() {
               {agg2 && <th>{agg2}</th>}
               <th style={{ width: 100, textAlign: 'right' }}>건수</th>
               <th style={{ width: 130, textAlign: 'right' }}>수량</th>
+              {ratio && <th style={{ width: 80, textAlign: 'right' }}>비율(%)</th>}
               <th style={{ width: 140, textAlign: 'right' }}>생산금액</th>
             </tr>
           </thead>
           <tbody>
             {aggRows.length === 0 ? (
-              <tr><td colSpan={agg2 ? 6 : 5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={(agg2 ? 6 : 5) + (ratio ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : aggRows.map((g, i) => (
               <tr key={`${g.g1}|${g.g2}`}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -479,6 +485,7 @@ export default function IssueStatusPage() {
                 {agg2 && <td>{g.g2}</td>}
                 <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(g.count)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{num(g.qty)}</td>
+                {ratio && <td style={{ textAlign: 'right', color: '#5a626e' }}>{totalQty ? (Math.round((g.qty / totalQty) * 1000) / 10).toFixed(1) : '0.0'}</td>}
                 <td style={{ textAlign: 'right' }}>{won(g.supply)}</td>
               </tr>
             ))}
@@ -488,6 +495,7 @@ export default function IssueStatusPage() {
               <td colSpan={agg2 ? 3 : 2} style={{ textAlign: 'right' }}>합계 ({aggRows.length}묶음)</td>
               <td style={{ textAlign: 'right' }}>{num(shown.length)}</td>
               <td style={{ textAlign: 'right', color: '#a5561b' }}>{num(totalQty)}</td>
+              {ratio && <td style={{ textAlign: 'right' }}>100.0</td>}
               <td style={{ textAlign: 'right' }}>{won(aggRows.reduce((n, g) => n + g.supply, 0))}</td>
             </tr>
           </tfoot>
