@@ -73,6 +73,20 @@ public class TimePhasedPlanService {
      */
     @Transactional(readOnly = true)
     public Result compute(LocalDate from, LocalDate to, boolean unsold, boolean unpurchased, boolean unproduced) {
+        return compute(from, to, new Options(unsold, unpurchased, unproduced, true, true, true, true));
+    }
+
+    /**
+     * 계산 기준 — [생산계획대상-전표] 셋과 [생산계획생성기준]·[MRP생성기준] → [설정] 의 적용기준.
+     * 안전재고반영을 끄면 예상재고가 0 밑으로 갈 때만 필요수량이 서고, 최소증가단위를 끄면 필요수량을 그대로 계획한다.
+     * 생산계획 쪽(BOM 있는 품목)과 MRP 쪽(자재)이 따로 고른다.
+     */
+    public record Options(boolean unsold, boolean unpurchased, boolean unproduced,
+                          boolean planSafety, boolean planMinUnit, boolean mrpSafety, boolean mrpMinUnit) {}
+
+    @Transactional(readOnly = true)
+    public Result compute(LocalDate from, LocalDate to, Options opt) {
+        boolean unsold = opt.unsold(), unpurchased = opt.unpurchased(), unproduced = opt.unproduced();
         if (from == null || to == null || to.isBefore(from)) throw ApiException.badRequest("생산계획기간을 바르게 정하세요.");
         long n = ChronoUnit.DAYS.between(from, to) + 1;
         if (n > MAX_DAYS) throw ApiException.badRequest("생산계획기간은 " + MAX_DAYS + "일까지 볼 수 있습니다.");
@@ -134,6 +148,9 @@ public class TimePhasedPlanService {
             boolean producible = bom.containsKey(id);
             BigDecimal safety = nz(it.safetyStock());
             BigDecimal minUnit = nz(it.minPurchaseUnit());
+            boolean useSafety = producible ? opt.planSafety() : opt.mrpSafety();
+            boolean useMinUnit = producible ? opt.planMinUnit() : opt.mrpMinUnit();
+            BigDecimal floor = useSafety ? safety : BigDecimal.ZERO;
             BigDecimal prev = stock.getOrDefault(id, BigDecimal.ZERO);
 
             Cell beforeCell = new Cell(null, get(in, id, before), get(prod, id, before), get(out, id, before),
@@ -145,8 +162,8 @@ public class TimePhasedPlanService {
             for (LocalDate d : days) {
                 BigDecimal i = get(in, id, d), p = get(prod, id, d), o = get(out, id, d), c = get(consume, id, d);
                 BigDecimal without = opening.add(i).add(p).subtract(o).subtract(c);
-                BigDecimal need = without.compareTo(safety) < 0 ? safety.subtract(without) : BigDecimal.ZERO;
-                BigDecimal plan = roundUp(need, minUnit);
+                BigDecimal need = without.compareTo(floor) < 0 ? floor.subtract(without) : BigDecimal.ZERO;
+                BigDecimal plan = useMinUnit ? roundUp(need, minUnit) : need;
                 BigDecimal expected = without.add(plan);
                 cells.add(new Cell(opening, i, p, o, c, expected, need, plan));
                 // 계획한 만큼 만들려면 그날 자재가 빠진다 — 자식의 소모예정으로 넘긴다.

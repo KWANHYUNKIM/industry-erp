@@ -66,6 +66,10 @@ public class MrpRunService {
                 .srcUnsold(req.srcUnsold() == null || req.srcUnsold())
                 .srcUnpurchased(req.srcUnpurchased() == null || req.srcUnpurchased())
                 .srcUnproduced(Boolean.TRUE.equals(req.srcUnproduced()))
+                .planSafety(req.planSafety() == null || req.planSafety())
+                .planMinUnit(Boolean.TRUE.equals(req.planMinUnit()))
+                .mrpSafety(req.mrpSafety() == null || req.mrpSafety())
+                .mrpMinUnit(req.mrpMinUnit() == null || req.mrpMinUnit())
                 .build();
         return RunResponse.from(runRepository.save(run), 0, BigDecimal.ZERO, 0, BigDecimal.ZERO);
     }
@@ -82,6 +86,12 @@ public class MrpRunService {
         boolean changed = !run.getPeriodFrom().equals(req.periodFrom()) || !run.getPeriodTo().equals(req.periodTo())
                 || !Objects.equals(oldBase, req.baseItemId())
                 || unsold != run.isSrcUnsold() || unpurchased != run.isSrcUnpurchased() || unproduced != run.isSrcUnproduced();
+        boolean ps = req.planSafety() == null ? run.isPlanSafety() : req.planSafety();
+        boolean pm = req.planMinUnit() == null ? run.isPlanMinUnit() : req.planMinUnit();
+        boolean ms = req.mrpSafety() == null ? run.isMrpSafety() : req.mrpSafety();
+        boolean mm = req.mrpMinUnit() == null ? run.isMrpMinUnit() : req.mrpMinUnit();
+        changed = changed || ps != run.isPlanSafety() || pm != run.isPlanMinUnit() || ms != run.isMrpSafety() || mm != run.isMrpMinUnit();
+        run.setPlanSafety(ps); run.setPlanMinUnit(pm); run.setMrpSafety(ms); run.setMrpMinUnit(mm);
         run.setSrcUnsold(unsold);
         run.setSrcUnpurchased(unpurchased);
         run.setSrcUnproduced(unproduced);
@@ -112,7 +122,8 @@ public class MrpRunService {
     public List<LineResponse> generate(Long id, MrpRunKind kind) {
         MrpRun run = get(id);
         TimePhasedDtos.Result res = timePhasedPlanService.compute(run.getPeriodFrom(), run.getPeriodTo(),
-                run.isSrcUnsold(), run.isSrcUnpurchased(), run.isSrcUnproduced());
+                new TimePhasedPlanService.Options(run.isSrcUnsold(), run.isSrcUnpurchased(), run.isSrcUnproduced(),
+                        run.isPlanSafety(), run.isPlanMinUnit(), run.isMrpSafety(), run.isMrpMinUnit()));
         Set<Long> scope = run.getBaseItem() != null ? scopeOf(run.getBaseItem().getId()) : null;
 
         lineRepository.deleteByRun(id, kind);

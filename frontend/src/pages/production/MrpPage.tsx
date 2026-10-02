@@ -537,6 +537,8 @@ interface MrpRun {
   createdBy: string | null; createdAt: string | null
   /** 원본 [생산계획대상-전표] — 미판매 · 미구매 · 미생산/미소모. */
   srcUnsold: boolean; srcUnpurchased: boolean; srcUnproduced: boolean
+  /** [생산계획생성기준]·[MRP생성기준] → [설정] 의 적용기준. */
+  planSafety: boolean; planMinUnit: boolean; mrpSafety: boolean; mrpMinUnit: boolean
 }
 interface MrpRunLine {
   id: number; kind: 'PLAN' | 'MRP'; lineNo: number
@@ -674,12 +676,17 @@ function MrpRunEditModal({ run, items, onClose, onSaved }: {
   const [srcUnsold, setSrcUnsold] = useState(run?.srcUnsold ?? true)
   const [srcUnpurchased, setSrcUnpurchased] = useState(run?.srcUnpurchased ?? true)
   const [srcUnproduced, setSrcUnproduced] = useState(run?.srcUnproduced ?? false)
+  /* [설정] 적용기준 기본값(loginaa 실측): 생산계획 — 안전재고반영 ✓ · 최소증가단위 ✗, MRP — 둘 다 ✓. */
+  const [planSafety, setPlanSafety] = useState(run?.planSafety ?? true)
+  const [planMinUnit, setPlanMinUnit] = useState(run?.planMinUnit ?? false)
+  const [mrpSafety, setMrpSafety] = useState(run?.mrpSafety ?? true)
+  const [mrpMinUnit, setMrpMinUnit] = useState(run?.mrpMinUnit ?? true)
   const [err, setErr] = useState('')
 
   async function save() {
     setErr('')
     const body = { runDate, periodFrom: from, periodTo: to, baseItemId: baseItem ? Number(baseItem) : null, note: note || null,
-      srcUnsold, srcUnpurchased, srcUnproduced }
+      srcUnsold, srcUnpurchased, srcUnproduced, planSafety, planMinUnit, mrpSafety, mrpMinUnit }
     try {
       if (run) {
         await api.put(`/mrp-runs/${run.id}`, body)
@@ -721,6 +728,16 @@ function MrpRunEditModal({ run, items, onClose, onSaved }: {
                 <input type="checkbox" disabled /> 매출계획</label>
               <label><input type="checkbox" checked={srcUnpurchased} onChange={(e) => setSrcUnpurchased(e.target.checked)} /> 미구매</label>
               <label><input type="checkbox" checked={srcUnproduced} onChange={(e) => setSrcUnproduced(e.target.checked)} /> 미생산/미소모</label>
+            </td></tr>
+          <tr><th>생산계획생성기준</th>
+            <td style={{ fontSize: 12.5, display: 'flex', gap: 10 }}>
+              <label><input type="checkbox" checked={planSafety} onChange={(e) => setPlanSafety(e.target.checked)} /> 안전재고반영</label>
+              <label><input type="checkbox" checked={planMinUnit} onChange={(e) => setPlanMinUnit(e.target.checked)} /> 최소증가단위</label>
+            </td></tr>
+          <tr><th>MRP생성기준</th>
+            <td style={{ fontSize: 12.5, display: 'flex', gap: 10 }}>
+              <label><input type="checkbox" checked={mrpSafety} onChange={(e) => setMrpSafety(e.target.checked)} /> 안전재고반영</label>
+              <label><input type="checkbox" checked={mrpMinUnit} onChange={(e) => setMrpMinUnit(e.target.checked)} /> 최소증가단위</label>
             </td></tr>
           <tr><th>기준품목</th>
             <td>

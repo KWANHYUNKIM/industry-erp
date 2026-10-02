@@ -69,4 +69,21 @@ public class MrpRun extends BaseTimeEntity {
     @Column(name = "src_unproduced", nullable = false)
     @Builder.Default
     private boolean srcUnproduced = false;
+
+    /** [생산계획생성기준]·[MRP생성기준] → [설정] 의 적용기준. 원본 기본값: 생산계획은 최소증가단위를 안 쓰고 MRP 는 쓴다. */
+    @Column(name = "plan_safety", nullable = false)
+    @Builder.Default
+    private boolean planSafety = true;
+
+    @Column(name = "plan_min_unit", nullable = false)
+    @Builder.Default
+    private boolean planMinUnit = false;
+
+    @Column(name = "mrp_safety", nullable = false)
+    @Builder.Default
+    private boolean mrpSafety = true;
+
+    @Column(name = "mrp_min_unit", nullable = false)
+    @Builder.Default
+    private boolean mrpMinUnit = true;
 }

@@ -3092,6 +3092,23 @@ async function scenarioCashDetail() {
 
   await rejects('같은 사용건 재결제는 거부', 'POST', '/cash-details/card-payments',
     { cardId: card.id, cardUsageIds: [usage.id] }, '미결제 사용내역이 없습니다')
+
+  /*
+   * <b>지운다(56회차)</b> — 셋 다 지울 길이 없어서 잘못 넣으면 반대로 한 번 더 넣어야 했다.
+   * 결제 → 사용 → 이동 순서로 지우면 두 계좌가 처음 잔액으로 돌아오고 회계전표도 남지 않는다.
+   * 덕분에 이 시나리오가 돌 때마다 계좌에서 돈이 빠져나가던 것도 멈춘다.
+   */
+  await rejects('결제된 카드사용은 지울 수 없다', 'DELETE', `/bank-cards/usages/${usage.id}`, undefined, '대금결제를 먼저')
+  await must('DELETE', `/cash-details/card-payments/${payment.id}`)
+  eq('결제를 지우면 결제계좌로 돈이 돌아온다', await balanceOf(from.id), payFrom)
+  eq('결제를 지우면 그 사용건은 다시 미결제',
+    (await must('GET', `/cash-details/card-payments/unpaid?cardId=${card.id}`)).some((u) => u.id === usage.id), true)
+  eq('결제 분개도 지워진다', (await call('GET', `/journals/${payment.journalEntryId}`)).status, 404)
+  await must('DELETE', `/bank-cards/usages/${usage.id}`)
+  eq('카드사용 분개도 지워진다', (await call('GET', `/journals/${usage.journalEntryId}`)).status, 404)
+  await must('DELETE', `/cash-details/account-transfers/${transfer.id}`)
+  eq('이동을 지우면 두 계좌가 처음 잔액으로', `${await balanceOf(from.id)} ${await balanceOf(to.id)}`, `${fromBefore} ${toBefore}`)
+  eq('이동 분개도 지워진다', (await call('GET', `/journals/${transfer.journalEntryId}`)).status, 404)
 }
 
 /** 우측 앱바 위젯 — 통합검색 · 알림 · E Note(개인 메모) */
@@ -5199,6 +5216,7 @@ async function scenarioMrpRuns(f) {
     // 원본 [생산계획대상-전표] 기본값(미판매 ✓ · 미구매 ✓ · 미생산/미소모 ✗) — 열린 작업지시의 소모를 안 센다.
     const plain = await must('POST', '/mrp-runs', { runDate: D, periodFrom: D, periodTo: '2087-08-20', baseItemId: top.id })
     eq('새 줄의 [생산계획대상] 기본값은 원본처럼 미생산/미소모만 꺼져 있다', [plain.srcUnsold, plain.srcUnpurchased, plain.srcUnproduced].join(','), 'true,true,false')
+    eq('[설정] 적용기준 기본값 — 생산계획 안전재고 ✓ · 최소증가단위 ✗ / MRP 둘 다 ✓', [plain.planSafety, plain.planMinUnit, plain.mrpSafety, plain.mrpMinUnit].join(','), 'true,false,true,true')
     const plainSemi = (await must('POST', `/mrp-runs/${plain.id}/generate?kind=PLAN`)).find((l) => l.itemId === semi.id)
     // 작업지시 5 가 쓸 반제품 10 이 빠지고, 그 지시가 채워 주던 완제품을 계획이 대신 세우며 생기는 소모도 달라진다 — 적어도 10 은 빠진다.
     eq('미생산/미소모를 끄면 작업지시가 쓸 소모(5×2)가 감소예정에서 빠진다', Number(semiLine.decreaseQty) - Number(plainSemi.decreaseQty) >= 10, true)

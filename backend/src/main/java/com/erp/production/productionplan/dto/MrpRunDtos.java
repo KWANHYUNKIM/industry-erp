@@ -26,7 +26,9 @@ public final class MrpRunDtos {
             Long baseItemId,
             @Size(max = 300) String note,
             /** [생산계획대상-전표]. 안 주면 원본 기본값(미판매 ✓ · 미구매 ✓ · 미생산/미소모 ✗). */
-            Boolean srcUnsold, Boolean srcUnpurchased, Boolean srcUnproduced
+            Boolean srcUnsold, Boolean srcUnpurchased, Boolean srcUnproduced,
+            /** [설정] 적용기준. 안 주면 원본 기본값(생산계획 안전재고 ✓ · 최소증가단위 ✗ / MRP 둘 다 ✓). */
+            Boolean planSafety, Boolean planMinUnit, Boolean mrpSafety, Boolean mrpMinUnit
     ) {}
 
     public record RunResponse(
@@ -37,7 +39,8 @@ public final class MrpRunDtos {
             /** 저장된 결과 줄 수와 계획수량 합. */
             long planLines, BigDecimal planQty, long mrpLines, BigDecimal mrpQty,
             String createdBy, LocalDateTime createdAt,
-            boolean srcUnsold, boolean srcUnpurchased, boolean srcUnproduced
+            boolean srcUnsold, boolean srcUnpurchased, boolean srcUnproduced,
+            boolean planSafety, boolean planMinUnit, boolean mrpSafety, boolean mrpMinUnit
     ) {
         public static RunResponse from(MrpRun r, long planLines, BigDecimal planQty, long mrpLines, BigDecimal mrpQty) {
             return new RunResponse(r.getId(), r.getRunNo(), r.getRunDate(), r.getPeriodFrom(), r.getPeriodTo(),
@@ -46,7 +49,8 @@ public final class MrpRunDtos {
                     r.getBaseItem() != null ? r.getBaseItem().getName() : null,
                     r.getNote(), r.getPlanGeneratedAt(), r.getMrpGeneratedAt(),
                     planLines, planQty, mrpLines, mrpQty, r.getCreatedBy(), r.getCreatedAt(),
-                    r.isSrcUnsold(), r.isSrcUnpurchased(), r.isSrcUnproduced());
+                    r.isSrcUnsold(), r.isSrcUnpurchased(), r.isSrcUnproduced(),
+                    r.isPlanSafety(), r.isPlanMinUnit(), r.isMrpSafety(), r.isMrpMinUnit());
         }
     }
 

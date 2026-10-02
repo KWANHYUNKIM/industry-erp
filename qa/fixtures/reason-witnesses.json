@@ -3504,9 +3504,9 @@
   "in": "frontend/src/pages/trade/AccountingReflectionPage.tsx"
  },
  "생산계획_MRP리스트|H": {
-  "claim": "생성 팝업의 시간 단위 토글 — 그 팝업을 안 만든다",
+  "claim": "생성 팝업의 시간 단위(H) 토글 — 계획은 날짜 단위로만 센다",
   "absent": [
-   "생산계획생성기준"
+   "planHour"
   ],
   "in": "frontend/src/pages/production/MrpPage.tsx"
  },
@@ -3534,9 +3534,9 @@
   "in": "backend/src/main/java/com/erp/quality/inspection/QualityInspection.java"
  },
  "직접입력": {
-  "claim": "생산계획/MRP 생성 팝업을 안 만든다",
+  "claim": "기준품목은 [전체/직접입력] 대신 코드도움 하나로 고른다",
   "absent": [
-   "생산계획생성기준"
+   "baseItemIds"
   ],
   "in": "frontend/src/pages/production/MrpPage.tsx"
  },
