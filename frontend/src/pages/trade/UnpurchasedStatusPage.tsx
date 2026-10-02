@@ -17,8 +17,9 @@ import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
  *
  * ── 데이터 모델 주의 ──
  * 이카운트 원본은 발주 라인별 '부분 미구매수량'(발주수량 − 이미 입고된 수량)을 보여준다.
- * 우리 모델은 발주서를 **통짜로** 입고 전환한다(PurchaseOrder.convertedPurchaseId 하나). 라인별 부분 입고가 없으므로
- * 미입고 발주의 발주수량 전체가 곧 미구매수량이다. 이 한계 안에서 '입고 안 된 발주'를 충실히 보여준다.
+ * 예전엔 "발주서는 통짜로 입고 전환한다" 고 보고 발주수량 전체를 미구매로 셌는데, 구매 줄은 진작
+ * 근거발주(sourceOrder)를 달아 <b>부분 입고</b>를 하고 있었다 — 100 중 60 을 입고해도 100 이 미구매로 남았다(43회차).
+ * 이제 /purchase-orders/unpurchased 의 줄별 잔량(발주 − 구매)으로 센다.
  *
  * <p>2026-09-08 에 원본을 열어 접힌 줄까지 재니 조건은 <b>스물여덟</b>이다(대조표에는 없던 화면이다):
  * 구분 · 기준일자(영업주기) · 발주No. · 납기일자 · 창고 · 프로젝트 · 거래처 · 품목 · 담당자 ·
@@ -143,11 +144,19 @@ export default function UnpurchasedStatusPage() {
       const period: Record<string, string> = {}
       if (filters.dateFrom) period.from = filters.dateFrom
       if (filters.dateTo) period.to = filters.dateTo
-      const res = await api.get<PurchaseOrder[]>('/purchase-orders', { params: period })
+      const [res, un] = await Promise.all([
+        api.get<PurchaseOrder[]>('/purchase-orders', { params: period }),
+        api.get<{ orderLineId: number; restQty: number }[]>('/purchase-orders/unpurchased', { params: period }),
+      ])
+      const restOf = new Map(un.data.map((u) => [u.orderLineId, Number(u.restQty)]))
       const flat: Row[] = []
       for (const o of res.data) {
         if (!OPEN_STATUS.includes(o.status)) continue   // 입고전환·취소 발주는 미구매 아님
-        o.lines.forEach((l) => flat.push({
+        o.lines.forEach((l) => {
+          const rest = restOf.get(l.id)
+          if (rest === undefined || rest <= 0) return            // 다 입고된 줄
+          const ratio = l.quantity ? rest / l.quantity : 1        // 금액도 남은 수량만큼
+          flat.push({
           key: `${o.id}-${l.id}`,
           date: o.orderDate,
           dueDate: o.dueDate,
@@ -164,11 +173,12 @@ export default function UnpurchasedStatusPage() {
           status: o.status,
           statusName: o.statusName,
           itemName: l.itemName,
-          qty: l.quantity,
+          qty: rest,
           unitPrice: l.unitPrice,
-          supply: l.supplyAmount,
-          vat: l.vatAmount,
-        }))
+          supply: Math.round(l.supplyAmount * ratio),
+          vat: Math.round(l.vatAmount * ratio),
+        })
+        })
       }
       setRows(flat)
     } catch (err) {
