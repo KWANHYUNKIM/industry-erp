@@ -986,5 +986,9 @@
  [
   "합계잔액시산표",
   "accounting/TrialBalancePage.tsx"
+ ],
+ [
+  "재무상태표",
+  "accounting/BalanceSheetPage.tsx"
  ]
 ]

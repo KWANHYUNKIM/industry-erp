@@ -111,6 +111,14 @@
         "wait:2500",
         "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((x)=>x.innerText.trim()).join('|');const f=document.querySelector('tfoot tr');return h==='기말잔액(차변)|기말금액(차변)|계정명|기말금액(대변)|기말잔액(대변)'&&f.cells[2].innerText.trim()==='합계'&&f.cells[1].innerText===f.cells[3].innerText})()"
       ]
+    },
+    {
+      "name": "재무상태표 — 재무제표표시명 | (기준) 두 칸 | (비교) 두 칸, 1. 자산 · 2. 부채 · 3. 자본 · 부채와자본총계",
+      "path": "/accounting/balance-sheet",
+      "steps": [
+        "wait:2500",
+        "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim());const body=t.innerText;return h[0]==='재무제표표시명'&&h[1].endsWith('(기준)')&&h[2].endsWith('(비교)')&&body.includes('1. 자산')&&body.includes('부채와자본총계')})()"
+      ]
     }
   ]
 }
