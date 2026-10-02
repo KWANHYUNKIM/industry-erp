@@ -177,6 +177,54 @@ public class HrService {
     }
 
     /**
+     * <b>전자결재에서 최종 결재가 끝난 휴가신청서</b>를 근태(휴가)로 남긴다.
+     *
+     * <p>예전엔 결재를 마쳐도 근태에 아무것도 생기지 않아 휴가잔여일수현황이 그대로였고,
+     * 사람이 근태입력에 같은 휴가를 또 넣어야 했다(35회차). 결재가 곧 승인이므로 상태는 승인으로 넣는다.
+     *
+     * <ul>
+     *   <li>하루 안에서 4시간 이하면 반차 0.5일, 아니면 연차 1일</li>
+     *   <li>여러 날이면 그 사이 평일 수만큼 연차(주말은 안 센다 — 공휴일은 달력이 없어 못 뺀다)</li>
+     *   <li>사유 끝에 결재 문서번호를 붙여, 같은 결재가 두 번 들어가지 않게 한다</li>
+     * </ul>
+     */
+    @Transactional
+    public void registerApprovedVacation(String docNo, Long userId, Object fromRaw, Object toRaw, Object reasonRaw) {
+        if (fromRaw == null || toRaw == null) return;
+        if (vacationRepository.existsByReasonContaining(docNo)) return;
+        java.time.LocalDateTime from = java.time.LocalDateTime.parse(String.valueOf(fromRaw));
+        java.time.LocalDateTime to = java.time.LocalDateTime.parse(String.valueOf(toRaw));
+        if (to.isBefore(from)) return;
+        String type;
+        BigDecimal days;
+        if (from.toLocalDate().equals(to.toLocalDate())) {
+            boolean half = java.time.Duration.between(from, to).toMinutes() <= 4 * 60;
+            type = half ? "반차" : "연차";
+            days = half ? new BigDecimal("0.5") : BigDecimal.ONE;
+        } else {
+            long weekdays = from.toLocalDate().datesUntil(to.toLocalDate().plusDays(1))
+                    .filter(d -> d.getDayOfWeek().getValue() <= 5).count();
+            type = "연차";
+            days = BigDecimal.valueOf(Math.max(weekdays, 1));
+        }
+        String reason = (reasonRaw == null ? "" : String.valueOf(reasonRaw).trim());
+        reason = (reason.isEmpty() ? "" : reason + " ") + "(전자결재 " + docNo + ")";
+        if (reason.length() > 200) reason = reason.substring(reason.length() - 200);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> ApiException.notFound("기안자를 찾을 수 없습니다. id=" + userId));
+        vacationRepository.save(VacationRequest.builder()
+                .user(user)
+                .docNo(docNoGenerator.next("AT-", "vacation_requests", "doc_no", "start_date", from.toLocalDate()))
+                .type(type)
+                .startDate(from.toLocalDate())
+                .endDate(to.toLocalDate())
+                .days(days)
+                .reason(reason)
+                .status(VacationStatus.APPROVED)
+                .build());
+    }
+
+    /**
      * 근태(휴가) 삭제.
      *
      * <p>지금까지 지울 방법이 아예 없었다. 잘못 넣은 근태는 잔여일수에 그대로 남는데

@@ -5,6 +5,8 @@ import com.erp.common.ApiException;
 import com.erp.common.StoredFileRepository;
 import com.erp.common.StoredFile;
 import com.erp.common.DocumentNoGenerator;
+import com.erp.common.ApprovalCompletedEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import com.erp.inventory.project.Project;
 import com.erp.trade.sales.Sales;
 import com.erp.trade.sales.SalesConfirmStatus;
@@ -47,6 +49,8 @@ public class ApprovalService {
     private final ExpenseRepository expenseRepository;
     /** 결재 진행 상황을 기안자·다음 결재자에게 쪽지 자동알림으로 알린다. */
     private final ShortMessageService shortMessageService;
+    /** 최종 결재가 끝나면 알린다 — 휴가신청서 → 근태(hr) 처럼 다른 모듈이 이어받는다. */
+    private final ApplicationEventPublisher events;
     // 첨부 파일 조회. 공용 파일 저장(V120)을 ECDrive·증빙센터와 함께 쓴다.
     private final StoredFileRepository storedFileRepository;
 
@@ -217,6 +221,8 @@ public class ApprovalService {
             doc.setStatus(ApprovalStatus.APPROVED);
             // 마지막 결재까지 끝났으므로 걸려 있던 판매전표를 '확인' 으로 넘긴다.
             linkedSales(doc).forEach(Sales::markConfirmed);
+            events.publishEvent(new ApprovalCompletedEvent(doc.getDocNo(), doc.getFormTemplate().getName(),
+                    doc.getDrafter().getId(), doc.getDraftDate(), doc.getFormData()));
             notifyDrafter(doc, "기안문서의 최종 결재가 완료 되었습니다.");
         } else {
             doc.setCurrentStep(doc.getCurrentStep() + 1);

@@ -16,4 +16,7 @@ public interface VacationRepository extends JpaRepository<VacationRequest, Long>
                                                          @Param("to") LocalDate to);
 
     boolean existsByUserId(Long userId);
+
+    /** 전자결재 문서번호(AP-…)로 이미 들어간 근태가 있는가 — 같은 결재가 두 번 들어가지 않게. */
+    boolean existsByReasonContaining(String text);
 }

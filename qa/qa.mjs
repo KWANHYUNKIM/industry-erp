@@ -6474,6 +6474,36 @@ async function scenarioApprovalLastActor() {
  * 그런데 화면이 연도를 <b>보내지도 보여 주지도</b> 않아서, 지금 보는 숫자가 몇 년치인지
  * 알 방법이 없었다. 다른 해 휴가가 섞여 보이는지도 확인할 수 없었다.
  */
+/**
+ * <b>전자결재의 휴가신청서를 최종 결재하면 근태(휴가)가 생기는가.</b>
+ * 예전엔 결재를 마쳐도 근태에 아무것도 안 남아 휴가잔여일수가 그대로였다(35회차).
+ * 4시간 이하는 반차 0.5일. 결재 문서번호가 사유에 붙는다. 근태는 지우고 끝낸다(승인된 결재 문서는 규칙상 못 지운다).
+ */
+async function scenarioLeaveApproval() {
+  section('■ 휴가신청서 결재 → 근태')
+  const form = (await must('GET', '/approval-form-templates')).find((t) => t.name === '휴가신청서')
+  const mgr = (await must('GET', '/users')).find((u) => u.username === 'manager')
+  eq('휴가신청서 양식과 결재자(manager)가 있다', !!form && !!mgr, true)
+  if (!form || !mgr) return
+  const doc = await must('POST', '/approvals', {
+    formTemplateId: form.id, title: `${P}반차 결재`, content: '', draftDate: '2091-03-05',
+    formData: { periodFrom: '2091-03-05T09:00:00', periodTo: '2091-03-05T13:00:00', reason: `${P}반차`, detail: '반차' },
+    approverIds: [mgr.id], referenceUserIds: [], shareUserIds: [], temporary: false,
+  })
+  const login = await call('POST', '/auth/login', { username: 'manager', password: 'manager1234' })
+  const saved = token
+  token = login.data.token
+  await must('POST', `/approvals/${doc.id}/approve`, { comment: 'QA 승인' })
+  token = saved
+  const rows = await must('GET', '/hr/vacations?year=2091')
+  const v = rows.find((r) => String(r.reason ?? '').includes(doc.docNo))
+  eq('최종 결재된 휴가신청서가 근태로 들어간다', !!v, true)
+  eq('4시간 이하는 반차', v?.type, '반차')
+  eq('반차는 0.5일', Number(v?.days), 0.5)
+  eq('결재가 곧 승인 — 근태 상태는 승인', v?.status ?? v?.statusName, v?.status ? 'APPROVED' : '승인')
+  if (v) await must('DELETE', `/hr/vacations/${v.id}`)
+}
+
 async function scenarioVacationYear(f) {
   section('■ 휴가잔여일수현황 기준연도')
 
@@ -9835,6 +9865,7 @@ async function main() {
   await scenarioStockTracked(fixtures)
   await scenarioPartnerContactAndBank()
   await scenarioVacationYear(fixtures)
+  await scenarioLeaveApproval()
   await scenarioApprovalLastActor()
   await scenarioSalesConfirmBulk(fixtures)
   await scenarioWorkOrderPartner(fixtures)
