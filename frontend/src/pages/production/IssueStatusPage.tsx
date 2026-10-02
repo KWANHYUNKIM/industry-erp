@@ -101,7 +101,10 @@ export default function IssueStatusPage() {
    * 원본 ○집계 — [집계조건1]·[집계조건2] 로 두 단계로 묶는다(2026-10-02 loginaa 실측; 판매·구매현황과 같은 utils/statusAggregate).
    * 불출에 없는 축(거래유형·거래처·관리항목)은 뺀다. 조건1 품목별 · 조건2 없음이면 예전 자재별 표(코드·단위·최근불출일)를 그대로 쓴다.
    */
-  const AGG_KEYS = ['품목별', '일별', '주차별', '월별', '분기별', '반기별', '연별', '담당자별', '창고별', '프로젝트별', '전표별'] as const
+  /* 원본 후보 차례(2026-10-02 실측): 일별 · 주차별 · 월별 · 분기별 · 반기별 · 연별 · 생산불출 · 담당자 · 보낸창고명 · 받는창고명 ·
+     관리항목 · 품목명[규격] · 품목그룹1·2·3 · 프로젝트 · 프로젝트그룹1·2. 품목별은 우리 기본값이라 맨 앞에 둔다.
+     관리항목·품목그룹2·3·프로젝트그룹은 우리 품목·프로젝트에 그 값이 없다(전역 예외). */
+  const AGG_KEYS = ['품목별', '일별', '주차별', '월별', '분기별', '반기별', '연별', '전표별', '담당자별', '보낸창고별', '받는창고별', '품목그룹1별', '프로젝트별'] as const
   /**
    * 원본 ○집계의 [비교기간] — 사용안함 · 전년/전월/전주/전일 동일기간. 그 기간의 불출을 따로 받아 수량·생산금액을 견준다
    * (판매현황과 같은 판, 2026-10-02 실측). 고른 조건(창고·품목)은 같이 건다.
@@ -281,14 +284,16 @@ export default function IssueStatusPage() {
     date: r.issueDate, docNo: r.issueNo, partner: '', itemName: r.itemName, qty: r.qty,
     supply: amountOf(r) ?? 0, vat: 0, warehouseName: r.warehouseName ?? '', projectName: r.projectName ?? null,
     taxable: true, employeeName: empName(r.employeeId) || null, managementItemName: null,
+    toWarehouseName: r.toWarehouseName, itemGroupName: mgmt.groupOf(r.itemId) || null,
   })
   const aggRows = useMemo(() => aggregate(shown.map(toAgg), agg1, agg2),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  [shown, agg1, agg2, priceOf, employees])
+  [shown, agg1, agg2, priceOf, employees, mgmt.groupOptions])
   /** 묶음의 코드 — 품목은 자재코드, 창고는 보내는창고 코드, 담당자·프로젝트는 마스터 코드. */
   const codeOf = (r: MaterialIssue, key: GroupKey) =>
     key === '품목별' ? r.itemCode
-      : key === '창고별' ? (warehouses.find((w) => w.id === r.warehouseId) as { code?: string } | undefined)?.code
+      : key === '보낸창고별' ? (warehouses.find((w) => w.id === r.warehouseId) as { code?: string } | undefined)?.code
+      : key === '받는창고별' ? (warehouses.find((w) => w.id === r.toWarehouseId) as { code?: string } | undefined)?.code
       : key === '담당자별' ? pickers.employees.find((e) => e.id === r.employeeId)?.code
       : key === '프로젝트별' ? pickers.projects.find((p) => p.id === r.projectId)?.code
       : ''

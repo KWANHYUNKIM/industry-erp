@@ -15,7 +15,13 @@ export const GROUP_KEYS = [
   '담당자별', '창고별', '거래유형별', '거래처별', '프로젝트별', '전표별', '관리항목별', '품목별',
 ] as const
 
-export type GroupKey = (typeof GROUP_KEYS)[number]
+/**
+ * 화면 하나에만 있는 축. GROUP_KEYS(판매·구매·발주 드롭다운이 그대로 펼친다)에는 넣지 않는다.
+ * 생산불출현황 원본 집계조건은 창고를 [보낸창고명]·[받는창고명] 둘로 가르고 [품목그룹1] 이 있다(2026-10-02 실측).
+ */
+export const EXTRA_GROUP_KEYS = ['보낸창고별', '받는창고별', '품목그룹1별'] as const
+
+export type GroupKey = (typeof GROUP_KEYS)[number] | (typeof EXTRA_GROUP_KEYS)[number]
 
 /** 집계가 읽는 한 줄. 화면마다 Row 모양이 달라도 이 모양만 맞추면 된다. */
 export interface AggregatableRow {
@@ -32,6 +38,10 @@ export interface AggregatableRow {
   employeeName: string | null
   /** 품목의 관리항목. 전표 라인이 아니라 품목 마스터에서 파생한다(원본도 그렇다). */
   managementItemName: string | null
+  /** 받는 쪽 창고(생산불출의 받는공장). 없는 화면은 비운다. */
+  toWarehouseName?: string | null
+  /** 품목그룹1 이름. 없는 화면은 비운다. */
+  itemGroupName?: string | null
 }
 
 /**
@@ -63,6 +73,9 @@ export function groupValue(r: AggregatableRow, key: GroupKey | ''): string {
     case '연별': return r.date.slice(0, 4)
     case '담당자별': return r.employeeName || '(미지정)'
     case '창고별': return r.warehouseName
+    case '보낸창고별': return r.warehouseName || '(없음)'
+    case '받는창고별': return r.toWarehouseName || '(없음)'
+    case '품목그룹1별': return r.itemGroupName || '(없음)'
     case '거래유형별': return r.taxable ? '과세' : '면세'
     case '거래처별': return r.partner
     case '프로젝트별': return r.projectName || '(없음)'
@@ -109,7 +122,7 @@ export function aggregate(
  * 보낸창고명으로 묶으면 [보낸창고명코드 | 보낸창고명 | 수량]). 코드가 없는 축(날짜·전표·거래유형·관리항목)은 열을 안 세운다.
  */
 export const GROUP_CODE_LABEL: Partial<Record<GroupKey, string>> = {
-  품목별: '품목코드', 창고별: '창고코드', 담당자별: '담당자코드', 프로젝트별: '프로젝트코드', 거래처별: '거래처코드',
+  품목별: '품목코드', 창고별: '창고코드', 보낸창고별: '보낸창고코드', 받는창고별: '받는창고코드', 담당자별: '담당자코드', 프로젝트별: '프로젝트코드', 거래처별: '거래처코드',
 }
 
 /** 묶음 이름 → 코드. 같은 이름에 코드가 둘이면 먼저 본 것을 쓴다(이름으로 묶었으므로 한 칸에 하나만 적을 수 있다). */
