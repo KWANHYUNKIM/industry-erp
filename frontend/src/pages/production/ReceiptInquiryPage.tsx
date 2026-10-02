@@ -128,6 +128,7 @@ export default function ReceiptInquiryPage() {
   const [noteCond, setNoteCond] = useState('')
   const [specCond, setSpecCond] = useState('')
   const [authorCond, setAuthorCond] = useState('')
+  const [entryCond, setEntryCond] = useState('')
   const [madeFrom, setMadeFrom] = useState('')
   const [madeTo, setMadeTo] = useState('')
   const [editedFrom, setEditedFrom] = useState('')
@@ -226,6 +227,7 @@ export default function ReceiptInquiryPage() {
     && (!noteCond || (r.note ?? '').includes(noteCond))
     && (!specCond || (r.productSpec ?? '') === specCond)
     && (!authorCond || (r.createdBy ?? '') === authorCond)
+    && (!entryCond || (r.entryType ?? 'I') === entryCond)
     && (!madeFrom || (r.createdAt ?? '').slice(0, 10) >= madeFrom)
     && (!madeTo || ((r.createdAt ?? '') !== '' && r.createdAt!.slice(0, 10) <= madeTo))
     && (!editedFrom || (r.updatedAt ?? '').slice(0, 10) >= editedFrom)
@@ -312,7 +314,7 @@ export default function ReceiptInquiryPage() {
                            value={itemGroupCond} onChange={setItemGroupCond}
                            items={mgmt.groupOptions.map((n) => ({ value: n, name: n }))} />
         </EcCond>
-        {/* 원본 차례: (품목그룹2·3·계층) · 기타 · (발송여부 · 오더관리번호) · 담당자 · (생산입고구분) · 적요 · 규격 … */}
+        {/* 원본 차례: (품목그룹2·3·계층) · 기타 · (발송여부 · 오더관리번호) · 담당자 · 생산입고구분 · 적요 · 규격 … */}
         <EcCond label="기타">
           <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
             <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
@@ -327,6 +329,15 @@ export default function ReceiptInquiryPage() {
         <EcCond label="담당자" pick>
           <CodePickerField label="담당자" hideLabel width={170} emptyLabel="전체"
                            value={empCond} onChange={setEmpCond} items={pickers.employees} />
+        </EcCond>
+        {/* 원본 조건 [생산입고구분] — 생산입고 I·II·III 중 어느 화면으로 넣은 전표인가. */}
+        <EcCond label="생산입고구분">
+          <select className="ec-input" value={entryCond} onChange={(e) => setEntryCond(e.target.value)} style={{ width: 120 }}>
+            <option value="">전체</option>
+            <option value="I">생산입고 I</option>
+            <option value="II">생산입고 II</option>
+            <option value="III">생산입고 III</option>
+          </select>
         </EcCond>
         <EcCond label="적요">
           <input className="ec-input" value={noteCond}

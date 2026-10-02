@@ -49,6 +49,8 @@ interface Material {
 }
 
 interface Production {
+  /** 넣은 화면 — 원본 생산입고 I·II·III. */
+  entryType?: 'I' | 'II' | 'III'
   id: number
   /** 진행상태 — 결재중·미확인·확인(2026-10-02 생겼다). */
   confirmStatus?: 'UNCONFIRMED' | 'IN_APPROVAL' | 'CONFIRMED'
@@ -128,6 +130,7 @@ export default function ReceiptStatusPage() {
   /** 원본 조건 [진행상태] — 전체 · 결재중 · 미확인 · 확인. */
   const [statusCond, setStatusCond] = useState('')
   const [authorCond, setAuthorCond] = useState('')
+  const [entryCond, setEntryCond] = useState('')
   const [employees, setEmployees] = useState<{ id: number; name: string }[]>([])
   const mgmt = useItemMgmt()
   /** 담당자 이름. production 은 hr 을 참조할 수 없어 id 만 온다 — 화면이 붙인다. */
@@ -190,6 +193,7 @@ export default function ReceiptStatusPage() {
     /* [담당자]는 전표의 담당 사원이다 — 만든 계정([최초작성자])과 다른 사람이다. */
     if (worker && !empName(r.employeeId).includes(worker)) return false
     if (authorCond && (r.createdBy ?? '') !== authorCond) return false
+    if (entryCond && (r.entryType ?? 'I') !== entryCond) return false
     if (itemCategory && (r.productCategoryName ?? '') !== itemCategory) return false
     if (itemGroup && mgmt.groupOf(r.productId) !== itemGroup) return false
     if (specCond && !(r.productSpec ?? '').includes(specCond)) return false
@@ -199,7 +203,7 @@ export default function ReceiptStatusPage() {
     return true
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [rows, from, to, warehouseId, item, worker, project, note,
-       fromWh, toWh, itemCategory, itemGroup, specCond, authorCond, employees, mgmt.groupOptions])
+       fromWh, toWh, itemCategory, itemGroup, specCond, authorCond, statusCond, entryCond, employees, mgmt.groupOptions])
 
   /** 집계 — 품목 단위로 입고수량을 모은다. */
   /*
@@ -333,6 +337,15 @@ export default function ReceiptStatusPage() {
         <EcCond label="규격">
           <ItemSuggestInput field="spec" value={specCond}
                             onChange={(v) => setSpecCond(v)} width={140} />
+        </EcCond>
+        {/* 원본 조건 [생산입고구분] — 생산입고 I·II·III 중 어느 화면으로 넣은 전표인가. */}
+        <EcCond label="생산입고구분">
+          <select className="ec-input" value={entryCond} onChange={(e) => setEntryCond(e.target.value)} style={{ width: 120 }}>
+            <option value="">전체</option>
+            <option value="I">생산입고 I</option>
+            <option value="II">생산입고 II</option>
+            <option value="III">생산입고 III</option>
+          </select>
         </EcCond>
         <EcCond label="진행상태">
           <select className="ec-input" value={statusCond} onChange={(e) => setStatusCond(e.target.value)} style={{ width: 120 }}>
