@@ -277,8 +277,13 @@ public class JournalService {
                 x.getContent() != null ? x.getContent() : "지출", null, x.getCreatedBy());
 
         addDebitAccount(e, expenseAccount, x.getAmount(), x.getContent());
-        String credit = isOnCredit(x.getPaymentMethod()) ? "253" : "101";
-        addCredit(e, credit, x.getAmount(), isOnCredit(x.getPaymentMethod()) ? "미지급금" : "현금");
+        /*
+         * 대변은 결제수단으로 가른다 — 카드·외상은 미지급금(253), 계좌이체는 보통예금(103), 나머지는 현금(101).
+         * 예전엔 계좌이체도 현금으로 나가 현금 장부만 줄고 통장은 그대로였다(39회차). 수금·지급과 같은 판정.
+         */
+        String credit = isOnCredit(x.getPaymentMethod()) ? "253" : isBankMethod(x.getPaymentMethod()) ? "103" : "101";
+        String creditName = "253".equals(credit) ? "미지급금" : "103".equals(credit) ? "보통예금" : "현금";
+        addCredit(e, credit, x.getAmount(), creditName);
         return save(e);
     }
 

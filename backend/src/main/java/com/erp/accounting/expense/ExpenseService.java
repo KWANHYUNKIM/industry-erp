@@ -1,6 +1,8 @@
 package com.erp.accounting.expense;
 
 import com.erp.accounting.account.AccountService;
+import com.erp.accounting.journal.JournalService;
+import com.erp.accounting.journal.JournalSourceType;
 import com.erp.common.ApiException;
 import com.erp.common.DocumentNoGenerator;
 import com.erp.accounting.account.Account;
@@ -29,6 +31,11 @@ public class ExpenseService {
     private final AccountRepository accountRepository;
     private final AccountService accountService;
     private final BusinessPartnerRepository partnerRepository;
+    /**
+     * 지출은 저장과 함께 회계전표를 만든다. 예전엔 분개를 만드는 메서드(createFromExpense)가 있는데
+     * 아무도 부르지 않아 지출 34건이 장부에 한 장도 없었다 — 판관비가 손익·재무제표에서 통째로 빠졌다(39회차).
+     */
+    private final JournalService journalService;
 
     @Transactional(readOnly = true)
     public List<ExpenseResponse> findAll() {
@@ -56,7 +63,9 @@ public class ExpenseService {
                 .project(req.projectId() != null ? projectService.get(req.projectId()) : null)
                 .createdBy(username)
                 .build();
-        return ExpenseResponse.from(expenseRepository.save(e));
+        Expense saved = expenseRepository.save(e);
+        journalService.createFromExpense(saved);
+        return ExpenseResponse.from(saved);
     }
 
     @Transactional
@@ -64,6 +73,7 @@ public class ExpenseService {
         if (!expenseRepository.existsById(id)) {
             throw ApiException.notFound("지출 내역을 찾을 수 없습니다. id=" + id);
         }
+        journalService.deleteBySource(JournalSourceType.EXPENSE, id);   // 지출을 지우면 그 분개도
         expenseRepository.deleteById(id);
     }
 

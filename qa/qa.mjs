@@ -6538,6 +6538,31 @@ async function scenarioWorkHours() {
   for (const r of rows) await must('DELETE', `/hr/attendance/${r.id}`)
 }
 
+/**
+ * <b>지출은 저장과 함께 장부에 올라가야 한다.</b> 분개를 만드는 메서드를 아무도 안 불러 지출 34건이 장부에
+ * 한 장도 없었다(39회차). 계좌이체는 보통예금(103), 카드는 미지급금(253), 현금은 현금(101). 지우면 분개도 지워진다.
+ */
+async function scenarioExpenseJournal() {
+  section('■ 지출 → 회계전표')
+  const accounts = await must('GET', '/accounts')
+  const welfare = accounts.find((a) => a.code === '811')
+  const D = '2091-05-07'
+  const cases = [['계좌이체', '103'], ['법인카드', '253'], ['현금', '101']]
+  for (const [method, code] of cases) {
+    const ex = await must('POST', '/expenses', {
+      accountId: welfare.id, expenseDate: D, content: `${P}지출 ${method}`, amount: 33_000, paymentMethod: method,
+    })
+    const rows = (await must('GET', `/journals?from=${D}&to=${D}&all=true`)).rows
+    const j = rows.find((x) => x.sourceType === 'EXPENSE' && x.sourceId === ex.id)
+    eq(`지출(${method})을 저장하면 회계전표가 생긴다`, !!j, true)
+    eq(`지출(${method}) 차변은 비용계정 811`, j?.lines.find((l) => Number(l.debit) > 0)?.accountCode, '811')
+    eq(`지출(${method}) 대변은 ${code}`, j?.lines.find((l) => Number(l.credit) > 0)?.accountCode, code)
+    await must('DELETE', `/expenses/${ex.id}`)
+    const after = (await must('GET', `/journals?from=${D}&to=${D}&all=true`)).rows
+    eq(`지출(${method})을 지우면 분개도 지워진다`, after.some((x) => x.sourceType === 'EXPENSE' && x.sourceId === ex.id), false)
+  }
+}
+
 async function scenarioLeaveApproval() {
   section('■ 휴가신청서 결재 → 근태')
   const form = (await must('GET', '/approval-form-templates')).find((t) => t.name === '휴가신청서')
@@ -9928,6 +9953,7 @@ async function main() {
   await scenarioLeaveApproval()
   await scenarioWithholdingTable()
   await scenarioWorkHours()
+  await scenarioExpenseJournal()
   await scenarioApprovalLastActor()
   await scenarioSalesConfirmBulk(fixtures)
   await scenarioWorkOrderPartner(fixtures)
