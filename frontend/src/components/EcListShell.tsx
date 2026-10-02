@@ -85,6 +85,7 @@ export default function EcListShell({
   const [helpOpen, setHelpOpen] = useState(false)
   const [formOpen, setFormOpen] = useState(false)
   const [notice, setNotice] = useState('')
+  const [moreOpen, setMoreOpen] = useState(false)   // 휴대폰: 하단 버튼줄 펼침(⌄)
 
   // 페이지가 검색을 직접 처리하지 않으면 셸이 렌더된 행을 필터링한다
   const searchHandledByPage = typeof onSearch === 'function'
@@ -214,7 +215,8 @@ export default function EcListShell({
     <div className="flex flex-col min-h-[100%]">
       {/* 상단: ★제목 + 검색 (styles/shell.css .ec-page-head) */}
       <div className="ec-page-head">
-        <span className="ec-page-title">{title}</span>
+        {/* 원본 휴대폰 목록 화면은 제목을 감추고 검색 도구만 남긴다 */}
+        <span className="ec-page-title mobile:hidden">{title}</span>
         <div className="tools relative">
           {searchable && <>
             <input
@@ -227,7 +229,7 @@ export default function EcListShell({
             <button className="ec-btn ec-btn-primary" onClick={runSearch}>Search(F3)</button>
           </>}
           {option && <button className="ec-btn" onClick={() => setOptionOpen((v) => !v)}>Option</button>}
-          <button className="ec-btn" onClick={() => setHelpOpen(true)}>도움말</button>
+          <button className="ec-btn mobile:hidden" onClick={() => setHelpOpen(true)}>도움말</button>
 
           {optionOpen && (
             <>
@@ -265,7 +267,8 @@ export default function EcListShell({
       />
 
       {/* 하단 버튼줄 — 원본처럼 본문 틀 바닥에 붙는다. 버튼이 하나도 없으면 빈 띠로 보이므로 아예 그리지 않는다. */}
-      <div ref={toolbarRef} className="ec-footer" style={hasBottom ? undefined : { display: 'none' }}>
+      <div ref={toolbarRef} className={`ec-footer${moreOpen ? ' open' : ''}`} style={hasBottom ? undefined : { display: 'none' }}>
+        <div className="ec-footer-btns">
         {(onNew || renderForm) && (
           <button
             className="ec-btn ec-btn-primary"
@@ -280,6 +283,9 @@ export default function EcListShell({
             {a.label}
           </button>
         ))}
+        </div>
+        {/* 휴대폰: 한 줄에 다 안 들어가는 버튼은 ⌄ 로 펼친다(원본) */}
+        <button className="ec-btn ec-more" aria-label="버튼 더 보기" onClick={() => setMoreOpen((v) => !v)}>{moreOpen ? '⌃' : '⌄'}</button>
       </div>
 
       {renderForm && (

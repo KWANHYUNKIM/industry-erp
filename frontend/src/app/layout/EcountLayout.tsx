@@ -868,6 +868,9 @@ export default function EcountLayout() {
   const [chatCount, setChatCount] = useState(0)                 // 메신저 미읽음 배지
   const [noteCount, setNoteCount] = useState(0)                 // 쪽지 안 읽은 수
   const [userOpen, setUserOpen] = useState(false)               // 사용자 동그라미 → 이름·로그아웃
+  // 휴대폰·태블릿(≤768px, 원본 실측) — ☰ 메뉴판과 ★ 즐겨찾기 · 앱 모음 펼침
+  const [drawer, setDrawer] = useState<{ top: number; tab: number } | null>(null)
+  const [mPanel, setMPanel] = useState<'fav' | 'apps' | null>(null)
   const contentRef = useRef<HTMLDivElement>(null)               // 본문 영역(표 우클릭 메뉴가 감시)
 
   // 알림 배지 건수. 패널을 닫을 때(처리했을 수 있으므로) 다시 센다.
@@ -1026,6 +1029,57 @@ export default function EcountLayout() {
     )
   }
 
+  // 화면을 옮기면 ☰ 메뉴판 · 펼침은 닫는다(휴대폰에서 메뉴를 고르면 바로 그 화면을 봐야 한다)
+  useEffect(() => { setDrawer(null); setMPanel(null) }, [location.pathname])
+
+  // ☰ 메뉴판 — 원본 휴대폰 화면: 왼쪽 열은 1단(고른 것 아래 2단 카드), 오른쪽 열은 그 2단의 3·4단 나무
+  function mobileDrawer(at: { top: number; tab: number }) {
+    const top = MENU[at.top]
+    const tab = top.tabs[at.tab] ?? top.tabs[0]
+    return (
+      <div className="ec-drawer">
+        <div className="ec-drawer-tops">
+          {MENU.map((m, idx) => {
+            if (!topOk(m)) return null
+            const on = idx === at.top
+            return (
+              <div key={m.label}>
+                <button className={`ec-drawer-top${on ? ' active' : ''}`} onClick={() => setDrawer({ top: idx, tab: 0 })}>{m.label}</button>
+                {on && m.tabs.length > 1 && (
+                  <ul className="ec-drawer-tabs">
+                    {m.tabs.map((t, ti) => tabOk(t) && (
+                      <li key={t.label}>
+                        <button className={`ec-drawer-tab${ti === at.tab ? ' active' : ''}`} onClick={() => setDrawer({ top: idx, tab: ti })}>{t.label}</button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )
+          })}
+        </div>
+        <div className="ec-drawer-tree ec-lnb">
+          {tab.nodes.map((node) => {
+            if (!isGroup(node)) return leafOk(node) ? sidebarLeaf(node) : null
+            const kids = node.children.filter(leafOk)
+            if (kids.length === 0) return null
+            // 왼쪽 메뉴와 같은 규칙 — 지금 화면이 든 묶음만 펼치고 칠한다. 접힌 상태도 왼쪽 메뉴와 같이 쓴다.
+            const current = kids.some((c) => !!c.to && matchLength(c.to, location.pathname) > 0)
+            const key = `${at.top}/${at.tab}/${node.label}`
+            const open = key in collapsed ? !collapsed[key] : current
+            return (
+              <div key={node.label}>
+                <button className={`ec-lnb-group${open ? ' open' : ''}${current ? ' current' : ''}`}
+                        onClick={() => setCollapsed((c) => ({ ...c, [key]: open }))}>{node.label}</button>
+                {open && <div className="ec-lnb-leaves">{kids.map((c) => sidebarLeaf(c))}</div>}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
   // 화면이 하나뿐인 메뉴(MyPage)는 원본처럼 왼쪽 메뉴 없이 본문을 넓게 쓴다
   const leafCount = activeTab.nodes.reduce((n, node) => n + (isGroup(node) ? node.children.length : 1), 0)
   const showLnb = leafCount > 1
@@ -1077,7 +1131,10 @@ export default function EcountLayout() {
 
       {/* ===== 머리 메뉴(1단) + 떠 있는 2단 메뉴 ===== */}
       <div className="ec-gnb" onMouseLeave={() => setHoverIdx(null)}>
-        <Link to="/" className="ec-logo"><b>제조</b>ERP</Link>
+        <Link to="/" className="ec-logo"><b>제조</b><span className="tail">ERP</span></Link>
+        {/* 휴대폰·태블릿에서만 — ☰ 메뉴판, ★ 즐겨찾기 */}
+        <button className="ec-m-btn ec-m-menu" aria-label="메뉴" onClick={() => { setMPanel(null); setDrawer((d) => (d ? null : { top: topIdx, tab: tabIdx })) }}>☰</button>
+        <button className="ec-m-btn ec-m-fav" aria-label="즐겨찾기" onClick={() => { setDrawer(null); setMPanel((p) => (p === 'fav' ? null : 'fav')) }}>★</button>
         <ul className="ec-gnb-menu">
           {MENU.map((m, idx) => {
             if (!topOk(m)) return null
@@ -1098,6 +1155,7 @@ export default function EcountLayout() {
 
         <div className="ec-gnb-right">
           {companyName && <span className="ec-company">{companyName}</span>}
+          <button className="ec-m-apps" aria-label="앱 모음" onClick={() => { setDrawer(null); setMPanel((p) => (p === 'apps' ? null : 'apps')) }}>⋮⋮</button>
           <button className="ec-avatar" title={user?.name} onClick={() => setUserOpen((o) => !o)}>👤</button>
           {userOpen && (
             <div className="ec-popover" onMouseLeave={() => setUserOpen(false)}>
@@ -1108,6 +1166,30 @@ export default function EcountLayout() {
           )}
         </div>
       </div>
+
+      {drawer && mobileDrawer(drawer)}
+      {mPanel === 'fav' && (
+        <div className="ec-m-panel">
+          {bookmarks.length === 0 && <div className="text-ec-hint p-[9px]">★ 자주 사용하는 메뉴를 즐겨찾기로 추가할 수 있습니다</div>}
+          {bookmarks.map((b, i) => (
+            <NavLink key={b.path + i} to={b.path} className={({ isActive }) => `ec-lnb-leaf${isActive ? ' active' : ''}`}>{b.label}</NavLink>
+          ))}
+          {currentLeaf && (
+            <button className="ec-btn mt-[6px] w-full justify-center" onClick={toggleBookmark}>
+              {bookmarked ? '★ 이 화면을 즐겨찾기에서 빼기' : '☆ 이 화면을 즐겨찾기에 담기'}
+            </button>
+          )}
+        </div>
+      )}
+      {mPanel === 'apps' && (
+        <div className="ec-m-panel ec-m-apps-grid">
+          {APPS.map((a, i) => (
+            <button key={i} className="ec-appbar-btn" title={a.title} onClick={() => { setMPanel(null); onApp(a) }}>
+              {a.icon}<span>{a.title}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* ===== 왼쪽 메뉴 + 본문 틀 + 오른쪽 앱바 ===== */}
       <div className="ec-body">

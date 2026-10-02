@@ -140,6 +140,7 @@ export default function EcSlipShell({
   children: ReactNode
 }) {
   const [helpOpen, setHelpOpen] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)   // 휴대폰: 하단 버튼줄 펼침(⌄)
   const [optionOpen, setOptionOpen] = useState(false)
   const [bookmarked, setBookmarked] = useState(true)   // 원본은 page-bookmark-added 상태로 뜬다
   const footerRef = useRef<HTMLDivElement>(null)
@@ -240,7 +241,8 @@ export default function EcSlipShell({
       <div className="flex-1 min-h-0 pt-[8px]">{children}</div>
 
       {/* .footer */}
-      <div className="ec-slip-footer" ref={footerRef}>
+      <div className={`ec-slip-footer${moreOpen ? ' open' : ''}`} ref={footerRef}>
+        <div className="ec-footer-btns">
         {actions.map((a) => {
           const cls = `ec-btn${a.primary ? ' ec-btn-primary' : ''}`
           if (a.menu && a.menu.length > 0) {
@@ -270,9 +272,12 @@ export default function EcSlipShell({
             </button>
           )
         })}
+        </div>
         {savedAt && (
           <span className="ml-auto text-[11.5px] text-ec-hint">{savedAt}</span>
         )}
+        {/* 휴대폰: 한 줄에 다 안 들어가는 버튼은 ⌄ 로 펼친다(원본) */}
+        <button type="button" className="ec-btn ec-more" aria-label="버튼 더 보기" onClick={() => setMoreOpen((v) => !v)}>{moreOpen ? '⌃' : '⌄'}</button>
       </div>
 
       {helpOpen && (

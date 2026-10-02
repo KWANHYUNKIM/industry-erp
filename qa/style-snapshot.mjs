@@ -42,11 +42,13 @@ if (cmd === 'save') {
       await br.goto(r, 1200)
       const snap = await br.evaluate(`(() => {
         const P = ${JSON.stringify(PROPS)}, out = {}
+        // 보이는 요소만 센다 — 숨은 요소(휴대폰 전용 단추 등)를 더해도 번호가 밀리지 않게
+        const vis = (e) => e.checkVisibility ? e.checkVisibility() : getComputedStyle(e).display !== 'none'
         const key = (el) => { const p = []; for (let e = el; e && e.id !== 'root'; e = e.parentElement) {
-          let i = 1; for (let s = e.previousElementSibling; s; s = s.previousElementSibling) if (s.tagName === e.tagName) i++
+          let i = 1; for (let s = e.previousElementSibling; s; s = s.previousElementSibling) if (s.tagName === e.tagName && vis(s)) i++
           p.unshift(e.tagName.toLowerCase() + i) } return p.join('>') }
         for (const el of document.querySelectorAll('#root *')) {
-          if (el.closest('svg')) continue
+          if (el.closest('svg') || !vis(el)) continue
           const s = getComputedStyle(el); out[key(el)] = P.map((p) => s.getPropertyValue(p)).join('|')
         }
         return out })()`)

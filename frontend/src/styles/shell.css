@@ -638,3 +638,247 @@
 .danger,
 .ec-menu > button.danger { color: var(--ec-danger); }
 .ec-menu > button:disabled { color: var(--ec-text-off); cursor: default; }
+
+/* ============================================================
+   휴대폰 · 태블릿 — 원본 ec56 실측(2026-10-03): 화면 폭 <b>768px 이하</b>에서 틀이 바뀐다
+   (769 는 PC 틀, 768 은 휴대폰 틀 — 창 폭을 1px 씩 줄여 가며 쟀다).
+   CSS 변수는 미디어 조건에 못 쓰므로 숫자를 그대로 적는다. 화면 코드에서는 Tailwind `mobile:` 을 쓴다
+   (index.css @custom-variant mobile).
+     - 북마크 줄 · 1단 글자 메뉴 · 2단 판 · 왼쪽 메뉴 · 오른쪽 앱바가 사라지고
+     - 머리는 높이 50: 로고 · ☰(남색 동그라미) · ★(노란 동그라미) … 앱 모음 · 사용자
+     - ☰ 는 머리 아래 전체를 덮는 메뉴판(왼쪽 1단 + 고른 1단의 2단 카드 / 오른쪽 3·4단 나무)
+     - 본문 틀은 화면 폭을 다 쓰고 모서리가 각지다(윗선 1px)
+   ============================================================ */
+
+/* PC 에서는 휴대폰 단추를 숨긴다 */
+.ec-m-btn,
+.ec-m-apps {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .ec-bookbar,
+  .ec-gnb-menu,
+  .ec-subnav,
+  .ec-lnb,
+  .ec-appbar,
+  .ec-company,
+  .ec-logo > .tail {
+    display: none;
+  }
+  .ec-gnb {
+    height: 50px;
+    padding: 0 10px;
+    gap: 4px;
+  }
+  .ec-logo {
+    margin-right: 6px;
+  }
+  .ec-m-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .ec-m-menu { background: rgb(36, 53, 89); }
+  .ec-m-fav { background: var(--ec-star); margin-left: 7px; }
+  .ec-m-apps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: var(--ec-radius);
+    background: none;
+    color: var(--ec-text-sub);
+    font-size: 15px;
+    letter-spacing: -3px;
+    cursor: pointer;
+  }
+
+  /* 본문 틀 — 화면 폭 전부, 각진 모서리, 윗선 1px */
+  .ec-frame {
+    border-width: 1px 0 0;
+    border-radius: 0;
+    padding: 10px 10px 10px;
+  }
+
+  /* ☰ 메뉴판 — 머리 아래를 다 덮는다. 왼쪽 열(바탕 #f7f8f9) 169 · 오른쪽 열 나무 */
+  .ec-drawer {
+    position: fixed;
+    top: 50px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 60;
+    display: flex;
+    background: var(--ec-bg-shell);
+    border-top: 1px solid var(--ec-line);
+  }
+  .ec-drawer-tops {
+    width: 169px;
+    flex: 0 0 auto;
+    padding: 0 9px 20px 0;
+    overflow-y: auto;
+    background: var(--ec-bg-page);
+  }
+  .ec-drawer-top {
+    display: block;
+    width: 100%;
+    min-height: 41px;
+    padding: 9.9px 18px;
+    border: 0;
+    border-radius: var(--ec-radius);
+    background: none;
+    color: var(--ec-text);
+    font-size: var(--ec-fs-menu);
+    text-align: left;
+    cursor: pointer;
+  }
+  .ec-drawer-top.active {
+    color: var(--ec-navy);
+    font-weight: 700;
+  }
+  /* 고른 1단 아래의 2단 카드 — 흰 판 · 둥글기 20 · 항목 높이 29 */
+  .ec-drawer-tabs {
+    margin: 0 0 0 18px;
+    padding: 1.8px 0;
+    list-style: none;
+    background: #fff;
+    border: var(--ec-hair) solid var(--ec-line-soft);
+    border-radius: var(--ec-radius-panel);
+  }
+  .ec-drawer-tab {
+    display: block;
+    width: calc(100% - 6px);
+    margin: 0 3px;
+    min-height: 29px;
+    padding: 5.4px 9px;
+    border: 0;
+    border-radius: 20px;
+    background: none;
+    color: var(--ec-text);
+    font-size: var(--ec-fs);
+    text-align: left;
+    cursor: pointer;
+  }
+  .ec-drawer-tab.active {
+    background: var(--ec-blue-light);
+    color: var(--ec-navy);
+    font-weight: 700;
+  }
+  /* 오른쪽 열 — 왼쪽 메뉴와 같은 나무, 줄만 조금 높다(여백 8.1) */
+  .ec-drawer-tree.ec-lnb {
+    display: block;
+    flex: 1;
+    width: auto;
+    padding: 12px 9px 20px;
+  }
+  .ec-drawer-tree .ec-lnb-group,
+  .ec-drawer-tree .ec-lnb-leaf {
+    min-height: 28px;
+    padding-top: 8.1px;
+    padding-bottom: 8.1px;
+  }
+
+  /* ★ 즐겨찾기 · 앱 모음 펼침 — 머리 바로 아래 */
+  .ec-m-panel {
+    position: fixed;
+    top: 54px;
+    left: 10px;
+    right: 10px;
+    z-index: 60;
+    max-height: 70vh;
+    overflow-y: auto;
+    padding: 4.5px;
+    background: #fff;
+    border: var(--ec-hair) solid var(--ec-line);
+    border-radius: var(--ec-radius-panel);
+    box-shadow: var(--ec-shadow-pop);
+  }
+  .ec-m-apps-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+  .ec-m-apps-grid > .ec-appbar-btn {
+    width: auto;
+    height: auto;
+    flex-direction: column;
+    gap: 3px;
+    padding: 8px 2px;
+    font-size: 18px;
+  }
+  .ec-m-apps-grid > .ec-appbar-btn > span {
+    font-size: 11px;
+    color: var(--ec-text);
+    white-space: nowrap;
+  }
+
+  /* 화면 머리 — 줄을 바꿔 도구가 화면 안에 머문다 */
+  .ec-page-head {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+  .ec-page-head > .tools {
+    flex-wrap: wrap;
+  }
+
+  /* MyPage 위젯 — 한 줄에 하나 */
+  .ec-widgets {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* 팝업창 — 화면 폭에 맞춘다 */
+  .ec-modal-back {
+    padding: 10px 6px;
+  }
+  .ec-modal {
+    width: 100% !important;
+    max-width: 100%;
+  }
+}
+
+/* 하단 버튼줄 안쪽 묶음 — PC 에서는 줄바꿈, 휴대폰에서는 한 줄 + ⌄ 펼침 */
+.ec-footer-btns {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+/* .ec-btn(index.css, 같은 층 · 뒤에 나옴)의 inline-flex 를 이기려고 두 클래스로 쓴다 */
+.ec-btn.ec-more { display: none; }
+@media (max-width: 768px) {
+  .ec-footer {
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    margin-left: -10px;
+    margin-right: -10px;
+  }
+  .ec-slip-footer { align-items: flex-start; }
+  /* overflow-x: clip — 옆으로 넘치는 버튼만 자르고, 위로 펼치는 버튼 메뉴(▴)는 보이게 둔다(hidden 이면 같이 잘린다) */
+  .ec-footer-btns {
+    flex: 1;
+    flex-wrap: nowrap;
+    overflow-x: clip;
+    overflow-y: visible;
+  }
+  .ec-footer.open .ec-footer-btns,
+  .ec-slip-footer.open .ec-footer-btns { flex-wrap: wrap; }
+  .ec-btn.ec-more {
+    display: inline-flex;
+    flex: 0 0 auto;
+    justify-content: center;
+    width: 31px;
+    padding: 0;
+  }
+}

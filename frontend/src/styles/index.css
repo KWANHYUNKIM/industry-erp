@@ -9,6 +9,9 @@
  * Tailwind 기본 팔레트(text-slate-600 · bg-red-50 …)는 쓰지 않는다 — qa/style-check.mjs 가 센다.
  * inline: 값이 아니라 var(--ec-…) 로 남겨, tokens.css 하나만 바꾸면 클래스도 따라간다.
  */
+/* 휴대폰·태블릿(원본: 화면 폭 768px 이하). 화면 코드에서 mobile:hidden · mobile:w-full 처럼 쓴다 */
+@custom-variant mobile (@media (max-width: 768px));
+
 @theme inline {
   --color-ec-blue: var(--ec-blue);
   --color-ec-blue-hover: var(--ec-blue-hover);
@@ -1018,6 +1021,54 @@ td.ec-empty,
 th.ec-empty {
   text-align: center;
   color: var(--ec-ink);
+}
+
+/* 휴대폰 · 태블릿(≤768px, 원본 실측) — 격자는 격자 그대로 두고 <b>격자만</b> 옆으로 민다(원본 판매조회).
+   table 을 block 으로 바꾸면 그 안에 익명 표 상자가 생겨 칸 배치는 그대로고, 넘치는 폭만 표 안에서 스크롤된다.
+   그러지 않으면 넓은 표가 본문 틀 전체를 옆으로 밀어 제목·버튼줄까지 화면 밖으로 나간다. */
+@media (max-width: 768px) {
+  .ec-frame table,
+  .ec-modal table {
+    display: block;
+    max-width: 100%;
+    min-width: 0 !important;   /* 화면이 표에 준 최소 폭(800 …)은 상자가 아니라 안쪽 표가 갖는다 — 상자는 화면 폭 */
+    overflow-x: auto;
+  }
+  /*
+   * 화면마다 손으로 짠 줄(버튼 · 입력칸 · 알약을 flex 로 늘어놓은 것)은 PC 폭을 전제로 한 줄이다.
+   * 휴대폰에서는 넘치는 대신 다음 줄로 접는다 — 줄바꿈을 일부러 막은 줄(flex-nowrap)만 그대로 둔다.
+   * 2026-10-03 휴대폰 점검(qa/mobile-check.mjs)에서 넘친 화면 38개 중 대부분이 이 모양이었다.
+   */
+  .ec-frame :is(.flex, .inline-flex, [style*="display: flex"], [style*="display: inline-flex"]):not(.flex-nowrap, .flex-col, [style*="flex-direction: column"], :has(> input + button:last-child):not(:has(> :nth-child(4)))),
+  .ec-pills,
+  .ec-toolbar {
+    flex-wrap: wrap;
+  }
+  /* flex · grid 항목은 기본이 min-width: auto(내용 폭)라, 안에 넓은 표가 있으면 줄지 못하고 화면을 민다.
+     0 으로 두면 항목은 화면 폭에 맞고 표는 제 안에서 옆으로 민다. */
+  .ec-frame :is(.flex, .inline-flex, .grid, [style*="display: flex"], [style*="display: grid"]) > * {
+    min-width: 0;
+  }
+  /* 폭을 px 로 박은 상자(입력 판 420 · 칸 280 …)는 화면보다 넓어지지 않게. 표 칸은 표가 스스로 민다 */
+  .ec-frame :is([class*="w-["], [class*="min-w-["], [style*="width"]):not(table, thead, tbody, tr, th, td, col, colgroup, table *) {
+    max-width: 100%;
+  }
+  .ec-frame :is([class*="min-w-["], [style*="min-width"]):not(table, table *) {
+    min-width: 0 !important;
+  }
+  /* 입력 폼 · 조회 조건은 한 열 — 원본 판매입력: 이름표 93 + 칸 */
+  .ec-form { grid-template-columns: minmax(0, 1fr); padding: 9px 0; }
+  .ec-form > li > .title { flex-basis: 93px; }
+  .ec-form > li > .form > *,
+  .ec-cond > li > .form > * { min-width: 0; max-width: 100%; }
+  /* [입력칸][🔍] 처럼 칸 하나에 단추가 붙은 줄은 접지 않는다 — 접으면 🔍 만 다음 줄로 떨어진다.
+     입력칸(과 그 감싸개)은 min-width 0 · max-width 100% 라 남는 폭까지 줄어든다.
+     기간 빠른선택([금일][전일] …)이 붙은 일자 줄은 그대로 접는다(버튼이 많다). */
+  .ec-cond > li > .form:has(> :is(input, div, span) + button:last-child):not(:has(> :nth-child(4), select, .ec-btn-pick, .ec-pills)),
+  .ec-form > li > .form:has(> :is(input, div, span) + button:last-child):not(:has(> :nth-child(4), select, .ec-btn-pick, .ec-pills)) {
+    flex-wrap: nowrap;
+  }
+  .ec-cond > li > .title { flex-basis: 93px; }
 }
 
 } /* @layer components */
