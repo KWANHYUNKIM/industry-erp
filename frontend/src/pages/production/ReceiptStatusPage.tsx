@@ -5,7 +5,7 @@ import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
 import { subtotalBy } from '../../utils/subtotalBy'
-import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import { STATUS_PICKS, periodOf, comparePeriodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, Warehouse } from '../../types/api'
 import { stockCostMapFromLast, sumStockValue } from '../../utils/stockValue'
@@ -149,6 +149,15 @@ export default function ReceiptStatusPage() {
    * 예전 품목별 표를 그대로 쓴다.
    */
   const AGG_KEYS = ['품목별', '일별', '주차별', '월별', '분기별', '반기별', '연별', '담당자별', '창고별', '프로젝트별', '전표별'] as const
+  /** 원본 ○집계의 [비교기간] — 그 기간의 생산입고를 따로 받아 수량·생산금액을 견준다(생산불출현황과 같은 판). */
+  const [compare, setCompare] = useState<ComparePeriod>('사용안함')
+  const [prevRows, setPrevRows] = useState<Production[] | null>(null)
+  const prevRange = comparePeriodOf(from, to, compare)
+  useEffect(() => {
+    if (!prevRange) { setPrevRows(null); return }
+    api.get<Production[]>('/productions', { params: prevRange }).then((r) => setPrevRows(r.data)).catch(() => setPrevRows(null))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prevRange?.from, prevRange?.to])
   const [agg1, setAgg1] = useState<GroupKey>('품목별')
   const [agg2, setAgg2] = useState<GroupKey | ''>('')
   /* 조건2 를 켜면 열이 하나 는다 — 렌더된 표를 직접 잰다. */
@@ -314,6 +323,7 @@ export default function ReceiptStatusPage() {
       {/* 원본은 기간 줄을 [일자]라고 부른다(사본 실측) — 기본값 [기준일자]가 아니다. */}
       <EcStatusPanel
         dateLabel="일자"
+        compare={mode === '집계' ? compare : undefined} onCompareChange={mode === '집계' ? setCompare : undefined}
         from={from} to={to}
         onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
         picks={STATUS_PICKS}
@@ -449,6 +459,20 @@ export default function ReceiptStatusPage() {
           <span style={{ marginLeft: 6, color: '#c07a00' }}>※ 단가 미정 {amount.unknown}건 제외</span>
         )}
       </div>
+      {mode === '집계' && prevRange && prevRows && (() => {
+        const prev = prevRows.filter((r) => (!warehouseId || String(r.warehouseId) === warehouseId || String(r.fromWarehouseId ?? '') === warehouseId)
+          && (!item || String(r.productId) === item))
+        const amt = (r: Production) => { const c = cost.get(r.productId); return c == null ? 0 : r.producedQty * c }
+        const pq = prev.reduce((n, r) => n + r.producedQty, 0)
+        const pa = prev.reduce((n, r) => n + amt(r), 0)
+        const pct = (a: number, b: number) => (b > 0 ? ` (${a >= b ? '+' : ''}${Math.round(((a - b) / b) * 100)}%)` : '')
+        return (
+          <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+            비교기간({prevRange.from.replace(/-/g, '/')} ~ {prevRange.to.replace(/-/g, '/')})
+            수량 {num(pq)} → {num(totalQty)}{pct(totalQty, pq)} · 생산금액 {num(Math.round(pa))} → {num(Math.round(amount.value))}{pct(amount.value, pa)}
+          </div>
+        )
+      })()}
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 

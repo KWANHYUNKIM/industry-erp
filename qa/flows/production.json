@@ -318,6 +318,14 @@
         "js:new Promise((r)=>setTimeout(()=>{[...document.querySelectorAll('button')].find((b)=>b.textContent.trim()==='집계').click();setTimeout(()=>{const s=[...document.querySelectorAll('select')].find((x)=>[...x.options].some((o)=>o.value==='전월동일기간'));Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'전월동일기간');s.dispatchEvent(new Event('change',{bubbles:true}));setTimeout(()=>r(true),1500)},500)},1500))",
         "expect:/비교기간\\(\\d{4}\\/\\d{2}\\/\\d{2} ~ \\d{4}\\/\\d{2}\\/\\d{2}\\)/.test(document.body.innerText)"
       ]
+    },
+    {
+      "name": "생산입고현황 — ○집계 [비교기간] 전월동일기간: 그 기간 수량·생산금액과 견준 줄이 뜬다(원본 비교기간)",
+      "path": "/production/receipt-status",
+      "steps": [
+        "js:new Promise((r)=>setTimeout(()=>{[...document.querySelectorAll('button')].find((b)=>b.textContent.trim()==='집계').click();setTimeout(()=>{const s=[...document.querySelectorAll('select')].find((x)=>[...x.options].some((o)=>o.value==='전월동일기간'));Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'전월동일기간');s.dispatchEvent(new Event('change',{bubbles:true}));setTimeout(()=>r(true),1500)},500)},1500))",
+        "expect:/비교기간\\(\\d{4}\\/\\d{2}\\/\\d{2} ~ \\d{4}\\/\\d{2}\\/\\d{2}\\)/.test(document.body.innerText)"
+      ]
     }
   ]
 }
