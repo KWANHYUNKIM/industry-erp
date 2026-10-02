@@ -78,7 +78,8 @@ export default function FixedAssetPage() {
       const { data } = await api.post<DepreciationRun>('/fixed-assets/depreciate', { period })
       flash(data.assetCount === 0
         ? `${data.period} 상각 대상이 없습니다 (건너뜀 ${data.skippedCount}건 — 이미 상각했거나 상각 완료).`
-        : `${data.period} 감가상각 ${data.assetCount}건 · 총 ${won(data.totalAmount)}원 (건너뜀 ${data.skippedCount}건)`)
+        : `${data.period} 감가상각 ${data.assetCount}건 · 총 ${won(data.totalAmount)}원 (건너뜀 ${data.skippedCount}건)`
+          + (data.gaps?.length ? ` ⚠ 앞 달 상각이 빠져 있습니다 — ${data.gaps.join(' / ')}. 빠진 달부터 차례로 돌리세요.` : ''))
       await load()
     } catch (err) {
       setError(extractErrorMessage(err))

@@ -120,6 +120,7 @@ public class FixedAssetService {
         List<DepreciationResponse> done = new ArrayList<>();
         BigDecimal total = BigDecimal.ZERO;
         int skipped = 0;
+        List<String> gaps = new ArrayList<>();
 
         for (FixedAsset asset : assetRepository.findByStatusWithAccount(AssetStatus.IN_USE)) {
             if (asset.getAcquisitionDate().isAfter(lastDay)) {          // 아직 취득 전
@@ -147,12 +148,15 @@ public class FixedAssetService {
                     .createdBy(username)
                     .build();
 
+            String missing = missingMonths(asset, ym);
+            if (!missing.isEmpty()) gaps.add(asset.getName() + ": " + missing);
+
             JournalEntry entry = journalService.createFromDepreciation(d);
             d.setJournalEntry(entry);
             done.add(DepreciationResponse.from(depreciationRepository.save(d)));
             total = total.add(amount);
         }
-        return new DepreciationRunResponse(ym.toString(), done.size(), total, skipped, done);
+        return new DepreciationRunResponse(ym.toString(), done.size(), total, skipped, done, gaps);
     }
 
     /** 처분: 자산과 누계액을 장부에서 털어내고 처분손익을 인식한다. */
@@ -176,6 +180,21 @@ public class FixedAssetService {
 
     // ── 내부 ──────────────────────────────────────────────────────────
 
+    /** 취득한 달부터 이번 달 앞까지 상각 기록이 없는 달들. 열두 달을 넘으면 앞뒤만. */
+    private String missingMonths(FixedAsset asset, YearMonth ym) {
+        java.util.Set<String> done = new java.util.HashSet<>(depreciationRepository.findPeriodsByAssetId(asset.getId()));
+        List<String> miss = new ArrayList<>();
+        for (YearMonth m = YearMonth.from(asset.getAcquisitionDate()); m.isBefore(ym); m = m.plusMonths(1)) {
+            if (!done.contains(m.toString())) miss.add(m.toString());
+        }
+        if (miss.size() > 12) return miss.get(0) + " ~ " + miss.get(miss.size() - 1) + " (" + miss.size() + "개월)";
+        return String.join(", ", miss);
+    }
+
+    /*
+     * 원 단위로 끊는다. 예전엔 소수 둘째 자리라 1,000만 원 · 5년이면 매달 166,666.67원이 분개에 찍혔다(34회차).
+     * 반올림한 만큼의 끝전은 마지막 달이 남은 상각가능액으로 잘려 맞춰진다(raw.min(remaining)).
+     */
     /** 이번 달 상각액. 잔존가액 아래로는 내려가지 않도록 남은 상각가능액으로 자른다. */
     private BigDecimal monthlyAmount(FixedAsset asset) {
         BigDecimal remaining = asset.depreciableRemaining();
@@ -185,10 +204,10 @@ public class FixedAssetService {
         BigDecimal raw = switch (asset.getMethod()) {
             case STRAIGHT_LINE -> asset.getAcquisitionCost().subtract(asset.getSalvageValue())
                     .divide(BigDecimal.valueOf(asset.getUsefulLifeYears()).multiply(MONTHS_PER_YEAR),
-                            2, RoundingMode.HALF_UP);
+                            0, RoundingMode.HALF_UP);
             case DECLINING_BALANCE -> asset.bookValue()
                     .multiply(asset.getDeclineRate()).divide(HUNDRED, 10, RoundingMode.HALF_UP)
-                    .divide(MONTHS_PER_YEAR, 2, RoundingMode.HALF_UP);
+                    .divide(MONTHS_PER_YEAR, 0, RoundingMode.HALF_UP);
         };
         return raw.min(remaining);
     }

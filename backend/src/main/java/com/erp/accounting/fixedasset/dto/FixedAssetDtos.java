@@ -88,6 +88,11 @@ public final class FixedAssetDtos {
     /** 감가상각 실행 결과 요약 */
     public record DepreciationRunResponse(
             String period, int assetCount, BigDecimal totalAmount, int skippedCount,
-            List<DepreciationResponse> rows
+            List<DepreciationResponse> rows,
+            /**
+             * 이번 달보다 앞인데 아직 상각하지 않은 달이 있는 자산 — "자산명: 2026-08, 2026-09".
+             * 10월을 먼저 돌리면 8·9월이 조용히 빠졌다(34회차). 막지는 않고 알린다.
+             */
+            List<String> gaps
     ) {}
 }

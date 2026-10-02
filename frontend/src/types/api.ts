@@ -1225,6 +1225,8 @@ export interface DepreciationRun {
   totalAmount: number
   skippedCount: number
   rows: DepreciationRow[]
+  /** 앞 달 상각이 빠진 자산 — "자산명: 2026-08, 2026-09" */
+  gaps?: string[]
 }
 
 // ===== 계좌/카드 (회계 I) =====
