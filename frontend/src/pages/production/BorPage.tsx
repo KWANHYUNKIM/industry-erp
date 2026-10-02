@@ -161,6 +161,18 @@ export default function BorPage() {
     .filter((r) => !processCond || String(r.processId) === processCond)
     .filter((r) => useTab === '전체' || (useTab === '사용' ? r.active : !r.active))
 
+  /**
+   * 원본 BOR(작업소요시간) 목록은 <b>BOR 이 없는 품목도</b> 한 줄씩 보인다(2026-10-02 loginaa 실측: 포장김치 · 투광등 ·
+   * 코카콜라 1box 처럼 작업 칸이 빈 줄). 눌러서 바로 BOR 을 등록한다. 품목·공정으로 걸렀거나 [사용중단] 탭이면 안 보인다.
+   */
+  const noBor = useMemo(() => {
+    if (keyword || itemCond || processCond || useTab === '사용중단') return []
+    const has = new Set(rows.map((r) => r.productId))
+    /* 원본은 제품 · 반제품 · 상품만 보인다 — 원재료·부재료는 만드는 품목이 아니라 BOR 을 달 일이 없다. */
+    return items.filter((i) => i.active && !has.has(i.id) && i.category !== 'RAW_MATERIAL' && i.category !== 'SUB_MATERIAL')
+      .sort((a, b) => a.code.localeCompare(b.code))
+  }, [rows, items, keyword, itemCond, processCond, useTab])
+
   /** 품목별 1개당 표준시간 합. 원본은 품목 아래에 작업을 늘어놓으므로 소계가 뜻을 갖는다. */
   const perProduct = useMemo(() => {
     const m = new Map<number, number>()
@@ -318,7 +330,7 @@ export default function BorPage() {
           <tbody>
             {loading ? (
               <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-            ) : shown.length === 0 ? (
+            ) : noBor.length === 0 && shown.length === 0 ? (
               <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((r, i) => {
               const first = i === 0 || shown[i - 1].productId !== r.productId
@@ -347,7 +359,19 @@ export default function BorPage() {
                   </td>
                 </tr>
               )
-            })}
+            }).concat(noBor.map((it, k) => (
+              <tr key={`nb${it.id}`} style={k === 0 && shown.length > 0 ? { borderTop: '2px solid #d7dce3' } : undefined}>
+                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{shown.length + k + 1}</td>
+                <td style={{ fontFamily: 'monospace' }}>{it.code}</td>
+                <td>{it.name}</td>
+                <td style={{ color: '#5a626e' }}>{it.categoryName ? `[${it.categoryName}]` : ''}</td>
+                <td colSpan={10} style={{ color: '#c9ced6' }}>BOR 없음</td>
+                <td style={{ textAlign: 'center' }}>
+                  <button onClick={() => { setForm({ ...emptyForm, productId: String(it.id) }); setShowForm(true) }}
+                          style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>BOR등록</button>
+                </td>
+              </tr>
+            )))}
           </tbody>
           {shown.length > 0 && (
             <tfoot>
