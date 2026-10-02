@@ -91,6 +91,12 @@ public class BankCardController {
         return service.findUsages(from, to);
     }
 
+    @DeleteMapping("/transactions/{id}")
+    public org.springframework.http.ResponseEntity<Void> deleteTxn(@PathVariable Long id) {
+        service.deleteTxn(id);
+        return org.springframework.http.ResponseEntity.noContent().build();
+    }
+
     @DeleteMapping("/usages/{id}")
     public org.springframework.http.ResponseEntity<Void> deleteUsage(@PathVariable Long id) {
         service.deleteUsage(id);

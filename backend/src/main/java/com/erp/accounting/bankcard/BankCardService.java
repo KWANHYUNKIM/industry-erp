@@ -42,6 +42,7 @@ public class BankCardService {
     private final BankTransactionRepository txnRepository;
     private final CardUsageRepository usageRepository;
     private final CardPaymentRepository paymentRepository;
+    private final com.erp.accounting.income.IncomeRepository incomeRepository;
     private final AccountRepository accountRepository;
     private final BusinessPartnerRepository partnerRepository;
     private final JournalService journalService;
@@ -260,6 +261,42 @@ public class BankCardService {
             recordExternal(t.getBankAccount().getId(), !t.isDeposit(), t.getAmount(), t.getTxnDate(),
                     description, null, username);
         }
+    }
+
+    /**
+     * 계좌입출금(이 화면에서 직접 넣은 것) 삭제 — QA 62~63회차. 잘못 넣으면 반대로 한 번 더 넣어야 했다.
+     *
+     * <p>다른 전표가 만든 입출금(계좌간이동·카드대금결제·간편전표 = 상대계정 없음, 수입의 계좌입금,
+     * 어음 만기결제·할인 = 상대계정이 받을어음·지급어음)은 <b>그 전표에서</b> 지운다 — 여기서 지우면
+     * 그 전표만 남아 장부가 어긋난다.
+     *
+     * <p>줄을 지우고 그 뒤 줄들의 거래후 잔액을 그만큼 옮긴다. 입금을 지울 때 그 돈을 이미 썼으면
+     * (뒤 어느 시점 잔액이 음수가 되면) 막는다.
+     */
+    @Transactional
+    public void deleteTxn(Long id) {
+        BankTransaction t = txnRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("입출금 내역을 찾을 수 없습니다. id=" + id));
+        String code = t.getCounterAccount() == null ? null : t.getCounterAccount().getCode();
+        boolean fromIncome = t.getJournalEntry() != null && incomeRepository.existsByJournalEntryId(t.getJournalEntry().getId());
+        if (code == null || fromIncome || "110".equals(code) || "252".equals(code)) {
+            throw ApiException.badRequest(t.getTxnNo() + " 은(는) 다른 전표(" + (fromIncome ? "수입"
+                    : code == null ? "계좌간이동·카드대금결제·간편전표" : "어음") + ")가 만든 입출금입니다 — 그 전표에서 지우세요.");
+        }
+        BankAccount b = bankAccountRepository.findForUpdate(t.getBankAccount().getId())
+                .orElseThrow(() -> ApiException.notFound("계좌를 찾을 수 없습니다."));
+        BigDecimal effect = t.isDeposit() ? t.getAmount() : t.getAmount().negate();
+        BigDecimal later = txnRepository.minBalanceAfterLater(b.getId(), t.getId());
+        if (b.getBalance().subtract(effect).signum() < 0 || (later != null && later.subtract(effect).signum() < 0)) {
+            throw ApiException.badRequest(String.format(
+                    "%s 의 입금 %s 을(를) 그 뒤에 이미 써서 지우면 잔액이 음수가 됩니다 — 뒤 출금부터 지우세요.",
+                    t.getTxnNo(), t.getAmount().stripTrailingZeros().toPlainString()));
+        }
+        txnRepository.shiftBalanceAfterLater(b.getId(), t.getId(), effect);
+        b.setBalance(b.getBalance().subtract(effect));
+        JournalEntry entry = t.getJournalEntry();
+        txnRepository.delete(t);
+        journalService.deleteEntry(entry);
     }
 
     // ── 카드사용 ──────────────────────────────────────────────────────

@@ -54,4 +54,15 @@ public interface BankTransactionRepository extends JpaRepository<BankTransaction
 
     /** 한 분개로 생긴 계좌 이동(계좌간이동이면 출금·입금 두 줄). 그 전표를 지울 때 되돌린다. */
     List<BankTransaction> findByJournalEntryId(Long journalEntryId);
+
+    /** 이 줄 뒤(입력 차례)에 같은 계좌로 생긴 줄들의 거래후 잔액 중 가장 작은 값. 없으면 null. */
+    @Query("select min(t.balanceAfter) from BankTransaction t where t.bankAccount.id = :accountId and t.id > :id")
+    java.math.BigDecimal minBalanceAfterLater(@Param("accountId") Long accountId, @Param("id") Long id);
+
+    /** 이 줄을 지운 만큼 뒤 줄들의 거래후 잔액을 옮긴다. */
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("update BankTransaction t set t.balanceAfter = t.balanceAfter - :delta " +
+           "where t.bankAccount.id = :accountId and t.id > :id")
+    int shiftBalanceAfterLater(@Param("accountId") Long accountId, @Param("id") Long id,
+                               @Param("delta") java.math.BigDecimal delta);
 }

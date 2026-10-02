@@ -3157,6 +3157,25 @@ async function scenarioCashDetail() {
   await must('DELETE', `/cash-details/account-transfers/${transfer.id}`)
   eq('이동을 지우면 두 계좌가 처음 잔액으로', `${await balanceOf(from.id)} ${await balanceOf(to.id)}`, `${fromBefore} ${toBefore}`)
   eq('이동 분개도 지워진다', (await call('GET', `/journals/${transfer.journalEntryId}`)).status, 404)
+
+  /*
+   * 계좌입출금(직접 넣은 것)도 지운다(63회차). 다른 전표가 만든 입출금은 그 전표에서 지우게 막는다.
+   */
+  const toStart = await balanceOf(to.id)
+  const dep = await must('POST', '/bank-cards/transactions', {
+    bankAccountId: to.id, deposit: true, amount: 10_000,
+    counterAccountId: accounts.find((a) => a.code === '101').id, txnDate: '2026-07-14', description: 'QA 63 입금',
+  })
+  const t2 = await must('POST', '/cash-details/account-transfers', {
+    fromAccountId: from.id, toAccountId: to.id, amount: 1_000, transferDate: '2026-07-14',
+  })
+  const t2Rows = (await must('GET', '/bank-cards/transactions?from=2026-07-14&to=2026-07-14')).rows
+    .filter((r) => String(r.description ?? '').includes(t2.transferNo))
+  await rejects('계좌간이동이 만든 입출금은 여기서 못 지운다', 'DELETE', `/bank-cards/transactions/${t2Rows[0]?.id}`, undefined, '그 전표에서')
+  await must('DELETE', `/cash-details/account-transfers/${t2.id}`)
+  await must('DELETE', `/bank-cards/transactions/${dep.id}`)
+  eq('직접 넣은 입금을 지우면 잔액이 되돌아온다', await balanceOf(to.id), toStart)
+  eq('그 입금의 분개도 지워진다', (await call('GET', `/journals/${dep.journalEntryId}`)).status, 404)
 }
 
 /** 우측 앱바 위젯 — 통합검색 · 알림 · E Note(개인 메모) */

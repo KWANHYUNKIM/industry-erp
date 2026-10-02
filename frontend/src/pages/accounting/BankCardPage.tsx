@@ -343,7 +343,13 @@ export default function BankCardPage() {
                 <button className="ec-btn" style={{ marginLeft: 4 }} onClick={() => void loadAllTxns()}>오천건이상조회</button>
               </p>
             )}
-            <BankTxnTable rows={txns} />
+            <BankTxnTable rows={txns} onRemove={async (r) => {
+              /* 이 화면에서 넣은 입출금만 지운다 — 다른 전표가 만든 것은 서버가 막고 어디서 지울지 알려 준다(QA 63회차). */
+              if (!window.confirm(`${r.txnNo} ${r.deposit ? '입금' : '출금'} ${won(r.amount)}원을 지울까요? 계좌 잔액이 되돌아가고 회계전표도 지워집니다.`)) return
+              setError('')
+              try { await api.delete(`/bank-cards/transactions/${r.id}`); flash(`${r.txnNo} 삭제 — 잔액을 되돌리고 회계전표도 지웠습니다.`); load() }
+              catch (err) { setError(extractErrorMessage(err)) }
+            }} />
           </>
         )
         : <CardUsageTable rows={usages} onRemove={async (r) => {
@@ -478,7 +484,7 @@ function CardTable({ rows, onEdit, picked, onPick }: {
   )
 }
 
-function BankTxnTable({ rows }: { rows: BankTxn[] }) {
+function BankTxnTable({ rows, onRemove }: { rows: BankTxn[]; onRemove: (r: BankTxn) => void }) {
   /* [일자] 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. */
   const sort = useTableSort(rows, { 일자: (r) => r.txnDate })
   return (
@@ -496,11 +502,12 @@ function BankTxnTable({ rows }: { rows: BankTxn[] }) {
           <th style={{ width: 120, textAlign: 'right' }}>거래후 잔액</th>
           <th style={{ width: 130 }}>회계전표</th>
           <th>적요</th>
+          <th style={{ width: 50, textAlign: 'center' }}>삭제</th>
         </tr>
       </thead>
       <tbody>
         {rows.length === 0 ? (
-          <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
         ) : sort.sorted.map((r, i) => (
           <tr key={r.id}>
             <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -514,6 +521,9 @@ function BankTxnTable({ rows }: { rows: BankTxn[] }) {
             <td style={{ textAlign: 'right' }}>{won(r.balanceAfter)}</td>
             <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{r.journalDocNo ?? ''}</td>
             <td style={{ color: '#5a626e' }}>{r.description ?? ''}</td>
+            <td style={{ textAlign: 'center' }}>
+              <button className="no-ec" onClick={() => onRemove(r)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+            </td>
           </tr>
         ))}
       </tbody>
