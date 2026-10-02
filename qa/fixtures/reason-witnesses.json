@@ -4551,5 +4551,38 @@
    "ApprovalDocument"
   ],
   "in": "backend/src/main/java/com/erp/trade/shipment/Shipment.java"
+ },
+ "BOM(소요량)현황|생산공정": {
+  "claim": "BOM 이 생산공정을 들지 않는다",
+  "absent": [
+   "Process",
+   "process"
+  ],
+  "in": "backend/src/main/java/com/erp/production/bom"
+ },
+ "매입(세금)계산서현황(재고)|부서": {
+  "claim": "회계전표에 부서가 없다",
+  "absent": [
+   "Department",
+   "department"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "매입(세금)계산서현황(재고)|프로젝트": {
+  "claim": "회계전표에 프로젝트가 없다",
+  "absent": [
+   "Project",
+   "project"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "매입(세금)계산서현황(재고)|상태": {
+  "claim": "회계전표에 결재 · 확인 상태가 없다",
+  "absent": [
+   "Status",
+   "status",
+   "Approval"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
  }
-}
+}
