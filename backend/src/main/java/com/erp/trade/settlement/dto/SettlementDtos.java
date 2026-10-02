@@ -4,7 +4,6 @@ import com.erp.trade.settlement.Settlement;
 import com.erp.trade.settlement.SettlementType;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -16,7 +15,8 @@ public final class SettlementDtos {
     public record CreateSettlementRequest(
             @NotNull(message = "유형을 선택하세요.") SettlementType type,
             @NotNull(message = "거래처를 선택하세요.") Long partnerId,
-            @NotNull(message = "금액을 입력하세요.") @Positive(message = "금액은 0보다 커야 합니다.") BigDecimal amount,
+            /** 음수는 되돌린 돈(수금 −: 매출처에 환불, 지급 −: 매입처에서 환급). 0 은 서비스가 막는다. */
+            @NotNull(message = "금액을 입력하세요.") BigDecimal amount,
             @Size(max = 30, message = "입력한 글자가 너무 깁니다. 30자까지 넣을 수 있습니다.")
             String method,
             LocalDate settleDate,

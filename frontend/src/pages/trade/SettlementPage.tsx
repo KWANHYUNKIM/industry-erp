@@ -91,7 +91,8 @@ export default function SettlementPage() {
     e.preventDefault()
     setError(''); setOk('')
     if (!partnerId) return setError('거래처를 선택하세요.')
-    if (!(Number(amount) > 0)) return setError('금액을 입력하세요.')
+    // 음수는 되돌린 돈(수금 − = 매출처에 환불). 반품 뒤 돌려줄 돈을 넣을 길이 없었다(27회차).
+    if (!Number(amount)) return setError('금액을 입력하세요. 돌려준 돈(환불)은 음수로 적습니다.')
     try {
       const res = await api.post<Settlement>('/settlements', {
         type, partnerId: Number(partnerId), amount: Number(amount), method, settleDate: date,
@@ -162,6 +163,8 @@ export default function SettlementPage() {
                 <div style={{ marginTop: 3, fontSize: 11.5, color: over ? '#b45309' : '#8a929c' }}>
                   {type === 'RECEIPT' ? '받을 돈(채권)' : '줄 돈(채무)'} {won(open)}원
                   {over && ` — ${won(Number(amount) - Math.max(open, 0))}원 넘습니다(${type === 'RECEIPT' ? '선수금' : '선급금'}으로 남음)`}
+                  {open < 0 && ` — ${type === 'RECEIPT' ? '받을 돈이 음수 = 돌려줄 돈입니다. 환불은 금액을 음수로' : '줄 돈이 음수 = 돌려받을 돈입니다. 환급은 금액을 음수로'}`}
+                  {Number(amount) < 0 && ` · ${type === 'RECEIPT' ? '환불' : '환급'} ${won(-Number(amount))}원`}
                 </div>
               )}
             </div>

@@ -125,7 +125,7 @@ export default function PaymentHistoryPage() {
   const [tab, setTab] = useState<Tab>('미반영')
   const [picked, setPicked] = useState<number[]>([])
 
-  async function load() {
+  async function load(): Promise<SettlementRow[]> {
     setLoading(true)
     try {
       const res = await api.get<SettlementRow[]>('/accounting-reflection?kind=SETTLEMENT')
@@ -133,8 +133,10 @@ export default function PaymentHistoryPage() {
         (a.slipDate < b.slipDate ? 1 : a.slipDate > b.slipDate ? -1 : b.id - a.id))
       setRows(list)
       setPicked([])
+      return list
     } catch (err) {
       setError(extractErrorMessage(err))
+      return []
     } finally {
       setLoading(false)
     }
@@ -163,8 +165,12 @@ export default function PaymentHistoryPage() {
       const res = await api.post<{ reflectedCount: number }>(
         `/accounting-reflection/${reverse ? 'unreflect' : 'reflect'}`,
         { kind: 'SETTLEMENT', ids: picked })
-      setOk(`${res.data.reflectedCount}건 회계${reverse ? '반영취소' : '반영'} 완료`)
-      await load()
+      const ids = picked
+      const list = await load()
+      // 판매·구매일괄회계반영과 같이 만들어진 회계전표 번호를 붙인다(24회차 #74 와 같은 까닭).
+      const nos = reverse ? [] : list.filter((r) => ids.includes(r.id) && r.journalDocNo).map((r) => r.journalDocNo as string)
+      setOk(`${res.data.reflectedCount}건 회계${reverse ? '반영취소' : '반영'} 완료`
+        + (nos.length ? ` — 회계전표 ${nos.slice(0, 5).join(', ')}${nos.length > 5 ? ` 외 ${nos.length - 5}건` : ''}` : ''))
     } catch (err) {
       setError(extractErrorMessage(err))
     }

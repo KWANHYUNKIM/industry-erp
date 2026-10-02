@@ -46,6 +46,15 @@ public class SettlementService {
         BusinessPartner partner = partnerRepository.findById(req.partnerId())
                 .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + req.partnerId()));
 
+        /*
+         * 음수 금액은 <b>되돌린 돈</b>이다. 반품으로 매출처에 돌려줄 돈(채권 −13,200)이 생겼는데
+         * 수금은 0보다 커야 하고 지급은 매입처만 고를 수 있어 환불을 넣을 길이 없었다(27회차).
+         * 수금 −13,200 이면 채권이 13,200 늘어 0 이 되고, 회계반영은 차)외상매출금 / 대)예금 으로 선다
+         * (분개의 음수는 반대편 양수로 — JournalService). 0 은 아무 일도 아니라 막는다.
+         */
+        if (req.amount().signum() == 0) {
+            throw ApiException.badRequest("금액을 입력하세요. 돌려준 돈(환불)은 음수로 적습니다.");
+        }
         LocalDate date = req.settleDate() != null ? req.settleDate() : LocalDate.now();
 
         Settlement s = Settlement.builder()

@@ -5003,6 +5003,31 @@ async function scenarioSubcontractReflection(f) {
   eq('시험한 외주 생산입고는 남기지 않는다', (await listOf()).length, 0)
 }
 
+/**
+ * BOM풀기 갈래 — 원본 [1단계]·[전체]. 제품 → 반제품(BOM 있음) → 원재료 두 단을 만들어
+ * 1단계는 반제품을, 전체는 원재료(곱한 양)를 내는지 본다. 생산입고 II·III 과 생산불출이 같은 풀이를 쓴다.
+ */
+async function scenarioBomLevels(f) {
+  section('■ BOM풀기 — 1단계 · 전체(반제품을 끝까지)')
+
+  const item = (code, name, category) => ensure('/items', 'code', code, null, { code, name, unit: 'EA', category })
+  const top = await item(`${P}ML-TOP`, 'QA다단제품', 'FINISHED')
+  const semi = await item(`${P}ML-SEMI`, 'QA다단반제품', 'SEMI_FINISHED')
+  await must('POST', '/boms', { productId: semi.id, lines: [{ componentId: f.material.id, quantity: 3 }] })
+  await must('POST', '/boms', { productId: top.id, lines: [{ componentId: semi.id, quantity: 2 }] })
+
+  const one = await must('GET', `/productions/bom-preview?productId=${top.id}&qty=5&level=ONE`)
+  eq('1단계: 바로 아래 반제품만', one.map((x) => `${x.componentId}:${Number(x.quantity)}`).join(','), `${semi.id}:10`)
+  const all = await must('GET', `/productions/bom-preview?productId=${top.id}&qty=5&level=ALL`)
+  eq('전체: 반제품을 풀어 원재료 × 곱한 양', all.map((x) => `${x.componentId}:${Number(x.quantity)}`).join(','), `${f.material.id}:30`)
+
+  const D = '2087-07-07'
+  const wo = await must('POST', '/work-orders', { productId: top.id, warehouseId: f.warehouse.id, plannedQty: 4, orderDate: D })
+  const reqAll = await must('GET', `/material-issues/wo-requirements?workOrderIds=${wo.id}&level=ALL`)
+  eq('생산불출 [전체]: 지시 4 × 2 × 3 = 원재료 24', Number(reqAll.find((x) => x.componentId === f.material.id)?.requiredQty), 24)
+  await call('DELETE', `/work-orders/${wo.id}`)
+}
+
 async function scenarioWorkResultBatch(f) {
   section('■ 작업내역 격자 — 한 번에 여러 줄')
 
@@ -9311,7 +9336,20 @@ async function scenarioSettlement(f) {
 
   await rejects('금액이 0이면 거부', 'POST', '/settlements', {
     type: 'RECEIPT', partnerId: f.customer.id, amount: 0, settleDate: '2026-08-20',
-  }, '0보다')
+  }, '금액을 입력하세요')
+  /*
+   * 음수는 되돌린 돈(환불)이라 받는다 — 반품 뒤 매출처에 돌려줄 돈을 넣을 길이 없었다(27회차).
+   * 채권을 그만큼 늘린다(수금 −). 시험한 것은 바로 지운다.
+   */
+  {
+    const before = Number((await must('GET', '/ledger/partner-balances')).find((b) => b.partnerId === f.customer.id)?.receivable ?? 0)
+    const refund = await must('POST', '/settlements', {
+      type: 'RECEIPT', partnerId: f.customer.id, amount: -700, method: '계좌이체', settleDate: '2026-08-20', note: `${P} 환불`,
+    })
+    const after = Number((await must('GET', '/ledger/partner-balances')).find((b) => b.partnerId === f.customer.id)?.receivable ?? 0)
+    eq('환불(수금 −)은 채권을 그만큼 늘린다', after - before, 700)
+    await must('DELETE', `/settlements/${refund.id}`)
+  }
   await rejects('없는 거래처는 거부', 'POST', '/settlements', {
     type: 'RECEIPT', partnerId: 999999, amount: 1000, settleDate: '2026-08-20',
   }, '거래처를 찾을 수 없습니다')
@@ -9541,7 +9579,9 @@ async function main() {
     await scenarioProductionSlip(fixtures)
     await scenarioWorkOrderSlip(fixtures)
   await scenarioSubcontractReflection(fixtures)
+  await scenarioBomLevels(fixtures)
     await scenarioSubcontractReflection(fixtures)
+    await scenarioBomLevels(fixtures)
     console.log(`\n통과 ${pass} · 실패 ${fail}`)
     process.exit(fail > 0 ? 1 : 0)
   }
