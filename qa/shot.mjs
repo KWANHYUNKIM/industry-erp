@@ -15,6 +15,7 @@
  *               set:<선택자>[#n]|<값>  입력칸에 값을 넣는다(React 가 알아채도록 input 이벤트까지). #n 은 n 번째(0부터)
  *               choose:<선택자>[#n]|<보이는 글자>  드롭다운에서 그 글자의 항목을 고른다(id 는 환경마다 달라서)
  *               setnear:<이름표>|<값>  이름표(th·label·칸 이름) 글자가 그것인 칸 옆의 입력칸에 넣는다
+ *               snap:<파일>[|x,y,w,h]  그 자리에서 캡처(사용법 문서의 단계별 그림)
  *               expect:<식>         참이 아니면 실패로 끝낸다 — 화면을 사람처럼 써 보는 시험에 쓴다
  *               apidel:<목록주소>|<번호정규식>|<번호필드>  화면에 뜬 전표번호를 목록에서 찾아 API 로 지운다
  *                                   — 화면 시험이 전표를 쌓지 않게 끝에 둔다(예: apidel:/sales|SO-[0-9]{8}-[0-9]{4}|docNo)
@@ -93,6 +94,13 @@ try {
           el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); return true })()`)
         if (!ok) throw new Error('이름표 옆 입력칸이 없다: ' + label)
         await sleep(200)
+      } else if (kind === 'snap') {
+        const [file, clip] = rest.join(':').split('|')
+        const [x, y, w, h] = clip ? clip.split(',').map(Number) : [0, 0, 1600, 900]
+        await sleep(300)
+        const { data } = await b.send('Page.captureScreenshot', { format: 'png', clip: { x, y, width: w, height: h, scale: 1 } })
+        writeFileSync(resolve(baseDir, file), Buffer.from(data, 'base64'))
+        console.log('  📷', file)
       } else if (kind === 'choose') {
         const [selN, ...v] = rest.join(':').split('|')
         const [sel, nth] = selN.split('#')

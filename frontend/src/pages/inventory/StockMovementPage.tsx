@@ -158,8 +158,9 @@ export default function StockMovementPage() {
     finally { setLoading(false) }
   }
   useEffect(() => { loadRefs() }, [])
-  // 보기 구분이 바뀌면 계산 근거가 달라지므로 다시 조회한다.
-  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [mode])
+  // 보기 구분이 바뀌면 계산 근거가 달라지므로 다시 조회한다. 기간·창고도 서버가 거르는 조건이라 바꾸면 다시 받는다
+  // — 예전엔 [검색]을 눌러야 해서, 창고를 골라도 목록은 전 창고 그대로였다(QA 22회차, 재고수불부와 같은 문제).
+  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [mode, from, to, warehouseId])
 
   /** 일별·월별 보기에서 '입출고수량0제외' 를 걸면 움직임이 없는 날은 뺀다. */
   const shownBuckets = useMemo(

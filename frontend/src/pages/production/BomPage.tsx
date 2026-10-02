@@ -16,6 +16,8 @@ export default function BomPage() {
   const [items, setItems] = useState<Item[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  /** 저장 결과 안내 — 예전엔 창이 닫히고 목록만 다시 떴다(QA 22회차). */
+  const [ok, setOk] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [productId, setProductId] = useState('')
   const [remark, setRemark] = useState('')
@@ -58,14 +60,15 @@ export default function BomPage() {
 
   async function submit(e: FormEvent) {
     e.preventDefault()
-    setError('')
+    setError(''); setOk('')
     const validLines = lines
       .filter((l) => l.componentId && Number(l.quantity) > 0)
       .map((l) => ({ componentId: Number(l.componentId), quantity: Number(l.quantity) }))
     if (!productId) return setError('제품을 선택하세요.')
     if (validLines.length === 0) return setError('자재를 1개 이상 입력하세요.')
     try {
-      await api.post('/boms', { productId: Number(productId), remark: remark || undefined, lines: validLines })
+      const res = await api.post<{ productCode: string; productName: string }>('/boms', { productId: Number(productId), remark: remark || undefined, lines: validLines })
+      setOk(`[${res.data.productCode}] ${res.data.productName} BOM 저장 — 자재 ${validLines.length}종`)
       setShowForm(false)
       load()
     } catch (err) {
@@ -100,6 +103,7 @@ export default function BomPage() {
       actions={[{ label: 'Excel' }]}
     >
       {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+      {ok && <p style={{ marginBottom: 8, background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
 
       <Modal error={error} open={showForm} title="BOM(자재명세서) 등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginTop: 8, marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>

@@ -228,7 +228,14 @@ export default function StockLedgerPage() {
     } finally { setLoading(false) }
   }
 
-  useEffect(() => { loadRefs(); loadLedger() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [])
+  useEffect(() => { loadRefs() }, [])
+  /*
+   * 조건(기간·품목·창고·형제품목)을 바꾸면 바로 다시 받는다. 예전엔 [검색]을 눌러야만 받아서, 품목을 골라도
+   * 칸에는 그 품목이 보이는데 목록은 전 품목 5천 줄 그대로였다(QA 22회차 — 다른 현황 화면은 고르면 바로 걸린다).
+   * 처음 열 때도 이것이 한 번 받는다.
+   */
+  useEffect(() => { loadLedger() /* eslint-disable-next-line react-hooks/exhaustive-deps */ },
+    [filters.from, filters.to, filters.itemId, filters.warehouseId, filters.rollUp])
 
   // 표시 순서(일자·id)대로 잔량 재계산: opening 이 있으면 누적, 없으면 저장된 balanceAfter(행별 실제 잔량) 사용.
   const runningById = useMemo(() => {
