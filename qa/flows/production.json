@@ -344,6 +344,15 @@
         "js:([...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='비율표시').querySelector('input').click(), new Promise((r)=>setTimeout(()=>r(true),600)))",
         "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim());const i=h.indexOf('비율(%)');if(i<0)return false;const rows=[...document.querySelectorAll('table tbody tr')].filter((r)=>r.cells.length===h.length);if(rows.length===0)return true;const s=rows.reduce((a,r)=>a+Number(r.cells[i].innerText),0);return Math.abs(s-100)<1})()"
       ]
+    },
+    {
+      "name": "생산입고현황 — ○집계 [가로보기]: 조건1 월별 × 조건2 창고별 을 열로 펼치고, 줄 합계의 합이 전체 합계와 같다",
+      "path": "/production/receipt-status",
+      "steps": [
+        "js:new Promise((r)=>setTimeout(()=>{[...document.querySelectorAll('button')].find((b)=>b.textContent.trim()==='집계').click();setTimeout(()=>{const s=[...document.querySelectorAll('select')].find((x)=>[...x.options].some((o)=>o.value==='분기별'));Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'월별');s.dispatchEvent(new Event('change',{bubbles:true}));setTimeout(()=>r(true),800)},500)},1500))",
+        "js:(()=>{const ss=[...document.querySelectorAll('select')].filter((x)=>[...x.options].some((o)=>o.value==='창고별'));const s=ss[ss.length-1];Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'창고별');s.dispatchEvent(new Event('change',{bubbles:true}));return new Promise((r)=>setTimeout(()=>{[...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='가로보기').querySelector('input').click();setTimeout(()=>r(true),600)},500))})()",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim());if(!(h.length>=4&&h[h.length-1]==='합계'&&h[1].includes('월별')))return false;const f=document.querySelector('table tfoot tr');if(!f)return true;const n=(x)=>Number(x.replace(/[^0-9.-]/g,''))||0;const rows=[...document.querySelectorAll('table tbody tr')];return rows.reduce((a,r)=>a+n(r.cells[r.cells.length-1].innerText),0)===n(f.cells[f.cells.length-1].innerText)})()"
+      ]
     }
   ]
 }

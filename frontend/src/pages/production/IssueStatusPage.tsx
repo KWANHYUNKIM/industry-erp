@@ -118,9 +118,11 @@ export default function IssueStatusPage() {
   const [agg2, setAgg2] = useState<GroupKey | ''>('')
   /** 원본 집계 [기타] 의 [비율표시] — 묶음마다 수량이 전체의 몇 % 인가. */
   const [ratio, setRatio] = useState(false)
+  /** 원본 집계 [기타] 의 [가로보기] — 조건2 값을 열로 펼친다(조건1 이 줄, 칸은 수량). 조건2 가 있을 때만 뜻이 있다. */
+  const [pivot, setPivot] = useState(false)
   /* 조건2 를 켜면 열이 하나 는다 — 렌더된 표를 직접 잰다. */
   const aggRef = useRef<HTMLTableElement>(null)
-  useTableColumnCheck(aggRef, '생산불출현황 집계', [agg2, mode, ratio])
+  useTableColumnCheck(aggRef, '생산불출현황 집계', [agg2, mode, ratio, pivot])
   const [lineView, setLineView] = useState<'라인별' | '전표별' | '품목별' | '일별' | '월별' | '전표별품목별' | '담당자별'>('라인별')
   const [view, setView] = useState<'표' | '그래프'>('표')
   const [warehouseId, setWarehouseId] = useState('')
@@ -345,6 +347,10 @@ export default function IssueStatusPage() {
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
               <input type="checkbox" checked={ratio} onChange={(e) => setRatio(e.target.checked)} /> 비율표시
             </label>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: agg2 ? undefined : '#9aa1ab' }}
+                   title="집계조건2 를 고르면 그 값을 열로 펼칩니다">
+              <input type="checkbox" checked={pivot} disabled={!agg2} onChange={(e) => setPivot(e.target.checked)} /> 가로보기
+            </label>
           </span>
         ) : mode === '내역' ? (
           <select className="ec-input" value={lineView} onChange={(e) => setLineView(e.target.value as '라인별' | '전표별' | '품목별' | '일별' | '월별' | '전표별품목별' | '담당자별')}
@@ -462,7 +468,41 @@ export default function IssueStatusPage() {
 
       {view === '그래프' ? (
         <EcBarChart rows={chartRows} unit=" 개" emptyText="조회된 불출이 없습니다." />
-      ) : mode === '집계' && (agg1 !== '품목별' || agg2) ? (
+      ) : mode === '집계' && agg2 && pivot ? (() => {
+        const cols = [...new Set(aggRows.map((g) => g.g2))].sort()
+        const rowsBy = new Map<string, Map<string, number>>()
+        aggRows.forEach((g) => { const m = rowsBy.get(g.g1) ?? new Map<string, number>(); m.set(g.g2, (m.get(g.g2) ?? 0) + g.qty); rowsBy.set(g.g1, m) })
+        const lines = [...rowsBy.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+        return (
+          <table ref={aggRef} className="w-full text-left">
+            <thead>
+              <tr>
+                <th style={{ width: 34 }}></th>
+                <th>{agg1} \ {agg2}</th>
+                {cols.map((c) => <th key={c} style={{ textAlign: 'right' }}>{c}</th>)}
+                <th style={{ textAlign: 'right' }}>합계</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lines.map(([k, m], i) => (
+                <tr key={k}>
+                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                  <td>{k}</td>
+                  {cols.map((c) => <td key={c} style={{ textAlign: 'right' }}>{m.get(c) ? num(m.get(c)!) : ''}</td>)}
+                  <td style={{ textAlign: 'right', fontWeight: 600 }}>{num([...m.values()].reduce((a, v) => a + v, 0))}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
+                <td colSpan={2} style={{ textAlign: 'right' }}>합계</td>
+                {cols.map((c) => <td key={c} style={{ textAlign: 'right' }}>{num(aggRows.filter((g) => g.g2 === c).reduce((a, g) => a + g.qty, 0))}</td>)}
+                <td style={{ textAlign: 'right' }}>{num(totalQty)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        )
+      })() : mode === '집계' && (agg1 !== '품목별' || agg2) ? (
         <table ref={aggRef} className="w-full text-left">
           <thead>
             <tr>
