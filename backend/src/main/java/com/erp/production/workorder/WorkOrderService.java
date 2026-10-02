@@ -85,6 +85,7 @@ public class WorkOrderService {
     public void delete(Long id) {
         WorkOrder wo = workOrderRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("작업지시를 찾을 수 없습니다. id=" + id));
+        ensureEditable(wo);
 
         long results = productionRepository.countByWorkOrder_Id(id);
         if (results > 0) {
@@ -151,8 +152,33 @@ public class WorkOrderService {
     public List<WorkOrderResponse> updateSlip(String orderNo, ProductionDtos.SaveWorkOrderSlipRequest req, String username) {
         List<WorkOrder> old = workOrderRepository.findSlip(orderNo);
         if (old.isEmpty()) throw ApiException.notFound("작업지시서를 찾을 수 없습니다: " + orderNo);
+        old.forEach(WorkOrderService::ensureEditable);
         LocalDate orderDate = req.orderDate() != null ? req.orderDate() : old.get(0).getOrderDate();
         return saveSlip(req, orderNo, orderDate, old, username);
+    }
+
+    /** 원본 작업지시서조회 [진행상태변경]. 미확인 ↔ 확인만 사람이 바꾼다. 바꾼 전표 수를 준다. */
+    @Transactional
+    public int changeStatus(List<String> orderNos, com.erp.production.production.ProductionConfirmStatus status) {
+        if (status == com.erp.production.production.ProductionConfirmStatus.IN_APPROVAL) throw ApiException.badRequest("결재중은 전자결재로만 바뀝니다.");
+        int changed = 0;
+        for (String no : orderNos) {
+            List<WorkOrder> rows = workOrderRepository.findSlip(no);
+            if (rows.isEmpty()) throw ApiException.notFound("작업지시서를 찾을 수 없습니다: " + no);
+            if (rows.get(0).getConfirmStatus() == com.erp.production.production.ProductionConfirmStatus.IN_APPROVAL) {
+                throw ApiException.badRequest("전자결재 진행중인 전표입니다: " + no);
+            }
+            if (rows.get(0).getConfirmStatus() == status) continue;
+            rows.forEach(r -> r.setConfirmStatus(status));
+            changed++;
+        }
+        return changed;
+    }
+
+    private static void ensureEditable(WorkOrder wo) {
+        if (wo.getConfirmStatus() == com.erp.production.production.ProductionConfirmStatus.CONFIRMED) {
+            throw ApiException.badRequest("확인된 작업지시서는 고치거나 지울 수 없습니다. 확인취소를 먼저 하세요: " + wo.getOrderNo());
+        }
     }
 
     /** 전표째 삭제. 줄 하나라도 생산실적이 있으면 막는다. */

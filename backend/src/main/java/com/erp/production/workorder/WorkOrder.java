@@ -38,6 +38,12 @@ public class WorkOrder extends BaseTimeEntity {
     @Builder.Default
     private Integer lineNo = 1;
 
+    /** 진행상태 — 원본 작업지시서조회 탭 [결재중 · 미확인 · 확인]. 전표째 바뀐다. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "confirm_status", nullable = false, length = 20)
+    @Builder.Default
+    private com.erp.production.production.ProductionConfirmStatus confirmStatus = com.erp.production.production.ProductionConfirmStatus.UNCONFIRMED;
+
     /** 원본 작업지시서입력 머리의 [프로젝트]. */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "project_id")

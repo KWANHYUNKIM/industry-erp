@@ -55,6 +55,12 @@ public class MaterialIssueController {
         return materialIssueService.requirements(workOrderIds, "ALL".equalsIgnoreCase(level));
     }
 
+    /** 원본 [진행상태변경] — 고른 불출 전표들을 미확인 ↔ 확인. */
+    @PostMapping("/slips/status")
+    public java.util.Map<String, Integer> changeStatus(@Valid @RequestBody MaterialIssueDtos.ChangeStatusRequest req) {
+        return java.util.Map.of("changed", materialIssueService.changeStatus(req.issueNos(), req.status()));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         materialIssueService.delete(id);

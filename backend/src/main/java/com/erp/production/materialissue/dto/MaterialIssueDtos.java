@@ -81,6 +81,12 @@ public final class MaterialIssueDtos {
             BigDecimal bomQty, BigDecimal requiredQty, BigDecimal issuedQty, BigDecimal remainingQty
     ) {}
 
+    /** 원본 [진행상태변경] — 고른 불출 전표들을 미확인 ↔ 확인. */
+    public record ChangeStatusRequest(
+            @jakarta.validation.constraints.NotEmpty(message = "바꿀 전표를 고르세요.") java.util.List<String> issueNos,
+            @NotNull(message = "바꿀 진행상태를 고르세요.") com.erp.production.production.ProductionConfirmStatus status
+    ) {}
+
     public record MaterialIssueResponse(
             Long id,
             /** 불출 전표번호. 원본 [일자-No.] 의 뒷부분이다. */
@@ -119,7 +125,9 @@ public final class MaterialIssueDtos {
              * MaterialIssue 에 createdBy 칸이 없다(판매·구매·출하와 다르다).
              */
             LocalDateTime createdAt, LocalDateTime updatedAt
-    ) {
+    ,
+            /** 진행상태 — 결재중·미확인·확인. */
+            com.erp.production.production.ProductionConfirmStatus confirmStatus) {
         public static MaterialIssueResponse from(MaterialIssue mi) {
             return new MaterialIssueResponse(
                     mi.getId(), mi.getIssueNo(),
@@ -140,7 +148,8 @@ public final class MaterialIssueDtos {
                     mi.getProject() != null ? mi.getProject().getId() : null,
                     mi.getProject() != null ? mi.getProject().getName() : null,
                     mi.getQty(), mi.getIssueDate(), mi.getNote(),
-                    mi.getCreatedAt(), mi.getUpdatedAt());
+                    mi.getCreatedAt(), mi.getUpdatedAt(),
+                    mi.getConfirmStatus());
         }
     }
 }

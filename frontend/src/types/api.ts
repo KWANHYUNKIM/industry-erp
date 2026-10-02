@@ -474,6 +474,8 @@ export interface WorkOrder {
   /** 원본 작업지시서입력 머리의 [프로젝트]. */
   projectId: number | null
   projectName: string | null
+  /** 진행상태 — 결재중·미확인·확인. */
+  confirmStatus?: 'UNCONFIRMED' | 'IN_APPROVAL' | 'CONFIRMED'
 }
 
 export interface ProductionMaterial {

@@ -2027,34 +2027,6 @@
   ],
   "in": "backend/src/main/java/com/erp/inventory/transfer/StockTransfer.java"
  },
- "생산불출|전체": {
-  "claim": "생산불출 전표에 상태 칸이 없다 — 거쳐 갈 단계가 없다",
-  "absent": [
-   "status"
-  ],
-  "in": "backend/src/main/java/com/erp/production/materialissue/MaterialIssue.java"
- },
- "생산불출|결재중": {
-  "claim": "생산불출 전표에 상태 칸이 없다 — 거쳐 갈 단계가 없다",
-  "absent": [
-   "status"
-  ],
-  "in": "backend/src/main/java/com/erp/production/materialissue/MaterialIssue.java"
- },
- "생산불출|미확인": {
-  "claim": "생산불출 전표에 상태 칸이 없다 — 거쳐 갈 단계가 없다",
-  "absent": [
-   "status"
-  ],
-  "in": "backend/src/main/java/com/erp/production/materialissue/MaterialIssue.java"
- },
- "생산불출|확인": {
-  "claim": "생산불출 전표에 상태 칸이 없다 — 거쳐 갈 단계가 없다",
-  "absent": [
-   "status"
-  ],
-  "in": "backend/src/main/java/com/erp/production/materialissue/MaterialIssue.java"
- },
  "매출계획|전체": {
   "claim": "매출계획에 상태 칸이 없다 — 거쳐 갈 단계가 없다",
   "absent": [
@@ -2422,33 +2394,12 @@
   ],
   "in": "backend/src/main/java/com/erp/trade/shipment/Shipment.java"
  },
- "생산불출조회|미확인": {
-  "claim": "생산 전표에 확인 상태가 없다",
-  "absent": [
-   "status"
-  ],
-  "in": "backend/src/main/java/com/erp/production/materialissue/MaterialIssue.java"
- },
- "생산불출현황|진행상태": {
-  "claim": "생산 전표에 확인 상태가 없다 — 거쳐 갈 단계가 없다",
-  "absent": [
-   "status"
-  ],
-  "in": "backend/src/main/java/com/erp/production/materialissue/MaterialIssue.java"
- },
  "출하조회|결재중": {
   "claim": "출하 전표를 전자결재에 올리지 않는다",
   "absent": [
    "Approval"
   ],
   "in": "backend/src/main/java/com/erp/trade/shipment/Shipment.java"
- },
- "생산불출조회|결재중": {
-  "claim": "생산 전표를 전자결재에 올리지 않는다",
-  "absent": [
-   "Approval"
-  ],
-  "in": "backend/src/main/java/com/erp/production/materialissue/MaterialIssue.java"
  },
  "생산입고조회|전자결재": {
   "claim": "생산 전표를 결재에 올리지 않는다",
@@ -4059,13 +4010,6 @@
   ],
   "in": "backend/src/main/java/com/erp/trade/shipment/Shipment.java"
  },
- "생산불출조회|확인": {
-  "claim": "생산 전표에 확인 상태가 없다(위 [생산불출조회|미확인] 과 같은 사실이다)",
-  "absent": [
-   "status"
-  ],
-  "in": "backend/src/main/java/com/erp/production/materialissue/MaterialIssue.java"
- },
  "발주서조회|완료": {
   "claim": "우리 발주 탭은 더 잘게 나눈다 — 발주요청·발주계획·단가확정·발주확정·입고전환·취소(위 [발주서조회|진행중] 과 같은 사실이다)",
   "present": [
@@ -4737,34 +4681,6 @@
    "parent"
   ],
   "in": "backend/src/main/java/com/erp/inventory/item/ItemGroup.java"
- },
- "생산불출조회|전체": {
-  "claim": "생산불출 전표에 확인 상태를 담는 칸이 없다 — confirmStatus 는 판매 전표에만 있다",
-  "absent": [
-   "confirmStatus"
-  ],
-  "in": "backend/src/main/java/com/erp/production/materialissue/MaterialIssue.java"
- },
- "작업지시서조회|결재중": {
-  "claim": "작업지시서에 확인 상태를 담는 칸이 없다 — confirmStatus 는 판매 전표에만 있다",
-  "absent": [
-   "confirmStatus"
-  ],
-  "in": "backend/src/main/java/com/erp/production/workorder/WorkOrder.java"
- },
- "작업지시서조회|미확인": {
-  "claim": "작업지시서에 확인 상태를 담는 칸이 없다 — confirmStatus 는 판매 전표에만 있다",
-  "absent": [
-   "confirmStatus"
-  ],
-  "in": "backend/src/main/java/com/erp/production/workorder/WorkOrder.java"
- },
- "작업지시서조회|확인": {
-  "claim": "작업지시서에 확인 상태를 담는 칸이 없다 — confirmStatus 는 판매 전표에만 있다",
-  "absent": [
-   "confirmStatus"
-  ],
-  "in": "backend/src/main/java/com/erp/production/workorder/WorkOrder.java"
  },
  "출하지시서조회|결재중": {
   "claim": "출하 전표는 전자결재를 타지 않고 확인 상태도 없다",

@@ -64,6 +64,12 @@ public final class ProductionDtos {
             List<@Valid WorkOrderSlipLine> lines
     ) {}
 
+    /** 원본 작업지시서조회 [진행상태변경]. */
+    public record ChangeWorkOrderStatusRequest(
+            @NotEmpty(message = "바꿀 전표를 고르세요.") List<String> orderNos,
+            @NotNull(message = "바꿀 진행상태를 고르세요.") com.erp.production.production.ProductionConfirmStatus status
+    ) {}
+
     public record WorkOrderSlipLine(
             @NotNull(message = "품목을 선택하세요.") Long productId,
             @NotNull(message = "수량을 입력하세요.")
@@ -109,7 +115,9 @@ public final class ProductionDtos {
             /** 전표 안 줄 차례. 같은 orderNo 를 가진 줄들이 한 전표다. */
             Integer lineNo,
             /** 원본 머리의 [프로젝트]. */
-            Long projectId, String projectName
+            Long projectId, String projectName,
+            /** 진행상태 — 결재중·미확인·확인. */
+            com.erp.production.production.ProductionConfirmStatus confirmStatus
     ) {
         public static WorkOrderResponse from(WorkOrder w) {
             BigDecimal remaining = w.getPlannedQty().subtract(w.getProducedQty());
@@ -129,7 +137,8 @@ public final class ProductionDtos {
                     w.getCreatedAt(), w.getUpdatedAt(),
                     w.getLineNo(),
                     w.getProject() != null ? w.getProject().getId() : null,
-                    w.getProject() != null ? w.getProject().getName() : null);
+                    w.getProject() != null ? w.getProject().getName() : null,
+                    w.getConfirmStatus());
         }
     }
 

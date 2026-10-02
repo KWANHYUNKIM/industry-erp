@@ -20,4 +20,7 @@ public interface MaterialIssueRepository extends JpaRepository<MaterialIssue, Lo
     /** 작업지시들로 이미 낸 불출. 작업지시서 불러오기의 잔량을 센다. */
     @Query("select mi from MaterialIssue mi join fetch mi.item join fetch mi.workOrder wo where wo.id in :ids")
     List<MaterialIssue> findByWorkOrderIdIn(@org.springframework.data.repository.query.Param("ids") java.util.Collection<Long> ids);
+
+    /** 불출 전표 하나의 줄들. */
+    List<MaterialIssue> findByIssueNo(String issueNo);
 }

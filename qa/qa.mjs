@@ -5104,6 +5104,22 @@ async function scenarioProductionConfirm(f) {
   eq('결재중은 사람이 못 고른다', (await call('POST', '/productions/slips/status', { prodNos: [no], status: 'IN_APPROVAL' })).status, 400)
   await must('POST', '/productions/slips/status', { prodNos: [no], status: 'UNCONFIRMED' })
   eq('확인취소하면 지울 수 있다', (await call('DELETE', `/productions/slips/${no}`)).status, 204)
+
+  // 생산불출 · 작업지시서도 같은 규칙(V225).
+  const wos = await must('POST', '/work-orders/slips', { orderDate: D, lines: [{ productId: f.product.id, plannedQty: 1, warehouseId: f.warehouse.id }] })
+  const wno = wos[0].orderNo
+  eq('새 작업지시서는 미확인', wos[0].confirmStatus, 'UNCONFIRMED')
+  await must('POST', '/work-orders/slips/status', { orderNos: [wno], status: 'CONFIRMED' })
+  eq('확인한 작업지시서는 못 지운다', (await call('DELETE', `/work-orders/slips/${wno}`)).status, 400)
+  await must('POST', '/work-orders/slips/status', { orderNos: [wno], status: 'UNCONFIRMED' })
+  eq('확인취소한 작업지시서는 지울 수 있다', (await call('DELETE', `/work-orders/slips/${wno}`)).status, 204)
+
+  const issued = await must('POST', '/material-issues/batch', { warehouseId: f.warehouse.id, issueDate: D, lines: [{ itemId: comp.componentId, qty: 1 }] })
+  eq('새 불출은 미확인', issued[0].confirmStatus, 'UNCONFIRMED')
+  await must('POST', '/material-issues/slips/status', { issueNos: [issued[0].issueNo], status: 'CONFIRMED' })
+  eq('확인한 불출은 못 지운다', (await call('DELETE', `/material-issues/${issued[0].id}`)).status, 400)
+  await must('POST', '/material-issues/slips/status', { issueNos: [issued[0].issueNo], status: 'UNCONFIRMED' })
+  eq('확인취소한 불출은 지울 수 있다', (await call('DELETE', `/material-issues/${issued[0].id}`)).status, 204)
   await must('POST', '/stock/transactions', { itemId: comp.componentId, warehouseId: f.warehouse.id, type: 'OUTBOUND', quantity: 50 })
 }
 

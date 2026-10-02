@@ -21,6 +21,9 @@ import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPerio
  * 결재중·미확인·확인은 결재/확인 흐름이 작업지시에 없어 만들지 않는다 —
  * 눌러도 늘 빈 목록인 탭은 있는 것만 못하다.
  */
+/** 원본 탭 [전체 · 결재중 · 미확인 · 확인] — 진행상태. */
+const CONF_TABS = ['전체', '결재중', '미확인', '확인'] as const
+const CONF_OF: Record<string, string> = { 결재중: 'IN_APPROVAL', 미확인: 'UNCONFIRMED', 확인: 'CONFIRMED' }
 const TABS = ['전체', '대기', '진행중', '완료'] as const
 type Tab = typeof TABS[number]
 const TAB_STATUS: Record<string, string> = { 대기: 'PLANNED', 진행중: 'IN_PROGRESS', 완료: 'COMPLETED' }
@@ -90,6 +93,22 @@ export default function WorkOrderPage() {
   /* 입력은 원본처럼 따로 있는 [작업지시서입력] 화면이 맡는다(여러 품목 한 전표). */
   const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>('전체')
+  const [confTab, setConfTab] = useState<(typeof CONF_TABS)[number]>('전체')
+  /** 고른 줄(번호 칸의 체크) — [진행상태변경] 이 이 전표들을 바꾼다. */
+  const [checked, setChecked] = useState<Set<number>>(new Set())
+  const [statusPick, setStatusPick] = useState(false)
+  /** 원본 [진행상태변경] — 고른 작업지시서를 미확인 ↔ 확인. 확인한 지시서는 확인취소를 먼저 해야 고치거나 지울 수 있다. */
+  async function changeStatus(status: 'CONFIRMED' | 'UNCONFIRMED') {
+    const nos = [...new Set(orders.filter((x) => checked.has(x.id)).map((x) => x.orderNo))]
+    if (nos.length === 0) { setError('바꿀 줄을 고르세요.'); return }
+    try {
+      await api.post('/work-orders/slips/status', { orderNos: nos, status })
+      setChecked(new Set()); setStatusPick(false); setError('')
+      load()
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    }
+  }
   /*
    * 원본 작업지시서조회의 조건 차례는 <b>작업지시No. · 창고 · 거래처 · 품목</b> 이다
    * (사본 실측). 거래처·품목이 없었는데 둘 다 이미 목록에 실려 오고 있었다.
@@ -156,6 +175,7 @@ export default function WorkOrderPage() {
     id == null ? '-' : (employees.find((x) => x.id === id)?.name ?? '-')
 
   const shown = orders.filter((o) => (tab === '전체' || o.status === TAB_STATUS[tab])
+    && (confTab === '전체' || CONF_OF[confTab] === o.confirmStatus)
     && (!from || o.orderDate >= from) && (!to || o.orderDate <= to)
     && (!orderNoCond || o.orderNo.includes(orderNoCond))
     && (!whCond || String(o.warehouseId) === whCond)
@@ -192,10 +212,24 @@ export default function WorkOrderPage() {
     <EcListShell
       title="작업지시서조회"
       onNew={() => navigate('/production/work-order-entry')}
-      actions={[{ label: 'Excel' }, { label: '인쇄' }]}
+      actions={[{ label: '진행상태변경', onClick: () => setStatusPick((v) => !v), disabled: checked.size === 0 },
+                { label: 'Excel' }, { label: '인쇄' }]}
     >
       {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
 
+      {statusPick && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, padding: '6px 8px', border: '1px solid var(--ec-border)', background: '#fff' }}>
+          <span style={{ fontSize: 12.5 }}>고른 {checked.size}줄의 작업지시서를</span>
+          <button type="button" className="ec-btn ec-btn-primary" onClick={() => void changeStatus('CONFIRMED')}>확인</button>
+          <button type="button" className="ec-btn" onClick={() => void changeStatus('UNCONFIRMED')}>확인취소</button>
+          <button type="button" className="ec-btn" onClick={() => setStatusPick(false)}>취소</button>
+        </div>
+      )}
+      <div className="ec-pills" style={{ marginBottom: 6 }}>
+        {CONF_TABS.map((t) => (
+          <button key={t} type="button" className={`ec-pill no-ec${confTab === t ? ' active' : ''}`} onClick={() => setConfTab(t)}>{t}</button>
+        ))}
+      </div>
       <div className="ec-pills" style={{ marginBottom: 8 }}>
         {TABS.map((t) => (
           <button key={t} type="button" className={`ec-pill no-ec${tab === t ? ' active' : ''}`}
@@ -353,7 +387,11 @@ export default function WorkOrderPage() {
           ) : (
             sort.sorted.map((o, idx) => (
               <tr key={o.id}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
+                <td style={{ textAlign: 'center', color: '#9aa1ab', whiteSpace: 'nowrap' }}>
+                  <input type="checkbox" checked={checked.has(o.id)} style={{ marginRight: 3 }}
+                         onChange={() => setChecked((c) => { const n = new Set(c); if (n.has(o.id)) n.delete(o.id); else n.add(o.id); return n })} />
+                  {idx + 1}
+                </td>
                 {/* 원본처럼 번호를 누르면 작업지시서입력으로 열어 고친다. */}
                 <td style={{ fontFamily: 'monospace' }}>
                   <Link to={`/production/work-order-entry?no=${encodeURIComponent(o.orderNo)}`} style={{ color: 'var(--ec-blue)' }}>{dateNo(o)}</Link>

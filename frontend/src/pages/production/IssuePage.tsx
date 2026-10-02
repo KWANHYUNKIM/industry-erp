@@ -13,7 +13,13 @@ import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPerio
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 
 /** 생산관리 > 생산불출 — 자재 불출 등록/삭제 (백엔드 /api/material-issues 연동) */
+/** 원본 탭 [전체 · 결재중 · 미확인 · 확인] — 진행상태. */
+const CONF_TABS = ['전체', '결재중', '미확인', '확인'] as const
+const CONF_OF: Record<string, string> = { 결재중: 'IN_APPROVAL', 미확인: 'UNCONFIRMED', 확인: 'CONFIRMED' }
+
 interface MaterialIssue {
+  /** 진행상태 — 결재중·미확인·확인. */
+  confirmStatus?: 'UNCONFIRMED' | 'IN_APPROVAL' | 'CONFIRMED'
   id: number
   itemId: number
   /** 불출 전표번호. 원본 [일자-No.] 의 뒷부분이다. */
@@ -138,6 +144,20 @@ export default function IssuePage() {
    * 우리는 줄마다 [삭제]뿐이라, 잘못 넣은 열 건을 지우려면 열 번 눌러 열 번 확인해야 했다.
    */
   const [checked, setChecked] = useState<Set<number>>(new Set())
+  const [confTab, setConfTab] = useState<(typeof CONF_TABS)[number]>('전체')
+  const [statusPick, setStatusPick] = useState(false)
+  /** 원본 [진행상태변경] — 고른 줄의 불출 전표를 미확인 ↔ 확인. 확인한 전표는 확인취소를 먼저 해야 지울 수 있다. */
+  async function changeStatus(status: 'CONFIRMED' | 'UNCONFIRMED') {
+    const nos = [...new Set(rows.filter((x) => checked.has(x.id)).map((x) => x.issueNo))]
+    if (nos.length === 0) { setError('바꿀 줄을 고르세요.'); return }
+    try {
+      await api.post('/material-issues/slips/status', { issueNos: nos, status })
+      setChecked(new Set()); setStatusPick(false); setError('')
+      load()
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    }
+  }
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
@@ -409,6 +429,7 @@ export default function IssuePage() {
    * [창고]는 어느 쪽이든 걸리고 나머지 둘은 한쪽만 건다.
    */
   const shown = rows
+    .filter((r) => confTab === '전체' || CONF_OF[confTab] === r.confirmStatus)
     .filter((r) => (!from || r.issueDate >= from) && (!to || r.issueDate <= to))
     .filter((r) => !keyword || r.itemName.includes(keyword) || (r.workOrderNo ?? '').includes(keyword))
     .filter((r) => !whCond || String(r.warehouseId) === whCond || String(r.toWarehouseId) === whCond)
@@ -436,10 +457,25 @@ export default function IssuePage() {
       onSearch={load}
       onNew={() => setShowForm(true)}
       actions={[{ label: '검색(F8)', onClick: load },
+                { label: '진행상태변경', onClick: () => setStatusPick((v) => !v), disabled: checked.size === 0 },
+                { label: '인쇄' },
                 { label: `선택삭제${checked.size ? ` (${checked.size})` : ''}`, onClick: removeChecked },
                 { label: 'Excel' }]}
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {statusPick && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, padding: '6px 8px', border: '1px solid var(--ec-border)', background: '#fff' }}>
+          <span style={{ fontSize: 12.5 }}>고른 {checked.size}줄의 전표를</span>
+          <button type="button" className="ec-btn ec-btn-primary" onClick={() => void changeStatus('CONFIRMED')}>확인</button>
+          <button type="button" className="ec-btn" onClick={() => void changeStatus('UNCONFIRMED')}>확인취소</button>
+          <button type="button" className="ec-btn" onClick={() => setStatusPick(false)}>취소</button>
+        </div>
+      )}
+      <div className="ec-pills" style={{ marginBottom: 8 }}>
+        {CONF_TABS.map((t) => (
+          <button key={t} type="button" className={`ec-pill no-ec${confTab === t ? ' active' : ''}`} onClick={() => setConfTab(t)}>{t}</button>
+        ))}
+      </div>
 
       <Modal error={error} open={showForm} title="생산불출 등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>

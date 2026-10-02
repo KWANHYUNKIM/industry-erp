@@ -62,6 +62,13 @@ public class WorkOrderController {
         return workOrderService.updateSlip(orderNo, req, principal.getUsername());
     }
 
+    /** 원본 [진행상태변경] — 고른 작업지시서들을 미확인 ↔ 확인. */
+    @PostMapping("/slips/status")
+    public java.util.Map<String, Integer> changeStatus(
+            @Valid @RequestBody com.erp.production.production.dto.ProductionDtos.ChangeWorkOrderStatusRequest req) {
+        return java.util.Map.of("changed", workOrderService.changeStatus(req.orderNos(), req.status()));
+    }
+
     /** 전표째 [삭제]. 생산실적이 있는 줄이 있으면 막는다. */
     @DeleteMapping("/slips/{orderNo}")
     public ResponseEntity<Void> deleteSlip(@PathVariable String orderNo) {

@@ -61,6 +61,12 @@ public class MaterialIssue extends BaseTimeEntity {
     @Column(name = "issue_no", nullable = false, length = 30)
     private String issueNo;
 
+    /** 진행상태 — 원본 생산불출조회 탭 [결재중 · 미확인 · 확인]. 전표째 바뀐다. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "confirm_status", nullable = false, length = 20)
+    @Builder.Default
+    private com.erp.production.production.ProductionConfirmStatus confirmStatus = com.erp.production.production.ProductionConfirmStatus.UNCONFIRMED;
+
     @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal qty;
 

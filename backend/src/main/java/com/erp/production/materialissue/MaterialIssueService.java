@@ -206,10 +206,31 @@ public class MaterialIssueService {
         return mi.getWorkOrder() != null ? mi.getWorkOrder().getOrderNo() : ("#" + mi.getId());
     }
 
+    /** 원본 [진행상태변경]. 미확인 ↔ 확인만 사람이 바꾼다 — 결재중은 전자결재가 정한다. 바꾼 전표 수를 준다. */
+    @Transactional
+    public int changeStatus(List<String> issueNos, com.erp.production.production.ProductionConfirmStatus status) {
+        if (status == com.erp.production.production.ProductionConfirmStatus.IN_APPROVAL) throw ApiException.badRequest("결재중은 전자결재로만 바뀝니다.");
+        int changed = 0;
+        for (String no : issueNos) {
+            List<MaterialIssue> rows = materialIssueRepository.findByIssueNo(no);
+            if (rows.isEmpty()) throw ApiException.notFound("생산불출 전표를 찾을 수 없습니다: " + no);
+            if (rows.get(0).getConfirmStatus() == com.erp.production.production.ProductionConfirmStatus.IN_APPROVAL) {
+                throw ApiException.badRequest("전자결재 진행중인 전표입니다: " + no);
+            }
+            if (rows.get(0).getConfirmStatus() == status) continue;
+            rows.forEach(r -> r.setConfirmStatus(status));
+            changed++;
+        }
+        return changed;
+    }
+
     @Transactional
     public void delete(Long id) {
         MaterialIssue mi = materialIssueRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("생산불출 내역을 찾을 수 없습니다. id=" + id));
+        if (mi.getConfirmStatus() == com.erp.production.production.ProductionConfirmStatus.CONFIRMED) {
+            throw ApiException.badRequest("확인된 전표는 지울 수 없습니다. 확인취소를 먼저 하세요: " + mi.getIssueNo());
+        }
 
         // 옮겼던 재고를 되돌린다. 이력은 지우지 않고 반대 거래를 남긴다.
         if (mi.getToWarehouse() != null) {

@@ -38,6 +38,8 @@ const MODES = ['내역', '집계'] as const
 
 interface MaterialIssue {
   id: number
+  /** 진행상태 — 결재중·미확인·확인(2026-10-02 생겼다). */
+  confirmStatus?: 'UNCONFIRMED' | 'IN_APPROVAL' | 'CONFIRMED'
   /**
    * 불출 전표번호. 원본 [일자-No.] 의 뒷부분이다 - <b>서버가 진작 보내고 있었는데</b>
    * 이 화면이 안 받아 두어 일자와 번호를 한 칸에 못 적고 있었다.
@@ -94,6 +96,8 @@ export default function IssueStatusPage() {
   const [project, setProject] = useState('')
   const [item, setItem] = useState('')
   const [note, setNote] = useState('')
+  /** 원본 조건 [진행상태] — 전체 · 결재중 · 미확인 · 확인. */
+  const [statusCond, setStatusCond] = useState('')
   const [emp, setEmp] = useState('')
   /*
    * 2026-09-08 에 원본(E040409)의 조건 판을 재니 <b>스물여덟</b>이다(사본에는 열).
@@ -172,6 +176,7 @@ export default function IssueStatusPage() {
     if (itemGroup && mgmt.groupOf(r.itemId) !== itemGroup) return false
     if (item && String(r.itemId) !== item) return false
     if (note && !(r.note ?? '').includes(note)) return false
+    if (statusCond && r.confirmStatus !== statusCond) return false
     if (emp && !empName(r.employeeId).includes(emp)) return false
     if (project && String(r.projectId) !== project) return false
     return true
@@ -312,6 +317,14 @@ export default function IssueStatusPage() {
         <EcCond label="적요">
           <input className="ec-input" placeholder="적요 일부" value={note}
                  onChange={(e) => setNote(e.target.value)} style={{ width: 220 }} />
+        </EcCond>
+        <EcCond label="진행상태">
+          <select className="ec-input" value={statusCond} onChange={(e) => setStatusCond(e.target.value)} style={{ width: 120 }}>
+            <option value="">전체</option>
+            <option value="IN_APPROVAL">결재중</option>
+            <option value="UNCONFIRMED">미확인</option>
+            <option value="CONFIRMED">확인</option>
+          </select>
         </EcCond>
         <EcCond label="결재방표시">
           <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
