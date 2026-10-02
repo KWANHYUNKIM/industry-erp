@@ -176,7 +176,7 @@ public class WmsService {
             throw ApiException.badRequest(String.format(
                     "%s 로케이션의 %s 재고가 부족합니다. 보유 %s, 요청 %s",
                     location.getCode(), item.getName(),
-                    s.getQuantity().toPlainString(), qty.toPlainString()));
+                    s.getQuantity().stripTrailingZeros().toPlainString(), qty.stripTrailingZeros().toPlainString()));
         }
         s.setQuantity(s.getQuantity().subtract(qty));
         return s;

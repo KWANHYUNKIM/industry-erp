@@ -111,7 +111,7 @@ public class LotService {
         if (req.qty().compareTo(lot.getStockQty()) > 0) {
             throw ApiException.badRequest(String.format(
                     "로트 재고가 부족합니다. 현재고 %s, 요청 %s",
-                    lot.getStockQty().toPlainString(), req.qty().toPlainString()));
+                    lot.getStockQty().stripTrailingZeros().toPlainString(), req.qty().stripTrailingZeros().toPlainString()));
         }
         lot.setStockQty(lot.getStockQty().subtract(req.qty()));
         recordTx(lot, LotTxType.OUTBOUND, req.qty().negate(), lot.getStockQty(), "로트 소모");

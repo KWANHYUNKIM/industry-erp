@@ -260,8 +260,8 @@ public class StockService {
         if (newBalance.compareTo(BigDecimal.ZERO) < 0) {
             throw ApiException.badRequest(String.format(
                     "재고가 부족합니다. 현재고 %s, 요청 %s (%s)",
-                    stock.getQuantity().toPlainString(),
-                    delta.abs().toPlainString(),
+                    stock.getQuantity().stripTrailingZeros().toPlainString(),
+                    delta.abs().stripTrailingZeros().toPlainString(),
                     item.getName()));
         }
         stock.setQuantity(newBalance);
