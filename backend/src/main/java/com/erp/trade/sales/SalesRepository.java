@@ -86,6 +86,11 @@ public interface SalesRepository extends JpaRepository<Sales, Long> {
     @Query("select coalesce(sum(s.supplyAmount),0) from Sales s")
     BigDecimal sumSupply();
 
+    /** 기간의 [공급가액, 부가세, 합계] — 부가세 신고는 과세기간 단위다(47회차). */
+    @Query("select coalesce(sum(s.supplyAmount),0), coalesce(sum(s.vatAmount),0), coalesce(sum(s.totalAmount),0) " +
+            "from Sales s where s.saleDate between :from and :to")
+    List<Object[]> sumsBetween(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
     @Query("select coalesce(sum(s.vatAmount),0) from Sales s")
     BigDecimal sumVat();
 

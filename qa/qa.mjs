@@ -6638,6 +6638,11 @@ async function scenarioExpenseJournal() {
   const amt = (code, side) => Number(vj?.lines.find((l) => l.accountCode === code)?.[side] ?? 0)
   eq('부가세 지출 분개: 차 811 100,000 · 차 135 10,000 / 대 103 110,000',
     [amt('811', 'debit'), amt('135', 'debit'), amt('103', 'credit')].join('/'), '100000/10000/110000')
+  /* 부가세 요약이 기간을 받고, 지출의 매입세액도 공제한다(47회차). 그날은 판매·구매가 없는 먼 날짜다. */
+  const vs = await must('GET', `/accounting/vat-summary?from=${D}&to=${D}`)
+  eq('부가세 요약: 그 날의 지출 매입세액 10,000', Number(vs.expenseVat), 10_000)
+  eq('부가세 요약: 납부세액 = 매출세액 − 매입세액(구매+지출)',
+    Number(vs.vatPayable), Number(vs.salesVat) - Number(vs.purchaseVat) - 10_000)
   await must('DELETE', `/expenses/${vx.id}`)
 }
 
@@ -10838,9 +10843,9 @@ async function scenarioAccountingSummary() {
   const near = (a, b, tol = 1) => Math.abs(Number(a) - Number(b)) <= tol
   eq('매출 합계 = 공급가액 + 부가세', near(vat.salesTotal, Number(vat.salesSupply) + Number(vat.salesVat)), true)
   eq('매입 합계 = 공급가액 + 부가세', near(vat.purchaseTotal, Number(vat.purchaseSupply) + Number(vat.purchaseVat)), true)
-  /* 납부세액은 <b>매출세액 − 매입세액</b> 이다. 부호가 뒤집히면 낼 돈과 받을 돈이 바뀐다. */
-  eq('납부세액 = 매출세액 − 매입세액',
-    near(vat.vatPayable, Number(vat.salesVat) - Number(vat.purchaseVat)), true)
+  /* 납부세액은 <b>매출세액 − 매입세액</b> 이다. 매입세액은 구매 + 지출(47회차부터). 부호가 뒤집히면 낼 돈과 받을 돈이 바뀐다. */
+  eq('납부세액 = 매출세액 − 매입세액(구매 + 지출)',
+    near(vat.vatPayable, Number(vat.salesVat) - Number(vat.purchaseVat) - Number(vat.expenseVat ?? 0)), true)
 
   const items = await must('GET', '/accounting/item-profit')
   eq('품목별 이익이 한 줄 이상 나온다', items.length > 0, true)

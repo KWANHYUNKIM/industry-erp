@@ -20,8 +20,12 @@ public class AccountingController {
 
     /** 매입매출·부가세 요약 */
     @GetMapping("/vat-summary")
-    public VatSummaryResponse vatSummary() {
-        return accountingService.vatSummary();
+    public VatSummaryResponse vatSummary(
+            @org.springframework.web.bind.annotation.RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate from,
+            @org.springframework.web.bind.annotation.RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate to) {
+        return accountingService.vatSummary(from, to);
     }
 
     /** 품목별 원가·이익 */

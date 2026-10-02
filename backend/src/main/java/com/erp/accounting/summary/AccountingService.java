@@ -35,20 +35,38 @@ public class AccountingService {
     private final PurchaseLineRepository purchaseLineRepository;
     private final ItemRepository itemRepository;
     private final BomRepository bomRepository;
+    private final com.erp.accounting.expense.ExpenseRepository expenseRepository;
 
     /** 매입매출·부가세 요약 */
     @Transactional(readOnly = true)
-    public VatSummaryResponse vatSummary() {
-        BigDecimal salesSupply = salesRepository.sumSupply();
-        BigDecimal salesVat = salesRepository.sumVat();
-        BigDecimal salesTotal = salesRepository.sumTotal();
-        BigDecimal purchaseSupply = purchaseRepository.sumSupply();
-        BigDecimal purchaseVat = purchaseRepository.sumVat();
-        BigDecimal purchaseTotal = purchaseRepository.sumTotal();
+    /*
+     * 기간(과세기간)을 받는다. 예전엔 창업 이래 전 기간을 한데 더해 신고 기초자료로 쓸 수 없었다(47회차).
+     * 기간을 안 주면 예전처럼 전체(대시보드 위젯). 지출의 부가세(매입세액)도 공제에 넣는다.
+     */
+    public VatSummaryResponse vatSummary(LocalDate from, LocalDate to) {
+        BigDecimal salesSupply, salesVat, salesTotal, purchaseSupply, purchaseVat, purchaseTotal;
+        if (from == null && to == null) {
+            salesSupply = salesRepository.sumSupply();
+            salesVat = salesRepository.sumVat();
+            salesTotal = salesRepository.sumTotal();
+            purchaseSupply = purchaseRepository.sumSupply();
+            purchaseVat = purchaseRepository.sumVat();
+            purchaseTotal = purchaseRepository.sumTotal();
+        } else {
+            LocalDate f = from != null ? from : LocalDate.of(1, 1, 1);
+            LocalDate t = to != null ? to : LocalDate.of(9999, 12, 31);
+            Object[] s = salesRepository.sumsBetween(f, t).get(0);
+            Object[] p = purchaseRepository.sumsBetween(f, t).get(0);
+            salesSupply = (BigDecimal) s[0]; salesVat = (BigDecimal) s[1]; salesTotal = (BigDecimal) s[2];
+            purchaseSupply = (BigDecimal) p[0]; purchaseVat = (BigDecimal) p[1]; purchaseTotal = (BigDecimal) p[2];
+        }
+        BigDecimal expenseVat = expenseRepository.sumVat(from != null ? from : LocalDate.of(1, 1, 1),
+                to != null ? to : LocalDate.of(9999, 12, 31));
         return new VatSummaryResponse(
                 salesSupply, salesVat, salesTotal,
                 purchaseSupply, purchaseVat, purchaseTotal,
-                salesVat.subtract(purchaseVat));
+                expenseVat,
+                salesVat.subtract(purchaseVat).subtract(expenseVat));
     }
 
     /** 품목별 원가·이익 */

@@ -35,4 +35,10 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
         BigDecimal getAmount();
         long getCount();
     }
+
+    /** 지출 부가세(매입세액) 합. 부가세 요약의 매입세액에 더한다(47회차). null 은 쿼리에 넘기지 않는다(PostgreSQL 이 형을 못 정한다). */
+    @org.springframework.data.jpa.repository.Query("select coalesce(sum(e.vatAmount),0) from Expense e " +
+            "where e.expenseDate between :from and :to")
+    java.math.BigDecimal sumVat(@org.springframework.data.repository.query.Param("from") java.time.LocalDate from,
+                                @org.springframework.data.repository.query.Param("to") java.time.LocalDate to);
 }
