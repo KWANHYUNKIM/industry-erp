@@ -5216,6 +5216,8 @@ async function scenarioWorkResultBatch(f) {
   // 원본처럼 줄이 몇 개든 작업내역 번호는 하나다(V222).
   eq('작업내역 두 줄이 번호 하나', new Set(made.map((x) => x.resultNo)).size, 1)
   eq('줄마다 적요가 따로 남는다', made.map((x) => x.note).join(','), `${P}줄1,${P}줄2`)
+  // 원본 작업내역조회·현황 [최초작성자] — 넣은 계정이 줄마다 남는다(2026-10-02 전엔 칸이 없었다).
+  eq('작업내역에 넣은 계정이 남는다', made.map((x) => x.createdBy).join(','), `${USER},${USER}`)
   eq('머리의 일자가 모든 줄에 붙는다', made.map((x) => x.workDate).join(','), `${D},${D}`)
   eq('머리의 생산공장이 모든 줄에 붙는다',
     made.every((x) => x.warehouseId === f.warehouse.id), true)
@@ -6507,6 +6509,33 @@ async function scenarioWithholdingTable() {
     eq(`월 ${pay.toLocaleString()}원 · 본인 1명 소득세 = 간이세액표 ${expected.toLocaleString()}`, tax, expected)
     await must('DELETE', `/payslips/${slip.id}`)
   }
+}
+
+/**
+ * <b>근무시간은 점심 휴게(12~13시)를 뺀 실근무여야 한다.</b>
+ * 퇴근 − 출근을 그대로 써서 09:00~18:00 이 9시간이었다(37회차). 지각·조퇴 판정도 함께 본다.
+ * 쓰지 않는 먼 날짜(2091-04)에 넣고 지운다.
+ */
+async function scenarioWorkHours() {
+  section('■ 근무시간(휴게 제외)·지각·조퇴')
+  const me = (await must('GET', '/users')).find((u) => u.username === 'admin')
+  const cases = [
+    ['2091-04-02', '09:00', '18:00', 8.0, '정상'],
+    ['2091-04-03', '09:10', '18:00', 7.8, '지각'],
+    ['2091-04-04', '09:00', '17:30', 7.5, '조퇴'],
+    ['2091-04-05', '13:00', '18:00', 5.0, '지각'],
+    ['2091-04-06', '08:30', '12:30', 3.5, '조퇴'],
+  ]
+  for (const [date, inT, outT, hours, status] of cases) {
+    await must('POST', '/hr/attendance', { userId: me.id, date, clockIn: inT, clockOut: outT })
+  }
+  const rows = (await must('GET', '/hr/attendance?from=2091-04-01&to=2091-04-30')).filter((r) => r.empName === me.name)
+  for (const [date, inT, outT, hours, status] of cases) {
+    const r = rows.find((x) => x.date === date)
+    eq(`${inT}~${outT} 실근무 ${hours}시간(점심 12~13 제외)`, Number(r?.workHours), hours)
+    eq(`${inT}~${outT} 판정 ${status}`, r?.status, status)
+  }
+  for (const r of rows) await must('DELETE', `/hr/attendance/${r.id}`)
 }
 
 async function scenarioLeaveApproval() {
@@ -9898,6 +9927,7 @@ async function main() {
   await scenarioVacationYear(fixtures)
   await scenarioLeaveApproval()
   await scenarioWithholdingTable()
+  await scenarioWorkHours()
   await scenarioApprovalLastActor()
   await scenarioSalesConfirmBulk(fixtures)
   await scenarioWorkOrderPartner(fixtures)

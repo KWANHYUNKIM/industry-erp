@@ -2,7 +2,6 @@ package com.erp.hr.attendance.dto;
 
 import com.erp.hr.attendance.Attendance;
 
-import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
@@ -22,10 +21,7 @@ public final class AttendanceDtos {
             String note
     ) {
         public static AttendanceResponse from(Attendance a) {
-            Integer workMinutes = null;
-            if (a.getClockIn() != null && a.getClockOut() != null) {
-                workMinutes = (int) Duration.between(a.getClockIn(), a.getClockOut()).toMinutes();
-            }
+            Integer workMinutes = com.erp.hr.attendance.WorkTime.workMinutes(a.getClockIn(), a.getClockOut());   // 점심 휴게 뺌(37회차)
             boolean late = a.getClockIn() != null && a.getClockIn().isAfter(WORK_START);
             return new AttendanceResponse(
                     a.getId(),

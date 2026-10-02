@@ -10,7 +10,6 @@ import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -49,10 +48,8 @@ public final class HrDtos {
         if (clockIn == null || clockOut == null) {
             return 0.0;
         }
-        long minutes = Duration.between(clockIn, clockOut).toMinutes();
-        if (minutes < 0) {
-            minutes = 0;
-        }
+        // 점심 휴게(12~13시)와 겹치는 만큼 뺀다 — 09:00~18:00 이 9시간으로 잡혔다(37회차).
+        long minutes = com.erp.hr.attendance.WorkTime.workMinutes(clockIn, clockOut);
         return Math.round(minutes / 60.0 * 10.0) / 10.0;
     }
 
