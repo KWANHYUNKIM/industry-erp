@@ -229,11 +229,15 @@ export default function WorkResultListPage() {
    */
   const SUBTOTALS = ['작업(공정)', '생산품목', '작업자', '생산공장'] as const
   const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('작업(공정)')
-  const keyOf = (r: WorkResult) => (
-    subtotal === '생산품목' ? r.productName
-      : subtotal === '작업자' ? r.worker
-        : subtotal === '생산공장' ? r.warehouseName
-          : r.process)
+  /** 원본 ○집계의 [집계조건2] — 두 번째 묶음(2026-10-02 실측). 첫째는 [정렬/소계기준] 이 맡는다. */
+  const [sub2, setSub2] = useState<typeof SUBTOTALS[number] | '월별' | ''>('')
+  const keyBy = (k: typeof SUBTOTALS[number] | '월별', r: WorkResult) => (
+    k === '생산품목' ? (r.productName ?? '')
+      : k === '작업자' ? (r.worker ?? '')
+        : k === '생산공장' ? (r.warehouseName ?? '')
+          : k === '월별' ? r.workDate.slice(0, 7).replace('-', '/')
+            : r.process)
+  const keyOf = (r: WorkResult) => (sub2 ? `${keyBy(subtotal, r)} · ${keyBy(sub2, r)}` : keyBy(subtotal, r))
 
   const byProcess = useMemo(() => {
     return subtotalBy(shown, keyOf, {
@@ -242,7 +246,7 @@ export default function WorkResultListPage() {
       .map((g) => ({ process: g.label, count: g.count, good: g.sums.good, defect: g.sums.defect, time: g.sums.time }))
       .sort((a, b) => b.good - a.good)
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }, [shown, subtotal])
+  }, [shown, subtotal, sub2])
   const [view, setView] = useState<'표' | '그래프'>('표')
   /* 원본 [그래프로 보기]. 작업내역은 <b>어느 공정에서 얼마나 나왔나</b> 를 보는 화면이다. */
   const chartRows = useMemo(() =>
@@ -268,7 +272,15 @@ export default function WorkResultListPage() {
         onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
         picks={STATUS_PICKS}
         modes={MODES} mode={mode} onModeChange={(m) => setMode(m as Mode)}
-        modeExtra={mode === '내역' ? (
+        modeExtra={mode === '집계' ? (
+          <span style={{ display: 'inline-flex', gap: 6, marginLeft: 6, alignItems: 'center', fontSize: 12 }}>
+            집계조건2
+            <select className="ec-input" value={sub2} onChange={(e) => setSub2(e.target.value as typeof SUBTOTALS[number] | '월별' | '')} style={{ width: 110 }}>
+              <option value="">없음</option>
+              {([...SUBTOTALS, '월별'] as const).filter((k) => k !== subtotal).map((k) => <option key={k} value={k}>{k}</option>)}
+            </select>
+          </span>
+        ) : mode === '내역' ? (
           <select className="ec-input" value={lineView} onChange={(e) => setLineView(e.target.value as '라인별' | '전표별' | '일별' | '월별' | '담당자별')}
                   style={{ width: 110, marginLeft: 6 }}>
             <option value="라인별">라인별</option>
@@ -410,7 +422,7 @@ export default function WorkResultListPage() {
           <thead>
             <tr>
               <th style={{ width: 34 }}></th>
-              <th>{subtotal}</th>
+              <th>{sub2 ? `${subtotal} · ${sub2}` : subtotal}</th>
               <th style={{ width: 90, textAlign: 'right' }}>건수</th>
               <th style={{ width: 110, textAlign: 'right' }}>양품</th>
               <th style={{ width: 110, textAlign: 'right' }}>불량</th>
