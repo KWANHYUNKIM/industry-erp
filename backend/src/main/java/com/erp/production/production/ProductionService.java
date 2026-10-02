@@ -388,8 +388,35 @@ public class ProductionService {
         }
     }
 
+    /**
+     * 원본 [진행상태변경]. 미확인 ↔ 확인만 사람이 바꾼다 — 결재중은 전자결재가 정한다(판매와 같은 규칙).
+     * 이미 그 상태인 전표는 건너뛰고, 바꾼 전표 수를 돌려준다.
+     */
+    @Transactional
+    public int changeStatus(List<String> prodNos, ProductionConfirmStatus status) {
+        if (status == ProductionConfirmStatus.IN_APPROVAL) {
+            throw ApiException.badRequest("결재중은 전자결재로만 바뀝니다.");
+        }
+        int changed = 0;
+        for (String no : prodNos) {
+            List<Production> rows = productionRepository.findSlip(no);
+            if (rows.isEmpty()) throw ApiException.notFound("생산입고 전표를 찾을 수 없습니다: " + no);
+            if (rows.get(0).getConfirmStatus() == ProductionConfirmStatus.IN_APPROVAL) {
+                throw ApiException.badRequest("전자결재 진행중인 전표입니다: " + no);
+            }
+            if (rows.get(0).getConfirmStatus() == status) continue;
+            rows.forEach(r -> r.setConfirmStatus(status));
+            changed++;
+        }
+        return changed;
+    }
+
     /** 한 줄이 움직인 재고·작업지시 진척을 되돌린다(행은 지우지 않는다). */
     private void reverse(Production p, String username) {
+        /* 원본도 확인한 전표는 확인취소를 먼저 해야 고치거나 지울 수 있다(판매와 같다). */
+        if (p.getConfirmStatus() == ProductionConfirmStatus.CONFIRMED) {
+            throw ApiException.badRequest("확인된 전표는 고치거나 지울 수 없습니다. 확인취소를 먼저 하세요: " + p.getProdNo());
+        }
         /* 원본도 회계반영한 전표는 반영을 먼저 취소해야 고치거나 지울 수 있다. */
         if (p.getSubcontractJournalId() != null) {
             throw ApiException.badRequest("외주비를 회계반영한 생산입고입니다. 외주비일괄회계반영에서 반영을 먼저 취소하세요: " + p.getProdNo());

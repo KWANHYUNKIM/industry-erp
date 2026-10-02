@@ -154,6 +154,12 @@ public class Production extends BaseTimeEntity {
     @Column(name = "subcontract_journal_id")
     private Long subcontractJournalId;
 
+    /** 진행상태 — 원본 생산입고조회 탭 [결재중 · 미확인 · 확인]. 전표째 바뀐다. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "confirm_status", nullable = false, length = 20)
+    @Builder.Default
+    private ProductionConfirmStatus confirmStatus = ProductionConfirmStatus.UNCONFIRMED;
+
     /** 원본 격자 [시리얼/로트No.] — 판매 줄처럼 글자로 남긴다. */
     @Column(name = "lot_no", length = 60)
     private String lotNo;

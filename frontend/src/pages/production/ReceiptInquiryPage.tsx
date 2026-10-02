@@ -17,6 +17,10 @@ import { useItemMgmt } from '../../utils/itemMgmtItems'
  * 수량 · 담당자명. 우리는 [생산된공장]과 [담당자]가 빠져 있어 붙인다 — 자재가 어느 공장에서
  * 빠졌는지 여기서 못 보면 공장별 재고가 왜 줄었는지 되짚을 자리가 없다.
  */
+/** 원본 생산입고조회 탭. */
+const STATUS_TABS = ['전체', '결재중', '미확인', '확인'] as const
+const STATUS_OF: Record<string, string> = { 결재중: 'IN_APPROVAL', 미확인: 'UNCONFIRMED', 확인: 'CONFIRMED' }
+
 /** 생산입고를 넣은 화면별 주소. */
 const ENTRY_PATH: Record<string, string> = {
   I: '/production/receipt-bom',
@@ -29,6 +33,8 @@ interface Row {
   prodNo: string
   /** 넣은 화면(I·II·III). 번호를 누르면 그 화면으로 전표를 연다. */
   entryType: 'I' | 'II' | 'III'
+  /** 진행상태 — 원본 탭 [결재중 · 미확인 · 확인]. */
+  confirmStatus: 'UNCONFIRMED' | 'IN_APPROVAL' | 'CONFIRMED'
   /** 원본처럼 작업지시서 없이도 입고한다 — 없으면 null. */
   workOrderNo: string | null
   productCode: string
@@ -169,6 +175,27 @@ export default function ReceiptInquiryPage() {
    * 우리는 줄마다 지우거나 아예 못 지웠다 — 잘못 넣은 열 건을 치우려면 열 번 눌러야 했다.
    */
   const [checked, setChecked] = useState<Set<number>>(new Set())
+  /** 원본 탭 [전체 · 결재중 · 미확인 · 확인]. */
+  const [statusTab, setStatusTab] = useState<(typeof STATUS_TABS)[number]>('전체')
+  const [statusPick, setStatusPick] = useState(false)
+
+  /**
+   * 원본 [진행상태변경] — 고른 줄의 전표를 미확인 ↔ 확인. 확인한 전표는 확인취소를 먼저 해야 고치거나 지울 수 있다.
+   * 결재중은 전자결재가 정한다.
+   */
+  async function changeStatus(status: 'CONFIRMED' | 'UNCONFIRMED') {
+    const nos = [...new Set(shown.filter((x) => checked.has(x.id)).map((x) => x.prodNo))]
+    if (nos.length === 0) { setError('바꿀 줄을 고르세요.'); return }
+    setError('')
+    try {
+      const r = await api.post<{ changed: number }>('/productions/slips/status', { prodNos: nos, status })
+      setChecked(new Set())
+      await load()
+      setError(r.data.changed === 0 ? '이미 그 진행상태입니다.' : '')
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    }
+  }
 
   async function removeChecked() {
     const targets = shown.filter((x) => checked.has(x.id))
@@ -182,7 +209,8 @@ export default function ReceiptInquiryPage() {
     if (failed > 0) setError(`${targets.length - failed}건 삭제, ${failed}건 실패(참조 중이면 못 지운다).`)
   }
 
-  const shown = rows.filter((r) => (!keyword
+  const shown = rows.filter((r) => (statusTab === '전체' || STATUS_OF[statusTab] === r.confirmStatus)
+    && (!keyword
     || r.productName.includes(keyword) || r.prodNo.includes(keyword) || (r.workOrderNo ?? '').includes(keyword))
     && (!warehouseCond || String(r.warehouseId) === warehouseCond
       || String(r.fromWarehouseId) === warehouseCond)
@@ -220,9 +248,24 @@ export default function ReceiptInquiryPage() {
        */
       onNew={() => navigate('/production/receipt-bom')}
       actions={[{ label: '검색(F8)', onClick: load },
+                { label: '진행상태변경', onClick: () => setStatusPick((v) => !v), disabled: checked.size === 0 },
+                { label: '인쇄' },
                 { label: `선택삭제${checked.size ? ` (${checked.size})` : ''}`, onClick: removeChecked },
                 { label: 'Excel' }]}
     >
+      {statusPick && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, padding: '6px 8px', border: '1px solid var(--ec-border)', background: '#fff' }}>
+          <span style={{ fontSize: 12.5 }}>고른 {checked.size}줄의 전표를</span>
+          <button type="button" className="ec-btn ec-btn-primary" onClick={() => { setStatusPick(false); void changeStatus('CONFIRMED') }}>확인</button>
+          <button type="button" className="ec-btn" onClick={() => { setStatusPick(false); void changeStatus('UNCONFIRMED') }}>확인취소</button>
+          <button type="button" className="ec-btn" onClick={() => setStatusPick(false)}>닫기</button>
+        </div>
+      )}
+      <div className="ec-pills" style={{ marginBottom: 8 }}>
+        {STATUS_TABS.map((t) => (
+          <button key={t} type="button" className={`ec-pill no-ec${statusTab === t ? ' active' : ''}`} onClick={() => setStatusTab(t)}>{t}</button>
+        ))}
+      </div>
       {/* 원본 조건 차례: 창고 · 프로젝트 · 품목 */}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         {/* 원본 조건 첫째 <b>[기준일자]</b>(사본 실측). */}

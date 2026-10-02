@@ -276,6 +276,12 @@ public final class ProductionDtos {
             Long journalId
     ) {}
 
+    /** 원본 [진행상태변경] — 고른 전표들의 진행상태를 바꾼다(미확인 ↔ 확인). */
+    public record ChangeStatusRequest(
+            @NotEmpty(message = "바꿀 전표를 고르세요.") List<String> prodNos,
+            @NotNull(message = "바꿀 진행상태를 고르세요.") com.erp.production.production.ProductionConfirmStatus status
+    ) {}
+
     public record ManualConsumeLine(
             @NotNull(message = "소모자재를 선택하세요.") Long componentId,
             @NotNull(message = "소모수량을 입력하세요.") @Positive(message = "소모수량은 0보다 커야 합니다.") BigDecimal quantity
@@ -349,7 +355,9 @@ public final class ProductionDtos {
             /** 작업지시서의 지시일 — 생산입고조회의 [작업지시서] 열이 "일자 -No." 로 찍는다. */
             LocalDate workOrderDate,
             /** [시리얼/로트No.]. */
-            String lotNo
+            String lotNo,
+            /** 진행상태 — 결재중·미확인·확인. */
+            com.erp.production.production.ProductionConfirmStatus confirmStatus, String confirmStatusName
     ) {
         public static ProductionResponse from(Production p) {
             var wo = p.getWorkOrder();
@@ -375,7 +383,8 @@ public final class ProductionDtos {
                     p.getProcess() != null ? p.getProcess().getName() : null,
                     p.getSubcontractUnitPrice(), p.getSubcontractAmount(), p.getSubcontractVat(),
                     wo != null ? wo.getOrderDate() : null,
-                    p.getLotNo());
+                    p.getLotNo(),
+                    p.getConfirmStatus(), p.getConfirmStatus().getDisplayName());
         }
     }
 }

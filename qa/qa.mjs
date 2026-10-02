@@ -5071,6 +5071,26 @@ async function scenarioTimePhased(f) {
   }
 }
 
+/** 생산입고 진행상태 — 원본 [진행상태변경]. 확인한 전표는 확인취소를 먼저 해야 지울 수 있다(판매와 같다). */
+async function scenarioProductionConfirm(f) {
+  section('■ 생산입고 진행상태 — 미확인 ↔ 확인')
+  const D = '2087-09-09'
+  const comp = (await must('GET', '/boms')).find((b) => b.productId === f.product.id).lines[0]
+  await must('POST', '/stock/transactions', { itemId: comp.componentId, warehouseId: f.warehouse.id, type: 'INBOUND', quantity: 50 })
+  const made = await must('POST', '/productions/slips', {
+    entryType: 'I', productionDate: D, fromWarehouseId: f.warehouse.id, warehouseId: f.warehouse.id,
+    lines: [{ productId: f.product.id, producedQty: 1 }],
+  })
+  const no = made[0].prodNo
+  eq('새 생산입고는 미확인', made[0].confirmStatus, 'UNCONFIRMED')
+  eq('진행상태변경 → 확인', (await must('POST', '/productions/slips/status', { prodNos: [no], status: 'CONFIRMED' })).changed, 1)
+  eq('확인한 전표는 못 지운다', (await call('DELETE', `/productions/slips/${no}`)).status, 400)
+  eq('결재중은 사람이 못 고른다', (await call('POST', '/productions/slips/status', { prodNos: [no], status: 'IN_APPROVAL' })).status, 400)
+  await must('POST', '/productions/slips/status', { prodNos: [no], status: 'UNCONFIRMED' })
+  eq('확인취소하면 지울 수 있다', (await call('DELETE', `/productions/slips/${no}`)).status, 204)
+  await must('POST', '/stock/transactions', { itemId: comp.componentId, warehouseId: f.warehouse.id, type: 'OUTBOUND', quantity: 50 })
+}
+
 async function scenarioWorkResultBatch(f) {
   section('■ 작업내역 격자 — 한 번에 여러 줄')
 
@@ -9628,6 +9648,7 @@ async function main() {
     await scenarioBomLevels(fixtures)
     await scenarioTimePhased(fixtures)
     await scenarioWorkResultBatch(fixtures)
+    await scenarioProductionConfirm(fixtures)
     console.log(`\n통과 ${pass} · 실패 ${fail}`)
     process.exit(fail > 0 ? 1 : 0)
   }
@@ -9750,6 +9771,7 @@ async function main() {
   await scenarioBomLevels(fixtures)
   await scenarioTimePhased(fixtures)
   await scenarioWorkResultBatch(fixtures)
+  await scenarioProductionConfirm(fixtures)
   await scenarioReturnSlip(fixtures)
   await scenarioMasterResave()
   await scenarioMasterEditFromScreen()

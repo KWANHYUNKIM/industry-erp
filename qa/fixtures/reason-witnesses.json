@@ -23,13 +23,6 @@
   ],
   "in": "backend"
  },
- "생산입고조회|진행상태변경": {
-  "claim": "생산입고에 진행상태가 없다",
-  "absent": [
-   "ProductionStatus"
-  ],
-  "in": "backend"
- },
  "단가요청진행단계|수취금액": {
   "claim": "단가요청에 받은 금액을 적는 칸이 없다",
   "absent": [
@@ -2443,14 +2436,6 @@
   ],
   "in": "backend/src/main/java/com/erp/production/materialissue/MaterialIssue.java"
  },
- "생산입고현황|진행상태": {
-  "claim": "생산 전표에 확인 상태가 없다 — 거쳐 갈 단계가 없다",
-  "absent": [
-   "confirmStatus",
-   "status"
-  ],
-  "in": "backend/src/main/java/com/erp/production/production/Production.java"
- },
  "출하조회|결재중": {
   "claim": "출하 전표를 전자결재에 올리지 않는다",
   "absent": [
@@ -4759,34 +4744,6 @@
    "confirmStatus"
   ],
   "in": "backend/src/main/java/com/erp/production/materialissue/MaterialIssue.java"
- },
- "생산입고조회|결재중": {
-  "claim": "생산입고 전표에 확인 상태를 담는 칸이 없다 — confirmStatus 는 판매 전표에만 있다",
-  "absent": [
-   "confirmStatus"
-  ],
-  "in": "backend/src/main/java/com/erp/production/production/Production.java"
- },
- "생산입고조회|미확인": {
-  "claim": "생산입고 전표에 확인 상태를 담는 칸이 없다 — confirmStatus 는 판매 전표에만 있다",
-  "absent": [
-   "confirmStatus"
-  ],
-  "in": "backend/src/main/java/com/erp/production/production/Production.java"
- },
- "생산입고조회|확인": {
-  "claim": "생산입고 전표에 확인 상태를 담는 칸이 없다 — confirmStatus 는 판매 전표에만 있다",
-  "absent": [
-   "confirmStatus"
-  ],
-  "in": "backend/src/main/java/com/erp/production/production/Production.java"
- },
- "생산입고조회|전체": {
-  "claim": "생산입고 전표에 확인 상태를 담는 칸이 없다 — confirmStatus 는 판매 전표에만 있다",
-  "absent": [
-   "confirmStatus"
-  ],
-  "in": "backend/src/main/java/com/erp/production/production/Production.java"
  },
  "작업지시서조회|결재중": {
   "claim": "작업지시서에 확인 상태를 담는 칸이 없다 — confirmStatus 는 판매 전표에만 있다",

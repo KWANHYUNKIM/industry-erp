@@ -50,6 +50,8 @@ interface Material {
 
 interface Production {
   id: number
+  /** 진행상태 — 결재중·미확인·확인(2026-10-02 생겼다). */
+  confirmStatus?: 'UNCONFIRMED' | 'IN_APPROVAL' | 'CONFIRMED'
   prodNo: string
   workOrderId: number
   workOrderNo: string
@@ -123,6 +125,8 @@ export default function ReceiptStatusPage() {
   const [itemCategory, setItemCategory] = useState('')
   const [itemGroup, setItemGroup] = useState('')
   const [specCond, setSpecCond] = useState('')
+  /** 원본 조건 [진행상태] — 전체 · 결재중 · 미확인 · 확인. */
+  const [statusCond, setStatusCond] = useState('')
   const [authorCond, setAuthorCond] = useState('')
   const [employees, setEmployees] = useState<{ id: number; name: string }[]>([])
   const mgmt = useItemMgmt()
@@ -189,6 +193,7 @@ export default function ReceiptStatusPage() {
     if (itemCategory && (r.productCategoryName ?? '') !== itemCategory) return false
     if (itemGroup && mgmt.groupOf(r.productId) !== itemGroup) return false
     if (specCond && !(r.productSpec ?? '').includes(specCond)) return false
+    if (statusCond && r.confirmStatus !== statusCond) return false
     if (project && String(r.projectId) !== project) return false
     if (note && !(r.note ?? '').includes(note)) return false
     return true
@@ -328,6 +333,14 @@ export default function ReceiptStatusPage() {
         <EcCond label="규격">
           <ItemSuggestInput field="spec" value={specCond}
                             onChange={(v) => setSpecCond(v)} width={140} />
+        </EcCond>
+        <EcCond label="진행상태">
+          <select className="ec-input" value={statusCond} onChange={(e) => setStatusCond(e.target.value)} style={{ width: 120 }}>
+            <option value="">전체</option>
+            <option value="IN_APPROVAL">결재중</option>
+            <option value="UNCONFIRMED">미확인</option>
+            <option value="CONFIRMED">확인</option>
+          </select>
         </EcCond>
         <EcCond label="최초작성자" pick>
           <CodePickerField label="최초작성자" hideLabel width={140} emptyLabel="전체"

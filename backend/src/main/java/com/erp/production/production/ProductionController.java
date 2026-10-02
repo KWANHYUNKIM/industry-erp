@@ -69,6 +69,12 @@ public class ProductionController {
         return productionService.updateSlip(prodNo, req, principal.getUsername());
     }
 
+    /** 원본 [진행상태변경] — 고른 전표들을 미확인 ↔ 확인. 바꾼 전표 수를 준다. */
+    @PostMapping("/slips/status")
+    public java.util.Map<String, Integer> changeStatus(@Valid @RequestBody ProductionDtos.ChangeStatusRequest req) {
+        return java.util.Map.of("changed", productionService.changeStatus(req.prodNos(), req.status()));
+    }
+
     /** 전표째 [삭제]. */
     @DeleteMapping("/slips/{prodNo}")
     public ResponseEntity<Void> deleteSlip(@PathVariable String prodNo, java.security.Principal principal) {
