@@ -38,8 +38,12 @@ import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
  * 생산금액에 얹힌다. 단가를 모르는 전표는 <b>합계에서 빼고 몇 건인지 밝힌다</b> —
  * 0 으로 세면 그 전표가 공짜로 만들어진 것이 된다.
  */
-type Mode = '내역' | '집계' | '라인별'
-const MODES = ['내역', '집계', '라인별'] as const
+/*
+ * 원본 [구분] 은 ◉내역 ○집계 두 개이고, 내역 아래 선택상자가 일별 · 월별 · 라인별(기본) · 전표별 · … 이다(2026-10-02 loginaa
+ * 생산입고현황 실측). 예전 우리 [라인별](소모자재까지 펼친 표)은 원본에 없는 갈래였다 — 소모는 생산입고/소모현황 I 이 본다.
+ */
+type Mode = '내역' | '집계'
+const MODES = ['내역', '집계'] as const
 
 interface Material {
   itemId: number
@@ -137,6 +141,8 @@ export default function ReceiptStatusPage() {
   const empName = (id: number | null) =>
     id == null ? '' : (employees.find((x) => x.id === id)?.name ?? '')
   const [mode, setMode] = useState<Mode>('내역')
+  /** ◉내역 아래 선택상자 — 라인별(기본, 생산 줄마다) · 전표별(전표 한 장이 한 줄). */
+  const [lineView, setLineView] = useState<'라인별' | '전표별'>('라인별')
   const [view, setView] = useState<'표' | '그래프'>('표')
 
   async function load() {
@@ -230,11 +236,6 @@ export default function ReceiptStatusPage() {
     })).sort((a, b) => b.qty - a.qty)
   }, [shown, subtotal])
 
-  /** 라인별 — 전표 하나에 소모자재가 여러 줄이므로 자재 줄까지 펼친다. */
-  const lines = useMemo(() => shown.flatMap((r) =>
-    (r.materials.length === 0
-      ? [{ key: `${r.id}`, r, m: null as Material | null }]
-      : r.materials.map((m) => ({ key: `${r.id}-${m.itemId}`, r, m })))), [shown])
 
   const totalQty = shown.reduce((n, r) => n + r.producedQty, 0)
 
@@ -247,6 +248,21 @@ export default function ReceiptStatusPage() {
 
   /** 품목별 평가단가. 재고평가와 같은 규칙을 쓴다 — 화면마다 따로 매기면 한쪽만 어긋난다. */
   const cost = useMemo(() => stockCostMapFromLast(items, purchases), [items, purchases])
+  /** 내역의 줄 — 라인별이면 생산 줄 그대로, 전표별이면 번호로 묶어 첫 품목 외 n건 · 수량 합 · 금액 합(단가 모르는 줄이 있으면 모름). */
+  const listRows = useMemo(() => {
+    const amt = (r: Production) => { const c = cost.get(r.productId); return c == null ? null : r.producedQty * c }
+    const one = (r: Production) => ({ ...r, slipAmount: amt(r), matCount: r.materials.length })
+    if (lineView === '라인별') return shown.map(one)
+    const m = new Map<string, Production[]>()
+    shown.forEach((r) => m.set(r.prodNo, [...(m.get(r.prodNo) ?? []), r]))
+    return [...m.values()].map((ls) => ({ ...ls[0],
+      productName: ls.length > 1 ? `${ls[0].productName} 외 ${ls.length - 1}건` : ls[0].productName,
+      productSpec: ls.length > 1 ? null : ls[0].productSpec,
+      producedQty: ls.reduce((n, r) => n + r.producedQty, 0),
+      slipAmount: ls.some((r) => amt(r) == null) ? null : ls.reduce((n, r) => n + (amt(r) ?? 0), 0),
+      matCount: ls.reduce((n, r) => n + r.materials.length, 0),
+    }))
+  }, [shown, lineView, cost])
 
   /** 생산금액 합계. 단가를 모르는 전표는 빼고 몇 건인지 함께 돌려준다. */
   const amount = useMemo(() => sumStockValue(
@@ -272,6 +288,13 @@ export default function ReceiptStatusPage() {
         onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
         picks={STATUS_PICKS}
         modes={MODES} mode={mode} onModeChange={(m) => setMode(m as Mode)}
+        modeExtra={mode === '내역' ? (
+          <select className="ec-input" value={lineView} onChange={(e) => setLineView(e.target.value as '라인별' | '전표별')}
+                  style={{ width: 110, marginLeft: 6 }}>
+            <option value="라인별">라인별</option>
+            <option value="전표별">전표별</option>
+          </select>
+        ) : undefined}
         view={view} onViewChange={setView}
         subtotal={subtotal} subtotals={SUBTOTALS}
         onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}
@@ -420,41 +443,6 @@ export default function ReceiptStatusPage() {
             </tr>
           </tfoot>
         </table>
-      ) : mode === '라인별' ? (
-        <table className="w-full text-left">
-          <thead>
-            <tr>
-              <th style={{ width: 34 }}></th>
-              <th style={{ width: 180 }}>일자-No.</th>
-              <th>생산품목</th>
-              <th style={{ width: 110, textAlign: 'right' }}>입고수량</th>
-              <th>소모자재</th>
-              <th style={{ width: 110, textAlign: 'right' }}>소모수량</th>
-              <th style={{ width: 130 }}>창고명</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-            ) : lines.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-            ) : lines.map((l, i) => (
-              <tr key={l.key}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{dateText(l.r.productionDate)} {l.r.prodNo}</td>
-                <td>[{l.r.productCode}] {l.r.productName}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>
-                  {num(l.r.producedQty)}
-                </td>
-                <td style={{ color: l.m ? undefined : '#9aa1ab' }}>
-                  {l.m ? `[${l.m.itemCode}] ${l.m.itemName}` : '소모자재 없음'}
-                </td>
-                <td style={{ textAlign: 'right', color: '#a5561b' }}>{l.m ? num(l.m.quantity) : ''}</td>
-                <td>{l.r.warehouseName}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
       ) : (
         <table className="w-full text-left">
           <thead>
@@ -475,9 +463,9 @@ export default function ReceiptStatusPage() {
           <tbody>
             {loading ? (
               <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-            ) : shown.length === 0 ? (
+            ) : listRows.length === 0 ? (
               <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-            ) : shown.map((r, i) => (
+            ) : listRows.map((r, i) => (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{dateText(r.productionDate)} {r.prodNo}</td>
@@ -490,10 +478,10 @@ export default function ReceiptStatusPage() {
                 <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>
                   {num(r.producedQty)} {r.productUnit}
                 </td>
-                <td style={{ textAlign: 'right', color: cost.get(r.productId) == null ? '#c9ced6' : undefined }}>
-                  {cost.get(r.productId) == null ? '-' : num(Math.round(r.producedQty * cost.get(r.productId)!))}
+                <td style={{ textAlign: 'right', color: r.slipAmount == null ? '#c9ced6' : undefined }}>
+                  {r.slipAmount == null ? '-' : num(Math.round(r.slipAmount))}
                 </td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{r.materials.length}</td>
+                <td style={{ textAlign: 'right', color: '#8a929c' }}>{r.matCount}</td>
                 <td>{r.createdBy ?? ''}</td>
                 <td style={{ color: '#8a929c' }}>{r.note ?? ''}</td>
               </tr>

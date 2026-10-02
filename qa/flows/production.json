@@ -235,6 +235,15 @@
         "js:(()=>{const s=[...document.querySelectorAll('select')].find((x)=>[...x.options].some((o)=>o.value==='전표별'));Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'전표별');s.dispatchEvent(new Event('change',{bubbles:true}));return new Promise((r)=>setTimeout(()=>r(true),800))})()",
         "expect:(()=>{const rows=[...document.querySelectorAll('table tbody tr')].filter((t)=>/-[0-9]{4}/.test(t.innerText));const nos=rows.map((t)=>(t.innerText.match(/[A-Z]{2}-[0-9]{8}-[0-9]{4}/)||[''])[0]);return rows.length<=Number(sessionStorage.getItem('qaLineRows'))&&new Set(nos).size===nos.length})()"
       ]
+    },
+    {
+      "name": "생산입고현황 — ◉내역 아래 [라인별 ↔ 전표별]: 전표별이면 같은 번호가 한 줄로 접힌다(원본 선택상자)",
+      "path": "/production/receipt-status",
+      "steps": [
+        "js:new Promise((r)=>setTimeout(()=>{sessionStorage.setItem('qaLineRows',String([...document.querySelectorAll('table tbody tr')].filter((t)=>/-[0-9]{4}/.test(t.innerText)).length));r(true)},1500))",
+        "js:(()=>{const s=[...document.querySelectorAll('select')].find((x)=>[...x.options].some((o)=>o.value==='전표별'));Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'전표별');s.dispatchEvent(new Event('change',{bubbles:true}));return new Promise((r)=>setTimeout(()=>r(true),800))})()",
+        "expect:(()=>{const rows=[...document.querySelectorAll('table tbody tr')].filter((t)=>/-[0-9]{4}/.test(t.innerText));const nos=rows.map((t)=>(t.innerText.match(/[A-Z]{2}-[0-9]{8}-[0-9]{4}/)||[''])[0]);return rows.length<=Number(sessionStorage.getItem('qaLineRows'))&&new Set(nos).size===nos.length})()"
+      ]
     }
   ]
 }
