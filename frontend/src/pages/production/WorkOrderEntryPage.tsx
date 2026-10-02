@@ -5,6 +5,7 @@ import CodePickerField from '../../components/CodePickerField'
 import EcDateField from '../../components/EcDateField'
 import EcSlipShell from '../../components/EcSlipShell'
 import { ymd } from '../../components/EcPeriodPicks'
+import SlipLoadModal, { type LoadedSlip } from '../../features/slipload/components/SlipLoadModal'
 import SalesOrderPickModal, { type SalesOrderLite } from '../../features/salesorder/components/SalesOrderPickModal'
 import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
@@ -76,6 +77,20 @@ export default function WorkOrderEntryPage() {
    * 머리만 바뀌고 줄은 안 들어왔다). 수량은 주문수량이다.
    */
   const [orderOpen, setOrderOpen] = useState(false)
+  /** 원본 툴바의 [전표불러오기] — 메뉴검색에서 고른 전표의 생산할 수 있는 품목 줄을 수량 그대로 붓는다([주문] 과 같은 규칙). */
+  const [slipLoadOpen, setSlipLoadOpen] = useState(false)
+  function applyLoadedSlips(slips: LoadedSlip[]) {
+    const factory = lastFactory()
+    const makeable = slips.flatMap((x) => x.lines)
+      .filter((l) => { const c = itemById.get(String(l.itemId))?.category; return c === 'FINISHED' || c === 'SEMI_FINISHED' })
+    if (makeable.length === 0) { setOk(`고른 ${slips[0]?.kind ?? ''} 전표에 생산할 품목(제품·반제품)이 없습니다.`); return }
+    setLines((ls) => {
+      const kept = [...ls.filter((l) => l.productId),
+        ...makeable.map((l) => ({ ...blank(factory), productId: String(l.itemId), qty: String(l.quantity) }))]
+      return [...kept, ...Array.from({ length: Math.max(1, BLANK_ROWS - kept.length) }, () => blank())]
+    })
+    setOk(`${slips[0].kind} ${slips.length}건에서 ${makeable.length}줄을 담았습니다.`)
+  }
   function applyOrders(picked: SalesOrderLite[]) {
     const first = picked[0]
     if (first.partnerId != null) setPartnerId(String(first.partnerId))
@@ -279,6 +294,7 @@ export default function WorkOrderEntryPage() {
         <div className="ec-toolbar" style={{ marginTop: 10 }}>
           <button type="button" className="ec-btn ec-btn-sm" disabled={myItems.busy} onClick={myItems.pick}>My품목</button>
           <button type="button" className="ec-btn ec-btn-sm" onClick={() => { setError(''); setOrderOpen(true) }}>주문</button>
+          <button type="button" className="ec-btn ec-btn-sm" onClick={() => setSlipLoadOpen(true)}>전표불러오기</button>
           <MyItemsNote note={myItems.note} />
         </div>
 
@@ -342,6 +358,7 @@ export default function WorkOrderEntryPage() {
         {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, margin: '8px 0' }}>{error}</p>}
         {ok && <p style={{ background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, margin: '8px 0' }}>{ok}</p>}
       </EcSlipShell>
+      <SlipLoadModal open={slipLoadOpen} onClose={() => setSlipLoadOpen(false)} onApply={applyLoadedSlips} />
       <SalesOrderPickModal open={orderOpen} onClose={() => setOrderOpen(false)} onApply={applyOrders} />
     </form>
   )
