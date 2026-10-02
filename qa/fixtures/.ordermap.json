@@ -990,5 +990,9 @@
  [
   "재무상태표",
   "accounting/BalanceSheetPage.tsx"
+ ],
+ [
+  "손익계산서",
+  "accounting/IncomeStatementPage.tsx"
  ]
 ]
