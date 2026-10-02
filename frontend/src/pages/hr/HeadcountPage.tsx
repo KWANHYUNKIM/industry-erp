@@ -5,11 +5,11 @@ import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { HEADCOUNT_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
+import { headcountRows } from '../../utils/headcount'
 import { EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 
 interface Emp { id: number; name: string; department: string | null; jobTitle: string | null; hireDate: string | null; resignDate: string | null }
 type Mode = '일별' | '월별'
-interface Row { key: string; label: string; hired: string[]; resigned: string[]; total: number }
 
 const count = (n: number) => (n === 0 ? '' : n.toLocaleString('ko-KR'))
 const two = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -54,29 +54,7 @@ export default function HeadcountPage() {
     .filter((e) => !dept || (e.department ?? '') === dept)
     .filter((e) => !title || (e.jobTitle ?? '') === title), [emps, dept, title])
 
-  const rows = useMemo(() => {
-    const out: Row[] = []
-    if (!from || !to || from > to) return out
-    const at = (d: string) => picked.filter((e) => e.hireDate && e.hireDate <= d && (!e.resignDate || e.resignDate > d)).length
-    if (mode === '일별') {
-      for (let d = new Date(`${from}T00:00:00`); ymd(d) <= to; d.setDate(d.getDate() + 1)) {
-        const s = ymd(d)
-        out.push({ key: s, label: s.replace(/-/g, '/'),
-          hired: picked.filter((e) => e.hireDate === s).map((e) => e.name),
-          resigned: picked.filter((e) => e.resignDate === s).map((e) => e.name), total: at(s) })
-      }
-    } else {
-      for (let m = new Date(`${from.slice(0, 7)}-01T00:00:00`); ymd(m).slice(0, 7) <= to.slice(0, 7); m.setMonth(m.getMonth() + 1)) {
-        const ym = ymd(m).slice(0, 7)
-        const end = ymd(new Date(m.getFullYear(), m.getMonth() + 1, 0))
-        out.push({ key: ym, label: ym.replace('-', '/'),
-          hired: picked.filter((e) => e.hireDate?.slice(0, 7) === ym).map((e) => e.name),
-          resigned: picked.filter((e) => e.resignDate?.slice(0, 7) === ym).map((e) => e.name),
-          total: at(end < to ? end : to) })
-      }
-    }
-    return out
-  }, [picked, mode, from, to])
+  const rows = useMemo(() => headcountRows(picked, mode, from, to), [picked, mode, from, to])
   const hiredSum = rows.reduce((s, r) => s + r.hired.length, 0)
   const resignedSum = rows.reduce((s, r) => s + r.resigned.length, 0)
   const depts = [...new Set(emps.map((e) => e.department).filter((v): v is string => !!v))].sort()
