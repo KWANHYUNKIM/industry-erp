@@ -798,5 +798,9 @@
  [
   "지급어음거래내역",
   "accounting/NoteLedgerPage.tsx"
+ ],
+ [
+  "수령수표현황",
+  "accounting/CheckHoldingPage.tsx"
  ]
 ]

@@ -89,6 +89,14 @@
         "js:window.__api('DELETE', '/notes/' + sessionStorage.getItem('nhId')).then((r) => r.status)",
         "expect:true"
       ]
+    },
+    {
+      "name": "수령수표현황 — 원본처럼 거래처마다 묶여 '… 계' 줄로 끝나고, 소계의 합이 합계와 같다(자료는 그대로 보기만)",
+      "path": "/accounting/checks-held",
+      "steps": [
+        "wait:2000",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');if(h!=='수령일자|수표번호|거래처명|계정명|적요|금액')return false;const n=(x)=>Number(x.replace(/[^0-9.-]/g,''))||0;const subs=[...document.querySelectorAll('table tbody tr')].filter((t)=>/ 계$/.test(t.cells[0].innerText.trim()));const tot=document.querySelector('table tfoot tr');const sum=subs.reduce((a,t)=>a+n(t.cells[t.cells.length-1].innerText),0);return sum===n(tot.cells[tot.cells.length-1].innerText)})()"
+      ]
     }
   ]
 }

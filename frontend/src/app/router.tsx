@@ -67,6 +67,7 @@ const FixedAssetPage = lazy(() => import('../pages/accounting/FixedAssetPage'))
 const FastVoucherPage = lazy(() => import('../pages/accounting/FastVoucherPage'))
 const NonCashPage = lazy(() => import('../pages/accounting/NonCashPage'))
 const CheckPage = lazy(() => import('../pages/accounting/CheckPage'))
+const CheckHoldingPage = lazy(() => import('../pages/accounting/CheckHoldingPage'))
 const ContractPage = lazy(() => import('../pages/accounting/ContractPage'))
 const CurrencyPage = lazy(() => import('../pages/settings/CurrencyPage'))
 const ExpensePage = lazy(() => import('../pages/accounting/ExpensePage'))
@@ -419,6 +420,7 @@ export default function AppRouter() {
         <Route path="/accounting/vouchers" element={<FastVoucherPage />} />
         <Route path="/accounting/non-cash" element={<NonCashPage />} />
         <Route path="/accounting/checks" element={<CheckPage />} />
+        <Route path="/accounting/checks-held" element={<CheckHoldingPage />} />
         <Route path="/accounting/contracts" element={<ContractPage />} />
         <Route path="/settings/currencies" element={<CurrencyPage />} />
         <Route path="/accounting/expense" element={<ExpensePage />} />

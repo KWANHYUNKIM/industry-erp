@@ -452,7 +452,11 @@ const MENU: TopMenu[] = [
       },
       {
         label: '수표관리',
-        nodes: [{ label: '수표관리(받은수표·발행수표)', to: '/accounting/checks' }],
+        nodes: [
+          { label: '수표관리(받은수표·발행수표)', to: '/accounting/checks' },
+          /* 원본 회계 II > 수표관리 > 수령수표의 현황(E060604). */
+          { label: '수령수표현황', to: '/accounting/checks-held' },
+        ],
       },
       {
         label: '계약관리',
