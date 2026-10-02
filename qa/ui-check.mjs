@@ -1365,6 +1365,7 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     ['지출결의서집계', 'accounting/ExpenseSlipSummaryPage.tsx'],
     ['입금보고서집계', 'accounting/ExpenseSlipSummaryPage.tsx'],
     ['가지급금정산서집계', 'accounting/ExpenseSlipSummaryPage.tsx'],
+    ['인원현황', 'hr/HeadcountPage.tsx'],
     ['현금흐름(입출금내역)', 'accounting/CashFlowListPage.tsx'],
     ['자금현황표', 'accounting/FundStatusPage.tsx'],
     ['자금증감내역', 'accounting/FundDailyPage.tsx'],
@@ -4180,6 +4181,9 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
      * 기간 칸은 [기준일자]가 아니라 [사용일자], [비고]로 걸어 두었던 글자 칸은 [적요],
      * [결제구분]이라 적어 둔 것은 실은 [결제수단]이다. 아래 넷은 그 결과로 남은 자리다.
      */
+    /* <b>인원현황(E020609)</b> — 2026-10-03 원본 실측(HeadcountPage). */
+    ['인원현황|프로젝트', '사원(Employee)에 프로젝트가 없다'],
+    ['인원현황|입사구분', '사원(Employee)에 신입/경력 가름이 없다'],
     /* <b>퇴사자리스트(E020126)</b> — 2026-10-03 원본 실측(RetiredEmployeePage). */
     ['퇴사자리스트|세무신고사업장', '회사 정보(CompanyInfo)에 사업장 목록이 없다 — 우리 회사는 사업장을 하나만 둔다'],
     /* <b>가지급금정산서집계(E010840)</b> — 2026-10-03 원본 실측(ExpenseSlipSummaryPage side='가지급금'). */

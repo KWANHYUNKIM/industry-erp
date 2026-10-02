@@ -65,6 +65,9 @@ export function periodOf(label: string, today = new Date(), fiscalStart?: number
       return { from: ymd(new Date(t.getFullYear(), 0, 1)), to: ymd(new Date(t.getFullYear(), 11, 31)) }
     case '전년':
       return { from: ymd(new Date(t.getFullYear() - 1, 0, 1)), to: ymd(new Date(t.getFullYear() - 1, 11, 31)) }
+    /* 인원현황(E020609) 빠른선택 — 올해 1월 1일부터 <b>오늘</b>까지(2026-10-03 원본 실측). */
+    case '금년(~오늘)':
+      return { from: ymd(new Date(t.getFullYear(), 0, 1)), to: ymd(t) }
     /*
      * <b>최근7일</b> — 오늘까지 이레. 결제내역조회의 기본값이다(사본 실측 — 다른 현황이
      * 다 금월인데 이 화면만 이레다). 수금·지급은 <b>방금 들어온 돈</b>을 보는 화면이라서다.
@@ -187,6 +190,9 @@ export function periodOf(label: string, today = new Date(), fiscalStart?: number
      */
     case '종료일':
       return { from: '', to: ymd(t) }
+    /* 달로 고르는 기간(인원현황 월별)의 '종료일' — 시작은 그대로, 끝을 이번 달(오늘)로. */
+    case '종료월':
+      return { from: '', to: ymd(t) }
     default:
       return null
   }
@@ -250,6 +256,8 @@ export const PARTNER_LEDGER_PICKS = [...BASE_PICKS, '종료일', '전월+금월'
  * (사본 실측 — 달 스핀박스가 01·12 라 한 해를 통째로 본다). 실사는 한 해에 몇 번이라
  * 달로 자르면 아무것도 안 보인다.
  */
+/** 인원현황(E020609) — 금월 · 전월 · 금월(~오늘) · 금년(~오늘) · 전년 · 종료월(2026-10-03 원본 실측, 기본 금월(~오늘)). */
+export const HEADCOUNT_PICKS = ['금월', '전월', '금월(~오늘)', '금년(~오늘)', '전년', '종료월'] as const
 export const STOCKTAKE_PICKS = [...BASE_PICKS, '전년', '종료일'] as const
 
 export const AS_PICKS = [...BASE_PICKS, '직전분기', '직전반기', '종료일'] as const

@@ -6499,5 +6499,22 @@
    "BusinessPlace"
   ],
   "in": "backend/src/main/java/com/erp/settings/companyinfo/CompanyInfo.java"
+ },
+ "인원현황|프로젝트": {
+  "claim": "사원에 프로젝트가 없다",
+  "absent": [
+   "project",
+   "Project"
+  ],
+  "in": "backend/src/main/java/com/erp/hr/employee/Employee.java"
+ },
+ "인원현황|입사구분": {
+  "claim": "사원에 신입/경력 가름이 없다",
+  "absent": [
+   "hireType",
+   "HireType",
+   "career"
+  ],
+  "in": "backend/src/main/java/com/erp/hr/employee/Employee.java"
  }
 }

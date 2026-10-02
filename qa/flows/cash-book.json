@@ -321,6 +321,14 @@
         "wait:3000",
         "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');return h==='|사번|성명|부서|입사일자|퇴사일자|중도정산귀속월|중도정산원천징수연월|퇴직소득귀속월|퇴직소득원천징수연월|퇴직소득지급일자'})()"
       ]
+    },
+    {
+      "name": "인원현황 — 일별: 일자 · 입사자 · 입사인원 · 퇴사자 · 퇴사인원 · 총인원, 끝 [합계]",
+      "path": "/hr/headcount",
+      "steps": [
+        "wait:3000",
+        "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const last=t.querySelector('tbody tr:last-child');return h==='일자|입사자|입사인원|퇴사자|퇴사인원|총인원'&&last.cells[0].innerText.trim()==='합계'})()"
+      ]
     }
   ]
 }

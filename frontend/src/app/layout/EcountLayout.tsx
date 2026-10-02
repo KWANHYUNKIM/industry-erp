@@ -570,6 +570,7 @@ const MENU: TopMenu[] = [
         nodes: [
           { label: '인사기록카드', to: '/hr/records' },
           { label: '인사발령', to: '/hr/records' },
+          { label: '인사관리현황', children: [{ label: '인원현황', to: '/hr/headcount' }] },
           { label: '조직도', to: '/groupware/org' },
         ],
       },

@@ -1086,5 +1086,9 @@
  [
   "퇴사자리스트",
   "hr/RetiredEmployeePage.tsx"
+ ],
+ [
+  "인원현황",
+  "hr/HeadcountPage.tsx"
  ]
 ]
