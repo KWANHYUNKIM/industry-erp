@@ -7,6 +7,9 @@ import com.erp.hr.dailywork.dto.DailyWorkDtos.CreateDailyWorkRequest;
 import com.erp.hr.dailywork.dto.DailyWorkDtos.DailyWorkResponse;
 import com.erp.hr.dailywork.dto.DailyWorkDtos.DailyWorkSummary;
 import com.erp.hr.dailywork.dto.DailyWorkDtos.PayRequest;
+import com.erp.accounting.bankcard.BankCardService;
+import com.erp.accounting.journal.JournalEntry;
+import com.erp.accounting.journal.JournalService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +39,8 @@ public class DailyWorkService {
 
     private final DailyWorkRecordRepository repository;
     private final EmployeeService employeeService;
+    private final JournalService journalService;
+    private final BankCardService bankCardService;
 
     @Transactional(readOnly = true)
     public DailyWorkSummary findMonth(String month) {
@@ -107,7 +112,7 @@ public class DailyWorkService {
 
     /** 지급 처리. 이미 지급된 건은 건너뛴다(중복 지급 방지). */
     @Transactional
-    public List<DailyWorkResponse> pay(PayRequest req) {
+    public List<DailyWorkResponse> pay(PayRequest req, String username) {
         if (req.ids() == null || req.ids().isEmpty()) {
             throw ApiException.badRequest("지급할 출역 기록을 선택하세요.");
         }
@@ -120,9 +125,19 @@ public class DailyWorkService {
         if (!already.isEmpty()) {
             throw ApiException.conflict("이미 지급된 출역이 " + already.size() + "건 있습니다. 미지급 건만 선택하세요.");
         }
+        BigDecimal wage = records.stream().map(DailyWorkRecord::getDailyWage).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal tax = records.stream().map(r -> r.getIncomeTax().add(r.getLocalIncomeTax()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        String desc = "일용직 지급 " + records.size() + "건";
+        // 지급은 장부에 남아야 한다 — 예전엔 '지급됨' 표시만 했다(QA 69회차).
+        JournalEntry entry = journalService.createFromDailyWagePay(paidDate, wage, tax, req.bankAccountId(), desc, username);
+        if (req.bankAccountId() != null) {
+            bankCardService.recordExternal(req.bankAccountId(), false, wage.subtract(tax), paidDate, desc, entry, username);
+        }
         for (DailyWorkRecord r : records) {
             r.setPaid(true);
             r.setPaidDate(paidDate);
+            r.setJournalEntry(entry);
         }
         return records.stream().map(DailyWorkResponse::from).toList();
     }

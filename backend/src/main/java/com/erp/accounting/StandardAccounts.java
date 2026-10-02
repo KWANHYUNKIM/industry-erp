@@ -74,6 +74,8 @@ public final class StandardAccounts {
             // 외주비일괄회계반영이 코드로 찾는다(SubcontractReflectionService).
             required("533", "외주가공비", AccountDivision.EXPENSE, "제조원가"),
             required("801", "급여", AccountDivision.EXPENSE, "판매관리비"),
+            // 일용직 지급 분개가 코드로 찾는다(JournalService.createFromDailyWagePay, QA 69회차).
+            required("805", "잡급", AccountDivision.EXPENSE, "판매관리비"),
             of("811", "복리후생비", AccountDivision.EXPENSE, "판매관리비"),
             of("812", "여비교통비", AccountDivision.EXPENSE, "판매관리비"),
             of("814", "통신비", AccountDivision.EXPENSE, "판매관리비"),

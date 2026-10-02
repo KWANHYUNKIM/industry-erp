@@ -20,6 +20,8 @@ public enum JournalSourceType {
     SETTLEMENT("수금·지급"),
     /** 생산입고의 외주비 — 외주비일괄회계반영(V220). */
     SUBCONTRACT("외주비"),
+    /** 일용직 지급 — 원본 일용근로 급여대장 [전표생성](QA 69회차). */
+    DAILY_WAGE("일용직 지급"),
     MANUAL("수동입력");
 
     private final String displayName;

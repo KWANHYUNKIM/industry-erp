@@ -2028,6 +2028,8 @@ export interface DailyWork {
   paidDate: string | null
   remark: string | null
   createdBy: string | null
+  /** 지급하며 만든 회계전표 번호(QA 69회차). 미지급이면 null. */
+  journalNo: string | null
 }
 
 export interface DailyWorkSummary {

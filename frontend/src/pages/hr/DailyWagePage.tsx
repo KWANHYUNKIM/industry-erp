@@ -3,7 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
-import type { DailyWork, DailyWorkSummary, EmployeeMaster } from '../../types/api'
+import type { BankAccountRow, DailyWork, DailyWorkSummary, EmployeeMaster } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 
@@ -19,6 +19,9 @@ export default function DailyWagePage() {
   const [month, setMonth] = useState(thisMonth())
   const [data, setData] = useState<DailyWorkSummary | null>(null)
   const [employees, setEmployees] = useState<EmployeeMaster[]>([])
+  const [accounts, setAccounts] = useState<BankAccountRow[]>([])
+  /** 지급수단 — '' 이면 현금. 지급하면 차)잡급 / 대)예수금·현금(또는 계좌) 분개가 생긴다(QA 69회차). */
+  const [payAccountId, setPayAccountId] = useState('')
   const [selected, setSelected] = useState<number[]>([])
   const [showForm, setShowForm] = useState(false)
   const [error, setError] = useState('')
@@ -30,12 +33,14 @@ export default function DailyWagePage() {
     setError('')
     setSelected([])
     try {
-      const [d, e] = await Promise.all([
+      const [d, e, b] = await Promise.all([
         api.get<DailyWorkSummary>('/daily-works', { params: { month: m } }),
         api.get<EmployeeMaster[]>('/employees'),
+        api.get<BankAccountRow[]>('/bank-cards/accounts'),
       ])
       setData(d.data)
       setEmployees(e.data)
+      setAccounts(b.data.filter((a) => a.active))
     } catch (err) {
       setError(extractErrorMessage(err))
     }
@@ -53,9 +58,11 @@ export default function DailyWagePage() {
   async function pay() {
     if (selected.length === 0) return
     const total = rows.filter((r) => selected.includes(r.id)).reduce((a, r) => a + r.netPay, 0)
-    if (!window.confirm(`선택한 ${selected.length}건을 지급 처리할까요?\n실지급액 합계: ${won(total)}원`)) return
+    const via = accounts.find((a) => String(a.id) === payAccountId)
+    const viaText = via ? `${via.bankName} ${via.accountNo}` : '현금'
+    if (!window.confirm(`선택한 ${selected.length}건을 지급 처리할까요?\n실지급액 합계: ${won(total)}원 (${viaText})\n회계전표: 차)잡급 / 대)예수금·${via ? '예금' : '현금'}`)) return
     try {
-      await api.post('/daily-works/pay', { ids: selected, paidDate: today() })
+      await api.post('/daily-works/pay', { ids: selected, paidDate: today(), bankAccountId: via ? via.id : null })
       flash(`${selected.length}건 지급 완료`)
       load()
     } catch (err) { alert(extractErrorMessage(err)) }
@@ -76,6 +83,10 @@ export default function DailyWagePage() {
         <label style={{ fontSize: 12.5 }}>귀속월</label>
         <input type="month" className="ec-input" value={month} onChange={(e) => setMonth(e.target.value)} style={{ width: 140 }} />
         <button className="ec-btn ec-btn-primary" onClick={() => setShowForm(true)}>+ 출역 등록(F2)</button>
+        <select className="ec-input" value={payAccountId} onChange={(e) => setPayAccountId(e.target.value)} style={{ width: 170 }} title="지급수단">
+          <option value="">현금 지급</option>
+          {accounts.map((a) => <option key={a.id} value={a.id}>{a.bankName} {a.accountNo}</option>)}
+        </select>
         <button className="ec-btn" onClick={pay} disabled={selected.length === 0}>
           지급 처리{selected.length > 0 ? ` (${selected.length})` : ''}
         </button>
@@ -136,7 +147,7 @@ export default function DailyWagePage() {
               <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(r.netPay)}</td>
               <td style={{ textAlign: 'center' }}>
                 {r.paid
-                  ? <span style={{ color: '#1c7c3c' }}>지급 {r.paidDate}</span>
+                  ? <span style={{ color: '#1c7c3c' }} title={r.journalNo ? `회계전표 ${r.journalNo}` : undefined}>지급 {r.paidDate}{r.journalNo ? ` · ${r.journalNo}` : ''}</span>
                   : <span style={{ color: '#8a929c' }}>미지급</span>}
               </td>
               <td style={{ textAlign: 'center' }}>

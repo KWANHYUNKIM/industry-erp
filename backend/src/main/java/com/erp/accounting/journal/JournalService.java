@@ -40,6 +40,8 @@ import com.erp.accounting.promissorynote.PromissoryNote;
 import com.erp.accounting.bankcheck.CheckType;
 import com.erp.accounting.journal.dto.JournalDtos;
 import com.erp.hr.payroll.PayrollTransfer;
+import com.erp.accounting.bankcard.BankAccount;
+import com.erp.accounting.bankcard.BankAccountRepository;
 
 /**
  * 회계전표(분개) 생성. 판매/매입/지출 업무전표를 복식부기 분개로 옮긴다.
@@ -60,6 +62,7 @@ public class JournalService {
     private final AccountRepository accountRepository;
     private final AccountService accountService;
     private final BusinessPartnerRepository partnerRepository;
+    private final BankAccountRepository bankAccountRepository;
 
     /** 일반전표 직접입력. 사용자가 차/대변 라인을 입력하며, 차변합=대변합이어야 저장된다. */
     @Transactional
@@ -552,6 +555,33 @@ public class JournalService {
             addCredit(e, "254", t.getTotalDeduction(), "예수금 (4대보험·소득세)");
         }
         addCreditAccount(e, t.getBankAccount().getGlAccount(), t.getNetPay(), "실지급액");
+        return save(e);
+    }
+
+    /**
+     * 일용직 지급 → 분개. 차)잡급(805) 지급액 / 대)예수금(254) 원천세 · 현금(101) 또는 지급계좌 예금 실지급액.
+     *
+     * <p>지급 처리가 '지급됨' 표시만 하고 장부에는 아무것도 남기지 않아, 일용직 인건비가 손익에서 빠지고
+     * 떼어 둔 원천세가 예수금에 잡히지 않았다(QA 69회차). 원본은 일용근로 급여대장 [확정] → [전표생성] 이다.
+     *
+     * @param bankAccountId 계좌로 줬으면 그 계좌, null 이면 현금 지급
+     */
+    @Transactional
+    public JournalEntry createFromDailyWagePay(LocalDate date, BigDecimal wage, BigDecimal tax,
+                                               Long bankAccountId, String desc, String createdBy) {
+        JournalEntry e = newEntry(JournalSourceType.DAILY_WAGE, null, date, desc, null, createdBy);
+        addDebit(e, "805", wage, "일용직 임금");
+        if (isPositive(tax)) {
+            addCredit(e, "254", tax, "예수금 (일용근로소득세·지방소득세)");
+        }
+        BigDecimal net = wage.subtract(tax == null ? BigDecimal.ZERO : tax);
+        if (bankAccountId == null) {
+            addCredit(e, "101", net, "실지급액 (현금)");
+        } else {
+            BankAccount b = bankAccountRepository.findById(bankAccountId)
+                    .orElseThrow(() -> ApiException.notFound("계좌를 찾을 수 없습니다. id=" + bankAccountId));
+            addCreditAccount(e, b.getGlAccount(), net, "실지급액");
+        }
         return save(e);
     }
 

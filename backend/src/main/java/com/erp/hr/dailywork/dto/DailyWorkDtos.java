@@ -23,7 +23,8 @@ public class DailyWorkDtos {
     ) {}
 
     /** 지급 처리. 지급일을 비우면 오늘로 본다. */
-    public record PayRequest(List<Long> ids, LocalDate paidDate) {}
+    /** bankAccountId 가 없으면 현금 지급으로 분개한다. */
+    public record PayRequest(List<Long> ids, LocalDate paidDate, Long bankAccountId) {}
 
     public record DailyWorkResponse(
             Long id,
@@ -40,7 +41,9 @@ public class DailyWorkDtos {
             boolean paid,
             LocalDate paidDate,
             String remark,
-            String createdBy
+            String createdBy,
+            /** 지급하며 만든 회계전표 번호(QA 69회차). 미지급이면 null. */
+            String journalNo
     ) {
         public static DailyWorkResponse from(DailyWorkRecord r) {
             return new DailyWorkResponse(
@@ -49,7 +52,8 @@ public class DailyWorkDtos {
                     r.getEmployee().getDepartment() != null ? r.getEmployee().getDepartment().getName() : "",
                     r.getWorkDate(), r.getWorkHours(), r.getDailyWage(),
                     r.getIncomeTax(), r.getLocalIncomeTax(), r.getNetPay(),
-                    r.isPaid(), r.getPaidDate(), r.getRemark(), r.getCreatedBy());
+                    r.isPaid(), r.getPaidDate(), r.getRemark(), r.getCreatedBy(),
+                    r.getJournalEntry() != null ? r.getJournalEntry().getDocNo() : null);
         }
     }
 

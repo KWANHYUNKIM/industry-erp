@@ -140,6 +140,17 @@ async function seed() {
   }
   console.log(`  로트 ${lot.lotNo} (id=${lot.id})`)
 
+  // 기초재고 — 시나리오들이 '이전 실행이 남긴 재고'에 기대고 있었다. 빈 DB(docker compose down -v)에서는
+  // 1-b 판매가 '재고 부족'으로 첫 단계부터 멈췄다(2026-10-02). 모자라면 1,000 까지 채운다.
+  const stockRows = await must('GET', '/stock')
+  for (const it of [product, material]) {
+    const have = Number(stockRows.find((x) => x.itemId === it.id && x.warehouseId === warehouse.id)?.quantity ?? 0)
+    if (have < 1000) {
+      await must('POST', '/stock/transactions', { itemId: it.id, warehouseId: warehouse.id, type: 'INBOUND', quantity: 1000 - have })
+      console.log(`  기초재고 ${it.code} ${have} → 1000`)
+    }
+  }
+
   return { warehouse, customer, supplier, product, material, process, lot }
 }
 
@@ -6843,6 +6854,31 @@ async function scenarioDailyWorkTax() {
   eq('납부할 세액 = 소득구분 줄의 합', Number(st.grandWithheld),
     st.sections.reduce((t, x) => t + Number(x.incomeTax) + Number(x.localIncomeTax), 0))
   await must('DELETE', `/daily-works/${dw.id}`)
+
+  /* 69회차 — 일용직 지급이 '지급됨' 표시만 하고 회계전표를 남기지 않았다. 원본은 급여대장 [확정] → [전표생성].
+     지급하면 차)잡급(805) 지급액 / 대)예수금(254) 원천세 · 현금(101) 또는 지급계좌 예금 실지급액. */
+  const journalOf = async (docNo, date) =>
+    (await must('GET', `/journals?from=${date}&to=${date}&all=true`)).rows.find((j) => j.docNo === docNo)
+  const side = (j, code, k) => Number(j?.lines.find((l) => l.accountCode === code)?.[k] ?? 0)
+
+  const cashDw = await must('POST', '/daily-works', { employeeId: emp.id, workDate: '2091-05-21', dailyWage: 200_000, workHours: 8 })
+  const [paidCash] = await must('POST', '/daily-works/pay', { ids: [cashDw.id], paidDate: '2091-05-31' })
+  eq('현금 지급에 회계전표가 붙는다', String(paidCash.journalNo).startsWith('GL-'), 'true')
+  const jc = await journalOf(paidCash.journalNo, '2091-05-31')
+  eq('현금 지급 분개 — 차)잡급 200,000 / 대)예수금 1,480 · 현금 198,520',
+    `${side(jc, '805', 'debit')} ${side(jc, '254', 'credit')} ${side(jc, '101', 'credit')}`, '200000 1480 198520')
+  eq('일용직 지급 분개가 대차평형', Number(jc?.totalDebit), Number(jc?.totalCredit))
+  await rejects('이미 지급한 출역 재지급은 거부', 'POST', '/daily-works/pay', { ids: [cashDw.id], paidDate: '2091-05-31' }, '이미 지급')
+
+  const bank = (await must('GET', '/bank-cards/accounts')).find((a) => a.active && Number(a.balance) >= 198_520)
+  if (bank) {
+    const bankDw = await must('POST', '/daily-works', { employeeId: emp.id, workDate: '2091-05-22', dailyWage: 200_000, workHours: 8 })
+    const [paidBank] = await must('POST', '/daily-works/pay', { ids: [bankDw.id], paidDate: '2091-05-31', bankAccountId: bank.id })
+    const jb = await journalOf(paidBank.journalNo, '2091-05-31')
+    eq('계좌 지급은 대변이 그 계좌의 예금계정', side(jb, bank.glAccountCode, 'credit'), 198_520)
+    const after = (await must('GET', '/bank-cards/accounts')).find((a) => a.id === bank.id)
+    eq('계좌 지급만큼 잔액이 줄어든다', Number(after.balance), Number(bank.balance) - 198_520)
+  }
 }
 
 /**

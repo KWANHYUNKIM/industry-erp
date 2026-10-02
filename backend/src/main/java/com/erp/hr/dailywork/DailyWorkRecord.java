@@ -59,6 +59,11 @@ public class DailyWorkRecord extends BaseTimeEntity {
     @Column(name = "paid_date")
     private LocalDate paidDate;
 
+    /** 지급하며 만든 회계전표. 한 번에 여러 출역을 주면 같은 전표를 가리킨다(QA 69회차). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "journal_entry_id")
+    private com.erp.accounting.journal.JournalEntry journalEntry;
+
     @Column(length = 500)
     private String remark;
 
