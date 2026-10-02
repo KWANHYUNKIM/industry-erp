@@ -21,6 +21,7 @@ const RULES: Rule[] = [
   ['/inventory/transfer', 'STOCK_MOVE'],
   ['/inventory/stocktake', 'STOCK_MOVE'],
   ['/inventory/staged-adjustment', 'STOCK_MOVE'],
+  ['/inventory/staged-progress', 'STOCK_MOVE'],
   ['/inventory/reports', 'STOCK_MOVE'],
   // 재고현황 그룹에 새로 붙은 화면들. 접두어 규칙만 두면 아래 ['/inventory', 'INV_MASTER'] 에
   // 걸려 형제 화면(재고현황·재고수불부)과 다른 권한 바구니에 들어간다 —

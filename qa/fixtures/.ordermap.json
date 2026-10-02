@@ -862,5 +862,9 @@
  [
   "불량처리조회",
   "inventory/StockMoveListPage.tsx"
+ ],
+ [
+  "재고조정진행단계",
+  "inventory/StagedProgressPage.tsx"
  ]
 ]

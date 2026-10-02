@@ -200,3 +200,8 @@ test('최근30일 — 서른 날 전부터 오늘까지(원본 10/02 → 09/02 ~
   assert.deepEqual(periodOf('최근30일', new Date(2026, 9, 2)), { from: '2026-09-02', to: '2026-10-02' })
   assert.deepEqual(periodOf('최근30일', new Date(2026, 2, 1)), { from: '2026-01-30', to: '2026-03-01' })
 })
+
+test('최근40일(+1개월) — 앞 40일 · 뒤 30일', () => {
+  assert.deepEqual(periodOf('최근40일(+1개월)', new Date(2026, 9, 3)),
+    { from: '2026-08-24', to: '2026-11-02' })
+})

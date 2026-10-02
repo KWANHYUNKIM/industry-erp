@@ -15,6 +15,7 @@ const StockRecalcPage = lazy(() => import('../pages/inventory/StockRecalcPage'))
 const StockMovementPage = lazy(() => import('../pages/inventory/StockMovementPage'))
 const DailyReportPage = lazy(() => import('../pages/inventory/DailyReportPage'))
 const StagedAdjustmentPage = lazy(() => import('../pages/inventory/StagedAdjustmentPage'))
+const StagedProgressPage = lazy(() => import('../pages/inventory/StagedProgressPage'))
 const StockAnalysisPage = lazy(() => import('../pages/inventory/StockAnalysisPage'))
 const ExecutiveReportPage = lazy(() => import('../pages/inventory/ExecutiveReportPage'))
 const CurrentStockPage = lazy(() => import('../pages/inventory/CurrentStockPage'))
@@ -261,6 +262,7 @@ export default function AppRouter() {
         <Route path="/inventory/daily-report" element={<DailyReportPage />} />
         <Route path="/inventory/stock-analysis" element={<StockAnalysisPage />} />
         <Route path="/inventory/staged-adjustment" element={<StagedAdjustmentPage />} />
+        <Route path="/inventory/staged-progress" element={<StagedProgressPage />} />
         <Route path="/inventory/executive-report" element={<ExecutiveReportPage />} />
         <Route path="/inventory/current" element={<CurrentStockPage />} />
         <Route path="/inventory/warehouse-stock" element={<WarehouseStockPage />} />

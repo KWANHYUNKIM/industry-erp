@@ -1324,6 +1324,7 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     ['품질검사조회', 'quality/QualityInspectionPage.tsx'],
     ['자가사용조회', 'inventory/StockMoveListPage.tsx'],
     ['불량처리조회', 'inventory/StockMoveListPage.tsx'],
+    ['재고조정진행단계', 'inventory/StagedProgressPage.tsx'],
     ['수령수표조회', 'accounting/CheckListPage.tsx'],
     ['발행수표조회', 'accounting/CheckListPage.tsx'],
     ['주문서현황', 'trade/SalesOrderStatusPage.tsx'],
@@ -4909,6 +4910,8 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
     ['받을어음감소현황|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
     ['받을어음감소현황|정렬/소계기준', '일자 오름차순 하나로 세운다 — 원본 [설정] 팝업의 후보는 값을 저장하는 창이라 안 열어 못 쟀다'],
     ['받을어음감소현황|데이터 보기형식', '그래프로 볼 축이 없다 — 어음 한 장이 한 줄인 목록이다'],
+    /* <b>재고조정진행단계(C000089)</b> — 2026-10-03 원본 실측(StagedProgressPage). */
+    ['재고조정진행단계|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
     /* <b>불량처리조회(C000088)</b> — 2026-10-03 원본 실측(StockMoveListPage kind=DEFECT). */
     ['불량처리조회|발송여부', '불량처리 전표를 메일 · 문자로 보내지 않아 발송 이력이 없다'],
     ['불량처리조회|기타', '[기타]의 [수정일자순(정렬)] 하나인데 목록 응답이 고친 시각을 싣지 않는다'],

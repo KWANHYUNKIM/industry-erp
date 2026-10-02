@@ -90,6 +90,9 @@ export function periodOf(label: string, today = new Date(), fiscalStart?: number
      */
     case '최근30일(+1개월)':
       return { from: ymd(addDays(t, -30)), to: ymd(addDays(t, 30)) }
+    /* 재고조정진행단계(C000089)의 빠른선택 — 같은 '(+1개월)' 규칙(+30일)에 앞쪽만 40일이다(이름만 쟀다, 누르지 않았다). */
+    case '최근40일(+1개월)':
+      return { from: ymd(addDays(t, -40)), to: ymd(addDays(t, 30)) }
     // 현황 화면에서 쓰는 것들. '금월' 과 달리 월말이 아니라 **오늘**까지다.
     case '금월(~오늘)':
       return { from: ymd(new Date(t.getFullYear(), t.getMonth(), 1)), to: ymd(t) }
@@ -260,6 +263,9 @@ export const ORDER_DOC_PICKS = [
 export const QUOTATION_PICKS = [...BASE_PICKS, '종료일', '최근30일(+1개월)'] as const
 
 /** 자가사용조회(E040504) — 발주서 묶음([말일] 포함) 끝에 <b>최근30일(+1개월)</b>이 붙는다(2026-10-03 원본 실측). */
+/** 재고조정진행단계(C000089) — 기본 [금년], 묶음 끝에 전월+금월 · 종료일 · 최근40일(+1개월) · 금년(2026-10-03 원본 실측). */
+export const STAGED_PROGRESS_PICKS = [...BASE_PICKS, '전월+금월', '종료일', '최근40일(+1개월)', '금년'] as const
+
 export const SELF_USE_PICKS = [...ORDER_DOC_PICKS, '최근30일(+1개월)'] as const
 
 /**
