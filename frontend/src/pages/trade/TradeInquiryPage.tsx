@@ -119,7 +119,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   const [projectCond, setProjectCond] = useState('')
   const [itemCond, setItemCond] = useState('')
   /** 목록의 [거래유형명]과 같은 규칙 — 부가세가 있으면 과세다(전표 입력과 같다). */
-  const tradeTypeOf = (d: { vatAmount: number }) => (d.vatAmount > 0 ? '부가세율 적용' : '면세')
+  const tradeTypeOf = (d: { vatAmount: number }) => (d.vatAmount !== 0 ? '부가세율 적용' : '면세')   // 반품은 부가세가 음수다 — > 0 이면 과세 반품이 면세로 찍혔다(26회차)
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [tab, setTab] = useState<SalesTab>('전체')
@@ -664,7 +664,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                 </td>
                 <td style={{ textAlign: 'right' }}>{won(d.totalAmount)}</td>
                 {!isSales && <td style={{ color: '#5a626e' }}>{d.projectName ?? ''}</td>}
-                <td style={{ textAlign: 'center' }}>{d.vatAmount > 0 ? '부가세율 적용' : '면세'}</td>
+                <td style={{ textAlign: 'center' }}>{tradeTypeOf(d)}</td>
                 <td>{d.warehouseName}</td>
                 <td style={{ textAlign: 'center' }}>
                   {d.accountingReflected ? '반영' : '미반영'}
