@@ -22,7 +22,7 @@ public interface JournalLineRepository extends JpaRepository<JournalLine, Long> 
     /**
      * 거래처별 <b>통제계정</b>(외상매출금·외상매입금) 차변합·대변합.
      *
-     * <p>판매·구매전표에서 자동으로 만들어진 전표({@code excludeSource})는 뺀다 —
+     * <p>판매·구매·정산전표에서 자동으로 만들어진 전표({@code excludeSources})는 뺀다 —
      * 그건 이미 전표 자체로 세고 있어서 두 번 세게 된다.
      *
      * <p>누적 잔액을 낼 때는 {@code from} 에 아주 이른 날짜를 준다. null 을 넘겨
@@ -31,11 +31,11 @@ public interface JournalLineRepository extends JpaRepository<JournalLine, Long> 
     @Query("select e.partner.id, coalesce(sum(l.debit),0), coalesce(sum(l.credit),0) " +
             "from JournalLine l join l.entry e " +
             "where l.account.code = :accountCode and e.partner is not null " +
-            "and e.sourceType <> :excludeSource " +
+            "and e.sourceType not in :excludeSources " +
             "and e.entryDate between :from and :to " +
             "group by e.partner.id")
     List<Object[]> sumControlAccountByPartner(@Param("accountCode") String accountCode,
-                                              @Param("excludeSource") com.erp.accounting.journal.JournalSourceType excludeSource,
+                                              @Param("excludeSources") java.util.Collection<com.erp.accounting.journal.JournalSourceType> excludeSources,
                                               @Param("from") LocalDate from,
                                               @Param("to") LocalDate to);
 

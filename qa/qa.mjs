@@ -1857,11 +1857,18 @@ async function scenarioNote(f) {
     ((await must('GET', '/journals?from=2026-01-01&to=2026-12-31&all=true')).rows)
       .filter((j) => j.sourceType === 'NOTE' && String(j.description).includes(noteNo))
 
+  /*
+   * 어음으로 받으면 그 거래처 외상매출금이 그만큼 준다(60회차 — 채권 잔액은 판매−수금만 세서 어음·수표로
+   * 받은 것이 영영 안 줄었다). 지급어음도 외상매입금을 줄인다.
+   */
+  const balOf = async (id) => (await must('GET', '/ledger/partner-balances')).find((x) => x.partnerId === id)
+  const ar0 = Number((await balOf(f.customer.id)).receivable)
   // ── 받을어음: 수취 → 만기결제
   const recv = await must('POST', '/notes', {
     type: 'RECEIVABLE', partnerId: f.customer.id, issueDate: '2026-07-14', dueDate: '2026-09-14',
     amount: 500000, bankName: 'QA은행',
   })
+  eq('받을어음을 받으면 그 거래처 채권이 어음 금액만큼 준다', ar0 - Number((await balOf(f.customer.id)).receivable), 500000)
   eq('신규 어음 상태는 보유', recv.statusName, '보유')
   eq('받을어음 번호는 BN- 접두어', recv.noteNo.startsWith('BN-'), true)
 
@@ -1924,10 +1931,12 @@ async function scenarioNote(f) {
   eq('부도 분개 대변은 받을어음(110)', dishonorEntry.lines.find((l) => Number(l.credit) > 0).accountCode, '110')
 
   // ── 지급어음: 발행 → 만기결제(출금)
+  const ap0 = Number((await balOf(f.supplier.id)).payable)
   const pay = await must('POST', '/notes', {
     type: 'PAYABLE', partnerId: f.supplier.id, issueDate: '2026-07-14', dueDate: '2026-09-30', amount: 150000,
   })
   const payIssue = (await journalsOf(pay.noteNo))[0]
+  eq('지급어음을 발행하면 그 거래처 채무가 어음 금액만큼 준다', ap0 - Number((await balOf(f.supplier.id)).payable), 150000)
   eq('지급어음 발행 차변은 외상매입금(251)', payIssue.lines.find((l) => Number(l.debit) > 0).accountCode, '251')
   eq('지급어음 발행 대변은 지급어음(252)', payIssue.lines.find((l) => Number(l.credit) > 0).accountCode, '252')
 
@@ -7464,6 +7473,15 @@ async function scenarioPartnerMovements(f) {
     `/ledger/partner-movements?from=1900-01-01&to=2099-12-31&side=${side}`)
   eq('채권 분해가 항등식을 지킨다', holds(await wide('AR')), true)
   eq('채무 분해가 항등식을 지킨다', holds(await wide('AP')), true)
+  /*
+   * 회계전표가 통제계정을 움직인 것(어음·수표·외주비 회계반영 …)도 이제 잔액에 들어간다(60회차).
+   * 그래서 전 기간으로 재면 <b>설명 못 한 나머지</b>(기타차액)가 남는 거래처가 없어야 한다 —
+   * 외주비 회계반영 채무가 같은 크기의 음수 기타차액으로 떠 있던 것이 이것으로 잡힌다.
+   */
+  const leftover = async (side) => (await wide(side)).filter((m) => Math.abs(m.otherDiff) >= 0.5)
+    .map((m) => `${m.partnerName} ${m.otherDiff}`).join(' / ') || '없음'
+  eq('전 기간 채권에 설명 못 한 기타차액이 없다', await leftover('AR'), '없음')
+  eq('전 기간 채무에 설명 못 한 기타차액이 없다', await leftover('AP'), '없음')
   eq('시험 기간에서도 항등식을 지킨다', holds(await get('AR')), true)
 
   // 아무 일도 없던 거래처는 줄을 만들지 않는다 — 빈 줄로 표를 채우면 못 읽는다.

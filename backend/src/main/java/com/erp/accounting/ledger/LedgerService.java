@@ -50,15 +50,20 @@ public class LedgerService {
      * 개발 자료에서 외상매출금 대변 4.4억(어음 2.7억 · 수표 1.7억), 외상매입금 차변 1.5억이
      * 그렇게 잔액 바깥에 떠 있었다.
      *
-     * <p>그 미반영분을 잔액 공식에 바로 넣지는 않는다. 넣어 보니 시드 어음이 판매보다 훨씬 커서
-     * 채권 잔액이 통째로 음수가 됐다 — 자료가 짝이 안 맞는다는 뜻이지, 그 상태로 채권현황·
-     * 미수금까지 숫자를 갈아엎을 근거는 아니다. 대신 <b>거래처별채권의 [기타할인등차액]</b> 이
-     * 그 차이를 드러내게 한다. 원본에서 그 열이 하는 일이 정확히 그것이다.
+     * <p><b>그 이동을 잔액에 넣는다(QA 60회차).</b> 예전엔 넣지 않고 [기타할인등차액] 으로만 드러냈다 —
+     * 시드 어음이 판매보다 커서 채권이 음수가 된다는 까닭이었다. 그런데 그러면 어음·수표로 받은 거래처의
+     * 외상매출금이 <b>영영 줄지 않고</b>, 외주비 회계반영(대 251 외상매입금)으로 생긴 외주처 채무는
+     * <b>아예 안 잡힌다</b>(원본은 외주비회계반영이 매입전표를 만들어 채무를 올린다). 잔액이 음수인 것은
+     * 그 거래처 자료가 짝이 안 맞는다는 사실이고, 숨길 일이 아니다. 개발 DB 에서 영향받는 거래처는
+     * QA고객사·QA매입처뿐이었다.
      *
-     * <p>판매·구매전표에서 자동으로 만들어진 회계전표는 뺀다 — 그건 전표 자체로 이미 세고 있다.
+     * <p>판매·구매·정산(수금·지급)전표에서 자동으로 만들어진 회계전표는 뺀다 — 그건 전표 자체로 이미 세고 있다.
      */
     private static final String AR_ACCOUNT = "108";   // 외상매출금
     private static final String AP_ACCOUNT = "251";   // 외상매입금
+    /** 전표 자체로 세는 출처 — 이 출처의 회계전표를 또 더하면 두 번 센다. */
+    private static final java.util.Set<JournalSourceType> COUNTED_BY_SLIP = java.util.EnumSet.of(
+            JournalSourceType.SALES, JournalSourceType.PURCHASE, JournalSourceType.SETTLEMENT);
 
     /** 거래처별 채권(매출−수금)·채무(매입−지급) 현황 — 현재 시점 잔액. */
     @Transactional(readOnly = true)
@@ -91,6 +96,13 @@ public class LedgerService {
                 : settlementRepository.sumByPartnerUntil(SettlementType.PAYMENT, asOf)).forEach(pa ->
                 payables.merge(pa.getPartnerId(), pa.getTotal().negate(), BigDecimal::add));
 
+        // 회계전표가 통제계정을 직접 움직인 것(어음·수표·대체·외주비 회계반영 …). 채권은 차변이, 채무는 대변이 늘린다.
+        LocalDate until = asOf != null ? asOf : LocalDate.of(9999, 12, 31);
+        controlMoves(AR_ACCOUNT, EARLIEST, until).forEach((id, mv) ->
+                receivables.merge(id, mv.debit().subtract(mv.credit()), BigDecimal::add));
+        controlMoves(AP_ACCOUNT, EARLIEST, until).forEach((id, mv) ->
+                payables.merge(id, mv.credit().subtract(mv.debit()), BigDecimal::add));
+
         return partnerRepository.findAllWithGroup().stream()
                 .map(p -> toBalance(p, receivables, payables))
                 .toList();
@@ -99,10 +111,11 @@ public class LedgerService {
     /** 통제계정 한 곳의 거래처별 차변·대변 합. */
     private record Move(BigDecimal debit, BigDecimal credit) {}
 
-    private Map<Long, Move> controlMoves(String accountCode, JournalSourceType exclude,
-                                         LocalDate from, LocalDate to) {
+    private static final LocalDate EARLIEST = LocalDate.of(1900, 1, 1);
+
+    private Map<Long, Move> controlMoves(String accountCode, LocalDate from, LocalDate to) {
         Map<Long, Move> m = new HashMap<>();
-        for (Object[] row : journalLineRepository.sumControlAccountByPartner(accountCode, exclude, from, to)) {
+        for (Object[] row : journalLineRepository.sumControlAccountByPartner(accountCode, COUNTED_BY_SLIP, from, to)) {
             m.put((Long) row[0], new Move((BigDecimal) row[1], (BigDecimal) row[2]));
         }
         return m;
@@ -175,10 +188,7 @@ public class LedgerService {
                         receivableSide ? SettlementType.RECEIPT : SettlementType.PAYMENT, from, to)
                 .forEach(pa -> settled.put(pa.getPartnerId(), pa.getTotal()));
 
-        Map<Long, Move> moves = controlMoves(
-                receivableSide ? AR_ACCOUNT : AP_ACCOUNT,
-                receivableSide ? JournalSourceType.SALES : JournalSourceType.PURCHASE,
-                from, to);
+        Map<Long, Move> moves = controlMoves(receivableSide ? AR_ACCOUNT : AP_ACCOUNT, from, to);
 
         List<PartnerMovementResponse> out = new java.util.ArrayList<>();
         for (BusinessPartner p : partnerRepository.findAllWithGroup()) {
