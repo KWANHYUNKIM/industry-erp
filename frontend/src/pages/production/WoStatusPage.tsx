@@ -105,7 +105,7 @@ export default function WoStatusPage() {
    * 담당자별이다(2026-10-02 loginaa 생산불출현황·작업지시서현황 실측). 라인별은 품목 줄마다, 전표별은 전표 한 장이 한 줄.
    */
   const [mode, setMode] = useState<'내역' | '집계'>('내역')
-  const [lineView, setLineView] = useState<'라인별' | '전표별' | '품목별' | '일별' | '월별'>('라인별')
+  const [lineView, setLineView] = useState<'라인별' | '전표별' | '품목별' | '일별' | '월별' | '전표별품목별' | '담당자별'>('라인별')
   const AXES = ['품목별', '창고별', '거래처별', '담당자별', '월별'] as const
   const [axis, setAxis] = useState<typeof AXES[number]>('품목별')
   /*
@@ -207,7 +207,10 @@ export default function WoStatusPage() {
     /* 일별 · 월별 — 그날(그달) 줄을 한 줄로, 일자만 찍고(No. 없음) 창고·품목은 처음 줄 것, 수량·금액은 합
        (원본 실측 2026-10-02: 9/3 줄 인텔 코어 270 · 43,110,000 = 그날 세 자재의 합). */
     const keyOf = (r: typeof shown[number]) => lineView === '품목별' ? `${r.productId}|${r.warehouseId}`
-      : lineView === '일별' ? r.orderDate : lineView === '월별' ? r.orderDate.slice(0, 7) : r.orderNo
+      : lineView === '일별' ? r.orderDate : lineView === '월별' ? r.orderDate.slice(0, 7)
+      /* 전표별품목별 — 한 전표 안의 같은 품목을 한 줄로. 담당자별 — 담당자 하나가 한 줄, 일자-No.·품목은 처음 줄 것을 둔다
+         (원본 실측 2026-10-02: 담당자가 같은 불출 전부가 9/3 -2 인텔 코어 줄 하나로 1,269 · 105,205,500). */
+      : lineView === '전표별품목별' ? `${r.orderNo}|${r.productId}` : lineView === '담당자별' ? String(r.employeeId ?? '') : r.orderNo
     const bySlip = new Map<string, typeof shown>()
     shown.forEach((r) => bySlip.set(keyOf(r), [...(bySlip.get(keyOf(r)) ?? []), r]))
     return [...bySlip.values()].map((ls) => {
@@ -277,13 +280,15 @@ export default function WoStatusPage() {
             ))}
           </div>
           {mode === '내역' && (
-            <select className="ec-input" value={lineView} onChange={(e) => setLineView(e.target.value as '라인별' | '전표별' | '품목별' | '일별' | '월별')}
+            <select className="ec-input" value={lineView} onChange={(e) => setLineView(e.target.value as '라인별' | '전표별' | '품목별' | '일별' | '월별' | '전표별품목별' | '담당자별')}
                     style={{ width: 110, marginLeft: 6 }}>
               <option value="라인별">라인별</option>
               <option value="전표별">전표별</option>
               <option value="품목별">품목별</option>
               <option value="일별">일별</option>
               <option value="월별">월별</option>
+              <option value="전표별품목별">전표별품목별</option>
+              <option value="담당자별">담당자별</option>
             </select>
           )}
           {mode === '집계' && (

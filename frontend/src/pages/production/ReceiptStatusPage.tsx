@@ -142,7 +142,7 @@ export default function ReceiptStatusPage() {
     id == null ? '' : (employees.find((x) => x.id === id)?.name ?? '')
   const [mode, setMode] = useState<Mode>('내역')
   /** ◉내역 아래 선택상자 — 라인별(기본, 생산 줄마다) · 전표별(전표 한 장이 한 줄). */
-  const [lineView, setLineView] = useState<'라인별' | '전표별' | '품목별' | '일별' | '월별'>('라인별')
+  const [lineView, setLineView] = useState<'라인별' | '전표별' | '품목별' | '일별' | '월별' | '전표별품목별' | '담당자별'>('라인별')
   const [view, setView] = useState<'표' | '그래프'>('표')
 
   async function load() {
@@ -257,7 +257,10 @@ export default function ReceiptStatusPage() {
     /* 일별 · 월별 — 그날(그달) 줄을 한 줄로, 일자만 찍고(No. 없음) 창고·품목은 처음 줄 것, 수량·금액은 합
        (원본 실측 2026-10-02: 9/3 줄 인텔 코어 270 · 43,110,000 = 그날 세 자재의 합). */
     const keyOf = (r: Production) => lineView === '품목별' ? `${r.productId}|${r.fromWarehouseId}|${r.warehouseId}`
-      : lineView === '일별' ? r.productionDate : lineView === '월별' ? r.productionDate.slice(0, 7) : r.prodNo
+      : lineView === '일별' ? r.productionDate : lineView === '월별' ? r.productionDate.slice(0, 7)
+      /* 전표별품목별 — 한 전표 안의 같은 품목을 한 줄로. 담당자별 — 담당자 하나가 한 줄, 일자-No.·품목은 처음 줄 것을 둔다
+         (원본 실측 2026-10-02: 담당자가 같은 불출 전부가 9/3 -2 인텔 코어 줄 하나로 1,269 · 105,205,500). */
+      : lineView === '전표별품목별' ? `${r.prodNo}|${r.productId}` : lineView === '담당자별' ? String(r.employeeId ?? '') : r.prodNo
     const m = new Map<string, Production[]>()
     shown.forEach((r) => m.set(keyOf(r), [...(m.get(keyOf(r)) ?? []), r]))
     return [...m.values()].map((ls) => ({ ...ls[0],
@@ -295,13 +298,15 @@ export default function ReceiptStatusPage() {
         picks={STATUS_PICKS}
         modes={MODES} mode={mode} onModeChange={(m) => setMode(m as Mode)}
         modeExtra={mode === '내역' ? (
-          <select className="ec-input" value={lineView} onChange={(e) => setLineView(e.target.value as '라인별' | '전표별' | '품목별' | '일별' | '월별')}
+          <select className="ec-input" value={lineView} onChange={(e) => setLineView(e.target.value as '라인별' | '전표별' | '품목별' | '일별' | '월별' | '전표별품목별' | '담당자별')}
                   style={{ width: 110, marginLeft: 6 }}>
             <option value="라인별">라인별</option>
             <option value="전표별">전표별</option>
             <option value="품목별">품목별</option>
             <option value="일별">일별</option>
             <option value="월별">월별</option>
+            <option value="전표별품목별">전표별품목별</option>
+            <option value="담당자별">담당자별</option>
           </select>
         ) : undefined}
         view={view} onViewChange={setView}

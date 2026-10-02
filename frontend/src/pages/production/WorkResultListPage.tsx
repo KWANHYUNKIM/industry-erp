@@ -101,7 +101,7 @@ export default function WorkResultListPage() {
   const [to, setTo] = useState(init.to)
   const [mode, setMode] = useState<Mode>('내역')
   /** 원본 ◉내역 아래 선택상자 — 라인별(기본, 작업 줄마다) · 전표별(작업내역 전표 한 장이 한 줄)(2026-10-02 loginaa 실측). */
-  const [lineView, setLineView] = useState<'라인별' | '전표별' | '일별' | '월별'>('라인별')
+  const [lineView, setLineView] = useState<'라인별' | '전표별' | '일별' | '월별' | '담당자별'>('라인별')
   const [process, setProcess] = useState('')
   const [worker, setWorker] = useState('')
   const [orderNo, setOrderNo] = useState('')
@@ -196,7 +196,9 @@ export default function WorkResultListPage() {
     const m = new Map<string, WorkResult[]>()
     /* 일별 · 월별 — 그날(그달) 줄을 한 줄로, 일자만 찍고(No. 없음) 창고·품목은 처음 줄 것, 수량·금액은 합
        (원본 실측 2026-10-02: 9/3 줄 인텔 코어 270 · 43,110,000 = 그날 세 자재의 합). */
-    const keyOf = (r: WorkResult) => lineView === '일별' ? r.workDate : lineView === '월별' ? r.workDate.slice(0, 7) : r.resultNo
+    /* 담당자별 — 작업자 하나가 한 줄(일자-No.·작업은 처음 줄 것). */
+    const keyOf = (r: WorkResult) => lineView === '일별' ? r.workDate : lineView === '월별' ? r.workDate.slice(0, 7)
+      : lineView === '담당자별' ? (r.worker ?? '') : r.resultNo
     shown.forEach((r) => m.set(keyOf(r), [...(m.get(keyOf(r)) ?? []), r]))
     return [...m.values()].map((ls) => ({ ...ls[0],
       ...(lineView === '일별' || lineView === '월별' ? { resultNo: '', workDate: lineView === '월별' ? ls[0].workDate.slice(0, 7).replace('-', '/') : ls[0].workDate } : {}),
@@ -267,12 +269,13 @@ export default function WorkResultListPage() {
         picks={STATUS_PICKS}
         modes={MODES} mode={mode} onModeChange={(m) => setMode(m as Mode)}
         modeExtra={mode === '내역' ? (
-          <select className="ec-input" value={lineView} onChange={(e) => setLineView(e.target.value as '라인별' | '전표별' | '일별' | '월별')}
+          <select className="ec-input" value={lineView} onChange={(e) => setLineView(e.target.value as '라인별' | '전표별' | '일별' | '월별' | '담당자별')}
                   style={{ width: 110, marginLeft: 6 }}>
             <option value="라인별">라인별</option>
             <option value="전표별">전표별</option>
             <option value="일별">일별</option>
             <option value="월별">월별</option>
+            <option value="담당자별">담당자별</option>
           </select>
         ) : undefined}
         view={view} onViewChange={setView}
