@@ -391,6 +391,8 @@ const MENU: TopMenu[] = [
           { label: '받을어음증가현황', to: '/accounting/notes-in' },
           { label: '받을어음감소현황', to: '/accounting/notes-out' },
           { label: '보유어음현황', to: '/accounting/notes-held' },
+          { label: '지급어음증가현황', to: '/accounting/notes-pay-in' },
+          { label: '지급어음감소현황', to: '/accounting/notes-pay-out' },
           { label: '미지급어음현황', to: '/accounting/notes-unpaid' },
         ],
       },

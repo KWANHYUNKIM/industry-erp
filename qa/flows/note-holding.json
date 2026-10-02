@@ -56,6 +56,14 @@
       ]
     },
     {
+      "name": "지급어음증가현황 · 감소현황 — 받을어음은 지급어음 화면에 안 뜨고, 머리는 받을어음 쪽과 같다",
+      "path": "/accounting/notes-pay-in",
+      "steps": [
+        "wait:1800",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');return document.body.innerText.includes('지급어음증가현황')&&h==='일자|어음번호|거래처명|계정명|적요|만기일자|금액'&&!([...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes(sessionStorage.getItem('nhNo'))))})()"
+      ]
+    },
+    {
       "name": "정리 — 만든 어음을 지운다(API)",
       "path": "/accounting/notes-held",
       "steps": [

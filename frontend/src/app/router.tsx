@@ -391,8 +391,10 @@ export default function AppRouter() {
         <Route path="/accounting/other-withholding" element={<OtherWithholdingPage />} />
         <Route path="/accounting/corporate-tax" element={<CorporateTaxPage />} />
         <Route path="/accounting/notes" element={<PromissoryNotePage />} />
-        <Route path="/accounting/notes-in" element={<NoteFlowPage flow="증가" />} />
-        <Route path="/accounting/notes-out" element={<NoteFlowPage flow="감소" />} />
+        <Route path="/accounting/notes-in" element={<NoteFlowPage type="RECEIVABLE" flow="증가" />} />
+        <Route path="/accounting/notes-out" element={<NoteFlowPage type="RECEIVABLE" flow="감소" />} />
+        <Route path="/accounting/notes-pay-in" element={<NoteFlowPage type="PAYABLE" flow="증가" />} />
+        <Route path="/accounting/notes-pay-out" element={<NoteFlowPage type="PAYABLE" flow="감소" />} />
         <Route path="/accounting/notes-held" element={<NoteHoldingPage type="RECEIVABLE" />} />
         <Route path="/accounting/notes-unpaid" element={<NoteHoldingPage type="PAYABLE" />} />
         <Route path="/accounting/budget" element={<BudgetPage />} />

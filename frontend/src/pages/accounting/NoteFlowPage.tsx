@@ -6,7 +6,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { NOTE_FLOW_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
-import type { NoteSummary, PromissoryNote } from '../../types/api'
+import type { NoteSummary, NoteType, PromissoryNote } from '../../types/api'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
@@ -20,11 +20,13 @@ const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
  * 열 일자 · 어음번호 · 거래처명 · 계정명 · 적요 · 금액. 어음이 손을 떠난 날(만기결제 · 할인 · 부도)이 기간 안인 것 —
  * 일자는 그 닫힌 날이다. 부서 · 프로젝트는 어음(PromissoryNote)이 들지 않는다.
  *
- * <p>지급어음증가현황 · 감소현황은 아직 원본을 못 재어 메뉴에 두지 않았다.
+ * <p>지급어음증가현황(E010632) · 감소현황(E010633)도 조건 · 열 · 기본값이 글자 하나까지 같다(같은 날 실측) — type 만 바꾼다.
  */
-export default function NoteFlowPage({ flow }: { flow: '증가' | '감소' }) {
-  const title = flow === '증가' ? '받을어음증가현황' : '받을어음감소현황'
-  const account = '받을어음'
+export default function NoteFlowPage({ type, flow }: { type: NoteType; flow: '증가' | '감소' }) {
+  const title = type === 'RECEIVABLE'
+    ? (flow === '증가' ? '받을어음증가현황' : '받을어음감소현황')
+    : (flow === '증가' ? '지급어음증가현황' : '지급어음감소현황')
+  const account = type === 'RECEIVABLE' ? '받을어음' : '지급어음'
   const init = periodOf('최근30일')!
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
@@ -57,11 +59,11 @@ export default function NoteFlowPage({ flow }: { flow: '증가' | '감소' }) {
     }
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { void load() }, [from, to, flow])
+  useEffect(() => { void load() }, [from, to, flow, type])
 
   const dayOf = (n: PromissoryNote) => (flow === '증가' ? n.issueDate : n.closedDate ?? '')
   const shown = useMemo(() => notes
-    .filter((n) => n.type === 'RECEIVABLE')
+    .filter((n) => n.type === type)
     .filter((n) => { const d = dayOf(n); return !!d && d >= from && d <= to })
     .filter((n) => flow === '감소' || ((!dueFrom || n.dueDate >= dueFrom) && (!dueTo || n.dueDate <= dueTo)))
     .filter((n) => !partner || String(n.partnerId) === partner)
@@ -69,13 +71,13 @@ export default function NoteFlowPage({ flow }: { flow: '증가' | '감소' }) {
     .filter((n) => !remark || (n.remark ?? '').includes(remark))
     .sort((a, b) => (dayOf(a) < dayOf(b) ? -1 : dayOf(a) > dayOf(b) ? 1 : a.noteNo.localeCompare(b.noteNo))),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  [notes, flow, from, to, dueFrom, dueTo, partner, noteNo, remark])
+  [notes, type, flow, from, to, dueFrom, dueTo, partner, noteNo, remark])
   const total = shown.reduce((a, n) => a + Number(n.amount), 0)
   const partners = useMemo(() => {
     const m = new Map<number, string>()
-    notes.filter((n) => n.type === 'RECEIVABLE').forEach((n) => m.set(n.partnerId, n.partnerName))
+    notes.filter((n) => n.type === type).forEach((n) => m.set(n.partnerId, n.partnerName))
     return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1])).map(([id, name]) => ({ value: String(id), name }))
-  }, [notes])
+  }, [notes, type])
   const cols = flow === '증가' ? 7 : 6
   /* 증가현황만 [만기일자] 열이 있다 — 그려진 표를 직접 잰다. */
   const tableRef = useRef<HTMLTableElement>(null)
@@ -112,7 +114,7 @@ export default function NoteFlowPage({ flow }: { flow: '증가' | '감소' }) {
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={220} emptyLabel="전체" value={partner} onChange={setPartner} items={partners} />
         </EcCond>
-        {/* 원본 [계정] — 이 화면의 어음 계정은 받을어음 하나다. */}
+        {/* 원본 [계정] — 이 화면의 어음 계정은 하나다(받을어음 · 지급어음). */}
         <EcCond label="계정">
           <select className="ec-input" value={account} disabled style={{ width: 140 }}>
             <option value={account}>{account}</option>
