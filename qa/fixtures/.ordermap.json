@@ -946,5 +946,9 @@
  [
   "고정자산전표조회",
   "accounting/FixedAssetSlipListPage.tsx"
+ ],
+ [
+  "현금출납장",
+  "accounting/CashBookPage.tsx"
  ]
 ]

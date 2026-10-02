@@ -5594,5 +5594,35 @@
    "updatedAt"
   ],
   "in": "backend/src/main/java/com/erp/accounting/fixedasset/dto/FixedAssetDtos.java"
+ },
+ "현금출납장|부서": {
+  "claim": "회계전표에 부서가 없다",
+  "absent": [
+   "department",
+   "Department"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "현금출납장|프로젝트": {
+  "claim": "회계전표에 프로젝트가 없다",
+  "absent": [
+   "project",
+   "Project"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "현금출납장|결재방표시": {
+  "claim": "결재란을 그리지 않는다",
+  "absent": [
+   "approvalBox",
+   "결재란"
+  ],
+  "in": "frontend/src/pages/accounting/CashBookPage.tsx"
+ },
+ "현금출납장|데이터 보기형식": {
+  "claim": "분개 한 줄이 한 줄인 장부다",
+  "present": [
+   "key={key}"
+  ]
  }
 }

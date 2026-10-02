@@ -1,0 +1,17 @@
+{
+  "about": "현금출납장(E010801) — 원본 열 차례, 기간을 넓히면 현금 분개가 상대계정명과 함께 뜨는지 본다.",
+  "shots": [
+    {
+      "name": "현금출납장 — 머리 일자-No. · 상대계정명 · 상대거래처명 · 적요 · 차변금액 · 대변금액 · 잔액, [금년]으로 넓히고 [예금포함]을 켜면 줄마다 상대계정명이 찍힌다",
+      "path": "/accounting/cash-book",
+      "steps": [
+        "wait:2000",
+        "expect:[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|')==='일자-No.|상대계정명|상대거래처명|적요|차변금액|대변금액|잔액'",
+        "js:(()=>{[...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='예금포함').querySelector('input').click();return true})()",
+        "js:(()=>{const f=[...document.querySelectorAll('input[type=date]')];const y=new Date().getFullYear();const set=(el,v)=>{Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,v);el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))};set(f[0],(y-1)+'-01-01');return true})()",
+        "wait:2500",
+        "expect:(()=>{const rows=[...document.querySelectorAll('tbody tr')].filter((t)=>t.cells.length===7);return rows.length===0||rows.some((t)=>t.cells[1].innerText.trim()!=='')})()"
+      ]
+    }
+  ]
+}

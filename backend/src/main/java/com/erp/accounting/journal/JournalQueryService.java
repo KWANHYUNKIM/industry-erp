@@ -85,11 +85,22 @@ public class JournalQueryService {
             rows.add(new LedgerRow(
                     l.getEntry().getEntryDate(), l.getEntry().getDocNo(), l.getDescription(),
                     l.getEntry().getPartner() != null ? l.getEntry().getPartner().getName() : null,
-                    l.getDebit(), l.getCredit(), running));
+                    l.getDebit(), l.getCredit(), running, counterOf(l)));
         }
         return new AccountLedgerResponse(
                 account.getId(), account.getCode(), account.getName(), account.getDivision(),
                 totalDebit, totalCredit, running, rows);
+    }
+
+    /** 같은 전표의 다른 줄 계정 이름 — 하나면 그 이름, 둘 이상이면 '첫 계정 외 n'. 원장 계정과 같은 계정은 뺀다. */
+    private static String counterOf(JournalLine l) {
+        List<String> names = l.getEntry().getLines().stream()
+                .filter((o) -> o != l && !o.getAccount().getId().equals(l.getAccount().getId()))
+                .map((o) -> o.getAccount().getName())
+                .distinct()
+                .toList();
+        if (names.isEmpty()) return null;
+        return names.size() == 1 ? names.get(0) : names.get(0) + " 외 " + (names.size() - 1);
     }
 
     /** 합계잔액시산표. 전체 차변합 = 전체 대변합이면 대차평형. */

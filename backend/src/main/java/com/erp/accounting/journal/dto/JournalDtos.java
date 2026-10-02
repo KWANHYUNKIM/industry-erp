@@ -95,7 +95,12 @@ public final class JournalDtos {
     public record LedgerRow(
             LocalDate entryDate, String docNo, String description,
             String partnerName,
-            BigDecimal debit, BigDecimal credit, BigDecimal balance
+            BigDecimal debit, BigDecimal credit, BigDecimal balance,
+            /**
+             * 원본 현금출납장의 [상대계정명] — 같은 전표의 다른 줄 계정. 둘 이상이면 첫 계정 '외 n'.
+             * 계정별원장 화면은 이 칸을 쓰지 않는다.
+             */
+            String counterAccountName
     ) {}
 
     public record AccountLedgerResponse(

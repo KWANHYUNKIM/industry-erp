@@ -1575,6 +1575,8 @@ export interface LedgerRow {
   debit: number
   credit: number
   balance: number
+  /** 원본 현금출납장의 [상대계정명] — 같은 전표의 다른 줄 계정. */
+  counterAccountName?: string | null
 }
 
 export interface AccountLedger {
