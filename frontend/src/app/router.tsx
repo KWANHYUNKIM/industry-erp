@@ -220,6 +220,7 @@ const WorkResultListPage = lazy(() => import('../pages/production/WorkResultList
 const WorkResultInquiryPage = lazy(() => import('../pages/production/WorkResultInquiryPage'))
 const WoProgressPage = lazy(() => import('../pages/production/WoProgressPage'))
 const ExpenseDetailPage = lazy(() => import('../pages/accounting/ExpenseDetailPage'))
+const ExpenseListPage = lazy(() => import('../pages/accounting/ExpenseListPage'))
 const SwSchedulePage = lazy(() => import('../pages/groupware/SwSchedulePage'))
 const ConstructionSchedulePage = lazy(() => import('../pages/groupware/ConstructionSchedulePage'))
 const SurveyInputPage = lazy(() => import('../pages/groupware/SurveyInputPage'))
@@ -467,6 +468,7 @@ export default function AppRouter() {
         <Route path="/accounting/monthly-profit" element={<MonthlyProfitPage />} />
         <Route path="/accounting/daily-profit" element={<DailyProfitPage />} />
         <Route path="/accounting/expense-detail" element={<ExpenseDetailPage />} />
+        <Route path="/accounting/expense-list" element={<ExpenseListPage />} />
 
         {/* 품질 */}
         <Route path="/quality" element={<Navigate to="/quality/inspection" replace />} />

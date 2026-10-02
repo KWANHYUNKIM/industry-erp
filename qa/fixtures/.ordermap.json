@@ -914,5 +914,9 @@
  [
   "BOM(소요량)조회",
   "production/BomPage.tsx"
+ ],
+ [
+  "비용내역조회",
+  "accounting/ExpenseListPage.tsx"
  ]
 ]

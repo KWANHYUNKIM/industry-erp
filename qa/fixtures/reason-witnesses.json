@@ -5427,5 +5427,30 @@
    "sendStatus"
   ],
   "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
+ },
+ "비용내역조회|비고": {
+  "claim": "글자 칸이 content(적요) 하나뿐이라 비고에 담을 자리가 없다",
+  "absent": [
+   "remark",
+   "note"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/expense/Expense.java"
+ },
+ "비용내역조회|결제구분": {
+  "claim": "개인비용·회사비용을 가르는 칸이 없다 — 우리가 든 것은 결제수단이다",
+  "absent": [
+   "personalExpense",
+   "expenseOwner"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/expense/Expense.java"
+ },
+ "비용내역조회|사용일자": {
+  "claim": "비용 전표에 날짜가 하나뿐이다",
+  "absent": [
+   "useDate",
+   "usedDate",
+   "usageDate"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/expense/Expense.java"
  }
 }
