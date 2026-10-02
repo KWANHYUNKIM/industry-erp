@@ -207,6 +207,14 @@ public class FixedAssetService {
         if (account.getDivision() != com.erp.accounting.account.AccountDivision.ASSET) {
             throw ApiException.badRequest("고정자산은 자산 계정에만 등록할 수 있습니다: " + account.getName());
         }
+        /*
+         * 자산 계정이어도 현금·외상매출금·원재료(1xx 유동자산)는 감가상각할 자산이 아니다. 화면이 그것까지 골라 줘서
+         * 현금 계정에 고정자산을 달 수 있었다(34회차). 비유동자산(2xx)만, 감가상각누계액(차감계정)은 빼고.
+         */
+        if (!account.getCode().startsWith("2") || account.getName().contains("누계")) {
+            throw ApiException.badRequest("고정자산은 유형자산 계정(기계장치·차량운반구·비품 등 2xx)에만 등록할 수 있습니다: "
+                    + account.getCode() + " " + account.getName());
+        }
         return account;
     }
 }

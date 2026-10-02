@@ -273,9 +273,13 @@ function DepreciationTable({ rows, period }: { rows: DepreciationRow[]; period: 
 function AssetForm({ accounts, onError, onSaved }: {
   accounts: AccountOption[]; onError: (m: string) => void; onSaved: () => void
 }) {
-  // 감가상각누계액(203)은 차감계정이라 자산 등록 대상에서 뺀다.
+  /*
+   * 고정자산은 <b>비유동(유형) 자산 계정</b>(2xx — 기계장치 206 · 차량운반구 208 · 비품 212 …)에만 단다.
+   * 예전엔 자산 계정 전부라 현금·외상매출금·원재료에도 고정자산을 등록해 감가상각할 수 있었다(34회차).
+   * 감가상각누계액은 차감계정이라 뺀다.
+   */
   const assetAccounts = useMemo(
-    () => accounts.filter((a) => a.division === 'ASSET' && a.code !== '203'), [accounts])
+    () => accounts.filter((a) => a.division === 'ASSET' && a.code.startsWith('2') && !a.name.includes('누계')), [accounts])
   const [form, setForm] = useState({
     name: '', assetAccountId: '', acquisitionDate: today(), acquisitionCost: '',
     salvageValue: '', usefulLifeYears: '5', method: 'STRAIGHT_LINE' as DepreciationMethod,

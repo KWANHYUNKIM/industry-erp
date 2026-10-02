@@ -1731,6 +1731,12 @@ async function scenarioFixedAsset() {
     acquisitionCost: 1_000_000, usefulLifeYears: 5, method: 'DECLINING_BALANCE',
   }, '상각률')
 
+  /* 현금·외상매출금 같은 유동자산 계정에는 고정자산을 달 수 없다(34회차 — 화면이 그것까지 골라 줬다). */
+  await rejects('유동자산(현금) 계정에는 고정자산을 등록할 수 없다', 'POST', '/fixed-assets', {
+    name: `${P}현금자산`, assetAccountId: accounts.find((a) => a.code === '101').id, acquisitionDate: '2026-01-15',
+    acquisitionCost: 1_000_000, salvageValue: 0, usefulLifeYears: 5, method: 'STRAIGHT_LINE',
+  }, '유형자산')
+
   const run = await must('POST', '/fixed-assets/depreciate', { period: '2026-06' })
   const mine = run.rows.find((r) => r.assetId === asset.id)
   eq('정액법 월 상각액 = (취득가-잔존가)/내용연수/12', Number(mine.amount), 200_000)
