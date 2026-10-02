@@ -537,6 +537,17 @@
         "wait:2000",
         "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');return h==='일자 - 번호|거래처명|공급가액|부가세|합 계|내역보기'&&!document.querySelector('table tfoot')})()"
       ]
+    },
+    {
+      "name": "BOM(소요량)조회 — 품목 한 줄: 열 품목코드 · 품목명[규격] · 생산공정명 · 원재료갯수 · BOM등록 · 조회, BOM 있는 품목이 먼저 서고 [정전개] 가 붙는다",
+      "path": "/production/bom",
+      "steps": [
+        "wait:2500",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const tr=[...document.querySelectorAll('tbody tr')];const first=tr[0];return h==='품목코드|품목명[규격]|생산공정명|원재료갯수|BOM등록|조회'&&tr.length>0&&(!first.innerText.includes('정전개')?true:/\\.00$/.test(first.cells[3].innerText.trim()))})()",
+        "click:제품",
+        "wait:500",
+        "expect:[...document.querySelectorAll('tbody tr')].length>0"
+      ]
     }
   ]
 }

@@ -910,5 +910,9 @@
  [
   "A/S수리조회",
   "quality/AsRepairListPage.tsx"
+ ],
+ [
+  "BOM(소요량)조회",
+  "production/BomPage.tsx"
  ]
 ]

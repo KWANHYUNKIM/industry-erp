@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, useRef} from 'react'
+import { useEffect, useMemo, useState, type FormEvent, useRef} from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { Bom, Item } from '../../types/api'
@@ -10,6 +10,11 @@ const inputCls = 'ec-input'
 
 interface LineInput { componentId: string; quantity: string }
 const emptyLine = (): LineInput => ({ componentId: '', quantity: '' })
+/** 원본 BOM(소요량)조회 탭 — 우리 품목 구분에 있는 것만(세트 · 다공정품목은 없다). */
+const CAT_TABS: { label: string; v: string | null }[] = [
+  { label: '전체', v: null }, { label: '제품', v: 'FINISHED' }, { label: '반제품', v: 'SEMI_FINISHED' },
+  { label: '원재료', v: 'RAW_MATERIAL' }, { label: '부재료', v: 'SUB_MATERIAL' },
+]
 
 /** 원본 BOM 정전개·역전개 한 줄. */
 interface TreeRow {
@@ -96,6 +101,11 @@ export default function BomPage() {
     setShowForm(true)
   }
 
+  function openNewFor(itemId: number) {
+    openNew()
+    setProductId(String(itemId))
+  }
+
   function editBom(b: Bom) {
     setProductId(String(b.productId))
     setRemark(b.remark ?? '')
@@ -144,13 +154,26 @@ export default function BomPage() {
     .map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))
 
 
+  /* 품목 한 줄 — 기본 BOM(없으면 첫 버전)을 붙인다. BOM 있는 품목이 먼저, 그다음 품목코드 차례(원본 실측). */
+  const [catTab, setCatTab] = useState<string>('전체')
+  const itemRows = useMemo(() => {
+    const bomOf = new Map<number, Bom>()
+    for (const b of boms) if (!bomOf.has(b.productId) || b.defaultVersion) bomOf.set(b.productId, b)
+    const cat = CAT_TABS.find((t) => t.label === catTab)?.v
+    return items
+      .filter((it) => it.active !== false)
+      .filter((it) => !cat || it.category === cat)
+      .map((it) => ({ it, bom: bomOf.get(it.id) ?? null }))
+      .sort((a, b) => (a.bom ? 0 : 1) - (b.bom ? 0 : 1) || a.it.code.localeCompare(b.it.code))
+  }, [items, boms, catTab])
+
   /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
   const tableRef = useRef<HTMLTableElement>(null)
-  useTableColumnCheck(tableRef, 'BOM 등록', [])
+  useTableColumnCheck(tableRef, 'BOM(소요량)조회', [itemRows.length])
 
   return (
     <EcListShell
-      title="BOM(자재명세서) 리스트"
+      title="BOM(소요량)조회"
       onNew={showForm ? () => setShowForm(false) : openNew}
       actions={[{ label: 'Excel' }]}
     >
@@ -216,50 +239,58 @@ export default function BomPage() {
         </form>
       )}</Modal>
 
-      <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {loading ? (
-          <p style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</p>
-        ) : boms.length === 0 ? (
-          <p style={{ textAlign: 'center', color: '#9aa1ab', padding: 20, border: '1px solid var(--ec-border)', background: '#fff' }}>등록된 BOM이 없습니다.</p>
-        ) : (
-          boms.map((b) => (
-            <div key={b.id} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
-                <div>
-                  <span style={{ fontFamily: 'monospace', fontSize: 11.5, color: '#8a929c' }}>{b.productCode}</span>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-text)' }}>
-                    {b.productName}
-                    <span style={{ marginLeft: 8, fontSize: 11.5, fontWeight: 600, color: b.defaultVersion ? 'var(--ec-blue)' : '#8a929c' }}>
-                      [{b.versionName}{b.defaultVersion ? ' · 기본' : ''}]
-                    </span>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={() => void openTree(b, 'F')} className="no-ec" style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12 }}>정전개</button>
-                  <button onClick={() => void openTree(b, 'R')} className="no-ec" style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12 }}>역전개</button>
-                  <button onClick={() => void openTree(b, 'L')} className="no-ec" style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12 }}>원재료리스트</button>
-                  <button onClick={() => editBom(b)} className="no-ec" style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12 }}>수정</button>
-                  <button onClick={() => remove(b)} className="no-ec" style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>삭제</button>
-                </div>
-              </div>
-              <table className="w-full text-left">
-                <thead>
-                  <tr><th>구성 자재</th><th style={{ textAlign: 'right', width: 150 }}>소요량</th><th style={{ width: 80 }}>단위</th></tr>
-                </thead>
-                <tbody>
-                  {b.lines.map((l) => (
-                    <tr key={l.componentId}>
-                      <td>[{l.componentCode}] {l.componentName}</td>
-                      <td style={{ textAlign: 'right', fontWeight: 600 }}>{l.quantity.toLocaleString()}</td>
-                      <td style={{ color: '#5a626e' }}>{l.unit}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ))
-        )}
+      {/*
+        원본 <b>BOM(소요량)조회</b>(E040401, 2026-10-03 실측)는 <b>품목 한 줄</b>이다 — BOM 이 있든 없든 품목이 다 서고,
+        위 탭 전체 · 제품 · 반제품 · 세트 · 원재료 · 부재료 · 다공정품목으로 가른다. 열은 품목코드 · 품목명[규격] · 생산공정명 ·
+        원재료갯수 · 파일관리 · BOM등록 · 조회. BOM 이 있는 품목이 먼저 선다. 세트 · 다공정품목은 우리 품목 구분에 없고
+        파일관리는 품목에 파일을 붙이지 않아 그 탭 · 열을 두지 않았다. 원재료갯수는 기본 BOM 의 자재 줄 수다.
+      */}
+      <div style={{ display: 'flex', gap: 2, margin: '12px 0 8px' }}>
+        {CAT_TABS.map((t) => (
+          <button key={t.label} onClick={() => setCatTab(t.label)} className="no-ec" style={{
+            padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
+            background: catTab === t.label ? 'var(--ec-blue)' : '#fff', color: catTab === t.label ? '#fff' : '#3a4453', fontWeight: catTab === t.label ? 700 : 400,
+          }}>{t.label}</button>
+        ))}
       </div>
+      <table ref={tableRef} className="w-full text-left">
+        <thead>
+          <tr>
+            <th style={{ width: 110 }}>품목코드</th>
+            <th>품목명[규격]</th>
+            <th style={{ width: 110 }}>생산공정명</th>
+            <th style={{ width: 90, textAlign: 'right' }}>원재료갯수</th>
+            <th style={{ width: 80, textAlign: 'center' }}>BOM등록</th>
+            <th style={{ width: 260, textAlign: 'center' }}>조회</th>
+          </tr>
+        </thead>
+        <tbody>
+          {loading ? (
+            <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+          ) : itemRows.length === 0 ? (
+            <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          ) : itemRows.map(({ it, bom }) => (
+            <tr key={it.id}>
+              <td style={{ fontFamily: 'monospace' }}>{it.code}</td>
+              <td>{it.name}{it.spec ? ` [${it.spec}]` : ''}</td>
+              <td>{(it as { processName?: string | null }).processName ?? ''}</td>
+              <td style={{ textAlign: 'right' }}>{bom ? bom.lines.length.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}</td>
+              <td style={{ textAlign: 'center' }}>
+                <button onClick={() => (bom ? editBom(bom) : openNewFor(it.id))} className="no-ec" style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12 }}>{bom ? '수정' : '등록'}</button>
+              </td>
+              <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                {bom ? (<>
+                  <button onClick={() => void openTree(bom, 'F')} className="no-ec" style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12 }}>정전개</button>
+                  <button onClick={() => void openTree(bom, 'R')} className="no-ec" style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12 }}>역전개</button>
+                  <button onClick={() => void openTree(bom, 'L')} className="no-ec" style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12 }}>원재료리스트</button>
+                  <button onClick={() => remove(bom)} className="no-ec" style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                </>) : null}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
       <Modal open={tree != null} title={tree?.title ?? ''} error={error} width={760} onClose={() => setTree(null)}>
         {tree && (
           <>
