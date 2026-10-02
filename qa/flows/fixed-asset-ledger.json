@@ -35,6 +35,17 @@
         "wait:400",
         "expect:[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).slice(8).join('|')==='기초_원가|증가_원가|감소_원가|기말_원가'"
       ]
+    },
+    {
+      "name": "고정자산전표조회 — 머리 일자-No. · 구분 · 자산계정명 · 원가 · 감가상각충당금 · 처분금액 · 적요, [감가상각]만 끄면 그 줄이 빠진다",
+      "path": "/accounting/fixed-asset-slips",
+      "steps": [
+        "wait:2000",
+        "expect:[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|')==='|일자-No.|구분|자산계정명|원가|감가상각충당금|처분금액|적요'",
+        "js:(()=>{[...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='감가상각').querySelector('input').click();return true})()",
+        "wait:400",
+        "expect:![...document.querySelectorAll('tbody tr')].some((t)=>t.cells[2]&&t.cells[2].innerText.trim()==='감가상각')"
+      ]
     }
   ]
 }

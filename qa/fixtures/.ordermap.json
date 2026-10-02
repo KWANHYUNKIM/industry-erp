@@ -942,5 +942,9 @@
  [
   "고정자산증감대장",
   "accounting/FixedAssetMovementPage.tsx"
+ ],
+ [
+  "고정자산전표조회",
+  "accounting/FixedAssetSlipListPage.tsx"
  ]
 ]

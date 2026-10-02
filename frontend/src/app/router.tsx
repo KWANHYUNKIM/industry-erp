@@ -69,6 +69,7 @@ const FixedAssetPage = lazy(() => import('../pages/accounting/FixedAssetPage'))
 const FixedAssetLedgerPage = lazy(() => import('../pages/accounting/FixedAssetLedgerPage'))
 const FixedAssetFlowPage = lazy(() => import('../pages/accounting/FixedAssetFlowPage'))
 const FixedAssetMovementPage = lazy(() => import('../pages/accounting/FixedAssetMovementPage'))
+const FixedAssetSlipListPage = lazy(() => import('../pages/accounting/FixedAssetSlipListPage'))
 const FastVoucherPage = lazy(() => import('../pages/accounting/FastVoucherPage'))
 const NonCashPage = lazy(() => import('../pages/accounting/NonCashPage'))
 const CheckPage = lazy(() => import('../pages/accounting/CheckPage'))
@@ -451,6 +452,7 @@ export default function AppRouter() {
         <Route path="/accounting/fixed-asset-in" element={<FixedAssetFlowPage flow="증가" />} />
         <Route path="/accounting/fixed-asset-out" element={<FixedAssetFlowPage flow="감소" />} />
         <Route path="/accounting/fixed-asset-movement" element={<FixedAssetMovementPage />} />
+        <Route path="/accounting/fixed-asset-slips" element={<FixedAssetSlipListPage />} />
         <Route path="/accounting/cash-deposit" element={<CashTxnPage mode="deposit" />} />
         <Route path="/accounting/cash-withdraw" element={<CashTxnPage mode="withdraw" />} />
         <Route path="/accounting/cash-details" element={<CashDetailPage />} />

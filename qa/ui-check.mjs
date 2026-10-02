@@ -1343,6 +1343,7 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     ['고정자산증가내역', 'accounting/FixedAssetFlowPage.tsx'],
     ['고정자산감소내역', 'accounting/FixedAssetFlowPage.tsx'],
     ['고정자산증감대장', 'accounting/FixedAssetMovementPage.tsx'],
+    ['고정자산전표조회', 'accounting/FixedAssetSlipListPage.tsx'],
     ['수령수표조회', 'accounting/CheckListPage.tsx'],
     ['발행수표조회', 'accounting/CheckListPage.tsx'],
     ['주문서현황', 'trade/SalesOrderStatusPage.tsx'],
@@ -4152,6 +4153,9 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
      * 기간 칸은 [기준일자]가 아니라 [사용일자], [비고]로 걸어 두었던 글자 칸은 [적요],
      * [결제구분]이라 적어 둔 것은 실은 [결제수단]이다. 아래 넷은 그 결과로 남은 자리다.
      */
+    /* <b>고정자산전표조회(E010619)</b> — 2026-10-03 원본 실측(FixedAssetSlipListPage). */
+    ['고정자산전표조회|기타', '[기타]의 [수정순] 하나인데 자산 응답이 고친 시각을 싣지 않는다'],
+    ['고정자산전표조회|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
     /* <b>고정자산증감대장(E010617)</b> — 2026-10-03 원본 실측(FixedAssetMovementPage). */
     ['고정자산증감대장|부서', '고정자산(FixedAsset)에 부서가 없다 — 고정자산대장과 같은 사실'],
     ['고정자산증감대장|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
