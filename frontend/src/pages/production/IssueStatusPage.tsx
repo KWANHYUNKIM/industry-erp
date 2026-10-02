@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
@@ -6,6 +7,7 @@ import EcBarChart from '../../components/EcBarChart'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import type { Item, Warehouse } from '../../types/api'
 import { stockCostMapFromLast } from '../../utils/stockValue'
+import { aggregate, type GroupKey } from '../../utils/statusAggregate'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { subtotalBy } from '../../utils/subtotalBy'
@@ -95,6 +97,16 @@ export default function IssueStatusPage() {
   const [to, setTo] = useState(init.to)
   const [mode, setMode] = useState<Mode>('내역')
   /** 원본 ◉내역 아래 선택상자 — 라인별(기본, 자재 줄마다) · 전표별(불출 전표 한 장이 한 줄). */
+  /**
+   * 원본 ○집계 — [집계조건1]·[집계조건2] 로 두 단계로 묶는다(2026-10-02 loginaa 실측; 판매·구매현황과 같은 utils/statusAggregate).
+   * 불출에 없는 축(거래유형·거래처·관리항목)은 뺀다. 조건1 품목별 · 조건2 없음이면 예전 자재별 표(코드·단위·최근불출일)를 그대로 쓴다.
+   */
+  const AGG_KEYS = ['품목별', '일별', '주차별', '월별', '분기별', '반기별', '연별', '담당자별', '창고별', '프로젝트별', '전표별'] as const
+  const [agg1, setAgg1] = useState<GroupKey>('품목별')
+  const [agg2, setAgg2] = useState<GroupKey | ''>('')
+  /* 조건2 를 켜면 열이 하나 는다 — 렌더된 표를 직접 잰다. */
+  const aggRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(aggRef, '생산불출현황 집계', [agg2, mode])
   const [lineView, setLineView] = useState<'라인별' | '전표별' | '품목별' | '일별' | '월별' | '전표별품목별' | '담당자별'>('라인별')
   const [view, setView] = useState<'표' | '그래프'>('표')
   const [warehouseId, setWarehouseId] = useState('')
@@ -246,6 +258,14 @@ export default function IssueStatusPage() {
   /** 생산금액 — 단가를 모르면 null(0 이 아니다). */
   const amountOf = (r: { itemId: number; qty: number }) => { const p = priceOf.get(r.itemId); return p == null ? null : p * r.qty }
   /** 내역 [전표별] — 불출번호 하나가 한 줄(첫 자재 외 n건, 수량 합). 생산금액은 줄마다 단가로 센 것을 더한다. */
+  /** 집계 — 불출 줄을 집계용 모양으로 옮겨 조건1·2 로 묶는다. 금액은 생산금액(모르는 줄은 0 으로 더하지 않고 뺀다). */
+  const aggRows = useMemo(() => aggregate(shown.map((r) => ({
+    date: r.issueDate, docNo: r.issueNo, partner: '', itemName: r.itemName, qty: r.qty,
+    supply: amountOf(r) ?? 0, vat: 0, warehouseName: r.warehouseName ?? '', projectName: r.projectName ?? null,
+    taxable: true, employeeName: empName(r.employeeId) || null, managementItemName: null,
+  })), agg1, agg2),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [shown, agg1, agg2, priceOf, employees])
   const listRows = lineView === '라인별' ? shown : (() => {
     /* 품목별 — 같은 품목(보내는창고·받는공장도 같은 것)을 한 줄로, 일자-No. 는 처음 것을 둔다(원본 실측: 9/3 · 9/7 의 같은 자재가 9/3 줄에 합쳐진다). */
     /* 일별 · 월별 — 그날(그달) 줄을 한 줄로, 일자만 찍고(No. 없음) 창고·품목은 처음 줄 것, 수량·금액은 합
@@ -296,7 +316,19 @@ export default function IssueStatusPage() {
         onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
         picks={STATUS_PICKS}
         modes={MODES} mode={mode} onModeChange={(m) => setMode(m as Mode)}
-        modeExtra={mode === '내역' ? (
+        modeExtra={mode === '집계' ? (
+          <span style={{ display: 'inline-flex', gap: 6, marginLeft: 6, alignItems: 'center', fontSize: 12 }}>
+            집계조건1
+            <select className="ec-input" value={agg1} onChange={(e) => setAgg1(e.target.value as GroupKey)} style={{ width: 100 }}>
+              {AGG_KEYS.map((k) => <option key={k} value={k}>{k}</option>)}
+            </select>
+            집계조건2
+            <select className="ec-input" value={agg2} onChange={(e) => setAgg2(e.target.value as GroupKey | '')} style={{ width: 100 }}>
+              <option value="">없음</option>
+              {AGG_KEYS.filter((k) => k !== agg1).map((k) => <option key={k} value={k}>{k}</option>)}
+            </select>
+          </span>
+        ) : mode === '내역' ? (
           <select className="ec-input" value={lineView} onChange={(e) => setLineView(e.target.value as '라인별' | '전표별' | '품목별' | '일별' | '월별' | '전표별품목별' | '담당자별')}
                   style={{ width: 110, marginLeft: 6 }}>
             <option value="라인별">라인별</option>
@@ -397,6 +429,41 @@ export default function IssueStatusPage() {
 
       {view === '그래프' ? (
         <EcBarChart rows={chartRows} unit=" 개" emptyText="조회된 불출이 없습니다." />
+      ) : mode === '집계' && (agg1 !== '품목별' || agg2) ? (
+        <table ref={aggRef} className="w-full text-left">
+          <thead>
+            <tr>
+              <th style={{ width: 34 }}></th>
+              <th>{agg1}</th>
+              {agg2 && <th>{agg2}</th>}
+              <th style={{ width: 100, textAlign: 'right' }}>건수</th>
+              <th style={{ width: 130, textAlign: 'right' }}>수량</th>
+              <th style={{ width: 140, textAlign: 'right' }}>생산금액</th>
+            </tr>
+          </thead>
+          <tbody>
+            {aggRows.length === 0 ? (
+              <tr><td colSpan={agg2 ? 6 : 5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            ) : aggRows.map((g, i) => (
+              <tr key={`${g.g1}|${g.g2}`}>
+                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td>{g.g1}</td>
+                {agg2 && <td>{g.g2}</td>}
+                <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(g.count)}</td>
+                <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{num(g.qty)}</td>
+                <td style={{ textAlign: 'right' }}>{won(g.supply)}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
+              <td colSpan={agg2 ? 3 : 2} style={{ textAlign: 'right' }}>합계 ({aggRows.length}묶음)</td>
+              <td style={{ textAlign: 'right' }}>{num(shown.length)}</td>
+              <td style={{ textAlign: 'right', color: '#a5561b' }}>{num(totalQty)}</td>
+              <td style={{ textAlign: 'right' }}>{won(aggRows.reduce((n, g) => n + g.supply, 0))}</td>
+            </tr>
+          </tfoot>
+        </table>
       ) : mode === '집계' ? (
         <table className="w-full text-left">
           <thead>
