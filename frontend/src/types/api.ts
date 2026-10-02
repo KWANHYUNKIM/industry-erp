@@ -486,6 +486,8 @@ export interface ProductionMaterial {
   componentSpec?: string | null
   /** 원본 [소모] 탭의 [적요]. */
   note?: string | null
+  /** 원본 [소모] 탭의 [시리얼/로트No.]. */
+  lotNo?: string | null
 }
 
 /** 생산입고를 넣은 화면 — 원본 생산입고 I(BOM기준소모)·II(소모품목 선택)·III(공정별). */
@@ -510,6 +512,8 @@ export interface Production {
   subcontractUnitPrice: number
   subcontractAmount: number
   subcontractVat: number
+  /** 원본 격자 [시리얼/로트No.]. */
+  lotNo: string | null
   productId: number
   productCode: string
   productName: string

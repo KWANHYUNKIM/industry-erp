@@ -4835,8 +4835,11 @@ async function scenarioProductionSlip(f) {
   eq('II: 소모를 비우면 자재가 안 빠진다', await stockOf(comp.componentId), c1)
   const two = await must('POST', '/productions/slips', {
     entryType: 'II', productionDate: D, fromWarehouseId: f.warehouse.id, warehouseId: f.warehouse.id,
-    lines: [{ productId: f.product.id, producedQty: 1, materials: [{ componentId: comp.componentId, quantity: 7, note: 'QA 손실' }] }],
+    lines: [{ productId: f.product.id, producedQty: 1, lotNo: 'QA-LOT-P1',
+      materials: [{ componentId: comp.componentId, quantity: 7, note: 'QA 손실', lotNo: 'QA-LOT-M1' }] }],
   })
+  eq('II: 생산품목 시리얼/로트No. 가 남는다', two[0].lotNo, 'QA-LOT-P1')
+  eq('II: 소모 시리얼/로트No. 가 남는다', two[0].materials[0].lotNo, 'QA-LOT-M1')
   eq('II: 넣은 소모만 빠진다', await stockOf(comp.componentId), c1 - 7)
   eq('II: 소모 적요가 남는다', two[0].materials[0].note, 'QA 손실')
 

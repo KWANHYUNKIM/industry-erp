@@ -154,6 +154,10 @@ public class Production extends BaseTimeEntity {
     @Column(name = "subcontract_journal_id")
     private Long subcontractJournalId;
 
+    /** 원본 격자 [시리얼/로트No.] — 판매 줄처럼 글자로 남긴다. */
+    @Column(name = "lot_no", length = 60)
+    private String lotNo;
+
     /** 소요된 자재 내역 */
     @OneToMany(mappedBy = "production", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

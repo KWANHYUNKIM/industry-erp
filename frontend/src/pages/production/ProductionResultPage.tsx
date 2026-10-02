@@ -58,6 +58,8 @@ interface ProdLine {
   amountTouched: boolean
   note: string
   laborMinutes: string
+  /** [시리얼/로트No.] */
+  lotNo: string
 }
 
 interface MatLine {
@@ -71,16 +73,18 @@ interface MatLine {
   extraQty: string
   qty: string
   note: string
+  /** [시리얼/로트No.] */
+  lotNo: string
 }
 
 let seq = 1
 const nextKey = () => seq++
 const blankLine = (): ProdLine => ({
   key: nextKey(), productId: '', qty: '', workOrderId: '', processId: '', fromWarehouseId: '', warehouseId: '',
-  unitPrice: '', amount: '', vat: '', amountTouched: false, note: '', laborMinutes: '',
+  unitPrice: '', amount: '', vat: '', amountTouched: false, note: '', laborMinutes: '', lotNo: '',
 })
 const blankMat = (lineKey = ''): MatLine => ({
-  key: nextKey(), lineKey, componentId: '', bomQty: '', extraQty: '', qty: '', note: '',
+  key: nextKey(), lineKey, componentId: '', bomQty: '', extraQty: '', qty: '', note: '', lotNo: '',
 })
 const BLANK_ROWS = 5
 /** 원본 격자 위 탭. I 은 [생산] 하나뿐이다(소모는 BOM 이 정한다). */
@@ -158,11 +162,12 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
         unitPrice: String(p.subcontractUnitPrice ?? ''), amount: String(p.subcontractAmount ?? ''),
         vat: String(p.subcontractVat ?? ''), amountTouched: true,
         note: p.note ?? '', laborMinutes: p.laborMinutes != null ? String(p.laborMinutes) : '',
+        lotNo: p.lotNo ?? '',
       }))
       const ms: MatLine[] = []
       rows.forEach((p, i) => p.materials.forEach((m) => ms.push({
         key: nextKey(), lineKey: String(ls[i].key), componentId: String(m.componentId),
-        bomQty: '', extraQty: '', qty: String(m.quantity), note: m.note ?? '',
+        bomQty: '', extraQty: '', qty: String(m.quantity), note: m.note ?? '', lotNo: m.lotNo ?? '',
       })))
       setLines([...ls, ...Array.from({ length: Math.max(1, BLANK_ROWS - ls.length) }, blankLine)])
       setMats([...ms, ...Array.from({ length: Math.max(1, BLANK_ROWS - ms.length) }, () => blankMat())])
@@ -227,7 +232,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
         const r = await api.get<ProductionMaterial[]>(`/productions/bom-preview?productId=${l.productId}&qty=${num(l.qty)}&level=${bomLevel}`)
         r.data.forEach((m) => out.push({
           key: nextKey(), lineKey: String(l.key), componentId: String(m.componentId),
-          bomQty: String(m.quantity), extraQty: '', qty: String(m.quantity), note: '',
+          bomQty: String(m.quantity), extraQty: '', qty: String(m.quantity), note: '', lotNo: '',
         }))
       } catch {
         missing.push(itemById.get(l.productId)?.name ?? '')
@@ -236,6 +241,27 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
     setMats([...out, ...Array.from({ length: Math.max(1, BLANK_ROWS - out.length) }, () => blankMat())])
     setTab('소모')
     if (missing.length > 0) setError(`BOM 이 없는 품목은 풀지 못했습니다: ${missing.join(', ')}`)
+  }
+
+  /**
+   * 원본 [소모] 탭 툴바의 <b>[재고불러오기]</b> — 생산된공장에 지금 있는 재고를 소모 줄로 붓는다.
+   * 공장에 불출해 둔 자재를 그대로 다 썼을 때 한 번에 채운다. 줄은 첫 생산품목에 붙인다(고쳐 붙일 수 있다).
+   */
+  async function loadFactoryStock() {
+    setError('')
+    const owner = filled[0]
+    const factory = type === 'III' ? owner?.fromWarehouseId : fromWarehouseId
+    if (!factory) { setError('생산된공장을 입력바랍니다.'); return }
+    try {
+      const r = await api.get<{ itemId: number; warehouseId: number; quantity: number }[]>('/stock')
+      const rows = r.data.filter((x) => String(x.warehouseId) === factory && Number(x.quantity) > 0
+        && !filled.some((l) => l.productId === String(x.itemId)))
+      if (rows.length === 0) { setError('생산된공장에 재고가 없습니다.'); return }
+      const added: MatLine[] = rows.map((x) => ({ ...blankMat(owner ? String(owner.key) : ''), componentId: String(x.itemId), qty: String(x.quantity) }))
+      setMats((ms) => [...ms.filter((m) => m.componentId), ...added, blankMat()])
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    }
   }
 
   /** 작업지시서 [잔량적용] — 고른 지시마다 생산품목 한 줄(수량 = 지시수량 − 기생산). */
@@ -293,10 +319,11 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
         subcontractAmount: l.amount === '' ? null : num(l.amount),
         subcontractVat: l.vat === '' ? null : num(l.vat),
         note: l.note || null,
+        lotNo: l.lotNo.trim() || null,
         laborMinutes: l.laborMinutes.trim() === '' ? null : Number(l.laborMinutes),
         materials: type === 'I' ? null : mats
           .filter((m) => m.componentId && m.lineKey === String(l.key) && num(m.qty) > 0)
-          .map((m) => ({ componentId: Number(m.componentId), quantity: num(m.qty), note: m.note || null })),
+          .map((m) => ({ componentId: Number(m.componentId), quantity: num(m.qty), note: m.note || null, lotNo: m.lotNo.trim() || null })),
       })),
     }
     setSaving(true)
@@ -343,6 +370,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
           <col style={{ width: 30 }} />
           {type === 'III' && <col style={{ width: 150 }} />}
           <col style={{ width: 110 }} />
+          <col style={{ width: 120 }} />
           <col style={{ width: 220 }} />
           <col style={{ width: 100 }} />
           {type === 'III' && <col style={{ width: 150 }} />}
@@ -360,6 +388,8 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
             <th />
             {type === 'III' && <th style={{ textAlign: 'left' }}>공정</th>}
             <th style={{ textAlign: 'left' }}>생산품목코드</th>
+            {/* 원본 차례: 생산품목코드 · 시리얼/로트No. · 생산품목명 — 가운데 정렬이다. */}
+            <th style={{ textAlign: 'center' }}>시리얼/로트No.</th>
             <th style={{ textAlign: 'left' }}>생산품목명</th>
             <th style={{ textAlign: 'left' }}>규격</th>
             {type === 'III' && <th style={{ textAlign: 'left' }}>생산된공장</th>}
@@ -388,6 +418,10 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
                 )}
                 <td className="pad" style={{ fontFamily: 'ui-monospace, monospace', color: '#5a626e', overflow: 'hidden', whiteSpace: 'nowrap' }}>
                   {it?.code ?? ''}
+                </td>
+                <td>
+                  <input className="cell" style={{ textAlign: 'center' }} disabled={!l.productId} value={l.lotNo}
+                         onChange={(e) => setLine(l.key, { lotNo: e.target.value })} />
                 </td>
                 <td className="pad">
                   <CodePickerField label="생산품목" hideLabel fill placeholder="" emptyLabel="선택 해제"
@@ -455,7 +489,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
         </tbody>
         <tfoot>
           <tr>
-            <td colSpan={type === 'III' ? 7 : 4} />
+            <td colSpan={type === 'III' ? 8 : 5} />
             <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(totalQty)}</td>
             {type !== 'III' && <td />}
             {type !== 'III' && <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(totalAmt)}</td>}
@@ -481,6 +515,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
           <col style={{ width: 90 }} />
           {type === 'III' && <col style={{ width: 90 }} />}
           <col style={{ width: 180 }} />
+          <col style={{ width: 120 }} />
         </colgroup>
         <thead>
           <tr>
@@ -494,6 +529,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
             <th style={{ textAlign: 'right' }}>수량</th>
             {type === 'III' && <th style={{ textAlign: 'right' }}>작지 수량</th>}
             <th style={{ textAlign: 'left' }}>적요</th>
+            <th style={{ textAlign: 'center' }}>시리얼/로트No.</th>
           </tr>
         </thead>
         <tbody>
@@ -533,6 +569,9 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
                 <td>
                   <input className="cell" disabled={!m.componentId} value={m.note} onChange={(e) => setMat(m.key, { note: e.target.value })} />
                 </td>
+                <td>
+                  <input className="cell" style={{ textAlign: 'center' }} disabled={!m.componentId} value={m.lotNo} onChange={(e) => setMat(m.key, { lotNo: e.target.value })} />
+                </td>
               </tr>
             )
           })}
@@ -544,7 +583,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
             {type === 'III' && <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(matsFilled.reduce((n, m) => n + num(m.extraQty), 0))}</td>}
             <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(matsFilled.reduce((n, m) => n + num(m.qty), 0))}</td>
             {type === 'III' && <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(matsFilled.reduce((n, m) => n + num(m.bomQty), 0))}</td>}
-            <td />
+            <td colSpan={2} />
           </tr>
         </tfoot>
       </table>
@@ -639,6 +678,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
                 <option value="ONE">1단계</option>
                 <option value="ALL">전체</option>
               </select>
+              <button type="button" className="ec-btn ec-btn-sm" onClick={() => void loadFactoryStock()}>재고불러오기</button>
               <span style={{ fontSize: 11.5, color: '#8a929c', marginLeft: 6 }}>
                 생산품목마다 BOM 소요량 × 수량으로 다시 채웁니다(지금 [소모] 줄은 지워집니다).
               </span>

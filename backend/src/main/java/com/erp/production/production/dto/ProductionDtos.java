@@ -244,7 +244,10 @@ public final class ProductionDtos {
             String note,
             Integer laborMinutes,
             /** 원본 [소모] 탭에서 이 생산품목에 붙인 줄(II·III). */
-            List<@Valid SlipMaterial> materials
+            List<@Valid SlipMaterial> materials,
+            /** [시리얼/로트No.]. */
+            @Size(max = 60, message = "시리얼/로트No.는 60자까지 넣을 수 있습니다.")
+            String lotNo
     ) {}
 
     /** 원본 [소모] 탭 한 줄. */
@@ -253,7 +256,9 @@ public final class ProductionDtos {
             @NotNull(message = "소모수량을 입력하세요.")
             @Positive(message = "소모수량은 0보다 커야 합니다.") BigDecimal quantity,
             @Size(max = 255, message = "입력한 글자가 너무 깁니다. 255자까지 넣을 수 있습니다.")
-            String note
+            String note,
+            @Size(max = 60, message = "시리얼/로트No.는 60자까지 넣을 수 있습니다.")
+            String lotNo
     ) {}
 
     /**
@@ -281,17 +286,19 @@ public final class ProductionDtos {
             /** 규격. 원본 [소모] 탭의 [규격]. */
             String componentSpec,
             /** 원본 [소모] 탭의 [적요]. */
-            String note
+            String note,
+            /** 원본 [소모] 탭의 [시리얼/로트No.]. */
+            String lotNo
     ) {
         public ProductionMaterialResponse(Long componentId, String componentCode, String componentName,
                                           String unit, BigDecimal quantity) {
-            this(componentId, componentCode, componentName, unit, quantity, null, null);
+            this(componentId, componentCode, componentName, unit, quantity, null, null, null);
         }
 
         static ProductionMaterialResponse from(ProductionMaterial m) {
             return new ProductionMaterialResponse(
                     m.getComponent().getId(), m.getComponent().getCode(), m.getComponent().getName(),
-                    m.getComponent().getUnit(), m.getQuantity(), m.getComponent().getSpec(), m.getNote());
+                    m.getComponent().getUnit(), m.getQuantity(), m.getComponent().getSpec(), m.getNote(), m.getLotNo());
         }
     }
 
@@ -340,7 +347,9 @@ public final class ProductionDtos {
             /** [외주비단가]·[외주비합계]·[외주비부가세]. */
             BigDecimal subcontractUnitPrice, BigDecimal subcontractAmount, BigDecimal subcontractVat,
             /** 작업지시서의 지시일 — 생산입고조회의 [작업지시서] 열이 "일자 -No." 로 찍는다. */
-            LocalDate workOrderDate
+            LocalDate workOrderDate,
+            /** [시리얼/로트No.]. */
+            String lotNo
     ) {
         public static ProductionResponse from(Production p) {
             var wo = p.getWorkOrder();
@@ -365,7 +374,8 @@ public final class ProductionDtos {
                     p.getProcess() != null ? p.getProcess().getId() : null,
                     p.getProcess() != null ? p.getProcess().getName() : null,
                     p.getSubcontractUnitPrice(), p.getSubcontractAmount(), p.getSubcontractVat(),
-                    wo != null ? wo.getOrderDate() : null);
+                    wo != null ? wo.getOrderDate() : null,
+                    p.getLotNo());
         }
     }
 }

@@ -37,4 +37,8 @@ public class ProductionMaterial {
     /** 원본 [소모] 탭의 [적요]. */
     @Column(length = 255)
     private String note;
+
+    /** 원본 [소모] 탭의 [시리얼/로트No.]. */
+    @Column(name = "lot_no", length = 60)
+    private String lotNo;
 }

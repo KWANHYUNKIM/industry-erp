@@ -107,7 +107,7 @@ public class ProductionService {
         return bomService.explode(productId, qty, all).stream()
                 .map(x -> new ProductionMaterialResponse(
                         x.component().getId(), x.component().getCode(), x.component().getName(),
-                        x.component().getUnit(), x.quantity(), x.component().getSpec(), null))
+                        x.component().getUnit(), x.quantity(), x.component().getSpec(), null, null))
                 .toList();
     }
 
@@ -184,10 +184,12 @@ public class ProductionService {
             Production p = createLine(wo, product, line.producedQty(), date, from, to, project,
                     line.note(), line.laborMinutes(), req.employeeId(), manual, prodNo, lineNo, username);
             p.setEntryType(req.entryType());
+            p.setLotNo(blankToNull(line.lotNo()));
             if (line.processId() != null) p.setProcess(processService.getUsable(line.processId()));
             if (manual != null && line.materials() != null) {
                 for (int i = 0; i < p.getMaterials().size(); i++) {
                     p.getMaterials().get(i).setNote(line.materials().get(i).note());
+                    p.getMaterials().get(i).setLotNo(blankToNull(line.materials().get(i).lotNo()));
                 }
             }
             applySubcontract(p, from, line.subcontractUnitPrice(), line.subcontractAmount(), line.subcontractVat());
@@ -420,6 +422,10 @@ public class ProductionService {
                     : (wo.getProducedQty().compareTo(wo.getPlannedQty()) >= 0
                             ? WorkOrderStatus.COMPLETED : WorkOrderStatus.IN_PROGRESS));
         }
+    }
+
+    private static String blankToNull(String s) {
+        return s == null || s.isBlank() ? null : s.trim();
     }
 
     private WorkOrder getWorkOrder(Long id) {
