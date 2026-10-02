@@ -1062,5 +1062,13 @@
  [
   "회계집계표",
   "accounting/AccountAggregatePage.tsx"
+ ],
+ [
+  "월별매입집계표",
+  "accounting/MonthlyVatSummaryPage.tsx"
+ ],
+ [
+  "월별매출집계표",
+  "accounting/MonthlyVatSummaryPage.tsx"
  ]
 ]

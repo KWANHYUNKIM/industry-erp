@@ -273,6 +273,22 @@
         "wait:3000",
         "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const last=t.querySelector('tbody tr:last-child');return h==='계정|이월잔액|차변|대변|금액'&&last.cells[0].innerText.trim()==='합계'&&last.cells[2].innerText===last.cells[3].innerText})()"
       ]
+    },
+    {
+      "name": "월별매출집계표 — 거래처코드 · 거래처명 · YYYY.M … · 집계, 끝 [합계]",
+      "path": "/accounting/monthly-sales-summary",
+      "steps": [
+        "wait:2500",
+        "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim());const last=t.querySelector('tbody tr:last-child');return h[0]==='거래처코드'&&h[1]==='거래처명'&&h[h.length-1]==='집계'&&(document.body.innerText.includes('등록된 데이터가 없습니다')||last.cells[0].innerText.trim()==='합계')})()"
+      ]
+    },
+    {
+      "name": "월별매입집계표 — 거래처코드 · 거래처명 · YYYY.M … · 집계, 끝 [합계]",
+      "path": "/accounting/monthly-purchase-summary",
+      "steps": [
+        "wait:2500",
+        "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim());const last=t.querySelector('tbody tr:last-child');return h[0]==='거래처코드'&&h[1]==='거래처명'&&h[h.length-1]==='집계'&&(document.body.innerText.includes('등록된 데이터가 없습니다')||last.cells[0].innerText.trim()==='합계')})()"
+      ]
     }
   ]
 }

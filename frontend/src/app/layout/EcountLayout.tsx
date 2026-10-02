@@ -460,6 +460,8 @@ const MENU: TopMenu[] = [
               { label: '채권/채무잔액분석표', to: '/accounting/arap-balance' },
               { label: '경영요약보고서', to: '/accounting/management-summary' },
               { label: '회계집계표', to: '/accounting/account-aggregate' },
+              { label: '월별매입집계표', to: '/accounting/monthly-purchase-summary' },
+              { label: '월별매출집계표', to: '/accounting/monthly-sales-summary' },
             ],
           },
           {
