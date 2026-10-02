@@ -4,7 +4,8 @@ import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import Modal from '../../components/Modal'
-import { periodOf } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { AS_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import { usePartnerManagers } from '../../utils/partnerManagers'
 import { dateText } from '../../utils/dateText'
 
 interface JournalLine { accountCode: string; accountName: string; debit: number; credit: number; description: string | null }
@@ -25,7 +26,8 @@ const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
  *
  * <p>결과 제목은 [매입청구서현황]이고 열은 일자-No. · 거래처명 · 공급가액 · 매입부가세 · 매입합계 · 내역보기,
  * 달마다 "YYYY/MM 계" 소계와 합계가 붙는다. 재고 쪽(구매·외주비)에서 회계로 넘긴 매입 전표를 보는 자리다.
- * 조건은 기준일자 · 회계전표No. · 거래처(원본의 부서·프로젝트·부가세유형·상태는 우리 전표가 들지 않는다).
+ * 조건은 기준일자 · 회계전표No. · 거래처 · 거래처관리담당자(원본의 부서·프로젝트·부가세유형·상태는 우리 전표가 들지 않는다).
+ * 기간 빠른선택은 금일 · 전일 · 금주(~오늘) · 전주 · 금월(~오늘) · 전월 · 직전분기 · 직전반기 · 종료일(원본 실측 — A/S 현황과 같은 묶음).
  *
  * <p>공급가액은 부가세대급금(135)·외상매입금이 아닌 줄의 차변−대변, 매입부가세는 135 의 차변−대변이다 —
  * 반품으로 되돌린 전표는 음수로 잡힌다.
@@ -36,6 +38,9 @@ export default function PurchaseTaxStockPage() {
   const [to, setTo] = useState(init.to)
   const [docNo, setDocNo] = useState('')
   const [partner, setPartner] = useState('')
+  /** 원본 [거래처관리담당자] — 거래처 마스터의 관리담당자로 거른다(전표에는 없고 거래처에 붙는 값이다). */
+  const pmgr = usePartnerManagers()
+  const [pmgrCond, setPmgrCond] = useState('')
   const [rows, setRows] = useState<Journal[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -67,8 +72,10 @@ export default function PurchaseTaxStockPage() {
   const shown = useMemo(() => rows
     .filter((j) => !docNo || j.docNo.includes(docNo))
     .filter((j) => !partner || (j.partnerName ?? '') === partner)
+    .filter((j) => !pmgrCond || pmgr.managerOfName(j.partnerName) === pmgrCond)
     .sort((a, b) => (a.entryDate < b.entryDate ? -1 : a.entryDate > b.entryDate ? 1 : a.docNo.localeCompare(b.docNo))),
-  [rows, docNo, partner])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [rows, docNo, partner, pmgrCond, pmgr.options])
   const months = useMemo(() => {
     const m = new Map<string, Journal[]>()
     shown.forEach((j) => { const k = j.entryDate.slice(0, 7); m.set(k, [...(m.get(k) ?? []), j]) })
@@ -93,6 +100,9 @@ export default function PurchaseTaxStockPage() {
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
           <span style={{ margin: '0 4px' }}>~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
+          <span style={{ marginLeft: 6 }}>
+            <EcPeriodPicks labels={AS_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
+          </span>
         </EcCond>
         <EcCond label="회계전표No.">
           <input className="ec-input" value={docNo} onChange={(e) => setDocNo(e.target.value)} style={{ width: 180 }} />
@@ -100,6 +110,10 @@ export default function PurchaseTaxStockPage() {
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={220} emptyLabel="전체" value={partner} onChange={setPartner}
                            items={[...new Set(rows.map((j) => j.partnerName).filter(Boolean) as string[])].sort().map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="거래처관리담당자" pick>
+          <CodePickerField label="거래처관리담당자" hideLabel width={200} emptyLabel="전체" value={pmgrCond} onChange={setPmgrCond}
+                           items={pmgr.options.map((n) => ({ value: n, name: n }))} />
         </EcCond>
       </ul>
 

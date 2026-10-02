@@ -503,6 +503,16 @@
         "expect:performance.getEntriesByType('resource').some((e)=>/accounting-reflection\\/subcontract\\?from=\\d{4}-\\d{2}-\\d{2}&to=/.test(e.name))&&!performance.getEntriesByType('resource').some((e)=>/\\/api\\/purchases(\\?|$)/.test(e.name))",
         "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');return ['월/일','거래처명','생산금액','회계반영금액','차액','적요'].every((x)=>h.includes(x))})()"
       ]
+    },
+    {
+      "name": "매입(세금)계산서현황(재고) — 원본 조건 [거래처관리담당자] 와 기간 빠른선택 [직전분기] · [직전반기] 가 있고, 직전분기를 누르면 기간이 세 달이 된다",
+      "path": "/production/purchase-tax-status",
+      "steps": [
+        "js:new Promise((r)=>setTimeout(()=>r(true),2000))",
+        "expect:document.body.innerText.includes('거래처관리담당자')",
+        "js:([...document.querySelectorAll('button')].find((b)=>b.textContent.trim()==='직전분기').click(), new Promise((r)=>setTimeout(()=>r(true),800)))",
+        "expect:(()=>{const ds=[...document.querySelectorAll('input[type=date]')].map((i)=>i.value);if(ds.length<2)return false;const a=new Date(ds[0]),b=new Date(ds[1]);return a.getDate()===1&&(b.getMonth()-a.getMonth()+12)%12===2})()"
+      ]
     }
   ]
 }
