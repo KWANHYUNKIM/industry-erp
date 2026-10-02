@@ -180,15 +180,15 @@
       ]
     },
     {
-      "name": "작업지시서입력 — 품목·생산공장을 고르고 [재고불러오기] 하면 줄 끝 [전체수량]·[창고수량]이 /stock 과 같은 값으로 찬다",
+      "name": "작업지시서입력 — 품목·생산공장을 고르고 [재고불러오기] 하면 줄 끝 [전체수량]·[창고수량]이 /stock 과 같은 값으로 찬다 — QA 가 안 건드리는 품목(ITM-0001)으로 잰다(QA-PROD 는 다른 시험이 동시에 움직여 흔들렸다)",
       "path": "/production/work-order-entry",
       "steps": [
         "click:품목 선택",
-        "pickrow:QA-PROD",
+        "pickrow:ITM-0001",
         "click:생산공장 선택",
         "pickrow:QA-WH",
         "js:([...document.querySelectorAll('button.ec-btn')].find((b)=>b.textContent.trim()==='재고불러오기').click(), new Promise((res)=>setTimeout(()=>res(true),1500)))",
-        "js:fetch('/api/stock',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()).then((d)=>{const it=d.filter((r)=>r.itemCode==='QA-PROD');sessionStorage.setItem('qaAll',String(it.reduce((a,r)=>a+Number(r.quantity),0)));sessionStorage.setItem('qaAt',String(Number(it.find((r)=>r.warehouseName==='QA창고')?.quantity??0)));return true})",
+        "js:fetch('/api/stock',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()).then((d)=>{const it=d.filter((r)=>r.itemCode==='ITM-0001');sessionStorage.setItem('qaAll',String(it.reduce((a,r)=>a+Number(r.quantity),0)));sessionStorage.setItem('qaAt',String(Number(it.find((r)=>r.warehouseName==='QA창고')?.quantity??0)));return true})",
         "expect:(()=>{const c=[...document.querySelector('table.ec-grid-input tbody tr').cells];const f=(t)=>Number(t.innerText.replace(/,/g,''));return c[c.length-2].innerText!==''&&f(c[c.length-2])===Number(sessionStorage.getItem('qaAll'))&&f(c[c.length-1])===Number(sessionStorage.getItem('qaAt'))})()"
       ]
     },
