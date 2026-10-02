@@ -1331,6 +1331,7 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     ['주문서조회', 'trade/SalesOrderPage.tsx'],
     ['발주요청조회', 'trade/PurchaseRequestListPage.tsx'],
     ['발주계획조회', 'trade/PurchasePlanListPage.tsx'],
+    ['단가요청조회', 'trade/PriceRequestListPage.tsx'],
     ['수령수표조회', 'accounting/CheckListPage.tsx'],
     ['발행수표조회', 'accounting/CheckListPage.tsx'],
     ['주문서현황', 'trade/SalesOrderStatusPage.tsx'],
@@ -4916,6 +4917,9 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
     ['받을어음감소현황|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
     ['받을어음감소현황|정렬/소계기준', '일자 오름차순 하나로 세운다 — 원본 [설정] 팝업의 후보는 값을 저장하는 창이라 안 열어 못 쟀다'],
     ['받을어음감소현황|데이터 보기형식', '그래프로 볼 축이 없다 — 어음 한 장이 한 줄인 목록이다'],
+    /* <b>단가요청조회(E040322)</b> — 2026-10-03 원본 실측(PriceRequestListPage). */
+    ['단가요청조회|발송여부', '단가요청을 메일 · 문자로 보내지 않아 발송 이력이 없다'],
+    ['단가요청조회|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
     /* <b>발주요청조회(E040315)</b> — 2026-10-03 원본 실측(PurchaseRequestListPage). */
     ['발주요청조회|관리항목', '발주서(PurchaseOrder)가 관리항목을 들지 않는다 — 발주요청현황과 같은 사실'],
     ['발주요청조회|발송여부', '발주요청을 메일 · 문자로 보내지 않아 발송 이력이 없다'],

@@ -890,5 +890,9 @@
  [
   "발주계획조회",
   "trade/PurchasePlanListPage.tsx"
+ ],
+ [
+  "단가요청조회",
+  "trade/PriceRequestListPage.tsx"
  ]
 ]

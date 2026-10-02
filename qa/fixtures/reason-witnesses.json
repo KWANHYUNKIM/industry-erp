@@ -5307,5 +5307,14 @@
    "sendStatus"
   ],
   "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrder.java"
+ },
+ "단가요청조회|발송여부": {
+  "claim": "발송 이력이 없다",
+  "absent": [
+   "mailed",
+   "sentAt",
+   "sendStatus"
+  ],
+  "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrder.java"
  }
 }

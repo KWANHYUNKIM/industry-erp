@@ -117,6 +117,7 @@ const MENU: TopMenu[] = [
           {
             label: '단가요청',
             children: [
+              { label: '단가요청조회', to: '/sales/price-requests' },
               { label: '단가요청현황', to: '/sales/price-request-status' },
               { label: '단가요청진행단계', to: '/sales/price-request-progress' },
             ],
