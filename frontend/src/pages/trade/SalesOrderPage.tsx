@@ -162,7 +162,7 @@ export default function SalesOrderPage() {
     >
       <p className="mb-2 text-xs text-slate-500">매출처로부터 받은 주문(수주) 관리 · 접수 → 진행중 → 완료. 실제 출고는 판매입력에서.</p>
 
-      <Modal open={showForm} title="오더관리 (수주) 등록" onClose={() => setShowForm(false)}>{(
+      <Modal open={showForm} title="오더관리 (수주) 등록" width={900} onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 12, marginBottom: 10 }}>
           <table className="w-full text-left" style={{ marginBottom: 8, maxWidth: 820 }}>
             <tbody>
@@ -247,7 +247,12 @@ export default function SalesOrderPage() {
               <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
                 <td colSpan={4} style={{ textAlign: 'right' }}>합계</td>
                 <td style={{ textAlign: 'right' }}>{won(totals.supply)}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(totals.total)}</td>
+                {/* 부가세 열 아래에 부가세 포함 합계가 서 있었다(23회차) — 열마다 제 합을, 총액은 따로 한 줄. */}
+                <td style={{ textAlign: 'right' }}>{won(totals.vat)}</td>
+              </tr>
+              <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+                <td colSpan={4} style={{ textAlign: 'right' }}>합계금액 (부가세 포함)</td>
+                <td colSpan={2} style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(totals.total)}</td>
               </tr>
             </tfoot>
           </table>

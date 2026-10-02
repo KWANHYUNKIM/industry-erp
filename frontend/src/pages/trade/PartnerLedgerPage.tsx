@@ -44,7 +44,7 @@ const GROUPS = ['전표별', '전표별+내역', '일별', '월별', '회계전�
 interface Line { itemCode: string; itemName: string; quantity: number; unitPrice: number; supplyAmount: number }
 interface SalesDoc { id: number; docNo: string; saleDate: string; partnerId: number; partnerName: string; totalAmount: number; lines: Line[] }
 interface PurchaseDoc { id: number; docNo: string; purchaseDate: string; partnerId: number; partnerName: string; totalAmount: number; lines: Line[] }
-interface Settlement { id: number; docNo: string; settleDate: string; partnerId: number; partnerName: string; type: 'RECEIPT' | 'PAYMENT'; amount: number }
+interface Settlement { id: number; docNo: string; settleDate: string; partnerId: number; partnerName: string; type: 'RECEIPT' | 'PAYMENT'; amount: number; method?: string | null; note?: string | null }
 /** 회계반영 목록의 한 줄 — 전표 id 와 그 전표가 만든 회계전표번호. */
 interface Posted { id: number; journalDocNo: string | null }
 
@@ -62,6 +62,11 @@ interface Entry {
   lines: Line[]
   /** 이 전표가 만든 회계전표 번호. 아직 반영 안 했으면 null. */
   journalDocNo: string | null
+  /**
+   * 수금·지급의 적요 — 결제수단과 사람이 적은 비고. 판매·구매는 품목으로 적요를 대신해
+   * 수금 줄만 늘 비어 있었다(23회차, "SN-… 1차 수금" 이라 적어도 대장에 안 보였다).
+   */
+  memo?: string
 }
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
@@ -218,6 +223,7 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
         side: t.type === 'RECEIPT' ? '채권' : '채무',
         increase: 0, decrease: t.amount, lines: [],
         journalDocNo: postedSettles.get(t.id) ?? null,
+        memo: [t.method, t.note].filter(Boolean).join(' · '),
       })
     }
     return out.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.key < b.key ? -1 : 1))
@@ -515,7 +521,7 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
                     <td style={{ color: '#8a929c' }}>
                       {r.entry.lines.length > 0
                         ? `${r.entry.lines[0].itemName}${r.entry.lines.length > 1 ? ` 외 ${r.entry.lines.length - 1}건` : ''}`
-                        : ''}
+                        : (r.entry.memo ?? '')}
                     </td>
                     <td style={{ textAlign: 'right', color: r.entry.increase ? 'var(--ec-blue)' : '#c9ced6' }}>
                       {r.entry.increase ? won(r.entry.increase) : ''}

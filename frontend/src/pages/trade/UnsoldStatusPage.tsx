@@ -389,7 +389,7 @@ export default function UnsoldStatusPage() {
                   <td style={{ textAlign: 'right' }}>{num(r.unsoldAmount)}</td>
                   <td>{r.partnerName}</td>
                   <td style={{ color: '#8a929c' }}>{r.remark ?? ''}</td>
-                  <td>{(r.dueDate ?? r.orderDate).replace(/-/g, '/')}</td>
+                  <td>{r.dueDate ? r.dueDate.replace(/-/g, '/') : ''}</td>
                   <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(lineVat(r))}</td>
                 </tr>
               ))}

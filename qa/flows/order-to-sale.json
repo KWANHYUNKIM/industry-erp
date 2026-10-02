@@ -1,0 +1,54 @@
+{
+  "about": "수주 4개 → 3개 출하 → 판매입력 [주문] 불러오기가 담을수량을 '주문 − 판매'(4)로 내는지. 예전엔 '주문 − 출하'(1)라 출하한 3개를 판매로 끊을 수 없었다(23회차 #70). node qa/shot.mjs qa/flows/order-to-sale.json — 만든 출하·주문은 끝에 지운다.",
+  "shots": [
+    {
+      "name": "수주 4개 등록 — 합계 줄은 공급가액·부가세 제 열에, 부가세 포함 총액은 따로",
+      "path": "/sales/orders",
+      "steps": [
+        "click:수주등록(F2)",
+        "click:매출처 선택",
+        "pickrow:QA-CUST",
+        "js:document.querySelector('[role=dialog] input[placeholder=\"품목 선택\"]').click(); true",
+        "pickrow:QA-PROD",
+        "set:[role=dialog] tbody input[type=number]#0|4",
+        "set:[role=dialog] tbody input[type=number]#1|1000",
+        "expect:document.querySelector('[role=dialog] tfoot').innerText.includes('합계금액 (부가세 포함)') && document.querySelector('[role=dialog] tfoot').innerText.includes('4,400')",
+        "click:저장(F8)",
+        "expect:/SN-[0-9]{8}-[0-9]{4} 수주 등록 완료/.test(document.body.innerText)",
+        "js:sessionStorage.setItem('o2sOrder', document.body.innerText.match(/SN-[0-9]{8}-[0-9]{4}(?= 수주 등록 완료)/)[0]); true"
+      ]
+    },
+    {
+      "name": "미출하현황 — 3개만 출하지시",
+      "path": "/sales/unshipped",
+      "steps": [
+        "expect:document.body.innerText.includes(sessionStorage.getItem('o2sOrder'))",
+        "js:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('o2sOrder'))); const el = tr.querySelector('input[type=number]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '3'); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "js:[...[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('o2sOrder'))).querySelectorAll('button')].find((b) => b.textContent.trim() === '출하지시').click(); true",
+        "expect:/출하지시 SH-[0-9]{8}-[0-9]{4} 생성됨/.test(document.body.innerText)",
+        "js:sessionStorage.setItem('o2sShip', document.body.innerText.match(/SH-[0-9]{8}-[0-9]{4}(?= 생성됨)/)[0]); true"
+      ]
+    },
+    {
+      "name": "출하지시서 — 출하완료(이제 출하 3, 미출하 1)",
+      "path": "/sales/shipment-order",
+      "steps": [
+        "expect:document.body.innerText.includes(sessionStorage.getItem('o2sShip'))",
+        "js:[...[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('o2sShip'))).querySelectorAll('button')].find((b) => b.textContent.trim() === '→ 출하완료').click(); true",
+        "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('o2sShip'))); return tr && ![...tr.querySelectorAll('button')].some((b) => b.textContent.trim() === '→ 출하완료') })()"
+      ]
+    },
+    {
+      "name": "판매입력 [주문] — 이 주문의 담을수량이 4(주문 − 판매), 찾기로 좁혀진다",
+      "path": "/sales/sell",
+      "steps": [
+        "js:[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '주문').click(); true",
+        "expect:document.querySelector('[role=dialog] input[placeholder*=\"찾기\"]') !== null",
+        "js:(() => { const el = document.querySelector('[role=dialog] input[placeholder*=\"찾기\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, sessionStorage.getItem('o2sOrder')); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "expect:(() => { const rows = [...document.querySelectorAll('[role=dialog] tbody tr')]; return rows.length === 1 && rows[0].cells[7].innerText.trim() === '4' })()",
+        "apidel:/shipments|@o2sShip|shipNo",
+        "apidel:/sales-orders|@o2sOrder|orderNo"
+      ]
+    }
+  ]
+}

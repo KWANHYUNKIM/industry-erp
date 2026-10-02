@@ -112,7 +112,7 @@ const CFG = {
     counterpartLabel: '구매',
     /** 근거전표 불러오기 — 판매는 수주(주문서) */
     loadLabel: '주문',
-    loadTitle: '주문 불러오기 (미출하 잔량)',
+    loadTitle: '주문 불러오기 (미판매 잔량)',
     cashLabel: '현금수금',
     cashTo: '/sales/collection',
     /** 푸터 [리스트] — 원본은 이 버튼으로 조회 화면을 연다 */
@@ -144,29 +144,30 @@ const CFG = {
 } as const
 
 /**
- * 수주(주문서) 응답 중 불러오기에 쓰는 부분만.
- * `api/types.ts` 에 공용 타입이 없어 `SalesOrderStatusPage` 와 같은 방식으로 화면에서 좁게 정의한다.
+ * 미판매현황(`/sales-orders/unsold`) 응답 중 불러오기에 쓰는 부분만.
+ *
+ * 예전엔 수주 목록에서 <b>주문 − 출하</b>를 잔량으로 담았다. 출하지시서로 3개를 내보낸 주문은
+ * 판매로 끊어야 할 것이 그 3개인데 남은 1개만 담겼다(23회차). 판매가 줄여야 할 잔량은
+ * <b>주문 − 이미 판매한 수량</b>이다 — 미판매현황과 같은 잣대.
  */
-interface SalesOrderLite {
-  id: number
+interface UnsoldLite {
+  orderId: number
   orderNo: string
+  orderLineId: number
   orderDate: string
   partnerId: number
   partnerName: string
   warehouseId: number | null
   projectId: number | null
-  status: 'RECEIVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED'
   statusName: string
-  lines: {
-    lineId: number
-    itemId: number
-    itemCode: string
-    itemName: string
-    unit: string
-    quantity: number
-    shippedQty: number | null
-    unitPrice: number
-  }[]
+  itemId: number
+  itemCode: string
+  itemName: string
+  unit: string
+  orderQty: number
+  soldQty: number
+  unsoldQty: number
+  unitPrice: number
 }
 
 /** 근거전표(수주·발주서) 라인 — 불러오기 팝업의 한 행. */
@@ -190,7 +191,7 @@ interface LoadableLine {
   unit: string
   orderedQty: number
   doneQty: number
-  /** 담을 수량 — 판매는 미출하 잔량, 구매는 발주 잔량 */
+  /** 담을 수량 — 판매는 미판매 잔량(주문 − 판매), 구매는 발주 잔량 */
   restQty: number
   unitPrice: number
 }
@@ -310,6 +311,12 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
   const [loadOpen, setLoadOpen] = useState(false)
   const [loadRows, setLoadRows] = useState<LoadableLine[] | null>(null)   // null = 아직 안 불러옴
   const [loadPicked, setLoadPicked] = useState<Record<string, boolean>>({})
+  /*
+   * 불러오기 팝업의 찾기 · 거래처 거르기. 예전엔 열린 주문 수백 건이 오래된 것부터 늘어서
+   * 오늘 받은 주문을 찾으려면 끝까지 내려야 했다(23회차). 최근 것부터, 전표 거래처가 정해져 있으면 그 거래처만.
+   */
+  const [loadQuery, setLoadQuery] = useState('')
+  const [loadOnlyPartner, setLoadOnlyPartner] = useState(true)
   /** 방금 저장한 전표 — 연결전표 탭·회계전표연결은 이게 있어야 열린다(원본도 저장 전엔 hidden). */
   const [savedDoc, setSavedDoc] = useState<{ id: number; docNo: string } | null>(null)
   /** 수정 중인 전표. 있으면 저장이 POST 가 아니라 PUT 이 된다. */
@@ -665,7 +672,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
 
   // ── 근거전표 불러오기 (원본 [주문] / [발주]) ─────────────
   /**
-   * 판매는 <b>수주의 미출하 잔량</b>을, 구매는 <b>아직 입고되지 않은 발주서</b>를 명세로 끌어온다.
+   * 판매는 <b>수주의 미판매 잔량</b>(주문 − 이미 판매)을, 구매는 <b>아직 입고되지 않은 발주서</b>를 명세로 끌어온다.
    *
    * 구매 쪽은 우리 모델이 발주서를 <b>통짜로 입고 전환</b>하므로(`convertedPurchaseId` 단일)
    * 라인별 부분 입고수량이 없다 — 그래서 잔량이 아니라 발주수량 전체를 담는다.
@@ -674,25 +681,20 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
   async function openLoadSource() {
     setLoadOpen(true)
     setLoadPicked({})
+    setLoadQuery('')
     setLoadRows(null)
     try {
       const rows: LoadableLine[] = []
       if (mode === 'sales') {
-        const r = await api.get<SalesOrderLite[]>('/sales-orders')
-        r.data
-          .filter((o) => o.status !== 'CANCELED')
-          .forEach((o) => o.lines.forEach((l, i) => {
-            const rest = Math.max(l.quantity - (l.shippedQty ?? 0), 0)
-            if (rest <= 0) return
-            rows.push({
-              key: `${o.id}-${l.lineId ?? i}`, orderId: o.id, docType: '주문서',
-              docNo: o.orderNo, date: o.orderDate,
-              partnerId: o.partnerId, partnerName: o.partnerName, statusName: o.statusName,
-              warehouseId: o.warehouseId ?? null, projectId: o.projectId ?? null,
-              itemId: l.itemId, itemCode: l.itemCode, itemName: l.itemName, unit: l.unit,
-              orderedQty: l.quantity, doneQty: l.shippedQty ?? 0, restQty: rest, unitPrice: l.unitPrice,
-            })
-          }))
+        const r = await api.get<UnsoldLite[]>('/sales-orders/unsold')
+        r.data.forEach((l) => rows.push({
+          key: `${l.orderId}-${l.orderLineId}`, orderId: l.orderId, docType: '주문서',
+          docNo: l.orderNo, date: l.orderDate,
+          partnerId: l.partnerId, partnerName: l.partnerName, statusName: l.statusName,
+          warehouseId: l.warehouseId ?? null, projectId: l.projectId ?? null,
+          itemId: l.itemId, itemCode: l.itemCode, itemName: l.itemName, unit: l.unit,
+          orderedQty: l.orderQty, doneQty: l.soldQty, restQty: l.unsoldQty, unitPrice: l.unitPrice,
+        }))
       } else {
         const r = await api.get<PurchaseOrder[]>('/purchase-orders')
         r.data
@@ -708,6 +710,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
             })
           }))
       }
+      rows.sort((a, b) => b.date.localeCompare(a.date) || b.docNo.localeCompare(a.docNo))
       setLoadRows(rows)
     } catch (err) {
       setLoadRows([])
@@ -736,6 +739,12 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
   }
 
   /** 고른 근거전표 라인을 명세에 담는다. 거래처가 섞이면 막는다 — 한 전표는 한 거래처다. */
+  const loadShown = (loadRows ?? []).filter((r) => {
+    if (loadOnlyPartner && partnerId && String(r.partnerId) !== partnerId) return false
+    const q = loadQuery.trim().toLowerCase()
+    return !q || [r.docNo, r.partnerName, r.itemCode, r.itemName].some((v) => (v ?? '').toLowerCase().includes(q))
+  })
+
   function applyLoadPicked() {
     const picked = (loadRows ?? []).filter((r) => loadPicked[r.key])
     if (picked.length === 0) return flash('담을 행을 체크하세요.')
@@ -1213,7 +1222,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
             <li><b>찾기(F3)·정렬·수량±·단가변경·조정·부대비용</b>은 <u>체크한 행</u>에 적용됩니다. 체크가 없으면 전체 행에 적용됩니다.</li>
             <li><b>검증</b>은 저장 전에 걸릴 것(필수값·수량 0·재고부족)을 미리 모아 보여 줍니다.</li>
             <li><b>임시저장</b>은 60초마다 자동으로도 돌아갑니다. 다음에 화면을 열면 위에 안내줄이 뜹니다.</li>
-            <li><b>{cfg.loadLabel}</b>은 {mode === 'sales' ? '미출하 잔량이 남은 주문' : '아직 입고되지 않은 발주서'}를 골라 명세로 담습니다. 거래처가 다른 행은 섞을 수 없습니다.</li>
+            <li><b>{cfg.loadLabel}</b>은 {mode === 'sales' ? '아직 판매로 끊지 않은 잔량이 남은 주문' : '아직 입고되지 않은 발주서'}를 골라 명세로 담습니다. 거래처가 다른 행은 섞을 수 없습니다.</li>
             <li>연결전표 탭(<b>{cfg.related.map((t) => t.label).join(' · ')}</b>)과 <b>회계전표연결</b>은 <u>전표를 저장해야</u> 열립니다 — 원본도 저장 전에는 감춰져 있습니다.</li>
             <li>흐리게 보이는 버튼(소요·보류·전표 바코드 등)은 원본에 있으나 아직 연결되지 않은 기능입니다. 마우스를 올리면 사유가 나옵니다.</li>
           </ul>
@@ -1942,7 +1951,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
           <p style={{ fontSize: 12.5, color: '#8a929c', margin: 0 }}>불러오는 중…</p>
         ) : loadRows.length === 0 ? (
           <p style={{ fontSize: 12.5, color: '#8a929c', margin: 0 }}>
-            {mode === 'sales' ? '미출하 잔량이 있는 주문이 없습니다.' : '아직 입고되지 않은 발주서가 없습니다.'}
+            {mode === 'sales' ? '미판매 잔량이 있는 주문이 없습니다.' : '아직 입고되지 않은 발주서가 없습니다.'}
           </p>
         ) : (
           <>
@@ -1950,6 +1959,17 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
               담을 행을 체크하고 [선택 담기]를 누르면 품목·수량·단가가 명세로 들어갑니다.
               {mode === 'purchase' && ' 우리 발주서는 통짜로 입고 전환되므로 발주수량 전체를 담습니다.'}
             </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+              <input className="ec-input" style={{ width: 260 }} placeholder={`${mode === 'sales' ? '주문No.' : '발주No.'} · 거래처 · 품목 찾기`}
+                     value={loadQuery} onChange={(e) => setLoadQuery(e.target.value)} />
+              {partnerId && (
+                <label style={{ fontSize: 12.5, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <input type="checkbox" checked={loadOnlyPartner} onChange={(e) => setLoadOnlyPartner(e.target.checked)} />
+                  이 전표 거래처만
+                </label>
+              )}
+              <span style={{ marginLeft: 'auto', fontSize: 12, color: '#8a929c' }}>{loadShown.length.toLocaleString()} / {loadRows.length.toLocaleString()}줄 · 최근 것부터</span>
+            </div>
             <div style={{ maxHeight: 360, overflowY: 'auto', border: '1px solid var(--ec-border)' }}>
               <table className="w-full text-left">
                 <thead>
@@ -1960,14 +1980,14 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                     <th>거래처</th>
                     <th>품목</th>
                     <th style={{ width: 70, textAlign: 'right' }}>{mode === 'sales' ? '주문' : '발주'}</th>
-                    {mode === 'sales' && <th style={{ width: 60, textAlign: 'right' }}>출하</th>}
+                    {mode === 'sales' && <th style={{ width: 60, textAlign: 'right' }}>판매</th>}
                     <th style={{ width: 70, textAlign: 'right' }}>담을수량</th>
                     <th style={{ width: 80, textAlign: 'right' }}>단가</th>
                     <th style={{ width: 70 }}>상태</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {loadRows.map((r) => (
+                  {loadShown.map((r) => (
                     <tr
                       key={r.key}
                       onClick={() => setLoadPicked((p) => ({ ...p, [r.key]: !p[r.key] }))}
