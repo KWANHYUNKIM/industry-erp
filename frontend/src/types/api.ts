@@ -1387,6 +1387,9 @@ export interface StockAdjustment {
   employeeId: number | null
   reason: string | null
   createdBy: string | null
+  /** 원본 [불량유형]·[사용유형] · [처리방법](불량처리). */
+  kind?: string | null
+  handling?: string | null
 }
 
 // ===== 시리얼/로트 관리 =====

@@ -31,6 +31,7 @@ const RULES: Rule[] = [
   ['/inventory/stocktake-status', 'STOCK_MOVE'],
   ['/inventory/transfer-status', 'STOCK_MOVE'],
   ['/inventory/self-use', 'STOCK_MOVE'],
+  ['/inventory/defect', 'STOCK_MOVE'],
   ['/inventory/self-use-status', 'STOCK_MOVE'],
   ['/inventory/defect-status', 'STOCK_MOVE'],
   ['/inventory/substitute-status', 'STOCK_MOVE'],

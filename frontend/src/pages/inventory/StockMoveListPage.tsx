@@ -5,7 +5,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
-import EcPeriodPicks, { SELF_USE_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { QUOTATION_PICKS, SELF_USE_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { dateText } from '../../utils/dateText'
 import type { StockAdjustment } from '../../types/api'
@@ -22,8 +22,14 @@ interface AdjustmentList { rows: StockAdjustment[]; totalRows: number; truncated
  * <p>우리 자가사용은 <b>품목 하나짜리</b> 재고조정(type SELF_USE)이라 [품목]이 곧 그 품목이고 '외 n건' 요약이 없다.
  * 수량은 나간 수(증감의 절댓값)다. 자가사용은 거래처를 들지 않아 [거래처] 조건 · 열이 없고, 결재 · 확인 단계가 없어 탭도 없다.
  * [발송여부]는 전표를 메일로 보내지 않아 없다. [인쇄] 열은 전표 한 장을 찍는 자리인데 자가사용 인쇄 양식이 없다.
+ *
+ * <p><b>불량처리조회</b>(C000088) — 같은 날 실측. 조건: 기준일자(기본 최근30일(+1개월), 빠른선택에 [말일]이 없다) · 창고 · 프로젝트 ·
+ * 품목코드 · 담당자 · 불량유형 · 처리방법(체크, 다 켜짐 — 원본 회사는 폐기 · 품목대체 · 정상사용) · 기타(수정일자순) · 최종수정자 · 발송여부.
+ * 열: 입력일자 · 창고 · 품목 · 수량 · 처리방법 · 인쇄. [거래처]가 없다. 불량유형 · 처리방법 후보는 공통코드에서 가져온다.
  */
-export default function SelfUseListPage() {
+export default function StockMoveListPage({ kind }: { kind: 'SELF_USE' | 'DEFECT' }) {
+  const selfUse = kind === 'SELF_USE'
+  const title = selfUse ? '자가사용조회' : '불량처리조회'
   const navigate = useNavigate()
   const pickers = useCondPickers(['warehouses', 'projects', 'items', 'employees'])
   const init = periodOf('최근30일(+1개월)')!
@@ -32,6 +38,11 @@ export default function SelfUseListPage() {
   const [warehouse, setWarehouse] = useState('')
   const [project, setProject] = useState('')
   const [item, setItem] = useState('')
+  const [employee, setEmployee] = useState('')
+  const [defectKind, setDefectKind] = useState('')
+  /** 원본 [처리방법] 체크 — 끈 것만 담는다(공통코드 후보가 늘어도 처음엔 다 켜진 채다). */
+  const [handlingOff, setHandlingOff] = useState<Set<string>>(new Set())
+  const [codeGroups, setCodeGroups] = useState<{ name: string; codes: { name: string }[] }[]>([])
   const [rows, setRows] = useState<StockAdjustment[]>([])
   const [truncated, setTruncated] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -41,8 +52,12 @@ export default function SelfUseListPage() {
     setLoading(true)
     setError('')
     try {
-      const r = await api.get<AdjustmentList>('/stock-adjustments', { params: { from, to, type: 'SELF_USE' } })
+      const [r, c] = await Promise.all([
+        api.get<AdjustmentList>('/stock-adjustments', { params: { from, to, type: kind } }),
+        api.get<{ name: string; codes: { name: string }[] }[]>('/codes').catch(() => ({ data: [] })),
+      ])
       setRows(r.data.rows)
+      setCodeGroups(c.data)
       setTruncated(r.data.truncated)
     } catch (e) {
       setError(extractErrorMessage(e))
@@ -51,27 +66,32 @@ export default function SelfUseListPage() {
     }
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { void load() }, [from, to])
+  useEffect(() => { void load() }, [from, to, kind])
 
   const empName = useMemo(() => new Map(pickers.employees.map((e) => [(e as { id?: number }).id, e.name])), [pickers.employees])
   const shown = useMemo(() => rows
-    .filter((r) => r.type === 'SELF_USE')
+    .filter((r) => r.type === kind)
     .filter((r) => r.adjustDate >= from && r.adjustDate <= to)
     .filter((r) => !warehouse || String(r.warehouseId) === warehouse)
     .filter((r) => !project || String(r.projectId) === project)
     .filter((r) => !item || String(r.itemId) === item)
+    .filter((r) => !employee || (r.employeeId != null && empName.get(r.employeeId) === employee))
+    .filter((r) => !defectKind || (r.kind ?? '') === defectKind)
+    .filter((r) => selfUse || !handlingOff.has(r.handling ?? ''))
     .sort((a, b) => (a.adjustDate > b.adjustDate ? -1 : a.adjustDate < b.adjustDate ? 1 : b.adjustNo.localeCompare(a.adjustNo))),
-  [rows, from, to, warehouse, project, item])
+  [rows, kind, selfUse, from, to, warehouse, project, item, employee, defectKind, handlingOff, empName])
   const tableRef = useRef<HTMLTableElement>(null)
-  useTableColumnCheck(tableRef, '자가사용조회', [shown.length])
+  useTableColumnCheck(tableRef, title, [shown.length])
+  const codesOf = (g: string) => (codeGroups.find((x) => x.name === g)?.codes ?? []).map((c) => c.name)
+  const handlings = codesOf('처리방법')
 
   return (
     <EcListShell
-      title="자가사용조회"
+      title={title}
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setWarehouse(''); setProject(''); setItem('') } },
+        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setWarehouse(''); setProject(''); setItem(''); setEmployee(''); setDefectKind(''); setHandlingOff(new Set()) } },
         { label: '신규(F2)', onClick: () => navigate('/inventory/transfer') },
         { label: 'Excel' },
       ]}
@@ -83,7 +103,7 @@ export default function SelfUseListPage() {
           <span style={{ margin: '0 4px' }}>~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
           <span style={{ marginLeft: 6 }}>
-            <EcPeriodPicks labels={SELF_USE_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
+            <EcPeriodPicks labels={selfUse ? SELF_USE_PICKS : QUOTATION_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
         <EcCond label="창고" pick>
@@ -95,6 +115,30 @@ export default function SelfUseListPage() {
         <EcCond label="품목코드" pick>
           <CodePickerField label="품목코드" hideLabel width={220} emptyLabel="전체" value={item} onChange={setItem} items={pickers.items} />
         </EcCond>
+        {!selfUse && (
+          <>
+            <EcCond label="담당자" pick>
+              <CodePickerField label="담당자" hideLabel width={170} emptyLabel="전체" value={employee} onChange={setEmployee} items={pickers.employees} />
+            </EcCond>
+            <EcCond label="불량유형">
+              <select className="ec-input" value={defectKind} onChange={(e) => setDefectKind(e.target.value)} style={{ width: 140 }}>
+                <option value="">전체</option>
+                {codesOf('불량유형').map((k) => <option key={k} value={k}>{k}</option>)}
+              </select>
+            </EcCond>
+            <EcCond label="처리방법">
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+                <input type="checkbox" checked={handlingOff.size === 0} onChange={(e) => setHandlingOff(e.target.checked ? new Set() : new Set(['', ...handlings]))} /> 전체
+              </label>
+              {handlings.map((h) => (
+                <label key={h} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+                  <input type="checkbox" checked={!handlingOff.has(h)}
+                         onChange={(e) => setHandlingOff((s) => { const n = new Set(s); if (e.target.checked) n.delete(h); else n.add(h); return n })} /> {h}
+                </label>
+              ))}
+            </EcCond>
+          </>
+        )}
       </ul>
 
       {truncated && <p style={{ fontSize: 12, color: '#c07a00', marginBottom: 6 }}>자료가 많아 앞부분만 받았습니다 — 기간을 좁혀 보세요.</p>}
@@ -106,7 +150,7 @@ export default function SelfUseListPage() {
             <th>창고</th>
             <th>품목</th>
             <th style={{ textAlign: 'right' }}>수량</th>
-            <th>담당자</th>
+            {selfUse ? <th>담당자</th> : <th>처리방법</th>}
           </tr>
         </thead>
         <tbody>
@@ -121,7 +165,9 @@ export default function SelfUseListPage() {
               <td>{r.warehouseName}</td>
               <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
               <td style={{ textAlign: 'right' }}>{Math.abs(Number(r.quantityChange)).toLocaleString('ko-KR')}</td>
-              <td>{r.employeeId != null ? empName.get(r.employeeId) ?? '' : ''}</td>
+              {selfUse
+                ? <td>{r.employeeId != null ? empName.get(r.employeeId) ?? '' : ''}</td>
+                : <td>{r.handling ?? ''}</td>}
             </tr>
           ))}
         </tbody>

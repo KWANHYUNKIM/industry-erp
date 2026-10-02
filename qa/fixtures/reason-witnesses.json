@@ -5240,5 +5240,21 @@
    "mailed"
   ],
   "in": "backend/src/main/java/com/erp/inventory/adjustment/StockAdjustment.java"
+ },
+ "불량처리조회|발송여부": {
+  "claim": "발송 이력이 없다",
+  "absent": [
+   "sent",
+   "Sent",
+   "mailed"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/adjustment/StockAdjustment.java"
+ },
+ "불량처리조회|기타": {
+  "claim": "목록 응답이 고친 시각을 싣지 않는다",
+  "absent": [
+   "updatedAt"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/adjustment/dto/StockAdjustmentDtos.java"
  }
 }

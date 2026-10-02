@@ -857,6 +857,10 @@
  ],
  [
   "자가사용조회",
-  "inventory/SelfUseListPage.tsx"
+  "inventory/StockMoveListPage.tsx"
+ ],
+ [
+  "불량처리조회",
+  "inventory/StockMoveListPage.tsx"
  ]
 ]
