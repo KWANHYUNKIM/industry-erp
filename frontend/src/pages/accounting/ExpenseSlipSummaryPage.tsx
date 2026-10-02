@@ -9,6 +9,8 @@ import { EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 const slash = (d: string) => d.replace(/-/g, '/')
+/** 원본 [일자-No.]는 '2026/09/28 -9' — 우리 전표번호 'GL-20260714-0009' 의 끝 일련번호만 붙인다(판매조회와 같은 방식). */
+const seqOf = (no: string) => { const s = no.split('-').pop() ?? ''; return Number(s) || s }
 const PICKS = [...SETTLE_PICKS, '최근30일'] as const
 type Side = '지출' | '입금' | '가지급금'
 /** FastEntry 간편전표의 종류 — 이 보고서들은 회계 I &gt; FastEntry 에서 쓴 전표를 줄마다 모은다. */
@@ -202,7 +204,7 @@ export default function ExpenseSlipSummaryPage({ side = '지출' }: { side?: Sid
                   <Fragment key={mo}>
                     {ms.map((r) => (
                       <tr key={r.key}>
-                        <td className="text-[var(--ec-navy)]">{slash(r.date)} -{r.no}</td>
+                        <td className="text-[var(--ec-navy)]">{slash(r.date)} -{seqOf(r.no)}</td>
                         <td>{r.bank}</td>
                         <td>{r.account}</td>
                         <td>{r.partner}</td>
