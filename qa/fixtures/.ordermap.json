@@ -874,5 +874,9 @@
  [
   "재고실사조회",
   "inventory/StocktakeListPage.tsx"
+ ],
+ [
+  "시리얼/로트No.내역조회",
+  "quality/LotTxListPage.tsx"
  ]
 ]

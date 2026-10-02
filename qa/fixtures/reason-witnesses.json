@@ -5264,5 +5264,13 @@
    "결재란"
   ],
   "in": "frontend/src/pages/inventory/AdjustListPage.tsx"
+ },
+ "시리얼/로트No.내역조회|거래처그룹1": {
+  "claim": "로트 움직임이 거래처를 물지 않는다",
+  "absent": [
+   "partner",
+   "Partner"
+  ],
+  "in": "backend/src/main/java/com/erp/inventory/lot/LotTransaction.java"
  }
 }

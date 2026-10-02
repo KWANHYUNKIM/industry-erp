@@ -80,6 +80,14 @@
         "wait:1500",
         "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('asNo')));return h==='일자-No.|제목|거래처명|담당자명|품목명|소모(판매)금액|수리내용'&&!!tr&&tr.innerText.includes('QA 수리완료')&&tr.innerText.includes('QA기사')&&document.body.innerText.includes('AS수리현황')})()"
       ]
+    },
+    {
+      "name": "시리얼/로트No.내역조회 — 원본 열 차례로 서고, 줄이 있으면 수량은 소수 둘째 자리(1.00)까지 찍는다",
+      "path": "/quality/lot-tx-list",
+      "steps": [
+        "wait:2000",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const rows=[...document.querySelectorAll('tbody tr')].filter((t)=>t.cells.length===7);return h==='|일자-No.|품목명[규격]|시리얼/로트No.|수량|전표구분|유효기한'&&rows.every((t)=>/\\.\\d\\d$/.test(t.cells[4].innerText.trim()))})()"
+      ]
     }
   ]
 }
