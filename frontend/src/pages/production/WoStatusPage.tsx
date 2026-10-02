@@ -108,6 +108,8 @@ export default function WoStatusPage() {
   const [lineView, setLineView] = useState<'라인별' | '전표별' | '품목별' | '일별' | '월별' | '전표별품목별' | '담당자별'>('라인별')
   const AXES = ['품목별', '창고별', '거래처별', '담당자별', '월별'] as const
   const [axis, setAxis] = useState<typeof AXES[number]>('품목별')
+  /** 원본 [집계조건2] — 두 번째 묶음(2026-10-02 loginaa 실측: 집계조건1 · 집계조건2). 없으면 한 단계. */
+  const [axis2, setAxis2] = useState<typeof AXES[number] | ''>('')
   /*
    * 원본 [데이터 보기형식]의 <b>[그래프로 보기]</b> — 기본은 꺼짐이라 표로 연다(사본 실측).
    * 그리는 값은 <b>잔량</b>이다. 이 화면을 보는 까닭이 "무엇이 아직 안 끝났나" 라서,
@@ -232,12 +234,13 @@ export default function WoStatusPage() {
   /** 고른 축으로 묶어 수량 셋을 더한다. 줄이 없으면 빈 배열이라 표가 스스로 비운다. */
   const grouped = useMemo(() => {
       if (mode !== '집계') return []
-      const keyOf = (r: Row) => (
-        axis === '품목별' ? r.productName
-          : axis === '창고별' ? (r.warehouseName || '(없음)')
-            : axis === '거래처별' ? (r.partnerName || '(없음)')
-              : axis === '담당자별' ? empName(r.employeeId)
+      const keyBy = (a: typeof AXES[number], r: Row) => (
+        a === '품목별' ? r.productName
+          : a === '창고별' ? (r.warehouseName || '(없음)')
+            : a === '거래처별' ? (r.partnerName || '(없음)')
+              : a === '담당자별' ? (empName(r.employeeId) || '(미지정)')
                 : r.orderDate.slice(0, 7).replace(/-/g, '/'))
+      const keyOf = (r: Row) => (axis2 ? `${keyBy(axis, r)} · ${keyBy(axis2, r)}` : keyBy(axis, r))
       const by = new Map<string, { key: string; count: number; planned: number; produced: number; remaining: number }>()
       for (const r of shown) {
         const k = keyOf(r)
@@ -249,7 +252,8 @@ export default function WoStatusPage() {
         by.set(k, cur)
       }
       return [...by.values()].sort((a, b) => a.key.localeCompare(b.key))
-    }, [shown, mode, axis])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [shown, mode, axis, axis2, employees])
 
   /* 축을 바꿔도 열 수는 그대로지만, 표가 통째로 갈리므로 머리와 칸을 함께 본다. */
   const chartRows = useMemo(() => (
@@ -292,10 +296,19 @@ export default function WoStatusPage() {
             </select>
           )}
           {mode === '집계' && (
-            <select className="ec-input" value={axis} onChange={(e) => setAxis(e.target.value as typeof AXES[number])}
-                    style={{ width: 130, marginLeft: 6 }}>
-              {AXES.map((a) => <option key={a} value={a}>{a}</option>)}
-            </select>
+            <span style={{ display: 'inline-flex', gap: 6, marginLeft: 6, alignItems: 'center', fontSize: 12 }}>
+              집계조건1
+              <select className="ec-input" value={axis} onChange={(e) => setAxis(e.target.value as typeof AXES[number])}
+                      style={{ width: 110 }}>
+                {AXES.map((a) => <option key={a} value={a}>{a}</option>)}
+              </select>
+              집계조건2
+              <select className="ec-input" value={axis2} onChange={(e) => setAxis2(e.target.value as typeof AXES[number] | '')}
+                      style={{ width: 110 }}>
+                <option value="">없음</option>
+                {AXES.filter((a) => a !== axis).map((a) => <option key={a} value={a}>{a}</option>)}
+              </select>
+            </span>
           )}
         </EcCond>
         {/* 원본 조건 첫째 <b>[기준일자]</b>(사본 실측). */}
@@ -424,7 +437,7 @@ export default function WoStatusPage() {
           <thead>
             <tr>
               <th style={{ width: 34 }}></th>
-              <th>{axis}</th>
+              <th>{axis2 ? `${axis} · ${axis2}` : axis}</th>
               <th style={{ width: 90, textAlign: 'right' }}>건수</th>
               <th style={{ width: 120, textAlign: 'right' }}>지시수량</th>
               <th style={{ width: 120, textAlign: 'right' }}>생산수량</th>
