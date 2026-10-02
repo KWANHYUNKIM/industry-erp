@@ -79,6 +79,26 @@ export default function WorkOrderEntryPage() {
   const [orderOpen, setOrderOpen] = useState(false)
   /** 원본 툴바의 [전표불러오기] — 메뉴검색에서 고른 전표의 생산할 수 있는 품목 줄을 수량 그대로 붓는다([주문] 과 같은 규칙). */
   const [slipLoadOpen, setSlipLoadOpen] = useState(false)
+  /**
+   * 원본 툴바의 [재고불러오기] — 줄마다 <b>전체수량</b>(전 창고 합)과 <b>창고수량</b>(그 줄 생산공장의 재고)을 채운다
+   * (2026-10-02 loginaa 실측: 격자 끝에 두 열이 있고 버튼을 누르면 채워진다). 안 눌렀으면 비어 있다(0 이 아니다).
+   */
+  const [stocks, setStocks] = useState<{ itemId: number; warehouseId: number; quantity: number }[] | null>(null)
+  const [stockBusy, setStockBusy] = useState(false)
+  async function loadStocks() {
+    setStockBusy(true)
+    try {
+      setStocks((await api.get<{ itemId: number; warehouseId: number; quantity: number }[]>('/stock')).data)
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    } finally {
+      setStockBusy(false)
+    }
+  }
+  const stockAll = (itemId: string) => (stocks == null || !itemId ? null
+    : stocks.filter((x) => String(x.itemId) === itemId).reduce((a, x) => a + Number(x.quantity), 0))
+  const stockAt = (itemId: string, whId: string) => (stocks == null || !itemId || !whId ? null
+    : Number(stocks.find((x) => String(x.itemId) === itemId && String(x.warehouseId) === whId)?.quantity ?? 0))
   function applyLoadedSlips(slips: LoadedSlip[]) {
     const factory = lastFactory()
     const makeable = slips.flatMap((x) => x.lines)
@@ -295,11 +315,12 @@ export default function WorkOrderEntryPage() {
           <button type="button" className="ec-btn ec-btn-sm" disabled={myItems.busy} onClick={myItems.pick}>My품목</button>
           <button type="button" className="ec-btn ec-btn-sm" onClick={() => { setError(''); setOrderOpen(true) }}>주문</button>
           <button type="button" className="ec-btn ec-btn-sm" onClick={() => setSlipLoadOpen(true)}>전표불러오기</button>
+          <button type="button" className="ec-btn ec-btn-sm" disabled={stockBusy} onClick={() => void loadStocks()}>재고불러오기</button>
           <MyItemsNote note={myItems.note} />
         </div>
 
         <div ref={gridRef} style={{ overflowX: 'auto' }}>
-          <table className="ec-grid-input no-ec" style={{ tableLayout: 'fixed', minWidth: 900 }}>
+          <table className="ec-grid-input no-ec" style={{ tableLayout: 'fixed', minWidth: 1100 }}>
             <colgroup>
               <col style={{ width: 30 }} />
               <col style={{ width: 120 }} />
@@ -307,6 +328,8 @@ export default function WorkOrderEntryPage() {
               <col style={{ width: 140 }} />
               <col style={{ width: 100 }} />
               <col style={{ width: 200 }} />
+              <col style={{ width: 100 }} />
+              <col style={{ width: 100 }} />
               <col style={{ width: 100 }} />
             </colgroup>
             <thead>
@@ -318,6 +341,8 @@ export default function WorkOrderEntryPage() {
                 <th style={{ textAlign: 'right' }}>수량</th>
                 <th style={{ textAlign: 'left' }}>생산공장</th>
                 <th style={{ textAlign: 'right' }}>기생산</th>
+                <th style={{ textAlign: 'right' }}>전체수량</th>
+                <th style={{ textAlign: 'right' }}>창고수량</th>
               </tr>
             </thead>
             <tbody>
@@ -341,6 +366,8 @@ export default function WorkOrderEntryPage() {
                                        value={l.warehouseId} onChange={(v) => setLine(l.key, { warehouseId: v })} items={factoryPicks} />
                     </td>
                     <td className="pad" style={{ textAlign: 'right', color: '#8a929c' }}>{l.produced > 0 ? won(l.produced) : ''}</td>
+                    <td className="pad" style={{ textAlign: 'right', color: '#5a626e' }}>{stockAll(l.productId) == null ? '' : won(stockAll(l.productId)!)}</td>
+                    <td className="pad" style={{ textAlign: 'right', color: '#5a626e' }}>{stockAt(l.productId, l.warehouseId) == null ? '' : won(stockAt(l.productId, l.warehouseId)!)}</td>
                   </tr>
                 )
               })}
@@ -349,7 +376,7 @@ export default function WorkOrderEntryPage() {
               <tr>
                 <td colSpan={4} />
                 <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(filled.reduce((n, l) => n + num(l.qty), 0))}</td>
-                <td colSpan={2} />
+                <td colSpan={4} />
               </tr>
             </tfoot>
           </table>

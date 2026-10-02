@@ -121,7 +121,7 @@ try {
       } else if (kind === 'expect') {
         const expr = rest.join(':')
         let okv = false
-        for (let t = 0; t < 5000 && !okv; t += 250) { okv = await b.evaluate(`!!(${expr})`); if (!okv) await sleep(250) }
+        for (let t = 0; t < 5000 && !okv; t += 250) { okv = await b.evaluate(`(async () => !!(await (${expr})))()`)  /* 약속을 먼저 기다린다 — !!(Promise) 는 늘 참이라 비동기 기대가 아무것도 안 재고 통과했다 */; if (!okv) await sleep(250) }
         if (!okv) { failed = true; console.log('  ❌ 기대와 다름:', expr) } else console.log('  ✅', expr)
       } else if (kind === 'apidel') {
         const [list, re, field] = rest.join(':').split('|')
