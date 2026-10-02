@@ -11,6 +11,7 @@ import { dateText } from '../../utils/dateText'
 import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
 import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
+import SlipLoadModal, { type LoadedSlip } from '../../features/slipload/components/SlipLoadModal'
 
 /** 생산관리 > 생산불출 — 자재 불출 등록/삭제 (백엔드 /api/material-issues 연동) */
 /** 원본 탭 [전체 · 결재중 · 미확인 · 확인] — 진행상태. */
@@ -162,6 +163,16 @@ export default function IssuePage() {
   }
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  /**
+   * 원본 격자 툴바의 <b>[전표불러오기]</b> → 메뉴검색(주문서 · 판매 · 발주서 · 구매 · 작업지시서 · 생산불출)에서 전표를 골라
+   * 그 품목 줄을 불출 자재 줄로 붓는다(수량 그대로). 불출은 자재든 제품이든 낼 수 있어 품목을 가리지 않는다.
+   */
+  const [slipLoadOpen, setSlipLoadOpen] = useState(false)
+  function applyLoadedSlips(slips: LoadedSlip[]) {
+    const added = slips.flatMap((x) => x.lines).filter((l) => l.itemId > 0 && l.quantity > 0)
+    setLines((ls) => [...ls.filter((l) => l.itemId),
+      ...added.map((l) => ({ ...emptyLine(), itemId: String(l.itemId), qty: String(l.quantity) })), emptyLine()])
+  }
   const [keyword, setKeyword] = useState('')
   const [from, setFrom] = useState(initP.from)
   const [to, setTo] = useState(initP.to)
@@ -545,6 +556,7 @@ export default function IssuePage() {
             <button type="button" className="ec-btn" disabled={myItems.busy} onClick={myItems.pick}>My품목</button>
             <MyItemsNote note={myItems.note} />
             <button type="button" className="ec-btn" onClick={() => void openWoPick()}>작업지시서</button>
+            <button type="button" className="ec-btn" onClick={() => setSlipLoadOpen(true)}>전표불러오기</button>
             <button type="button" className="ec-btn" disabled={stockBusy} onClick={loadStocks}>재고불러오기</button>
           </div>
           {woPickOpen && (
@@ -839,6 +851,7 @@ export default function IssuePage() {
           </tfoot>
         )}
       </table>
+      <SlipLoadModal open={slipLoadOpen} onClose={() => setSlipLoadOpen(false)} onApply={applyLoadedSlips} />
     </EcListShell>
   )
 }
