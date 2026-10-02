@@ -149,6 +149,7 @@ const MENU: TopMenu[] = [
         label: '생산/외주',
         nodes: [
           { label: 'BOM(소요량)등록', to: '/production/bom' },
+          { label: '소요량계산', to: '/production/requirement-calc' },
           { label: '공정등록', to: '/production/process' },
           { label: '자원등록', to: '/production/resource' },
           { label: 'BOR(작업소요시간)', to: '/production/bor' },
