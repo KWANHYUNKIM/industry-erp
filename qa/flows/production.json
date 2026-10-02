@@ -353,6 +353,24 @@
         "js:(()=>{const ss=[...document.querySelectorAll('select')].filter((x)=>[...x.options].some((o)=>o.value==='창고별'));const s=ss[ss.length-1];Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'창고별');s.dispatchEvent(new Event('change',{bubbles:true}));return new Promise((r)=>setTimeout(()=>{[...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='가로보기').querySelector('input').click();setTimeout(()=>r(true),600)},500))})()",
         "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim());if(!(h.length>=4&&h[h.length-1]==='합계'&&h[1].includes('월별')))return false;const f=document.querySelector('table tfoot tr');if(!f)return true;const n=(x)=>Number(x.replace(/[^0-9.-]/g,''))||0;const rows=[...document.querySelectorAll('table tbody tr')];return rows.reduce((a,r)=>a+n(r.cells[r.cells.length-1].innerText),0)===n(f.cells[f.cells.length-1].innerText)})()"
       ]
+    },
+    {
+      "name": "생산불출현황 — ○집계 [코드포함]: 조건1 창고별이면 [창고코드] 열이 이름 앞에 서고 칸마다 코드가 찍힌다(원본 기타 코드포함)",
+      "path": "/production/issue-status",
+      "steps": [
+        "js:new Promise((r)=>setTimeout(()=>{[...document.querySelectorAll('button')].find((b)=>b.textContent.trim()==='집계').click();setTimeout(()=>{const s=[...document.querySelectorAll('select')].find((x)=>[...x.options].some((o)=>o.value==='분기별'));Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'창고별');s.dispatchEvent(new Event('change',{bubbles:true}));setTimeout(()=>r(true),800)},500)},1500))",
+        "js:([...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='코드포함').querySelector('input').click(), new Promise((r)=>setTimeout(()=>r(true),600)))",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim());const i=h.indexOf('창고코드');if(i<0||h[i+1]!=='창고별')return false;const rows=[...document.querySelectorAll('table tbody tr')].filter((r)=>r.cells.length===h.length);return rows.every((r)=>r.cells[i].innerText.trim()!=='')})()"
+      ]
+    },
+    {
+      "name": "생산입고현황 — ○집계 [코드포함]: 조건1 창고별이면 [창고코드] 열이 이름 앞에 서고 칸마다 코드가 찍힌다(원본 기타 코드포함)",
+      "path": "/production/receipt-status",
+      "steps": [
+        "js:new Promise((r)=>setTimeout(()=>{[...document.querySelectorAll('button')].find((b)=>b.textContent.trim()==='집계').click();setTimeout(()=>{const s=[...document.querySelectorAll('select')].find((x)=>[...x.options].some((o)=>o.value==='분기별'));Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'창고별');s.dispatchEvent(new Event('change',{bubbles:true}));setTimeout(()=>r(true),800)},500)},1500))",
+        "js:([...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='코드포함').querySelector('input').click(), new Promise((r)=>setTimeout(()=>r(true),600)))",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim());const i=h.indexOf('창고코드');if(i<0||h[i+1]!=='창고별')return false;const rows=[...document.querySelectorAll('table tbody tr')].filter((r)=>r.cells.length===h.length);return rows.every((r)=>r.cells[i].innerText.trim()!=='')})()"
+      ]
     }
   ]
 }

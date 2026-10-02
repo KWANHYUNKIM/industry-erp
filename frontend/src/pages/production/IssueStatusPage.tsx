@@ -7,7 +7,7 @@ import EcBarChart from '../../components/EcBarChart'
 import { STATUS_PICKS, periodOf, comparePeriodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
 import type { Item, Warehouse } from '../../types/api'
 import { stockCostMapFromLast } from '../../utils/stockValue'
-import { aggregate, type GroupKey } from '../../utils/statusAggregate'
+import { aggregate, groupCodes, GROUP_CODE_LABEL, type AggregatableRow, type GroupKey } from '../../utils/statusAggregate'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { subtotalBy } from '../../utils/subtotalBy'
@@ -120,9 +120,11 @@ export default function IssueStatusPage() {
   const [ratio, setRatio] = useState(false)
   /** 원본 집계 [기타] 의 [가로보기] — 조건2 값을 열로 펼친다(조건1 이 줄, 칸은 수량). 조건2 가 있을 때만 뜻이 있다. */
   const [pivot, setPivot] = useState(false)
+  /** 원본 집계 [기타] 의 [코드포함] — 묶음 이름 앞에 코드 열을 세운다(코드가 있는 축만). */
+  const [codeIncl, setCodeIncl] = useState(false)
   /* 조건2 를 켜면 열이 하나 는다 — 렌더된 표를 직접 잰다. */
   const aggRef = useRef<HTMLTableElement>(null)
-  useTableColumnCheck(aggRef, '생산불출현황 집계', [agg2, mode, ratio, pivot])
+  useTableColumnCheck(aggRef, '생산불출현황 집계', [agg2, mode, ratio, pivot, codeIncl, agg1])
   const [lineView, setLineView] = useState<'라인별' | '전표별' | '품목별' | '일별' | '월별' | '전표별품목별' | '담당자별'>('라인별')
   const [view, setView] = useState<'표' | '그래프'>('표')
   const [warehouseId, setWarehouseId] = useState('')
@@ -275,13 +277,30 @@ export default function IssueStatusPage() {
   const amountOf = (r: { itemId: number; qty: number }) => { const p = priceOf.get(r.itemId); return p == null ? null : p * r.qty }
   /** 내역 [전표별] — 불출번호 하나가 한 줄(첫 자재 외 n건, 수량 합). 생산금액은 줄마다 단가로 센 것을 더한다. */
   /** 집계 — 불출 줄을 집계용 모양으로 옮겨 조건1·2 로 묶는다. 금액은 생산금액(모르는 줄은 0 으로 더하지 않고 뺀다). */
-  const aggRows = useMemo(() => aggregate(shown.map((r) => ({
+  const toAgg = (r: MaterialIssue): AggregatableRow => ({
     date: r.issueDate, docNo: r.issueNo, partner: '', itemName: r.itemName, qty: r.qty,
     supply: amountOf(r) ?? 0, vat: 0, warehouseName: r.warehouseName ?? '', projectName: r.projectName ?? null,
     taxable: true, employeeName: empName(r.employeeId) || null, managementItemName: null,
-  })), agg1, agg2),
+  })
+  const aggRows = useMemo(() => aggregate(shown.map(toAgg), agg1, agg2),
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [shown, agg1, agg2, priceOf, employees])
+  /** 묶음의 코드 — 품목은 자재코드, 창고는 보내는창고 코드, 담당자·프로젝트는 마스터 코드. */
+  const codeOf = (r: MaterialIssue, key: GroupKey) =>
+    key === '품목별' ? r.itemCode
+      : key === '창고별' ? (warehouses.find((w) => w.id === r.warehouseId) as { code?: string } | undefined)?.code
+      : key === '담당자별' ? pickers.employees.find((e) => e.id === r.employeeId)?.code
+      : key === '프로젝트별' ? pickers.projects.find((p) => p.id === r.projectId)?.code
+      : ''
+  /** [코드포함] — 켜졌고 그 축에 코드가 있으면 열 이름, 아니면 undefined(열을 안 세운다). */
+  const code1 = codeIncl ? GROUP_CODE_LABEL[agg1] : undefined
+  const code2 = codeIncl && agg2 ? GROUP_CODE_LABEL[agg2] : undefined
+  const codes1 = useMemo(() => code1 ? groupCodes(shown, agg1, toAgg, codeOf) : new Map<string, string>(),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [code1, shown, agg1, employees, warehouses, pickers.employees, pickers.projects])
+  const codes2 = useMemo(() => code2 && agg2 ? groupCodes(shown, agg2, toAgg, codeOf) : new Map<string, string>(),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [code2, shown, agg2, employees, warehouses, pickers.employees, pickers.projects])
   const listRows = lineView === '라인별' ? shown : (() => {
     /* 품목별 — 같은 품목(보내는창고·받는공장도 같은 것)을 한 줄로, 일자-No. 는 처음 것을 둔다(원본 실측: 9/3 · 9/7 의 같은 자재가 9/3 줄에 합쳐진다). */
     /* 일별 · 월별 — 그날(그달) 줄을 한 줄로, 일자만 찍고(No. 없음) 창고·품목은 처음 줄 것, 수량·금액은 합
@@ -350,6 +369,9 @@ export default function IssueStatusPage() {
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: agg2 ? undefined : '#9aa1ab' }}
                    title="집계조건2 를 고르면 그 값을 열로 펼칩니다">
               <input type="checkbox" checked={pivot} disabled={!agg2} onChange={(e) => setPivot(e.target.checked)} /> 가로보기
+            </label>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+              <input type="checkbox" checked={codeIncl} onChange={(e) => setCodeIncl(e.target.checked)} /> 코드포함
             </label>
           </span>
         ) : mode === '내역' ? (
@@ -478,6 +500,7 @@ export default function IssueStatusPage() {
             <thead>
               <tr>
                 <th style={{ width: 34 }}></th>
+                {code1 && <th style={{ width: 120 }}>{code1}</th>}
                 <th>{agg1} \ {agg2}</th>
                 {cols.map((c) => <th key={c} style={{ textAlign: 'right' }}>{c}</th>)}
                 <th style={{ textAlign: 'right' }}>합계</th>
@@ -487,6 +510,7 @@ export default function IssueStatusPage() {
               {lines.map(([k, m], i) => (
                 <tr key={k}>
                   <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                  {code1 && <td style={{ fontFamily: 'monospace' }}>{codes1.get(k)}</td>}
                   <td>{k}</td>
                   {cols.map((c) => <td key={c} style={{ textAlign: 'right' }}>{m.get(c) ? num(m.get(c)!) : ''}</td>)}
                   <td style={{ textAlign: 'right', fontWeight: 600 }}>{num([...m.values()].reduce((a, v) => a + v, 0))}</td>
@@ -495,7 +519,7 @@ export default function IssueStatusPage() {
             </tbody>
             <tfoot>
               <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-                <td colSpan={2} style={{ textAlign: 'right' }}>합계</td>
+                <td colSpan={code1 ? 3 : 2} style={{ textAlign: 'right' }}>합계</td>
                 {cols.map((c) => <td key={c} style={{ textAlign: 'right' }}>{num(aggRows.filter((g) => g.g2 === c).reduce((a, g) => a + g.qty, 0))}</td>)}
                 <td style={{ textAlign: 'right' }}>{num(totalQty)}</td>
               </tr>
@@ -507,7 +531,9 @@ export default function IssueStatusPage() {
           <thead>
             <tr>
               <th style={{ width: 34 }}></th>
+              {code1 && <th style={{ width: 120 }}>{code1}</th>}
               <th>{agg1}</th>
+              {code2 && <th style={{ width: 120 }}>{code2}</th>}
               {agg2 && <th>{agg2}</th>}
               <th style={{ width: 100, textAlign: 'right' }}>건수</th>
               <th style={{ width: 130, textAlign: 'right' }}>수량</th>
@@ -517,11 +543,13 @@ export default function IssueStatusPage() {
           </thead>
           <tbody>
             {aggRows.length === 0 ? (
-              <tr><td colSpan={(agg2 ? 6 : 5) + (ratio ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={(agg2 ? 6 : 5) + (ratio ? 1 : 0) + (code1 ? 1 : 0) + (code2 ? 1 : 0)} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : aggRows.map((g, i) => (
               <tr key={`${g.g1}|${g.g2}`}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                {code1 && <td style={{ fontFamily: 'monospace' }}>{codes1.get(g.g1)}</td>}
                 <td>{g.g1}</td>
+                {code2 && <td style={{ fontFamily: 'monospace' }}>{codes2.get(g.g2)}</td>}
                 {agg2 && <td>{g.g2}</td>}
                 <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(g.count)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{num(g.qty)}</td>
@@ -532,7 +560,7 @@ export default function IssueStatusPage() {
           </tbody>
           <tfoot>
             <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={agg2 ? 3 : 2} style={{ textAlign: 'right' }}>합계 ({aggRows.length}묶음)</td>
+              <td colSpan={(agg2 ? 3 : 2) + (code1 ? 1 : 0) + (code2 ? 1 : 0)} style={{ textAlign: 'right' }}>합계 ({aggRows.length}묶음)</td>
               <td style={{ textAlign: 'right' }}>{num(shown.length)}</td>
               <td style={{ textAlign: 'right', color: '#a5561b' }}>{num(totalQty)}</td>
               {ratio && <td style={{ textAlign: 'right' }}>100.0</td>}

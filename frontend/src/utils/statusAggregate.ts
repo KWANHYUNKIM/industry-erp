@@ -103,3 +103,24 @@ export function aggregate(
   }
   return [...map.values()].sort((a, b) => b.supply - a.supply)
 }
+
+/**
+ * 원본 집계 [기타] 의 [코드포함] — 켜면 묶음 이름 앞에 그 코드 열이 선다(2026-10-02 loginaa 생산불출현황 실측:
+ * 보낸창고명으로 묶으면 [보낸창고명코드 | 보낸창고명 | 수량]). 코드가 없는 축(날짜·전표·거래유형·관리항목)은 열을 안 세운다.
+ */
+export const GROUP_CODE_LABEL: Partial<Record<GroupKey, string>> = {
+  품목별: '품목코드', 창고별: '창고코드', 담당자별: '담당자코드', 프로젝트별: '프로젝트코드', 거래처별: '거래처코드',
+}
+
+/** 묶음 이름 → 코드. 같은 이름에 코드가 둘이면 먼저 본 것을 쓴다(이름으로 묶었으므로 한 칸에 하나만 적을 수 있다). */
+export function groupCodes<R>(
+  rows: R[], key: GroupKey | '', toAgg: (r: R) => AggregatableRow, codeOf: (r: R, key: GroupKey) => string | null | undefined,
+): Map<string, string> {
+  const m = new Map<string, string>()
+  if (!key || !GROUP_CODE_LABEL[key]) return m
+  for (const r of rows) {
+    const g = groupValue(toAgg(r), key)
+    if (!m.has(g)) m.set(g, codeOf(r, key) ?? '')
+  }
+  return m
+}
