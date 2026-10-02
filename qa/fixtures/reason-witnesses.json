@@ -5444,13 +5444,36 @@
   ],
   "in": "backend/src/main/java/com/erp/accounting/expense/Expense.java"
  },
- "비용내역조회|사용일자": {
-  "claim": "비용 전표에 날짜가 하나뿐이다",
+ "받을어음조회|부서": {
+  "claim": "어음에 부서가 없다",
   "absent": [
-   "useDate",
-   "usedDate",
-   "usageDate"
+   "department",
+   "Department"
   ],
-  "in": "backend/src/main/java/com/erp/accounting/expense/Expense.java"
+  "in": "backend/src/main/java/com/erp/accounting/promissorynote/PromissoryNote.java"
+ },
+ "받을어음조회|프로젝트": {
+  "claim": "어음에 프로젝트가 없다",
+  "absent": [
+   "project",
+   "Project"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/promissorynote/PromissoryNote.java"
+ },
+ "지급어음조회|부서": {
+  "claim": "어음에 부서가 없다",
+  "absent": [
+   "department",
+   "Department"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/promissorynote/PromissoryNote.java"
+ },
+ "지급어음조회|프로젝트": {
+  "claim": "어음에 프로젝트가 없다",
+  "absent": [
+   "project",
+   "Project"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/promissorynote/PromissoryNote.java"
  }
 }

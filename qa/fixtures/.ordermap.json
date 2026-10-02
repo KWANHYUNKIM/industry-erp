@@ -918,5 +918,13 @@
  [
   "비용내역조회",
   "accounting/ExpenseListPage.tsx"
+ ],
+ [
+  "받을어음조회",
+  "accounting/NoteListPage.tsx"
+ ],
+ [
+  "지급어음조회",
+  "accounting/NoteListPage.tsx"
  ]
 ]

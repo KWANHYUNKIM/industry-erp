@@ -26,7 +26,8 @@ interface Expense {
  *
  * <p>비용내역현황과 같은 비용 전표를 목록으로 본다. 우리 비용은 <b>저장하는 순간 분개를 만든다</b>(ExpenseService →
  * JournalService.createFromExpense) — 그래서 회계반영여부는 늘 '확인(회계)' 이고, 미청구 · 미확인(회계)는 걸릴 전표가 없다.
- * 비용그룹명은 계정의 세부분류(현황과 같다), 사용자는 작성자다.
+ * 비용그룹명은 계정의 세부분류(현황과 같다), 사용자는 작성자다. [사용일자]는 옆 [사용] 체크로 켜는 두 번째 기간이다
+ * (받을어음조회의 [만기일자] · [사용]과 같은 모양 — 2026-10-03 에 그 화면을 재며 알았다).
  */
 export default function ExpenseListPage() {
   const navigate = useNavigate()
@@ -34,6 +35,10 @@ export default function ExpenseListPage() {
   const init = periodOf('금월(~오늘)')!
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
+  /* 원본 [사용일자] 옆 [사용] 체크로 켜는 두 번째 기간. 우리 비용은 날짜가 하나뿐이라 같은 값을 한 번 더 거른다. */
+  const [useUse, setUseUse] = useState(false)
+  const [useFrom, setUseFrom] = useState(init.from)
+  const [useTo, setUseTo] = useState(init.to)
   const [group, setGroup] = useState('')
   const [account, setAccount] = useState('')
   const [user, setUser] = useState('')
@@ -62,6 +67,7 @@ export default function ExpenseListPage() {
 
   const shown = useMemo(() => rows
     .filter((r) => r.expenseDate >= from && r.expenseDate <= to)
+    .filter((r) => !useUse || (r.expenseDate >= useFrom && r.expenseDate <= useTo))
     .filter((r) => !group || (r.accountGroupName ?? '') === group)
     .filter((r) => !account || r.accountName === account)
     .filter((r) => !user || (r.createdBy ?? '') === user)
@@ -71,7 +77,7 @@ export default function ExpenseListPage() {
     .filter(() => reflected['확인(회계)'])
     .filter((r) => !remark || (r.content ?? '').includes(remark))
     .sort((a, b) => (a.expenseDate > b.expenseDate ? -1 : a.expenseDate < b.expenseDate ? 1 : b.docNo.localeCompare(a.docNo))),
-  [rows, from, to, group, account, user, partner, dept, project, reflected, remark])
+  [rows, from, to, useUse, useFrom, useTo, group, account, user, partner, dept, project, reflected, remark])
   const groups = useMemo(() => [...new Set(rows.map((r) => r.accountGroupName).filter(Boolean) as string[])].sort(), [rows])
   const accounts = useMemo(() => [...new Set(rows.map((r) => r.accountName))].sort(), [rows])
   const users = useMemo(() => [...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort(), [rows])
@@ -98,6 +104,14 @@ export default function ExpenseListPage() {
           <span style={{ marginLeft: 6 }}>
             <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
+        </EcCond>
+        <EcCond label="사용일자">
+          <input type="date" className="ec-input" value={useFrom} disabled={!useUse} onChange={(e) => setUseFrom(e.target.value)} style={{ width: 145 }} />
+          <span style={{ margin: '0 4px' }}>~</span>
+          <input type="date" className="ec-input" value={useTo} disabled={!useUse} onChange={(e) => setUseTo(e.target.value)} style={{ width: 145 }} />
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginLeft: 8, fontSize: 12.5 }}>
+            <input type="checkbox" checked={useUse} onChange={(e) => setUseUse(e.target.checked)} /> 사용
+          </label>
         </EcCond>
         <EcCond label="비용그룹" pick>
           <CodePickerField label="비용그룹" hideLabel width={180} emptyLabel="전체" value={group} onChange={setGroup} items={groups.map((g) => ({ value: g, name: g }))} />

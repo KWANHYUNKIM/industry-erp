@@ -51,6 +51,7 @@ const PromissoryNotePage = lazy(() => import('../pages/accounting/PromissoryNote
 const NoteHoldingPage = lazy(() => import('../pages/accounting/NoteHoldingPage'))
 const NoteFlowPage = lazy(() => import('../pages/accounting/NoteFlowPage'))
 const NoteLedgerPage = lazy(() => import('../pages/accounting/NoteLedgerPage'))
+const NoteListPage = lazy(() => import('../pages/accounting/NoteListPage'))
 const BudgetPage = lazy(() => import('../pages/accounting/BudgetPage'))
 const CashPlanPage = lazy(() => import('../pages/accounting/CashPlanPage'))
 const AccountsPage = lazy(() => import('../pages/accounting/AccountsPage'))
@@ -420,6 +421,8 @@ export default function AppRouter() {
         <Route path="/accounting/other-withholding" element={<OtherWithholdingPage />} />
         <Route path="/accounting/corporate-tax" element={<CorporateTaxPage />} />
         <Route path="/accounting/notes" element={<PromissoryNotePage />} />
+        <Route path="/accounting/notes-list" element={<NoteListPage type="RECEIVABLE" />} />
+        <Route path="/accounting/notes-pay-list" element={<NoteListPage type="PAYABLE" />} />
         <Route path="/accounting/notes-ledger" element={<NoteLedgerPage type="RECEIVABLE" />} />
         <Route path="/accounting/notes-pay-ledger" element={<NoteLedgerPage type="PAYABLE" />} />
         <Route path="/accounting/notes-in" element={<NoteFlowPage type="RECEIVABLE" flow="증가" />} />
