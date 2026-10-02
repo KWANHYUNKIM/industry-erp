@@ -133,7 +133,7 @@ public class SalesOrderService {
     }
 
     /**
-     * 미판매현황: 접수·진행중 주문의 라인 중 아직 판매 전표로 안 끊은 잔량.
+     * 미판매현황: 취소 아닌 주문의 라인 중 아직 판매 전표로 안 끊은 잔량.
      * 미출하(출하 여부)와 다른 질문이다 — 출하는 됐는데 매출을 못 잡은 건도 여기 남는다.
      */
     @Transactional(readOnly = true)
@@ -160,7 +160,14 @@ public class SalesOrderService {
         for (SalesLineRepository.OrderItemAggregate a : salesLineRepository.aggregateSoldByOrderAndItem()) {
             sold.merge(a.getOrderId() + ":" + a.getItemId(), a.getQty(), BigDecimal::add);
         }
-        List<SalesOrderStatus> open = List.of(SalesOrderStatus.RECEIVED, SalesOrderStatus.IN_PROGRESS);
+        /*
+         * 완료 주문도 본다(취소만 뺀다) — 미출하와 같은 까닭의 거울이다. 주문은 <b>다 출하해도</b>
+         * 완료가 되는데(refreshProgress), 판매로는 아직 안 끊었을 수 있다. 예전엔 접수·진행중만 봐서
+         * 4개 중 마지막 1개를 출하하자 주문이 완료되고, 남은 미판매 1개가 미판매현황과
+         * 판매입력 [주문] 에서 사라졌다(25회차). 판매로 완료된 주문은 남은 수량이 0 이라 어차피 안 나온다.
+         */
+        List<SalesOrderStatus> open = List.of(SalesOrderStatus.RECEIVED, SalesOrderStatus.IN_PROGRESS,
+                SalesOrderStatus.COMPLETED);
         return openOrders(open, from, to).stream()
                 .flatMap(o -> o.getLines().stream()
                         .map(l -> UnsoldLineResponse.of(o, l, sold.get(o.getId() + ":" + l.getItem().getId()))))

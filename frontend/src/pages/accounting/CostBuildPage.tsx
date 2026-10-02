@@ -73,6 +73,7 @@ export default function CostBuildPage() {
   const [basis, setBasis] = useState<Basis>('최종매입가')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [ok, setOk] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [checkOpen, setCheckOpen] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
@@ -139,24 +140,40 @@ export default function CostBuildPage() {
 
   async function remove(r: Cost) {
     if (!window.confirm(`[${r.itemName}] ${r.period} 원가를 삭제할까요?`)) return
+    setError(''); setOk('')
     try {
       await api.delete(`/costs/${r.id}`)
+      setOk(`[${r.itemName}] ${r.period} 원가를 삭제했습니다.`)
       load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      setError(extractErrorMessage(err))
     }
   }
 
+  /*
+   * 원가를 만들 달은 위 [기준년월] 이다. 예전엔 기준년월을 골라 둬도 브라우저 입력창(prompt)이
+   * 다시 물었고 결과도 alert 로 떴다(24회차 #76). 비어 있으면 묻지 않고 막는다 —
+   * 원가생성은 되돌리기 어려운 일이라 아무 달에나 만들지 않는다.
+   */
+  function targetPeriod(what: string): string | null {
+    setError(''); setOk('')
+    if (!periodCond) {
+      setError(`위 [기준년월] 을 먼저 고르세요 — 그 달의 ${what}을(를) 만듭니다.`)
+      return null
+    }
+    return periodCond
+  }
+
   async function build() {
-    const period = window.prompt('표준원가를 자동 생성할 기간을 입력하세요 (예: 2026-06)', thisMonth())
+    const period = targetPeriod('표준원가')
     if (!period) return
     try {
       const res = await api.post<Cost[]>(
         `/costs/build?period=${encodeURIComponent(period)}&basis=${basis === '총평균법' ? 'WEIGHTED_AVG' : 'LAST_PURCHASE'}`)
-      alert(`${res.data.length}건의 표준원가를 ${basis} 으로 생성했습니다.`)
+      setOk(`${period} 표준원가 ${res.data.length}건을 ${basis}으로 생성했습니다.`)
       load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      setError(extractErrorMessage(err))
     }
   }
 
@@ -175,16 +192,18 @@ export default function CostBuildPage() {
    * 그 달 생산실적(실제 투입 자재)과 노무비/경비등록(공정별 실제 발생액)에서 낸다.
    */
   async function calcActual() {
-    const period = window.prompt('실제원가를 계산할 기간을 입력하세요 (예: 2026-06)', thisMonth())
+    const period = targetPeriod('실제원가')
     if (!period) return
     try {
       const res = await api.post<Cost[]>(`/costs/actual?period=${encodeURIComponent(period)}`)
-      alert(res.data.length === 0
-        ? `${period} 에 계산할 것이 없습니다. 그 달 생산실적이 있고 표준원가가 먼저 만들어져 있어야 합니다.`
-        : `${res.data.length}건의 실제원가를 계산했습니다.`)
+      if (res.data.length === 0) {
+        setError(`${period} 에 계산할 것이 없습니다. 그 달 생산실적이 있고 표준원가가 먼저 만들어져 있어야 합니다.`)
+      } else {
+        setOk(`${period} 실제원가 ${res.data.length}건을 계산했습니다.`)
+      }
       load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      setError(extractErrorMessage(err))
     }
   }
 
@@ -192,7 +211,7 @@ export default function CostBuildPage() {
     <EcListShell title="원가생성/수정" search={keyword} onSearchChange={setKeyword}
       newLabel={showForm ? '입력닫기' : '원가등록(F2)'} onNew={() => (showForm ? setShowForm(false) : openNew())}
       actions={[
-        { label: '노무비/경비등록', onClick: () => setExpensePeriod(window.prompt('기준년월 (예: 2026-06)', thisMonth()) || null) },
+        { label: '노무비/경비등록', onClick: () => setExpensePeriod(targetPeriod('노무비/경비')) },
         /*
          * 원본에도 같은 이름의 버튼이 있다. 원가생성은 <b>되돌리기 어려운</b> 일이라
          * 무엇이 갖춰져 있어야 하는지 누르기 전에 볼 자리가 필요하다.
@@ -236,6 +255,7 @@ export default function CostBuildPage() {
         <ProcessExpenseModal period={expensePeriod} onClose={() => setExpensePeriod(null)} />
       )}
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {ok && <p style={{ marginBottom: 8, background: '#eaf6ee', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
 
       <Modal error={error} open={showForm} title="원가생성/수정 등록" onClose={() => setShowForm(false)}>{(
         <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginBottom: 10 }}>
