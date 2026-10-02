@@ -4,7 +4,7 @@ import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import Modal from '../../components/Modal'
-import EcPeriodPicks, { AS_PICKS, SALES_TAX_STOCK_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { AS_PICKS, SALES_TAX_LIST_PICKS, SALES_TAX_STOCK_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import { dateText } from '../../utils/dateText'
 
@@ -35,10 +35,15 @@ const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
  * <p>공급가액은 부가세대급금(135)·외상매입금이 아닌 줄의 차변−대변, 매입부가세는 135 의 차변−대변이다 —
  * 반품으로 되돌린 전표는 음수로 잡힌다.
  */
-export default function PurchaseTaxStockPage({ kind = 'PURCHASE' }: { kind?: 'PURCHASE' | 'SALES' }) {
+/**
+ * <p><b>매출(세금)계산서조회(재고)</b>(E040218, 같은 날 실측)는 같은 전표를 <b>목록</b>으로 본다(list) — 열 일자 - 번호 · 거래처명 · 공급가액 ·
+ * 부가세 · 합 계 · 내역보기 · 인쇄, 달 소계 · 합계줄이 없고 기본은 최근30일(+1개월). 위 탭 전체 · 결재중 · 미확인 · 확인은
+ * 회계전표에 결재 · 확인 상태가 없어 두지 않았다.
+ */
+export default function PurchaseTaxStockPage({ kind = 'PURCHASE', list = false }: { kind?: 'PURCHASE' | 'SALES'; list?: boolean }) {
   const sales = kind === 'SALES'
   /* 매출(세금)계산서현황(재고)(E040223)은 기본이 [최근30일] 이고 빠른선택 끝에도 그것이 있다 — 매입은 금월(~오늘). */
-  const init = sales ? periodOf('최근30일')! : periodOf('금월(~오늘)')!
+  const init = list ? periodOf('최근30일(+1개월)')! : sales ? periodOf('최근30일')! : periodOf('금월(~오늘)')!
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
   const [docNo, setDocNo] = useState('')
@@ -107,7 +112,7 @@ export default function PurchaseTaxStockPage({ kind = 'PURCHASE' }: { kind?: 'PU
 
   return (
     <EcListShell
-      title={sales ? '매출(세금)계산서현황(재고)' : '매입(세금)계산서현황(재고)'}
+      title={list ? '매출(세금)계산서조회(재고)' : sales ? '매출(세금)계산서현황(재고)' : '매입(세금)계산서현황(재고)'}
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
@@ -123,7 +128,7 @@ export default function PurchaseTaxStockPage({ kind = 'PURCHASE' }: { kind?: 'PU
           <span style={{ margin: '0 4px' }}>~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
           <span style={{ marginLeft: 6 }}>
-            <EcPeriodPicks labels={sales ? SALES_TAX_STOCK_PICKS : AS_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
+            <EcPeriodPicks labels={list ? SALES_TAX_LIST_PICKS : sales ? SALES_TAX_STOCK_PICKS : AS_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
         <EcCond label="회계전표No.">
@@ -137,7 +142,7 @@ export default function PurchaseTaxStockPage({ kind = 'PURCHASE' }: { kind?: 'PU
           <CodePickerField label="거래처관리담당자" hideLabel width={200} emptyLabel="전체" value={pmgrCond} onChange={setPmgrCond}
                            items={pmgr.options.map((n) => ({ value: n, name: n }))} />
         </EcCond>
-        {sales && (
+        {sales && !list && (
           <EcCond label="기타">
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
               <input type="checkbox" checked={taxOnly} onChange={(e) => setTaxOnly(e.target.checked)} /> 세무신고거래처
@@ -146,15 +151,15 @@ export default function PurchaseTaxStockPage({ kind = 'PURCHASE' }: { kind?: 'PU
         )}
       </ul>
 
-      <h3 style={{ fontSize: 13, fontWeight: 700, margin: '4px 0 6px' }}>{sales ? '매출청구서현황' : '매입청구서현황'} <span style={{ fontWeight: 400, color: '#8a929c' }}>{dateText(from)} ~ {dateText(to)}</span></h3>
+      {!list && <h3 style={{ fontSize: 13, fontWeight: 700, margin: '4px 0 6px' }}>{sales ? '매출청구서현황' : '매입청구서현황'} <span style={{ fontWeight: 400, color: '#8a929c' }}>{dateText(from)} ~ {dateText(to)}</span></h3>}
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ textAlign: 'center' }}>일자-No.</th>
+            <th style={{ textAlign: 'center' }}>{list ? '일자 - 번호' : '일자-No.'}</th>
             <th>거래처명</th>
             <th style={{ textAlign: 'right' }}>공급가액</th>
-            <th style={{ textAlign: 'right' }}>{sales ? '매출부가세' : '매입부가세'}</th>
-            <th style={{ textAlign: 'right' }}>{sales ? '매출합계' : '매입합계'}</th>
+            <th style={{ textAlign: 'right' }}>{list ? '부가세' : sales ? '매출부가세' : '매입부가세'}</th>
+            <th style={{ textAlign: 'right' }}>{list ? '합 계' : sales ? '매출합계' : '매입합계'}</th>
             <th style={{ textAlign: 'center' }}>내역보기</th>
           </tr>
         </thead>
@@ -163,7 +168,23 @@ export default function PurchaseTaxStockPage({ kind = 'PURCHASE' }: { kind?: 'PU
             <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
             <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-          ) : months.flatMap(([m, js]) => {
+          ) : list ? [...shown].reverse().map((j) => {
+            /* 조회(목록)는 최근 것이 위다 — 원본 2026/10/28 · 10/02 · 09/28 차례(실측). */
+            const s = sumOf(j)
+            return (
+              <tr key={j.id}>
+                <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{dateText(j.entryDate)} {j.docNo}</td>
+                <td>{j.partnerName ?? ''}</td>
+                <td style={{ textAlign: 'right' }}>{won(s.supply)}</td>
+                <td style={{ textAlign: 'right' }}>{won(s.vat)}</td>
+                <td style={{ textAlign: 'right' }}>{won(s.total)}</td>
+                <td style={{ textAlign: 'center' }}>
+                  <button type="button" className="no-ec" onClick={() => setDetail(j)}
+                          style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12 }}>내역보기</button>
+                </td>
+              </tr>
+            )
+          }) : months.flatMap(([m, js]) => {
             const sub = js.reduce((a, j) => { const s = sumOf(j); return { supply: a.supply + s.supply, vat: a.vat + s.vat, total: a.total + s.total } }, { supply: 0, vat: 0, total: 0 })
             return [
               ...js.map((j) => {
@@ -192,7 +213,7 @@ export default function PurchaseTaxStockPage({ kind = 'PURCHASE' }: { kind?: 'PU
             ]
           })}
         </tbody>
-        {shown.length > 0 && (
+        {shown.length > 0 && !list && (
           <tfoot>
             <tr style={SUB_ROW}>
               <td colSpan={2} style={{ textAlign: 'center' }}>합계</td>

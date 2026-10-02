@@ -230,6 +230,7 @@ const MENU: TopMenu[] = [
               { label: '미주문현황', to: '/sales/unordered' },
               { label: '미판매현황', to: '/sales/unsold' },
               { label: '미출하현황', to: '/sales/unshipped' },
+              { label: '매출(세금)계산서조회(재고)', to: '/sales/sales-tax-list' },
               { label: '매출(세금)계산서현황(재고)', to: '/sales/sales-tax-status' },
               { label: '거래처별채권', to: '/sales/ledger-receivable' },
               { label: '채권현황', to: '/sales/receivable-status' },

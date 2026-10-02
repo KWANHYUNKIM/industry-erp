@@ -299,6 +299,7 @@ export default function AppRouter() {
         <Route path="/production/subcontract-reflection" element={<SubcontractReflectionPage />} />
         <Route path="/production/purchase-tax-status" element={<PurchaseTaxStockPage />} />
         <Route path="/sales/sales-tax-status" element={<PurchaseTaxStockPage kind="SALES" />} />
+        <Route path="/sales/sales-tax-list" element={<PurchaseTaxStockPage kind="SALES" list />} />
         <Route path="/production/bom-status" element={<BomStatusPage />} />
         <Route path="/production/requirement-calc" element={<RequirementCalcPage />} />
         {/*

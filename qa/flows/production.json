@@ -521,6 +521,14 @@
         "wait:2000",
         "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');return h==='일자-No.|거래처명|공급가액|매출부가세|매출합계|내역보기'&&document.body.innerText.includes('매출청구서현황')&&document.body.innerText.includes('세무신고거래처')})()"
       ]
+    },
+    {
+      "name": "매출(세금)계산서조회(재고) — 같은 전표의 목록: 열 '일자 - 번호 · 거래처명 · 공급가액 · 부가세 · 합 계 · 내역보기', 달 소계 · 합계줄이 없다",
+      "path": "/sales/sales-tax-list",
+      "steps": [
+        "wait:2000",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');return h==='일자 - 번호|거래처명|공급가액|부가세|합 계|내역보기'&&!document.querySelector('table tfoot')&&![...document.querySelectorAll('tbody tr')].some((t)=>/ 계$/.test(t.cells[0]?.innerText.trim()||''))})()"
+      ]
     }
   ]
 }

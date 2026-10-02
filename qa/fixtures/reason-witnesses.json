@@ -5361,5 +5361,38 @@
   "present": [
    "key={j.id}"
   ]
+ },
+ "매출(세금)계산서조회(재고)|부서": {
+  "claim": "회계전표에 부서가 없다",
+  "absent": [
+   "Department",
+   "department"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "매출(세금)계산서조회(재고)|프로젝트": {
+  "claim": "회계전표에 프로젝트가 없다",
+  "absent": [
+   "Project",
+   "project"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "매출(세금)계산서조회(재고)|부가세유형": {
+  "claim": "매출 분개가 부가세 유형을 남기지 않는다",
+  "absent": [
+   "vatType",
+   "VatType"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "매출(세금)계산서조회(재고)|발송여부": {
+  "claim": "발송 이력이 없다",
+  "absent": [
+   "mailed",
+   "sentAt",
+   "sendStatus"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
  }
 }

@@ -275,6 +275,9 @@ export const ORDER_LIST_PICKS = [...BASE_PICKS, '종료일', '최근30일(+1개�
 /** 매출(세금)계산서현황(재고)(E040223) — A/S 묶음 끝에 <b>최근30일</b>이 붙고 기본도 그것이다(2026-10-03 원본 실측). */
 export const SALES_TAX_STOCK_PICKS = [...BASE_PICKS, '직전분기', '직전반기', '종료일', '최근30일'] as const
 
+/** 매출(세금)계산서조회(재고)(E040218) — A/S 묶음 끝에 <b>최근30일(+1개월)</b>, 기본도 그것(2026-10-03 원본 실측). */
+export const SALES_TAX_LIST_PICKS = [...BASE_PICKS, '직전분기', '직전반기', '종료일', '최근30일(+1개월)'] as const
+
 export const SELF_USE_PICKS = [...ORDER_DOC_PICKS, '최근30일(+1개월)'] as const
 
 /**

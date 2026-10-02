@@ -898,5 +898,9 @@
  [
   "매출(세금)계산서현황(재고)",
   "production/PurchaseTaxStockPage.tsx"
+ ],
+ [
+  "매출(세금)계산서조회(재고)",
+  "production/PurchaseTaxStockPage.tsx"
  ]
 ]
