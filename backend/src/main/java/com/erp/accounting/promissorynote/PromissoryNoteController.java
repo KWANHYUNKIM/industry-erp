@@ -59,6 +59,13 @@ public class PromissoryNoteController {
         return service.discount(id, req, principal.getUsername());
     }
 
+    /** 삭제 — 보유 중인 어음만 */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        service.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+
     /** 부도 처리 (받을어음 전용) */
     @PostMapping("/{id}/dishonor")
     public NoteResponse dishonor(@PathVariable Long id, @RequestBody(required = false) DishonorRequest req) {

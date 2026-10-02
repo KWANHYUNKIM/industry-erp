@@ -218,6 +218,18 @@ public class PromissoryNoteService {
     }
 
     /**
+     * 어음 삭제 — <b>보유</b> 중일 때만(QA 58회차 — 잘못 받아 적은 어음을 지울 길이 없었다).
+     * 수취·발행 분개만 있으므로 그것을 지우면 외상매출금(매입금)이 그대로 돌아온다.
+     * 결제·할인·부도로 계좌·손익이 움직인 어음은 지우지 않는다.
+     */
+    @Transactional
+    public void delete(Long id) {
+        PromissoryNote n = held(id, "삭제");
+        noteRepository.delete(n);
+        journalService.deleteBySource(com.erp.accounting.journal.JournalSourceType.NOTE, id);
+    }
+
+    /**
      * 결제·할인·부도는 어음을 받은(발행한) 날 이후다. 앞 날짜를 받아 주면 그 분개가 어음 수취 전에 잡혀
      * 그 사이 받을어음 잔액이 음수가 된다(QA 57회차 — 10/2 받은 어음을 9/30 에 할인할 수 있었다).
      */

@@ -102,6 +102,15 @@ export default function PromissoryNotePage() {
     } catch (err) { alert(extractErrorMessage(err)) }
   }
 
+  async function remove(n: PromissoryNote) {
+    if (!window.confirm(`${n.noteNo} 어음(${won(n.amount)}원)을 지울까요? ${n.type === 'RECEIVABLE' ? '외상매출금' : '외상매입금'}이 되돌아가고 회계전표도 지워집니다.`)) return
+    try {
+      await api.delete(`/notes/${n.id}`)
+      flash(`${n.noteNo} 삭제 — 회계전표도 지웠습니다.`)
+      load()
+    } catch (err) { alert(extractErrorMessage(err)) }
+  }
+
   async function dishonor(n: PromissoryNote) {
     if (!window.confirm(`${n.noteNo}을(를) 부도 처리할까요? 어음채권이 외상매출금으로 환원됩니다.`)) return
     try {
@@ -190,6 +199,8 @@ export default function PromissoryNotePage() {
                     {/* 할인은 만기 전에만 — 만기가 지났으면 만기결제로 받는다(서버도 거절, QA 57회차). */}
                     {n.type === 'RECEIVABLE' && n.dueDate >= today() && <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => discount(n)}>할인</button>}
                     {n.type === 'RECEIVABLE' && <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => dishonor(n)}>부도</button>}
+                    {/* 보유 중일 때만 지운다 — 수취·발행 분개도 같이 지워진다(QA 58회차). */}
+                    <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#8a929c' }} onClick={() => remove(n)}>삭제</button>
                   </div>
                 ) : (
                   <span style={{ fontSize: 11, color: '#8a929c' }}>{n.closedDate}</span>

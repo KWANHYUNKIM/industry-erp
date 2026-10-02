@@ -1902,6 +1902,10 @@ async function scenarioNote(f) {
     { bankAccountId: bank.id, discountFee: 100, discountDate: '2026-12-02' }, '만기결제')
   await rejects('어음을 받기 전 날짜로는 결제할 수 없다', 'POST', `/notes/${tooCheap.id}/settle`,
     { bankAccountId: bank.id, settleDate: '2026-07-13' }, '수취·발행일')
+  // 58회차 — 잘못 받아 적은 어음을 지울 길이 없었다. 보유 중이면 지우고 수취 분개도 같이 지운다.
+  await must('DELETE', `/notes/${tooCheap.id}`)
+  eq('보유 중인 어음을 지우면 수취 분개도 지워진다', (await journalsOf(tooCheap.noteNo)).length, 0)
+  await rejects('결제된 어음은 지울 수 없다', 'DELETE', `/notes/${recv.id}`, undefined, '이미')
 
   // ── 받을어음: 부도 → 외상매출금 환원
   const bad = await must('POST', '/notes', {
