@@ -802,5 +802,9 @@
  [
   "수령수표현황",
   "accounting/CheckHoldingPage.tsx"
+ ],
+ [
+  "발행수표현황",
+  "accounting/CheckHoldingPage.tsx"
  ]
 ]

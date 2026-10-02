@@ -4869,5 +4869,33 @@
   "present": [
    "key={c.id}"
   ]
+ },
+ "발행수표현황|부서": {
+  "claim": "수표에 부서가 없다",
+  "absent": [
+   "Department",
+   "department"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/bankcheck/BankCheck.java"
+ },
+ "발행수표현황|프로젝트": {
+  "claim": "수표에 프로젝트가 없다",
+  "absent": [
+   "Project",
+   "project"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/bankcheck/BankCheck.java"
+ },
+ "발행수표현황|정렬/소계기준": {
+  "claim": "거래처로 묶음과 소계를 둔다",
+  "present": [
+   "c.partnerId ?? ''"
+  ]
+ },
+ "발행수표현황|데이터 보기형식": {
+  "claim": "수표 한 장이 한 줄인 목록이다",
+  "present": [
+   "key={c.id}"
+  ]
  }
 }

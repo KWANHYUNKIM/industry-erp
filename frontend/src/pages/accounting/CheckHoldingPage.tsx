@@ -7,7 +7,7 @@ import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { NOTE_FLOW_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { dateText } from '../../utils/dateText'
-import type { BankCheck } from '../../types/api'
+import type { BankAccountRow, BankCheck, CheckType } from '../../types/api'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 /** 원본 소계 · 합계줄 모양(2026-10-02 실측): 바탕 rgb(243,243,243) · 굵게. */
@@ -24,9 +24,24 @@ const SUB_ROW: React.CSSProperties = { fontWeight: 700, background: 'rgb(243, 24
  * <p>기준일자에 아직 들고 있는(입금 · 부도 전) 받은수표를 센다 — 받은 날 ≤ 기준일자, 닫힌 날(settledDate)이 없거나 그 뒤.
  * 계정명은 우리 분개가 쓰는 <b>받을수표</b>(104)다 — 원본 회사는 보통예금을 찍었는데 그건 그 회사의 계정 설정이다.
  * 부서 · 프로젝트는 수표(BankCheck)가 들지 않는다.
+ *
+ * <p><b>발행수표현황</b>(E060608)도 조건 · 열이 같다(조건의 [수령수표계좌] 자리가 [발행수표계좌], 첫 열이 [발행일자]) —
+ * 아직 은행에서 안 빠져나간(결제 전) 발행수표다. 계정명은 그 수표를 끊은 계좌의 계정(분개가 대변에 쓰는 것)이다.
  */
-export default function CheckHoldingPage() {
+export default function CheckHoldingPage({ type }: { type: CheckType }) {
+  const received = type === 'RECEIVED'
+  const title = received ? '수령수표현황' : '발행수표현황'
+  const acctLabel = received ? '수령수표계좌' : '발행수표계좌'
   const account = '받을수표'
+  /* 발행수표의 계정명 — 그 수표를 끊은 계좌의 총계정(당좌예금 등). */
+  const [glByAccount, setGlByAccount] = useState<Map<number, string>>(new Map())
+  useEffect(() => {
+    if (received) return
+    api.get<BankAccountRow[]>('/bank-cards/accounts')
+      .then((r) => setGlByAccount(new Map(r.data.map((a) => [a.id, a.glAccountName]))))
+      .catch(() => setGlByAccount(new Map()))
+  }, [received])
+  const accountOf = (c: BankCheck) => (received ? account : (c.bankAccountId != null ? glByAccount.get(c.bankAccountId) ?? '' : ''))
   const pickers = useCondPickers(['partners'])
   const init = periodOf('최근30일')!
   const [asOf, setAsOf] = useState(init.to)
@@ -50,14 +65,14 @@ export default function CheckHoldingPage() {
     }
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { void load() }, [asOf])
+  useEffect(() => { void load() }, [asOf, type])
 
   const held = useMemo(() => checks
-    .filter((c) => c.type === 'RECEIVED')
+    .filter((c) => c.type === type)
     .filter((c) => c.issueDate <= asOf && (!c.settledDate || c.settledDate > asOf))
     .filter((c) => !checkNo || c.checkNo.includes(checkNo))
     .filter((c) => !bankAccount || (c.bankAccountName ?? '') === bankAccount),
-  [checks, asOf, checkNo, bankAccount])
+  [checks, type, asOf, checkNo, bankAccount])
 
   const codeOf = (partnerId: number | null) => pickers.partners.find((p) => p.id === partnerId)?.code ?? ''
   const groups = useMemo(() => {
@@ -76,11 +91,11 @@ export default function CheckHoldingPage() {
   const total = groups.reduce((a, g) => a + g.sum, 0)
   const accounts = useMemo(() => [...new Set(checks.map((c) => c.bankAccountName).filter(Boolean) as string[])].sort(), [checks])
   const tableRef = useRef<HTMLTableElement>(null)
-  useTableColumnCheck(tableRef, '수령수표현황', [groups.length])
+  useTableColumnCheck(tableRef, title, [groups.length])
 
   return (
     <EcListShell
-      title="수령수표현황"
+      title={title}
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
@@ -97,28 +112,28 @@ export default function CheckHoldingPage() {
             <EcPeriodPicks labels={NOTE_FLOW_PICKS} currentFrom={asOf} onPick={(r) => setAsOf(r.to)} />
           </span>
         </EcCond>
-        {/* 원본 [계정] — 받은수표가 쓰는 계정은 받을수표 하나다. */}
+        {/* 원본 [계정] — 받은수표는 받을수표 하나, 발행수표는 끊은 계좌의 계정이라 계좌 조건이 그 몫을 한다. */}
         <EcCond label="계정">
-          <select className="ec-input" value={account} disabled style={{ width: 140 }}>
-            <option value={account}>{account}</option>
+          <select className="ec-input" value={received ? account : ''} disabled style={{ width: 140 }}>
+            <option value={received ? account : ''}>{received ? account : '계좌의 계정'}</option>
           </select>
         </EcCond>
         <EcCond label="수표번호">
           <input className="ec-input" value={checkNo} onChange={(e) => setCheckNo(e.target.value)} style={{ width: 180 }} />
         </EcCond>
-        <EcCond label="수령수표계좌" pick>
-          <CodePickerField label="수령수표계좌" hideLabel width={200} emptyLabel="전체" value={bankAccount} onChange={setBankAccount}
+        <EcCond label={received ? '수령수표계좌' : '발행수표계좌'} pick>
+          <CodePickerField label={acctLabel} hideLabel width={200} emptyLabel="전체" value={bankAccount} onChange={setBankAccount}
                            items={accounts.map((a) => ({ value: a, name: a }))} />
         </EcCond>
       </ul>
 
       <h3 style={{ fontSize: 13, fontWeight: 700, margin: '4px 0 6px' }}>
-        수령수표현황 <span style={{ fontWeight: 400, color: '#8a929c' }}>{dateText(asOf)}</span>
+        {title} <span style={{ fontWeight: 400, color: '#8a929c' }}>{dateText(asOf)}</span>
       </h3>
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ textAlign: 'center' }}>수령일자</th>
+            <th style={{ textAlign: 'center' }}>{received ? '수령일자' : '발행일자'}</th>
             <th>수표번호</th>
             <th>거래처명</th>
             <th>계정명</th>
@@ -137,7 +152,7 @@ export default function CheckHoldingPage() {
                 <td style={{ textAlign: 'center' }}>{dateText(c.issueDate)}</td>
                 <td>{c.checkNo}</td>
                 <td>{c.partnerName ?? ''}</td>
-                <td>{account}</td>
+                <td>{accountOf(c)}</td>
                 <td>{c.remark ?? ''}</td>
                 <td style={{ textAlign: 'right' }}>{won(Number(c.amount))}</td>
               </tr>

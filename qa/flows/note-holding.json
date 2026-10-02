@@ -97,6 +97,14 @@
         "wait:2000",
         "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');if(h!=='수령일자|수표번호|거래처명|계정명|적요|금액')return false;const n=(x)=>Number(x.replace(/[^0-9.-]/g,''))||0;const subs=[...document.querySelectorAll('table tbody tr')].filter((t)=>/ 계$/.test(t.cells[0].innerText.trim()));const tot=document.querySelector('table tfoot tr');const sum=subs.reduce((a,t)=>a+n(t.cells[t.cells.length-1].innerText),0);return sum===n(tot.cells[tot.cells.length-1].innerText)})()"
       ]
+    },
+    {
+      "name": "발행수표현황 — 머리는 원본 발행일자 · 수표번호 · 거래처명 · 계정명 · 적요 · 금액, 조건에 [발행수표계좌], 소계의 합이 합계와 같다",
+      "path": "/accounting/checks-issued",
+      "steps": [
+        "wait:2000",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');if(h!=='발행일자|수표번호|거래처명|계정명|적요|금액')return false;if(!document.body.innerText.includes('발행수표계좌'))return false;const n=(x)=>Number(x.replace(/[^0-9.-]/g,''))||0;const subs=[...document.querySelectorAll('table tbody tr')].filter((t)=>/ 계$/.test(t.cells[0].innerText.trim()));const tot=document.querySelector('table tfoot tr');return subs.reduce((a,t)=>a+n(t.cells[t.cells.length-1].innerText),0)===n(tot.cells[tot.cells.length-1].innerText)})()"
+      ]
     }
   ]
 }
