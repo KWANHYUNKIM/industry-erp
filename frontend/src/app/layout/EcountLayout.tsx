@@ -148,7 +148,7 @@ const MENU: TopMenu[] = [
       {
         label: '생산/외주',
         nodes: [
-          { label: 'BOM(소요량)등록', to: '/production/bom' },
+          { label: 'BOM(소요량)조회', to: '/production/bom' },
           /* 원본 BOM(소요량) 묶음: BOM(소요량)조회 · BOM(소요량)현황 · 소요량계산(2026-10-02 loginaa 실측). */
           { label: 'BOM(소요량)현황', to: '/production/bom-status' },
           { label: '소요량계산', to: '/production/requirement-calc' },
