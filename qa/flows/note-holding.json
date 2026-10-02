@@ -1,5 +1,5 @@
 {
-  "about": "보유어음현황 · 미지급어음현황 — 기준일자 하루에 들고 있던 어음을 본다(원본 E010626 · E010634). 어음은 API 로 만들고 끝에 지운다.",
+  "about": "보유어음현황 · 미지급어음현황 · 받을어음증가현황 · 감소현황 — 어음 하나를 API 로 만들어 화면마다 어디에 뜨나 본다(원본 E010626 · E010634 · E010624 · E010625). 끝에 지운다.",
   "shots": [
     {
       "name": "준비 — 받을어음 1장(오늘 발행, API)",
@@ -35,6 +35,24 @@
       "steps": [
         "wait:1800",
         "expect:document.body.innerText.includes('미지급어음현황')&&!([...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes(sessionStorage.getItem('nhNo'))))"
+      ]
+    },
+    {
+      "name": "받을어음증가현황 — 오늘 받은 어음이 기본 기간(최근30일) 안에 뜨고, 머리는 원본 일자 · 어음번호 · 거래처명 · 계정명 · 적요 · 만기일자 · 금액",
+      "path": "/accounting/notes-in",
+      "steps": [
+        "wait:1800",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');return h==='일자|어음번호|거래처명|계정명|적요|만기일자|금액'})()",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes(sessionStorage.getItem('nhNo'))&&t.innerText.includes('23,456'))"
+      ]
+    },
+    {
+      "name": "받을어음감소현황 — 아직 들고 있는 어음은 감소에 안 뜨고, 머리는 원본 일자 · 어음번호 · 거래처명 · 계정명 · 적요 · 금액(만기일자 없음)",
+      "path": "/accounting/notes-out",
+      "steps": [
+        "wait:1800",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');return h==='일자|어음번호|거래처명|계정명|적요|금액'})()",
+        "expect:!([...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes(sessionStorage.getItem('nhNo'))))"
       ]
     },
     {

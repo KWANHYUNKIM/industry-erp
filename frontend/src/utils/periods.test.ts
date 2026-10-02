@@ -195,3 +195,8 @@ test('최근7일 — 달을 넘어가도 이레', () => {
   assert.deepEqual(periodOf('최근7일', new Date(2026, 7, 3)),
     { from: '2026-07-28', to: '2026-08-03' })
 })
+
+test('최근30일 — 서른 날 전부터 오늘까지(원본 10/02 → 09/02 ~ 10/02)', () => {
+  assert.deepEqual(periodOf('최근30일', new Date(2026, 9, 2)), { from: '2026-09-02', to: '2026-10-02' })
+  assert.deepEqual(periodOf('최근30일', new Date(2026, 2, 1)), { from: '2026-01-30', to: '2026-03-01' })
+})

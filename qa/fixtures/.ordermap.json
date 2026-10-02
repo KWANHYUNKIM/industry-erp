@@ -774,5 +774,13 @@
  [
   "미지급어음현황",
   "accounting/NoteHoldingPage.tsx"
+ ],
+ [
+  "받을어음증가현황",
+  "accounting/NoteFlowPage.tsx"
+ ],
+ [
+  "받을어음감소현황",
+  "accounting/NoteFlowPage.tsx"
  ]
 ]

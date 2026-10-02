@@ -71,6 +71,12 @@ export function periodOf(label: string, today = new Date(), fiscalStart?: number
      */
     case '최근7일':
       return { from: ymd(addDays(t, -6)), to: ymd(t) }
+    /*
+     * <b>최근30일</b> — 서른 날 전부터 오늘까지. 받을어음증가현황 · 감소현황의 기본값이다
+     * (2026-10-02 원본 실측: 10/02 에 2026/09/02 ~ 2026/10/02). [최근7일]과 달리 시작 날도 서른 날을 다 뺀다.
+     */
+    case '최근30일':
+      return { from: ymd(addDays(t, -30)), to: ymd(t) }
     // 원본 그대로의 이름. 오늘 기준 사흘 전부터 이레 뒤까지 — 지난 일과 다가올 일을 함께 본다.
     case '최근3일+7일':
       return { from: ymd(addDays(t, -3)), to: ymd(addDays(t, 7)) }
@@ -299,6 +305,9 @@ export const STOCK_PICKS = ['금일', '전일'] as const
 
 /** 수금현황(E040217) — 회계 기수 둘이 더 붙는다 */
 export const SETTLE_PICKS = [...BASE_PICKS, '이번기수', '직전기수', '종료일'] as const
+
+/** 받을어음증가현황 · 감소현황(E010624 · E010625) — 끝에 [종료일] · [최근30일](기본값)이 붙는다(2026-10-02 실측). */
+export const NOTE_FLOW_PICKS = [...BASE_PICKS, '종료일', '최근30일'] as const
 
 /**
  * 결제내역자료비교(E040220) — 원본 사본 실측. <b>'전월' 이 없고</b> 대신
