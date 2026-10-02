@@ -370,6 +370,16 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
       if (!(num(l.qty) > 0)) return setError(`${i + 1}번째 줄: 수량을 입력하세요.`)
       if (type === 'III' && !l.fromWarehouseId) return setError(`${i + 1}번째 줄: 생산된공장을 입력바랍니다.`)
       if (type === 'III' && !l.warehouseId) return setError(`${i + 1}번째 줄: 받는창고를 입력바랍니다.`)
+      /* 로트관리 품목은 로트No. 가 있어야 한다 — 서버도 거절한다(판매·구매와 같은 규칙). */
+      const it = itemById.get(l.productId)
+      if (it?.lotManaged && !l.lotNo.trim()) return setError(`${it.code} ${it.name} 은(는) 로트관리 품목입니다 — 로트No.를 입력하세요.`)
+    }
+    if (type !== 'I') {
+      const noLot = mats.find((m) => m.componentId && !m.lotNo.trim() && itemById.get(m.componentId)?.lotManaged)
+      if (noLot) {
+        const c = itemById.get(noLot.componentId)!
+        return setError(`[소모] ${c.code} ${c.name} 은(는) 로트관리 품목입니다 — 로트No.를 입력하세요.`)
+      }
     }
     const orphan = mats.find((m) => m.componentId && !filled.some((l) => String(l.key) === m.lineKey))
     if (type !== 'I' && orphan) return setError('[소모] 탭에서 생산품목을 고르지 않은 줄이 있습니다.')

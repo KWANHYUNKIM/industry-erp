@@ -31,7 +31,9 @@ public final class MaterialIssueDtos {
             /** 귀속 프로젝트. 원본 생산불출입력 머리의 [프로젝트]. 안 정할 수 있다. */
             Long projectId,
             @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
-            String note
+            String note,
+            /** [시리얼/로트No.]. 로트관리 품목이면 꼭 준다. */
+            @Size(max = 60, message = "로트No.는 60자까지 넣을 수 있습니다.") String lotNo
     ) {}
 
     /**
@@ -62,7 +64,9 @@ public final class MaterialIssueDtos {
              * 이 줄의 작업지시서. 원본은 [작업지시서] 로 여러 지시를 한 번에 불러와
              * 줄마다 다른 지시에 묶인다. 안 주면 머리의 작업지시를 쓴다.
              */
-            Long workOrderId
+            Long workOrderId,
+            /** [시리얼/로트No.]. 로트관리 품목이면 꼭 준다. */
+            @Size(max = 60, message = "로트No.는 60자까지 넣을 수 있습니다.") String lotNo
     ) {}
 
     /**
@@ -125,7 +129,9 @@ public final class MaterialIssueDtos {
             /** 원본 [최초작성자] — 넣은 계정. 칸이 생기기 전(2026-10-02)에 넣은 불출은 비어 있다. */
             String createdBy,
             /** 진행상태 — 결재중·미확인·확인. */
-            com.erp.production.production.ProductionConfirmStatus confirmStatus) {
+            com.erp.production.production.ProductionConfirmStatus confirmStatus,
+            /** [시리얼/로트No.]. */
+            String lotNo) {
         public static MaterialIssueResponse from(MaterialIssue mi) {
             return new MaterialIssueResponse(
                     mi.getId(), mi.getIssueNo(),
@@ -147,7 +153,7 @@ public final class MaterialIssueDtos {
                     mi.getProject() != null ? mi.getProject().getName() : null,
                     mi.getQty(), mi.getIssueDate(), mi.getNote(),
                     mi.getCreatedAt(), mi.getUpdatedAt(), mi.getCreatedBy(),
-                    mi.getConfirmStatus());
+                    mi.getConfirmStatus(), mi.getLotNo());
         }
     }
 }

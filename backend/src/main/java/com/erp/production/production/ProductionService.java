@@ -183,6 +183,23 @@ public class ProductionService {
         for (SlipLine line : req.lines()) {
             lineNo++;
             Item product = itemService.getUsable(line.productId());
+            /*
+             * 품목등록의 [시리얼/로트No.] 를 켠 품목은 입고 때 로트번호를 받는다(판매·구매와 같은 규칙, QA 62회차).
+             * II·III 에서 손으로 고른 소모 자재도 같다 — I 은 BOM 이 소모를 정해 줄마다 로트를 받을 자리가 없다.
+             */
+            if (product.isLotManaged() && (line.lotNo() == null || line.lotNo().isBlank())) {
+                throw ApiException.badRequest(product.getCode() + " " + product.getName()
+                        + " 은(는) 로트관리 품목입니다 — 로트No.를 입력하세요.");
+            }
+            if (req.entryType() != ProductionEntryType.I && line.materials() != null) {
+                for (var m : line.materials()) {
+                    Item c = itemService.get(m.componentId());
+                    if (c.isLotManaged() && (m.lotNo() == null || m.lotNo().isBlank())) {
+                        throw ApiException.badRequest(c.getCode() + " " + c.getName()
+                                + " 은(는) 로트관리 품목입니다 — 로트No.를 입력하세요.");
+                    }
+                }
+            }
             WorkOrder wo = line.workOrderId() != null ? getWorkOrder(line.workOrderId()) : null;
             if (wo != null && !wo.getProduct().getId().equals(product.getId())) {
                 throw ApiException.badRequest(lineNo + "번째 줄: 작업지시서(" + wo.getOrderNo() + ")의 품목과 생산품목이 다릅니다.");

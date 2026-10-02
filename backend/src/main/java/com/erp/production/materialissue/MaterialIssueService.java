@@ -83,6 +83,11 @@ public class MaterialIssueService {
 
     private MaterialIssueResponse create(CreateMaterialIssueRequest req, String issueNo, String username) {
         Item item = itemService.getUsable(req.itemId());
+        /* 로트관리 품목은 불출 때도 로트번호를 받는다(판매·구매·생산입고와 같은 규칙, QA 62회차). */
+        if (item.isLotManaged() && (req.lotNo() == null || req.lotNo().isBlank())) {
+            throw ApiException.badRequest(item.getCode() + " " + item.getName()
+                    + " 은(는) 로트관리 품목입니다 — 로트No.를 입력하세요.");
+        }
 
         Warehouse warehouse = req.warehouseId() == null ? null
                 : warehouseService.getUsable(req.warehouseId());
@@ -112,6 +117,7 @@ public class MaterialIssueService {
                 /* 다른 모듈의 것은 그 모듈 service 를 거쳐 얻는다(CLAUDE.md 4.2). */
                 .project(req.projectId() != null ? projectService.get(req.projectId()) : null)
                 .note(req.note())
+                .lotNo(req.lotNo() == null || req.lotNo().isBlank() ? null : req.lotNo().trim())
                 .createdBy(username)
                 .build();
         MaterialIssue saved = materialIssueRepository.save(mi);
@@ -153,7 +159,7 @@ public class MaterialIssueService {
             out.add(create(new CreateMaterialIssueRequest(
                     line.itemId(), req.warehouseId(), req.toWarehouseId(),
                     line.workOrderId() != null ? line.workOrderId() : req.workOrderId(),
-                    line.qty(), date, req.employeeId(), req.projectId(), line.note()), issueNo, username));
+                    line.qty(), date, req.employeeId(), req.projectId(), line.note(), line.lotNo()), issueNo, username));
         }
         return out;
     }

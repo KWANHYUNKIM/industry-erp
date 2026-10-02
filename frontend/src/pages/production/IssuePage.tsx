@@ -63,7 +63,7 @@ interface MaterialIssue {
   updatedAt: string | null
 }
 /** searchKeyword 는 원본 [검색창내용] — 코드도움이 이 값으로도 찾는다. */
-interface Item { id: number; code: string; name: string; unit: string; searchKeyword: string | null }
+interface Item { id: number; code: string; name: string; unit: string; searchKeyword: string | null; lotManaged?: boolean }
 /** 구분(창고·공장·외주)까지 받는다 — 받는 쪽은 대개 공장이라 앞에 세운다. */
 interface Warehouse { id: number; code: string; name: string; kind: string }
 interface Project { id: number; code: string; name: string }
@@ -92,6 +92,8 @@ const emptyForm = {
  */
 interface FormLine {
   key: number; itemId: string; qty: string; note: string
+  /** [시리얼/로트No.] — 로트관리 품목이면 꼭 넣는다. */
+  lotNo?: string
   /** 원본 [작업지시서] 로 불러온 줄이면 그 지시. 줄마다 다른 지시에 묶일 수 있다. */
   workOrderId?: string
   workOrderNo?: string
@@ -353,6 +355,12 @@ export default function IssuePage() {
        */
       const filled = lines.filter((l) => l.itemId && l.qty !== '')
       if (filled.length === 0) { setError('자재를 한 줄 이상 넣으세요.'); return }
+      /* 로트관리 품목은 로트No. 가 있어야 한다 — 서버도 거절한다(판매·구매와 같은 규칙). 어느 줄인지 먼저 알린다. */
+      const noLot = filled.find((l) => !(l.lotNo ?? '').trim() && items.find((i) => String(i.id) === l.itemId)?.lotManaged)
+      if (noLot) {
+        const it = items.find((i) => String(i.id) === noLot.itemId)!
+        setError(`${it.code} ${it.name} 은(는) 로트관리 품목입니다 — 로트No.를 입력하세요.`); return
+      }
       await api.post('/material-issues/batch', {
         warehouseId: form.warehouseId === '' ? null : Number(form.warehouseId),
         toWarehouseId: form.toWarehouseId === '' ? null : Number(form.toWarehouseId),
@@ -361,7 +369,7 @@ export default function IssuePage() {
         employeeId: form.employeeId === '' ? null : Number(form.employeeId),
         projectId: form.projectId === '' ? null : Number(form.projectId),
         lines: filled.map((l) => ({
-          itemId: Number(l.itemId), qty: Number(l.qty), note: l.note,
+          itemId: Number(l.itemId), qty: Number(l.qty), note: l.note, lotNo: (l.lotNo ?? '').trim() || null,
           workOrderId: l.workOrderId ? Number(l.workOrderId) : null,
         })),
       })
@@ -608,6 +616,7 @@ export default function IssuePage() {
               <tr>
                 <th style={{ width: 34 }}></th>
                 <th>품목명</th>
+                <th style={{ width: 130 }}>시리얼/로트No.</th>
                 <th style={{ width: 130, textAlign: 'right' }}>수량</th>
                 {/*
                   원본 격자의 수량 칸 셋(각 67). [재고불러오기]를 눌러야 찬다 —
@@ -631,6 +640,10 @@ export default function IssuePage() {
                     {l.workOrderNo && <div style={{ fontSize: 11, color: '#8a929c' }}>작업지시 {l.workOrderNo}</div>}
                   </td>
                   <td>
+                    <input className={inputCls} value={l.lotNo ?? ''} maxLength={60} aria-label="시리얼/로트No."
+                           onChange={(e) => setLine(l.key, { lotNo: e.target.value })} />
+                  </td>
+                  <td>
                     <input type="number" step="any" className={inputCls} style={{ textAlign: 'right' }}
                            value={l.qty} onChange={(e) => setLine(l.key, { qty: e.target.value })} />
                   </td>
@@ -649,7 +662,7 @@ export default function IssuePage() {
             </tbody>
             <tfoot>
               <tr>
-                <td colSpan={2} style={{ textAlign: 'right', fontWeight: 700 }}>합계</td>
+                <td colSpan={3} style={{ textAlign: 'right', fontWeight: 700 }}>합계</td>
                 <td style={{ textAlign: 'right', fontWeight: 700 }}>
                   {lines.reduce((a2, l) => a2 + (Number(l.qty) || 0), 0).toLocaleString()}
                 </td>

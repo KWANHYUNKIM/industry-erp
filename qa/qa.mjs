@@ -1540,6 +1540,36 @@ async function scenarioLotRequired(f) {
   await must('DELETE', `/purchases/${ok.id}`)
 }
 
+/**
+ * 생산 쪽 로트 — 생산불출 · 생산입고 II 의 소모 줄도 로트관리 품목이면 로트No. 를 받는다(판매·구매 62회차와 같은 규칙).
+ * 생산불출은 창고를 안 정해 재고를 안 움직이고, 생산입고 소모는 1 을 넣었다가 지운다.
+ */
+async function scenarioLotRequiredProduction(f) {
+  section('■ 로트관리 품목의 로트No. — 생산불출 · 생산입고')
+  const lotItem = await ensure('/items', 'code', `${P}LOTITEM`, null, {
+    code: `${P}LOTITEM`, name: 'QA로트품목', unit: 'EA', category: 'RAW_MATERIAL',
+    purchasePrice: 1000, unitPrice: 2000, safetyStock: 0, lotManaged: true,
+  })
+  const D = '2087-06-06'
+  await rejects('로트No. 없이 생산불출할 수 없다', 'POST', '/material-issues/batch', {
+    issueDate: D, lines: [{ itemId: lotItem.id, qty: 1 }],
+  }, '로트관리 품목')
+  const issued = await must('POST', '/material-issues/batch', { issueDate: D, lines: [{ itemId: lotItem.id, qty: 1, lotNo: `${P}LOT-MI` }] })
+  eq('로트No. 를 주면 불출된다', issued[0].lotNo, `${P}LOT-MI`)
+  await must('DELETE', `/material-issues/${issued[0].id}`)
+
+  await must('POST', '/stock/transactions', { itemId: lotItem.id, warehouseId: f.warehouse.id, type: 'INBOUND', quantity: 1 })
+  const slip = (lotNo) => ({
+    entryType: 'II', productionDate: D, fromWarehouseId: f.warehouse.id, warehouseId: f.warehouse.id,
+    lines: [{ productId: f.product.id, producedQty: 1, materials: [{ componentId: lotItem.id, quantity: 1, lotNo }] }],
+  })
+  await rejects('로트관리 자재를 로트No. 없이 소모할 수 없다(생산입고 II)', 'POST', '/productions/slips', slip(undefined), '로트관리 품목')
+  const made = await must('POST', '/productions/slips', slip(`${P}LOT-PR`))
+  eq('로트No. 를 주면 소모된다', made[0].materials[0].lotNo, `${P}LOT-PR`)
+  await must('DELETE', `/productions/slips/${made[0].prodNo}`)
+  await must('POST', '/stock/transactions', { itemId: lotItem.id, warehouseId: f.warehouse.id, type: 'OUTBOUND', quantity: 1 })
+}
+
 /** 기타이동 — 자가사용·불량처리(차감) / 재고조정(실사 차이만큼 증감) */
 async function scenarioAdjustment(f) {
   section('■ 시나리오 8. 기타이동 (자가사용 · 불량처리 · 재고조정)')
@@ -10160,6 +10190,7 @@ async function main() {
     await scenarioBomTree(fixtures)
     await scenarioIssueEmployee(fixtures)
     await scenarioMrpRuns(fixtures)
+    await scenarioLotRequiredProduction(fixtures)
     console.log(`\n통과 ${pass} · 실패 ${fail}`)
     process.exit(fail > 0 ? 1 : 0)
   }
@@ -10288,6 +10319,7 @@ async function main() {
   await scenarioBomLevels(fixtures)
   await scenarioTimePhased(fixtures)
   await scenarioMrpRuns(fixtures)
+  await scenarioLotRequiredProduction(fixtures)
   await scenarioWorkResultBatch(fixtures)
   await scenarioProductionConfirm(fixtures)
   await scenarioBomVersions(fixtures)

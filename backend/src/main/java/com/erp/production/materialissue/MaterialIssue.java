@@ -85,6 +85,10 @@ public class MaterialIssue extends BaseTimeEntity {
     @Column(length = 300)
     private String note;
 
+    /** 원본 격자 [시리얼/로트No.] — 판매·생산입고 줄처럼 글자로 남긴다. 로트관리 품목이면 꼭 받는다. */
+    @Column(name = "lot_no", length = 60)
+    private String lotNo;
+
     /** 넣은 계정 — 원본 생산불출현황의 [최초작성자]. 생산입고와 같이 로그인 사용자에서 채운다. */
     @Column(length = 50)
     private String createdBy;
