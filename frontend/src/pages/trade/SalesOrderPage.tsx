@@ -1,3 +1,4 @@
+import { resolveSpecialPrice } from '../../features/price/specialPrice'
 import { useEffect, useMemo, useState, type FormEvent, useRef} from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
@@ -78,6 +79,10 @@ export default function SalesOrderPage() {
         const it = itemById.get(value)
         if (it && !next[idx].unitPrice) next[idx] = { ...next[idx], unitPrice: String(it.unitPrice) }
         if (!next[idx].quantity) next[idx] = { ...next[idx], quantity: '1' }
+        // 거래처의 특별단가가 있으면 덮는다(50회차 — 수주는 특별단가를 몰랐다).
+        void resolveSpecialPrice('SALES', value, partnerId).then((p) => {
+          if (p != null) setLines((cur) => cur.map((l, i) => (i === idx ? { ...l, unitPrice: String(p) } : l)))
+        })
         if (idx === ls.length - 1) next.push(emptyLine())
       }
       return next
@@ -171,7 +176,15 @@ export default function SalesOrderPage() {
                 <td>
                   {/* 긴 드롭다운이었다 — 4회차에 다른 입력 화면 15곳은 코드도움으로 바꿨는데 여기만 남아 있었다(9회차). */}
                   <CodePickerField label="매출처" hideLabel width={240} emptyLabel="선택 안 함" placeholder="매출처 선택"
-                                   value={partnerId} onChange={setPartnerId}
+                                   value={partnerId} onChange={(v) => {
+                                     // 거래처를 고르면 담긴 품목의 특별단가를 다시 찾는다(품목을 먼저 담아도 걸리게).
+                                     setPartnerId(v)
+                                     lines.forEach((l, i) => {
+                                       if (l.itemId) void resolveSpecialPrice('SALES', l.itemId, v).then((p) => {
+                                         if (p != null) setLines((cur) => cur.map((x, j) => (j === i ? { ...x, unitPrice: String(p) } : x)))
+                                       })
+                                     })
+                                   }}
                                    items={partnerCodeItems(customers)} />
                 </td>
                 <th style={th}>부가세</th>

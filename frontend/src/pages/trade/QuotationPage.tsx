@@ -1,3 +1,4 @@
+import { resolveSpecialPrice } from '../../features/price/specialPrice'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
@@ -658,6 +659,15 @@ function QuotationForm({ items, partners, warehouses, projects, onClose, onSaved
   function pickItem(i: number, itemId: string) {
     const it = items.find((x) => String(x.id) === itemId)
     setLine(i, { itemId, unitPrice: it ? String(it.unitPrice) : '' })
+    // 거래처의 특별단가가 있으면 덮는다(50회차 — 견적서는 특별단가를 몰랐다).
+    void resolveSpecialPrice('SALES', itemId, partnerId).then((p) => { if (p != null) setLine(i, { unitPrice: String(p) }) })
+  }
+  /** 거래처를 고르면 담긴 품목의 특별단가를 다시 찾는다 — 품목을 먼저 담아도 걸리게(49회차와 같은 까닭). */
+  function choosePartner(v: string) {
+    setPartnerId(v)
+    lines.forEach((l, i) => {
+      if (l.itemId) void resolveSpecialPrice('SALES', l.itemId, v).then((p) => { if (p != null) setLine(i, { unitPrice: String(p) }) })
+    })
   }
 
   const calc = lines.map((l) => (Number(l.quantity) || 0) * (Number(l.unitPrice) || 0))
@@ -704,7 +714,7 @@ function QuotationForm({ items, partners, warehouses, projects, onClose, onSaved
                     다 코드도움이라 이 칸만 달랐다. 코드·이름·대표자·전화로 찾는 공용 코드도움으로. 매입 전용 거래처는 뺀다.
                   */}
                   <CodePickerField label="거래처" hideLabel width={240} emptyLabel="선택 안 함" placeholder="매출처 선택"
-                                   value={partnerId} onChange={setPartnerId}
+                                   value={partnerId} onChange={choosePartner}
                                    items={partnerCodeItems(partners.filter((p) => p.type !== 'SUPPLIER'))} />
                 </td>
                 <th style={{ width: 70, background: '#f5f7fa' }}>견적일</th>

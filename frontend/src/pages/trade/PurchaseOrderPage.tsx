@@ -1,3 +1,4 @@
+import { resolveSpecialPrice } from '../../features/price/specialPrice'
 import { Fragment, useEffect, useMemo, useState, useRef} from 'react'
 import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
@@ -775,6 +776,15 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
     // 구매단가를 안 정한 품목(0)은 비워 둔다. 판매가를 채우면 그게 발주단가로 굳는다.
     const pp = it?.purchasePrice ?? 0
     setLine(i, { itemId, unitPrice: pp > 0 ? String(pp) : '' })
+    // 매입처의 특별단가(구매)가 있으면 덮는다(50회차 — 발주서는 특별단가를 몰랐다).
+    void resolveSpecialPrice('PURCHASE', itemId, partnerId).then((p) => { if (p != null) setLine(i, { unitPrice: String(p) }) })
+  }
+  /** 매입처를 고르면 담긴 품목의 특별단가를 다시 찾는다 — 품목을 먼저 담아도 걸리게. */
+  function choosePartner(v: string) {
+    setPartnerId(v)
+    lines.forEach((l, i) => {
+      if (l.itemId) void resolveSpecialPrice('PURCHASE', l.itemId, v).then((p) => { if (p != null) setLine(i, { unitPrice: String(p) }) })
+    })
   }
 
   const calc = lines.map((l) => (Number(l.quantity) || 0) * (Number(l.unitPrice) || 0))
@@ -886,7 +896,7 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
                 <th style={{ width: 90, background: '#f5f7fa' }}>매입처<span style={{ color: '#c60a2e' }}>*</span></th>
                 <td>
                   <CodePickerField label="매입처" hideLabel width={240} emptyLabel="선택 안 함" placeholder="매입처 선택"
-                                   value={partnerId} onChange={setPartnerId}
+                                   value={partnerId} onChange={choosePartner}
                                    items={partnerCodeItems(partners.filter((p) => p.type !== 'CUSTOMER'))} />
                 </td>
                 {/* 원본 발주서입력의 이름은 [발주일]이 아니라 <b>[일자]</b> 다(사본 실측). */}

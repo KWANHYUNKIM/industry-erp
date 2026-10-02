@@ -1,5 +1,5 @@
 {
-  "about": "판매입력 특별단가 — 품목을 먼저 담고 거래처를 나중에 골라도 특별단가가 걸린다(49회차 — 예전엔 품목을 고를 때만 찾아 거래처를 나중에 고르면 안 걸렸다). 특별단가는 API 로 만들고 끝에 지운다. 전표는 저장하지 않는다.",
+  "about": "판매입력·견적서·수주 특별단가 — 품목을 먼저 담고 거래처를 나중에 골라도 특별단가가 걸린다(49회차 — 예전엔 품목을 고를 때만 찾아 거래처를 나중에 고르면 안 걸렸다). 특별단가는 API 로 만들고 끝에 지운다. 전표는 저장하지 않는다. 견적서·수주는 특별단가를 아예 몰랐다(50회차).",
   "shots": [
     {
       "name": "품목 먼저 → 거래처 → 특별단가 777",
@@ -13,7 +13,34 @@
         "wait:600",
         "click:거래처 코드도움",
         "pickrow:QA-CUST",
-        "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('QA-PROD')); return tr ? tr.querySelectorAll('input[type=number]')[1].value : '' })() === '777'",
+        "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('QA-PROD')); return tr ? tr.querySelectorAll('input[type=number]')[1].value : '' })() === '777'"
+      ]
+    },
+    {
+      "name": "견적서 — 품목 먼저 → 거래처 → 777",
+      "path": "/sales/quotations",
+      "steps": [
+        "click:신규 견적",
+        "clicklast:품목 선택",
+        "pickrow:QA-PROD",
+        "wait:600",
+        "clicklast:거래처 선택",
+        "pickrow:QA-CUST",
+        "expect:document.querySelectorAll('tbody tr:has(button[title=\"품목 선택\"]) input[type=number]')[1]?.value === '777'"
+      ]
+    },
+    {
+      "name": "수주 — 품목 먼저 → 매출처 → 777, 뒷정리",
+      "path": "/sales/orders",
+      "steps": [
+        "click:수주등록(F2)",
+        "js:document.querySelector('[role=dialog] input[placeholder=\"품목 선택\"]').click(); true",
+        "pickrow:QA-PROD",
+        "wait:600",
+        "click:매출처 선택",
+        "pickrow:QA-CUST",
+        "expect:document.querySelectorAll('[role=dialog] tbody input[type=number]')[1].value === '777'",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status })); true",
         "js:window.__api('DELETE', '/special-prices/' + sessionStorage.getItem('spId')).then((r) => r.status)"
       ]
     }
