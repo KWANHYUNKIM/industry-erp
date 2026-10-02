@@ -532,7 +532,8 @@ export default function PurchaseOrderPage() {
                 {/* 여러 줄이면 첫 줄에 '외 N건' 을 붙인다 — 원본도 한 칸에 대표 품목을 적는다. */}
                 <td>
                   {po.lines[0]
-                    ? po.lines[0].itemName
+                    // 열 이름이 품목명[규격명] 인데 규격을 안 찍었다(45회차 screen-check) — 같은 이름 다른 규격을 못 가른다.
+                    ? po.lines[0].itemName + (po.lines[0].spec ? ` [${po.lines[0].spec}]` : '')
                       + (po.lines.length > 1 ? ` 외 ${po.lines.length - 1}건` : '')
                     : ''}
                 </td>
@@ -567,7 +568,7 @@ export default function PurchaseOrderPage() {
                           <tr key={l.id}>
                             <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{l.lineNo}</td>
                             <td style={{ fontFamily: 'monospace' }}>{l.itemCode}</td>
-                            <td>{l.itemName}</td>
+                            <td>{l.itemName}{l.spec ? ` [${l.spec}]` : ''}</td>
                             <td style={{ textAlign: 'right' }}>{won(l.quantity)} {l.unit}</td>
                             <td style={{ textAlign: 'right' }}>{won(l.unitPrice)}</td>
                             <td style={{ textAlign: 'right' }}>{won(l.supplyAmount)}</td>
