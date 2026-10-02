@@ -1034,5 +1034,9 @@
  [
   "자금현황표",
   "accounting/FundStatusPage.tsx"
+ ],
+ [
+  "자금증감내역",
+  "accounting/FundDailyPage.tsx"
  ]
 ]

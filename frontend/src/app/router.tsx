@@ -475,6 +475,7 @@ export default function AppRouter() {
         <Route path="/accounting/journal-history" element={<JournalHistoryPage />} />
         <Route path="/accounting/transfer-list" element={<TransferListPage />} />
         <Route path="/accounting/fund-daily" element={<FundDailyPage />} />
+        <Route path="/accounting/fund-flow" element={<FundDailyPage variant="flow" />} />
         <Route path="/accounting/cash-flow" element={<CashFlowListPage />} />
         <Route path="/accounting/fund-status" element={<FundStatusPage />} />
         <Route path="/accounting/trial-balance" element={<TrialBalancePage />} />

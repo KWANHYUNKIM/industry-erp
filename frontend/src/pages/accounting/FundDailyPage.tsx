@@ -3,7 +3,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
-import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { INQUIRY_PICKS, SETTLE_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useAuth } from '../../features/auth/AuthContext'
 import type { JournalEntry } from '../../types/api'
 
@@ -13,6 +13,8 @@ const SUB_ROW: React.CSSProperties = { fontWeight: 700, background: 'rgb(243, 24
 const slash = (d: string) => d.replace(/-/g, '/')
 /** 자금 계정 — 현금 · 당좌예금 · 보통예금(StandardAccounts). */
 const FUND_CODES = ['101', '102', '103']
+/** 자금증감내역 원본 빠른선택 — 결산 묶음 뒤에 최근30일(기본). */
+const FLOW_PICKS = [...SETTLE_PICKS, '최근30일'] as const
 
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
 interface Fund { code: string; name: string; carry: number; inc: number; dec: number }
@@ -29,10 +31,15 @@ interface Move { key: string; date: string; counter: string; partner: string; te
  * <p>자금 계정은 현금 · 당좌 · 보통예금(101 · 102 · 103). 원본은 예금 계정을 통장(거래처, 예: 기업은행-1122)마다 갈라 [거래처명] ·
  * [거래처코드]에 찍는데 우리 자금 분개는 통장을 들지 않아 '[ ]' 한 줄이다. 외화는 회계전표가 외화 금액을 들지 않아 원화만.
  * 상대계정명은 같은 전표의 다른 줄 계정(둘 이상이면 '첫 계정 외 n'), 상대거래처명은 전표의 거래처. 부서 · 프로젝트는 회계전표에 없다.
+ *
+ * <p><b>자금증감내역</b>(E010815, variant="flow") — 같은 날 실측. 자금일보의 증가 · 감소 두 표만 있다(번호가 <b>1 . 자금의 증가 · 2 . 자금의 감소</b>로
+ * 당겨진다). 기본 기간 <b>최근30일</b>(빠른선택 … 이번기수 · 직전기수 · 종료일 · 최근30일), 일자는 줄마다 찍고 거래처코드 열이 없다.
  */
-export default function FundDailyPage() {
+export default function FundDailyPage({ variant = 'daily' }: { variant?: 'daily' | 'flow' }) {
+  const flow = variant === 'flow'
+  const title = flow ? '자금증감내역' : '자금일보'
   const { companyName } = useAuth()
-  const init = periodOf('금일')!
+  const init = flow ? periodOf('최근30일')! : periodOf('금일')!
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
   const [entries, setEntries] = useState<JournalEntry[]>([])
@@ -83,9 +90,9 @@ export default function FundDailyPage() {
   const tableRef = useRef<HTMLTableElement>(null)
   const incRef = useRef<HTMLTableElement>(null)
   const decRef = useRef<HTMLTableElement>(null)
-  useTableColumnCheck(tableRef, '자금일보', [funds.length])
-  useTableColumnCheck(incRef, '자금일보', [incs.length])
-  useTableColumnCheck(decRef, '자금일보', [decs.length])
+  useTableColumnCheck(tableRef, title, [funds.length])
+  useTableColumnCheck(incRef, title, [incs.length])
+  useTableColumnCheck(decRef, title, [decs.length])
 
   const section = (t: string) => (
     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, fontWeight: 700, margin: '14px 0 4px' }}>
@@ -101,34 +108,34 @@ export default function FundDailyPage() {
         <th>상대거래처명</th>
         <th>적요</th>
         <th style={{ textAlign: 'right' }}>금액</th>
-        <th>거래처코드</th>
+        {!flow && <th>거래처코드</th>}
       </tr>
     </thead>
   )
   const moveBody = (ms: Move[]) => (
     <tbody>
-      {ms.length === 0 && <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 14 }}>등록된 데이터가 없습니다.</td></tr>}
+      {ms.length === 0 && <tr><td colSpan={flow ? 5 : 6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 14 }}>등록된 데이터가 없습니다.</td></tr>}
       {ms.map((m, i) => (
         <tr key={m.key}>
-          <td style={{ textAlign: 'center' }}>{i > 0 && ms[i - 1].date === m.date ? '' : slash(m.date)}</td>
+          <td style={{ textAlign: 'center' }}>{!flow && i > 0 && ms[i - 1].date === m.date ? '' : slash(m.date)}</td>
           <td>{m.counter}</td>
           <td>{m.partner}</td>
           <td>{m.text}</td>
           <td style={{ textAlign: 'right' }}>{won(m.amount)}</td>
-          <td></td>
+          {!flow && <td></td>}
         </tr>
       ))}
       <tr style={SUB_ROW}>
         <td colSpan={4} style={{ textAlign: 'center' }}>합계</td>
         <td style={{ textAlign: 'right' }}>{won(ms.reduce((s, m) => s + m.amount, 0))}</td>
-        <td></td>
+        {!flow && <td></td>}
       </tr>
     </tbody>
   )
 
   return (
     <EcListShell
-      title="자금일보"
+      title={flow ? '자금증감내역' : '자금일보'}
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
@@ -144,7 +151,7 @@ export default function FundDailyPage() {
           <span style={{ margin: '0 4px' }}>~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
           <span style={{ marginLeft: 6 }}>
-            <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
+            <EcPeriodPicks labels={flow ? FLOW_PICKS : INQUIRY_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
       </ul>
@@ -154,61 +161,65 @@ export default function FundDailyPage() {
         <p style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</p>
       ) : (
         <>
-          <h3 style={{ fontSize: 20, fontWeight: 700, textAlign: 'center', margin: '6px 0 4px' }}>자금일보</h3>
+          <h3 style={{ fontSize: 20, fontWeight: 700, textAlign: 'center', margin: '6px 0 4px' }}>{flow ? '자금증감내역' : '자금일보'}</h3>
           <div style={{ fontSize: 12 }}>회사명 : {companyName ?? ''}</div>
+          {!flow && (
+            <>
           {section('1 . 자금 현황')}
-          <table ref={tableRef} className="w-full text-left">
-            <thead>
-              <tr>
-                <th>계정명</th>
-                <th>거래처명</th>
-                <th style={{ textAlign: 'right' }}>이월잔액[외화]</th>
-                <th style={{ textAlign: 'right' }}>증가[외화]</th>
-                <th style={{ textAlign: 'right' }}>감소[외화]</th>
-                <th style={{ textAlign: 'right' }}>금일잔액[외화]</th>
-                <th>계정코드</th>
-                <th>거래처코드</th>
-              </tr>
-            </thead>
-            <tbody>
-              {funds.length === 0 && <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 14 }}>등록된 데이터가 없습니다.</td></tr>}
-              {funds.map((f) => (
-                <Fragment key={f.code}>
+              <table ref={tableRef} className="w-full text-left">
+                <thead>
                   <tr>
-                    <td>{f.name}</td>
-                    <td>[ ]</td>
-                    <td style={{ textAlign: 'right' }}>{won(f.carry)}</td>
-                    <td style={{ textAlign: 'right' }}>{won(f.inc)}</td>
-                    <td style={{ textAlign: 'right' }}>{won(f.dec)}</td>
-                    <td style={{ textAlign: 'right' }}>{won(f.carry + f.inc - f.dec)}</td>
-                    <td>{f.code}</td>
-                    <td>[ ]</td>
+                    <th>계정명</th>
+                    <th>거래처명</th>
+                    <th style={{ textAlign: 'right' }}>이월잔액[외화]</th>
+                    <th style={{ textAlign: 'right' }}>증가[외화]</th>
+                    <th style={{ textAlign: 'right' }}>감소[외화]</th>
+                    <th style={{ textAlign: 'right' }}>금일잔액[외화]</th>
+                    <th>계정코드</th>
+                    <th>거래처코드</th>
                   </tr>
+                </thead>
+                <tbody>
+                  {funds.length === 0 && <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 14 }}>등록된 데이터가 없습니다.</td></tr>}
+                  {funds.map((f) => (
+                    <Fragment key={f.code}>
+                      <tr>
+                        <td>{f.name}</td>
+                        <td>[ ]</td>
+                        <td style={{ textAlign: 'right' }}>{won(f.carry)}</td>
+                        <td style={{ textAlign: 'right' }}>{won(f.inc)}</td>
+                        <td style={{ textAlign: 'right' }}>{won(f.dec)}</td>
+                        <td style={{ textAlign: 'right' }}>{won(f.carry + f.inc - f.dec)}</td>
+                        <td>{f.code}</td>
+                        <td>[ ]</td>
+                      </tr>
+                      <tr style={SUB_ROW}>
+                        <td colSpan={2} style={{ textAlign: 'center' }}>{f.name} 계</td>
+                        <td style={{ textAlign: 'right' }}>{won(f.carry)}</td>
+                        <td style={{ textAlign: 'right' }}>{won(f.inc)}</td>
+                        <td style={{ textAlign: 'right' }}>{won(f.dec)}</td>
+                        <td style={{ textAlign: 'right' }}>{won(f.carry + f.inc - f.dec)}</td>
+                        <td></td>
+                        <td></td>
+                      </tr>
+                    </Fragment>
+                  ))}
                   <tr style={SUB_ROW}>
-                    <td colSpan={2} style={{ textAlign: 'center' }}>{f.name} 계</td>
-                    <td style={{ textAlign: 'right' }}>{won(f.carry)}</td>
-                    <td style={{ textAlign: 'right' }}>{won(f.inc)}</td>
-                    <td style={{ textAlign: 'right' }}>{won(f.dec)}</td>
-                    <td style={{ textAlign: 'right' }}>{won(f.carry + f.inc - f.dec)}</td>
+                    <td colSpan={2} style={{ textAlign: 'center' }}>합계</td>
+                    <td style={{ textAlign: 'right' }}>{won(tot.carry)}</td>
+                    <td style={{ textAlign: 'right' }}>{won(tot.inc)}</td>
+                    <td style={{ textAlign: 'right' }}>{won(tot.dec)}</td>
+                    <td style={{ textAlign: 'right' }}>{won(tot.carry + tot.inc - tot.dec)}</td>
                     <td></td>
                     <td></td>
                   </tr>
-                </Fragment>
-              ))}
-              <tr style={SUB_ROW}>
-                <td colSpan={2} style={{ textAlign: 'center' }}>합계</td>
-                <td style={{ textAlign: 'right' }}>{won(tot.carry)}</td>
-                <td style={{ textAlign: 'right' }}>{won(tot.inc)}</td>
-                <td style={{ textAlign: 'right' }}>{won(tot.dec)}</td>
-                <td style={{ textAlign: 'right' }}>{won(tot.carry + tot.inc - tot.dec)}</td>
-                <td></td>
-                <td></td>
-              </tr>
-            </tbody>
-          </table>
-          {section('2 . 자금의 증가')}
+                </tbody>
+              </table>
+            </>
+          )}
+          {section(flow ? '1 . 자금의 증가' : '2 . 자금의 증가')}
           <table ref={incRef} className="w-full text-left">{moveHead}{moveBody(incs)}</table>
-          {section('3 . 자금의 감소')}
+          {section(flow ? '2 . 자금의 감소' : '3 . 자금의 감소')}
           <table ref={decRef} className="w-full text-left">{moveHead}{moveBody(decs)}</table>
         </>
       )}
