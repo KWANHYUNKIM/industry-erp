@@ -6486,6 +6486,27 @@ async function scenarioApprovalLastActor() {
  * 예전엔 결재를 마쳐도 근태에 아무것도 안 남아 휴가잔여일수가 그대로였다(35회차).
  * 4시간 이하는 반차 0.5일. 결재 문서번호가 사유에 붙는다. 근태는 지우고 끝낸다(승인된 결재 문서는 규칙상 못 지운다).
  */
+/**
+ * <b>소득세는 국세청 근로소득 간이세액표 값이어야 한다.</b>
+ * 계산식 근사가 특별소득공제를 빠뜨려 월 320만(본인 1명)에 140,825원을 뗐다 — 표는 91,460원(36회차).
+ * 표 구간 셋과 1,000만 초과 계산식 하나를 본다. 만든 명세는 지운다(미확정이라 지울 수 있다).
+ */
+async function scenarioWithholdingTable() {
+  section('■ 근로소득 간이세액표')
+  const emp = (await must('GET', '/employees')).find((e) => e.code === 'QA-EMP') ?? (await must('GET', '/employees'))[0]
+  const cases = [['2098-01', 3_200_000, 91_460], ['2098-02', 3_000_000, 74_350], ['2098-03', 2_000_000, 19_520],
+                 ['2098-04', 12_000_000, 1_507_400 + Math.floor(2_000_000 * 0.98 * 0.35) + 25_000]]
+  for (const [month, pay, expected] of cases) {
+    for (const old of (await must('GET', `/payslips?month=${month}`)).filter((p) => p.employeeId === emp.id)) {
+      await call('DELETE', `/payslips/${old.id}`)
+    }
+    const slip = await must('POST', '/payslips', { employeeId: emp.id, payMonth: month, baseSalary: pay, lines: [] })
+    const tax = Number(slip.lines.find((l) => l.name === '소득세')?.amount ?? 0)
+    eq(`월 ${pay.toLocaleString()}원 · 본인 1명 소득세 = 간이세액표 ${expected.toLocaleString()}`, tax, expected)
+    await must('DELETE', `/payslips/${slip.id}`)
+  }
+}
+
 async function scenarioLeaveApproval() {
   section('■ 휴가신청서 결재 → 근태')
   const form = (await must('GET', '/approval-form-templates')).find((t) => t.name === '휴가신청서')
@@ -9873,6 +9894,7 @@ async function main() {
   await scenarioPartnerContactAndBank()
   await scenarioVacationYear(fixtures)
   await scenarioLeaveApproval()
+  await scenarioWithholdingTable()
   await scenarioApprovalLastActor()
   await scenarioSalesConfirmBulk(fixtures)
   await scenarioWorkOrderPartner(fixtures)
