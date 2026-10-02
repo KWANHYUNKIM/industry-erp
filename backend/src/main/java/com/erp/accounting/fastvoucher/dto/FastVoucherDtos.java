@@ -79,4 +79,10 @@ public final class FastVoucherDtos {
                             .toList());
         }
     }
+
+    /**
+     * 원본 [오천건이상조회] 와 같은 자리. 전표가 5천 건을 넘으면 앞 5천 건만 주고
+     * <b>잘랐다고 밝힌다</b> — 화면은 그때만 [오천건이상조회] 를 눌리게 한다(QA 52회차).
+     */
+    public record VoucherList(java.util.List<VoucherResponse> rows, long totalRows, boolean truncated) {}
 }

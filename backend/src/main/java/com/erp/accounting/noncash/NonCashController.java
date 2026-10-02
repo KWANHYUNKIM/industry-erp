@@ -20,7 +20,7 @@ public class NonCashController {
     private final NonCashService service;
 
     @GetMapping
-    public List<NonCashResponse> list(
+    public NonCashDtos.NonCashList list(
             /* 화면 조건 판의 [기간] — 안 주면 전 기간이다. */
             @RequestParam(required = false)
             @org.springframework.format.annotation.DateTimeFormat(
@@ -29,8 +29,10 @@ public class NonCashController {
             @RequestParam(required = false)
             @org.springframework.format.annotation.DateTimeFormat(
                     iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
-            java.time.LocalDate to) {
-        return service.findAll(from, to);
+            java.time.LocalDate to,
+            /* [오천건이상조회] — 잘려 왔을 때 화면이 이걸 붙여 다시 부른다. */
+            @RequestParam(defaultValue = "false") boolean all) {
+        return service.list(from, to, all);
     }
 
     @PostMapping

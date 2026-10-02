@@ -72,6 +72,8 @@ export default function FastVoucherPage() {
   const [type, setType] = useState<FastVoucherType>(
     (TABS.find((v) => v.type === params.get('type'))?.type) ?? 'EXPENSE_REPORT')
   const [rows, setRows] = useState<FastVoucher[]>([])
+  /* 5천 건을 넘으면 서버가 앞 5천 건만 주고 잘랐다고 밝힌다(QA 52회차) — [오천건이상조회] 로 다 받는다. */
+  const [cut, setCut] = useState<{ total: number; truncated: boolean }>({ total: 0, truncated: false })
   const [accounts, setAccounts] = useState<AccountOption[]>([])
   const [banks, setBanks] = useState<BankAccountRow[]>([])
   const [partners, setPartners] = useState<Partner[]>([])
@@ -83,16 +85,17 @@ export default function FastVoucherPage() {
 
   const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(''), 3000) }
 
-  async function load() {
+  async function load(all = false) {
     setLoading(true)
     try {
       const [v, a, b, p] = await Promise.all([
-        api.get<FastVoucher[]>('/vouchers', { params: { from: pFrom || undefined, to: pTo || undefined } }),
+        api.get<{ rows: FastVoucher[]; totalRows: number; truncated: boolean }>('/vouchers', { params: { ...{ from: pFrom || undefined, to: pTo || undefined }, all: all || undefined } }),
         api.get<AccountOption[]>('/accounts'),
         api.get<BankAccountRow[]>('/bank-cards/accounts'),
         api.get<Partner[]>('/partners'),
       ])
-      setRows(v.data)
+      setRows(v.data.rows)
+      setCut({ total: v.data.totalRows, truncated: v.data.truncated })
       setAccounts(a.data)
       setBanks(b.data)
       setPartners(p.data)
@@ -106,7 +109,8 @@ export default function FastVoucherPage() {
   useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [pFrom, pTo])
 
   const shown = rows.filter((r) => r.type === type)
-  const count = (t: FastVoucherType) => rows.filter((r) => r.type === t).length
+  /* 잘려 왔으면 받은 5천 건 안에서 센 것이라 '+' 를 붙인다. */
+  const count = (t: FastVoucherType) => rows.filter((r) => r.type === t).length + (cut.truncated ? '+' : '')
   const label = TABS.find((t) => t.type === type)!.label
 
 
@@ -125,7 +129,12 @@ export default function FastVoucherPage() {
       title="FastEntry (지출결의서·입금보고서·가지급금정산서)"
       newLabel={showForm ? '입력닫기' : `${label} 작성(F2)`}
       onNew={() => setShowForm(true)}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
+      actions={[
+        { label: '새로고침', onClick: () => load() },
+        /* 원본 [오천건이상조회] — 잘려 왔을 때만 눌린다. */
+        { label: '오천건이상조회', onClick: () => load(true), disabled: !cut.truncated },
+        { label: 'Excel' }, { label: '인쇄' },
+      ]}
     >
       <div style={{ display: 'flex', gap: 2, marginBottom: 8, borderBottom: '1px solid var(--ec-border)' }}>
         {TABS.map((t) => (
@@ -149,6 +158,9 @@ export default function FastVoucherPage() {
 
 
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {cut.truncated && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#fff8e1', border: '1px solid #f0d58a', color: '#7a5b00' }}>
+        기간 안에 {cut.total.toLocaleString()}건 — 앞 5,000건만 보입니다. 기간을 좁히거나 [오천건이상조회] 를 누르세요.
+      </div>}
       {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
 
       <Modal error={error} open={showForm} title="FastEntry (지출결의서·입금보고서·가지급금정산서) 등록" onClose={() => setShowForm(false)}>{(

@@ -59,6 +59,17 @@ public class NonCashService {
                 to != null ? to : java.time.LocalDate.of(9999, 12, 31)).stream().map(NonCashResponse::from).toList();
     }
 
+    /** 한 번에 내려보낼 대체전표 수의 문턱. 원본 [오천건이상조회] 와 같은 자리다. */
+    public static final int LIST_PAGE_ROWS = 5000;
+
+    /** 목록 화면용 — 5천 건을 넘으면 앞 5천 건만 주고 잘랐다고 밝힌다. {@code all} 이면 다 준다. */
+    @Transactional(readOnly = true)
+    public NonCashDtos.NonCashList list(java.time.LocalDate from, java.time.LocalDate to, boolean all) {
+        List<NonCashResponse> rows = findAll(from, to);
+        boolean truncated = !all && rows.size() > LIST_PAGE_ROWS;
+        return new NonCashDtos.NonCashList(truncated ? rows.subList(0, LIST_PAGE_ROWS) : rows, rows.size(), truncated);
+    }
+
     @Transactional
     public NonCashResponse create(CreateNonCashRequest req, String username) {
         Account debit;

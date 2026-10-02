@@ -39,6 +39,8 @@ const TYPES: {
  */
 export default function NonCashPage() {
   const [rows, setRows] = useState<NonCashTxn[]>([])
+  /* 5천 건을 넘으면 서버가 앞 5천 건만 주고 잘랐다고 밝힌다(QA 52회차) — [오천건이상조회] 로 다 받는다. */
+  const [cut, setCut] = useState<{ total: number; truncated: boolean }>({ total: 0, truncated: false })
   const [accounts, setAccounts] = useState<AccountOption[]>([])
   const [partners, setPartners] = useState<Partner[]>([])
   const [filter, setFilter] = useState<NonCashType | '전체'>('전체')
@@ -63,15 +65,16 @@ export default function NonCashPage() {
 
   const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(''), 3000) }
 
-  async function load() {
+  async function load(all = false) {
     setLoading(true)
     try {
       const [t, a, p] = await Promise.all([
-        api.get<NonCashTxn[]>('/non-cash', { params: { from: from2 || undefined, to: to2 || undefined } }),
+        api.get<{ rows: NonCashTxn[]; totalRows: number; truncated: boolean }>('/non-cash', { params: { ...{ from: from2 || undefined, to: to2 || undefined }, all: all || undefined } }),
         api.get<AccountOption[]>('/accounts'),
         api.get<Partner[]>('/partners'),
       ])
-      setRows(t.data)
+      setRows(t.data.rows)
+      setCut({ total: t.data.totalRows, truncated: t.data.truncated })
       setAccounts(a.data)
       setPartners(p.data)
     } catch (err) {
@@ -84,7 +87,9 @@ export default function NonCashPage() {
   useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [from2, to2])
 
   const shown = rows.filter((r) => filter === '전체' || r.type === filter)
-  const count = (t: NonCashType | '전체') => rows.filter((r) => t === '전체' || r.type === t).length
+  /* 잘려 왔으면 [전체] 는 서버가 센 건수, 유형별은 받은 5천 건 안에서 센 것이라 '+' 를 붙인다. */
+  const count = (t: NonCashType | '전체') => t === '전체' && cut.truncated ? cut.total.toLocaleString()
+    : rows.filter((r) => t === '전체' || r.type === t).length + (cut.truncated ? '+' : '')
 
 
   /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
@@ -97,7 +102,12 @@ export default function NonCashPage() {
       title="비현금거래 (대체전표)"
       newLabel={showForm ? '입력닫기' : '대체전표 작성(F2)'}
       onNew={() => setShowForm(true)}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
+      actions={[
+        { label: '새로고침', onClick: () => load() },
+        /* 원본 [오천건이상조회] — 잘려 왔을 때만 눌린다. */
+        { label: '오천건이상조회', onClick: () => load(true), disabled: !cut.truncated },
+        { label: 'Excel' }, { label: '인쇄' },
+      ]}
     >
       <div style={{ display: 'flex', gap: 2, marginBottom: 8, borderBottom: '1px solid var(--ec-border)' }}>
         {(['전체', ...TYPES.map((t) => t.type)] as const).map((t) => (
@@ -129,6 +139,9 @@ export default function NonCashPage() {
       </div>
 
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {cut.truncated && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#fff8e1', border: '1px solid #f0d58a', color: '#7a5b00' }}>
+        기간 안에 {cut.total.toLocaleString()}건 — 앞 5,000건만 보입니다. 기간을 좁히거나 [오천건이상조회] 를 누르세요.
+      </div>}
       {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
 
       <Modal error={error} open={showForm} title="비현금거래 (대체전표) 등록" onClose={() => setShowForm(false)}>{(
