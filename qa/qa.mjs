@@ -1524,8 +1524,12 @@ async function scenarioAdjustment(f) {
     const r = rows.find((x) => x.itemId === f.material.id && x.warehouseId === f.warehouse.id)
     return r ? Number(r.quantity) : 0
   }
+  /*
+   * 일자를 안 준다(= 오늘). 예전엔 '2026-07-14' 로 박아 두고 '실사수량 − 현재고' 를 단언했는데,
+   * 지난 날짜 실사는 <b>그날 재고</b>와 비교하는 것이 맞다(55회차) — 그건 scenarioStockAsOf 가 잰다.
+   */
   const adjust = (type, body) => must('POST', '/stock-adjustments', {
-    type, itemId: f.material.id, warehouseId: f.warehouse.id, adjustDate: '2026-07-14', ...body,
+    type, itemId: f.material.id, warehouseId: f.warehouse.id, ...body,
   })
 
   const before = await stockOf()
@@ -4141,7 +4145,7 @@ async function scenarioDoubleProcess(f) {
   // 되돌린다 — 반영된 실사는 지울 수 없으므로 반대 방향 조정으로 원복한다
   await must('POST', '/stock-adjustments', {
     type: 'ADJUST', itemId: f.product.id, warehouseId: f.warehouse.id,
-    actualQty: before, adjustDate: '2026-07-14', reason: `${P}이중반영검증 원복`,
+    actualQty: before, reason: `${P}이중반영검증 원복`,   // 오늘 — 지난 날짜면 그날 재고와 비교한다(55회차)
   })
   eq('원복하면 처음 재고로 돌아온다', await qtyOf(f.product.id, f.warehouse.id), before)
 
@@ -4589,8 +4593,7 @@ async function scenarioStockRecalc(f) {
    * 그 성질을 못 박는다 — 곱해지기 시작하면 여기서 걸린다.
    */
   await call('POST', '/stock-adjustments', {
-    type: 'ADJUST', itemId: f.product.id, warehouseId: f.warehouse.id, actualQty: 5000,
-    adjustDate: '2026-08-30',
+    type: 'ADJUST', itemId: f.product.id, warehouseId: f.warehouse.id, actualQty: 5000,   // 오늘 — 현재고를 맞춘다(지난 날짜면 그날 재고를 맞춘다, 55회차)
   })
   const 긴전표 = {
     partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2026-08-30', taxable: true,
@@ -5537,6 +5540,22 @@ async function scenarioStockAsOf(f) {
   future.setDate(future.getDate() + 30)
   eq('앞날을 물어도 현재고까지만',
     await qtyOf(`?asOf=${future.toISOString().slice(0, 10)}`), now + 100)
+
+  /*
+   * <b>지난 날짜 실사</b>는 그날 재고와 비교한다(55회차). 어제 재고가 before 였고 오늘 100 이 들어왔다 —
+   * 어제 실사가 before + 3 이면 차이는 +3 이다. 고치기 전에는 현재고와 비교해 3 − 100 = −97 이 됐다.
+   */
+  const adjPast = await must('POST', '/stock-adjustments', {
+    type: 'ADJUST', itemId: f.material.id, warehouseId: f.warehouse.id, actualQty: before + 3, adjustDate: y,
+  })
+  eq('어제 날짜 실사는 어제 재고와의 차이만 조정한다',
+    `${adjPast.beforeQty} → ${adjPast.afterQty} (${adjPast.quantityChange})`, `${before} → ${before + 3} (3)`)
+  eq('어제 시점 재고가 실사수량이 된다', await qtyOf(`?asOf=${y}`), before + 3)
+  eq('오늘 들어온 100 은 그 위에 그대로 남는다', await qtyOf(''), now + 103)
+  await rejects('어제 재고와 같은 실사수량이면 차이가 없다', 'POST', '/stock-adjustments', {
+    type: 'ADJUST', itemId: f.material.id, warehouseId: f.warehouse.id, actualQty: before + 3, adjustDate: y,
+  })
+  await must('DELETE', `/stock-adjustments/${adjPast.id}`)
 
   // 되돌린다.
   await must('POST', '/stock/transactions', {
@@ -10519,7 +10538,7 @@ async function scenarioNewCompany() {
     [창고?.id, 품목?.id, 거래처?.id].every((x) => x != null), true)
 
   await 그쪽쓰기('/stock-adjustments', {
-    type: 'ADJUST', itemId: 품목.id, warehouseId: 창고.id, actualQty: 100, adjustDate: '2026-08-30',
+    type: 'ADJUST', itemId: 품목.id, warehouseId: 창고.id, actualQty: 100,
   })
   const [판매st, 판매] = await 그쪽쓰기('/sales', {
     partnerId: 거래처.id, warehouseId: 창고.id, saleDate: '2026-08-30', taxable: true,
@@ -10659,8 +10678,7 @@ async function scenarioPressedTwice(f) {
   section('■ 시나리오 39. 두 번 눌렀을 때')
 
   await call('POST', '/stock-adjustments', {
-    type: 'ADJUST', itemId: f.product.id, warehouseId: f.warehouse.id, actualQty: 900,
-    adjustDate: '2026-08-30',
+    type: 'ADJUST', itemId: f.product.id, warehouseId: f.warehouse.id, actualQty: 900,   // 오늘 — 현재고를 맞춘다(지난 날짜면 그날 재고를 맞춘다, 55회차)
   })
 
   // ── 같은 순간에 여덟 번 만들면 전표번호가 겹치나
@@ -10722,8 +10740,7 @@ async function scenarioRoundTrip(f) {
     code: `${P}WH2`, name: 'QA창고2', location: 'QA동 2층',
   })
   await call('POST', '/stock-adjustments', {
-    type: 'ADJUST', itemId: f.product.id, warehouseId: f.warehouse.id, actualQty: 300,
-    adjustDate: '2026-08-30',
+    type: 'ADJUST', itemId: f.product.id, warehouseId: f.warehouse.id, actualQty: 300,   // 오늘 — 현재고를 맞춘다(지난 날짜면 그날 재고를 맞춘다, 55회차)
   })
 
   const 시험 = [
@@ -10764,8 +10781,7 @@ async function scenarioRollback(f) {
 
   // ── 판매: 둘째 줄이 재고 부족으로 터진다
   await call('POST', '/stock-adjustments', {
-    type: 'ADJUST', itemId: f.product.id, warehouseId: f.warehouse.id, actualQty: 500,
-    adjustDate: '2026-08-29',
+    type: 'ADJUST', itemId: f.product.id, warehouseId: f.warehouse.id, actualQty: 500,   // 오늘 — 현재고를 맞춘다(지난 날짜면 그날 재고를 맞춘다, 55회차)
   })
   const 판매전 = (await must('GET', '/stock')).find(
     (s) => s.itemId === f.product.id && s.warehouseName === f.warehouse.name)?.quantity
@@ -10805,8 +10821,7 @@ async function scenarioRollback(f) {
   }
   for (const [item, qty] of [[넉넉자재, 50], [모자란자재, 3]]) {
     await call('POST', '/stock-adjustments', {
-      type: 'ADJUST', itemId: item.id, warehouseId: f.warehouse.id, actualQty: qty,
-      adjustDate: '2026-08-29',
+      type: 'ADJUST', itemId: item.id, warehouseId: f.warehouse.id, actualQty: qty,   // 오늘 — 현재고를 맞춘다(지난 날짜면 그날 재고를 맞춘다, 55회차)
     })
   }
   const 재고of = async (id) => Number((await must('GET', '/stock')).find(

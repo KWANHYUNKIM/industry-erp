@@ -1,0 +1,26 @@
+{
+  "about": "재고조정 — 지난 날짜로 실사를 넣으면 [현재고] 칸이 그 일자 재고로 바뀌고 증감도 그 재고와의 차이다(55회차 — 서버는 현재고와 비교했고 화면도 현재고를 보였다). 저장하지 않는다. 품목을 고르면 코드도움 창이 닫혀야 한다 — label 로 감싼 칸에서 고르자마자 다시 열리던 것(55회차).",
+  "shots": [
+    {
+      "name": "어제 날짜 실사 미리보기",
+      "path": "/inventory/transfer",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "click:재고조정",
+        "click:재고조정 등록(F2)",
+        "clicklast:품목 선택",
+        "pickrow:QA-MAT",
+        "expect:document.querySelectorAll('[role=dialog]').length === 1",
+        "js:(() => { const s = [...document.querySelectorAll('[role=dialog] select')].find((x) => [...x.options].some((o) => o.text === 'QA창고')); const v = [...s.options].find((o) => o.text === 'QA창고').value; Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s, v); s.dispatchEvent(new Event('change', { bubbles: true })); return true })()",
+        "js:(() => { const d = new Date(Date.now() - 864e5 + 9 * 36e5).toISOString().slice(0, 10); sessionStorage.setItem('y', d); const i = document.querySelector('[role=dialog] input[type=date]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, d); i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new Event('change', { bubbles: true })); return true })()",
+        "wait:1200",
+        "js:window.__api('GET', '/stock?asOf=' + sessionStorage.getItem('y')).then((r) => { const row = r.body.find((x) => x.itemCode === 'QA-MAT' && x.warehouseName === 'QA창고'); sessionStorage.setItem('asof', String(row ? Number(row.quantity) : 0)); return sessionStorage.getItem('asof') })",
+        "expect:document.querySelector('[role=dialog]').innerText.includes(sessionStorage.getItem('y') + ' 재고')",
+        "expect:[...document.querySelectorAll('[role=dialog] .ec-input')].some((d) => d.tagName === 'DIV' && d.innerText.replace(/,/g, '') === sessionStorage.getItem('asof'))",
+        "js:(() => { const i = [...document.querySelectorAll('[role=dialog] input[type=number]')][0]; Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, String(Number(sessionStorage.getItem('asof')) + 3)); i.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "wait:300",
+        "expect:document.querySelector('[role=dialog]').innerText.includes('증감 +3')"
+      ]
+    }
+  ]
+}

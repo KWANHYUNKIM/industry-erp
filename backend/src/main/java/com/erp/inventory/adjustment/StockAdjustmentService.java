@@ -115,9 +115,15 @@ public class StockAdjustmentService {
                 .type(req.type())
                 .item(item)
                 .warehouse(warehouse)
-                .beforeQty(tx.getBalanceAfter().subtract(tx.getQuantityChange()))
+                /*
+                 * 재고조정의 조정 전·후는 <b>실사일 재고</b>다 — 지난 날짜 실사면 현재고가 아니다(QA 55회차).
+                 * 실사수량이 곧 조정 후이고, 조정 전은 거기서 차이를 뺀 것이다.
+                 */
+                .beforeQty(req.type() == StockAdjustmentType.ADJUST
+                        ? req.actualQty().subtract(tx.getQuantityChange())
+                        : tx.getBalanceAfter().subtract(tx.getQuantityChange()))
                 .quantityChange(tx.getQuantityChange())
-                .afterQty(tx.getBalanceAfter())
+                .afterQty(req.type() == StockAdjustmentType.ADJUST ? req.actualQty() : tx.getBalanceAfter())
                 .project(req.projectId() == null ? null : projectService.get(req.projectId()))
                 .employeeId(req.employeeId())
                 .reason(req.reason())

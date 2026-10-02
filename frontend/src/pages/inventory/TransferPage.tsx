@@ -458,13 +458,30 @@ function AdjustmentForm({ type, label, items, warehouses, stock, projects, emplo
   })
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }))
 
+  const isAdjust = type === 'ADJUST'
+  /*
+   * 지난 날짜 실사는 <b>그날 재고</b>와 비교한다 — 서버가 그렇게 조정한다(QA 55회차). 미리보기도 같은 수를 본다.
+   * 오늘이면 받아 둔 현재고 그대로.
+   */
+  const past = isAdjust && form.adjustDate !== '' && form.adjustDate < today()
+  const [asOfStock, setAsOfStock] = useState<StockRow[] | null>(null)
+  useEffect(() => {
+    if (!past) { setAsOfStock(null); return }
+    let alive = true
+    api.get<StockRow[]>('/stock', { params: { asOf: form.adjustDate } })
+      .then((r) => { if (alive) setAsOfStock(r.data) })
+      .catch(() => { if (alive) setAsOfStock(null) })
+    return () => { alive = false }
+  }, [past, form.adjustDate])
+
   const current = useMemo(() => {
     if (!form.itemId || !form.warehouseId) return null
-    const row = stock.find((s) => s.itemId === Number(form.itemId) && s.warehouseId === Number(form.warehouseId))
+    const src = past ? asOfStock : stock
+    if (!src) return null
+    const row = src.find((s) => s.itemId === Number(form.itemId) && s.warehouseId === Number(form.warehouseId))
     return row ? row.quantity : 0
-  }, [form.itemId, form.warehouseId, stock])
+  }, [form.itemId, form.warehouseId, stock, past, asOfStock])
 
-  const isAdjust = type === 'ADJUST'
   const diff = isAdjust && current !== null && form.actualQty !== '' ? Number(form.actualQty) - current : null
 
   async function submit() {
@@ -512,7 +529,7 @@ function AdjustmentForm({ type, label, items, warehouses, stock, projects, emplo
             {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
           </select>
         </Field>
-        <Field label="현재고">
+        <Field label={past ? `${form.adjustDate} 재고` : '현재고'}>
           <div className="ec-input" style={{ width: 90, textAlign: 'right', background: '#f5f7fa', color: '#5a626e', lineHeight: '22px' }}>
             {current === null ? '-' : num(current)}
           </div>
@@ -548,7 +565,7 @@ function AdjustmentForm({ type, label, items, warehouses, stock, projects, emplo
       </div>
       <div style={{ marginTop: 8, fontSize: 11.5, color: '#8a929c' }}>
         {isAdjust
-          ? '※ 실사수량과 현재고의 차이만큼 재고를 증감합니다(수불부에 조정으로 기록).'
+          ? '※ 실사수량과 그 일자 재고의 차이만큼 재고를 증감합니다(수불부에 조정으로 기록). 지난 날짜면 그 뒤 거래는 그대로 둡니다.'
           : `※ 입력 수량만큼 재고를 차감합니다. 현재고보다 많으면 ${label}가 거절됩니다.`}
       </div>
     </div>

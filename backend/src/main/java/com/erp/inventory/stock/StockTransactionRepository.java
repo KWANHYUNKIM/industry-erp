@@ -124,6 +124,12 @@ public interface StockTransactionRepository extends JpaRepository<StockTransacti
            "group by t.item.id, t.warehouse.id")
     List<Object[]> sumChangeAfter(@Param("asOf") java.time.LocalDate asOf);
 
+    /** 한 (품목, 창고)의 {@code asOf} 뒤 변동 합. 현재고에서 빼면 그날 마감 재고다. */
+    @Query("select coalesce(sum(t.quantityChange), 0) from StockTransaction t " +
+           "where t.item.id = :itemId and t.warehouse.id = :warehouseId and t.transactionDate > :asOf")
+    java.math.BigDecimal sumChangeAfterFor(@Param("itemId") Long itemId, @Param("warehouseId") Long warehouseId,
+                                           @Param("asOf") java.time.LocalDate asOf);
+
     /*
      * <b>[대표품목으로 합산]</b> 용. 위 질의들은 품목을 <b>하나</b>만 받는데, 합산은 대표와
      * 형제들을 <b>한꺼번에</b> 봐야 한다.

@@ -305,9 +305,20 @@ public class StockService {
         BigDecimal current = stockRepository.findForUpdate(item.getId(), warehouse.getId())
                 .map(Stock::getQuantity)
                 .orElse(BigDecimal.ZERO);
-        BigDecimal delta = targetQty.subtract(current);
+        /*
+         * 실사는 <b>그날의 재고</b>를 센 것이다. 지난 날짜로 넣으면 그 뒤 거래를 빼고 비교해야 한다 —
+         * 9/30 에 45 개를 세고 10/1 에 5 개가 나간 뒤 9/30 실사를 넣으면 차이는 0 이지
+         * (45 − 현재고 40) = +5 가 아니다(QA 55회차). 그 뒤 거래는 실사 뒤에 그대로 일어난 것이다.
+         */
+        boolean past = date != null && date.isBefore(LocalDate.now());
+        BigDecimal onDate = past
+                ? current.subtract(transactionRepository.sumChangeAfterFor(item.getId(), warehouse.getId(), date))
+                : current;
+        BigDecimal delta = targetQty.subtract(onDate);
         if (delta.signum() == 0) {
-            throw ApiException.badRequest("실사수량이 현재고(" + current.toPlainString() + ")와 같아 조정할 차이가 없습니다.");
+            throw ApiException.badRequest(!past
+                    ? "실사수량이 현재고(" + current.stripTrailingZeros().toPlainString() + ")와 같아 조정할 차이가 없습니다."
+                    : "실사수량이 " + date + " 재고(" + onDate.stripTrailingZeros().toPlainString() + ")와 같아 조정할 차이가 없습니다.");
         }
         return applyDelta(item, warehouse, delta, StockTransactionType.ADJUST, null, date, note, username);
     }

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import Modal from './Modal'
 
 /**
@@ -72,7 +72,19 @@ export default function CodePickerField({
   values?: string[]
   onChangeMulti?: (values: string[], items: CodeItem[]) => void
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, rawSetOpen] = useState(false)
+  /*
+   * <b>고르자마자 다시 열리던 것</b>(QA 55회차). 팝업(Modal)은 portal 이 아니라 이 칸 자리에 그려진다 —
+   * 그래서 칸을 <code>&lt;label&gt;</code> 로 감싼 화면(기타이동·은행카드·특별단가 등 15곳)에서는 팝업 안을
+   * 누르면 브라우저가 label 의 '연결된 칸 누르기' 를 한 번 더 일으켜, 방금 닫은 팝업이 바로 다시 열렸다.
+   * 그 가짜 클릭은 detail 이 0 이다. 닫은 직후의 detail 0 클릭만 무시한다 — 키보드(Enter·Space)로 여는 것은 그대로다.
+   */
+  const closedAt = useRef(0)
+  const setOpen = (v: boolean) => { if (!v) closedAt.current = Date.now(); rawSetOpen(v) }
+  const openFrom = (e: React.MouseEvent) => {
+    if (e.detail === 0 && Date.now() - closedAt.current < 400) return
+    setOpen(true)
+  }
   const [q, setQ] = useState('')
 
   const picked = values ?? []
@@ -137,14 +149,14 @@ export default function CodePickerField({
             disabled={disabled}
             value={selected?.code ?? ''}
             placeholder={label}
-            onClick={() => !disabled && setOpen(true)}
+            onClick={(e) => !disabled && openFrom(e)}
             style={{ background: disabled ? '#f4f5f7' : undefined, cursor: disabled ? 'default' : 'pointer' }}
           />
           <button
             type="button"
             className="ec-btn"
             disabled={disabled}
-            onClick={() => setOpen(true)}
+            onClick={openFrom}
             title={`${label} 코드도움`}
           >
             🔍
@@ -155,7 +167,7 @@ export default function CodePickerField({
             disabled={disabled}
             value={selected?.name ?? ''}
             placeholder=""
-            onClick={() => !disabled && setOpen(true)}
+            onClick={(e) => !disabled && openFrom(e)}
             title={selected ? `${selected.code ?? ''} ${selected.name}`.trim() : ''}
             style={{ background: disabled ? '#f4f5f7' : '#fff', cursor: disabled ? 'default' : 'pointer' }}
           />
@@ -173,7 +185,7 @@ export default function CodePickerField({
           disabled={disabled}
           value={display}
           placeholder={placeholder ?? label}
-          onClick={() => !disabled && setOpen(true)}
+          onClick={(e) => !disabled && openFrom(e)}
           style={{ width: fill ? '100%' : width, flex: fill ? 1 : undefined, minWidth: 0,
                    cursor: disabled ? 'default' : 'pointer', background: disabled ? '#f4f5f7' : undefined }}
           title={multiple ? pickedItems.map((i) => i.name).join(', ') : (selected ? `${selected.code ?? ''} ${selected.name}`.trim() : (placeholder ?? label))}
@@ -182,7 +194,7 @@ export default function CodePickerField({
           type="button"
           className="ec-btn"
           disabled={disabled}
-          onClick={() => setOpen(true)}
+          onClick={openFrom}
           title={`${label} 선택`}
           style={{ marginLeft: -1, padding: '0 7px' }}
         >
