@@ -7,7 +7,7 @@ import EcBarChart from '../../components/EcBarChart'
 import { STATUS_PICKS, periodOf, comparePeriodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
 import type { Item, Warehouse } from '../../types/api'
 import { stockCostMapFromLast } from '../../utils/stockValue'
-import { aggregate, groupCodes, GROUP_CODE_LABEL, type AggregatableRow, type GroupKey } from '../../utils/statusAggregate'
+import { aggregate, groupCodes, GROUP_CODE_LABEL, AGG_SORTS, sortAggregated, type AggSort, type AggregatableRow, type GroupKey } from '../../utils/statusAggregate'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { subtotalBy } from '../../utils/subtotalBy'
@@ -286,7 +286,7 @@ export default function IssueStatusPage() {
     taxable: true, employeeName: empName(r.employeeId) || null, managementItemName: null,
     toWarehouseName: r.toWarehouseName, itemGroupName: mgmt.groupOf(r.itemId) || null,
   })
-  const aggRows = useMemo(() => aggregate(shown.map(toAgg), agg1, agg2),
+  const aggRaw = useMemo(() => aggregate(shown.map(toAgg), agg1, agg2),
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [shown, agg1, agg2, priceOf, employees, mgmt.groupOptions])
   /** 묶음의 코드 — 품목은 자재코드, 창고는 보내는창고 코드, 담당자·프로젝트는 마스터 코드. */
@@ -300,12 +300,17 @@ export default function IssueStatusPage() {
   /** [코드포함] — 켜졌고 그 축에 코드가 있으면 열 이름, 아니면 undefined(열을 안 세운다). */
   const code1 = codeIncl ? GROUP_CODE_LABEL[agg1] : undefined
   const code2 = codeIncl && agg2 ? GROUP_CODE_LABEL[agg2] : undefined
-  const codes1 = useMemo(() => code1 ? groupCodes(shown, agg1, toAgg, codeOf) : new Map<string, string>(),
+  /* 코드는 [코드포함] 이 꺼져 있어도 센다 — 기본 정렬 [코드순] 이 쓴다. */
+  const codes1 = useMemo(() => groupCodes(shown, agg1, toAgg, codeOf),
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [code1, shown, agg1, employees, warehouses, pickers.employees, pickers.projects])
-  const codes2 = useMemo(() => code2 && agg2 ? groupCodes(shown, agg2, toAgg, codeOf) : new Map<string, string>(),
+  const codes2 = useMemo(() => groupCodes(shown, agg2, toAgg, codeOf),
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [code2, shown, agg2, employees, warehouses, pickers.employees, pickers.projects])
+  /** 원본 정렬 선택상자 — 코드순이 기본이다(예전엔 금액 큰 묶음이 위였다). */
+  const [aggSort, setAggSort] = useState<AggSort>('코드순')
+  const [aggDesc, setAggDesc] = useState(false)
+  const aggRows = useMemo(() => sortAggregated(aggRaw, aggSort, aggDesc, codes1, codes2), [aggRaw, aggSort, aggDesc, codes1, codes2])
   const listRows = lineView === '라인별' ? shown : (() => {
     /* 품목별 — 같은 품목(보내는창고·받는공장도 같은 것)을 한 줄로, 일자-No. 는 처음 것을 둔다(원본 실측: 9/3 · 9/7 의 같은 자재가 9/3 줄에 합쳐진다). */
     /* 일별 · 월별 — 그날(그달) 줄을 한 줄로, 일자만 찍고(No. 없음) 창고·품목은 처음 줄 것, 수량·금액은 합
@@ -363,6 +368,11 @@ export default function IssueStatusPage() {
             <select className="ec-input" value={agg1} onChange={(e) => setAgg1(e.target.value as GroupKey)} style={{ width: 100 }}>
               {AGG_KEYS.map((k) => <option key={k} value={k}>{k}</option>)}
             </select>
+            <select className="ec-input" value={aggSort} onChange={(e) => setAggSort(e.target.value as AggSort)} style={{ width: 84 }} title="정렬">
+              {AGG_SORTS.map((k) => <option key={k} value={k}>{k}</option>)}
+            </select>
+            <button type="button" className="ec-btn" onClick={() => setAggDesc((d) => !d)} title={aggDesc ? '내림차순' : '오름차순'}
+                    style={{ padding: '0 6px', height: 24 }}>{aggDesc ? '↓' : '↑'}</button>
             집계조건2
             <select className="ec-input" value={agg2} onChange={(e) => setAgg2(e.target.value as GroupKey | '')} style={{ width: 100 }}>
               <option value="">없음</option>

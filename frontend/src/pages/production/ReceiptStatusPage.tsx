@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
-import { aggregate, groupCodes, GROUP_CODE_LABEL, type AggregatableRow, type GroupKey } from '../../utils/statusAggregate'
+import { aggregate, groupCodes, GROUP_CODE_LABEL, AGG_SORTS, sortAggregated, type AggSort, type AggregatableRow, type GroupKey } from '../../utils/statusAggregate'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
@@ -286,7 +286,7 @@ export default function ReceiptStatusPage() {
     taxable: true, employeeName: empName(r.employeeId) || null, managementItemName: null,
     toWarehouseName: r.warehouseName, itemGroupName: mgmt.groupOf(r.productId) || null,
   })
-  const aggRows = useMemo(() => aggregate(shown.map(toAgg), agg1, agg2),
+  const aggRaw = useMemo(() => aggregate(shown.map(toAgg), agg1, agg2),
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [shown, agg1, agg2, cost, employees, mgmt.groupOptions])
   /** 묶음의 코드 — 품목은 생산품 코드, 창고는 받는창고 코드, 담당자·프로젝트는 마스터 코드. */
@@ -300,12 +300,17 @@ export default function ReceiptStatusPage() {
   /** [코드포함] — 켜졌고 그 축에 코드가 있으면 열 이름, 아니면 undefined(열을 안 세운다). */
   const code1 = codeIncl ? GROUP_CODE_LABEL[agg1] : undefined
   const code2 = codeIncl && agg2 ? GROUP_CODE_LABEL[agg2] : undefined
-  const codes1 = useMemo(() => code1 ? groupCodes(shown, agg1, toAgg, codeOf) : new Map<string, string>(),
+  /* 코드는 [코드포함] 이 꺼져 있어도 센다 — 기본 정렬 [코드순] 이 쓴다. */
+  const codes1 = useMemo(() => groupCodes(shown, agg1, toAgg, codeOf),
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [code1, shown, agg1, employees, warehouses, pickers.employees, pickers.projects])
-  const codes2 = useMemo(() => code2 && agg2 ? groupCodes(shown, agg2, toAgg, codeOf) : new Map<string, string>(),
+  const codes2 = useMemo(() => groupCodes(shown, agg2, toAgg, codeOf),
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [code2, shown, agg2, employees, warehouses, pickers.employees, pickers.projects])
+  /** 원본 정렬 선택상자 — 코드순이 기본이다(예전엔 금액 큰 묶음이 위였다). */
+  const [aggSort, setAggSort] = useState<AggSort>('코드순')
+  const [aggDesc, setAggDesc] = useState(false)
+  const aggRows = useMemo(() => sortAggregated(aggRaw, aggSort, aggDesc, codes1, codes2), [aggRaw, aggSort, aggDesc, codes1, codes2])
   /** 내역의 줄 — 라인별이면 생산 줄 그대로, 전표별이면 번호로 묶어 첫 품목 외 n건 · 수량 합 · 금액 합(단가 모르는 줄이 있으면 모름). */
   const listRows = useMemo(() => {
     const amt = (r: Production) => { const c = cost.get(r.productId); return c == null ? null : r.producedQty * c }
@@ -362,6 +367,11 @@ export default function ReceiptStatusPage() {
             <select className="ec-input" value={agg1} onChange={(e) => setAgg1(e.target.value as GroupKey)} style={{ width: 100 }}>
               {AGG_KEYS.map((k) => <option key={k} value={k}>{k}</option>)}
             </select>
+            <select className="ec-input" value={aggSort} onChange={(e) => setAggSort(e.target.value as AggSort)} style={{ width: 84 }} title="정렬">
+              {AGG_SORTS.map((k) => <option key={k} value={k}>{k}</option>)}
+            </select>
+            <button type="button" className="ec-btn" onClick={() => setAggDesc((d) => !d)} title={aggDesc ? '내림차순' : '오름차순'}
+                    style={{ padding: '0 6px', height: 24 }}>{aggDesc ? '↓' : '↑'}</button>
             집계조건2
             <select className="ec-input" value={agg2} onChange={(e) => setAgg2(e.target.value as GroupKey | '')} style={{ width: 100 }}>
               <option value="">없음</option>

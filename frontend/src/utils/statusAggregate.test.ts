@@ -8,7 +8,7 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { aggregate, groupValue, weekOfYear, type AggregatableRow } from './statusAggregate.ts'
+import { aggregate, groupValue, sortAggregated, weekOfYear, type AggregatableRow, type AggregatedRow } from './statusAggregate.ts'
 import { periodOf } from './periods.ts'
 
 const row = (over: Partial<AggregatableRow> = {}): AggregatableRow => ({
@@ -126,4 +126,16 @@ test('금액이 큰 그룹이 위로 온다', () => {
 
 test('빈 목록은 빈 결과', () => {
   assert.deepEqual(aggregate([], '품목별', ''), [])
+})
+
+test('정렬 — 코드순은 코드로(없으면 이름), 코드명순은 이름으로, 수량은 수량으로, 내림은 뒤집는다', () => {
+  const g = (g1: string, qty: number): AggregatedRow => ({ g1, g2: '', count: 1, qty, supply: 0, vat: 0 })
+  const rows = [g('가창고', 5), g('나창고', 9), g('다창고', 1)]
+  const codes = new Map([['가창고', 'W03'], ['나창고', 'W01'], ['다창고', 'W02']])
+  const names = (r: AggregatedRow[]) => r.map((x) => x.g1).join(',')
+  assert.equal(names(sortAggregated(rows, '코드순', false, codes, new Map())), '나창고,다창고,가창고')
+  assert.equal(names(sortAggregated(rows, '코드명순', false, codes, new Map())), '가창고,나창고,다창고')
+  assert.equal(names(sortAggregated(rows, '수량', true, codes, new Map())), '나창고,가창고,다창고')
+  // 코드가 없는 축(날짜)은 이름 그대로가 차례다
+  assert.equal(names(sortAggregated([g('2026-10-02', 1), g('2026-09-30', 1)], '코드순', false, new Map(), new Map())), '2026-09-30,2026-10-02')
 })

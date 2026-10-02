@@ -137,3 +137,23 @@ export function groupCodes<R>(
   }
   return m
 }
+
+/**
+ * 원본 집계조건 옆 정렬 선택상자(2026-10-02 생산입고현황 실측): 코드순(기본) · 코드명순 · 수량 · 공급가액 · 부가세 · 합계 ·
+ * 노무시간 · 경비시간, 그리고 오름/내림 단추. 생산 현황에는 공급가액·부가세가 없고(생산금액은 평가단가로 센 값이라 다른 값이다)
+ * 노무·경비시간도 안 남기므로 셋만 둔다.
+ */
+export const AGG_SORTS = ['코드순', '코드명순', '수량'] as const
+export type AggSort = (typeof AGG_SORTS)[number]
+
+/** 코드순은 묶음 코드(없으면 이름 — 날짜 축은 날짜 그대로가 곧 차례다), 코드명순은 이름, 수량은 수량. 조건1 이 같으면 조건2 로. */
+export function sortAggregated(
+  rows: AggregatedRow[], by: AggSort, desc: boolean, codes1: Map<string, string>, codes2: Map<string, string>,
+): AggregatedRow[] {
+  const key = (g: string, codes: Map<string, string>) => (by === '코드순' ? codes.get(g) || g : g)
+  const cmp = (a: AggregatedRow, b: AggregatedRow) => by === '수량'
+    ? a.qty - b.qty
+    : key(a.g1, codes1).localeCompare(key(b.g1, codes1), 'ko') || key(a.g2, codes2).localeCompare(key(b.g2, codes2), 'ko')
+  const out = [...rows].sort(cmp)
+  return desc ? out.reverse() : out
+}
