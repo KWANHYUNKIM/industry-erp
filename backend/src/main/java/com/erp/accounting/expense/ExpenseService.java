@@ -58,6 +58,7 @@ public class ExpenseService {
                 .partnerName(req.partnerName())
                 .partner(matchPartner(req.partnerName()))
                 .amount(req.amount())
+                .vatAmount(req.vatAmount() != null ? req.vatAmount() : java.math.BigDecimal.ZERO)
                 .paymentMethod(req.paymentMethod())
                 .department(req.department())
                 .project(req.projectId() != null ? projectService.get(req.projectId()) : null)

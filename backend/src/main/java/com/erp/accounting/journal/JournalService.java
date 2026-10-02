@@ -277,13 +277,17 @@ public class JournalService {
                 x.getContent() != null ? x.getContent() : "지출", null, x.getCreatedBy());
 
         addDebitAccount(e, expenseAccount, x.getAmount(), x.getContent());
+        // 세금계산서를 받은 비용은 부가세를 부가세대급금으로 가른다 — 매입세액 공제(46회차).
+        BigDecimal vat = x.getVatAmount() != null ? x.getVatAmount() : BigDecimal.ZERO;
+        if (isNonZero(vat)) addDebit(e, "135", vat, "부가세대급금");
+        BigDecimal paid = x.getAmount().add(vat);
         /*
          * 대변은 결제수단으로 가른다 — 카드·외상은 미지급금(253), 계좌이체는 보통예금(103), 나머지는 현금(101).
          * 예전엔 계좌이체도 현금으로 나가 현금 장부만 줄고 통장은 그대로였다(39회차). 수금·지급과 같은 판정.
          */
         String credit = isOnCredit(x.getPaymentMethod()) ? "253" : isBankMethod(x.getPaymentMethod()) ? "103" : "101";
         String creditName = "253".equals(credit) ? "미지급금" : "103".equals(credit) ? "보통예금" : "현금";
-        addCredit(e, credit, x.getAmount(), creditName);
+        addCredit(e, credit, paid, creditName);
         return save(e);
     }
 

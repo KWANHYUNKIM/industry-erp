@@ -4,6 +4,7 @@ import com.erp.accounting.expense.Expense;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -20,6 +21,8 @@ public final class ExpenseDtos {
             @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String partnerName,
             @NotNull(message = "금액을 입력하세요.") @Positive(message = "금액은 0보다 커야 합니다.") BigDecimal amount,
+            /** 부가세(매입세액). 안 주면 0 — 세금계산서 없는 비용. 낸 돈 = amount + vatAmount(46회차). */
+            @PositiveOrZero(message = "부가세는 0 이상이어야 합니다.") BigDecimal vatAmount,
             @Size(max = 30, message = "입력한 글자가 너무 깁니다. 30자까지 넣을 수 있습니다.")
             String paymentMethod,
             @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
@@ -42,7 +45,10 @@ public final class ExpenseDtos {
             String content, String partnerName,
             /** 거래처 마스터와 이름이 정확히 일치할 때만 채워진다(아니면 null) */
             Long partnerId,
-            BigDecimal amount, String paymentMethod, String department,
+            BigDecimal amount,
+            /** 부가세(매입세액) · 낸 돈(amount + vatAmount) */
+            BigDecimal vatAmount, BigDecimal totalAmount,
+            String paymentMethod, String department,
             Long projectId, String projectName,
             String createdBy
     ) {
@@ -58,7 +64,8 @@ public final class ExpenseDtos {
                     group,
                     e.getContent(), e.getPartnerName(),
                     e.getPartner() != null ? e.getPartner().getId() : null,
-                    e.getAmount(), e.getPaymentMethod(), e.getDepartment(),
+                    e.getAmount(), e.getVatAmount(), e.getAmount().add(e.getVatAmount()),
+                    e.getPaymentMethod(), e.getDepartment(),
                     e.getProject() != null ? e.getProject().getId() : null,
                     e.getProject() != null ? e.getProject().getName() : null,
                     e.getCreatedBy());

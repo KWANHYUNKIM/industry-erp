@@ -6616,6 +6616,16 @@ async function scenarioExpenseJournal() {
     const after = (await must('GET', `/journals?from=${D}&to=${D}&all=true`)).rows
     eq(`지출(${method})을 지우면 분개도 지워진다`, after.some((x) => x.sourceType === 'EXPENSE' && x.sourceId === ex.id), false)
   }
+  /* 세금계산서 받은 비용 — 부가세를 부가세대급금(135)으로 가른다. 낸 돈 = 공급가 + 부가세(46회차). */
+  const vx = await must('POST', '/expenses', {
+    accountId: welfare.id, expenseDate: D, content: `${P}지출 부가세`, amount: 100_000, vatAmount: 10_000, paymentMethod: '계좌이체',
+  })
+  eq('지출 응답: 공급가 100,000 · 부가세 10,000 · 합계 110,000', [Number(vx.amount), Number(vx.vatAmount), Number(vx.totalAmount)].join('/'), '100000/10000/110000')
+  const vj = (await must('GET', `/journals?from=${D}&to=${D}&all=true`)).rows.find((x) => x.sourceType === 'EXPENSE' && x.sourceId === vx.id)
+  const amt = (code, side) => Number(vj?.lines.find((l) => l.accountCode === code)?.[side] ?? 0)
+  eq('부가세 지출 분개: 차 811 100,000 · 차 135 10,000 / 대 103 110,000',
+    [amt('811', 'debit'), amt('135', 'debit'), amt('103', 'credit')].join('/'), '100000/10000/110000')
+  await must('DELETE', `/expenses/${vx.id}`)
 }
 
 async function scenarioLeaveApproval() {

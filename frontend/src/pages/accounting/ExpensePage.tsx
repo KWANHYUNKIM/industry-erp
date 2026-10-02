@@ -36,7 +36,7 @@ export default function ExpensePage() {
   const [ok, setOk] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({
-    expenseDate: today(), accountId: '', content: '', partnerName: '', amount: '', paymentMethod: '법인카드', department: '', projectId: '',
+    expenseDate: today(), accountId: '', content: '', partnerName: '', amount: '', vatAmount: '', paymentMethod: '법인카드', department: '', projectId: '',
   })
   const [projects, setProjects] = useState<Project[]>([])
   const [payments, setPayments] = useState<CommonCode[]>([])
@@ -69,12 +69,13 @@ export default function ExpensePage() {
     if (!form.accountId) return setError('계정과목을 선택하세요.')
     if (!form.amount || Number(form.amount) <= 0) return setError('금액을 입력하세요.')
     try {
-      const res = await api.post<{ docNo: string; accountName: string; amount: number }>('/expenses', {
+      const res = await api.post<{ docNo: string; accountName: string; amount: number; vatAmount: number; totalAmount: number }>('/expenses', {
         accountId: Number(form.accountId),
         expenseDate: form.expenseDate,
         content: form.content || undefined,
         partnerName: form.partnerName || undefined,
         amount: Number(form.amount),
+        vatAmount: form.vatAmount ? Number(form.vatAmount) : 0,
         paymentMethod: form.paymentMethod || undefined,
         department: form.department || undefined,
         projectId: form.projectId ? Number(form.projectId) : undefined,
@@ -85,8 +86,11 @@ export default function ExpensePage() {
        */
       const pm = form.paymentMethod ?? ''
       const credit = /카드|외상|미지급/.test(pm) ? '미지급금' : /계좌|이체|예금|통장/.test(pm) ? '보통예금' : '현금'
-      setOk(`${res.data.docNo} 저장 · [${res.data.accountName}] ${Number(res.data.amount).toLocaleString()}원 — 회계전표 생성(대변 ${credit})`)
-      setForm((f) => ({ ...f, content: '', partnerName: '', amount: '', department: '' }))
+      const vat = Number(res.data.vatAmount ?? 0)
+      setOk(`${res.data.docNo} 저장 · [${res.data.accountName}] ${Number(res.data.amount).toLocaleString()}원`
+        + (vat ? ` + 부가세 ${vat.toLocaleString()}원(부가세대급금) = ${Number(res.data.totalAmount).toLocaleString()}원` : '')
+        + ` — 회계전표 생성(대변 ${credit})`)
+      setForm((f) => ({ ...f, content: '', partnerName: '', amount: '', vatAmount: '', department: '' }))
       setShowForm(false)
       load()
     } catch (err) {
@@ -149,6 +153,14 @@ export default function ExpensePage() {
               <input className="ec-input" value={form.partnerName} onChange={(e) => set('partnerName', e.target.value)} style={{ width: 130 }} /></label>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>금액 *</div>
               <input className="ec-input text-right" type="number" step="any" value={form.amount} onChange={(e) => set('amount', e.target.value)} style={{ width: 120 }} /></label>
+            {/*
+              부가세(매입세액). 세금계산서를 받은 비용이면 넣는다 — 분개에서 부가세대급금으로 갈라 공제받는다.
+              칸이 없어 공급가 100,000 + 부가세 10,000 을 110,000 전부 비용으로 넣어야 했다(46회차).
+            */}
+            <div style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>부가세</div>
+              <input className="ec-input text-right" type="number" step="any" value={form.vatAmount} onChange={(e) => set('vatAmount', e.target.value)} style={{ width: 100 }} />
+              <button type="button" className="ec-btn" style={{ marginLeft: 3 }} title="금액의 10%"
+                      onClick={() => set('vatAmount', form.amount ? String(Math.round(Number(form.amount) * 0.1)) : '')}>10%</button></div>
             <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>결제수단</div>
               <select className="ec-input" value={form.paymentMethod} onChange={(e) => set('paymentMethod', e.target.value)} style={{ width: 100 }}>
                 {payments.map((p) => <option key={p.id}>{p.name}</option>)}

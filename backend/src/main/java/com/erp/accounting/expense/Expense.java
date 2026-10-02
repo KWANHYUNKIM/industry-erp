@@ -63,6 +63,14 @@ public class Expense extends BaseTimeEntity {
     @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal amount;
 
+    /**
+     * 부가세(매입세액). 세금계산서를 받은 비용이면 공급가액의 10%. 낸 돈 = amount + vatAmount.
+     * 분개에서 부가세대급금(135)으로 갈라 매입세액 공제를 받는다(46회차 — 칸이 없어 전액이 비용이었다).
+     */
+    @Builder.Default
+    @Column(name = "vat_amount", nullable = false, precision = 18, scale = 2)
+    private BigDecimal vatAmount = BigDecimal.ZERO;
+
     /** 결제수단 (법인카드/계좌이체/현금 등) */
     @Column(length = 30)
     private String paymentMethod;
