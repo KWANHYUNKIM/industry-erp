@@ -120,6 +120,9 @@ export default function WoStatusPage() {
   const [axis, setAxis] = useState<typeof AXES[number]>('품목별')
   /** 원본 [집계조건2] — 두 번째 묶음(2026-10-02 loginaa 실측: 집계조건1 · 집계조건2). 없으면 한 단계. */
   const [axis2, setAxis2] = useState<typeof AXES[number] | ''>('')
+  /** 원본 [집계조건3] — 조건2 아래 세 번째 묶음(생산불출현황과 같은 판). 조건2 를 고른 뒤에만 연다. */
+  const [axis3Raw, setAxis3] = useState<typeof AXES[number] | ''>('')
+  const axis3 = axis2 && axis3Raw !== axis && axis3Raw !== axis2 ? axis3Raw : ''
   /*
    * 원본 집계 [기타] 의 비율표시 · 코드포함과 조건 옆 정렬(코드순 기본 · 코드명순 · 수량 + 오름/내림) — 생산불출현황과 같은 판
    * (2026-10-02 실측). 비율은 지시수량(원본 집계대상 [수량])으로 센다. 코드가 있는 축은 품목 · 창고 · 거래처뿐이다
@@ -296,11 +299,11 @@ export default function WoStatusPage() {
           : a === '창고별' ? (pickers.warehouses.find((w) => w.id === r.warehouseId)?.code ?? '')
             : a === '거래처별' ? (pickers.partners.find((x) => x.id === r.partnerId)?.code ?? '')
               : '')
-      const keyOf = (r: Row) => (axis2 ? `${keyBy(axis, r)} · ${keyBy(axis2, r)}` : keyBy(axis, r))
-      const by = new Map<string, { key: string; k1: string; k2: string; c1: string; c2: string; count: number; planned: number; produced: number; remaining: number }>()
+      const keyOf = (r: Row) => [axis, axis2, axis3].filter(Boolean).map((a) => keyBy(a as typeof AXES[number], r)).join(' · ')
+      const by = new Map<string, { key: string; k1: string; k2: string; k3: string; c1: string; c2: string; count: number; planned: number; produced: number; remaining: number }>()
       for (const r of shown) {
         const k = keyOf(r)
-        const cur = by.get(k) ?? { key: k, k1: keyBy(axis, r), k2: axis2 ? keyBy(axis2, r) : '', c1: codeBy(axis, r), c2: codeBy(axis2, r), count: 0, planned: 0, produced: 0, remaining: 0 }
+        const cur = by.get(k) ?? { key: k, k1: keyBy(axis, r), k2: axis2 ? keyBy(axis2, r) : '', k3: axis3 ? keyBy(axis3, r) : '', c1: codeBy(axis, r), c2: codeBy(axis2, r), count: 0, planned: 0, produced: 0, remaining: 0 }
         cur.count += 1
         cur.planned += r.plannedQty
         cur.produced += r.producedQty
@@ -308,11 +311,11 @@ export default function WoStatusPage() {
         by.set(k, cur)
       }
       /* 코드순 — 코드가 없는 축(날짜 · 담당자 …)은 이름 그대로가 차례다. */
-      const sortKey = (g: { key: string; c1: string; c2: string }) => (aggSort === '코드순' ? `${g.c1 || g.key}\u0000${g.c2}` : g.key)
+      const sortKey = (g: { key: string; c1: string; c2: string }) => (aggSort === '코드순' ? `${g.c1 || g.key}\u0000${g.c2}\u0000${g.key}` : g.key)
       const out = [...by.values()].sort((a, b) => aggSort === '수량' ? a.planned - b.planned : sortKey(a).localeCompare(sortKey(b), 'ko'))
       return aggDesc ? out.reverse() : out
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [shown, mode, axis, axis2, employees, pgroup.groupOptions, mgmt.groupOptions, aggSort, aggDesc, pickers.warehouses, pickers.partners])
+    }, [shown, mode, axis, axis2, axis3, employees, pgroup.groupOptions, mgmt.groupOptions, aggSort, aggDesc, pickers.warehouses, pickers.partners])
   const code1 = codeIncl ? CODE_LABEL[axis] : undefined
   const code2 = codeIncl && axis2 ? CODE_LABEL[axis2] : undefined
   const totalPlanned = grouped.reduce((a, g) => a + g.planned, 0)
@@ -324,7 +327,7 @@ export default function WoStatusPage() {
       : shown.map((r) => ({ label: r.productName, value: r.remainingQty }))
   ), [mode, grouped, shown])
   const aggRef = useRef<HTMLTableElement>(null)
-  useTableColumnCheck(aggRef, '작업지시서현황 집계', [axis, axis2, grouped.length, ratio, codeIncl, pivot])
+  useTableColumnCheck(aggRef, '작업지시서현황 집계', [axis, axis2, axis3, grouped.length, ratio, codeIncl, pivot])
 
   return (
     <EcListShell
@@ -375,6 +378,14 @@ export default function WoStatusPage() {
                 <option value="">없음</option>
                 {AXES.filter((a) => a !== axis).map((a) => <option key={a} value={a}>{a}</option>)}
               </select>
+              {axis2 && (<>
+                집계조건3
+                <select className="ec-input" value={axis3} onChange={(e) => setAxis3(e.target.value as typeof AXES[number] | '')}
+                        style={{ width: 110 }}>
+                  <option value="">없음</option>
+                  {AXES.filter((a) => a !== axis && a !== axis2).map((a) => <option key={a} value={a}>{a}</option>)}
+                </select>
+              </>)}
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                 <input type="checkbox" checked={ratio} onChange={(e) => setRatio(e.target.checked)} /> 비율표시
               </label>
@@ -567,7 +578,7 @@ export default function WoStatusPage() {
               <th style={{ width: 34 }}></th>
               {code1 && <th style={{ width: 110 }}>{code1}</th>}
               {code2 && <th style={{ width: 110 }}>{code2}</th>}
-              <th>{axis2 ? `${axis} · ${axis2}` : axis}</th>
+              <th>{[axis, axis2, axis3].filter(Boolean).join(' · ')}</th>
               <th style={{ width: 90, textAlign: 'right' }}>건수</th>
               <th style={{ width: 120, textAlign: 'right' }}>지시수량</th>
               {ratio && <th style={{ width: 80, textAlign: 'right' }}>비율(%)</th>}
