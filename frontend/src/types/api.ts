@@ -526,6 +526,9 @@ export interface Production {
   /** 원본 격자 [BOM버전] — 비었으면 기본 BOM 으로 소모했다. */
   bomId?: number | null
   bomVersionName?: string | null
+  /** 원본 생산입고입력 머리의 [첨부]. */
+  attachmentId?: number | null
+  attachmentName?: string | null
   productId: number
   productCode: string
   productName: string

@@ -8,6 +8,7 @@ import EcSlipShell from '../../components/EcSlipShell'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import { downloadStoredFile } from '../../utils/fileDownload'
 import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
 import type { Item, Production, ProductionEntryType, ProductionMaterial, Warehouse, WorkOrder } from '../../types/api'
 
@@ -111,6 +112,22 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
   const [fromWarehouseId, setFromWarehouseId] = useState('')
   const [warehouseId, setWarehouseId] = useState('')
   const [projectId, setProjectId] = useState('')
+  /** 원본 머리 맨 끝의 [첨부] — 파일을 먼저 올려 id 를 받고 저장할 때 붙인다(작업지시서와 같은 방식). */
+  const [attachment, setAttachment] = useState<{ id: number; name: string } | null>(null)
+  const [uploading, setUploading] = useState(false)
+  async function upload(file: File) {
+    setUploading(true); setError('')
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const r = await api.post<{ id: number; name: string }>('/files', fd)
+      setAttachment({ id: r.data.id, name: r.data.name })
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    } finally {
+      setUploading(false)
+    }
+  }
   const [lines, setLines] = useState<ProdLine[]>(() => Array.from({ length: BLANK_ROWS }, blankLine))
   const [mats, setMats] = useState<MatLine[]>(() => Array.from({ length: BLANK_ROWS }, () => blankMat()))
   const [tab, setTab] = useState<(typeof TABS)[number]>('생산')
@@ -156,6 +173,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
       setDate(h.productionDate)
       setEmployeeId(h.employeeId != null ? String(h.employeeId) : '')
       setProjectId(h.projectId != null ? String(h.projectId) : '')
+      setAttachment(h.attachmentId ? { id: h.attachmentId, name: h.attachmentName ?? '첨부' } : null)
       setFromWarehouseId(h.fromWarehouseId != null ? String(h.fromWarehouseId) : '')
       setWarehouseId(String(h.warehouseId))
       const ls: ProdLine[] = rows.map((p) => ({
@@ -286,7 +304,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
   }
 
   function reset() {
-    setDate(today()); setEmployeeId(''); setFromWarehouseId(''); setWarehouseId(''); setProjectId('')
+    setDate(today()); setEmployeeId(''); setFromWarehouseId(''); setWarehouseId(''); setProjectId(''); setAttachment(null)
     setLines(Array.from({ length: BLANK_ROWS }, blankLine))
     setMats(Array.from({ length: BLANK_ROWS }, () => blankMat()))
     setTab('생산'); setError(''); setOk('')
@@ -311,6 +329,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
       productionDate: date,
       employeeId: employeeId ? Number(employeeId) : null,
       projectId: projectId ? Number(projectId) : null,
+      attachmentId: attachment ? attachment.id : null,
       fromWarehouseId: type !== 'III' && fromWarehouseId ? Number(fromWarehouseId) : null,
       warehouseId: type !== 'III' && warehouseId ? Number(warehouseId) : null,
       lines: filled.map((l) => ({
@@ -667,6 +686,24 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
             <div className="form">
               <CodePickerField label="프로젝트" hideLabel pair value={projectId} onChange={setProjectId}
                                items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+            </div>
+          </li>
+          <li>
+            <div className="title">첨부</div>
+            <div className="form" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <label className="ec-btn ec-btn-sm" style={{ cursor: uploading ? 'wait' : 'pointer' }}>
+                {uploading ? '올리는 중…' : '파일 선택'}
+                <input type="file" aria-label="첨부 파일" style={{ display: 'none' }} disabled={uploading}
+                       onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); e.target.value = '' }} />
+              </label>
+              {attachment && (
+                <span style={{ fontSize: 12, color: 'var(--ec-blue-dark)' }}>
+                  <span style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                        onClick={() => void downloadStoredFile(attachment.id, attachment.name)}>{attachment.name}</span>
+                  <span onClick={() => setAttachment(null)} title="첨부 빼기"
+                        style={{ cursor: 'pointer', marginLeft: 6, fontWeight: 700 }}>×</span>
+                </span>
+              )}
             </div>
           </li>
         </ul>

@@ -43,6 +43,7 @@ public class ProductionService {
     private final com.erp.production.bom.BomService bomService;
     private final StockService stockService;
     private final DocumentNoGenerator docNoGenerator;
+    private final com.erp.common.FileStorageService fileStorageService;
     /** 프로젝트는 inventory 의 공개 service 를 거친다(리포지토리 직접 주입 금지, 4.2). */
     private final com.erp.inventory.project.ProjectService projectService;
 
@@ -165,6 +166,12 @@ public class ProductionService {
         Warehouse headTo = req.warehouseId() != null ? warehouseService.getUsable(req.warehouseId()) : null;
         Warehouse headFrom = req.fromWarehouseId() != null ? warehouseService.getUsable(req.fromWarehouseId()) : null;
         var project = req.projectId() != null ? projectService.get(req.projectId()) : null;
+        com.erp.common.StoredFile attachment = null;
+        if (req.attachmentId() != null) {
+            attachment = fileStorageService.meta(req.attachmentId());
+            /* 붙는 순간 이 파일의 주인을 적는다 — 생산입고는 생산 권한 아래에 있다. */
+            if (attachment.getOwnerCode() == null) attachment.setOwnerCode("PRODUCTION");
+        }
         List<ProductionResponse> out = new java.util.ArrayList<>();
         int lineNo = 0;
         for (SlipLine line : req.lines()) {
@@ -197,6 +204,7 @@ public class ProductionService {
             p.setBom(version);
             p.setEntryType(req.entryType());
             p.setLotNo(blankToNull(line.lotNo()));
+            p.setAttachment(attachment);
             if (line.processId() != null) p.setProcess(processService.getUsable(line.processId()));
             if (manual != null && line.materials() != null) {
                 for (int i = 0; i < p.getMaterials().size(); i++) {

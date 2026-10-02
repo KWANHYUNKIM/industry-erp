@@ -4847,6 +4847,17 @@ async function scenarioProductionSlip(f) {
   eq('I: 외주비부가세 = 합계의 10%', Number(one[0].subcontractVat), 200)
   eq('I: 완제품 5 입고', await stockOf(f.product.id), p0 + 5)
   eq('I: BOM 대로 자재 소모', await stockOf(comp.componentId), c0 - per * 5)
+  // 원본 생산입고입력 머리의 [첨부] — 먼저 올린 파일 id 를 붙이고, 지우면 전표와 함께 사라진다.
+  const fileForm = new FormData()
+  fileForm.append('file', new Blob(['QA 검사성적서'], { type: 'text/plain' }), 'qa-receipt.txt')
+  const recFile = await (await fetch(`${BASE}/files`, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fileForm })).json()
+  const filed = await must('POST', '/productions/slips', {
+    entryType: 'I', productionDate: D, fromWarehouseId: f.warehouse.id, warehouseId: f.warehouse.id, attachmentId: recFile.id,
+    lines: [{ productId: f.product.id, producedQty: 1 }],
+  })
+  eq('생산입고 [첨부]: 붙인 파일 이름이 실린다', filed[0].attachmentName, 'qa-receipt.txt')
+  await must('DELETE', `/productions/slips/${filed[0].prodNo}`)
+  await call('DELETE', `/files/${recFile.id}`)
 
   // 전표 하나로 다시 읽는다.
   const slip = await must('GET', `/productions/slips/${one[0].prodNo}`)

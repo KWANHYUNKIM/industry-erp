@@ -169,6 +169,11 @@ public class Production extends BaseTimeEntity {
     @Column(name = "lot_no", length = 60)
     private String lotNo;
 
+    /** 원본 생산입고입력 머리의 [첨부]. 한 전표의 줄들이 같은 파일을 가리킨다. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "attachment_id")
+    private com.erp.common.StoredFile attachment;
+
     /** 소요된 자재 내역 */
     @OneToMany(mappedBy = "production", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

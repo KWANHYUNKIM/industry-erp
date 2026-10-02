@@ -236,6 +236,8 @@ public final class ProductionDtos {
             Long fromWarehouseId,
             /** 받는창고 — 완제품이 들어갈 곳. */
             Long warehouseId,
+            /** 원본 머리의 [첨부] — POST /files 로 먼저 올린 파일 id. */
+            Long attachmentId,
             @NotEmpty(message = "생산품목을 한 줄 이상 넣으세요.")
             List<@Valid SlipLine> lines
     ) {}
@@ -377,7 +379,9 @@ public final class ProductionDtos {
             /** 진행상태 — 결재중·미확인·확인. */
             com.erp.production.production.ProductionConfirmStatus confirmStatus, String confirmStatusName,
             /** 원본 [BOM버전]. 비었으면 기본 BOM 으로 소모했다. */
-            Long bomId, String bomVersionName
+            Long bomId, String bomVersionName,
+            /** 원본 머리의 [첨부]. */
+            Long attachmentId, String attachmentName
     ) {
         public static ProductionResponse from(Production p) {
             var wo = p.getWorkOrder();
@@ -406,7 +410,9 @@ public final class ProductionDtos {
                     p.getLotNo(),
                     p.getConfirmStatus(), p.getConfirmStatus().getDisplayName(),
                     p.getBom() != null ? p.getBom().getId() : null,
-                    p.getBom() != null ? p.getBom().getVersionName() : null);
+                    p.getBom() != null ? p.getBom().getVersionName() : null,
+                    p.getAttachment() != null ? p.getAttachment().getId() : null,
+                    p.getAttachment() != null ? p.getAttachment().getName() : null);
         }
     }
 }
