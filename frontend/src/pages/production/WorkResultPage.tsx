@@ -298,7 +298,7 @@ export default function WorkResultPage() {
         Modal 은 maxWidth 96vw 라 좁은 화면에서는 알아서 줄어든다.
       */}
       <Modal error={error} open={showForm} title="작업내역입력" width={1180} onClose={() => setShowForm(false)}>{(
-        <form onSubmit={submit} style={{ marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
+        <form onSubmit={submit} onKeyDown={(e) => { if (e.key === 'F8') { e.preventDefault(); e.currentTarget.requestSubmit() } }} style={{ marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>새 작업내역 등록</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
             <div>
@@ -498,8 +498,10 @@ export default function WorkResultPage() {
           <datalist id="wr-process-list">
             {processes.map((p) => <option key={p.id} value={p.name} />)}
           </datalist>
-          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
-            <button type="submit" className="ec-btn ec-btn-primary">등록</button>
+          {/* 원본 아래 단추: 저장(F8) · 저장/전표(F7) · 다시 작성 · 리스트 — [리스트] 는 입력 창을 닫고 목록으로 간다. */}
+          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-start', gap: 4 }}>
+            <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
+            <button type="button" className="ec-btn" onClick={() => setShowForm(false)}>리스트</button>
           </div>
         </form>
       )}</Modal>

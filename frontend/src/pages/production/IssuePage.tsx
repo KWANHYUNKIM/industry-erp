@@ -493,7 +493,7 @@ export default function IssuePage() {
       </div>
 
       <Modal error={error} open={showForm} title="생산불출 등록" onClose={() => setShowForm(false)}>{(
-        <form onSubmit={submit} style={{ marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
+        <form onSubmit={submit} onKeyDown={(e) => { if (e.key === 'F8') { e.preventDefault(); e.currentTarget.requestSubmit() } }} style={{ marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>새 불출 등록</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {/* 원본은 [보내는창고] → [받는공장] 으로 옮기는 전표다. 재고가 그만큼 실제로 움직인다. */}
@@ -659,8 +659,10 @@ export default function IssuePage() {
             </tfoot>
           </table>
 
-          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
-            <button type="submit" className="ec-btn ec-btn-primary">등록</button>
+          {/* 원본 아래 단추: 저장(F8) · 저장/전표(F7) · 다시 작성 · 리스트 — [리스트] 는 입력 창을 닫고 목록으로 간다. */}
+          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-start', gap: 4 }}>
+            <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
+            <button type="button" className="ec-btn" onClick={() => setShowForm(false)}>리스트</button>
           </div>
         </form>
       )}</Modal>
