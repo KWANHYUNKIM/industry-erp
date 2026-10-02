@@ -6313,5 +6313,13 @@
    "Project"
   ],
   "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "경영요약보고서|기타": {
+  "claim": "결재 칸을 그리지 않는다",
+  "absent": [
+   "approvalBox",
+   "결재란"
+  ],
+  "in": "frontend/src/pages/accounting/ManagementSummaryPage.tsx"
  }
 }

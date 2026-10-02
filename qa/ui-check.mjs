@@ -1358,6 +1358,7 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     ['거래이력조회(회계)', 'accounting/JournalHistoryPage.tsx'],
     ['지출결의서이체리스트', 'accounting/TransferListPage.tsx'],
     ['자금일보', 'accounting/FundDailyPage.tsx'],
+    ['경영요약보고서', 'accounting/ManagementSummaryPage.tsx'],
     ['현금흐름(입출금내역)', 'accounting/CashFlowListPage.tsx'],
     ['자금현황표', 'accounting/FundStatusPage.tsx'],
     ['자금증감내역', 'accounting/FundDailyPage.tsx'],
@@ -4172,6 +4173,8 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
      * 기간 칸은 [기준일자]가 아니라 [사용일자], [비고]로 걸어 두었던 글자 칸은 [적요],
      * [결제구분]이라 적어 둔 것은 실은 [결제수단]이다. 아래 넷은 그 결과로 남은 자리다.
      */
+    /* <b>경영요약보고서(E010821)</b> — 2026-10-03 원본 실측(ManagementSummaryPage). */
+    ['경영요약보고서|기타', '[기타]는 [결재방표시] 하나다 — 우리 장부 인쇄는 결재 칸을 그리지 않는다'],
     /* <b>채권/채무잔액분석표(E010823)</b> — 2026-10-03 원본 실측(ArApBalancePage). */
     ['채권/채무잔액분석표|부서', '회계전표(JournalEntry)에 부서가 없다 — 채권/채무회수기간표와 같은 사실'],
     ['채권/채무잔액분석표|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],

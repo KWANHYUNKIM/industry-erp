@@ -1054,5 +1054,9 @@
  [
   "채권/채무잔액분석표",
   "accounting/ArApBalancePage.tsx"
+ ],
+ [
+  "경영요약보고서",
+  "accounting/ManagementSummaryPage.tsx"
  ]
 ]

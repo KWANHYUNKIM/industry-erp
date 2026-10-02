@@ -257,6 +257,14 @@
         "wait:1500",
         "expect:(()=>{const h=[...document.querySelectorAll('table thead tr:first-child th')].map((x)=>x.innerText.trim());return h.includes('지급어음')&&h.includes('외상매입금 계')&&h.includes('지급계획 현황')})()"
       ]
+    },
+    {
+      "name": "경영요약보고서 — 1. 통장잔액비교표: 계정명 · 계좌명 · 이월잔액[외화] … 연결여부, 끝 [합계]",
+      "path": "/accounting/management-summary",
+      "steps": [
+        "wait:2500",
+        "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');return h==='계정명|계좌명|이월잔액[외화]|증가[외화]|감소[외화]|금일잔액[외화]|실제통장잔액[외화]|차이[외화]|연결여부'&&document.body.innerText.includes('1. 통장잔액비교표')})()"
+      ]
     }
   ]
 }
