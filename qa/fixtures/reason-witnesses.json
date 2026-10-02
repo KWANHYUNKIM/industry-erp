@@ -5256,5 +5256,13 @@
    "updatedAt"
   ],
   "in": "backend/src/main/java/com/erp/inventory/adjustment/dto/StockAdjustmentDtos.java"
+ },
+ "재고조정조회|결재방표시": {
+  "claim": "우리 목록 인쇄는 결재란을 그리지 않는다",
+  "absent": [
+   "approvalBox",
+   "결재란"
+  ],
+  "in": "frontend/src/pages/inventory/AdjustListPage.tsx"
  }
 }

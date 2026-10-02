@@ -1325,6 +1325,7 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     ['자가사용조회', 'inventory/StockMoveListPage.tsx'],
     ['불량처리조회', 'inventory/StockMoveListPage.tsx'],
     ['재고조정진행단계', 'inventory/StagedProgressPage.tsx'],
+    ['재고조정조회', 'inventory/AdjustListPage.tsx'],
     ['수령수표조회', 'accounting/CheckListPage.tsx'],
     ['발행수표조회', 'accounting/CheckListPage.tsx'],
     ['주문서현황', 'trade/SalesOrderStatusPage.tsx'],
@@ -4910,6 +4911,9 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
     ['받을어음감소현황|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
     ['받을어음감소현황|정렬/소계기준', '일자 오름차순 하나로 세운다 — 원본 [설정] 팝업의 후보는 값을 저장하는 창이라 안 열어 못 쟀다'],
     ['받을어음감소현황|데이터 보기형식', '그래프로 볼 축이 없다 — 어음 한 장이 한 줄인 목록이다'],
+    /* <b>재고조정조회(E040614)</b> — 2026-10-03 원본 실측(AdjustListPage). */
+    ['재고조정조회|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['재고조정조회|결재방표시', '인쇄물에 결재란을 찍을지 고르는 칸이다 — 우리 목록 인쇄는 결재란을 그리지 않는다'],
     /* <b>재고조정진행단계(C000089)</b> — 2026-10-03 원본 실측(StagedProgressPage). */
     ['재고조정진행단계|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
     /* <b>불량처리조회(C000088)</b> — 2026-10-03 원본 실측(StockMoveListPage kind=DEFECT). */

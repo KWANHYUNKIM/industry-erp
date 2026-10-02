@@ -866,5 +866,9 @@
  [
   "재고조정진행단계",
   "inventory/StagedProgressPage.tsx"
+ ],
+ [
+  "재고조정조회",
+  "inventory/AdjustListPage.tsx"
  ]
 ]

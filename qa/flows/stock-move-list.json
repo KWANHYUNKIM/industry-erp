@@ -36,6 +36,21 @@
         "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('sgItem'))&&t.innerText.includes('실사'));if(!tr)return false;const sp=[...tr.cells[3].querySelectorAll('span')];return h==='실사전표|담당자|품목|진행단계|창고명|장부수량|실사수량|차이'&&getComputedStyle(sp[0]).backgroundColor==='rgb(31, 72, 212)'&&getComputedStyle(sp[1]).backgroundColor==='rgb(134, 141, 147)'})()",
         "js:(async()=>(await window.__api('DELETE','/staged-adjustments/'+sessionStorage.getItem('sgId'))).status)()"
       ]
+    },
+    {
+      "name": "재고조정조회 — 기타이동에서 바로 맞춘 재고조정 1건이 [간편] 으로 뜨고 [단계별] 로 고르면 빠진다, 끝나면 지운다",
+      "path": "/inventory/adjust-list",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const st=(await window.__api('GET','/stock')).body.find((s)=>Number(s.quantity)>=1);const today=new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10);const r=await window.__api('POST','/stock-adjustments',{type:'ADJUST',itemId:st.itemId,warehouseId:st.warehouseId,actualQty:Number(st.quantity)+1,adjustDate:today,reason:'QA 재고조정'});sessionStorage.setItem('adId',r.body&&r.body.id);sessionStorage.setItem('adNo',r.body&&r.body.adjustNo);return r.status})()",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('adNo')));return h==='|구분|입력일자|창고|품목|수량|담당자'&&!!tr&&tr.cells[1].innerText.trim()==='간편'})()",
+        "js:(()=>{const r=[...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='단계별').querySelector('input');r.click();return true})()",
+        "wait:500",
+        "expect:![...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes(sessionStorage.getItem('adNo')))",
+        "js:(async()=>(await window.__api('DELETE','/stock-adjustments/'+sessionStorage.getItem('adId'))).status)()"
+      ]
     }
   ]
 }
