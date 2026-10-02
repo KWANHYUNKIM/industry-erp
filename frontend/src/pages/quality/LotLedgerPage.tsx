@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import type { LotTransaction, LotTxType } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
+import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import { dateText } from '../../utils/dateText'
 import EcPeriodPicks, { periodOf, LOT_LEDGER_PICKS } from '../../components/EcPeriodPicks'
@@ -149,7 +150,6 @@ export default function LotLedgerPage() {
   // 단일 로트 선택 시 기말 = 마지막 행 잔량
   const closing = lotNo && shown.length ? shown[shown.length - 1].balanceAfter : null
 
-  const label: React.CSSProperties = { width: 56, fontSize: 12.5, color: '#3c4553', fontWeight: 600 }
 
   return (
     <EcListShell
@@ -162,21 +162,19 @@ export default function LotLedgerPage() {
     >
       <p className="mb-2 text-xs text-slate-500">로트별 입고·출고·조정 이력과 잔량. 로트를 선택하면 그 로트의 수불부(기말 재고 포함).</p>
 
-      <div style={{ border: '1px solid #d4dae2', borderRadius: 4, background: '#fbfcfe', padding: '10px 14px', marginBottom: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px' }}>
+      <ul className="ec-cond" style={{ marginBottom: 8 }}>
         {/* 원본 조건 판의 [기준일자] — 서버가 이 구간만 준다. */}
         {/* 원본 [기타] — 넷 중 뜻이 분명한 둘만. 원본대로 꺼진 채 열린다. */}
         {/* 원본 조건 차례의 첫 줄 [구분]. */}
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={label}>구분</span>
+        <EcCond label="구분">
           <div className="ec-pills">
             {(['공통', '시리얼/로트별집계'] as const).map((m) => (
               <button key={m} type="button" className={`ec-pill no-ec${mode === m ? ' active' : ''}`}
                       onClick={() => setMode(m)}>{m}</button>
             ))}
           </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <span style={label}>기준일자</span>
+        </EcCond>
+        <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from}
                  onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
           <span style={{ color: 'var(--ec-label)' }}>~</span>
@@ -184,10 +182,9 @@ export default function LotLedgerPage() {
                  onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
           <EcPeriodPicks labels={LOT_LEDGER_PICKS} currentFrom={from}
                          onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
-        </div>
+        </EcCond>
         {/* 원본 조건 차례(2026-10-02): 구분 · 기준일자 · 유효기한 · 시리얼/로트No. · 품목 · 재고수량 · 기타. [창고]는 우리가 더 둔다. */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={label}>유효기한</span>
+        <EcCond label="유효기한">
           <select className="ec-input" value={expiryOpt} style={{ width: 120 }}
                   onChange={(e) => {
                     const v = e.target.value as typeof EXPIRY_OPTS[number]
@@ -203,22 +200,18 @@ export default function LotLedgerPage() {
             <span style={{ color: 'var(--ec-label)' }}>~</span>
             <input type="date" className="ec-input" value={expTo} onChange={(e) => { setExpTo(e.target.value); setExpiryOpt('직접입력') }} style={{ width: 140 }} />
           </>)}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={{ ...label, width: 96 }}>시리얼/로트No.</span>
-          <select className="ec-input" value={lotNo} onChange={(e) => setLotNo(e.target.value)} style={{ width: 200 }}>
-            <option value="">전체</option>
-            {lotNos.map((l) => <option key={l} value={l}>{l}</option>)}
-          </select>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={label}>품목</span>
+        </EcCond>
+        <EcCond label="시리얼/로트No." pick>
+          <CodePickerField label="시리얼/로트No." hideLabel width={200} emptyLabel="전체"
+                           value={lotNo} onChange={setLotNo}
+                           items={lotNos.map((l) => ({ value: l, name: l }))} />
+        </EcCond>
+        <EcCond label="품목" pick>
           {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
           <CodePickerField label="품목" hideLabel width={200} placeholder="품목" emptyLabel="전체"
                            value={item} onChange={setItem} items={items} />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={label}>재고수량</span>
+        </EcCond>
+        <EcCond label="재고수량">
           <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
             <input type="checkbox" checked={qtyOne && qtyZero && qtyOther} onChange={(e) => { setQtyOne(e.target.checked); setQtyZero(e.target.checked); setQtyOther(e.target.checked) }} /> 전체
           </label>
@@ -231,9 +224,8 @@ export default function LotLedgerPage() {
           <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
             <input type="checkbox" checked={qtyOther} onChange={(e) => setQtyOther(e.target.checked)} /> 기타
           </label>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={label}>기타</span>
+        </EcCond>
+        <EcCond label="기타">
           <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
             <input type="checkbox" checked={withHeld} onChange={(e) => setWithHeld(e.target.checked)} />
             사용중단시리얼/로트포함
@@ -242,14 +234,15 @@ export default function LotLedgerPage() {
             <input type="checkbox" checked={hideZero} onChange={(e) => setHideZero(e.target.checked)} />
             입출고수량0제외
           </label>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={label}>창고</span>
-          <select className="ec-input" value={warehouse} onChange={(e) => setWarehouse(e.target.value)} style={{ width: 160 }}>
-            <option value="">전체</option>
-            {warehouses.map((w) => <option key={w} value={w}>{w}</option>)}
-          </select>
-        </div>
+        </EcCond>
+        <EcCond label="창고" pick>
+          <CodePickerField label="창고" hideLabel width={160} emptyLabel="전체"
+                           value={warehouse} onChange={setWarehouse}
+                           items={warehouses.map((w) => ({ value: w, name: w }))} />
+        </EcCond>
+      </ul>
+      {/* 우리가 더 두는 전표 유형 알약과 입고계 · 출고계 · 기말 — 원본 조건 판 밖이라 조건 목록과 갈라 둔다. */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px', marginBottom: 10 }}>
         <div style={{ display: 'flex', gap: 2 }}>
           {(['ALL', 'INBOUND', 'OUTBOUND', 'ADJUST'] as const).map((t) => (
             <button key={t} onClick={() => setTypeFilter(t)} className="no-ec" style={{
