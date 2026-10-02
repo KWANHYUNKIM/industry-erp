@@ -94,6 +94,8 @@ export default function IssueStatusPage() {
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
   const [mode, setMode] = useState<Mode>('내역')
+  /** 원본 ◉내역 아래 선택상자 — 라인별(기본, 자재 줄마다) · 전표별(불출 전표 한 장이 한 줄). */
+  const [lineView, setLineView] = useState<'라인별' | '전표별'>('라인별')
   const [view, setView] = useState<'표' | '그래프'>('표')
   const [warehouseId, setWarehouseId] = useState('')
   /** 원본 조건 판의 [프로젝트]. */
@@ -243,6 +245,17 @@ export default function IssueStatusPage() {
   const totalQty = shown.reduce((n, r) => n + r.qty, 0)
   /** 생산금액 — 단가를 모르면 null(0 이 아니다). */
   const amountOf = (r: { itemId: number; qty: number }) => { const p = priceOf.get(r.itemId); return p == null ? null : p * r.qty }
+  /** 내역 [전표별] — 불출번호 하나가 한 줄(첫 자재 외 n건, 수량 합). 생산금액은 줄마다 단가로 센 것을 더한다. */
+  const listRows = lineView === '라인별' ? shown : (() => {
+    const m = new Map<string, typeof shown>()
+    shown.forEach((r) => m.set(r.issueNo, [...(m.get(r.issueNo) ?? []), r]))
+    return [...m.values()].map((ls) => ({ ...ls[0],
+      itemName: ls.length > 1 ? `${ls[0].itemName} 외 ${ls.length - 1}건` : ls[0].itemName,
+      itemSpec: ls.length > 1 ? null : ls[0].itemSpec,
+      qty: ls.reduce((n, r) => n + r.qty, 0),
+      slipAmount: ls.some((r) => amountOf(r) == null) ? null : ls.reduce((n, r) => n + (amountOf(r) ?? 0), 0),
+    }))
+  })()
 
   /*
    * 원본 [데이터 보기형식] · [그래프로 보기]. 표만 있으면 "어느 자재가 많이 나갔나" 를
@@ -274,6 +287,13 @@ export default function IssueStatusPage() {
         onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
         picks={STATUS_PICKS}
         modes={MODES} mode={mode} onModeChange={(m) => setMode(m as Mode)}
+        modeExtra={mode === '내역' ? (
+          <select className="ec-input" value={lineView} onChange={(e) => setLineView(e.target.value as '라인별' | '전표별')}
+                  style={{ width: 110, marginLeft: 6 }}>
+            <option value="라인별">라인별</option>
+            <option value="전표별">전표별</option>
+          </select>
+        ) : undefined}
         view={view} onViewChange={setView}
         subtotal={subtotal} subtotals={SUBTOTALS}
         onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}
@@ -431,9 +451,9 @@ export default function IssueStatusPage() {
           <tbody>
             {loading ? (
               <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-            ) : shown.length === 0 ? (
+            ) : listRows.length === 0 ? (
               <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-            ) : shown.map((r, i) => (
+            ) : listRows.map((r, i) => (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                 {/* 원본은 일자와 번호를 한 칸에 적는다. */}
@@ -442,7 +462,7 @@ export default function IssueStatusPage() {
                 <td style={{ color: r.toWarehouseName ? undefined : '#c9ced6' }}>{r.toWarehouseName ?? ''}</td>
                 <td>{r.itemName}{r.itemSpec ? ' [' + r.itemSpec + ']' : ''}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{num(r.qty)} {r.unit}</td>
-                <td style={{ textAlign: 'right' }}>{amountOf(r) == null ? '' : won(amountOf(r)!)}</td>
+                <td style={{ textAlign: 'right' }}>{(() => { const a = 'slipAmount' in r ? (r as { slipAmount: number | null }).slipAmount : amountOf(r); return a == null ? '' : won(a) })()}</td>
                 <td style={{ color: r.note ? undefined : '#c9ced6' }}>{r.note ?? ''}</td>
                 <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{r.workOrderNo}</td>
               </tr>

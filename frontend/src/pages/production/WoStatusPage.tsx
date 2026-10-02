@@ -100,8 +100,12 @@ export default function WoStatusPage() {
    * <p>판매·구매현황의 집계(utils/statusAggregate)는 <b>돈</b>을 더한다. 작업지시에는
    * 금액이 없어 그 계산을 그대로 쓸 수 없다 — 여기서는 <b>수량 셋</b>(지시·생산·잔량)을 센다.
    */
-  /* 원본 [구분] 내역 · 집계 · 라인별(2026-10-02 loginaa 실측). 내역은 전표 한 장이 한 줄(품목 외 n건), 라인별은 품목 줄마다. */
-  const [mode, setMode] = useState<'내역' | '집계' | '라인별'>('내역')
+  /*
+   * 원본 [구분] 은 ◉내역 ○집계 이고, 내역 아래 선택상자가 일별 · 월별 · <b>라인별</b>(기본) · 전표별 · 품목별 · 전표별품목별 ·
+   * 담당자별이다(2026-10-02 loginaa 생산불출현황·작업지시서현황 실측). 라인별은 품목 줄마다, 전표별은 전표 한 장이 한 줄.
+   */
+  const [mode, setMode] = useState<'내역' | '집계'>('내역')
+  const [lineView, setLineView] = useState<'라인별' | '전표별'>('라인별')
   const AXES = ['품목별', '창고별', '거래처별', '담당자별', '월별'] as const
   const [axis, setAxis] = useState<typeof AXES[number]>('품목별')
   /*
@@ -195,10 +199,10 @@ export default function WoStatusPage() {
     && (!statusCond || r.statusName === statusCond)
     && (!authorCond || (r.createdBy ?? '') === authorCond))
   /**
-   * 원본 [내역] 은 전표 한 장이 한 줄이다 — 품목이 여럿이면 "첫 품목 외 n건", 수량은 합. [라인별] 은 품목 줄마다(예전 이 화면).
-   * 상태는 한 줄이라도 안 끝났으면 그 줄의 상태를 보인다.
+   * 내역 [전표별] — 전표 한 장이 한 줄. 품목이 여럿이면 "첫 품목 외 n건", 수량은 합, 한 줄이라도 안 끝났으면 그 상태.
+   * [라인별](기본)은 품목 줄마다다.
    */
-  const listRows = mode === '라인별' ? shown : (() => {
+  const listRows = lineView === '라인별' ? shown : (() => {
     const bySlip = new Map<string, typeof shown>()
     shown.forEach((r) => bySlip.set(r.orderNo, [...(bySlip.get(r.orderNo) ?? []), r]))
     return [...bySlip.values()].map((ls) => {
@@ -261,11 +265,18 @@ export default function WoStatusPage() {
         {/* 원본 조건 판 첫째 <b>[구분]</b> — 내역·집계(사본 실측). */}
         <EcCond label="구분">
           <div className="ec-pills">
-            {(['내역', '집계', '라인별'] as const).map((m) => (
+            {(['내역', '집계'] as const).map((m) => (
               <button key={m} type="button" className={`ec-pill no-ec${mode === m ? ' active' : ''}`}
                       onClick={() => setMode(m)}>{m}</button>
             ))}
           </div>
+          {mode === '내역' && (
+            <select className="ec-input" value={lineView} onChange={(e) => setLineView(e.target.value as '라인별' | '전표별')}
+                    style={{ width: 110, marginLeft: 6 }}>
+              <option value="라인별">라인별</option>
+              <option value="전표별">전표별</option>
+            </select>
+          )}
           {mode === '집계' && (
             <select className="ec-input" value={axis} onChange={(e) => setAxis(e.target.value as typeof AXES[number])}
                     style={{ width: 130, marginLeft: 6 }}>

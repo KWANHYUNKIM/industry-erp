@@ -38,7 +38,7 @@ export function EcCond({ label, pick, span, children }: {
 }
 
 export default function EcStatusPanel({
-  modes, mode, onModeChange, modeLabel = '구분', compareLabel = '비교기간',
+  modes, mode, onModeChange, modeLabel = '구분', compareLabel = '비교기간', modeExtra,
   compare, onCompareChange,
   from, to, onPeriod,
   view, onViewChange,
@@ -65,6 +65,11 @@ export default function EcStatusPanel({
    */
   modeLabel?: string
   compareLabel?: string
+  /**
+   * [구분] 줄 끝에 붙는 것 — 원본은 ◉내역 아래 선택상자(일별 · 월별 · 라인별 · 전표별 · …)로 내역의 모양을 고른다
+   * (2026-10-02 생산불출현황 실측). 화면이 고를 수 있는 것만 넣어 준다.
+   */
+  modeExtra?: ReactNode
   mode?: string
   onModeChange?: (m: string) => void
   /** [비교기간]. 안 주면 그 줄을 그리지 않는다. */
@@ -120,6 +125,7 @@ export default function EcStatusPanel({
               </button>
             ))}
           </div>
+          {modeExtra}
         </EcCond>
       )}
 

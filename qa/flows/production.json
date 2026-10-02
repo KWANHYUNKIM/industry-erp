@@ -217,6 +217,24 @@
       "steps": [
         "expect:(()=>{const rows=[...document.querySelectorAll('table tbody tr')].filter((t)=>/GL-/.test(t.innerText));const n=(t)=>Number(t.replace(/,/g,''));const s=rows.reduce((a,t)=>a+n(t.cells[4].innerText),0);const f=document.querySelector('table tfoot tr');return !f||(Math.abs(n(f.cells[3].innerText)-s)<1&&Math.abs(n(f.cells[1].innerText)+n(f.cells[2].innerText)-n(f.cells[3].innerText))<1)})()"
       ]
+    },
+    {
+      "name": "생산불출현황 — ◉내역 아래 [라인별 ↔ 전표별]: 전표별이면 같은 번호가 한 줄로 접힌다(원본 선택상자)",
+      "path": "/production/issue-status",
+      "steps": [
+        "js:new Promise((r)=>setTimeout(()=>{sessionStorage.setItem('qaLineRows',String([...document.querySelectorAll('table tbody tr')].filter((t)=>/-[0-9]{4}/.test(t.innerText)).length));r(true)},1500))",
+        "js:(()=>{const s=[...document.querySelectorAll('select')].find((x)=>[...x.options].some((o)=>o.value==='전표별'));Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'전표별');s.dispatchEvent(new Event('change',{bubbles:true}));return new Promise((r)=>setTimeout(()=>r(true),800))})()",
+        "expect:(()=>{const rows=[...document.querySelectorAll('table tbody tr')].filter((t)=>/-[0-9]{4}/.test(t.innerText));const nos=rows.map((t)=>(t.innerText.match(/[A-Z]{2}-[0-9]{8}-[0-9]{4}/)||[''])[0]);return rows.length<=Number(sessionStorage.getItem('qaLineRows'))&&new Set(nos).size===nos.length})()"
+      ]
+    },
+    {
+      "name": "작업지시서현황 — ◉내역 아래 [라인별 ↔ 전표별]: 전표별이면 같은 번호가 한 줄로 접힌다(원본 선택상자)",
+      "path": "/production/wo-status",
+      "steps": [
+        "js:new Promise((r)=>setTimeout(()=>{sessionStorage.setItem('qaLineRows',String([...document.querySelectorAll('table tbody tr')].filter((t)=>/-[0-9]{4}/.test(t.innerText)).length));r(true)},1500))",
+        "js:(()=>{const s=[...document.querySelectorAll('select')].find((x)=>[...x.options].some((o)=>o.value==='전표별'));Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'전표별');s.dispatchEvent(new Event('change',{bubbles:true}));return new Promise((r)=>setTimeout(()=>r(true),800))})()",
+        "expect:(()=>{const rows=[...document.querySelectorAll('table tbody tr')].filter((t)=>/-[0-9]{4}/.test(t.innerText));const nos=rows.map((t)=>(t.innerText.match(/[A-Z]{2}-[0-9]{8}-[0-9]{4}/)||[''])[0]);return rows.length<=Number(sessionStorage.getItem('qaLineRows'))&&new Set(nos).size===nos.length})()"
+      ]
     }
   ]
 }
