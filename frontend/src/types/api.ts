@@ -407,6 +407,9 @@ export interface PartnerBalance {
   /** 원본 [대표거래처로 합산]이 쓰는 본사. 미지정이면 자기가 곧 대표다. */
   parentId: number | null
   parentName: string | null
+  /** 잔액 가운데 회계전표가 외상매출금·외상매입금을 직접 움직인 몫(어음·수표·외주비 회계반영 …). */
+  receivableJournal: number
+  payableJournal: number
 }
 
 // ===== 생산관리 =====

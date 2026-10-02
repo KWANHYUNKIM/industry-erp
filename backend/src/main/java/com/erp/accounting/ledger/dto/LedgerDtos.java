@@ -89,5 +89,11 @@ public final class LedgerDtos {
              */
             Long parentId,
             String parentName
-    ) {}
+    ,
+            /**
+             * 위 잔액 가운데 <b>회계전표가 통제계정을 직접 움직인 몫</b>(어음·수표·외주비 회계반영 …, 60회차).
+             * 채무관리 연령분석이 구매전표 몫과 갈라 쓴다 — 매입일이 없어 연령 칸에 못 넣는다(QA 65회차).
+             */
+            BigDecimal receivableJournal,
+            BigDecimal payableJournal) {}
 }

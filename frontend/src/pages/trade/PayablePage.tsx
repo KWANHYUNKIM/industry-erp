@@ -39,6 +39,11 @@ interface PayableRow {
   docs: OpenDoc[]
   oldestDays: number
   buckets: number[]
+  /**
+   * 구매전표로 설명되지 않는 잔액 — 외주비 회계반영처럼 회계전표가 외상매입금을 올린 몫(60회차부터 잔액에 들어온다).
+   * 매입일이 없어 연령 칸에 못 넣는다. 예전엔 이 몫이 어느 칸에도 없어 연령 합계가 잔액보다 작았다(QA 65회차).
+   */
+  extra: number
 }
 
 /**
@@ -92,8 +97,15 @@ export default function PayablePage() {
         .sort((x, y) => x.purchaseDate.localeCompare(y.purchaseDate))
       const purchased = docs.reduce((a, d) => a + d.totalAmount, 0)
       const balance = Math.max(b.payable, 0)
+      /*
+       * 회계전표가 올린 몫(외주비 회계반영 등)은 서버가 따로 준다 — 잔액에서 그만큼 떼어 [회계전표 등] 에 두고,
+       * 나머지(구매전표 몫)로만 오래된 매입부터 지급을 채운다. 잔액 − 매입으로 거꾸로 짐작하면
+       * 지급 40,000 이 사라지고 회계전표 몫이 줄어 보였다(QA 65회차). 지급어음처럼 내린 몫(음수)은 지급과 같다.
+       */
+      const extra = Math.min(Math.max(b.payableJournal ?? 0, 0), balance)
+      const slipBalance = balance - extra
       // 오래된 매입부터 지급액으로 소진 → 남은 전표가 미지급
-      let paidLeft = Math.max(purchased - balance, 0)
+      let paidLeft = Math.max(purchased - slipBalance, 0)
       const open: OpenDoc[] = []
       for (const d of docs) {
         const consumed = Math.min(paidLeft, d.totalAmount)
@@ -112,17 +124,20 @@ export default function PayablePage() {
       }
       const buckets = BUCKETS.map(() => 0)
       for (const d of open) buckets[bucketOf(d.days)] += d.balance
+      const openSum = open.reduce((a, d) => a + d.balance, 0)
 
       return {
         partnerId: b.partnerId,
         code: b.code,
         name: b.name,
         purchased,
-        paid: purchased - balance,
+        /* 매입 중 갚은 몫 — 잔액에서 회계전표 몫(extra)을 뺀 나머지로 센다. 그러지 않으면 외주비만 있는 거래처의 지급이 음수로 찍힌다. */
+        paid: purchased - openSum,
         balance,
         docs: open,
         oldestDays: open.length ? Math.max(...open.map((d) => d.days)) : 0,
         buckets,
+        extra,
       }
     })
   }, [balances, purchases])
@@ -136,6 +151,7 @@ export default function PayablePage() {
   const total = shown.reduce((a, r) => a + r.balance, 0)
   const overdue = shown.reduce((a, r) => a + r.buckets[3], 0)
   const totalBuckets = BUCKETS.map((_, i) => shown.reduce((a, r) => a + r.buckets[i], 0))
+  const totalExtra = shown.reduce((a, r) => a + r.extra, 0)
 
 
   useTableColumnCheck(tableRef, '지급현황', [loading])
@@ -183,14 +199,15 @@ export default function PayablePage() {
             <th style={{ textAlign: 'right' }}>지급 합계</th>
             <th style={{ textAlign: 'right' }}>미지급 잔액</th>
             {BUCKETS.map((b) => <th key={b.label} style={{ textAlign: 'right' }}>{b.label}</th>)}
+            <th style={{ textAlign: 'right' }}>회계전표 등</th>
             <th style={{ textAlign: 'center' }}>최장 경과</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <Fragment key={r.partnerId}>
               <tr onClick={() => setOpenId(openId === r.partnerId ? null : r.partnerId)} style={{ cursor: 'pointer' }}>
@@ -206,13 +223,14 @@ export default function PayablePage() {
                 {r.buckets.map((v, bi) => (
                   <td key={bi} style={{ textAlign: 'right', color: v === 0 ? '#ccd1d7' : bi === 3 ? '#c60a2e' : '#5a626e' }}>{won(v)}</td>
                 ))}
+                <td style={{ textAlign: 'right', color: r.extra === 0 ? '#ccd1d7' : '#5a626e' }}>{won(r.extra)}</td>
                 <td style={{ textAlign: 'center', color: r.oldestDays > 90 ? '#c60a2e' : '#5a626e' }}>
                   {r.balance > 0 ? `${r.oldestDays}일` : '-'}
                 </td>
               </tr>
               {openId === r.partnerId && (
                 <tr className="no-ec">
-                  <td colSpan={11} style={{ padding: 0, background: '#fafbfc' }}>
+                  <td colSpan={12} style={{ padding: 0, background: '#fafbfc' }}>
                     {r.docs.length === 0 ? (
                       <div style={{ padding: 10, fontSize: 12, color: '#9aa1ab' }}>미지급 전표가 없습니다.</div>
                     ) : (
@@ -255,6 +273,7 @@ export default function PayablePage() {
               {totalBuckets.map((v, i) => (
                 <td key={i} style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right', color: i === 3 && v > 0 ? '#c60a2e' : '#5a626e' }}>{won(v)}</td>
               ))}
+              <td style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right', color: '#5a626e' }}>{won(totalExtra)}</td>
               <td style={{ border: '1px solid var(--ec-border)' }}></td>
             </tr>
           </tfoot>
@@ -262,7 +281,8 @@ export default function PayablePage() {
       </table>
 
       <p style={{ marginTop: 10, fontSize: 11.5, color: '#9aa1ab' }}>
-        ※ 미지급 잔액 = 매입 합계 − 지급 합계(정산). 지급액은 거래처 단위로 관리되므로 오래된 매입전표부터 충당해 전표별 잔액을 계산합니다.
+        ※ 미지급 잔액 = 매입 합계 − 지급 합계(정산) ± 회계전표가 외상매입금을 직접 움직인 것(외주비 회계반영·지급어음 등). 지급액은 거래처 단위로 관리되므로 오래된 매입전표부터 충당해 전표별 잔액을 계산합니다.
+        <br />※ [회계전표 등] 은 구매전표로 설명되지 않는 잔액입니다 — 매입일이 없어 경과일 칸에 넣지 않습니다. 연령 네 칸 + [회계전표 등] = 미지급 잔액.
       </p>
     </EcListShell>
   )

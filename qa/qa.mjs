@@ -1987,11 +1987,14 @@ async function scenarioNote(f) {
 
   // ── 지급어음: 발행 → 만기결제(출금)
   const ap0 = Number((await balOf(f.supplier.id)).payable)
+  const apJ0 = Number((await balOf(f.supplier.id)).payableJournal)
   const pay = await must('POST', '/notes', {
     type: 'PAYABLE', partnerId: f.supplier.id, issueDate: '2026-07-14', dueDate: '2026-09-30', amount: 150000,
   })
   const payIssue = (await journalsOf(pay.noteNo))[0]
   eq('지급어음을 발행하면 그 거래처 채무가 어음 금액만큼 준다', ap0 - Number((await balOf(f.supplier.id)).payable), 150000)
+  // 65회차 — 그 몫은 [회계전표 몫](payableJournal)으로도 따로 나온다. 채무관리 연령분석이 구매전표 몫과 가른다.
+  eq('그 몫이 회계전표 몫으로 따로 잡힌다', apJ0 - Number((await balOf(f.supplier.id)).payableJournal), 150000)
   eq('지급어음 발행 차변은 외상매입금(251)', payIssue.lines.find((l) => Number(l.debit) > 0).accountCode, '251')
   eq('지급어음 발행 대변은 지급어음(252)', payIssue.lines.find((l) => Number(l.credit) > 0).accountCode, '252')
 

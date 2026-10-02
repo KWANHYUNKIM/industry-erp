@@ -98,13 +98,21 @@ public class LedgerService {
 
         // 회계전표가 통제계정을 직접 움직인 것(어음·수표·대체·외주비 회계반영 …). 채권은 차변이, 채무는 대변이 늘린다.
         LocalDate until = asOf != null ? asOf : LocalDate.of(9999, 12, 31);
-        controlMoves(AR_ACCOUNT, EARLIEST, until).forEach((id, mv) ->
-                receivables.merge(id, mv.debit().subtract(mv.credit()), BigDecimal::add));
-        controlMoves(AP_ACCOUNT, EARLIEST, until).forEach((id, mv) ->
-                payables.merge(id, mv.credit().subtract(mv.debit()), BigDecimal::add));
+        Map<Long, BigDecimal> arJournal = new HashMap<>();
+        Map<Long, BigDecimal> apJournal = new HashMap<>();
+        controlMoves(AR_ACCOUNT, EARLIEST, until).forEach((id, mv) -> {
+            BigDecimal v = mv.debit().subtract(mv.credit());
+            arJournal.put(id, v);
+            receivables.merge(id, v, BigDecimal::add);
+        });
+        controlMoves(AP_ACCOUNT, EARLIEST, until).forEach((id, mv) -> {
+            BigDecimal v = mv.credit().subtract(mv.debit());
+            apJournal.put(id, v);
+            payables.merge(id, v, BigDecimal::add);
+        });
 
         return partnerRepository.findAllWithGroup().stream()
-                .map(p -> toBalance(p, receivables, payables))
+                .map(p -> toBalance(p, receivables, payables, arJournal, apJournal))
                 .toList();
     }
 
@@ -239,7 +247,9 @@ public class LedgerService {
 
     private PartnerBalanceResponse toBalance(BusinessPartner p,
                                              Map<Long, BigDecimal> receivables,
-                                             Map<Long, BigDecimal> payables) {
+                                             Map<Long, BigDecimal> payables,
+                                             Map<Long, BigDecimal> arJournal,
+                                             Map<Long, BigDecimal> apJournal) {
         return new PartnerBalanceResponse(
                 p.getId(), p.getCode(), p.getName(), p.getType(), p.getType().getDisplayName(),
                 receivables.getOrDefault(p.getId(), BigDecimal.ZERO),
@@ -248,6 +258,8 @@ public class LedgerService {
                 p.getPartnerGroup() != null ? p.getPartnerGroup().getName() : null,
                 p.getManager(), p.isActive(),
                 p.getParent() != null ? p.getParent().getId() : null,
-                p.getParent() != null ? p.getParent().getName() : null);
+                p.getParent() != null ? p.getParent().getName() : null,
+                arJournal.getOrDefault(p.getId(), BigDecimal.ZERO),
+                apJournal.getOrDefault(p.getId(), BigDecimal.ZERO));
     }
 }
