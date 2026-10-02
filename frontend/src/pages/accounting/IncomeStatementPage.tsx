@@ -6,6 +6,7 @@ import EcPeriodPicks, { INCOME_STATEMENT_PICKS } from '../../components/EcPeriod
 import { api, extractErrorMessage } from '../../api/client'
 import { useAuth } from '../../features/auth/AuthContext'
 import type { IncomeStatement, StatementRow } from '../../types/api'
+import { incomeBucketOf, type IncomeBucket } from '../../utils/incomeBuckets'
 
 const BOLD: React.CSSProperties = { fontWeight: 700 }
 const pad2 = (n: number) => String(n).padStart(2, '0')
@@ -20,14 +21,8 @@ const COMPARES: Compare[] = ['직전기수', '전기동일기간', '직접입력
  * 6. 영업외수익 · 7. 영업외비용 · 8. 법인세비용차감전순손익 · 9. 법인세비용 · 12. 당기순이익. 계정 묶음(1 · 2 · 4 · 6 · 7 · 9)은
  * 계정이 없으면 원본도 줄을 빼고(그날 6이 없었다), 계산 줄(3 · 5 · 8 · 12)은 늘 찍는다.
  */
-type Bucket = 'SALES' | 'COGS' | 'SGA' | 'NOI' | 'NOE' | 'TAX'
-const BUCKET_OF = (division: string, cat: string): Bucket => {
-  if (division === 'REVENUE') return cat === '매출액' ? 'SALES' : 'NOI'
-  if (cat === '매출원가' || cat === '제조원가') return 'COGS'
-  if (cat === '영업외비용') return 'NOE'
-  if (cat === '법인세비용') return 'TAX'
-  return 'SGA'
-}
+type Bucket = IncomeBucket
+const BUCKET_OF = incomeBucketOf
 
 interface AccountOpt { code: string; detailCategory: string | null; division: string }
 

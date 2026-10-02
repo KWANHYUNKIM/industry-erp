@@ -219,6 +219,14 @@
         "wait:2500",
         "expect:(()=>{const ts=[...document.querySelectorAll('table')];const b=document.body.innerText;return ts.length===2&&ts.every((t)=>[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|')==='일자|상대계정명|상대거래처명|적요|금액')&&b.includes('1 . 자금의 증가')&&b.includes('2 . 자금의 감소')})()"
       ]
+    },
+    {
+      "name": "월별손익분석 — 머리 계정명 · YYYY년 M월 … · 집계, 3. 매출총이익 · 5. 영업손익 · 12. 당기순이익 줄",
+      "path": "/accounting/monthly-pnl",
+      "steps": [
+        "wait:4000",
+        "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim());const b=t.innerText;return h[0]==='계정명'&&h[h.length-1]==='집계'&&/년 \\d+월$/.test(h[1])&&['3. 매출총이익','5. 영업손익','12. 당기순이익'].every((x)=>b.includes(x))})()"
+      ]
     }
   ]
 }

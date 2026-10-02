@@ -75,6 +75,7 @@ const TransferListPage = lazy(() => import('../pages/accounting/TransferListPage
 const FundDailyPage = lazy(() => import('../pages/accounting/FundDailyPage'))
 const CashFlowListPage = lazy(() => import('../pages/accounting/CashFlowListPage'))
 const FundStatusPage = lazy(() => import('../pages/accounting/FundStatusPage'))
+const MonthlyPnlPage = lazy(() => import('../pages/accounting/MonthlyPnlPage'))
 const TrialBalancePage = lazy(() => import('../pages/accounting/TrialBalancePage'))
 const BalanceSheetPage = lazy(() => import('../pages/accounting/BalanceSheetPage'))
 const IncomeStatementPage = lazy(() => import('../pages/accounting/IncomeStatementPage'))
@@ -478,6 +479,7 @@ export default function AppRouter() {
         <Route path="/accounting/fund-flow" element={<FundDailyPage variant="flow" />} />
         <Route path="/accounting/cash-flow" element={<CashFlowListPage />} />
         <Route path="/accounting/fund-status" element={<FundStatusPage />} />
+        <Route path="/accounting/monthly-pnl" element={<MonthlyPnlPage />} />
         <Route path="/accounting/trial-balance" element={<TrialBalancePage />} />
         <Route path="/accounting/balance-sheet" element={<BalanceSheetPage />} />
         <Route path="/accounting/income-statement" element={<IncomeStatementPage />} />

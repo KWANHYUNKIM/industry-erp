@@ -1038,5 +1038,9 @@
  [
   "자금증감내역",
   "accounting/FundDailyPage.tsx"
+ ],
+ [
+  "월별손익분석",
+  "accounting/MonthlyPnlPage.tsx"
  ]
 ]
