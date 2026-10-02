@@ -5198,5 +5198,30 @@
   "present": [
    "(a.doneDate ?? '') < (b.doneDate ?? '')"
   ]
+ },
+ "품질검사조회|출처(요청)구분": {
+  "claim": "검사를 전표에 이어 두지 않아 출처가 안 생긴다",
+  "absent": [
+   "sourceType",
+   "SourceType"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/inspection/QualityInspection.java"
+ },
+ "품질검사조회|삭제구분": {
+  "claim": "삭제 표시만 남기는 칸이 없다",
+  "absent": [
+   "deleted",
+   "Deleted"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/inspection/QualityInspection.java"
+ },
+ "품질검사조회|발송여부": {
+  "claim": "발송 이력이 없다",
+  "absent": [
+   "sent",
+   "Sent",
+   "mailed"
+  ],
+  "in": "backend/src/main/java/com/erp/quality/inspection/QualityInspection.java"
  }
 }

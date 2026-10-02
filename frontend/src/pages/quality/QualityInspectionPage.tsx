@@ -5,7 +5,9 @@ import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import CodePickerField from '../../components/CodePickerField'
-import { ymd } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { QUOTATION_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
+import { EcCond } from '../../components/EcStatusPanel'
+import { useCondPickers } from '../../utils/useCondPickers'
 import { dateText } from '../../utils/dateText'
 import EcRowCap, { capRows } from '../../components/EcRowCap'
 
@@ -24,8 +26,21 @@ const RESULTS: { v: QualityResult; label: string }[] = [
 
 const resultColor = (r: QualityResult) => (r === 'FAIL' ? '#c60a2e' : r === 'CONDITIONAL' ? '#c07a00' : '#1c7c3c')
 
-/** 재고 II > 품질관리 — 수입/공정/출하 검사성적 (실제 연동) */
+/**
+ * 재고 II > 품질관리 — 수입/공정/출하 검사성적 (실제 연동).
+ *
+ * <p>원본 <b>품질검사조회</b>(E040622) 조건 판 — 2026-10-03 loginaa 실측: 기준일자(구간, 기본 <b>최근30일(+1개월)</b>) ·
+ * 품목 · 창고 · 프로젝트 · 출처(요청)구분 · 삭제구분(기본 미삭제) · 기타(수정일자순) · 발송여부(전체).
+ * 출처는 검사를 전표에 이어 두지 않아 안 생기고(품질검사현황과 같은 사실), 검사는 지우면 사라져 삭제구분이 없다.
+ */
 export default function QualityInspectionPage() {
+  const pickers = useCondPickers(['items', 'warehouses', 'projects'])
+  const init = periodOf('최근30일(+1개월)')!
+  const [from, setFrom] = useState(init.from)
+  const [to, setTo] = useState(init.to)
+  const [itemCond, setItemCond] = useState('')
+  const [whCond, setWhCond] = useState('')
+  const [projCond, setProjCond] = useState('')
   const [rows, setRows] = useState<QualityInspection[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [keyword, setKeyword] = useState('')
@@ -46,7 +61,7 @@ export default function QualityInspectionPage() {
     setLoading(true)
     try {
       const [q, i, d, pj] = await Promise.all([
-        api.get<QualityInspection[]>('/quality-inspections'),
+        api.get<QualityInspection[]>('/quality-inspections', { params: { from, to } }),
         api.get<Item[]>('/items'),
         /* 원본 [불량유형]은 코드도움이다 — 공통코드 그룹 DEFECT_TYPE 에서 가져온다. */
         api.get<CommonCode[]>('/codes/DEFECT_TYPE'),
@@ -62,7 +77,8 @@ export default function QualityInspectionPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [from, to])
 
   function set(k: keyof typeof form, v: string) { setForm((f) => ({ ...f, [k]: v })) }
 
@@ -94,7 +110,11 @@ export default function QualityInspectionPage() {
     }
   }
 
-  const shownRows = rows.filter((r) => !keyword || r.itemName.includes(keyword) || (r.lotNo ?? '').includes(keyword))
+  const shownRows = rows
+    .filter((r) => !itemCond || String(r.itemId) === itemCond)
+    .filter((r) => !whCond || String(r.warehouseId) === whCond)
+    .filter((r) => !projCond || String(r.projectId) === projCond)
+    .filter((r) => !keyword || r.itemName.includes(keyword) || (r.lotNo ?? '').includes(keyword))
 
   /*
    * 네 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. [검사구분]·[판정]은 안쪽 코드가 아니라
@@ -111,9 +131,7 @@ export default function QualityInspectionPage() {
    * 2026-09-10 실측 2,316줄·2,145KB 다. 표가 길어지면 브라우저가 멈추므로 앞줄만 그리고
    * 그 사실을 적는다. <b>거르는 것은 그대로다</b> — 검색어는 전부에서 찾는다.
    *
-   * <p>기간 조건을 새로 만들지는 않았다. 형제 화면인 <b>품질검사현황</b>은 원본 실측대로
-   * [금월(~오늘)] 로 여는데(ecount-period-default.json), <b>이 화면의 원본 조건은 아직
-   * 안 쟀다</b> — 원본에 기간이 있는지 모르는 채로 만들면 지어내는 것이 된다.
+   * <p>기간은 2026-10-03 에 원본 품질검사조회를 재고 넣었다 — 기본 [최근30일(+1개월)].
    */
   const shown = sort.sorted
   const capped = capRows(shown)
@@ -121,7 +139,7 @@ export default function QualityInspectionPage() {
 
   return (
     <EcListShell
-      title="품질관리 (검사성적)"
+      title="품질검사조회"
       search={keyword}
       onSearchChange={setKeyword}
       onNew={() => setShowForm(true)}
@@ -130,7 +148,27 @@ export default function QualityInspectionPage() {
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
       {ok && <p style={{ marginBottom: 8, background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
 
-      <Modal error={error} open={showForm} title="품질관리 (검사성적) 등록" onClose={() => setShowForm(false)}>{(
+      <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        <EcCond label="기준일자">
+          <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
+          <span style={{ margin: '0 4px' }}>~</span>
+          <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
+          <span style={{ marginLeft: 6 }}>
+            <EcPeriodPicks labels={QUOTATION_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
+          </span>
+        </EcCond>
+        <EcCond label="품목" pick>
+          <CodePickerField label="품목" hideLabel width={220} emptyLabel="전체" value={itemCond} onChange={setItemCond} items={pickers.items} />
+        </EcCond>
+        <EcCond label="창고" pick>
+          <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체" value={whCond} onChange={setWhCond} items={pickers.warehouses} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체" value={projCond} onChange={setProjCond} items={pickers.projects} />
+        </EcCond>
+      </ul>
+
+      <Modal error={error} open={showForm} title="품질검사입력" onClose={() => setShowForm(false)}>{(
         <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginTop: 8, marginBottom: 8 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>검사성적 등록</div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
