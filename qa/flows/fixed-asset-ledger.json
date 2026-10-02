@@ -24,6 +24,17 @@
         "wait:2000",
         "expect:[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|')==='계정코드|계정명|자산코드|자산명|감소일자|취득원가|감가상각충당금|매매가액'"
       ]
+    },
+    {
+      "name": "고정자산증감대장 — 원가+충당금 기본 머리 열여덟, [취득원가]로 바꾸면 충당금 · 미상각잔액 열이 빠진다",
+      "path": "/accounting/fixed-asset-movement",
+      "steps": [
+        "wait:2000",
+        "expect:[...document.querySelectorAll('table thead th')].length===18&&[...document.querySelectorAll('table thead th')][8].innerText.trim()==='기초_원가'",
+        "js:(()=>{[...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='취득원가').querySelector('input').click();return true})()",
+        "wait:400",
+        "expect:[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).slice(8).join('|')==='기초_원가|증가_원가|감소_원가|기말_원가'"
+      ]
     }
   ]
 }
