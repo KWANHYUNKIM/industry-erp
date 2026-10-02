@@ -5064,6 +5064,7 @@ async function scenarioTimePhased(f) {
     const plan = Number(row(semi.id).days[0].planQty)
     eq('원재료 줄(MRP): 반제품 계획이 소모예정으로 내려온다 ×3', Number(row(f.material.id).days[0].consumeQty) >= plan * 3, true)
     eq('원재료는 사들이는 자재', row(f.material.id).producible, false)
+    eq('MRP 줄에 주거래처(발주요청을 보낼 곳) 칸이 실린다', 'supplierId' in row(f.material.id), true)
     eq('기간이 너무 길면 거절', (await call('GET', '/production-plans/time-phased?from=2087-01-01&to=2087-12-31')).status, 400)
   } finally {
     await call('DELETE', `/work-orders/${wo.id}`)

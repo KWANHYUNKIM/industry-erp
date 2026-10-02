@@ -45,7 +45,8 @@ import java.util.*;
  * 기간 전에 잡혀 있었는데 안 끝난 것은 [계획기간이전] 한 칸에 모으고 첫날 기초재고에 얹는다(원본도 그렇다:
  * 전일재고와 첫날 기초재고가 다르다). BOM 이 있는 품목은 생산계획 쪽, 없는 품목(자재)은 MRP 쪽이다.
  *
- * <p>조달기간은 열로만 보인다 — 계획을 그만큼 앞당겨 세우는 것은 아직 안 한다.
+ * <p>계획수량은 <b>필요한 날</b>(받는 날)에 선다. 조달기간만큼 앞당기는 것은 문서를 낼 때다 — 화면이
+ * 작업지시서·발주요청을 만들 때 지시일·발주일 = 필요일 − 조달기간, 납기일 = 필요일로 둔다(MRP 의 계획입고 · 계획발주).
  */
 @Service
 @RequiredArgsConstructor
@@ -146,7 +147,7 @@ public class TimePhasedPlanService {
                 opening = expected;
             }
             rows.put(id, new Row(id, it.code(), it.name(), it.spec(), it.unit(), producible,
-                    safety, minUnit, it.leadTimeDays(), prev, beforeCell, cells));
+                    safety, minUnit, it.leadTimeDays(), it.supplierId(), prev, beforeCell, cells));
         }
         // 화면은 코드 차례로 본다(계산 차례는 BOM 위→아래였다).
         List<Row> sorted = new ArrayList<>(rows.values());

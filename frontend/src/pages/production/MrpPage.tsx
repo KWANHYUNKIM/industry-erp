@@ -311,6 +311,7 @@ interface PhasedCell {
 interface PhasedRow {
   itemId: number; itemCode: string; itemName: string; spec: string | null; unit: string
   producible: boolean; safetyStock: number; minUnit: number; leadTimeDays: number | null
+  supplierId: number | null
   prevStock: number; before: PhasedCell; days: PhasedCell[]
 }
 const PHASED_LINES: [keyof PhasedCell, string][] = [
@@ -318,6 +319,14 @@ const PHASED_LINES: [keyof PhasedCell, string][] = [
   ['consumeQty', '소모예정량'], ['expected', '예상재고'], ['needQty', '필요수량'], ['planQty', '계획수량'],
 ]
 const ymdOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+/** 필요일에서 조달기간만큼 앞당긴 날(지시일·발주일). 오늘보다 앞이면 오늘로. */
+const releaseOf = (need: string, lead: number | null) => {
+  const d = new Date(`${need}T00:00:00`)
+  d.setDate(d.getDate() - (lead ?? 0))
+  const today = ymdOf(new Date())
+  const r = ymdOf(d)
+  return r < today ? today : r
+}
 
 /**
  * 원본 <b>생산계획현황 · MRP현황</b> — 품목마다 여덟 줄(기초재고 · 입고예정량 · 생산예정량 · 출고예정량 ·
@@ -337,6 +346,9 @@ function TimePhasedModal({ mode, onClose, onMade }: { mode: 'PLAN' | 'MRP'; onCl
   const [err, setErr] = useState('')
   const [warehouses, setWarehouses] = useState<{ id: number; code: string; name: string; kind: string; active: boolean }[]>([])
   const [factory, setFactory] = useState('')
+  /** MRP 쪽 [발주요청생성] — 주거래처가 없는 품목을 보낼 매입처. */
+  const [partners, setPartners] = useState<{ id: number; code: string; name: string }[]>([])
+  const [fallbackPartner, setFallbackPartner] = useState('')
 
   async function run() {
     setLoading(true); setErr('')
@@ -352,8 +364,11 @@ function TimePhasedModal({ mode, onClose, onMade }: { mode: 'PLAN' | 'MRP'; onCl
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { void run() }, [])
   useEffect(() => {
-    if (mode !== 'PLAN') return
-    api.get<typeof warehouses>('/warehouses').then((r) => setWarehouses(r.data.filter((w) => w.active))).catch(() => {})
+    if (mode === 'PLAN') {
+      api.get<typeof warehouses>('/warehouses').then((r) => setWarehouses(r.data.filter((w) => w.active))).catch(() => {})
+    } else {
+      api.get<typeof partners>('/partners').then((r) => setPartners(r.data)).catch(() => {})
+    }
   }, [mode])
 
   const shown = rows.filter((r) => r.producible === (mode === 'PLAN'))
@@ -368,21 +383,58 @@ function TimePhasedModal({ mode, onClose, onMade }: { mode: 'PLAN' | 'MRP'; onCl
   /** 계획수량을 날짜마다 작업지시서 한 장(품목 여러 줄)으로. */
   async function makeWorkOrders() {
     if (!factory) { setErr('생산공장을 고르세요.'); return }
+    // 지시일 = 필요일 − 조달기간, 납기일 = 필요일. 같은 (지시일, 납기일) 끼리 한 장으로 묶는다.
     const byDay = new Map<string, { productId: number; plannedQty: number; warehouseId: number }[]>()
     shown.forEach((r) => r.days.forEach((c, i) => {
       if (c.planQty && Number(c.planQty) > 0) {
-        byDay.set(days[i], [...(byDay.get(days[i]) ?? []), { productId: r.itemId, plannedQty: Number(c.planQty), warehouseId: Number(factory) }])
+        const key = `${releaseOf(days[i], r.leadTimeDays)}|${days[i]}`
+        byDay.set(key, [...(byDay.get(key) ?? []), { productId: r.itemId, plannedQty: Number(c.planQty), warehouseId: Number(factory) }])
       }
     }))
     if (byDay.size === 0) { setErr('생산계획수량이 없습니다.'); return }
     setErr('')
     try {
       const nos: string[] = []
-      for (const [d, lines] of byDay) {
-        const r = await api.post<{ orderNo: string }[]>('/work-orders/slips', { orderDate: d, dueDate: d, lines })
+      for (const [key, lines] of byDay) {
+        const [orderDate, dueDate] = key.split('|')
+        const r = await api.post<{ orderNo: string }[]>('/work-orders/slips', { orderDate, dueDate, lines })
         nos.push(r.data[0]?.orderNo ?? '')
       }
       onMade(`작업지시서 ${nos.length}장 생성 · ${nos.join(', ')}`)
+      onClose()
+    } catch (e) {
+      setErr(extractErrorMessage(e))
+    }
+  }
+
+  /**
+   * MRP 구매계획수량 → <b>발주요청</b>(발주서 진행의 첫 단계). 매입처(품목의 주거래처, 없으면 고른 매입처)와
+   * 발주일(= 필요일 − 조달기간) 끼리 한 장으로 묶고, 납기일은 필요일이다. 단가는 단가요청 단계에서 정한다.
+   */
+  async function makePurchaseRequests() {
+    const groups = new Map<string, { itemId: number; quantity: number }[]>()
+    let noPartner = 0
+    shown.forEach((r) => r.days.forEach((c, i) => {
+      if (!c.planQty || Number(c.planQty) <= 0) return
+      const partner = r.supplierId != null ? String(r.supplierId) : fallbackPartner
+      if (!partner) { noPartner++; return }
+      const key = `${partner}|${releaseOf(days[i], r.leadTimeDays)}|${days[i]}`
+      groups.set(key, [...(groups.get(key) ?? []), { itemId: r.itemId, quantity: Number(c.planQty) }])
+    }))
+    if (noPartner > 0) { setErr(`주거래처가 없는 품목이 ${noPartner}줄 있습니다. 보낼 매입처를 고르세요.`); return }
+    if (groups.size === 0) { setErr('구매계획수량이 없습니다.'); return }
+    setErr('')
+    try {
+      const nos: string[] = []
+      for (const [key, lines] of groups) {
+        const [partnerId, orderDate, dueDate] = key.split('|')
+        const r = await api.post<{ orderNo: string }>('/purchase-orders', {
+          partnerId: Number(partnerId), orderDate, dueDate, remark: 'MRP 구매계획',
+          lines: lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity, unitPrice: 0 })),
+        })
+        nos.push(r.data.orderNo)
+      }
+      onMade(`발주요청 ${nos.length}건 생성 · ${nos.join(', ')}`)
       onClose()
     } catch (e) {
       setErr(extractErrorMessage(e))
@@ -403,6 +455,13 @@ function TimePhasedModal({ mode, onClose, onMade }: { mode: 'PLAN' | 'MRP'; onCl
                              items={[...warehouses].sort((a, b) => Number(a.kind === '창고') - Number(b.kind === '창고'))
                                .map((w) => ({ value: String(w.id), code: w.code, name: w.name, sub: w.kind }))} />
             <button type="button" className="ec-btn" onClick={() => void makeWorkOrders()}>작업지시서생성</button>
+          </span>
+        )}
+        {mode === 'MRP' && (
+          <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <CodePickerField label="매입처" hideLabel width={180} emptyLabel="주거래처만" value={fallbackPartner} onChange={setFallbackPartner}
+                             items={partners.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+            <button type="button" className="ec-btn" onClick={() => void makePurchaseRequests()}>발주요청생성</button>
           </span>
         )}
       </div>
