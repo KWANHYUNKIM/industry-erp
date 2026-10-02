@@ -457,6 +457,7 @@ const MENU: TopMenu[] = [
               { label: '월별손익분석', to: '/accounting/monthly-pnl' },
               { label: '월별원가분석', to: '/accounting/monthly-cost' },
               { label: '채권/채무회수기간표', to: '/accounting/arap-aging' },
+              { label: '채권/채무잔액분석표', to: '/accounting/arap-balance' },
             ],
           },
           {

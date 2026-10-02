@@ -246,6 +246,17 @@
         "wait:2500",
         "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const last=t.querySelector('tbody tr:last-child');return h==='거래처코드|거래처명|잔액|미회수월수'&&last.cells[0].innerText.trim()==='합계'})()"
       ]
+    },
+    {
+      "name": "채권/채무잔액분석표 — 머리 담당자코드 · 담당자 · 거래처코드 · 거래처명 · 여신한도 · 총채권 · 받을어음 · 외상매출금 계 …, 끝 [합계], 채무로 바꾸면 지급어음 · 외상매입금",
+      "path": "/accounting/arap-balance",
+      "steps": [
+        "wait:3000",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead tr:first-child th')].map((x)=>x.innerText.trim());return h.slice(0,8).join('|')==='담당자코드|담당자|거래처코드|거래처명|여신한도|총채권|받을어음|외상매출금 계'&&h.includes('외상매출금 현황')&&h.includes('수금계획 현황')})()",
+        "js:[...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='채무').querySelector('input').click()",
+        "wait:1500",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead tr:first-child th')].map((x)=>x.innerText.trim());return h.includes('지급어음')&&h.includes('외상매입금 계')&&h.includes('지급계획 현황')})()"
+      ]
     }
   ]
 }

@@ -1050,5 +1050,9 @@
  [
   "채권/채무회수기간표",
   "accounting/ArApAgingPage.tsx"
+ ],
+ [
+  "채권/채무잔액분석표",
+  "accounting/ArApBalancePage.tsx"
  ]
 ]
