@@ -6177,5 +6177,29 @@
    "결재란"
   ],
   "in": "frontend/src/pages/accounting/FundDailyPage.tsx"
+ },
+ "현금흐름(입출금내역)|부서": {
+  "claim": "회계전표에 부서가 없다",
+  "absent": [
+   "department",
+   "Department"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "현금흐름(입출금내역)|프로젝트": {
+  "claim": "회계전표에 프로젝트가 없다",
+  "absent": [
+   "project",
+   "Project"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "현금흐름(입출금내역)|기타": {
+  "claim": "결재란을 그리지 않는다",
+  "absent": [
+   "approvalBox",
+   "결재란"
+  ],
+  "in": "frontend/src/pages/accounting/CashFlowListPage.tsx"
  }
 }

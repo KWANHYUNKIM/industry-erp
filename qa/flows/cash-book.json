@@ -193,6 +193,16 @@
         "wait:2500",
         "expect:(()=>{const ts=[...document.querySelectorAll('table')];const h=[...ts[0].querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const b=document.body.innerText;return ts.length===3&&h==='계정명|거래처명|이월잔액[외화]|증가[외화]|감소[외화]|금일잔액[외화]|계정코드|거래처코드'&&b.includes('2 . 자금의 증가')&&b.includes('3 . 자금의 감소')})()"
       ]
+    },
+    {
+      "name": "현금흐름(입출금내역) — 구분 · 계정명 · 고른 기간 · 하루 앞당긴 기간, 기초잔액 · 소계 · 기말잔액, 기말 = 기초 + 증가 − 감소",
+      "path": "/accounting/cash-flow",
+      "steps": [
+        "wait:2000",
+        "click:전월",
+        "wait:2500",
+        "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim());const rows=[...t.querySelectorAll('tbody tr')];const n=(s)=>Number((s||'0').replace(/,/g,''))||0;const first=rows[0],last=rows[rows.length-1];const subs=rows.filter((r)=>r.cells[0].innerText.trim()==='소계');return h[0]==='구분'&&h[1]==='계정명'&&first.cells[0].innerText.trim()==='기초잔액'&&last.cells[0].innerText.trim()==='기말잔액'&&subs.length===2&&n(last.cells[1].innerText)===n(first.cells[1].innerText)+n(subs[0].cells[1].innerText)-n(subs[1].cells[1].innerText)})()"
+      ]
     }
   ]
 }

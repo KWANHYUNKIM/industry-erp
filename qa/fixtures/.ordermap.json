@@ -1026,5 +1026,9 @@
  [
   "자금일보",
   "accounting/FundDailyPage.tsx"
+ ],
+ [
+  "현금흐름(입출금내역)",
+  "accounting/CashFlowListPage.tsx"
  ]
 ]
