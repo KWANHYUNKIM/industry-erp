@@ -2725,8 +2725,15 @@ async function scenarioPaySetting() {
   const base = Number(slip.baseSalary)
   const taxableIncome = base + 300_000                       // 기본급 + 과세수당(직책수당). 식대는 빠진다
   const pension = slip.lines.find((l) => l.name === '국민연금')
-  eq('국민연금 = 과세소득 × 4.5% (비과세 식대 제외)',
-    Number(pension.amount), Math.round(taxableIncome * 0.045))
+  /*
+   * 국민연금 근로자 부담률은 귀속연도에 따라 다르다 — 2025 4.5% → 2026 4.75% → 해마다 +0.25%p → 2033 6.5%(36회차).
+   * 기준소득월액 상·하한(2026.7~ 41만~659만) 안으로 자른 뒤 곱한다. 예전 단언은 4.5% 고정이었다.
+   */
+  const yr = Number(month.slice(0, 4))
+  const pensionRate = yr <= 2025 ? 0.045 : 0.045 + 0.0025 * (Math.min(yr, 2033) - 2025)
+  const pensionBase = Math.min(Math.max(taxableIncome, 410_000), 6_590_000)
+  eq('국민연금 = 기준소득월액(상·하한) × 그해 요율 (비과세 식대 제외)',
+    Number(pension.amount), Math.round(pensionBase * pensionRate))
 
   const mealLine = slip.lines.find((l) => l.name === '식대')
   eq('비과세 수당은 명세에 비과세로 남음', mealLine.taxable, false)

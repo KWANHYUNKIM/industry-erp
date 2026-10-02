@@ -31,11 +31,7 @@ public class PayrollService {
 
     private static final Pattern MONTH = Pattern.compile("\\d{4}-\\d{2}");
 
-    // 근로자 부담 요율. 과세소득(기본급+과세수당) 기준. 여기서는 지급총액을 과세소득으로 본다.
-    private static final BigDecimal NATIONAL_PENSION = new BigDecimal("0.045");   // 국민연금 4.5%
-    private static final BigDecimal HEALTH          = new BigDecimal("0.03545");  // 건강보험 3.545%
-    private static final BigDecimal LONG_TERM_CARE  = new BigDecimal("0.1295");   // 장기요양 = 건강보험료의 12.95%
-    private static final BigDecimal EMPLOYMENT       = new BigDecimal("0.009");    // 고용보험 0.9%
+    // 근로자 부담 요율은 귀속월마다 다르다 — SocialInsuranceRates(36회차: 2025년 요율을 상수로 박아 2026년에도 썼다).
 
     private final PayslipRepository payslipRepository;
     private final EmployeeRepository employeeRepository;
@@ -113,10 +109,12 @@ public class PayrollService {
                 .filter(l -> l.getKind() == PayslipLineKind.ALLOWANCE && l.isTaxable())
                 .map(PayslipLine::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add));
 
-        BigDecimal pension = round(taxableIncome.multiply(NATIONAL_PENSION));
-        BigDecimal health = round(taxableIncome.multiply(HEALTH));
-        BigDecimal care = round(health.multiply(LONG_TERM_CARE));   // 장기요양은 건강보험료 기준
-        BigDecimal employment = round(taxableIncome.multiply(EMPLOYMENT));
+        java.time.YearMonth ym = java.time.YearMonth.parse(req.payMonth());
+        BigDecimal pension = round(SocialInsuranceRates.pensionBase(taxableIncome, ym)
+                .multiply(SocialInsuranceRates.pension(ym)));        // 기준소득월액 상·하한 안에서
+        BigDecimal health = round(taxableIncome.multiply(SocialInsuranceRates.health(ym)));
+        BigDecimal care = round(health.multiply(SocialInsuranceRates.longTermCareOfHealth(ym)));   // 장기요양은 건강보험료 기준
+        BigDecimal employment = round(taxableIncome.multiply(SocialInsuranceRates.employment(ym)));
 
         addAutoDeduction(p, "국민연금", pension);
         addAutoDeduction(p, "건강보험", health);
