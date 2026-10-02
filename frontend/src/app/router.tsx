@@ -36,6 +36,7 @@ const BomPage = lazy(() => import('../pages/production/BomPage'))
 const WorkOrderPage = lazy(() => import('../pages/production/WorkOrderPage'))
 const WorkOrderEntryPage = lazy(() => import('../pages/production/WorkOrderEntryPage'))
 const SubcontractReflectionPage = lazy(() => import('../pages/production/SubcontractReflectionPage'))
+const BomStatusPage = lazy(() => import('../pages/production/BomStatusPage'))
 const RequirementCalcPage = lazy(() => import('../pages/production/RequirementCalcPage'))
 const ProductionResultPage = lazy(() => import('../pages/production/ProductionResultPage'))
 const ProfitSummaryPage = lazy(() => import('../pages/accounting/ProfitSummaryPage'))
@@ -272,6 +273,7 @@ export default function AppRouter() {
         <Route path="/production/work-orders" element={<WorkOrderPage />} />
         <Route path="/production/work-order-entry" element={<WorkOrderEntryPage />} />
         <Route path="/production/subcontract-reflection" element={<SubcontractReflectionPage />} />
+        <Route path="/production/bom-status" element={<BomStatusPage />} />
         <Route path="/production/requirement-calc" element={<RequirementCalcPage />} />
         {/*
           옛 경로. 메뉴에서는 [생산입고 I(BOM기준소모)] 로 부른다 — 원본에 [생산실적] 이라는

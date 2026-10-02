@@ -203,6 +203,13 @@
         "expect:location.pathname==='/production/receipt-bom'&&document.body.innerText.includes(sessionStorage.getItem('qaLinkWr')+' 의 연결전표를 만듭니다')&&[...document.querySelectorAll('input')].some((i)=>i.value==='1')",
         "js:(async()=>{const H={Authorization:'Bearer '+localStorage.getItem('erp_token')};const wr=(await fetch('/api/work-results',{headers:H}).then((r)=>r.json())).filter((x)=>x.resultNo===sessionStorage.getItem('qaLinkWr'));for(const x of wr)await fetch('/api/work-results/'+x.id,{method:'DELETE',headers:H});await fetch('/api/work-orders/slips/'+encodeURIComponent(sessionStorage.getItem('qaLinkWo')),{method:'DELETE',headers:H});return true})()"
       ]
+    },
+    {
+      "name": "BOM(소요량)현황 — BOM 한 줄이 한 줄, 생산품목코드는 그 BOM 첫 줄에만 찍히고 기본 BOM 만 보인다",
+      "path": "/production/bom-status",
+      "steps": [
+        "expect:(async()=>{const b=await fetch('/api/boms?versions=all',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json());const want=b.filter((x)=>x.defaultVersion).reduce((n,x)=>n+x.lines.length,0);const rows=[...document.querySelectorAll('table tbody tr')].filter((t)=>t.cells.length===7);const firsts=rows.filter((t)=>t.cells[0].innerText.trim()!=='').length;return want>0&&rows.length===want&&firsts<=b.filter((x)=>x.defaultVersion).length})()"
+      ]
     }
   ]
 }
