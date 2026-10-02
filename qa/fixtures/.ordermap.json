@@ -794,5 +794,9 @@
  [
   "받을어음거래내역",
   "accounting/NoteLedgerPage.tsx"
+ ],
+ [
+  "지급어음거래내역",
+  "accounting/NoteLedgerPage.tsx"
  ]
 ]

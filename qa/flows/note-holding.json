@@ -74,6 +74,14 @@
       ]
     },
     {
+      "name": "지급어음거래내역 — 받을어음은 지급어음 원장에 안 뜨고, 머리는 받을어음거래내역과 같다",
+      "path": "/accounting/notes-pay-ledger",
+      "steps": [
+        "wait:1800",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');return document.body.innerText.includes('지급어음거래내역')&&h==='일자|증감구분|어음번호|거래처명|계정명|적요|증가금액|감소금액|잔액'&&!([...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes(sessionStorage.getItem('nhNo'))))})()"
+      ]
+    },
+    {
       "name": "정리 — 만든 어음을 지운다(API)",
       "path": "/accounting/notes-held",
       "steps": [

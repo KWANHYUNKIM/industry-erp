@@ -6,7 +6,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { NOTE_FLOW_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
-import type { NoteSummary, PromissoryNote } from '../../types/api'
+import type { NoteSummary, NoteType, PromissoryNote } from '../../types/api'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 
@@ -14,7 +14,8 @@ const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR')
 interface Move { date: string; kind: '증가' | '감소'; note: PromissoryNote }
 
 /**
- * 회계 I &gt; 어음거래 &gt; 받을어음 &gt; <b>받을어음거래내역</b>(E010623) — 2026-10-02 loginaa 실측.
+ * 회계 I &gt; 어음거래 &gt; <b>받을어음거래내역</b>(E010623) · <b>지급어음거래내역</b>(E010631) — 2026-10-02 loginaa 실측.
+ * 두 화면은 조건 · 기본값 · 열이 글자 하나까지 같다 — type 만 바꾼다.
  *
  * <p>조건: 기준일자(구간, 기본 [최근30일]) · 계정 · 어음번호 · 거래처 · 부서 · 프로젝트 · 조회기준(<b>거래처별</b> | 거래처/어음번호별) ·
  * 기타([잔액0포함] 켜짐). 열: 일자 · 증감구분 · 어음번호 · 거래처명 · 계정명 · 부서명 · 프로젝트명 · 적요 · 증가금액 · 감소금액 · 잔액.
@@ -23,8 +24,9 @@ interface Move { date: string; kind: '증가' | '감소'; note: PromissoryNote }
  * 원본에 자료가 없어 <b>이월 줄 · 소계 줄의 모양은 못 쟀다</b>. 그래서 이월 줄을 지어내지 않고, 잔액은 기간 안의 증감을
  * 묶음(거래처 · 거래처/어음번호)마다 차례로 더해 센다. 묶음 끝에 '소계' 한 줄을 둔다.
  */
-export default function NoteLedgerPage() {
-  const account = '받을어음'
+export default function NoteLedgerPage({ type }: { type: NoteType }) {
+  const title = type === 'RECEIVABLE' ? '받을어음거래내역' : '지급어음거래내역'
+  const account = type === 'RECEIVABLE' ? '받을어음' : '지급어음'
   const init = periodOf('최근30일')!
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
@@ -52,12 +54,12 @@ export default function NoteLedgerPage() {
     }
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { void load() }, [from, to])
+  useEffect(() => { void load() }, [from, to, type])
 
   const groups = useMemo(() => {
     const moves: Move[] = []
     for (const n of notes) {
-      if (n.type !== 'RECEIVABLE') continue
+      if (n.type !== type) continue
       if (noteNo && !n.noteNo.includes(noteNo)) continue
       if (partner && String(n.partnerId) !== partner) continue
       if (n.issueDate >= from && n.issueDate <= to) moves.push({ date: n.issueDate, kind: '증가', note: n })
@@ -79,20 +81,20 @@ export default function NoteLedgerPage() {
         return { key, lines, inc: lines.reduce((a, l) => a + l.inc, 0), dec: lines.reduce((a, l) => a + l.dec, 0), bal }
       })
       .filter((g) => withZero || g.bal !== 0)
-  }, [notes, from, to, noteNo, partner, basis, withZero])
+  }, [notes, type, from, to, noteNo, partner, basis, withZero])
 
   const partners = useMemo(() => {
     const m = new Map<number, string>()
-    notes.filter((n) => n.type === 'RECEIVABLE').forEach((n) => m.set(n.partnerId, n.partnerName))
+    notes.filter((n) => n.type === type).forEach((n) => m.set(n.partnerId, n.partnerName))
     return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1])).map(([id, name]) => ({ value: String(id), name }))
-  }, [notes])
+  }, [notes, type])
   const total = groups.reduce((a, g) => ({ inc: a.inc + g.inc, dec: a.dec + g.dec, bal: a.bal + g.bal }), { inc: 0, dec: 0, bal: 0 })
   const tableRef = useRef<HTMLTableElement>(null)
-  useTableColumnCheck(tableRef, '받을어음거래내역', [groups.length, basis])
+  useTableColumnCheck(tableRef, title, [groups.length, basis])
 
   return (
     <EcListShell
-      title="받을어음거래내역"
+      title={title}
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
@@ -111,7 +113,7 @@ export default function NoteLedgerPage() {
             <EcPeriodPicks labels={NOTE_FLOW_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
-        {/* 원본 [계정] — 이 화면의 어음 계정은 받을어음 하나다. */}
+        {/* 원본 [계정] — 이 화면의 어음 계정은 하나다(받을어음 · 지급어음). */}
         <EcCond label="계정">
           <select className="ec-input" value={account} disabled style={{ width: 140 }}>
             <option value={account}>{account}</option>
@@ -138,7 +140,7 @@ export default function NoteLedgerPage() {
       </ul>
 
       <h3 style={{ fontSize: 13, fontWeight: 700, margin: '4px 0 6px' }}>
-        받을어음거래내역 <span style={{ fontWeight: 400, color: '#8a929c' }}>{dateText(from)} ~ {dateText(to)}</span>
+        {title} <span style={{ fontWeight: 400, color: '#8a929c' }}>{dateText(from)} ~ {dateText(to)}</span>
       </h3>
       {truncated && <p style={{ fontSize: 12, color: '#c07a00', marginBottom: 6 }}>어음이 많아 앞 5,000장까지만 받았습니다 — 기간을 좁혀 보세요.</p>}
       <table ref={tableRef} className="w-full text-left">

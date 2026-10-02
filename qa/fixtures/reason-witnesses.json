@@ -4774,5 +4774,27 @@
   "present": [
    "g.lines.map"
   ]
+ },
+ "지급어음거래내역|부서": {
+  "claim": "어음에 부서가 없다",
+  "absent": [
+   "Department",
+   "department"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/promissorynote/PromissoryNote.java"
+ },
+ "지급어음거래내역|프로젝트": {
+  "claim": "어음에 프로젝트가 없다",
+  "absent": [
+   "Project",
+   "project"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/promissorynote/PromissoryNote.java"
+ },
+ "지급어음거래내역|데이터 보기형식": {
+  "claim": "움직임 한 건이 한 줄인 원장이다",
+  "present": [
+   "g.lines.map"
+  ]
  }
 }
