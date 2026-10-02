@@ -496,6 +496,8 @@ export default function AppRouter() {
         <Route path="/accounting/monthly-sales-summary" element={<MonthlyVatSummaryPage side="매출" />} />
         <Route path="/accounting/monthly-purchase-summary" element={<MonthlyVatSummaryPage side="매입" />} />
         <Route path="/accounting/trial-balance" element={<TrialBalancePage />} />
+        <Route path="/accounting/deposit-slip-summary" element={<ExpenseSlipSummaryPage side="입금" />} />
+        <Route path="/accounting/trial-balance" element={<TrialBalancePage />} />
         <Route path="/accounting/expense-slip-summary" element={<ExpenseSlipSummaryPage />} />
         <Route path="/accounting/balance-sheet" element={<BalanceSheetPage />} />
         <Route path="/accounting/income-statement" element={<IncomeStatementPage />} />

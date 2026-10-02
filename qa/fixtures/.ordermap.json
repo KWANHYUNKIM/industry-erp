@@ -1074,5 +1074,9 @@
  [
   "지출결의서집계",
   "accounting/ExpenseSlipSummaryPage.tsx"
+ ],
+ [
+  "입금보고서집계",
+  "accounting/ExpenseSlipSummaryPage.tsx"
  ]
 ]

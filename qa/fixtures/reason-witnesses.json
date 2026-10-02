@@ -6423,5 +6423,35 @@
   "present": [
    "OUT_CODES.includes(l.accountCode)"
   ]
+ },
+ "입금보고서집계|부서": {
+  "claim": "회계전표에 부서가 없다",
+  "absent": [
+   "department",
+   "Department"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "입금보고서집계|프로젝트": {
+  "claim": "회계전표에 프로젝트가 없다",
+  "absent": [
+   "project",
+   "Project"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "입금보고서집계|양식구분": {
+  "claim": "결재 칸을 그리지 않는다",
+  "absent": [
+   "approvalBox",
+   "결재란"
+  ],
+  "in": "frontend/src/pages/accounting/ExpenseSlipSummaryPage.tsx"
+ },
+ "입금보고서집계|데이터 보기형식": {
+  "claim": "입금 한 줄이 한 줄인 집계다",
+  "present": [
+   "OUT_CODES.includes(l.accountCode)"
+  ]
  }
 }
