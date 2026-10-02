@@ -39,6 +39,20 @@ public interface JournalLineRepository extends JpaRepository<JournalLine, Long> 
                                               @Param("from") LocalDate from,
                                               @Param("to") LocalDate to);
 
+    /**
+     * 통제계정을 움직인 회계전표 <b>줄</b> — 거래처관리대장 [전표별] 에 판매·수금과 나란히 세운다.
+     * 열: 일자 · 전표번호 · 출처 · 거래처 id · 거래처명 · 차변 · 대변.
+     */
+    @Query("select e.entryDate, e.docNo, e.sourceType, e.partner.id, e.partner.name, l.debit, l.credit " +
+            "from JournalLine l join l.entry e " +
+            "where l.account.code = :accountCode and e.partner is not null " +
+            "and e.sourceType not in :excludeSources " +
+            "and e.entryDate between :from and :to")
+    List<Object[]> controlAccountLines(@Param("accountCode") String accountCode,
+                                       @Param("excludeSources") java.util.Collection<com.erp.accounting.journal.JournalSourceType> excludeSources,
+                                       @Param("from") LocalDate from,
+                                       @Param("to") LocalDate to);
+
     /** 시산표/재무제표용: 계정별 차변합·대변합 집계 (기간 내) */
     @Query("select l.account.id, l.account.code, l.account.name, l.account.division, " +
             "coalesce(sum(l.debit),0), coalesce(sum(l.credit),0) " +

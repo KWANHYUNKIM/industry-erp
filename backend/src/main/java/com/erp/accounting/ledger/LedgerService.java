@@ -150,6 +150,20 @@ public class LedgerService {
                             s.settleDate(), s.docNo(), "지급", s.partnerId(), s.partnerName(),
                             BigDecimal.ZERO, s.amount())));
         }
+        /*
+         * 회계전표가 통제계정을 직접 움직인 것(어음·수표·대체·외주비 회계반영 …). 잔액이 이것을 세므로(60회차)
+         * 여기도 줄로 세워야 [전표별] 누계가 기말 잔액에 닿는다(QA 64회차 — 어음 수취 19억이 줄 없이 잔액에만 있었다).
+         * 채권은 차변이 올리고 대변이 내린다. 채무는 반대.
+         */
+        for (Object[] r : journalLineRepository.controlAccountLines(
+                receivableSide ? AR_ACCOUNT : AP_ACCOUNT, COUNTED_BY_SLIP, from, to)) {
+            BigDecimal dr = (BigDecimal) r[5];
+            BigDecimal cr = (BigDecimal) r[6];
+            out.add(new LedgerDtos.PartnerEntryResponse(
+                    (LocalDate) r[0], (String) r[1], ((JournalSourceType) r[2]).getDisplayName(),
+                    (Long) r[3], (String) r[4],
+                    receivableSide ? dr : cr, receivableSide ? cr : dr));
+        }
         /* 날짜 차례. 같은 날이면 올린 것(판매·구매)을 먼저 세운다 — 원장을 읽는 차례다. */
         out.sort(java.util.Comparator
                 .comparing(LedgerDtos.PartnerEntryResponse::date)

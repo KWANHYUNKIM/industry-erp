@@ -36,7 +36,7 @@ public final class LedgerDtos {
             java.time.LocalDate date,
             /** 전표번호. 묶음 줄(일별·월별)에서는 비어 있다. */
             String docNo,
-            /** 판매 · 구매 · 수금 · 지급 */
+            /** 판매 · 구매 · 수금 · 지급, 또는 통제계정을 움직인 회계전표의 출처(어음 · 수표 · 외주비 …) */
             String kind,
             Long partnerId, String partnerName,
             /** 채권이면 판매가, 채무면 구매가 올린다 */
@@ -44,6 +44,12 @@ public final class LedgerDtos {
             /** 채권이면 수금이, 채무면 지급이 내린다 */
             BigDecimal decrease
     ) {}
+
+    /**
+     * [전표별] 원장 — 5천 줄을 넘으면 앞(이른 날짜) 5천 줄만 주고 잘랐다고 밝힌다(QA 64회차).
+     * 날짜 차례라 잘라도 그 지점까지의 누계는 맞다. [오천건이상조회] 로 다 받는다.
+     */
+    public record PartnerEntryList(java.util.List<PartnerEntryResponse> rows, long totalRows, boolean truncated) {}
 
     public record PartnerMovementResponse(
             Long partnerId, String code, String name, String manager,

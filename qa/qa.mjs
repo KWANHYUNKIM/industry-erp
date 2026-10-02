@@ -7572,6 +7572,21 @@ async function scenarioPartnerMovements(f) {
     .map((m) => `${m.partnerName} ${m.otherDiff}`).join(' / ') || '없음'
   eq('전 기간 채권에 설명 못 한 기타차액이 없다', await leftover('AR'), '없음')
   eq('전 기간 채무에 설명 못 한 기타차액이 없다', await leftover('AP'), '없음')
+
+  /*
+   * [전표별] 원장의 줄을 기초에 더해 가면 기말에 닿아야 한다(64회차 — 잔액은 어음·수표를 세는데
+   * 전표별 줄에는 판매·수금만 있어 어음 수취 19억이 줄 없이 잔액에만 있었다).
+   */
+  const reaches = async (side, f2, t2) => {
+    const mv = await must('GET', `/ledger/partner-movements?from=${f2}&to=${t2}&side=${side}`)
+    const en = (await must('GET', `/ledger/partner-entries?from=${f2}&to=${t2}&side=${side}&all=true`)).rows
+    const sum = new Map()
+    for (const e of en) sum.set(e.partnerId, (sum.get(e.partnerId) ?? 0) + Number(e.increase) - Number(e.decrease))
+    return mv.filter((m) => Math.abs(m.opening + (sum.get(m.partnerId) ?? 0) - m.closing) >= 0.5)
+      .map((m) => `${m.partnerName} ${m.opening}+${sum.get(m.partnerId) ?? 0}≠${m.closing}`).join(' / ') || '없음'
+  }
+  eq('전표별 채권 줄을 더하면 기말에 닿는다(2026-07)', await reaches('AR', '2026-07-01', '2026-07-31'), '없음')
+  eq('전표별 채무 줄을 더하면 기말에 닿는다(2026-07)', await reaches('AP', '2026-07-01', '2026-07-31'), '없음')
   eq('시험 기간에서도 항등식을 지킨다', holds(await get('AR')), true)
 
   // 아무 일도 없던 거래처는 줄을 만들지 않는다 — 빈 줄로 표를 채우면 못 읽는다.

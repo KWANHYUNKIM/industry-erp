@@ -37,12 +37,19 @@ public class LedgerController {
      * 거래처관리대장 I 의 [집계구분] <b>[전표별]</b>. [일별]·[월별]은 화면이 이 줄을 묶는다.
      */
     @GetMapping("/partner-entries")
-    public List<LedgerDtos.PartnerEntryResponse> partnerEntries(
+    public LedgerDtos.PartnerEntryList partnerEntries(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
-            @RequestParam(defaultValue = "AR") String side) {
-        return ledgerService.partnerEntries(from, to, !"AP".equalsIgnoreCase(side));
+            @RequestParam(defaultValue = "AR") String side,
+            /* [오천건이상조회] — 잘려 왔을 때 화면이 붙여 다시 부른다. */
+            @RequestParam(defaultValue = "false") boolean all) {
+        List<LedgerDtos.PartnerEntryResponse> rows = ledgerService.partnerEntries(from, to, !"AP".equalsIgnoreCase(side));
+        boolean truncated = !all && rows.size() > ENTRY_PAGE_ROWS;
+        return new LedgerDtos.PartnerEntryList(truncated ? rows.subList(0, ENTRY_PAGE_ROWS) : rows, rows.size(), truncated);
     }
+
+    /** 한 번에 내려보낼 원장 줄 수의 문턱. 원본 [오천건이상조회] 와 같은 자리다. */
+    private static final int ENTRY_PAGE_ROWS = 5000;
 
     @GetMapping("/partner-movements")
     public List<LedgerDtos.PartnerMovementResponse> partnerMovements(

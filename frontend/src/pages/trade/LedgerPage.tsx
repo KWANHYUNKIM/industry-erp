@@ -159,6 +159,8 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
   const [moves, setMoves] = useState<Movement[]>([])
   /* [전표별]·[일별]·[월별]이 쓰는 줄. 그 셋을 고를 때만 받는다. */
   const [entries, setEntries] = useState<Entry[]>([])
+  /* 원장 줄이 5천을 넘으면 서버가 앞 5천 줄만 준다(QA 64회차) — [오천건이상조회] 로 다 받는다. */
+  const [entryCut, setEntryCut] = useState<{ total: number; truncated: boolean; all: boolean }>({ total: 0, truncated: false, all: false })
   /**
    * 원본 대장 열 [검색창내용]. 잔액 API 가 주지 않아 <b>거래처 목록에서 붙인다</b> —
    * 부르는 이름(별칭)이라, 코드도 상호도 모르는 사람이 이 칸으로 알아본다.
@@ -215,10 +217,11 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
   useEffect(() => {
     if (!oneSide || !byDoc) { setEntries([]); return }
     api
-      .get<Entry[]>('/ledger/partner-entries', { params: { from, to, side } })
-      .then((res) => setEntries(res.data))
+      .get<{ rows: Entry[]; totalRows: number; truncated: boolean }>('/ledger/partner-entries',
+        { params: { from, to, side, all: entryCut.all || undefined } })
+      .then((res) => { setEntries(res.data.rows); setEntryCut((c) => ({ ...c, total: res.data.totalRows, truncated: res.data.truncated })) })
       .catch((err) => setError(extractErrorMessage(err)))
-  }, [oneSide, byDoc, side, from, to])
+  }, [oneSide, byDoc, side, from, to, entryCut.all])
 
   const shown = useMemo(() => rows.filter((r) => {
     if (partner && String(r.partnerId) !== partner) return false
@@ -360,6 +363,8 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
         // 원본 차례: 검색(F8) · 인쇄 · Excel · 전표입력 (사본 실측)
         { label: '인쇄' },
         { label: 'Excel' },
+        /* 원본 [오천건이상조회] — 전표별·일별·월별 줄이 잘려 왔을 때만 눌린다. */
+        { label: '오천건이상조회', onClick: () => setEntryCut((c) => ({ ...c, all: true })), disabled: !entryCut.truncated },
         /*
          * 원본 [전표입력] — 대장을 보다가 그 자리에서 전표를 만든다. 우리는 판매입력에서
          * 만들므로 그 화면으로 넘긴다. 거래처를 골라 뒀으면 물고 간다.
@@ -504,6 +509,11 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
       </div>
 
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {byDoc && entryCut.truncated && (
+        <p style={{ marginBottom: 8, background: '#fff8e1', border: '1px solid #f0d58a', color: '#7a5b00', padding: '5px 8px', fontSize: 12, borderRadius: 3 }}>
+          기간 안에 원장 줄이 {entryCut.total.toLocaleString()}줄 — 앞(이른 날짜) 5,000줄만 보입니다. {group}의 합계도 거기까지입니다. 기간을 좁히거나 [오천건이상조회] 를 누르세요.
+        </p>
+      )}
 
       {view === '그래프' ? (
         <EcBarChart rows={chartRows} unit=" 원" emptyText="조회된 거래처가 없습니다." />
