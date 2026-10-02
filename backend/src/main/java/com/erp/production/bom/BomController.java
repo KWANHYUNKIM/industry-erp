@@ -17,9 +17,13 @@ public class BomController {
 
     private final BomService bomService;
 
+    /**
+     * BOM 목록. 기본은 제품마다 <b>기본 BOM</b> 하나(예전 그대로). versions=all 이면 모든 버전 —
+     * 원본 품목별BOM조회 · 생산입고 줄의 [BOM버전] 고르기가 쓴다.
+     */
     @GetMapping
-    public List<BomResponse> list() {
-        return bomService.findAll();
+    public List<BomResponse> list(@RequestParam(required = false) String versions) {
+        return "all".equalsIgnoreCase(versions) ? bomService.findAllVersions() : bomService.findAll();
     }
 
     @PostMapping

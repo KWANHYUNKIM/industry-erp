@@ -24,6 +24,18 @@ public class BomService {
      */
     private final ItemService itemService;
 
+    /** 모든 버전(줄마다 [BOM버전] 을 고르는 화면이 쓴다). */
+    @Transactional(readOnly = true)
+    public List<BomResponse> findAllVersions() {
+        return bomRepository.findAllVersionsWithProduct().stream().map(BomResponse::from).toList();
+    }
+
+    /** 버전 하나(id). 사용하는 쪽이 제품과 맞는지 본다. */
+    @Transactional(readOnly = true)
+    public Bom getVersion(Long bomId) {
+        return bomRepository.findById(bomId).orElseThrow(() -> ApiException.notFound("BOM 버전을 찾을 수 없습니다. id=" + bomId));
+    }
+
     @Transactional(readOnly = true)
     public List<BomResponse> findAll() {
         // 라인까지 로딩 (제품은 fetch join, 라인은 지연 → 트랜잭션 내 접근)
@@ -37,8 +49,17 @@ public class BomService {
     public BomResponse save(SaveBomRequest req) {
         Item product = itemService.getUsable(req.productId());
 
-        Bom bom = bomRepository.findByProductIdWithProduct(product.getId())
-                .orElseGet(() -> Bom.builder().product(product).build());
+        String version = req.versionName() == null || req.versionName().isBlank() ? "기본" : req.versionName().trim();
+        List<Bom> versions = bomRepository.findVersions(product.getId());
+        Bom bom = versions.stream().filter(v -> v.getVersionName().equals(version)).findFirst()
+                .orElseGet(() -> Bom.builder().product(product).versionName(version).defaultVersion(false).build());
+        // 제품의 첫 BOM 이거나 기본으로 하라고 했으면 이 버전이 기본이다(다른 버전은 기본에서 내린다).
+        boolean makeDefault = versions.isEmpty() || Boolean.TRUE.equals(req.defaultVersion()) || bom.isDefaultVersion();
+        if (makeDefault && !bom.isDefaultVersion()) {
+            versions.stream().filter(Bom::isDefaultVersion).forEach(v -> v.setDefaultVersion(false));
+            bomRepository.flush();
+        }
+        bom.setDefaultVersion(makeDefault);
         bom.setRemark(req.remark());
         bom.setActive(true);
         bom.clearLines();
@@ -58,7 +79,14 @@ public class BomService {
     public void delete(Long id) {
         Bom bom = bomRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("BOM을 찾을 수 없습니다. id=" + id));
+        /* 기본을 지우면 남은 버전 중 하나가 기본이 된다 — 제품에 BOM 이 남아 있는데 기본이 없으면 생산이 막힌다. */
+        boolean wasDefault = bom.isDefaultVersion();
+        Long productId = bom.getProduct().getId();
         bomRepository.delete(bom);
+        bomRepository.flush();
+        if (wasDefault) {
+            bomRepository.findVersions(productId).stream().findFirst().ifPresent(v -> v.setDefaultVersion(true));
+        }
     }
 
     /** BOM 을 푼 한 줄 — 자재와 그 양(생산수량을 곱한 뒤). */
@@ -75,6 +103,26 @@ public class BomService {
     public java.util.List<Exploded> explode(Long productId, java.math.BigDecimal qty, boolean all) {
         java.util.Map<Long, Exploded> out = new java.util.LinkedHashMap<>();
         explodeInto(productId, qty, all, new java.util.ArrayDeque<>(), out);
+        return new java.util.ArrayList<>(out.values());
+    }
+
+    /** 고른 <b>버전</b>으로 푼다(첫 단만 그 버전, 그 아래 반제품은 각자의 기본 BOM). */
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public java.util.List<Exploded> explodeVersion(Long bomId, java.math.BigDecimal qty, boolean all) {
+        Bom bom = getVersion(bomId);
+        java.util.Map<Long, Exploded> out = new java.util.LinkedHashMap<>();
+        java.util.Deque<Long> path = new java.util.ArrayDeque<>();
+        path.push(bom.getProduct().getId());
+        for (var line : bom.getLines()) {
+            var c = line.getComponent();
+            java.math.BigDecimal need = line.getQuantity().multiply(qty);
+            if (all && bomRepository.findByProductIdWithProduct(c.getId()).isPresent()) {
+                explodeInto(c.getId(), need, true, path, out);
+            } else {
+                out.merge(c.getId(), new Exploded(c, need),
+                        (a, b) -> new Exploded(a.component(), a.quantity().add(b.quantity())));
+            }
+        }
         return new java.util.ArrayList<>(out.values());
     }
 

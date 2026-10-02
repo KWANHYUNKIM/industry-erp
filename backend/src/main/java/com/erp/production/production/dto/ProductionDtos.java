@@ -256,7 +256,9 @@ public final class ProductionDtos {
             List<@Valid SlipMaterial> materials,
             /** [시리얼/로트No.]. */
             @Size(max = 60, message = "시리얼/로트No.는 60자까지 넣을 수 있습니다.")
-            String lotNo
+            String lotNo,
+            /** 원본 [BOM버전] — 고른 BOM 버전 id. 비우면 기본 BOM(I 의 자동소모·BOM풀기). */
+            Long bomId
     ) {}
 
     /** 원본 [소모] 탭 한 줄. */
@@ -366,7 +368,9 @@ public final class ProductionDtos {
             /** [시리얼/로트No.]. */
             String lotNo,
             /** 진행상태 — 결재중·미확인·확인. */
-            com.erp.production.production.ProductionConfirmStatus confirmStatus, String confirmStatusName
+            com.erp.production.production.ProductionConfirmStatus confirmStatus, String confirmStatusName,
+            /** 원본 [BOM버전]. 비었으면 기본 BOM 으로 소모했다. */
+            Long bomId, String bomVersionName
     ) {
         public static ProductionResponse from(Production p) {
             var wo = p.getWorkOrder();
@@ -393,7 +397,9 @@ public final class ProductionDtos {
                     p.getSubcontractUnitPrice(), p.getSubcontractAmount(), p.getSubcontractVat(),
                     wo != null ? wo.getOrderDate() : null,
                     p.getLotNo(),
-                    p.getConfirmStatus(), p.getConfirmStatus().getDisplayName());
+                    p.getConfirmStatus(), p.getConfirmStatus().getDisplayName(),
+                    p.getBom() != null ? p.getBom().getId() : null,
+                    p.getBom() != null ? p.getBom().getVersionName() : null);
         }
     }
 }

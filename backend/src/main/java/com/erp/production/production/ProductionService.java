@@ -101,10 +101,14 @@ public class ProductionService {
 
     /** 제품 하나의 BOM 소요량(미저장). 원본 생산입고 II·III [BOM풀기]. */
     @Transactional(readOnly = true)
-    public List<ProductionMaterialResponse> bomPreview(Long productId, BigDecimal qty, boolean all) {
+    public List<ProductionMaterialResponse> bomPreview(Long productId, BigDecimal qty, boolean all, Long bomId) {
         Item product = itemService.get(productId);
-        getBom(product);   // BOM 이 없으면 여기서 알린다
-        return bomService.explode(productId, qty, all).stream()
+        var exploded = bomId != null ? bomService.explodeVersion(bomId, qty, all) : null;
+        if (exploded == null) {
+            getBom(product);   // BOM 이 없으면 여기서 알린다
+            exploded = bomService.explode(productId, qty, all);
+        }
+        return exploded.stream()
                 .map(x -> new ProductionMaterialResponse(
                         x.component().getId(), x.component().getCode(), x.component().getName(),
                         x.component().getUnit(), x.quantity(), x.component().getSpec(), null, null))
@@ -181,8 +185,16 @@ public class ProductionService {
                 manual = line.materials() == null ? List.of()
                         : line.materials().stream().map(m -> new ManualConsumeLine(m.componentId(), m.quantity())).toList();
             }
+            com.erp.production.bom.Bom version = null;
+            if (line.bomId() != null) {
+                version = bomService.getVersion(line.bomId());
+                if (!version.getProduct().getId().equals(product.getId())) {
+                    throw ApiException.badRequest(lineNo + "번째 줄: 고른 BOM버전은 다른 품목의 것입니다.");
+                }
+            }
             Production p = createLine(wo, product, line.producedQty(), date, from, to, project,
-                    line.note(), line.laborMinutes(), req.employeeId(), manual, prodNo, lineNo, username);
+                    line.note(), line.laborMinutes(), req.employeeId(), manual, prodNo, lineNo, username, version);
+            p.setBom(version);
             p.setEntryType(req.entryType());
             p.setLotNo(blankToNull(line.lotNo()));
             if (line.processId() != null) p.setProcess(processService.getUsable(line.processId()));
@@ -260,7 +272,7 @@ public class ProductionService {
 
         Production p = createLine(wo, wo.getProduct(), req.producedQty(), date, from, warehouse, project,
                 req.note(), req.laborMinutes(), req.employeeId(), manualConsume ? req.materials() : null,
-                prodNo, lineNo, username);
+                prodNo, lineNo, username, null);
         p.setEntryType(manualConsume ? ProductionEntryType.II : ProductionEntryType.I);
         applySubcontract(p, from, null, null, null);
         return ProductionResponse.from(productionRepository.save(p));
@@ -276,7 +288,8 @@ public class ProductionService {
                                   Warehouse from, Warehouse warehouse,
                                   com.erp.inventory.project.Project project, String note, Integer laborMinutes,
                                   Long employeeId, List<ManualConsumeLine> manual,
-                                  String prodNo, int lineNo, String username) {
+                                  String prodNo, int lineNo, String username,
+                                  com.erp.production.bom.Bom version) {
         if (wo != null) {
             BigDecimal remaining = wo.getPlannedQty().subtract(wo.getProducedQty());
             if (qty.compareTo(remaining) > 0) {
@@ -317,7 +330,7 @@ public class ProductionService {
                         .component(component).quantity(line.quantity()).build());
             }
         } else {
-            Bom bom = getBom(product);
+            Bom bom = version != null ? version : getBom(product);
             for (BomLine line : bom.getLines()) {
                 Item component = line.getComponent();
                 BigDecimal consume = line.getQuantity().multiply(qty);

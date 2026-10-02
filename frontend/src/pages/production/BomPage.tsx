@@ -21,12 +21,15 @@ export default function BomPage() {
   const [showForm, setShowForm] = useState(false)
   const [productId, setProductId] = useState('')
   const [remark, setRemark] = useState('')
+  /** 원본 [BOM버전] — 같은 제품·같은 이름이면 그 버전을 고친다. 비우면 '기본'. */
+  const [versionName, setVersionName] = useState('기본')
+  const [makeDefault, setMakeDefault] = useState(false)
   const [lines, setLines] = useState<LineInput[]>([emptyLine()])
 
   async function load() {
     setLoading(true)
     try {
-      const [b, i] = await Promise.all([api.get<Bom[]>('/boms'), api.get<Item[]>('/items')])
+      const [b, i] = await Promise.all([api.get<Bom[]>('/boms', { params: { versions: 'all' } }), api.get<Item[]>('/items')])
       setBoms(b.data)
       setItems(i.data)
     } catch (err) {
@@ -43,6 +46,8 @@ export default function BomPage() {
   function openNew() {
     setProductId('')
     setRemark('')
+    setVersionName('기본')
+    setMakeDefault(false)
     setLines([emptyLine()])
     setShowForm(true)
   }
@@ -50,6 +55,8 @@ export default function BomPage() {
   function editBom(b: Bom) {
     setProductId(String(b.productId))
     setRemark(b.remark ?? '')
+    setVersionName(b.versionName ?? '기본')
+    setMakeDefault(b.defaultVersion)
     setLines(b.lines.map((l) => ({ componentId: String(l.componentId), quantity: String(l.quantity) })))
     setShowForm(true)
   }
@@ -67,7 +74,8 @@ export default function BomPage() {
     if (!productId) return setError('제품을 선택하세요.')
     if (validLines.length === 0) return setError('자재를 1개 이상 입력하세요.')
     try {
-      const res = await api.post<{ productCode: string; productName: string }>('/boms', { productId: Number(productId), remark: remark || undefined, lines: validLines })
+      const res = await api.post<{ productCode: string; productName: string }>('/boms', { productId: Number(productId), remark: remark || undefined, lines: validLines,
+        versionName: versionName.trim() || '기본', defaultVersion: makeDefault })
       setOk(`[${res.data.productCode}] ${res.data.productName} BOM 저장 — 자재 ${validLines.length}종`)
       setShowForm(false)
       load()
@@ -120,6 +128,18 @@ export default function BomPage() {
                 <th style={{ background: '#f5f7fa', fontWeight: 700, width: 60 }}>비고</th>
                 <td><input className={inputCls} value={remark} onChange={(e) => setRemark(e.target.value)} style={{ minWidth: 200 }} /></td>
               </tr>
+              <tr>
+                {/* 원본 품목별BOM조회 [BOM버전] · [기본BOM]. 같은 이름이면 그 버전을 고치고, 새 이름이면 버전이 하나 는다. */}
+                <th style={{ background: '#f5f7fa', fontWeight: 700 }}>BOM버전</th>
+                <td><input className={inputCls} value={versionName} onChange={(e) => setVersionName(e.target.value)} style={{ width: 160 }} /></td>
+                <th style={{ background: '#f5f7fa', fontWeight: 700 }}>기본BOM</th>
+                <td>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12.5 }}>
+                    <input type="checkbox" checked={makeDefault} onChange={(e) => setMakeDefault(e.target.checked)} />
+                    이 버전을 기본으로(생산·불출·원가가 버전을 안 고르면 기본을 쓴다)
+                  </label>
+                </td>
+              </tr>
             </tbody>
           </table>
 
@@ -163,7 +183,12 @@ export default function BomPage() {
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
                 <div>
                   <span style={{ fontFamily: 'monospace', fontSize: 11.5, color: '#8a929c' }}>{b.productCode}</span>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-text)' }}>{b.productName}</div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-text)' }}>
+                    {b.productName}
+                    <span style={{ marginLeft: 8, fontSize: 11.5, fontWeight: 600, color: b.defaultVersion ? 'var(--ec-blue)' : '#8a929c' }}>
+                      [{b.versionName}{b.defaultVersion ? ' · 기본' : ''}]
+                    </span>
+                  </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button onClick={() => editBom(b)} className="no-ec" style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12 }}>수정</button>

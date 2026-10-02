@@ -60,6 +60,8 @@ interface ProdLine {
   laborMinutes: string
   /** [시리얼/로트No.] */
   lotNo: string
+  /** 원본 [BOM버전] — 고른 BOM 버전 id. 비우면 기본 BOM. */
+  bomId: string
 }
 
 interface MatLine {
@@ -81,7 +83,7 @@ let seq = 1
 const nextKey = () => seq++
 const blankLine = (): ProdLine => ({
   key: nextKey(), productId: '', qty: '', workOrderId: '', processId: '', fromWarehouseId: '', warehouseId: '',
-  unitPrice: '', amount: '', vat: '', amountTouched: false, note: '', laborMinutes: '', lotNo: '',
+  unitPrice: '', amount: '', vat: '', amountTouched: false, note: '', laborMinutes: '', lotNo: '', bomId: '',
 })
 const blankMat = (lineKey = ''): MatLine => ({
   key: nextKey(), lineKey, componentId: '', bomQty: '', extraQty: '', qty: '', note: '', lotNo: '',
@@ -101,6 +103,8 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
   const [projects, setProjects] = useState<{ id: number; code: string; name: string }[]>([])
   const [processes, setProcesses] = useState<{ id: number; code: string; name: string; active: boolean }[]>([])
   const [orders, setOrders] = useState<WorkOrder[]>([])
+  /** 제품별 BOM 버전 — [BOM버전] 칸이 고른다(버전이 하나면 이름만 보인다). */
+  const [bomVersions, setBomVersions] = useState<{ id: number; productId: number; versionName: string; defaultVersion: boolean }[]>([])
 
   const [date, setDate] = useState(today())
   const [employeeId, setEmployeeId] = useState('')
@@ -138,6 +142,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
       api.get<{ id: number; code: string; name: string; active: boolean }[]>('/processes')
         .then((r) => setProcesses(r.data.filter((p) => p.active))),
       api.get<WorkOrder[]>('/work-orders').then((r) => setOrders(r.data)),
+      api.get<typeof bomVersions>('/boms', { params: { versions: 'all' } }).then((r) => setBomVersions(r.data)),
     ]).catch((e) => setError(extractErrorMessage(e)))
   }, [])
 
@@ -162,7 +167,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
         unitPrice: String(p.subcontractUnitPrice ?? ''), amount: String(p.subcontractAmount ?? ''),
         vat: String(p.subcontractVat ?? ''), amountTouched: true,
         note: p.note ?? '', laborMinutes: p.laborMinutes != null ? String(p.laborMinutes) : '',
-        lotNo: p.lotNo ?? '',
+        lotNo: p.lotNo ?? '', bomId: p.bomId != null ? String(p.bomId) : '',
       }))
       const ms: MatLine[] = []
       rows.forEach((p, i) => p.materials.forEach((m) => ms.push({
@@ -229,7 +234,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
     for (const l of filled) {
       if (!(num(l.qty) > 0)) continue
       try {
-        const r = await api.get<ProductionMaterial[]>(`/productions/bom-preview?productId=${l.productId}&qty=${num(l.qty)}&level=${bomLevel}`)
+        const r = await api.get<ProductionMaterial[]>(`/productions/bom-preview?productId=${l.productId}&qty=${num(l.qty)}&level=${bomLevel}${l.bomId ? `&bomId=${l.bomId}` : ''}`)
         r.data.forEach((m) => out.push({
           key: nextKey(), lineKey: String(l.key), componentId: String(m.componentId),
           bomQty: String(m.quantity), extraQty: '', qty: String(m.quantity), note: '', lotNo: '',
@@ -320,6 +325,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
         subcontractVat: l.vat === '' ? null : num(l.vat),
         note: l.note || null,
         lotNo: l.lotNo.trim() || null,
+        bomId: l.bomId ? Number(l.bomId) : null,
         laborMinutes: l.laborMinutes.trim() === '' ? null : Number(l.laborMinutes),
         materials: type === 'I' ? null : mats
           .filter((m) => m.componentId && m.lineKey === String(l.key) && num(m.qty) > 0)
@@ -373,6 +379,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
           <col style={{ width: 120 }} />
           <col style={{ width: 220 }} />
           <col style={{ width: 100 }} />
+          <col style={{ width: 90 }} />
           {type === 'III' && <col style={{ width: 150 }} />}
           {type === 'III' && <col style={{ width: 150 }} />}
           <col style={{ width: 90 }} />
@@ -392,6 +399,8 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
             <th style={{ textAlign: 'center' }}>시리얼/로트No.</th>
             <th style={{ textAlign: 'left' }}>생산품목명</th>
             <th style={{ textAlign: 'left' }}>규격</th>
+            {/* 원본 격자 [BOM버전] — 고르지 않으면 기본 BOM. */}
+            <th style={{ textAlign: 'left' }}>BOM버전</th>
             {type === 'III' && <th style={{ textAlign: 'left' }}>생산된공장</th>}
             {type === 'III' && <th style={{ textAlign: 'left' }}>받는창고</th>}
             <th style={{ textAlign: 'right' }}>수량</th>
@@ -426,10 +435,21 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
                 <td className="pad">
                   <CodePickerField label="생산품목" hideLabel fill placeholder="" emptyLabel="선택 해제"
                                    value={l.productId}
-                                   onChange={(v) => setLine(l.key, { productId: v, workOrderId: v === l.productId ? l.workOrderId : '', unitPrice: '', amountTouched: false })}
+                                   onChange={(v) => setLine(l.key, { productId: v, workOrderId: v === l.productId ? l.workOrderId : '', unitPrice: '', amountTouched: false, bomId: v === l.productId ? l.bomId : '' })}
                                    items={itemPicks} />
                 </td>
                 <td className="pad" style={{ color: '#5a626e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it?.spec ?? ''}</td>
+                <td>
+                  {(() => {
+                    const vs = bomVersions.filter((v) => String(v.productId) === l.productId)
+                    if (vs.length <= 1) return <span className="pad" style={{ color: '#8a929c', fontSize: 12 }}>{vs[0]?.versionName ?? ''}</span>
+                    return (
+                      <select className="cell" value={l.bomId} onChange={(e) => setLine(l.key, { bomId: e.target.value })}>
+                        {vs.map((v) => <option key={v.id} value={v.defaultVersion ? '' : String(v.id)}>{v.versionName}{v.defaultVersion ? '(기본)' : ''}</option>)}
+                      </select>
+                    )
+                  })()}
+                </td>
                 {type === 'III' && (
                   <td className="pad">
                     <CodePickerField label="생산된공장" hideLabel fill placeholder="" emptyLabel="선택 해제"
@@ -489,7 +509,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
         </tbody>
         <tfoot>
           <tr>
-            <td colSpan={type === 'III' ? 8 : 5} />
+            <td colSpan={type === 'III' ? 9 : 6} />
             <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(totalQty)}</td>
             {type !== 'III' && <td />}
             {type !== 'III' && <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(totalAmt)}</td>}

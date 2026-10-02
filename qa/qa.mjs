@@ -5123,6 +5123,47 @@ async function scenarioProductionConfirm(f) {
   await must('POST', '/stock/transactions', { itemId: comp.componentId, warehouseId: f.warehouse.id, type: 'OUTBOUND', quantity: 50 })
 }
 
+/**
+ * BOM 버전 — 원본 품목별BOM조회(BOM번호 · BOM버전 · 기본BOM). 제품 하나에 버전이 여럿이고 하나가 기본이다.
+ * 생산입고 줄의 [BOM버전] 을 고르면 그 버전으로 소모하고, 안 고르면 기본으로 소모한다.
+ */
+async function scenarioBomVersions(f) {
+  section('■ BOM 버전 — 기본 · 다른 버전으로 소모')
+  const items = await must('GET', '/items')
+  const top = items.find((i) => i.code === `${P}ML-TOP`)
+  const semi = items.find((i) => i.code === `${P}ML-SEMI`)
+  const v2 = await must('POST', '/boms', { productId: top.id, versionName: 'QA-V2', lines: [{ componentId: semi.id, quantity: 5 }] })
+  try {
+    eq('새 버전은 기본이 아니다', v2.defaultVersion, false)
+    const all = (await must('GET', '/boms?versions=all')).filter((b) => b.productId === top.id)
+    eq('제품 하나에 버전 둘', all.length, 2)
+    eq('기본 목록에는 제품마다 하나(기본)', (await must('GET', '/boms')).filter((b) => b.productId === top.id).length, 1)
+    eq('[BOM풀기] 버전을 주면 그 버전 소요량', Number((await must('GET', `/productions/bom-preview?productId=${top.id}&qty=2&bomId=${v2.id}`))[0].quantity), 10)
+    eq('[BOM풀기] 안 주면 기본(×2)', Number((await must('GET', `/productions/bom-preview?productId=${top.id}&qty=2`))[0].quantity), 4)
+
+    const D = '2087-10-10'
+    await must('POST', '/stock/transactions', { itemId: semi.id, warehouseId: f.warehouse.id, type: 'INBOUND', quantity: 20 })
+    const made = await must('POST', '/productions/slips', {
+      entryType: 'I', productionDate: D, fromWarehouseId: f.warehouse.id, warehouseId: f.warehouse.id,
+      lines: [{ productId: top.id, producedQty: 2, bomId: v2.id }],
+    })
+    eq('생산입고 I: 고른 버전으로 소모(2×5)', Number(made[0].materials[0].quantity), 10)
+    eq('생산입고 줄에 BOM버전 이름', made[0].bomVersionName, 'QA-V2')
+    await must('DELETE', `/productions/slips/${made[0].prodNo}`)
+    await must('POST', '/stock/transactions', { itemId: semi.id, warehouseId: f.warehouse.id, type: 'OUTBOUND', quantity: 20 })
+
+    // 기본 바꾸기 — v2 를 기본으로 하면 옛 기본은 내려간다.
+    await must('POST', '/boms', { productId: top.id, versionName: 'QA-V2', defaultVersion: true, lines: [{ componentId: semi.id, quantity: 5 }] })
+    const after = (await must('GET', '/boms?versions=all')).filter((b) => b.productId === top.id)
+    eq('기본은 하나뿐', after.filter((b) => b.defaultVersion).map((b) => b.versionName).join(','), 'QA-V2')
+  } finally {
+    // 기본을 되돌리고 시험 버전을 지운다(지우면 남은 버전이 기본이 된다).
+    await call('DELETE', `/boms/${v2.id}`)
+  }
+  const back = (await must('GET', '/boms?versions=all')).filter((b) => b.productId === top.id)
+  eq('시험 버전을 지우면 남은 버전이 기본', back.length === 1 && back[0].defaultVersion, true)
+}
+
 async function scenarioWorkResultBatch(f) {
   section('■ 작업내역 격자 — 한 번에 여러 줄')
 
@@ -9681,6 +9722,7 @@ async function main() {
     await scenarioTimePhased(fixtures)
     await scenarioWorkResultBatch(fixtures)
     await scenarioProductionConfirm(fixtures)
+    await scenarioBomVersions(fixtures)
     console.log(`\n통과 ${pass} · 실패 ${fail}`)
     process.exit(fail > 0 ? 1 : 0)
   }
@@ -9804,6 +9846,7 @@ async function main() {
   await scenarioTimePhased(fixtures)
   await scenarioWorkResultBatch(fixtures)
   await scenarioProductionConfirm(fixtures)
+  await scenarioBomVersions(fixtures)
   await scenarioReturnSlip(fixtures)
   await scenarioMasterResave()
   await scenarioMasterEditFromScreen()

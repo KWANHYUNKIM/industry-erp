@@ -160,6 +160,11 @@ public class Production extends BaseTimeEntity {
     @Builder.Default
     private ProductionConfirmStatus confirmStatus = ProductionConfirmStatus.UNCONFIRMED;
 
+    /** 원본 격자 [BOM버전] — 이 줄을 어느 BOM 버전으로 소모했나. 비었으면 기본 BOM. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "bom_id")
+    private com.erp.production.bom.Bom bom;
+
     /** 원본 격자 [시리얼/로트No.] — 판매 줄처럼 글자로 남긴다. */
     @Column(name = "lot_no", length = 60)
     private String lotNo;

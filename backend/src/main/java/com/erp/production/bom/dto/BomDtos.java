@@ -25,7 +25,11 @@ public final class BomDtos {
             @NotNull(message = "제품을 선택하세요.") Long productId,
             @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
             String remark,
-            @NotEmpty(message = "자재를 1개 이상 입력하세요.") @Valid List<BomLineRequest> lines
+            @NotEmpty(message = "자재를 1개 이상 입력하세요.") @Valid List<BomLineRequest> lines,
+            /** 원본 [BOM버전] 이름. 비우면 '기본'. 같은 제품·같은 버전이면 그 버전을 고친다. */
+            @Size(max = 50, message = "BOM버전은 50자까지 넣을 수 있습니다.") String versionName,
+            /** 이 버전을 기본 BOM 으로. 제품의 첫 BOM 은 저절로 기본이다. */
+            Boolean defaultVersion
     ) {}
 
     public record BomLineResponse(
@@ -42,14 +46,17 @@ public final class BomDtos {
             Long id,
             Long productId, String productCode, String productName, String productUnit,
             String remark, boolean active,
-            List<BomLineResponse> lines
+            List<BomLineResponse> lines,
+            /** 원본 [BOM버전] · [기본BOM]. */
+            String versionName, boolean defaultVersion
     ) {
         public static BomResponse from(Bom b) {
             return new BomResponse(
                     b.getId(),
                     b.getProduct().getId(), b.getProduct().getCode(), b.getProduct().getName(), b.getProduct().getUnit(),
                     b.getRemark(), b.isActive(),
-                    b.getLines().stream().map(BomLineResponse::from).toList());
+                    b.getLines().stream().map(BomLineResponse::from).toList(),
+                    b.getVersionName(), b.isDefaultVersion());
         }
     }
 }

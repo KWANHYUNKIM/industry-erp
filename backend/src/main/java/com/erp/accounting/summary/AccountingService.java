@@ -172,7 +172,8 @@ public class AccountingService {
         }
 
         ctx.bomByProduct = new HashMap<>();
-        bomRepository.findAll().forEach(b -> ctx.bomByProduct.put(b.getProduct().getId(), b));
+        // 제품마다 기본 BOM(버전이 여럿이면 기본으로 원가를 본다 — V226).
+        bomRepository.findAllWithProduct().forEach(b -> ctx.bomByProduct.put(b.getProduct().getId(), b));
         return ctx;
     }
 }

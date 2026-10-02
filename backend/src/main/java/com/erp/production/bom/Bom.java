@@ -26,9 +26,20 @@ public class Bom extends BaseTimeEntity {
     private Long id;
 
     /** 생산 대상 제품(완제품/반제품) */
-    @OneToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "product_id", nullable = false, unique = true)
+    /** 제품 — 버전마다 행이 하나라 제품 하나에 BOM 이 여럿일 수 있다(V226). */
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "product_id", nullable = false)
     private Item product;
+
+    /** 원본 [BOM버전] 이름. 처음 만든 BOM 은 '기본'. */
+    @Column(name = "version_name", nullable = false, length = 50)
+    @Builder.Default
+    private String versionName = "기본";
+
+    /** 원본 [기본BOM] — 제품마다 하나. 버전을 고르지 않은 생산·불출·원가·계획은 이것을 쓴다. */
+    @Column(name = "is_default", nullable = false)
+    @Builder.Default
+    private boolean defaultVersion = true;
 
     @Column(length = 300)
     private String remark;

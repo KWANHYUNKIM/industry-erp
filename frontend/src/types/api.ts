@@ -428,6 +428,9 @@ export interface Bom {
   remark: string | null
   active: boolean
   lines: BomLine[]
+  /** 원본 [BOM버전] · [기본BOM] — 제품 하나에 버전이 여럿일 수 있다(V226). */
+  versionName: string
+  defaultVersion: boolean
 }
 
 export type WorkOrderStatus = 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED'
@@ -516,6 +519,9 @@ export interface Production {
   subcontractVat: number
   /** 원본 격자 [시리얼/로트No.]. */
   lotNo: string | null
+  /** 원본 격자 [BOM버전] — 비었으면 기본 BOM 으로 소모했다. */
+  bomId?: number | null
+  bomVersionName?: string | null
   productId: number
   productCode: string
   productName: string
