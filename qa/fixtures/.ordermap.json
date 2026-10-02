@@ -790,5 +790,9 @@
  [
   "지급어음감소현황",
   "accounting/NoteFlowPage.tsx"
+ ],
+ [
+  "받을어음거래내역",
+  "accounting/NoteLedgerPage.tsx"
  ]
 ]

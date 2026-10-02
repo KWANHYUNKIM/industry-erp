@@ -64,6 +64,16 @@
       ]
     },
     {
+      "name": "받을어음거래내역 — 오늘 받은 어음이 [증가] 줄로 뜨고 잔액에 더해지며, 머리는 원본(부서명 · 프로젝트명 빼고) 일자 · 증감구분 · 어음번호 · 거래처명 · 계정명 · 적요 · 증가금액 · 감소금액 · 잔액",
+      "path": "/accounting/notes-ledger",
+      "steps": [
+        "wait:1800",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');return h==='일자|증감구분|어음번호|거래처명|계정명|적요|증가금액|감소금액|잔액'})()",
+        "expect:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('nhNo')));return !!tr&&tr.cells[1].innerText.trim()==='증가'&&tr.cells[6].innerText.includes('23,456')})()",
+        "expect:document.querySelectorAll('input[type=radio]')[0].checked&&[...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='잔액0포함').querySelector('input').checked"
+      ]
+    },
+    {
       "name": "정리 — 만든 어음을 지운다(API)",
       "path": "/accounting/notes-held",
       "steps": [
