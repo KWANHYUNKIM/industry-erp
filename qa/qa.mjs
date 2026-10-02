@@ -1659,7 +1659,7 @@ async function scenarioWithholding() {
   const localTax = deduction('지방소득세')
 
   eq('소득세가 자동 공제됨', incomeTax > 0, true)
-  eq('지방소득세 = 소득세의 10%', localTax, Math.floor(incomeTax * 0.1))
+  eq('지방소득세 = 소득세의 10% (10원 미만 버림)', localTax, Math.floor(incomeTax * 0.1 / 10) * 10)
   eq('4대보험도 그대로 공제됨', deduction('국민연금') > 0 && deduction('건강보험') > 0, true)
   eq('공제합계 = 각 공제항목의 합',
     Number(slip.deductionTotal),
@@ -2865,9 +2865,9 @@ async function scenarioPaySetting() {
    */
   const yr = Number(month.slice(0, 4))
   const pensionRate = yr <= 2025 ? 0.045 : 0.045 + 0.0025 * (Math.min(yr, 2033) - 2025)
-  const pensionBase = Math.min(Math.max(taxableIncome, 410_000), 6_590_000)
-  eq('국민연금 = 기준소득월액(상·하한) × 그해 요율 (비과세 식대 제외)',
-    Number(pension.amount), Math.round(pensionBase * pensionRate))
+  const pensionBase = Math.floor(Math.min(Math.max(taxableIncome, 410_000), 6_590_000) / 1000) * 1000   // 천원 미만 버림
+  eq('국민연금 = 기준소득월액(상·하한·천원 미만 버림) × 그해 요율, 10원 미만 버림 (비과세 식대 제외)',
+    Number(pension.amount), Math.floor(Math.round(pensionBase * pensionRate * 100) / 100 / 10) * 10)
 
   const mealLine = slip.lines.find((l) => l.name === '식대')
   eq('비과세 수당은 명세에 비과세로 남음', mealLine.taxable, false)
@@ -5221,10 +5221,14 @@ async function scenarioSubcontractReflection(f) {
   eq('외주비 목록에 외주처(외주 창고의 외주거래처)가 붙는다', row?.partnerId, f.supplier.id)
   eq('외주비 목록: 합계 = 공급가액 + 부가세', Number(row?.total), 3300)
 
+  // 원본처럼 외주비 회계반영은 외주처의 채무를 올린다 — 거래처별채무·채무관리의 그 외주처 잔액(회계전표 몫 포함).
+  const apOf = async () => Number((await must('GET', '/ledger/partner-balances')).find((b) => b.partnerId === f.supplier.id)?.payable ?? 0)
+  const ap0 = await apOf()
   const res = await must('POST', '/accounting-reflection/subcontract/reflect', {
     productionIds: [made[0].id], groupBy: 'PARTNER',
   })
   eq('매입전표 I: 외주처 하나에 회계전표 하나', res.count, 1)
+  eq('외주비 회계반영이 외주처 채무를 합계만큼 올린다', (await apOf()) - ap0, 3300)
   const after = (await listOf()).find((r) => r.productionId === made[0].id)
   eq('반영하면 회계전표No. 가 붙는다', after.journalNo, res.journalNos[0])
   eq('반영한 생산입고는 지울 수 없다', (await call('DELETE', `/productions/slips/${made[0].prodNo}`)).status, 400)
@@ -5235,6 +5239,7 @@ async function scenarioSubcontractReflection(f) {
   const undo = await must('POST', '/accounting-reflection/subcontract/unreflect', { productionIds: [made[0].id] })
   eq('반영취소하면 회계전표가 지워진다', undo.journalNos[0], res.journalNos[0])
   eq('반영취소하면 줄이 풀린다', (await listOf()).find((r) => r.productionId === made[0].id).journalId, null)
+  eq('반영취소하면 외주처 채무가 돌아온다', await apOf(), ap0)
 
   await clear()
   await must('POST', '/stock/transactions', { itemId: comp.componentId, warehouseId: outWh.id, type: 'OUTBOUND', quantity: 100 })
@@ -6803,6 +6808,13 @@ async function scenarioWithholdingTable() {
     const slip = await must('POST', '/payslips', { employeeId: emp.id, payMonth: month, baseSalary: pay, lines: [] })
     const tax = Number(slip.lines.find((l) => l.name === '소득세')?.amount ?? 0)
     eq(`월 ${pay.toLocaleString()}원 · 본인 1명 소득세 = 간이세액표 ${expected.toLocaleString()}`, tax, expected)
+    /* 66회차 — 4대보험·지방소득세는 10원 미만 버림. 원 단위 반올림이라 장기요양이 15,116 처럼 찍혔다. */
+    const amt = (n) => Number(slip.lines.find((l) => l.name === n)?.amount ?? 0)
+    if (month === '2098-01') {
+      eq('지방소득세 91,460 × 10% = 9,146 → 9,140', amt('지방소득세'), 9_140)
+      eq('4대보험·지방소득세가 모두 10원 단위', ['국민연금', '건강보험', '장기요양보험', '고용보험', '지방소득세'].every((n) => amt(n) % 10 === 0), true)
+      eq('장기요양 = 건강보험 × 13.14%, 10원 미만 버림', amt('장기요양보험'), Math.floor(Math.round(amt('건강보험') * 0.1314 * 100) / 100 / 10) * 10)
+    }
     await must('DELETE', `/payslips/${slip.id}`)
   }
 }
