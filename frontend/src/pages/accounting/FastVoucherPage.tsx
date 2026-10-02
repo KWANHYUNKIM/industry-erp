@@ -136,7 +136,7 @@ export default function FastVoucherPage() {
         { label: 'Excel' }, { label: '인쇄' },
       ]}
     >
-      <div style={{ display: 'flex', gap: 2, marginBottom: 8, borderBottom: '1px solid var(--ec-border)' }}>
+      <div className="flex gap-[2px] mb-[8px] border-b border-b-ec-line border-solid">
         {TABS.map((t) => (
           <button key={t.type} onClick={() => { setType(t.type); setShowForm(false); setError('') }} className="no-ec" style={{
             padding: '6px 14px', fontSize: 12.5, border: 'none', cursor: 'pointer',
@@ -147,21 +147,21 @@ export default function FastVoucherPage() {
         ))}
       </div>
       {/* 화면 조건 판의 <b>[기간]</b> — 서버가 이 구간만 준다. 비우면 전 기간이다. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)' }}>
+      <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label">
         <span>기간</span>
         <input type="date" className="ec-input" value={pFrom}
                onChange={(e) => setPFrom(e.target.value)} style={{ width: 140 }} />
-        <span style={{ color: 'var(--ec-label)' }}>~</span>
+        <span className="text-ec-label">~</span>
         <input type="date" className="ec-input" value={pTo}
                onChange={(e) => setPTo(e.target.value)} style={{ width: 140 }} />
       </div>
 
 
-      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {cut.truncated && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-warn-bg)', border: '1px solid #f0d58a', color: '#7a5b00' }}>
         기간 안에 {cut.total.toLocaleString()}건 — 앞 5,000건만 보입니다. 기간을 좁히거나 [오천건이상조회] 를 누르세요.
       </div>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)' }}>{notice}</div>}
+      {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
 
       <Modal error={error} open={showForm} title="FastEntry (지출결의서·입금보고서·가지급금정산서) 등록" onClose={() => setShowForm(false)}>{(
         <VoucherForm
@@ -174,67 +174,67 @@ export default function FastVoucherPage() {
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ width: 130 }}>전표번호</th>
-            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th>
-            <th style={{ width: 110, textAlign: 'center' }}>결제수단</th>
-            <th style={{ width: 170 }}>계좌</th>
-            <th style={{ width: 120 }}>거래처</th>
-            {type === 'ADVANCE_SETTLEMENT' && <th style={{ width: 110, textAlign: 'right' }}>가지급금</th>}
-            <th style={{ width: 110, textAlign: 'right' }}>{type === 'ADVANCE_SETTLEMENT' ? '사용액' : '금액'}</th>
-            {type === 'ADVANCE_SETTLEMENT' && <th style={{ width: 110, textAlign: 'right' }}>반납/추가</th>}
-            <th style={{ width: 140 }}>회계전표</th>
+            <th className="w-[34px]"></th>
+            <th className="w-[130px]">전표번호</th>
+            <th className="w-[100px] cursor-pointer" onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th>
+            <th className="w-[110px] text-center">결제수단</th>
+            <th className="w-[170px]">계좌</th>
+            <th className="w-[120px]">거래처</th>
+            {type === 'ADVANCE_SETTLEMENT' && <th className="w-[110px] text-right">가지급금</th>}
+            <th className="w-[110px] text-right">{type === 'ADVANCE_SETTLEMENT' ? '사용액' : '금액'}</th>
+            {type === 'ADVANCE_SETTLEMENT' && <th className="w-[110px] text-right">반납/추가</th>}
+            <th className="w-[140px]">회계전표</th>
             <th>적요</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={11} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((v, i) => (
             <Fragment key={v.id}>
-              <tr onClick={() => setOpenId(openId === v.id ? null : v.id)} style={{ cursor: 'pointer' }}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>
+              <tr onClick={() => setOpenId(openId === v.id ? null : v.id)} className="cursor-pointer">
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td className="text-ec-blue font-semibold">
                   {openId === v.id ? '▾ ' : '▸ '}{v.voucherNo}
                 </td>
                 <td>{dateText(v.voucherDate)}</td>
-                <td style={{ textAlign: 'center' }}>{v.methodName}</td>
-                <td style={{ color: 'var(--ec-label)' }}>{v.bankAccountName ?? ''}</td>
+                <td className="text-center">{v.methodName}</td>
+                <td className="text-ec-label">{v.bankAccountName ?? ''}</td>
                 <td>{v.partnerName ?? ''}</td>
                 {type === 'ADVANCE_SETTLEMENT' && (
-                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{won(v.advanceAmount ?? 0)}</td>
+                  <td className="text-right text-ec-hint">{won(v.advanceAmount ?? 0)}</td>
                 )}
-                <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(v.totalAmount)}</td>
+                <td className="text-right font-bold">{won(v.totalAmount)}</td>
                 {type === 'ADVANCE_SETTLEMENT' && (
                   <td style={{ textAlign: 'right', fontWeight: 700, color: (v.balance ?? 0) < 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>
                     {(v.balance ?? 0) === 0 ? '-' : (v.balance ?? 0) > 0
                       ? `반납 ${won(v.balance ?? 0)}` : `추가 ${won(-(v.balance ?? 0))}`}
                   </td>
                 )}
-                <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{v.journalDocNo ?? ''}</td>
-                <td style={{ color: 'var(--ec-label)' }}>{v.description ?? ''}</td>
+                <td className="text-ec-blue">{v.journalDocNo ?? ''}</td>
+                <td className="text-ec-label">{v.description ?? ''}</td>
               </tr>
               {openId === v.id && (
                 <tr className="no-ec">
-                  <td colSpan={11} style={{ padding: 0, background: 'var(--ec-bg-page)' }}>
-                    <table className="w-full text-left" style={{ margin: '4px 0' }}>
+                  <td colSpan={11} className="p-0 bg-ec-page">
+                    <table className="w-full text-left my-[4px] mx-0">
                       <thead>
                         <tr>
-                          <th style={{ width: 34 }}></th>
-                          <th style={{ width: 140 }}>계정</th>
-                          <th style={{ width: 130, textAlign: 'right' }}>금액</th>
+                          <th className="w-[34px]"></th>
+                          <th className="w-[140px]">계정</th>
+                          <th className="w-[130px] text-right">금액</th>
                           <th>적요</th>
                         </tr>
                       </thead>
                       <tbody>
                         {v.lines.map((l) => (
                           <tr key={l.id}>
-                            <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{l.lineNo}</td>
+                            <td className="text-center text-ec-hint">{l.lineNo}</td>
                             <td>{l.accountCode} {l.accountName}</td>
-                            <td style={{ textAlign: 'right' }}>{won(l.amount)}</td>
-                            <td style={{ color: 'var(--ec-label)' }}>{l.description ?? ''}</td>
+                            <td className="text-right">{won(l.amount)}</td>
+                            <td className="text-ec-label">{l.description ?? ''}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -308,12 +308,12 @@ function VoucherForm({ type, accounts, banks, partners, onError, onSaved }: {
   }
 
   return (
-    <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginBottom: 8 }}>
-      <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>
+    <div className="border border-ec-line border-solid bg-white p-[14px] mb-[8px]">
+      <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">
         {TABS.find((t) => t.type === type)!.label} 작성
       </div>
 
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 12 }}>
+      <div className="flex gap-[12px] flex-wrap items-end mb-[12px]">
         <Field label="일자">
           <input className="ec-input" type="date" value={voucherDate} onChange={(e) => setVoucherDate(e.target.value)} style={{ width: 140 }} />
         </Field>
@@ -349,21 +349,21 @@ function VoucherForm({ type, accounts, banks, partners, onError, onSaved }: {
         </Field>
       </div>
 
-      <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ec-label)', marginBottom: 4 }}>{conf.title}</div>
+      <div className="text-[12.5px] font-bold text-ec-label mb-[4px]">{conf.title}</div>
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ width: 220 }}>계정</th>
-            <th style={{ width: 130, textAlign: 'right' }}>금액</th>
+            <th className="w-[34px]"></th>
+            <th className="w-[220px]">계정</th>
+            <th className="w-[130px] text-right">금액</th>
             <th>적요</th>
-            <th style={{ width: 40 }}></th>
+            <th className="w-[40px]"></th>
           </tr>
         </thead>
         <tbody>
           {lines.map((l, i) => (
             <tr key={i}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
               <td>
                 <select className="ec-input" value={l.accountId} onChange={(e) => setLine(i, { accountId: e.target.value })} style={{ width: '100%' }}>
                   <option value="">계정 선택</option>
@@ -376,7 +376,7 @@ function VoucherForm({ type, accounts, banks, partners, onError, onSaved }: {
               <td>
                 <input className="ec-input" value={l.description} onChange={(e) => setLine(i, { description: e.target.value })} style={{ width: '100%' }} />
               </td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 {lines.length > 1 && (
                   <button className="ec-btn" onClick={() => setLines((ls) => ls.filter((_, idx) => idx !== i))}>×</button>
                 )}
@@ -385,9 +385,9 @@ function VoucherForm({ type, accounts, banks, partners, onError, onSaved }: {
           ))}
         </tbody>
         <tfoot>
-          <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
-            <td colSpan={2} style={{ textAlign: 'right' }}>합계</td>
-            <td style={{ textAlign: 'right' }}>{won(total)}</td>
+          <tr className="font-bold bg-ec-page">
+            <td colSpan={2} className="text-right">합계</td>
+            <td className="text-right">{won(total)}</td>
             <td colSpan={2} style={{ color: balance === null ? 'var(--ec-text-hint)' : balance === 0 ? 'var(--ec-text-hint)' : balance > 0 ? 'var(--ec-success)' : 'var(--ec-danger)' }}>
               {balance === null ? '' : balance === 0 ? '가지급금과 사용액이 일치'
                 : balance > 0 ? `잔액 ${won(balance)} 반납` : `${won(-balance)} 추가 지급`}
@@ -396,10 +396,10 @@ function VoucherForm({ type, accounts, banks, partners, onError, onSaved }: {
         </tfoot>
       </table>
 
-      <div style={{ display: 'flex', gap: 6, marginTop: 8, alignItems: 'center' }}>
+      <div className="flex gap-[6px] mt-[8px] items-center">
         <button className="ec-btn" onClick={() => setLines((ls) => [...ls, emptyLine()])}>+ 행 추가</button>
         <button className="ec-btn ec-btn-primary" onClick={submit} disabled={saving}>{saving ? '저장 중…' : '저장(F8)'}</button>
-        <span style={{ fontSize: 11.5, color: 'var(--ec-text-hint)', marginLeft: 6 }}>※ {conf.hint} 계좌로 처리하면 계좌 잔액과 입출금 내역도 함께 움직입니다.</span>
+        <span className="text-[11.5px] text-ec-hint ml-[6px]">※ {conf.hint} 계좌로 처리하면 계좌 잔액과 입출금 내역도 함께 움직입니다.</span>
       </div>
     </div>
   )
@@ -407,8 +407,8 @@ function VoucherForm({ type, accounts, banks, partners, onError, onSaved }: {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label style={{ fontSize: 12.5 }}>
-      <div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>{label}</div>
+    <label className="text-[12.5px]">
+      <div className="text-ec-label mb-[3px]">{label}</div>
       {children}
     </label>
   )

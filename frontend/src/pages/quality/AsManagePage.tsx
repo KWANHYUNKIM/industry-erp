@@ -314,7 +314,7 @@ export default function AsManagePage() {
       onNew={() => setShowForm(true)}
       actions={[{ label: 'Excel' }, { label: '인쇄' }]}
     >
-      <p className="mb-2 text-xs text-slate-500">고객 제품의 A/S 접수·수리 관리 · 접수 → 처리중 → 완료 · 미완료 {openCount}건</p>
+      <p className="mb-2 text-xs text-ec-hint">고객 제품의 A/S 접수·수리 관리 · 접수 → 처리중 → 완료 · 미완료 {openCount}건</p>
 
       <Modal open={showForm} title="A/S 접수·수리 등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 12, marginBottom: 10, maxWidth: 820 }}>
@@ -370,19 +370,19 @@ export default function AsManagePage() {
               </tr>
             </tbody>
           </table>
-          {error && <p className="mt-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-          {ok && <p className="mt-2 rounded bg-green-50 px-3 py-2 text-sm text-green-700">{ok}</p>}
-          <div style={{ marginTop: 10 }}><button type="submit" className="ec-btn ec-btn-primary">접수(F8)</button></div>
+          {error && <p className="mt-2 rounded bg-ec-danger-bg px-3 py-2 text-sm text-ec-danger">{error}</p>}
+          {ok && <p className="mt-2 rounded bg-ec-success-bg px-3 py-2 text-sm text-ec-success">{ok}</p>}
+          <div className="mt-[10px]"><button type="submit" className="ec-btn ec-btn-primary">접수(F8)</button></div>
         </form>
       )}</Modal>
 
       <Modal error={error} open={!!partsFor} title={`소모부품 · ${partsFor?.asNo ?? ''}`} onClose={() => setPartsFor(null)}>{(
-        <div style={{ padding: 4, minWidth: 560 }}>
-          <p className="mb-2 text-xs text-slate-500">A/S 수리에 사용한 부품. 등록 시 창고 재고가 차감되고, 삭제 시 복원됩니다.</p>
+        <div className="p-[4px] min-w-[560px]">
+          <p className="mb-2 text-xs text-ec-hint">A/S 수리에 사용한 부품. 등록 시 창고 재고가 차감되고, 삭제 시 복원됩니다.</p>
           {/* 취소한 A/S 에는 부품을 못 쓴다 — 서버도 거절한다(QA 54회차). 지우기(재고 복원)는 그대로 된다. */}
           {partsFor?.status === 'CANCELED'
-            ? <p style={{ marginBottom: 10, fontSize: 12.5, color: 'var(--ec-text-hint)' }}>취소된 A/S 입니다 — 소모부품을 더 쓸 수 없습니다.</p>
-            : <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 10 }}>
+            ? <p className="mb-[10px] text-[12.5px] text-ec-hint">취소된 A/S 입니다 — 소모부품을 더 쓸 수 없습니다.</p>
+            : <div className="flex gap-[6px] flex-wrap items-end mb-[10px]">
             {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
             <CodePickerField label="부품(품목)" hideLabel width={180} placeholder="부품(품목)" emptyLabel="선택 해제"
                              value={partForm.itemId} onChange={(v) => setPartForm((f) => ({ ...f, itemId: v }))}
@@ -395,7 +395,7 @@ export default function AsManagePage() {
             <input className="ec-input text-right" type="number" placeholder="단가" value={partForm.unitPrice} onChange={(e) => setPartForm((f) => ({ ...f, unitPrice: e.target.value }))} style={{ width: 100 }} />
             <button className="ec-btn ec-btn-primary" onClick={addPart}>추가(재고차감)</button>
           </div>}
-          {partError && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{partError}</p>}
+          {partError && <p className="ec-alert ec-alert-danger mb-[8px]">{partError}</p>}
           <table className="w-full text-left">
             <thead>
               {/*
@@ -403,21 +403,21 @@ export default function AsManagePage() {
                 진작 있었는데 <b>격자에만 그 칸이 없었다</b> — 부품마다 왜 갈았는지를 적어 두고도
                 볼 수가 없었다.
               */}
-              <tr><th style={{ width: 34 }}></th><th>부품</th><th>창고</th><th style={{ textAlign: 'right' }}>수량</th><th style={{ textAlign: 'right' }}>단가</th><th style={{ textAlign: 'right' }}>금액</th><th style={{ width: 140 }}>적요</th><th style={{ textAlign: 'center' }}></th></tr>
+              <tr><th className="w-[34px]"></th><th>부품</th><th>창고</th><th className="text-right">수량</th><th className="text-right">단가</th><th className="text-right">금액</th><th className="w-[140px]">적요</th><th className="text-center"></th></tr>
             </thead>
             <tbody>
               {parts.length === 0 ? (
-                <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 14 }}>소모부품 없음</td></tr>
+                <tr><td colSpan={8} className="text-center text-ec-hint p-[14px]">소모부품 없음</td></tr>
               ) : parts.map((p, i) => (
                 <tr key={p.id}>
-                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+                  <td className="text-center text-ec-hint">{i + 1}</td>
                   <td>{p.itemName}</td>
                   <td>{p.warehouseName}</td>
-                  <td style={{ textAlign: 'right' }}>{won(p.quantity)}</td>
-                  <td style={{ textAlign: 'right' }}>{p.unitPrice != null ? won(p.unitPrice) : ''}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 600 }}>{p.amount != null ? won(p.amount) : ''}</td>
-                  <td style={{ color: 'var(--ec-label)' }}>{p.remark ?? ''}</td>
-                  <td style={{ textAlign: 'center' }}><button className="no-ec" onClick={() => delPart(p)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button></td>
+                  <td className="text-right">{won(p.quantity)}</td>
+                  <td className="text-right">{p.unitPrice != null ? won(p.unitPrice) : ''}</td>
+                  <td className="text-right font-semibold">{p.amount != null ? won(p.amount) : ''}</td>
+                  <td className="text-ec-label">{p.remark ?? ''}</td>
+                  <td className="text-center"><button className="no-ec" onClick={() => delPart(p)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button></td>
                 </tr>
               ))}
             </tbody>
@@ -425,83 +425,83 @@ export default function AsManagePage() {
         </div>
       )}</Modal>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)' }}>
+      <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label">
         {/* 원본 첫 줄은 <b>[기준일자]</b>(접수한 날)고 [수리예정일자]는 둘째 줄이다(2026-09-08 실측). */}
         <span>기준일자</span>
         <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-        <span style={{ color: 'var(--ec-text-hint)' }}>~</span>
+        <span className="text-ec-hint">~</span>
         <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
-        <span style={{ marginLeft: 8 }}>수리예정일자</span>
+        <span className="ml-[8px]">수리예정일자</span>
         <input type="date" className="ec-input" value={schedFrom} onChange={(e) => setSchedFrom(e.target.value)} style={{ width: 140 }} />
-        <span style={{ color: 'var(--ec-text-hint)' }}>~</span>
+        <span className="text-ec-hint">~</span>
         <input type="date" className="ec-input" value={schedTo} onChange={(e) => setSchedTo(e.target.value)} style={{ width: 140 }} />
         {/* 원본 차례: 수리예정일자 · <b>창고</b> · 거래처 · 품목 · 프로젝트 · 담당자 · 제목. */}
-        <span style={{ marginLeft: 8 }}>창고</span>
+        <span className="ml-[8px]">창고</span>
         <CodePickerField label="창고" hideLabel width={140} emptyLabel="전체"
                          value={whCond} onChange={setWhCond}
                          items={warehouses.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
         {/* 원본 차례: 창고 · (창고계층그룹) · <b>거래처 · 거래처그룹1</b> · 품목 · 품목구분 · 품목그룹1 · 프로젝트 … */}
-        <span style={{ marginLeft: 8 }}>거래처</span>
+        <span className="ml-[8px]">거래처</span>
         <CodePickerField label="거래처" hideLabel width={150} emptyLabel="전체"
                          value={partnerCond} onChange={setPartnerCond}
                          items={[...new Map(rows.map((r) => [r.partnerId, r.partnerName])).entries()]
                            .sort((a, b) => a[1].localeCompare(b[1], 'ko')).map(([id, n]) => ({ value: String(id), name: n }))} />
-        <span style={{ marginLeft: 8 }}>거래처그룹1</span>
+        <span className="ml-[8px]">거래처그룹1</span>
         <CodePickerField label="거래처그룹1" hideLabel width={140} emptyLabel="전체"
                          value={partnerGroupCond} onChange={setPartnerGroupCond}
                          items={pgroups.groupOptions.map((n) => ({ value: n, name: n }))} />
-        <span style={{ marginLeft: 8 }}>프로젝트</span>
+        <span className="ml-[8px]">프로젝트</span>
         <CodePickerField label="프로젝트" hideLabel width={150} emptyLabel="전체"
                          value={projCond} onChange={setProjCond}
                          items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
-        <span style={{ marginLeft: 8 }}>품목</span>
+        <span className="ml-[8px]">품목</span>
         <input className="ec-input" value={itemCond} onChange={(e) => setItemCond(e.target.value)}
                placeholder="품목" style={{ width: 150 }} />
-        <span style={{ marginLeft: 8 }}>품목구분</span>
+        <span className="ml-[8px]">품목구분</span>
         <CodePickerField label="품목구분" hideLabel width={130} emptyLabel="전체"
                          value={categoryCond} onChange={setCategoryCond}
                          items={[...new Set(rows.map((r) => r.itemCategoryName).filter(Boolean) as string[])].sort()
                            .map((n) => ({ value: n, name: n }))} />
-        <span style={{ marginLeft: 8 }}>품목그룹1</span>
+        <span className="ml-[8px]">품목그룹1</span>
         <CodePickerField label="품목그룹1" hideLabel width={130} emptyLabel="전체"
                          value={itemGroupCond} onChange={setItemGroupCond}
                          items={mgmt.groupOptions.map((n) => ({ value: n, name: n }))} />
-        <span style={{ marginLeft: 8 }}>담당자</span>
+        <span className="ml-[8px]">담당자</span>
         <input className="ec-input" value={chargeCond} onChange={(e) => setChargeCond(e.target.value)}
                placeholder="담당자" style={{ width: 150 }} />
-        <span style={{ marginLeft: 8 }}>제목</span>
+        <span className="ml-[8px]">제목</span>
         <input className="ec-input" value={titleCond} onChange={(e) => setTitleCond(e.target.value)}
                placeholder="제목" style={{ width: 170 }} />
         {/* 원본 차례: 제목 · (최종수정자) · 기타 · (발송여부) · 접수내용 · 적요 · 최초작성자 · 최초작성일자 · 최종작업일자 … */}
-        <span style={{ marginLeft: 8 }}>기타</span>
-        <label style={{ fontSize: 12.5, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+        <span className="ml-[8px]">기타</span>
+        <label className="text-[12.5px] inline-flex items-center gap-[4px]">
           <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
           수정일자순(정렬)
         </label>
-        <span style={{ marginLeft: 8 }}>접수내용</span>
+        <span className="ml-[8px]">접수내용</span>
         <input className="ec-input" value={symptomCond} onChange={(e) => setSymptomCond(e.target.value)}
                placeholder="접수내용" style={{ width: 150 }} />
-        <span style={{ marginLeft: 8 }}>적요</span>
+        <span className="ml-[8px]">적요</span>
         <input className="ec-input" value={remarkCond} onChange={(e) => setRemarkCond(e.target.value)}
                placeholder="적요" style={{ width: 150 }} />
-        <span style={{ marginLeft: 8 }}>최초작성자</span>
+        <span className="ml-[8px]">최초작성자</span>
         <CodePickerField label="최초작성자" hideLabel width={130} emptyLabel="전체"
                          value={authorCond} onChange={setAuthorCond}
                          items={[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
                            .map((n) => ({ value: n, name: n }))} />
-        <span style={{ marginLeft: 8 }}>최초작성일자</span>
+        <span className="ml-[8px]">최초작성일자</span>
         <input type="date" className="ec-input" value={madeFrom} onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
-        <span style={{ color: 'var(--ec-text-hint)' }}>~</span>
+        <span className="text-ec-hint">~</span>
         <input type="date" className="ec-input" value={madeTo} onChange={(e) => setMadeTo(e.target.value)} style={{ width: 140 }} />
-        <span style={{ marginLeft: 8 }}>최종작업일자</span>
+        <span className="ml-[8px]">최종작업일자</span>
         <input type="date" className="ec-input" value={editedFrom} onChange={(e) => setEditedFrom(e.target.value)} style={{ width: 140 }} />
-        <span style={{ color: 'var(--ec-text-hint)' }}>~</span>
+        <span className="text-ec-hint">~</span>
         <input type="date" className="ec-input" value={editedTo} onChange={(e) => setEditedTo(e.target.value)} style={{ width: 140 }} />
       </div>
 
       {/* 원본 A/S접수의 조건 이름은 <b>[접수진행상태]</b> 다 — 이 알약이 그 일을 한다. */}
-      <div style={{ display: 'flex', gap: 2, marginBottom: 8, alignItems: 'center' }}>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginRight: 6 }}>접수진행상태</span>
+      <div className="flex gap-[2px] mb-[8px] items-center">
+        <span className="text-[12.5px] text-ec-label mr-[6px]">접수진행상태</span>
         {(['ALL', 'RECEIVED', 'IN_PROGRESS', 'COMPLETED', 'CANCELED'] as const).map((s) => (
           <button key={s} onClick={() => setStatusFilter(s)} className="no-ec" style={{
             padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
@@ -513,59 +513,59 @@ export default function AsManagePage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th className="w-[34px]"></th>
             {/*
               원본 A/S접수의 첫 열은 <b>[일자-No.]</b> 한 칸이다 — 접수번호와 접수일을
               따로 두지 않는다(판매조회·견적서와 같은 관용구). 우리는 두 칸으로 갈라 두어
               <b>같은 값을 두 번</b> 보여 주고 있었다.
             */}
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('일자-No.')}>일자-No. {sort.mark('일자-No.')}</th><th>제목</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처')}>거래처명 {sort.mark('거래처')}</th><th>품목</th><th>증상</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('일자-No.')}>일자-No. {sort.mark('일자-No.')}</th><th>제목</th><th className="cursor-pointer" onClick={() => sort.toggle('거래처')}>거래처명 {sort.mark('거래처')}</th><th>품목</th><th>증상</th>
             {/* 원본 A/S접수의 이름은 [담당]·[상태]가 아니라 <b>[담당자명]·[진행상태]</b> 다(사본 실측). */}
             <th>담당자명</th><th>수리예정일자</th>
             {/* 원본 차례는 수리예정일자 <b>다음</b>이 [접수증] 이다(사본 실측). */}
-            <th style={{ width: 60, textAlign: 'center' }}>접수증</th>
+            <th className="w-[60px] text-center">접수증</th>
             {/* 원본 차례: 접수증 · <b>상세내역</b> · 진행상태 · <b>생성한 전표</b>. */}
-            <th style={{ width: 66, textAlign: 'center' }}>상세내역</th>
-            <th style={{ textAlign: 'center' }}>진행상태</th>
+            <th className="w-[66px] text-center">상세내역</th>
+            <th className="text-center">진행상태</th>
             {/*
               원본 [생성한 전표] — 그 접수에서 <b>나온 전표</b>로 건너뛴다.
               우리 A/S 는 부품을 쓸 때마다 재고 출고 전표를 남긴다(적요에 'A/S소모 접수번호').
               재고수불부를 그 번호로 걸러 연다 — 접수와 전표가 이어져 있는데 <b>건너갈 길만</b> 없었다.
             */}
-            <th style={{ width: 84, textAlign: 'center' }}>생성한 전표</th>
-            <th>완료일</th><th style={{ textAlign: 'center' }}>처리</th>
+            <th className="w-[84px] text-center">생성한 전표</th>
+            <th>완료일</th><th className="text-center">처리</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={14} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={14} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => [
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{dateNo(r)}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td>{dateNo(r)}</td>
               <td>{r.title ?? ''}</td>
               <td>{r.partnerName}</td>
               <td>{r.itemName}</td>
               <td>{r.symptom ?? ''}</td>
               <td>{r.charge ?? ''}</td>
               <td>{dateText(r.scheduledDate) || ''}</td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <button onClick={() => printAsReceipt(r)}
                         style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
               </td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <button onClick={() => toggleDetail(r)}
                         style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>
                   {openDetail === r.id ? '접기' : '펼치기'}
                 </button>
               </td>
               <td style={{ textAlign: 'center', color: COLOR[r.status], fontWeight: 700 }}>{r.statusName}</td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <Link to={`/inventory/ledger?keyword=${encodeURIComponent(r.asNo)}`}
                       style={{ color: 'var(--ec-blue)', fontSize: 12 }}>재고수불</Link>
               </td>
               <td>{dateText(r.doneDate) || ''}</td>
-              <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+              <td className="text-center whitespace-nowrap">
                 {NEXT[r.status] && <button className="no-ec" onClick={() => advance(r)} style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>→ {LABEL[NEXT[r.status]!]}</button>}
                 <button className="no-ec" onClick={() => openParts(r)} style={{ border: 'none', background: 'none', color: 'var(--ec-label)', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>부품</button>
                 {r.status !== 'COMPLETED' && r.status !== 'CANCELED' && <button className="no-ec" onClick={() => cancel(r)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>취소</button>}
@@ -574,28 +574,28 @@ export default function AsManagePage() {
             openDetail === r.id ? (
               /* 펼친 줄 — 그 접수에 쓴 부품. 아직 안 썼으면 그렇게 적는다(빈 표를 그리지 않는다). */
               <tr key={`${r.id}-detail`}>
-                <td colSpan={14} style={{ background: 'var(--ec-bg-page)', padding: '8px 14px' }}>
+                <td colSpan={14} className="bg-ec-page py-[8px] px-[14px]">
                   {detailParts.length === 0 ? (
-                    <span style={{ fontSize: 12, color: 'var(--ec-text-hint)' }}>쓴 부품이 없습니다.</span>
+                    <span className="text-[12px] text-ec-hint">쓴 부품이 없습니다.</span>
                   ) : (
-                    <table className="w-full text-left" style={{ maxWidth: 720 }}>
+                    <table className="w-full text-left max-w-[720px]">
                       <thead><tr>
-                        <th style={{ width: 34 }}></th><th>부품</th><th style={{ width: 120 }}>창고</th>
-                        <th style={{ width: 80, textAlign: 'right' }}>수량</th>
-                        <th style={{ width: 100, textAlign: 'right' }}>단가</th>
-                        <th style={{ width: 110, textAlign: 'right' }}>금액</th>
-                        <th style={{ width: 140 }}>적요</th>
+                        <th className="w-[34px]"></th><th>부품</th><th className="w-[120px]">창고</th>
+                        <th className="w-[80px] text-right">수량</th>
+                        <th className="w-[100px] text-right">단가</th>
+                        <th className="w-[110px] text-right">금액</th>
+                        <th className="w-[140px]">적요</th>
                       </tr></thead>
                       <tbody>
                         {detailParts.map((pt, k) => (
                           <tr key={pt.id}>
-                            <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{k + 1}</td>
+                            <td className="text-center text-ec-hint">{k + 1}</td>
                             <td>{pt.itemName}</td>
-                            <td style={{ color: 'var(--ec-label)' }}>{pt.warehouseName}</td>
-                            <td style={{ textAlign: 'right' }}>{won(pt.quantity)}</td>
-                            <td style={{ textAlign: 'right' }}>{pt.unitPrice != null ? won(pt.unitPrice) : ''}</td>
-                            <td style={{ textAlign: 'right', fontWeight: 600 }}>{pt.amount != null ? won(pt.amount) : ''}</td>
-                            <td style={{ color: 'var(--ec-label)' }}>{pt.remark ?? ''}</td>
+                            <td className="text-ec-label">{pt.warehouseName}</td>
+                            <td className="text-right">{won(pt.quantity)}</td>
+                            <td className="text-right">{pt.unitPrice != null ? won(pt.unitPrice) : ''}</td>
+                            <td className="text-right font-semibold">{pt.amount != null ? won(pt.amount) : ''}</td>
+                            <td className="text-ec-label">{pt.remark ?? ''}</td>
                           </tr>
                         ))}
                       </tbody>

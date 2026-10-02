@@ -89,29 +89,29 @@ export default function OrgChartPage() {
 
   return (
     <EcListShell title="조직도관리" actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+      <div className="flex items-center gap-[6px] mb-[8px]">
         <button className="ec-btn ec-btn-primary" onClick={() => setEditing('new')}>+ 부서 등록</button>
-        <span style={{ fontSize: 12, color: 'var(--ec-text-hint)' }}>부서를 클릭하면 소속 사원이 보입니다. 사원의 부서는 오른쪽에서 바로 바꿀 수 있습니다.</span>
+        <span className="text-[12px] text-ec-hint">부서를 클릭하면 소속 사원이 보입니다. 사원의 부서는 오른쪽에서 바로 바꿀 수 있습니다.</span>
       </div>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)' }}>{notice}</div>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
 
-      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+      <div className="flex gap-[10px] items-start">
         {/* 좌: 부서 트리 */}
         <div style={{ flex: '0 0 46%' }}>
           <table className="w-full text-left">
             <thead>
               <tr>
                 <th>부서 (조직도)</th>
-                <th style={{ width: 90 }}>부서코드</th>
-                <th style={{ width: 60, textAlign: 'right' }}>인원</th>
-                <th style={{ width: 90, textAlign: 'center' }}>처리</th>
+                <th className="w-[90px]">부서코드</th>
+                <th className="w-[60px] text-right">인원</th>
+                <th className="w-[90px] text-center">처리</th>
               </tr>
             </thead>
             <tbody>
               {tree.length === 0 ? (
-                <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>부서가 없습니다. 「부서 등록」으로 조직도를 만드세요.</td></tr>
+                <tr><td colSpan={4} className="text-center text-ec-hint p-[20px]">부서가 없습니다. 「부서 등록」으로 조직도를 만드세요.</td></tr>
               ) : tree.map((d) => (
                 <tr
                   key={d.id}
@@ -119,14 +119,14 @@ export default function OrgChartPage() {
                   style={{ cursor: 'pointer', background: selected === d.id ? 'var(--ec-blue-wash)' : undefined }}
                 >
                   <td style={{ paddingLeft: 8 + d.depth * 18 }}>
-                    <span style={{ color: 'var(--ec-text-off)', marginRight: 4 }}>{d.depth > 0 ? '└' : ''}</span>
+                    <span className="text-ec-off mr-[4px]">{d.depth > 0 ? '└' : ''}</span>
                     <span style={{ fontWeight: d.depth === 0 ? 700 : 400, color: d.active ? undefined : '#b0b6bd' }}>{d.name}</span>
                     {!d.active && <span style={{ marginLeft: 6, fontSize: 11, color: '#b0b6bd' }}>(비활성)</span>}
                   </td>
-                  <td style={{ fontFamily: 'monospace', color: 'var(--ec-text-hint)' }}>{d.code}</td>
-                  <td style={{ textAlign: 'right' }}>{d.employeeCount}</td>
-                  <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
-                    <div style={{ display: 'inline-flex', gap: 3 }}>
+                  <td className="text-ec-hint">{d.code}</td>
+                  <td className="text-right">{d.employeeCount}</td>
+                  <td className="text-center" onClick={(e) => e.stopPropagation()}>
+                    <div className="inline-flex gap-[3px]">
                       <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => setEditing(d)}>수정</button>
                       <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: 'var(--ec-danger)' }} onClick={() => remove(d)}>삭제</button>
                     </div>
@@ -136,35 +136,35 @@ export default function OrgChartPage() {
             </tbody>
           </table>
           {unassigned.length > 0 && (
-            <p style={{ marginTop: 8, fontSize: 12, color: 'var(--ec-danger)' }}>
+            <p className="mt-[8px] text-[12px] text-ec-danger">
               미배치 사원 {unassigned.length}명 —{' '}
-              <span onClick={() => setSelected(null)} style={{ cursor: 'pointer', textDecoration: 'underline' }}>보기</span>
+              <span onClick={() => setSelected(null)} className="cursor-pointer underline">보기</span>
             </p>
           )}
         </div>
 
         {/* 우: 소속 사원 */}
-        <div style={{ flex: 1 }}>
+        <div className="flex-1">
           <div style={{ padding: '6px 8px', background: 'var(--ec-bg-page)', border: '1px solid var(--ec-border)', borderBottom: 'none', fontSize: 12.5, fontWeight: 700, color: 'var(--ec-blue-dark)' }}>
             {selectedDept ? `${selectedDept.name} 소속 사원` : '미배치 사원'} ({members.length}명)
           </div>
           <table className="w-full text-left">
             <thead>
               <tr>
-                <th style={{ width: 34 }}></th>
+                <th className="w-[34px]"></th>
                 <th>사번</th>
                 <th>성명</th>
                 <th>직위</th>
-                <th style={{ width: 170 }}>부서 이동</th>
+                <th className="w-[170px]">부서 이동</th>
               </tr>
             </thead>
             <tbody>
               {members.length === 0 ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={5} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
               ) : members.map((e, i) => (
                 <tr key={e.id}>
-                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                  <td style={{ fontFamily: 'monospace' }}>{e.code}</td>
+                  <td className="text-center text-ec-hint">{i + 1}</td>
+                  <td>{e.code}</td>
                   <td>{e.name}</td>
                   <td>{e.jobTitle}</td>
                   <td>
@@ -243,30 +243,30 @@ function DepartmentForm({ department, departments, onClose, onSaved }: {
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 460, maxWidth: '94vw', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: 'var(--ec-bg-page)' }}>
-          <span style={{ fontWeight: 800, color: 'var(--ec-blue-dark)' }}>{department ? '부서 수정' : '부서 등록'}</span>
-          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: 'var(--ec-text-hint)' }}>×</span>
+        <div className="flex items-center py-[12px] px-[16px] border-b border-b-ec-line border-solid bg-ec-page">
+          <span className="font-extrabold text-ec-navy">{department ? '부서 수정' : '부서 등록'}</span>
+          <span onClick={onClose} className="ml-auto cursor-pointer text-[18px] text-ec-hint">×</span>
         </div>
-        <div style={{ padding: 16 }}>
-          {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+        <div className="p-[16px]">
+          {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
           <table className="w-full text-left">
             <tbody>
               <tr>
-                <th style={{ width: 90, background: 'var(--ec-bg-page)' }}>부서명<span style={{ color: 'var(--ec-danger)' }}>*</span></th>
+                <th className="w-[90px] bg-ec-page">부서명<span className="text-ec-danger">*</span></th>
                 <td><input className="ec-input" value={name} onChange={(e) => setName(e.target.value)} style={{ width: '100%' }} /></td>
               </tr>
               <tr>
-                <th style={{ background: 'var(--ec-bg-page)' }}>부서코드</th>
+                <th className="bg-ec-page">부서코드</th>
                 <td>
                   {department ? (
-                    <span style={{ fontFamily: 'monospace' }}>{department.code}</span>
+                    <span>{department.code}</span>
                   ) : (
                     <input className="ec-input" value={code} onChange={(e) => setCode(e.target.value)} placeholder="비우면 자동 채번 (DEPT-0001)" style={{ width: '100%' }} />
                   )}
                 </td>
               </tr>
               <tr>
-                <th style={{ background: 'var(--ec-bg-page)' }}>상위 부서</th>
+                <th className="bg-ec-page">상위 부서</th>
                 <td>
                   {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다. */}
                   <CodePickerField label="상위 부서" hideLabel width={200} emptyLabel="(최상위)"
@@ -275,14 +275,14 @@ function DepartmentForm({ department, departments, onClose, onSaved }: {
                 </td>
               </tr>
               <tr>
-                <th style={{ background: 'var(--ec-bg-page)' }}>표시 순서</th>
+                <th className="bg-ec-page">표시 순서</th>
                 <td><input className="ec-input" type="number" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} style={{ width: 100 }} /></td>
               </tr>
               {department && (
                 <tr>
-                  <th style={{ background: 'var(--ec-bg-page)' }}>사용</th>
+                  <th className="bg-ec-page">사용</th>
                   <td>
-                    <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <label className="text-[12.5px] flex items-center gap-[4px]">
                       <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} /> 사용
                     </label>
                   </td>
@@ -291,7 +291,7 @@ function DepartmentForm({ department, departments, onClose, onSaved }: {
             </tbody>
           </table>
         </div>
-        <div style={{ display: 'flex', gap: 6, padding: '10px 16px', borderTop: '1px solid var(--ec-border)' }}>
+        <div className="flex gap-[6px] py-[10px] px-[16px] border-t border-t-ec-line border-solid">
           <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>{saving ? '저장 중…' : '저장(F8)'}</button>
           <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={onClose}>닫기</button>
         </div>

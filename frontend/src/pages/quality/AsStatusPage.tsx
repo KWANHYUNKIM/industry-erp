@@ -198,9 +198,9 @@ export default function AsStatusPage() {
       onSearch={load}
       actions={[{ label: '새로고침', onClick: load }, { label: '인쇄' }, { label: 'Excel' }]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+      <div className="flex items-center gap-[8px] mb-[8px]">
         <button className="ec-btn" onClick={openPanel}>
           상세검색 {panelOpen ? '▲' : '▼'}{activeCount > 0 ? ` (${activeCount})` : ''}
         </button>
@@ -214,18 +214,18 @@ export default function AsStatusPage() {
                      view={view} onViewChange={setView} />
       )}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
-        건수 <b style={{ color: 'var(--ec-text)' }}>{shown.length.toLocaleString()}</b>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        건수 <b className="text-ec-text">{shown.length.toLocaleString()}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
         {STATUSES.map((s) => (
-          <span key={s} style={{ marginLeft: 8 }}>
+          <span key={s} className="ml-[8px]">
             {LABEL[s]} <b style={{ color: COLOR[s] }}>{stats.byStatus[s]}</b>
           </span>
         ))}
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
-        미완료 <b style={{ color: 'var(--ec-warn)', fontSize: 14 }}>{stats.open}</b>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
-        평균처리 <b style={{ color: 'var(--ec-text)' }}>{stats.avgDays === null ? '-' : `${stats.avgDays.toFixed(1)}일`}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
+        미완료 <b className="text-ec-warn text-[14px]">{stats.open}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
+        평균처리 <b className="text-ec-text">{stats.avgDays === null ? '-' : `${stats.avgDays.toFixed(1)}일`}</b>
       </div>
 
       {view === '그래프' ? (
@@ -249,9 +249,9 @@ export default function AsStatusPage() {
             증상·완료일·처리일수는 원본에 없지만 우리가 더 두는 열이다.
           */}
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ cursor: 'pointer', textAlign: 'center' }} onClick={() => sort.toggle('접수일')}>일자-No. {sort.mark('접수일')}</th>
-            <th style={{ textAlign: 'center' }}>진행상태</th>
+            <th className="w-[34px]"></th>
+            <th className="cursor-pointer text-center" onClick={() => sort.toggle('접수일')}>일자-No. {sort.mark('접수일')}</th>
+            <th className="text-center">진행상태</th>
             <th>창고명</th>
             <th>담당자명</th>
             <th>거래처명</th>
@@ -262,24 +262,24 @@ export default function AsStatusPage() {
             <th>적요</th>
             <th>증상</th>
             <th>완료일</th>
-            <th style={{ textAlign: 'right' }}>처리일수</th>
+            <th className="text-right">처리일수</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={14} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={14} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={14} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>
+            <tr><td colSpan={14} className="text-center text-ec-hint p-[20px]">
               {rows.length === 0 ? 'A/S 내역이 없습니다.' : '검색조건에 맞는 자료가 없습니다.'}
             </td></tr>
           ) : sort.sorted.map((r, i) => {
             const days = r.status === 'COMPLETED' ? daysBetween(r.receiptDate, r.doneDate) : null
             return (
               <tr key={r.id}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
                 {/* 원본은 일자와 번호를 한 칸에 적는다. */}
-                <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(r.receiptDate)} {r.asNo}</td>
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-center">{dateText(r.receiptDate)} {r.asNo}</td>
+                <td className="text-center">
                   <span style={{ color: COLOR[r.status], fontWeight: 700, fontSize: 12 }}>{r.statusName || LABEL[r.status]}</span>
                 </td>
                 <td style={{ color: r.warehouseName ? undefined : 'var(--ec-text-off)' }}>{r.warehouseName || ''}</td>
@@ -290,7 +290,7 @@ export default function AsStatusPage() {
                 {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다. */}
                 <td>{r.itemName}{r.itemSpec ? ' [' + r.itemSpec + ']' : ''}</td>
                 {/* 관리항목은 품목 마스터에 붙는 값이라 줄에는 없다 - itemId 로 화면에서 잇는다. */}
-                <td style={{ color: 'var(--ec-label)' }}>{mgmt.nameOf(r.itemId)}</td>
+                <td className="text-ec-label">{mgmt.nameOf(r.itemId)}</td>
                 {/* 원본 [적요] - A/S 전표의 적요는 수리내역이다(A/S소모현황과 같은 매핑). */}
                 <td style={{ color: r.repairNote ? 'var(--ec-label)' : 'var(--ec-text-off)', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.repairNote || ''}</td>
                 <td style={{ color: r.symptom ? undefined : 'var(--ec-text-off)', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.symptom || ''}</td>
@@ -334,10 +334,10 @@ function SearchPanel({
         <span style={label}>기준일자</span>
         <input type="date" className="ec-input" value={draft.dateFrom}
           onChange={(e) => onChange({ dateFrom: e.target.value })} style={{ width: 150 }} />
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-hint)' }}>~</span>
+        <span className="my-0 mx-[6px] text-ec-hint">~</span>
         <input type="date" className="ec-input" value={draft.dateTo}
           onChange={(e) => onChange({ dateTo: e.target.value })} style={{ width: 150 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={AS_PICKS} currentFrom={draft.dateFrom}
               onPick={(r) => onChange({ dateFrom: r.from, dateTo: r.to })} />
           </span>
@@ -353,7 +353,7 @@ function SearchPanel({
         <span style={label}>수리일자</span>
         <input type="date" className="ec-input" value={draft.doneFrom}
           onChange={(e) => onChange({ doneFrom: e.target.value })} style={{ width: 150 }} />
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-hint)' }}>~</span>
+        <span className="my-0 mx-[6px] text-ec-hint">~</span>
         <input type="date" className="ec-input" value={draft.doneTo}
           onChange={(e) => onChange({ doneTo: e.target.value })} style={{ width: 150 }} />
       </div>
@@ -421,7 +421,7 @@ function SearchPanel({
         <span style={label}>수리예정일자</span>
         <input type="date" className="ec-input" value={draft.schedFrom}
           onChange={(e) => onChange({ schedFrom: e.target.value })} style={{ width: 150 }} />
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-hint)' }}>~</span>
+        <span className="my-0 mx-[6px] text-ec-hint">~</span>
         <input type="date" className="ec-input" value={draft.schedTo}
           onChange={(e) => onChange({ schedTo: e.target.value })} style={{ width: 150 }} />
       </div>
@@ -449,7 +449,7 @@ function SearchPanel({
           ))}
         </div>
       </div>
-      <div style={{ display: 'flex', gap: 6, marginTop: 12, justifyContent: 'flex-end' }}>
+      <div className="flex gap-[6px] mt-[12px] justify-end">
         <button className="ec-btn" onClick={onReset}>초기화</button>
         <button className="ec-btn ec-btn-primary" onClick={onApply}>조회</button>
       </div>

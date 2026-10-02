@@ -78,38 +78,38 @@ export default function ProcessOperationModal({ processes, onClose }: {
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, width: 720, maxWidth: '92vw', maxHeight: '86vh', overflow: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}>
-        <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--ec-line-soft)', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
+        <div className="py-[10px] px-[14px] border-b border-b-ec-line-soft border-solid font-extrabold text-[14px] flex items-center">
           <span>작업코드등록</span>
           <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={onClose}>닫기</button>
         </div>
-        <div style={{ padding: 14 }}>
-          <p style={{ margin: '0 0 10px', fontSize: 12, color: 'var(--ec-label)' }}>
+        <div className="p-[14px]">
+          <p className="mt-0 mx-0 mb-[10px] text-[12px] text-ec-label">
             공정 안에서 하는 작업들입니다. BOR(작업소요시간)의 작업명을 여기서 골라 쓰면
             같은 작업이 여러 이름으로 갈라지지 않습니다.
           </p>
-          {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+          {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
           <form onSubmit={submit} style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid var(--ec-line-soft)' }}>
-            <label style={{ fontSize: 12.5 }}>
-              <div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>공정 *</div>
+            <label className="text-[12.5px]">
+              <div className="text-ec-label mb-[3px]">공정 *</div>
               <select className="ec-input" value={form.processId} style={{ width: 170 }}
                       onChange={(e) => setForm({ ...form, processId: e.target.value })}>
                 <option value="">선택</option>
                 {processes.filter((p) => p.active !== false).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </label>
-            <label style={{ fontSize: 12.5 }}>
-              <div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>작업코드 *</div>
+            <label className="text-[12.5px]">
+              <div className="text-ec-label mb-[3px]">작업코드 *</div>
               <input className="ec-input" value={form.code} style={{ width: 130 }}
                      onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="OP-010" />
             </label>
-            <label style={{ fontSize: 12.5, flex: 1, minWidth: 140 }}>
-              <div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>작업명 *</div>
+            <label className="text-[12.5px] flex-1 min-w-[140px]">
+              <div className="text-ec-label mb-[3px]">작업명 *</div>
               <input className="ec-input w-full" value={form.name}
                      onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </label>
-            <label style={{ fontSize: 12.5 }}>
-              <div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>순서</div>
+            <label className="text-[12.5px]">
+              <div className="text-ec-label mb-[3px]">순서</div>
               <input className="ec-input text-right" type="number" value={form.seq} style={{ width: 80 }}
                      onChange={(e) => setForm({ ...form, seq: e.target.value })} />
             </label>
@@ -125,27 +125,27 @@ export default function ProcessOperationModal({ processes, onClose }: {
           <table className="ec-grid w-full text-left">
             <thead>
               <tr>
-                <th style={{ width: 34 }}></th>
-                <th style={{ width: 140 }}>공정명</th>
-                <th style={{ width: 120 }}>작업코드</th>
+                <th className="w-[34px]"></th>
+                <th className="w-[140px]">공정명</th>
+                <th className="w-[120px]">작업코드</th>
                 <th>작업명</th>
-                <th style={{ width: 70, textAlign: 'right' }}>순서</th>
-                <th style={{ width: 80, textAlign: 'center' }}>관리</th>
+                <th className="w-[70px] text-right">순서</th>
+                <th className="w-[80px] text-center">관리</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+                <tr><td colSpan={6} className="ec-empty">불러오는 중…</td></tr>
               ) : rows.length === 0 ? (
-                <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
               ) : rows.map((r, i) => (
                 <tr key={r.id}>
-                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+                  <td className="text-center text-ec-hint">{i + 1}</td>
                   <td>{r.processName}</td>
-                  <td style={{ fontFamily: 'monospace' }}>{r.code}</td>
+                  <td>{r.code}</td>
                   <td>{r.name}</td>
-                  <td style={{ textAlign: 'right' }}>{r.seq}</td>
-                  <td style={{ textAlign: 'center' }}>
+                  <td className="text-right">{r.seq}</td>
+                  <td className="text-center">
                     <button onClick={() => {
                       setEditId(r.id)
                       setForm({ processId: String(r.processId), code: r.code, name: r.name, seq: String(r.seq) })

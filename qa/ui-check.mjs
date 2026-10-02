@@ -1824,8 +1824,9 @@ console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
      * 단가요청현황과 이름이 갈리면서 그렇게 됐고, 있는 열이 <b>없는 것</b>으로 잡혔다.
      */
     || head.match(new RegExp('<th\\b([^>]*)>\\s*\\{[^{}]*\'' + esc(name) + '\'[^{}]*\\}\\s*' + MARK_TAIL + '\\s*</th>'))
-  const alignOf = (attrs) => (/textAlign:\s*'right'/.test(attrs) ? '우'
-    : /textAlign:\s*'center'/.test(attrs) ? '중' : '좌')
+  // 정렬은 인라인(textAlign) 이든 클래스(text-right · text-center, CLAUDE.md 10.1) 든 읽는다
+  const alignOf = (attrs) => (/textAlign:\s*'right'|(?<![\w-])text-right(?![\w-])/.test(attrs) ? '우'
+    : /textAlign:\s*'center'|(?<![\w-])text-center(?![\w-])/.test(attrs) ? '중' : '좌')
 
   /**
    * <b>우리는 그리는데 검사가 못 보는 칸</b> — 왜인지 적는다.

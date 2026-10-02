@@ -95,21 +95,21 @@ export default function ExpenseListPage() {
         { label: '신규(F2)', onClick: () => navigate('/accounting/expense') },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
         <EcCond label="사용일자">
           <input type="date" className="ec-input" value={useFrom} disabled={!useUse} onChange={(e) => setUseFrom(e.target.value)} style={{ width: 145 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={useTo} disabled={!useUse} onChange={(e) => setUseTo(e.target.value)} style={{ width: 145 }} />
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginLeft: 8, fontSize: 12.5 }}>
+          <label className="inline-flex items-center gap-[3px] ml-[8px] text-[12.5px]">
             <input type="checkbox" checked={useUse} onChange={(e) => setUseUse(e.target.checked)} /> 사용
           </label>
         </EcCond>
@@ -132,11 +132,11 @@ export default function ExpenseListPage() {
           <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체" value={project} onChange={setProject} items={pickers.projects} />
         </EcCond>
         <EcCond label="회계반영여부">
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+          <label className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
             <input type="checkbox" checked={allOn} onChange={(e) => setReflected({ 미청구: e.target.checked, '미확인(회계)': e.target.checked, '확인(회계)': e.target.checked })} /> 전체
           </label>
           {(['미청구', '미확인(회계)', '확인(회계)'] as const).map((k) => (
-            <label key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+            <label key={k} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
               <input type="checkbox" checked={reflected[k]} onChange={(e) => setReflected((r) => ({ ...r, [k]: e.target.checked }))} /> {k}
             </label>
           ))}
@@ -149,29 +149,29 @@ export default function ExpenseListPage() {
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ textAlign: 'center' }}>전표번호</th>
+            <th className="w-[34px]"></th>
+            <th className="text-center">전표번호</th>
             <th>비용그룹명</th>
             <th>비용명</th>
             <th>사용자</th>
-            <th style={{ textAlign: 'right' }}>사용금액</th>
-            <th style={{ textAlign: 'center' }}>회계반영여부</th>
+            <th className="text-right">사용금액</th>
+            <th className="text-center">회계반영여부</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-              <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{dateText(r.expenseDate)} {r.docNo}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td className="text-center">{dateText(r.expenseDate)} {r.docNo}</td>
               <td>{r.accountGroupName ?? ''}</td>
               <td>{r.accountName}</td>
               <td>{r.createdBy ?? ''}</td>
-              <td style={{ textAlign: 'right' }}>{won(Number(r.amount))}</td>
-              <td style={{ textAlign: 'center' }}>확인(회계)</td>
+              <td className="text-right">{won(Number(r.amount))}</td>
+              <td className="text-center">확인(회계)</td>
             </tr>
           ))}
         </tbody>

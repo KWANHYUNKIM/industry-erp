@@ -311,11 +311,11 @@ export default function PurchaseOrderStatusPage() {
       onSearch={load}
       actions={[{ label: '새로고침', onClick: load }, { label: '인쇄' }, { label: 'Excel' }]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+      <div className="flex items-center gap-[8px] mb-[8px]">
         {/* 원본 조건 판 첫째 <b>[구분]</b> — 내역·집계(사본 실측). */}
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>구분</span>
+        <span className="text-[12.5px] text-ec-label">구분</span>
         <div className="ec-pills">
           {(['내역', '집계'] as const).map((m) => (
             <button key={m} type="button" className={`ec-pill no-ec${mode === m ? ' active' : ''}`}
@@ -353,18 +353,18 @@ export default function PurchaseOrderStatusPage() {
         />
       )}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
-        건수 <b style={{ color: 'var(--ec-text)' }}>{shown.length.toLocaleString()}</b>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        건수 <b className="text-ec-text">{shown.length.toLocaleString()}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
         {/*
           <b>합계줄의 말이 조건 이름과 같으면 안 된다.</b> [수량]·[공급가액]·[부가세]를
           조건으로 만들고 나니, 합계줄에 적힌 같은 글자가 <b>조건 판보다 위에</b> 있어
           조건 차례가 어긋난 것으로 읽혔다. 합계는 '총' 을 붙여 구분한다.
         */}
-        총수량 <b style={{ color: 'var(--ec-text)', fontSize: 14 }}>{totals.qty.toLocaleString()}</b>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+        총수량 <b className="text-ec-text text-[14px]">{totals.qty.toLocaleString()}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
         총공급가액 <b style={{ color: '#1c6b32', fontSize: 14 }}>{totals.supply.toLocaleString()}</b>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
         총부가세 <b style={{ color: '#1c6b32', fontSize: 14 }}>{totals.vat.toLocaleString()}</b>
       </div>
       {view === '그래프' ? (
@@ -378,39 +378,39 @@ export default function PurchaseOrderStatusPage() {
         <table ref={aggRef} className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
+              <th className="w-[34px]"></th>
               <th>{group1}</th>
               {group2 && <th>{group2}</th>}
-              <th style={{ width: 90, textAlign: 'right' }}>건수</th>
-              <th style={{ width: 110, textAlign: 'right' }}>수량</th>
-              <th style={{ width: 130, textAlign: 'right' }}>공급가액</th>
-              <th style={{ width: 130, textAlign: 'right' }}>부가세</th>
-              <th style={{ width: 130, textAlign: 'right' }}>합계</th>
+              <th className="w-[90px] text-right">건수</th>
+              <th className="w-[110px] text-right">수량</th>
+              <th className="w-[130px] text-right">공급가액</th>
+              <th className="w-[130px] text-right">부가세</th>
+              <th className="w-[130px] text-right">합계</th>
             </tr>
           </thead>
           <tbody>
             {grouped.length === 0 ? (
-              <tr><td colSpan={group2 ? 8 : 7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={group2 ? 8 : 7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : grouped.map((g, i) => (
               <tr key={`${g.g1}|${g.g2}`}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)', background: 'var(--ec-report-stripe)' }}>{i + 1}</td>
+                <td className="text-center text-ec-hint bg-ec-stripe">{i + 1}</td>
                 <td>{g.g1}</td>
                 {group2 && <td>{g.g2}</td>}
-                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{g.count.toLocaleString()}</td>
-                <td style={{ textAlign: 'right' }}>{g.qty.toLocaleString()}</td>
-                <td style={{ textAlign: 'right' }}>{g.supply.toLocaleString()}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{g.vat.toLocaleString()}</td>
+                <td className="text-right text-ec-hint">{g.count.toLocaleString()}</td>
+                <td className="text-right">{g.qty.toLocaleString()}</td>
+                <td className="text-right">{g.supply.toLocaleString()}</td>
+                <td className="text-right text-ec-hint">{g.vat.toLocaleString()}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700, color: '#1c6b32' }}>{(g.supply + g.vat).toLocaleString()}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={group2 ? 3 : 2} style={{ textAlign: 'right' }}>합계 ({grouped.length}개 그룹)</td>
-              <td style={{ textAlign: 'right' }}>{grouped.reduce((a, g) => a + g.count, 0).toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{grouped.reduce((a, g) => a + g.qty, 0).toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{totals.supply.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{totals.vat.toLocaleString()}</td>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={group2 ? 3 : 2} className="text-right">합계 ({grouped.length}개 그룹)</td>
+              <td className="text-right">{grouped.reduce((a, g) => a + g.count, 0).toLocaleString()}</td>
+              <td className="text-right">{grouped.reduce((a, g) => a + g.qty, 0).toLocaleString()}</td>
+              <td className="text-right">{totals.supply.toLocaleString()}</td>
+              <td className="text-right">{totals.vat.toLocaleString()}</td>
               <td style={{ textAlign: 'right', color: '#1c6b32' }}>{(totals.supply + totals.vat).toLocaleString()}</td>
             </tr>
           </tfoot>
@@ -427,60 +427,60 @@ export default function PurchaseOrderStatusPage() {
             납기·창고·담당자·상태·부가세는 원본에 없지만 우리가 더 두는 열이다.
           */}
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ cursor: 'pointer', textAlign: 'center' }} onClick={() => sort.toggle('발주일자')}>일자-No. {sort.mark('발주일자')}</th>
+            <th className="w-[34px]"></th>
+            <th className="cursor-pointer text-center" onClick={() => sort.toggle('발주일자')}>일자-No. {sort.mark('발주일자')}</th>
             <th>납기</th>
             <th>창고</th>
             <th>담당자</th>
-            <th style={{ textAlign: 'center' }}>상태</th>
+            <th className="text-center">상태</th>
             <th>품목명[규격]</th>
-            <th style={{ textAlign: 'right' }}>수량</th>
-            <th style={{ textAlign: 'right' }}>단가</th>
-            <th style={{ textAlign: 'right' }}>공급가액</th>
-            <th style={{ textAlign: 'right' }}>부가세</th>
+            <th className="text-right">수량</th>
+            <th className="text-right">단가</th>
+            <th className="text-right">공급가액</th>
+            <th className="text-right">부가세</th>
             <th>거래처</th>
             <th>적요</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={13} className="ec-empty">불러오는 중…</td></tr>
           /* 그리는 것을 보고 판단한다 - 소계를 끼우는 사이에 shown 과 갈라질 수 있다. */
           ) : lineRows.length === 0 ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>
+            <tr><td colSpan={13} className="text-center text-ec-hint p-[20px]">
               {rows.length === 0 ? '발주 내역이 없습니다.' : '검색조건에 맞는 자료가 없습니다.'}
             </td></tr>
           ) : lineRows.map((x) => x.kind === 'subtotal' ? (
             <tr key={x.key} style={{ background: '#f3f6fa', fontWeight: 700 }}>
-              <td colSpan={7} style={{ textAlign: 'right' }}>{x.month} 계</td>
-              <td style={{ textAlign: 'right' }}>{x.qty.toLocaleString()}</td>
+              <td colSpan={7} className="text-right">{x.month} 계</td>
+              <td className="text-right">{x.qty.toLocaleString()}</td>
               <td></td>
-              <td style={{ textAlign: 'right' }}>{x.supply.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{x.vat.toLocaleString()}</td>
+              <td className="text-right">{x.supply.toLocaleString()}</td>
+              <td className="text-right">{x.vat.toLocaleString()}</td>
               <td colSpan={2}></td>
             </tr>
           ) : (
             <tr key={x.key}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{x.no}</td>
+              <td className="text-center text-ec-hint">{x.no}</td>
               {/* 원본은 일자와 번호를 '2026/09/04 -1' 처럼 한 칸에 적는다. */}
-              <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(x.r.date)} {x.r.orderNo}</td>
+              <td className="text-center">{dateText(x.r.date)} {x.r.orderNo}</td>
               <td style={{ fontFamily: 'monospace', color: x.r.dueDate ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{dateText(x.r.dueDate) || ''}</td>
               <td style={{ color: x.r.warehouse ? undefined : 'var(--ec-text-off)' }}>{x.r.warehouse || ''}</td>
               <td style={{ color: x.r.employee ? undefined : 'var(--ec-text-off)' }}>{x.r.employee || ''}</td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <span style={{ color: STATUS_COLOR[x.r.status], fontWeight: 600, fontSize: 12 }}>
                   {x.r.statusName || STATUS_LABEL[x.r.status]}
                 </span>
               </td>
               {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다 — 우리는 진작 들고 있으면서 안 찍고 있었다. */}
               <td>{x.r.itemName}{x.r.spec ? ` [${x.r.spec}]` : ''}</td>
-              <td style={{ textAlign: 'right' }}>{x.r.qty.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{x.r.unitPrice.toLocaleString()}</td>
+              <td className="text-right">{x.r.qty.toLocaleString()}</td>
+              <td className="text-right">{x.r.unitPrice.toLocaleString()}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: '#1c6b32' }}>{x.r.supply.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{x.r.vat.toLocaleString()}</td>
+              <td className="text-right text-ec-hint">{x.r.vat.toLocaleString()}</td>
               <td>{x.r.partner}</td>
               {/* 줄 적요가 있으면 그것을, 없으면 전표 적요를 찍는다 — 둘 다 진작 받아 두고 있었다. */}
-              <td style={{ color: 'var(--ec-label)' }}>{x.r.lineRemark || x.r.headRemark || ''}</td>
+              <td className="text-ec-label">{x.r.lineRemark || x.r.headRemark || ''}</td>
             </tr>
           ))}
         </tbody>
@@ -526,7 +526,7 @@ function SearchPanel({
         <span style={label}>기준일자</span>
         <input type="date" className="ec-input" value={draft.dateFrom}
           onChange={(e) => onChange({ dateFrom: e.target.value })} style={{ width: 150 }} />
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-hint)' }}>~</span>
+        <span className="my-0 mx-[6px] text-ec-hint">~</span>
         <input type="date" className="ec-input" value={draft.dateTo}
           onChange={(e) => onChange({ dateTo: e.target.value })} style={{ width: 150 }} />
       </div>
@@ -551,7 +551,7 @@ function SearchPanel({
         <span style={label}>품목별납기일자</span>
         <input type="date" className="ec-input" value={draft.dueFrom}
           onChange={(e) => onChange({ dueFrom: e.target.value })} style={{ width: 150 }} />
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-hint)' }}>~</span>
+        <span className="my-0 mx-[6px] text-ec-hint">~</span>
         <input type="date" className="ec-input" value={draft.dueTo}
           onChange={(e) => onChange({ dueTo: e.target.value })} style={{ width: 150 }} />
       </div>
@@ -630,7 +630,7 @@ function SearchPanel({
         <span style={label}>수량</span>
         <input className="ec-input" type="number" value={draft.qtyFrom}
           onChange={(e) => onChange({ qtyFrom: e.target.value })} style={{ width: 110, textAlign: 'right' }} />
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-hint)' }}>~</span>
+        <span className="my-0 mx-[6px] text-ec-hint">~</span>
         <input className="ec-input" type="number" value={draft.qtyTo}
           onChange={(e) => onChange({ qtyTo: e.target.value })} style={{ width: 110, textAlign: 'right' }} />
       </div>
@@ -638,7 +638,7 @@ function SearchPanel({
         <span style={label}>단가</span>
         <input className="ec-input" type="number" value={draft.priceFrom}
           onChange={(e) => onChange({ priceFrom: e.target.value })} style={{ width: 110, textAlign: 'right' }} />
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-hint)' }}>~</span>
+        <span className="my-0 mx-[6px] text-ec-hint">~</span>
         <input className="ec-input" type="number" value={draft.priceTo}
           onChange={(e) => onChange({ priceTo: e.target.value })} style={{ width: 110, textAlign: 'right' }} />
       </div>
@@ -646,7 +646,7 @@ function SearchPanel({
         <span style={label}>공급가액</span>
         <input className="ec-input" type="number" value={draft.supplyFrom}
           onChange={(e) => onChange({ supplyFrom: e.target.value })} style={{ width: 130, textAlign: 'right' }} />
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-hint)' }}>~</span>
+        <span className="my-0 mx-[6px] text-ec-hint">~</span>
         <input className="ec-input" type="number" value={draft.supplyTo}
           onChange={(e) => onChange({ supplyTo: e.target.value })} style={{ width: 130, textAlign: 'right' }} />
       </div>
@@ -654,7 +654,7 @@ function SearchPanel({
         <span style={label}>부가세</span>
         <input className="ec-input" type="number" value={draft.vatFrom}
           onChange={(e) => onChange({ vatFrom: e.target.value })} style={{ width: 130, textAlign: 'right' }} />
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-hint)' }}>~</span>
+        <span className="my-0 mx-[6px] text-ec-hint">~</span>
         <input className="ec-input" type="number" value={draft.vatTo}
           onChange={(e) => onChange({ vatTo: e.target.value })} style={{ width: 130, textAlign: 'right' }} />
       </div>
@@ -675,7 +675,7 @@ function SearchPanel({
           <option value="RECEIVED">입고전환</option>
           <option value="CANCELLED">취소</option>
         </select>
-        <label style={{ fontSize: 12.5, color: 'var(--ec-text)', display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', marginLeft: 20 }}>
+        <label className="text-[12.5px] text-ec-text flex items-center gap-[5px] cursor-pointer ml-[20px]">
           <input type="checkbox" checked={draft.sortByDoc}
             onChange={(e) => onChange({ sortByDoc: e.target.checked })} />
           발주번호순(정렬)
@@ -695,7 +695,7 @@ function SearchPanel({
           ))}
         </div>
       </div>
-      <div style={{ display: 'flex', gap: 6, marginTop: 12, justifyContent: 'flex-end' }}>
+      <div className="flex gap-[6px] mt-[12px] justify-end">
         <button className="ec-btn" onClick={onReset}>초기화</button>
         <button className="ec-btn ec-btn-primary" onClick={onApply}>조회</button>
       </div>

@@ -78,7 +78,7 @@ export default function ApprovalFormFields({
             <tr key={head.key}>
               <td className="doc-label" colSpan={LABEL_SPAN}>
                 {head.rowLabel ?? head.label}
-                {group.some((f) => f.required) && <span style={{ color: 'var(--ec-danger)', marginLeft: 2 }}>*</span>}
+                {group.some((f) => f.required) && <span className="text-ec-danger ml-[2px]">*</span>}
               </td>
               <td colSpan={COLS - LABEL_SPAN}>
                 {group.length === 1 && head.type === 'table' ? (
@@ -90,7 +90,7 @@ export default function ApprovalFormFields({
                     onRemove={(i) => removeRow(head, i)}
                   />
                 ) : (
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span className="flex items-center gap-[6px]">
                     {group.map((f, i) => (
                       <span key={f.key} style={{ display: 'contents' }}>
                         {i > 0 && f.sep && <span style={{ flex: '0 0 auto' }}>{f.sep}</span>}
@@ -164,19 +164,19 @@ function TableField({
 
   return (
     <div>
-      <table className="w-full text-left" style={{ marginBottom: 4 }}>
+      <table className="w-full text-left mb-[4px]">
         <thead>
           <tr>
             {columns.map((c) => (
               <th key={c.key}>{c.label}</th>
             ))}
-            <th style={{ width: 40 }} />
+            <th className="w-[40px]" />
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 && (
             <tr>
-              <td colSpan={columns.length + 1} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 10 }}>
+              <td colSpan={columns.length + 1} className="text-center text-ec-hint p-[10px]">
                 행을 추가하세요.
               </td>
             </tr>
@@ -196,7 +196,7 @@ function TableField({
                   />
                 </td>
               ))}
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <button className="ec-btn" onClick={() => onRemove(i)} title="행 삭제">
                   ×
                 </button>
@@ -205,13 +205,13 @@ function TableField({
           ))}
           {total !== null && (
             <tr>
-              <td colSpan={Math.max(1, columns.length - 1)} style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>
+              <td colSpan={Math.max(1, columns.length - 1)} className="text-right font-bold bg-ec-page">
                 {field.totalLabel ?? '합계'}
               </td>
-              <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>
+              <td className="text-right font-bold bg-ec-page">
                 {total.toLocaleString()}
               </td>
-              <td style={{ background: 'var(--ec-bg-page)' }} />
+              <td className="bg-ec-page" />
             </tr>
           )}
         </tbody>

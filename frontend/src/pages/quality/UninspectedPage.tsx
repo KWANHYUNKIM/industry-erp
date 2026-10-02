@@ -85,11 +85,11 @@ export default function UninspectedPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="일자(영업주기)">
           <input type="date" className="ec-input" value={asOf} onChange={(e) => setAsOf(e.target.value)} style={{ width: 145 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={asOf} onPick={(r) => setAsOf(r.to)} />
           </span>
         </EcCond>
@@ -104,51 +104,51 @@ export default function UninspectedPage() {
         </EcCond>
         <EcCond label="미검사수량">
           <input className="ec-input" inputMode="decimal" value={qtyFrom} onChange={(e) => setQtyFrom(e.target.value)} style={{ width: 90 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input className="ec-input" inputMode="decimal" value={qtyTo} onChange={(e) => setQtyTo(e.target.value)} style={{ width: 90 }} />
         </EcCond>
       </ul>
 
-      <h3 style={{ fontSize: 13, fontWeight: 700, margin: '4px 0 6px' }}>
-        미검사현황 <span style={{ fontWeight: 400, color: 'var(--ec-text-hint)' }}>~ {dateText(asOf)}</span>
+      <h3 className="text-[13px] font-bold mt-[4px] mx-0 mb-[6px]">
+        미검사현황 <span className="font-normal text-ec-hint">~ {dateText(asOf)}</span>
       </h3>
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ textAlign: 'center' }}>일자-No.</th>
+            <th className="text-center">일자-No.</th>
             <th>담당자명</th>
             <th>품목명(규격)</th>
-            <th style={{ textAlign: 'right' }}>수량</th>
-            <th style={{ textAlign: 'right' }}>미검사수량</th>
+            <th className="text-right">수량</th>
+            <th className="text-right">미검사수량</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={5} className="ec-empty">불러오는 중…</td></tr>
           ) : months.length === 0 ? (
-            <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={5} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : months.flatMap((g) => [
             ...g.rs.map((r) => (
               <tr key={r.id}>
-                <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{dateText(r.requestDate)} {r.requestNo}</td>
+                <td className="text-center">{dateText(r.requestDate)} {r.requestNo}</td>
                 <td>{r.requester ?? ''}</td>
                 <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
-                <td style={{ textAlign: 'right' }}>{qty(Number(r.requestQty))}</td>
-                <td style={{ textAlign: 'right' }}>{qty(Number(r.requestQty))}</td>
+                <td className="text-right">{qty(Number(r.requestQty))}</td>
+                <td className="text-right">{qty(Number(r.requestQty))}</td>
               </tr>
             )),
             <tr key={`sub-${g.m}`} style={SUB_ROW}>
-              <td colSpan={3} style={{ textAlign: 'center' }}>{g.m.replace('-', '/')} 계</td>
-              <td style={{ textAlign: 'right' }}>{qty(g.sum)}</td>
-              <td style={{ textAlign: 'right' }}>{qty(g.sum)}</td>
+              <td colSpan={3} className="text-center">{g.m.replace('-', '/')} 계</td>
+              <td className="text-right">{qty(g.sum)}</td>
+              <td className="text-right">{qty(g.sum)}</td>
             </tr>,
           ])}
         </tbody>
         <tfoot>
           <tr style={SUB_ROW}>
-            <td colSpan={3} style={{ textAlign: 'center' }}>총합계</td>
-            <td style={{ textAlign: 'right' }}>{qty(total)}</td>
-            <td style={{ textAlign: 'right' }}>{qty(total)}</td>
+            <td colSpan={3} className="text-center">총합계</td>
+            <td className="text-right">{qty(total)}</td>
+            <td className="text-right">{qty(total)}</td>
           </tr>
         </tfoot>
       </table>

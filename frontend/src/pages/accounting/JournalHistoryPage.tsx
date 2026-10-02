@@ -117,7 +117,7 @@ export default function JournalHistoryPage() {
     setRemark(''); setDocNo(''); setWorker(''); setAct(''); setOkOn(true); setApprOn(true); setUncheckedOn(true); setLastOnly(true); setByModified(false)
   }
   const check = (label: string, v: boolean, set: (b: boolean) => void) => (
-    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+    <label className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
       <input type="checkbox" checked={v} onChange={(e) => set(e.target.checked)} /> {label}
     </label>
   )
@@ -132,24 +132,24 @@ export default function JournalHistoryPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="작업일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
         <EcCond label="작업시간">
           <input type="time" className="ec-input" value={timeFrom} disabled={!useTime} onChange={(e) => setTimeFrom(e.target.value)} style={{ width: 110 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="time" className="ec-input" value={timeTo} disabled={!useTime} onChange={(e) => setTimeTo(e.target.value)} style={{ width: 110, marginRight: 8 }} />
           {check('사용', useTime, setUseTime)}
         </EcCond>
         <EcCond label="전표상태">
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+          <label className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
             <input type="checkbox" checked={okOn && apprOn && uncheckedOn} onChange={(e) => { setOkOn(e.target.checked); setApprOn(e.target.checked); setUncheckedOn(e.target.checked) }} /> 전체
           </label>
           {check('전자결재', apprOn, setApprOn)}
@@ -171,7 +171,7 @@ export default function JournalHistoryPage() {
         </EcCond>
         <EcCond label="금액">
           <input className="ec-input" inputMode="decimal" value={amtFrom} onChange={(e) => setAmtFrom(e.target.value)} style={{ width: 110 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input className="ec-input" inputMode="decimal" value={amtTo} onChange={(e) => setAmtTo(e.target.value)} style={{ width: 110 }} />
         </EcCond>
         <EcCond label="적요">
@@ -199,41 +199,41 @@ export default function JournalHistoryPage() {
         </EcCond>
       </ul>
 
-      {truncated && <p style={{ fontSize: 12, color: 'var(--ec-warn)', marginBottom: 6 }}>전표가 많아 앞부분만 받았습니다.</p>}
+      {truncated && <p className="text-[12px] text-ec-warn mb-[6px]">전표가 많아 앞부분만 받았습니다.</p>}
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ textAlign: 'center' }}>작업일자</th>
-            <th style={{ textAlign: 'center' }}>전표번호</th>
+            <th className="text-center">작업일자</th>
+            <th className="text-center">전표번호</th>
             <th>거래유형</th>
-            <th style={{ textAlign: 'right' }}>금액</th>
-            <th style={{ textAlign: 'center' }}>행위</th>
+            <th className="text-right">금액</th>
+            <th className="text-center">행위</th>
             <th>거래처코드</th>
             <th>거래처명</th>
             <th>적요</th>
             <th>작업자</th>
-            <th style={{ textAlign: 'center' }}>전표상태</th>
-            <th style={{ textAlign: 'center' }}>이력</th>
+            <th className="text-center">전표상태</th>
+            <th className="text-center">이력</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={11} className="ec-empty">불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((r) => (
             <tr key={r.key}>
-              <td style={{ textAlign: 'center' }}>{slash(r.at.slice(0, 10))}</td>
-              <td style={{ textAlign: 'center', color: 'var(--ec-blue)' }}>{slash(r.e.entryDate)} -{r.e.docNo}</td>
+              <td className="text-center">{slash(r.at.slice(0, 10))}</td>
+              <td className="text-center text-ec-blue">{slash(r.e.entryDate)} -{r.e.docNo}</td>
               <td>{r.e.sourceTypeName}</td>
-              <td style={{ textAlign: 'right' }}>{won(Number(r.e.totalDebit))}</td>
-              <td style={{ textAlign: 'center' }}>{r.act}</td>
+              <td className="text-right">{won(Number(r.e.totalDebit))}</td>
+              <td className="text-center">{r.act}</td>
               <td>{r.e.partnerId != null ? codeOf.get(r.e.partnerId) ?? '' : ''}</td>
               <td>{r.e.partnerName ?? ''}</td>
               <td>{r.e.description ?? ''}</td>
               <td>{r.e.createdBy ?? ''}</td>
-              <td style={{ textAlign: 'center' }}>확인</td>
-              <td style={{ textAlign: 'center', color: 'var(--ec-blue)' }}>H</td>
+              <td className="text-center">확인</td>
+              <td className="text-center text-ec-blue">H</td>
             </tr>
           ))}
         </tbody>

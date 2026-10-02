@@ -77,13 +77,13 @@ export default function StagedProgressPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={STAGED_PROGRESS_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
@@ -99,7 +99,7 @@ export default function StagedProgressPage() {
         </EcCond>
         <EcCond label="재고조정여부">
           {(['전체', '조정', '미조정'] as const).map((v) => (
-            <label key={v} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+            <label key={v} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
               <input type="radio" name="staged-adjusted" checked={adjusted === v} onChange={() => setAdjusted(v)} /> {v}
             </label>
           ))}
@@ -109,34 +109,34 @@ export default function StagedProgressPage() {
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ textAlign: 'center' }}>실사전표</th>
+            <th className="text-center">실사전표</th>
             <th>담당자</th>
             <th>품목</th>
-            <th style={{ textAlign: 'center' }}>진행단계</th>
+            <th className="text-center">진행단계</th>
             <th>창고명</th>
-            <th style={{ textAlign: 'right' }}>장부수량</th>
-            <th style={{ textAlign: 'right' }}>실사수량</th>
-            <th style={{ textAlign: 'right' }}>차이</th>
+            <th className="text-right">장부수량</th>
+            <th className="text-right">실사수량</th>
+            <th className="text-right">차이</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center' }}>{dateText(r.requestDate)}</td>
+              <td className="text-center">{dateText(r.requestDate)}</td>
               <td>{r.requester ?? ''}</td>
               <td>{r.itemName}</td>
-              <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+              <td className="text-center whitespace-nowrap">
                 <span style={pill(r.status !== 'APPLIED')}>실사</span>
                 <span style={pill(r.status === 'APPLIED')}>조정</span>
               </td>
               <td>{r.warehouseName}</td>
-              <td style={{ textAlign: 'right' }}>{num(Number(r.bookQty))}</td>
-              <td style={{ textAlign: 'right' }}>{num(Number(r.actualQty))}</td>
-              <td style={{ textAlign: 'right' }}>{num(Number(r.diff))}</td>
+              <td className="text-right">{num(Number(r.bookQty))}</td>
+              <td className="text-right">{num(Number(r.actualQty))}</td>
+              <td className="text-right">{num(Number(r.diff))}</td>
             </tr>
           ))}
         </tbody>

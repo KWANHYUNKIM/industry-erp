@@ -213,7 +213,7 @@ export default function WorkResultInquiryPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <div className="ec-pills" style={{ marginBottom: 8 }}>
         <button type="button" className="ec-pill no-ec active">전체</button>
@@ -223,9 +223,9 @@ export default function WorkResultInquiryPage() {
         {/* 원본은 이 줄을 <b>[기준일자]</b> 라 부른다(2026-09-08 실측). [작업일자]는 우리가 붙인 이름이었다. */}
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
-          <span style={{ marginLeft: 6, display: 'inline-flex', gap: 3 }}>
+          <span className="ml-[6px] inline-flex gap-[3px]">
             {STATUS_PICKS.slice(0, 4).map((label) => (
               <button key={label} type="button" className="ec-btn"
                       onClick={() => { const r = periodOf(label); if (r) { setFrom(r.from); setTo(r.to) } }}>
@@ -288,7 +288,7 @@ export default function WorkResultInquiryPage() {
                            items={mgmt.groupOptions.map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="기타">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
             수정일자순(정렬)
           </label>
@@ -311,19 +311,19 @@ export default function WorkResultInquiryPage() {
         </EcCond>
       </ul>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
         {shown.length}건
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
-        작업수량 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{num(totals.qty)}</b>
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
-        작업시간 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{num(totals.time)}</b>분
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
+        작업수량 <b className="text-ec-navy text-[14px]">{num(totals.qty)}</b>
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
+        작업시간 <b className="text-ec-navy text-[14px]">{num(totals.time)}</b>분
       </div>
 
       <div className="overflow-x-auto">
         <table className="ec-grid w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34, textAlign: 'center' }}>
+              <th className="w-[34px] text-center">
                 <input type="checkbox" checked={allOn} onChange={toggleAll} />
               </th>
               {/*
@@ -339,32 +339,32 @@ export default function WorkResultInquiryPage() {
                 채번하고 열 이름을 원본대로 <b>[일자-No.]</b> 로 맞췄다(V214/V87).
                 [작업(공정)]·[생산품목명]·[자원명]·[담당자]·[적요]는 우리 열이다.
               */}
-              <th style={{ width: 170 }}>일자-No.</th>
-              <th style={{ width: 130 }}>생산공장명</th>
-              <th style={{ width: 170 }}>작업품목명[규격명]</th>
-              <th style={{ width: 120 }}>작업(공정)</th>
+              <th className="w-[170px]">일자-No.</th>
+              <th className="w-[130px]">생산공장명</th>
+              <th className="w-[170px]">작업품목명[규격명]</th>
+              <th className="w-[120px]">작업(공정)</th>
               <th>생산품목명</th>
-              <th style={{ width: 120 }}>자원명</th>
-              <th style={{ width: 100 }}>담당자</th>
-              <th style={{ width: 110, textAlign: 'right' }}>작업수량</th>
-              <th style={{ width: 110, textAlign: 'right' }}>작업시간</th>
-              <th style={{ width: 170 }}>작업지시서</th>
-              <th style={{ width: 160 }}>적요</th>
+              <th className="w-[120px]">자원명</th>
+              <th className="w-[100px]">담당자</th>
+              <th className="w-[110px] text-right">작업수량</th>
+              <th className="w-[110px] text-right">작업시간</th>
+              <th className="w-[170px]">작업지시서</th>
+              <th className="w-[160px]">적요</th>
               {/* 원본 작업내역조회의 마지막 열 [인쇄] — 그 한 건을 작업내역서로 찍는다. */}
-              <th style={{ width: 60, textAlign: 'center' }}>인쇄</th>
+              <th className="w-[60px] text-center">인쇄</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={13} className="ec-empty">불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={13} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((r) => (
               <tr key={r.id}>
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-center">
                   <input type="checkbox" checked={checked.has(r.id)} onChange={() => toggle(r.id)} />
                 </td>
-                <td style={{ fontFamily: 'monospace' }}>{dateText(r.workDate)} {r.resultNo}</td>
+                <td>{dateText(r.workDate)} {r.resultNo}</td>
                 <td style={{ color: r.warehouseName ? undefined : 'var(--ec-text-off)' }}>{r.warehouseName ?? ''}</td>
                 {/* 원본은 '작업품목명[규격명]'. 안 적힌 옛 자료는 비워 둔다 — 공정명으로 채우면 또 거짓말이 된다. */}
                 <td style={{ color: r.workItemName ? undefined : 'var(--ec-text-off)' }}>
@@ -374,21 +374,21 @@ export default function WorkResultInquiryPage() {
                 <td>{r.productName ? `[${r.productCode}] ${r.productName}` : ''}</td>
                 <td style={{ color: r.resourceName ? undefined : 'var(--ec-text-off)' }}>{r.resourceName ?? ''}</td>
                 <td>{r.worker ?? ''}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{num(r.goodQty + r.defectQty)}</td>
-                <td style={{ textAlign: 'right' }}>{num(r.workTimeMin)}</td>
+                <td className="text-right font-semibold text-ec-navy">{num(r.goodQty + r.defectQty)}</td>
+                <td className="text-right">{num(r.workTimeMin)}</td>
                 <td style={{ fontFamily: 'monospace', color: r.workOrderNo ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{r.workOrderNo ?? ''}</td>
-                <td style={{ color: 'var(--ec-text-hint)' }}>{r.note ?? ''}</td>
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-ec-hint">{r.note ?? ''}</td>
+                <td className="text-center">
                   <button onClick={() => printOne(r)} style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
                 </td>
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={8} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
-              <td style={{ textAlign: 'right' }}>{num(totals.qty)}</td>
-              <td style={{ textAlign: 'right' }}>{num(totals.time)}</td>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={8} className="text-right">합계 ({shown.length}건)</td>
+              <td className="text-right">{num(totals.qty)}</td>
+              <td className="text-right">{num(totals.time)}</td>
               {/* 작업지시서 · 적요 · 인쇄 */}
               <td colSpan={3}></td>
             </tr>

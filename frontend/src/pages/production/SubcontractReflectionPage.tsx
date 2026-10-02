@@ -171,74 +171,74 @@ export default function SubcontractReflectionPage() {
         </EcCond>
       </EcStatusPanel>
 
-      {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-      {ok && <p style={{ marginBottom: 8, background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
+      {error && <p className="mb-2 rounded bg-ec-danger-bg px-3 py-2 text-sm text-ec-danger">{error}</p>}
+      {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 30 }}>
+            <th className="w-[30px]">
               <input type="checkbox" checked={groups.length > 0 && checked.size === groups.length}
                      onChange={(e) => setChecked(e.target.checked ? new Set(groups.map((g) => g.key)) : new Set())} />
             </th>
             {mode === '전표별' && <th>생산입고No.</th>}
             <th>거래처명</th>
-            <th style={{ textAlign: 'right' }}>거래가액</th>
-            <th style={{ textAlign: 'right' }}>조정</th>
-            <th style={{ textAlign: 'right' }}>외화금액</th>
-            <th style={{ textAlign: 'right' }}>환율</th>
-            <th style={{ textAlign: 'right' }}>공급가액</th>
-            <th style={{ textAlign: 'right' }}>부가세</th>
-            <th style={{ textAlign: 'right' }}>합계</th>
-            <th style={{ textAlign: 'center' }}>상세</th>
+            <th className="text-right">거래가액</th>
+            <th className="text-right">조정</th>
+            <th className="text-right">외화금액</th>
+            <th className="text-right">환율</th>
+            <th className="text-right">공급가액</th>
+            <th className="text-right">부가세</th>
+            <th className="text-right">합계</th>
+            <th className="text-center">상세</th>
             <th>적요</th>
             <th>회계전표No.</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={mode === '전표별' ? 13 : 12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={mode === '전표별' ? 13 : 12} className="ec-empty">불러오는 중…</td></tr>
           ) : groups.length === 0 ? (
-            <tr><td colSpan={mode === '전표별' ? 13 : 12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={mode === '전표별' ? 13 : 12} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : groups.map((g) => (
             <Fragment key={g.key}>
               <tr>
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-center">
                   <input type="checkbox" checked={checked.has(g.key)} onChange={() => setChecked((c) => toggle(c, g.key))} />
                 </td>
                 {mode === '전표별' && (
-                  <td style={{ fontFamily: 'monospace' }}>
+                  <td>
                     <Link to={`/production/receipt-bom?no=${encodeURIComponent(g.rows[0].prodNo)}`} style={{ color: 'var(--ec-blue)' }}>
                       {dateText(g.rows[0].productionDate)} {g.rows[0].prodNo}
                     </Link>
                   </td>
                 )}
                 <td>{g.partnerName}</td>
-                <td style={{ textAlign: 'right' }}>{won(g.supply)}</td>
-                <td style={{ textAlign: 'right' }} />
-                <td style={{ textAlign: 'right' }} />
-                <td style={{ textAlign: 'right' }} />
-                <td style={{ textAlign: 'right' }}>{won(g.supply)}</td>
-                <td style={{ textAlign: 'right' }}>{won(g.vat)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(g.supply + g.vat)}</td>
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-right">{won(g.supply)}</td>
+                <td className="text-right" />
+                <td className="text-right" />
+                <td className="text-right" />
+                <td className="text-right">{won(g.supply)}</td>
+                <td className="text-right">{won(g.vat)}</td>
+                <td className="text-right font-bold">{won(g.supply + g.vat)}</td>
+                <td className="text-center">
                   <button type="button" className="no-ec" style={{ color: 'var(--ec-blue)', background: 'none', border: 0, cursor: 'pointer' }}
                           onClick={() => setOpen((o) => toggle(o, g.key))}>{open.has(g.key) ? '접기' : `${g.rows.length}건`}</button>
                 </td>
                 <td>{g.rows[0].note ?? ''}</td>
-                <td style={{ fontFamily: 'monospace' }}>{g.journalNo ?? ''}</td>
+                <td>{g.journalNo ?? ''}</td>
               </tr>
               {open.has(g.key) && g.rows.map((r) => (
-                <tr key={r.productionId} style={{ background: 'var(--ec-bg-page)', color: 'var(--ec-label)', fontSize: 12 }}>
+                <tr key={r.productionId} className="bg-ec-page text-ec-label text-[12px]">
                   <td />
                   <td colSpan={mode === '전표별' ? 2 : 1}>
                     {dateText(r.productionDate)} {r.prodNo} · {r.productName} {won(r.producedQty)} × {won(r.unitPrice)}
                   </td>
-                  <td style={{ textAlign: 'right' }}>{won(r.amount)}</td>
+                  <td className="text-right">{won(r.amount)}</td>
                   <td colSpan={3} />
-                  <td style={{ textAlign: 'right' }}>{won(r.amount)}</td>
-                  <td style={{ textAlign: 'right' }}>{won(r.vat)}</td>
-                  <td style={{ textAlign: 'right' }}>{won(r.total)}</td>
+                  <td className="text-right">{won(r.amount)}</td>
+                  <td className="text-right">{won(r.vat)}</td>
+                  <td className="text-right">{won(r.total)}</td>
                   <td colSpan={3}>{r.fromWarehouseName ?? ''}</td>
                 </tr>
               ))}
@@ -247,12 +247,12 @@ export default function SubcontractReflectionPage() {
         </tbody>
         <tfoot>
           <tr>
-            <td colSpan={mode === '전표별' ? 3 : 2} style={{ textAlign: 'right', fontWeight: 700 }}>합계</td>
-            <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(sum((g) => g.supply))}</td>
+            <td colSpan={mode === '전표별' ? 3 : 2} className="text-right font-bold">합계</td>
+            <td className="text-right font-bold">{won(sum((g) => g.supply))}</td>
             <td colSpan={3} />
-            <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(sum((g) => g.supply))}</td>
-            <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(sum((g) => g.vat))}</td>
-            <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(sum((g) => g.supply + g.vat))}</td>
+            <td className="text-right font-bold">{won(sum((g) => g.supply))}</td>
+            <td className="text-right font-bold">{won(sum((g) => g.vat))}</td>
+            <td className="text-right font-bold">{won(sum((g) => g.supply + g.vat))}</td>
             <td colSpan={3} />
           </tr>
         </tfoot>

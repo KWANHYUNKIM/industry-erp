@@ -141,7 +141,7 @@ export default function StandardCostPage() {
   return (
     <EcListShell title="표준원가현황" search={keyword} onSearchChange={setKeyword}
       newLabel="새로고침" onNew={load} actions={[{ label: '검색(F8)', primary: true, onClick: load }, { label: 'Excel' }]} signLine={signBox}>
-      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준월">
           <select className="ec-input" value={period} onChange={(e) => setPeriod(e.target.value)} style={{ width: 140 }}>
@@ -170,19 +170,19 @@ export default function StandardCostPage() {
           </select>
         </EcCond>
         <EcCond label="기타">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={withInactive} onChange={(e) => setWithInactive(e.target.checked)} />
             사용중단품목포함
           </label>
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={withUntracked} onChange={(e) => setWithUntracked(e.target.checked)} />
             수량관리제외품목포함
           </label>
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={withZero} onChange={(e) => setWithZero(e.target.checked)} />
             단가0포함
           </label>
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={showTotal} onChange={(e) => setShowTotal(e.target.checked)} />
             합계표시
           </label>
@@ -198,16 +198,16 @@ export default function StandardCostPage() {
           </div>
         </EcCond>
         <EcCond label="결재방표시">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
             인쇄물에 결재란(도장칸)을 찍는다
           </label>
         </EcCond>
       </ul>
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
-        품목 <b style={{ color: 'var(--ec-text)' }}>{shown.length}</b>개
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
-        합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{total.toLocaleString('ko-KR')}</b>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        품목 <b className="text-ec-text">{shown.length}</b>개
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
+        합계 <b className="text-ec-navy text-[14px]">{total.toLocaleString('ko-KR')}</b>
       </div>
       <table className="w-full text-left">
         {/*
@@ -224,7 +224,7 @@ export default function StandardCostPage() {
         */}
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th className="w-[34px]"></th>
             {/*
               <b>표준원가현황(E040808) 2026-09-09 원본 격자 실측</b>(자료 60줄) —
               [품목코드 · 품목명[규격] · 품목구분(세트포함) · <b>생산공정명</b> · <b>단가</b>]
@@ -238,47 +238,47 @@ export default function StandardCostPage() {
               그 품목이 만들어지는 공정임을 원본 자료로 가렸다(위 processMapOf 주석).
               [기간]은 우리 열이다.
             */}
-            <th style={{ width: 90 }}>품목코드</th>
+            <th className="w-[90px]">품목코드</th>
             <th>품목명[규격]</th>
-            <th style={{ width: 80 }}>품목구분(세트포함)</th>
+            <th className="w-[80px]">품목구분(세트포함)</th>
             {/* 원본 넷째 칸. 그 품목이 만들어지는 공정 — BOR 이 든다(위 주석). */}
-            <th style={{ width: 100 }}>생산공정명</th>
-            <th style={{ width: 80 }}>기간</th>
-            <th style={{ textAlign: 'right' }}>표준재료비</th>
-            <th style={{ textAlign: 'right' }}>표준노무비</th>
-            <th style={{ textAlign: 'right' }}>표준경비</th>
-            <th style={{ textAlign: 'right' }}>단가</th>
+            <th className="w-[100px]">생산공정명</th>
+            <th className="w-[80px]">기간</th>
+            <th className="text-right">표준재료비</th>
+            <th className="text-right">표준노무비</th>
+            <th className="text-right">표준경비</th>
+            <th className="text-right">단가</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td>{r.itemCode}</td>
               <td>{r.itemName}{specOf(r.itemId) ? ` [${specOf(r.itemId)}]` : ''}</td>
-              <td style={{ color: 'var(--ec-label)' }}>{catOf.get(r.itemId) ?? ''}</td>
+              <td className="text-ec-label">{catOf.get(r.itemId) ?? ''}</td>
               {/* BOR 이 없는 품목(사 오는 원재료)은 빈칸이다 — 원본도 그렇다. */}
-              <td style={{ color: 'var(--ec-label)' }}>{processOf(r.itemId)}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.period}</td>
-              <td style={{ textAlign: 'right' }}>{r.materialCost.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{r.laborCost.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{r.overheadCost.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700 }}>{r.standardTotal.toLocaleString()}</td>
+              <td className="text-ec-label">{processOf(r.itemId)}</td>
+              <td>{r.period}</td>
+              <td className="text-right">{r.materialCost.toLocaleString()}</td>
+              <td className="text-right">{r.laborCost.toLocaleString()}</td>
+              <td className="text-right">{r.overheadCost.toLocaleString()}</td>
+              <td className="text-right font-bold">{r.standardTotal.toLocaleString()}</td>
             </tr>
           ))}
         </tbody>
         {showTotal && (
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={6} style={{ textAlign: 'right' }}>합계 ({shown.length}품목)</td>
-              <td style={{ textAlign: 'right' }}>{shown.reduce((n, r) => n + r.materialCost, 0).toLocaleString('ko-KR')}</td>
-              <td style={{ textAlign: 'right' }}>{shown.reduce((n, r) => n + r.laborCost, 0).toLocaleString('ko-KR')}</td>
-              <td style={{ textAlign: 'right' }}>{shown.reduce((n, r) => n + r.overheadCost, 0).toLocaleString('ko-KR')}</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{total.toLocaleString('ko-KR')}</td>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={6} className="text-right">합계 ({shown.length}품목)</td>
+              <td className="text-right">{shown.reduce((n, r) => n + r.materialCost, 0).toLocaleString('ko-KR')}</td>
+              <td className="text-right">{shown.reduce((n, r) => n + r.laborCost, 0).toLocaleString('ko-KR')}</td>
+              <td className="text-right">{shown.reduce((n, r) => n + r.overheadCost, 0).toLocaleString('ko-KR')}</td>
+              <td className="text-right text-ec-navy">{total.toLocaleString('ko-KR')}</td>
             </tr>
           </tfoot>
         )}
@@ -291,25 +291,25 @@ export default function StandardCostPage() {
         })
         return (
           <>
-            <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+            <h3 className="text-[13px] font-bold mt-[16px] mx-0 mb-[6px]">{subtotal} 소계</h3>
             <table className="w-full text-left">
               <thead><tr>
                 <th>{subtotal}</th>
-                <th style={{ width: 80, textAlign: 'right' }}>건수</th>
-                <th style={{ width: 130, textAlign: 'right' }}>재료비</th>
-                <th style={{ width: 130, textAlign: 'right' }}>노무비</th>
-                <th style={{ width: 130, textAlign: 'right' }}>경비</th>
-                <th style={{ width: 140, textAlign: 'right' }}>표준원가</th>
+                <th className="w-[80px] text-right">건수</th>
+                <th className="w-[130px] text-right">재료비</th>
+                <th className="w-[130px] text-right">노무비</th>
+                <th className="w-[130px] text-right">경비</th>
+                <th className="w-[140px] text-right">표준원가</th>
               </tr></thead>
               <tbody>
                 {groups.map((g) => (
                   <tr key={g.label}>
-                    <td style={{ fontWeight: 600 }}>{g.label}</td>
-                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
-                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.sums.material.toLocaleString('ko-KR')}</td>
-                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.sums.labor.toLocaleString('ko-KR')}</td>
-                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.sums.overhead.toLocaleString('ko-KR')}</td>
-                    <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: 'var(--ec-blue-dark)' }}>
+                    <td className="font-semibold">{g.label}</td>
+                    <td className="text-right">{g.count}</td>
+                    <td className="text-right">{g.sums.material.toLocaleString('ko-KR')}</td>
+                    <td className="text-right">{g.sums.labor.toLocaleString('ko-KR')}</td>
+                    <td className="text-right">{g.sums.overhead.toLocaleString('ko-KR')}</td>
+                    <td className="text-right font-bold text-ec-navy">
                       {g.sums.total.toLocaleString('ko-KR')}
                     </td>
                   </tr>

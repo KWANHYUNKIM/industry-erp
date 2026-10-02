@@ -49,39 +49,39 @@ export default function CompaniesPage() {
       )}
       actions={[{ label: 'Excel' }]}
     >
-      {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+      {error && <p className="mb-2 rounded bg-ec-danger-bg px-3 py-2 text-sm text-ec-danger">{error}</p>}
 
       {created && (
         <div style={{ marginBottom: 8, padding: '10px 14px', background: '#eef7ee', border: '1px solid #bfe3bf', borderRadius: 4, fontSize: 13 }}>
-          <b>{created.name}</b> 회사가 생성되었습니다. 회사코드 <b style={{ color: 'var(--ec-blue)' }}>{created.code}</b> 로 로그인하세요.
+          <b>{created.name}</b> 회사가 생성되었습니다. 회사코드 <b className="text-ec-blue">{created.code}</b> 로 로그인하세요.
         </div>
       )}
 
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('회사코드')}>회사코드 {sort.mark('회사코드')}</th>
+            <th className="w-[34px]"></th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('회사코드')}>회사코드 {sort.mark('회사코드')}</th>
             <th>회사명</th>
             <th>데이터 스키마</th>
-            <th style={{ textAlign: 'center' }}>상태</th>
+            <th className="text-center">상태</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={5} className="ec-empty">불러오는 중…</td></tr>
           ) : companies.length === 0 ? (
-            <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={5} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : (
             sort.sorted.map((c, idx) => (
               <tr key={c.id}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{idx + 1}</td>
-                <td style={{ fontFamily: 'monospace', fontWeight: 700 }}>
+                <td className="text-center text-ec-hint">{idx + 1}</td>
+                <td className="font-bold">
                   {c.code}
-                  {c.schemaName === 'public' && <span style={{ marginLeft: 6, fontSize: 10.5, color: 'var(--ec-text-hint)' }}>본사</span>}
+                  {c.schemaName === 'public' && <span className="ml-[6px] text-[10.5px] text-ec-hint">본사</span>}
                 </td>
                 <td>{c.name}</td>
-                <td style={{ fontFamily: 'monospace', color: 'var(--ec-text-muted)' }}>{c.schemaName}</td>
+                <td className="text-ec-muted">{c.schemaName}</td>
                 <td style={{ textAlign: 'center', color: c.active ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>
                   {c.active ? '사용' : '중지'}
                 </td>
@@ -124,31 +124,31 @@ function CreateCompanyForm({ onCreated }: { onCreated: (c: Company) => void }) {
 
   return (
     <form onSubmit={submit}>
-      <p style={{ fontSize: 12, color: 'var(--ec-text-muted)', marginBottom: 10 }}>
+      <p className="text-[12px] text-ec-muted mb-[10px]">
         회사코드는 자동 발급됩니다. 회사마다 데이터가 완전히 분리되며, 아래 관리자 계정으로 그 회사에 처음 로그인합니다.
       </p>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <label className="mb-1 block text-sm text-slate-600">회사명 *</label>
+          <label className="mb-1 block text-sm text-ec-label">회사명 *</label>
           <input className={inputCls} value={form.name} onChange={(e) => update('name', e.target.value)} placeholder="예: (주)새회사" />
         </div>
         <div>
-          <label className="mb-1 block text-sm text-slate-600">관리자 이름</label>
+          <label className="mb-1 block text-sm text-ec-label">관리자 이름</label>
           <input className={inputCls} value={form.adminName} onChange={(e) => update('adminName', e.target.value)} placeholder="예: 홍길동" />
         </div>
         <div>
-          <label className="mb-1 block text-sm text-slate-600">관리자 아이디 *</label>
+          <label className="mb-1 block text-sm text-ec-label">관리자 아이디 *</label>
           <input className={inputCls} value={form.adminUsername} onChange={(e) => update('adminUsername', e.target.value)} placeholder="이 회사의 첫 관리자 아이디" />
         </div>
         <div>
-          <label className="mb-1 block text-sm text-slate-600">관리자 비밀번호 *</label>
+          <label className="mb-1 block text-sm text-ec-label">관리자 비밀번호 *</label>
           <input type="password" className={inputCls} value={form.adminPassword} onChange={(e) => update('adminPassword', e.target.value)} />
         </div>
       </div>
 
-      {error && <p style={{ marginTop: 10, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mt-[10px]">{error}</p>}
 
-      <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
+      <div className="mt-[12px] flex justify-end">
         <button type="submit" disabled={submitting} className="ec-btn ec-btn-primary">
           {submitting ? '생성 중…' : '회사 생성'}
         </button>

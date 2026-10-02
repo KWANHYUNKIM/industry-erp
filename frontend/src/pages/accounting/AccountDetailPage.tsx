@@ -124,20 +124,20 @@ export default function AccountDetailPage() {
       <tr>
         <th>계정명</th>
         <th>거래처명</th>
-        <th style={{ textAlign: 'right' }}>금액</th>
+        <th className="text-right">금액</th>
       </tr>
     </thead>
     <tbody>
       {b.rows.map((r) => (
         <tr key={r.key}>
-          <td style={{ color: 'var(--ec-blue)' }}>{b.name}</td>
-          <td style={{ color: 'var(--ec-blue)' }}>{r.partner}</td>
-          <td style={{ textAlign: 'right' }}>{won(r.amt)}</td>
+          <td className="text-ec-blue">{b.name}</td>
+          <td className="text-ec-blue">{r.partner}</td>
+          <td className="text-right">{won(r.amt)}</td>
         </tr>
       ))}
       <tr style={SUB_ROW}>
-        <td colSpan={2} style={{ textAlign: 'center' }}>합계</td>
-        <td style={{ textAlign: 'right' }}>{won(b.rows.reduce((s, r) => s + r.amt, 0))}</td>
+        <td colSpan={2} className="text-center">합계</td>
+        <td className="text-right">{won(b.rows.reduce((s, r) => s + r.amt, 0))}</td>
       </tr>
     </tbody>
   </>
@@ -157,11 +157,11 @@ export default function AccountDetailPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={asOf} onChange={(e) => e.target.value && setAsOf(e.target.value)} style={{ width: 145 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             {PICKS.map((l) => (
               <button key={l} type="button" className="ec-btn" style={{ marginRight: 4 }} onClick={() => setAsOf(pickDate(l, fiscalStart))}>{l}</button>
             ))}
@@ -169,11 +169,11 @@ export default function AccountDetailPage() {
         </EcCond>
         <EcCond label="계정속성">
           {(['전표입력계정', '집계계정'] as const).map((v) => (
-            <label key={v} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+            <label key={v} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
               <input type="radio" name="ad-attr" checked={attr === v} onChange={() => setAttr(v)} /> {v}
             </label>
           ))}
-          <span style={{ display: 'inline-block', width: 230, verticalAlign: 'middle' }}>
+          <span className="inline-block w-[230px] align-middle">
             <CodePickerField label="계정" hideLabel width={220} emptyLabel="전체" value={account} onChange={setAccount}
                              items={accounts.filter((a) => a.division === 'ASSET' || a.division === 'LIABILITY' || a.division === 'EQUITY')
                                .map((a) => ({ value: String(a.id), code: a.code, name: a.name }))} />
@@ -181,30 +181,30 @@ export default function AccountDetailPage() {
         </EcCond>
         <EcCond label="대표거래처로 합산">
           {([['거래처관계기준', true], ['개별거래처기준', false]] as const).map(([l, v]) => (
-            <label key={l} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+            <label key={l} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
               <input type="radio" name="ad-parent" checked={byParent === v} onChange={() => setByParent(v)} /> {l}
             </label>
           ))}
         </EcCond>
       </ul>
 
-      {truncated && <p style={{ fontSize: 12, color: 'var(--ec-warn)', marginBottom: 6 }}>전표가 많아 앞부분만 받았습니다 — 기준일을 앞당겨 보세요.</p>}
+      {truncated && <p className="text-[12px] text-ec-warn mb-[6px]">전표가 많아 앞부분만 받았습니다 — 기준일을 앞당겨 보세요.</p>}
       {loading ? (
-        <p style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</p>
+        <p className="ec-empty">불러오는 중…</p>
       ) : (
         <>
-          <h3 style={{ fontSize: 20, fontWeight: 700, textAlign: 'center', margin: '6px 0 12px' }}>계정명세서</h3>
-          {blocks.length === 0 && <p style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</p>}
+          <h3 className="text-[20px] font-bold text-center mt-[6px] mx-0 mb-[12px]">계정명세서</h3>
+          {blocks.length === 0 && <p className="ec-empty">등록된 데이터가 없습니다.</p>}
           {blocks.map((b, i) => (
-            <div key={b.code} style={{ marginBottom: 18 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, margin: '0 0 4px' }}>
+            <div key={b.code} className="mb-[18px]">
+              <div className="flex justify-between text-[12px] mt-0 mx-0 mb-[4px]">
                 <span>회사명 : {companyName ?? ''} / {attr === '집계계정' ? b.name : `${b.code}(${b.name})`}</span>
                 <span>{slash(asOf)} (단위 : 원)</span>
               </div>
               {i === 0
                 ? <table ref={tableRef} className="w-full text-left">{tableBody(b)}</table>
                 : <table className="w-full text-left">{tableBody(b)}</table>}
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 4 }}>
+              <div className="flex justify-between text-[12px] mt-[4px]">
                 <span>[P.{i + 1}]</span><span>{stamp}</span>
               </div>
             </div>

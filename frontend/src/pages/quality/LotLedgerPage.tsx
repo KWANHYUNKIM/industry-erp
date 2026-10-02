@@ -160,7 +160,7 @@ export default function LotLedgerPage() {
       onSearch={load}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
     >
-      <p className="mb-2 text-xs text-slate-500">로트별 입고·출고·조정 이력과 잔량. 로트를 선택하면 그 로트의 수불부(기말 재고 포함).</p>
+      <p className="mb-2 text-xs text-ec-hint">로트별 입고·출고·조정 이력과 잔량. 로트를 선택하면 그 로트의 수불부(기말 재고 포함).</p>
 
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         {/* 원본 조건 판의 [기준일자] — 서버가 이 구간만 준다. */}
@@ -177,7 +177,7 @@ export default function LotLedgerPage() {
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from}
                  onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <span className="text-ec-label">~</span>
           <input type="date" className="ec-input" value={to}
                  onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
           <EcPeriodPicks labels={LOT_LEDGER_PICKS} currentFrom={from}
@@ -197,7 +197,7 @@ export default function LotLedgerPage() {
           </select>
           {expiryOpt !== '사용안함' && (<>
             <input type="date" className="ec-input" value={expFrom} onChange={(e) => { setExpFrom(e.target.value); setExpiryOpt('직접입력') }} style={{ width: 140 }} />
-            <span style={{ color: 'var(--ec-label)' }}>~</span>
+            <span className="text-ec-label">~</span>
             <input type="date" className="ec-input" value={expTo} onChange={(e) => { setExpTo(e.target.value); setExpiryOpt('직접입력') }} style={{ width: 140 }} />
           </>)}
         </EcCond>
@@ -212,25 +212,25 @@ export default function LotLedgerPage() {
                            value={item} onChange={setItem} items={items} />
         </EcCond>
         <EcCond label="재고수량">
-          <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+          <label className="flex items-center gap-[3px] text-[12.5px]">
             <input type="checkbox" checked={qtyOne && qtyZero && qtyOther} onChange={(e) => { setQtyOne(e.target.checked); setQtyZero(e.target.checked); setQtyOther(e.target.checked) }} /> 전체
           </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+          <label className="flex items-center gap-[3px] text-[12.5px]">
             <input type="checkbox" checked={qtyOne} onChange={(e) => setQtyOne(e.target.checked)} /> 1
           </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+          <label className="flex items-center gap-[3px] text-[12.5px]">
             <input type="checkbox" checked={qtyZero} onChange={(e) => setQtyZero(e.target.checked)} /> 0
           </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+          <label className="flex items-center gap-[3px] text-[12.5px]">
             <input type="checkbox" checked={qtyOther} onChange={(e) => setQtyOther(e.target.checked)} /> 기타
           </label>
         </EcCond>
         <EcCond label="기타">
-          <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+          <label className="flex items-center gap-[3px] text-[12.5px]">
             <input type="checkbox" checked={withHeld} onChange={(e) => setWithHeld(e.target.checked)} />
             사용중단시리얼/로트포함
           </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+          <label className="flex items-center gap-[3px] text-[12.5px]">
             <input type="checkbox" checked={hideZero} onChange={(e) => setHideZero(e.target.checked)} />
             입출고수량0제외
           </label>
@@ -243,7 +243,7 @@ export default function LotLedgerPage() {
       </ul>
       {/* 우리가 더 두는 전표 유형 알약과 입고계 · 출고계 · 기말 — 원본 조건 판 밖이라 조건 목록과 갈라 둔다. */}
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px', marginBottom: 10 }}>
-        <div style={{ display: 'flex', gap: 2 }}>
+        <div className="flex gap-[2px]">
           {(['ALL', 'INBOUND', 'OUTBOUND', 'ADJUST'] as const).map((t) => (
             <button key={t} onClick={() => setTypeFilter(t)} className="no-ec" style={{
               padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
@@ -251,45 +251,45 @@ export default function LotLedgerPage() {
             }}>{t === 'ALL' ? '전체' : t === 'INBOUND' ? '입고' : t === 'OUTBOUND' ? '출고' : '조정'}</button>
           ))}
         </div>
-        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--ec-label)' }}>
-          입고계 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{num(totals.inQty)}</b>
-          <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
+        <div className="ml-auto text-[12.5px] text-ec-label">
+          입고계 <b className="text-ec-blue text-[14px]">{num(totals.inQty)}</b>
+          <span className="my-0 mx-[6px] text-ec-off">|</span>
           출고계 <b style={{ color: '#a5561b', fontSize: 14 }}>{num(totals.outQty)}</b>
           {closing != null && (
-            <><span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>기말 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{num(closing)}</b></>
+            <><span className="my-0 mx-[6px] text-ec-off">|</span>기말 <b className="text-ec-navy text-[14px]">{num(closing)}</b></>
           )}
         </div>
       </div>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       {mode === '시리얼/로트별집계' ? (
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
-              <th style={{ width: 170 }}>로트No.</th>
+              <th className="w-[34px]"></th>
+              <th className="w-[170px]">로트No.</th>
               <th>품목</th>
-              <th style={{ width: 80, textAlign: 'right' }}>줄 수</th>
-              <th style={{ width: 120, textAlign: 'right' }}>입고</th>
-              <th style={{ width: 120, textAlign: 'right' }}>출고</th>
-              <th style={{ width: 120, textAlign: 'right' }}>기말잔량</th>
+              <th className="w-[80px] text-right">줄 수</th>
+              <th className="w-[120px] text-right">입고</th>
+              <th className="w-[120px] text-right">출고</th>
+              <th className="w-[120px] text-right">기말잔량</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
             ) : byLot.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : byLot.map((g, i) => (
               <tr key={g.lotNo}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{g.lotNo}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td>{g.lotNo}</td>
                 <td>{g.itemName}</td>
-                <td style={{ textAlign: 'right' }}>{num(g.count)}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{num(g.inQty)}</td>
+                <td className="text-right">{num(g.count)}</td>
+                <td className="text-right text-ec-blue">{num(g.inQty)}</td>
                 <td style={{ textAlign: 'right', color: '#a5561b' }}>{num(g.outQty)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700 }}>{num(g.balance)}</td>
+                <td className="text-right font-bold">{num(g.balance)}</td>
               </tr>
             ))}
           </tbody>
@@ -298,22 +298,22 @@ export default function LotLedgerPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th className="w-[34px]"></th>
             <th>로트No.</th>
             <th>품목</th>
             <th>일자</th>
-            <th style={{ textAlign: 'center', width: 56 }}>유형</th>
-            <th style={{ textAlign: 'right' }}>입고</th>
-            <th style={{ textAlign: 'right' }}>출고</th>
-            <th style={{ textAlign: 'right' }}>잔량</th>
+            <th className="text-center w-[56px]">유형</th>
+            <th className="text-right">입고</th>
+            <th className="text-right">출고</th>
+            <th className="text-right">잔량</th>
             <th>비고</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>
+            <tr><td colSpan={9} className="text-center text-ec-hint p-[20px]">
               {rows.length === 0 ? '로트 이력이 없습니다.' : '조건에 맞는 자료가 없습니다.'}
             </td></tr>
           ) : shown.map((r, i) => {
@@ -322,17 +322,17 @@ export default function LotLedgerPage() {
             const c = TYPE_COLOR[r.type]
             return (
               <tr key={r.id}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.lotNo}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td>{r.lotNo}</td>
                 <td>{r.itemName}</td>
-                <td style={{ fontFamily: 'monospace' }}>{dateText(r.txDate)}</td>
-                <td style={{ textAlign: 'center' }}>
+                <td>{dateText(r.txDate)}</td>
+                <td className="text-center">
                   <span style={{ background: c.bg, color: c.fg, padding: '1px 6px', borderRadius: 3, fontSize: 11.5, fontWeight: 600 }}>{r.typeName}</span>
                 </td>
                 <td style={{ textAlign: 'right', color: inQ ? 'var(--ec-blue)' : 'var(--ec-text-off)', fontWeight: inQ ? 600 : 400 }}>{inQ ? num(inQ) : ''}</td>
                 <td style={{ textAlign: 'right', color: outQ ? '#a5561b' : 'var(--ec-text-off)', fontWeight: outQ ? 600 : 400 }}>{outQ ? num(outQ) : ''}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600 }}>{num(r.balanceAfter)}</td>
-                <td style={{ color: 'var(--ec-text-hint)' }}>{r.note ?? ''}</td>
+                <td className="text-right font-semibold">{num(r.balanceAfter)}</td>
+                <td className="text-ec-hint">{r.note ?? ''}</td>
               </tr>
             )
           })}

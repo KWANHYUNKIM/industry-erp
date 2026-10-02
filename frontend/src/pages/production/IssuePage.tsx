@@ -485,10 +485,10 @@ export default function IssuePage() {
                 { label: `선택삭제${checked.size ? ` (${checked.size})` : ''}`, onClick: removeChecked },
                 { label: 'Excel' }]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {statusPick && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, padding: '6px 8px', border: '1px solid var(--ec-border)', background: '#fff' }}>
-          <span style={{ fontSize: 12.5 }}>고른 {checked.size}줄의 전표를</span>
+        <div className="flex items-center gap-[6px] mb-[8px] py-[6px] px-[8px] border border-ec-line border-solid bg-white">
+          <span className="text-[12.5px]">고른 {checked.size}줄의 전표를</span>
           <button type="button" className="ec-btn ec-btn-primary" onClick={() => void changeStatus('CONFIRMED')}>확인</button>
           <button type="button" className="ec-btn" onClick={() => void changeStatus('UNCONFIRMED')}>확인취소</button>
           <button type="button" className="ec-btn" onClick={() => setStatusPick(false)}>취소</button>
@@ -502,16 +502,16 @@ export default function IssuePage() {
 
       <Modal error={error} open={showForm} title="생산불출 등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} onKeyDown={(e) => { if (e.key === 'F8') { e.preventDefault(); e.currentTarget.requestSubmit() } }} style={{ marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>새 불출 등록</div>
+          <div className="text-[13px] font-extrabold text-ec-navy mb-[8px]">새 불출 등록</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {/* 원본은 [보내는창고] → [받는공장] 으로 옮기는 전표다. 재고가 그만큼 실제로 움직인다. */}
             <div>
               {/* 원본 머리의 이름은 [일자]다(사본 실측). */}
-              <label className="mb-1 block text-sm text-slate-600">일자</label>
+              <label className="mb-1 block text-sm text-ec-label">일자</label>
               <input type="date" className={inputCls} value={form.issueDate} onChange={(e) => setForm({ ...form, issueDate: e.target.value })} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">담당자</label>
+              <label className="mb-1 block text-sm text-ec-label">담당자</label>
               {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측) — 창고·거래처·사원은
                   몇백 개가 되므로 드롭다운으로는 코드로도 이름으로도 못 찾는다. */}
               <CodePickerField label="담당자" hideLabel fill placeholder="담당자" emptyLabel="선택 안 함"
@@ -519,7 +519,7 @@ export default function IssuePage() {
                                items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">보내는창고</label>
+              <label className="mb-1 block text-sm text-ec-label">보내는창고</label>
               {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측) — 창고·거래처·사원은
                   몇백 개가 되므로 드롭다운으로는 코드로도 이름으로도 못 찾는다. */}
               <CodePickerField label="보내는창고" hideLabel fill placeholder="보내는창고" emptyLabel="선택"
@@ -527,7 +527,7 @@ export default function IssuePage() {
                                items={warehouses.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">받는공장</label>
+              <label className="mb-1 block text-sm text-ec-label">받는공장</label>
               {/* 원본은 이 칸도 <b>코드도움</b>이다. 구분이 공장인 창고를 앞에 두고,
                   보내는 창고와 같은 곳은 뺀다 — 제 창고로 보낼 수는 없다. */}
               <CodePickerField label="받는공장" hideLabel fill placeholder="받는공장" emptyLabel="선택"
@@ -538,7 +538,7 @@ export default function IssuePage() {
                                  .map((w) => ({ value: String(w.id), code: w.code, name: w.name, sub: w.kind !== '창고' ? w.kind : null }))} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">작업지시</label>
+              <label className="mb-1 block text-sm text-ec-label">작업지시</label>
               {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
               <CodePickerField label="작업지시" hideLabel fill placeholder="작업지시" emptyLabel="선택 안 함"
                                value={form.workOrderId} onChange={(v) => setForm({ ...form, workOrderId: v })}
@@ -546,7 +546,7 @@ export default function IssuePage() {
             </div>
             <div>
               {/* 원본 생산불출입력 머리의 [프로젝트]. 프로젝트별 원가에 이 불출이 잡힌다. */}
-              <label className="mb-1 block text-sm text-slate-600">프로젝트</label>
+              <label className="mb-1 block text-sm text-ec-label">프로젝트</label>
               <CodePickerField label="프로젝트" hideLabel fill emptyLabel="선택 해제"
                                value={form.projectId} onChange={(v) => setForm({ ...form, projectId: v })}
                                items={projects.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))} />
@@ -557,7 +557,7 @@ export default function IssuePage() {
             원본 생산불출입력의 격자. 머리(일자·담당자·창고·작업지시·프로젝트)는 한 번만
             정하고, 자재는 여러 줄 넣는다. 한 줄이라도 막히면 서버가 전부 되돌린다.
           */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, marginBottom: 4 }}>
+          <div className="flex items-center gap-[8px] mt-[12px] mb-[4px]">
             <span style={{ fontSize: 12.5, fontWeight: 700, color: '#3f4855' }}>자재</span>
             <button type="button" className="ec-btn" onClick={() => setLines([...lines, emptyLine()])}>줄 추가</button>
             {/* 단추는 화면이 <b>글자로</b> 그린다 — 자식 컴포넌트에 넣으면 버튼 검사가 못 본다. */}
@@ -568,38 +568,38 @@ export default function IssuePage() {
             <button type="button" className="ec-btn" disabled={stockBusy} onClick={loadStocks}>재고불러오기</button>
           </div>
           {woPickOpen && (
-            <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 8, marginBottom: 8 }}>
-              <div style={{ fontWeight: 700, fontSize: 12.5, marginBottom: 6 }}>작업지시서조회</div>
-              <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+            <div className="border border-ec-line border-solid bg-white p-[8px] mb-[8px]">
+              <div className="font-bold text-[12.5px] mb-[6px]">작업지시서조회</div>
+              <div className="max-h-[220px] overflow-y-auto">
                 <table className="w-full text-left">
                   <thead>
                     <tr>
-                      <th style={{ width: 30 }} />
+                      <th className="w-[30px]" />
                       <th>작업지시서일자</th>
                       <th>거래처명</th>
                       <th>품목코드</th>
                       <th>품목명[규격]</th>
-                      <th style={{ textAlign: 'right' }}>수량</th>
+                      <th className="text-right">수량</th>
                     </tr>
                   </thead>
                   <tbody>
                     {woList.length === 0 ? (
-                      <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 12 }}>등록된 데이터가 없습니다.</td></tr>
+                      <tr><td colSpan={6} className="text-center text-ec-hint p-[12px]">등록된 데이터가 없습니다.</td></tr>
                     ) : woList.map((w) => (
-                      <tr key={w.id} style={{ cursor: 'pointer' }}
+                      <tr key={w.id} className="cursor-pointer"
                           onClick={() => setWoPicked((p) => (p.includes(w.id) ? p.filter((x) => x !== w.id) : [...p, w.id]))}>
-                        <td style={{ textAlign: 'center' }}><input type="checkbox" readOnly checked={woPicked.includes(w.id)} /></td>
+                        <td className="text-center"><input type="checkbox" readOnly checked={woPicked.includes(w.id)} /></td>
                         <td>{dateText(w.orderDate)} {w.orderNo}</td>
                         <td>{w.partnerName ?? ''}</td>
                         <td>{w.productCode}</td>
                         <td>{w.productName}{w.productSpec ? ` [${w.productSpec}]` : ''}</td>
-                        <td style={{ textAlign: 'right' }}>{Number(w.plannedQty).toLocaleString()}</td>
+                        <td className="text-right">{Number(w.plannedQty).toLocaleString()}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
+              <div className="flex gap-[4px] mt-[6px]">
                 <button type="button" className="ec-btn ec-btn-primary" onClick={() => void applyWo(true)}>잔량으로BOM풀기</button>
                 <button type="button" className="ec-btn" onClick={() => void applyWo(false)}>BOM풀기</button>
                 <select className="ec-input" value={bomLevel} title="BOM풀기 단계"
@@ -614,30 +614,30 @@ export default function IssuePage() {
           <table className="w-full text-left">
             <thead>
               <tr>
-                <th style={{ width: 34 }}></th>
+                <th className="w-[34px]"></th>
                 <th>품목명</th>
-                <th style={{ width: 130 }}>시리얼/로트No.</th>
-                <th style={{ width: 130, textAlign: 'right' }}>수량</th>
+                <th className="w-[130px]">시리얼/로트No.</th>
+                <th className="w-[130px] text-right">수량</th>
                 {/*
                   원본 격자의 수량 칸 셋(각 67). [재고불러오기]를 눌러야 찬다 —
                   차례도 원본 그대로 [수량] 뒤 · [적요] 앞이다.
                 */}
-                <th style={{ width: 67, textAlign: 'right' }}>전체수량</th>
-                <th style={{ width: 67, textAlign: 'right' }}>보내는창고수량</th>
-                <th style={{ width: 67, textAlign: 'right' }}>받는창고수량</th>
-                <th style={{ width: 200 }}>적요</th>
-                <th style={{ width: 60, textAlign: 'center' }}>삭제</th>
+                <th className="w-[67px] text-right">전체수량</th>
+                <th className="w-[67px] text-right">보내는창고수량</th>
+                <th className="w-[67px] text-right">받는창고수량</th>
+                <th className="w-[200px]">적요</th>
+                <th className="w-[60px] text-center">삭제</th>
               </tr>
             </thead>
             <tbody>
               {lines.map((l, idx) => (
                 <tr key={l.key}>
-                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{idx + 1}</td>
+                  <td className="text-center text-ec-hint">{idx + 1}</td>
                   <td>
                     <CodePickerField label="자재" hideLabel fill emptyLabel="선택 해제"
                                      value={l.itemId} onChange={(v) => setLine(l.key, { itemId: v })}
                                      items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, alias: i.searchKeyword, sub: i.unit }))} />
-                    {l.workOrderNo && <div style={{ fontSize: 11, color: 'var(--ec-text-hint)' }}>작업지시 {l.workOrderNo}</div>}
+                    {l.workOrderNo && <div className="text-[11px] text-ec-hint">작업지시 {l.workOrderNo}</div>}
                   </td>
                   <td>
                     <input className={inputCls} value={l.lotNo ?? ''} maxLength={60} aria-label="시리얼/로트No."
@@ -647,13 +647,13 @@ export default function IssuePage() {
                     <input type="number" step="any" className={inputCls} style={{ textAlign: 'right' }}
                            value={l.qty} onChange={(e) => setLine(l.key, { qty: e.target.value })} />
                   </td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{qtyCell(stockAllOf(l.itemId))}</td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{qtyCell(stockAtOf(l.itemId, form.warehouseId))}</td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{qtyCell(stockAtOf(l.itemId, form.toWarehouseId))}</td>
+                  <td className="text-right text-ec-label">{qtyCell(stockAllOf(l.itemId))}</td>
+                  <td className="text-right text-ec-label">{qtyCell(stockAtOf(l.itemId, form.warehouseId))}</td>
+                  <td className="text-right text-ec-label">{qtyCell(stockAtOf(l.itemId, form.toWarehouseId))}</td>
                   <td>
                     <input className={inputCls} value={l.note} onChange={(e) => setLine(l.key, { note: e.target.value })} />
                   </td>
-                  <td style={{ textAlign: 'center' }}>
+                  <td className="text-center">
                     <button type="button" onClick={() => setLines(lines.length > 1 ? lines.filter((x) => x.key !== l.key) : [emptyLine()])}
                             style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
                   </td>
@@ -662,8 +662,8 @@ export default function IssuePage() {
             </tbody>
             <tfoot>
               <tr>
-                <td colSpan={3} style={{ textAlign: 'right', fontWeight: 700 }}>합계</td>
-                <td style={{ textAlign: 'right', fontWeight: 700 }}>
+                <td colSpan={3} className="text-right font-bold">합계</td>
+                <td className="text-right font-bold">
                   {lines.reduce((a2, l) => a2 + (Number(l.qty) || 0), 0).toLocaleString()}
                 </td>
                 {/* 열이 다섯에서 여덟이 됐다 — 합계행도 같이 늘린다(2 + 1 + 5 = 8). */}
@@ -673,7 +673,7 @@ export default function IssuePage() {
           </table>
 
           {/* 원본 아래 단추: 저장(F8) · 저장/전표(F7) · 다시 작성 · 리스트 — [리스트] 는 입력 창을 닫고 목록으로 간다. */}
-          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-start', gap: 4 }}>
+          <div className="mt-[12px] flex justify-start gap-[4px]">
             <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
             <button type="button" className="ec-btn" onClick={() => setShowForm(false)}>리스트</button>
           </div>
@@ -686,10 +686,10 @@ export default function IssuePage() {
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from}
                  onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
           <input type="date" className="ec-input" value={to}
                  onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from}
               onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
@@ -746,16 +746,16 @@ export default function IssuePage() {
         </EcCond>
         <EcCond label="최초작성일자">
           <input type="date" className="ec-input" value={madeFrom} onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
           <input type="date" className="ec-input" value={madeTo} onChange={(e) => setMadeTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="최종작업일자">
           <input type="date" className="ec-input" value={editedFrom} onChange={(e) => setEditedFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
           <input type="date" className="ec-input" value={editedTo} onChange={(e) => setEditedTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="기타">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
             수정일자순(정렬)
           </label>
@@ -765,7 +765,7 @@ export default function IssuePage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34, textAlign: 'center' }}>
+            <th className="w-[34px] text-center">
               <input type="checkbox"
                      checked={shown.length > 0 && shown.every((r) => checked.has(r.id))}
                      onChange={() => setChecked(
@@ -778,7 +778,7 @@ export default function IssuePage() {
               적는 규칙은 판매조회·견적서와 같다('2026/08/29 -1').
             */}
             <th>일자-No.</th>
-            <th style={{ width: 90 }}>담당자</th>
+            <th className="w-[90px]">담당자</th>
             {/*
               원본 차례: 일자-No. · <b>보내는창고명 · 받는공장명</b> · 품목명[규격명] ·
               수량 · <b>작업지시서</b> · 인쇄. 어디서 어디로 갔는지가 먼저고,
@@ -802,35 +802,35 @@ export default function IssuePage() {
               불러오는 전표는 작업지시서뿐이다).
               원본 차례상 <b>[작업지시품목코드]보다 앞</b>이다.
             */}
-            <th style={{ width: 100 }}>불러온 전표일자</th>
-            <th style={{ width: 70 }}>작업지시품목코드</th>
-            <th style={{ width: 125 }}>품목코드</th>
+            <th className="w-[100px]">불러온 전표일자</th>
+            <th className="w-[70px]">작업지시품목코드</th>
+            <th className="w-[125px]">품목코드</th>
             {/* 원본 열 이름은 [품목명[규격명]] — 이름만으로는 같은 이름의 다른 규격을 못 가린다. */}
             <th>품목명[규격명]</th>
-            <th style={{ textAlign: 'right' }}>수량</th>
+            <th className="text-right">수량</th>
             <th>단위</th>
             <th>작업지시서</th>
             <th>적요</th>
             {/* 원본 생산불출조회의 마지막 열 [인쇄] — 그 한 건을 불출증으로 찍는다. */}
-            <th style={{ width: 60, textAlign: 'center' }}>인쇄</th>
-            <th style={{ width: 60, textAlign: 'center' }}>관리</th>
+            <th className="w-[60px] text-center">인쇄</th>
+            <th className="w-[60px] text-center">관리</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={15} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={15} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={15} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={15} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <input type="checkbox" checked={checked.has(r.id)} onChange={() => setChecked((prev) => {
                   const next = new Set(prev)
                   if (next.has(r.id)) next.delete(r.id); else next.add(r.id)
                   return next
                 })} />
               </td>
-              <td style={{ fontFamily: 'monospace' }}>{dateNo(r)}</td>
+              <td>{dateNo(r)}</td>
               <td style={{ color: r.employeeId ? undefined : 'var(--ec-text-off)' }}>{empName(r.employeeId)}</td>
               <td>{r.warehouseName ?? ''}</td>
               <td style={{ color: r.toWarehouseName ? undefined : 'var(--ec-text-off)' }}>{r.toWarehouseName ?? ''}</td>
@@ -839,16 +839,16 @@ export default function IssuePage() {
                   title={r.productName ?? ''}>
                 {r.productCode ?? '-'}
               </td>
-              <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
+              <td>{r.itemCode}</td>
               <td>{r.itemName}{r.itemSpec ? `[${r.itemSpec}]` : ''}</td>
-              <td style={{ textAlign: 'right' }}>{r.qty.toLocaleString()}</td>
+              <td className="text-right">{r.qty.toLocaleString()}</td>
               <td>{r.unit}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.workOrderNo ?? ''}</td>
+              <td>{r.workOrderNo ?? ''}</td>
               <td>{r.note ?? ''}</td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <button onClick={() => printOne(r)} style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
               </td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <button onClick={() => remove(r)} style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
               </td>
             </tr>
@@ -857,8 +857,8 @@ export default function IssuePage() {
         {shown.length > 0 && (
           <tfoot>
             <tr>
-              <td colSpan={7} style={{ textAlign: 'right', fontWeight: 700 }}>합계</td>
-              <td style={{ textAlign: 'right', fontWeight: 700 }}>
+              <td colSpan={7} className="text-right font-bold">합계</td>
+              <td className="text-right font-bold">
                 {shown.reduce((a, r) => a + r.qty, 0).toLocaleString()}
               </td>
               <td colSpan={7}></td>

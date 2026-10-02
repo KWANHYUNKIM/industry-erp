@@ -96,21 +96,21 @@ export default function StockIoPage() {
   return (
     <form ref={formRef} onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       {/* ☆ 제목 + 상단 툴바 */}
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ color: 'var(--ec-star)', fontSize: 14, marginRight: 4 }}>☆</span>
-        <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ec-text)' }}>입출고 등록</span>
-        <span style={{ marginLeft: 10, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>입고·출고·조정 처리 시 재고 잔량 자동 반영</span>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+      <div className="flex items-center mb-[8px]">
+        <span className="text-ec-star text-[14px] mr-[4px]">☆</span>
+        <span className="text-[15px] font-extrabold text-ec-text">입출고 등록</span>
+        <span className="ml-[10px] text-[11.5px] text-ec-hint">입고·출고·조정 처리 시 재고 잔량 자동 반영</span>
+        <div className="ml-auto flex gap-[4px]">
           <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
           <button type="button" className="ec-btn">도움말</button>
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+      <div className="flex gap-[12px] items-start flex-wrap">
         {/* 입력 폼 */}
-        <div style={{ width: 420, border: '1px solid var(--ec-border)', background: '#fff', padding: 14, flexShrink: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>입출고 등록</div>
-          <table className="w-full text-left" style={{ marginBottom: 10 }}>
+        <div className="w-[420px] border border-ec-line border-solid bg-white p-[14px] shrink-0">
+          <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">입출고 등록</div>
+          <table className="w-full text-left mb-[10px]">
             <tbody>
               <tr>
                 <th style={th}>유형 *</th>
@@ -149,7 +149,7 @@ export default function StockIoPage() {
                 <th style={th}>수량 *</th>
                 <td>
                   <input type="number" step="any" className="ec-input" value={form.quantity} onChange={(e) => set('quantity', e.target.value)} style={{ width: 140, textAlign: 'right' }} />
-                  <span style={{ margin: '0 6px', color: 'var(--ec-text-hint)', fontSize: 12 }}>단가</span>
+                  <span className="my-0 mx-[6px] text-ec-hint text-[12px]">단가</span>
                   <input type="number" step="any" className="ec-input" value={form.unitPrice} onChange={(e) => set('unitPrice', e.target.value)} style={{ width: 120, textAlign: 'right' }} />
                 </td>
               </tr>
@@ -164,37 +164,37 @@ export default function StockIoPage() {
             </tbody>
           </table>
 
-          {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-          {ok && <p style={{ background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
+          {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+          {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
           <button type="submit" className="ec-btn ec-btn-primary" style={{ width: '100%', height: 30 }}>등록</button>
         </div>
 
         {/* 최근 이력 */}
-        <div style={{ flex: 1, minWidth: 380 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-text)', marginBottom: 6 }}>최근 입출고 이력</div>
+        <div className="flex-1 min-w-[380px]">
+          <div className="text-[13px] font-extrabold text-ec-text mb-[6px]">최근 입출고 이력</div>
           <table className="w-full text-left">
             <thead>
               <tr>
                 <th>일자</th>
-                <th style={{ textAlign: 'center' }}>유형</th>
+                <th className="text-center">유형</th>
                 <th>품목</th>
                 <th>창고</th>
-                <th style={{ textAlign: 'right' }}>변동</th>
+                <th className="text-right">변동</th>
                 {/* 저장된 잔량은 <b>입력 순서</b>로 매겨진다. 과거 일자 거래를 뒤늦게 넣으면
                     일자순으로 읽을 때의 잔량과 어긋난다 — 실제로 거래 7,385건 중 7,224건이
                     어긋난 채였다. 「잔량재집계」가 정규화한다. 칸 이름으로 그 성질을 밝힌다. */}
-                <th style={{ textAlign: 'right' }} title="입력 순서로 매겨진 잔량입니다. 과거 일자 거래를 넣은 뒤에는 「잔량재집계」를 돌려야 일자순 잔량과 맞습니다.">잔량(입력순)</th>
+                <th className="text-right" title="입력 순서로 매겨진 잔량입니다. 과거 일자 거래를 넣은 뒤에는 「잔량재집계」를 돌려야 일자순 잔량과 맞습니다.">잔량(입력순)</th>
                 <th>비고</th>
               </tr>
             </thead>
             <tbody>
               {history.length === 0 ? (
-                <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={7} className="text-center text-ec-hint p-[16px]">등록된 데이터가 없습니다.</td></tr>
               ) : history.map((t) => (
                 <tr key={t.id}>
                   <td>{dateText(t.transactionDate)}</td>
-                  <td style={{ textAlign: 'center' }}>
+                  <td className="text-center">
                     <span style={{ background: typeColor(t).bg, color: typeColor(t).fg, padding: '1px 6px', borderRadius: 3, fontSize: 11.5, fontWeight: 600 }}>{t.typeName}</span>
                   </td>
                   <td>{t.itemName}</td>
@@ -202,8 +202,8 @@ export default function StockIoPage() {
                   <td style={{ textAlign: 'right', fontWeight: 600, color: t.quantityChange < 0 ? '#a5561b' : 'var(--ec-blue)' }}>
                     {t.quantityChange > 0 ? '+' : ''}{t.quantityChange.toLocaleString()}
                   </td>
-                  <td style={{ textAlign: 'right' }}>{t.balanceAfter.toLocaleString()}</td>
-                  <td style={{ color: 'var(--ec-text-hint)' }}>{t.note ?? ''}</td>
+                  <td className="text-right">{t.balanceAfter.toLocaleString()}</td>
+                  <td className="text-ec-hint">{t.note ?? ''}</td>
                 </tr>
               ))}
             </tbody>

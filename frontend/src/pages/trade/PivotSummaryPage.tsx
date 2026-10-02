@@ -262,16 +262,16 @@ export default function PivotSummaryPage() {
       onSearch={load}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
     >
-      <p className="mb-2 text-xs text-slate-500">거래처/품목 × 월 매출·매입 금액 피벗. 공급가액 기준, 금액 큰 행 순.</p>
+      <p className="mb-2 text-xs text-ec-hint">거래처/품목 × 월 매출·매입 금액 피벗. 공급가액 기준, 금액 큰 행 순.</p>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
+      <div className="flex items-center gap-[12px] mb-[10px] flex-wrap">
         {/*
           원본 첫 조건은 [메뉴구분], 둘째가 [구분](집계조건), 셋째가 [기준일자]다.
           우리 표는 한 해 × 12개월 피벗이라 기간을 <b>연 단위</b>로만 고른다 —
           이름표만 원본대로 [기준일자]라 붙인다(원본 기본값은 전월+금월).
         */}
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>메뉴구분</span>
-        <div style={{ display: 'flex', gap: 2 }}>
+        <span className="text-[12.5px] text-ec-label">메뉴구분</span>
+        <div className="flex gap-[2px]">
           {MODES.map((m) => (
             <button key={m} onClick={() => setMode(m)} className="no-ec" style={{
               padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
@@ -279,11 +279,11 @@ export default function PivotSummaryPage() {
             }}>{m}</button>
           ))}
         </div>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>기준일자</span>
+        <span className="text-[12.5px] text-ec-label">기준일자</span>
         <select className="ec-input" value={year} onChange={(e) => setYear(Number(e.target.value))} style={{ width: 100 }}>
           {years.map((y) => <option key={y} value={y}>{y}년</option>)}
         </select>
-        <div style={{ display: 'flex', gap: 2 }}>
+        <div className="flex gap-[2px]">
           {(['partner', 'item'] as const).map((g) => (
             <button key={g} onClick={() => setGroupBy(g)} className="no-ec" style={{
               padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
@@ -291,7 +291,7 @@ export default function PivotSummaryPage() {
             }}>{g === 'partner' ? '거래처별' : '품목별'}</button>
           ))}
         </div>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>거래유형</span>
+        <span className="text-[12.5px] text-ec-label">거래유형</span>
         <select className="ec-input" value={taxCond} style={{ width: 90 }}
                 onChange={(e) => setTaxCond(e.target.value as '전체' | '과세' | '면세')}>
           <option>전체</option><option>과세</option><option>면세</option>
@@ -314,21 +314,21 @@ export default function PivotSummaryPage() {
                          items={pgroup.groupOptions.map((g) => ({ value: g, name: g }))} />
         <CodePickerField label="품목" width={150} emptyLabel="전체"
                          value={itemCond} onChange={setItemCond} items={condPick.items} />
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>품목구분</span>
+        <span className="text-[12.5px] text-ec-label">품목구분</span>
         <select className="ec-input" value={categoryCond} style={{ width: 130 }}
                 onChange={(e) => setCategoryCond(e.target.value)}>
           <option value="">전체</option>
           {[...new Set([...sales, ...purchases].flatMap((d) => d.lines.map((l) => l.itemCategoryName))
             .filter(Boolean) as string[])].sort().map((n) => <option key={n} value={n}>{n}</option>)}
         </select>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>품목그룹1</span>
+        <span className="text-[12.5px] text-ec-label">품목그룹1</span>
         <select className="ec-input" value={itemGroupCond} style={{ width: 150 }}
                 onChange={(e) => setItemGroupCond(e.target.value)}>
           <option value="">전체</option>
           {mgmt.groupOptions.map((g) => <option key={g} value={g}>{g}</option>)}
         </select>
         {/* 원본 조건 차례의 맨 뒤 [거래구분] — 일반인가 반품인가. */}
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>거래구분</span>
+        <span className="text-[12.5px] text-ec-label">거래구분</span>
         <select className="ec-input" value={kindCond} style={{ width: 90 }}
                 onChange={(e) => setKindCond(e.target.value as '전체' | '일반' | '반품')}>
           <option>전체</option><option>일반</option><option>반품</option>
@@ -342,57 +342,57 @@ export default function PivotSummaryPage() {
                          value={partnerMgrCond} onChange={setPartnerMgrCond}
                          items={pmgr.options.map((n) => ({ value: n, name: n }))} />
         {/* 원본 차례: … 거래처관리담당자 · (외화종류) · 규격 · 수량 · 단가 · 공급가액 · 부가세 · 적요 · 부대비용 … */}
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>규격</span>
+        <span className="text-[12.5px] text-ec-label">규격</span>
         <ItemSuggestInput field="spec" value={specCond} placeholder="규격"
                           onChange={(v) => setSpecCond(v)} width={120} />
         {/*
           이름표를 <b>글자 그대로</b> 적는다 — 배열을 map 으로 돌리면 화면에는 뜨지만
           대조 검사가 소스에서 이름을 못 찾아 '없다' 고 말한다(실제로 그랬다).
         */}
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>수량</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <span className="text-[12.5px] text-ec-label">수량</span>
+        <span className="flex items-center gap-[4px]">
           <input className="ec-input" type="number" style={{ width: 90 }} value={range['qtyFrom'] ?? ''}
                  onChange={(e) => setR('qtyFrom', e.target.value)} />
-          <span style={{ color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="text-ec-hint">~</span>
           <input className="ec-input" type="number" style={{ width: 90 }} value={range['qtyTo'] ?? ''}
                  onChange={(e) => setR('qtyTo', e.target.value)} />
         </span>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>단가</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <span className="text-[12.5px] text-ec-label">단가</span>
+        <span className="flex items-center gap-[4px]">
           <input className="ec-input" type="number" style={{ width: 90 }} value={range['priceFrom'] ?? ''}
                  onChange={(e) => setR('priceFrom', e.target.value)} />
-          <span style={{ color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="text-ec-hint">~</span>
           <input className="ec-input" type="number" style={{ width: 90 }} value={range['priceTo'] ?? ''}
                  onChange={(e) => setR('priceTo', e.target.value)} />
         </span>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>공급가액</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <span className="text-[12.5px] text-ec-label">공급가액</span>
+        <span className="flex items-center gap-[4px]">
           <input className="ec-input" type="number" style={{ width: 90 }} value={range['supplyFrom'] ?? ''}
                  onChange={(e) => setR('supplyFrom', e.target.value)} />
-          <span style={{ color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="text-ec-hint">~</span>
           <input className="ec-input" type="number" style={{ width: 90 }} value={range['supplyTo'] ?? ''}
                  onChange={(e) => setR('supplyTo', e.target.value)} />
         </span>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>부가세</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <span className="text-[12.5px] text-ec-label">부가세</span>
+        <span className="flex items-center gap-[4px]">
           <input className="ec-input" type="number" style={{ width: 90 }} value={range['vatFrom'] ?? ''}
                  onChange={(e) => setR('vatFrom', e.target.value)} />
-          <span style={{ color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="text-ec-hint">~</span>
           <input className="ec-input" type="number" style={{ width: 90 }} value={range['vatTo'] ?? ''}
                  onChange={(e) => setR('vatTo', e.target.value)} />
         </span>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>적요</span>
+        <span className="text-[12.5px] text-ec-label">적요</span>
         <input className="ec-input" value={remarkCond} placeholder="적요"
                onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 140 }} />
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>부대비용</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <span className="text-[12.5px] text-ec-label">부대비용</span>
+        <span className="flex items-center gap-[4px]">
           <input className="ec-input" type="number" style={{ width: 90 }} value={range['extraFrom'] ?? ''}
                  onChange={(e) => setR('extraFrom', e.target.value)} />
-          <span style={{ color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="text-ec-hint">~</span>
           <input className="ec-input" type="number" style={{ width: 90 }} value={range['extraTo'] ?? ''}
                  onChange={(e) => setR('extraTo', e.target.value)} />
         </span>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>진행상태</span>
+        <span className="text-[12.5px] text-ec-label">진행상태</span>
         <select className="ec-input" value={statusCond} style={{ width: 110 }}
                 onChange={(e) => setStatusCond(e.target.value)}>
           <option value="">전체</option>
@@ -404,24 +404,24 @@ export default function PivotSummaryPage() {
                          items={[...new Set([...sales, ...purchases].map((d) => d.createdBy)
                            .filter(Boolean) as string[])].sort().map((n) => ({ value: n, name: n }))} />
         {/* 원본 조건 차례의 맨 끝 — [정렬/소계기준] 다음이다. */}
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>데이터 보기형식</span>
+        <span className="text-[12.5px] text-ec-label">데이터 보기형식</span>
         <div className="ec-pills">
           {(['표', '그래프'] as const).map((v) => (
             <button key={v} type="button" className={`ec-pill no-ec${view === v ? ' active' : ''}`}
                     onClick={() => setView(v)}>{v}</button>
           ))}
         </div>
-        <span style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--ec-label)' }}>총계 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{won(colTotals.grand)}</b></span>
+        <span className="ml-auto text-[12.5px] text-ec-label">총계 <b className="text-ec-blue text-[14px]">{won(colTotals.grand)}</b></span>
       </div>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       {view === '그래프' ? (
         <EcBarChart unit=" 원" emptyText="조회된 자료가 없습니다."
                     rows={rows.map((r) => ({ label: r.name, value: r.total }))} />
       ) : (
-      <div style={{ overflowX: 'auto' }}>
-        <table ref={tableRef} className="w-full text-left" style={{ minWidth: 900 }}>
+      <div className="overflow-x-auto">
+        <table ref={tableRef} className="w-full text-left min-w-[900px]">
           <thead>
             <tr>
               {/*
@@ -434,7 +434,7 @@ export default function PivotSummaryPage() {
                 우리 [합계]는 열두 달 공급가액의 합이라 <b>원본 [합계](공급가액+부가세)와
                 다른 값</b>이다 — 이름이 겹치므로 우리 쪽은 [연간합계]라 부른다.
               */}
-              <th style={{ position: 'sticky', left: 0, background: 'var(--ec-bg-page)', minWidth: 140 }}>{groupBy === 'partner' ? '거래처' : '품목'}</th>
+              <th className="sticky left-0 bg-ec-page min-w-[140px]">{groupBy === 'partner' ? '거래처' : '품목'}</th>
               <th style={{ ...cell, textAlign: 'right', fontWeight: 700 }}>수량</th>
               <th style={{ ...cell, textAlign: 'right', fontWeight: 700 }}>공급가액</th>
               <th style={{ ...cell, textAlign: 'right', fontWeight: 700 }}>부가세</th>
@@ -445,12 +445,12 @@ export default function PivotSummaryPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={18} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={18} className="ec-empty">불러오는 중…</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={18} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={18} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : rows.map((r) => (
               <tr key={r.key}>
-                <td style={{ position: 'sticky', left: 0, background: '#fff', fontWeight: 600 }}>{r.name}</td>
+                <td className="sticky left-0 bg-white font-semibold">{r.name}</td>
                 <td style={{ ...cell, textAlign: 'right' }}>{r.qty ? won(r.qty) : ''}</td>
                 <td style={{ ...cell, textAlign: 'right' }}>{r.supply ? won(r.supply) : ''}</td>
                 <td style={{ ...cell, textAlign: 'right', color: 'var(--ec-text-hint)' }}>{r.vat ? won(r.vat) : ''}</td>
@@ -462,8 +462,8 @@ export default function PivotSummaryPage() {
           </tbody>
           {rows.length > 0 && (
             <tfoot>
-              <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
-                <td style={{ position: 'sticky', left: 0, background: 'var(--ec-bg-page)' }}>합계</td>
+              <tr className="font-bold bg-ec-page">
+                <td className="sticky left-0 bg-ec-page">합계</td>
                 <td style={cell}>{won(colTotals.qty)}</td>
                 <td style={cell}>{won(colTotals.supply)}</td>
                 <td style={cell}>{won(colTotals.vat)}</td>

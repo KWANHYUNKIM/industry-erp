@@ -113,13 +113,13 @@ export default function TaxInvoiceJournalPage({ side }: { side: Side }) {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={side === '매출' ? NOTE_FLOW_PICKS : INQUIRY_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
@@ -136,7 +136,7 @@ export default function TaxInvoiceJournalPage({ side }: { side: Side }) {
         </EcCond>
         {side === '매출' && (
           <EcCond label="기타">
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+            <label className="inline-flex items-center gap-[3px] text-[12.5px]">
               <input type="checkbox" checked={taxOnly} onChange={(e) => setTaxOnly(e.target.checked)} /> 세무신고거래처
             </label>
           </EcCond>
@@ -149,35 +149,35 @@ export default function TaxInvoiceJournalPage({ side }: { side: Side }) {
         </EcCond>
         <EcCond label="상태">
           {(['전체', '결재중', '미확인', '확인'] as Status[]).map((v) => (
-            <label key={v} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+            <label key={v} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
               <input type="radio" name={`tij-status-${side}`} checked={status === v} onChange={() => setStatus(v)} /> {v}
             </label>
           ))}
         </EcCond>
       </ul>
 
-      {truncated && <p style={{ fontSize: 12, color: 'var(--ec-warn)', marginBottom: 6 }}>전표가 많아 앞부분만 받았습니다 — 기간을 좁혀 보세요.</p>}
-      <h3 style={{ fontSize: 20, fontWeight: 700, textAlign: 'center', margin: '6px 0 12px' }}>{side === '매출' ? '매출(세금)계산서현황' : '매입(세금)계산서현황'}</h3>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, margin: '0 0 4px' }}>
+      {truncated && <p className="text-[12px] text-ec-warn mb-[6px]">전표가 많아 앞부분만 받았습니다 — 기간을 좁혀 보세요.</p>}
+      <h3 className="text-[20px] font-bold text-center mt-[6px] mx-0 mb-[12px]">{side === '매출' ? '매출(세금)계산서현황' : '매입(세금)계산서현황'}</h3>
+      <div className="flex justify-between text-[12px] mt-0 mx-0 mb-[4px]">
         <span>회사명 : {companyName ?? ''}</span>
         <span>{slash(from)} ~ {slash(to)}</span>
       </div>
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ textAlign: 'center' }}>일자-No.</th>
+            <th className="text-center">일자-No.</th>
             <th>거래처명</th>
-            <th style={{ textAlign: 'right' }}>공급가액</th>
-            <th style={{ textAlign: 'right' }}>{side}부가세</th>
-            <th style={{ textAlign: 'right' }}>{side}합계</th>
-            <th style={{ textAlign: 'center' }}>내역보기</th>
+            <th className="text-right">공급가액</th>
+            <th className="text-right">{side}부가세</th>
+            <th className="text-right">{side}합계</th>
+            <th className="text-center">내역보기</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={6} className="ec-empty">불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : (
             <>
               {months.map((mo) => {
@@ -187,29 +187,29 @@ export default function TaxInvoiceJournalPage({ side }: { side: Side }) {
                   <Fragment key={mo}>
                     {ms.map((r) => (
                       <tr key={r.key}>
-                        <td style={{ textAlign: 'center', color: 'var(--ec-blue)' }}>{slash(r.date)} -{r.no}</td>
+                        <td className="text-center text-ec-blue">{slash(r.date)} -{r.no}</td>
                         <td>{r.partner}</td>
-                        <td style={{ textAlign: 'right' }}>{won(r.supply)}</td>
-                        <td style={{ textAlign: 'right' }}>{won(r.vat)}</td>
-                        <td style={{ textAlign: 'right' }}>{won(r.supply + r.vat)}</td>
-                        <td style={{ textAlign: 'center', color: 'var(--ec-blue)' }}>{r.fromSlip ? '내역보기 거래명세서' : '회계 I'}</td>
+                        <td className="text-right">{won(r.supply)}</td>
+                        <td className="text-right">{won(r.vat)}</td>
+                        <td className="text-right">{won(r.supply + r.vat)}</td>
+                        <td className="text-center text-ec-blue">{r.fromSlip ? '내역보기 거래명세서' : '회계 I'}</td>
                       </tr>
                     ))}
                     <tr style={SUB_ROW}>
-                      <td colSpan={2} style={{ textAlign: 'center' }}>{slash(mo)}  계</td>
-                      <td style={{ textAlign: 'right' }}>{won(s.s)}</td>
-                      <td style={{ textAlign: 'right' }}>{won(s.v)}</td>
-                      <td style={{ textAlign: 'right' }}>{won(s.s + s.v)}</td>
+                      <td colSpan={2} className="text-center">{slash(mo)}  계</td>
+                      <td className="text-right">{won(s.s)}</td>
+                      <td className="text-right">{won(s.v)}</td>
+                      <td className="text-right">{won(s.s + s.v)}</td>
                       <td></td>
                     </tr>
                   </Fragment>
                 )
               })}
               <tr style={SUB_ROW}>
-                <td colSpan={2} style={{ textAlign: 'center' }}>합계</td>
-                <td style={{ textAlign: 'right' }}>{won(total.s)}</td>
-                <td style={{ textAlign: 'right' }}>{won(total.v)}</td>
-                <td style={{ textAlign: 'right' }}>{won(total.s + total.v)}</td>
+                <td colSpan={2} className="text-center">합계</td>
+                <td className="text-right">{won(total.s)}</td>
+                <td className="text-right">{won(total.v)}</td>
+                <td className="text-right">{won(total.s + total.v)}</td>
                 <td></td>
               </tr>
             </>

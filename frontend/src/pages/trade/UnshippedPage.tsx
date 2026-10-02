@@ -312,7 +312,7 @@ export default function UnshippedPage() {
         <EcCond label="출하예정일">
           <input type="date" className="ec-input" value={cond.dueFrom}
                  onChange={(e) => setC({ dueFrom: e.target.value })} style={{ width: 140 }} />
-          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <span className="text-ec-label">~</span>
           <input type="date" className="ec-input" value={cond.dueTo}
                  onChange={(e) => setC({ dueTo: e.target.value })} style={{ width: 140 }} />
         </EcCond>
@@ -358,7 +358,7 @@ export default function UnshippedPage() {
         <EcCond label="미출하수량">
           <input className="ec-input" type="number" value={cond.qtyFrom}
                  onChange={(e) => setC({ qtyFrom: e.target.value })} style={{ width: 100 }} />
-          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <span className="text-ec-label">~</span>
           <input className="ec-input" type="number" value={cond.qtyTo}
                  onChange={(e) => setC({ qtyTo: e.target.value })} style={{ width: 100 }} />
         </EcCond>
@@ -386,7 +386,7 @@ export default function UnshippedPage() {
         <EcCond label="수량">
           <input className="ec-input" type="number" value={cond.ordQtyFrom}
                  onChange={(e) => setC({ ordQtyFrom: e.target.value })} style={{ width: 100 }} />
-          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <span className="text-ec-label">~</span>
           <input className="ec-input" type="number" value={cond.ordQtyTo}
                  onChange={(e) => setC({ ordQtyTo: e.target.value })} style={{ width: 100 }} />
         </EcCond>
@@ -431,15 +431,15 @@ export default function UnshippedPage() {
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
-        미출하 라인 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{shown.length}</b>건
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
-        미출하수량 합계 <b style={{ color: 'var(--ec-danger)', fontSize: 14 }}>{totalUnshipped.toLocaleString()}</b>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        미출하 라인 <b className="text-ec-navy text-[14px]">{shown.length}</b>건
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
+        미출하수량 합계 <b className="text-ec-danger text-[14px]">{totalUnshipped.toLocaleString()}</b>
       </div>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {notice && (
-        <p style={{ background: 'var(--ec-blue-wash)', color: 'var(--ec-navy)', border: '1px solid var(--ec-info-line)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8, display: 'flex', alignItems: 'center' }}>
+        <p className="bg-ec-blue-wash text-ec-navy border border-ec-info-line border-solid py-[6px] px-[10px] text-[12.5px] rounded-[3px] mb-[8px] flex items-center">
           {notice}
           <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => navigate('/sales/shipment-order')}>출하지시서로 이동</button>
         </p>
@@ -451,26 +451,26 @@ export default function UnshippedPage() {
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
-              <th style={{ width: 130 }}>품목코드</th>
+              <th className="w-[34px]"></th>
+              <th className="w-[130px]">품목코드</th>
               <th>품목명(규격)</th>
-              <th style={{ width: 90, textAlign: 'right' }}>주문건수</th>
-              <th style={{ width: 110, textAlign: 'right' }}>수량</th>
-              <th style={{ width: 110, textAlign: 'right' }}>미출하수량</th>
+              <th className="w-[90px] text-right">주문건수</th>
+              <th className="w-[110px] text-right">수량</th>
+              <th className="w-[110px] text-right">미출하수량</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={6} className="ec-empty">불러오는 중…</td></tr>
             ) : byItem.length === 0 ? (
-              <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : byItem.map((g, i) => (
               <tr key={g.itemId}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{g.itemCode}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td>{g.itemCode}</td>
                 <td>{nameSpec(g)}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{g.orderCount.toLocaleString()}</td>
-                <td style={{ textAlign: 'right' }}>{g.orderQty.toLocaleString()} {g.unit}</td>
+                <td className="text-right text-ec-hint">{g.orderCount.toLocaleString()}</td>
+                <td className="text-right">{g.orderQty.toLocaleString()} {g.unit}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700, color: g.unshippedQty > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>
                   {g.unshippedQty.toLocaleString()}
                 </td>
@@ -478,11 +478,11 @@ export default function UnshippedPage() {
             ))}
           </tbody>
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={3} style={{ textAlign: 'right' }}>합계 ({byItem.length}품목)</td>
-              <td style={{ textAlign: 'right' }}>{byItem.reduce((a, g) => a + g.orderCount, 0).toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{byItem.reduce((a, g) => a + g.orderQty, 0).toLocaleString()}</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-danger)' }}>{totalUnshipped.toLocaleString()}</td>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={3} className="text-right">합계 ({byItem.length}품목)</td>
+              <td className="text-right">{byItem.reduce((a, g) => a + g.orderCount, 0).toLocaleString()}</td>
+              <td className="text-right">{byItem.reduce((a, g) => a + g.orderQty, 0).toLocaleString()}</td>
+              <td className="text-right text-ec-danger">{totalUnshipped.toLocaleString()}</td>
             </tr>
           </tfoot>
         </table>
@@ -494,38 +494,38 @@ export default function UnshippedPage() {
                 일자-No. · 품목명(규격) · 수량 · 미출하수량 · 창고명 · 거래처명 · 적요 · 출하예정일.
                 창고명·적요도 이제 싣는다 — 둘 다 응답에 진작 있었다.
                 맨 끝 [출하지시] 는 우리 화면의 것이다 — 여기서 바로 출하지시서를 낸다. */}
-            <th style={{ width: 34 }}></th>
-            <th style={{ width: 170, cursor: 'pointer' }} onClick={() => sort.toggle('일자-No.')}>일자-No. {sort.mark('일자-No.')}</th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('품목명(규격)')}>품목명(규격) {sort.mark('품목명(규격)')}</th>
-            <th style={{ width: 90, textAlign: 'right' }}>수량</th>
-            <th style={{ width: 90, textAlign: 'right' }}>미출하수량</th>
-            <th style={{ width: 110 }}>창고명</th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처명')}>거래처명 {sort.mark('거래처명')}</th>
-            <th style={{ width: 150 }}>적요</th>
+            <th className="w-[34px]"></th>
+            <th className="w-[170px] cursor-pointer" onClick={() => sort.toggle('일자-No.')}>일자-No. {sort.mark('일자-No.')}</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('품목명(규격)')}>품목명(규격) {sort.mark('품목명(규격)')}</th>
+            <th className="w-[90px] text-right">수량</th>
+            <th className="w-[90px] text-right">미출하수량</th>
+            <th className="w-[110px]">창고명</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('거래처명')}>거래처명 {sort.mark('거래처명')}</th>
+            <th className="w-[150px]">적요</th>
             {/* 원본은 [출하예정일]을 <b>가운데</b>로 찍는다(2026-09-09 실측). */}
-            <th style={{ width: 100, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('출하예정일')}>출하예정일 {sort.mark('출하예정일')}</th>
-            <th style={{ width: 80, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('상태')}>상태 {sort.mark('상태')}</th>
-            <th style={{ width: 150, textAlign: 'right' }}>출하지시</th>
+            <th className="w-[100px] text-center cursor-pointer" onClick={() => sort.toggle('출하예정일')}>출하예정일 {sort.mark('출하예정일')}</th>
+            <th className="w-[80px] text-center cursor-pointer" onClick={() => sort.toggle('상태')}>상태 {sort.mark('상태')}</th>
+            <th className="w-[150px] text-right">출하지시</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={11} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={`${r.orderId}-${r.itemId}-${i}`}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{dateText(r.orderDate)} {r.orderNo}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td>{dateText(r.orderDate)} {r.orderNo}</td>
               <td>[{r.itemCode}] {nameSpec(r)}</td>
-              <td style={{ textAlign: 'right' }}>{r.orderQty.toLocaleString()} {r.unit}</td>
+              <td className="text-right">{r.orderQty.toLocaleString()} {r.unit}</td>
               <td style={{ textAlign: 'right', fontWeight: 700, color: r.unshippedQty > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>{r.unshippedQty.toLocaleString()}</td>
               <td>{r.warehouseName ?? ''}</td>
               <td>{r.partnerName}</td>
-              <td style={{ color: 'var(--ec-text-hint)' }}>{r.remark ?? ''}</td>
+              <td className="text-ec-hint">{r.remark ?? ''}</td>
               <td style={{ fontFamily: 'monospace', textAlign: 'center', color: r.dueDate ? 'var(--ec-text)' : 'var(--ec-text-hint)' }}>{dateText(r.dueDate) || ''}</td>
               <td style={{ textAlign: 'center', color: statusColor(r.status), fontWeight: 700 }}>{r.statusName}</td>
-              <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+              <td className="text-center whitespace-nowrap">
                 <input
                   className="ec-input"
                   type="number"

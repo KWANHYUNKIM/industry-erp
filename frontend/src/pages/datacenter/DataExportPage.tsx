@@ -217,31 +217,31 @@ export default function DataExportPage() {
         { label: '건수 새로고침', onClick: loadCounts },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
-        <label style={{ fontSize: 12.5 }}>기간&nbsp;
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      <div className="flex items-center gap-[10px] mb-[10px] flex-wrap">
+        <label className="text-[12.5px]">기간&nbsp;
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} />
           &nbsp;~&nbsp;
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} />
         </label>
-        <label style={{ fontSize: 12.5 }}>형식&nbsp;
+        <label className="text-[12.5px]">형식&nbsp;
           <select className="ec-input" value={format} onChange={(e) => setFormat(e.target.value as typeof format)}>
             <option>Excel</option><option>CSV</option><option>JSON</option>
           </select>
         </label>
-        <span style={{ fontSize: 11.5, color: 'var(--ec-text-hint)' }}>* 기간은 일자 컬럼이 있는 전표성 데이터에만 적용</span>
-        <span style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--ec-label)' }}>선택 <b style={{ color: 'var(--ec-blue-dark)' }}>{checked.size}</b> / {DATASETS.length}</span>
+        <span className="text-[11.5px] text-ec-hint">* 기간은 일자 컬럼이 있는 전표성 데이터에만 적용</span>
+        <span className="ml-auto text-[12.5px] text-ec-label">선택 <b className="text-ec-navy">{checked.size}</b> / {DATASETS.length}</span>
       </div>
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34, textAlign: 'center' }}>
+            <th className="w-[34px] text-center">
               <input type="checkbox" checked={allChecked} onChange={toggleAll} />
             </th>
-            <th style={{ width: 90, cursor: 'pointer' }} onClick={() => sort.toggle('모듈')}>모듈 {sort.mark('모듈')}</th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('데이터셋')}>데이터셋 {sort.mark('데이터셋')}</th>
-            <th style={{ width: 160 }}>유형</th>
-            <th style={{ width: 110, textAlign: 'right' }}>건수</th>
+            <th className="w-[90px] cursor-pointer" onClick={() => sort.toggle('모듈')}>모듈 {sort.mark('모듈')}</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('데이터셋')}>데이터셋 {sort.mark('데이터셋')}</th>
+            <th className="w-[160px]">유형</th>
+            <th className="w-[110px] text-right">건수</th>
           </tr>
         </thead>
         <tbody>
@@ -249,12 +249,12 @@ export default function DataExportPage() {
             const c = counts[d.id]
             return (
               <tr key={d.id}>
-                <td style={{ textAlign: 'center' }}><input type="checkbox" checked={checked.has(d.id)} onChange={() => toggle(d.id)} /></td>
-                <td style={{ fontWeight: 700, color: 'var(--ec-blue-dark)' }}>{d.module}</td>
+                <td className="text-center"><input type="checkbox" checked={checked.has(d.id)} onChange={() => toggle(d.id)} /></td>
+                <td className="font-bold text-ec-navy">{d.module}</td>
                 <td>{d.name}</td>
-                <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: 'var(--ec-label)' }}>{d.dateCol !== null ? '전표성(기간필터)' : '마스터'}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>
-                  {loading ? '…' : c === null ? <span style={{ color: 'var(--ec-danger)' }}>조회실패</span> : (c ?? 0).toLocaleString()}
+                <td className="text-[11.5px] text-ec-label">{d.dateCol !== null ? '전표성(기간필터)' : '마스터'}</td>
+                <td className="text-right text-ec-label">
+                  {loading ? '…' : c === null ? <span className="text-ec-danger">조회실패</span> : (c ?? 0).toLocaleString()}
                 </td>
               </tr>
             )

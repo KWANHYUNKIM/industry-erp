@@ -95,13 +95,13 @@ export default function FixedAssetFlowPage({ flow }: { flow: '증가' | '감소'
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={SETTLE_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
@@ -121,35 +121,35 @@ export default function FixedAssetFlowPage({ flow }: { flow: '증가' | '감소'
             <th>계정명</th>
             <th>자산코드</th>
             <th>자산명</th>
-            <th style={{ textAlign: 'center' }}>{inc ? '취득일자' : '감소일자'}</th>
-            <th style={{ textAlign: 'right' }}>취득원가</th>
-            {inc ? <th>적요</th> : <th style={{ textAlign: 'right' }}>감가상각충당금</th>}
-            {!inc && <th style={{ textAlign: 'right' }}>매매가액</th>}
+            <th className="text-center">{inc ? '취득일자' : '감소일자'}</th>
+            <th className="text-right">취득원가</th>
+            {inc ? <th>적요</th> : <th className="text-right">감가상각충당금</th>}
+            {!inc && <th className="text-right">매매가액</th>}
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={cols} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={cols} className="ec-empty">불러오는 중…</td></tr>
           ) : groups.length === 0 ? (
-            <tr><td colSpan={cols} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={cols} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : groups.flatMap((g) => [
             ...g.rs.map((a) => (
               <tr key={a.id}>
-                <td style={{ fontFamily: 'monospace' }}>{a.assetAccountCode}</td>
+                <td>{a.assetAccountCode}</td>
                 <td>{a.assetAccountName}</td>
-                <td style={{ fontFamily: 'monospace' }}>{a.assetNo}</td>
+                <td>{a.assetNo}</td>
                 <td>{a.name}</td>
-                <td style={{ textAlign: 'center' }}>{dayOf(a).replace(/-/g, '/')}</td>
-                <td style={{ textAlign: 'right' }}>{won(Number(a.acquisitionCost))}</td>
-                {inc ? <td>{a.remark ?? ''}</td> : <td style={{ textAlign: 'right' }}>{won(Number(a.accumulatedDepreciation))}</td>}
-                {!inc && <td style={{ textAlign: 'right' }}>{won(Number(a.disposalAmount ?? 0))}</td>}
+                <td className="text-center">{dayOf(a).replace(/-/g, '/')}</td>
+                <td className="text-right">{won(Number(a.acquisitionCost))}</td>
+                {inc ? <td>{a.remark ?? ''}</td> : <td className="text-right">{won(Number(a.accumulatedDepreciation))}</td>}
+                {!inc && <td className="text-right">{won(Number(a.disposalAmount ?? 0))}</td>}
               </tr>
             )),
             <tr key={`sub-${g.code}`} style={SUB_ROW}>
               <td colSpan={5}>{g.name} 계</td>
-              <td style={{ textAlign: 'right' }}>{won(g.cost)}</td>
-              {inc ? <td></td> : <td style={{ textAlign: 'right' }}>{won(g.accum)}</td>}
-              {!inc && <td style={{ textAlign: 'right' }}>{won(g.sold)}</td>}
+              <td className="text-right">{won(g.cost)}</td>
+              {inc ? <td></td> : <td className="text-right">{won(g.accum)}</td>}
+              {!inc && <td className="text-right">{won(g.sold)}</td>}
             </tr>,
           ])}
         </tbody>
@@ -157,9 +157,9 @@ export default function FixedAssetFlowPage({ flow }: { flow: '증가' | '감소'
           <tfoot>
             <tr style={SUB_ROW}>
               <td colSpan={5}>합계</td>
-              <td style={{ textAlign: 'right' }}>{won(total.cost)}</td>
-              {inc ? <td></td> : <td style={{ textAlign: 'right' }}>{won(total.accum)}</td>}
-              {!inc && <td style={{ textAlign: 'right' }}>{won(total.sold)}</td>}
+              <td className="text-right">{won(total.cost)}</td>
+              {inc ? <td></td> : <td className="text-right">{won(total.accum)}</td>}
+              {!inc && <td className="text-right">{won(total.sold)}</td>}
             </tr>
           </tfoot>
         )}

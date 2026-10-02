@@ -94,7 +94,7 @@ export default function AccountRemarkLedgerPage() {
   useTableColumnCheck(tableRef, '계정별적요별원장', [rows.length, mode])
 
   const head = (extra: string) => (
-    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, margin: '0 0 4px' }}>
+    <div className="flex justify-between text-[12px] mt-0 mx-0 mb-[4px]">
       <span>회사명 : {companyName ?? ''} / {accountName}{extra}</span>
       <span>{slash(from)} ~ {slash(to)}</span>
     </div>
@@ -111,20 +111,20 @@ export default function AccountRemarkLedgerPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="구분">
           {(['건별', '적요별'] as const).map((v) => (
-            <label key={v} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+            <label key={v} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
               <input type="radio" name="arl-mode" checked={mode === v} onChange={() => setMode(v)} /> {v}
             </label>
           ))}
         </EcCond>
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={SETTLE_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
@@ -137,14 +137,14 @@ export default function AccountRemarkLedgerPage() {
         </EcCond>
       </ul>
 
-      {truncated && <p style={{ fontSize: 12, color: 'var(--ec-warn)', marginBottom: 6 }}>전표가 많아 앞부분만 받았습니다 — 기간을 좁혀 보세요.</p>}
+      {truncated && <p className="text-[12px] text-ec-warn mb-[6px]">전표가 많아 앞부분만 받았습니다 — 기간을 좁혀 보세요.</p>}
       {loading ? (
-        <p style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</p>
+        <p className="ec-empty">불러오는 중…</p>
       ) : !entries ? (
-        <p style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>계정을 선택하고 검색하세요.</p>
+        <p className="text-center text-ec-hint p-[20px]">계정을 선택하고 검색하세요.</p>
       ) : (
         <>
-          <h3 style={{ fontSize: 20, fontWeight: 700, textAlign: 'center', margin: '6px 0 12px' }}>계정별적요별원장</h3>
+          <h3 className="text-[20px] font-bold text-center mt-[6px] mx-0 mb-[12px]">계정별적요별원장</h3>
           {mode === '적요별' ? (
             <>
               {head('')}
@@ -152,43 +152,43 @@ export default function AccountRemarkLedgerPage() {
                 <thead>
                   <tr>
                     <th>적요</th>
-                    <th style={{ textAlign: 'right' }}>차변</th>
-                    <th style={{ textAlign: 'right' }}>대변</th>
+                    <th className="text-right">차변</th>
+                    <th className="text-right">대변</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.length === 0 ? (
-                    <tr><td colSpan={3} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+                    <tr><td colSpan={3} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
                   ) : (
                     <tr>
                       <td>[{ETC_CODE}]</td>
-                      <td style={{ textAlign: 'right' }}>{won(total.d)}</td>
-                      <td style={{ textAlign: 'right' }}>{won(total.c)}</td>
+                      <td className="text-right">{won(total.d)}</td>
+                      <td className="text-right">{won(total.c)}</td>
                     </tr>
                   )}
                 </tbody>
                 <tfoot>
                   <tr style={SUB_ROW}>
-                    <td style={{ textAlign: 'center' }}>합계</td>
-                    <td style={{ textAlign: 'right' }}>{won(total.d)}</td>
-                    <td style={{ textAlign: 'right' }}>{won(total.c)}</td>
+                    <td className="text-center">합계</td>
+                    <td className="text-right">{won(total.d)}</td>
+                    <td className="text-right">{won(total.c)}</td>
                   </tr>
                 </tfoot>
               </table>
             </>
           ) : rows.length === 0 ? (
-            <p style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</p>
+            <p className="ec-empty">등록된 데이터가 없습니다.</p>
           ) : (
             <>
               {head(` / ${ETC_CODE}(${ETC_NAME})`)}
               <table ref={tableRef} className="w-full text-left">
                 <thead>
                   <tr>
-                    <th style={{ textAlign: 'center' }}>일자-No.</th>
+                    <th className="text-center">일자-No.</th>
                     <th>적요</th>
                     <th>거래처명</th>
-                    <th style={{ textAlign: 'right' }}>차변금액</th>
-                    <th style={{ textAlign: 'right' }}>대변금액</th>
+                    <th className="text-right">차변금액</th>
+                    <th className="text-right">대변금액</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -198,28 +198,28 @@ export default function AccountRemarkLedgerPage() {
                     return [
                       ...ms.map((r) => (
                         <tr key={r.key}>
-                          <td style={{ textAlign: 'center', color: 'var(--ec-blue)' }}>{slash(r.date)} -{r.no}</td>
+                          <td className="text-center text-ec-blue">{slash(r.date)} -{r.no}</td>
                           <td>{r.text}</td>
                           <td>{r.partner}</td>
-                          <td style={{ textAlign: 'right' }}>{won(r.d)}</td>
-                          <td style={{ textAlign: 'right' }}>{won(r.c)}</td>
+                          <td className="text-right">{won(r.d)}</td>
+                          <td className="text-right">{won(r.c)}</td>
                         </tr>
                       )),
                       <tr key={`m${mo}`} style={SUB_ROW}>
-                        <td colSpan={3} style={{ textAlign: 'center' }}>{slash(mo)} 계</td>
-                        <td style={{ textAlign: 'right' }}>{won(s.d)}</td>
-                        <td style={{ textAlign: 'right' }}>{won(s.c)}</td>
+                        <td colSpan={3} className="text-center">{slash(mo)} 계</td>
+                        <td className="text-right">{won(s.d)}</td>
+                        <td className="text-right">{won(s.c)}</td>
                       </tr>,
                     ]
                   })}
                   <tr style={SUB_ROW}>
-                    <td colSpan={3} style={{ textAlign: 'center' }}>합계</td>
-                    <td style={{ textAlign: 'right' }}>{won(total.d)}</td>
-                    <td style={{ textAlign: 'right' }}>{won(total.c)}</td>
+                    <td colSpan={3} className="text-center">합계</td>
+                    <td className="text-right">{won(total.d)}</td>
+                    <td className="text-right">{won(total.c)}</td>
                   </tr>
                 </tbody>
               </table>
-              <div style={{ fontSize: 12, marginTop: 4 }}>[P.1]</div>
+              <div className="text-[12px] mt-[4px]">[P.1]</div>
             </>
           )}
         </>

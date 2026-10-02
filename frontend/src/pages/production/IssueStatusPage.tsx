@@ -372,7 +372,7 @@ export default function IssueStatusPage() {
         picks={STATUS_PICKS}
         modes={MODES} mode={mode} onModeChange={(m) => setMode(m as Mode)}
         modeExtra={mode === '집계' ? (
-          <span style={{ display: 'inline-flex', gap: 6, marginLeft: 6, alignItems: 'center', fontSize: 12 }}>
+          <span className="inline-flex gap-[6px] ml-[6px] items-center text-[12px]">
             집계조건1
             <select className="ec-input" value={agg1} onChange={(e) => setAgg1(e.target.value as GroupKey)} style={{ width: 100 }}>
               {AGG_KEYS.map((k) => <option key={k} value={k}>{k}</option>)}
@@ -394,14 +394,14 @@ export default function IssueStatusPage() {
                 {AGG_KEYS.filter((k) => k !== agg1 && k !== agg2).map((k) => <option key={k} value={k}>{k}</option>)}
               </select>
             </>)}
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+            <label className="inline-flex items-center gap-[3px]">
               <input type="checkbox" checked={ratio} onChange={(e) => setRatio(e.target.checked)} /> 비율표시
             </label>
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: agg2 ? undefined : 'var(--ec-text-hint)' }}
                    title="집계조건2 를 고르면 그 값을 열로 펼칩니다">
               <input type="checkbox" checked={pivot} disabled={!agg2} onChange={(e) => setPivot(e.target.checked)} /> 가로보기
             </label>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+            <label className="inline-flex items-center gap-[3px]">
               <input type="checkbox" checked={codeIncl} onChange={(e) => setCodeIncl(e.target.checked)} /> 코드포함
             </label>
           </span>
@@ -489,16 +489,16 @@ export default function IssueStatusPage() {
                              .map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="결재방표시">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
             인쇄물에 결재란(도장칸)을 찍는다
           </label>
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
-        불출 <b style={{ color: 'var(--ec-text)' }}>{shown.length}</b>건
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        불출 <b className="text-ec-text">{shown.length}</b>건
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
         불출수량 <b style={{ color: '#a5561b', fontSize: 14 }}>{num(totalQty)}</b>
       </div>
       {mode === '집계' && prevRange && prevRows && (() => {
@@ -510,14 +510,14 @@ export default function IssueStatusPage() {
         const ca = shown.reduce((n, r) => n + (amountOf(r) ?? 0), 0)
         const pct = (a: number, b: number) => (b > 0 ? ` (${a >= b ? '+' : ''}${Math.round(((a - b) / b) * 100)}%)` : '')
         return (
-          <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+          <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
             비교기간({prevRange.from.replace(/-/g, '/')} ~ {prevRange.to.replace(/-/g, '/')})
             수량 {num(pq)} → {num(totalQty)}{pct(totalQty, pq)} · 생산금액 {won(pa)} → {won(ca)}{pct(ca, pa)}
           </div>
         )
       })()}
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       {view === '그래프' ? (
         <EcBarChart rows={chartRows} unit=" 개" emptyText="조회된 불출이 없습니다." />
@@ -530,29 +530,29 @@ export default function IssueStatusPage() {
           <table ref={aggRef} className="w-full text-left">
             <thead>
               <tr>
-                <th style={{ width: 34 }}></th>
-                {code1 && <th style={{ width: 120 }}>{code1}</th>}
+                <th className="w-[34px]"></th>
+                {code1 && <th className="w-[120px]">{code1}</th>}
                 <th>{agg1} \ {agg2}</th>
-                {cols.map((c) => <th key={c} style={{ textAlign: 'right' }}>{c}</th>)}
-                <th style={{ textAlign: 'right' }}>합계</th>
+                {cols.map((c) => <th key={c} className="text-right">{c}</th>)}
+                <th className="text-right">합계</th>
               </tr>
             </thead>
             <tbody>
               {lines.map(([k, m], i) => (
                 <tr key={k}>
-                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                  {code1 && <td style={{ fontFamily: 'monospace' }}>{codes1.get(k)}</td>}
+                  <td className="text-center text-ec-hint">{i + 1}</td>
+                  {code1 && <td>{codes1.get(k)}</td>}
                   <td>{k}</td>
-                  {cols.map((c) => <td key={c} style={{ textAlign: 'right' }}>{m.get(c) ? num(m.get(c)!) : ''}</td>)}
-                  <td style={{ textAlign: 'right', fontWeight: 600 }}>{num([...m.values()].reduce((a, v) => a + v, 0))}</td>
+                  {cols.map((c) => <td key={c} className="text-right">{m.get(c) ? num(m.get(c)!) : ''}</td>)}
+                  <td className="text-right font-semibold">{num([...m.values()].reduce((a, v) => a + v, 0))}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
-              <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-                <td colSpan={code1 ? 3 : 2} style={{ textAlign: 'right' }}>합계</td>
-                {cols.map((c) => <td key={c} style={{ textAlign: 'right' }}>{num(aggRows.filter((g) => g.g2 === c).reduce((a, g) => a + g.qty, 0))}</td>)}
-                <td style={{ textAlign: 'right' }}>{num(totalQty)}</td>
+              <tr className="font-bold bg-ec-page">
+                <td colSpan={code1 ? 3 : 2} className="text-right">합계</td>
+                {cols.map((c) => <td key={c} className="text-right">{num(aggRows.filter((g) => g.g2 === c).reduce((a, g) => a + g.qty, 0))}</td>)}
+                <td className="text-right">{num(totalQty)}</td>
               </tr>
             </tfoot>
           </table>
@@ -561,45 +561,45 @@ export default function IssueStatusPage() {
         <table ref={aggRef} className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
-              {code1 && <th style={{ width: 120 }}>{code1}</th>}
+              <th className="w-[34px]"></th>
+              {code1 && <th className="w-[120px]">{code1}</th>}
               <th>{agg1}</th>
-              {code2 && <th style={{ width: 120 }}>{code2}</th>}
+              {code2 && <th className="w-[120px]">{code2}</th>}
               {agg2 && <th>{agg2}</th>}
-              {code3 && <th style={{ width: 120 }}>{code3}</th>}
+              {code3 && <th className="w-[120px]">{code3}</th>}
               {agg3 && <th>{agg3}</th>}
-              <th style={{ width: 100, textAlign: 'right' }}>건수</th>
-              <th style={{ width: 130, textAlign: 'right' }}>수량</th>
-              {ratio && <th style={{ width: 80, textAlign: 'right' }}>비율(%)</th>}
-              <th style={{ width: 140, textAlign: 'right' }}>생산금액</th>
+              <th className="w-[100px] text-right">건수</th>
+              <th className="w-[130px] text-right">수량</th>
+              {ratio && <th className="w-[80px] text-right">비율(%)</th>}
+              <th className="w-[140px] text-right">생산금액</th>
             </tr>
           </thead>
           <tbody>
             {aggRows.length === 0 ? (
-              <tr><td colSpan={(agg2 ? 6 : 5) + (ratio ? 1 : 0) + extraCols} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={(agg2 ? 6 : 5) + (ratio ? 1 : 0) + extraCols} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : aggRows.map((g, i) => (
               <tr key={`${g.g1}|${g.g2}|${g.g3}`}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                {code1 && <td style={{ fontFamily: 'monospace' }}>{codes1.get(g.g1)}</td>}
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                {code1 && <td>{codes1.get(g.g1)}</td>}
                 <td>{g.g1}</td>
-                {code2 && <td style={{ fontFamily: 'monospace' }}>{codes2.get(g.g2)}</td>}
+                {code2 && <td>{codes2.get(g.g2)}</td>}
                 {agg2 && <td>{g.g2}</td>}
-                {code3 && <td style={{ fontFamily: 'monospace' }}>{codes3.get(g.g3 ?? '')}</td>}
+                {code3 && <td>{codes3.get(g.g3 ?? '')}</td>}
                 {agg3 && <td>{g.g3}</td>}
-                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(g.count)}</td>
+                <td className="text-right text-ec-hint">{num(g.count)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{num(g.qty)}</td>
-                {ratio && <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{totalQty ? (Math.round((g.qty / totalQty) * 1000) / 10).toFixed(1) : '0.0'}</td>}
-                <td style={{ textAlign: 'right' }}>{won(g.supply)}</td>
+                {ratio && <td className="text-right text-ec-label">{totalQty ? (Math.round((g.qty / totalQty) * 1000) / 10).toFixed(1) : '0.0'}</td>}
+                <td className="text-right">{won(g.supply)}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={(agg2 ? 3 : 2) + extraCols} style={{ textAlign: 'right' }}>합계 ({aggRows.length}묶음)</td>
-              <td style={{ textAlign: 'right' }}>{num(shown.length)}</td>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={(agg2 ? 3 : 2) + extraCols} className="text-right">합계 ({aggRows.length}묶음)</td>
+              <td className="text-right">{num(shown.length)}</td>
               <td style={{ textAlign: 'right', color: '#a5561b' }}>{num(totalQty)}</td>
-              {ratio && <td style={{ textAlign: 'right' }}>100.0</td>}
-              <td style={{ textAlign: 'right' }}>{won(aggRows.reduce((n, g) => n + g.supply, 0))}</td>
+              {ratio && <td className="text-right">100.0</td>}
+              <td className="text-right">{won(aggRows.reduce((n, g) => n + g.supply, 0))}</td>
             </tr>
           </tfoot>
         </table>
@@ -607,36 +607,36 @@ export default function IssueStatusPage() {
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
-              <th style={{ width: 140 }}>자재코드</th>
+              <th className="w-[34px]"></th>
+              <th className="w-[140px]">자재코드</th>
               <th>자재명</th>
-              <th style={{ width: 70 }}>단위</th>
-              <th style={{ width: 100, textAlign: 'right' }}>불출건수</th>
-              <th style={{ width: 130, textAlign: 'right' }}>총불출수량</th>
-              <th style={{ width: 120 }}>최근불출일</th>
+              <th className="w-[70px]">단위</th>
+              <th className="w-[100px] text-right">불출건수</th>
+              <th className="w-[130px] text-right">총불출수량</th>
+              <th className="w-[120px]">최근불출일</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
             ) : byItem.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : byItem.map((g, i) => (
               <tr key={g.itemId}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{g.itemCode}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td>{g.itemCode}</td>
                 <td>{g.itemName}</td>
                 <td>{g.unit}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(g.count)}</td>
+                <td className="text-right text-ec-hint">{num(g.count)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{num(g.totalQty)}</td>
-                <td style={{ fontFamily: 'monospace' }}>{dateText(g.lastDate)}</td>
+                <td>{dateText(g.lastDate)}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={4} style={{ textAlign: 'right' }}>합계 ({byItem.length}자재)</td>
-              <td style={{ textAlign: 'right' }}>{num(shown.length)}</td>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={4} className="text-right">합계 ({byItem.length}자재)</td>
+              <td className="text-right">{num(shown.length)}</td>
               <td style={{ textAlign: 'right', color: '#a5561b' }}>{num(totalQty)}</td>
               <td></td>
             </tr>
@@ -657,42 +657,42 @@ export default function IssueStatusPage() {
           */}
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
-              <th style={{ width: 170, textAlign: 'center' }}>일자-No.</th>
-              <th style={{ width: 130 }}>출고창고명</th>
-              <th style={{ width: 130 }}>입고창고명</th>
+              <th className="w-[34px]"></th>
+              <th className="w-[170px] text-center">일자-No.</th>
+              <th className="w-[130px]">출고창고명</th>
+              <th className="w-[130px]">입고창고명</th>
               <th>품목명[규격명]</th>
-              <th style={{ width: 110, textAlign: 'right' }}>수량</th>
-              <th style={{ width: 130, textAlign: 'right' }}>생산금액</th>
+              <th className="w-[110px] text-right">수량</th>
+              <th className="w-[130px] text-right">생산금액</th>
               <th>적요</th>
-              <th style={{ width: 170 }}>작업지시번호</th>
+              <th className="w-[170px]">작업지시번호</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
             ) : listRows.length === 0 ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : listRows.map((r, i) => (
               <tr key={r.id}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
                 {/* 원본은 일자와 번호를 한 칸에 적는다. */}
-                <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(r.issueDate)} {r.issueNo}</td>
+                <td className="text-center">{dateText(r.issueDate)} {r.issueNo}</td>
                 <td>{r.warehouseName}</td>
                 <td style={{ color: r.toWarehouseName ? undefined : 'var(--ec-text-off)' }}>{r.toWarehouseName ?? ''}</td>
                 <td>{r.itemName}{r.itemSpec ? ' [' + r.itemSpec + ']' : ''}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{num(r.qty)} {r.unit}</td>
-                <td style={{ textAlign: 'right' }}>{(() => { const a = 'slipAmount' in r ? (r as { slipAmount: number | null }).slipAmount : amountOf(r); return a == null ? '' : won(a) })()}</td>
+                <td className="text-right">{(() => { const a = 'slipAmount' in r ? (r as { slipAmount: number | null }).slipAmount : amountOf(r); return a == null ? '' : won(a) })()}</td>
                 <td style={{ color: r.note ? undefined : 'var(--ec-text-off)' }}>{r.note ?? ''}</td>
-                <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{r.workOrderNo}</td>
+                <td className="text-ec-label">{r.workOrderNo}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={5} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={5} className="text-right">합계 ({shown.length}건)</td>
               <td style={{ textAlign: 'right', color: '#a5561b' }}>{num(totalQty)}</td>
-              <td style={{ textAlign: 'right' }}>{won(shown.reduce((n, r) => n + (amountOf(r) ?? 0), 0))}</td>
+              <td className="text-right">{won(shown.reduce((n, r) => n + (amountOf(r) ?? 0), 0))}</td>
               <td colSpan={2}></td>
             </tr>
           </tfoot>
@@ -708,18 +708,18 @@ export default function IssueStatusPage() {
           { qty: (r) => r.qty })
         return (
           <>
-            <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+            <h3 className="text-[13px] font-bold mt-[16px] mx-0 mb-[6px]">{subtotal} 소계</h3>
             <table className="w-full text-left">
               <thead><tr>
                 <th>{subtotal}</th>
-                <th style={{ width: 90, textAlign: 'right' }}>건수</th>
-                <th style={{ width: 140, textAlign: 'right' }}>수량</th>
+                <th className="w-[90px] text-right">건수</th>
+                <th className="w-[140px] text-right">수량</th>
               </tr></thead>
               <tbody>
                 {groups.map((g) => (
                   <tr key={g.label}>
-                    <td style={{ fontWeight: 600 }}>{g.label}</td>
-                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
+                    <td className="font-semibold">{g.label}</td>
+                    <td className="text-right">{g.count}</td>
                     <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: '#a5561b' }}>
                       {num(g.sums.qty)}
                     </td>

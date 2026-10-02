@@ -317,19 +317,19 @@ export default function SalesPlanPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {ok && <p style={{ background: '#eafaef', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-text)', fontWeight: 600 }}>계획연도</span>
+      <div className="flex items-center gap-[10px] mb-[10px]">
+        <span className="text-[12.5px] text-ec-text font-semibold">계획연도</span>
         <button className="ec-btn" onClick={() => setYear((y) => y - 1)}>◀</button>
-        <b style={{ fontSize: 15, color: 'var(--ec-text)', minWidth: 54, textAlign: 'center' }}>{year}년</b>
+        <b className="text-[15px] text-ec-text min-w-[54px] text-center">{year}년</b>
         <button className="ec-btn" onClick={() => setYear((y) => y + 1)}>▶</button>
-        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--ec-label)' }}>
-          계획 <b style={{ color: 'var(--ec-text)', fontSize: 14 }}>{won(totals.plan)}</b>
-          <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+        <div className="ml-auto text-[12.5px] text-ec-label">
+          계획 <b className="text-ec-text text-[14px]">{won(totals.plan)}</b>
+          <span className="my-0 mx-[8px] text-ec-off">|</span>
           실적 <b style={{ color: '#1c6b32', fontSize: 14 }}>{won(totals.actual)}</b>
-          <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+          <span className="my-0 mx-[8px] text-ec-off">|</span>
           달성률 <b style={{ color: rateColor(totals.rate), fontSize: 14 }}>{totals.rate.toFixed(1)}%</b>
         </div>
       </div>
@@ -344,7 +344,7 @@ export default function SalesPlanPage() {
           (2026-09-01 실측). 원본 차례대로 맨 앞에 둔다.
         */}
         <EcCond label="구분">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="flex items-center gap-[10px]">
             <div className="ec-pills">
               {(['내역', '집계'] as const).map((m) => (
                 <button key={m} type="button" className={`ec-pill no-ec${mode === m ? ' active' : ''}`}
@@ -416,9 +416,9 @@ export default function SalesPlanPage() {
           같은 숫자를 같은 자리에 내되 접었다 폈다 하지는 않는다.
         */}
         <EcCond label="표시조건" span="full">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <div className="flex items-center gap-[6px] flex-wrap">
             {axes.map((ax, i) => (
-              <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span key={i} className="flex items-center gap-[4px]">
                 <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: i ? 6 : 0 }}>표시조건{i + 1}</span>
                 <select className="ec-input" value={ax}
                         onChange={(e) => setAxis(i, e.target.value as Axis)} style={{ width: 130 }}>
@@ -440,7 +440,7 @@ export default function SalesPlanPage() {
           (created_by 만 있고 updated_by 가 없다). 값을 지어내지 않고 그대로 둔다.
         */}
         <EcCond label="기타">
-          <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+          <label className="flex items-center gap-[3px] text-[12.5px]">
             <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
             수정일자순(정렬)
           </label>
@@ -463,18 +463,18 @@ export default function SalesPlanPage() {
         </EcCond>
         <EcCond label="최초작성일자">
           <input type="date" className="ec-input" value={madeFrom} onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
           <input type="date" className="ec-input" value={madeTo} onChange={(e) => setMadeTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="최종작업일자">
           <input type="date" className="ec-input" value={editedFrom} onChange={(e) => setEditedFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
           <input type="date" className="ec-input" value={editedTo} onChange={(e) => setEditedTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="설정">
-          <div style={{ display: 'flex', gap: 12 }}>
+          <div className="flex gap-[12px]">
             {SETUPS.map((k) => (
-              <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+              <label key={k} className="flex items-center gap-[3px] text-[12.5px]">
                 <input type="checkbox" checked={setups.includes(k)}
                        onChange={(e) => setSetups((v) => (e.target.checked ? [...v, k] : v.filter((x) => x !== k)))} />
                 {k}
@@ -508,27 +508,27 @@ export default function SalesPlanPage() {
               <thead>
                 <tr>
                   <th>{unit.replace(/별$/, '')}</th>
-                  <th style={{ width: 70, textAlign: 'right' }}>건수</th>
-                  {withQty && <th style={{ textAlign: 'right' }}>계획수량</th>}
-                  <th style={{ textAlign: 'right' }}>계획금액</th>
-                  {withQty && <th style={{ textAlign: 'right' }}>실적수량</th>}
-                  <th style={{ textAlign: 'right' }}>실적금액</th>
-                  {withRate && <th style={{ width: 90, textAlign: 'right' }}>달성률</th>}
+                  <th className="w-[70px] text-right">건수</th>
+                  {withQty && <th className="text-right">계획수량</th>}
+                  <th className="text-right">계획금액</th>
+                  {withQty && <th className="text-right">실적수량</th>}
+                  <th className="text-right">실적금액</th>
+                  {withRate && <th className="w-[90px] text-right">달성률</th>}
                 </tr>
               </thead>
               <tbody>
                 {groups.length === 0 ? (
-                  <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+                  <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
                 ) : groups.map((g) => (
                   <tr key={g.label}>
                     <td>{g.label}</td>
-                    <td style={{ textAlign: 'right' }}>{g.count}</td>
-                    {withQty && <td style={{ textAlign: 'right' }}>{g.sums.planQty.toLocaleString()}</td>}
-                    <td style={{ textAlign: 'right' }}>{won(g.sums.plan)}</td>
-                    {withQty && <td style={{ textAlign: 'right' }}>{g.sums.actualQty.toLocaleString()}</td>}
-                    <td style={{ textAlign: 'right' }}>{won(g.sums.actual)}</td>
+                    <td className="text-right">{g.count}</td>
+                    {withQty && <td className="text-right">{g.sums.planQty.toLocaleString()}</td>}
+                    <td className="text-right">{won(g.sums.plan)}</td>
+                    {withQty && <td className="text-right">{g.sums.actualQty.toLocaleString()}</td>}
+                    <td className="text-right">{won(g.sums.actual)}</td>
                     {withRate && (
-                      <td style={{ textAlign: 'right' }}>
+                      <td className="text-right">
                         {g.sums.plan > 0 ? (g.sums.actual / g.sums.plan * 100).toFixed(1) : '0.0'}%
                       </td>
                     )}
@@ -543,67 +543,67 @@ export default function SalesPlanPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 28, textAlign: 'center' }}></th>
-            <th style={{ width: 34 }}></th>
+            <th className="w-[28px] text-center"></th>
+            <th className="w-[34px]"></th>
             {/*
               원본 매출계획 격자의 <b>첫 열</b>은 [일자-No.] 다(사본 실측). 계획 한 줄을
               가리킬 이름이 없어서, 어느 계획을 고쳤다거나 지웠다고 말할 방법이 없었다.
             */}
-            <th style={{ width: 150 }}>일자-No.</th>
-            <th style={{ textAlign: 'center' }}>연월</th>
+            <th className="w-[150px]">일자-No.</th>
+            <th className="text-center">연월</th>
             {/* 원본 매출계획입력의 [예상매출일자]. 안 정한 계획은 빈칸이다. */}
-            <th style={{ width: 110, textAlign: 'center' }}>예상매출일자</th>
+            <th className="w-[110px] text-center">예상매출일자</th>
             {/*
               원본 매출계획입력의 열 [거래처]. 계획에 축을 만들었는데 <b>표에는 안 보여</b>
               같은 품목·같은 달 계획이 여럿일 때 <b>어느 것이 어느 축인지</b> 알 수 없었다.
               창고·프로젝트도 같은 까닭으로 같이 보인다 — 안 나눈 계획은 빈칸이다.
             */}
-            <th style={{ width: 110 }}>거래처명</th>
+            <th className="w-[110px]">거래처명</th>
             {/* 원본 차례는 거래처명 <b>바로 다음</b>이 담당자다(사본 실측). */}
-            <th style={{ width: 90 }}>담당자명</th>
-            <th style={{ width: 100 }}>창고명</th>
-            <th style={{ width: 110 }}>프로젝트명</th>
+            <th className="w-[90px]">담당자명</th>
+            <th className="w-[100px]">창고명</th>
+            <th className="w-[110px]">프로젝트명</th>
             {/* 원본 차례: 거래처명 · 창고명 · 프로젝트명 · <b>품목명</b> · 금액 */}
             <th>품목명</th>
             {/* 원본 [설정]의 [수량] — 처음엔 꺼져 있다. 금액만 보는 것이 기본이다. */}
-            {withQty && <th style={{ textAlign: 'right' }}>계획수량</th>}
-            {withQty && <th style={{ width: 90, textAlign: 'right' }}>단가</th>}
-            <th style={{ textAlign: 'right' }}>계획금액</th>
-            {withQty && <th style={{ textAlign: 'right' }}>실적수량</th>}
-            <th style={{ textAlign: 'right' }}>실적금액</th>
+            {withQty && <th className="text-right">계획수량</th>}
+            {withQty && <th className="w-[90px] text-right">단가</th>}
+            <th className="text-right">계획금액</th>
+            {withQty && <th className="text-right">실적수량</th>}
+            <th className="text-right">실적금액</th>
             {/* 원본 [설정]의 [비율(%)] — 처음부터 켜져 있다. */}
-            {withRate && <th style={{ textAlign: 'right' }}>달성률</th>}
-            <th style={{ textAlign: 'center' }}>처리</th>
+            {withRate && <th className="text-right">달성률</th>}
+            <th className="text-center">처리</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11 + (withQty ? 3 : 0) + (withRate ? 1 : 0)} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={11 + (withQty ? 3 : 0) + (withRate ? 1 : 0)} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11 + (withQty ? 3 : 0) + (withRate ? 1 : 0)} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>{year}년 매출계획이 없습니다. 「매출계획 등록」으로 추가하세요.</td></tr>
+            <tr><td colSpan={11 + (withQty ? 3 : 0) + (withRate ? 1 : 0)} className="text-center text-ec-hint p-[20px]">{year}년 매출계획이 없습니다. 「매출계획 등록」으로 추가하세요.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <input type="checkbox" checked={picked.has(r.id)} onChange={() => pick(r.id)} />
               </td>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', whiteSpace: 'nowrap' }}>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td className="text-ec-blue whitespace-nowrap">
                 {dateText(r.planDate)}-{r.planNo}
               </td>
-              <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{r.planYear}-{String(r.planMonth).padStart(2, '0')}</td>
-              <td style={{ textAlign: 'center', fontFamily: 'monospace', color: 'var(--ec-label)' }}>{dateText(r.expectedDate) || ''}</td>
-              <td style={{ color: 'var(--ec-label)' }}>{named(r.partnerName, r.partnerCode)}</td>
-              <td style={{ color: 'var(--ec-label)' }}>{named(r.employeeName, r.employeeCode)}</td>
-              <td style={{ color: 'var(--ec-label)' }}>{named(r.warehouseName, r.warehouseCode)}</td>
-              <td style={{ color: 'var(--ec-label)' }}>{named(r.projectName, r.projectCode)}</td>
-              <td>{named(r.itemName, r.itemCode)} <span style={{ color: 'var(--ec-text-hint)', fontSize: 11 }}>{r.unit}</span></td>
-              {withQty && <td style={{ textAlign: 'right' }}>{won(r.planQty)}</td>}
-              {withQty && <td style={{ textAlign: 'right' }}>{won(r.unitPrice)}</td>}
-              <td style={{ textAlign: 'right' }}>{won(r.planAmount)}</td>
-              {withQty && <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{won(r.actualQty)}</td>}
+              <td className="text-center">{r.planYear}-{String(r.planMonth).padStart(2, '0')}</td>
+              <td className="text-center text-ec-label">{dateText(r.expectedDate) || ''}</td>
+              <td className="text-ec-label">{named(r.partnerName, r.partnerCode)}</td>
+              <td className="text-ec-label">{named(r.employeeName, r.employeeCode)}</td>
+              <td className="text-ec-label">{named(r.warehouseName, r.warehouseCode)}</td>
+              <td className="text-ec-label">{named(r.projectName, r.projectCode)}</td>
+              <td>{named(r.itemName, r.itemCode)} <span className="text-ec-hint text-[11px]">{r.unit}</span></td>
+              {withQty && <td className="text-right">{won(r.planQty)}</td>}
+              {withQty && <td className="text-right">{won(r.unitPrice)}</td>}
+              <td className="text-right">{won(r.planAmount)}</td>
+              {withQty && <td className="text-right text-ec-label">{won(r.actualQty)}</td>}
               <td style={{ textAlign: 'right', fontWeight: 600, color: '#1c6b32' }}>{won(r.actualAmount)}</td>
               {withRate && <td style={{ textAlign: 'right', fontWeight: 700, color: rateColor(r.achieveRate) }}>{r.achieveRate.toFixed(1)}%</td>}
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: 'var(--ec-danger)' }} onClick={() => remove(r.id)}>삭제</button>
               </td>
             </tr>
@@ -638,30 +638,30 @@ export default function SalesPlanPage() {
             : groups
         return (
           <>
-            <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{label} 소계</h3>
+            <h3 className="text-[13px] font-bold mt-[16px] mx-0 mb-[6px]">{label} 소계</h3>
             <table className="w-full text-left">
               <thead>
                 <tr>
                   <th>{label}</th>
-                  <th style={{ width: 70, textAlign: 'right' }}>건수</th>
-                  {withQty && <th style={{ textAlign: 'right' }}>계획수량</th>}
-                  <th style={{ textAlign: 'right' }}>계획금액</th>
-                  {withQty && <th style={{ textAlign: 'right' }}>실적수량</th>}
-                  <th style={{ textAlign: 'right' }}>실적금액</th>
-                  {withRate && <th style={{ width: 90, textAlign: 'right' }}>달성률</th>}
+                  <th className="w-[70px] text-right">건수</th>
+                  {withQty && <th className="text-right">계획수량</th>}
+                  <th className="text-right">계획금액</th>
+                  {withQty && <th className="text-right">실적수량</th>}
+                  <th className="text-right">실적금액</th>
+                  {withRate && <th className="w-[90px] text-right">달성률</th>}
                 </tr>
               </thead>
               <tbody>
                 {sorted.map((g) => (
                   <tr key={g.label}>
                     <td>{g.label}</td>
-                    <td style={{ textAlign: 'right' }}>{g.count}</td>
-                    {withQty && <td style={{ textAlign: 'right' }}>{g.sums.planQty.toLocaleString()}</td>}
-                    <td style={{ textAlign: 'right' }}>{won(g.sums.plan)}</td>
-                    {withQty && <td style={{ textAlign: 'right' }}>{g.sums.actualQty.toLocaleString()}</td>}
-                    <td style={{ textAlign: 'right' }}>{won(g.sums.actual)}</td>
+                    <td className="text-right">{g.count}</td>
+                    {withQty && <td className="text-right">{g.sums.planQty.toLocaleString()}</td>}
+                    <td className="text-right">{won(g.sums.plan)}</td>
+                    {withQty && <td className="text-right">{g.sums.actualQty.toLocaleString()}</td>}
+                    <td className="text-right">{won(g.sums.actual)}</td>
                     {withRate && (
-                      <td style={{ textAlign: 'right' }}>
+                      <td className="text-right">
                         {g.sums.plan > 0 ? (g.sums.actual / g.sums.plan * 100).toFixed(1) : '0.0'}%
                       </td>
                     )}
@@ -752,8 +752,8 @@ function PlanForm({
   const lbl: React.CSSProperties = { fontSize: 12.5, color: 'var(--ec-text)', fontWeight: 600, display: 'block', marginBottom: 4 }
   return (
     <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 360 }}>
-      <div style={{ fontSize: 12, color: 'var(--ec-text-hint)' }}>계획연도 <b style={{ color: 'var(--ec-text)' }}>{year}년</b></div>
-      <div style={{ display: 'flex', gap: 10 }}>
+      <div className="text-[12px] text-ec-hint">계획연도 <b className="text-ec-text">{year}년</b></div>
+      <div className="flex gap-[10px]">
         {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). label 로 감싸면 팝업 행 클릭이 안 먹어 div 로. */}
         <div style={{ flex: 2 }}><span style={lbl}>품목 *</span>
           <CodePickerField label="품목" hideLabel fill placeholder="품목" emptyLabel="선택 해제"
@@ -761,52 +761,52 @@ function PlanForm({
                            items={items.filter((it) => it.active !== false || String(it.id) === itemId).map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))} />
         </div>
         {/* 정하면 <b>계획연월과 같은 달</b>이어야 한다 — 어긋나면 서버가 막는다. */}
-        <label style={{ flex: 1 }}><span style={lbl}>예상매출일자</span>
+        <label className="flex-1"><span style={lbl}>예상매출일자</span>
           <input className={cls} type="date" value={expectedDate}
                  onChange={(e) => setExpectedDate(e.target.value)} style={{ width: '100%' }} />
         </label>
-        <label style={{ flex: 1 }}><span style={lbl}>월 *</span>
+        <label className="flex-1"><span style={lbl}>월 *</span>
           <select className={cls} value={month} onChange={(e) => setMonth(e.target.value)} style={{ width: '100%' }}>
             {MONTHS.map((m) => <option key={m} value={m}>{m}월</option>)}
           </select>
         </label>
       </div>
-      <div style={{ display: 'flex', gap: 10 }}>
-        <label style={{ flex: 1 }}><span style={lbl}>계획수량</span>
+      <div className="flex gap-[10px]">
+        <label className="flex-1"><span style={lbl}>계획수량</span>
           <input className={cls} type="number" step="any" value={planQty}
                  onChange={(e) => { setPlanQty(e.target.value); recalc(e.target.value, unitPrice) }}
                  style={{ width: '100%', textAlign: 'right' }} /></label>
         {/* 원본 격자 차례: 수량 · 단가 · 금액. */}
-        <label style={{ flex: 1 }}><span style={lbl}>단가</span>
+        <label className="flex-1"><span style={lbl}>단가</span>
           <input className={cls} type="number" step="any" value={unitPrice}
                  onChange={(e) => { setUnitPrice(e.target.value); recalc(planQty, e.target.value) }}
                  style={{ width: '100%', textAlign: 'right' }} /></label>
-        <label style={{ flex: 1 }}><span style={lbl}>계획금액</span>
+        <label className="flex-1"><span style={lbl}>계획금액</span>
           <input className={cls} type="number" step="any" value={planAmount}
                  onChange={(e) => { setAmountTouched(true); setPlanAmount(e.target.value) }}
                  style={{ width: '100%', textAlign: 'right' }} /></label>
       </div>
       {/* 원본 차례: 창고 · 거래처 · 품목 · 프로젝트 — 안 고르면 그 축을 안 나눈다. */}
-      <div style={{ display: 'flex', gap: 10 }}>
-        <label style={{ flex: 1 }}><span style={lbl}>창고</span>
+      <div className="flex gap-[10px]">
+        <label className="flex-1"><span style={lbl}>창고</span>
           <CodePickerField label="창고" hideLabel fill emptyLabel="안 나눔"
                            value={fWarehouse} onChange={setFWarehouse}
                            items={warehouses.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
         </label>
-        <label style={{ flex: 1 }}><span style={lbl}>거래처</span>
+        <label className="flex-1"><span style={lbl}>거래처</span>
           <CodePickerField label="거래처" hideLabel fill emptyLabel="안 나눔"
                            value={fPartner} onChange={setFPartner}
                            items={partners.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
         </label>
       </div>
-      <div style={{ display: 'flex', gap: 10 }}>
-        <label style={{ flex: 1 }}><span style={lbl}>프로젝트</span>
+      <div className="flex gap-[10px]">
+        <label className="flex-1"><span style={lbl}>프로젝트</span>
           <CodePickerField label="프로젝트" hideLabel fill emptyLabel="안 나눔"
                            value={fProject} onChange={setFProject}
                            items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
         </label>
         {/* 담당자를 고르면 <b>그 사람이 친 판매만</b> 실적으로 잡힌다 — 서버가 그렇게 맞춘다. */}
-        <label style={{ flex: 1 }}><span style={lbl}>담당자</span>
+        <label className="flex-1"><span style={lbl}>담당자</span>
           <CodePickerField label="담당자" hideLabel fill emptyLabel="안 나눔"
                            value={fEmployee} onChange={setFEmployee}
                            items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
@@ -814,7 +814,7 @@ function PlanForm({
       </div>
       <label><span style={lbl}>적요</span>
         <input className={cls} value={remark} onChange={(e) => setRemark(e.target.value)} style={{ width: '100%' }} placeholder="선택" /></label>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, marginTop: 4 }}>
+      <div className="flex justify-end gap-[6px] mt-[4px]">
         <button type="submit" className="ec-btn ec-btn-primary" disabled={saving}>{saving ? '저장 중…' : '저장(F8)'}</button>
       </div>
     </form>

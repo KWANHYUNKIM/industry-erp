@@ -154,29 +154,29 @@ export default function SerialLotPage() {
       onNew={() => setShowForm(true)}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
-      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <Modal error={error} open={showForm} title="시리얼/로트No. 등록" onClose={() => setShowForm(false)}>{(
-        <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginTop: 8, marginBottom: 8 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>로트 등록(입고)</div>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>로트No. *</div>
+        <div className="border border-ec-line border-solid bg-white p-[14px] mt-[8px] mb-[8px]">
+          <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">로트 등록(입고)</div>
+          <div className="flex gap-[12px] flex-wrap items-end">
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">로트No. *</div>
               <input className="ec-input" value={form.lotNo} onChange={(e) => set('lotNo', e.target.value)} placeholder="LOT-260707-01" style={{ width: 160 }} /></label>
             {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). label 로 감싸면 팝업 행 클릭이 안 먹어 div 로. */}
-            <div style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>품목 *</div>
+            <div className="text-[12.5px]"><div className="text-ec-label mb-[3px]">품목 *</div>
               <CodePickerField label="품목" hideLabel width={220} placeholder="품목" emptyLabel="선택 해제"
                                value={form.itemId} onChange={(v) => set('itemId', v)}
                                items={items.filter((it) => it.active !== false).map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))} /></div>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>창고</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">창고</div>
               <select className="ec-input" value={form.warehouseId} onChange={(e) => set('warehouseId', e.target.value)} style={{ width: 140 }}>
                 <option value="">(미지정)</option>
                 {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
               </select></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>입고일</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">입고일</div>
               <input className="ec-input" type="date" value={form.inboundDate} onChange={(e) => set('inboundDate', e.target.value)} style={{ width: 140 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>유효기한</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">유효기한</div>
               <input className="ec-input" type="date" value={form.expireDate} onChange={(e) => set('expireDate', e.target.value)} style={{ width: 140 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>입고수량 *</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">입고수량 *</div>
               <input className="ec-input" type="number" step="any" value={form.inboundQty} onChange={(e) => set('inboundQty', e.target.value)} style={{ width: 100 }} /></label>
             <button className="ec-btn ec-btn-primary" onClick={submit}>등록</button>
           </div>
@@ -198,8 +198,8 @@ export default function SerialLotPage() {
         </EcCond>
       </ul>
 
-      <div style={{ marginBottom: 8 }}>
-        <label style={{ fontSize: 12.5, color: 'var(--ec-text)', cursor: 'pointer' }}>
+      <div className="mb-[8px]">
+        <label className="text-[12.5px] text-ec-text cursor-pointer">
           <input type="checkbox" checked={onlyStock} onChange={(e) => setOnlyStock(e.target.checked)} style={{ marginRight: 5, verticalAlign: 'middle' }} />
           재고보유 로트만 보기
         </label>
@@ -207,54 +207,54 @@ export default function SerialLotPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th className="w-[34px]"></th>
             {/* 원본 이름은 [로트No.] 가 아니라 <b>[시리얼/로트No.]</b> 다(사본 실측). */}
-            <th style={{ width: 150, cursor: 'pointer' }} onClick={() => sort.toggle('로트No.')}>시리얼/로트No. {sort.mark('로트No.')}</th>
+            <th className="w-[150px] cursor-pointer" onClick={() => sort.toggle('로트No.')}>시리얼/로트No. {sort.mark('로트No.')}</th>
             {/*
               원본 열은 <b>[품목명[규격]] · [규격]</b> 두 칸이다(사본 실측).
               규격이 로트 응답에 없어 못 만들던 것을 이번에 실었다.
             */}
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('품목명')}>품목명[규격] {sort.mark('품목명')}</th>
-            <th style={{ width: 110 }}>규격</th>
-            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('입고일')}>입고일 {sort.mark('입고일')}</th>
-            <th style={{ width: 100 }}>유효기한</th>
-            <th style={{ width: 80, textAlign: 'right' }}>입고수량</th>
-            <th style={{ width: 80, textAlign: 'right' }}>현재고</th>
-            <th style={{ width: 100 }}>창고</th>
-            <th style={{ width: 80, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('상태')}>상태 {sort.mark('상태')}</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('품목명')}>품목명[규격] {sort.mark('품목명')}</th>
+            <th className="w-[110px]">규격</th>
+            <th className="w-[100px] cursor-pointer" onClick={() => sort.toggle('입고일')}>입고일 {sort.mark('입고일')}</th>
+            <th className="w-[100px]">유효기한</th>
+            <th className="w-[80px] text-right">입고수량</th>
+            <th className="w-[80px] text-right">현재고</th>
+            <th className="w-[100px]">창고</th>
+            <th className="w-[80px] text-center cursor-pointer" onClick={() => sort.toggle('상태')}>상태 {sort.mark('상태')}</th>
             {/*
               원본 시리얼/로트No.등록의 마지막 열 <b>[상세내역]</b> — 그 로트가 <b>어디로 오갔는지</b>를
               그 자리에서 편다. 로트원장이 따로 있긴 하지만 화면을 옮겨 로트를 다시 골라야 했다 —
               "이 로트 어디 갔나" 를 묻는 자리는 여기다.
             */}
-            <th style={{ width: 66, textAlign: 'center' }}>상세내역</th>
-            <th style={{ width: 130, textAlign: 'center' }}>처리</th>
+            <th className="w-[66px] text-center">상세내역</th>
+            <th className="w-[130px] text-center">처리</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={12} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={12} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => [
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.lotNo}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td>{r.lotNo}</td>
               <td>{r.itemName}{r.spec ? `[${r.spec}]` : ''}</td>
-              <td style={{ color: 'var(--ec-label)' }}>{r.spec ?? ''}</td>
+              <td className="text-ec-label">{r.spec ?? ''}</td>
               <td>{dateText(r.inboundDate)}</td>
               <td>{dateText(r.expireDate) || ''}</td>
-              <td style={{ textAlign: 'right' }}>{r.inboundQty.toLocaleString()}</td>
+              <td className="text-right">{r.inboundQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right', fontWeight: r.stockQty > 0 ? 700 : 400, color: r.stockQty === 0 ? 'var(--ec-text-hint)' : undefined }}>{r.stockQty.toLocaleString()}</td>
               <td>{r.warehouseName ?? ''}</td>
               <td style={{ textAlign: 'center', color: statusColor(r.status), fontWeight: 700 }}>{r.statusName}</td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <button onClick={() => toggleDetail(r)}
                         style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>
                   {openLot === r.lotNo ? '접기' : '펼치기'}
                 </button>
               </td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <button className="ec-btn" style={{ height: 20, padding: '0 6px' }} disabled={r.held || r.stockQty <= 0} onClick={() => consume(r)}>출고</button>
                 <button className="ec-btn" style={{ height: 20, padding: '0 6px', marginLeft: 3 }} onClick={() => adjust(r)}>실사</button>
                 <button className="ec-btn" style={{ height: 20, padding: '0 6px', marginLeft: 3, color: r.held ? 'var(--ec-success)' : 'var(--ec-warn)' }} onClick={() => toggleHold(r)}>{r.held ? '해제' : '보류'}</button>
@@ -263,29 +263,29 @@ export default function SerialLotPage() {
             openLot === r.lotNo ? (
               /* 펼친 줄 — 그 로트의 입출고. 움직인 적이 없으면 그렇게 적는다(빈 표를 그리지 않는다). */
               <tr key={`${r.id}-detail`}>
-                <td colSpan={12} style={{ background: 'var(--ec-bg-page)', padding: '8px 14px' }}>
+                <td colSpan={12} className="bg-ec-page py-[8px] px-[14px]">
                   {lotTx.filter((t) => t.lotNo === r.lotNo).length === 0 ? (
-                    <span style={{ fontSize: 12, color: 'var(--ec-text-hint)' }}>움직인 내역이 없습니다.</span>
+                    <span className="text-[12px] text-ec-hint">움직인 내역이 없습니다.</span>
                   ) : (
-                    <table className="w-full text-left" style={{ maxWidth: 760 }}>
+                    <table className="w-full text-left max-w-[760px]">
                       <thead><tr>
-                        <th style={{ width: 34 }}></th><th style={{ width: 110 }}>일자</th>
-                        <th style={{ width: 90 }}>구분</th>
-                        <th style={{ width: 90, textAlign: 'right' }}>수량</th>
-                        <th style={{ width: 90, textAlign: 'right' }}>잔량</th>
+                        <th className="w-[34px]"></th><th className="w-[110px]">일자</th>
+                        <th className="w-[90px]">구분</th>
+                        <th className="w-[90px] text-right">수량</th>
+                        <th className="w-[90px] text-right">잔량</th>
                         <th>적요</th>
                       </tr></thead>
                       <tbody>
                         {lotTx.filter((t) => t.lotNo === r.lotNo).map((t, k) => (
                           <tr key={t.id}>
-                            <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{k + 1}</td>
-                            <td style={{ fontFamily: 'monospace' }}>{dateText(t.txDate)}</td>
+                            <td className="text-center text-ec-hint">{k + 1}</td>
+                            <td>{dateText(t.txDate)}</td>
                             <td>{t.typeName}</td>
                             <td style={{ textAlign: 'right', color: t.quantityChange < 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>
                               {t.quantityChange.toLocaleString()}
                             </td>
-                            <td style={{ textAlign: 'right', fontWeight: 600 }}>{t.balanceAfter.toLocaleString()}</td>
-                            <td style={{ color: 'var(--ec-text-hint)' }}>{t.note ?? ''}</td>
+                            <td className="text-right font-semibold">{t.balanceAfter.toLocaleString()}</td>
+                            <td className="text-ec-hint">{t.note ?? ''}</td>
                           </tr>
                         ))}
                       </tbody>

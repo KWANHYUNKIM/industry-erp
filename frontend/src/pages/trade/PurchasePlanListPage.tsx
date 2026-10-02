@@ -92,7 +92,7 @@ export default function PurchasePlanListPage() {
   useTableColumnCheck(tableRef, '발주계획조회', [rows.length])
 
   const radios = <T extends string>(name: string, opts: readonly T[], v: T, set: (x: T) => void) => opts.map((o) => (
-    <label key={o} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+    <label key={o} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
       <input type="radio" name={name} checked={v === o} onChange={() => set(o)} /> {o}
     </label>
   ))
@@ -107,13 +107,13 @@ export default function PurchasePlanListPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={QUOTATION_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
@@ -133,7 +133,7 @@ export default function PurchasePlanListPage() {
         <EcCond label="수량">{radios('plan-zero', ['전체', '수량0', '수량0 아님'] as const, zero, setZero)}</EcCond>
       </ul>
 
-      <div style={{ display: 'flex', gap: 2, marginBottom: 8 }}>
+      <div className="flex gap-[2px] mb-[8px]">
         {(['전체', '진행중', '완료'] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)} className="no-ec" style={{
             padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
@@ -144,37 +144,37 @@ export default function PurchasePlanListPage() {
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ textAlign: 'center' }}>일자-No.</th>
+            <th className="w-[34px]"></th>
+            <th className="text-center">일자-No.</th>
             <th>거래처코드명</th>
             <th>품목명</th>
-            <th style={{ textAlign: 'right' }}>수량</th>
-            <th style={{ textAlign: 'right' }}>단가</th>
-            <th style={{ textAlign: 'right' }}>금액</th>
-            <th style={{ textAlign: 'right' }}>부가세</th>
-            <th style={{ textAlign: 'right' }}>합계</th>
-            <th style={{ textAlign: 'center' }}>종결여부</th>
-            <th style={{ textAlign: 'center' }}>진행상태</th>
+            <th className="text-right">수량</th>
+            <th className="text-right">단가</th>
+            <th className="text-right">금액</th>
+            <th className="text-right">부가세</th>
+            <th className="text-right">합계</th>
+            <th className="text-center">종결여부</th>
+            <th className="text-center">진행상태</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={11} className="ec-empty">불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((r, i) => (
             <tr key={r.key}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-              <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{dateText(r.date)} {r.no}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td className="text-center">{dateText(r.date)} {r.no}</td>
               <td>{r.partner}</td>
               <td>{r.item}</td>
-              <td style={{ textAlign: 'right' }}>{qty(r.qty)}</td>
-              <td style={{ textAlign: 'right' }}>{r.price == null ? '' : won(r.price)}</td>
-              <td style={{ textAlign: 'right' }}>{won(r.supply)}</td>
-              <td style={{ textAlign: 'right' }}>{won(r.vat)}</td>
-              <td style={{ textAlign: 'right' }}>{won(r.supply + r.vat)}</td>
-              <td style={{ textAlign: 'center' }}>{done(r.status) ? '종결' : ''}</td>
-              <td style={{ textAlign: 'center' }}>{done(r.status) ? '완료' : '진행중'}</td>
+              <td className="text-right">{qty(r.qty)}</td>
+              <td className="text-right">{r.price == null ? '' : won(r.price)}</td>
+              <td className="text-right">{won(r.supply)}</td>
+              <td className="text-right">{won(r.vat)}</td>
+              <td className="text-right">{won(r.supply + r.vat)}</td>
+              <td className="text-center">{done(r.status) ? '종결' : ''}</td>
+              <td className="text-center">{done(r.status) ? '완료' : '진행중'}</td>
             </tr>
           ))}
         </tbody>

@@ -221,20 +221,20 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
       title={mode === 'RECEIVABLE' ? '채권현황' : mode === 'PAYABLE' ? '채무현황' : '채권·채무현황'}
       actions={[{ label: '검색(F8)', onClick: load, primary: true }, { label: 'Excel' }, { label: '인쇄' }]}
       help={
-        <p style={{ fontSize: 12.5, lineHeight: 1.7 }}>
+        <p className="text-[12.5px] leading-[1.7]">
           기준일자까지 발생한 매출·매입에서 수금·지급을 뺀 잔액입니다. 거래처관리대장이 ‘지금 잔액’이라면
           이 화면은 특정 시점으로 되돌린 잔액이라 마감·대사에 씁니다. 거래처그룹 소계를 함께 냅니다.
         </p>
       }
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end', border: '1px solid var(--ec-border)', background: 'var(--ec-bg-page)', padding: 10, marginBottom: 10 }}>
-        <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>구분</div>
+      <div className="flex flex-wrap gap-[10px] items-end border border-ec-line border-solid bg-ec-page p-[10px] mb-[10px]">
+        <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">구분</div>
           <select className="ec-input" value={mode} onChange={(e) => setMode(e.target.value as Mode)} style={{ width: 110 }}>
             {(Object.keys(MODE_LABEL) as Mode[]).map((m) => <option key={m} value={m}>{MODE_LABEL[m]}</option>)}
           </select></label>
-        <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>기준일자</div>
+        <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">기준일자</div>
           <input type="date" className="ec-input" value={asOf} onChange={(e) => setAsOf(e.target.value)} style={{ width: 150 }} /></label>
         {/*
           원본 기간 빠른선택 실측(2026-09-02):
@@ -258,16 +258,16 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
                          onChange={(v) => setGroup(v || '전체')}
                          items={groups.map((g) => ({ value: g, name: g }))} />
         {/* 원본 차례는 거래처그룹들 뒤, 거래처관리담당자 앞이다(사본 실측). */}
-        <div style={{ fontSize: 12.5 }}>
-          <div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>대표거래처로 합산</div>
+        <div className="text-[12.5px]">
+          <div className="text-ec-label mb-[3px]">대표거래처로 합산</div>
           {/* 배열로 돌리면 라벨이 <b>글자로 남지 않아</b> 검사가 못 본다 — 그대로 편다. */}
-          <div style={{ display: 'flex', gap: 10 }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <div className="flex gap-[10px]">
+            <label className="flex items-center gap-[4px]">
               <input type="radio" name="arap-basis" checked={basis === '거래처관계기준'}
                      onChange={() => setBasis('거래처관계기준')} />
               거래처관계기준
             </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <label className="flex items-center gap-[4px]">
               <input type="radio" name="arap-basis" checked={basis === '개별거래처기준'}
                      onChange={() => setBasis('개별거래처기준')} />
               개별거래처기준
@@ -285,22 +285,22 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
           채권현황도 그 체크가 없다. 지우지 않고 여기 적어 둔다(잔액 0 인 거래처가
           수천 줄 쌓이는 것을 막는 칸이다).
         */}
-        <div style={{ fontSize: 12.5 }}>
-          <div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>기타</div>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div className="text-[12.5px]">
+          <div className="text-ec-label mb-[3px]">기타</div>
+          <div className="flex gap-[10px]">
+            <label className="flex items-center gap-[4px]">
               <input type="checkbox" checked={includeInactive} onChange={(e) => setIncludeInactive(e.target.checked)} />
               사용중단거래처포함
             </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <label className="flex items-center gap-[4px]">
               <input type="checkbox" checked={hideZero} onChange={(e) => setHideZero(e.target.checked)} />
               잔액 0 숨김
             </label>
           </div>
         </div>
         {/* 원본 [정렬/소계기준]. 데이터 보기형식 바로 앞줄이다(사본 실측). */}
-        <div style={{ fontSize: 12.5 }}>
-          <div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>정렬/소계기준</div>
+        <div className="text-[12.5px]">
+          <div className="text-ec-label mb-[3px]">정렬/소계기준</div>
           <div className="ec-pills">
             {SUBTOTALS.map((v) => (
               <button key={v} type="button" className={`ec-pill no-ec${subtotal === v ? ' active' : ''}`}
@@ -309,8 +309,8 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
           </div>
         </div>
         {/* 원본 [데이터 보기형식]. 이 화면은 EcStatusPanel 을 쓰지 않아 여기에 둔다. */}
-        <div style={{ fontSize: 12.5 }}>
-          <div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>데이터 보기형식</div>
+        <div className="text-[12.5px]">
+          <div className="text-ec-label mb-[3px]">데이터 보기형식</div>
           <div className="ec-pills">
             {(['표', '그래프'] as const).map((v) => (
               <button key={v} type="button" className={`ec-pill no-ec${view === v ? ' active' : ''}`}
@@ -320,28 +320,28 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+      <div className="flex gap-[10px] mb-[10px]">
         {showR && (
-          <div style={{ border: '1px solid var(--ec-border)', padding: '8px 14px', minWidth: 160 }}>
-            <div style={{ fontSize: 11.5, color: 'var(--ec-text-hint)' }}>채권 합계 ({asOf} 기준)</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--ec-blue-dark)' }}>{won(total.receivable)}</div>
+          <div className="border border-ec-line border-solid py-[8px] px-[14px] min-w-[160px]">
+            <div className="text-[11.5px] text-ec-hint">채권 합계 ({asOf} 기준)</div>
+            <div className="text-[18px] font-bold text-ec-navy">{won(total.receivable)}</div>
           </div>
         )}
         {showP && (
-          <div style={{ border: '1px solid var(--ec-border)', padding: '8px 14px', minWidth: 160 }}>
-            <div style={{ fontSize: 11.5, color: 'var(--ec-text-hint)' }}>채무 합계 ({asOf} 기준)</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--ec-warn)' }}>{won(total.payable)}</div>
+          <div className="border border-ec-line border-solid py-[8px] px-[14px] min-w-[160px]">
+            <div className="text-[11.5px] text-ec-hint">채무 합계 ({asOf} 기준)</div>
+            <div className="text-[18px] font-bold text-ec-warn">{won(total.payable)}</div>
           </div>
         )}
         {mode === 'BOTH' && (
-          <div style={{ border: '1px solid var(--ec-border)', padding: '8px 14px', minWidth: 160 }}>
-            <div style={{ fontSize: 11.5, color: 'var(--ec-text-hint)' }}>순채권(채권−채무)</div>
-            <div style={{ fontSize: 18, fontWeight: 700 }}>{won(total.receivable - total.payable)}</div>
+          <div className="border border-ec-line border-solid py-[8px] px-[14px] min-w-[160px]">
+            <div className="text-[11.5px] text-ec-hint">순채권(채권−채무)</div>
+            <div className="text-[18px] font-bold">{won(total.receivable - total.payable)}</div>
           </div>
         )}
-        <div style={{ border: '1px solid var(--ec-border)', padding: '8px 14px', minWidth: 110 }}>
-          <div style={{ fontSize: 11.5, color: 'var(--ec-text-hint)' }}>거래처</div>
-          <div style={{ fontSize: 18, fontWeight: 700 }}>{shown.length}</div>
+        <div className="border border-ec-line border-solid py-[8px] px-[14px] min-w-[110px]">
+          <div className="text-[11.5px] text-ec-hint">거래처</div>
+          <div className="text-[18px] font-bold">{shown.length}</div>
         </div>
       </div>
 
@@ -370,7 +370,7 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
           파란 굵은 이름은 우리가 덧칠한 것이었다.
         */}
         <thead><tr>
-          <th style={{ width: 34 }}></th>
+          <th className="w-[34px]"></th>
           <th style={{ width: fixedFrame ? 106 : 110 }}>거래처코드</th>
           <th style={fixedFrame ? { width: 291 } : undefined}>거래처명</th>
           <th style={{ width: fixedFrame ? 110 : 130 }}>거래처그룹</th>
@@ -390,30 +390,30 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
             마지막 칸 이름을 <b>[순액]</b> 이라 잘못 적고 있었다 — 원본은 <b>[차액]</b> 이다.
           */}
           {mode !== 'BOTH' && <th style={{ width: fixedFrame ? 107 : 130, textAlign: 'right' }}>합계</th>}
-          {mode === 'BOTH' && <th style={{ width: 130, textAlign: 'right' }}>채권</th>}
-          {mode === 'BOTH' && <th style={{ width: 130, textAlign: 'right' }}>채무</th>}
-          {mode === 'BOTH' && <th style={{ width: 130, textAlign: 'right' }}>차액</th>}
+          {mode === 'BOTH' && <th className="w-[130px] text-right">채권</th>}
+          {mode === 'BOTH' && <th className="w-[130px] text-right">채무</th>}
+          {mode === 'BOTH' && <th className="w-[130px] text-right">차액</th>}
         </tr></thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={cols + 2} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={cols + 2} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={cols + 2} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={cols + 2} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.partnerId}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
               <td>{r.code}</td>
               {/* 원본은 거래처명을 눌러 그 거래처를 연다(사본 실측). */}
               <td>
                 <Link to={`/sales/partners?q=${encodeURIComponent(r.name)}`} style={{ color: 'inherit' }}>{r.name}</Link>
-                {!r.active && <span style={{ color: 'var(--ec-danger)', fontSize: 11, marginLeft: 4 }}>(사용중단)</span>}
+                {!r.active && <span className="text-ec-danger text-[11px] ml-[4px]">(사용중단)</span>}
               </td>
-              <td style={{ color: 'var(--ec-label)' }}>{r.partnerGroupName ?? ''}</td>
-              <td style={{ color: 'var(--ec-label)' }}>{r.manager ?? ''}</td>
-              {showR && <td style={{ textAlign: 'right' }}>{won(r.receivable)}</td>}
-              {showP && <td style={{ textAlign: 'right' }}>{won(r.payable)}</td>}
+              <td className="text-ec-label">{r.partnerGroupName ?? ''}</td>
+              <td className="text-ec-label">{r.manager ?? ''}</td>
+              {showR && <td className="text-right">{won(r.receivable)}</td>}
+              {showP && <td className="text-right">{won(r.payable)}</td>}
               {mode === 'BOTH' && (
-                <td style={{ textAlign: 'right' }}>{won(r.receivable - r.payable)}</td>
+                <td className="text-right">{won(r.receivable - r.payable)}</td>
               )}
             </tr>
           ))}
@@ -421,11 +421,11 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
         {shown.length > 0 && (
           <tfoot>
             <tr>
-              <td colSpan={5} style={{ textAlign: 'center' }}>합계</td>
-              {showR && <td style={{ textAlign: 'right' }}>{won(total.receivable)}</td>}
-              {showP && <td style={{ textAlign: 'right' }}>{won(total.payable)}</td>}
+              <td colSpan={5} className="text-center">합계</td>
+              {showR && <td className="text-right">{won(total.receivable)}</td>}
+              {showP && <td className="text-right">{won(total.payable)}</td>}
               {mode === 'BOTH' && (
-                <td style={{ textAlign: 'right' }}>{won(total.receivable - total.payable)}</td>
+                <td className="text-right">{won(total.receivable - total.payable)}</td>
               )}
             </tr>
           </tfoot>
@@ -437,21 +437,21 @@ export default function ArApStatusPage({ screen = 'AR_AP' }: { screen?: Screen }
 
       {shown.length > 0 && (
         <>
-          <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+          <h3 className="text-[13px] font-bold mt-[16px] mx-0 mb-[6px]">{subtotal} 소계</h3>
           <table className="w-full text-left">
             <thead><tr>
               <th>{subtotal}</th>
-              <th style={{ width: 90, textAlign: 'right' }}>거래처수</th>
-              {showR && <th style={{ width: 130, textAlign: 'right' }}>채권</th>}
-              {showP && <th style={{ width: 130, textAlign: 'right' }}>채무</th>}
+              <th className="w-[90px] text-right">거래처수</th>
+              {showR && <th className="w-[130px] text-right">채권</th>}
+              {showP && <th className="w-[130px] text-right">채무</th>}
             </tr></thead>
             <tbody>
               {subtotals.map((g) => (
                 <tr key={g.label}>
-                  <td style={{ fontWeight: 600 }}>{g.label}</td>
-                  <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
-                  {showR && <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{won(g.sums.receivable)}</td>}
-                  {showP && <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{won(g.sums.payable)}</td>}
+                  <td className="font-semibold">{g.label}</td>
+                  <td className="text-right">{g.count}</td>
+                  {showR && <td className="text-right">{won(g.sums.receivable)}</td>}
+                  {showP && <td className="text-right">{won(g.sums.payable)}</td>}
                 </tr>
               ))}
             </tbody>

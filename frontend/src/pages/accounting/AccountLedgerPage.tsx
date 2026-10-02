@@ -81,13 +81,13 @@ export default function AccountLedgerPage() {
         </EcCond>
       </EcStatusPanel>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       {data && (
         <>
-          <div style={{ marginBottom: 8, fontSize: 13, fontWeight: 700, color: 'var(--ec-blue-dark)' }}>
+          <div className="mb-[8px] text-[13px] font-bold text-ec-navy">
             {data.accountCode} {data.accountName}
-            <span style={{ marginLeft: 12, fontWeight: 400, color: 'var(--ec-label)' }}>
+            <span className="ml-[12px] font-normal text-ec-label">
               차변합 {won(data.totalDebit)} · 대변합 {won(data.totalCredit)} · 마감잔액 <b style={{ color: '#1a4d8f' }}>{won(data.closingBalance)}</b>
             </span>
           </div>
@@ -95,21 +95,21 @@ export default function AccountLedgerPage() {
             <thead>
               <tr>
                 <th>일자</th><th>전표번호</th><th>적요</th><th>거래처</th>
-                <th style={{ textAlign: 'right' }}>차변</th><th style={{ textAlign: 'right' }}>대변</th><th style={{ textAlign: 'right' }}>잔액</th>
+                <th className="text-right">차변</th><th className="text-right">대변</th><th className="text-right">잔액</th>
               </tr>
             </thead>
             <tbody>
               {data.rows.length === 0 ? (
-                <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
               ) : data.rows.map((r, i) => (
                 <tr key={i}>
                   <td>{dateText(r.entryDate)}</td>
-                  <td style={{ fontFamily: 'monospace' }}>{r.docNo}</td>
+                  <td>{r.docNo}</td>
                   <td>{r.description}</td>
                   <td>{r.partnerName ?? ''}</td>
                   <td style={{ textAlign: 'right', color: r.debit > 0 ? '#1a4d8f' : 'var(--ec-text-off)' }}>{r.debit > 0 ? won(r.debit) : ''}</td>
                   <td style={{ textAlign: 'right', color: r.credit > 0 ? '#a5561b' : 'var(--ec-text-off)' }}>{r.credit > 0 ? won(r.credit) : ''}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 600 }}>{won(r.balance)}</td>
+                  <td className="text-right font-semibold">{won(r.balance)}</td>
                 </tr>
               ))}
             </tbody>

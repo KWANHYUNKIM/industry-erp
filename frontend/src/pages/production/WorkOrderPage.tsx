@@ -232,11 +232,11 @@ export default function WorkOrderPage() {
                 { label: `선택삭제${checked.size ? ` (${checked.size})` : ''}`, onClick: removeChecked },
                 { label: 'Excel' }]}
     >
-      {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+      {error && <p className="mb-2 rounded bg-ec-danger-bg px-3 py-2 text-sm text-ec-danger">{error}</p>}
 
       {statusPick && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, padding: '6px 8px', border: '1px solid var(--ec-border)', background: '#fff' }}>
-          <span style={{ fontSize: 12.5 }}>고른 {checked.size}줄의 작업지시서를</span>
+        <div className="flex items-center gap-[6px] mb-[8px] py-[6px] px-[8px] border border-ec-line border-solid bg-white">
+          <span className="text-[12.5px]">고른 {checked.size}줄의 작업지시서를</span>
           <button type="button" className="ec-btn ec-btn-primary" onClick={() => void changeStatus('CONFIRMED')}>확인</button>
           <button type="button" className="ec-btn" onClick={() => void changeStatus('UNCONFIRMED')}>확인취소</button>
           <button type="button" className="ec-btn" onClick={() => setStatusPick(false)}>취소</button>
@@ -260,10 +260,10 @@ export default function WorkOrderPage() {
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from}
                  onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
           <input type="date" className="ec-input" value={to}
                  onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from}
               onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
@@ -304,7 +304,7 @@ export default function WorkOrderPage() {
         {/* 원본 차례: (품목그룹2·3·계층 · 발송여부) · 납기일자 · (오더관리번호) · 담당자 · 거래처관리담당자 · 적요 · 규격 … */}
         <EcCond label="납기일자">
           <input type="date" className="ec-input" value={dueFrom} onChange={(e) => setDueFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
           <input type="date" className="ec-input" value={dueTo} onChange={(e) => setDueTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="담당자" pick>
@@ -337,16 +337,16 @@ export default function WorkOrderPage() {
         </EcCond>
         <EcCond label="최초작성일자">
           <input type="date" className="ec-input" value={madeFrom} onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
           <input type="date" className="ec-input" value={madeTo} onChange={(e) => setMadeTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="최종작업일자">
           <input type="date" className="ec-input" value={editedFrom} onChange={(e) => setEditedFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
           <input type="date" className="ec-input" value={editedTo} onChange={(e) => setEditedTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="기타">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
             수정일자순(정렬)
           </label>
@@ -358,78 +358,78 @@ export default function WorkOrderPage() {
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th className="w-[34px]"></th>
             {/*
               원본 작업지시서조회의 첫 칸은 <b>[일자-No.]</b> 다 — 일자와 번호를 한 칸에 적는다.
               우리는 번호를 맨 앞에, 일자를 저 뒤 [지시일] 로 따로 두어 <b>차례가 어긋나</b> 있었다.
               작업지시서현황에서 이미 같은 방식으로 합쳐 두었으니 여기도 맞춘다.
             */}
-            <th style={{ cursor: 'pointer', width: 170 }} onClick={() => sort.toggle('지시번호')}>일자-No. {sort.mark('지시번호')}</th>
+            <th className="cursor-pointer w-[170px]" onClick={() => sort.toggle('지시번호')}>일자-No. {sort.mark('지시번호')}</th>
             {/* 원본 작업지시서조회의 이름은 [거래처명]·[담당자명]·[생산수량] 이다(사본 실측). */}
             <th>거래처명</th>
-            <th style={{ width: 90 }}>담당자명</th>
+            <th className="w-[90px]">담당자명</th>
             {/* 원본 차례는 거래처명 · 담당자명 · <b>납기일자</b> · 품목명[규격] · 지시수량 · 생산수량 이다. */}
-            <th style={{ width: 100 }}>납기일자</th>
+            <th className="w-[100px]">납기일자</th>
             {/*
               원본 차례는 납기일자 <b>다음</b>이 [작업지시No.] 다(사본 실측).
               [일자-No.] 와 다른 칸이다 — 그쪽은 <b>그날 몇 번째</b>인지(2026/07/16 -1)이고
               이쪽은 전표번호 전체다. 우리는 [일자-No.] 한 칸에 날짜와 전표번호를 <b>붙여
               찍고</b> 있어서, 원본을 쓰던 사람이 번호로 훑을 때 눈이 걸렸다.
             */}
-            <th style={{ width: 150 }}>작업지시No.</th>
+            <th className="w-[150px]">작업지시No.</th>
             <th>품목명[규격]</th>
             <th>창고</th>
-            <th style={{ textAlign: 'right' }}>지시수량</th>
-            <th style={{ textAlign: 'right' }}>생산수량</th>
-            <th style={{ textAlign: 'right' }}>잔여</th>
+            <th className="text-right">지시수량</th>
+            <th className="text-right">생산수량</th>
+            <th className="text-right">잔여</th>
             {/* 원본의 이름은 [상태]가 아니라 <b>[진행상태]</b> 다(사본 실측). */}
-            <th style={{ textAlign: 'center' }}>진행상태</th>
+            <th className="text-center">진행상태</th>
             {/*
               원본은 여기를 <b>세 칸</b>으로 나눈다 — [작업지시서별불출현황]·[작업지시서별생산현황]·
               [작업지시서별작업현황] 이 각각 55px 열이다(사본 실측). 우리는 셋을 한 칸([현황])에
               가운뎃점으로 이어 붙여 두었어서, 열을 세어도 원본과 수가 달랐다.
             */}
-            <th style={{ width: 56, textAlign: 'center' }}>작업지시서별불출현황</th>
-            <th style={{ width: 56, textAlign: 'center' }}>작업지시서별생산현황</th>
-            <th style={{ width: 56, textAlign: 'center' }}>작업지시서별작업현황</th>
+            <th className="w-[56px] text-center">작업지시서별불출현황</th>
+            <th className="w-[56px] text-center">작업지시서별생산현황</th>
+            <th className="w-[56px] text-center">작업지시서별작업현황</th>
             {/* 원본 작업지시서조회의 마지막 열 [인쇄] — 그 지시 한 건을 작업지시서로 찍는다. */}
-            <th style={{ width: 60, textAlign: 'center' }}>인쇄</th>
+            <th className="w-[60px] text-center">인쇄</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={16} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={16} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={16} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={16} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : (
             sort.sorted.map((o, idx) => (
               <tr key={o.id}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)', whiteSpace: 'nowrap' }}>
+                <td className="text-center text-ec-hint whitespace-nowrap">
                   <input type="checkbox" checked={checked.has(o.id)} style={{ marginRight: 3 }}
                          onChange={() => setChecked((c) => { const n = new Set(c); if (n.has(o.id)) n.delete(o.id); else n.add(o.id); return n })} />
                   {idx + 1}
                 </td>
                 {/* 원본처럼 번호를 누르면 작업지시서입력으로 열어 고친다. */}
-                <td style={{ fontFamily: 'monospace' }}>
+                <td>
                   <Link to={`/production/work-order-entry?no=${encodeURIComponent(o.orderNo)}`} style={{ color: 'var(--ec-blue)' }}>{dateNo(o)}</Link>
                 </td>
                 <td style={{ color: o.partnerName ? undefined : 'var(--ec-text-off)' }}>{o.partnerName ?? ''}</td>
                 <td style={{ color: o.employeeId ? undefined : 'var(--ec-text-off)' }}>{empName(o.employeeId)}</td>
                 {/* 원본은 이름과 규격을 한 칸에 적는다 — productSpec 은 응답에 오는데 안 쓰고 있었다. */}
                 <td style={{ color: o.dueDate ? undefined : 'var(--ec-text-off)' }}>{dateText(o.dueDate) || ''}</td>
-                <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue-dark)' }}>{o.orderNo}</td>
+                <td className="text-ec-navy">{o.orderNo}</td>
                 <td>{o.productName}{o.productSpec ? ` [${o.productSpec}]` : ''}</td>
                 <td>{o.warehouseName}</td>
-                <td style={{ textAlign: 'right' }}>{o.plannedQty.toLocaleString()} {o.productUnit}</td>
-                <td style={{ textAlign: 'right' }}>{o.producedQty.toLocaleString()}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600 }}>{o.remainingQty.toLocaleString()}</td>
-                <td style={{ textAlign: 'center' }}><span style={{ color: statusColor(o.status), fontWeight: 600 }}>{o.statusName}</span></td>
+                <td className="text-right">{o.plannedQty.toLocaleString()} {o.productUnit}</td>
+                <td className="text-right">{o.producedQty.toLocaleString()}</td>
+                <td className="text-right font-semibold">{o.remainingQty.toLocaleString()}</td>
+                <td className="text-center"><span style={{ color: statusColor(o.status), fontWeight: 600 }}>{o.statusName}</span></td>
                 {LINKS.map((l) => (
-                  <td key={l.to} style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                  <td key={l.to} className="text-center whitespace-nowrap">
                     <Link to={l.to} title={l.title} style={{ color: 'var(--ec-blue)' }}>{l.label}</Link>
                   </td>
                 ))}
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-center">
                   <button onClick={() => printOne(o, empName)} style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
                 </td>
               </tr>

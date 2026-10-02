@@ -165,11 +165,11 @@ export default function WorkLogPage() {
   })
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ color: 'var(--ec-star)', fontSize: 14, marginRight: 4 }}>☆</span>
-        <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ec-text)' }}>업무일지</span>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, position: 'relative' }}>
+    <div className="flex flex-col min-h-[100%]">
+      <div className="flex items-center mb-[8px]">
+        <span className="text-ec-star text-[14px] mr-[4px]">☆</span>
+        <span className="text-[15px] font-extrabold text-ec-text">업무일지</span>
+        <div className="ml-auto flex items-center gap-[4px] relative">
           <button className="ec-btn" onClick={load}>새로고침</button>
           <input
             className="ec-input"
@@ -200,41 +200,41 @@ export default function WorkLogPage() {
         </div>
       </div>
 
-      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)' }}>{notice}</div>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
 
       <Modal error={error} open={showForm} title="신규 등록" onClose={() => setShowForm(false)}>{(
-        <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 16, marginBottom: 10 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>업무일지 작성</div>
-          <table className="w-full text-left" style={{ marginBottom: 10 }}>
+        <div className="border border-ec-line border-solid bg-white p-[16px] mb-[10px]">
+          <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">업무일지 작성</div>
+          <table className="w-full text-left mb-[10px]">
             <tbody>
               <tr>
-                <th style={{ width: 90, background: 'var(--ec-bg-page)' }}>업무보고일</th>
-                <td><input className="ec-input" type="date" value={form.reportDate} onChange={(e) => set('reportDate', e.target.value)} style={{ width: 150 }} /> <span style={{ color: 'var(--ec-text-hint)' }}>({dow(form.reportDate)})</span></td>
-                <th style={{ width: 90, background: 'var(--ec-bg-page)' }}>부서</th>
+                <th className="w-[90px] bg-ec-page">업무보고일</th>
+                <td><input className="ec-input" type="date" value={form.reportDate} onChange={(e) => set('reportDate', e.target.value)} style={{ width: 150 }} /> <span className="text-ec-hint">({dow(form.reportDate)})</span></td>
+                <th className="w-[90px] bg-ec-page">부서</th>
                 <td><input className="ec-input" value={form.department} onChange={(e) => set('department', e.target.value)} placeholder="미입력시 소속부서" style={{ width: 160 }} /></td>
               </tr>
               <tr>
-                <th style={{ background: 'var(--ec-bg-page)' }}>프로젝트</th>
+                <th className="bg-ec-page">프로젝트</th>
                 <td>
                   <CodePickerField label="프로젝트" hideLabel width={200} value={form.projectId}
                                    onChange={(v) => set('projectId', v)}
                                    items={projects.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))} />
                 </td>
-                <th style={{ background: 'var(--ec-bg-page)' }}>거래처</th>
+                <th className="bg-ec-page">거래처</th>
                 <td><input className="ec-input" value={form.partnerName} onChange={(e) => set('partnerName', e.target.value)} style={{ width: 200 }} /></td>
               </tr>
               <tr>
-                <th style={{ background: 'var(--ec-bg-page)' }}>제목 *</th>
+                <th className="bg-ec-page">제목 *</th>
                 <td colSpan={3}><input className="ec-input" value={form.title} onChange={(e) => set('title', e.target.value)} style={{ width: '100%' }} /></td>
               </tr>
               <tr>
-                <th style={{ background: 'var(--ec-bg-page)', verticalAlign: 'top' }}>내용 *</th>
+                <th className="bg-ec-page align-top">내용 *</th>
                 <td colSpan={3}><textarea value={form.content} onChange={(e) => set('content', e.target.value)} style={{ width: '100%', height: 120, border: '1px solid var(--ec-border)', padding: 8, fontSize: 13, resize: 'vertical', outline: 'none' }} /></td>
               </tr>
             </tbody>
           </table>
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div className="flex gap-[6px]">
             <button className="ec-btn ec-btn-primary" onClick={submit}>저장</button>
             <button className="ec-btn" onClick={() => setShowForm(false)}>취소</button>
           </div>
@@ -248,7 +248,7 @@ export default function WorkLogPage() {
       <ul className="ec-form" style={{ marginBottom: 8 }}>
         <li className="wide">
           <div className="title">업무보고일</div>
-          <div className="form" style={{ gap: 6 }}>
+          <div className="form gap-[6px]">
             <input type="date" className="ec-input" value={cond.from} onChange={(e) => setC('from', e.target.value)} style={{ width: 150 }} />
             <span>~</span>
             <input type="date" className="ec-input" value={cond.to} onChange={(e) => setC('to', e.target.value)} style={{ width: 150 }} />
@@ -308,7 +308,7 @@ export default function WorkLogPage() {
         <li>
           <div className="title">기타</div>
           <div className="form">
-            <label style={{ fontSize: 12.5, display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
+            <label className="text-[12.5px] inline-flex items-center gap-[4px] cursor-pointer">
               <input type="checkbox" checked={withInactiveDept}
                      onChange={(e) => setWithInactiveDept(e.target.checked)} />
               사용중단부서포함
@@ -318,7 +318,7 @@ export default function WorkLogPage() {
       </ul>
 
       {/* 원본 하단: 검색(F8) + 기간 빠른선택 + 다시 작성 */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center', marginBottom: 10 }}>
+      <div className="flex flex-wrap gap-[4px] items-center mb-[10px]">
         <button className="ec-btn ec-btn-primary" onClick={() => flash(`조회 결과 ${shown.length}건`)}>검색(F8)</button>
         <EcPeriodPicks onPick={(r) => setCond((c) => ({ ...c, from: r.from, to: r.to }))} />
         <button
@@ -332,13 +332,13 @@ export default function WorkLogPage() {
         </button>
       </div>
 
-      <div ref={bodyRef} style={{ flex: 1, minHeight: 0 }}>
+      <div ref={bodyRef} className="flex-1 min-h-0">
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
-              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('업무보고일')}>업무보고일 {sort.mark('업무보고일')}</th>
-              <th style={{ width: 44, textAlign: 'center' }}>요일</th>
+              <th className="w-[34px]"></th>
+              <th className="cursor-pointer" onClick={() => sort.toggle('업무보고일')}>업무보고일 {sort.mark('업무보고일')}</th>
+              <th className="w-[44px] text-center">요일</th>
               <th>부서</th>
               <th>프로젝트</th>
               <th>거래처</th>
@@ -348,14 +348,14 @@ export default function WorkLogPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : sort.sorted.map((r, i) => (
               <tr key={r.id}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{dateText(r.reportDate)}</td>
-                <td style={{ textAlign: 'center' }}>{dow(r.reportDate)}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td>{dateText(r.reportDate)}</td>
+                <td className="text-center">{dow(r.reportDate)}</td>
                 <td>{r.department ?? ''}</td>
                 <td>{r.projectName ?? ''}</td>
                 <td>{r.partnerName ?? ''}</td>
@@ -367,7 +367,7 @@ export default function WorkLogPage() {
         </table>
       </div>
 
-      <div style={{ display: 'flex', gap: 6, marginTop: 10, paddingTop: 8, borderTop: '1px solid var(--ec-line-soft)' }}>
+      <div className="flex gap-[6px] mt-[10px] pt-[8px] border-t border-t-ec-line-soft border-solid">
         <button className="ec-btn ec-btn-primary" onClick={() => setShowForm((v) => !v)}>{showForm ? '입력닫기' : '신규(F2)'}</button>
         <button className="ec-btn" onClick={() => { void doExcel() }}>Excel</button>
       </div>
@@ -375,12 +375,12 @@ export default function WorkLogPage() {
       {helpOpen && (
         <div onClick={() => setHelpOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, width: 420, maxWidth: '90vw', boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}>
-            <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--ec-line-soft)', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
+            <div className="py-[10px] px-[14px] border-b border-b-ec-line-soft border-solid font-extrabold text-[14px] flex items-center">
               <span>{TITLE} · 도움말</span>
               <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => setHelpOpen(false)}>닫기</button>
             </div>
-            <div style={{ padding: 14, fontSize: 12.5, lineHeight: 1.7, color: 'var(--ec-text)' }}>
-              <ul style={{ paddingLeft: 16, margin: 0 }}>
+            <div className="p-[14px] text-[12.5px] leading-[1.7] text-ec-text">
+              <ul className="pl-[16px] m-0">
                 <li><b>신규(F2)</b> — 상단 입력폼을 열어 업무보고일·제목·내용으로 일지를 작성합니다.</li>
                 <li><b>Search(F3)</b> — 제목·부서·거래처 등 입력한 낱말이 포함된 행만 추립니다.</li>
                 <li><b>Excel</b> — 지금 화면에 보이는 업무일지 목록을 .xlsx 파일로 내려받습니다.</li>

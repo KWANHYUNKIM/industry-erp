@@ -232,15 +232,15 @@ export default function AttendanceKindStatusPage() {
           <b>배열로 돌려 그리지 않는다</b> — 이름이 글자로 안 남으면 조건 검사가 못 본다.
         */}
         <EcCond label="상태">
-          <label style={{ fontSize: 12, marginRight: 12 }}>
+          <label className="text-[12px] mr-[12px]">
             <input type="checkbox" checked={stAll}
                    onChange={(e) => setStAll(e.target.checked)} /> 전체
           </label>
-          <label style={{ fontSize: 12, marginRight: 12 }}>
+          <label className="text-[12px] mr-[12px]">
             <input type="checkbox" checked={stPending}
                    onChange={(e) => setStPending(e.target.checked)} /> 결재중
           </label>
-          <label style={{ fontSize: 12, marginRight: 12 }}>
+          <label className="text-[12px] mr-[12px]">
             <input type="checkbox" checked={stConfirmed}
                    onChange={(e) => setStConfirmed(e.target.checked)} /> 확인
           </label>
@@ -264,58 +264,58 @@ export default function AttendanceKindStatusPage() {
                  onChange={(e) => setDayCond(e.target.value)} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="결재방표시">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
             인쇄물에 결재란(도장칸)을 찍는다
           </label>
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
-        근태 <b style={{ color: 'var(--ec-text)' }}>{shown.length}</b>건
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
-        합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{days(totalDays)}</b>일
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        근태 <b className="text-ec-text">{shown.length}</b>건
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
+        합계 <b className="text-ec-navy text-[14px]">{days(totalDays)}</b>일
         {byKind.length > 0 && (
-          <span style={{ marginLeft: 10, color: 'var(--ec-text-hint)' }}>
+          <span className="ml-[10px] text-ec-hint">
             {byKind.map(([k, v]) => `${k} ${days(v)}일`).join(' · ')}
           </span>
         )}
       </div>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th className="w-[34px]"></th>
             {/* 원본 실측: 왼쪽. */}
-            <th style={{ width: 110 }}>전표일자</th>
-            <th style={{ textAlign: 'center', width: 190 }}>근태일자</th>
-            <th style={{ width: 150 }}>부서명</th>
-            <th style={{ width: 90 }}>직급</th>
-            <th style={{ width: 110 }}>사원번호</th>
-            <th style={{ width: 120 }}>사원명</th>
-            <th style={{ width: 120 }}>근태종류</th>
+            <th className="w-[110px]">전표일자</th>
+            <th className="text-center w-[190px]">근태일자</th>
+            <th className="w-[150px]">부서명</th>
+            <th className="w-[90px]">직급</th>
+            <th className="w-[110px]">사원번호</th>
+            <th className="w-[120px]">사원명</th>
+            <th className="w-[120px]">근태종류</th>
             {/* 원본은 이 표에서 [근태]를 가장 넓게 둔다(180 · 나머지 100~120) — 읽으라는 값이다. */}
-            <th style={{ width: 180, textAlign: 'right' }}>근태</th>
+            <th className="w-[180px] text-right">근태</th>
             <th>적요</th>
-            <th style={{ width: 90, textAlign: 'center' }}>상태</th>
+            <th className="w-[90px] text-center">상태</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={11} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
               {/* 원본은 [전표일자]를 눌러 그 근태 전표를 연다. 우리는 근태조회로 넘긴다. */}
-              <td style={{ fontFamily: 'monospace' }}>
+              <td>
                 <Link to={`/hr/leave-list?emp=${encodeURIComponent(r.empName)}`}
                       style={{ color: 'var(--ec-blue)' }}>{r.docDate}</Link>
               </td>
-              <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>
+              <td className="text-center">
                 {r.startDate}{r.endDate !== r.startDate ? ` ~ ${r.endDate}` : ''}
               </td>
               <td>{r.department ?? ''}</td>
@@ -323,7 +323,7 @@ export default function AttendanceKindStatusPage() {
               <td style={{ fontFamily: 'monospace', color: r.empCode ? undefined : 'var(--ec-text-off)' }}>{r.empCode ?? ''}</td>
               <td>{r.empName}</td>
               <td>{r.type}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600 }}>{days(r.days)}</td>
+              <td className="text-right font-semibold">{days(r.days)}</td>
               <td style={{ color: r.reason ? undefined : 'var(--ec-text-off)' }}>{r.reason ?? ''}</td>
               <td style={{
                 textAlign: 'center', fontWeight: 700,
@@ -333,9 +333,9 @@ export default function AttendanceKindStatusPage() {
           ))}
         </tbody>
         <tfoot>
-          <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-            <td colSpan={8} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
-            <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{days(totalDays)}</td>
+          <tr className="font-bold bg-ec-page">
+            <td colSpan={8} className="text-right">합계 ({shown.length}건)</td>
+            <td className="text-right text-ec-navy">{days(totalDays)}</td>
             <td colSpan={2}></td>
           </tr>
         </tfoot>
@@ -347,19 +347,19 @@ export default function AttendanceKindStatusPage() {
         const groups = subtotalBy(shown, keyOf, { days: (r) => r.days })
         return (
           <>
-            <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+            <h3 className="text-[13px] font-bold mt-[16px] mx-0 mb-[6px]">{subtotal} 소계</h3>
             <table className="w-full text-left">
               <thead><tr>
                 <th>{subtotal}</th>
-                <th style={{ width: 90, textAlign: 'right' }}>건수</th>
-                <th style={{ width: 130, textAlign: 'right' }}>근태</th>
+                <th className="w-[90px] text-right">건수</th>
+                <th className="w-[130px] text-right">근태</th>
               </tr></thead>
               <tbody>
                 {groups.map((g) => (
                   <tr key={g.label}>
-                    <td style={{ fontWeight: 600 }}>{g.label}</td>
-                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
-                    <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: 'var(--ec-blue-dark)' }}>
+                    <td className="font-semibold">{g.label}</td>
+                    <td className="text-right">{g.count}</td>
+                    <td className="text-right font-bold text-ec-navy">
                       {days(g.sums.days)}
                     </td>
                   </tr>

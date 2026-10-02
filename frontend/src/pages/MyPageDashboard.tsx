@@ -107,22 +107,22 @@ const REGISTRY: WidgetDef[] = [
     render: (d) => (
       <>
         <table className="ec-grid">
-          <thead><tr><th>품목코드</th><th>품명</th><th>창고</th><th style={{ textAlign: 'right' }}>현재고</th><th>상태</th></tr></thead>
+          <thead><tr><th>품목코드</th><th>품명</th><th>창고</th><th className="text-right">현재고</th><th>상태</th></tr></thead>
           <tbody>
             {d.stock.length === 0 ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>재고 없음</td></tr>
+              <tr><td colSpan={5} className="text-center text-ec-hint">재고 없음</td></tr>
             ) : d.stock.slice(0, WIDGET_ROWS).map((s) => (
               <tr key={`${s.itemId}-${s.warehouseId}`}>
-                <td style={{ fontFamily: 'monospace' }}>{s.itemCode}</td>
+                <td>{s.itemCode}</td>
                 <td>{s.itemName}</td>
                 <td>{s.warehouseName}</td>
                 <td style={{ textAlign: 'right', color: s.belowSafety ? 'var(--ec-blue)' : undefined, fontWeight: 600 }}>{won(s.quantity)} {s.unit}</td>
-                <td>{s.belowSafety ? <span style={{ color: 'var(--ec-danger)' }}>부족</span> : <span style={{ color: '#2f8401' }}>정상</span>}</td>
+                <td>{s.belowSafety ? <span className="text-ec-danger">부족</span> : <span style={{ color: '#2f8401' }}>정상</span>}</td>
               </tr>
             ))}
           </tbody>
         </table>
-        {d.belowCount > 0 && <div style={{ marginTop: 6, fontSize: 11, color: 'var(--ec-danger)' }}>⚠ 안전재고 미달 {d.belowCount}건</div>}
+        {d.belowCount > 0 && <div className="mt-[6px] text-[11px] text-ec-danger">⚠ 안전재고 미달 {d.belowCount}건</div>}
       </>
     ),
   },
@@ -130,10 +130,10 @@ const REGISTRY: WidgetDef[] = [
     id: 'balances', title: '거래처별 채권·채무', group: '회계', to: '/sales/ledger',
     render: (d) => (
       <table className="ec-grid">
-        <thead><tr><th>거래처</th><th>구분</th><th style={{ textAlign: 'right' }}>채권</th><th style={{ textAlign: 'right' }}>채무</th></tr></thead>
+        <thead><tr><th>거래처</th><th>구분</th><th className="text-right">채권</th><th className="text-right">채무</th></tr></thead>
         <tbody>
           {d.balances.length === 0 ? (
-            <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>거래처 없음</td></tr>
+            <tr><td colSpan={4} className="text-center text-ec-hint">거래처 없음</td></tr>
           ) : d.balances.slice(0, WIDGET_ROWS).map((b) => (
             <tr key={b.partnerId}>
               <td>{b.name}</td>
@@ -146,9 +146,9 @@ const REGISTRY: WidgetDef[] = [
           ))}
         </tbody>
         <tfoot>
-          <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
-            <td colSpan={2} style={{ border: '1px solid var(--ec-border)', padding: '4px 8px' }}>합계</td>
-            <td style={{ border: '1px solid var(--ec-border)', padding: '4px 8px', textAlign: 'right', color: 'var(--ec-blue)' }}>{won(d.totalReceivable)}</td>
+          <tr className="font-bold bg-ec-page">
+            <td colSpan={2} className="border border-ec-line border-solid py-[4px] px-[8px]">합계</td>
+            <td className="border border-ec-line border-solid py-[4px] px-[8px] text-right text-ec-blue">{won(d.totalReceivable)}</td>
             <td style={{ border: '1px solid var(--ec-border)', padding: '4px 8px', textAlign: 'right', color: '#2f8401' }}>{won(d.totalPayable)}</td>
           </tr>
         </tfoot>
@@ -159,16 +159,16 @@ const REGISTRY: WidgetDef[] = [
     id: 'sales', title: '판매현황', group: '영업·구매', to: '/sales/sell',
     render: (d) => (
       <table className="ec-grid">
-        <thead><tr><th>전표번호</th><th>일자</th><th>거래처</th><th style={{ textAlign: 'right' }}>합계금액</th></tr></thead>
+        <thead><tr><th>전표번호</th><th>일자</th><th>거래처</th><th className="text-right">합계금액</th></tr></thead>
         <tbody>
           {d.sales.length === 0 ? (
-            <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>판매 내역 없음</td></tr>
+            <tr><td colSpan={4} className="text-center text-ec-hint">판매 내역 없음</td></tr>
           ) : d.sales.slice(0, WIDGET_ROWS).map((s) => (
             <tr key={s.id}>
-              <td style={{ fontFamily: 'monospace' }}>{s.docNo}</td>
+              <td>{s.docNo}</td>
               <td>{dateText(s.saleDate)}</td>
               <td>{s.partnerName}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(s.totalAmount)}</td>
+              <td className="text-right font-semibold text-ec-blue">{won(s.totalAmount)}</td>
             </tr>
           ))}
         </tbody>
@@ -179,13 +179,13 @@ const REGISTRY: WidgetDef[] = [
     id: 'purchases', title: '구매현황', group: '영업·구매', to: '/sales/buy',
     render: (d) => (
       <table className="ec-grid">
-        <thead><tr><th>전표번호</th><th>일자</th><th>거래처</th><th style={{ textAlign: 'right' }}>합계금액</th></tr></thead>
+        <thead><tr><th>전표번호</th><th>일자</th><th>거래처</th><th className="text-right">합계금액</th></tr></thead>
         <tbody>
           {d.purchases.length === 0 ? (
-            <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>구매 내역 없음</td></tr>
+            <tr><td colSpan={4} className="text-center text-ec-hint">구매 내역 없음</td></tr>
           ) : d.purchases.slice(0, WIDGET_ROWS).map((p) => (
             <tr key={p.id}>
-              <td style={{ fontFamily: 'monospace' }}>{p.docNo}</td>
+              <td>{p.docNo}</td>
               <td>{dateText(p.purchaseDate)}</td>
               <td>{p.partnerName}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: '#2f8401' }}>{won(p.totalAmount)}</td>
@@ -199,22 +199,22 @@ const REGISTRY: WidgetDef[] = [
     id: 'vat', title: '매입매출·부가세', group: '회계', to: '/accounting/vat',
     render: (d) => d.vat ? (
       <table className="ec-grid">
-        <thead><tr><th>구분</th><th style={{ textAlign: 'right' }}>공급가액</th><th style={{ textAlign: 'right' }}>부가세</th><th style={{ textAlign: 'right' }}>합계</th></tr></thead>
+        <thead><tr><th>구분</th><th className="text-right">공급가액</th><th className="text-right">부가세</th><th className="text-right">합계</th></tr></thead>
         <tbody>
-          <tr><td>매출</td><td style={{ textAlign: 'right' }}>{won(d.vat.salesSupply)}</td><td style={{ textAlign: 'right' }}>{won(d.vat.salesVat)}</td><td style={{ textAlign: 'right', fontWeight: 600 }}>{won(d.vat.salesTotal)}</td></tr>
-          <tr><td>매입</td><td style={{ textAlign: 'right' }}>{won(d.vat.purchaseSupply)}</td><td style={{ textAlign: 'right' }}>{won(d.vat.purchaseVat)}</td><td style={{ textAlign: 'right', fontWeight: 600 }}>{won(d.vat.purchaseTotal)}</td></tr>
-          <tr style={{ background: 'var(--ec-bg-page)' }}><td style={{ fontWeight: 700 }}>납부세액</td><td colSpan={3} style={{ textAlign: 'right', fontWeight: 700, color: 'var(--ec-blue)' }}>{won(d.vat.vatPayable)} 원</td></tr>
+          <tr><td>매출</td><td className="text-right">{won(d.vat.salesSupply)}</td><td className="text-right">{won(d.vat.salesVat)}</td><td className="text-right font-semibold">{won(d.vat.salesTotal)}</td></tr>
+          <tr><td>매입</td><td className="text-right">{won(d.vat.purchaseSupply)}</td><td className="text-right">{won(d.vat.purchaseVat)}</td><td className="text-right font-semibold">{won(d.vat.purchaseTotal)}</td></tr>
+          <tr className="bg-ec-page"><td className="font-bold">납부세액</td><td colSpan={3} className="text-right font-bold text-ec-blue">{won(d.vat.vatPayable)} 원</td></tr>
         </tbody>
       </table>
-    ) : <div style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 10 }}>데이터 없음</div>,
+    ) : <div className="text-center text-ec-hint p-[10px]">데이터 없음</div>,
   },
   {
     id: 'profit', title: '손익요약', group: '회계', to: '/accounting/profit',
     render: (d) => d.profit ? (
-      <div style={{ display: 'flex', gap: 10 }}>
+      <div className="flex gap-[10px]">
         <div style={{ flex: 1, textAlign: 'center', padding: '12px 6px', border: '1px solid #e6e9ee', borderRadius: 3, background: 'var(--ec-bg-page)' }}>
           <div style={{ fontSize: 11, color: '#5a6472' }}>총매출</div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--ec-blue)' }}>{won(d.profit.totalSales)}</div>
+          <div className="text-[16px] font-bold text-ec-blue">{won(d.profit.totalSales)}</div>
         </div>
         <div style={{ flex: 1, textAlign: 'center', padding: '12px 6px', border: '1px solid #e6e9ee', borderRadius: 3, background: 'var(--ec-bg-page)' }}>
           <div style={{ fontSize: 11, color: '#5a6472' }}>총원가</div>
@@ -225,7 +225,7 @@ const REGISTRY: WidgetDef[] = [
           <div style={{ fontSize: 16, fontWeight: 700, color: '#2f8401' }}>{won(d.profit.grossProfit)}</div>
         </div>
       </div>
-    ) : <div style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 10 }}>데이터 없음</div>,
+    ) : <div className="text-center text-ec-hint p-[10px]">데이터 없음</div>,
   },
   {
     id: 'shortcuts', title: '업무 바로가기', group: '공통',
@@ -242,8 +242,8 @@ const REGISTRY: WidgetDef[] = [
           { icon: '🕐', label: '출퇴근', to: '/groupware/attendance' },
         ].map((q) => (
           <Link key={q.label} to={q.to} style={{ textDecoration: 'none', color: '#333', border: '1px solid #e6e9ee', borderRadius: 3, padding: '10px 4px', textAlign: 'center', background: '#fff' }}>
-            <div style={{ fontSize: 18 }}>{q.icon}</div>
-            <div style={{ fontSize: 11, marginTop: 3 }}>{q.label}</div>
+            <div className="text-[18px]">{q.icon}</div>
+            <div className="text-[11px] mt-[3px]">{q.label}</div>
           </Link>
         ))}
       </div>
@@ -252,13 +252,13 @@ const REGISTRY: WidgetDef[] = [
   {
     id: 'buildStatus', title: '시스템 구축 현황', group: '공통',
     render: () => (
-      <div style={{ fontSize: 12, lineHeight: 1.9, color: 'var(--ec-text)' }}>
+      <div className="text-[12px] leading-[1.9] text-ec-text">
         <div>✅ 재고관리 · 품목·창고·입출고·현재고</div>
         <div>✅ 판매/구매 · 거래처·판매·구매·채권채무</div>
         <div>✅ 생산관리 · BOM·작업지시·생산실적</div>
         <div>✅ 회계/원가 · 매입매출·부가세·원가·손익</div>
         <div>✅ 그룹웨어 · 전자결재·업무일지·출퇴근</div>
-        <div style={{ marginTop: 4, color: 'var(--ec-blue)', fontWeight: 700 }}>🎉 전 모듈 연동 완료</div>
+        <div className="mt-[4px] text-ec-blue font-bold">🎉 전 모듈 연동 완료</div>
       </div>
     ),
   },
@@ -351,11 +351,11 @@ export default function MyPageDashboard() {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
+      <div className="flex items-center mb-[10px]">
         <div style={{ fontSize: 12, color: '#5a6472' }}>
-          <b style={{ color: 'var(--ec-text)', fontSize: 14 }}>MyPage</b> &nbsp; {user?.name}님, 환영합니다.
+          <b className="text-ec-text text-[14px]">MyPage</b> &nbsp; {user?.name}님, 환영합니다.
         </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+        <div className="ml-auto flex gap-[6px]">
           <button className={`ec-btn${edit ? ' ec-btn-primary' : ''}`} onClick={() => setEdit((v) => !v)}>
             {edit ? '완료' : 'My위젯선택'}
           </button>
@@ -368,9 +368,9 @@ export default function MyPageDashboard() {
         <div style={{ border: '1px solid var(--ec-blue)', background: '#f5f8ff', borderRadius: 3, padding: 12, marginBottom: 12 }}>
           <div style={{ fontSize: 12, color: '#5a6472', marginBottom: 8 }}>표시할 위젯을 선택하세요. 각 위젯의 ◀▶로 위치를 옮기고 ✕로 제거합니다.</div>
           {GROUPS.map((g) => (
-            <div key={g} style={{ marginBottom: 8 }}>
-              <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ec-blue-dark)', marginBottom: 4 }}>{g}</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            <div key={g} className="mb-[8px]">
+              <div className="text-[11.5px] font-bold text-ec-navy mb-[4px]">{g}</div>
+              <div className="flex flex-wrap gap-[6px]">
                 {REGISTRY.filter((w) => w.group === g).map((w) => {
                   const on = order.includes(w.id)
                   return (

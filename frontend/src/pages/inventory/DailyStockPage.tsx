@@ -234,17 +234,17 @@ export default function DailyStockPage() {
           </div>
         </EcCond>
         <EcCond label="기타">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={withInactive} onChange={(e) => setWithInactive(e.target.checked)} />
             사용중단품목포함
           </label>
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={withUntracked} onChange={(e) => setWithUntracked(e.target.checked)} />
             수량관리제외품목포함
           </label>
         </EcCond>
         <EcCond label="결재방표시">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
             인쇄물에 결재란(도장칸)을 찍는다
           </label>
@@ -264,18 +264,18 @@ export default function DailyStockPage() {
         </p>
       )}
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
-        건수 <b style={{ color: 'var(--ec-text)' }}>{num(shown.length)}</b>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
-        수량 <b style={{ color: 'var(--ec-text)', fontSize: 14 }}>{num(totalQty)}</b>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
-        재고금액({basis}) <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{won(totalAmount)}</b>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        건수 <b className="text-ec-text">{num(shown.length)}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
+        수량 <b className="text-ec-text text-[14px]">{num(totalQty)}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
+        재고금액({basis}) <b className="text-ec-blue text-[14px]">{won(totalAmount)}</b>
         {missing > 0 && (
           <>
-            <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
-            단가없음 <b style={{ color: 'var(--ec-danger)', fontSize: 14 }}>{num(missing)}</b>건
+            <span className="my-0 mx-[8px] text-ec-off">|</span>
+            단가없음 <b className="text-ec-danger text-[14px]">{num(missing)}</b>건
           </>
         )}
       </div>
@@ -283,9 +283,9 @@ export default function DailyStockPage() {
       <div className="overflow-x-auto">
         <table className="w-full text-left">
           <colgroup>
-            <col style={{ width: '4%' }} /><col style={{ width: '14%' }} /><col />
-            <col style={{ width: '15%' }} />
-            <col style={{ width: '12%' }} /><col style={{ width: '12%' }} /><col style={{ width: '14%' }} />
+            <col className="w-[4%]" /><col className="w-[14%]" /><col />
+            <col className="w-[15%]" />
+            <col className="w-[12%]" /><col className="w-[12%]" /><col className="w-[14%]" />
           </colgroup>
           {/*
             2026-09-09 원본 실측(E040807) — 격자 열은
@@ -301,24 +301,24 @@ export default function DailyStockPage() {
               <th>품목코드</th>
               <th>품목명[규격]</th>
               <th>창고</th>
-              <th style={{ textAlign: 'right' }}>재고수량</th>
-              <th style={{ textAlign: 'right' }}>재고단가</th>
-              <th style={{ textAlign: 'right' }}>재고금액</th>
+              <th className="text-right">재고수량</th>
+              <th className="text-right">재고단가</th>
+              <th className="text-right">재고금액</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+              <tr><td colSpan={7} className="text-center text-ec-ink">불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={7} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((r, i) => (
               <tr key={`${r.itemId}-${r.warehouseId}`}>
-                <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
+                <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
+                <td>{r.itemCode}</td>
                 <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
                 <td>{r.warehouseName}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600 }}>
-                  {num(r.quantity)} <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--ec-text-hint)' }}>{r.unit}</span>
+                <td className="text-right font-semibold">
+                  {num(r.quantity)} <span className="text-[11px] font-normal text-ec-hint">{r.unit}</span>
                 </td>
                 <td style={{ textAlign: 'right', color: r.price === null ? 'var(--ec-danger)' : 'var(--ec-label)' }}>
                   {r.price === null ? '단가없음' : won(r.price)}
@@ -332,10 +332,10 @@ export default function DailyStockPage() {
           {shown.length > 0 && (
             <tfoot>
               <tr>
-                <td colSpan={4} style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>합계</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>{num(totalQty)}</td>
-                <td style={{ background: 'var(--ec-bg-page)' }}></td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: 'var(--ec-blue)' }}>{won(totalAmount)}</td>
+                <td colSpan={4} className="text-right font-bold bg-ec-page">합계</td>
+                <td className="text-right font-bold bg-ec-page">{num(totalQty)}</td>
+                <td className="bg-ec-page"></td>
+                <td className="text-right font-bold bg-ec-page text-ec-blue">{won(totalAmount)}</td>
               </tr>
             </tfoot>
           )}
@@ -351,21 +351,21 @@ export default function DailyStockPage() {
           { qty: (r) => r.quantity, amount: (r) => r.amount ?? 0 })
         return (
           <>
-            <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+            <h3 className="text-[13px] font-bold mt-[16px] mx-0 mb-[6px]">{subtotal} 소계</h3>
             <table className="w-full text-left">
               <thead><tr>
                 <th>{subtotal}</th>
-                <th style={{ width: 90, textAlign: 'right' }}>건수</th>
-                <th style={{ width: 140, textAlign: 'right' }}>수량</th>
-                <th style={{ width: 160, textAlign: 'right' }}>재고금액</th>
+                <th className="w-[90px] text-right">건수</th>
+                <th className="w-[140px] text-right">수량</th>
+                <th className="w-[160px] text-right">재고금액</th>
               </tr></thead>
               <tbody>
                 {groups.map((g) => (
                   <tr key={g.label}>
-                    <td style={{ fontWeight: 600 }}>{g.label}</td>
-                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
-                    <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700 }}>{num(g.sums.qty)}</td>
-                    <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: 'var(--ec-blue)' }}>
+                    <td className="font-semibold">{g.label}</td>
+                    <td className="text-right">{g.count}</td>
+                    <td className="text-right font-bold">{num(g.sums.qty)}</td>
+                    <td className="text-right font-bold text-ec-blue">
                       {won(g.sums.amount)}
                     </td>
                   </tr>

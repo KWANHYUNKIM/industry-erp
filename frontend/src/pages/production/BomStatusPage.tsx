@@ -65,7 +65,7 @@ export default function BomStatusPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="생산품목" pick>
           <CodePickerField label="생산품목" hideLabel width={220} emptyLabel="전체" value={product} onChange={setProduct} items={picks} />
@@ -74,10 +74,10 @@ export default function BomStatusPage() {
           <CodePickerField label="소모품목" hideLabel width={220} emptyLabel="전체" value={component} onChange={setComponent} items={picks} />
         </EcCond>
         <EcCond label="기타">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={allVersions} onChange={(e) => setAllVersions(e.target.checked)} /> 모든 BOM 버전 보기
           </label>
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4, marginLeft: 10 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px] ml-[10px]">
             <input type="checkbox" checked={withInactive} onChange={(e) => setWithInactive(e.target.checked)} /> 사용중단품목포함
           </label>
         </EcCond>
@@ -91,24 +91,24 @@ export default function BomStatusPage() {
             <th>BOM버전</th>
             <th>소모품목코드</th>
             <th>소모품목명</th>
-            <th style={{ textAlign: 'right' }}>생산수량</th>
-            <th style={{ textAlign: 'right' }}>소요량</th>
+            <th className="text-right">생산수량</th>
+            <th className="text-right">소요량</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
           ) : rowCount === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.flatMap((b) => b.lines.map((l, i) => (
             <tr key={`${b.id}-${l.componentId}-${i}`} style={i === 0 ? { borderTop: '1px solid #d7dce3' } : undefined}>
-              <td style={{ fontFamily: 'monospace' }}>{i === 0 ? b.productCode : ''}</td>
+              <td>{i === 0 ? b.productCode : ''}</td>
               <td>{b.productName}</td>
               <td>{b.versionName}{b.defaultVersion ? '' : ' (기본 아님)'}</td>
-              <td style={{ fontFamily: 'monospace' }}>{l.componentCode}</td>
+              <td>{l.componentCode}</td>
               <td>{l.componentName}</td>
-              <td style={{ textAlign: 'right' }}>{num(1)}</td>
-              <td style={{ textAlign: 'right' }}>{num(l.quantity)}</td>
+              <td className="text-right">{num(1)}</td>
+              <td className="text-right">{num(l.quantity)}</td>
             </tr>
           )))}
         </tbody>

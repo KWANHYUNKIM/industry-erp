@@ -449,46 +449,46 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
   const matsFilled = mats.filter((m) => m.componentId)
 
   const prodGrid = (
-    <div style={{ overflowX: 'auto' }}>
+    <div className="overflow-x-auto">
       <table className="ec-grid-input no-ec" style={{ tableLayout: 'fixed', minWidth: type === 'III' ? 1180 : 1240 }}>
         <colgroup>
-          <col style={{ width: 30 }} />
-          {type === 'III' && <col style={{ width: 150 }} />}
-          <col style={{ width: 110 }} />
-          <col style={{ width: 120 }} />
-          <col style={{ width: 220 }} />
-          <col style={{ width: 100 }} />
-          <col style={{ width: 90 }} />
-          {type === 'III' && <col style={{ width: 150 }} />}
-          {type === 'III' && <col style={{ width: 150 }} />}
-          <col style={{ width: 90 }} />
-          {type !== 'III' && <col style={{ width: 100 }} />}
-          {type !== 'III' && <col style={{ width: 110 }} />}
-          {type !== 'III' && <col style={{ width: 100 }} />}
-          <col style={{ width: 160 }} />
-          {type !== 'III' && <col style={{ width: 80 }} />}
-          <col style={{ width: 150 }} />
+          <col className="w-[30px]" />
+          {type === 'III' && <col className="w-[150px]" />}
+          <col className="w-[110px]" />
+          <col className="w-[120px]" />
+          <col className="w-[220px]" />
+          <col className="w-[100px]" />
+          <col className="w-[90px]" />
+          {type === 'III' && <col className="w-[150px]" />}
+          {type === 'III' && <col className="w-[150px]" />}
+          <col className="w-[90px]" />
+          {type !== 'III' && <col className="w-[100px]" />}
+          {type !== 'III' && <col className="w-[110px]" />}
+          {type !== 'III' && <col className="w-[100px]" />}
+          <col className="w-[160px]" />
+          {type !== 'III' && <col className="w-[80px]" />}
+          <col className="w-[150px]" />
         </colgroup>
         <thead>
           <tr>
             <th />
-            {type === 'III' && <th style={{ textAlign: 'left' }}>공정</th>}
-            <th style={{ textAlign: 'left' }}>생산품목코드</th>
+            {type === 'III' && <th className="text-left">공정</th>}
+            <th className="text-left">생산품목코드</th>
             {/* 원본 차례: 생산품목코드 · 시리얼/로트No. · 생산품목명 — 가운데 정렬이다. */}
-            <th style={{ textAlign: 'center' }}>시리얼/로트No.</th>
-            <th style={{ textAlign: 'left' }}>생산품목명</th>
-            <th style={{ textAlign: 'left' }}>규격</th>
+            <th className="text-center">시리얼/로트No.</th>
+            <th className="text-left">생산품목명</th>
+            <th className="text-left">규격</th>
             {/* 원본 격자 [BOM버전] — 고르지 않으면 기본 BOM. */}
-            <th style={{ textAlign: 'left' }}>BOM버전</th>
-            {type === 'III' && <th style={{ textAlign: 'left' }}>생산된공장</th>}
-            {type === 'III' && <th style={{ textAlign: 'left' }}>받는창고</th>}
-            <th style={{ textAlign: 'right' }}>수량</th>
-            {type !== 'III' && <th style={{ textAlign: 'right' }}>외주비단가</th>}
-            {type !== 'III' && <th style={{ textAlign: 'right' }}>외주비합계</th>}
-            {type !== 'III' && <th style={{ textAlign: 'right' }}>외주비부가세</th>}
-            <th style={{ textAlign: 'left' }}>적요</th>
-            {type !== 'III' && <th style={{ textAlign: 'right' }}>노무시간</th>}
-            <th style={{ textAlign: 'left' }}>작업지시서</th>
+            <th className="text-left">BOM버전</th>
+            {type === 'III' && <th className="text-left">생산된공장</th>}
+            {type === 'III' && <th className="text-left">받는창고</th>}
+            <th className="text-right">수량</th>
+            {type !== 'III' && <th className="text-right">외주비단가</th>}
+            {type !== 'III' && <th className="text-right">외주비합계</th>}
+            {type !== 'III' && <th className="text-right">외주비부가세</th>}
+            <th className="text-left">적요</th>
+            {type !== 'III' && <th className="text-right">노무시간</th>}
+            <th className="text-left">작업지시서</th>
           </tr>
         </thead>
         <tbody>
@@ -497,14 +497,14 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
             const wo = orderById.get(l.workOrderId)
             return (
               <tr key={l.key}>
-                <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{idx + 1}</td>
+                <td className="text-center bg-ec-stripe text-ec-hint">{idx + 1}</td>
                 {type === 'III' && (
                   <td className="pad">
                     <CodePickerField label="공정" hideLabel fill placeholder="" emptyLabel="선택 해제"
                                      value={l.processId} onChange={(v) => setLine(l.key, { processId: v })} items={processPicks} />
                   </td>
                 )}
-                <td className="pad" style={{ fontFamily: 'ui-monospace, monospace', color: 'var(--ec-label)', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                <td className="pad text-ec-label overflow-hidden whitespace-nowrap">
                   {it?.code ?? ''}
                 </td>
                 <td>
@@ -517,11 +517,11 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
                                    onChange={(v) => setLine(l.key, { productId: v, workOrderId: v === l.productId ? l.workOrderId : '', unitPrice: '', amountTouched: false, bomId: v === l.productId ? l.bomId : '' })}
                                    items={itemPicks} />
                 </td>
-                <td className="pad" style={{ color: 'var(--ec-label)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it?.spec ?? ''}</td>
+                <td className="pad text-ec-label overflow-hidden text-ellipsis whitespace-nowrap">{it?.spec ?? ''}</td>
                 <td>
                   {(() => {
                     const vs = bomVersions.filter((v) => String(v.productId) === l.productId)
-                    if (vs.length <= 1) return <span className="pad" style={{ color: 'var(--ec-text-hint)', fontSize: 12 }}>{vs[0]?.versionName ?? ''}</span>
+                    if (vs.length <= 1) return <span className="pad text-ec-hint text-[12px]">{vs[0]?.versionName ?? ''}</span>
                     return (
                       <select className="cell" value={l.bomId} onChange={(e) => setLine(l.key, { bomId: e.target.value })}>
                         {vs.map((v) => <option key={v.id} value={v.defaultVersion ? '' : String(v.id)}>{v.versionName}{v.defaultVersion ? '(기본)' : ''}</option>)}
@@ -589,10 +589,10 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
         <tfoot>
           <tr>
             <td colSpan={type === 'III' ? 9 : 6} />
-            <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(totalQty)}</td>
+            <td className="text-right font-bold">{won(totalQty)}</td>
             {type !== 'III' && <td />}
-            {type !== 'III' && <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(totalAmt)}</td>}
-            {type !== 'III' && <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(totalVat)}</td>}
+            {type !== 'III' && <td className="text-right font-bold">{won(totalAmt)}</td>}
+            {type !== 'III' && <td className="text-right font-bold">{won(totalVat)}</td>}
             <td colSpan={type !== 'III' ? 3 : 2} />
           </tr>
         </tfoot>
@@ -601,34 +601,34 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
   )
 
   const consumeGrid = (
-    <div style={{ overflowX: 'auto' }}>
+    <div className="overflow-x-auto">
       <table className="ec-grid-input no-ec" style={{ tableLayout: 'fixed', minWidth: 1100 }}>
         <colgroup>
-          <col style={{ width: 30 }} />
-          {type === 'III' && <col style={{ width: 120 }} />}
-          <col style={{ width: 260 }} />
-          <col style={{ width: 110 }} />
-          <col style={{ width: 220 }} />
-          {type === 'II' && <col style={{ width: 100 }} />}
-          {type === 'III' && <col style={{ width: 90 }} />}
-          <col style={{ width: 90 }} />
-          {type === 'III' && <col style={{ width: 90 }} />}
-          <col style={{ width: 180 }} />
-          <col style={{ width: 120 }} />
+          <col className="w-[30px]" />
+          {type === 'III' && <col className="w-[120px]" />}
+          <col className="w-[260px]" />
+          <col className="w-[110px]" />
+          <col className="w-[220px]" />
+          {type === 'II' && <col className="w-[100px]" />}
+          {type === 'III' && <col className="w-[90px]" />}
+          <col className="w-[90px]" />
+          {type === 'III' && <col className="w-[90px]" />}
+          <col className="w-[180px]" />
+          <col className="w-[120px]" />
         </colgroup>
         <thead>
           <tr>
             <th />
-            {type === 'III' && <th style={{ textAlign: 'left' }}>공정</th>}
-            <th style={{ textAlign: 'left' }}>생산품목</th>
-            <th style={{ textAlign: 'left' }}>소모품목코드</th>
-            <th style={{ textAlign: 'left' }}>소모품목명</th>
-            {type === 'II' && <th style={{ textAlign: 'left' }}>규격</th>}
-            {type === 'III' && <th style={{ textAlign: 'right' }}>추가수량</th>}
-            <th style={{ textAlign: 'right' }}>수량</th>
-            {type === 'III' && <th style={{ textAlign: 'right' }}>작지 수량</th>}
-            <th style={{ textAlign: 'left' }}>적요</th>
-            <th style={{ textAlign: 'center' }}>시리얼/로트No.</th>
+            {type === 'III' && <th className="text-left">공정</th>}
+            <th className="text-left">생산품목</th>
+            <th className="text-left">소모품목코드</th>
+            <th className="text-left">소모품목명</th>
+            {type === 'II' && <th className="text-left">규격</th>}
+            {type === 'III' && <th className="text-right">추가수량</th>}
+            <th className="text-right">수량</th>
+            {type === 'III' && <th className="text-right">작지 수량</th>}
+            <th className="text-left">적요</th>
+            <th className="text-center">시리얼/로트No.</th>
           </tr>
         </thead>
         <tbody>
@@ -638,22 +638,22 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
             const proc = processes.find((p) => String(p.id) === owner?.processId)
             return (
               <tr key={m.key}>
-                <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{idx + 1}</td>
-                {type === 'III' && <td className="pad" style={{ color: 'var(--ec-label)' }}>{proc?.name ?? ''}</td>}
+                <td className="text-center bg-ec-stripe text-ec-hint">{idx + 1}</td>
+                {type === 'III' && <td className="pad text-ec-label">{proc?.name ?? ''}</td>}
                 <td>
                   <select className="cell" value={m.lineKey} onChange={(e) => setMat(m.key, { lineKey: e.target.value })}>
                     <option value="" />
                     {lineOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </td>
-                <td className="pad" style={{ fontFamily: 'ui-monospace, monospace', color: 'var(--ec-label)', overflow: 'hidden', whiteSpace: 'nowrap' }}>{c?.code ?? ''}</td>
+                <td className="pad text-ec-label overflow-hidden whitespace-nowrap">{c?.code ?? ''}</td>
                 <td className="pad">
                   <CodePickerField label="소모품목" hideLabel fill placeholder="" emptyLabel="선택 해제"
                                    value={m.componentId}
                                    onChange={(v) => setMat(m.key, { componentId: v, lineKey: m.lineKey || (filled.length === 1 ? String(filled[0].key) : '') })}
                                    items={itemPicks} />
                 </td>
-                {type === 'II' && <td className="pad" style={{ color: 'var(--ec-label)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c?.spec ?? ''}</td>}
+                {type === 'II' && <td className="pad text-ec-label overflow-hidden text-ellipsis whitespace-nowrap">{c?.spec ?? ''}</td>}
                 {type === 'III' && (
                   <td>
                     <input className="cell" type="number" step="any" style={{ textAlign: 'right' }} disabled={!m.componentId}
@@ -664,7 +664,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
                   <input className="cell" type="number" step="any" style={{ textAlign: 'right' }} disabled={!m.componentId}
                          value={m.qty} onChange={(e) => setMat(m.key, { qty: e.target.value })} />
                 </td>
-                {type === 'III' && <td className="pad" style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{m.bomQty !== '' ? won(num(m.bomQty)) : ''}</td>}
+                {type === 'III' && <td className="pad text-right text-ec-hint">{m.bomQty !== '' ? won(num(m.bomQty)) : ''}</td>}
                 <td>
                   <input className="cell" disabled={!m.componentId} value={m.note} onChange={(e) => setMat(m.key, { note: e.target.value })} />
                 </td>
@@ -679,9 +679,9 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
           <tr>
             <td colSpan={type === 'III' ? 5 : 4} />
             {type === 'II' && <td />}
-            {type === 'III' && <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(matsFilled.reduce((n, m) => n + num(m.extraQty), 0))}</td>}
-            <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(matsFilled.reduce((n, m) => n + num(m.qty), 0))}</td>
-            {type === 'III' && <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(matsFilled.reduce((n, m) => n + num(m.bomQty), 0))}</td>}
+            {type === 'III' && <td className="text-right font-bold">{won(matsFilled.reduce((n, m) => n + num(m.extraQty), 0))}</td>}
+            <td className="text-right font-bold">{won(matsFilled.reduce((n, m) => n + num(m.qty), 0))}</td>
+            {type === 'III' && <td className="text-right font-bold">{won(matsFilled.reduce((n, m) => n + num(m.bomQty), 0))}</td>}
             <td colSpan={2} />
           </tr>
         </tfoot>
@@ -700,7 +700,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
           ...(editNo ? [{ label: '삭제', onClick: () => void removeSlip() }] : []),
         ]}
         help={
-          <ul style={{ paddingLeft: 18, margin: 0 }}>
+          <ul className="pl-[18px] m-0">
             <li>저장하면 <b>받는창고</b>로 생산품목이 들어오고, <b>생산된공장</b>에서 소모품목이 빠집니다.</li>
             {type === 'I' && <li>소모는 <b>BOM 소요량 × 수량</b>으로 자동 계산합니다. BOM 이 없는 품목은 저장되지 않습니다.</li>}
             {type !== 'I' && <li>소모는 <b>[소모] 탭에 넣은 것만</b> 빠집니다. [BOM풀기]로 BOM 기준 소요량을 채운 뒤 고치세요. 비워 두면 자재는 빠지지 않습니다.</li>}
@@ -750,18 +750,18 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
           </li>
           <li>
             <div className="title">첨부</div>
-            <div className="form" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div className="form flex items-center gap-[6px]">
               <label className="ec-btn ec-btn-sm" style={{ cursor: uploading ? 'wait' : 'pointer' }}>
                 {uploading ? '올리는 중…' : '파일 선택'}
                 <input type="file" aria-label="첨부 파일" style={{ display: 'none' }} disabled={uploading}
                        onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); e.target.value = '' }} />
               </label>
               {attachment && (
-                <span style={{ fontSize: 12, color: 'var(--ec-blue-dark)' }}>
-                  <span style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                <span className="text-[12px] text-ec-navy">
+                  <span className="cursor-pointer underline"
                         onClick={() => void downloadStoredFile(attachment.id, attachment.name)}>{attachment.name}</span>
                   <span onClick={() => setAttachment(null)} title="첨부 빼기"
-                        style={{ cursor: 'pointer', marginLeft: 6, fontWeight: 700 }}>×</span>
+                        className="cursor-pointer ml-[6px] font-bold">×</span>
                 </span>
               )}
             </div>
@@ -798,7 +798,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
                 <option value="ALL">전체</option>
               </select>
               <button type="button" className="ec-btn ec-btn-sm" onClick={() => void loadFactoryStock()}>재고불러오기</button>
-              <span style={{ fontSize: 11.5, color: 'var(--ec-text-hint)', marginLeft: 6 }}>
+              <span className="text-[11.5px] text-ec-hint ml-[6px]">
                 생산품목마다 BOM 소요량 × 수량으로 다시 채웁니다(지금 [소모] 줄은 지워집니다).
               </span>
             </>
@@ -807,43 +807,43 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
 
         <div ref={gridRef}>{tab === '생산' ? prodGrid : consumeGrid}</div>
 
-        {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, margin: '8px 0' }}>{error}</p>}
-        {ok && <p style={{ background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, margin: '8px 0' }}>{ok}</p>}
+        {error && <p className="ec-alert ec-alert-danger my-[8px] mx-0">{error}</p>}
+        {ok && <p className="ec-alert ec-alert-success my-[8px] mx-0">{ok}</p>}
       </EcSlipShell>
 
       <Modal open={woOpen} title="작업지시서조회" error={error} width={900} onClose={() => setWoOpen(false)}>
-        <div style={{ maxHeight: '55vh', overflowY: 'auto' }}>
+        <div className="max-h-[55vh] overflow-y-auto">
           <table className="w-full text-left">
             <thead>
               <tr>
-                <th style={{ width: 30 }} />
+                <th className="w-[30px]" />
                 <th>작업지시서일자</th>
                 <th>거래처명</th>
                 <th>품목코드</th>
                 <th>품목명[규격]</th>
-                <th style={{ textAlign: 'right' }}>수량</th>
-                <th style={{ textAlign: 'right' }}>잔량</th>
+                <th className="text-right">수량</th>
+                <th className="text-right">잔량</th>
               </tr>
             </thead>
             <tbody>
               {openOrders.length === 0 ? (
-                <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={7} className="text-center text-ec-hint p-[16px]">등록된 데이터가 없습니다.</td></tr>
               ) : openOrders.map((o) => (
-                <tr key={o.id} style={{ cursor: 'pointer' }}
+                <tr key={o.id} className="cursor-pointer"
                     onClick={() => setWoChecked((c) => (c.includes(o.id) ? c.filter((x) => x !== o.id) : [...c, o.id]))}>
-                  <td style={{ textAlign: 'center' }}><input type="checkbox" readOnly checked={woChecked.includes(o.id)} /></td>
+                  <td className="text-center"><input type="checkbox" readOnly checked={woChecked.includes(o.id)} /></td>
                   <td>{dateText(o.orderDate)} {o.orderNo}</td>
                   <td>{o.partnerName ?? ''}</td>
                   <td>{o.productCode}</td>
                   <td>{o.productName}{o.productSpec ? ` [${o.productSpec}]` : ''}</td>
-                  <td style={{ textAlign: 'right' }}>{won(Number(o.plannedQty))}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(Number(o.remainingQty))}</td>
+                  <td className="text-right">{won(Number(o.plannedQty))}</td>
+                  <td className="text-right font-bold">{won(Number(o.remainingQty))}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <div style={{ display: 'flex', gap: 4, marginTop: 10 }}>
+        <div className="flex gap-[4px] mt-[10px]">
           <button type="button" className="ec-btn ec-btn-primary" onClick={applyOrders}>잔량적용</button>
           <button type="button" className="ec-btn" onClick={() => setWoOpen(false)}>닫기</button>
         </div>

@@ -313,11 +313,11 @@ export default function PriceMovementPage() {
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
       signLine={signBox}
     >
-      <p className="mb-2 text-xs text-slate-500">품목별 실거래 단가의 최저·최고·평균·최근과 변동폭. 단가는 판매/매입 전표 라인에서 집계(변동폭 큰 순).</p>
+      <p className="mb-2 text-xs text-ec-hint">품목별 실거래 단가의 최저·최고·평균·최근과 변동폭. 단가는 판매/매입 전표 라인에서 집계(변동폭 큰 순).</p>
 
       <div style={{ border: '1px solid var(--ec-line)', borderRadius: 4, background: 'var(--ec-bg-page)', padding: '10px 14px', marginBottom: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px' }}>
         {/* 원본 차례: <b>[구분]</b> 이 조건 판의 맨 앞이다(사본 실측). */}
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           <span style={label}>구분</span>
           <div className="ec-pills">
             {(['전표별', '품목별'] as const).map((g) => (
@@ -326,37 +326,37 @@ export default function PriceMovementPage() {
             ))}
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           {/* 원본 단가변동표는 이 줄을 <b>[기준일자]</b> 라고 부른다(사본 실측) — [기간]이 아니다. */}
           <span style={label}>기준일자</span>
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 148 }} />
-          <span style={{ margin: '0 6px', color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="my-0 mx-[6px] text-ec-hint">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 148 }} />
         </div>
         {/* 원본 조건 차례: 구분 · 기준일자 · <b>창고 · 거래처</b> · 품목 … */}
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           <span style={label}>창고</span>
           <CodePickerField label="창고" hideLabel width={160} emptyLabel="전체"
                            value={warehouse} onChange={setWarehouse} items={pickers.warehouses} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           <span style={label}>거래처</span>
           <CodePickerField label="거래처" hideLabel width={160} emptyLabel="전체"
                            value={partner} onChange={setPartner} items={pickers.partners} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           <span style={{ ...label, width: 74 }}>거래처그룹1</span>
           <CodePickerField label="거래처그룹1" hideLabel width={140} emptyLabel="전체"
                            value={partnerGroup} onChange={setPartnerGroup}
                            items={pgroup.groupOptions.map((g) => ({ value: g, name: g }))} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           <span style={label}>품목</span>
           <CodePickerField label="품목" hideLabel width={170} emptyLabel="전체"
                            value={itemCond} onChange={setItemCond}
                            items={items.map((x) => ({ value: String(x.id), code: x.code, name: x.name, sub: x.spec }))} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           <span style={{ ...label, width: 60 }}>품목구분</span>
           <select className="ec-input" value={category} style={{ width: 130 }}
                   onChange={(e) => setCategory(e.target.value)}>
@@ -365,7 +365,7 @@ export default function PriceMovementPage() {
               .filter(Boolean) as string[])].sort().map((n) => <option key={n} value={n}>{n}</option>)}
           </select>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           <span style={{ ...label, width: 66 }}>품목그룹1</span>
           <select className="ec-input" value={itemGroup} style={{ width: 150 }}
                   onChange={(e) => setItemGroup(e.target.value)}>
@@ -373,19 +373,19 @@ export default function PriceMovementPage() {
             {mgmt.groupOptions.map((g) => <option key={g} value={g}>{g}</option>)}
           </select>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           <span style={{ ...label, width: 60 }}>프로젝트</span>
           <CodePickerField label="프로젝트" hideLabel width={150} emptyLabel="전체"
                            value={project} onChange={setProject} items={pickers.projects} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           <span style={label}>담당자</span>
           <CodePickerField label="담당자" hideLabel width={130} emptyLabel="전체"
                            value={employee} onChange={setEmployee}
                            items={[...new Set([...sales, ...purchases].map((d) => d.employeeName)
                              .filter(Boolean) as string[])].sort().map((n) => ({ value: n, name: n }))} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           <span style={{ ...label, width: 100 }}>거래처관리담당자</span>
           <CodePickerField label="거래처관리담당자" hideLabel width={140} emptyLabel="전체"
                            value={partnerMgr} onChange={setPartnerMgr}
@@ -395,8 +395,8 @@ export default function PriceMovementPage() {
           원본 단가변동표 조건의 <b>[단가구분]</b>. 이 알약이 그 일을 하는데 <b>이름표가 없어</b>
           무엇을 고르는 줄인지 화면만 보고는 알 수 없었다.
         */}
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>단가구분</span>
-        <div style={{ display: 'flex', gap: 2 }}>
+        <span className="text-[12.5px] text-ec-label">단가구분</span>
+        <div className="flex gap-[2px]">
           {(['ALL', 'SALE', 'PURCHASE'] as const).map((m) => (
             <button key={m} onClick={() => setMode(m)} className="no-ec" style={{
               padding: '5px 14px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
@@ -408,14 +408,14 @@ export default function PriceMovementPage() {
           원본 [단가기준] — 어느 요약을 낼지. [단가구분](판매·매입)과 다른 줄이다.
           전부 끄면 <b>요약 칸이 하나도 없는 표</b>가 되므로 [전체]로 한 번에 켠다.
         */}
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>단가기준</span>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+        <span className="text-[12.5px] text-ec-label">단가기준</span>
+        <div className="flex gap-[10px]">
+          <label className="flex items-center gap-[3px] text-[12.5px]">
             <input type="checkbox" checked={bases.length === PRICE_BASES.length}
                    onChange={(e) => setBases(e.target.checked ? [...PRICE_BASES] : [])} />전체
           </label>
           {PRICE_BASES.map((k) => (
-            <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+            <label key={k} className="flex items-center gap-[3px] text-[12.5px]">
               <input type="checkbox" checked={bases.includes(k)}
                      onChange={(e) => setBases((v) => (e.target.checked ? [...v, k] : v.filter((x) => x !== k)))} />
               {k}
@@ -427,25 +427,25 @@ export default function PriceMovementPage() {
           우리 화면에는 이 줄이 통째로 없어서, 특히 <b>한 번도 안 변한 단가</b>가
           늘 표를 채우고 있었다(변동폭이 0 인 줄이라 아무 말도 안 해 준다).
         */}
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>기타</span>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+        <span className="text-[12.5px] text-ec-label">기타</span>
+        <div className="flex gap-[10px] flex-wrap">
+          <label className="flex items-center gap-[3px] text-[12.5px]">
             <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />결재방표시
           </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+          <label className="flex items-center gap-[3px] text-[12.5px]">
             <input type="checkbox" checked={showQty} onChange={(e) => setShowQty(e.target.checked)} />수량표시
           </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+          <label className="flex items-center gap-[3px] text-[12.5px]">
             <input type="checkbox" checked={showSwing} onChange={(e) => setShowSwing(e.target.checked)} />단가등락폭표시
           </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+          <label className="flex items-center gap-[3px] text-[12.5px]">
             <input type="checkbox" checked={withFlat} onChange={(e) => setWithFlat(e.target.checked)} />변동없는단가포함
           </label>
         </div>
-        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--ec-label)' }}>품목수 <b style={{ color: 'var(--ec-text)', fontSize: 14 }}>{rows.length}</b></div>
+        <div className="ml-auto text-[12.5px] text-ec-label">품목수 <b className="text-ec-text text-[14px]">{rows.length}</b></div>
       </div>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       {/*
         [전표별] 은 요약하지 않고 그대로 편다 — 요약표의 최고·최저가 <b>어느 전표였나</b>를
@@ -467,40 +467,40 @@ export default function PriceMovementPage() {
               (pending-columns.json 에 적었다).
               [거래처]·[단위]·[수량]은 우리 열이다.
             */}
-            <th style={{ width: 34 }}></th>
-            <th style={{ width: 110 }}>품목코드</th>
+            <th className="w-[34px]"></th>
+            <th className="w-[110px]">품목코드</th>
             <th>품목명</th>
-            <th style={{ width: 110 }}>규격</th>
-            <th style={{ width: 170 }}>전표별</th>
+            <th className="w-[110px]">규격</th>
+            <th className="w-[170px]">전표별</th>
             <th>거래처</th>
-            <th style={{ width: 70 }}>단위</th>
-            <th style={{ width: 90, textAlign: 'right' }}>수량</th>
+            <th className="w-[70px]">단위</th>
+            <th className="w-[90px] text-right">수량</th>
             {/*
               원본은 [단가구분] 기본이 [전체]라 <b>판매단가와 구매단가를 나란히</b> 둔다.
               (원본 머리에는 [단가기준]으로 고른 값이 괄호로 붙는다 — [판매단가(단순평균)].
               우리 이 표는 <b>전표의 실제 단가</b>를 줄마다 찍는 것이라 평균이 아니어서
               그 괄호를 붙이지 않는다. 품목별 평균은 아래 [품목별] 표가 낸다.)
             */}
-            <th style={{ width: 110, textAlign: 'right' }}>판매단가</th>
-            <th style={{ width: 110, textAlign: 'right' }}>구매단가</th>
+            <th className="w-[110px] text-right">판매단가</th>
+            <th className="w-[110px] text-right">구매단가</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10} className="ec-empty">불러오는 중…</td></tr>
           ) : lineRows.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : lineRows.map((r, i) => (
             <tr key={r.key}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td>{r.itemCode}</td>
               <td>{r.itemName}</td>
               <td>{r.spec ?? ''}</td>
               {/* 원본은 일자와 전표번호를 한 칸에 적는다. */}
-              <td style={{ fontFamily: 'monospace' }}>{dateText(r.date)} {r.no}</td>
+              <td>{dateText(r.date)} {r.no}</td>
               <td>{r.partner}</td>
               <td>{r.unit}</td>
-              <td style={{ textAlign: 'right' }}>{r.quantity.toLocaleString()}</td>
+              <td className="text-right">{r.quantity.toLocaleString()}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: r.kind === 'SALE' ? undefined : 'var(--ec-text-off)' }}>
                 {r.kind === 'SALE' ? r.price.toLocaleString() : ''}
               </td>
@@ -516,13 +516,13 @@ export default function PriceMovementPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th className="w-[34px]"></th>
             <th>품목코드</th>
             <th>품목명</th>
             <th>규격</th>
-            <th style={{ textAlign: 'center', width: 46 }}>단위</th>
-            <th style={{ textAlign: 'right' }}>표준단가</th>
-            <th style={{ textAlign: 'right' }}>거래수</th>
+            <th className="text-center w-[46px]">단위</th>
+            <th className="text-right">표준단가</th>
+            <th className="text-right">거래수</th>
             {/*
               <b>단가변동표(E040819) [구분]=품목별 원본 격자</b>의 두 칸이다 —
               [판매단가(단순평균)] · [구매단가(단순평균)]. 이름에 붙은 괄호는
@@ -531,26 +531,26 @@ export default function PriceMovementPage() {
               한 평균에 섞으면 거짓이 되니까. 그런데 원본은 섞지 않고 <b>두 칸으로 가른다.</b>
               가르면 될 일이었다.
             */}
-            {mode === 'ALL' && <th style={{ textAlign: 'right' }}>판매단가(단순평균)</th>}
-            {mode === 'ALL' && <th style={{ textAlign: 'right' }}>구매단가(단순평균)</th>}
+            {mode === 'ALL' && <th className="text-right">판매단가(단순평균)</th>}
+            {mode === 'ALL' && <th className="text-right">구매단가(단순평균)</th>}
             {/* 원본 [기타]의 <b>수량표시</b> — 기본은 꺼짐이다. */}
-            {showQty && <th style={{ textAlign: 'right' }}>수량</th>}
+            {showQty && <th className="text-right">수량</th>}
             {/* 원본 [단가기준]으로 켜고 끈다 — 처음엔 평균만 보인다. */}
             {/* 최저·최고·평균·최근·변동폭은 <b>한 갈래</b>일 때만 뜻이 있다. */}
-            {mode !== 'ALL' && withMin && <th style={{ textAlign: 'right' }}>최저</th>}
-            {mode !== 'ALL' && withMax && <th style={{ textAlign: 'right' }}>최고</th>}
-            {mode !== 'ALL' && withAvg && <th style={{ textAlign: 'right' }}>평균</th>}
-            {mode !== 'ALL' && <th style={{ textAlign: 'right' }}>최근</th>}
+            {mode !== 'ALL' && withMin && <th className="text-right">최저</th>}
+            {mode !== 'ALL' && withMax && <th className="text-right">최고</th>}
+            {mode !== 'ALL' && withAvg && <th className="text-right">평균</th>}
+            {mode !== 'ALL' && <th className="text-right">최근</th>}
             {/* 원본 [기타]의 <b>단가등락폭표시</b> — 기본은 꺼짐인데 우리는 늘 그리고 있었다. */}
-            {mode !== 'ALL' && showSwing && <th style={{ textAlign: 'right' }}>변동폭</th>}
-            {mode !== 'ALL' && <th style={{ textAlign: 'right' }}>최근vs표준</th>}
+            {mode !== 'ALL' && showSwing && <th className="text-right">변동폭</th>}
+            {mode !== 'ALL' && <th className="text-right">최근vs표준</th>}
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9 + (withMin ? 1 : 0) + (withMax ? 1 : 0) + (withAvg ? 1 : 0) + (showQty ? 1 : 0) + (showSwing ? 1 : 0)} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9 + (withMin ? 1 : 0) + (withMax ? 1 : 0) + (withAvg ? 1 : 0) + (showQty ? 1 : 0) + (showSwing ? 1 : 0)} className="ec-empty">불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={9 + (withMin ? 1 : 0) + (withMax ? 1 : 0) + (withAvg ? 1 : 0) + (showQty ? 1 : 0) + (showSwing ? 1 : 0)} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>
+            <tr><td colSpan={9 + (withMin ? 1 : 0) + (withMax ? 1 : 0) + (withAvg ? 1 : 0) + (showQty ? 1 : 0) + (showSwing ? 1 : 0)} className="text-center text-ec-hint p-[20px]">
               {(mode === 'ALL' ? sales.length + purchases.length : mode === 'SALE' ? sales.length : purchases.length) === 0
                 ? '거래 내역이 없습니다.' : '조건에 맞는 자료가 없습니다.'}
             </td></tr>
@@ -559,14 +559,14 @@ export default function PriceMovementPage() {
             const vsStd = r.standard > 0 ? ((r.latest - r.standard) / r.standard) * 100 : 0
             return (
               <tr key={r.itemId}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td>{r.itemCode}</td>
                 <td>{r.itemName}</td>
-                <td style={{ color: 'var(--ec-text-hint)' }}>{r.spec ?? ''}</td>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{r.unit}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{won(r.standard)}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{r.count}</td>
-                {showQty && <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{r.quantity.toLocaleString()}</td>}
+                <td className="text-ec-hint">{r.spec ?? ''}</td>
+                <td className="text-center text-ec-hint">{r.unit}</td>
+                <td className="text-right text-ec-hint">{won(r.standard)}</td>
+                <td className="text-right text-ec-label">{r.count}</td>
+                {showQty && <td className="text-right text-ec-label">{r.quantity.toLocaleString()}</td>}
                 {/* 거래가 한쪽만 있으면 다른 쪽은 빈칸이다 — 0 으로 채우지 않는다. */}
                 {mode === 'ALL' && (
                   <td style={{ textAlign: 'right', color: r.saleAvg == null ? 'var(--ec-text-off)' : undefined }}>
@@ -578,11 +578,11 @@ export default function PriceMovementPage() {
                     {r.buyAvg == null ? '' : won(r.buyAvg)}
                   </td>
                 )}
-                {mode !== 'ALL' && withMin && <td style={{ textAlign: 'right' }}>{won(r.min)}</td>}
-                {mode !== 'ALL' && withMax && <td style={{ textAlign: 'right' }}>{won(r.max)}</td>}
-                {mode !== 'ALL' && withAvg && <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{won(r.avg)}</td>}
+                {mode !== 'ALL' && withMin && <td className="text-right">{won(r.min)}</td>}
+                {mode !== 'ALL' && withMax && <td className="text-right">{won(r.max)}</td>}
+                {mode !== 'ALL' && withAvg && <td className="text-right text-ec-label">{won(r.avg)}</td>}
                 {mode !== 'ALL' && (
-                  <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(r.latest)}</td>
+                  <td className="text-right font-semibold text-ec-blue">{won(r.latest)}</td>
                 )}
                 {mode !== 'ALL' && showSwing && <td style={{ textAlign: 'right', fontWeight: range ? 600 : 400, color: range ? 'var(--ec-warn)' : 'var(--ec-text-off)' }}>{range ? won(range) : ''}</td>}
                 {mode !== 'ALL' && (

@@ -14,7 +14,9 @@ import { join } from 'node:path'
 
 export const API = process.env.ERP_API ?? 'http://localhost:8081/api'
 export const WEB = process.env.ERP_WEB ?? 'http://localhost:5180'
-const CHROME = process.env.CHROME ?? 'C:/Program Files/Google/Chrome/Application/chrome.exe'
+const CHROME = process.env.CHROME ?? (process.platform === 'darwin'
+  ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+  : 'C:/Program Files/Google/Chrome/Application/chrome.exe')
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 export async function login(username = process.env.ERP_USER ?? 'admin', password = process.env.ERP_PASS ?? 'admin1234') {

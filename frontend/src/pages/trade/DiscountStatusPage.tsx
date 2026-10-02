@@ -321,7 +321,7 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
         <EcCond label="할인금액">
           <input className="ec-input" type="number" value={discFrom}
                  onChange={(e) => setDiscFrom(e.target.value)} style={{ width: 120, textAlign: 'right' }} />
-          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <span className="text-ec-label">~</span>
           <input className="ec-input" type="number" value={discTo}
                  onChange={(e) => setDiscTo(e.target.value)} style={{ width: 120, textAlign: 'right' }} />
         </EcCond>
@@ -330,55 +330,55 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
                  onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 200 }} />
         </EcCond>
         <EcCond label="결재방표시">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
             인쇄물에 결재란(도장칸)을 찍는다
           </label>
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
         {shown.length}줄
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
         회계로 안 넘어간 금액 <b style={{ color: totals.org - totals.ref > 0 ? 'var(--ec-danger)' : 'var(--ec-success)', fontSize: 14 }}>
           {won(totals.org - totals.ref)}
         </b>
       </div>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {view === '그래프' ? (
         <EcBarChart rows={chartRows} unit=" 원" emptyText="조회된 자료가 없습니다." />
       ) : (
       <table className="ec-grid w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ textAlign: 'center', width: 80 }}>월/일</th>
+            <th className="w-[34px]"></th>
+            <th className="text-center w-[80px]">월/일</th>
             <th>거래처명</th>
-            <th style={{ width: 130, textAlign: 'right' }}>{amountLabel}</th>
-            <th style={{ width: 130, textAlign: 'right' }}>회계반영금액</th>
-            <th style={{ width: 130, textAlign: 'right' }}>차액</th>
+            <th className="w-[130px] text-right">{amountLabel}</th>
+            <th className="w-[130px] text-right">회계반영금액</th>
+            <th className="w-[130px] text-right">차액</th>
             <th>적요</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => {
             const diff = r.orgAmount - r.reflectedAmount
             return (
               <tr key={`${r.date}-${r.partner}`}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{monthDay(r.date)}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td className="text-center">{monthDay(r.date)}</td>
                 <td>{r.partner}</td>
-                <td style={{ textAlign: 'right' }}>{won(r.orgAmount)}</td>
+                <td className="text-right">{won(r.orgAmount)}</td>
                 <td style={{ textAlign: 'right', color: r.reflectedAmount === 0 ? 'var(--ec-text-off)' : undefined }}>
                   {won(r.reflectedAmount)}
                 </td>
                 <td style={{ textAlign: 'right', fontWeight: 700, color: diff > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>{won(diff)}</td>
-                <td style={{ color: 'var(--ec-label)' }} title={r.docNos.join(', ')}>
+                <td className="text-ec-label" title={r.docNos.join(', ')}>
                   {r.remarks.length > 0 ? r.remarks.join(' / ') : r.docNos.join(', ')}
                 </td>
               </tr>
@@ -387,11 +387,11 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
         </tbody>
         {shown.length > 0 && (
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={3} style={{ textAlign: 'right' }}>합계</td>
-              <td style={{ textAlign: 'right' }}>{won(totals.org)}</td>
-              <td style={{ textAlign: 'right' }}>{won(totals.ref)}</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{won(totals.org - totals.ref)}</td>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={3} className="text-right">합계</td>
+              <td className="text-right">{won(totals.org)}</td>
+              <td className="text-right">{won(totals.ref)}</td>
+              <td className="text-right text-ec-navy">{won(totals.org - totals.ref)}</td>
               <td></td>
             </tr>
           </tfoot>
@@ -401,22 +401,22 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
 
       {view === '표' && shown.length > 0 && (
         <>
-          <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+          <h3 className="text-[13px] font-bold mt-[16px] mx-0 mb-[6px]">{subtotal} 소계</h3>
           <table className="w-full text-left">
             <thead><tr>
               <th>{subtotal}</th>
-              <th style={{ width: 90, textAlign: 'right' }}>건수</th>
-              <th style={{ width: 140, textAlign: 'right' }}>{amountLabel}</th>
-              <th style={{ width: 140, textAlign: 'right' }}>회계반영금액</th>
-              <th style={{ width: 140, textAlign: 'right' }}>차액</th>
+              <th className="w-[90px] text-right">건수</th>
+              <th className="w-[140px] text-right">{amountLabel}</th>
+              <th className="w-[140px] text-right">회계반영금액</th>
+              <th className="w-[140px] text-right">차액</th>
             </tr></thead>
             <tbody>
               {groups.map((g) => (
                 <tr key={g.label}>
-                  <td style={{ fontWeight: 600 }}>{g.label}</td>
-                  <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
-                  <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{won(g.sums.org)}</td>
-                  <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{won(g.sums.ref)}</td>
+                  <td className="font-semibold">{g.label}</td>
+                  <td className="text-right">{g.count}</td>
+                  <td className="text-right">{won(g.sums.org)}</td>
+                  <td className="text-right">{won(g.sums.ref)}</td>
                   <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: g.sums.org - g.sums.ref > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>
                     {won(g.sums.org - g.sums.ref)}
                   </td>

@@ -152,11 +152,11 @@ export default function EcDrivePage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ color: 'var(--ec-star)', fontSize: 14, marginRight: 4 }}>☆</span>
-        <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ec-text)' }}>ECDrive</span>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+    <div className="flex flex-col min-h-[100%]">
+      <div className="flex items-center mb-[8px]">
+        <span className="text-ec-star text-[14px] mr-[4px]">☆</span>
+        <span className="text-[15px] font-extrabold text-ec-text">ECDrive</span>
+        <div className="ml-auto flex gap-[4px]">
           <input className="ec-input" placeholder="입력 후 [Enter]" value={keyword}
                  onChange={(e) => setKeyword(e.target.value)}
                  onKeyDown={(e) => { if (e.key === 'Enter') load(sel) }} style={{ width: 150 }} />
@@ -166,11 +166,11 @@ export default function EcDrivePage() {
         </div>
       </div>
 
-      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div style={{ display: 'flex', gap: 10, flex: 1, minHeight: 0 }}>
+      <div className="flex gap-[10px] flex-1 min-h-0">
         {/* 드라이브 트리 */}
-        <div style={{ width: 200, border: '1px solid var(--ec-border)', background: '#fff', flexShrink: 0, padding: '8px 0' }}>
+        <div className="w-[200px] border border-ec-line border-solid bg-white shrink-0 py-[8px] px-0">
           {/* 누르는 자리는 button 으로 둔다 — div 로 두면 키보드로 닿지 않는다. */}
           <button type="button" onClick={() => setTreeOpen((v) => !v)}
                   style={{ padding: '4px 14px 8px', fontSize: 11.5, color: 'var(--ec-label)',
@@ -186,14 +186,14 @@ export default function EcDrivePage() {
               <span>{t.icon}</span>{t.label}
             </div>
           ))}
-          <div style={{ marginTop: 12, padding: '8px 14px', borderTop: '1px solid var(--ec-line-soft)', fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
-            드라이브 사용용량<br /><strong style={{ color: 'var(--ec-text)' }}>{totalKB.toLocaleString()}KB</strong> 사용됨
+          <div className="mt-[12px] py-[8px] px-[14px] border-t border-t-ec-line-soft border-solid text-[11.5px] text-ec-hint">
+            드라이브 사용용량<br /><strong className="text-ec-text">{totalKB.toLocaleString()}KB</strong> 사용됨
           </div>
         </div>
 
         {/* 파일 목록 */}
-        <div style={{ flex: 1, minWidth: 0, border: '1px solid var(--ec-border)', background: '#fff', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--ec-border)', fontSize: 12.5, fontWeight: 700, display: 'flex', alignItems: 'center' }}>
+        <div className="flex-1 min-w-0 border border-ec-line border-solid bg-white flex flex-col">
+          <div className="py-[8px] px-[12px] border-b border-b-ec-line border-solid text-[12.5px] font-bold flex items-center">
             {current.icon} {current.label}
             {/* 숨은 input 은 그대로 둔다 — 위쪽 버튼이 이걸 누른다. 드롭 자리는 목록 위에 따로 있다. */}
             <input
@@ -212,7 +212,7 @@ export default function EcDrivePage() {
             탐색기·메일에서 끌어 온 파일이 갈 곳이 없었다.
             여러 개를 놓으면 하나씩 다 올린다 — 이 자리는 그게 자연스럽다.
           */}
-          <div style={{ marginBottom: 8 }}>
+          <div className="mb-[8px]">
             <EcFileDrop
               multiple busy={uploading} disabled={uploading}
               hint={`여기에 파일 놓기 (${sel === 'shared' ? '공유드라이브' : '내드라이브'})`}
@@ -221,7 +221,7 @@ export default function EcDrivePage() {
           </div>
 
           {/* 원본 ECDrive 조건 차례: <b>이름</b> · 최초작성자 · 최종수정자 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '8px 0', fontSize: 12.5, color: 'var(--ec-label)' }}>
+          <div className="flex items-center gap-[6px] my-[8px] mx-0 text-[12.5px] text-ec-label">
             <span>이름</span>
             <input className="ec-input" value={nameCond} placeholder="파일·폴더 이름"
                    onChange={(e) => setNameCond(e.target.value)} style={{ width: 200 }} />
@@ -229,7 +229,7 @@ export default function EcDrivePage() {
               원본 [최초작성자]. uploader 는 응답에도 프론트 타입에도 진작 있었는데
               <b>줄에 마우스를 올려야 보이는 툴팁</b>으로만 쓰고 있었다 — 그걸로 거를 수가 없었다.
             */}
-            <span style={{ marginLeft: 8 }}>최초작성자</span>
+            <span className="ml-[8px]">최초작성자</span>
             <select className="ec-input" value={authorCond} style={{ width: 140 }}
                     onChange={(e) => setAuthorCond(e.target.value)}>
               <option value="">전체</option>
@@ -245,22 +245,22 @@ export default function EcDrivePage() {
             <thead>
               <tr>
                 <th></th>
-                <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('이름')}>이름 {sort.mark('이름')}</th>
-                <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('최종수정일자')}>최종수정일자 {sort.mark('최종수정일자')}</th>
-                <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('크기')}>크기 {sort.mark('크기')}</th>
-                <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('중요')}>중요 {sort.mark('중요')}</th>
+                <th className="cursor-pointer" onClick={() => sort.toggle('이름')}>이름 {sort.mark('이름')}</th>
+                <th className="cursor-pointer" onClick={() => sort.toggle('최종수정일자')}>최종수정일자 {sort.mark('최종수정일자')}</th>
+                <th className="cursor-pointer" onClick={() => sort.toggle('크기')}>크기 {sort.mark('크기')}</th>
+                <th className="cursor-pointer" onClick={() => sort.toggle('중요')}>중요 {sort.mark('중요')}</th>
                 {/* 원본 실측: 왼쪽. */}
                 <th>더보기</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+                <tr><td colSpan={6} className="text-center text-ec-ink">불러오는 중…</td></tr>
               ) : shown.length === 0 ? (
-                <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={6} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
               ) : shown.map((d, i) => (
                 <tr key={d.id} title={d.uploader ? `올린 사람: ${d.uploader}` : undefined}>
-                  <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+                  <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
                   <td>
                     {d.fileId ? (
                       <button onClick={() => download(d)} title="다운로드"
@@ -268,17 +268,17 @@ export default function EcDrivePage() {
                         📄 {d.name}
                       </button>
                     ) : (
-                      <span title="실제 파일 없음(메타데이터만)">📄 {d.name} <span style={{ color: 'var(--ec-text-hint)', fontSize: 11 }}>(파일없음)</span></span>
+                      <span title="실제 파일 없음(메타데이터만)">📄 {d.name} <span className="text-ec-hint text-[11px]">(파일없음)</span></span>
                     )}
                   </td>
-                  <td style={{ textAlign: 'center' }}>{d.updatedAt ? d.updatedAt.replace('T', ' ').slice(0, 16) : ''}</td>
-                  <td style={{ textAlign: 'right' }}>{fmtSize(d.sizeBytes)}</td>
+                  <td className="text-center">{d.updatedAt ? d.updatedAt.replace('T', ' ').slice(0, 16) : ''}</td>
+                  <td className="text-right">{fmtSize(d.sizeBytes)}</td>
                   <td style={{ textAlign: 'center', cursor: 'pointer', color: d.important ? '#f0a500' : 'var(--ec-text-off)' }}
                       onClick={() => patch(d, { important: !d.important })}
                       title={d.important ? '중요 해제' : '중요 표시'}>
                     {d.important ? '★' : '☆'}
                   </td>
-                  <td style={{ position: 'relative' }}>
+                  <td className="relative">
                     <button className="ec-btn ec-btn-sm" onClick={() => setMenuFor(menuFor === d.id ? null : d.id)}>⋮</button>
                     {menuFor === d.id && (
                       <>
@@ -313,12 +313,12 @@ export default function EcDrivePage() {
               ))}
             </tbody>
           </table>
-          <div style={{ marginTop: 'auto', padding: '8px 12px', borderTop: '1px solid var(--ec-line-soft)', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="mt-auto py-[8px] px-[12px] border-t border-t-ec-line-soft border-solid flex items-center gap-[8px]">
             <button className="ec-btn ec-btn-primary" onClick={() => fileInput.current?.click()} disabled={uploading || sel === 'trash'}>
               {uploading ? '올리는 중…' : 'File'}
             </button>
             <button className="ec-btn" onClick={addDoc} disabled={sel === 'trash'}>항목만 등록</button>
-            <span style={{ fontSize: 11.5, color: 'var(--ec-label)' }}>
+            <span className="text-[11.5px] text-ec-label">
               ※ [더보기] ⋮ 로 기능을 사용할 수 있습니다. 업로드 상한 10MB.
             </span>
           </div>

@@ -92,12 +92,12 @@ export default function TaxInvoicePage({ type }: { type: TaxInvoiceType }) {
         dateLabel="기간"
       />
 
-      <p style={{ marginBottom: 8, fontSize: 12, color: 'var(--ec-text-hint)' }}>
+      <p className="mb-[8px] text-[12px] text-ec-hint">
         {type === 'SALES' ? '판매조회 화면에서 발행합니다.' : '구매조회 화면에서 발행합니다.'}
       </p>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)' }}>{notice}</div>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
 
       {/* 상태 필터는 원본에서 알약(pill)이다 — 선택된 것만 파란 알약으로 채워진다. */}
       <div className="ec-pills" style={{ marginBottom: 6 }}>
@@ -114,32 +114,32 @@ export default function TaxInvoicePage({ type }: { type: TaxInvoiceType }) {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th className="w-[34px]"></th>
             <th>계산서번호</th><th>발행일</th><th>거래처</th><th>근거전표</th>
-            <th style={{ textAlign: 'right' }}>공급가액</th><th style={{ textAlign: 'right' }}>세액</th><th style={{ textAlign: 'right' }}>합계</th>
-            <th style={{ textAlign: 'center' }}>진행단계</th><th style={{ textAlign: 'center' }}>처리</th>
+            <th className="text-right">공급가액</th><th className="text-right">세액</th><th className="text-right">합계</th>
+            <th className="text-center">진행단계</th><th className="text-center">처리</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td className="text-ec-blue font-semibold">
                 {r.invoiceNo}
                 {/* 반품 전표로 끊은 계산서는 금액이 음수다 — 수정세금계산서(환입)다. 일반 계산서와 같은 모양이라 구별이 안 됐다(29회차). */}
                 {r.totalAmount < 0 && <span style={{ marginLeft: 6, fontFamily: 'inherit', fontSize: 11, color: 'var(--ec-danger)', fontWeight: 700 }}>수정·환입</span>}
               </td>
               <td>{dateText(r.issueDate)}</td>
               <td>{r.partnerName}</td>
-              <td style={{ fontFamily: 'monospace', color: 'var(--ec-text-hint)' }}>{r.sourceDocNo}</td>
-              <td style={{ textAlign: 'right' }}>{won(r.supplyAmount)}</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{won(r.vatAmount)}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(r.totalAmount)}</td>
-              <td style={{ textAlign: 'center' }}><span style={{ color: statusColor(r.status), fontWeight: 600 }}>{r.statusName}</span></td>
-              <td style={{ textAlign: 'center' }}>
-                <div style={{ display: 'inline-flex', gap: 3 }}>
+              <td className="text-ec-hint">{r.sourceDocNo}</td>
+              <td className="text-right">{won(r.supplyAmount)}</td>
+              <td className="text-right text-ec-hint">{won(r.vatAmount)}</td>
+              <td className="text-right font-bold">{won(r.totalAmount)}</td>
+              <td className="text-center"><span style={{ color: statusColor(r.status), fontWeight: 600 }}>{r.statusName}</span></td>
+              <td className="text-center">
+                <div className="inline-flex gap-[3px]">
                   {NEXT_LABEL[r.status] && (
                     <button className="ec-btn ec-btn-primary" style={{ height: 20, padding: '0 8px' }} onClick={() => advance(r)}>{NEXT_LABEL[r.status]}</button>
                   )}
@@ -152,11 +152,11 @@ export default function TaxInvoicePage({ type }: { type: TaxInvoiceType }) {
           ))}
         </tbody>
         <tfoot>
-          <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
-            <td colSpan={5} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
-            <td style={{ textAlign: 'right' }}>{won(totals.supply)}</td>
-            <td style={{ textAlign: 'right' }}>{won(totals.vat)}</td>
-            <td style={{ textAlign: 'right' }}>{won(totals.total)}</td>
+          <tr className="font-bold bg-ec-page">
+            <td colSpan={5} className="text-right">합계 ({shown.length}건)</td>
+            <td className="text-right">{won(totals.supply)}</td>
+            <td className="text-right">{won(totals.vat)}</td>
+            <td className="text-right">{won(totals.total)}</td>
             <td colSpan={2}></td>
           </tr>
         </tfoot>

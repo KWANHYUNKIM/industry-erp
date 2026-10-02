@@ -65,27 +65,27 @@ export default function JournalEntryPage() {
 
   return (
     <EcListShell title="일반전표입력" actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)' }}>
+      <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label">
         <span>전표일자</span>
         <input type="date" className="ec-input" value={entryDate} onChange={(e) => setEntryDate(e.target.value)} style={{ width: 150 }} />
-        <span style={{ marginLeft: 8 }}>적요</span>
+        <span className="ml-[8px]">적요</span>
         <input className="ec-input" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="예: 자본금 납입" style={{ width: 300 }} />
       </div>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <table ref={tableRef} className="w-full text-left" style={{ maxWidth: 900 }}>
+      <table ref={tableRef} className="w-full text-left max-w-[900px]">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th><th>계정과목</th>
-            <th style={{ textAlign: 'right', width: 160 }}>차변</th><th style={{ textAlign: 'right', width: 160 }}>대변</th>
-            <th>적요</th><th style={{ width: 44 }}></th>
+            <th className="w-[34px]"></th><th>계정과목</th>
+            <th className="text-right w-[160px]">차변</th><th className="text-right w-[160px]">대변</th>
+            <th>적요</th><th className="w-[44px]"></th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r, i) => (
             <tr key={i}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
               <td>
                 <select className="ec-input" value={r.accountId} onChange={(e) => setRow(i, { accountId: e.target.value })} style={{ width: '100%' }}>
                   <option value="">계정 선택</option>
@@ -95,15 +95,15 @@ export default function JournalEntryPage() {
               <td><input className="ec-input" type="number" value={r.debit} onChange={(e) => setRow(i, { debit: e.target.value, credit: '' })} style={{ width: '100%', textAlign: 'right' }} /></td>
               <td><input className="ec-input" type="number" value={r.credit} onChange={(e) => setRow(i, { credit: e.target.value, debit: '' })} style={{ width: '100%', textAlign: 'right' }} /></td>
               <td><input className="ec-input" value={r.description} onChange={(e) => setRow(i, { description: e.target.value })} style={{ width: '100%' }} /></td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 {rows.length > 2 && <button className="ec-btn" onClick={() => setRows((rs) => rs.filter((_, idx) => idx !== i))} title="행 삭제">×</button>}
               </td>
             </tr>
           ))}
         </tbody>
         <tfoot>
-          <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
-            <td colSpan={2} style={{ textAlign: 'right' }}>합계</td>
+          <tr className="font-bold bg-ec-page">
+            <td colSpan={2} className="text-right">합계</td>
             <td style={{ textAlign: 'right', color: '#1a4d8f' }}>{won(totalDebit)}</td>
             <td style={{ textAlign: 'right', color: '#a5561b' }}>{won(totalCredit)}</td>
             <td colSpan={2} style={{ color: balanced ? 'var(--ec-success)' : 'var(--ec-danger)', fontSize: 12 }}>
@@ -113,7 +113,7 @@ export default function JournalEntryPage() {
         </tfoot>
       </table>
 
-      <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
+      <div className="flex gap-[6px] mt-[12px]">
         <button className="ec-btn" onClick={() => setRows((rs) => [...rs, emptyRow()])}>+ 행 추가</button>
         <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving || !balanced}>{saving ? '저장 중…' : '저장(F8)'}</button>
         <button className="ec-btn" onClick={() => navigate('/accounting/journals')}>전표조회로</button>

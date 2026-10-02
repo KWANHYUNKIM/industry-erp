@@ -191,12 +191,12 @@ export default function EmployeePage() {
       onNew={openNew}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
     >
-      <p style={{ marginBottom: 8, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
+      <p className="mb-[8px] text-[11.5px] text-ec-hint">
         기본급을 클릭해 바로 고칠 수 있습니다. 급여계산 시 이 값이 기준이 됩니다.
         퇴사자는 지우지 않고 <b>사용중단</b>으로 내립니다 — 지난 전표의 담당자가 사라지면 안 됩니다.
       </p>
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)' }}>{notice}</div>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
 
       {/* 원본 조건 차례: 사원(담당)코드 · 사원(담당)명 · … · 사용구분 (사본 실측) */}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
@@ -239,12 +239,12 @@ export default function EmployeePage() {
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
-              <label className="mb-1 block text-sm text-slate-600">사번 *</label>
+              <label className="mb-1 block text-sm text-ec-label">사번 *</label>
               <input className={inputCls} value={form.code} disabled={!!editId}
                      onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="EMP-0005" />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">성명 *</label>
+              <label className="mb-1 block text-sm text-ec-label">성명 *</label>
               <input className={inputCls} value={form.name}
                      onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
@@ -257,17 +257,17 @@ export default function EmployeePage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">직위</label>
+              <label className="mb-1 block text-sm text-ec-label">직위</label>
               <input className={inputCls} value={form.jobTitle}
                      onChange={(e) => setForm({ ...form, jobTitle: e.target.value })} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">입사일</label>
+              <label className="mb-1 block text-sm text-ec-label">입사일</label>
               <input type="date" className={inputCls} value={form.hireDate}
                      onChange={(e) => setForm({ ...form, hireDate: e.target.value })} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">기본급</label>
+              <label className="mb-1 block text-sm text-ec-label">기본급</label>
               <input type="number" className={inputCls} value={form.baseSalary}
                      onChange={(e) => setForm({ ...form, baseSalary: e.target.value })} />
             </div>
@@ -276,31 +276,31 @@ export default function EmployeePage() {
               전표의 담당자에게 연락할 길이 여기 있어야 한다.
             */}
             <div>
-              <label className="mb-1 block text-sm text-slate-600">담당자연락처</label>
+              <label className="mb-1 block text-sm text-ec-label">담당자연락처</label>
               <input className={inputCls} value={form.phone}
                      onChange={(e) => setForm({ ...form, phone: e.target.value })} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">담당자Email</label>
+              <label className="mb-1 block text-sm text-ec-label">담당자Email</label>
               <input className={inputCls} value={form.email}
                      onChange={(e) => setForm({ ...form, email: e.target.value })} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">검색창내용</label>
+              <label className="mb-1 block text-sm text-ec-label">검색창내용</label>
               <input className={inputCls} value={form.searchKeyword}
                      onChange={(e) => setForm({ ...form, searchKeyword: e.target.value })} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">적요</label>
+              <label className="mb-1 block text-sm text-ec-label">적요</label>
               <input className={inputCls} value={form.remark}
                      onChange={(e) => setForm({ ...form, remark: e.target.value })} />
             </div>
             {editId && (
               <div>
-                <label className="mb-1 block text-sm text-slate-600">퇴사일</label>
+                <label className="mb-1 block text-sm text-ec-label">퇴사일</label>
                 <input type="date" className={inputCls} value={form.resignDate}
                        onChange={(e) => setForm({ ...form, resignDate: e.target.value })} />
-                <p style={{ fontSize: 11, color: 'var(--ec-text-hint)', marginTop: 3 }}>
+                <p className="text-[11px] text-ec-hint mt-[3px]">
                   넣으면 사용중단으로 함께 내려갑니다.
                 </p>
               </div>
@@ -313,46 +313,46 @@ export default function EmployeePage() {
             붙는 것이라 행이 아직 없으면 붙일 데가 없다.
           */}
           {editId && <CustomFieldsPanel entityType="EMPLOYEE" entityId={editId} />}
-          <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
+          <div className="flex gap-[6px] mt-[12px]">
             <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
             <button type="button" className="ec-btn" onClick={() => setShowForm(false)}>닫기</button>
           </div>
         </form>
       )}</Modal>
 
-      <table className="w-full text-left" style={{ maxWidth: 900 }}>
+      <table className="w-full text-left max-w-[900px]">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('사번')}>사번 {sort.mark('사번')}</th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('성명')}>성명 {sort.mark('성명')}</th>
+            <th className="w-[34px]"></th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('사번')}>사번 {sort.mark('사번')}</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('성명')}>성명 {sort.mark('성명')}</th>
             <th>부서</th>
             <th>직위</th>
-            <th style={{ width: 110 }}>입사일</th>
-            <th style={{ width: 110 }}>퇴사일</th>
-            <th style={{ textAlign: 'right' }}>기본급</th>
-            <th style={{ width: 90, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('사용')}>사용 {sort.mark('사용')}</th>
-            <th style={{ width: 130, textAlign: 'center' }}>처리</th>
+            <th className="w-[110px]">입사일</th>
+            <th className="w-[110px]">퇴사일</th>
+            <th className="text-right">기본급</th>
+            <th className="w-[90px] text-center cursor-pointer" onClick={() => sort.toggle('사용')}>사용 {sort.mark('사용')}</th>
+            <th className="w-[130px] text-center">처리</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((e, i) => (
             <tr key={e.id} style={{ color: e.active ? undefined : 'var(--ec-text-hint)' }}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{e.code}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td>{e.code}</td>
               <td>{e.name}</td>
               <td>{e.department}</td>
               <td>{e.jobTitle}</td>
-              <td style={{ fontFamily: 'monospace', fontSize: 11.5 }}>{dateText(e.hireDate) || ''}</td>
-              <td style={{ fontFamily: 'monospace', fontSize: 11.5 }}>{dateText(e.resignDate) || ''}</td>
-              <td style={{ textAlign: 'right' }}>
+              <td className="text-[11.5px]">{dateText(e.hireDate) || ''}</td>
+              <td className="text-[11.5px]">{dateText(e.resignDate) || ''}</td>
+              <td className="text-right">
                 {editing === e.id
                   ? <input className="ec-input" type="number" value={value} onChange={(ev) => setValue(ev.target.value)} style={{ width: 120, textAlign: 'right' }} autoFocus />
-                  : <span onClick={() => startEdit(e)} style={{ cursor: 'pointer' }}>{won(e.baseSalary)}</span>}
+                  : <span onClick={() => startEdit(e)} className="cursor-pointer">{won(e.baseSalary)}</span>}
               </td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <button className="no-ec" onClick={() => toggleActive(e)}
                         style={{
                           border: 'none', background: 'none', cursor: 'pointer', fontSize: 11.5,
@@ -361,9 +361,9 @@ export default function EmployeePage() {
                   {e.active ? '사용' : '사용중단'}
                 </button>
               </td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 {editing === e.id
-                  ? <div style={{ display: 'inline-flex', gap: 3 }}>
+                  ? <div className="inline-flex gap-[3px]">
                       <button className="ec-btn ec-btn-primary" style={{ height: 20, padding: '0 8px' }} onClick={() => saveSalary(e)}>저장</button>
                       <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => setEditing(null)}>취소</button>
                     </div>

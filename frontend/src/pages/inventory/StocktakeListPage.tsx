@@ -107,20 +107,20 @@ export default function StocktakeListPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="구분">
           {(['전체', '간편', '단계별'] as const).map((v) => (
-            <label key={v} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+            <label key={v} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
               <input type="radio" name="stocktake-sort" checked={sort === v} onChange={() => setSort(v)} /> {v}
             </label>
           ))}
         </EcCond>
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={STOCKTAKE_LIST_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
@@ -139,31 +139,31 @@ export default function StocktakeListPage() {
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ textAlign: 'center' }}>구분</th>
-            <th style={{ textAlign: 'center' }}>입력일자</th>
+            <th className="w-[34px]"></th>
+            <th className="text-center">구분</th>
+            <th className="text-center">입력일자</th>
             <th>창고명</th>
             <th>담당자</th>
             <th>품목명[규격명]</th>
-            <th style={{ textAlign: 'right' }}>수 량</th>
-            <th style={{ textAlign: 'center' }}>조정전표</th>
+            <th className="text-right">수 량</th>
+            <th className="text-center">조정전표</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
           ) : lines.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : lines.map((l, i) => (
             <tr key={l.key}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-              <td style={{ textAlign: 'center' }}>{l.sort}</td>
-              <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{dateText(l.date)} {l.no}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td className="text-center">{l.sort}</td>
+              <td className="text-center">{dateText(l.date)} {l.no}</td>
               <td>{l.warehouseName}</td>
               <td>{l.person}</td>
               <td>{l.itemName}{l.spec ? `[${l.spec}]` : ''}</td>
-              <td style={{ textAlign: 'right' }}>{l.qty.toLocaleString('ko-KR')}</td>
-              <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{l.slip}</td>
+              <td className="text-right">{l.qty.toLocaleString('ko-KR')}</td>
+              <td className="text-center">{l.slip}</td>
             </tr>
           ))}
         </tbody>

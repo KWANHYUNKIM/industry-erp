@@ -122,16 +122,16 @@ export default function LotTxStatusPage() {
       onSearch={load}
       actions={[{ label: '새로고침', onClick: () => load() }, { label: '인쇄' }, { label: 'Excel' }]}
     >
-      <p className="mb-2 text-xs text-slate-500">
+      <p className="mb-2 text-xs text-ec-hint">
         기준일자 구간의 로트 움직임. [집계]로 바꾸면 고른 단위로 합쳐서 본다.
       </p>
 
-      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         {/* 원본 조건 차례: 구분 · 기준일자 · 유효기한 · 시리얼/로트No. · 창고 · 품목 · 전표구분 */}
         <EcCond label="구분">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="flex items-center gap-[10px]">
             <div className="ec-pills">
               {(['내역', '집계'] as const).map((m) => (
                 <button key={m} type="button" className={`ec-pill no-ec${mode === m ? ' active' : ''}`}
@@ -145,10 +145,10 @@ export default function LotTxStatusPage() {
           </div>
         </EcCond>
         <EcCond label="기준일자">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <div className="flex items-center gap-[6px] flex-wrap">
             <input type="date" className="ec-input" value={from}
                    onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-            <span style={{ color: 'var(--ec-label)' }}>~</span>
+            <span className="text-ec-label">~</span>
             <input type="date" className="ec-input" value={to}
                    onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
             <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from}
@@ -156,10 +156,10 @@ export default function LotTxStatusPage() {
           </div>
         </EcCond>
         <EcCond label="유효기한">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div className="flex items-center gap-[6px]">
             <input type="date" className="ec-input" value={expFrom}
                    onChange={(e) => setExpFrom(e.target.value)} style={{ width: 140 }} />
-            <span style={{ color: 'var(--ec-label)' }}>~</span>
+            <span className="text-ec-label">~</span>
             <input type="date" className="ec-input" value={expTo}
                    onChange={(e) => setExpTo(e.target.value)} style={{ width: 140 }} />
           </div>
@@ -194,32 +194,32 @@ export default function LotTxStatusPage() {
         </EcCond>
       </ul>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)' }}>
-        {dateText(from)} ~ {dateText(to)} · 줄 <b style={{ color: 'var(--ec-text)' }}>{num(shown.length)}</b>건 ·
-        수량합 <b style={{ color: 'var(--ec-blue-dark)' }}>{num(totalQty)}</b>
+      <div className="mb-[8px] text-[12.5px] text-ec-label">
+        {dateText(from)} ~ {dateText(to)} · 줄 <b className="text-ec-text">{num(shown.length)}</b>건 ·
+        수량합 <b className="text-ec-navy">{num(totalQty)}</b>
       </div>
 
       {mode === '집계' ? (
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
+              <th className="w-[34px]"></th>
               <th>{unit.replace(/별$/, '')}</th>
-              <th style={{ width: 100, textAlign: 'right' }}>건수</th>
-              <th style={{ width: 140, textAlign: 'right' }}>수량합</th>
+              <th className="w-[100px] text-right">건수</th>
+              <th className="w-[140px] text-right">수량합</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={4} className="ec-empty">불러오는 중…</td></tr>
             ) : groups.length === 0 ? (
-              <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={4} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : groups.map((g, i) => (
               <tr key={g.label}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
                 <td>{g.label}</td>
-                <td style={{ textAlign: 'right' }}>{num(g.count)}</td>
-                <td style={{ textAlign: 'right' }}>{num(g.sums.qty)}</td>
+                <td className="text-right">{num(g.count)}</td>
+                <td className="text-right">{num(g.sums.qty)}</td>
               </tr>
             ))}
           </tbody>
@@ -228,29 +228,29 @@ export default function LotTxStatusPage() {
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
-              <th style={{ width: 100 }}>일자</th>
-              <th style={{ width: 150 }}>시리얼/로트No.</th>
-              <th style={{ width: 110 }}>품목코드</th>
+              <th className="w-[34px]"></th>
+              <th className="w-[100px]">일자</th>
+              <th className="w-[150px]">시리얼/로트No.</th>
+              <th className="w-[110px]">품목코드</th>
               <th>품목명</th>
-              <th style={{ width: 120 }}>창고</th>
-              <th style={{ width: 100 }}>유효기한</th>
-              <th style={{ width: 90 }}>전표구분</th>
-              <th style={{ width: 110, textAlign: 'right' }}>수량</th>
-              <th style={{ width: 110, textAlign: 'right' }}>잔량</th>
+              <th className="w-[120px]">창고</th>
+              <th className="w-[100px]">유효기한</th>
+              <th className="w-[90px]">전표구분</th>
+              <th className="w-[110px] text-right">수량</th>
+              <th className="w-[110px] text-right">잔량</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={10} className="ec-empty">불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((r, i) => (
               <tr key={r.id}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
                 <td>{dateText(r.txDate)}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.lotNo}</td>
-                <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{r.itemCode}</td>
+                <td>{r.lotNo}</td>
+                <td className="text-ec-label">{r.itemCode}</td>
                 <td>{r.itemName}</td>
                 <td style={{ color: r.warehouseName ? undefined : 'var(--ec-text-off)' }}>{r.warehouseName ?? '(미지정)'}</td>
                 <td style={{ color: r.expireDate ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{dateText(r.expireDate) || ''}</td>
@@ -258,7 +258,7 @@ export default function LotTxStatusPage() {
                 <td style={{ textAlign: 'right', color: r.quantityChange < 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>
                   {num(r.quantityChange)}
                 </td>
-                <td style={{ textAlign: 'right' }}>{num(r.balanceAfter)}</td>
+                <td className="text-right">{num(r.balanceAfter)}</td>
               </tr>
             ))}
           </tbody>

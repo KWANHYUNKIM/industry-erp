@@ -145,15 +145,15 @@ export default function QualityInspectionPage() {
       onNew={() => setShowForm(true)}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
-      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {ok && <p style={{ marginBottom: 8, background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={QUOTATION_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
@@ -169,38 +169,38 @@ export default function QualityInspectionPage() {
       </ul>
 
       <Modal error={error} open={showForm} title="품질검사입력" onClose={() => setShowForm(false)}>{(
-        <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginTop: 8, marginBottom: 8 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>검사성적 등록</div>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>검사일자</div>
+        <div className="border border-ec-line border-solid bg-white p-[14px] mt-[8px] mb-[8px]">
+          <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">검사성적 등록</div>
+          <div className="flex gap-[12px] flex-wrap items-end">
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">검사일자</div>
               <input className={inputCls} type="date" value={form.inspectionDate} onChange={(e) => set('inspectionDate', e.target.value)} style={{ width: 140 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>검사구분</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">검사구분</div>
               <select className={inputCls} value={form.type} onChange={(e) => set('type', e.target.value)} style={{ width: 110 }}>
                 {TYPES.map((t) => <option key={t.v} value={t.v}>{t.label}</option>)}
               </select></label>
             {/* 긴 드롭다운이었다(QA 11회차). 코드도움은 <label> 로 감싸면 팝업의 클릭이 먹히지 않아 div 로 둔다. */}
-            <div style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>품목 *</div>
+            <div className="text-[12.5px]"><div className="text-ec-label mb-[3px]">품목 *</div>
               <CodePickerField label="품목" hideLabel width={220} placeholder="선택하세요" emptyLabel="선택 해제"
                                value={form.itemId} onChange={(v) => set('itemId', v)}
                                items={items.filter((it) => it.active !== false).map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))} /></div>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>로트No.</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">로트No.</div>
               <input className={inputCls} value={form.lotNo} onChange={(e) => set('lotNo', e.target.value)} style={{ width: 150 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>검사수량 *</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">검사수량 *</div>
               <input className={inputCls} type="number" step="any" value={form.inspectedQty} onChange={(e) => set('inspectedQty', e.target.value)} style={{ width: 90 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>불량수</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">불량수</div>
               <input className={inputCls} type="number" step="any" value={form.defectQty} onChange={(e) => set('defectQty', e.target.value)} style={{ width: 80 }} /></label>
             {/*
               원본 불량률파악보고서의 [불량유형]. 여기서 안 받으면 <b>그 조건이 걸 값이
               어디서도 안 생긴다.</b> 불량수가 0 이면 고를 것이 없다 — 전량 양품인데
               '치수불량' 이 붙어 있으면 헷갈리므로 서버도 버린다.
             */}
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>불량유형</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">불량유형</div>
               <select className={inputCls} value={form.defectType} disabled={Number(form.defectQty || 0) <= 0}
                       onChange={(e) => set('defectType', e.target.value)} style={{ width: 120 }}>
                 <option value="">(미지정)</option>
                 {defectTypes.map((d) => <option key={d.id} value={d.code}>{d.name}</option>)}
               </select></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>판정(자동)</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">판정(자동)</div>
               <select className={inputCls} value={form.result} onChange={(e) => set('result', e.target.value)} style={{ width: 120 }}>
                 <option value="">자동판정</option>
                 {RESULTS.map((r) => <option key={r.v} value={r.v}>{r.label}</option>)}
@@ -210,11 +210,11 @@ export default function QualityInspectionPage() {
               이 화면이 정할 데도, 보여 줄 데도 두지 않았다 — 불량률파악보고서는 그 값으로
               거르고 있었으니 늘 빈 채로 걸렸다.
             */}
-            <div style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>프로젝트</div>
+            <div className="text-[12.5px]"><div className="text-ec-label mb-[3px]">프로젝트</div>
               <CodePickerField label="프로젝트" hideLabel width={160} placeholder="(없음)" emptyLabel="선택 해제"
                                value={form.projectId} onChange={(v) => set('projectId', v)}
                                items={projects.map((pj) => ({ value: String(pj.id), code: pj.code, name: pj.name }))} /></div>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>검사자</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">검사자</div>
               <input className={inputCls} value={form.inspector} onChange={(e) => set('inspector', e.target.value)} placeholder="미입력시 본인" style={{ width: 110 }} /></label>
             <button className="ec-btn ec-btn-primary" onClick={submit}>저장</button>
           </div>
@@ -226,35 +226,35 @@ export default function QualityInspectionPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ width: 130 }}>검사번호</th>
-            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('검사일자')}>검사일자 {sort.mark('검사일자')}</th>
-            <th style={{ width: 90, cursor: 'pointer' }} onClick={() => sort.toggle('검사구분')}>검사구분 {sort.mark('검사구분')}</th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('품목명')}>품목명 {sort.mark('품목명')}</th>
-            <th style={{ width: 130 }}>로트No.</th>
-            <th style={{ width: 80, textAlign: 'right' }}>검사수량</th>
-            <th style={{ width: 60, textAlign: 'right' }}>불량수</th>
-            <th style={{ width: 80, textAlign: 'right' }}>불량률(%)</th>
-            <th style={{ width: 90, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('판정')}>판정 {sort.mark('판정')}</th>
-            <th style={{ width: 100 }}>프로젝트</th>
-            <th style={{ width: 80 }}>검사자</th>
+            <th className="w-[34px]"></th>
+            <th className="w-[130px]">검사번호</th>
+            <th className="w-[100px] cursor-pointer" onClick={() => sort.toggle('검사일자')}>검사일자 {sort.mark('검사일자')}</th>
+            <th className="w-[90px] cursor-pointer" onClick={() => sort.toggle('검사구분')}>검사구분 {sort.mark('검사구분')}</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('품목명')}>품목명 {sort.mark('품목명')}</th>
+            <th className="w-[130px]">로트No.</th>
+            <th className="w-[80px] text-right">검사수량</th>
+            <th className="w-[60px] text-right">불량수</th>
+            <th className="w-[80px] text-right">불량률(%)</th>
+            <th className="w-[90px] text-center cursor-pointer" onClick={() => sort.toggle('판정')}>판정 {sort.mark('판정')}</th>
+            <th className="w-[100px]">프로젝트</th>
+            <th className="w-[80px]">검사자</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={12} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={12} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : capped.rows.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.inspectionNo}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td>{r.inspectionNo}</td>
               <td>{dateText(r.inspectionDate)}</td>
               <td>{r.typeName}</td>
               <td>{r.itemName}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.lotNo ?? ''}</td>
-              <td style={{ textAlign: 'right' }}>{r.inspectedQty.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{r.defectQty.toLocaleString()}</td>
+              <td>{r.lotNo ?? ''}</td>
+              <td className="text-right">{r.inspectedQty.toLocaleString()}</td>
+              <td className="text-right">{r.defectQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right', color: r.defectRate >= 3 ? 'var(--ec-danger)' : undefined }}>{r.defectRate.toFixed(1)}</td>
               <td style={{ textAlign: 'center', color: resultColor(r.result), fontWeight: 700 }}>{r.resultName}</td>
               <td style={{ color: r.projectName ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{r.projectName ?? ''}</td>

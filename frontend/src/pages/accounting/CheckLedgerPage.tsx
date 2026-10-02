@@ -103,13 +103,13 @@ export default function CheckLedgerPage({ type }: { type: CheckType }) {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={NOTE_FLOW_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
@@ -127,60 +127,60 @@ export default function CheckLedgerPage({ type }: { type: CheckType }) {
                            items={accounts.map((a) => ({ value: a, name: a }))} />
         </EcCond>
         <EcCond label="잔액">
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+          <label className="inline-flex items-center gap-[3px] text-[12.5px]">
             <input type="checkbox" checked={withZero} onChange={(e) => setWithZero(e.target.checked)} /> 0 포함
           </label>
         </EcCond>
       </ul>
 
-      <h3 style={{ fontSize: 13, fontWeight: 700, margin: '4px 0 6px' }}>
-        {title} <span style={{ fontWeight: 400, color: 'var(--ec-text-hint)' }}>{dateText(from)} ~ {dateText(to)}</span>
+      <h3 className="text-[13px] font-bold mt-[4px] mx-0 mb-[6px]">
+        {title} <span className="font-normal text-ec-hint">{dateText(from)} ~ {dateText(to)}</span>
       </h3>
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ textAlign: 'center' }}>일자</th>
-            <th style={{ textAlign: 'center' }}>증감구분</th>
+            <th className="text-center">일자</th>
+            <th className="text-center">증감구분</th>
             <th>수표번호</th>
             <th>{received ? '수령수표계좌코드' : '발행수표계좌코드'}</th>
             <th>거래처명</th>
             <th>계정명</th>
             <th>적요</th>
-            <th style={{ textAlign: 'right' }}>증가금액</th>
-            <th style={{ textAlign: 'right' }}>감소금액</th>
-            <th style={{ textAlign: 'right' }}>잔액</th>
+            <th className="text-right">증가금액</th>
+            <th className="text-right">감소금액</th>
+            <th className="text-right">잔액</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10} className="ec-empty">불러오는 중…</td></tr>
           ) : groups.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : groups.flatMap((g) => [
             ...(g.opening !== 0 ? [
               <tr key={`${g.c.id}-open`}>
                 <td colSpan={9}>이월잔액</td>
-                <td style={{ textAlign: 'right' }}>{won(g.opening)}</td>
+                <td className="text-right">{won(g.opening)}</td>
               </tr>,
             ] : []),
             ...g.lines.map((l, i) => (
               <tr key={`${g.c.id}-${i}`}>
-                <td style={{ textAlign: 'center' }}>{dateText(l.date)}</td>
-                <td style={{ textAlign: 'center' }}>{l.kind}</td>
+                <td className="text-center">{dateText(l.date)}</td>
+                <td className="text-center">{l.kind}</td>
                 <td>{g.c.checkNo}</td>
                 <td>{g.c.bankAccountId != null ? acctNo.get(g.c.bankAccountId) ?? '' : ''}</td>
                 <td>{g.c.partnerName ?? ''}</td>
                 <td>{received ? account : (g.c.bankAccountId != null ? glByAccount.get(g.c.bankAccountId) ?? '' : '')}</td>
                 <td>{g.c.remark ?? ''}</td>
-                <td style={{ textAlign: 'right' }}>{won(l.inc)}</td>
-                <td style={{ textAlign: 'right' }}>{won(l.dec)}</td>
-                <td style={{ textAlign: 'right' }}>{Math.round(l.bal).toLocaleString('ko-KR')}</td>
+                <td className="text-right">{won(l.inc)}</td>
+                <td className="text-right">{won(l.dec)}</td>
+                <td className="text-right">{Math.round(l.bal).toLocaleString('ko-KR')}</td>
               </tr>
             )),
             <tr key={`${g.c.id}-sub`} style={SUB_ROW}>
               <td colSpan={7}>{received ? account : (g.c.bankAccountId != null ? glByAccount.get(g.c.bankAccountId) ?? '' : '')} / {g.c.checkNo} 계</td>
-              <td style={{ textAlign: 'right' }}>{won(g.inc)}</td>
-              <td style={{ textAlign: 'right' }}>{won(g.dec)}</td>
+              <td className="text-right">{won(g.inc)}</td>
+              <td className="text-right">{won(g.dec)}</td>
               <td></td>
             </tr>,
           ])}
@@ -188,8 +188,8 @@ export default function CheckLedgerPage({ type }: { type: CheckType }) {
         <tfoot>
           <tr style={SUB_ROW}>
             <td colSpan={7}>누계</td>
-            <td style={{ textAlign: 'right' }}>{won(total.inc)}</td>
-            <td style={{ textAlign: 'right' }}>{won(total.dec)}</td>
+            <td className="text-right">{won(total.inc)}</td>
+            <td className="text-right">{won(total.dec)}</td>
             <td></td>
           </tr>
         </tfoot>

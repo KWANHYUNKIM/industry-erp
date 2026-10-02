@@ -123,10 +123,10 @@ export default function CostStatementPage() {
   const row = (label: string, left: [number | null, number | null], right: [number | null, number | null], bold = false) => (
     <tr style={bold ? BOLD : undefined}>
       <td>{label}</td>
-      <td style={{ textAlign: 'right' }}>{fmt(left[0])}</td>
-      <td style={{ textAlign: 'right' }}>{fmt(left[1])}</td>
-      <td style={{ textAlign: 'right' }}>{cmp ? fmt(right[0]) : ''}</td>
-      <td style={{ textAlign: 'right' }}>{cmp ? fmt(right[1]) : ''}</td>
+      <td className="text-right">{fmt(left[0])}</td>
+      <td className="text-right">{fmt(left[1])}</td>
+      <td className="text-right">{cmp ? fmt(right[0]) : ''}</td>
+      <td className="text-right">{cmp ? fmt(right[1]) : ''}</td>
     </tr>
   )
 
@@ -141,38 +141,38 @@ export default function CostStatementPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="구분">
           {KINDS.map(([l, v]) => (
-            <label key={v} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+            <label key={v} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
               <input type="radio" name="cs-kind" checked={kind === v} onChange={() => setKind(v)} /> {l}
             </label>
           ))}
         </EcCond>
         <EcCond label="기준일자">
           <input type="month" className="ec-input" value={fromYm} onChange={(e) => e.target.value && setFromYm(e.target.value)} style={{ width: 130 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="month" className="ec-input" value={toYm} onChange={(e) => e.target.value && setToYm(e.target.value)} style={{ width: 130, marginRight: 10 }} />
           {COMPARES.map((v) => (
-            <label key={v} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+            <label key={v} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
               <input type="radio" name="cs-compare" checked={compare === v} onChange={() => setCompare(v)} /> {v}
             </label>
           ))}
           {compare === '직접입력' && (
             <>
               <input type="month" className="ec-input" value={cmpFromYm} onChange={(e) => e.target.value && setCmpFromYm(e.target.value)} style={{ width: 130 }} />
-              <span style={{ margin: '0 4px' }}>~</span>
+              <span className="my-0 mx-[4px]">~</span>
               <input type="month" className="ec-input" value={cmpToYm} onChange={(e) => e.target.value && setCmpToYm(e.target.value)} style={{ width: 130 }} />
             </>
           )}
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={INCOME_STATEMENT_PICKS} currentFrom={from} fiscalStart={fiscalStart}
                            onPick={(r) => { setFromYm(r.from.slice(0, 7)); setToYm(r.to.slice(0, 7)) }} />
           </span>
         </EcCond>
         <EcCond label="기타">
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+          <label className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
             <input type="checkbox" checked={thousand} onChange={(e) => setThousand(e.target.checked)} /> 천단위
           </label>
         </EcCond>
@@ -180,8 +180,8 @@ export default function CostStatementPage() {
 
       {base && (
         <>
-          <h3 style={{ fontSize: 20, fontWeight: 700, textAlign: 'center', margin: '6px 0 12px' }}>원가명세서</h3>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, margin: '0 0 4px' }}>
+          <h3 className="text-[20px] font-bold text-center mt-[6px] mx-0 mb-[12px]">원가명세서</h3>
+          <div className="flex justify-between text-[12px] mt-0 mx-0 mb-[4px]">
             <span>회사명 : {companyName ?? ''}</span>
             <span>{fromYm.replace('-', '/')} ~ {toYm.replace('-', '/')}{thousand ? ' (단위 : 천원)' : ''}</span>
           </div>
@@ -189,8 +189,8 @@ export default function CostStatementPage() {
             <thead>
               <tr>
                 <th>재무제표표시명</th>
-                <th colSpan={2} style={{ textAlign: 'center' }}>{fromYm.slice(0, 4)}년 (기준)</th>
-                <th colSpan={2} style={{ textAlign: 'center' }}>{cmpRange ? `${cmpRange.from.slice(0, 4)}년 (비교)` : '(비교)'}</th>
+                <th colSpan={2} className="text-center">{fromYm.slice(0, 4)}년 (기준)</th>
+                <th colSpan={2} className="text-center">{cmpRange ? `${cmpRange.from.slice(0, 4)}년 (비교)` : '(비교)'}</th>
               </tr>
             </thead>
             <tbody>

@@ -204,16 +204,16 @@ export default function CurrentStockPage() {
         </EcCond>
         {/* 원본 [기타] 차례 그대로: 수량관리제외품목포함 · 사용중단품목포함 · 안전재고설정미만표시 */}
         <EcCond label="기타">
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <label style={{ fontSize: 12 }}>
+          <div className="flex gap-[12px] flex-wrap">
+            <label className="text-[12px]">
               <input type="checkbox" checked={cond.withUntracked}
                      onChange={(e) => setC({ withUntracked: e.target.checked })} /> 수량관리제외품목포함
             </label>
-            <label style={{ fontSize: 12 }}>
+            <label className="text-[12px]">
               <input type="checkbox" checked={cond.withInactive}
                      onChange={(e) => setC({ withInactive: e.target.checked })} /> 사용중단품목포함
             </label>
-            <label style={{ fontSize: 12 }}>
+            <label className="text-[12px]">
               <input type="checkbox" checked={cond.belowSafetyOnly}
                      onChange={(e) => setC({ belowSafetyOnly: e.target.checked })} /> 안전재고설정미만표시
             </label>
@@ -222,13 +222,13 @@ export default function CurrentStockPage() {
         <EcCond label="재고수량">
           <input className="ec-input" type="number" value={cond.qtyFrom}
                  onChange={(e) => setC({ qtyFrom: e.target.value })} style={{ width: 120 }} />
-          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <span className="text-ec-label">~</span>
           <input className="ec-input" type="number" value={cond.qtyTo}
                  onChange={(e) => setC({ qtyTo: e.target.value })} style={{ width: 120 }} />
         </EcCond>
         {/* 원본 차례: [재고수량] 다음이 [대표품목으로 합산] 이다(대조표 실측). */}
         <EcCond label="대표품목으로 합산">
-          <label style={{ fontSize: 12 }}>
+          <label className="text-[12px]">
             <input type="checkbox" checked={rollUp}
                    onChange={(e) => setRollUp(e.target.checked)} /> 형제 품목을 대표 한 줄로
           </label>
@@ -243,20 +243,20 @@ export default function CurrentStockPage() {
 
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 6, fontSize: 12.5, color: '#5a6472' }}>
         <span>품목 × 창고 현재고</span>
-        <span style={{ marginLeft: 'auto' }}>
-          건수 <b style={{ color: 'var(--ec-text)' }}>{shown.length.toLocaleString()}</b>
-          <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
-          수량 <b style={{ color: 'var(--ec-text)', fontSize: 14 }}>{totalQty.toLocaleString()}</b>
+        <span className="ml-auto">
+          건수 <b className="text-ec-text">{shown.length.toLocaleString()}</b>
+          <span className="my-0 mx-[8px] text-ec-off">|</span>
+          수량 <b className="text-ec-text text-[14px]">{totalQty.toLocaleString()}</b>
           {belowCount > 0 && (
             <>
-              <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
-              안전재고 미달 <b style={{ color: 'var(--ec-danger)', fontSize: 14 }}>{belowCount}</b>건
+              <span className="my-0 mx-[8px] text-ec-off">|</span>
+              안전재고 미달 <b className="text-ec-danger text-[14px]">{belowCount}</b>건
             </>
           )}
         </span>
       </div>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <div className="overflow-x-auto">
         <div className="ec-report-frame">
@@ -276,14 +276,14 @@ export default function CurrentStockPage() {
             없다 — 글자가 들어갈 만큼만 좁게 둔다.
           */}
           <colgroup>
-            <col style={{ width: 34 }} /><col style={{ width: 200 }} /><col style={{ width: 450 }} />
-            <col style={{ width: 120 }} />
-            <col style={{ width: 100 }} /><col style={{ width: 80 }} /><col style={{ width: 50 }} />
+            <col className="w-[34px]" /><col className="w-[200px]" /><col className="w-[450px]" />
+            <col className="w-[120px]" />
+            <col className="w-[100px]" /><col className="w-[80px]" /><col className="w-[50px]" />
           </colgroup>
           <thead>
             <tr>
               <th></th>
-              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('품목코드')}>품목코드 {sort.mark('품목코드')}</th>
+              <th className="cursor-pointer" onClick={() => sort.toggle('품목코드')}>품목코드 {sort.mark('품목코드')}</th>
               {/*
                 <b>재고현황(E040701) 2026-09-09 원본 격자 실측</b> — 열이 <b>셋</b>뿐이다:
                 [품목코드 · 품목명[규격] · 재고수량] (아래 합계행 하나).
@@ -295,22 +295,22 @@ export default function CurrentStockPage() {
                 <b>창고별재고현황(E040711)</b> 이라는 다른 화면이다. 우리는 창고별로 펴므로
                 그 열을 남긴다(합치는 축은 [대표품목으로 합산] 과 함께 아직 못 만들었다).
               */}
-              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('품목명')}>품목명[규격] {sort.mark('품목명')}</th>
-              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('창고')}>창고 {sort.mark('창고')}</th>
-              <th style={{ textAlign: 'right' }}>재고수량</th>
-              <th style={{ textAlign: 'right' }}>안전재고</th>
-              <th style={{ textAlign: 'center' }}>상태</th>
+              <th className="cursor-pointer" onClick={() => sort.toggle('품목명')}>품목명[규격] {sort.mark('품목명')}</th>
+              <th className="cursor-pointer" onClick={() => sort.toggle('창고')}>창고 {sort.mark('창고')}</th>
+              <th className="text-right">재고수량</th>
+              <th className="text-right">안전재고</th>
+              <th className="text-center">상태</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+              <tr><td colSpan={7} className="text-center text-ec-ink">불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={7} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
             ) : (
               shown.map((r, idx) => (
                 <tr key={`${r.itemId}-${r.warehouseId}`} style={r.belowSafety ? { background: '#fdf1f3' } : undefined}>
-                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{idx + 1}</td>
+                  <td className="text-center text-ec-hint">{idx + 1}</td>
                   <td>{r.itemCode}</td>
                   {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다. */}
                   <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
@@ -318,10 +318,10 @@ export default function CurrentStockPage() {
                   <td style={{ textAlign: 'right', color: r.belowSafety ? 'var(--ec-danger)' : undefined }}>
                     {r.quantity.toLocaleString()}
                   </td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{r.safetyStock.toLocaleString()}</td>
-                  <td style={{ textAlign: 'center' }}>
+                  <td className="text-right text-ec-hint">{r.safetyStock.toLocaleString()}</td>
+                  <td className="text-center">
                     {r.belowSafety
-                      ? <span style={{ color: 'var(--ec-danger)', fontWeight: 700 }}>부족</span>
+                      ? <span className="text-ec-danger font-bold">부족</span>
                       : <span style={{ color: '#2f8401' }}>정상</span>}
                   </td>
                 </tr>
@@ -331,8 +331,8 @@ export default function CurrentStockPage() {
           {shown.length > 0 && (
             <tfoot>
               <tr>
-                <td colSpan={4} style={{ textAlign: 'center' }}>합계</td>
-                <td style={{ textAlign: 'right' }}>{totalQty.toLocaleString()}</td>
+                <td colSpan={4} className="text-center">합계</td>
+                <td className="text-right">{totalQty.toLocaleString()}</td>
                 <td colSpan={2}></td>
               </tr>
             </tfoot>
@@ -354,21 +354,21 @@ export default function CurrentStockPage() {
           )
           return (
             <>
-              <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+              <h3 className="text-[13px] font-bold mt-[16px] mx-0 mb-[6px]">{subtotal} 소계</h3>
               <table className="w-full text-left">
                 <thead><tr>
                   <th>{subtotal}</th>
-                  <th style={{ width: 90, textAlign: 'right' }}>건수</th>
-                  <th style={{ width: 150, textAlign: 'right' }}>재고수량</th>
-                  <th style={{ width: 150, textAlign: 'right' }}>안전재고</th>
+                  <th className="w-[90px] text-right">건수</th>
+                  <th className="w-[150px] text-right">재고수량</th>
+                  <th className="w-[150px] text-right">안전재고</th>
                 </tr></thead>
                 <tbody>
                   {groups.map((g) => (
                     <tr key={g.label}>
-                      <td style={{ fontWeight: 600 }}>{g.label}</td>
-                      <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
-                      <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.sums.qty.toLocaleString()}</td>
-                      <td style={{ textAlign: 'right', fontFamily: 'monospace', color: 'var(--ec-text-hint)' }}>
+                      <td className="font-semibold">{g.label}</td>
+                      <td className="text-right">{g.count}</td>
+                      <td className="text-right">{g.sums.qty.toLocaleString()}</td>
+                      <td className="text-right text-ec-hint">
                         {g.sums.safety.toLocaleString()}
                       </td>
                     </tr>

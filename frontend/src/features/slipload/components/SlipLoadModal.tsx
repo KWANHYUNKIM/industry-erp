@@ -83,50 +83,50 @@ export default function SlipLoadModal({ open, onClose, onApply }: {
     <Modal open={open} title={menu ? `${menu.name} — 전표불러오기` : '메뉴검색'} error={err} width={menu ? 900 : 420} onClose={close}>
       {!menu ? (
         <table className="w-full text-left">
-          <thead><tr><th style={{ width: 120 }}>구분</th><th>메뉴</th></tr></thead>
+          <thead><tr><th className="w-[120px]">구분</th><th>메뉴</th></tr></thead>
           <tbody>
             {MENUS.map((m) => (
-              <tr key={m.name} style={{ cursor: 'pointer' }} onClick={() => void choose(m)}>
+              <tr key={m.name} className="cursor-pointer" onClick={() => void choose(m)}>
                 <td>{m.group}</td>
-                <td style={{ color: 'var(--ec-blue)' }}>{m.name}</td>
+                <td className="text-ec-blue">{m.name}</td>
               </tr>
             ))}
           </tbody>
         </table>
       ) : (
         <>
-          <div style={{ display: 'flex', gap: 6, marginBottom: 6, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
+          <div className="flex gap-[6px] mb-[6px] text-[11.5px] text-ec-hint">
             <button type="button" className="ec-btn ec-btn-sm" onClick={() => { setMenu(null); setRows([]) }}>← 메뉴검색</button>
-            <span style={{ marginLeft: 'auto' }}>{dateText(PERIOD.from)} ~ {dateText(PERIOD.to)}</span>
+            <span className="ml-auto">{dateText(PERIOD.from)} ~ {dateText(PERIOD.to)}</span>
           </div>
-          <div style={{ maxHeight: '55vh', overflowY: 'auto' }}>
+          <div className="max-h-[55vh] overflow-y-auto">
             <table className="w-full text-left">
               <thead>
                 <tr>
-                  <th style={{ width: 30 }} />
+                  <th className="w-[30px]" />
                   <th>일자-No.</th>
                   <th>거래처명</th>
                   <th>품목명</th>
-                  <th style={{ textAlign: 'right' }}>수량합계</th>
+                  <th className="text-right">수량합계</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.length === 0 ? (
-                  <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
+                  <tr><td colSpan={5} className="text-center text-ec-hint p-[16px]">등록된 데이터가 없습니다.</td></tr>
                 ) : rows.map((r) => (
-                  <tr key={r.key} style={{ cursor: 'pointer' }}
+                  <tr key={r.key} className="cursor-pointer"
                       onClick={() => setPicked((p) => (p.includes(r.key) ? p.filter((x) => x !== r.key) : [...p, r.key]))}>
-                    <td style={{ textAlign: 'center' }}><input type="checkbox" readOnly checked={picked.includes(r.key)} /></td>
+                    <td className="text-center"><input type="checkbox" readOnly checked={picked.includes(r.key)} /></td>
                     <td>{dateText(r.date)} {r.no}</td>
                     <td>{r.partner}</td>
                     <td>{r.lines[0]?.itemName ?? ''}{r.lines.length > 1 ? ` 외 ${r.lines.length - 1}건` : ''}</td>
-                    <td style={{ textAlign: 'right' }}>{r.lines.reduce((n, l) => n + l.quantity, 0).toLocaleString('ko-KR', { maximumFractionDigits: 4 })}</td>
+                    <td className="text-right">{r.lines.reduce((n, l) => n + l.quantity, 0).toLocaleString('ko-KR', { maximumFractionDigits: 4 })}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <div style={{ display: 'flex', gap: 4, marginTop: 10 }}>
+          <div className="flex gap-[4px] mt-[10px]">
             <button type="button" className="ec-btn ec-btn-primary" onClick={apply}>적용(F8)</button>
             <button type="button" className="ec-btn" onClick={close}>닫기</button>
           </div>

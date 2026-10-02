@@ -103,8 +103,8 @@ export default function MonthlyPnlPage() {
   const row = (name: string, cell: (ym?: string) => number, bold: boolean, key: string) => (
     <tr key={key} style={bold ? BOLD : undefined}>
       <td>{name}</td>
-      {months.map((ym) => <td key={ym} style={{ textAlign: 'right' }}>{won(cell(ym))}</td>)}
-      <td style={{ textAlign: 'right' }}>{won(cell())}</td>
+      {months.map((ym) => <td key={ym} className="text-right">{won(cell(ym))}</td>)}
+      <td className="text-right">{won(cell())}</td>
     </tr>
   )
 
@@ -119,32 +119,32 @@ export default function MonthlyPnlPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
           <input type="month" className="ec-input" value={fromYm} onChange={(e) => e.target.value && setFromYm(e.target.value)} style={{ width: 130 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="month" className="ec-input" value={toYm} onChange={(e) => e.target.value && setToYm(e.target.value)} style={{ width: 130 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={INCOME_STATEMENT_PICKS} currentFrom={`${fromYm}-01`} fiscalStart={fiscalStart}
                            onPick={(r) => { setFromYm(r.from.slice(0, 7)); setToYm(r.to.slice(0, 7)) }} />
           </span>
         </EcCond>
       </ul>
 
-      <h3 style={{ fontSize: 20, fontWeight: 700, textAlign: 'center', margin: '6px 0 4px' }}>월별손익분석</h3>
-      <div style={{ fontSize: 12, marginBottom: 4 }}>회사명 : {companyName ?? ''}</div>
+      <h3 className="text-[20px] font-bold text-center mt-[6px] mx-0 mb-[4px]">월별손익분석</h3>
+      <div className="text-[12px] mb-[4px]">회사명 : {companyName ?? ''}</div>
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
             <th>계정명</th>
-            {months.map((ym) => <th key={ym} style={{ textAlign: 'right' }}>{label(ym)}</th>)}
-            <th style={{ textAlign: 'right' }}>집계</th>
+            {months.map((ym) => <th key={ym} className="text-right">{label(ym)}</th>)}
+            <th className="text-right">집계</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={months.length + 2} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={months.length + 2} className="ec-empty">불러오는 중…</td></tr>
           ) : (
             <>
               {GROUPS.slice(0, 2).map(([n, b]) => group(n, b))}

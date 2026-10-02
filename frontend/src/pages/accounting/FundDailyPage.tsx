@@ -95,39 +95,39 @@ export default function FundDailyPage({ variant = 'daily' }: { variant?: 'daily'
   useTableColumnCheck(decRef, title, [decs.length])
 
   const section = (t: string) => (
-    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, fontWeight: 700, margin: '14px 0 4px' }}>
+    <div className="flex justify-between text-[12.5px] font-bold mt-[14px] mx-0 mb-[4px]">
       <span>{t}</span>
-      <span style={{ fontWeight: 400 }}>{slash(from)} ~ {slash(to)}</span>
+      <span className="font-normal">{slash(from)} ~ {slash(to)}</span>
     </div>
   )
   const moveHead = (
     <thead>
       <tr>
-        <th style={{ textAlign: 'center' }}>일자</th>
+        <th className="text-center">일자</th>
         <th>상대계정명</th>
         <th>상대거래처명</th>
         <th>적요</th>
-        <th style={{ textAlign: 'right' }}>금액</th>
+        <th className="text-right">금액</th>
         {!flow && <th>거래처코드</th>}
       </tr>
     </thead>
   )
   const moveBody = (ms: Move[]) => (
     <tbody>
-      {ms.length === 0 && <tr><td colSpan={flow ? 5 : 6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 14 }}>등록된 데이터가 없습니다.</td></tr>}
+      {ms.length === 0 && <tr><td colSpan={flow ? 5 : 6} className="text-center text-ec-hint p-[14px]">등록된 데이터가 없습니다.</td></tr>}
       {ms.map((m, i) => (
         <tr key={m.key}>
-          <td style={{ textAlign: 'center' }}>{!flow && i > 0 && ms[i - 1].date === m.date ? '' : slash(m.date)}</td>
+          <td className="text-center">{!flow && i > 0 && ms[i - 1].date === m.date ? '' : slash(m.date)}</td>
           <td>{m.counter}</td>
           <td>{m.partner}</td>
           <td>{m.text}</td>
-          <td style={{ textAlign: 'right' }}>{won(m.amount)}</td>
+          <td className="text-right">{won(m.amount)}</td>
           {!flow && <td></td>}
         </tr>
       ))}
       <tr style={SUB_ROW}>
-        <td colSpan={4} style={{ textAlign: 'center' }}>합계</td>
-        <td style={{ textAlign: 'right' }}>{won(ms.reduce((s, m) => s + m.amount, 0))}</td>
+        <td colSpan={4} className="text-center">합계</td>
+        <td className="text-right">{won(ms.reduce((s, m) => s + m.amount, 0))}</td>
         {!flow && <td></td>}
       </tr>
     </tbody>
@@ -144,25 +144,25 @@ export default function FundDailyPage({ variant = 'daily' }: { variant?: 'daily'
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={flow ? FLOW_PICKS : INQUIRY_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
       </ul>
 
-      {truncated && <p style={{ fontSize: 12, color: 'var(--ec-warn)', marginBottom: 6 }}>전표가 많아 앞부분만 받았습니다.</p>}
+      {truncated && <p className="text-[12px] text-ec-warn mb-[6px]">전표가 많아 앞부분만 받았습니다.</p>}
       {loading ? (
-        <p style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</p>
+        <p className="ec-empty">불러오는 중…</p>
       ) : (
         <>
-          <h3 style={{ fontSize: 20, fontWeight: 700, textAlign: 'center', margin: '6px 0 4px' }}>{flow ? '자금증감내역' : '자금일보'}</h3>
-          <div style={{ fontSize: 12 }}>회사명 : {companyName ?? ''}</div>
+          <h3 className="text-[20px] font-bold text-center mt-[6px] mx-0 mb-[4px]">{flow ? '자금증감내역' : '자금일보'}</h3>
+          <div className="text-[12px]">회사명 : {companyName ?? ''}</div>
           {!flow && (
             <>
           {section('1 . 자금 현황')}
@@ -171,45 +171,45 @@ export default function FundDailyPage({ variant = 'daily' }: { variant?: 'daily'
                   <tr>
                     <th>계정명</th>
                     <th>거래처명</th>
-                    <th style={{ textAlign: 'right' }}>이월잔액[외화]</th>
-                    <th style={{ textAlign: 'right' }}>증가[외화]</th>
-                    <th style={{ textAlign: 'right' }}>감소[외화]</th>
-                    <th style={{ textAlign: 'right' }}>금일잔액[외화]</th>
+                    <th className="text-right">이월잔액[외화]</th>
+                    <th className="text-right">증가[외화]</th>
+                    <th className="text-right">감소[외화]</th>
+                    <th className="text-right">금일잔액[외화]</th>
                     <th>계정코드</th>
                     <th>거래처코드</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {funds.length === 0 && <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 14 }}>등록된 데이터가 없습니다.</td></tr>}
+                  {funds.length === 0 && <tr><td colSpan={8} className="text-center text-ec-hint p-[14px]">등록된 데이터가 없습니다.</td></tr>}
                   {funds.map((f) => (
                     <Fragment key={f.code}>
                       <tr>
                         <td>{f.name}</td>
                         <td>[ ]</td>
-                        <td style={{ textAlign: 'right' }}>{won(f.carry)}</td>
-                        <td style={{ textAlign: 'right' }}>{won(f.inc)}</td>
-                        <td style={{ textAlign: 'right' }}>{won(f.dec)}</td>
-                        <td style={{ textAlign: 'right' }}>{won(f.carry + f.inc - f.dec)}</td>
+                        <td className="text-right">{won(f.carry)}</td>
+                        <td className="text-right">{won(f.inc)}</td>
+                        <td className="text-right">{won(f.dec)}</td>
+                        <td className="text-right">{won(f.carry + f.inc - f.dec)}</td>
                         <td>{f.code}</td>
                         <td>[ ]</td>
                       </tr>
                       <tr style={SUB_ROW}>
-                        <td colSpan={2} style={{ textAlign: 'center' }}>{f.name} 계</td>
-                        <td style={{ textAlign: 'right' }}>{won(f.carry)}</td>
-                        <td style={{ textAlign: 'right' }}>{won(f.inc)}</td>
-                        <td style={{ textAlign: 'right' }}>{won(f.dec)}</td>
-                        <td style={{ textAlign: 'right' }}>{won(f.carry + f.inc - f.dec)}</td>
+                        <td colSpan={2} className="text-center">{f.name} 계</td>
+                        <td className="text-right">{won(f.carry)}</td>
+                        <td className="text-right">{won(f.inc)}</td>
+                        <td className="text-right">{won(f.dec)}</td>
+                        <td className="text-right">{won(f.carry + f.inc - f.dec)}</td>
                         <td></td>
                         <td></td>
                       </tr>
                     </Fragment>
                   ))}
                   <tr style={SUB_ROW}>
-                    <td colSpan={2} style={{ textAlign: 'center' }}>합계</td>
-                    <td style={{ textAlign: 'right' }}>{won(tot.carry)}</td>
-                    <td style={{ textAlign: 'right' }}>{won(tot.inc)}</td>
-                    <td style={{ textAlign: 'right' }}>{won(tot.dec)}</td>
-                    <td style={{ textAlign: 'right' }}>{won(tot.carry + tot.inc - tot.dec)}</td>
+                    <td colSpan={2} className="text-center">합계</td>
+                    <td className="text-right">{won(tot.carry)}</td>
+                    <td className="text-right">{won(tot.inc)}</td>
+                    <td className="text-right">{won(tot.dec)}</td>
+                    <td className="text-right">{won(tot.carry + tot.inc - tot.dec)}</td>
                     <td></td>
                     <td></td>
                   </tr>

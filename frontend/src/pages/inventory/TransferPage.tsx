@@ -189,7 +189,7 @@ export default function TransferPage() {
       onNew={() => setShowForm(true)}
       actions={[{ label: '새로고침', onClick: load }, { label: '인쇄' }, { label: 'Excel' }]}
     >
-      <div style={{ display: 'flex', gap: 2, marginBottom: 8, borderBottom: '1px solid var(--ec-border)' }}>
+      <div className="flex gap-[2px] mb-[8px] border-b border-b-ec-line border-solid">
         {TABS.map((t) => (
           <button key={t} onClick={() => switchTab(t)} className="no-ec" style={{
             padding: '6px 14px', fontSize: 12.5, border: 'none', cursor: 'pointer',
@@ -205,10 +205,10 @@ export default function TransferPage() {
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from}
                  onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
           <input type="date" className="ec-input" value={to}
                  onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from}
               onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
@@ -242,8 +242,8 @@ export default function TransferPage() {
         </EcCond>
       </ul>
 
-      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {ok && <p style={{ marginBottom: 8, background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
       <Modal error={error} open={showForm} title="기타이동 등록" onClose={() => setShowForm(false)}>{(tab === '창고이동'
         ? <TransferForm items={items} warehouses={warehouses} stock={stock} projects={projects} employees={employees} onError={setError} onSaved={saved} />
@@ -269,33 +269,33 @@ export default function TransferPage() {
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
-              <th style={{ width: 130 }}>이동번호</th>
-              <th style={{ width: 100, cursor: 'pointer' }} onClick={() => transferSort.toggle('일자')}>일자 {transferSort.mark('일자')}</th>
-              <th style={{ cursor: 'pointer' }} onClick={() => transferSort.toggle('품목명')}>품목명 {transferSort.mark('품목명')}</th>
-              <th style={{ width: 120 }}>출고창고</th>
-              <th style={{ width: 120 }}>입고창고</th>
-              <th style={{ width: 90, textAlign: 'right' }}>수량</th>
+              <th className="w-[34px]"></th>
+              <th className="w-[130px]">이동번호</th>
+              <th className="w-[100px] cursor-pointer" onClick={() => transferSort.toggle('일자')}>일자 {transferSort.mark('일자')}</th>
+              <th className="cursor-pointer" onClick={() => transferSort.toggle('품목명')}>품목명 {transferSort.mark('품목명')}</th>
+              <th className="w-[120px]">출고창고</th>
+              <th className="w-[120px]">입고창고</th>
+              <th className="w-[90px] text-right">수량</th>
               <th>사유</th>
-              <th style={{ width: 54 }}></th>
+              <th className="w-[54px]"></th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
             ) : shownTransfers.length === 0 ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : transferSort.sorted.map((r, i) => (
               <tr key={r.id}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.transferNo}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td>{r.transferNo}</td>
                 <td>{dateText(r.transferDate)}</td>
                 <td>{r.itemName}</td>
                 <td>{r.fromWarehouseName}</td>
-                <td style={{ color: 'var(--ec-blue)' }}>{r.toWarehouseName}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600 }}>{num(r.quantity)} {r.unit}</td>
-                <td style={{ color: 'var(--ec-label)' }}>{r.reason ?? ''}</td>
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-ec-blue">{r.toWarehouseName}</td>
+                <td className="text-right font-semibold">{num(r.quantity)} {r.unit}</td>
+                <td className="text-ec-label">{r.reason ?? ''}</td>
+                <td className="text-center">
                   <button onClick={() => removeTransfer(r)} style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
                 </td>
               </tr>
@@ -306,37 +306,37 @@ export default function TransferPage() {
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
-              <th style={{ width: 130 }}>전표번호</th>
-              <th style={{ width: 100, cursor: 'pointer' }} onClick={() => adjustSort.toggle('일자')}>일자 {adjustSort.mark('일자')}</th>
-              <th style={{ cursor: 'pointer' }} onClick={() => adjustSort.toggle('품목명')}>품목명 {adjustSort.mark('품목명')}</th>
-              <th style={{ width: 120 }}>창고</th>
-              <th style={{ width: 90, textAlign: 'right' }}>처리전</th>
-              <th style={{ width: 90, textAlign: 'right' }}>증감</th>
-              <th style={{ width: 90, textAlign: 'right' }}>처리후</th>
+              <th className="w-[34px]"></th>
+              <th className="w-[130px]">전표번호</th>
+              <th className="w-[100px] cursor-pointer" onClick={() => adjustSort.toggle('일자')}>일자 {adjustSort.mark('일자')}</th>
+              <th className="cursor-pointer" onClick={() => adjustSort.toggle('품목명')}>품목명 {adjustSort.mark('품목명')}</th>
+              <th className="w-[120px]">창고</th>
+              <th className="w-[90px] text-right">처리전</th>
+              <th className="w-[90px] text-right">증감</th>
+              <th className="w-[90px] text-right">처리후</th>
               <th>사유</th>
-              <th style={{ width: 60, textAlign: 'center' }}>삭제</th>
+              <th className="w-[60px] text-center">삭제</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={10} className="ec-empty">불러오는 중…</td></tr>
             ) : shownAdjustments.length === 0 ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : adjustSort.sorted.map((r, i) => (
               <tr key={r.id}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.adjustNo}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td>{r.adjustNo}</td>
                 <td>{dateText(r.adjustDate)}</td>
                 <td>{r.itemName}</td>
                 <td>{r.warehouseName}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(r.beforeQty)}</td>
+                <td className="text-right text-ec-hint">{num(r.beforeQty)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700, color: r.quantityChange < 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>
                   {r.quantityChange > 0 ? '+' : ''}{num(r.quantityChange)}
                 </td>
-                <td style={{ textAlign: 'right', fontWeight: 600 }}>{num(r.afterQty)} {r.unit}</td>
-                <td style={{ color: 'var(--ec-label)' }}>{r.reason ?? ''}</td>
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-right font-semibold">{num(r.afterQty)} {r.unit}</td>
+                <td className="text-ec-label">{r.reason ?? ''}</td>
+                <td className="text-center">
                   <button onClick={() => removeAdjustment(r)} style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
                 </td>
               </tr>
@@ -386,9 +386,9 @@ function TransferForm({ items, warehouses, stock, projects, employees, onError, 
   }
 
   return (
-    <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginBottom: 8 }}>
-      <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>창고 간 이동 등록</div>
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+    <div className="border border-ec-line border-solid bg-white p-[14px] mb-[8px]">
+      <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">창고 간 이동 등록</div>
+      <div className="flex gap-[12px] flex-wrap items-end">
         <Field label="일자">
           <input className="ec-input" type="date" value={form.transferDate} onChange={(e) => set('transferDate', e.target.value)} style={{ width: 140 }} />
         </Field>
@@ -402,7 +402,7 @@ function TransferForm({ items, warehouses, stock, projects, employees, onError, 
             {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
           </select>
         </Field>
-        <span style={{ fontSize: 16, color: 'var(--ec-blue)', paddingBottom: 4 }}>→</span>
+        <span className="text-[16px] text-ec-blue pb-[4px]">→</span>
         <Field label="입고창고 *">
           <select className="ec-input" value={form.toWarehouseId} onChange={(e) => set('toWarehouseId', e.target.value)} style={{ width: 150 }}>
             {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
@@ -439,7 +439,7 @@ function TransferForm({ items, warehouses, stock, projects, employees, onError, 
         </Field>
         <button className="ec-btn ec-btn-primary" onClick={submit}>이동처리</button>
       </div>
-      <div style={{ marginTop: 8, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>※ 출고창고 재고가 부족하면 이동이 거절됩니다(출고·입고 동시 처리).</div>
+      <div className="mt-[8px] text-[11.5px] text-ec-hint">※ 출고창고 재고가 부족하면 이동이 거절됩니다(출고·입고 동시 처리).</div>
     </div>
   )
 }
@@ -513,9 +513,9 @@ function AdjustmentForm({ type, label, items, warehouses, stock, projects, emplo
   }
 
   return (
-    <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginBottom: 8 }}>
-      <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>{label} 등록</div>
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+    <div className="border border-ec-line border-solid bg-white p-[14px] mb-[8px]">
+      <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">{label} 등록</div>
+      <div className="flex gap-[12px] flex-wrap items-end">
         <Field label="일자">
           <input className="ec-input" type="date" value={form.adjustDate} onChange={(e) => set('adjustDate', e.target.value)} style={{ width: 140 }} />
         </Field>
@@ -563,7 +563,7 @@ function AdjustmentForm({ type, label, items, warehouses, stock, projects, emplo
         </Field>
         <button className="ec-btn ec-btn-primary" onClick={submit}>{label} 처리</button>
       </div>
-      <div style={{ marginTop: 8, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
+      <div className="mt-[8px] text-[11.5px] text-ec-hint">
         {isAdjust
           ? '※ 실사수량과 그 일자 재고의 차이만큼 재고를 증감합니다(수불부에 조정으로 기록). 지난 날짜면 그 뒤 거래는 그대로 둡니다.'
           : `※ 입력 수량만큼 재고를 차감합니다. 현재고보다 많으면 ${label}가 거절됩니다.`}
@@ -574,8 +574,8 @@ function AdjustmentForm({ type, label, items, warehouses, stock, projects, emplo
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label style={{ fontSize: 12.5 }}>
-      <div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>{label}</div>
+    <label className="text-[12.5px]">
+      <div className="text-ec-label mb-[3px]">{label}</div>
       {children}
     </label>
   )

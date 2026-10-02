@@ -187,7 +187,7 @@ export default function PaymentHistoryPage() {
                            // 원본 [입금보고서작성] — FastEntry 의 입금보고서로 넘긴다.
                            { label: '입금보고서작성', onClick: () => navigate('/accounting/vouchers?type=DEPOSIT_REPORT') },
                            { label: 'Excel' }]}>
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {ok && <p style={{ background: '#eaf5ec', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
 
       <EcStatusPanel from={cond.from} to={cond.to} dateLabel="전표일자"
@@ -199,7 +199,7 @@ export default function PaymentHistoryPage() {
         <EcCond label="결제금액">
           <input className="ec-input" type="number" style={{ width: 130, textAlign: 'right' }}
                  value={cond.amtFrom} onChange={(e) => setC({ amtFrom: e.target.value })} />
-          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <span className="text-ec-label">~</span>
           <input className="ec-input" type="number" style={{ width: 130, textAlign: 'right' }}
                  value={cond.amtTo} onChange={(e) => setC({ amtTo: e.target.value })} />
         </EcCond>
@@ -215,82 +215,82 @@ export default function PaymentHistoryPage() {
         ))}
       </ul>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+      <div className="flex items-center gap-[8px] mb-[8px]">
         <button className="ec-btn ec-btn-primary" disabled={picked.length === 0}
                 onClick={() => reflect(false)}>회계반영</button>
         <button className="ec-btn" disabled={picked.length === 0}
                 onClick={() => reflect(true)}>반영취소</button>
-        <span style={{ fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
+        <span className="text-[11.5px] text-ec-hint">
           수금 차)현금·예금 / 대)외상매출금 · 지급 차)외상매입금 / 대)현금·예금
         </span>
-        <span style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--ec-label)' }}>
-          합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{total.toLocaleString()}</b>
+        <span className="ml-auto text-[12.5px] text-ec-label">
+          합계 <b className="text-ec-navy text-[14px]">{total.toLocaleString()}</b>
         </span>
       </div>
 
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ width: 30, textAlign: 'center' }}></th>
+            <th className="w-[34px]"></th>
+            <th className="w-[30px] text-center"></th>
             {/* 원본 첫 열은 [결제요청일시] 다 — 날짜만 있으면 같은 날 여러 건의 순서가 안 보인다. */}
             {/* 원본 폭은 결제요청일시 160 · 회계전표 100 — 우리는 135 vs 150 으로 <b>앞뒤가 뒤집혀</b> 있었다. */}
-            <th style={{ width: 160 }}>결제요청일시</th>
+            <th className="w-[160px]">결제요청일시</th>
             {/*
               원본 차례: 결제요청일시 · <b>결제요청자ID</b> · 거래처 · <b>품목</b> · 결제금액 ·
               결제방법 · … · <b>회계전표</b> · 내역 · 영수증인쇄 (사본 실측).
               요청자는 뒤에 가 있었고, 품목은 <b>값이 있는데 안 보여 줬다.</b>
             */}
-            <th style={{ width: 110 }}>결제요청자ID</th>
-            <th style={{ width: 150 }}>전표번호</th>
+            <th className="w-[110px]">결제요청자ID</th>
+            <th className="w-[150px]">전표번호</th>
             <th>거래처</th>
-            <th style={{ width: 60, textAlign: 'center' }}>구분</th>
+            <th className="w-[60px] text-center">구분</th>
             {/* 원본 차례는 <b>결제금액 · 결제방법</b> 이다(사본 실측) — 우리는 뒤집혀 있었다. */}
-            <th style={{ width: 130, textAlign: 'right' }}>결제금액</th>
-            <th style={{ width: 110 }}>결제방법</th>
-            <th style={{ width: 90, textAlign: 'center' }}>회계반영</th>
-            <th style={{ width: 100 }}>회계전표</th>
+            <th className="w-[130px] text-right">결제금액</th>
+            <th className="w-[110px]">결제방법</th>
+            <th className="w-[90px] text-center">회계반영</th>
+            <th className="w-[100px]">회계전표</th>
             <th>내역</th>
             {/* 원본 결제내역조회의 마지막 열 [영수증인쇄]. */}
-            <th style={{ width: 80, textAlign: 'center' }}>영수증인쇄</th>
+            <th className="w-[80px] text-center">영수증인쇄</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={13} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={13} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td className="text-center">
                 <input type="checkbox" checked={picked.includes(r.id)} onChange={() => toggle(r.id)} />
               </td>
-              <td style={{ fontFamily: 'monospace' }}>
+              <td>
                 {r.slipDate}
                 {r.createdAt && (
-                  <span style={{ color: 'var(--ec-text-hint)', marginLeft: 4 }}>{r.createdAt.slice(11, 16)}</span>
+                  <span className="text-ec-hint ml-[4px]">{r.createdAt.slice(11, 16)}</span>
                 )}
               </td>
-              <td style={{ color: 'var(--ec-label)', fontSize: 11.5 }}>{r.createdBy ?? ''}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.docNo}</td>
+              <td className="text-ec-label text-[11.5px]">{r.createdBy ?? ''}</td>
+              <td>{r.docNo}</td>
               <td>{r.partnerName}</td>
               <td style={{ textAlign: 'center', fontWeight: 700, color: r.vatType === '수금' ? 'var(--ec-success)' : 'var(--ec-danger)' }}>{r.vatType}</td>
-              <td style={{ textAlign: 'right' }}>{r.totalAmount.toLocaleString()}</td>
+              <td className="text-right">{r.totalAmount.toLocaleString()}</td>
               <td>{r.methodText || ''}</td>
               <td style={{ textAlign: 'center', fontWeight: 700, fontSize: 11.5,
                            color: r.reflected ? 'var(--ec-success)' : 'var(--ec-warn)' }}>
                 {r.reflected ? '반영' : '미반영'}
               </td>
               {/* 원본 [회계전표No.]. 반영했다는 표시만 있고 어느 분개인지 없으면 찾아갈 길이 없다. */}
-              <td style={{ fontFamily: 'monospace', fontSize: 11.5 }}>
+              <td className="text-[11.5px]">
                 {r.journalDocNo ? (
                   <Link to={`/accounting/journals?entryId=${r.journalEntryId}`}
                         style={{ color: 'var(--ec-blue)' }}>{r.journalDocNo}</Link>
-                ) : <span style={{ color: 'var(--ec-text-off)' }}>—</span>}
+                ) : <span className="text-ec-off">—</span>}
               </td>
-              <td style={{ color: 'var(--ec-text-hint)' }}>{r.note ?? ''}</td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-ec-hint">{r.note ?? ''}</td>
+              <td className="text-center">
                 <button onClick={() => printReceipt(r)} style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>
                   {r.vatType === '수금' ? '영수증' : '지급증'}
                 </button>
@@ -300,9 +300,9 @@ export default function PaymentHistoryPage() {
         </tbody>
         {shown.length > 0 && (
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={7} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{total.toLocaleString()}</td>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={7} className="text-right">합계 ({shown.length}건)</td>
+              <td className="text-right text-ec-navy">{total.toLocaleString()}</td>
               <td colSpan={5}></td>
             </tr>
           </tfoot>

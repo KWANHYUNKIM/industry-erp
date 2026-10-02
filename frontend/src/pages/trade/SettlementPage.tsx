@@ -132,20 +132,20 @@ export default function SettlementPage() {
       onNew={() => setShowForm(true)}
       actions={[{ label: 'Excel' }, { label: '인쇄' }]}
     >
-      <p className="mb-2 text-xs text-slate-500">수금 → 거래처 채권(미수금) 감소 · 지급 → 거래처 채무(미지급) 감소</p>
+      <p className="mb-2 text-xs text-ec-hint">수금 → 거래처 채권(미수금) 감소 · 지급 → 거래처 채무(미지급) 감소</p>
 
       <Modal open={showForm} title="수금/지급 입력" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', borderRadius: 3, padding: 12, marginBottom: 10, background: '#fff', maxWidth: 760 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
             <div>
-              <label className="mb-1 block text-xs text-slate-600">유형 *</label>
+              <label className="mb-1 block text-xs text-ec-label">유형 *</label>
               <select className={inputCls} style={{ width: '100%' }} value={type} onChange={(e) => setType(e.target.value as SettlementType)}>
                 <option value="RECEIPT">수금 (매출처)</option>
                 <option value="PAYMENT">지급 (매입처)</option>
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs text-slate-600">거래처 *</label>
+              <label className="mb-1 block text-xs text-ec-label">거래처 *</label>
               {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측 525칸, 예외 없음) — 드롭다운은 항목이 늘면 못 찾는다. */}
               <CodePickerField label="거래처 *" hideLabel fill placeholder="거래처"
                                emptyLabel="선택하세요"
@@ -153,11 +153,11 @@ export default function SettlementPage() {
                                items={usablePartners.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-slate-600">일자</label>
+              <label className="mb-1 block text-xs text-ec-label">일자</label>
               <input type="date" className={inputCls} style={{ width: '100%' }} value={date} onChange={(e) => setDate(e.target.value)} />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-slate-600">금액 *</label>
+              <label className="mb-1 block text-xs text-ec-label">금액 *</label>
               <input type="number" className={`${inputCls} text-right`} style={{ width: '100%' }} value={amount} onChange={(e) => setAmount(e.target.value)} />
               {open != null && (
                 <div style={{ marginTop: 3, fontSize: 11.5, color: over ? '#b45309' : 'var(--ec-text-hint)' }}>
@@ -169,13 +169,13 @@ export default function SettlementPage() {
               )}
             </div>
             <div>
-              <label className="mb-1 block text-xs text-slate-600">결제수단</label>
+              <label className="mb-1 block text-xs text-ec-label">결제수단</label>
               <select className={inputCls} style={{ width: '100%' }} value={method} onChange={(e) => setMethod(e.target.value)}>
                 {METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs text-slate-600">프로젝트</label>
+              <label className="mb-1 block text-xs text-ec-label">프로젝트</label>
               {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측 525칸, 예외 없음) — 드롭다운은 항목이 늘면 못 찾는다. */}
               <CodePickerField label="프로젝트" hideLabel fill placeholder="프로젝트"
                                emptyLabel="선택 안 함"
@@ -183,13 +183,13 @@ export default function SettlementPage() {
                                items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-slate-600">비고</label>
+              <label className="mb-1 block text-xs text-ec-label">비고</label>
               <input className={inputCls} style={{ width: '100%' }} value={note} onChange={(e) => setNote(e.target.value)} />
             </div>
           </div>
-          {error && <p className="mt-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-          {ok && <p className="mt-2 rounded bg-green-50 px-3 py-2 text-sm text-green-700">{ok}</p>}
-          <div style={{ marginTop: 10 }}>
+          {error && <p className="mt-2 rounded bg-ec-danger-bg px-3 py-2 text-sm text-ec-danger">{error}</p>}
+          {ok && <p className="mt-2 rounded bg-ec-success-bg px-3 py-2 text-sm text-ec-success">{ok}</p>}
+          <div className="mt-[10px]">
             <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
           </div>
         </form>
@@ -199,31 +199,31 @@ export default function SettlementPage() {
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
+              <th className="w-[34px]"></th>
               <th>전표번호</th>
-              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th>
+              <th className="cursor-pointer" onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th>
               <th>유형</th>
               <th>거래처</th>
               <th>결제수단</th>
-              <th style={{ textAlign: 'right' }}>금액</th>
+              <th className="text-right">금액</th>
               <th>비고</th>
-              <th style={{ width: 70, textAlign: 'center' }}>삭제</th>
+              <th className="w-[70px] text-center">삭제</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : sort.sorted.map((r, idx) => (
               <tr key={r.id}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{idx + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.docNo}</td>
+                <td className="text-center text-ec-hint">{idx + 1}</td>
+                <td>{r.docNo}</td>
                 <td>{dateText(r.settleDate)}</td>
                 <td><span style={{ color: r.type === 'RECEIPT' ? 'var(--ec-blue)' : '#2f8401', fontWeight: 700 }}>{r.typeName}</span></td>
                 <td>{r.partnerName}</td>
                 <td>{r.method ?? ''}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: r.type === 'RECEIPT' ? 'var(--ec-blue)' : '#2f8401' }}>{won(r.amount)}</td>
                 <td>{r.note ?? ''}</td>
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-center">
                   <button className="ec-btn ec-btn-sm" style={{ color: 'var(--ec-danger)' }} onClick={() => remove(r)}>삭제</button>
                 </td>
               </tr>

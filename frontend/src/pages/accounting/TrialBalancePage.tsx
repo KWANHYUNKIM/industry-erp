@@ -118,11 +118,11 @@ export default function TrialBalancePage() {
   /** 기말잔액은 계정의 제 쪽에만 찍는다. */
   const cells = (division: AccountDivision, bal: number, pd: number, pc: number, name: React.ReactNode, isBS: boolean) => (
     <>
-      <td style={{ textAlign: 'right' }}>{isBS && debitNormal(division) ? fmt(bal) : ''}</td>
-      <td style={{ textAlign: 'right' }}>{fmt(pd)}</td>
+      <td className="text-right">{isBS && debitNormal(division) ? fmt(bal) : ''}</td>
+      <td className="text-right">{fmt(pd)}</td>
       <td style={NAME_CELL}>{name}</td>
-      <td style={{ textAlign: 'right' }}>{fmt(pc)}</td>
-      <td style={{ textAlign: 'right' }}>{isBS && !debitNormal(division) ? fmt(bal) : ''}</td>
+      <td className="text-right">{fmt(pc)}</td>
+      <td className="text-right">{isBS && !debitNormal(division) ? fmt(bal) : ''}</td>
     </>
   )
 
@@ -134,7 +134,7 @@ export default function TrialBalancePage() {
     setFrom(r.from); setTo(r.to); setThousand(false); setWithZero(false); setUsedOnly(false)
   }
   const check = (label: string, v: boolean, set: (b: boolean) => void) => (
-    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+    <label className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
       <input type="checkbox" checked={v} onChange={(e) => set(e.target.checked)} /> {label}
     </label>
   )
@@ -150,15 +150,15 @@ export default function TrialBalancePage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="조회일자">
           <input type="month" className="ec-input" value={from.slice(0, 7)} onChange={(e) => e.target.value && setFrom(`${e.target.value}-01`)} style={{ width: 130 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="month" className="ec-input" value={to.slice(0, 7)}
                  onChange={(e) => { if (!e.target.value) return; const [y, m] = e.target.value.split('-').map(Number); const d = new Date(y, m, 0); setTo(`${e.target.value}-${String(d.getDate()).padStart(2, '0')}`) }}
                  style={{ width: 130 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={TRIAL_BALANCE_PICKS} currentFrom={from} fiscalStart={fiscalStart} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
@@ -171,23 +171,23 @@ export default function TrialBalancePage() {
 
       {period && cumul && (
         <>
-          <h3 style={{ fontSize: 20, fontWeight: 700, textAlign: 'center', margin: '6px 0 12px' }}>합계잔액시산표</h3>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, margin: '0 0 4px' }}>
+          <h3 className="text-[20px] font-bold text-center mt-[6px] mx-0 mb-[12px]">합계잔액시산표</h3>
+          <div className="flex justify-between text-[12px] mt-0 mx-0 mb-[4px]">
             <span>회사명 : {companyName ?? ''}</span>
             <span>{slash(from)} ~{slash(to)}</span>
           </div>
           <table ref={tableRef} className="w-full text-left">
             <thead>
               <tr>
-                <th style={{ textAlign: 'right' }}>기말잔액(차변)</th>
-                <th style={{ textAlign: 'right' }}>기말금액(차변)</th>
-                <th style={{ textAlign: 'center' }}>계정명</th>
-                <th style={{ textAlign: 'right' }}>기말금액(대변)</th>
-                <th style={{ textAlign: 'right' }}>기말잔액(대변)</th>
+                <th className="text-right">기말잔액(차변)</th>
+                <th className="text-right">기말금액(차변)</th>
+                <th className="text-center">계정명</th>
+                <th className="text-right">기말금액(대변)</th>
+                <th className="text-right">기말잔액(대변)</th>
               </tr>
             </thead>
             <tbody>
-              {all.length === 0 && <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>}
+              {all.length === 0 && <tr><td colSpan={5} className="ec-empty">등록된 데이터가 없습니다.</td></tr>}
               {groups.map((g) => {
                 const bs = isBalanceSheet(g.division)
                 const bal = g.lines.reduce((s, l) => s + l.bal, 0)
@@ -203,11 +203,11 @@ export default function TrialBalancePage() {
             </tbody>
             <tfoot>
               <tr style={TOTAL_ROW}>
-                <td style={{ textAlign: 'right' }}>{fmt(total.db)}</td>
-                <td style={{ textAlign: 'right' }}>{fmt(total.pd)}</td>
-                <td style={{ textAlign: 'center' }}>합계</td>
-                <td style={{ textAlign: 'right' }}>{fmt(total.pc)}</td>
-                <td style={{ textAlign: 'right' }}>{fmt(total.cb)}</td>
+                <td className="text-right">{fmt(total.db)}</td>
+                <td className="text-right">{fmt(total.pd)}</td>
+                <td className="text-center">합계</td>
+                <td className="text-right">{fmt(total.pc)}</td>
+                <td className="text-right">{fmt(total.cb)}</td>
               </tr>
             </tfoot>
           </table>

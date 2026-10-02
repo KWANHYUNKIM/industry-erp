@@ -257,8 +257,8 @@ export default function ReceiptInquiryPage() {
                 { label: 'Excel' }]}
     >
       {statusPick && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, padding: '6px 8px', border: '1px solid var(--ec-border)', background: '#fff' }}>
-          <span style={{ fontSize: 12.5 }}>고른 {checked.size}줄의 전표를</span>
+        <div className="flex items-center gap-[6px] mb-[8px] py-[6px] px-[8px] border border-ec-line border-solid bg-white">
+          <span className="text-[12.5px]">고른 {checked.size}줄의 전표를</span>
           <button type="button" className="ec-btn ec-btn-primary" onClick={() => { setStatusPick(false); void changeStatus('CONFIRMED') }}>확인</button>
           <button type="button" className="ec-btn" onClick={() => { setStatusPick(false); void changeStatus('UNCONFIRMED') }}>확인취소</button>
           <button type="button" className="ec-btn" onClick={() => setStatusPick(false)}>닫기</button>
@@ -275,10 +275,10 @@ export default function ReceiptInquiryPage() {
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from}
                  onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
           <input type="date" className="ec-input" value={to}
                  onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from}
               onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
@@ -317,11 +317,11 @@ export default function ReceiptInquiryPage() {
         </EcCond>
         {/* 원본 차례: (품목그룹2·3·계층) · 기타 · (발송여부 · 오더관리번호) · 담당자 · 생산입고구분 · 적요 · 규격 … */}
         <EcCond label="기타">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
             수정일자순(정렬)
           </label>
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4, marginLeft: 10 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px] ml-[10px]">
             <input type="checkbox" checked={outsourcedOnly}
                    onChange={(e) => setOutsourcedOnly(e.target.checked)} />
             외주공장만
@@ -359,21 +359,21 @@ export default function ReceiptInquiryPage() {
         </EcCond>
         <EcCond label="최초작성일자">
           <input type="date" className="ec-input" value={madeFrom} onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
           <input type="date" className="ec-input" value={madeTo} onChange={(e) => setMadeTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="최종작업일자">
           <input type="date" className="ec-input" value={editedFrom} onChange={(e) => setEditedFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
           <input type="date" className="ec-input" value={editedTo} onChange={(e) => setEditedTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
       </ul>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34, textAlign: 'center' }}>
+            <th className="w-[34px] text-center">
               <input type="checkbox"
                      checked={shown.length > 0 && shown.every((x) => checked.has(x.id))}
                      onChange={() => setChecked(
@@ -390,26 +390,26 @@ export default function ReceiptInquiryPage() {
               (4) 이름이 다섯 다르다 - 완제품명/입고수량/생산된공장/받는창고/담당자.
               [단위]는 원본에 없지만 우리가 더 두는 열이라 맨 뒤에 붙인다.
             */}
-            <th style={{ textAlign: 'center' }}>일자-No.</th>
+            <th className="text-center">일자-No.</th>
             <th>생산된공장명</th>
             <th>받는창고명</th>
             <th>품목명[규격]</th>
-            <th style={{ textAlign: 'right' }}>수량</th>
+            <th className="text-right">수량</th>
             <th>담당자명</th>
             <th>작업지시서</th>
             {/* 원본 생산입고조회의 마지막 열 [인쇄]. */}
-            <th style={{ width: 60, textAlign: 'center' }}>인쇄</th>
+            <th className="w-[60px] text-center">인쇄</th>
             <th>단위</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <input type="checkbox" checked={checked.has(r.id)} onChange={() => setChecked((prev) => {
                   const next = new Set(prev)
                   if (next.has(r.id)) next.delete(r.id); else next.add(r.id)
@@ -418,7 +418,7 @@ export default function ReceiptInquiryPage() {
               </td>
               {/* 원본은 일자와 번호를 한 칸에 적는다. */}
               {/* 원본처럼 번호를 누르면 그 전표를 넣은 화면(I·II·III)으로 열어 고친다. */}
-              <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>
+              <td className="text-center">
                 <a href={`${ENTRY_PATH[r.entryType] ?? ENTRY_PATH.I}?no=${encodeURIComponent(r.prodNo)}`}
                    style={{ color: 'var(--ec-blue)', cursor: 'pointer' }}
                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate(e.currentTarget.getAttribute('href')!) }}>
@@ -433,11 +433,11 @@ export default function ReceiptInquiryPage() {
                 [품목] 코드도움에서 코드로 고른다).
               */}
               <td>{r.productName}{r.productSpec ? ` [${r.productSpec}]` : ''}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{r.producedQty.toLocaleString()}</td>
+              <td className="text-right font-semibold text-ec-navy">{r.producedQty.toLocaleString()}</td>
               {/* [담당자명] 은 전표의 담당자(사원)다 — 입력한 로그인 사용자가 아니다. */}
               <td>{empName(r.employeeId)}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.workOrderNo ?? ''}</td>
-              <td style={{ textAlign: 'center' }}>
+              <td>{r.workOrderNo ?? ''}</td>
+              <td className="text-center">
                 <button onClick={() => printOne(r)} style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
               </td>
               <td>{r.productUnit}</td>

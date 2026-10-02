@@ -99,19 +99,19 @@ export default function PriceOrderPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ color: 'var(--ec-star)', fontSize: 14, marginRight: 4 }}>☆</span>
-        <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ec-text)' }}>단가적용순서설정</span>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+    <div className="flex flex-col min-h-[100%]">
+      <div className="flex items-center mb-[8px]">
+        <span className="text-ec-star text-[14px] mr-[4px]">☆</span>
+        <span className="text-[15px] font-extrabold text-ec-text">단가적용순서설정</span>
+        <div className="ml-auto flex gap-[4px]">
           <button className="ec-btn" onClick={() => load(cat)}>새로고침</button>
           <button className="ec-btn">도움말</button>
         </div>
       </div>
 
-      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div style={{ display: 'flex', gap: 2, marginBottom: 8, borderBottom: '1px solid var(--ec-border)' }}>
+      <div className="flex gap-[2px] mb-[8px] border-b border-b-ec-line border-solid">
         {(['SALES', 'PURCHASE'] as const).map((t) => (
           <button key={t} onClick={() => setCat(t)} className="no-ec" style={{
             padding: '6px 16px', fontSize: 12.5, border: 'none', cursor: 'pointer',
@@ -121,48 +121,48 @@ export default function PriceOrderPage() {
         ))}
       </div>
 
-      <div style={{ maxWidth: 760 }}>
+      <div className="max-w-[760px]">
         <table className="w-full text-left">
           <thead>
             <tr>
               <th>기능</th>
-              <th style={{ width: 140, textAlign: 'right' }}>적용순서</th>
-              <th style={{ width: 150, textAlign: 'center' }}>사용구분</th>
-              <th style={{ textAlign: 'center', width: 150 }}>상세설정</th>
+              <th className="w-[140px] text-right">적용순서</th>
+              <th className="w-[150px] text-center">사용구분</th>
+              <th className="text-center w-[150px]">상세설정</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={4} className="ec-empty">불러오는 중…</td></tr>
             ) : lines.map((l, i) => (
               <tr key={l.functionName}>
                 <td style={{ color: l.active ? undefined : 'var(--ec-text-hint)' }}>{l.functionName}</td>
-                <td style={{ textAlign: 'right' }}>
-                  <b style={{ marginRight: 6 }}>{i + 1}</b>
+                <td className="text-right">
+                  <b className="mr-[6px]">{i + 1}</b>
                   <button className="ec-btn" style={{ height: 20, padding: '0 6px' }} disabled={i === 0} onClick={() => move(i, -1)}>▲</button>
                   <button className="ec-btn" style={{ height: 20, padding: '0 6px', marginLeft: 3 }} disabled={i === lines.length - 1} onClick={() => move(i, 1)}>▼</button>
                 </td>
-                <td style={{ textAlign: 'center' }}>
-                  <label style={{ marginRight: 10, fontSize: 12 }}>
+                <td className="text-center">
+                  <label className="mr-[10px] text-[12px]">
                     <input type="radio" name={`u${i}`} checked={l.active} onChange={() => setActive(i, true)} /> 사용
                   </label>
-                  <label style={{ fontSize: 12 }}>
+                  <label className="text-[12px]">
                     <input type="radio" name={`u${i}`} checked={!l.active} onChange={() => setActive(i, false)} /> 사용안함
                   </label>
                 </td>
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-center">
                   {DETAIL_LINK[l.functionName]
                     ? <Link to={DETAIL_LINK[l.functionName]!.to} style={{ color: 'var(--ec-blue)' }}>
                         {DETAIL_LINK[l.functionName]!.label}
                       </Link>
-                    : <span style={{ color: 'var(--ec-text-off)' }}>—</span>}
+                    : <span className="text-ec-off">—</span>}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
 
-        <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
+        <div className="flex gap-[6px] mt-[12px]">
           <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>{saving ? '저장 중…' : '저장(F8)'}</button>
         </div>
       </div>

@@ -176,13 +176,13 @@ export default function SurveyStatusPage() {
       ]}
     >
       {/* 조회 조건 — 원본은 이 패널이 화면의 본체다 */}
-      <table className="w-full text-left" style={{ marginBottom: 10 }}>
+      <table className="w-full text-left mb-[10px]">
         <tbody>
           <tr>
             <th style={th}>작성일</th>
             <td>
               <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-              <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
+              <span className="my-0 mx-[6px] text-ec-label">~</span>
               <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
               {/*
                 원본 설문조사현황의 버튼줄에 <b>[전월+금월]</b> 이 있다(사본 실측).
@@ -190,7 +190,7 @@ export default function SurveyStatusPage() {
                 <b>그 조합은 진작 만들어져 있었다</b>(STATUS_PICKS) — 이 화면만 날짜를
                 손으로 찍게 두고 있었다. 다른 조회 화면과 같은 줄을 쓴다.
               */}
-              <span style={{ marginLeft: 8, display: 'inline-flex', gap: 3, verticalAlign: 'middle' }}>
+              <span className="ml-[8px] inline-flex gap-[3px] align-middle">
                 <EcPeriodPicks labels={STATUS_PICKS} currentFrom={from}
                                onPick={(r) => { if (r.from) setFrom(r.from); setTo(r.to) }} />
               </span>
@@ -198,7 +198,7 @@ export default function SurveyStatusPage() {
             <th style={th}>설문대상구분</th>
             <td>
               {([['', '전체'], ['INTERNAL', '내부'], ['EXTERNAL', '외부']] as const).map(([v, l]) => (
-                <label key={l} style={{ marginRight: 12, fontSize: 12 }}>
+                <label key={l} className="mr-[12px] text-[12px]">
                   <input type="radio" name="scope" checked={scope === v} onChange={() => setScope(v)} /> {l}
                 </label>
               ))}
@@ -209,7 +209,7 @@ export default function SurveyStatusPage() {
             <th style={th}>진행</th>
             <td colSpan={3}>
               {(['전체', '진행중', '완료'] as const).map((t) => (
-                <label key={t} style={{ marginRight: 12, fontSize: 12 }}>
+                <label key={t} className="mr-[12px] text-[12px]">
                   <input type="radio" name="progress" checked={progress === t} onChange={() => setProgress(t)} /> {t}
                 </label>
               ))}
@@ -218,12 +218,12 @@ export default function SurveyStatusPage() {
           <tr>
             <th style={th}>설문종료일</th>
             <td colSpan={3}>
-              <label style={{ fontSize: 12, marginRight: 8 }}>
+              <label className="text-[12px] mr-[8px]">
                 <input type="checkbox" checked={useEnd} onChange={(e) => setUseEnd(e.target.checked)} /> 사용
               </label>
               <input type="date" className="ec-input" value={endFrom} disabled={!useEnd}
                 onChange={(e) => setEndFrom(e.target.value)} style={{ width: 140 }} />
-              <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
+              <span className="my-0 mx-[6px] text-ec-label">~</span>
               <input type="date" className="ec-input" value={endTo} disabled={!useEnd}
                 onChange={(e) => setEndTo(e.target.value)} style={{ width: 140 }} />
             </td>
@@ -232,12 +232,12 @@ export default function SurveyStatusPage() {
             <th style={th}>제목</th>
             <td>
               <input className="ec-input" value={title} onChange={(e) => setTitle(e.target.value)} style={{ width: 220 }} />
-              <span style={{ marginLeft: 6, fontSize: 12, color: 'var(--ec-label)' }}>포함</span>
+              <span className="ml-[6px] text-[12px] text-ec-label">포함</span>
             </td>
             <th style={th}>질문내용</th>
             <td>
               <input className="ec-input" value={question} onChange={(e) => setQuestion(e.target.value)} style={{ width: 220 }} />
-              <span style={{ marginLeft: 6, fontSize: 12, color: 'var(--ec-label)' }}>포함</span>
+              <span className="ml-[6px] text-[12px] text-ec-label">포함</span>
             </td>
           </tr>
           <tr>
@@ -251,7 +251,7 @@ export default function SurveyStatusPage() {
             <th style={th}>게시글번호</th>
             <td>
               <input className="ec-input" value={postNo} onChange={(e) => setPostNo(e.target.value)} style={{ width: 120 }} />
-              <span style={{ marginLeft: 6, fontSize: 12, color: 'var(--ec-label)' }}>포함</span>
+              <span className="ml-[6px] text-[12px] text-ec-label">포함</span>
             </td>
           </tr>
           <tr>
@@ -269,14 +269,14 @@ export default function SurveyStatusPage() {
         </tbody>
       </table>
 
-      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <table className="w-full text-left">
         <colgroup>
-          <col style={{ width: '4%' }} /><col style={{ width: '9%' }} /><col style={{ width: '11%' }} />
-          <col style={{ width: '11%' }} /><col /><col style={{ width: '8%' }} />
-          <col style={{ width: '8%' }} /><col style={{ width: '8%' }} /><col style={{ width: '8%' }} />
-          <col style={{ width: '9%' }} />
+          <col className="w-[4%]" /><col className="w-[9%]" /><col className="w-[11%]" />
+          <col className="w-[11%]" /><col /><col className="w-[8%]" />
+          <col className="w-[8%]" /><col className="w-[8%]" /><col className="w-[8%]" />
+          <col className="w-[9%]" />
         </colgroup>
         <thead>
           <tr>
@@ -291,37 +291,37 @@ export default function SurveyStatusPage() {
               못 만드는 것이 아니라 아직 안 만든 것이라 pending-columns.json 에 적었다
               (SurveyDoc 이 questions·targets 를 이미 들고 온다).
             */}
-            <th></th><th style={{ textAlign: 'center' }}>작성일</th><th style={{ textAlign: 'center' }}>게시글번호</th><th style={{ textAlign: 'center' }}>설문종료일</th><th>제목</th>
-            <th style={{ textAlign: 'center' }}>작성자</th><th style={{ textAlign: 'center' }}>대상구분</th><th style={{ textAlign: 'right' }}>대상수</th><th style={{ textAlign: 'right' }}>응답수</th><th style={{ textAlign: 'right' }}>응답률</th>
+            <th></th><th className="text-center">작성일</th><th className="text-center">게시글번호</th><th className="text-center">설문종료일</th><th>제목</th>
+            <th className="text-center">작성자</th><th className="text-center">대상구분</th><th className="text-right">대상수</th><th className="text-right">응답수</th><th className="text-right">응답률</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>
+            <tr><td colSpan={10} className="text-center text-ec-ink">
               {searched ? '조건에 맞는 데이터가 없습니다.' : '등록된 데이터가 없습니다.'}
             </td></tr>
           ) : shown.map((r, i) => (
-            <tr key={r.id} onClick={() => openDetail(r.id)} style={{ cursor: 'pointer' }}>
-              <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-              <td style={{ textAlign: 'center' }}>{(r.createdAt ?? '').slice(0, 10).replace(/-/g, '/')}</td>
-              <td style={{ textAlign: 'center' }}>{r.postNo}</td>
-              <td style={{ textAlign: 'center' }}>{(r.endAt ?? '').slice(0, 10).replace(/-/g, '/')}</td>
+            <tr key={r.id} onClick={() => openDetail(r.id)} className="cursor-pointer">
+              <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
+              <td className="text-center">{(r.createdAt ?? '').slice(0, 10).replace(/-/g, '/')}</td>
+              <td className="text-center">{r.postNo}</td>
+              <td className="text-center">{(r.endAt ?? '').slice(0, 10).replace(/-/g, '/')}</td>
               <td>{r.title}</td>
-              <td style={{ textAlign: 'center' }}>{r.writerName ?? ''}</td>
-              <td style={{ textAlign: 'center' }}>{r.targetScopeName}</td>
-              <td style={{ textAlign: 'right' }}>{r.targetCount.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{r.responseCount.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{r.responseRate}%</td>
+              <td className="text-center">{r.writerName ?? ''}</td>
+              <td className="text-center">{r.targetScopeName}</td>
+              <td className="text-right">{r.targetCount.toLocaleString()}</td>
+              <td className="text-right">{r.responseCount.toLocaleString()}</td>
+              <td className="text-right">{r.responseRate}%</td>
             </tr>
           ))}
         </tbody>
         {shown.length > 0 && (
           <tfoot>
             <tr>
-              <td colSpan={7} style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>합계</td>
-              <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>{totals.targets.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>{totals.responses.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>
+              <td colSpan={7} className="text-right font-bold bg-ec-page">합계</td>
+              <td className="text-right font-bold bg-ec-page">{totals.targets.toLocaleString()}</td>
+              <td className="text-right font-bold bg-ec-page">{totals.responses.toLocaleString()}</td>
+              <td className="text-right font-bold bg-ec-page">
                 {totals.targets > 0 ? Math.round((totals.responses * 100) / totals.targets) : 0}%
               </td>
             </tr>
@@ -352,35 +352,35 @@ export default function SurveyStatusPage() {
       */}
       {openId != null && (
         <>
-          <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>
+          <h3 className="text-[13px] font-bold mt-[16px] mx-0 mb-[6px]">
             응답 내역 {detail.length > 0 && `(${detail.length}건)`}
           </h3>
           {detailErr ? (
-            <p style={{ color: 'var(--ec-danger)', fontSize: 12.5, margin: '0 0 10px' }}>{detailErr}</p>
+            <p className="text-ec-danger text-[12.5px] mt-0 mx-0 mb-[10px]">{detailErr}</p>
           ) : (
-            <table className="w-full text-left" style={{ marginBottom: 14 }}>
+            <table className="w-full text-left mb-[14px]">
               <thead>
                 <tr>
-                  <th style={{ width: 100, textAlign: 'center' }}>작성일</th>
-                  <th style={{ width: 90, textAlign: 'center' }}>게시글번호</th>
-                  <th style={{ width: 100, textAlign: 'center' }}>설문종료일</th>
-                  <th style={{ width: 110, textAlign: 'center' }}>설문대상자</th>
-                  <th style={{ width: 180 }}>제목</th>
+                  <th className="w-[100px] text-center">작성일</th>
+                  <th className="w-[90px] text-center">게시글번호</th>
+                  <th className="w-[100px] text-center">설문종료일</th>
+                  <th className="w-[110px] text-center">설문대상자</th>
+                  <th className="w-[180px]">제목</th>
                   <th>질문내용</th>
                   <th>응답내용</th>
                 </tr>
               </thead>
               <tbody>
                 {detailRows.length === 0 ? (
-                  <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>
+                  <tr><td colSpan={7} className="text-center text-ec-ink">
                     아직 응답이 없습니다.
                   </td></tr>
                 ) : detailRows.map((d) => (
                   <tr key={d.key}>
-                    <td style={{ textAlign: 'center' }}>{d.createdAt}</td>
-                    <td style={{ textAlign: 'center' }}>{d.postNo}</td>
-                    <td style={{ textAlign: 'center' }}>{d.endAt}</td>
-                    <td style={{ textAlign: 'center' }}>{d.respondent}</td>
+                    <td className="text-center">{d.createdAt}</td>
+                    <td className="text-center">{d.postNo}</td>
+                    <td className="text-center">{d.endAt}</td>
+                    <td className="text-center">{d.respondent}</td>
                     <td>{d.title}</td>
                     <td>{d.question}</td>
                     <td>{d.answer}</td>
@@ -399,23 +399,23 @@ export default function SurveyStatusPage() {
           { targets: (r) => r.targetCount, responses: (r) => r.responseCount })
         return (
           <>
-            <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+            <h3 className="text-[13px] font-bold mt-[16px] mx-0 mb-[6px]">{subtotal} 소계</h3>
             <table className="w-full text-left">
               <thead><tr>
                 <th>{subtotal}</th>
-                <th style={{ width: 90, textAlign: 'right' }}>설문수</th>
-                <th style={{ width: 110, textAlign: 'right' }}>대상</th>
-                <th style={{ width: 110, textAlign: 'right' }}>응답</th>
-                <th style={{ width: 110, textAlign: 'right' }}>응답률</th>
+                <th className="w-[90px] text-right">설문수</th>
+                <th className="w-[110px] text-right">대상</th>
+                <th className="w-[110px] text-right">응답</th>
+                <th className="w-[110px] text-right">응답률</th>
               </tr></thead>
               <tbody>
                 {groups.map((g) => (
                   <tr key={g.label}>
-                    <td style={{ fontWeight: 600 }}>{g.label}</td>
-                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
-                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.sums.targets.toLocaleString()}</td>
-                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.sums.responses.toLocaleString()}</td>
-                    <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700 }}>
+                    <td className="font-semibold">{g.label}</td>
+                    <td className="text-right">{g.count}</td>
+                    <td className="text-right">{g.sums.targets.toLocaleString()}</td>
+                    <td className="text-right">{g.sums.responses.toLocaleString()}</td>
+                    <td className="text-right font-bold">
                       {g.sums.targets > 0 ? Math.round((g.sums.responses * 100) / g.sums.targets) : 0}%
                     </td>
                   </tr>

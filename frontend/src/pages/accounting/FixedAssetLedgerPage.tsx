@@ -101,11 +101,11 @@ export default function FixedAssetLedgerPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="조회일자">
           <input type="date" className="ec-input" value={asOf} onChange={(e) => setAsOf(e.target.value)} style={{ width: 145 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={PRICE_REQUEST_PICKS} currentFrom={asOf} onPick={(r) => setAsOf(r.to)} />
           </span>
         </EcCond>
@@ -118,17 +118,17 @@ export default function FixedAssetLedgerPage() {
         </EcCond>
         <EcCond label="감가상각계산여부">
           {(['전체', '계산', '계산안함'] as const).map((v) => (
-            <label key={v} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+            <label key={v} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
               <input type="radio" name="fa-calc" checked={calc === v} onChange={() => setCalc(v)} /> {v}
             </label>
           ))}
         </EcCond>
         <EcCond label="상태">
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+          <label className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
             <input type="checkbox" checked={state.보유 && state.상각완료} onChange={(e) => setState({ 보유: e.target.checked, 상각완료: e.target.checked })} /> 전체
           </label>
           {(['보유', '상각완료'] as const).map((k) => (
-            <label key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+            <label key={k} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
               <input type="checkbox" checked={state[k]} onChange={(e) => setState((s) => ({ ...s, [k]: e.target.checked }))} /> {k}
             </label>
           ))}
@@ -141,37 +141,37 @@ export default function FixedAssetLedgerPage() {
             <th>고정자산계정명</th>
             <th>고정자산코드</th>
             <th>고정자산명</th>
-            <th style={{ textAlign: 'center' }}>취득일자</th>
-            <th style={{ textAlign: 'right' }}>취득원가</th>
-            <th style={{ textAlign: 'right' }}>감가상각충당금</th>
+            <th className="text-center">취득일자</th>
+            <th className="text-right">취득원가</th>
+            <th className="text-right">감가상각충당금</th>
             <th>적요</th>
-            <th style={{ textAlign: 'center' }}>상태</th>
-            <th style={{ textAlign: 'center' }}>감가상각계산여부</th>
+            <th className="text-center">상태</th>
+            <th className="text-center">감가상각계산여부</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
           ) : groups.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : groups.flatMap((g) => [
             ...g.rs.map((a) => (
               <tr key={a.id}>
                 <td>{a.assetAccountName}</td>
-                <td style={{ fontFamily: 'monospace' }}>{a.assetNo}</td>
+                <td>{a.assetNo}</td>
                 <td>{a.name}</td>
-                <td style={{ textAlign: 'center' }}>{a.acquisitionDate.replace(/-/g, '/')}</td>
-                <td style={{ textAlign: 'right' }}>{won(Number(a.acquisitionCost))}</td>
-                <td style={{ textAlign: 'right' }}>{won(accumOf.get(a.id) ?? 0)}</td>
+                <td className="text-center">{a.acquisitionDate.replace(/-/g, '/')}</td>
+                <td className="text-right">{won(Number(a.acquisitionCost))}</td>
+                <td className="text-right">{won(accumOf.get(a.id) ?? 0)}</td>
                 <td>{a.remark ?? ''}</td>
-                <td style={{ textAlign: 'center' }}>{stateOf(a)}</td>
-                <td style={{ textAlign: 'center' }}>계산</td>
+                <td className="text-center">{stateOf(a)}</td>
+                <td className="text-center">계산</td>
               </tr>
             )),
             <tr key={`sub-${g.name}`} style={SUB_ROW}>
               <td colSpan={4}>{g.name} 계</td>
-              <td style={{ textAlign: 'right' }}>{won(g.cost)}</td>
-              <td style={{ textAlign: 'right' }}>{won(g.accum)}</td>
+              <td className="text-right">{won(g.cost)}</td>
+              <td className="text-right">{won(g.accum)}</td>
               <td colSpan={3}></td>
             </tr>,
           ])}
@@ -180,8 +180,8 @@ export default function FixedAssetLedgerPage() {
           <tfoot>
             <tr style={SUB_ROW}>
               <td colSpan={4}>합계</td>
-              <td style={{ textAlign: 'right' }}>{won(total.cost)}</td>
-              <td style={{ textAlign: 'right' }}>{won(total.accum)}</td>
+              <td className="text-right">{won(total.cost)}</td>
+              <td className="text-right">{won(total.accum)}</td>
               <td colSpan={3}></td>
             </tr>
           </tfoot>

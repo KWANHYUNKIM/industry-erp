@@ -32,9 +32,9 @@ export default function Layout() {
   const { user, logout, hasRole } = useAuth()
 
   return (
-    <div className="flex min-h-screen bg-slate-100">
+    <div className="flex min-h-screen bg-ec-page">
       {/* 사이드바 */}
-      <aside className="flex w-60 flex-col bg-slate-900 text-slate-200">
+      <aside className="flex w-60 flex-col bg-slate-900 text-ec-off">
         <div className="flex h-16 items-center gap-2 border-b border-slate-700 px-5">
           <span className="text-xl">🏭</span>
           <span className="text-lg font-bold text-white">제조 ERP</span>
@@ -46,7 +46,7 @@ export default function Layout() {
             if (items.length === 0) return null
             return (
               <div key={group.section} className="mb-5">
-                <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-ec-hint">
                   {group.section}
                 </p>
                 {items.map((item) => (
@@ -57,8 +57,8 @@ export default function Layout() {
                     className={({ isActive }) =>
                       `mb-1 flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
                         isActive
-                          ? 'bg-indigo-600 font-medium text-white'
-                          : 'text-slate-300 hover:bg-slate-800'
+                          ? 'bg-ec-blue font-medium text-white'
+                          : 'text-ec-off hover:bg-slate-800'
                       }`
                     }
                   >
@@ -74,18 +74,18 @@ export default function Layout() {
 
       {/* 본문 */}
       <div className="flex flex-1 flex-col">
-        <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-6">
+        <header className="flex h-16 items-center justify-between border-b border-ec-line-soft bg-white px-6">
           <div />
           <div className="flex items-center gap-4">
             <div className="text-right">
-              <p className="text-sm font-medium text-slate-800">{user?.name}</p>
-              <p className="text-xs text-slate-500">
+              <p className="text-sm font-medium text-ec-text">{user?.name}</p>
+              <p className="text-xs text-ec-hint">
                 {user?.department ?? '부서 미지정'} · {user?.roles.join(', ')}
               </p>
             </div>
             <button
               onClick={logout}
-              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50"
+              className="rounded-lg border border-ec-line px-3 py-1.5 text-sm text-ec-label transition hover:bg-ec-page"
             >
               로그아웃
             </button>

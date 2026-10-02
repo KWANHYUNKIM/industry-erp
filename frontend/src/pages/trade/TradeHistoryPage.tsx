@@ -189,16 +189,16 @@ export default function TradeHistoryPage() {
       onSearch={load}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
     >
-      <p className="mb-2 text-xs text-slate-500">거래처 중심으로 판매·구매 전표를 시간순 통합. 채권/채무 잔액은 거래처관리대장 참조.</p>
+      <p className="mb-2 text-xs text-ec-hint">거래처 중심으로 판매·구매 전표를 시간순 통합. 채권/채무 잔액은 거래처관리대장 참조.</p>
 
       {/* 원본 첫 조건이 <b>[구분]</b> 이다(2026-09-08 실측) — 조건 상자보다 앞에 둔다. */}
       {/*
         원본 거래이력조회 조건의 <b>[구분]</b>. 이 알약이 그 일을 하는데 <b>이름표가 없어</b>
         무엇을 고르는 줄인지 화면만 보고는 알 수 없었다.
       */}
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8, gap: 8, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>구분</span>
-        <div style={{ display: 'flex', gap: 2 }}>
+      <div className="flex items-center mb-[8px] gap-[8px] flex-wrap">
+        <span className="text-[12.5px] text-ec-label">구분</span>
+        <div className="flex gap-[2px]">
           {(['ALL', 'SALE', 'PURCHASE'] as const).map((k) => (
             <button key={k} onClick={() => setKindFilter(k)} className="no-ec" style={{
               padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
@@ -206,25 +206,25 @@ export default function TradeHistoryPage() {
             }}>{k === 'ALL' ? '전체' : KIND_COLOR[k].label} ({k === 'ALL' ? rows.length : k === 'SALE' ? saleCount : buyCount})</button>
           ))}
         </div>
-        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--ec-label)' }}>
-          판매 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{won(totals.saleTotal)}</b>
-          <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
+        <div className="ml-auto text-[12.5px] text-ec-label">
+          판매 <b className="text-ec-blue text-[14px]">{won(totals.saleTotal)}</b>
+          <span className="my-0 mx-[6px] text-ec-off">|</span>
           구매 <b style={{ color: '#a5561b', fontSize: 14 }}>{won(totals.buyTotal)}</b>
-          <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
+          <span className="my-0 mx-[6px] text-ec-off">|</span>
           순액 <b style={{ color: (totals.saleTotal - totals.buyTotal) >= 0 ? 'var(--ec-success)' : 'var(--ec-danger)', fontSize: 14 }}>{won(totals.saleTotal - totals.buyTotal)}</b>
         </div>
       </div>
 
       {/* 조회 조건 */}
       <div style={{ border: '1px solid var(--ec-line)', borderRadius: 4, background: 'var(--ec-bg-page)', padding: '10px 14px', marginBottom: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           {/* 원본 거래이력조회의 이름은 [기간]이 아니라 <b>[전표일자]</b> 다(사본 실측). */}
           <span style={label}>전표일자</span>
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 148 }} />
-          <span style={{ margin: '0 6px', color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="my-0 mx-[6px] text-ec-hint">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 148 }} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           <span style={label}>거래처</span>
           <CodePickerField label="거래처" hideLabel width={230} value={partnerId} onChange={setPartnerId}
                            items={partnerCodeItems(partners)} />
@@ -235,104 +235,104 @@ export default function TradeHistoryPage() {
           품목그룹1</b> · (그룹2·3 · 계층) · <b>창고</b> · (창고계층) · <b>프로젝트</b> ·
           (프로젝트그룹1·2) · <b>담당자 · 금액</b> · (작업자 · 행위 · 기타 · 양식) · 적용양식.
         */}
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           <span style={label}>거래처그룹1</span>
           <CodePickerField label="거래처그룹1" hideLabel width={150} emptyLabel="전체"
                            value={partnerGroupCond} onChange={setPartnerGroupCond}
                            items={pgroups.groupOptions.map((n) => ({ value: n, name: n }))} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           <span style={label}>품목코드</span>
           <input className="ec-input" value={itemCodeCond} onChange={(e) => setItemCodeCond(e.target.value)} style={{ width: 150 }} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           <span style={label}>품목구분</span>
           <CodePickerField label="품목구분" hideLabel width={140} emptyLabel="전체"
                            value={categoryCond} onChange={setCategoryCond}
                            items={[...new Set(rows.flatMap((r) => r.itemCategories))].sort()
                              .map((n) => ({ value: n, name: n }))} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           <span style={label}>품목그룹1</span>
           <CodePickerField label="품목그룹1" hideLabel width={140} emptyLabel="전체"
                            value={itemGroupCond} onChange={setItemGroupCond}
                            items={mgmt.groupOptions.map((n) => ({ value: n, name: n }))} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           <span style={label}>창고</span>
           <CodePickerField label="창고" hideLabel width={150} emptyLabel="전체"
                            value={whCond} onChange={setWhCond}
                            items={[...new Set(rows.map((r) => r.warehouseName).filter(Boolean))].sort()
                              .map((n) => ({ value: n, name: n }))} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           <span style={label}>프로젝트</span>
           <CodePickerField label="프로젝트" hideLabel width={150} emptyLabel="전체"
                            value={projectCond} onChange={setProjectCond}
                            items={[...new Set(rows.map((r) => r.projectName).filter(Boolean) as string[])].sort()
                              .map((n) => ({ value: n, name: n }))} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           <span style={label}>담당자</span>
           <CodePickerField label="담당자" hideLabel width={140} emptyLabel="전체"
                            value={empCond} onChange={setEmpCond}
                            items={[...new Set(rows.map((r) => r.employeeName).filter(Boolean) as string[])].sort()
                              .map((n) => ({ value: n, name: n }))} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           <span style={label}>금액</span>
           <input type="number" className="ec-input text-right" placeholder="이상" value={amountFrom}
                  onChange={(e) => setAmountFrom(e.target.value)} style={{ width: 120 }} />
-          <span style={{ margin: '0 6px', color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="my-0 mx-[6px] text-ec-hint">~</span>
           <input type="number" className="ec-input text-right" placeholder="이하" value={amountTo}
                  onChange={(e) => setAmountTo(e.target.value)} style={{ width: 120 }} />
         </div>
       </div>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th>
-            <th style={{ textAlign: 'center', width: 54 }}>구분</th>
+            <th className="w-[34px]"></th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th>
+            <th className="text-center w-[54px]">구분</th>
             <th>전표번호</th>
             <th>거래처</th>
             <th>품목</th>
-            <th style={{ textAlign: 'right' }}>수량</th>
-            <th style={{ textAlign: 'right' }}>공급가액</th>
-            <th style={{ textAlign: 'right' }}>부가세</th>
-            <th style={{ textAlign: 'right' }}>합계</th>
+            <th className="text-right">수량</th>
+            <th className="text-right">공급가액</th>
+            <th className="text-right">부가세</th>
+            <th className="text-right">합계</th>
             <th>창고</th>
             <th>담당자</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={12} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>
+            <tr><td colSpan={12} className="text-center text-ec-hint p-[20px]">
               {rows.length === 0 ? '거래 내역이 없습니다.' : '조건에 맞는 자료가 없습니다.'}
             </td></tr>
           ) : sort.sorted.map((r, i) => {
             const c = KIND_COLOR[r.kind]
             return (
               <tr key={r.key}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{dateText(r.date)}</td>
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td>{dateText(r.date)}</td>
+                <td className="text-center">
                   <span style={{ background: c.bg, color: c.fg, padding: '1px 6px', borderRadius: 3, fontSize: 11.5, fontWeight: 600 }}>{c.label}</span>
                 </td>
-                <td style={{ fontFamily: 'monospace' }}>{r.docNo}</td>
+                <td>{r.docNo}</td>
                 <td>{r.partnerName}</td>
                 <td>{r.itemSummary}</td>
-                <td style={{ textAlign: 'right' }}>{won(r.qty)}</td>
-                <td style={{ textAlign: 'right' }}>{won(r.supply)}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{won(r.vat)}</td>
+                <td className="text-right">{won(r.qty)}</td>
+                <td className="text-right">{won(r.supply)}</td>
+                <td className="text-right text-ec-hint">{won(r.vat)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: c.fg }}>{won(r.total)}</td>
-                <td style={{ color: 'var(--ec-label)' }}>{r.warehouseName}</td>
-                <td style={{ color: 'var(--ec-label)' }}>{r.employeeName ?? ''}</td>
+                <td className="text-ec-label">{r.warehouseName}</td>
+                <td className="text-ec-label">{r.employeeName ?? ''}</td>
               </tr>
             )
           })}

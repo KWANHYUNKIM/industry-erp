@@ -68,7 +68,7 @@ export default function WmsPage() {
 
   return (
     <EcListShell title="WMS 로케이션" actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+      <div className="flex items-center gap-[6px] mb-[8px] flex-wrap">
         <select className="ec-input" value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} style={{ width: 160 }}>
           <option value="">전체 창고</option>
           {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
@@ -77,21 +77,21 @@ export default function WmsPage() {
         <button className="ec-btn" onClick={() => setWork('move')}>로케이션 이동</button>
         <button className="ec-btn" onClick={() => setWork('pick')}>피킹</button>
         <button className="ec-btn" onClick={() => setShowLocation(true)}>+ 로케이션 등록</button>
-        <span style={{ fontSize: 12, color: 'var(--ec-text-hint)' }}>
+        <span className="text-[12px] text-ec-hint">
           창고 재고 = 배치 + 미배치. 미배치는 입고했지만 아직 선반에 올리지 않은 물량입니다.
         </span>
       </div>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)' }}>{notice}</div>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
 
-      <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+      <div className="flex gap-[10px] mb-[10px]">
         <Box label="로케이션" value={`${locations.length} 개`} color="var(--ec-blue-dark)" bg="var(--ec-bg-page)" />
         <Box label="적치된 품목·로케이션" value={`${stocks.length} 건`} color="var(--ec-blue)" bg="var(--ec-blue-wash)" />
         <Box label="미배치 수량 합계" value={qty(unallocatedTotal)} color={unallocatedTotal > 0 ? 'var(--ec-danger)' : '#2f8401'} bg={unallocatedTotal > 0 ? 'var(--ec-danger-bg)' : 'var(--ec-success-bg)'} />
       </div>
 
-      <div style={{ display: 'flex', gap: 2, marginBottom: 6, borderBottom: '1px solid var(--ec-border)' }}>
+      <div className="flex gap-[2px] mb-[6px] border-b border-b-ec-line border-solid">
         {(['배치현황', '로케이션'] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)} className="no-ec" style={{
             padding: '6px 14px', fontSize: 12.5, border: 'none', cursor: 'pointer',
@@ -106,28 +106,28 @@ export default function WmsPage() {
           <div style={{ padding: '6px 8px', background: 'var(--ec-bg-page)', border: '1px solid var(--ec-border)', borderBottom: 'none', fontSize: 12.5, fontWeight: 700, color: 'var(--ec-blue-dark)' }}>
             품목·창고별 배치 / 미배치
           </div>
-          <table className="w-full text-left" style={{ marginBottom: 12 }}>
+          <table className="w-full text-left mb-[12px]">
             <thead>
               <tr>
-                <th style={{ width: 34 }}></th>
+                <th className="w-[34px]"></th>
                 <th>품목코드</th>
                 <th>품목명</th>
                 <th>창고</th>
-                <th style={{ textAlign: 'right' }}>창고 재고</th>
-                <th style={{ textAlign: 'right' }}>배치</th>
-                <th style={{ textAlign: 'right' }}>미배치</th>
+                <th className="text-right">창고 재고</th>
+                <th className="text-right">배치</th>
+                <th className="text-right">미배치</th>
               </tr>
             </thead>
             <tbody>
               {allocations.length === 0 ? (
-                <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
               ) : allocations.map((a: AllocationRow, i) => (
                 <tr key={`${a.itemId}-${a.warehouseId}`}>
-                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                  <td style={{ fontFamily: 'monospace' }}>{a.itemCode}</td>
+                  <td className="text-center text-ec-hint">{i + 1}</td>
+                  <td>{a.itemCode}</td>
                   <td>{a.itemName}</td>
                   <td>{a.warehouseName}</td>
-                  <td style={{ textAlign: 'right' }}>{qty(a.stockQuantity)} {a.unit}</td>
+                  <td className="text-right">{qty(a.stockQuantity)} {a.unit}</td>
                   <td style={{ textAlign: 'right', color: '#2f8401', fontWeight: 600 }}>{qty(a.allocatedQuantity)}</td>
                   <td style={{ textAlign: 'right', color: a.unallocatedQuantity > 0 ? 'var(--ec-danger)' : 'var(--ec-text-off)', fontWeight: 700 }}>
                     {qty(a.unallocatedQuantity)}
@@ -143,25 +143,25 @@ export default function WmsPage() {
           <table className="w-full text-left">
             <thead>
               <tr>
-                <th style={{ width: 34 }}></th>
+                <th className="w-[34px]"></th>
                 <th>창고</th>
                 <th>로케이션</th>
                 <th>품목코드</th>
                 <th>품목명</th>
-                <th style={{ textAlign: 'right' }}>수량</th>
+                <th className="text-right">수량</th>
               </tr>
             </thead>
             <tbody>
               {stocks.length === 0 ? (
-                <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>적치된 재고가 없습니다. 「적치」로 선반에 올리세요.</td></tr>
+                <tr><td colSpan={6} className="text-center text-ec-hint p-[20px]">적치된 재고가 없습니다. 「적치」로 선반에 올리세요.</td></tr>
               ) : stocks.map((s: LocationStock, i) => (
                 <tr key={s.id}>
-                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+                  <td className="text-center text-ec-hint">{i + 1}</td>
                   <td>{s.warehouseName}</td>
-                  <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>{s.locationCode}</td>
-                  <td style={{ fontFamily: 'monospace' }}>{s.itemCode}</td>
+                  <td className="text-ec-blue font-semibold">{s.locationCode}</td>
+                  <td>{s.itemCode}</td>
                   <td>{s.itemName}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 600 }}>{qty(s.quantity)} {s.unit}</td>
+                  <td className="text-right font-semibold">{qty(s.quantity)} {s.unit}</td>
                 </tr>
               ))}
             </tbody>
@@ -171,31 +171,31 @@ export default function WmsPage() {
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
+              <th className="w-[34px]"></th>
               <th>창고</th>
               <th>로케이션 코드</th>
               <th>구역(Zone)</th>
               <th>랙(Rack)</th>
               <th>단(Level)</th>
               <th>설명</th>
-              <th style={{ textAlign: 'center' }}>사용</th>
-              <th style={{ textAlign: 'center', width: 50 }}></th>
+              <th className="text-center">사용</th>
+              <th className="text-center w-[50px]"></th>
             </tr>
           </thead>
           <tbody>
             {locations.length === 0 ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : locations.map((l, i) => (
               <tr key={l.id}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
                 <td>{l.warehouseName}</td>
-                <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>{l.code}</td>
+                <td className="text-ec-blue font-semibold">{l.code}</td>
                 <td>{l.zone ?? ''}</td>
                 <td>{l.rack ?? ''}</td>
                 <td>{l.level ?? ''}</td>
-                <td style={{ color: 'var(--ec-label)' }}>{l.description ?? ''}</td>
+                <td className="text-ec-label">{l.description ?? ''}</td>
                 <td style={{ textAlign: 'center', color: l.active ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>{l.active ? '사용' : '미사용'}</td>
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-center">
                   <button className="ec-btn" style={{ height: 20, padding: '0 6px', color: 'var(--ec-danger)' }} onClick={() => removeLocation(l)}>×</button>
                 </td>
               </tr>
@@ -228,7 +228,7 @@ export default function WmsPage() {
 function Box({ label, value, color, bg }: { label: string; value: string; color: string; bg: string }) {
   return (
     <div style={{ flex: 1, border: '1px solid var(--ec-border)', background: bg, padding: '10px 14px' }}>
-      <div style={{ fontSize: 12, color: 'var(--ec-label)' }}>{label}</div>
+      <div className="text-[12px] text-ec-label">{label}</div>
       <div style={{ fontSize: 19, fontWeight: 800, color }}>{value}</div>
     </div>
   )
@@ -273,7 +273,7 @@ function LocationForm({ warehouses, onClose, onSaved }: {
       <table className="w-full text-left">
         <tbody>
           <tr>
-            <th style={{ width: 110, background: 'var(--ec-bg-page)' }}>창고<span style={{ color: 'var(--ec-danger)' }}>*</span></th>
+            <th className="w-[110px] bg-ec-page">창고<span className="text-ec-danger">*</span></th>
             <td>
               <select className="ec-input" value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} style={{ width: 180 }}>
                 <option value="">창고 선택</option>
@@ -282,19 +282,19 @@ function LocationForm({ warehouses, onClose, onSaved }: {
             </td>
           </tr>
           <tr>
-            <th style={{ background: 'var(--ec-bg-page)' }}>로케이션 코드<span style={{ color: 'var(--ec-danger)' }}>*</span></th>
+            <th className="bg-ec-page">로케이션 코드<span className="text-ec-danger">*</span></th>
             <td><input className="ec-input" value={code} onChange={(e) => setCode(e.target.value)} placeholder="예: A-01-3" style={{ width: 180 }} /></td>
           </tr>
           <tr>
-            <th style={{ background: 'var(--ec-bg-page)' }}>구역 / 랙 / 단</th>
-            <td style={{ display: 'flex', gap: 4 }}>
+            <th className="bg-ec-page">구역 / 랙 / 단</th>
+            <td className="flex gap-[4px]">
               <input className="ec-input" value={zone} onChange={(e) => setZone(e.target.value)} placeholder="Zone" style={{ width: 80 }} />
               <input className="ec-input" value={rack} onChange={(e) => setRack(e.target.value)} placeholder="Rack" style={{ width: 80 }} />
               <input className="ec-input" value={level} onChange={(e) => setLevel(e.target.value)} placeholder="Level" style={{ width: 80 }} />
             </td>
           </tr>
           <tr>
-            <th style={{ background: 'var(--ec-bg-page)' }}>설명</th>
+            <th className="bg-ec-page">설명</th>
             <td><input className="ec-input" value={description} onChange={(e) => setDescription(e.target.value)} style={{ width: '100%' }} /></td>
           </tr>
         </tbody>
@@ -363,16 +363,16 @@ function WorkForm({ mode, locations, items, allocations, onClose, onSaved }: {
       <table className="w-full text-left">
         <tbody>
           <tr>
-            <th style={{ width: 110, background: 'var(--ec-bg-page)' }}>품목<span style={{ color: 'var(--ec-danger)' }}>*</span></th>
+            <th className="w-[110px] bg-ec-page">품목<span className="text-ec-danger">*</span></th>
             <td>
               <CodePickerField label="품목" hideLabel width={240} placeholder="품목 선택" emptyLabel="선택 해제"
                                value={itemId} onChange={setItemId}
                                items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, alias: it.searchKeyword, sub: it.spec }))} />
-              {hint && <div style={{ marginTop: 4, fontSize: 11.5, color: 'var(--ec-navy)' }}>{hint}</div>}
+              {hint && <div className="mt-[4px] text-[11.5px] text-ec-navy">{hint}</div>}
             </td>
           </tr>
           <tr>
-            <th style={{ background: 'var(--ec-bg-page)' }}>{mode === 'move' ? '출발 로케이션' : '로케이션'}<span style={{ color: 'var(--ec-danger)' }}>*</span></th>
+            <th className="bg-ec-page">{mode === 'move' ? '출발 로케이션' : '로케이션'}<span className="text-ec-danger">*</span></th>
             <td>
               <select className="ec-input" value={locationId} onChange={(e) => setLocationId(e.target.value)} style={{ width: 240 }}>
                 <option value="">로케이션 선택</option>
@@ -382,7 +382,7 @@ function WorkForm({ mode, locations, items, allocations, onClose, onSaved }: {
           </tr>
           {mode === 'move' && (
             <tr>
-              <th style={{ background: 'var(--ec-bg-page)' }}>도착 로케이션<span style={{ color: 'var(--ec-danger)' }}>*</span></th>
+              <th className="bg-ec-page">도착 로케이션<span className="text-ec-danger">*</span></th>
               <td>
                 <select className="ec-input" value={toLocationId} onChange={(e) => setToLocationId(e.target.value)} style={{ width: 240 }}>
                   <option value="">로케이션 선택</option>
@@ -392,7 +392,7 @@ function WorkForm({ mode, locations, items, allocations, onClose, onSaved }: {
             </tr>
           )}
           <tr>
-            <th style={{ background: 'var(--ec-bg-page)' }}>수량<span style={{ color: 'var(--ec-danger)' }}>*</span></th>
+            <th className="bg-ec-page">수량<span className="text-ec-danger">*</span></th>
             <td><input className="ec-input" type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} style={{ width: 120, textAlign: 'right' }} /></td>
           </tr>
         </tbody>
@@ -412,15 +412,15 @@ function Modal({ title, children, onClose, onSave, saving, error }: {
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 520, maxWidth: '94vw', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: 'var(--ec-bg-page)' }}>
-          <span style={{ fontWeight: 800, color: 'var(--ec-blue-dark)' }}>{title}</span>
-          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: 'var(--ec-text-hint)' }}>×</span>
+        <div className="flex items-center py-[12px] px-[16px] border-b border-b-ec-line border-solid bg-ec-page">
+          <span className="font-extrabold text-ec-navy">{title}</span>
+          <span onClick={onClose} className="ml-auto cursor-pointer text-[18px] text-ec-hint">×</span>
         </div>
-        <div style={{ padding: 16 }}>
-          {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+        <div className="p-[16px]">
+          {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
           {children}
         </div>
-        <div style={{ display: 'flex', gap: 6, padding: '10px 16px', borderTop: '1px solid var(--ec-border)' }}>
+        <div className="flex gap-[6px] py-[10px] px-[16px] border-t border-t-ec-line border-solid">
           <button className="ec-btn ec-btn-primary" onClick={onSave} disabled={saving}>{saving ? '처리 중…' : '확인(F8)'}</button>
           <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={onClose}>닫기</button>
         </div>

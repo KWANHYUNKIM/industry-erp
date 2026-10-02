@@ -300,8 +300,8 @@ export default function WorkProcessPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {ok && <p style={{ background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
       <EcStatusPanel
         from={from} to={to}
@@ -360,10 +360,10 @@ export default function WorkProcessPage() {
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
         {rows.length}줄
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
-        미작업량 합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{num(totalRemain)}</b>
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
+        미작업량 합계 <b className="text-ec-navy text-[14px]">{num(totalRemain)}</b>
       </div>
 
       <div className="overflow-x-auto">
@@ -372,52 +372,52 @@ export default function WorkProcessPage() {
         <table className="ec-grid w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
-              <th style={{ width: 160 }}>작업지시No.</th>
-              <th style={{ width: 100 }}>지시일자</th>
+              <th className="w-[34px]"></th>
+              <th className="w-[160px]">작업지시No.</th>
+              <th className="w-[100px]">지시일자</th>
               <th>생산품목</th>
-              <th style={{ width: 60, textAlign: 'right' }}>순서</th>
-              <th style={{ width: 130 }}>작업/공정</th>
-              <th style={{ width: 150 }}>작업품목</th>
-              <th style={{ width: 90, textAlign: 'right' }}>지시수량</th>
-              <th style={{ width: 90, textAlign: 'right' }}>완료</th>
-              <th style={{ width: 100, textAlign: 'right' }}>미작업량</th>
-              <th style={{ width: 90, textAlign: 'right' }}>처리수량</th>
-              <th style={{ width: 90, textAlign: 'right' }}>작업시간(분)</th>
-              <th style={{ width: 80, textAlign: 'center' }}>처리</th>
+              <th className="w-[60px] text-right">순서</th>
+              <th className="w-[130px]">작업/공정</th>
+              <th className="w-[150px]">작업품목</th>
+              <th className="w-[90px] text-right">지시수량</th>
+              <th className="w-[90px] text-right">완료</th>
+              <th className="w-[100px] text-right">미작업량</th>
+              <th className="w-[90px] text-right">처리수량</th>
+              <th className="w-[90px] text-right">작업시간(분)</th>
+              <th className="w-[80px] text-center">처리</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={13} className="ec-empty">불러오는 중…</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>
+              <tr><td colSpan={13} className="text-center text-ec-hint p-[20px]">
                 처리할 작업이 없습니다. 품목에 BOR(작업소요시간)이 있어야 여기 나옵니다.
               </td></tr>
             ) : capped.rows.map((r, i) => (
               <tr key={r.key}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)', whiteSpace: 'nowrap' }}>
+                <td className="text-center text-ec-hint whitespace-nowrap">
                   <input type="checkbox" aria-label={`${r.wo.orderNo} ${r.workName} 선택`} checked={picked.has(r.key)}
                          onChange={() => setPicked((s) => { const n = new Set(s); if (n.has(r.key)) n.delete(r.key); else n.add(r.key); return n })} />
                   {' '}{i + 1}
                 </td>
-                <td style={{ fontFamily: 'monospace' }}>{r.wo.orderNo}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.wo.orderDate.replace(/-/g, '/')}</td>
+                <td>{r.wo.orderNo}</td>
+                <td>{r.wo.orderDate.replace(/-/g, '/')}</td>
                 <td>[{r.wo.productCode}] {r.wo.productName}</td>
-                <td style={{ textAlign: 'right' }}>{r.seq}</td>
-                <td>{r.workName} <span style={{ color: 'var(--ec-text-hint)', fontSize: 11.5 }}>({r.processName})</span></td>
+                <td className="text-right">{r.seq}</td>
+                <td>{r.workName} <span className="text-ec-hint text-[11.5px]">({r.processName})</span></td>
                 <td style={{ color: r.workItemLabel ? undefined : 'var(--ec-text-hint)' }}>{r.workItemLabel || ''}</td>
-                <td style={{ textAlign: 'right' }}>{num(r.wo.plannedQty)}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{num(r.doneQty)}</td>
+                <td className="text-right">{num(r.wo.plannedQty)}</td>
+                <td className="text-right text-ec-label">{num(r.doneQty)}</td>
                 {/* 직전작업 기준이면 앞 공정이 덜 끝난 만큼 여기서 막힌다 */}
-                <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--ec-danger)' }}>
+                <td className="text-right font-bold text-ec-danger">
                   {num(r.remainQty)}
                   {prevBased && r.remainQty < r.wo.plannedQty - r.doneQty && (
                     <span title={`직전작업 완료 ${num(r.availableQty)}에 막혀 있습니다.`}
                           style={{ color: 'var(--ec-warn)' }}> *</span>
                   )}
                 </td>
-                <td style={{ textAlign: 'right' }}>
+                <td className="text-right">
                   <input className="ec-input text-right" type="number" style={{ width: 70 }}
                          value={input[r.key]?.qty ?? ''}
                          onChange={(e) => {
@@ -427,12 +427,12 @@ export default function WorkProcessPage() {
                            if (Number(qty) > 0) setPicked((s) => new Set(s).add(r.key))
                          }} />
                 </td>
-                <td style={{ textAlign: 'right' }}>
+                <td className="text-right">
                   <input className="ec-input text-right" type="number" style={{ width: 70 }}
                          value={input[r.key]?.minutes ?? ''}
                          onChange={(e) => setInput((p) => ({ ...p, [r.key]: { qty: p[r.key]?.qty ?? '', minutes: e.target.value } }))} />
                 </td>
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-center">
                   <button className="ec-btn" style={{ height: 20, padding: '0 6px' }} onClick={() => process(r)}>처리</button>
                 </td>
               </tr>
@@ -440,13 +440,13 @@ export default function WorkProcessPage() {
           </tbody>
         </table>
         {rows.length > 300 && (
-          <p style={{ fontSize: 11.5, color: 'var(--ec-warn)', marginTop: 6 }}>
+          <p className="text-[11.5px] text-ec-warn mt-[6px]">
             * 앞의 300줄만 보여 줍니다({rows.length}줄 중). 기간이나 품목을 좁혀 주세요.
           </p>
         )}
       </div>
 
-      <p style={{ marginTop: 8, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
+      <p className="mt-[8px] text-[11.5px] text-ec-hint">
         * [잔량기준] 직전작업을 켜면 <b>앞 공정이 끝낸 만큼만</b> 처리할 수 있습니다.
         끄면 지시수량까지 열립니다 — 조립을 하나도 안 했는데 검사를 100개 했다고 적히는 것을 막는 장치입니다.
       </p>

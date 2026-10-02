@@ -48,42 +48,42 @@ export default function SalesOrderPickModal({ open, onClose, onApply }: {
         {(['전체', '진행중', '완료'] as const).map((t) => (
           <button key={t} type="button" className={`ec-pill no-ec${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>{t}</button>
         ))}
-        <span style={{ marginLeft: 'auto', fontSize: 11.5, color: 'var(--ec-text-hint)' }}>{dateText(ORDER_PERIOD.from)} ~ {dateText(ORDER_PERIOD.to)}</span>
+        <span className="ml-auto text-[11.5px] text-ec-hint">{dateText(ORDER_PERIOD.from)} ~ {dateText(ORDER_PERIOD.to)}</span>
       </div>
-      <div style={{ maxHeight: '55vh', overflowY: 'auto' }}>
+      <div className="max-h-[55vh] overflow-y-auto">
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 30 }} />
+              <th className="w-[30px]" />
               <th>일자-No.</th>
               <th>거래처명</th>
               <th>사원(담당)명</th>
               <th>품목명</th>
               <th>납기일자</th>
-              <th style={{ textAlign: 'right' }}>주문금액합계</th>
+              <th className="text-right">주문금액합계</th>
               <th>진행상태</th>
             </tr>
           </thead>
           <tbody>
             {shown.length === 0 ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={8} className="text-center text-ec-hint p-[16px]">등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((o) => (
-              <tr key={o.id} style={{ cursor: 'pointer' }}
+              <tr key={o.id} className="cursor-pointer"
                   onClick={() => setPicked((p) => (p.includes(o.id) ? p.filter((x) => x !== o.id) : [...p, o.id]))}>
-                <td style={{ textAlign: 'center' }}><input type="checkbox" readOnly checked={picked.includes(o.id)} /></td>
+                <td className="text-center"><input type="checkbox" readOnly checked={picked.includes(o.id)} /></td>
                 <td>{dateText(o.orderDate)} {o.orderNo}</td>
                 <td>{o.partnerName ?? ''}</td>
                 <td>{o.employeeName ?? ''}</td>
                 <td>{o.lines[0]?.itemName ?? ''}{o.lines.length > 1 ? ` 외 ${o.lines.length - 1}건` : ''}</td>
                 <td>{dateText(o.dueDate) || ''}</td>
-                <td style={{ textAlign: 'right' }}>{won(Number(o.totalAmount))}</td>
+                <td className="text-right">{won(Number(o.totalAmount))}</td>
                 <td>{o.statusName}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <div style={{ display: 'flex', gap: 4, marginTop: 10 }}>
+      <div className="flex gap-[4px] mt-[10px]">
         <button type="button" className="ec-btn ec-btn-primary" onClick={apply}>적용(F8)</button>
         <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
       </div>

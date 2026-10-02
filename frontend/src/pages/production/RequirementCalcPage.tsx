@@ -129,7 +129,7 @@ export default function RequirementCalcPage() {
       <EcSlipShell
         title="소요량계산"
         actions={[{ label: '계산(F8)', primary: true, submit: true }]}
-        help={<p style={{ margin: 0 }}>생산할 품목과 수량을 넣고 [계산(F8)]을 누르면 BOM 으로 소요량을 셉니다. 저장하지 않습니다.</p>}
+        help={<p className="m-0">생산할 품목과 수량을 넣고 [계산(F8)]을 누르면 BOM 으로 소요량을 셉니다. 저장하지 않습니다.</p>}
       >
         <ul className="ec-form">
           <li><div className="title">일자</div><div className="form"><EcDateField value={date} onChange={setDate} /></div></li>
@@ -166,17 +166,17 @@ export default function RequirementCalcPage() {
         </div>
         <table className="ec-grid-input no-ec" style={{ tableLayout: 'fixed', minWidth: 800 }}>
           <colgroup>
-            <col style={{ width: 30 }} /><col style={{ width: 120 }} /><col style={{ width: 280 }} />
-            <col style={{ width: 140 }} /><col style={{ width: 110 }} /><col style={{ width: 110 }} />
+            <col className="w-[30px]" /><col className="w-[120px]" /><col className="w-[280px]" />
+            <col className="w-[140px]" /><col className="w-[110px]" /><col className="w-[110px]" />
           </colgroup>
           <thead>
             <tr>
               <th />
-              <th style={{ textAlign: 'left' }}>품목코드</th>
-              <th style={{ textAlign: 'left' }}>품목명</th>
-              <th style={{ textAlign: 'left' }}>규격</th>
-              <th style={{ textAlign: 'left' }}>BOM버전</th>
-              <th style={{ textAlign: 'right' }}>수량</th>
+              <th className="text-left">품목코드</th>
+              <th className="text-left">품목명</th>
+              <th className="text-left">규격</th>
+              <th className="text-left">BOM버전</th>
+              <th className="text-right">수량</th>
             </tr>
           </thead>
           <tbody>
@@ -185,19 +185,19 @@ export default function RequirementCalcPage() {
               const vs = versions.filter((v) => String(v.productId) === l.itemId)
               return (
                 <tr key={l.key}>
-                  <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{idx + 1}</td>
-                  <td className="pad" style={{ fontFamily: 'ui-monospace, monospace', color: 'var(--ec-label)' }}>{it?.code ?? ''}</td>
+                  <td className="text-center bg-ec-stripe text-ec-hint">{idx + 1}</td>
+                  <td className="pad text-ec-label">{it?.code ?? ''}</td>
                   <td className="pad">
                     <CodePickerField label="품목" hideLabel fill placeholder="" emptyLabel="선택 해제"
                                      value={l.itemId} onChange={(v) => setLine(l.key, { itemId: v })} items={itemPicks} />
                   </td>
-                  <td className="pad" style={{ color: 'var(--ec-label)' }}>{it?.spec ?? ''}</td>
+                  <td className="pad text-ec-label">{it?.spec ?? ''}</td>
                   <td>
                     {vs.length > 1 ? (
                       <select className="cell" value={l.bomId} onChange={(e) => setLine(l.key, { bomId: e.target.value })}>
                         {vs.map((v) => <option key={v.id} value={v.defaultVersion ? '' : String(v.id)}>{v.versionName}{v.defaultVersion ? '(기본)' : ''}</option>)}
                       </select>
-                    ) : <span className="pad" style={{ color: 'var(--ec-text-hint)', fontSize: 12 }}>{vs[0]?.versionName ?? ''}</span>}
+                    ) : <span className="pad text-ec-hint text-[12px]">{vs[0]?.versionName ?? ''}</span>}
                   </td>
                   <td>
                     <input className="cell" type="number" step="any" style={{ textAlign: 'right' }} disabled={!l.itemId}
@@ -208,44 +208,44 @@ export default function RequirementCalcPage() {
             })}
           </tbody>
         </table>
-        {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, margin: '8px 0' }}>{error}</p>}
+        {error && <p className="ec-alert ec-alert-danger my-[8px] mx-0">{error}</p>}
       </EcSlipShell>
 
       <Modal open={result != null} title="소요량" error={error} width={900} onClose={() => setResult(null)}>
         {result && (
-          <div ref={resultRef} style={{ maxHeight: '64vh', overflowY: 'auto' }}>
-            <div style={{ fontWeight: 700, margin: '4px 0' }}>I. 생산품목</div>
+          <div ref={resultRef} className="max-h-[64vh] overflow-y-auto">
+            <div className="font-bold my-[4px] mx-0">I. 생산품목</div>
             <table className="w-full text-left">
               <thead>
-                <tr><th>품목코드</th><th>품목명</th><th>BOM번호</th><th>BOM버전</th><th>규격</th><th>단위</th><th style={{ textAlign: 'right' }}>생산수량</th></tr>
+                <tr><th>품목코드</th><th>품목명</th><th>BOM번호</th><th>BOM버전</th><th>규격</th><th>단위</th><th className="text-right">생산수량</th></tr>
               </thead>
               <tbody>
                 {result.prod.map((p) => (
                   <tr key={p.line.key}>
                     <td>{p.item.code}</td><td>{p.item.name}</td><td>{p.bomNo || ''}</td><td>{p.versionName}</td>
-                    <td>{p.item.spec ?? ''}</td><td>{p.item.unit}</td><td style={{ textAlign: 'right' }}>{won(Number(p.line.qty))}</td>
+                    <td>{p.item.spec ?? ''}</td><td>{p.item.unit}</td><td className="text-right">{won(Number(p.line.qty))}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'right', fontWeight: 700 }}>합계</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(result.prod.reduce((n, p) => n + Number(p.line.qty), 0))}</td>
+                  <td colSpan={6} className="text-right font-bold">합계</td>
+                  <td className="text-right font-bold">{won(result.prod.reduce((n, p) => n + Number(p.line.qty), 0))}</td>
                 </tr>
               </tfoot>
             </table>
-            <div style={{ fontWeight: 700, margin: '12px 0 4px' }}>II. 소모품목</div>
+            <div className="font-bold mt-[12px] mx-0 mb-[4px]">II. 소모품목</div>
             <table className="w-full text-left">
               <thead>
-                <tr><th>품목코드</th><th>품목명[규격]</th><th style={{ textAlign: 'right' }}>소요량</th><th style={{ textAlign: 'right' }}>재고수량</th><th>거래처명</th><th>적요</th></tr>
+                <tr><th>품목코드</th><th>품목명[규격]</th><th className="text-right">소요량</th><th className="text-right">재고수량</th><th>거래처명</th><th>적요</th></tr>
               </thead>
               <tbody>
                 {result.needs.every((g) => g.rows.length === 0) ? (
-                  <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
+                  <tr><td colSpan={6} className="text-center text-ec-hint p-[16px]">등록된 데이터가 없습니다.</td></tr>
                 ) : result.needs.map((g, gi) => (
                   <Fragment key={gi}>
                     {g.owner && (
-                      <tr><td colSpan={6} style={{ background: 'var(--ec-bg-page)', fontWeight: 700 }}>{g.owner.code} {g.owner.name}</td></tr>
+                      <tr><td colSpan={6} className="bg-ec-page font-bold">{g.owner.code} {g.owner.name}</td></tr>
                     )}
                     {g.rows.map((n) => {
                       const it = itemById.get(String(n.componentId))
@@ -254,10 +254,10 @@ export default function RequirementCalcPage() {
                         <tr key={`${gi}-${n.componentId}`}>
                           <td>{n.componentCode}</td>
                           <td>{n.componentName}{n.componentSpec ? ` [${n.componentSpec}]` : ''}</td>
-                          <td style={{ textAlign: 'right' }}>{won(Number(n.quantity))}</td>
+                          <td className="text-right">{won(Number(n.quantity))}</td>
                           <td style={{ textAlign: 'right', color: onHand < Number(n.quantity) ? 'var(--ec-danger)' : undefined }}>{won(onHand)}</td>
                           <td>{partnerName(it?.supplierId)}</td>
-                          <td style={{ color: 'var(--ec-danger)', fontSize: 12 }}>{onHand < Number(n.quantity) ? `부족 ${won(Number(n.quantity) - onHand)}` : ''}</td>
+                          <td className="text-ec-danger text-[12px]">{onHand < Number(n.quantity) ? `부족 ${won(Number(n.quantity) - onHand)}` : ''}</td>
                         </tr>
                       )
                     })}
@@ -266,8 +266,8 @@ export default function RequirementCalcPage() {
               </tbody>
               <tfoot>
                 <tr>
-                  <td colSpan={2} style={{ textAlign: 'right', fontWeight: 700 }}>합계</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(result.needs.reduce((n, g) => n + g.rows.reduce((m, r) => m + Number(r.quantity), 0), 0))}</td>
+                  <td colSpan={2} className="text-right font-bold">합계</td>
+                  <td className="text-right font-bold">{won(result.needs.reduce((n, g) => n + g.rows.reduce((m, r) => m + Number(r.quantity), 0), 0))}</td>
                   <td colSpan={3} />
                 </tr>
               </tfoot>
@@ -277,23 +277,23 @@ export default function RequirementCalcPage() {
       </Modal>
 
       <Modal open={woOpen} title="작업지시서조회" error={error} width={820} onClose={() => setWoOpen(false)}>
-        <div style={{ maxHeight: '50vh', overflowY: 'auto' }}>
+        <div className="max-h-[50vh] overflow-y-auto">
           <table className="w-full text-left">
-            <thead><tr><th style={{ width: 30 }} /><th>작업지시서일자</th><th>품목코드</th><th>품목명</th><th style={{ textAlign: 'right' }}>잔량</th></tr></thead>
+            <thead><tr><th className="w-[30px]" /><th>작업지시서일자</th><th>품목코드</th><th>품목명</th><th className="text-right">잔량</th></tr></thead>
             <tbody>
               {orders.length === 0 ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={5} className="text-center text-ec-hint p-[16px]">등록된 데이터가 없습니다.</td></tr>
               ) : orders.map((o) => (
-                <tr key={o.id} style={{ cursor: 'pointer' }} onClick={() => setPicked((p) => (p.includes(o.id) ? p.filter((x) => x !== o.id) : [...p, o.id]))}>
-                  <td style={{ textAlign: 'center' }}><input type="checkbox" readOnly checked={picked.includes(o.id)} /></td>
+                <tr key={o.id} className="cursor-pointer" onClick={() => setPicked((p) => (p.includes(o.id) ? p.filter((x) => x !== o.id) : [...p, o.id]))}>
+                  <td className="text-center"><input type="checkbox" readOnly checked={picked.includes(o.id)} /></td>
                   <td>{dateText(o.orderDate)} {o.orderNo}</td><td>{o.productCode}</td><td>{o.productName}</td>
-                  <td style={{ textAlign: 'right' }}>{won(Number(o.remainingQty))}</td>
+                  <td className="text-right">{won(Number(o.remainingQty))}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
+        <div className="flex gap-[4px] mt-[8px]">
           <button type="button" className="ec-btn ec-btn-primary" onClick={applyOrders}>적용(F8)</button>
           <button type="button" className="ec-btn" onClick={() => setWoOpen(false)}>닫기</button>
         </div>

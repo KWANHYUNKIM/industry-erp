@@ -197,43 +197,43 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
       title={mode === 'AP' ? '월별채무증감내역' : '월별채권증감내역'}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
     >
-      <p className="mb-2 text-xs text-slate-500">
+      <p className="mb-2 text-xs text-ec-hint">
         채권=매출−수금, 채무=매입−지급. 전월이월(1월) = 해당 연도 시작 이전 누적 순잔액.
         {settlements.length === 0 && ' (정산 데이터가 없어 감소=0으로 표시됩니다.)'}
       </p>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 12.5, color: 'var(--ec-text)', fontWeight: 600 }}>연도</span>
+      <div className="flex items-center gap-[12px] mb-[10px] flex-wrap">
+        <div className="flex items-center gap-[6px]">
+          <span className="text-[12.5px] text-ec-text font-semibold">연도</span>
           <select className="ec-input" value={year} onChange={(e) => setYear(Number(e.target.value))} style={{ width: 100 }}>
             {years.map((y) => <option key={y} value={y}>{y}년</option>)}
           </select>
         </div>
         {/* 원본 조건 [거래처] — 이름은 응답에 진작 실려 오는데 거를 수가 없었다. */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 12.5, color: 'var(--ec-text)', fontWeight: 600 }}>거래처</span>
+        <div className="flex items-center gap-[6px]">
+          <span className="text-[12.5px] text-ec-text font-semibold">거래처</span>
           <CodePickerField label="거래처" hideLabel width={180} emptyLabel="전체"
                            value={partner} onChange={setPartner} items={pickers.partners} />
         </div>
         {/* 원본 차례: 거래처 → <b>거래처그룹1</b> → [대표거래처로 합산] → [거래처관리담당자] (사본 실측). */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 12.5, color: 'var(--ec-text)', fontWeight: 600 }}>거래처그룹1</span>
+        <div className="flex items-center gap-[6px]">
+          <span className="text-[12.5px] text-ec-text font-semibold">거래처그룹1</span>
           <CodePickerField label="거래처그룹1" hideLabel width={150} emptyLabel="전체"
                            value={partnerGroup} onChange={setPartnerGroup}
                            items={pgroups.groupOptions.map((g) => ({ value: g, name: g }))} />
         </div>
-        <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+        <label className="text-[12.5px] flex items-center gap-[4px]">
           <input type="checkbox" checked={rollUp} onChange={(e) => setRollUp(e.target.checked)} disabled={!partner} />
           <span style={{ color: partner ? undefined : '#a8b0ba' }}>대표거래처로 합산</span>
         </label>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 12.5, color: 'var(--ec-text)', fontWeight: 600 }}>거래처관리담당자</span>
+        <div className="flex items-center gap-[6px]">
+          <span className="text-[12.5px] text-ec-text font-semibold">거래처관리담당자</span>
           {/* 원본은 사람을 고르는 칸을 <b>코드도움</b>으로 둔다 — 거래처 칸과 같은 모양이다. */}
           <CodePickerField label="거래처관리담당자" hideLabel width={150} emptyLabel="전체"
                            value={manager} onChange={setManager}
                            items={managers.map((m) => ({ value: m, name: m }))} />
         </div>
-        <div style={{ display: 'flex', gap: 2 }}>
+        <div className="flex gap-[2px]">
           {(['AR', 'AP'] as const).map((m) => (
             <button key={m} onClick={() => setMode(m)} className="no-ec" style={{
               padding: '5px 14px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
@@ -241,12 +241,12 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
             }}>{m === 'AR' ? '채권(받을 돈)' : '채무(줄 돈)'}</button>
           ))}
         </div>
-        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--ec-label)' }}>
+        <div className="ml-auto text-[12.5px] text-ec-label">
           연말잔액 <b style={{ color: closing >= 0 ? 'var(--ec-blue-dark)' : 'var(--ec-danger)', fontSize: 15 }}>{won(closing)}</b>
         </div>
       </div>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       {/*
         원본 격자(E040713): 거래처코드 · 거래처명 · 구분 · 이월잔액 · (기간의 달마다 한 열) · 잔액.
@@ -284,21 +284,21 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
       <table className="text-left ec-report ec-report-fixed">
         <thead>
           <tr>
-            <th style={{ width: 100 }}>거래처코드</th>
-            <th style={{ width: 115 }}>거래처명</th>
-            <th style={{ width: 100 }}>구분</th>
-            <th style={{ textAlign: 'right', width: 100 }}>이월잔액</th>
+            <th className="w-[100px]">거래처코드</th>
+            <th className="w-[115px]">거래처명</th>
+            <th className="w-[100px]">구분</th>
+            <th className="text-right w-[100px]">이월잔액</th>
             {MONTHS.map((mo) => (
-              <th key={mo} style={{ textAlign: 'right', width: 100 }}>{year}/{String(mo).padStart(2, '0')}</th>
+              <th key={mo} className="text-right w-[100px]">{year}/{String(mo).padStart(2, '0')}</th>
             ))}
-            <th style={{ textAlign: 'right', width: 100 }}>잔액</th>
+            <th className="text-right w-[100px]">잔액</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={16} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={16} className="ec-empty">불러오는 중…</td></tr>
           ) : byPartner.length === 0 ? (
-            <tr><td colSpan={16} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={16} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : byPartner.flatMap((r, ri) => {
             /*
              * <b>줄마다 [이월잔액]·[잔액] 칸의 뜻이 다르다</b> — 2026-09-21 원본 실측.
@@ -318,33 +318,33 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
                 <td rowSpan={3}>{r.code}</td>
                 <td rowSpan={3}>{r.name}</td>
                 <td>{incWord}</td>
-                <td style={{ textAlign: 'right' }} />
+                <td className="text-right" />
                 {MONTHS.map((mo) => (
-                  <td key={mo} style={{ textAlign: 'right' }}>
+                  <td key={mo} className="text-right">
                     {r.inc[mo] ? won(r.inc[mo]) : ''}
                   </td>
                 ))}
-                <td style={{ textAlign: 'right' }}>{sumInc ? won(sumInc) : ''}</td>
+                <td className="text-right">{sumInc ? won(sumInc) : ''}</td>
               </tr>,
               <tr key={`${r.name}-dec`} className={stripe}>
                 <td>{decWord}</td>
-                <td style={{ textAlign: 'right' }} />
+                <td className="text-right" />
                 {MONTHS.map((mo) => (
-                  <td key={mo} style={{ textAlign: 'right' }}>
+                  <td key={mo} className="text-right">
                     {r.dec[mo] ? won(r.dec[mo]) : ''}
                   </td>
                 ))}
-                <td style={{ textAlign: 'right' }}>{sumDec ? won(sumDec) : ''}</td>
+                <td className="text-right">{sumDec ? won(sumDec) : ''}</td>
               </tr>,
               <tr key={`${r.name}-bal`} className={stripe}>
                 <td>잔액</td>
-                <td style={{ textAlign: 'right' }}>{r.opening ? won(r.opening) : ''}</td>
+                <td className="text-right">{r.opening ? won(r.opening) : ''}</td>
                 {MONTHS.map((mo) => (
-                  <td key={mo} style={{ textAlign: 'right' }}>
+                  <td key={mo} className="text-right">
                     {running[mo] ? won(running[mo]) : ''}
                   </td>
                 ))}
-                <td style={{ textAlign: 'right' }}>{r.closing ? won(r.closing) : ''}</td>
+                <td className="text-right">{r.closing ? won(r.closing) : ''}</td>
               </tr>,
             ]
           })}
@@ -358,37 +358,37 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
         아래는 원본에 없다 — 온 회사를 달마다 한 줄로 접은 <b>우리가 더 두는 표</b>다.
         위 표가 거래처별로 갈리므로 "이 달에 통틀어 얼마" 는 여기서 본다.
       */}
-      <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>월별 합계</h3>
+      <h3 className="text-[13px] font-bold mt-[16px] mx-0 mb-[6px]">월별 합계</h3>
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 70 }}>월</th>
-            <th style={{ textAlign: 'right' }}>전월이월</th>
-            <th style={{ textAlign: 'right' }}>{incLabel}</th>
-            <th style={{ textAlign: 'right' }}>{decLabel}</th>
-            <th style={{ textAlign: 'right' }}>당월잔액</th>
+            <th className="w-[70px]">월</th>
+            <th className="text-right">전월이월</th>
+            <th className="text-right">{incLabel}</th>
+            <th className="text-right">{decLabel}</th>
+            <th className="text-right">당월잔액</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={5} className="ec-empty">불러오는 중…</td></tr>
           ) : rows.map((r) => (
             <tr key={r.month}>
-              <td style={{ fontWeight: 600 }}>{r.month}월</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{won(r.opening)}</td>
+              <td className="font-semibold">{r.month}월</td>
+              <td className="text-right text-ec-hint">{won(r.opening)}</td>
               <td style={{ textAlign: 'right', color: r.increase ? incColor : 'var(--ec-text-off)', fontWeight: r.increase ? 600 : 400 }}>{r.increase ? won(r.increase) : ''}</td>
               <td style={{ textAlign: 'right', color: r.decrease ? decColor : 'var(--ec-text-off)', fontWeight: r.decrease ? 600 : 400 }}>{r.decrease ? won(r.decrease) : ''}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(r.closing)}</td>
+              <td className="text-right font-bold">{won(r.closing)}</td>
             </tr>
           ))}
         </tbody>
         <tfoot>
-          <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
+          <tr className="font-bold bg-ec-page">
             <td>연간합계</td>
             <td></td>
             <td style={{ textAlign: 'right', color: incColor }}>{won(totals.inc)}</td>
             <td style={{ textAlign: 'right', color: decColor }}>{won(totals.dec)}</td>
-            <td style={{ textAlign: 'right' }}>{won(closing)}</td>
+            <td className="text-right">{won(closing)}</td>
           </tr>
         </tfoot>
       </table>

@@ -104,13 +104,13 @@ export default function FixedAssetSlipListPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={QUOTATION_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
@@ -122,11 +122,11 @@ export default function FixedAssetSlipListPage() {
                            items={assets.map((a) => ({ value: String(a.id), code: a.assetNo, name: a.name }))} />
         </EcCond>
         <EcCond label="구분">
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+          <label className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
             <input type="checkbox" checked={allOn} onChange={(e) => setKinds({ 자산증가: e.target.checked, 매각: e.target.checked, 폐기: e.target.checked, 감가상각: e.target.checked })} /> 전체
           </label>
           {KINDS.map((k) => (
-            <label key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+            <label key={k} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
               <input type="checkbox" checked={kinds[k]} onChange={(e) => setKinds((s) => ({ ...s, [k]: e.target.checked }))} /> {k}
             </label>
           ))}
@@ -136,30 +136,30 @@ export default function FixedAssetSlipListPage() {
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ textAlign: 'center' }}>일자-No.</th>
-            <th style={{ textAlign: 'center' }}>구분</th>
+            <th className="w-[34px]"></th>
+            <th className="text-center">일자-No.</th>
+            <th className="text-center">구분</th>
             <th>자산계정명</th>
-            <th style={{ textAlign: 'right' }}>원가</th>
-            <th style={{ textAlign: 'right' }}>감가상각충당금</th>
-            <th style={{ textAlign: 'right' }}>처분금액</th>
+            <th className="text-right">원가</th>
+            <th className="text-right">감가상각충당금</th>
+            <th className="text-right">처분금액</th>
             <th>적요</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((r, i) => (
             <tr key={r.key}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-              <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{r.date.replace(/-/g, '/')} {r.no}</td>
-              <td style={{ textAlign: 'center' }}>{r.kind}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td className="text-center">{r.date.replace(/-/g, '/')} {r.no}</td>
+              <td className="text-center">{r.kind}</td>
               <td>{r.a.assetAccountName}</td>
-              <td style={{ textAlign: 'right' }}>{won(r.cost)}</td>
-              <td style={{ textAlign: 'right' }}>{won(r.dep)}</td>
-              <td style={{ textAlign: 'right' }}>{won(r.sold)}</td>
+              <td className="text-right">{won(r.cost)}</td>
+              <td className="text-right">{won(r.dep)}</td>
+              <td className="text-right">{won(r.sold)}</td>
               <td>{r.remark}</td>
             </tr>
           ))}

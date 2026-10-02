@@ -63,9 +63,9 @@ export default function MessengerPanel({ onUnreadChange }: { onUnreadChange?: ()
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+    <div className="flex flex-col h-full min-h-0">
       {error && (
-        <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, margin: '10px 12px 0' }}>
+        <p className="ec-alert ec-alert-danger mt-[10px] mx-[12px] mb-0">
           {error}
         </p>
       )}
@@ -104,12 +104,12 @@ export default function MessengerPanel({ onUnreadChange }: { onUnreadChange?: ()
 function RoomList({ rooms, onOpen, onNew }: { rooms: ChatRoom[]; onOpen: (r: ChatRoom) => void; onNew: () => void }) {
   return (
     <>
-      <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--ec-border)' }}>
+      <div className="py-[10px] px-[12px] border-b border-b-ec-line border-solid">
         <button className="ec-btn ec-btn-primary" style={{ width: '100%' }} onClick={onNew}>＋ 새 대화</button>
       </div>
-      <div style={{ flex: 1, overflow: 'auto' }}>
+      <div className="flex-1 overflow-auto">
         {rooms.length === 0 ? (
-          <p style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 24, fontSize: 12.5 }}>
+          <p className="text-center text-ec-hint p-[24px] text-[12.5px]">
             대화방이 없습니다.<br />[새 대화]로 시작하세요.
           </p>
         ) : rooms.map((r) => (
@@ -123,25 +123,22 @@ function RoomList({ rooms, onOpen, onNew }: { rooms: ChatRoom[]; onOpen: (r: Cha
             }}
           >
             <Avatar label={r.title} group={!r.direct} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-[5px]">
                 <span style={{ fontSize: 12.5, fontWeight: 700, color: '#2b3340', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {r.title}
                 </span>
-                {!r.direct && <span style={{ fontSize: 11, color: 'var(--ec-text-hint)' }}>{r.memberCount}</span>}
-                <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--ec-text-hint)', whiteSpace: 'nowrap' }}>
+                {!r.direct && <span className="text-[11px] text-ec-hint">{r.memberCount}</span>}
+                <span className="ml-auto text-[11px] text-ec-hint whitespace-nowrap">
                   {shortTime(r.lastMessageAt)}
                 </span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+              <div className="flex items-center gap-[6px] mt-[2px]">
                 <span style={{ flex: 1, fontSize: 12, color: '#7b8390', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {r.lastMessage ? (r.direct ? '' : `${r.lastSenderName}: `) + r.lastMessage : '대화 없음'}
                 </span>
                 {r.unread > 0 && (
-                  <span style={{
-                    minWidth: 16, height: 16, padding: '0 4px', borderRadius: 8, background: 'var(--ec-danger)',
-                    color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>{r.unread}</span>
+                  <span className="min-w-[16px] h-[16px] py-0 px-[4px] rounded-[8px] bg-ec-danger text-white text-[10px] font-bold flex items-center justify-center">{r.unread}</span>
                 )}
               </div>
             </div>
@@ -203,8 +200,8 @@ function NewChat({ meId, onCancel, onCreated, onError }: {
 
   return (
     <>
-      <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--ec-border)' }}>
-        <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+      <div className="py-[10px] px-[12px] border-b border-b-ec-line border-solid">
+        <div className="flex gap-[6px] mb-[6px]">
           <button className="ec-btn" onClick={onCancel}>← 목록</button>
           <span style={{ alignSelf: 'center', fontSize: 12.5, fontWeight: 700, color: 'var(--ec-blue-dark)' }}>새 대화</span>
         </div>
@@ -220,9 +217,9 @@ function NewChat({ meId, onCancel, onCreated, onError }: {
         )}
       </div>
 
-      <div style={{ flex: 1, overflow: 'auto' }}>
+      <div className="flex-1 overflow-auto">
         {matched.length === 0 ? (
-          <p style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 24, fontSize: 12.5 }}>해당하는 사용자가 없습니다.</p>
+          <p className="text-center text-ec-hint p-[24px] text-[12.5px]">해당하는 사용자가 없습니다.</p>
         ) : matched.map((u) => (
           <label key={u.id} style={{
             display: 'flex', alignItems: 'center', gap: 9, padding: '8px 12px',
@@ -232,12 +229,12 @@ function NewChat({ meId, onCancel, onCreated, onError }: {
             <input type="checkbox" checked={picked.includes(u.id)} onChange={() => toggle(u.id)} />
             <Avatar label={u.name} group={false} />
             <span style={{ fontSize: 12.5, color: '#2b3340', fontWeight: 600 }}>{u.name}</span>
-            <span style={{ fontSize: 11.5, color: 'var(--ec-text-hint)' }}>{u.department ?? ''}</span>
+            <span className="text-[11.5px] text-ec-hint">{u.department ?? ''}</span>
           </label>
         ))}
       </div>
 
-      <div style={{ padding: '10px 12px', borderTop: '1px solid var(--ec-border)', display: 'flex', gap: 6 }}>
+      <div className="py-[10px] px-[12px] border-t border-t-ec-line border-solid flex gap-[6px]">
         <span style={{ alignSelf: 'center', fontSize: 12, color: '#7b8390' }}>{picked.length}명 선택</span>
         <button className="ec-btn ec-btn-primary" style={{ marginLeft: 'auto' }} onClick={start} disabled={busy}>
           {busy ? '여는 중…' : picked.length > 1 ? '그룹 대화 만들기' : '대화 시작'}
@@ -350,15 +347,15 @@ function RoomView({ room, meId, messages, setMessages, setRoom, onBack, onError,
 
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderBottom: '1px solid var(--ec-border)' }}>
+      <div className="flex items-center gap-[6px] py-[8px] px-[12px] border-b border-b-ec-line border-solid">
         <button className="ec-btn" onClick={onBack}>←</button>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex-1 min-w-0">
           <div style={{ fontSize: 12.5, fontWeight: 700, color: '#2b3340', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {room.title}
           </div>
           <div
             onClick={() => setShowMembers((v) => !v)}
-            style={{ fontSize: 11, color: 'var(--ec-blue)', cursor: 'pointer' }}
+            className="text-[11px] text-ec-blue cursor-pointer"
           >
             참여자 {room.memberCount}명 {showMembers ? '▲' : '▼'}
           </div>
@@ -376,17 +373,17 @@ function RoomView({ room, meId, messages, setMessages, setRoom, onBack, onError,
 
       <div style={{ flex: 1, overflow: 'auto', padding: 12, background: '#eef1f6' }}>
         {messages.length === 0 && (
-          <p style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20, fontSize: 12.5 }}>첫 메시지를 보내보세요.</p>
+          <p className="text-center text-ec-hint p-[20px] text-[12.5px]">첫 메시지를 보내보세요.</p>
         )}
         {messages.map((m, i) => {
           const showDate = i === 0 || dayOf(m.sentAt) !== dayOf(messages[i - 1].sentAt)
           return (
             <div key={m.id}>
               {showDate && (
-                <div style={{ textAlign: 'center', margin: '8px 0', fontSize: 11, color: 'var(--ec-text-hint)' }}>{dayOf(m.sentAt)}</div>
+                <div className="text-center my-[8px] mx-0 text-[11px] text-ec-hint">{dayOf(m.sentAt)}</div>
               )}
               {m.system ? (
-                <div style={{ textAlign: 'center', margin: '6px 0', fontSize: 11, color: 'var(--ec-text-hint)' }}>{m.content}</div>
+                <div className="text-center my-[6px] mx-0 text-[11px] text-ec-hint">{m.content}</div>
               ) : (
                 <Bubble message={m} mine={m.senderId === meId} showSender={!room.direct} />
               )}
@@ -396,7 +393,7 @@ function RoomView({ room, meId, messages, setMessages, setRoom, onBack, onError,
         <div ref={bottomRef} />
       </div>
 
-      <div style={{ display: 'flex', gap: 6, padding: 10, borderTop: '1px solid var(--ec-border)' }}>
+      <div className="flex gap-[6px] p-[10px] border-t border-t-ec-line border-solid">
         <textarea
           className="ec-input"
           value={text}
@@ -429,7 +426,7 @@ function Bubble({ message, mine, showSender }: { message: ChatMessage; mine: boo
         }}>
           {message.content}
         </div>
-        <span style={{ fontSize: 10, color: 'var(--ec-text-hint)', whiteSpace: 'nowrap' }}>{hhmm(message.sentAt)}</span>
+        <span className="text-[10px] text-ec-hint whitespace-nowrap">{hhmm(message.sentAt)}</span>
       </div>
     </div>
   )

@@ -330,21 +330,21 @@ export default function ShipmentPage() {
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
-        출하 <b style={{ color: 'var(--ec-text)' }}>{shown.length}</b>건
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
-        출하수량 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{won(totals.qty)}</b>
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
-        출하금액 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{won(totals.amount)}</b>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        출하 <b className="text-ec-text">{shown.length}</b>건
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
+        출하수량 <b className="text-ec-navy text-[14px]">{won(totals.qty)}</b>
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
+        출하금액 <b className="text-ec-blue text-[14px]">{won(totals.amount)}</b>
         {prevTotals && prevRange && (
-          <span style={{ marginLeft: 10, color: 'var(--ec-text-hint)' }}>
+          <span className="ml-[10px] text-ec-hint">
             비교기간({prevRange.from.replace(/-/g, '/')} ~ {prevRange.to.replace(/-/g, '/')})
             {' '}{prevTotals.count}건 · 수량 {won(prevTotals.qty)} · 금액 {won(prevTotals.amount)}
           </span>
         )}
       </div>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       {view === '그래프' ? (
         <EcBarChart rows={chartRows} unit=" 원" emptyText="조회된 출하가 없습니다." />
@@ -352,34 +352,34 @@ export default function ShipmentPage() {
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
+              <th className="w-[34px]"></th>
               <th>거래처명</th>
-              <th style={{ width: 100, textAlign: 'right' }}>건수</th>
-              <th style={{ width: 130, textAlign: 'right' }}>수량합계</th>
-              <th style={{ width: 140, textAlign: 'right' }}>금액합계</th>
+              <th className="w-[100px] text-right">건수</th>
+              <th className="w-[130px] text-right">수량합계</th>
+              <th className="w-[140px] text-right">금액합계</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={5} className="ec-empty">불러오는 중…</td></tr>
             ) : byPartner.length === 0 ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={5} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : byPartner.map((g, i) => (
               <tr key={g.partnerId}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
                 <td>{g.name}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{won(g.count)}</td>
-                <td style={{ textAlign: 'right' }}>{won(g.qty)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(g.amount)}</td>
+                <td className="text-right text-ec-hint">{won(g.count)}</td>
+                <td className="text-right">{won(g.qty)}</td>
+                <td className="text-right font-semibold text-ec-blue">{won(g.amount)}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={2} style={{ textAlign: 'right' }}>합계 ({byPartner.length}거래처)</td>
-              <td style={{ textAlign: 'right' }}>{won(shown.length)}</td>
-              <td style={{ textAlign: 'right' }}>{won(totals.qty)}</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(totals.amount)}</td>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={2} className="text-right">합계 ({byPartner.length}거래처)</td>
+              <td className="text-right">{won(shown.length)}</td>
+              <td className="text-right">{won(totals.qty)}</td>
+              <td className="text-right text-ec-blue">{won(totals.amount)}</td>
             </tr>
           </tfoot>
         </table>
@@ -392,39 +392,39 @@ export default function ShipmentPage() {
               단가·금액·상태는 원본에 없지만 우리가 더 두는 열이다.
             */}
             <tr>
-              <th style={{ width: 34 }}></th>
-              <th style={{ width: 190, textAlign: 'center' }}>일자-No.</th>
+              <th className="w-[34px]"></th>
+              <th className="w-[190px] text-center">일자-No.</th>
               <th>품목명(규격)</th>
-              <th style={{ width: 100, textAlign: 'right' }}>수량</th>
-              <th style={{ width: 110, textAlign: 'right' }}>단가</th>
-              <th style={{ width: 130, textAlign: 'right' }}>금액</th>
-              <th style={{ width: 120 }}>창고명</th>
+              <th className="w-[100px] text-right">수량</th>
+              <th className="w-[110px] text-right">단가</th>
+              <th className="w-[130px] text-right">금액</th>
+              <th className="w-[120px]">창고명</th>
               <th>거래처명</th>
-              <th style={{ width: 150 }}>적요</th>
-              <th style={{ width: 90, textAlign: 'center' }}>상태</th>
+              <th className="w-[150px]">적요</th>
+              <th className="w-[90px] text-center">상태</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={10} className="ec-empty">불러오는 중…</td></tr>
             ) : lines.length === 0 ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : lines.map((x, i) => (
               <tr key={x.key}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(x.r.shipDate)} {x.r.shipNo}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td className="text-center">{dateText(x.r.shipDate)} {x.r.shipNo}</td>
                 {/*
                   원본 열 이름이 [품목명(규격)] 이라 규격을 괄호에 붙인다. 품목코드는
                   이 칸에서 빠진다 — 원본도 여기에 코드를 안 적는다(조건 판의 [품목] 코드도움에서 고른다).
                 */}
                 <td>{x.l.itemName}{x.l.spec ? ' (' + x.l.spec + ')' : ''}</td>
-                <td style={{ textAlign: 'right' }}>{won(x.l.quantity)} {x.l.unit}</td>
-                <td style={{ textAlign: 'right' }}>{won(x.l.unitPrice)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(x.l.amount)}</td>
+                <td className="text-right">{won(x.l.quantity)} {x.l.unit}</td>
+                <td className="text-right">{won(x.l.unitPrice)}</td>
+                <td className="text-right font-semibold text-ec-blue">{won(x.l.amount)}</td>
                 <td style={{ color: x.r.warehouseName ? undefined : 'var(--ec-text-off)' }}>{x.r.warehouseName ?? ''}</td>
                 <td>{x.r.partnerName}</td>
                 {/* 줄 적요가 없으면 전표 적요를 보여 준다 — 원본도 한 칸이다. */}
-                <td style={{ color: 'var(--ec-text-hint)' }}>{x.l.remark || x.r.remark || ''}</td>
+                <td className="text-ec-hint">{x.l.remark || x.r.remark || ''}</td>
                 <td style={{ textAlign: 'center', color: STATUS_COLOR[x.r.status], fontWeight: 700 }}>{x.r.statusName}</td>
               </tr>
             ))}

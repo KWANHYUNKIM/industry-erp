@@ -257,14 +257,14 @@ export default function PaymentComparePage() {
         </EcCond>
       </EcStatusPanel>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
-        불일치 <b style={{ color: 'var(--ec-danger)', fontSize: 14 }}>{mismatchCount}</b>건 / 전체 {shown.length}건
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        불일치 <b className="text-ec-danger text-[14px]">{mismatchCount}</b>건 / 전체 {shown.length}건
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
         판매 <b>{totals.sale.toLocaleString('ko-KR')}</b>
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
         결제 <b>{totals.pay.toLocaleString('ko-KR')}</b>
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
         차이 <b style={{ color: totals.sale - totals.pay ? 'var(--ec-danger)' : 'var(--ec-success)' }}>
           {(totals.sale - totals.pay).toLocaleString('ko-KR')}
         </b>
@@ -276,46 +276,46 @@ export default function PaymentComparePage() {
         <table className="ec-grid w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
-              <th style={{ width: 100 }}>일자</th>
+              <th className="w-[34px]"></th>
+              <th className="w-[100px]">일자</th>
               <th>거래처명</th>
               <th>판매전표</th>
-              <th style={{ width: 120, textAlign: 'right' }}>공급가액합계</th>
-              <th style={{ width: 110, textAlign: 'right' }}>부가세합계</th>
-              <th style={{ width: 120, textAlign: 'right' }}>금액합계</th>
+              <th className="w-[120px] text-right">공급가액합계</th>
+              <th className="w-[110px] text-right">부가세합계</th>
+              <th className="w-[120px] text-right">금액합계</th>
               <th>결제내역</th>
-              <th style={{ width: 120, textAlign: 'right' }}>결제합계</th>
-              <th style={{ width: 120, textAlign: 'right' }}>차이</th>
-              <th style={{ width: 70, textAlign: 'center' }}>상태</th>
+              <th className="w-[120px] text-right">결제합계</th>
+              <th className="w-[120px] text-right">차이</th>
+              <th className="w-[70px] text-center">상태</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={11} className="ec-empty">불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : capped.rows.map((r, i) => {
               const diff = r.saleTotal - r.payTotal
               const same = Math.abs(diff) < 0.005
               return (
                 <tr key={r.key}>
-                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                  <td style={{ fontFamily: 'monospace' }}>{r.date.replace(/-/g, '/')}</td>
+                  <td className="text-center text-ec-hint">{i + 1}</td>
+                  <td>{r.date.replace(/-/g, '/')}</td>
                   <td>{r.partnerName}</td>
-                  <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: 'var(--ec-label)' }}>
+                  <td className="text-[11.5px] text-ec-label">
                     {r.saleDocNos.length === 0
-                      ? <span style={{ color: 'var(--ec-text-off)' }}>없음</span>
+                      ? <span className="text-ec-off">없음</span>
                       : `${r.saleDocNos[0]}${r.saleDocNos.length > 1 ? ` 외 ${r.saleDocNos.length - 1}` : ''}`}
                   </td>
-                  <td style={{ textAlign: 'right' }}>{r.supplyAmount.toLocaleString('ko-KR')}</td>
-                  <td style={{ textAlign: 'right' }}>{r.vatAmount.toLocaleString('ko-KR')}</td>
-                  <td style={{ textAlign: 'right' }}>{r.saleTotal.toLocaleString('ko-KR')}</td>
-                  <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: 'var(--ec-label)' }}>
+                  <td className="text-right">{r.supplyAmount.toLocaleString('ko-KR')}</td>
+                  <td className="text-right">{r.vatAmount.toLocaleString('ko-KR')}</td>
+                  <td className="text-right">{r.saleTotal.toLocaleString('ko-KR')}</td>
+                  <td className="text-[11.5px] text-ec-label">
                     {r.payDocNos.length === 0
-                      ? <span style={{ color: 'var(--ec-text-off)' }}>없음</span>
+                      ? <span className="text-ec-off">없음</span>
                       : `${r.payDocNos[0]}${r.payDocNos.length > 1 ? ` 외 ${r.payDocNos.length - 1}` : ''}`}
                   </td>
-                  <td style={{ textAlign: 'right' }}>{r.payTotal.toLocaleString('ko-KR')}</td>
+                  <td className="text-right">{r.payTotal.toLocaleString('ko-KR')}</td>
                   {/* 양수는 아직 못 받은 돈, 음수는 판 것보다 더 받은 돈(선수금) */}
                   <td style={{ textAlign: 'right', fontWeight: 700, color: same ? 'var(--ec-text-hint)' : diff > 0 ? 'var(--ec-danger)' : 'var(--ec-warn)' }}>
                     {diff.toLocaleString('ko-KR')}
@@ -329,12 +329,12 @@ export default function PaymentComparePage() {
           </tbody>
           {shown.length > 0 && (
             <tfoot>
-              <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-                <td colSpan={6} style={{ textAlign: 'right' }}>합계 ({shown.length}줄)</td>
-                <td style={{ textAlign: 'right' }}>{totals.sale.toLocaleString('ko-KR')}</td>
+              <tr className="font-bold bg-ec-page">
+                <td colSpan={6} className="text-right">합계 ({shown.length}줄)</td>
+                <td className="text-right">{totals.sale.toLocaleString('ko-KR')}</td>
                 <td></td>
-                <td style={{ textAlign: 'right' }}>{totals.pay.toLocaleString('ko-KR')}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>
+                <td className="text-right">{totals.pay.toLocaleString('ko-KR')}</td>
+                <td className="text-right text-ec-navy">
                   {(totals.sale - totals.pay).toLocaleString('ko-KR')}
                 </td>
                 <td></td>
@@ -347,24 +347,24 @@ export default function PaymentComparePage() {
             { sale: (r) => r.saleTotal, pay: (r) => r.payTotal })
           return (
             <>
-              <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+              <h3 className="text-[13px] font-bold mt-[16px] mx-0 mb-[6px]">{subtotal} 소계</h3>
               <table className="w-full text-left">
                 <thead><tr>
                   <th>{subtotal}</th>
-                  <th style={{ width: 90, textAlign: 'right' }}>건수</th>
-                  <th style={{ width: 150, textAlign: 'right' }}>매출</th>
-                  <th style={{ width: 150, textAlign: 'right' }}>수금</th>
-                  <th style={{ width: 150, textAlign: 'right' }}>차액</th>
+                  <th className="w-[90px] text-right">건수</th>
+                  <th className="w-[150px] text-right">매출</th>
+                  <th className="w-[150px] text-right">수금</th>
+                  <th className="w-[150px] text-right">차액</th>
                 </tr></thead>
                 <tbody>
                   {groups.map((g) => {
                     const gap = g.sums.sale - g.sums.pay
                     return (
                       <tr key={g.label}>
-                        <td style={{ fontWeight: 600 }}>{g.label}</td>
-                        <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
-                        <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.sums.sale.toLocaleString('ko-KR')}</td>
-                        <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.sums.pay.toLocaleString('ko-KR')}</td>
+                        <td className="font-semibold">{g.label}</td>
+                        <td className="text-right">{g.count}</td>
+                        <td className="text-right">{g.sums.sale.toLocaleString('ko-KR')}</td>
+                        <td className="text-right">{g.sums.pay.toLocaleString('ko-KR')}</td>
                         <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700,
                                      color: Math.abs(gap) < 0.005 ? 'var(--ec-text-hint)' : 'var(--ec-danger)' }}>
                           {gap.toLocaleString('ko-KR')}
@@ -378,7 +378,7 @@ export default function PaymentComparePage() {
           )
         })()}
         {shown.length > 300 && (
-          <p style={{ fontSize: 11.5, color: 'var(--ec-warn)', marginTop: 6 }}>
+          <p className="text-[11.5px] text-ec-warn mt-[6px]">
             * 앞의 300줄만 보여 줍니다({shown.length}줄 중). 기간이나 거래처를 좁혀 주세요.
           </p>
         )}

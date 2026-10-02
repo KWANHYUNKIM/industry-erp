@@ -166,45 +166,45 @@ export default function ProcessPage() {
                 { label: '새로고침', onClick: load },
                 { label: 'Excel' }]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <Modal error={error} open={showForm} title={editId ? '공정수정' : '공정등록'} onClose={() => { setShowForm(false); setEditId(null) }}>{(
         <form onSubmit={submit} style={{ marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>{editId ? '공정 수정' : '새 공정 등록'}</div>
+          <div className="text-[13px] font-extrabold text-ec-navy mb-[8px]">{editId ? '공정 수정' : '새 공정 등록'}</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-5">
             <div>
-              <label className="mb-1 block text-sm text-slate-600">생산공정코드 *</label>
+              <label className="mb-1 block text-sm text-ec-label">생산공정코드 *</label>
               {/* 코드는 작업지시·BOR 이 그 값으로 묶여 있어 만들 때만 정한다. */}
               <input className={inputCls} value={form.code} disabled={editId != null}
                      title={editId != null ? '작업지시·BOR 이 코드로 묶여 있어 수정할 수 없습니다.' : undefined}
                      onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="PRC-060" />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">생산공정명 *</label>
+              <label className="mb-1 block text-sm text-ec-label">생산공정명 *</label>
               <input className={inputCls} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">작업장</label>
+              <label className="mb-1 block text-sm text-ec-label">작업장</label>
               <input className={inputCls} value={form.workcenter} onChange={(e) => setForm({ ...form, workcenter: e.target.value })} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">표준시간(분)</label>
+              <label className="mb-1 block text-sm text-ec-label">표준시간(분)</label>
               <input type="number" step="any" className={inputCls} style={{ textAlign: 'right' }} value={form.stdTimeMin} onChange={(e) => setForm({ ...form, stdTimeMin: e.target.value })} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">순번</label>
+              <label className="mb-1 block text-sm text-ec-label">순번</label>
               <input type="number" className={inputCls} style={{ textAlign: 'right' }} value={form.sortOrder}
                      onChange={(e) => setForm({ ...form, sortOrder: e.target.value })} />
-              <p style={{ fontSize: 11.5, color: 'var(--ec-text-hint)', marginTop: 3 }}>
+              <p className="text-[11.5px] text-ec-hint mt-[3px]">
                 공정을 고르는 자리마다 이 순서로 나옵니다.
               </p>
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">시간당비용</label>
+              <label className="mb-1 block text-sm text-ec-label">시간당비용</label>
               <input type="number" step="any" className={inputCls} style={{ textAlign: 'right' }} value={form.costPerHr} onChange={(e) => setForm({ ...form, costPerHr: e.target.value })} />
             </div>
           </div>
-          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
+          <div className="mt-[12px] flex justify-end">
             <button type="submit" className="ec-btn ec-btn-primary">등록</button>
           </div>
         </form>
@@ -225,7 +225,7 @@ export default function ProcessPage() {
       {/* 원본 공정등록의 조건에 <b>[사용구분]</b> 이 있다 — 이 알약이 그 일을 하는데
           이름표가 없어 무엇을 고르는 알약인지 화면만 보고는 알 수 없었다. */}
       <div className="ec-pills" style={{ marginBottom: 8, alignItems: 'center' }}>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginRight: 6 }}>사용구분</span>
+        <span className="text-[12.5px] text-ec-label mr-[6px]">사용구분</span>
         {(['전체', '사용', '사용중단'] as const).map((t) => (
           <button key={t} type="button" className={`ec-pill no-ec${useTab === t ? ' active' : ''}`}
                   onClick={() => setUseTab(t)}>{t}</button>
@@ -233,31 +233,31 @@ export default function ProcessPage() {
       </div>
         <thead>
           <tr>
-            <th style={{ width: 34, textAlign: 'center' }}>
+            <th className="w-[34px] text-center">
               <input type="checkbox"
                      checked={rows.length > 0 && rows.every((r) => checked.has(r.id))}
                      onChange={() => setChecked(
                        rows.every((r) => checked.has(r.id)) ? new Set() : new Set(rows.map((r) => r.id)),
                      )} />
             </th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('생산공정코드')}>생산공정코드 {sort.mark('생산공정코드')}</th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('생산공정명')}>생산공정명 {sort.mark('생산공정명')}</th>
-            <th style={{ width: 60, cursor: 'pointer' }} onClick={() => sort.toggle('순번')}>순번 {sort.mark('순번')}</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('생산공정코드')}>생산공정코드 {sort.mark('생산공정코드')}</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('생산공정명')}>생산공정명 {sort.mark('생산공정명')}</th>
+            <th className="w-[60px] cursor-pointer" onClick={() => sort.toggle('순번')}>순번 {sort.mark('순번')}</th>
             <th>작업장</th>
-            <th style={{ textAlign: 'right' }}>표준시간(분)</th>
-            <th style={{ textAlign: 'right' }}>시간당비용</th>
-            <th style={{ width: 110, textAlign: 'center' }}>사용</th>
-            <th style={{ width: 60, textAlign: 'center' }}>관리</th>
+            <th className="text-right">표준시간(분)</th>
+            <th className="text-right">시간당비용</th>
+            <th className="w-[110px] text-center">사용</th>
+            <th className="w-[60px] text-center">관리</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <input type="checkbox" checked={checked.has(r.id)} onChange={() => setChecked((prev) => {
                   const next = new Set(prev)
                   if (next.has(r.id)) next.delete(r.id); else next.add(r.id)
@@ -265,7 +265,7 @@ export default function ProcessPage() {
                 })} />
               </td>
               {/* 원본은 코드·이름을 눌러 그 공정을 연다(사본 실측: 두 칸이 링크다). */}
-              <td style={{ fontFamily: 'monospace' }}>
+              <td>
                 <button type="button" onClick={() => openEdit(r)}
                         style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'monospace', fontSize: 12.5 }}>
                   {r.code}
@@ -277,15 +277,15 @@ export default function ProcessPage() {
                   {r.name}
                 </button>
               </td>
-              <td style={{ color: 'var(--ec-label)' }}>{r.sortOrder}</td>
+              <td className="text-ec-label">{r.sortOrder}</td>
               <td>{r.workcenter ?? ''}</td>
-              <td style={{ textAlign: 'right' }}>{r.stdTimeMin.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{r.costPerHr.toLocaleString()}</td>
+              <td className="text-right">{r.stdTimeMin.toLocaleString()}</td>
+              <td className="text-right">{r.costPerHr.toLocaleString()}</td>
               {/*
                 원본 공정등록의 [사용중단/재사용]. 사용 여부는 진작 저장하고 있었는데
                 화면에 없어서 아무도 내릴 수가 없었고, 서버도 그 값을 안 봤다.
               */}
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <button className="ec-btn no-ec" onClick={() => toggleActive(r)}
                         style={{
                           border: 'none', background: 'none', cursor: 'pointer', fontSize: 11.5,
@@ -294,14 +294,14 @@ export default function ProcessPage() {
                   {r.active ? '사용' : '사용중단'}
                 </button>
               </td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <button onClick={() => remove(r)} style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-      <div style={{ textAlign: 'right', marginTop: 6, color: 'var(--ec-text-muted)' }}>
+      <div className="text-right mt-[6px] text-ec-muted">
         표준시간 합계: <b>{total.toLocaleString()}</b> 분
       </div>
     </EcListShell>

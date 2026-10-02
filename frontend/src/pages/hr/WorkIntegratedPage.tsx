@@ -203,7 +203,7 @@ export default function WorkIntegratedPage() {
                   onClick={() => setTab(t)}>{t}</button>
         ))}
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)' }}>
+      <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label">
         <span>기간</span>
         <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 150 }} />
         <span>~</span>
@@ -214,35 +214,35 @@ export default function WorkIntegratedPage() {
           <b>고를 값은 지금 받아 온 줄에서 모은다</b> — 근태 상태와 일정 구분은 서버가 목록으로
           주는 마스터가 아니라서다. 그래서 기간을 바꾸면 고를 수 있는 값도 같이 달라진다.
         */}
-        <span style={{ marginLeft: 8 }}>사원명</span>
+        <span className="ml-[8px]">사원명</span>
         <input className="ec-input" value={nameCond}
                onChange={(e) => setNameCond(e.target.value)} style={{ width: 110 }} />
-        <span style={{ marginLeft: 8 }}>부서</span>
+        <span className="ml-[8px]">부서</span>
         <input className="ec-input" value={deptCond}
                onChange={(e) => setDeptCond(e.target.value)} style={{ width: 110 }} />
         {/* 원본 차례: [부서] 바로 다음이다(사본 실측). */}
-        <span style={{ marginLeft: 8 }}>부서계층그룹</span>
+        <span className="ml-[8px]">부서계층그룹</span>
         <select className="ec-input" value={deptGroup} style={{ width: 130 }}
                 onChange={(e) => setDeptGroup(e.target.value)}>
           <option value="">전체</option>
           {deptGroups.map((d) => <option key={d} value={d}>{d}</option>)}
         </select>
         {/* 원본 차례: 사원명 · 부서 · <b>프로젝트</b> · 적요 (사본 실측). */}
-        <span style={{ marginLeft: 8 }}>프로젝트</span>
+        <span className="ml-[8px]">프로젝트</span>
         {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
         <CodePickerField label="프로젝트" hideLabel width={130} placeholder="프로젝트" emptyLabel="전체"
                          value={projectCond} onChange={setProjectCond} items={projects} />
         {/* 원본 조건 [적요] — 근태 메모로 좁힌다. */}
-        <span style={{ marginLeft: 8 }}>적요</span>
+        <span className="ml-[8px]">적요</span>
         <input className="ec-input" placeholder="적요 일부" value={noteCond}
                onChange={(e) => setNoteCond(e.target.value)} style={{ width: 150 }} />
-        <span style={{ marginLeft: 8 }}>상태</span>
+        <span className="ml-[8px]">상태</span>
         <select className="ec-input" value={statusCond} style={{ width: 100 }}
                 onChange={(e) => setStatusCond(e.target.value)}>
           <option value="">전체</option>
           {statuses.map((v) => <option key={v} value={v}>{v}</option>)}
         </select>
-        <span style={{ marginLeft: 8 }}>일정구분</span>
+        <span className="ml-[8px]">일정구분</span>
         <select className="ec-input" value={catCond} style={{ width: 110 }}
                 onChange={(e) => setCatCond(e.target.value)}>
           <option value="">전체</option>
@@ -250,59 +250,59 @@ export default function WorkIntegratedPage() {
         </select>
         {/* 원본 차례: 조건 판 <b>맨 끝</b>이다(사본 실측). */}
         {/* 원본 차례: 적요 · 상태 · 일정구분 · <b>공유여부</b> · 정렬/소계기준 (사본 실측). */}
-        <span style={{ marginLeft: 8 }}>공유여부</span>
+        <span className="ml-[8px]">공유여부</span>
         <select className="ec-input" value={sharedCond} style={{ width: 100 }}
                 onChange={(e) => setSharedCond(e.target.value)}>
           <option value="">전체</option>
           <option value="공유">공유</option>
           <option value="비공개">비공개</option>
         </select>
-        <span style={{ marginLeft: 8 }}>정렬/소계기준</span>
+        <span className="ml-[8px]">정렬/소계기준</span>
         <div className="ec-pills">
           {SUBTOTALS.map((v) => (
             <button key={v} type="button" className={`ec-pill no-ec${subtotal === v ? ' active' : ''}`}
                     onClick={() => setSubtotal(v)}>{v}</button>
           ))}
         </div>
-        <span style={{ marginLeft: 8, color: 'var(--ec-text-hint)' }}>근태·일정을 사원명+일자로 통합</span>
-        <span style={{ marginLeft: 'auto', fontSize: 12.5 }}>
-          행 <b style={{ color: 'var(--ec-text)' }}>{rows.length}</b>
-          <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
+        <span className="ml-[8px] text-ec-hint">근태·일정을 사원명+일자로 통합</span>
+        <span className="ml-auto text-[12.5px]">
+          행 <b className="text-ec-text">{rows.length}</b>
+          <span className="my-0 mx-[6px] text-ec-off">|</span>
           일정 <b style={{ color: '#2b6cb0', fontSize: 14 }}>{eventTotal}</b>건
         </span>
       </div>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th><th>사원/담당</th><th>부서</th>
-            <th style={{ textAlign: 'center' }}>출근</th><th style={{ textAlign: 'center' }}>퇴근</th>
-            <th style={{ textAlign: 'center' }}>근태</th>
+            <th className="w-[34px]"></th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th><th>사원/담당</th><th>부서</th>
+            <th className="text-center">출근</th><th className="text-center">퇴근</th>
+            <th className="text-center">근태</th>
             {/* 원본 조건에 [적요]가 있다 — 거르려면 표에도 보여야 한다. */}
-            <th style={{ width: 140 }}>적요</th><th>일정</th>
+            <th className="w-[140px]">적요</th><th>일정</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((r, i) => (
             <tr key={r.key}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
               <td style={mono}>{dateText(r.date)}</td>
               <td>{r.name}</td>
-              <td style={{ color: 'var(--ec-label)' }}>{r.department ?? ''}</td>
+              <td className="text-ec-label">{r.department ?? ''}</td>
               <td style={{ ...mono, textAlign: 'center' }}>{r.clockIn ?? ''}</td>
               <td style={{ ...mono, textAlign: 'center' }}>{r.clockOut ?? ''}</td>
               <td style={{ textAlign: 'center', fontWeight: 700, color: statusColor(r.status) }}>{r.status ?? ''}</td>
-              <td style={{ color: 'var(--ec-label)' }}>{r.note ?? ''}</td>
+              <td className="text-ec-label">{r.note ?? ''}</td>
               <td>
-                {r.events.length === 0 ? <span style={{ color: 'var(--ec-text-off)' }}>-</span> : (
-                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                {r.events.length === 0 ? <span className="text-ec-off">-</span> : (
+                  <div className="flex gap-[4px] flex-wrap">
                     {r.events.map((ev, ei) => (
                       <span key={ei} style={{ fontSize: 11.5, padding: '1px 7px', borderRadius: 10, background: '#f1f4f8', color: catColor[ev.category ?? '기타'] ?? 'var(--ec-label)' }}>
                         {ev.category ? `[${ev.category}] ` : ''}{ev.startTime ? `${ev.startTime} ` : ''}{ev.title}
@@ -318,20 +318,20 @@ export default function WorkIntegratedPage() {
 
       {rows.length > 0 && (
         <>
-          <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+          <h3 className="text-[13px] font-bold mt-[16px] mx-0 mb-[6px]">{subtotal} 소계</h3>
           <table className="w-full text-left">
             <thead><tr>
               <th>{subtotal}</th>
-              <th style={{ width: 80, textAlign: 'right' }}>건수</th>
-              <th style={{ width: 70, textAlign: 'right' }}>결근</th>
-              <th style={{ width: 90, textAlign: 'right' }}>지각·조퇴</th>
-              <th style={{ width: 70, textAlign: 'right' }}>일정</th>
+              <th className="w-[80px] text-right">건수</th>
+              <th className="w-[70px] text-right">결근</th>
+              <th className="w-[90px] text-right">지각·조퇴</th>
+              <th className="w-[70px] text-right">일정</th>
             </tr></thead>
             <tbody>
               {subtotals.map((g) => (
                 <tr key={g.label}>
-                  <td style={{ fontWeight: 600 }}>{g.label}</td>
-                  <td style={{ textAlign: 'right' }}>{g.sums.건수}</td>
+                  <td className="font-semibold">{g.label}</td>
+                  <td className="text-right">{g.sums.건수}</td>
                   <td style={{ textAlign: 'right', color: g.sums.결근 ? 'var(--ec-danger)' : undefined }}>{g.sums.결근}</td>
                   <td style={{ textAlign: 'right', color: g.sums.지각조퇴 ? 'var(--ec-warn)' : undefined }}>{g.sums.지각조퇴}</td>
                   <td style={{ textAlign: 'right', color: g.sums.일정 ? '#2b6cb0' : undefined }}>{g.sums.일정}</td>

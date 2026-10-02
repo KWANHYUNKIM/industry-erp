@@ -189,7 +189,7 @@ export default function MedicalDeviceReportPage() {
     catch (err) { setError(extractErrorMessage(err)) }
   }
 
-  const label = (t: string) => <div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>{t}</div>
+  const label = (t: string) => <div className="text-ec-label mb-[3px]">{t}</div>
 
   return (
     <EcListShell
@@ -200,7 +200,7 @@ export default function MedicalDeviceReportPage() {
         { label: 'Excel' },
       ]}
       help={
-        <div style={{ fontSize: 12.5, lineHeight: 1.7 }}>
+        <div className="text-[12.5px] leading-[1.7]">
           <p>품목등록에 <b>UDI-DI</b>를 입력한 품목의 공급내역을 모아 보고파일(CSV)로 만듭니다.</p>
           <ul style={{ paddingLeft: 18, listStyle: 'disc' }}>
             <li>공급구분은 우리 전표에 실제로 있는 <b>출고(판매)</b>·<b>폐기(재고조정)</b>만 산출합니다. 반품·임대·회수는 해당 전표가 없습니다.</li>
@@ -210,15 +210,15 @@ export default function MedicalDeviceReportPage() {
         </div>
       }
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {notice && <p style={{ background: '#eaf4ea', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{notice}</p>}
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end', border: '1px solid var(--ec-border)', background: 'var(--ec-bg-page)', padding: 10, marginBottom: 10 }}>
+      <div className="flex flex-wrap gap-[10px] items-end border border-ec-line border-solid bg-ec-page p-[10px] mb-[10px]">
         {/* 원본 첫 조건은 [조회구분] 이고 <b>라디오</b>다(사본 실측). */}
-        <label style={{ fontSize: 12.5 }}>{label('조회구분')}
-          <div style={{ display: 'flex', gap: 10, paddingTop: 3 }}>
+        <label className="text-[12.5px]">{label('조회구분')}
+          <div className="flex gap-[10px] pt-[3px]">
             {SEARCH_TYPES.map((k) => (
-              <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+              <label key={k} className="flex items-center gap-[3px]">
                 <input type="radio" name="udiSearchType" checked={searchType === k}
                        onChange={() => setSearchType(k)} />{k}
               </label>
@@ -232,12 +232,12 @@ export default function MedicalDeviceReportPage() {
           실제로 납품한 날이다. 우리 공급내역에는 날짜가 <b>하나뿐</b>(전표일자)이라
           이 구간은 [기준일자] 다. [납품일자]는 예외로 적었다.
         */}
-        <label style={{ fontSize: 12.5 }}>{label('기준일자')}
+        <label className="text-[12.5px]">{label('기준일자')}
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
         </label>
-        <label style={{ fontSize: 12.5 }}>{label('공급구분')}
+        <label className="text-[12.5px]">{label('공급구분')}
           <select className="ec-input" value={supplyType} onChange={(e) => setSupplyType(e.target.value)} style={{ width: 110 }}>
             <option value="">전체</option>
             <option value="OUT">출고</option>
@@ -249,21 +249,21 @@ export default function MedicalDeviceReportPage() {
           원본 조건 <b>[거래처그룹]</b>. 의료기기는 거래처 <b>종류</b>(병원·약국·도매)로 묶어
           보는 일이 잦은데 거래처를 하나씩만 고를 수 있었다. 거래처그룹은 마스터에 진작 있다.
         */}
-        <label style={{ fontSize: 12.5 }}>{label('거래처그룹')}
+        <label className="text-[12.5px]">{label('거래처그룹')}
           <select className="ec-input" value={partnerGroup} style={{ width: 150 }}
                   onChange={(e) => setPartnerGroup(e.target.value)}>
             <option value="">전체</option>
             {groupOptions.map((g) => <option key={g} value={g}>{g}</option>)}
           </select>
         </label>
-        <label style={{ fontSize: 12.5 }}>{label('공급형태')}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, paddingTop: 3 }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+        <label className="text-[12.5px]">{label('공급형태')}
+          <div className="flex flex-wrap gap-[10px] pt-[3px]">
+            <label className="flex items-center gap-[3px]">
               <input type="checkbox" checked={allShapes}
                      onChange={(e) => setShapes(e.target.checked ? [...SUPPLY_SHAPES] : [])} />전체
             </label>
             {SUPPLY_SHAPES.map((k) => (
-              <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+              <label key={k} className="flex items-center gap-[3px]">
                 <input type="checkbox" checked={shapes.includes(k)}
                        onChange={(e) => setShapes((v) => (e.target.checked ? [...v, k] : v.filter((x) => x !== k)))} />
                 {k}
@@ -280,7 +280,7 @@ export default function MedicalDeviceReportPage() {
           진작 들고 있던 값이라 서버를 넓혀 싣게 했다. 의료기기 보고는 "이 구분/그룹의
           품목이 이 달에 얼마나 나갔나" 를 보는 일이 잦은데 품목을 하나씩만 고를 수 있었다.
         */}
-        <label style={{ fontSize: 12.5 }}>{label('품목구분')}
+        <label className="text-[12.5px]">{label('품목구분')}
           <select className="ec-input" value={itemCategory} style={{ width: 120 }}
                   onChange={(e) => setItemCategory(e.target.value)}>
             <option value="">전체</option>
@@ -288,7 +288,7 @@ export default function MedicalDeviceReportPage() {
               .map((v) => <option key={v} value={v}>{v}</option>)}
           </select>
         </label>
-        <label style={{ fontSize: 12.5 }}>{label('품목그룹1')}
+        <label className="text-[12.5px]">{label('품목그룹1')}
           <select className="ec-input" value={itemGroup} style={{ width: 130 }}
                   onChange={(e) => setItemGroup(e.target.value)}>
             <option value="">전체</option>
@@ -297,23 +297,23 @@ export default function MedicalDeviceReportPage() {
           </select>
         </label>
         <button className="ec-btn ec-btn-primary" onClick={load}>검색(F8)</button>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'flex-end' }}>
-          <label style={{ fontSize: 12.5 }}>{label('보고기준월')}
+        <div className="ml-auto flex gap-[6px] items-end">
+          <label className="text-[12.5px]">{label('보고기준월')}
             <input type="month" className="ec-input" value={reportMonth} onChange={(e) => setReportMonth(e.target.value)} style={{ width: 140 }} /></label>
           <button className="ec-btn ec-btn-primary" onClick={generate} disabled={busy}>{busy ? '생성 중…' : '보고파일 생성'}</button>
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+      <div className="flex gap-[10px] mb-[10px]">
         {[
           { label: '공급내역', value: summary.count.toLocaleString() },
           { label: '수량 합계', value: summary.qty.toLocaleString() },
           { label: '출고', value: summary.out.toLocaleString() },
           { label: '폐기', value: summary.disposal.toLocaleString() },
         ].map((c) => (
-          <div key={c.label} style={{ border: '1px solid var(--ec-border)', padding: '8px 14px', minWidth: 110 }}>
-            <div style={{ fontSize: 11.5, color: 'var(--ec-text-hint)' }}>{c.label}</div>
-            <div style={{ fontSize: 18, fontWeight: 700 }}>{c.value}</div>
+          <div key={c.label} className="border border-ec-line border-solid py-[8px] px-[14px] min-w-[110px]">
+            <div className="text-[11.5px] text-ec-hint">{c.label}</div>
+            <div className="text-[18px] font-bold">{c.value}</div>
           </div>
         ))}
       </div>
@@ -325,33 +325,33 @@ export default function MedicalDeviceReportPage() {
        */
       <table className="w-full text-left">
         <thead><tr>
-          <th style={{ width: 34 }}></th>
-          <th style={{ width: 110 }}>공급일자</th>
-          <th style={{ width: 70 }}>공급구분</th>
-          <th style={{ width: 160 }}>전표번호</th>
-          <th style={{ width: 150 }}>공급받는자</th>
-          <th style={{ width: 160 }}>공급형태</th>
-          <th style={{ width: 90, textAlign: 'right' }}>품목수</th>
-          <th style={{ width: 100, textAlign: 'right' }}>수량</th>
+          <th className="w-[34px]"></th>
+          <th className="w-[110px]">공급일자</th>
+          <th className="w-[70px]">공급구분</th>
+          <th className="w-[160px]">전표번호</th>
+          <th className="w-[150px]">공급받는자</th>
+          <th className="w-[160px]">공급형태</th>
+          <th className="w-[90px] text-right">품목수</th>
+          <th className="w-[100px] text-right">수량</th>
           <th></th>
         </tr></thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
           ) : byDoc.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>
+            <tr><td colSpan={9} className="text-center text-ec-hint p-[20px]">
               보고 대상 공급내역이 없습니다. 품목등록에서 UDI-DI 를 입력한 품목의 판매·폐기만 집계됩니다.
             </td></tr>
           ) : byDoc.map((d, i) => (
             <tr key={d.key}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{dateText(d.supplyDate)}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td>{dateText(d.supplyDate)}</td>
               <td style={{ color: d.supplyType === 'DISPOSAL' ? 'var(--ec-danger)' : 'var(--ec-blue)', fontWeight: 700 }}>{d.supplyTypeName}</td>
-              <td style={{ fontFamily: 'monospace' }}>{d.docNo ?? ''}</td>
-              <td>{d.partnerName ?? <span style={{ color: 'var(--ec-text-hint)' }}>-</span>}</td>
+              <td>{d.docNo ?? ''}</td>
+              <td>{d.partnerName ?? <span className="text-ec-hint">-</span>}</td>
               <td style={{ color: d.supplyShape ? undefined : 'var(--ec-text-off)' }}>{d.supplyShape ?? '미지정'}</td>
-              <td style={{ textAlign: 'right' }}>{d.itemCount.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{d.quantity.toLocaleString()}</td>
+              <td className="text-right">{d.itemCount.toLocaleString()}</td>
+              <td className="text-right">{d.quantity.toLocaleString()}</td>
               <td></td>
             </tr>
           ))}
@@ -360,38 +360,38 @@ export default function MedicalDeviceReportPage() {
       ) : (
       <table className="w-full text-left">
         <thead><tr>
-          <th style={{ width: 34 }}></th>
-          <th style={{ width: 110 }}>공급일자</th>
-          <th style={{ width: 70 }}>공급구분</th>
-          <th style={{ width: 160 }}>전표번호</th>
-          <th style={{ width: 150 }}>UDI-DI</th>
-          <th style={{ width: 110 }}>품목코드</th>
+          <th className="w-[34px]"></th>
+          <th className="w-[110px]">공급일자</th>
+          <th className="w-[70px]">공급구분</th>
+          <th className="w-[160px]">전표번호</th>
+          <th className="w-[150px]">UDI-DI</th>
+          <th className="w-[110px]">품목코드</th>
           <th>품목명</th>
-          <th style={{ width: 90, textAlign: 'right' }}>수량</th>
-          <th style={{ width: 60 }}>단위</th>
-          <th style={{ width: 150 }}>공급받는자</th>
+          <th className="w-[90px] text-right">수량</th>
+          <th className="w-[60px]">단위</th>
+          <th className="w-[150px]">공급받는자</th>
           {/* 원본 조건 [공급형태]. 거를 수만 있고 볼 수가 없으면 왜 걸렸는지 알 수 없다. */}
-          <th style={{ width: 160 }}>공급형태</th>
+          <th className="w-[160px]">공급형태</th>
         </tr></thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={11} className="ec-empty">불러오는 중…</td></tr>
           ) : shownLines.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>
+            <tr><td colSpan={11} className="text-center text-ec-hint p-[20px]">
               보고 대상 공급내역이 없습니다. 품목등록에서 UDI-DI 를 입력한 품목의 판매·폐기만 집계됩니다.
             </td></tr>
           ) : shownLines.map((l, i) => (
             <tr key={`${l.supplyType}-${l.docNo}-${l.itemId}-${i}`}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{dateText(l.supplyDate)}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td>{dateText(l.supplyDate)}</td>
               <td style={{ color: l.supplyType === 'DISPOSAL' ? 'var(--ec-danger)' : 'var(--ec-blue)', fontWeight: 700 }}>{l.supplyTypeName}</td>
-              <td style={{ fontFamily: 'monospace' }}>{l.docNo ?? ''}</td>
-              <td style={{ fontFamily: 'monospace' }}>{l.udiDi}</td>
-              <td style={{ fontFamily: 'monospace' }}>{l.itemCode}</td>
+              <td>{l.docNo ?? ''}</td>
+              <td>{l.udiDi}</td>
+              <td>{l.itemCode}</td>
               <td>{l.itemName}</td>
-              <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{Number(l.quantity).toLocaleString()}</td>
+              <td className="text-right">{Number(l.quantity).toLocaleString()}</td>
               <td>{l.unit}</td>
-              <td>{l.partnerName ?? <span style={{ color: 'var(--ec-text-hint)' }}>-</span>}</td>
+              <td>{l.partnerName ?? <span className="text-ec-hint">-</span>}</td>
               <td style={{ color: l.supplyShape ? undefined : 'var(--ec-text-off)' }}>{l.supplyShape ?? '미지정'}</td>
             </tr>
           ))}
@@ -399,40 +399,40 @@ export default function MedicalDeviceReportPage() {
       </table>
       )}
 
-      <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>
-        보고파일 이력 <span style={{ fontWeight: 400, color: 'var(--ec-text-hint)', fontSize: 12 }}>(원본의 ‘송신이력’ — 우리는 산출·보관까지)</span>
+      <h3 className="text-[13px] font-bold mt-[16px] mx-0 mb-[6px]">
+        보고파일 이력 <span className="font-normal text-ec-hint text-[12px]">(원본의 ‘송신이력’ — 우리는 산출·보관까지)</span>
       </h3>
       <table className="w-full text-left">
         <thead><tr>
-          <th style={{ width: 100 }}>보고기준월</th>
-          <th style={{ width: 200 }}>대상기간</th>
-          <th style={{ width: 90, textAlign: 'right' }}>건수</th>
-          <th style={{ width: 100, textAlign: 'right' }}>수량</th>
+          <th className="w-[100px]">보고기준월</th>
+          <th className="w-[200px]">대상기간</th>
+          <th className="w-[90px] text-right">건수</th>
+          <th className="w-[100px] text-right">수량</th>
           <th>보고파일</th>
-          <th style={{ width: 90, textAlign: 'right' }}>크기</th>
-          <th style={{ width: 90 }}>작성자</th>
-          <th style={{ width: 60, textAlign: 'center' }}>삭제</th>
+          <th className="w-[90px] text-right">크기</th>
+          <th className="w-[90px]">작성자</th>
+          <th className="w-[60px] text-center">삭제</th>
         </tr></thead>
         <tbody>
           {history.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={8} className="text-center text-ec-hint p-[16px]">등록된 데이터가 없습니다.</td></tr>
           ) : history.map((h) => (
             <tr key={h.id}>
-              <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{h.reportMonth}</td>
-              <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{h.periodFrom} ~ {h.periodTo}</td>
-              <td style={{ textAlign: 'right' }}>{h.lineCount.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{Number(h.totalQty).toLocaleString()}</td>
+              <td className="font-semibold">{h.reportMonth}</td>
+              <td className="text-ec-label">{h.periodFrom} ~ {h.periodTo}</td>
+              <td className="text-right">{h.lineCount.toLocaleString()}</td>
+              <td className="text-right">{Number(h.totalQty).toLocaleString()}</td>
               <td>
                 {h.fileId ? (
                   <button onClick={() => downloadStoredFile(h.fileId!, h.fileName ?? 'report.csv')}
                           style={{ background: 'none', border: 0, padding: 0, color: 'var(--ec-blue)', cursor: 'pointer', textDecoration: 'underline', fontSize: 12.5 }}>
                     {h.fileName}
                   </button>
-                ) : <span style={{ color: 'var(--ec-text-hint)' }}>-</span>}
+                ) : <span className="text-ec-hint">-</span>}
               </td>
-              <td style={{ textAlign: 'right' }}>{formatBytes(h.fileSize)}</td>
-              <td style={{ color: 'var(--ec-label)' }}>{h.createdBy ?? ''}</td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-right">{formatBytes(h.fileSize)}</td>
+              <td className="text-ec-label">{h.createdBy ?? ''}</td>
+              <td className="text-center">
                 <button onClick={() => removeHistory(h)} style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
               </td>
             </tr>

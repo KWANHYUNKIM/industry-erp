@@ -125,8 +125,8 @@ export default function MonthlyCostPage() {
   const row = (name: string, cell: (ym?: string) => number | null, bold: boolean, key: string) => (
     <tr key={key} style={bold ? BOLD : undefined}>
       <td>{name}</td>
-      {months.map((ym) => { const v = cell(ym); return <td key={ym} style={{ textAlign: 'right' }}>{v == null ? '' : won(v)}</td> })}
-      <td style={{ textAlign: 'right' }}>{(() => { const v = cell(); return v == null ? '' : won(v) })()}</td>
+      {months.map((ym) => { const v = cell(ym); return <td key={ym} className="text-right">{v == null ? '' : won(v)}</td> })}
+      <td className="text-right">{(() => { const v = cell(); return v == null ? '' : won(v) })()}</td>
     </tr>
   )
 
@@ -141,39 +141,39 @@ export default function MonthlyCostPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
           <input type="month" className="ec-input" value={fromYm} onChange={(e) => e.target.value && setFromYm(e.target.value)} style={{ width: 130 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="month" className="ec-input" value={toYm} onChange={(e) => e.target.value && setToYm(e.target.value)} style={{ width: 130 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={INCOME_STATEMENT_PICKS} currentFrom={`${fromYm}-01`} fiscalStart={fiscalStart}
                            onPick={(r) => { setFromYm(r.from.slice(0, 7)); setToYm(r.to.slice(0, 7)) }} />
           </span>
         </EcCond>
         <EcCond label="구분">
           {KINDS.map(([l, v]) => (
-            <label key={v} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+            <label key={v} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
               <input type="radio" name="mc-kind" checked={kind === v} onChange={() => setKind(v)} /> {l}
             </label>
           ))}
         </EcCond>
       </ul>
 
-      <h3 style={{ fontSize: 20, fontWeight: 700, textAlign: 'center', margin: '6px 0 4px' }}>월별원가분석</h3>
-      <div style={{ fontSize: 12, marginBottom: 4 }}>회사명 : {companyName ?? ''}</div>
+      <h3 className="text-[20px] font-bold text-center mt-[6px] mx-0 mb-[4px]">월별원가분석</h3>
+      <div className="text-[12px] mb-[4px]">회사명 : {companyName ?? ''}</div>
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
             <th>계정명</th>
-            {months.map((ym) => <th key={ym} style={{ textAlign: 'right' }}>{label(ym)}</th>)}
-            <th style={{ textAlign: 'right' }}>합계</th>
+            {months.map((ym) => <th key={ym} className="text-right">{label(ym)}</th>)}
+            <th className="text-right">합계</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={months.length + 2} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={months.length + 2} className="ec-empty">불러오는 중…</td></tr>
           ) : (
             <>
               {(['재료비', '노무비', '경비'] as Bucket[]).map((b) => {

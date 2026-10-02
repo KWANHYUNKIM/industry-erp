@@ -406,24 +406,24 @@ export default function ActualCostPage() {
           </select>
         </EcCond>
         <EcCond label="기타">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={withInactive} onChange={(e) => setWithInactive(e.target.checked)} />
             사용중단품목포함
           </label>
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={withUntracked} onChange={(e) => setWithUntracked(e.target.checked)} />
             수량관리제외품목포함
           </label>
         </EcCond>
         <EcCond label="결재방표시">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
             인쇄물에 결재란(도장칸)을 찍는다
           </label>
         </EcCond>
       </ul>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       {ALLOC.has(mode) ? (
         <div className="overflow-x-auto">
@@ -431,34 +431,34 @@ export default function ActualCostPage() {
             <b>배부 전</b> — 노무비/경비등록에 적힌 그 달 공정·창고별 총액.
             창고를 안 정한 줄은 원본과 같이 <b>전사 공통</b>이다(빈칸으로 둔다).
           */}
-          <h3 style={{ fontSize: 13, fontWeight: 700, margin: '0 0 6px' }}>
+          <h3 className="text-[13px] font-bold mt-0 mx-0 mb-[6px]">
             배부 전 — 노무비/경비등록 ({period})
           </h3>
           <table className="ec-grid w-full text-left" style={{ marginBottom: 14 }}>
             <thead>
               <tr>
-                <th style={{ width: 34 }}></th>
+                <th className="w-[34px]"></th>
                 <th>생산공정명</th>
-                <th style={{ width: 160 }}>창고명</th>
-                <th style={{ width: 160, textAlign: 'right' }}>{mode === '경비배부액' ? '경비' : '노무비'}</th>
+                <th className="w-[160px]">창고명</th>
+                <th className="w-[160px] text-right">{mode === '경비배부액' ? '경비' : '노무비'}</th>
               </tr>
             </thead>
             <tbody>
               {allocBefore.length === 0 ? (
-                <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={4} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
               ) : allocBefore.map((e, i) => (
                 <tr key={e.id}>
-                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+                  <td className="text-center text-ec-hint">{i + 1}</td>
                   <td>{e.processName}</td>
                   <td style={{ color: e.warehouseName ? undefined : 'var(--ec-text-hint)' }}>{e.warehouseName ?? '(전사 공통)'}</td>
-                  <td style={{ textAlign: 'right' }}>{won(mode === '경비배부액' ? e.overheadCost : e.laborCost)}</td>
+                  <td className="text-right">{won(mode === '경비배부액' ? e.overheadCost : e.laborCost)}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
-              <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-                <td colSpan={3} style={{ textAlign: 'right' }}>누계</td>
-                <td style={{ textAlign: 'right' }}>{won(allocTotals.before)}</td>
+              <tr className="font-bold bg-ec-page">
+                <td colSpan={3} className="text-right">누계</td>
+                <td className="text-right">{won(allocTotals.before)}</td>
               </tr>
             </tfoot>
           </table>
@@ -468,38 +468,38 @@ export default function ActualCostPage() {
             (CostService.calcActual 이 그렇게 넣는다). 단위당 값을 그 달 생산수량에
             곱해 되돌린다.
           */}
-          <h3 style={{ fontSize: 13, fontWeight: 700, margin: '0 0 6px' }}>배부 후 — 품목별</h3>
+          <h3 className="text-[13px] font-bold mt-0 mx-0 mb-[6px]">배부 후 — 품목별</h3>
           <table className="ec-grid w-full text-left">
             <thead>
               <tr>
-                <th style={{ width: 34 }}></th>
+                <th className="w-[34px]"></th>
                 <th>품목코드</th>
                 <th>품목명</th>
-                <th style={{ width: 120, textAlign: 'right' }}>생산수량</th>
-                <th style={{ width: 140, textAlign: 'right' }}>단위당</th>
-                <th style={{ width: 160, textAlign: 'right' }}>배부액</th>
+                <th className="w-[120px] text-right">생산수량</th>
+                <th className="w-[140px] text-right">단위당</th>
+                <th className="w-[160px] text-right">배부액</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+                <tr><td colSpan={6} className="ec-empty">불러오는 중…</td></tr>
               ) : allocAfter.length === 0 ? (
-                <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
               ) : allocAfter.map((r, i) => (
                 <tr key={r.itemId}>
-                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                  <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
+                  <td className="text-center text-ec-hint">{i + 1}</td>
+                  <td>{r.itemCode}</td>
                   <td>{r.itemName}</td>
-                  <td style={{ textAlign: 'right' }}>{num(r.qty)}</td>
-                  <td style={{ textAlign: 'right' }}>{won(r.unit)}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{won(r.amount)}</td>
+                  <td className="text-right">{num(r.qty)}</td>
+                  <td className="text-right">{won(r.unit)}</td>
+                  <td className="text-right font-semibold text-ec-navy">{won(r.amount)}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
-              <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-                <td colSpan={5} style={{ textAlign: 'right' }}>누계 ({allocAfter.length}품목)</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{won(allocTotals.after)}</td>
+              <tr className="font-bold bg-ec-page">
+                <td colSpan={5} className="text-right">누계 ({allocAfter.length}품목)</td>
+                <td className="text-right text-ec-navy">{won(allocTotals.after)}</td>
               </tr>
             </tfoot>
           </table>
@@ -509,7 +509,7 @@ export default function ActualCostPage() {
             않고 적는다. 숨기면 "왜 노무비가 모자라지" 를 이 화면에서 못 찾는다.
           */}
           {Math.round(allocTotals.before) !== Math.round(allocTotals.after) && (
-            <p style={{ fontSize: 12.5, color: 'var(--ec-warn)', marginTop: 8 }}>
+            <p className="text-[12.5px] text-ec-warn mt-[8px]">
               ※ 배부 전 {won(allocTotals.before)} · 배부 후 {won(allocTotals.after)} —
               차이 <b>{won(allocTotals.before - allocTotals.after)}</b> 는 그 달 생산이 없어
               붙일 품목이 없던 공정의 몫입니다.
@@ -521,14 +521,14 @@ export default function ActualCostPage() {
           <table className="ec-grid w-full text-left">
             <thead>
               <tr>
-                <th style={{ width: 34 }}></th>
+                <th className="w-[34px]"></th>
                 <th>품목코드</th>
                 {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다(2026-09-09 실측). */}
                 <th>품목명[규격]</th>
                 {/* 원본 원가집계표의 [품목구분]. 이 값으로 소계를 낸다. */}
-                <th style={{ width: 80 }}>품목구분</th>
+                <th className="w-[80px]">품목구분</th>
                 {/* 원본 넷째 칸. BOR 이 없는 품목(사 오는 원재료)은 빈칸이다 — 원본도 그렇다. */}
-                <th style={{ width: 100 }}>생산공정명</th>
+                <th className="w-[100px]">생산공정명</th>
                 {/*
                   2026-09-09 원본 실측(E040804). 원본은 <b>머리가 두 줄</b>이라
                   [기초|증가|감소|기말] 아래에 <b>수량·단가·금액</b> 이 각각 달린다.
@@ -537,25 +537,25 @@ export default function ActualCostPage() {
                   기말이 이렇게 됐다" 를 화면에서 읽을 수 없다. 셋을 마저 낸다.
                   [단가]도 <b>[기말단가]</b> 로 고쳐 네 묶음 이름을 나란히 맞췄다.
                 */}
-                <th style={{ textAlign: 'right' }}>기초수량</th>
-                <th style={{ textAlign: 'right' }}>기초단가</th>
-                <th style={{ textAlign: 'right' }}>기초금액</th>
-                <th style={{ textAlign: 'right' }}>증가수량</th>
-                <th style={{ textAlign: 'right' }}>증가단가</th>
-                <th style={{ textAlign: 'right' }}>증가금액</th>
-                <th style={{ textAlign: 'right' }}>감소수량</th>
-                <th style={{ textAlign: 'right' }}>감소단가</th>
-                <th style={{ textAlign: 'right' }}>감소금액</th>
-                <th style={{ textAlign: 'right' }}>기말수량</th>
-                <th style={{ textAlign: 'right' }}>기말단가</th>
-                <th style={{ textAlign: 'right' }}>기말금액</th>
+                <th className="text-right">기초수량</th>
+                <th className="text-right">기초단가</th>
+                <th className="text-right">기초금액</th>
+                <th className="text-right">증가수량</th>
+                <th className="text-right">증가단가</th>
+                <th className="text-right">증가금액</th>
+                <th className="text-right">감소수량</th>
+                <th className="text-right">감소단가</th>
+                <th className="text-right">감소금액</th>
+                <th className="text-right">기말수량</th>
+                <th className="text-right">기말단가</th>
+                <th className="text-right">기말금액</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={17} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+                <tr><td colSpan={17} className="ec-empty">불러오는 중…</td></tr>
               ) : summary.length === 0 ? (
-                <tr><td colSpan={17} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={17} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
               ) : groups.map((g) => {
                 // 소계는 그 묶음 줄만 더한다 — 화면에 안 보이는 줄이 섞이면 누계와 어긋난다.
                 const sub = g.rows.reduce((a, r) => ({
@@ -566,17 +566,17 @@ export default function ActualCostPage() {
                   <Fragment key={g.name}>
                     {g.rows.map((r, i) => (
                 <tr key={r.itemId}>
-                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                  <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
+                  <td className="text-center text-ec-hint">{i + 1}</td>
+                  <td>{r.itemCode}</td>
                   <td>{r.itemName}{specOf(r.itemId) ? ` [${specOf(r.itemId)}]` : ''}</td>
-                  <td style={{ color: 'var(--ec-label)' }}>{r.categoryName}</td>
-                  <td style={{ color: 'var(--ec-label)' }}>{processOf(r.itemId)}</td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{num(r.opening)}</td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{unitOf(r.openAmt, r.opening)}</td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{won(r.openAmt)}</td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{num(r.inQty)}</td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{unitOf(r.inAmt, r.inQty)}</td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(r.inAmt)}</td>
+                  <td className="text-ec-label">{r.categoryName}</td>
+                  <td className="text-ec-label">{processOf(r.itemId)}</td>
+                  <td className="text-right text-ec-label">{num(r.opening)}</td>
+                  <td className="text-right text-ec-label">{unitOf(r.openAmt, r.opening)}</td>
+                  <td className="text-right text-ec-label">{won(r.openAmt)}</td>
+                  <td className="text-right text-ec-blue">{num(r.inQty)}</td>
+                  <td className="text-right text-ec-blue">{unitOf(r.inAmt, r.inQty)}</td>
+                  <td className="text-right text-ec-blue">{won(r.inAmt)}</td>
                   <td style={{ textAlign: 'right', color: '#a5561b' }}>{num(r.outQty)}</td>
                   <td style={{ textAlign: 'right', color: '#a5561b' }}>{unitOf(r.outAmt, r.outQty)}</td>
                   <td style={{ textAlign: 'right', color: '#a5561b' }}>{won(r.outAmt)}</td>
@@ -585,22 +585,22 @@ export default function ActualCostPage() {
                     {num(r.closing)}
                   </td>
                   <td style={{ textAlign: 'right', color: r.price == null ? 'var(--ec-text-off)' : 'var(--ec-label)' }}>{won(r.price)}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(r.closeAmt)}</td>
+                  <td className="text-right font-bold">{won(r.closeAmt)}</td>
                 </tr>
                     ))}
                     {/* 원본 소계 줄: '원재료 계' · '부재료 계' · … */}
                     <tr style={{ background: '#f2f6fc', fontWeight: 700 }}>
-                      <td colSpan={5} style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>
+                      <td colSpan={5} className="text-right text-ec-navy">
                         {g.name} 계 ({g.rows.length}품목)
                       </td>
                       <td colSpan={2}></td>
-                      <td style={{ textAlign: 'right' }}>{won(sub.open)}</td>
+                      <td className="text-right">{won(sub.open)}</td>
                       <td colSpan={2}></td>
-                      <td style={{ textAlign: 'right' }}>{won(sub.in)}</td>
+                      <td className="text-right">{won(sub.in)}</td>
                       <td colSpan={2}></td>
-                      <td style={{ textAlign: 'right' }}>{won(sub.out)}</td>
+                      <td className="text-right">{won(sub.out)}</td>
                       <td colSpan={2}></td>
-                      <td style={{ textAlign: 'right' }}>{won(sub.close)}</td>
+                      <td className="text-right">{won(sub.close)}</td>
                     </tr>
                   </Fragment>
                 )
@@ -608,16 +608,16 @@ export default function ActualCostPage() {
             </tbody>
             {summary.length > 0 && (
               <tfoot>
-                <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
+                <tr className="font-bold bg-ec-page">
                   {/* 원본은 맨 아래를 '합계' 가 아니라 [누계] 라고 적는다. */}
-                  <td colSpan={7} style={{ textAlign: 'right' }}>누계 ({summary.length}품목)</td>
-                  <td style={{ textAlign: 'right' }}>{won(totals.open)}</td>
+                  <td colSpan={7} className="text-right">누계 ({summary.length}품목)</td>
+                  <td className="text-right">{won(totals.open)}</td>
                   <td colSpan={2}></td>
-                  <td style={{ textAlign: 'right' }}>{won(totals.in)}</td>
+                  <td className="text-right">{won(totals.in)}</td>
                   <td colSpan={2}></td>
-                  <td style={{ textAlign: 'right' }}>{won(totals.out)}</td>
+                  <td className="text-right">{won(totals.out)}</td>
                   <td colSpan={2}></td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>
+                  <td className="text-right text-ec-navy">
                     {won(totals.close)}
                     {totals.unknown > 0 && (
                       <span title={`단가를 모르는 품목 ${totals.unknown}건은 금액에서 뺐습니다.`} style={{ color: 'var(--ec-warn)' }}> *</span>
@@ -635,50 +635,50 @@ export default function ActualCostPage() {
           <table className="ec-grid w-full text-left">
             <thead>
               <tr>
-                <th style={{ width: 34 }}></th>
-                <th style={{ width: 100 }}>일자</th>
+                <th className="w-[34px]"></th>
+                <th className="w-[100px]">일자</th>
                 <th>품목코드</th>
                 <th>품목명</th>
                 <th>창고</th>
-                <th style={{ textAlign: 'right' }}>수량</th>
-                <th style={{ textAlign: 'right' }}>단가</th>
-                <th style={{ textAlign: 'right' }}>금액</th>
+                <th className="text-right">수량</th>
+                <th className="text-right">단가</th>
+                <th className="text-right">금액</th>
                 <th>적요</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+                <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
               ) : detail.length === 0 ? (
-                <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
               ) : detailShown.rows.map((r, i) => {
                 /* 거래에 단가가 남아 있으면 그것이 맞다 — 평가단가는 그 자리를 메우는 값일 뿐이다. */
                 const price = r.unitPrice != null && r.unitPrice > 0 ? r.unitPrice : (priceOf.get(r.itemId) ?? null)
                 const qty = Math.abs(r.quantityChange)
                 return (
                   <tr key={r.id}>
-                    <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                    <td style={{ fontFamily: 'monospace' }}>{r.transactionDate.replace(/-/g, '/')}</td>
-                    <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
+                    <td className="text-center text-ec-hint">{i + 1}</td>
+                    <td>{r.transactionDate.replace(/-/g, '/')}</td>
+                    <td>{r.itemCode}</td>
                     <td>{r.itemName}</td>
                     <td>{r.warehouseName}</td>
-                    <td style={{ textAlign: 'right' }}>{num(qty)} <span style={{ fontSize: 11, color: 'var(--ec-text-hint)' }}>{r.unit}</span></td>
+                    <td className="text-right">{num(qty)} <span className="text-[11px] text-ec-hint">{r.unit}</span></td>
                     <td style={{ textAlign: 'right', color: price == null ? 'var(--ec-text-off)' : 'var(--ec-label)' }}>{won(price)}</td>
-                    <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(price == null ? null : qty * price)}</td>
-                    <td style={{ color: 'var(--ec-label)' }}>{r.note ?? ''}</td>
+                    <td className="text-right font-bold">{won(price == null ? null : qty * price)}</td>
+                    <td className="text-ec-label">{r.note ?? ''}</td>
                   </tr>
                 )
               })}
             </tbody>
             {detail.length > 0 && (
               <tfoot>
-                <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-                  <td colSpan={5} style={{ textAlign: 'right' }}>합계 ({detail.length}건)</td>
-                  <td style={{ textAlign: 'right' }}>
+                <tr className="font-bold bg-ec-page">
+                  <td colSpan={5} className="text-right">합계 ({detail.length}건)</td>
+                  <td className="text-right">
                     {num(detail.reduce((n, r) => n + Math.abs(r.quantityChange), 0))}
                   </td>
                   <td></td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>
+                  <td className="text-right text-ec-navy">
                     {won(detail.reduce((n, r) => {
                       const price = r.unitPrice != null && r.unitPrice > 0 ? r.unitPrice : (priceOf.get(r.itemId) ?? null)
                       return n + (price == null ? 0 : Math.abs(r.quantityChange) * price)

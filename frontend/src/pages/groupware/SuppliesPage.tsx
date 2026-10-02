@@ -265,10 +265,10 @@ export default function SuppliesPage() {
                   <input type="date" className="ec-input" value={fDate} onChange={(e) => setFDate(e.target.value)} style={{ width: 150 }} />
                   <input type="time" className="ec-input" value={fStart} disabled={fAllDay}
                     onChange={(e) => setFStart(e.target.value)} style={{ width: 110, marginLeft: 6 }} />
-                  <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
+                  <span className="my-0 mx-[6px] text-ec-label">~</span>
                   <input type="time" className="ec-input" value={fEnd} disabled={fAllDay}
                     onChange={(e) => setFEnd(e.target.value)} style={{ width: 110 }} />
-                  <label style={{ marginLeft: 10, fontSize: 12 }}>
+                  <label className="ml-[10px] text-[12px]">
                     <input type="checkbox" checked={fAllDay} onChange={(e) => setFAllDay(e.target.checked)} /> 종일
                   </label>
                 </td>
@@ -289,7 +289,7 @@ export default function SuppliesPage() {
                 <th style={th}>반납여부</th>
                 <td>
                   {(['NOT_RETURNED', 'RETURNED', 'UNSPECIFIED'] as ReturnStatus[]).map((s) => (
-                    <label key={s} style={{ marginRight: 10, fontSize: 12 }}>
+                    <label key={s} className="mr-[10px] text-[12px]">
                       <input type="radio" name="ret" checked={fReturn === s} onChange={() => setFReturn(s)} /> {RETURN_LABEL[s]}
                     </label>
                   ))}
@@ -297,9 +297,9 @@ export default function SuppliesPage() {
               </tr>
             </tbody>
           </table>
-          {error && <p className="mt-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-          {ok && <p className="mt-2 rounded bg-green-50 px-3 py-2 text-sm text-green-700">{ok}</p>}
-          <div style={{ marginTop: 10 }}><button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button></div>
+          {error && <p className="mt-2 rounded bg-ec-danger-bg px-3 py-2 text-sm text-ec-danger">{error}</p>}
+          {ok && <p className="mt-2 rounded bg-ec-success-bg px-3 py-2 text-sm text-ec-success">{ok}</p>}
+          <div className="mt-[10px]"><button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button></div>
         </form>
       )}</Modal>
 
@@ -313,14 +313,14 @@ export default function SuppliesPage() {
             <button type="submit" className="ec-btn ec-btn-primary">추가</button>
           </form>
           <table className="w-full text-left">
-            <thead><tr><th style={{ width: 110 }}>품목코드</th><th>공용품명</th><th style={{ width: 100 }}>분류</th><th style={{ textAlign: 'center', width: 60 }}>단위</th><th style={{ width: 60 }}></th></tr></thead>
+            <thead><tr><th className="w-[110px]">품목코드</th><th>공용품명</th><th className="w-[100px]">분류</th><th className="text-center w-[60px]">단위</th><th className="w-[60px]"></th></tr></thead>
             <tbody>
               {supplies.length === 0 ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={5} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
               ) : supplies.map((s) => (
                 <tr key={s.id}>
-                  <td>{s.code}</td><td>{s.name}</td><td>{s.category ?? ''}</td><td style={{ textAlign: 'center' }}>{s.unit ?? ''}</td>
-                  <td style={{ textAlign: 'center' }}>
+                  <td>{s.code}</td><td>{s.name}</td><td>{s.category ?? ''}</td><td className="text-center">{s.unit ?? ''}</td>
+                  <td className="text-center">
                     <button className="ec-btn ec-btn-sm" style={{ color: 'var(--ec-danger)' }} onClick={() => void removeSupply(s)}>삭제</button>
                   </td>
                 </tr>
@@ -330,9 +330,9 @@ export default function SuppliesPage() {
         </div>
       )}</Modal>
 
-      {error && !showForm && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && !showForm && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+      <div className="flex gap-[10px] items-start">
         {/* 왼쪽 보기 전환 — 원본은 [기본][일간][월간] 한 줄, [공용품별] 다음 줄이다. */}
         <div className="ec-pills" style={{ flex: '0 0 auto', display: 'flex', flexWrap: 'wrap', width: 190, gap: 4 }}>
           {VIEWS.map((v) => (
@@ -347,12 +347,12 @@ export default function SuppliesPage() {
           ))}
         </div>
 
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+        <div className="flex-1 min-w-0">
+          <div className="mb-[4px] flex items-center gap-[4px] flex-wrap">
             {/* 원본 공용품관리는 이 줄을 <b>[기준일자]</b> 라고 부른다(사본 실측). 이름이 없으면 무슨 날짜인지 모른다. */}
-            <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>기준일자</span>
+            <span className="text-[12.5px] text-ec-label">기준일자</span>
             <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 130 }} />
-            <span style={{ color: 'var(--ec-label)' }}>~</span>
+            <span className="text-ec-label">~</span>
             <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 130 }} />
             <button type="button" className="ec-btn ec-btn-primary" onClick={() => void load()}>검색(F8)</button>
           </div>
@@ -383,7 +383,7 @@ export default function SuppliesPage() {
               </select>
             </EcCond>
             <EcCond label="전체시간표시">
-              <label style={{ fontSize: 12.5, color: 'var(--ec-label)', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <label className="text-[12.5px] text-ec-label flex items-center gap-[4px]">
                 <input type="checkbox" checked={allDayCond} onChange={(e) => setAllDayCond(e.target.checked)} />
                 종일 잡힌 것도
               </label>
@@ -394,19 +394,19 @@ export default function SuppliesPage() {
             <colgroup>{COLS.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
             <thead>
               <tr>
-                <th></th><th style={{ textAlign: 'center' }}>일자</th><th style={{ textAlign: 'center' }}>시작시간</th><th style={{ textAlign: 'center' }}>종료시간</th><th>물품명</th>
-                <th>제목</th><th>적요</th><th style={{ textAlign: 'center' }}>사용자명</th><th style={{ textAlign: 'center' }}>반납여부</th>
+                <th></th><th className="text-center">일자</th><th className="text-center">시작시간</th><th className="text-center">종료시간</th><th>물품명</th>
+                <th>제목</th><th>적요</th><th className="text-center">사용자명</th><th className="text-center">반납여부</th>
               </tr>
             </thead>
             <tbody>
               {shown.length === 0 ? (
-                <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={9} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
               ) : groups.map(([key, list]) => (
                 <Fragment key={key || 'all'}>
                   {key && (
                     <tr>
-                      <td colSpan={9} style={{ background: 'var(--ec-bg-page)', fontWeight: 700 }}>
-                        {key} <span style={{ color: 'var(--ec-label)', fontWeight: 400 }}>({list.length}건)</span>
+                      <td colSpan={9} className="bg-ec-page font-bold">
+                        {key} <span className="text-ec-label font-normal">({list.length}건)</span>
                       </td>
                     </tr>
                   )}
@@ -424,13 +424,13 @@ export default function SuppliesPage() {
                       >
                         {i + 1}
                       </td>
-                      <td style={{ textAlign: 'center' }}>{r.useDate.replace(/-/g, '/')}</td>
-                      <td style={{ textAlign: 'center' }}>{r.allDay ? '종일' : (r.startTime ?? '')}</td>
-                      <td style={{ textAlign: 'center' }}>{r.allDay ? '' : (r.endTime ?? '')}</td>
+                      <td className="text-center">{r.useDate.replace(/-/g, '/')}</td>
+                      <td className="text-center">{r.allDay ? '종일' : (r.startTime ?? '')}</td>
+                      <td className="text-center">{r.allDay ? '' : (r.endTime ?? '')}</td>
                       <td>{r.supplyItemName}</td>
                       <td>{r.title}</td>
                       <td>{r.remark ?? ''}</td>
-                      <td style={{ textAlign: 'center' }}>{r.userName}</td>
+                      <td className="text-center">{r.userName}</td>
                       <td
                         onClick={() => void toggleReturn(r)}
                         title="눌러서 반납/미반납 전환"

@@ -244,7 +244,7 @@ export default function CostBuildPage() {
                       onClick={() => setBasis(b)}>{b}</button>
             ))}
           </div>
-          <span style={{ marginLeft: 8, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
+          <span className="ml-[8px] text-[11.5px] text-ec-hint">
             총평균법은 그 달 매입 전체(금액 합 ÷ 수량 합)로 잽니다.
             선입선출법은 입고 레이어를 남기지 않아 아직 못 합니다.
           </span>
@@ -254,17 +254,17 @@ export default function CostBuildPage() {
       {expensePeriod && (
         <ProcessExpenseModal period={expensePeriod} onClose={() => setExpensePeriod(null)} />
       )}
-      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {ok && <p style={{ marginBottom: 8, background: '#eaf6ee', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
 
       <Modal error={error} open={showForm} title="원가생성/수정 등록" onClose={() => setShowForm(false)}>{(
-        <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginBottom: 10 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>
+        <div className="border border-ec-line border-solid bg-white p-[14px] mb-[10px]">
+          <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">
             {editId ? `원가 수정 — ${editItemName}` : '원가 등록'}
           </div>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div className="flex gap-[12px] flex-wrap items-end">
             {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). label 로 감싸면 팝업 행 클릭이 안 먹어 div 로. */}
-            <div style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>품목 *</div>
+            <div className="text-[12.5px]"><div className="text-ec-label mb-[3px]">품목 *</div>
               {editId ? (
                 <input className="ec-input" value={editItemName ?? ''} disabled style={{ width: 180 }} />
               ) : (
@@ -273,60 +273,60 @@ export default function CostBuildPage() {
                                  items={items.filter((it) => it.active !== false).map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))} />
               )}
             </div>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>적용기간 *</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">적용기간 *</div>
               <input className="ec-input" placeholder="2026-06" value={form.period} onChange={(e) => set('period', e.target.value)} disabled={!!editId} style={{ width: 110 }} /></label>
           </div>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginTop: 10 }}>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>표준재료비</div>
+          <div className="flex gap-[12px] flex-wrap items-end mt-[10px]">
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">표준재료비</div>
               <input className="ec-input text-right" type="number" step="any" value={form.materialCost} onChange={(e) => set('materialCost', e.target.value)} style={{ width: 110 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>표준노무비</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">표준노무비</div>
               <input className="ec-input text-right" type="number" step="any" value={form.laborCost} onChange={(e) => set('laborCost', e.target.value)} style={{ width: 110 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>표준경비</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">표준경비</div>
               <input className="ec-input text-right" type="number" step="any" value={form.overheadCost} onChange={(e) => set('overheadCost', e.target.value)} style={{ width: 110 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>실제재료비</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">실제재료비</div>
               <input className="ec-input text-right" type="number" step="any" value={form.actualMaterial} onChange={(e) => set('actualMaterial', e.target.value)} style={{ width: 110 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>실제노무비</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">실제노무비</div>
               <input className="ec-input text-right" type="number" step="any" value={form.actualLabor} onChange={(e) => set('actualLabor', e.target.value)} style={{ width: 110 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>실제경비</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">실제경비</div>
               <input className="ec-input text-right" type="number" step="any" value={form.actualOverhead} onChange={(e) => set('actualOverhead', e.target.value)} style={{ width: 110 }} /></label>
             <button className="ec-btn ec-btn-primary" onClick={submit}>저장</button>
           </div>
         </div>
       )}</Modal>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
-        표준원가 합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{total.toLocaleString()}</b>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        표준원가 합계 <b className="text-ec-navy text-[14px]">{total.toLocaleString()}</b>
       </div>
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ width: 90 }}>품목코드</th>
+            <th className="w-[34px]"></th>
+            <th className="w-[90px]">품목코드</th>
             <th>품목명</th>
-            <th style={{ width: 80 }}>기간</th>
-            <th style={{ textAlign: 'right' }}>재료비</th>
-            <th style={{ textAlign: 'right' }}>노무비</th>
-            <th style={{ textAlign: 'right' }}>경비</th>
-            <th style={{ textAlign: 'right' }}>표준원가</th>
-            <th style={{ width: 70, textAlign: 'center' }}></th>
+            <th className="w-[80px]">기간</th>
+            <th className="text-right">재료비</th>
+            <th className="text-right">노무비</th>
+            <th className="text-right">경비</th>
+            <th className="text-right">표준원가</th>
+            <th className="w-[70px] text-center"></th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td>{r.itemCode}</td>
               <td>{r.itemName}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.period}</td>
-              <td style={{ textAlign: 'right' }}>{r.materialCost.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{r.laborCost.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{r.overheadCost.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700 }}>{r.standardTotal.toLocaleString()}</td>
-              <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+              <td>{r.period}</td>
+              <td className="text-right">{r.materialCost.toLocaleString()}</td>
+              <td className="text-right">{r.laborCost.toLocaleString()}</td>
+              <td className="text-right">{r.overheadCost.toLocaleString()}</td>
+              <td className="text-right font-bold">{r.standardTotal.toLocaleString()}</td>
+              <td className="text-center whitespace-nowrap">
                 <button className="no-ec" onClick={() => openEdit(r)} title="수정" style={{ border: 'none', background: 'none', color: 'var(--ec-blue-dark)', cursor: 'pointer', fontSize: 13, marginRight: 6 }}>수정</button>
                 <button className="no-ec" onClick={() => remove(r)} title="삭제" style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 13 }}>✕</button>
               </td>

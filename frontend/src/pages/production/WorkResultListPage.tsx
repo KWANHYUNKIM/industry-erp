@@ -336,7 +336,7 @@ export default function WorkResultListPage() {
         picks={STATUS_PICKS}
         modes={MODES} mode={mode} onModeChange={(m) => setMode(m as Mode)}
         modeExtra={mode === '집계' ? (
-          <span style={{ display: 'inline-flex', gap: 6, marginLeft: 6, alignItems: 'center', fontSize: 12 }}>
+          <span className="inline-flex gap-[6px] ml-[6px] items-center text-[12px]">
             집계조건1
             <select className="ec-input" value={agg1} onChange={(e) => setAgg1(e.target.value as AggAxis)} style={{ width: 110 }}>
               {AGG_AXES.map((k) => <option key={k} value={k}>{k}</option>)}
@@ -362,10 +362,10 @@ export default function WorkResultListPage() {
                    title="집계조건2 를 고르면 그 값을 열로 펼칩니다">
               <input type="checkbox" checked={pivot} disabled={!sub2} onChange={(e) => setPivot(e.target.checked)} /> 가로보기
             </label>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+            <label className="inline-flex items-center gap-[3px]">
               <input type="checkbox" checked={ratio} onChange={(e) => setRatio(e.target.checked)} /> 비율표시
             </label>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+            <label className="inline-flex items-center gap-[3px]">
               <input type="checkbox" checked={codeIncl} onChange={(e) => setCodeIncl(e.target.checked)} /> 코드포함
             </label>
           </span>
@@ -455,14 +455,14 @@ export default function WorkResultListPage() {
         <EcCond label="수량">
           <input className="ec-input" type="number" value={qtyFrom}
                  onChange={(e) => setQtyFrom(e.target.value)} style={{ width: 110, textAlign: 'right' }} />
-          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
           <input className="ec-input" type="number" value={qtyTo}
                  onChange={(e) => setQtyTo(e.target.value)} style={{ width: 110, textAlign: 'right' }} />
         </EcCond>
         <EcCond label="작업시간">
           <input className="ec-input" type="number" value={timeFrom}
                  onChange={(e) => setTimeFrom(e.target.value)} style={{ width: 110, textAlign: 'right' }} />
-          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
           <input className="ec-input" type="number" value={timeTo}
                  onChange={(e) => setTimeTo(e.target.value)} style={{ width: 110, textAlign: 'right' }} />
         </EcCond>
@@ -477,33 +477,33 @@ export default function WorkResultListPage() {
                              .map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="결재방표시">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
             인쇄물에 결재란(도장칸)을 찍는다
           </label>
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
-        작업 <b style={{ color: 'var(--ec-text)' }}>{shown.length}</b>건
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
-        양품 <b style={{ color: 'var(--ec-success)', fontSize: 14 }}>{num(totals.good)}</b>
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
-        불량 <b style={{ color: 'var(--ec-danger)', fontSize: 14 }}>{num(totals.defect)}</b>
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
-        불량률 <b style={{ color: 'var(--ec-danger)', fontSize: 14 }}>{pct(totals.defect, totals.good)}%</b>
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
-        표준 <b style={{ color: 'var(--ec-text)' }}>{num(time.standard)}</b>분
-        <span style={{ margin: '0 2px' }}>/</span>
-        실제 <b style={{ color: 'var(--ec-text)' }}>{num(time.actual)}</b>분
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        작업 <b className="text-ec-text">{shown.length}</b>건
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
+        양품 <b className="text-ec-success text-[14px]">{num(totals.good)}</b>
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
+        불량 <b className="text-ec-danger text-[14px]">{num(totals.defect)}</b>
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
+        불량률 <b className="text-ec-danger text-[14px]">{pct(totals.defect, totals.good)}%</b>
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
+        표준 <b className="text-ec-text">{num(time.standard)}</b>분
+        <span className="my-0 mx-[2px]">/</span>
+        실제 <b className="text-ec-text">{num(time.actual)}</b>분
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
         차이 <b style={{ color: time.diff < 0 ? 'var(--ec-danger)' : 'var(--ec-success)', fontSize: 14 }}>{gap(time.diff)}</b>
         {time.unknown > 0 && (
-          <span style={{ marginLeft: 6, color: 'var(--ec-warn)' }}>※ 표준 미정 {time.unknown}건 제외</span>
+          <span className="ml-[6px] text-ec-warn">※ 표준 미정 {time.unknown}건 제외</span>
         )}
       </div>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       {mode === '집계' && prevRange && (() => {
         const prev = filterRows(prevRange.from, prevRange.to)
@@ -514,7 +514,7 @@ export default function WorkResultListPage() {
           return `${label} ${num(a)} → ${num(b)}${chg(b, a)}`
         }
         return (
-          <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+          <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
             비교기간({prevRange.from.replace(/-/g, '/')} ~ {prevRange.to.replace(/-/g, '/')})
             {' '}{line('양품', (r) => r.goodQty)} · {line('불량', (r) => r.defectQty)} · {line('작업시간(분)', (r) => r.workTimeMin)}
           </div>
@@ -530,27 +530,27 @@ export default function WorkResultListPage() {
           <table ref={aggRef} className="w-full text-left">
             <thead>
               <tr>
-                <th style={{ width: 34 }}></th>
+                <th className="w-[34px]"></th>
                 <th>{agg1} \ {sub2}</th>
-                {cols.map((c) => <th key={c} style={{ textAlign: 'right' }}>{c}</th>)}
-                <th style={{ textAlign: 'right' }}>합계</th>
+                {cols.map((c) => <th key={c} className="text-right">{c}</th>)}
+                <th className="text-right">합계</th>
               </tr>
             </thead>
             <tbody>
               {[...rowsBy.entries()].map(([k, m], i) => (
                 <tr key={k}>
-                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+                  <td className="text-center text-ec-hint">{i + 1}</td>
                   <td>{k}</td>
-                  {cols.map((c) => <td key={c} style={{ textAlign: 'right' }}>{m.get(c) ? num(m.get(c)!) : ''}</td>)}
-                  <td style={{ textAlign: 'right', fontWeight: 600 }}>{num([...m.values()].reduce((a, v) => a + v, 0))}</td>
+                  {cols.map((c) => <td key={c} className="text-right">{m.get(c) ? num(m.get(c)!) : ''}</td>)}
+                  <td className="text-right font-semibold">{num([...m.values()].reduce((a, v) => a + v, 0))}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
-              <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-                <td colSpan={2} style={{ textAlign: 'right' }}>합계</td>
-                {cols.map((c) => <td key={c} style={{ textAlign: 'right' }}>{num(byProcess.filter((g) => g.k2 === c).reduce((a, g) => a + g.good, 0))}</td>)}
-                <td style={{ textAlign: 'right' }}>{num(totals.good)}</td>
+              <tr className="font-bold bg-ec-page">
+                <td colSpan={2} className="text-right">합계</td>
+                {cols.map((c) => <td key={c} className="text-right">{num(byProcess.filter((g) => g.k2 === c).reduce((a, g) => a + g.good, 0))}</td>)}
+                <td className="text-right">{num(totals.good)}</td>
               </tr>
             </tfoot>
           </table>
@@ -559,47 +559,47 @@ export default function WorkResultListPage() {
         <table ref={aggRef} className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
-              {code1 && <th style={{ width: 120 }}>{code1}</th>}
-              {code2 && <th style={{ width: 120 }}>{code2}</th>}
+              <th className="w-[34px]"></th>
+              {code1 && <th className="w-[120px]">{code1}</th>}
+              {code2 && <th className="w-[120px]">{code2}</th>}
               <th>{[agg1, sub2, sub3].filter(Boolean).join(' · ')}</th>
-              <th style={{ width: 90, textAlign: 'right' }}>건수</th>
-              <th style={{ width: 110, textAlign: 'right' }}>양품</th>
-              {ratio && <th style={{ width: 80, textAlign: 'right' }}>비율(%)</th>}
-              <th style={{ width: 110, textAlign: 'right' }}>불량</th>
-              <th style={{ width: 110, textAlign: 'right' }}>불량률(%)</th>
-              <th style={{ width: 130, textAlign: 'right' }}>작업시간(분)</th>
+              <th className="w-[90px] text-right">건수</th>
+              <th className="w-[110px] text-right">양품</th>
+              {ratio && <th className="w-[80px] text-right">비율(%)</th>}
+              <th className="w-[110px] text-right">불량</th>
+              <th className="w-[110px] text-right">불량률(%)</th>
+              <th className="w-[130px] text-right">작업시간(분)</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7 + (code1 ? 1 : 0) + (code2 ? 1 : 0) + (ratio ? 1 : 0)} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={7 + (code1 ? 1 : 0) + (code2 ? 1 : 0) + (ratio ? 1 : 0)} className="ec-empty">불러오는 중…</td></tr>
             ) : byProcess.length === 0 ? (
-              <tr><td colSpan={7 + (code1 ? 1 : 0) + (code2 ? 1 : 0) + (ratio ? 1 : 0)} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={7 + (code1 ? 1 : 0) + (code2 ? 1 : 0) + (ratio ? 1 : 0)} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : byProcess.map((g, i) => (
               <tr key={g.process}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                {code1 && <td style={{ fontFamily: 'monospace' }}>{g.c1}</td>}
-                {code2 && <td style={{ fontFamily: 'monospace' }}>{g.c2}</td>}
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                {code1 && <td>{g.c1}</td>}
+                {code2 && <td>{g.c2}</td>}
                 <td>{g.process}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(g.count)}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-success)', fontWeight: 600 }}>{num(g.good)}</td>
-                {ratio && <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{totals.good ? (Math.round((g.good / totals.good) * 1000) / 10).toFixed(1) : '0.0'}</td>}
+                <td className="text-right text-ec-hint">{num(g.count)}</td>
+                <td className="text-right text-ec-success font-semibold">{num(g.good)}</td>
+                {ratio && <td className="text-right text-ec-label">{totals.good ? (Math.round((g.good / totals.good) * 1000) / 10).toFixed(1) : '0.0'}</td>}
                 <td style={{ textAlign: 'right', color: g.defect > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>{num(g.defect)}</td>
                 <td style={{ textAlign: 'right', color: g.defect > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>{pct(g.defect, g.good)}</td>
-                <td style={{ textAlign: 'right' }}>{num(g.time)}</td>
+                <td className="text-right">{num(g.time)}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={2 + (code1 ? 1 : 0) + (code2 ? 1 : 0)} style={{ textAlign: 'right' }}>합계 ({byProcess.length}건 묶음)</td>
-              <td style={{ textAlign: 'right' }}>{num(shown.length)}</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-success)' }}>{num(totals.good)}</td>
-              {ratio && <td style={{ textAlign: 'right' }}>100.0</td>}
-              <td style={{ textAlign: 'right', color: 'var(--ec-danger)' }}>{num(totals.defect)}</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-danger)' }}>{pct(totals.defect, totals.good)}</td>
-              <td style={{ textAlign: 'right' }}>{num(totals.time)}</td>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={2 + (code1 ? 1 : 0) + (code2 ? 1 : 0)} className="text-right">합계 ({byProcess.length}건 묶음)</td>
+              <td className="text-right">{num(shown.length)}</td>
+              <td className="text-right text-ec-success">{num(totals.good)}</td>
+              {ratio && <td className="text-right">100.0</td>}
+              <td className="text-right text-ec-danger">{num(totals.defect)}</td>
+              <td className="text-right text-ec-danger">{pct(totals.defect, totals.good)}</td>
+              <td className="text-right">{num(totals.time)}</td>
             </tr>
           </tfoot>
         </table>
@@ -607,39 +607,39 @@ export default function WorkResultListPage() {
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
+              <th className="w-[34px]"></th>
               {/*
                 원본 작업내역현황은 일자와 번호를 <b>한 칸</b>에 적는다([일자-No.], 사본 실측).
                 우리는 둘로 나눠 두어 원본과 차례가 어긋나 있었다 — 작업지시서조회·현황은 이미 합쳐 두었다.
               */}
-              <th style={{ width: 200, textAlign: 'center' }}>일자-No.</th>
-              <th style={{ width: 130 }}>생산공장명</th>
+              <th className="w-[200px] text-center">일자-No.</th>
+              <th className="w-[130px]">생산공장명</th>
               {/* 원본 열 이름은 [작업명]이다. */}
               <th>작업명</th>
-              <th style={{ width: 160 }}>생산품목명</th>
+              <th className="w-[160px]">생산품목명</th>
               {/* 원본 라인 열: … 작업명 · 생산품목명 · [품목명[규격]] · 수량 · 자원명 · … */}
-              <th style={{ width: 160 }}>품목명[규격]</th>
+              <th className="w-[160px]">품목명[규격]</th>
               {/* 원본 [수량]. 우리는 양품·불량을 나눠 세지만 원본은 그 둘을 합한 작업량 한 칸을 둔다. */}
-              <th style={{ width: 100, textAlign: 'right' }}>수량</th>
-              <th style={{ width: 110 }}>담당자</th>
-              <th style={{ width: 120 }}>자원명</th>
-              <th style={{ width: 100, textAlign: 'right' }}>양품</th>
-              <th style={{ width: 100, textAlign: 'right' }}>불량</th>
-              <th style={{ width: 120, textAlign: 'right' }}>표준작업시간</th>
-              <th style={{ width: 120, textAlign: 'right' }}>작업시간</th>
-              <th style={{ width: 130, textAlign: 'right' }}>차이(표준-실제)</th>
-              <th style={{ width: 100, textAlign: 'right' }}>불량률(%)</th>
+              <th className="w-[100px] text-right">수량</th>
+              <th className="w-[110px]">담당자</th>
+              <th className="w-[120px]">자원명</th>
+              <th className="w-[100px] text-right">양품</th>
+              <th className="w-[100px] text-right">불량</th>
+              <th className="w-[120px] text-right">표준작업시간</th>
+              <th className="w-[120px] text-right">작업시간</th>
+              <th className="w-[130px] text-right">차이(표준-실제)</th>
+              <th className="w-[100px] text-right">불량률(%)</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={15} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={15} className="ec-empty">불러오는 중…</td></tr>
             ) : listRows.length === 0 ? (
-              <tr><td colSpan={15} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={15} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : listRows.map((r, i) => (
               <tr key={r.id}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td className="text-center">
                   {/* 원본 [일자-No.] 는 작업내역 전표 번호다(작업지시서 번호가 아니다). */}
                   {r.workDate} {r.resultNo}
                 </td>
@@ -654,7 +654,7 @@ export default function WorkResultListPage() {
                   {r.process}
                   {r.processId == null && (
                     <span title="공정 마스터에 없는 이름이라 표준시간을 낼 수 없습니다"
-                          style={{ marginLeft: 4, fontSize: 11, color: 'var(--ec-warn)' }}>· 마스터 없음</span>
+                          className="ml-[4px] text-[11px] text-ec-warn">· 마스터 없음</span>
                   )}
                 </td>
                 <td>{r.productName ?? ''}</td>
@@ -662,10 +662,10 @@ export default function WorkResultListPage() {
                 <td style={{ color: r.workItemName ? undefined : 'var(--ec-text-off)' }}>
                   {r.workItemName ? `${r.workItemName}${r.workItemSpec ? `[${r.workItemSpec}]` : ''}` : '-'}
                 </td>
-                <td style={{ textAlign: 'right' }}>{num(r.goodQty + r.defectQty)}</td>
+                <td className="text-right">{num(r.goodQty + r.defectQty)}</td>
                 <td>{r.worker ?? ''}</td>
                 <td>{r.resourceName ?? ''}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-success)', fontWeight: 600 }}>{num(r.goodQty)}</td>
+                <td className="text-right text-ec-success font-semibold">{num(r.goodQty)}</td>
                 <td style={{ textAlign: 'right', color: r.defectQty > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>{num(r.defectQty)}</td>
                 {/*
                   표준이 빈 까닭은 둘이고 <b>고치는 방법이 다르다</b> —
@@ -679,7 +679,7 @@ export default function WorkResultListPage() {
                         : '이 품목·공정의 BOR(작업소요시간)이 없습니다'}>
                   {r.standardTimeMin == null ? '-' : num(r.standardTimeMin)}
                 </td>
-                <td style={{ textAlign: 'right' }}>{num(r.workTimeMin)}</td>
+                <td className="text-right">{num(r.workTimeMin)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: r.standardTimeMin == null ? 'var(--ec-text-off)' : (r.standardTimeMin - r.workTimeMin) < 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>
                   {r.standardTimeMin == null ? '-' : gap(r.standardTimeMin - r.workTimeMin)}
                 </td>
@@ -690,14 +690,14 @@ export default function WorkResultListPage() {
             ))}
           </tbody>
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={9} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-success)' }}>{num(totals.good)}</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-danger)' }}>{num(totals.defect)}</td>
-              <td style={{ textAlign: 'right' }}>{num(time.standard)}</td>
-              <td style={{ textAlign: 'right' }}>{num(totals.time)}</td>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={9} className="text-right">합계 ({shown.length}건)</td>
+              <td className="text-right text-ec-success">{num(totals.good)}</td>
+              <td className="text-right text-ec-danger">{num(totals.defect)}</td>
+              <td className="text-right">{num(time.standard)}</td>
+              <td className="text-right">{num(totals.time)}</td>
               <td style={{ textAlign: 'right', color: time.diff < 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>{gap(time.diff)}</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-danger)' }}>{pct(totals.defect, totals.good)}</td>
+              <td className="text-right text-ec-danger">{pct(totals.defect, totals.good)}</td>
             </tr>
           </tfoot>
         </table>

@@ -425,45 +425,45 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
-        거래처 <b style={{ color: 'var(--ec-text)' }}>{ledger.length}</b>곳
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        거래처 <b className="text-ec-text">{ledger.length}</b>곳
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
         이월 <b>{won(totals.opening)}</b>
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
-        증가 <b style={{ color: 'var(--ec-blue)' }}>{won(totals.increase)}</b>
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
-        감소 <b style={{ color: 'var(--ec-success)' }}>{won(totals.decrease)}</b>
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
-        잔액 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{won(totals.closing)}</b>
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
+        증가 <b className="text-ec-blue">{won(totals.increase)}</b>
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
+        감소 <b className="text-ec-success">{won(totals.decrease)}</b>
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
+        잔액 <b className="text-ec-navy text-[14px]">{won(totals.closing)}</b>
       </div>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ width: 110 }}>일자</th>
-            <th style={{ width: 170 }}>전표번호</th>
-            <th style={{ width: 80, textAlign: 'center' }}>구분</th>
+            <th className="w-[34px]"></th>
+            <th className="w-[110px]">일자</th>
+            <th className="w-[170px]">전표번호</th>
+            <th className="w-[80px] text-center">구분</th>
             <th>적요</th>
-            <th style={{ width: 130, textAlign: 'right' }}>증가</th>
-            <th style={{ width: 130, textAlign: 'right' }}>감소</th>
-            <th style={{ width: 140, textAlign: 'right' }}>잔액</th>
+            <th className="w-[130px] text-right">증가</th>
+            <th className="w-[130px] text-right">감소</th>
+            <th className="w-[140px] text-right">잔액</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={COLS} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={COLS} className="ec-empty">불러오는 중…</td></tr>
           ) : ledger.length === 0 ? (
-            <tr><td colSpan={COLS} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={COLS} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : ledger.map((p) => (
             <Fragment key={p.partnerId}>
               <tr style={{ background: '#f2f6fc', fontWeight: 700 }}>
-                <td colSpan={4} style={{ color: 'var(--ec-blue-dark)' }}>{p.name}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>이월잔액</td>
+                <td colSpan={4} className="text-ec-navy">{p.name}</td>
+                <td className="text-right text-ec-label">이월잔액</td>
                 <td colSpan={2}></td>
-                <td style={{ textAlign: 'right' }}>{won(p.opening)}</td>
+                <td className="text-right">{won(p.opening)}</td>
               </tr>
               {/*
                 원본 거래처관리대장 I 의 머리말 실측(사본): 사업자등록번호 · 대표자 ·
@@ -475,7 +475,7 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
               */}
               {info(p.partnerId) && (
                 <tr style={{ background: '#f8fafd', fontSize: 11.5, color: 'var(--ec-label)' }}>
-                  <td colSpan={COLS} style={{ padding: '4px 8px' }}>
+                  <td colSpan={COLS} className="py-[4px] px-[8px]">
                     {headline(info(p.partnerId)!)}
                   </td>
                 </tr>
@@ -498,18 +498,18 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
                 return (
                 <Fragment key={r.entry.key}>
                   {monthSum && (
-                    <tr style={{ background: 'var(--ec-bg-page)', fontWeight: 600, color: 'var(--ec-label)' }}>
-                      <td colSpan={5} style={{ textAlign: 'right' }}>
+                    <tr className="bg-ec-page font-semibold text-ec-label">
+                      <td colSpan={5} className="text-right">
                         {ym(prev!.entry.date).replace('-', '/')} 소계
                       </td>
-                      <td style={{ textAlign: 'right' }}>{monthSum.inc ? won(monthSum.inc) : ''}</td>
-                      <td style={{ textAlign: 'right' }}>{monthSum.dec ? won(monthSum.dec) : ''}</td>
+                      <td className="text-right">{monthSum.inc ? won(monthSum.inc) : ''}</td>
+                      <td className="text-right">{monthSum.dec ? won(monthSum.dec) : ''}</td>
                       <td></td>
                     </tr>
                   )}
                   <tr>
-                    <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                    <td style={{ fontFamily: 'monospace' }}>{dateText(r.entry.date)}</td>
+                    <td className="text-center text-ec-hint">{i + 1}</td>
+                    <td>{dateText(r.entry.date)}</td>
                     {/* 회계전표별로 묶으면 이 칸에 회계전표번호가 온다. 미반영 묶음은 눈에 띄게. */}
                     <td style={{
                       fontFamily: 'monospace',
@@ -519,7 +519,7 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
                     <td style={{ textAlign: 'center', color: r.entry.kind.endsWith('반품') ? 'var(--ec-danger)' : r.entry.increase > 0 ? 'var(--ec-blue)' : 'var(--ec-success)' }}>
                       {r.entry.kind}
                     </td>
-                    <td style={{ color: 'var(--ec-text-hint)' }}>
+                    <td className="text-ec-hint">
                       {r.entry.lines.length > 0
                         ? `${r.entry.lines[0].itemName}${r.entry.lines.length > 1 ? ` 외 ${r.entry.lines.length - 1}건` : ''}`
                         : (r.entry.memo ?? '')}
@@ -530,35 +530,35 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
                     <td style={{ textAlign: 'right', color: r.entry.decrease ? 'var(--ec-success)' : 'var(--ec-text-off)' }}>
                       {r.entry.decrease ? won(r.entry.decrease) : ''}
                     </td>
-                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{won(r.balance)}</td>
+                    <td className="text-right font-semibold">{won(r.balance)}</td>
                   </tr>
                   {showDetail && r.entry.lines.map((l, li) => (
                     <tr key={`${r.entry.key}-${li}`} style={{ color: 'var(--ec-label)', fontSize: 12 }}>
                       <td></td>
-                      <td colSpan={3} style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>└ {l.itemCode}</td>
+                      <td colSpan={3} className="text-right text-ec-hint">└ {l.itemCode}</td>
                       <td>{l.itemName}</td>
-                      <td style={{ textAlign: 'right' }}>{won(l.quantity)} × {won(l.unitPrice)}</td>
-                      <td style={{ textAlign: 'right' }}>{won(l.supplyAmount)}</td>
+                      <td className="text-right">{won(l.quantity)} × {won(l.unitPrice)}</td>
+                      <td className="text-right">{won(l.supplyAmount)}</td>
                       <td></td>
                     </tr>
                   ))}
                 </Fragment>
                 )})}
-              <tr style={{ background: 'var(--ec-body-bg)', fontWeight: 700 }}>
-                <td colSpan={5} style={{ textAlign: 'right' }}>{p.name} 소계</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(p.increase)}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-success)' }}>{won(p.decrease)}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{won(p.closing)}</td>
+              <tr className="bg-ec-page font-bold">
+                <td colSpan={5} className="text-right">{p.name} 소계</td>
+                <td className="text-right text-ec-blue">{won(p.increase)}</td>
+                <td className="text-right text-ec-success">{won(p.decrease)}</td>
+                <td className="text-right text-ec-navy">{won(p.closing)}</td>
               </tr>
             </Fragment>
           ))}
         </tbody>
         <tfoot>
-          <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-            <td colSpan={5} style={{ textAlign: 'right' }}>합계 ({ledger.length}거래처)</td>
-            <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(totals.increase)}</td>
-            <td style={{ textAlign: 'right', color: 'var(--ec-success)' }}>{won(totals.decrease)}</td>
-            <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{won(totals.closing)}</td>
+          <tr className="font-bold bg-ec-page">
+            <td colSpan={5} className="text-right">합계 ({ledger.length}거래처)</td>
+            <td className="text-right text-ec-blue">{won(totals.increase)}</td>
+            <td className="text-right text-ec-success">{won(totals.decrease)}</td>
+            <td className="text-right text-ec-navy">{won(totals.closing)}</td>
           </tr>
         </tfoot>
       </table>

@@ -416,8 +416,8 @@ export default function ItemsPage() {
                 { label: `삭제${selected.size ? ` (${selected.size})` : ''}`, onClick: removeSelected },
                 { label: '웹자료올리기', onClick: () => setWebOpen(true) }]}
     >
-      {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-      {ok && <p style={{ marginBottom: 8, background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
+      {error && <p className="mb-2 rounded bg-ec-danger-bg px-3 py-2 text-sm text-ec-danger">{error}</p>}
+      {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
       {/* 원본 조건 차례: 품목명 · 규격명 · 단위 · 품목구분 · 구매처 · … · 검색창내용 (사본 실측) */}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
@@ -449,14 +449,14 @@ export default function ItemsPage() {
         <EcCond label="최초작성일자">
           <input type="date" className="ec-input" value={cond.createdFrom}
                  onChange={(e) => setC({ createdFrom: e.target.value })} style={{ width: 140 }} />
-          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <span className="text-ec-label">~</span>
           <input type="date" className="ec-input" value={cond.createdTo}
                  onChange={(e) => setC({ createdTo: e.target.value })} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="최종수정일자">
           <input type="date" className="ec-input" value={cond.updatedFrom}
                  onChange={(e) => setC({ updatedFrom: e.target.value })} style={{ width: 140 }} />
-          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <span className="text-ec-label">~</span>
           <input type="date" className="ec-input" value={cond.updatedTo}
                  onChange={(e) => setC({ updatedTo: e.target.value })} style={{ width: 140 }} />
         </EcCond>
@@ -466,14 +466,14 @@ export default function ItemsPage() {
         </EcCond>
       </ul>
 
-      <label style={{ fontSize: 12.5, display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 8 }}>
+      <label className="text-[12.5px] inline-flex items-center gap-[4px] mb-[8px]">
         <input type="checkbox" checked={withStopped} onChange={(e) => setWithStopped(e.target.checked)} />
         사용중단포함
       </label>
 
       <Modal error={error} open={showForm} title="품목등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginTop: 8, marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>{editId ? '품목 수정' : '새 품목 등록'}</div>
+          <div className="text-[13px] font-extrabold text-ec-navy mb-[8px]">{editId ? '품목 수정' : '새 품목 등록'}</div>
           {/*
             원본 품목등록 폼은 <b>품목정보 · 수량 · 단가 · 원가 · 부가정보 · 관리대상</b>
             여섯 탭이다(사본 실측 — 칸이 어느 탭인지는 ecpath 셋째 조각에 남아 있다).
@@ -494,47 +494,47 @@ export default function ItemsPage() {
           {formTab === '품목정보' && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div>
-                <label className="mb-1 block text-sm text-slate-600">품목코드 *</label>
+                <label className="mb-1 block text-sm text-ec-label">품목코드 *</label>
                 <input className={inputCls} value={form.code} disabled={!!editId} onChange={(e) => set('code', e.target.value)} />
               </div>
               <div className="sm:col-span-2">
-                <label className="mb-1 block text-sm text-slate-600">품명 *</label>
+                <label className="mb-1 block text-sm text-ec-label">품명 *</label>
                 <ItemSuggestInput field="name" width="100%" value={form.name} onChange={(v) => set('name', v)} />
               </div>
               <div>
-                <label className="mb-1 block text-sm text-slate-600">규격</label>
+                <label className="mb-1 block text-sm text-ec-label">규격</label>
                 <ItemSuggestInput field="spec" width="100%" value={form.spec} onChange={(v) => set('spec', v)} />
               </div>
               <div>
-                <label className="mb-1 block text-sm text-slate-600">단위 *</label>
+                <label className="mb-1 block text-sm text-ec-label">단위 *</label>
                 <input className={inputCls} value={form.unit} onChange={(e) => set('unit', e.target.value)} />
               </div>
               <div>
-                <label className="mb-1 block text-sm text-slate-600">품목분류 *</label>
+                <label className="mb-1 block text-sm text-ec-label">품목분류 *</label>
                 {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다. */}
                 <CodePickerField label="품목분류 *" hideLabel width={200} emptyLabel="선택"
                                  value={form.category} onChange={(v) => set('category', v)}
                                  items={categories.map((c) => ({ value: c.code, code: c.code, name: c.name }))} />
               </div>
               <div>
-                <label className="mb-1 block text-sm text-slate-600">재고수량관리</label>
+                <label className="mb-1 block text-sm text-ec-label">재고수량관리</label>
                 <select className={inputCls} value={form.stockTracked} onChange={(e) => set('stockTracked', e.target.value)}>
                   <option value="Y">수량관리대상</option>
                   <option value="N">수량관리제외</option>
                 </select>
-                <span style={{ fontSize: 11, color: 'var(--ec-text-hint)' }}>
+                <span className="text-[11px] text-ec-hint">
                   제외로 두면 이 품목은 재고를 잡지 않습니다(용역·운반비 등)
                 </span>
               </div>
               <div>
-                <label className="mb-1 block text-sm text-slate-600">사용구분</label>
+                <label className="mb-1 block text-sm text-ec-label">사용구분</label>
                 <select className={inputCls} value={form.active} onChange={(e) => set('active', e.target.value)}>
                   <option value="Y">사용</option>
                   <option value="N">사용중단</option>
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-sm text-slate-600">바코드</label>
+                <label className="mb-1 block text-sm text-ec-label">바코드</label>
                 <input className={inputCls} value={form.barcode} onChange={(e) => set('barcode', e.target.value)} />
               </div>
               {/*
@@ -553,12 +553,12 @@ export default function ItemsPage() {
                 코드와 이름만으로 고르게 하고 있었다. 한 장만 붙는다.
               */}
               <div>
-                <label className="mb-1 block text-sm text-slate-600">이미지</label>
+                <label className="mb-1 block text-sm text-ec-label">이미지</label>
                 {image ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid var(--ec-border)', padding: 6, background: 'var(--ec-bg-page)' }}>
+                  <div className="flex items-center gap-[8px] border border-ec-line border-solid p-[6px] bg-ec-page">
                     <img src={`/api/files/${image.id}`} alt={image.name}
                          style={{ width: 48, height: 48, objectFit: 'cover', border: '1px solid var(--ec-line-soft)', background: '#fff' }} />
-                    <span style={{ fontSize: 12.5, color: 'var(--ec-label)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{image.name}</span>
+                    <span className="text-[12.5px] text-ec-label flex-1 overflow-hidden text-ellipsis whitespace-nowrap">{image.name}</span>
                     <button type="button" className="ec-btn" onClick={() => setImage(null)}>떼기</button>
                   </div>
                 ) : (
@@ -571,13 +571,13 @@ export default function ItemsPage() {
                 적어 두고 그걸로 찾는다 — 코드도움이 이 값도 같이 본다.
               */}
               <div>
-                <label className="mb-1 block text-sm text-slate-600">검색창내용</label>
+                <label className="mb-1 block text-sm text-ec-label">검색창내용</label>
                 <input className={inputCls} value={form.searchKeyword}
                        onChange={(e) => set('searchKeyword', e.target.value)}
                        placeholder="약칭·옛 코드·영문명 등 (코드도움에서 이 값으로도 찾습니다)" />
               </div>
               <div>
-                <label className="mb-1 block text-sm text-slate-600">UDI-DI (의료기기 표준코드)</label>
+                <label className="mb-1 block text-sm text-ec-label">UDI-DI (의료기기 표준코드)</label>
                 <input className={inputCls} value={form.udiDi} onChange={(e) => set('udiDi', e.target.value)}
                        placeholder="의료기기만 입력 (공급내역보고 대상)" />
               </div>
@@ -592,7 +592,7 @@ export default function ItemsPage() {
               <div>
                 {/* 사본에 고를 값 목록이 남아 있지 않아 <b>자유 입력</b>으로 둔다 —
                     지어낸 값을 원본 이름표 아래 늘어놓는 것보다 낫다. */}
-                <label className="mb-1 block text-sm text-slate-600">품목유형</label>
+                <label className="mb-1 block text-sm text-ec-label">품목유형</label>
                 <input className={inputCls} value={form.itemType} onChange={(e) => set('itemType', e.target.value)} />
               </div>
               <div>
@@ -605,19 +605,19 @@ export default function ItemsPage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm text-slate-600">세트여부</label>
+                <label className="mb-1 block text-sm text-ec-label">세트여부</label>
                 <select className={inputCls} value={form.setItem} onChange={(e) => set('setItem', e.target.value)}>
                   <option value="N">일반</option><option value="Y">세트</option>
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-sm text-slate-600">품목공유여부</label>
+                <label className="mb-1 block text-sm text-ec-label">품목공유여부</label>
                 <select className={inputCls} value={form.sharedItem} onChange={(e) => set('sharedItem', e.target.value)}>
                   <option value="N">공유안함</option><option value="Y">공유</option>
                 </select>
               </div>
               <div className="sm:col-span-3">
-                <label className="mb-1 block text-sm text-slate-600">적요</label>
+                <label className="mb-1 block text-sm text-ec-label">적요</label>
                 <input className={inputCls} value={form.remark} onChange={(e) => set('remark', e.target.value)} />
               </div>
             </div>
@@ -625,23 +625,23 @@ export default function ItemsPage() {
           {formTab === '수량' && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div>
-                <label className="mb-1 block text-sm text-slate-600">안전재고</label>
+                <label className="mb-1 block text-sm text-ec-label">안전재고</label>
                 <input type="number" className={inputCls} value={form.safetyStock} onChange={(e) => set('safetyStock', e.target.value)} />
               </div>
               <div>
                 {/* 주문하고 물건이 오기까지 걸리는 날수 — 발주계획이 이 값으로 거꾸로 센다. */}
-                <label className="mb-1 block text-sm text-slate-600">조달기간</label>
+                <label className="mb-1 block text-sm text-ec-label">조달기간</label>
                 <input type="number" className={inputCls} value={form.leadTimeDays}
                        onChange={(e) => set('leadTimeDays', e.target.value)} title="일 단위" />
               </div>
               <div>
-                <label className="mb-1 block text-sm text-slate-600">최소구매단위</label>
+                <label className="mb-1 block text-sm text-ec-label">최소구매단위</label>
                 <input type="number" step="any" className={inputCls} value={form.minPurchaseUnit}
                        onChange={(e) => set('minPurchaseUnit', e.target.value)} />
               </div>
               <div>
                 {/* 켜면 입출고할 때 로트번호를 받는다. */}
-                <label className="mb-1 block text-sm text-slate-600">시리얼/로트No.</label>
+                <label className="mb-1 block text-sm text-ec-label">시리얼/로트No.</label>
                 <select className={inputCls} value={form.lotManaged} onChange={(e) => set('lotManaged', e.target.value)}>
                   <option value="N">관리안함</option><option value="Y">관리함</option>
                 </select>
@@ -653,18 +653,18 @@ export default function ItemsPage() {
               <div>
                 {/* 원본은 이 둘을 <b>[출고단가]·[입고단가]</b> 라 부른다(사본 실측). 파는 값과
                     사는 값이 아니라 <b>나가는 값과 들어오는 값</b>으로 읽는 것이다. */}
-                <label className="mb-1 block text-sm text-slate-600">출고단가</label>
+                <label className="mb-1 block text-sm text-ec-label">출고단가</label>
                 <input type="number" className={inputCls} value={form.unitPrice} onChange={(e) => set('unitPrice', e.target.value)} />
               </div>
               <div>
                 {/* 원본 품목등록도 판매단가와 구매단가를 따로 둔다. 하나로 쓰면 구매할인현황이
                     매입가를 판매가와 견주게 되고, 그러면 화면 이름과 달리 늘 할증만 찍힌다. */}
-                <label className="mb-1 block text-sm text-slate-600">입고단가</label>
+                <label className="mb-1 block text-sm text-ec-label">입고단가</label>
                 <input type="number" className={inputCls} value={form.purchasePrice} onChange={(e) => set('purchasePrice', e.target.value)}
                        title="구매할인현황의 기준입니다. 0 이면 기준을 안 정한 것으로 보고 할인을 계산하지 않습니다." />
               </div>
               <div>
-                <label className="mb-1 block text-sm text-slate-600">외주비단가</label>
+                <label className="mb-1 block text-sm text-ec-label">외주비단가</label>
                 <input type="number" step="any" className={inputCls} value={form.subcontractPrice}
                        onChange={(e) => set('subcontractPrice', e.target.value)} />
               </div>
@@ -673,12 +673,12 @@ export default function ItemsPage() {
                 고르게 하면 사람이 틀리고, 틀린 것이 <b>세금계산서까지</b> 간다.
               */}
               <div>
-                <label className="mb-1 block text-sm text-slate-600">부가세율(매출)</label>
+                <label className="mb-1 block text-sm text-ec-label">부가세율(매출)</label>
                 <input type="number" step="any" className={inputCls} value={form.vatRateSales}
                        onChange={(e) => set('vatRateSales', e.target.value)} title="%" />
               </div>
               <div>
-                <label className="mb-1 block text-sm text-slate-600">부가세율(매입)</label>
+                <label className="mb-1 block text-sm text-ec-label">부가세율(매입)</label>
                 <input type="number" step="any" className={inputCls} value={form.vatRatePurchase}
                        onChange={(e) => set('vatRatePurchase', e.target.value)} title="%" />
               </div>
@@ -700,40 +700,40 @@ export default function ItemsPage() {
                 방법은 전수·샘플링(사본 실측). 켜 두면 그때 검사요청이 자동으로 나간다.
               */}
               <div>
-                <label className="mb-1 block text-sm text-slate-600">품질검사유형</label>
+                <label className="mb-1 block text-sm text-ec-label">품질검사유형</label>
                 <select className={inputCls} value={form.qcType} onChange={(e) => set('qcType', e.target.value)}>
                   <option value="">선택 안 함</option>
                   {QC_TYPES.map((v) => <option key={v} value={v}>{v}</option>)}
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-sm text-slate-600">품질검사방법</label>
+                <label className="mb-1 block text-sm text-ec-label">품질검사방법</label>
                 <select className={inputCls} value={form.qcMethod} onChange={(e) => set('qcMethod', e.target.value)}>
                   <option value="">선택 안 함</option>
                   {QC_METHODS.map((v) => <option key={v} value={v}>{v}</option>)}
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-sm text-slate-600">품질검사요청-구매</label>
+                <label className="mb-1 block text-sm text-ec-label">품질검사요청-구매</label>
                 <select className={inputCls} value={form.qcOnPurchase} onChange={(e) => set('qcOnPurchase', e.target.value)}>
                   <option value="N">요청안함</option><option value="Y">요청함</option>
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-sm text-slate-600">품질검사요청-생산입고</label>
+                <label className="mb-1 block text-sm text-ec-label">품질검사요청-생산입고</label>
                 <select className={inputCls} value={form.qcOnProduction} onChange={(e) => set('qcOnProduction', e.target.value)}>
                   <option value="N">요청안함</option><option value="Y">요청함</option>
                 </select>
               </div>
               {/* 팔거나 옮길 때 생산전표를 자동으로 만든다 — 만들면서 파는 품목에 쓴다. */}
               <div>
-                <label className="mb-1 block text-sm text-slate-600">생산전표생성-판매</label>
+                <label className="mb-1 block text-sm text-ec-label">생산전표생성-판매</label>
                 <select className={inputCls} value={form.autoProductionOnSales} onChange={(e) => set('autoProductionOnSales', e.target.value)}>
                   <option value="N">생성안함</option><option value="Y">생성함</option>
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-sm text-slate-600">생산전표생성-창고이동</label>
+                <label className="mb-1 block text-sm text-ec-label">생산전표생성-창고이동</label>
                 <select className={inputCls} value={form.autoProductionOnTransfer} onChange={(e) => set('autoProductionOnTransfer', e.target.value)}>
                   <option value="N">생성안함</option><option value="Y">생성함</option>
                 </select>
@@ -747,7 +747,7 @@ export default function ItemsPage() {
             붙는 것이라 행이 아직 없으면 붙일 데가 없다.
           */}
           {editId && <CustomFieldsPanel entityType="ITEM" entityId={editId} />}
-          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
+          <div className="mt-[12px] flex justify-end">
             <button type="submit" className="ec-btn ec-btn-primary">{editId ? '수정' : '등록'}</button>
           </div>
         </form>
@@ -757,49 +757,49 @@ export default function ItemsPage() {
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 30, textAlign: 'center' }} data-export-skip="true">
+              <th className="w-[30px] text-center" data-export-skip="true">
                 <input
                   type="checkbox"
                   checked={shown.length > 0 && shown.every((it) => selected.has(it.id))}
                   onChange={(e) => setSelected(e.target.checked ? new Set(shown.map((it) => it.id)) : new Set())}
                 />
               </th>
-              <th style={{ width: 34 }}></th>
-              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('품목코드')}>품목코드 {sort.mark('품목코드')}</th>
-              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('품목명')}>품목명 {sort.mark('품목명')}</th>
+              <th className="w-[34px]"></th>
+              <th className="cursor-pointer" onClick={() => sort.toggle('품목코드')}>품목코드 {sort.mark('품목코드')}</th>
+              <th className="cursor-pointer" onClick={() => sort.toggle('품목명')}>품목명 {sort.mark('품목명')}</th>
               {/* 원본 열 순서: 품목코드 · 품목명 · [이미지] · 구매처명 · … */}
-              <th style={{ width: 56 }}>이미지</th>
-              <th style={{ width: 130, cursor: 'pointer' }} onClick={() => sort.toggle('구매처명')}>구매처명 {sort.mark('구매처명')}</th>
-              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('품목구분')}>품목구분 {sort.mark('품목구분')}</th>
-              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('규격정보')}>규격정보 {sort.mark('규격정보')}</th>
+              <th className="w-[56px]">이미지</th>
+              <th className="w-[130px] cursor-pointer" onClick={() => sort.toggle('구매처명')}>구매처명 {sort.mark('구매처명')}</th>
+              <th className="cursor-pointer" onClick={() => sort.toggle('품목구분')}>품목구분 {sort.mark('품목구분')}</th>
+              <th className="cursor-pointer" onClick={() => sort.toggle('규격정보')}>규격정보 {sort.mark('규격정보')}</th>
               <th>단위</th>
-              <th style={{ textAlign: 'right' }}>판매단가</th>
-              <th style={{ textAlign: 'right' }}>구매단가</th>
-              <th style={{ textAlign: 'right' }}>안전재고</th>
-              <th style={{ width: 110, cursor: 'pointer' }} onClick={() => sort.toggle('재고수량관리')}>재고수량관리 {sort.mark('재고수량관리')}</th>
+              <th className="text-right">판매단가</th>
+              <th className="text-right">구매단가</th>
+              <th className="text-right">안전재고</th>
+              <th className="w-[110px] cursor-pointer" onClick={() => sort.toggle('재고수량관리')}>재고수량관리 {sort.mark('재고수량관리')}</th>
               <th>관리항목</th>
-              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('품목그룹1명')}>품목그룹1명 {sort.mark('품목그룹1명')}</th>
-              <th style={{ width: 140, cursor: 'pointer' }} onClick={() => sort.toggle('검색창내용')}>검색창내용 {sort.mark('검색창내용')}</th>
-              <th style={{ textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('사용')}>사용 {sort.mark('사용')}</th>
+              <th className="cursor-pointer" onClick={() => sort.toggle('품목그룹1명')}>품목그룹1명 {sort.mark('품목그룹1명')}</th>
+              <th className="w-[140px] cursor-pointer" onClick={() => sort.toggle('검색창내용')}>검색창내용 {sort.mark('검색창내용')}</th>
+              <th className="text-center cursor-pointer" onClick={() => sort.toggle('사용')}>사용 {sort.mark('사용')}</th>
               {/* 원본 마지막 열 [파일관리] — 그 품목의 이미지를 붙이거나 떼는 자리. */}
-              <th style={{ width: 80, textAlign: 'center' }}>파일관리</th>
+              <th className="w-[80px] text-center">파일관리</th>
               <th>관리</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={19} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={19} className="ec-empty">불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={19} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={19} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : (
               shown.map((it, idx) => (
                 <tr key={it.id} style={selected.has(it.id) ? { background: '#f5f8ff' } : undefined}>
-                  <td style={{ textAlign: 'center' }}>
+                  <td className="text-center">
                     <input type="checkbox" checked={selected.has(it.id)} onChange={() => toggle(it.id)} />
                   </td>
-                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{idx + 1}</td>
+                  <td className="text-center text-ec-hint">{idx + 1}</td>
                   {/* 원본은 코드·이름을 눌러 그 건을 연다(사본 실측: 두 칸이 링크다). */}
-                  <td style={{ fontFamily: 'monospace' }}>
+                  <td>
                     <button type="button" onClick={() => openEdit(it)}
                             style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'monospace', fontSize: 12.5 }}>
                       {it.code}
@@ -816,25 +816,25 @@ export default function ItemsPage() {
                       <img src={`/api/files/${it.imageFileId}`} alt={it.imageFileName ?? it.name}
                            title={it.imageFileName ?? ''}
                            style={{ width: 32, height: 32, objectFit: 'cover', border: '1px solid var(--ec-line-soft)', verticalAlign: 'middle' }} />
-                    ) : <span style={{ color: 'var(--ec-text-off)' }}>-</span>}
+                    ) : <span className="text-ec-off">-</span>}
                   </td>
                   <td>{partners.find((p) => p.id === it.supplierId)?.name ?? ''}</td>
                   <td>[{it.categoryName}]</td>
                   <td>{it.spec ?? ''}</td>
                   <td>{it.unit}</td>
-                  <td style={{ textAlign: 'right' }}>{it.unitPrice.toLocaleString('ko-KR')}</td>
+                  <td className="text-right">{it.unitPrice.toLocaleString('ko-KR')}</td>
                   <td style={{ textAlign: 'right', color: (it.purchasePrice ?? 0) > 0 ? undefined : 'var(--ec-text-off)' }}>
                     {(it.purchasePrice ?? 0).toLocaleString('ko-KR')}
                   </td>
-                  <td style={{ textAlign: 'right' }}>{it.safetyStock.toLocaleString('ko-KR')}</td>
+                  <td className="text-right">{it.safetyStock.toLocaleString('ko-KR')}</td>
                   <td style={{ color: it.stockTracked === false ? 'var(--ec-warn)' : undefined }}>
                     {it.stockTracked === false ? '수량관리제외' : '수량관리대상'}
                   </td>
                   <td>{it.managementItemName ?? ''}</td>
                   <td>{it.itemGroupName ?? ''}</td>
-                  <td style={{ color: 'var(--ec-text-muted)' }}>{it.searchKeyword ?? ''}</td>
+                  <td className="text-ec-muted">{it.searchKeyword ?? ''}</td>
                   <td style={{ textAlign: 'center', color: it.active ? 'var(--ec-success)' : 'var(--ec-danger)' }}>{it.active ? '사용' : '사용중단'}</td>
-                  <td style={{ textAlign: 'center' }}>
+                  <td className="text-center">
                     <button onClick={() => openEdit(it)}
                             style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>
                       파일관리
@@ -856,10 +856,10 @@ export default function ItemsPage() {
         새 값을 정한다. 비우면 그 칸을 비운다(그룹 미지정 · 구매처 없음).
       */}
       <Modal error={error} open={bulkOpen} title={`품목 일괄변경 (${selected.size}건)`} onClose={() => setBulkOpen(false)}>{(
-        <div style={{ padding: 4 }}>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+        <div className="p-[4px]">
+          <div className="flex gap-[10px] items-end flex-wrap">
             <div>
-              <label className="mb-1 block text-sm text-slate-600">바꿀 항목</label>
+              <label className="mb-1 block text-sm text-ec-label">바꿀 항목</label>
               <select className={inputCls} value={bulkField} style={{ width: 180 }}
                       onChange={(e) => { setBulkField(e.target.value as typeof bulkField); setBulkValue('') }}>
                 <option value="itemGroupId">품목그룹1</option>
@@ -869,7 +869,7 @@ export default function ItemsPage() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">새 값</label>
+              <label className="mb-1 block text-sm text-ec-label">새 값</label>
               <select className={inputCls} value={bulkValue} style={{ width: 240 }}
                       onChange={(e) => setBulkValue(e.target.value)}>
                 {bulkField === 'stockTracked' ? (
@@ -888,10 +888,10 @@ export default function ItemsPage() {
               </select>
             </div>
           </div>
-          <p style={{ marginTop: 8, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
+          <p className="mt-[8px] text-[11.5px] text-ec-hint">
             고른 품목의 그 칸만 바꿉니다. 나머지 값은 그대로 둡니다.
           </p>
-          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+          <div className="mt-[12px] flex justify-end gap-[6px]">
             <button type="button" className="ec-btn" onClick={() => setBulkOpen(false)}>닫기</button>
             <button type="button" className="ec-btn ec-btn-primary" onClick={bulkChange}>변경</button>
           </div>
@@ -917,26 +917,26 @@ export default function ItemsPage() {
       {webOpen && (
         <div onClick={() => setWebOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, width: 520, maxWidth: '92vw', boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}>
-            <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--ec-line-soft)', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
+            <div className="py-[10px] px-[14px] border-b border-b-ec-line-soft border-solid font-extrabold text-[14px] flex items-center">
               <span>웹자료올리기 · 품목 대량 등록</span>
               <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => setWebOpen(false)}>닫기</button>
             </div>
-            <div style={{ padding: 14, fontSize: 12.5, lineHeight: 1.7, color: 'var(--ec-text)' }}>
-              <p style={{ margin: '0 0 8px' }}>엑셀/CSV 파일로 품목을 한 번에 등록하는 기능입니다. 아래에서 파일을 고르면 형식을 미리 확인할 수 있습니다.</p>
+            <div className="p-[14px] text-[12.5px] leading-[1.7] text-ec-text">
+              <p className="mt-0 mx-0 mb-[8px]">엑셀/CSV 파일로 품목을 한 번에 등록하는 기능입니다. 아래에서 파일을 고르면 형식을 미리 확인할 수 있습니다.</p>
               {/* 원본 [웹자료올리기] 도 끌어다 놓을 수 있다. 파일 선택 버튼은 그대로 둔다. */}
               <EcFileDrop
                 hint="여기에 파일 놓기 (엑셀·CSV)"
                 onFiles={(fs) => onPickFile({ target: { files: fs } } as unknown as React.ChangeEvent<HTMLInputElement>)}
               />
               {webFile && (
-                <div style={{ marginTop: 10, border: '1px solid var(--ec-line-soft)', borderRadius: 3, padding: 10, background: 'var(--ec-bg-page)' }}>
-                  <div><b>{webFile.name}</b> · 데이터 <b style={{ color: 'var(--ec-blue-dark)' }}>{webFile.total.toLocaleString()}</b>행 인식</div>
-                  {webFile.head.length > 0 && <div style={{ marginTop: 4, color: 'var(--ec-label)' }}>헤더: {webFile.head.join(' · ')}</div>}
+                <div className="mt-[10px] border border-ec-line-soft border-solid rounded-[3px] p-[10px] bg-ec-page">
+                  <div><b>{webFile.name}</b> · 데이터 <b className="text-ec-navy">{webFile.total.toLocaleString()}</b>행 인식</div>
+                  {webFile.head.length > 0 && <div className="mt-[4px] text-ec-label">헤더: {webFile.head.join(' · ')}</div>}
                 </div>
               )}
-              <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div className="mt-[12px] flex items-center gap-[8px]">
                 <button className="ec-btn" disabled title="서버 업로드 API 미구현" style={{ opacity: .55, cursor: 'default' }}>업로드 실행 (백엔드 미연동)</button>
-                <span style={{ fontSize: 11.5, color: 'var(--ec-warn)' }}>* 서버 일괄등록 API가 없어 미리보기까지만 제공합니다.</span>
+                <span className="text-[11.5px] text-ec-warn">* 서버 일괄등록 API가 없어 미리보기까지만 제공합니다.</span>
               </div>
             </div>
           </div>

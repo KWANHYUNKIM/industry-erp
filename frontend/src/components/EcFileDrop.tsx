@@ -78,9 +78,9 @@ export default function EcFileDrop({
         ref={inputRef} type="file" multiple={multiple} style={{ display: 'none' }}
         onChange={(e) => { take(e.target.files); e.target.value = '' }}
       />
-      {busy && <span style={{ fontSize: 11.5, color: 'var(--ec-text-hint)' }}>올리는 중…</span>}
+      {busy && <span className="text-[11.5px] text-ec-hint">올리는 중…</span>}
       {skipped > 0 && (
-        <span style={{ fontSize: 11.5, color: 'var(--ec-warn)' }}>
+        <span className="text-[11.5px] text-ec-warn">
           이 자리는 한 개만 받습니다 — {skipped}개는 올리지 않았습니다.
         </span>
       )}

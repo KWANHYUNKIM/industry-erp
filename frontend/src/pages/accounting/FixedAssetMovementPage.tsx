@@ -107,16 +107,16 @@ export default function FixedAssetMovementPage() {
   const showDep = mode !== '취득원가'
   const showNet = mode === '원가+충당금'
   const money = (v: Record<typeof KEYS[number], number>) => [
-    showCost && <td key="oc" style={{ textAlign: 'right' }}>{won(v.openCost)}</td>,
-    showDep && <td key="od" style={{ textAlign: 'right' }}>{won(v.openDep)}</td>,
-    showNet && <td key="on" style={{ textAlign: 'right' }}>{won(v.openCost - v.openDep)}</td>,
-    showCost && <td key="ic" style={{ textAlign: 'right' }}>{won(v.incCost)}</td>,
-    showDep && <td key="id" style={{ textAlign: 'right' }}>{won(v.incDep)}</td>,
-    showCost && <td key="dc" style={{ textAlign: 'right' }}>{won(v.decCost)}</td>,
-    showDep && <td key="dd" style={{ textAlign: 'right' }}>{won(v.decDep)}</td>,
-    showCost && <td key="ec" style={{ textAlign: 'right' }}>{won(v.endCost)}</td>,
-    showDep && <td key="ed" style={{ textAlign: 'right' }}>{won(v.endDep)}</td>,
-    showNet && <td key="en" style={{ textAlign: 'right' }}>{won(v.endCost - v.endDep)}</td>,
+    showCost && <td key="oc" className="text-right">{won(v.openCost)}</td>,
+    showDep && <td key="od" className="text-right">{won(v.openDep)}</td>,
+    showNet && <td key="on" className="text-right">{won(v.openCost - v.openDep)}</td>,
+    showCost && <td key="ic" className="text-right">{won(v.incCost)}</td>,
+    showDep && <td key="id" className="text-right">{won(v.incDep)}</td>,
+    showCost && <td key="dc" className="text-right">{won(v.decCost)}</td>,
+    showDep && <td key="dd" className="text-right">{won(v.decDep)}</td>,
+    showCost && <td key="ec" className="text-right">{won(v.endCost)}</td>,
+    showDep && <td key="ed" className="text-right">{won(v.endDep)}</td>,
+    showNet && <td key="en" className="text-right">{won(v.endCost - v.endDep)}</td>,
   ]
   const moneyCols = (showCost ? 4 : 0) + (showDep ? 4 : 0) + (showNet ? 2 : 0)
   const cols = 8 + moneyCols
@@ -134,20 +134,20 @@ export default function FixedAssetMovementPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="구분">
           {(['원가+충당금', '취득원가', '감가상각충당금'] as const).map((v) => (
-            <label key={v} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+            <label key={v} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
               <input type="radio" name="fa-mv-mode" checked={mode === v} onChange={() => setMode(v)} /> {v}
             </label>
           ))}
         </EcCond>
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={SETTLE_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
@@ -160,41 +160,41 @@ export default function FixedAssetMovementPage() {
         </EcCond>
       </ul>
 
-      <div style={{ overflowX: 'auto' }}>
-        <table ref={tableRef} className="w-full text-left" style={{ whiteSpace: 'nowrap' }}>
+      <div className="overflow-x-auto">
+        <table ref={tableRef} className="w-full text-left whitespace-nowrap">
           <thead>
             <tr>
               <th>고정자산계정코드</th><th>고정자산계정명</th><th>고정자산코드</th><th>고정자산명</th>
-              <th style={{ textAlign: 'center' }}>취득일자</th>
-              <th style={{ textAlign: 'right' }}>내용연수</th><th style={{ textAlign: 'center' }}>내용연수단위</th><th style={{ textAlign: 'right' }}>상각률</th>
-              {showCost && <th style={{ textAlign: 'right' }}>기초_원가</th>}
-              {showDep && <th style={{ textAlign: 'right' }}>기초_충당금</th>}
-              {showNet && <th style={{ textAlign: 'right' }}>기초_미상각잔액</th>}
-              {showCost && <th style={{ textAlign: 'right' }}>증가_원가</th>}
-              {showDep && <th style={{ textAlign: 'right' }}>증가_충당금</th>}
-              {showCost && <th style={{ textAlign: 'right' }}>감소_원가</th>}
-              {showDep && <th style={{ textAlign: 'right' }}>감소_충당금</th>}
-              {showCost && <th style={{ textAlign: 'right' }}>기말_원가</th>}
-              {showDep && <th style={{ textAlign: 'right' }}>기말_충당금</th>}
-              {showNet && <th style={{ textAlign: 'right' }}>기말_미상각잔액</th>}
+              <th className="text-center">취득일자</th>
+              <th className="text-right">내용연수</th><th className="text-center">내용연수단위</th><th className="text-right">상각률</th>
+              {showCost && <th className="text-right">기초_원가</th>}
+              {showDep && <th className="text-right">기초_충당금</th>}
+              {showNet && <th className="text-right">기초_미상각잔액</th>}
+              {showCost && <th className="text-right">증가_원가</th>}
+              {showDep && <th className="text-right">증가_충당금</th>}
+              {showCost && <th className="text-right">감소_원가</th>}
+              {showDep && <th className="text-right">감소_충당금</th>}
+              {showCost && <th className="text-right">기말_원가</th>}
+              {showDep && <th className="text-right">기말_충당금</th>}
+              {showNet && <th className="text-right">기말_미상각잔액</th>}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={cols} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={cols} className="ec-empty">불러오는 중…</td></tr>
             ) : groups.length === 0 ? (
-              <tr><td colSpan={cols} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={cols} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : groups.flatMap((g) => [
               ...g.ls.map((l) => (
                 <tr key={l.a.id}>
-                  <td style={{ fontFamily: 'monospace' }}>{l.a.assetAccountCode}</td>
+                  <td>{l.a.assetAccountCode}</td>
                   <td>{l.a.assetAccountName}</td>
-                  <td style={{ fontFamily: 'monospace' }}>{l.a.assetNo}</td>
+                  <td>{l.a.assetNo}</td>
                   <td>{l.a.name}</td>
-                  <td style={{ textAlign: 'center' }}>{l.a.acquisitionDate.replace(/-/g, '/')}</td>
-                  <td style={{ textAlign: 'right' }}>{Number(l.a.usefulLifeYears).toFixed(2)}</td>
-                  <td style={{ textAlign: 'center' }}>년</td>
-                  <td style={{ textAlign: 'right' }}>{(l.a.declineRate != null && Number(l.a.declineRate) > 0 ? Number(l.a.declineRate) : 1 / Number(l.a.usefulLifeYears || 1)).toFixed(2)}</td>
+                  <td className="text-center">{l.a.acquisitionDate.replace(/-/g, '/')}</td>
+                  <td className="text-right">{Number(l.a.usefulLifeYears).toFixed(2)}</td>
+                  <td className="text-center">년</td>
+                  <td className="text-right">{(l.a.declineRate != null && Number(l.a.declineRate) > 0 ? Number(l.a.declineRate) : 1 / Number(l.a.usefulLifeYears || 1)).toFixed(2)}</td>
                   {money(l)}
                 </tr>
               )),

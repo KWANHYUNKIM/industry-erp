@@ -291,7 +291,7 @@ export default function WorkResultPage() {
       onNew={() => setShowForm(true)}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       {/*
         격자가 열두 칸이라 기본 폭(640)으로는 팝업 밖으로 넘친다 — 브라우저로 열어 보고 알았다.
@@ -299,15 +299,15 @@ export default function WorkResultPage() {
       */}
       <Modal error={error} open={showForm} title="작업내역입력" width={1180} onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} onKeyDown={(e) => { if (e.key === 'F8') { e.preventDefault(); e.currentTarget.requestSubmit() } }} style={{ marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>새 작업내역 등록</div>
+          <div className="text-[13px] font-extrabold text-ec-navy mb-[8px]">새 작업내역 등록</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
             <div>
               {/* 원본 머리의 이름은 [일자]다(사본 실측). */}
-              <label className="mb-1 block text-sm text-slate-600">일자</label>
+              <label className="mb-1 block text-sm text-ec-label">일자</label>
               <input type="date" className={inputCls} value={form.workDate} onChange={(e) => setForm({ ...form, workDate: e.target.value })} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">생산공장</label>
+              <label className="mb-1 block text-sm text-ec-label">생산공장</label>
               {/* 원본은 <b>코드도움</b>으로 받는다(사본 실측) — 창고가 몇십 개만 돼도
                   드롭다운으로는 코드로 못 찾는다. */}
               <CodePickerField label="생산공장" hideLabel fill placeholder="생산공장" emptyLabel="선택 안 함"
@@ -315,12 +315,12 @@ export default function WorkResultPage() {
                                items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name, sub: w.kind }))} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">담당자</label>
+              <label className="mb-1 block text-sm text-ec-label">담당자</label>
               <input className={inputCls} value={form.worker} onChange={(e) => setForm({ ...form, worker: e.target.value })} />
             </div>
             <div>
               {/* 원본 작업내역입력 머리의 [프로젝트]. 프로젝트별 집계에 이 작업이 잡힌다. */}
-              <label className="mb-1 block text-sm text-slate-600">프로젝트</label>
+              <label className="mb-1 block text-sm text-ec-label">프로젝트</label>
               <CodePickerField label="프로젝트" hideLabel fill emptyLabel="선택 해제"
                                value={form.projectId} onChange={(v) => setForm({ ...form, projectId: v })}
                                items={projects.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))} />
@@ -332,7 +332,7 @@ export default function WorkResultPage() {
             작업은 여러 줄 넣는다. 한 줄이라도 막히면 서버가 전부 되돌린다 — 두 줄만 들어가면
             작업시간 합계가 조용히 모자란 채로 남고 효율현황이 그 값으로 계산된다.
           */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, marginBottom: 4 }}>
+          <div className="flex items-center gap-[8px] mt-[12px] mb-[4px]">
             <span style={{ fontSize: 12.5, fontWeight: 700, color: '#3f4855' }}>작업</span>
             <button type="button" className="ec-btn" onClick={() => setWrLines([...wrLines, emptyLine()])}>줄 추가</button>
             <button type="button" className="ec-btn" disabled={myItems.busy} onClick={myItems.pick}>My품목</button>
@@ -341,61 +341,61 @@ export default function WorkResultPage() {
             <button type="button" className="ec-btn" onClick={() => void openWoPick()}>작업지시서</button>
           </div>
           {woPickOpen && (
-            <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 8, marginBottom: 8 }}>
-              <div style={{ fontWeight: 700, fontSize: 12.5, marginBottom: 6 }}>작업지시서조회</div>
-              <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+            <div className="border border-ec-line border-solid bg-white p-[8px] mb-[8px]">
+              <div className="font-bold text-[12.5px] mb-[6px]">작업지시서조회</div>
+              <div className="max-h-[220px] overflow-y-auto">
                 <table className="w-full text-left">
                   <thead>
                     <tr>
-                      <th style={{ width: 30 }} />
+                      <th className="w-[30px]" />
                       <th>작업지시서일자</th>
                       <th>품목코드</th>
                       <th>품목명</th>
-                      <th style={{ textAlign: 'right' }}>수량</th>
-                      <th style={{ textAlign: 'right' }}>잔량</th>
+                      <th className="text-right">수량</th>
+                      <th className="text-right">잔량</th>
                     </tr>
                   </thead>
                   <tbody>
                     {woFull.length === 0 ? (
-                      <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 12 }}>등록된 데이터가 없습니다.</td></tr>
+                      <tr><td colSpan={6} className="text-center text-ec-hint p-[12px]">등록된 데이터가 없습니다.</td></tr>
                     ) : woFull.map((w) => (
-                      <tr key={w.id} style={{ cursor: 'pointer' }}
+                      <tr key={w.id} className="cursor-pointer"
                           onClick={() => setWoPicked((p) => (p.includes(w.id) ? p.filter((x) => x !== w.id) : [...p, w.id]))}>
-                        <td style={{ textAlign: 'center' }}><input type="checkbox" readOnly checked={woPicked.includes(w.id)} /></td>
+                        <td className="text-center"><input type="checkbox" readOnly checked={woPicked.includes(w.id)} /></td>
                         <td>{dateText(w.orderDate)} {w.orderNo}</td>
                         <td>{w.productCode}</td>
                         <td>{w.productName}</td>
-                        <td style={{ textAlign: 'right' }}>{Number(w.plannedQty).toLocaleString()}</td>
-                        <td style={{ textAlign: 'right' }}>{Number(w.remainingQty).toLocaleString()}</td>
+                        <td className="text-right">{Number(w.plannedQty).toLocaleString()}</td>
+                        <td className="text-right">{Number(w.remainingQty).toLocaleString()}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
+              <div className="flex gap-[4px] mt-[6px]">
                 <button type="button" className="ec-btn ec-btn-primary" onClick={applyWo}>적용(F8)</button>
                 <button type="button" className="ec-btn" onClick={() => setWoPickOpen(false)}>닫기</button>
               </div>
             </div>
           )}
           {/* 좁은 창에서는 열두 칸이 다 안 들어간다 — 잘리지 말고 옆으로 밀리게 둔다. */}
-          <div style={{ overflowX: 'auto' }}>
+          <div className="overflow-x-auto">
           <table ref={tableRef} className="ec-grid" style={{ width: '100%', minWidth: 1040 }}>
             <thead>
               <tr>
-                <th style={{ width: 34 }}></th>
-                <th style={{ width: 170 }}>작업지시</th>
+                <th className="w-[34px]"></th>
+                <th className="w-[170px]">작업지시</th>
                 {/*
                   원본 격자는 품목을 <b>코드와 이름 두 칸</b>으로 편다(판매·구매입력도 같다).
                   한 칸에 몰아 두면 코드로 훑을 수가 없다. 차례도 원본 그대로 —
                   생산품목코드가 [작업]보다 앞이다.
                 */}
-                <th style={{ width: 110 }}>생산품목코드</th>
+                <th className="w-[110px]">생산품목코드</th>
                 {/* 원본은 코드 옆에 <b>이름</b>도 편다 — 고른 작업지시가 가리키는 품목이 무엇인지
                     코드만으로는 알 수가 없다. 이름은 이미 작업지시 목록에 있다. */}
-                <th style={{ width: 160 }}>생산품목명</th>
-                <th style={{ width: 120 }}>작업</th>
-                <th style={{ width: 130 }}>작업품목코드</th>
+                <th className="w-[160px]">생산품목명</th>
+                <th className="w-[120px]">작업</th>
+                <th className="w-[130px]">작업품목코드</th>
                 <th>작업품목명</th>
                 {/*
                   원본 작업내역입력 격자는 <b>[수량]</b> 한 칸이다(사본 실측). 우리는 양품·불량으로
@@ -403,19 +403,19 @@ export default function WorkResultPage() {
                   같은 지시의 두 줄을 견줄 때 눈으로 더해야 했다. 셋을 다 낸다(수량 = 양품 + 불량).
                   원본 차례도 <b>[수량]이 [투입자원]보다 앞</b>이다.
                 */}
-                <th style={{ width: 80, textAlign: 'right' }}>수량</th>
-                <th style={{ width: 150 }}>투입자원</th>
-                <th style={{ width: 80, textAlign: 'right' }}>양품</th>
-                <th style={{ width: 80, textAlign: 'right' }}>불량</th>
-                <th style={{ width: 100, textAlign: 'right' }}>작업시간</th>
-                <th style={{ width: 140 }}>적요</th>
-                <th style={{ width: 50, textAlign: 'center' }}>삭제</th>
+                <th className="w-[80px] text-right">수량</th>
+                <th className="w-[150px]">투입자원</th>
+                <th className="w-[80px] text-right">양품</th>
+                <th className="w-[80px] text-right">불량</th>
+                <th className="w-[100px] text-right">작업시간</th>
+                <th className="w-[140px]">적요</th>
+                <th className="w-[50px] text-center">삭제</th>
               </tr>
             </thead>
             <tbody>
               {wrLines.map((l, idx) => (
                 <tr key={l.key}>
-                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{idx + 1}</td>
+                  <td className="text-center text-ec-hint">{idx + 1}</td>
                   <td>
                     {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
                     <CodePickerField label="작업지시" hideLabel fill placeholder="작업지시" emptyLabel="선택 해제"
@@ -423,10 +423,10 @@ export default function WorkResultPage() {
                                      items={workOrders.map((w) => ({ value: String(w.id), code: w.orderNo, name: w.productName }))} />
                   </td>
                   {/* 생산품목 — 고른 작업지시가 가리키는 최종 품목이다. 사람이 고치는 칸이 아니다. */}
-                  <td style={{ fontFamily: 'monospace', color: 'var(--ec-text-muted)' }}>
+                  <td className="text-ec-muted">
                     {workOrders.find((w) => String(w.id) === l.workOrderId)?.productCode ?? ''}
                   </td>
-                  <td style={{ color: 'var(--ec-text-muted)' }}>
+                  <td className="text-ec-muted">
                     {workOrders.find((w) => String(w.id) === l.workOrderId)?.productName ?? ''}
                   </td>
                   <td>
@@ -442,11 +442,11 @@ export default function WorkResultPage() {
                                      value={l.workItemId} onChange={(v) => setWrLine(l.key, { workItemId: v })}
                                      items={items.map((x) => ({ value: String(x.id), code: x.code, name: x.name, sub: x.spec ?? undefined }))} />
                   </td>
-                  <td style={{ color: 'var(--ec-text-muted)' }}>
+                  <td className="text-ec-muted">
                     {items.find((x) => String(x.id) === l.workItemId)?.name ?? ''}
                   </td>
                   {/* 사람이 적는 칸이 아니다 — 양품·불량을 적으면 따라 는다. */}
-                  <td style={{ textAlign: 'right', color: 'var(--ec-text-muted)', fontWeight: 600 }}>
+                  <td className="text-right text-ec-muted font-semibold">
                     {(Number(l.goodQty || 0) + Number(l.defectQty || 0)).toLocaleString()}
                   </td>
                   <td>
@@ -473,7 +473,7 @@ export default function WorkResultPage() {
                   <td>
                     <input className={inputCls} value={l.note} onChange={(e) => setWrLine(l.key, { note: e.target.value })} />
                   </td>
-                  <td style={{ textAlign: 'center' }}>
+                  <td className="text-center">
                     <button type="button" style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}
                             onClick={() => setWrLines(wrLines.length > 1 ? wrLines.filter((x) => x.key !== l.key) : [emptyLine()])}>삭제</button>
                   </td>
@@ -482,14 +482,14 @@ export default function WorkResultPage() {
             </tbody>
             <tfoot>
               <tr>
-                <td colSpan={8} style={{ textAlign: 'right', fontWeight: 700 }}>합계</td>
+                <td colSpan={8} className="text-right font-bold">합계</td>
                 {/* 수량 합계도 양품 + 불량이다 — 줄마다 더한 것과 같아야 한다. */}
-                <td style={{ textAlign: 'right', fontWeight: 700 }}>
+                <td className="text-right font-bold">
                   {wrLines.reduce((n, l) => n + (Number(l.goodQty) || 0) + (Number(l.defectQty) || 0), 0).toLocaleString()}
                 </td>
-                <td style={{ textAlign: 'right', fontWeight: 700 }}>{wrLines.reduce((n, l) => n + (Number(l.goodQty) || 0), 0).toLocaleString()}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700 }}>{wrLines.reduce((n, l) => n + (Number(l.defectQty) || 0), 0).toLocaleString()}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700 }}>{wrLines.reduce((n, l) => n + (Number(l.workTimeMin) || 0), 0).toLocaleString()}</td>
+                <td className="text-right font-bold">{wrLines.reduce((n, l) => n + (Number(l.goodQty) || 0), 0).toLocaleString()}</td>
+                <td className="text-right font-bold">{wrLines.reduce((n, l) => n + (Number(l.defectQty) || 0), 0).toLocaleString()}</td>
+                <td className="text-right font-bold">{wrLines.reduce((n, l) => n + (Number(l.workTimeMin) || 0), 0).toLocaleString()}</td>
                 <td colSpan={2}></td>
               </tr>
             </tfoot>
@@ -499,7 +499,7 @@ export default function WorkResultPage() {
             {processes.map((p) => <option key={p.id} value={p.name} />)}
           </datalist>
           {/* 원본 아래 단추: 저장(F8) · 저장/전표(F7) · 다시 작성 · 리스트 — [리스트] 는 입력 창을 닫고 목록으로 간다. */}
-          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-start', gap: 4 }}>
+          <div className="mt-[12px] flex justify-start gap-[4px]">
             <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
             <button type="button" className="ec-btn" onClick={() => setShowForm(false)}>리스트</button>
           </div>
@@ -509,7 +509,7 @@ export default function WorkResultPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th className="w-[34px]"></th>
             <th>일자</th>
             <th>작업지시번호</th>
             <th>공정</th>
@@ -517,33 +517,33 @@ export default function WorkResultPage() {
             <th>생산품목명</th>
             <th>투입자원</th>
             <th>작업자</th>
-            <th style={{ textAlign: 'right' }}>양품</th>
-            <th style={{ textAlign: 'right' }}>불량</th>
-            <th style={{ textAlign: 'right' }}>작업시간(분)</th>
+            <th className="text-right">양품</th>
+            <th className="text-right">불량</th>
+            <th className="text-right">작업시간(분)</th>
             <th>적요</th>
-            <th style={{ width: 60, textAlign: 'center' }}>관리</th>
+            <th className="w-[60px] text-center">관리</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={13} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={13} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{dateText(r.workDate)}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.workOrderNo ?? ''}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td>{dateText(r.workDate)}</td>
+              <td>{r.workOrderNo ?? ''}</td>
               <td>{r.process}</td>
               <td style={{ color: r.warehouseName ? undefined : 'var(--ec-text-off)' }}>{r.warehouseName ?? ''}</td>
               <td>{r.productName ?? ''}</td>
               <td style={{ color: r.resourceName ? undefined : 'var(--ec-text-off)' }}>{r.resourceName ?? ''}</td>
               <td>{r.worker ?? ''}</td>
-              <td style={{ textAlign: 'right' }}>{r.goodQty.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{r.defectQty.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{r.workTimeMin.toLocaleString()}</td>
-              <td style={{ color: 'var(--ec-text-hint)' }}>{r.note ?? ''}</td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-right">{r.goodQty.toLocaleString()}</td>
+              <td className="text-right">{r.defectQty.toLocaleString()}</td>
+              <td className="text-right">{r.workTimeMin.toLocaleString()}</td>
+              <td className="text-ec-hint">{r.note ?? ''}</td>
+              <td className="text-center">
                 <button onClick={() => remove(r)} style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
               </td>
             </tr>
@@ -552,35 +552,35 @@ export default function WorkResultPage() {
         {shown.length > 0 && (
           <tfoot>
             <tr>
-              <td colSpan={8} style={{ textAlign: 'right', fontWeight: 700 }}>합계</td>
-              <td style={{ textAlign: 'right', fontWeight: 700 }}>{shown.reduce((a, r) => a + r.goodQty, 0).toLocaleString()}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700 }}>{shown.reduce((a, r) => a + r.defectQty, 0).toLocaleString()}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700 }}>{shown.reduce((a, r) => a + r.workTimeMin, 0).toLocaleString()}</td>
+              <td colSpan={8} className="text-right font-bold">합계</td>
+              <td className="text-right font-bold">{shown.reduce((a, r) => a + r.goodQty, 0).toLocaleString()}</td>
+              <td className="text-right font-bold">{shown.reduce((a, r) => a + r.defectQty, 0).toLocaleString()}</td>
+              <td className="text-right font-bold">{shown.reduce((a, r) => a + r.workTimeMin, 0).toLocaleString()}</td>
               <td colSpan={2}></td>
             </tr>
           </tfoot>
         )}
       </table>
       <Modal open={linkRows != null} title="생산입고연결전표" error={error} width={720} onClose={() => setLinkRows(null)}>
-        <p style={{ fontSize: 12.5, margin: '0 0 6px' }}>작업내역전표 : {linked ? `${dateText(linked.workDate)} ${linked.resultNo}` : ''}</p>
+        <p className="text-[12.5px] mt-0 mx-0 mb-[6px]">작업내역전표 : {linked ? `${dateText(linked.workDate)} ${linked.resultNo}` : ''}</p>
         <table className="w-full text-left">
           <thead>
-            <tr><th>생산입고연결전표</th><th>생산품목</th><th style={{ textAlign: 'right' }}>수량</th><th>받는창고</th></tr>
+            <tr><th>생산입고연결전표</th><th>생산품목</th><th className="text-right">수량</th><th>받는창고</th></tr>
           </thead>
           <tbody>
             {(linkRows ?? []).length === 0 ? (
-              <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 14 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={4} className="text-center text-ec-hint p-[14px]">등록된 데이터가 없습니다.</td></tr>
             ) : (linkRows ?? []).map((r) => (
               <tr key={r.id}>
                 <td>{dateText(r.productionDate)} {r.prodNo}</td>
                 <td>{r.productName}</td>
-                <td style={{ textAlign: 'right' }}>{Number(r.producedQty).toLocaleString()}</td>
+                <td className="text-right">{Number(r.producedQty).toLocaleString()}</td>
                 <td>{r.warehouseName}</td>
               </tr>
             ))}
           </tbody>
         </table>
-        <div style={{ display: 'flex', gap: 4, marginTop: 10 }}>
+        <div className="flex gap-[4px] mt-[10px]">
           <button type="button" className="ec-btn ec-btn-primary" onClick={newLinkedReceipt}>신규(F2)</button>
           <button type="button" className="ec-btn" onClick={() => setLinkRows(null)}>닫기</button>
         </div>

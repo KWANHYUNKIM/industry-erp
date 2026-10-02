@@ -245,7 +245,7 @@ export default function WorkOrderEntryPage() {
           ...(editNo ? [{ label: '삭제', onClick: () => void removeSlip() }] : []),
         ]}
         help={
-          <ul style={{ paddingLeft: 18, margin: 0 }}>
+          <ul className="pl-[18px] m-0">
             <li>품목을 여러 줄 넣어도 작업지시서 번호는 하나입니다. 줄마다 생산공장을 정합니다(위 줄을 따라갑니다).</li>
             <li>생산입고·생산불출에서 [작업지시서]로 이 지시를 불러오면 잔량(지시수량 − 기생산)과 BOM 소요량이 들어옵니다.</li>
             <li>이미 생산한 줄은 품목을 바꾸거나 지시수량을 기생산보다 줄일 수 없습니다.</li>
@@ -293,18 +293,18 @@ export default function WorkOrderEntryPage() {
           <li>
             {/* 원본 머리 맨 끝의 [첨부] — 도면·작업표준서를 붙여 현장에 내린다. */}
             <div className="title">첨부</div>
-            <div className="form" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div className="form flex items-center gap-[6px]">
               <label className="ec-btn ec-btn-sm" style={{ cursor: uploading ? 'wait' : 'pointer' }}>
                 {uploading ? '올리는 중…' : '파일 선택'}
                 <input type="file" aria-label="첨부 파일" style={{ display: 'none' }} disabled={uploading}
                        onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); e.target.value = '' }} />
               </label>
               {attachment && (
-                <span style={{ fontSize: 12, color: 'var(--ec-blue-dark)' }}>
-                  <span style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                <span className="text-[12px] text-ec-navy">
+                  <span className="cursor-pointer underline"
                         onClick={() => void downloadStoredFile(attachment.id, attachment.name)}>{attachment.name}</span>
                   <span onClick={() => setAttachment(null)} title="첨부 빼기"
-                        style={{ cursor: 'pointer', marginLeft: 6, fontWeight: 700 }}>×</span>
+                        className="cursor-pointer ml-[6px] font-bold">×</span>
                 </span>
               )}
             </div>
@@ -319,30 +319,30 @@ export default function WorkOrderEntryPage() {
           <MyItemsNote note={myItems.note} />
         </div>
 
-        <div ref={gridRef} style={{ overflowX: 'auto' }}>
+        <div ref={gridRef} className="overflow-x-auto">
           <table className="ec-grid-input no-ec" style={{ tableLayout: 'fixed', minWidth: 1100 }}>
             <colgroup>
-              <col style={{ width: 30 }} />
-              <col style={{ width: 120 }} />
-              <col style={{ width: 260 }} />
-              <col style={{ width: 140 }} />
-              <col style={{ width: 100 }} />
-              <col style={{ width: 200 }} />
-              <col style={{ width: 100 }} />
-              <col style={{ width: 100 }} />
-              <col style={{ width: 100 }} />
+              <col className="w-[30px]" />
+              <col className="w-[120px]" />
+              <col className="w-[260px]" />
+              <col className="w-[140px]" />
+              <col className="w-[100px]" />
+              <col className="w-[200px]" />
+              <col className="w-[100px]" />
+              <col className="w-[100px]" />
+              <col className="w-[100px]" />
             </colgroup>
             <thead>
               <tr>
                 <th />
-                <th style={{ textAlign: 'left' }}>품목코드</th>
-                <th style={{ textAlign: 'left' }}>품목명</th>
-                <th style={{ textAlign: 'left' }}>규격</th>
-                <th style={{ textAlign: 'right' }}>수량</th>
-                <th style={{ textAlign: 'left' }}>생산공장</th>
-                <th style={{ textAlign: 'right' }}>기생산</th>
-                <th style={{ textAlign: 'right' }}>전체수량</th>
-                <th style={{ textAlign: 'right' }}>창고수량</th>
+                <th className="text-left">품목코드</th>
+                <th className="text-left">품목명</th>
+                <th className="text-left">규격</th>
+                <th className="text-right">수량</th>
+                <th className="text-left">생산공장</th>
+                <th className="text-right">기생산</th>
+                <th className="text-right">전체수량</th>
+                <th className="text-right">창고수량</th>
               </tr>
             </thead>
             <tbody>
@@ -350,13 +350,13 @@ export default function WorkOrderEntryPage() {
                 const it = itemById.get(l.productId)
                 return (
                   <tr key={l.key}>
-                    <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{idx + 1}</td>
-                    <td className="pad" style={{ fontFamily: 'ui-monospace, monospace', color: 'var(--ec-label)', overflow: 'hidden', whiteSpace: 'nowrap' }}>{it?.code ?? ''}</td>
+                    <td className="text-center bg-ec-stripe text-ec-hint">{idx + 1}</td>
+                    <td className="pad text-ec-label overflow-hidden whitespace-nowrap">{it?.code ?? ''}</td>
                     <td className="pad">
                       <CodePickerField label="품목" hideLabel fill placeholder="" emptyLabel="선택 해제"
                                        value={l.productId} onChange={(v) => setLine(l.key, { productId: v })} items={itemPicks} />
                     </td>
-                    <td className="pad" style={{ color: 'var(--ec-label)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it?.spec ?? ''}</td>
+                    <td className="pad text-ec-label overflow-hidden text-ellipsis whitespace-nowrap">{it?.spec ?? ''}</td>
                     <td>
                       <input className="cell" type="number" step="any" style={{ textAlign: 'right' }} disabled={!l.productId}
                              value={l.qty} onChange={(e) => setLine(l.key, { qty: e.target.value })} />
@@ -365,9 +365,9 @@ export default function WorkOrderEntryPage() {
                       <CodePickerField label="생산공장" hideLabel fill placeholder="" emptyLabel="선택 해제"
                                        value={l.warehouseId} onChange={(v) => setLine(l.key, { warehouseId: v })} items={factoryPicks} />
                     </td>
-                    <td className="pad" style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{l.produced > 0 ? won(l.produced) : ''}</td>
-                    <td className="pad" style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{stockAll(l.productId) == null ? '' : won(stockAll(l.productId)!)}</td>
-                    <td className="pad" style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{stockAt(l.productId, l.warehouseId) == null ? '' : won(stockAt(l.productId, l.warehouseId)!)}</td>
+                    <td className="pad text-right text-ec-hint">{l.produced > 0 ? won(l.produced) : ''}</td>
+                    <td className="pad text-right text-ec-label">{stockAll(l.productId) == null ? '' : won(stockAll(l.productId)!)}</td>
+                    <td className="pad text-right text-ec-label">{stockAt(l.productId, l.warehouseId) == null ? '' : won(stockAt(l.productId, l.warehouseId)!)}</td>
                   </tr>
                 )
               })}
@@ -375,15 +375,15 @@ export default function WorkOrderEntryPage() {
             <tfoot>
               <tr>
                 <td colSpan={4} />
-                <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(filled.reduce((n, l) => n + num(l.qty), 0))}</td>
+                <td className="text-right font-bold">{won(filled.reduce((n, l) => n + num(l.qty), 0))}</td>
                 <td colSpan={4} />
               </tr>
             </tfoot>
           </table>
         </div>
 
-        {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, margin: '8px 0' }}>{error}</p>}
-        {ok && <p style={{ background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, margin: '8px 0' }}>{ok}</p>}
+        {error && <p className="ec-alert ec-alert-danger my-[8px] mx-0">{error}</p>}
+        {ok && <p className="ec-alert ec-alert-success my-[8px] mx-0">{ok}</p>}
       </EcSlipShell>
       <SlipLoadModal open={slipLoadOpen} onClose={() => setSlipLoadOpen(false)} onApply={applyLoadedSlips} />
       <SalesOrderPickModal open={orderOpen} onClose={() => setOrderOpen(false)} onApply={applyOrders} />

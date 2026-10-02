@@ -112,28 +112,28 @@ export default function FundStatusPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={FUND_STATUS_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
         <EcCond label="대표거래처로 합산">
           {([['거래처관계기준', true], ['개별거래처기준', false]] as const).map(([l, v]) => (
-            <label key={l} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+            <label key={l} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
               <input type="radio" name="fs-parent" checked={byParent === v} onChange={() => setByParent(v)} /> {l}
             </label>
           ))}
         </EcCond>
       </ul>
 
-      {truncated && <p style={{ fontSize: 12, color: 'var(--ec-warn)', marginBottom: 6 }}>전표가 많아 앞부분만 받았습니다.</p>}
-      <h3 style={{ fontSize: 20, fontWeight: 700, textAlign: 'center', margin: '6px 0 4px' }}>자금현황표</h3>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, margin: '0 0 4px' }}>
+      {truncated && <p className="text-[12px] text-ec-warn mb-[6px]">전표가 많아 앞부분만 받았습니다.</p>}
+      <h3 className="text-[20px] font-bold text-center mt-[6px] mx-0 mb-[4px]">자금현황표</h3>
+      <div className="flex justify-between text-[12px] mt-0 mx-0 mb-[4px]">
         <span>회사명 : {companyName ?? ''}</span>
         <span>{slash(from)} ~ {slash(to)}</span>
       </div>
@@ -142,19 +142,19 @@ export default function FundStatusPage() {
           <tr>
             <th>계정명</th>
             <th>거래처명</th>
-            <th style={{ textAlign: 'right' }}>이월잔액[외화]</th>
-            <th style={{ textAlign: 'right' }}>증가[외화]</th>
-            <th style={{ textAlign: 'right' }}>감소[외화]</th>
-            <th style={{ textAlign: 'right' }}>금일잔액[외화]</th>
+            <th className="text-right">이월잔액[외화]</th>
+            <th className="text-right">증가[외화]</th>
+            <th className="text-right">감소[외화]</th>
+            <th className="text-right">금일잔액[외화]</th>
             <th>거래처코드</th>
             <th>계정코드</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
           ) : blocks.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : (
             <>
               {blocks.map((b) => (
@@ -163,31 +163,31 @@ export default function FundStatusPage() {
                     <tr key={x.key}>
                       <td>{i === 0 ? b.accName : ''}</td>
                       <td>{x.partner}</td>
-                      <td style={{ textAlign: 'right' }}>{won(x.carry)}</td>
-                      <td style={{ textAlign: 'right' }}>{won(x.inc)}</td>
-                      <td style={{ textAlign: 'right' }}>{won(x.dec)}</td>
-                      <td style={{ textAlign: 'right' }}>{won(bal(x))}</td>
+                      <td className="text-right">{won(x.carry)}</td>
+                      <td className="text-right">{won(x.inc)}</td>
+                      <td className="text-right">{won(x.dec)}</td>
+                      <td className="text-right">{won(bal(x))}</td>
                       <td>{x.code}</td>
                       <td>{i === 0 ? b.accCode : ''}</td>
                     </tr>
                   ))}
                   <tr style={SUB_ROW}>
-                    <td colSpan={2} style={{ textAlign: 'center' }}>{b.accName} 계</td>
-                    <td style={{ textAlign: 'right' }}>{won(b.carry)}</td>
-                    <td style={{ textAlign: 'right' }}>{won(b.inc)}</td>
-                    <td style={{ textAlign: 'right' }}>{won(b.dec)}</td>
-                    <td style={{ textAlign: 'right' }}>{won(bal(b))}</td>
+                    <td colSpan={2} className="text-center">{b.accName} 계</td>
+                    <td className="text-right">{won(b.carry)}</td>
+                    <td className="text-right">{won(b.inc)}</td>
+                    <td className="text-right">{won(b.dec)}</td>
+                    <td className="text-right">{won(bal(b))}</td>
                     <td></td>
                     <td></td>
                   </tr>
                 </Fragment>
               ))}
               <tr style={SUB_ROW}>
-                <td colSpan={2} style={{ textAlign: 'center' }}>합계</td>
-                <td style={{ textAlign: 'right' }}>{won(tot.carry)}</td>
-                <td style={{ textAlign: 'right' }}>{won(tot.inc)}</td>
-                <td style={{ textAlign: 'right' }}>{won(tot.dec)}</td>
-                <td style={{ textAlign: 'right' }}>{won(bal(tot))}</td>
+                <td colSpan={2} className="text-center">합계</td>
+                <td className="text-right">{won(tot.carry)}</td>
+                <td className="text-right">{won(tot.inc)}</td>
+                <td className="text-right">{won(tot.dec)}</td>
+                <td className="text-right">{won(bal(tot))}</td>
                 <td></td>
                 <td></td>
               </tr>

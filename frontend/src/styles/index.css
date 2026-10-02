@@ -1,9 +1,62 @@
 @import "tailwindcss";
 
 @import "./tokens.css";
-@import "./shell.css";
+@import "./shell.css" layer(components);
+
+/*
+ * 토큰 → Tailwind 클래스. 화면에서 색은 이 이름으로만 쓴다:
+ *   text-ec-hint · text-ec-danger · bg-ec-page · border-ec-line · rounded-ec · rounded-ec-panel …
+ * Tailwind 기본 팔레트(text-slate-600 · bg-red-50 …)는 쓰지 않는다 — qa/style-check.mjs 가 센다.
+ * inline: 값이 아니라 var(--ec-…) 로 남겨, tokens.css 하나만 바꾸면 클래스도 따라간다.
+ */
+@theme inline {
+  --color-ec-blue: var(--ec-blue);
+  --color-ec-blue-hover: var(--ec-blue-hover);
+  --color-ec-blue-tint: var(--ec-blue-tint);
+  --color-ec-blue-wash: var(--ec-blue-wash);
+  --color-ec-navy: var(--ec-navy);
+  --color-ec-ink: var(--ec-ink);
+  --color-ec-text: var(--ec-text);
+  --color-ec-text-sub: var(--ec-text-sub);
+  --color-ec-muted: var(--ec-text-muted);
+  --color-ec-label: var(--ec-label);
+  --color-ec-hint: var(--ec-text-hint);
+  --color-ec-off: var(--ec-text-off);
+  --color-ec-icon: var(--ec-icon);
+  --color-ec-ok: var(--ec-ok);
+  --color-ec-star: var(--ec-star);
+  --color-ec-danger: var(--ec-danger);
+  --color-ec-danger-bg: var(--ec-danger-bg);
+  --color-ec-success: var(--ec-success);
+  --color-ec-success-bg: var(--ec-success-bg);
+  --color-ec-warn: var(--ec-warn);
+  --color-ec-warn-bg: var(--ec-warn-bg);
+  --color-ec-info-line: var(--ec-info-line);
+  --color-ec-shell: var(--ec-bg-shell);
+  --color-ec-page: var(--ec-bg-page);
+  --color-ec-panel: var(--ec-bg-panel);
+  --color-ec-pill: var(--ec-bg-pill);
+  --color-ec-disabled: var(--ec-bg-disabled);
+  --color-ec-row-hover: var(--ec-bg-row-hover);
+  --color-ec-stripe: var(--ec-report-stripe);
+  --color-ec-line: var(--ec-line);
+  --color-ec-line-soft: var(--ec-line-soft);
+  --color-ec-line-head: var(--ec-line-head);
+  --color-ec-line-focus: var(--ec-line-focus);
+  --radius-ec: var(--ec-radius);
+  --radius-ec-menu: var(--ec-radius-menu);
+  --radius-ec-panel: var(--ec-radius-panel);
+  --radius-ec-pill: var(--ec-radius-pill);
+}
 
 /* 색·크기·둥글기는 tokens.css 가 단일 출처다. 이 파일은 그 토큰으로 부품(버튼·칸·격자·판)을 그린다. */
+/*
+ * 아래 부품 규칙은 전부 @layer components 안에 둔다 — Tailwind 유틸리티(utilities 층)가 이겨야
+ * 화면이 붙인 text-right · mb-[6px] · text-ec-danger 가 먹는다(인라인 style 이 이기던 것과 같은 순서).
+ * 층 밖에 규칙을 새로 쓰면 유틸리티가 지고, 화면이 조용히 어긋난다.
+ */
+@layer components {
+
 :root {
   /* 맑은 고딕이 1순위다. 원본은 사용자 설정 글꼴(loginaa 는 돋움)을 따르지만 기본값이 맑은 고딕이고,
      DM Sans 처럼 폭이 다른 글꼴을 앞에 두면 같은 px 를 줘도 인상이 안 맞는다. */
@@ -935,3 +988,36 @@ main table,
   color: var(--ec-blue);
   font-weight: 600;
 }
+
+/* ============================================================
+   의미 부품 — 화면마다 인라인으로 수백 번 반복되던 모양에 이름을 붙였다(2026-10-03).
+   값은 옮길 때의 모양 그대로다. 원본에 맞출 때는 여기 한 곳만 고친다.
+   ============================================================ */
+
+/* 안내 상자: 저장 실패(danger) · 저장 완료(success) · 알림(info) — components/ui/EcAlert */
+.ec-alert {
+  padding: 6px 10px;
+  border-radius: 3px;
+  font-size: 12.5px;
+}
+.ec-alert-danger { background: var(--ec-danger-bg); color: var(--ec-danger); }
+.ec-alert-success { background: var(--ec-success-bg); color: var(--ec-success); }
+.ec-alert-info {
+  padding: 5px 8px;
+  font-size: 12px;
+  background: var(--ec-blue-wash);
+  border: 1px solid var(--ec-info-line);
+  color: var(--ec-navy);
+}
+
+/* 빈 목록 · 불러오는 중 줄 — components/ui/EcEmptyRow.
+   원본(2026-09-23 판매현황 실측): '등록된 데이터가 없습니다.' <b>검정 · 가운데 · 보통 줄 높이</b>.
+   예전엔 화면마다 회색 · 여백 20 으로 그렸다(415곳) — 이 규칙 하나로 모두 원본 모양이 된다.
+   td 를 붙여 .ec-grid td(0,1,1) 와 같은 무게로 두고 뒤에 적어 이긴다. */
+td.ec-empty,
+th.ec-empty {
+  text-align: center;
+  color: var(--ec-ink);
+}
+
+} /* @layer components */

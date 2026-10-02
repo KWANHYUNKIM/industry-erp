@@ -338,7 +338,7 @@ export default function TransferStatusPage() {
         </EcCond>
         {/* 원본 차례: 프로젝트 · (프로젝트그룹1·2) · 기타 · 담당자 · 적요 … */}
         <EcCond label="기타">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
             수정일자순(정렬)
           </label>
@@ -356,7 +356,7 @@ export default function TransferStatusPage() {
         <EcCond label="수량">
           <input className="ec-input" type="number" value={cond.qtyFrom}
                  onChange={(e) => setC({ qtyFrom: e.target.value })} style={{ width: 110, textAlign: 'right' }} />
-          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
           <input className="ec-input" type="number" value={cond.qtyTo}
                  onChange={(e) => setC({ qtyTo: e.target.value })} style={{ width: 110, textAlign: 'right' }} />
         </EcCond>
@@ -369,23 +369,23 @@ export default function TransferStatusPage() {
         </EcCond>
         <EcCond label="최초작성일자">
           <input type="date" className="ec-input" value={cond.madeFrom} onChange={(e) => setC({ madeFrom: e.target.value })} style={{ width: 140 }} />
-          <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
+          <span className="my-0 mx-[6px] text-ec-label">~</span>
           <input type="date" className="ec-input" value={cond.madeTo} onChange={(e) => setC({ madeTo: e.target.value })} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="최종작업일자">
           <input type="date" className="ec-input" value={cond.editedFrom} onChange={(e) => setC({ editedFrom: e.target.value })} style={{ width: 140 }} />
-          <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
+          <span className="my-0 mx-[6px] text-ec-label">~</span>
           <input type="date" className="ec-input" value={cond.editedTo} onChange={(e) => setC({ editedTo: e.target.value })} style={{ width: 140 }} />
         </EcCond>
       </EcStatusPanel>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
         {mode === '내역' ? '건수' : '이동경로'}{' '}
-        <b style={{ color: 'var(--ec-text)' }}>{num(mode === '내역' ? shown.length : summary.length)}</b>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
-        이동수량 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{num(totalQty)}</b>
+        <b className="text-ec-text">{num(mode === '내역' ? shown.length : summary.length)}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
+        이동수량 <b className="text-ec-blue text-[14px]">{num(totalQty)}</b>
       </div>
 
       <div className="overflow-x-auto">
@@ -394,13 +394,13 @@ export default function TransferStatusPage() {
         ) : mode === '내역' ? (
           <table className="w-full text-left">
             <colgroup>
-              <col style={{ width: '4%' }} /><col style={{ width: '14%' }} /><col style={{ width: '10%' }} />
-              <col /><col style={{ width: '13%' }} /><col style={{ width: '13%' }} />
-              <col style={{ width: '10%' }} /><col style={{ width: '14%' }} />
+              <col className="w-[4%]" /><col className="w-[14%]" /><col className="w-[10%]" />
+              <col /><col className="w-[13%]" /><col className="w-[13%]" />
+              <col className="w-[10%]" /><col className="w-[14%]" />
             </colgroup>
             <thead>
               <tr>
-                <th style={{ width: 28 }}></th>
+                <th className="w-[28px]"></th>
                 <th></th>
                 {/*
                   원본 창고이동조회의 열은 <b>일자-No. · 보내는창고명 · 받는창고명 ·
@@ -421,38 +421,38 @@ export default function TransferStatusPage() {
                 <th>출고창고명</th>
                 <th>입고창고명</th>
                 <th>품목명[규격]</th>
-                <th style={{ textAlign: 'right' }}>수량</th>
-                <th style={{ width: 130, textAlign: 'right' }}>금액(수량*입고단가)</th>
+                <th className="text-right">수량</th>
+                <th className="w-[130px] text-right">금액(수량*입고단가)</th>
                 <th>적요</th>
                 {/* 원본 창고이동조회의 마지막 열 [인쇄] — 그 한 건을 이동증으로 찍는다. */}
-                <th style={{ width: 60, textAlign: 'center' }}>인쇄</th>
+                <th className="w-[60px] text-center">인쇄</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+                <tr><td colSpan={10} className="text-center text-ec-ink">불러오는 중…</td></tr>
               ) : shown.length === 0 ? (
-                <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={10} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
               ) : shown.map((r, i) => (
                 <tr key={r.id}>
-                  <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)' }}>
+                  <td className="text-center bg-ec-stripe">
                     <input type="checkbox" checked={picked.has(r.id)} onChange={() => pick(r.id)} />
                   </td>
-                  <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                  <td style={{ fontFamily: 'monospace' }}>
+                  <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
+                  <td>
                     {r.transferDate.replace(/-/g, '/')} {r.transferNo}
                   </td>
                   <td style={{ color: '#a5561b' }}>{r.fromWarehouseName}</td>
-                  <td style={{ color: 'var(--ec-blue)' }}>{r.toWarehouseName}</td>
-                  <td>{r.itemName}{r.spec ? `[${r.spec}]` : ''} <span style={{ fontSize: 11, color: 'var(--ec-text-hint)' }}>{r.itemCode}</span></td>
-                  <td style={{ textAlign: 'right', fontWeight: 700 }}>
-                    {num(r.quantity)} <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--ec-text-hint)' }}>{r.unit}</span>
+                  <td className="text-ec-blue">{r.toWarehouseName}</td>
+                  <td>{r.itemName}{r.spec ? `[${r.spec}]` : ''} <span className="text-[11px] text-ec-hint">{r.itemCode}</span></td>
+                  <td className="text-right font-bold">
+                    {num(r.quantity)} <span className="text-[11px] font-normal text-ec-hint">{r.unit}</span>
                   </td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>
+                  <td className="text-right text-ec-label">
                     {amountOf(r.itemId, r.quantity) == null ? '' : num(amountOf(r.itemId, r.quantity)!)}
                   </td>
-                  <td style={{ color: 'var(--ec-label)' }}>{r.reason ?? ''}</td>
-                  <td style={{ textAlign: 'center' }}>
+                  <td className="text-ec-label">{r.reason ?? ''}</td>
+                  <td className="text-center">
                     <button onClick={() => printTransfer(r)}
                             style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
                   </td>
@@ -462,10 +462,10 @@ export default function TransferStatusPage() {
             {shown.length > 0 && (
               <tfoot>
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>합계</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: 'var(--ec-blue)' }}>{num(totalQty)}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>{num(totalAmount)}</td>
-                  <td colSpan={2} style={{ background: 'var(--ec-bg-page)' }}></td>
+                  <td colSpan={6} className="text-right font-bold bg-ec-page">합계</td>
+                  <td className="text-right font-bold bg-ec-page text-ec-blue">{num(totalQty)}</td>
+                  <td className="text-right font-bold bg-ec-page">{num(totalAmount)}</td>
+                  <td colSpan={2} className="bg-ec-page"></td>
                 </tr>
               </tfoot>
             )}
@@ -473,9 +473,9 @@ export default function TransferStatusPage() {
         ) : (
           <table className="w-full text-left">
             <colgroup>
-              <col style={{ width: '5%' }} /><col style={{ width: '16%' }} /><col style={{ width: '16%' }} />
-              <col style={{ width: '15%' }} /><col />
-              <col style={{ width: '9%' }} /><col style={{ width: '13%' }} />
+              <col className="w-[5%]" /><col className="w-[16%]" /><col className="w-[16%]" />
+              <col className="w-[15%]" /><col />
+              <col className="w-[9%]" /><col className="w-[13%]" />
             </colgroup>
             <thead>
               <tr>
@@ -484,25 +484,25 @@ export default function TransferStatusPage() {
                 <th>입고창고</th>
                 <th>품목코드</th>
                 <th>품목명</th>
-                <th style={{ textAlign: 'right' }}>건수</th>
-                <th style={{ textAlign: 'right' }}>이동수량</th>
+                <th className="text-right">건수</th>
+                <th className="text-right">이동수량</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+                <tr><td colSpan={7} className="text-center text-ec-ink">불러오는 중…</td></tr>
               ) : summary.length === 0 ? (
-                <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={7} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
               ) : summary.map((g, i) => (
                 <tr key={g.k}>
-                  <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+                  <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
                   <td style={{ color: '#a5561b' }}>{g.from}</td>
-                  <td style={{ color: 'var(--ec-blue)' }}>{g.to}</td>
-                  <td style={{ fontFamily: 'monospace' }}>{g.itemCode}</td>
+                  <td className="text-ec-blue">{g.to}</td>
+                  <td>{g.itemCode}</td>
                   <td>{g.itemName}</td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(g.count)}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700 }}>
-                    {num(g.qty)} <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--ec-text-hint)' }}>{g.unit}</span>
+                  <td className="text-right text-ec-hint">{num(g.count)}</td>
+                  <td className="text-right font-bold">
+                    {num(g.qty)} <span className="text-[11px] font-normal text-ec-hint">{g.unit}</span>
                   </td>
                 </tr>
               ))}
@@ -510,8 +510,8 @@ export default function TransferStatusPage() {
             {summary.length > 0 && (
               <tfoot>
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>합계</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: 'var(--ec-blue)' }}>{num(totalQty)}</td>
+                  <td colSpan={6} className="text-right font-bold bg-ec-page">합계</td>
+                  <td className="text-right font-bold bg-ec-page text-ec-blue">{num(totalQty)}</td>
                 </tr>
               </tfoot>
             )}

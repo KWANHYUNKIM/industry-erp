@@ -352,13 +352,13 @@ export default function WoEfficiencyPage() {
         dateLabel="기준일(영업주기)"
       >
         <EcCond label="납기일자">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={useDue} onChange={(e) => setUseDue(e.target.checked)} />
             사용
           </label>
           <input type="date" className="ec-input" value={dueFrom} disabled={!useDue}
                  onChange={(e) => setDueFrom(e.target.value)} style={{ width: 150 }} />
-          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <span className="text-ec-label">~</span>
           <input type="date" className="ec-input" value={dueTo} disabled={!useDue}
                  onChange={(e) => setDueTo(e.target.value)} style={{ width: 150 }} />
         </EcCond>
@@ -418,19 +418,19 @@ export default function WoEfficiencyPage() {
           </select>
         </EcCond>
         <EcCond label="결재방표시">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
             인쇄물에 결재란(도장칸)을 찍는다
           </label>
         </EcCond>
       </EcStatusPanel>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
-        작업지시 <b style={{ color: 'var(--ec-text)' }}>{shown.length}</b>건
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
-        평균 달성효율 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{avgEff}%</b>
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        작업지시 <b className="text-ec-text">{shown.length}</b>건
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
+        평균 달성효율 <b className="text-ec-navy text-[14px]">{avgEff}%</b>
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
         소모 차이 합계 <b style={{ color: consumeTotal < 0 ? 'var(--ec-danger)' : 'var(--ec-success)', fontSize: 14 }}>{won(consumeTotal)}</b>
       </div>
       <table className="w-full text-left">
@@ -449,18 +449,18 @@ export default function WoEfficiencyPage() {
               <b>가운데</b>에 둔다.
               ([진행상태]는 원본 격자에 없는 우리 열이다 — 원본은 조건으로만 둔다.)
             */}
-            <th style={{ width: 34 }}></th>
-            <th style={{ textAlign: 'center' }}>전표번호</th>
+            <th className="w-[34px]"></th>
+            <th className="text-center">전표번호</th>
             <th>품목</th>
-            <th style={{ textAlign: 'center' }}>납기일자</th>
-            <th style={{ textAlign: 'right' }}>계획수량</th>
-            <th style={{ textAlign: 'right' }}>생산수량</th>
-            <th style={{ textAlign: 'right' }}>차이</th>
-            <th style={{ textAlign: 'right' }}>소모 표준</th>
-            <th style={{ textAlign: 'right' }}>소모 실제</th>
-            <th style={{ textAlign: 'right' }}>소모 차이</th>
-            <th style={{ textAlign: 'right' }}>시간 표준</th>
-            <th style={{ textAlign: 'right' }}>시간 실제</th>
+            <th className="text-center">납기일자</th>
+            <th className="text-right">계획수량</th>
+            <th className="text-right">생산수량</th>
+            <th className="text-right">차이</th>
+            <th className="text-right">소모 표준</th>
+            <th className="text-right">소모 실제</th>
+            <th className="text-right">소모 차이</th>
+            <th className="text-right">시간 표준</th>
+            <th className="text-right">시간 실제</th>
             {/*
               2026-09-09 원본 실측(E040436). 원본 격자는 <b>머리가 두 줄</b>이라
               [작업지시서|생산|소모|시간|하위공정] 아래에 전표번호·품목·납기일자 /
@@ -468,17 +468,17 @@ export default function WoEfficiencyPage() {
               달린다. 우리는 소모 쪽 차이만 두고 <b>시간 쪽 차이를 빼먹고 있었다</b> —
               표준과 실제를 나란히 두고 뺄셈은 사람에게 시키고 있었던 셈이다.
             */}
-            <th style={{ textAlign: 'right' }}>시간 차이</th>
+            <th className="text-right">시간 차이</th>
             {/* 원본은 이 칸의 [조회] 를 <b>왼쪽</b>에 붙인다(실측). */}
             <th>하위공정</th>
-            <th style={{ textAlign: 'center' }}>진행상태</th>
+            <th className="text-center">진행상태</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={15} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={15} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={15} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={15} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.flatMap((r, i) => {
             const e = efficiency.get(r.id)
             const qtyDiff = r.producedQty - r.plannedQty
@@ -489,26 +489,26 @@ export default function WoEfficiencyPage() {
             const detail = (e?.rows ?? []).filter((x) => x.stdQty !== 0 || x.actualQty !== 0)
             const rows = [(
               <tr key={r.id}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{r.orderNo}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td className="text-center">{r.orderNo}</td>
                 <td>[{r.productCode}] {r.productName}</td>
-                <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(r.dueDate) || ''}</td>
-                <td style={{ textAlign: 'right' }}>{r.plannedQty.toLocaleString('ko-KR')}</td>
-                <td style={{ textAlign: 'right' }}>{r.producedQty.toLocaleString('ko-KR')}</td>
+                <td className="text-center">{dateText(r.dueDate) || ''}</td>
+                <td className="text-right">{r.plannedQty.toLocaleString('ko-KR')}</td>
+                <td className="text-right">{r.producedQty.toLocaleString('ko-KR')}</td>
                 <td style={{ textAlign: 'right', color: qtyDiff < 0 ? 'var(--ec-danger)' : qtyDiff > 0 ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>
                   {qtyDiff.toLocaleString('ko-KR')}
                 </td>
-                <td style={{ textAlign: 'right' }}>{won(e?.std.amount ?? 0)}</td>
-                <td style={{ textAlign: 'right' }}>{won(e?.act.amount ?? 0)}</td>
+                <td className="text-right">{won(e?.std.amount ?? 0)}</td>
+                <td className="text-right">{won(e?.act.amount ?? 0)}</td>
                 {/* 표준 − 실제. 음수면 자재를 더 썼다는 뜻이다. */}
                 <td style={{ textAlign: 'right', fontWeight: 700, color: consumeDiff < 0 ? 'var(--ec-danger)' : consumeDiff > 0 ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>
                   {won(consumeDiff)}
                   {unknown > 0 && (
-                    <span title={'단가를 모르는 자재 ' + unknown + '건은 빼고 셌습니다.'} style={{ color: 'var(--ec-warn)' }}> *</span>
+                    <span title={'단가를 모르는 자재 ' + unknown + '건은 빼고 셌습니다.'} className="text-ec-warn"> *</span>
                   )}
                 </td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{e && e.time.standard ? won(e.time.standard) + '분' : ''}</td>
-                <td style={{ textAlign: 'right' }}>{e && e.time.actual ? won(e.time.actual) + '분' : ''}</td>
+                <td className="text-right text-ec-label">{e && e.time.standard ? won(e.time.standard) + '분' : ''}</td>
+                <td className="text-right">{e && e.time.actual ? won(e.time.actual) + '분' : ''}</td>
                 {/* 표준 − 실제. 음수면 예정보다 오래 걸렸다는 뜻이다(소모 차이와 같은 방향). */}
                 <td style={{ textAlign: 'right', fontWeight: 700, color: timeDiff < 0 ? 'var(--ec-danger)' : timeDiff > 0 ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>
                   {e && (e.time.standard || e.time.actual) ? won(timeDiff) + '분' : ''}
@@ -522,7 +522,7 @@ export default function WoEfficiencyPage() {
                     })} style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>
                       {expanded ? '접기' : '펼치기 (' + detail.length + ')'}
                     </button>
-                  ) : <span style={{ color: 'var(--ec-text-off)' }}>-</span>}
+                  ) : <span className="text-ec-off">-</span>}
                 </td>
                 <td style={{ textAlign: 'center', fontWeight: 700, color: r.status === 'COMPLETED' ? 'var(--ec-success)' : r.status === 'IN_PROGRESS' ? 'var(--ec-warn)' : 'var(--ec-text-hint)' }}>{r.statusName}</td>
               </tr>
@@ -530,15 +530,15 @@ export default function WoEfficiencyPage() {
             if (expanded) {
               for (const d of detail) {
                 rows.push(
-                  <tr key={r.id + '-' + d.componentId} style={{ background: 'var(--ec-bg-page)' }}>
+                  <tr key={r.id + '-' + d.componentId} className="bg-ec-page">
                     <td></td>
-                    <td colSpan={2} style={{ paddingLeft: 18, color: 'var(--ec-label)' }}>└ {d.componentName}</td>
+                    <td colSpan={2} className="pl-[18px] text-ec-label">└ {d.componentName}</td>
                     <td></td>
-                    <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{d.stdQty.toLocaleString('ko-KR')}</td>
-                    <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{d.actualQty.toLocaleString('ko-KR')}</td>
-                    <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{(d.actualQty - d.stdQty).toLocaleString('ko-KR')}</td>
-                    <td style={{ textAlign: 'right' }}>{d.stdAmount != null ? won(d.stdAmount) : ''}</td>
-                    <td style={{ textAlign: 'right' }}>{d.actualAmount != null ? won(d.actualAmount) : ''}</td>
+                    <td className="text-right text-ec-hint">{d.stdQty.toLocaleString('ko-KR')}</td>
+                    <td className="text-right text-ec-hint">{d.actualQty.toLocaleString('ko-KR')}</td>
+                    <td className="text-right text-ec-hint">{(d.actualQty - d.stdQty).toLocaleString('ko-KR')}</td>
+                    <td className="text-right">{d.stdAmount != null ? won(d.stdAmount) : ''}</td>
+                    <td className="text-right">{d.actualAmount != null ? won(d.actualAmount) : ''}</td>
                     <td style={{ textAlign: 'right', color: d.diffAmount != null && d.diffAmount < 0 ? 'var(--ec-danger)' : 'var(--ec-label)' }}>
                       {d.diffAmount != null ? won(d.diffAmount) : '단가 없음'}
                     </td>

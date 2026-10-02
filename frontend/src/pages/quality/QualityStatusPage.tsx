@@ -173,9 +173,9 @@ export default function QualityStatusPage() {
       onSearch={load}
       actions={[{ label: '새로고침', onClick: load }, { label: '인쇄' }, { label: 'Excel' }]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+      <div className="flex items-center gap-[8px] mb-[8px]">
         <button className="ec-btn" onClick={openPanel}>
           상세검색 {panelOpen ? '▲' : '▼'}{activeCount > 0 ? ` (${activeCount})` : ''}
         </button>
@@ -189,16 +189,16 @@ export default function QualityStatusPage() {
                      view={view} onViewChange={setView} />
       )}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
-        건수 <b style={{ color: 'var(--ec-text)' }}>{shown.length.toLocaleString()}</b>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
-        검사수량 <b style={{ color: 'var(--ec-text)', fontSize: 14 }}>{totals.inspected.toLocaleString()}</b>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
-        불량 <b style={{ color: 'var(--ec-danger)', fontSize: 14 }}>{totals.defect.toLocaleString()}</b>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        건수 <b className="text-ec-text">{shown.length.toLocaleString()}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
+        검사수량 <b className="text-ec-text text-[14px]">{totals.inspected.toLocaleString()}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
+        불량 <b className="text-ec-danger text-[14px]">{totals.defect.toLocaleString()}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
         불량률 <b style={{ color: totals.rate > 0 ? 'var(--ec-danger)' : '#1c6b32', fontSize: 14 }}>{pct(totals.rate)}</b>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
-        합격 <b style={{ color: 'var(--ec-success)' }}>{totals.pass}</b> / 불합격 <b style={{ color: 'var(--ec-danger)' }}>{totals.fail}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
+        합격 <b className="text-ec-success">{totals.pass}</b> / 불합격 <b className="text-ec-danger">{totals.fail}</b>
       </div>
 
       {view === '그래프' ? (
@@ -225,36 +225,36 @@ export default function QualityStatusPage() {
             검사구분·로트·불량률·검사자는 원본에 없지만 우리가 더 두는 열이다.
           */}
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ cursor: 'pointer', textAlign: 'center' }} onClick={() => sort.toggle('검사일자')}>일자-No. {sort.mark('검사일자')}</th>
-            <th style={{ textAlign: 'center' }}>검사구분</th>
+            <th className="w-[34px]"></th>
+            <th className="cursor-pointer text-center" onClick={() => sort.toggle('검사일자')}>일자-No. {sort.mark('검사일자')}</th>
+            <th className="text-center">검사구분</th>
             <th>품목명[규격명]</th>
             <th>로트</th>
-            <th style={{ textAlign: 'right' }}>수량</th>
-            <th style={{ textAlign: 'right' }}>적격</th>
-            <th style={{ textAlign: 'right' }}>부적격</th>
-            <th style={{ textAlign: 'right' }}>불량률</th>
-            <th style={{ textAlign: 'center' }}>합격여부</th>
+            <th className="text-right">수량</th>
+            <th className="text-right">적격</th>
+            <th className="text-right">부적격</th>
+            <th className="text-right">불량률</th>
+            <th className="text-center">합격여부</th>
             <th>검사자</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={11} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>
+            <tr><td colSpan={11} className="text-center text-ec-hint p-[20px]">
               {rows.length === 0 ? '품질검사 내역이 없습니다.' : '검색조건에 맞는 자료가 없습니다.'}
             </td></tr>
           ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
               {/* 원본은 일자와 번호를 한 칸에 적는다. */}
-              <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(r.inspectionDate)} {r.inspectionNo}</td>
-              <td style={{ textAlign: 'center' }}>{r.typeName}</td>
+              <td className="text-center">{dateText(r.inspectionDate)} {r.inspectionNo}</td>
+              <td className="text-center">{r.typeName}</td>
               {/* 규격은 품목 마스터가 든다 - 이 화면은 조건으로 거르려고 진작 받아 두고 있었다. */}
               <td>{r.itemName}{itemById.get(r.itemId)?.spec ? ` [${itemById.get(r.itemId)?.spec}]` : ''}</td>
               <td style={{ fontFamily: 'monospace', color: r.lotNo ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{r.lotNo ?? ''}</td>
-              <td style={{ textAlign: 'right' }}>{r.inspectedQty.toLocaleString()}</td>
+              <td className="text-right">{r.inspectedQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right', color: '#1c6b32' }}>{r.goodQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right', color: r.defectQty > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)', fontWeight: r.defectQty > 0 ? 600 : 400 }}>{r.defectQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right', color: r.defectRate > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>{pct(r.defectRate)}</td>
@@ -297,10 +297,10 @@ function SearchPanel({
         <span style={label}>기준일자</span>
         <input type="date" className="ec-input" value={draft.dateFrom}
           onChange={(e) => onChange({ dateFrom: e.target.value })} style={{ width: 150 }} />
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-hint)' }}>~</span>
+        <span className="my-0 mx-[6px] text-ec-hint">~</span>
         <input type="date" className="ec-input" value={draft.dateTo}
           onChange={(e) => onChange({ dateTo: e.target.value })} style={{ width: 150 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={draft.dateFrom}
               onPick={(r) => onChange({ dateFrom: r.from, dateTo: r.to })} />
           </span>
@@ -391,7 +391,7 @@ function SearchPanel({
           ))}
         </div>
       </div>
-      <div style={{ display: 'flex', gap: 6, marginTop: 12, justifyContent: 'flex-end' }}>
+      <div className="flex gap-[6px] mt-[12px] justify-end">
         <button className="ec-btn" onClick={onReset}>초기화</button>
         <button className="ec-btn ec-btn-primary" onClick={onApply}>조회</button>
       </div>

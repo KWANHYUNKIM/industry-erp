@@ -164,71 +164,71 @@ export default function VacationRemainPage() {
         </EcCond>
       </ul>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
-        사원 <b style={{ color: 'var(--ec-text)' }}>{shown.length}</b>명
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
-        잔여 합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{days(totals.remain)}</b>일
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        사원 <b className="text-ec-text">{shown.length}</b>명
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
+        잔여 합계 <b className="text-ec-navy text-[14px]">{days(totals.remain)}</b>일
       </div>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ width: 140 }}>휴가명</th>
+            <th className="w-[34px]"></th>
+            <th className="w-[140px]">휴가명</th>
             <th>부서명</th>
             <th>성명</th>
-            <th style={{ textAlign: 'right' }}>휴가일수</th>
-            <th style={{ textAlign: 'right' }}>휴가사용일수</th>
-            <th style={{ textAlign: 'right' }}>휴가잔여일수</th>
+            <th className="text-right">휴가일수</th>
+            <th className="text-right">휴가사용일수</th>
+            <th className="text-right">휴가잔여일수</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.empName + i}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
               <td>{r.leaveName}</td>
               <td>{r.department ?? ''}</td>
               <td>{r.empName}{r.active ? '' : ' (퇴사)'}</td>
-              <td style={{ textAlign: 'right' }}>{days(r.totalDays)}</td>
-              <td style={{ textAlign: 'right' }}>{days(r.usedDays)}</td>
+              <td className="text-right">{days(r.totalDays)}</td>
+              <td className="text-right">{days(r.usedDays)}</td>
               <td style={{ textAlign: 'right', fontWeight: 700, color: r.remainingDays <= 0 ? 'var(--ec-danger)' : undefined }}>{days(r.remainingDays)}</td>
             </tr>
           ))}
         </tbody>
         <tfoot>
-          <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-            <td colSpan={4} style={{ textAlign: 'right' }}>합계 ({shown.length}명)</td>
-            <td style={{ textAlign: 'right' }}>{days(totals.total)}</td>
-            <td style={{ textAlign: 'right' }}>{days(totals.used)}</td>
-            <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{days(totals.remain)}</td>
+          <tr className="font-bold bg-ec-page">
+            <td colSpan={4} className="text-right">합계 ({shown.length}명)</td>
+            <td className="text-right">{days(totals.total)}</td>
+            <td className="text-right">{days(totals.used)}</td>
+            <td className="text-right text-ec-navy">{days(totals.remain)}</td>
           </tr>
         </tfoot>
       </table>
 
       {shown.length > 0 && (
         <>
-          <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+          <h3 className="text-[13px] font-bold mt-[16px] mx-0 mb-[6px]">{subtotal} 소계</h3>
           <table className="w-full text-left">
             <thead><tr>
               <th>{subtotal}</th>
-              <th style={{ width: 90, textAlign: 'right' }}>사원수</th>
-              <th style={{ width: 120, textAlign: 'right' }}>휴가일수</th>
-              <th style={{ width: 120, textAlign: 'right' }}>휴가사용일수</th>
-              <th style={{ width: 120, textAlign: 'right' }}>휴가잔여일수</th>
+              <th className="w-[90px] text-right">사원수</th>
+              <th className="w-[120px] text-right">휴가일수</th>
+              <th className="w-[120px] text-right">휴가사용일수</th>
+              <th className="w-[120px] text-right">휴가잔여일수</th>
             </tr></thead>
             <tbody>
               {groups.map((g) => (
                 <tr key={g.label}>
-                  <td style={{ fontWeight: 600 }}>{g.label}</td>
-                  <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
-                  <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{days(g.sums.total)}</td>
-                  <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{days(g.sums.used)}</td>
-                  <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: 'var(--ec-blue-dark)' }}>
+                  <td className="font-semibold">{g.label}</td>
+                  <td className="text-right">{g.count}</td>
+                  <td className="text-right">{days(g.sums.total)}</td>
+                  <td className="text-right">{days(g.sums.used)}</td>
+                  <td className="text-right font-bold text-ec-navy">
                     {days(g.sums.remain)}
                   </td>
                 </tr>

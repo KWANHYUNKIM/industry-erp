@@ -331,33 +331,33 @@ export default function ShipmentInquiryPage() {
         {/* 원본 [최초작성일자]·[최종수정일시] — 이번에 응답에 실어 물을 수 있게 됐다. */}
         <EcCond label="최초작성일자">
           <input type="date" className="ec-input" value={madeFrom} onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
+          <span className="my-0 mx-[6px] text-ec-label">~</span>
           <input type="date" className="ec-input" value={madeTo} onChange={(e) => setMadeTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="최종수정일시">
           <input type="date" className="ec-input" value={editedFrom} onChange={(e) => setEditedFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
+          <span className="my-0 mx-[6px] text-ec-label">~</span>
           <input type="date" className="ec-input" value={editedTo} onChange={(e) => setEditedTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
         {/* 원본 [기타] — 이 화면에서는 체크 하나뿐이다. 없는 것을 지어내지 않는다. */}
         <EcCond label="기타">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
             수정일자순(정렬)
           </label>
         </EcCond>
       </EcStatusPanel>
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-text-hint)', textAlign: 'right' }}>총 {shown.length}건 · 행을 클릭하면 품목 상세가 펼쳐집니다.</div>
+      <div className="mb-[8px] text-[12.5px] text-ec-hint text-right">총 {shown.length}건 · 행을 클릭하면 품목 상세가 펼쳐집니다.</div>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       {/*
         상태 필터는 원본에서 알약(pill)이다 — 선택된 것만 파란 알약으로 채워진다.
         원본은 이 줄에 <b>[발송여부]</b> 라는 이름표를 붙인다. 이름이 없으면 무엇을 고르는
         알약인지 화면만 보고는 알 수 없다.
       */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)', minWidth: 62 }}>발송여부</span>
+      <div className="flex items-center gap-[8px] mb-[6px]">
+        <span className="text-[12.5px] text-ec-label min-w-[62px]">발송여부</span>
       <div className="ec-pills">
         {SEND_TABS.map((t) => (
           <button
@@ -373,7 +373,7 @@ export default function ShipmentInquiryPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th className="w-[34px]"></th>
             {/*
               <b>출하조회(E040226) 2026-09-09 원본 격자 실측</b> — 열 여섯:
               [일자-No. · <b>창고명</b> · 품목명(요약) · 수량합계 · 거래처명 · <b>인쇄</b>].
@@ -388,58 +388,58 @@ export default function ShipmentInquiryPage() {
               찍을 수가 없었다.</b> 이번에 줄마다 달았다.
               [근거주문]·[출하금액]·[발송여부]·[담당]은 우리 열이다.
             */}
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('출하번호')}>일자-No. {sort.mark('출하번호')}</th><th style={{ width: 130 }}>근거주문</th><th>창고명</th><th>품목명(요약)</th>
-            <th style={{ textAlign: 'right' }}>수량합계</th><th style={{ textAlign: 'right' }}>출하금액</th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처')}>거래처명 {sort.mark('거래처')}</th>
-            <th style={{ textAlign: 'center' }}>발송여부</th><th>담당</th>
-            <th style={{ width: 60, textAlign: 'center' }}>인쇄</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('출하번호')}>일자-No. {sort.mark('출하번호')}</th><th className="w-[130px]">근거주문</th><th>창고명</th><th>품목명(요약)</th>
+            <th className="text-right">수량합계</th><th className="text-right">출하금액</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('거래처')}>거래처명 {sort.mark('거래처')}</th>
+            <th className="text-center">발송여부</th><th>담당</th>
+            <th className="w-[60px] text-center">인쇄</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={11} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <Fragment key={r.id}>
-              <tr onClick={() => setOpenId(openId === r.id ? null : r.id)} style={{ cursor: 'pointer' }}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+              <tr onClick={() => setOpenId(openId === r.id ? null : r.id)} className="cursor-pointer">
+                <td className="text-center text-ec-hint">{i + 1}</td>
                 {/* 원본은 일자와 번호를 한 칸에 적는다. */}
-                <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>{openId === r.id ? '▾ ' : '▸ '}{dateText(r.shipDate)} {r.shipNo}</td>
+                <td className="text-ec-blue font-semibold">{openId === r.id ? '▾ ' : '▸ '}{dateText(r.shipDate)} {r.shipNo}</td>
                 <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: r.salesOrderNo ? 'var(--ec-blue-dark)' : '#b6bcc4' }}>{r.salesOrderNo ?? '직접등록'}</td>
                 <td style={{ color: r.warehouseName ? undefined : 'var(--ec-text-off)' }}>{r.warehouseName ?? ''}</td>
                 <td>{r.lines[0]?.itemName}{r.lines.length > 1 ? ` 외 ${r.lines.length - 1}건` : ''}</td>
-                <td style={{ textAlign: 'right' }}>{won(r.totalQuantity)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(r.totalAmount)}</td>
+                <td className="text-right">{won(r.totalQuantity)}</td>
+                <td className="text-right font-semibold text-ec-blue">{won(r.totalAmount)}</td>
                 <td>{r.partnerName}</td>
                 <td style={{ textAlign: 'center', color: STATUS_COLOR[r.status], fontWeight: 700 }}>{r.statusName}</td>
                 <td>{r.employeeName ?? ''}</td>
-                <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                <td className="text-center" onClick={(e) => e.stopPropagation()}>
                   <button className="no-ec" onClick={() => printShipment(r, company)}
                           style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
                 </td>
               </tr>
               {openId === r.id && (
                 <tr className="no-ec">
-                  <td colSpan={11} style={{ padding: 0, background: 'var(--ec-bg-page)' }}>
-                    <table className="w-full text-left" style={{ margin: '4px 0' }}>
+                  <td colSpan={11} className="p-0 bg-ec-page">
+                    <table className="w-full text-left my-[4px] mx-0">
                       <thead>
-                        <tr><th style={{ width: 34 }}></th><th>품목코드</th><th>품목명</th><th style={{ textAlign: 'right' }}>수량</th><th style={{ textAlign: 'right' }}>단가</th><th style={{ textAlign: 'right' }}>금액</th></tr>
+                        <tr><th className="w-[34px]"></th><th>품목코드</th><th>품목명</th><th className="text-right">수량</th><th className="text-right">단가</th><th className="text-right">금액</th></tr>
                       </thead>
                       <tbody>
                         {r.lines.map((l, li) => (
                           <tr key={li}>
-                            <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{li + 1}</td>
-                            <td style={{ fontFamily: 'monospace' }}>{l.itemCode}</td>
+                            <td className="text-center text-ec-hint">{li + 1}</td>
+                            <td>{l.itemCode}</td>
                             <td>{l.itemName}</td>
-                            <td style={{ textAlign: 'right' }}>{won(l.quantity)} {l.unit}</td>
-                            <td style={{ textAlign: 'right' }}>{won(l.unitPrice)}</td>
-                            <td style={{ textAlign: 'right', fontWeight: 600 }}>{won(l.amount)}</td>
+                            <td className="text-right">{won(l.quantity)} {l.unit}</td>
+                            <td className="text-right">{won(l.unitPrice)}</td>
+                            <td className="text-right font-semibold">{won(l.amount)}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
-                    {r.remark && <div style={{ padding: '2px 10px 8px', fontSize: 12, color: 'var(--ec-label)' }}>비고: {r.remark}</div>}
+                    {r.remark && <div className="pt-[2px] px-[10px] pb-[8px] text-[12px] text-ec-label">비고: {r.remark}</div>}
                   </td>
                 </tr>
               )}
@@ -447,10 +447,10 @@ export default function ShipmentInquiryPage() {
           ))}
         </tbody>
         <tfoot>
-          <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
-            <td colSpan={5} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
-            <td style={{ textAlign: 'right' }}>{won(totals.qty)}</td>
-            <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(totals.amount)}</td>
+          <tr className="font-bold bg-ec-page">
+            <td colSpan={5} className="text-right">합계 ({shown.length}건)</td>
+            <td className="text-right">{won(totals.qty)}</td>
+            <td className="text-right text-ec-blue">{won(totals.amount)}</td>
             <td colSpan={4}></td>
           </tr>
         </tfoot>

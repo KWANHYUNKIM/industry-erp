@@ -52,36 +52,36 @@ export default function AnonymousBoardPage() {
   return (
     <EcListShell title="익명게시판" searchable={false} option={false}>
       {/* 원본 실측: 글상자 720×194, [저장(F8)] 66×28 이 바로 아래, 전체가 왼쪽 정렬 720 폭 */}
-      <div style={{ width: 720, maxWidth: '100%' }}>
+      <div className="w-[720px] max-w-[100%]">
         <textarea
           className="ec-input"
           value={text}
           onChange={(e) => setText(e.target.value)}
           style={{ width: '100%', height: 194, padding: 8, fontFamily: 'inherit', lineHeight: 1.6 }}
         />
-        <div style={{ marginTop: 5 }}>
+        <div className="mt-[5px]">
           <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>
             {saving ? '저장 중…' : '저장(F8)'}
           </button>
-          <span style={{ marginLeft: 8, fontSize: 11.5, color: 'var(--ec-label)' }}>
+          <span className="ml-[8px] text-[11.5px] text-ec-label">
             화면에는 작성자가 보이지 않지만 <b>서버에는 남습니다</b> — 본인 확인 없이 지울 수 없기 때문입니다.
           </span>
         </div>
 
-        {error && <p style={{ marginTop: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+        {error && <p className="ec-alert ec-alert-danger mt-[8px]">{error}</p>}
 
         {/* 목록. 원본은 머리글 줄 없이 글만 쌓인다. */}
-        <table className="w-full text-left" style={{ marginTop: 14 }}>
+        <table className="w-full text-left mt-[14px]">
           <tbody>
             {rows.length === 0 ? (
-              <tr><td style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
             ) : rows.map((p) => (
               <tr key={p.id}>
-                <td style={{ whiteSpace: 'pre-wrap' }}>{p.content || p.title}</td>
-                <td style={{ width: 120, textAlign: 'right', color: 'var(--ec-label)', whiteSpace: 'nowrap' }}>
+                <td className="whitespace-pre-wrap">{p.content || p.title}</td>
+                <td className="w-[120px] text-right text-ec-label whitespace-nowrap">
                   {when(p.createdAt)}
                 </td>
-                <td style={{ width: 50, textAlign: 'center' }}>
+                <td className="w-[50px] text-center">
                   <button className="ec-btn ec-btn-sm" style={{ color: 'var(--ec-danger)' }} onClick={() => remove(p.id)}>삭제</button>
                 </td>
               </tr>

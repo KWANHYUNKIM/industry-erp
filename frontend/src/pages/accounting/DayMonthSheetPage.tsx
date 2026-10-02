@@ -116,82 +116,82 @@ export default function DayMonthSheetPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="구분">
           {(['월계표', '일계표'] as const).map((v) => (
-            <label key={v} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+            <label key={v} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
               <input type="radio" name="dm-mode" checked={mode === v} onChange={() => setModeTo(v)} /> {v}
             </label>
           ))}
         </EcCond>
         <EcCond label="조회일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
       </ul>
 
-      <h3 style={{ fontSize: 13, fontWeight: 700, margin: '4px 0 6px' }}>{mode}</h3>
+      <h3 className="text-[13px] font-bold mt-[4px] mx-0 mb-[6px]">{mode}</h3>
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ textAlign: 'right' }}>차변합계</th>
-            <th style={{ textAlign: 'right' }}>차변대체</th>
-            <th style={{ textAlign: 'right' }}>차변현금(출금)</th>
-            <th style={{ textAlign: 'center' }}>계정명</th>
-            <th style={{ textAlign: 'right' }}>대변현금(입금)</th>
-            <th style={{ textAlign: 'right' }}>대변대체</th>
-            <th style={{ textAlign: 'right' }}>대변합계</th>
+            <th className="text-right">차변합계</th>
+            <th className="text-right">차변대체</th>
+            <th className="text-right">차변현금(출금)</th>
+            <th className="text-center">계정명</th>
+            <th className="text-right">대변현금(입금)</th>
+            <th className="text-right">대변대체</th>
+            <th className="text-right">대변합계</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
           ) : lines.length === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : lines.map((l) => (
             <tr key={l.code}>
-              <td style={{ textAlign: 'right' }}>{won(l.dCash + l.dTrans)}</td>
-              <td style={{ textAlign: 'right' }}>{won(l.dTrans)}</td>
-              <td style={{ textAlign: 'right' }}>{won(l.dCash)}</td>
-              <td style={{ textAlign: 'center' }}>{l.name}</td>
-              <td style={{ textAlign: 'right' }}>{won(l.cCash)}</td>
-              <td style={{ textAlign: 'right' }}>{won(l.cTrans)}</td>
-              <td style={{ textAlign: 'right' }}>{won(l.cCash + l.cTrans)}</td>
+              <td className="text-right">{won(l.dCash + l.dTrans)}</td>
+              <td className="text-right">{won(l.dTrans)}</td>
+              <td className="text-right">{won(l.dCash)}</td>
+              <td className="text-center">{l.name}</td>
+              <td className="text-right">{won(l.cCash)}</td>
+              <td className="text-right">{won(l.cTrans)}</td>
+              <td className="text-right">{won(l.cCash + l.cTrans)}</td>
             </tr>
           ))}
         </tbody>
         <tfoot>
           <tr style={SUB_ROW}>
-            <td style={{ textAlign: 'right' }}>{won(sum.dCash + sum.dTrans)}</td>
-            <td style={{ textAlign: 'right' }}>{won(sum.dTrans)}</td>
-            <td style={{ textAlign: 'right' }}>{won(sum.dCash)}</td>
-            <td style={{ textAlign: 'center' }}>{mode === '월계표' ? '[월계]' : '[일계]'}</td>
-            <td style={{ textAlign: 'right' }}>{won(sum.cCash)}</td>
-            <td style={{ textAlign: 'right' }}>{won(sum.cTrans)}</td>
-            <td style={{ textAlign: 'right' }}>{won(sum.cCash + sum.cTrans)}</td>
+            <td className="text-right">{won(sum.dCash + sum.dTrans)}</td>
+            <td className="text-right">{won(sum.dTrans)}</td>
+            <td className="text-right">{won(sum.dCash)}</td>
+            <td className="text-center">{mode === '월계표' ? '[월계]' : '[일계]'}</td>
+            <td className="text-right">{won(sum.cCash)}</td>
+            <td className="text-right">{won(sum.cTrans)}</td>
+            <td className="text-right">{won(sum.cCash + sum.cTrans)}</td>
           </tr>
           <tr style={SUB_ROW}>
-            <td style={{ textAlign: 'right' }}>{won(closeCash)}</td>
+            <td className="text-right">{won(closeCash)}</td>
             <td></td>
-            <td style={{ textAlign: 'right' }}>{won(closeCash)}</td>
-            <td style={{ textAlign: 'center' }}>[금일/전일]</td>
-            <td style={{ textAlign: 'right' }}>{won(openCash)}</td>
+            <td className="text-right">{won(closeCash)}</td>
+            <td className="text-center">[금일/전일]</td>
+            <td className="text-right">{won(openCash)}</td>
             <td></td>
-            <td style={{ textAlign: 'right' }}>{won(openCash)}</td>
+            <td className="text-right">{won(openCash)}</td>
           </tr>
           <tr style={SUB_ROW}>
-            <td style={{ textAlign: 'right' }}>{won(sum.dCash + sum.dTrans + closeCash)}</td>
-            <td style={{ textAlign: 'right' }}>{won(sum.dTrans)}</td>
-            <td style={{ textAlign: 'right' }}>{won(sum.dCash + closeCash)}</td>
-            <td style={{ textAlign: 'center' }}>[합계]</td>
-            <td style={{ textAlign: 'right' }}>{won(sum.cCash + openCash)}</td>
-            <td style={{ textAlign: 'right' }}>{won(sum.cTrans)}</td>
-            <td style={{ textAlign: 'right' }}>{won(sum.cCash + sum.cTrans + openCash)}</td>
+            <td className="text-right">{won(sum.dCash + sum.dTrans + closeCash)}</td>
+            <td className="text-right">{won(sum.dTrans)}</td>
+            <td className="text-right">{won(sum.dCash + closeCash)}</td>
+            <td className="text-center">[합계]</td>
+            <td className="text-right">{won(sum.cCash + openCash)}</td>
+            <td className="text-right">{won(sum.cTrans)}</td>
+            <td className="text-right">{won(sum.cCash + sum.cTrans + openCash)}</td>
           </tr>
         </tfoot>
       </table>

@@ -156,30 +156,30 @@ export default function LeaveInputPage() {
       ]}
     >
       <Modal error={error} open={bulkOpen} title="근태일괄입력" onClose={() => setBulkOpen(false)}>{(
-        <div style={{ padding: 4, minWidth: 460 }}>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 10 }}>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>근태항목</div>
+        <div className="p-[4px] min-w-[460px]">
+          <div className="flex gap-[10px] flex-wrap items-end mb-[10px]">
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">근태항목</div>
               <select className="ec-input" value={bulkForm.type} style={{ width: 110 }}
                       onChange={(e) => setBulkForm((f) => ({ ...f, type: e.target.value }))}>
                 {TYPES.map((t) => <option key={t}>{t}</option>)}
               </select></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>기간</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">기간</div>
               <input type="date" className="ec-input" value={bulkForm.startDate} style={{ width: 140 }}
                      onChange={(e) => setBulkForm((f) => ({ ...f, startDate: e.target.value }))} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>~</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">~</div>
               <input type="date" className="ec-input" value={bulkForm.endDate} style={{ width: 140 }}
                      onChange={(e) => setBulkForm((f) => ({ ...f, endDate: e.target.value }))} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>근태(일)</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">근태(일)</div>
               <input type="number" step="any" className="ec-input" value={bulkForm.days} style={{ width: 80, textAlign: 'right' }}
                      onChange={(e) => setBulkForm((f) => ({ ...f, days: e.target.value }))} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>적요</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">적요</div>
               <input className="ec-input" value={bulkForm.reason} style={{ width: 160 }}
                      onChange={(e) => setBulkForm((f) => ({ ...f, reason: e.target.value }))} /></label>
           </div>
           {/* 사원은 여럿 고른다 — 그게 이 창의 전부다. */}
-          <div style={{ maxHeight: 220, overflowY: 'auto', border: '1px solid var(--ec-border)', padding: 8 }}>
+          <div className="max-h-[220px] overflow-y-auto border border-ec-line border-solid p-[8px]">
             {users.map((u) => (
-              <label key={u.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, width: 150, fontSize: 12.5 }}>
+              <label key={u.id} className="inline-flex items-center gap-[4px] w-[150px] text-[12.5px]">
                 <input type="checkbox" checked={bulkUsers.has(u.id)}
                        onChange={() => setBulkUsers((prev) => {
                          const next = new Set(prev)
@@ -190,8 +190,8 @@ export default function LeaveInputPage() {
               </label>
             ))}
           </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, marginTop: 10 }}>
-            <span style={{ marginRight: 'auto', fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
+          <div className="flex justify-end gap-[6px] mt-[10px]">
+            <span className="mr-auto text-[11.5px] text-ec-hint">
               고른 {bulkUsers.size}명만큼 줄을 깝니다. <b>저장은 아직 아닙니다</b> — 확인하고 [저장(F8)] 하세요.
             </span>
             <button className="ec-btn ec-btn-primary" onClick={fillBulk}>줄 깔기</button>
@@ -199,14 +199,14 @@ export default function LeaveInputPage() {
         </div>
       )}</Modal>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {ok && <p style={{ background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>일자</span>
+      <div className="flex items-center gap-[6px] mb-[8px]">
+        <span className="text-[12.5px] text-ec-label">일자</span>
         <input className="ec-input" type="date" value={baseDate}
                onChange={(e) => changeBaseDate(e.target.value)} style={{ width: 150 }} />
-        <span style={{ fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
+        <span className="text-[11.5px] text-ec-hint">
           여러 사원의 근태를 한 번에 넣습니다. 출퇴근 시각은 [출/퇴근기록부(ID)]에서 다룹니다.
         </span>
       </div>
@@ -215,27 +215,27 @@ export default function LeaveInputPage() {
         <table ref={tableRef} className="ec-grid w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
-              <th style={{ width: 130 }}>근태일자</th>
-              <th style={{ width: 130 }}>종료일자</th>
-              <th style={{ width: 180 }}>사원</th>
-              <th style={{ width: 120 }}>근태</th>
+              <th className="w-[34px]"></th>
+              <th className="w-[130px]">근태일자</th>
+              <th className="w-[130px]">종료일자</th>
+              <th className="w-[180px]">사원</th>
+              <th className="w-[120px]">근태</th>
               {/*
                 원본 근태입력 그리드의 [휴가] 열 — 이 근태가 어느 휴가 잔여에서 빠지는가.
                 우리 잔여 계산은 승인된 <b>연차·반차</b>만 그 해 연차에서 빼므로 그 둘은 '연차(YYYY년)', 나머지는 차감 없음이다.
                 고르는 칸이 아니라 <b>어디서 빠지는지 알려 주는 칸</b>이라 읽기전용으로 둔다 —
                 고를 수 있는 것처럼 보이면 다른 데서 빠질 수 있다는 뜻이 되어 거짓말이 된다.
               */}
-              <th style={{ width: 120 }}>휴가</th>
-              <th style={{ width: 110, textAlign: 'right' }}>근태(일/시간)</th>
+              <th className="w-[120px]">휴가</th>
+              <th className="w-[110px] text-right">근태(일/시간)</th>
               <th>적요</th>
-              <th style={{ width: 50, textAlign: 'center' }}></th>
+              <th className="w-[50px] text-center"></th>
             </tr>
           </thead>
           <tbody>
             {lines.map((l, i) => (
               <tr key={l.key}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
                 <td>
                   <input className="ec-input" type="date" value={l.startDate}
                          onChange={(e) => setLine(l.key, { startDate: e.target.value })} />
@@ -256,7 +256,7 @@ export default function LeaveInputPage() {
                     {TYPES.map((t) => <option key={t}>{t}</option>)}
                   </select>
                 </td>
-                <td style={{ color: 'var(--ec-text-muted)' }}>
+                <td className="text-ec-muted">
                   {/* 연차·반차만 연차 잔여에서 빠진다 — 병가·경조·공가·기타는 따로 간다(QA 61회차). */}
                   {!l.startDate ? '' : ANNUAL_TYPES.includes(l.type) ? `연차(${l.startDate.slice(0, 4)}년)` : '— (연차 차감 없음)'}
                 </td>
@@ -269,7 +269,7 @@ export default function LeaveInputPage() {
                   <input className="ec-input w-full" value={l.reason}
                          onChange={(e) => setLine(l.key, { reason: e.target.value })} />
                 </td>
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-center">
                   {lines.length > 1 && (
                     <button type="button" onClick={() => setLines((p) => p.filter((x) => x.key !== l.key))}
                             style={{ border: 'none', background: 'none', color: '#c0c5cc', cursor: 'pointer' }}>✕</button>
@@ -281,7 +281,7 @@ export default function LeaveInputPage() {
         </table>
       </div>
 
-      <p style={{ marginTop: 8, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
+      <p className="mt-[8px] text-[11.5px] text-ec-hint">
         * 근태(일)는 <b>기간 안</b>이어야 합니다. 하루짜리에 100일을 넣으면 잔여일수가 통째로 틀어집니다.
         반차(0.5)와 시간 단위(0.125 = 1시간)도 그대로 들어갑니다.
       </p>

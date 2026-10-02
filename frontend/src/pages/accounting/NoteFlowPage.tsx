@@ -94,20 +94,20 @@ export default function NoteFlowPage({ type, flow }: { type: NoteType; flow: '�
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label={flow === '증가' ? '조회일자' : '기준일자'}>
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={NOTE_FLOW_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
         {flow === '증가' && (
           <EcCond label="만기일자">
             <input type="date" className="ec-input" value={dueFrom} onChange={(e) => setDueFrom(e.target.value)} style={{ width: 145 }} />
-            <span style={{ margin: '0 4px' }}>~</span>
+            <span className="my-0 mx-[4px]">~</span>
             <input type="date" className="ec-input" value={dueTo} onChange={(e) => setDueTo(e.target.value)} style={{ width: 145 }} />
           </EcCond>
         )}
@@ -128,43 +128,43 @@ export default function NoteFlowPage({ type, flow }: { type: NoteType; flow: '�
         </EcCond>
       </ul>
 
-      <h3 style={{ fontSize: 13, fontWeight: 700, margin: '4px 0 6px' }}>
-        {title} <span style={{ fontWeight: 400, color: 'var(--ec-text-hint)' }}>{dateText(from)} ~ {dateText(to)}</span>
+      <h3 className="text-[13px] font-bold mt-[4px] mx-0 mb-[6px]">
+        {title} <span className="font-normal text-ec-hint">{dateText(from)} ~ {dateText(to)}</span>
       </h3>
-      {truncated && <p style={{ fontSize: 12, color: 'var(--ec-warn)', marginBottom: 6 }}>어음이 많아 앞 5,000장까지만 받았습니다 — 기간을 좁혀 보세요.</p>}
+      {truncated && <p className="text-[12px] text-ec-warn mb-[6px]">어음이 많아 앞 5,000장까지만 받았습니다 — 기간을 좁혀 보세요.</p>}
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ textAlign: 'center' }}>일자</th>
+            <th className="text-center">일자</th>
             <th>어음번호</th>
             <th>거래처명</th>
             <th>계정명</th>
             <th>적요</th>
-            {flow === '증가' && <th style={{ textAlign: 'center' }}>만기일자</th>}
-            <th style={{ textAlign: 'right' }}>금액</th>
+            {flow === '증가' && <th className="text-center">만기일자</th>}
+            <th className="text-right">금액</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={cols} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={cols} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={cols} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={cols} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((n) => (
             <tr key={n.id}>
-              <td style={{ textAlign: 'center' }}>{dateText(dayOf(n))}</td>
+              <td className="text-center">{dateText(dayOf(n))}</td>
               <td>{n.noteNo}</td>
               <td>{n.partnerName}</td>
               <td>{account}</td>
               <td>{n.remark ?? ''}</td>
-              {flow === '증가' && <td style={{ textAlign: 'center' }}>{dateText(n.dueDate)}</td>}
-              <td style={{ textAlign: 'right' }}>{won(Number(n.amount))}</td>
+              {flow === '증가' && <td className="text-center">{dateText(n.dueDate)}</td>}
+              <td className="text-right">{won(Number(n.amount))}</td>
             </tr>
           ))}
         </tbody>
         <tfoot>
-          <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-            <td colSpan={cols - 1} style={{ textAlign: 'right' }}>합계 ({shown.length}장)</td>
-            <td style={{ textAlign: 'right' }}>{won(total)}</td>
+          <tr className="font-bold bg-ec-page">
+            <td colSpan={cols - 1} className="text-right">합계 ({shown.length}장)</td>
+            <td className="text-right">{won(total)}</td>
           </tr>
         </tfoot>
       </table>

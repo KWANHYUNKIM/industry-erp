@@ -283,36 +283,36 @@ export default function MonthlyProfitPage() {
       ]}
       signLine={signBox}
     >
-      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>연도</span>
+      <div className="flex items-center gap-[10px] mb-[10px] flex-wrap">
+        <span className="text-[12.5px] text-ec-label">연도</span>
         <select className="ec-input" value={year} onChange={(e) => setYear(Number(e.target.value))} style={{ width: 100 }}>
           {years.map((y) => <option key={y} value={y}>{y}</option>)}
         </select>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>기준월</span>
+        <span className="text-[12.5px] text-ec-label ml-[8px]">기준월</span>
         <select className="ec-input" value={fromMonth} onChange={(e) => setFromMonth(e.target.value)} style={{ width: 80 }}>
           {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((m) => <option key={m} value={m}>{m}월</option>)}
         </select>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>~</span>
+        <span className="text-[12.5px] text-ec-label">~</span>
         <select className="ec-input" value={toMonth} onChange={(e) => setToMonth(e.target.value)} style={{ width: 80 }}>
           {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((m) => <option key={m} value={m}>{m}월</option>)}
         </select>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>구분</span>
+        <span className="text-[12.5px] text-ec-label ml-[8px]">구분</span>
         <div className="ec-pills">
           {MODES.map((m) => (
             <button key={m} type="button" className={`ec-pill no-ec${mode === m ? ' active' : ''}`}
                     onClick={() => setMode(m)}>{m}</button>
           ))}
         </div>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>판매액</span>
+        <span className="text-[12.5px] text-ec-label ml-[8px]">판매액</span>
         <div className="ec-pills">
           {([['공급가액', false], ['공급가액+VAT', true]] as const).map(([label, v]) => (
             <button key={label} type="button" className={`ec-pill no-ec${withVat === v ? ' active' : ''}`}
                     onClick={() => setWithVat(v)}>{label}</button>
           ))}
         </div>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>원가</span>
+        <span className="text-[12.5px] text-ec-label ml-[8px]">원가</span>
         <div className="ec-pills">
           {(['월별원가', '최종구매가', '입고단가(품목)'] as const).map((b) => (
             <button key={b} type="button" className={`ec-pill no-ec${basis === b ? ' active' : ''}`}
@@ -402,13 +402,13 @@ export default function MonthlyProfitPage() {
         </EcCond>
         {/* 원본 [기타] — 결재방표시와 같은 줄에 선다(사본 실측). */}
         <EcCond label="수량관리제외품목포함">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={withUntracked} onChange={(e) => setWithUntracked(e.target.checked)} />
             재고수량을 안 세는 품목도
           </label>
         </EcCond>
         <EcCond label="결재방표시">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
             인쇄물에 결재란(도장칸)을 찍는다
           </label>
@@ -422,22 +422,22 @@ export default function MonthlyProfitPage() {
         </p>
       )}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
-        판매액 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{won(totals.revenue)}</b>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        판매액 <b className="text-ec-blue text-[14px]">{won(totals.revenue)}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
         원가 <b style={{ color: allUnknown ? 'var(--ec-text-off)' : '#a5561b', fontSize: 14 }}>{allUnknown ? '—' : won(totals.cost)}</b>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
         이익 <b style={{ color: allUnknown ? 'var(--ec-text-off)' : totals.profit < 0 ? 'var(--ec-danger)' : 'var(--ec-success)', fontSize: 14 }}>
           {allUnknown ? '—' : won(totals.profit)}
         </b>
-        {!allUnknown && <span style={{ color: 'var(--ec-text-hint)' }}> ({rate(totals.profit, totals.knownRevenue)}%)</span>}
+        {!allUnknown && <span className="text-ec-hint"> ({rate(totals.profit, totals.knownRevenue)}%)</span>}
       </div>
 
       <div ref={tableRef} className="overflow-x-auto">
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 40 }}></th>
+              <th className="w-[40px]"></th>
               {heads.map((h) => <th key={h}>{h}</th>)}
               {/*
                 <b>월별이익현황(E040805) [구분]=품목별 2026-09-09 원본 격자 실측</b>(자료 33줄).
@@ -461,34 +461,34 @@ export default function MonthlyProfitPage() {
                 고정 이름을 표현식에 담으면 <b>검사가 조용해질 뿐 맞는 것이 아니다.</b>
                 두 칸으로 가르고 머리를 글자 그대로 적었다.
               */}
-              <th style={{ textAlign: 'right', width: 70 }}>건수</th>
-              <th style={{ textAlign: 'right', width: 90 }}>수량</th>
-              <th style={{ textAlign: 'right', width: 130 }}>판매액</th>
-              <th style={{ textAlign: 'right', width: 130 }}>원가</th>
-              <th style={{ textAlign: 'right', width: 130 }}>이익</th>
-              <th style={{ textAlign: 'right', width: 90 }}>이익율</th>
-              <th style={{ textAlign: 'right', width: 120 }}>판매부대비용</th>
-              <th style={{ textAlign: 'right', width: 140 }}>이익금액(부대비용포함)</th>
+              <th className="text-right w-[70px]">건수</th>
+              <th className="text-right w-[90px]">수량</th>
+              <th className="text-right w-[130px]">판매액</th>
+              <th className="text-right w-[130px]">원가</th>
+              <th className="text-right w-[130px]">이익</th>
+              <th className="text-right w-[90px]">이익율</th>
+              <th className="text-right w-[120px]">판매부대비용</th>
+              <th className="text-right w-[140px]">이익금액(부대비용포함)</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={colCount} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+              <tr><td colSpan={colCount} className="text-center text-ec-ink">불러오는 중…</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={colCount} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={colCount} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
             ) : rows.map((r, i) => {
               const color = r.profit === null ? 'var(--ec-text-off)' : r.profit > 0 ? 'var(--ec-success)' : r.profit < 0 ? 'var(--ec-danger)' : undefined
               return (
                 <tr key={r.key}>
-                  <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+                  <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
                   {heads.map((h, hi) => (
                     <td key={h} style={hi === 0 && mode === '품목별' ? { fontFamily: 'monospace' } : undefined}>
                       {r.label[hi]}
                     </td>
                   ))}
-                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(r.count)}</td>
-                  <td style={{ textAlign: 'right' }}>{num(r.qty)}</td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(r.revenue)}</td>
+                  <td className="text-right text-ec-hint">{num(r.count)}</td>
+                  <td className="text-right">{num(r.qty)}</td>
+                  <td className="text-right text-ec-blue">{won(r.revenue)}</td>
                   <td style={{ textAlign: 'right', color: r.cost === null ? 'var(--ec-text-off)' : '#a5561b' }}>
                     {r.cost === null ? '—' : won(r.cost)}
                   </td>
@@ -511,9 +511,9 @@ export default function MonthlyProfitPage() {
           {rows.length > 0 && (
             <tfoot>
               <tr>
-                <td colSpan={colCount - 7} style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>합계</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>{num(totals.qty)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: 'var(--ec-blue)' }}>{won(totals.revenue)}</td>
+                <td colSpan={colCount - 7} className="text-right font-bold bg-ec-page">합계</td>
+                <td className="text-right font-bold bg-ec-page">{num(totals.qty)}</td>
+                <td className="text-right font-bold bg-ec-page text-ec-blue">{won(totals.revenue)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: allUnknown ? 'var(--ec-text-off)' : '#a5561b' }}>
                   {allUnknown ? '—' : won(totals.cost)}
                 </td>

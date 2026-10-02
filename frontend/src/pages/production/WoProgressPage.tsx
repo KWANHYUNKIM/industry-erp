@@ -578,7 +578,7 @@ export default function WoProgressPage() {
         <EcCond label="납기일자">
           <input type="date" className="ec-input" value={dueFrom}
                  onChange={(e) => setDueFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <span className="text-ec-label">~</span>
           <input type="date" className="ec-input" value={dueTo}
                  onChange={(e) => setDueTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
@@ -599,22 +599,22 @@ export default function WoProgressPage() {
                              .map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="결재방표시">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
             인쇄물에 결재란(도장칸)을 찍는다
           </label>
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
-        작업지시 <b style={{ color: 'var(--ec-text)' }}>{shown.length}</b>건
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        작업지시 <b className="text-ec-text">{shown.length}</b>건
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
         지시수량 <b>{num(totals.planned)}</b>
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
-        생산수량 <b style={{ color: 'var(--ec-blue-dark)' }}>{num(totals.produced)}</b>
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
+        생산수량 <b className="text-ec-navy">{num(totals.produced)}</b>
       </div>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       {/*
         원본 [그래프로 보기]. 이 화면이 재는 것은 <b>얼마나 남았나</b> 다 —
@@ -628,29 +628,29 @@ export default function WoProgressPage() {
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
-              <th style={{ width: 170 }}>작업지시번호</th>
+              <th className="w-[34px]"></th>
+              <th className="w-[170px]">작업지시번호</th>
               <th>품목명</th>
-              <th style={{ width: 100, textAlign: 'right' }}>지시수량</th>
-              <th style={{ width: 100, textAlign: 'right' }}>불출건수</th>
-              <th style={{ width: 110, textAlign: 'right' }}>불출수량</th>
-              <th style={{ width: 120 }}>최근불출일</th>
+              <th className="w-[100px] text-right">지시수량</th>
+              <th className="w-[100px] text-right">불출건수</th>
+              <th className="w-[110px] text-right">불출수량</th>
+              <th className="w-[120px]">최근불출일</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((o, i) => {
               const g = issueBy.get(o.id)
               return (
                 <tr key={o.id}>
-                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                  <td style={{ fontFamily: 'monospace' }}>{o.orderNo}</td>
+                  <td className="text-center text-ec-hint">{i + 1}</td>
+                  <td>{o.orderNo}</td>
                   <td>[{o.productCode}] {o.productName}</td>
-                  <td style={{ textAlign: 'right' }}>{num(o.plannedQty)}</td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(g?.count ?? 0)}</td>
+                  <td className="text-right">{num(o.plannedQty)}</td>
+                  <td className="text-right text-ec-hint">{num(g?.count ?? 0)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 600, color: g ? '#a5561b' : 'var(--ec-text-off)' }}>{num(g?.qty ?? 0)}</td>
                   <td style={{ fontFamily: 'monospace', color: g ? undefined : 'var(--ec-text-off)' }}>{g?.last ?? ''}</td>
                 </tr>
@@ -658,9 +658,9 @@ export default function WoProgressPage() {
             })}
           </tbody>
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={3} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
-              <td style={{ textAlign: 'right' }}>{num(totals.planned)}</td>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={3} className="text-right">합계 ({shown.length}건)</td>
+              <td className="text-right">{num(totals.planned)}</td>
               <td></td>
               <td style={{ textAlign: 'right', color: '#a5561b' }}>{num(totals.issued)}</td>
               <td></td>
@@ -671,32 +671,32 @@ export default function WoProgressPage() {
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
-              <th style={{ width: 170 }}>작업지시번호</th>
+              <th className="w-[34px]"></th>
+              <th className="w-[170px]">작업지시번호</th>
               <th>생산품목</th>
               <th>원재료</th>
-              <th style={{ width: 110, textAlign: 'right' }}>소요(BOM)</th>
-              <th style={{ width: 110, textAlign: 'right' }}>투입</th>
-              <th style={{ width: 110, textAlign: 'right' }}>차이</th>
+              <th className="w-[110px] text-right">소요(BOM)</th>
+              <th className="w-[110px] text-right">투입</th>
+              <th className="w-[110px] text-right">차이</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
             ) : compareLines.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : compareLines.map((l, i) => {
               const diff = l.used - l.required
               return (
                 <tr key={l.key}>
-                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                  <td style={{ fontFamily: 'monospace' }}>{l.orderNo}</td>
+                  <td className="text-center text-ec-hint">{i + 1}</td>
+                  <td>{l.orderNo}</td>
                   <td>{l.product}</td>
                   <td style={{ color: l.required === 0 ? '#a5561b' : undefined }}>
                     {l.material}{l.required === 0 ? ' (BOM 밖)' : ''}
                   </td>
-                  <td style={{ textAlign: 'right' }}>{num(l.required)}</td>
-                  <td style={{ textAlign: 'right' }}>{num(l.used)}</td>
+                  <td className="text-right">{num(l.required)}</td>
+                  <td className="text-right">{num(l.used)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 600, color: diff > 0 ? 'var(--ec-danger)' : diff < 0 ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>
                     {diff > 0 ? '+' : ''}{num(diff)}
                   </td>
@@ -709,42 +709,42 @@ export default function WoProgressPage() {
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
-              <th style={{ width: 170 }}>작업지시번호</th>
+              <th className="w-[34px]"></th>
+              <th className="w-[170px]">작업지시번호</th>
               <th>품목명</th>
-              <th style={{ width: 90, textAlign: 'right' }}>작업건수</th>
-              <th style={{ width: 100, textAlign: 'right' }}>양품</th>
-              <th style={{ width: 100, textAlign: 'right' }}>불량</th>
-              <th style={{ width: 110, textAlign: 'right' }}>작업시간(분)</th>
-              <th style={{ width: 120 }}>최근작업일</th>
+              <th className="w-[90px] text-right">작업건수</th>
+              <th className="w-[100px] text-right">양품</th>
+              <th className="w-[100px] text-right">불량</th>
+              <th className="w-[110px] text-right">작업시간(분)</th>
+              <th className="w-[120px]">최근작업일</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((o, i) => {
               const g = resultBy.get(o.id)
               return (
                 <tr key={o.id}>
-                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                  <td style={{ fontFamily: 'monospace' }}>{o.orderNo}</td>
+                  <td className="text-center text-ec-hint">{i + 1}</td>
+                  <td>{o.orderNo}</td>
                   <td>[{o.productCode}] {o.productName}</td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(g?.count ?? 0)}</td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-success)', fontWeight: 600 }}>{num(g?.good ?? 0)}</td>
+                  <td className="text-right text-ec-hint">{num(g?.count ?? 0)}</td>
+                  <td className="text-right text-ec-success font-semibold">{num(g?.good ?? 0)}</td>
                   <td style={{ textAlign: 'right', color: (g?.defect ?? 0) > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>{num(g?.defect ?? 0)}</td>
-                  <td style={{ textAlign: 'right' }}>{num(g?.time ?? 0)}</td>
+                  <td className="text-right">{num(g?.time ?? 0)}</td>
                   <td style={{ fontFamily: 'monospace', color: g ? undefined : 'var(--ec-text-off)' }}>{g?.last ?? ''}</td>
                 </tr>
               )
             })}
           </tbody>
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={4} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-success)' }}>{num(totals.good)}</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-danger)' }}>{num(totals.defect)}</td>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={4} className="text-right">합계 ({shown.length}건)</td>
+              <td className="text-right text-ec-success">{num(totals.good)}</td>
+              <td className="text-right text-ec-danger">{num(totals.defect)}</td>
               <td colSpan={2}></td>
             </tr>
           </tfoot>
@@ -779,63 +779,63 @@ export default function WoProgressPage() {
           */}
           <thead>
             <tr>
-              <th style={{ width: 34 }} rowSpan={2}></th>
-              <th style={{ width: 150, textAlign: 'center' }} rowSpan={2}>작업지시서번호</th>
+              <th className="w-[34px]" rowSpan={2}></th>
+              <th className="w-[150px] text-center" rowSpan={2}>작업지시서번호</th>
               <th rowSpan={2}>품목</th>
-              <th colSpan={3} style={{ textAlign: 'center' }}>BOM기준</th>
-              <th colSpan={4} style={{ textAlign: 'center' }}>생산</th>
-              <th style={{ width: 90, textAlign: 'right' }} rowSpan={2}>미생산</th>
-              <th style={{ width: 90, textAlign: 'right' }} rowSpan={2}>현재고</th>
+              <th colSpan={3} className="text-center">BOM기준</th>
+              <th colSpan={4} className="text-center">생산</th>
+              <th className="w-[90px] text-right" rowSpan={2}>미생산</th>
+              <th className="w-[90px] text-right" rowSpan={2}>현재고</th>
             </tr>
             <tr>
-              <th style={{ width: 110 }}>생산공정</th>
-              <th style={{ width: 100, textAlign: 'center' }}>일자</th>
-              <th style={{ width: 90, textAlign: 'right' }}>필요수량</th>
-              <th style={{ width: 110 }}>공장</th>
-              <th style={{ width: 110 }}>생산공정</th>
-              <th style={{ width: 130, textAlign: 'center' }}>일자</th>
-              <th style={{ width: 90, textAlign: 'right' }}>수량</th>
+              <th className="w-[110px]">생산공정</th>
+              <th className="w-[100px] text-center">일자</th>
+              <th className="w-[90px] text-right">필요수량</th>
+              <th className="w-[110px]">공장</th>
+              <th className="w-[110px]">생산공정</th>
+              <th className="w-[130px] text-center">일자</th>
+              <th className="w-[90px] text-right">수량</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={12} className="ec-empty">불러오는 중…</td></tr>
             ) : progressRows.length === 0 ? (
-              <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={12} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : progressRows.map((r, i) => (r.sub ? (
-              <tr key={r.key} style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
-                <td colSpan={3} style={{ textAlign: 'right' }}>{r.label}</td>
+              <tr key={r.key} className="font-bold bg-ec-page">
+                <td colSpan={3} className="text-right">{r.label}</td>
                 <td colSpan={2}></td>
-                <td style={{ textAlign: 'right' }}>{num(r.required)}</td>
+                <td className="text-right">{num(r.required)}</td>
                 <td colSpan={3}></td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{num(r.produced)}</td>
-                <td style={{ textAlign: 'right' }}>{num(r.unmade)}</td>
-                <td style={{ textAlign: 'right' }}>{num(r.onHand)}</td>
+                <td className="text-right text-ec-navy">{num(r.produced)}</td>
+                <td className="text-right">{num(r.unmade)}</td>
+                <td className="text-right">{num(r.onHand)}</td>
               </tr>
             ) : (
               <tr key={r.key}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{r.orderNo}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td className="text-center">{r.orderNo}</td>
                 <td>{r.label}</td>
                 <td>{r.process}</td>
-                <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(r.bomDate)}</td>
-                <td style={{ textAlign: 'right' }}>{num(r.required)}</td>
+                <td className="text-center">{dateText(r.bomDate)}</td>
+                <td className="text-right">{num(r.required)}</td>
                 <td>{r.factory}</td>
                 <td>{r.prodProcess}</td>
-                <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{r.prodDate ? `${dateText(r.prodDate)} ${r.prodNo}` : ''}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{r.produced ? num(r.produced) : ''}</td>
+                <td className="text-center">{r.prodDate ? `${dateText(r.prodDate)} ${r.prodNo}` : ''}</td>
+                <td className="text-right font-semibold text-ec-navy">{r.produced ? num(r.produced) : ''}</td>
                 <td style={{ textAlign: 'right', color: r.unmade > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>{num(r.unmade)}</td>
-                <td style={{ textAlign: 'right' }}>{num(r.onHand)}</td>
+                <td className="text-right">{num(r.onHand)}</td>
               </tr>
             )))}
           </tbody>
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={5} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
-              <td style={{ textAlign: 'right' }}>{num(progTotals.required)}</td>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={5} className="text-right">합계 ({shown.length}건)</td>
+              <td className="text-right">{num(progTotals.required)}</td>
               <td colSpan={3}></td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{num(progTotals.produced)}</td>
-              <td style={{ textAlign: 'right' }}>{num(progTotals.unmade)}</td>
+              <td className="text-right text-ec-navy">{num(progTotals.produced)}</td>
+              <td className="text-right">{num(progTotals.unmade)}</td>
               <td></td>
             </tr>
           </tfoot>

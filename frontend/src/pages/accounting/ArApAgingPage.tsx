@@ -137,11 +137,11 @@ export default function ArApAgingPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="조회일자">
           <input type="date" className="ec-input" value={asOf} onChange={(e) => e.target.value && setAsOf(e.target.value)} style={{ width: 145 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             {PICKS.map((l) => (
               <button key={l} type="button" className="ec-btn" style={{ marginRight: 4 }} onClick={() => setAsOf(pickDate(l))}>{l}</button>
             ))}
@@ -153,7 +153,7 @@ export default function ArApAgingPage() {
         </EcCond>
         <EcCond label="대표거래처로 합산">
           {([['거래처관계기준', true], ['개별거래처기준', false]] as const).map(([l, v]) => (
-            <label key={l} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+            <label key={l} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
               <input type="radio" name="aging-parent" checked={byParent === v} onChange={() => setByParent(v)} /> {l}
             </label>
           ))}
@@ -167,46 +167,46 @@ export default function ArApAgingPage() {
                            items={managers.map((m) => ({ value: m, name: m }))} />
         </EcCond>
         <EcCond label="기타">
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+          <label className="inline-flex items-center gap-[3px] text-[12.5px]">
             <input type="checkbox" checked={withInactive} onChange={(e) => setWithInactive(e.target.checked)} /> 사용중단거래처포함
           </label>
         </EcCond>
       </ul>
 
       {loading ? (
-        <p style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</p>
+        <p className="ec-empty">불러오는 중…</p>
       ) : !entries ? (
-        <p style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>계정을 선택하고 검색하세요.</p>
+        <p className="text-center text-ec-hint p-[20px]">계정을 선택하고 검색하세요.</p>
       ) : (
         <>
-          <h3 style={{ fontSize: 20, fontWeight: 700, textAlign: 'center', margin: '6px 0 4px' }}>채권/채무회수기간표</h3>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+          <h3 className="text-[20px] font-bold text-center mt-[6px] mx-0 mb-[4px]">채권/채무회수기간표</h3>
+          <div className="flex justify-between text-[12px]">
             <span>회사명 : {companyName ?? ''}</span>
             <span>{slash(asOf)}</span>
           </div>
-          <div style={{ fontSize: 12.5, fontWeight: 700, margin: '4px 0' }}>{acc?.name ?? ''}</div>
+          <div className="text-[12.5px] font-bold my-[4px] mx-0">{acc?.name ?? ''}</div>
           <table ref={tableRef} className="w-full text-left">
             <thead>
               <tr>
                 <th>거래처코드</th>
                 <th>거래처명</th>
-                <th style={{ textAlign: 'right' }}>잔액</th>
-                <th style={{ textAlign: 'right' }}>미회수월수</th>
+                <th className="text-right">잔액</th>
+                <th className="text-right">미회수월수</th>
               </tr>
             </thead>
             <tbody>
-              {rows.length === 0 && <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>}
+              {rows.length === 0 && <tr><td colSpan={4} className="ec-empty">등록된 데이터가 없습니다.</td></tr>}
               {rows.map((r) => (
                 <tr key={r.key}>
                   <td>{r.code}</td>
                   <td>{r.name}</td>
-                  <td style={{ textAlign: 'right' }}>{won(r.bal)}</td>
-                  <td style={{ textAlign: 'right' }}>{r.months == null ? '' : `${r.months} 개월`}</td>
+                  <td className="text-right">{won(r.bal)}</td>
+                  <td className="text-right">{r.months == null ? '' : `${r.months} 개월`}</td>
                 </tr>
               ))}
               <tr style={SUB_ROW}>
-                <td colSpan={2} style={{ textAlign: 'center' }}>합계</td>
-                <td style={{ textAlign: 'right' }}>{won(total)}</td>
+                <td colSpan={2} className="text-center">합계</td>
+                <td className="text-right">{won(total)}</td>
                 <td></td>
               </tr>
             </tbody>

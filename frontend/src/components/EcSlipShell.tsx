@@ -62,7 +62,7 @@ function MenuButton({
 }) {
   const [open, setOpen] = useState(false)
   return (
-    <span style={{ position: 'relative', display: 'inline-flex' }}>
+    <span className="relative inline-flex">
       <button
         type="button"
         className={className}
@@ -207,7 +207,7 @@ export default function EcSlipShell({
         </button>
         <span className="name">{title}</span>
 
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 4, position: 'relative' }}>
+        <div className="ml-auto flex gap-[4px] relative">
           {options.length > 0 && (
             <MenuButton label="Option" items={options} />
           )}
@@ -237,7 +237,7 @@ export default function EcSlipShell({
       )}
 
       {/* .contents */}
-      <div style={{ flex: 1, minHeight: 0, paddingTop: 8 }}>{children}</div>
+      <div className="flex-1 min-h-0 pt-[8px]">{children}</div>
 
       {/* .footer */}
       <div className="ec-slip-footer" ref={footerRef}>
@@ -271,7 +271,7 @@ export default function EcSlipShell({
           )
         })}
         {savedAt && (
-          <span style={{ marginLeft: 'auto', fontSize: 11.5, color: 'var(--ec-text-hint)' }}>{savedAt}</span>
+          <span className="ml-auto text-[11.5px] text-ec-hint">{savedAt}</span>
         )}
       </div>
 
@@ -287,11 +287,11 @@ export default function EcSlipShell({
             onClick={(e) => e.stopPropagation()}
             style={{ background: '#fff', borderRadius: 4, width: 480, maxWidth: '90vw', boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}
           >
-            <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--ec-line-soft)', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
+            <div className="py-[10px] px-[14px] border-b border-b-ec-line-soft border-solid font-extrabold text-[14px] flex items-center">
               <span>{title} · 도움말</span>
               <button type="button" className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => setHelpOpen(false)}>닫기</button>
             </div>
-            <div style={{ padding: 14, fontSize: 12.5, lineHeight: 1.7, color: 'var(--ec-text)', maxHeight: '60vh', overflowY: 'auto' }}>
+            <div className="p-[14px] text-[12.5px] leading-[1.7] text-ec-text max-h-[60vh] overflow-y-auto">
               {help}
             </div>
           </div>

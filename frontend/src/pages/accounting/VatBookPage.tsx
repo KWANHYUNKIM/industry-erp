@@ -121,17 +121,17 @@ export default function VatBookPage() {
       <>
         <thead>
           <tr>
-            <th style={{ textAlign: 'center' }}>일자-No.</th>
+            <th className="text-center">일자-No.</th>
             <th>유형명</th>
             <th>전자구분</th>
             <th>거래처명</th>
             <th>세부내역</th>
-            <th style={{ textAlign: 'right' }}>{side}공급가액</th>
-            <th style={{ textAlign: 'right' }}>{side}부가세</th>
+            <th className="text-right">{side}공급가액</th>
+            <th className="text-right">{side}부가세</th>
           </tr>
         </thead>
         <tbody>
-          {rs.length === 0 && <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>}
+          {rs.length === 0 && <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>}
           {months.map((mo) => {
             const ms = rs.filter((r) => r.date.slice(0, 7) === mo)
             const s = sum(ms)
@@ -139,36 +139,36 @@ export default function VatBookPage() {
               <Fragment key={mo}>
                 {ms.map((r) => (
                   <tr key={r.key}>
-                    <td style={{ textAlign: 'center', color: 'var(--ec-blue)' }}>{slash(r.date)} -{r.no}</td>
+                    <td className="text-center text-ec-blue">{slash(r.date)} -{r.no}</td>
                     <td>{KIND_NAME}</td>
                     <td></td>
                     <td>{r.partner}</td>
                     <td>{r.text}</td>
-                    <td style={{ textAlign: 'right' }}>{won(r.supply)}</td>
-                    <td style={{ textAlign: 'right' }}>{won(r.vat)}</td>
+                    <td className="text-right">{won(r.supply)}</td>
+                    <td className="text-right">{won(r.vat)}</td>
                   </tr>
                 ))}
                 <tr style={SUB_ROW}>
-                  <td colSpan={5} style={{ textAlign: 'center' }}>{slash(mo)}  계 ({ms.length} 건)</td>
-                  <td style={{ textAlign: 'right' }}>{won(s.s)}</td>
-                  <td style={{ textAlign: 'right' }}>{won(s.v)}</td>
+                  <td colSpan={5} className="text-center">{slash(mo)}  계 ({ms.length} 건)</td>
+                  <td className="text-right">{won(s.s)}</td>
+                  <td className="text-right">{won(s.v)}</td>
                 </tr>
               </Fragment>
             )
           })}
           {rs.length > 0 && (
             <tr style={SUB_ROW}>
-              <td colSpan={5} style={{ textAlign: 'center' }}>누계 ({rs.length} 건)</td>
-              <td style={{ textAlign: 'right' }}>{won(t.s)}</td>
-              <td style={{ textAlign: 'right' }}>{won(t.v)}</td>
+              <td colSpan={5} className="text-center">누계 ({rs.length} 건)</td>
+              <td className="text-right">{won(t.s)}</td>
+              <td className="text-right">{won(t.v)}</td>
             </tr>
           )}
         </tbody>
       </>
     )
     return first
-      ? <table ref={tableRef} className="w-full text-left" style={{ marginBottom: 16 }}>{body}</table>
-      : <table className="w-full text-left" style={{ marginBottom: 16 }}>{body}</table>
+      ? <table ref={tableRef} className="w-full text-left mb-[16px]">{body}</table>
+      : <table className="w-full text-left mb-[16px]">{body}</table>
   }
 
   /** 매출집계 · 매입집계 — 거래처(사업자등록번호)마다 한 줄. */
@@ -189,31 +189,31 @@ export default function VatBookPage() {
           <tr>
             <th>사업자등록번호</th>
             <th>거래처명</th>
-            <th style={{ textAlign: 'right' }}>매수</th>
-            <th style={{ textAlign: 'right' }}>공급가액</th>
-            <th style={{ textAlign: 'right' }}>세액</th>
-            <th style={{ textAlign: 'right' }}>합계</th>
+            <th className="text-right">매수</th>
+            <th className="text-right">공급가액</th>
+            <th className="text-right">세액</th>
+            <th className="text-right">합계</th>
           </tr>
         </thead>
         <tbody>
-          {gs.length === 0 && <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>}
+          {gs.length === 0 && <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>}
           {gs.map((g) => (
             <tr key={`${g.reg}${g.name}`}>
               <td>{g.reg}</td>
               <td>{g.name}</td>
-              <td style={{ textAlign: 'right' }}>{g.n}</td>
-              <td style={{ textAlign: 'right' }}>{won(g.s)}</td>
-              <td style={{ textAlign: 'right' }}>{won(g.v)}</td>
-              <td style={{ textAlign: 'right' }}>{won(g.s + g.v)}</td>
+              <td className="text-right">{g.n}</td>
+              <td className="text-right">{won(g.s)}</td>
+              <td className="text-right">{won(g.v)}</td>
+              <td className="text-right">{won(g.s + g.v)}</td>
             </tr>
           ))}
           {gs.length > 0 && ['[사업자등록번호] 계', '누계'].map((l) => (
             <tr key={l} style={SUB_ROW}>
-              <td colSpan={2} style={{ textAlign: 'center' }}>{l}</td>
-              <td style={{ textAlign: 'right' }}>{t.n}</td>
-              <td style={{ textAlign: 'right' }}>{won(t.s)}</td>
-              <td style={{ textAlign: 'right' }}>{won(t.v)}</td>
-              <td style={{ textAlign: 'right' }}>{won(t.s + t.v)}</td>
+              <td colSpan={2} className="text-center">{l}</td>
+              <td className="text-right">{t.n}</td>
+              <td className="text-right">{won(t.s)}</td>
+              <td className="text-right">{won(t.v)}</td>
+              <td className="text-right">{won(t.s + t.v)}</td>
             </tr>
           ))}
         </tbody>
@@ -232,20 +232,20 @@ export default function VatBookPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="매출/매입구분">
           {MODES.map((v) => (
-            <label key={v} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+            <label key={v} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
               <input type="radio" name="vat-mode" checked={mode === v} onChange={() => setMode(v)} /> {v}
             </label>
           ))}
         </EcCond>
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={SETTLE_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
@@ -261,7 +261,7 @@ export default function VatBookPage() {
         </EcCond>
         <EcCond label="세무신고거래처구분">
           {(['전체', '사업자등록번호', '주민등록번호'] as const).map((v) => (
-            <label key={v} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+            <label key={v} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
               <input type="radio" name="vat-reg" checked={regKind === v} onChange={() => setRegKind(v)} /> {v}
             </label>
           ))}
@@ -270,19 +270,19 @@ export default function VatBookPage() {
           <input className="ec-input" value={docNo} onChange={(e) => setDocNo(e.target.value)} style={{ width: 180 }} />
         </EcCond>
         <EcCond label="기타">
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+          <label className="inline-flex items-center gap-[3px] text-[12.5px]">
             <input type="checkbox" checked={taxOnly} onChange={(e) => setTaxOnly(e.target.checked)} /> 세무신고거래처
           </label>
         </EcCond>
       </ul>
 
-      {truncated && <p style={{ fontSize: 12, color: 'var(--ec-warn)', marginBottom: 6 }}>전표가 많아 앞부분만 받았습니다 — 기간을 좁혀 보세요.</p>}
+      {truncated && <p className="text-[12px] text-ec-warn mb-[6px]">전표가 많아 앞부분만 받았습니다 — 기간을 좁혀 보세요.</p>}
       {loading ? (
-        <p style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</p>
+        <p className="ec-empty">불러오는 중…</p>
       ) : (
         <>
-          <h3 style={{ fontSize: 20, fontWeight: 700, textAlign: 'center', margin: '6px 0 12px' }}>매입/매출장</h3>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, margin: '0 0 4px' }}>
+          <h3 className="text-[20px] font-bold text-center mt-[6px] mx-0 mb-[12px]">매입/매출장</h3>
+          <div className="flex justify-between text-[12px] mt-0 mx-0 mb-[4px]">
             <span>회사명 : {companyName ?? ''}</span>
             <span>{slash(from)} ~ {slash(to)}</span>
           </div>

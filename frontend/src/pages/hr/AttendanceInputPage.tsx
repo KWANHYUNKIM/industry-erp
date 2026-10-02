@@ -112,15 +112,15 @@ export default function AttendanceInputPage() {
       onNew={() => setShowForm(true)}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {ok && <p style={{ background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
       <Modal error={error} open={showForm} title="근태입력" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>근태 입력</div>
+          <div className="text-[13px] font-extrabold text-ec-navy mb-[8px]">근태 입력</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-5">
             <div>
-              <label className="mb-1 block text-sm text-slate-600">사원 *</label>
+              <label className="mb-1 block text-sm text-ec-label">사원 *</label>
               {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측 525칸, 예외 없음) — 드롭다운은 항목이 늘면 못 찾는다. */}
               <CodePickerField label="사원 *" hideLabel fill placeholder="사원"
                                emptyLabel="선택"
@@ -128,23 +128,23 @@ export default function AttendanceInputPage() {
                                items={employees.map((x) => ({ value: String(x.id), name: x.name, sub: x.department }))} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">일자 *</label>
+              <label className="mb-1 block text-sm text-ec-label">일자 *</label>
               <input type="date" className={inputCls} value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">출근</label>
+              <label className="mb-1 block text-sm text-ec-label">출근</label>
               <input type="time" className={inputCls} value={form.clockIn} onChange={(e) => setForm({ ...form, clockIn: e.target.value })} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">퇴근</label>
+              <label className="mb-1 block text-sm text-ec-label">퇴근</label>
               <input type="time" className={inputCls} value={form.clockOut} onChange={(e) => setForm({ ...form, clockOut: e.target.value })} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">비고</label>
+              <label className="mb-1 block text-sm text-ec-label">비고</label>
               <input className={inputCls} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
             </div>
           </div>
-          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
+          <div className="mt-[12px] flex justify-end">
             <button type="submit" className="ec-btn ec-btn-primary">저장</button>
           </div>
         </form>
@@ -153,31 +153,31 @@ export default function AttendanceInputPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th className="w-[34px]"></th>
             <th>일자</th>
             <th>사원명</th>
             <th>출근</th>
             <th>퇴근</th>
-            <th style={{ textAlign: 'right' }}>근무시간</th>
-            <th style={{ textAlign: 'center' }}>상태</th>
-            <th style={{ width: 60, textAlign: 'center' }}>삭제</th>
+            <th className="text-right">근무시간</th>
+            <th className="text-center">상태</th>
+            <th className="w-[60px] text-center">삭제</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
               <td style={mono}>{dateText(r.date)}</td>
               <td>{r.empName}</td>
               <td style={mono}>{r.clockIn ?? ''}</td>
               <td style={mono}>{r.clockOut ?? ''}</td>
-              <td style={{ textAlign: 'right' }}>{r.workHours.toLocaleString()}</td>
+              <td className="text-right">{r.workHours.toLocaleString()}</td>
               <td style={{ textAlign: 'center', fontWeight: 700, color: statusColor(r.status) }}>{r.status}</td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <button onClick={() => remove(r)} style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
               </td>
             </tr>

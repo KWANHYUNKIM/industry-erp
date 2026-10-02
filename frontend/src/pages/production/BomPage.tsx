@@ -177,31 +177,31 @@ export default function BomPage() {
       onNew={showForm ? () => setShowForm(false) : openNew}
       actions={[{ label: 'Excel' }]}
     >
-      {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-      {ok && <p style={{ marginBottom: 8, background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
+      {error && <p className="mb-2 rounded bg-ec-danger-bg px-3 py-2 text-sm text-ec-danger">{error}</p>}
+      {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
       <Modal error={error} open={showForm} title="BOM(자재명세서) 등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginTop: 8, marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>BOM 등록 / 수정</div>
-          <table className="w-full text-left" style={{ marginBottom: 10, maxWidth: 720 }}>
+          <div className="text-[13px] font-extrabold text-ec-navy mb-[8px]">BOM 등록 / 수정</div>
+          <table className="w-full text-left mb-[10px] max-w-[720px]">
             <tbody>
               <tr>
-                <th style={{ background: 'var(--ec-bg-page)', fontWeight: 700, width: 120 }}>제품(생산 대상) *</th>
+                <th className="bg-ec-page font-bold w-[120px]">제품(생산 대상) *</th>
                 <td>
                   {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
                   <CodePickerField label="제품" hideLabel width={240} placeholder="제품" emptyLabel="선택 해제"
                                    value={productId} onChange={setProductId} items={itemCodes} />
                 </td>
-                <th style={{ background: 'var(--ec-bg-page)', fontWeight: 700, width: 60 }}>비고</th>
+                <th className="bg-ec-page font-bold w-[60px]">비고</th>
                 <td><input className={inputCls} value={remark} onChange={(e) => setRemark(e.target.value)} style={{ minWidth: 200 }} /></td>
               </tr>
               <tr>
                 {/* 원본 품목별BOM조회 [BOM버전] · [기본BOM]. 같은 이름이면 그 버전을 고치고, 새 이름이면 버전이 하나 는다. */}
-                <th style={{ background: 'var(--ec-bg-page)', fontWeight: 700 }}>BOM버전</th>
+                <th className="bg-ec-page font-bold">BOM버전</th>
                 <td><input className={inputCls} value={versionName} onChange={(e) => setVersionName(e.target.value)} style={{ width: 160 }} /></td>
-                <th style={{ background: 'var(--ec-bg-page)', fontWeight: 700 }}>기본BOM</th>
+                <th className="bg-ec-page font-bold">기본BOM</th>
                 <td>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12.5 }}>
+                  <label className="flex items-center gap-[4px] text-[12.5px]">
                     <input type="checkbox" checked={makeDefault} onChange={(e) => setMakeDefault(e.target.checked)} />
                     이 버전을 기본으로(생산·불출·원가가 버전을 안 고르면 기본을 쓴다)
                   </label>
@@ -210,10 +210,10 @@ export default function BomPage() {
             </tbody>
           </table>
 
-          <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ec-label)', margin: '6px 0 4px' }}>구성 자재 (제품 1단위당 소요량)</div>
-          <table ref={tableRef} className="w-full text-left" style={{ maxWidth: 720 }}>
+          <div className="text-[12.5px] font-bold text-ec-label mt-[6px] mx-0 mb-[4px]">구성 자재 (제품 1단위당 소요량)</div>
+          <table ref={tableRef} className="w-full text-left max-w-[720px]">
             <thead>
-              <tr><th>자재</th><th style={{ width: 150, textAlign: 'right' }}>소요량</th><th style={{ width: 40 }}></th></tr>
+              <tr><th>자재</th><th className="w-[150px] text-right">소요량</th><th className="w-[40px]"></th></tr>
             </thead>
             <tbody>
               {lines.map((l, idx) => (
@@ -224,7 +224,7 @@ export default function BomPage() {
                                      items={itemCodes.filter((c) => c.value !== productId)} />
                   </td>
                   <td><input type="number" step="any" className={inputCls} value={l.quantity} onChange={(e) => updateLine(idx, 'quantity', e.target.value)} style={{ width: '100%', textAlign: 'right' }} /></td>
-                  <td style={{ textAlign: 'center' }}>
+                  <td className="text-center">
                     <button type="button" onClick={() => setLines((ls) => ls.length === 1 ? ls : ls.filter((_, i) => i !== idx))} className="no-ec" style={{ border: 'none', background: 'none', color: '#c0c5cc', cursor: 'pointer' }}>✕</button>
                   </td>
                 </tr>
@@ -233,7 +233,7 @@ export default function BomPage() {
           </table>
           <button type="button" onClick={() => setLines((ls) => [...ls, emptyLine()])} className="ec-btn" style={{ marginTop: 6 }}>+ 자재 추가</button>
 
-          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
+          <div className="mt-[12px] flex justify-end">
             <button type="submit" className="ec-btn ec-btn-primary">저장</button>
           </div>
         </form>
@@ -245,7 +245,7 @@ export default function BomPage() {
         원재료갯수 · 파일관리 · BOM등록 · 조회. BOM 이 있는 품목이 먼저 선다. 세트 · 다공정품목은 우리 품목 구분에 없고
         파일관리는 품목에 파일을 붙이지 않아 그 탭 · 열을 두지 않았다. 원재료갯수는 기본 BOM 의 자재 줄 수다.
       */}
-      <div style={{ display: 'flex', gap: 2, margin: '12px 0 8px' }}>
+      <div className="flex gap-[2px] mt-[12px] mx-0 mb-[8px]">
         {CAT_TABS.map((t) => (
           <button key={t.label} onClick={() => setCatTab(t.label)} className="no-ec" style={{
             padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
@@ -256,29 +256,29 @@ export default function BomPage() {
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 110 }}>품목코드</th>
+            <th className="w-[110px]">품목코드</th>
             <th>품목명[규격]</th>
-            <th style={{ width: 110 }}>생산공정명</th>
-            <th style={{ width: 90, textAlign: 'right' }}>원재료갯수</th>
-            <th style={{ width: 80, textAlign: 'center' }}>BOM등록</th>
-            <th style={{ width: 260, textAlign: 'center' }}>조회</th>
+            <th className="w-[110px]">생산공정명</th>
+            <th className="w-[90px] text-right">원재료갯수</th>
+            <th className="w-[80px] text-center">BOM등록</th>
+            <th className="w-[260px] text-center">조회</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={6} className="ec-empty">불러오는 중…</td></tr>
           ) : itemRows.length === 0 ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : itemRows.map(({ it, bom }) => (
             <tr key={it.id}>
-              <td style={{ fontFamily: 'monospace' }}>{it.code}</td>
+              <td>{it.code}</td>
               <td>{it.name}{it.spec ? ` [${it.spec}]` : ''}</td>
               <td>{(it as { processName?: string | null }).processName ?? ''}</td>
-              <td style={{ textAlign: 'right' }}>{bom ? bom.lines.length.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}</td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-right">{bom ? bom.lines.length.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}</td>
+              <td className="text-center">
                 <button onClick={() => (bom ? editBom(bom) : openNewFor(it.id))} className="no-ec" style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12 }}>{bom ? '수정' : '등록'}</button>
               </td>
-              <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+              <td className="text-center whitespace-nowrap">
                 {bom ? (<>
                   <button onClick={() => void openTree(bom, 'F')} className="no-ec" style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12 }}>정전개</button>
                   <button onClick={() => void openTree(bom, 'R')} className="no-ec" style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12 }}>역전개</button>
@@ -295,25 +295,25 @@ export default function BomPage() {
         {tree && (
           <>
             {tree.kind !== 'L' && (
-              <div style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
+              <div className="flex gap-[4px] mb-[6px]">
                 <button type="button" className="ec-btn ec-btn-sm" onClick={() => setFolded(new Set())}>펼치기</button>
                 <button type="button" className="ec-btn ec-btn-sm"
                         onClick={() => setFolded(new Set(tree.rows.map((r, i) => (r.hasChildren && r.level > 0 ? i : -1)).filter((i) => i >= 0)))}>접기</button>
               </div>
             )}
-            <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+            <div className="max-h-[60vh] overflow-y-auto">
               <table className="w-full text-left">
                 <thead>
                   <tr>
                     <th>품목코드(품명,규격,단위포함)</th>
-                    <th style={{ textAlign: 'right', width: 110 }}>{tree.kind === 'R' ? '윗 품목당 소요량' : '소요량'}</th>
-                    <th style={{ textAlign: 'right', width: 110 }}>{tree.kind === 'L' ? '' : '누적 소요량'}</th>
-                    <th style={{ width: 90 }}>비고</th>
+                    <th className="text-right w-[110px]">{tree.kind === 'R' ? '윗 품목당 소요량' : '소요량'}</th>
+                    <th className="text-right w-[110px]">{tree.kind === 'L' ? '' : '누적 소요량'}</th>
+                    <th className="w-[90px]">비고</th>
                   </tr>
                 </thead>
                 <tbody>
                   {tree.rows.length === 0 ? (
-                    <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
+                    <tr><td colSpan={4} className="text-center text-ec-hint p-[16px]">등록된 데이터가 없습니다.</td></tr>
                   ) : visibleRows(tree.rows).map(({ r, i }) => (
                     <tr key={i}>
                       <td style={{ paddingLeft: 8 + r.level * 18 }}>
@@ -322,20 +322,20 @@ export default function BomPage() {
                                   onClick={() => setFolded((f) => { const n = new Set(f); if (n.has(i)) n.delete(i); else n.add(i); return n })}>
                             {folded.has(i) ? '+' : '−'}
                           </button>
-                        ) : <span style={{ display: 'inline-block', width: 14 }} />}
+                        ) : <span className="inline-block w-[14px]" />}
                         {r.itemCode} : {r.itemName}{r.spec ? ` [${r.spec}]` : ''} - {r.unit}
                       </td>
-                      <td style={{ textAlign: 'right' }}>{r.level === 0 ? '' : Number(r.qty).toLocaleString('ko-KR', { maximumFractionDigits: 4 })}</td>
-                      <td style={{ textAlign: 'right' }}>{r.level === 0 || tree.kind === 'L' ? '' : Number(r.totalQty).toLocaleString('ko-KR', { maximumFractionDigits: 4 })}</td>
-                      <td style={{ color: 'var(--ec-text-hint)', fontSize: 12 }}>{r.versionName ? `BOM ${r.versionName}` : ''}</td>
+                      <td className="text-right">{r.level === 0 ? '' : Number(r.qty).toLocaleString('ko-KR', { maximumFractionDigits: 4 })}</td>
+                      <td className="text-right">{r.level === 0 || tree.kind === 'L' ? '' : Number(r.totalQty).toLocaleString('ko-KR', { maximumFractionDigits: 4 })}</td>
+                      <td className="text-ec-hint text-[12px]">{r.versionName ? `BOM ${r.versionName}` : ''}</td>
                     </tr>
                   ))}
                 </tbody>
                 {tree.kind === 'L' && (
                   <tfoot>
                     <tr>
-                      <td style={{ textAlign: 'right', fontWeight: 700 }}>합계</td>
-                      <td style={{ textAlign: 'right', fontWeight: 700 }}>{tree.rows.reduce((n, r) => n + Number(r.qty), 0).toLocaleString('ko-KR', { maximumFractionDigits: 4 })}</td>
+                      <td className="text-right font-bold">합계</td>
+                      <td className="text-right font-bold">{tree.rows.reduce((n, r) => n + Number(r.qty), 0).toLocaleString('ko-KR', { maximumFractionDigits: 4 })}</td>
                       <td colSpan={2} />
                     </tr>
                   </tfoot>

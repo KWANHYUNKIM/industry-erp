@@ -138,7 +138,7 @@ export default function CodePickerField({
   // 입력칸으로 전달돼 행 선택이 먹히지 않고 팝업이 닫히지 않는다(실제로 그렇게 동작했다).
   return (
     <div style={{ fontSize: 12.5, width: fill ? "100%" : undefined }}>
-      {!hideLabel && <div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>{label}</div>}
+      {!hideLabel && <div className="text-ec-label mb-[3px]">{label}</div>}
 
       {pair ? (
         /* 전표 코드칸: [코드][🔍][명칭][×] — 원본 .control > .form-control-code */
@@ -215,7 +215,7 @@ export default function CodePickerField({
       )}
 
       <Modal open={open} title={`${label} 선택`} width={520} onClose={() => setOpen(false)}>
-        <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+        <div className="flex gap-[6px] mb-[8px]">
           <input
             className="ec-input"
             autoFocus
@@ -229,22 +229,22 @@ export default function CodePickerField({
           <span style={{ fontSize: 12.5, color: 'var(--ec-text-hint)', alignSelf: 'center' }}>{shown.length}건</span>
         </div>
 
-        <div style={{ maxHeight: 320, overflowY: 'auto', border: '1px solid var(--ec-border)' }}>
+        <div className="max-h-[320px] overflow-y-auto border border-ec-line border-solid">
           <table className="w-full text-left">
             <thead><tr>
-              {multiple && <th style={{ width: 34 }}></th>}
-              <th style={{ width: 120 }}>코드</th>
+              {multiple && <th className="w-[34px]"></th>}
+              <th className="w-[120px]">코드</th>
               <th>이름</th>
-              <th style={{ width: 120 }}></th>
+              <th className="w-[120px]"></th>
             </tr></thead>
             <tbody>
               {!multiple && (
-                <tr onClick={() => pick(null)} style={{ cursor: 'pointer' }}>
-                  <td colSpan={3} style={{ color: 'var(--ec-text-hint)' }}>({emptyLabel})</td>
+                <tr onClick={() => pick(null)} className="cursor-pointer">
+                  <td colSpan={3} className="text-ec-hint">({emptyLabel})</td>
                 </tr>
               )}
               {shown.length === 0 ? (
-                <tr><td colSpan={multiple ? 4 : 3} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 16 }}>
+                <tr><td colSpan={multiple ? 4 : 3} className="text-center text-ec-hint p-[16px]">
                   검색 결과가 없습니다.
                 </td></tr>
               ) : shown.map((i) => {
@@ -256,13 +256,13 @@ export default function CodePickerField({
                     style={{ cursor: 'pointer', background: on ? 'var(--ec-blue-light)' : undefined }}
                   >
                     {multiple && (
-                      <td style={{ textAlign: 'center' }}>
+                      <td className="text-center">
                         <input type="checkbox" readOnly checked={on} />
                       </td>
                     )}
-                    <td style={{ fontFamily: 'monospace' }}>{i.code ?? ''}</td>
-                    <td style={{ fontWeight: 600 }}>{i.name}</td>
-                    <td style={{ color: 'var(--ec-text-hint)' }}>{i.sub ?? ''}</td>
+                    <td>{i.code ?? ''}</td>
+                    <td className="font-semibold">{i.name}</td>
+                    <td className="text-ec-hint">{i.sub ?? ''}</td>
                   </tr>
                 )
               })}
@@ -271,12 +271,12 @@ export default function CodePickerField({
         </div>
 
         {multiple && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
-            <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>
-              선택 <b style={{ color: 'var(--ec-blue)' }}>{picked.length}</b>명
-              {pickedItems.length > 0 && <span style={{ color: 'var(--ec-text-hint)' }}> · {pickedItems.map((i) => i.name).join(', ')}</span>}
+          <div className="flex items-center gap-[8px] mt-[8px]">
+            <span className="text-[12.5px] text-ec-label">
+              선택 <b className="text-ec-blue">{picked.length}</b>명
+              {pickedItems.length > 0 && <span className="text-ec-hint"> · {pickedItems.map((i) => i.name).join(', ')}</span>}
             </span>
-            <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+            <div className="ml-auto flex gap-[6px]">
               <button type="button" className="ec-btn" onClick={clearAll}>전체 해제</button>
               <button type="button" className="ec-btn ec-btn-primary" onClick={() => { setOpen(false); setQ('') }}>확인</button>
             </div>

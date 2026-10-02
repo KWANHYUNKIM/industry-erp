@@ -78,60 +78,60 @@ export default function PreferencesPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ color: 'var(--ec-star)', fontSize: 14, marginRight: 4 }}>☆</span>
-        <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ec-text)' }}>환경설정</span>
+    <div className="flex flex-col min-h-[100%]">
+      <div className="flex items-center mb-[8px]">
+        <span className="text-ec-star text-[14px] mr-[4px]">☆</span>
+        <span className="text-[15px] font-extrabold text-ec-text">환경설정</span>
       </div>
 
-      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {ok && <p style={{ marginBottom: 8, background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
       {loading ? (
-        <p style={{ color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</p>
+        <p className="text-ec-hint p-[20px]">불러오는 중…</p>
       ) : (
         <>
-          <div style={{ fontWeight: 700, fontSize: 12.5, color: 'var(--ec-blue-dark)', margin: '6px 0 4px' }}>기본 설정</div>
-          <div style={{ display: 'flex', gap: 24, alignItems: 'center', padding: '8px 10px', border: '1px solid var(--ec-border)', borderRadius: 3, marginBottom: 14, maxWidth: 760, flexWrap: 'wrap' }}>
-            <label style={{ fontSize: 12.5 }}>회계연도 시작월&nbsp;
+          <div className="font-bold text-[12.5px] text-ec-navy mt-[6px] mx-0 mb-[4px]">기본 설정</div>
+          <div className="flex gap-[24px] items-center py-[8px] px-[10px] border border-ec-line border-solid rounded-[3px] mb-[14px] max-w-[760px] flex-wrap">
+            <label className="text-[12.5px]">회계연도 시작월&nbsp;
               <select className="ec-input" value={form.fiscalStart} onChange={(e) => setField('fiscalStart', e.target.value)}>
                 {Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0')).map((m) => <option key={m}>{m}</option>)}
               </select>월
             </label>
-            <label style={{ fontSize: 12.5 }}>기준통화&nbsp;
+            <label className="text-[12.5px]">기준통화&nbsp;
               <select className="ec-input" value={form.currency} onChange={(e) => setField('currency', e.target.value)}>
                 <option>KRW</option><option>USD</option><option>EUR</option><option>JPY</option>
-              </select><span style={{ marginLeft: 4, fontSize: 11, color: 'var(--ec-warn)' }} title="저장은 되지만 아직 화면·전표에 반영하지 않습니다.">(미적용)</span>
+              </select><span className="ml-[4px] text-[11px] text-ec-warn" title="저장은 되지만 아직 화면·전표에 반영하지 않습니다.">(미적용)</span>
             </label>
-            <label style={{ fontSize: 12.5 }}>금액 소수자리&nbsp;
+            <label className="text-[12.5px]">금액 소수자리&nbsp;
               <select className="ec-input" value={String(form.decimals)} onChange={(e) => setField('decimals', Number(e.target.value))}>
                 <option>0</option><option>1</option><option>2</option>
-              </select><span style={{ marginLeft: 4, fontSize: 11, color: 'var(--ec-warn)' }} title="저장은 되지만 아직 화면·전표에 반영하지 않습니다.">(미적용)</span>
+              </select><span className="ml-[4px] text-[11px] text-ec-warn" title="저장은 되지만 아직 화면·전표에 반영하지 않습니다.">(미적용)</span>
             </label>
           </div>
 
-          <div style={{ fontWeight: 700, fontSize: 12.5, color: 'var(--ec-blue-dark)', margin: '6px 0 4px' }}>사용 옵션</div>
-          <table className="w-full text-left" style={{ maxWidth: 760 }}>
+          <div className="font-bold text-[12.5px] text-ec-navy mt-[6px] mx-0 mb-[4px]">사용 옵션</div>
+          <table className="w-full text-left max-w-[760px]">
             <thead>
               <tr>
-                <th style={{ width: 200 }}>항목</th>
+                <th className="w-[200px]">항목</th>
                 <th>설명</th>
-                <th style={{ width: 90, textAlign: 'center' }}>사용</th>
+                <th className="w-[90px] text-center">사용</th>
               </tr>
             </thead>
             <tbody>
               {TOGGLES.map((t) => (
                 <tr key={t.key}>
-                  <td style={{ fontWeight: 600 }}>
+                  <td className="font-semibold">
                     {t.label}
                     {/*
                       QA 20회차: 이 다섯은 저장만 되고 아무 데서도 쓰지 않았다(설명은 그렇게 동작하는 것처럼 적혀 있었다).
                       적용하기 전까지 (미적용) 으로 밝힌다 — 특히 '단가 열람 권한 제한' 은 기본이 켜짐이라 숨겨지는 줄 알기 쉽다.
                     */}
-                    <span style={{ marginLeft: 4, fontSize: 11, color: 'var(--ec-warn)', fontWeight: 400 }} title="저장은 되지만 아직 화면·전표에 반영하지 않습니다.">(미적용)</span>
+                    <span className="ml-[4px] text-[11px] text-ec-warn font-normal" title="저장은 되지만 아직 화면·전표에 반영하지 않습니다.">(미적용)</span>
                   </td>
-                  <td style={{ color: 'var(--ec-label)' }}>{t.desc}</td>
-                  <td style={{ textAlign: 'center' }}>
+                  <td className="text-ec-label">{t.desc}</td>
+                  <td className="text-center">
                     <button
                       onClick={() => toggle(t.key)}
                       className="no-ec"
@@ -151,7 +151,7 @@ export default function PreferencesPage() {
             </tbody>
           </table>
 
-          <div style={{ display: 'flex', gap: 6, marginTop: 14 }}>
+          <div className="flex gap-[6px] mt-[14px]">
             <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>{saving ? '저장 중…' : '저장(F8)'}</button>
             <button className="ec-btn" onClick={restoreDefaults} disabled={saving}>기본값 복원</button>
           </div>

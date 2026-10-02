@@ -196,7 +196,7 @@ export default function LeaveListPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <div className="ec-pills" style={{ marginBottom: 8 }}>
         {TABS.map((t) => (
@@ -215,7 +215,7 @@ export default function LeaveListPage() {
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={fromCond}
                  onChange={(e) => setFromCond(e.target.value)} style={{ width: 140 }} />
-          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <span className="text-ec-label">~</span>
           <input type="date" className="ec-input" value={toCond}
                  onChange={(e) => setToCond(e.target.value)} style={{ width: 140 }} />
         </EcCond>
@@ -255,23 +255,23 @@ export default function LeaveListPage() {
         </EcCond>
       </ul>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
         {shown.length}건
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
-        근태수 합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{days(total)}</b>
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
+        근태수 합계 <b className="text-ec-navy text-[14px]">{days(total)}</b>
       </div>
 
       <div className="overflow-x-auto">
         <table className="ec-grid w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
-              <th style={{ width: 170 }}>근태번호</th>
-              <th style={{ textAlign: 'center', width: 190 }}>근태일자</th>
-              <th style={{ width: 110 }}>사원번호</th>
-              <th style={{ width: 110 }}>사원명</th>
-              <th style={{ width: 100 }}>근태코드</th>
-              <th style={{ width: 100, textAlign: 'right' }}>근태수</th>
+              <th className="w-[34px]"></th>
+              <th className="w-[170px]">근태번호</th>
+              <th className="text-center w-[190px]">근태일자</th>
+              <th className="w-[110px]">사원번호</th>
+              <th className="w-[110px]">사원명</th>
+              <th className="w-[100px]">근태코드</th>
+              <th className="w-[100px] text-right">근태수</th>
               {/*
                 원본 근태조회의 [휴가명] 열 — 이 근태가 <b>어느 휴가 잔여</b>에서 빠지는가.
                 우리 잔여 계산(휴가잔여일수현황)은 승인된 근태를 모두 그 해 연차에서 뺀다.
@@ -279,40 +279,40 @@ export default function LeaveListPage() {
                 잔여를 깎는지 아닌지를 화면에서 알 수 없다.
                 반려·대기는 아직 안 깎으므로 빈 칸이다.
               */}
-              <th style={{ textAlign: 'center', width: 120 }}>휴가명</th>
-              <th style={{ textAlign: 'center' }}>적요</th>
-              <th style={{ width: 80, textAlign: 'center' }}>진행상태</th>
-              <th style={{ width: 100, textAlign: 'center' }}>결재</th>
+              <th className="text-center w-[120px]">휴가명</th>
+              <th className="text-center">적요</th>
+              <th className="w-[80px] text-center">진행상태</th>
+              <th className="w-[100px] text-center">결재</th>
               {/* 원본 근태조회의 마지막 열 [인쇄] — 그 한 건을 근태 전표로 찍는다. */}
-              <th style={{ width: 60, textAlign: 'center' }}>인쇄</th>
+              <th className="w-[60px] text-center">인쇄</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={12} className="ec-empty">불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={12} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((r) => (
               <tr key={r.id}>
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-center">
                   <input type="checkbox" checked={checked.has(r.id)} onChange={() => toggle(r.id)} />
                 </td>
-                <td style={{ fontFamily: 'monospace' }}>{r.docNo}</td>
-                <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>
+                <td>{r.docNo}</td>
+                <td className="text-center">
                   {r.startDate === r.endDate ? r.startDate : `${r.startDate} ~ ${r.endDate}`}
                 </td>
                 <td style={{ fontFamily: 'monospace', color: r.empCode ? undefined : 'var(--ec-text-off)' }}>{r.empCode ?? ''}</td>
                 <td>{r.empName}</td>
                 <td>{r.type}</td>
-                <td style={{ textAlign: 'right' }}>{days(r.days)}</td>
+                <td className="text-right">{days(r.days)}</td>
                 <td style={{ textAlign: 'center', color: r.status === 'APPROVED' ? undefined : 'var(--ec-text-off)' }}>
                   {r.status === 'APPROVED' ? `연차(${r.startDate.slice(0, 4)}년)` : '-'}
                 </td>
-                <td style={{ textAlign: 'center' }}>{r.reason ?? ''}</td>
+                <td className="text-center">{r.reason ?? ''}</td>
                 <td style={{ textAlign: 'center', fontWeight: 700, color: r.status === 'APPROVED' ? 'var(--ec-success)' : r.status === 'REJECTED' ? 'var(--ec-danger)' : 'var(--ec-warn)' }}>
                   {r.statusName}
                 </td>
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-center">
                   {r.status === 'PENDING' && (
                     <>
                       <button onClick={() => changeStatus(r, 'APPROVED')} style={{ color: 'var(--ec-success)', marginRight: 6, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>확인</button>
@@ -320,7 +320,7 @@ export default function LeaveListPage() {
                     </>
                   )}
                 </td>
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-center">
                   <button onClick={() => printOne(r)}
                           style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
                 </td>

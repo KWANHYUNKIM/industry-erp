@@ -111,7 +111,7 @@ export default function ShortMessagePage() {
   }
 
   const inputCls = 'ec-input'
-  const label = (t: string) => <div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>{t}</div>
+  const label = (t: string) => <div className="text-ec-label mb-[3px]">{t}</div>
 
   return (
     <EcListShell
@@ -129,16 +129,16 @@ export default function ShortMessagePage() {
         { label: 'Excel' },
       ]}
       help={
-        <p style={{ fontSize: 12.5, lineHeight: 1.7 }}>
+        <p className="text-[12.5px] leading-[1.7]">
           사용자끼리 주고받는 단문 쪽지입니다. 전자결재 결재요청·최종완료·반려는 시스템이 자동으로
           쪽지를 보냅니다(보낸사람 ECOUNT). 연결전표를 누르면 해당 결재함으로 이동합니다.
         </p>
       }
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {notice && <p style={{ background: '#eaf4ea', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{notice}</p>}
 
-      <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+      <div className="flex gap-[4px] mb-[8px]">
         {BOXES.map((b) => (
           <button
             key={b.key}
@@ -153,13 +153,13 @@ export default function ShortMessagePage() {
         ))}
       </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end', border: '1px solid var(--ec-border)', background: 'var(--ec-bg-page)', padding: 10, marginBottom: 10 }}>
-        <label style={{ fontSize: 12.5 }}>{label('발송일자')}
+      <div className="flex flex-wrap gap-[10px] items-end border border-ec-line border-solid bg-ec-page p-[10px] mb-[10px]">
+        <label className="text-[12.5px]">{label('발송일자')}
           <input type="date" className={inputCls} value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className={inputCls} value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
         </label>
-        <div style={{ display: 'flex', gap: 3 }}>
+        <div className="flex gap-[3px]">
           <button className="ec-btn" onClick={() => preset('today')}>금일</button>
           <button className="ec-btn" onClick={() => preset('week')}>최근7일</button>
           <button className="ec-btn" onClick={() => preset('month')}>금월</button>
@@ -171,37 +171,37 @@ export default function ShortMessagePage() {
                          items={users.map((u) => ({ value: String(u.id), code: u.username, name: u.name, sub: u.department }))} />
         <CodePickerField label="거래처" value={partnerId} onChange={setPartnerId} width={150}
                          items={partnerCodeItems(partners)} />
-        <label style={{ fontSize: 12.5 }}>{label('내용')}
+        <label className="text-[12.5px]">{label('내용')}
           <input className={inputCls} value={keyword} onChange={(e) => setKeyword(e.target.value)}
                  onKeyDown={(e) => { if (e.key === 'Enter') load() }} style={{ width: 200 }} placeholder="본문 키워드" /></label>
         <button className="ec-btn ec-btn-primary" onClick={() => load()}>검색(F8)</button>
       </div>
 
-      <div style={{ marginBottom: 6, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
-        검색결과 <b style={{ color: 'var(--ec-blue-dark)' }}>{rows.length}</b>건
-        {box !== 'sent' && <> · 미확인 <b style={{ color: 'var(--ec-blue)' }}>{unread}</b>건</>}
+      <div className="mb-[6px] text-[12.5px] text-ec-label text-right">
+        검색결과 <b className="text-ec-navy">{rows.length}</b>건
+        {box !== 'sent' && <> · 미확인 <b className="text-ec-blue">{unread}</b>건</>}
       </div>
 
       <table className="w-full text-left">
         <thead><tr>
-          <th style={{ width: 34 }}>
+          <th className="w-[34px]">
             <input type="checkbox" checked={rows.length > 0 && checked.length === rows.length}
                    onChange={(e) => setChecked(e.target.checked ? rows.map((r) => r.id) : [])} />
           </th>
-          <th style={{ width: 130 }}>{box === 'sent' ? '받는 사람' : '보낸 사람'}</th>
+          <th className="w-[130px]">{box === 'sent' ? '받는 사람' : '보낸 사람'}</th>
           <th>내용</th>
-          <th style={{ width: 140 }}>발송일자</th>
-          <th style={{ width: 70, textAlign: 'center' }}>상태</th>
-          <th style={{ width: 200 }}>연결전표</th>
+          <th className="w-[140px]">발송일자</th>
+          <th className="w-[70px] text-center">상태</th>
+          <th className="w-[200px]">연결전표</th>
         </tr></thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={6} className="ec-empty">불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((m) => (
             <tr key={m.id} style={{ background: !m.readAt && box !== 'sent' ? '#f4f8fd' : undefined }}>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <input type="checkbox" checked={checked.includes(m.id)} onChange={() => toggle(m.id)} />
               </td>
               <td style={{ fontWeight: m.system ? 700 : 400, color: m.system ? 'var(--ec-blue-dark)' : undefined }}>
@@ -210,9 +210,9 @@ export default function ShortMessagePage() {
               <td style={{ cursor: box === 'sent' ? 'default' : 'pointer', fontWeight: !m.readAt && box !== 'sent' ? 600 : 400 }}
                   onClick={() => markRead(m)} title={box === 'sent' ? undefined : '클릭하면 확인 처리됩니다.'}>
                 {m.content}
-                {m.partnerName && <span style={{ color: 'var(--ec-label)' }}> · {m.partnerName}</span>}
+                {m.partnerName && <span className="text-ec-label"> · {m.partnerName}</span>}
               </td>
-              <td style={{ fontFamily: 'monospace' }}>{when(m.sentAt)}</td>
+              <td>{when(m.sentAt)}</td>
               <td style={{ textAlign: 'center', color: m.readAt ? 'var(--ec-text-hint)' : 'var(--ec-blue)', fontWeight: 700 }}>
                 {box === 'sent' ? (m.readAt ? '확인' : '미확인') : m.statusName}
               </td>
@@ -223,7 +223,7 @@ export default function ShortMessagePage() {
                               style={{ background: 'none', border: 0, padding: 0, color: 'var(--ec-blue)', cursor: 'pointer', textDecoration: 'underline', fontSize: 12.5 }}>
                         {m.linkSource} &gt; {m.linkRef}
                       </button>
-                    : <span style={{ color: 'var(--ec-label)' }}>{m.linkSource} &gt; {m.linkRef}</span>
+                    : <span className="text-ec-label">{m.linkSource} &gt; {m.linkRef}</span>
                 )}
               </td>
             </tr>
@@ -256,8 +256,8 @@ function ComposeForm({ users, partners, onDone }: { users: User[]; partners: Par
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 12.5 }}>
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', borderRadius: 3 }}>{error}</p>}
+    <div className="flex flex-col gap-[10px] text-[12.5px]">
+      {error && <p className="bg-ec-danger-bg text-ec-danger py-[6px] px-[10px] rounded-[3px]">{error}</p>}
       {/* 받는 사람은 원본도 코드도움 팝업 + tags-input(복수)이다. 사용자가 늘면 체크박스 나열은 못 쓴다. */}
       <CodePickerField
         label="받는 사람"
@@ -269,17 +269,17 @@ function ComposeForm({ users, partners, onDone }: { users: User[]; partners: Par
         items={users.map((u) => ({ value: String(u.id), code: u.username, name: u.name, sub: u.department }))}
       />
       <label>
-        <div style={{ color: 'var(--ec-label)', marginBottom: 4 }}>내용</div>
+        <div className="text-ec-label mb-[4px]">내용</div>
         <textarea className="ec-input" value={content} onChange={(e) => setContent(e.target.value)}
                   rows={4} style={{ width: '100%' }} placeholder="쪽지 내용을 입력하세요." />
       </label>
       <label>
-        <div style={{ color: 'var(--ec-label)', marginBottom: 4 }}>거래처 (선택)</div>
+        <div className="text-ec-label mb-[4px]">거래처 (선택)</div>
         <CodePickerField label="거래처" hideLabel width={220} emptyLabel="지정 안 함" placeholder="지정 안 함"
                          value={partnerId} onChange={setPartnerId}
                          items={partnerCodeItems(partners)} />
       </label>
-      <div style={{ textAlign: 'right' }}>
+      <div className="text-right">
         <button className="ec-btn ec-btn-primary" onClick={submit} disabled={saving}>
           {saving ? '보내는 중…' : '보내기'}
         </button>

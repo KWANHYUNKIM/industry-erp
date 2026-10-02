@@ -212,13 +212,13 @@ export default function TimeCalcPage() {
         { label: '새로고침', onClick: load },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="일자" span="full">
           <input className="ec-input" type="date" value={baseDate}
                  onChange={(e) => setBaseDate(e.target.value)} style={{ width: 150 }} />
-          <span style={{ fontSize: 11.5, color: 'var(--ec-text-hint)', marginLeft: 6 }}>
+          <span className="text-[11.5px] text-ec-hint ml-[6px]">
             [작업지시 불러오기]를 누르면 이 날짜에 잡힌 지시를 아래 그리드에 담습니다.
           </span>
         </EcCond>
@@ -240,31 +240,31 @@ export default function TimeCalcPage() {
         <table className="ec-grid w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
+              <th className="w-[34px]"></th>
               {/*
                 원본 소요시간계산의 두 열은 <b>[생산품목코드] · [생산품목명]</b> 이다(사본 실측).
                 우리는 고르는 칸을 [생산품목] 이라 부르고 그 옆에 <b>코드를 또</b> 찍고 있었다 —
                 고르는 칸이 이미 [코드] 이름 을 함께 보여 주므로 옆 칸은 이름을 적는 게 맞다.
               */}
-              <th style={{ width: 230 }}>생산품목코드</th>
-              <th style={{ width: 160 }}>생산품목명</th>
+              <th className="w-[230px]">생산품목코드</th>
+              <th className="w-[160px]">생산품목명</th>
               <th>규격</th>
-              <th style={{ width: 110, textAlign: 'right' }}>추가수량</th>
-              <th style={{ width: 110, textAlign: 'right' }}>수량</th>
-              <th style={{ width: 120, textAlign: 'right' }}>1개당(H)</th>
-              <th style={{ width: 130, textAlign: 'right' }}>소요시간</th>
-              <th style={{ width: 90, textAlign: 'center' }}>공정</th>
+              <th className="w-[110px] text-right">추가수량</th>
+              <th className="w-[110px] text-right">수량</th>
+              <th className="w-[120px] text-right">1개당(H)</th>
+              <th className="w-[130px] text-right">소요시간</th>
+              <th className="w-[90px] text-center">공정</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
             ) : results.map((r, i) => (
               /* map 이 돌려주는 바깥 요소에 key 를 단다. <> 에는 key 를 못 달아
                  React 가 "unique key" 경고를 낸다 — 조각이라도 Fragment 로 적는다. */
               <Fragment key={r.line.key}>
                 <tr>
-                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+                  <td className="text-center text-ec-hint">{i + 1}</td>
                   <td>
                     <CodePickerField
                       label="생산품목" hideLabel width={210} placeholder="품목 선택"
@@ -273,43 +273,43 @@ export default function TimeCalcPage() {
                     />
                   </td>
                   <td>{r.item?.name ?? ''}</td>
-                  <td style={{ color: 'var(--ec-label)' }}>{r.item?.spec ?? ''}</td>
-                  <td style={{ textAlign: 'right' }}>
+                  <td className="text-ec-label">{r.item?.spec ?? ''}</td>
+                  <td className="text-right">
                     <input className="ec-input text-right" type="number" style={{ width: 90 }}
                            value={r.line.extraQty}
                            onChange={(e) => { setLine(r.line.key, { extraQty: e.target.value }); setCalculated(false) }} />
                   </td>
-                  <td style={{ textAlign: 'right' }}>
+                  <td className="text-right">
                     <input className="ec-input text-right" type="number" style={{ width: 90 }}
                            value={r.line.qty}
                            onChange={(e) => { setLine(r.line.key, { qty: e.target.value }); setCalculated(false) }} />
                   </td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>
+                  <td className="text-right text-ec-label">
                     {calculated && r.perUnit != null ? r.perUnit.toFixed(4) : ''}
                   </td>
-                  <td style={{ textAlign: 'right', fontWeight: 700 }}>
+                  <td className="text-right font-bold">
                     {!calculated ? '' : r.hours == null
-                      ? (r.item ? <span style={{ color: 'var(--ec-warn)' }}>라우팅 없음</span> : '')
+                      ? (r.item ? <span className="text-ec-warn">라우팅 없음</span> : '')
                       : `${hhmm(r.hours)} (${r.hours.toFixed(2)}H)`}
                   </td>
-                  <td style={{ textAlign: 'center' }}>
+                  <td className="text-center">
                     {calculated && r.ops.length > 0 ? (
                       <button onClick={() => setOpenKey(openKey === r.line.key ? null : r.line.key)}
                               style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>
                         {openKey === r.line.key ? '접기' : `${r.ops.length}개`}
                       </button>
-                    ) : <span style={{ color: 'var(--ec-text-off)' }}>-</span>}
+                    ) : <span className="text-ec-off">-</span>}
                   </td>
                 </tr>
                 {calculated && openKey === r.line.key && r.ops.map((o) => (
                   <tr key={`${r.line.key}-${o.seq}`} style={{ background: 'var(--ec-bg-page)' }}>
                     <td></td>
-                    <td colSpan={3} style={{ paddingLeft: 18, color: 'var(--ec-label)' }}>
-                      └ {o.seq}. {o.workName} <span style={{ color: 'var(--ec-text-hint)' }}>({o.processName})</span>
+                    <td colSpan={3} className="pl-[18px] text-ec-label">
+                      └ {o.seq}. {o.workName} <span className="text-ec-hint">({o.processName})</span>
                     </td>
                     <td colSpan={2}></td>
-                    <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{o.hoursPerUnit.toFixed(4)}</td>
-                    <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{hhmm(o.hoursPerUnit * r.qty)}</td>
+                    <td className="text-right text-ec-label">{o.hoursPerUnit.toFixed(4)}</td>
+                    <td className="text-right text-ec-label">{hhmm(o.hoursPerUnit * r.qty)}</td>
                     <td></td>
                   </tr>
                 ))}
@@ -318,14 +318,14 @@ export default function TimeCalcPage() {
           </tbody>
           {calculated && (
             <tfoot>
-              <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-                <td colSpan={7} style={{ textAlign: 'right' }}>
+              <tr className="font-bold bg-ec-page">
+                <td colSpan={7} className="text-right">
                   합계 ({results.filter((r) => r.item).length}품목)
                   {unknown > 0 && (
-                    <span style={{ color: 'var(--ec-warn)', fontWeight: 400 }}> · 라우팅 없는 {unknown}품목은 뺐습니다</span>
+                    <span className="text-ec-warn font-normal"> · 라우팅 없는 {unknown}품목은 뺐습니다</span>
                   )}
                 </td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>
+                <td className="text-right text-ec-navy">
                   {hhmm(totalHours)} ({totalHours.toFixed(2)}H)
                 </td>
                 <td></td>
@@ -335,7 +335,7 @@ export default function TimeCalcPage() {
         </table>
       </div>
 
-      <p style={{ marginTop: 8, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
+      <p className="mt-[8px] text-[11.5px] text-ec-hint">
         * 소요시간은 BOR(작업소요시간)에 적힌 <b>1개당 작업시간 × (수량 + 추가수량)</b> 입니다.
         라우팅을 세우지 않은 품목은 계산하지 않습니다 — 0 시간으로 두면 "안 걸린다" 로 읽힙니다.
       </p>

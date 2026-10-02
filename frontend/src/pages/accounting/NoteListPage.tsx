@@ -97,7 +97,7 @@ export default function NoteListPage({ type }: { type: NoteType }) {
   useTableColumnCheck(tableRef, title, [moves.length])
 
   const box = (label: string, checked: boolean, set: (v: boolean) => void) => (
-    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+    <label className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
       <input type="checkbox" checked={checked} onChange={(e) => set(e.target.checked)} /> {label}
     </label>
   )
@@ -113,21 +113,21 @@ export default function NoteListPage({ type }: { type: NoteType }) {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={QUOTATION_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
         <EcCond label="만기일자">
           <input type="date" className="ec-input" value={dueFrom} disabled={!useDue} onChange={(e) => setDueFrom(e.target.value)} style={{ width: 145 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={dueTo} disabled={!useDue} onChange={(e) => setDueTo(e.target.value)} style={{ width: 145 }} />
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginLeft: 8, fontSize: 12.5 }}>
+          <label className="inline-flex items-center gap-[3px] ml-[8px] text-[12.5px]">
             <input type="checkbox" checked={useDue} onChange={(e) => setUseDue(e.target.checked)} /> 사용
           </label>
         </EcCond>
@@ -148,7 +148,7 @@ export default function NoteListPage({ type }: { type: NoteType }) {
         {/* 원본 [입력구분] — 우리 어음은 모두 어음등록 화면에서 직접 적는다. 연결전표에서 생기는 어음이 없다. */}
         <EcCond label="입력구분">
           {box('전체', direct, setDirect)}
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5, color: 'var(--ec-text-hint)' }}>
+          <label className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px] text-ec-hint">
             <input type="checkbox" checked={false} disabled /> 연결전표
           </label>
           {box('직접입력', direct, setDirect)}
@@ -168,31 +168,31 @@ export default function NoteListPage({ type }: { type: NoteType }) {
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ textAlign: 'center' }}>일자</th>
+            <th className="text-center">일자</th>
             <th>어음번호</th>
-            <th style={{ textAlign: 'center' }}>증감구분</th>
+            <th className="text-center">증감구분</th>
             <th>거래처명</th>
-            <th style={{ textAlign: 'right' }}>금액</th>
-            <th style={{ textAlign: 'center' }}>만기일자</th>
+            <th className="text-right">금액</th>
+            <th className="text-center">만기일자</th>
             <th>적요</th>
-            <th style={{ textAlign: 'center' }}>거래유형</th>
+            <th className="text-center">거래유형</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
           ) : moves.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : moves.map((m) => (
             <tr key={m.key}>
-              <td style={{ textAlign: 'center' }}>{dateText(m.date)}</td>
+              <td className="text-center">{dateText(m.date)}</td>
               <td>{m.n.noteNo}</td>
-              <td style={{ textAlign: 'center' }}>{m.inc ? '어음증가' : '어음감소'}</td>
+              <td className="text-center">{m.inc ? '어음증가' : '어음감소'}</td>
               <td>{m.n.partnerName}</td>
-              <td style={{ textAlign: 'right' }}>{won(Number(m.n.amount))}</td>
-              <td style={{ textAlign: 'center' }}>{dateText(m.n.dueDate)}</td>
+              <td className="text-right">{won(Number(m.n.amount))}</td>
+              <td className="text-center">{dateText(m.n.dueDate)}</td>
               <td>{m.n.remark ?? ''}</td>
-              <td style={{ textAlign: 'center' }}>{kindOf(m)}</td>
+              <td className="text-center">{kindOf(m)}</td>
             </tr>
           ))}
         </tbody>

@@ -124,7 +124,7 @@ export default function CheckPage() {
       onNew={() => setShowForm(true)}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
     >
-      <div style={{ display: 'flex', gap: 2, marginBottom: 8, borderBottom: '1px solid var(--ec-border)' }}>
+      <div className="flex gap-[2px] mb-[8px] border-b border-b-ec-line border-solid">
         {TABS.map((t) => (
           <button key={t.type} onClick={() => { setType(t.type); setShowForm(false); setError('') }} className="no-ec" style={{
             padding: '6px 14px', fontSize: 12.5, border: 'none', cursor: 'pointer',
@@ -134,7 +134,7 @@ export default function CheckPage() {
           }}>{t.label} ({count(t.type)})</button>
         ))}
         <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 12, color: 'var(--ec-label)' }}>
-          미처리 {held.length}건 · <b style={{ color: 'var(--ec-blue-dark)' }}>{won(heldTotal)}</b>
+          미처리 {held.length}건 · <b className="text-ec-navy">{won(heldTotal)}</b>
         </span>
       </div>
 
@@ -142,17 +142,17 @@ export default function CheckPage() {
         화면 조건 판의 <b>[기간]</b>. 서버가 이 구간만 준다 — 전에는 전 기간을 통째로 받았다.
         비워 두면 전 기간이다(미결제 건은 오래된 것이 살아 있어 기본으로 자르지 않는다).
       */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)' }}>
+      <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label">
         <span>기간</span>
         <input type="date" className="ec-input" value={from2}
                onChange={(e) => setFrom2(e.target.value)} style={{ width: 140 }} />
-        <span style={{ color: 'var(--ec-label)' }}>~</span>
+        <span className="text-ec-label">~</span>
         <input type="date" className="ec-input" value={to2}
                onChange={(e) => setTo2(e.target.value)} style={{ width: 140 }} />
       </div>
 
-      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)' }}>{notice}</div>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
 
       <Modal error={error} open={showForm} title="수표 등록" onClose={() => setShowForm(false)}>{(
         <CheckForm
@@ -164,38 +164,38 @@ export default function CheckPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ width: 130 }}>수표번호</th>
-            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('일자')}>{type === 'RECEIVED' ? '수취일' : '발행일'} {sort.mark('일자')}</th>
-            <th style={{ width: 120, textAlign: 'right' }}>금액</th>
-            <th style={{ width: 110 }}>은행</th>
-            <th style={{ width: 130 }}>거래처</th>
-            <th style={{ width: 170 }}>{type === 'RECEIVED' ? '입금계좌' : '발행계좌'}</th>
-            <th style={{ width: 100, textAlign: 'center' }}>상태</th>
-            <th style={{ width: 100 }}>처리일</th>
-            <th style={{ width: 140, textAlign: 'center' }}>처리</th>
+            <th className="w-[34px]"></th>
+            <th className="w-[130px]">수표번호</th>
+            <th className="w-[100px] cursor-pointer" onClick={() => sort.toggle('일자')}>{type === 'RECEIVED' ? '수취일' : '발행일'} {sort.mark('일자')}</th>
+            <th className="w-[120px] text-right">금액</th>
+            <th className="w-[110px]">은행</th>
+            <th className="w-[130px]">거래처</th>
+            <th className="w-[170px]">{type === 'RECEIVED' ? '입금계좌' : '발행계좌'}</th>
+            <th className="w-[100px] text-center">상태</th>
+            <th className="w-[100px]">처리일</th>
+            <th className="w-[140px] text-center">처리</th>
             <th>비고</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={11} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((c, i) => (
             <tr key={c.id}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{c.checkNo}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td className="font-semibold">{c.checkNo}</td>
               <td>{dateText(c.issueDate)}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(c.amount)}</td>
+              <td className="text-right font-bold">{won(c.amount)}</td>
               <td>{c.bankName ?? ''}</td>
               <td>{c.partnerName ?? ''}</td>
-              <td style={{ color: 'var(--ec-label)' }}>{c.bankAccountName ?? ''}</td>
+              <td className="text-ec-label">{c.bankAccountName ?? ''}</td>
               <td style={{ textAlign: 'center', color: STATUS_COLOR[c.status], fontWeight: 600 }}>{c.statusName}</td>
               <td>{dateText(c.settledDate) || ''}</td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 {c.status === 'HELD' && (
-                  <div style={{ display: 'inline-flex', gap: 3 }}>
+                  <div className="inline-flex gap-[3px]">
                     {c.type === 'RECEIVED' ? (
                       <>
                         <button className="ec-btn ec-btn-primary" style={{ height: 20, padding: '0 8px' }} onClick={() => deposit(c)}>입금</button>
@@ -207,7 +207,7 @@ export default function CheckPage() {
                   </div>
                 )}
               </td>
-              <td style={{ color: 'var(--ec-label)' }}>{c.remark ?? ''}</td>
+              <td className="text-ec-label">{c.remark ?? ''}</td>
             </tr>
           ))}
         </tbody>
@@ -255,11 +255,11 @@ function CheckForm({ type, banks, partners, onError, onSaved }: {
   }
 
   return (
-    <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginBottom: 8 }}>
-      <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>
+    <div className="border border-ec-line border-solid bg-white p-[14px] mb-[8px]">
+      <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">
         {isIssued ? '수표 발행' : '수표 수취'}
       </div>
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+      <div className="flex gap-[12px] flex-wrap items-end">
         <Field label="수표번호 *">
           <input className="ec-input" value={form.checkNo} onChange={(e) => set('checkNo', e.target.value)} style={{ width: 150 }} placeholder="가12345678" />
         </Field>
@@ -290,7 +290,7 @@ function CheckForm({ type, banks, partners, onError, onSaved }: {
         </Field>
         <button className="ec-btn ec-btn-primary" onClick={submit} disabled={saving}>{saving ? '저장 중…' : '저장(F8)'}</button>
       </div>
-      <div style={{ marginTop: 8, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
+      <div className="mt-[8px] text-[11.5px] text-ec-hint">
         {isIssued
           ? '※ 차)외상매입금 / 대)발행계좌의 예금계정으로 분개되고, 발행하는 순간 계좌 잔액이 줄어듭니다. 나중에 은행 인출이 확인되면 결제확인만 누르면 됩니다(회계는 이미 반영).'
           : '※ 차)받을수표 / 대)외상매출금으로 분개됩니다. 나중에 계좌에 입금하면 예금이 늘고 받을수표가 없어집니다. 부도가 나면 현금 없이 외상매출금으로 되돌아갑니다.'}
@@ -301,8 +301,8 @@ function CheckForm({ type, banks, partners, onError, onSaved }: {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label style={{ fontSize: 12.5 }}>
-      <div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>{label}</div>
+    <label className="text-[12.5px]">
+      <div className="text-ec-label mb-[3px]">{label}</div>
       {children}
     </label>
   )

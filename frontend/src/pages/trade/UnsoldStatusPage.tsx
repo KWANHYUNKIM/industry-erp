@@ -220,7 +220,7 @@ export default function UnsoldStatusPage() {
         <EcCond label="품목별납기일자">
           <input type="date" className="ec-input" value={cond.dueFrom}
                  onChange={(e) => setC({ dueFrom: e.target.value })} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
           <input type="date" className="ec-input" value={cond.dueTo}
                  onChange={(e) => setC({ dueTo: e.target.value })} style={{ width: 140 }} />
         </EcCond>
@@ -262,7 +262,7 @@ export default function UnsoldStatusPage() {
         <EcCond label="미판매수량">
           <input className="ec-input" type="number" value={cond.qtyFrom}
                  onChange={(e) => setC({ qtyFrom: e.target.value })} style={{ width: 120 }} />
-          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <span className="text-ec-label">~</span>
           <input className="ec-input" type="number" value={cond.qtyTo}
                  onChange={(e) => setC({ qtyTo: e.target.value })} style={{ width: 120 }} />
         </EcCond>
@@ -273,7 +273,7 @@ export default function UnsoldStatusPage() {
         <EcCond label="수량">
           <input className="ec-input" type="number" style={{ width: 100 }} value={cond.orderQtyFrom}
                  onChange={(e) => setC({ orderQtyFrom: e.target.value })} />
-          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
           <input className="ec-input" type="number" style={{ width: 100 }} value={cond.orderQtyTo}
                  onChange={(e) => setC({ orderQtyTo: e.target.value })} />
         </EcCond>
@@ -307,7 +307,7 @@ export default function UnsoldStatusPage() {
         </EcCond>
         {/* 원본 [정렬기준] — [데이터 보기형식] 바로 앞줄이다. */}
         <EcCond label="정렬기준">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={byDue} onChange={(e) => setByDue(e.target.checked)} />
             납기일순 (기본: 미판매수량순)
           </label>
@@ -326,25 +326,25 @@ export default function UnsoldStatusPage() {
                       return [...m].map(([label, value]) => ({ label, value }))
                     })()} />
       )}
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
         {mode === '품목별' ? '품목' : '라인'}{' '}
-        <b style={{ color: 'var(--ec-text)' }}>{num(mode === '품목별' ? byItem.length : shown.length)}</b>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+        <b className="text-ec-text">{num(mode === '품목별' ? byItem.length : shown.length)}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
         미판매수량 <b style={{ color: '#a5561b', fontSize: 14 }}>{num(totals.qty)}</b>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
-        미판매금액 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{num(totals.amount)}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
+        미판매금액 <b className="text-ec-blue text-[14px]">{num(totals.amount)}</b>
       </div>
 
       <div className="overflow-x-auto">
         {mode === '라인별' ? (
           <table className="w-full text-left">
             <colgroup>
-              <col style={{ width: '4%' }} /><col style={{ width: '13%' }} /><col />
-              <col style={{ width: '8%' }} /><col style={{ width: '8%' }} /><col style={{ width: '8%' }} />
-              <col style={{ width: '10%' }} /><col style={{ width: '12%' }} /><col style={{ width: '12%' }} />
-              <col style={{ width: '9%' }} /><col style={{ width: '10%' }} />
+              <col className="w-[4%]" /><col className="w-[13%]" /><col />
+              <col className="w-[8%]" /><col className="w-[8%]" /><col className="w-[8%]" />
+              <col className="w-[10%]" /><col className="w-[12%]" /><col className="w-[12%]" />
+              <col className="w-[9%]" /><col className="w-[10%]" />
             </colgroup>
             {/*
               2026-09-09 원본 실측 — 격자 열은
@@ -359,49 +359,49 @@ export default function UnsoldStatusPage() {
                 <th></th>
                 <th>일자-No.</th>
                 <th>품목명(규격)</th>
-                <th style={{ textAlign: 'right' }}>수량</th>
-                <th style={{ textAlign: 'right' }}>판매수량</th>
-                <th style={{ textAlign: 'right' }}>미판매수량</th>
-                <th style={{ textAlign: 'right' }}>미판매공급가액</th>
+                <th className="text-right">수량</th>
+                <th className="text-right">판매수량</th>
+                <th className="text-right">미판매수량</th>
+                <th className="text-right">미판매공급가액</th>
                 <th>거래처명</th>
                 <th>적요</th>
                 {/* 원본 이름은 [품목별납기일자] 지만 우리 납기는 전표 단위 하나다 — 이름을 그대로 쓰면 거짓이 된다. */}
                 <th>납기일자</th>
-                <th style={{ textAlign: 'right' }}>미판매부가세</th>
+                <th className="text-right">미판매부가세</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+                <tr><td colSpan={11} className="text-center text-ec-ink">불러오는 중…</td></tr>
               ) : shown.length === 0 ? (
-                <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={11} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
               ) : shown.map((r, i) => (
-                <tr key={r.orderLineId} style={{ cursor: 'pointer' }}
+                <tr key={r.orderLineId} className="cursor-pointer"
                     onClick={() => navigate('/sales/order-status')}>
-                  <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                  <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{r.orderDate.replace(/-/g, '/')} {r.orderNo}</td>
-                  <td>{r.itemName}{r.spec ? ` (${r.spec})` : ''} <span style={{ fontSize: 11, color: 'var(--ec-text-hint)' }}>{r.itemCode}</span></td>
-                  <td style={{ textAlign: 'right' }}>{num(r.orderQty)}</td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(r.soldQty)}</td>
+                  <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
+                  <td className="text-ec-blue">{r.orderDate.replace(/-/g, '/')} {r.orderNo}</td>
+                  <td>{r.itemName}{r.spec ? ` (${r.spec})` : ''} <span className="text-[11px] text-ec-hint">{r.itemCode}</span></td>
+                  <td className="text-right">{num(r.orderQty)}</td>
+                  <td className="text-right text-ec-hint">{num(r.soldQty)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 700, color: '#a5561b' }}>
-                    {num(r.unsoldQty)} <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--ec-text-hint)' }}>{r.unit}</span>
+                    {num(r.unsoldQty)} <span className="text-[11px] font-normal text-ec-hint">{r.unit}</span>
                   </td>
-                  <td style={{ textAlign: 'right' }}>{num(r.unsoldAmount)}</td>
+                  <td className="text-right">{num(r.unsoldAmount)}</td>
                   <td>{r.partnerName}</td>
-                  <td style={{ color: 'var(--ec-text-hint)' }}>{r.remark ?? ''}</td>
+                  <td className="text-ec-hint">{r.remark ?? ''}</td>
                   <td>{r.dueDate ? r.dueDate.replace(/-/g, '/') : ''}</td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(lineVat(r))}</td>
+                  <td className="text-right text-ec-hint">{num(lineVat(r))}</td>
                 </tr>
               ))}
             </tbody>
             {shown.length > 0 && (
               <tfoot>
                 <tr>
-                  <td colSpan={5} style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>합계</td>
+                  <td colSpan={5} className="text-right font-bold bg-ec-page">합계</td>
                   <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: '#a5561b' }}>{num(totals.qty)}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: 'var(--ec-blue)' }}>{num(totals.amount)}</td>
-                  <td colSpan={3} style={{ background: 'var(--ec-bg-page)' }}></td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: 'var(--ec-text-hint)' }}>{num(totals.vat)}</td>
+                  <td className="text-right font-bold bg-ec-page text-ec-blue">{num(totals.amount)}</td>
+                  <td colSpan={3} className="bg-ec-page"></td>
+                  <td className="text-right font-bold bg-ec-page text-ec-hint">{num(totals.vat)}</td>
                 </tr>
               </tfoot>
             )}
@@ -409,48 +409,48 @@ export default function UnsoldStatusPage() {
         ) : (
           <table className="w-full text-left">
             <colgroup>
-              <col style={{ width: '4%' }} /><col style={{ width: '14%' }} /><col />
-              <col style={{ width: '8%' }} /><col style={{ width: '10%' }} />
-              <col style={{ width: '10%' }} /><col style={{ width: '10%' }} /><col style={{ width: '13%' }} />
+              <col className="w-[4%]" /><col className="w-[14%]" /><col />
+              <col className="w-[8%]" /><col className="w-[10%]" />
+              <col className="w-[10%]" /><col className="w-[10%]" /><col className="w-[13%]" />
             </colgroup>
             <thead>
               <tr>
                 <th></th>
                 <th>품목코드</th>
                 <th>품목명</th>
-                <th style={{ textAlign: 'right' }}>건수</th>
-                <th style={{ textAlign: 'right' }}>주문수량</th>
-                <th style={{ textAlign: 'right' }}>판매수량</th>
-                <th style={{ textAlign: 'right' }}>미판매수량</th>
-                <th style={{ textAlign: 'right' }}>미판매금액</th>
+                <th className="text-right">건수</th>
+                <th className="text-right">주문수량</th>
+                <th className="text-right">판매수량</th>
+                <th className="text-right">미판매수량</th>
+                <th className="text-right">미판매금액</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+                <tr><td colSpan={8} className="text-center text-ec-ink">불러오는 중…</td></tr>
               ) : byItem.length === 0 ? (
-                <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={8} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
               ) : byItem.map((g, i) => (
                 <tr key={g.itemId}>
-                  <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                  <td style={{ fontFamily: 'monospace' }}>{g.itemCode}</td>
+                  <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
+                  <td>{g.itemCode}</td>
                   <td>{g.itemName}</td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(g.count)}</td>
-                  <td style={{ textAlign: 'right' }}>{num(g.orderQty)}</td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(g.soldQty)}</td>
+                  <td className="text-right text-ec-hint">{num(g.count)}</td>
+                  <td className="text-right">{num(g.orderQty)}</td>
+                  <td className="text-right text-ec-hint">{num(g.soldQty)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 700, color: '#a5561b' }}>
-                    {num(g.unsoldQty)} <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--ec-text-hint)' }}>{g.unit}</span>
+                    {num(g.unsoldQty)} <span className="text-[11px] font-normal text-ec-hint">{g.unit}</span>
                   </td>
-                  <td style={{ textAlign: 'right' }}>{num(g.unsoldAmount)}</td>
+                  <td className="text-right">{num(g.unsoldAmount)}</td>
                 </tr>
               ))}
             </tbody>
             {byItem.length > 0 && (
               <tfoot>
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>합계</td>
+                  <td colSpan={6} className="text-right font-bold bg-ec-page">합계</td>
                   <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: '#a5561b' }}>{num(totals.qty)}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: 'var(--ec-blue)' }}>{num(totals.amount)}</td>
+                  <td className="text-right font-bold bg-ec-page text-ec-blue">{num(totals.amount)}</td>
                 </tr>
               </tfoot>
             )}

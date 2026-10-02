@@ -129,7 +129,7 @@ export default function ProjectPage() {
       onNew={() => setShowForm(true)}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
-      <p className="mb-2 text-xs text-slate-500">프로젝트 진행·진척 관리 · 기획 → 진행중 → 완료(진척 100 자동) · 보류 전환 가능</p>
+      <p className="mb-2 text-xs text-ec-hint">프로젝트 진행·진척 관리 · 기획 → 진행중 → 완료(진척 100 자동) · 보류 전환 가능</p>
 
       <Modal open={showForm} title="프로젝트 등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 12, marginBottom: 10, maxWidth: 820 }}>
@@ -164,15 +164,15 @@ export default function ProjectPage() {
               </tr>
             </tbody>
           </table>
-          {error && <p className="mt-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-          {ok && <p className="mt-2 rounded bg-green-50 px-3 py-2 text-sm text-green-700">{ok}</p>}
-          <div style={{ marginTop: 10 }}><button type="submit" className="ec-btn ec-btn-primary">등록(F8)</button></div>
+          {error && <p className="mt-2 rounded bg-ec-danger-bg px-3 py-2 text-sm text-ec-danger">{error}</p>}
+          {ok && <p className="mt-2 rounded bg-ec-success-bg px-3 py-2 text-sm text-ec-success">{ok}</p>}
+          <div className="mt-[10px]"><button type="submit" className="ec-btn ec-btn-primary">등록(F8)</button></div>
         </form>
       )}</Modal>
 
-      {error && !showForm && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && !showForm && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div style={{ display: 'flex', gap: 2, marginBottom: 8 }}>
+      <div className="flex gap-[2px] mb-[8px]">
         {(['ALL', ...STATUSES] as const).map((s) => (
           <button key={s} onClick={() => setStatusFilter(s)} className="no-ec" style={{
             padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
@@ -184,37 +184,37 @@ export default function ProjectPage() {
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('코드')}>코드 {sort.mark('코드')}</th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('프로젝트명')}>프로젝트명 {sort.mark('프로젝트명')}</th>
-            <th style={{ width: 90 }}>PM</th>
-            <th style={{ width: 100 }}>시작일</th>
-            <th style={{ width: 100 }}>종료(예정)</th>
-            <th style={{ textAlign: 'right', width: 170 }}>진척률</th>
-            <th style={{ width: 90, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('상태')}>상태 {sort.mark('상태')}</th>
-            <th style={{ width: 120, textAlign: 'center' }}>처리</th>
+            <th className="w-[34px]"></th>
+            <th className="w-[100px] cursor-pointer" onClick={() => sort.toggle('코드')}>코드 {sort.mark('코드')}</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('프로젝트명')}>프로젝트명 {sort.mark('프로젝트명')}</th>
+            <th className="w-[90px]">PM</th>
+            <th className="w-[100px]">시작일</th>
+            <th className="w-[100px]">종료(예정)</th>
+            <th className="text-right w-[170px]">진척률</th>
+            <th className="w-[90px] text-center cursor-pointer" onClick={() => sort.toggle('상태')}>상태 {sort.mark('상태')}</th>
+            <th className="w-[120px] text-center">처리</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.code}</td>
-              <td style={{ fontWeight: 600 }}>{r.name}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td>{r.code}</td>
+              <td className="font-semibold">{r.name}</td>
               <td>{r.manager ?? ''}</td>
               <td>{dateText(r.startDate)}</td>
               <td>{dateText(r.endDate) || ''}</td>
               <td>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }} onClick={() => editProgress(r)} title="클릭하여 진척률 수정">
-                  <div style={{ flex: 1, height: 8, background: 'var(--ec-line-soft)', borderRadius: 4, overflow: 'hidden' }}>
+                <div className="flex items-center gap-[6px] cursor-pointer" onClick={() => editProgress(r)} title="클릭하여 진척률 수정">
+                  <div className="flex-1 h-[8px] bg-ec-line-soft rounded-[4px] overflow-hidden">
                     <div style={{ width: `${r.progress}%`, height: '100%', background: COLOR[r.status] }} />
                   </div>
-                  <span style={{ width: 34, textAlign: 'right', fontSize: 11.5 }}>{r.progress}%</span>
+                  <span className="w-[34px] text-right text-[11.5px]">{r.progress}%</span>
                 </div>
               </td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <select
                   className="ec-input"
                   value={r.status}
@@ -224,7 +224,7 @@ export default function ProjectPage() {
                   {STATUSES.map((s) => <option key={s} value={s}>{LABEL[s]}</option>)}
                 </select>
               </td>
-              <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+              <td className="text-center whitespace-nowrap">
                 <button className="ec-btn" style={{ height: 20, padding: '0 10px', marginRight: 4 }} onClick={() => editProgress(r)}>진척수정</button>
                 <button className="no-ec" onClick={() => remove(r)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button>
               </td>

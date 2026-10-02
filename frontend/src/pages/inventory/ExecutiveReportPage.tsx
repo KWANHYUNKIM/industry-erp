@@ -257,17 +257,17 @@ export default function ExecutiveReportPage() {
         dateLabel="기준일자"
       >
         <EcCond label="기타">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
             결재방표시
           </label>
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
-        매출 <b style={{ color: 'var(--ec-text)' }}>{report.saleCount}</b>건
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
-        매입 <b style={{ color: 'var(--ec-text)' }}>{report.buyCount}</b>건
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        매출 <b className="text-ec-text">{report.saleCount}</b>건
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
+        매입 <b className="text-ec-text">{report.buyCount}</b>건
       </div>
 
       {/*
@@ -275,21 +275,21 @@ export default function ExecutiveReportPage() {
         고쳤지만 여기는 그대로 뒀다 — 화면이 '추정치'라고 말하고 있고, 경영자보고서는
         기간 현금흐름에 가까운 요약이라서다. 정확한 이익은 일별이익현황(원가 기준 선택)을 본다.
       */}
-      <p className="mb-2 text-xs text-slate-500">
+      <p className="mb-2 text-xs text-ec-hint">
         기간 매출·매입·이익과 재고자산·채권/채무 종합. 매출총이익은 (기간 매출−기간 매입) 추정치.
         재고자산은 <b>취득원가</b>(실제 입고단가 → 없으면 품목 구매단가)로 평가합니다.
         {report.stockUnknown > 0 && (
-          <span style={{ color: 'var(--ec-danger)' }}>
+          <span className="text-ec-danger">
             {' '}※ 평가단가를 못 찾은 재고 <b>{report.stockUnknown}</b>칸은 재고자산에서 빠져 있습니다
             (품목등록의 구매단가를 정하거나 입고 이력이 있어야 합니다).
           </span>
         )}
       </p>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       {loading ? (
-        <p style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 30 }}>불러오는 중…</p>
+        <p className="text-center text-ec-hint p-[30px]">불러오는 중…</p>
       ) : (
         <>
           {/* KPI 카드 */}
@@ -326,34 +326,34 @@ export default function ExecutiveReportPage() {
             <b>미판매·미입고·할인액·재고조정액·자가사용액·미청구액</b>은 이 화면이 그 자료를
             안 받는다. 보드에 그대로 적어 두었다.
           */}
-          <table className="w-full text-left" style={{ marginBottom: 16 }}>
+          <table className="w-full text-left mb-[16px]">
             <thead><tr>
-              <th style={{ width: 200 }}>구분</th>
-              <th style={{ width: 220 }}>기준일자</th>
-              <th style={{ textAlign: 'right' }}>금액</th>
+              <th className="w-[200px]">구분</th>
+              <th className="w-[220px]">기준일자</th>
+              <th className="text-right">금액</th>
             </tr></thead>
             <tbody>
               {report.stockByCat.map(([name, amt]) => (
                 <tr key={name}>
                   <td>{name}</td>
-                  <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{dot(to)}</td>
-                  <td style={{ textAlign: 'right' }}>{won(amt)}</td>
+                  <td className="text-ec-label">{dot(to)}</td>
+                  <td className="text-right">{won(amt)}</td>
                 </tr>
               ))}
-              <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
+              <tr className="font-bold bg-ec-page">
                 <td>합계</td>
-                <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{dot(to)}</td>
-                <td style={{ textAlign: 'right' }}>{won(report.stockValue)}</td>
+                <td className="text-ec-label">{dot(to)}</td>
+                <td className="text-right">{won(report.stockValue)}</td>
               </tr>
               <tr>
                 <td>판매액</td>
-                <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{dot(from)} ~ {dot(to)}</td>
-                <td style={{ textAlign: 'right' }}>{won(report.saleAmt)}</td>
+                <td className="text-ec-label">{dot(from)} ~ {dot(to)}</td>
+                <td className="text-right">{won(report.saleAmt)}</td>
               </tr>
               <tr>
                 <td>구매액</td>
-                <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{dot(from)} ~ {dot(to)}</td>
-                <td style={{ textAlign: 'right' }}>{won(report.buyAmt)}</td>
+                <td className="text-ec-label">{dot(from)} ~ {dot(to)}</td>
+                <td className="text-right">{won(report.buyAmt)}</td>
               </tr>
               {/*
                 <b>[미판매금액]·[미입고금액]</b> — 아직 안 판 주문, 아직 안 들어온 발주.
@@ -363,44 +363,44 @@ export default function ExecutiveReportPage() {
               */}
               <tr>
                 <td>미판매금액</td>
-                <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{dot(yearBefore(to))} ~ {dot(to)}</td>
-                <td style={{ textAlign: 'right' }}>{won(report.unsoldAmt)}</td>
+                <td className="text-ec-label">{dot(yearBefore(to))} ~ {dot(to)}</td>
+                <td className="text-right">{won(report.unsoldAmt)}</td>
               </tr>
               <tr>
                 <td>미입고금액</td>
-                <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{dot(yearBefore(to))} ~ {dot(to)}</td>
-                <td style={{ textAlign: 'right' }}>{won(report.unreceivedAmt)}</td>
+                <td className="text-ec-label">{dot(yearBefore(to))} ~ {dot(to)}</td>
+                <td className="text-right">{won(report.unreceivedAmt)}</td>
               </tr>
               {/* 값은 기간 끝 시점의 잔액이다(위 실측). 칸에 적히는 글자는 원본대로 기간이다. */}
               <tr>
                 <td>채권</td>
-                <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{dot(from)} ~ {dot(to)}</td>
-                <td style={{ textAlign: 'right' }}>{won(report.receivable)}</td>
+                <td className="text-ec-label">{dot(from)} ~ {dot(to)}</td>
+                <td className="text-right">{won(report.receivable)}</td>
               </tr>
               <tr>
                 <td>채무</td>
-                <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{dot(from)} ~ {dot(to)}</td>
-                <td style={{ textAlign: 'right' }}>{won(report.payable)}</td>
+                <td className="text-ec-label">{dot(from)} ~ {dot(to)}</td>
+                <td className="text-right">{won(report.payable)}</td>
               </tr>
               <tr>
                 <td>판매 할인액</td>
-                <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{dot(from)} ~ {dot(to)}</td>
-                <td style={{ textAlign: 'right' }}>{won(report.saleDiscAmt)}</td>
+                <td className="text-ec-label">{dot(from)} ~ {dot(to)}</td>
+                <td className="text-right">{won(report.saleDiscAmt)}</td>
               </tr>
               <tr>
                 <td>구매 할인액</td>
-                <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{dot(from)} ~ {dot(to)}</td>
-                <td style={{ textAlign: 'right' }}>{won(report.buyDiscAmt)}</td>
+                <td className="text-ec-label">{dot(from)} ~ {dot(to)}</td>
+                <td className="text-right">{won(report.buyDiscAmt)}</td>
               </tr>
               <tr>
                 <td>재고조정액</td>
-                <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{dot(from)} ~ {dot(to)}</td>
-                <td style={{ textAlign: 'right' }}>{won(report.adjustAmt)}</td>
+                <td className="text-ec-label">{dot(from)} ~ {dot(to)}</td>
+                <td className="text-right">{won(report.adjustAmt)}</td>
               </tr>
               <tr>
                 <td>자가사용액</td>
-                <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{dot(from)} ~ {dot(to)}</td>
-                <td style={{ textAlign: 'right' }}>{won(report.selfUseAmt)}</td>
+                <td className="text-ec-label">{dot(from)} ~ {dot(to)}</td>
+                <td className="text-right">{won(report.selfUseAmt)}</td>
               </tr>
               {/*
                 <b>[미청구액 (판매)]·[미청구액 (구매)] 두 줄은 아직 못 만든다.</b>
@@ -426,10 +426,10 @@ export default function ExecutiveReportPage() {
 
 function Kpi({ label, value, sub, color }: { label: string; value: string; sub?: string; color: string }) {
   return (
-    <div style={{ border: '1px solid var(--ec-border)', borderRadius: 4, background: '#fff', padding: '12px 14px' }}>
-      <div style={{ fontSize: 12, color: 'var(--ec-text-hint)', marginBottom: 6 }}>{label}</div>
+    <div className="border border-ec-line border-solid rounded-[4px] bg-white py-[12px] px-[14px]">
+      <div className="text-[12px] text-ec-hint mb-[6px]">{label}</div>
       <div style={{ fontSize: 20, fontWeight: 800, color }}>{value}</div>
-      {sub && <div style={{ fontSize: 11.5, color: 'var(--ec-text-hint)', marginTop: 2 }}>{sub}</div>}
+      {sub && <div className="text-[11.5px] text-ec-hint mt-[2px]">{sub}</div>}
     </div>
   )
 }
@@ -437,17 +437,17 @@ function Kpi({ label, value, sub, color }: { label: string; value: string; sub?:
 function TopTable({ title, rows, color }: { title: string; rows: { key: string; name: string; amount: number }[]; color: string }) {
   const max = rows.length ? rows[0].amount : 0
   return (
-    <div style={{ border: '1px solid var(--ec-border)', borderRadius: 4, background: '#fff', padding: '10px 12px' }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ec-text)', marginBottom: 8 }}>{title}</div>
+    <div className="border border-ec-line border-solid rounded-[4px] bg-white py-[10px] px-[12px]">
+      <div className="text-[13px] font-bold text-ec-text mb-[8px]">{title}</div>
       {rows.length === 0 ? (
-        <div style={{ fontSize: 12, color: 'var(--ec-text-hint)', padding: '10px 0', textAlign: 'center' }}>자료 없음</div>
+        <div className="text-[12px] text-ec-hint py-[10px] px-0 text-center">자료 없음</div>
       ) : rows.map((r, i) => (
-        <div key={r.key} style={{ marginBottom: 7 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, marginBottom: 2 }}>
-            <span style={{ color: 'var(--ec-text)' }}><b style={{ color: 'var(--ec-text-hint)', marginRight: 5 }}>{i + 1}</b>{r.name}</span>
+        <div key={r.key} className="mb-[7px]">
+          <div className="flex justify-between text-[12.5px] mb-[2px]">
+            <span className="text-ec-text"><b className="text-ec-hint mr-[5px]">{i + 1}</b>{r.name}</span>
             <b style={{ color }}>{won(r.amount)}</b>
           </div>
-          <div style={{ height: 4, background: 'var(--ec-line-soft)', borderRadius: 2 }}>
+          <div className="h-[4px] bg-ec-line-soft rounded-[2px]">
             <div style={{ height: '100%', width: `${max > 0 ? (r.amount / max) * 100 : 0}%`, background: color, borderRadius: 2 }} />
           </div>
         </div>

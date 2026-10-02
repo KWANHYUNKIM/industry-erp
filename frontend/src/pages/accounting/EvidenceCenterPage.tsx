@@ -105,7 +105,7 @@ export default function EvidenceCenterPage() {
     } catch (err) { alert(extractErrorMessage(err)) }
   }
 
-  const label = (t: string) => <div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>{t}</div>
+  const label = (t: string) => <div className="text-ec-label mb-[3px]">{t}</div>
 
   return (
     <EcListShell
@@ -117,37 +117,37 @@ export default function EvidenceCenterPage() {
         { label: 'Excel' },
       ]}
       help={
-        <p style={{ fontSize: 12.5, lineHeight: 1.7 }}>
+        <p className="text-[12.5px] leading-[1.7]">
           전표에 붙은 증빙을 모아 봅니다. 증빙 등록은 판매조회·구매조회의 전표 상세를 펼치면 나오는
           ‘증빙’ 패널에서 합니다. 파일은 최대 10MB 까지 올릴 수 있고, 증빙을 지우면 첨부파일도 함께 지워집니다.
         </p>
       }
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {notice && <p style={{ background: '#eaf4ea', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{notice}</p>}
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end', border: '1px solid var(--ec-border)', background: 'var(--ec-bg-page)', padding: 10, marginBottom: 10 }}>
-        <label style={{ fontSize: 12.5 }}>{label('전표일자')}
+      <div className="flex flex-wrap gap-[10px] items-end border border-ec-line border-solid bg-ec-page p-[10px] mb-[10px]">
+        <label className="text-[12.5px]">{label('전표일자')}
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
         </label>
-        <label style={{ fontSize: 12.5 }}>{label('증빙일자')}
+        <label className="text-[12.5px]">{label('증빙일자')}
           <input type="date" className="ec-input" value={evidenceFrom} onChange={(e) => setEvidenceFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={evidenceTo} onChange={(e) => setEvidenceTo(e.target.value)} style={{ width: 140 }} />
         </label>
-        <label style={{ fontSize: 12.5 }}>{label('메뉴')}
+        <label className="text-[12.5px]">{label('메뉴')}
           <select className="ec-input" value={entityType} onChange={(e) => setEntityType(e.target.value)} style={{ width: 100 }}>
             {MENUS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
           </select></label>
-        <label style={{ fontSize: 12.5 }}>{label('증빙방법')}
+        <label className="text-[12.5px]">{label('증빙방법')}
           <select className="ec-input" value={method} onChange={(e) => setMethod(e.target.value as EvidenceMethod | '')} style={{ width: 130 }}>
             {METHODS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
           </select></label>
         <CodePickerField label="작업자" value={worker} onChange={setWorker} width={110}
                          items={workers.map((w) => ({ value: w, name: w }))} />
-        <label style={{ fontSize: 12.5 }}>{label('증빙첨부')}
+        <label className="text-[12.5px]">{label('증빙첨부')}
           <select className="ec-input" value={attached} onChange={(e) => setAttached(e.target.value as '' | 'true' | 'false')} style={{ width: 100 }}>
             <option value="">전체</option>
             <option value="true">첨부 있음</option>
@@ -156,48 +156,48 @@ export default function EvidenceCenterPage() {
         <button className="ec-btn ec-btn-primary" onClick={load}>검색(F8)</button>
       </div>
 
-      <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+      <div className="flex gap-[10px] mb-[10px]">
         {[
           { label: '증빙 건수', value: summary.total.toLocaleString() },
           { label: '첨부파일 있음', value: summary.withFile.toLocaleString() },
           { label: '첨부 용량', value: formatBytes(summary.bytes) },
         ].map((c) => (
-          <div key={c.label} style={{ border: '1px solid var(--ec-border)', padding: '8px 14px', minWidth: 130 }}>
-            <div style={{ fontSize: 11.5, color: 'var(--ec-text-hint)' }}>{c.label}</div>
-            <div style={{ fontSize: 18, fontWeight: 700 }}>{c.value}</div>
+          <div key={c.label} className="border border-ec-line border-solid py-[8px] px-[14px] min-w-[130px]">
+            <div className="text-[11.5px] text-ec-hint">{c.label}</div>
+            <div className="text-[18px] font-bold">{c.value}</div>
           </div>
         ))}
       </div>
 
       <table className="w-full text-left">
         <thead><tr>
-          <th style={{ width: 34 }}>
+          <th className="w-[34px]">
             <input type="checkbox" checked={rows.length > 0 && checked.length === rows.length}
                    onChange={(e) => setChecked(e.target.checked ? rows.map((r) => r.id) : [])} />
           </th>
-          <th style={{ width: 70 }}>메뉴</th>
-          <th style={{ width: 160 }}>전표번호</th>
-          <th style={{ width: 110 }}>전표일자</th>
-          <th style={{ width: 110 }}>증빙일자</th>
-          <th style={{ width: 110 }}>증빙방법</th>
+          <th className="w-[70px]">메뉴</th>
+          <th className="w-[160px]">전표번호</th>
+          <th className="w-[110px]">전표일자</th>
+          <th className="w-[110px]">증빙일자</th>
+          <th className="w-[110px]">증빙방법</th>
           <th>첨부파일 / 적요</th>
-          <th style={{ width: 90, textAlign: 'right' }}>크기</th>
-          <th style={{ width: 90 }}>작업자</th>
+          <th className="w-[90px] text-right">크기</th>
+          <th className="w-[90px]">작업자</th>
         </tr></thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((r) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <input type="checkbox" checked={checked.includes(r.id)} onChange={() => toggle(r.id)} />
               </td>
               <td>{r.menuLabel}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.docNo ?? `#${r.entityId}`}</td>
-              <td style={{ fontFamily: 'monospace' }}>{dateText(r.docDate) || ''}</td>
-              <td style={{ fontFamily: 'monospace' }}>{dateText(r.evidenceDate) || ''}</td>
+              <td>{r.docNo ?? `#${r.entityId}`}</td>
+              <td>{dateText(r.docDate) || ''}</td>
+              <td>{dateText(r.evidenceDate) || ''}</td>
               <td>{r.methodName}</td>
               <td>
                 {r.fileId ? (
@@ -205,11 +205,11 @@ export default function EvidenceCenterPage() {
                           style={{ background: 'none', border: 0, padding: 0, color: 'var(--ec-blue)', cursor: 'pointer', textDecoration: 'underline', fontSize: 12.5 }}>
                     {r.fileName}
                   </button>
-                ) : <span style={{ color: 'var(--ec-text-hint)' }}>첨부 없음</span>}
-                {r.note && <span style={{ color: 'var(--ec-label)' }}> · {r.note}</span>}
+                ) : <span className="text-ec-hint">첨부 없음</span>}
+                {r.note && <span className="text-ec-label"> · {r.note}</span>}
               </td>
-              <td style={{ textAlign: 'right' }}>{formatBytes(r.fileSize)}</td>
-              <td style={{ color: 'var(--ec-label)' }}>{r.worker ?? ''}</td>
+              <td className="text-right">{formatBytes(r.fileSize)}</td>
+              <td className="text-ec-label">{r.worker ?? ''}</td>
             </tr>
           ))}
         </tbody>

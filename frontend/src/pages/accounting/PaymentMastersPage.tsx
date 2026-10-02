@@ -188,58 +188,58 @@ export default function PaymentMastersPage({ defaultTab = 'card' }: { defaultTab
       onNew={openNew}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
     >
-      <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+      <div className="flex gap-[6px] mb-[10px]">
         <button className={`ec-btn ${tab === 'card' ? 'ec-btn-primary' : ''}`} onClick={() => setTab('card')}>카드사</button>
         <button className={`ec-btn ${tab === 'agency' ? 'ec-btn-primary' : ''}`} onClick={() => setTab('agency')}>결제대행사</button>
       </div>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {ok && <p style={{ background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
       <Modal error={error} open={showForm} title={`${tab === 'card' ? '카드사' : '결제대행사'} ${editId ? '수정' : '등록'}`} onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginTop: 8, marginBottom: 8 }}>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div className="flex gap-[12px] flex-wrap items-end">
             {tab === 'card' ? (
               <>
-                <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>코드</div>
+                <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">코드</div>
                   <input className={inputCls} value={cardForm.code} disabled={!!editId} placeholder="미입력 시 자동" onChange={(e) => setCard('code', e.target.value)} style={{ width: 120 }} /></label>
-                <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>카드사명 *</div>
+                <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">카드사명 *</div>
                   <input className={inputCls} value={cardForm.name} onChange={(e) => setCard('name', e.target.value)} style={{ width: 200 }} /></label>
 {/* 원본은 이 칸을 <b>[수수료율]</b> 이라 부른다(사본 실측) — '(%)' 는 우리가 붙인 것이다. */}
-                <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>수수료율</div>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">수수료율</div>
+                  <span className="inline-flex items-center gap-[3px]">
                     <input className={`${inputCls} text-right`} type="number" step="any" value={cardForm.feeRate} onChange={(e) => setCard('feeRate', e.target.value)} style={{ width: 90 }} />
-                    <span style={{ color: 'var(--ec-text-hint)' }}>%</span>
+                    <span className="text-ec-hint">%</span>
                   </span></label>
                 {/* 원본 폼의 [계정]·[입금계좌]·[검색창내용] — 담을 데가 없어 못 그리던 칸이다. */}
-                <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>계정</div>
+                <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">계정</div>
                   <CodePickerField label="계정" hideLabel width={190} emptyLabel="선택 안 함"
                                    value={cardForm.accountId} onChange={(v) => setCard('accountId', v)}
                                    items={accountItems} /></label>
-                <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>입금계좌</div>
+                <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">입금계좌</div>
                   <input className={inputCls} value={cardForm.depositAccount} onChange={(e) => setCard('depositAccount', e.target.value)} style={{ width: 180 }} /></label>
-                <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>검색창내용</div>
+                <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">검색창내용</div>
                   <input className={inputCls} value={cardForm.searchKeyword} onChange={(e) => setCard('searchKeyword', e.target.value)} style={{ width: 150 }} /></label>
-                <label style={{ fontSize: 12.5, flex: 1, minWidth: 160 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>적요</div>
+                <label className="text-[12.5px] flex-1 min-w-[160px]"><div className="text-ec-label mb-[3px]">적요</div>
                   <input className={inputCls} value={cardForm.remark} onChange={(e) => setCard('remark', e.target.value)} style={{ width: '100%' }} /></label>
               </>
             ) : (
               <>
-                <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>코드</div>
+                <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">코드</div>
                   <input className={inputCls} value={agencyForm.code} disabled={!!editId} placeholder="미입력 시 자동" onChange={(e) => setAgency('code', e.target.value)} style={{ width: 120 }} /></label>
-                <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>결제대행사명 *</div>
+                <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">결제대행사명 *</div>
                   <input className={inputCls} value={agencyForm.name} onChange={(e) => setAgency('name', e.target.value)} style={{ width: 200 }} /></label>
-                <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>대표자명</div>
+                <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">대표자명</div>
                   <input className={inputCls} value={agencyForm.ceoName} onChange={(e) => setAgency('ceoName', e.target.value)} style={{ width: 120 }} /></label>
-                <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>전화</div>
+                <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">전화</div>
                   <input className={inputCls} value={agencyForm.phone} onChange={(e) => setAgency('phone', e.target.value)} style={{ width: 130 }} /></label>
-                <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>Email</div>
+                <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">Email</div>
                   <input className={inputCls} value={agencyForm.email} onChange={(e) => setAgency('email', e.target.value)} style={{ width: 180 }} /></label>
 {/*
                   원본 E010114 폼의 나머지 칸들. 담을 데가 아예 없어서 그리지 못하던 것이다 —
                   대행사도 거래처처럼 <b>세금계산서가 오가는 상대</b>라 업태·종목·주소가 필요하다.
                 */}
-                <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>결제대행사코드구분</div>
+                <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">결제대행사코드구분</div>
                   <select className={inputCls} value={agencyForm.regNoKind} onChange={(e) => setAgency('regNoKind', e.target.value)} style={{ width: 150 }}>
                     {REG_KINDS.map((k) => <option key={k} value={k}>{k}</option>)}
                   </select></label>
@@ -248,43 +248,43 @@ export default function PaymentMastersPage({ defaultTab = 'card' }: { defaultTab
                   보고 세 값짜리 칸을 두었는데, 사본의 id 가 <code>ddlForeignFlag</code> 라
                   <b>깃발</b>이고 이 화면에는 업종별구분이 아예 없다(거래처등록에만 있다).
                 */}
-                <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>외화거래처</div>
+                <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">외화거래처</div>
                   <select className={inputCls} value={agencyForm.foreignCurrency ? 'Y' : 'N'}
                           onChange={(e) => setAgency('foreignCurrency', e.target.value === 'Y')} style={{ width: 110 }}>
                     <option value="N">원화</option><option value="Y">외화</option>
                   </select></label>
-                <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>업태</div>
+                <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">업태</div>
                   <input className={inputCls} value={agencyForm.bizType} onChange={(e) => setAgency('bizType', e.target.value)} style={{ width: 150 }} /></label>
-                <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>종목</div>
+                <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">종목</div>
                   <input className={inputCls} value={agencyForm.bizItem} onChange={(e) => setAgency('bizItem', e.target.value)} style={{ width: 150 }} /></label>
-                <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>담당자</div>
+                <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">담당자</div>
                   <input className={inputCls} value={agencyForm.manager} onChange={(e) => setAgency('manager', e.target.value)} style={{ width: 110 }} /></label>
-                <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>수수료율</div>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">수수료율</div>
+                  <span className="inline-flex items-center gap-[3px]">
                     <input className={`${inputCls} text-right`} type="number" step="any" value={agencyForm.feeRate} onChange={(e) => setAgency('feeRate', e.target.value)} style={{ width: 90 }} />
-                    <span style={{ color: 'var(--ec-text-hint)' }}>%</span>
+                    <span className="text-ec-hint">%</span>
                   </span></label>
-                <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>계정</div>
+                <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">계정</div>
                   <CodePickerField label="계정" hideLabel width={190} emptyLabel="선택 안 함"
                                    value={agencyForm.accountId} onChange={(v) => setAgency('accountId', v)}
                                    items={accountItems} /></label>
-                <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>입금계좌</div>
+                <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">입금계좌</div>
                   <input className={inputCls} value={agencyForm.depositAccount} onChange={(e) => setAgency('depositAccount', e.target.value)} style={{ width: 180 }} /></label>
-                <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>우편번호1</div>
+                <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">우편번호1</div>
                   <input className={inputCls} value={agencyForm.postalCode} onChange={(e) => setAgency('postalCode', e.target.value)} style={{ width: 100 }} /></label>
-                <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>주소1</div>
+                <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">주소1</div>
                   <input className={inputCls} value={agencyForm.address} onChange={(e) => setAgency('address', e.target.value)} style={{ width: 260 }} /></label>
-                <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>우편번호2</div>
+                <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">우편번호2</div>
                   <input className={inputCls} value={agencyForm.postalCode2} onChange={(e) => setAgency('postalCode2', e.target.value)} style={{ width: 100 }} /></label>
-                <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>주소2</div>
+                <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">주소2</div>
                   <input className={inputCls} value={agencyForm.address2} onChange={(e) => setAgency('address2', e.target.value)} style={{ width: 260 }} /></label>
-                <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>검색창내용</div>
+                <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">검색창내용</div>
                   <input className={inputCls} value={agencyForm.searchKeyword} onChange={(e) => setAgency('searchKeyword', e.target.value)} style={{ width: 150 }} /></label>
                 <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4, alignSelf: 'flex-end', paddingBottom: 5 }}>
                   <input type="checkbox" checked={agencyForm.taxReport} onChange={(e) => setAgency('taxReport', e.target.checked)} />
                   세무신고거래처
                 </label>
-                <label style={{ fontSize: 12.5, flex: 1, minWidth: 140 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>적요</div>
+                <label className="text-[12.5px] flex-1 min-w-[140px]"><div className="text-ec-label mb-[3px]">적요</div>
                   <input className={inputCls} value={agencyForm.remark} onChange={(e) => setAgency('remark', e.target.value)} style={{ width: '100%' }} /></label>
               </>
             )}
@@ -314,24 +314,24 @@ export default function PaymentMastersPage({ defaultTab = 'card' }: { defaultTab
       {tab === 'card' ? (
         <table className="w-full text-left">
           <thead><tr>
-            <th style={{ width: 34 }}></th><th style={{ width: 90 }}>코드</th><th>카드사명</th>
-            <th style={{ textAlign: 'right', width: 100 }}>수수료율</th><th>적요</th>
-            <th style={{ textAlign: 'center', width: 80 }}>사용</th><th style={{ textAlign: 'center', width: 90 }}>관리</th>
+            <th className="w-[34px]"></th><th className="w-[90px]">코드</th><th>카드사명</th>
+            <th className="text-right w-[100px]">수수료율</th><th>적요</th>
+            <th className="text-center w-[80px]">사용</th><th className="text-center w-[90px]">관리</th>
           </tr></thead>
           <tbody>
-            {loading ? <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
-            : cards.length === 0 ? <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            {loading ? <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
+            : cards.length === 0 ? <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             : shownCards.map((c, i) => (
               <tr key={c.id} style={{ opacity: c.active ? 1 : 0.5 }}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace', color: 'var(--ec-text-hint)' }}>{c.code}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td className="text-ec-hint">{c.code}</td>
                 <td>{c.name}</td>
-                <td style={{ textAlign: 'right' }}>{c.feeRate != null ? `${c.feeRate}%` : ''}</td>
-                <td style={{ color: 'var(--ec-text-muted)' }}>{c.remark ?? ''}</td>
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-right">{c.feeRate != null ? `${c.feeRate}%` : ''}</td>
+                <td className="text-ec-muted">{c.remark ?? ''}</td>
+                <td className="text-center">
                   <button className="no-ec" onClick={() => toggleActive('card', c)} style={{ border: '1px solid var(--ec-border)', background: c.active ? 'var(--ec-success-bg)' : 'var(--ec-bg-page)', color: c.active ? 'var(--ec-success)' : 'var(--ec-text-hint)', cursor: 'pointer', fontSize: 11.5, padding: '2px 8px', borderRadius: 3 }}>{c.active ? '사용' : '중단'}</button>
                 </td>
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-center">
                   <button className="no-ec" onClick={() => openEditCard(c)} style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>수정</button>
                   <button className="no-ec" onClick={() => remove('card', c.id)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button>
                 </td>
@@ -342,25 +342,25 @@ export default function PaymentMastersPage({ defaultTab = 'card' }: { defaultTab
       ) : (
         <table className="w-full text-left">
           <thead><tr>
-            <th style={{ width: 34 }}></th><th style={{ width: 90 }}>코드</th><th>결제대행사명</th>
+            <th className="w-[34px]"></th><th className="w-[90px]">코드</th><th>결제대행사명</th>
             <th>대표자</th><th>전화</th><th>Email</th>
-            <th style={{ textAlign: 'center', width: 80 }}>사용</th><th style={{ textAlign: 'center', width: 90 }}>관리</th>
+            <th className="text-center w-[80px]">사용</th><th className="text-center w-[90px]">관리</th>
           </tr></thead>
           <tbody>
-            {loading ? <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
-            : agencies.length === 0 ? <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            {loading ? <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
+            : agencies.length === 0 ? <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             : shownAgencies.map((a, i) => (
               <tr key={a.id} style={{ opacity: a.active ? 1 : 0.5 }}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace', color: 'var(--ec-text-hint)' }}>{a.code}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td className="text-ec-hint">{a.code}</td>
                 <td>{a.name}</td>
                 <td>{a.ceoName ?? ''}</td>
-                <td style={{ color: 'var(--ec-text-muted)' }}>{a.phone ?? ''}</td>
-                <td style={{ color: 'var(--ec-text-muted)' }}>{a.email ?? ''}</td>
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-ec-muted">{a.phone ?? ''}</td>
+                <td className="text-ec-muted">{a.email ?? ''}</td>
+                <td className="text-center">
                   <button className="no-ec" onClick={() => toggleActive('agency', a)} style={{ border: '1px solid var(--ec-border)', background: a.active ? 'var(--ec-success-bg)' : 'var(--ec-bg-page)', color: a.active ? 'var(--ec-success)' : 'var(--ec-text-hint)', cursor: 'pointer', fontSize: 11.5, padding: '2px 8px', borderRadius: 3 }}>{a.active ? '사용' : '중단'}</button>
                 </td>
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-center">
                   <button className="no-ec" onClick={() => openEditAgency(a)} style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>수정</button>
                   <button className="no-ec" onClick={() => remove('agency', a.id)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button>
                 </td>

@@ -101,61 +101,61 @@ export default function CashFlowListPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={SETTLE_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
       </ul>
 
-      {truncated && <p style={{ fontSize: 12, color: 'var(--ec-warn)', marginBottom: 6 }}>전표가 많아 앞부분만 받았습니다.</p>}
-      <h3 style={{ fontSize: 20, fontWeight: 700, textAlign: 'center', margin: '6px 0 4px' }}>현금흐름</h3>
-      <div style={{ fontSize: 12, marginBottom: 4 }}>회사명 : {companyName ?? ''}</div>
+      {truncated && <p className="text-[12px] text-ec-warn mb-[6px]">전표가 많아 앞부분만 받았습니다.</p>}
+      <h3 className="text-[20px] font-bold text-center mt-[6px] mx-0 mb-[4px]">현금흐름</h3>
+      <div className="text-[12px] mb-[4px]">회사명 : {companyName ?? ''}</div>
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ textAlign: 'center' }}>구분</th>
+            <th className="text-center">구분</th>
             <th>계정명</th>
-            <th style={{ textAlign: 'right' }}>{slash(from)}  ~ {slash(to)}</th>
-            <th style={{ textAlign: 'right' }}>{slash(prevFrom)}  ~ {slash(prevTo)}</th>
+            <th className="text-right">{slash(from)}  ~ {slash(to)}</th>
+            <th className="text-right">{slash(prevFrom)}  ~ {slash(prevTo)}</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={4} className="ec-empty">불러오는 중…</td></tr>
           ) : (
             <>
               <tr style={BOLD}>
-                <td colSpan={2} style={{ textAlign: 'center' }}>기초잔액</td>
-                <td style={{ textAlign: 'right' }}>{won(cur.open)}</td>
-                <td style={{ textAlign: 'right' }}>{won(prev.open)}</td>
+                <td colSpan={2} className="text-center">기초잔액</td>
+                <td className="text-right">{won(cur.open)}</td>
+                <td className="text-right">{won(prev.open)}</td>
               </tr>
               {(['inc', 'dec'] as const).map((k) => (
                 <Fragment key={k}>
                   {keys(k).map((name) => (
                     <tr key={`${k}${name}`}>
-                      <td style={{ textAlign: 'center' }}>{k === 'inc' ? '증가' : '감소'}</td>
+                      <td className="text-center">{k === 'inc' ? '증가' : '감소'}</td>
                       <td>{name}</td>
-                      <td style={{ textAlign: 'right' }}>{won(cur[k].get(name) ?? 0)}</td>
-                      <td style={{ textAlign: 'right' }}>{won(prev[k].get(name) ?? 0)}</td>
+                      <td className="text-right">{won(cur[k].get(name) ?? 0)}</td>
+                      <td className="text-right">{won(prev[k].get(name) ?? 0)}</td>
                     </tr>
                   ))}
                   <tr style={SUB_ROW}>
-                    <td colSpan={2} style={{ textAlign: 'center' }}>소계</td>
-                    <td style={{ textAlign: 'right' }}>{won(sum(cur[k]))}</td>
-                    <td style={{ textAlign: 'right' }}>{won(sum(prev[k]))}</td>
+                    <td colSpan={2} className="text-center">소계</td>
+                    <td className="text-right">{won(sum(cur[k]))}</td>
+                    <td className="text-right">{won(sum(prev[k]))}</td>
                   </tr>
                 </Fragment>
               ))}
               <tr style={BOLD}>
-                <td colSpan={2} style={{ textAlign: 'center' }}>기말잔액</td>
-                <td style={{ textAlign: 'right' }}>{won(close(cur))}</td>
-                <td style={{ textAlign: 'right' }}>{won(close(prev))}</td>
+                <td colSpan={2} className="text-center">기말잔액</td>
+                <td className="text-right">{won(close(cur))}</td>
+                <td className="text-right">{won(close(prev))}</td>
               </tr>
             </>
           )}

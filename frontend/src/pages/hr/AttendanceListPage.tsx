@@ -61,29 +61,29 @@ export default function AttendanceListPage() {
       onNew={undefined}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th className="w-[34px]"></th>
             <th>일자</th>
             <th>사원명</th>
             <th>부서</th>
             <th>출근</th>
             <th>퇴근</th>
-            <th style={{ width: 90, textAlign: 'right' }}>근무시간</th>
-            <th style={{ textAlign: 'center' }}>상태</th>
+            <th className="w-[90px] text-right">근무시간</th>
+            <th className="text-center">상태</th>
             <th>비고</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
               <td style={mono}>{dateText(r.date)}</td>
               <td>{r.empName}</td>
               <td>{r.department ?? ''}</td>

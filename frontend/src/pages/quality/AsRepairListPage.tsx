@@ -91,13 +91,13 @@ export default function AsRepairListPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={AS_REPAIR_LIST_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
@@ -108,13 +108,13 @@ export default function AsRepairListPage() {
           <CodePickerField label="품목" hideLabel width={220} emptyLabel="전체" value={item} onChange={setItem} items={pickers.items} />
         </EcCond>
         <EcCond label="기타">
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+          <label className="inline-flex items-center gap-[3px] text-[12.5px]">
             <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} /> 수정일자순(정렬)
           </label>
         </EcCond>
       </ul>
 
-      <div style={{ display: 'flex', gap: 2, marginBottom: 8 }}>
+      <div className="flex gap-[2px] mb-[8px]">
         {(['전체', '진행중', '완료'] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)} className="no-ec" style={{
             padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
@@ -125,33 +125,33 @@ export default function AsRepairListPage() {
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ textAlign: 'center' }}>수리번호</th>
-            <th style={{ textAlign: 'center' }}>접수번호</th>
+            <th className="w-[34px]"></th>
+            <th className="text-center">수리번호</th>
+            <th className="text-center">접수번호</th>
             <th>거래처명</th>
             <th>제목</th>
             <th>수리내용</th>
             <th>수리품목명</th>
             <th>수리담당자명</th>
-            <th style={{ textAlign: 'right' }}>금액</th>
+            <th className="text-right">금액</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-              <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{yy(dayOf(r))} {r.asNo}</td>
-              <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{yy(r.receiptDate)} {r.asNo}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td className="text-center">{yy(dayOf(r))} {r.asNo}</td>
+              <td className="text-center">{yy(r.receiptDate)} {r.asNo}</td>
               <td>{r.partnerName}</td>
               <td>{r.title ?? ''}</td>
               <td>{r.repairNote ?? ''}</td>
               <td>{r.itemName}{r.itemSpec ? ` [${r.itemSpec}]` : ''}</td>
               <td>{r.charge ?? ''}</td>
-              <td style={{ textAlign: 'right' }}>{won(used.get(r.asNo) ?? 0)}</td>
+              <td className="text-right">{won(used.get(r.asNo) ?? 0)}</td>
             </tr>
           ))}
         </tbody>

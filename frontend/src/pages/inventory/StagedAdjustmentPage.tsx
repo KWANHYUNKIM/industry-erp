@@ -137,27 +137,27 @@ export default function StagedAdjustmentPage() {
       onNew={() => setShowForm(true)}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
-      <p className="mb-2 text-xs text-slate-500">실사수량을 요청 → 승인(반영)/반려. 반영 시 재고가 실사수량으로 조정됩니다(기타이동 재고조정 탭에도 기록).</p>
-      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {ok && <p style={{ marginBottom: 8, background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
+      <p className="mb-2 text-xs text-ec-hint">실사수량을 요청 → 승인(반영)/반려. 반영 시 재고가 실사수량으로 조정됩니다(기타이동 재고조정 탭에도 기록).</p>
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
       <Modal error={error} open={showForm} title="단계별재고조정 요청" onClose={() => setShowForm(false)}>{(
-        <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginTop: 8, marginBottom: 8 }}>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>요청일자</div>
+        <div className="border border-ec-line border-solid bg-white p-[14px] mt-[8px] mb-[8px]">
+          <div className="flex gap-[12px] flex-wrap items-end">
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">요청일자</div>
               <input className={inputCls} type="date" value={form.requestDate} onChange={(e) => set('requestDate', e.target.value)} style={{ width: 140 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>품목 *</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">품목 *</div>
               <CodePickerField label="품목" hideLabel width={220} placeholder="선택하세요" emptyLabel="선택 해제"
                            value={form.itemId} onChange={(v) => set('itemId', v)}
                            items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, alias: it.searchKeyword, sub: it.spec }))} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>창고 *</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">창고 *</div>
               <select className={inputCls} value={form.warehouseId} onChange={(e) => set('warehouseId', e.target.value)} style={{ width: 160 }}>
                 <option value="">선택하세요</option>
                 {warehouses.map((w) => <option key={w.id} value={w.id}>[{w.code}] {w.name}</option>)}
               </select></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>실사수량 *</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">실사수량 *</div>
               <input className={`${inputCls} text-right`} type="number" step="any" value={form.actualQty} onChange={(e) => set('actualQty', e.target.value)} style={{ width: 110 }} /></label>
-            <label style={{ fontSize: 12.5, flex: 1, minWidth: 160 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>사유</div>
+            <label className="text-[12.5px] flex-1 min-w-[160px]"><div className="text-ec-label mb-[3px]">사유</div>
               <input className={inputCls} value={form.reason} onChange={(e) => set('reason', e.target.value)} style={{ width: '100%' }} /></label>
             <button className="ec-btn ec-btn-primary" onClick={submit}>요청</button>
           </div>
@@ -169,7 +169,7 @@ export default function StagedAdjustmentPage() {
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from}
                  onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: 'var(--ec-label)' }}>~</span>
+          <span className="my-0 mx-[4px] text-ec-label">~</span>
           <input type="date" className="ec-input" value={to}
                  onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
@@ -184,7 +184,7 @@ export default function StagedAdjustmentPage() {
         </EcCond>
       </ul>
 
-      <div style={{ display: 'flex', gap: 2, marginBottom: 8 }}>
+      <div className="flex gap-[2px] mb-[8px]">
         {TABS.map((t) => (
           <button key={t.v} onClick={() => setTab(t.v)} className="no-ec" style={{
             padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
@@ -196,42 +196,42 @@ export default function StagedAdjustmentPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ width: 130 }}>조정번호</th>
-            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('요청일')}>요청일 {sort.mark('요청일')}</th>
+            <th className="w-[34px]"></th>
+            <th className="w-[130px]">조정번호</th>
+            <th className="w-[100px] cursor-pointer" onClick={() => sort.toggle('요청일')}>요청일 {sort.mark('요청일')}</th>
             <th>품목</th>
             <th>창고</th>
-            <th style={{ textAlign: 'right' }}>장부수량</th>
-            <th style={{ textAlign: 'right' }}>실사수량</th>
-            <th style={{ textAlign: 'right' }}>차이</th>
-            <th style={{ textAlign: 'center' }}>상태</th>
-            <th style={{ width: 160, textAlign: 'center' }}>처리</th>
+            <th className="text-right">장부수량</th>
+            <th className="text-right">실사수량</th>
+            <th className="text-right">차이</th>
+            <th className="text-center">상태</th>
+            <th className="w-[160px] text-center">처리</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.adjustNo}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td>{r.adjustNo}</td>
               <td>{dateText(r.requestDate)}</td>
               <td>{r.itemName}</td>
               <td>{r.warehouseName}</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{num(r.bookQty)}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600 }}>{num(r.actualQty)}</td>
+              <td className="text-right text-ec-label">{num(r.bookQty)}</td>
+              <td className="text-right font-semibold">{num(r.actualQty)}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: r.diff > 0 ? 'var(--ec-success)' : r.diff < 0 ? 'var(--ec-danger)' : 'var(--ec-text-off)' }}>{r.diff > 0 ? '+' : ''}{num(r.diff)}</td>
               <td style={{ textAlign: 'center', color: statusColor(r.status), fontWeight: 700 }}>{r.statusName}</td>
-              <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+              <td className="text-center whitespace-nowrap">
                 {r.status === 'REQUESTED' ? (
                   <>
                     <button className="no-ec" onClick={() => act(r, 'apply')} style={{ border: 'none', background: 'none', color: 'var(--ec-success)', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>반영</button>
                     <button className="no-ec" onClick={() => act(r, 'reject')} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>반려</button>
                     <button className="no-ec" onClick={() => remove(r)} style={{ border: 'none', background: 'none', color: 'var(--ec-text-hint)', cursor: 'pointer', fontSize: 12 }}>삭제</button>
                   </>
-                ) : <span style={{ color: 'var(--ec-text-off)', fontSize: 12 }}>{r.handler ?? '—'}</span>}
+                ) : <span className="text-ec-off text-[12px]">{r.handler ?? '—'}</span>}
               </td>
             </tr>
           ))}

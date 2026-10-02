@@ -149,12 +149,12 @@ export default function SurveyPage() {
         {/* 원본 차례: <b>작성일 · 설문종료일</b> · 설문대상구분 · 제목 · 작성자 · 게시글번호 */}
         <EcCond label="작성일">
           <input type="date" className="ec-input" value={madeFrom} onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={madeTo} onChange={(e) => setMadeTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="설문종료일">
           <input type="date" className="ec-input" value={endFrom} onChange={(e) => setEndFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={endTo} onChange={(e) => setEndTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="설문대상구분">
@@ -176,19 +176,19 @@ export default function SurveyPage() {
         </EcCond>
       </ul>
 
-      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <table className="w-full text-left">
         <colgroup>{COLS.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
         <thead>
           <tr>
-            <th></th><th style={{ textAlign: 'center' }}>게시글번호</th><th style={{ textAlign: 'center' }}>작성일</th><th style={{ textAlign: 'center' }}>설문종료일</th><th>제목</th>
-            <th style={{ textAlign: 'center' }}>작성자</th><th style={{ textAlign: 'center' }}>진행상태</th><th style={{ textAlign: 'center' }}>설문조사결과</th><th style={{ textAlign: 'center' }}>설문조사 참여여부</th>
+            <th></th><th className="text-center">게시글번호</th><th className="text-center">작성일</th><th className="text-center">설문종료일</th><th>제목</th>
+            <th className="text-center">작성자</th><th className="text-center">진행상태</th><th className="text-center">설문조사결과</th><th className="text-center">설문조사 참여여부</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td
@@ -203,32 +203,32 @@ export default function SurveyPage() {
               >
                 {i + 1}
               </td>
-              <td style={{ textAlign: 'center' }}>{r.postNo}</td>
-              <td style={{ textAlign: 'center' }}>{dateOf(r.createdAt)}</td>
-              <td style={{ textAlign: 'center' }}>{dateOf(r.endAt)}</td>
+              <td className="text-center">{r.postNo}</td>
+              <td className="text-center">{dateOf(r.createdAt)}</td>
+              <td className="text-center">{dateOf(r.endAt)}</td>
               <td>
                 {r.title}
-                <span style={{ marginLeft: 6, color: 'var(--ec-label)', fontSize: 11.5 }}>
+                <span className="ml-[6px] text-ec-label text-[11.5px]">
                   문항 {r.questionCount}
                   {r.anonymous && ' · 익명'}
                 </span>
               </td>
-              <td style={{ textAlign: 'center' }}>{r.writerName ?? ''}</td>
+              <td className="text-center">{r.writerName ?? ''}</td>
               <td style={{ textAlign: 'center', color: STATUS_COLOR[r.status] }}>{r.statusName}</td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <button className="ec-btn ec-btn-sm" onClick={() => void openResult(r)}>결과</button>
               </td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 {/* 종료일이 지난 설문에 [응답하기] 를 띄우면 눌러도 400 만 난다 — 상태가 '진행중'
                     이어도 시간으로 닫히므로 expired 를 같이 본다. */}
                 {r.answeredByMe ? (
-                  <span style={{ color: 'var(--ec-success)' }}>참여</span>
+                  <span className="text-ec-success">참여</span>
                 ) : r.status === 'OPEN' && !r.expired ? (
                   <button className="ec-btn ec-btn-sm ec-btn-primary" onClick={() => setAnswering(r)}>응답하기</button>
                 ) : (
-                  <span style={{ color: 'var(--ec-label)' }}>{r.expired && r.status === 'OPEN' ? '기간종료' : '미참여'}</span>
+                  <span className="text-ec-label">{r.expired && r.status === 'OPEN' ? '기간종료' : '미참여'}</span>
                 )}
-                <span style={{ marginLeft: 6, color: 'var(--ec-label)', fontSize: 11.5 }}>
+                <span className="ml-[6px] text-ec-label text-[11.5px]">
                   {r.responseCount}/{r.targetCount || '-'}
                 </span>
               </td>
@@ -273,39 +273,39 @@ function AnswerModal({ survey, onClose, onDone }: { survey: SurveyDoc; onClose: 
 
   return (
     <Modal open title={survey.title} width={640} onClose={onClose}>
-      <div style={{ fontSize: 13 }}>
+      <div className="text-[13px]">
         {survey.headerText && (
-          <div style={{ whiteSpace: 'pre-wrap', border: '1px solid var(--ec-border)', padding: 10, marginBottom: 12 }}>
+          <div className="whitespace-pre-wrap border border-ec-line border-solid p-[10px] mb-[12px]">
             {survey.headerText}
           </div>
         )}
         {survey.anonymous && (
-          <p style={{ color: 'var(--ec-label)', fontSize: 12, marginBottom: 10 }}>
+          <p className="text-ec-label text-[12px] mb-[10px]">
             익명 설문입니다 — 누가 답했는지 저장하지 않습니다.
           </p>
         )}
 
         {survey.questions.map((q) => (
-          <div key={q.id} style={{ marginBottom: 14 }}>
-            <div style={{ fontWeight: 600, marginBottom: 4 }}>
+          <div key={q.id} className="mb-[14px]">
+            <div className="font-semibold mb-[4px]">
               {q.seq}. {q.content}
-              {q.required && <span style={{ color: 'var(--ec-danger)', marginLeft: 4 }}>*</span>}
+              {q.required && <span className="text-ec-danger ml-[4px]">*</span>}
             </div>
 
             {(q.type === 'SINGLE' || q.type === 'SINGLE_ETC') && q.options.map((o) => (
-              <label key={o} style={{ display: 'block', paddingLeft: 12 }}>
+              <label key={o} className="block pl-[12px]">
                 <input type="radio" name={`q${q.id}`} checked={(values[q.id] ?? [])[0] === o} onChange={() => set(q.id, [o])} /> {o}
               </label>
             ))}
 
             {(q.type === 'MULTI' || q.type === 'MULTI_ETC' || q.type === 'RANK') && q.options.map((o) => (
-              <label key={o} style={{ display: 'block', paddingLeft: 12 }}>
+              <label key={o} className="block pl-[12px]">
                 <input type="checkbox" checked={(values[q.id] ?? []).includes(o)} onChange={() => toggleMulti(q.id, o)} /> {o}
               </label>
             ))}
 
             {(q.type === 'SINGLE_ETC' || q.type === 'MULTI_ETC') && (
-              <div style={{ paddingLeft: 12, marginTop: 4 }}>
+              <div className="pl-[12px] mt-[4px]">
                 <input className="ec-input" placeholder="기타 (직접 입력)" style={{ width: '70%' }}
                   onChange={(e) => {
                     const others = (values[q.id] ?? []).filter((v) => q.options.includes(v))
@@ -330,9 +330,9 @@ function AnswerModal({ survey, onClose, onDone }: { survey: SurveyDoc; onClose: 
             )}
 
             {q.type === 'SCALE' && (
-              <div style={{ paddingLeft: 12 }}>
+              <div className="pl-[12px]">
                 {['1', '2', '3', '4', '5'].map((n) => (
-                  <label key={n} style={{ marginRight: 10 }}>
+                  <label key={n} className="mr-[10px]">
                     <input type="radio" name={`q${q.id}`} checked={(values[q.id] ?? [])[0] === n} onChange={() => set(q.id, [n])} /> {n}
                   </label>
                 ))}
@@ -341,8 +341,8 @@ function AnswerModal({ survey, onClose, onDone }: { survey: SurveyDoc; onClose: 
           </div>
         ))}
 
-        {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-        <div style={{ marginTop: 10 }}>
+        {error && <p className="ec-alert ec-alert-danger">{error}</p>}
+        <div className="mt-[10px]">
           <button className="ec-btn ec-btn-primary" onClick={() => void submit()}>제출</button>
           <button className="ec-btn" style={{ marginLeft: 4 }} onClick={onClose}>닫기</button>
         </div>
@@ -354,30 +354,30 @@ function AnswerModal({ survey, onClose, onDone }: { survey: SurveyDoc; onClose: 
 function ResultModal({ result, onClose }: { result: SurveyResult; onClose: () => void }) {
   return (
     <Modal open title={`${result.title} — 결과`} width={640} onClose={onClose}>
-      <div style={{ fontSize: 13 }}>
-        <p style={{ marginBottom: 10, color: 'var(--ec-label)' }}>
+      <div className="text-[13px]">
+        <p className="mb-[10px] text-ec-label">
           대상 {result.targetCount}명 · 응답 {result.responseCount}건 · 응답률 {result.responseRate}%
           {result.anonymous && ' · 익명'}
         </p>
         {result.questions.map((q) => {
           const max = Math.max(1, ...Object.values(q.counts))
           return (
-            <div key={q.questionId} style={{ marginBottom: 14 }}>
-              <div style={{ fontWeight: 600 }}>
+            <div key={q.questionId} className="mb-[14px]">
+              <div className="font-semibold">
                 {q.seq}. {q.content}
-                <span style={{ marginLeft: 6, color: 'var(--ec-label)', fontWeight: 400, fontSize: 11.5 }}>
+                <span className="ml-[6px] text-ec-label font-normal text-[11.5px]">
                   {q.typeName} · 응답 {q.answeredCount}
                 </span>
               </div>
               {Object.entries(q.counts).map(([opt, n]) => (
-                <div key={opt} style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 12, marginTop: 2 }}>
-                  <span style={{ width: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opt}</span>
+                <div key={opt} className="flex items-center gap-[6px] pl-[12px] mt-[2px]">
+                  <span className="w-[130px] overflow-hidden text-ellipsis whitespace-nowrap">{opt}</span>
                   <span style={{ height: 10, background: 'var(--ec-blue)', width: `${(n / max) * 60}%`, minWidth: n ? 3 : 0 }} />
-                  <span style={{ color: 'var(--ec-label)' }}>{n}</span>
+                  <span className="text-ec-label">{n}</span>
                 </div>
               ))}
               {q.texts.length > 0 && (
-                <ul style={{ paddingLeft: 28, margin: '4px 0 0', color: 'var(--ec-text)' }}>
+                <ul className="pl-[28px] mt-[4px] mx-0 mb-0 text-ec-text">
                   {q.texts.map((t, i) => <li key={i}>{t}</li>)}
                 </ul>
               )}

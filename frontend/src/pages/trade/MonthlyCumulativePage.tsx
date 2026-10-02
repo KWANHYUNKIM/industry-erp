@@ -292,15 +292,15 @@ export default function MonthlyCumulativePage() {
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
       signLine={signBox}
     >
-      <p className="mb-2 text-xs text-slate-500">월별 당월·누계 매출·매입·이익(추정). 이익 = 매출공급가 − 매입공급가(원가매칭 아님).</p>
+      <p className="mb-2 text-xs text-ec-hint">월별 당월·누계 매출·매입·이익(추정). 이익 = 매출공급가 − 매입공급가(원가매칭 아님).</p>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+      <div className="flex items-center gap-[8px] mb-[10px]">
         {/*
           원본 [구분] 안의 <b>표시방법</b> — 종(월이 행) · 횡(월이 열). 기본은 종이다.
           [구분]에는 기준일자·비교기간·비교대상도 함께 들어 있는데, 우리 표는
           <b>한 해 열두 달</b>이 축이라 기간을 연 단위로만 고른다(아래 [연도]).
         */}
-        <span style={{ fontSize: 12.5, color: 'var(--ec-text)', fontWeight: 600 }}>구분</span>
+        <span className="text-[12.5px] text-ec-text font-semibold">구분</span>
         <div className="ec-pills">
           {(['종', '횡'] as const).map((v) => (
             <button key={v} type="button" className={`ec-pill no-ec${layout === v ? ' active' : ''}`}
@@ -311,15 +311,15 @@ export default function MonthlyCumulativePage() {
           원본 [구분] 안의 <b>기준일자</b>(기본 금월). 원본 격자의 [기간 누계]가 이 범위를 센다 —
           이 칸이 없어서 그 줄을 아예 만들 수가 없었다. [연도]는 아래 달별 표(우리 표)가 쓴다.
         */}
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>기준일자</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <span className="text-[12.5px] text-ec-label">기준일자</span>
+        <span className="flex items-center gap-[4px]">
           <input className="ec-input" type="date" style={{ width: 140 }} value={from}
                  onChange={(e) => setFrom(e.target.value)} />
-          <span style={{ color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="text-ec-hint">~</span>
           <input className="ec-input" type="date" style={{ width: 140 }} value={to}
                  onChange={(e) => setTo(e.target.value)} />
         </span>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-text)', fontWeight: 600 }}>연도</span>
+        <span className="text-[12.5px] text-ec-text font-semibold">연도</span>
         <select className="ec-input" value={year} onChange={(e) => setYear(Number(e.target.value))} style={{ width: 100 }}>
           {years.map((y) => <option key={y} value={y}>{y}년</option>)}
         </select>
@@ -335,14 +335,14 @@ export default function MonthlyCumulativePage() {
             주석에는 넷을 다 적어 놓고 셋만 만들어 두었다. */}
         <CodePickerField label="품목" width={150} emptyLabel="전체"
                          value={item} onChange={setItem} items={pickers.items} />
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>품목구분</span>
+        <span className="text-[12.5px] text-ec-label">품목구분</span>
         <select className="ec-input" value={category} style={{ width: 130 }}
                 onChange={(e) => setCategory(e.target.value)}>
           <option value="">전체</option>
           {[...new Set([...sales, ...purchases].flatMap((d) => d.lines.map((l) => l.itemCategoryName))
             .filter(Boolean) as string[])].sort().map((n) => <option key={n} value={n}>{n}</option>)}
         </select>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>품목그룹1</span>
+        <span className="text-[12.5px] text-ec-label">품목그룹1</span>
         <select className="ec-input" value={itemGroup} style={{ width: 150 }}
                 onChange={(e) => setItemGroup(e.target.value)}>
           <option value="">전체</option>
@@ -354,20 +354,20 @@ export default function MonthlyCumulativePage() {
         <CodePickerField label="관리항목" width={150} emptyLabel="전체"
                          value={mgmtCond} onChange={setMgmtCond}
                          items={mgmt.options.map((m) => ({ value: m, name: m }))} />
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>기타</span>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+        <span className="text-[12.5px] text-ec-label">기타</span>
+        <label className="flex items-center gap-[3px] text-[12.5px]">
           <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />결재방표시
         </label>
         {yTotal && (
-          <span style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--ec-label)' }}>
-            연매출 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{won(yTotal.saleCum)}</b>
-            <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
+          <span className="ml-auto text-[12.5px] text-ec-label">
+            연매출 <b className="text-ec-blue text-[14px]">{won(yTotal.saleCum)}</b>
+            <span className="my-0 mx-[6px] text-ec-off">|</span>
             연이익 <b style={{ color: yTotal.profitCum >= 0 ? 'var(--ec-success)' : 'var(--ec-danger)', fontSize: 14 }}>{won(yTotal.profitCum)}</b>
           </span>
         )}
       </div>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       {/*
         원본 [구분]의 <b>표시방법</b>이 <b>횡</b>이면 열두 달을 <b>열</b>로 눕힌다.
@@ -381,30 +381,30 @@ export default function MonthlyCumulativePage() {
         뒤 둘은 전표에 <b>금액 칸이 아예 없어</b> 수량만 차고 금액 칸은 <b>비운다</b>
         (0 을 찍으면 "값이 0 원" 으로 읽힌다 — 값이 없는 것과 다르다).
       */}
-      <table className="w-full text-left" style={{ marginBottom: 14 }}>
+      <table className="w-full text-left mb-[14px]">
         <thead>
           <tr>
-            <th style={{ width: 110 }}></th>
-            <th style={{ width: 90 }}>구분</th>
-            <th style={{ width: 190 }}>기간</th>
-            <th style={{ textAlign: 'right' }}>수량</th>
-            <th style={{ textAlign: 'right' }}>공급가액</th>
-            <th style={{ textAlign: 'right' }}>부가세</th>
-            <th style={{ textAlign: 'right' }}>합계(금액)</th>
+            <th className="w-[110px]"></th>
+            <th className="w-[90px]">구분</th>
+            <th className="w-[190px]">기간</th>
+            <th className="text-right">수량</th>
+            <th className="text-right">공급가액</th>
+            <th className="text-right">부가세</th>
+            <th className="text-right">합계(금액)</th>
           </tr>
         </thead>
         <tbody>
           {cumRows.map((g) => g.lines.map((l, i) => (
             <tr key={g.name + l.gubun}>
               {i === 0 && (
-                <td rowSpan={3} style={{ fontWeight: 700, background: 'var(--ec-bg-page)', verticalAlign: 'middle' }}>{g.name}</td>
+                <td rowSpan={3} className="font-bold bg-ec-page align-middle">{g.name}</td>
               )}
               <td>{l.gubun}</td>
-              <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{l.period}</td>
-              <td style={{ textAlign: 'right' }}>{l.qty ? won(l.qty) : ''}</td>
-              <td style={{ textAlign: 'right' }}>{g.hasAmount ? (l.supply ? won(l.supply) : '') : ''}</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{g.hasAmount ? (l.vat ? won(l.vat) : '') : ''}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--ec-blue)' }}>
+              <td className="text-ec-label">{l.period}</td>
+              <td className="text-right">{l.qty ? won(l.qty) : ''}</td>
+              <td className="text-right">{g.hasAmount ? (l.supply ? won(l.supply) : '') : ''}</td>
+              <td className="text-right text-ec-hint">{g.hasAmount ? (l.vat ? won(l.vat) : '') : ''}</td>
+              <td className="text-right font-bold text-ec-blue">
                 {g.hasAmount ? won(l.supply + l.vat) : ''}
               </td>
             </tr>
@@ -413,13 +413,13 @@ export default function MonthlyCumulativePage() {
       </table>
 
       {layout === '횡' ? (
-      <div ref={tableRef} style={{ overflowX: 'auto' }}>
-        <table className="w-full text-left" style={{ minWidth: 900 }}>
+      <div ref={tableRef} className="overflow-x-auto">
+        <table className="w-full text-left min-w-[900px]">
           <thead>
             <tr>
-              <th style={{ position: 'sticky', left: 0, background: 'var(--ec-bg-page)', minWidth: 110 }}>구분</th>
-              {rows.map((r) => <th key={r.month} style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{r.month}월</th>)}
-              <th style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>연간</th>
+              <th className="sticky left-0 bg-ec-page min-w-[110px]">구분</th>
+              {rows.map((r) => <th key={r.month} className="text-right whitespace-nowrap">{r.month}월</th>)}
+              <th className="text-right text-ec-blue">연간</th>
             </tr>
           </thead>
           <tbody>
@@ -432,13 +432,13 @@ export default function MonthlyCumulativePage() {
               ['누계이익', (r: MonthRow) => r.profitCum, yTotal ? yTotal.profitCum : 0],
             ] as [string, (r: MonthRow) => number, number][]).map(([name, of, total]) => (
               <tr key={name}>
-                <td style={{ position: 'sticky', left: 0, background: '#fff', fontWeight: 600 }}>{name}</td>
+                <td className="sticky left-0 bg-white font-semibold">{name}</td>
                 {rows.map((r) => (
                   <td key={r.month} style={{ textAlign: 'right', color: of(r) ? undefined : 'var(--ec-text-off)' }}>
                     {of(r) ? won(of(r)) : ''}
                   </td>
                 ))}
-                <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--ec-blue)' }}>{won(total)}</td>
+                <td className="text-right font-bold text-ec-blue">{won(total)}</td>
               </tr>
             ))}
           </tbody>
@@ -448,23 +448,23 @@ export default function MonthlyCumulativePage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 60 }}>월</th>
-            <th style={{ textAlign: 'right' }}>당월매출</th>
-            <th style={{ textAlign: 'right' }}>누계매출</th>
-            <th style={{ textAlign: 'right' }}>당월매입</th>
-            <th style={{ textAlign: 'right' }}>누계매입</th>
-            <th style={{ textAlign: 'right' }}>당월이익</th>
-            <th style={{ textAlign: 'right' }}>누계이익</th>
+            <th className="w-[60px]">월</th>
+            <th className="text-right">당월매출</th>
+            <th className="text-right">누계매출</th>
+            <th className="text-right">당월매입</th>
+            <th className="text-right">누계매입</th>
+            <th className="text-right">당월이익</th>
+            <th className="text-right">누계이익</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
           ) : rows.map((r) => (
             <tr key={r.month}>
-              <td style={{ fontWeight: 600 }}>{r.month}월</td>
+              <td className="font-semibold">{r.month}월</td>
               <td style={{ textAlign: 'right', color: r.sale ? undefined : 'var(--ec-text-off)' }}>{r.sale ? won(r.sale) : ''}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(r.saleCum)}</td>
+              <td className="text-right font-semibold text-ec-blue">{won(r.saleCum)}</td>
               <td style={{ textAlign: 'right', color: r.buy ? undefined : 'var(--ec-text-off)' }}>{r.buy ? won(r.buy) : ''}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{won(r.buyCum)}</td>
               <td style={{ textAlign: 'right', color: r.profit === 0 ? 'var(--ec-text-off)' : r.profit > 0 ? 'var(--ec-success)' : 'var(--ec-danger)' }}>{r.profit ? won(r.profit) : ''}</td>
@@ -474,11 +474,11 @@ export default function MonthlyCumulativePage() {
         </tbody>
         {yTotal && (
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
+            <tr className="font-bold bg-ec-page">
               <td>연간</td>
-              <td style={{ textAlign: 'right' }}>{won(yTotal.saleCum)}</td>
+              <td className="text-right">{won(yTotal.saleCum)}</td>
               <td></td>
-              <td style={{ textAlign: 'right' }}>{won(yTotal.buyCum)}</td>
+              <td className="text-right">{won(yTotal.buyCum)}</td>
               <td></td>
               <td style={{ textAlign: 'right', color: yTotal.profitCum >= 0 ? 'var(--ec-success)' : 'var(--ec-danger)' }}>{won(yTotal.profitCum)}</td>
               <td></td>

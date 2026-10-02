@@ -235,14 +235,14 @@ export default function StatementPrintPage() {
         { label: 'Excel' },
       ]}
       help={
-        <p style={{ fontSize: 12.5, lineHeight: 1.7 }}>
+        <p className="text-[12.5px] leading-[1.7]">
           판매 전표를 거래명세서 서식(공급자·공급받는자·품목 명세·합계·한글금액·결재란)으로 인쇄합니다.
           여러 건을 고르면 전표마다 페이지가 나뉩니다. 공급자 정보는 <b>Self-Customizing &gt; 회사정보관리</b>에서
           등록한 내용을 씁니다.
         </p>
       }
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {!supplier && !loading && (
         <p style={{ background: 'var(--ec-warn-bg)', color: '#8a5a00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>
           회사정보가 등록돼 있지 않아 공급자 칸이 비어 인쇄됩니다. Self-Customizing &gt; 회사정보관리에서 먼저 등록하세요.
@@ -310,7 +310,7 @@ export default function StatementPrintPage() {
         </EcCond>
         {/* 원본 [정렬/소계기준]. 데이터 보기형식 앞줄이다(사본 실측). */}
         <EcCond label="기타">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={withReceivable} onChange={(e) => setWithReceivable(e.target.checked)} />
             미수금집계
           </label>
@@ -325,62 +325,62 @@ export default function StatementPrintPage() {
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
-        명세서 <b style={{ color: 'var(--ec-text)' }}>{shown.length}</b>건
-        {checked.length > 0 && <> · 선택 <b style={{ color: 'var(--ec-blue)' }}>{checked.length}</b>건</>}
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
-        합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{total.toLocaleString('ko-KR')}</b>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        명세서 <b className="text-ec-text">{shown.length}</b>건
+        {checked.length > 0 && <> · 선택 <b className="text-ec-blue">{checked.length}</b>건</>}
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
+        합계 <b className="text-ec-navy text-[14px]">{total.toLocaleString('ko-KR')}</b>
       </div>
 
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}>
+            <th className="w-[34px]">
               <input type="checkbox" checked={shown.length > 0 && checked.length === shown.length}
                      onChange={(e) => setChecked(e.target.checked ? shown.map((d) => d.id) : [])} />
             </th>
-            <th style={{ width: 100 }}>일자</th>
-            <th style={{ width: 160 }}>명세서번호</th>
-            <th style={{ width: 150 }}>거래처명</th>
+            <th className="w-[100px]">일자</th>
+            <th className="w-[160px]">명세서번호</th>
+            <th className="w-[150px]">거래처명</th>
             <th>품목명[규격명]</th>
-            <th style={{ width: 80, textAlign: 'right' }}>수량</th>
-            <th style={{ width: 120, textAlign: 'right' }}>금액</th>
-            <th style={{ width: 100, textAlign: 'right' }}>부가세</th>
-            <th style={{ width: 120, textAlign: 'right' }}>합계</th>
-            {withReceivable && <th style={{ width: 120, textAlign: 'right' }}>미수금</th>}
-            <th style={{ width: 100, textAlign: 'center' }}>상세</th>
+            <th className="w-[80px] text-right">수량</th>
+            <th className="w-[120px] text-right">금액</th>
+            <th className="w-[100px] text-right">부가세</th>
+            <th className="w-[120px] text-right">합계</th>
+            {withReceivable && <th className="w-[120px] text-right">미수금</th>}
+            <th className="w-[100px] text-center">상세</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={withReceivable ? 11 : 10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={withReceivable ? 11 : 10} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={withReceivable ? 11 : 10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={withReceivable ? 11 : 10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((d) => (
             <Fragment key={d.id}>
             <tr>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <input type="checkbox" checked={checked.includes(d.id)} onChange={() => toggle(d.id)} />
               </td>
-              <td style={{ fontFamily: 'monospace' }}>{dateText(d.saleDate)}</td>
-              <td style={{ fontFamily: 'monospace' }}>{d.docNo}</td>
+              <td>{dateText(d.saleDate)}</td>
+              <td>{d.docNo}</td>
               <td>{d.partnerName}</td>
               {/* 원본은 품목명[규격명] 을 이 자리에 적는다. 여러 줄이면 첫 품목 외 n. */}
               <td>
-                {d.lines.length === 0 ? <span style={{ color: 'var(--ec-text-off)' }}>-</span> : (
+                {d.lines.length === 0 ? <span className="text-ec-off">-</span> : (
                   <>
                     {d.lines[0].itemName}
-                    {d.lines[0].spec && <span style={{ color: 'var(--ec-text-hint)' }}>[{d.lines[0].spec}]</span>}
-                    {d.lines.length > 1 && <span style={{ color: 'var(--ec-text-hint)' }}> 외 {d.lines.length - 1}</span>}
+                    {d.lines[0].spec && <span className="text-ec-hint">[{d.lines[0].spec}]</span>}
+                    {d.lines.length > 1 && <span className="text-ec-hint"> 외 {d.lines.length - 1}</span>}
                   </>
                 )}
               </td>
-              <td style={{ textAlign: 'right' }}>
+              <td className="text-right">
                 {d.lines.reduce((n, l) => n + l.quantity, 0).toLocaleString('ko-KR')}
               </td>
-              <td style={{ textAlign: 'right' }}>{d.supplyAmount.toLocaleString('ko-KR')}</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{d.vatAmount.toLocaleString('ko-KR')}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{d.totalAmount.toLocaleString('ko-KR')}</td>
+              <td className="text-right">{d.supplyAmount.toLocaleString('ko-KR')}</td>
+              <td className="text-right text-ec-hint">{d.vatAmount.toLocaleString('ko-KR')}</td>
+              <td className="text-right font-semibold text-ec-navy">{d.totalAmount.toLocaleString('ko-KR')}</td>
               {withReceivable && (
                 <td style={{ textAlign: 'right', color: (balances.get(d.partnerId) ?? 0) > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>
                   {balances.has(d.partnerId)
@@ -388,7 +388,7 @@ export default function StatementPrintPage() {
                     : '-'}
                 </td>
               )}
-              <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+              <td className="text-center whitespace-nowrap">
                 <button onClick={() => setOpenId(openId === d.id ? null : d.id)}
                         style={{ color: 'var(--ec-blue)', marginRight: 6, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>
                   {openId === d.id ? '접기' : '상세'}
@@ -400,12 +400,12 @@ export default function StatementPrintPage() {
             {openId === d.id && d.lines.map((l, k) => (
               <tr key={`${d.id}-${k}`} style={{ background: 'var(--ec-bg-page)' }}>
                 <td colSpan={4}></td>
-                <td style={{ paddingLeft: 18, color: 'var(--ec-label)' }}>
+                <td className="pl-[18px] text-ec-label">
                   └ {l.itemName}{l.spec ? `[${l.spec}]` : ''}
                 </td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{l.quantity.toLocaleString('ko-KR')}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{l.supplyAmount.toLocaleString('ko-KR')}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{(l.vatAmount ?? 0).toLocaleString('ko-KR')}</td>
+                <td className="text-right text-ec-label">{l.quantity.toLocaleString('ko-KR')}</td>
+                <td className="text-right text-ec-label">{l.supplyAmount.toLocaleString('ko-KR')}</td>
+                <td className="text-right text-ec-hint">{(l.vatAmount ?? 0).toLocaleString('ko-KR')}</td>
                 <td colSpan={withReceivable ? 3 : 2}></td>
               </tr>
             ))}
@@ -422,23 +422,23 @@ export default function StatementPrintPage() {
           { supply: (d) => d.supplyAmount, vat: (d) => d.vatAmount })
         return (
           <>
-            <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+            <h3 className="text-[13px] font-bold mt-[16px] mx-0 mb-[6px]">{subtotal} 소계</h3>
             <table className="w-full text-left">
               <thead><tr>
                 <th>{subtotal}</th>
-                <th style={{ width: 90, textAlign: 'right' }}>건수</th>
-                <th style={{ width: 150, textAlign: 'right' }}>공급가액</th>
-                <th style={{ width: 130, textAlign: 'right' }}>부가세</th>
-                <th style={{ width: 150, textAlign: 'right' }}>합계</th>
+                <th className="w-[90px] text-right">건수</th>
+                <th className="w-[150px] text-right">공급가액</th>
+                <th className="w-[130px] text-right">부가세</th>
+                <th className="w-[150px] text-right">합계</th>
               </tr></thead>
               <tbody>
                 {groups.map((g) => (
                   <tr key={g.label}>
-                    <td style={{ fontWeight: 600 }}>{g.label}</td>
-                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
-                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.sums.supply.toLocaleString('ko-KR')}</td>
-                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.sums.vat.toLocaleString('ko-KR')}</td>
-                    <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: 'var(--ec-blue-dark)' }}>
+                    <td className="font-semibold">{g.label}</td>
+                    <td className="text-right">{g.count}</td>
+                    <td className="text-right">{g.sums.supply.toLocaleString('ko-KR')}</td>
+                    <td className="text-right">{g.sums.vat.toLocaleString('ko-KR')}</td>
+                    <td className="text-right font-bold text-ec-navy">
                       {(g.sums.supply + g.sums.vat).toLocaleString('ko-KR')}
                     </td>
                   </tr>

@@ -225,11 +225,11 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
     .filter((r) => !keyword || r.title.includes(keyword) || (r.writerName ?? r.writer).includes(keyword))
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ color: 'var(--ec-star)', fontSize: 14, marginRight: 4 }}>☆</span>
-        <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ec-text)' }}>{title}</span>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+    <div className="flex flex-col min-h-[100%]">
+      <div className="flex items-center mb-[8px]">
+        <span className="text-ec-star text-[14px] mr-[4px]">☆</span>
+        <span className="text-[15px] font-extrabold text-ec-text">{title}</span>
+        <div className="ml-auto flex gap-[4px]">
           <input className="ec-input" placeholder="입력 후 [Enter]" value={keyword} onChange={(e) => setKeyword(e.target.value)} style={{ width: 150 }} />
           <button className="ec-btn ec-btn-primary" onClick={load}>Search(F3)</button>
           <button className="ec-btn">Option</button>
@@ -237,52 +237,52 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
         </div>
       </div>
 
-      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <Modal error={error} open={showForm} title="신규 등록" onClose={() => setShowForm(false)}>{(
-        <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginBottom: 8 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>업무 등록</div>
-          <table className="w-full text-left" style={{ marginBottom: 10 }}>
+        <div className="border border-ec-line border-solid bg-white p-[14px] mb-[8px]">
+          <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">업무 등록</div>
+          <table className="w-full text-left mb-[10px]">
             <tbody>
               <tr>
-                <th style={{ width: 80, background: 'var(--ec-bg-page)' }}>제목 *</th>
+                <th className="w-[80px] bg-ec-page">제목 *</th>
                 <td><input className="ec-input" value={form.title} onChange={(e) => set('title', e.target.value)} style={{ width: '100%' }} /></td>
-                <th style={{ width: 80, background: 'var(--ec-bg-page)' }}>전달자</th>
+                <th className="w-[80px] bg-ec-page">전달자</th>
                 <td><input className="ec-input" value={form.forwardTo} onChange={(e) => set('forwardTo', e.target.value)} placeholder="공유대상" style={{ width: 160 }} /></td>
               </tr>
               <tr>
-                <th style={{ width: 80, background: 'var(--ec-bg-page)' }}>참조자</th>
+                <th className="w-[80px] bg-ec-page">참조자</th>
                 <td><input className="ec-input" value={form.ccTo} onChange={(e) => set('ccTo', e.target.value)} placeholder="참조대상" style={{ width: '100%' }} /></td>
                 {/* 원본 WORK입력 폼의 [공지사항여부]. 켜면 목록 맨 위에 붙는다. */}
-                <th style={{ width: 80, background: 'var(--ec-bg-page)' }}>공지사항여부</th>
+                <th className="w-[80px] bg-ec-page">공지사항여부</th>
                 <td>
-                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, cursor: 'pointer' }}>
+                  <label className="inline-flex items-center gap-[6px] text-[12.5px] cursor-pointer">
                     <input type="checkbox" checked={notice} onChange={(e) => setNotice(e.target.checked)} />
                     맨 위에 고정
                   </label>
                 </td>
               </tr>
               <tr>
-                <th style={{ background: 'var(--ec-bg-page)', verticalAlign: 'top' }}>내용 *</th>
+                <th className="bg-ec-page align-top">내용 *</th>
                 <td colSpan={3}><textarea value={form.content} onChange={(e) => set('content', e.target.value)} style={{ width: '100%', height: 100, border: '1px solid var(--ec-border)', padding: 8, fontSize: 13, resize: 'vertical', outline: 'none' }} /></td>
               </tr>
             </tbody>
           </table>
           {/* 원본 [웹자료올리기]·[여기에 파일 놓기]. 한 건만 붙는 자리다. */}
-          <div style={{ marginBottom: 10 }}>
+          <div className="mb-[10px]">
             <EcFileDrop busy={uploading} disabled={uploading}
                         onFiles={(fs) => { if (fs[0]) void upload(fs[0]) }}>
               {attachment && (
-                <span style={{ fontSize: 12, color: 'var(--ec-blue-dark)' }}>
+                <span className="text-[12px] text-ec-navy">
                   {attachment.name}
                   <span onClick={() => setAttachment(null)}
-                        style={{ cursor: 'pointer', marginLeft: 6, fontWeight: 700 }}>×</span>
+                        className="cursor-pointer ml-[6px] font-bold">×</span>
                 </span>
               )}
             </EcFileDrop>
           </div>
 
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div className="flex gap-[6px]">
             <button className="ec-btn ec-btn-primary" onClick={submit}>저장</button>
             <button className="ec-btn" onClick={() => setShowForm(false)}>취소</button>
           </div>
@@ -301,7 +301,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
         ))}
       </div>
 
-      <div id="work-list" style={{ flex: 1, minHeight: 0 }}>
+      <div id="work-list" className="flex-1 min-h-0">
         <table className="w-full text-left">
           <thead>
             <tr>
@@ -316,21 +316,21 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
                 {shown.length > 0 && selected.size === shown.length ? '☑' : ''}
               </th>
               {/* 원본 컬럼 순서: 일자-No. · 게시글번호 · 제목 · 작성자명 · 전달자 · 진행상태 · 첨부 · 조회 */}
-              <th style={{ width: 110, textAlign: 'center' }}>일자-No.</th>
-              <th style={{ width: 90, textAlign: 'center' }}>게시글번호</th>
+              <th className="w-[110px] text-center">일자-No.</th>
+              <th className="w-[90px] text-center">게시글번호</th>
               <th>제목</th>
-              <th style={{ width: 90 }}>작성자명</th>
-              <th style={{ width: 120 }}>전달자</th>
-              <th style={{ width: 90, textAlign: 'center' }}>진행상태</th>
-              <th style={{ width: 60, textAlign: 'center' }}>첨부</th>
-              <th style={{ width: 60, textAlign: 'center' }}>조회</th>
+              <th className="w-[90px]">작성자명</th>
+              <th className="w-[120px]">전달자</th>
+              <th className="w-[90px] text-center">진행상태</th>
+              <th className="w-[60px] text-center">첨부</th>
+              <th className="w-[60px] text-center">조회</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((r, i) => (
               <Fragment key={r.id}>
               <tr>
@@ -348,69 +348,69 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
                   {i + 1}
                 </td>
                 {/* 원본은 '일자-No.' 한 칸에 「2026/07/06 -1」처럼 일자와 순번을 함께 쓴다 */}
-                <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>{dateText(r.postDate)} -1</td>
-                <td style={{ textAlign: 'center' }}>{r.postNo}</td>
+                <td className="text-center whitespace-nowrap">{dateText(r.postDate)} -1</td>
+                <td className="text-center">{r.postNo}</td>
                 <td>
                   <button type="button" className="no-ec" onClick={() => toggleOpen(r.id)}
                           title="눌러서 내용을 폅니다"
                           style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer',
                                    font: 'inherit', color: 'var(--ec-blue-dark)', textAlign: 'left' }}>
-                    <span style={{ color: 'var(--ec-text-hint)', marginRight: 4 }}>{opened.has(r.id) ? '▾' : '▸'}</span>
+                    <span className="text-ec-hint mr-[4px]">{opened.has(r.id) ? '▾' : '▸'}</span>
                     {r.notice && (
-                      <span style={{ color: 'var(--ec-danger)', fontWeight: 800, marginRight: 4 }}>[공지]</span>
+                      <span className="text-ec-danger font-extrabold mr-[4px]">[공지]</span>
                     )}
                     {r.title}
                   </button>
                 </td>
                 <td>{r.writerName ?? r.writer}</td>
                 <td>{r.forwardTo ?? ''}</td>
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-center">
                   <span style={{ color: r.status === 'DONE' ? 'var(--ec-success)' : 'var(--ec-blue)', fontWeight: 700 }}>{r.statusName}</span>
                   {/* 원본 WORK입력 폼의 [완료일시]. 언제 끝난 일인지가 아무 데도 안 남아 있었다. */}
                   {r.completedAt && (
-                    <div style={{ color: 'var(--ec-text-hint)', fontSize: 11 }}>{r.completedAt.slice(0, 16).replace('T', ' ')}</div>
+                    <div className="text-ec-hint text-[11px]">{r.completedAt.slice(0, 16).replace('T', ' ')}</div>
                   )}
                 </td>
                 {/* 원본 [첨부]. 파일이 없으면 원본도 빈 칸이다. */}
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-center">
                   {r.attachmentId ? (
                     <span title={`${r.attachmentName} (${formatBytes(r.attachmentSize ?? 0)})`}
                           onClick={() => void downloadStoredFile(r.attachmentId!, r.attachmentName ?? '첨부')}
                           style={{ cursor: 'pointer', color: 'var(--ec-blue)' }}>📎</span>
-                  ) : <span style={{ color: 'var(--ec-text-off)' }}>—</span>}
+                  ) : <span className="text-ec-off">—</span>}
                 </td>
                 {/* 원본 [조회] — 글을 편 횟수다. 완료/재개는 하단 [진행상태변경]으로 옮겼다. */}
-                <td style={{ textAlign: 'center', color: 'var(--ec-label)' }}>{r.viewCount ?? 0}</td>
+                <td className="text-center text-ec-label">{r.viewCount ?? 0}</td>
               </tr>
               {opened.has(r.id) && (
                 <tr>
                   <td colSpan={9} style={{ background: '#fafbfd', padding: '10px 14px' }}>
                     {editing?.id === r.id ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <div className="flex flex-col gap-[6px]">
                         <input className="ec-input" value={editing.title}
                                onChange={(e) => setEditing({ ...editing, title: e.target.value })} />
                         <input className="ec-input" value={editing.forwardTo} placeholder="전달자"
                                onChange={(e) => setEditing({ ...editing, forwardTo: e.target.value })} />
                         <input className="ec-input" value={editing.ccTo} placeholder="참조자"
                                onChange={(e) => setEditing({ ...editing, ccTo: e.target.value })} />
-                        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, cursor: 'pointer' }}>
+                        <label className="inline-flex items-center gap-[6px] text-[12.5px] cursor-pointer">
                           <input type="checkbox" checked={editing.notice}
                                  onChange={(e) => setEditing({ ...editing, notice: e.target.checked })} />
                           공지사항여부
                         </label>
                         <textarea className="ec-input" rows={5} value={editing.content}
                                   onChange={(e) => setEditing({ ...editing, content: e.target.value })} />
-                        <div style={{ display: 'flex', gap: 4 }}>
+                        <div className="flex gap-[4px]">
                           <button className="ec-btn ec-btn-primary" onClick={() => void saveEdit()}>저장</button>
                           <button className="ec-btn" onClick={() => setEditing(null)}>취소</button>
                         </div>
                       </div>
                     ) : (
                       <>
-                        <div style={{ whiteSpace: 'pre-wrap', fontSize: 12.5, color: 'var(--ec-text)', minHeight: 20 }}>
+                        <div className="whitespace-pre-wrap text-[12.5px] text-ec-text min-h-[20px]">
                           {r.content}
                         </div>
-                        <div style={{ display: 'flex', gap: 4, marginTop: 8, paddingTop: 6, borderTop: '1px solid var(--ec-line-soft)' }}>
+                        <div className="flex gap-[4px] mt-[8px] pt-[6px] border-t border-t-ec-line-soft border-solid">
                           <button className="ec-btn" onClick={() => setEditing({
                             id: r.id, title: r.title, content: r.content, forwardTo: r.forwardTo ?? '',
                             ccTo: r.ccTo ?? '', notice: r.notice,
@@ -429,7 +429,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
         </table>
       </div>
 
-      <div style={{ display: 'flex', gap: 6, marginTop: 10, paddingTop: 8, borderTop: '1px solid var(--ec-line-soft)' }}>
+      <div className="flex gap-[6px] mt-[10px] pt-[8px] border-t border-t-ec-line-soft border-solid">
         {/*
           원본 하단: 신규(F2)·보내기·업무지원AI·진행상태변경·모두펼쳐보기·선택삭제·Excel·이력조회·웹자료올리기.
           받쳐 줄 기능이 있는 것만 둔다 — 보내기·업무지원AI·이력조회는 아직 없다.

@@ -357,15 +357,15 @@ export default function DefectReportPage() {
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
         전체 불량률 <b style={{ color: rateColor(overallRate), fontSize: 15 }}>{overallRate.toFixed(2)}%</b>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
         폐기계 <b style={{ color: '#6b3fb0', fontSize: 14 }}>{won(totals.disposed)}</b>
       </div>
 
-      <p className="mb-2 text-xs text-slate-500">품목별 검사 불량률 + 불량처리·폐기 수량 종합. 불량률 = 검사불량 ÷ 검사수량. 불량률 높은 순.</p>
+      <p className="mb-2 text-xs text-ec-hint">품목별 검사 불량률 + 불량처리·폐기 수량 종합. 불량률 = 검사불량 ÷ 검사수량. 불량률 높은 순.</p>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       {view === '그래프' ? (
         /* 표는 창고 순이지만 <b>그래프는 불량률 높은 순</b>이다 — 위 정렬 주석 참고. */
@@ -392,7 +392,7 @@ export default function DefectReportPage() {
         */}
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th className="w-[34px]"></th>
             {/*
               <b>불량률파악보고서(E040512) 2026-09-09 원본 격자 실측</b> — 열이 일곱이다:
               [창고코드 · 창고명 · 품목코드 · <b>품목명[규격명]</b> · <b>생산수량</b> ·
@@ -406,66 +406,66 @@ export default function DefectReportPage() {
               검사 안 한 생산분까지 센 것처럼 읽혀 거짓이 된다(예외에 적었다).
               [단위]·[불량처리]·[폐기]는 우리 열이다.
             */}
-            <th style={{ width: 110 }}>창고코드</th>
-            <th style={{ width: 110 }}>창고명</th>
-            <th style={{ width: 110 }}>품목코드</th>
-            <th style={{ width: 230 }}>품목명[규격명]</th>
-            <th style={{ textAlign: 'center', width: 46 }}>단위</th>
+            <th className="w-[110px]">창고코드</th>
+            <th className="w-[110px]">창고명</th>
+            <th className="w-[110px]">품목코드</th>
+            <th className="w-[230px]">품목명[규격명]</th>
+            <th className="text-center w-[46px]">단위</th>
             {/* 원본 차례: 품목명[규격명] 다음이 [생산수량]이다(2026-09-21 실측). */}
-            <th style={{ textAlign: 'right', width: 110 }}>생산수량</th>
-            <th style={{ textAlign: 'right', width: 80 }}>검사수량</th>
-            <th style={{ textAlign: 'right', width: 80 }}>검사불량</th>
-            <th style={{ textAlign: 'right', width: 110 }}>불량률</th>
-            <th style={{ textAlign: 'right', width: 110 }}>불량처리</th>
-            <th style={{ textAlign: 'right', width: 70 }}>폐기</th>
+            <th className="text-right w-[110px]">생산수량</th>
+            <th className="text-right w-[80px]">검사수량</th>
+            <th className="text-right w-[80px]">검사불량</th>
+            <th className="text-right w-[110px]">불량률</th>
+            <th className="text-right w-[110px]">불량처리</th>
+            <th className="text-right w-[70px]">폐기</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={12} className="ec-empty">불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={12} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : groups.flatMap((g, gi) => [
             ...g.rows.map((r, i) => (
             <tr key={r.warehouseName + '\u0000' + r.itemId}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
               <td>{r.warehouseCode}</td>
               <td style={{ color: r.warehouseName === '(미지정)' ? 'var(--ec-text-hint)' : undefined }}>{r.warehouseName}</td>
               <td>{r.itemCode}</td>
               <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{r.unit}</td>
+              <td className="text-center text-ec-hint">{r.unit}</td>
               {/* 원본도 생산이 없는 줄은 <b>빈칸</b>이다(송풍기 줄) — 0 으로 찍지 않는다. */}
-              <td style={{ textAlign: 'right' }}>{r.producedQty ? won(r.producedQty) : ''}</td>
-              <td style={{ textAlign: 'right' }}>{won(r.inspectedQty)}</td>
-              <td style={{ textAlign: 'right' }}>{r.inspectDefect ? won(r.inspectDefect) : ''}</td>
+              <td className="text-right">{r.producedQty ? won(r.producedQty) : ''}</td>
+              <td className="text-right">{won(r.inspectedQty)}</td>
+              <td className="text-right">{r.inspectDefect ? won(r.inspectDefect) : ''}</td>
               <td style={{ textAlign: 'right', fontWeight: 700, color: rateColor(r.defectRate) }}>{r.inspectedQty > 0 ? `${r.defectRate.toFixed(2)}%` : ''}</td>
-              <td style={{ textAlign: 'right' }}>{r.defectHandled ? won(r.defectHandled) : ''}</td>
-              <td style={{ textAlign: 'right' }}>{r.disposed ? won(r.disposed) : ''}</td>
+              <td className="text-right">{r.defectHandled ? won(r.defectHandled) : ''}</td>
+              <td className="text-right">{r.disposed ? won(r.disposed) : ''}</td>
             </tr>
             )),
             /* 원본 격자의 <b>[창고명] 계</b> 줄. 불량률 칸은 비운다(위 groups 주석). */
             <tr key={'sub' + gi} className="ec-total">
-              <td colSpan={5} style={{ textAlign: 'center' }}>{g.label} 계</td>
+              <td colSpan={5} className="text-center">{g.label} 계</td>
               <td />
-              <td style={{ textAlign: 'right' }}>{g.sums.produced ? won(g.sums.produced) : ''}</td>
-              <td style={{ textAlign: 'right' }}>{g.sums.inspected ? won(g.sums.inspected) : ''}</td>
-              <td style={{ textAlign: 'right' }}>{g.sums.defect ? won(g.sums.defect) : ''}</td>
+              <td className="text-right">{g.sums.produced ? won(g.sums.produced) : ''}</td>
+              <td className="text-right">{g.sums.inspected ? won(g.sums.inspected) : ''}</td>
+              <td className="text-right">{g.sums.defect ? won(g.sums.defect) : ''}</td>
               <td />
-              <td style={{ textAlign: 'right' }}>{g.sums.handled ? won(g.sums.handled) : ''}</td>
-              <td style={{ textAlign: 'right' }}>{g.sums.disposed ? won(g.sums.disposed) : ''}</td>
+              <td className="text-right">{g.sums.handled ? won(g.sums.handled) : ''}</td>
+              <td className="text-right">{g.sums.disposed ? won(g.sums.disposed) : ''}</td>
             </tr>,
           ])}
         </tbody>
         {rows.length > 0 && (
           <tfoot>
             <tr>
-              <td colSpan={6} style={{ textAlign: 'center' }}>합계</td>
-              <td style={{ textAlign: 'right' }}>{won(totals.produced)}</td>
-              <td style={{ textAlign: 'right' }}>{won(totals.inspected)}</td>
-              <td style={{ textAlign: 'right' }}>{won(totals.defect)}</td>
+              <td colSpan={6} className="text-center">합계</td>
+              <td className="text-right">{won(totals.produced)}</td>
+              <td className="text-right">{won(totals.inspected)}</td>
+              <td className="text-right">{won(totals.defect)}</td>
               <td style={{ textAlign: 'right', color: rateColor(overallRate) }}>{overallRate.toFixed(2)}%</td>
-              <td style={{ textAlign: 'right' }}>{won(totals.handled)}</td>
-              <td style={{ textAlign: 'right' }}>{won(totals.disposed)}</td>
+              <td className="text-right">{won(totals.handled)}</td>
+              <td className="text-right">{won(totals.disposed)}</td>
             </tr>
           </tfoot>
         )}

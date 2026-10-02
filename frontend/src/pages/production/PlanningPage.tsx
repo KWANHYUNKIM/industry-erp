@@ -88,7 +88,7 @@ export default function PlanningPage() {
       onNew={() => setShowForm(true)}
       actions={[{ label: 'Excel' }, { label: '인쇄' }]}
     >
-      <p className="mb-2 text-xs text-slate-500">제품별 주차 수요 대비 생산 계획 · 확정 후 작업지시 자동생성 · 현재고 실시간 반영</p>
+      <p className="mb-2 text-xs text-ec-hint">제품별 주차 수요 대비 생산 계획 · 확정 후 작업지시 자동생성 · 현재고 실시간 반영</p>
 
       <Modal open={showForm} title="생산계획 (MPS) 등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 12, marginBottom: 10, maxWidth: 760 }}>
@@ -113,47 +113,47 @@ export default function PlanningPage() {
               </tr>
             </tbody>
           </table>
-          {error && <p className="mt-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-          {ok && <p className="mt-2 rounded bg-green-50 px-3 py-2 text-sm text-green-700">{ok}</p>}
-          <div style={{ marginTop: 10 }}><button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button></div>
+          {error && <p className="mt-2 rounded bg-ec-danger-bg px-3 py-2 text-sm text-ec-danger">{error}</p>}
+          {ok && <p className="mt-2 rounded bg-ec-success-bg px-3 py-2 text-sm text-ec-success">{ok}</p>}
+          <div className="mt-[10px]"><button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button></div>
         </form>
       )}</Modal>
 
-      {ok && !showForm && <p className="mb-2 rounded bg-green-50 px-3 py-2 text-sm text-green-700">{ok}</p>}
+      {ok && !showForm && <p className="mb-2 rounded bg-ec-success-bg px-3 py-2 text-sm text-ec-success">{ok}</p>}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
-        계획수량 합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{totalPlan.toLocaleString()}</b>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        계획수량 합계 <b className="text-ec-navy text-[14px]">{totalPlan.toLocaleString()}</b>
       </div>
 
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('계획주차')}>계획주차 {sort.mark('계획주차')}</th><th>제품</th>
-            <th style={{ textAlign: 'right' }}>수요량</th>
-            <th style={{ textAlign: 'right' }}>현재고</th>
-            <th style={{ textAlign: 'right' }}>부족량</th>
-            <th style={{ textAlign: 'right' }}>계획수량</th>
-            <th style={{ textAlign: 'center' }}>상태</th>
+            <th className="w-[34px]"></th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('계획주차')}>계획주차 {sort.mark('계획주차')}</th><th>제품</th>
+            <th className="text-right">수요량</th>
+            <th className="text-right">현재고</th>
+            <th className="text-right">부족량</th>
+            <th className="text-right">계획수량</th>
+            <th className="text-center">상태</th>
             <th>작업지시</th>
-            <th style={{ textAlign: 'center' }}>처리</th>
+            <th className="text-center">처리</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((p, i) => (
             <tr key={p.id}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{p.planWeek}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td>{p.planWeek}</td>
               <td>{p.productName}</td>
-              <td style={{ textAlign: 'right' }}>{p.demandQty.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{p.currentStock.toLocaleString()}</td>
+              <td className="text-right">{p.demandQty.toLocaleString()}</td>
+              <td className="text-right">{p.currentStock.toLocaleString()}</td>
               <td style={{ textAlign: 'right', color: p.shortage > 0 ? 'var(--ec-danger)' : '#bbb', fontWeight: p.shortage > 0 ? 700 : 400 }}>{p.shortage.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{p.planQty.toLocaleString()} {p.productUnit}</td>
+              <td className="text-right font-semibold text-ec-blue">{p.planQty.toLocaleString()} {p.productUnit}</td>
               <td style={{ textAlign: 'center', color: COLOR[p.status], fontWeight: 700 }}>{p.statusName}</td>
-              <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{p.workOrderNo ?? ''}</td>
-              <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+              <td className="text-ec-label">{p.workOrderNo ?? ''}</td>
+              <td className="text-center whitespace-nowrap">
                 {p.status === 'REVIEW' && <button className="no-ec" onClick={() => confirmPlan(p)} style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12 }}>확정</button>}
                 {p.status === 'CONFIRMED' && <button className="no-ec" onClick={() => makeWorkOrder(p)} style={{ border: 'none', background: 'none', color: 'var(--ec-success)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>작업지시 생성</button>}
               </td>

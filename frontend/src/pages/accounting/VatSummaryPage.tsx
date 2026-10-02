@@ -28,15 +28,15 @@ export default function VatSummaryPage() {
       .catch((err) => setError(extractErrorMessage(err)))
   }, [period])
 
-  if (error) return <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>
-  if (!d) return <p style={{ color: 'var(--ec-text-hint)', padding: 12 }}>불러오는 중…</p>
+  if (error) return <p className="ec-alert ec-alert-danger">{error}</p>
+  if (!d) return <p className="text-ec-hint p-[12px]">불러오는 중…</p>
 
   const Row = ({ label, supply, vat, total }: { label: string; supply: number; vat: number; total: number }) => (
     <tr>
-      <td style={{ fontWeight: 600 }}>{label}</td>
-      <td style={{ textAlign: 'right' }}>{won(supply)}</td>
-      <td style={{ textAlign: 'right' }}>{won(vat)}</td>
-      <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(total)}</td>
+      <td className="font-semibold">{label}</td>
+      <td className="text-right">{won(supply)}</td>
+      <td className="text-right">{won(vat)}</td>
+      <td className="text-right font-bold">{won(total)}</td>
     </tr>
   )
 
@@ -44,21 +44,21 @@ export default function VatSummaryPage() {
 
   return (
     <EcListShell title="매입매출·부가세" actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
-      <p style={{ marginBottom: 8, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>부가가치세 신고 기초자료 · 매출세액 − 매입세액(구매 + 비용) = 납부(환급)세액</p>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5 }}>
-        <span style={{ color: 'var(--ec-label)' }}>과세기간</span>
+      <p className="mb-[8px] text-[11.5px] text-ec-hint">부가가치세 신고 기초자료 · 매출세액 − 매입세액(구매 + 비용) = 납부(환급)세액</p>
+      <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px]">
+        <span className="text-ec-label">과세기간</span>
         <input type="date" className="ec-input" value={period.from} onChange={(e) => setPeriod((p) => ({ ...p, from: e.target.value }))} style={{ width: 140 }} />
         ~
         <input type="date" className="ec-input" value={period.to} onChange={(e) => setPeriod((p) => ({ ...p, to: e.target.value }))} style={{ width: 140 }} />
       </div>
 
-      <table className="w-full text-left" style={{ maxWidth: 720 }}>
+      <table className="w-full text-left max-w-[720px]">
         <thead>
           <tr>
             <th>구분</th>
-            <th style={{ textAlign: 'right' }}>공급가액</th>
-            <th style={{ textAlign: 'right' }}>부가세(세액)</th>
-            <th style={{ textAlign: 'right' }}>합계</th>
+            <th className="text-right">공급가액</th>
+            <th className="text-right">부가세(세액)</th>
+            <th className="text-right">합계</th>
           </tr>
         </thead>
         <tbody>
@@ -66,21 +66,21 @@ export default function VatSummaryPage() {
           <Row label="매입 (매입세액)" supply={d.purchaseSupply} vat={d.purchaseVat} total={d.purchaseTotal} />
           {/* 지출(비용)에 붙은 부가세 — 세금계산서 받은 비용의 매입세액도 공제한다(46·47회차). 공급가액은 비용관리에서 본다. */}
           <tr>
-            <td style={{ fontWeight: 600 }}>비용 (매입세액)</td>
-            <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>—</td>
-            <td style={{ textAlign: 'right' }}>{won(d.expenseVat ?? 0)}</td>
-            <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>—</td>
+            <td className="font-semibold">비용 (매입세액)</td>
+            <td className="text-right text-ec-hint">—</td>
+            <td className="text-right">{won(d.expenseVat ?? 0)}</td>
+            <td className="text-right text-ec-hint">—</td>
           </tr>
         </tbody>
       </table>
 
       <div style={{ marginTop: 12, maxWidth: 720, border: '1px solid var(--ec-border)', background: refund ? 'var(--ec-success-bg)' : '#fdf7ec', padding: '14px 18px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="flex items-center justify-between">
           <span style={{ fontSize: 12.5, color: refund ? '#1c6b32' : '#8a6a1e' }}>
             {refund ? '환급 예상세액 (매입세액 > 매출세액)' : '납부 예상세액 (매출세액 − 매입세액)'}
           </span>
           <span style={{ fontSize: 22, fontWeight: 800, color: refund ? '#2f8401' : '#b6791b' }}>
-            {won(Math.abs(d.vatPayable))} <span style={{ fontSize: 13, fontWeight: 400 }}>원</span>
+            {won(Math.abs(d.vatPayable))} <span className="text-[13px] font-normal">원</span>
           </span>
         </div>
       </div>

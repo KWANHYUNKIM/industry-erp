@@ -75,38 +75,38 @@ export default function EvidencePanel({
 
   return (
     <div style={{ border: '1px solid var(--ec-border)', background: '#fbfcfd', padding: 10, marginTop: 6 }}>
-      <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ec-blue-dark)', marginBottom: 6 }}>
-        증빙 {rows.length > 0 && <span style={{ color: 'var(--ec-label)', fontWeight: 400 }}>({rows.length}건)</span>}
+      <div className="text-[12.5px] font-bold text-ec-navy mb-[6px]">
+        증빙 {rows.length > 0 && <span className="text-ec-label font-normal">({rows.length}건)</span>}
       </div>
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '4px 8px', fontSize: 12, borderRadius: 3, marginBottom: 6 }}>{error}</p>}
+      {error && <p className="bg-ec-danger-bg text-ec-danger py-[4px] px-[8px] text-[12px] rounded-[3px] mb-[6px]">{error}</p>}
 
       {rows.length > 0 && (
-        <table className="w-full text-left" style={{ marginBottom: 8 }}>
+        <table className="w-full text-left mb-[8px]">
           <thead><tr>
-            <th style={{ width: 100 }}>증빙방법</th>
-            <th style={{ width: 110 }}>증빙일자</th>
+            <th className="w-[100px]">증빙방법</th>
+            <th className="w-[110px]">증빙일자</th>
             <th>첨부파일</th>
-            <th style={{ width: 90, textAlign: 'right' }}>크기</th>
-            <th style={{ width: 80 }}>작업자</th>
-            <th style={{ width: 60, textAlign: 'center' }}>삭제</th>
+            <th className="w-[90px] text-right">크기</th>
+            <th className="w-[80px]">작업자</th>
+            <th className="w-[60px] text-center">삭제</th>
           </tr></thead>
           <tbody>
             {rows.map((e) => (
               <tr key={e.id}>
                 <td>{e.methodName}</td>
-                <td style={{ fontFamily: 'monospace' }}>{e.evidenceDate ?? '-'}</td>
+                <td>{e.evidenceDate ?? '-'}</td>
                 <td>
                   {e.fileId ? (
                     <button onClick={() => downloadStoredFile(e.fileId!, e.fileName ?? 'file')}
                             style={{ background: 'none', border: 0, padding: 0, color: 'var(--ec-blue)', cursor: 'pointer', textDecoration: 'underline', fontSize: 12.5 }}>
                       {e.fileName}
                     </button>
-                  ) : <span style={{ color: 'var(--ec-text-hint)' }}>첨부 없음</span>}
-                  {e.note && <span style={{ color: 'var(--ec-label)' }}> · {e.note}</span>}
+                  ) : <span className="text-ec-hint">첨부 없음</span>}
+                  {e.note && <span className="text-ec-label"> · {e.note}</span>}
                 </td>
-                <td style={{ textAlign: 'right' }}>{formatBytes(e.fileSize)}</td>
-                <td style={{ color: 'var(--ec-label)' }}>{e.worker ?? ''}</td>
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-right">{formatBytes(e.fileSize)}</td>
+                <td className="text-ec-label">{e.worker ?? ''}</td>
+                <td className="text-center">
                   <button onClick={() => remove(e)} style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
                 </td>
               </tr>
@@ -115,7 +115,7 @@ export default function EvidencePanel({
         </table>
       )}
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', fontSize: 12.5 }}>
+      <div className="flex flex-wrap gap-[6px] items-center text-[12.5px]">
         <select className="ec-input" value={method} onChange={(ev) => setMethod(ev.target.value as EvidenceMethod)} style={{ width: 120 }}>
           {METHODS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
         </select>
@@ -125,15 +125,15 @@ export default function EvidencePanel({
           onFiles={(fs) => setFile(fs[0] ?? null)}
         >
           {file && (
-            <span style={{ fontSize: 12, color: 'var(--ec-blue-dark)' }}>
+            <span className="text-[12px] text-ec-navy">
               {file.name}
-              <span onClick={() => setFile(null)} style={{ cursor: 'pointer', marginLeft: 6, fontWeight: 700 }}>×</span>
+              <span onClick={() => setFile(null)} className="cursor-pointer ml-[6px] font-bold">×</span>
             </span>
           )}
         </EcFileDrop>
         <input className="ec-input" value={note} onChange={(ev) => setNote(ev.target.value)} placeholder="적요(선택)" style={{ width: 180 }} />
         <button className="ec-btn ec-btn-primary" onClick={add} disabled={busy}>{busy ? '등록 중…' : '증빙 등록'}</button>
-        <span style={{ fontSize: 11.5, color: 'var(--ec-text-hint)' }}>※ 파일 없이 증빙방법만 기록할 수도 있습니다(최대 10MB).</span>
+        <span className="text-[11.5px] text-ec-hint">※ 파일 없이 증빙방법만 기록할 수도 있습니다(최대 10MB).</span>
       </div>
     </div>
   )

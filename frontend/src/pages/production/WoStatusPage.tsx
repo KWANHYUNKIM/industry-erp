@@ -361,7 +361,7 @@ export default function WoStatusPage() {
             </select>
           )}
           {mode === '집계' && (
-            <span style={{ display: 'inline-flex', gap: 6, marginLeft: 6, alignItems: 'center', fontSize: 12 }}>
+            <span className="inline-flex gap-[6px] ml-[6px] items-center text-[12px]">
               집계조건1
               <select className="ec-input" value={axis} onChange={(e) => setAxis(e.target.value as typeof AXES[number])}
                       style={{ width: 110 }}>
@@ -386,10 +386,10 @@ export default function WoStatusPage() {
                   {AXES.filter((a) => a !== axis && a !== axis2).map((a) => <option key={a} value={a}>{a}</option>)}
                 </select>
               </>)}
-              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+              <label className="inline-flex items-center gap-[3px]">
                 <input type="checkbox" checked={ratio} onChange={(e) => setRatio(e.target.checked)} /> 비율표시
               </label>
-              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+              <label className="inline-flex items-center gap-[3px]">
                 <input type="checkbox" checked={codeIncl} onChange={(e) => setCodeIncl(e.target.checked)} /> 코드포함
               </label>
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: axis2 ? undefined : 'var(--ec-text-hint)' }}
@@ -407,10 +407,10 @@ export default function WoStatusPage() {
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from}
                  onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
           <input type="date" className="ec-input" value={to}
                  onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from}
               onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
@@ -430,7 +430,7 @@ export default function WoStatusPage() {
         <EcCond label="납기일자">
           <input type="date" className="ec-input" value={dueFrom}
                  onChange={(e) => setDueFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
           <input type="date" className="ec-input" value={dueTo}
                  onChange={(e) => setDueTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
@@ -480,7 +480,7 @@ export default function WoStatusPage() {
         <EcCond label="수량">
           <input className="ec-input" type="number" value={qtyFrom}
                  onChange={(e) => setQtyFrom(e.target.value)} style={{ width: 110, textAlign: 'right' }} />
-          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
           <input className="ec-input" type="number" value={qtyTo}
                  onChange={(e) => setQtyTo(e.target.value)} style={{ width: 110, textAlign: 'right' }} />
         </EcCond>
@@ -506,7 +506,7 @@ export default function WoStatusPage() {
                              .map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="결재방표시">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
             인쇄물에 결재란(도장칸)을 찍는다
           </label>
@@ -521,7 +521,7 @@ export default function WoStatusPage() {
         </EcCond>
       </ul>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {mode === '집계' && prevRange && prevRows && (() => {
         const prev = prevRows.filter(matchCond)
         const pp = prev.reduce((n, r) => n + r.plannedQty, 0)
@@ -530,7 +530,7 @@ export default function WoStatusPage() {
         const cd = shown.reduce((n, r) => n + r.producedQty, 0)
         const pct = (a: number, b: number) => (b > 0 ? ` (${a >= b ? '+' : ''}${Math.round(((a - b) / b) * 100)}%)` : '')
         return (
-          <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+          <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
             비교기간({prevRange.from.replace(/-/g, '/')} ~ {prevRange.to.replace(/-/g, '/')})
             지시수량 {pp.toLocaleString()} → {cp.toLocaleString()}{pct(cp, pp)} · 생산수량 {pd.toLocaleString()} → {cd.toLocaleString()}{pct(cd, pd)}
           </div>
@@ -546,27 +546,27 @@ export default function WoStatusPage() {
           <table ref={aggRef} className="w-full text-left">
             <thead>
               <tr>
-                <th style={{ width: 34 }}></th>
+                <th className="w-[34px]"></th>
                 <th>{axis} \ {axis2}</th>
-                {cols.map((c) => <th key={c} style={{ textAlign: 'right' }}>{c}</th>)}
-                <th style={{ textAlign: 'right' }}>합계</th>
+                {cols.map((c) => <th key={c} className="text-right">{c}</th>)}
+                <th className="text-right">합계</th>
               </tr>
             </thead>
             <tbody>
               {[...rowsBy.entries()].map(([k, m], i) => (
                 <tr key={k}>
-                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)', background: 'var(--ec-report-stripe)' }}>{i + 1}</td>
+                  <td className="text-center text-ec-hint bg-ec-stripe">{i + 1}</td>
                   <td>{k}</td>
-                  {cols.map((c) => <td key={c} style={{ textAlign: 'right' }}>{m.get(c) ? m.get(c)!.toLocaleString() : ''}</td>)}
-                  <td style={{ textAlign: 'right', fontWeight: 600 }}>{[...m.values()].reduce((a, v) => a + v, 0).toLocaleString()}</td>
+                  {cols.map((c) => <td key={c} className="text-right">{m.get(c) ? m.get(c)!.toLocaleString() : ''}</td>)}
+                  <td className="text-right font-semibold">{[...m.values()].reduce((a, v) => a + v, 0).toLocaleString()}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
-              <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-                <td colSpan={2} style={{ textAlign: 'right' }}>합계</td>
-                {cols.map((c) => <td key={c} style={{ textAlign: 'right' }}>{grouped.filter((g) => g.k2 === c).reduce((a, g) => a + g.planned, 0).toLocaleString()}</td>)}
-                <td style={{ textAlign: 'right' }}>{totalPlanned.toLocaleString()}</td>
+              <tr className="font-bold bg-ec-page">
+                <td colSpan={2} className="text-right">합계</td>
+                {cols.map((c) => <td key={c} className="text-right">{grouped.filter((g) => g.k2 === c).reduce((a, g) => a + g.planned, 0).toLocaleString()}</td>)}
+                <td className="text-right">{totalPlanned.toLocaleString()}</td>
               </tr>
             </tfoot>
           </table>
@@ -575,42 +575,42 @@ export default function WoStatusPage() {
         <table ref={aggRef} className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
-              {code1 && <th style={{ width: 110 }}>{code1}</th>}
-              {code2 && <th style={{ width: 110 }}>{code2}</th>}
+              <th className="w-[34px]"></th>
+              {code1 && <th className="w-[110px]">{code1}</th>}
+              {code2 && <th className="w-[110px]">{code2}</th>}
               <th>{[axis, axis2, axis3].filter(Boolean).join(' · ')}</th>
-              <th style={{ width: 90, textAlign: 'right' }}>건수</th>
-              <th style={{ width: 120, textAlign: 'right' }}>지시수량</th>
-              {ratio && <th style={{ width: 80, textAlign: 'right' }}>비율(%)</th>}
-              <th style={{ width: 120, textAlign: 'right' }}>생산수량</th>
-              <th style={{ width: 120, textAlign: 'right' }}>잔량</th>
+              <th className="w-[90px] text-right">건수</th>
+              <th className="w-[120px] text-right">지시수량</th>
+              {ratio && <th className="w-[80px] text-right">비율(%)</th>}
+              <th className="w-[120px] text-right">생산수량</th>
+              <th className="w-[120px] text-right">잔량</th>
             </tr>
           </thead>
           <tbody>
             {grouped.length === 0 ? (
-              <tr><td colSpan={6 + (code1 ? 1 : 0) + (code2 ? 1 : 0) + (ratio ? 1 : 0)} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={6 + (code1 ? 1 : 0) + (code2 ? 1 : 0) + (ratio ? 1 : 0)} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : grouped.map((g, i) => (
               <tr key={g.key}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)', background: 'var(--ec-report-stripe)' }}>{i + 1}</td>
-                {code1 && <td style={{ fontFamily: 'monospace' }}>{g.c1}</td>}
-                {code2 && <td style={{ fontFamily: 'monospace' }}>{g.c2}</td>}
+                <td className="text-center text-ec-hint bg-ec-stripe">{i + 1}</td>
+                {code1 && <td>{g.c1}</td>}
+                {code2 && <td>{g.c2}</td>}
                 <td>{g.key}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{g.count.toLocaleString()}</td>
-                <td style={{ textAlign: 'right' }}>{g.planned.toLocaleString()}</td>
-                {ratio && <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{totalPlanned ? (Math.round((g.planned / totalPlanned) * 1000) / 10).toFixed(1) : '0.0'}</td>}
-                <td style={{ textAlign: 'right' }}>{g.produced.toLocaleString()}</td>
+                <td className="text-right text-ec-hint">{g.count.toLocaleString()}</td>
+                <td className="text-right">{g.planned.toLocaleString()}</td>
+                {ratio && <td className="text-right text-ec-label">{totalPlanned ? (Math.round((g.planned / totalPlanned) * 1000) / 10).toFixed(1) : '0.0'}</td>}
+                <td className="text-right">{g.produced.toLocaleString()}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700, color: g.remaining > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>{g.remaining.toLocaleString()}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={2 + (code1 ? 1 : 0) + (code2 ? 1 : 0)} style={{ textAlign: 'right' }}>합계 ({grouped.length}개 그룹)</td>
-              <td style={{ textAlign: 'right' }}>{grouped.reduce((a, g) => a + g.count, 0).toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{totalPlanned.toLocaleString()}</td>
-              {ratio && <td style={{ textAlign: 'right' }}>100.0</td>}
-              <td style={{ textAlign: 'right' }}>{grouped.reduce((a, g) => a + g.produced, 0).toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{grouped.reduce((a, g) => a + g.remaining, 0).toLocaleString()}</td>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={2 + (code1 ? 1 : 0) + (code2 ? 1 : 0)} className="text-right">합계 ({grouped.length}개 그룹)</td>
+              <td className="text-right">{grouped.reduce((a, g) => a + g.count, 0).toLocaleString()}</td>
+              <td className="text-right">{totalPlanned.toLocaleString()}</td>
+              {ratio && <td className="text-right">100.0</td>}
+              <td className="text-right">{grouped.reduce((a, g) => a + g.produced, 0).toLocaleString()}</td>
+              <td className="text-right">{grouped.reduce((a, g) => a + g.remaining, 0).toLocaleString()}</td>
             </tr>
           </tfoot>
         </table>
@@ -618,41 +618,41 @@ export default function WoStatusPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ width: 200, textAlign: 'center' }}>일자-No.</th>
+            <th className="w-[34px]"></th>
+            <th className="w-[200px] text-center">일자-No.</th>
             <th>품목명[규격명]</th>
             {/* 원본 [수량] — 지시수량을 말한다. 생산·잔여는 우리가 더 보여 주는 것이다. */}
-            <th style={{ textAlign: 'right' }}>수량</th>
-            <th style={{ textAlign: 'right' }}>생산수량</th>
-            <th style={{ textAlign: 'right' }}>잔여수량</th>
-            <th style={{ textAlign: 'right' }}>진행률(%)</th>
+            <th className="text-right">수량</th>
+            <th className="text-right">생산수량</th>
+            <th className="text-right">잔여수량</th>
+            <th className="text-right">진행률(%)</th>
             {/* 원본은 [거래처명]을 183 으로 둔다 — 일자-No. 보다 넓다. */}
-            <th style={{ width: 200 }}>거래처명</th>
-            <th style={{ width: 90 }}>담당자명</th>
+            <th className="w-[200px]">거래처명</th>
+            <th className="w-[90px]">담당자명</th>
             <th>입고창고</th>
             {/* 원본 열 이름은 [납기일자]다. */}
             <th>납기일자</th>
-            <th style={{ textAlign: 'center' }}>상태</th>
+            <th className="text-center">상태</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={12} className="ec-empty">불러오는 중…</td></tr>
           ) : listRows.length === 0 ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={12} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : listRows.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-              <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{dateText(r.orderDate)} {r.orderNo}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td className="text-center">{dateText(r.orderDate)} {r.orderNo}</td>
               <td>{r.productName}{r.productSpec ? `[${r.productSpec}]` : ''}</td>
-              <td style={{ textAlign: 'right' }}>{r.plannedQty.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{r.producedQty.toLocaleString()}</td>
+              <td className="text-right">{r.plannedQty.toLocaleString()}</td>
+              <td className="text-right font-semibold text-ec-navy">{r.producedQty.toLocaleString()}</td>
               <td style={{ textAlign: 'right', color: r.remainingQty > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>{r.remainingQty.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{r.plannedQty ? Math.round((r.producedQty / r.plannedQty) * 100) : 0}</td>
+              <td className="text-right">{r.plannedQty ? Math.round((r.producedQty / r.plannedQty) * 100) : 0}</td>
               <td style={{ color: r.partnerName ? undefined : 'var(--ec-text-off)' }}>{r.partnerName ?? ''}</td>
               <td style={{ color: r.employeeId ? undefined : 'var(--ec-text-off)' }}>{empName(r.employeeId)}</td>
               <td>{r.warehouseName}</td>
-              <td style={{ fontFamily: 'monospace' }}>{dateText(r.dueDate) || ''}</td>
+              <td>{dateText(r.dueDate) || ''}</td>
               <td style={{ textAlign: 'center', fontWeight: 700, color: STATUS_COLOR[r.status] }}>{r.statusName}</td>
             </tr>
           ))}

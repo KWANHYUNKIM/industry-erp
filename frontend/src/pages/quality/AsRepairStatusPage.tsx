@@ -98,22 +98,22 @@ export default function AsRepairStatusPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={AS_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
         <EcCond label="접수일자">
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 8, fontSize: 12.5 }}>
+          <label className="inline-flex items-center gap-[3px] mr-[8px] text-[12.5px]">
             <input type="checkbox" checked={!useReceipt} onChange={(e) => setUseReceipt(!e.target.checked)} /> 사용안함
           </label>
           <input type="date" className="ec-input" value={recFrom} disabled={!useReceipt} onChange={(e) => setRecFrom(e.target.value)} style={{ width: 145 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={recTo} disabled={!useReceipt} onChange={(e) => setRecTo(e.target.value)} style={{ width: 145 }} />
         </EcCond>
         <EcCond label="창고" pick>
@@ -135,34 +135,34 @@ export default function AsRepairStatusPage() {
         </EcCond>
       </ul>
 
-      <h3 style={{ fontSize: 13, fontWeight: 700, margin: '4px 0 6px' }}>
-        AS수리현황 <span style={{ fontWeight: 400, color: 'var(--ec-text-hint)' }}>{dateText(from)} ~ {dateText(to)}</span>
+      <h3 className="text-[13px] font-bold mt-[4px] mx-0 mb-[6px]">
+        AS수리현황 <span className="font-normal text-ec-hint">{dateText(from)} ~ {dateText(to)}</span>
       </h3>
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ textAlign: 'center' }}>일자-No.</th>
+            <th className="text-center">일자-No.</th>
             <th>제목</th>
             <th>거래처명</th>
             <th>담당자명</th>
             <th>품목명</th>
-            <th style={{ textAlign: 'right' }}>소모(판매)금액</th>
+            <th className="text-right">소모(판매)금액</th>
             <th>수리내용</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{dateText(r.doneDate ?? '')} {r.asNo}</td>
+              <td className="text-center">{dateText(r.doneDate ?? '')} {r.asNo}</td>
               <td>{r.title ?? ''}</td>
               <td>{r.partnerName}</td>
               <td>{r.charge ?? ''}</td>
               <td>{r.itemName}</td>
-              <td style={{ textAlign: 'right' }}>{won(used.get(r.asNo) ?? 0)}</td>
+              <td className="text-right">{won(used.get(r.asNo) ?? 0)}</td>
               <td>{r.repairNote ?? ''}</td>
             </tr>
           ))}
@@ -170,8 +170,8 @@ export default function AsRepairStatusPage() {
         <tfoot>
           <tr style={{ fontWeight: 700, background: 'rgb(243, 243, 243)' }}>
             {/* 원본 합계 줄: 소모금액 앞 칸을 다 묶어 가운데 · 바탕 rgb(243,243,243) · 굵게(2026-10-03 실측). */}
-            <td colSpan={5} style={{ textAlign: 'center' }}>합계</td>
-            <td style={{ textAlign: 'right' }}>{won(total)}</td>
+            <td colSpan={5} className="text-center">합계</td>
+            <td className="text-right">{won(total)}</td>
             <td></td>
           </tr>
         </tfoot>

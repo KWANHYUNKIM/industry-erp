@@ -121,13 +121,13 @@ export default function PurchaseTaxStockPage({ kind = 'PURCHASE', list = false }
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={list ? SALES_TAX_LIST_PICKS : sales ? SALES_TAX_STOCK_PICKS : AS_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
@@ -144,41 +144,41 @@ export default function PurchaseTaxStockPage({ kind = 'PURCHASE', list = false }
         </EcCond>
         {sales && !list && (
           <EcCond label="기타">
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+            <label className="inline-flex items-center gap-[3px] text-[12.5px]">
               <input type="checkbox" checked={taxOnly} onChange={(e) => setTaxOnly(e.target.checked)} /> 세무신고거래처
             </label>
           </EcCond>
         )}
       </ul>
 
-      {!list && <h3 style={{ fontSize: 13, fontWeight: 700, margin: '4px 0 6px' }}>{sales ? '매출청구서현황' : '매입청구서현황'} <span style={{ fontWeight: 400, color: 'var(--ec-text-hint)' }}>{dateText(from)} ~ {dateText(to)}</span></h3>}
+      {!list && <h3 className="text-[13px] font-bold mt-[4px] mx-0 mb-[6px]">{sales ? '매출청구서현황' : '매입청구서현황'} <span className="font-normal text-ec-hint">{dateText(from)} ~ {dateText(to)}</span></h3>}
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ textAlign: 'center' }}>{list ? '일자 - 번호' : '일자-No.'}</th>
+            <th className="text-center">{list ? '일자 - 번호' : '일자-No.'}</th>
             <th>거래처명</th>
-            <th style={{ textAlign: 'right' }}>공급가액</th>
-            <th style={{ textAlign: 'right' }}>{list ? '부가세' : sales ? '매출부가세' : '매입부가세'}</th>
-            <th style={{ textAlign: 'right' }}>{list ? '합 계' : sales ? '매출합계' : '매입합계'}</th>
-            <th style={{ textAlign: 'center' }}>내역보기</th>
+            <th className="text-right">공급가액</th>
+            <th className="text-right">{list ? '부가세' : sales ? '매출부가세' : '매입부가세'}</th>
+            <th className="text-right">{list ? '합 계' : sales ? '매출합계' : '매입합계'}</th>
+            <th className="text-center">내역보기</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={6} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : list ? [...shown].reverse().map((j) => {
             /* 조회(목록)는 최근 것이 위다 — 원본 2026/10/28 · 10/02 · 09/28 차례(실측). */
             const s = sumOf(j)
             return (
               <tr key={j.id}>
-                <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{dateText(j.entryDate)} {j.docNo}</td>
+                <td className="text-center">{dateText(j.entryDate)} {j.docNo}</td>
                 <td>{j.partnerName ?? ''}</td>
-                <td style={{ textAlign: 'right' }}>{won(s.supply)}</td>
-                <td style={{ textAlign: 'right' }}>{won(s.vat)}</td>
-                <td style={{ textAlign: 'right' }}>{won(s.total)}</td>
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-right">{won(s.supply)}</td>
+                <td className="text-right">{won(s.vat)}</td>
+                <td className="text-right">{won(s.total)}</td>
+                <td className="text-center">
                   <button type="button" className="no-ec" onClick={() => setDetail(j)}
                           style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12 }}>내역보기</button>
                 </td>
@@ -191,12 +191,12 @@ export default function PurchaseTaxStockPage({ kind = 'PURCHASE', list = false }
                 const s = sumOf(j)
                 return (
                   <tr key={j.id}>
-                    <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{dateText(j.entryDate)} {j.docNo}</td>
+                    <td className="text-center">{dateText(j.entryDate)} {j.docNo}</td>
                     <td>{j.partnerName ?? ''}</td>
-                    <td style={{ textAlign: 'right' }}>{won(s.supply)}</td>
-                    <td style={{ textAlign: 'right' }}>{won(s.vat)}</td>
-                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{won(s.total)}</td>
-                    <td style={{ textAlign: 'center' }}>
+                    <td className="text-right">{won(s.supply)}</td>
+                    <td className="text-right">{won(s.vat)}</td>
+                    <td className="text-right font-semibold">{won(s.total)}</td>
+                    <td className="text-center">
                       <button type="button" className="no-ec" onClick={() => setDetail(j)}
                               style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12 }}>내역보기</button>
                     </td>
@@ -204,10 +204,10 @@ export default function PurchaseTaxStockPage({ kind = 'PURCHASE', list = false }
                 )
               }),
               <tr key={`m${m}`} style={SUB_ROW}>
-                <td colSpan={2} style={{ textAlign: 'center' }}>{m.replace('-', '/')} 계</td>
-                <td style={{ textAlign: 'right' }}>{won(sub.supply)}</td>
-                <td style={{ textAlign: 'right' }}>{won(sub.vat)}</td>
-                <td style={{ textAlign: 'right' }}>{won(sub.total)}</td>
+                <td colSpan={2} className="text-center">{m.replace('-', '/')} 계</td>
+                <td className="text-right">{won(sub.supply)}</td>
+                <td className="text-right">{won(sub.vat)}</td>
+                <td className="text-right">{won(sub.total)}</td>
                 <td></td>
               </tr>,
             ]
@@ -216,10 +216,10 @@ export default function PurchaseTaxStockPage({ kind = 'PURCHASE', list = false }
         {shown.length > 0 && !list && (
           <tfoot>
             <tr style={SUB_ROW}>
-              <td colSpan={2} style={{ textAlign: 'center' }}>합계</td>
-              <td style={{ textAlign: 'right' }}>{won(total.supply)}</td>
-              <td style={{ textAlign: 'right' }}>{won(total.vat)}</td>
-              <td style={{ textAlign: 'right' }}>{won(total.total)}</td>
+              <td colSpan={2} className="text-center">합계</td>
+              <td className="text-right">{won(total.supply)}</td>
+              <td className="text-right">{won(total.vat)}</td>
+              <td className="text-right">{won(total.total)}</td>
               <td></td>
             </tr>
           </tfoot>
@@ -227,14 +227,14 @@ export default function PurchaseTaxStockPage({ kind = 'PURCHASE', list = false }
       </table>
       <Modal open={detail != null} error={error} title={detail ? `${dateText(detail.entryDate)} ${detail.docNo} — ${detail.sourceTypeName}` : ''} width={640} onClose={() => setDetail(null)}>
         <table className="w-full text-left">
-          <thead><tr><th>계정</th><th>적요</th><th style={{ textAlign: 'right' }}>차변</th><th style={{ textAlign: 'right' }}>대변</th></tr></thead>
+          <thead><tr><th>계정</th><th>적요</th><th className="text-right">차변</th><th className="text-right">대변</th></tr></thead>
           <tbody>
             {(detail?.lines ?? []).map((l, i) => (
               <tr key={i}>
                 <td>{l.accountCode} {l.accountName}</td>
                 <td>{l.description ?? ''}</td>
-                <td style={{ textAlign: 'right' }}>{Number(l.debit) ? won(l.debit) : ''}</td>
-                <td style={{ textAlign: 'right' }}>{Number(l.credit) ? won(l.credit) : ''}</td>
+                <td className="text-right">{Number(l.debit) ? won(l.debit) : ''}</td>
+                <td className="text-right">{Number(l.credit) ? won(l.credit) : ''}</td>
               </tr>
             ))}
           </tbody>

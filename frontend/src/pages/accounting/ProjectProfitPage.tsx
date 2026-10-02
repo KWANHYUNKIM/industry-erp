@@ -58,20 +58,20 @@ export default function ProjectProfitPage() {
         dateLabel="기간"
       >
         <EcCond label="기타">
-          <label style={{ fontSize: 12 }}>
+          <label className="text-[12px]">
             <input type="checkbox" checked={onlyActive}
                    onChange={(e) => setOnlyActive(e.target.checked)} /> 거래가 있는 프로젝트만
           </label>
         </EcCond>
       </EcStatusPanel>
 
-      <p style={{ marginBottom: 8, fontSize: 12, color: 'var(--ec-text-hint)' }}>
+      <p className="mb-[8px] text-[12px] text-ec-hint">
         매출·원가는 공급가액 기준(부가세 제외). 판매·구매·비용 입력 시 프로젝트를 지정하면 여기 잡힙니다.
       </p>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+      <div className="flex gap-[10px] mb-[10px]">
         <Box label="프로젝트 매출" value={`${won(data?.totalRevenue ?? 0)} 원`} color="var(--ec-blue)" bg="var(--ec-blue-wash)" />
         <Box label="프로젝트 원가·비용" value={`${won(data?.totalCost ?? 0)} 원`} color="var(--ec-danger)" bg="var(--ec-danger-bg)" />
         <Box
@@ -93,35 +93,35 @@ export default function ProjectProfitPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th className="w-[34px]"></th>
             <th>프로젝트코드</th>
             <th>프로젝트명</th>
-            <th style={{ textAlign: 'center' }}>상태</th>
-            <th style={{ textAlign: 'right' }}>매출</th>
-            <th style={{ textAlign: 'right' }}>구매원가</th>
-            <th style={{ textAlign: 'right' }}>비용</th>
-            <th style={{ textAlign: 'right' }}>이익</th>
-            <th style={{ textAlign: 'right' }}>이익률</th>
-            <th style={{ textAlign: 'center' }}>전표(판매/구매/비용)</th>
+            <th className="text-center">상태</th>
+            <th className="text-right">매출</th>
+            <th className="text-right">구매원가</th>
+            <th className="text-right">비용</th>
+            <th className="text-right">이익</th>
+            <th className="text-right">이익률</th>
+            <th className="text-center">전표(판매/구매/비용)</th>
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>
+            <tr><td colSpan={10} className="text-center text-ec-hint p-[20px]">
               해당 기간에 프로젝트가 지정된 전표가 없습니다.
             </td></tr>
           ) : rows.map((r, i) => (
             <tr key={r.projectId}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{r.projectCode}</td>
-              <td style={{ fontWeight: 600 }}>{r.projectName}</td>
-              <td style={{ textAlign: 'center', color: 'var(--ec-label)' }}>{r.status ?? ''}</td>
-              <td style={{ textAlign: 'right' }}>{won(r.revenue)}</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{won(r.purchaseCost)}</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{won(r.expense)}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td className="text-ec-blue">{r.projectCode}</td>
+              <td className="font-semibold">{r.projectName}</td>
+              <td className="text-center text-ec-label">{r.status ?? ''}</td>
+              <td className="text-right">{won(r.revenue)}</td>
+              <td className="text-right text-ec-label">{won(r.purchaseCost)}</td>
+              <td className="text-right text-ec-label">{won(r.expense)}</td>
               <td style={{ textAlign: 'right', fontWeight: 700, color: r.profit >= 0 ? '#2f8401' : 'var(--ec-danger)' }}>{won(r.profit)}</td>
               <td style={{ textAlign: 'right', color: r.marginRate >= 0 ? '#2f8401' : 'var(--ec-danger)' }}>{r.marginRate.toFixed(1)}%</td>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>
+              <td className="text-center text-ec-hint">
                 {r.salesCount} / {r.purchaseCount} / {r.expenseCount}
               </td>
             </tr>
@@ -129,12 +129,12 @@ export default function ProjectProfitPage() {
         </tbody>
         {rows.length > 0 && (
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
-              <td colSpan={4} style={{ border: '1px solid var(--ec-border)', padding: '5px 8px' }}>합계</td>
-              <td style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right' }}>{won(data!.totalRevenue)}</td>
-              <td colSpan={2} style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right', color: 'var(--ec-danger)' }}>{won(data!.totalCost)}</td>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={4} className="border border-ec-line border-solid py-[5px] px-[8px]">합계</td>
+              <td className="border border-ec-line border-solid py-[5px] px-[8px] text-right">{won(data!.totalRevenue)}</td>
+              <td colSpan={2} className="border border-ec-line border-solid py-[5px] px-[8px] text-right text-ec-danger">{won(data!.totalCost)}</td>
               <td style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right', color: data!.totalProfit >= 0 ? '#2f8401' : 'var(--ec-danger)' }}>{won(data!.totalProfit)}</td>
-              <td colSpan={2} style={{ border: '1px solid var(--ec-border)' }}></td>
+              <td colSpan={2} className="border border-ec-line border-solid"></td>
             </tr>
           </tfoot>
         )}
@@ -146,7 +146,7 @@ export default function ProjectProfitPage() {
 function Box({ label, value, color, bg }: { label: string; value: string; color: string; bg: string }) {
   return (
     <div style={{ flex: 1, border: '1px solid var(--ec-border)', background: bg, padding: '10px 14px' }}>
-      <div style={{ fontSize: 12, color: 'var(--ec-label)' }}>{label}</div>
+      <div className="text-[12px] text-ec-label">{label}</div>
       <div style={{ fontSize: 19, fontWeight: 800, color }}>{value}</div>
     </div>
   )

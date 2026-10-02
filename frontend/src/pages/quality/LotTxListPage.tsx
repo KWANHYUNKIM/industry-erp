@@ -70,13 +70,13 @@ export default function LotTxListPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={QUOTATION_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
@@ -93,7 +93,7 @@ export default function LotTxListPage() {
           </select>
           {expiryOpt !== '사용안함' && (<>
             <input type="date" className="ec-input" value={expFrom} onChange={(e) => { setExpFrom(e.target.value); setExpiryOpt('직접입력') }} style={{ width: 145, marginLeft: 6 }} />
-            <span style={{ margin: '0 4px' }}>~</span>
+            <span className="my-0 mx-[4px]">~</span>
             <input type="date" className="ec-input" value={expTo} onChange={(e) => { setExpTo(e.target.value); setExpiryOpt('직접입력') }} style={{ width: 145 }} />
           </>)}
         </EcCond>
@@ -105,31 +105,31 @@ export default function LotTxListPage() {
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ textAlign: 'center' }}>일자-No.</th>
+            <th className="w-[34px]"></th>
+            <th className="text-center">일자-No.</th>
             <th>품목명[규격]</th>
             <th>시리얼/로트No.</th>
-            <th style={{ textAlign: 'right' }}>수량</th>
-            <th style={{ textAlign: 'center' }}>전표구분</th>
-            <th style={{ textAlign: 'center' }}>유효기한</th>
+            <th className="text-right">수량</th>
+            <th className="text-center">전표구분</th>
+            <th className="text-center">유효기한</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => {
             const spec = specOf.get(String(r.itemId))
             return (
               <tr key={r.id}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{dateText(r.txDate)}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td className="text-center">{dateText(r.txDate)}</td>
                 <td>{r.itemName}{spec ? ` [${spec}]` : ''}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.lotNo}</td>
-                <td style={{ textAlign: 'right' }}>{Number(r.quantityChange).toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                <td style={{ textAlign: 'center' }}>{r.typeName}</td>
-                <td style={{ textAlign: 'center' }}>{r.expireDate ? dateText(r.expireDate) : ''}</td>
+                <td>{r.lotNo}</td>
+                <td className="text-right">{Number(r.quantityChange).toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td className="text-center">{r.typeName}</td>
+                <td className="text-center">{r.expireDate ? dateText(r.expireDate) : ''}</td>
               </tr>
             )
           })}

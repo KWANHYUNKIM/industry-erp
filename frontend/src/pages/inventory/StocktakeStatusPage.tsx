@@ -258,12 +258,12 @@ export default function StocktakeStatusPage() {
         */}
         <EcCond label="기타">
           {/* 원본 [기타]의 체크는 <b>[수량관리제외품목포함]</b> 하나다(기본 꺼짐). */}
-          <label style={{ fontSize: 12 }}>
+          <label className="text-[12px]">
             <input type="checkbox" checked={cond.inclUntracked}
                    onChange={(e) => setC({ inclUntracked: e.target.checked })} /> 수량관리제외품목포함
           </label>
           {/* [차이있는것만] 은 원본에 없는 우리 체크다 — 실사는 어긋난 줄만 보려고 여는 화면이라 남긴다. */}
-          <label style={{ fontSize: 12, marginLeft: 10 }}>
+          <label className="text-[12px] ml-[10px]">
             <input type="checkbox" checked={cond.diffOnly}
                    onChange={(e) => setC({ diffOnly: e.target.checked })} /> 차이있는것만
           </label>
@@ -291,17 +291,17 @@ export default function StocktakeStatusPage() {
         </EcCond>
       </EcStatusPanel>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
         {mode === '내역' ? '건수' : '품목×창고'}{' '}
-        <b style={{ color: 'var(--ec-text)' }}>{num(mode === '내역' ? shown.length : summary.length)}</b>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+        <b className="text-ec-text">{num(mode === '내역' ? shown.length : summary.length)}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
         차이 <b style={{ color: diffColor(totals.diff), fontSize: 14 }}>{signed(totals.diff)}</b>
         {mismatched > 0 && (
           <>
-            <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
-            안 맞은 줄 <b style={{ color: 'var(--ec-danger)', fontSize: 14 }}>{num(mismatched)}</b>
+            <span className="my-0 mx-[8px] text-ec-off">|</span>
+            안 맞은 줄 <b className="text-ec-danger text-[14px]">{num(mismatched)}</b>
           </>
         )}
       </div>
@@ -312,10 +312,10 @@ export default function StocktakeStatusPage() {
         ) : mode === '내역' ? (
           <table className="w-full text-left">
             <colgroup>
-              <col style={{ width: '4%' }} /><col style={{ width: '13%' }} /><col style={{ width: '9%' }} />
-              <col style={{ width: '13%' }} /><col />
-              <col style={{ width: '9%' }} /><col style={{ width: '9%' }} /><col style={{ width: '9%' }} />
-              <col style={{ width: '9%' }} /><col style={{ width: '12%' }} />
+              <col className="w-[4%]" /><col className="w-[13%]" /><col className="w-[9%]" />
+              <col className="w-[13%]" /><col />
+              <col className="w-[9%]" /><col className="w-[9%]" /><col className="w-[9%]" />
+              <col className="w-[9%]" /><col className="w-[12%]" />
             </colgroup>
             <thead>
               <tr>
@@ -333,51 +333,51 @@ export default function StocktakeStatusPage() {
                   [장부수량]·[차이]·[상태]는 원본에 없는 우리 열이다.
                 */}
                 <th></th>
-                <th style={{ textAlign: 'center' }}>일자-No.</th>
+                <th className="text-center">일자-No.</th>
                 <th>품목코드</th>
                 <th>품목명[규격명]</th>
                 <th>창고명</th>
-                <th style={{ textAlign: 'right' }}>장부수량</th>
-                <th style={{ textAlign: 'right' }}>수량</th>
-                <th style={{ textAlign: 'right' }}>차이</th>
-                <th style={{ textAlign: 'center' }}>상태</th>
+                <th className="text-right">장부수량</th>
+                <th className="text-right">수량</th>
+                <th className="text-right">차이</th>
+                <th className="text-center">상태</th>
                 <th>적요</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+                <tr><td colSpan={10} className="text-center text-ec-ink">불러오는 중…</td></tr>
               ) : shown.length === 0 ? (
-                <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={10} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
               ) : shown.map((r, i) => (
                 <tr key={r.id} style={r.diff !== 0 ? { background: '#fdf7f8' } : undefined}>
-                  <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+                  <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
                   {/* 원본은 일자와 번호를 한 칸에 적는다. */}
-                  <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{r.requestDate.replace(/-/g, '/')} {r.adjustNo}</td>
-                  <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
+                  <td className="text-center">{r.requestDate.replace(/-/g, '/')} {r.adjustNo}</td>
+                  <td>{r.itemCode}</td>
                   {/* 규격은 줄에 없고 품목 마스터가 든다 — id 로 잇는다. */}
                   <td>{r.itemName}{specOf(r.itemId) ? ` [${specOf(r.itemId)}]` : ''}</td>
                   <td>{r.warehouseName}</td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(r.bookQty)}</td>
-                  <td style={{ textAlign: 'right' }}>{num(r.actualQty)}</td>
+                  <td className="text-right text-ec-hint">{num(r.bookQty)}</td>
+                  <td className="text-right">{num(r.actualQty)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 700, color: diffColor(r.diff) }}>
-                    {signed(r.diff)} <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--ec-text-hint)' }}>{r.unit}</span>
+                    {signed(r.diff)} <span className="text-[11px] font-normal text-ec-hint">{r.unit}</span>
                   </td>
                   <td style={{ textAlign: 'center', color: r.status === 'APPLIED' ? '#2f8401' : r.status === 'REJECTED' ? 'var(--ec-danger)' : '#b6791b' }}>
                     {r.statusName}
                   </td>
-                  <td style={{ color: 'var(--ec-label)' }}>{r.reason ?? ''}</td>
+                  <td className="text-ec-label">{r.reason ?? ''}</td>
                 </tr>
               ))}
             </tbody>
             {shown.length > 0 && (
               <tfoot>
                 <tr>
-                  <td colSpan={5} style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>합계</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>{num(totals.book)}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>{num(totals.actual)}</td>
+                  <td colSpan={5} className="text-right font-bold bg-ec-page">합계</td>
+                  <td className="text-right font-bold bg-ec-page">{num(totals.book)}</td>
+                  <td className="text-right font-bold bg-ec-page">{num(totals.actual)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: diffColor(totals.diff) }}>{signed(totals.diff)}</td>
-                  <td colSpan={2} style={{ background: 'var(--ec-bg-page)' }}></td>
+                  <td colSpan={2} className="bg-ec-page"></td>
                 </tr>
               </tfoot>
             )}
@@ -385,10 +385,10 @@ export default function StocktakeStatusPage() {
         ) : (
           <table className="w-full text-left">
             <colgroup>
-              <col style={{ width: '5%' }} /><col style={{ width: '18%' }} />
-              <col style={{ width: '15%' }} /><col />
-              <col style={{ width: '9%' }} /><col style={{ width: '11%' }} />
-              <col style={{ width: '11%' }} /><col style={{ width: '11%' }} />
+              <col className="w-[5%]" /><col className="w-[18%]" />
+              <col className="w-[15%]" /><col />
+              <col className="w-[9%]" /><col className="w-[11%]" />
+              <col className="w-[11%]" /><col className="w-[11%]" />
             </colgroup>
             <thead>
               <tr>
@@ -396,28 +396,28 @@ export default function StocktakeStatusPage() {
                 <th>창고</th>
                 <th>품목코드</th>
                 <th>품목명</th>
-                <th style={{ textAlign: 'right' }}>실사횟수</th>
-                <th style={{ textAlign: 'right' }}>장부수량</th>
-                <th style={{ textAlign: 'right' }}>실사수량</th>
-                <th style={{ textAlign: 'right' }}>차이</th>
+                <th className="text-right">실사횟수</th>
+                <th className="text-right">장부수량</th>
+                <th className="text-right">실사수량</th>
+                <th className="text-right">차이</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+                <tr><td colSpan={8} className="text-center text-ec-ink">불러오는 중…</td></tr>
               ) : summary.length === 0 ? (
-                <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={8} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
               ) : summary.map((g, i) => (
                 <tr key={g.k} style={g.diff !== 0 ? { background: '#fdf7f8' } : undefined}>
-                  <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+                  <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
                   <td>{g.warehouseName}</td>
-                  <td style={{ fontFamily: 'monospace' }}>{g.itemCode}</td>
+                  <td>{g.itemCode}</td>
                   <td>{g.itemName}</td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(g.count)}</td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(g.book)}</td>
-                  <td style={{ textAlign: 'right' }}>{num(g.actual)}</td>
+                  <td className="text-right text-ec-hint">{num(g.count)}</td>
+                  <td className="text-right text-ec-hint">{num(g.book)}</td>
+                  <td className="text-right">{num(g.actual)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 700, color: diffColor(g.diff) }}>
-                    {signed(g.diff)} <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--ec-text-hint)' }}>{g.unit}</span>
+                    {signed(g.diff)} <span className="text-[11px] font-normal text-ec-hint">{g.unit}</span>
                   </td>
                 </tr>
               ))}
@@ -425,9 +425,9 @@ export default function StocktakeStatusPage() {
             {summary.length > 0 && (
               <tfoot>
                 <tr>
-                  <td colSpan={5} style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>합계</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>{num(totals.book)}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>{num(totals.actual)}</td>
+                  <td colSpan={5} className="text-right font-bold bg-ec-page">합계</td>
+                  <td className="text-right font-bold bg-ec-page">{num(totals.book)}</td>
+                  <td className="text-right font-bold bg-ec-page">{num(totals.actual)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: diffColor(totals.diff) }}>{signed(totals.diff)}</td>
                 </tr>
               </tfoot>

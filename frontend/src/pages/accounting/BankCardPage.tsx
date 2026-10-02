@@ -240,7 +240,7 @@ export default function BankCardPage() {
         { label: 'Excel' },
       ]}
     >
-      <div style={{ display: 'flex', gap: 2, marginBottom: 8, borderBottom: '1px solid var(--ec-border)' }}>
+      <div className="flex gap-[2px] mb-[8px] border-b border-b-ec-line border-solid">
         {TABS.map((t) => (
           <button key={t} onClick={() => switchTab(t)} className="no-ec" style={{
             padding: '6px 14px', fontSize: 12.5, border: 'none', cursor: 'pointer',
@@ -249,12 +249,12 @@ export default function BankCardPage() {
           }}>{t} ({count(t)})</button>
         ))}
         <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 12, color: 'var(--ec-label)' }}>
-          사용중 계좌 잔액 합계 <b style={{ color: 'var(--ec-blue-dark)' }}>{won(totalBalance)}</b>
+          사용중 계좌 잔액 합계 <b className="text-ec-navy">{won(totalBalance)}</b>
         </span>
       </div>
 
-      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)' }}>{notice}</div>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
 
       <Modal error={error} open={(showForm || !!editAccount) && tab === '계좌등록'}
              title={editAccount ? '계좌 수정' : '계좌/카드 등록'}
@@ -303,7 +303,7 @@ export default function BankCardPage() {
           <EcCond label="기간">
             <input type="date" className="ec-input" value={txnFrom}
                    onChange={(e) => setTxnFrom(e.target.value)} style={{ width: 140 }} />
-            <span style={{ color: 'var(--ec-label)' }}>~</span>
+            <span className="text-ec-label">~</span>
             <input type="date" className="ec-input" value={txnTo}
                    onChange={(e) => setTxnTo(e.target.value)} style={{ width: 140 }} />
           </EcCond>
@@ -327,7 +327,7 @@ export default function BankCardPage() {
         </ul>
       )}
 
-      {loading ? <p style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</p>
+      {loading ? <p className="ec-empty">불러오는 중…</p>
         : tab === '계좌등록' ? <BankAccountTable rows={shownAccounts} onEdit={setEditAccount} picked={picked} onPick={pick} />
         : tab === '카드등록' ? <CardTable rows={shownCards} onEdit={setEditCard} picked={picked} onPick={pick} />
         : tab === '계좌입출금' ? (
@@ -373,15 +373,15 @@ function BankAccountTable({ rows, onEdit, picked, onPick }: {
     <table className="w-full text-left">
       <thead>
         <tr>
-          <th style={{ width: 28, textAlign: 'center' }}></th>
-          <th style={{ width: 34 }}></th>
-          <th style={{ width: 90 }}>계좌코드</th>
-          <th style={{ width: 130 }}>계좌명</th>
-          <th style={{ width: 120 }}>은행</th>
-          <th style={{ width: 180 }}>계좌번호</th>
-          <th style={{ width: 100 }}>예금주</th>
-          <th style={{ width: 130 }}>예금계정</th>
-          <th style={{ width: 130, textAlign: 'right' }}>잔액</th>
+          <th className="w-[28px] text-center"></th>
+          <th className="w-[34px]"></th>
+          <th className="w-[90px]">계좌코드</th>
+          <th className="w-[130px]">계좌명</th>
+          <th className="w-[120px]">은행</th>
+          <th className="w-[180px]">계좌번호</th>
+          <th className="w-[100px]">예금주</th>
+          <th className="w-[130px]">예금계정</th>
+          <th className="w-[130px] text-right">잔액</th>
           {/* 원본 계좌등록의 이름은 [비고]가 아니라 <b>[적요]</b> 이고, 차례도 [사용]보다 앞이다. */}
           <th>적요</th>
           {/*
@@ -395,32 +395,32 @@ function BankAccountTable({ rows, onEdit, picked, onPick }: {
             "사용 불가능하거나 존재하지 않는 메뉴명입니다" 다(권한 없음). 우리는 환종 이름을
             찍는다 — 가운데정렬인 것으로 보아 원본은 표시(Y/N)일 수도 있다. 권한이 생기면 잰다.
           */}
-          <th style={{ width: 65, textAlign: 'center' }}>외화통장</th>
-          <th style={{ width: 70, textAlign: 'center' }}>사용</th>
-          <th style={{ width: 70, textAlign: 'center' }}>처리</th>
+          <th className="w-[65px] text-center">외화통장</th>
+          <th className="w-[70px] text-center">사용</th>
+          <th className="w-[70px] text-center">처리</th>
         </tr>
       </thead>
       <tbody>
         {rows.length === 0 ? (
-          <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          <tr><td colSpan={13} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
         ) : rows.map((r, i) => (
           <tr key={r.id}>
-            <td style={{ textAlign: 'center' }}>
+            <td className="text-center">
               <input type="checkbox" checked={picked.has(r.id)} onChange={() => onPick(r.id)} />
             </td>
-            <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-            <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{r.code ?? ''}</td>
+            <td className="text-center text-ec-hint">{i + 1}</td>
+            <td className="text-ec-label">{r.code ?? ''}</td>
             <td>{r.name ?? ''}</td>
             <td>{r.bankName}</td>
-            <td style={{ fontFamily: 'monospace' }}>{r.accountNo}</td>
+            <td>{r.accountNo}</td>
             <td>{r.holder ?? ''}</td>
-            <td style={{ color: 'var(--ec-label)' }}>{r.glAccountCode} {r.glAccountName}</td>
-            <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(r.balance)}</td>
-            <td style={{ color: 'var(--ec-label)' }}>{r.remark ?? ''}</td>
+            <td className="text-ec-label">{r.glAccountCode} {r.glAccountName}</td>
+            <td className="text-right font-bold">{won(r.balance)}</td>
+            <td className="text-ec-label">{r.remark ?? ''}</td>
             {/* 안 정한 통장은 원화라 흐리게 둔다 — 지어내지 않는다. */}
             <td style={{ textAlign: 'center', color: r.currencyName ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{r.currencyName ?? '원화'}</td>
             <td style={{ textAlign: 'center', color: r.active ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>{r.active ? '사용' : '중지'}</td>
-            <td style={{ textAlign: 'center' }}>
+            <td className="text-center">
               <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => onEdit(r)}>수정</button>
             </td>
           </tr>
@@ -438,43 +438,43 @@ function CardTable({ rows, onEdit, picked, onPick }: {
     <table className="w-full text-left">
       <thead>
         <tr>
-          <th style={{ width: 28, textAlign: 'center' }}></th>
-          <th style={{ width: 34 }}></th>
-          <th style={{ width: 90 }}>카드코드</th>
-          <th style={{ width: 120 }}>카드명</th>
-          <th style={{ width: 100 }}>카드사</th>
-          <th style={{ width: 180 }}>카드번호</th>
-          <th style={{ width: 90, textAlign: 'center' }}>종류</th>
-          <th style={{ width: 100 }}>명의자</th>
+          <th className="w-[28px] text-center"></th>
+          <th className="w-[34px]"></th>
+          <th className="w-[90px]">카드코드</th>
+          <th className="w-[120px]">카드명</th>
+          <th className="w-[100px]">카드사</th>
+          <th className="w-[180px]">카드번호</th>
+          <th className="w-[90px] text-center">종류</th>
+          <th className="w-[100px]">명의자</th>
           {/* 원본 카드등록의 이름은 <b>[결제계좌명]</b> 이다. */}
             <th>결제계좌명</th>
           {/* 원본 카드등록의 [계정명] — 카드 사용이 <b>어느 계정으로 분개되는지</b>를 여기서 본다. */}
-          <th style={{ width: 110 }}>계정명</th>
-          <th style={{ width: 80, textAlign: 'center' }}>결제일</th>
-          <th style={{ width: 70, textAlign: 'center' }}>사용</th>
-          <th style={{ width: 70, textAlign: 'center' }}>처리</th>
+          <th className="w-[110px]">계정명</th>
+          <th className="w-[80px] text-center">결제일</th>
+          <th className="w-[70px] text-center">사용</th>
+          <th className="w-[70px] text-center">처리</th>
         </tr>
       </thead>
       <tbody>
         {rows.length === 0 ? (
-          <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          <tr><td colSpan={13} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
         ) : rows.map((r, i) => (
           <tr key={r.id}>
-            <td style={{ textAlign: 'center' }}>
+            <td className="text-center">
               <input type="checkbox" checked={picked.has(r.id)} onChange={() => onPick(r.id)} />
             </td>
-            <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-            <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{r.code ?? ''}</td>
-            <td style={{ fontWeight: 600 }}>{r.cardName}</td>
+            <td className="text-center text-ec-hint">{i + 1}</td>
+            <td className="text-ec-label">{r.code ?? ''}</td>
+            <td className="font-semibold">{r.cardName}</td>
             <td>{r.cardCompany}</td>
-            <td style={{ fontFamily: 'monospace' }}>{r.cardNo}</td>
+            <td>{r.cardNo}</td>
             <td style={{ textAlign: 'center', color: r.type === 'CORPORATE' ? 'var(--ec-blue)' : 'var(--ec-label)' }}>{r.typeName}</td>
             <td>{r.ownerName ?? ''}</td>
-            <td style={{ color: 'var(--ec-label)' }}>{r.settlementAccountName ?? ''}</td>
-            <td style={{ color: 'var(--ec-label)' }}>{r.glAccountName ?? ''}</td>
-            <td style={{ textAlign: 'center' }}>{r.settlementDay ? `${r.settlementDay}일` : ''}</td>
+            <td className="text-ec-label">{r.settlementAccountName ?? ''}</td>
+            <td className="text-ec-label">{r.glAccountName ?? ''}</td>
+            <td className="text-center">{r.settlementDay ? `${r.settlementDay}일` : ''}</td>
             <td style={{ textAlign: 'center', color: r.active ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>{r.active ? '사용' : '중지'}</td>
-            <td style={{ textAlign: 'center' }}>
+            <td className="text-center">
               <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => onEdit(r)}>수정</button>
             </td>
           </tr>
@@ -491,37 +491,37 @@ function BankTxnTable({ rows, onRemove }: { rows: BankTxn[]; onRemove: (r: BankT
     <table className="w-full text-left">
       <thead>
         <tr>
-          <th style={{ width: 34 }}></th>
-          <th style={{ width: 130 }}>전표번호</th>
-          <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th>
-          <th style={{ width: 170 }}>계좌</th>
-          <th style={{ width: 60, textAlign: 'center' }}>구분</th>
-          <th style={{ width: 110, textAlign: 'right' }}>금액</th>
-          <th style={{ width: 120 }}>상대계정</th>
-          <th style={{ width: 110 }}>거래처</th>
-          <th style={{ width: 120, textAlign: 'right' }}>거래후 잔액</th>
-          <th style={{ width: 130 }}>회계전표</th>
+          <th className="w-[34px]"></th>
+          <th className="w-[130px]">전표번호</th>
+          <th className="w-[100px] cursor-pointer" onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th>
+          <th className="w-[170px]">계좌</th>
+          <th className="w-[60px] text-center">구분</th>
+          <th className="w-[110px] text-right">금액</th>
+          <th className="w-[120px]">상대계정</th>
+          <th className="w-[110px]">거래처</th>
+          <th className="w-[120px] text-right">거래후 잔액</th>
+          <th className="w-[130px]">회계전표</th>
           <th>적요</th>
-          <th style={{ width: 50, textAlign: 'center' }}>삭제</th>
+          <th className="w-[50px] text-center">삭제</th>
         </tr>
       </thead>
       <tbody>
         {rows.length === 0 ? (
-          <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          <tr><td colSpan={12} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
         ) : sort.sorted.map((r, i) => (
           <tr key={r.id}>
-            <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-            <td style={{ fontFamily: 'monospace' }}>{r.txnNo}</td>
+            <td className="text-center text-ec-hint">{i + 1}</td>
+            <td>{r.txnNo}</td>
             <td>{dateText(r.txnDate)}</td>
             <td>{r.bankName} {r.accountNo}</td>
             <td style={{ textAlign: 'center', fontWeight: 700, color: r.deposit ? 'var(--ec-success)' : 'var(--ec-danger)' }}>{r.directionName}</td>
-            <td style={{ textAlign: 'right', fontWeight: 600 }}>{won(r.amount)}</td>
-            <td style={{ color: 'var(--ec-label)' }}>{r.counterAccountName}</td>
+            <td className="text-right font-semibold">{won(r.amount)}</td>
+            <td className="text-ec-label">{r.counterAccountName}</td>
             <td>{r.partnerName ?? ''}</td>
-            <td style={{ textAlign: 'right' }}>{won(r.balanceAfter)}</td>
-            <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{r.journalDocNo ?? ''}</td>
-            <td style={{ color: 'var(--ec-label)' }}>{r.description ?? ''}</td>
-            <td style={{ textAlign: 'center' }}>
+            <td className="text-right">{won(r.balanceAfter)}</td>
+            <td className="text-ec-blue">{r.journalDocNo ?? ''}</td>
+            <td className="text-ec-label">{r.description ?? ''}</td>
+            <td className="text-center">
               <button className="no-ec" onClick={() => onRemove(r)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button>
             </td>
           </tr>
@@ -538,35 +538,35 @@ function CardUsageTable({ rows, onRemove }: { rows: CardUsage[]; onRemove: (r: C
     <table className="w-full text-left">
       <thead>
         <tr>
-          <th style={{ width: 34 }}></th>
-          <th style={{ width: 130 }}>전표번호</th>
-          <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('사용일')}>사용일 {sort.mark('사용일')}</th>
-          <th style={{ width: 140 }}>카드</th>
+          <th className="w-[34px]"></th>
+          <th className="w-[130px]">전표번호</th>
+          <th className="w-[100px] cursor-pointer" onClick={() => sort.toggle('사용일')}>사용일 {sort.mark('사용일')}</th>
+          <th className="w-[140px]">카드</th>
           <th>가맹점</th>
-          <th style={{ width: 120 }}>비용계정</th>
-          <th style={{ width: 110, textAlign: 'right' }}>공급가액</th>
-          <th style={{ width: 100, textAlign: 'right' }}>부가세</th>
-          <th style={{ width: 110, textAlign: 'right' }}>합계</th>
-          <th style={{ width: 130 }}>회계전표</th>
-          <th style={{ width: 50, textAlign: 'center' }}>삭제</th>
+          <th className="w-[120px]">비용계정</th>
+          <th className="w-[110px] text-right">공급가액</th>
+          <th className="w-[100px] text-right">부가세</th>
+          <th className="w-[110px] text-right">합계</th>
+          <th className="w-[130px]">회계전표</th>
+          <th className="w-[50px] text-center">삭제</th>
         </tr>
       </thead>
       <tbody>
         {rows.length === 0 ? (
-          <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
         ) : sort.sorted.map((r, i) => (
           <tr key={r.id}>
-            <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-            <td style={{ fontFamily: 'monospace' }}>{r.usageNo}</td>
+            <td className="text-center text-ec-hint">{i + 1}</td>
+            <td>{r.usageNo}</td>
             <td>{dateText(r.usageDate)}</td>
             <td>{r.cardCompany} {r.cardName}</td>
-            <td style={{ fontWeight: 600 }}>{r.merchant}</td>
-            <td style={{ color: 'var(--ec-label)' }}>{r.expenseAccountName}</td>
-            <td style={{ textAlign: 'right' }}>{won(r.supplyAmount)}</td>
-            <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{won(r.vatAmount)}</td>
-            <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(r.totalAmount)}</td>
-            <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{r.journalDocNo ?? ''}</td>
-            <td style={{ textAlign: 'center' }}>
+            <td className="font-semibold">{r.merchant}</td>
+            <td className="text-ec-label">{r.expenseAccountName}</td>
+            <td className="text-right">{won(r.supplyAmount)}</td>
+            <td className="text-right text-ec-hint">{won(r.vatAmount)}</td>
+            <td className="text-right font-bold">{won(r.totalAmount)}</td>
+            <td className="text-ec-blue">{r.journalDocNo ?? ''}</td>
+            <td className="text-center">
               <button className="no-ec" onClick={() => onRemove(r)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button>
             </td>
           </tr>
@@ -582,21 +582,21 @@ function Panel({ title, hint, children, onSubmit, submitLabel }: {
   title: string; hint: string; children: React.ReactNode; onSubmit: () => void; submitLabel: string
 }) {
   return (
-    <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginBottom: 8 }}>
-      <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>{title}</div>
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+    <div className="border border-ec-line border-solid bg-white p-[14px] mb-[8px]">
+      <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">{title}</div>
+      <div className="flex gap-[12px] flex-wrap items-end">
         {children}
         <button className="ec-btn ec-btn-primary" onClick={onSubmit}>{submitLabel}</button>
       </div>
-      <div style={{ marginTop: 8, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>{hint}</div>
+      <div className="mt-[8px] text-[11.5px] text-ec-hint">{hint}</div>
     </div>
   )
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label style={{ fontSize: 12.5 }}>
-      <div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>{label}</div>
+    <label className="text-[12.5px]">
+      <div className="text-ec-label mb-[3px]">{label}</div>
       {children}
     </label>
   )
@@ -691,7 +691,7 @@ function BankAccountForm({ edit, glAccounts, currencies, onError, onSaved }: {
       </Field>
       {edit && (
         <Field label="사용">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4, height: 24 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px] h-[24px]">
             <input type="checkbox" checked={form.active} onChange={(e) => set('active', e.target.checked)} />
             사용중
           </label>
@@ -925,7 +925,7 @@ function CardUsageForm({ cards, glAccounts, onError, onSaved }: {
       <Field label="부가세">
         <input className="ec-input" type="number" step="any" value={form.vatAmount} onChange={(e) => set('vatAmount', e.target.value)} style={{ width: 100, textAlign: 'right' }} placeholder={String(Math.round(supply * 0.1))} />
       </Field>
-      <div style={{ fontSize: 12.5, paddingBottom: 5, color: 'var(--ec-blue-dark)', fontWeight: 700 }}>
+      <div className="text-[12.5px] pb-[5px] text-ec-navy font-bold">
         합계 {won(supply + vat)}
       </div>
       <Field label="적요">

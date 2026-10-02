@@ -91,7 +91,7 @@ export default function AccountFlowPage() {
   useTableColumnCheck(downRef, '계정증감내역', [down.length])
 
   const head = (label: '증가' | '감소') => (
-    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, margin: '0 0 4px' }}>
+    <div className="flex justify-between text-[12px] mt-0 mx-0 mb-[4px]">
       <span>회사명 : {companyName ?? ''} / {acc?.name ?? ''} / {acc?.name ?? ''} 의 {label}</span>
       <span>{slash(from)} ~ {slash(to)}</span>
     </div>
@@ -103,7 +103,7 @@ export default function AccountFlowPage() {
         <th>적요</th>
         <th>거래처코드</th>
         <th>거래처명</th>
-        <th style={{ textAlign: 'right' }}>금액</th>
+        <th className="text-right">금액</th>
       </tr>
     </thead>
   )
@@ -115,12 +115,12 @@ export default function AccountFlowPage() {
           <td>{r.text}</td>
           <td>{r.partnerId != null ? codeOf.get(r.partnerId) ?? '' : ''}</td>
           <td>{r.partner}</td>
-          <td style={{ textAlign: 'right' }}>{won(r.amount)}</td>
+          <td className="text-right">{won(r.amount)}</td>
         </tr>
       ))}
       <tr style={SUB_ROW}>
-        <td colSpan={4} style={{ textAlign: 'center' }}>합계</td>
-        <td style={{ textAlign: 'right' }}>{won(rows.reduce((s, r) => s + r.amount, 0))}</td>
+        <td colSpan={4} className="text-center">합계</td>
+        <td className="text-right">{won(rows.reduce((s, r) => s + r.amount, 0))}</td>
       </tr>
     </tbody>
   )
@@ -136,13 +136,13 @@ export default function AccountFlowPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={ACCOUNT_FLOW_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
@@ -156,19 +156,19 @@ export default function AccountFlowPage() {
         </EcCond>
       </ul>
 
-      {truncated && <p style={{ fontSize: 12, color: 'var(--ec-warn)', marginBottom: 6 }}>전표가 많아 앞부분만 받았습니다 — 기간을 좁혀 보세요.</p>}
+      {truncated && <p className="text-[12px] text-ec-warn mb-[6px]">전표가 많아 앞부분만 받았습니다 — 기간을 좁혀 보세요.</p>}
       {loading ? (
-        <p style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</p>
+        <p className="ec-empty">불러오는 중…</p>
       ) : !entries ? (
-        <p style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>계정을 선택하고 검색하세요.</p>
+        <p className="text-center text-ec-hint p-[20px]">계정을 선택하고 검색하세요.</p>
       ) : (
         <>
-          <h3 style={{ fontSize: 20, fontWeight: 700, textAlign: 'center', margin: '6px 0 12px' }}>계정증감내역</h3>
-          <div style={{ marginBottom: 18 }}>
+          <h3 className="text-[20px] font-bold text-center mt-[6px] mx-0 mb-[12px]">계정증감내역</h3>
+          <div className="mb-[18px]">
             {head('증가')}
             <table ref={tableRef} className="w-full text-left">{thead}{tbody(up)}</table>
           </div>
-          <div style={{ marginBottom: 18 }}>
+          <div className="mb-[18px]">
             {head('감소')}
             <table ref={downRef} className="w-full text-left">{thead}{tbody(down)}</table>
           </div>

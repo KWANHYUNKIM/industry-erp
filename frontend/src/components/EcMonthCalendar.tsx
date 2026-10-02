@@ -47,9 +47,9 @@ export default function EcMonthCalendar({
   return (
     // 폭 240 · 칸 34x26 은 원본 일정관리 왼쪽 달력 실측값이다.
     <div style={{ width: 240, flex: '0 0 auto', border: '1px solid var(--ec-border)', background: '#fff', borderRadius: 5 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px' }}>
+      <div className="flex items-center gap-[6px] py-[8px] px-[10px]">
         <button type="button" className="ec-btn ec-btn-sm" onClick={() => move(-1)} aria-label="이전 달">‹</button>
-        <span style={{ flex: 1, textAlign: 'center', fontSize: 12 }}>
+        <span className="flex-1 text-center text-[12px]">
           {cursor.getFullYear()} / {String(cursor.getMonth() + 1).padStart(2, '0')}
         </span>
         <button type="button" className="ec-btn ec-btn-sm" onClick={() => move(1)} aria-label="다음 달">›</button>
@@ -105,7 +105,7 @@ export default function EcMonthCalendar({
         })}
       </div>
 
-      <div style={{ padding: '6px 10px 10px' }}>
+      <div className="pt-[6px] px-[10px] pb-[10px]">
         <button type="button" className="ec-btn ec-btn-sm" onClick={() => { setCursor(new Date()); onPick(todayStr) }}>
           오늘
         </button>

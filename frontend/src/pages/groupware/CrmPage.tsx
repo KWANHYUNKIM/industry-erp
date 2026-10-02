@@ -115,38 +115,38 @@ export default function CrmPage() {
       onNew={() => setShowForm(true)}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
-      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <Modal error={error} open={showForm} title="영업활동 등록" onClose={() => setShowForm(false)}>{(
-        <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginTop: 8, marginBottom: 8 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>영업활동 등록</div>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>일자</div>
+        <div className="border border-ec-line border-solid bg-white p-[14px] mt-[8px] mb-[8px]">
+          <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">영업활동 등록</div>
+          <div className="flex gap-[12px] flex-wrap items-end">
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">일자</div>
               <input className="ec-input" type="date" value={form.activityDate} onChange={(e) => set('activityDate', e.target.value)} style={{ width: 140 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>고객사 *</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">고객사 *</div>
               <CodePickerField label="고객사" hideLabel width={200} emptyLabel="선택 안 함" placeholder="선택하세요"
                                value={form.partnerId} onChange={(v) => set('partnerId', v)}
                                items={partnerCodeItems(partners)} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>담당연락처</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">담당연락처</div>
               <input className="ec-input" value={form.contactName} onChange={(e) => set('contactName', e.target.value)} style={{ width: 110 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>영업담당</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">영업담당</div>
               <input className="ec-input" value={form.charge} onChange={(e) => set('charge', e.target.value)} placeholder="미입력시 본인" style={{ width: 110 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>단계</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">단계</div>
               <select className="ec-input" value={form.stage} onChange={(e) => set('stage', e.target.value)} style={{ width: 100 }}>
                 {STAGES.map((s) => <option key={s.v} value={s.v}>{s.label}</option>)}
               </select></label>
-            <label style={{ fontSize: 12.5, flex: 1, minWidth: 200 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>활동내용</div>
+            <label className="text-[12.5px] flex-1 min-w-[200px]"><div className="text-ec-label mb-[3px]">활동내용</div>
               <input className="ec-input" value={form.activity} onChange={(e) => set('activity', e.target.value)} style={{ width: '100%' }} /></label>
-            <label style={{ fontSize: 12.5, flex: 1, minWidth: 200 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>다음 액션</div>
+            <label className="text-[12.5px] flex-1 min-w-[200px]"><div className="text-ec-label mb-[3px]">다음 액션</div>
               <input className="ec-input" value={form.nextAction} onChange={(e) => set('nextAction', e.target.value)} style={{ width: '100%' }} /></label>
             <button className="ec-btn ec-btn-primary" onClick={submit}>등록</button>
           </div>
         </div>
       )}</Modal>
 
-      <div style={{ display: 'flex', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
+      <div className="flex gap-[10px] mb-[8px] flex-wrap">
         {STAGES.map((s) => (
-          <span key={s.v} style={{ fontSize: 11.5, color: 'var(--ec-label)' }}>
+          <span key={s.v} className="text-[11.5px] text-ec-label">
             <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: s.color, marginRight: 4 }} />
             {s.label} {rows.filter((r) => r.stage === s.v).length}
           </span>
@@ -155,30 +155,30 @@ export default function CrmPage() {
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('고객사')}>고객사 {sort.mark('고객사')}</th>
-            <th style={{ width: 90 }}>담당연락처</th>
-            <th style={{ width: 80 }}>영업담당</th>
+            <th className="w-[34px]"></th>
+            <th className="w-[100px] cursor-pointer" onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('고객사')}>고객사 {sort.mark('고객사')}</th>
+            <th className="w-[90px]">담당연락처</th>
+            <th className="w-[80px]">영업담당</th>
             <th>활동내용</th>
-            <th style={{ width: 100, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('단계')}>단계 {sort.mark('단계')}</th>
+            <th className="w-[100px] text-center cursor-pointer" onClick={() => sort.toggle('단계')}>단계 {sort.mark('단계')}</th>
             <th>다음 액션</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
               <td>{dateText(r.activityDate)}</td>
               <td>{r.partnerName}</td>
               <td>{r.contactName ?? ''}</td>
               <td>{r.charge ?? ''}</td>
               <td>{r.activity ?? ''}</td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <select
                   value={r.stage}
                   onChange={(e) => changeStage(r, e.target.value as CrmStage)}
@@ -188,7 +188,7 @@ export default function CrmPage() {
                   {STAGES.map((s) => <option key={s.v} value={s.v} style={{ color: '#333' }}>{s.label}</option>)}
                 </select>
               </td>
-              <td style={{ color: 'var(--ec-label)' }}>{r.nextAction ?? ''}</td>
+              <td className="text-ec-label">{r.nextAction ?? ''}</td>
             </tr>
           ))}
         </tbody>

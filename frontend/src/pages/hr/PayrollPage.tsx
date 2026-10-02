@@ -81,56 +81,56 @@ export default function PayrollPage() {
 
   return (
     <EcListShell title="급여계산/대장" actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)' }}>
+      <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label">
         <span>귀속월</span>
         <input type="month" className="ec-input" value={month} onChange={(e) => setMonth(e.target.value)} style={{ width: 150 }} />
         <button className="ec-btn ec-btn-primary" onClick={load}>조회(F8)</button>
-        <span style={{ marginLeft: 8 }}>수당/공제 그룹</span>
+        <span className="ml-[8px]">수당/공제 그룹</span>
         <select className="ec-input" value={payGroupId} onChange={(e) => setPayGroupId(e.target.value)} style={{ width: 180 }}>
           <option value="">적용 안함</option>
           {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
         </select>
         <button className="ec-btn" onClick={calcAll}>미작성 일괄계산</button>
-        <span style={{ marginLeft: 8, color: 'var(--ec-text-hint)' }}>사원 {employees.length}명 · 작성 {payslips.length}건 · 4대보험 자동공제</span>
+        <span className="ml-[8px] text-ec-hint">사원 {employees.length}명 · 작성 {payslips.length}건 · 4대보험 자동공제</span>
       </div>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)' }}>{notice}</div>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
 
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th className="w-[34px]"></th>
             <th>사번</th><th>성명</th><th>부서</th>
-            <th style={{ textAlign: 'right' }}>기본급</th><th style={{ textAlign: 'right' }}>수당</th>
-            <th style={{ textAlign: 'right' }}>지급총액</th><th style={{ textAlign: 'right' }}>공제</th><th style={{ textAlign: 'right' }}>실지급액</th>
-            <th style={{ textAlign: 'center' }}>상태</th><th style={{ textAlign: 'center' }}>처리</th>
+            <th className="text-right">기본급</th><th className="text-right">수당</th>
+            <th className="text-right">지급총액</th><th className="text-right">공제</th><th className="text-right">실지급액</th>
+            <th className="text-center">상태</th><th className="text-center">처리</th>
           </tr>
         </thead>
         <tbody>
           {employees.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : employees.map((e, i) => {
             const p = byEmp.get(e.id)
             return (
               <tr key={e.id}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{e.code}</td>
-                <td>{p ? <a onClick={() => setDetail(p)} style={{ color: 'var(--ec-blue)', cursor: 'pointer' }}>{e.name}</a> : e.name}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td>{e.code}</td>
+                <td>{p ? <a onClick={() => setDetail(p)} className="text-ec-blue cursor-pointer">{e.name}</a> : e.name}</td>
                 <td>{e.department}</td>
-                <td style={{ textAlign: 'right' }}>{won(p ? p.baseSalary : e.baseSalary)}</td>
-                <td style={{ textAlign: 'right' }}>{p ? won(p.allowanceTotal) : ''}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600 }}>{p ? won(p.grossPay) : ''}</td>
+                <td className="text-right">{won(p ? p.baseSalary : e.baseSalary)}</td>
+                <td className="text-right">{p ? won(p.allowanceTotal) : ''}</td>
+                <td className="text-right font-semibold">{p ? won(p.grossPay) : ''}</td>
                 <td style={{ textAlign: 'right', color: '#a5561b' }}>{p ? won(p.deductionTotal) : ''}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--ec-blue-dark)' }}>{p ? won(p.netPay) : ''}</td>
-                <td style={{ textAlign: 'center' }}>
-                  {p ? <span style={{ color: p.status === 'CONFIRMED' ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>{p.statusName}</span> : <span style={{ color: 'var(--ec-text-off)' }}>미작성</span>}
+                <td className="text-right font-bold text-ec-navy">{p ? won(p.netPay) : ''}</td>
+                <td className="text-center">
+                  {p ? <span style={{ color: p.status === 'CONFIRMED' ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>{p.statusName}</span> : <span className="text-ec-off">미작성</span>}
                 </td>
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-center">
                   {!p ? (
                     <button className="ec-btn ec-btn-primary" style={{ height: 20, padding: '0 8px' }} onClick={() => calc(e)}>계산</button>
                   ) : p.status === 'DRAFT' ? (
-                    <div style={{ display: 'inline-flex', gap: 3 }}>
+                    <div className="inline-flex gap-[3px]">
                       <button className="ec-btn ec-btn-primary" style={{ height: 20, padding: '0 8px' }} onClick={() => confirm(p)}>확정</button>
                       <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: 'var(--ec-danger)' }} onClick={() => remove(p)}>삭제</button>
                     </div>
@@ -143,11 +143,11 @@ export default function PayrollPage() {
           })}
         </tbody>
         <tfoot>
-          <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
-            <td colSpan={6} style={{ textAlign: 'right' }}>합계 (작성 {payslips.length}건)</td>
-            <td style={{ textAlign: 'right' }}>{won(totals.gross)}</td>
+          <tr className="font-bold bg-ec-page">
+            <td colSpan={6} className="text-right">합계 (작성 {payslips.length}건)</td>
+            <td className="text-right">{won(totals.gross)}</td>
             <td style={{ textAlign: 'right', color: '#a5561b' }}>{won(totals.deduction)}</td>
-            <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{won(totals.net)}</td>
+            <td className="text-right text-ec-navy">{won(totals.net)}</td>
             <td colSpan={2}></td>
           </tr>
         </tfoot>
@@ -164,26 +164,26 @@ function PayslipModal({ p, onClose }: { p: Payslip; onClose: () => void }) {
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 560, maxWidth: '92vw', maxHeight: '88vh', overflow: 'auto', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: 'var(--ec-bg-page)' }}>
-          <span style={{ fontWeight: 800, color: 'var(--ec-blue-dark)' }}>급여명세서 · {p.employeeName} ({p.payMonth})</span>
-          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: 'var(--ec-text-hint)' }}>×</span>
+        <div className="flex items-center py-[12px] px-[16px] border-b border-b-ec-line border-solid bg-ec-page">
+          <span className="font-extrabold text-ec-navy">급여명세서 · {p.employeeName} ({p.payMonth})</span>
+          <span onClick={onClose} className="ml-auto cursor-pointer text-[18px] text-ec-hint">×</span>
         </div>
-        <div style={{ padding: 16 }}>
-          <table className="w-full text-left" style={{ marginBottom: 12 }}>
+        <div className="p-[16px]">
+          <table className="w-full text-left mb-[12px]">
             <tbody>
-              <tr><th style={{ width: 90, background: 'var(--ec-bg-page)' }}>사번</th><td>{p.employeeCode}</td><th style={{ width: 90, background: 'var(--ec-bg-page)' }}>부서</th><td>{p.department}</td></tr>
-              <tr><th style={{ background: 'var(--ec-bg-page)' }}>귀속월</th><td>{p.payMonth}</td><th style={{ background: 'var(--ec-bg-page)' }}>상태</th><td style={{ color: p.status === 'CONFIRMED' ? 'var(--ec-success)' : 'var(--ec-text-hint)', fontWeight: 700 }}>{p.statusName}</td></tr>
+              <tr><th className="w-[90px] bg-ec-page">사번</th><td>{p.employeeCode}</td><th className="w-[90px] bg-ec-page">부서</th><td>{p.department}</td></tr>
+              <tr><th className="bg-ec-page">귀속월</th><td>{p.payMonth}</td><th className="bg-ec-page">상태</th><td style={{ color: p.status === 'CONFIRMED' ? 'var(--ec-success)' : 'var(--ec-text-hint)', fontWeight: 700 }}>{p.statusName}</td></tr>
             </tbody>
           </table>
 
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+          <div className="flex gap-[16px] flex-wrap">
             <div style={{ flex: '1 1 240px' }}>
               <div style={{ fontWeight: 700, fontSize: 12.5, color: '#1a4d8f', marginBottom: 4 }}>지급</div>
               <table className="w-full text-left">
                 <tbody>
-                  <tr><td>기본급</td><td style={{ textAlign: 'right' }}>{won(p.baseSalary)}</td></tr>
-                  {allowances.map((l) => <tr key={l.id}><td>{l.name}</td><td style={{ textAlign: 'right' }}>{won(l.amount)}</td></tr>)}
-                  <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}><td>지급총액</td><td style={{ textAlign: 'right' }}>{won(p.grossPay)}</td></tr>
+                  <tr><td>기본급</td><td className="text-right">{won(p.baseSalary)}</td></tr>
+                  {allowances.map((l) => <tr key={l.id}><td>{l.name}</td><td className="text-right">{won(l.amount)}</td></tr>)}
+                  <tr className="font-bold bg-ec-page"><td>지급총액</td><td className="text-right">{won(p.grossPay)}</td></tr>
                 </tbody>
               </table>
             </div>
@@ -191,19 +191,19 @@ function PayslipModal({ p, onClose }: { p: Payslip; onClose: () => void }) {
               <div style={{ fontWeight: 700, fontSize: 12.5, color: '#a5561b', marginBottom: 4 }}>공제 (4대보험 자동)</div>
               <table className="w-full text-left">
                 <tbody>
-                  {deductions.map((l) => <tr key={l.id}><td>{l.name}{l.auto && <span style={{ fontSize: 10, color: 'var(--ec-text-hint)', marginLeft: 4 }}>자동</span>}</td><td style={{ textAlign: 'right' }}>{won(l.amount)}</td></tr>)}
-                  <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}><td>공제총액</td><td style={{ textAlign: 'right' }}>{won(p.deductionTotal)}</td></tr>
+                  {deductions.map((l) => <tr key={l.id}><td>{l.name}{l.auto && <span className="text-[10px] text-ec-hint ml-[4px]">자동</span>}</td><td className="text-right">{won(l.amount)}</td></tr>)}
+                  <tr className="font-bold bg-ec-page"><td>공제총액</td><td className="text-right">{won(p.deductionTotal)}</td></tr>
                 </tbody>
               </table>
             </div>
           </div>
 
-          <div style={{ marginTop: 14, padding: '14px 18px', border: '1px solid var(--ec-border)', background: 'var(--ec-success-bg)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div className="mt-[14px] py-[14px] px-[18px] border border-ec-line border-solid bg-ec-success-bg flex items-center justify-between">
             <span style={{ fontSize: 12.5, color: '#1c6b32' }}>실지급액 (지급총액 − 공제총액)</span>
-            <span style={{ fontSize: 22, fontWeight: 800, color: '#2f8401' }}>{won(p.netPay)} <span style={{ fontSize: 13, fontWeight: 400 }}>원</span></span>
+            <span style={{ fontSize: 22, fontWeight: 800, color: '#2f8401' }}>{won(p.netPay)} <span className="text-[13px] font-normal">원</span></span>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 6, padding: '10px 16px', borderTop: '1px solid var(--ec-border)' }}>
+        <div className="flex gap-[6px] py-[10px] px-[16px] border-t border-t-ec-line border-solid">
           <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={onClose}>닫기</button>
         </div>
       </div>

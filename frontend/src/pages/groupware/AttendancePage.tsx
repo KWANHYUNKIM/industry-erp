@@ -142,11 +142,11 @@ export default function AttendancePage() {
   useTableColumnCheck(tableRef, '출퇴근', [])
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ color: 'var(--ec-star)', fontSize: 14, marginRight: 4 }}>☆</span>
-        <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ec-text)' }}>출/퇴근기록부(ID)</span>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, position: 'relative' }}>
+    <div className="flex flex-col min-h-[100%]">
+      <div className="flex items-center mb-[8px]">
+        <span className="text-ec-star text-[14px] mr-[4px]">☆</span>
+        <span className="text-[15px] font-extrabold text-ec-text">출/퇴근기록부(ID)</span>
+        <div className="ml-auto flex items-center gap-[4px] relative">
           <button className="ec-btn" onClick={load}>새로고침</button>
           <input
             className="ec-input"
@@ -177,34 +177,34 @@ export default function AttendancePage() {
         </div>
       </div>
 
-      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)' }}>{notice}</div>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
 
       {/* 오늘 출퇴근 카드 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 20, border: '1px solid var(--ec-border)', background: '#fff', padding: '14px 18px', marginBottom: 10, flexWrap: 'wrap' }}>
-        <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)' }}>오늘 근무</div>
-        <div style={{ display: 'flex', gap: 24, fontSize: 13 }}>
-          <div><span style={{ color: 'var(--ec-text-hint)' }}>출근</span> <b style={{ marginLeft: 6 }}>{today?.clockIn ?? '--:--'}</b></div>
-          <div><span style={{ color: 'var(--ec-text-hint)' }}>퇴근</span> <b style={{ marginLeft: 6 }}>{today?.clockOut ?? '--:--'}</b></div>
-          <div><span style={{ color: 'var(--ec-text-hint)' }}>근무시간</span> <b style={{ marginLeft: 6 }}>{fmtMin(today?.workMinutes ?? null) || '-'}</b></div>
-          {today?.late && <span style={{ color: 'var(--ec-danger)', fontWeight: 700 }}>지각</span>}
+      <div className="flex items-center gap-[20px] border border-ec-line border-solid bg-white py-[14px] px-[18px] mb-[10px] flex-wrap">
+        <div className="text-[13px] font-extrabold text-ec-navy">오늘 근무</div>
+        <div className="flex gap-[24px] text-[13px]">
+          <div><span className="text-ec-hint">출근</span> <b className="ml-[6px]">{today?.clockIn ?? '--:--'}</b></div>
+          <div><span className="text-ec-hint">퇴근</span> <b className="ml-[6px]">{today?.clockOut ?? '--:--'}</b></div>
+          <div><span className="text-ec-hint">근무시간</span> <b className="ml-[6px]">{fmtMin(today?.workMinutes ?? null) || '-'}</b></div>
+          {today?.late && <span className="text-ec-danger font-bold">지각</span>}
         </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+        <div className="ml-auto flex gap-[6px]">
           <button className="ec-btn ec-btn-primary" onClick={() => punch('clock-in')} disabled={!!today?.clockIn}>출근하기</button>
           <button className="ec-btn" onClick={() => punch('clock-out')} disabled={!today?.clockIn || !!today?.clockOut}>퇴근하기</button>
         </div>
       </div>
 
       {/* 조회 조건 — 원본은 [사용자] 와 연/월이 달력 위에 있다 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-        <span style={{ fontSize: 12, color: 'var(--ec-label)' }}>사용자</span>
+      <div className="flex items-center gap-[6px] mb-[6px]">
+        <span className="text-[12px] text-ec-label">사용자</span>
         <select className="ec-input" value={userFilter} onChange={(e) => setUserFilter(e.target.value)} style={{ width: 150 }}>
           <option value="">전체</option>
           {userNames.map((n) => <option key={n} value={n}>{n}</option>)}
         </select>
-        <span style={{ marginLeft: 12 }}>
+        <span className="ml-[12px]">
           <button className="ec-btn ec-btn-sm" onClick={() => moveMonth(-1)} aria-label="이전 달">‹</button>
-          <span style={{ margin: '0 10px', fontSize: 12 }}>
+          <span className="my-0 mx-[10px] text-[12px]">
             {cursor.getFullYear()} / {String(cursor.getMonth() + 1).padStart(2, '0')}
           </span>
           <button className="ec-btn ec-btn-sm" onClick={() => moveMonth(1)} aria-label="다음 달">›</button>
@@ -212,9 +212,9 @@ export default function AttendancePage() {
         </span>
       </div>
 
-      <div ref={bodyRef} style={{ flex: 1, minHeight: 0 }}>
+      <div ref={bodyRef} className="flex-1 min-h-0">
         <table ref={tableRef} className="w-full text-left">
-          <colgroup>{DOW.map((d) => <col key={d} style={{ width: '14.28%' }} />)}</colgroup>
+          <colgroup>{DOW.map((d) => <col key={d} className="w-[14.28%]" />)}</colgroup>
           <thead>
             <tr>
               {DOW.map((d, i) => (
@@ -241,13 +241,13 @@ export default function AttendancePage() {
                         {day.getDate()}
                       </div>
                       {list.map((r) => (
-                        <div key={r.id} style={{ fontSize: 11.5, lineHeight: 1.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          <span style={{ color: 'var(--ec-label)' }}>{r.userName}</span>{' '}
+                        <div key={r.id} className="text-[11.5px] leading-[1.5] whitespace-nowrap overflow-hidden text-ellipsis">
+                          <span className="text-ec-label">{r.userName}</span>{' '}
                           <span style={{ color: r.late ? 'var(--ec-danger)' : undefined }}>{r.clockIn ?? '--:--'}</span>
-                          <span style={{ color: 'var(--ec-text-off)' }}>~</span>
+                          <span className="text-ec-off">~</span>
                           <span>{r.clockOut ?? '--:--'}</span>
                           {r.workMinutes != null && (
-                            <span style={{ color: 'var(--ec-label)' }}> ({fmtMin(r.workMinutes)})</span>
+                            <span className="text-ec-label"> ({fmtMin(r.workMinutes)})</span>
                           )}
                         </div>
                       ))}
@@ -258,10 +258,10 @@ export default function AttendancePage() {
             ))}
           </tbody>
         </table>
-        {loading && <p style={{ textAlign: 'center', color: 'var(--ec-text-grid)', padding: 10 }}>불러오는 중…</p>}
+        {loading && <p className="text-center text-ec-ink p-[10px]">불러오는 중…</p>}
       </div>
 
-      <div style={{ display: 'flex', gap: 6, marginTop: 10, paddingTop: 8, borderTop: '1px solid var(--ec-line-soft)' }}>
+      <div className="flex gap-[6px] mt-[10px] pt-[8px] border-t border-t-ec-line-soft border-solid">
         <button className="ec-btn" onClick={() => { void doExcel() }}>Excel</button>
         <button className="ec-btn" onClick={() => doPrint()}>인쇄</button>
       </div>
@@ -269,12 +269,12 @@ export default function AttendancePage() {
       {helpOpen && (
         <div onClick={() => setHelpOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, width: 420, maxWidth: '90vw', boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}>
-            <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--ec-line-soft)', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
+            <div className="py-[10px] px-[14px] border-b border-b-ec-line-soft border-solid font-extrabold text-[14px] flex items-center">
               <span>{TITLE} · 도움말</span>
               <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => setHelpOpen(false)}>닫기</button>
             </div>
-            <div style={{ padding: 14, fontSize: 12.5, lineHeight: 1.7, color: 'var(--ec-text)' }}>
-              <ul style={{ paddingLeft: 16, margin: 0 }}>
+            <div className="p-[14px] text-[12.5px] leading-[1.7] text-ec-text">
+              <ul className="pl-[16px] m-0">
                 <li>상단 <b>출근하기·퇴근하기</b> 버튼으로 오늘 근무를 기록합니다.</li>
                 <li><b>Search(F3)</b> — 일자·사용자 등 입력한 낱말이 포함된 행만 추립니다.</li>
                 <li><b>Excel/인쇄</b> — 지금 화면의 출퇴근 기록표를 파일로 내려받거나 인쇄합니다.</li>

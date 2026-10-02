@@ -49,7 +49,7 @@ export default function DownloadPage() {
         title="다운로드 자료실"
         actions={[{ label: '전체 선택 다운로드', onClick: downloadAll }]}
       >
-        <div style={{ marginBottom: 6, fontSize: 12, color: 'var(--ec-text-hint)' }}>
+        <div className="mb-[6px] text-[12px] text-ec-hint">
           ※ 아래는 표본 목록입니다. 실제 파일 저장소는 아직 연결되지 않았습니다. (백엔드 미연동)
         </div>
         {notice && (
@@ -60,25 +60,25 @@ export default function DownloadPage() {
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
-              <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('분류')}>분류 {sort.mark('분류')}</th>
-              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('자료명')}>자료명 {sort.mark('자료명')}</th>
-              <th style={{ width: 90 }}>버전</th>
-              <th style={{ width: 90, textAlign: 'right' }}>크기</th>
-              <th style={{ width: 110, cursor: 'pointer' }} onClick={() => sort.toggle('등록일')}>등록일 {sort.mark('등록일')}</th>
-              <th style={{ width: 90, textAlign: 'center' }}>다운로드</th>
+              <th className="w-[34px]"></th>
+              <th className="w-[100px] cursor-pointer" onClick={() => sort.toggle('분류')}>분류 {sort.mark('분류')}</th>
+              <th className="cursor-pointer" onClick={() => sort.toggle('자료명')}>자료명 {sort.mark('자료명')}</th>
+              <th className="w-[90px]">버전</th>
+              <th className="w-[90px] text-right">크기</th>
+              <th className="w-[110px] cursor-pointer" onClick={() => sort.toggle('등록일')}>등록일 {sort.mark('등록일')}</th>
+              <th className="w-[90px] text-center">다운로드</th>
             </tr>
           </thead>
           <tbody>
             {sort.sorted.map((f, i) => (
               <tr key={f.id}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
                 <td style={{ color: catColor(f.category), fontWeight: 700 }}>{f.category}</td>
                 <td>{f.name}</td>
-                <td style={{ fontFamily: 'monospace' }}>{f.version}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{f.size}</td>
+                <td>{f.version}</td>
+                <td className="text-right text-ec-label">{f.size}</td>
                 <td>{dateText(f.date)}</td>
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-center">
                   <button className="ec-btn" style={{ height: 20, padding: '0 10px' }} onClick={() => openGuide(f)}>⬇ 받기</button>
                 </td>
               </tr>
@@ -94,21 +94,21 @@ export default function DownloadPage() {
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         >
           <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, width: 460, maxWidth: '92vw', boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}>
-            <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--ec-line-soft)', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
+            <div className="py-[10px] px-[14px] border-b border-b-ec-line-soft border-solid font-extrabold text-[14px] flex items-center">
               <span>{target.name}</span>
               <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={close}>닫기</button>
             </div>
-            <div style={{ padding: 14, fontSize: 12.5, lineHeight: 1.7, color: 'var(--ec-text)' }}>
+            <div className="p-[14px] text-[12.5px] leading-[1.7] text-ec-text">
               <p style={{ margin: '0 0 10px', background: '#fff6e5', color: '#8a5a00', padding: '6px 10px', borderRadius: 3 }}>
                 내려받을 수 있는 실제 파일이 아직 없습니다. 자료실 저장소가 연결되면 이 자료를 내려받을 수 있습니다. (백엔드 미연동)
               </p>
-              <div style={{ fontSize: 12, color: 'var(--ec-text-hint)', marginBottom: 6 }}>
+              <div className="text-[12px] text-ec-hint mb-[6px]">
                 분류 {target.category} · 버전 {target.version} · 크기 {target.size} · 등록일 {target.date}
               </div>
-              <div style={{ fontWeight: 700, color: 'var(--ec-blue-dark)', marginBottom: 2 }}>설치 / 사용 안내</div>
-              <p style={{ margin: 0 }}>{target.guide}</p>
+              <div className="font-bold text-ec-navy mb-[2px]">설치 / 사용 안내</div>
+              <p className="m-0">{target.guide}</p>
             </div>
-            <div style={{ padding: '10px 14px', borderTop: '1px solid var(--ec-line-soft)', display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+            <div className="py-[10px] px-[14px] border-t border-t-ec-line-soft border-solid flex gap-[6px] justify-end">
               <button className="ec-btn" onClick={close}>확인</button>
             </div>
           </div>

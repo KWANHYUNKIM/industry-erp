@@ -107,12 +107,12 @@ export default function JournalListPage() {
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
-        총 <b style={{ color: 'var(--ec-text)' }}>{shown.length}</b>건
-        <span style={{ marginLeft: 8, color: 'var(--ec-text-hint)' }}>행을 클릭하면 분개가 펼쳐집니다.</span>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        총 <b className="text-ec-text">{shown.length}</b>건
+        <span className="ml-[8px] text-ec-hint">행을 클릭하면 분개가 펼쳐집니다.</span>
       </div>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {/*
         잘라서 받았으면 <b>반드시 말한다.</b> 이 화면은 아래에 차변·대변 합계를 찍는데,
         그 합계는 <b>지금 보고 있는 줄</b>을 더한 값이다. 잘린 줄 알려 주지 않으면
@@ -129,42 +129,42 @@ export default function JournalListPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th className="w-[34px]"></th>
             <th>전표번호</th><th>일자</th><th>적요</th><th>거래처</th><th>출처</th>
-            <th style={{ textAlign: 'right' }}>차변합</th><th style={{ textAlign: 'right' }}>대변합</th>
-            <th style={{ textAlign: 'center' }}>대차</th>
+            <th className="text-right">차변합</th><th className="text-right">대변합</th>
+            <th className="text-center">대차</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>조회된 회계전표가 없습니다. (판매/구매 화면에서 회계반영하면 생성됩니다)</td></tr>
+            <tr><td colSpan={9} className="text-center text-ec-hint p-[20px]">조회된 회계전표가 없습니다. (판매/구매 화면에서 회계반영하면 생성됩니다)</td></tr>
           ) : shown.map((r, i) => (
             <Fragment key={r.id}>
-              <tr onClick={() => setOpenId(openId === r.id ? null : r.id)} style={{ cursor: 'pointer' }}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>{openId === r.id ? '▾ ' : '▸ '}{r.docNo}</td>
+              <tr onClick={() => setOpenId(openId === r.id ? null : r.id)} className="cursor-pointer">
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td className="text-ec-blue font-semibold">{openId === r.id ? '▾ ' : '▸ '}{r.docNo}</td>
                 <td>{dateText(r.entryDate)}</td>
                 <td>{r.description}</td>
                 <td>{r.partnerName ?? ''}</td>
                 <td><span style={{ color: SRC_COLOR[r.sourceType], fontSize: 11.5 }}>{r.sourceTypeName}</span></td>
-                <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(r.totalDebit)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(r.totalCredit)}</td>
-                <td style={{ textAlign: 'center' }}>{r.balanced ? <span style={{ color: 'var(--ec-success)' }}>✓</span> : <span style={{ color: 'var(--ec-danger)' }}>✗</span>}</td>
+                <td className="text-right font-bold">{won(r.totalDebit)}</td>
+                <td className="text-right font-bold">{won(r.totalCredit)}</td>
+                <td className="text-center">{r.balanced ? <span className="text-ec-success">✓</span> : <span className="text-ec-danger">✗</span>}</td>
               </tr>
               {openId === r.id && (
                 <tr className="no-ec">
-                  <td colSpan={9} style={{ padding: 0, background: 'var(--ec-bg-page)' }}>
-                    <table className="w-full text-left" style={{ margin: '4px 0' }}>
+                  <td colSpan={9} className="p-0 bg-ec-page">
+                    <table className="w-full text-left my-[4px] mx-0">
                       <thead>
-                        <tr><th style={{ width: 34 }}></th><th>계정코드</th><th>계정과목</th><th>적요</th><th style={{ textAlign: 'right' }}>차변</th><th style={{ textAlign: 'right' }}>대변</th></tr>
+                        <tr><th className="w-[34px]"></th><th>계정코드</th><th>계정과목</th><th>적요</th><th className="text-right">차변</th><th className="text-right">대변</th></tr>
                       </thead>
                       <tbody>
                         {r.lines.map((l) => (
                           <tr key={l.id}>
-                            <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{l.lineNo}</td>
-                            <td style={{ fontFamily: 'monospace' }}>{l.accountCode}</td>
+                            <td className="text-center text-ec-hint">{l.lineNo}</td>
+                            <td>{l.accountCode}</td>
                             <td>{l.accountName}</td>
-                            <td style={{ color: 'var(--ec-text-hint)' }}>{l.description ?? ''}</td>
+                            <td className="text-ec-hint">{l.description ?? ''}</td>
                             <td style={{ textAlign: 'right', color: l.debit > 0 ? '#1a4d8f' : 'var(--ec-text-off)' }}>{l.debit > 0 ? won(l.debit) : ''}</td>
                             <td style={{ textAlign: 'right', color: l.credit > 0 ? '#a5561b' : 'var(--ec-text-off)' }}>{l.credit > 0 ? won(l.credit) : ''}</td>
                           </tr>
@@ -178,10 +178,10 @@ export default function JournalListPage() {
           ))}
         </tbody>
         <tfoot>
-          <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
-            <td colSpan={6} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
-            <td style={{ textAlign: 'right' }}>{won(total)}</td>
-            <td style={{ textAlign: 'right' }}>{won(total)}</td>
+          <tr className="font-bold bg-ec-page">
+            <td colSpan={6} className="text-right">합계 ({shown.length}건)</td>
+            <td className="text-right">{won(total)}</td>
+            <td className="text-right">{won(total)}</td>
             <td></td>
           </tr>
         </tfoot>

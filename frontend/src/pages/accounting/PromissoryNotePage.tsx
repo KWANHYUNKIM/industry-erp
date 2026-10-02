@@ -126,29 +126,29 @@ export default function PromissoryNotePage() {
       { label: '오천건이상조회', onClick: () => load(true), disabled: !summary?.truncated },
       { label: 'Excel' }, { label: '인쇄' },
     ]}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+      <div className="flex items-center gap-[6px] mb-[8px]">
         <button className="ec-btn ec-btn-primary" onClick={() => setShowForm(true)}>+ 어음등록(F2)</button>
         <button className="ec-btn" onClick={() => load()}>새로고침</button>
-        <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--ec-text-hint)' }}>
+        <span className="ml-[8px] text-[12px] text-ec-hint">
           수취/발행 → 만기결제 · 할인 · 부도. 결제·할인은 계좌 잔액이 함께 움직입니다.
         </span>
       </div>
       {/* 화면 조건 판의 <b>[기간]</b> — 서버가 이 구간만 준다. 비우면 전 기간이다. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)' }}>
+      <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label">
         <span>기간</span>
         <input type="date" className="ec-input" value={pFrom}
                onChange={(e) => setPFrom(e.target.value)} style={{ width: 140 }} />
-        <span style={{ color: 'var(--ec-label)' }}>~</span>
+        <span className="text-ec-label">~</span>
         <input type="date" className="ec-input" value={pTo}
                onChange={(e) => setPTo(e.target.value)} style={{ width: 140 }} />
       </div>
 
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)' }}>{notice}</div>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
 
       {summary && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+        <div className="flex gap-[8px] mb-[10px]">
           <Tile label="받을어음 보유" value={won(summary.receivableHeld)} />
           <Tile label="30일 내 만기(받을)" value={won(summary.receivableDueSoon)} />
           <Tile label="지급어음 보유" value={won(summary.payableHeld)} />
@@ -171,30 +171,30 @@ export default function PromissoryNotePage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th className="w-[34px]"></th>
             <th>어음번호</th><th>구분</th><th>거래처</th><th>발행일</th><th>만기일</th>
-            <th style={{ textAlign: 'right' }}>금액</th><th style={{ textAlign: 'right' }}>할인료</th>
-            <th>발행은행</th><th style={{ textAlign: 'center' }}>상태</th><th style={{ textAlign: 'center' }}>처리</th>
+            <th className="text-right">금액</th><th className="text-right">할인료</th>
+            <th>발행은행</th><th className="text-center">상태</th><th className="text-center">처리</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((n, i) => (
             <tr key={n.id}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>{n.noteNo}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td className="text-ec-blue font-semibold">{n.noteNo}</td>
               <td>{n.typeName}</td>
               <td>{n.partnerName}</td>
               <td>{dateText(n.issueDate)}</td>
               <td style={{ color: n.status === 'HELD' && n.dueDate <= today() ? 'var(--ec-danger)' : undefined }}>{dateText(n.dueDate)}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(n.amount)}</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{n.discountFee ? won(n.discountFee) : ''}</td>
+              <td className="text-right font-bold">{won(n.amount)}</td>
+              <td className="text-right text-ec-hint">{n.discountFee ? won(n.discountFee) : ''}</td>
               <td>{n.bankName ?? ''}</td>
-              <td style={{ textAlign: 'center' }}><span style={{ color: statusColor(n.status) }}>{n.statusName}</span></td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center"><span style={{ color: statusColor(n.status) }}>{n.statusName}</span></td>
+              <td className="text-center">
                 {n.status === 'HELD' ? (
-                  <div style={{ display: 'inline-flex', gap: 3 }}>
+                  <div className="inline-flex gap-[3px]">
                     <button className="ec-btn ec-btn-primary" style={{ height: 20, padding: '0 8px' }} onClick={() => settle(n)}>만기결제</button>
                     {/* 할인은 만기 전에만 — 만기가 지났으면 만기결제로 받는다(서버도 거절, QA 57회차). */}
                     {n.type === 'RECEIVABLE' && n.dueDate >= today() && <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => discount(n)}>할인</button>}
@@ -203,7 +203,7 @@ export default function PromissoryNotePage() {
                     <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: 'var(--ec-text-hint)' }} onClick={() => remove(n)}>삭제</button>
                   </div>
                 ) : (
-                  <span style={{ fontSize: 11, color: 'var(--ec-text-hint)' }}>{n.closedDate}</span>
+                  <span className="text-[11px] text-ec-hint">{n.closedDate}</span>
                 )}
               </td>
             </tr>
@@ -219,7 +219,7 @@ export default function PromissoryNotePage() {
 function Tile({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   return (
     <div style={{ flex: 1, border: '1px solid var(--ec-border)', borderRadius: 3, padding: '8px 10px', background: strong ? 'var(--ec-blue-wash)' : '#fff' }}>
-      <div style={{ fontSize: 11.5, color: 'var(--ec-text-hint)' }}>{label}</div>
+      <div className="text-[11.5px] text-ec-hint">{label}</div>
       <div style={{ fontSize: 16, fontWeight: 700, color: strong ? 'var(--ec-blue-dark)' : 'var(--ec-text)' }}>{value}</div>
     </div>
   )
@@ -260,28 +260,28 @@ function NoteForm({ partners, onClose, onSaved }: { partners: Partner[]; onClose
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 560, maxWidth: '94vw', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: 'var(--ec-bg-page)' }}>
-          <span style={{ fontWeight: 800, color: 'var(--ec-blue-dark)' }}>어음등록</span>
-          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: 'var(--ec-text-hint)' }}>×</span>
+        <div className="flex items-center py-[12px] px-[16px] border-b border-b-ec-line border-solid bg-ec-page">
+          <span className="font-extrabold text-ec-navy">어음등록</span>
+          <span onClick={onClose} className="ml-auto cursor-pointer text-[18px] text-ec-hint">×</span>
         </div>
-        <div style={{ padding: 16 }}>
-          {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+        <div className="p-[16px]">
+          {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
           <table className="w-full text-left">
             <tbody>
               <tr>
-                <th style={{ width: 90, background: 'var(--ec-bg-page)' }}>구분<span style={{ color: 'var(--ec-danger)' }}>*</span></th>
+                <th className="w-[90px] bg-ec-page">구분<span className="text-ec-danger">*</span></th>
                 <td colSpan={3}>
                   <select className="ec-input" value={type} onChange={(e) => { setType(e.target.value as 'RECEIVABLE' | 'PAYABLE'); setPartnerId('') }} style={{ width: 200 }}>
                     <option value="RECEIVABLE">받을어음 (매출대금 수취)</option>
                     <option value="PAYABLE">지급어음 (매입대금 발행)</option>
                   </select>
-                  <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--ec-text-hint)' }}>
+                  <span className="ml-[8px] text-[12px] text-ec-hint">
                     {type === 'RECEIVABLE' ? '차)받을어음 / 대)외상매출금' : '차)외상매입금 / 대)지급어음'}
                   </span>
                 </td>
               </tr>
               <tr>
-                <th style={{ background: 'var(--ec-bg-page)' }}>거래처<span style={{ color: 'var(--ec-danger)' }}>*</span></th>
+                <th className="bg-ec-page">거래처<span className="text-ec-danger">*</span></th>
                 <td colSpan={3}>
                   <select className="ec-input" value={partnerId} onChange={(e) => setPartnerId(e.target.value)} style={{ width: 240 }}>
                     <option value="">거래처 선택</option>
@@ -290,25 +290,25 @@ function NoteForm({ partners, onClose, onSaved }: { partners: Partner[]; onClose
                 </td>
               </tr>
               <tr>
-                <th style={{ background: 'var(--ec-bg-page)' }}>발행일</th>
+                <th className="bg-ec-page">발행일</th>
                 <td><input type="date" className="ec-input" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} style={{ width: 150 }} /></td>
-                <th style={{ width: 70, background: 'var(--ec-bg-page)' }}>만기일<span style={{ color: 'var(--ec-danger)' }}>*</span></th>
+                <th className="w-[70px] bg-ec-page">만기일<span className="text-ec-danger">*</span></th>
                 <td><input type="date" className="ec-input" value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
-                <th style={{ background: 'var(--ec-bg-page)' }}>금액<span style={{ color: 'var(--ec-danger)' }}>*</span></th>
+                <th className="bg-ec-page">금액<span className="text-ec-danger">*</span></th>
                 <td><input type="number" className="ec-input" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ width: 150, textAlign: 'right' }} /></td>
-                <th style={{ background: 'var(--ec-bg-page)' }}>발행은행</th>
+                <th className="bg-ec-page">발행은행</th>
                 <td><input className="ec-input" value={bankName} onChange={(e) => setBankName(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
-                <th style={{ background: 'var(--ec-bg-page)' }}>비고</th>
+                <th className="bg-ec-page">비고</th>
                 <td colSpan={3}><input className="ec-input" value={remark} onChange={(e) => setRemark(e.target.value)} style={{ width: '100%' }} /></td>
               </tr>
             </tbody>
           </table>
         </div>
-        <div style={{ display: 'flex', gap: 6, padding: '10px 16px', borderTop: '1px solid var(--ec-border)' }}>
+        <div className="flex gap-[6px] py-[10px] px-[16px] border-t border-t-ec-line border-solid">
           <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>{saving ? '저장 중…' : '저장(F8)'}</button>
           <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={onClose}>닫기</button>
         </div>

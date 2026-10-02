@@ -96,13 +96,13 @@ export default function StockMoveListPage({ kind }: { kind: 'SELF_USE' | 'DEFECT
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={selfUse ? SELF_USE_PICKS : QUOTATION_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
@@ -127,11 +127,11 @@ export default function StockMoveListPage({ kind }: { kind: 'SELF_USE' | 'DEFECT
               </select>
             </EcCond>
             <EcCond label="처리방법">
-              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+              <label className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
                 <input type="checkbox" checked={handlingOff.size === 0} onChange={(e) => setHandlingOff(e.target.checked ? new Set() : new Set(['', ...handlings]))} /> 전체
               </label>
               {handlings.map((h) => (
-                <label key={h} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+                <label key={h} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
                   <input type="checkbox" checked={!handlingOff.has(h)}
                          onChange={(e) => setHandlingOff((s) => { const n = new Set(s); if (e.target.checked) n.delete(h); else n.add(h); return n })} /> {h}
                 </label>
@@ -141,30 +141,30 @@ export default function StockMoveListPage({ kind }: { kind: 'SELF_USE' | 'DEFECT
         )}
       </ul>
 
-      {truncated && <p style={{ fontSize: 12, color: 'var(--ec-warn)', marginBottom: 6 }}>자료가 많아 앞부분만 받았습니다 — 기간을 좁혀 보세요.</p>}
+      {truncated && <p className="text-[12px] text-ec-warn mb-[6px]">자료가 많아 앞부분만 받았습니다 — 기간을 좁혀 보세요.</p>}
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ textAlign: 'center' }}>입력일자</th>
+            <th className="w-[34px]"></th>
+            <th className="text-center">입력일자</th>
             <th>창고</th>
             <th>품목</th>
-            <th style={{ textAlign: 'right' }}>수량</th>
+            <th className="text-right">수량</th>
             {selfUse ? <th>담당자</th> : <th>처리방법</th>}
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={6} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-              <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{dateText(r.adjustDate)} {r.adjustNo}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td className="text-center">{dateText(r.adjustDate)} {r.adjustNo}</td>
               <td>{r.warehouseName}</td>
               <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
-              <td style={{ textAlign: 'right' }}>{Math.abs(Number(r.quantityChange)).toLocaleString('ko-KR')}</td>
+              <td className="text-right">{Math.abs(Number(r.quantityChange)).toLocaleString('ko-KR')}</td>
               {selfUse
                 ? <td>{r.employeeId != null ? empName.get(r.employeeId) ?? '' : ''}</td>
                 : <td>{r.handling ?? ''}</td>}

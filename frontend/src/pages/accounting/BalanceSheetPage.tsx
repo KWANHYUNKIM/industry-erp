@@ -154,10 +154,10 @@ export default function BalanceSheetPage() {
   const row = (label: React.ReactNode, a: [number | null, number | null] | null, b: [number | null, number | null] | null, bold = false) => (
     <tr style={bold ? BOLD : undefined}>
       <td>{label}</td>
-      <td style={{ textAlign: 'right' }}>{a ? fmt(a[0]) : ''}</td>
-      <td style={{ textAlign: 'right' }}>{a ? fmt(a[1]) : ''}</td>
-      <td style={{ textAlign: 'right' }}>{b && cmp ? fmt(b[0]) : ''}</td>
-      <td style={{ textAlign: 'right' }}>{b && cmp ? fmt(b[1]) : ''}</td>
+      <td className="text-right">{a ? fmt(a[0]) : ''}</td>
+      <td className="text-right">{a ? fmt(a[1]) : ''}</td>
+      <td className="text-right">{b && cmp ? fmt(b[0]) : ''}</td>
+      <td className="text-right">{b && cmp ? fmt(b[1]) : ''}</td>
     </tr>
   )
 
@@ -172,12 +172,12 @@ export default function BalanceSheetPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
           <input type="month" className="ec-input" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} style={{ width: 130, marginRight: 10 }} />
           {COMPARES.map((v) => (
-            <label key={v} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+            <label key={v} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
               <input type="radio" name="bs-compare" checked={compare === v} onChange={() => setCompare(v)} /> {v}
             </label>
           ))}
@@ -187,7 +187,7 @@ export default function BalanceSheetPage() {
         </EcCond>
         <EcCond label="기타">
           {([['천단위', thousand, setThousand], ['잔액0포함', withZero, setWithZero]] as const).map(([l, v, set]) => (
-            <label key={l} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+            <label key={l} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
               <input type="checkbox" checked={v} onChange={(e) => set(e.target.checked)} /> {l}
             </label>
           ))}
@@ -196,8 +196,8 @@ export default function BalanceSheetPage() {
 
       {base && (
         <>
-          <h3 style={{ fontSize: 20, fontWeight: 700, textAlign: 'center', margin: '6px 0 12px' }}>재무상태표</h3>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, margin: '0 0 4px' }}>
+          <h3 className="text-[20px] font-bold text-center mt-[6px] mx-0 mb-[12px]">재무상태표</h3>
+          <div className="flex justify-between text-[12px] mt-0 mx-0 mb-[4px]">
             <span>회사명 : {companyName ?? ''}</span>
             <span>{month.replace('-', '/')} 현재{thousand ? ' (단위 : 천원)' : ''}</span>
           </div>
@@ -205,8 +205,8 @@ export default function BalanceSheetPage() {
             <thead>
               <tr>
                 <th>재무제표표시명</th>
-                <th colSpan={2} style={{ textAlign: 'center' }}>{yearOf(base.asOf)} (기준)</th>
-                <th colSpan={2} style={{ textAlign: 'center' }}>{cmp ? `${yearOf(cmp.asOf)} (비교)` : '(비교)'}</th>
+                <th colSpan={2} className="text-center">{yearOf(base.asOf)} (기준)</th>
+                <th colSpan={2} className="text-center">{cmp ? `${yearOf(cmp.asOf)} (비교)` : '(비교)'}</th>
               </tr>
             </thead>
             <tbody>

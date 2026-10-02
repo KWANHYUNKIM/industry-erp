@@ -189,8 +189,8 @@ export default function MrpPage() {
         { label: '인쇄' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {ok && <p style={{ background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
       <MrpRunList onMessage={(m) => { setOk(m); setError('') }} onError={(m) => { setError(m); setOk('') }} />
 
@@ -205,17 +205,14 @@ export default function MrpPage() {
         원본 [생산계획/MRP생성]. 원본은 팝업이지만 조건이 셋뿐이라 조건 판 위에 한 줄로 둔다 —
         팝업을 만들면 누를 때마다 창이 뜨고 닫히는 것 말고 나아지는 것이 없다.
       */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, padding: '8px 10px',
-        border: '1px solid var(--ec-border)', background: 'var(--ec-bg-page)', flexWrap: 'wrap',
-      }}>
-        <b style={{ fontSize: 12.5, color: 'var(--ec-text)' }}>생산계획/MRP생성</b>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>대상-전표</span>
+      <div className="flex items-center gap-[8px] mb-[8px] py-[8px] px-[10px] border border-ec-line border-solid bg-ec-page flex-wrap">
+        <b className="text-[12.5px] text-ec-text">생산계획/MRP생성</b>
+        <span className="text-[12.5px] text-ec-label">대상-전표</span>
         <span className="ec-pill active" style={{ cursor: 'default' }}>미판매</span>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>계획주차</span>
+        <span className="text-[12.5px] text-ec-label">계획주차</span>
         <input className="ec-input" placeholder="2026-W31" value={genWeek}
                onChange={(e) => setGenWeek(e.target.value)} style={{ width: 120 }} />
-        <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+        <label className="text-[12.5px] flex items-center gap-[4px]">
           <input type="checkbox" checked={deductStock}
                  onChange={(e) => setDeductStock(e.target.checked)} />
           현재고 차감
@@ -223,7 +220,7 @@ export default function MrpPage() {
         <button className="ec-btn ec-btn-primary" onClick={generate} disabled={generating}>
           {generating ? '생성 중…' : '생성'}
         </button>
-        <span style={{ fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
+        <span className="text-[11.5px] text-ec-hint">
           주문은 받았는데 아직 매출로 못 끊은 잔량에서 재고를 뺀 만큼 만듭니다.
           같은 주차에 이미 있는 품목은 건드리지 않습니다.
         </span>
@@ -234,7 +231,7 @@ export default function MrpPage() {
         <EcCond label="생성일자">
           <input type="date" className="ec-input" value={madeFrom}
                  onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 145 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={madeTo}
                  onChange={(e) => setMadeTo(e.target.value)} style={{ width: 145 }} />
         </EcCond>
@@ -242,7 +239,7 @@ export default function MrpPage() {
           {/* 계획주차는 2026-W28 같은 문자열이라 주차 입력으로 받는다 — 날짜로 받으면 되레 어긋난다. */}
           <input type="week" className="ec-input" value={weekFrom}
                  onChange={(e) => setWeekFrom(e.target.value)} style={{ width: 150 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="week" className="ec-input" value={weekTo}
                  onChange={(e) => setWeekTo(e.target.value)} style={{ width: 150 }} />
         </EcCond>
@@ -259,42 +256,42 @@ export default function MrpPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th className="w-[34px]"></th>
             <th>계획주차</th>
             <th>품목명</th>
-            <th style={{ textAlign: 'right' }}>총소요량</th>
-            <th style={{ textAlign: 'right' }}>현재고</th>
-            <th style={{ textAlign: 'right' }}>순소요량(부족)</th>
-            <th style={{ textAlign: 'right' }}>계획수량</th>
+            <th className="text-right">총소요량</th>
+            <th className="text-right">현재고</th>
+            <th className="text-right">순소요량(부족)</th>
+            <th className="text-right">계획수량</th>
             <th>작업지시번호</th>
-            <th style={{ textAlign: 'center' }}>상태</th>
+            <th className="text-center">상태</th>
             <th>비고</th>
-            <th style={{ width: 110, textAlign: 'center' }}>처리</th>
+            <th className="w-[110px] text-center">처리</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={11} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.planWeek}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td>{r.planWeek}</td>
               <td>[{r.productCode}] {r.productName}</td>
-              <td style={{ textAlign: 'right' }}>{r.demandQty.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{r.currentStock.toLocaleString()}</td>
+              <td className="text-right">{r.demandQty.toLocaleString()}</td>
+              <td className="text-right">{r.currentStock.toLocaleString()}</td>
               <td style={{ textAlign: 'right', fontWeight: r.shortage > 0 ? 700 : 400, color: r.shortage > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>{r.shortage.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{r.planQty.toLocaleString()}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.workOrderNo ?? ''}</td>
+              <td className="text-right font-semibold text-ec-navy">{r.planQty.toLocaleString()}</td>
+              <td>{r.workOrderNo ?? ''}</td>
               <td style={{ textAlign: 'center', fontWeight: 700, color: STATUS_COLOR[r.status] }}>{r.statusName}</td>
-              <td style={{ color: 'var(--ec-text-hint)' }}>{r.remark ?? ''}</td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-ec-hint">{r.remark ?? ''}</td>
+              <td className="text-center">
                 {/* 확정한 계획만 넘긴다 — 검토 중인 수량으로 지시를 내면 아직 정하지도 않은 것이 현장으로 나간다. */}
                 {r.status === 'CONFIRMED' ? (
                   <button className="ec-btn" style={{ height: 20, padding: '0 8px' }}
                           onClick={() => void makeWorkOrder(r)}>작업지시서생성</button>
-                ) : <span style={{ color: 'var(--ec-text-off)', fontSize: 11.5 }}>—</span>}
+                ) : <span className="text-ec-off text-[11.5px]">—</span>}
               </td>
             </tr>
           ))}
@@ -452,14 +449,14 @@ function TimePhasedModal({ mode, onClose, onMade, initialFrom, initialTo, source
 
   return (
     <Modal open title={mode === 'PLAN' ? '생산계획현황' : 'MRP현황'} error={err} width={1400} onClose={onClose}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12.5 }}>대상기간</span>
+      <div className="flex items-center gap-[6px] mb-[8px] flex-wrap">
+        <span className="text-[12.5px]">대상기간</span>
         <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
         <span>~</span>
         <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
         <button type="button" className="ec-btn ec-btn-primary" onClick={() => void run()}>적용(F8)</button>
         {mode === 'PLAN' && (
-          <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span className="ml-auto flex items-center gap-[6px]">
             <CodePickerField label="생산공장" hideLabel width={180} emptyLabel="선택 해제" value={factory} onChange={setFactory}
                              items={[...warehouses].sort((a, b) => Number(a.kind === '창고') - Number(b.kind === '창고'))
                                .map((w) => ({ value: String(w.id), code: w.code, name: w.name, sub: w.kind }))} />
@@ -467,34 +464,34 @@ function TimePhasedModal({ mode, onClose, onMade, initialFrom, initialTo, source
           </span>
         )}
         {mode === 'MRP' && (
-          <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span className="ml-auto flex items-center gap-[6px]">
             <CodePickerField label="매입처" hideLabel width={180} emptyLabel="주거래처만" value={fallbackPartner} onChange={setFallbackPartner}
                              items={partners.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
             <button type="button" className="ec-btn" onClick={() => void makePurchaseRequests()}>발주요청생성</button>
           </span>
         )}
       </div>
-      <div style={{ maxHeight: '62vh', overflow: 'auto' }}>
-        <table ref={tableRef} className="w-full text-left" style={{ whiteSpace: 'nowrap' }}>
+      <div className="max-h-[62vh] overflow-auto">
+        <table ref={tableRef} className="w-full text-left whitespace-nowrap">
           <thead>
             <tr>
               <th>품목코드</th>
               <th>품목명[규격]</th>
               <th>단위</th>
-              <th style={{ textAlign: 'right' }}>안전재고수량</th>
-              <th style={{ textAlign: 'right' }}>최소증가단위</th>
-              <th style={{ textAlign: 'right' }}>조달기간</th>
-              <th style={{ textAlign: 'right' }}>전일재고</th>
+              <th className="text-right">안전재고수량</th>
+              <th className="text-right">최소증가단위</th>
+              <th className="text-right">조달기간</th>
+              <th className="text-right">전일재고</th>
               <th>구분</th>
-              <th style={{ textAlign: 'right' }}>계획기간이전</th>
-              {days.map((d) => <th key={d} style={{ textAlign: 'right' }}>{d.replace(/-/g, '/')}</th>)}
+              <th className="text-right">계획기간이전</th>
+              {days.map((d) => <th key={d} className="text-right">{d.replace(/-/g, '/')}</th>)}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9 + days.length} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={9 + days.length} className="ec-empty">불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={9 + days.length} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={9 + days.length} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((r) => (
               <Fragment key={r.itemId}>
                 {PHASED_LINES.map(([k, l], li) => (
@@ -504,14 +501,14 @@ function TimePhasedModal({ mode, onClose, onMade, initialFrom, initialTo, source
                         <td rowSpan={PHASED_LINES.length}>{r.itemCode}</td>
                         <td rowSpan={PHASED_LINES.length}>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
                         <td rowSpan={PHASED_LINES.length}>{r.unit}</td>
-                        <td rowSpan={PHASED_LINES.length} style={{ textAlign: 'right' }}>{num(r.safetyStock)}</td>
-                        <td rowSpan={PHASED_LINES.length} style={{ textAlign: 'right' }}>{num(r.minUnit)}</td>
-                        <td rowSpan={PHASED_LINES.length} style={{ textAlign: 'right' }}>{r.leadTimeDays ? `${r.leadTimeDays}일` : ''}</td>
-                        <td rowSpan={PHASED_LINES.length} style={{ textAlign: 'right' }}>{num(r.prevStock)}</td>
+                        <td rowSpan={PHASED_LINES.length} className="text-right">{num(r.safetyStock)}</td>
+                        <td rowSpan={PHASED_LINES.length} className="text-right">{num(r.minUnit)}</td>
+                        <td rowSpan={PHASED_LINES.length} className="text-right">{r.leadTimeDays ? `${r.leadTimeDays}일` : ''}</td>
+                        <td rowSpan={PHASED_LINES.length} className="text-right">{num(r.prevStock)}</td>
                       </>
                     )}
                     <td>{label(k, l)}</td>
-                    <td style={{ textAlign: 'right' }}>{num(r.before[k] as number | null)}</td>
+                    <td className="text-right">{num(r.before[k] as number | null)}</td>
                     {r.days.map((c, i) => (
                       <td key={i} style={{ textAlign: 'right', color: k === 'needQty' && c.needQty ? 'var(--ec-danger)' : undefined,
                         fontWeight: k === 'expected' || k === 'planQty' ? 600 : undefined }}>{num(c[k] as number | null)}</td>
@@ -596,49 +593,49 @@ function MrpRunList({ onMessage, onError }: { onMessage: (m: string) => void; on
 
   const linkStyle = { border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12, padding: '0 3px' }
   return (
-    <div style={{ marginBottom: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-        <b style={{ fontSize: 12.5 }}>생산계획/MRP리스트</b>
+    <div className="mb-[12px]">
+      <div className="flex items-center gap-[6px] mb-[6px]">
+        <b className="text-[12.5px]">생산계획/MRP리스트</b>
         <button type="button" className="ec-btn ec-btn-primary" onClick={() => setEdit('new')}>신규(F2)</button>
       </div>
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ textAlign: 'center' }}>생성일자</th>
-            <th style={{ textAlign: 'center' }}>생산계획기간</th>
-            <th style={{ textAlign: 'center' }}>기준품목</th>
-            <th style={{ textAlign: 'center' }}>생산계획계산</th>
-            <th style={{ textAlign: 'center' }}>MRP계산</th>
-            <th style={{ textAlign: 'center' }}>생산계획/MRP현황</th>
-            <th style={{ textAlign: 'center' }}>기타</th>
+            <th className="text-center">생성일자</th>
+            <th className="text-center">생산계획기간</th>
+            <th className="text-center">기준품목</th>
+            <th className="text-center">생산계획계산</th>
+            <th className="text-center">MRP계산</th>
+            <th className="text-center">생산계획/MRP현황</th>
+            <th className="text-center">기타</th>
             <th>적요</th>
           </tr>
         </thead>
         <tbody>
           {runs.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 14 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={8} className="text-center text-ec-hint p-[14px]">등록된 데이터가 없습니다.</td></tr>
           ) : runs.map((r) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center' }}><button type="button" className="no-ec" style={linkStyle} onClick={() => setEdit(r)}>{runLabel(r)}</button></td>
-              <td style={{ textAlign: 'center' }}>{r.periodFrom.replace(/-/g, '/')} ~{r.periodTo.replace(/-/g, '/')}</td>
-              <td style={{ textAlign: 'center' }}>{r.baseItemId ? `[${r.baseItemCode}] ${r.baseItemName}` : '전체'}</td>
+              <td className="text-center"><button type="button" className="no-ec" style={linkStyle} onClick={() => setEdit(r)}>{runLabel(r)}</button></td>
+              <td className="text-center">{r.periodFrom.replace(/-/g, '/')} ~{r.periodTo.replace(/-/g, '/')}</td>
+              <td className="text-center">{r.baseItemId ? `[${r.baseItemCode}] ${r.baseItemName}` : '전체'}</td>
               {(['PLAN', 'MRP'] as const).map((k) => (
-                <td key={k} style={{ textAlign: 'center' }}>
+                <td key={k} className="text-center">
                   <button type="button" className="no-ec" style={linkStyle} onClick={() => void generate(r, k)}>생성</button>
                   {(k === 'PLAN' ? r.planGeneratedAt : r.mrpGeneratedAt) && (
                     <button type="button" className="no-ec" style={linkStyle} onClick={() => setLinesOf({ run: r, kind: k })}>수정</button>
                   )}
                 </td>
               ))}
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 {r.planGeneratedAt && <button type="button" className="no-ec" style={linkStyle} onClick={() => setPhasedOf({ run: r, kind: 'PLAN' })}>생산계획현황</button>}
                 {r.mrpGeneratedAt && <button type="button" className="no-ec" style={linkStyle} onClick={() => setPhasedOf({ run: r, kind: 'MRP' })}>MRP현황</button>}
               </td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 {r.planGeneratedAt && <button type="button" className="no-ec" style={linkStyle} onClick={() => setMakeOf({ run: r, kind: 'PLAN' })}>작업지시서생성</button>}
                 {r.mrpGeneratedAt && <button type="button" className="no-ec" style={linkStyle} onClick={() => setMakeOf({ run: r, kind: 'MRP' })}>발주계획/발주서생성</button>}
               </td>
-              <td style={{ color: 'var(--ec-text-hint)' }}>{r.note ?? ''}</td>
+              <td className="text-ec-hint">{r.note ?? ''}</td>
             </tr>
           ))}
         </tbody>
@@ -727,30 +724,30 @@ function MrpRunEditModal({ run, items, onClose, onSaved }: {
     <Modal open title="생산계획/MRP생성" error={err} width={560} onClose={onClose}>
       <table className="w-full text-left">
         <tbody>
-          <tr><th style={{ width: 130 }}>생성일자</th>
+          <tr><th className="w-[130px]">생성일자</th>
             <td><input type="date" className="ec-input" value={runDate} onChange={(e) => setRunDate(e.target.value)} style={{ width: 150 }} /></td></tr>
           <tr><th>생산계획기간</th>
             <td>
               <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 150 }} />
-              <span style={{ margin: '0 4px' }}>~</span>
+              <span className="my-0 mx-[4px]">~</span>
               <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 150 }} />
             </td></tr>
           <tr><th>생산계획대상-전표</th>
-            <td style={{ fontSize: 12.5, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <td className="text-[12.5px] flex gap-[10px] items-center flex-wrap">
               <label><input type="checkbox" checked={srcUnsold} onChange={(e) => setSrcUnsold(e.target.checked)} /> 미판매</label>
-              <label title="매출계획은 거래처·금액 단위라 품목 수량이 나오지 않아 셀 수 없다" style={{ color: 'var(--ec-text-hint)' }}>
+              <label title="매출계획은 거래처·금액 단위라 품목 수량이 나오지 않아 셀 수 없다" className="text-ec-hint">
                 <input type="checkbox" disabled /> 매출계획</label>
               <label><input type="checkbox" checked={srcUnpurchased} onChange={(e) => setSrcUnpurchased(e.target.checked)} /> 미구매</label>
               <label><input type="checkbox" checked={srcUnproduced} onChange={(e) => setSrcUnproduced(e.target.checked)} /> 미생산/미소모</label>
             </td></tr>
           <tr><th>생산계획생성기준</th>
-            <td style={{ fontSize: 12.5, display: 'flex', gap: 10 }}>
+            <td className="text-[12.5px] flex gap-[10px]">
               <label><input type="checkbox" checked={planSafety} onChange={(e) => setPlanSafety(e.target.checked)} /> 안전재고반영</label>
               <label><input type="checkbox" checked={planLeadTime} onChange={(e) => setPlanLeadTime(e.target.checked)} /> 조달기간반영</label>
               <label><input type="checkbox" checked={planMinUnit} onChange={(e) => setPlanMinUnit(e.target.checked)} /> 최소증가단위</label>
             </td></tr>
           <tr><th>MRP생성기준</th>
-            <td style={{ fontSize: 12.5, display: 'flex', gap: 10 }}>
+            <td className="text-[12.5px] flex gap-[10px]">
               <label><input type="checkbox" checked={mrpSafety} onChange={(e) => setMrpSafety(e.target.checked)} /> 안전재고반영</label>
               <label><input type="checkbox" checked={mrpLeadTime} onChange={(e) => setMrpLeadTime(e.target.checked)} /> 조달기간반영</label>
               <label><input type="checkbox" checked={mrpMinUnit} onChange={(e) => setMrpMinUnit(e.target.checked)} /> 최소증가단위</label>
@@ -774,7 +771,7 @@ function MrpRunEditModal({ run, items, onClose, onSaved }: {
             <td><input className="ec-input" value={note} maxLength={300} onChange={(e) => setNote(e.target.value)} style={{ width: '100%' }} /></td></tr>
         </tbody>
       </table>
-      <div style={{ display: 'flex', gap: 4, marginTop: 10 }}>
+      <div className="flex gap-[4px] mt-[10px]">
         <button type="button" className="ec-btn ec-btn-primary" onClick={() => void save()}>저장(F8)</button>
         {run && <button type="button" className="ec-btn" onClick={() => void remove()}>삭제</button>}
         <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
@@ -810,39 +807,39 @@ function MrpRunLinesModal({ run, kind, onClose, onSaved }: {
   return (
     <Modal open title={`${kind === 'PLAN' ? '생산계획리스트' : 'MRP리스트'} — ${run.periodFrom.replace(/-/g, '/')} ~ ${run.periodTo.replace(/-/g, '/')}`}
            error={err} width={1100} onClose={onClose}>
-      <div style={{ maxHeight: '60vh', overflow: 'auto' }}>
-        <table className="w-full text-left" style={{ whiteSpace: 'nowrap' }}>
+      <div className="max-h-[60vh] overflow-auto">
+        <table className="w-full text-left whitespace-nowrap">
           <thead>
             <tr>
               <th>품목코드</th>
               <th>품목명</th>
               <th>품목구분</th>
               <th>필요일자</th>
-              <th style={{ textAlign: 'right' }}>전일재고</th>
-              <th style={{ textAlign: 'right' }}>안전재고</th>
-              <th style={{ textAlign: 'right' }}>최소증가단위</th>
-              <th style={{ textAlign: 'right' }}>감소예정</th>
-              <th style={{ textAlign: 'right' }}>증가예정</th>
-              <th style={{ textAlign: 'right' }}>계산수량</th>
-              <th style={{ textAlign: 'right', width: 120 }}>{qtyHead}</th>
+              <th className="text-right">전일재고</th>
+              <th className="text-right">안전재고</th>
+              <th className="text-right">최소증가단위</th>
+              <th className="text-right">감소예정</th>
+              <th className="text-right">증가예정</th>
+              <th className="text-right">계산수량</th>
+              <th className="text-right w-[120px]">{qtyHead}</th>
             </tr>
           </thead>
           <tbody>
             {lines.length === 0 ? (
-              <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={11} className="text-center text-ec-hint p-[16px]">등록된 데이터가 없습니다.</td></tr>
             ) : lines.map((l) => (
               <tr key={l.id}>
                 <td>{l.itemCode}</td>
                 <td>{l.itemName}{l.spec ? ` [${l.spec}]` : ''}</td>
                 <td>{l.categoryName ? `[${l.categoryName}]` : ''}</td>
                 <td>{l.needDate ? l.needDate.replace(/-/g, '/') : ''}</td>
-                <td style={{ textAlign: 'right' }}>{num(l.prevStock)}</td>
-                <td style={{ textAlign: 'right' }}>{num(l.safetyStock)}</td>
-                <td style={{ textAlign: 'right' }}>{num(l.minUnit)}</td>
-                <td style={{ textAlign: 'right' }}>{num(l.decreaseQty)}</td>
-                <td style={{ textAlign: 'right' }}>{num(l.increaseQty)}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(l.calcQty)}</td>
-                <td style={{ textAlign: 'right' }}>
+                <td className="text-right">{num(l.prevStock)}</td>
+                <td className="text-right">{num(l.safetyStock)}</td>
+                <td className="text-right">{num(l.minUnit)}</td>
+                <td className="text-right">{num(l.decreaseQty)}</td>
+                <td className="text-right">{num(l.increaseQty)}</td>
+                <td className="text-right text-ec-hint">{num(l.calcQty)}</td>
+                <td className="text-right">
                   <input className="ec-input" type="number" min={0} value={qty[l.id] ?? ''} style={{ width: 100, textAlign: 'right' }}
                          onChange={(e) => setQty((q) => ({ ...q, [l.id]: e.target.value }))} />
                 </td>
@@ -851,7 +848,7 @@ function MrpRunLinesModal({ run, kind, onClose, onSaved }: {
           </tbody>
         </table>
       </div>
-      <div style={{ display: 'flex', gap: 4, marginTop: 10 }}>
+      <div className="flex gap-[4px] mt-[10px]">
         <button type="button" className="ec-btn ec-btn-primary" onClick={() => void save()}>저장(F8)</button>
         <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
       </div>
@@ -924,7 +921,7 @@ function MrpRunMakeModal({ run, kind, onClose, onMade }: {
 
   return (
     <Modal open title={kind === 'PLAN' ? '작업지시서생성' : '발주계획/발주서생성'} error={err} width={520} onClose={onClose}>
-      <p style={{ fontSize: 12.5, margin: '0 0 8px' }}>
+      <p className="text-[12.5px] mt-0 mx-0 mb-[8px]">
         {runLabel(run)} 의 {kind === 'PLAN' ? '생산계획수량' : '구매계획수량'} {lines.length}줄
         (합 {lines.reduce((n, l) => n + Number(l.planQty), 0).toLocaleString('ko-KR', { maximumFractionDigits: 4 })})
         을 {kind === 'PLAN' ? '필요일마다 작업지시서로' : '매입처·발주일마다 발주요청으로'} 만듭니다.
@@ -932,7 +929,7 @@ function MrpRunMakeModal({ run, kind, onClose, onMade }: {
       <CodePickerField label={kind === 'PLAN' ? '생산공장' : '매입처'} hideLabel width={260}
                        emptyLabel={kind === 'PLAN' ? '선택 해제' : '주거래처만'} value={target} onChange={setTarget}
                        items={targets.map((t) => ({ value: String(t.id), code: t.code, name: t.name, sub: t.kind }))} />
-      <div style={{ display: 'flex', gap: 4, marginTop: 10 }}>
+      <div className="flex gap-[4px] mt-[10px]">
         <button type="button" className="ec-btn ec-btn-primary" onClick={() => void make()}>생성</button>
         <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
       </div>

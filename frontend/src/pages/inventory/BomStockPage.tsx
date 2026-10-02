@@ -133,16 +133,16 @@ export default function BomStockPage() {
         </p>
       )}
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
-        모품목 <b style={{ color: 'var(--ec-text)' }}>{num(rows.length)}</b>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
-        환산가능수량 합 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{num(totalBuildable)}</b>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        모품목 <b className="text-ec-text">{num(rows.length)}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
+        환산가능수량 합 <b className="text-ec-blue text-[14px]">{num(totalBuildable)}</b>
         {blocked > 0 && (
           <>
-            <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
-            생산불가 <b style={{ color: 'var(--ec-danger)', fontSize: 14 }}>{num(blocked)}</b>
+            <span className="my-0 mx-[8px] text-ec-off">|</span>
+            생산불가 <b className="text-ec-danger text-[14px]">{num(blocked)}</b>
           </>
         )}
       </div>
@@ -150,9 +150,9 @@ export default function BomStockPage() {
       <div className="overflow-x-auto">
         <table className="w-full text-left">
           <colgroup>
-            <col style={{ width: '4%' }} /><col style={{ width: '14%' }} /><col />
-            <col style={{ width: '8%' }} /><col style={{ width: '11%' }} />
-            <col style={{ width: '11%' }} /><col style={{ width: '13%' }} />
+            <col className="w-[4%]" /><col className="w-[14%]" /><col />
+            <col className="w-[8%]" /><col className="w-[11%]" />
+            <col className="w-[11%]" /><col className="w-[13%]" />
           </colgroup>
           <thead>
             <tr>
@@ -160,22 +160,22 @@ export default function BomStockPage() {
               <th>품목코드</th>
               <th>품목명</th>
               <th>단위</th>
-              <th style={{ textAlign: 'right' }}>소요량</th>
-              <th style={{ textAlign: 'right' }}>현재고</th>
-              <th style={{ textAlign: 'right' }}>환산가능수량</th>
+              <th className="text-right">소요량</th>
+              <th className="text-right">현재고</th>
+              <th className="text-right">환산가능수량</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+              <tr><td colSpan={7} className="text-center text-ec-ink">불러오는 중…</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={7} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
             ) : rows.map((r, i) => (
               <Fragment key={r.bom.id}>
                 <tr style={{ background: '#f2f6fc' }}>
-                  <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                  <td style={{ fontFamily: 'monospace', fontWeight: 700 }}>{r.bom.productCode}</td>
-                  <td style={{ fontWeight: 700 }}>
+                  <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
+                  <td className="font-bold">{r.bom.productCode}</td>
+                  <td className="font-bold">
                     {r.bom.productName}
                     {r.bottleneck.length > 0 && r.lines.length > 0 && (
                       <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 400, color: '#a5561b' }}>
@@ -184,8 +184,8 @@ export default function BomStockPage() {
                     )}
                   </td>
                   <td>{r.bom.productUnit}</td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{r.lines.length}건</td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>
+                  <td className="text-right text-ec-hint">{r.lines.length}건</td>
+                  <td className="text-right text-ec-hint">
                     {num(stockOf.get(r.bom.productId) ?? 0)}
                   </td>
                   <td style={{ textAlign: 'right', fontWeight: 700, fontSize: 14, color: r.buildable === 0 ? 'var(--ec-danger)' : 'var(--ec-blue)' }}>
@@ -194,12 +194,12 @@ export default function BomStockPage() {
                 </tr>
                 {r.lines.map((l) => (
                   <tr key={`c-${r.bom.id}-${l.componentId}`}>
-                    <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)' }}></td>
-                    <td style={{ fontFamily: 'monospace', paddingLeft: 18, color: 'var(--ec-label)' }}>└ {l.componentCode}</td>
-                    <td style={{ color: 'var(--ec-label)' }}>{l.componentName}</td>
-                    <td style={{ color: 'var(--ec-text-hint)' }}>{l.unit}</td>
-                    <td style={{ textAlign: 'right' }}>{num(l.quantity)}</td>
-                    <td style={{ textAlign: 'right' }}>{num(l.stockQty)}</td>
+                    <td className="text-center bg-ec-stripe"></td>
+                    <td className="pl-[18px] text-ec-label">└ {l.componentCode}</td>
+                    <td className="text-ec-label">{l.componentName}</td>
+                    <td className="text-ec-hint">{l.unit}</td>
+                    <td className="text-right">{num(l.quantity)}</td>
+                    <td className="text-right">{num(l.stockQty)}</td>
                     <td style={{ textAlign: 'right', color: l.buildable === r.buildable ? '#a5561b' : 'var(--ec-text-hint)', fontWeight: l.buildable === r.buildable ? 700 : 400 }}>
                       {l.buildable === null ? '—' : num(l.buildable)}
                     </td>
@@ -211,10 +211,10 @@ export default function BomStockPage() {
           {rows.length > 0 && (
             <tfoot>
               <tr>
-                <td colSpan={6} style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>
+                <td colSpan={6} className="text-right font-bold bg-ec-page">
                   환산가능수량 합계 ({rows.length}품목)
                 </td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: 'var(--ec-blue)' }}>
+                <td className="text-right font-bold bg-ec-page text-ec-blue">
                   {num(totalBuildable)}
                 </td>
               </tr>

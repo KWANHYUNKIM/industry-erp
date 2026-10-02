@@ -165,6 +165,7 @@ const WmsPage = lazy(() => import('../pages/inventory/WmsPage'))
 const ReportsPage = lazy(() => import('../pages/inventory/ReportsPage'))
 const EtcSystemPage = lazy(() => import('../pages/settings/EtcSystemPage'))
 const CommonCodePage = lazy(() => import('../pages/settings/CommonCodePage'))
+const DesignSystemPage = lazy(() => import('../pages/settings/DesignSystemPage'))
 const CustomFieldPage = lazy(() => import('../pages/settings/CustomFieldPage'))
 const DataCollectPage = lazy(() => import('../pages/datacenter/DataCollectPage'))
 const DataExportPage = lazy(() => import('../pages/datacenter/DataExportPage'))
@@ -273,7 +274,7 @@ const ReceiptInquiryPage = lazy(() => import('../pages/production/ReceiptInquiry
  *  그래서 모듈별 레이아웃 래퍼 없이 모든 화면이 EcountLayout 아래 평평하게 붙는다. */
 export default function AppRouter() {
   return (
-    <Suspense fallback={<div style={{ padding: 24, color: 'var(--ec-text-hint)', fontSize: 13 }}>화면을 불러오는 중…</div>}>
+    <Suspense fallback={<div className="p-[24px] text-ec-hint text-[13px]">화면을 불러오는 중…</div>}>
       <Routes>
       <Route path="/login" element={<LoginPage />} />
 
@@ -564,6 +565,7 @@ export default function AppRouter() {
         <Route path="/settings/print-sign" element={<PrintSignLinePage />} />
         <Route path="/settings/etc" element={<EtcSystemPage />} />
         <Route path="/settings/codes" element={<CommonCodePage />} />
+        <Route path="/settings/design-system" element={<DesignSystemPage />} />
         <Route path="/settings/custom-fields" element={<CustomFieldPage />} />
 
         {/* 그룹웨어 */}

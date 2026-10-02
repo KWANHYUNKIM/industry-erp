@@ -182,54 +182,54 @@ export default function VacationUsePage() {
         </EcCond>
       </ul>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
-        휴가 <b style={{ color: 'var(--ec-text)' }}>{shown.length}</b>건
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
-        사용일수 합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{totalDays.toLocaleString('ko-KR')}</b>일
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        휴가 <b className="text-ec-text">{shown.length}</b>건
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
+        사용일수 합계 <b className="text-ec-navy text-[14px]">{totalDays.toLocaleString('ko-KR')}</b>일
       </div>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th className="w-[34px]"></th>
             {/* 원본 휴가사용실적현황의 첫 열 [전표번호]. 어느 근태 전표에서 나온 줄인지가 없었다. */}
-            <th style={{ width: 150 }}>전표번호</th>
+            <th className="w-[150px]">전표번호</th>
             <th>사원명</th>
             <th>부서</th>
-            <th style={{ textAlign: 'center' }}>휴가종류</th>
+            <th className="text-center">휴가종류</th>
             <th>시작일</th>
             <th>종료일</th>
             <th>적요</th>
-            <th style={{ textAlign: 'right' }}>휴가일수</th>
-            <th style={{ textAlign: 'right' }}>휴가사용일수</th>
-            <th style={{ textAlign: 'right' }}>휴가잔여일수</th>
-            <th style={{ textAlign: 'center' }}>상태</th>
-            <th style={{ width: 90, textAlign: 'center' }}>결재</th>
+            <th className="text-right">휴가일수</th>
+            <th className="text-right">휴가사용일수</th>
+            <th className="text-right">휴가잔여일수</th>
+            <th className="text-center">상태</th>
+            <th className="w-[90px] text-center">결재</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={13} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={13} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : withRemain.map(({ row: r, grant, remain, first }, i) => (
             <tr key={r.id} style={first && i > 0 ? { borderTop: '2px solid #d7dce3' } : undefined}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
               <td style={mono}>{r.docNo}</td>
               <td>{first ? r.empName : ''}</td>
               <td>{first ? (r.department ?? '') : ''}</td>
-              <td style={{ textAlign: 'center' }}>{r.type}</td>
+              <td className="text-center">{r.type}</td>
               <td style={mono}>{dateText(r.startDate)}</td>
               <td style={mono}>{dateText(r.endDate)}</td>
               <td>{r.reason ?? ''}</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{grant != null ? days(grant) : ''}</td>
-              <td style={{ textAlign: 'right' }}>{days(r.days)}</td>
+              <td className="text-right text-ec-label">{grant != null ? days(grant) : ''}</td>
+              <td className="text-right">{days(r.days)}</td>
               <td style={{ textAlign: 'right', fontWeight: 700, color: remain != null && remain < 0 ? 'var(--ec-danger)' : undefined }}>
                 {remain != null ? days(remain) : ''}
               </td>
               <td style={{ textAlign: 'center', fontWeight: 700, color: statusColor(r.status) }}>{r.statusName}</td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 {r.status === 'PENDING' ? (
                   <>
                     <button onClick={() => changeStatus(r, 'APPROVED')} style={{ color: 'var(--ec-success)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>승인</button>

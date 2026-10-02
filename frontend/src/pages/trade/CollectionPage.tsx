@@ -173,7 +173,7 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
       ]}
       signLine={signBox}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <EcStatusPanel
         from={cond.from} to={cond.to}
@@ -222,17 +222,17 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
                              .map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="결재방표시">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
             인쇄물에 결재란(도장칸)을 찍는다
           </label>
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
-        건수 <b style={{ color: 'var(--ec-text)' }}>{shown.length.toLocaleString()}</b>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
-        {moneyLabel} 합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{total.toLocaleString()}</b>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        건수 <b className="text-ec-text">{shown.length.toLocaleString()}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
+        {moneyLabel} 합계 <b className="text-ec-navy text-[14px]">{total.toLocaleString()}</b>
       </div>
 
       {view === '그래프' ? (
@@ -240,44 +240,44 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
       ) : (
       <table className="w-full text-left">
         <colgroup>
-          <col style={{ width: '4%' }} /><col style={{ width: '12%' }} /><col style={{ width: '18%' }} />
-          <col /><col style={{ width: '14%' }} /><col style={{ width: '12%' }} /><col style={{ width: '20%' }} />
+          <col className="w-[4%]" /><col className="w-[12%]" /><col className="w-[18%]" />
+          <col /><col className="w-[14%]" /><col className="w-[12%]" /><col className="w-[20%]" />
         </colgroup>
         <thead>
           <tr>
             <th></th>
-            <th style={{ textAlign: 'center', width: 190, cursor: 'pointer' }} onClick={() => sort.toggle('일자-No.')}>일자-No. {sort.mark('일자-No.')}</th>
+            <th className="text-center w-[190px] cursor-pointer" onClick={() => sort.toggle('일자-No.')}>일자-No. {sort.mark('일자-No.')}</th>
             {/* 원본 열 이름 그대로 — 수금현황·지급현황 둘 다 [거래처명]·[금액]·[적요] 다. */}
             <th>거래처명</th>
-            <th style={{ textAlign: 'right' }}>금액</th>
-            <th style={{ textAlign: 'center' }}>{moneyLabel}방법</th>
+            <th className="text-right">금액</th>
+            <th className="text-center">{moneyLabel}방법</th>
             <th>적요</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+            <tr><td colSpan={6} className="text-center text-ec-ink">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={6} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-              <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>
+              <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
+              <td className="text-center">
                 {r.settleDate.replace(/-/g, '/')} {r.docNo}
               </td>
               <td>{r.partnerName}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700 }}>{r.amount.toLocaleString()}</td>
-              <td style={{ textAlign: 'center' }}>{r.method ?? ''}</td>
-              <td style={{ color: 'var(--ec-label)' }}>{r.note ?? ''}</td>
+              <td className="text-right font-bold">{r.amount.toLocaleString()}</td>
+              <td className="text-center">{r.method ?? ''}</td>
+              <td className="text-ec-label">{r.note ?? ''}</td>
             </tr>
           ))}
         </tbody>
         {shown.length > 0 && (
           <tfoot>
             <tr>
-              <td colSpan={3} style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>합계 ({shown.length}건)</td>
-              <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>{total.toLocaleString()}</td>
-              <td colSpan={2} style={{ background: 'var(--ec-bg-page)' }}></td>
+              <td colSpan={3} className="text-right font-bold bg-ec-page">합계 ({shown.length}건)</td>
+              <td className="text-right font-bold bg-ec-page">{total.toLocaleString()}</td>
+              <td colSpan={2} className="bg-ec-page"></td>
             </tr>
           </tfoot>
         )}
@@ -292,19 +292,19 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
           { amount: (r) => r.amount })
         return (
           <>
-            <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+            <h3 className="text-[13px] font-bold mt-[16px] mx-0 mb-[6px]">{subtotal} 소계</h3>
             <table className="w-full text-left">
               <thead><tr>
                 <th>{subtotal}</th>
-                <th style={{ width: 90, textAlign: 'right' }}>건수</th>
-                <th style={{ width: 160, textAlign: 'right' }}>{moneyLabel}액</th>
+                <th className="w-[90px] text-right">건수</th>
+                <th className="w-[160px] text-right">{moneyLabel}액</th>
               </tr></thead>
               <tbody>
                 {groups.map((g) => (
                   <tr key={g.label}>
-                    <td style={{ fontWeight: 600 }}>{g.label}</td>
-                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
-                    <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700 }}>
+                    <td className="font-semibold">{g.label}</td>
+                    <td className="text-right">{g.count}</td>
+                    <td className="text-right font-bold">
                       {g.sums.amount.toLocaleString()}
                     </td>
                   </tr>

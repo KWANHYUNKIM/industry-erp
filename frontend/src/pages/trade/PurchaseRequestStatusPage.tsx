@@ -418,10 +418,10 @@ export default function PurchaseRequestStatusPage({
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       {/* 발주 파이프라인 집계 카드 — 클릭하면 해당 상태로 전환 */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+      <div className="flex gap-[8px] mb-[12px] flex-wrap">
         {PIPELINE.map((st) => {
           const s = summary.find((x) => x.status === st)
           const active = st === status
@@ -440,10 +440,10 @@ export default function PurchaseRequestStatusPage({
               <div style={{ fontSize: 11.5, fontWeight: 700, color: STATUS_COLOR[st], marginBottom: 3 }}>
                 {STATUS_LABEL[st]}
               </div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--ec-text)', lineHeight: 1 }}>
-                {(s?.count ?? 0).toLocaleString()}<span style={{ fontSize: 11, fontWeight: 400, color: 'var(--ec-text-hint)' }}> 건</span>
+              <div className="text-[18px] font-bold text-ec-text leading-[1]">
+                {(s?.count ?? 0).toLocaleString()}<span className="text-[11px] font-normal text-ec-hint"> 건</span>
               </div>
-              <div style={{ fontSize: 11, color: 'var(--ec-text-hint)', marginTop: 3 }}>
+              <div className="text-[11px] text-ec-hint mt-[3px]">
                 {(s?.supplyAmount ?? 0).toLocaleString()}
               </div>
             </button>
@@ -471,7 +471,7 @@ export default function PurchaseRequestStatusPage({
         <EcCond label="납기일자">
           <input type="date" className="ec-input" value={cond.dueFrom}
                  onChange={(e) => setC({ dueFrom: e.target.value })} style={{ width: 140 }} />
-          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <span className="text-ec-label">~</span>
           <input type="date" className="ec-input" value={cond.dueTo}
                  onChange={(e) => setC({ dueTo: e.target.value })} style={{ width: 140 }} />
         </EcCond>
@@ -483,7 +483,7 @@ export default function PurchaseRequestStatusPage({
         <EcCond label="유효기간">
           <input type="date" className="ec-input" value={cond.validFrom}
                  onChange={(e) => setC({ validFrom: e.target.value })} style={{ width: 140 }} />
-          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <span className="text-ec-label">~</span>
           <input type="date" className="ec-input" value={cond.validTo}
                  onChange={(e) => setC({ validTo: e.target.value })} style={{ width: 140 }} />
         </EcCond>
@@ -593,28 +593,28 @@ export default function PurchaseRequestStatusPage({
         <EcCond label="수량">
           <input type="number" className="ec-input text-right" placeholder="이상" value={cond.qtyFrom}
                  onChange={(e) => setC({ qtyFrom: e.target.value })} style={{ width: 90 }} />
-          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <span className="text-ec-label">~</span>
           <input type="number" className="ec-input text-right" placeholder="이하" value={cond.qtyTo}
                  onChange={(e) => setC({ qtyTo: e.target.value })} style={{ width: 90 }} />
         </EcCond>
         <EcCond label="단가">
           <input type="number" className="ec-input text-right" placeholder="이상" value={cond.priceFrom}
                  onChange={(e) => setC({ priceFrom: e.target.value })} style={{ width: 100 }} />
-          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <span className="text-ec-label">~</span>
           <input type="number" className="ec-input text-right" placeholder="이하" value={cond.priceTo}
                  onChange={(e) => setC({ priceTo: e.target.value })} style={{ width: 100 }} />
         </EcCond>
         <EcCond label="공급가액">
           <input type="number" className="ec-input text-right" placeholder="이상" value={cond.supplyFrom}
                  onChange={(e) => setC({ supplyFrom: e.target.value })} style={{ width: 110 }} />
-          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <span className="text-ec-label">~</span>
           <input type="number" className="ec-input text-right" placeholder="이하" value={cond.supplyTo}
                  onChange={(e) => setC({ supplyTo: e.target.value })} style={{ width: 110 }} />
         </EcCond>
         <EcCond label="부가세">
           <input type="number" className="ec-input text-right" placeholder="이상" value={cond.vatFrom}
                  onChange={(e) => setC({ vatFrom: e.target.value })} style={{ width: 100 }} />
-          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <span className="text-ec-label">~</span>
           <input type="number" className="ec-input text-right" placeholder="이하" value={cond.vatTo}
                  onChange={(e) => setC({ vatTo: e.target.value })} style={{ width: 100 }} />
         </EcCond>
@@ -664,13 +664,13 @@ export default function PurchaseRequestStatusPage({
       </EcStatusPanel>
 
       {prevTotals && (
-        <div style={{ marginBottom: 8, fontSize: 12.5, textAlign: 'right', color: 'var(--ec-label)' }}>
-          <span style={{ color: 'var(--ec-label)' }}>
+        <div className="mb-[8px] text-[12.5px] text-right text-ec-label">
+          <span className="text-ec-label">
             비교기간({prevRange!.from.replace(/-/g, '/')} ~ {prevRange!.to.replace(/-/g, '/')})
           </span>
-          <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+          <span className="my-0 mx-[8px] text-ec-off">|</span>
           건수 {prevTotals.count.toLocaleString()} → {shown.length.toLocaleString()}
-          <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+          <span className="my-0 mx-[8px] text-ec-off">|</span>
           공급가액 {prevTotals.supply.toLocaleString()} → {totals.supply.toLocaleString()}
           {prevTotals.supply > 0 && (
             <span style={{ marginLeft: 4, color: totals.supply >= prevTotals.supply ? 'var(--ec-success)' : 'var(--ec-danger)' }}>
@@ -681,15 +681,15 @@ export default function PurchaseRequestStatusPage({
         </div>
       )}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
         <span style={{ color: STATUS_COLOR[status], fontWeight: 700 }}>{STATUS_LABEL[status]}</span>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
-        건수 <b style={{ color: 'var(--ec-text)' }}>{shown.length.toLocaleString()}</b>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
-        수량 <b style={{ color: 'var(--ec-text)', fontSize: 14 }}>{totals.qty.toLocaleString()}</b>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
+        건수 <b className="text-ec-text">{shown.length.toLocaleString()}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
+        수량 <b className="text-ec-text text-[14px]">{totals.qty.toLocaleString()}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
         공급가액 <b style={{ color: '#1c6b32', fontSize: 14 }}>{totals.supply.toLocaleString()}</b>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
         부가세 <b style={{ color: '#1c6b32', fontSize: 14 }}>{totals.vat.toLocaleString()}</b>
       </div>
       {view === '그래프' ? (
@@ -703,26 +703,26 @@ export default function PurchaseRequestStatusPage({
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
+              <th className="w-[34px]"></th>
               {/* 묶은 축의 이름을 그대로 단다 — '매입처' 라 써 놓고 품목을 늘어놓으면 거짓말이 된다. */}
               <th>{subtotal}</th>
-              <th style={{ textAlign: 'right' }}>건수</th>
-              <th style={{ textAlign: 'right' }}>수량</th>
-              <th style={{ textAlign: 'right' }}>공급가액</th>
-              <th style={{ textAlign: 'right' }}>부가세</th>
+              <th className="text-right">건수</th>
+              <th className="text-right">수량</th>
+              <th className="text-right">공급가액</th>
+              <th className="text-right">부가세</th>
             </tr>
           </thead>
           <tbody>
             {grouped.length === 0 ? (
-              <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={6} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
             ) : grouped.map((g, i) => (
               <tr key={g.partner}>
-                <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+                <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
                 <td>{g.partner}</td>
-                <td style={{ textAlign: 'right' }}>{g.count.toLocaleString()}</td>
-                <td style={{ textAlign: 'right' }}>{g.qty.toLocaleString()}</td>
-                <td style={{ textAlign: 'right' }}>{g.supply.toLocaleString()}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{g.vat.toLocaleString()}</td>
+                <td className="text-right">{g.count.toLocaleString()}</td>
+                <td className="text-right">{g.qty.toLocaleString()}</td>
+                <td className="text-right">{g.supply.toLocaleString()}</td>
+                <td className="text-right text-ec-hint">{g.vat.toLocaleString()}</td>
               </tr>
             ))}
           </tbody>
@@ -731,7 +731,7 @@ export default function PurchaseRequestStatusPage({
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th className="w-[34px]"></th>
             {/*
               2026-09-09 원본 실측(E040318) — 격자 열은
               <b>일자-No. · 품목명(규격) · 수량 · 단가 · 공급가액 · 거래처명 · 적요</b> 다.
@@ -760,43 +760,43 @@ export default function PurchaseRequestStatusPage({
               <b>[참조] 열이 없었다</b> — 전표 머리의 참조(PurchaseOrder.remark)는
               응답이 진작 싣고 조건으로도 이미 거르고 있었는데 표에 안 찍고 있었다.
             */}
-            <th style={{ width: 170, cursor: 'pointer' }} onClick={() => sort.toggle('발주일자')}>{title === '단가요청현황' ? '일자No.' : '일자-No.'} {sort.mark('발주일자')}</th>
+            <th className="w-[170px] cursor-pointer" onClick={() => sort.toggle('발주일자')}>{title === '단가요청현황' ? '일자No.' : '일자-No.'} {sort.mark('발주일자')}</th>
             <th>납기일자</th>
             <th>창고</th>
             <th>담당자명</th>
             <th>{title === '단가요청현황' ? '품목명[규격]' : title === '발주계획현황' ? '품목명[규격명]' : '품목명(규격)'}</th>
-            <th style={{ textAlign: 'right' }}>수량</th>
-            <th style={{ textAlign: 'right' }}>단가</th>
-            <th style={{ textAlign: 'right' }}>공급가액</th>
+            <th className="text-right">수량</th>
+            <th className="text-right">단가</th>
+            <th className="text-right">공급가액</th>
             <th>거래처명</th>
-            <th style={{ textAlign: 'right' }}>부가세</th>
-            <th style={{ width: 130 }}>참조</th>
-            <th style={{ width: 150 }}>적요</th>
+            <th className="text-right">부가세</th>
+            <th className="w-[130px]">참조</th>
+            <th className="w-[150px]">적요</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={13} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>
+            <tr><td colSpan={13} className="text-center text-ec-hint p-[20px]">
               {rows.length === 0 ? `${STATUS_LABEL[status]} 상태의 발주서가 없습니다.` : '검색조건에 맞는 자료가 없습니다.'}
             </td></tr>
           ) : sort.sorted.map((r, i) => (
             <tr key={r.key}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{dateText(r.date)} {r.orderNo}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td>{dateText(r.date)} {r.orderNo}</td>
               <td style={{ fontFamily: 'monospace', color: r.dueDate ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{dateText(r.dueDate) || ''}</td>
               <td style={{ color: r.warehouse ? undefined : 'var(--ec-text-off)' }}>{r.warehouse || ''}</td>
               <td style={{ color: r.employee ? undefined : 'var(--ec-text-off)' }}>{r.employee || ''}</td>
               {/* 규격을 감싸는 꼴을 머리와 맞춘다 — 화면마다 다르다. */}
               <td>{r.itemName}{r.spec ? (title === '발주요청현황' ? ` (${r.spec})` : ` [${r.spec}]`) : ''}</td>
-              <td style={{ textAlign: 'right' }}>{r.qty.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{r.unitPrice.toLocaleString()}</td>
+              <td className="text-right">{r.qty.toLocaleString()}</td>
+              <td className="text-right">{r.unitPrice.toLocaleString()}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: '#1c6b32' }}>{r.supply.toLocaleString()}</td>
               <td>{r.partner}</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{r.vat.toLocaleString()}</td>
+              <td className="text-right text-ec-hint">{r.vat.toLocaleString()}</td>
               <td style={{ color: r.ref ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{r.ref || ''}</td>
-              <td style={{ color: 'var(--ec-text-hint)' }}>{r.remark}</td>
+              <td className="text-ec-hint">{r.remark}</td>
             </tr>
           ))}
         </tbody>

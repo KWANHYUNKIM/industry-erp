@@ -516,7 +516,7 @@ export default function TableContextMenu({
       >
         {open.sections.map((sec, si) => (
           <div key={sec.title} style={{ borderTop: si > 0 ? '1px solid var(--ec-line-soft)' : undefined, paddingTop: si > 0 ? 3 : 0, marginTop: si > 0 ? 3 : 0 }}>
-            <div style={{ padding: '3px 8px', fontSize: 10.5, fontWeight: 700, color: 'var(--ec-text-hint)' }}>{sec.title}</div>
+            <div className="py-[3px] px-[8px] text-[10.5px] font-bold text-ec-hint">{sec.title}</div>
             {sec.items.map((item, ii) => (
               <button
                 key={`${item.label}-${ii}`}
@@ -531,9 +531,9 @@ export default function TableContextMenu({
                 onMouseEnter={(e) => { if (!item.disabled) e.currentTarget.style.background = 'var(--ec-blue-light)' }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
               >
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</span>
+                <span className="overflow-hidden text-ellipsis whitespace-nowrap">{item.label}</span>
                 {item.hint && (
-                  <span style={{ marginLeft: 'auto', fontSize: 10.5, color: 'var(--ec-text-hint)', maxWidth: 78, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span className="ml-auto text-[10.5px] text-ec-hint max-w-[78px] overflow-hidden text-ellipsis whitespace-nowrap">
                     {item.hint}
                   </span>
                 )}
@@ -553,7 +553,7 @@ export default function TableContextMenu({
           <tbody>
             {(detail ?? []).map((p, i) => (
               <tr key={i}>
-                <th style={{ width: 150, textAlign: 'left' }}>{p.label}</th>
+                <th className="w-[150px] text-left">{p.label}</th>
                 <td>{p.value || <span style={{ color: '#b6bcc5' }}>—</span>}</td>
               </tr>
             ))}

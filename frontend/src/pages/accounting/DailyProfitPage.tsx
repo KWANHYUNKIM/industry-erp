@@ -454,20 +454,20 @@ export default function DailyProfitPage() {
         </EcCond>
         {/* 원본 [기타] — 결재방표시와 같은 줄에 선다(사본 실측). */}
         <EcCond label="수량관리제외품목포함">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={withUntracked} onChange={(e) => setWithUntracked(e.target.checked)} />
             재고수량을 안 세는 품목도
           </label>
         </EcCond>
         <EcCond label="결재방표시">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
             인쇄물에 결재란(도장칸)을 찍는다
           </label>
         </EcCond>
       </EcStatusPanel>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       {unknownCost > 0 && (
         <p style={{ marginBottom: 8, background: 'var(--ec-warn-bg)', border: '1px solid #ffe0a3', color: '#8a5a00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
@@ -476,24 +476,24 @@ export default function DailyProfitPage() {
         </p>
       )}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
-        {mode === '라인별' ? '라인' : '줄'} <b style={{ color: 'var(--ec-text)' }}>{num(rows.length)}</b>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
-        판매액 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{won(totals.revenue)}</b>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        {mode === '라인별' ? '라인' : '줄'} <b className="text-ec-text">{num(rows.length)}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
+        판매액 <b className="text-ec-blue text-[14px]">{won(totals.revenue)}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
         원가 <b style={{ color: allUnknown ? 'var(--ec-text-off)' : '#a5561b', fontSize: 14 }}>{allUnknown ? '—' : won(totals.cost)}</b>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
         이익 <b style={{ color: allUnknown ? 'var(--ec-text-off)' : totals.profit < 0 ? 'var(--ec-danger)' : 'var(--ec-success)', fontSize: 14 }}>
           {allUnknown ? '—' : won(totals.profit)}
         </b>
-        {!allUnknown && <span style={{ color: 'var(--ec-text-hint)' }}> ({rate(totals.profit, totals.knownRevenue)}%)</span>}
+        {!allUnknown && <span className="text-ec-hint"> ({rate(totals.profit, totals.knownRevenue)}%)</span>}
       </div>
 
       <div ref={tableRef} className="overflow-x-auto">
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 40 }}></th>
+              <th className="w-[40px]"></th>
               {/*
                 앞머리 칸은 <b>[구분]에 따라 갈린다</b> — 이름은 <code>HEADS</code> 가 든다.
                 갈래마다 <code>&lt;th&gt;</code> 를 글자로 적어 보았더니, 여섯 갈래가 <b>한 파일 안에</b>
@@ -501,18 +501,18 @@ export default function DailyProfitPage() {
                 <b>검사가 못 보는 이름</b>은 ui-check 의 MISS_SKIP 에 이유와 함께 적어 두었다.
               */}
               {heads.map((h) => <th key={h}>{h}</th>)}
-              {(mode === '일자별' || mode === '거래처별') && <th style={{ textAlign: 'right', width: 70 }}>건수</th>}
-              <th style={{ textAlign: 'right', width: 90 }}>수량</th>
+              {(mode === '일자별' || mode === '거래처별') && <th className="text-right w-[70px]">건수</th>}
+              <th className="text-right w-[90px]">수량</th>
               {/*
                 원본은 판매·원가·이익마다 <b>[단가]와 [금액]</b>을 나란히 둔다(두 줄 머리).
                 우리는 한 줄이라 묶음 이름을 앞에 붙여 [판매단가]·[원가단가]·[이익단가] 로 적는다
                 (작업지시서효율현황의 [소모 표준]과 같은 방식이다).
                 <b>단가는 금액 ÷ 수량</b>이고, 수량이 없으면 0 이 아니라 <b>모른다(—)</b>.
               */}
-              <th style={{ textAlign: 'right', width: 110 }}>판매단가</th>
-              <th style={{ textAlign: 'right', width: 120 }}>판매액</th>
-              <th style={{ textAlign: 'right', width: 110 }}>원가단가</th>
-              <th style={{ textAlign: 'right', width: 120 }}>원가</th>
+              <th className="text-right w-[110px]">판매단가</th>
+              <th className="text-right w-[120px]">판매액</th>
+              <th className="text-right w-[110px]">원가단가</th>
+              <th className="text-right w-[120px]">원가</th>
               {/*
                 <b>일별이익현황(E040806) [구분]=품목별 2026-09-09 원본 격자 실측</b>.
                 원본 머리는 <b>두 줄</b>이다 —
@@ -527,50 +527,50 @@ export default function DailyProfitPage() {
                 우리는 [이익] 칸 안에 괄호로 붙여 적는다 — 열 하나를 아끼려던 것이라
                 이름 검사에 걸리게 <b>따옴표 글자로</b> 남겨 둔다.
               */}
-              <th style={{ textAlign: 'right', width: 110 }}>이익단가</th>
-              <th style={{ textAlign: 'right', width: 120 }}>이익</th>
+              <th className="text-right w-[110px]">이익단가</th>
+              <th className="text-right w-[120px]">이익</th>
               {/* 원본은 [이익율]을 <b>독립된 칸</b>으로 둔다 — 이제 우리도 그렇게 뗐다. */}
-              <th style={{ textAlign: 'right', width: 80 }}>이익율</th>
-              <th style={{ textAlign: 'right', width: 140 }}>이익금액(부대비용포함)</th>
-              <th style={{ textAlign: 'right', width: 120 }}>판매부대비용</th>
+              <th className="text-right w-[80px]">이익율</th>
+              <th className="text-right w-[140px]">이익금액(부대비용포함)</th>
+              <th className="text-right w-[120px]">판매부대비용</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={colCount} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+              <tr><td colSpan={colCount} className="text-center text-ec-ink">불러오는 중…</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={colCount} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={colCount} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
             ) : rows.map((r, i) => {
               const color = r.profit === null ? 'var(--ec-text-off)' : r.profit > 0 ? 'var(--ec-success)' : r.profit < 0 ? 'var(--ec-danger)' : undefined
               return (
                 <tr key={r.key}>
-                  <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+                  <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
                   {heads.map((h, hi) => (
                     <td key={h} style={hi === 0 && (mode === '품목별' || mode === '품목별거래처별') ? { fontFamily: 'monospace' } : undefined}>
                       {[r.c1, r.c2, r.c3, r.c4][hi]}
                     </td>
                   ))}
                   {(mode === '일자별' || mode === '거래처별') && (
-                    <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(r.count)}</td>
+                    <td className="text-right text-ec-hint">{num(r.count)}</td>
                   )}
-                  <td style={{ textAlign: 'right' }}>{num(r.qty)}</td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>
+                  <td className="text-right">{num(r.qty)}</td>
+                  <td className="text-right text-ec-label">
                     {per(r.revenue, r.qty) === null ? '—' : won(Math.round(per(r.revenue, r.qty) as number))}
                   </td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(r.revenue)}</td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>
+                  <td className="text-right text-ec-blue">{won(r.revenue)}</td>
+                  <td className="text-right text-ec-label">
                     {per(r.cost, r.qty) === null ? '—' : won(Math.round(per(r.cost, r.qty) as number))}
                   </td>
                   <td style={{ textAlign: 'right', color: r.cost === null ? 'var(--ec-text-off)' : '#a5561b' }}>
                     {r.cost === null ? '—' : won(r.cost)}
                   </td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>
+                  <td className="text-right text-ec-label">
                     {per(r.profit, r.qty) === null ? '—' : won(Math.round(per(r.profit, r.qty) as number))}
                   </td>
                   <td style={{ textAlign: 'right', fontWeight: 700, color }}>
                     {r.profit === null ? '—' : won(r.profit)}
                   </td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>
+                  <td className="text-right text-ec-label">
                     {r.profit === null ? '—' : `${rate(r.profit, r.revenue)}%`}
                   </td>
                   <td style={{ textAlign: 'right', fontWeight: 700, color: r.profit === null ? 'var(--ec-text-off)' : (r.profit - r.extra) < 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>
@@ -586,27 +586,27 @@ export default function DailyProfitPage() {
           {rows.length > 0 && (
             <tfoot>
               <tr>
-                <td colSpan={colCount - TAIL} style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>합계</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>
+                <td colSpan={colCount - TAIL} className="text-right font-bold bg-ec-page">합계</td>
+                <td className="text-right font-bold bg-ec-page">
                   {num(totalQty)}
                 </td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: 'var(--ec-label)' }}>
+                <td className="text-right font-bold bg-ec-page text-ec-label">
                   {per(totals.revenue, totalQty) === null ? '—' : won(Math.round(per(totals.revenue, totalQty) as number))}
                 </td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: 'var(--ec-blue)' }}>{won(totals.revenue)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: 'var(--ec-label)' }}>
+                <td className="text-right font-bold bg-ec-page text-ec-blue">{won(totals.revenue)}</td>
+                <td className="text-right font-bold bg-ec-page text-ec-label">
                   {allUnknown || per(totals.cost, totalQty) === null ? '—' : won(Math.round(per(totals.cost, totalQty) as number))}
                 </td>
                 <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: allUnknown ? 'var(--ec-text-off)' : '#a5561b' }}>
                   {allUnknown ? '—' : won(totals.cost)}
                 </td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: 'var(--ec-label)' }}>
+                <td className="text-right font-bold bg-ec-page text-ec-label">
                   {allUnknown || per(totals.profit, totalQty) === null ? '—' : won(Math.round(per(totals.profit, totalQty) as number))}
                 </td>
                 <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: allUnknown ? 'var(--ec-text-off)' : totals.profit < 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>
                   {allUnknown ? '—' : won(totals.profit)}
                 </td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: 'var(--ec-label)' }}>
+                <td className="text-right font-bold bg-ec-page text-ec-label">
                   {allUnknown ? '—' : `${rate(totals.profit, totals.knownRevenue)}%`}
                 </td>
                 <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: extraTotals.extra === 0 ? 'var(--ec-text-off)' : '#a5561b' }}>

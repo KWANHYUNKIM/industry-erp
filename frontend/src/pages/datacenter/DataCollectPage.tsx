@@ -91,36 +91,36 @@ export default function DataCollectPage() {
       onSearchChange={setKeyword}
       actions={[{ label: '전체 수집 실행', primary: true, onClick: () => runAll() }, { label: '수집 로그', onClick: () => setLogOpen(true) }]}
     >
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
-        수집소스 <b style={{ color: 'var(--ec-blue-dark)' }}>{rows.length}</b>개
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
-        누적 수집건수 <b style={{ color: 'var(--ec-blue-dark)' }}>{totalRows.toLocaleString()}</b>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        수집소스 <b className="text-ec-navy">{rows.length}</b>개
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
+        누적 수집건수 <b className="text-ec-navy">{totalRows.toLocaleString()}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
         실패 <b style={{ color: failCount > 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>{failCount}</b>건
       </div>
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('수집소스')}>수집소스 {sort.mark('수집소스')}</th>
-            <th style={{ width: 100, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('모듈')}>모듈 {sort.mark('모듈')}</th>
-            <th style={{ width: 220 }}>엔드포인트</th>
-            <th style={{ width: 140, cursor: 'pointer' }} onClick={() => sort.toggle('최근 실행')}>최근 실행 {sort.mark('최근 실행')}</th>
-            <th style={{ width: 100, textAlign: 'right' }}>수집건수</th>
-            <th style={{ width: 80, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('상태')}>상태 {sort.mark('상태')}</th>
+            <th className="w-[34px]"></th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('수집소스')}>수집소스 {sort.mark('수집소스')}</th>
+            <th className="w-[100px] text-center cursor-pointer" onClick={() => sort.toggle('모듈')}>모듈 {sort.mark('모듈')}</th>
+            <th className="w-[220px]">엔드포인트</th>
+            <th className="w-[140px] cursor-pointer" onClick={() => sort.toggle('최근 실행')}>최근 실행 {sort.mark('최근 실행')}</th>
+            <th className="w-[100px] text-right">수집건수</th>
+            <th className="w-[80px] text-center cursor-pointer" onClick={() => sort.toggle('상태')}>상태 {sort.mark('상태')}</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-              <td style={{ fontWeight: 600 }}>{r.source}</td>
-              <td style={{ textAlign: 'center' }}>{r.type}</td>
-              <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: 'var(--ec-label)' }}>GET /api{r.endpoint}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td className="font-semibold">{r.source}</td>
+              <td className="text-center">{r.type}</td>
+              <td className="text-[11.5px] text-ec-label">GET /api{r.endpoint}</td>
               <td>{r.lastRun}</td>
-              <td style={{ textAlign: 'right' }}>{r.rows.toLocaleString()}</td>
+              <td className="text-right">{r.rows.toLocaleString()}</td>
               <td style={{ textAlign: 'center', color: statusColor(r.status), fontWeight: 700 }}>{r.status}</td>
             </tr>
           ))}
@@ -133,29 +133,29 @@ export default function DataCollectPage() {
         return (
           <div onClick={() => setLogOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, width: 660, maxWidth: '94vw', maxHeight: '86vh', overflow: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}>
-              <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--ec-line-soft)', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
+              <div className="py-[10px] px-[14px] border-b border-b-ec-line-soft border-solid font-extrabold text-[14px] flex items-center">
                 <span>수집 로그 · 이번 세션</span>
                 <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => setLogOpen(false)}>닫기</button>
               </div>
-              <div style={{ padding: 14, fontSize: 12.5, color: 'var(--ec-text)' }}>
-                <p style={{ margin: '0 0 8px', color: 'var(--ec-label)' }}>현재 세션에서 실행된 수집 결과입니다. 실행 <b>{executed.length}</b>건 · 실패 <b style={{ color: failCount > 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>{failCount}</b>건.</p>
+              <div className="p-[14px] text-[12.5px] text-ec-text">
+                <p className="mt-0 mx-0 mb-[8px] text-ec-label">현재 세션에서 실행된 수집 결과입니다. 실행 <b>{executed.length}</b>건 · 실패 <b style={{ color: failCount > 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>{failCount}</b>건.</p>
                 <table className="w-full text-left">
-                  <thead><tr><th style={{ textAlign: 'center', width: 34 }}>No</th><th>수집소스</th><th style={{ width: 130 }}>실행시각</th><th style={{ width: 90, textAlign: 'right' }}>건수</th><th style={{ width: 70, textAlign: 'center' }}>결과</th></tr></thead>
+                  <thead><tr><th className="text-center w-[34px]">No</th><th>수집소스</th><th className="w-[130px]">실행시각</th><th className="w-[90px] text-right">건수</th><th className="w-[70px] text-center">결과</th></tr></thead>
                   <tbody>
                     {executed.length === 0 ? (
-                      <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 16 }}>아직 실행된 수집이 없습니다. [전체 수집 실행]을 눌러주세요.</td></tr>
+                      <tr><td colSpan={5} className="text-center text-ec-hint p-[16px]">아직 실행된 수집이 없습니다. [전체 수집 실행]을 눌러주세요.</td></tr>
                     ) : executed.map((r, i) => (
                       <tr key={r.id}>
-                        <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                        <td style={{ fontWeight: 600 }}>{r.source} <span style={{ color: 'var(--ec-text-hint)', fontFamily: 'monospace', fontSize: 11 }}>GET /api{r.endpoint}</span></td>
-                        <td style={{ fontFamily: 'monospace' }}>{r.lastRun}</td>
-                        <td style={{ textAlign: 'right' }}>{r.rows.toLocaleString()}</td>
+                        <td className="text-center text-ec-hint">{i + 1}</td>
+                        <td className="font-semibold">{r.source} <span className="text-ec-hint text-[11px]">GET /api{r.endpoint}</span></td>
+                        <td>{r.lastRun}</td>
+                        <td className="text-right">{r.rows.toLocaleString()}</td>
                         <td style={{ textAlign: 'center', color: statusColor(r.status), fontWeight: 700 }}>{r.status}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-                <p style={{ margin: '8px 0 0', fontSize: 11.5, color: 'var(--ec-warn)' }}>* 서버측 수집 이력 저장/조회 API가 없어 이번 브라우저 세션의 실행 결과만 표시합니다.</p>
+                <p className="mt-[8px] mx-0 mb-0 text-[11.5px] text-ec-warn">* 서버측 수집 이력 저장/조회 API가 없어 이번 브라우저 세션의 실행 결과만 표시합니다.</p>
               </div>
             </div>
           </div>

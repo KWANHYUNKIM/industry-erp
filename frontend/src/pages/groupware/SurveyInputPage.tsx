@@ -133,7 +133,7 @@ export default function SurveyInputPage() {
 
   const th: React.CSSProperties = { background: 'var(--ec-bg-page)', fontWeight: 700, whiteSpace: 'nowrap', width: 110 }
   const radio = (name: string, checked: boolean, onChange: () => void, label: string) => (
-    <label key={label} style={{ marginRight: 12, fontSize: 12 }}>
+    <label key={label} className="mr-[12px] text-[12px]">
       <input type="radio" name={name} checked={checked} onChange={onChange} /> {label}
     </label>
   )
@@ -154,10 +154,10 @@ export default function SurveyInputPage() {
         { label: '리스트', onClick: () => navigate('/groupware/survey') },
       ]}
     >
-      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {ok && <p style={{ marginBottom: 8, background: '#eaf7ee', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
 
-      <table className="w-full text-left" style={{ marginBottom: 10 }}>
+      <table className="w-full text-left mb-[10px]">
         <tbody>
           <tr>
             <th style={th}>제목 *</th>
@@ -205,10 +205,10 @@ export default function SurveyInputPage() {
               <EcFileDrop busy={uploading} disabled={uploading}
                           onFiles={(fs) => { if (fs[0]) void upload(fs[0]) }}>
                 {attachment && (
-                  <span style={{ fontSize: 12, color: 'var(--ec-blue-dark)' }}>
+                  <span className="text-[12px] text-ec-navy">
                     {attachment.name}
                     <span onClick={() => setAttachment(null)}
-                          style={{ cursor: 'pointer', marginLeft: 6, fontWeight: 700 }}>×</span>
+                          className="cursor-pointer ml-[6px] font-bold">×</span>
                   </span>
                 )}
               </EcFileDrop>
@@ -231,18 +231,18 @@ export default function SurveyInputPage() {
       {/* 질문 그리드 — 원본 실측: (24) 질문유형·질문내용·보기항목1~5·필수항목 각 100 */}
       <table ref={tableRef} className="w-full text-left ec-grid-input">
         <colgroup>
-          <col style={{ width: '2.9%' }} />
-          <col style={{ width: '12.1%' }} />
-          <col style={{ width: '12.1%' }} />
-          {[0, 1, 2, 3, 4].map((i) => <col key={i} style={{ width: '12.1%' }} />)}
-          <col style={{ width: '12.1%' }} />
+          <col className="w-[2.9%]" />
+          <col className="w-[12.1%]" />
+          <col className="w-[12.1%]" />
+          {[0, 1, 2, 3, 4].map((i) => <col key={i} className="w-[12.1%]" />)}
+          <col className="w-[12.1%]" />
         </colgroup>
         <thead>
           <tr>
             <th></th><th>질문유형</th><th>질문내용</th>
             {/* 원본 실측: 보기항목 다섯 칸과 [필수항목]은 가운데다. */}
-            <th style={{ textAlign: 'center' }}>보기항목1</th><th style={{ textAlign: 'center' }}>보기항목2</th><th style={{ textAlign: 'center' }}>보기항목3</th><th style={{ textAlign: 'center' }}>보기항목4</th><th style={{ textAlign: 'center' }}>보기항목5</th>
-            <th style={{ textAlign: 'center' }}>필수항목</th>
+            <th className="text-center">보기항목1</th><th className="text-center">보기항목2</th><th className="text-center">보기항목3</th><th className="text-center">보기항목4</th><th className="text-center">보기항목5</th>
+            <th className="text-center">필수항목</th>
           </tr>
         </thead>
         <tbody>
@@ -250,7 +250,7 @@ export default function SurveyInputPage() {
             const usesOptions = TYPES.find((t) => t.value === r.type)?.options ?? false
             return (
               <tr key={i}>
-                <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+                <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
                 <td>
                   <select className="ec-input" value={r.type} onChange={(e) => patch(i, { type: e.target.value as QuestionType })} style={{ width: '100%' }}>
                     <option value="">선택</option>
@@ -265,7 +265,7 @@ export default function SurveyInputPage() {
                       onChange={(e) => patchOption(i, oi, e.target.value)} style={{ width: '100%' }} />
                   </td>
                 ))}
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-center">
                   <input type="checkbox" checked={r.required} onChange={(e) => patch(i, { required: e.target.checked })} />
                 </td>
               </tr>
@@ -273,7 +273,7 @@ export default function SurveyInputPage() {
           })}
         </tbody>
       </table>
-      <div style={{ marginTop: 6 }}>
+      <div className="mt-[6px]">
         <button type="button" className="ec-btn ec-btn-sm" onClick={() => setRows((rs) => [...rs, emptyRow()])}>줄 추가</button>
         {rows.length > 3 && (
           <button type="button" className="ec-btn ec-btn-sm" style={{ marginLeft: 4 }}
@@ -282,23 +282,23 @@ export default function SurveyInputPage() {
       </div>
 
       <Modal error={error} open={preview} title="미리보기" width={640} onClose={() => setPreview(false)}>{(
-        <div style={{ fontSize: 13 }}>
-          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{title || '(제목 없음)'}</div>
+        <div className="text-[13px]">
+          <div className="font-bold text-[15px] mb-[6px]">{title || '(제목 없음)'}</div>
           {useHeader && headerText && (
-            <div style={{ whiteSpace: 'pre-wrap', border: '1px solid var(--ec-border)', padding: 10, marginBottom: 10 }}>{headerText}</div>
+            <div className="whitespace-pre-wrap border border-ec-line border-solid p-[10px] mb-[10px]">{headerText}</div>
           )}
           {filled.length === 0 ? (
-            <p style={{ color: 'var(--ec-label)' }}>문항이 없습니다.</p>
+            <p className="text-ec-label">문항이 없습니다.</p>
           ) : filled.map((r, i) => (
-            <div key={i} style={{ marginBottom: 12 }}>
-              <div style={{ fontWeight: 600 }}>
+            <div key={i} className="mb-[12px]">
+              <div className="font-semibold">
                 {i + 1}. {r.content}
-                {r.required && <span style={{ color: 'var(--ec-danger)', marginLeft: 4 }}>*</span>}
-                <span style={{ marginLeft: 6, color: 'var(--ec-label)', fontWeight: 400, fontSize: 11.5 }}>
+                {r.required && <span className="text-ec-danger ml-[4px]">*</span>}
+                <span className="ml-[6px] text-ec-label font-normal text-[11.5px]">
                   {TYPES.find((t) => t.value === r.type)?.label}
                 </span>
               </div>
-              <div style={{ paddingLeft: 14, color: 'var(--ec-text)' }}>
+              <div className="pl-[14px] text-ec-text">
                 {r.options.filter(Boolean).map((o, oi) => <div key={oi}>· {o}</div>)}
               </div>
             </div>

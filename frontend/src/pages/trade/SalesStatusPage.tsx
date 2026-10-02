@@ -361,7 +361,7 @@ export default function SalesStatusPage() {
         { label: 'Excel(화면)' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       {/*
         조건 판은 현황 화면들이 공통으로 쓰므로 EcStatusPanel 로 뺐다.
@@ -482,28 +482,28 @@ export default function SalesStatusPage() {
         <EcCond label="수량">
           <input type="number" className="ec-input text-right" placeholder="이상" value={qtyFrom}
                  onChange={(e) => setQtyFrom(e.target.value)} style={{ width: 100 }} />
-          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
           <input type="number" className="ec-input text-right" placeholder="이하" value={qtyTo}
                  onChange={(e) => setQtyTo(e.target.value)} style={{ width: 100 }} />
         </EcCond>
         <EcCond label="단가">
           <input type="number" className="ec-input text-right" placeholder="이상" value={priceFrom}
                  onChange={(e) => setPriceFrom(e.target.value)} style={{ width: 110 }} />
-          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
           <input type="number" className="ec-input text-right" placeholder="이하" value={priceTo}
                  onChange={(e) => setPriceTo(e.target.value)} style={{ width: 110 }} />
         </EcCond>
         <EcCond label="공급가액">
           <input type="number" className="ec-input text-right" placeholder="이상" value={supplyFrom}
                  onChange={(e) => setSupplyFrom(e.target.value)} style={{ width: 120 }} />
-          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
           <input type="number" className="ec-input text-right" placeholder="이하" value={supplyTo}
                  onChange={(e) => setSupplyTo(e.target.value)} style={{ width: 120 }} />
         </EcCond>
         <EcCond label="부가세">
           <input type="number" className="ec-input text-right" placeholder="이상" value={vatFrom}
                  onChange={(e) => setVatFrom(e.target.value)} style={{ width: 120 }} />
-          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
           <input type="number" className="ec-input text-right" placeholder="이하" value={vatTo}
                  onChange={(e) => setVatTo(e.target.value)} style={{ width: 120 }} />
         </EcCond>
@@ -515,7 +515,7 @@ export default function SalesStatusPage() {
         <EcCond label="부대비용">
           <input type="number" className="ec-input text-right" placeholder="이상" value={extraFrom}
                  onChange={(e) => setExtraFrom(e.target.value)} style={{ width: 110 }} />
-          <span style={{ margin: '0 4px', color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
           <input type="number" className="ec-input text-right" placeholder="이하" value={extraTo}
                  onChange={(e) => setExtraTo(e.target.value)} style={{ width: 110 }} />
         </EcCond>
@@ -528,11 +528,11 @@ export default function SalesStatusPage() {
       </EcStatusPanel>
 
       {prevTotals && (
-        <div style={{ marginBottom: 8, fontSize: 12.5, textAlign: 'right', color: 'var(--ec-label)' }}>
-          <span style={{ color: 'var(--ec-label)' }}>
+        <div className="mb-[8px] text-[12.5px] text-right text-ec-label">
+          <span className="text-ec-label">
             비교기간({prevRange!.from.replace(/-/g, '/')} ~ {prevRange!.to.replace(/-/g, '/')})
           </span>
-          <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+          <span className="my-0 mx-[8px] text-ec-off">|</span>
           공급가액 {prevTotals.supply.toLocaleString()} → {totals.supply.toLocaleString()}
           {prevTotals.supply > 0 && (
             <span style={{ marginLeft: 4, color: totals.supply >= prevTotals.supply ? 'var(--ec-success)' : 'var(--ec-danger)' }}>
@@ -543,10 +543,10 @@ export default function SalesStatusPage() {
         </div>
       )}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
-        공급가액 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{totals.supply.toLocaleString()}</b>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
-        부가세 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{totals.vat.toLocaleString()}</b>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        공급가액 <b className="text-ec-navy text-[14px]">{totals.supply.toLocaleString()}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
+        부가세 <b className="text-ec-navy text-[14px]">{totals.vat.toLocaleString()}</b>
       </div>
       {view === '그래프' ? (
         <EcBarChart rows={chartRows} unit=" 원" emptyText="조회된 판매가 없습니다." />
@@ -554,47 +554,47 @@ export default function SalesStatusPage() {
         <table ref={tableRef} className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
+              <th className="w-[34px]"></th>
               <th>{group1 || '집계조건1'}</th>
               {group2 && <th>{group2}</th>}
-              <th style={{ width: 90, textAlign: 'right' }}>건수</th>
-              <th style={{ width: 110, textAlign: 'right' }}>수량</th>
-              <th style={{ width: 130, textAlign: 'right' }}>공급가액</th>
-              <th style={{ width: 130, textAlign: 'right' }}>부가세</th>
-              <th style={{ width: 130, textAlign: 'right' }}>합계</th>
+              <th className="w-[90px] text-right">건수</th>
+              <th className="w-[110px] text-right">수량</th>
+              <th className="w-[130px] text-right">공급가액</th>
+              <th className="w-[130px] text-right">부가세</th>
+              <th className="w-[130px] text-right">합계</th>
             </tr>
           </thead>
           <tbody>
             {grouped.length === 0 ? (
-              <tr><td colSpan={group2 ? 8 : 7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={group2 ? 8 : 7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : grouped.map((g, i) => (
               <tr key={`${g.g1}|${g.g2}`}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)', background: 'var(--ec-report-stripe)' }}>{i + 1}</td>
+                <td className="text-center text-ec-hint bg-ec-stripe">{i + 1}</td>
                 <td>{g.g1}</td>
                 {group2 && <td>{g.g2}</td>}
-                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{g.count.toLocaleString()}</td>
-                <td style={{ textAlign: 'right' }}>{g.qty.toLocaleString()}</td>
-                <td style={{ textAlign: 'right' }}>{g.supply.toLocaleString()}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{g.vat.toLocaleString()}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--ec-blue-dark)' }}>
+                <td className="text-right text-ec-hint">{g.count.toLocaleString()}</td>
+                <td className="text-right">{g.qty.toLocaleString()}</td>
+                <td className="text-right">{g.supply.toLocaleString()}</td>
+                <td className="text-right text-ec-hint">{g.vat.toLocaleString()}</td>
+                <td className="text-right font-bold text-ec-navy">
                   {(g.supply + g.vat).toLocaleString()}
                 </td>
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={group2 ? 3 : 2} style={{ textAlign: 'right' }}>합계 ({grouped.length}개 그룹)</td>
-              <td style={{ textAlign: 'right' }}>{grouped.reduce((a, g) => a + g.count, 0).toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{grouped.reduce((a, g) => a + g.qty, 0).toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{totals.supply.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{totals.vat.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{(totals.supply + totals.vat).toLocaleString()}</td>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={group2 ? 3 : 2} className="text-right">합계 ({grouped.length}개 그룹)</td>
+              <td className="text-right">{grouped.reduce((a, g) => a + g.count, 0).toLocaleString()}</td>
+              <td className="text-right">{grouped.reduce((a, g) => a + g.qty, 0).toLocaleString()}</td>
+              <td className="text-right">{totals.supply.toLocaleString()}</td>
+              <td className="text-right">{totals.vat.toLocaleString()}</td>
+              <td className="text-right text-ec-navy">{(totals.supply + totals.vat).toLocaleString()}</td>
             </tr>
           </tfoot>
         </table>
       ) : (
-        <table className="w-full text-left" style={{ tableLayout: 'fixed' }}>
+        <table className="w-full text-left table-fixed">
           {/*
             <b>2026-09-23 원본(E040207) getComputedStyle 실측</b> — 이 화면 격자는 <b>출력물(.ec-report)이 아니라
             조회 목록 모양</b>이다: 머리 400·10/3/8·36px·가운데·배경 (247,248,249), 본문 12px 400 검정·6px 3px·30px·
@@ -620,13 +620,13 @@ export default function SalesStatusPage() {
             */}
             {/* 머리의 인라인 정렬은 칸 정렬을 적어 두는 것이다(ui-check 가 읽는다) — 보이는 머리는 index.css 가 가운데로 덮는다. */}
             <tr>
-              <th style={{ textAlign: 'center' }}>일자-No.</th>
+              <th className="text-center">일자-No.</th>
               <th>품목명(규격)</th>
-              <th style={{ textAlign: 'right' }}>수량</th>
-              <th style={{ textAlign: 'right' }}>단가</th>
-              <th style={{ textAlign: 'right' }}>공급가액</th>
-              <th style={{ textAlign: 'right' }}>부가세</th>
-              <th style={{ textAlign: 'right' }}>합계</th>
+              <th className="text-right">수량</th>
+              <th className="text-right">단가</th>
+              <th className="text-right">공급가액</th>
+              <th className="text-right">부가세</th>
+              <th className="text-right">합계</th>
               <th>거래처명</th>
               <th>창고명</th>
             </tr>
@@ -643,32 +643,32 @@ export default function SalesStatusPage() {
               일자-No. 는 가운데·링크색 (25,53,140)·보통 글꼴(고정폭 아님).
             */}
             {loading ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center' }}>불러오는 중…</td></tr>
+              <tr><td colSpan={9} className="text-center">불러오는 중…</td></tr>
             /* 그리는 것을 보고 판단한다 - 소계를 끼우는 사이에 shown 과 갈라질 수 있다. */
             ) : lineRows.length === 0 ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center' }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={9} className="text-center">등록된 데이터가 없습니다.</td></tr>
             ) : lineRows.map((x, i) => x.kind === 'subtotal' ? (
               <tr key={x.key} className="ec-list-total">
-                <td colSpan={2} style={{ textAlign: 'center', fontWeight: 700 }}>{x.month} 계</td>
-                <td style={{ textAlign: 'right', fontWeight: 700 }}>{x.qty.toLocaleString()}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700 }}>{x.price.toLocaleString()}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700 }}>{x.supply.toLocaleString()}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700 }}>{x.vat.toLocaleString()}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700 }}>{(x.supply + x.vat).toLocaleString()}</td>
+                <td colSpan={2} className="text-center font-bold">{x.month} 계</td>
+                <td className="text-right font-bold">{x.qty.toLocaleString()}</td>
+                <td className="text-right font-bold">{x.price.toLocaleString()}</td>
+                <td className="text-right font-bold">{x.supply.toLocaleString()}</td>
+                <td className="text-right font-bold">{x.vat.toLocaleString()}</td>
+                <td className="text-right font-bold">{(x.supply + x.vat).toLocaleString()}</td>
                 <td colSpan={2}></td>
               </tr>
             ) : (
               <tr key={x.key} style={i % 2 ? { background: 'rgb(249, 249, 249)' } : undefined}>
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-center">
                   <span className="ec-link">{dateText(x.r.date)} {x.r.docNo}</span>
                 </td>
                 {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다 — 없는 품목은 이름만 찍는다. */}
                 <td>{x.r.itemName}{x.r.spec ? ` [${x.r.spec}]` : ''}</td>
-                <td style={{ textAlign: 'right' }}>{x.r.qty.toLocaleString()}</td>
-                <td style={{ textAlign: 'right' }}>{x.r.unitPrice.toLocaleString()}</td>
-                <td style={{ textAlign: 'right' }}>{x.r.supply.toLocaleString()}</td>
-                <td style={{ textAlign: 'right' }}>{x.r.vat.toLocaleString()}</td>
-                <td style={{ textAlign: 'right' }}>{(x.r.supply + x.r.vat).toLocaleString()}</td>
+                <td className="text-right">{x.r.qty.toLocaleString()}</td>
+                <td className="text-right">{x.r.unitPrice.toLocaleString()}</td>
+                <td className="text-right">{x.r.supply.toLocaleString()}</td>
+                <td className="text-right">{x.r.vat.toLocaleString()}</td>
+                <td className="text-right">{(x.r.supply + x.r.vat).toLocaleString()}</td>
                 <td>{x.r.partner}</td>
                 <td>{x.r.warehouseName}</td>
               </tr>
@@ -678,12 +678,12 @@ export default function SalesStatusPage() {
             <tfoot>
               {/* 원본 [총합계] — 칸 회색 247, 글자 700, 이름은 두 칸 합쳐 가운데(2026-09-23 실측). */}
               <tr className="ec-list-total">
-                <td colSpan={2} style={{ textAlign: 'center', fontWeight: 700 }}>총합계</td>
-                <td style={{ textAlign: 'right', fontWeight: 700 }}>{shown.reduce((a, x) => a + x.qty, 0).toLocaleString()}</td>
+                <td colSpan={2} className="text-center font-bold">총합계</td>
+                <td className="text-right font-bold">{shown.reduce((a, x) => a + x.qty, 0).toLocaleString()}</td>
                 <td></td>
-                <td style={{ textAlign: 'right', fontWeight: 700 }}>{totals.supply.toLocaleString()}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700 }}>{totals.vat.toLocaleString()}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700 }}>{(totals.supply + totals.vat).toLocaleString()}</td>
+                <td className="text-right font-bold">{totals.supply.toLocaleString()}</td>
+                <td className="text-right font-bold">{totals.vat.toLocaleString()}</td>
+                <td className="text-right font-bold">{(totals.supply + totals.vat).toLocaleString()}</td>
                 <td colSpan={2}></td>
               </tr>
             </tfoot>

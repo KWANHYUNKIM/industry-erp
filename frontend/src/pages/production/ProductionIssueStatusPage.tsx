@@ -444,8 +444,8 @@ export default function ProductionIssueStatusPage() {
         {mode === '거래별' && (
           <EcCond label="단가표시">
             {([['생산품목단가', prodBasis, setProdBasis], ['소모품목단가', matBasis, setMatBasis]] as const).map(([lbl, v, set]) => (
-              <div key={lbl} style={{ display: 'flex', alignItems: 'center', gap: 6, marginRight: 12 }}>
-                <span style={{ fontSize: 12, color: 'var(--ec-label)' }}>{lbl}</span>
+              <div key={lbl} className="flex items-center gap-[6px] mr-[12px]">
+                <span className="text-[12px] text-ec-label">{lbl}</span>
                 <div className="ec-pills">
                   {PRICE_BASES.map((b) => (
                     <button key={b} type="button" className={`ec-pill no-ec${v === b ? ' active' : ''}`}
@@ -543,27 +543,27 @@ export default function ProductionIssueStatusPage() {
                  onChange={(e) => setC({ orderNo: e.target.value })} style={{ width: 220 }} />
         </EcCond>
         <EcCond label="결재방표시">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
             인쇄물에 결재란(도장칸)을 찍는다
           </label>
         </EcCond>
       </EcStatusPanel>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
         {mode === '거래별' ? '생산' : '묶음'}{' '}
-        <b style={{ color: 'var(--ec-text)' }}>{num(
+        <b className="text-ec-text">{num(
           mode === '거래별' ? shown.length
             : mode === '생산품목별집계' ? byProduct.length
               : mode === '소모품목별집계' ? byMaterial.length
                 : mode === '생산품목라인별집계' ? byProductLine.length
                   : byItem.length,
         )}</b>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
-        입고 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{num(totals.inQty)}</b>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
+        입고 <b className="text-ec-blue text-[14px]">{num(totals.inQty)}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
         소모 <b style={{ color: '#a5561b', fontSize: 14 }}>{num(totals.outQty)}</b>
       </div>
 
@@ -581,27 +581,27 @@ export default function ProductionIssueStatusPage() {
           <table className="ec-grid w-full text-left">
             <thead>
               <tr>
-                <th style={{ width: 34 }}></th>
-                <th style={{ textAlign: 'center' }}>일자-No.</th>
+                <th className="w-[34px]"></th>
+                <th className="text-center">일자-No.</th>
                 <th>생산품목코드</th>
                 <th>생산품목명</th>
                 <th>소모품목코드</th>
                 <th>소모품목명</th>
-                <th style={{ textAlign: 'right' }}>생산수량</th>
-                <th style={{ textAlign: 'right' }}>표준소모수량</th>
-                <th style={{ textAlign: 'right' }}>실제소모수량</th>
+                <th className="text-right">생산수량</th>
+                <th className="text-right">표준소모수량</th>
+                <th className="text-right">실제소모수량</th>
                 {/* 원본 열 순서: … 실제소모수량 · 생산품목단가 · 소모품목단가 · 차이 · 금액 */}
-                <th style={{ textAlign: 'right' }}>생산품목단가</th>
-                <th style={{ textAlign: 'right' }}>소모품목단가</th>
-                <th style={{ textAlign: 'right' }}>차이</th>
-                <th style={{ textAlign: 'right' }} title="차이 × 소모품목단가">금액</th>
+                <th className="text-right">생산품목단가</th>
+                <th className="text-right">소모품목단가</th>
+                <th className="text-right">차이</th>
+                <th className="text-right" title="차이 × 소모품목단가">금액</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-grid)', padding: 20 }}>불러오는 중…</td></tr>
+                <tr><td colSpan={13} className="text-center text-ec-ink p-[20px]">불러오는 중…</td></tr>
               ) : shown.length === 0 ? (
-                <tr><td colSpan={13} style={{ textAlign: 'center', color: 'var(--ec-text-grid)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={13} className="text-center text-ec-ink p-[20px]">등록된 데이터가 없습니다.</td></tr>
               ) : (() => {
                 /* 원본처럼 생산품목이 제 줄을 먼저 갖고(생산수량 · 생산품목단가), 그 아래 소모 줄이 선다. */
                 const byProd = new Map<number, typeof flatRows>()
@@ -612,35 +612,35 @@ export default function ProductionIssueStatusPage() {
                   const pp = priceOf(p.productId, p.productionDate, prodBasis)
                   return [
                     <tr key={`${p.id}-p`} style={{ background: 'var(--ec-bg-page)' }}>
-                      <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{++n}</td>
-                      <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{dateNo}</td>
-                      <td style={{ fontFamily: 'monospace' }}>{p.productCode}</td>
+                      <td className="text-center text-ec-hint">{++n}</td>
+                      <td className="text-center">{dateNo}</td>
+                      <td>{p.productCode}</td>
                       <td>{p.productName}</td>
                       <td></td>
                       <td></td>
-                      <td style={{ textAlign: 'right', fontWeight: 600 }}>{num(p.producedQty)}</td>
-                      <td style={{ textAlign: 'right' }}></td>
-                      <td style={{ textAlign: 'right' }}></td>
+                      <td className="text-right font-semibold">{num(p.producedQty)}</td>
+                      <td className="text-right"></td>
+                      <td className="text-right"></td>
                       <td style={{ textAlign: 'right', color: pp == null ? 'var(--ec-text-off)' : 'var(--ec-label)' }}>{pp == null ? '' : won(pp)}</td>
-                      <td style={{ textAlign: 'right' }}></td>
-                      <td style={{ textAlign: 'right' }}></td>
-                      <td style={{ textAlign: 'right' }}></td>
+                      <td className="text-right"></td>
+                      <td className="text-right"></td>
+                      <td className="text-right"></td>
                     </tr>,
                     ...(byProd.get(p.id) ?? []).map((r) => {
                       /* 차이 = 표준 − 실제. 음수면 BOM 보다 더 쓴 것이다 — 붉게. */
                       const over = r.gap < 0
                       return (
                         <tr key={`${p.id}-${r.componentId}`}>
-                          <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{++n}</td>
-                          <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{dateNo}</td>
-                          <td style={{ fontFamily: 'monospace' }}>{p.productCode}</td>
+                          <td className="text-center text-ec-hint">{++n}</td>
+                          <td className="text-center">{dateNo}</td>
+                          <td>{p.productCode}</td>
                           <td>{p.productName}</td>
-                          <td style={{ fontFamily: 'monospace' }}>{r.componentCode}</td>
+                          <td>{r.componentCode}</td>
                           <td>{r.componentName}</td>
-                          <td style={{ textAlign: 'right' }}></td>
-                          <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{num(r.stdQty)}</td>
-                          <td style={{ textAlign: 'right' }}>{r.actualQty ? num(r.actualQty) : ''}</td>
-                          <td style={{ textAlign: 'right' }}></td>
+                          <td className="text-right"></td>
+                          <td className="text-right text-ec-label">{num(r.stdQty)}</td>
+                          <td className="text-right">{r.actualQty ? num(r.actualQty) : ''}</td>
+                          <td className="text-right"></td>
                           <td style={{ textAlign: 'right', color: r.materialPrice == null ? 'var(--ec-text-off)' : 'var(--ec-label)' }}>
                             {won(r.materialPrice)}
                           </td>
@@ -659,19 +659,19 @@ export default function ProductionIssueStatusPage() {
             </tbody>
             {shown.length > 0 && (
               <tfoot>
-                <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
-                  <td colSpan={6} style={{ textAlign: 'right' }}>합계 ({flatRows.length}줄)</td>
-                  <td style={{ textAlign: 'right' }}>{num(shown.reduce((n, p) => n + p.producedQty, 0))}</td>
-                  <td style={{ textAlign: 'right' }}>{num(flatRows.reduce((n, r) => n + r.stdQty, 0))}</td>
-                  <td style={{ textAlign: 'right' }}>{num(flatRows.reduce((n, r) => n + r.actualQty, 0))}</td>
+                <tr className="font-bold bg-ec-page">
+                  <td colSpan={6} className="text-right">합계 ({flatRows.length}줄)</td>
+                  <td className="text-right">{num(shown.reduce((n, p) => n + p.producedQty, 0))}</td>
+                  <td className="text-right">{num(flatRows.reduce((n, r) => n + r.stdQty, 0))}</td>
+                  <td className="text-right">{num(flatRows.reduce((n, r) => n + r.actualQty, 0))}</td>
                   {/* 생산품목단가 · 소모품목단가 — 단가는 더할 값이 아니라 비워 둔다 */}
                   <td colSpan={2}></td>
-                  <td style={{ textAlign: 'right' }}>{num(flatRows.reduce((n, r) => n + r.gap, 0))}</td>
+                  <td className="text-right">{num(flatRows.reduce((n, r) => n + r.gap, 0))}</td>
                   {/* 단가를 모르는 줄은 빼고 센다 — 0 으로 채우면 차이가 없는 것처럼 보인다 */}
-                  <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>
+                  <td className="text-right text-ec-navy">
                     {won(flatRows.reduce((n, r) => n + (r.amount ?? 0), 0))}
                     {flatRows.some((r) => r.amount == null) && (
-                      <span title="단가를 모르는 줄은 빼고 셌습니다." style={{ color: 'var(--ec-warn)' }}> *</span>
+                      <span title="단가를 모르는 줄은 빼고 셌습니다." className="text-ec-warn"> *</span>
                     )}
                   </td>
                 </tr>
@@ -695,25 +695,25 @@ export default function ProductionIssueStatusPage() {
             })
             return (
               <>
-                <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+                <h3 className="text-[13px] font-bold mt-[16px] mx-0 mb-[6px]">{subtotal} 소계</h3>
                 <table className="w-full text-left">
                   <thead><tr>
                     <th>{subtotal}</th>
-                    <th style={{ width: 80, textAlign: 'right' }}>건수</th>
-                    <th style={{ width: 130, textAlign: 'right' }}>표준소모수량</th>
-                    <th style={{ width: 130, textAlign: 'right' }}>실제소모수량</th>
-                    <th style={{ width: 110, textAlign: 'right' }}>차이</th>
-                    <th style={{ width: 140, textAlign: 'right' }}>금액</th>
+                    <th className="w-[80px] text-right">건수</th>
+                    <th className="w-[130px] text-right">표준소모수량</th>
+                    <th className="w-[130px] text-right">실제소모수량</th>
+                    <th className="w-[110px] text-right">차이</th>
+                    <th className="w-[140px] text-right">금액</th>
                   </tr></thead>
                   <tbody>
                     {groups.map((g) => (
                       <tr key={g.label}>
-                        <td style={{ fontWeight: 600 }}>{g.label}</td>
-                        <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
-                        <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{num(g.sums.std)}</td>
-                        <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{num(g.sums.act)}</td>
-                        <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{num(g.sums.gap)}</td>
-                        <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{won(g.sums.amount)}</td>
+                        <td className="font-semibold">{g.label}</td>
+                        <td className="text-right">{g.count}</td>
+                        <td className="text-right">{num(g.sums.std)}</td>
+                        <td className="text-right">{num(g.sums.act)}</td>
+                        <td className="text-right">{num(g.sums.gap)}</td>
+                        <td className="text-right">{won(g.sums.amount)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -726,33 +726,33 @@ export default function ProductionIssueStatusPage() {
           <table className="w-full text-left">
             <thead>
               <tr>
-                <th style={{ width: 34 }}></th>
-                <th style={{ width: 140 }}>품목코드</th>
+                <th className="w-[34px]"></th>
+                <th className="w-[140px]">품목코드</th>
                 <th>생산품목</th>
-                <th style={{ width: 100, textAlign: 'right' }}>전표수</th>
-                <th style={{ width: 130, textAlign: 'right' }}>입고수량</th>
+                <th className="w-[100px] text-right">전표수</th>
+                <th className="w-[130px] text-right">입고수량</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-grid)', padding: 20 }}>불러오는 중…</td></tr>
+                <tr><td colSpan={5} className="text-center text-ec-ink p-[20px]">불러오는 중…</td></tr>
               ) : byProduct.length === 0 ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-grid)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={5} className="text-center text-ec-ink p-[20px]">등록된 데이터가 없습니다.</td></tr>
               ) : byProduct.map((g, i) => (
                 <tr key={g.itemId}>
-                  <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                  <td style={{ fontFamily: 'monospace' }}>{g.code}</td>
+                  <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
+                  <td>{g.code}</td>
                   <td>{g.name}</td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(g.count)}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{num(g.qty)} {g.unit}</td>
+                  <td className="text-right text-ec-hint">{num(g.count)}</td>
+                  <td className="text-right font-semibold text-ec-blue">{num(g.qty)} {g.unit}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
-              <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-                <td colSpan={3} style={{ textAlign: 'right' }}>합계 ({byProduct.length}품목)</td>
-                <td style={{ textAlign: 'right' }}>{num(shown.length)}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{num(totals.inQty)}</td>
+              <tr className="font-bold bg-ec-page">
+                <td colSpan={3} className="text-right">합계 ({byProduct.length}품목)</td>
+                <td className="text-right">{num(shown.length)}</td>
+                <td className="text-right text-ec-blue">{num(totals.inQty)}</td>
               </tr>
             </tfoot>
           </table>
@@ -760,31 +760,31 @@ export default function ProductionIssueStatusPage() {
           <table className="w-full text-left">
             <thead>
               <tr>
-                <th style={{ width: 34 }}></th>
-                <th style={{ width: 140 }}>품목코드</th>
+                <th className="w-[34px]"></th>
+                <th className="w-[140px]">품목코드</th>
                 <th>소모자재</th>
-                <th style={{ width: 100, textAlign: 'right' }}>소모건수</th>
-                <th style={{ width: 130, textAlign: 'right' }}>소모수량</th>
+                <th className="w-[100px] text-right">소모건수</th>
+                <th className="w-[130px] text-right">소모수량</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-grid)', padding: 20 }}>불러오는 중…</td></tr>
+                <tr><td colSpan={5} className="text-center text-ec-ink p-[20px]">불러오는 중…</td></tr>
               ) : byMaterial.length === 0 ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-grid)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={5} className="text-center text-ec-ink p-[20px]">등록된 데이터가 없습니다.</td></tr>
               ) : byMaterial.map((g, i) => (
                 <tr key={g.itemId}>
-                  <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                  <td style={{ fontFamily: 'monospace' }}>{g.code}</td>
+                  <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
+                  <td>{g.code}</td>
                   <td>{g.name}</td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(g.count)}</td>
+                  <td className="text-right text-ec-hint">{num(g.count)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{num(g.qty)} {g.unit}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
-              <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-                <td colSpan={4} style={{ textAlign: 'right' }}>합계 ({byMaterial.length}자재)</td>
+              <tr className="font-bold bg-ec-page">
+                <td colSpan={4} className="text-right">합계 ({byMaterial.length}자재)</td>
                 <td style={{ textAlign: 'right', color: '#a5561b' }}>{num(totals.outQty)}</td>
               </tr>
             </tfoot>
@@ -793,26 +793,26 @@ export default function ProductionIssueStatusPage() {
           <table className="w-full text-left">
             <thead>
               <tr>
-                <th style={{ width: 34 }}></th>
+                <th className="w-[34px]"></th>
                 <th>생산품목</th>
                 <th>소모자재</th>
-                <th style={{ width: 100, textAlign: 'right' }}>전표수</th>
-                <th style={{ width: 120, textAlign: 'right' }}>입고수량</th>
-                <th style={{ width: 120, textAlign: 'right' }}>소모수량</th>
+                <th className="w-[100px] text-right">전표수</th>
+                <th className="w-[120px] text-right">입고수량</th>
+                <th className="w-[120px] text-right">소모수량</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-grid)', padding: 20 }}>불러오는 중…</td></tr>
+                <tr><td colSpan={6} className="text-center text-ec-ink p-[20px]">불러오는 중…</td></tr>
               ) : byProductLine.length === 0 ? (
-                <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-grid)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={6} className="text-center text-ec-ink p-[20px]">등록된 데이터가 없습니다.</td></tr>
               ) : byProductLine.map((g, i) => (
                 <tr key={g.key}>
-                  <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+                  <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
                   <td>{g.product}</td>
                   <td>{g.material}</td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(g.count)}</td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{num(g.producedQty)}</td>
+                  <td className="text-right text-ec-hint">{num(g.count)}</td>
+                  <td className="text-right text-ec-blue">{num(g.producedQty)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{num(g.usedQty)} {g.unit}</td>
                 </tr>
               ))}
@@ -821,42 +821,42 @@ export default function ProductionIssueStatusPage() {
         ) : (
           <table className="w-full text-left">
             <colgroup>
-              <col style={{ width: '5%' }} /><col style={{ width: '16%' }} /><col />
-              <col style={{ width: '10%' }} /><col style={{ width: '12%' }} />
-              <col style={{ width: '10%' }} /><col style={{ width: '12%' }} />
+              <col className="w-[5%]" /><col className="w-[16%]" /><col />
+              <col className="w-[10%]" /><col className="w-[12%]" />
+              <col className="w-[10%]" /><col className="w-[12%]" />
             </colgroup>
             <thead>
               <tr>
                 <th></th>
                 <th>품목코드</th>
                 <th>품목명</th>
-                <th style={{ textAlign: 'right' }}>입고건수</th>
-                <th style={{ textAlign: 'right' }}>입고수량</th>
-                <th style={{ textAlign: 'right' }}>소모건수</th>
-                <th style={{ textAlign: 'right' }}>소모수량</th>
+                <th className="text-right">입고건수</th>
+                <th className="text-right">입고수량</th>
+                <th className="text-right">소모건수</th>
+                <th className="text-right">소모수량</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+                <tr><td colSpan={7} className="text-center text-ec-ink">불러오는 중…</td></tr>
               ) : byItem.length === 0 ? (
-                <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={7} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
               ) : byItem.map((g, i) => (
                 // 입고와 소모가 둘 다 있는 품목 = 만들어서 다시 쓰는 반제품. 눈에 띄게 둔다.
                 <tr key={g.itemId} style={g.inQty > 0 && g.outQty > 0 ? { background: '#f7f4ff' } : undefined}>
-                  <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                  <td style={{ fontFamily: 'monospace' }}>{g.code}</td>
+                  <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
+                  <td>{g.code}</td>
                   <td>
                     {g.name}
                     {g.inQty > 0 && g.outQty > 0 && (
                       <span style={{ marginLeft: 8, fontSize: 11, color: '#6b4bb8' }}>반제품 · 만들어서 다시 씀</span>
                     )}
                   </td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{g.inCount || ''}</td>
+                  <td className="text-right text-ec-hint">{g.inCount || ''}</td>
                   <td style={{ textAlign: 'right', fontWeight: 600, color: g.inQty ? 'var(--ec-blue)' : 'var(--ec-text-off)' }}>
                     {g.inQty ? num(g.inQty) : '—'}
                   </td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{g.outCount || ''}</td>
+                  <td className="text-right text-ec-hint">{g.outCount || ''}</td>
                   <td style={{ textAlign: 'right', fontWeight: 600, color: g.outQty ? '#a5561b' : 'var(--ec-text-off)' }}>
                     {g.outQty ? num(g.outQty) : '—'}
                   </td>
@@ -866,9 +866,9 @@ export default function ProductionIssueStatusPage() {
             {byItem.length > 0 && (
               <tfoot>
                 <tr>
-                  <td colSpan={4} style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>합계</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: 'var(--ec-blue)' }}>{num(totals.inQty)}</td>
-                  <td style={{ background: 'var(--ec-bg-page)' }}></td>
+                  <td colSpan={4} className="text-right font-bold bg-ec-page">합계</td>
+                  <td className="text-right font-bold bg-ec-page text-ec-blue">{num(totals.inQty)}</td>
+                  <td className="bg-ec-page"></td>
                   <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: '#a5561b' }}>{num(totals.outQty)}</td>
                 </tr>
               </tfoot>

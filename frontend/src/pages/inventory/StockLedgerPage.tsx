@@ -347,7 +347,7 @@ export default function StockLedgerPage() {
           예전에는 "[기타] 뒤가 마지막" 이라 적어 두었는데 사본만 보고 적은 것이라 틀렸다.
         */}
         <EcCond label="대표품목으로 합산">
-          <label style={{ fontSize: 12 }}>
+          <label className="text-[12px]">
             <input type="checkbox" checked={filters.rollUp} disabled={!filters.itemId}
                    onChange={(e) => setF({ rollUp: e.target.checked })} />
             <span style={{ color: filters.itemId ? undefined : '#a8b0ba' }}> 형제 품목까지 함께</span>
@@ -359,7 +359,7 @@ export default function StockLedgerPage() {
         */}
         {/* 원본 차례: [대표품목으로 합산] 다음이 [단가표시], 그다음이 [기타] 다. */}
         <EcCond label="단가표시">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <div className="flex items-center gap-[10px] flex-wrap">
             {/* 원본의 첫 갈래 — 끄면 [단가]·[금액] 칸이 통째로 사라진다. */}
             <div className="ec-pills">
               {(['표시안함', '표시'] as const).map((v) => (
@@ -378,24 +378,24 @@ export default function StockLedgerPage() {
           </div>
         </EcCond>
         <EcCond label="기타">
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <label style={{ fontSize: 12 }}>
+          <div className="flex gap-[12px] flex-wrap">
+            <label className="text-[12px]">
               <input type="checkbox" checked={signBox}
                      onChange={(e) => setSignBox(e.target.checked)} /> 결재방표시
             </label>
-            <label style={{ fontSize: 12 }}>
+            <label className="text-[12px]">
               <input type="checkbox" checked={withUntracked}
                      onChange={(e) => setWithUntracked(e.target.checked)} /> 수량관리제외품목포함
             </label>
-            <label style={{ fontSize: 12 }}>
+            <label className="text-[12px]">
               <input type="checkbox" checked={withInactive}
                      onChange={(e) => setWithInactive(e.target.checked)} /> 사용중단품목포함
             </label>
-            <label style={{ fontSize: 12 }}>
+            <label className="text-[12px]">
               <input type="checkbox" checked={excludeNoTx}
                      onChange={(e) => setExcludeNoTx(e.target.checked)} /> 거래내역없는품목제외
             </label>
-            <label style={{ fontSize: 12 }}>
+            <label className="text-[12px]">
               <input type="checkbox" checked={byItemName}
                      onChange={(e) => setByItemName(e.target.checked)} /> 품목명(정렬)
             </label>
@@ -403,7 +403,7 @@ export default function StockLedgerPage() {
         </EcCond>
       </EcStatusPanel>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {/*
         잘라서 받았으면 <b>반드시 말한다.</b> 말 없이 앞부분만 보여 주면 사람은 그것이 전부인 줄
         알고 합계를 읽는다 — 틀린 숫자를 맞다고 믿게 하는 것이 안 보여 주는 것보다 나쁘다.
@@ -416,8 +416,8 @@ export default function StockLedgerPage() {
       )}
 
       {/* 유형 탭 + 요약 */}
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8, gap: 8, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', gap: 2 }}>
+      <div className="flex items-center mb-[8px] gap-[8px] flex-wrap">
+        <div className="flex gap-[2px]">
           {(['ALL', 'INBOUND', 'OUTBOUND', 'ADJUST'] as const).map((t) => (
             <button key={t} onClick={() => setTypeFilter(t)} className="no-ec" style={{
               padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
@@ -425,17 +425,17 @@ export default function StockLedgerPage() {
             }}>{t === 'ALL' ? '전체' : t === 'INBOUND' ? '입고' : t === 'OUTBOUND' ? '출고' : '조정'} ({t === 'ALL' ? rows.length : rows.filter((r) => r.type === t).length})</button>
           ))}
         </div>
-        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--ec-label)' }}>
+        <div className="ml-auto text-[12.5px] text-ec-label">
           {summary.singleScope && summary.opening != null && (
-            <>기초 <b style={{ color: 'var(--ec-text)', fontSize: 14 }}>{num(summary.opening)}</b><span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span></>
+            <>기초 <b className="text-ec-text text-[14px]">{num(summary.opening)}</b><span className="my-0 mx-[6px] text-ec-off">|</span></>
           )}
-          입고계 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{num(summary.inQty)}</b>
-          <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
+          입고계 <b className="text-ec-blue text-[14px]">{num(summary.inQty)}</b>
+          <span className="my-0 mx-[6px] text-ec-off">|</span>
           출고계 <b style={{ color: '#a5561b', fontSize: 14 }}>{num(summary.outQty)}</b>
-          <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
+          <span className="my-0 mx-[6px] text-ec-off">|</span>
           순증감 <b style={{ color: summary.net >= 0 ? 'var(--ec-success)' : 'var(--ec-danger)', fontSize: 14 }}>{summary.net > 0 ? '+' : ''}{num(summary.net)}</b>
           {summary.singleScope && summary.closing != null && (
-            <><span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>기말 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{num(summary.closing)}</b></>
+            <><span className="my-0 mx-[6px] text-ec-off">|</span>기말 <b className="text-ec-navy text-[14px]">{num(summary.closing)}</b></>
           )}
         </div>
       </div>
@@ -467,12 +467,12 @@ export default function StockLedgerPage() {
       */}
       <table className="text-left ec-report ec-report-fixed">
         <colgroup>
-          <col style={{ width: 34 }} /><col style={{ width: 99 }} /><col style={{ width: 50 }} />
-          <col style={{ width: 200 }} /><col style={{ width: 100 }} />
-          <col style={{ width: 184 }} /><col style={{ width: 129 }} />
-          <col style={{ width: 79 }} /><col style={{ width: 79 }} /><col style={{ width: 79 }} />
-          {showPrice && <col style={{ width: 90 }} />}
-          {showPrice && <col style={{ width: 100 }} />}
+          <col className="w-[34px]" /><col className="w-[99px]" /><col className="w-[50px]" />
+          <col className="w-[200px]" /><col className="w-[100px]" />
+          <col className="w-[184px]" /><col className="w-[129px]" />
+          <col className="w-[79px]" /><col className="w-[79px]" /><col className="w-[79px]" />
+          {showPrice && <col className="w-[90px]" />}
+          {showPrice && <col className="w-[100px]" />}
         </colgroup>
         <thead>
           <tr>
@@ -493,24 +493,24 @@ export default function StockLedgerPage() {
             */}
             <th></th>
             {/* 머리 정렬은 칸 정렬을 적어 둔다 — 화면에는 .ec-report 가 전부 가운데로 덮는다(원본도 머리는 가운데). */}
-            <th style={{ textAlign: 'center' }}>일자</th>
-            <th style={{ textAlign: 'center' }}>유형</th>
+            <th className="text-center">일자</th>
+            <th className="text-center">유형</th>
             <th>품목</th>
             <th>창고</th>
             <th>거래처명</th>
             <th>적요</th>
-            <th style={{ textAlign: 'right' }}>입고수량</th>
-            <th style={{ textAlign: 'right' }}>출고수량</th>
-            <th style={{ textAlign: 'right' }}>재고수량</th>
-            {showPrice && <th style={{ textAlign: 'right' }}>단가</th>}
-            {showPrice && <th style={{ textAlign: 'right' }}>금액</th>}
+            <th className="text-right">입고수량</th>
+            <th className="text-right">출고수량</th>
+            <th className="text-right">재고수량</th>
+            {showPrice && <th className="text-right">단가</th>}
+            {showPrice && <th className="text-right">금액</th>}
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={showPrice ? 12 : 10} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+            <tr><td colSpan={showPrice ? 12 : 10} className="text-center text-ec-ink">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={showPrice ? 12 : 10} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>
+            <tr><td colSpan={showPrice ? 12 : 10} className="text-center text-ec-ink">
               {rows.length === 0 ? '해당 기간의 입출고 내역이 없습니다.' : '조건에 맞는 자료가 없습니다.'}
             </td></tr>
           ) : (() => {
@@ -518,13 +518,13 @@ export default function StockLedgerPage() {
             /* 원본 맨 윗줄 [전일재고] — 품목·창고를 모두 골랐을 때만 기초가 뜻이 있다. */
             if (summary.singleScope && summary.opening != null) {
               out.push(
-                <tr key="opening" style={{ fontWeight: 700 }}>
-                  <td colSpan={7} style={{ textAlign: 'center' }}>
+                <tr key="opening" className="font-bold">
+                  <td colSpan={7} className="text-center">
                     {/* 원본 글자색 rgb(215,62,62) — 2026-09-23 E040702 실측(안쪽 span). */}
                     <span style={{ color: 'rgb(215, 62, 62)' }}>전일재고</span>
                   </td>
                   <td></td><td></td>
-                  <td style={{ textAlign: 'right' }}>{num(summary.opening)}</td>
+                  <td className="text-right">{num(summary.opening)}</td>
                   {showPrice && <td></td>}
                   {showPrice && <td></td>}
                 </tr>,
@@ -540,10 +540,10 @@ export default function StockLedgerPage() {
               const bal = summary.singleScope && mLastId != null ? runningById.get(mLastId) : undefined
               out.push(
                 <tr key={`m-${ym}`} className="ec-total">
-                  <td colSpan={7} style={{ textAlign: 'center' }}>{`${ym.replace('-', '/')}  계`}</td>
-                  <td style={{ textAlign: 'right' }}>{mIn ? num(mIn) : ''}</td>
-                  <td style={{ textAlign: 'right' }}>{mOut ? num(mOut) : ''}</td>
-                  <td style={{ textAlign: 'right' }}>{bal != null ? num(bal) : ''}</td>
+                  <td colSpan={7} className="text-center">{`${ym.replace('-', '/')}  계`}</td>
+                  <td className="text-right">{mIn ? num(mIn) : ''}</td>
+                  <td className="text-right">{mOut ? num(mOut) : ''}</td>
+                  <td className="text-right">{bal != null ? num(bal) : ''}</td>
                   {showPrice && <td></td>}
                   {showPrice && <td></td>}
                 </tr>,
@@ -572,24 +572,24 @@ export default function StockLedgerPage() {
               const c = TYPE_COLOR[r.type]
               out.push(
                 <tr key={r.id}>
-                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                  <td style={{ textAlign: 'center' }}>{dateText(r.transactionDate)}</td>
+                  <td className="text-center text-ec-hint">{i + 1}</td>
+                  <td className="text-center">{dateText(r.transactionDate)}</td>
                   {/* [유형] 은 원본에 없는 우리 열이라 색 표시를 남긴다. */}
-                  <td style={{ textAlign: 'center' }}>
+                  <td className="text-center">
                     <span style={{ background: c.bg, color: c.fg, padding: '1px 6px', borderRadius: 3, fontSize: 11.5, fontWeight: 600 }}>{r.typeName}</span>
                   </td>
                   <td>{r.itemName}</td>
                   <td>{r.warehouseName}</td>
                   <td>{partnerOf(r.note)}</td>
                   <td>{r.note ?? ''}</td>
-                  <td style={{ textAlign: 'right' }}>{inQ ? num(inQ) : ''}</td>
-                  <td style={{ textAlign: 'right' }}>{outQ ? num(outQ) : ''}</td>
-                  <td style={{ textAlign: 'right' }}>{bal != null ? num(bal) : ''}</td>
+                  <td className="text-right">{inQ ? num(inQ) : ''}</td>
+                  <td className="text-right">{outQ ? num(outQ) : ''}</td>
+                  <td className="text-right">{bal != null ? num(bal) : ''}</td>
                   {showPrice && (
-                    <td style={{ textAlign: 'right' }}>{basePrice != null ? num(basePrice) : ''}</td>
+                    <td className="text-right">{basePrice != null ? num(basePrice) : ''}</td>
                   )}
                   {showPrice && (
-                    <td style={{ textAlign: 'right' }}>{amount != null ? num(amount) : ''}</td>
+                    <td className="text-right">{amount != null ? num(amount) : ''}</td>
                   )}
                 </tr>,
               )
@@ -602,10 +602,10 @@ export default function StockLedgerPage() {
         {!loading && shown.length > 0 && (
           <tfoot>
             <tr>
-              <td colSpan={7} style={{ textAlign: 'center' }}>합계</td>
-              <td style={{ textAlign: 'right' }}>{summary.inQty ? num(summary.inQty) : ''}</td>
-              <td style={{ textAlign: 'right' }}>{summary.outQty ? num(summary.outQty) : ''}</td>
-              <td style={{ textAlign: 'right' }}>{summary.closing != null ? num(summary.closing) : ''}</td>
+              <td colSpan={7} className="text-center">합계</td>
+              <td className="text-right">{summary.inQty ? num(summary.inQty) : ''}</td>
+              <td className="text-right">{summary.outQty ? num(summary.outQty) : ''}</td>
+              <td className="text-right">{summary.closing != null ? num(summary.closing) : ''}</td>
               {showPrice && <td></td>}
               {showPrice && <td></td>}
             </tr>

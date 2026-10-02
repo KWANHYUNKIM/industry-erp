@@ -119,26 +119,26 @@ export default function TransferListPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="구분">
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+          <label className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
             <input type="radio" name="tl-kind" checked readOnly /> 내역
           </label>
-          <label title="원본의 ○집계 판 — 아직 만들지 않았다" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 16, fontSize: 12.5, color: 'var(--ec-text-hint)' }}>
+          <label title="원본의 ○집계 판 — 아직 만들지 않았다" className="inline-flex items-center gap-[3px] mr-[16px] text-[12.5px] text-ec-hint">
             <input type="radio" name="tl-kind" disabled /> 집계
           </label>
           {UNITS.map((v) => (
-            <label key={v} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+            <label key={v} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
               <input type="radio" name="tl-unit" checked={unit === v} onChange={() => setUnit(v)} /> {v}
             </label>
           ))}
         </EcCond>
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={NOTE_FLOW_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
@@ -153,32 +153,32 @@ export default function TransferListPage() {
         </EcCond>
         <EcCond label="상태">
           {(['전체', '결재중', '미확인', '확인'] as Status[]).map((v) => (
-            <label key={v} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+            <label key={v} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
               <input type="radio" name="tl-status" checked={status === v} onChange={() => setStatus(v)} /> {v}
             </label>
           ))}
         </EcCond>
       </ul>
 
-      {truncated && <p style={{ fontSize: 12, color: 'var(--ec-warn)', marginBottom: 6 }}>전표가 많아 앞부분만 받았습니다 — 기간을 좁혀 보세요.</p>}
-      <h3 style={{ fontSize: 20, fontWeight: 700, textAlign: 'center', margin: '6px 0 12px' }}>지출결의서이체리스트</h3>
+      {truncated && <p className="text-[12px] text-ec-warn mb-[6px]">전표가 많아 앞부분만 받았습니다 — 기간을 좁혀 보세요.</p>}
+      <h3 className="text-[20px] font-bold text-center mt-[6px] mx-0 mb-[12px]">지출결의서이체리스트</h3>
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ textAlign: 'center' }}>전표일자</th>
+            <th className="text-center">전표일자</th>
             <th>적요</th>
             <th>거래처명</th>
             <th>적요1</th>
             <th>은행</th>
             <th>계좌번호</th>
-            <th style={{ textAlign: 'right' }}>금액</th>
+            <th className="text-right">금액</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : (
             <>
               {months.map((mo) => {
@@ -187,27 +187,27 @@ export default function TransferListPage() {
                   <Fragment key={mo || 'all'}>
                     {ms.map((r) => (
                       <tr key={r.key}>
-                        <td style={{ textAlign: 'center' }}>{unit === '월별' ? slash(r.date.slice(0, 7)) : unit === '거래처별' ? '' : slash(r.date)}</td>
+                        <td className="text-center">{unit === '월별' ? slash(r.date.slice(0, 7)) : unit === '거래처별' ? '' : slash(r.date)}</td>
                         <td>{r.text}</td>
                         <td>{r.partner}</td>
                         <td>{r.text1}</td>
                         <td>{r.bank}</td>
                         <td>{r.acct}</td>
-                        <td style={{ textAlign: 'right' }}>{won(r.amount)}</td>
+                        <td className="text-right">{won(r.amount)}</td>
                       </tr>
                     ))}
                     {mo && (
                       <tr style={SUB_ROW}>
-                        <td colSpan={6} style={{ textAlign: 'center' }}>{slash(mo)}  계</td>
-                        <td style={{ textAlign: 'right' }}>{won(ms.reduce((s, r) => s + r.amount, 0))}</td>
+                        <td colSpan={6} className="text-center">{slash(mo)}  계</td>
+                        <td className="text-right">{won(ms.reduce((s, r) => s + r.amount, 0))}</td>
                       </tr>
                     )}
                   </Fragment>
                 )
               })}
               <tr style={SUB_ROW}>
-                <td colSpan={6} style={{ textAlign: 'center' }}>합계</td>
-                <td style={{ textAlign: 'right' }}>{won(total)}</td>
+                <td colSpan={6} className="text-center">합계</td>
+                <td className="text-right">{won(total)}</td>
               </tr>
             </>
           )}

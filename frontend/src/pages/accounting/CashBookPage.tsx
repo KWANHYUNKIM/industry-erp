@@ -83,18 +83,18 @@ export default function CashBookPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={NOTE_FLOW_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
         <EcCond label="기타">
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+          <label className="inline-flex items-center gap-[3px] text-[12.5px]">
             <input type="checkbox" checked={withDeposit} onChange={(e) => setWithDeposit(e.target.checked)} /> 예금포함
           </label>
         </EcCond>
@@ -103,29 +103,29 @@ export default function CashBookPage() {
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ textAlign: 'center' }}>일자-No.</th>
+            <th className="text-center">일자-No.</th>
             <th>상대계정명</th>
             <th>상대거래처명</th>
             <th>적요</th>
-            <th style={{ textAlign: 'right' }}>차변금액</th>
-            <th style={{ textAlign: 'right' }}>대변금액</th>
-            <th style={{ textAlign: 'right' }}>잔액</th>
+            <th className="text-right">차변금액</th>
+            <th className="text-right">대변금액</th>
+            <th className="text-right">잔액</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : rows.map(({ key, r, bal }) => (
             <tr key={key}>
-              <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{dateText(r.entryDate)} {r.docNo}</td>
+              <td className="text-center">{dateText(r.entryDate)} {r.docNo}</td>
               <td>{r.counterAccountName ?? ''}</td>
               <td>{r.partnerName ?? ''}</td>
               <td>{r.description ?? ''}</td>
-              <td style={{ textAlign: 'right' }}>{won(Number(r.debit))}</td>
-              <td style={{ textAlign: 'right' }}>{won(Number(r.credit))}</td>
-              <td style={{ textAlign: 'right' }}>{Math.round(bal).toLocaleString('ko-KR')}</td>
+              <td className="text-right">{won(Number(r.debit))}</td>
+              <td className="text-right">{won(Number(r.credit))}</td>
+              <td className="text-right">{Math.round(bal).toLocaleString('ko-KR')}</td>
             </tr>
           ))}
         </tbody>
@@ -133,9 +133,9 @@ export default function CashBookPage() {
           <tfoot>
             <tr style={{ fontWeight: 700, background: 'rgb(243, 243, 243)' }}>
               <td colSpan={4}>합계</td>
-              <td style={{ textAlign: 'right' }}>{won(totalDebit)}</td>
-              <td style={{ textAlign: 'right' }}>{won(totalCredit)}</td>
-              <td style={{ textAlign: 'right' }}>{Math.round(totalDebit - totalCredit).toLocaleString('ko-KR')}</td>
+              <td className="text-right">{won(totalDebit)}</td>
+              <td className="text-right">{won(totalCredit)}</td>
+              <td className="text-right">{Math.round(totalDebit - totalCredit).toLocaleString('ko-KR')}</td>
             </tr>
           </tfoot>
         )}

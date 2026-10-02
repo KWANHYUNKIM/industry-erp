@@ -1235,7 +1235,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
         ]}
         actions={footerActions}
         help={
-          <ul style={{ paddingLeft: 16, margin: 0 }}>
+          <ul className="pl-[16px] m-0">
             <li>이 화면은 이카운트 <b>판매입력(ESD006M)</b> 구조를 따릅니다 — 헤더 항목 폼 · 금액조정 합계 · 명세 그리드 · 하단 버튼줄.</li>
             <li><b>일자</b>는 연/월/일 세 칸입니다. 일(日) 칸만 고쳐 치면 되고, 📅로 달력을 엽니다.</li>
             <li><b>거래처·담당자·{cfg.whLabel}·프로젝트</b>는 코드도움 칸입니다 — 🔍를 눌러 코드나 이름으로 찾습니다.</li>
@@ -1308,7 +1308,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                 <option value="R">반품</option>
               </select>
               {returnSlip && (
-                <span style={{ marginLeft: 8, fontSize: 11.5, color: 'var(--ec-danger)' }}>
+                <span className="ml-[8px] text-[11.5px] text-ec-danger">
                   {mode === 'sales' ? '되돌려받는' : '되돌려보내는'} 수량을 양수로 적으세요. {mode === 'sales' ? '재고가 늘고 채권이 줄어듭니다.' : '재고가 줄고 채무가 줄어듭니다.'}
                 </span>
               )}
@@ -1358,7 +1358,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
           {showExtra && (customDefs.length === 0 ? (
             <li className="wide">
               <div className="title">추가항목</div>
-              <div className="form" style={{ color: 'var(--ec-text-hint)' }}>
+              <div className="form text-ec-hint">
                 정의된 추가항목이 없습니다. [Self-Customizing &gt; 사용자정의필드]에서 <b>{cfg.entityType}</b> 항목을 만들면 여기에 나옵니다.
               </div>
             </li>
@@ -1407,9 +1407,9 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
           '우리가 따르는 쪽에는 없어서' 다. 이름과 구조가 어긋난 것은 따로 볼 일이다.
         */}
         {foreign && rate > 0 && (
-          <div style={{ marginTop: 6, textAlign: 'right', fontSize: 12, color: 'var(--ec-label)' }}>
+          <div className="mt-[6px] text-right text-[12px] text-ec-label">
             외화금액{' '}
-            <b style={{ color: 'var(--ec-text)' }}>
+            <b className="text-ec-text">
               {(totals.total / rate).toLocaleString('ko-KR', { maximumFractionDigits: 2 })}
             </b>
             {'  ·  원화금액 '}
@@ -1438,7 +1438,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
             {mode === 'sales' ? '거래내역보기(판매)' : '거래내역보기(구매)'}
           </button>
           {/* 원본 순서: 거래내역보기 다음이 My품목이다. ▾ 로 목록을 펼치고, 본체를 누르면 통째로 담는다. */}
-          <span style={{ position: 'relative', display: 'inline-flex' }}>
+          <span className="relative inline-flex">
             <button type="button" className="ec-btn ec-btn-sm" onClick={applyMyItems}>
               My품목{myItems.length > 0 ? ` (${myItems.length})` : ''}
             </button>
@@ -1457,11 +1457,11 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                 }}
               >
                 {myItems.length === 0 ? (
-                  <div style={{ padding: '8px 6px', fontSize: 12, color: 'var(--ec-text-hint)' }}>
+                  <div className="py-[8px] px-[6px] text-[12px] text-ec-hint">
                     비어 있습니다. 명세에서 품목 줄의 [★]를 눌러 담아 두세요.
                   </div>
                 ) : myItems.map((m) => (
-                  <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 4px', fontSize: 12 }}>
+                  <div key={m.id} className="flex items-center gap-[6px] py-[3px] px-[4px] text-[12px]">
                     <button
                       type="button" className="ec-btn ec-btn-sm" style={{ flex: 1, justifyContent: 'flex-start' }}
                       onClick={() => { addItemLine(String(m.itemId), m.defaultQty); setMyItemsOpen(false) }}
@@ -1591,7 +1591,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
         )}
 
         {notice && (
-          <div style={{ margin: '4px 0', padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-blue-wash)', border: '1px solid var(--ec-info-line)', color: 'var(--ec-navy)' }}>
+          <div className="ec-alert ec-alert-info my-[4px] mx-0">
             {notice}
           </div>
         )}
@@ -1602,32 +1602,32 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
           줄어 🔍·× 단추가 자리를 다 먹고 <b>품목명이 안 보였다</b>(2026-10-01, 주문을 불러오다 발견).
           최소 200 을 주고, 열이 많아 넘치면 표를 가로로 굴린다.
         */}
-        <div ref={gridRef} style={{ overflowX: 'auto' }}>
+        <div ref={gridRef} className="overflow-x-auto">
           <table className="ec-grid-input no-ec" style={{ tableLayout: 'fixed' }}>
             <colgroup>
-              <col style={{ width: 26 }} />
-              <col style={{ width: 26 }} />
-              <col style={{ width: 100 }} />
-              <col style={{ width: 200 }} />
-              <col style={{ width: 110 }} />
-              <col style={{ width: 110 }} />
-              {cols.stockAll && <col style={{ width: 70 }} />}
-              {cols.stockWh && <col style={{ width: 70 }} />}
-              {cols.unit && <col style={{ width: 50 }} />}
-              <col style={{ width: 78 }} />
-              <col style={{ width: 96 }} />
-              {cols.priceVat && <col style={{ width: 95 }} />}
-              <col style={{ width: 110 }} />
-              <col style={{ width: 96 }} />
-              <col style={{ width: 96 }} />
-              {cols.lineTotal && <col style={{ width: 100 }} />}
-              {cols.mgmtItem && <col style={{ width: 90 }} />}
-              <col style={{ width: 130 }} />
-              {cols.srcType && <col style={{ width: 80 }} />}
-              {cols.srcDate && <col style={{ width: 100 }} />}
-              {cols.srcNo && <col style={{ width: 120 }} />}
-              {cols.qcRequest && <col style={{ width: 90 }} />}
-              <col style={{ width: 30 }} />
+              <col className="w-[26px]" />
+              <col className="w-[26px]" />
+              <col className="w-[100px]" />
+              <col className="w-[200px]" />
+              <col className="w-[110px]" />
+              <col className="w-[110px]" />
+              {cols.stockAll && <col className="w-[70px]" />}
+              {cols.stockWh && <col className="w-[70px]" />}
+              {cols.unit && <col className="w-[50px]" />}
+              <col className="w-[78px]" />
+              <col className="w-[96px]" />
+              {cols.priceVat && <col className="w-[95px]" />}
+              <col className="w-[110px]" />
+              <col className="w-[96px]" />
+              <col className="w-[96px]" />
+              {cols.lineTotal && <col className="w-[100px]" />}
+              {cols.mgmtItem && <col className="w-[90px]" />}
+              <col className="w-[130px]" />
+              {cols.srcType && <col className="w-[80px]" />}
+              {cols.srcDate && <col className="w-[100px]" />}
+              {cols.srcNo && <col className="w-[120px]" />}
+              {cols.qcRequest && <col className="w-[90px]" />}
+              <col className="w-[30px]" />
             </colgroup>
             <thead>
               <tr>
@@ -1648,33 +1648,33 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                   {lineCount > 0 && checkedIdx.length === lineCount ? '☑' : ''}
                 </th>
                 <th title="My품목 담기/빼기">★</th>
-                <th style={{ textAlign: 'left' }}>품목코드</th>
-                <th style={{ textAlign: 'left' }}>품목명</th>
-                <th style={{ textAlign: 'left' }}>규격</th>
+                <th className="text-left">품목코드</th>
+                <th className="text-left">품목명</th>
+                <th className="text-left">규격</th>
                 {/* 원본 실측: [시리얼/로트]는 가운데, 금액 칸들은 오른쪽이다. 값은 이미 오른쪽인데 머리만 안 따라갔다. */}
-                <th style={{ textAlign: 'center' }}>시리얼/로트</th>
+                <th className="text-center">시리얼/로트</th>
                 {cols.stockAll && <th>전체수량</th>}
                 {cols.stockWh && <th>창고수량</th>}
                 {cols.unit && <th>단위</th>}
                 {/* 원본은 판매입력이 [수량], 구매입력이 [기본수량] 이다 — 같은 칸인데 이름이 다르다. */}
                 {/* 값은 이미 오른쪽인데 <b>머리만</b> 왼쪽이었다 — 삼항으로 적은 칸이라
                     이름으로 찾는 검사가 여태 이 칸을 아예 못 보고 있었다. */}
-                <th style={{ textAlign: 'right' }}>{mode === 'sales' ? '수량' : '기본수량'}</th>
-                <th style={{ textAlign: 'right' }}>단가</th>
+                <th className="text-right">{mode === 'sales' ? '수량' : '기본수량'}</th>
+                <th className="text-right">단가</th>
                 {cols.priceVat && <th>단가(vat포함)</th>}
-                <th style={{ textAlign: 'right' }}>공급가액</th>
-                <th style={{ textAlign: 'right' }}>부가세</th>
-                {cols.lineTotal && <th style={{ textAlign: 'right' }}>합계</th>}
-                <th style={{ textAlign: 'right' }}>부대비용</th>
+                <th className="text-right">공급가액</th>
+                <th className="text-right">부가세</th>
+                {cols.lineTotal && <th className="text-right">합계</th>}
+                <th className="text-right">부대비용</th>
                 {cols.mgmtItem && <th>관리항목</th>}
-                <th style={{ textAlign: 'left' }}>적요</th>
+                <th className="text-left">적요</th>
                 {/* 라인 추가항목. 정의한 것만 열이 생긴다 — 안 쓰는 회사는 표가 그대로다. */}
                 {lineDefs.map((d) => (
-                  <th key={d.fieldKey} style={{ textAlign: 'left' }}>{d.label}</th>
+                  <th key={d.fieldKey} className="text-left">{d.label}</th>
                 ))}
                 {cols.srcType && <th>불러온 전표</th>}
                 {cols.srcDate && <th>불러온 전표일자</th>}
-                {cols.srcNo && <th style={{ textAlign: 'left' }}>불러온 전표No.</th>}
+                {cols.srcNo && <th className="text-left">불러온 전표No.</th>}
                 {/* 원본 구매입력 격자의 [품질검사요청]. 켜고 저장하면 입고검사 요청이 생긴다. */}
                 {cols.qcRequest && <th>품질검사요청</th>}
                 <th />
@@ -1710,7 +1710,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                       {idx + 1}
                     </td>
                     {/* 원본 2열의 ⊕ 자리. 우리는 이 줄의 품목을 My품목에 담고 빼는 ★ 로 쓴다. */}
-                    <td style={{ textAlign: 'center' }}>
+                    <td className="text-center">
                       {l.itemId && (
                         <button
                           type="button" className="no-ec"
@@ -1727,7 +1727,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                         </button>
                       )}
                     </td>
-                    <td className="pad" style={{ fontFamily: 'ui-monospace, monospace', color: 'var(--ec-label)', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                    <td className="pad text-ec-label overflow-hidden whitespace-nowrap">
                       {it?.code ?? ''}
                     </td>
                     <td className="pad">
@@ -1737,7 +1737,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                         items={codeItems}
                       />
                     </td>
-                    <td className="pad" style={{ color: 'var(--ec-label)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <td className="pad text-ec-label overflow-hidden text-ellipsis whitespace-nowrap">
                       {it?.spec ?? ''}
                     </td>
                     <td>
@@ -1745,12 +1745,12 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                              onChange={(e) => updateLine(idx, 'lotNo', e.target.value)} />
                     </td>
                     {cols.stockAll && (
-                      <td className="pad" style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{l.itemId ? won(stockAllOf(l.itemId)) : ''}</td>
+                      <td className="pad text-right text-ec-hint">{l.itemId ? won(stockAllOf(l.itemId)) : ''}</td>
                     )}
                     {cols.stockWh && (
-                      <td className="pad" style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{l.itemId ? won(stockWhOf(l.itemId)) : ''}</td>
+                      <td className="pad text-right text-ec-hint">{l.itemId ? won(stockWhOf(l.itemId)) : ''}</td>
                     )}
-                    {cols.unit && <td className="pad" style={{ textAlign: 'center', color: 'var(--ec-label)' }}>{it?.unit ?? ''}</td>}
+                    {cols.unit && <td className="pad text-center text-ec-label">{it?.unit ?? ''}</td>}
                     <td>
                       <input className="cell" type="number" step="any" style={{ textAlign: 'right' }}
                              value={l.quantity} onChange={(e) => updateLine(idx, 'quantity', e.target.value)} />
@@ -1760,14 +1760,14 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                              value={l.unitPrice} onChange={(e) => updateLine(idx, 'unitPrice', e.target.value)} />
                     </td>
                     {cols.priceVat && (
-                      <td className="pad" style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>
+                      <td className="pad text-right text-ec-hint">
                         {l.itemId ? won(Math.round(num(l.unitPrice) * (taxable ? 1.1 : 1))) : ''}
                       </td>
                     )}
-                    <td className="pad" style={{ textAlign: 'right', color: 'var(--ec-text)' }}>{l.itemId ? won(computed[idx].supply) : ''}</td>
-                    <td className="pad" style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{l.itemId ? won(computed[idx].vat) : ''}</td>
+                    <td className="pad text-right text-ec-text">{l.itemId ? won(computed[idx].supply) : ''}</td>
+                    <td className="pad text-right text-ec-hint">{l.itemId ? won(computed[idx].vat) : ''}</td>
                     {cols.lineTotal && (
-                      <td className="pad" style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-text)' }}>
+                      <td className="pad text-right font-semibold text-ec-text">
                         {l.itemId ? won(computed[idx].supply + computed[idx].vat) : ''}
                       </td>
                     )}
@@ -1777,7 +1777,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                     </td>
                     {/* 관리항목은 품목 마스터에 붙는 값이라 라인에서는 읽기 전용이다(원본도 disabled). */}
                     {cols.mgmtItem && (
-                      <td className="pad" style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>
+                      <td className="pad text-center text-ec-hint">
                         {it?.managementItemName ?? ''}
                       </td>
                     )}
@@ -1812,23 +1812,23 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                     ))}
                     {/* 불러온 전표 3열은 읽기 전용이다 — 근거전표는 [전표불러오기]로만 붙는다. */}
                     {cols.srcType && (
-                      <td className="pad" style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{l.sourceDocType}</td>
+                      <td className="pad text-center text-ec-hint">{l.sourceDocType}</td>
                     )}
                     {cols.srcDate && (
-                      <td className="pad" style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{dateText(l.sourceDocDate)}</td>
+                      <td className="pad text-center text-ec-hint">{dateText(l.sourceDocDate)}</td>
                     )}
                     {cols.srcNo && (
-                      <td className="pad" style={{ color: 'var(--ec-text-hint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <td className="pad text-ec-hint overflow-hidden text-ellipsis whitespace-nowrap">
                         {l.sourceDocNo}
                       </td>
                     )}
                     {cols.qcRequest && (
-                      <td className="pad" style={{ textAlign: 'center' }}>
+                      <td className="pad text-center">
                         <input type="checkbox" checked={l.qcRequest} disabled={!l.itemId}
                                onChange={(e) => updateLine(idx, 'qcRequest', e.target.checked)} />
                       </td>
                     )}
-                    <td style={{ textAlign: 'center' }}>
+                    <td className="text-center">
                       {l.itemId && (
                         <button type="button" onClick={() => removeLine(idx)} className="no-ec"
                                 style={{ border: 'none', background: 'none', color: '#c0c5cc', cursor: 'pointer' }}>
@@ -1843,16 +1843,16 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
             <tfoot>
               <tr>
                 <td colSpan={2} />
-                <td colSpan={4} style={{ paddingLeft: 6 }}>합계 ({lineCount}건)</td>
+                <td colSpan={4} className="pl-[6px]">합계 ({lineCount}건)</td>
                 {cols.stockAll && <td />}
                 {cols.stockWh && <td />}
                 {cols.unit && <td />}
-                <td style={{ textAlign: 'right' }}>{won(totals.qty)}</td>
+                <td className="text-right">{won(totals.qty)}</td>
                 <td />
                 {cols.priceVat && <td />}
-                <td style={{ textAlign: 'right' }}>{won(totals.supply)}</td>
-                <td style={{ textAlign: 'right' }}>{won(totals.vat)}</td>
-                <td style={{ textAlign: 'right' }}>{won(totals.extra)}</td>
+                <td className="text-right">{won(totals.supply)}</td>
+                <td className="text-right">{won(totals.vat)}</td>
+                <td className="text-right">{won(totals.extra)}</td>
                 {/*
                   합계행은 헤더와 칸 수가 정확히 같아야 한다. 선택 열을 켜면 그만큼 빈 칸을 끼워야
                   숫자가 제 열 아래에 선다. (관리항목은 부대비용과 적요 사이, 불러온 전표 3열은 적요 뒤다.)
@@ -1868,8 +1868,8 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
           </table>
         </div>
 
-        {error && <p style={{ marginTop: 10, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-        {ok && <p style={{ marginTop: 10, background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
+        {error && <p className="ec-alert ec-alert-danger mt-[10px]">{error}</p>}
+        {ok && <p className="ec-alert ec-alert-success mt-[10px]">{ok}</p>}
 
         {/*
           원본 전표 입력 화면에는 "최근 전표" 목록이 없다 — 헤더폼 → 툴바 → 그리드 → 합계행 → 푸터가 전부다.
@@ -1880,11 +1880,11 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
 
       {/* ── 열 선택 ──────────────────────────────────────── */}
       <Modal error={error} open={colPickerOpen} title="열 선택" width={360} onClose={() => setColPickerOpen(false)}>
-        <p style={{ fontSize: 12, color: 'var(--ec-label)', marginTop: 0 }}>
+        <p className="text-[12px] text-ec-label mt-0">
           원본에서 기본 숨김으로 깔려 있는 열입니다. 켜면 그리드에 나타납니다.
         </p>
         {OPTIONAL_COLS.filter((c) => c.id !== 'qcRequest' || mode === 'purchase').map((c) => (
-          <label key={c.id} style={{ display: 'block', padding: '5px 0', fontSize: 12.5 }}>
+          <label key={c.id} className="block py-[5px] px-0 text-[12.5px]">
             <input
               type="checkbox" checked={cols[c.id]} style={{ marginRight: 6 }}
               onChange={(e) => setCols((s) => ({ ...s, [c.id]: e.target.checked }))}
@@ -1899,30 +1899,30 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
 
       {/* ── 거래내역보기 ─────────────────────────────────── */}
       <Modal error={error} open={historyOpen} title={`거래내역보기 (${cfg.lineTab})`} width={720} onClose={() => setHistoryOpen(false)}>
-        <p style={{ fontSize: 12, color: 'var(--ec-label)', marginTop: 0 }}>
+        <p className="text-[12px] text-ec-label mt-0">
           이 거래처의 최근 전표입니다. 행을 누르면 그 전표의 품목·수량·단가를 지금 명세로 가져옵니다.
         </p>
-        <div style={{ maxHeight: 340, overflowY: 'auto', border: '1px solid var(--ec-border)' }}>
+        <div className="max-h-[340px] overflow-y-auto border border-ec-line border-solid">
           {/* 고르는 창이라 합계가 없다 — 몇 중 몇인지만 적는다. 안 적으면 찾는 전표가
               없다고 읽는다. */}
           <EcRowCap capped={partnerDocs.length > 30} shown={30} total={partnerDocs.length} sums={false}
                     hint="거래처를 바꾸거나 기간을 좁혀 보세요." />
           <table className="w-full text-left">
             <thead>
-              <tr><th>전표번호</th><th>일자</th><th>품목</th><th style={{ textAlign: 'right' }}>합계</th></tr>
+              <tr><th>전표번호</th><th>일자</th><th>품목</th><th className="text-right">합계</th></tr>
             </thead>
             <tbody>
               {partnerDocs.length === 0 ? (
-                <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={4} className="text-center text-ec-hint p-[16px]">등록된 데이터가 없습니다.</td></tr>
               ) : capRows(partnerDocs, 30).rows.map((d) => (
                 <tr
-                  key={d.id} style={{ cursor: 'pointer' }}
+                  key={d.id} className="cursor-pointer"
                   onClick={() => copyFromDoc(d, () => setHistoryOpen(false))}
                 >
-                  <td style={{ fontFamily: 'ui-monospace, monospace' }}>{d.docNo}</td>
+                  <td>{d.docNo}</td>
                   <td>{(d as SalesDoc).saleDate ?? (d as PurchaseDoc).purchaseDate}</td>
                   <td>{d.lines[0]?.itemName}{d.lines.length > 1 ? ` 외 ${d.lines.length - 1}건` : ''}</td>
-                  <td style={{ textAlign: 'right' }}>{won(d.totalAmount)}</td>
+                  <td className="text-right">{won(d.totalAmount)}</td>
                 </tr>
               ))}
             </tbody>
@@ -1932,11 +1932,11 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
 
       {/* ── 전표불러오기 (원본 slip_load) — 거래처 상관없이 지난 전표를 복사 ── */}
       <Modal error={error} open={slipLoadOpen} title={`전표불러오기 (${cfg.lineTab})`} width={760} onClose={() => setSlipLoadOpen(false)}>
-        <p style={{ fontSize: 12, color: 'var(--ec-label)', marginTop: 0 }}>
+        <p className="text-[12px] text-ec-label mt-0">
           지난 {cfg.lineTab} 전표입니다. 행을 누르면 그 전표의 품목·수량·단가를 지금 명세로 가져오고,
           거래처도 그 전표의 것으로 맞춰집니다. (거래처별로 보려면 툴바 [거래내역보기]를 쓰세요.)
         </p>
-        <div style={{ maxHeight: 380, overflowY: 'auto', border: '1px solid var(--ec-border)' }}>
+        <div className="max-h-[380px] overflow-y-auto border border-ec-line border-solid">
           {/* 고르는 창이라 합계가 없다 — 몇 중 몇인지만 적는다. 안 적으면 찾는 전표가
               없다고 읽는다. */}
           <EcRowCap capped={docs.length > 50} shown={50} total={docs.length} sums={false}
@@ -1945,15 +1945,15 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
             <thead>
               <tr>
                 <th>전표번호</th><th>일자</th><th>{cfg.partnerLabel}</th><th>품목</th>
-                <th style={{ textAlign: 'right' }}>합계</th>
+                <th className="text-right">합계</th>
               </tr>
             </thead>
             <tbody>
               {docs.length === 0 ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={5} className="text-center text-ec-hint p-[16px]">등록된 데이터가 없습니다.</td></tr>
               ) : capRows(docs, 50).rows.map((d) => (
-                <tr key={d.id} style={{ cursor: 'pointer' }} onClick={() => copyFromDoc(d, () => setSlipLoadOpen(false))}>
-                  <td style={{ fontFamily: 'ui-monospace, monospace' }}>{d.docNo}</td>
+                <tr key={d.id} className="cursor-pointer" onClick={() => copyFromDoc(d, () => setSlipLoadOpen(false))}>
+                  <td>{d.docNo}</td>
                   <td>{(d as SalesDoc).saleDate ?? (d as PurchaseDoc).purchaseDate}</td>
                   <td>{d.partnerName}</td>
                   <td>{d.lines[0]?.itemName}{d.lines.length > 1 ? ` 외 ${d.lines.length - 1}건` : ''}</td>
@@ -1968,41 +1968,41 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
       {/* ── 근거전표 불러오기 (원본 [주문]/[발주]) ────────── */}
       <Modal error={error} open={loadOpen} title={cfg.loadTitle} width={840} onClose={() => setLoadOpen(false)}>
         {loadRows === null ? (
-          <p style={{ fontSize: 12.5, color: 'var(--ec-text-hint)', margin: 0 }}>불러오는 중…</p>
+          <p className="text-[12.5px] text-ec-hint m-0">불러오는 중…</p>
         ) : loadRows.length === 0 ? (
-          <p style={{ fontSize: 12.5, color: 'var(--ec-text-hint)', margin: 0 }}>
+          <p className="text-[12.5px] text-ec-hint m-0">
             {mode === 'sales' ? '미판매 잔량이 있는 주문이 없습니다.' : '아직 입고되지 않은 발주서가 없습니다.'}
           </p>
         ) : (
           <>
-            <p style={{ fontSize: 12, color: 'var(--ec-label)', marginTop: 0 }}>
+            <p className="text-[12px] text-ec-label mt-0">
               담을 행을 체크하고 [선택 담기]를 누르면 품목·수량·단가가 명세로 들어갑니다.
             </p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+            <div className="flex items-center gap-[10px] mb-[6px]">
               <input className="ec-input" style={{ width: 260 }} placeholder={`${mode === 'sales' ? '주문No.' : '발주No.'} · 거래처 · 품목 찾기`}
                      value={loadQuery} onChange={(e) => setLoadQuery(e.target.value)} />
               {partnerId && (
-                <label style={{ fontSize: 12.5, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <label className="text-[12.5px] inline-flex items-center gap-[4px]">
                   <input type="checkbox" checked={loadOnlyPartner} onChange={(e) => setLoadOnlyPartner(e.target.checked)} />
                   이 전표 거래처만
                 </label>
               )}
-              <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--ec-text-hint)' }}>{loadShown.length.toLocaleString()} / {loadRows.length.toLocaleString()}줄 · 최근 것부터</span>
+              <span className="ml-auto text-[12px] text-ec-hint">{loadShown.length.toLocaleString()} / {loadRows.length.toLocaleString()}줄 · 최근 것부터</span>
             </div>
-            <div style={{ maxHeight: 360, overflowY: 'auto', border: '1px solid var(--ec-border)' }}>
+            <div className="max-h-[360px] overflow-y-auto border border-ec-line border-solid">
               <table className="w-full text-left">
                 <thead>
                   <tr>
-                    <th style={{ width: 30 }} />
+                    <th className="w-[30px]" />
                     <th>{mode === 'sales' ? '주문No.' : '발주No.'}</th>
-                    <th style={{ width: 90 }}>일자</th>
+                    <th className="w-[90px]">일자</th>
                     <th>거래처</th>
                     <th>품목</th>
-                    <th style={{ width: 70, textAlign: 'right' }}>{mode === 'sales' ? '주문' : '발주'}</th>
-                    <th style={{ width: 60, textAlign: 'right' }}>{mode === 'sales' ? '판매' : '입고'}</th>
-                    <th style={{ width: 70, textAlign: 'right' }}>담을수량</th>
-                    <th style={{ width: 80, textAlign: 'right' }}>단가</th>
-                    <th style={{ width: 70 }}>상태</th>
+                    <th className="w-[70px] text-right">{mode === 'sales' ? '주문' : '발주'}</th>
+                    <th className="w-[60px] text-right">{mode === 'sales' ? '판매' : '입고'}</th>
+                    <th className="w-[70px] text-right">담을수량</th>
+                    <th className="w-[80px] text-right">단가</th>
+                    <th className="w-[70px]">상태</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2012,28 +2012,28 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                       onClick={() => setLoadPicked((p) => ({ ...p, [r.key]: !p[r.key] }))}
                       style={{ cursor: 'pointer', background: loadPicked[r.key] ? 'var(--ec-blue-light)' : undefined }}
                     >
-                      <td style={{ textAlign: 'center' }}>
+                      <td className="text-center">
                         <input type="checkbox" readOnly checked={!!loadPicked[r.key]} />
                       </td>
-                      <td style={{ fontFamily: 'ui-monospace, monospace' }}>{r.docNo}</td>
+                      <td>{r.docNo}</td>
                       <td>{dateText(r.date)}</td>
                       <td>{r.partnerName}</td>
                       <td>{r.itemName}</td>
-                      <td style={{ textAlign: 'right' }}>{won(r.orderedQty)}</td>
-                      <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{won(r.doneQty)}</td>
-                      <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(r.restQty)}</td>
-                      <td style={{ textAlign: 'right' }}>{won(r.unitPrice)}</td>
-                      <td style={{ color: 'var(--ec-text-hint)' }}>{r.statusName}</td>
+                      <td className="text-right">{won(r.orderedQty)}</td>
+                      <td className="text-right text-ec-hint">{won(r.doneQty)}</td>
+                      <td className="text-right font-bold">{won(r.restQty)}</td>
+                      <td className="text-right">{won(r.unitPrice)}</td>
+                      <td className="text-ec-hint">{r.statusName}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
-              <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>
-                선택 <b style={{ color: 'var(--ec-blue)' }}>{Object.values(loadPicked).filter(Boolean).length}</b>건
+            <div className="flex items-center gap-[8px] mt-[8px]">
+              <span className="text-[12.5px] text-ec-label">
+                선택 <b className="text-ec-blue">{Object.values(loadPicked).filter(Boolean).length}</b>건
               </span>
-              <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+              <div className="ml-auto flex gap-[6px]">
                 <button type="button" className="ec-btn" onClick={() => setLoadPicked({})}>전체 해제</button>
                 <button type="button" className="ec-btn ec-btn-primary" onClick={applyLoadPicked}>선택 담기</button>
               </div>
@@ -2046,11 +2046,11 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
       <Modal error={error} open={stockOpen} title="재고 (명세 품목)" width={620} onClose={() => setStockOpen(false)}>
         <table className="w-full text-left">
           <thead>
-            <tr><th>품목</th><th>창고</th><th style={{ textAlign: 'right' }}>재고</th><th style={{ textAlign: 'right' }}>이 전표 수량</th></tr>
+            <tr><th>품목</th><th>창고</th><th className="text-right">재고</th><th className="text-right">이 전표 수량</th></tr>
           </thead>
           <tbody>
             {lines.filter((l) => l.itemId).length === 0 ? (
-              <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={4} className="text-center text-ec-hint p-[16px]">등록된 데이터가 없습니다.</td></tr>
             ) : lines.filter((l) => l.itemId).map((l, i) => {
               const have = stockWhOf(l.itemId)
               const need = num(l.quantity)
@@ -2059,7 +2059,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                   <td>{itemById.get(l.itemId)?.name}</td>
                   <td>{warehouses.find((w) => String(w.id) === warehouseId)?.name ?? ''}</td>
                   <td style={{ textAlign: 'right', color: mode === 'sales' && have < need ? 'var(--ec-danger)' : undefined }}>{won(have)}</td>
-                  <td style={{ textAlign: 'right' }}>{won(need)}</td>
+                  <td className="text-right">{won(need)}</td>
                 </tr>
               )
             })}
@@ -2071,37 +2071,37 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
       {/* 이익계산 — 원본 profitCalc. 원가는 회계(item_costs)가 소유하므로 화면에서 읽어 계산한다. */}
       <Modal error={error} open={profitOpen} title="이익계산" width={780} onClose={() => setProfitOpen(false)}>
         {costs === null ? (
-          <div style={{ padding: 20, textAlign: 'center', color: 'var(--ec-text-hint)' }}>원가를 불러오는 중…</div>
+          <div className="p-[20px] text-center text-ec-hint">원가를 불러오는 중…</div>
         ) : profitRows.length === 0 ? (
-          <div style={{ padding: 20, textAlign: 'center', color: 'var(--ec-text-hint)' }}>명세에 품목이 없습니다.</div>
+          <div className="p-[20px] text-center text-ec-hint">명세에 품목이 없습니다.</div>
         ) : (
           <>
             <table className="ec-grid" style={{ width: '100%' }}>
               <thead>
                 <tr>
-                  <th style={{ textAlign: 'left' }}>품목</th>
-                  <th style={{ width: 70, textAlign: 'right' }}>수량</th>
-                  <th style={{ width: 90, textAlign: 'right' }}>매출액</th>
-                  <th style={{ width: 90, textAlign: 'right' }}>단위원가</th>
-                  <th style={{ width: 90, textAlign: 'right' }}>원가액</th>
-                  <th style={{ width: 90, textAlign: 'right' }}>이익</th>
-                  <th style={{ width: 70, textAlign: 'right' }}>이익률</th>
+                  <th className="text-left">품목</th>
+                  <th className="w-[70px] text-right">수량</th>
+                  <th className="w-[90px] text-right">매출액</th>
+                  <th className="w-[90px] text-right">단위원가</th>
+                  <th className="w-[90px] text-right">원가액</th>
+                  <th className="w-[90px] text-right">이익</th>
+                  <th className="w-[70px] text-right">이익률</th>
                 </tr>
               </thead>
               <tbody>
                 {profitRows.map((r, i) => (
                   <tr key={i}>
                     <td className="pad">{r.code} {r.name}</td>
-                    <td className="pad" style={{ textAlign: 'right' }}>{won(r.qty)}</td>
-                    <td className="pad" style={{ textAlign: 'right' }}>{won(r.revenue)}</td>
+                    <td className="pad text-right">{won(r.qty)}</td>
+                    <td className="pad text-right">{won(r.revenue)}</td>
                     {r.cost === null ? (
                       <td className="pad" colSpan={4} style={{ textAlign: 'center', color: '#c98a00' }}>
                         원가 미등록 — [회계 &gt; 원가] 에서 등록해야 이익이 잡힙니다
                       </td>
                     ) : (
                       <>
-                        <td className="pad" style={{ textAlign: 'right' }}>{won(Math.round(r.unitCost!))}</td>
-                        <td className="pad" style={{ textAlign: 'right' }}>{won(Math.round(r.cost))}</td>
+                        <td className="pad text-right">{won(Math.round(r.unitCost!))}</td>
+                        <td className="pad text-right">{won(Math.round(r.cost))}</td>
                         <td className="pad" style={{ textAlign: 'right', color: r.profit! < 0 ? '#d03a3a' : '#1a7f37' }}>
                           {won(Math.round(r.profit!))}
                         </td>
@@ -2116,13 +2116,13 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
               <tfoot>
                 <tr style={{ fontWeight: 600, background: '#f6f7f9' }}>
                   <td className="pad" colSpan={2}>합계 (원가 등록분)</td>
-                  <td className="pad" style={{ textAlign: 'right' }}>{won(profitTotals.revenue)}</td>
+                  <td className="pad text-right">{won(profitTotals.revenue)}</td>
                   <td className="pad" />
-                  <td className="pad" style={{ textAlign: 'right' }}>{won(Math.round(profitTotals.cost))}</td>
-                  <td className="pad" style={{ textAlign: 'right' }}>
+                  <td className="pad text-right">{won(Math.round(profitTotals.cost))}</td>
+                  <td className="pad text-right">
                     {won(Math.round(profitTotals.revenue - profitTotals.cost))}
                   </td>
-                  <td className="pad" style={{ textAlign: 'right' }}>
+                  <td className="pad text-right">
                     {profitTotals.revenue === 0 ? ''
                       : `${(((profitTotals.revenue - profitTotals.cost) / profitTotals.revenue) * 100).toFixed(1)}%`}
                   </td>
@@ -2140,9 +2140,9 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
 
       <Modal error={error} open={verifyResult !== null} title="검증 결과" width={520} onClose={() => setVerifyResult(null)}>
         {verifyResult && verifyResult.length === 0 ? (
-          <p style={{ color: 'var(--ec-success)', fontSize: 13, margin: 0 }}>문제가 없습니다. 저장할 수 있습니다.</p>
+          <p className="text-ec-success text-[13px] m-0">문제가 없습니다. 저장할 수 있습니다.</p>
         ) : (
-          <ul style={{ paddingLeft: 18, margin: 0, fontSize: 12.5, lineHeight: 1.8, color: 'var(--ec-danger)' }}>
+          <ul className="pl-[18px] m-0 text-[12.5px] leading-[1.8] text-ec-danger">
             {verifyResult?.map((m, i) => <li key={i}>{m}</li>)}
           </ul>
         )}

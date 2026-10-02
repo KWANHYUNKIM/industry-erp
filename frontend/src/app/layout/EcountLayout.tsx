@@ -35,7 +35,7 @@ const MENU: TopMenu[] = [
       { label: '정보관리', nodes: [{ label: '회사정보관리', to: '/settings/company' }] },
       { label: '사용자관리', nodes: [{ label: '사용자등록', to: '/users' }, { label: '역할·권한관리', to: '/roles' }, { label: '회사관리', to: '/companies' }] },
       { label: '환경설정', nodes: [{ label: '환경설정', to: '/settings/preferences' }] },
-      { label: '기타관리시스템', nodes: [{ label: '기타관리시스템', to: '/settings/etc' }, { label: '공통코드', to: '/settings/codes' }, { label: '사용자정의필드', to: '/settings/custom-fields' }] },
+      { label: '기타관리시스템', nodes: [{ label: '기타관리시스템', to: '/settings/etc' }, { label: '공통코드', to: '/settings/codes' }, { label: '사용자정의필드', to: '/settings/custom-fields' }, { label: '디자인 시스템', to: '/settings/design-system' }] },
       { label: '보안관리', nodes: [{ label: '보안관리', to: '/settings/security' }] },
       { label: '인쇄서식', nodes: [{ label: '인쇄용 결재라인', to: '/settings/print-sign' }] },
       { label: '다운로드', nodes: [{ label: '다운로드', to: '/settings/download' }] },
@@ -1050,7 +1050,7 @@ export default function EcountLayout() {
                   style={{ color: 'var(--ec-text)' }}
                 >
                   {x.label}
-                  <span style={{ fontSize: 11, color: 'var(--ec-page-off)', marginLeft: 6, fontWeight: 400 }}>{x.path}</span>
+                  <span className="text-[11px] text-ec-hint ml-[6px] font-normal">{x.path}</span>
                 </button>
               ))}
             </div>
@@ -1096,8 +1096,8 @@ export default function EcountLayout() {
           <button className="ec-avatar" title={user?.name} onClick={() => setUserOpen((o) => !o)}>👤</button>
           {userOpen && (
             <div className="ec-popover" onMouseLeave={() => setUserOpen(false)}>
-              <div style={{ fontWeight: 700, color: 'var(--ec-text)' }}>{user?.name}</div>
-              <div style={{ fontSize: 11, color: 'var(--ec-page-off)', marginBottom: 8 }}>{user?.roles.join(', ')}</div>
+              <div className="font-bold text-ec-text">{user?.name}</div>
+              <div className="text-[11px] text-ec-hint mb-[8px]">{user?.roles.join(', ')}</div>
               <button className="ec-btn" onClick={logout} style={{ width: '100%', justifyContent: 'center' }}>로그아웃</button>
             </div>
           )}
@@ -1138,12 +1138,12 @@ export default function EcountLayout() {
           {canRoute(location.pathname) ? (
             <Outlet />
           ) : (
-            <div style={{ padding: 48, textAlign: 'center', color: 'var(--ec-page-off)' }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>🔒</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--ec-text)', marginBottom: 6 }}>
+            <div className="p-[48px] text-center text-ec-hint">
+              <div className="text-[40px] mb-[12px]">🔒</div>
+              <div className="text-[16px] font-bold text-ec-text mb-[6px]">
                 접근 권한이 없습니다
               </div>
-              <div style={{ fontSize: 13 }}>
+              <div className="text-[13px]">
                 이 메뉴에 대한 권한이 없습니다. 필요하면 관리자에게 권한을 요청하세요.
               </div>
             </div>
@@ -1194,14 +1194,14 @@ export default function EcountLayout() {
             onClick={(e) => e.stopPropagation()}
             style={{ background: '#fff', borderRadius: 5, width: 1040, maxWidth: '96vw', boxShadow: '0 12px 34px rgba(0,0,0,.22)' }}
           >
-            <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--ec-line-soft)', display: 'flex', alignItems: 'center' }}>
-              <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--ec-text)' }}>사이트맵 · 전체 메뉴</span>
+            <div className="py-[12px] px-[16px] border-b border-b-ec-line-soft border-solid flex items-center">
+              <span className="font-extrabold text-[15px] text-ec-text">사이트맵 · 전체 메뉴</span>
               <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => setSitemapOpen(false)}>닫기</button>
             </div>
 
-            <div style={{ display: 'flex', minHeight: 380 }}>
+            <div className="flex min-h-[380px]">
               {/* 좌측 대메뉴 레일 */}
-              <div style={{ width: 168, flexShrink: 0, borderRight: '1px solid var(--ec-line-soft)', padding: '8px 0', background: 'var(--ec-bg-page)' }}>
+              <div className="w-[168px] shrink-0 border-r border-r-ec-line-soft border-solid py-[8px] px-0 bg-ec-page">
                 {MENU.map((m, i) => (
                   !topOk(m) ? null :
                   <button
@@ -1235,8 +1235,8 @@ export default function EcountLayout() {
                     {tab.nodes.map((node) =>
                       isGroup(node) ? (
                         node.children.some(leafOk) ? (
-                        <div key={node.label} style={{ marginBottom: 6 }}>
-                          <div style={{ fontWeight: 700, fontSize: 11.5, color: 'var(--ec-text-hint)', margin: '4px 0 2px' }}>{node.label}</div>
+                        <div key={node.label} className="mb-[6px]">
+                          <div className="font-bold text-[11.5px] text-ec-hint mt-[4px] mx-0 mb-[2px]">{node.label}</div>
                           {node.children.filter(leafOk).map((c) => (
                             <button
                               key={c.label} disabled={!c.to} onClick={() => c.to && gotoMenu(c.to)}

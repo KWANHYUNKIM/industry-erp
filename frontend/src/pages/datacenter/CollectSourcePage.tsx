@@ -109,35 +109,35 @@ export default function CollectSourcePage() {
       /* 원본 차례: 신규(F2) · 선택삭제 (사본 실측) */
       { label: `선택삭제${picked.size ? ` (${picked.size})` : ''}`, onClick: removeChecked },
     ]}>
-      <p className="mb-2 text-xs text-slate-500">데이터수집 화면이 실행하는 소스 목록입니다. 소스 = 우리 API 목록 GET 엔드포인트(예: /sales, /shipments). 여기서 추가하면 코드 배포 없이 수집 대상이 늘어납니다.</p>
+      <p className="mb-2 text-xs text-ec-hint">데이터수집 화면이 실행하는 소스 목록입니다. 소스 = 우리 API 목록 GET 엔드포인트(예: /sales, /shipments). 여기서 추가하면 코드 배포 없이 수집 대상이 늘어납니다.</p>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {ok && <p style={{ background: 'var(--ec-success-bg)', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
       <Modal error={error} open={showForm} title={editId ? '수집 소스 수정' : '수집 소스 등록'} onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginTop: 8, marginBottom: 8 }}>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>소스명 *</div>
+          <div className="flex gap-[12px] flex-wrap items-end">
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">소스명 *</div>
               <input className={inputCls} value={form.name} onChange={(e) => set('name', e.target.value)} style={{ width: 180 }} placeholder="예: 견적 전표" /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>데이터코드</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">데이터코드</div>
               <input className={inputCls} value={form.code} onChange={(e) => set('code', e.target.value)} style={{ width: 120 }} placeholder="D001" /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>구분 *</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">구분 *</div>
               <input className={inputCls} value={form.category} onChange={(e) => set('category', e.target.value)} style={{ width: 110 }} placeholder="예: 영업" /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>엔드포인트 *</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">엔드포인트 *</div>
               <input className={inputCls} value={form.endpoint} onChange={(e) => set('endpoint', e.target.value)} style={{ width: 240 }} placeholder="예: /quotations" /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: 'var(--ec-label)', marginBottom: 3 }}>정렬</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">정렬</div>
               <input className={`${inputCls} text-right`} type="number" value={form.sortOrder} onChange={(e) => set('sortOrder', e.target.value)} style={{ width: 70 }} /></label>
-            <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <label className="text-[12.5px] flex items-center gap-[4px]">
               <input type="checkbox" checked={form.paged} onChange={(e) => set('paged', e.target.checked)} /> 페이지응답(totalElements)
             </label>
             <button type="submit" className="ec-btn ec-btn-primary">{editId ? '수정' : '저장'}</button>
           </div>
-          <p style={{ fontSize: 11.5, color: 'var(--ec-text-hint)', marginTop: 8 }}>엔드포인트는 배열을 반환하는 목록 GET 이어야 하며, 페이지 응답이면 '페이지응답'을 체크하세요(건수=totalElements).</p>
+          <p className="text-[11.5px] text-ec-hint mt-[8px]">엔드포인트는 배열을 반환하는 목록 GET 이어야 하며, 페이지 응답이면 '페이지응답'을 체크하세요(건수=totalElements).</p>
         </form>
       )}</Modal>
 
       {/* 원본 조건 차례: <b>데이터코드</b> · 데이터명 · 수집대상 · … · <b>최초작성일자</b> · <b>최종작업일자</b> */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)' }}>
+      <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label">
         <span>데이터코드</span>
         <input className="ec-input" value={codeCond} placeholder="데이터코드"
                onChange={(e) => setCodeCond(e.target.value)} style={{ width: 120 }} />
@@ -158,44 +158,44 @@ export default function CollectSourcePage() {
 
       <table className="w-full text-left">
         <thead><tr>
-          <th style={{ width: 28, textAlign: 'center' }}></th>
-          <th style={{ width: 34 }}></th>
-          <th style={{ textAlign: 'right', width: 60 }}>정렬</th>
-          <th style={{ width: 90 }}>데이터코드</th>
+          <th className="w-[28px] text-center"></th>
+          <th className="w-[34px]"></th>
+          <th className="text-right w-[60px]">정렬</th>
+          <th className="w-[90px]">데이터코드</th>
           {/* 원본 수집데이터등록의 이름은 [소스명]이 아니라 <b>[데이터명]</b> 이다(사본 실측). */}
             <th>데이터명</th>
-          <th style={{ width: 100 }}>구분</th>
-          <th style={{ width: 260 }}>엔드포인트</th>
-          <th style={{ textAlign: 'center', width: 70 }}>페이지</th>
-          <th style={{ textAlign: 'center', width: 110 }}>최초작성일자</th>
-          <th style={{ textAlign: 'center', width: 110 }}>최종작업일자</th>
-          <th style={{ textAlign: 'center', width: 80 }}>사용</th>
-          <th style={{ textAlign: 'center', width: 90 }}>관리</th>
+          <th className="w-[100px]">구분</th>
+          <th className="w-[260px]">엔드포인트</th>
+          <th className="text-center w-[70px]">페이지</th>
+          <th className="text-center w-[110px]">최초작성일자</th>
+          <th className="text-center w-[110px]">최종작업일자</th>
+          <th className="text-center w-[80px]">사용</th>
+          <th className="text-center w-[90px]">관리</th>
         </tr></thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={12} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={12} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((s) => (
             <tr key={s.id} style={{ opacity: s.active ? 1 : 0.5 }}>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <input type="checkbox" checked={picked.has(s.id)} onChange={() => pick(s.id)} />
               </td>
               <td></td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{s.sortOrder}</td>
-              <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{s.code ?? ''}</td>
-              <td style={{ fontWeight: 600 }}>{s.name}</td>
+              <td className="text-right text-ec-hint">{s.sortOrder}</td>
+              <td className="text-ec-label">{s.code ?? ''}</td>
+              <td className="font-semibold">{s.name}</td>
               <td>{s.category}</td>
-              <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: 'var(--ec-label)' }}>GET /api{s.endpoint}</td>
-              <td style={{ textAlign: 'center' }}>{s.paged ? '●' : ''}</td>
+              <td className="text-[11.5px] text-ec-label">GET /api{s.endpoint}</td>
+              <td className="text-center">{s.paged ? '●' : ''}</td>
               {/* 원본 [최초작성일자]·[최종작업일자] — 날짜만 적는다(시각은 표에서 뜻이 없다). */}
-              <td style={{ textAlign: 'center', color: 'var(--ec-label)' }}>{s.createdAt?.slice(0, 10) ?? ''}</td>
-              <td style={{ textAlign: 'center', color: 'var(--ec-label)' }}>{s.updatedAt?.slice(0, 10) ?? ''}</td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center text-ec-label">{s.createdAt?.slice(0, 10) ?? ''}</td>
+              <td className="text-center text-ec-label">{s.updatedAt?.slice(0, 10) ?? ''}</td>
+              <td className="text-center">
                 <button className="no-ec" onClick={() => toggleActive(s)} style={{ border: '1px solid var(--ec-border)', background: s.active ? 'var(--ec-success-bg)' : 'var(--ec-bg-page)', color: s.active ? 'var(--ec-success)' : 'var(--ec-text-hint)', cursor: 'pointer', fontSize: 11.5, padding: '2px 8px', borderRadius: 3 }}>{s.active ? '사용' : '중단'}</button>
               </td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <button className="no-ec" onClick={() => openEdit(s)} style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>수정</button>
                 <button className="no-ec" onClick={() => remove(s.id)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button>
               </td>

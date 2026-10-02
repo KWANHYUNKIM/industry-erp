@@ -170,7 +170,7 @@ export default function PriceBulkScreen({ trade }: { trade: 'SALES' | 'PURCHASE'
         ]
         : [{ label: 'Excel' }]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {message && <p style={{ background: '#e9f6ec', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{message}</p>}
 
       <EcStatusPanel
@@ -262,7 +262,7 @@ function SlipGrid({ rows, edits, setEdits, loading, total, tableRef }: {
     <table className="ec-grid w-full text-left" ref={tableRef}>
       <thead>
         <tr>
-          <th style={{ textAlign: 'center' }}>일자-No.</th>
+          <th className="text-center">일자-No.</th>
           <th>거래처명</th>
           <th>담당자명</th>
           <th>창고명</th>
@@ -270,33 +270,33 @@ function SlipGrid({ rows, edits, setEdits, loading, total, tableRef }: {
           <th>품목코드</th>
           <th>품목명</th>
           <th>규격명</th>
-          <th style={{ textAlign: 'right' }}>수량</th>
-          <th style={{ textAlign: 'right' }}>단가</th>
-          <th style={{ textAlign: 'right' }}>공급가액</th>
-          <th style={{ textAlign: 'right' }}>부가세</th>
+          <th className="text-right">수량</th>
+          <th className="text-right">단가</th>
+          <th className="text-right">공급가액</th>
+          <th className="text-right">부가세</th>
         </tr>
       </thead>
       <tbody>
         {loading ? (
-          <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+          <tr><td colSpan={12} className="ec-empty">불러오는 중…</td></tr>
         ) : rows.length === 0 ? (
-          <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          <tr><td colSpan={12} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
         ) : rows.map((r) => {
           const v = edits[r.lineId]
           const next = v != null && v !== '' && !Number.isNaN(Number(v)) ? Number(v) : r.unitPrice
           const dirty = next !== r.unitPrice
           return (
             <tr key={r.lineId} style={dirty ? { background: '#fffbe6' } : undefined}>
-              <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{r.slipDate.replace(/-/g, '/')} {r.docNo}</td>
+              <td className="text-center">{r.slipDate.replace(/-/g, '/')} {r.docNo}</td>
               <td>{r.partnerName}</td>
               <td>{r.employeeName ?? ''}</td>
               <td>{r.warehouseName}</td>
               <td>{r.taxTypeName}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
+              <td>{r.itemCode}</td>
               <td>{r.itemName}</td>
               <td>{r.spec ?? ''}</td>
-              <td style={{ textAlign: 'right' }}>{won(r.quantity)}</td>
-              <td style={{ textAlign: 'right' }}>
+              <td className="text-right">{won(r.quantity)}</td>
+              <td className="text-right">
                 {r.editable ? (
                   <input
                     className="ec-input" type="number" style={{ width: 100, textAlign: 'right' }}
@@ -304,12 +304,12 @@ function SlipGrid({ rows, edits, setEdits, loading, total, tableRef }: {
                     onChange={(e) => setEdits((prev) => ({ ...prev, [r.lineId]: e.target.value }))}
                   />
                 ) : (
-                  <span title={r.lockReason ?? undefined} style={{ color: 'var(--ec-text-hint)' }}>{won(r.unitPrice)} 🔒</span>
+                  <span title={r.lockReason ?? undefined} className="text-ec-hint">{won(r.unitPrice)} 🔒</span>
                 )}
               </td>
               {/* 저장 전 미리보기 — 서버가 부가세를 다시 배분하므로 부가세 열은 저장 뒤에 맞는다. */}
-              <td style={{ textAlign: 'right' }}>{won(Math.round(r.quantity * next))}</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{won(r.vatAmount)}</td>
+              <td className="text-right">{won(Math.round(r.quantity * next))}</td>
+              <td className="text-right text-ec-hint">{won(r.vatAmount)}</td>
             </tr>
           )
         })}
@@ -317,11 +317,11 @@ function SlipGrid({ rows, edits, setEdits, loading, total, tableRef }: {
       {rows.length > 0 && (
         <tfoot>
           <tr>
-            <td colSpan={8} style={{ textAlign: 'center', fontWeight: 700 }}>합계 ({rows.length}줄)</td>
-            <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(total.qty)}</td>
+            <td colSpan={8} className="text-center font-bold">합계 ({rows.length}줄)</td>
+            <td className="text-right font-bold">{won(total.qty)}</td>
             <td></td>
-            <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(total.supply)}</td>
-            <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(total.vat)}</td>
+            <td className="text-right font-bold">{won(total.supply)}</td>
+            <td className="text-right font-bold">{won(total.vat)}</td>
           </tr>
         </tfoot>
       )}
@@ -386,10 +386,10 @@ function ItemPriceGrid({ sale }: { sale: boolean }) {
 
   return (
     <>
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {message && <p style={{ background: '#e9f6ec', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{message}</p>}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>변경방식</span>
+      <div className="flex items-center gap-[6px] mb-[8px]">
+        <span className="text-[12.5px] text-ec-label">변경방식</span>
         <select className="ec-input" style={{ width: 110 }} value={calc} onChange={(e) => setCalc(e.target.value as 'rate' | 'amount')}>
           <option value="rate">증감율(%)</option>
           <option value="amount">증감액</option>
@@ -398,28 +398,28 @@ function ItemPriceGrid({ sale }: { sale: boolean }) {
                placeholder={calc === 'rate' ? '예: 10, -5' : '예: 1000, -500'}
                value={value} onChange={(e) => setValue(e.target.value)} />
         <button className="ec-btn ec-btn-primary" onClick={apply} disabled={applying}>{applying ? '적용 중…' : '일괄적용'}</button>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-text-hint)' }}>선택 {selectedCount}건 · 앞으로 입력할 전표에 채워질 기준값입니다</span>
+        <span className="text-[12.5px] text-ec-hint">선택 {selectedCount}건 · 앞으로 입력할 전표에 채워질 기준값입니다</span>
       </div>
       <table className="ec-grid w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34, textAlign: 'center' }}>
+            <th className="w-[34px] text-center">
               <input type="checkbox" checked={rows.length > 0 && selectedCount === rows.length}
                      onChange={() => setSelected((prev) => (prev.size === rows.length ? new Set() : new Set(rows.map((r) => r.id))))} />
             </th>
             <th>품목코드</th><th>품목명</th>
-            <th style={{ textAlign: 'right' }}>{sale ? '판매평균단가' : '구매평균단가'}</th>
-            <th style={{ textAlign: 'right' }}>{sale ? '현재판매단가' : '현재구매단가'}</th>
-            <th style={{ textAlign: 'right' }}>변경단가</th>
-            <th style={{ textAlign: 'right' }}>증감</th>
-            <th style={{ textAlign: 'right' }}>증감율(%)</th>
+            <th className="text-right">{sale ? '판매평균단가' : '구매평균단가'}</th>
+            <th className="text-right">{sale ? '현재판매단가' : '현재구매단가'}</th>
+            <th className="text-right">변경단가</th>
+            <th className="text-right">증감</th>
+            <th className="text-right">증감율(%)</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((r) => {
             const checked = selected.has(r.id)
             const cur = priceOf(r)
@@ -428,20 +428,20 @@ function ItemPriceGrid({ sale }: { sale: boolean }) {
             const rate = cur ? Math.round(diff / cur * 100) : 0
             return (
               <tr key={r.id}>
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-center">
                   <input type="checkbox" checked={checked} onChange={() => setSelected((prev) => {
                     const next = new Set(prev)
                     if (next.has(r.id)) next.delete(r.id); else next.add(r.id)
                     return next
                   })} />
                 </td>
-                <td style={{ fontFamily: 'monospace' }}>{r.code}</td>
+                <td>{r.code}</td>
                 <td>{r.name}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{avgOf(r) != null ? avgOf(r)!.toLocaleString('ko-KR') : ''}</td>
+                <td className="text-right text-ec-hint">{avgOf(r) != null ? avgOf(r)!.toLocaleString('ko-KR') : ''}</td>
                 <td style={{ textAlign: 'right', color: cur > 0 ? undefined : 'var(--ec-text-off)' }}>{cur.toLocaleString('ko-KR')}</td>
                 <td style={{ textAlign: 'right', fontWeight: checked ? 600 : 400 }}>{newPrice.toLocaleString('ko-KR')}</td>
                 <td style={{ textAlign: 'right', color: diff > 0 ? 'var(--ec-danger)' : diff < 0 ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>{diff.toLocaleString('ko-KR')}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600 }}>{rate.toLocaleString('ko-KR')}</td>
+                <td className="text-right font-semibold">{rate.toLocaleString('ko-KR')}</td>
               </tr>
             )
           })}

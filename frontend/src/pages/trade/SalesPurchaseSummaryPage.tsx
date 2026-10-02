@@ -261,14 +261,14 @@ export default function SalesPurchaseSummaryPage() {
       onSearch={load}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
     >
-      <p className="mb-2 text-xs text-slate-500">기간 내 판매·매입을 거래처별 또는 품목별로 집계. 순액 = 매출공급가 − 매입공급가.</p>
+      <p className="mb-2 text-xs text-ec-hint">기간 내 판매·매입을 거래처별 또는 품목별로 집계. 순액 = 매출공급가 − 매입공급가.</p>
 
       <div style={{ border: '1px solid var(--ec-line)', borderRadius: 4, background: 'var(--ec-bg-page)', padding: '10px 14px', marginBottom: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px' }}>
         {/* 원본 첫째 조건은 [기준일자]다 — 우리는 [기간]이라 적고 있었다(2026-09-08 실측). */}
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           <span style={{ ...label, width: 66 }}>기준일자</span>
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 148 }} />
-          <span style={{ margin: '0 6px', color: 'var(--ec-text-hint)' }}>~</span>
+          <span className="my-0 mx-[6px] text-ec-hint">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 148 }} />
         </div>
         {/*
@@ -276,9 +276,9 @@ export default function SalesPurchaseSummaryPage() {
           맨 뒤에 두고 있었다. 원본은 집계조건1~5 를 겹쳐 고르지만 우리 표는 축이 하나라
           거래처별·품목별 둘로 둔다.
         */}
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           <span style={{ ...label, width: 66 }}>집계조건</span>
-          <div style={{ display: 'flex', gap: 2 }}>
+          <div className="flex gap-[2px]">
             {(['partner', 'item'] as const).map((g) => (
               <button key={g} onClick={() => setGroupBy(g)} className="no-ec" style={{
                 padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
@@ -288,54 +288,54 @@ export default function SalesPurchaseSummaryPage() {
           </div>
         </div>
         {/* 원본 차례: 창고 · <b>프로젝트</b> · 담당자 · 거래처 … — 프로젝트가 거래처보다 앞이다. */}
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           <span style={label}>창고</span>
           <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
                            value={warehouseCond} onChange={setWarehouseCond} items={partnerPick.warehouses} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           <span style={label}>프로젝트</span>
           <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
                            value={projectCond} onChange={setProjectCond} items={partnerPick.projects} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           <span style={label}>담당자</span>
           <CodePickerField label="담당자" hideLabel width={170} emptyLabel="전체"
                            value={empCond} onChange={setEmpCond} items={partnerPick.employees} />
         </div>
         {/* 원본 차례: [담당자] 다음, [관리항목] 앞이다(2026-09-08 실측). */}
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           <span style={{ ...label, width: 100 }}>거래처관리담당자</span>
           <CodePickerField label="거래처관리담당자" hideLabel width={150} emptyLabel="전체"
                            value={partnerMgrCond} onChange={setPartnerMgrCond}
                            items={pmgr.options.map((n) => ({ value: n, name: n }))} />
         </div>
         {/* 원본 차례: [프로젝트]·[담당자] 다음, [거래처] 앞이다 — 이 화면만 담당자가 끼어든다(사본 실측). */}
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           <span style={label}>관리항목</span>
           <CodePickerField label="관리항목" hideLabel width={170} emptyLabel="전체"
                            value={mgmtCond} onChange={setMgmtCond}
                            items={mgmt.options.map((m) => ({ value: m, name: m }))} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           <span style={label}>거래처</span>
           <CodePickerField label="거래처" hideLabel width={170} emptyLabel="전체"
                            value={partnerCond} onChange={setPartnerCond} items={partnerPick.partners} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           <span style={{ ...label, width: 76 }}>거래처그룹1</span>
           <CodePickerField label="거래처그룹1" hideLabel width={150} emptyLabel="전체"
                            value={partnerGroupCond} onChange={setPartnerGroupCond}
                            items={pgroup.groupOptions.map((g) => ({ value: g, name: g }))} />
         </div>
         {/* 원본 차례: … 거래처 · 품목코드 · <b>적요</b> · 거래구분. 적요는 이미 응답에 온다. */}
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           <span style={label}>품목코드</span>
           <CodePickerField label="품목코드" hideLabel width={170} emptyLabel="전체"
                            value={itemCond} onChange={setItemCond}
                            items={partnerPick.items} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           <span style={{ ...label, width: 66 }}>품목구분</span>
           <select className="ec-input" value={categoryCond} style={{ width: 130 }}
                   onChange={(e) => setCategoryCond(e.target.value)}>
@@ -344,7 +344,7 @@ export default function SalesPurchaseSummaryPage() {
               .filter(Boolean) as string[])].sort().map((n) => <option key={n} value={n}>{n}</option>)}
           </select>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           <span style={{ ...label, width: 66 }}>품목그룹1</span>
           <select className="ec-input" value={itemGroupCond} style={{ width: 150 }}
                   onChange={(e) => setItemGroupCond(e.target.value)}>
@@ -352,12 +352,12 @@ export default function SalesPurchaseSummaryPage() {
             {mgmt.groupOptions.map((g) => <option key={g} value={g}>{g}</option>)}
           </select>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           <span style={label}>적요</span>
           <input className="ec-input" value={remarkCond}
                  onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 170 }} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           <span style={label}>거래구분</span>
           <select className="ec-input" value={kindCond} style={{ width: 90 }}
                   onChange={(e) => setKindCond(e.target.value as '전체' | '일반' | '반품')}>
@@ -365,50 +365,50 @@ export default function SalesPurchaseSummaryPage() {
           </select>
         </div>
         {/* 원본 [거래유형] — 과세 · 면세. [거래구분](일반·반품)과 다른 축이다. */}
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="flex items-center">
           <span style={{ ...label, width: 66 }}>거래유형</span>
           <select className="ec-input" value={taxTypeCond} style={{ width: 90 }}
                   onChange={(e) => setTaxTypeCond(e.target.value)}>
             <option value="">전체</option><option>과세</option><option>면세</option>
           </select>
         </div>
-        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--ec-label)' }}>
-          매출계 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{won(totals.saleSupply)}</b>
-          <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
+        <div className="ml-auto text-[12.5px] text-ec-label">
+          매출계 <b className="text-ec-blue text-[14px]">{won(totals.saleSupply)}</b>
+          <span className="my-0 mx-[6px] text-ec-off">|</span>
           매입계 <b style={{ color: '#a5561b', fontSize: 14 }}>{won(totals.buySupply)}</b>
-          <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
+          <span className="my-0 mx-[6px] text-ec-off">|</span>
           순액 <b style={{ color: (totals.saleSupply - totals.buySupply) >= 0 ? 'var(--ec-success)' : 'var(--ec-danger)', fontSize: 14 }}>{won(totals.saleSupply - totals.buySupply)}</b>
         </div>
       </div>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th className="w-[34px]"></th>
             <th>{groupBy === 'partner' ? '거래처' : '품목'}</th>
-            <th style={{ textAlign: 'right' }}>{groupBy === 'partner' ? '매출건수' : '매출수량'}</th>
-            <th style={{ textAlign: 'right' }}>매출공급가</th>
-            <th style={{ textAlign: 'right' }}>{groupBy === 'partner' ? '매입건수' : '매입수량'}</th>
-            <th style={{ textAlign: 'right' }}>매입공급가</th>
-            <th style={{ textAlign: 'right' }}>순액</th>
+            <th className="text-right">{groupBy === 'partner' ? '매출건수' : '매출수량'}</th>
+            <th className="text-right">매출공급가</th>
+            <th className="text-right">{groupBy === 'partner' ? '매입건수' : '매입수량'}</th>
+            <th className="text-right">매입공급가</th>
+            <th className="text-right">순액</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((r, i) => {
             const net = r.saleSupply - r.buySupply
             return (
               <tr key={r.key}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
                 <td>{r.name}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{groupBy === 'partner' ? won(r.saleCount) : won(r.saleQty)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(r.saleSupply)}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{groupBy === 'partner' ? won(r.buyCount) : won(r.buyQty)}</td>
+                <td className="text-right text-ec-label">{groupBy === 'partner' ? won(r.saleCount) : won(r.saleQty)}</td>
+                <td className="text-right font-semibold text-ec-blue">{won(r.saleSupply)}</td>
+                <td className="text-right text-ec-label">{groupBy === 'partner' ? won(r.buyCount) : won(r.buyQty)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{won(r.buySupply)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700, color: net >= 0 ? 'var(--ec-success)' : 'var(--ec-danger)' }}>{won(net)}</td>
               </tr>
@@ -417,9 +417,9 @@ export default function SalesPurchaseSummaryPage() {
         </tbody>
         {rows.length > 0 && (
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
-              <td colSpan={3} style={{ textAlign: 'right' }}>합계</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(totals.saleSupply)}</td>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={3} className="text-right">합계</td>
+              <td className="text-right text-ec-blue">{won(totals.saleSupply)}</td>
               <td></td>
               <td style={{ textAlign: 'right', color: '#a5561b' }}>{won(totals.buySupply)}</td>
               <td style={{ textAlign: 'right', color: (totals.saleSupply - totals.buySupply) >= 0 ? 'var(--ec-success)' : 'var(--ec-danger)' }}>{won(totals.saleSupply - totals.buySupply)}</td>

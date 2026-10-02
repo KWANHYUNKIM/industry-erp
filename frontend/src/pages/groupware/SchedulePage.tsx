@@ -189,11 +189,8 @@ export default function SchedulePage() {
       ]}
     >
       {/* 원본 왼쪽의 캘린더 고르기. 우리 화면은 좌우가 달력·목록이라 위에 한 줄로 둔다. */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, padding: '6px 10px',
-        border: '1px solid var(--ec-border)', background: 'var(--ec-bg-page)', flexWrap: 'wrap',
-      }}>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>캘린더</span>
+      <div className="flex items-center gap-[8px] mb-[8px] py-[6px] px-[10px] border border-ec-line border-solid bg-ec-page flex-wrap">
+        <span className="text-[12.5px] text-ec-label">캘린더</span>
         <div className="ec-pills">
           {CALENDARS.map((c) => (
             <button key={c} type="button" className={`ec-pill no-ec${calendar === c ? ' active' : ''}`}
@@ -207,7 +204,7 @@ export default function SchedulePage() {
             {owners.map((o) => <option key={o} value={o}>{o}</option>)}
           </select>
         )}
-        <span style={{ marginLeft: 'auto', fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
+        <span className="ml-auto text-[11.5px] text-ec-hint">
           내 캘린더는 내가 만들었거나 담당·참석자에 내가 있는 일정입니다.
         </span>
       </div>
@@ -222,7 +219,7 @@ export default function SchedulePage() {
                 <th style={th}>시간</th>
                 <td>
                   <input type="time" className={inputCls} value={startTime} onChange={(e) => setStartTime(e.target.value)} style={{ width: 110 }} />
-                  <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
+                  <span className="my-0 mx-[6px] text-ec-label">~</span>
                   <input type="time" className={inputCls} value={endTime} onChange={(e) => setEndTime(e.target.value)} style={{ width: 110 }} />
                 </td>
               </tr>
@@ -252,23 +249,23 @@ export default function SchedulePage() {
               </tr>
             </tbody>
           </table>
-          {error && <p className="mt-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-          {ok && <p className="mt-2 rounded bg-green-50 px-3 py-2 text-sm text-green-700">{ok}</p>}
-          <div style={{ marginTop: 10 }}><button type="submit" className="ec-btn ec-btn-primary">등록(F8)</button></div>
+          {error && <p className="mt-2 rounded bg-ec-danger-bg px-3 py-2 text-sm text-ec-danger">{error}</p>}
+          {ok && <p className="mt-2 rounded bg-ec-success-bg px-3 py-2 text-sm text-ec-success">{ok}</p>}
+          <div className="mt-[10px]"><button type="submit" className="ec-btn ec-btn-primary">등록(F8)</button></div>
         </form>
       )}</Modal>
 
-      {error && !showForm && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && !showForm && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+      <div className="flex gap-[10px] items-start">
         <EcMonthCalendar
           value={pickedDate}
           onPick={setPickedDate}
           marks={new Set(rows.map((r) => r.eventDate))}
         />
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex-1 min-w-0">
           {/* 원본은 목록 위에 조회 기간을 적는다. 우리는 캘린더에서 고른 날(없으면 전체)이 그 자리다. */}
-          <div style={{ marginBottom: 4, fontSize: 12, color: 'var(--ec-text-grid)' }}>
+          <div className="mb-[4px] text-[12px] text-ec-ink">
             {pickedDate
               ? `${pickedDate.replace(/-/g, '/')} (${DOW[new Date(pickedDate).getDay()]})`
               : (from || to)
@@ -281,7 +278,7 @@ export default function SchedulePage() {
             <EcCond label="기준일자">
               <input type="date" className="ec-input" value={from}
                      onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-              <span style={{ margin: '0 4px', color: 'var(--ec-label)' }}>~</span>
+              <span className="my-0 mx-[4px] text-ec-label">~</span>
               <input type="date" className="ec-input" value={to}
                      onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
             </EcCond>
@@ -324,9 +321,9 @@ export default function SchedulePage() {
             <thead>
               <tr>
                 <th></th>
-                <th style={{ textAlign: 'center' }}>일자(요일)</th>
-                <th style={{ textAlign: 'center' }}>시작시간</th>
-                <th style={{ textAlign: 'center' }}>종료시간</th>
+                <th className="text-center">일자(요일)</th>
+                <th className="text-center">시작시간</th>
+                <th className="text-center">종료시간</th>
                 <th>참석자성명</th>
                 <th>제목</th>
                 <th>장소</th>
@@ -334,7 +331,7 @@ export default function SchedulePage() {
             </thead>
             <tbody>
               {shown.length === 0 ? (
-                <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={7} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
               ) : shown.map((r, i) => (
                 <tr key={r.id}>
                   <td
@@ -349,11 +346,11 @@ export default function SchedulePage() {
                   >
                     {i + 1}
                   </td>
-                  <td style={{ textAlign: 'center' }}>
+                  <td className="text-center">
                     {r.eventDate.replace(/-/g, '/')}({DOW[new Date(r.eventDate).getDay()]})
                   </td>
-                  <td style={{ textAlign: 'center' }}>{r.startTime ?? ''}</td>
-                  <td style={{ textAlign: 'center' }}>{r.endTime ?? ''}</td>
+                  <td className="text-center">{r.startTime ?? ''}</td>
+                  <td className="text-center">{r.endTime ?? ''}</td>
                   <td>{r.attendees ?? ''}</td>
                   <td>{r.title}</td>
                   <td>{r.location ?? ''}</td>

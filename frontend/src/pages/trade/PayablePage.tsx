@@ -164,58 +164,58 @@ export default function PayablePage() {
       onSearch={load}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
-        <div style={{ flex: 1, border: '1px solid var(--ec-border)', background: 'var(--ec-success-bg)', padding: '12px 16px' }}>
+      <div className="flex gap-[10px] mb-[10px]">
+        <div className="flex-1 border border-ec-line border-solid bg-ec-success-bg py-[12px] px-[16px]">
           <div style={{ fontSize: 12, color: '#1c6b32' }}>총 미지급 (줄 돈)</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#2f8401' }}>{won(total)} <span style={{ fontSize: 13, fontWeight: 400 }}>원</span></div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#2f8401' }}>{won(total)} <span className="text-[13px] font-normal">원</span></div>
         </div>
-        <div style={{ flex: 1, border: '1px solid var(--ec-border)', background: 'var(--ec-danger-bg)', padding: '12px 16px' }}>
-          <div style={{ fontSize: 12, color: 'var(--ec-danger)' }}>90일 초과 (장기 미지급)</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--ec-danger)' }}>{won(overdue)} <span style={{ fontSize: 13, fontWeight: 400 }}>원</span></div>
+        <div className="flex-1 border border-ec-line border-solid bg-ec-danger-bg py-[12px] px-[16px]">
+          <div className="text-[12px] text-ec-danger">90일 초과 (장기 미지급)</div>
+          <div className="text-[22px] font-extrabold text-ec-danger">{won(overdue)} <span className="text-[13px] font-normal">원</span></div>
         </div>
-        <div style={{ flex: 1, border: '1px solid var(--ec-border)', background: 'var(--ec-bg-page)', padding: '12px 16px' }}>
-          <div style={{ fontSize: 12, color: 'var(--ec-label)' }}>미지급 거래처</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--ec-blue-dark)' }}>{shown.filter((r) => r.balance > 0).length} <span style={{ fontSize: 13, fontWeight: 400 }}>곳</span></div>
+        <div className="flex-1 border border-ec-line border-solid bg-ec-page py-[12px] px-[16px]">
+          <div className="text-[12px] text-ec-label">미지급 거래처</div>
+          <div className="text-[22px] font-extrabold text-ec-navy">{shown.filter((r) => r.balance > 0).length} <span className="text-[13px] font-normal">곳</span></div>
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-        <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+      <div className="flex items-center gap-[8px] mb-[6px]">
+        <label className="text-[12.5px] flex items-center gap-[4px]">
           <input type="checkbox" checked={onlyOpen} onChange={(e) => setOnlyOpen(e.target.checked)} />
           미지급 잔액이 있는 거래처만
         </label>
-        <span style={{ fontSize: 12, color: 'var(--ec-text-hint)' }}>행을 클릭하면 미지급 전표가 펼쳐집니다. 지급 처리는 「수금/지급(정산)」 화면에서 합니다.</span>
+        <span className="text-[12px] text-ec-hint">행을 클릭하면 미지급 전표가 펼쳐집니다. 지급 처리는 「수금/지급(정산)」 화면에서 합니다.</span>
       </div>
 
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th className="w-[34px]"></th>
             <th>거래처코드</th>
             <th>거래처명</th>
-            <th style={{ textAlign: 'right' }}>매입 합계</th>
-            <th style={{ textAlign: 'right' }}>지급 합계</th>
-            <th style={{ textAlign: 'right' }}>미지급 잔액</th>
-            {BUCKETS.map((b) => <th key={b.label} style={{ textAlign: 'right' }}>{b.label}</th>)}
-            <th style={{ textAlign: 'right' }}>회계전표 등</th>
-            <th style={{ textAlign: 'center' }}>최장 경과</th>
+            <th className="text-right">매입 합계</th>
+            <th className="text-right">지급 합계</th>
+            <th className="text-right">미지급 잔액</th>
+            {BUCKETS.map((b) => <th key={b.label} className="text-right">{b.label}</th>)}
+            <th className="text-right">회계전표 등</th>
+            <th className="text-center">최장 경과</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={12} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={12} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <Fragment key={r.partnerId}>
-              <tr onClick={() => setOpenId(openId === r.partnerId ? null : r.partnerId)} style={{ cursor: 'pointer' }}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{openId === r.partnerId ? '▾ ' : '▸ '}{r.code}</td>
+              <tr onClick={() => setOpenId(openId === r.partnerId ? null : r.partnerId)} className="cursor-pointer">
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td>{openId === r.partnerId ? '▾ ' : '▸ '}{r.code}</td>
                 <td>{r.name}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{won(r.purchased)}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{won(r.paid)}</td>
+                <td className="text-right text-ec-label">{won(r.purchased)}</td>
+                <td className="text-right text-ec-label">{won(r.paid)}</td>
                 {/* 음수 = 줄 돈보다 더 준 것(선급금). 0 과 같은 회색으로 죽이면 놓친다. */}
                 <td style={{ textAlign: 'right', fontWeight: 700, color: r.balance > 0 ? '#2f8401' : r.balance < 0 ? 'var(--ec-danger)' : '#bbb' }}>
                   {won(r.balance)}{r.balance < 0 ? ' (선급금)' : ''}
@@ -230,29 +230,29 @@ export default function PayablePage() {
               </tr>
               {openId === r.partnerId && (
                 <tr className="no-ec">
-                  <td colSpan={12} style={{ padding: 0, background: 'var(--ec-bg-page)' }}>
+                  <td colSpan={12} className="p-0 bg-ec-page">
                     {r.docs.length === 0 ? (
-                      <div style={{ padding: 10, fontSize: 12, color: 'var(--ec-text-hint)' }}>미지급 전표가 없습니다.</div>
+                      <div className="p-[10px] text-[12px] text-ec-hint">미지급 전표가 없습니다.</div>
                     ) : (
-                      <table className="w-full text-left" style={{ margin: '4px 0' }}>
+                      <table className="w-full text-left my-[4px] mx-0">
                         <thead>
                           <tr>
-                            <th style={{ width: 34 }}></th>
+                            <th className="w-[34px]"></th>
                             <th>매입전표</th>
                             <th>매입일</th>
-                            <th style={{ textAlign: 'right' }}>전표금액</th>
-                            <th style={{ textAlign: 'right' }}>미지급 잔액</th>
-                            <th style={{ textAlign: 'center' }}>경과일</th>
+                            <th className="text-right">전표금액</th>
+                            <th className="text-right">미지급 잔액</th>
+                            <th className="text-center">경과일</th>
                           </tr>
                         </thead>
                         <tbody>
                           {r.docs.map((d, di) => (
                             <tr key={d.id}>
-                              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{di + 1}</td>
-                              <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{d.docNo}</td>
+                              <td className="text-center text-ec-hint">{di + 1}</td>
+                              <td className="text-ec-blue">{d.docNo}</td>
                               <td>{dateText(d.purchaseDate)}</td>
-                              <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{won(d.totalAmount)}</td>
-                              <td style={{ textAlign: 'right', fontWeight: 600 }}>{won(d.balance)}</td>
+                              <td className="text-right text-ec-hint">{won(d.totalAmount)}</td>
+                              <td className="text-right font-semibold">{won(d.balance)}</td>
                               <td style={{ textAlign: 'center', color: d.days > 90 ? 'var(--ec-danger)' : 'var(--ec-label)' }}>{d.days}일</td>
                             </tr>
                           ))}
@@ -267,20 +267,20 @@ export default function PayablePage() {
         </tbody>
         {shown.length > 0 && (
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
-              <td colSpan={5} style={{ border: '1px solid var(--ec-border)', padding: '5px 8px' }}>합계</td>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={5} className="border border-ec-line border-solid py-[5px] px-[8px]">합계</td>
               <td style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right', color: '#2f8401' }}>{won(total)}</td>
               {totalBuckets.map((v, i) => (
                 <td key={i} style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right', color: i === 3 && v > 0 ? 'var(--ec-danger)' : 'var(--ec-label)' }}>{won(v)}</td>
               ))}
-              <td style={{ border: '1px solid var(--ec-border)', padding: '5px 8px', textAlign: 'right', color: 'var(--ec-label)' }}>{won(totalExtra)}</td>
-              <td style={{ border: '1px solid var(--ec-border)' }}></td>
+              <td className="border border-ec-line border-solid py-[5px] px-[8px] text-right text-ec-label">{won(totalExtra)}</td>
+              <td className="border border-ec-line border-solid"></td>
             </tr>
           </tfoot>
         )}
       </table>
 
-      <p style={{ marginTop: 10, fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
+      <p className="mt-[10px] text-[11.5px] text-ec-hint">
         ※ 미지급 잔액 = 매입 합계 − 지급 합계(정산) ± 회계전표가 외상매입금을 직접 움직인 것(외주비 회계반영·지급어음 등). 지급액은 거래처 단위로 관리되므로 오래된 매입전표부터 충당해 전표별 잔액을 계산합니다.
         <br />※ [회계전표 등] 은 구매전표로 설명되지 않는 잔액입니다 — 매입일이 없어 경과일 칸에 넣지 않습니다. 연령 네 칸 + [회계전표 등] = 미지급 잔액.
       </p>

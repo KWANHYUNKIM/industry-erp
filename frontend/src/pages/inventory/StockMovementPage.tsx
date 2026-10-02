@@ -299,7 +299,7 @@ export default function StockMovementPage() {
         */}
         {mode === '집계' && (
           <EcCond label="대표품목으로 합산">
-            <label style={{ fontSize: 12 }}>
+            <label className="text-[12px]">
               <input type="checkbox" checked={rollUp}
                      onChange={(e) => setRollUp(e.target.checked)} /> 형제 품목을 대표 한 줄로
             </label>
@@ -316,24 +316,24 @@ export default function StockMovementPage() {
           [개별창고기준]은 무엇을 가르는지 자료 없이 못 재어 지어내지 않았다.
         */}
         <EcCond label="기타">
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <label style={{ fontSize: 12 }}>
+          <div className="flex gap-[12px] flex-wrap">
+            <label className="text-[12px]">
               <input type="checkbox" checked={signBox}
                      onChange={(e) => setSignBox(e.target.checked)} /> 결재방표시
             </label>
-            <label style={{ fontSize: 12 }}>
+            <label className="text-[12px]">
               <input type="checkbox" checked={withUntracked}
                      onChange={(e) => setWithUntracked(e.target.checked)} /> 수량관리제외품목포함
             </label>
-            <label style={{ fontSize: 12 }}>
+            <label className="text-[12px]">
               <input type="checkbox" checked={withInactive}
                      onChange={(e) => setWithInactive(e.target.checked)} /> 사용중단품목포함
             </label>
-            <label style={{ fontSize: 12 }}>
+            <label className="text-[12px]">
               <input type="checkbox" checked={hideZero}
                      onChange={(e) => setHideZero(e.target.checked)} /> 입출고수량0제외
             </label>
-            <label style={{ fontSize: 12 }}>
+            <label className="text-[12px]">
               <input type="checkbox" checked={byItemName}
                      onChange={(e) => setByItemName(e.target.checked)} /> 품목명(정렬)
             </label>
@@ -341,60 +341,60 @@ export default function StockMovementPage() {
         </EcCond>
       </EcStatusPanel>
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
         {mode === '집계' ? '품목' : mode === '일별' ? '일수' : '월수'}{' '}
-        <b style={{ color: 'var(--ec-text)' }}>{(mode === '집계' ? shown.length : shownBuckets.length).toLocaleString()}</b>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
-        입고계 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{num(totals.inQty)}</b>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
+        <b className="text-ec-text">{(mode === '집계' ? shown.length : shownBuckets.length).toLocaleString()}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
+        입고계 <b className="text-ec-blue text-[14px]">{num(totals.inQty)}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
         출고계 <b style={{ color: '#a5561b', fontSize: 14 }}>{num(totals.outQty)}</b>
       </div>
 
       {mode !== '집계' ? (
         <table className="w-full text-left">
           <colgroup>
-            <col style={{ width: '5%' }} /><col /><col style={{ width: '11%' }} />
-            <col style={{ width: '15%' }} /><col style={{ width: '15%' }} />
-            <col style={{ width: '15%' }} /><col style={{ width: '15%' }} />
+            <col className="w-[5%]" /><col /><col className="w-[11%]" />
+            <col className="w-[15%]" /><col className="w-[15%]" />
+            <col className="w-[15%]" /><col className="w-[15%]" />
           </colgroup>
           <thead>
             <tr>
               <th></th>
               <th>{mode === '일별' ? '일자' : '월'}</th>
-              <th style={{ textAlign: 'right' }}>건수</th>
-              <th style={{ textAlign: 'right' }}>기초</th>
-              <th style={{ textAlign: 'right' }}>입고</th>
-              <th style={{ textAlign: 'right' }}>출고</th>
-              <th style={{ textAlign: 'right' }}>기말</th>
+              <th className="text-right">건수</th>
+              <th className="text-right">기초</th>
+              <th className="text-right">입고</th>
+              <th className="text-right">출고</th>
+              <th className="text-right">기말</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+              <tr><td colSpan={7} className="text-center text-ec-ink">불러오는 중…</td></tr>
             ) : shownBuckets.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={7} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
             ) : shownBuckets.map((b, i) => (
               <tr key={b.key}>
-                <td style={{ textAlign: 'center', background: 'var(--ec-report-stripe)', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+                <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
                 <td>{b.key.replace(/-/g, '/')}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(b.count)}</td>
-                <td style={{ textAlign: 'right' }}>{num(b.opening)}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{num(b.inQty)}</td>
+                <td className="text-right text-ec-hint">{num(b.count)}</td>
+                <td className="text-right">{num(b.opening)}</td>
+                <td className="text-right text-ec-blue">{num(b.inQty)}</td>
                 <td style={{ textAlign: 'right', color: '#a5561b' }}>{num(b.outQty)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700 }}>{num(b.closing)}</td>
+                <td className="text-right font-bold">{num(b.closing)}</td>
               </tr>
             ))}
           </tbody>
           {shownBuckets.length > 0 && (
             <tfoot>
               <tr>
-                <td colSpan={3} style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>합계</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>{num(shownBuckets[0].opening)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>{num(totals.inQty)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>{num(totals.outQty)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)' }}>
+                <td colSpan={3} className="text-right font-bold bg-ec-page">합계</td>
+                <td className="text-right font-bold bg-ec-page">{num(shownBuckets[0].opening)}</td>
+                <td className="text-right font-bold bg-ec-page">{num(totals.inQty)}</td>
+                <td className="text-right font-bold bg-ec-page">{num(totals.outQty)}</td>
+                <td className="text-right font-bold bg-ec-page">
                   {num(shownBuckets[shownBuckets.length - 1].closing)}
                 </td>
               </tr>
@@ -416,46 +416,46 @@ export default function StockMovementPage() {
               [재고수량] 이었다), (2) <b>[규격] 열이 없었다</b>.
               [단위]는 우리가 더 두는 열이다.
             */}
-            <th style={{ width: 34 }}></th>
+            <th className="w-[34px]"></th>
             <th>품목코드</th>
             <th>품목명</th>
-            <th style={{ width: 110 }}>규격</th>
-            <th style={{ textAlign: 'center', width: 50 }}>단위</th>
-            <th style={{ textAlign: 'right' }}>전일재고</th>
-            <th style={{ textAlign: 'right' }}>입고수량</th>
-            <th style={{ textAlign: 'right' }}>출고수량</th>
-            <th style={{ textAlign: 'right' }}>재고수량</th>
+            <th className="w-[110px]">규격</th>
+            <th className="text-center w-[50px]">단위</th>
+            <th className="text-right">전일재고</th>
+            <th className="text-right">입고수량</th>
+            <th className="text-right">출고수량</th>
+            <th className="text-right">재고수량</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>
+            <tr><td colSpan={9} className="text-center text-ec-hint p-[20px]">
               {rows.length === 0 ? '해당 기간의 재고 변동이 없습니다.' : '조건에 맞는 자료가 없습니다.'}
             </td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.itemId}>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td>{r.itemCode}</td>
               <td>{r.itemName}</td>
-              <td style={{ color: 'var(--ec-label)' }}>{specOf(r.itemId)}</td>
-              <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{r.unit}</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{num(r.opening)}</td>
+              <td className="text-ec-label">{specOf(r.itemId)}</td>
+              <td className="text-center text-ec-hint">{r.unit}</td>
+              <td className="text-right text-ec-label">{num(r.opening)}</td>
               <td style={{ textAlign: 'right', color: r.inQty ? 'var(--ec-blue)' : 'var(--ec-text-off)', fontWeight: r.inQty ? 600 : 400 }}>{r.inQty ? num(r.inQty) : ''}</td>
               <td style={{ textAlign: 'right', color: r.outQty ? '#a5561b' : 'var(--ec-text-off)', fontWeight: r.outQty ? 600 : 400 }}>{r.outQty ? num(r.outQty) : ''}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700 }}>{num(r.closing)}</td>
+              <td className="text-right font-bold">{num(r.closing)}</td>
             </tr>
           ))}
         </tbody>
         {shown.length > 0 && (
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-bg-page)' }}>
-              <td colSpan={5} style={{ textAlign: 'right' }}>합계</td>
-              <td style={{ textAlign: 'right' }}>{num(totals.opening)}</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{num(totals.inQty)}</td>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={5} className="text-right">합계</td>
+              <td className="text-right">{num(totals.opening)}</td>
+              <td className="text-right text-ec-blue">{num(totals.inQty)}</td>
               <td style={{ textAlign: 'right', color: '#a5561b' }}>{num(totals.outQty)}</td>
-              <td style={{ textAlign: 'right' }}>{num(totals.closing)}</td>
+              <td className="text-right">{num(totals.closing)}</td>
             </tr>
           </tfoot>
         )}

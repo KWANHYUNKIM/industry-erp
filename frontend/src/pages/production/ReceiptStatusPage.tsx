@@ -371,7 +371,7 @@ export default function ReceiptStatusPage() {
         picks={STATUS_PICKS}
         modes={MODES} mode={mode} onModeChange={(m) => setMode(m as Mode)}
         modeExtra={mode === '집계' ? (
-          <span style={{ display: 'inline-flex', gap: 6, marginLeft: 6, alignItems: 'center', fontSize: 12 }}>
+          <span className="inline-flex gap-[6px] ml-[6px] items-center text-[12px]">
             집계조건1
             <select className="ec-input" value={agg1} onChange={(e) => setAgg1(e.target.value as GroupKey)} style={{ width: 100 }}>
               {AGG_KEYS.map((k) => <option key={k} value={k}>{k}</option>)}
@@ -393,14 +393,14 @@ export default function ReceiptStatusPage() {
                 {AGG_KEYS.filter((k) => k !== agg1 && k !== agg2).map((k) => <option key={k} value={k}>{k}</option>)}
               </select>
             </>)}
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+            <label className="inline-flex items-center gap-[3px]">
               <input type="checkbox" checked={ratio} onChange={(e) => setRatio(e.target.checked)} /> 비율표시
             </label>
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: agg2 ? undefined : 'var(--ec-text-hint)' }}
                    title="집계조건2 를 고르면 그 값을 열로 펼칩니다">
               <input type="checkbox" checked={pivot} disabled={!agg2} onChange={(e) => setPivot(e.target.checked)} /> 가로보기
             </label>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+            <label className="inline-flex items-center gap-[3px]">
               <input type="checkbox" checked={codeIncl} onChange={(e) => setCodeIncl(e.target.checked)} /> 코드포함
             </label>
           </span>
@@ -506,21 +506,21 @@ export default function ReceiptStatusPage() {
                              .map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="결재방표시">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
             인쇄물에 결재란(도장칸)을 찍는다
           </label>
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
-        입고 전표 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{shown.length}</b>건
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
-        입고수량 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{num(totalQty)}</b>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
-        생산금액 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{num(Math.round(amount.value))}</b>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        입고 전표 <b className="text-ec-navy text-[14px]">{shown.length}</b>건
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
+        입고수량 <b className="text-ec-navy text-[14px]">{num(totalQty)}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
+        생산금액 <b className="text-ec-navy text-[14px]">{num(Math.round(amount.value))}</b>
         {amount.unknown > 0 && (
-          <span style={{ marginLeft: 6, color: 'var(--ec-warn)' }}>※ 단가 미정 {amount.unknown}건 제외</span>
+          <span className="ml-[6px] text-ec-warn">※ 단가 미정 {amount.unknown}건 제외</span>
         )}
       </div>
       {mode === '집계' && prevRange && prevRows && (() => {
@@ -531,14 +531,14 @@ export default function ReceiptStatusPage() {
         const pa = prev.reduce((n, r) => n + amt(r), 0)
         const pct = (a: number, b: number) => (b > 0 ? ` (${a >= b ? '+' : ''}${Math.round(((a - b) / b) * 100)}%)` : '')
         return (
-          <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
+          <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
             비교기간({prevRange.from.replace(/-/g, '/')} ~ {prevRange.to.replace(/-/g, '/')})
             수량 {num(pq)} → {num(totalQty)}{pct(totalQty, pq)} · 생산금액 {num(Math.round(pa))} → {num(Math.round(amount.value))}{pct(amount.value, pa)}
           </div>
         )
       })()}
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       {view === '그래프' ? (
         <EcBarChart rows={chartRows} unit=" 개" emptyText="조회된 생산입고가 없습니다." />
@@ -551,29 +551,29 @@ export default function ReceiptStatusPage() {
           <table ref={aggRef} className="w-full text-left">
             <thead>
               <tr>
-                <th style={{ width: 34 }}></th>
-                {code1 && <th style={{ width: 120 }}>{code1}</th>}
+                <th className="w-[34px]"></th>
+                {code1 && <th className="w-[120px]">{code1}</th>}
                 <th>{agg1} \ {agg2}</th>
-                {cols.map((c) => <th key={c} style={{ textAlign: 'right' }}>{c}</th>)}
-                <th style={{ textAlign: 'right' }}>합계</th>
+                {cols.map((c) => <th key={c} className="text-right">{c}</th>)}
+                <th className="text-right">합계</th>
               </tr>
             </thead>
             <tbody>
               {lines.map(([k, m], i) => (
                 <tr key={k}>
-                  <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                  {code1 && <td style={{ fontFamily: 'monospace' }}>{codes1.get(k)}</td>}
+                  <td className="text-center text-ec-hint">{i + 1}</td>
+                  {code1 && <td>{codes1.get(k)}</td>}
                   <td>{k}</td>
-                  {cols.map((c) => <td key={c} style={{ textAlign: 'right' }}>{m.get(c) ? num(m.get(c)!) : ''}</td>)}
-                  <td style={{ textAlign: 'right', fontWeight: 600 }}>{num([...m.values()].reduce((a, v) => a + v, 0))}</td>
+                  {cols.map((c) => <td key={c} className="text-right">{m.get(c) ? num(m.get(c)!) : ''}</td>)}
+                  <td className="text-right font-semibold">{num([...m.values()].reduce((a, v) => a + v, 0))}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
-              <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-                <td colSpan={code1 ? 3 : 2} style={{ textAlign: 'right' }}>합계</td>
-                {cols.map((c) => <td key={c} style={{ textAlign: 'right' }}>{num(aggRows.filter((g) => g.g2 === c).reduce((a, g) => a + g.qty, 0))}</td>)}
-                <td style={{ textAlign: 'right' }}>{num(totalQty)}</td>
+              <tr className="font-bold bg-ec-page">
+                <td colSpan={code1 ? 3 : 2} className="text-right">합계</td>
+                {cols.map((c) => <td key={c} className="text-right">{num(aggRows.filter((g) => g.g2 === c).reduce((a, g) => a + g.qty, 0))}</td>)}
+                <td className="text-right">{num(totalQty)}</td>
               </tr>
             </tfoot>
           </table>
@@ -582,45 +582,45 @@ export default function ReceiptStatusPage() {
         <table ref={aggRef} className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
-              {code1 && <th style={{ width: 120 }}>{code1}</th>}
+              <th className="w-[34px]"></th>
+              {code1 && <th className="w-[120px]">{code1}</th>}
               <th>{agg1}</th>
-              {code2 && <th style={{ width: 120 }}>{code2}</th>}
+              {code2 && <th className="w-[120px]">{code2}</th>}
               {agg2 && <th>{agg2}</th>}
-              {code3 && <th style={{ width: 120 }}>{code3}</th>}
+              {code3 && <th className="w-[120px]">{code3}</th>}
               {agg3 && <th>{agg3}</th>}
-              <th style={{ width: 100, textAlign: 'right' }}>건수</th>
-              <th style={{ width: 130, textAlign: 'right' }}>입고수량</th>
-              {ratio && <th style={{ width: 80, textAlign: 'right' }}>비율(%)</th>}
-              <th style={{ width: 140, textAlign: 'right' }}>생산금액</th>
+              <th className="w-[100px] text-right">건수</th>
+              <th className="w-[130px] text-right">입고수량</th>
+              {ratio && <th className="w-[80px] text-right">비율(%)</th>}
+              <th className="w-[140px] text-right">생산금액</th>
             </tr>
           </thead>
           <tbody>
             {aggRows.length === 0 ? (
-              <tr><td colSpan={(agg2 ? 6 : 5) + (ratio ? 1 : 0) + extraCols} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={(agg2 ? 6 : 5) + (ratio ? 1 : 0) + extraCols} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : aggRows.map((g, i) => (
               <tr key={`${g.g1}|${g.g2}|${g.g3}`}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                {code1 && <td style={{ fontFamily: 'monospace' }}>{codes1.get(g.g1)}</td>}
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                {code1 && <td>{codes1.get(g.g1)}</td>}
                 <td>{g.g1}</td>
-                {code2 && <td style={{ fontFamily: 'monospace' }}>{codes2.get(g.g2)}</td>}
+                {code2 && <td>{codes2.get(g.g2)}</td>}
                 {agg2 && <td>{g.g2}</td>}
-                {code3 && <td style={{ fontFamily: 'monospace' }}>{codes3.get(g.g3 ?? '')}</td>}
+                {code3 && <td>{codes3.get(g.g3 ?? '')}</td>}
                 {agg3 && <td>{g.g3}</td>}
-                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(g.count)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{num(g.qty)}</td>
-                {ratio && <td style={{ textAlign: 'right', color: 'var(--ec-label)' }}>{totalQty ? (Math.round((g.qty / totalQty) * 1000) / 10).toFixed(1) : '0.0'}</td>}
-                <td style={{ textAlign: 'right' }}>{num(Math.round(g.supply))}</td>
+                <td className="text-right text-ec-hint">{num(g.count)}</td>
+                <td className="text-right font-semibold text-ec-navy">{num(g.qty)}</td>
+                {ratio && <td className="text-right text-ec-label">{totalQty ? (Math.round((g.qty / totalQty) * 1000) / 10).toFixed(1) : '0.0'}</td>}
+                <td className="text-right">{num(Math.round(g.supply))}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={(agg2 ? 3 : 2) + extraCols} style={{ textAlign: 'right' }}>합계 ({aggRows.length}묶음)</td>
-              <td style={{ textAlign: 'right' }}>{num(shown.length)}</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{num(totalQty)}</td>
-              {ratio && <td style={{ textAlign: 'right' }}>100.0</td>}
-              <td style={{ textAlign: 'right' }}>{num(Math.round(aggRows.reduce((n, g) => n + g.supply, 0)))}</td>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={(agg2 ? 3 : 2) + extraCols} className="text-right">합계 ({aggRows.length}묶음)</td>
+              <td className="text-right">{num(shown.length)}</td>
+              <td className="text-right text-ec-navy">{num(totalQty)}</td>
+              {ratio && <td className="text-right">100.0</td>}
+              <td className="text-right">{num(Math.round(aggRows.reduce((n, g) => n + g.supply, 0)))}</td>
             </tr>
           </tfoot>
         </table>
@@ -628,35 +628,35 @@ export default function ReceiptStatusPage() {
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
-              <th style={{ width: 140 }}>{subtotal === '품목' ? '품목코드' : '코드'}</th>
+              <th className="w-[34px]"></th>
+              <th className="w-[140px]">{subtotal === '품목' ? '품목코드' : '코드'}</th>
               <th>{subtotal === '품목' ? '품목명' : subtotal}</th>
-              <th style={{ width: 100, textAlign: 'right' }}>건수</th>
-              <th style={{ width: 130, textAlign: 'right' }}>입고수량</th>
+              <th className="w-[100px] text-right">건수</th>
+              <th className="w-[130px] text-right">입고수량</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={5} className="ec-empty">불러오는 중…</td></tr>
             ) : byItem.length === 0 ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={5} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : byItem.map((g, i) => (
               <tr key={g.key}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{g.code}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td>{g.code}</td>
                 <td>{g.name}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{num(g.count)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>
+                <td className="text-right text-ec-hint">{num(g.count)}</td>
+                <td className="text-right font-semibold text-ec-navy">
                   {num(g.qty)} {g.unit}
                 </td>
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={3} style={{ textAlign: 'right' }}>합계 ({byItem.length}건 묶음)</td>
-              <td style={{ textAlign: 'right' }}>{num(shown.length)}</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{num(totalQty)}</td>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={3} className="text-right">합계 ({byItem.length}건 묶음)</td>
+              <td className="text-right">{num(shown.length)}</td>
+              <td className="text-right text-ec-navy">{num(totalQty)}</td>
             </tr>
           </tfoot>
         </table>
@@ -664,51 +664,51 @@ export default function ReceiptStatusPage() {
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
-              <th style={{ textAlign: 'center', width: 180 }}>일자-No.</th>
-              <th style={{ width: 150 }}>작업지시번호</th>
-              <th style={{ width: 120 }}>출고창고명</th>
-              <th style={{ width: 120 }}>입고창고명</th>
+              <th className="w-[34px]"></th>
+              <th className="text-center w-[180px]">일자-No.</th>
+              <th className="w-[150px]">작업지시번호</th>
+              <th className="w-[120px]">출고창고명</th>
+              <th className="w-[120px]">입고창고명</th>
               <th>품목명[규격명]</th>
-              <th style={{ width: 110, textAlign: 'right' }}>수량</th>
-              <th style={{ width: 130, textAlign: 'right' }}>생산금액</th>
-              <th style={{ width: 90, textAlign: 'right' }}>소모자재</th>
-              <th style={{ width: 110 }}>담당자</th>
-              <th style={{ width: 150 }}>적요</th>
+              <th className="w-[110px] text-right">수량</th>
+              <th className="w-[130px] text-right">생산금액</th>
+              <th className="w-[90px] text-right">소모자재</th>
+              <th className="w-[110px]">담당자</th>
+              <th className="w-[150px]">적요</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={11} className="ec-empty">불러오는 중…</td></tr>
             ) : listRows.length === 0 ? (
-              <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : listRows.map((r, i) => (
               <tr key={r.id}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{dateText(r.productionDate)} {r.prodNo}</td>
-                <td style={{ fontFamily: 'monospace', color: 'var(--ec-label)' }}>{r.workOrderNo}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td className="text-center">{dateText(r.productionDate)} {r.prodNo}</td>
+                <td className="text-ec-label">{r.workOrderNo}</td>
                 <td style={{ color: r.fromWarehouseName ? undefined : 'var(--ec-text-off)' }}>
                   {r.fromWarehouseName ?? r.warehouseName}
                 </td>
                 <td>{r.warehouseName}</td>
                 <td>{r.productName}{r.productSpec ? `[${r.productSpec}]` : ''}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>
+                <td className="text-right font-semibold text-ec-navy">
                   {num(r.producedQty)} {r.productUnit}
                 </td>
                 <td style={{ textAlign: 'right', color: r.slipAmount == null ? 'var(--ec-text-off)' : undefined }}>
                   {r.slipAmount == null ? '-' : num(Math.round(r.slipAmount))}
                 </td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-text-hint)' }}>{r.matCount}</td>
+                <td className="text-right text-ec-hint">{r.matCount}</td>
                 <td>{r.createdBy ?? ''}</td>
-                <td style={{ color: 'var(--ec-text-hint)' }}>{r.note ?? ''}</td>
+                <td className="text-ec-hint">{r.note ?? ''}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={6} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{num(totalQty)}</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{num(Math.round(amount.value))}</td>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={6} className="text-right">합계 ({shown.length}건)</td>
+              <td className="text-right text-ec-navy">{num(totalQty)}</td>
+              <td className="text-right text-ec-navy">{num(Math.round(amount.value))}</td>
               <td colSpan={3}></td>
             </tr>
           </tfoot>

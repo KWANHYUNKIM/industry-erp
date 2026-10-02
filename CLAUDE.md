@@ -444,6 +444,30 @@ frontend/src/
 | 쪽번호 | `.ec-paging > .active` | 파란 동그라미 · 꺼짐 #868d93 |
 | 틀 | `.ec-bookbar` · `.ec-gnb(-item)` · `.ec-subnav(-item)` · `.ec-lnb-group/-leaf` · `.ec-frame` · `.ec-appbar` | 북마크 h26 #e9ecef · 머리 h46 · 왼쪽 209 · 본문 틀 위 모서리 20 |
 
+**3층 구조**(큰 회사 디자인 시스템과 같은 방식):
+
+```
+1층 토큰   styles/tokens.css            --ec-blue · --ec-ctl-h …  (원본 실측값, 단일 출처)
+   ↓       styles/index.css @theme      토큰 → Tailwind 클래스: text-ec-hint · bg-ec-page · border-ec-line · rounded-ec
+2층 부품   styles/shell.css · index.css .ec-btn · .ec-input · .ec-alert · .ec-empty · .ec-widget …  (@layer components)
+           components/ui/               EcButton · EcAlert · EcEmptyRow · EcBadge
+3층 화면   pages/                       부품을 조립만 한다. 색·px 를 고르지 않는다.
+```
+
+- 견본: **`/settings/design-system`**(Self-Customizing › 기타관리시스템 › 디자인 시스템) — 토큰 값(실행 중에 읽음)과
+  부품을 한 화면에서 봅니다. 새 부품을 만들면 여기에 한 칸 더합니다.
+- 화면 안 배치(정렬·여백·폭)는 Tailwind 유틸리티(`text-right` · `mb-[6px]` · `w-[120px]`)로 씁니다. 색은 반드시 토큰 클래스
+  (`text-ec-danger`)로 — Tailwind 기본 팔레트(`text-slate-600` · `bg-red-50`)는 래칫(`palette`)이 막습니다.
+- 우리 부품 CSS 는 `@layer components` 안에 있어 **유틸리티 클래스가 이깁니다**(인라인 style 이 이기던 것과 같은 순서).
+  층 밖에 규칙을 새로 쓰면 유틸리티가 지고 화면이 조용히 어긋납니다 — 새 규칙도 층 안에 넣으세요.
+- **모양을 건드리는 큰 변경은 회귀 시험으로 확인합니다**(앱이 떠 있어야 함):
+  ```bash
+  node qa/style-snapshot.mjs save /tmp/before        # 고치기 전 — 화면마다 모든 요소의 계산된 스타일
+  node qa/style-snapshot.mjs save /tmp/after         # 고친 뒤
+  node qa/style-snapshot.mjs diff /tmp/before /tmp/after   # 어느 화면 어느 요소의 무엇이 바뀌었나
+  ```
+  인라인 → 클래스 이관처럼 "모양은 그대로여야 하는" 변경에서, 바뀐 요소가 0 인지 보는 데 씁니다.
+
 - **화면 코드(.tsx)에 색·px 를 새로 쓰지 마세요.** 위 클래스를 붙이고, 인라인이 꼭 필요하면 `var(--ec-…)` 토큰을 씁니다.
   `#1f48d4` 같은 값을 직접 쓰면 원본이 바뀔 때 그 자리만 남습니다(2026-10-03 원본이 h28·둥글기 5 → h26·둥글기 10 으로
   바뀌었는데 틀 전체가 인라인이라 한 군데도 따라가지 않았습니다).

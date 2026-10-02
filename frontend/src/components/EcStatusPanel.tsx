@@ -140,7 +140,7 @@ export default function EcStatusPanel({
             {COMPARE_PERIODS.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
           {prev && (
-            <span style={{ fontSize: 11.5, color: 'var(--ec-label)' }}>
+            <span className="text-[11.5px] text-ec-label">
               비교 대상 {prev.from.replace(/-/g, '/')} ~ {prev.to.replace(/-/g, '/')}
             </span>
           )}
@@ -153,7 +153,7 @@ export default function EcStatusPanel({
       */}
       <EcCond label={dateLabel} span="full">
         {pickedLabel && (
-          <span style={{ fontSize: 12, color: 'var(--ec-blue)', marginRight: 6 }}>{pickedLabel}</span>
+          <span className="text-[12px] text-ec-blue mr-[6px]">{pickedLabel}</span>
         )}
         <input type="date" className="ec-input" value={from}
                onChange={(e) => {
@@ -162,7 +162,7 @@ export default function EcStatusPanel({
                }} style={{ width: 140 }} />
         {!single && (
           <>
-            <span style={{ color: 'var(--ec-label)' }}>~</span>
+            <span className="text-ec-label">~</span>
             <input type="date" className="ec-input" value={to}
                    onChange={(e) => { setPickedLabel(''); onPeriod({ from, to: e.target.value }) }} style={{ width: 140 }} />
           </>

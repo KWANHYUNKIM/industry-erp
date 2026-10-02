@@ -211,11 +211,11 @@ export default function EcListShell({
   const hasBottom = Boolean(onNew || renderForm) || resolved.length > 0
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+    <div className="flex flex-col min-h-[100%]">
       {/* 상단: ★제목 + 검색 (styles/shell.css .ec-page-head) */}
       <div className="ec-page-head">
         <span className="ec-page-title">{title}</span>
-        <div className="tools" style={{ position: 'relative' }}>
+        <div className="tools relative">
           {searchable && <>
             <input
               className="ec-input ec-quick"
@@ -251,7 +251,7 @@ export default function EcListShell({
       {notice && <div className="ec-notice">{notice}</div>}
 
       {/* 그리드 본문 */}
-      <div ref={bodyRef} style={{ flex: 1, minHeight: 0 }}>{children}</div>
+      <div ref={bodyRef} className="flex-1 min-h-0">{children}</div>
 
       {/* 표 우클릭 메뉴 — 등록·수정·삭제 + 행/열 기능 + 이 화면의 기능 */}
       <TableContextMenu
@@ -294,9 +294,9 @@ export default function EcListShell({
       )}
 
       <Modal open={helpOpen} title={`${title} · 도움말`} width={420} onClose={() => setHelpOpen(false)}>
-        <div style={{ lineHeight: 1.7 }}>
+        <div className="leading-[1.7]">
           {help ?? (
-            <ul style={{ paddingLeft: 16, margin: 0 }}>
+            <ul className="pl-[16px] m-0">
               <li><b>Search(F3)</b> — 목록에서 입력한 낱말이 포함된 행만 추립니다.</li>
               <li><b>Excel</b> — 지금 화면에 보이는 표를 .xlsx 파일로 내려받습니다.</li>
               <li><b>인쇄</b> — 화면의 표를 인쇄용 서식으로 출력합니다.</li>

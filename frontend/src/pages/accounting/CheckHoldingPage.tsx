@@ -104,11 +104,11 @@ export default function CheckHoldingPage({ type }: { type: CheckType }) {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={asOf} onChange={(e) => setAsOf(e.target.value)} style={{ width: 145 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={NOTE_FLOW_PICKS} currentFrom={asOf} onPick={(r) => setAsOf(r.to)} />
           </span>
         </EcCond>
@@ -127,46 +127,46 @@ export default function CheckHoldingPage({ type }: { type: CheckType }) {
         </EcCond>
       </ul>
 
-      <h3 style={{ fontSize: 13, fontWeight: 700, margin: '4px 0 6px' }}>
-        {title} <span style={{ fontWeight: 400, color: 'var(--ec-text-hint)' }}>{dateText(asOf)}</span>
+      <h3 className="text-[13px] font-bold mt-[4px] mx-0 mb-[6px]">
+        {title} <span className="font-normal text-ec-hint">{dateText(asOf)}</span>
       </h3>
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ textAlign: 'center' }}>{received ? '수령일자' : '발행일자'}</th>
+            <th className="text-center">{received ? '수령일자' : '발행일자'}</th>
             <th>수표번호</th>
             <th>거래처명</th>
             <th>계정명</th>
             <th>적요</th>
-            <th style={{ textAlign: 'right' }}>금액</th>
+            <th className="text-right">금액</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={6} className="ec-empty">불러오는 중…</td></tr>
           ) : groups.length === 0 ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : groups.flatMap((g) => [
             ...g.cs.map((c) => (
               <tr key={c.id}>
-                <td style={{ textAlign: 'center' }}>{dateText(c.issueDate)}</td>
+                <td className="text-center">{dateText(c.issueDate)}</td>
                 <td>{c.checkNo}</td>
                 <td>{c.partnerName ?? ''}</td>
                 <td>{accountOf(c)}</td>
                 <td>{c.remark ?? ''}</td>
-                <td style={{ textAlign: 'right' }}>{won(Number(c.amount))}</td>
+                <td className="text-right">{won(Number(c.amount))}</td>
               </tr>
             )),
             <tr key={`sub-${g.cs[0].id}`} style={SUB_ROW}>
               <td colSpan={5}>{g.cs[0].partnerName ?? ''}{codeOf(g.cs[0].partnerId) ? ` [${codeOf(g.cs[0].partnerId)}]` : ''} 계</td>
-              <td style={{ textAlign: 'right' }}>{won(g.sum)}</td>
+              <td className="text-right">{won(g.sum)}</td>
             </tr>,
           ])}
         </tbody>
         <tfoot>
           <tr style={SUB_ROW}>
             <td colSpan={5}>합계</td>
-            <td style={{ textAlign: 'right' }}>{won(total)}</td>
+            <td className="text-right">{won(total)}</td>
           </tr>
         </tfoot>
       </table>

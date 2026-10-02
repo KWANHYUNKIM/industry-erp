@@ -118,12 +118,12 @@ export default function StocktakePage() {
       onSearchChange={setKeyword}
       actions={[{ label: '새로고침', onClick: () => warehouseId !== '' && loadStock(warehouseId) }, { label: 'Excel' }]}
     >
-      {error && <p style={{ marginBottom: 8, background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {ok && <p style={{ marginBottom: 8, background: '#eafaef', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
 
       {/* 실사 대상 선택 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-text)', fontWeight: 600 }}>실사창고</span>
+      <div className="flex items-center gap-[10px] mb-[10px] flex-wrap">
+        <span className="text-[12.5px] text-ec-text font-semibold">실사창고</span>
         <select
           className="ec-input"
           value={warehouseId}
@@ -132,14 +132,14 @@ export default function StocktakePage() {
         >
           {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
         </select>
-        <label style={{ fontSize: 12.5, color: 'var(--ec-text)', display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', marginLeft: 8 }}>
+        <label className="text-[12.5px] text-ec-text flex items-center gap-[5px] cursor-pointer ml-[8px]">
           <input type="checkbox" checked={diffOnly} onChange={(e) => setDiffOnly(e.target.checked)} />
           차이만 보기
         </label>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>
-            실사 입력 <b style={{ color: 'var(--ec-text)' }}>{countedCount}</b>
-            <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
+        <div className="ml-auto flex items-center gap-[12px]">
+          <span className="text-[12.5px] text-ec-label">
+            실사 입력 <b className="text-ec-text">{countedCount}</b>
+            <span className="my-0 mx-[6px] text-ec-off">|</span>
             차이 <b style={{ color: targets.length > 0 ? 'var(--ec-warn)' : 'var(--ec-text)' }}>{targets.length}</b>
           </span>
           <button
@@ -156,34 +156,34 @@ export default function StocktakePage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th className="w-[34px]"></th>
             <th>품목코드</th>
             <th>품목명</th>
             <th>규격</th>
-            <th style={{ textAlign: 'center' }}>단위</th>
-            <th style={{ textAlign: 'right' }}>장부수량</th>
-            <th style={{ textAlign: 'right', width: 120 }}>실사수량</th>
-            <th style={{ textAlign: 'right' }}>차이</th>
+            <th className="text-center">단위</th>
+            <th className="text-right">장부수량</th>
+            <th className="text-right w-[120px]">실사수량</th>
+            <th className="text-right">차이</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>
+            <tr><td colSpan={8} className="text-center text-ec-hint p-[20px]">
               {rows.length === 0 ? '이 창고에 재고 품목이 없습니다.' : '조건에 맞는 품목이 없습니다.'}
             </td></tr>
           ) : shown.map((r, i) => {
             const d = diffOf(r)
             return (
               <tr key={r.itemId}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td>{r.itemCode}</td>
                 <td>{r.itemName}</td>
                 <td style={{ color: r.spec ? undefined : 'var(--ec-text-off)' }}>{r.spec || ''}</td>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{r.unit}</td>
-                <td style={{ textAlign: 'right' }}>{num(r.quantity)}</td>
-                <td style={{ textAlign: 'right' }}>
+                <td className="text-center text-ec-hint">{r.unit}</td>
+                <td className="text-right">{num(r.quantity)}</td>
+                <td className="text-right">
                   <input
                     className="ec-input"
                     type="number"

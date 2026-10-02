@@ -253,7 +253,7 @@ export default function WarehouseStockPage() {
           사본만 보고 적은 것이라 <b>네 화면을 나란히</b> 틀렸다.
         */}
         <EcCond label="대표품목으로 합산">
-          <label style={{ fontSize: 12 }}>
+          <label className="text-[12px]">
             <input type="checkbox" checked={cond.rollUp}
                    onChange={(e) => setC({ rollUp: e.target.checked })} /> 형제 품목을 대표 한 줄로
           </label>
@@ -269,31 +269,31 @@ export default function WarehouseStockPage() {
             <b>배열로 돌려 그리지 않는다.</b> 그러면 이름이 글자로 안 남아 조건 검사가 못 본다 —
             실제로 이 화면 여섯 칸이 통째로 '없다' 로 걸렸다.
           */}
-          <label style={{ fontSize: 12, marginRight: 12 }}>
+          <label className="text-[12px] mr-[12px]">
             <input type="checkbox" checked={signBox}
                    onChange={(e) => setSignBox(e.target.checked)} /> 결재방표시
           </label>
-          <label style={{ fontSize: 12, marginRight: 12 }}>
+          <label className="text-[12px] mr-[12px]">
             <input type="checkbox" checked={cond.withUntracked}
                    onChange={(e) => setC({ withUntracked: e.target.checked })} /> 수량관리제외품목포함
           </label>
-          <label style={{ fontSize: 12, marginRight: 12 }}>
+          <label className="text-[12px] mr-[12px]">
             <input type="checkbox" checked={cond.inactiveItem}
                    onChange={(e) => setC({ inactiveItem: e.target.checked })} /> 사용중단품목포함
           </label>
-          <label style={{ fontSize: 12, marginRight: 12 }}>
+          <label className="text-[12px] mr-[12px]">
             <input type="checkbox" checked={cond.zeroItem}
                    onChange={(e) => setC({ zeroItem: e.target.checked })} /> 재고수량0품목포함
           </label>
-          <label style={{ fontSize: 12, marginRight: 12 }}>
+          <label className="text-[12px] mr-[12px]">
             <input type="checkbox" checked={cond.zeroWarehouse}
                    onChange={(e) => setC({ zeroWarehouse: e.target.checked })} /> 재고수량0창고포함
           </label>
-          <label style={{ fontSize: 12, marginRight: 12 }}>
+          <label className="text-[12px] mr-[12px]">
             <input type="checkbox" checked={cond.inactiveWarehouse}
                    onChange={(e) => setC({ inactiveWarehouse: e.target.checked })} /> 사용중단/삭제창고포함
           </label>
-          <label style={{ fontSize: 12, marginRight: 12 }}>
+          <label className="text-[12px] mr-[12px]">
             <input type="checkbox" checked={cond.safety}
                    onChange={(e) => setC({ safety: e.target.checked })} /> 창고별안전재고수량포함
           </label>
@@ -307,14 +307,14 @@ export default function WarehouseStockPage() {
         </p>
       )}
 
-      {error && <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
-        품목 <b style={{ color: 'var(--ec-text)' }}>{num(shownItems.length)}</b>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
-        창고 <b style={{ color: 'var(--ec-text)' }}>{num(shownWarehouses.length)}</b>
-        <span style={{ margin: '0 8px', color: 'var(--ec-text-off)' }}>|</span>
-        재고수량 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{num(grandTotal)}</b>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        품목 <b className="text-ec-text">{num(shownItems.length)}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
+        창고 <b className="text-ec-text">{num(shownWarehouses.length)}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
+        재고수량 <b className="text-ec-blue text-[14px]">{num(grandTotal)}</b>
       </div>
 
       {/*
@@ -337,9 +337,9 @@ export default function WarehouseStockPage() {
               (품목코드 · 품목명[규격] · 창고코드 · 창고명 · 재고수량). [안전재고]는 켜서 재지 못했다.
             */}
             <colgroup>
-              <col style={{ width: 96 }} /><col style={{ width: 222 }} /><col style={{ width: 120 }} />
-              <col style={{ width: 120 }} /><col style={{ width: 120 }} />
-              {cond.safety && <col style={{ width: 100 }} />}
+              <col className="w-[96px]" /><col className="w-[222px]" /><col className="w-[120px]" />
+              <col className="w-[120px]" /><col className="w-[120px]" />
+              {cond.safety && <col className="w-[100px]" />}
             </colgroup>
             <thead>
               <tr>
@@ -357,15 +357,15 @@ export default function WarehouseStockPage() {
                 <th>품목명[규격]</th>
                 <th>창고코드</th>
                 <th>창고명</th>
-                <th style={{ textAlign: 'right' }}>재고수량</th>
-                {cond.safety && <th style={{ textAlign: 'right' }}>안전재고</th>}
+                <th className="text-right">재고수량</th>
+                {cond.safety && <th className="text-right">안전재고</th>}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={flatCols} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+                <tr><td colSpan={flatCols} className="text-center text-ec-ink">불러오는 중…</td></tr>
               ) : flatRows.length === 0 ? (
-                <tr><td colSpan={flatCols} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={flatCols} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
               ) : flatRows.map((r) => (
                 /*
                   원본 [종]은 같은 품목이 이어져도 품목코드·품목명을 <b>줄마다 다시 찍는다</b>
@@ -377,8 +377,8 @@ export default function WarehouseStockPage() {
                   <td>{r.item.name + (r.item.spec ? ` [${r.item.spec}]` : '')}</td>
                   <td><span className="ec-link" style={{ cursor: 'default' }}>{r.warehouse.code}</span></td>
                   <td>{r.warehouse.name}</td>
-                  <td style={{ textAlign: 'right' }}>{num(r.qty)}</td>
-                  {cond.safety && <td style={{ textAlign: 'right' }}>{num(r.item.safetyStock)}</td>}
+                  <td className="text-right">{num(r.qty)}</td>
+                  {cond.safety && <td className="text-right">{num(r.item.safetyStock)}</td>}
                 </tr>
               ))}
             </tbody>
@@ -386,8 +386,8 @@ export default function WarehouseStockPage() {
               <tfoot>
                 <tr>
                   {/* 원본 [합계]는 앞 네 칸을 합친 칸의 가운데다(colSpan 4). */}
-                  <td colSpan={4} style={{ textAlign: 'center' }}>합계</td>
-                  <td style={{ textAlign: 'right' }}>{num(grandTotal)}</td>
+                  <td colSpan={4} className="text-center">합계</td>
+                  <td className="text-right">{num(grandTotal)}</td>
                   {cond.safety && <td></td>}
                 </tr>
               </tfoot>
@@ -401,10 +401,10 @@ export default function WarehouseStockPage() {
               원본에 없어 뺐다. [안전재고]는 켜서 재지 못했다.
             */}
             <colgroup>
-              <col style={{ width: 96 }} /><col style={{ width: 222 }} /><col style={{ width: 104 }} />
-              <col style={{ width: 120 }} />
-              {shownWarehouses.map((w) => <col key={w.id} style={{ width: 120 }} />)}
-              {cond.safety && <col style={{ width: 100 }} />}
+              <col className="w-[96px]" /><col className="w-[222px]" /><col className="w-[104px]" />
+              <col className="w-[120px]" />
+              {shownWarehouses.map((w) => <col key={w.id} className="w-[120px]" />)}
+              {cond.safety && <col className="w-[100px]" />}
             </colgroup>
             <thead>
               <tr>
@@ -418,20 +418,20 @@ export default function WarehouseStockPage() {
                 <th>품목코드</th>
                 <th>품목명</th>
                 <th>규격</th>
-                <th style={{ textAlign: 'right' }}>재고수량</th>
+                <th className="text-right">재고수량</th>
                 {shownWarehouses.map((w) => (
-                  <th key={w.id} style={{ textAlign: 'right' }}>
+                  <th key={w.id} className="text-right">
                     <span style={w.active ? undefined : { color: INACTIVE_HEAD }}>{w.name}</span>
                   </th>
                 ))}
-                {cond.safety && <th style={{ textAlign: 'right' }}>안전재고</th>}
+                {cond.safety && <th className="text-right">안전재고</th>}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={wideCols} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+                <tr><td colSpan={wideCols} className="text-center text-ec-ink">불러오는 중…</td></tr>
               ) : shownItems.length === 0 ? (
-                <tr><td colSpan={wideCols} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={wideCols} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
               ) : shownItems.map((it) => (
                 /*
                   원본 [횡] 본문(2026-09-23): 품목코드·품목명은 링크색(25,53,140), 나머지 검정 400.
@@ -444,7 +444,7 @@ export default function WarehouseStockPage() {
                   <td>{it.spec ?? ''}</td>
                   <QtyCell q={itemTotal(it.id)} />
                   {shownWarehouses.map((w) => <QtyCell key={w.id} q={qtyOf.get(`${it.id}:${w.id}`) ?? 0} />)}
-                  {cond.safety && <td style={{ textAlign: 'right' }}>{num(it.safetyStock)}</td>}
+                  {cond.safety && <td className="text-right">{num(it.safetyStock)}</td>}
                 </tr>
               ))}
             </tbody>
@@ -452,10 +452,10 @@ export default function WarehouseStockPage() {
               <tfoot>
                 <tr>
                   {/* 원본 [합계]는 앞 세 칸을 합친 칸의 가운데다. 합계줄 음수는 분홍 없이 회색 바탕 그대로다. */}
-                  <td colSpan={3} style={{ textAlign: 'center' }}>합계</td>
-                  <td style={{ textAlign: 'right' }}>{num(grandTotal)}</td>
+                  <td colSpan={3} className="text-center">합계</td>
+                  <td className="text-right">{num(grandTotal)}</td>
                   {shownWarehouses.map((w) => (
-                    <td key={w.id} style={{ textAlign: 'right' }}>{num(warehouseTotal(w.id))}</td>
+                    <td key={w.id} className="text-right">{num(warehouseTotal(w.id))}</td>
                   ))}
                   {cond.safety && <td></td>}
                 </tr>

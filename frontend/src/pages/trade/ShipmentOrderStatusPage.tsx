@@ -214,7 +214,7 @@ export default function ShipmentOrderStatusPage() {
         { label: 'Excel(화면)' },
       ]}
       help={
-        <p style={{ fontSize: 12.5, lineHeight: 1.7 }}>
+        <p className="text-[12.5px] leading-[1.7]">
           <b>출하지시</b>를 봅니다. [진행상태]로 아직 안 나간 것만 골라 볼 수 있고,
           밀린 것만 모아 보려면 미출하현황이 따로 있습니다.
         </p>
@@ -316,14 +316,14 @@ export default function ShipmentOrderStatusPage() {
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--ec-label)', textAlign: 'right' }}>
-        지시 <b style={{ color: 'var(--ec-text)' }}>{shown.length}</b>건
-        <span style={{ margin: '0 6px', color: 'var(--ec-text-off)' }}>|</span>
-        지시수량 <b style={{ color: 'var(--ec-warn)', fontSize: 14 }}>{num(totalQty)}</b>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        지시 <b className="text-ec-text">{shown.length}</b>건
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
+        지시수량 <b className="text-ec-warn text-[14px]">{num(totalQty)}</b>
       </div>
 
       {error && (
-        <p style={{ background: 'var(--ec-danger-bg)', color: 'var(--ec-danger)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>
+        <p className="ec-alert ec-alert-danger mb-[8px]">
           {error}
         </p>
       )}
@@ -334,32 +334,32 @@ export default function ShipmentOrderStatusPage() {
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
+              <th className="w-[34px]"></th>
               <th>품목명(규격)</th>
-              <th style={{ width: 70 }}>단위</th>
-              <th style={{ width: 100, textAlign: 'right' }}>지시건수</th>
-              <th style={{ width: 130, textAlign: 'right' }}>수량</th>
+              <th className="w-[70px]">단위</th>
+              <th className="w-[100px] text-right">지시건수</th>
+              <th className="w-[130px] text-right">수량</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={5} className="ec-empty">불러오는 중…</td></tr>
             ) : byItem.length === 0 ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={5} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : byItem.map((r, i) => (
               <tr key={r.itemId}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
                 <td>{r.spec ? r.name + '(' + r.spec + ')' : r.name}</td>
                 <td>{r.unit}</td>
-                <td style={{ textAlign: 'right' }}>{num(r.count)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-warn)' }}>{num(r.qty)}</td>
+                <td className="text-right">{num(r.count)}</td>
+                <td className="text-right font-semibold text-ec-warn">{num(r.qty)}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={4} style={{ textAlign: 'right' }}>합계 ({byItem.length}품목)</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-warn)' }}>{num(totalQty)}</td>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={4} className="text-right">합계 ({byItem.length}품목)</td>
+              <td className="text-right text-ec-warn">{num(totalQty)}</td>
             </tr>
           </tfoot>
         </table>
@@ -374,40 +374,40 @@ export default function ShipmentOrderStatusPage() {
               [출하예정일]은 원본에 없지만 우리가 더 두는 열이다.
             */}
             <tr>
-              <th style={{ width: 34 }}></th>
-              <th style={{ width: 190, textAlign: 'center' }}>일자-No.</th>
-              <th style={{ width: 110 }}>출하예정일</th>
+              <th className="w-[34px]"></th>
+              <th className="w-[190px] text-center">일자-No.</th>
+              <th className="w-[110px]">출하예정일</th>
               <th>품목명(규격)</th>
-              <th style={{ width: 110, textAlign: 'right' }}>수량</th>
-              <th style={{ width: 130 }}>창고명</th>
-              <th style={{ width: 150 }}>거래처명</th>
-              <th style={{ width: 130 }}>연락처</th>
+              <th className="w-[110px] text-right">수량</th>
+              <th className="w-[130px]">창고명</th>
+              <th className="w-[150px]">거래처명</th>
+              <th className="w-[130px]">연락처</th>
               <th>적요</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
             ) : lines.length === 0 ? (
-              <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-hint)', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : lines.map(({ key, r, l }, i) => (
               <tr key={key}>
-                <td style={{ textAlign: 'center', color: 'var(--ec-text-hint)' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(r.shipDate)} {r.shipNo}</td>
-                <td style={{ fontFamily: 'monospace' }}>{dateText(r.dueDate) || ''}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td className="text-center">{dateText(r.shipDate)} {r.shipNo}</td>
+                <td>{dateText(r.dueDate) || ''}</td>
                 <td>{itemLabel(l)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600 }}>{num(l.quantity)} {l.unit}</td>
+                <td className="text-right font-semibold">{num(l.quantity)} {l.unit}</td>
                 <td>{r.warehouseName ?? ''}</td>
                 <td>{r.partnerName}</td>
                 <td style={{ color: r.contact ? undefined : 'var(--ec-text-off)' }}>{r.contact ?? ''}</td>
-                <td style={{ color: 'var(--ec-text-hint)' }}>{l.remark ?? r.remark ?? ''}</td>
+                <td className="text-ec-hint">{l.remark ?? r.remark ?? ''}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={4} style={{ textAlign: 'right' }}>합계 ({lines.length}줄)</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-warn)' }}>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={4} className="text-right">합계 ({lines.length}줄)</td>
+              <td className="text-right text-ec-warn">
                 {num(lines.reduce((n, x) => n + x.l.quantity, 0))}
               </td>
               <td colSpan={4}></td>
