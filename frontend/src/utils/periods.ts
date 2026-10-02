@@ -31,8 +31,20 @@ const mondayOf = (d: Date) => {
 
 export interface PeriodRange { from: string; to: string }
 
-/** 라벨 → 기간. 오늘을 인자로 받아 순수 함수로 둔다(시험하기 쉽게). */
 /**
+ * 그 날짜가 든 회계연도(기수)의 첫날. fiscalStart 는 시작월(1~12) — 4월 시작이면 2026-02-10 → 2025-04-01.
+ * 손익 계정의 이월잔액은 기수 첫날부터만 쌓는다(지난 기수 손익은 이익잉여금으로 넘어가 버린다).
+ */
+export function fiscalYearStartOf(date: string, fiscalStart: number): string {
+  const y = Number(date.slice(0, 4))
+  const m = Number(date.slice(5, 7))
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${m >= fiscalStart ? y : y - 1}-${p(fiscalStart)}-01`
+}
+
+/**
+ * 라벨 → 기간. 오늘을 인자로 받아 순수 함수로 둔다(시험하기 쉽게).
+ *
  * @param fiscalStart 회계연도 시작월(1~12). '이번기수'·'직전기수' 를 계산할 때만 쓴다.
  *                    설정(Preference.fiscalStart)에서 온다 — 회사마다 다르므로 1월로 넘겨짚지 않는다.
  */

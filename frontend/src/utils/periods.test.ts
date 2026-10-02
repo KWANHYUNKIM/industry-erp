@@ -16,7 +16,7 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { comparePeriodOf, periodOf, shiftMonths, ymd } from './periods.ts'
+import { comparePeriodOf, fiscalYearStartOf, periodOf, shiftMonths, ymd } from './periods.ts'
 
 /** 로컬 시각으로 Date 를 만든다. new Date('2026-08-26') 은 UTC 로 읽혀서 하루 밀린다. */
 const at = (y: number, m: number, d: number, h = 0) => new Date(y, m - 1, d, h)
@@ -213,4 +213,10 @@ test('6개월(+1개월) — 여섯 달 전 달의 1일 ~ 오늘 + 30일(원본 A
 
 test('금년(~오늘) 은 1월 1일부터 오늘까지다 — 인원현황 빠른선택', () => {
   assert.deepEqual(periodOf('금년(~오늘)', new Date(2026, 9, 3)), { from: '2026-01-01', to: '2026-10-03' })
+})
+
+test('fiscalYearStartOf — 기수 첫날, 시작월 앞 달이면 지난해', () => {
+  assert.equal(fiscalYearStartOf('2026-07-01', 1), '2026-01-01')
+  assert.equal(fiscalYearStartOf('2026-02-10', 4), '2025-04-01')
+  assert.equal(fiscalYearStartOf('2026-04-01', 4), '2026-04-01')
 })

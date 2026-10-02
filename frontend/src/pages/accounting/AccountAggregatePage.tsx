@@ -4,7 +4,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
-import EcPeriodPicks, { PRICE_REQUEST_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { PRICE_REQUEST_PICKS, fiscalYearStartOf, periodOf } from '../../components/EcPeriodPicks'
 import { EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import type { JournalEntry } from '../../types/api'
 
@@ -30,7 +30,8 @@ interface Line { name: string; code: string; cell: Cell }
  * 부서 · 프로젝트 · 계정 · 거래처 · 거래처관리담당자 · 기타([결재방표시]).
  *
  * <p>기본 판은 계정마다 한 줄 — 계정 · 이월잔액 · 차변 · 대변 · 금액, 끝 [합계](굵게 · 회색). 금액 = 이월잔액 + 차변 − 대변 으로 계정 구분과
- * 상관없이 차변 쪽 부호다(원본에서 외상매입금 −518,824,300). 계정 코드 차례.
+ * 상관없이 차변 쪽 부호다(원본에서 외상매입금 −518,824,300). 계정 코드 차례. 수익 · 비용 계정의 이월잔액은 기수 첫날부터만 쌓는다
+ * — 지난 기수 손익은 이익잉여금으로 넘어가므로(원본 ↗ 새 창이라 직접 재지 못했고 회계 원칙을 따랐다).
  * 우리는 집계조건1 · 2(계정 · 거래처 · 거래유형 · 월별 · 일별)와 [코드포함] · [비율표시](금액 비율)를 만든다.
  * 집계조건3 · 집계대상 · 비교기간 · 가로보기는 원본에서 고르는 판을 못 재 두지 않았다. 부서 · 프로젝트는 회계전표에 없다.
  * 이 화면은 인라인 style · 색 값을 쓰지 않는다(style-check 래칫, 새 파일 기준 0).
@@ -45,6 +46,9 @@ export default function AccountAggregatePage() {
   const [ratio, setRatio] = useState(false)
   const [account, setAccount] = useState('')
   const [partners, setPartners] = useState<PartnerOpt[]>([])
+  /* 손익 계정(수익 · 비용) 코드와 기수 시작월 — 손익의 이월잔액은 기수 첫날부터만 쌓는다. */
+  const [plCodes, setPlCodes] = useState<Set<string>>(new Set())
+  const [fiscalStart, setFiscalStart] = useState<number | null>(null)
   const [partner, setPartner] = useState('')
   const [manager, setManager] = useState('')
   const [entries, setEntries] = useState<JournalEntry[]>([])
@@ -54,6 +58,12 @@ export default function AccountAggregatePage() {
 
   useEffect(() => {
     api.get<PartnerOpt[]>('/partners').then((r) => setPartners(r.data)).catch(() => setPartners([]))
+    api.get<{ code: string; division: string }[]>('/accounts')
+      .then((r) => setPlCodes(new Set(r.data.filter((a) => a.division === 'REVENUE' || a.division === 'EXPENSE').map((a) => a.code))))
+      .catch(() => setPlCodes(new Set()))
+    api.get<{ fiscalStart?: string } | null>('/preferences')
+      .then((r) => { const m = Number(r.data?.fiscalStart); if (m >= 1 && m <= 12) setFiscalStart(m) })
+      .catch(() => setFiscalStart(null))
   }, [])
 
   /* 이월잔액을 내려고 처음부터 기간 끝까지 받는다. */
@@ -84,6 +94,7 @@ export default function AccountAggregatePage() {
     }
   }
 
+  const fyStart = fiscalStart ? fiscalYearStartOf(from, fiscalStart) : null
   const groups = useMemo(() => {
     const m = new Map<string, { name: string; code: string; cell: Cell; subs: Map<string, Line> }>()
     for (const e of entries) {
@@ -94,7 +105,14 @@ export default function AccountAggregatePage() {
         if (account && l.accountName !== account) continue
         /* 날짜 축으로 묶을 때 이월(기간 앞 전표)은 날짜가 없는 묶음이라 세지 않는다. */
         if (before && (axis1 === '월별' || axis1 === '일별')) continue
-        const [n1, c1] = keyOf(axis1, e, l)
+        /*
+         * 지난 기수의 손익은 결산으로 이익잉여금에 넘어갔다 — 계정으로 묶을 때 수익 · 비용 계정의 이월잔액에 넣지 않고
+         * [미처분이익잉여금] 줄의 이월로 옮긴다(우리 계정표에 그 계정이 없어 이름만 둔다). 그래야 이월 합계가 0 으로 맞는다.
+         * 설정(기수 시작월)을 모르면 옮기지 않는다.
+         */
+        const closed = before && axis1 === '계정' && !!fyStart && e.entryDate < fyStart && plCodes.has(l.accountCode)
+        if (closed && account) continue
+        const [n1, c1] = closed ? ['미처분이익잉여금', ''] : keyOf(axis1, e, l)
         if (!m.has(n1)) m.set(n1, { name: n1, code: c1, cell: { carry: 0, d: 0, c: 0 }, subs: new Map() })
         const g = m.get(n1)!
         const add = (cell: Cell) => {
@@ -115,7 +133,7 @@ export default function AccountAggregatePage() {
       .map((g) => ({ ...g, subs: [...g.subs.values()].filter((s) => nz(s.cell)).sort((a, b) => (a.code || a.name).localeCompare(b.code || b.name, 'ko')) }))
       .sort((a, b) => (a.code || a.name).localeCompare(b.code || b.name, 'ko'))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entries, axis1, axis2, account, partner, manager, from, pById])
+  }, [entries, axis1, axis2, account, partner, manager, from, pById, fyStart, plCodes])
 
   const amt = (c: Cell) => c.carry + c.d - c.c
   const total = groups.reduce((s, g) => ({ carry: s.carry + g.cell.carry, d: s.d + g.cell.d, c: s.c + g.cell.c }), { carry: 0, d: 0, c: 0 })
