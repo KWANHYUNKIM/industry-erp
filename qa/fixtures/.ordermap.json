@@ -954,5 +954,9 @@
  [
   "분개장",
   "accounting/JournalBookPage.tsx"
+ ],
+ [
+  "일/월계표",
+  "accounting/DayMonthSheetPage.tsx"
  ]
 ]

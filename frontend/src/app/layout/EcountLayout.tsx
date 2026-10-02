@@ -434,6 +434,7 @@ const MENU: TopMenu[] = [
             children: [
               { label: '현금출납장', to: '/accounting/cash-book' },
               { label: '분개장', to: '/accounting/journal-book' },
+              { label: '일/월계표', to: '/accounting/day-month-sheet' },
               { label: '계정별원장', to: '/accounting/ledger-book' },
               { label: '합계잔액시산표', to: '/accounting/trial-balance' },
             ],

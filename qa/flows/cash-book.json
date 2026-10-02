@@ -20,6 +20,14 @@
         "wait:2500",
         "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const f=document.querySelector('tfoot tr');return h==='전표번호|계정명|거래처|차변|대변|적요'&&(!f||f.cells[1].innerText===f.cells[2].innerText)})()"
       ]
+    },
+    {
+      "name": "일/월계표 — 머리 차변합계 · 차변대체 · 차변현금(출금) · 계정명 · 대변현금(입금) · 대변대체 · 대변합계, 끝 [월계] · [금일/전일] · [합계], 합계의 차변 = 대변",
+      "path": "/accounting/day-month-sheet",
+      "steps": [
+        "wait:3000",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const f=[...document.querySelectorAll('tfoot tr')];const last=f[2];return h==='차변합계|차변대체|차변현금(출금)|계정명|대변현금(입금)|대변대체|대변합계'&&f.map((t)=>t.cells[3].innerText.trim()).join('|')==='[월계]|[금일/전일]|[합계]'&&last.cells[0].innerText===last.cells[6].innerText})()"
+      ]
     }
   ]
 }

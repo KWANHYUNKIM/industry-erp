@@ -5663,5 +5663,29 @@
   "present": [
    "a.lineNo - b.lineNo"
   ]
+ },
+ "일/월계표|부서": {
+  "claim": "회계전표에 부서가 없다",
+  "absent": [
+   "department",
+   "Department"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "일/월계표|프로젝트": {
+  "claim": "회계전표에 프로젝트가 없다",
+  "absent": [
+   "project",
+   "Project"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "일/월계표|기타": {
+  "claim": "결재란을 그리지 않는다",
+  "absent": [
+   "approvalBox",
+   "결재란"
+  ],
+  "in": "frontend/src/pages/accounting/DayMonthSheetPage.tsx"
  }
 }
