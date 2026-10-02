@@ -2827,15 +2827,6 @@
   ],
   "in": "backend/src/main/java/com/erp/quality/inspection/QualityInspection.java"
  },
- "생산불출현황|생산금액": {
-  "claim": "불출에 단가를 안 매긴다 - 수량만 든다",
-  "absent": [
-   "unitPrice",
-   "amount",
-   "supplyAmount"
-  ],
-  "in": "backend/src/main/java/com/erp/production/materialissue/MaterialIssue.java"
- },
  "자가사용현황|거래처명": {
   "claim": "기타이동은 사내에서 재고만 움직이는 전표라 상대가 없다",
   "absent": [

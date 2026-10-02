@@ -4,7 +4,8 @@ import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
-import type { Warehouse } from '../../types/api'
+import type { Item, Warehouse } from '../../types/api'
+import { stockCostMapFromLast } from '../../utils/stockValue'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { subtotalBy } from '../../utils/subtotalBy'
@@ -73,6 +74,7 @@ interface MaterialIssue {
 }
 
 const num = (n: number) => n.toLocaleString('ko-KR')
+const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 export default function IssueStatusPage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
@@ -119,6 +121,7 @@ export default function IssueStatusPage() {
   const mgmt = useItemMgmt()
   /** 담당자 이름표. 서버가 못 붙여서 화면이 붙인다. */
   const [employees, setEmployees] = useState<{ id: number; name: string }[]>([])
+  const [priceOf, setPriceOf] = useState<Map<number, number | null>>(new Map())
 
   async function load() {
     setLoading(true)
@@ -127,7 +130,7 @@ export default function IssueStatusPage() {
       const period: Record<string, string> = {}
       if (from) period.from = from
       if (to) period.to = to
-      const [issues, wh, emps] = await Promise.all([
+      const [issues, wh, emps, its, prices] = await Promise.all([
         /*
          * <b>고른 기간을 서버에도 보낸다.</b> 이 표는 불출을 <b>그 불출일로</b> 거른다
          * (아래 <code>r.issueDate &lt; from</code>) — 서버에 같은 창을 주면 된다.
@@ -135,7 +138,11 @@ export default function IssueStatusPage() {
         api.get<MaterialIssue[]>('/material-issues', { params: period }),
         api.get<Warehouse[]>('/warehouses'),
         api.get<{ id: number; name: string }[]>('/employees'),
+        /* 원본 [생산금액] = 수량 × 입고단가 — 생산입고/소모현황 I 의 소모품목단가와 같은 평가단가(마지막 입고단가 → 구매단가). */
+        api.get<Item[]>('/items'),
+        api.get<{ itemId: number; unitPrice: number }[]>('/purchases/item-prices'),
       ])
+      setPriceOf(stockCostMapFromLast(its.data, prices.data))
       setRows([...issues.data].sort((a, b) =>
         (a.issueDate < b.issueDate ? 1 : a.issueDate > b.issueDate ? -1 : b.id - a.id)))
       setWarehouses(wh.data)
@@ -234,6 +241,8 @@ export default function IssueStatusPage() {
   }, [shown])
 
   const totalQty = shown.reduce((n, r) => n + r.qty, 0)
+  /** 생산금액 — 단가를 모르면 null(0 이 아니다). */
+  const amountOf = (r: { itemId: number; qty: number }) => { const p = priceOf.get(r.itemId); return p == null ? null : p * r.qty }
 
   /*
    * 원본 [데이터 보기형식] · [그래프로 보기]. 표만 있으면 "어느 자재가 많이 나갔나" 를
@@ -403,7 +412,8 @@ export default function IssueStatusPage() {
             (판매현황·구매현황에서 본 것과 같은 실수다).
             이름도 넷 달랐다 - 보내는창고/받는공장/자재명/불출수량.
             [작업지시번호]는 원본에 없지만 우리가 더 두는 열이라 맨 뒤에 붙인다.
-            [생산금액]은 못 만든다 - 불출에 단가를 안 매긴다(예외에 적었다).
+            [생산금액]은 수량 × 입고단가다(loginaa 실측 2026-10-02: 인텔 코어 90 × 299,000 = 26,910,000 —
+            생산입고/소모현황 I 의 소모품목단가와 같은 값). 단가를 모르는 품목은 비우고 합계에서 뺀다.
           */}
           <thead>
             <tr>
@@ -413,15 +423,16 @@ export default function IssueStatusPage() {
               <th style={{ width: 130 }}>입고창고명</th>
               <th>품목명[규격명]</th>
               <th style={{ width: 110, textAlign: 'right' }}>수량</th>
+              <th style={{ width: 130, textAlign: 'right' }}>생산금액</th>
               <th>적요</th>
               <th style={{ width: 170 }}>작업지시번호</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((r, i) => (
               <tr key={r.id}>
                 <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -431,6 +442,7 @@ export default function IssueStatusPage() {
                 <td style={{ color: r.toWarehouseName ? undefined : '#c9ced6' }}>{r.toWarehouseName ?? ''}</td>
                 <td>{r.itemName}{r.itemSpec ? ' [' + r.itemSpec + ']' : ''}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{num(r.qty)} {r.unit}</td>
+                <td style={{ textAlign: 'right' }}>{amountOf(r) == null ? '' : won(amountOf(r)!)}</td>
                 <td style={{ color: r.note ? undefined : '#c9ced6' }}>{r.note ?? ''}</td>
                 <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{r.workOrderNo}</td>
               </tr>
@@ -440,6 +452,7 @@ export default function IssueStatusPage() {
             <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
               <td colSpan={5} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
               <td style={{ textAlign: 'right', color: '#a5561b' }}>{num(totalQty)}</td>
+              <td style={{ textAlign: 'right' }}>{won(shown.reduce((n, r) => n + (amountOf(r) ?? 0), 0))}</td>
               <td colSpan={2}></td>
             </tr>
           </tfoot>
