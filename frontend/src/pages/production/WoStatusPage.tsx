@@ -11,6 +11,7 @@ import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPerio
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
+import { weekOfYear } from '../../utils/statusAggregate'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 
 /**
@@ -63,6 +64,8 @@ interface Row {
   productCategoryName: string | null
   remark: string | null
   createdBy: string | null
+  /** 원본 집계조건 [프로젝트]. 응답(WorkOrderResponse)이 진작 싣는다. */
+  projectName?: string | null
 }
 
 /*
@@ -106,7 +109,13 @@ export default function WoStatusPage() {
    */
   const [mode, setMode] = useState<'내역' | '집계'>('내역')
   const [lineView, setLineView] = useState<'라인별' | '전표별' | '품목별' | '일별' | '월별' | '전표별품목별' | '담당자별'>('라인별')
-  const AXES = ['품목별', '창고별', '거래처별', '담당자별', '월별'] as const
+  /*
+   * 원본 집계조건 후보(2026-10-02 loginaa 실측): 일별 · 주차별 · 월별 · 분기별 · 반기별 · 연별 · 작업지시서 · 담당자 · 창고 ·
+   * 관리항목 · 거래처 · 거래처그룹1·2 · 품목명[규격] · 품목그룹1·2·3 · 프로젝트 · 프로젝트그룹1·2. 우리는 다섯뿐이었다.
+   * 관리항목·거래처그룹2·품목그룹2·3·프로젝트그룹은 전역 예외(그 값이 없다).
+   */
+  const AXES = ['품목별', '일별', '주차별', '월별', '분기별', '반기별', '연별', '작업지시서별', '담당자별', '창고별',
+    '거래처별', '거래처그룹1별', '품목그룹1별', '프로젝트별'] as const
   const [axis, setAxis] = useState<typeof AXES[number]>('품목별')
   /** 원본 [집계조건2] — 두 번째 묶음(2026-10-02 loginaa 실측: 집계조건1 · 집계조건2). 없으면 한 단계. */
   const [axis2, setAxis2] = useState<typeof AXES[number] | ''>('')
@@ -234,12 +243,26 @@ export default function WoStatusPage() {
   /** 고른 축으로 묶어 수량 셋을 더한다. 줄이 없으면 빈 배열이라 표가 스스로 비운다. */
   const grouped = useMemo(() => {
       if (mode !== '집계') return []
-      const keyBy = (a: typeof AXES[number], r: Row) => (
-        a === '품목별' ? r.productName
-          : a === '창고별' ? (r.warehouseName || '(없음)')
-            : a === '거래처별' ? (r.partnerName || '(없음)')
-              : a === '담당자별' ? (empName(r.employeeId) || '(미지정)')
-                : r.orderDate.slice(0, 7).replace(/-/g, '/'))
+      const keyBy = (a: typeof AXES[number], r: Row): string => {
+        const d = r.orderDate
+        const m = Number(d.slice(5, 7))
+        switch (a) {
+          case '품목별': return r.productName
+          case '일별': return d.replace(/-/g, '/')
+          case '주차별': return `${d.slice(0, 4)}년 ${weekOfYear(d)}주`
+          case '월별': return d.slice(0, 7).replace(/-/g, '/')
+          case '분기별': return `${d.slice(0, 4)} ${Math.floor((m - 1) / 3) + 1}분기`
+          case '반기별': return `${d.slice(0, 4)} ${m <= 6 ? '상' : '하'}반기`
+          case '연별': return d.slice(0, 4)
+          case '작업지시서별': return r.orderNo
+          case '창고별': return r.warehouseName || '(없음)'
+          case '거래처별': return r.partnerName || '(없음)'
+          case '거래처그룹1별': return pgroup.groupOfName(r.partnerName) || '(없음)'
+          case '품목그룹1별': return mgmt.groupOfCode(r.productCode) || '(없음)'
+          case '프로젝트별': return r.projectName || '(없음)'
+          default: return empName(r.employeeId) || '(미지정)'
+        }
+      }
       const keyOf = (r: Row) => (axis2 ? `${keyBy(axis, r)} · ${keyBy(axis2, r)}` : keyBy(axis, r))
       const by = new Map<string, { key: string; count: number; planned: number; produced: number; remaining: number }>()
       for (const r of shown) {
@@ -253,7 +276,7 @@ export default function WoStatusPage() {
       }
       return [...by.values()].sort((a, b) => a.key.localeCompare(b.key))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [shown, mode, axis, axis2, employees])
+    }, [shown, mode, axis, axis2, employees, pgroup.groupOptions, mgmt.groupOptions])
 
   /* 축을 바꿔도 열 수는 그대로지만, 표가 통째로 갈리므로 머리와 칸을 함께 본다. */
   const chartRows = useMemo(() => (
