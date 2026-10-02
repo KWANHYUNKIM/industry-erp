@@ -26,6 +26,14 @@
         "js:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('ckNo')));return tr?tr.cells[0].innerText:'(없음)'})()",
         "expect:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('ckNo')));if(!tr)return false;return tr.cells[4].innerText.trim()==='입금완료'&&/\\d{4}\\/\\d{2}\\/\\d{2}\\s+\\S+/.test(tr.cells[0].innerText.trim())})()"
       ]
+    },
+    {
+      "name": "발행수표증가 · 감소현황 — 머리는 수령 쪽과 같고 조건에 [발행수표계좌], 받은수표는 여기 안 뜬다",
+      "path": "/accounting/checks-issued-in",
+      "steps": [
+        "wait:2000",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');return document.body.innerText.includes('발행수표계좌')&&h==='일자-No.|수표번호|거래처명|계정명|거래유형|적요|금액'&&!([...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes(sessionStorage.getItem('ckNo'))))})()"
+      ]
     }
   ]
 }

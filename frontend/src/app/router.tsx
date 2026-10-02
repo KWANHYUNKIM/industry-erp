@@ -421,8 +421,10 @@ export default function AppRouter() {
         <Route path="/accounting/vouchers" element={<FastVoucherPage />} />
         <Route path="/accounting/non-cash" element={<NonCashPage />} />
         <Route path="/accounting/checks" element={<CheckPage />} />
-        <Route path="/accounting/checks-in" element={<CheckFlowPage flow="증가" />} />
-        <Route path="/accounting/checks-out" element={<CheckFlowPage flow="감소" />} />
+        <Route path="/accounting/checks-in" element={<CheckFlowPage type="RECEIVED" flow="증가" />} />
+        <Route path="/accounting/checks-out" element={<CheckFlowPage type="RECEIVED" flow="감소" />} />
+        <Route path="/accounting/checks-issued-in" element={<CheckFlowPage type="ISSUED" flow="증가" />} />
+        <Route path="/accounting/checks-issued-out" element={<CheckFlowPage type="ISSUED" flow="감소" />} />
         <Route path="/accounting/checks-held" element={<CheckHoldingPage type="RECEIVED" />} />
         <Route path="/accounting/checks-issued" element={<CheckHoldingPage type="ISSUED" />} />
         <Route path="/accounting/contracts" element={<ContractPage />} />

@@ -6,7 +6,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { NOTE_FLOW_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
-import type { BankCheck } from '../../types/api'
+import type { BankAccountRow, BankCheck, CheckType } from '../../types/api'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
@@ -21,10 +21,27 @@ const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
  * [거래유형]은 원본에 자료가 없어 무슨 값이 찍히는지 못 쟀다 — 우리는 그 움직임의 이름(수령 · 입금완료 · 부도)을 열에 적고
  * 같은 값으로 거른다.
  * 부서 · 프로젝트는 수표에 없다.
+ *
+ * <p><b>발행수표증가현황</b>(E060611) · <b>감소현황</b>(E060612)도 조건 · 열이 같다(계좌 조건이 [발행수표계좌]). 증가는 발행한 날,
+ * 감소는 은행에서 빠져나간(결제완료) 날이다. 계정명은 끊은 계좌의 총계정이고, 결제는 분개를 안 만들어(발행 때 이미 반영)
+ * 감소의 [일자-No.] 번호는 비어 있다.
  */
-export default function CheckFlowPage({ flow }: { flow: '증가' | '감소' }) {
-  const title = flow === '증가' ? '수령수표증가현황' : '수령수표감소현황'
+export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '증가' | '감소' }) {
+  const received = type === 'RECEIVED'
+  const title = received
+    ? (flow === '증가' ? '수령수표증가현황' : '수령수표감소현황')
+    : (flow === '증가' ? '발행수표증가현황' : '발행수표감소현황')
+  const acctLabel = received ? '수령수표계좌' : '발행수표계좌'
   const account = '받을수표'
+  /* 발행수표의 계정명 — 끊은 계좌의 총계정(분개가 대변에 쓰는 것). */
+  const [glByAccount, setGlByAccount] = useState<Map<number, string>>(new Map())
+  useEffect(() => {
+    if (received) return
+    api.get<BankAccountRow[]>('/bank-cards/accounts')
+      .then((r) => setGlByAccount(new Map(r.data.map((a) => [a.id, a.glAccountName]))))
+      .catch(() => setGlByAccount(new Map()))
+  }, [received])
+  const accountOf = (c: BankCheck) => (received ? account : (c.bankAccountId != null ? glByAccount.get(c.bankAccountId) ?? '' : ''))
   const init = periodOf('최근30일')!
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
@@ -53,13 +70,13 @@ export default function CheckFlowPage({ flow }: { flow: '증가' | '감소' }) {
     }
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { void load() }, [from, to, flow])
+  useEffect(() => { void load() }, [from, to, flow, type])
 
   const dayOf = (c: BankCheck) => (flow === '증가' ? c.issueDate : c.settledDate ?? '')
   const noOf = (c: BankCheck) => (flow === '증가' ? c.issueJournalNo : c.settleJournalNo) ?? ''
-  const kindOf = (c: BankCheck) => (flow === '증가' ? '수령' : c.statusName)
+  const kindOf = (c: BankCheck) => (flow === '증가' ? (received ? '수령' : '발행') : c.statusName)
   const shown = useMemo(() => checks
-    .filter((c) => c.type === 'RECEIVED')
+    .filter((c) => c.type === type)
     .filter((c) => { const d = dayOf(c); return !!d && d >= from && d <= to })
     .filter((c) => !partner || String(c.partnerId) === partner)
     .filter((c) => !bankAccount || (c.bankAccountName ?? '') === bankAccount)
@@ -69,16 +86,16 @@ export default function CheckFlowPage({ flow }: { flow: '증가' | '감소' }) {
     .filter((c) => !kind || kindOf(c) === kind)
     .sort((a, b) => (dayOf(a) < dayOf(b) ? -1 : dayOf(a) > dayOf(b) ? 1 : a.checkNo.localeCompare(b.checkNo))),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  [checks, flow, from, to, partner, bankAccount, checkNo, remark, author, kind])
+  [checks, type, flow, from, to, partner, bankAccount, checkNo, remark, author, kind])
   const total = shown.reduce((a, c) => a + Number(c.amount), 0)
-  const received = useMemo(() => checks.filter((c) => c.type === 'RECEIVED'), [checks])
+  const ofType = useMemo(() => checks.filter((c) => c.type === type), [checks, type])
   const partners = useMemo(() => {
     const m = new Map<number, string>()
-    received.forEach((c) => { if (c.partnerId != null) m.set(c.partnerId, c.partnerName ?? '') })
+    ofType.forEach((c) => { if (c.partnerId != null) m.set(c.partnerId, c.partnerName ?? '') })
     return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1])).map(([id, name]) => ({ value: String(id), name }))
-  }, [received])
-  const accounts = useMemo(() => [...new Set(received.map((c) => c.bankAccountName).filter(Boolean) as string[])].sort(), [received])
-  const authors = useMemo(() => [...new Set(received.map((c) => c.createdBy).filter(Boolean) as string[])].sort(), [received])
+  }, [ofType])
+  const accounts = useMemo(() => [...new Set(ofType.map((c) => c.bankAccountName).filter(Boolean) as string[])].sort(), [ofType])
+  const authors = useMemo(() => [...new Set(ofType.map((c) => c.createdBy).filter(Boolean) as string[])].sort(), [ofType])
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, title, [shown.length])
 
@@ -106,14 +123,14 @@ export default function CheckFlowPage({ flow }: { flow: '증가' | '감소' }) {
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={220} emptyLabel="전체" value={partner} onChange={setPartner} items={partners} />
         </EcCond>
-        <EcCond label="수령수표계좌" pick>
-          <CodePickerField label="수령수표계좌" hideLabel width={200} emptyLabel="전체" value={bankAccount} onChange={setBankAccount}
+        <EcCond label={received ? '수령수표계좌' : '발행수표계좌'} pick>
+          <CodePickerField label={acctLabel} hideLabel width={200} emptyLabel="전체" value={bankAccount} onChange={setBankAccount}
                            items={accounts.map((a) => ({ value: a, name: a }))} />
         </EcCond>
-        {/* 원본 [계정] — 받은수표가 쓰는 계정은 받을수표 하나다. */}
+        {/* 원본 [계정] — 받은수표는 받을수표 하나, 발행수표는 끊은 계좌의 계정이라 계좌 조건이 그 몫을 한다. */}
         <EcCond label="계정">
-          <select className="ec-input" value={account} disabled style={{ width: 140 }}>
-            <option value={account}>{account}</option>
+          <select className="ec-input" value={received ? account : ''} disabled style={{ width: 140 }}>
+            <option value={received ? account : ''}>{received ? account : '계좌의 계정'}</option>
           </select>
         </EcCond>
         <EcCond label="수표번호">
@@ -125,7 +142,7 @@ export default function CheckFlowPage({ flow }: { flow: '증가' | '감소' }) {
         <EcCond label="거래유형">
           <select className="ec-input" value={kind} onChange={(e) => setKind(e.target.value)} style={{ width: 120 }}>
             <option value="">전체</option>
-            {(flow === '증가' ? ['수령'] : ['입금완료', '부도']).map((k) => <option key={k} value={k}>{k}</option>)}
+            {(flow === '증가' ? [received ? '수령' : '발행'] : received ? ['입금완료', '부도'] : ['결제완료']).map((k) => <option key={k} value={k}>{k}</option>)}
           </select>
         </EcCond>
         <EcCond label="최초작성자" pick>
@@ -159,7 +176,7 @@ export default function CheckFlowPage({ flow }: { flow: '증가' | '감소' }) {
               <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>{dateText(dayOf(c))} {noOf(c)}</td>
               <td>{c.checkNo}</td>
               <td>{c.partnerName ?? ''}</td>
-              <td>{account}</td>
+              <td>{accountOf(c)}</td>
               <td style={{ textAlign: 'center' }}>{kindOf(c)}</td>
               <td>{c.remark ?? ''}</td>
               <td style={{ textAlign: 'right' }}>{won(Number(c.amount))}</td>
