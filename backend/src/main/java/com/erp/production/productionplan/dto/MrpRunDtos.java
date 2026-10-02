@@ -28,7 +28,9 @@ public final class MrpRunDtos {
             /** [생산계획대상-전표]. 안 주면 원본 기본값(미판매 ✓ · 미구매 ✓ · 미생산/미소모 ✗). */
             Boolean srcUnsold, Boolean srcUnpurchased, Boolean srcUnproduced,
             /** [설정] 적용기준. 안 주면 원본 기본값(생산계획 안전재고 ✓ · 최소증가단위 ✗ / MRP 둘 다 ✓). */
-            Boolean planSafety, Boolean planMinUnit, Boolean mrpSafety, Boolean mrpMinUnit
+            Boolean planSafety, Boolean planMinUnit, Boolean mrpSafety, Boolean mrpMinUnit,
+            /** [설정] 조달기간반영(안 주면 ✓) · 기초재고/전표수집 기준창고(비우면 전체). */
+            Boolean planLeadTime, Boolean mrpLeadTime, Long stockWarehouseId, Long docWarehouseId
     ) {}
 
     public record RunResponse(
@@ -40,7 +42,9 @@ public final class MrpRunDtos {
             long planLines, BigDecimal planQty, long mrpLines, BigDecimal mrpQty,
             String createdBy, LocalDateTime createdAt,
             boolean srcUnsold, boolean srcUnpurchased, boolean srcUnproduced,
-            boolean planSafety, boolean planMinUnit, boolean mrpSafety, boolean mrpMinUnit
+            boolean planSafety, boolean planMinUnit, boolean mrpSafety, boolean mrpMinUnit,
+            boolean planLeadTime, boolean mrpLeadTime,
+            Long stockWarehouseId, String stockWarehouseName, Long docWarehouseId, String docWarehouseName
     ) {
         public static RunResponse from(MrpRun r, long planLines, BigDecimal planQty, long mrpLines, BigDecimal mrpQty) {
             return new RunResponse(r.getId(), r.getRunNo(), r.getRunDate(), r.getPeriodFrom(), r.getPeriodTo(),
@@ -50,7 +54,12 @@ public final class MrpRunDtos {
                     r.getNote(), r.getPlanGeneratedAt(), r.getMrpGeneratedAt(),
                     planLines, planQty, mrpLines, mrpQty, r.getCreatedBy(), r.getCreatedAt(),
                     r.isSrcUnsold(), r.isSrcUnpurchased(), r.isSrcUnproduced(),
-                    r.isPlanSafety(), r.isPlanMinUnit(), r.isMrpSafety(), r.isMrpMinUnit());
+                    r.isPlanSafety(), r.isPlanMinUnit(), r.isMrpSafety(), r.isMrpMinUnit(),
+                    r.isPlanLeadTime(), r.isMrpLeadTime(),
+                    r.getStockWarehouse() != null ? r.getStockWarehouse().getId() : null,
+                    r.getStockWarehouse() != null ? r.getStockWarehouse().getName() : null,
+                    r.getDocWarehouse() != null ? r.getDocWarehouse().getId() : null,
+                    r.getDocWarehouse() != null ? r.getDocWarehouse().getName() : null);
         }
     }
 

@@ -40,8 +40,13 @@ public class ProductionPlanController {
             /* [생산계획대상-전표] — 안 주면 셋 다 센다(예전 그대로). 리스트 줄에서 열면 그 줄의 고른 값을 준다. */
             @RequestParam(defaultValue = "true") boolean unsold,
             @RequestParam(defaultValue = "true") boolean unpurchased,
-            @RequestParam(defaultValue = "true") boolean unproduced) {
-        return timePhasedPlanService.compute(from, to, unsold, unpurchased, unproduced);
+            @RequestParam(defaultValue = "true") boolean unproduced,
+            /* 리스트 줄에서 열면 그 줄의 [설정] 적용기준·기준창고를 준다(안 주면 예전 그대로). */
+            @RequestParam(defaultValue = "true") boolean planSafety, @RequestParam(defaultValue = "true") boolean planMinUnit,
+            @RequestParam(defaultValue = "true") boolean mrpSafety, @RequestParam(defaultValue = "true") boolean mrpMinUnit,
+            @RequestParam(required = false) Long stockWarehouseId, @RequestParam(required = false) Long docWarehouseId) {
+        return timePhasedPlanService.compute(from, to, new TimePhasedPlanService.Options(unsold, unpurchased, unproduced,
+                planSafety, planMinUnit, mrpSafety, mrpMinUnit, stockWarehouseId, docWarehouseId));
     }
 
     @DeleteMapping("/{id}")

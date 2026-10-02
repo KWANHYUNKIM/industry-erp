@@ -37,6 +37,7 @@ public class MrpRunService {
     /* 다른 모듈은 service 로(CLAUDE.md 4.2). */
     private final ItemService itemService;
     private final DocumentNoGenerator docNoGenerator;
+    private final com.erp.inventory.warehouse.WarehouseService warehouseService;
 
     @Transactional(readOnly = true)
     public List<RunResponse> findAll() {
@@ -70,6 +71,10 @@ public class MrpRunService {
                 .planMinUnit(Boolean.TRUE.equals(req.planMinUnit()))
                 .mrpSafety(req.mrpSafety() == null || req.mrpSafety())
                 .mrpMinUnit(req.mrpMinUnit() == null || req.mrpMinUnit())
+                .planLeadTime(req.planLeadTime() == null || req.planLeadTime())
+                .mrpLeadTime(req.mrpLeadTime() == null || req.mrpLeadTime())
+                .stockWarehouse(req.stockWarehouseId() != null ? warehouseService.get(req.stockWarehouseId()) : null)
+                .docWarehouse(req.docWarehouseId() != null ? warehouseService.get(req.docWarehouseId()) : null)
                 .build();
         return RunResponse.from(runRepository.save(run), 0, BigDecimal.ZERO, 0, BigDecimal.ZERO);
     }
@@ -92,6 +97,15 @@ public class MrpRunService {
         boolean mm = req.mrpMinUnit() == null ? run.isMrpMinUnit() : req.mrpMinUnit();
         changed = changed || ps != run.isPlanSafety() || pm != run.isPlanMinUnit() || ms != run.isMrpSafety() || mm != run.isMrpMinUnit();
         run.setPlanSafety(ps); run.setPlanMinUnit(pm); run.setMrpSafety(ms); run.setMrpMinUnit(mm);
+        Long oldStockWh = run.getStockWarehouse() != null ? run.getStockWarehouse().getId() : null;
+        Long oldDocWh = run.getDocWarehouse() != null ? run.getDocWarehouse().getId() : null;
+        boolean pl = req.planLeadTime() == null ? run.isPlanLeadTime() : req.planLeadTime();
+        boolean ml = req.mrpLeadTime() == null ? run.isMrpLeadTime() : req.mrpLeadTime();
+        changed = changed || pl != run.isPlanLeadTime() || ml != run.isMrpLeadTime()
+                || !Objects.equals(oldStockWh, req.stockWarehouseId()) || !Objects.equals(oldDocWh, req.docWarehouseId());
+        run.setPlanLeadTime(pl); run.setMrpLeadTime(ml);
+        run.setStockWarehouse(req.stockWarehouseId() != null ? warehouseService.get(req.stockWarehouseId()) : null);
+        run.setDocWarehouse(req.docWarehouseId() != null ? warehouseService.get(req.docWarehouseId()) : null);
         run.setSrcUnsold(unsold);
         run.setSrcUnpurchased(unpurchased);
         run.setSrcUnproduced(unproduced);
@@ -123,7 +137,10 @@ public class MrpRunService {
         MrpRun run = get(id);
         TimePhasedDtos.Result res = timePhasedPlanService.compute(run.getPeriodFrom(), run.getPeriodTo(),
                 new TimePhasedPlanService.Options(run.isSrcUnsold(), run.isSrcUnpurchased(), run.isSrcUnproduced(),
-                        run.isPlanSafety(), run.isPlanMinUnit(), run.isMrpSafety(), run.isMrpMinUnit()));
+                        run.isPlanSafety(), run.isPlanMinUnit(), run.isMrpSafety(), run.isMrpMinUnit(),
+                        run.getStockWarehouse() != null ? run.getStockWarehouse().getId() : null,
+                        run.getDocWarehouse() != null ? run.getDocWarehouse().getId() : null));
+        boolean useLead = kind == MrpRunKind.PLAN ? run.isPlanLeadTime() : run.isMrpLeadTime();
         Set<Long> scope = run.getBaseItem() != null ? scopeOf(run.getBaseItem().getId()) : null;
 
         lineRepository.deleteByRun(id, kind);
@@ -151,7 +168,7 @@ public class MrpRunService {
                 lines.add(MrpRunLine.builder()
                         .run(run).kind(kind).lineNo(++no).item(item).needDate(needDates.get(k))
                         .prevStock(nz(r.prevStock())).safetyStock(nz(r.safetyStock())).minUnit(nz(r.minUnit()))
-                        .leadTimeDays(r.leadTimeDays())
+                        .leadTimeDays(useLead ? r.leadTimeDays() : Integer.valueOf(0))
                         .decreaseQty(dec).increaseQty(inc)
                         .calcQty(qtys.get(k)).planQty(qtys.get(k))
                         .supplierId(r.supplierId())

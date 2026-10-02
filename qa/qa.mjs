@@ -5278,6 +5278,13 @@ async function scenarioMrpRuns(f) {
     // 작업지시 5 가 쓸 반제품 10 이 빠지고, 그 지시가 채워 주던 완제품을 계획이 대신 세우며 생기는 소모도 달라진다 — 적어도 10 은 빠진다.
     eq('미생산/미소모를 끄면 작업지시가 쓸 소모(5×2)가 감소예정에서 빠진다', Number(semiLine.decreaseQty) - Number(plainSemi.decreaseQty) >= 10, true)
     await call('DELETE', `/mrp-runs/${plain.id}`)
+    eq('[설정] 조달기간반영 기본 ✓ · 기준창고 기본 전체', [plain.planLeadTime, plain.mrpLeadTime, plain.stockWarehouseId, plain.docWarehouseId].join(','), 'true,true,,')
+    // [전표수집 기준창고] 를 다른 창고로 두면 이 창고의 작업지시는 안 모인다 — 그 소모가 감소예정에서 빠진다.
+    const otherWh = (await must('GET', '/warehouses')).find((w) => w.id !== f.warehouse.id && w.active)
+    const scoped = await must('POST', '/mrp-runs', { runDate: D, periodFrom: D, periodTo: '2087-08-20', baseItemId: top.id, srcUnproduced: true, docWarehouseId: otherWh.id })
+    const scopedSemi = (await must('POST', `/mrp-runs/${scoped.id}/generate?kind=PLAN`)).find((l) => l.itemId === semi.id)
+    eq('[전표수집 기준창고] 밖의 작업지시는 안 센다', Number(semiLine.decreaseQty) - Number(scopedSemi.decreaseQty) >= 10, true)
+    await call('DELETE', `/mrp-runs/${scoped.id}`)
 
     const mrp = await must('POST', `/mrp-runs/${run.id}/generate?kind=MRP`)
     eq('MRP계산: 원재료 줄이 저장된다', mrp.some((l) => l.itemId === f.material.id), true)

@@ -343,8 +343,8 @@ function TimePhasedModal({ mode, onClose, onMade, initialFrom, initialTo, source
   mode: 'PLAN' | 'MRP'; onClose: () => void; onMade: (msg: string) => void
   /** 생산계획/MRP리스트 줄에서 열 때 — 그 줄의 생산계획기간. */
   initialFrom?: string; initialTo?: string
-  /** 그 줄의 [생산계획대상-전표]. 없으면 셋 다 센다. */
-  sources?: { unsold: boolean; unpurchased: boolean; unproduced: boolean }
+  /** 그 줄의 [생산계획대상-전표] · [설정](적용기준 · 기준창고). 없으면 예전 그대로(셋 다 · 전부 반영 · 전체 창고). */
+  sources?: Record<string, boolean | number | null>
 }) {
   const now = new Date()
   const [from, setFrom] = useState(initialFrom ?? ymdOf(now))
@@ -362,7 +362,7 @@ function TimePhasedModal({ mode, onClose, onMade, initialFrom, initialTo, source
   async function run() {
     setLoading(true); setErr('')
     try {
-      const r = await api.get<{ days: string[]; rows: PhasedRow[] }>('/production-plans/time-phased', { params: { from, to, ...(sources ?? {}) } })
+      const r = await api.get<{ days: string[]; rows: PhasedRow[] }>('/production-plans/time-phased', { params: { from, to, ...Object.fromEntries(Object.entries(sources ?? {}).filter(([, v]) => v != null)) } })
       setDays(r.data.days); setRows(r.data.rows)
     } catch (e) {
       setErr(extractErrorMessage(e))
@@ -539,6 +539,9 @@ interface MrpRun {
   srcUnsold: boolean; srcUnpurchased: boolean; srcUnproduced: boolean
   /** [생산계획생성기준]·[MRP생성기준] → [설정] 의 적용기준. */
   planSafety: boolean; planMinUnit: boolean; mrpSafety: boolean; mrpMinUnit: boolean
+  /** [설정] 조달기간반영 · 기초재고/전표수집 기준창고(비면 전체). */
+  planLeadTime: boolean; mrpLeadTime: boolean
+  stockWarehouseId: number | null; stockWarehouseName: string | null; docWarehouseId: number | null; docWarehouseName: string | null
 }
 interface MrpRunLine {
   id: number; kind: 'PLAN' | 'MRP'; lineNo: number
@@ -650,7 +653,10 @@ function MrpRunList({ onMessage, onError }: { onMessage: (m: string) => void; on
       )}
       {phasedOf && (
         <TimePhasedModal mode={phasedOf.kind} initialFrom={phasedOf.run.periodFrom} initialTo={phasedOf.run.periodTo}
-                         sources={{ unsold: phasedOf.run.srcUnsold, unpurchased: phasedOf.run.srcUnpurchased, unproduced: phasedOf.run.srcUnproduced }}
+                         sources={{ unsold: phasedOf.run.srcUnsold, unpurchased: phasedOf.run.srcUnpurchased, unproduced: phasedOf.run.srcUnproduced,
+                           planSafety: phasedOf.run.planSafety, planMinUnit: phasedOf.run.planMinUnit,
+                           mrpSafety: phasedOf.run.mrpSafety, mrpMinUnit: phasedOf.run.mrpMinUnit,
+                           stockWarehouseId: phasedOf.run.stockWarehouseId, docWarehouseId: phasedOf.run.docWarehouseId }}
                          onClose={() => setPhasedOf(null)} onMade={(m) => onMessage(m)} />
       )}
       {makeOf && (
@@ -681,12 +687,20 @@ function MrpRunEditModal({ run, items, onClose, onSaved }: {
   const [planMinUnit, setPlanMinUnit] = useState(run?.planMinUnit ?? false)
   const [mrpSafety, setMrpSafety] = useState(run?.mrpSafety ?? true)
   const [mrpMinUnit, setMrpMinUnit] = useState(run?.mrpMinUnit ?? true)
+  /* [설정] 조달기간반영(기본 둘 다 ✓) · 기초재고/전표수집 기준창고(기본 전체). */
+  const [planLeadTime, setPlanLeadTime] = useState(run?.planLeadTime ?? true)
+  const [mrpLeadTime, setMrpLeadTime] = useState(run?.mrpLeadTime ?? true)
+  const [stockWh, setStockWh] = useState(run?.stockWarehouseId ? String(run.stockWarehouseId) : '')
+  const [docWh, setDocWh] = useState(run?.docWarehouseId ? String(run.docWarehouseId) : '')
+  const [warehouses, setWarehouses] = useState<{ id: number; code: string; name: string; active: boolean }[]>([])
+  useEffect(() => { api.get<typeof warehouses>('/warehouses').then((r) => setWarehouses(r.data.filter((w) => w.active))).catch(() => {}) }, [])
   const [err, setErr] = useState('')
 
   async function save() {
     setErr('')
     const body = { runDate, periodFrom: from, periodTo: to, baseItemId: baseItem ? Number(baseItem) : null, note: note || null,
-      srcUnsold, srcUnpurchased, srcUnproduced, planSafety, planMinUnit, mrpSafety, mrpMinUnit }
+      srcUnsold, srcUnpurchased, srcUnproduced, planSafety, planMinUnit, mrpSafety, mrpMinUnit,
+      planLeadTime, mrpLeadTime, stockWarehouseId: stockWh ? Number(stockWh) : null, docWarehouseId: docWh ? Number(docWh) : null }
     try {
       if (run) {
         await api.put(`/mrp-runs/${run.id}`, body)
@@ -732,12 +746,24 @@ function MrpRunEditModal({ run, items, onClose, onSaved }: {
           <tr><th>생산계획생성기준</th>
             <td style={{ fontSize: 12.5, display: 'flex', gap: 10 }}>
               <label><input type="checkbox" checked={planSafety} onChange={(e) => setPlanSafety(e.target.checked)} /> 안전재고반영</label>
+              <label><input type="checkbox" checked={planLeadTime} onChange={(e) => setPlanLeadTime(e.target.checked)} /> 조달기간반영</label>
               <label><input type="checkbox" checked={planMinUnit} onChange={(e) => setPlanMinUnit(e.target.checked)} /> 최소증가단위</label>
             </td></tr>
           <tr><th>MRP생성기준</th>
             <td style={{ fontSize: 12.5, display: 'flex', gap: 10 }}>
               <label><input type="checkbox" checked={mrpSafety} onChange={(e) => setMrpSafety(e.target.checked)} /> 안전재고반영</label>
+              <label><input type="checkbox" checked={mrpLeadTime} onChange={(e) => setMrpLeadTime(e.target.checked)} /> 조달기간반영</label>
               <label><input type="checkbox" checked={mrpMinUnit} onChange={(e) => setMrpMinUnit(e.target.checked)} /> 최소증가단위</label>
+            </td></tr>
+          <tr><th>기초재고 기준창고</th>
+            <td>
+              <CodePickerField label="기초재고 기준창고" hideLabel width={220} emptyLabel="전체" value={stockWh} onChange={setStockWh}
+                               items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name }))} />
+            </td></tr>
+          <tr><th>전표수집 기준창고</th>
+            <td>
+              <CodePickerField label="전표수집 기준창고" hideLabel width={220} emptyLabel="전체" value={docWh} onChange={setDocWh}
+                               items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name }))} />
             </td></tr>
           <tr><th>기준품목</th>
             <td>

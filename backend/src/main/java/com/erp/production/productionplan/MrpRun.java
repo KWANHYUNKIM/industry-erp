@@ -86,4 +86,23 @@ public class MrpRun extends BaseTimeEntity {
     @Column(name = "mrp_min_unit", nullable = false)
     @Builder.Default
     private boolean mrpMinUnit = true;
+
+    /** [설정] 조달기간반영 — 끄면 작업지시·발주를 필요일에 낸다(앞당기지 않는다). 원본 기본은 둘 다 켜짐. */
+    @Column(name = "plan_lead_time", nullable = false)
+    @Builder.Default
+    private boolean planLeadTime = true;
+
+    @Column(name = "mrp_lead_time", nullable = false)
+    @Builder.Default
+    private boolean mrpLeadTime = true;
+
+    /** [설정] 기초재고 기준창고 — null 이면 전체 창고의 재고로 시작한다. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "stock_warehouse_id")
+    private com.erp.inventory.warehouse.Warehouse stockWarehouse;
+
+    /** [설정] 전표수집 기준창고 — null 이면 전체 창고의 주문·발주·작업지시를 모은다. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "doc_warehouse_id")
+    private com.erp.inventory.warehouse.Warehouse docWarehouse;
 }

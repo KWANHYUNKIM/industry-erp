@@ -73,7 +73,7 @@ public class TimePhasedPlanService {
      */
     @Transactional(readOnly = true)
     public Result compute(LocalDate from, LocalDate to, boolean unsold, boolean unpurchased, boolean unproduced) {
-        return compute(from, to, new Options(unsold, unpurchased, unproduced, true, true, true, true));
+        return compute(from, to, new Options(unsold, unpurchased, unproduced, true, true, true, true, null, null));
     }
 
     /**
@@ -82,7 +82,11 @@ public class TimePhasedPlanService {
      * 생산계획 쪽(BOM 있는 품목)과 MRP 쪽(자재)이 따로 고른다.
      */
     public record Options(boolean unsold, boolean unpurchased, boolean unproduced,
-                          boolean planSafety, boolean planMinUnit, boolean mrpSafety, boolean mrpMinUnit) {}
+                          boolean planSafety, boolean planMinUnit, boolean mrpSafety, boolean mrpMinUnit,
+                          /** 기초재고 기준창고 — 전일재고를 이 창고만으로 센다. null 이면 전체. */
+                          Long stockWarehouseId,
+                          /** 전표수집 기준창고 — 이 창고의 주문·발주·작업지시만 모은다. null 이면 전체. */
+                          Long docWarehouseId) {}
 
     @Transactional(readOnly = true)
     public Result compute(LocalDate from, LocalDate to, Options opt) {
@@ -106,16 +110,20 @@ public class TimePhasedPlanService {
                 consume = new HashMap<>();
         LocalDate before = from.minusDays(1);
 
+        Long docWh = opt.docWarehouseId();
         if (unpurchased) purchaseOrderService.findByStatus(PurchaseOrderStatus.ORDERED).forEach(po -> {
+            if (docWh != null && !docWh.equals(po.warehouseId())) return;
             LocalDate d = po.dueDate() != null ? po.dueDate() : po.orderDate();
             po.lines().forEach(l -> add(in, l.itemId(), clamp(d, before, to), l.quantity()));
         });
         if (unsold) salesOrderService.findUnsold().forEach(u -> {
+            if (docWh != null && !docWh.equals(u.warehouseId())) return;
             LocalDate d = u.dueDate() != null ? u.dueDate() : u.orderDate();
             if (u.unsoldQty() != null && u.unsoldQty().signum() > 0) add(out, u.itemId(), clamp(d, before, to), u.unsoldQty());
         });
         if (unproduced) for (WorkOrder wo : workOrderRepository.findAllWithRefs()) {
             if (wo.getStatus() == WorkOrderStatus.COMPLETED) continue;
+            if (docWh != null && !docWh.equals(wo.getWarehouse().getId())) continue;
             BigDecimal rest = wo.getPlannedQty().subtract(wo.getProducedQty());
             if (rest.signum() <= 0) continue;
             LocalDate d = clamp(wo.getDueDate() != null ? wo.getDueDate() : wo.getOrderDate(), before, to);
@@ -127,7 +135,9 @@ public class TimePhasedPlanService {
 
         // 전일재고 — 기간 첫날 전날(전 창고 합).
         Map<Long, BigDecimal> stock = new HashMap<>();
-        stockService.stockAsOf(before).forEach(s -> stock.merge(s.itemId(), s.quantity(), BigDecimal::add));
+        stockService.stockAsOf(before).forEach(s -> {
+            if (opt.stockWarehouseId() == null || opt.stockWarehouseId().equals(s.warehouseId())) stock.merge(s.itemId(), s.quantity(), BigDecimal::add);
+        });
 
         Map<Long, ItemResponse> items = new HashMap<>();
         itemService.findAll().forEach(i -> items.put(i.id(), i));
