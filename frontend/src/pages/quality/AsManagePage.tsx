@@ -379,7 +379,10 @@ export default function AsManagePage() {
       <Modal error={error} open={!!partsFor} title={`소모부품 · ${partsFor?.asNo ?? ''}`} onClose={() => setPartsFor(null)}>{(
         <div style={{ padding: 4, minWidth: 560 }}>
           <p className="mb-2 text-xs text-slate-500">A/S 수리에 사용한 부품. 등록 시 창고 재고가 차감되고, 삭제 시 복원됩니다.</p>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 10 }}>
+          {/* 취소한 A/S 에는 부품을 못 쓴다 — 서버도 거절한다(QA 54회차). 지우기(재고 복원)는 그대로 된다. */}
+          {partsFor?.status === 'CANCELED'
+            ? <p style={{ marginBottom: 10, fontSize: 12.5, color: '#8a929c' }}>취소된 A/S 입니다 — 소모부품을 더 쓸 수 없습니다.</p>
+            : <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 10 }}>
             {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
             <CodePickerField label="부품(품목)" hideLabel width={180} placeholder="부품(품목)" emptyLabel="선택 해제"
                              value={partForm.itemId} onChange={(v) => setPartForm((f) => ({ ...f, itemId: v }))}
@@ -391,7 +394,7 @@ export default function AsManagePage() {
             <input className="ec-input text-right" type="number" placeholder="수량" value={partForm.quantity} onChange={(e) => setPartForm((f) => ({ ...f, quantity: e.target.value }))} style={{ width: 80 }} />
             <input className="ec-input text-right" type="number" placeholder="단가" value={partForm.unitPrice} onChange={(e) => setPartForm((f) => ({ ...f, unitPrice: e.target.value }))} style={{ width: 100 }} />
             <button className="ec-btn ec-btn-primary" onClick={addPart}>추가(재고차감)</button>
-          </div>
+          </div>}
           {partError && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{partError}</p>}
           <table className="w-full text-left">
             <thead>

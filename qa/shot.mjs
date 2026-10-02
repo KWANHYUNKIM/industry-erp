@@ -15,6 +15,8 @@
  *               set:<선택자>[#n]|<값>  입력칸에 값을 넣는다(React 가 알아채도록 input 이벤트까지). #n 은 n 번째(0부터)
  *               choose:<선택자>[#n]|<보이는 글자>  드롭다운에서 그 글자의 항목을 고른다(id 는 환경마다 달라서)
  *               setnear:<이름표>|<값>  이름표(th·label·칸 이름) 글자가 그것인 칸 옆의 입력칸에 넣는다
+ *               allowapi:<상태>: <주소 앞부분>  이 화면에서 <b>일부러 거절당하는</b> 요청(예: allowapi:400: /api/as-requests/)
+ *                                   — 서버가 막는 것을 화면에서 보는 시험. 그 밖의 4xx/5xx 는 여전히 실패다.
  *               snap:<파일>[|x,y,w,h]  그 자리에서 캡처(사용법 문서의 단계별 그림)
  *               expect:<식>         참이 아니면 실패로 끝낸다 — 화면을 사람처럼 써 보는 시험에 쓴다
  *               apidel:<목록주소>|<번호정규식>|<번호필드>  화면에 뜬 전표번호를 목록에서 찾아 API 로 지운다
@@ -45,9 +47,11 @@ try {
     const [asUser, asPass] = (shot.as ?? `${process.env.ERP_USER ?? 'admin'}|${process.env.ERP_PASS ?? 'admin1234'}`).split('|')
     await b.loginAs(asUser, asPass)
     await b.goto(shot.path)
+    const allowed = []
     for (const step of shot.steps ?? []) {
       const [kind, ...rest] = step.split(':')
       if (kind === 'wait') await sleep(Number(rest[0]))
+      else if (kind === 'allowapi') allowed.push(`API ${rest.join(':')}`)
       else if (kind === 'js') {
         // true 가 아닌 값을 돌려주면 찍는다 — 화면이 띄운 안내·번호를 시나리오 출력에서 바로 보려고.
         const v = await b.evaluate(rest.join(':'))
@@ -138,7 +142,10 @@ try {
       writeFileSync(out, Buffer.from(data, 'base64'))
       console.log('찍음', out)
     }
-    for (const e of b.takeErrors()) { failed = true; console.log('  ❌', e) }
+    for (const e of b.takeErrors()) {
+      if (allowed.some((a) => e.startsWith(a))) { console.log('  ↳ 기대한 거절', e); continue }
+      failed = true; console.log('  ❌', e)
+    }
   }
 } finally {
   await b.close()

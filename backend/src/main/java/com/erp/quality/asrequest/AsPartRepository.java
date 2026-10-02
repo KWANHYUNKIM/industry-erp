@@ -22,4 +22,6 @@ public interface AsPartRepository extends JpaRepository<AsPart, Long> {
             "join fetch a.item ai left join fetch ai.itemGroup " +
             "order by p.createdAt desc, p.id desc")
     List<AsPart> findAllWithRefs();
+
+    long countByAsRequestId(Long asRequestId);
 }

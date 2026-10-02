@@ -1253,6 +1253,27 @@ async function scenarioAsConsumption(f) {
     qtyOf(await must('GET', url(`from=2026-03-01&to=2026-03-31&repairItemId=${f.product.id}`))) >= 3, true)
   eq('소모부품 품목을 수리품목으로 주면 안 잡힌다',
     qtyOf(await must('GET', url(`from=2026-03-01&to=2026-03-31&repairItemId=${f.material.id}`))), 0)
+
+  /*
+   * 소모부품은 창고 재고를 빼고, 지우면 돌려놓는다. 부품을 쓴 채로 취소하면 재고만 빠진 채
+   * 남고, 취소한 A/S 에도 부품이 붙었다(54회차).
+   */
+  const stockAt = async () => {
+    const r = (await must('GET', '/stock')).find((x) => x.itemId === f.material.id && x.warehouseId === f.warehouse.id)
+    return r ? Number(r.quantity) : 0
+  }
+  const s0 = await stockAt()
+  const part2 = await must('POST', `/as-requests/${as.id}/parts`, {
+    itemId: f.material.id, warehouseId: f.warehouse.id, quantity: 2, unitPrice: 1000,
+  })
+  eq('소모부품 2개를 쓰면 창고 재고가 2 줄고 금액은 2,000', `${s0 - (await stockAt())} ${part2.amount}`, '2 2000')
+  await rejects('부품이 남은 A/S 는 취소할 수 없다', 'PATCH', `/as-requests/${as.id}`, { status: 'CANCELED' })
+  for (const pt of await must('GET', `/as-requests/${as.id}/parts`)) await must('DELETE', `/as-requests/parts/${pt.id}`)
+  eq('부품을 다 지우면 재고가 처음(3개 쓰기 전)으로 돌아온다', (await stockAt()) - s0, 3)
+  await must('PATCH', `/as-requests/${as.id}`, { status: 'CANCELED' })
+  await rejects('취소한 A/S 에는 부품을 못 쓴다', 'POST', `/as-requests/${as.id}/parts`, {
+    itemId: f.material.id, warehouseId: f.warehouse.id, quantity: 1, unitPrice: 1000,
+  })
 }
 
 async function scenarioSettings() {

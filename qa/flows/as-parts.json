@@ -1,0 +1,39 @@
+{
+  "about": "A/S 소모부품 — 부품을 쓴 A/S 는 취소하지 못하고(부품을 지워 재고를 되돌린 뒤 취소), 취소한 A/S 에는 부품을 못 쓴다(54회차 — 둘 다 됐고 재고만 빠진 채 남았다). A/S·부품은 API 로 만들고 끝에 부품을 지워 재고를 돌려놓는다(A/S 는 취소 상태로 남는다).",
+  "shots": [
+    {
+      "name": "준비 — A/S 접수 + 부품 1개(API)",
+      "path": "/quality/as",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:Promise.all(['/partners','/items','/warehouses'].map((p) => window.__api('GET', p))).then(([pa, it, wh]) => { const c = pa.body.find((x) => x.code === 'QA-CUST'), pr = it.body.find((x) => x.code === 'QA-PROD'), m = it.body.find((x) => x.code === 'QA-MAT'), w = wh.body.find((x) => x.code === 'QA-WH'); sessionStorage.setItem('asPart', JSON.stringify({ itemId: m.id, warehouseId: w.id })); return window.__api('POST', '/as-requests', { partnerId: c.id, itemId: pr.id, symptom: 'QA 화면시험 — 부품 쓴 뒤 취소' }) }).then((r) => { sessionStorage.setItem('asId', r.body.id); sessionStorage.setItem('asNo', r.body.asNo); return window.__api('POST', '/as-requests/' + r.body.id + '/parts', { ...JSON.parse(sessionStorage.getItem('asPart')), quantity: 1, unitPrice: 1000 }) }).then((r) => r.status)",
+        "expect:!!sessionStorage.getItem('asNo')"
+      ]
+    },
+    {
+      "name": "부품이 남은 A/S 취소 → 거절 안내",
+      "path": "/quality/as",
+      "steps": [
+        "allowapi:400: /api/as-requests/",
+        "wait:1000",
+        "js:window.confirm = () => true; window.alert = (m) => { window.__msg = m }; true",
+        "js:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('QA 화면시험 — 부품 쓴 뒤 취소')); [...tr.querySelectorAll('button')].find((b) => b.innerText === '취소').click(); return true })()",
+        "wait:800",
+        "expect:(window.__msg || '').includes('소모부품 1건이 남아 있습니다')"
+      ]
+    },
+    {
+      "name": "부품 지우고 취소 → 부품 창에 추가 칸이 없다",
+      "path": "/quality/as",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:window.__api('GET', '/as-requests/' + sessionStorage.getItem('asId') + '/parts').then((r) => Promise.all(r.body.map((p) => window.__api('DELETE', '/as-requests/parts/' + p.id)))).then(() => window.__api('PATCH', '/as-requests/' + sessionStorage.getItem('asId'), { status: 'CANCELED' })).then((r) => r.status)",
+        "js:location.reload(); true",
+        "wait:1500",
+        "js:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('QA 화면시험 — 부품 쓴 뒤 취소')); [...tr.querySelectorAll('button')].find((b) => b.innerText === '부품').click(); return true })()",
+        "wait:800",
+        "expect:document.body.innerText.includes('취소된 A/S 입니다 — 소모부품을 더 쓸 수 없습니다.') && ![...document.querySelectorAll('button')].some((b) => b.innerText.startsWith('추가(재고차감)'))"
+      ]
+    }
+  ]
+}

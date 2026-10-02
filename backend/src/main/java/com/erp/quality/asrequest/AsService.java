@@ -16,8 +16,7 @@ import com.erp.quality.asrequest.dto.AsDtos.CreateAsPartRequest;
 import com.erp.quality.asrequest.dto.AsDtos.CreateAsRequest;
 import com.erp.quality.asrequest.dto.AsDtos.UpdateAsRequest;
 import com.erp.trade.partner.BusinessPartnerRepository;
-import com.erp.inventory.item.ItemRepository;
-import com.erp.inventory.warehouse.WarehouseRepository;
+import com.erp.inventory.item.ItemService;
 import com.erp.inventory.stock.StockService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -40,8 +39,7 @@ public class AsService {
     private final ProjectService projectService;
     private final AsPartRepository asPartRepository;
     private final BusinessPartnerRepository partnerRepository;
-    private final ItemRepository itemRepository;
-    private final WarehouseRepository warehouseRepository;
+    private final ItemService itemService;
     private final StockService stockService;
     private final DocumentNoGenerator docNoGenerator;
 
@@ -88,8 +86,8 @@ public class AsService {
     public AsResponse create(CreateAsRequest req, String username) {
         BusinessPartner partner = partnerRepository.findById(req.partnerId())
                 .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + req.partnerId()));
-        Item item = itemRepository.findById(req.itemId())
-                .orElseThrow(() -> ApiException.notFound("품목을 찾을 수 없습니다. id=" + req.itemId()));
+        /* 수리품목은 고객이 가진 물건이라 지금 단종(사용중지)이어도 받는다 — get, getUsable 이 아니다. */
+        Item item = itemService.get(req.itemId());
 
         LocalDate date = req.receiptDate() != null ? req.receiptDate() : LocalDate.now();
 
@@ -116,6 +114,17 @@ public class AsService {
         AsRequest as = asRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("A/S 접수를 찾을 수 없습니다. id=" + id));
         if (req.status() != null) {
+            /*
+             * 부품을 쓴 채로 취소하면 재고는 빠진 채 남는다(QA 54회차). 부품을 지우면 재고가 돌아오므로
+             * 그쪽을 먼저 하게 한다.
+             */
+            if (req.status() == AsStatus.CANCELED && as.getStatus() != AsStatus.CANCELED) {
+                long parts = asPartRepository.countByAsRequestId(id);
+                if (parts > 0) {
+                    throw ApiException.badRequest(String.format(
+                            "%s 에 소모부품 %d건이 남아 있습니다 — 부품을 지워 재고를 되돌린 뒤 취소하세요.", as.getAsNo(), parts));
+                }
+            }
             as.setStatus(req.status());
             // 완료로 바뀌면 완료일 자동 설정
             if (req.status() == AsStatus.COMPLETED && as.getDoneDate() == null && req.doneDate() == null) {
@@ -155,10 +164,13 @@ public class AsService {
     public AsPartResponse addPart(Long asId, CreateAsPartRequest req, String username) {
         AsRequest as = asRepository.findById(asId)
                 .orElseThrow(() -> ApiException.notFound("A/S 접수를 찾을 수 없습니다. id=" + asId));
-        Item item = itemRepository.findById(req.itemId())
-                .orElseThrow(() -> ApiException.notFound("품목을 찾을 수 없습니다. id=" + req.itemId()));
-        Warehouse warehouse = warehouseRepository.findById(req.warehouseId())
-                .orElseThrow(() -> ApiException.notFound("창고를 찾을 수 없습니다. id=" + req.warehouseId()));
+        /* 취소한 A/S 에 부품을 쓰면 재고만 빠진다(QA 54회차). */
+        if (as.getStatus() == AsStatus.CANCELED) {
+            throw ApiException.badRequest(as.getAsNo() + " 은(는) 취소된 A/S 입니다 — 소모부품을 쓸 수 없습니다.");
+        }
+        /* 부품은 지금 창고에서 꺼내 쓰는 것이라 사용중지된 품목·창고는 거절한다. */
+        Item item = itemService.getUsable(req.itemId());
+        Warehouse warehouse = warehouseService.getUsable(req.warehouseId());
         if (req.quantity().signum() <= 0) {
             throw ApiException.badRequest("수량은 0보다 커야 합니다.");
         }
