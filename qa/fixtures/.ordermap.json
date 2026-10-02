@@ -838,5 +838,9 @@
  [
   "발행수표조회",
   "accounting/CheckListPage.tsx"
+ ],
+ [
+  "미검사현황",
+  "quality/UninspectedPage.tsx"
  ]
 ]
