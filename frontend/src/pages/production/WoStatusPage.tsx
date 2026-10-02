@@ -7,7 +7,8 @@ import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { dateText } from '../../utils/dateText'
-import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { INQUIRY_PICKS, periodOf, comparePeriodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
+import { COMPARE_PERIODS } from '../../utils/periods'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
@@ -202,12 +203,12 @@ export default function WoStatusPage() {
   const empName = (id: number | null) =>
     id == null ? '-' : (employees.find((x) => x.id === id)?.name ?? '-')
 
-  const shown = rows.filter((r) => (!keyword || r.orderNo.includes(keyword) || r.productName.includes(keyword))
+  /** 기간을 뺀 조건 — 비교기간 줄도 같은 조건으로 거른다. */
+  const matchCond = (r: Row) => (!keyword || r.orderNo.includes(keyword) || r.productName.includes(keyword))
     && (!orderNoCond || r.orderNo.includes(orderNoCond))
     && (!warehouseCond || String(r.warehouseId) === warehouseCond)
     && (!partnerCond || String(r.partnerId) === partnerCond)
     && (!itemCond || String(r.productId) === itemCond)
-    && (!from || r.orderDate >= from) && (!to || r.orderDate <= to)
     && (!dueFrom || (r.dueDate ?? '') >= dueFrom)
     && (!dueTo || ((r.dueDate ?? '') !== '' && (r.dueDate ?? '') <= dueTo))
     && (!partnerGroup || pgroup.groupOfName(r.partnerName) === partnerGroup)
@@ -220,7 +221,22 @@ export default function WoStatusPage() {
     && (!qtyTo || r.plannedQty <= Number(qtyTo))
     && (!remarkCond || (r.remark ?? '').includes(remarkCond))
     && (!statusCond || r.statusName === statusCond)
-    && (!authorCond || (r.createdBy ?? '') === authorCond))
+    && (!authorCond || (r.createdBy ?? '') === authorCond)
+  const shown = rows.filter((r) => matchCond(r) && (!from || r.orderDate >= from) && (!to || r.orderDate <= to))
+  /*
+   * 원본 ○집계의 [비교기간] — 사용안함 · 전년/전월/전주/전일 동일기간(2026-10-02 실측, 생산불출현황과 같은 판).
+   * 그 기간의 작업지시를 따로 받아 같은 조건으로 걸러 지시수량 · 생산수량을 견준다.
+   */
+  const [compare, setCompare] = useState<ComparePeriod>('사용안함')
+  const [prevRows, setPrevRows] = useState<Row[] | null>(null)
+  const prevRange = comparePeriodOf(from, to, compare)
+  useEffect(() => {
+    if (!prevRange) { setPrevRows(null); return }
+    api.get<Row[]>('/work-orders', { params: prevRange })
+      .then((r) => setPrevRows(r.data.filter((x) => x.orderDate >= prevRange.from && x.orderDate <= prevRange.to)))
+      .catch(() => setPrevRows(null))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prevRange?.from, prevRange?.to])
   /**
    * 내역 [전표별] — 전표 한 장이 한 줄. 품목이 여럿이면 "첫 품목 외 n건", 수량은 합, 한 줄이라도 안 끝났으면 그 상태.
    * [라인별](기본)은 품목 줄마다다.
@@ -369,6 +385,10 @@ export default function WoStatusPage() {
                      title="집계조건2 를 고르면 그 값을 열로 펼칩니다">
                 <input type="checkbox" checked={pivot} disabled={!axis2} onChange={(e) => setPivot(e.target.checked)} /> 가로보기
               </label>
+              비교기간
+              <select className="ec-input" value={compare} onChange={(e) => setCompare(e.target.value as ComparePeriod)} style={{ width: 110 }}>
+                {COMPARE_PERIODS.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
             </span>
           )}
         </EcCond>
@@ -491,6 +511,20 @@ export default function WoStatusPage() {
       </ul>
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {mode === '집계' && prevRange && prevRows && (() => {
+        const prev = prevRows.filter(matchCond)
+        const pp = prev.reduce((n, r) => n + r.plannedQty, 0)
+        const pd = prev.reduce((n, r) => n + r.producedQty, 0)
+        const cp = shown.reduce((n, r) => n + r.plannedQty, 0)
+        const cd = shown.reduce((n, r) => n + r.producedQty, 0)
+        const pct = (a: number, b: number) => (b > 0 ? ` (${a >= b ? '+' : ''}${Math.round(((a - b) / b) * 100)}%)` : '')
+        return (
+          <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+            비교기간({prevRange.from.replace(/-/g, '/')} ~ {prevRange.to.replace(/-/g, '/')})
+            지시수량 {pp.toLocaleString()} → {cp.toLocaleString()}{pct(cp, pp)} · 생산수량 {pd.toLocaleString()} → {cd.toLocaleString()}{pct(cd, pd)}
+          </div>
+        )
+      })()}
       {view === '그래프' ? (
         <EcBarChart rows={chartRows} unit=" 개" emptyText="조회된 작업지시가 없습니다." />
       ) : mode === '집계' && axis2 && pivot ? (() => {

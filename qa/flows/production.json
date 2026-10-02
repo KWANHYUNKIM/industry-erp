@@ -423,6 +423,14 @@
         "js:([...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='가로보기').querySelector('input').click(), new Promise((r)=>setTimeout(()=>r(true),600)))",
         "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim());if(!(h.length>=3&&h[h.length-1]==='합계'&&h[1].includes('월별')))return false;const f=document.querySelector('table tfoot tr');if(!f)return true;const n=(x)=>Number(x.replace(/[^0-9.-]/g,''))||0;const rows=[...document.querySelectorAll('table tbody tr')];return rows.reduce((a,r)=>a+n(r.cells[r.cells.length-1].innerText),0)===n(f.cells[f.cells.length-1].innerText)})()"
       ]
+    },
+    {
+      "name": "작업지시서현황 — ○집계 [비교기간] 전월동일기간: 그 기간 지시수량 · 생산수량과 견준 줄이 뜬다(원본 비교기간)",
+      "path": "/production/wo-status",
+      "steps": [
+        "js:new Promise((r)=>setTimeout(()=>{[...document.querySelectorAll('button')].find((b)=>b.textContent.trim()==='집계').click();setTimeout(()=>{const s=[...document.querySelectorAll('select')].find((x)=>[...x.options].some((o)=>o.value==='전월동일기간'));Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'전월동일기간');s.dispatchEvent(new Event('change',{bubbles:true}));setTimeout(()=>r(true),1500)},500)},1500))",
+        "expect:/비교기간\\(\\d{4}\\/\\d{2}\\/\\d{2} ~ \\d{4}\\/\\d{2}\\/\\d{2}\\)\\s*지시수량/.test(document.body.innerText)"
+      ]
     }
   ]
 }
