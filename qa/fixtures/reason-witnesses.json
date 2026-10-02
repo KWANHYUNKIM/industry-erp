@@ -3710,7 +3710,7 @@
  "생산계획_MRP리스트|H": {
   "claim": "생성 팝업의 시간 단위 토글 — 그 팝업을 안 만든다",
   "absent": [
-   "Modal"
+   "생산계획생성기준"
   ],
   "in": "frontend/src/pages/production/MrpPage.tsx"
  },
@@ -3740,7 +3740,7 @@
  "직접입력": {
   "claim": "생산계획/MRP 생성 팝업을 안 만든다",
   "absent": [
-   "Modal"
+   "생산계획생성기준"
   ],
   "in": "frontend/src/pages/production/MrpPage.tsx"
  },
@@ -4217,7 +4217,7 @@
  "생산계획_MRP리스트|신규(F2)": {
   "claim": "생성 팝업의 시간 단위 토글 — 그 팝업을 안 만든다(위 [생산계획_MRP리스트|H] 과 같은 사실이다)",
   "absent": [
-   "Modal"
+   "생산계획생성기준"
   ],
   "in": "frontend/src/pages/production/MrpPage.tsx"
  },
@@ -4257,13 +4257,6 @@
    "적용"
   ],
   "in": "frontend/src/pages/trade/LedgerPage.tsx"
- },
- "생산계획_MRP리스트|닫기": {
-  "claim": "생성 팝업을 안 만든다 — 그 팝업의 버튼이다",
-  "absent": [
-   "Modal open={genOpen"
-  ],
-  "in": "frontend/src/pages/production/MrpPage.tsx"
  },
  "구매일괄회계반영|외화금액": {
   "claim": "외화·조정 항목을 만들지 않는다(위 [구매일괄회계반영|거래가액] 과 같은 사실이다)",
@@ -4742,7 +4735,7 @@
  "생산계획_MRP리스트|삭제": {
   "claim": "생성 팝업의 시간 단위 토글 — 그 팝업을 안 만든다",
   "absent": [
-   "Modal"
+   "생산계획생성기준"
   ],
   "in": "frontend/src/pages/production/MrpPage.tsx"
  },

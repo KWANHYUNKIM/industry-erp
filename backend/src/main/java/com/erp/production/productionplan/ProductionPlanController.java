@@ -19,6 +19,7 @@ import com.erp.production.productionplan.dto.ProductionPlanDtos;
 public class ProductionPlanController {
 
     private final ProductionPlanService planService;
+    private final TimePhasedPlanService timePhasedPlanService;
 
     /** 원본 조건 [생산계획기간]. 안 주면 전부 낸다. */
     @GetMapping
@@ -28,6 +29,17 @@ public class ProductionPlanController {
     }
 
     /** 생산계획 삭제. 작업지시로 전환된 계획은 거부한다. */
+    /**
+     * 원본 생산계획현황 · MRP현황 — 날짜별 순소요 표(기초재고·입고·생산·출고·소모예정·예상재고·필요·계획수량).
+     * BOM 이 있는 품목이 생산계획 쪽, 없는 품목이 MRP 쪽이다(row.producible).
+     */
+    @GetMapping("/time-phased")
+    public com.erp.production.productionplan.dto.TimePhasedDtos.Result timePhased(
+            @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate from,
+            @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate to) {
+        return timePhasedPlanService.compute(from, to);
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         planService.delete(id);

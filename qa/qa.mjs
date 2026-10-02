@@ -5035,6 +5035,35 @@ async function scenarioBomLevels(f) {
   await call('DELETE', `/work-orders/${wo.id}`)
 }
 
+/**
+ * 생산계획현황 · MRP현황 — 날짜별 순소요. 제품(다단) 작업지시 5 를 넣으면
+ * 제품 줄에 생산예정 5, 반제품 줄에 소모예정 10(5×2) → 필요·계획 10, 그 계획이 원재료 줄의 소모예정 30(10×3)이 된다.
+ */
+async function scenarioTimePhased(f) {
+  section('■ 생산계획현황 · MRP현황 — 날짜별 순소요')
+
+  const items = await must('GET', '/items')
+  const top = items.find((i) => i.code === `${P}ML-TOP`)
+  const semi = items.find((i) => i.code === `${P}ML-SEMI`)
+  const D = '2087-08-08'
+  const wo = await must('POST', '/work-orders', { productId: top.id, warehouseId: f.warehouse.id, plannedQty: 5, orderDate: D, dueDate: D })
+  try {
+    const r = await must('GET', `/production-plans/time-phased?from=${D}&to=2087-08-10`)
+    eq('날짜 열은 기간의 날마다', r.days.length, 3)
+    const row = (id) => r.rows.find((x) => x.itemId === id)
+    eq('제품 줄: 그날 생산예정 = 작업지시 잔량', Number(row(top.id).days[0].prodQty), 5)
+    eq('반제품 줄: 작업지시가 쓸 소모예정 5×2', Number(row(semi.id).days[0].consumeQty), 10)
+    eq('반제품 줄: 모자란 만큼 필요수량', Number(row(semi.id).days[0].needQty), 10 - Math.min(10, Number(row(semi.id).days[0].opening)))
+    eq('반제품은 생산할 품목(BOM 있음)', row(semi.id).producible, true)
+    const plan = Number(row(semi.id).days[0].planQty)
+    eq('원재료 줄(MRP): 반제품 계획이 소모예정으로 내려온다 ×3', Number(row(f.material.id).days[0].consumeQty) >= plan * 3, true)
+    eq('원재료는 사들이는 자재', row(f.material.id).producible, false)
+    eq('기간이 너무 길면 거절', (await call('GET', '/production-plans/time-phased?from=2087-01-01&to=2087-12-31')).status, 400)
+  } finally {
+    await call('DELETE', `/work-orders/${wo.id}`)
+  }
+}
+
 async function scenarioWorkResultBatch(f) {
   section('■ 작업내역 격자 — 한 번에 여러 줄')
 
@@ -9588,6 +9617,7 @@ async function main() {
     await scenarioWorkOrderSlip(fixtures)
     await scenarioSubcontractReflection(fixtures)
     await scenarioBomLevels(fixtures)
+    await scenarioTimePhased(fixtures)
     console.log(`\n통과 ${pass} · 실패 ${fail}`)
     process.exit(fail > 0 ? 1 : 0)
   }
@@ -9708,6 +9738,7 @@ async function main() {
   await scenarioWorkOrderSlip(fixtures)
   await scenarioSubcontractReflection(fixtures)
   await scenarioBomLevels(fixtures)
+  await scenarioTimePhased(fixtures)
   await scenarioWorkResultBatch(fixtures)
   await scenarioReturnSlip(fixtures)
   await scenarioMasterResave()

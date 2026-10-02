@@ -1,4 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import Modal from '../../components/Modal'
+import CodePickerField from '../../components/CodePickerField'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
@@ -63,6 +66,8 @@ interface Row {
 }
 
 export default function MrpPage() {
+  /** 날짜별 순소요 표 — 생산계획현황(PLAN) · MRP현황(MRP). */
+  const [phased, setPhased] = useState<'PLAN' | 'MRP' | null>(null)
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -173,6 +178,9 @@ export default function MrpPage() {
       onSearch={load}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
+        /* 원본 생산계획/MRP리스트 줄의 [생산계획현황] · MRP계산 → [MRP현황]. 날짜별 순소요 표를 연다. */
+        { label: '생산계획현황', onClick: () => setPhased('PLAN') },
+        { label: 'MRP현황', onClick: () => setPhased('MRP') },
         { label: '다시 작성', onClick: () => {
           setTab('전체'); setWeekFrom(''); setWeekTo(''); setItem(''); setKeyword('')
         } },
@@ -289,6 +297,164 @@ export default function MrpPage() {
           ))}
         </tbody>
       </table>
+      {phased && <TimePhasedModal mode={phased} onClose={() => setPhased(null)} onMade={(m) => { setOk(m); void load() }} />}
     </EcListShell>
+  )
+}
+
+// ── 생산계획현황 · MRP현황 ─────────────────────────────────────────────
+
+interface PhasedCell {
+  opening: number | null; inQty: number; prodQty: number; outQty: number; consumeQty: number
+  expected: number | null; needQty: number | null; planQty: number | null
+}
+interface PhasedRow {
+  itemId: number; itemCode: string; itemName: string; spec: string | null; unit: string
+  producible: boolean; safetyStock: number; minUnit: number; leadTimeDays: number | null
+  prevStock: number; before: PhasedCell; days: PhasedCell[]
+}
+const PHASED_LINES: [keyof PhasedCell, string][] = [
+  ['opening', '기초재고'], ['inQty', '입고예정량'], ['prodQty', '생산예정량'], ['outQty', '출고예정량'],
+  ['consumeQty', '소모예정량'], ['expected', '예상재고'], ['needQty', '필요수량'], ['planQty', '계획수량'],
+]
+const ymdOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+/**
+ * 원본 <b>생산계획현황 · MRP현황</b> — 품목마다 여덟 줄(기초재고 · 입고예정량 · 생산예정량 · 출고예정량 ·
+ * 소모예정량 · 예상재고 · 필요수량 · 계획수량), 열은 [계획기간이전] 과 기간의 날마다(2026-10-02 loginaa 실측).
+ * 원본의 줄 이름은 생산계획 쪽이 [생산필요수량]·[생산계획수량] 이고, MRP 쪽은 사들이는 자재라 [구매…] 로 읽는다.
+ *
+ * <p>기간 기본값은 원본처럼 오늘 ~ 이달 말일이다. [작업지시서생성](원본 줄의 [기타])은 계획수량을 날짜마다
+ * 작업지시서 한 장으로 만든다 — 생산공장을 골라야 한다.
+ */
+function TimePhasedModal({ mode, onClose, onMade }: { mode: 'PLAN' | 'MRP'; onClose: () => void; onMade: (msg: string) => void }) {
+  const now = new Date()
+  const [from, setFrom] = useState(ymdOf(now))
+  const [to, setTo] = useState(ymdOf(new Date(now.getFullYear(), now.getMonth() + 1, 0)))
+  const [days, setDays] = useState<string[]>([])
+  const [rows, setRows] = useState<PhasedRow[]>([])
+  const [loading, setLoading] = useState(false)
+  const [err, setErr] = useState('')
+  const [warehouses, setWarehouses] = useState<{ id: number; code: string; name: string; kind: string; active: boolean }[]>([])
+  const [factory, setFactory] = useState('')
+
+  async function run() {
+    setLoading(true); setErr('')
+    try {
+      const r = await api.get<{ days: string[]; rows: PhasedRow[] }>('/production-plans/time-phased', { params: { from, to } })
+      setDays(r.data.days); setRows(r.data.rows)
+    } catch (e) {
+      setErr(extractErrorMessage(e))
+    } finally {
+      setLoading(false)
+    }
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { void run() }, [])
+  useEffect(() => {
+    if (mode !== 'PLAN') return
+    api.get<typeof warehouses>('/warehouses').then((r) => setWarehouses(r.data.filter((w) => w.active))).catch(() => {})
+  }, [mode])
+
+  const shown = rows.filter((r) => r.producible === (mode === 'PLAN'))
+  /* 열이 기간의 날 수만큼 늘었다 줄었다 한다 — 렌더된 표를 직접 잰다. */
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, mode === 'PLAN' ? '생산계획현황' : 'MRP현황', [days.length, shown.length])
+  const num = (v: number | null) => (v == null || Number(v) === 0 ? '' : Number(v).toLocaleString('ko-KR', { maximumFractionDigits: 4 }))
+  const label = (k: keyof PhasedCell, l: string) =>
+    k === 'needQty' ? (mode === 'PLAN' ? '생산필요수량' : '구매필요수량')
+      : k === 'planQty' ? (mode === 'PLAN' ? '생산계획수량' : '구매계획수량') : l
+
+  /** 계획수량을 날짜마다 작업지시서 한 장(품목 여러 줄)으로. */
+  async function makeWorkOrders() {
+    if (!factory) { setErr('생산공장을 고르세요.'); return }
+    const byDay = new Map<string, { productId: number; plannedQty: number; warehouseId: number }[]>()
+    shown.forEach((r) => r.days.forEach((c, i) => {
+      if (c.planQty && Number(c.planQty) > 0) {
+        byDay.set(days[i], [...(byDay.get(days[i]) ?? []), { productId: r.itemId, plannedQty: Number(c.planQty), warehouseId: Number(factory) }])
+      }
+    }))
+    if (byDay.size === 0) { setErr('생산계획수량이 없습니다.'); return }
+    setErr('')
+    try {
+      const nos: string[] = []
+      for (const [d, lines] of byDay) {
+        const r = await api.post<{ orderNo: string }[]>('/work-orders/slips', { orderDate: d, dueDate: d, lines })
+        nos.push(r.data[0]?.orderNo ?? '')
+      }
+      onMade(`작업지시서 ${nos.length}장 생성 · ${nos.join(', ')}`)
+      onClose()
+    } catch (e) {
+      setErr(extractErrorMessage(e))
+    }
+  }
+
+  return (
+    <Modal open title={mode === 'PLAN' ? '생산계획현황' : 'MRP현황'} error={err} width={1400} onClose={onClose}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 12.5 }}>대상기간</span>
+        <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
+        <span>~</span>
+        <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+        <button type="button" className="ec-btn ec-btn-primary" onClick={() => void run()}>적용(F8)</button>
+        {mode === 'PLAN' && (
+          <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <CodePickerField label="생산공장" hideLabel width={180} emptyLabel="선택 해제" value={factory} onChange={setFactory}
+                             items={[...warehouses].sort((a, b) => Number(a.kind === '창고') - Number(b.kind === '창고'))
+                               .map((w) => ({ value: String(w.id), code: w.code, name: w.name, sub: w.kind }))} />
+            <button type="button" className="ec-btn" onClick={() => void makeWorkOrders()}>작업지시서생성</button>
+          </span>
+        )}
+      </div>
+      <div style={{ maxHeight: '62vh', overflow: 'auto' }}>
+        <table ref={tableRef} className="w-full text-left" style={{ whiteSpace: 'nowrap' }}>
+          <thead>
+            <tr>
+              <th>품목코드</th>
+              <th>품목명[규격]</th>
+              <th>단위</th>
+              <th style={{ textAlign: 'right' }}>안전재고수량</th>
+              <th style={{ textAlign: 'right' }}>최소증가단위</th>
+              <th style={{ textAlign: 'right' }}>조달기간</th>
+              <th style={{ textAlign: 'right' }}>전일재고</th>
+              <th>구분</th>
+              <th style={{ textAlign: 'right' }}>계획기간이전</th>
+              {days.map((d) => <th key={d} style={{ textAlign: 'right' }}>{d.replace(/-/g, '/')}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={9 + days.length} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            ) : shown.length === 0 ? (
+              <tr><td colSpan={9 + days.length} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            ) : shown.map((r) => (
+              <Fragment key={r.itemId}>
+                {PHASED_LINES.map(([k, l], li) => (
+                  <tr key={k} style={k === 'planQty' ? { background: '#fff8e1' } : undefined}>
+                    {li === 0 && (
+                      <>
+                        <td rowSpan={PHASED_LINES.length}>{r.itemCode}</td>
+                        <td rowSpan={PHASED_LINES.length}>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
+                        <td rowSpan={PHASED_LINES.length}>{r.unit}</td>
+                        <td rowSpan={PHASED_LINES.length} style={{ textAlign: 'right' }}>{num(r.safetyStock)}</td>
+                        <td rowSpan={PHASED_LINES.length} style={{ textAlign: 'right' }}>{num(r.minUnit)}</td>
+                        <td rowSpan={PHASED_LINES.length} style={{ textAlign: 'right' }}>{r.leadTimeDays ? `${r.leadTimeDays}일` : ''}</td>
+                        <td rowSpan={PHASED_LINES.length} style={{ textAlign: 'right' }}>{num(r.prevStock)}</td>
+                      </>
+                    )}
+                    <td>{label(k, l)}</td>
+                    <td style={{ textAlign: 'right' }}>{num(r.before[k] as number | null)}</td>
+                    {r.days.map((c, i) => (
+                      <td key={i} style={{ textAlign: 'right', color: k === 'needQty' && c.needQty ? '#c60a2e' : undefined,
+                        fontWeight: k === 'expected' || k === 'planQty' ? 600 : undefined }}>{num(c[k] as number | null)}</td>
+                    ))}
+                  </tr>
+                ))}
+              </Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Modal>
   )
 }
