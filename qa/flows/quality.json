@@ -1,13 +1,30 @@
 {
   "about": "품질 화면 회귀 시험. node qa/shot.mjs qa/flows/quality.json — 만든 전표는 끝에 지운다.",
   "shots": [
-    { "name": "품질검사 등록 — 품목을 코드도움으로 골라 저장하면 번호와 함께 '등록 완료'(11회차까지 긴 드롭다운 · 번호 안내 없음)", "path": "/quality/inspection", "steps": [
-      "click:신규", "clicklast:품목 선택", "pickrow:QA-PROD",
-      "set:[role=dialog] input[type=number]#0|10",
-      "set:[role=dialog] input[type=number]#1|0",
-      "click:저장",
-      "expect:/QC-[0-9]{8}-[0-9]{4} 품질검사 등록 완료/.test(document.body.innerText)",
-      "apidel:/quality-inspections|QC-[0-9]{8}-[0-9]{4}|inspectionNo"
-    ] }
+    {
+      "name": "품질검사 등록 — 품목을 코드도움으로 골라 저장하면 번호와 함께 '등록 완료'(11회차까지 긴 드롭다운 · 번호 안내 없음)",
+      "path": "/quality/inspection",
+      "steps": [
+        "click:신규",
+        "clicklast:품목 선택",
+        "pickrow:QA-PROD",
+        "set:[role=dialog] input[type=number]#0|10",
+        "set:[role=dialog] input[type=number]#1|0",
+        "click:저장",
+        "expect:/QC-[0-9]{8}-[0-9]{4} 품질검사 등록 완료/.test(document.body.innerText)",
+        "apidel:/quality-inspections|QC-[0-9]{8}-[0-9]{4}|inspectionNo"
+      ]
+    },
+    {
+      "name": "시리얼/로트No.재고현황 — 원본처럼 [사용중단시리얼/로트포함] · [재고수량] 1 · 기타가 켜진 채 열리고, [유효기한] 은 사용안함 · 직접입력 · 금일 … 전월 여덟이며, [재고수량] 둘을 다 끄면 줄이 없다",
+      "path": "/quality/lot-stock",
+      "steps": [
+        "wait:1800",
+        "expect:(()=>{const c=(t)=>[...document.querySelectorAll('label')].find((l)=>l.textContent.trim()===t)?.querySelector('input')?.checked;return c('사용중단시리얼/로트포함')===true&&c('1')===true&&c('기타')===true&&c('전체')===true})()",
+        "expect:(()=>{const s=[...document.querySelectorAll('select')].find((x)=>[...x.options].some((o)=>o.value==='직접입력'));return !!s&&[...s.options].map((o)=>o.value).join('|')==='사용안함|직접입력|금일|전일|금주(~오늘)|전주|금월(~오늘)|전월'&&s.value==='사용안함'})()",
+        "js:([...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='전체').querySelector('input').click(), new Promise((r)=>setTimeout(()=>r(true),600)))",
+        "expect:![...document.querySelectorAll('table tbody tr')].some((t)=>/[0-9]/.test(t.innerText)&&!t.innerText.includes('없습니다'))"
+      ]
+    }
   ]
 }

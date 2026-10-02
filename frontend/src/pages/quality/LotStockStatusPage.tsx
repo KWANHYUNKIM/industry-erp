@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
-import EcPeriodPicks, { ymd, INQUIRY_PICKS } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { ymd, INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Lot } from '../../types/api'
 import { dateText } from '../../utils/dateText'
@@ -43,10 +43,22 @@ export default function LotStockStatusPage() {
   const [warehouse, setWarehouse] = useState('')
   const [item, setItem] = useState('')
   /*
-   * 원본 [기타]의 <b>[사용중단시리얼/로트포함]</b> — 꺼진 채로 열린다(실측).
+   * 원본 [기타]의 <b>[사용중단시리얼/로트포함]</b> — <b>켜진 채로</b> 열린다(2026-10-02 loginaa 실측). 예전 주석은 '꺼진 채로' 라
+   * 적었는데 이날 직접 읽은 체크 상태가 켜짐이었다 — 더 새로 잰 값을 따른다.
    * 우리 로트의 '사용중단' 은 <b>보류(held)</b> 다.
    */
-  const [withHeld, setWithHeld] = useState(false)
+  const [withHeld, setWithHeld] = useState(true)
+  /*
+   * 원본 [유효기한] — 사용안함(기본) · 직접입력 · 금일 · 전일 · 금주(~오늘) · 전주 · 금월(~오늘) · 전월(2026-10-02 실측).
+   * 고르면 유효기한이 그 구간 안인 로트만 본다. 유효기한이 없는 로트는 걸리지 않는다.
+   */
+  const EXPIRY_OPTS = ['사용안함', '직접입력', '금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월'] as const
+  const [expiryOpt, setExpiryOpt] = useState<typeof EXPIRY_OPTS[number]>('사용안함')
+  const [expFrom, setExpFrom] = useState('')
+  const [expTo, setExpTo] = useState('')
+  /* 원본 [재고수량] — 전체 · 1 · 기타 세 체크(모두 켜짐). 1 은 잔량이 꼭 1 인 것(시리얼 한 개), 기타는 그 밖. */
+  const [qtyOne, setQtyOne] = useState(true)
+  const [qtyOther, setQtyOther] = useState(true)
 
   async function load() {
     setLoading(true); setError('')
@@ -68,13 +80,15 @@ export default function LotStockStatusPage() {
     const kw = keyword.trim()
     return lots.filter((l) => {
       if (!withHeld && l.held) return false
+      if (expiryOpt !== '사용안함' && (!l.expireDate || (expFrom && l.expireDate < expFrom) || (expTo && l.expireDate > expTo))) return false
+      if (l.stockQty === 1 ? !qtyOne : !qtyOther) return false
       if (lotNo && l.lotNo !== lotNo) return false
       if (warehouse && l.warehouseName !== warehouse) return false
       if (item && l.itemName !== item) return false
       if (kw && !l.lotNo.includes(kw) && !l.itemName.includes(kw)) return false
       return true
     })
-  }, [lots, withHeld, lotNo, warehouse, item, keyword])
+  }, [lots, withHeld, lotNo, warehouse, item, keyword, expiryOpt, expFrom, expTo, qtyOne, qtyOther])
 
   /** 원본 [구분]이 <b>(창고별)</b> 이면 창고로 묶어 잔량을 더한다. */
   const grouped = useMemo(() => {
@@ -124,6 +138,23 @@ export default function LotStockStatusPage() {
                            onPick={(r) => setAsOf(r.to)} />
           </div>
         </EcCond>
+        <EcCond label="유효기한">
+          <select className="ec-input" value={expiryOpt} style={{ width: 120 }}
+                  onChange={(e) => {
+                    const v = e.target.value as typeof EXPIRY_OPTS[number]
+                    setExpiryOpt(v)
+                    const r = v === '사용안함' || v === '직접입력' ? null : periodOf(v)
+                    if (r) { setExpFrom(r.from); setExpTo(r.to) }
+                    if (v === '사용안함') { setExpFrom(''); setExpTo('') }
+                  }}>
+            {EXPIRY_OPTS.map((o) => <option key={o} value={o}>{o}</option>)}
+          </select>
+          {expiryOpt !== '사용안함' && (<>
+            <input type="date" className="ec-input" value={expFrom} onChange={(e) => { setExpFrom(e.target.value); setExpiryOpt('직접입력') }} style={{ width: 145, marginLeft: 6 }} />
+            <span style={{ margin: '0 4px' }}>~</span>
+            <input type="date" className="ec-input" value={expTo} onChange={(e) => { setExpTo(e.target.value); setExpiryOpt('직접입력') }} style={{ width: 145 }} />
+          </>)}
+        </EcCond>
         <EcCond label="시리얼/로트No." pick>
           <CodePickerField label="시리얼/로트No." hideLabel width={190} emptyLabel="전체"
                            value={lotNo} onChange={setLotNo}
@@ -138,6 +169,17 @@ export default function LotStockStatusPage() {
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={item} onChange={setItem}
                            items={items.map((i) => ({ value: i, name: i }))} />
+        </EcCond>
+        <EcCond label="재고수량">
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+            <input type="checkbox" checked={qtyOne && qtyOther} onChange={(e) => { setQtyOne(e.target.checked); setQtyOther(e.target.checked) }} /> 전체
+          </label>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 10, fontSize: 12.5 }}>
+            <input type="checkbox" checked={qtyOne} onChange={(e) => setQtyOne(e.target.checked)} /> 1
+          </label>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+            <input type="checkbox" checked={qtyOther} onChange={(e) => setQtyOther(e.target.checked)} /> 기타
+          </label>
         </EcCond>
         {/*
           원본 [기타]는 [결재방표시]·[사용중단시리얼/로트포함] 둘이다. 결재방은 인쇄물에
