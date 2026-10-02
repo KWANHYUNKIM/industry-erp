@@ -269,6 +269,9 @@ export const STAGED_PROGRESS_PICKS = [...BASE_PICKS, '전월+금월', '종료일
 /** 재고실사조회(E040613) — 기본이 <b>[차월]</b>이고 묶음 끝에 전월+금월 · 종료일 · 차월(2026-10-03 원본 실측). */
 export const STOCKTAKE_LIST_PICKS = [...BASE_PICKS, '전월+금월', '종료일', '차월'] as const
 
+/** 주문서조회(E040204) — 견적서 묶음 끝에 <b>금년</b>이 하나 더 붙는다(2026-10-03 원본 실측). */
+export const ORDER_LIST_PICKS = [...BASE_PICKS, '종료일', '최근30일(+1개월)', '금년'] as const
+
 export const SELF_USE_PICKS = [...ORDER_DOC_PICKS, '최근30일(+1개월)'] as const
 
 /**

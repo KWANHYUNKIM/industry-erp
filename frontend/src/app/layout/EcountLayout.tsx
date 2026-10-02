@@ -65,7 +65,7 @@ const MENU: TopMenu[] = [
         label: '영업관리',
         nodes: [
           { label: '견적서', children: [{ label: '견적서조회', to: '/sales/quotations' }] },
-          { label: '주문서', children: [{ label: '주문서현황', to: '/sales/order-status' }] },
+          { label: '주문서', children: [{ label: '주문서조회', to: '/sales/orders' }, { label: '주문서현황', to: '/sales/order-status' }] },
           {
             label: '판매',
             children: [

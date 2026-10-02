@@ -9,7 +9,8 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { partnerCodeItems } from '../../utils/codeItems'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
-import { ymd } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { ORDER_LIST_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
+import { EcCond } from '../../components/EcStatusPanel'
 import { dateText } from '../../utils/dateText'
 
 type OrderStatus = 'RECEIVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED'
@@ -22,8 +23,12 @@ interface SalesOrder {
   id: number; orderNo: string; partnerId: number; partnerName: string
   orderDate: string; dueDate: string | null; status: OrderStatus; statusName: string
   /** 수주의 [창고]·[프로젝트]·[담당자]. 견적에서 전환하면 그 값이 따라온다. */
+  warehouseId?: number | null
   warehouseName: string | null
+  projectId?: number | null
   projectName: string | null
+  /** 원본 [기타]의 [수정일자순(정렬)] 축. */
+  updatedAt?: string | null
   employeeName: string | null
   supplyAmount: number; vatAmount: number; totalAmount: number; remark: string | null; lines: OrderLine[]
 }
@@ -33,7 +38,22 @@ const today = () => ymd(new Date())
 interface LineInput { itemId: string; quantity: string; unitPrice: string }
 const emptyLine = (): LineInput => ({ itemId: '', quantity: '', unitPrice: '' })
 
+/**
+ * 오더관리(수주) — 원본 영업관리 &gt; 주문서 &gt; <b>주문서조회</b>(E040204) 자리. 2026-10-03 loginaa 실측(자료가 든 판):
+ * 기간 기본 <b>최근30일(+1개월)</b>, 열 일자-No. · 거래처명 · 사원(담당)명 · 품목명 · 납기일자 · 주문금액합계 · 진행상태 · 생성한전표 · 인쇄,
+ * 위 탭 전체 · 결재중 · C-Portal · 미확인 · 확인 · 진행중 · 완료. 우리 상태 탭은 접수 · 진행중 · 완료 · 취소다(결재 · 확인 단계가 없다).
+ * 창고 · 프로젝트는 원본 목록에 없는 열이지만 수주에서 정한 값을 볼 데가 여기뿐이라 뒤에 남긴다.
+ */
 export default function SalesOrderPage() {
+  const init = periodOf('최근30일(+1개월)')!
+  const [from, setFrom] = useState(init.from)
+  const [to, setTo] = useState(init.to)
+  /* 원본 조건 [창고] · [프로젝트] · [거래처] · [품목코드] · [기타](수정일자순). */
+  const [whCond, setWhCond] = useState('')
+  const [projCond, setProjCond] = useState('')
+  const [partnerCond, setPartnerCond] = useState('')
+  const [itemCond, setItemCond] = useState('')
+  const [byUpdated, setByUpdated] = useState(false)
   const [orders, setOrders] = useState<SalesOrder[]>([])
   const [partners, setPartners] = useState<Partner[]>([])
   const [items, setItems] = useState<Item[]>([])
@@ -51,7 +71,7 @@ export default function SalesOrderPage() {
   const [fWarehouse, setFWarehouse] = useState('')
   const [fProject, setFProject] = useState('')
   const [fEmployee, setFEmployee] = useState('')
-  const pickers = useCondPickers(['warehouses', 'projects', 'employees'])
+  const pickers = useCondPickers(['warehouses', 'projects', 'employees', 'partners', 'items'])
   const [lines, setLines] = useState<LineInput[]>([emptyLine()])
 
   const customers = useMemo(() => partners.filter((p) => p.type === 'CUSTOMER' || p.type === 'BOTH'), [partners])
@@ -63,14 +83,15 @@ export default function SalesOrderPage() {
   async function load() {
     try {
       const [o, p, i] = await Promise.all([
-        api.get<SalesOrder[]>('/sales-orders'),
+        api.get<SalesOrder[]>('/sales-orders', { params: { from, to } }),
         api.get<Partner[]>('/partners'),
         api.get<Item[]>('/items'),
       ])
       setOrders(o.data); setPartners(p.data); setItems(i.data)
     } catch (err) { setError(extractErrorMessage(err)) }
   }
-  useEffect(() => { load() }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [from, to])
 
   function updateLine(idx: number, field: keyof LineInput, value: string) {
     setLines((ls) => {
@@ -138,15 +159,19 @@ export default function SalesOrderPage() {
 
   const shownRows = orders
     .filter((o) => statusFilter === 'ALL' || o.status === statusFilter)
+    .filter((o) => !whCond || String(o.warehouseId) === whCond)
+    .filter((o) => !projCond || String(o.projectId) === projCond)
+    .filter((o) => !partnerCond || String(o.partnerId) === partnerCond)
+    .filter((o) => !itemCond || o.lines.some((l) => String(l.itemId) === itemCond))
     .filter((o) => !keyword || o.partnerName.includes(keyword) || o.orderNo.includes(keyword))
 
   /* 세 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. */
   const sort = useTableSort(shownRows, {
-    수주번호: (o) => o.orderNo,
     수주일: (o) => o.orderDate,
     거래처: (o) => o.partnerName,
   })
-  const shown = sort.sorted
+  /* [수정일자순]을 켜면 고친 시각이 늦은 것부터 — 머리 정렬보다 먼저다(원본도 조건 판에서 고른다). */
+  const shown = byUpdated ? [...shownRows].sort((a, b) => ((a.updatedAt ?? '') < (b.updatedAt ?? '') ? 1 : (a.updatedAt ?? '') > (b.updatedAt ?? '') ? -1 : 0)) : sort.sorted
 
   const inputCls = 'ec-input'
   const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 74 }
@@ -154,11 +179,11 @@ export default function SalesOrderPage() {
 
   /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
   const tableRef = useRef<HTMLTableElement>(null)
-  useTableColumnCheck(tableRef, '오더관리(수주)', [])
+  useTableColumnCheck(tableRef, '주문서조회', [])
 
   return (
     <EcListShell
-      title="오더관리 (수주)"
+      title="주문서조회"
       search={keyword}
       onSearchChange={setKeyword}
       newLabel={showForm ? '입력닫기' : '수주등록(F2)'}
@@ -167,7 +192,7 @@ export default function SalesOrderPage() {
     >
       <p className="mb-2 text-xs text-slate-500">매출처로부터 받은 주문(수주) 관리 · 접수 → 진행중 → 완료. 실제 출고는 판매입력에서.</p>
 
-      <Modal open={showForm} title="오더관리 (수주) 등록" width={900} onClose={() => setShowForm(false)}>{(
+      <Modal open={showForm} title="주문서입력" width={900} onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 12, marginBottom: 10 }}>
           <table className="w-full text-left" style={{ marginBottom: 8, maxWidth: 820 }}>
             <tbody>
@@ -279,6 +304,34 @@ export default function SalesOrderPage() {
         </form>
       )}</Modal>
 
+      <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        <EcCond label="기준일자">
+          <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
+          <span style={{ margin: '0 4px' }}>~</span>
+          <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
+          <span style={{ marginLeft: 6 }}>
+            <EcPeriodPicks labels={ORDER_LIST_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
+          </span>
+        </EcCond>
+        <EcCond label="창고" pick>
+          <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체" value={whCond} onChange={setWhCond} items={pickers.warehouses} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체" value={projCond} onChange={setProjCond} items={pickers.projects} />
+        </EcCond>
+        <EcCond label="거래처" pick>
+          <CodePickerField label="거래처" hideLabel width={220} emptyLabel="전체" value={partnerCond} onChange={setPartnerCond} items={pickers.partners} />
+        </EcCond>
+        <EcCond label="품목코드" pick>
+          <CodePickerField label="품목코드" hideLabel width={220} emptyLabel="전체" value={itemCond} onChange={setItemCond} items={pickers.items} />
+        </EcCond>
+        <EcCond label="기타">
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+            <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} /> 수정일자순(정렬)
+          </label>
+        </EcCond>
+      </ul>
+
       {/* 상태 필터 */}
       <div style={{ display: 'flex', gap: 2, marginBottom: 8 }}>
         {(['ALL', 'RECEIVED', 'IN_PROGRESS', 'COMPLETED', 'CANCELED'] as const).map((s) => (
@@ -293,29 +346,32 @@ export default function SalesOrderPage() {
         <thead>
           <tr>
             <th style={{ width: 34 }}></th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('수주번호')}>수주번호 {sort.mark('수주번호')}</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('수주일')}>수주일 {sort.mark('수주일')}</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처')}>거래처 {sort.mark('거래처')}</th><th>품목</th>
-            <th style={{ textAlign: 'right' }}>합계금액</th><th>납기일</th>
+            {/* 원본 주문서조회 차례: 일자-No. · 거래처명 · 사원(담당)명 · 품목명 · 납기일자 · 주문금액합계 · 진행상태 (2026-10-03 실측). */}
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('수주일')}>일자-No. {sort.mark('수주일')}</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처')}>거래처명 {sort.mark('거래처')}</th>
+            <th style={{ width: 90 }}>사원(담당)명</th><th>품목명</th><th>납기일자</th>
+            <th style={{ textAlign: 'right' }}>주문금액합계</th>
+            <th style={{ textAlign: 'center' }}>진행상태</th>
             {/* 정할 수는 있는데 <b>목록에서 볼 수가 없으면</b> 반쪽이다 — 안 정한 수주는 빈칸이다. */}
-            <th style={{ width: 100 }}>창고</th><th style={{ width: 110 }}>프로젝트</th><th style={{ width: 90 }}>담당자</th>
-            <th style={{ textAlign: 'center' }}>진행상태</th><th style={{ textAlign: 'center' }}>처리</th>
+            <th style={{ width: 100 }}>창고</th><th style={{ width: 110 }}>프로젝트</th>
+            <th style={{ textAlign: 'center' }}>처리</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={11} style={{ textAlign: "center", color: "#9aa1ab", padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((o, i) => (
             <tr key={o.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{o.orderNo}</td>
-              <td>{dateText(o.orderDate)}</td>
+              <td style={{ fontFamily: 'monospace' }}>{dateText(o.orderDate)} {o.orderNo}</td>
               <td>{o.partnerName}</td>
+              <td>{o.employeeName ?? ''}</td>
               <td>{o.lines[0]?.itemName}{o.lines.length > 1 ? ` 외 ${o.lines.length - 1}건` : ''}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(o.totalAmount)}</td>
               <td>{dateText(o.dueDate) || ''}</td>
+              <td style={{ textAlign: 'right' }}>{won(o.totalAmount)}</td>
+              <td style={{ textAlign: 'center', color: STATUS_COLOR[o.status], fontWeight: 700 }}>{o.statusName}</td>
               <td style={{ color: '#5a626e' }}>{o.warehouseName ?? ''}</td>
               <td style={{ color: '#5a626e' }}>{o.projectName ?? ''}</td>
-              <td style={{ color: '#5a626e' }}>{o.employeeName ?? ''}</td>
-              <td style={{ textAlign: 'center', color: STATUS_COLOR[o.status], fontWeight: 700 }}>{o.statusName}</td>
               <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                 {NEXT[o.status] && <button className="no-ec" onClick={() => advance(o)} style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>→ {STATUS_LABEL[NEXT[o.status]!]}</button>}
                 {o.status !== 'COMPLETED' && o.status !== 'CANCELED' && <button className="no-ec" onClick={() => cancel(o)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>취소</button>}
