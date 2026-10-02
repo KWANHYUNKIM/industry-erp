@@ -126,6 +126,8 @@ export default function WoStatusPage() {
    */
   const [ratio, setRatio] = useState(false)
   const [codeIncl, setCodeIncl] = useState(false)
+  /** 원본 [기타] 가로보기 — 조건2 값을 열로 펼친다(조건1 이 줄, 칸은 지시수량). 조건2 가 있을 때만 뜻이 있다. */
+  const [pivot, setPivot] = useState(false)
   const [aggSort, setAggSort] = useState<'코드순' | '코드명순' | '수량'>('코드순')
   const [aggDesc, setAggDesc] = useState(false)
   const CODE_LABEL: Partial<Record<typeof AXES[number], string>> = { 품목별: '품목코드', 창고별: '창고코드', 거래처별: '거래처코드' }
@@ -279,10 +281,10 @@ export default function WoStatusPage() {
             : a === '거래처별' ? (pickers.partners.find((x) => x.id === r.partnerId)?.code ?? '')
               : '')
       const keyOf = (r: Row) => (axis2 ? `${keyBy(axis, r)} · ${keyBy(axis2, r)}` : keyBy(axis, r))
-      const by = new Map<string, { key: string; c1: string; c2: string; count: number; planned: number; produced: number; remaining: number }>()
+      const by = new Map<string, { key: string; k1: string; k2: string; c1: string; c2: string; count: number; planned: number; produced: number; remaining: number }>()
       for (const r of shown) {
         const k = keyOf(r)
-        const cur = by.get(k) ?? { key: k, c1: codeBy(axis, r), c2: codeBy(axis2, r), count: 0, planned: 0, produced: 0, remaining: 0 }
+        const cur = by.get(k) ?? { key: k, k1: keyBy(axis, r), k2: axis2 ? keyBy(axis2, r) : '', c1: codeBy(axis, r), c2: codeBy(axis2, r), count: 0, planned: 0, produced: 0, remaining: 0 }
         cur.count += 1
         cur.planned += r.plannedQty
         cur.produced += r.producedQty
@@ -306,7 +308,7 @@ export default function WoStatusPage() {
       : shown.map((r) => ({ label: r.productName, value: r.remainingQty }))
   ), [mode, grouped, shown])
   const aggRef = useRef<HTMLTableElement>(null)
-  useTableColumnCheck(aggRef, '작업지시서현황 집계', [axis, axis2, grouped.length, ratio, codeIncl])
+  useTableColumnCheck(aggRef, '작업지시서현황 집계', [axis, axis2, grouped.length, ratio, codeIncl, pivot])
 
   return (
     <EcListShell
@@ -362,6 +364,10 @@ export default function WoStatusPage() {
               </label>
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                 <input type="checkbox" checked={codeIncl} onChange={(e) => setCodeIncl(e.target.checked)} /> 코드포함
+              </label>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: axis2 ? undefined : '#9aa1ab' }}
+                     title="집계조건2 를 고르면 그 값을 열로 펼칩니다">
+                <input type="checkbox" checked={pivot} disabled={!axis2} onChange={(e) => setPivot(e.target.checked)} /> 가로보기
               </label>
             </span>
           )}
@@ -487,7 +493,40 @@ export default function WoStatusPage() {
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       {view === '그래프' ? (
         <EcBarChart rows={chartRows} unit=" 개" emptyText="조회된 작업지시가 없습니다." />
-      ) : mode === '집계' ? (
+      ) : mode === '집계' && axis2 && pivot ? (() => {
+        const cols = [...new Set(grouped.map((g) => g.k2))].sort((a, b) => a.localeCompare(b, 'ko'))
+        const rowsBy = new Map<string, Map<string, number>>()
+        grouped.forEach((g) => { const m = rowsBy.get(g.k1) ?? new Map<string, number>(); m.set(g.k2, (m.get(g.k2) ?? 0) + g.planned); rowsBy.set(g.k1, m) })
+        return (
+          <table ref={aggRef} className="w-full text-left">
+            <thead>
+              <tr>
+                <th style={{ width: 34 }}></th>
+                <th>{axis} \ {axis2}</th>
+                {cols.map((c) => <th key={c} style={{ textAlign: 'right' }}>{c}</th>)}
+                <th style={{ textAlign: 'right' }}>합계</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...rowsBy.entries()].map(([k, m], i) => (
+                <tr key={k}>
+                  <td style={{ textAlign: 'center', color: '#8a929c', background: '#f3f3f3' }}>{i + 1}</td>
+                  <td>{k}</td>
+                  {cols.map((c) => <td key={c} style={{ textAlign: 'right' }}>{m.get(c) ? m.get(c)!.toLocaleString() : ''}</td>)}
+                  <td style={{ textAlign: 'right', fontWeight: 600 }}>{[...m.values()].reduce((a, v) => a + v, 0).toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
+                <td colSpan={2} style={{ textAlign: 'right' }}>합계</td>
+                {cols.map((c) => <td key={c} style={{ textAlign: 'right' }}>{grouped.filter((g) => g.k2 === c).reduce((a, g) => a + g.planned, 0).toLocaleString()}</td>)}
+                <td style={{ textAlign: 'right' }}>{totalPlanned.toLocaleString()}</td>
+              </tr>
+            </tfoot>
+          </table>
+        )
+      })() : mode === '집계' ? (
         <table ref={aggRef} className="w-full text-left">
           <thead>
             <tr>
