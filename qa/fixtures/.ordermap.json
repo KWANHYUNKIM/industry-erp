@@ -766,5 +766,13 @@
  [
   "BOM(소요량)현황",
   "production/BomStatusPage.tsx"
+ ],
+ [
+  "보유어음현황",
+  "accounting/NoteHoldingPage.tsx"
+ ],
+ [
+  "미지급어음현황",
+  "accounting/NoteHoldingPage.tsx"
  ]
 ]

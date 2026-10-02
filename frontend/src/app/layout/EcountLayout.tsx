@@ -387,7 +387,9 @@ const MENU: TopMenu[] = [
         label: '어음거래',
         nodes: [
           { label: '어음등록(수취/발행)', to: '/accounting/notes' },
-          { label: '어음현황', to: '/accounting/notes' },
+          /* 원본 어음거래 > 받을어음 · 지급어음 끝의 현황 둘(E010626 · E010634). 예전엔 [어음현황]이 어음등록을 한 번 더 가리켰다. */
+          { label: '보유어음현황', to: '/accounting/notes-held' },
+          { label: '미지급어음현황', to: '/accounting/notes-unpaid' },
         ],
       },
       {

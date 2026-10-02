@@ -4584,5 +4584,61 @@
    "Approval"
   ],
   "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "보유어음현황|부서": {
+  "claim": "어음에 부서가 없다",
+  "absent": [
+   "Department",
+   "department"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/promissorynote/PromissoryNote.java"
+ },
+ "보유어음현황|프로젝트": {
+  "claim": "어음에 프로젝트가 없다",
+  "absent": [
+   "Project",
+   "project"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/promissorynote/PromissoryNote.java"
+ },
+ "미지급어음현황|부서": {
+  "claim": "어음에 부서가 없다",
+  "absent": [
+   "Department",
+   "department"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/promissorynote/PromissoryNote.java"
+ },
+ "미지급어음현황|프로젝트": {
+  "claim": "어음에 프로젝트가 없다",
+  "absent": [
+   "Project",
+   "project"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/promissorynote/PromissoryNote.java"
+ },
+ "보유어음현황|정렬/소계기준": {
+  "claim": "만기일자 오름차순 하나로 세운다",
+  "present": [
+   "a.dueDate < b.dueDate"
+  ]
+ },
+ "보유어음현황|데이터 보기형식": {
+  "claim": "어음 한 장이 한 줄인 목록이다",
+  "present": [
+   "key={n.id}"
+  ]
+ },
+ "미지급어음현황|정렬/소계기준": {
+  "claim": "만기일자 오름차순 하나로 세운다",
+  "present": [
+   "a.dueDate < b.dueDate"
+  ]
+ },
+ "미지급어음현황|데이터 보기형식": {
+  "claim": "어음 한 장이 한 줄인 목록이다",
+  "present": [
+   "key={n.id}"
+  ]
  }
 }
