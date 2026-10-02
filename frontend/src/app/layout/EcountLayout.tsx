@@ -438,6 +438,7 @@ const MENU: TopMenu[] = [
               { label: '계정별원장', to: '/accounting/ledger-book' },
               { label: '계정별거래처별원장', to: '/accounting/account-partner-ledger' },
               { label: '거래처별계정별원장', to: '/accounting/partner-account-ledger' },
+              { label: '계정별적요별원장', to: '/accounting/account-remark-ledger' },
               { label: '합계잔액시산표', to: '/accounting/trial-balance' },
             ],
           },

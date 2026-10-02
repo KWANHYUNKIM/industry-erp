@@ -966,5 +966,9 @@
  [
   "거래처별계정별원장",
   "accounting/PartnerAccountLedgerPage.tsx"
+ ],
+ [
+  "계정별적요별원장",
+  "accounting/AccountRemarkLedgerPage.tsx"
  ]
 ]

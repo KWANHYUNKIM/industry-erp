@@ -56,6 +56,20 @@
         "wait:800",
         "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((x)=>x.innerText.trim()).join('|');return h==='계정코드|계정명|이월잔액|차변|대변|잔액'&&document.querySelector('tfoot tr').cells[0].innerText.trim()==='합계'})()"
       ]
+    },
+    {
+      "name": "계정별적요별원장 — 외상매출금(108)을 고르면 00(기 타) 한 표(일자-No. · 적요 · 거래처명 · 차변금액 · 대변금액, 끝 [합계]), 적요별은 적요 · 차변 · 대변",
+      "path": "/accounting/account-remark-ledger",
+      "steps": [
+        "wait:2000",
+        "pick:계정:108",
+        "click:검색(F8)",
+        "wait:2500",
+        "expect:(()=>{const t=document.querySelector('table');if(!t)return document.body.innerText.includes('등록된 데이터가 없습니다');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const last=t.querySelector('tbody tr:last-child');return h==='일자-No.|적요|거래처명|차변금액|대변금액'&&last.cells[0].innerText.trim()==='합계'})()",
+        "js:[...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='적요별').querySelector('input').click()",
+        "wait:800",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((x)=>x.innerText.trim()).join('|');return h==='적요|차변|대변'&&document.querySelector('tfoot tr').cells[0].innerText.trim()==='합계'})()"
+      ]
     }
   ]
 }
