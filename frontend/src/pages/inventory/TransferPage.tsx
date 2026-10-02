@@ -246,7 +246,7 @@ export default function TransferPage() {
       {ok && <p style={{ marginBottom: 8, background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
 
       <Modal error={error} open={showForm} title="기타이동 등록" onClose={() => setShowForm(false)}>{(tab === '창고이동'
-        ? <TransferForm items={items} warehouses={warehouses} projects={projects} employees={employees} onError={setError} onSaved={saved} />
+        ? <TransferForm items={items} warehouses={warehouses} stock={stock} projects={projects} employees={employees} onError={setError} onSaved={saved} />
         : <AdjustmentForm type={TAB_TYPE[tab]} label={tab} items={items} warehouses={warehouses} stock={stock} projects={projects} employees={employees} onError={setError} onSaved={saved} />)}</Modal>
 
       {view === '그래프' ? (
@@ -348,8 +348,8 @@ export default function TransferPage() {
   )
 }
 
-function TransferForm({ items, warehouses, projects, employees, onError, onSaved }: {
-  items: Item[]; warehouses: Warehouse[]
+function TransferForm({ items, warehouses, stock, projects, employees, onError, onSaved }: {
+  items: Item[]; warehouses: Warehouse[]; stock: StockRow[]
   projects: CodeRow[]; employees: CodeRow[]
   onError: (m: string) => void; onSaved: (msg: string) => void
 }) {
@@ -411,6 +411,19 @@ function TransferForm({ items, warehouses, projects, employees, onError, onSaved
         <Field label="수량 *">
           <input className="ec-input" type="number" step="any" value={form.quantity} onChange={(e) => set('quantity', e.target.value)} style={{ width: 90 }} />
         </Field>
+        {/*
+          출고창고에 지금 몇 개 있는지. 예전엔 안 보여서 넉넉한지 모른 채 넣고 "재고가 부족" 거절을 받아야 알았다(32회차).
+          조정 창은 진작 [현재 재고] 를 보여 준다 — 같은 값을 쓴다.
+        */}
+        {form.itemId && form.fromWarehouseId && (() => {
+          const have = stock.find((x) => x.itemId === Number(form.itemId) && x.warehouseId === Number(form.fromWarehouseId))?.quantity ?? 0
+          const short = form.quantity !== '' && Number(form.quantity) > have
+          return (
+            <span style={{ fontSize: 12, paddingBottom: 6, color: short ? '#c60a2e' : '#5a626e' }}>
+              출고창고 재고 <b>{have.toLocaleString()}</b>{short ? ' — 부족' : ''}
+            </span>
+          )
+        })()}
         <Field label="프로젝트">
           <CodePickerField label="프로젝트" hideLabel width={160} placeholder="선택 안 함" emptyLabel="선택 해제"
                            value={form.projectId} onChange={(v) => set('projectId', v)}
