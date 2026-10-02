@@ -68,6 +68,7 @@ const VatBookPage = lazy(() => import('../pages/accounting/VatBookPage'))
 const PartnerTxListPage = lazy(() => import('../pages/accounting/PartnerTxListPage'))
 const CostStatementPage = lazy(() => import('../pages/accounting/CostStatementPage'))
 const AccountDetailPage = lazy(() => import('../pages/accounting/AccountDetailPage'))
+const JournalStatusPage = lazy(() => import('../pages/accounting/JournalStatusPage'))
 const TrialBalancePage = lazy(() => import('../pages/accounting/TrialBalancePage'))
 const BalanceSheetPage = lazy(() => import('../pages/accounting/BalanceSheetPage'))
 const IncomeStatementPage = lazy(() => import('../pages/accounting/IncomeStatementPage'))
@@ -462,6 +463,7 @@ export default function AppRouter() {
         <Route path="/accounting/partner-tx-list" element={<PartnerTxListPage />} />
         <Route path="/accounting/cost-statement" element={<CostStatementPage />} />
         <Route path="/accounting/account-detail" element={<AccountDetailPage />} />
+        <Route path="/accounting/journal-status" element={<JournalStatusPage />} />
         <Route path="/accounting/trial-balance" element={<TrialBalancePage />} />
         <Route path="/accounting/balance-sheet" element={<BalanceSheetPage />} />
         <Route path="/accounting/income-statement" element={<IncomeStatementPage />} />

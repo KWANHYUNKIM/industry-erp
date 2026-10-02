@@ -143,6 +143,14 @@
         "wait:3000",
         "expect:(()=>{const t=document.querySelector('table');if(!t)return document.body.innerText.includes('등록된 데이터가 없습니다');return [...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|')==='계정명|거래처명|금액'&&t.querySelector('tbody tr:last-child').cells[0].innerText.trim()==='합계'})()"
       ]
+    },
+    {
+      "name": "회계거래현황 — 머리 전표번호 · 거래유형 · 금액 · 거래처명 · 적요, 끝 [합계]",
+      "path": "/accounting/journal-status",
+      "steps": [
+        "wait:2500",
+        "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const last=t.querySelector('tbody tr:last-child');return h==='전표번호|거래유형|금액|거래처명|적요'&&(document.body.innerText.includes('등록된 데이터가 없습니다')||last.cells[0].innerText.trim()==='합계')})()"
+      ]
     }
   ]
 }

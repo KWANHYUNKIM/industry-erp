@@ -445,6 +445,7 @@ const MENU: TopMenu[] = [
               { label: '합계잔액시산표', to: '/accounting/trial-balance' },
               { label: '원가명세서', to: '/accounting/cost-statement' },
               { label: '계정명세서', to: '/accounting/account-detail' },
+              { label: '회계거래현황', to: '/accounting/journal-status' },
             ],
           },
           {

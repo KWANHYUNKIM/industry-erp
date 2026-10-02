@@ -1002,5 +1002,9 @@
  [
   "계정명세서",
   "accounting/AccountDetailPage.tsx"
+ ],
+ [
+  "회계거래현황",
+  "accounting/JournalStatusPage.tsx"
  ]
 ]
