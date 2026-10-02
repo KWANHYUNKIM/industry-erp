@@ -120,6 +120,16 @@ function TransferTab({ banks, rows, onError, onDone }: {
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }))
   const from = usable.find((b) => String(b.id) === form.fromAccountId)
 
+  /* 잘못 넣은 이동을 지운다(QA 56회차 — 지울 길이 없었다). 두 계좌 잔액이 되돌아오고 회계전표도 지워진다. */
+  async function remove(t: AccountTransfer) {
+    if (!window.confirm(`${t.transferNo} 계좌간이동을 지울까요? 두 계좌 잔액이 되돌아가고 회계전표도 지워집니다.`)) return
+    onError('')
+    try {
+      await api.delete(`/cash-details/account-transfers/${t.id}`)
+      onDone(`${t.transferNo} 삭제 — ${won(t.amount)}원이 출금 계좌로 돌아갔습니다.`)
+    } catch (err) { onError(extractErrorMessage(err)) }
+  }
+
   async function submit() {
     onError('')
     if (!form.fromAccountId || !form.toAccountId) return onError('계좌를 선택하세요.')
@@ -193,11 +203,12 @@ function TransferTab({ banks, rows, onError, onDone }: {
             <th style={{ width: 130, textAlign: 'right' }}>금액</th>
             <th style={{ width: 140 }}>회계전표</th>
             <th>적요</th>
+            <th style={{ width: 50, textAlign: 'center' }}>삭제</th>
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((t, i) => (
             <tr key={t.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -208,6 +219,9 @@ function TransferTab({ banks, rows, onError, onDone }: {
               <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(t.amount)}</td>
               <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{t.journalDocNo ?? ''}</td>
               <td style={{ color: '#5a626e' }}>{t.description ?? ''}</td>
+              <td style={{ textAlign: 'center' }}>
+                <button className="no-ec" onClick={() => remove(t)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+              </td>
             </tr>
           ))}
         </tbody>
@@ -246,6 +260,17 @@ function CardPaymentTab({ banks, cards, rows, onError, onDone }: {
   useEffect(() => { loadUnpaid(cardId) }, [cardId])   // eslint-disable-line react-hooks/exhaustive-deps
 
   const total = unpaid.reduce((s, u) => s + u.totalAmount, 0)
+
+  /* 결제를 지우면 결제계좌로 돈이 돌아오고 묶였던 사용내역은 다시 미결제가 된다(QA 56회차). */
+  async function removePayment(p: CardPayment) {
+    if (!window.confirm(`${p.paymentNo} 카드대금결제를 지울까요? 결제계좌로 ${won(p.amount)}원이 돌아가고 사용내역 ${p.lines.length}건은 다시 미결제가 됩니다.`)) return
+    onError('')
+    try {
+      await api.delete(`/cash-details/card-payments/${p.id}`)
+      await loadUnpaid(cardId)
+      onDone(`${p.paymentNo} 삭제 — ${won(p.amount)}원이 결제계좌로 돌아갔습니다.`)
+    } catch (err) { onError(extractErrorMessage(err)) }
+  }
 
   async function pay() {
     onError('')
@@ -349,11 +374,12 @@ function CardPaymentTab({ banks, cards, rows, onError, onDone }: {
             <th style={{ width: 70, textAlign: 'center' }}>건수</th>
             <th style={{ width: 130, textAlign: 'right' }}>결제금액</th>
             <th style={{ width: 140 }}>회계전표</th>
+            <th style={{ width: 50, textAlign: 'center' }}>삭제</th>
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((p, i) => (
             <Fragment key={p.id}>
               <tr onClick={() => setOpenId(openId === p.id ? null : p.id)} style={{ cursor: 'pointer' }}>
@@ -367,10 +393,13 @@ function CardPaymentTab({ banks, cards, rows, onError, onDone }: {
                 <td style={{ textAlign: 'center' }}>{p.lines.length}건</td>
                 <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(p.amount)}</td>
                 <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{p.journalDocNo ?? ''}</td>
+                <td style={{ textAlign: 'center' }}>
+                  <button className="no-ec" onClick={(e) => { e.stopPropagation(); removePayment(p) }} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                </td>
               </tr>
               {openId === p.id && (
                 <tr className="no-ec">
-                  <td colSpan={8} style={{ padding: 0, background: '#fafbfc' }}>
+                  <td colSpan={9} style={{ padding: 0, background: '#fafbfc' }}>
                     <table className="w-full text-left" style={{ margin: '4px 0' }}>
                       <thead>
                         <tr>

@@ -63,6 +63,20 @@ public class CashDetailController {
         return service.unpaidUsages(cardId);
     }
 
+    @DeleteMapping("/account-transfers/{id}")
+    public org.springframework.http.ResponseEntity<Void> deleteTransfer(@PathVariable Long id,
+                                                                     @AuthenticationPrincipal UserPrincipal principal) {
+        service.deleteTransfer(id, principal.getUsername());
+        return org.springframework.http.ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/card-payments/{id}")
+    public org.springframework.http.ResponseEntity<Void> deletePayment(@PathVariable Long id,
+                                                                    @AuthenticationPrincipal UserPrincipal principal) {
+        service.deletePayment(id, principal.getUsername());
+        return org.springframework.http.ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/card-payments")
     public CardPaymentResponse payCard(@Valid @RequestBody CardPaymentRequest req,
                                        @AuthenticationPrincipal UserPrincipal principal) {

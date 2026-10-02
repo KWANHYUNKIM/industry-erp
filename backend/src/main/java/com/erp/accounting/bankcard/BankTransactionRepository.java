@@ -51,4 +51,7 @@ public interface BankTransactionRepository extends JpaRepository<BankTransaction
            "coalesce(sum(case when t.deposit = false then t.amount else 0 end), 0) " +
            "from BankTransaction t where t.txnDate between :from and :to")
     List<Object[]> sumInOut(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /** 한 분개로 생긴 계좌 이동(계좌간이동이면 출금·입금 두 줄). 그 전표를 지울 때 되돌린다. */
+    List<BankTransaction> findByJournalEntryId(Long journalEntryId);
 }

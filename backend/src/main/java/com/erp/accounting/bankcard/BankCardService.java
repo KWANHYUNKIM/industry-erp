@@ -41,6 +41,7 @@ public class BankCardService {
     private final CreditCardRepository cardRepository;
     private final BankTransactionRepository txnRepository;
     private final CardUsageRepository usageRepository;
+    private final CardPaymentRepository paymentRepository;
     private final AccountRepository accountRepository;
     private final BusinessPartnerRepository partnerRepository;
     private final JournalService journalService;
@@ -245,7 +246,36 @@ public class BankCardService {
         return txnRepository.save(t);
     }
 
+    /**
+     * 다른 전표(계좌간이동·카드대금결제)가 만든 계좌 이동을 그 전표를 지울 때 되돌린다(QA 56회차 — 지울 길이 없었다).
+     *
+     * <p>원래 입출금 내역은 <b>지우지 않는다</b> — 그 뒤 내역의 잔액이 그 줄을 딛고 있다. 분개 연결만 끊고
+     * 같은 날짜로 반대 내역을 더한다. 되돌릴 돈이 그 계좌에 없으면(이미 써 버렸으면) 잔액 부족으로 막힌다.
+     */
+    @Transactional
+    public void reverseExternal(JournalEntry entry, String description, String username) {
+        if (entry == null) return;
+        for (BankTransaction t : txnRepository.findByJournalEntryId(entry.getId())) {
+            t.setJournalEntry(null);
+            recordExternal(t.getBankAccount().getId(), !t.isDeposit(), t.getAmount(), t.getTxnDate(),
+                    description, null, username);
+        }
+    }
+
     // ── 카드사용 ──────────────────────────────────────────────────────
+
+    /** 카드사용 삭제 — 아직 대금결제에 안 묶였을 때만. 분개(비용/미지급금)도 같이 지운다. */
+    @Transactional
+    public void deleteUsage(Long id) {
+        CardUsage u = usageRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("카드사용 내역을 찾을 수 없습니다. id=" + id));
+        if (paymentRepository.isUsagePaid(id)) {
+            throw ApiException.badRequest(u.getUsageNo() + " 은(는) 이미 대금결제된 사용내역입니다 — 대금결제를 먼저 지우세요.");
+        }
+        JournalEntry entry = u.getJournalEntry();
+        usageRepository.delete(u);
+        journalService.deleteEntry(entry);
+    }
 
     @Transactional(readOnly = true)
     public List<CardUsageResponse> findUsages() {

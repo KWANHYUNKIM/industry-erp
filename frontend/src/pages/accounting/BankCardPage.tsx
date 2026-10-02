@@ -346,7 +346,13 @@ export default function BankCardPage() {
             <BankTxnTable rows={txns} />
           </>
         )
-        : <CardUsageTable rows={usages} />}
+        : <CardUsageTable rows={usages} onRemove={async (r) => {
+            /* 결제 전 사용내역만 지운다 — 결제된 것은 서버가 막는다(QA 56회차). */
+            if (!window.confirm(`${r.usageNo} 카드사용(${r.merchant} ${won(r.totalAmount)}원)을 지울까요? 회계전표도 지워집니다.`)) return
+            setError('')
+            try { await api.delete(`/bank-cards/usages/${r.id}`); flash(`${r.usageNo} 삭제 — 회계전표도 지웠습니다.`); load() }
+            catch (err) { setError(extractErrorMessage(err)) }
+          }} />}
     </EcListShell>
   )
 }
@@ -515,7 +521,7 @@ function BankTxnTable({ rows }: { rows: BankTxn[] }) {
   )
 }
 
-function CardUsageTable({ rows }: { rows: CardUsage[] }) {
+function CardUsageTable({ rows, onRemove }: { rows: CardUsage[]; onRemove: (r: CardUsage) => void }) {
   /* [사용일] 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. */
   const sort = useTableSort(rows, { 사용일: (r) => r.usageDate })
   return (
@@ -532,11 +538,12 @@ function CardUsageTable({ rows }: { rows: CardUsage[] }) {
           <th style={{ width: 100, textAlign: 'right' }}>부가세</th>
           <th style={{ width: 110, textAlign: 'right' }}>합계</th>
           <th style={{ width: 130 }}>회계전표</th>
+          <th style={{ width: 50, textAlign: 'center' }}>삭제</th>
         </tr>
       </thead>
       <tbody>
         {rows.length === 0 ? (
-          <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+          <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
         ) : sort.sorted.map((r, i) => (
           <tr key={r.id}>
             <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
@@ -549,6 +556,9 @@ function CardUsageTable({ rows }: { rows: CardUsage[] }) {
             <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(r.vatAmount)}</td>
             <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(r.totalAmount)}</td>
             <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{r.journalDocNo ?? ''}</td>
+            <td style={{ textAlign: 'center' }}>
+              <button className="no-ec" onClick={() => onRemove(r)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+            </td>
           </tr>
         ))}
       </tbody>

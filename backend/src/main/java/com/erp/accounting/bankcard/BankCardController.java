@@ -91,6 +91,12 @@ public class BankCardController {
         return service.findUsages(from, to);
     }
 
+    @DeleteMapping("/usages/{id}")
+    public org.springframework.http.ResponseEntity<Void> deleteUsage(@PathVariable Long id) {
+        service.deleteUsage(id);
+        return org.springframework.http.ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/usages")
     public CardUsageResponse createUsage(@Valid @RequestBody CardUsageRequest req,
                                          @AuthenticationPrincipal UserPrincipal principal) {

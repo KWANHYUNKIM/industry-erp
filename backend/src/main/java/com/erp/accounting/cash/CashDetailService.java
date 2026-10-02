@@ -104,6 +104,19 @@ public class CashDetailService {
         return AccountTransferResponse.from(t);
     }
 
+    /**
+     * 계좌간이동 삭제(QA 56회차 — 잘못 넣으면 반대로 한 번 더 이동하는 수밖에 없었다).
+     * 두 계좌의 잔액을 되돌리고(입금 계좌에 그 돈이 남아 있어야 한다) 분개를 지운다.
+     */
+    @Transactional
+    public void deleteTransfer(Long id, String username) {
+        AccountTransfer t = transferRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("계좌간이동을 찾을 수 없습니다. id=" + id));
+        bankCardService.reverseExternal(t.getJournalEntry(), "계좌간이동 취소 " + t.getTransferNo(), username);
+        transferRepository.delete(t);
+        journalService.deleteBySource(com.erp.accounting.journal.JournalSourceType.ACCOUNT_TRANSFER, id);
+    }
+
     // ── 법인카드 대금결제 ─────────────────────────────────────────────
 
     @Transactional(readOnly = true)
@@ -184,6 +197,18 @@ public class CashDetailService {
                 "카드대금 결제 " + card.getCardName() + " " + p.getPaymentNo(), entry, username);
 
         return CardPaymentResponse.from(p);
+    }
+
+    /**
+     * 카드대금결제 삭제 — 결제계좌로 돈을 돌려놓고 분개를 지운다. 묶였던 사용내역은 다시 미결제가 된다.
+     */
+    @Transactional
+    public void deletePayment(Long id, String username) {
+        CardPayment p = paymentRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("카드대금결제를 찾을 수 없습니다. id=" + id));
+        bankCardService.reverseExternal(p.getJournalEntry(), "카드대금 결제 취소 " + p.getPaymentNo(), username);
+        paymentRepository.delete(p);
+        journalService.deleteBySource(com.erp.accounting.journal.JournalSourceType.CARD_PAYMENT, id);
     }
 
     private BankAccount bankAccount(Long id) {

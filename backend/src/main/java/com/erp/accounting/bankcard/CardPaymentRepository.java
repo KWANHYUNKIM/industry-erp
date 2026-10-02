@@ -18,4 +18,7 @@ public interface CardPaymentRepository extends JpaRepository<CardPayment, Long> 
     /** 이미 결제된 카드사용 id — 재결제를 막고 미결제 목록에서 제외한다 */
     @Query("select l.cardUsage.id from CardPaymentLine l")
     List<Long> findPaidUsageIds();
+
+    @Query("select count(l) > 0 from CardPaymentLine l where l.cardUsage.id = :usageId")
+    boolean isUsagePaid(@org.springframework.data.repository.query.Param("usageId") Long usageId);
 }

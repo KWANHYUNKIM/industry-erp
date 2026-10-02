@@ -585,6 +585,15 @@ public class JournalService {
         return save(e);
     }
 
+    /**
+     * 업무전표가 들고 있는 분개를 그 전표와 함께 지운다. 카드사용 분개는 출처 id 없이(저장 전에) 만들어져
+     * {@link #deleteBySource} 로는 못 찾는다(QA 56회차).
+     */
+    @Transactional
+    public void deleteEntry(JournalEntry e) {
+        if (e != null) entryRepository.delete(e);
+    }
+
     /** 회계반영 취소: 업무전표에 연결된 회계전표 삭제 */
     @Transactional
     public void deleteBySource(JournalSourceType type, Long sourceId) {
