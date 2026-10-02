@@ -70,6 +70,7 @@ export default function QualityInspectionPage() {
     setError(''); setOk('')
     if (!form.itemId) return setError('품목을 선택하세요.')
     if (form.inspectedQty === '') return setError('검사수량을 입력하세요.')
+    if (!(Number(form.inspectedQty) > 0)) return setError('검사수량은 0 보다 커야 합니다.')
     try {
       const res = await api.post<QualityInspection>('/quality-inspections', {
         inspectionDate: form.inspectionDate,

@@ -5,6 +5,7 @@ import com.erp.quality.inspection.QualityInspectionType;
 import com.erp.quality.inspection.QualityResult;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 
 import java.math.BigDecimal;
@@ -24,7 +25,8 @@ public final class QualityDtos {
             /* 원본 조건의 [창고]·[프로젝트]. 검사 시점에 안 정했을 수 있어 필수가 아니다. */
             Long warehouseId,
             Long projectId,
-            @NotNull(message = "검사수량을 입력하세요.") @PositiveOrZero(message = "검사수량은 0 이상이어야 합니다.") BigDecimal inspectedQty,
+            /* 0 개를 검사하면 불량 0 이라 '합격' 으로 남았다(QA 53회차) — 검사한 것이 있어야 판정이 선다. */
+            @NotNull(message = "검사수량을 입력하세요.") @Positive(message = "검사수량은 0 보다 커야 합니다.") BigDecimal inspectedQty,
             @PositiveOrZero(message = "불량수량은 0 이상이어야 합니다.") BigDecimal defectQty,
             QualityResult result,
             /** 원본 [불량유형] — 공통코드 DEFECT_TYPE 의 코드. 불량이 없으면 안 준다. */

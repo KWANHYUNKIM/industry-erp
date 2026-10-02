@@ -852,6 +852,17 @@ async function scenarioRelations(f) {
   isNull('미등록 로트No → lotId 는 null', unlinked.lotId)
   eq('미등록이어도 입력 문자열은 보존', unlinked.lotNo, `${P}없는로트`)
 
+  /*
+   * 자동판정 — 불량 0 합격, 불량률 3% 미만 조건부합격, 그 외 불합격. 200개 중 5개 = 2.5%, 6개 = 3.0%.
+   * 0 개 검사는 불량 0 이라 '합격' 으로 남았다(53회차) — 검사한 것이 없으면 판정할 것도 없다.
+   */
+  const qc5 = await must('POST', '/quality-inspections', { type: 'INCOMING', itemId: f.material.id, inspectedQty: 200, defectQty: 5 })
+  eq('200개 중 5개 불량 → 2.5% 조건부합격', `${qc5.defectRate} ${qc5.result} ${qc5.goodQty}`, '2.5 CONDITIONAL 195')
+  const qc6 = await must('POST', '/quality-inspections', { type: 'INCOMING', itemId: f.material.id, inspectedQty: 200, defectQty: 6 })
+  eq('200개 중 6개 불량 → 3.0% 불합격', `${qc6.defectRate} ${qc6.result}`, '3 FAIL')
+  await rejects('검사수량 0 은 거부', 'POST', '/quality-inspections', { type: 'INCOMING', itemId: f.material.id, inspectedQty: 0, defectQty: 0 })
+  for (const q of [qc5, qc6]) await must('DELETE', `/quality-inspections/${q.id}`)
+
   const wrLinked = await must('POST', '/work-results', {
     process: f.process.name, worker: 'QA', goodQty: 10, defectQty: 0, workTimeMin: 30,
     warehouseId: f.warehouse.id, note: `${P}적요`, workItemId: f.material.id,

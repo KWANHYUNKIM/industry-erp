@@ -1,0 +1,24 @@
+{
+  "about": "품질검사 등록 — 검사수량 0 은 저장 전에 막고(53회차 — 불량 0 이라 '합격' 으로 남았다), 200개 중 5개 불량은 2.5% 조건부합격으로 자동판정. 만든 검사성적은 끝에 지운다.",
+  "shots": [
+    {
+      "name": "검사수량 0 거부 → 200/5 조건부합격",
+      "path": "/quality/inspection",
+      "steps": [
+        "click:신규(F2)",
+        "clicklast:품목 선택",
+        "pickrow:SNS-TH01",
+        "set:[role=dialog] input[type=number]#0|0",
+        "clicklast:저장",
+        "wait:400",
+        "expect:document.body.innerText.includes('검사수량은 0 보다 커야 합니다.')",
+        "set:[role=dialog] input[type=number]#0|200",
+        "set:[role=dialog] input[type=number]#1|5",
+        "clicklast:저장",
+        "wait:1200",
+        "expect:/QC-[0-9]{8}-[0-9]{4} 품질검사 등록 완료 · 온습도 센서 · 검사 200 \\/ 불량 5 · 조건부합격/.test(document.body.innerText)",
+        "apidel:/quality-inspections|QC-[0-9]{8}-[0-9]{4}|inspectionNo"
+      ]
+    }
+  ]
+}
