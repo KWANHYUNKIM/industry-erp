@@ -287,7 +287,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
       docDate: d.date,
       supplier: isSales ? ourParty : partnerParty,
       customer: isSales ? partnerParty : ourParty,
-      extra: [{ label: '창고', value: d.warehouseName }, { label: '담당', value: d.createdBy }],
+      extra: [{ label: '창고', value: d.warehouseName }, { label: '담당', value: d.employeeName }, { label: '작성', value: d.createdBy }],
       remark: d.remark,
       lines: d.lines,
       footNote: isSales ? '위와 같이 거래하였음을 확인합니다.' : undefined,
