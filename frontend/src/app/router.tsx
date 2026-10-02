@@ -88,6 +88,7 @@ const LotStockStatusPage = lazy(() => import('../pages/quality/LotStockStatusPag
 const LotTxStatusPage = lazy(() => import('../pages/quality/LotTxStatusPage'))
 const AsManagePage = lazy(() => import('../pages/quality/AsManagePage'))
 const AsStatusPage = lazy(() => import('../pages/quality/AsStatusPage'))
+const AsRepairStatusPage = lazy(() => import('../pages/quality/AsRepairStatusPage'))
 const AsConsumptionPage = lazy(() => import('../pages/quality/AsConsumptionPage'))
 const CompanyInfoPage = lazy(() => import('../pages/settings/CompanyInfoPage'))
 const PreferencesPage = lazy(() => import('../pages/settings/PreferencesPage'))
@@ -462,6 +463,7 @@ export default function AppRouter() {
         <Route path="/quality/lot-tx-status" element={<LotTxStatusPage />} />
         <Route path="/quality/as" element={<AsManagePage />} />
         <Route path="/quality/as-status" element={<AsStatusPage />} />
+        <Route path="/quality/as-repair-status" element={<AsRepairStatusPage />} />
         <Route path="/quality/as-consumption" element={<AsConsumptionPage />} />
 
         {/* Self-Customizing */}

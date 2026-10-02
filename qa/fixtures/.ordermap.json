@@ -846,5 +846,9 @@
  [
   "품질검사요청현황",
   "quality/QualityRequestStatusPage.tsx"
+ ],
+ [
+  "A/S수리현황",
+  "quality/AsRepairStatusPage.tsx"
  ]
 ]
