@@ -272,6 +272,9 @@ export const STOCKTAKE_LIST_PICKS = [...BASE_PICKS, '전월+금월', '종료일'
 /** 주문서조회(E040204) — 견적서 묶음 끝에 <b>금년</b>이 하나 더 붙는다(2026-10-03 원본 실측). */
 export const ORDER_LIST_PICKS = [...BASE_PICKS, '종료일', '최근30일(+1개월)', '금년'] as const
 
+/** 매출(세금)계산서현황(재고)(E040223) — A/S 묶음 끝에 <b>최근30일</b>이 붙고 기본도 그것이다(2026-10-03 원본 실측). */
+export const SALES_TAX_STOCK_PICKS = [...BASE_PICKS, '직전분기', '직전반기', '종료일', '최근30일'] as const
+
 export const SELF_USE_PICKS = [...ORDER_DOC_PICKS, '최근30일(+1개월)'] as const
 
 /**

@@ -5316,5 +5316,50 @@
    "sendStatus"
   ],
   "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrder.java"
+ },
+ "매출(세금)계산서현황(재고)|부서": {
+  "claim": "회계전표에 부서가 없다",
+  "absent": [
+   "Department",
+   "department"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "매출(세금)계산서현황(재고)|프로젝트": {
+  "claim": "회계전표에 프로젝트가 없다",
+  "absent": [
+   "Project",
+   "project"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "매출(세금)계산서현황(재고)|상태": {
+  "claim": "회계전표에 결재 · 확인 상태가 없다",
+  "absent": [
+   "Status",
+   "status",
+   "Approval"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "매출(세금)계산서현황(재고)|부가세유형": {
+  "claim": "매출 분개가 부가세 유형을 남기지 않는다",
+  "absent": [
+   "vatType",
+   "VatType"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "매출(세금)계산서현황(재고)|정렬/소계기준": {
+  "claim": "달마다 소계를 고정으로 넣는다",
+  "present": [
+   "j.entryDate.slice(0, 7)"
+  ]
+ },
+ "매출(세금)계산서현황(재고)|데이터 보기형식": {
+  "claim": "전표 한 장이 한 줄인 목록이다",
+  "present": [
+   "key={j.id}"
+  ]
  }
 }

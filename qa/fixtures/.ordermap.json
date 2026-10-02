@@ -894,5 +894,9 @@
  [
   "단가요청조회",
   "trade/PriceRequestListPage.tsx"
+ ],
+ [
+  "매출(세금)계산서현황(재고)",
+  "production/PurchaseTaxStockPage.tsx"
  ]
 ]

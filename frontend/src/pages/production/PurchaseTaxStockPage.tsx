@@ -4,7 +4,7 @@ import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import Modal from '../../components/Modal'
-import EcPeriodPicks, { AS_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { AS_PICKS, SALES_TAX_STOCK_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import { dateText } from '../../utils/dateText'
 
@@ -15,10 +15,13 @@ interface Journal {
   lines: JournalLine[]
 }
 
-/** 부가세대급금 — 매입부가세가 걸리는 계정. */
+/** 부가세대급금 — 매입부가세가 걸리는 계정. 매출은 부가세예수금(255). */
 const VAT_PAID = '135'
-/** 재고 쪽에서 회계로 넘긴 매입 전표 — 구매 회계반영 · 외주비 회계반영. */
-const SOURCES = new Set(['PURCHASE', 'SUBCONTRACT'])
+const VAT_RECEIVED = '255'
+/** 재고 쪽에서 회계로 넘긴 전표 — 매입은 구매 회계반영 · 외주비 회계반영, 매출은 판매 회계반영. */
+const SOURCES = { PURCHASE: new Set(['PURCHASE', 'SUBCONTRACT']), SALES: new Set(['SALES']) }
+/** 원본 소계 · 합계줄(2026-10-03 매출 쪽 실측): 바탕 rgb(243,243,243) · 굵게 · 앞 두 칸을 묶어 가운데. */
+const SUB_ROW: React.CSSProperties = { fontWeight: 700, background: 'rgb(243, 243, 243)' }
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 /**
@@ -32,8 +35,10 @@ const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
  * <p>공급가액은 부가세대급금(135)·외상매입금이 아닌 줄의 차변−대변, 매입부가세는 135 의 차변−대변이다 —
  * 반품으로 되돌린 전표는 음수로 잡힌다.
  */
-export default function PurchaseTaxStockPage() {
-  const init = periodOf('금월(~오늘)')!
+export default function PurchaseTaxStockPage({ kind = 'PURCHASE' }: { kind?: 'PURCHASE' | 'SALES' }) {
+  const sales = kind === 'SALES'
+  /* 매출(세금)계산서현황(재고)(E040223)은 기본이 [최근30일] 이고 빠른선택 끝에도 그것이 있다 — 매입은 금월(~오늘). */
+  const init = sales ? periodOf('최근30일')! : periodOf('금월(~오늘)')!
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
   const [docNo, setDocNo] = useState('')
@@ -41,6 +46,15 @@ export default function PurchaseTaxStockPage() {
   /** 원본 [거래처관리담당자] — 거래처 마스터의 관리담당자로 거른다(전표에는 없고 거래처에 붙는 값이다). */
   const pmgr = usePartnerManagers()
   const [pmgrCond, setPmgrCond] = useState('')
+  /* 매출 쪽 원본 [기타] 아래 [세무신고거래처] — 거래처 마스터의 [세무신고거래처](taxReport)가 켜진 거래처의 전표만 본다. */
+  const [taxOnly, setTaxOnly] = useState(false)
+  const [taxReportOf, setTaxReportOf] = useState<Map<number, boolean>>(new Map())
+  useEffect(() => {
+    if (!sales) return
+    api.get<{ id: number; taxReport?: boolean }[]>('/partners')
+      .then((r) => setTaxReportOf(new Map(r.data.map((p) => [p.id, p.taxReport !== false]))))
+      .catch(() => setTaxReportOf(new Map()))
+  }, [sales])
   const [rows, setRows] = useState<Journal[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -50,7 +64,7 @@ export default function PurchaseTaxStockPage() {
     setLoading(true); setError('')
     try {
       const r = await api.get<{ rows: Journal[] }>('/journals', { params: { from, to, all: true } })
-      setRows(r.data.rows.filter((j) => SOURCES.has(j.sourceType)))
+      setRows(r.data.rows.filter((j) => SOURCES[kind].has(j.sourceType)))
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -58,11 +72,18 @@ export default function PurchaseTaxStockPage() {
     }
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { void load() }, [from, to])
+  useEffect(() => { void load() }, [from, to, kind])
 
   const sumOf = (j: Journal) => {
     let supply = 0, vat = 0
     for (const l of j.lines) {
+      if (sales) {
+        /* 매출: 부가세예수금(255)의 대변−차변이 부가세, 자산(1xx — 외상매출금 · 현금)이 아닌 나머지 대변−차변이 공급가액. */
+        const v = Number(l.credit) - Number(l.debit)
+        if (l.accountCode === VAT_RECEIVED) vat += v
+        else if (v !== 0 && !/^1/.test(l.accountCode)) supply += v
+        continue
+      }
       const v = Number(l.debit) - Number(l.credit)
       if (l.accountCode === VAT_PAID) vat += v
       else if (v !== 0 && Number(l.debit) + Number(l.credit) > 0 && !/^25[0-9]$/.test(l.accountCode)) supply += v
@@ -73,9 +94,10 @@ export default function PurchaseTaxStockPage() {
     .filter((j) => !docNo || j.docNo.includes(docNo))
     .filter((j) => !partner || (j.partnerName ?? '') === partner)
     .filter((j) => !pmgrCond || pmgr.managerOfName(j.partnerName) === pmgrCond)
+    .filter((j) => !taxOnly || (j.partnerId != null && taxReportOf.get(j.partnerId) !== false))
     .sort((a, b) => (a.entryDate < b.entryDate ? -1 : a.entryDate > b.entryDate ? 1 : a.docNo.localeCompare(b.docNo))),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  [rows, docNo, partner, pmgrCond, pmgr.options])
+  [rows, docNo, partner, pmgrCond, pmgr.options, taxOnly, taxReportOf])
   const months = useMemo(() => {
     const m = new Map<string, Journal[]>()
     shown.forEach((j) => { const k = j.entryDate.slice(0, 7); m.set(k, [...(m.get(k) ?? []), j]) })
@@ -85,7 +107,7 @@ export default function PurchaseTaxStockPage() {
 
   return (
     <EcListShell
-      title="매입(세금)계산서현황(재고)"
+      title={sales ? '매출(세금)계산서현황(재고)' : '매입(세금)계산서현황(재고)'}
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
@@ -101,7 +123,7 @@ export default function PurchaseTaxStockPage() {
           <span style={{ margin: '0 4px' }}>~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
           <span style={{ marginLeft: 6 }}>
-            <EcPeriodPicks labels={AS_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
+            <EcPeriodPicks labels={sales ? SALES_TAX_STOCK_PICKS : AS_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
         <EcCond label="회계전표No.">
@@ -115,17 +137,24 @@ export default function PurchaseTaxStockPage() {
           <CodePickerField label="거래처관리담당자" hideLabel width={200} emptyLabel="전체" value={pmgrCond} onChange={setPmgrCond}
                            items={pmgr.options.map((n) => ({ value: n, name: n }))} />
         </EcCond>
+        {sales && (
+          <EcCond label="기타">
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+              <input type="checkbox" checked={taxOnly} onChange={(e) => setTaxOnly(e.target.checked)} /> 세무신고거래처
+            </label>
+          </EcCond>
+        )}
       </ul>
 
-      <h3 style={{ fontSize: 13, fontWeight: 700, margin: '4px 0 6px' }}>매입청구서현황 <span style={{ fontWeight: 400, color: '#8a929c' }}>{dateText(from)} ~ {dateText(to)}</span></h3>
+      <h3 style={{ fontSize: 13, fontWeight: 700, margin: '4px 0 6px' }}>{sales ? '매출청구서현황' : '매입청구서현황'} <span style={{ fontWeight: 400, color: '#8a929c' }}>{dateText(from)} ~ {dateText(to)}</span></h3>
       <table className="w-full text-left">
         <thead>
           <tr>
             <th style={{ textAlign: 'center' }}>일자-No.</th>
             <th>거래처명</th>
             <th style={{ textAlign: 'right' }}>공급가액</th>
-            <th style={{ textAlign: 'right' }}>매입부가세</th>
-            <th style={{ textAlign: 'right' }}>매입합계</th>
+            <th style={{ textAlign: 'right' }}>{sales ? '매출부가세' : '매입부가세'}</th>
+            <th style={{ textAlign: 'right' }}>{sales ? '매출합계' : '매입합계'}</th>
             <th style={{ textAlign: 'center' }}>내역보기</th>
           </tr>
         </thead>
@@ -153,7 +182,7 @@ export default function PurchaseTaxStockPage() {
                   </tr>
                 )
               }),
-              <tr key={`m${m}`} style={{ background: '#f5f7fa', fontWeight: 600 }}>
+              <tr key={`m${m}`} style={SUB_ROW}>
                 <td colSpan={2} style={{ textAlign: 'center' }}>{m.replace('-', '/')} 계</td>
                 <td style={{ textAlign: 'right' }}>{won(sub.supply)}</td>
                 <td style={{ textAlign: 'right' }}>{won(sub.vat)}</td>
@@ -165,7 +194,7 @@ export default function PurchaseTaxStockPage() {
         </tbody>
         {shown.length > 0 && (
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
+            <tr style={SUB_ROW}>
               <td colSpan={2} style={{ textAlign: 'center' }}>합계</td>
               <td style={{ textAlign: 'right' }}>{won(total.supply)}</td>
               <td style={{ textAlign: 'right' }}>{won(total.vat)}</td>

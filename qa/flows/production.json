@@ -513,6 +513,14 @@
         "js:([...document.querySelectorAll('button')].find((b)=>b.textContent.trim()==='직전분기').click(), new Promise((r)=>setTimeout(()=>r(true),800)))",
         "expect:(()=>{const ds=[...document.querySelectorAll('input[type=date]')].map((i)=>i.value);if(ds.length<2)return false;const a=new Date(ds[0]),b=new Date(ds[1]);return a.getDate()===1&&(b.getMonth()-a.getMonth()+12)%12===2})()"
       ]
+    },
+    {
+      "name": "매출(세금)계산서현황(재고) — 매입 쪽 쌍둥이: 머리글 '매출청구서현황', 열 공급가액 · 매출부가세 · 매출합계, [기타] 세무신고거래처",
+      "path": "/sales/sales-tax-status",
+      "steps": [
+        "wait:2000",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');return h==='일자-No.|거래처명|공급가액|매출부가세|매출합계|내역보기'&&document.body.innerText.includes('매출청구서현황')&&document.body.innerText.includes('세무신고거래처')})()"
+      ]
     }
   ]
 }
