@@ -27,13 +27,14 @@ public class WorkResultController {
     /** 원본 작업내역입력의 격자 — 한 번에 여러 줄. 한 줄이라도 막히면 전부 되돌린다. */
     @PostMapping("/batch")
     public ResponseEntity<java.util.List<WorkResultResponse>> createBatch(
-            @Valid @RequestBody CreateWorkResultBatchRequest req) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(workResultService.createBatch(req));
+            @Valid @RequestBody CreateWorkResultBatchRequest req, java.security.Principal principal) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(workResultService.createBatch(req, principal.getName()));
     }
 
     @PostMapping
-    public ResponseEntity<WorkResultResponse> create(@Valid @RequestBody CreateWorkResultRequest req) {
-        return ResponseEntity.ok(workResultService.create(req));
+    public ResponseEntity<WorkResultResponse> create(@Valid @RequestBody CreateWorkResultRequest req,
+                                                     java.security.Principal principal) {
+        return ResponseEntity.ok(workResultService.create(req, principal.getName()));
     }
 
     @DeleteMapping("/{id}")

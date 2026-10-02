@@ -38,6 +38,8 @@ type Mode = '내역' | '집계'
 const MODES = ['내역', '집계'] as const
 
 interface WorkResult {
+  /** 원본 [최초작성자] — 넣은 계정(2026-10-02 전에 넣은 작업내역은 비어 있다). */
+  createdBy?: string | null
   id: number
   workOrderId: number | null
   workOrderNo: string | null
@@ -130,6 +132,7 @@ export default function WorkResultListPage() {
   const [timeFrom, setTimeFrom] = useState('')
   const [timeTo, setTimeTo] = useState('')
   const [noteCond, setNoteCond] = useState('')
+  const [authorCond, setAuthorCond] = useState('')
   const mgmt = useItemMgmt()
 
   async function load() {
@@ -176,11 +179,12 @@ export default function WorkResultListPage() {
     if (timeFrom && r.workTimeMin < Number(timeFrom)) return false
     if (timeTo && r.workTimeMin > Number(timeTo)) return false
     if (noteCond && !(r.note ?? '').includes(noteCond)) return false
+    if (authorCond && (r.createdBy ?? '') !== authorCond) return false
     return true
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [rows, from, to, process, worker, orderNo, product, workItem, plant,
        workItemCategory, workItemGroup, productCategory, productGroup, projectCond,
-       resourceCond, qtyFrom, qtyTo, timeFrom, timeTo, noteCond, mgmt.groupOptions])
+       resourceCond, qtyFrom, qtyTo, timeFrom, timeTo, noteCond, authorCond, mgmt.groupOptions])
 
   const totals = useMemo(() => shown.reduce(
     (s, r) => ({ good: s.good + r.goodQty, defect: s.defect + r.defectQty, time: s.time + r.workTimeMin }),
@@ -251,7 +255,7 @@ export default function WorkResultListPage() {
           작업품목:품목그룹1</b> · (작업품목:품목그룹2/3 · 계층) · 생산품목 ·
           <b>생산품목:품목구분 · 생산품목:품목그룹1</b> · (…) · <b>프로젝트</b> ·
           (프로젝트그룹1/2) · <b>자원 · 수량 · 작업시간 · 적요</b> ·
-          (최초작성자 · 최종수정자 · 양식) · 적용양식 · 양식구분 · 정렬/소계기준 ·
+          최초작성자 · (최종수정자 · 양식) · 적용양식 · 양식구분 · 정렬/소계기준 ·
           데이터 보기형식. 같은 이름이 두 벌이라 대조표에는 어디 것인지 밝혀 적는다.
         */}
         <EcCond label="생산공장" pick>
@@ -330,6 +334,12 @@ export default function WorkResultListPage() {
         <EcCond label="적요">
           <input className="ec-input" value={noteCond}
                  onChange={(e) => setNoteCond(e.target.value)} style={{ width: 190 }} />
+        </EcCond>
+        <EcCond label="최초작성자" pick>
+          <CodePickerField label="최초작성자" hideLabel width={150} emptyLabel="전체"
+                           value={authorCond} onChange={setAuthorCond}
+                           items={[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="결재방표시">
           <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>

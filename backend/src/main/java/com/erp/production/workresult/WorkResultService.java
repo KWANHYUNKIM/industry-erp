@@ -50,7 +50,7 @@ public class WorkResultService {
      * 모자란 채로 남고, 효율현황이 그 값으로 계산된다.
      */
     @Transactional
-    public java.util.List<WorkResultResponse> createBatch(CreateWorkResultBatchRequest req) {
+    public java.util.List<WorkResultResponse> createBatch(CreateWorkResultBatchRequest req, String username) {
         /* 원본처럼 줄이 몇 개든 번호는 하나다 — 같은 결과번호를 줄들이 나눠 갖는다. */
         LocalDate workDate = req.workDate() != null ? req.workDate() : LocalDate.now();
         String no = docNoGenerator.next("WR-", "work_results", "result_no", "work_date", workDate);
@@ -59,18 +59,18 @@ public class WorkResultService {
             out.add(create(new CreateWorkResultRequest(
                     line.workOrderId(), line.process(), line.workItemId(), line.resourceId(),
                     req.warehouseId(), line.worker(), line.goodQty(), line.defectQty(),
-                    line.workTimeMin(), workDate, req.projectId(), line.note()), no));
+                    line.workTimeMin(), workDate, req.projectId(), line.note()), no, username));
         }
         return out;
     }
 
     @Transactional
-    public WorkResultResponse create(CreateWorkResultRequest req) {
+    public WorkResultResponse create(CreateWorkResultRequest req, String username) {
         LocalDate d = req.workDate() != null ? req.workDate() : LocalDate.now();
-        return create(req, docNoGenerator.next("WR-", "work_results", "result_no", "work_date", d));
+        return create(req, docNoGenerator.next("WR-", "work_results", "result_no", "work_date", d), username);
     }
 
-    private WorkResultResponse create(CreateWorkResultRequest req, String resultNo) {
+    private WorkResultResponse create(CreateWorkResultRequest req, String resultNo, String username) {
         WorkOrder workOrder = null;
         if (req.workOrderId() != null) {
             workOrder = workOrderRepository.findById(req.workOrderId())
@@ -112,6 +112,7 @@ public class WorkResultService {
                 /* 다른 모듈의 것은 그 모듈 service 를 거쳐 얻는다(CLAUDE.md 4.2). */
                 .project(req.projectId() != null ? projectService.get(req.projectId()) : null)
                 .note(req.note())
+                .createdBy(username)
                 .build();
 
         WorkResult saved = workResultRepository.save(wr);

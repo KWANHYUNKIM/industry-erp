@@ -107,9 +107,11 @@ public final class WorkResultDtos {
             /**
              * 원본 조건 [최초작성자] 와 [기타]의 <b>수정일자순(정렬)</b>.
              * WorkResult 는 BaseTimeEntity 를 물려받아 고친 때를 진작 채우고 있는데
-             * 응답이 안 실었다. <b>만든 사람은 안 남긴다</b> — createdBy 칸이 없다.
+             * 응답이 안 실었다.
              */
-            LocalDateTime createdAt, LocalDateTime updatedAt
+            LocalDateTime createdAt, LocalDateTime updatedAt,
+            /** 원본 [최초작성자] — 넣은 계정. 칸이 생기기 전(2026-10-02)에 넣은 작업내역은 비어 있다. */
+            String createdBy
     ) {
         public static WorkResultResponse from(WorkResult wr) {
             return from(wr, null);
@@ -146,7 +148,7 @@ public final class WorkResultDtos {
                     wr.getProject() != null ? wr.getProject().getId() : null,
                     wr.getProject() != null ? wr.getProject().getName() : null,
                     wr.getWorkDate(), wr.getNote(),
-                    wr.getCreatedAt(), wr.getUpdatedAt());
+                    wr.getCreatedAt(), wr.getUpdatedAt(), wr.getCreatedBy());
         }
     }
 }

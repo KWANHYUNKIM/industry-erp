@@ -27,6 +27,8 @@ import { dateText } from '../../utils/dateText'
  * 공정이 아니다 — 품목별로 작업량을 셀 수가 없었다. 아직 안 적힌 옛 자료는 빈 칸이다.
  */
 interface Row {
+  /** 원본 [최초작성자] — 넣은 계정(2026-10-02 전에 넣은 작업내역은 비어 있다). */
+  createdBy?: string | null
   id: number
   /** 전표번호 WR-yyyyMMdd-NNNN. 원본 첫 열 [일자-No.] 의 No. 다(2026-09-09에 채번을 만들었다). */
   resultNo: string
@@ -130,6 +132,7 @@ export default function WorkResultInquiryPage() {
   const [productGroup, setProductGroup] = useState('')
   const [projectCond, setProjectCond] = useState('')
   const [noteCond, setNoteCond] = useState('')
+  const [authorCond, setAuthorCond] = useState('')
   const [byUpdated, setByUpdated] = useState(false)
   const mgmt = useItemMgmt()
 
@@ -162,6 +165,7 @@ export default function WorkResultInquiryPage() {
     if (productGroup && mgmt.groupOf(r.productId) !== productGroup) return false
     if (projectCond && (r.projectName ?? '') !== projectCond) return false
     if (noteCond && !(r.note ?? '').includes(noteCond)) return false
+    if (authorCond && (r.createdBy ?? '') !== authorCond) return false
     return true
   })
     /* 원본 [기타]의 수정일자순(정렬) — 켜면 마지막에 고친 작업이 위로 온다. */
@@ -169,7 +173,7 @@ export default function WorkResultInquiryPage() {
   /* eslint-disable-next-line react-hooks/exhaustive-deps */
   [rows, from, to, process, product, warehouse, worker, workItem,
    workItemCategory, workItemGroup, productCategory, productGroup, mgmt.groupOptions,
-   projectCond, noteCond, byUpdated])
+   projectCond, noteCond, authorCond, byUpdated])
 
   const totals = useMemo(() => shown.reduce(
     (s, r) => ({ qty: s.qty + r.goodQty + r.defectQty, time: s.time + r.workTimeMin }),
@@ -249,7 +253,7 @@ export default function WorkResultInquiryPage() {
         {/*
           원본 차례: 작업품목 · <b>품목구분 · 품목그룹1</b> · (그룹2·3·계층) ·
           생산품목 · <b>품목구분 · 품목그룹1</b> · (그룹2·3·계층) · 기타 · (발송여부) ·
-          프로젝트 · (프로젝트그룹1·2) · 적요 · (최초작성자 · 최종수정자) · (양식) · 적용양식.
+          프로젝트 · (프로젝트그룹1·2) · 적요 · 최초작성자 · (최종수정자) · (양식) · 적용양식.
           같은 이름이 <b>두 벌</b>이라 대조표에는 [작업품목:품목구분] 처럼 어디 것인지 밝혀 적었다.
         */}
         <EcCond label="작업품목" pick>
@@ -298,6 +302,12 @@ export default function WorkResultInquiryPage() {
         <EcCond label="적요">
           <input className="ec-input" value={noteCond}
                  onChange={(e) => setNoteCond(e.target.value)} style={{ width: 170 }} />
+        </EcCond>
+        <EcCond label="최초작성자" pick>
+          <CodePickerField label="최초작성자" hideLabel width={150} emptyLabel="전체"
+                           value={authorCond} onChange={setAuthorCond}
+                           items={[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
         </EcCond>
       </ul>
 
