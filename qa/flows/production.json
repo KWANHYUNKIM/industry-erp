@@ -83,6 +83,20 @@
         "js:fetch('/api/production-plans', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()).then(async (d) => { const xs = (d.rows ?? d).filter((p) => p.planWeek === '2039-W01'); for (const x of xs) await fetch('/api/production-plans/' + x.id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }); sessionStorage.setItem('qaPlanDel', String(xs.length)); return true })",
         "expect:sessionStorage.getItem('qaPlanDel') === '1'"
       ]
+    },
+    {
+      "name": "생산계획/MRP리스트 — [신규(F2)] 저장하면 한 줄이 생기고, 그 줄의 [생산계획계산 생성] 이 계산을 저장해 [수정]·[생산계획현황]·[작업지시서생성] 이 나타난다",
+      "path": "/production/mrp",
+      "steps": [
+        "click:신규(F2)",
+        "click:저장(F8)",
+        "expect:/생산계획\\/MRP생성\\] 작업이 완료되었습니다/.test(document.body.innerText)",
+        "js:sessionStorage.setItem('qaRun', document.body.innerText.match(/\\[([0-9/]+ -[0-9]+) 생산계획\\/MRP생성\\]/)[1]); true",
+        "js:[...document.querySelectorAll('tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('qaRun')+'\t')||t.cells[0]?.innerText===sessionStorage.getItem('qaRun')).cells[3].querySelector('button').click(); true",
+        "expect:/생산계획\\/MRP계산\\(생산계획\\)\\] 작업이 완료되었습니다/.test(document.body.innerText)",
+        "expect:(()=>{const t=[...document.querySelectorAll('tr')].find((t)=>t.cells[0]?.innerText===sessionStorage.getItem('qaRun'));return !!t&&t.innerText.includes('수정')&&t.innerText.includes('생산계획현황')&&t.innerText.includes('작업지시서생성')})()",
+        "js:fetch('/api/mrp-runs',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()).then(async (rs)=>{const no=sessionStorage.getItem('qaRun');const r=rs.find((x)=>`${x.runDate.replace(/-/g,'/')} -${Number(x.runNo.split('-').pop())}`===no);if(r) await fetch('/api/mrp-runs/'+r.id,{method:'DELETE',headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}});return true})"
+      ]
     }
   ]
 }

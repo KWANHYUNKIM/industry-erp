@@ -178,13 +178,6 @@
   ],
   "file": "groupware/SurveyInputPage.tsx"
  },
- "생산계획_MRP리스트|저장(F8)": {
-  "claim": "생성 팝업을 안 만든다 — 그 팝업의 버튼이다",
-  "absent": [
-   "Modal open={genOpen"
-  ],
-  "in": "frontend/src/pages/production/MrpPage.tsx"
- },
  "판매조회|통화": {
   "claim": "판매·구매 전표에 통화 칸이 없다",
   "absent": [
@@ -330,24 +323,6 @@
   ],
   "in": "frontend/src/pages/groupware/ConstructionSchedulePage.tsx"
  },
- "생산계획/MRP생성|MRP계산": {
-  "claim": "소요량 전개(BOM 역산) 엔진이 없다",
-  "absent": [
-   "MrpService",
-   "explodeBom",
-   "MrpRun"
-  ],
-  "in": "backend"
- },
- "생산계획_MRP리스트|MRP계산": {
-  "claim": "표의 열이 아니라 버튼이고, 소요량 전개(BOM 역산) 엔진이 없어 그 버튼도 없다",
-  "absent": [
-   "MrpService",
-   "explodeBom",
-   "MrpRun"
-  ],
-  "in": "backend"
- },
  "품목등록 리스트|파일관리": {
   "claim": "파일은 품목 팝업의 [이미지] 칸에서 붙이고 뗀다",
   "present": [
@@ -370,27 +345,6 @@
    "Currency"
   ],
   "in": "backend/src/main/java/com/erp/trade/purchase/Purchase.java"
- },
- "생산계획/MRP생성|생성일자": {
-  "claim": "표의 열이 아니라 생성 폼의 칸이다 — 우리는 조건으로 뒀다",
-  "present": [
-   "생성일자"
-  ],
-  "file": "production/MrpPage.tsx"
- },
- "생산계획_MRP리스트|생성일자": {
-  "claim": "생성 팝업을 안 만든다",
-  "present": [
-   "생성일자"
-  ],
-  "file": "production/MrpPage.tsx"
- },
- "생산계획/MRP생성|생산계획계산": {
-  "claim": "우리는 미판매 잔량으로 계획을 만든다",
-  "present": [
-   "production-plans"
-  ],
-  "file": "production/MrpPage.tsx"
  },
  "품목등록|부가정보": {
   "claim": "우리 품목에 숫자형추가항목 칸이 없다",
@@ -3600,12 +3554,6 @@
   ],
   "in": "frontend/src/pages/trade/AccountingReflectionPage.tsx"
  },
- "생산계획_MRP리스트|생산계획계산": {
-  "claim": "표의 열이 아니라 버튼이다 — 우리는 미판매 잔량으로 계획을 만든다",
-  "present": [
-   "'/production-plans/generate'"
-  ]
- },
  "생산계획_MRP리스트|H": {
   "claim": "생성 팝업의 시간 단위 토글 — 그 팝업을 안 만든다",
   "absent": [
@@ -4106,13 +4054,6 @@
   ],
   "in": "backend/src/main/java/com/erp/production/materialissue/MaterialIssue.java"
  },
- "생산계획_MRP리스트|신규(F2)": {
-  "claim": "생성 팝업의 시간 단위 토글 — 그 팝업을 안 만든다(위 [생산계획_MRP리스트|H] 과 같은 사실이다)",
-  "absent": [
-   "생산계획생성기준"
-  ],
-  "in": "frontend/src/pages/production/MrpPage.tsx"
- },
  "창고이동조회|품목명[규격명]": {
   "claim": "같은 자리를 창고이동현황은 [품목명[규격]] 이라 부른다 — 우리 화면 하나가 둘을 겸해 현황 쪽 이름을 따랐다",
   "present": [
@@ -4602,34 +4543,6 @@
    "<th>질문유형</th>"
   ],
   "file": "groupware/SurveyInputPage.tsx"
- },
- "생산계획_MRP리스트|생산계획기간": {
-  "claim": "표의 열이 아니라 생성 폼의 칸이다 — 우리는 조건으로 뒀다",
-  "present": [
-   "생성일자"
-  ],
-  "file": "production/MrpPage.tsx"
- },
- "생산계획_MRP리스트|기준품목": {
-  "claim": "표의 열이 아니라 생성 폼의 칸이다 — 우리는 조건으로 뒀다",
-  "present": [
-   "생성일자"
-  ],
-  "file": "production/MrpPage.tsx"
- },
- "생산계획_MRP리스트|적요": {
-  "claim": "표의 열이 아니라 생성 폼의 칸이다 — 우리는 조건으로 뒀다",
-  "present": [
-   "생성일자"
-  ],
-  "file": "production/MrpPage.tsx"
- },
- "생산계획_MRP리스트|삭제": {
-  "claim": "생성 팝업의 시간 단위 토글 — 그 팝업을 안 만든다",
-  "absent": [
-   "생산계획생성기준"
-  ],
-  "in": "frontend/src/pages/production/MrpPage.tsx"
  },
  "작업내역조회|생산품목:품목계층그룹": {
   "claim": "품목그룹 마스터에 부모 칸이 없다 — 평면이다",

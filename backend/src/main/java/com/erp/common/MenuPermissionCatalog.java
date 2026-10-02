@@ -79,7 +79,7 @@ public final class MenuPermissionCatalog {
                 "/api/price-order-settings", "/api/settlements", "/api/custom-fields/values");
         put(m, "PURCHASE", "/api/purchases", "/api/purchase-orders");
         put(m, "PRODUCTION", "/api/productions", "/api/work-orders", "/api/boms", "/api/processes",
-                "/api/resources", "/api/production-plans", "/api/work-results", "/api/work-posts",
+                "/api/resources", "/api/production-plans", "/api/mrp-runs", "/api/work-results", "/api/work-posts",
                 "/api/bor", "/api/process-operations",
                 "/api/material-issues",
                 // 공용품은 문서상 groupware 소관인데 여기 묶여 있다. 사용내역만 떼어 옮기면

@@ -22,10 +22,11 @@ import { api, extractErrorMessage } from '../../api/client'
  * 미구매 · 미생산/미소모다(사본 실측). 그중 <b>미판매</b>는 우리도 이미 세고 있다 —
  * 주문은 받았는데 아직 매출로 못 끊은 잔량이다. 그걸 근거로 계획을 만든다.
  *
- * <p>나머지 셋은 여전히 안 만든다. 매출계획은 품목이 아니라 거래처·금액 단위라 몇 개를
- * 만들지 나오지 않고, 미구매·미생산/미소모는 소요량 전개(BOM 역산) 엔진이 있어야 한다.
- * [MRP계산]·[발주계획/발주서생성]도 같은 이유로 없다 —
- * 눌러도 아무 일 없는 버튼은 있는 것만 못하다.
+ * <p>매출계획은 품목이 아니라 거래처·금액 단위라 몇 개를 만들지 나오지 않아 대상에 넣지 않는다.
+ *
+ * <p><b>위에 원본 생산계획/MRP리스트가 있다(2026-10-02).</b> 계산 한 번이 한 줄이고, 그 줄의 [생산계획계산]·[MRP계산]
+ * 이 날짜별 순소요(BOM 아래로 전개, 열린 작업지시·발주확정 포함)를 계산해 <b>저장</b>한다 — [수정] 으로 계획수량을
+ * 고치고, 고친 수량으로 [작업지시서생성]·[발주계획/발주서생성] 한다. 아래 주차별 표는 미판매 잔량으로 만드는 옛 계획이다.
  */
 type PlanStatus = 'REVIEW' | 'CONFIRMED' | 'ORDERED'
 
@@ -191,6 +192,8 @@ export default function MrpPage() {
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
       {ok && <p style={{ background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
 
+      <MrpRunList onMessage={(m) => { setOk(m); setError('') }} onError={(m) => { setError(m); setOk('') }} />
+
       <div className="ec-pills" style={{ marginBottom: 8 }}>
         {TABS.map((t) => (
           <button key={t} type="button" className={`ec-pill no-ec${tab === t ? ' active' : ''}`}
@@ -336,10 +339,14 @@ const releaseOf = (need: string, lead: number | null) => {
  * <p>기간 기본값은 원본처럼 오늘 ~ 이달 말일이다. [작업지시서생성](원본 줄의 [기타])은 계획수량을 날짜마다
  * 작업지시서 한 장으로 만든다 — 생산공장을 골라야 한다.
  */
-function TimePhasedModal({ mode, onClose, onMade }: { mode: 'PLAN' | 'MRP'; onClose: () => void; onMade: (msg: string) => void }) {
+function TimePhasedModal({ mode, onClose, onMade, initialFrom, initialTo }: {
+  mode: 'PLAN' | 'MRP'; onClose: () => void; onMade: (msg: string) => void
+  /** 생산계획/MRP리스트 줄에서 열 때 — 그 줄의 생산계획기간. */
+  initialFrom?: string; initialTo?: string
+}) {
   const now = new Date()
-  const [from, setFrom] = useState(ymdOf(now))
-  const [to, setTo] = useState(ymdOf(new Date(now.getFullYear(), now.getMonth() + 1, 0)))
+  const [from, setFrom] = useState(initialFrom ?? ymdOf(now))
+  const [to, setTo] = useState(initialTo ?? ymdOf(new Date(now.getFullYear(), now.getMonth() + 1, 0)))
   const [days, setDays] = useState<string[]>([])
   const [rows, setRows] = useState<PhasedRow[]>([])
   const [loading, setLoading] = useState(false)
@@ -513,6 +520,362 @@ function TimePhasedModal({ mode, onClose, onMade }: { mode: 'PLAN' | 'MRP'; onCl
             ))}
           </tbody>
         </table>
+      </div>
+    </Modal>
+  )
+}
+
+// ── 생산계획/MRP리스트 ─────────────────────────────────────────────
+
+interface MrpRun {
+  id: number; runNo: string; runDate: string; periodFrom: string; periodTo: string
+  baseItemId: number | null; baseItemCode: string | null; baseItemName: string | null; note: string | null
+  planGeneratedAt: string | null; mrpGeneratedAt: string | null
+  planLines: number; planQty: number; mrpLines: number; mrpQty: number
+  createdBy: string | null; createdAt: string | null
+}
+interface MrpRunLine {
+  id: number; kind: 'PLAN' | 'MRP'; lineNo: number
+  itemId: number; itemCode: string; itemName: string; spec: string | null; unit: string; categoryName: string | null
+  needDate: string | null; prevStock: number; safetyStock: number; minUnit: number; leadTimeDays: number | null
+  decreaseQty: number; increaseQty: number; calcQty: number; planQty: number; supplierId: number | null
+}
+/** 원본 [생성일자] 의 "2026/10/02 -1" — 날짜와 그날의 차례(전표번호 MRP-20261002-0001 의 끝). */
+const runLabel = (r: MrpRun) => `${r.runDate.replace(/-/g, '/')} -${Number(r.runNo.split('-').pop())}`
+
+/**
+ * 원본 <b>생산계획/MRP리스트</b>(생산계획/MRP생성 메뉴의 첫 화면, 2026-10-02 loginaa 실측).
+ *
+ * <p>[신규(F2)] 로 생성일자 · 생산계획기간 · 기준품목 · 적요를 정해 한 줄을 만든다. 그 줄에서
+ * [생산계획계산 생성] · [MRP계산 생성] 이 기간의 순소요를 계산해 <b>저장</b>하고, 그 뒤로 [수정](계획수량 고치기) ·
+ * [생산계획현황]·[MRP현황] · [작업지시서생성]·[발주계획/발주서생성] 이 나타난다. 다시 [생성] 하면 고친 것은
+ * 사라지고 새로 계산된다 — 원본이 그렇게 묻는다.
+ */
+function MrpRunList({ onMessage, onError }: { onMessage: (m: string) => void; onError: (m: string) => void }) {
+  const [runs, setRuns] = useState<MrpRun[]>([])
+  const [items, setItems] = useState<{ id: number; code: string; name: string; active: boolean }[]>([])
+  const [edit, setEdit] = useState<MrpRun | 'new' | null>(null)
+  const [linesOf, setLinesOf] = useState<{ run: MrpRun; kind: 'PLAN' | 'MRP' } | null>(null)
+  const [phasedOf, setPhasedOf] = useState<{ run: MrpRun; kind: 'PLAN' | 'MRP' } | null>(null)
+  const [makeOf, setMakeOf] = useState<{ run: MrpRun; kind: 'PLAN' | 'MRP' } | null>(null)
+
+  async function load() {
+    try {
+      setRuns((await api.get<MrpRun[]>('/mrp-runs')).data)
+    } catch (e) {
+      onError(extractErrorMessage(e))
+    }
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    void load()
+    api.get<typeof items>('/items').then((r) => setItems(r.data.filter((i) => i.active))).catch(() => {})
+  }, [])
+
+  async function generate(r: MrpRun, kind: 'PLAN' | 'MRP') {
+    const done = kind === 'PLAN' ? r.planGeneratedAt : r.mrpGeneratedAt
+    if (done && !window.confirm('생성처리를 하겠습니까?\n\n기존에 수정된 내역이 있다면 수정내역이 모두 사라지고 새롭게 계산됩니다.\n\n생성 후에는 이전으로 복구되지 않습니다.')) return
+    try {
+      const res = await api.post<MrpRunLine[]>(`/mrp-runs/${r.id}/generate`, null, { params: { kind } })
+      const n = res.data.filter((l) => Number(l.planQty) > 0).length
+      onMessage(`요청된 [${runLabel(r)} 생산계획/MRP계산(${kind === 'PLAN' ? '생산계획' : 'MRP'})] 작업이 완료되었습니다 · 품목 ${new Set(res.data.map((l) => l.itemId)).size}개 · 계획 ${n}줄`)
+      await load()
+    } catch (e) {
+      onError(extractErrorMessage(e))
+    }
+  }
+
+  const linkStyle = { border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12, padding: '0 3px' }
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+        <b style={{ fontSize: 12.5 }}>생산계획/MRP리스트</b>
+        <button type="button" className="ec-btn ec-btn-primary" onClick={() => setEdit('new')}>신규(F2)</button>
+      </div>
+      <table className="w-full text-left">
+        <thead>
+          <tr>
+            <th style={{ textAlign: 'center' }}>생성일자</th>
+            <th style={{ textAlign: 'center' }}>생산계획기간</th>
+            <th style={{ textAlign: 'center' }}>기준품목</th>
+            <th style={{ textAlign: 'center' }}>생산계획계산</th>
+            <th style={{ textAlign: 'center' }}>MRP계산</th>
+            <th style={{ textAlign: 'center' }}>생산계획/MRP현황</th>
+            <th style={{ textAlign: 'center' }}>기타</th>
+            <th>적요</th>
+          </tr>
+        </thead>
+        <tbody>
+          {runs.length === 0 ? (
+            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 14 }}>등록된 데이터가 없습니다.</td></tr>
+          ) : runs.map((r) => (
+            <tr key={r.id}>
+              <td style={{ textAlign: 'center' }}><button type="button" className="no-ec" style={linkStyle} onClick={() => setEdit(r)}>{runLabel(r)}</button></td>
+              <td style={{ textAlign: 'center' }}>{r.periodFrom.replace(/-/g, '/')} ~{r.periodTo.replace(/-/g, '/')}</td>
+              <td style={{ textAlign: 'center' }}>{r.baseItemId ? `[${r.baseItemCode}] ${r.baseItemName}` : '전체'}</td>
+              {(['PLAN', 'MRP'] as const).map((k) => (
+                <td key={k} style={{ textAlign: 'center' }}>
+                  <button type="button" className="no-ec" style={linkStyle} onClick={() => void generate(r, k)}>생성</button>
+                  {(k === 'PLAN' ? r.planGeneratedAt : r.mrpGeneratedAt) && (
+                    <button type="button" className="no-ec" style={linkStyle} onClick={() => setLinesOf({ run: r, kind: k })}>수정</button>
+                  )}
+                </td>
+              ))}
+              <td style={{ textAlign: 'center' }}>
+                {r.planGeneratedAt && <button type="button" className="no-ec" style={linkStyle} onClick={() => setPhasedOf({ run: r, kind: 'PLAN' })}>생산계획현황</button>}
+                {r.mrpGeneratedAt && <button type="button" className="no-ec" style={linkStyle} onClick={() => setPhasedOf({ run: r, kind: 'MRP' })}>MRP현황</button>}
+              </td>
+              <td style={{ textAlign: 'center' }}>
+                {r.planGeneratedAt && <button type="button" className="no-ec" style={linkStyle} onClick={() => setMakeOf({ run: r, kind: 'PLAN' })}>작업지시서생성</button>}
+                {r.mrpGeneratedAt && <button type="button" className="no-ec" style={linkStyle} onClick={() => setMakeOf({ run: r, kind: 'MRP' })}>발주계획/발주서생성</button>}
+              </td>
+              <td style={{ color: '#8a929c' }}>{r.note ?? ''}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {edit && (
+        <MrpRunEditModal run={edit === 'new' ? null : edit} items={items} onClose={() => setEdit(null)}
+                         onSaved={(m) => { setEdit(null); onMessage(m); void load() }} />
+      )}
+      {linesOf && (
+        <MrpRunLinesModal run={linesOf.run} kind={linesOf.kind} onClose={() => setLinesOf(null)}
+                          onSaved={(m) => { setLinesOf(null); onMessage(m); void load() }} />
+      )}
+      {phasedOf && (
+        <TimePhasedModal mode={phasedOf.kind} initialFrom={phasedOf.run.periodFrom} initialTo={phasedOf.run.periodTo}
+                         onClose={() => setPhasedOf(null)} onMade={(m) => onMessage(m)} />
+      )}
+      {makeOf && (
+        <MrpRunMakeModal run={makeOf.run} kind={makeOf.kind} onClose={() => setMakeOf(null)}
+                         onMade={(m) => { setMakeOf(null); onMessage(m) }} />
+      )}
+    </div>
+  )
+}
+
+/** 원본 [신규(F2)] 팝업 · 생성일자를 눌러 여는 고치기. 기간·기준품목을 바꾸면 저장된 계산은 지워진다. */
+function MrpRunEditModal({ run, items, onClose, onSaved }: {
+  run: MrpRun | null; items: { id: number; code: string; name: string }[]
+  onClose: () => void; onSaved: (msg: string) => void
+}) {
+  const now = new Date()
+  const [runDate, setRunDate] = useState(run?.runDate ?? ymdOf(now))
+  const [from, setFrom] = useState(run?.periodFrom ?? ymdOf(now))
+  const [to, setTo] = useState(run?.periodTo ?? ymdOf(new Date(now.getFullYear(), now.getMonth() + 1, 0)))
+  const [baseItem, setBaseItem] = useState(run?.baseItemId ? String(run.baseItemId) : '')
+  const [note, setNote] = useState(run?.note ?? '')
+  const [err, setErr] = useState('')
+
+  async function save() {
+    setErr('')
+    const body = { runDate, periodFrom: from, periodTo: to, baseItemId: baseItem ? Number(baseItem) : null, note: note || null }
+    try {
+      if (run) {
+        await api.put(`/mrp-runs/${run.id}`, body)
+        onSaved(`${runLabel(run)} 저장했습니다.`)
+      } else {
+        const r = await api.post<MrpRun>('/mrp-runs', body)
+        onSaved(`요청된 [${runLabel(r.data)} 생산계획/MRP생성] 작업이 완료되었습니다.`)
+      }
+    } catch (e) {
+      setErr(extractErrorMessage(e))
+    }
+  }
+  async function remove() {
+    if (!run || !window.confirm(`${runLabel(run)} 을(를) 지울까요? 저장된 계산도 함께 지워집니다.`)) return
+    try {
+      await api.delete(`/mrp-runs/${run.id}`)
+      onSaved(`${runLabel(run)} 지웠습니다.`)
+    } catch (e) {
+      setErr(extractErrorMessage(e))
+    }
+  }
+
+  return (
+    <Modal open title="생산계획/MRP생성" error={err} width={560} onClose={onClose}>
+      <table className="w-full text-left">
+        <tbody>
+          <tr><th style={{ width: 130 }}>생성일자</th>
+            <td><input type="date" className="ec-input" value={runDate} onChange={(e) => setRunDate(e.target.value)} style={{ width: 150 }} /></td></tr>
+          <tr><th>생산계획기간</th>
+            <td>
+              <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 150 }} />
+              <span style={{ margin: '0 4px' }}>~</span>
+              <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 150 }} />
+            </td></tr>
+          <tr><th>생산계획대상-전표</th>
+            <td style={{ fontSize: 12.5 }}>미판매 <span style={{ color: '#8a929c' }}>· 진행 중인 작업지시·발주확정도 함께 센다</span></td></tr>
+          <tr><th>기준품목</th>
+            <td>
+              <CodePickerField label="기준품목" hideLabel width={260} emptyLabel="전체" value={baseItem} onChange={setBaseItem}
+                               items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name }))} />
+            </td></tr>
+          <tr><th>적요</th>
+            <td><input className="ec-input" value={note} maxLength={300} onChange={(e) => setNote(e.target.value)} style={{ width: '100%' }} /></td></tr>
+        </tbody>
+      </table>
+      <div style={{ display: 'flex', gap: 4, marginTop: 10 }}>
+        <button type="button" className="ec-btn ec-btn-primary" onClick={() => void save()}>저장(F8)</button>
+        {run && <button type="button" className="ec-btn" onClick={() => void remove()}>삭제</button>}
+        <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
+      </div>
+    </Modal>
+  )
+}
+
+/** 원본 [수정] → 생산계획리스트 — 계획수량만 고친다. 다시 [생성] 하면 고친 것은 사라진다. */
+function MrpRunLinesModal({ run, kind, onClose, onSaved }: {
+  run: MrpRun; kind: 'PLAN' | 'MRP'; onClose: () => void; onSaved: (msg: string) => void
+}) {
+  const [lines, setLines] = useState<MrpRunLine[]>([])
+  const [qty, setQty] = useState<Record<number, string>>({})
+  const [err, setErr] = useState('')
+  useEffect(() => {
+    api.get<MrpRunLine[]>(`/mrp-runs/${run.id}/lines`, { params: { kind } })
+      .then((r) => { setLines(r.data); setQty(Object.fromEntries(r.data.map((l) => [l.id, String(Number(l.planQty))]))) })
+      .catch((e) => setErr(extractErrorMessage(e)))
+  }, [run.id, kind])
+
+  async function save() {
+    setErr('')
+    try {
+      await api.put(`/mrp-runs/${run.id}/lines`, { lines: lines.map((l) => ({ id: l.id, planQty: Number(qty[l.id] || 0) })) }, { params: { kind } })
+      onSaved(`${runLabel(run)} ${kind === 'PLAN' ? '생산계획' : 'MRP'} 계획수량을 저장했습니다.`)
+    } catch (e) {
+      setErr(extractErrorMessage(e))
+    }
+  }
+  const num = (v: number) => (Number(v) === 0 ? '' : Number(v).toLocaleString('ko-KR', { maximumFractionDigits: 4 }))
+  const qtyHead = kind === 'PLAN' ? '생산계획수량' : '구매계획수량'
+  return (
+    <Modal open title={`${kind === 'PLAN' ? '생산계획리스트' : 'MRP리스트'} — ${run.periodFrom.replace(/-/g, '/')} ~ ${run.periodTo.replace(/-/g, '/')}`}
+           error={err} width={1100} onClose={onClose}>
+      <div style={{ maxHeight: '60vh', overflow: 'auto' }}>
+        <table className="w-full text-left" style={{ whiteSpace: 'nowrap' }}>
+          <thead>
+            <tr>
+              <th>품목코드</th>
+              <th>품목명</th>
+              <th>품목구분</th>
+              <th>필요일자</th>
+              <th style={{ textAlign: 'right' }}>전일재고</th>
+              <th style={{ textAlign: 'right' }}>안전재고</th>
+              <th style={{ textAlign: 'right' }}>최소증가단위</th>
+              <th style={{ textAlign: 'right' }}>감소예정</th>
+              <th style={{ textAlign: 'right' }}>증가예정</th>
+              <th style={{ textAlign: 'right' }}>계산수량</th>
+              <th style={{ textAlign: 'right', width: 120 }}>{qtyHead}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {lines.length === 0 ? (
+              <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
+            ) : lines.map((l) => (
+              <tr key={l.id}>
+                <td>{l.itemCode}</td>
+                <td>{l.itemName}{l.spec ? ` [${l.spec}]` : ''}</td>
+                <td>{l.categoryName ? `[${l.categoryName}]` : ''}</td>
+                <td>{l.needDate ? l.needDate.replace(/-/g, '/') : ''}</td>
+                <td style={{ textAlign: 'right' }}>{num(l.prevStock)}</td>
+                <td style={{ textAlign: 'right' }}>{num(l.safetyStock)}</td>
+                <td style={{ textAlign: 'right' }}>{num(l.minUnit)}</td>
+                <td style={{ textAlign: 'right' }}>{num(l.decreaseQty)}</td>
+                <td style={{ textAlign: 'right' }}>{num(l.increaseQty)}</td>
+                <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(l.calcQty)}</td>
+                <td style={{ textAlign: 'right' }}>
+                  <input className="ec-input" type="number" min={0} value={qty[l.id] ?? ''} style={{ width: 100, textAlign: 'right' }}
+                         onChange={(e) => setQty((q) => ({ ...q, [l.id]: e.target.value }))} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div style={{ display: 'flex', gap: 4, marginTop: 10 }}>
+        <button type="button" className="ec-btn ec-btn-primary" onClick={() => void save()}>저장(F8)</button>
+        <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
+      </div>
+    </Modal>
+  )
+}
+
+/**
+ * 줄의 [기타] — <b>저장된(고친) 계획수량</b>으로 문서를 만든다. 생산계획은 작업지시서(생산공장을 고른다),
+ * MRP 는 발주요청(주거래처, 없으면 고른 매입처). 지시일·발주일 = 필요일 − 조달기간, 납기일 = 필요일.
+ */
+function MrpRunMakeModal({ run, kind, onClose, onMade }: {
+  run: MrpRun; kind: 'PLAN' | 'MRP'; onClose: () => void; onMade: (msg: string) => void
+}) {
+  const [lines, setLines] = useState<MrpRunLine[]>([])
+  const [targets, setTargets] = useState<{ id: number; code: string; name: string; kind?: string; active?: boolean }[]>([])
+  const [target, setTarget] = useState('')
+  const [err, setErr] = useState('')
+  useEffect(() => {
+    api.get<MrpRunLine[]>(`/mrp-runs/${run.id}/lines`, { params: { kind } })
+      .then((r) => setLines(r.data.filter((l) => l.needDate && Number(l.planQty) > 0)))
+      .catch((e) => setErr(extractErrorMessage(e)))
+    if (kind === 'PLAN') {
+      api.get<typeof targets>('/warehouses').then((r) => setTargets(r.data.filter((w) => w.active))).catch(() => {})
+    } else {
+      api.get<typeof targets>('/partners').then((r) => setTargets(r.data)).catch(() => {})
+    }
+  }, [run.id, kind])
+
+  async function make() {
+    setErr('')
+    if (lines.length === 0) { setErr(kind === 'PLAN' ? '생산계획수량이 없습니다.' : '구매계획수량이 없습니다.'); return }
+    try {
+      const nos: string[] = []
+      if (kind === 'PLAN') {
+        if (!target) { setErr('생산공장을 고르세요.'); return }
+        const byDay = new Map<string, { productId: number; plannedQty: number; warehouseId: number }[]>()
+        lines.forEach((l) => {
+          const key = `${releaseOf(l.needDate!, l.leadTimeDays)}|${l.needDate}`
+          byDay.set(key, [...(byDay.get(key) ?? []), { productId: l.itemId, plannedQty: Number(l.planQty), warehouseId: Number(target) }])
+        })
+        for (const [key, ls] of byDay) {
+          const [orderDate, dueDate] = key.split('|')
+          const r = await api.post<{ orderNo: string }[]>('/work-orders/slips', { orderDate, dueDate, lines: ls })
+          nos.push(r.data[0]?.orderNo ?? '')
+        }
+        onMade(`작업지시서 ${nos.length}장 생성 · ${nos.join(', ')}`)
+      } else {
+        const noPartner = lines.filter((l) => l.supplierId == null).length
+        if (noPartner > 0 && !target) { setErr(`주거래처가 없는 품목이 ${noPartner}줄 있습니다. 보낼 매입처를 고르세요.`); return }
+        const groups = new Map<string, { itemId: number; quantity: number }[]>()
+        lines.forEach((l) => {
+          const key = `${l.supplierId ?? target}|${releaseOf(l.needDate!, l.leadTimeDays)}|${l.needDate}`
+          groups.set(key, [...(groups.get(key) ?? []), { itemId: l.itemId, quantity: Number(l.planQty) }])
+        })
+        for (const [key, ls] of groups) {
+          const [partnerId, orderDate, dueDate] = key.split('|')
+          const r = await api.post<{ orderNo: string }>('/purchase-orders', {
+            partnerId: Number(partnerId), orderDate, dueDate, remark: `MRP ${runLabel(run)}`,
+            lines: ls.map((x) => ({ itemId: x.itemId, quantity: x.quantity, unitPrice: 0 })),
+          })
+          nos.push(r.data.orderNo)
+        }
+        onMade(`발주요청 ${nos.length}건 생성 · ${nos.join(', ')}`)
+      }
+    } catch (e) {
+      setErr(extractErrorMessage(e))
+    }
+  }
+
+  return (
+    <Modal open title={kind === 'PLAN' ? '작업지시서생성' : '발주계획/발주서생성'} error={err} width={520} onClose={onClose}>
+      <p style={{ fontSize: 12.5, margin: '0 0 8px' }}>
+        {runLabel(run)} 의 {kind === 'PLAN' ? '생산계획수량' : '구매계획수량'} {lines.length}줄
+        (합 {lines.reduce((n, l) => n + Number(l.planQty), 0).toLocaleString('ko-KR', { maximumFractionDigits: 4 })})
+        을 {kind === 'PLAN' ? '필요일마다 작업지시서로' : '매입처·발주일마다 발주요청으로'} 만듭니다.
+      </p>
+      <CodePickerField label={kind === 'PLAN' ? '생산공장' : '매입처'} hideLabel width={260}
+                       emptyLabel={kind === 'PLAN' ? '선택 해제' : '주거래처만'} value={target} onChange={setTarget}
+                       items={targets.map((t) => ({ value: String(t.id), code: t.code, name: t.name, sub: t.kind }))} />
+      <div style={{ display: 'flex', gap: 4, marginTop: 10 }}>
+        <button type="button" className="ec-btn ec-btn-primary" onClick={() => void make()}>생성</button>
+        <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
       </div>
     </Modal>
   )

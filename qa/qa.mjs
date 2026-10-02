@@ -5094,6 +5094,58 @@ async function scenarioTimePhased(f) {
   }
 }
 
+/**
+ * 생산계획/MRP리스트 — 원본처럼 계산 한 번이 한 줄이고 결과를 <b>저장</b>한다.
+ * [생성] → 줄이 저장되고, [수정] 으로 계획수량을 고치고, 다시 [생성] 하면 고친 것이 사라지고 새로 계산된다.
+ * 기준품목을 고르면 그 품목과 BOM 아래만 계산한다. 기간을 바꾸면 저장된 계산이 지워진다.
+ */
+async function scenarioMrpRuns(f) {
+  section('■ 생산계획/MRP리스트 — 생성 · 수정 · 재생성')
+  const items = await must('GET', '/items')
+  const top = items.find((i) => i.code === `${P}ML-TOP`)
+  const semi = items.find((i) => i.code === `${P}ML-SEMI`)
+  const D = '2087-08-18'
+  const wo = await must('POST', '/work-orders', { productId: top.id, warehouseId: f.warehouse.id, plannedQty: 5, orderDate: D, dueDate: D })
+  const run = await must('POST', '/mrp-runs', { runDate: D, periodFrom: D, periodTo: '2087-08-20', baseItemId: top.id, note: `${P}MRP` })
+  try {
+    eq('새 줄은 아직 계산 전', run.planGeneratedAt, null)
+    eq('기간이 거꾸로면 거절', (await call('POST', '/mrp-runs', { periodFrom: '2087-08-20', periodTo: D })).status, 400)
+
+    const plan = await must('POST', `/mrp-runs/${run.id}/generate?kind=PLAN`)
+    const semiLine = plan.find((l) => l.itemId === semi.id && Number(l.planQty) > 0)
+    eq('생산계획계산: 반제품 계획 줄이 저장된다(BOM 있음)', !!semiLine, true)
+    eq('생산계획에는 사들이는 자재가 없다', plan.some((l) => l.itemId === f.material.id), false)
+    eq('계산수량 = 계획수량(처음엔 같다)', Number(semiLine.calcQty), Number(semiLine.planQty))
+    eq('감소예정에 작업지시가 쓸 소모가 든다(5×2)', Number(semiLine.decreaseQty) >= 10, true)
+    eq('기준품목 밖의 품목은 안 든다', plan.every((l) => [top.id, semi.id, f.material.id].includes(l.itemId)), true)
+
+    const mrp = await must('POST', `/mrp-runs/${run.id}/generate?kind=MRP`)
+    eq('MRP계산: 원재료 줄이 저장된다', mrp.some((l) => l.itemId === f.material.id), true)
+
+    const listed = (await must('GET', '/mrp-runs')).find((r) => r.id === run.id)
+    eq('리스트에 두 계산을 돌린 때가 실린다', !!listed.planGeneratedAt && !!listed.mrpGeneratedAt, true)
+    eq('리스트에 생산계획 줄 수가 실린다', listed.planLines, plan.length)
+
+    const edited = await must('PUT', `/mrp-runs/${run.id}/lines?kind=PLAN`, { lines: [{ id: semiLine.id, planQty: 99 }] })
+    eq('[수정] 은 계획수량만 고친다', Number(edited.find((l) => l.id === semiLine.id).planQty), 99)
+    eq('계산수량은 그대로', Number(edited.find((l) => l.id === semiLine.id).calcQty), Number(semiLine.calcQty))
+    eq('다른 계산의 줄은 못 고친다', (await call('PUT', `/mrp-runs/${run.id}/lines?kind=MRP`, { lines: [{ id: semiLine.id, planQty: 1 }] })).status, 400)
+
+    const again = await must('POST', `/mrp-runs/${run.id}/generate?kind=PLAN`)
+    eq('다시 생성하면 고친 수량이 사라지고 새로 계산된다', again.find((l) => l.itemId === semi.id && Number(l.planQty) > 0)?.planQty, semiLine.planQty)
+    eq('MRP 줄은 생산계획 재생성에 안 건드린다', (await must('GET', `/mrp-runs/${run.id}/lines?kind=MRP`)).length, mrp.length)
+
+    await must('PUT', `/mrp-runs/${run.id}`, { runDate: D, periodFrom: D, periodTo: '2087-08-21', baseItemId: top.id, note: `${P}MRP` })
+    const afterPeriod = (await must('GET', '/mrp-runs')).find((r) => r.id === run.id)
+    eq('기간을 바꾸면 저장된 계산이 지워진다', afterPeriod.planLines + afterPeriod.mrpLines, 0)
+    eq('계산한 때도 비운다(다시 [생성] 만 보인다)', afterPeriod.planGeneratedAt, null)
+  } finally {
+    await call('DELETE', `/mrp-runs/${run.id}`)
+    await call('DELETE', `/work-orders/${wo.id}`)
+  }
+  eq('줄을 지우면 사라진다', (await must('GET', '/mrp-runs')).some((r) => r.id === run.id), false)
+}
+
 /** 생산입고 진행상태 — 원본 [진행상태변경]. 확인한 전표는 확인취소를 먼저 해야 지울 수 있다(판매와 같다). */
 async function scenarioProductionConfirm(f) {
   section('■ 생산입고 진행상태 — 미확인 ↔ 확인')
@@ -9853,6 +9905,7 @@ async function main() {
     await scenarioBomVersions(fixtures)
     await scenarioBomTree(fixtures)
     await scenarioIssueEmployee(fixtures)
+    await scenarioMrpRuns(fixtures)
     console.log(`\n통과 ${pass} · 실패 ${fail}`)
     process.exit(fail > 0 ? 1 : 0)
   }
@@ -9978,6 +10031,7 @@ async function main() {
   await scenarioSubcontractReflection(fixtures)
   await scenarioBomLevels(fixtures)
   await scenarioTimePhased(fixtures)
+  await scenarioMrpRuns(fixtures)
   await scenarioWorkResultBatch(fixtures)
   await scenarioProductionConfirm(fixtures)
   await scenarioBomVersions(fixtures)
