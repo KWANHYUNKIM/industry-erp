@@ -6057,5 +6057,49 @@
    "receivableNo"
   ],
   "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "매출(세금)계산서현황|부서": {
+  "claim": "회계전표에 부서가 없다",
+  "absent": [
+   "department",
+   "Department"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "매출(세금)계산서현황|프로젝트": {
+  "claim": "회계전표에 프로젝트가 없다",
+  "absent": [
+   "project",
+   "Project"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "매출(세금)계산서현황|데이터 보기형식": {
+  "claim": "전표 한 장이 한 줄인 현황이다",
+  "present": [
+   "fromSlip"
+  ]
+ },
+ "매입(세금)계산서현황|부서": {
+  "claim": "회계전표에 부서가 없다",
+  "absent": [
+   "department",
+   "Department"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "매입(세금)계산서현황|프로젝트": {
+  "claim": "회계전표에 프로젝트가 없다",
+  "absent": [
+   "project",
+   "Project"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "매입(세금)계산서현황|데이터 보기형식": {
+  "claim": "전표 한 장이 한 줄인 현황이다",
+  "present": [
+   "fromSlip"
+  ]
  }
 }

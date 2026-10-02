@@ -446,6 +446,8 @@ const MENU: TopMenu[] = [
               { label: '원가명세서', to: '/accounting/cost-statement' },
               { label: '계정명세서', to: '/accounting/account-detail' },
               { label: '회계거래현황', to: '/accounting/journal-status' },
+              { label: '매출(세금)계산서현황', to: '/accounting/sales-tax-journal' },
+              { label: '매입(세금)계산서현황', to: '/accounting/purchase-tax-journal' },
             ],
           },
           {

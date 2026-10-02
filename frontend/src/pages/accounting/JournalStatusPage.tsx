@@ -25,7 +25,7 @@ interface Row { key: string; label: string; kind: string; amount: number; partne
  * 종료일 · 최근30일) · 회계전표No. · 거래처 · 계정 · 부서 · 프로젝트 · 거래유형 · 금액(구간) · 채권/채무(어음)No. · 적요 · 적용양식 ·
  * 양식구분([결재방표시]) · 데이터 보기형식.
  *
- * <p>전표별은 전표 한 장이 한 줄 — 전표번호 · 거래유형 · 금액 · 거래처명 · 적요, 달마다 [YYYY/MM 계], 끝 [합계](앞 두 칸 묶음).
+ * <p>인쇄 머리 제목은 화면 이름과 달리 <b>전표현황</b>이다. 전표별은 전표 한 장이 한 줄 — 전표번호 · 거래유형 · 금액 · 거래처명 · 적요, 달마다 [YYYY/MM 계], 끝 [합계](앞 두 칸 묶음).
  * 금액은 전표의 차변 합이다. 일별 · 월별 · 거래처별은 하루 · 한 달 · 거래처를 한 줄로 묶는다(원본 판은 못 쟀다).
  * [집계]는 원본의 ○집계 판이라 아직 만들지 않았다. 부서 · 프로젝트 · 채권/채무(어음)No. 는 회계전표가 들지 않는다.
  */
@@ -164,7 +164,7 @@ export default function JournalStatusPage() {
       </ul>
 
       {truncated && <p style={{ fontSize: 12, color: '#c07a00', marginBottom: 6 }}>전표가 많아 앞부분만 받았습니다 — 기간을 좁혀 보세요.</p>}
-      <h3 style={{ fontSize: 20, fontWeight: 700, textAlign: 'center', margin: '6px 0 12px' }}>회계거래현황</h3>
+      <h3 style={{ fontSize: 20, fontWeight: 700, textAlign: 'center', margin: '6px 0 12px' }}>전표현황</h3>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, margin: '0 0 4px' }}>
         <span>회사명 : {companyName ?? ''}</span>
         <span>{slash(from)} ~ {slash(to)}</span>
@@ -175,8 +175,8 @@ export default function JournalStatusPage() {
             <th style={{ textAlign: 'center' }}>{unit === '거래처별' ? '거래처명' : unit === '전표별' ? '전표번호' : '일자'}</th>
             <th style={{ textAlign: 'center' }}>거래유형</th>
             <th style={{ textAlign: 'right' }}>금액</th>
-            <th style={{ textAlign: 'center' }}>거래처명</th>
-            <th style={{ textAlign: 'center' }}>적요</th>
+            <th>거래처명</th>
+            <th>적요</th>
           </tr>
         </thead>
         <tbody>
@@ -195,8 +195,8 @@ export default function JournalStatusPage() {
                         <td style={{ textAlign: 'center', color: 'var(--ec-blue)' }}>{r.label}</td>
                         <td style={{ textAlign: 'center' }}>{r.kind}</td>
                         <td style={{ textAlign: 'right' }}>{won(r.amount)}</td>
-                        <td style={{ textAlign: 'center' }}>{unit === '거래처별' ? '' : r.partner}</td>
-                        <td style={{ textAlign: 'center' }}>{r.text}</td>
+                        <td>{unit === '거래처별' ? '' : r.partner}</td>
+                        <td>{r.text}</td>
                       </tr>
                     ))}
                     {mo && (

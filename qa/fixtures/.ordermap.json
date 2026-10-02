@@ -1006,5 +1006,13 @@
  [
   "회계거래현황",
   "accounting/JournalStatusPage.tsx"
+ ],
+ [
+  "매출(세금)계산서현황",
+  "accounting/TaxInvoiceJournalPage.tsx"
+ ],
+ [
+  "매입(세금)계산서현황",
+  "accounting/TaxInvoiceJournalPage.tsx"
  ]
 ]
