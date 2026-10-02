@@ -156,7 +156,9 @@ const MENU: TopMenu[] = [
           { label: '자원등록', to: '/production/resource' },
           { label: 'BOR(작업소요시간)', to: '/production/bor' },
           { label: '소요시간계산', to: '/production/time-calc' },
-          { label: '작업지시', to: '/production/work-orders' },
+          /* 원본 차례: BOM(소요량) · 공정 · 생산계획/MRP생성 · 작업지시서 … (2026-10-02 loginaa 좌측 메뉴 실측). */
+          { label: '생산계획/MRP생성', to: '/production/mrp' },
+          { label: '작업지시서조회', to: '/production/work-orders' },
           { label: '작업지시서입력', to: '/production/work-order-entry' },
           { label: '작업지시서현황', to: '/production/wo-status' },
           { label: '작업지시서작업처리', to: '/production/wo-work' },
