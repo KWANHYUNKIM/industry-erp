@@ -12,6 +12,14 @@
         "wait:2500",
         "expect:(()=>{const rows=[...document.querySelectorAll('tbody tr')].filter((t)=>t.cells.length===7);return rows.length===0||rows.some((t)=>t.cells[1].innerText.trim()!=='')})()"
       ]
+    },
+    {
+      "name": "분개장 — 머리 전표번호 · 계정명 · 거래처 · 차변 · 대변 · 적요, 줄이 있으면 합계의 차변 = 대변",
+      "path": "/accounting/journal-book",
+      "steps": [
+        "wait:2500",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const f=document.querySelector('tfoot tr');return h==='전표번호|계정명|거래처|차변|대변|적요'&&(!f||f.cells[1].innerText===f.cells[2].innerText)})()"
+      ]
     }
   ]
 }

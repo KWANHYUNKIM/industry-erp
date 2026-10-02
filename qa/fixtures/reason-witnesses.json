@@ -5624,5 +5624,44 @@
   "present": [
    "key={key}"
   ]
+ },
+ "분개장|부서": {
+  "claim": "회계전표에 부서가 없다",
+  "absent": [
+   "department",
+   "Department"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "분개장|프로젝트": {
+  "claim": "회계전표에 프로젝트가 없다",
+  "absent": [
+   "project",
+   "Project"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "분개장|채권/채무(어음) No.": {
+  "claim": "회계전표가 채권 · 채무 · 어음 번호를 물지 않는다",
+  "absent": [
+   "noteNo",
+   "bondNo",
+   "receivableNo"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "분개장|결재방표시": {
+  "claim": "결재란을 그리지 않는다",
+  "absent": [
+   "approvalBox",
+   "결재란"
+  ],
+  "in": "frontend/src/pages/accounting/JournalBookPage.tsx"
+ },
+ "분개장|정렬/소계기준": {
+  "claim": "일자 · 전표번호 · 줄 차례 하나로 세운다",
+  "present": [
+   "a.lineNo - b.lineNo"
+  ]
  }
 }

@@ -950,5 +950,9 @@
  [
   "현금출납장",
   "accounting/CashBookPage.tsx"
+ ],
+ [
+  "분개장",
+  "accounting/JournalBookPage.tsx"
  ]
 ]
