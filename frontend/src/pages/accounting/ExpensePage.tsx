@@ -33,6 +33,7 @@ export default function ExpensePage() {
   const [accountFilter, setAccountFilter] = useState('전체')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [ok, setOk] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({
     expenseDate: today(), accountId: '', content: '', partnerName: '', amount: '', paymentMethod: '법인카드', department: '', projectId: '',
@@ -64,11 +65,11 @@ export default function ExpensePage() {
   function set(k: keyof typeof form, v: string) { setForm((f) => ({ ...f, [k]: v })) }
 
   async function submit() {
-    setError('')
+    setError(''); setOk('')
     if (!form.accountId) return setError('계정과목을 선택하세요.')
     if (!form.amount || Number(form.amount) <= 0) return setError('금액을 입력하세요.')
     try {
-      await api.post('/expenses', {
+      const res = await api.post<{ docNo: string; accountName: string; amount: number }>('/expenses', {
         accountId: Number(form.accountId),
         expenseDate: form.expenseDate,
         content: form.content || undefined,
@@ -78,6 +79,13 @@ export default function ExpensePage() {
         department: form.department || undefined,
         projectId: form.projectId ? Number(form.projectId) : undefined,
       })
+      /*
+       * 저장하고 창만 닫혀 어느 번호로 들어갔는지·장부에 갔는지 안 보였다(39회차, 9회차 판매입력과 같은 꼴).
+       * 지출은 이제 저장과 함께 회계전표가 생긴다 — 대변이 어디로 갔는지까지 적는다.
+       */
+      const pm = form.paymentMethod ?? ''
+      const credit = /카드|외상|미지급/.test(pm) ? '미지급금' : /계좌|이체|예금|통장/.test(pm) ? '보통예금' : '현금'
+      setOk(`${res.data.docNo} 저장 · [${res.data.accountName}] ${Number(res.data.amount).toLocaleString()}원 — 회계전표 생성(대변 ${credit})`)
       setForm((f) => ({ ...f, content: '', partnerName: '', amount: '', department: '' }))
       setShowForm(false)
       load()
@@ -90,9 +98,10 @@ export default function ExpensePage() {
     if (!window.confirm(`[${e.accountName}] ${e.amount.toLocaleString()}원 지출을 삭제할까요?`)) return
     try {
       await api.delete(`/expenses/${e.id}`)
+      setOk(`[${e.accountName}] ${e.amount.toLocaleString()}원 지출과 그 회계전표를 삭제했습니다.`)
       load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      setError(extractErrorMessage(err))
     }
   }
 
@@ -121,6 +130,7 @@ export default function ExpensePage() {
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
       {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {ok && <p style={{ marginBottom: 8, background: '#eaf6ee', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
 
       <Modal error={error} open={showForm} title="비용관리 (판매관리비) 등록" onClose={() => setShowForm(false)}>{(
         <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginBottom: 10 }}>
