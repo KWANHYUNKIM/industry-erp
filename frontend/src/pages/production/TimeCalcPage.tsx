@@ -6,6 +6,7 @@ import { mergeLoadedLines } from '../../utils/mergeLines'
 import { ymd } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item } from '../../types/api'
+import SalesOrderPickModal, { type SalesOrderLite } from '../../features/salesorder/components/SalesOrderPickModal'
 
 /**
  * 생산관리 > 소요시간계산.
@@ -85,9 +86,26 @@ export default function TimeCalcPage() {
   /** [계산(F8)] 을 눌러야 결과가 나온다 — 원본도 그렇다. */
   const [calculated, setCalculated] = useState(false)
   const [openKey, setOpenKey] = useState<number | null>(null)
+  const [orderOpen, setOrderOpen] = useState(false)
 
   /**
-   * [일자]에 잡힌 작업지시를 그리드에 담는다. 원본 [주문] 불러오기 자리에 해당한다.
+   * 원본 툴바의 <b>[주문]</b> — 주문서검색창에서 고른 주문의 <b>생산할 수 있는 품목(제품·반제품)</b> 줄을
+   * 주문수량으로 담는다(작업지시서입력 [주문] 과 같은 규칙, 2026-10-02 loginaa 실측). 상품만 든 주문이면 아무것도 안 담긴다.
+   */
+  function applyOrders(picked: SalesOrderLite[]) {
+    const cat = new Map(items.map((i) => [i.id, i.category]))
+    const added = picked.flatMap((o) => o.lines)
+      .filter((l) => cat.get(l.itemId) === 'FINISHED' || cat.get(l.itemId) === 'SEMI_FINISHED')
+      .map((l) => ({ key: nextKey++, itemId: String(l.itemId), extraQty: '', qty: String(l.quantity) }))
+    setOrderOpen(false)
+    if (added.length === 0) { setNotice('고른 주문에 생산할 품목(제품·반제품)이 없습니다.'); return }
+    setLines((prev) => mergeLoadedLines(prev, added))
+    setCalculated(true)
+    setNotice(`주문 ${picked.length}건에서 ${added.length}줄을 담았습니다.`)
+  }
+
+  /**
+   * 원본 [작업지시서] — [일자]에 잡힌 작업지시를 그리드에 담는다.
    *
    * <p>기존 줄을 <b>덮지 않고 뒤에 붙인다</b> — 손으로 적어 둔 것을 지우면 안 된다.
    * 빈 줄(품목을 아직 안 고른 줄)만 걷어낸다.
@@ -181,13 +199,14 @@ export default function TimeCalcPage() {
       title="소요시간계산"
       searchable={false}
       actions={[
-        { label: '계산(F8)', primary: true, onClick: () => setCalculated(true) },
         /*
          * 원본 이름은 <b>[작업지시서]</b> 다(옆의 [주문]과 짝 — 어디서 불러올지를 고르는 버튼이다).
          * 우리는 [작업지시 불러오기] 라고 적어 두고 '그 버튼이 없다' 고 예외에 적었는데,
          * <b>없던 것이 아니라 이름이 달랐다.</b>
          */
+        { label: '주문', onClick: () => setOrderOpen(true) },
         { label: '작업지시서', onClick: loadFromOrders },
+        { label: '계산(F8)', primary: true, onClick: () => setCalculated(true) },
         { label: '줄 추가', onClick: () => setLines((p) => [...p, { key: nextKey++, itemId: '', extraQty: '', qty: '' }]) },
         { label: '다시 작성', onClick: () => { setLines([{ key: nextKey++, itemId: '', extraQty: '', qty: '' }]); setCalculated(false) } },
         { label: '새로고침', onClick: load },
@@ -320,6 +339,7 @@ export default function TimeCalcPage() {
         * 소요시간은 BOR(작업소요시간)에 적힌 <b>1개당 작업시간 × (수량 + 추가수량)</b> 입니다.
         라우팅을 세우지 않은 품목은 계산하지 않습니다 — 0 시간으로 두면 "안 걸린다" 로 읽힙니다.
       </p>
+      <SalesOrderPickModal open={orderOpen} onClose={() => setOrderOpen(false)} onApply={applyOrders} />
     </EcListShell>
   )
 }
