@@ -35,6 +35,8 @@ interface LineInput {
 
 /** 원본 [근태코드]에 해당한다. 우리 휴가 종류가 그 자리다. */
 const TYPES = ['연차', '반차', '병가', '경조', '공가', '기타']
+/** 연차 잔여에서 빠지는 근태 — 서버 HrService.DEDUCTS_ANNUAL 과 같다. */
+const ANNUAL_TYPES = ['연차', '반차']
 
 let nextKey = 1
 const emptyLine = (date: string): LineInput => ({
@@ -220,7 +222,7 @@ export default function LeaveInputPage() {
               <th style={{ width: 120 }}>근태</th>
               {/*
                 원본 근태입력 그리드의 [휴가] 열 — 이 근태가 어느 휴가 잔여에서 빠지는가.
-                우리 잔여 계산은 승인된 근태를 모두 그 해 연차에서 빼므로 값이 하나다.
+                우리 잔여 계산은 승인된 <b>연차·반차</b>만 그 해 연차에서 빼므로 그 둘은 '연차(YYYY년)', 나머지는 차감 없음이다.
                 고르는 칸이 아니라 <b>어디서 빠지는지 알려 주는 칸</b>이라 읽기전용으로 둔다 —
                 고를 수 있는 것처럼 보이면 다른 데서 빠질 수 있다는 뜻이 되어 거짓말이 된다.
               */}
@@ -255,7 +257,8 @@ export default function LeaveInputPage() {
                   </select>
                 </td>
                 <td style={{ color: '#6b7280' }}>
-                  {l.startDate ? `연차(${l.startDate.slice(0, 4)}년)` : ''}
+                  {/* 연차·반차만 연차 잔여에서 빠진다 — 병가·경조·공가·기타는 따로 간다(QA 61회차). */}
+                  {!l.startDate ? '' : ANNUAL_TYPES.includes(l.type) ? `연차(${l.startDate.slice(0, 4)}년)` : '— (연차 차감 없음)'}
                 </td>
                 <td>
                   {/* 반차 0.5, 시간 단위 0.125 까지 넣는다 — 소수 세 자리로 저장된다. */}

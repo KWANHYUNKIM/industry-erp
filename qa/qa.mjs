@@ -3397,6 +3397,15 @@ async function scenarioPersonRefs() {
   eq('승인한 만큼 사용일수가 는다', Number(after.usedDays) - Number(before.usedDays), 1)
   eq('잔여일수도 그만큼 준다', Number(before.remainingDays) - Number(after.remainingDays), 1)
 
+  // 61회차 — 경조·병가처럼 연차가 아닌 근태도 승인하면 연차 잔여에서 빠졌다.
+  const condolence = await must('POST', '/hr/vacations', {
+    userId: me.id, type: '경조', startDate: '2026-05-11', endDate: '2026-05-13', days: 3, reason: 'QA 경조',
+  })
+  await must('PUT', `/hr/vacations/${condolence.id}/status`, { status: 'APPROVED' })
+  const afterCond = (await must('GET', '/hr/vacations/summary?year=2026')).find((r) => r.empName === me.name)
+  eq('경조휴가는 연차 잔여에서 빠지지 않는다', Number(afterCond.usedDays), Number(after.usedDays))
+  await must('DELETE', `/hr/vacations/${condolence.id}`)
+
   // 일수는 기간 안이어야 한다 — 하루짜리에 100일을 넣으면 잔여일수가 통째로 틀어진다
   await rejects('기간보다 많은 일수는 거부', 'POST', '/hr/vacations', {
     userId: me.id, type: '연차', startDate: '2026-05-07', endDate: '2026-05-07',

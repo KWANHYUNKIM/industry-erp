@@ -40,6 +40,9 @@ public class HrService {
 
     /** 기본 연차 부여 일수 */
 
+    /** 연차 잔여에서 빠지는 근태 — 나머지(병가·경조·공가·기타)는 연차와 따로 간다. */
+    public static final java.util.Set<String> DEDUCTS_ANNUAL = java.util.Set.of("연차", "반차");
+
     private final AttendanceRepository attendanceRepository;
     private final DocumentNoGenerator docNoGenerator;
     private final VacationRepository vacationRepository;
@@ -258,7 +261,11 @@ public class HrService {
             // status 는 enum 이다. 예전에는 "승인".equals(v.getStatus()) 로 비교했는데
             // String 과 enum 이라 <b>언제나 거짓</b>이었고, 그래서 휴가잔여일수현황의
             // 사용일수가 늘 0 · 잔여가 늘 15일로 나왔다(승인된 휴가가 227건 있어도).
-            if (v.getStatus() == VacationStatus.APPROVED) {
+            /*
+             * 연차 잔여에서 빠지는 것은 <b>연차·반차</b>뿐이다. 병가·경조·공가·기타까지 빼서
+             * 경조휴가 3일을 쓰면 연차가 3일 줄었다(QA 61회차).
+             */
+            if (v.getStatus() == VacationStatus.APPROVED && DEDUCTS_ANNUAL.contains(v.getType())) {
                 usedByUser.merge(v.getUser().getId(),
                         v.getDays() == null ? BigDecimal.ZERO : v.getDays(),
                         BigDecimal::add);
