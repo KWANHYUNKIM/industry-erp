@@ -194,7 +194,13 @@ public class JournalService {
                 l -> salesAccountOf(l.getItem().getCategory()), l -> l.getSupplyAmount(),
                 s.getSupplyAmount(), "401")
                 .forEach((code, amt) -> addCredit(e, code, amt, ACCOUNT_NAMES.get(code)));
-        if (isPositive(s.getVatAmount())) {
+        /*
+         * 반품 전표는 금액이 음수다(수량을 음수로 저장). 예전엔 부가세가 0보다 클 때만 줄을 넣어
+         * 반품의 부가세(−1,200)가 빠지고 '차변 −13,200 ≠ 대변 −12,000' 으로 반영이 거절됐다(26회차).
+         * 0 이 아니면 넣는다. 음수 금액은 addDebit/addCredit 이 반대편 양수로 뒤집는다 —
+         * 반품은 차)제품매출·부가세예수금 / 대)외상매출금 의 역분개가 된다.
+         */
+        if (isNonZero(s.getVatAmount())) {
             addCredit(e, "255", s.getVatAmount(), "부가세예수금");
         }
         return save(e);
@@ -213,7 +219,7 @@ public class JournalService {
                 l -> stockAccountOf(l.getItem().getCategory()), l -> l.getSupplyAmount(),
                 p.getSupplyAmount(), "146")
                 .forEach((code, amt) -> addDebit(e, code, amt, ACCOUNT_NAMES.get(code)));
-        if (isPositive(p.getVatAmount())) {
+        if (isNonZero(p.getVatAmount())) {   // 구매반품도 판매반품과 같은 까닭
             addDebit(e, "135", p.getVatAmount(), "부가세대급금");
         }
         addCredit(e, "251", p.getTotalAmount(), "외상매입금");
@@ -591,7 +597,17 @@ public class JournalService {
         addDebitAccount(e, account(code), amount, desc);
     }
 
+    /*
+     * 음수 금액은 <b>반대편의 양수</b>로 적는다. 분개 줄은 차변·대변이 0 이상이고 한쪽만 서야 한다
+     * (ck_journal_lines_nonneg · one_side). 반품처럼 원 전표가 음수인 거래를 그대로 옮기면
+     * 제약에 걸려 반영이 통째로 거절됐다(26회차). 차)A −x 와 대)A x 는 장부상 같은 뜻이다.
+     */
     private void addDebitAccount(JournalEntry e, Account account, BigDecimal amount, String desc) {
+        if (amount != null && amount.signum() < 0) {
+            e.addLine(JournalLine.builder()
+                    .account(account).debit(BigDecimal.ZERO).credit(amount.negate()).description(desc).build());
+            return;
+        }
         e.addLine(JournalLine.builder()
                 .account(account).debit(amount).credit(BigDecimal.ZERO).description(desc).build());
     }
@@ -601,6 +617,11 @@ public class JournalService {
     }
 
     private void addCreditAccount(JournalEntry e, Account account, BigDecimal amount, String desc) {
+        if (amount != null && amount.signum() < 0) {
+            e.addLine(JournalLine.builder()
+                    .account(account).debit(amount.negate()).credit(BigDecimal.ZERO).description(desc).build());
+            return;
+        }
         e.addLine(JournalLine.builder()
                 .account(account).debit(BigDecimal.ZERO).credit(amount).description(desc).build());
     }
@@ -624,6 +645,10 @@ public class JournalService {
      */
     private Account account(Long id) {
         return accountService.getUsable(id);
+    }
+
+    private static boolean isNonZero(BigDecimal v) {
+        return v != null && v.signum() != 0;
     }
 
     private static boolean isPositive(BigDecimal v) {

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 import CustomFieldsPanel from '../../components/CustomFieldsPanel'
 import EvidencePanel from '../../components/EvidencePanel'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
@@ -14,7 +15,8 @@ import type { SalesConfirmStatus, SalesDoc, PurchaseDoc, Partner, TradeLine } fr
 /** 판매조회 / 구매조회 — 전표(문서) 단위 조회. 행 클릭 시 품목 상세 펼침. */
 type Mode = 'sales' | 'purchase'
 interface NormalDoc {
-  id: number; docNo: string; partnerId: number; partnerName: string; warehouseName: string
+  id: number; docNo: string; partnerId: number; partnerName: string; warehouseId: number; warehouseName: string
+  projectId: number | null
   date: string; supplyAmount: number; vatAmount: number; totalAmount: number
   createdBy: string | null; remark: string | null
   /**
@@ -131,12 +133,18 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   // 명세서 인쇄용 — 우리 회사(공급자) 정보와 거래처 상세
   const [company, setCompany] = useState<DocParty | null>(null)
   const [partners, setPartners] = useState<Partner[]>([])
+  /*
+   * 거래처·창고·프로젝트·품목 조건은 <b>id</b> 로 거른다. 이 화면만 이름으로 남아 있어
+   * 거래처 코드도움에 코드가 비어 코드(CUST-SH01)로 찾을 수 없었고, 같은 이름이 한데 걸렸다(26회차).
+   * 후보는 다른 조회 화면과 같은 곳에서 받는다.
+   */
+  const pickers = useCondPickers(['partners', 'warehouses', 'items', 'projects'])
 
   function load() {
     setError('')
     api.get<(SalesDoc | PurchaseDoc)[]>(cfg.url)
       .then((res) => setDocs(res.data.map((d) => ({
-        id: d.id, docNo: d.docNo, partnerId: d.partnerId, partnerName: d.partnerName, warehouseName: d.warehouseName,
+        id: d.id, docNo: d.docNo, partnerId: d.partnerId, partnerName: d.partnerName, warehouseId: d.warehouseId, warehouseName: d.warehouseName, projectId: d.projectId ?? null,
         date: (d as never)[cfg.dateKey] as string,
         supplyAmount: d.supplyAmount, vatAmount: d.vatAmount, totalAmount: d.totalAmount,
         createdBy: d.createdBy, remark: d.remark, updatedAt: d.updatedAt, createdAt: d.createdAt,
@@ -294,7 +302,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
 
   const shown = useMemo(() => docs
     .filter((d) => !keyword || d.partnerName.includes(keyword) || d.docNo.includes(keyword))
-    .filter((d) => !partnerCond || d.partnerName === partnerCond)
+    .filter((d) => !partnerCond || String(d.partnerId) === partnerCond)
     .filter((d) => !managerCond || (d.employeeName ?? '') === managerCond)
     /* 원본 [작성자] — 차례는 [적요] 다음, [최종수정자] 앞이다. */
     .filter((d) => !authorCond || (d.createdBy ?? '') === authorCond)
@@ -311,10 +319,10 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
      */
     .filter((d) => !madeFrom || (d.createdAt ?? '').slice(0, 10) >= madeFrom)
     .filter((d) => !madeTo || (d.createdAt ?? '').slice(0, 10) <= madeTo)
-    .filter((d) => !whCond || d.warehouseName === whCond)
-    .filter((d) => !itemCond || d.lines.some((l) => l.itemName === itemCond))
+    .filter((d) => !whCond || String(d.warehouseId) === whCond)
+    .filter((d) => !itemCond || d.lines.some((l) => String(l.itemId) === itemCond))
     .filter((d) => !typeCond || tradeTypeOf(d) === typeCond)
-    .filter((d) => !projectCond || (d.projectName ?? '') === projectCond)
+    .filter((d) => !projectCond || String(d.projectId ?? '') === projectCond)
     /* 원본 [규격] — 전표 안의 어느 줄이든 그 규격이면 걸린다(품목과 같은 규칙). */
     /* 전표 안의 <b>어느 줄이든</b> 그 오더에서 왔으면 걸린다(품목·규격과 같은 규칙). */
     .filter((d) => !orderNoCond || d.lines.some((l) => (l.sourceDocNo ?? '') === orderNoCond))
@@ -453,7 +461,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
          * 조회 화면에서 한 거래처만 훑고 싶을 때 조건을 다시 고르지 않아도 된다.
          */
         { label: isSales ? '거래내역보기(판매)' : '거래내역보기(구매)',
-          onClick: () => setPartnerCond(partnerCond || (shown[0]?.partnerName ?? '')) },
+          onClick: () => setPartnerCond(partnerCond || (shown[0] ? String(shown[0].partnerId) : '')) },
         { label: 'Excel' },
         { label: '인쇄' },
       ]}
@@ -466,7 +474,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
         오른쪽이 맞다. 원본은 기간을 텍스트로만 보여 주지만, 우리는 바꿀 수 있게 남긴다 —
         못 바꾸게 만들 이유가 없다.
       */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginBottom: 6 }}>
         {isSales && (
           <div className="ec-pills">
             {SALES_TABS.map((t) => (
@@ -479,10 +487,10 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
             ))}
           </div>
         )}
-        <span style={{ marginLeft: isSales ? 8 : 0, fontSize: 12, color: '#9aa1ab' }}>
+        <span style={{ marginLeft: isSales ? 8 : 0, fontSize: 12, color: '#9aa1ab', whiteSpace: 'nowrap' }}>
           총 {shown.length}건 · 행을 클릭하면 품목 상세가 펼쳐집니다.
         </span>
-        <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#62677e' }}>
+        <span style={{ marginLeft: 'auto', display: 'inline-flex', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', gap: 6, fontSize: 12, color: '#62677e' }}>
           {/*
             <b>이 파일이 겸하는 두 화면은 이 줄을 서로 다르게 부른다</b>(사본 실측) —
             판매조회는 [기준일자], 구매조회는 [일자]다. 한 이름으로 눌러 두면 한쪽이 늘 틀린다.
@@ -513,21 +521,17 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
           */}
           <CodePickerField label="창고" width={130} emptyLabel="전체"
                            value={whCond} onChange={setWhCond}
-                           items={[...new Set(docs.map((d) => d.warehouseName).filter(Boolean))].sort()
-                             .map((n) => ({ value: n, name: n }))} />
+                           items={pickers.warehouses} />
           <CodePickerField label="프로젝트" width={130} emptyLabel="전체"
                            value={projectCond} onChange={setProjectCond}
-                           items={[...new Set(docs.map((d) => d.projectName).filter(Boolean) as string[])].sort()
-                             .map((n) => ({ value: n, name: n }))} />
+                           items={pickers.projects} />
           <CodePickerField label="거래처" width={150} emptyLabel="전체"
                            value={partnerCond} onChange={setPartnerCond}
-                           items={[...new Set(docs.map((d) => d.partnerName))].sort()
-                             .map((n) => ({ value: n, name: n }))} />
+                           items={pickers.partners} />
           {/* 원본 [품목] — 전표 안의 어느 줄이든 그 품목이 있으면 걸린다. */}
           <CodePickerField label="품목" width={130} emptyLabel="전체"
                            value={itemCond} onChange={setItemCond}
-                           items={[...new Set(docs.flatMap((d) => d.lines.map((l) => l.itemName)).filter(Boolean))].sort()
-                             .map((n) => ({ value: n, name: n }))} />
+                           items={pickers.items} />
           {/* 원본 차례: [품목] · (발송여부는 알약) · <b>[오더관리번호]</b> · [규격] · [담당자]. */}
           <CodePickerField label="오더관리번호" width={130} emptyLabel="전체"
                            value={orderNoCond} onChange={setOrderNoCond}

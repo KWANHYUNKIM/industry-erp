@@ -42,8 +42,8 @@ const GROUPS = ['전표별', '전표별+내역', '일별', '월별', '회계전�
 
 
 interface Line { itemCode: string; itemName: string; quantity: number; unitPrice: number; supplyAmount: number }
-interface SalesDoc { id: number; docNo: string; saleDate: string; partnerId: number; partnerName: string; totalAmount: number; lines: Line[] }
-interface PurchaseDoc { id: number; docNo: string; purchaseDate: string; partnerId: number; partnerName: string; totalAmount: number; lines: Line[] }
+interface SalesDoc { id: number; docNo: string; saleDate: string; partnerId: number; partnerName: string; totalAmount: number; returnSlip?: boolean; lines: Line[] }
+interface PurchaseDoc { id: number; docNo: string; purchaseDate: string; partnerId: number; partnerName: string; totalAmount: number; returnSlip?: boolean; lines: Line[] }
 interface Settlement { id: number; docNo: string; settleDate: string; partnerId: number; partnerName: string; type: 'RECEIPT' | 'PAYMENT'; amount: number; method?: string | null; note?: string | null }
 /** 회계반영 목록의 한 줄 — 전표 id 와 그 전표가 만든 회계전표번호. */
 interface Posted { id: number; journalDocNo: string | null }
@@ -55,7 +55,8 @@ interface Entry {
   partnerName: string
   date: string
   docNo: string
-  kind: '판매' | '구매' | '수금' | '지급'
+  /** 반품 전표는 금액이 음수라 증가 열에 −로 선다 — 구분도 반품이라 적어야 왜 줄었는지 보인다(26회차). */
+  kind: '판매' | '판매반품' | '구매' | '구매반품' | '수금' | '지급'
   side: '채권' | '채무'
   increase: number
   decrease: number
@@ -205,14 +206,14 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
     for (const d of sales) {
       out.push({
         key: `S${d.id}`, partnerId: d.partnerId, partnerName: d.partnerName, date: d.saleDate,
-        docNo: d.docNo, kind: '판매', side: '채권', increase: d.totalAmount, decrease: 0, lines: d.lines ?? [],
+        docNo: d.docNo, kind: d.returnSlip ? '판매반품' : '판매', side: '채권', increase: d.totalAmount, decrease: 0, lines: d.lines ?? [],
         journalDocNo: postedSales.get(d.id) ?? null,
       })
     }
     for (const d of purchases) {
       out.push({
         key: `P${d.id}`, partnerId: d.partnerId, partnerName: d.partnerName, date: d.purchaseDate,
-        docNo: d.docNo, kind: '구매', side: '채무', increase: d.totalAmount, decrease: 0, lines: d.lines ?? [],
+        docNo: d.docNo, kind: d.returnSlip ? '구매반품' : '구매', side: '채무', increase: d.totalAmount, decrease: 0, lines: d.lines ?? [],
         journalDocNo: postedPurchases.get(d.id) ?? null,
       })
     }
@@ -515,7 +516,7 @@ export default function PartnerLedgerPage({ side: fixedSide = 'BOTH' }: { side?:
                       color: r.entry.docNo === UNPOSTED ? '#c07a00' : '#5a626e',
                       fontWeight: r.entry.docNo === UNPOSTED ? 700 : undefined,
                     }}>{r.entry.docNo}</td>
-                    <td style={{ textAlign: 'center', color: r.entry.increase > 0 ? 'var(--ec-blue)' : '#1c7c3c' }}>
+                    <td style={{ textAlign: 'center', color: r.entry.kind.endsWith('반품') ? '#c60a2e' : r.entry.increase > 0 ? 'var(--ec-blue)' : '#1c7c3c' }}>
                       {r.entry.kind}
                     </td>
                     <td style={{ color: '#8a929c' }}>
