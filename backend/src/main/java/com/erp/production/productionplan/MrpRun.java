@@ -56,4 +56,17 @@ public class MrpRun extends BaseTimeEntity {
 
     @Column(length = 50)
     private String createdBy;
+
+    /** 원본 [생산계획대상-전표] — 미판매 · 미구매 · 미생산/미소모. 기본은 앞 둘만 켠다(원본 기본값). */
+    @Column(name = "src_unsold", nullable = false)
+    @Builder.Default
+    private boolean srcUnsold = true;
+
+    @Column(name = "src_unpurchased", nullable = false)
+    @Builder.Default
+    private boolean srcUnpurchased = true;
+
+    @Column(name = "src_unproduced", nullable = false)
+    @Builder.Default
+    private boolean srcUnproduced = false;
 }

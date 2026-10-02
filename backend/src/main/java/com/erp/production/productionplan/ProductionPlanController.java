@@ -36,8 +36,12 @@ public class ProductionPlanController {
     @GetMapping("/time-phased")
     public com.erp.production.productionplan.dto.TimePhasedDtos.Result timePhased(
             @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate from,
-            @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate to) {
-        return timePhasedPlanService.compute(from, to);
+            @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate to,
+            /* [생산계획대상-전표] — 안 주면 셋 다 센다(예전 그대로). 리스트 줄에서 열면 그 줄의 고른 값을 준다. */
+            @RequestParam(defaultValue = "true") boolean unsold,
+            @RequestParam(defaultValue = "true") boolean unpurchased,
+            @RequestParam(defaultValue = "true") boolean unproduced) {
+        return timePhasedPlanService.compute(from, to, unsold, unpurchased, unproduced);
     }
 
     @DeleteMapping("/{id}")

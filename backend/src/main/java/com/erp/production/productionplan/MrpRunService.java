@@ -63,6 +63,9 @@ public class MrpRunService {
                 .baseItem(req.baseItemId() != null ? itemService.get(req.baseItemId()) : null)
                 .note(req.note())
                 .createdBy(username)
+                .srcUnsold(req.srcUnsold() == null || req.srcUnsold())
+                .srcUnpurchased(req.srcUnpurchased() == null || req.srcUnpurchased())
+                .srcUnproduced(Boolean.TRUE.equals(req.srcUnproduced()))
                 .build();
         return RunResponse.from(runRepository.save(run), 0, BigDecimal.ZERO, 0, BigDecimal.ZERO);
     }
@@ -73,8 +76,15 @@ public class MrpRunService {
         validate(req);
         MrpRun run = get(id);
         Long oldBase = run.getBaseItem() != null ? run.getBaseItem().getId() : null;
+        boolean unsold = req.srcUnsold() == null ? run.isSrcUnsold() : req.srcUnsold();
+        boolean unpurchased = req.srcUnpurchased() == null ? run.isSrcUnpurchased() : req.srcUnpurchased();
+        boolean unproduced = req.srcUnproduced() == null ? run.isSrcUnproduced() : req.srcUnproduced();
         boolean changed = !run.getPeriodFrom().equals(req.periodFrom()) || !run.getPeriodTo().equals(req.periodTo())
-                || !Objects.equals(oldBase, req.baseItemId());
+                || !Objects.equals(oldBase, req.baseItemId())
+                || unsold != run.isSrcUnsold() || unpurchased != run.isSrcUnpurchased() || unproduced != run.isSrcUnproduced();
+        run.setSrcUnsold(unsold);
+        run.setSrcUnpurchased(unpurchased);
+        run.setSrcUnproduced(unproduced);
         if (req.runDate() != null) run.setRunDate(req.runDate());
         run.setPeriodFrom(req.periodFrom());
         run.setPeriodTo(req.periodTo());
@@ -101,7 +111,8 @@ public class MrpRunService {
     @Transactional
     public List<LineResponse> generate(Long id, MrpRunKind kind) {
         MrpRun run = get(id);
-        TimePhasedDtos.Result res = timePhasedPlanService.compute(run.getPeriodFrom(), run.getPeriodTo());
+        TimePhasedDtos.Result res = timePhasedPlanService.compute(run.getPeriodFrom(), run.getPeriodTo(),
+                run.isSrcUnsold(), run.isSrcUnpurchased(), run.isSrcUnproduced());
         Set<Long> scope = run.getBaseItem() != null ? scopeOf(run.getBaseItem().getId()) : null;
 
         lineRepository.deleteByRun(id, kind);

@@ -5182,7 +5182,8 @@ async function scenarioMrpRuns(f) {
   const semi = items.find((i) => i.code === `${P}ML-SEMI`)
   const D = '2087-08-18'
   const wo = await must('POST', '/work-orders', { productId: top.id, warehouseId: f.warehouse.id, plannedQty: 5, orderDate: D, dueDate: D })
-  const run = await must('POST', '/mrp-runs', { runDate: D, periodFrom: D, periodTo: '2087-08-20', baseItemId: top.id, note: `${P}MRP` })
+  // 열린 작업지시를 세려면 [미생산/미소모] 를 켠다 — 원본 기본값은 꺼져 있다.
+  const run = await must('POST', '/mrp-runs', { runDate: D, periodFrom: D, periodTo: '2087-08-20', baseItemId: top.id, note: `${P}MRP`, srcUnproduced: true })
   try {
     eq('새 줄은 아직 계산 전', run.planGeneratedAt, null)
     eq('기간이 거꾸로면 거절', (await call('POST', '/mrp-runs', { periodFrom: '2087-08-20', periodTo: D })).status, 400)
@@ -5194,6 +5195,14 @@ async function scenarioMrpRuns(f) {
     eq('계산수량 = 계획수량(처음엔 같다)', Number(semiLine.calcQty), Number(semiLine.planQty))
     eq('감소예정에 작업지시가 쓸 소모가 든다(5×2)', Number(semiLine.decreaseQty) >= 10, true)
     eq('기준품목 밖의 품목은 안 든다', plan.every((l) => [top.id, semi.id, f.material.id].includes(l.itemId)), true)
+
+    // 원본 [생산계획대상-전표] 기본값(미판매 ✓ · 미구매 ✓ · 미생산/미소모 ✗) — 열린 작업지시의 소모를 안 센다.
+    const plain = await must('POST', '/mrp-runs', { runDate: D, periodFrom: D, periodTo: '2087-08-20', baseItemId: top.id })
+    eq('새 줄의 [생산계획대상] 기본값은 원본처럼 미생산/미소모만 꺼져 있다', [plain.srcUnsold, plain.srcUnpurchased, plain.srcUnproduced].join(','), 'true,true,false')
+    const plainSemi = (await must('POST', `/mrp-runs/${plain.id}/generate?kind=PLAN`)).find((l) => l.itemId === semi.id)
+    // 작업지시 5 가 쓸 반제품 10 이 빠지고, 그 지시가 채워 주던 완제품을 계획이 대신 세우며 생기는 소모도 달라진다 — 적어도 10 은 빠진다.
+    eq('미생산/미소모를 끄면 작업지시가 쓸 소모(5×2)가 감소예정에서 빠진다', Number(semiLine.decreaseQty) - Number(plainSemi.decreaseQty) >= 10, true)
+    await call('DELETE', `/mrp-runs/${plain.id}`)
 
     const mrp = await must('POST', `/mrp-runs/${run.id}/generate?kind=MRP`)
     eq('MRP계산: 원재료 줄이 저장된다', mrp.some((l) => l.itemId === f.material.id), true)
@@ -5211,7 +5220,7 @@ async function scenarioMrpRuns(f) {
     eq('다시 생성하면 고친 수량이 사라지고 새로 계산된다', again.find((l) => l.itemId === semi.id && Number(l.planQty) > 0)?.planQty, semiLine.planQty)
     eq('MRP 줄은 생산계획 재생성에 안 건드린다', (await must('GET', `/mrp-runs/${run.id}/lines?kind=MRP`)).length, mrp.length)
 
-    await must('PUT', `/mrp-runs/${run.id}`, { runDate: D, periodFrom: D, periodTo: '2087-08-21', baseItemId: top.id, note: `${P}MRP` })
+    await must('PUT', `/mrp-runs/${run.id}`, { runDate: D, periodFrom: D, periodTo: '2087-08-21', baseItemId: top.id, note: `${P}MRP`, srcUnproduced: true })
     const afterPeriod = (await must('GET', '/mrp-runs')).find((r) => r.id === run.id)
     eq('기간을 바꾸면 저장된 계산이 지워진다', afterPeriod.planLines + afterPeriod.mrpLines, 0)
     eq('계산한 때도 비운다(다시 [생성] 만 보인다)', afterPeriod.planGeneratedAt, null)

@@ -339,10 +339,12 @@ const releaseOf = (need: string, lead: number | null) => {
  * <p>기간 기본값은 원본처럼 오늘 ~ 이달 말일이다. [작업지시서생성](원본 줄의 [기타])은 계획수량을 날짜마다
  * 작업지시서 한 장으로 만든다 — 생산공장을 골라야 한다.
  */
-function TimePhasedModal({ mode, onClose, onMade, initialFrom, initialTo }: {
+function TimePhasedModal({ mode, onClose, onMade, initialFrom, initialTo, sources }: {
   mode: 'PLAN' | 'MRP'; onClose: () => void; onMade: (msg: string) => void
   /** 생산계획/MRP리스트 줄에서 열 때 — 그 줄의 생산계획기간. */
   initialFrom?: string; initialTo?: string
+  /** 그 줄의 [생산계획대상-전표]. 없으면 셋 다 센다. */
+  sources?: { unsold: boolean; unpurchased: boolean; unproduced: boolean }
 }) {
   const now = new Date()
   const [from, setFrom] = useState(initialFrom ?? ymdOf(now))
@@ -360,7 +362,7 @@ function TimePhasedModal({ mode, onClose, onMade, initialFrom, initialTo }: {
   async function run() {
     setLoading(true); setErr('')
     try {
-      const r = await api.get<{ days: string[]; rows: PhasedRow[] }>('/production-plans/time-phased', { params: { from, to } })
+      const r = await api.get<{ days: string[]; rows: PhasedRow[] }>('/production-plans/time-phased', { params: { from, to, ...(sources ?? {}) } })
       setDays(r.data.days); setRows(r.data.rows)
     } catch (e) {
       setErr(extractErrorMessage(e))
@@ -533,6 +535,8 @@ interface MrpRun {
   planGeneratedAt: string | null; mrpGeneratedAt: string | null
   planLines: number; planQty: number; mrpLines: number; mrpQty: number
   createdBy: string | null; createdAt: string | null
+  /** 원본 [생산계획대상-전표] — 미판매 · 미구매 · 미생산/미소모. */
+  srcUnsold: boolean; srcUnpurchased: boolean; srcUnproduced: boolean
 }
 interface MrpRunLine {
   id: number; kind: 'PLAN' | 'MRP'; lineNo: number
@@ -644,6 +648,7 @@ function MrpRunList({ onMessage, onError }: { onMessage: (m: string) => void; on
       )}
       {phasedOf && (
         <TimePhasedModal mode={phasedOf.kind} initialFrom={phasedOf.run.periodFrom} initialTo={phasedOf.run.periodTo}
+                         sources={{ unsold: phasedOf.run.srcUnsold, unpurchased: phasedOf.run.srcUnpurchased, unproduced: phasedOf.run.srcUnproduced }}
                          onClose={() => setPhasedOf(null)} onMade={(m) => onMessage(m)} />
       )}
       {makeOf && (
@@ -665,11 +670,16 @@ function MrpRunEditModal({ run, items, onClose, onSaved }: {
   const [to, setTo] = useState(run?.periodTo ?? ymdOf(new Date(now.getFullYear(), now.getMonth() + 1, 0)))
   const [baseItem, setBaseItem] = useState(run?.baseItemId ? String(run.baseItemId) : '')
   const [note, setNote] = useState(run?.note ?? '')
+  /* 원본 기본값: 미판매 ✓ · 매출계획 ✓ · 미구매 ✓ · 미생산/미소모 ✗ (2026-10-02 loginaa 실측). */
+  const [srcUnsold, setSrcUnsold] = useState(run?.srcUnsold ?? true)
+  const [srcUnpurchased, setSrcUnpurchased] = useState(run?.srcUnpurchased ?? true)
+  const [srcUnproduced, setSrcUnproduced] = useState(run?.srcUnproduced ?? false)
   const [err, setErr] = useState('')
 
   async function save() {
     setErr('')
-    const body = { runDate, periodFrom: from, periodTo: to, baseItemId: baseItem ? Number(baseItem) : null, note: note || null }
+    const body = { runDate, periodFrom: from, periodTo: to, baseItemId: baseItem ? Number(baseItem) : null, note: note || null,
+      srcUnsold, srcUnpurchased, srcUnproduced }
     try {
       if (run) {
         await api.put(`/mrp-runs/${run.id}`, body)
@@ -705,7 +715,13 @@ function MrpRunEditModal({ run, items, onClose, onSaved }: {
               <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 150 }} />
             </td></tr>
           <tr><th>생산계획대상-전표</th>
-            <td style={{ fontSize: 12.5 }}>미판매 <span style={{ color: '#8a929c' }}>· 진행 중인 작업지시·발주확정도 함께 센다</span></td></tr>
+            <td style={{ fontSize: 12.5, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              <label><input type="checkbox" checked={srcUnsold} onChange={(e) => setSrcUnsold(e.target.checked)} /> 미판매</label>
+              <label title="매출계획은 거래처·금액 단위라 품목 수량이 나오지 않아 셀 수 없다" style={{ color: '#9aa1ab' }}>
+                <input type="checkbox" disabled /> 매출계획</label>
+              <label><input type="checkbox" checked={srcUnpurchased} onChange={(e) => setSrcUnpurchased(e.target.checked)} /> 미구매</label>
+              <label><input type="checkbox" checked={srcUnproduced} onChange={(e) => setSrcUnproduced(e.target.checked)} /> 미생산/미소모</label>
+            </td></tr>
           <tr><th>기준품목</th>
             <td>
               <CodePickerField label="기준품목" hideLabel width={260} emptyLabel="전체" value={baseItem} onChange={setBaseItem}

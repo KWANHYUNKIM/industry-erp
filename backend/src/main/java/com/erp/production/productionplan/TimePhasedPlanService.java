@@ -64,6 +64,15 @@ public class TimePhasedPlanService {
 
     @Transactional(readOnly = true)
     public Result compute(LocalDate from, LocalDate to) {
+        return compute(from, to, true, true, true);
+    }
+
+    /**
+     * 원본 [생산계획대상-전표] 를 골라 센다 — unsold 미판매(주문 잔량 → 출고예정), unpurchased 미구매(발주확정 → 입고예정),
+     * unproduced 미생산/미소모(열린 작업지시 → 생산예정·소모예정). 원본 기본값은 앞 둘만 켜져 있다.
+     */
+    @Transactional(readOnly = true)
+    public Result compute(LocalDate from, LocalDate to, boolean unsold, boolean unpurchased, boolean unproduced) {
         if (from == null || to == null || to.isBefore(from)) throw ApiException.badRequest("생산계획기간을 바르게 정하세요.");
         long n = ChronoUnit.DAYS.between(from, to) + 1;
         if (n > MAX_DAYS) throw ApiException.badRequest("생산계획기간은 " + MAX_DAYS + "일까지 볼 수 있습니다.");
@@ -83,15 +92,15 @@ public class TimePhasedPlanService {
                 consume = new HashMap<>();
         LocalDate before = from.minusDays(1);
 
-        purchaseOrderService.findByStatus(PurchaseOrderStatus.ORDERED).forEach(po -> {
+        if (unpurchased) purchaseOrderService.findByStatus(PurchaseOrderStatus.ORDERED).forEach(po -> {
             LocalDate d = po.dueDate() != null ? po.dueDate() : po.orderDate();
             po.lines().forEach(l -> add(in, l.itemId(), clamp(d, before, to), l.quantity()));
         });
-        salesOrderService.findUnsold().forEach(u -> {
+        if (unsold) salesOrderService.findUnsold().forEach(u -> {
             LocalDate d = u.dueDate() != null ? u.dueDate() : u.orderDate();
             if (u.unsoldQty() != null && u.unsoldQty().signum() > 0) add(out, u.itemId(), clamp(d, before, to), u.unsoldQty());
         });
-        for (WorkOrder wo : workOrderRepository.findAllWithRefs()) {
+        if (unproduced) for (WorkOrder wo : workOrderRepository.findAllWithRefs()) {
             if (wo.getStatus() == WorkOrderStatus.COMPLETED) continue;
             BigDecimal rest = wo.getPlannedQty().subtract(wo.getProducedQty());
             if (rest.signum() <= 0) continue;

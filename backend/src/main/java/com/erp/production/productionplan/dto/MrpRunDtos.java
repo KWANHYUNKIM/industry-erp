@@ -24,7 +24,9 @@ public final class MrpRunDtos {
             @NotNull(message = "생산계획기간을 정하세요.") LocalDate periodFrom,
             @NotNull(message = "생산계획기간을 정하세요.") LocalDate periodTo,
             Long baseItemId,
-            @Size(max = 300) String note
+            @Size(max = 300) String note,
+            /** [생산계획대상-전표]. 안 주면 원본 기본값(미판매 ✓ · 미구매 ✓ · 미생산/미소모 ✗). */
+            Boolean srcUnsold, Boolean srcUnpurchased, Boolean srcUnproduced
     ) {}
 
     public record RunResponse(
@@ -34,7 +36,8 @@ public final class MrpRunDtos {
             LocalDateTime planGeneratedAt, LocalDateTime mrpGeneratedAt,
             /** 저장된 결과 줄 수와 계획수량 합. */
             long planLines, BigDecimal planQty, long mrpLines, BigDecimal mrpQty,
-            String createdBy, LocalDateTime createdAt
+            String createdBy, LocalDateTime createdAt,
+            boolean srcUnsold, boolean srcUnpurchased, boolean srcUnproduced
     ) {
         public static RunResponse from(MrpRun r, long planLines, BigDecimal planQty, long mrpLines, BigDecimal mrpQty) {
             return new RunResponse(r.getId(), r.getRunNo(), r.getRunDate(), r.getPeriodFrom(), r.getPeriodTo(),
@@ -42,7 +45,8 @@ public final class MrpRunDtos {
                     r.getBaseItem() != null ? r.getBaseItem().getCode() : null,
                     r.getBaseItem() != null ? r.getBaseItem().getName() : null,
                     r.getNote(), r.getPlanGeneratedAt(), r.getMrpGeneratedAt(),
-                    planLines, planQty, mrpLines, mrpQty, r.getCreatedBy(), r.getCreatedAt());
+                    planLines, planQty, mrpLines, mrpQty, r.getCreatedBy(), r.getCreatedAt(),
+                    r.isSrcUnsold(), r.isSrcUnpurchased(), r.isSrcUnproduced());
         }
     }
 
