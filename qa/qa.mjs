@@ -4957,6 +4957,19 @@ async function scenarioWorkOrderSlip(f) {
   eq('작업지시서: 줄 차례 1·2', made.map((x) => x.lineNo).join(','), '1,2')
   const no = made[0].orderNo
 
+  // 원본 작업지시서입력 머리의 [첨부] — 먼저 올린 파일 id 를 붙인다.
+  const drawing = new FormData()
+  drawing.append('file', new Blob(['QA 도면'], { type: 'text/plain' }), 'qa-drawing.txt')
+  const upped = await (await fetch(`${BASE}/files`, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: drawing })).json()
+  const oneLine = [{ productId: f.product.id, plannedQty: 1, warehouseId: f.warehouse.id }]
+  const withFile = await must('POST', '/work-orders/slips', { orderDate: D, attachmentId: upped.id, lines: oneLine })
+  eq('작업지시서 [첨부]: 붙인 파일 이름이 실린다', withFile[0].attachmentName, 'qa-drawing.txt')
+  eq('작업지시서 [첨부]: 없는 파일 id 는 404', (await call('POST', '/work-orders/slips', { orderDate: D, attachmentId: 99999999, lines: oneLine })).status, 404)
+  const unFiled = await must('PUT', `/work-orders/slips/${withFile[0].orderNo}`, { orderDate: D, attachmentId: null, lines: oneLine })
+  eq('작업지시서 [첨부]: 고칠 때 빼면 빠진다', unFiled[0].attachmentId, null)
+  await call('DELETE', `/work-orders/slips/${withFile[0].orderNo}`)
+  await call('DELETE', `/files/${upped.id}`)
+
   // 첫 줄에서 2 를 생산한다.
   await must('POST', '/productions/slips', {
     entryType: 'I', productionDate: D, fromWarehouseId: f.warehouse.id, warehouseId: f.warehouse.id,

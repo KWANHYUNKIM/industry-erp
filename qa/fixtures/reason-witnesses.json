@@ -477,15 +477,6 @@
   ],
   "in": "backend/src/main/java/com/erp/trade/shipment/ShipmentLine.java"
  },
- "작업지시서입력|첨부": {
-  "claim": "작업지시에 붙임 파일을 달지 않는다",
-  "absent": [
-   "attachment",
-   "Attachment",
-   "StoredFile"
-  ],
-  "in": "backend/src/main/java/com/erp/production/workorder/WorkOrder.java"
- },
  "구매단가일괄변경|프로젝트": {
   "claim": "단가는 품목·거래처에 붙지 프로젝트에 붙지 않는다",
   "absent": [

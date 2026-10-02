@@ -8,6 +8,7 @@ import { ymd } from '../../components/EcPeriodPicks'
 import SalesOrderPickModal, { type SalesOrderLite } from '../../features/salesorder/components/SalesOrderPickModal'
 import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import { downloadStoredFile } from '../../utils/fileDownload'
 import type { Item, Warehouse, WorkOrder } from '../../types/api'
 
 /**
@@ -49,6 +50,22 @@ export default function WorkOrderEntryPage() {
   const [partnerId, setPartnerId] = useState('')
   const [projectId, setProjectId] = useState('')
   const [employeeId, setEmployeeId] = useState('')
+  /** 원본 머리의 [첨부] — 파일을 먼저 올려 id 를 받고, 저장할 때 그 id 를 붙인다(업무게시판과 같은 방식). */
+  const [attachment, setAttachment] = useState<{ id: number; name: string } | null>(null)
+  const [uploading, setUploading] = useState(false)
+  async function upload(file: File) {
+    setUploading(true); setError('')
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const r = await api.post<{ id: number; name: string }>('/files', fd)
+      setAttachment({ id: r.data.id, name: r.data.name })
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    } finally {
+      setUploading(false)
+    }
+  }
   const [lines, setLines] = useState<Line[]>(() => Array.from({ length: BLANK_ROWS }, () => blank()))
   const [error, setError] = useState('')
   const [ok, setOk] = useState('')
@@ -96,6 +113,7 @@ export default function WorkOrderEntryPage() {
       setPartnerId(h.partnerId != null ? String(h.partnerId) : '')
       setProjectId(h.projectId != null ? String(h.projectId) : '')
       setEmployeeId(h.employeeId != null ? String(h.employeeId) : '')
+      setAttachment(h.attachmentId ? { id: h.attachmentId, name: h.attachmentName ?? '첨부' } : null)
       const ls = r.data.map((w) => ({ key: seq++, productId: String(w.productId), qty: String(w.plannedQty),
         warehouseId: String(w.warehouseId), produced: Number(w.producedQty) }))
       setLines([...ls, ...Array.from({ length: Math.max(1, BLANK_ROWS - ls.length) }, () => blank())])
@@ -151,6 +169,7 @@ export default function WorkOrderEntryPage() {
       partnerId: partnerId ? Number(partnerId) : null,
       projectId: projectId ? Number(projectId) : null,
       employeeId: employeeId ? Number(employeeId) : null,
+      attachmentId: attachment ? attachment.id : null,
       lines: filled.map((l) => ({ productId: Number(l.productId), plannedQty: num(l.qty), warehouseId: Number(l.warehouseId) })),
     }
     setSaving(true)
@@ -234,6 +253,25 @@ export default function WorkOrderEntryPage() {
             <div className="form">
               <input className="ec-input" readOnly value={editNo ?? '(저장 시 자동채번)'}
                      style={{ width: 170, background: '#f4f5f7', color: '#8a929c' }} />
+            </div>
+          </li>
+          <li>
+            {/* 원본 머리 맨 끝의 [첨부] — 도면·작업표준서를 붙여 현장에 내린다. */}
+            <div className="title">첨부</div>
+            <div className="form" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <label className="ec-btn ec-btn-sm" style={{ cursor: uploading ? 'wait' : 'pointer' }}>
+                {uploading ? '올리는 중…' : '파일 선택'}
+                <input type="file" aria-label="첨부 파일" style={{ display: 'none' }} disabled={uploading}
+                       onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); e.target.value = '' }} />
+              </label>
+              {attachment && (
+                <span style={{ fontSize: 12, color: 'var(--ec-blue-dark)' }}>
+                  <span style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                        onClick={() => void downloadStoredFile(attachment.id, attachment.name)}>{attachment.name}</span>
+                  <span onClick={() => setAttachment(null)} title="첨부 빼기"
+                        style={{ cursor: 'pointer', marginLeft: 6, fontWeight: 700 }}>×</span>
+                </span>
+              )}
             </div>
           </li>
         </ul>

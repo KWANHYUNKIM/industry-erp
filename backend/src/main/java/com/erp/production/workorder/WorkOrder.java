@@ -102,6 +102,11 @@ public class WorkOrder extends BaseTimeEntity {
     @Column(length = 300)
     private String remark;
 
+    /** 원본 작업지시서입력 머리의 [첨부] — 도면·작업표준서. 한 전표의 줄들이 같은 파일을 가리킨다. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "attachment_id")
+    private com.erp.common.StoredFile attachment;
+
     @Column(length = 50)
     private String createdBy;
 }

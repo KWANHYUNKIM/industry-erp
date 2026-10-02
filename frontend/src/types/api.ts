@@ -479,6 +479,10 @@ export interface WorkOrder {
   projectName: string | null
   /** 진행상태 — 결재중·미확인·확인. */
   confirmStatus?: 'UNCONFIRMED' | 'IN_APPROVAL' | 'CONFIRMED'
+  /** 원본 작업지시서입력 머리의 [첨부]. */
+  attachmentId?: number | null
+  attachmentName?: string | null
+  attachmentSize?: number | null
 }
 
 export interface ProductionMaterial {
@@ -558,6 +562,8 @@ export interface VatSummary {
   purchaseSupply: number
   purchaseVat: number
   purchaseTotal: number
+  /** 지출(비용)의 매입세액 — 46·47회차 */
+  expenseVat?: number
   vatPayable: number
 }
 

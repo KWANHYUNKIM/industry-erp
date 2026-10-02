@@ -29,6 +29,7 @@ public class WorkOrderService {
     private final ItemService itemService;
     private final WarehouseService warehouseService;
     private final DocumentNoGenerator docNoGenerator;
+    private final com.erp.common.FileStorageService fileStorageService;
     private final ProductionRepository productionRepository;
     private final ProductionPlanRepository planRepository;
     /**
@@ -193,6 +194,12 @@ public class WorkOrderService {
                                              LocalDate orderDate, List<WorkOrder> old, String username) {
         var partner = req.partnerId() != null ? partnerService.get(req.partnerId()) : null;
         var project = req.projectId() != null ? projectService.get(req.projectId()) : null;
+        com.erp.common.StoredFile attachment = null;
+        if (req.attachmentId() != null) {
+            attachment = fileStorageService.meta(req.attachmentId());
+            /* 붙는 순간 이 파일의 주인을 적는다 — 작업지시서는 생산 권한 아래에 있다. */
+            if (attachment.getOwnerCode() == null) attachment.setOwnerCode("PRODUCTION");
+        }
         List<WorkOrderResponse> out = new java.util.ArrayList<>();
         int lineNo = 0;
         for (var line : req.lines()) {
@@ -221,6 +228,7 @@ public class WorkOrderService {
             // 담당자는 id 만 든다 — production 은 hr 을 참조할 수 없다(순환).
             wo.setEmployeeId(req.employeeId());
             wo.setRemark(req.remark());
+            wo.setAttachment(attachment);
             // 지시수량이 바뀌면 진행상태도 다시 센다.
             if (wo.getProducedQty().signum() > 0) {
                 wo.setStatus(wo.getProducedQty().compareTo(wo.getPlannedQty()) >= 0

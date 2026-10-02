@@ -60,6 +60,8 @@ public final class ProductionDtos {
             Long employeeId,
             @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
             String remark,
+            /** 원본 머리의 [첨부] — POST /files 로 먼저 올린 파일 id. 없으면 안 붙인다. */
+            Long attachmentId,
             @NotEmpty(message = "품목을 한 줄 이상 넣으세요.")
             List<@Valid WorkOrderSlipLine> lines
     ) {}
@@ -117,7 +119,9 @@ public final class ProductionDtos {
             /** 원본 머리의 [프로젝트]. */
             Long projectId, String projectName,
             /** 진행상태 — 결재중·미확인·확인. */
-            com.erp.production.production.ProductionConfirmStatus confirmStatus
+            com.erp.production.production.ProductionConfirmStatus confirmStatus,
+            /** 원본 머리의 [첨부]. */
+            Long attachmentId, String attachmentName, Long attachmentSize
     ) {
         public static WorkOrderResponse from(WorkOrder w) {
             BigDecimal remaining = w.getPlannedQty().subtract(w.getProducedQty());
@@ -138,7 +142,10 @@ public final class ProductionDtos {
                     w.getLineNo(),
                     w.getProject() != null ? w.getProject().getId() : null,
                     w.getProject() != null ? w.getProject().getName() : null,
-                    w.getConfirmStatus());
+                    w.getConfirmStatus(),
+                    w.getAttachment() != null ? w.getAttachment().getId() : null,
+                    w.getAttachment() != null ? w.getAttachment().getName() : null,
+                    w.getAttachment() != null ? w.getAttachment().getSizeBytes() : null);
         }
     }
 
