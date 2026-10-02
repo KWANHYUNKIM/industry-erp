@@ -477,13 +477,34 @@ export interface ProductionMaterial {
   componentName: string
   unit: string
   quantity: number
+  /** 규격. 원본 [소모] 탭의 [규격]. */
+  componentSpec?: string | null
+  /** 원본 [소모] 탭의 [적요]. */
+  note?: string | null
 }
+
+/** 생산입고를 넣은 화면 — 원본 생산입고 I(BOM기준소모)·II(소모품목 선택)·III(공정별). */
+export type ProductionEntryType = 'I' | 'II' | 'III'
 
 export interface Production {
   id: number
+  /** 전표번호. 한 전표의 줄들이 같은 번호를 나눠 가진다(원본처럼 전표 하나에 번호 하나). */
   prodNo: string
-  workOrderId: number
-  workOrderNo: string
+  /** 전표 안 줄 차례(1부터). */
+  lineNo: number
+  /** 넣은 화면 — 고칠 때 같은 화면으로 연다. */
+  entryType: ProductionEntryType
+  /** 불러온 작업지시서. 원본처럼 없어도 된다. */
+  workOrderId: number | null
+  workOrderNo: string | null
+  workOrderDate: string | null
+  /** 생산입고 III 의 [공정]. */
+  processId: number | null
+  processName: string | null
+  /** 원본 격자 [외주비단가]·[외주비합계]·[외주비부가세]. */
+  subcontractUnitPrice: number
+  subcontractAmount: number
+  subcontractVat: number
   productId: number
   productCode: string
   productName: string
@@ -503,6 +524,8 @@ export interface Production {
   note: string | null
   /** 원본 생산입고 I·II 의 [노무시간](분). 안 적었으면 null — 0 과 다르다. */
   laborMinutes: number | null
+  /** 담당자(사원) id. 원본 생산입고 머리의 [담당자]. 이름은 화면이 사원 목록에서 붙인다. */
+  employeeId: number | null
   producedQty: number
   productionDate: string
   createdBy: string | null

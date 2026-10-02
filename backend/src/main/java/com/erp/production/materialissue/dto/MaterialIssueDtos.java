@@ -57,7 +57,28 @@ public final class MaterialIssueDtos {
             @NotNull(message = "자재(품목)를 선택하세요.") Long itemId,
             @NotNull(message = "불출수량을 입력하세요.")
             @Positive(message = "불출수량은 0보다 커야 합니다.") BigDecimal qty,
-            String note
+            String note,
+            /**
+             * 이 줄의 작업지시서. 원본은 [작업지시서] 로 여러 지시를 한 번에 불러와
+             * 줄마다 다른 지시에 묶인다. 안 주면 머리의 작업지시를 쓴다.
+             */
+            Long workOrderId
+    ) {}
+
+    /**
+     * 작업지시서를 불러올 때 채울 <b>소요자재</b> 한 줄. 원본 생산불출입력의
+     * [작업지시서] → [잔량으로BOM풀기]·[BOM풀기] 가 이것으로 격자를 채운다.
+     *
+     * <p>requiredQty = BOM 소요량 × 지시수량, issuedQty = 그 지시로 이미 불출한 양,
+     * remainingQty = 둘의 차(0 밑으로는 안 간다).
+     */
+    public record WorkOrderRequirement(
+            Long workOrderId, String workOrderNo, LocalDate orderDate,
+            Long productId, String productCode, String productName,
+            BigDecimal plannedQty,
+            Long partnerId, String partnerName, Long employeeId,
+            Long componentId, String componentCode, String componentName, String componentSpec, String unit,
+            BigDecimal bomQty, BigDecimal requiredQty, BigDecimal issuedQty, BigDecimal remainingQty
     ) {}
 
     public record MaterialIssueResponse(

@@ -17,10 +17,20 @@ import { useItemMgmt } from '../../utils/itemMgmtItems'
  * 수량 · 담당자명. 우리는 [생산된공장]과 [담당자]가 빠져 있어 붙인다 — 자재가 어느 공장에서
  * 빠졌는지 여기서 못 보면 공장별 재고가 왜 줄었는지 되짚을 자리가 없다.
  */
+/** 생산입고를 넣은 화면별 주소. */
+const ENTRY_PATH: Record<string, string> = {
+  I: '/production/receipt-bom',
+  II: '/production/receipt-manual',
+  III: '/production/receipt-qr',
+}
+
 interface Row {
   id: number
   prodNo: string
-  workOrderNo: string
+  /** 넣은 화면(I·II·III). 번호를 누르면 그 화면으로 전표를 연다. */
+  entryType: 'I' | 'II' | 'III'
+  /** 원본처럼 작업지시서 없이도 입고한다 — 없으면 null. */
+  workOrderNo: string | null
   productCode: string
   productName: string
   productUnit: string
@@ -68,7 +78,7 @@ async function printOne(r: Row) {
     extra: [
       { label: '생산된공장', value: r.fromWarehouseName ?? r.warehouseName },
       { label: '받는창고', value: r.warehouseName },
-      { label: '작업지시서', value: r.workOrderNo },
+      { label: '작업지시서', value: r.workOrderNo ?? '' },
       { label: '담당자', value: r.createdBy },
     ],
     lines: [{
@@ -173,7 +183,7 @@ export default function ReceiptInquiryPage() {
   }
 
   const shown = rows.filter((r) => (!keyword
-    || r.productName.includes(keyword) || r.prodNo.includes(keyword) || r.workOrderNo.includes(keyword))
+    || r.productName.includes(keyword) || r.prodNo.includes(keyword) || (r.workOrderNo ?? '').includes(keyword))
     && (!warehouseCond || String(r.warehouseId) === warehouseCond
       || String(r.fromWarehouseId) === warehouseCond)
     && (!projectCond || String(r.projectId) === projectCond)
@@ -352,7 +362,14 @@ export default function ReceiptInquiryPage() {
                 })} />
               </td>
               {/* 원본은 일자와 번호를 한 칸에 적는다. */}
-              <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(r.productionDate)} {r.prodNo}</td>
+              {/* 원본처럼 번호를 누르면 그 전표를 넣은 화면(I·II·III)으로 열어 고친다. */}
+              <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>
+                <a href={`${ENTRY_PATH[r.entryType] ?? ENTRY_PATH.I}?no=${encodeURIComponent(r.prodNo)}`}
+                   style={{ color: 'var(--ec-blue)', cursor: 'pointer' }}
+                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate(e.currentTarget.getAttribute('href')!) }}>
+                  {dateText(r.productionDate)} {r.prodNo}
+                </a>
+              </td>
               <td>{r.fromWarehouseName ?? r.warehouseName}</td>
               <td>{r.warehouseName}</td>
               {/*
@@ -362,8 +379,9 @@ export default function ReceiptInquiryPage() {
               */}
               <td>{r.productName}{r.productSpec ? ` [${r.productSpec}]` : ''}</td>
               <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{r.producedQty.toLocaleString()}</td>
-              <td>{r.createdBy ?? ''}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.workOrderNo}</td>
+              {/* [담당자명] 은 전표의 담당자(사원)다 — 입력한 로그인 사용자가 아니다. */}
+              <td>{empName(r.employeeId)}</td>
+              <td style={{ fontFamily: 'monospace' }}>{r.workOrderNo ?? ''}</td>
               <td style={{ textAlign: 'center' }}>
                 <button onClick={() => printOne(r)} style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
               </td>

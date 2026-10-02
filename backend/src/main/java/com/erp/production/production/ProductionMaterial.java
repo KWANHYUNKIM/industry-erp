@@ -33,4 +33,8 @@ public class ProductionMaterial {
     /** 소요량(= BOM 소요량 x 생산수량) */
     @Column(nullable = false, precision = 18, scale = 4)
     private BigDecimal quantity;
+
+    /** 원본 [소모] 탭의 [적요]. */
+    @Column(length = 255)
+    private String note;
 }

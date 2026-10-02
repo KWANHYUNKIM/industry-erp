@@ -170,18 +170,82 @@ public final class ProductionDtos {
         }
     }
 
+    /**
+     * 원본 생산입고 I·II·III 의 <b>전표 하나</b>. 머리 아래 생산품목 여러 줄이 한 번호를 나눠 가진다.
+     *
+     * <ul>
+     *   <li><b>I</b> — 줄의 소모는 무시하고 BOM 소요량만큼 생산된공장에서 뺀다.</li>
+     *   <li><b>II·III</b> — 줄에 담은 소모만 뺀다. 비워 두면 소모 없이 입고만 한다(원본도 그렇다).</li>
+     * </ul>
+     *
+     * <p>줄의 생산된공장·받는창고는 III 에서만 줄마다 다르다. 안 주면 머리 것을 쓴다.
+     */
+    public record SaveProductionSlipRequest(
+            @NotNull(message = "입력 구분(I·II·III)을 정하세요.") com.erp.production.production.ProductionEntryType entryType,
+            LocalDate productionDate,
+            Long employeeId,
+            Long projectId,
+            /** 생산된공장 — 자재를 소모하는 곳. 공장·외주처 창고. */
+            Long fromWarehouseId,
+            /** 받는창고 — 완제품이 들어갈 곳. */
+            Long warehouseId,
+            @NotEmpty(message = "생산품목을 한 줄 이상 넣으세요.")
+            List<@Valid SlipLine> lines
+    ) {}
+
+    /** 전표의 생산품목 한 줄(원본 [생산] 탭). */
+    public record SlipLine(
+            @NotNull(message = "생산품목을 선택하세요.") Long productId,
+            /** 불러온 작업지시서. 없어도 된다. */
+            Long workOrderId,
+            @NotNull(message = "수량을 입력하세요.")
+            @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal producedQty,
+            /** III 의 [공정]. */
+            Long processId,
+            /** III 의 줄마다 [생산된공장]·[받는창고]. 안 주면 머리 것. */
+            Long fromWarehouseId,
+            Long warehouseId,
+            /** [외주비단가]·[외주비합계]·[외주비부가세]. 안 주면 서버가 계산한다. */
+            BigDecimal subcontractUnitPrice,
+            BigDecimal subcontractAmount,
+            BigDecimal subcontractVat,
+            @Size(max = 255, message = "입력한 글자가 너무 깁니다. 255자까지 넣을 수 있습니다.")
+            String note,
+            Integer laborMinutes,
+            /** 원본 [소모] 탭에서 이 생산품목에 붙인 줄(II·III). */
+            List<@Valid SlipMaterial> materials
+    ) {}
+
+    /** 원본 [소모] 탭 한 줄. */
+    public record SlipMaterial(
+            @NotNull(message = "소모품목을 선택하세요.") Long componentId,
+            @NotNull(message = "소모수량을 입력하세요.")
+            @Positive(message = "소모수량은 0보다 커야 합니다.") BigDecimal quantity,
+            @Size(max = 255, message = "입력한 글자가 너무 깁니다. 255자까지 넣을 수 있습니다.")
+            String note
+    ) {}
+
     public record ManualConsumeLine(
             @NotNull(message = "소모자재를 선택하세요.") Long componentId,
             @NotNull(message = "소모수량을 입력하세요.") @Positive(message = "소모수량은 0보다 커야 합니다.") BigDecimal quantity
     ) {}
 
     public record ProductionMaterialResponse(
-            Long componentId, String componentCode, String componentName, String unit, BigDecimal quantity
+            Long componentId, String componentCode, String componentName, String unit, BigDecimal quantity,
+            /** 규격. 원본 [소모] 탭의 [규격]. */
+            String componentSpec,
+            /** 원본 [소모] 탭의 [적요]. */
+            String note
     ) {
+        public ProductionMaterialResponse(Long componentId, String componentCode, String componentName,
+                                          String unit, BigDecimal quantity) {
+            this(componentId, componentCode, componentName, unit, quantity, null, null);
+        }
+
         static ProductionMaterialResponse from(ProductionMaterial m) {
             return new ProductionMaterialResponse(
                     m.getComponent().getId(), m.getComponent().getCode(), m.getComponent().getName(),
-                    m.getComponent().getUnit(), m.getQuantity());
+                    m.getComponent().getUnit(), m.getQuantity(), m.getComponent().getSpec(), m.getNote());
         }
     }
 
@@ -220,12 +284,23 @@ public final class ProductionDtos {
              * 두 칸을 진작 채우고 있는데 응답이 안 실었다.
              */
             LocalDateTime createdAt, LocalDateTime updatedAt,
-            List<ProductionMaterialResponse> materials
+            List<ProductionMaterialResponse> materials,
+            /** 전표 안 줄 차례. 같은 prodNo 를 가진 줄들이 한 전표다. */
+            Integer lineNo,
+            /** 넣은 화면 — I·II·III. 고칠 때 같은 화면으로 연다. */
+            com.erp.production.production.ProductionEntryType entryType,
+            /** III 의 [공정]. */
+            Long processId, String processName,
+            /** [외주비단가]·[외주비합계]·[외주비부가세]. */
+            BigDecimal subcontractUnitPrice, BigDecimal subcontractAmount, BigDecimal subcontractVat,
+            /** 작업지시서의 지시일 — 생산입고조회의 [작업지시서] 열이 "일자 -No." 로 찍는다. */
+            LocalDate workOrderDate
     ) {
         public static ProductionResponse from(Production p) {
+            var wo = p.getWorkOrder();
             return new ProductionResponse(
                     p.getId(), p.getProdNo(),
-                    p.getWorkOrder().getId(), p.getWorkOrder().getOrderNo(),
+                    wo != null ? wo.getId() : null, wo != null ? wo.getOrderNo() : null,
                     p.getProduct().getId(), p.getProduct().getCode(), p.getProduct().getName(), p.getProduct().getUnit(),
                     p.getProduct().getSpec(),
                     p.getProduct().getCategory(),
@@ -239,7 +314,12 @@ public final class ProductionDtos {
                     p.getProject() != null ? p.getProject().getName() : null,
                     p.getNote(), p.getLaborMinutes(), p.getEmployeeId(),
                     p.getCreatedAt(), p.getUpdatedAt(),
-                    p.getMaterials().stream().map(ProductionMaterialResponse::from).toList());
+                    p.getMaterials().stream().map(ProductionMaterialResponse::from).toList(),
+                    p.getLineNo(), p.getEntryType(),
+                    p.getProcess() != null ? p.getProcess().getId() : null,
+                    p.getProcess() != null ? p.getProcess().getName() : null,
+                    p.getSubcontractUnitPrice(), p.getSubcontractAmount(), p.getSubcontractVat(),
+                    wo != null ? wo.getOrderDate() : null);
         }
     }
 }

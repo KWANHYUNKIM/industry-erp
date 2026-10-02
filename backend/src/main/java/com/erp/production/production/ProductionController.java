@@ -38,12 +38,40 @@ public class ProductionController {
         return productionService.findAll(from, to, woFrom, woTo);
     }
 
-    /** 생산수량에 대한 예상 소요자재 */
-    @GetMapping("/preview")
-    public List<ProductionMaterialResponse> preview(
-            @RequestParam Long workOrderId,
-            @RequestParam BigDecimal qty) {
-        return productionService.materialPreview(workOrderId, qty);
+    /** 제품의 BOM 소요량(미저장). 원본 생산입고 II·III [소모] 탭의 [BOM풀기]. */
+    @GetMapping("/bom-preview")
+    public List<ProductionMaterialResponse> bomPreview(@RequestParam Long productId, @RequestParam BigDecimal qty) {
+        return productionService.bomPreview(productId, qty);
+    }
+
+    /** 전표 하나(같은 번호의 줄들). 원본 생산입고조회에서 번호를 눌러 여는 것. */
+    @GetMapping("/slips/{prodNo}")
+    public List<ProductionResponse> slip(@PathVariable String prodNo) {
+        return productionService.findSlip(prodNo);
+    }
+
+    /** 원본 생산입고 I·II·III 의 [저장] — 줄이 몇 개든 번호 하나. */
+    @PostMapping("/slips")
+    public ResponseEntity<List<ProductionResponse>> createSlip(
+            @Valid @RequestBody ProductionDtos.SaveProductionSlipRequest req,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(productionService.createSlip(req, principal.getUsername()));
+    }
+
+    /** 연 전표를 고쳐 [저장]. 옛 줄을 되돌리고 새 줄로 넣는다. */
+    @PutMapping("/slips/{prodNo}")
+    public List<ProductionResponse> updateSlip(
+            @PathVariable String prodNo,
+            @Valid @RequestBody ProductionDtos.SaveProductionSlipRequest req,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return productionService.updateSlip(prodNo, req, principal.getUsername());
+    }
+
+    /** 전표째 [삭제]. */
+    @DeleteMapping("/slips/{prodNo}")
+    public ResponseEntity<Void> deleteSlip(@PathVariable String prodNo, java.security.Principal principal) {
+        productionService.deleteSlip(prodNo, principal != null ? principal.getName() : null);
+        return ResponseEntity.noContent().build();
     }
 
     /** 생산실적 삭제. 재고와 작업지시 진척을 함께 되돌린다. */

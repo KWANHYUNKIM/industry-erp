@@ -212,7 +212,6 @@ const ConditionSearchPage = lazy(() => import('../pages/trade/ConditionSearchPag
 const PurchasePriceBulkPage = lazy(() => import('../pages/trade/PurchasePriceBulkPage'))
 const OrderTypePage = lazy(() => import('../pages/trade/OrderTypePage'))
 const OrderStagePage = lazy(() => import('../pages/trade/OrderStagePage'))
-const ManualConsumeReceiptPage = lazy(() => import('../pages/production/ManualConsumeReceiptPage'))
 const ReceiptInquiryPage = lazy(() => import('../pages/production/ReceiptInquiryPage'))
 
 /** 좌측 사이드바는 EcountLayout이 활성 탭 기준으로 그린다.
@@ -290,9 +289,9 @@ export default function AppRouter() {
         <Route path="/production/wo-work" element={<WorkProcessPage />} />
         <Route path="/production/wo-progress" element={<WoProgressPage />} />
         {/* 원본 [생산입고 I(BOM기준소모)] 는 입력 화면이다 — 소모품목을 고르지 않고 BOM 대로 자동소모한다. */}
-        <Route path="/production/receipt-bom" element={<ProductionResultPage />} />
-        <Route path="/production/receipt-manual" element={<ManualConsumeReceiptPage />} />
-        <Route path="/production/receipt-qr" element={<ManualConsumeReceiptPage withQualityRequest />} />
+        <Route path="/production/receipt-bom" element={<ProductionResultPage key="I" />} />
+        <Route path="/production/receipt-manual" element={<ProductionResultPage key="II" type="II" />} />
+        <Route path="/production/receipt-qr" element={<ProductionResultPage key="III" type="III" />} />
         <Route path="/production/receipt-inquiry" element={<ReceiptInquiryPage />} />
         {/* 옛 경로. 원본 화면은 [생산입고/소모현황 I] 하나다 — 북마크가 남아 있을 수 있어 살려 둔다. */}
         <Route path="/production/consume-status" element={<ProductionIssueStatusPage />} />

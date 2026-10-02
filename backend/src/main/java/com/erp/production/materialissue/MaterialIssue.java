@@ -58,7 +58,7 @@ public class MaterialIssue extends BaseTimeEntity {
      * <p>없었다. 날짜만 있으니 같은 날 여러 건을 <b>가리킬 말이 없고</b>, 불출증을 찍어도
      * 무엇을 찍은 종이인지 적히지 않았다. 다른 전표는 다 번호를 다는데 여기만 없었다.
      */
-    @Column(name = "issue_no", nullable = false, unique = true, length = 30)
+    @Column(name = "issue_no", nullable = false, length = 30)
     private String issueNo;
 
     @Column(nullable = false, precision = 18, scale = 2)

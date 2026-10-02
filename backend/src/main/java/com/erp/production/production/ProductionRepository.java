@@ -9,7 +9,7 @@ import java.util.List;
 
 public interface ProductionRepository extends JpaRepository<Production, Long> {
 
-    @Query("select p from Production p join fetch p.product join fetch p.warehouse join fetch p.workOrder " +
+    @Query("select p from Production p join fetch p.product join fetch p.warehouse left join fetch p.workOrder " +
             "order by p.productionDate desc, p.id desc")
     List<Production> findAllWithRefs();
 
@@ -17,7 +17,7 @@ public interface ProductionRepository extends JpaRepository<Production, Long> {
      * 기간으로 걸러 온다. 안 준 쪽은 서비스가 열린 끝으로 채워 준다 —
      * <code>:from is null</code> 로 쓰면 PostgreSQL 이 그 자리의 형을 못 정해 터진다.
      */
-    @Query("select p from Production p join fetch p.product join fetch p.warehouse join fetch p.workOrder " +
+    @Query("select p from Production p join fetch p.product join fetch p.warehouse left join fetch p.workOrder " +
             "where p.productionDate between :from and :to " +
             "order by p.productionDate desc, p.id desc")
     List<Production> findWithRefsByPeriod(@Param("from") LocalDate from, @Param("to") LocalDate to);
@@ -37,4 +37,10 @@ public interface ProductionRepository extends JpaRepository<Production, Long> {
 
     /** 작업지시에 붙은 생산실적 수. 작업지시를 지워도 되는지 판단한다. */
     long countByWorkOrder_Id(Long workOrderId);
+
+    /** 전표 하나의 줄들(줄 차례대로). */
+    @Query("select p from Production p join fetch p.product join fetch p.warehouse left join fetch p.workOrder " +
+            "left join fetch p.fromWarehouse left join fetch p.process " +
+            "where p.prodNo = :prodNo order by p.lineNo, p.id")
+    List<Production> findSlip(@Param("prodNo") String prodNo);
 }

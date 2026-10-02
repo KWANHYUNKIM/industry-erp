@@ -305,11 +305,11 @@
  ],
  [
   "생산입고II-소모품목 선택",
-  "production/ManualConsumeReceiptPage.tsx"
+  "production/ProductionResultPage.tsx"
  ],
  [
   "생산입고 III-소모품목 선택",
-  "production/ManualConsumeReceiptPage.tsx"
+  "production/ProductionResultPage.tsx"
  ],
  [
   "생산입고I-BOM기준소모",

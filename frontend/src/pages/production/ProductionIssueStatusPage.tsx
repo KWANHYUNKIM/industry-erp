@@ -228,7 +228,7 @@ export default function ProductionIssueStatusPage() {
     .filter((p) => !cond.from || p.productionDate >= cond.from)
     .filter((p) => !cond.to || p.productionDate <= cond.to)
     .filter((p) => !cond.warehouseId || String(p.warehouseId) === cond.warehouseId)
-    .filter((p) => !cond.orderNo || p.workOrderNo.includes(cond.orderNo))
+    .filter((p) => !cond.orderNo || (p.workOrderNo ?? '').includes(cond.orderNo))
     .filter((p) => !cond.manager || (nameOfEmployee.get(p.employeeId ?? -1) ?? '') === cond.manager)
     .filter(hitItem)
     // 원본 조건의 [생산품목]·[소모품목] — 둘을 함께 걸면 그 조합만 남는다.

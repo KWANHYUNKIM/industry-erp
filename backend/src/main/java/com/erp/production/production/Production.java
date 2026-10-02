@@ -39,13 +39,55 @@ public class Production extends BaseTimeEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "from_warehouse_id")
     private Warehouse fromWarehouse;
-    /** 생산번호 (예: PR-20260706-0001) */
-    @Column(nullable = false, unique = true, length = 30)
+    /**
+     * 전표번호 (예: PR-20260706-0001). <b>전표 하나에 하나</b>다 — 원본 생산입고는 생산품목을
+     * 여러 줄 넣어도 번호가 하나("2026/07/06 -1")다. 같은 번호를 가진 행들이 한 전표이고,
+     * 그 안의 차례가 {@link #lineNo} 다.
+     */
+    @Column(nullable = false, length = 30)
     private String prodNo;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "work_order_id", nullable = false)
+    /** 전표 안 줄 차례(1부터). */
+    @Column(name = "line_no", nullable = false)
+    @Builder.Default
+    private Integer lineNo = 1;
+
+    /**
+     * 어느 입력 화면으로 넣었나 — I(BOM기준소모)·II(소모품목 선택)·III(공정별).
+     * 전표를 고칠 때 같은 화면으로 다시 연다.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "entry_type", nullable = false, length = 10)
+    @Builder.Default
+    private ProductionEntryType entryType = ProductionEntryType.I;
+
+    /**
+     * 작업지시서. 원본은 [작업지시서] 버튼으로 <b>불러오는</b> 것이라 없어도 입고된다.
+     * 불러왔으면 그 지시의 기생산·잔량에 반영한다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "work_order_id")
     private WorkOrder workOrder;
+
+    /** 원본 생산입고 III 의 줄마다 [공정]. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "process_id")
+    private com.erp.production.process.ProductionProcess process;
+
+    /** 원본 격자 [외주비단가]. 생산된공장이 외주처면 품목의 외주비단가가 기본으로 들어간다. */
+    @Column(name = "subcontract_unit_price", nullable = false, precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal subcontractUnitPrice = BigDecimal.ZERO;
+
+    /** 원본 격자 [외주비합계] = 단가 × 수량. */
+    @Column(name = "subcontract_amount", nullable = false, precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal subcontractAmount = BigDecimal.ZERO;
+
+    /** 원본 격자 [외주비부가세] — 합계의 10%(원 미만 버림). */
+    @Column(name = "subcontract_vat", nullable = false, precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal subcontractVat = BigDecimal.ZERO;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "product_id", nullable = false)

@@ -1,400 +1,678 @@
-import { useRef, useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import CodePickerField from '../../components/CodePickerField'
-import { useTableColumnCheck } from '../../utils/assertTableColumns'
-import type { Production, ProductionMaterial, Warehouse, WorkOrder } from '../../types/api'
+import EcDateField from '../../components/EcDateField'
+import EcSlipShell from '../../components/EcSlipShell'
+import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
-import { useShortcut } from '../../utils/useShortcut'
 import { dateText } from '../../utils/dateText'
-
-const won = (n: number) => n.toLocaleString('ko-KR')
-const today = () => ymd(new Date())
-const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 84 }
+import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
+import type { Item, Production, ProductionEntryType, ProductionMaterial, Warehouse, WorkOrder } from '../../types/api'
 
 /**
- * 생산관리 &gt; <b>생산입고 I(BOM기준소모)</b>.
+ * 원본(이카운트) <b>생산입고 I · II · III</b> 입력 화면. 셋은 뼈대가 같고 소모를 정하는 법만 다르다.
  *
- * <p>원본 [생산입고]는 I·II·III 셋이고 <b>셋 다 입력 화면</b>이다.
- * I 은 소모품목을 고르지 않고 <b>BOM 대로 자동소모</b>하며 입고한다(II 는 골라서,
- * III 은 고르면서 품질검사요청까지).
+ * <ul>
+ *   <li><b>I · BOM기준소모</b> — 머리(일자·담당자·생산된공장·받는창고·프로젝트) 아래 생산품목을 여러 줄.
+ *       저장하면 BOM 소요량만큼 생산된공장에서 자재가 빠지고 받는창고로 완제품이 들어간다.</li>
+ *   <li><b>II · 소모품목 선택</b> — [생산] · [소모] 두 탭. 소모는 [BOM풀기]로 채우거나 직접 고른다.
+ *       <b>소모를 비워 두면 자재는 안 빠진다</b>(원본도 그렇다).</li>
+ *   <li><b>III · 공정별</b> — 줄마다 [공정]·[생산된공장]·[받는창고]가 다르다. 하나의 전표에 여러 공정의
+ *       제품·반제품을 한 번에 넣을 때 쓴다(원본 도움말 "생산입고3은 언제 사용하나요?").
+ *       [소모] 탭에는 [작지수량](BOM 기준)·[추가수량]·[수량]이 있다.</li>
+ * </ul>
  *
- * <p>우리 메뉴의 [생산입고 I(BOM기준소모)]은 오랫동안 <b>조회 화면</b>을 가리키고 있었고,
- * 정작 입력은 원본에 없는 이름인 [생산실적]에 있었다. I·II·III 이 같은 무리인데
- * 하나만 성격이 달라서, 사람은 셋이 같은 종류라고 읽고 I 에서 입력을 찾다가 못 찾는다.
+ * <p>작업지시서는 <b>불러오는 것</b>이지 꼭 있어야 하는 것이 아니다 — [작업지시서] 로 고르면 잔량이 수량으로
+ * 들어오고, 저장하면 그 지시의 기생산이 는다. 줄이 몇 개든 전표번호는 하나다.
  *
- * <p>원본 머리 실측(사본 '생산입고I-BOM기준소모'): 일자 · 담당자 · 생산된공장 ·
- * 받는창고 · 프로젝트. 격자는 불러온 전표일자/No. · 작업지시품목코드 · 생산품목코드 ·
- * 시리얼/로트No. · 생산품목명 · 규격 · BOM버전 · 수량 · 적요 · 노무시간.
- * BOM버전은 우리 BOM 이 품목당 하나라 없다 — 버전을 만들면 그때 붙인다.
+ * <p><code>?no=PR-…</code> 로 열면 그 전표를 고친다(원본 생산입고조회에서 번호를 누른 것).
+ *
+ * <p>세 화면이 이 파일 하나를 쓴다(라우터가 type 을 준다). qa/ui-check 가 원본 화면을
+ * <code>pages/</code> 의 파일로 대조하므로 features/ 로 빼지 않고 여기 둔다.
  */
 
-export default function ProductionResultPage() {
-  const [orders, setOrders] = useState<WorkOrder[]>([])
-  const [productions, setProductions] = useState<Production[]>([])
-  const [preview, setPreview] = useState<ProductionMaterial[]>([])
-  const [error, setError] = useState('')
-  const [ok, setOk] = useState('')
+const won = (n: number) => (Number.isFinite(n) ? n.toLocaleString('ko-KR', { maximumFractionDigits: 4 }) : '')
+const num = (s: string) => { const n = Number(s); return Number.isFinite(n) ? n : 0 }
+const today = () => ymd(new Date())
 
-  /**
-   * 생산 줄. 원본 생산입고 I 은 <b>격자</b>라 한 번에 여러 완제품을 입고한다 —
-   * 같은 날 같은 공장에서 셋을 입고하면서 머리(일자·공장·창고·프로젝트)를
-   * 세 번 다시 고를 일이 아니다. BOM 이 자동으로 소모하므로 줄마다 자재가 없다.
-   */
-  const [prodLines, setProdLines] = useState<{ key: number; workOrderId: string; qty: string; note: string }[]>(
-    [{ key: 1, workOrderId: '', qty: '', note: '' }])
-  const setProdLine = (key: number, patch: Partial<{ workOrderId: string; qty: string; note: string }>) =>
-    setProdLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)))
+const TITLES: Record<ProductionEntryType, string> = {
+  I: '생산입고I-BOM기준소모',
+  II: '생산입고II-소모품목 선택',
+  III: '생산입고 III-소모품목 선택',
+}
 
-  const [workOrderId, setWorkOrderId] = useState('')
-  const [qty, setQty] = useState('')
-  const [date, setDate] = useState(today())
-  /** 적요 — 원본 생산입고현황의 마지막 열. 전표에 왜 이 입고를 했는지 남긴다. */
-  const [note, setNote] = useState('')
-  /**
-   * 원본 생산입고 I·II 그리드의 <b>[노무시간]</b>(분).
-   *
-   * <p>실제 노무비를 잴 유일한 근거다. 이 값이 없으면 원가생성은 실제노무비를 표준과
-   * 같게 깔아 둘 수밖에 없고, 그러면 차이분석이 늘 0 이다.
-   * <b>안 적으면 null 이다</b> — 0(노무가 안 들었다)과 다르다.
-   */
-  const [laborMinutes, setLaborMinutes] = useState('')
-  /** 귀속 프로젝트. 생산입고현황의 [프로젝트] 조건이 이 값을 본다. */
-  const [projectId, setProjectId] = useState('')
-  /**
-   * 담당자 — 원본 생산입고 I 머리의 [담당자]. 전표 하나에 한 사람이다.
-   * 생산입고 전표에는 사람이 안 남아 있었다 — 누가 넣은 입고인지 알 수 없었다.
-   */
-  const [employeeId, setEmployeeId] = useState('')
+interface ProdLine {
+  key: number
+  productId: string
+  qty: string
+  workOrderId: string
+  processId: string
+  fromWarehouseId: string
+  warehouseId: string
+  unitPrice: string
+  amount: string
+  vat: string
+  /** 사람이 합계·부가세를 손댔으면 단가×수량으로 덮지 않는다. */
+  amountTouched: boolean
+  note: string
+  laborMinutes: string
+}
+
+interface MatLine {
+  key: number
+  /** 어느 생산품목 줄의 소모인가(ProdLine.key). */
+  lineKey: string
+  componentId: string
+  /** III [작지수량] — BOM 소요량 × 생산수량. 사람이 넣지 않는다. */
+  bomQty: string
+  /** III [추가수량]. 수량 = 작지수량 + 추가수량. */
+  extraQty: string
+  qty: string
+  note: string
+}
+
+let seq = 1
+const nextKey = () => seq++
+const blankLine = (): ProdLine => ({
+  key: nextKey(), productId: '', qty: '', workOrderId: '', processId: '', fromWarehouseId: '', warehouseId: '',
+  unitPrice: '', amount: '', vat: '', amountTouched: false, note: '', laborMinutes: '',
+})
+const blankMat = (lineKey = ''): MatLine => ({
+  key: nextKey(), lineKey, componentId: '', bomQty: '', extraQty: '', qty: '', note: '',
+})
+const BLANK_ROWS = 5
+/** 원본 격자 위 탭. I 은 [생산] 하나뿐이다(소모는 BOM 이 정한다). */
+const TABS = ['생산', '소모'] as const
+
+export default function ProductionResultPage({ type = 'I' }: { type?: ProductionEntryType }) {
+  const navigate = useNavigate()
+  const [params] = useSearchParams()
+  const editNo = params.get('no')
+
+  const [items, setItems] = useState<Item[]>([])
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [employees, setEmployees] = useState<{ id: number; code: string; name: string }[]>([])
   const [projects, setProjects] = useState<{ id: number; code: string; name: string }[]>([])
-  /**
-   * 원본 생산입고 I 의 머리 항목 — [생산된공장] · [받는창고].
-   *
-   * 자재는 생산된공장에서 빠지고 완제품은 받는창고로 들어간다. 생산불출(창고 → 공장)의
-   * 반대 방향이다. 비워 두면 작업지시의 창고 하나에서 오간다 — 공장을 안 쓰는 회사도 있다.
-   */
-  const [fromWarehouseId, setFromWarehouseId] = useState('')
-  const [toWarehouseId, setToWarehouseId] = useState('')
-  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
+  const [processes, setProcesses] = useState<{ id: number; code: string; name: string; active: boolean }[]>([])
+  const [orders, setOrders] = useState<WorkOrder[]>([])
 
-  async function loadOrders() {
-    const res = await api.get<WorkOrder[]>('/work-orders')
-    setOrders(res.data)
-  }
-  async function loadWarehouses() {
-    const res = await api.get<Warehouse[]>('/warehouses')
-    setWarehouses(res.data.filter((w) => w.active))
-  }
-  async function loadProjects() {
-    const res = await api.get<{ id: number; code: string; name: string }[]>('/projects')
-    setProjects(res.data)
-  }
-  async function loadEmployees() {
-    // 사원은 hr 의 것이지만 화면이 이름을 붙이는 것뿐이다 — 전표에는 id 만 남는다.
-    const res = await api.get<{ id: number; code: string; name: string; active?: boolean }[]>('/employees')
-    setEmployees(res.data.filter((e) => e.active !== false))
-  }
-  async function loadProductions() {
-    const res = await api.get<Production[]>('/productions')
-    setProductions(res.data)
-  }
+  const [date, setDate] = useState(today())
+  const [employeeId, setEmployeeId] = useState('')
+  const [fromWarehouseId, setFromWarehouseId] = useState('')
+  const [warehouseId, setWarehouseId] = useState('')
+  const [projectId, setProjectId] = useState('')
+  const [lines, setLines] = useState<ProdLine[]>(() => Array.from({ length: BLANK_ROWS }, blankLine))
+  const [mats, setMats] = useState<MatLine[]>(() => Array.from({ length: BLANK_ROWS }, () => blankMat()))
+  const [tab, setTab] = useState<(typeof TABS)[number]>('생산')
+  const [error, setError] = useState('')
+  const [ok, setOk] = useState('')
+  const [woOpen, setWoOpen] = useState(false)
+  const [woChecked, setWoChecked] = useState<number[]>([])
+  const [saving, setSaving] = useState(false)
+  /** 원본 [생산] 탭 툴바의 [My품목] — 담아 둔 품목을 생산품목 줄로 붓는다. */
+  const myItems = useMyItemsPick((picked) => setLines((ls) => [
+    ...ls.filter((l) => l.productId),
+    ...picked.map((m) => ({ ...blankLine(), productId: String(m.itemId), qty: String(m.defaultQty) })),
+    blankLine(),
+  ]))
 
   useEffect(() => {
-    loadOrders()
-    loadWarehouses()
-    loadProjects()
-    loadEmployees()
-    loadProductions()
+    void Promise.all([
+      api.get<Item[]>('/items').then((r) => setItems(r.data.filter((i) => i.active))),
+      api.get<Warehouse[]>('/warehouses').then((r) => setWarehouses(r.data.filter((w) => w.active))),
+      api.get<{ id: number; code: string; name: string; active?: boolean }[]>('/employees')
+        .then((r) => setEmployees(r.data.filter((e) => e.active !== false))),
+      api.get<{ id: number; code: string; name: string }[]>('/projects').then((r) => setProjects(r.data)),
+      api.get<{ id: number; code: string; name: string; active: boolean }[]>('/processes')
+        .then((r) => setProcesses(r.data.filter((p) => p.active))),
+      api.get<WorkOrder[]>('/work-orders').then((r) => setOrders(r.data)),
+    ]).catch((e) => setError(extractErrorMessage(e)))
   }, [])
 
-  // 소요자재 미리보기
+  // ?no= 로 열면 그 전표를 불러온다(고치기).
   useEffect(() => {
-    if (!workOrderId || !(Number(qty) > 0)) {
-      setPreview([])
-      return
-    }
-    let cancelled = false
-    api
-      .get<ProductionMaterial[]>(`/productions/preview?workOrderId=${workOrderId}&qty=${Number(qty)}`)
-      .then((res) => { if (!cancelled) setPreview(res.data) })
-      .catch(() => { if (!cancelled) setPreview([]) })
-    return () => { cancelled = true }
-  }, [workOrderId, qty])
+    if (!editNo) return
+    api.get<Production[]>(`/productions/slips/${encodeURIComponent(editNo)}`).then((r) => {
+      const rows = r.data
+      if (rows.length === 0) return
+      const h = rows[0]
+      setDate(h.productionDate)
+      setEmployeeId(h.employeeId != null ? String(h.employeeId) : '')
+      setProjectId(h.projectId != null ? String(h.projectId) : '')
+      setFromWarehouseId(h.fromWarehouseId != null ? String(h.fromWarehouseId) : '')
+      setWarehouseId(String(h.warehouseId))
+      const ls: ProdLine[] = rows.map((p) => ({
+        key: nextKey(), productId: String(p.productId), qty: String(p.producedQty),
+        workOrderId: p.workOrderId != null ? String(p.workOrderId) : '',
+        processId: p.processId != null ? String(p.processId) : '',
+        fromWarehouseId: p.fromWarehouseId != null ? String(p.fromWarehouseId) : '',
+        warehouseId: String(p.warehouseId),
+        unitPrice: String(p.subcontractUnitPrice ?? ''), amount: String(p.subcontractAmount ?? ''),
+        vat: String(p.subcontractVat ?? ''), amountTouched: true,
+        note: p.note ?? '', laborMinutes: p.laborMinutes != null ? String(p.laborMinutes) : '',
+      }))
+      const ms: MatLine[] = []
+      rows.forEach((p, i) => p.materials.forEach((m) => ms.push({
+        key: nextKey(), lineKey: String(ls[i].key), componentId: String(m.componentId),
+        bomQty: '', extraQty: '', qty: String(m.quantity), note: m.note ?? '',
+      })))
+      setLines([...ls, ...Array.from({ length: Math.max(1, BLANK_ROWS - ls.length) }, blankLine)])
+      setMats([...ms, ...Array.from({ length: Math.max(1, BLANK_ROWS - ms.length) }, () => blankMat())])
+    }).catch((e) => setError(extractErrorMessage(e)))
+  }, [editNo])
 
-  const selectable = orders.filter((o) => o.status !== 'COMPLETED' && o.remainingQty > 0)
-  /** 작업지시 코드도움 — 지시번호·제품명으로 찾고 잔여 수량을 옆에 보인다. */
-  const orderPicks = selectable.map((o) => ({ value: String(o.id), code: o.orderNo, name: o.productName, sub: `잔여 ${won(o.remainingQty)}` }))
-  const selectedOrder = orders.find((o) => String(o.id) === workOrderId)
-  // 비워 두면 작업지시의 창고를 쓴다 — 어디로 가는지 빈칸에 미리 적어 준다.
-  const orderWarehouse = selectedOrder?.warehouseName ?? ''
+  const itemById = useMemo(() => new Map(items.map((i) => [String(i.id), i])), [items])
+  const whById = useMemo(() => new Map(warehouses.map((w) => [String(w.id), w])), [warehouses])
+  const orderById = useMemo(() => new Map(orders.map((o) => [String(o.id), o])), [orders])
+  const itemPicks = useMemo(() => items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, sub: i.spec })), [items])
+  /** 생산된공장 — 공장·외주를 먼저 보인다(원본 생산불출의 받는공장 검색이 공장만 보인다). */
+  const factoryPicks = useMemo(() => [...warehouses]
+    .sort((a, b) => Number(a.kind === '창고') - Number(b.kind === '창고'))
+    .map((w) => ({ value: String(w.id), code: w.code, name: w.name, sub: w.kind })), [warehouses])
+  const whPicks = useMemo(() => warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name, sub: w.kind })), [warehouses])
+  const processPicks = useMemo(() => processes.map((p) => ({ value: String(p.id), code: p.code, name: p.name })), [processes])
+
+  /** 생산된공장이 외주처면 품목의 [외주비단가]를 기본으로 깐다. 원 미만: 합계 반올림, 부가세 버림. */
+  function recompute(l: ProdLine): ProdLine {
+    const from = whById.get(l.fromWarehouseId || fromWarehouseId)
+    const it = itemById.get(l.productId)
+    let unitPrice = l.unitPrice
+    if (unitPrice === '' && from?.kind === '외주' && it?.subcontractPrice) unitPrice = String(it.subcontractPrice)
+    if (l.amountTouched) return { ...l, unitPrice }
+    const amount = Math.round(num(unitPrice) * num(l.qty))
+    return { ...l, unitPrice, amount: l.productId ? String(amount) : '', vat: l.productId ? String(Math.floor(amount * 0.1)) : '' }
+  }
+
+  function setLine(key: number, patch: Partial<ProdLine>) {
+    setLines((ls) => {
+      const next = ls.map((l) => (l.key === key ? recompute({ ...l, ...patch }) : l))
+      // 마지막 빈 줄을 쓰면 빈 줄을 하나 더 단다(원본 격자처럼 끝없이 적어 내려간다).
+      return next[next.length - 1].productId ? [...next, blankLine()] : next
+    })
+  }
+  function setMat(key: number, patch: Partial<MatLine>) {
+    setMats((ms) => {
+      const next = ms.map((m) => {
+        if (m.key !== key) return m
+        const n = { ...m, ...patch }
+        if (type === 'III' && 'extraQty' in patch && n.bomQty !== '') n.qty = String(num(n.bomQty) + num(n.extraQty))
+        return n
+      })
+      return next[next.length - 1].componentId ? [...next, blankMat()] : next
+    })
+  }
+
+  const filled = lines.filter((l) => l.productId)
+  const lineOptions = filled.map((l, i) => {
+    const it = itemById.get(l.productId)
+    return { value: String(l.key), label: `${i + 1}. ${it?.code ?? ''} ${it?.name ?? ''}` }
+  })
+
+  /** [BOM풀기] — 생산품목마다 BOM 소요량 × 수량으로 [소모]를 다시 채운다. */
+  async function explodeBom() {
+    setError('')
+    const out: MatLine[] = []
+    const missing: string[] = []
+    for (const l of filled) {
+      if (!(num(l.qty) > 0)) continue
+      try {
+        const r = await api.get<ProductionMaterial[]>(`/productions/bom-preview?productId=${l.productId}&qty=${num(l.qty)}`)
+        r.data.forEach((m) => out.push({
+          key: nextKey(), lineKey: String(l.key), componentId: String(m.componentId),
+          bomQty: String(m.quantity), extraQty: '', qty: String(m.quantity), note: '',
+        }))
+      } catch {
+        missing.push(itemById.get(l.productId)?.name ?? '')
+      }
+    }
+    setMats([...out, ...Array.from({ length: Math.max(1, BLANK_ROWS - out.length) }, () => blankMat())])
+    setTab('소모')
+    if (missing.length > 0) setError(`BOM 이 없는 품목은 풀지 못했습니다: ${missing.join(', ')}`)
+  }
+
+  /** 작업지시서 [잔량적용] — 고른 지시마다 생산품목 한 줄(수량 = 지시수량 − 기생산). */
+  function applyOrders() {
+    const picked = orders.filter((o) => woChecked.includes(o.id))
+    if (picked.length === 0) { setWoOpen(false); return }
+    const added: ProdLine[] = picked.map((o) => recompute({
+      ...blankLine(), productId: String(o.productId), qty: String(o.remainingQty), workOrderId: String(o.id),
+    }))
+    setLines((ls) => [...ls.filter((l) => l.productId), ...added, blankLine()])
+    // 원본처럼 비어 있는 머리를 지시서에서 채운다(담당자·받는창고).
+    const first = picked[0]
+    if (!employeeId && first.employeeId != null) setEmployeeId(String(first.employeeId))
+    if (!warehouseId && type !== 'III') setWarehouseId(String(first.warehouseId))
+    setWoChecked([])
+    setWoOpen(false)
+  }
 
   function reset() {
-    setQty(''); setWorkOrderId(''); setPreview([]); setError(''); setOk('')
-    setFromWarehouseId(''); setToWarehouseId(''); setNote(''); setProjectId('')
+    setDate(today()); setEmployeeId(''); setFromWarehouseId(''); setWarehouseId(''); setProjectId('')
+    setLines(Array.from({ length: BLANK_ROWS }, blankLine))
+    setMats(Array.from({ length: BLANK_ROWS }, () => blankMat()))
+    setTab('생산'); setError(''); setOk('')
+    if (editNo) navigate(location.pathname, { replace: true })
   }
 
   async function submit(e: FormEvent) {
     e.preventDefault()
-    setError('')
-    setOk('')
-    const filled = prodLines.filter((l) => l.workOrderId && Number(l.qty) > 0)
-    if (filled.length === 0) return setError('작업지시와 생산수량을 한 줄 이상 넣으세요.')
+    setError(''); setOk('')
+    if (filled.length === 0) return setError('생산품목을 한 줄 이상 넣으세요.')
+    if (type !== 'III' && !fromWarehouseId) return setError('생산된공장을 입력바랍니다.')
+    if (type !== 'III' && !warehouseId) return setError('받는창고를 입력바랍니다.')
+    for (const [i, l] of filled.entries()) {
+      if (!(num(l.qty) > 0)) return setError(`${i + 1}번째 줄: 수량을 입력하세요.`)
+      if (type === 'III' && !l.fromWarehouseId) return setError(`${i + 1}번째 줄: 생산된공장을 입력바랍니다.`)
+      if (type === 'III' && !l.warehouseId) return setError(`${i + 1}번째 줄: 받는창고를 입력바랍니다.`)
+    }
+    const orphan = mats.find((m) => m.componentId && !filled.some((l) => String(l.key) === m.lineKey))
+    if (type !== 'I' && orphan) return setError('[소모] 탭에서 생산품목을 고르지 않은 줄이 있습니다.')
+    const body = {
+      entryType: type,
+      productionDate: date,
+      employeeId: employeeId ? Number(employeeId) : null,
+      projectId: projectId ? Number(projectId) : null,
+      fromWarehouseId: type !== 'III' && fromWarehouseId ? Number(fromWarehouseId) : null,
+      warehouseId: type !== 'III' && warehouseId ? Number(warehouseId) : null,
+      lines: filled.map((l) => ({
+        productId: Number(l.productId),
+        workOrderId: l.workOrderId ? Number(l.workOrderId) : null,
+        producedQty: num(l.qty),
+        processId: l.processId ? Number(l.processId) : null,
+        fromWarehouseId: type === 'III' && l.fromWarehouseId ? Number(l.fromWarehouseId) : null,
+        warehouseId: type === 'III' && l.warehouseId ? Number(l.warehouseId) : null,
+        subcontractUnitPrice: l.unitPrice === '' ? null : num(l.unitPrice),
+        subcontractAmount: l.amount === '' ? null : num(l.amount),
+        subcontractVat: l.vat === '' ? null : num(l.vat),
+        note: l.note || null,
+        laborMinutes: l.laborMinutes.trim() === '' ? null : Number(l.laborMinutes),
+        materials: type === 'I' ? null : mats
+          .filter((m) => m.componentId && m.lineKey === String(l.key) && num(m.qty) > 0)
+          .map((m) => ({ componentId: Number(m.componentId), quantity: num(m.qty), note: m.note || null })),
+      })),
+    }
+    setSaving(true)
     try {
-      /*
-       * 줄을 <b>한 번에</b> 보낸다. 서버가 한 트랜잭션으로 넣고, 한 줄이라도 막히면
-       * 전부 되돌린다 — 자재가 모자라 두 줄만 들어가면 재고와 실적이 서로 다른 말을 한다.
-       */
-      const res = await api.post<Production[]>('/productions/batch', {
-        productionDate: date,
-        fromWarehouseId: fromWarehouseId ? Number(fromWarehouseId) : null,
-        warehouseId: toWarehouseId ? Number(toWarehouseId) : null,
-        projectId: projectId ? Number(projectId) : null,
-        employeeId: employeeId ? Number(employeeId) : null,
-        lines: filled.map((l) => ({
-          workOrderId: Number(l.workOrderId),
-          producedQty: Number(l.qty),
-          note: l.note || null,
-          laborMinutes: laborMinutes.trim() === '' ? null : Number(laborMinutes),
-        })),
-      })
-      const made = res.data
-      setOk(`${made.length}줄 생산 완료 · 완제품 ${won(made.reduce((n, m) => n + m.producedQty, 0))} 입고`
-        + ` (${made.map((m) => m.prodNo).join(', ')})`)
-      setProdLines([{ key: 1, workOrderId: '', qty: '', note: '' }])
-      setQty('')
-      setWorkOrderId('')
-      setFromWarehouseId('')
-      setToWarehouseId('')
-      setNote('')
-      setProjectId('')
-      setPreview([])
-      loadOrders()
-      loadProductions()
+      const r = editNo
+        ? await api.put<Production[]>(`/productions/slips/${encodeURIComponent(editNo)}`, body)
+        : await api.post<Production[]>('/productions/slips', body)
+      const no = r.data[0]?.prodNo ?? ''
+      const total = r.data.reduce((n, p) => n + Number(p.producedQty), 0)
+      reset()
+      setOk(`${editNo ? '수정' : '저장'}되었습니다. ${no} · ${r.data.length}줄 · 수량 ${won(total)}`)
+      api.get<WorkOrder[]>('/work-orders').then((x) => setOrders(x.data)).catch(() => {})
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function removeSlip() {
+    if (!editNo || !window.confirm(`${editNo} 전표를 삭제합니다. 재고와 작업지시 진척이 되돌아갑니다.`)) return
+    try {
+      await api.delete(`/productions/slips/${encodeURIComponent(editNo)}`)
+      navigate('/production/receipt-inquiry')
     } catch (err) {
       setError(extractErrorMessage(err))
     }
   }
 
-  const formRef = useRef<HTMLFormElement>(null)
-  // 저장(F8) — 버튼 라벨이 약속한 단축키. submit 버튼을 실제로 눌러
-  // form 의 검증·onSubmit 을 그대로 태운다(EcSlipShell 과 같은 방식).
-  useShortcut('F8', () => formRef.current
-    ?.querySelector<HTMLButtonElement>('button[type="submit"]')?.click())
+  /* 칸이 화면(I·II·III)·탭 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  const gridRef = useRef<HTMLDivElement>(null)
+  useTableColumnCheck(gridRef, TITLES[type], [tab, lines.length, mats.length])
 
+  const openOrders = orders.filter((o) => o.status !== 'COMPLETED' && Number(o.remainingQty) > 0)
+  const totalQty = filled.reduce((n, l) => n + num(l.qty), 0)
+  const totalAmt = filled.reduce((n, l) => n + num(l.amount), 0)
+  const totalVat = filled.reduce((n, l) => n + num(l.vat), 0)
+  const matsFilled = mats.filter((m) => m.componentId)
 
-  /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
-  const tableRef = useRef<HTMLTableElement>(null)
-  useTableColumnCheck(tableRef, '생산실적입력', [])
+  const prodGrid = (
+    <div style={{ overflowX: 'auto' }}>
+      <table className="ec-grid-input no-ec" style={{ tableLayout: 'fixed', minWidth: type === 'III' ? 1180 : 1240 }}>
+        <colgroup>
+          <col style={{ width: 30 }} />
+          {type === 'III' && <col style={{ width: 150 }} />}
+          <col style={{ width: 110 }} />
+          <col style={{ width: 220 }} />
+          <col style={{ width: 100 }} />
+          {type === 'III' && <col style={{ width: 150 }} />}
+          {type === 'III' && <col style={{ width: 150 }} />}
+          <col style={{ width: 90 }} />
+          {type !== 'III' && <col style={{ width: 100 }} />}
+          {type !== 'III' && <col style={{ width: 110 }} />}
+          {type !== 'III' && <col style={{ width: 100 }} />}
+          <col style={{ width: 160 }} />
+          {type !== 'III' && <col style={{ width: 80 }} />}
+          <col style={{ width: 150 }} />
+        </colgroup>
+        <thead>
+          <tr>
+            <th />
+            {type === 'III' && <th style={{ textAlign: 'left' }}>공정</th>}
+            <th style={{ textAlign: 'left' }}>생산품목코드</th>
+            <th style={{ textAlign: 'left' }}>생산품목명</th>
+            <th style={{ textAlign: 'left' }}>규격</th>
+            {type === 'III' && <th style={{ textAlign: 'left' }}>생산된공장</th>}
+            {type === 'III' && <th style={{ textAlign: 'left' }}>받는창고</th>}
+            <th style={{ textAlign: 'right' }}>수량</th>
+            {type !== 'III' && <th style={{ textAlign: 'right' }}>외주비단가</th>}
+            {type !== 'III' && <th style={{ textAlign: 'right' }}>외주비합계</th>}
+            {type !== 'III' && <th style={{ textAlign: 'right' }}>외주비부가세</th>}
+            <th style={{ textAlign: 'left' }}>적요</th>
+            {type !== 'III' && <th style={{ textAlign: 'right' }}>노무시간</th>}
+            <th style={{ textAlign: 'left' }}>작업지시서</th>
+          </tr>
+        </thead>
+        <tbody>
+          {lines.map((l, idx) => {
+            const it = itemById.get(l.productId)
+            const wo = orderById.get(l.workOrderId)
+            return (
+              <tr key={l.key}>
+                <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{idx + 1}</td>
+                {type === 'III' && (
+                  <td className="pad">
+                    <CodePickerField label="공정" hideLabel fill placeholder="" emptyLabel="선택 해제"
+                                     value={l.processId} onChange={(v) => setLine(l.key, { processId: v })} items={processPicks} />
+                  </td>
+                )}
+                <td className="pad" style={{ fontFamily: 'ui-monospace, monospace', color: '#5a626e', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                  {it?.code ?? ''}
+                </td>
+                <td className="pad">
+                  <CodePickerField label="생산품목" hideLabel fill placeholder="" emptyLabel="선택 해제"
+                                   value={l.productId}
+                                   onChange={(v) => setLine(l.key, { productId: v, workOrderId: v === l.productId ? l.workOrderId : '', unitPrice: '', amountTouched: false })}
+                                   items={itemPicks} />
+                </td>
+                <td className="pad" style={{ color: '#5a626e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it?.spec ?? ''}</td>
+                {type === 'III' && (
+                  <td className="pad">
+                    <CodePickerField label="생산된공장" hideLabel fill placeholder="" emptyLabel="선택 해제"
+                                     value={l.fromWarehouseId} onChange={(v) => setLine(l.key, { fromWarehouseId: v })} items={factoryPicks} />
+                  </td>
+                )}
+                {type === 'III' && (
+                  <td className="pad">
+                    <CodePickerField label="받는창고" hideLabel fill placeholder="" emptyLabel="선택 해제"
+                                     value={l.warehouseId} onChange={(v) => setLine(l.key, { warehouseId: v })} items={whPicks} />
+                  </td>
+                )}
+                <td>
+                  <input className="cell" type="number" step="any" style={{ textAlign: 'right' }} disabled={!l.productId}
+                         value={l.qty} onChange={(e) => setLine(l.key, { qty: e.target.value })} />
+                </td>
+                {type !== 'III' && (
+                  <td>
+                    <input className="cell" type="number" step="any" style={{ textAlign: 'right' }} disabled={!l.productId}
+                           value={l.unitPrice} onChange={(e) => setLine(l.key, { unitPrice: e.target.value, amountTouched: false })} />
+                  </td>
+                )}
+                {type !== 'III' && (
+                  <td>
+                    <input className="cell" type="number" step="any" style={{ textAlign: 'right' }} disabled={!l.productId}
+                           value={l.amount}
+                           onChange={(e) => setLine(l.key, { amount: e.target.value, vat: String(Math.floor(num(e.target.value) * 0.1)), amountTouched: true })} />
+                  </td>
+                )}
+                {type !== 'III' && (
+                  <td>
+                    <input className="cell" type="number" step="any" style={{ textAlign: 'right' }} disabled={!l.productId}
+                           value={l.vat} onChange={(e) => setLine(l.key, { vat: e.target.value, amountTouched: true })} />
+                  </td>
+                )}
+                <td>
+                  <input className="cell" disabled={!l.productId} value={l.note} onChange={(e) => setLine(l.key, { note: e.target.value })} />
+                </td>
+                {type !== 'III' && (
+                  <td>
+                    <input className="cell" type="number" min={0} style={{ textAlign: 'right' }} disabled={!l.productId} placeholder={l.productId ? '분' : ''}
+                           value={l.laborMinutes} onChange={(e) => setLine(l.key, { laborMinutes: e.target.value })} />
+                  </td>
+                )}
+                <td className="pad" style={{ color: '#5a626e', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                    title={wo ? `잔량 ${won(Number(wo.remainingQty))}` : undefined}>
+                  {wo ? `${dateText(wo.orderDate)} ${wo.orderNo}` : ''}
+                  {wo && (
+                    <button type="button" className="no-ec" title="작업지시서 연결 끊기"
+                            style={{ marginLeft: 4, border: 0, background: 'none', color: '#c60a2e', cursor: 'pointer' }}
+                            onClick={() => setLine(l.key, { workOrderId: '' })}>×</button>
+                  )}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colSpan={type === 'III' ? 7 : 4} />
+            <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(totalQty)}</td>
+            {type !== 'III' && <td />}
+            {type !== 'III' && <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(totalAmt)}</td>}
+            {type !== 'III' && <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(totalVat)}</td>}
+            <td colSpan={type !== 'III' ? 3 : 2} />
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  )
+
+  const consumeGrid = (
+    <div style={{ overflowX: 'auto' }}>
+      <table className="ec-grid-input no-ec" style={{ tableLayout: 'fixed', minWidth: 1100 }}>
+        <colgroup>
+          <col style={{ width: 30 }} />
+          {type === 'III' && <col style={{ width: 120 }} />}
+          <col style={{ width: 260 }} />
+          <col style={{ width: 110 }} />
+          <col style={{ width: 220 }} />
+          {type === 'II' && <col style={{ width: 100 }} />}
+          {type === 'III' && <col style={{ width: 90 }} />}
+          <col style={{ width: 90 }} />
+          {type === 'III' && <col style={{ width: 90 }} />}
+          <col style={{ width: 180 }} />
+        </colgroup>
+        <thead>
+          <tr>
+            <th />
+            {type === 'III' && <th style={{ textAlign: 'left' }}>공정</th>}
+            <th style={{ textAlign: 'left' }}>생산품목</th>
+            <th style={{ textAlign: 'left' }}>소모품목코드</th>
+            <th style={{ textAlign: 'left' }}>소모품목명</th>
+            {type === 'II' && <th style={{ textAlign: 'left' }}>규격</th>}
+            {type === 'III' && <th style={{ textAlign: 'right' }}>추가수량</th>}
+            <th style={{ textAlign: 'right' }}>수량</th>
+            {type === 'III' && <th style={{ textAlign: 'right' }}>작지 수량</th>}
+            <th style={{ textAlign: 'left' }}>적요</th>
+          </tr>
+        </thead>
+        <tbody>
+          {mats.map((m, idx) => {
+            const c = itemById.get(m.componentId)
+            const owner = lines.find((l) => String(l.key) === m.lineKey)
+            const proc = processes.find((p) => String(p.id) === owner?.processId)
+            return (
+              <tr key={m.key}>
+                <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{idx + 1}</td>
+                {type === 'III' && <td className="pad" style={{ color: '#5a626e' }}>{proc?.name ?? ''}</td>}
+                <td>
+                  <select className="cell" value={m.lineKey} onChange={(e) => setMat(m.key, { lineKey: e.target.value })}>
+                    <option value="" />
+                    {lineOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </td>
+                <td className="pad" style={{ fontFamily: 'ui-monospace, monospace', color: '#5a626e', overflow: 'hidden', whiteSpace: 'nowrap' }}>{c?.code ?? ''}</td>
+                <td className="pad">
+                  <CodePickerField label="소모품목" hideLabel fill placeholder="" emptyLabel="선택 해제"
+                                   value={m.componentId}
+                                   onChange={(v) => setMat(m.key, { componentId: v, lineKey: m.lineKey || (filled.length === 1 ? String(filled[0].key) : '') })}
+                                   items={itemPicks} />
+                </td>
+                {type === 'II' && <td className="pad" style={{ color: '#5a626e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c?.spec ?? ''}</td>}
+                {type === 'III' && (
+                  <td>
+                    <input className="cell" type="number" step="any" style={{ textAlign: 'right' }} disabled={!m.componentId}
+                           value={m.extraQty} onChange={(e) => setMat(m.key, { extraQty: e.target.value })} />
+                  </td>
+                )}
+                <td>
+                  <input className="cell" type="number" step="any" style={{ textAlign: 'right' }} disabled={!m.componentId}
+                         value={m.qty} onChange={(e) => setMat(m.key, { qty: e.target.value })} />
+                </td>
+                {type === 'III' && <td className="pad" style={{ textAlign: 'right', color: '#8a929c' }}>{m.bomQty !== '' ? won(num(m.bomQty)) : ''}</td>}
+                <td>
+                  <input className="cell" disabled={!m.componentId} value={m.note} onChange={(e) => setMat(m.key, { note: e.target.value })} />
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colSpan={type === 'III' ? 5 : 4} />
+            {type === 'II' && <td />}
+            {type === 'III' && <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(matsFilled.reduce((n, m) => n + num(m.extraQty), 0))}</td>}
+            <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(matsFilled.reduce((n, m) => n + num(m.qty), 0))}</td>
+            {type === 'III' && <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(matsFilled.reduce((n, m) => n + num(m.bomQty), 0))}</td>}
+            <td />
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  )
 
   return (
-    <form ref={formRef} onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-      {/* ☆ 제목 + 상단 툴바 */}
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ color: '#f5b301', fontSize: 14, marginRight: 4 }}>☆</span>
-        <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ec-text)' }}>생산입고 I(BOM기준소모)</span>
-        <span style={{ marginLeft: 10, fontSize: 11.5, color: '#8a929c' }}>생산 시 BOM 소요량만큼 자재 출고 + 완제품 입고(백플러시)</span>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
-          <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
-          <button type="button" className="ec-btn" onClick={reset}>초기화</button>
-          <button type="button" className="ec-btn">도움말</button>
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-        {/* 등록 폼 */}
-        {/*
-          격자로 바꾸면서 안쪽 표가 이 칸(420)보다 넓어져 <b>오른쪽 목록 위로 넘쳐</b> 있었다 —
-          브라우저로 열어 보고 알았다. 칸을 넓히고 넘치면 잘리지 말고 밀리게 둔다.
-        */}
-        <div style={{ width: 620, maxWidth: '100%', border: '1px solid var(--ec-border)',
-          background: '#fff', padding: 14, flexShrink: 0, overflowX: 'auto' }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>생산입고 등록</div>
-          <table ref={tableRef} className="w-full text-left" style={{ marginBottom: 10 }}>
-            <tbody>
-              <tr>
-                {/* 원본 생산입고 I 의 격자 — 한 전표에 완제품 여러 줄. */}
-                <th style={th}>생산 *</th>
-                <td>
-                  <table className="w-full text-left">
-                    <thead>
-                      <tr>
-                        <th style={{ width: 34 }}></th>
-                        <th>작업지시</th>
-                        <th style={{ width: 90, textAlign: 'right' }}>수량</th>
-                        <th style={{ width: 150 }}>적요</th>
-                        <th style={{ width: 60, textAlign: 'center' }}>삭제</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {prodLines.map((l, idx) => {
-                        const order = selectable.find((o) => String(o.id) === l.workOrderId)
-                        return (
-                          <tr key={l.key}>
-                            <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
-                            <td>
-                              {/* 긴 드롭다운이었다 — 열린 작업지시가 수백 건이면 스크롤로 찾아야 했다(QA 10회차). */}
-                              <CodePickerField label="작업지시" hideLabel fill placeholder="선택하세요" emptyLabel="선택 해제"
-                                               value={l.workOrderId} onChange={(v) => setProdLine(l.key, { workOrderId: v })}
-                                               items={orderPicks} />
-                            </td>
-                            <td>
-                              <input type="number" step="any" className="ec-input" style={{ textAlign: 'right' }}
-                                     value={l.qty} onChange={(e) => setProdLine(l.key, { qty: e.target.value })} />
-                              {order && <div style={{ fontSize: 11, color: '#8a929c' }}>잔여 {won(order.remainingQty)} {order.productUnit}</div>}
-                            </td>
-                            <td>
-                              <input className="ec-input" value={l.note}
-                                     onChange={(e) => setProdLine(l.key, { note: e.target.value })} />
-                            </td>
-                            <td style={{ textAlign: 'center' }}>
-                              <button type="button" style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}
-                                      onClick={() => setProdLines(prodLines.length > 1
-                                        ? prodLines.filter((x) => x.key !== l.key)
-                                        : [{ key: 1, workOrderId: '', qty: '', note: '' }])}>삭제</button>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                    <tfoot>
-                      <tr>
-                        <td colSpan={2} style={{ textAlign: 'right', fontWeight: 700 }}>합계</td>
-                        <td style={{ textAlign: 'right', fontWeight: 700 }}>
-                          {won(prodLines.reduce((n, l) => n + (Number(l.qty) || 0), 0))}
-                        </td>
-                        <td colSpan={2}></td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                  <button type="button" className="ec-btn" style={{ marginTop: 4 }}
-                          onClick={() => setProdLines([...prodLines, { key: Math.max(0, ...prodLines.map((x) => x.key)) + 1, workOrderId: '', qty: '', note: '' }])}>
-                    줄 추가
-                  </button>
-                </td>
-              </tr>
-              <tr>
-                <th style={th}>일자</th>
-                <td><input type="date" className="ec-input" value={date} onChange={(e) => setDate(e.target.value)} style={{ width: 150 }} /></td>
-              </tr>
-              <tr>
-                {/* 원본 생산입고 I 머리 차례: 일자 · 담당자 · 생산된공장 · 받는창고 · 프로젝트 */}
-                <th style={th}>담당자</th>
-                <td>
-                  {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다. */}
-                  <CodePickerField label="담당자" hideLabel width={200} emptyLabel="선택 안 함"
-                                   value={employeeId} onChange={setEmployeeId}
-                                   items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
-                </td>
-              </tr>
-              <tr>
-                <th style={th}>생산된공장</th>
-                <td>
-                {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다. */}
-                <CodePickerField label="생산된공장" hideLabel fill
-                                 emptyLabel={orderWarehouse ? `${orderWarehouse} (작업지시)` : '작업지시의 창고'}
-                                 value={fromWarehouseId} onChange={setFromWarehouseId}
-                                 items={warehouses.map((x) => ({ value: String(x.id), name: x.name, sub: x.kind }))} />
-                  <div style={{ fontSize: 11, color: '#8a929c', marginTop: 2 }}>자재가 빠지는 곳</div>
-                </td>
-              </tr>
-              <tr>
-                <th style={th}>받는창고</th>
-                <td>
-                {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다. */}
-                <CodePickerField label="받는창고" hideLabel fill
-                                 emptyLabel={orderWarehouse ? `${orderWarehouse} (작업지시)` : '작업지시의 창고'}
-                                 value={toWarehouseId} onChange={setToWarehouseId}
-                                 items={warehouses.map((x) => ({ value: String(x.id), name: x.name, sub: x.kind }))} />
-                  <div style={{ fontSize: 11, color: '#8a929c', marginTop: 2 }}>완제품이 들어가는 곳</div>
-                </td>
-              </tr>
-              <tr>
-                <th style={th}>프로젝트</th>
-                <td>
-                {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다. */}
-                <CodePickerField label="프로젝트" hideLabel fill
-                                 emptyLabel="선택 안 함"
-                                 value={projectId} onChange={setProjectId}
-                                 items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
-                </td>
-              </tr>
-              <tr>
-                {/* 원본 그리드의 마지막 두 열 — 적요 · 노무시간. */}
-                <th style={th}>적요</th>
-                <td>
-                  <input className="ec-input" value={note} onChange={(e) => setNote(e.target.value)}
-                         style={{ width: '100%' }} />
-                </td>
-              </tr>
-              <tr>
-                <th style={th}>노무시간</th>
-                <td>
-                  <input className="ec-input" type="number" min={0} value={laborMinutes}
-                         onChange={(e) => setLaborMinutes(e.target.value)}
-                         placeholder="분" style={{ width: 120 }} />
-                  <span style={{ marginLeft: 8, fontSize: 11.5, color: '#8a929c' }}>
-                    분 단위. 적어 두면 실제원가의 노무비를 <b>이 시간</b>으로 냅니다
-                    (요율은 표준과 같습니다). 비워 두면 표준값을 씁니다.
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-
-          {preview.length > 0 && (
-            <div style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#5a626e', marginBottom: 4 }}>예상 소요자재</div>
-              <table className="w-full text-left">
-                <thead>
-                  <tr><th>자재</th><th style={{ textAlign: 'right', width: 130 }}>소요량</th></tr>
-                </thead>
-                <tbody>
-                  {preview.map((m) => (
-                    <tr key={m.componentId}>
-                      <td>[{m.componentCode}] {m.componentName}</td>
-                      <td style={{ textAlign: 'right', fontWeight: 600, color: '#812d03' }}>-{won(m.quantity)} {m.unit}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+    <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+      <EcSlipShell
+        title={TITLES[type] + (editNo ? ` (${editNo})` : '')}
+        actions={[
+          { label: saving ? '저장 중…' : '저장(F8)', primary: true, submit: true, disabled: saving },
+          { label: '다시 작성', onClick: reset },
+          { label: '리스트', onClick: () => navigate('/production/receipt-inquiry') },
+          ...(editNo ? [{ label: '삭제', onClick: () => void removeSlip() }] : []),
+        ]}
+        help={
+          <ul style={{ paddingLeft: 18, margin: 0 }}>
+            <li>저장하면 <b>받는창고</b>로 생산품목이 들어오고, <b>생산된공장</b>에서 소모품목이 빠집니다.</li>
+            {type === 'I' && <li>소모는 <b>BOM 소요량 × 수량</b>으로 자동 계산합니다. BOM 이 없는 품목은 저장되지 않습니다.</li>}
+            {type !== 'I' && <li>소모는 <b>[소모] 탭에 넣은 것만</b> 빠집니다. [BOM풀기]로 BOM 기준 소요량을 채운 뒤 고치세요. 비워 두면 자재는 빠지지 않습니다.</li>}
+            {type === 'III' && <li>줄마다 공정·생산된공장·받는창고를 따로 정합니다. [작지수량]은 BOM 기준이고, [추가수량]을 넣으면 수량 = 작지수량 + 추가수량입니다.</li>}
+            <li><b>[작업지시서]</b>로 지시를 고르면 잔량(지시수량 − 기생산)이 수량으로 들어옵니다. 지시를 넘겨 입고할 수는 없습니다.</li>
+            <li>생산된공장이 <b>외주</b> 창고면 품목의 외주비단가로 외주비합계·부가세(10%, 원 미만 버림)를 계산합니다.</li>
+            <li>줄이 몇 개든 전표번호는 하나입니다. 생산입고조회에서 번호를 누르면 이 화면으로 다시 열어 고칠 수 있습니다.</li>
+          </ul>
+        }
+      >
+        <ul className="ec-form">
+          <li>
+            <div className="title">일자</div>
+            <div className="form"><EcDateField value={date} onChange={setDate} /></div>
+          </li>
+          <li>
+            <div className="title">담당자</div>
+            <div className="form">
+              <CodePickerField label="담당자" hideLabel pair value={employeeId} onChange={setEmployeeId}
+                               items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
             </div>
+          </li>
+          {type !== 'III' && (
+            <li>
+              <div className="title">생산된공장<span className="req">*</span></div>
+              <div className="form">
+                <CodePickerField label="생산된공장" hideLabel pair value={fromWarehouseId}
+                                 onChange={(v) => { setFromWarehouseId(v); setLines((ls) => ls.map((l) => (l.amountTouched ? l : recompute({ ...l, unitPrice: '' })))) }}
+                                 items={factoryPicks} />
+              </div>
+            </li>
           )}
+          {type !== 'III' && (
+            <li>
+              <div className="title">받는창고<span className="req">*</span></div>
+              <div className="form">
+                <CodePickerField label="받는창고" hideLabel pair value={warehouseId} onChange={setWarehouseId} items={whPicks} />
+              </div>
+            </li>
+          )}
+          <li>
+            <div className="title">프로젝트</div>
+            <div className="form">
+              <CodePickerField label="프로젝트" hideLabel pair value={projectId} onChange={setProjectId}
+                               items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+            </div>
+          </li>
+        </ul>
 
-          {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-          {ok && <p style={{ background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
+        <ul className="ec-tabs" style={{ marginTop: 10 }}>
+          {TABS.map((t) => (type === 'I' && t === '소모' ? null : (
+            <li key={t} className={`ec-tab${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>{t}</li>
+          )))}
+        </ul>
 
-          <button type="submit" className="ec-btn ec-btn-primary" style={{ width: '100%', height: 30 }}>생산 등록</button>
+        <div className="ec-toolbar">
+          {tab === '생산' ? (
+            <>
+              <button type="button" className="ec-btn ec-btn-sm" disabled={myItems.busy} onClick={myItems.pick}>My품목</button>
+              <button type="button" className="ec-btn ec-btn-sm" onClick={() => { setWoChecked([]); setWoOpen(true) }}>작업지시서</button>
+              {type !== 'I' && <button type="button" className="ec-btn ec-btn-sm" onClick={() => void explodeBom()}>BOM풀기</button>}
+              <MyItemsNote note={myItems.note} />
+            </>
+          ) : (
+            <>
+              <button type="button" className="ec-btn ec-btn-sm" onClick={() => void explodeBom()}>BOM풀기</button>
+              <span style={{ fontSize: 11.5, color: '#8a929c', marginLeft: 6 }}>
+                생산품목마다 BOM 소요량 × 수량으로 다시 채웁니다(지금 [소모] 줄은 지워집니다).
+              </span>
+            </>
+          )}
         </div>
 
-        {/* 생산 이력 */}
-        <div style={{ flex: 1, minWidth: 380 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-text)', marginBottom: 6 }}>최근 생산입고</div>
+        <div ref={gridRef}>{tab === '생산' ? prodGrid : consumeGrid}</div>
+
+        {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, margin: '8px 0' }}>{error}</p>}
+        {ok && <p style={{ background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, margin: '8px 0' }}>{ok}</p>}
+      </EcSlipShell>
+
+      <Modal open={woOpen} title="작업지시서조회" error={error} width={900} onClose={() => setWoOpen(false)}>
+        <div style={{ maxHeight: '55vh', overflowY: 'auto' }}>
           <table className="w-full text-left">
             <thead>
               <tr>
-                <th>생산번호</th>
-                <th>일자</th>
-                <th>제품</th>
-                <th style={{ textAlign: 'right' }}>생산량</th>
-                <th>소요자재</th>
+                <th style={{ width: 30 }} />
+                <th>작업지시서일자</th>
+                <th>거래처명</th>
+                <th>품목코드</th>
+                <th>품목명[규격]</th>
+                <th style={{ textAlign: 'right' }}>수량</th>
+                <th style={{ textAlign: 'right' }}>잔량</th>
               </tr>
             </thead>
             <tbody>
-              {productions.length === 0 ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
-              ) : productions.map((p) => (
-                <tr key={p.id}>
-                  <td style={{ fontFamily: 'monospace' }}>{p.prodNo}</td>
-                  <td>{dateText(p.productionDate)}</td>
-                  <td>{p.productName}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 600, color: '#1c7c3c' }}>+{won(p.producedQty)} {p.productUnit}</td>
-                  <td style={{ fontSize: 11.5, color: '#8a929c' }}>{p.materials.map((m) => `${m.componentName} ${won(m.quantity)}`).join(', ')}</td>
+              {openOrders.length === 0 ? (
+                <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>등록된 데이터가 없습니다.</td></tr>
+              ) : openOrders.map((o) => (
+                <tr key={o.id} style={{ cursor: 'pointer' }}
+                    onClick={() => setWoChecked((c) => (c.includes(o.id) ? c.filter((x) => x !== o.id) : [...c, o.id]))}>
+                  <td style={{ textAlign: 'center' }}><input type="checkbox" readOnly checked={woChecked.includes(o.id)} /></td>
+                  <td>{dateText(o.orderDate)} {o.orderNo}</td>
+                  <td>{o.partnerName ?? ''}</td>
+                  <td>{o.productCode}</td>
+                  <td>{o.productName}{o.productSpec ? ` [${o.productSpec}]` : ''}</td>
+                  <td style={{ textAlign: 'right' }}>{won(Number(o.plannedQty))}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(Number(o.remainingQty))}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      </div>
+        <div style={{ display: 'flex', gap: 4, marginTop: 10 }}>
+          <button type="button" className="ec-btn ec-btn-primary" onClick={applyOrders}>잔량적용</button>
+          <button type="button" className="ec-btn" onClick={() => setWoOpen(false)}>닫기</button>
+        </div>
+      </Modal>
     </form>
   )
 }

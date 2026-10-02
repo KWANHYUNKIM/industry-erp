@@ -4735,7 +4735,9 @@ async function scenarioProductionBatch(f) {
   eq('담당자는 다시 읽어도 남아 있다',
     (await must('GET', '/productions')).find((x) => x.id === made[0].id).employeeId, emp?.id ?? null)
   eq('줄마다 적요가 따로 남는다', made.map((x) => x.note).join(','), `${P}줄1,${P}줄2`)
-  eq('줄마다 번호가 따로 매겨진다', new Set(made.map((x) => x.prodNo)).size, 2)
+  // 원본(이카운트)은 생산품목이 몇 줄이든 전표번호가 하나다("2026/10/28 -1").
+  eq('한 전표의 줄들은 번호 하나를 나눠 갖는다', new Set(made.map((x) => x.prodNo)).size, 1)
+  eq('줄 차례가 1·2 로 붙는다', made.map((x) => x.lineNo).join(','), '1,2')
   eq('작업지시 기생산이 줄만큼 는다',
     Number((await must('GET', '/work-orders')).find((x) => x.id === a.id).producedQty), 2)
 
@@ -4755,6 +4757,133 @@ async function scenarioProductionBatch(f) {
   })
   eq('시험용 생산은 남기지 않는다',
     (await must('GET', '/productions')).filter((x) => x.productionDate === D).length, 0)
+}
+
+/**
+ * 생산입고 <b>전표</b> — 원본 생산입고 I·II·III.
+ *
+ * <p>작업지시서 없이도 입고하고(원본은 품목코드만 넣고 저장된다), 줄이 몇 개든 번호가 하나다.
+ * I 은 BOM 대로, II 는 [소모] 탭에 넣은 것만 뺀다(비우면 소모 없음). 고치면 옛 줄을 되돌리고
+ * 새 줄로 다시 넣고, 지우면 재고가 처음으로 돌아온다. 생산불출의 [작업지시서] → [잔량으로BOM풀기] 가
+ * 쓰는 잔량(BOM × 지시수량 − 이미 낸 불출)도 잰다.
+ */
+async function scenarioProductionSlip(f) {
+  section('■ 생산입고 전표 — I·II·III, 작업지시 없이, 번호 하나')
+
+  const D = '2087-04-04'
+  const stockOf = async (itemId) => {
+    const r = (await must('GET', '/stock')).find((x) => x.itemId === itemId && x.warehouseId === f.warehouse.id)
+    return r ? Number(r.quantity) : 0
+  }
+  const clear = async () => {
+    const nos = new Set((await must('GET', '/productions')).filter((x) => x.productionDate === D).map((x) => x.prodNo))
+    for (const no of nos) await call('DELETE', `/productions/slips/${no}`)
+    for (const mi of (await must('GET', '/material-issues')).filter((x) => x.issueDate === D)) {
+      await call('DELETE', `/material-issues/${mi.id}`)
+    }
+    for (const w of (await must('GET', '/work-orders')).filter((x) => x.orderDate === D)) {
+      await call('DELETE', `/work-orders/${w.id}`)
+    }
+  }
+  await clear()
+
+  const bom = (await must('GET', '/boms')).find((b) => b.productId === f.product.id)
+  const comp = bom.lines[0]
+  await must('POST', '/stock/transactions', {
+    itemId: comp.componentId, warehouseId: f.warehouse.id, type: 'INBOUND', quantity: 500,
+  })
+  const p0 = await stockOf(f.product.id)
+  const c0 = await stockOf(comp.componentId)
+  const per = Number(comp.quantity)
+
+  // I — 작업지시서 없이 두 줄. 번호 하나, BOM 대로 소모.
+  const one = await must('POST', '/productions/slips', {
+    entryType: 'I', productionDate: D, fromWarehouseId: f.warehouse.id, warehouseId: f.warehouse.id,
+    lines: [
+      { productId: f.product.id, producedQty: 2, subcontractUnitPrice: 1000 },
+      { productId: f.product.id, producedQty: 3 },
+    ],
+  })
+  eq('I: 작업지시서 없이 입고된다', one.every((x) => x.workOrderId === null), true)
+  eq('I: 두 줄이 번호 하나', new Set(one.map((x) => x.prodNo)).size, 1)
+  eq('I: 입고 구분이 I', one[0].entryType, 'I')
+  eq('I: 외주비합계 = 단가 × 수량', Number(one[0].subcontractAmount), 2000)
+  eq('I: 외주비부가세 = 합계의 10%', Number(one[0].subcontractVat), 200)
+  eq('I: 완제품 5 입고', await stockOf(f.product.id), p0 + 5)
+  eq('I: BOM 대로 자재 소모', await stockOf(comp.componentId), c0 - per * 5)
+
+  // 전표 하나로 다시 읽는다.
+  const slip = await must('GET', `/productions/slips/${one[0].prodNo}`)
+  eq('전표를 번호로 연다(줄 둘)', slip.map((x) => x.lineNo).join(','), '1,2')
+
+  // 고치기 — 수량 5 → 1. 옛 줄이 되돌아가고 새 줄만 남는다. 일자가 같으면 번호를 지킨다.
+  const fixed = await must('PUT', `/productions/slips/${one[0].prodNo}`, {
+    entryType: 'I', productionDate: D, fromWarehouseId: f.warehouse.id, warehouseId: f.warehouse.id,
+    lines: [{ productId: f.product.id, producedQty: 1 }],
+  })
+  eq('고쳐도 번호가 그대로', fixed[0].prodNo, one[0].prodNo)
+  eq('고친 뒤 완제품은 1 만 늘어 있다', await stockOf(f.product.id), p0 + 1)
+  eq('고친 뒤 자재는 1 개분만 빠져 있다', await stockOf(comp.componentId), c0 - per)
+
+  // II — 소모를 비우면 자재는 안 빠진다. 넣으면 넣은 만큼만.
+  const c1 = await stockOf(comp.componentId)
+  await must('POST', '/productions/slips', {
+    entryType: 'II', productionDate: D, fromWarehouseId: f.warehouse.id, warehouseId: f.warehouse.id,
+    lines: [{ productId: f.product.id, producedQty: 1, materials: [] }],
+  })
+  eq('II: 소모를 비우면 자재가 안 빠진다', await stockOf(comp.componentId), c1)
+  const two = await must('POST', '/productions/slips', {
+    entryType: 'II', productionDate: D, fromWarehouseId: f.warehouse.id, warehouseId: f.warehouse.id,
+    lines: [{ productId: f.product.id, producedQty: 1, materials: [{ componentId: comp.componentId, quantity: 7, note: 'QA 손실' }] }],
+  })
+  eq('II: 넣은 소모만 빠진다', await stockOf(comp.componentId), c1 - 7)
+  eq('II: 소모 적요가 남는다', two[0].materials[0].note, 'QA 손실')
+
+  // III — 줄마다 생산된공장이 있어야 한다.
+  const noFactory = await call('POST', '/productions/slips', {
+    entryType: 'III', productionDate: D,
+    lines: [{ productId: f.product.id, producedQty: 1, warehouseId: f.warehouse.id }],
+  })
+  eq('III: 줄에 생산된공장이 없으면 거부', noFactory.status, 400)
+
+  // 작업지시서를 불러온 줄 — 다른 품목의 지시는 못 붙인다, 붙이면 기생산이 는다.
+  const wo = await must('POST', '/work-orders', {
+    productId: f.product.id, warehouseId: f.warehouse.id, plannedQty: 4, orderDate: D,
+  })
+  const wrong = await call('POST', '/productions/slips', {
+    entryType: 'I', productionDate: D, fromWarehouseId: f.warehouse.id, warehouseId: f.warehouse.id,
+    lines: [{ productId: comp.componentId, workOrderId: wo.id, producedQty: 1 }],
+  })
+  eq('작업지시서와 품목이 다르면 거부', wrong.status, 400)
+  await must('POST', '/productions/slips', {
+    entryType: 'I', productionDate: D, fromWarehouseId: f.warehouse.id, warehouseId: f.warehouse.id,
+    lines: [{ productId: f.product.id, workOrderId: wo.id, producedQty: 3 }],
+  })
+  eq('작업지시서를 불러와 입고하면 기생산이 는다',
+    Number((await must('GET', '/work-orders')).find((x) => x.id === wo.id).producedQty), 3)
+
+  // 생산불출 [작업지시서] → 잔량. 불출 전에는 BOM × 지시수량, 2 를 내면 그만큼 준다.
+  const req0 = (await must('GET', `/material-issues/wo-requirements?workOrderIds=${wo.id}`))
+    .find((x) => x.componentId === comp.componentId)
+  eq('불출 소요량 = BOM × 지시수량', Number(req0.requiredQty), per * 4)
+  const issued = await must('POST', '/material-issues/batch', {
+    warehouseId: f.warehouse.id, issueDate: D,
+    lines: [
+      { itemId: comp.componentId, qty: 2, workOrderId: wo.id },
+      { itemId: comp.componentId, qty: 1, workOrderId: wo.id },
+    ],
+  })
+  eq('불출도 줄이 몇 개든 번호 하나', new Set(issued.map((x) => x.issueNo)).size, 1)
+  const req1 = (await must('GET', `/material-issues/wo-requirements?workOrderIds=${wo.id}`))
+    .find((x) => x.componentId === comp.componentId)
+  eq('잔량 = 소요량 − 이미 낸 불출', Number(req1.remainingQty), Math.max(0, per * 4 - 3))
+
+  await clear()
+  await must('POST', '/stock/transactions', {
+    itemId: comp.componentId, warehouseId: f.warehouse.id, type: 'OUTBOUND', quantity: 500,
+  })
+  eq('지우면 완제품 재고가 처음으로', await stockOf(f.product.id), p0)
+  eq('지우면 자재 재고가 처음으로(넣어 둔 500 을 빼고)', await stockOf(comp.componentId), c0 - 500)
 }
 
 async function scenarioWorkResultBatch(f) {
@@ -9286,6 +9415,16 @@ async function main() {
     console.log('\n시드 완료.')
     return
   }
+  // 생산 쪽만 빨리 돌린다(node qa/qa.mjs production) — 전체는 수천 건을 만들고 오래 걸린다.
+  if (cmd === 'production') {
+    await scenarioProduction(fixtures)
+    await scenarioProductionWarehouses(fixtures)
+    await scenarioProductionLaborMinutes(fixtures)
+    await scenarioProductionBatch(fixtures)
+    await scenarioProductionSlip(fixtures)
+    console.log(`\n통과 ${pass} · 실패 ${fail}`)
+    process.exit(fail > 0 ? 1 : 0)
+  }
 
   await scenarioShipment(fixtures)
   await scenarioUnsold(fixtures)
@@ -9399,6 +9538,7 @@ async function main() {
   await scenarioStockAsOf(fixtures)
   await scenarioProductionLaborMinutes(fixtures)
   await scenarioProductionBatch(fixtures)
+  await scenarioProductionSlip(fixtures)
   await scenarioWorkResultBatch(fixtures)
   await scenarioReturnSlip(fixtures)
   await scenarioMasterResave()

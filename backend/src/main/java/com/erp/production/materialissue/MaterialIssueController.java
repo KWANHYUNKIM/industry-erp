@@ -47,6 +47,12 @@ public class MaterialIssueController {
         return ResponseEntity.status(HttpStatus.CREATED).body(materialIssueService.createBatch(req));
     }
 
+    /** 작업지시서의 소요자재·기불출·잔량. 원본 생산불출입력 [작업지시서] → [잔량으로BOM풀기]·[BOM풀기]. */
+    @GetMapping("/wo-requirements")
+    public List<MaterialIssueDtos.WorkOrderRequirement> requirements(@RequestParam List<Long> workOrderIds) {
+        return materialIssueService.requirements(workOrderIds);
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         materialIssueService.delete(id);

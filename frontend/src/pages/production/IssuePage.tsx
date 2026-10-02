@@ -81,7 +81,27 @@ const emptyForm = {
  * 격자 한 줄. 원본 생산불출입력은 <b>한 전표에 자재를 여러 줄</b> 넣는다 —
  * 같은 날 같은 작업지시로 자재 다섯 개를 내보내면서 다섯 번 저장할 일이 아니다.
  */
-interface FormLine { key: number; itemId: string; qty: string; note: string }
+interface FormLine {
+  key: number; itemId: string; qty: string; note: string
+  /** 원본 [작업지시서] 로 불러온 줄이면 그 지시. 줄마다 다른 지시에 묶일 수 있다. */
+  workOrderId?: string
+  workOrderNo?: string
+}
+
+/** GET /material-issues/wo-requirements 한 줄 — 작업지시서의 소요자재·기불출·잔량. */
+interface WoRequirement {
+  workOrderId: number; workOrderNo: string; orderDate: string
+  productCode: string; productName: string; plannedQty: number
+  employeeId: number | null
+  componentId: number; requiredQty: number; issuedQty: number; remainingQty: number
+}
+
+/** 작업지시서 고르기 창에 쓸 지시(전체 목록). */
+interface WorkOrderFull {
+  id: number; orderNo: string; orderDate: string; partnerName: string | null; employeeId: number | null
+  productCode: string; productName: string; productSpec: string | null
+  plannedQty: number; status: string
+}
 /** GET /api/stock 한 줄 — 원본 [재고불러오기]가 격자의 수량 칸 셋을 채우는 자료다. */
 interface StockRow { itemId: number; warehouseId: number; quantity: number }
 let nextLineKey = 1
@@ -239,6 +259,53 @@ export default function IssuePage() {
   const empName = (id: number | null) =>
     id == null ? '-' : (employees.find((x) => x.id === id)?.name ?? '-')
 
+  /*
+   * 원본 생산불출입력 툴바의 <b>[작업지시서]</b>. 받는공장을 먼저 정해야 열린다(원본: "받는공장을 입력바랍니다.").
+   * 지시를 고르고 [잔량으로BOM풀기] 를 누르면 BOM 소요량 × 지시수량 − 이미 낸 불출이,
+   * [BOM풀기] 를 누르면 BOM 소요량 × 지시수량이 격자에 들어간다. 줄마다 그 지시가 붙는다.
+   */
+  const [woPickOpen, setWoPickOpen] = useState(false)
+  const [woList, setWoList] = useState<WorkOrderFull[]>([])
+  const [woPicked, setWoPicked] = useState<number[]>([])
+  async function openWoPick() {
+    if (!form.toWarehouseId) { setError('받는공장을 입력바랍니다.'); return }
+    setError('')
+    try {
+      // 원본 작업지시서조회 창도 기간(지시일)을 달고 뜬다 — 목록의 기간을 그대로 쓴다.
+      const r = await api.get<WorkOrderFull[]>('/work-orders', { params: { from, to } })
+      setWoList(r.data.filter((w) => w.status !== 'COMPLETED'))
+      setWoPicked([])
+      setWoPickOpen(true)
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    }
+  }
+  async function applyWo(remainOnly: boolean) {
+    if (woPicked.length === 0) { setWoPickOpen(false); return }
+    try {
+      const r = await api.get<WoRequirement[]>('/material-issues/wo-requirements', {
+        params: { workOrderIds: woPicked.join(',') },
+      })
+      const added: FormLine[] = r.data
+        .map((q) => ({ q, qty: remainOnly ? Number(q.remainingQty) : Number(q.requiredQty) }))
+        .filter(({ qty }) => qty > 0)
+        .map(({ q, qty }) => ({
+          ...emptyLine(), itemId: String(q.componentId), qty: String(qty),
+          workOrderId: String(q.workOrderId), workOrderNo: q.workOrderNo,
+        }))
+      const none = woPicked.filter((id) => !r.data.some((q) => q.workOrderId === id))
+      setLines((ls) => [...ls.filter((l) => l.itemId), ...added, emptyLine()])
+      // 원본처럼 비어 있는 담당자를 지시서에서 채운다.
+      const firstEmp = woList.find((w) => w.id === woPicked[0])?.employeeId
+      if (!form.employeeId && firstEmp != null) setForm((f) => ({ ...f, employeeId: String(firstEmp) }))
+      if (none.length > 0) setError(`BOM 이 없는 지시는 풀 자재가 없습니다: ${woList.filter((w) => none.includes(w.id)).map((w) => w.orderNo).join(', ')}`)
+      else if (added.length === 0) setError(remainOnly ? '고른 지시는 이미 다 불출했습니다(잔량 0).' : '풀 자재가 없습니다.')
+      setWoPickOpen(false)
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    }
+  }
+
   async function submit(e: FormEvent) {
     e.preventDefault()
     setError('')
@@ -257,7 +324,10 @@ export default function IssuePage() {
         issueDate: form.issueDate || null,
         employeeId: form.employeeId === '' ? null : Number(form.employeeId),
         projectId: form.projectId === '' ? null : Number(form.projectId),
-        lines: filled.map((l) => ({ itemId: Number(l.itemId), qty: Number(l.qty), note: l.note })),
+        lines: filled.map((l) => ({
+          itemId: Number(l.itemId), qty: Number(l.qty), note: l.note,
+          workOrderId: l.workOrderId ? Number(l.workOrderId) : null,
+        })),
       })
       setForm(emptyForm)
       setLines([emptyLine()])
@@ -432,8 +502,48 @@ export default function IssuePage() {
             {/* 단추는 화면이 <b>글자로</b> 그린다 — 자식 컴포넌트에 넣으면 버튼 검사가 못 본다. */}
             <button type="button" className="ec-btn" disabled={myItems.busy} onClick={myItems.pick}>My품목</button>
             <MyItemsNote note={myItems.note} />
+            <button type="button" className="ec-btn" onClick={() => void openWoPick()}>작업지시서</button>
             <button type="button" className="ec-btn" disabled={stockBusy} onClick={loadStocks}>재고불러오기</button>
           </div>
+          {woPickOpen && (
+            <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 8, marginBottom: 8 }}>
+              <div style={{ fontWeight: 700, fontSize: 12.5, marginBottom: 6 }}>작업지시서조회</div>
+              <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+                <table className="w-full text-left">
+                  <thead>
+                    <tr>
+                      <th style={{ width: 30 }} />
+                      <th>작업지시서일자</th>
+                      <th>거래처명</th>
+                      <th>품목코드</th>
+                      <th>품목명[규격]</th>
+                      <th style={{ textAlign: 'right' }}>수량</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {woList.length === 0 ? (
+                      <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 12 }}>등록된 데이터가 없습니다.</td></tr>
+                    ) : woList.map((w) => (
+                      <tr key={w.id} style={{ cursor: 'pointer' }}
+                          onClick={() => setWoPicked((p) => (p.includes(w.id) ? p.filter((x) => x !== w.id) : [...p, w.id]))}>
+                        <td style={{ textAlign: 'center' }}><input type="checkbox" readOnly checked={woPicked.includes(w.id)} /></td>
+                        <td>{dateText(w.orderDate)} {w.orderNo}</td>
+                        <td>{w.partnerName ?? ''}</td>
+                        <td>{w.productCode}</td>
+                        <td>{w.productName}{w.productSpec ? ` [${w.productSpec}]` : ''}</td>
+                        <td style={{ textAlign: 'right' }}>{Number(w.plannedQty).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
+                <button type="button" className="ec-btn ec-btn-primary" onClick={() => void applyWo(true)}>잔량으로BOM풀기</button>
+                <button type="button" className="ec-btn" onClick={() => void applyWo(false)}>BOM풀기</button>
+                <button type="button" className="ec-btn" onClick={() => setWoPickOpen(false)}>닫기</button>
+              </div>
+            </div>
+          )}
           <table className="w-full text-left">
             <thead>
               <tr>
@@ -459,6 +569,7 @@ export default function IssuePage() {
                     <CodePickerField label="자재" hideLabel fill emptyLabel="선택 해제"
                                      value={l.itemId} onChange={(v) => setLine(l.key, { itemId: v })}
                                      items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, alias: i.searchKeyword, sub: i.unit }))} />
+                    {l.workOrderNo && <div style={{ fontSize: 11, color: '#8a929c' }}>작업지시 {l.workOrderNo}</div>}
                   </td>
                   <td>
                     <input type="number" step="any" className={inputCls} style={{ textAlign: 'right' }}

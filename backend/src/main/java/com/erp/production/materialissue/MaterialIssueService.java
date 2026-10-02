@@ -38,6 +38,7 @@ public class MaterialIssueService {
     private final StockService stockService;
     private final ProjectService projectService;
     private final com.erp.common.DocumentNoGenerator docNoGenerator;
+    private final com.erp.production.bom.BomRepository bomRepository;
 
     @Transactional(readOnly = true)
     public List<MaterialIssueResponse> findAll(Long itemId, LocalDate from, LocalDate to) {
@@ -75,6 +76,12 @@ public class MaterialIssueService {
 
     @Transactional
     public MaterialIssueResponse create(CreateMaterialIssueRequest req) {
+        LocalDate date = req.issueDate() != null ? req.issueDate() : LocalDate.now();
+        /* 다른 전표와 같은 방식으로 센다 — count()+1 은 지운 번호를 다시 쓴다. */
+        return create(req, docNoGenerator.next("MI-", "material_issues", "issue_no", "issue_date", date));
+    }
+
+    private MaterialIssueResponse create(CreateMaterialIssueRequest req, String issueNo) {
         Item item = itemService.getUsable(req.itemId());
 
         Warehouse warehouse = req.warehouseId() == null ? null
@@ -94,8 +101,7 @@ public class MaterialIssueService {
 
         LocalDate date = req.issueDate() != null ? req.issueDate() : LocalDate.now();
         MaterialIssue mi = MaterialIssue.builder()
-                /* 다른 전표와 같은 방식으로 센다 — count()+1 은 지운 번호를 다시 쓴다. */
-                .issueNo(docNoGenerator.next("MI-", "material_issues", "issue_no", "issue_date", date))
+                .issueNo(issueNo)
                 .item(item)
                 .warehouse(warehouse)
                 .toWarehouse(toWarehouse)
@@ -135,11 +141,56 @@ public class MaterialIssueService {
      */
     @Transactional
     public List<MaterialIssueResponse> createBatch(CreateMaterialIssueBatchRequest req) {
+        /*
+         * 원본은 줄이 몇 개든 전표번호가 하나다("2026/10/02 -1"). 줄마다 번호를 따로 매기면
+         * 불출조회에 한 번 넣은 전표가 여러 건으로 보이고, 불출증도 줄마다 따로 찍힌다.
+         */
+        LocalDate date = req.issueDate() != null ? req.issueDate() : LocalDate.now();
+        String issueNo = docNoGenerator.next("MI-", "material_issues", "issue_no", "issue_date", date);
         List<MaterialIssueResponse> out = new java.util.ArrayList<>();
         for (IssueLine line : req.lines()) {
             out.add(create(new CreateMaterialIssueRequest(
-                    line.itemId(), req.warehouseId(), req.toWarehouseId(), req.workOrderId(),
-                    line.qty(), req.issueDate(), req.employeeId(), req.projectId(), line.note())));
+                    line.itemId(), req.warehouseId(), req.toWarehouseId(),
+                    line.workOrderId() != null ? line.workOrderId() : req.workOrderId(),
+                    line.qty(), date, req.employeeId(), req.projectId(), line.note()), issueNo));
+        }
+        return out;
+    }
+
+    /**
+     * 작업지시서의 소요자재와 그동안 불출한 양. 원본 생산불출입력 [작업지시서] → [잔량으로BOM풀기]·[BOM풀기].
+     *
+     * <p>BOM 이 없는 제품은 줄이 안 나온다(풀 것이 없다). 같은 지시·같은 자재로 이미 낸 불출을 빼서
+     * 잔량을 센다 — 지시 하나를 여러 번 나눠 불출하는 것이 보통이다.
+     */
+    @Transactional(readOnly = true)
+    public List<MaterialIssueDtos.WorkOrderRequirement> requirements(List<Long> workOrderIds) {
+        List<MaterialIssueDtos.WorkOrderRequirement> out = new java.util.ArrayList<>();
+        if (workOrderIds == null || workOrderIds.isEmpty()) return out;
+        java.util.Map<String, java.math.BigDecimal> issued = new java.util.HashMap<>();
+        for (MaterialIssue mi : materialIssueRepository.findByWorkOrderIdIn(workOrderIds)) {
+            issued.merge(mi.getWorkOrder().getId() + ":" + mi.getItem().getId(), mi.getQty(), java.math.BigDecimal::add);
+        }
+        for (Long woId : workOrderIds) {
+            WorkOrder wo = workOrderRepository.findById(woId)
+                    .orElseThrow(() -> ApiException.notFound("작업지시를 찾을 수 없습니다. id=" + woId));
+            var bom = bomRepository.findByProductIdWithProduct(wo.getProduct().getId()).orElse(null);
+            if (bom == null) continue;
+            for (var line : bom.getLines()) {
+                Item c = line.getComponent();
+                java.math.BigDecimal required = line.getQuantity().multiply(wo.getPlannedQty());
+                java.math.BigDecimal done = issued.getOrDefault(wo.getId() + ":" + c.getId(), java.math.BigDecimal.ZERO);
+                java.math.BigDecimal remaining = required.subtract(done).max(java.math.BigDecimal.ZERO);
+                out.add(new MaterialIssueDtos.WorkOrderRequirement(
+                        wo.getId(), wo.getOrderNo(), wo.getOrderDate(),
+                        wo.getProduct().getId(), wo.getProduct().getCode(), wo.getProduct().getName(),
+                        wo.getPlannedQty(),
+                        wo.getPartner() != null ? wo.getPartner().getId() : null,
+                        wo.getPartner() != null ? wo.getPartner().getName() : null,
+                        wo.getEmployeeId(),
+                        c.getId(), c.getCode(), c.getName(), c.getSpec(), c.getUnit(),
+                        line.getQuantity(), required, done, remaining));
+            }
         }
         return out;
     }

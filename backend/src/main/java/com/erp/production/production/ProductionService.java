@@ -15,9 +15,9 @@ import com.erp.production.production.dto.ProductionDtos.CreateProductionRequest;
 import com.erp.production.production.dto.ProductionDtos.ManualConsumeLine;
 import com.erp.production.production.dto.ProductionDtos.ProductionMaterialResponse;
 import com.erp.production.production.dto.ProductionDtos.ProductionResponse;
+import com.erp.production.production.dto.ProductionDtos.SaveProductionSlipRequest;
+import com.erp.production.production.dto.ProductionDtos.SlipLine;
 import com.erp.production.bom.BomRepository;
-import com.erp.inventory.item.ItemRepository;
-import com.erp.inventory.warehouse.WarehouseRepository;
 import com.erp.production.workorder.WorkOrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -36,8 +36,10 @@ public class ProductionService {
     private final ProductionRepository productionRepository;
     private final WorkOrderRepository workOrderRepository;
     private final BomRepository bomRepository;
-    private final ItemRepository itemRepository;
-    private final WarehouseRepository warehouseRepository;
+    /* inventory 의 것은 그 모듈 service 를 거친다(CLAUDE.md 4.2) — 사용중지한 품목·창고를 막는다. */
+    private final com.erp.inventory.item.ItemService itemService;
+    private final com.erp.inventory.warehouse.WarehouseService warehouseService;
+    private final com.erp.production.process.ProcessService processService;
     private final StockService stockService;
     private final DocumentNoGenerator docNoGenerator;
     /** 프로젝트는 inventory 의 공개 service 를 거친다(리포지토리 직접 주입 금지, 4.2). */
@@ -96,129 +98,251 @@ public class ProductionService {
                 .toList();
     }
 
-    /** 생산수량에 대한 예상 소요자재(미저장) */
+    /** 제품 하나의 BOM 소요량(미저장). 원본 생산입고 II·III [BOM풀기]. */
     @Transactional(readOnly = true)
-    public List<ProductionMaterialResponse> materialPreview(Long workOrderId, BigDecimal producedQty) {
-        WorkOrder wo = getWorkOrder(workOrderId);
-        Bom bom = getBom(wo.getProduct());
+    public List<ProductionMaterialResponse> bomPreview(Long productId, BigDecimal qty) {
+        Item product = itemService.get(productId);
+        Bom bom = getBom(product);
         return bom.getLines().stream()
                 .map(l -> new ProductionMaterialResponse(
                         l.getComponent().getId(), l.getComponent().getCode(), l.getComponent().getName(),
-                        l.getComponent().getUnit(), l.getQuantity().multiply(producedQty)))
+                        l.getComponent().getUnit(), l.getQuantity().multiply(qty),
+                        l.getComponent().getSpec(), null))
                 .toList();
     }
 
-    /** 생산실적 등록: 자재 출고(수동 소모목록 있으면 그대로, 없으면 BOM 자동소모) + 완제품 입고 */
+    /** 전표 하나의 줄들. 원본 생산입고조회에서 번호를 누르면 여는 것. */
+    @Transactional(readOnly = true)
+    public List<ProductionResponse> findSlip(String prodNo) {
+        List<Production> rows = productionRepository.findSlip(prodNo);
+        if (rows.isEmpty()) throw ApiException.notFound("생산입고 전표를 찾을 수 없습니다: " + prodNo);
+        return rows.stream().map(ProductionResponse::from).toList();
+    }
+
     /**
-     * 격자로 받은 여러 줄을 <b>한 트랜잭션</b>에 넣는다(원본 생산입고 II·III).
-     * 한 줄이라도 막히면 전부 되돌린다 — 반쪽 입고가 남으면 재고와 실적이
-     * 서로 다른 말을 한다.
+     * 원본 생산입고 I·II·III 의 [저장]. 줄이 몇 개든 <b>번호 하나</b>를 매기고 한 트랜잭션에 넣는다.
+     * 한 줄이라도 막히면(재고 부족·지시수량 초과) 전부 되돌린다.
      */
     @Transactional
-    public java.util.List<ProductionResponse> createBatch(CreateProductionBatchRequest req, String username) {
-        java.util.List<ProductionResponse> out = new java.util.ArrayList<>();
-        for (ProductionLine line : req.lines()) {
-            out.add(create(new CreateProductionRequest(
-                    line.workOrderId(), line.producedQty(), req.productionDate(),
-                    req.fromWarehouseId(), req.warehouseId(), req.projectId(),
-                    line.note(), line.laborMinutes(), req.employeeId(), line.materials()), username));
+    public List<ProductionResponse> createSlip(SaveProductionSlipRequest req, String username) {
+        LocalDate date = req.productionDate() != null ? req.productionDate() : LocalDate.now();
+        return saveSlip(req, generateProdNo(date), date, username);
+    }
+
+    /**
+     * 전표 고치기. 원본은 조회에서 번호를 눌러 연 전표를 그대로 고쳐 [저장] 한다.
+     *
+     * <p>옛 줄을 모두 되돌리고(재고·작업지시 진척) 새 줄로 다시 넣는다 — 줄 하나만 바꿔도
+     * 소모가 달라지므로 줄 단위로 맞추는 것보다 이편이 틀릴 데가 적다. 일자가 같으면 번호를 지킨다.
+     */
+    @Transactional
+    public List<ProductionResponse> updateSlip(String prodNo, SaveProductionSlipRequest req, String username) {
+        List<Production> old = productionRepository.findSlip(prodNo);
+        if (old.isEmpty()) throw ApiException.notFound("생산입고 전표를 찾을 수 없습니다: " + prodNo);
+        LocalDate oldDate = old.get(0).getProductionDate();
+        LocalDate date = req.productionDate() != null ? req.productionDate() : oldDate;
+        for (Production p : old) reverse(p, username);
+        productionRepository.deleteAll(old);
+        productionRepository.flush();
+        String no = date.equals(oldDate) ? prodNo : generateProdNo(date);
+        return saveSlip(req, no, date, username);
+    }
+
+    /** 전표째 지운다. 원본 생산입고 전표의 [삭제]. */
+    @Transactional
+    public void deleteSlip(String prodNo, String username) {
+        List<Production> rows = productionRepository.findSlip(prodNo);
+        if (rows.isEmpty()) throw ApiException.notFound("생산입고 전표를 찾을 수 없습니다: " + prodNo);
+        for (Production p : rows) reverse(p, username);
+        productionRepository.deleteAll(rows);
+    }
+
+    private List<ProductionResponse> saveSlip(SaveProductionSlipRequest req, String prodNo, LocalDate date, String username) {
+        Warehouse headTo = req.warehouseId() != null ? warehouseService.getUsable(req.warehouseId()) : null;
+        Warehouse headFrom = req.fromWarehouseId() != null ? warehouseService.getUsable(req.fromWarehouseId()) : null;
+        var project = req.projectId() != null ? projectService.get(req.projectId()) : null;
+        List<ProductionResponse> out = new java.util.ArrayList<>();
+        int lineNo = 0;
+        for (SlipLine line : req.lines()) {
+            lineNo++;
+            Item product = itemService.getUsable(line.productId());
+            WorkOrder wo = line.workOrderId() != null ? getWorkOrder(line.workOrderId()) : null;
+            if (wo != null && !wo.getProduct().getId().equals(product.getId())) {
+                throw ApiException.badRequest(lineNo + "번째 줄: 작업지시서(" + wo.getOrderNo() + ")의 품목과 생산품목이 다릅니다.");
+            }
+            Warehouse to = line.warehouseId() != null ? warehouseService.getUsable(line.warehouseId())
+                    : headTo != null ? headTo : wo != null ? wo.getWarehouse() : null;
+            if (to == null) throw ApiException.badRequest(lineNo + "번째 줄: 받는창고를 입력하세요.");
+            Warehouse from = line.fromWarehouseId() != null ? warehouseService.getUsable(line.fromWarehouseId()) : headFrom;
+            if (from == null) throw ApiException.badRequest(lineNo + "번째 줄: 생산된공장을 입력하세요.");
+
+            List<ManualConsumeLine> manual = null;
+            if (req.entryType() != ProductionEntryType.I) {
+                manual = line.materials() == null ? List.of()
+                        : line.materials().stream().map(m -> new ManualConsumeLine(m.componentId(), m.quantity())).toList();
+            }
+            Production p = createLine(wo, product, line.producedQty(), date, from, to, project,
+                    line.note(), line.laborMinutes(), req.employeeId(), manual, prodNo, lineNo, username);
+            p.setEntryType(req.entryType());
+            if (line.processId() != null) p.setProcess(processService.getUsable(line.processId()));
+            if (manual != null && line.materials() != null) {
+                for (int i = 0; i < p.getMaterials().size(); i++) {
+                    p.getMaterials().get(i).setNote(line.materials().get(i).note());
+                }
+            }
+            applySubcontract(p, from, line.subcontractUnitPrice(), line.subcontractAmount(), line.subcontractVat());
+            out.add(ProductionResponse.from(productionRepository.save(p)));
         }
         return out;
     }
 
+    /**
+     * 원본 격자의 [외주비단가]·[외주비합계]·[외주비부가세].
+     * 단가를 안 줬고 생산된공장이 <b>외주</b>처면 품목의 [외주비단가]를 깐다(원본도 품목에서 불러온다).
+     * 합계 = 단가 × 수량(원 미만 반올림), 부가세 = 합계의 10%(원 미만 버림). 사람이 적은 값은 그대로 둔다.
+     */
+    private void applySubcontract(Production p, Warehouse from, BigDecimal unitPrice, BigDecimal amount, BigDecimal vat) {
+        BigDecimal price = unitPrice;
+        if (price == null) {
+            price = from != null && "외주".equals(from.getKind()) && p.getProduct().getSubcontractPrice() != null
+                    ? p.getProduct().getSubcontractPrice() : BigDecimal.ZERO;
+        }
+        BigDecimal amt = amount != null ? amount
+                : price.multiply(p.getProducedQty()).setScale(0, java.math.RoundingMode.HALF_UP);
+        BigDecimal tax = vat != null ? vat
+                : amt.multiply(new BigDecimal("0.1")).setScale(0, java.math.RoundingMode.DOWN);
+        p.setSubcontractUnitPrice(price);
+        p.setSubcontractAmount(amt);
+        p.setSubcontractVat(tax);
+    }
+
+    /**
+     * 격자로 받은 여러 줄을 <b>한 트랜잭션</b>에 넣는다. 원본처럼 줄이 몇 개든 번호는 하나다.
+     * 한 줄이라도 막히면 전부 되돌린다 — 반쪽 입고가 남으면 재고와 실적이 서로 다른 말을 한다.
+     */
+    @Transactional
+    public java.util.List<ProductionResponse> createBatch(CreateProductionBatchRequest req, String username) {
+        LocalDate date = req.productionDate() != null ? req.productionDate() : LocalDate.now();
+        String prodNo = generateProdNo(date);
+        java.util.List<ProductionResponse> out = new java.util.ArrayList<>();
+        int lineNo = 0;
+        for (ProductionLine line : req.lines()) {
+            lineNo++;
+            out.add(create(new CreateProductionRequest(
+                    line.workOrderId(), line.producedQty(), date,
+                    req.fromWarehouseId(), req.warehouseId(), req.projectId(),
+                    line.note(), line.laborMinutes(), req.employeeId(), line.materials()), username, prodNo, lineNo));
+        }
+        return out;
+    }
+
+    /** 생산실적 등록: 자재 출고(수동 소모목록 있으면 그대로, 없으면 BOM 자동소모) + 완제품 입고 */
     @Transactional
     public ProductionResponse create(CreateProductionRequest req, String username) {
+        LocalDate date = req.productionDate() != null ? req.productionDate() : LocalDate.now();
+        return create(req, username, generateProdNo(date), 1);
+    }
+
+    private ProductionResponse create(CreateProductionRequest req, String username, String prodNo, int lineNo) {
         WorkOrder wo = getWorkOrder(req.workOrderId());
         boolean manualConsume = req.materials() != null && !req.materials().isEmpty();
-
-        BigDecimal qty = req.producedQty();
-        BigDecimal remaining = wo.getPlannedQty().subtract(wo.getProducedQty());
-        if (qty.compareTo(remaining) > 0) {
-            throw ApiException.badRequest(String.format(
-                    "지시수량을 초과합니다. 잔여 %s (지시 %s, 기생산 %s)",
-                    remaining.toPlainString(), wo.getPlannedQty().toPlainString(), wo.getProducedQty().toPlainString()));
-        }
-
         LocalDate date = req.productionDate() != null ? req.productionDate() : LocalDate.now();
 
         /*
          * 원본은 [생산된공장] → [받는창고] 로 옮기는 전표다(생산입고조회의 두 열).
-         * 자재는 공장에서 빠지고 완제품은 받는창고로 들어간다 — 생산불출(창고 → 공장)의 반대다.
-         *
-         * <p>둘 다 안 주면 예전처럼 작업지시의 창고 하나에서 오간다. 공장을 안 쓰는 회사도 있다.
+         * 둘 다 안 주면 예전처럼 작업지시의 창고 하나에서 오간다. 공장을 안 쓰는 회사도 있다.
          */
-        Warehouse warehouse = req.warehouseId() != null
-                ? warehouseRepository.findById(req.warehouseId())
-                        .orElseThrow(() -> ApiException.notFound("받는창고를 찾을 수 없습니다. id=" + req.warehouseId()))
-                : wo.getWarehouse();
-        Warehouse from = req.fromWarehouseId() != null
-                ? warehouseRepository.findById(req.fromWarehouseId())
-                        .orElseThrow(() -> ApiException.notFound("생산된공장을 찾을 수 없습니다. id=" + req.fromWarehouseId()))
-                : warehouse;
+        Warehouse warehouse = req.warehouseId() != null ? warehouseService.get(req.warehouseId()) : wo.getWarehouse();
+        Warehouse from = req.fromWarehouseId() != null ? warehouseService.get(req.fromWarehouseId()) : null;
+        var project = req.projectId() != null ? projectService.get(req.projectId()) : null;
+
+        Production p = createLine(wo, wo.getProduct(), req.producedQty(), date, from, warehouse, project,
+                req.note(), req.laborMinutes(), req.employeeId(), manualConsume ? req.materials() : null,
+                prodNo, lineNo, username);
+        p.setEntryType(manualConsume ? ProductionEntryType.II : ProductionEntryType.I);
+        applySubcontract(p, from, null, null, null);
+        return ProductionResponse.from(productionRepository.save(p));
+    }
+
+    /**
+     * 생산품목 한 줄을 만든다: 자재 소모 → 완제품 입고 → 작업지시 진척.
+     *
+     * @param manual null 이면 BOM 자동소모(생산입고 I), 아니면 그 목록만 소모(II·III — 비었으면 소모 없음)
+     * @param from   생산된공장(자재가 빠지는 곳). null 이면 받는창고에서 뺀다 — 공장을 안 쓰는 회사도 있다.
+     */
+    private Production createLine(WorkOrder wo, Item product, BigDecimal qty, LocalDate date,
+                                  Warehouse from, Warehouse warehouse,
+                                  com.erp.inventory.project.Project project, String note, Integer laborMinutes,
+                                  Long employeeId, List<ManualConsumeLine> manual,
+                                  String prodNo, int lineNo, String username) {
+        if (wo != null) {
+            BigDecimal remaining = wo.getPlannedQty().subtract(wo.getProducedQty());
+            if (qty.compareTo(remaining) > 0) {
+                throw ApiException.badRequest(String.format(
+                        "지시수량을 초과합니다. 잔여 %s (지시 %s, 기생산 %s)",
+                        remaining.toPlainString(), wo.getPlannedQty().toPlainString(), wo.getProducedQty().toPlainString()));
+            }
+        }
+        Warehouse consumeAt = from != null ? from : warehouse;
 
         Production production = Production.builder()
-                .prodNo(generateProdNo(date))
+                .prodNo(prodNo)
+                .lineNo(lineNo)
                 .workOrder(wo)
-                .product(wo.getProduct())
+                .product(product)
                 .warehouse(warehouse)
-                .fromWarehouse(req.fromWarehouseId() != null ? from : null)
-                .project(req.projectId() != null ? projectService.get(req.projectId()) : null)
-                .note(req.note())
-                .laborMinutes(req.laborMinutes())
-                .employeeId(req.employeeId())
+                .fromWarehouse(from)
+                .project(project)
+                .note(note)
+                .laborMinutes(laborMinutes)
+                .employeeId(employeeId)
                 .producedQty(qty)
                 .productionDate(date)
                 .createdBy(username)
                 .build();
 
         // 1) 자재 소요 출고 (재고 부족 시 전체 롤백)
-        if (manualConsume) {
-            // 수동 소모: 요청한 자재/수량 그대로 출고
-            for (ManualConsumeLine line : req.materials()) {
-                Item component = itemRepository.findById(line.componentId())
-                        .orElseThrow(() -> ApiException.notFound("소모자재를 찾을 수 없습니다. id=" + line.componentId()));
-                if (component.getId().equals(wo.getProduct().getId())) {
+        if (manual != null) {
+            for (ManualConsumeLine line : manual) {
+                Item component = itemService.get(line.componentId());
+                if (component.getId().equals(product.getId())) {
                     throw ApiException.badRequest("완제품 자신을 소모자재로 선택할 수 없습니다: " + component.getName());
                 }
-                stockService.applyDelta(component, from, line.quantity().negate(),
+                stockService.applyDelta(component, consumeAt, line.quantity().negate(),
                         StockTransactionType.OUTBOUND, null, date,
-                        "생산소요(수동) " + production.getProdNo(), username);
+                        "생산소요(수동) " + prodNo, username);
                 production.addMaterial(ProductionMaterial.builder()
                         .component(component).quantity(line.quantity()).build());
             }
         } else {
-            // BOM 자동소모
-            Bom bom = getBom(wo.getProduct());
+            Bom bom = getBom(product);
             for (BomLine line : bom.getLines()) {
                 Item component = line.getComponent();
                 BigDecimal consume = line.getQuantity().multiply(qty);
-                stockService.applyDelta(component, from, consume.negate(),
+                stockService.applyDelta(component, consumeAt, consume.negate(),
                         StockTransactionType.OUTBOUND, null, date,
-                        "생산소요 " + production.getProdNo(), username);
+                        "생산소요 " + prodNo, username);
                 production.addMaterial(ProductionMaterial.builder()
                         .component(component).quantity(consume).build());
             }
         }
 
         // 2) 완제품 입고
-        stockService.applyDelta(wo.getProduct(), warehouse, qty,
+        stockService.applyDelta(product, warehouse, qty,
                 StockTransactionType.INBOUND, null, date,
-                "생산입고 " + production.getProdNo(), username);
+                "생산입고 " + prodNo, username);
 
         // 3) 작업지시 진척 갱신
-        wo.setProducedQty(wo.getProducedQty().add(qty));
-        wo.setStatus(wo.getProducedQty().compareTo(wo.getPlannedQty()) >= 0
-                ? WorkOrderStatus.COMPLETED : WorkOrderStatus.IN_PROGRESS);
-
-        return ProductionResponse.from(productionRepository.save(production));
+        if (wo != null) {
+            wo.setProducedQty(wo.getProducedQty().add(qty));
+            wo.setStatus(wo.getProducedQty().compareTo(wo.getPlannedQty()) >= 0
+                    ? WorkOrderStatus.COMPLETED : WorkOrderStatus.IN_PROGRESS);
+        }
+        return production;
     }
 
     /**
      * 생산실적 삭제. 원본(이카운트) 생산입고조회의 [선택삭제] 에 해당한다.
-     *
-     * <p>삭제가 아예 없었다. 수량을 잘못 넣은 생산실적은 되돌릴 방법이 없어서
-     * 완제품 재고와 자재 재고가 그대로 틀린 채 남았고, 작업지시는 영영 '완료' 였다.
-     * 판매·구매·견적·수주에서 같은 것을 이미 한 번 고쳤다.
      *
      * <p>재고는 <b>지우지 않고 반대 거래를 남긴다</b> — 완제품을 출고하고 자재를 되돌린다.
      * 이력을 지우면 왜 재고가 움직였는지 아무도 설명할 수 없게 된다.
@@ -227,7 +351,12 @@ public class ProductionService {
     public void delete(Long id, String username) {
         Production p = productionRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("생산실적을 찾을 수 없습니다. id=" + id));
+        reverse(p, username);
+        productionRepository.delete(p);
+    }
 
+    /** 한 줄이 움직인 재고·작업지시 진척을 되돌린다(행은 지우지 않는다). */
+    private void reverse(Production p, String username) {
         LocalDate date = p.getProductionDate();
         Warehouse warehouse = p.getWarehouse();
 
@@ -256,8 +385,6 @@ public class ProductionService {
                     : (wo.getProducedQty().compareTo(wo.getPlannedQty()) >= 0
                             ? WorkOrderStatus.COMPLETED : WorkOrderStatus.IN_PROGRESS));
         }
-
-        productionRepository.delete(p);
     }
 
     private WorkOrder getWorkOrder(Long id) {
