@@ -1046,6 +1046,12 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
       }))
     if (!partnerId) return setError(`${cfg.partnerLabel}를 선택하세요.`)
     if (validLines.length === 0) return setError('품목·수량·단가를 1줄 이상 입력하세요.')
+    /* 로트관리 품목은 로트No. 가 있어야 한다 — 서버도 거절한다(QA 62회차). 저장 전에 어느 줄인지 알려 준다. */
+    const noLot = keptLines.find((l) => !l.lotNo.trim() && items.find((i) => String(i.id) === l.itemId)?.lotManaged)
+    if (noLot) {
+      const it = items.find((i) => String(i.id) === noLot.itemId)!
+      return setError(`${it.code} ${it.name} 은(는) 로트관리 품목입니다 — 로트No.를 입력하세요.`)
+    }
 
     const dateKey = mode === 'sales' ? 'saleDate' : 'purchaseDate'
     const body = {

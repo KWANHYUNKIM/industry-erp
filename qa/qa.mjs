@@ -1515,6 +1515,31 @@ async function scenarioPurchaseOrder(f) {
   await must('DELETE', `/purchase-orders/${dead.id}`)
 }
 
+/**
+ * <b>로트관리 품목은 로트No. 없이 입출고할 수 없다</b>(62회차). 품목등록의 [시리얼/로트No.] 를 켜면
+ * '입출고할 때 로트번호를 받는다' 고 해 놓고 아무 데서도 지키지 않았다.
+ */
+async function scenarioLotRequired(f) {
+  section('■ 로트관리 품목의 로트No.')
+  const lotItem = await ensure('/items', 'code', `${P}LOTITEM`, null, {
+    code: `${P}LOTITEM`, name: 'QA로트품목', unit: 'EA', category: 'RAW_MATERIAL',
+    purchasePrice: 1000, unitPrice: 2000, safetyStock: 0, lotManaged: true,
+  })
+  eq('시험 품목이 로트관리다', lotItem.lotManaged, true)
+  const body = (lotNo) => ({
+    partnerId: f.supplier.id, warehouseId: f.warehouse.id, purchaseDate: '2026-08-30', taxable: true,
+    lines: [{ itemId: lotItem.id, quantity: 1, unitPrice: 1000, lotNo }],
+  })
+  await rejects('로트No. 없이 구매(입고)할 수 없다', 'POST', '/purchases', body(undefined), '로트관리 품목')
+  const ok = await must('POST', '/purchases', body(`${P}LOT-62`))
+  eq('로트No. 를 주면 입고된다', ok.lines[0].lotNo, `${P}LOT-62`)
+  await rejects('로트No. 없이 판매(출고)할 수 없다', 'POST', '/sales', {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2026-08-30', taxable: true,
+    lines: [{ itemId: lotItem.id, quantity: 1, unitPrice: 2000 }],
+  }, '로트관리 품목')
+  await must('DELETE', `/purchases/${ok.id}`)
+}
+
 /** 기타이동 — 자가사용·불량처리(차감) / 재고조정(실사 차이만큼 증감) */
 async function scenarioAdjustment(f) {
   section('■ 시나리오 8. 기타이동 (자가사용 · 불량처리 · 재고조정)')
@@ -10130,6 +10155,7 @@ async function main() {
   await scenarioQuotation(fixtures)
   await scenarioPurchaseOrder(fixtures)
   await scenarioAdjustment(fixtures)
+  await scenarioLotRequired(fixtures)
   await scenarioWithholding()
   await scenarioBankCard()
   await scenarioFixedAsset()

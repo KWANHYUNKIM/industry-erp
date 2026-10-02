@@ -466,6 +466,14 @@ public class PurchaseService {
         for (int i = 0; i < req.lines().size(); i++) {
             PurchaseLineRequest lr = req.lines().get(i);
             Item item = itemService.get(lr.itemId());
+            /*
+             * 품목등록의 [시리얼/로트No.] 를 켠 품목은 입출고 때 로트번호를 받는다 — 품목 화면이 그렇게 약속하는데
+             * 아무 데서도 지키지 않아 로트 없이 들고 나서 로트별 재고가 어긋났다(QA 62회차).
+             */
+            if (item.isLotManaged() && (lr.lotNo() == null || lr.lotNo().isBlank())) {
+                throw ApiException.badRequest(item.getCode() + " " + item.getName()
+                        + " 은(는) 로트관리 품목입니다 — 로트No.를 입력하세요.");
+            }
             BigDecimal supply = supplies.get(i);
             BigDecimal vat = vats.get(i);
 
