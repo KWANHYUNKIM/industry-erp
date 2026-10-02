@@ -151,9 +151,10 @@ public class FixedAssetService {
             String missing = missingMonths(asset, ym);
             if (!missing.isEmpty()) gaps.add(asset.getName() + ": " + missing);
 
-            JournalEntry entry = journalService.createFromDepreciation(d);
-            d.setJournalEntry(entry);
-            done.add(DepreciationResponse.from(depreciationRepository.save(d)));
+            Depreciation saved = depreciationRepository.save(d);   // 분개의 출처가 이 행이라 먼저 저장
+            JournalEntry entry = journalService.createFromDepreciation(saved);
+            saved.setJournalEntry(entry);
+            done.add(DepreciationResponse.from(saved));
             total = total.add(amount);
         }
         return new DepreciationRunResponse(ym.toString(), done.size(), total, skipped, done, gaps);

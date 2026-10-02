@@ -1768,6 +1768,22 @@ async function scenarioFixedAsset() {
 
   await rejects('처분된 자산 재처분은 거부', 'POST', `/fixed-assets/${asset.id}/dispose`,
     { disposalDate: '2026-07-15', disposalAmount: 0 }, '이미 처분')
+
+  /*
+   * <b>같은 자산을 두 달 연속 상각할 수 있는가.</b> 분개의 출처 id 에 자산 id 를 넣어, 유니크 제약 때문에
+   * 첫 달 말고는 409 로 거절됐다(34회차). 위 시험은 한 달만 돌려 몰랐다. 1,000만 · 5년 → 166,667원(원 단위).
+   * 2026-02·03 은 다른 사용중 자산이 아직 취득 전인 달이라 이 자산만 걸린다. 끝에 처분해 남기지 않는다.
+   */
+  const two = await must('POST', '/fixed-assets', {
+    name: `${P}두달상각`, assetAccountId: machine.id, acquisitionDate: '2026-02-01',
+    acquisitionCost: 10_000_000, salvageValue: 0, usefulLifeYears: 5, method: 'STRAIGHT_LINE',
+  })
+  const feb = (await must('POST', '/fixed-assets/depreciate', { period: '2026-02' })).rows.find((r) => r.assetId === two.id)
+  const mar = (await must('POST', '/fixed-assets/depreciate', { period: '2026-03' })).rows.find((r) => r.assetId === two.id)
+  eq('정액 월 상각액은 원 단위(1,000만/60 = 166,667)', Number(feb?.amount), 166_667)
+  eq('두 번째 달도 상각된다(분개 출처가 자산이 아니라 상각 행)', Number(mar?.amount), 166_667)
+  eq('두 달 뒤 장부가 = 10,000,000 − 333,334', Number(mar?.bookValueAfter), 9_666_666)
+  await must('POST', `/fixed-assets/${two.id}/dispose`, { disposalDate: '2026-03-31', disposalAmount: 0 })
 }
 
 async function scenarioNote(f) {

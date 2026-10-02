@@ -384,7 +384,14 @@ public class JournalService {
         com.erp.accounting.fixedasset.FixedAsset asset = d.getAsset();
         String desc = "감가상각 " + d.getPeriod() + " " + asset.getName();
 
-        JournalEntry e = newEntry(JournalSourceType.DEPRECIATION, asset.getId(), d.getDepreciationDate(),
+        /*
+         * 출처는 <b>상각 행</b>이다(d.getId()). 예전엔 자산 id 를 넣어 (source_type, source_id) 유니크 때문에
+         * 한 자산은 첫 달 말고는 상각할 수 없었다(34회차). 그래서 d 를 먼저 저장하고 부른다(FixedAssetService).
+         */
+        if (d.getId() == null) {
+            throw new IllegalStateException("상각 행을 먼저 저장한 뒤 분개를 만든다");
+        }
+        JournalEntry e = newEntry(JournalSourceType.DEPRECIATION, d.getId(), d.getDepreciationDate(),
                 desc, null, d.getCreatedBy());
         addDebit(e, "818", d.getAmount(), "감가상각비");
         addCredit(e, "203", d.getAmount(), "감가상각누계액");
