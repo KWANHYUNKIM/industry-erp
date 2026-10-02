@@ -132,6 +132,18 @@
         "js:new Promise((res)=>setTimeout(()=>{[...document.querySelectorAll('button.ec-btn')].find((b)=>b.textContent.trim().startsWith('선택삭제')).click();setTimeout(()=>res(true),2000)},300))",
         "expect:!document.body.innerText.includes(sessionStorage.getItem('qaDelWo'))"
       ]
+    },
+    {
+      "name": "생산입고 I — [생산] 탭 [주문] 으로 수주를 고르면 그 주문의 제품 줄이 주문수량으로 생산 줄에 담긴다",
+      "path": "/production/receipt-bom",
+      "steps": [
+        "js:(async()=>{const H={Authorization:'Bearer '+localStorage.getItem('erp_token')};const get=(u)=>fetch(u,{headers:H}).then((r)=>r.json());const ps=await get('/api/partners');const it=await get('/api/items');const c=ps.find((x)=>x.code==='QA-CUST');const p=it.find((x)=>x.code==='QA-PROD');const t=new Date();const d=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;const o=await fetch('/api/sales-orders',{method:'POST',headers:{...H,'Content-Type':'application/json'},body:JSON.stringify({partnerId:c.id,orderDate:d,lines:[{itemId:p.id,quantity:7,unitPrice:1000}]})}).then((r)=>r.json());sessionStorage.setItem('qaSO',String(o.id));sessionStorage.setItem('qaSONo',o.orderNo);return true})()",
+        "click:주문",
+        "js:new Promise((res)=>setTimeout(()=>{const tr=[...document.querySelectorAll('tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('qaSONo')));tr.click();res(true)},1500))",
+        "click:적용(F8)",
+        "expect:/주문 1건에서 1줄을 담았습니다/.test(document.body.innerText)",
+        "js:fetch('/api/sales-orders/'+sessionStorage.getItem('qaSO'),{method:'DELETE',headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then(()=>true)"
+      ]
     }
   ]
 }

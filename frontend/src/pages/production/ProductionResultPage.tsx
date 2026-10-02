@@ -9,6 +9,7 @@ import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { downloadStoredFile } from '../../utils/fileDownload'
+import SalesOrderPickModal, { type SalesOrderLite } from '../../features/salesorder/components/SalesOrderPickModal'
 import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
 import type { Item, Production, ProductionEntryType, ProductionMaterial, Warehouse, WorkOrder } from '../../types/api'
 
@@ -141,6 +142,21 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
   const [ok, setOk] = useState('')
   const [woOpen, setWoOpen] = useState(false)
   const [woChecked, setWoChecked] = useState<number[]>([])
+  /**
+   * 원본 [생산] 탭 툴바의 <b>[주문]</b> — 주문서검색창에서 고른 수주의 <b>생산할 수 있는 품목(제품·반제품)</b> 줄을
+   * 주문수량으로 생산 줄에 붓는다(작업지시서입력 · 소요시간계산 [주문] 과 같은 규칙).
+   */
+  const [orderOpen, setOrderOpen] = useState(false)
+  function applySalesOrders(picked: SalesOrderLite[]) {
+    const cat = new Map(items.map((i) => [i.id, i.category]))
+    const added = picked.flatMap((o) => o.lines)
+      .filter((l) => cat.get(l.itemId) === 'FINISHED' || cat.get(l.itemId) === 'SEMI_FINISHED')
+    setOrderOpen(false)
+    if (added.length === 0) { setOk('고른 주문에 생산할 품목(제품·반제품)이 없습니다.'); return }
+    setLines((ls) => [...ls.filter((l) => l.productId),
+      ...added.map((l) => ({ ...blankLine(), productId: String(l.itemId), qty: String(l.quantity) })), blankLine()])
+    setOk(`주문 ${picked.length}건에서 ${added.length}줄을 담았습니다.`)
+  }
   const [saving, setSaving] = useState(false)
   /** 원본 [생산] 탭 툴바의 [My품목] — 담아 둔 품목을 생산품목 줄로 붓는다. */
   const myItems = useMyItemsPick((picked) => setLines((ls) => [
@@ -718,6 +734,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
           {tab === '생산' ? (
             <>
               <button type="button" className="ec-btn ec-btn-sm" disabled={myItems.busy} onClick={myItems.pick}>My품목</button>
+              <button type="button" className="ec-btn ec-btn-sm" onClick={() => setOrderOpen(true)}>주문</button>
               <button type="button" className="ec-btn ec-btn-sm" onClick={() => { setWoChecked([]); setWoOpen(true) }}>작업지시서</button>
               {type !== 'I' && <button type="button" className="ec-btn ec-btn-sm" onClick={() => void explodeBom()}>BOM풀기</button>}
               {type !== 'I' && <select className="ec-input" value={bomLevel} title="BOM풀기 단계"
@@ -786,6 +803,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
           <button type="button" className="ec-btn" onClick={() => setWoOpen(false)}>닫기</button>
         </div>
       </Modal>
+      <SalesOrderPickModal open={orderOpen} onClose={() => setOrderOpen(false)} onApply={applySalesOrders} />
     </form>
   )
 }
