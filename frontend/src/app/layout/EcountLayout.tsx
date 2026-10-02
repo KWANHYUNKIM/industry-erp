@@ -441,6 +441,7 @@ const MENU: TopMenu[] = [
               { label: '계정별적요별원장', to: '/accounting/account-remark-ledger' },
               { label: '계정증감내역', to: '/accounting/account-flow' },
               { label: '매입/매출장', to: '/accounting/vat-book' },
+              { label: '거래처거래내역조회', to: '/accounting/partner-tx-list' },
               { label: '합계잔액시산표', to: '/accounting/trial-balance' },
             ],
           },

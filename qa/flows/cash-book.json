@@ -92,6 +92,17 @@
         "wait:800",
         "expect:[...document.querySelector('table').querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|')==='사업자등록번호|거래처명|매수|공급가액|세액|합계'"
       ]
+    },
+    {
+      "name": "거래처거래내역조회 — 거래처마다 표(일자-No. · 적요 · 차변금액 · 대변금액, 끝 [합계]), 거래처별집계는 한 표",
+      "path": "/accounting/partner-tx-list",
+      "steps": [
+        "wait:2500",
+        "expect:(()=>{const t=document.querySelector('table');if(!t)return document.body.innerText.includes('등록된 데이터가 없습니다');return [...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|')==='일자-No.|적요|차변금액|대변금액'&&t.querySelector('tbody tr:last-child').cells[0].innerText.trim()==='합계'})()",
+        "js:[...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='거래처별집계').querySelector('input').click()",
+        "wait:800",
+        "expect:[...document.querySelector('table').querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|')==='거래처코드|거래처명|차변금액|대변금액'"
+      ]
     }
   ]
 }

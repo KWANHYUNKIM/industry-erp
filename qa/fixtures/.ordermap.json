@@ -978,5 +978,9 @@
  [
   "매입/매출장",
   "accounting/VatBookPage.tsx"
+ ],
+ [
+  "거래처거래내역조회",
+  "accounting/PartnerTxListPage.tsx"
  ]
 ]
