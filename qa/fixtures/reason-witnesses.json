@@ -2642,13 +2642,6 @@
   ],
   "file": "production/ProductionResultPage.tsx"
  },
- "작업지시서작업처리|작업내역입력": {
-  "claim": "작업내역은 그 화면에서 바로 넣는다",
-  "present": [
-   "api.post('/work-results'"
-  ],
-  "file": "production/WorkProcessPage.tsx"
- },
  "작업내역조회|작업품목:품목그룹2": {
   "claim": "우리 품목그룹은 하나뿐이라 2·3 에 해당하는 칸이 없다",
   "absent": [

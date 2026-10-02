@@ -172,6 +172,21 @@ export default function WorkResultPage() {
   }
 
   useEffect(() => { load(); loadRefs() }, [])
+  /*
+   * 작업지시서작업처리 [작업내역입력] 이 넘긴 줄 — 원본처럼 입력 창이 그 줄들로 채워져 열린다.
+   * 한 번 쓰고 지운다(새로고침하면 빈 창).
+   */
+  useEffect(() => {
+    let raw: string | null = null
+    try { raw = sessionStorage.getItem('workEntryPrefill'); sessionStorage.removeItem('workEntryPrefill') } catch { /* 없음 */ }
+    if (!raw) return
+    const p = JSON.parse(raw) as { workDate: string; warehouseId: number | null
+      lines: { workOrderId: number; process: string; workItemId: number; goodQty: string; workTimeMin: string; note: string }[] }
+    setForm((f) => ({ ...f, workDate: p.workDate, warehouseId: p.warehouseId != null ? String(p.warehouseId) : f.warehouseId }))
+    setWrLines([...p.lines.map((l) => ({ ...emptyLine(), workOrderId: String(l.workOrderId), process: l.process,
+      workItemId: String(l.workItemId), goodQty: l.goodQty, workTimeMin: l.workTimeMin, note: l.note })), emptyLine()])
+    setShowForm(true)
+  }, [])
 
   async function submit(e: FormEvent) {
     e.preventDefault()

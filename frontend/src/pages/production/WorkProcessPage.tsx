@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
-import { WORK_PROCESS_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import { WORK_PROCESS_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import EcRowCap, { capRows } from '../../components/EcRowCap'
+import { useNavigate } from 'react-router-dom'
 
 /**
  * 생산관리 > 작업지시서작업처리.
@@ -39,6 +40,7 @@ interface WorkOrder {
   dueDate: string | null
   statusName: string
   warehouseName: string | null
+  warehouseId: number | null
   /** 원본 조건 판의 [담당자]. 응답에 이미 있는데 이 화면이 안 받고 있었다. */
   employeeId: number | null
 }
@@ -81,6 +83,8 @@ interface Row {
   availableQty: number
   /** 미작업량 = 지시수량 − 이 공정 완료. 잔량기준을 켜면 직전작업까지만. */
   remainQty: number
+  /** BOR 의 개당 작업시간(시간) — 작업수량을 넣으면 노무/장치투입시간을 채운다(원본도 그렇다). */
+  hoursPerUnit: number
 }
 
 const num = (n: number) => n.toLocaleString('ko-KR')
@@ -124,6 +128,34 @@ export default function WorkProcessPage() {
   const [manager, setManager] = useState('')
   /** 줄마다 입력한 처리 수량·시간 */
   const [input, setInput] = useState<Record<string, { qty: string; minutes: string }>>({})
+  const navigate = useNavigate()
+  /** 원본 줄 앞의 체크 — 작업수량을 넣으면 저절로 켜진다. 켠 줄을 [작업내역입력] 이 가져간다. */
+  const [picked, setPicked] = useState<Set<string>>(new Set())
+  /**
+   * 원본 아래 버튼 <b>[작업내역입력]</b>(2026-10-02 loginaa 실측) — 저장하지 않고 <b>작업내역입력 창을 연다</b>.
+   * 켠 줄마다 작업지시서 · 작업 · 작업품목 · 작업수량 · 노무/장치투입시간이 한 줄씩 채워지고, 머리의 생산공장은
+   * 지시의 공장이다. 저장은 그 창에서 한다.
+   */
+  function openWorkEntry() {
+    const sel = rows.filter((r) => picked.has(r.key))
+    if (sel.length === 0) return setError('리스트에 선택된 자료가 없습니다. 체크박스에 체크한 후 다시 시도 바랍니다.')
+    for (const r of sel) {
+      const q = Number(input[r.key]?.qty ?? '')
+      if (q > r.remainQty) return setError(`${r.wo.orderNo} ${r.workName}: 미작업량(${num(r.remainQty)})보다 많이 처리할 수 없습니다.`)
+    }
+    const prefill = {
+      /* 원본 창의 [일자]는 오늘이다(조회 기간의 끝이 아니다). */
+      workDate: ymd(new Date()),
+      warehouseId: sel[0].wo.warehouseId,
+      lines: sel.map((r) => ({
+        workOrderId: r.wo.id, process: r.processName, workItemId: r.workItemId ?? r.wo.productId,
+        goodQty: input[r.key]?.qty ?? '', workTimeMin: input[r.key]?.minutes ?? '',
+        note: `${r.wo.orderNo} ${r.seq}.${r.workName}`,
+      })),
+    }
+    try { sessionStorage.setItem('workEntryPrefill', JSON.stringify(prefill)) } catch { /* 저장소가 막혀 있으면 빈 창으로 연다 */ }
+    navigate('/production/work-result')
+  }
 
   async function load() {
     setLoading(true)
@@ -145,6 +177,7 @@ export default function WorkProcessPage() {
       setBor(b.data)
       setResults(r.data)
       setInput({})
+      setPicked(new Set())
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -204,7 +237,7 @@ export default function WorkProcessPage() {
           wo, seq: o.seq, processId: o.processId, processName: o.processName, workName: o.workName,
           workItemId: o.workItemId,
           workItemLabel: o.workItemId == null ? '' : `[${o.workItemCode ?? ''}] ${o.workItemName ?? ''}`,
-          doneQty: done, availableQty: prevDone, remainQty: remain,
+          doneQty: done, availableQty: prevDone, remainQty: remain, hoursPerUnit: o.hoursPerUnit,
         })
         prevDone = done
       }
@@ -263,6 +296,7 @@ export default function WorkProcessPage() {
           setPrevBased(true); setMinRemain('')
           setDueDate(''); setPlant(''); setWork(''); setWorkItem('')
         } },
+        { label: '작업내역입력', onClick: openWorkEntry },
         { label: 'Excel' },
       ]}
     >
@@ -362,7 +396,11 @@ export default function WorkProcessPage() {
               </td></tr>
             ) : capped.rows.map((r, i) => (
               <tr key={r.key}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td style={{ textAlign: 'center', color: '#9aa1ab', whiteSpace: 'nowrap' }}>
+                  <input type="checkbox" aria-label={`${r.wo.orderNo} ${r.workName} 선택`} checked={picked.has(r.key)}
+                         onChange={() => setPicked((s) => { const n = new Set(s); if (n.has(r.key)) n.delete(r.key); else n.add(r.key); return n })} />
+                  {' '}{i + 1}
+                </td>
                 <td style={{ fontFamily: 'monospace' }}>{r.wo.orderNo}</td>
                 <td style={{ fontFamily: 'monospace' }}>{r.wo.orderDate.replace(/-/g, '/')}</td>
                 <td>[{r.wo.productCode}] {r.wo.productName}</td>
@@ -382,7 +420,12 @@ export default function WorkProcessPage() {
                 <td style={{ textAlign: 'right' }}>
                   <input className="ec-input text-right" type="number" style={{ width: 70 }}
                          value={input[r.key]?.qty ?? ''}
-                         onChange={(e) => setInput((p) => ({ ...p, [r.key]: { qty: e.target.value, minutes: p[r.key]?.minutes ?? '' } }))} />
+                         onChange={(e) => {
+                           const qty = e.target.value
+                           /* 원본처럼 수량을 넣으면 줄이 켜지고, 투입시간이 비었으면 BOR 개당 시간 × 수량(분)으로 채운다. */
+                           setInput((p) => ({ ...p, [r.key]: { qty, minutes: p[r.key]?.minutes || (Number(qty) > 0 && r.hoursPerUnit > 0 ? String(Math.round(r.hoursPerUnit * 60 * Number(qty))) : '') } }))
+                           if (Number(qty) > 0) setPicked((s) => new Set(s).add(r.key))
+                         }} />
                 </td>
                 <td style={{ textAlign: 'right' }}>
                   <input className="ec-input text-right" type="number" style={{ width: 70 }}
