@@ -302,6 +302,14 @@
         "js:new Promise((r)=>setTimeout(()=>{[...document.querySelectorAll('button')].find((b)=>b.textContent.trim()==='집계').click();setTimeout(()=>{const s=[...document.querySelectorAll('select')].find((x)=>[...x.options].some((o)=>o.value==='분기별'));Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'월별');s.dispatchEvent(new Event('change',{bubbles:true}));setTimeout(()=>r(true),800)},500)},1500))",
         "expect:(()=>{const t=document.querySelector('table thead');const f=document.querySelector('table tfoot tr');if(!t||!t.innerText.includes('월별'))return false;const n=(x)=>Number(x.replace(/[^0-9.-]/g,''));const top=[...document.querySelectorAll('b')].find((b)=>b.parentElement&&b.parentElement.innerText.includes('불출수량'));return !f||!top||n(f.cells[2].innerText)===n(top.innerText)})()"
       ]
+    },
+    {
+      "name": "생산입고현황 — ○집계 [집계조건1] 월별: 달마다 한 줄, 줄 수량의 합이 합계와 같다",
+      "path": "/production/receipt-status",
+      "steps": [
+        "js:new Promise((r)=>setTimeout(()=>{[...document.querySelectorAll('button')].find((b)=>b.textContent.trim()==='집계').click();setTimeout(()=>{const s=[...document.querySelectorAll('select')].find((x)=>[...x.options].some((o)=>o.value==='분기별'));Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'월별');s.dispatchEvent(new Event('change',{bubbles:true}));setTimeout(()=>r(true),800)},500)},1500))",
+        "expect:(()=>{const t=document.querySelector('table thead');const f=document.querySelector('table tfoot tr');if(!t||!t.innerText.includes('월별'))return false;if(!f)return true;const n=(x)=>Number(x.replace(/[^0-9.-]/g,''));const rows=[...document.querySelectorAll('table tbody tr')].filter((r)=>r.cells.length===5);return rows.reduce((a,r)=>a+n(r.cells[3].innerText),0)===n(f.cells[2].innerText)})()"
+      ]
     }
   ]
 }
