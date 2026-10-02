@@ -235,6 +235,17 @@
         "wait:5000",
         "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim());const b=t.innerText;return h[0]==='계정명'&&h[h.length-1]==='합계'&&['IV. 당기총비용합계','V. 기초재공품재고액','VI. 합계','VII. 기말재공품재고액','VIII. 타계정대체액','IX. 당기제품제조원가'].every((x)=>b.includes(x))})()"
       ]
+    },
+    {
+      "name": "채권/채무회수기간표 — 외상매출금(108)을 고르면 거래처코드 · 거래처명 · 잔액 · 미회수월수, 끝 [합계]",
+      "path": "/accounting/arap-aging",
+      "steps": [
+        "wait:2000",
+        "pick:계정:108",
+        "click:검색(F8)",
+        "wait:2500",
+        "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const last=t.querySelector('tbody tr:last-child');return h==='거래처코드|거래처명|잔액|미회수월수'&&last.cells[0].innerText.trim()==='합계'})()"
+      ]
     }
   ]
 }

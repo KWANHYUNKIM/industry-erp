@@ -6281,5 +6281,21 @@
    "Project"
   ],
   "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "채권/채무회수기간표|부서": {
+  "claim": "회계전표에 부서가 없다",
+  "absent": [
+   "department",
+   "Department"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "채권/채무회수기간표|프로젝트": {
+  "claim": "회계전표에 프로젝트가 없다",
+  "absent": [
+   "project",
+   "Project"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
  }
 }

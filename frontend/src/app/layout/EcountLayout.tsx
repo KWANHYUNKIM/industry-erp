@@ -456,6 +456,7 @@ const MENU: TopMenu[] = [
               { label: '자금증감내역', to: '/accounting/fund-flow' },
               { label: '월별손익분석', to: '/accounting/monthly-pnl' },
               { label: '월별원가분석', to: '/accounting/monthly-cost' },
+              { label: '채권/채무회수기간표', to: '/accounting/arap-aging' },
             ],
           },
           {

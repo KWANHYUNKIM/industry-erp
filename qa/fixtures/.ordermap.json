@@ -1046,5 +1046,9 @@
  [
   "월별원가분석",
   "accounting/MonthlyCostPage.tsx"
+ ],
+ [
+  "채권/채무회수기간표",
+  "accounting/ArApAgingPage.tsx"
  ]
 ]
