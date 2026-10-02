@@ -126,6 +126,19 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   const [openId, setOpenId] = useState<number | null>(null)
   // 이번 세션에서 세금계산서를 발행한 전표 id (버튼 중복 클릭 방지)
   const [taxIssued, setTaxIssued] = useState<Set<number>>(new Set())
+  /*
+   * 이미 세금계산서가 붙은 전표 → 그 계산서 번호. 예전엔 '발행됨' 표시가 이번 세션에서 누른 것만 기억해서
+   * 화면을 다시 열면 발행한 전표에도 [발행] 이 다시 서고, 누르면 409 "이미 발행된 전표" 가 떴다(29회차).
+   * 계산서 목록을 받아 근거전표 번호로 잇는다.
+   */
+  const [invoiceOf, setInvoiceOf] = useState<Map<string, string>>(new Map())
+  const [ok, setOk] = useState('')
+  function loadInvoices() {
+    api.get<{ invoiceNo: string; sourceDocNo: string | null }[]>('/tax-invoices',
+      { params: { type: isSales ? 'SALES' : 'PURCHASE', from: '2000-01-01', to: '2099-12-31' } })
+      .then((r) => setInvoiceOf(new Map(r.data.filter((t) => t.sourceDocNo).map((t) => [t.sourceDocNo as string, t.invoiceNo]))))
+      .catch(() => setInvoiceOf(new Map()))
+  }
   // 원본 목록의 [선택삭제] 대상. 전표 입력 그리드와 같이 **행번호 칸을 눌러** 고른다.
   const [selected, setSelected] = useState<Set<number>>(new Set())
   // 열을 더할 때 합계행(tfoot)을 같이 안 고치면 숫자가 엉뚱한 열 아래에 선다. 개발 모드에서 잡는다.
@@ -142,6 +155,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
 
   function load() {
     setError('')
+    loadInvoices()
     api.get<(SalesDoc | PurchaseDoc)[]>(cfg.url)
       .then((res) => setDocs(res.data.map((d) => ({
         id: d.id, docNo: d.docNo, partnerId: d.partnerId, partnerName: d.partnerName, warehouseId: d.warehouseId, warehouseName: d.warehouseName, projectId: d.projectId ?? null,
@@ -240,12 +254,14 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   }
 
   async function issueTaxInvoice(d: NormalDoc) {
+    setError(''); setOk('')
     try {
-      await api.post('/tax-invoices', { type: isSales ? 'SALES' : 'PURCHASE', sourceId: d.id })
+      const res = await api.post<{ invoiceNo: string }>('/tax-invoices', { type: isSales ? 'SALES' : 'PURCHASE', sourceId: d.id })
       setTaxIssued((s) => new Set(s).add(d.id))
-      alert(`${d.docNo} 세금계산서를 발행했습니다. (${isSales ? '매출' : '매입'} 세금계산서 화면에서 진행단계 관리)`)
+      setInvoiceOf((m) => new Map(m).set(d.docNo, res.data.invoiceNo))
+      setOk(`${d.docNo} → 세금계산서 ${res.data.invoiceNo} 작성 (${isSales ? '매출' : '매입'} 세금계산서 화면에서 진행단계 관리)`)
     } catch (err) {
-      alert(extractErrorMessage(err))
+      setError(extractErrorMessage(err))
     }
   }
 
@@ -467,6 +483,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
       ]}
     >
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {ok && <p style={{ background: '#eaf6ee', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
 
       {/*
         원본은 이 줄이 [상태 알약]…………[기간] 이다 — 왼쪽에 필터, 오른쪽 끝에 조회 기간.
@@ -701,8 +718,8 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                   </>
                 )}
                 <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
-                  {taxIssued.has(d.id) ? (
-                    <span style={{ color: '#1c7c3c', fontSize: 11.5 }}>발행됨</span>
+                  {taxIssued.has(d.id) || invoiceOf.has(d.docNo) ? (
+                    <span style={{ color: '#1c7c3c', fontSize: 11.5 }}>{invoiceOf.get(d.docNo) ?? '발행됨'}</span>
                   ) : (
                     <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => issueTaxInvoice(d)}>발행</button>
                   )}

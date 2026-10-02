@@ -126,7 +126,11 @@ export default function TaxInvoicePage({ type }: { type: TaxInvoiceType }) {
           ) : shown.map((r, i) => (
             <tr key={r.id}>
               <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>{r.invoiceNo}</td>
+              <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>
+                {r.invoiceNo}
+                {/* 반품 전표로 끊은 계산서는 금액이 음수다 — 수정세금계산서(환입)다. 일반 계산서와 같은 모양이라 구별이 안 됐다(29회차). */}
+                {r.totalAmount < 0 && <span style={{ marginLeft: 6, fontFamily: 'inherit', fontSize: 11, color: '#c60a2e', fontWeight: 700 }}>수정·환입</span>}
+              </td>
               <td>{dateText(r.issueDate)}</td>
               <td>{r.partnerName}</td>
               <td style={{ fontFamily: 'monospace', color: '#8a929c' }}>{r.sourceDocNo}</td>
