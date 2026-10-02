@@ -974,5 +974,9 @@
  [
   "계정증감내역",
   "accounting/AccountFlowPage.tsx"
+ ],
+ [
+  "매입/매출장",
+  "accounting/VatBookPage.tsx"
  ]
 ]

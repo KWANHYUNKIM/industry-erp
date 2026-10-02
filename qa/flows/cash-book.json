@@ -81,6 +81,17 @@
         "wait:2500",
         "expect:(()=>{const ts=[...document.querySelectorAll('table')];return ts.length===2&&ts.every((t)=>[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|')==='일자|적요|거래처코드|거래처명|금액'&&t.querySelector('tbody tr:last-child').cells[0].innerText.trim()==='합계')})()"
       ]
+    },
+    {
+      "name": "매입/매출장 — 머리 일자-No. · 유형명 · 전자구분 · 거래처명 · 세부내역 · 매출공급가액 · 매출부가세, 매출집계는 사업자등록번호 · 거래처명 · 매수 · 공급가액 · 세액 · 합계",
+      "path": "/accounting/vat-book",
+      "steps": [
+        "wait:2500",
+        "expect:[...document.querySelector('table').querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|')==='일자-No.|유형명|전자구분|거래처명|세부내역|매출공급가액|매출부가세'",
+        "js:[...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='매출집계').querySelector('input').click()",
+        "wait:800",
+        "expect:[...document.querySelector('table').querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|')==='사업자등록번호|거래처명|매수|공급가액|세액|합계'"
+      ]
     }
   ]
 }

@@ -5807,5 +5807,44 @@
    "결재란"
   ],
   "in": "frontend/src/pages/accounting/AccountFlowPage.tsx"
+ },
+ "매입/매출장|부서": {
+  "claim": "회계전표에 부서가 없다",
+  "absent": [
+   "department",
+   "Department"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "매입/매출장|프로젝트": {
+  "claim": "회계전표에 프로젝트가 없다",
+  "absent": [
+   "project",
+   "Project"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "매입/매출장|최종수정자": {
+  "claim": "회계전표가 고친 사람을 들지 않는다",
+  "absent": [
+   "updatedBy",
+   "modifiedBy",
+   "lastModifiedBy"
+  ],
+  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+ },
+ "매입/매출장|결재방표시": {
+  "claim": "결재란을 그리지 않는다",
+  "absent": [
+   "approvalBox",
+   "결재란"
+  ],
+  "in": "frontend/src/pages/accounting/VatBookPage.tsx"
+ },
+ "매입/매출장|데이터 보기형식": {
+  "claim": "전표 한 장이 한 줄인 장부다",
+  "present": [
+   "ledger('매출', true)"
+  ]
  }
 }
