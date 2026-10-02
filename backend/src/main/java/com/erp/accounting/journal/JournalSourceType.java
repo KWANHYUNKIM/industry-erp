@@ -18,6 +18,8 @@ public enum JournalSourceType {
     CARD_PAYMENT("카드대금결제"),
     /** 수금·지급(결제) 전표. 원본 결제내역조회의 [회계전표]. */
     SETTLEMENT("수금·지급"),
+    /** 생산입고의 외주비 — 외주비일괄회계반영(V220). */
+    SUBCONTRACT("외주비"),
     MANUAL("수동입력");
 
     private final String displayName;

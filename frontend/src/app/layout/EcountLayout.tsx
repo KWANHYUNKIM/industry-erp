@@ -178,12 +178,13 @@ const MENU: TopMenu[] = [
            * 그 셋이 우리에겐 구매관리·출력물 탭에만 있어서, 외주를 보다가 "얼마 줬나" 를
            * 보려면 탭을 옮겨야 했다. 원본처럼 여기에도 둔다.
            *
-           * <p>[외주비회계반영]은 안 만든다 — 외주가공비를 전표로 받는 자리가 없어
-           * 반영할 것이 없다. 화면 사본도 없어 무엇을 그릴지 잴 수가 없다.
+           * <p>[외주비일괄회계반영]은 2026-10-02 에 만들었다(loginaa 실측) — 생산입고 I·II 의
+           * 외주비합계·부가세를 외주처별 매입전표로 넘긴다.
            */
           { label: '지급현황', to: '/sales/payment' },
           { label: '외주비할인현황', to: '/sales/outsourcing-discount' },
           { label: '거래처별채무', to: '/sales/ledger-payable' },
+          { label: '외주비일괄회계반영', to: '/production/subcontract-reflection' },
         ],
       },
       { label: '기타이동', nodes: [{ label: '기타이동', to: '/inventory/transfer' }, { label: '재고실사', to: '/inventory/stocktake' }, { label: '단계별재고조정', to: '/inventory/staged-adjustment' }] },

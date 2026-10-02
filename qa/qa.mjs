@@ -4946,6 +4946,63 @@ async function scenarioWorkOrderSlip(f) {
     (await must('GET', '/work-orders')).filter((x) => x.orderDate === D).length, 0)
 }
 
+/**
+ * 외주비일괄회계반영 — 원본 생산/외주 > 외주비회계반영.
+ *
+ * <p>외주 창고(외주거래처 = 매입처)를 생산된공장으로 생산입고하면 [외주비합계]·[부가세]가 남고,
+ * [매입전표 I] 로 외주처별 매입전표(차 외주가공비·부가세대급금 / 대 외상매입금)가 생긴다.
+ * 반영한 생산입고는 반영을 취소해야 지울 수 있다.
+ */
+async function scenarioSubcontractReflection(f) {
+  section('■ 외주비일괄회계반영 — 생산입고 외주비 → 매입전표')
+
+  const D = '2087-06-06'
+  const outWh = await ensure('/warehouses', 'code', `${P}OUT`, null, {
+    code: `${P}OUT`, name: 'QA외주처', kind: '외주', outsourcingPartnerId: f.supplier.id,
+  })
+  const listOf = async () => must('GET', `/accounting-reflection/subcontract?from=${D}&to=${D}`)
+  const clear = async () => {
+    const rows = await listOf()
+    const bound = rows.filter((r) => r.journalId).map((r) => r.productionId)
+    if (bound.length) await call('POST', '/accounting-reflection/subcontract/unreflect', { productionIds: bound })
+    for (const no of new Set(rows.map((r) => r.prodNo))) await call('DELETE', `/productions/slips/${no}`)
+  }
+  await clear()
+
+  // 외주처에 자재를 보내 둔다(BOM 소모가 외주처 재고에서 빠진다).
+  const comp = (await must('GET', '/boms')).find((b) => b.productId === f.product.id).lines[0]
+  await must('POST', '/stock/transactions', { itemId: comp.componentId, warehouseId: outWh.id, type: 'INBOUND', quantity: 100 })
+
+  const made = await must('POST', '/productions/slips', {
+    entryType: 'I', productionDate: D, fromWarehouseId: outWh.id, warehouseId: f.warehouse.id,
+    lines: [{ productId: f.product.id, producedQty: 3, subcontractUnitPrice: 1000 }],
+  })
+  eq('외주 생산입고: 외주비합계 = 단가 × 수량', Number(made[0].subcontractAmount), 3000)
+
+  const row = (await listOf()).find((r) => r.productionId === made[0].id)
+  eq('외주비 목록에 외주처(외주 창고의 외주거래처)가 붙는다', row?.partnerId, f.supplier.id)
+  eq('외주비 목록: 합계 = 공급가액 + 부가세', Number(row?.total), 3300)
+
+  const res = await must('POST', '/accounting-reflection/subcontract/reflect', {
+    productionIds: [made[0].id], groupBy: 'PARTNER',
+  })
+  eq('매입전표 I: 외주처 하나에 회계전표 하나', res.count, 1)
+  const after = (await listOf()).find((r) => r.productionId === made[0].id)
+  eq('반영하면 회계전표No. 가 붙는다', after.journalNo, res.journalNos[0])
+  eq('반영한 생산입고는 지울 수 없다', (await call('DELETE', `/productions/slips/${made[0].prodNo}`)).status, 400)
+  eq('같은 줄을 다시 반영하면 거절한다', (await call('POST', '/accounting-reflection/subcontract/reflect', {
+    productionIds: [made[0].id], groupBy: 'PARTNER',
+  })).status, 400)
+
+  const undo = await must('POST', '/accounting-reflection/subcontract/unreflect', { productionIds: [made[0].id] })
+  eq('반영취소하면 회계전표가 지워진다', undo.journalNos[0], res.journalNos[0])
+  eq('반영취소하면 줄이 풀린다', (await listOf()).find((r) => r.productionId === made[0].id).journalId, null)
+
+  await clear()
+  await must('POST', '/stock/transactions', { itemId: comp.componentId, warehouseId: outWh.id, type: 'OUTBOUND', quantity: 100 })
+  eq('시험한 외주 생산입고는 남기지 않는다', (await listOf()).length, 0)
+}
+
 async function scenarioWorkResultBatch(f) {
   section('■ 작업내역 격자 — 한 번에 여러 줄')
 
@@ -9483,6 +9540,8 @@ async function main() {
     await scenarioProductionBatch(fixtures)
     await scenarioProductionSlip(fixtures)
     await scenarioWorkOrderSlip(fixtures)
+  await scenarioSubcontractReflection(fixtures)
+    await scenarioSubcontractReflection(fixtures)
     console.log(`\n통과 ${pass} · 실패 ${fail}`)
     process.exit(fail > 0 ? 1 : 0)
   }

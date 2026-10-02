@@ -71,6 +71,8 @@ public final class StandardAccounts {
             required("914", "유형자산처분이익", AccountDivision.REVENUE, "영업외수익"),
             // ── 비용
             of("451", "상품매출원가", AccountDivision.EXPENSE, "매출원가"),
+            // 외주비일괄회계반영이 코드로 찾는다(SubcontractReflectionService).
+            required("533", "외주가공비", AccountDivision.EXPENSE, "제조원가"),
             required("801", "급여", AccountDivision.EXPENSE, "판매관리비"),
             of("811", "복리후생비", AccountDivision.EXPENSE, "판매관리비"),
             of("812", "여비교통비", AccountDivision.EXPENSE, "판매관리비"),

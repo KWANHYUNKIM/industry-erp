@@ -147,6 +147,13 @@ public class Production extends BaseTimeEntity {
     @Column(name = "labor_minutes")
     private Integer laborMinutes;
 
+    /**
+     * 외주비를 넘긴 회계전표 id(외주비일괄회계반영). 비었으면 아직 안 넘겼다.
+     * production 은 accounting 을 참조할 수 없어(accounting → production 이 있다) id 만 든다.
+     */
+    @Column(name = "subcontract_journal_id")
+    private Long subcontractJournalId;
+
     /** 소요된 자재 내역 */
     @OneToMany(mappedBy = "production", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

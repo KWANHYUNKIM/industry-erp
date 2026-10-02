@@ -35,6 +35,7 @@ const SettlementPage = lazy(() => import('../pages/trade/SettlementPage'))
 const BomPage = lazy(() => import('../pages/production/BomPage'))
 const WorkOrderPage = lazy(() => import('../pages/production/WorkOrderPage'))
 const WorkOrderEntryPage = lazy(() => import('../pages/production/WorkOrderEntryPage'))
+const SubcontractReflectionPage = lazy(() => import('../pages/production/SubcontractReflectionPage'))
 const ProductionResultPage = lazy(() => import('../pages/production/ProductionResultPage'))
 const ProfitSummaryPage = lazy(() => import('../pages/accounting/ProfitSummaryPage'))
 const ItemCostPage = lazy(() => import('../pages/accounting/ItemCostPage'))
@@ -269,6 +270,7 @@ export default function AppRouter() {
         <Route path="/production/bom" element={<BomPage />} />
         <Route path="/production/work-orders" element={<WorkOrderPage />} />
         <Route path="/production/work-order-entry" element={<WorkOrderEntryPage />} />
+        <Route path="/production/subcontract-reflection" element={<SubcontractReflectionPage />} />
         {/*
           옛 경로. 메뉴에서는 [생산입고 I(BOM기준소모)] 로 부른다 — 원본에 [생산실적] 이라는
           이름이 없다. 북마크·바로가기가 남아 있을 수 있어 경로는 살려 둔다.

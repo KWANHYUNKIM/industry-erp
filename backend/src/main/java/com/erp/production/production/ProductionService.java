@@ -355,8 +355,43 @@ public class ProductionService {
         productionRepository.delete(p);
     }
 
+    /**
+     * 외주비가 붙은 생산입고 줄. 기간은 생산일이다. 원본 외주비일괄회계반영의 자료다.
+     * 외주비합계·부가세가 둘 다 0 인 줄은 넘길 것이 없어 빠진다.
+     */
+    @Transactional(readOnly = true)
+    public List<ProductionDtos.SubcontractLine> findSubcontract(LocalDate from, LocalDate to) {
+        return productionRepository.findWithRefsByPeriod(
+                        from != null ? from : LocalDate.of(1, 1, 1), to != null ? to : LocalDate.of(9999, 12, 31))
+                .stream()
+                .filter(p -> p.getSubcontractAmount().signum() != 0 || p.getSubcontractVat().signum() != 0)
+                .map(p -> new ProductionDtos.SubcontractLine(
+                        p.getId(), p.getProdNo(), p.getLineNo(), p.getProductionDate(),
+                        p.getProduct().getId(), p.getProduct().getCode(), p.getProduct().getName(), p.getProducedQty(),
+                        p.getSubcontractUnitPrice(), p.getSubcontractAmount(), p.getSubcontractVat(),
+                        p.getFromWarehouse() != null ? p.getFromWarehouse().getId() : null,
+                        p.getFromWarehouse() != null ? p.getFromWarehouse().getName() : null,
+                        p.getFromWarehouse() != null ? p.getFromWarehouse().getKind() : null,
+                        p.getFromWarehouse() != null ? p.getFromWarehouse().getOutsourcingPartnerId() : null,
+                        p.getProject() != null ? p.getProject().getId() : null,
+                        p.getEmployeeId(), p.getNote(), p.getSubcontractJournalId()))
+                .toList();
+    }
+
+    /** 외주비를 넘긴(또는 되돌린) 회계전표를 줄에 적는다. journalId 가 null 이면 '안 넘김' 으로 돌린다. */
+    @Transactional
+    public void markSubcontractJournal(List<Long> productionIds, Long journalId) {
+        for (Production p : productionRepository.findAllById(productionIds)) {
+            p.setSubcontractJournalId(journalId);
+        }
+    }
+
     /** 한 줄이 움직인 재고·작업지시 진척을 되돌린다(행은 지우지 않는다). */
     private void reverse(Production p, String username) {
+        /* 원본도 회계반영한 전표는 반영을 먼저 취소해야 고치거나 지울 수 있다. */
+        if (p.getSubcontractJournalId() != null) {
+            throw ApiException.badRequest("외주비를 회계반영한 생산입고입니다. 외주비일괄회계반영에서 반영을 먼저 취소하세요: " + p.getProdNo());
+        }
         LocalDate date = p.getProductionDate();
         Warehouse warehouse = p.getWarehouse();
 

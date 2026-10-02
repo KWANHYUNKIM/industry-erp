@@ -256,6 +256,21 @@ public final class ProductionDtos {
             String note
     ) {}
 
+    /**
+     * 외주비가 붙은 생산입고 한 줄 — accounting 의 외주비일괄회계반영이 읽는다.
+     * 엔티티를 다른 모듈에 내주지 않으려고 따로 둔다(CLAUDE.md 3).
+     */
+    public record SubcontractLine(
+            Long id, String prodNo, Integer lineNo, LocalDate productionDate,
+            Long productId, String productCode, String productName, BigDecimal producedQty,
+            BigDecimal unitPrice, BigDecimal amount, BigDecimal vat,
+            Long fromWarehouseId, String fromWarehouseName, String fromWarehouseKind,
+            /** 외주 창고의 외주거래처 id. 거래처 이름은 accounting 이 trade 에서 붙인다. */
+            Long outsourcingPartnerId,
+            Long projectId, Long employeeId, String note,
+            Long journalId
+    ) {}
+
     public record ManualConsumeLine(
             @NotNull(message = "소모자재를 선택하세요.") Long componentId,
             @NotNull(message = "소모수량을 입력하세요.") @Positive(message = "소모수량은 0보다 커야 합니다.") BigDecimal quantity
