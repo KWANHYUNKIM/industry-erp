@@ -246,8 +246,9 @@ export default function ReceiptInquiryPage() {
        * 원본 생산입고조회의 버튼은 신규(F2) · 진행상태변경 · 보내기 · 인쇄 · 바코드(품목) ·
        * 전자결재 · 선택삭제 · 이력조회다. 우리에겐 [신규(F2)] 자리가 비어 있었다 —
        * 조회에서 "하나 더 넣자" 가 되면 메뉴를 다시 뒤져야 했다.
-       * 원본의 신규는 생산입고 I(BOM기준소모)로 간다.
+       * 원본의 신규는 생산입고 I(BOM기준소모)로 가고, 단추 이름도 [생산입고I] 다(loginaa 실측 2026-10-02).
        */
+      newLabel="생산입고I"
       onNew={() => navigate('/production/receipt-bom')}
       actions={[{ label: '검색(F8)', onClick: load },
                 { label: '진행상태변경', onClick: () => setStatusPick((v) => !v), disabled: checked.size === 0 },
