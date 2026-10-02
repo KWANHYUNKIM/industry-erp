@@ -51,6 +51,21 @@
         "expect:![...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes(sessionStorage.getItem('adNo')))",
         "js:(async()=>(await window.__api('DELETE','/stock-adjustments/'+sessionStorage.getItem('adId'))).status)()"
       ]
+    },
+    {
+      "name": "재고실사조회 — 기본이 차월이라 오늘 실사가 안 보이고, [금월(~오늘)] 을 누르면 단계별 실사 1건이 조정전표 빈 채로 뜬다, 끝나면 지운다",
+      "path": "/inventory/stocktake-list",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const st=(await window.__api('GET','/stock')).body.find((s)=>Number(s.quantity)>=1);const today=new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10);const r=await window.__api('POST','/staged-adjustments',{itemId:st.itemId,warehouseId:st.warehouseId,actualQty:Number(st.quantity),requestDate:today,reason:'QA 실사조회'});sessionStorage.setItem('stId',r.body&&r.body.id);sessionStorage.setItem('stNo',r.body&&r.body.adjustNo);return r.status})()",
+        "click:검색(F8)",
+        "wait:1200",
+        "expect:![...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes(sessionStorage.getItem('stNo')))",
+        "click:금월(~오늘)",
+        "wait:1500",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('stNo')));return h==='|구분|입력일자|창고명|담당자|품목명[규격명]|수 량|조정전표'&&!!tr&&tr.cells[1].innerText.trim()==='단계별'&&tr.cells[7].innerText.trim()===''})()",
+        "js:(async()=>(await window.__api('DELETE','/staged-adjustments/'+sessionStorage.getItem('stId'))).status)()"
+      ]
     }
   ]
 }

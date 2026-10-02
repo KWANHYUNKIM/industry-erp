@@ -266,6 +266,9 @@ export const QUOTATION_PICKS = [...BASE_PICKS, '종료일', '최근30일(+1개�
 /** 재고조정진행단계(C000089) — 기본 [금년], 묶음 끝에 전월+금월 · 종료일 · 최근40일(+1개월) · 금년(2026-10-03 원본 실측). */
 export const STAGED_PROGRESS_PICKS = [...BASE_PICKS, '전월+금월', '종료일', '최근40일(+1개월)', '금년'] as const
 
+/** 재고실사조회(E040613) — 기본이 <b>[차월]</b>이고 묶음 끝에 전월+금월 · 종료일 · 차월(2026-10-03 원본 실측). */
+export const STOCKTAKE_LIST_PICKS = [...BASE_PICKS, '전월+금월', '종료일', '차월'] as const
+
 export const SELF_USE_PICKS = [...ORDER_DOC_PICKS, '최근30일(+1개월)'] as const
 
 /**

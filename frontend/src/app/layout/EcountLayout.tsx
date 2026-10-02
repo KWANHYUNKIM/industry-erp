@@ -195,7 +195,7 @@ const MENU: TopMenu[] = [
           { label: '매입(세금)계산서현황(재고)', to: '/production/purchase-tax-status' },
         ],
       },
-      { label: '기타이동', nodes: [{ label: '기타이동', to: '/inventory/transfer' }, { label: '재고실사', to: '/inventory/stocktake' }, { label: '단계별재고조정', to: '/inventory/staged-adjustment' }, { label: '재고조정진행단계', to: '/inventory/staged-progress' }] },
+      { label: '기타이동', nodes: [{ label: '기타이동', to: '/inventory/transfer' }, { label: '재고실사', to: '/inventory/stocktake' }, { label: '재고실사조회', to: '/inventory/stocktake-list' }, { label: '단계별재고조정', to: '/inventory/staged-adjustment' }, { label: '재고조정진행단계', to: '/inventory/staged-progress' }] },
       { label: '쇼핑몰관리', nodes: [{ label: '쇼핑몰등록', to: '/sales/mall-accounts' }, { label: '쇼핑몰관리', to: '/sales/mall' }, { label: '쇼핑몰품목코드연결', to: '/sales/mall-item-mappings' }] },
       {
         // 원본 출력물 탭은 커뮤니케이션센터·증빙센터 + 재고현황·영업관리현황·구매관리현황 묶음이다.

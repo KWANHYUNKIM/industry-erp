@@ -870,5 +870,9 @@
  [
   "재고조정조회",
   "inventory/AdjustListPage.tsx"
+ ],
+ [
+  "재고실사조회",
+  "inventory/StocktakeListPage.tsx"
  ]
 ]
