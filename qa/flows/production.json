@@ -380,6 +380,17 @@
         "js:(()=>{const ss=[...document.querySelectorAll('select')].filter((x)=>[...x.options].some((o)=>o.value==='품목그룹1별'));const s=ss[ss.length-1];Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'품목그룹1별');s.dispatchEvent(new Event('change',{bubbles:true}));return new Promise((r)=>setTimeout(()=>r(true),600))})()",
         "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim());if(h[1]!=='받는창고별'||h[2]!=='품목그룹1별')return false;const f=document.querySelector('table tfoot tr');if(!f)return true;const n=(x)=>Number(x.replace(/[^0-9.-]/g,''))||0;const qi=h.indexOf('수량');const rows=[...document.querySelectorAll('table tbody tr')].filter((r)=>r.cells.length===h.length);return rows.reduce((a,r)=>a+n(r.cells[qi].innerText),0)===n(f.cells[2].innerText)})()"
       ]
+    },
+    {
+      "name": "생산불출현황 — ○집계 [집계조건3]: 조건2 를 고르면 조건3 칸이 열리고, 월별 · 보낸창고별 · 받는창고별 세 열로 묶어도 줄 수량의 합이 합계와 같다",
+      "path": "/production/issue-status",
+      "steps": [
+        "js:new Promise((r)=>setTimeout(()=>{[...document.querySelectorAll('button')].find((b)=>b.textContent.trim()==='집계').click();setTimeout(()=>r(true),600)},1500))",
+        "js:(()=>{const ss=[...document.querySelectorAll('select')].filter((x)=>[...x.options].some((o)=>o.value==='분기별'));const s=ss[0];Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'월별');s.dispatchEvent(new Event('change',{bubbles:true}));return new Promise((r)=>setTimeout(()=>r(true),600))})()",
+        "js:(()=>{const ss=[...document.querySelectorAll('select')].filter((x)=>[...x.options].some((o)=>o.value==='보낸창고별'));const s=ss[ss.length-1];Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'보낸창고별');s.dispatchEvent(new Event('change',{bubbles:true}));return new Promise((r)=>setTimeout(()=>r(true),600))})()",
+        "js:(()=>{const ss=[...document.querySelectorAll('select')].filter((x)=>[...x.options].some((o)=>o.value==='받는창고별'));const s=ss[ss.length-1];Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'받는창고별');s.dispatchEvent(new Event('change',{bubbles:true}));return new Promise((r)=>setTimeout(()=>r(true),600))})()",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim());if(h[1]!=='월별'||h[2]!=='보낸창고별'||h[3]!=='받는창고별')return false;const f=document.querySelector('table tfoot tr');if(!f)return true;const n=(x)=>Number(x.replace(/[^0-9.-]/g,''))||0;const qi=h.indexOf('수량');const rows=[...document.querySelectorAll('table tbody tr')].filter((r)=>r.cells.length===h.length);return rows.reduce((a,r)=>a+n(r.cells[qi].innerText),0)===n(f.cells[2].innerText)})()"
+      ]
     }
   ]
 }

@@ -139,3 +139,15 @@ test('정렬 — 코드순은 코드로(없으면 이름), 코드명순은 이�
   // 코드가 없는 축(날짜)은 이름 그대로가 차례다
   assert.equal(names(sortAggregated([g('2026-10-02', 1), g('2026-09-30', 1)], '코드순', false, new Map(), new Map())), '2026-09-30,2026-10-02')
 })
+
+test('집계조건3 — 조건1·2 가 같아도 조건3 이 다르면 다른 묶음, 수량 합은 그대로', () => {
+  const base = { date: '2026-10-01', docNo: 'A', partner: '', itemName: 'X', supply: 0, vat: 0, projectName: null, taxable: true, employeeName: null, managementItemName: null }
+  const rows: AggregatableRow[] = [
+    { ...base, qty: 2, warehouseName: 'W1', toWarehouseName: 'P1' },
+    { ...base, qty: 3, warehouseName: 'W1', toWarehouseName: 'P2' },
+    { ...base, qty: 4, warehouseName: 'W1', toWarehouseName: 'P2' },
+  ]
+  const out = aggregate(rows, '월별', '보낸창고별', '받는창고별')
+  assert.deepEqual(out.map((g) => [g.g3, g.qty]).sort(), [['P1', 2], ['P2', 7]])
+  assert.equal(aggregate(rows, '월별', '보낸창고별').length, 1)
+})

@@ -89,6 +89,8 @@ export function groupValue(r: AggregatableRow, key: GroupKey | ''): string {
 export interface AggregatedRow {
   g1: string
   g2: string
+  /** 집계조건3 — 생산불출·생산입고현황만 쓴다(원본은 조건1을 고르면 조건3 칸이 열린다). 안 쓰면 ''. */
+  g3?: string
   count: number
   qty: number
   supply: number
@@ -100,14 +102,16 @@ export function aggregate(
   rows: AggregatableRow[],
   group1: GroupKey | '',
   group2: GroupKey | '',
+  group3: GroupKey | '' = '',
 ): AggregatedRow[] {
   const map = new Map<string, AggregatedRow>()
   for (const r of rows) {
     const g1 = groupValue(r, group1)
     const g2 = groupValue(r, group2)
+    const g3 = groupValue(r, group3)
     // 그룹 키를 잇는 구분자. 데이터에 나올 리 없는 기호를 쓴다(널문자는 소스에 박히면 파일이 깨진다).
-    const k = `${g1}␟${g2}`
-    const cur = map.get(k) ?? { g1, g2, count: 0, qty: 0, supply: 0, vat: 0 }
+    const k = `${g1}␟${g2}␟${g3}`
+    const cur = map.get(k) ?? { g1, g2, g3, count: 0, qty: 0, supply: 0, vat: 0 }
     cur.count += 1
     cur.qty += r.qty
     cur.supply += r.supply
@@ -149,11 +153,13 @@ export type AggSort = (typeof AGG_SORTS)[number]
 /** 코드순은 묶음 코드(없으면 이름 — 날짜 축은 날짜 그대로가 곧 차례다), 코드명순은 이름, 수량은 수량. 조건1 이 같으면 조건2 로. */
 export function sortAggregated(
   rows: AggregatedRow[], by: AggSort, desc: boolean, codes1: Map<string, string>, codes2: Map<string, string>,
+  codes3: Map<string, string> = new Map(),
 ): AggregatedRow[] {
   const key = (g: string, codes: Map<string, string>) => (by === '코드순' ? codes.get(g) || g : g)
   const cmp = (a: AggregatedRow, b: AggregatedRow) => by === '수량'
     ? a.qty - b.qty
     : key(a.g1, codes1).localeCompare(key(b.g1, codes1), 'ko') || key(a.g2, codes2).localeCompare(key(b.g2, codes2), 'ko')
+      || key(a.g3 ?? '', codes3).localeCompare(key(b.g3 ?? '', codes3), 'ko')
   const out = [...rows].sort(cmp)
   return desc ? out.reverse() : out
 }
