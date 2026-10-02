@@ -4,7 +4,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
-import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import { STATUS_PICKS, periodOf, comparePeriodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
 import type { Item, Warehouse } from '../../types/api'
 import { stockCostMapFromLast } from '../../utils/stockValue'
 import { aggregate, type GroupKey } from '../../utils/statusAggregate'
@@ -102,6 +102,18 @@ export default function IssueStatusPage() {
    * 불출에 없는 축(거래유형·거래처·관리항목)은 뺀다. 조건1 품목별 · 조건2 없음이면 예전 자재별 표(코드·단위·최근불출일)를 그대로 쓴다.
    */
   const AGG_KEYS = ['품목별', '일별', '주차별', '월별', '분기별', '반기별', '연별', '담당자별', '창고별', '프로젝트별', '전표별'] as const
+  /**
+   * 원본 ○집계의 [비교기간] — 사용안함 · 전년/전월/전주/전일 동일기간. 그 기간의 불출을 따로 받아 수량·생산금액을 견준다
+   * (판매현황과 같은 판, 2026-10-02 실측). 고른 조건(창고·품목)은 같이 건다.
+   */
+  const [compare, setCompare] = useState<ComparePeriod>('사용안함')
+  const [prevRows, setPrevRows] = useState<MaterialIssue[] | null>(null)
+  const prevRange = comparePeriodOf(from, to, compare)
+  useEffect(() => {
+    if (!prevRange) { setPrevRows(null); return }
+    api.get<MaterialIssue[]>('/material-issues', { params: prevRange }).then((r) => setPrevRows(r.data)).catch(() => setPrevRows(null))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prevRange?.from, prevRange?.to])
   const [agg1, setAgg1] = useState<GroupKey>('품목별')
   const [agg2, setAgg2] = useState<GroupKey | ''>('')
   /* 조건2 를 켜면 열이 하나 는다 — 렌더된 표를 직접 잰다. */
@@ -312,6 +324,7 @@ export default function IssueStatusPage() {
       {/* 원본은 기간 줄을 [일자]라고 부른다(사본 실측) — 기본값 [기준일자]가 아니다. */}
       <EcStatusPanel
         dateLabel="일자"
+        compare={mode === '집계' ? compare : undefined} onCompareChange={mode === '집계' ? setCompare : undefined}
         from={from} to={to}
         onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
         picks={STATUS_PICKS}
@@ -424,6 +437,21 @@ export default function IssueStatusPage() {
         <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
         불출수량 <b style={{ color: '#a5561b', fontSize: 14 }}>{num(totalQty)}</b>
       </div>
+      {mode === '집계' && prevRange && prevRows && (() => {
+        const pick = (r: MaterialIssue) => (!warehouseId || String(r.warehouseId) === warehouseId || String(r.toWarehouseId) === warehouseId)
+          && (!item || String(r.itemId) === item)
+        const prev = prevRows.filter(pick)
+        const pq = prev.reduce((n, r) => n + r.qty, 0)
+        const pa = prev.reduce((n, r) => n + (amountOf(r) ?? 0), 0)
+        const ca = shown.reduce((n, r) => n + (amountOf(r) ?? 0), 0)
+        const pct = (a: number, b: number) => (b > 0 ? ` (${a >= b ? '+' : ''}${Math.round(((a - b) / b) * 100)}%)` : '')
+        return (
+          <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+            비교기간({prevRange.from.replace(/-/g, '/')} ~ {prevRange.to.replace(/-/g, '/')})
+            수량 {num(pq)} → {num(totalQty)}{pct(totalQty, pq)} · 생산금액 {won(pa)} → {won(ca)}{pct(ca, pa)}
+          </div>
+        )
+      })()}
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
