@@ -164,7 +164,7 @@ const MENU: TopMenu[] = [
           { label: '작업지시서작업처리', to: '/production/wo-work' },
           { label: '작업지시서별진행현황', to: '/production/wo-progress' },
           { label: '작업지시서효율현황', to: '/production/wo-efficiency' },
-          { label: '생산불출', to: '/production/issue' },
+          { label: '생산불출조회', to: '/production/issue' },
           { label: '생산불출현황', to: '/production/issue-status' },
           { label: '작업내역입력', to: '/production/work-result' },
           { label: '작업내역조회', to: '/production/work-result-list' },
