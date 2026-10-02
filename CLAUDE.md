@@ -426,6 +426,34 @@ frontend/src/
 - `app/router.tsx`·`app/layout/EcountLayout.tsx`·`features/auth/menuPermissions.ts`·`utils/periods.ts` 는
   `qa/ui-check.mjs` 가 경로로 읽습니다. 옮기면 그쪽 경로도 같이 고치세요.
 
+
+### 10.1 화면 디자인 규칙 (이카운트 ec56 과 같게)
+
+색·크기·둥글기의 **단일 출처는 `styles/tokens.css`** 입니다(2026-10-03 loginaa ec56 판매조회·판매입력·MyPage
+`getComputedStyle` 실측). 화면 틀은 `styles/shell.css`, 부품(버튼·칸·격자·판)은 `styles/index.css` 가 토큰으로 그립니다.
+
+| 부품 | 클래스 | 원본 값 |
+|------|--------|---------|
+| 버튼 | `.ec-btn` / `.ec-btn-primary` / 붙은 묶음 `.ec-btn-group` · `.ec-btn-arrow` | h26 · 여백 0 9px · 둥글기 10 · 머리카락 테두리 #dee2e6 |
+| 입력칸 | `.ec-input` · 코드도움 `.ec-code` (붙는 쪽 모서리만 각짐) | h26 · 여백 5.4px · 둥글기 10 · 막힘 #e9ecef |
+| 툴바 버튼 | `.ec-btn.ec-btn-sm` | h22 |
+| 알약 | `.ec-pills > .ec-pill(.active)` | h25 · 둥글기 30 · 꺼짐 #e7efff/#606c93 · 켜짐 #1f48d4/흰 |
+| 입력·조건 판 | `.ec-form` · `.ec-cond` | 흰 바탕 · 여백 9 · 둥글기 20 |
+| 격자 | `table` (전역) · `.ec-list-grid` · `.ec-report` | 머리 #f7f8f9 · 윗선 #9bb0be · 머리 35/본문 30 · 줄 마우스 #f2f2f2 · 링크 #19358c · 그림자 없음 |
+| 화면 제목 | `.ec-page-head > .ec-page-title` · `.tools` | 14px 700 |
+| 쪽번호 | `.ec-paging > .active` | 파란 동그라미 · 꺼짐 #868d93 |
+| 틀 | `.ec-bookbar` · `.ec-gnb(-item)` · `.ec-subnav(-item)` · `.ec-lnb-group/-leaf` · `.ec-frame` · `.ec-appbar` | 북마크 h26 #e9ecef · 머리 h46 · 왼쪽 209 · 본문 틀 위 모서리 20 |
+
+- **화면 코드(.tsx)에 색·px 를 새로 쓰지 마세요.** 위 클래스를 붙이고, 인라인이 꼭 필요하면 `var(--ec-…)` 토큰을 씁니다.
+  `#1f48d4` 같은 값을 직접 쓰면 원본이 바뀔 때 그 자리만 남습니다(2026-10-03 원본이 h28·둥글기 5 → h26·둥글기 10 으로
+  바뀌었는데 틀 전체가 인라인이라 한 군데도 따라가지 않았습니다).
+- **값은 재서 넣습니다.** 원본 여백이 6.3px·9px·11.7px 처럼 보여도 반올림하지 않습니다(원본 여백이 정수 × 0.9 로 그려짐) —
+  반올림하면 버튼 폭·칸 높이가 1px 씩 어긋납니다. 새 값은 원본에서 재서 `tokens.css` 에 이름을 붙여 더합니다.
+- 테두리는 `var(--ec-hair)`(0.5px, 레티나에서 기기 픽셀 1칸)입니다. 본문 틀(`.ec-frame`)만 원본도 1px 입니다.
+- Tailwind 둥글기·그림자는 `index.css` 가 원본 단계로 덮습니다(`rounded-lg` → 10, `rounded-xl/2xl` → 20, 그림자 없음).
+  새 화면에서는 Tailwind 색·둥글기 대신 위 클래스를 쓰세요.
+- 한 화면을 원본과 맞출 때는 `/ecount-diff` 스킬을 씁니다(조건·열·기본값 + 그 화면만의 디자인).
+
 ---
 
 ## 11. 패키지 이동 기록

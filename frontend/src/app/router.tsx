@@ -72,6 +72,7 @@ const JournalStatusPage = lazy(() => import('../pages/accounting/JournalStatusPa
 const TaxInvoiceJournalPage = lazy(() => import('../pages/accounting/TaxInvoiceJournalPage'))
 const JournalHistoryPage = lazy(() => import('../pages/accounting/JournalHistoryPage'))
 const TransferListPage = lazy(() => import('../pages/accounting/TransferListPage'))
+const FundDailyPage = lazy(() => import('../pages/accounting/FundDailyPage'))
 const TrialBalancePage = lazy(() => import('../pages/accounting/TrialBalancePage'))
 const BalanceSheetPage = lazy(() => import('../pages/accounting/BalanceSheetPage'))
 const IncomeStatementPage = lazy(() => import('../pages/accounting/IncomeStatementPage'))
@@ -471,6 +472,7 @@ export default function AppRouter() {
         <Route path="/accounting/purchase-tax-journal" element={<TaxInvoiceJournalPage side="매입" />} />
         <Route path="/accounting/journal-history" element={<JournalHistoryPage />} />
         <Route path="/accounting/transfer-list" element={<TransferListPage />} />
+        <Route path="/accounting/fund-daily" element={<FundDailyPage />} />
         <Route path="/accounting/trial-balance" element={<TrialBalancePage />} />
         <Route path="/accounting/balance-sheet" element={<BalanceSheetPage />} />
         <Route path="/accounting/income-statement" element={<IncomeStatementPage />} />

@@ -450,6 +450,7 @@ const MENU: TopMenu[] = [
               { label: '매입(세금)계산서현황', to: '/accounting/purchase-tax-journal' },
               { label: '거래이력조회(회계)', to: '/accounting/journal-history' },
               { label: '지출결의서이체리스트', to: '/accounting/transfer-list' },
+              { label: '자금일보', to: '/accounting/fund-daily' },
             ],
           },
           {
@@ -1044,7 +1045,7 @@ export default function EcountLayout() {
             </div>
           )}
         </div>
-        {bookmarks.length === 0 && <span className="ec-bookbar-hint">★ 자주 사용하는 메뉴를 즐겨찾기로 추가할 수 있습니다 ★</span>}
+        <span className="ec-bookbar-hint">★ 자주 사용하는 메뉴를 즐겨찾기로 추가할 수 있습니다 ★</span>
         {bookmarks.map((b, i) => (
           <NavLink key={b.path + i} to={b.path} className={({ isActive }) => `ec-bookmark${isActive ? ' active' : ''}`}>
             {b.label}
@@ -1101,11 +1102,13 @@ export default function EcountLayout() {
               const visibleChildren = node.children.filter(leafOk)
               if (visibleChildren.length === 0) return null
               const key = `${topIdx}/${tabIdx}/${node.label}`
-              const open = !collapsed[key]
+              // 원본처럼 지금 화면이 든 묶음만 칠하고 기본으로 펼친다. 나머지는 접혀 있다가 누르면 펼친다.
+              const current = visibleChildren.some((c) => !!c.to && matchLength(c.to, location.pathname) > 0)
+              const open = key in collapsed ? !collapsed[key] : current
               return (
                 <div key={node.label}>
                   <button
-                    className={`ec-lnb-group${open ? ' open' : ''}`}
+                    className={`ec-lnb-group${open ? ' open' : ''}${current ? ' current' : ''}`}
                     onClick={() => setCollapsed((c) => ({ ...c, [key]: open }))}
                   >
                     {node.label}

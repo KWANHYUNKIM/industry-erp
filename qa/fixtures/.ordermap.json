@@ -1022,5 +1022,9 @@
  [
   "지출결의서이체리스트",
   "accounting/TransferListPage.tsx"
+ ],
+ [
+  "자금일보",
+  "accounting/FundDailyPage.tsx"
  ]
 ]

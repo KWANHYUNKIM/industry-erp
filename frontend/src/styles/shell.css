@@ -287,7 +287,8 @@
 .ec-lnb-group.open::before {
   transform: translateY(-80%) rotate(45deg);
 }
-.ec-lnb-group.open {
+/* 지금 화면이 든 묶음만 칠한다(펼쳐져 있어도 다른 묶음은 칠하지 않는다) */
+.ec-lnb-group.current {
   background: var(--ec-blue-tint);
   color: var(--ec-navy);
   font-weight: 700;

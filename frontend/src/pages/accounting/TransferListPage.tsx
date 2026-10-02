@@ -29,7 +29,7 @@ interface Row { key: string; date: string; text: string; partner: string; text1:
  * 빠른선택 금일 … 전월 · 종료일 · 최근30일) · 회계전표No. · 부서 · 프로젝트 · 출금계좌 · 상태(전체 · 결재중 · 미확인 · <b>확인</b>) ·
  * 적용양식 · 양식구분([결재방표시]) · 데이터 보기형식.
  *
- * <p>인쇄 머리 제목은 <b>이체리스트</b>. 열 전표일자 · 적요 · 거래처명 · 적요1 · 은행 · 계좌번호 · 금액, 달마다 [YYYY/MM 계], 끝 [합계](앞 여섯 칸 묶음).
+ * <p>인쇄 머리 제목도 화면 이름과 같은 <b>지출결의서이체리스트</b>(다시 열어 확인). 열 전표일자 · 적요 · 거래처명 · 적요1 · 은행 · 계좌번호 · 금액, 달마다 [YYYY/MM 계], 끝 [합계](앞 여섯 칸 묶음).
  * 지출 · 수금·지급 전표에서 현금 · 예금(101 · 102 · 103) 대변이 한 줄이고, 은행 · 계좌번호는 거래처의 이체정보다.
  * 원본 판에서 은행 · 계좌번호 · 적요1 은 비어 있었다(거래처 이체정보가 없는 자료). [출금계좌]는 돈이 나간 계정으로 거른다.
  * 우리 전표는 결재 없이 곧 확인이라 결재중 · 미확인은 비어 있다. 일별 · 월별 · 전표별 · 거래처별은 원본 판을 못 재 하루 · 한 달 · 전표 · 거래처로 묶는다.
@@ -161,7 +161,7 @@ export default function TransferListPage() {
       </ul>
 
       {truncated && <p style={{ fontSize: 12, color: '#c07a00', marginBottom: 6 }}>전표가 많아 앞부분만 받았습니다 — 기간을 좁혀 보세요.</p>}
-      <h3 style={{ fontSize: 20, fontWeight: 700, textAlign: 'center', margin: '6px 0 12px' }}>이체리스트</h3>
+      <h3 style={{ fontSize: 20, fontWeight: 700, textAlign: 'center', margin: '6px 0 12px' }}>지출결의서이체리스트</h3>
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
