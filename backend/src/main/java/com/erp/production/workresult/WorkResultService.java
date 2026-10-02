@@ -51,18 +51,26 @@ public class WorkResultService {
      */
     @Transactional
     public java.util.List<WorkResultResponse> createBatch(CreateWorkResultBatchRequest req) {
+        /* 원본처럼 줄이 몇 개든 번호는 하나다 — 같은 결과번호를 줄들이 나눠 갖는다. */
+        LocalDate workDate = req.workDate() != null ? req.workDate() : LocalDate.now();
+        String no = docNoGenerator.next("WR-", "work_results", "result_no", "work_date", workDate);
         java.util.List<WorkResultResponse> out = new java.util.ArrayList<>();
         for (WorkResultLine line : req.lines()) {
             out.add(create(new CreateWorkResultRequest(
                     line.workOrderId(), line.process(), line.workItemId(), line.resourceId(),
                     req.warehouseId(), line.worker(), line.goodQty(), line.defectQty(),
-                    line.workTimeMin(), req.workDate(), req.projectId(), line.note())));
+                    line.workTimeMin(), workDate, req.projectId(), line.note()), no));
         }
         return out;
     }
 
     @Transactional
     public WorkResultResponse create(CreateWorkResultRequest req) {
+        LocalDate d = req.workDate() != null ? req.workDate() : LocalDate.now();
+        return create(req, docNoGenerator.next("WR-", "work_results", "result_no", "work_date", d));
+    }
+
+    private WorkResultResponse create(CreateWorkResultRequest req, String resultNo) {
         WorkOrder workOrder = null;
         if (req.workOrderId() != null) {
             workOrder = workOrderRepository.findById(req.workOrderId())
@@ -90,7 +98,7 @@ public class WorkResultService {
         WorkResult wr = WorkResult.builder()
                 .workOrder(workOrder)
                 /* 채번은 DocumentNoGenerator 로만 한다 — count()+1 은 삭제·동시성에서 겹친다. */
-                .resultNo(docNoGenerator.next("WR-", "work_results", "result_no", "work_date", workDate))
+                .resultNo(resultNo)
                 .workItem(workItem)
                 .process(req.process())
                 .processMaster(processMaster)

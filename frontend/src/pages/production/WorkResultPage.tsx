@@ -3,7 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
-import { ymd } from '../../components/EcPeriodPicks'
+import { periodOf, ymd } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
 import type { Item } from '../../types/api'
@@ -111,6 +111,31 @@ export default function WorkResultPage() {
     const added = picked.map((m) => ({ ...emptyLine(), workItemId: String(m.itemId), goodQty: String(m.defaultQty) }))
     return [...kept, ...added, emptyLine()]
   }))
+
+  /*
+   * 원본 툴바의 <b>[작업지시서]</b> — 진행 중인 작업지시서를 골라 그 지시의 생산품목으로 작업 줄을 채운다
+   * (작업품목은 생산품목으로, 수량은 비워 둔다 — 한 작업을 얼마나 했는지는 사람이 적는다).
+   */
+  const [woPickOpen, setWoPickOpen] = useState(false)
+  const [woFull, setWoFull] = useState<{ id: number; orderNo: string; orderDate: string; productId: number; productCode: string;
+    productName: string; plannedQty: number; remainingQty: number; status: string }[]>([])
+  const [woPicked, setWoPicked] = useState<number[]>([])
+  async function openWoPick() {
+    try {
+      // 원본 작업지시서조회 창도 지시일 기간을 달고 뜬다(기본 최근30일 +1개월).
+      const p = periodOf('최근30일(+1개월)')!
+      const r = await api.get<typeof woFull>('/work-orders', { params: { from: p.from, to: p.to } })
+      setWoFull(r.data.filter((w) => w.status !== 'COMPLETED')); setWoPicked([]); setWoPickOpen(true)
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    }
+  }
+  function applyWo() {
+    const picked = woFull.filter((w) => woPicked.includes(w.id))
+    setWrLines((ls) => [...ls.filter((l) => l.workOrderId || l.workItemId),
+      ...picked.map((w) => ({ ...emptyLine(), workOrderId: String(w.id), workItemId: String(w.productId) })), emptyLine()])
+    setWoPickOpen(false)
+  }
 
   async function load() {
     setLoading(true)
@@ -257,7 +282,46 @@ export default function WorkResultPage() {
             <button type="button" className="ec-btn" onClick={() => setWrLines([...wrLines, emptyLine()])}>줄 추가</button>
             <button type="button" className="ec-btn" disabled={myItems.busy} onClick={myItems.pick}>My품목</button>
             <MyItemsNote note={myItems.note} />
+            <button type="button" className="ec-btn" onClick={() => void openWoPick()}>작업지시서</button>
           </div>
+          {woPickOpen && (
+            <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 8, marginBottom: 8 }}>
+              <div style={{ fontWeight: 700, fontSize: 12.5, marginBottom: 6 }}>작업지시서조회</div>
+              <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+                <table className="w-full text-left">
+                  <thead>
+                    <tr>
+                      <th style={{ width: 30 }} />
+                      <th>작업지시서일자</th>
+                      <th>품목코드</th>
+                      <th>품목명</th>
+                      <th style={{ textAlign: 'right' }}>수량</th>
+                      <th style={{ textAlign: 'right' }}>잔량</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {woFull.length === 0 ? (
+                      <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9aa1ab', padding: 12 }}>등록된 데이터가 없습니다.</td></tr>
+                    ) : woFull.map((w) => (
+                      <tr key={w.id} style={{ cursor: 'pointer' }}
+                          onClick={() => setWoPicked((p) => (p.includes(w.id) ? p.filter((x) => x !== w.id) : [...p, w.id]))}>
+                        <td style={{ textAlign: 'center' }}><input type="checkbox" readOnly checked={woPicked.includes(w.id)} /></td>
+                        <td>{dateText(w.orderDate)} {w.orderNo}</td>
+                        <td>{w.productCode}</td>
+                        <td>{w.productName}</td>
+                        <td style={{ textAlign: 'right' }}>{Number(w.plannedQty).toLocaleString()}</td>
+                        <td style={{ textAlign: 'right' }}>{Number(w.remainingQty).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
+                <button type="button" className="ec-btn ec-btn-primary" onClick={applyWo}>적용(F8)</button>
+                <button type="button" className="ec-btn" onClick={() => setWoPickOpen(false)}>닫기</button>
+              </div>
+            </div>
+          )}
           {/* 좁은 창에서는 열두 칸이 다 안 들어간다 — 잘리지 말고 옆으로 밀리게 둔다. */}
           <div style={{ overflowX: 'auto' }}>
           <table ref={tableRef} className="ec-grid" style={{ width: '100%', minWidth: 1040 }}>

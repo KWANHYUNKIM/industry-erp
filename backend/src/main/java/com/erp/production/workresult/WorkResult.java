@@ -103,7 +103,7 @@ public class WorkResult extends BaseTimeEntity {
      * "어느 작업내역을 고쳤다/지웠다" 고 말할 방법이 없었다는 뜻이다.
      * 매출계획이 같은 까닭으로 SP- 채번을 얻었다(V205/V78).
      */
-    @Column(name = "result_no", nullable = false, length = 30, unique = true)
+    @Column(name = "result_no", nullable = false, length = 30)
     private String resultNo;
 
     @Column(length = 300)

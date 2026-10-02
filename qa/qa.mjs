@@ -5092,6 +5092,8 @@ async function scenarioWorkResultBatch(f) {
   })
   eq('한 번에 두 줄이 들어간다', made.length, 2)
   eq('줄마다 작업이 따로 남는다', made.map((x) => x.process).join(','), '조립,검사')
+  // 원본처럼 줄이 몇 개든 작업내역 번호는 하나다(V222).
+  eq('작업내역 두 줄이 번호 하나', new Set(made.map((x) => x.resultNo)).size, 1)
   eq('줄마다 적요가 따로 남는다', made.map((x) => x.note).join(','), `${P}줄1,${P}줄2`)
   eq('머리의 일자가 모든 줄에 붙는다', made.map((x) => x.workDate).join(','), `${D},${D}`)
   eq('머리의 생산공장이 모든 줄에 붙는다',
@@ -9618,6 +9620,7 @@ async function main() {
     await scenarioSubcontractReflection(fixtures)
     await scenarioBomLevels(fixtures)
     await scenarioTimePhased(fixtures)
+    await scenarioWorkResultBatch(fixtures)
     console.log(`\n통과 ${pass} · 실패 ${fail}`)
     process.exit(fail > 0 ? 1 : 0)
   }
