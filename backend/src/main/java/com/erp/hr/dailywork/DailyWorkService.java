@@ -127,6 +127,23 @@ public class DailyWorkService {
         return records.stream().map(DailyWorkResponse::from).toList();
     }
 
+    /** 한 달 출역의 합 — 원천징수이행상황신고서의 [일용근로] 줄이 쓴다. */
+    public record MonthTotals(int count, BigDecimal wage, BigDecimal incomeTax, BigDecimal localIncomeTax) {}
+
+    /**
+     * 그 달(근무일 기준) 출역의 인원·지급액·세액. 신고서가 근로소득(급여명세)만 세고 일용근로를 빼먹어
+     * 원천세가 덜 신고됐다(QA 68회차).
+     */
+    @Transactional(readOnly = true)
+    public MonthTotals monthTotals(YearMonth ym) {
+        List<DailyWorkRecord> rs = repository.findBetween(ym.atDay(1), ym.atEndOfMonth());
+        return new MonthTotals(
+                (int) rs.stream().map(r -> r.getEmployee().getId()).distinct().count(),
+                rs.stream().map(DailyWorkRecord::getDailyWage).reduce(BigDecimal.ZERO, BigDecimal::add),
+                rs.stream().map(DailyWorkRecord::getIncomeTax).reduce(BigDecimal.ZERO, BigDecimal::add),
+                rs.stream().map(DailyWorkRecord::getLocalIncomeTax).reduce(BigDecimal.ZERO, BigDecimal::add));
+    }
+
     /** 지급된 출역은 지울 수 없다. 잘못 지급했다면 회계에서 되돌려야 한다. */
     @Transactional
     public void delete(Long id) {

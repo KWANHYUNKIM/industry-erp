@@ -6834,6 +6834,15 @@ async function scenarioDailyWorkTax() {
     eq(`일당 ${wage.toLocaleString()} → 소득세 ${tax.toLocaleString()} · 지방 ${local}`, `${Number(r.incomeTax)} ${Number(r.localIncomeTax)}`, `${tax} ${local}`)
     await must('DELETE', `/daily-works/${r.id}`)
   }
+
+  /* 68회차 — 원천징수이행상황신고서가 근로소득(급여명세)만 세어 일용근로 원천세가 빠졌다. */
+  const dw = await must('POST', '/daily-works', { employeeId: emp.id, workDate: '2091-05-20', dailyWage: 200_000, workHours: 8 })
+  const st = await must('GET', '/withholding/statement?month=2091-05')
+  const a03 = st.sections.find((x) => x.code === 'A03')
+  eq('신고서에 일용근로(A03) 줄이 있다 — 소득세 1,350 · 지방 130', `${Number(a03?.incomeTax)} ${Number(a03?.localIncomeTax)}`, '1350 130')
+  eq('납부할 세액 = 소득구분 줄의 합', Number(st.grandWithheld),
+    st.sections.reduce((t, x) => t + Number(x.incomeTax) + Number(x.localIncomeTax), 0))
+  await must('DELETE', `/daily-works/${dw.id}`)
 }
 
 /**

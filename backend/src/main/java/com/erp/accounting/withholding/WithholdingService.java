@@ -44,6 +44,8 @@ public class WithholdingService {
     private static final Pattern MONTH = Pattern.compile("\\d{4}-\\d{2}");
 
     private final PayslipRepository payslipRepository;
+    private final com.erp.hr.dailywork.DailyWorkService dailyWorkService;
+    private final com.erp.accounting.otherwithholding.OtherWithholdingRepository otherWithholdingRepository;
 
     /** 원천징수이행상황신고서 (귀속월 기준) */
     @Transactional(readOnly = true)
@@ -77,10 +79,30 @@ public class WithholdingService {
             totalLocal = totalLocal.add(local);
         }
 
+        List<WithholdingDtos.IncomeSection> sections = new ArrayList<>();
+        sections.add(new WithholdingDtos.IncomeSection("A01", "근로소득(간이세액)", rows.size(), totalGross, totalIncomeTax, totalLocal));
+        java.time.YearMonth ym = java.time.YearMonth.parse(month);
+        var daily = dailyWorkService.monthTotals(ym);
+        if (daily.count() > 0) {
+            sections.add(new WithholdingDtos.IncomeSection("A03", "일용근로", daily.count(), daily.wage(),
+                    daily.incomeTax(), daily.localIncomeTax()));
+        }
+        java.util.Map<com.erp.accounting.income.IncomeType, List<com.erp.accounting.otherwithholding.OtherWithholding>> byType =
+                otherWithholdingRepository.findBetween(ym.atDay(1), ym.atEndOfMonth()).stream()
+                        .collect(java.util.stream.Collectors.groupingBy(com.erp.accounting.otherwithholding.OtherWithholding::getIncomeType,
+                                java.util.TreeMap::new, java.util.stream.Collectors.toList()));
+        byType.forEach((type, list) -> sections.add(new WithholdingDtos.IncomeSection(
+                type.name(), type.getDisplayName(), list.size(),
+                list.stream().map(com.erp.accounting.otherwithholding.OtherWithholding::getGrossAmount).reduce(BigDecimal.ZERO, BigDecimal::add),
+                list.stream().map(com.erp.accounting.otherwithholding.OtherWithholding::getIncomeTax).reduce(BigDecimal.ZERO, BigDecimal::add),
+                list.stream().map(com.erp.accounting.otherwithholding.OtherWithholding::getLocalIncomeTax).reduce(BigDecimal.ZERO, BigDecimal::add))));
+        BigDecimal grandTax = sections.stream().map(WithholdingDtos.IncomeSection::incomeTax).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal grandLocal = sections.stream().map(WithholdingDtos.IncomeSection::localIncomeTax).reduce(BigDecimal.ZERO, BigDecimal::add);
+
         return new WithholdingStatement(
                 month, rows.size(), draftCount,
                 totalGross, totalIncomeTax, totalLocal, totalIncomeTax.add(totalLocal),
-                rows);
+                rows, sections, grandTax, grandLocal, grandTax.add(grandLocal));
     }
 
     /** 근로소득 원천징수영수증 (연간, 사원별). 확정 명세만 집계한다. */

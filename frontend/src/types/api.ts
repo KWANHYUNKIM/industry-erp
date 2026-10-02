@@ -1917,6 +1917,11 @@ export interface WithholdingStatement {
   totalLocalIncomeTax: number
   totalWithheld: number
   rows: WithholdingRow[]
+  /** 소득 구분별 줄(근로 간이세액 · 일용근로 · 사업·기타 …). 위 total* 은 근로소득만, 납부할 세액은 grand* */
+  sections: { code: string; name: string; count: number; grossPay: number; incomeTax: number; localIncomeTax: number }[]
+  grandIncomeTax: number
+  grandLocalIncomeTax: number
+  grandWithheld: number
 }
 
 export interface ReceiptMonth {

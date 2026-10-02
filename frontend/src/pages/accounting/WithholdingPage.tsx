@@ -76,12 +76,53 @@ export default function WithholdingPage() {
 
           {stmt && (
             <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-              <Tile label="인원" value={`${stmt.headcount}명`} />
-              <Tile label="총지급액" value={won(stmt.totalGrossPay)} />
-              <Tile label="소득세" value={won(stmt.totalIncomeTax)} />
-              <Tile label="지방소득세" value={won(stmt.totalLocalIncomeTax)} />
-              <Tile label="납부할 세액" value={won(stmt.totalWithheld)} strong />
+              <Tile label="인원(근로)" value={`${stmt.headcount}명`} />
+              <Tile label="총지급액" value={won(stmt.sections.reduce((a, s) => a + s.grossPay, 0))} />
+              <Tile label="소득세" value={won(stmt.grandIncomeTax)} />
+              <Tile label="지방소득세" value={won(stmt.grandLocalIncomeTax)} />
+              <Tile label="납부할 세액" value={won(stmt.grandWithheld)} strong />
             </div>
+          )}
+
+          {/*
+            원본 신고서의 [소득구분] 줄 — 근로소득만 세어 일용근로·사업·기타소득 원천세가 신고서에서 빠졌다(QA 68회차).
+            아래 사원 표는 그중 근로소득(간이세액)의 내역이다.
+          */}
+          {stmt && (
+            <table className="w-full text-left" style={{ marginBottom: 12 }}>
+              <thead>
+                <tr>
+                  <th style={{ width: 70 }}>코드</th><th>소득구분</th>
+                  <th style={{ textAlign: 'right' }}>인원(건수)</th>
+                  <th style={{ textAlign: 'right' }}>총지급액</th>
+                  <th style={{ textAlign: 'right' }}>소득세</th>
+                  <th style={{ textAlign: 'right' }}>지방소득세</th>
+                  <th style={{ textAlign: 'right' }}>원천징수 합계</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stmt.sections.map((s) => (
+                  <tr key={s.code}>
+                    <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{s.code}</td>
+                    <td>{s.name}</td>
+                    <td style={{ textAlign: 'right' }}>{s.count.toLocaleString()}</td>
+                    <td style={{ textAlign: 'right' }}>{won(s.grossPay)}</td>
+                    <td style={{ textAlign: 'right' }}>{won(s.incomeTax)}</td>
+                    <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(s.localIncomeTax)}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(s.incomeTax + s.localIncomeTax)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+                  <td colSpan={3}>합계</td>
+                  <td style={{ textAlign: 'right' }}>{won(stmt.sections.reduce((a, s) => a + s.grossPay, 0))}</td>
+                  <td style={{ textAlign: 'right' }}>{won(stmt.grandIncomeTax)}</td>
+                  <td style={{ textAlign: 'right' }}>{won(stmt.grandLocalIncomeTax)}</td>
+                  <td style={{ textAlign: 'right' }}>{won(stmt.grandWithheld)}</td>
+                </tr>
+              </tfoot>
+            </table>
           )}
 
           <table className="w-full text-left">
