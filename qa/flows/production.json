@@ -474,6 +474,26 @@
         "js:([...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='가로보기').querySelector('input').click(), new Promise((r)=>setTimeout(()=>r(true),600)))",
         "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim());if(!(h.length>=3&&h[h.length-1]==='합계'&&h[1].includes('월별')))return false;const f=document.querySelector('table tfoot tr');if(!f)return true;const n=(x)=>Number(x.replace(/[^0-9.-]/g,''))||0;const rows=[...document.querySelectorAll('table tbody tr')];return rows.reduce((a,r)=>a+n(r.cells[r.cells.length-1].innerText),0)===n(f.cells[f.cells.length-1].innerText)})()"
       ]
+    },
+    {
+      "name": "작업내역현황 — ○집계 [비교기간] 전월동일기간: 그 기간 양품 · 불량 · 작업시간과 견준 줄이 뜬다(원본 비교기간)",
+      "path": "/production/work-result-status",
+      "steps": [
+        "js:new Promise((r)=>setTimeout(()=>{[...document.querySelectorAll('button')].find((b)=>b.textContent.trim()==='집계').click();setTimeout(()=>r(true),600)},1500))",
+        "js:(()=>{const ss=[...document.querySelectorAll('select')].filter((x)=>[...x.options].some((o)=>o.value==='전월동일기간'));const s=ss[0];Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'전월동일기간');s.dispatchEvent(new Event('change',{bubbles:true}));return new Promise((r)=>setTimeout(()=>r(true),600))})()",
+        "expect:/비교기간\\(\\d{4}\\/\\d{2}\\/\\d{2} ~ \\d{4}\\/\\d{2}\\/\\d{2}\\)\\s*양품/.test(document.body.innerText)"
+      ]
+    },
+    {
+      "name": "작업내역현황 — ○집계 [집계조건3]: 조건2 를 고르면 조건3 칸이 열리고 머리가 세 축이 된다",
+      "path": "/production/work-result-status",
+      "steps": [
+        "js:new Promise((r)=>setTimeout(()=>{[...document.querySelectorAll('button')].find((b)=>b.textContent.trim()==='집계').click();setTimeout(()=>r(true),600)},1500))",
+        "js:(()=>{const ss=[...document.querySelectorAll('select')].filter((x)=>[...x.options].some((o)=>o.value==='작업품목그룹1'));const s=ss[0];Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'월별');s.dispatchEvent(new Event('change',{bubbles:true}));return new Promise((r)=>setTimeout(()=>r(true),600))})()",
+        "js:(()=>{const ss=[...document.querySelectorAll('select')].filter((x)=>[...x.options].some((o)=>o.value==='작업품목그룹1'));const s=ss[ss.length-1];Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'작업(공정)');s.dispatchEvent(new Event('change',{bubbles:true}));return new Promise((r)=>setTimeout(()=>r(true),600))})()",
+        "js:(()=>{const ss=[...document.querySelectorAll('select')].filter((x)=>[...x.options].some((o)=>o.value==='작업품목그룹1'));const s=ss[ss.length-1];Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'자원');s.dispatchEvent(new Event('change',{bubbles:true}));return new Promise((r)=>setTimeout(()=>r(true),600))})()",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim());return h[1]==='월별 · 작업(공정) · 자원'})()"
+      ]
     }
   ]
 }

@@ -4,7 +4,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
-import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import { STATUS_PICKS, periodOf, comparePeriodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
 import { stdVsActual } from '../../utils/woEfficiency'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
@@ -165,8 +165,9 @@ export default function WorkResultListPage() {
     setTimeFrom(''); setTimeTo(''); setNoteCond('')
   }
 
-  const shown = useMemo(() => rows.filter((r) => {
-    if (r.workDate < from || r.workDate > to) return false
+  /** 조건으로 거른다 — 기간만 바꿔 [비교기간] 줄도 같은 조건으로 거른다. */
+  const filterRows = (lo: string, hi: string) => rows.filter((r) => {
+    if (r.workDate < lo || r.workDate > hi) return false
     if (process && !r.process.includes(process)) return false
     if (worker && !(r.worker ?? '').includes(worker)) return false
     if (orderNo && !(r.workOrderNo ?? '').includes(orderNo)) return false
@@ -186,8 +187,9 @@ export default function WorkResultListPage() {
     if (noteCond && !(r.note ?? '').includes(noteCond)) return false
     if (authorCond && (r.createdBy ?? '') !== authorCond) return false
     return true
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [rows, from, to, process, worker, orderNo, product, workItem, plant,
+  })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const shown = useMemo(() => filterRows(from, to), [rows, from, to, process, worker, orderNo, product, workItem, plant,
        workItemCategory, workItemGroup, productCategory, productGroup, projectCond,
        resourceCond, qtyFrom, qtyTo, timeFrom, timeTo, noteCond, authorCond, mgmt.groupOptions])
 
@@ -241,6 +243,15 @@ export default function WorkResultListPage() {
   type AggAxis = typeof AGG_AXES[number]
   const [agg1, setAgg1] = useState<AggAxis>('작업(공정)')
   const [sub2, setSub2] = useState<AggAxis | ''>('')
+  /** 원본 [집계조건3] — 조건2 를 고른 뒤에만 연다(생산불출 · 작업지시서현황과 같은 판). */
+  const [sub3Raw, setSub3] = useState<AggAxis | ''>('')
+  const sub3 = sub2 && sub3Raw !== agg1 && sub3Raw !== sub2 ? sub3Raw : ''
+  /*
+   * 원본 ○집계의 [비교기간] — 사용안함 · 전년/전월/전주/전일 동일기간(2026-10-02 실측). 작업내역은 화면이 통째로 받으므로
+   * 그 기간을 같은 조건으로 다시 걸러 양품 · 불량 · 작업시간을 견준다.
+   */
+  const [compare, setCompare] = useState<ComparePeriod>('사용안함')
+  const prevRange = comparePeriodOf(from, to, compare)
   const keyBy = (k: AggAxis, r: WorkResult): string => {
     const d = r.workDate
     const m = Number(d.slice(5, 7))
@@ -262,7 +273,7 @@ export default function WorkResultListPage() {
       default: return r.process
     }
   }
-  const keyOf = (r: WorkResult) => (sub2 ? `${keyBy(agg1, r)} · ${keyBy(sub2, r)}` : keyBy(agg1, r))
+  const keyOf = (r: WorkResult) => ([agg1, sub2, sub3].filter(Boolean) as AggAxis[]).map((a) => keyBy(a, r)).join(' · ')
 
   /*
    * 원본 집계 [기타] 가로보기 · 비율표시 · 코드포함과 조건 옆 정렬(코드순 기본 · 코드명순 · 수량 + 오름/내림) —
@@ -292,12 +303,12 @@ export default function WorkResultListPage() {
     const out = [...by.values()].sort((a, b) => aggSort === '수량' ? a.good - b.good : sk(a).localeCompare(sk(b), 'ko'))
     return aggDesc ? out.reverse() : out
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }, [shown, agg1, sub2, mgmt.groupOptions, aggSort, aggDesc])
+  }, [shown, agg1, sub2, sub3, mgmt.groupOptions, aggSort, aggDesc])
   const code1 = codeIncl ? CODE_LABEL[agg1] : undefined
   const code2 = codeIncl && sub2 ? CODE_LABEL[sub2] : undefined
   /* 코드 · 비율 · 가로보기로 칸 수가 바뀐다 — 그려진 표를 직접 잰다. */
   const aggRef = useRef<HTMLTableElement>(null)
-  useTableColumnCheck(aggRef, '작업내역현황 집계', [agg1, sub2, ratio, codeIncl, pivot, mode])
+  useTableColumnCheck(aggRef, '작업내역현황 집계', [agg1, sub2, sub3, ratio, codeIncl, pivot, mode])
   const [view, setView] = useState<'표' | '그래프'>('표')
   /* 원본 [그래프로 보기]. 작업내역은 <b>어느 공정에서 얼마나 나왔나</b> 를 보는 화면이다. */
   const chartRows = useMemo(() =>
@@ -319,6 +330,7 @@ export default function WorkResultListPage() {
       signLine={signBox}
     >
       <EcStatusPanel
+        compare={mode === '집계' ? compare : undefined} onCompareChange={mode === '집계' ? setCompare : undefined}
         from={from} to={to}
         onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
         picks={STATUS_PICKS}
@@ -339,6 +351,13 @@ export default function WorkResultListPage() {
               <option value="">없음</option>
               {AGG_AXES.filter((k) => k !== agg1).map((k) => <option key={k} value={k}>{k}</option>)}
             </select>
+            {sub2 && (<>
+              집계조건3
+              <select className="ec-input" value={sub3} onChange={(e) => setSub3(e.target.value as AggAxis | '')} style={{ width: 110 }}>
+                <option value="">없음</option>
+                {AGG_AXES.filter((k) => k !== agg1 && k !== sub2).map((k) => <option key={k} value={k}>{k}</option>)}
+              </select>
+            </>)}
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: sub2 ? undefined : '#9aa1ab' }}
                    title="집계조건2 를 고르면 그 값을 열로 펼칩니다">
               <input type="checkbox" checked={pivot} disabled={!sub2} onChange={(e) => setPivot(e.target.checked)} /> 가로보기
@@ -486,6 +505,21 @@ export default function WorkResultListPage() {
 
       {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
 
+      {mode === '집계' && prevRange && (() => {
+        const prev = filterRows(prevRange.from, prevRange.to)
+        const sum = (xs: WorkResult[], f: (r: WorkResult) => number) => xs.reduce((n, r) => n + f(r), 0)
+        const chg = (a: number, b: number) => (b > 0 ? ` (${a >= b ? '+' : ''}${Math.round(((a - b) / b) * 100)}%)` : '')
+        const line = (label: string, f: (r: WorkResult) => number) => {
+          const a = sum(prev, f); const b = sum(shown, f)
+          return `${label} ${num(a)} → ${num(b)}${chg(b, a)}`
+        }
+        return (
+          <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+            비교기간({prevRange.from.replace(/-/g, '/')} ~ {prevRange.to.replace(/-/g, '/')})
+            {' '}{line('양품', (r) => r.goodQty)} · {line('불량', (r) => r.defectQty)} · {line('작업시간(분)', (r) => r.workTimeMin)}
+          </div>
+        )
+      })()}
       {view === '그래프' ? (
         <EcBarChart rows={chartRows} unit=" 개" emptyText="조회된 작업내역이 없습니다." />
       ) : mode === '집계' && sub2 && pivot ? (() => {
@@ -528,7 +562,7 @@ export default function WorkResultListPage() {
               <th style={{ width: 34 }}></th>
               {code1 && <th style={{ width: 120 }}>{code1}</th>}
               {code2 && <th style={{ width: 120 }}>{code2}</th>}
-              <th>{sub2 ? `${agg1} · ${sub2}` : agg1}</th>
+              <th>{[agg1, sub2, sub3].filter(Boolean).join(' · ')}</th>
               <th style={{ width: 90, textAlign: 'right' }}>건수</th>
               <th style={{ width: 110, textAlign: 'right' }}>양품</th>
               {ratio && <th style={{ width: 80, textAlign: 'right' }}>비율(%)</th>}
