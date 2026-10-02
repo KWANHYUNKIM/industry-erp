@@ -1895,6 +1895,13 @@ async function scenarioNote(f) {
   })
   await rejects('할인료가 어음 금액 이상이면 거부', 'POST', `/notes/${tooCheap.id}/discount`,
     { bankAccountId: bank.id, discountFee: 10000 }, '할인료가 어음 금액 이상')
+  // 57회차 — 받기 전 날짜·만기 지난 날짜의 할인을 받아 줬다. 분개가 수취보다 앞서 받을어음이 음수가 됐다.
+  await rejects('어음을 받기 전 날짜로는 할인할 수 없다', 'POST', `/notes/${tooCheap.id}/discount`,
+    { bankAccountId: bank.id, discountFee: 100, discountDate: '2026-07-13' }, '수취·발행일')
+  await rejects('만기가 지난 어음은 할인이 아니라 만기결제', 'POST', `/notes/${tooCheap.id}/discount`,
+    { bankAccountId: bank.id, discountFee: 100, discountDate: '2026-12-02' }, '만기결제')
+  await rejects('어음을 받기 전 날짜로는 결제할 수 없다', 'POST', `/notes/${tooCheap.id}/settle`,
+    { bankAccountId: bank.id, settleDate: '2026-07-13' }, '수취·발행일')
 
   // ── 받을어음: 부도 → 외상매출금 환원
   const bad = await must('POST', '/notes', {

@@ -136,6 +136,7 @@ public class PromissoryNoteService {
             throw ApiException.badRequest("결제될 계좌를 선택하세요.");
         }
         LocalDate date = req.settleDate() != null ? req.settleDate() : LocalDate.now();
+        requireNotBeforeIssue(n, date, "결제일");
         n.setStatus(NoteStatus.SETTLED);
         n.setClosedDate(date);
 
@@ -172,6 +173,12 @@ public class PromissoryNoteService {
                     + ", 할인료 " + fee.toPlainString());
         }
         LocalDate date = req.discountDate() != null ? req.discountDate() : LocalDate.now();
+        requireNotBeforeIssue(n, date, "할인일");
+        /* 할인은 <b>만기 전에</b> 은행에 넘기는 것이다. 만기가 지났으면 만기결제로 받는다. */
+        if (date.isAfter(n.getDueDate())) {
+            throw ApiException.badRequest(String.format("%s 은(는) 만기(%s)가 지난 어음입니다 — 할인이 아니라 [만기결제]로 처리하세요.",
+                    n.getNoteNo(), n.getDueDate()));
+        }
 
         n.setStatus(NoteStatus.DISCOUNTED);
         n.setClosedDate(date);
@@ -201,11 +208,24 @@ public class PromissoryNoteService {
         if (n.getType() != NoteType.RECEIVABLE) {
             throw ApiException.badRequest("지급어음은 부도 처리할 수 없습니다. 받을어음만 대상입니다.");
         }
+        LocalDate date = req != null && req.dishonorDate() != null ? req.dishonorDate() : LocalDate.now();
+        requireNotBeforeIssue(n, date, "부도일");
         n.setStatus(NoteStatus.DISHONORED);
-        n.setClosedDate(req != null && req.dishonorDate() != null ? req.dishonorDate() : LocalDate.now());
+        n.setClosedDate(date);
 
         journalService.createFromNote(n, NoteEvent.DISHONOR);
         return NoteResponse.from(n);
+    }
+
+    /**
+     * 결제·할인·부도는 어음을 받은(발행한) 날 이후다. 앞 날짜를 받아 주면 그 분개가 어음 수취 전에 잡혀
+     * 그 사이 받을어음 잔액이 음수가 된다(QA 57회차 — 10/2 받은 어음을 9/30 에 할인할 수 있었다).
+     */
+    private static void requireNotBeforeIssue(PromissoryNote n, LocalDate date, String what) {
+        if (date.isBefore(n.getIssueDate())) {
+            throw ApiException.badRequest(String.format("%s(%s)이 %s 의 수취·발행일(%s)보다 빠를 수 없습니다.",
+                    what, date, n.getNoteNo(), n.getIssueDate()));
+        }
     }
 
     /** 어음 계정: 받을어음(110) / 지급어음(252) */
