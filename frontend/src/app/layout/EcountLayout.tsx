@@ -452,6 +452,7 @@ const MENU: TopMenu[] = [
               { label: '지출결의서이체리스트', to: '/accounting/transfer-list' },
               { label: '자금일보', to: '/accounting/fund-daily' },
               { label: '현금흐름(입출금내역)', to: '/accounting/cash-flow' },
+              { label: '자금현황표', to: '/accounting/fund-status' },
             ],
           },
           {

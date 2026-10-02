@@ -203,6 +203,14 @@
         "wait:2500",
         "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim());const rows=[...t.querySelectorAll('tbody tr')];const n=(s)=>Number((s||'0').replace(/,/g,''))||0;const first=rows[0],last=rows[rows.length-1];const subs=rows.filter((r)=>r.cells[0].innerText.trim()==='소계');return h[0]==='구분'&&h[1]==='계정명'&&first.cells[0].innerText.trim()==='기초잔액'&&last.cells[0].innerText.trim()==='기말잔액'&&subs.length===2&&n(last.cells[1].innerText)===n(first.cells[1].innerText)+n(subs[0].cells[1].innerText)-n(subs[1].cells[1].innerText)})()"
       ]
+    },
+    {
+      "name": "자금현황표 — 계정명 · 거래처명 · 이월잔액[외화] · 증가[외화] · 감소[외화] · 금일잔액[외화] · 거래처코드 · 계정코드, 끝 [합계]",
+      "path": "/accounting/fund-status",
+      "steps": [
+        "wait:2500",
+        "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const last=t.querySelector('tbody tr:last-child');return h==='계정명|거래처명|이월잔액[외화]|증가[외화]|감소[외화]|금일잔액[외화]|거래처코드|계정코드'&&(document.body.innerText.includes('등록된 데이터가 없습니다')||last.cells[0].innerText.trim()==='합계')})()"
+      ]
     }
   ]
 }
