@@ -6303,6 +6303,8 @@ async function scenarioIssueEmployee(f) {
   })
   eq('한 번에 두 줄이 들어간다', batch.length, 2)
   eq('줄마다 적요가 따로 남는다', batch.map((x) => x.note).join(','), `${P}줄1,${P}줄2`)
+  // 원본 생산불출현황 [최초작성자] — 넣은 계정이 줄마다 남는다(2026-10-02 전엔 칸이 없었다).
+  eq('불출에 넣은 계정이 남는다', batch.map((x) => x.createdBy).join(','), `${USER},${USER}`)
   const afterBatch = (await must('GET', `/stock?warehouseId=${f.warehouse.id}`))
     .find((s) => s.itemId === line.componentId && s.warehouseId === f.warehouse.id)?.quantity ?? 0
   eq('두 줄 합만큼 재고가 준다', Number(before) - Number(afterBatch), 3)
@@ -9796,6 +9798,7 @@ async function main() {
     await scenarioProductionConfirm(fixtures)
     await scenarioBomVersions(fixtures)
     await scenarioBomTree(fixtures)
+    await scenarioIssueEmployee(fixtures)
     console.log(`\n통과 ${pass} · 실패 ${fail}`)
     process.exit(fail > 0 ? 1 : 0)
   }

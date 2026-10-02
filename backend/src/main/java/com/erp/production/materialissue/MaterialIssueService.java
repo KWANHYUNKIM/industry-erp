@@ -75,13 +75,13 @@ public class MaterialIssueService {
     }
 
     @Transactional
-    public MaterialIssueResponse create(CreateMaterialIssueRequest req) {
+    public MaterialIssueResponse create(CreateMaterialIssueRequest req, String username) {
         LocalDate date = req.issueDate() != null ? req.issueDate() : LocalDate.now();
         /* 다른 전표와 같은 방식으로 센다 — count()+1 은 지운 번호를 다시 쓴다. */
-        return create(req, docNoGenerator.next("MI-", "material_issues", "issue_no", "issue_date", date));
+        return create(req, docNoGenerator.next("MI-", "material_issues", "issue_no", "issue_date", date), username);
     }
 
-    private MaterialIssueResponse create(CreateMaterialIssueRequest req, String issueNo) {
+    private MaterialIssueResponse create(CreateMaterialIssueRequest req, String issueNo, String username) {
         Item item = itemService.getUsable(req.itemId());
 
         Warehouse warehouse = req.warehouseId() == null ? null
@@ -112,6 +112,7 @@ public class MaterialIssueService {
                 /* 다른 모듈의 것은 그 모듈 service 를 거쳐 얻는다(CLAUDE.md 4.2). */
                 .project(req.projectId() != null ? projectService.get(req.projectId()) : null)
                 .note(req.note())
+                .createdBy(username)
                 .build();
         MaterialIssue saved = materialIssueRepository.save(mi);
 
@@ -140,7 +141,7 @@ public class MaterialIssueService {
      * 창고 수량도 전표도 반쪽이 되고, 사람은 무엇이 들어갔는지 모른다.
      */
     @Transactional
-    public List<MaterialIssueResponse> createBatch(CreateMaterialIssueBatchRequest req) {
+    public List<MaterialIssueResponse> createBatch(CreateMaterialIssueBatchRequest req, String username) {
         /*
          * 원본은 줄이 몇 개든 전표번호가 하나다("2026/10/02 -1"). 줄마다 번호를 따로 매기면
          * 불출조회에 한 번 넣은 전표가 여러 건으로 보이고, 불출증도 줄마다 따로 찍힌다.
@@ -152,7 +153,7 @@ public class MaterialIssueService {
             out.add(create(new CreateMaterialIssueRequest(
                     line.itemId(), req.warehouseId(), req.toWarehouseId(),
                     line.workOrderId() != null ? line.workOrderId() : req.workOrderId(),
-                    line.qty(), date, req.employeeId(), req.projectId(), line.note()), issueNo));
+                    line.qty(), date, req.employeeId(), req.projectId(), line.note()), issueNo, username));
         }
         return out;
     }

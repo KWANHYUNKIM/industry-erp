@@ -37,6 +37,8 @@ type Mode = '내역' | '집계'
 const MODES = ['내역', '집계'] as const
 
 interface MaterialIssue {
+  /** 원본 [최초작성자] — 넣은 계정(2026-10-02 전에 넣은 불출은 비어 있다). */
+  createdBy?: string | null
   id: number
   /** 진행상태 — 결재중·미확인·확인(2026-10-02 생겼다). */
   confirmStatus?: 'UNCONFIRMED' | 'IN_APPROVAL' | 'CONFIRMED'
@@ -98,6 +100,7 @@ export default function IssueStatusPage() {
   const [note, setNote] = useState('')
   /** 원본 조건 [진행상태] — 전체 · 결재중 · 미확인 · 확인. */
   const [statusCond, setStatusCond] = useState('')
+  const [authorCond, setAuthorCond] = useState('')
   const [emp, setEmp] = useState('')
   /*
    * 2026-09-08 에 원본(E040409)의 조건 판을 재니 <b>스물여덟</b>이다(사본에는 열).
@@ -177,11 +180,12 @@ export default function IssueStatusPage() {
     if (item && String(r.itemId) !== item) return false
     if (note && !(r.note ?? '').includes(note)) return false
     if (statusCond && r.confirmStatus !== statusCond) return false
+    if (authorCond && (r.createdBy ?? '') !== authorCond) return false
     if (emp && !empName(r.employeeId).includes(emp)) return false
     if (project && String(r.projectId) !== project) return false
     return true
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [rows, from, to, warehouseId, item, note, emp, project, employees,
+  }), [rows, from, to, warehouseId, item, note, emp, project, employees, statusCond, authorCond,
        fromWh, toWh, itemCategory, itemGroup, mgmt.groupOptions, warehouses])
 
   /** 내역 — 작업지시 하나를 한 줄로 접는다. */
@@ -274,8 +278,8 @@ export default function IssueStatusPage() {
           원본 차례(2026-09-08 실측, 스물여덟): 구분 · 일자 · 창고 · (창고계층그룹) ·
           <b>보내는창고</b> · (보내는창고계층그룹) · <b>받는창고</b> · (받는창고계층그룹) ·
           프로젝트 · (프로젝트그룹1/2) · 품목 · <b>품목구분 · 품목그룹1</b> ·
-          (품목그룹2/3 · 품목계층그룹) · 담당자 · 적요 · (오더관리번호 · 진행상태 ·
-          최초작성자 · 최종수정자 · 양식) · 적용양식 · 양식구분 · 정렬/소계기준 ·
+          (품목그룹2/3 · 품목계층그룹) · 담당자 · 적요 · (오더관리번호) · 진행상태 ·
+          최초작성자 · (최종수정자 · 양식) · 적용양식 · 양식구분 · 정렬/소계기준 ·
           데이터 보기형식.
         */}
         <EcCond label="보내는창고" pick>
@@ -325,6 +329,12 @@ export default function IssueStatusPage() {
             <option value="UNCONFIRMED">미확인</option>
             <option value="CONFIRMED">확인</option>
           </select>
+        </EcCond>
+        <EcCond label="최초작성자" pick>
+          <CodePickerField label="최초작성자" hideLabel width={150} emptyLabel="전체"
+                           value={authorCond} onChange={setAuthorCond}
+                           items={[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="결재방표시">
           <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>

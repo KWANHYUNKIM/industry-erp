@@ -36,15 +36,16 @@ public class MaterialIssueController {
     }
 
     @PostMapping
-    public ResponseEntity<MaterialIssueResponse> create(@Valid @RequestBody CreateMaterialIssueRequest req) {
-        return ResponseEntity.ok(materialIssueService.create(req));
+    public ResponseEntity<MaterialIssueResponse> create(@Valid @RequestBody CreateMaterialIssueRequest req,
+                                                        java.security.Principal principal) {
+        return ResponseEntity.ok(materialIssueService.create(req, principal.getName()));
     }
 
     /** 원본 생산불출입력의 격자 — 한 전표에 자재 여러 줄. 한 줄이라도 막히면 전부 되돌린다. */
     @PostMapping("/batch")
     public ResponseEntity<List<MaterialIssueResponse>> createBatch(
-            @Valid @RequestBody CreateMaterialIssueBatchRequest req) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(materialIssueService.createBatch(req));
+            @Valid @RequestBody CreateMaterialIssueBatchRequest req, java.security.Principal principal) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(materialIssueService.createBatch(req, principal.getName()));
     }
 
     /** 작업지시서의 소요자재·기불출·잔량. 원본 생산불출입력 [작업지시서] → [잔량으로BOM풀기]·[BOM풀기]. */

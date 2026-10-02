@@ -120,12 +120,10 @@ public final class MaterialIssueDtos {
              * 원본 조건 [최초작성일자] · [최종작업일자], 그리고 [기타]의
              * <b>수정일자순(정렬)</b>. MaterialIssue 는 BaseTimeEntity 를 물려받아
              * 두 칸을 진작 채우고 있는데 응답이 안 실었다.
-             *
-             * <p>원본에는 [최초작성자]도 있으나 <b>만든 사람은 안 남긴다</b> —
-             * MaterialIssue 에 createdBy 칸이 없다(판매·구매·출하와 다르다).
              */
-            LocalDateTime createdAt, LocalDateTime updatedAt
-    ,
+            LocalDateTime createdAt, LocalDateTime updatedAt,
+            /** 원본 [최초작성자] — 넣은 계정. 칸이 생기기 전(2026-10-02)에 넣은 불출은 비어 있다. */
+            String createdBy,
             /** 진행상태 — 결재중·미확인·확인. */
             com.erp.production.production.ProductionConfirmStatus confirmStatus) {
         public static MaterialIssueResponse from(MaterialIssue mi) {
@@ -148,7 +146,7 @@ public final class MaterialIssueDtos {
                     mi.getProject() != null ? mi.getProject().getId() : null,
                     mi.getProject() != null ? mi.getProject().getName() : null,
                     mi.getQty(), mi.getIssueDate(), mi.getNote(),
-                    mi.getCreatedAt(), mi.getUpdatedAt(),
+                    mi.getCreatedAt(), mi.getUpdatedAt(), mi.getCreatedBy(),
                     mi.getConfirmStatus());
         }
     }

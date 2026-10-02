@@ -18,6 +18,8 @@ const CONF_TABS = ['전체', '결재중', '미확인', '확인'] as const
 const CONF_OF: Record<string, string> = { 결재중: 'IN_APPROVAL', 미확인: 'UNCONFIRMED', 확인: 'CONFIRMED' }
 
 interface MaterialIssue {
+  /** 원본 [최초작성자] — 넣은 계정(2026-10-02 전에 넣은 불출은 비어 있다). */
+  createdBy?: string | null
   /** 진행상태 — 결재중·미확인·확인. */
   confirmStatus?: 'UNCONFIRMED' | 'IN_APPROVAL' | 'CONFIRMED'
   id: number
@@ -172,6 +174,7 @@ export default function IssuePage() {
   const [categoryCond, setCategoryCond] = useState('')
   const [itemGroupCond, setItemGroupCond] = useState('')
   const [projectCond, setProjectCond] = useState('')
+  const [authorCond, setAuthorCond] = useState('')
   const [madeFrom, setMadeFrom] = useState('')
   const [madeTo, setMadeTo] = useState('')
   const [editedFrom, setEditedFrom] = useState('')
@@ -440,6 +443,7 @@ export default function IssuePage() {
     .filter((r) => !categoryCond || (r.itemCategoryName ?? '') === categoryCond)
     .filter((r) => !itemGroupCond || mgmt.groupOf(r.itemId) === itemGroupCond)
     .filter((r) => !projectCond || (r.projectName ?? '') === projectCond)
+    .filter((r) => !authorCond || (r.createdBy ?? '') === authorCond)
     .filter((r) => !madeFrom || (r.createdAt ?? '').slice(0, 10) >= madeFrom)
     .filter((r) => !madeTo || ((r.createdAt ?? '') !== '' && r.createdAt!.slice(0, 10) <= madeTo))
     .filter((r) => !editedFrom || (r.updatedAt ?? '').slice(0, 10) >= editedFrom)
@@ -706,7 +710,13 @@ export default function IssuePage() {
           <input className="ec-input" value={noteCond}
                  onChange={(e) => setNoteCond(e.target.value)} style={{ width: 170 }} />
         </EcCond>
-        {/* 원본 차례: 적요 · (최종수정자 · 발송여부 · 오더관리번호 · 최초작성자) · 최초작성일자 · 최종작업일자 · (입력경로 · 삭제구분) · 기타 */}
+        {/* 원본 차례: 적요 · (최종수정자 · 발송여부 · 오더관리번호) · 최초작성자 · 최초작성일자 · 최종작업일자 · (입력경로 · 삭제구분) · 기타 */}
+        <EcCond label="최초작성자" pick>
+          <CodePickerField label="최초작성자" hideLabel width={150} emptyLabel="전체"
+                           value={authorCond} onChange={setAuthorCond}
+                           items={[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
         <EcCond label="최초작성일자">
           <input type="date" className="ec-input" value={madeFrom} onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
           <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>

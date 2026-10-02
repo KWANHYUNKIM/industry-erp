@@ -85,6 +85,10 @@ public class MaterialIssue extends BaseTimeEntity {
     @Column(length = 300)
     private String note;
 
+    /** 넣은 계정 — 원본 생산불출현황의 [최초작성자]. 생산입고와 같이 로그인 사용자에서 채운다. */
+    @Column(length = 50)
+    private String createdBy;
+
     /**
      * 귀속 프로젝트. 원본 생산불출입력 머리의 [프로젝트].
      *
