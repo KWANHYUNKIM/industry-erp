@@ -133,6 +133,7 @@ const CompanyInfoPage = lazy(() => import('../pages/settings/CompanyInfoPage'))
 const PreferencesPage = lazy(() => import('../pages/settings/PreferencesPage'))
 const SecurityPage = lazy(() => import('../pages/settings/SecurityPage'))
 const DefaultsPage = lazy(() => import('../pages/settings/DefaultsPage'))
+const MyFolderPage = lazy(() => import('../pages/mypage/MyFolderPage'))
 const DownloadPage = lazy(() => import('../pages/settings/DownloadPage'))
 const PrintSignLinePage = lazy(() => import('../pages/settings/PrintSignLinePage'))
 const ApprovalDraftPage = lazy(() => import('../pages/groupware/ApprovalDraftPage'))
@@ -620,6 +621,7 @@ export default function AppRouter() {
         <Route path="/settings/security" element={<SecurityPage />} />
         <Route path="/settings/download" element={<DownloadPage />} />
         <Route path="/settings/defaults" element={<DefaultsPage />} />
+        <Route path="/mypage/folders" element={<MyFolderPage />} />
         <Route path="/settings/print-sign" element={<PrintSignLinePage />} />
         <Route path="/settings/etc" element={<EtcSystemPage />} />
         <Route path="/settings/codes" element={<CommonCodePage />} />

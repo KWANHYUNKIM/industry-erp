@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../features/auth/AuthContext'
 import { api } from '../../api/client'
+import { myFolders, MY_FOLDERS_EVENT, type MyFolder } from '../../features/mypage/api'
 import AppBarPanel, { type PanelKind } from '../../components/AppBarPanel'
 import TableContextMenu from '../../components/TableContextMenu'
 import type { NotificationResponse } from '../../types/api'
@@ -31,9 +32,11 @@ const MENU: TopMenu[] = [
        폴더를 고르면 그 안의 첫 화면이 열린다. 예시의 화면 가운데 우리에게 없는 것(매출전표 I · 출고/입고입력 ·
        (세금)계산서진행단계 · 카드매입조회 · 현장별 전표 · 수입지출명세서 …)은 싣지 않았다(대조 보드 MyPage 행). */
     tabs: [
+      // 아직 폴더를 하나도 만들지 않은 사람에게 보이는 자리(원본 그대로의 안내 두 줄) — 누르면 폴더 설정으로 간다.
+      // 폴더를 만들면 이 탭 대신 그 사람의 폴더들이 선다(아래 withMyFolders · 서버 /api/my-folders).
       { label: '나만의 업무 폴더를 만들수 있습니다.', nodes: [
-        { label: '사용할 메뉴를 직접 설정할 수 있습니다.', to: '/groupware/schedule' },
-        { label: '메뉴명도 수정 가능합니다.', to: '/groupware/schedule' },
+        { label: '사용할 메뉴를 직접 설정할 수 있습니다.', to: '/mypage/folders' },
+        { label: '메뉴명도 수정 가능합니다.', to: '/mypage/folders' },
       ] },
       { label: '예시1. 제조업', nodes: [
         { label: '기초정보', children: [
@@ -938,6 +941,8 @@ function matchLength(to: string, pathname: string): number {
   return pathname === to || pathname.startsWith(`${to}/`) ? to.length : 0
 }
 
+const BASE_MENU = MENU
+
 /**
  * 현재 경로를 담은 [대메뉴, 탭] 인덱스. 가장 구체적으로 일치하는 리프를 고른다.
  *
@@ -945,7 +950,7 @@ function matchLength(to: string, pathname: string): number {
  * 메뉴를 눌러 왔으면 <b>누른 그 자리</b>(pin)를 지키고, 주소로 바로 왔으면 MyPage 가 아니라 제 모듈을 고른다.
  * MyPage 가 MENU 맨 앞이라 '먼저 걸린 것' 으로 두면 판매입력을 재고 I 에서 열어도 MyPage 가 켜진다.
  */
-function resolveActive(pathname: string, pin?: [number, number] | null): [number, number] {
+function resolveActive(pathname: string, pin?: [number, number] | null, MENU: TopMenu[] = BASE_MENU): [number, number] {
   const pinned = pin && MENU[pin[0]]?.tabs[pin[1]]
   if (pinned && tabLeaves(pinned).some((l) => !!l.to && matchLength(l.to, pathname) > 0)) return pin!
   let best = 0
@@ -983,6 +988,20 @@ export const FLAT_MENU: FlatItem[] = MENU.flatMap((m) =>
   ),
 )
 
+/**
+ * 사용자가 만든 업무 폴더를 MyPage 2단 메뉴 맨 앞에 세운다. 하나도 없으면 원본 안내 탭을 그대로 둔다.
+ * 폴더마다 끝에 [폴더 설정] 을 단다 — 메뉴를 담고 이름을 고치는 자리로 가는 길이 메뉴 안에 있어야 한다.
+ */
+function withMyFolders(folders: MyFolder[] | null): TopMenu[] {
+  if (!folders || folders.length === 0) return MENU
+  const [my, ...rest] = MENU
+  const own: Tab[] = folders.map((f) => ({
+    label: f.name,
+    nodes: [...f.items.map((i) => ({ label: i.label, to: i.path })), { label: '폴더 설정', to: '/mypage/folders' }],
+  }))
+  return [{ ...my, tabs: [...own, ...my.tabs.slice(1)] }, ...rest]
+}
+
 export default function EcountLayout() {
   const { user, logout, canRoute, isHost, companyName } = useAuth()
   const navigate = useNavigate()
@@ -997,7 +1016,8 @@ export default function EcountLayout() {
   const [panel, setPanel] = useState<PanelKind | null>(null)    // 앱바에서 연 패널
   const [alertCount, setAlertCount] = useState(0)               // 알림 배지
   const [chatCount, setChatCount] = useState(0)                 // 메신저 미읽음 배지
-  const [noteCount, setNoteCount] = useState(0)                 // 쪽지 안 읽은 수
+  const [noteCount, setNoteCount] = useState(0)
+  const [folders, setFolders] = useState<MyFolder[] | null>(null)  // MyPage 나만의 업무 폴더 (사용자별)                 // 쪽지 안 읽은 수
   const [userOpen, setUserOpen] = useState(false)               // 사용자 동그라미 → 이름·로그아웃
   // 휴대폰·태블릿(≤768px, 원본 실측) — ☰ 메뉴판과 ★ 즐겨찾기 · 앱 모음 펼침
   const [drawer, setDrawer] = useState<{ top: number; tab: number } | null>(null)
@@ -1077,9 +1097,18 @@ export default function EcountLayout() {
     }
   }
 
+  // 폴더는 폴더 설정 화면에서 바뀐다 — 그 화면이 바뀐 목록을 창 이벤트로 실어 보낸다(features/mypage/api).
+  useEffect(() => {
+    myFolders.list().then(setFolders).catch(() => setFolders(null))
+    const onChange = (e: Event) => setFolders((e as CustomEvent<MyFolder[]>).detail)
+    window.addEventListener(MY_FOLDERS_EVENT, onChange)
+    return () => window.removeEventListener(MY_FOLDERS_EVENT, onChange)
+  }, [])
+  const NAV = useMemo(() => withMyFolders(folders), [folders])
+
   const menuPin = (location.state as { menuPin?: [number, number] } | null)?.menuPin
-  const [topIdx, tabIdx] = useMemo(() => resolveActive(location.pathname, menuPin), [location.pathname, menuPin])
-  const activeTop = MENU[topIdx]
+  const [topIdx, tabIdx] = useMemo(() => resolveActive(location.pathname, menuPin, NAV), [location.pathname, menuPin, NAV])
+  const activeTop = NAV[topIdx]
   const activeTab = activeTop.tabs[tabIdx]
 
   // 권한에 따른 메뉴 노출 판정. 리프는 라우트 권한으로, 상위는 하위가 하나라도 보이면 보인다.
@@ -1137,7 +1166,7 @@ export default function EcountLayout() {
             <li key={tab.label}>
               <button
                 className={`ec-subnav-item${i === activeTabIdx ? ' active' : ''}`}
-                onClick={() => { const to = firstAllowedTabRoute(tab); if (to) gotoMenu(to, [MENU.indexOf(menu), i]) }}
+                onClick={() => { const to = firstAllowedTabRoute(tab); if (to) gotoMenu(to, [NAV.indexOf(menu), i]) }}
               >
                 {tab.label}
               </button>
@@ -1166,12 +1195,12 @@ export default function EcountLayout() {
 
   // ☰ 메뉴판 — 원본 휴대폰 화면: 왼쪽 열은 1단(고른 것 아래 2단 카드), 오른쪽 열은 그 2단의 3·4단 나무
   function mobileDrawer(at: { top: number; tab: number }) {
-    const top = MENU[at.top]
+    const top = NAV[at.top]
     const tab = top.tabs[at.tab] ?? top.tabs[0]
     return (
       <div className="ec-drawer">
         <div className="ec-drawer-tops">
-          {MENU.map((m, idx) => {
+          {NAV.map((m, idx) => {
             if (!topOk(m)) return null
             const on = idx === at.top
             return (
@@ -1268,7 +1297,7 @@ export default function EcountLayout() {
         <button className="ec-m-btn ec-m-menu" aria-label="메뉴" onClick={() => { setMPanel(null); setDrawer((d) => (d ? null : { top: topIdx, tab: tabIdx })) }}>☰</button>
         <button className="ec-m-btn ec-m-fav" aria-label="즐겨찾기" onClick={() => { setDrawer(null); setMPanel((p) => (p === 'fav' ? null : 'fav')) }}>★</button>
         <ul className="ec-gnb-menu">
-          {MENU.map((m, idx) => {
+          {NAV.map((m, idx) => {
             if (!topOk(m)) return null
             return (
               <li key={m.label} onMouseEnter={() => setHoverIdx(idx)}>
@@ -1287,7 +1316,7 @@ export default function EcountLayout() {
           })}
         </ul>
         {/* 다른 대메뉴에 마우스를 올리면 그 메뉴의 2단을, 아니면 지금 메뉴의 2단을 띄운다 */}
-        {hoverIdx !== null && hoverIdx !== topIdx ? subnav(MENU[hoverIdx], null) : subnav(activeTop, tabIdx)}
+        {hoverIdx !== null && hoverIdx !== topIdx ? subnav(NAV[hoverIdx], null) : subnav(activeTop, tabIdx)}
 
         <div className="ec-gnb-right">
           {companyName && <span className="ec-company">{companyName}</span>}
@@ -1425,7 +1454,7 @@ export default function EcountLayout() {
             <div className="flex min-h-[380px]">
               {/* 좌측 대메뉴 레일 */}
               <div className="w-[168px] shrink-0 border-r border-r-ec-line-soft border-solid py-[8px] px-0 bg-ec-page">
-                {MENU.map((m, i) => (
+                {NAV.map((m, i) => (
                   !topOk(m) ? null :
                   <button
                     key={m.label}
@@ -1449,7 +1478,7 @@ export default function EcountLayout() {
                 flex: 1, padding: 16, display: 'grid', gap: 16, alignContent: 'start',
                 gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))',
               }}>
-                {MENU[sitemapIdx].tabs.map((tab) => (
+                {NAV[sitemapIdx].tabs.map((tab) => (
                   !tabOk(tab) ? null :
                   <div key={tab.label}>
                     <div style={{ fontWeight: 800, fontSize: 12.5, color: 'var(--ec-blue)', marginBottom: 6, paddingBottom: 4, borderBottom: '2px solid var(--ec-blue-light)' }}>
