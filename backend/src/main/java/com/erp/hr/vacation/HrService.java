@@ -138,7 +138,20 @@ public class HrService {
 
     @Transactional(readOnly = true)
     public List<VacationRow> vacations(Integer year) {
-        LocalDate[] range = yearRange(year);
+        return vacations(year, null, null);
+    }
+
+    /**
+     * 시작일이 {@code from}~{@code to} 인 휴가. 둘 다 안 주면 {@code year} 한 해(기본 올해).
+     *
+     * <p>예전엔 한 해만 받아서, 근태현황이 [전월]을 1월에 누르면(작년 12월) 화면이 <b>올해 것만</b>
+     * 받아 놓고 걸러 늘 빈 표였다. 기간이 해를 넘나드는 조회는 구간으로 묻는다.
+     */
+    @Transactional(readOnly = true)
+    public List<VacationRow> vacations(Integer year, LocalDate from, LocalDate to) {
+        LocalDate[] range = (from != null || to != null)
+                ? new LocalDate[]{from != null ? from : LocalDate.of(1900, 1, 1), to != null ? to : LocalDate.of(9999, 12, 31)}
+                : yearRange(year);
         return vacationRepository.findByStartDateBetweenWithUser(range[0], range[1]).stream()
                 .map(v -> VacationRow.from(v, employeeOf(v.getUser())))
                 .toList();

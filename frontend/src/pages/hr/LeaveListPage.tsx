@@ -7,6 +7,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import { useDeptGroups } from '../../utils/deptGroups'
 import { printDocuments } from '../../utils/printDocument'
 import { formatDays } from '../../utils/dayCount'
+import { vacationFetchRange } from '../../utils/vacationFetchRange'
 
 /**
  * 관리 > 근태관리 > 근태조회.
@@ -93,7 +94,9 @@ export default function LeaveListPage() {
     setLoading(true)
     setError('')
     try {
-      setRows((await api.get<Row[]>('/hr/vacations')).data)
+      /* [기준일자]·[근태일자]가 올해 밖이면 올해 것만 받아서는 늘 빈 표다 — 그 해들을 묻는다. */
+      const range = vacationFetchRange(fromCond || dayCond, toCond || dayCond)
+      setRows((await api.get<Row[]>('/hr/vacations', { params: range ?? {} })).data)
       setChecked(new Set())
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -101,7 +104,10 @@ export default function LeaveListPage() {
       setLoading(false)
     }
   }
-  useEffect(() => { load() }, [])
+  /* 조건이 다른 해로 넘어가면 다시 받는다 — 같은 해 안에서는 받아 둔 것을 화면이 거른다. */
+  const fetchKey = JSON.stringify(vacationFetchRange(fromCond || dayCond, toCond || dayCond))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [fetchKey])
 
   /**
    * 원본 근태조회 [인쇄]. 근태 전표는 <b>금액도 거래 상대도 없다</b> —

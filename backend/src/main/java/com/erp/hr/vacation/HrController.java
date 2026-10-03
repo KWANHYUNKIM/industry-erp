@@ -65,9 +65,15 @@ public class HrController {
 
     // -------------------------------------------------------------- 휴가
 
+    /**
+     * 휴가(근태) 목록. 시작일로 거른다 — {@code from}·{@code to} 를 주면 그 구간, 아니면 {@code year} 한 해(기본 올해).
+     */
     @GetMapping("/vacations")
-    public List<VacationRow> vacations(@RequestParam(required = false) Integer year) {
-        return hrService.vacations(year);
+    public List<VacationRow> vacations(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return hrService.vacations(year, from, to);
     }
 
     @PostMapping("/vacations")

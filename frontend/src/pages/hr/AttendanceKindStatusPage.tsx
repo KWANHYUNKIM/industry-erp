@@ -8,6 +8,7 @@ import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { formatDays } from '../../utils/dayCount'
 import { useDeptGroups } from '../../utils/deptGroups'
 import { subtotalBy } from '../../utils/subtotalBy'
+import { vacationFetchRange } from '../../utils/vacationFetchRange'
 
 /**
  * 관리 > 근태관리 > 근태현황 — 연차·반차 같은 <b>근태 기록</b>을 기간·조건으로 본다.
@@ -121,7 +122,9 @@ export default function AttendanceKindStatusPage() {
     setLoading(true)
     setError('')
     try {
-      const res = await api.get<Vacation[]>('/hr/vacations')
+      /* 기준일자가 올해 밖이면(1월의 [전월]) 올해 것만 받아서는 늘 빈 표다 — 그 해들을 묻는다. */
+      const range = vacationFetchRange(from, to)
+      const res = await api.get<Vacation[]>('/hr/vacations', { params: range ?? {} })
       setRows([...res.data].sort((a, b) =>
         (a.startDate < b.startDate ? 1 : a.startDate > b.startDate ? -1 : b.id - a.id)))
     } catch (err) {
@@ -131,7 +134,10 @@ export default function AttendanceKindStatusPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  /* 기간이 다른 해로 넘어가면 다시 받는다 — 같은 해 안에서는 받아 둔 것을 화면이 거른다. */
+  const fetchKey = JSON.stringify(vacationFetchRange(from, to))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [fetchKey])
 
   const reset = () => {
     setFrom(init.from); setTo(init.to)
