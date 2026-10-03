@@ -695,6 +695,7 @@ const MENU: TopMenu[] = [
       {
         label: '근태관리',
         nodes: [
+          { label: '기본사항등록', children: [{ label: '근태항목등록', to: '/hr/attendance-kinds' }] },
           {
             label: '근태',
             children: [

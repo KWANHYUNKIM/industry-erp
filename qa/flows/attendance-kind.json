@@ -1,0 +1,35 @@
+{
+  "about": "관리 > 근태항목등록(E020701) — 원본처럼 [신규(F2)] 창에 다음 근태코드가 미리 차 있고, 근태명칭 · 근태유형을 넣고 저장하면 목록에 붙는다. 근태입력의 [근태항목]에 그 항목이 뜨고, 사용중단/재사용 ▲ › 삭제('삭제하시겠습니까?')로 지운다.",
+  "shots": [
+    {
+      "name": "근태항목 신규 → 목록",
+      "path": "/hr/attendance-kinds",
+      "steps": [
+        "click:신규(F2)",
+        "expect:/^\\d{5}$/.test(document.querySelector('[role=dialog] .ec-form input.ec-input').value)",
+        "setnear:근태명칭|QA관리-근태",
+        "clicklast:저장(F8)",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes('QA관리-근태')&&t.innerText.includes('기본')&&t.innerText.includes('Yes'))"
+      ]
+    },
+    {
+      "name": "근태입력 [근태항목]에 뜬다",
+      "path": "/hr/leave-input",
+      "steps": [
+        "expect:[...document.querySelectorAll('select option')].some(o=>o.textContent==='QA관리-근태')"
+      ]
+    },
+    {
+      "name": "사용중단/재사용 ▲ › 삭제",
+      "path": "/hr/attendance-kinds",
+      "steps": [
+        "js:window.confirm=()=>true;(async()=>{for(let i=0;i<40;i++){const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('QA관리-근태'));if(tr){tr.querySelector('input[type=checkbox]').click();return true}await new Promise(z=>setTimeout(z,250))}return 'not found'})()",
+        "click:사용중단/재사용",
+        "js:[...document.querySelectorAll('.ec-menu button')].find(b=>b.textContent==='삭제').click();true",
+        "wait:1200",
+        "expect:![...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes('QA관리-근태'))"
+      ]
+    }
+  ]
+}

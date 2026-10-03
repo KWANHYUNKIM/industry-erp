@@ -33,8 +33,8 @@ interface LineInput {
   reason: string
 }
 
-/** 원본 [근태코드]에 해당한다. 우리 휴가 종류가 그 자리다. */
-const TYPES = ['연차', '반차', '병가', '경조', '공가', '기타']
+/** 원본 [근태코드] — 근태항목등록(/hr/attendance-kinds)의 사용 중인 항목. 불러오기 전에는 처음 심어 둔 여섯 항목. */
+const SEED_TYPES = ['연차', '반차', '병가', '경조', '공가', '기타']
 /** 연차 잔여에서 빠지는 근태 — 서버 HrService.DEDUCTS_ANNUAL 과 같다. */
 const ANNUAL_TYPES = ['연차', '반차']
 
@@ -52,9 +52,13 @@ export default function LeaveInputPage() {
   const [error, setError] = useState('')
   const [ok, setOk] = useState('')
   const [saving, setSaving] = useState(false)
+  const [types, setTypes] = useState<string[]>(SEED_TYPES)
 
   useEffect(() => {
     api.get<UserRow[]>('/users').then((r) => setUsers(r.data)).catch(() => {})
+    api.get<{ name: string; active: boolean }[]>('/hr/attendance-kinds')
+      .then((r) => { const names = r.data.filter((k) => k.active).map((k) => k.name); if (names.length) setTypes(names) })
+      .catch(() => {})
     setLines([emptyLine(ymd(new Date())), emptyLine(ymd(new Date())), emptyLine(ymd(new Date()))])
   }, [])
 
@@ -161,7 +165,7 @@ export default function LeaveInputPage() {
             <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">근태항목</div>
               <select className="ec-input" value={bulkForm.type} style={{ width: 110 }}
                       onChange={(e) => setBulkForm((f) => ({ ...f, type: e.target.value }))}>
-                {TYPES.map((t) => <option key={t}>{t}</option>)}
+                {types.map((t) => <option key={t}>{t}</option>)}
               </select></label>
             <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">기간</div>
               <input type="date" className="ec-input" value={bulkForm.startDate} style={{ width: 140 }}
@@ -253,7 +257,7 @@ export default function LeaveInputPage() {
                 <td>
                   <select className="ec-input" value={l.type}
                           onChange={(e) => setLine(l.key, { type: e.target.value })}>
-                    {TYPES.map((t) => <option key={t}>{t}</option>)}
+                    {types.map((t) => <option key={t}>{t}</option>)}
                   </select>
                 </td>
                 <td className="text-ec-muted">

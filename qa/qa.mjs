@@ -10439,6 +10439,7 @@ async function main() {
   await scenarioRoundTrip(fixtures)
   await scenarioHrCertificate()
   await scenarioDailyWorker()
+  await scenarioAttendanceKind()
   await scenarioPressedTwice(fixtures)
   await scenarioNoPermission()
   await scenarioNewCompany()
@@ -11091,6 +11092,21 @@ async function scenarioDailyWorker() {
   await must('DELETE', `/hr/daily-work-entries/${slip.slipDate}/${slip.slipNo}`)
   await must('DELETE', `/hr/daily-workers/${w.id}`)
   eq('지운 사원은 목록에 없다', (await must('GET', '/hr/daily-workers')).some((x) => x.id === w.id), 'false')
+}
+
+/** 관리 › 근태항목등록(원본 E020701) — 심어 둔 연차 · 반차, 다음 번호, 같은 명칭 막기, 사용중단 · 삭제. */
+async function scenarioAttendanceKind() {
+  section('■ 근태항목등록 — 기본 항목 · 번호 · 명칭 중복 · 사용중단 · 삭제')
+  const all = await must('GET', '/hr/attendance-kinds')
+  eq('연차 · 반차가 심어져 있다', ['연차', '반차'].every((n) => all.some((k) => k.name === n)), 'true')
+  const next = (await must('GET', '/hr/attendance-kinds/next-code')).code
+  const k = await must('POST', '/hr/attendance-kinds', { name: 'QA-근태', type: 'BASIC', hourUnit: true })
+  eq('비우면 다음 근태코드', k.code, next)
+  await rejects('같은 근태명칭은 막는다', 'POST', '/hr/attendance-kinds', { name: 'QA-근태', type: 'BASIC', hourUnit: false }, '이미 등록된 근태명칭')
+  const off = await must('PUT', `/hr/attendance-kinds/${k.id}`, { name: 'QA-근태', type: 'VACATION', hourUnit: true, active: false })
+  eq('사용중단 · 유형 변경', `${off.active}/${off.typeName}`, 'false/휴가')
+  await must('DELETE', `/hr/attendance-kinds/${k.id}`)
+  eq('지운 항목은 목록에 없다', (await must('GET', '/hr/attendance-kinds')).some((x) => x.id === k.id), 'false')
 }
 
 async function scenarioRollback(f) {
