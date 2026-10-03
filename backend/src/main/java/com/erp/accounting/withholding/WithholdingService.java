@@ -336,7 +336,7 @@ public class WithholdingService {
                         rs.stream().map(com.erp.accounting.retirementpay.RetirementPay::getLocalIncomeTax).reduce(BigDecimal.ZERO, BigDecimal::add)});
             }
             Map<com.erp.accounting.income.IncomeType, List<com.erp.accounting.otherwithholding.OtherWithholding>> others =
-                    otherWithholdingRepository.findBetween(ym.atDay(1), ym.atEndOfMonth()).stream()
+                    otherWithholdingRepository.findByAttributionBetween(month, month).stream()   // 원본은 귀속연월로 센다
                             .collect(java.util.stream.Collectors.groupingBy(com.erp.accounting.otherwithholding.OtherWithholding::getIncomeType));
             others.forEach((type, list) -> data.put(type.getDisplayName(), new BigDecimal[]{
                     BigDecimal.valueOf(list.stream().map(w -> w.getPayeeName() + "\u0000" + w.getPayeeRegNo()).distinct().count()),

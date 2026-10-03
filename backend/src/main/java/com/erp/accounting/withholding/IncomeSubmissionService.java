@@ -20,7 +20,7 @@ import java.util.Objects;
  *
  * <p>원본 2025 · 사업소득: 매수 4 · 건수 10 · 소득(수입)금액 14,926,000 · 소득세 447,780 · 지방소득세 44,770
  * (소득자등록 4명). 작성요령 — 매수는 지급조서 장수(소득자마다 한 장), 건수는 명세 줄 수, 소득금액은 지급액이되
- * 사업 · 기타소득은 소액부징수(소득세 1,000원 미만)를 뺀다.
+ * 사업 · 기타소득의 소액부징수 제외는 원본 숫자에 적용되지 않아 두지 않았다. 귀속연월로 센다.
  * 사업 · 이자 · 배당 · 기타소득은 기타원천세에서 센다. 연말정산 · 중도정산 · 퇴직소득은 정산 자료가 없어 0 이다.
  */
 @Service
@@ -33,7 +33,6 @@ public class IncomeSubmissionService {
             "배당소득", IncomeType.DIVIDEND, "기타소득", IncomeType.OTHER);
     private static final List<String> ALL = List.of("연말정산", "중도정산", "연말정산+중도정산", "퇴직소득",
             "사업소득", "이자소득", "배당소득", "기타소득");
-    private static final BigDecimal SMALL_AMOUNT = new BigDecimal("1000");
 
     private final OtherWithholdingRepository otherWithholdingRepository;
 
@@ -43,9 +42,10 @@ public class IncomeSubmissionService {
         YearMonth f = month(from), t = month(to);
         IncomeType type = KINDS.get(kind);
         if (type == null) return new IncomeSubmission(kind, 0, 0, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
-        List<OtherWithholding> rows = otherWithholdingRepository.findBetween(f.atDay(1), t.atEndOfMonth()).stream()
+        // 귀속연월로 센다. 원본 2025 사업소득 10줄 14,926,000 은 2026/01/21 지급분(2025/12 귀속)과 세액 330 · 30 원짜리 줄까지 든다 —
+        // 작성요령의 '소액부징수 제외' 는 원본 숫자에 적용되지 않았다.
+        List<OtherWithholding> rows = otherWithholdingRepository.findByAttributionBetween(f.toString(), t.toString()).stream()
                 .filter(w -> w.getIncomeType() == type)
-                .filter(w -> !(type == IncomeType.BUSINESS || type == IncomeType.OTHER) || w.getIncomeTax().compareTo(SMALL_AMOUNT) >= 0)
                 .toList();
         long payees = rows.stream().map(w -> w.getPayeeName() + "\u0000" + Objects.toString(w.getPayeeRegNo(), "")).distinct().count();
         return new IncomeSubmission(kind, (int) payees, rows.size(),

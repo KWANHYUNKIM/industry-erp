@@ -23,13 +23,17 @@ public class OtherWithholdingDtos {
             @NotNull(message = "지급액을 입력하세요.")
             @Positive(message = "지급액은 0보다 커야 합니다.") BigDecimal grossAmount,
             @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
-            String description
+            String description,
+            /** 원본 [귀속연월] YYYY-MM — 비우면 지급일의 연월. */
+            @jakarta.validation.constraints.Pattern(regexp = "\\d{4}-\\d{2}", message = "귀속연월 형식이 올바르지 않습니다(YYYY-MM).")
+            String attributionMonth
     ) {}
 
     public record OtherWithholdingResponse(
             Long id,
             String docNo,
             LocalDate payDate,
+            String attributionMonth,
             IncomeType incomeType,
             String incomeTypeName,
             Long partnerId,
@@ -46,7 +50,7 @@ public class OtherWithholdingDtos {
     ) {
         public static OtherWithholdingResponse from(OtherWithholding w) {
             return new OtherWithholdingResponse(
-                    w.getId(), w.getDocNo(), w.getPayDate(),
+                    w.getId(), w.getDocNo(), w.getPayDate(), w.getAttributionMonth(),
                     w.getIncomeType(), w.getIncomeType().getDisplayName(),
                     w.getPartner() != null ? w.getPartner().getId() : null,
                     w.getPayeeName(), w.getPayeeRegNo(),

@@ -33,6 +33,10 @@ public class OtherWithholding extends BaseTimeEntity {
     @Column(name = "pay_date", nullable = false)
     private LocalDate payDate;
 
+    /** 원본 [귀속연월] YYYY-MM. 비우고 등록하면 지급일의 연월. 소득자료제출집계표 · 원천세신고자료비교표가 이것으로 센다. */
+    @Column(name = "attribution_month", nullable = false, length = 7)
+    private String attributionMonth;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "income_type", nullable = false, length = 20)
     private IncomeType incomeType;

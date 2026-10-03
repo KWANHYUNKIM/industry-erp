@@ -89,6 +89,8 @@ public class OtherWithholdingService {
         OtherWithholding w = OtherWithholding.builder()
                 .docNo(docNoGenerator.next("WT-", "other_withholdings", "doc_no", "pay_date", req.payDate()))
                 .payDate(req.payDate())
+                .attributionMonth(req.attributionMonth() != null && !req.attributionMonth().isBlank()
+                        ? req.attributionMonth() : java.time.YearMonth.from(req.payDate()).toString())
                 .incomeType(type)
                 .partner(partner)
                 .payeeName(payeeName)
