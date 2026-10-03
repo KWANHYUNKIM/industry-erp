@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { vatSlipAmounts } from '../../utils/vatSlip'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import { dateNo } from '../../utils/dateNo'
@@ -19,8 +20,6 @@ interface PartnerOpt { id: number; code: string; name: string; bizRegNo: string 
 type Mode = '매출' | '매입' | '매출집계' | '매입집계' | '매입/매출'
 const MODES: Mode[] = ['매출', '매입', '매출집계', '매입집계', '매입/매출']
 type Side = '매출' | '매입'
-/** 부가세 계정(StandardAccounts) — 매출은 255 부가세예수금, 매입은 135 부가세대급금. 이 줄이 든 전표가 매입/매출장의 한 줄이다. */
-const VAT_CODE: Record<Side, string> = { 매출: '255', 매입: '135' }
 /** 우리 전표는 부가세가 붙은 세금계산서 거래만 부가세 줄을 남긴다 — 계산서 · 카드 · 영세 같은 다른 유형이 없다. */
 const KIND_NAME = '세금계산서'
 
@@ -89,15 +88,10 @@ export default function VatBookPage() {
       if (taxOnly && !p?.taxReport) continue
       if (regKind !== '전체' && (p?.regNoKind ?? '사업자등록번호') !== regKind) continue
       for (const side of ['매출', '매입'] as Side[]) {
-        const vatLines = e.lines.filter((l) => l.accountCode === VAT_CODE[side])
-        if (vatLines.length === 0) continue
-        const others = e.lines.filter((l) => l.accountCode !== VAT_CODE[side])
-        const vat = side === '매출'
-          ? vatLines.reduce((s, l) => s + Number(l.credit) - Number(l.debit), 0)
-          : vatLines.reduce((s, l) => s + Number(l.debit) - Number(l.credit), 0)
-        const supply = side === '매출'
-          ? others.reduce((s, l) => s + Number(l.credit), 0)
-          : others.reduce((s, l) => s + Number(l.debit), 0)
+        /* 반품(역분개)은 공급가액도 음수다 — utils/vatSlip. */
+        const amt = vatSlipAmounts(e.lines, side)
+        if (!amt) continue
+        const { supply, vat } = amt
         out.push({ key: `${e.id}${side}`, side, date: e.entryDate, no: e.docNo, partnerId: e.partnerId, partner: e.partnerName ?? '',
           text: e.description ?? '', supply, vat })
       }

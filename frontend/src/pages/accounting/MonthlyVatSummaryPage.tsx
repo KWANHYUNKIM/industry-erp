@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { vatSlipAmounts } from '../../utils/vatSlip'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
@@ -13,8 +14,6 @@ const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR')
 const PICKS = [...SETTLE_PICKS, '최근30일'] as const
 
 type Side = '매출' | '매입'
-/** 부가세 계정(StandardAccounts) — 매입/매출장과 같은 가름: 매출 255 · 매입 135 줄이 든 전표가 한 건이다. */
-const VAT_CODE: Record<Side, string> = { 매출: '255', 매입: '135' }
 const AMOUNTS = ['공급가액+VAT', '공급가액', 'VAT'] as const
 type Amount = (typeof AMOUNTS)[number]
 const KIND_NAME = '세금계산서'
@@ -78,11 +77,10 @@ export default function MonthlyVatSummaryPage({ side }: { side: Side }) {
       if (partner && String(e.partnerId) !== partner) continue
       const p = pById.get(e.partnerId)
       if (manager && (p?.manager ?? '') !== manager) continue
-      const vatLines = e.lines.filter((l) => l.accountCode === VAT_CODE[side])
-      if (vatLines.length === 0) continue
-      const others = e.lines.filter((l) => l.accountCode !== VAT_CODE[side])
-      const vat = vatLines.reduce((s, l) => s + (side === '매출' ? Number(l.credit) - Number(l.debit) : Number(l.debit) - Number(l.credit)), 0)
-      const supply = others.reduce((s, l) => s + (side === '매출' ? Number(l.credit) : Number(l.debit)), 0)
+      /* 반품(역분개)은 공급가액도 음수다 — utils/vatSlip. */
+      const amt = vatSlipAmounts(e.lines, side)
+      if (!amt) continue
+      const { supply, vat } = amt
       const v = amount === '공급가액' ? supply : amount === 'VAT' ? vat : supply + vat
       const ym = `${Number(e.entryDate.slice(0, 4))}.${Number(e.entryDate.slice(5, 7))}`
       ms.add(ym)

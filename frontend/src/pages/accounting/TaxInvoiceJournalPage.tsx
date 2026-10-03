@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { vatSlipAmounts } from '../../utils/vatSlip'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import { dateNo } from '../../utils/dateNo'
@@ -17,8 +18,6 @@ const slash = (d: string) => d.replace(/-/g, '/')
 type Side = '매출' | '매입'
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
 interface PartnerOpt { id: number; code: string; name: string; manager: string | null; taxReport: boolean }
-/** 부가세 계정(StandardAccounts) — 매출 255 부가세예수금, 매입 135 부가세대급금. 이 줄이 든 회계전표가 한 줄이다(매입/매출장과 같다). */
-const VAT_CODE: Record<Side, string> = { 매출: '255', 매입: '135' }
 const KIND_NAME = '세금계산서'
 type Status = '전체' | '결재중' | '미확인' | '확인'
 interface Row { key: string; date: string; no: string; partner: string; supply: number; vat: number; fromSlip: boolean }
@@ -85,11 +84,10 @@ export default function TaxInvoiceJournalPage({ side }: { side: Side }) {
       if (partner && String(e.partnerId) !== partner) continue
       if (manager && (p?.manager ?? '') !== manager) continue
       if (taxOnly && !p?.taxReport) continue
-      const vatLines = e.lines.filter((l) => l.accountCode === VAT_CODE[side])
-      if (vatLines.length === 0) continue
-      const others = e.lines.filter((l) => l.accountCode !== VAT_CODE[side])
-      const vat = vatLines.reduce((s, l) => s + (side === '매출' ? Number(l.credit) - Number(l.debit) : Number(l.debit) - Number(l.credit)), 0)
-      const supply = others.reduce((s, l) => s + (side === '매출' ? Number(l.credit) : Number(l.debit)), 0)
+      /* 반품(역분개)은 공급가액도 음수다 — utils/vatSlip. */
+      const amt = vatSlipAmounts(e.lines, side)
+      if (!amt) continue
+      const { supply, vat } = amt
       out.push({ key: String(e.id), date: e.entryDate, no: e.docNo, partner: e.partnerName ?? '', supply, vat,
         fromSlip: e.sourceType === 'SALES' || e.sourceType === 'PURCHASE' })
     }
