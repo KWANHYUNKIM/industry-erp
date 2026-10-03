@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import EcPeriodPicks, { INQUIRY_PICKS } from '../../components/EcPeriodPicks'
+import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import Modal from '../../components/Modal'
 import CertificateDoc, { type CertificateDocData, type CompanyInfo } from '../../features/certificate/components/CertificateDoc'
@@ -23,6 +25,8 @@ const blankForm = (): Form => ({ kind: '', employeeId: '', purpose: '', issueDat
  *       발행일(오늘) · ▸ 증명서 확인(펴면 증명서가 보인다) · 저장(F8) · 다시 작성 · 닫기. 저장하면 안내 없이 닫히고 목록 맨 위에
  *       2026-1 꼴 발행번호(발행일의 해 - 그해 차례)로 붙는다.</li>
  * </ul>
+ * 조건 판은 접혀 있고 [Search(F3)]로 편다(2026-10-04 실측) — 증명서종류(전체 · 재직 · 퇴직 · 경력) · 발행일([사용]) · 사원번호 ·
+ * 용도 · 발송여부. 발송여부(Email 발송 기록)는 메일을 보내지 않아 두지 않는다.
  * 원본 '증명서 확인' 은 편집기라 글자를 고쳐 저장할 수 있다 — 우리는 사원의 지금 값으로 그리기만 한다. [인쇄 ▲] 펼침 항목은 못 쟀다.
  */
 export default function CertificatePage() {
@@ -31,6 +35,11 @@ export default function CertificatePage() {
   const [company, setCompany] = useState<CompanyInfo | null>(null)
   const [error, setError] = useState('')
   const [quick, setQuick] = useState('')
+  const [kindCond, setKindCond] = useState<CertificateKind | ''>('')
+  const [useIssueDate, setUseIssueDate] = useState(false)
+  const [issueRange, setIssueRange] = useState({ from: ymd(new Date(new Date().getFullYear(), new Date().getMonth(), 1)), to: ymd(new Date()) })
+  const [empCond, setEmpCond] = useState<string[]>([])
+  const [purposeCond, setPurposeCond] = useState('')
   const [checked, setChecked] = useState<Set<number>>(new Set())
   const [formOpen, setFormOpen] = useState(false)
   const [formError, setFormError] = useState('')
@@ -50,7 +59,11 @@ export default function CertificatePage() {
     api.get<CompanyInfo | null>('/company').then((r) => setCompany(r.data)).catch(() => setCompany(null))
   }, [])
 
-  const shown = rows.filter((r) => !quick || r.employeeName.includes(quick) || r.employeeCode.includes(quick) || r.issueNo.includes(quick))
+  const shown = rows.filter((r) => (!quick || r.employeeName.includes(quick) || r.employeeCode.includes(quick) || r.issueNo.includes(quick))
+    && (!kindCond || r.kind === kindCond)
+    && (!useIssueDate || (r.issueDate >= issueRange.from && r.issueDate <= issueRange.to))
+    && (empCond.length === 0 || empCond.includes(String(r.employeeId)))
+    && (!purposeCond || (r.purpose ?? '').includes(purposeCond)))
   useTableColumnCheck(tableRef, '각종증명서인쇄', [shown.length])
   const allChecked = shown.length > 0 && shown.every((r) => checked.has(r.id))
 
@@ -103,6 +116,7 @@ export default function CertificatePage() {
   return (
     <EcListShell
       title="각종증명서인쇄"
+      collapseConditions
       search={quick}
       onSearchChange={setQuick}
       onSearch={load}
@@ -112,6 +126,35 @@ export default function CertificatePage() {
         { label: '선택삭제', onClick: deleteChecked, disabled: checked.size === 0 },
       ]}
     >
+      <ul className="ec-cond mb-[8px]">
+        <EcCond label="증명서종류">
+          <select className="ec-input w-full" value={kindCond} onChange={(e) => setKindCond(e.target.value as CertificateKind | '')}>
+            <option value="">전체</option>
+            {CERTIFICATE_KINDS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+        </EcCond>
+        <EcCond label="발행일">
+          {useIssueDate && (
+            <>
+              <input type="date" className="ec-input w-[150px]" aria-label="발행일 시작" value={issueRange.from} onChange={(e) => setIssueRange({ ...issueRange, from: e.target.value })} />
+              ~
+              <input type="date" className="ec-input w-[150px]" aria-label="발행일 끝" value={issueRange.to} onChange={(e) => setIssueRange({ ...issueRange, to: e.target.value })} />
+            </>
+          )}
+          <label className="inline-flex items-center gap-[4px] ml-[6px]">
+            <input type="checkbox" checked={useIssueDate} onChange={(e) => setUseIssueDate(e.target.checked)} /> 사용
+          </label>
+        </EcCond>
+        <EcCond label="사원번호">
+          <CodePickerField label="사원번호" hideLabel fill multiple placeholder="사원번호" values={empCond} onChangeMulti={(v) => setEmpCond(v)}
+                           items={employees.map((e) => ({ value: String(e.id), code: e.code, name: e.name }))} />
+        </EcCond>
+        <EcCond label="용도"><input className="ec-input w-full" placeholder="용도" value={purposeCond} onChange={(e) => setPurposeCond(e.target.value)} /></EcCond>
+        <li className="flex flex-wrap items-center gap-[6px]">
+          <button type="button" className="ec-btn ec-btn-primary" onClick={load}>검색(F8)</button>
+          <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={issueRange.from} onPick={(r) => { setIssueRange(r); setUseIssueDate(true) }} />
+        </li>
+      </ul>
       <div className="ec-pills mb-[8px]"><button type="button" className="ec-pill active">전체</button></div>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <table ref={tableRef} className="w-full text-left">
