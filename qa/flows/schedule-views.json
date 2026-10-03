@@ -1,0 +1,34 @@
+{
+  "about": "일정관리(원본 E070201) 일간 · 사용자별 양식 — 오늘 10:00~11:00 시험 일정(참석자 = 첫 사용자)이 일간 'AM 10:00' 줄에만(노란 캘린더 색), 사용자별 그 사람 줄 · AM 10:00 칸에 뜬다. 줄 글은 '제목/MM/DD (요일) 10:00 ~ 11:00/장소/참석자'. 시험 일정은 API 로 만들고 지운다. node qa/shot.mjs qa/flows/schedule-views.json",
+  "shots": [
+    {
+      "name": "준비",
+      "path": "/groupware/schedule",
+      "steps": [
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const users = await (await fetch('/api/users', { headers: H })).json(); const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const e = await (await fetch('/api/schedule-events', { method: 'POST', headers: H, body: JSON.stringify({ eventDate: day, startTime: '10:00', endTime: '11:00', title: 'QA그룹웨어-일간', category: '회의', location: 'QA실', attendees: users[0].name }) })).json(); sessionStorage.setItem('qaEv', JSON.stringify([e.id, users[0].name])); return e.id + ' ' + users[0].name })()"
+      ]
+    },
+    {
+      "name": "일간 → 사용자별",
+      "path": "/groupware/schedule",
+      "steps": [
+        "js:(() => { const s = document.querySelector('select[aria-label=양식]'); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s, '일간'); s.dispatchEvent(new Event('change', { bubbles: true })); return true })()",
+        "expect:[...document.querySelectorAll('tbody tr')].map((tr) => tr.cells[0]?.innerText.trim()).join(',') === 'AM 00:00,AM 08:00,AM 09:00,AM 10:00,AM 11:00,PM 12:00,PM 01:00,PM 02:00,PM 03:00,PM 04:00,PM 05:00,PM 06:00'",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.cells[0]?.innerText.trim() === 'AM 10:00' && tr.classList.contains('bg-ec-calendar') && /QA그룹웨어-일간\\/\\d{2}\\/\\d{2} \\(.\\) 10:00 ~ 11:00\\/QA실\\//.test(tr.innerText))",
+        "expect:![...document.querySelectorAll('tbody tr')].some((tr) => tr.cells[0]?.innerText.trim() === 'AM 11:00' && tr.innerText.includes('QA그룹웨어-일간'))",
+        "expect:[...document.querySelectorAll('button')].some((b) => b.textContent.trim() === 'Excel')",
+        "js:(() => { const s = document.querySelector('select[aria-label=양식]'); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s, '사용자별'); s.dispatchEvent(new Event('change', { bubbles: true })); return true })()",
+        "expect:[...document.querySelectorAll('thead tr')][1]?.cells.length === 11 && document.querySelector('thead th').innerText.trim() === '참석자'",
+        "expect:(() => { const [, name] = JSON.parse(sessionStorage.getItem('qaEv')); const tr = [...document.querySelectorAll('tbody tr')].find((r) => r.cells[0].innerText.trim() === name); return !!tr && tr.cells[3].classList.contains('bg-ec-calendar') && tr.cells[3].innerText.includes('QA그룹웨어-일간') && !tr.cells[2].innerText.includes('QA그룹웨어-일간') })()",
+        "expect:![...document.querySelectorAll('button')].some((b) => b.textContent.trim() === 'Excel')"
+      ]
+    },
+    {
+      "name": "정리",
+      "path": "/groupware/schedule",
+      "steps": [
+        "js:fetch('/api/schedule-events/' + JSON.parse(sessionStorage.getItem('qaEv'))[0], { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => 'del ' + r.status)"
+      ]
+    }
+  ]
+}

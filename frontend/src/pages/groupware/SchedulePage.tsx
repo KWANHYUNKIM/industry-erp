@@ -31,8 +31,11 @@ interface ScheduleEvent {
 const CATEGORIES = ['회의', '출장', '교육', '기타']
 const DOW = ['일', '월', '화', '수', '목', '금', '토']
 
-/** 원본 [양식] 고르기. '월간' 은 달력 칸, '기본(수정불가)' 는 일정 목록이다. */
-const VIEWS = ['월간', '기본(수정불가)'] as const
+/**
+ * 원본 [양식] 고르기. '월간' 은 달력 칸, '기본(수정불가)' 는 일정 목록, '일간' 은 하루의 시간 줄,
+ * '사용자별' 은 사람 × 시간 표다(2026-10-03 실측 — 원본 고르기 차례는 월간양식 · 기본(수정불가) · 일간 · 월간 · 사용자별).
+ */
+const VIEWS = ['월간', '기본(수정불가)', '일간', '사용자별'] as const
 type View = typeof VIEWS[number]
 
 type Form = {
@@ -41,6 +44,19 @@ type Form = {
 }
 
 const pad2 = (n: number) => String(n).padStart(2, '0')
+
+/** 일간 · 사용자별 의 시간 줄 — 원본은 AM 08:00 ~ PM 06:00 이다. */
+const HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
+const hourText = (h: number) => `${h < 12 ? 'AM' : 'PM'} ${pad2(h > 12 ? h - 12 : h)}:00`
+const dayHead = (date: string) => {
+  const d = new Date(`${date}T00:00:00`)
+  return `${pad2(d.getMonth() + 1)}/${pad2(d.getDate())} (${DOW[d.getDay()]})`
+}
+/** 일정이 놓이는 시간 줄 — 시작 시각의 '시'. 시간이 없으면 null. */
+const startHour = (r: { startTime: string | null }) => (r.startTime ? Number(r.startTime.slice(0, 2)) : null)
+/** 원본 일간 줄의 글: '제목/10/03 (토) 10:00 ~ 11:00/장소/참석자'. */
+const lineText = (r: ScheduleEvent) =>
+  `${r.title}/${dayHead(r.eventDate)} ${r.startTime ?? ''}${r.endTime ? ` ~ ${r.endTime}` : ''}/${r.location ?? ''}/${r.attendees ?? ''}`
 
 /**
  * 원본 신규 폼의 기본 시간 — <b>다음 정각부터 한 시간</b>이다(13:37 에 열면 14:00 ~ 15:00, 2026-10-03 실측).
@@ -68,6 +84,10 @@ function defaultTimes(now = new Date()) {
  * 없습니다. 계속 진행 하겠습니까?' 를 묻는다. 우리는 조회·수정 창이 없어 <b>한 번 넣은 일정을 고칠 수 없었다</b>
  * (서버에는 PATCH 가 진작 있었다).
  *
+ * <p><b>[일간]</b>은 왼쪽 작은 달력에서 고른 날의 시간 줄(맨 위 AM 00:00 + AM 08:00 ~ PM 06:00)에, <b>[사용자별]</b>은
+ * 사원 × 시간 칸에 일정을 얹는다(참석자로 가른다). 일정이 든 칸은 캘린더 색(--ec-bg-calendar) — 원본 [기본] 공유일정캘린더의 노랑.
+ * 줄 글은 '제목/10/03 (토) 10:00 ~ 11:00/장소/참석자' 다.
+ *
  * <p>신규 폼 '일정관리등록' 의 시간은 다음 정각부터 한 시간이 기본이고, 참석자에는 나를 넣어 둔다(원본 실측).
  * 원본의 [캘린더]·[공유자]·[권한]·[일정알림]·[반복설정] 은 받쳐 줄 자료가 없어 두지 않았다.
  *
@@ -78,6 +98,8 @@ function defaultTimes(now = new Date()) {
  * [공유일정캘린더]는 <b>전체</b>다 — 없는 구분을 지어내지 않는다.
  */
 /** 원본 왼쪽 캘린더 목록. '다른 캘린더' 는 사람을 골라 그 사람 일정만 본다. */
+interface UserRow { id: number; name: string }
+
 const CALENDARS = ['내 캘린더', '[기본] 공유일정캘린더', '다른 캘린더'] as const
 type Calendar = typeof CALENDARS[number]
 
@@ -86,6 +108,9 @@ export default function SchedulePage() {
   const [view, setView] = useState<View>('월간')
   /** 월간 양식이 보는 달(그 달 1일). */
   const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1) })
+  /** 일간 · 사용자별 이 보는 날. */
+  const [day, setDay] = useState(() => ymd(new Date()))
+  const [users, setUsers] = useState<UserRow[]>([])
   const [calendar, setCalendar] = useState<Calendar>('[기본] 공유일정캘린더')
   const [otherOwner, setOtherOwner] = useState('')
   const [rows, setRows] = useState<ScheduleEvent[]>([])
@@ -124,6 +149,7 @@ export default function SchedulePage() {
     catch (err) { setError(extractErrorMessage(err)) }
   }
   useEffect(() => { void load() }, [])
+  useEffect(() => { api.get<UserRow[]>('/users').then((r) => setUsers(r.data)).catch(() => {}) }, [])
 
   function openNew(date?: string) {
     setEditId(null)
@@ -256,6 +282,30 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
   /** 월간 칸은 주 수(5·6)가 달마다 변한다 — 런타임에 머리·본문 칸 수를 맞춰 본다. */
   const monthRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(monthRef, '일정관리 월간', [view, month.getTime(), inCalendar.length])
+  const userRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(userRef, '일정관리 사용자별', [view, day, users.length, inCalendar.length])
+
+  const dayEvents = inCalendar
+    .filter((r) => r.eventDate === day)
+    .sort((a, b) => (a.startTime ?? '').localeCompare(b.startTime ?? ''))
+  /**
+   * 일간의 줄 — 원본은 맨 위 'AM 00:00' 줄과 AM 08:00 ~ PM 06:00 이다. 일정은 <b>시작 시각의 줄</b>에만 놓인다
+   * (10:00 ~ 11:00 일정이 AM 10:00 줄에만 보였다). 8시 전 · 시간 없는 일정은 맨 위 줄, 6시 뒤는 PM 06:00 줄.
+   */
+  const dayRow = (r: ScheduleEvent) => { const h = startHour(r); return h == null || h < 8 ? 0 : Math.min(h, 18) }
+  /** 사용자별의 칸 — 맨 위 줄이 없어서 8시 전 일정은 AM 08:00 칸에 둔다. */
+  const userCol = (r: ScheduleEvent) => Math.min(Math.max(startHour(r) ?? 8, 8), 18)
+  const attends = (r: ScheduleEvent, name: string) =>
+    (r.attendees ?? '').split(',').map((a) => a.trim()).includes(name)
+
+  /** 일간 · 사용자별 칸 하나 — 칩(일정구분) + 줄 글, 누르면 '일정조회'. */
+  const eventLine = (r: ScheduleEvent) => (
+    <button key={r.id} type="button" title={lineText(r)} onClick={() => setViewing(r)}
+            className="no-ec flex items-center gap-[4px] w-full bg-transparent border-0 p-0 cursor-pointer text-left text-ec-ink">
+      {r.category && <span className="ec-label-chip">{r.category}</span>}
+      <span className="truncate">{lineText(r)}</span>
+    </button>
+  )
 
   const viewPicker = (
     <div className="flex justify-end mb-[6px]">
@@ -284,15 +334,26 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
     </div>
   )
 
+  /** 일간 · 사용자별 왼쪽 — 원본은 작은 달력(날 고르기) + 캘린더 고르기다. */
+  const dayPicker = (
+    <div className="shrink-0">
+      <EcMonthCalendar value={day} onPick={(d) => d && setDay(d)}
+                       marks={new Set(inCalendar.map((r) => r.eventDate))} />
+      {calendarPicker}
+    </div>
+  )
+
   return (
     <EcListShell
       title="일정관리"
       search={keyword}
       onSearchChange={setKeyword}
       onNew={() => openNew()}
-      actions={view === '월간'
-        // 원본 월간 양식 하단은 [신규(F2)][인쇄] 뿐이다.
+      actions={view === '월간' || view === '사용자별'
+        // 원본 월간 · 사용자별 양식 하단은 [신규(F2)][인쇄] 뿐이다. 일간은 [Excel] 이 더 있다.
         ? [{ label: '인쇄' }]
+        : view === '일간'
+        ? [{ label: '인쇄' }, { label: 'Excel' }]
         : [
           { label: '미리보기' },
           { label: '인쇄' },
@@ -441,6 +502,52 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
                           )}
                         </td>
                       )
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : view === '일간' ? (
+        <div className="flex gap-[10px] items-start">
+          {dayPicker}
+          <div className="flex-1 min-w-0">
+            <table className="w-full table-fixed">
+              <thead><tr><th className="w-[120px] text-center">시간</th><th className="text-center">{dayHead(day)}</th></tr></thead>
+              <tbody>
+                {[0, ...HOURS].map((h) => {
+                  const evs = dayEvents.filter((r) => dayRow(r) === h)
+                  return (
+                    <tr key={h} className={evs.length ? 'bg-ec-calendar' : ''}>
+                      <td className="text-center">{hourText(h)}</td>
+                      <td>{evs.map(eventLine)}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : view === '사용자별' ? (
+        <div className="flex gap-[10px] items-start">
+          {dayPicker}
+          <div className="flex-1 min-w-0 overflow-x-auto">
+            <table ref={userRef} className="w-full table-fixed">
+              <thead>
+                <tr>
+                  <th rowSpan={2} className="w-[115px] text-center">참석자</th>
+                  <th colSpan={HOURS.length} className="text-center">{dayHead(day)}</th>
+                </tr>
+                <tr>{HOURS.map((h) => <th key={h} className="text-center">{hourText(h)}</th>)}</tr>
+              </thead>
+              <tbody>
+                {users.map((u) => (
+                  <tr key={u.id}>
+                    <td className="bg-ec-disabled">{u.name}</td>
+                    {HOURS.map((h) => {
+                      const evs = dayEvents.filter((r) => userCol(r) === h && attends(r, u.name))
+                      return <td key={h} className={evs.length ? 'bg-ec-calendar' : ''}>{evs.map(eventLine)}</td>
                     })}
                   </tr>
                 ))}
