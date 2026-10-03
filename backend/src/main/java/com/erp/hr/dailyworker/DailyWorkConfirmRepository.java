@@ -17,7 +17,7 @@ public interface DailyWorkConfirmRepository extends JpaRepository<DailyWorkConfi
     @Query("delete from DailyWorkConfirm c where c.ledger.id = :ledgerId")
     void deleteByLedger(Long ledgerId);
 
-    @Query("select c from DailyWorkConfirm c join fetch c.ledger g join fetch c.worker w "
+    @Query("select c from DailyWorkConfirm c join fetch c.ledger g join fetch c.worker w left join fetch w.department "
             + "where g.payMonth between :from and :to order by g.payMonth, g.seq, w.code")
     List<DailyWorkConfirm> findInMonths(String from, String to);
 

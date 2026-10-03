@@ -57,6 +57,7 @@ public class DailyPayDtos {
             BigDecimal netPay, String bankName, String accountNo, String accountHolder
     ) {}
 
-    /** 근무확정현황 한 줄 — 귀속연월-NO · 성명 · 수당항목명(일근무) · 근무기록. */
-    public record ConfirmReportLine(String payMonth, int seq, String workerCode, String workerName, String payItem, BigDecimal days) {}
+    /** 근무확정현황 한 줄 — 귀속연월-NO · 성명 · 수당항목명(일근무) · 근무기록. 지급연월 · 지급일 · 사원 · 부서는 조건으로 거른다. */
+    public record ConfirmReportLine(String payMonth, int seq, String paidMonth, LocalDate payDate, Long workerId,
+                                    String workerCode, String workerName, Long departmentId, String payItem, BigDecimal days) {}
 }

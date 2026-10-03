@@ -1,5 +1,5 @@
 {
-  "about": "관리 > 일용근로 사원별급여조회(E020135) · 급여현황(E020753) · 근무확정현황(E020754) · 급여이체현황(E020133) — 2091/12 대장에 일용근로 사원(일근무 200,000 · 월정공제 소득세 4,050 · 지방소득세 400 · 급여통장 QA은행) 3일을 확정 · 계산해 두면, 네 화면이 같은 줄을 보여 준다: 지급총액 600,000 · 공제 4,450(소득세 4,050 · 지방 400) · 실지급 595,550 · 근무기록 3 · 은행 QA은행. 시험 자료는 지운다. 급여현황 조건 — [사원] 코드도움으로 고르면 보이고, 지급연월[사용] 2099 부터면 빠진다.",
+  "about": "관리 > 일용근로 사원별급여조회(E020135) · 급여현황(E020753) · 근무확정현황(E020754) · 급여이체현황(E020133) — 2091/12 대장에 일용근로 사원(일근무 200,000 · 월정공제 소득세 4,050 · 지방소득세 400 · 급여통장 QA은행) 3일을 확정 · 계산해 두면, 네 화면이 같은 줄을 보여 준다: 지급총액 600,000 · 공제 4,450(소득세 4,050 · 지방 400) · 실지급 595,550 · 근무기록 3 · 은행 QA은행. 시험 자료는 지운다. 급여현황 조건 — [사원] 코드도움으로 고르면 보이고, 지급연월[사용] 2099 부터면 빠진다. 근무확정현황 조건 — [사원번호] 코드도움으로 고르면 보이고, 지급일[사용] 2099 부터면 빠진다.",
   "shots": [
     {
       "name": "준비 → 사원별급여조회",
@@ -42,7 +42,20 @@
         "set:input[type=month]#1|2091-12",
         "click:검색(F8)",
         "wait:1200",
-        "expect:(()=>{const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('QA관리-일용R'));return tr&&tr.innerText.includes('일근무')&&tr.cells[3].innerText.trim()==='3'&&document.querySelector('table').innerText.includes('2091/12 계')})()"
+        "expect:(()=>{const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('QA관리-일용R'));return tr&&tr.innerText.includes('일근무')&&tr.cells[3].innerText.trim()==='3'&&document.querySelector('table').innerText.includes('2091/12 계')})()",
+        "pick:사원번호:QA관리-일용R",
+        "clicklast:확인",
+        "wait:300",
+        "expect:document.querySelector('table').innerText.includes('QA관리-일용R')",
+        "js:(()=>{[...document.querySelectorAll('label')].filter(l=>l.textContent.trim()==='사용')[1].querySelector('input').click();return true})()",
+        "wait:300",
+        "set:input[aria-label=\"지급일 시작\"]|2000-01-01",
+        "set:input[aria-label=\"지급일 끝\"]|2199-12-31",
+        "wait:300",
+        "expect:document.querySelector('table').innerText.includes('QA관리-일용R')",
+        "set:input[aria-label=\"지급일 시작\"]|2199-12-31",
+        "wait:300",
+        "expect:!document.querySelector('table').innerText.includes('QA관리-일용R')"
       ]
     },
     {

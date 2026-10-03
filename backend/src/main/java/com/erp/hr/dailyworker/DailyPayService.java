@@ -187,7 +187,9 @@ public class DailyPayService {
     public List<ConfirmReportLine> confirmReport(String from, String to) {
         return confirmRepository.findInMonths(from, to).stream()
                 .map(c -> new ConfirmReportLine(c.getLedger().getPayMonth(), c.getLedger().getSeq(),
-                        c.getWorker().getCode(), c.getWorker().getName(), "일근무", c.getDays()))
+                        c.getLedger().getPaidMonth(), c.getLedger().getPayDate(), c.getWorker().getId(),
+                        c.getWorker().getCode(), c.getWorker().getName(),
+                        c.getWorker().getDepartment() != null ? c.getWorker().getDepartment().getId() : null, "일근무", c.getDays()))
                 .toList();
     }
 
