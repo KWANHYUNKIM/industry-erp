@@ -21,13 +21,21 @@ public class EmployeeCommuteDtos {
 
     public record CommuteResponse(
             Long id, LocalDate workDate, Long employeeId, String employeeCode, String employeeName, String department,
-            LocalDateTime clockIn, LocalDateTime clockOut, String place, boolean outside, boolean morningHalf, String reason
+            LocalDateTime clockIn, LocalDateTime clockOut, String place, boolean outside, boolean morningHalf, String reason,
+            Integer workMinutes, boolean late, LocalDateTime enteredAt, boolean employeeActive
     ) {
+        /** 지각 기준 — 근무현황 · 지각현황(ID)과 같은 09:00. 오전반차를 걸어 둔 날은 지각이 아니다. */
+        private static final java.time.LocalTime WORK_START = java.time.LocalTime.of(9, 0);
+
         public static CommuteResponse from(EmployeeCommute c) {
             var e = c.getEmployee();
+            Integer minutes = c.getClockOut() == null ? null
+                    : com.erp.hr.attendance.WorkTime.workMinutes(c.getClockIn().toLocalTime(), c.getClockOut().toLocalTime());
+            boolean late = !c.isMorningHalf() && c.getClockIn().toLocalTime().isAfter(WORK_START);
             return new CommuteResponse(c.getId(), c.getWorkDate(), e.getId(), e.getCode(), e.getName(),
                     e.getDepartment() != null ? e.getDepartment().getName() : "",
-                    c.getClockIn(), c.getClockOut(), c.getPlace(), c.isOutside(), c.isMorningHalf(), c.getReason());
+                    c.getClockIn(), c.getClockOut(), c.getPlace(), c.isOutside(), c.isMorningHalf(), c.getReason(),
+                    minutes, late, c.getCreatedAt(), e.isActive());
         }
     }
 }
