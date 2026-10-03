@@ -369,22 +369,33 @@ public class CostService {
             ItemCost cost = itemCostRepository.findByItemIdAndPeriod(itemId, p).orElse(null);
             if (cost == null) continue;   // 표준원가를 먼저 만들어야 한다
 
-            BigDecimal mat = materialAmount.getOrDefault(itemId, BigDecimal.ZERO)
-                    .divide(qty, 2, RoundingMode.HALF_UP);
+            /*
+             * <b>근거가 없으면 있던 값을 둔다.</b> 예전에는 그 달 투입 자재의 단가를 하나도 모르거나
+             * 그 품목 공정에 노무비/경비등록이 한 줄도 없어도 0 을 써 넣었다 — [생성] 한 번에
+             * 실제원가가 0 이 되고 차이분석이 -100%(전부 절감)로 읽혔다. 표준원가생성이
+             * "모르면 지어내지 않는다" 로 null 을 돌려 건너뛰는 것과 같은 규칙이다.
+             */
+            if (materialAmount.containsKey(itemId)) {
+                cost.setActualMaterial(materialAmount.get(itemId).divide(qty, 2, RoundingMode.HALF_UP));
+            }
 
             BigDecimal lab = BigDecimal.ZERO;
             BigDecimal oh = BigDecimal.ZERO;
+            boolean allocated = false;   // 이 품목 공정 중 노무비/경비등록이 있는 것이 하나라도 있나
             for (Map.Entry<Long, BigDecimal> h : hoursOf.getOrDefault(itemId, Map.of()).entrySet()) {
                 BigDecimal total = totalHoursByProcess.get(h.getKey());
                 if (total == null || total.signum() == 0) continue;
+                if (!laborByProcess.containsKey(h.getKey())) continue;
+                allocated = true;
                 BigDecimal share = h.getValue().multiply(qty).divide(total, 8, RoundingMode.HALF_UP);
-                lab = lab.add(laborByProcess.getOrDefault(h.getKey(), BigDecimal.ZERO).multiply(share));
+                lab = lab.add(laborByProcess.get(h.getKey()).multiply(share));
                 oh = oh.add(overheadByProcess.getOrDefault(h.getKey(), BigDecimal.ZERO).multiply(share));
             }
 
-            cost.setActualMaterial(mat);
-            cost.setActualLabor(lab.divide(qty, 2, RoundingMode.HALF_UP));
-            cost.setActualOverhead(oh.divide(qty, 2, RoundingMode.HALF_UP));
+            if (allocated) {
+                cost.setActualLabor(lab.divide(qty, 2, RoundingMode.HALF_UP));
+                cost.setActualOverhead(oh.divide(qty, 2, RoundingMode.HALF_UP));
+            }
             updated.add(CostResponse.from(cost));
         }
         return updated;
