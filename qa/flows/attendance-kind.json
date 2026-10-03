@@ -1,5 +1,5 @@
 {
-  "about": "관리 > 근태항목등록(E020701) — 원본처럼 [신규(F2)] 창에 다음 근태코드가 미리 차 있고, 근태명칭 · 근태유형을 넣고 저장하면 목록에 붙는다. 근태입력의 [근태항목]에 그 항목이 뜨고, 사용중단/재사용 ▲ › 삭제('삭제하시겠습니까?')로 지운다.",
+  "about": "관리 > 근태항목등록(E020701) — 원본처럼 [신규(F2)] 창에 다음 근태코드가 미리 차 있고, 근태명칭 · 근태유형을 넣고 저장하면 목록에 붙는다. 근태입력의 [근태항목]에 그 항목이 뜨고, 사용중단/재사용 ▲ › 삭제('삭제하시겠습니까?')로 지운다. [근태그룹]은 원본처럼 코드도움 — 옆 [신규]로 근태그룹등록(코드 00001 꼴)을 하면 그 이름이 칸에 차고 목록 근태그룹 열에 뜬다. 끝에 그룹을 지운다.",
   "shots": [
     {
       "name": "근태항목 신규 → 목록",
@@ -8,9 +8,16 @@
         "click:신규(F2)",
         "expect:/^\\d{5}$/.test(document.querySelector('[role=dialog] .ec-form input.ec-input').value)",
         "setnear:근태명칭|QA관리-근태",
+        "js:[...document.querySelectorAll('[role=dialog] button')].find(b=>b.textContent.trim()==='신규').click();true",
+        "wait:500",
+        "expect:/^\\d{5}$/.test([...document.querySelectorAll('[role=dialog]')].pop().querySelector('input').value)",
+        "setnear:근태그룹 명|QA관리-그룹",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].filter(d=>d.innerText.includes('근태그룹 명')).pop().querySelectorAll('button')].filter(b=>b.textContent.trim().startsWith('저장')).pop().click();true",
+        "wait:800",
+        "expect:[...document.querySelectorAll('[role=dialog] input')].some(i=>i.value==='QA관리-그룹')",
         "clicklast:저장(F8)",
         "wait:1200",
-        "expect:[...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes('QA관리-근태')&&t.innerText.includes('기본')&&t.innerText.includes('Yes'))"
+        "expect:[...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes('QA관리-근태')&&t.innerText.includes('기본')&&t.innerText.includes('Yes')&&t.innerText.includes('QA관리-그룹'))"
       ]
     },
     {
@@ -28,7 +35,9 @@
         "click:사용중단/재사용",
         "js:[...document.querySelectorAll('.ec-menu button')].find(b=>b.textContent==='삭제').click();true",
         "wait:1200",
-        "expect:![...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes('QA관리-근태'))"
+        "expect:![...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes('QA관리-근태'))",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const gs=await (await fetch('/api/hr/attendance-kind-groups',{headers:h})).json();let ok=true;for(const g of gs.filter(x=>x.name==='QA관리-그룹'))ok=(await fetch('/api/hr/attendance-kind-groups/'+g.id,{method:'DELETE',headers:h})).ok&&ok;sessionStorage.setItem('qaAkg',String(ok&&gs.some(x=>x.name==='QA관리-그룹')));return true})()",
+        "expect:sessionStorage.getItem('qaAkg')==='true'"
       ]
     }
   ]

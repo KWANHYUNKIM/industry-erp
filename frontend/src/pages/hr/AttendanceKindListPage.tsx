@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import CodePickerField from '../../components/CodePickerField'
+import AttendanceGroupField from '../../features/attendancekind/components/AttendanceGroupField'
 import { useTableSort } from '../../utils/useTableSort'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
@@ -23,7 +24,7 @@ const TYPES: [KindType, string][] = [['BASIC', '기본'], ['VACATION', '휴가']
  *       계산단위(일 · 시간) · 적요. 저장하면 안내 없이 목록에 붙는다. 삭제는 '삭제하시겠습니까?'.</li>
  * </ul>
  * 근태입력의 [근태항목]이 이 목록(사용 중인 것)에서 고른다. 근태유형이 '휴가' 면 원본처럼 [휴가코드](휴가항목등록)가 나타나고
- * 비면 '휴가코드를 입력 바랍니다.' 로 막힌다. 연차에서 빼는 것은 여전히 이름이 연차 · 반차인 항목이다. 근태그룹은 글자로 적는다(코드도움 아님).
+ * 비면 '휴가코드를 입력 바랍니다.' 로 막힌다. 연차에서 빼는 것은 여전히 이름이 연차 · 반차인 항목이다. 근태그룹은 원본처럼 코드도움(근태그룹검색 · [신규] 근태그룹등록 — AttendanceGroupField)이고 그룹 이름을 담는다.
  */
 export default function AttendanceKindListPage() {
   const [rows, setRows] = useState<Kind[]>([])
@@ -172,7 +173,7 @@ export default function AttendanceKindListPage() {
           </li>
           <li className="wide">
             <span className="title">근태그룹</span>
-            <div className="form"><input className="ec-input w-full" placeholder="근태그룹" value={form.kindGroup} onChange={(e) => setForm({ ...form, kindGroup: e.target.value })} /></div>
+            <div className="form"><AttendanceGroupField value={form.kindGroup} onChange={(v) => setForm({ ...form, kindGroup: v })} /></div>
           </li>
           <li className="wide">
             <span className="title">근태유형</span>

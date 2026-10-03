@@ -11122,6 +11122,20 @@ async function scenarioAttendanceKind() {
   await must('DELETE', `/hr/vacation-kinds/${v.id}`)
   eq('next-code 가 다섯 자리', /^\d{5}$/.test((await must('GET', '/hr/vacation-kinds/next-code')).code), 'true')
   eq('지운 항목은 목록에 없다', (await must('GET', '/hr/attendance-kinds')).some((x) => x.id === k.id), 'false')
+
+  // 근태그룹 — 원본 [근태그룹] 코드도움 · 근태그룹등록(코드 00001 꼴 · 명). 근태항목은 그룹 이름을 담는다.
+  const gNext = (await must('GET', '/hr/attendance-kind-groups/next-code')).code
+  const g = await must('POST', '/hr/attendance-kind-groups', { name: 'QA-근태그룹' })
+  eq('비우면 다음 근태그룹 코드', g.code, gNext)
+  await rejects('근태그룹 명이 비면 막는다', 'POST', '/hr/attendance-kind-groups', { name: '' }, '근태그룹 명을 입력')
+  await rejects('같은 근태그룹 코드는 막는다', 'POST', '/hr/attendance-kind-groups', { code: g.code, name: 'QA-근태그룹2' }, '이미 등록된 근태그룹 코드')
+  const gk = await must('POST', '/hr/attendance-kinds', { name: 'QA-근태G', kindGroup: 'QA-근태그룹', type: 'BASIC', hourUnit: false })
+  await rejects('근태항목이 쓰는 근태그룹은 지울 수 없다', 'DELETE', `/hr/attendance-kind-groups/${g.id}`, undefined, '근태항목에서 쓰고 있는')
+  await must('PUT', `/hr/attendance-kind-groups/${g.id}`, { code: g.code, name: 'QA-근태그룹B' })
+  eq('그룹 이름을 바꾸면 근태항목의 근태그룹도 바뀐다', (await must('GET', '/hr/attendance-kinds')).find((x) => x.id === gk.id)?.kindGroup, 'QA-근태그룹B')
+  await must('DELETE', `/hr/attendance-kinds/${gk.id}`)
+  await must('DELETE', `/hr/attendance-kind-groups/${g.id}`)
+  eq('지운 근태그룹은 목록에 없다', (await must('GET', '/hr/attendance-kind-groups')).some((x) => x.id === g.id), 'false')
 }
 
 /** 관리 › 출/퇴근반영기준(원본 E020725) — 코드 필수 · 같은 코드 막기 · 제외시간 꼴 · 사용중단 · 삭제. */
