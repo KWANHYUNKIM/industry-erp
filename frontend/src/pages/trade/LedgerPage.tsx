@@ -187,8 +187,14 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
       .catch(() => { setAliasOf(new Map()); setParentOf(new Map()) })
   }, [])
 
+  /*
+   * [검색(F8)]을 누른 횟수 — 기간별 움직임 · 전표 줄도 이 값이 바뀌면 다시 받는다. 예전엔 잔액만 다시 읽어서
+   * 판매 · 수금을 넣고 검색해도 기초 · 재고매출 · 수금합계 칸은 기간을 바꾸기 전까지 옛 숫자였다.
+   */
+  const [tick, setTick] = useState(0)
   /** 잔액을 다시 읽는다. 원본 [검색(F8)] 이 이 일을 한다. */
   const load = useCallback(() => {
+    setTick((t) => t + 1)
     setLoading(true)
     setError('')
     api
@@ -207,7 +213,7 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
       .get<Movement[]>('/ledger/partner-movements', { params: { from, to, side } })
       .then((res) => setMoves(res.data))
       .catch((err) => setError(extractErrorMessage(err)))
-  }, [oneSide, side, from, to])
+  }, [oneSide, side, from, to, tick])
 
   /*
    * 전표 줄은 <b>그 셋을 고를 때만</b> 받는다 — 거래처별로 보는 사람에게는 쓸 데가 없는데
@@ -221,7 +227,7 @@ export default function LedgerPage({ side: initialSide = 'BOTH' }: { side?: Ledg
         { params: { from, to, side, all: entryCut.all || undefined } })
       .then((res) => { setEntries(res.data.rows); setEntryCut((c) => ({ ...c, total: res.data.totalRows, truncated: res.data.truncated })) })
       .catch((err) => setError(extractErrorMessage(err)))
-  }, [oneSide, byDoc, side, from, to, entryCut.all])
+  }, [oneSide, byDoc, side, from, to, entryCut.all, tick])
 
   const shown = useMemo(() => rows.filter((r) => {
     if (partner && String(r.partnerId) !== partner) return false
