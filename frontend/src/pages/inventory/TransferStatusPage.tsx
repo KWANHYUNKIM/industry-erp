@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
+import { dateNo } from '../../utils/dateNo'
 import type { Warehouse } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
@@ -440,7 +441,7 @@ export default function TransferStatusPage() {
                   </td>
                   <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
                   <td>
-                    {r.transferDate.replace(/-/g, '/')} {r.transferNo}
+                    {dateNo(r.transferDate, r.transferNo)}
                   </td>
                   <td style={{ color: '#a5561b' }}>{r.fromWarehouseName}</td>
                   <td className="text-ec-blue">{r.toWarehouseName}</td>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
+import { dateNo } from '../../utils/dateNo'
 import type { CodeOption, Warehouse } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
@@ -571,7 +572,7 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
                   <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
                   {kind === 'DEFECT' && <td className="text-ec-label">{r.kind ?? ''}</td>}
                   {kind === 'DEFECT' && <td className="text-ec-label">{r.handling ?? ''}</td>}
-                  <td className="text-center">{r.adjustDate.replace(/-/g, '/')} {r.adjustNo}</td>
+                  <td className="text-center">{dateNo(r.adjustDate, r.adjustNo)}</td>
                   <td>{r.itemCode}</td>
                   {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다 — 우리는 칸을 따로 두고 있었다. */}
                   <td>{r.itemName}{r.spec ? ' [' + r.spec + ']' : ''}</td>

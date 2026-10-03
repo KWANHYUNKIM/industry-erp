@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
+import { dateNo } from '../../utils/dateNo'
 import type { Item, Warehouse } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
@@ -353,7 +354,7 @@ export default function StocktakeStatusPage() {
                 <tr key={r.id} style={r.diff !== 0 ? { background: '#fdf7f8' } : undefined}>
                   <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
                   {/* 원본은 일자와 번호를 한 칸에 적는다. */}
-                  <td className="text-center">{r.requestDate.replace(/-/g, '/')} {r.adjustNo}</td>
+                  <td className="text-center">{dateNo(r.requestDate, r.adjustNo)}</td>
                   <td>{r.itemCode}</td>
                   {/* 규격은 줄에 없고 품목 마스터가 든다 — id 로 잇는다. */}
                   <td>{r.itemName}{specOf(r.itemId) ? ` [${specOf(r.itemId)}]` : ''}</td>
