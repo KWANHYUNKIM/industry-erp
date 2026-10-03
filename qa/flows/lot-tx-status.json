@@ -1,0 +1,19 @@
+{
+  "about": "시리얼/로트No.내역현황(E040639) — 2026-10-03 원본 [내역] 판(머리 '시리얼/로트No.현황'): 일자-No. · 품목명 · 시리얼/로트No. · 유효기한 · 전표구분 · 거래처명 · 적요 · 수량 · 연관시리얼/로트No. · 연결전표, 달마다 'YYYY/MM 계', 끝에 합계. 수량은 부호 없이(판매도 1.00). 오늘 3개 구매 · 1개 판매(로트 QA2-L003) → 두 줄 · 거래처 · 연결전표 → [거래처] 조건 → 지움.",
+  "shots": [
+    {
+      "name": "구매 3 · 판매 1 → 현황 두 줄(3.00 · 1.00) · 달 계 · 합계 → 지움",
+      "path": "/quality/lot-tx-status",
+      "steps": [
+        "wait:2000",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => (r.status === 204 ? null : r.json())); const [pa, it, wh] = await Promise.all([A('GET', '/partners'), A('GET', '/items'), A('GET', '/warehouses')]); const base = it[0]; const item = it.find((x) => x.code === 'QA2LOT01') ?? await A('POST', '/items', { code: 'QA2LOT01', name: 'QA재고2-로트품목', unit: 'EA', category: base.category, unitPrice: 0, safetyStock: 0, lotManaged: true }); const c = pa[0], w = wh[0]; const pur = await A('POST', '/purchases', { partnerId: c.id, warehouseId: w.id, remark: 'QA재고2', lines: [{ itemId: item.id, quantity: 3, unitPrice: 1000, lotNo: 'QA2-L003' }] }); const s = await A('POST', '/sales', { partnerId: c.id, warehouseId: w.id, remark: 'QA재고2', lines: [{ itemId: item.id, quantity: 1, unitPrice: 2000, lotNo: 'QA2-L003' }] }); sessionStorage.setItem('lots', JSON.stringify({ pur: pur.id, sale: s.id, partner: c.name })); return '구매 ' + pur.docNo + ' 판매 ' + s.docNo })()",
+        "js:location.reload(); true",
+        "wait:3000",
+        "expect:[...document.querySelectorAll('table thead th')].map((t) => t.innerText.trim()).join('|') === '일자-No.|품목명|시리얼/로트No.|유효기한|전표구분|거래처명|적요|수량|연관시리얼/로트No.|연결전표'",
+        "expect:(() => { const p = JSON.parse(sessionStorage.getItem('lots')).partner; const rows = [...document.querySelectorAll('tbody tr')].filter((tr) => tr.innerText.includes('QA2-L003')); const pu = rows.find((tr) => tr.cells[4].innerText.trim() === '구매'); const sa = rows.find((tr) => tr.cells[4].innerText.trim() === '판매'); return !!pu && !!sa && pu.cells[7].innerText.trim() === '3.00' && sa.cells[7].innerText.trim() === '1.00' && pu.cells[5].innerText.trim() === p && / -\\d+$/.test(sa.cells[9].innerText.trim()) && / -\\d+$/.test(pu.cells[0].innerText.trim()) })()",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => / 계$/.test(tr.cells[0].innerText.trim())) && document.querySelector('tfoot').innerText.includes('합계') && document.body.innerText.includes('시리얼/로트No.현황')",
+        "expect:(async () => { const x = JSON.parse(sessionStorage.getItem('lots')); const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const a = await fetch('/api/sales/' + x.sale, { method: 'DELETE', headers: H }); const b = await fetch('/api/purchases/' + x.pur, { method: 'DELETE', headers: H }); return a.status === 204 && b.status === 204 })()"
+      ]
+    }
+  ]
+}

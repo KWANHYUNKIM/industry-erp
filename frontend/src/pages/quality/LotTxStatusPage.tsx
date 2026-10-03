@@ -6,6 +6,8 @@ import EcPeriodPicks, { periodOf, INQUIRY_PICKS } from '../../components/EcPerio
 import { api, extractErrorMessage } from '../../api/client'
 import type { LotTransaction } from '../../types/api'
 import { dateText } from '../../utils/dateText'
+import { dateNo } from '../../utils/dateNo'
+import { EcReportHead, EcReportFoot, reportPeriod } from '../../components/EcReportFrame'
 import { subtotalBy } from '../../utils/subtotalBy'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 
@@ -33,6 +35,7 @@ const UNITS = ['일별', '월별', '라인별', '전표별', '품목별', '전�
 type Unit = typeof UNITS[number]
 
 const num = (n: number) => n.toLocaleString('ko-KR')
+const qty2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 /* 원본은 [금월(~오늘)] 을 보고 열린다(실측). */
 const initP = periodOf('금월(~오늘)')!
@@ -116,7 +119,24 @@ export default function LotTxStatusPage() {
     return subtotalBy(shown, keyOf, { qty: (r) => r.quantityChange })
   }, [shown, unit])
 
-  const totalQty = useMemo(() => shown.reduce((s, r) => s + r.quantityChange, 0), [shown])
+  /*
+   * 원본 [내역] 판(2026-10-03 실측, 머리 '시리얼/로트No.현황'): 일자-No. 오름차순, 달마다 'YYYY/MM 계', 끝에 합계.
+   * 수량은 부호 없이 더한다(구매 · 판매가 다 + 로 쌓여 합계 106.00). 일자-No. 의 번호는 그날 시리얼/로트 줄의 차례.
+   */
+  const seqOf = useMemo(() => {
+    const m = new Map<number, number>()
+    const byDay = new Map<string, number>()
+    for (const r of [...rows].sort((a, b) => a.id - b.id)) {
+      const n = (byDay.get(r.txDate) ?? 0) + 1
+      byDay.set(r.txDate, n)
+      m.set(r.id, n)
+    }
+    return m
+  }, [rows])
+  const lines = useMemo(() => [...shown].sort((a, b) =>
+    a.txDate < b.txDate ? -1 : a.txDate > b.txDate ? 1 : (seqOf.get(a.id) ?? 0) - (seqOf.get(b.id) ?? 0)), [shown, seqOf])
+  const absQty = (r: LotTransaction) => Math.abs(Number(r.quantityChange))
+  const totalQty = useMemo(() => lines.reduce((s, r) => s + absQty(r), 0), [lines])
 
   return (
     <EcListShell
@@ -124,12 +144,8 @@ export default function LotTxStatusPage() {
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={load}
-      actions={[{ label: '새로고침', onClick: () => load() }, { label: '인쇄' }, { label: 'Excel' }]}
+      actions={[{ label: '검색(F8)', primary: true, onClick: () => load() }, { label: '인쇄' }, { label: 'Excel' }]}
     >
-      <p className="mb-2 text-xs text-ec-hint">
-        기준일자 구간의 로트 움직임. [집계]로 바꾸면 고른 단위로 합쳐서 본다.
-      </p>
-
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
@@ -203,11 +219,6 @@ export default function LotTxStatusPage() {
         </EcCond>
       </ul>
 
-      <div className="mb-[8px] text-[12.5px] text-ec-label">
-        {dateText(from)} ~ {dateText(to)} · 줄 <b className="text-ec-text">{num(shown.length)}</b>건 ·
-        수량합 <b className="text-ec-navy">{num(totalQty)}</b>
-      </div>
-
       {mode === '집계' ? (
         <table className="w-full text-left">
           <thead>
@@ -234,44 +245,71 @@ export default function LotTxStatusPage() {
           </tbody>
         </table>
       ) : (
-        <table className="w-full text-left">
+        <>
+        <EcReportHead title="시리얼/로트No.현황" period={reportPeriod(from, to)} />
+        <table className="ec-report w-full text-left">
           <thead>
             <tr>
-              <th className="w-[34px]"></th>
-              <th className="w-[100px]">일자</th>
-              <th className="w-[150px]">시리얼/로트No.</th>
-              <th className="w-[110px]">품목코드</th>
+              <th className="text-center">일자-No.</th>
               <th>품목명</th>
-              <th className="w-[120px]">창고</th>
-              <th className="w-[100px]">유효기한</th>
-              <th className="w-[90px]">전표구분</th>
-              <th className="w-[110px] text-right">수량</th>
-              <th className="w-[110px] text-right">잔량</th>
+              <th>시리얼/로트No.</th>
+              <th className="text-center">유효기한</th>
+              <th className="text-center">전표구분</th>
+              <th>거래처명</th>
+              <th>적요</th>
+              <th className="text-right">수량</th>
+              <th>연관시리얼/로트No.</th>
+              <th className="text-center">연결전표</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr><td colSpan={10} className="ec-empty">불러오는 중…</td></tr>
-            ) : shown.length === 0 ? (
+            ) : lines.length === 0 ? (
               <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-            ) : shown.map((r, i) => (
-              <tr key={r.id}>
-                <td className="text-center text-ec-hint">{i + 1}</td>
-                <td>{dateText(r.txDate)}</td>
-                <td>{r.lotNo}</td>
-                <td className="text-ec-label">{r.itemCode}</td>
-                <td>{r.itemName}</td>
-                <td style={{ color: r.warehouseName ? undefined : 'var(--ec-text-off)' }}>{r.warehouseName ?? '(미지정)'}</td>
-                <td style={{ color: r.expireDate ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{dateText(r.expireDate) || ''}</td>
-                <td>{(r.docType ?? r.typeName)}</td>
-                <td style={{ textAlign: 'right', color: r.quantityChange < 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>
-                  {num(r.quantityChange)}
-                </td>
-                <td className="text-right">{num(r.balanceAfter)}</td>
-              </tr>
-            ))}
+            ) : lines.flatMap((r, i) => {
+              const month = r.txDate.slice(0, 7)
+              const out = [
+                <tr key={r.id}>
+                  <td className="text-center">{`${dateText(r.txDate)} -${seqOf.get(r.id) ?? ''}`}</td>
+                  <td>{r.itemName}</td>
+                  <td>{r.lotNo}</td>
+                  <td className="text-center">{r.expireDate ? dateText(r.expireDate) : ''}</td>
+                  <td className="text-center">{r.docType ?? r.typeName}</td>
+                  <td>{r.partnerName ?? ''}</td>
+                  <td>{r.docType ? '' : (r.note ?? '')}</td>
+                  <td className="text-right">{qty2(absQty(r))}</td>
+                  <td></td>
+                  <td className="text-center ec-link">{r.sourceNo ? dateNo(r.txDate, r.sourceNo) : ''}</td>
+                </tr>,
+              ]
+              const next = lines[i + 1]
+              if (!next || next.txDate.slice(0, 7) !== month) {
+                const sum = lines.filter((x) => x.txDate.slice(0, 7) === month).reduce((s, x) => s + absQty(x), 0)
+                out.push(
+                  <tr key={`${month}-sum`} className="ec-total">
+                    <td colSpan={7} className="text-center">{month.replace('-', '/')} 계</td>
+                    <td className="text-right">{qty2(sum)}</td>
+                    <td></td>
+                    <td></td>
+                  </tr>)
+              }
+              return out
+            })}
           </tbody>
+          {lines.length > 0 && (
+            <tfoot>
+              <tr>
+                <td colSpan={7} className="text-center">합계</td>
+                <td className="text-right">{qty2(totalQty)}</td>
+                <td></td>
+                <td></td>
+              </tr>
+            </tfoot>
+          )}
         </table>
+        <EcReportFoot />
+        </>
       )}
     </EcListShell>
   )
