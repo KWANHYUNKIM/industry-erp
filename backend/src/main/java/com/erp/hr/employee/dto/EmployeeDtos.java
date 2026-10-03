@@ -3,6 +3,7 @@ package com.erp.hr.employee.dto;
 import com.erp.hr.employee.Employee;
 import com.erp.hr.employee.EmployeeAssignment;
 import com.erp.hr.employee.AssignmentType;
+import com.erp.hr.employee.PayType;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -65,13 +66,14 @@ public class EmployeeDtos {
      * 사원 등록. 원본 사원(담당)등록의 칸이다.
      *
      * <p>사번은 사람이 정한다 — 회사마다 규칙이 다르고(입사연도·부서 접두어),
-     * 우리가 지어내면 그 규칙과 어긋난 번호가 섞인다.
+     * 우리가 지어내면 그 규칙과 어긋난 번호가 섞인다. 다만 원본처럼 빈칸으로 두면
+     * 다음 번호(00001 꼴)를 매긴다 — 폼은 그 번호를 미리 채워 보여 준다(/employees/next-code).
      */
     public record CreateEmployeeRequest(
             @Size(max = 50, message = "사번은 50자까지 넣을 수 있습니다.")
-            @NotBlank(message = "사번을 입력하세요.") String code,
+            String code,
             @Size(max = 100, message = "성명은 100자까지 넣을 수 있습니다.")
-            @NotBlank(message = "성명을 입력하세요.") String name,
+            @NotBlank(message = "사원명을 입력 바랍니다.") String name,
             Long departmentId,
             @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
             String jobTitle,
@@ -85,7 +87,15 @@ public class EmployeeDtos {
             @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
             String searchKeyword,
             @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
-            String remark
+            String remark,
+            /* 원본 관리 > 사원등록의 [급여구분]·[모바일]·[퇴사사유]·[주소]. 급여구분을 비우면 고정급. */
+            PayType payType,
+            @Size(max = 30, message = "입력한 글자가 너무 깁니다. 30자까지 넣을 수 있습니다.")
+            String mobile,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
+            String resignReason,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
+            String address
     ) {}
 
     /**
@@ -96,7 +106,7 @@ public class EmployeeDtos {
      */
     public record UpdateEmployeeRequest(
             @Size(max = 100, message = "성명은 100자까지 넣을 수 있습니다.")
-            @NotBlank(message = "성명을 입력하세요.") String name,
+            @NotBlank(message = "사원명을 입력 바랍니다.") String name,
             Long departmentId,
             @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
             String jobTitle,
@@ -112,8 +122,19 @@ public class EmployeeDtos {
             String searchKeyword,
             @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String remark,
+            /* 원본 관리 > 사원등록의 [급여구분]·[모바일]·[퇴사사유]·[주소]. 급여구분을 비우면 고정급. */
+            PayType payType,
+            @Size(max = 30, message = "입력한 글자가 너무 깁니다. 30자까지 넣을 수 있습니다.")
+            String mobile,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
+            String resignReason,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
+            String address,
             Boolean active
     ) {}
+
+    /** 원본 사원등록 폼이 열릴 때 미리 채우는 다음 사원번호. */
+    public record NextCodeResponse(String code) {}
 
     public record EmployeeResponse(
             Long id,
@@ -127,7 +148,9 @@ public class EmployeeDtos {
             LocalDate resignDate,
             boolean active,
             /* 원본 [담당자연락처]·[담당자Email]·[검색창내용]·[적요]. */
-            String phone, String email, String searchKeyword, String remark
+            String phone, String email, String searchKeyword, String remark,
+            /* 원본 관리 > 사원등록의 [급여구분]·[모바일]·[퇴사사유]·[주소]. */
+            PayType payType, String payTypeName, String mobile, String resignReason, String address
     ) {
         public static EmployeeResponse from(Employee e) {
             return new EmployeeResponse(
@@ -137,7 +160,9 @@ public class EmployeeDtos {
                     e.getJobTitle() != null ? e.getJobTitle() : "",
                     e.getBaseSalary(),
                     e.getHireDate(), e.getResignDate(), e.isActive(),
-                    e.getPhone(), e.getEmail(), e.getSearchKeyword(), e.getRemark());
+                    e.getPhone(), e.getEmail(), e.getSearchKeyword(), e.getRemark(),
+                    e.getPayType(), e.getPayType().getDisplayName(),
+                    e.getMobile(), e.getResignReason(), e.getAddress());
         }
 
         /**
@@ -154,7 +179,8 @@ public class EmployeeDtos {
             return new EmployeeResponse(id, code, name, departmentId, department, jobTitle,
                     null, hireDate, resignDate, active,
                     /* 연락처·적요는 급여가 아니다 — 가릴 것은 급여 칸 하나뿐이다. */
-                    phone, email, searchKeyword, remark);
+                    phone, email, searchKeyword, remark,
+                    payType, payTypeName, mobile, resignReason, address);
         }
     }
 }

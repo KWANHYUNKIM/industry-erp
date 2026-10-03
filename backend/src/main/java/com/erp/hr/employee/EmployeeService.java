@@ -9,6 +9,7 @@ import com.erp.hr.employee.dto.EmployeeDtos.CreateEmployeeRequest;
 import com.erp.hr.employee.dto.EmployeeDtos.EmployeeResponse;
 import com.erp.hr.employee.dto.EmployeeDtos.UpdateEmployeeRequest;
 import com.erp.hr.employee.dto.EmployeeDtos.UpdateSalaryRequest;
+import com.erp.common.DocumentNoGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +27,7 @@ public class EmployeeService {
     private final EmployeeRepository employeeRepository;
     private final EmployeeAssignmentRepository assignmentRepository;
     private final DepartmentService departmentService;
+    private final DocumentNoGenerator documentNoGenerator;
 
     /** 재직 중인 사원 (급여·조직도용) */
     @Transactional(readOnly = true)
@@ -43,9 +45,18 @@ public class EmployeeService {
                 .toList();
     }
 
+    /**
+     * 원본 사원등록 폼은 열자마자 [사원번호]에 다음 번호(00007 꼴, 다섯 자리)를 채워 둔다.
+     * 숫자로만 된 사번 중 가장 큰 것 + 1 이다 — '2019-001' 처럼 사람이 정한 번호와는 섞이지 않는다.
+     */
+    @Transactional
+    public String nextCode() {
+        return documentNoGenerator.nextMasterCode("", "employees", "code", 5);
+    }
+
     @Transactional
     public EmployeeResponse create(CreateEmployeeRequest req) {
-        String code = req.code().trim();
+        String code = req.code() == null || req.code().isBlank() ? nextCode() : req.code().trim();
         if (employeeRepository.existsByCode(code)) {
             throw ApiException.conflict("이미 존재하는 사번입니다: " + code);
         }
@@ -60,6 +71,10 @@ public class EmployeeService {
                 .email(req.email())
                 .searchKeyword(req.searchKeyword())
                 .remark(req.remark())
+                .payType(req.payType() != null ? req.payType() : PayType.FIXED)
+                .mobile(req.mobile())
+                .resignReason(req.resignReason())
+                .address(req.address())
                 .active(true)
                 .build();
         return EmployeeResponse.from(employeeRepository.save(e));
@@ -90,6 +105,10 @@ public class EmployeeService {
         e.setEmail(req.email());
         e.setSearchKeyword(req.searchKeyword());
         e.setRemark(req.remark());
+        if (req.payType() != null) e.setPayType(req.payType());
+        e.setMobile(req.mobile());
+        e.setResignReason(req.resignReason());
+        e.setAddress(req.address());
 
         boolean active = req.active() == null ? e.isActive() : req.active();
         if (req.resignDate() != null) {
@@ -101,6 +120,21 @@ public class EmployeeService {
         }
         e.setActive(active);
         return EmployeeResponse.from(e);
+    }
+
+    /**
+     * 원본 사원리스트의 [선택삭제] · 사원등록 창의 [삭제].
+     *
+     * <p>원본은 확인 창("한번 지워진 자료는 복구될 수 없습니다.") 뒤에 실제로 지운다.
+     * 다만 전표·급여·근태가 물고 있는 사원은 지우면 지난 자료가 누구 것인지 잃으므로
+     * FK 가 막고, {@code GlobalExceptionHandler} 가 "…에서 쓰고 있어 지울 수 없습니다" 로 알린다.
+     * 그런 사원은 퇴사일을 넣어 퇴사자로 내린다.
+     */
+    @Transactional
+    public void delete(Long id) {
+        Employee e = get(id);
+        employeeRepository.delete(e);
+        employeeRepository.flush();   // FK 위반을 이 트랜잭션 안에서 터뜨린다
     }
 
     /**

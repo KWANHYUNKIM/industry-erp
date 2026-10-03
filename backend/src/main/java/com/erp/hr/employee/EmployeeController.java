@@ -85,7 +85,12 @@ public class EmployeeController {
         return employeeService.createAssignment(id, req, principal.getUsername());
     }
 
-    /** 사원 기본급 수정 */
+    /** 원본 사원등록 폼이 미리 채우는 다음 사원번호. */
+    @GetMapping("/next-code")
+    public EmployeeDtos.NextCodeResponse nextCode() {
+        return new EmployeeDtos.NextCodeResponse(employeeService.nextCode());
+    }
+
     /** 원본 사원(담당)등록의 [신규]. */
     @PostMapping
     public EmployeeDtos.EmployeeResponse create(
@@ -93,13 +98,20 @@ public class EmployeeController {
         return employeeService.create(req);
     }
 
-    /** 사원 수정. 퇴사·사용중단도 여기서 한다 — 사원은 지우지 않는다. */
+    /** 사원 수정. 퇴사도 여기서 한다(퇴사일을 넣으면 퇴사자로 내려간다). */
     @PutMapping("/{id}")
     public EmployeeDtos.EmployeeResponse update(
             @PathVariable Long id, @Valid @RequestBody EmployeeDtos.UpdateEmployeeRequest req) {
         return employeeService.update(id, req);
     }
 
+    /** 원본 [선택삭제]·[삭제]. 전표·급여·근태가 물고 있는 사원은 FK 가 막는다. */
+    @DeleteMapping("/{id}")
+    public void delete(@PathVariable Long id) {
+        employeeService.delete(id);
+    }
+
+    /** 사원 기본급 수정 */
     @PutMapping("/{id}/base-salary")
     public EmployeeResponse updateBaseSalary(@PathVariable Long id, @Valid @RequestBody UpdateSalaryRequest req) {
         return employeeService.updateBaseSalary(id, req);

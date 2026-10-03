@@ -75,4 +75,22 @@ public class Employee extends BaseTimeEntity {
     /** 원본 <b>[적요]</b>. 사원에 남기는 메모. */
     @Column(length = 200)
     private String remark;
+
+    /** 원본 관리 &gt; 사원등록의 [급여구분]. 고정급 · 변동급. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "pay_type", nullable = false, length = 10)
+    @Builder.Default
+    private PayType payType = PayType.FIXED;
+
+    /** 원본 [모바일]. [전화](phone)와 따로 둔다. */
+    @Column(length = 30)
+    private String mobile;
+
+    /** 원본 [퇴사사유]. */
+    @Column(name = "resign_reason", length = 100)
+    private String resignReason;
+
+    /** 원본 [주소]. */
+    @Column(length = 200)
+    private String address;
 }
