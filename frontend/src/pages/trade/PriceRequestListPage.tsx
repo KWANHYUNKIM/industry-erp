@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
+import { dateNo } from '../../utils/dateNo'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
@@ -172,7 +173,7 @@ export default function PriceRequestListPage() {
           ) : shown.map((o, i) => (
             <tr key={o.id}>
               <td className="text-center text-ec-hint">{i + 1}</td>
-              <td className="text-center">{dateText(o.orderDate)} {o.orderNo}</td>
+              <td className="text-center">{dateNo(o.orderDate, o.orderNo)}</td>
               <td>{o.lines[0]?.itemName ?? ''}{o.lines[0]?.spec ? ` [${o.lines[0].spec}]` : ''}{o.lines.length > 1 ? ` 외 ${o.lines.length - 1}건` : ''}</td>
               <td className="text-right">{won(Number(o.totalAmount))}</td>
               <td className="text-center">{o.priceValidUntil ? dateText(o.priceValidUntil) : ''}</td>

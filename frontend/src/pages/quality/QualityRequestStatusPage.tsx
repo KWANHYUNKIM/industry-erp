@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
+import { dateNo } from '../../utils/dateNo'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
@@ -126,7 +127,7 @@ export default function QualityRequestStatusPage() {
           ) : months.flatMap((g) => [
             ...g.rs.map((r) => (
               <tr key={r.id}>
-                <td className="text-center">{dateText(r.requestDate)} {r.requestNo}</td>
+                <td className="text-center">{dateNo(r.requestDate, r.requestNo)}</td>
                 <td>{r.requester ?? ''}</td>
                 <td>{method(r)}</td>
                 <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>

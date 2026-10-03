@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
+import { dateNo } from '../../utils/dateNo'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
@@ -516,7 +517,7 @@ export default function UnshippedPage() {
           ) : shown.map((r, i) => (
             <tr key={`${r.orderId}-${r.itemId}-${i}`}>
               <td className="text-center text-ec-hint">{i + 1}</td>
-              <td>{dateText(r.orderDate)} {r.orderNo}</td>
+              <td>{dateNo(r.orderDate, r.orderNo)}</td>
               <td>[{r.itemCode}] {nameSpec(r)}</td>
               <td className="text-right">{r.orderQty.toLocaleString()} {r.unit}</td>
               <td style={{ textAlign: 'right', fontWeight: 700, color: r.unshippedQty > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>{r.unshippedQty.toLocaleString()}</td>

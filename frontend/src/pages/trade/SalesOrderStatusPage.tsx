@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
+import { dateNo } from '../../utils/dateNo'
 import { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { comparePeriodOf, fetchWindow, type ComparePeriod } from '../../components/EcPeriodPicks'
@@ -596,7 +597,7 @@ export default function SalesOrderStatusPage() {
           ) : sort.sorted.map((r, i) => (
             <tr key={r.key}>
               <td className="text-center text-ec-hint">{i + 1}</td>
-              <td>{dateText(r.date)} {r.orderNo}</td>
+              <td>{dateNo(r.date, r.orderNo)}</td>
               <td style={{ fontFamily: 'monospace', color: r.dueDate ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{dateText(r.dueDate) || ''}</td>
               <td className="text-center">
                 <span style={{ color: STATUS_COLOR[r.status], fontWeight: 600, fontSize: 12 }}>

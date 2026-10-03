@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
+import { dateNo } from '../../utils/dateNo'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
@@ -156,7 +157,7 @@ export default function FixedAssetSlipListPage() {
           ) : rows.map((r, i) => (
             <tr key={r.key}>
               <td className="text-center text-ec-hint">{i + 1}</td>
-              <td className="text-center">{r.date.replace(/-/g, '/')} {r.no}</td>
+              <td className="text-center">{dateNo(r.date, r.no)}</td>
               <td className="text-center">{r.kind}</td>
               <td>{r.a.assetAccountName}</td>
               <td className="text-right">{won(r.cost)}</td>

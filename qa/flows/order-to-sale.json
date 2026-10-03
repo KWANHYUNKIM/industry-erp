@@ -22,9 +22,9 @@
       "name": "미출하현황 — 3개만 출하지시",
       "path": "/sales/unshipped",
       "steps": [
-        "expect:document.body.innerText.includes(sessionStorage.getItem('o2sOrder'))",
-        "js:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('o2sOrder'))); const el = tr.querySelector('input[type=number]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '3'); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
-        "js:[...[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('o2sOrder'))).querySelectorAll('button')].find((b) => b.textContent.trim() === '출하지시').click(); true",
+        "expect:document.body.innerText.includes(sessionStorage.getItem('o2sOrder').replace(/^[A-Z]+-(\\d{4})(\\d{2})(\\d{2})-0*(\\d+)$/, '$1/$2/$3 -$4'))",
+        "js:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('o2sOrder').replace(/^[A-Z]+-(\\d{4})(\\d{2})(\\d{2})-0*(\\d+)$/, '$1/$2/$3 -$4'))); const el = tr.querySelector('input[type=number]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '3'); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "js:[...[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('o2sOrder').replace(/^[A-Z]+-(\\d{4})(\\d{2})(\\d{2})-0*(\\d+)$/, '$1/$2/$3 -$4'))).querySelectorAll('button')].find((b) => b.textContent.trim() === '출하지시').click(); true",
         "expect:/출하지시 SH-[0-9]{8}-[0-9]{4} 생성됨/.test(document.body.innerText)",
         "js:sessionStorage.setItem('o2sShip', document.body.innerText.match(/SH-[0-9]{8}-[0-9]{4}(?= 생성됨)/)[0]); true"
       ]

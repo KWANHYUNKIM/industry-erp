@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
+import { dateNo } from '../../utils/dateNo'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { QUOTATION_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
-import { dateText } from '../../utils/dateText'
 import type { PurchaseOrder, PurchaseOrderStatus } from '../../types/api'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
@@ -167,7 +167,7 @@ export default function PurchasePlanListPage() {
           ) : rows.map((r, i) => (
             <tr key={r.key}>
               <td className="text-center text-ec-hint">{i + 1}</td>
-              <td className="text-center">{dateText(r.date)} {r.no}</td>
+              <td className="text-center">{dateNo(r.date, r.no)}</td>
               <td>{r.partner}</td>
               <td>{r.item}</td>
               <td className="text-right">{qty(r.qty)}</td>

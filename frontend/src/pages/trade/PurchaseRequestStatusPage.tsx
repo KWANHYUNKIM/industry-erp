@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
+import { dateNo } from '../../utils/dateNo'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
@@ -784,7 +785,7 @@ export default function PurchaseRequestStatusPage({
           ) : sort.sorted.map((r, i) => (
             <tr key={r.key}>
               <td className="text-center text-ec-hint">{i + 1}</td>
-              <td>{dateText(r.date)} {r.orderNo}</td>
+              <td>{dateNo(r.date, r.orderNo)}</td>
               <td style={{ fontFamily: 'monospace', color: r.dueDate ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{dateText(r.dueDate) || ''}</td>
               <td style={{ color: r.warehouse ? undefined : 'var(--ec-text-off)' }}>{r.warehouse || ''}</td>
               <td style={{ color: r.employee ? undefined : 'var(--ec-text-off)' }}>{r.employee || ''}</td>

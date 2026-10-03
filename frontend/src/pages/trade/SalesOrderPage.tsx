@@ -1,6 +1,7 @@
 import { resolveSpecialPrice } from '../../features/price/specialPrice'
 import { useEffect, useMemo, useState, type FormEvent, useRef} from 'react'
 import { api, extractErrorMessage } from '../../api/client'
+import { dateNo } from '../../utils/dateNo'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { Item, Partner } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
@@ -365,7 +366,7 @@ export default function SalesOrderPage() {
           ) : shown.map((o, i) => (
             <tr key={o.id}>
               <td className="text-center text-ec-hint">{i + 1}</td>
-              <td>{dateText(o.orderDate)} {o.orderNo}</td>
+              <td>{dateNo(o.orderDate, o.orderNo)}</td>
               <td>{o.partnerName}</td>
               <td>{o.employeeName ?? ''}</td>
               <td>{o.lines[0]?.itemName}{o.lines.length > 1 ? ` 외 ${o.lines.length - 1}건` : ''}</td>

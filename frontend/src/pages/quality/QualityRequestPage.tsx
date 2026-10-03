@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
+import { dateNo } from '../../utils/dateNo'
 import type { Item, QualityInspectionRequest, QualityInspectionType, QualityRequestStatus } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
@@ -366,7 +367,7 @@ export default function QualityRequestPage() {
           ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
               <td className="text-center text-ec-hint">{i + 1}</td>
-              <td>{dateText(r.requestDate)} {r.requestNo}</td>
+              <td>{dateNo(r.requestDate, r.requestNo)}</td>
               <td>{r.typeName}</td>
               <td style={{ color: r.inspectMethod ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>
                 {r.inspectMethod

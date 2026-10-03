@@ -3,6 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
+import { dateNo } from '../../utils/dateNo'
 import type { PurchaseOrder, PurchaseOrderStatus } from '../../types/api'
 import { dateText } from '../../utils/dateText'
 import EcPeriodPicks, { INQUIRY_FULL_PICKS, periodOf } from '../../components/EcPeriodPicks'
@@ -453,7 +454,7 @@ export default function UnpurchasedStatusPage() {
             <tr key={x.key}>
               <td className="text-center text-ec-hint">{x.no}</td>
               {/* 원본은 일자와 번호를 한 칸에 적는다. */}
-              <td className="text-center">{dateText(x.r.date)} {x.r.orderNo}</td>
+              <td className="text-center">{dateNo(x.r.date, x.r.orderNo)}</td>
               <td style={{ fontFamily: 'monospace', color: x.r.dueDate ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{dateText(x.r.dueDate) || ''}</td>
               <td style={{ color: x.r.warehouse ? undefined : 'var(--ec-text-off)' }}>{x.r.warehouse || ''}</td>
               <td style={{ color: x.r.employee ? undefined : 'var(--ec-text-off)' }}>{x.r.employee || ''}</td>

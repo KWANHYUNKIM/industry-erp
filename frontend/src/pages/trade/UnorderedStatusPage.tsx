@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
+import { dateNo } from '../../utils/dateNo'
 import type { Quotation, QuotationStatus } from '../../types/api'
 import { INQUIRY_FULL_PICKS, ymd } from '../../components/EcPeriodPicks'
 import { periodOf } from '../../components/EcPeriodPicks'
@@ -11,7 +12,6 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import EcBarChart from '../../components/EcBarChart'
-import { dateText } from '../../utils/dateText'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 
 /**
@@ -502,7 +502,7 @@ export default function UnorderedStatusPage() {
             <tr key={x.key}>
               <td className="text-center text-ec-hint">{x.no}</td>
               {/* 원본은 일자와 번호를 '2026/03/12 -1' 처럼 한 칸에 적는다. */}
-              <td className="text-center">{dateText(x.r.date)} {x.r.quoteNo}</td>
+              <td className="text-center">{dateNo(x.r.date, x.r.quoteNo)}</td>
               <td style={{ fontFamily: 'monospace', color: x.r.expired ? 'var(--ec-danger)' : x.r.validUntil ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>
                 {x.r.validUntil ?? '-'}{x.r.expired ? ' (경과)' : ''}
               </td>

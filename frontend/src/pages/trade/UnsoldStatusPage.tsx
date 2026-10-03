@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
+import { dateNo } from '../../utils/dateNo'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { INQUIRY_FULL_PICKS, periodOf } from '../../components/EcPeriodPicks'
@@ -384,7 +385,7 @@ export default function UnsoldStatusPage() {
                 <tr key={r.orderLineId} className="cursor-pointer"
                     onClick={() => navigate('/sales/order-status')}>
                   <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
-                  <td className="text-ec-blue">{r.orderDate.replace(/-/g, '/')} {r.orderNo}</td>
+                  <td className="text-ec-blue">{dateNo(r.orderDate, r.orderNo)}</td>
                   <td>{r.itemName}{r.spec ? ` (${r.spec})` : ''} <span className="text-[11px] text-ec-hint">{r.itemCode}</span></td>
                   <td className="text-right">{num(r.orderQty)}</td>
                   <td className="text-right text-ec-hint">{num(r.soldQty)}</td>
