@@ -1,10 +1,6 @@
 package com.erp.quality.asrequest;
 
-import com.erp.quality.asrequest.dto.AsDtos.AsConsumptionLine;
-import com.erp.quality.asrequest.dto.AsDtos.AsConsumptionRow;
-import com.erp.quality.asrequest.dto.AsDtos.AsPartResponse;
 import com.erp.quality.asrequest.dto.AsDtos.AsResponse;
-import com.erp.quality.asrequest.dto.AsDtos.CreateAsPartRequest;
 import com.erp.quality.asrequest.dto.AsDtos.CreateAsRequest;
 import com.erp.quality.asrequest.dto.AsDtos.UpdateAsRequest;
 import com.erp.security.UserPrincipal;
@@ -50,78 +46,6 @@ public class AsController {
     }
 
     // 소모부품 -------------------------------------------------------------
-
-    /**
-     * A/S소모현황 — 품목별 소모 집계.
-     *
-     * <p>서버가 <b>품목별로 합쳐서</b> 주므로, 합친 뒤에는 화면에서 더 거를 수 없다.
-     * 그래서 원본 조건을 전부 여기서 받는다(2026-09-09 E040641 실측으로 일곱이 늘었다):
-     * 거래처그룹1 · 수리품목의 품목구분·품목그룹1 · 수리진행상태 · 제목 · 적요 · 최초작성자.
-     */
-    @GetMapping("/parts/consumption")
-    public List<AsConsumptionRow> consumption(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
-            @RequestParam(required = false) Long warehouseId,
-            @RequestParam(required = false) Long partnerId,
-            @RequestParam(required = false) Long repairItemId,
-            @RequestParam(required = false) Long projectId,
-            @RequestParam(required = false) String partnerGroup,
-            @RequestParam(required = false) String itemCategory,
-            @RequestParam(required = false) String itemGroup,
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) String title,
-            @RequestParam(required = false) String remark,
-            @RequestParam(required = false) String createdBy,
-            @RequestParam(required = false) String charge) {
-        return asService.consumption(from, to, warehouseId, partnerId, repairItemId, projectId,
-                partnerGroup, itemCategory, itemGroup, status, title, remark, createdBy, charge);
-    }
-
-    /**
-     * A/S소모현황의 <b>[내역]</b>. 원본(E040641)은 [구분] 기본이 <b>내역</b>이라
-     * 열면 소모부품 <b>한 줄씩</b>이 뜬다 — 우리는 집계만 내고 있었다(2026-09-09 실측).
-     * 조건은 집계와 <b>같은 것을 그대로</b> 받는다. 갈래마다 다르게 걸면 두 숫자가 어긋난다.
-     */
-    @GetMapping("/parts/consumption/lines")
-    public List<AsConsumptionLine> consumptionLines(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
-            @RequestParam(required = false) Long warehouseId,
-            @RequestParam(required = false) Long partnerId,
-            @RequestParam(required = false) Long repairItemId,
-            @RequestParam(required = false) Long projectId,
-            @RequestParam(required = false) String partnerGroup,
-            @RequestParam(required = false) String itemCategory,
-            @RequestParam(required = false) String itemGroup,
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) String title,
-            @RequestParam(required = false) String remark,
-            @RequestParam(required = false) String createdBy,
-            @RequestParam(required = false) String charge) {
-        return asService.consumptionLines(from, to, warehouseId, partnerId, repairItemId, projectId,
-                partnerGroup, itemCategory, itemGroup, status, title, remark, createdBy, charge);
-    }
-
-    @GetMapping("/{id}/parts")
-    public List<AsPartResponse> parts(@PathVariable Long id) {
-        return asService.findParts(id);
-    }
-
-    @PostMapping("/{id}/parts")
-    public ResponseEntity<AsPartResponse> addPart(
-            @PathVariable Long id,
-            @Valid @RequestBody CreateAsPartRequest req,
-            @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(asService.addPart(id, req, principal.getUsername()));
-    }
-
-    @DeleteMapping("/parts/{partId}")
-    public ResponseEntity<Void> deletePart(@PathVariable Long partId,
-                                           @AuthenticationPrincipal UserPrincipal principal) {
-        asService.deletePart(partId, principal.getUsername());
-        return ResponseEntity.noContent().build();
-    }
 
     /** 원본 A/S접수조회 [선택삭제] · 수정 창 [삭제]. */
     @DeleteMapping("/{id}")

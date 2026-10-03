@@ -1,7 +1,6 @@
 package com.erp.quality.asrequest.dto;
 
 import com.erp.inventory.item.ItemCategory;
-import com.erp.quality.asrequest.AsPart;
 import com.erp.quality.asrequest.AsRequest;
 import com.erp.quality.asrequest.AsStatus;
 import jakarta.validation.constraints.Size;
@@ -18,55 +17,6 @@ public final class AsDtos {
 
     private AsDtos() {}
 
-    /** A/S 소모부품 등록 요청. 등록 시 창고 재고를 차감한다. */
-    public record CreateAsPartRequest(
-            @NotNull(message = "품목을 선택하세요.") Long itemId,
-            @NotNull(message = "창고를 선택하세요.") Long warehouseId,
-            @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
-            @PositiveOrZero(message = "단가는 0 이상이어야 합니다.") BigDecimal unitPrice,
-            @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
-            String remark
-    ) {}
-
-    public record AsPartResponse(
-            Long id, Long asRequestId, String asNo,
-            Long itemId, String itemName,
-            Long warehouseId, String warehouseName,
-            BigDecimal quantity, BigDecimal unitPrice, BigDecimal amount,
-            String remark, String createdBy
-    ) {
-        public static AsPartResponse from(AsPart p) {
-            BigDecimal amount = p.getUnitPrice() != null ? p.getUnitPrice().multiply(p.getQuantity()) : null;
-            return new AsPartResponse(
-                    p.getId(), p.getAsRequest().getId(), p.getAsRequest().getAsNo(),
-                    p.getItem().getId(), p.getItem().getName(),
-                    p.getWarehouse().getId(), p.getWarehouse().getName(),
-                    p.getQuantity(), p.getUnitPrice(), amount,
-                    p.getRemark(), p.getCreatedBy());
-        }
-    }
-
-    /** A/S소모현황 — 품목별 소모 집계. 원본 [구분]의 <b>[집계]</b> 쪽이다. */
-    public record AsConsumptionRow(
-            Long itemId, String itemName,
-            long asCount, BigDecimal totalQty, BigDecimal totalAmount
-    ) {}
-
-    /**
-     * A/S소모현황의 <b>[내역]</b> — 소모부품 한 줄이 표의 한 줄이다.
-     *
-     * <p>원본(E040641)의 [구분] 기본은 <b>내역</b>이고 격자가
-     * [수리번호 · 수리품목명 · 수리담당자 · 소모(판매)번호 · 소모부품명 · 수량 · 단가 ·
-     * 공급가액 · 부가세] 다(2026-09-09 실측). 우리는 <b>집계만</b> 내고 있어서
-     * "어느 수리에 무엇이 몇 개 들어갔나" 를 이 화면에서 볼 수 없었다.
-     */
-    public record AsConsumptionLine(
-            Long partId, String asNo, String repairItemName, String charge,
-            Long itemId, String itemName,
-            BigDecimal quantity, BigDecimal unitPrice, BigDecimal supplyAmount
-    ) {}
-
-    /** A/S접수 품목 한 줄 — 원본 격자 [품목코드 · 품목명 · 수량]. */
     public record AsLineRequest(
             @NotNull(message = "품목을 선택하세요.") Long itemId,
             @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity

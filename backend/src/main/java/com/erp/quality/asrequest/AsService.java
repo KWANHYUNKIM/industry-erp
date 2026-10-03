@@ -6,29 +6,20 @@ import com.erp.trade.partner.BusinessPartner;
 import com.erp.inventory.item.Item;
 import com.erp.inventory.project.ProjectService;
 import com.erp.inventory.warehouse.WarehouseService;
-import com.erp.inventory.stock.StockTransactionType;
 import com.erp.inventory.warehouse.Warehouse;
-import com.erp.quality.asrequest.dto.AsDtos.AsConsumptionLine;
-import com.erp.quality.asrequest.dto.AsDtos.AsConsumptionRow;
-import com.erp.quality.asrequest.dto.AsDtos.AsPartResponse;
 import com.erp.quality.asrequest.dto.AsDtos.AsResponse;
-import com.erp.quality.asrequest.dto.AsDtos.CreateAsPartRequest;
 import com.erp.quality.asrequest.dto.AsDtos.CreateAsRequest;
 import com.erp.quality.asrequest.dto.AsDtos.UpdateAsRequest;
 import com.erp.trade.partner.PartnerService;
 import com.erp.quality.asrequest.dto.AsDtos.AsLineRequest;
 import com.erp.inventory.item.ItemService;
-import com.erp.inventory.stock.StockService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import com.erp.quality.asrequest.dto.AsDtos;
 
 @Service
@@ -38,10 +29,10 @@ public class AsService {
     private final AsRequestRepository asRepository;
     private final WarehouseService warehouseService;
     private final ProjectService projectService;
-    private final AsPartRepository asPartRepository;
+    /* 같은 모듈 — 수리가 이어진 접수는 지우지 않는다(수리가 접수를 문다). */
+    private final com.erp.quality.asrepair.AsRepairRepository asRepairRepository;
     private final PartnerService partnerService;
     private final ItemService itemService;
-    private final StockService stockService;
     private final DocumentNoGenerator docNoGenerator;
 
     @Transactional(readOnly = true)
@@ -131,16 +122,15 @@ public class AsService {
 
     /**
      * 원본 A/S접수조회 [선택삭제] · 수정 창 [삭제] — "선택한 전표를 삭제 하겠습니까?".
-     * 수리에 소모부품을 썼으면 재고가 빠져 있으니 부품부터 지워(재고 복원) 다시 하게 한다.
+     * 이 접수를 불러온 A/S수리가 있으면 막는다 — 수리가 접수를 문다(2026-10-04 소모부품(AsPart)을 걷어 내며 바꿈:
+     * 부품은 이제 수리의 판매연결전표로 팔고, 재고는 판매가 뺀다).
      */
     @Transactional
     public void delete(Long id) {
         AsRequest as = asRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("A/S 접수를 찾을 수 없습니다. id=" + id));
-        long parts = asPartRepository.countByAsRequestId(id);
-        if (parts > 0) {
-            throw ApiException.badRequest(String.format(
-                    "%s 에 소모부품 %d건이 남아 있습니다 — 부품을 지워 재고를 되돌린 뒤 삭제하세요.", as.getAsNo(), parts));
+        if (asRepairRepository.existsByAsRequestId(id)) {
+            throw ApiException.badRequest(as.getAsNo() + " 을(를) 불러온 A/S수리가 있습니다 — 수리를 먼저 지운 뒤 삭제하세요.");
         }
         asRepository.delete(as);
     }
@@ -150,17 +140,6 @@ public class AsService {
         AsRequest as = asRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("A/S 접수를 찾을 수 없습니다. id=" + id));
         if (req.status() != null) {
-            /*
-             * 부품을 쓴 채로 취소하면 재고는 빠진 채 남는다(QA 54회차). 부품을 지우면 재고가 돌아오므로
-             * 그쪽을 먼저 하게 한다.
-             */
-            if (req.status() == AsStatus.CANCELED && as.getStatus() != AsStatus.CANCELED) {
-                long parts = asPartRepository.countByAsRequestId(id);
-                if (parts > 0) {
-                    throw ApiException.badRequest(String.format(
-                            "%s 에 소모부품 %d건이 남아 있습니다 — 부품을 지워 재고를 되돌린 뒤 취소하세요.", as.getAsNo(), parts));
-                }
-            }
             as.setStatus(req.status());
             // 완료로 바뀌면 완료일 자동 설정
             if (req.status() == AsStatus.COMPLETED && as.getDoneDate() == null && req.doneDate() == null) {
@@ -183,177 +162,5 @@ public class AsService {
 
     private String generateNo(LocalDate date) {
         return docNoGenerator.next("AS-", "as_requests", "as_no", "receipt_date", date);
-    }
-
-    // ------------------------------------------------------------ 소모부품
-
-    /**
-     * <p>없는 접수 번호로 물으면 <b>빈 목록이 아니라 404</b> 다. 빈 목록을 주면 화면은
-     * "이 A/S 는 부품을 안 썼다" 로 그린다 — 실제로는 그 접수 자체가 없는 것이라
-     * 사람은 지워진 줄 모르고 부품을 붙이려 든다. 바로 아래 {@link #addPart} 는
-     * 같은 번호에 이미 404 를 내고 있었다. 읽을 때와 쓸 때가 달랐다.
-     */
-    @Transactional(readOnly = true)
-    public List<AsPartResponse> findParts(Long asId) {
-        if (!asRepository.existsById(asId)) {
-            throw ApiException.notFound("A/S 접수를 찾을 수 없습니다. id=" + asId);
-        }
-        return asPartRepository.findByAsRequestIdWithRefs(asId).stream().map(AsPartResponse::from).toList();
-    }
-
-    /** A/S에 소모부품을 추가하고 창고 재고를 차감(OUTBOUND)한다. */
-    @Transactional
-    public AsPartResponse addPart(Long asId, CreateAsPartRequest req, String username) {
-        AsRequest as = asRepository.findById(asId)
-                .orElseThrow(() -> ApiException.notFound("A/S 접수를 찾을 수 없습니다. id=" + asId));
-        /* 취소한 A/S 에 부품을 쓰면 재고만 빠진다(QA 54회차). */
-        if (as.getStatus() == AsStatus.CANCELED) {
-            throw ApiException.badRequest(as.getAsNo() + " 은(는) 취소된 A/S 입니다 — 소모부품을 쓸 수 없습니다.");
-        }
-        /* 부품은 지금 창고에서 꺼내 쓰는 것이라 사용중지된 품목·창고는 거절한다. */
-        Item item = itemService.getUsable(req.itemId());
-        Warehouse warehouse = warehouseService.getUsable(req.warehouseId());
-        if (req.quantity().signum() <= 0) {
-            throw ApiException.badRequest("수량은 0보다 커야 합니다.");
-        }
-
-        // 재고 차감(음수 재고는 StockService 가 막고 전표까지 함께 롤백).
-        String note = "A/S소모 " + as.getAsNo()
-                + (req.remark() != null && !req.remark().isBlank() ? " (" + req.remark() + ")" : "");
-        stockService.applyDelta(item, warehouse, req.quantity().negate(),
-                StockTransactionType.OUTBOUND, req.unitPrice(), LocalDate.now(), note, username);
-
-        AsPart part = AsPart.builder()
-                .asRequest(as).item(item).warehouse(warehouse)
-                .quantity(req.quantity()).unitPrice(req.unitPrice()).remark(req.remark())
-                .createdBy(username)
-                .build();
-        return AsPartResponse.from(asPartRepository.save(part));
-    }
-
-    /** 소모부품 삭제 — 차감했던 재고를 되돌린다(INBOUND). */
-    @Transactional
-    public void deletePart(Long partId, String username) {
-        AsPart part = asPartRepository.findById(partId)
-                .orElseThrow(() -> ApiException.notFound("소모부품을 찾을 수 없습니다. id=" + partId));
-        stockService.applyDelta(part.getItem(), part.getWarehouse(), part.getQuantity(),
-                StockTransactionType.INBOUND, part.getUnitPrice(), LocalDate.now(),
-                "A/S소모 취소 " + part.getAsRequest().getAsNo(), username);
-        asPartRepository.delete(part);
-    }
-
-    /**
-     * A/S소모현황 — 품목별 소모 수량·금액·A/S 건수 집계.
-     *
-     * <p>원본 조건 실측(사본): 접수일자 · 창고 · 프로젝트 · 수리담당자 · 접수담당자 ·
-     * 수리유형 · 거래처 · 수리품목. 이 가운데 우리가 가진 넷(접수일자·창고·거래처·수리품목)을
-     * 받는다. <b>합친 뒤에는 못 거르므로</b> 화면이 아니라 여기서 걸러야 한다.
-     */
-    @Transactional(readOnly = true)
-    public List<AsConsumptionRow> consumption(LocalDate from, LocalDate to,
-                                              Long warehouseId, Long partnerId, Long repairItemId,
-                                              Long projectId,
-                                              String partnerGroup, String itemCategory, String itemGroup,
-                                              String status, String title, String remark, String createdBy, String charge) {
-        Map<Long, Acc> byItem = new LinkedHashMap<>();
-        for (AsPart p : filteredParts(from, to, warehouseId, partnerId, repairItemId, projectId,
-                partnerGroup, itemCategory, itemGroup, status, title, remark, createdBy, charge)) {
-            Acc acc = byItem.computeIfAbsent(p.getItem().getId(),
-                    k -> new Acc(p.getItem().getName()));
-            acc.totalQty = acc.totalQty.add(p.getQuantity());
-            if (p.getUnitPrice() != null) {
-                acc.totalAmount = acc.totalAmount.add(p.getUnitPrice().multiply(p.getQuantity()));
-            }
-            acc.asIds.add(p.getAsRequest().getId());
-        }
-        List<AsConsumptionRow> rows = new ArrayList<>();
-        for (Map.Entry<Long, Acc> e : byItem.entrySet()) {
-            Acc a = e.getValue();
-            rows.add(new AsConsumptionRow(e.getKey(), a.name, a.asIds.size(), a.totalQty, a.totalAmount));
-        }
-        rows.sort((x, y) -> y.totalQty().compareTo(x.totalQty()));
-        return rows;
-    }
-
-    /**
-     * 조건에 걸리는 소모부품 줄. <b>[내역]과 [집계]가 같은 거름망을 써야</b>
-     * 두 갈래의 숫자가 어긋나지 않는다 — 원본도 [구분]만 바꿔 같은 자료를 달리 편다.
-     */
-    private List<AsPart> filteredParts(LocalDate from, LocalDate to,
-                                       Long warehouseId, Long partnerId, Long repairItemId,
-                                       Long projectId,
-                                       String partnerGroup, String itemCategory, String itemGroup,
-                                       String status, String title, String remark, String createdBy, String charge) {
-        List<AsPart> out = new ArrayList<>();
-        for (AsPart p : asPartRepository.findAllWithRefs()) {
-            AsRequest as = p.getAsRequest();
-            if (from != null && as.getReceiptDate().isBefore(from)) continue;
-            if (to != null && as.getReceiptDate().isAfter(to)) continue;
-            if (warehouseId != null && !warehouseId.equals(p.getWarehouse().getId())) continue;
-            if (partnerId != null && !partnerId.equals(as.getPartner().getId())) continue;
-            if (repairItemId != null && !repairItemId.equals(as.getItem().getId())) continue;
-            /* A/S 접수에 프로젝트 칸을 만들면서 이 조건도 만들 수 있게 됐다. */
-            if (projectId != null && (as.getProject() == null
-                    || !projectId.equals(as.getProject().getId()))) continue;
-            /*
-             * 2026-09-09 원본(E040641) 실측으로 늘어난 일곱. 화면이 아니라 <b>여기서</b> 거른다 —
-             * 아래 집계가 품목별로 합쳐 버리면 거래처도 상태도 제목도 줄에 남지 않는다.
-             * 그룹은 미지정 허용이라 null 을 먼저 본다.
-             */
-            if (hasText(partnerGroup) && (as.getPartner().getPartnerGroup() == null
-                    || !partnerGroup.equals(as.getPartner().getPartnerGroup().getName()))) continue;
-            if (hasText(itemCategory)
-                    && !itemCategory.equals(as.getItem().getCategory().getDisplayName())) continue;
-            if (hasText(itemGroup) && (as.getItem().getItemGroup() == null
-                    || !itemGroup.equals(as.getItem().getItemGroup().getName()))) continue;
-            if (hasText(status) && !status.equals(as.getStatus().getDisplayName())) continue;
-            if (hasText(title) && (as.getTitle() == null || !as.getTitle().contains(title))) continue;
-            /* 원본 [적요]. A/S 전표의 적요는 수리내역이다(A/S접수조회가 이미 그렇게 건다). */
-            if (hasText(remark) && (as.getRepairNote() == null
-                    || !as.getRepairNote().contains(remark))) continue;
-            if (hasText(createdBy) && (as.getCreatedBy() == null
-                    || !as.getCreatedBy().contains(createdBy))) continue;
-            /*
-             * 원본 <b>[수리담당자]</b>. [내역] 격자에 이 열이 생기면서 <b>볼 수는 있는데
-             * 거를 수는 없는</b> 칸이 됐다. 원본은 수리·접수 담당자를 갈라 두지만
-             * 우리 A/S 는 담당자가 하나(<code>charge</code>)라 그 하나로 건다.
-             */
-            if (hasText(charge) && (as.getCharge() == null
-                    || !as.getCharge().contains(charge))) continue;
-            out.add(p);
-        }
-        return out;
-    }
-
-    /**
-     * A/S소모현황 <b>[내역]</b> — 소모부품 한 줄씩. 거름망은 [집계]와 같은 것을 쓴다.
-     */
-    @Transactional(readOnly = true)
-    public List<AsConsumptionLine> consumptionLines(LocalDate from, LocalDate to,
-                                                    Long warehouseId, Long partnerId, Long repairItemId,
-                                                    Long projectId,
-                                                    String partnerGroup, String itemCategory, String itemGroup,
-                                                    String status, String title, String remark, String createdBy, String charge) {
-        List<AsConsumptionLine> rows = new ArrayList<>();
-        for (AsPart p : filteredParts(from, to, warehouseId, partnerId, repairItemId, projectId,
-                partnerGroup, itemCategory, itemGroup, status, title, remark, createdBy, charge)) {
-            AsRequest as = p.getAsRequest();
-            BigDecimal supply = p.getUnitPrice() == null ? null
-                    : p.getUnitPrice().multiply(p.getQuantity());
-            rows.add(new AsConsumptionLine(p.getId(), as.getAsNo(), as.getItem().getName(),
-                    as.getCharge(), p.getItem().getId(), p.getItem().getName(),
-                    p.getQuantity(), p.getUnitPrice(), supply));
-        }
-        return rows;
-    }
-
-    private static boolean hasText(String s) { return s != null && !s.isBlank(); }
-
-    private static final class Acc {
-        final String name;
-        BigDecimal totalQty = BigDecimal.ZERO;
-        BigDecimal totalAmount = BigDecimal.ZERO;
-        final java.util.Set<Long> asIds = new java.util.HashSet<>();
-        Acc(String name) { this.name = name; }
     }
 }

@@ -1240,51 +1240,44 @@ async function scenarioAsConsumption(f) {
   const reread = (await must('GET', '/as-requests')).find((x) => x.id === as.id)
   eq('다시 조회해도 제목·수리예정일자가 남아 있다',
     `${reread?.title}/${reread?.scheduledDate}`, 'QA 제목/2026-03-12')
-  await must('POST', `/as-requests/${as.id}/parts`, {
-    itemId: f.material.id, warehouseId: f.warehouse.id, quantity: 3, unitPrice: 1000,
-  })
-
-  const qtyOf = (rows) => {
-    const r = rows.find((x) => x.itemId === f.material.id)
-    return r ? Number(r.totalQty) : 0
-  }
-  const url = (q) => `/as-requests/parts/consumption?${q}`
-
-  eq('접수일자 안이면 소모수량이 잡힌다',
-    qtyOf(await must('GET', url('from=2026-03-01&to=2026-03-31'))) >= 3, true)
-  eq('접수일자 밖이면 안 잡힌다',
-    qtyOf(await must('GET', url('from=2026-01-01&to=2026-01-31'))), 0)
-  eq('다른 창고로 거르면 안 잡힌다',
-    qtyOf(await must('GET', url(`from=2026-03-01&to=2026-03-31&warehouseId=${f.warehouse.id + 99999}`))), 0)
-  eq('그 거래처로 거르면 잡힌다',
-    qtyOf(await must('GET', url(`from=2026-03-01&to=2026-03-31&partnerId=${f.customer.id}`))) >= 3, true)
-  eq('다른 거래처로 거르면 안 잡힌다',
-    qtyOf(await must('GET', url(`from=2026-03-01&to=2026-03-31&partnerId=${f.supplier.id}`))), 0)
-  eq('수리품목으로 거르면 잡힌다 — 소모부품이 아니라 <b>수리 대상</b> 품목이다',
-    qtyOf(await must('GET', url(`from=2026-03-01&to=2026-03-31&repairItemId=${f.product.id}`))) >= 3, true)
-  eq('소모부품 품목을 수리품목으로 주면 안 잡힌다',
-    qtyOf(await must('GET', url(`from=2026-03-01&to=2026-03-31&repairItemId=${f.material.id}`))), 0)
-
   /*
-   * 소모부품은 창고 재고를 빼고, 지우면 돌려놓는다. 부품을 쓴 채로 취소하면 재고만 빠진 채
-   * 남고, 취소한 A/S 에도 부품이 붙었다(54회차).
+   * 2026-10-04 — 원본 A/S소모현황(E040641)의 소모는 <b>A/S수리에 이어진 판매(판매연결전표)의 줄</b>이다.
+   * 예전엔 A/S접수에 소모부품(AsPart)을 바로 붙여 재고를 뺐는데, 그 길은 원본에 없어 걷어 냈다.
+   * 수리를 접수에 잇고, 부품은 판매연결전표로 판다 — 재고는 판매가 뺀다.
    */
+  const repair = await must('POST', '/as-repairs', {
+    repairDate: '2026-03-06', partnerId: f.customer.id, charge: 'QA기사', warehouseId: f.warehouse.id,
+    asRequestId: as.id, repairType: 'PAID_REPAIR', title: 'QA 소모현황용 수리',
+    lines: [{ itemId: f.product.id, quantity: 1 }],
+  })
   const stockAt = async () => {
     const r = (await must('GET', '/stock')).find((x) => x.itemId === f.material.id && x.warehouseId === f.warehouse.id)
     return r ? Number(r.quantity) : 0
   }
   const s0 = await stockAt()
-  const part2 = await must('POST', `/as-requests/${as.id}/parts`, {
-    itemId: f.material.id, warehouseId: f.warehouse.id, quantity: 2, unitPrice: 1000,
+  const linked = await must('POST', `/as-repairs/${repair.id}/sales`, {
+    saleDate: '2026-03-06', lines: [{ itemId: f.material.id, quantity: 3, unitPrice: 1000 }],
   })
-  eq('소모부품 2개를 쓰면 창고 재고가 2 줄고 금액은 2,000', `${s0 - (await stockAt())} ${part2.amount}`, '2 2000')
-  await rejects('부품이 남은 A/S 는 취소할 수 없다', 'PATCH', `/as-requests/${as.id}`, { status: 'CANCELED' })
-  for (const pt of await must('GET', `/as-requests/${as.id}/parts`)) await must('DELETE', `/as-requests/parts/${pt.id}`)
-  eq('부품을 다 지우면 재고가 처음(3개 쓰기 전)으로 돌아온다', (await stockAt()) - s0, 3)
-  await must('PATCH', `/as-requests/${as.id}`, { status: 'CANCELED' })
-  await rejects('취소한 A/S 에는 부품을 못 쓴다', 'POST', `/as-requests/${as.id}/parts`, {
-    itemId: f.material.id, warehouseId: f.warehouse.id, quantity: 1, unitPrice: 1000,
-  })
+  eq('판매연결전표로 부품 3개를 팔면 창고 재고가 3 준다', s0 - (await stockAt()), 3)
+
+  const used = async (q) => (await must('GET', `/as-repairs/consumption?${q}`))
+    .filter((x) => x.repairId === repair.id && x.itemId === f.material.id)
+    .reduce((s, x) => s + Number(x.quantity), 0)
+  eq('수리일자 안이면 소모수량이 잡힌다', await used('from=2026-03-01&to=2026-03-31'), 3)
+  eq('수리일자 밖이면 안 잡힌다', await used('from=2026-01-01&to=2026-01-31'), 0)
+  const line = (await must('GET', '/as-repairs/consumption?from=2026-03-01&to=2026-03-31'))
+    .find((x) => x.repairId === repair.id)
+  eq('소모 줄이 수리의 거래처 · 창고 · 수리품목 · 접수를 싣는다',
+    `${line?.partnerId === f.customer.id} ${line?.warehouseId === f.warehouse.id} ${line?.repairItemId === f.product.id} ${line?.receiptDate}`,
+    'true true true 2026-03-05')
+  eq('소모 줄의 공급가액은 판매 줄의 것이다', Number(line?.supplyAmount), 3000)
+
+  await rejects('판매연결전표가 남은 수리는 지울 수 없다', 'DELETE', `/as-repairs/${repair.id}`)
+  await must('DELETE', `/as-repairs/${repair.id}/sales/${linked.sales[0].salesId}`)
+  eq('판매연결전표를 지우면 재고가 돌아온다', await stockAt(), s0)
+  eq('판매를 지우면 소모에서도 빠진다', await used('from=2026-03-01&to=2026-03-31'), 0)
+  await must('DELETE', `/as-repairs/${repair.id}`)
+  await must('DELETE', `/as-requests/${as.id}`)
 }
 
 async function scenarioSettings() {
@@ -10285,6 +10278,13 @@ async function main() {
     await scenarioIssueEmployee(fixtures)
     await scenarioMrpRuns(fixtures)
     await scenarioLotRequiredProduction(fixtures)
+    console.log(`\n통과 ${pass} · 실패 ${fail}`)
+    process.exit(fail > 0 ? 1 : 0)
+  }
+
+  // A/S 소모 쪽만(node qa/qa.mjs as) — 수리 · 판매연결전표 · 소모현황.
+  if (cmd === 'as') {
+    await scenarioAsConsumption(fixtures)
     console.log(`\n통과 ${pass} · 실패 ${fail}`)
     process.exit(fail > 0 ? 1 : 0)
   }

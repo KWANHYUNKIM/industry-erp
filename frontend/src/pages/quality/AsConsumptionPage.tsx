@@ -11,14 +11,12 @@ import { subtotalBy } from '../../utils/subtotalBy'
 
 /**
  * 품질 > A/S소모현황 (이카운트 E040641 A/S소모현황)
- * A/S 수리에 소모된 부품을 품목별로 집계 — 소모수량·소모금액·해당 A/S 건수.
- * 소스: A/S 접수·수리 관리(AsManagePage)에서 등록한 소모부품(재고 차감분).
- * 백엔드 `GET /api/as-requests/parts/consumption` (품목별 집계).
+ * A/S 수리에 소모된 부품 — 소모는 <b>A/S수리에 이어진 판매(판매연결전표)의 줄</b>이다(2026-10-03 원본 실측).
+ * 백엔드 `GET /api/as-repairs/consumption` 이 줄을 주고, [집계]는 화면이 품목별로 합친다.
  */
 interface Row { itemId: number; itemName: string; asCount: number; totalQty: number; totalAmount: number }
 /**
- * 원본 [구분]의 <b>[내역]</b> 한 줄 — 소모부품 하나. 서버가 <code>/parts/consumption/lines</code>
- * 로 준다. 거름망은 [집계]와 <b>같은 것</b>이라 두 갈래의 합계가 어긋나지 않는다.
+ * 원본 [구분]의 <b>[내역]</b> 한 줄 — 판매연결전표의 판매 줄 하나. [집계]도 이 줄을 합치므로 두 갈래의 합계가 어긋나지 않는다.
  */
 interface Line {
   repairId: number; repairNo: string; repairDate: string
@@ -280,10 +278,7 @@ export default function AsConsumptionPage() {
       /*
         <b>원본 격자(2026-09-09 E040641 실측)</b> —
         [수리번호 · 수리품목명 · 수리담당자 · 소모(판매)번호 · 소모부품명 · 수량 · 단가 ·
-        공급가액 · 부가세]. [소모(판매)번호]와 [부가세]는 못 낸다:
-        원본은 소모부품을 <b>판매 전표로 청구</b>하며 그 번호를 달아 두는데 우리 A/S 는
-        부품을 재고에서 빼기만 하고 판매를 만들지 않는다. 부가세도 소모부품 줄
-        (<code>AsPart</code>)에 칸이 없다 — 열에 0 을 찍으면 면세로 읽힌다.
+        공급가액 · 부가세]. 2026-10-03 부터 소모가 판매연결전표의 판매 줄이라 둘 다 판매에서 온다.
       */
       <table className="w-full ec-head700">
         <thead>
