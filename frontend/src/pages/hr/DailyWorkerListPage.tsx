@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
+import { BANK_CODES } from '../../utils/bankCodes'
 import Modal from '../../components/Modal'
 import { useTableSort } from '../../utils/useTableSort'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
@@ -282,7 +283,11 @@ export default function DailyWorkerListPage() {
             <li className="wide">
               <span className="title">급여통장</span>
               <div className="form flex flex-col gap-[4px]">
-                <input className="ec-input w-full" placeholder="은행" value={form.bankName} onChange={(e) => set({ bankName: e.target.value })} />
+                {/* 원본 은행은 은행코드 코드도움 — 일용 사원은 은행 이름만 들고 있어 이름을 담는다(예전 글자 값도 후보에 남긴다) */}
+                <CodePickerField label="은행" hideLabel fill placeholder="은행" emptyLabel="선택 해제"
+                                 value={form.bankName} onChange={(v) => set({ bankName: v })}
+                                 items={[...BANK_CODES.map(([code, name]) => ({ value: name, code, name })),
+                                   ...(form.bankName && !BANK_CODES.some(([, n]) => n === form.bankName) ? [{ value: form.bankName, name: form.bankName }] : [])]} />
                 <input className="ec-input w-full" placeholder="계좌번호" value={form.accountNo} onChange={(e) => set({ accountNo: e.target.value })} />
                 <input className="ec-input w-full" placeholder="예금주" value={form.accountHolder} onChange={(e) => set({ accountHolder: e.target.value })} />
               </div>
