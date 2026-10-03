@@ -153,6 +153,8 @@ const RULES: Rule[] = [
   ['/hr/pay-groups', 'PAYROLL'],
   ['/hr/departments', 'HR'],
   ['/inventory/projects', 'HR'],
+  ['/hr/work-input', 'PAYROLL'],
+  ['/hr/work-list', 'PAYROLL'],
   ['/hr/daily-wage', 'PAYROLL'],
   ['/hr', 'HR'],
 
