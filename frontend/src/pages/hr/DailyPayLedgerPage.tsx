@@ -39,6 +39,11 @@ const monthEnd = (ym: string) => { const [y, m] = ym.split('-').map(Number); ret
 export default function DailyPayLedgerPage() {
   const nav = useNavigate()
   const [rows, setRows] = useState<Ledger[]>([])
+  /** 원본 [원천세신고 사업자번호](2026-10-04 실측 220-12-34567) — 사업장이 하나라 회사정보의 사업자등록번호를 모든 대장에 찍는다. */
+  const [bizRegNo, setBizRegNo] = useState('')
+  useEffect(() => {
+    api.get<{ bizRegNo: string | null }>('/company').then((r) => setBizRegNo(r.data.bizRegNo ?? '')).catch(() => setBizRegNo(''))
+  }, [])
   const [error, setError] = useState('')
   const [formOpen, setFormOpen] = useState(false)
   const [formError, setFormError] = useState('')
@@ -158,6 +163,7 @@ export default function DailyPayLedgerPage() {
               <th>대장명칭</th>
               <th className="text-center">지급연월</th>
               <th className="text-center">지급일</th>
+              <th className="text-center">원천세신고 사업자번호</th>
               <th className="text-center">사전작업</th>
               <th className="text-center">급여계산</th>
               <th className="text-center">급여대장</th>
@@ -168,7 +174,7 @@ export default function DailyPayLedgerPage() {
           </thead>
           <tbody>
             {rows.length === 0 ? (
-              <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : rows.map((l) => (
               <tr key={l.id}>
                 <td className="text-center">{slash(l.payMonth)} -{l.seq}</td>
@@ -176,6 +182,7 @@ export default function DailyPayLedgerPage() {
                 <td>{l.name}</td>
                 <td className="text-center">{slash(l.paidMonth)}</td>
                 <td className="text-center">{slash(l.payDate)}</td>
+                <td className="text-center">{bizRegNo}</td>
                 <td className="text-center">{link(`근무기록확정${l.workConfirmCount ? `[${l.workConfirmCount}]` : ''}`, () => openConfirm(l), l.workConfirmCount > 0)}</td>
                 <td className="text-center">{link('전체계산', () => setCalcFor(l))}</td>
                 <td className="text-center">
