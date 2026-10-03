@@ -4,7 +4,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, QualityInspection, QualityInspectionType, QualityResult } from '../../types/api'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
-import { dateText } from '../../utils/dateText'
+import { dateNo } from '../../utils/dateNo'
 import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import EcBarChart from '../../components/EcBarChart'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
@@ -249,7 +249,7 @@ export default function QualityStatusPage() {
             <tr key={r.id}>
               <td className="text-center text-ec-hint">{i + 1}</td>
               {/* 원본은 일자와 번호를 한 칸에 적는다. */}
-              <td className="text-center">{dateText(r.inspectionDate)} {r.inspectionNo}</td>
+              <td className="text-center">{dateNo(r.inspectionDate, r.inspectionNo)}</td>
               <td className="text-center">{r.typeName}</td>
               {/* 규격은 품목 마스터가 든다 - 이 화면은 조건으로 거르려고 진작 받아 두고 있었다. */}
               <td>{r.itemName}{itemById.get(r.itemId)?.spec ? ` [${itemById.get(r.itemId)?.spec}]` : ''}</td>

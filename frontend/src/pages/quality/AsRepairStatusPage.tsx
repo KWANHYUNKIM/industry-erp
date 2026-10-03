@@ -7,6 +7,7 @@ import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { AS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { dateText } from '../../utils/dateText'
+import { dateNo } from '../../utils/dateNo'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 
@@ -157,7 +158,7 @@ export default function AsRepairStatusPage() {
             <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r) => (
             <tr key={r.id}>
-              <td className="text-center">{dateText(r.doneDate ?? '')} {r.asNo}</td>
+              <td className="text-center">{dateNo(r.doneDate ?? '', r.asNo)}</td>
               <td>{r.title ?? ''}</td>
               <td>{r.partnerName}</td>
               <td>{r.charge ?? ''}</td>

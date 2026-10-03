@@ -3,6 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 import { dateText } from '../../utils/dateText'
+import { dateNo } from '../../utils/dateNo'
 import EcPeriodPicks, { AS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import EcBarChart from '../../components/EcBarChart'
 import { usePartnerGroups } from '../../utils/partnerGroups'
@@ -278,7 +279,7 @@ export default function AsStatusPage() {
               <tr key={r.id}>
                 <td className="text-center text-ec-hint">{i + 1}</td>
                 {/* 원본은 일자와 번호를 한 칸에 적는다. */}
-                <td className="text-center">{dateText(r.receiptDate)} {r.asNo}</td>
+                <td className="text-center">{dateNo(r.receiptDate, r.asNo)}</td>
                 <td className="text-center">
                   <span style={{ color: COLOR[r.status], fontWeight: 700, fontSize: 12 }}>{r.statusName || LABEL[r.status]}</span>
                 </td>
