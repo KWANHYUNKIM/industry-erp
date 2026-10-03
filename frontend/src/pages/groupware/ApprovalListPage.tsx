@@ -85,7 +85,8 @@ export default function ApprovalListPage({
   /** 원본 [첨부] — 붙임 파일이 있는 문서만/없는 문서만. */
   const [attachCond, setAttachCond] = useState<'전체' | '있음' | '없음'>('전체')
   /* 원본 기안서통합관리는 [진행중] 알약이 켜진 채로 열린다(2026-10-03 실측). 내결재관리는 전체. */
-  const [tab, setTab] = useState<Tab>(scope === 'all' ? '진행중' : '전체')
+  /* 원본 기안서통합관리 · 내결재관리 둘 다 [진행중] 알약이 켜진 채로 열린다(2026-10-03 실측). */
+  const [tab, setTab] = useState<Tab>('진행중')
   const TABS: readonly Tab[] = scope === 'mine' ? TABS_MINE : TABS_ALL
   /* 기간 줄의 이름은 화면마다 다르다 — 내결재관리 [기준일자] · 기안서통합관리 [일자](사본 실측). */
   const dateLabel = scope === 'mine' ? '기준일자' : '일자'
@@ -93,7 +94,13 @@ export default function ApprovalListPage({
    * 빈 줄이 걸칠 칸 수. [작업자]·[작업일시]가 scope 에 따라 붙었다 빠지므로
    * 숫자를 두 군데 적으면 한쪽만 고치게 된다 — 실제로 이 저장소에서 가장 자주 낸 실수다.
    */
-  const colCount = 12 + (scope === 'all' ? 2 : 0)
+  /*
+   * 원본 두 화면의 열이 다르다(2026-10-03 실측):
+   *   기안서통합관리 — 기안일자 · 제목 · ERP전표(건) · 구분 · 기안자 · 결재자 · 진행상태 · 결재 · 기안서복사 · 조회 · 연결전표
+   *   내결재관리     — 기안일자 · 제목 · 기안자 · 결재자 · 진행상태 · 결재 · 기안서복사 · 연결전표 · 첨부
+   */
+  const isAll = scope === 'all'
+  const colCount = isAll ? 14 : 10
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   /** 기안서 작성 화면이 넘겨준 저장 결과(번호). 넘어오자마자 보여 줄 자리가 여기뿐이다. */
@@ -495,15 +502,16 @@ export default function ApprovalListPage({
               </th>
               <th className="cursor-pointer" onClick={() => sort.toggle('기안일자')}>기안일자 {sort.mark('기안일자')}</th>
               <th>제목</th>
-              <th className="text-center">ERP전표(건)</th>
-              <th className="cursor-pointer" onClick={() => sort.toggle('구분')}>구분 {sort.mark('구분')}</th>
+              {isAll && <th className="text-center">ERP전표(건)</th>}
+              {isAll && <th className="cursor-pointer" onClick={() => sort.toggle('구분')}>구분 {sort.mark('구분')}</th>}
               <th className="cursor-pointer" onClick={() => sort.toggle('기안자')}>기안자 {sort.mark('기안자')}</th>
               <th>결재자</th>
               <th className="text-center">진행상태</th>
               <th className="text-center">결재</th>
               <th className="text-center">기안서복사</th>
-              <th className="text-center">조회</th>
+              {isAll && <th className="text-center">조회</th>}
               <th>연결전표</th>
+              {!isAll && <th className="text-center">첨부</th>}
               {/*
                 원본 기안서통합관리에서 이 둘은 <b>맨 마지막 두 열</b>이다(대조표 실측).
                 주석에는 그렇게 적어 두고 정작 [결재자] 바로 뒤에 세워 두어,
@@ -536,9 +544,9 @@ export default function ApprovalListPage({
                 </td>
                 <td className="whitespace-nowrap">{r.draftNo}</td>
                 <td><a onClick={() => setDetail(r)} className="text-ec-blue cursor-pointer">{r.title}</a></td>
-                <td className="text-center">{r.voucherCount > 0 ? r.voucherCount : ''}</td>
+                {isAll && <td className="text-center">{r.voucherCount > 0 ? r.voucherCount : ''}</td>}
                 {/* 원본 [구분]은 양식 분류(휴가신청서 · 지출결의서)다 — 분류 없는 양식(비품 구매 신청서)은 빈칸. 우리 양식에는 분류가 없어 빈칸이다. 양식 이름은 칸 풍선으로. */}
-                <td title={r.formTypeName} />
+                {isAll && <td title={r.formTypeName} />}
                 <td>{r.drafterName}</td>
                 <td>{r.currentApproverName ?? ''}</td>
                 <td className="text-center">
@@ -548,25 +556,17 @@ export default function ApprovalListPage({
                 </td>
                 <td className="text-center">
                   {/* 원본 기안서통합관리의 [결재] 칸은 줄마다 '보기'(문서를 열어 거기서 결재한다), [조회]는 빈칸. 내결재관리는 그 자리에서 승인 · 반려. */}
-                  {scope === 'all' ? (
-                    <a onClick={() => setDetail(r)} className="text-ec-navy cursor-pointer">보기</a>
-                  ) : isMyTurn(r) ? (
-                    <div className="inline-flex gap-[3px]">
-                      <button className="ec-btn ec-btn-primary" style={{ height: 20, padding: '0 8px' }} onClick={() => act(r, 'approve')}>승인</button>
-                      <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: 'var(--ec-danger)' }} onClick={() => act(r, 'reject')}>반려</button>
-                    </div>
-                  ) : r.status === 'DRAFTING' && isMine(r) && !r.deleted ? (
+                  {/* 원본 내결재관리도 [결재] 칸은 '보기' — 문서를 열어 그 안의 [승인][반려]로 결재한다. 아직 올리지 않은 내 기안만 [상신]. */}
+                  {!isAll && r.status === 'DRAFTING' && isMine(r) && !r.deleted ? (
                     <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => submitDraft(r)}>상신</button>
                   ) : (
-                    <span className="text-ec-off">—</span>
+                    <a onClick={() => setDetail(r)} className="text-ec-navy cursor-pointer">보기</a>
                   )}
                 </td>
                 <td className="text-center">
                   <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => copy(r)}>복사</button>
                 </td>
-                <td className="text-center">
-                  {scope !== 'all' && <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => setDetail(r)}>보기</button>}
-                </td>
+                {isAll && <td className="text-center" />}
                 <td className="whitespace-nowrap">
                   {r.vouchers.map((v) => (
                     <span key={v.id} className="inline-block mr-[4px] py-[1px] px-[6px] rounded-[10px] text-[11px] bg-ec-blue-wash text-ec-navy">
@@ -574,6 +574,7 @@ export default function ApprovalListPage({
                     </span>
                   ))}
                 </td>
+                {!isAll && <td className="text-center" title={r.attachmentName ?? undefined}>{r.attachmentId ? '📎' : ''}</td>}
                 {scope === 'all' && <td>{r.lastActorName ?? ''}</td>}
                 {scope === 'all' && (
                   <td className="text-[11.5px] text-ec-label">
