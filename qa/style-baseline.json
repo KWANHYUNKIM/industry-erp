@@ -1064,11 +1064,6 @@
   "color": 1,
   "palette": 0
  },
- "pages/settings/DownloadPage.tsx": {
-  "inline": 7,
-  "color": 9,
-  "palette": 0
- },
  "pages/settings/EtcSystemPage.tsx": {
   "inline": 10,
   "color": 5,
