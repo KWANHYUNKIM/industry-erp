@@ -759,6 +759,7 @@ const MENU: TopMenu[] = [
             { label: '원천징수영수증(일용직)', to: '/accounting/withholding/daily-receipt' },
           ] },
           { label: '출력물', children: [
+            { label: '퇴직급여추계액', to: '/accounting/withholding/retirement-estimate' },
             { label: '근로소득원천징수영수증', to: '/accounting/withholding?tab=영수증' },
           ] },
         ],

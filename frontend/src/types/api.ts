@@ -3168,3 +3168,10 @@ export interface DailyReceipt {
   employeeId: number; employeeCode: string | null; employeeName: string; days: number; lastDate: string | null
   totalPay: number; nonTaxable: number; incomeTax: number; localIncomeTax: number
 }
+
+/** 퇴직급여추계액(E030108) — GET /retirement-pays/estimate */
+export interface RetirementEstimateRow {
+  employeeId: number; employeeCode: string | null; employeeName: string; startDate: string
+  threeMonthPay: number; bonusThreeMonths: number; years: number; months: number; days: number
+  threeMonthDays: number; serviceDays: number; retirementPay: number
+}
