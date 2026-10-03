@@ -11,6 +11,7 @@ import { findDataTable } from '../../utils/tableExport'
 import type { ApprovalDoc, ApprovalFormTemplate, ApprovalPreset, MemberOption } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import { useShortcut } from '../../utils/useShortcut'
+import { useTableSort } from '../../utils/useTableSort'
 
 const TITLE = '기안서작성'
 // 글꼴 select 표시명 → 실제 CSS font-family 매핑
@@ -38,6 +39,7 @@ export default function ApprovalDraftPage() {
   const [members, setMembers] = useState<MemberOption[]>([])
   const [templates, setTemplates] = useState<ApprovalFormTemplate[]>([])
   const [selected, setSelected] = useState<ApprovalFormTemplate | null>(null)
+  const sort = useTableSort(templates, { 정렬순서: (t) => t.sortOrder, 양식명: (t) => t.name })
 
   const [draftDate, setDraftDate] = useState(today())
   const [title, setTitle] = useState('')
@@ -309,21 +311,24 @@ export default function ApprovalDraftPage() {
         <table className="w-full text-left">
           <thead>
             <tr>
-              {/* 원본 실측: 가운데. */}
-              <th className="w-[90px] text-center">정렬순서</th>
-              <th>양식명</th>
-              {/* 원본 실측: 왼쪽. */}
-              <th className="w-[200px]">구분</th>
-              {/* 원본은 [구분] 200 · [결재문서] 150 이다 — 우리는 거꾸로였다. */}
+              {/*
+                2026-10-03 원본 실측: 머리 셋([정렬순서▼][양식명▼][구분▼])은 눌러 정렬하고 링크색이다.
+                [정렬순서]는 0 을 채우지 않는다('1' · '2' — 우리는 '01' 이었다). [구분]은 양식 분류(휴가신청서 ·
+                지출결의서)인데 우리 양식에는 분류 칸이 없다 — 모든 줄에 '기본' 을 찍던 것을 비운다.
+              */}
+              <th className="w-[90px] text-center cursor-pointer text-ec-navy" onClick={() => sort.toggle('정렬순서')}>정렬순서 {sort.mark('정렬순서')}</th>
+              <th className="cursor-pointer text-ec-navy" onClick={() => sort.toggle('양식명')}>양식명 {sort.mark('양식명')}</th>
+              {/* 원본은 [구분] 200 · [결재문서] 150 이다. */}
+              <th className="w-[200px] cursor-pointer text-ec-navy">구분 ▼</th>
               <th className="w-[150px]">결재문서</th>
             </tr>
           </thead>
           <tbody>
-            {templates.map((t) => (
+            {sort.sorted.map((t) => (
               <tr key={t.id} onClick={() => selectForm(t)} className="cursor-pointer">
-                <td className="text-center text-ec-hint">{String(t.sortOrder).padStart(2, '0')}</td>
-                <td>{t.name}</td>
-                <td className="text-ec-hint">기본</td>
+                <td className="text-center">{t.sortOrder}</td>
+                <td className="text-ec-navy">{t.name}</td>
+                <td />
                 <td />
               </tr>
             ))}
