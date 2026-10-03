@@ -324,7 +324,16 @@ export default function ApprovalDraftPage() {
             </tr>
           </thead>
           <tbody>
-            {sort.sorted.map((t) => (
+            {/* 원본 맨 위 '00 기본' — 칸 없는 기본 기안서, 정렬과 상관없이 초록 바탕으로 붙는다(V252 가 심는다) */}
+            {templates.filter((t) => t.code === 'BASIC').map((t) => (
+              <tr key={t.id} onClick={() => selectForm(t)} className="cursor-pointer bg-ec-basic">
+                <td className="text-center">00</td>
+                <td className="text-ec-navy">{t.name}</td>
+                <td />
+                <td />
+              </tr>
+            ))}
+            {sort.sorted.filter((t) => t.code !== 'BASIC').map((t) => (
               <tr key={t.id} onClick={() => selectForm(t)} className="cursor-pointer">
                 <td className="text-center">{t.sortOrder}</td>
                 <td className="text-ec-navy">{t.name}</td>

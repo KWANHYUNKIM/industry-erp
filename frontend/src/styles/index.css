@@ -43,6 +43,7 @@
   --color-ec-row-hover: var(--ec-bg-row-hover);
   --color-ec-pinned: var(--ec-bg-pinned);
   --color-ec-calendar: var(--ec-bg-calendar);
+  --color-ec-basic: var(--ec-bg-basic);
   --color-ec-stripe: var(--ec-report-stripe);
   --color-ec-line: var(--ec-line);
   --color-ec-line-soft: var(--ec-line-soft);
