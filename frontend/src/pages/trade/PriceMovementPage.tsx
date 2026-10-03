@@ -182,10 +182,10 @@ export default function PriceMovementPage() {
   const rows = useMemo<PriceRow[]>(() => {
     const inPeriod = (d: string) => (!from || d >= from) && (!to || d <= to)
     // (date, itemId, spec, unit, name, price) 포인트 수집
-    interface Pt { itemId: number; itemName: string; spec: string | null; unit: string; date: string; price: number; quantity: number }
+    interface Pt { itemId: number; itemName: string; spec: string | null; unit: string; date: string; docId: number; price: number; quantity: number }
     const pts: Pt[] = []
-    const saleDocs = sales.filter(keepDoc).map((d) => ({ date: d.saleDate, lines: d.lines }))
-    const buyDocs = purchases.filter(keepDoc).map((d) => ({ date: d.purchaseDate, lines: d.lines }))
+    const saleDocs = sales.filter(keepDoc).map((d) => ({ id: d.id, date: d.saleDate, lines: d.lines }))
+    const buyDocs = purchases.filter(keepDoc).map((d) => ({ id: d.id, date: d.purchaseDate, lines: d.lines }))
     /**
      * <b>[전체]는 판매·구매를 한 평균에 섞지 않는다.</b> 갈래마다 따로 더해 두었다가
      * <b>두 칸으로 나란히</b> 낸다 — 원본 격자가 [판매단가(단순평균)]·[구매단가(단순평균)]
@@ -208,7 +208,7 @@ export default function PriceMovementPage() {
           add(kind, l.itemId, l.unitPrice)
           /* 최저·최고·최근은 <b>고른 갈래</b>의 것만 쓴다 — 섞으면 뜻이 없다. */
           if (mode === 'SALE' ? kind === 'sale' : mode === 'PURCHASE' ? kind === 'buy' : true) {
-            pts.push({ itemId: l.itemId, itemName: l.itemName, spec: l.spec, unit: l.unit, date: d.date, price: l.unitPrice, quantity: l.quantity })
+            pts.push({ itemId: l.itemId, itemName: l.itemName, spec: l.spec, unit: l.unit, date: d.date, docId: d.id, price: l.unitPrice, quantity: l.quantity })
           }
         }
       }
@@ -221,8 +221,12 @@ export default function PriceMovementPage() {
     const pickedItem = itemCond.trim()
     const out: PriceRow[] = []
     for (const [itemId, list] of map) {
-      // 최근 = 날짜(동일 날짜면 뒤에 온 것) 기준
-      const sorted = [...list].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+      /*
+       * 최근 = 날짜, 같은 날이면 <b>나중에 입력한 전표</b>(id 큰 쪽). 서버는 전표를 (일자 desc, id desc) 로
+       * 주는데 예전엔 날짜로만 세워 같은 날 전표끼리는 받은 차례가 남았다 — 그래서 그날 <b>맨 처음</b> 입력한
+       * 전표의 단가가 [최근단가]로 찍혔다. 한 전표 안의 같은 품목 줄은 줄 차례 그대로(안정 정렬).
+       */
+      const sorted = [...list].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.docId - b.docId))
       const prices = sorted.map((p) => p.price)
       const sum = prices.reduce((a, x) => a + x, 0)
       const last = sorted[sorted.length - 1]
