@@ -122,4 +122,11 @@ public class AsController {
         asService.deletePart(partId, principal.getUsername());
         return ResponseEntity.noContent().build();
     }
+
+    /** 원본 A/S접수조회 [선택삭제] · 수정 창 [삭제]. */
+    @DeleteMapping("/{id}")
+    public org.springframework.http.ResponseEntity<Void> delete(@PathVariable Long id) {
+        asService.delete(id);
+        return org.springframework.http.ResponseEntity.noContent().build();
+    }
 }

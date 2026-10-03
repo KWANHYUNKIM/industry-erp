@@ -15,7 +15,8 @@ import com.erp.quality.asrequest.dto.AsDtos.AsResponse;
 import com.erp.quality.asrequest.dto.AsDtos.CreateAsPartRequest;
 import com.erp.quality.asrequest.dto.AsDtos.CreateAsRequest;
 import com.erp.quality.asrequest.dto.AsDtos.UpdateAsRequest;
-import com.erp.trade.partner.BusinessPartnerRepository;
+import com.erp.trade.partner.PartnerService;
+import com.erp.quality.asrequest.dto.AsDtos.AsLineRequest;
 import com.erp.inventory.item.ItemService;
 import com.erp.inventory.stock.StockService;
 import lombok.RequiredArgsConstructor;
@@ -38,7 +39,7 @@ public class AsService {
     private final WarehouseService warehouseService;
     private final ProjectService projectService;
     private final AsPartRepository asPartRepository;
-    private final BusinessPartnerRepository partnerRepository;
+    private final PartnerService partnerService;
     private final ItemService itemService;
     private final StockService stockService;
     private final DocumentNoGenerator docNoGenerator;
@@ -84,19 +85,18 @@ public class AsService {
 
     @Transactional
     public AsResponse create(CreateAsRequest req, String username) {
-        BusinessPartner partner = partnerRepository.findById(req.partnerId())
-                .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + req.partnerId()));
-        /* 수리품목은 고객이 가진 물건이라 지금 단종(사용중지)이어도 받는다 — get, getUsable 이 아니다. */
-        Item item = itemService.get(req.itemId());
+        BusinessPartner partner = partnerService.get(req.partnerId());
+        List<AsLineRequest> lines = req.lines() != null && !req.lines().isEmpty() ? req.lines()
+                : req.itemId() != null ? List.of(new AsLineRequest(req.itemId(), BigDecimal.ONE)) : List.of();
+        if (lines.isEmpty()) throw ApiException.badRequest("품목을 1개 이상 입력하세요.");
 
         LocalDate date = req.receiptDate() != null ? req.receiptDate() : LocalDate.now();
 
         AsRequest as = AsRequest.builder()
                 .asNo(generateNo(date))
                 .partner(partner)
-                .item(item)
                 .receiptDate(date)
-                .warehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()))
+                .warehouse(warehouseService.getUsable(req.warehouseId()))
                 .project(req.projectId() == null ? null : projectService.get(req.projectId()))
                 .title(req.title())
                 .scheduledDate(req.scheduledDate())
@@ -106,7 +106,43 @@ public class AsService {
                 .createdBy(username)
                 .build();
 
+        applyLines(as, lines);
         return AsResponse.from(asRepository.save(as));
+    }
+
+    /**
+     * 품목 줄을 통째로 갈아 끼운다. 접수 머리의 {@code item} 은 첫 줄 품목 — 수리조회·현황이 그 값을 읽는다.
+     * 수리품목은 고객이 가진 물건이라 지금 단종(사용중지)이어도 받는다 — get, getUsable 이 아니다.
+     */
+    private void applyLines(AsRequest as, List<AsLineRequest> lines) {
+        if (lines.isEmpty()) throw ApiException.badRequest("품목을 1개 이상 입력하세요.");
+        as.getLines().clear();
+        if (as.getId() != null) asRepository.flush();
+        int no = 0;
+        for (AsLineRequest l : lines) {
+            Item item = itemService.get(l.itemId());
+            if (no == 0) as.setItem(item);
+            as.getLines().add(AsRequestLine.builder()
+                    .asRequest(as).lineNo(++no).item(item)
+                    .quantity(l.quantity() != null ? l.quantity() : BigDecimal.ONE)
+                    .build());
+        }
+    }
+
+    /**
+     * 원본 A/S접수조회 [선택삭제] · 수정 창 [삭제] — "선택한 전표를 삭제 하겠습니까?".
+     * 수리에 소모부품을 썼으면 재고가 빠져 있으니 부품부터 지워(재고 복원) 다시 하게 한다.
+     */
+    @Transactional
+    public void delete(Long id) {
+        AsRequest as = asRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("A/S 접수를 찾을 수 없습니다. id=" + id));
+        long parts = asPartRepository.countByAsRequestId(id);
+        if (parts > 0) {
+            throw ApiException.badRequest(String.format(
+                    "%s 에 소모부품 %d건이 남아 있습니다 — 부품을 지워 재고를 되돌린 뒤 삭제하세요.", as.getAsNo(), parts));
+        }
+        asRepository.delete(as);
     }
 
     @Transactional
@@ -131,6 +167,12 @@ public class AsService {
                 as.setDoneDate(LocalDate.now());
             }
         }
+        /* 원본 수정 창은 일자만 잠근다 — 거래처 · 창고 · 프로젝트 · 접수내용 · 품목 줄도 고친다. */
+        if (req.partnerId() != null) as.setPartner(partnerService.get(req.partnerId()));
+        if (req.warehouseId() != null) as.setWarehouse(warehouseService.getUsable(req.warehouseId()));
+        if (req.projectId() != null) as.setProject(projectService.get(req.projectId()));
+        if (req.symptom() != null) as.setSymptom(req.symptom());
+        if (req.lines() != null) applyLines(as, req.lines());
         if (req.charge() != null) as.setCharge(req.charge());
         if (req.title() != null) as.setTitle(req.title());
         if (req.scheduledDate() != null) as.setScheduledDate(req.scheduledDate());

@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import com.erp.common.BaseTimeEntity;
 import com.erp.inventory.item.Item;
 import com.erp.inventory.project.Project;
@@ -85,4 +87,13 @@ public class AsRequest extends BaseTimeEntity {
 
     @Column(length = 50)
     private String createdBy;
+
+    /**
+     * 접수 품목 줄(원본 격자). {@link #item} 은 첫 줄의 품목이다 — 수리조회·현황이 한 품목으로 읽어 왔으므로 남겨 둔다.
+     */
+    @OneToMany(mappedBy = "asRequest", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("lineNo asc")
+    @org.hibernate.annotations.BatchSize(size = 100)
+    @Builder.Default
+    private List<AsRequestLine> lines = new ArrayList<>();
 }
