@@ -78,6 +78,7 @@ function defaultTimes(now = new Date()) {
  * <p>월간 양식 왼쪽은 연도 넘기기 + 1~12월 단추 + [오늘], 그 아래 캘린더 고르기다. 칸 실측: 머리 12px 700 ·
  * 바탕 --ec-bg-page · 높이 25.7 / 날 칸 높이 76 · 여백 2.7 · 머리카락 선 · 날짜는 오른쪽 위 · 오늘 칸 바탕
  * --ec-blue-wash · 그 달 밖의 칸 --ec-bg-disabled · 일정구분 칩 둥글기 10(.ec-label-chip).
+ * 시간 없는(종일) 일정은 캘린더 색 막대(여백 3.6 0.9, 높이 25.5), 시간 있는 일정은 그 색 점 + 칩 + 굵은 제목.
  *
  * <p>일정을 누르면 <b>'일정조회'</b> 창이 뜬다 — 제목 · 일정구분 · 장소 · 라벨 · 날짜/시간('2026/10/03 14:00 ~ 15:00')
  * · 참석자 · 본문, 하단 [수정][인쇄][닫기][삭제]. [삭제]는 '선택한 일정이 삭제 됩니다. 한번 지워진 자료는 복구 될 수
@@ -493,8 +494,10 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
                               <div className={`text-right ${key === todayStr ? 'font-bold' : ''}`}>{d.getDate()}</div>
                               {evs.map((r) => (
                                 <button key={r.id} type="button" title={r.title} onClick={() => setViewing(r)}
-                                        className="no-ec flex items-center gap-[4px] w-full bg-transparent border-0 p-0 mb-[2px] cursor-pointer text-left text-ec-ink">
-                                  {r.category && <span className="ec-label-chip">{r.category}</span>}
+                                        className={`no-ec flex items-center w-full border-0 py-[3.6px] px-[0.9px] cursor-pointer text-left text-ec-ink ${r.startTime ? 'bg-transparent' : 'bg-ec-calendar'}`}>
+                                  {/* 원본: 시간 없는(종일) 일정은 캘린더 색 막대, 시간 있는 일정은 그 색 점(7.19 동그라미) */}
+                                  {r.startTime && <span className="inline-block shrink-0 w-[7.1875px] h-[7.1875px] mr-[4.5px] rounded-full bg-ec-calendar" />}
+                                  {r.category && <span className="ec-label-chip mr-[4.5px]">{r.category}</span>}
                                   <b className="truncate">{r.title}</b>
                                 </button>
                               ))}
