@@ -272,6 +272,8 @@ export default function ProductionIssueStatusPage() {
     return basis === '입고단가(VAT포함)' ? p * 1.1 : p
   }
 
+  const itemById = useMemo(() => new Map(items.map((i) => [i.id, i])), [items])
+
   const bomByProduct = useMemo(
     () => new Map<number, BomLine[]>(boms.map((b) => [b.productId, b.lines])), [boms])
 
@@ -287,6 +289,10 @@ export default function ProductionIssueStatusPage() {
       p.producedQty,
       () => 1,   // 수량만 필요하다. 금액은 [단가표시]가 정한 단가로 아래에서 따로 센다.
     )
+    /*
+     * 코드·단위는 실제 소모 줄에서 읽고, <b>BOM 에 있는데 안 쓴 자재</b>(실제 0)는 품목 마스터에서 읽는다.
+     * 소모 줄에서만 읽어 그 줄의 [소모품목코드] 가 비었다(수동소모 전표 실측).
+     */
     const codeOf = new Map(p.materials.map((m) => [m.componentId, m.componentCode]))
     const unitOf = new Map(p.materials.map((m) => [m.componentId, m.unit]))
     return diffs
@@ -298,9 +304,9 @@ export default function ProductionIssueStatusPage() {
         return {
           prod: p,
           componentId: d.componentId,
-          componentCode: codeOf.get(d.componentId) ?? '',
+          componentCode: codeOf.get(d.componentId) ?? itemById.get(d.componentId)?.code ?? '',
           componentName: d.componentName,
-          unit: unitOf.get(d.componentId) ?? '',
+          unit: unitOf.get(d.componentId) ?? itemById.get(d.componentId)?.unit ?? '',
           stdQty: d.stdQty,
           actualQty: d.actualQty,
           gap,
@@ -308,7 +314,7 @@ export default function ProductionIssueStatusPage() {
           amount: materialPrice == null ? null : gap * materialPrice,
         }
       })
-  }), [shown, bomByProduct, matBasis, evalPrice, monthlyCost])
+  }), [shown, bomByProduct, matBasis, evalPrice, monthlyCost, itemById])
 
   /** 품목별 — 같은 품목이 입고에도 소모에도 나올 수 있다(반제품). 양쪽을 한 줄에 둔다. */
   const byItem = useMemo(() => {
