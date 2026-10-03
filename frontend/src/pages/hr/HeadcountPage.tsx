@@ -30,8 +30,9 @@ export default function HeadcountPage() {
   const [mode, setMode] = useState<Mode>('일별')
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
-  const [dept, setDept] = useState('')
-  const [title, setTitle] = useState('')
+  /** [부서] · [직위/직급] — 원본처럼 여러 개 고르는 코드도움. */
+  const [dept, setDept] = useState<string[]>([])
+  const [title, setTitle] = useState<string[]>([])
   const [emps, setEmps] = useState<Emp[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -51,8 +52,8 @@ export default function HeadcountPage() {
   useEffect(() => { void load() }, [])
 
   const picked = useMemo(() => emps
-    .filter((e) => !dept || (e.department ?? '') === dept)
-    .filter((e) => !title || (e.jobTitle ?? '') === title), [emps, dept, title])
+    .filter((e) => dept.length === 0 || dept.includes(e.department ?? ''))
+    .filter((e) => title.length === 0 || title.includes(e.jobTitle ?? '')), [emps, dept, title])
 
   const rows = useMemo(() => headcountRows(picked, mode, from, to), [picked, mode, from, to])
   const hiredSum = rows.reduce((s, r) => s + r.hired.length, 0)
@@ -69,7 +70,7 @@ export default function HeadcountPage() {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setMode('일별'); setFrom(init.from); setTo(init.to); setDept(''); setTitle('') } },
+        { label: '다시 작성', onClick: () => { setMode('일별'); setFrom(init.from); setTo(init.to); setDept([]); setTitle([]) } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -105,11 +106,11 @@ export default function HeadcountPage() {
           </span>
         </EcCond>
         <EcCond label="부서" pick>
-          <CodePickerField label="부서" hideLabel width={200} emptyLabel="전체" value={dept} onChange={setDept}
+          <CodePickerField label="부서" hideLabel fill multiple placeholder="부서" values={dept} onChangeMulti={(v) => setDept(v)}
                            items={depts.map((d) => ({ value: d, name: d }))} />
         </EcCond>
         <EcCond label="직위/직급" pick>
-          <CodePickerField label="직위/직급" hideLabel width={180} emptyLabel="전체" value={title} onChange={setTitle}
+          <CodePickerField label="직위/직급" hideLabel fill multiple placeholder="직위/직급" values={title} onChangeMulti={(v) => setTitle(v)}
                            items={titles.map((t) => ({ value: t, name: t }))} />
         </EcCond>
       </ul>
