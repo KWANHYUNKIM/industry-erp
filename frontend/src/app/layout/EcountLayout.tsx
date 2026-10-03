@@ -564,6 +564,8 @@ const MENU: TopMenu[] = [
             { label: '수당/공제그룹등록', to: '/hr/pay-groups' },
             { label: '부서등록', to: '/hr/departments' },
             { label: '프로젝트등록', to: '/inventory/projects' },
+            // 원본 인쇄용결재라인등록(관리) E090102 — 회계 · 재고 · 관리 알약 중 [관리]. 우리 결재란 화면은 모듈별이 아니다(보드).
+            { label: '인쇄용결재라인등록(관리)', to: '/settings/print-sign' },
             { label: '담당자별 실적', to: '/hr/performance' },
           ] },
           { label: '급여작업', children: [{ label: '급여계산/대장', to: '/hr/payroll' }, { label: '수당·공제그룹/급여이체', to: '/hr/pay-settings' }] },
