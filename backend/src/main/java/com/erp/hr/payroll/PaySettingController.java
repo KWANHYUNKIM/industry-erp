@@ -40,7 +40,7 @@ public class PaySettingController {
         return service.updateItem(id, req);
     }
 
-    /** 화면 시험 뒷정리용 — 원본 화면에는 삭제가 없다(PaySettingService.deleteItem). */
+    /** 원본 수당리스트 [사용중단/재사용 ▲] 의 [삭제]. */
     @DeleteMapping("/items/{id}")
     public void deleteItem(@PathVariable Long id) {
         service.deleteItem(id);

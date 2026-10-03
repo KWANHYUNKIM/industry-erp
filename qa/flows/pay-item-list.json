@@ -8,11 +8,12 @@
         "wait:800",
         "set:table tbody tr:not(:has(input[type=checkbox])) input.ec-input#0|QAFLOW",
         "set:table tbody tr:not(:has(input[type=checkbox])) input.ec-input#1|QA관리-화면시험수당",
+        "set:table tbody tr:not(:has(input[type=checkbox])) input.ec-input#2|98",
         "choose:table tbody tr:not(:has(input[type=checkbox])) select#0|식대",
         "choose:table tbody tr:not(:has(input[type=checkbox])) select#1|변동(시간)",
         "click:저장(F8)",
         "wait:1000",
-        "expect:document.body.innerText.includes('저장되었습니다.') && /QAFLOW/.test(document.querySelector('table').innerText)",
+        "expect:/QAFLOW/.test(document.querySelector('table').innerText)",
         "js:(async()=>{const t=localStorage.getItem('erp_token');const h={Authorization:'Bearer '+t};const l=await (await fetch('/api/pay-settings/items',{headers:h})).json();const i=l.find(x=>x.code==='QAFLOW');if(!i||i.taxable||i.taxFreeType!=='MEAL'||i.payMethod!=='HOURLY')return false;return (await fetch('/api/pay-settings/items/'+i.id,{method:'DELETE',headers:h})).ok})()"
       ]
     }

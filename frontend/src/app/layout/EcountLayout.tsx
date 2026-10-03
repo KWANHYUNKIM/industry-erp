@@ -38,7 +38,7 @@ const MENU: TopMenu[] = [
       { label: '기타관리시스템', nodes: [{ label: '기타관리시스템', to: '/settings/etc' }, { label: '공통코드', to: '/settings/codes' }, { label: '사용자정의필드', to: '/settings/custom-fields' }, { label: '디자인 시스템', to: '/settings/design-system' }] },
       { label: '보안관리', nodes: [{ label: '보안설정', to: '/settings/security' }] },
       { label: '인쇄서식', nodes: [{ label: '인쇄용 결재라인', to: '/settings/print-sign' }] },
-      { label: '다운로드', nodes: [{ label: '엑셀자료올리기기능', to: '/settings/download' }] },
+      { label: '다운로드', nodes: [{ label: '다운로드', to: '/settings/download' }] },
     ],
   },
   {

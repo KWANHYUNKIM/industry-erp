@@ -45,7 +45,8 @@ const blank = (): Row => ({
  * [저장(F8)] 한 번으로</b> 전부 저장한다. 끝의 빈 줄에 적으면 새 항목이 된다.
  * 열: 수당항목코드 · 수당항목명 · 표시순서 · 배율 · 비과세유형 · 지급유형 · 계산식 · 산출방법.
  * 지급유형 드롭다운: 고정 · 변동(일) · 변동(시간) · 변동(지급률) · 변동(직접입력).
- * 버튼줄: 저장(F8) · 사용중단/재사용 · 사용중단포함 · 웹자료올리기 · H.
+ * 버튼줄: 저장(F8) · 사용중단/재사용(▲ 사용중단 · 삭제 · 재사용) · 사용중단포함 · 웹자료올리기 · H.
+ * 저장하면 표시순서로 다시 정렬되고 안내는 없다. 수당항목명 · 표시순서가 비면 그 칸이 빨갛게 막힌다.
  *
  * <p>[계산식]은 그리지 않았다 — 원본은 항목마다 사용시점별 계산식(예: R( 기본급(급여지급사항) , 0 ))을
  * 따로 두고 급여계산이 그것을 푼다. 우리 급여계산은 그룹 금액을 그대로 더하므로 계산식을 담을 자리가 없다.
@@ -55,7 +56,6 @@ export default function PayItemListPage({ kind = 'ALLOWANCE' }: { kind?: Payslip
   const word = kind === 'ALLOWANCE' ? '수당' : '공제'
   const [rows, setRows] = useState<Row[]>([])
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
   const [includeInactive, setIncludeInactive] = useState(false)
   const [checked, setChecked] = useState<Set<number>>(new Set())
   const tableRef = useRef<HTMLTableElement>(null)
@@ -93,14 +93,14 @@ export default function PayItemListPage({ kind = 'ALLOWANCE' }: { kind?: Payslip
     for (const r of todo) {
       if (!r.code.trim()) { setError(`${word}항목코드를 입력 바랍니다.`); return }
       if (!r.name.trim()) { setError(`${word}항목명을 입력 바랍니다.`); return }
+      if (r.sortOrder === '') { setError('표시순서를 입력 바랍니다.'); return }
     }
     try {
       for (const r of todo) {
         if (r.id) await api.put(`/pay-settings/items/${r.id}`, body(r))
         else await api.post('/pay-settings/items', body(r))
       }
-      setNotice(todo.length ? '저장되었습니다.' : '')
-      window.setTimeout(() => setNotice(''), 2500)
+      // 원본은 저장해도 안내 없이 표시순서로 다시 그린다
       load()
     } catch (e) {
       setError(extractErrorMessage(e))
@@ -108,16 +108,25 @@ export default function PayItemListPage({ kind = 'ALLOWANCE' }: { kind?: Payslip
     }
   }
 
-  /** 원본 [사용중단/재사용] — 고른 줄의 사용 여부를 뒤집는다. */
-  async function toggleActive() {
+  /**
+   * 원본 [사용중단/재사용 ▲] — 펼치면 <b>사용중단 · 삭제 · 재사용</b>. 고른 줄에 대고 한다.
+   * 삭제는 '삭제하겠습니까?' 를 묻는다. 급여 그룹이 물고 있는 항목은 서버(FK)가 막는다.
+   */
+  const [menuOpen, setMenuOpen] = useState(false)
+  async function applyToChecked(op: '사용중단' | '삭제' | '재사용') {
+    setMenuOpen(false)
     const targets = rows.filter((r) => r.id && checked.has(r.id))
+    if (op === '삭제' && !window.confirm('삭제하겠습니까?')) return
     try {
-      for (const r of targets) await api.put(`/pay-settings/items/${r.id}`, body({ ...r, active: !r.active }))
-      setChecked(new Set())
-      load()
+      for (const r of targets) {
+        if (op === '삭제') await api.delete(`/pay-settings/items/${r.id}`)
+        else await api.put(`/pay-settings/items/${r.id}`, body({ ...r, active: op === '재사용' }))
+      }
     } catch (e) {
       setError(extractErrorMessage(e))
     }
+    setChecked(new Set())
+    load()
   }
 
   const shown = rows
@@ -130,12 +139,21 @@ export default function PayItemListPage({ kind = 'ALLOWANCE' }: { kind?: Payslip
       searchable={false}
       actions={[
         { label: '저장(F8)', onClick: save, primary: true },
-        { label: '사용중단/재사용', onClick: toggleActive, disabled: checked.size === 0 },
+        { label: '사용중단/재사용 ▲', onClick: () => setMenuOpen((v) => !v), disabled: checked.size === 0 },
         { label: includeInactive ? '사용중단제외' : '사용중단포함', onClick: () => setIncludeInactive((v) => !v) },
       ]}
     >
+      {menuOpen && (
+        <>
+          <div className="ec-backdrop-clear" onClick={() => setMenuOpen(false)} />
+          <div className="ec-menu fixed top-auto right-auto bottom-[44px] left-[300px] mobile:left-[16px]">
+            {(['사용중단', '삭제', '재사용'] as const).map((op) => (
+              <button key={op} type="button" onClick={() => applyToChecked(op)}>{op}</button>
+            ))}
+          </div>
+        </>
+      )}
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
-      {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
 
       <table ref={tableRef} className="w-full text-left">
         <thead>
