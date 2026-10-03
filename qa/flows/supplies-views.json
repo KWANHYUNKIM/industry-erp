@@ -20,8 +20,10 @@
         "expect:document.querySelector('thead th:nth-child(2)').textContent.startsWith(sessionStorage.getItem('qaYd')) && !document.querySelector('button[title=\"전체 보기\"]')",
         "js:[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '오늘').click(); true",
         "js:[...document.querySelectorAll('.ec-pill')].find((b) => b.textContent.trim() === '월간').click(); true",
+        "expect:!!document.querySelector('button[aria-label=\"날짜 고르기\"]')",
         "expect:document.querySelector('tbody td.bg-ec-blue-wash')?.innerText.includes('QA그룹웨어-시간표')",
         "js:[...document.querySelectorAll('.ec-pill')].find((b) => b.textContent.trim() === '공용품별').click(); true",
+        "expect:!!document.querySelector('button[aria-label=\"날짜 고르기\"]')",
         "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.cells[0]?.innerText.trim() === 'QA그룹웨어-빔2'); return !!tr && tr.cells[3].innerText.includes('QA그룹웨어-시간표') && !tr.cells[2].innerText.includes('QA그룹웨어-시간표') })()"
       ]
     },

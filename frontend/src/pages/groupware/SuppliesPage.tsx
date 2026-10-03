@@ -260,7 +260,7 @@ ${line('적요', u.remark)}${line('라벨', u.labelText)}${line('반납여부', 
   /** 일간 · 월간 · 공용품별 — 원본은 묶은 목록이 아니라 시간표 · 달력 · 공용품×시간 표다(2026-10-03 실측). */
   const [cursor, setCursor] = useState(() => new Date())
   const [calRows, setCalRows] = useState<Usage[]>([])
-  /** 원본 일간의 [다음 ›] 옆 달력 단추 — 누르면 작은 달력이 떠 날을 고른다(2026-10-03 실측). */
+  /** 원본 일간 · 월간 · 공용품별의 [다음 ›] 옆 달력 단추 — 누르면 작은 달력이 떠 날을 고른다(2026-10-03 실측). */
   const [pickOpen, setPickOpen] = useState(false)
   const step = (n: number) => setCursor((c) => view === '월간'
     ? new Date(c.getFullYear(), c.getMonth() + n, 1)
@@ -512,17 +512,16 @@ ${line('적요', u.remark)}${line('라벨', u.labelText)}${line('반납여부', 
             <button type="button" className="ec-btn ec-btn-sm" onClick={() => step(-1)}>‹ 이전</button>
             <button type="button" className="ec-btn ec-btn-sm" onClick={() => setCursor(new Date())}>오늘</button>
             <button type="button" className="ec-btn ec-btn-sm" onClick={() => step(1)}>다음 ›</button>
-            {view === '일간' && (
-              <span className="relative">
-                <button type="button" className="ec-btn ec-btn-sm" aria-label="날짜 고르기" onClick={() => setPickOpen((o) => !o)}>📅</button>
-                {pickOpen && (
-                  <span className="absolute top-full left-0 z-30 mt-[4px] shadow-lg">
-                    <EcMonthCalendar value={ymd(cursor)}
-                                     onPick={(d) => { if (d) setCursor(new Date(`${d}T00:00:00`)); setPickOpen(false) }} />
-                  </span>
-                )}
-              </span>
-            )}
+            {/* 일간 · 월간 · 공용품별 셋 다 있다(실측) */}
+            <span className="relative">
+              <button type="button" className="ec-btn ec-btn-sm" aria-label="날짜 고르기" onClick={() => setPickOpen((o) => !o)}>📅</button>
+              {pickOpen && (
+                <span className="absolute top-full left-0 z-30 mt-[4px] shadow-lg">
+                  <EcMonthCalendar value={ymd(cursor)}
+                                   onPick={(d) => { if (d) setCursor(new Date(`${d}T00:00:00`)); setPickOpen(false) }} />
+                </span>
+              )}
+            </span>
             <span className="ml-auto text-[12px] text-ec-ink">
               {view === '월간' ? `${cursor.getFullYear()}년 ${pad2(cursor.getMonth() + 1)}월` : view === '공용품별' ? dayText(ymd(cursor)) : ''}
             </span>
