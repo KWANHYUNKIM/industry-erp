@@ -129,7 +129,11 @@ export default function DefectReportPage() {
          * 이것만 전 기간을 받아 아래 inPeriod 로 걸렀다 — 옆줄이 하는 일을 이 줄만 안 했다.
          */
         api.get<QualityInspection[]>('/quality-inspections', { params: { from, to } }),
-        api.get<{ rows: StockAdjustment[] }>('/stock-adjustments', { params: { from, to } }),
+        /*
+         * <b>all: true</b> — 목록은 5,000 줄에서 자른다(원본 [오천건이상조회]). 이 화면은 줄을 보여 주는 게 아니라
+         * <b>더하는</b> 보고서라, 잘리면 불량처리·폐기 합계가 아무 표시 없이 작아진다(경영보고서와 같은 까닭).
+         */
+        api.get<{ rows: StockAdjustment[] }>('/stock-adjustments', { params: { from, to, all: true } }),
         api.get<CommonCode[]>('/codes/DEFECT_TYPE'),
         api.get<Item[]>('/items'),
         /*
