@@ -18,6 +18,16 @@ import java.util.List;
 public class RetirementPayController {
 
     private final RetirementPayService service;
+    private final RetirementEstimateService estimateService;
+
+    /** 퇴직급여추계액 (E030108) — 기준월(YYYY-MM)에 재직 중인 사원마다 어림한 퇴직급여. */
+    @GetMapping("/estimate")
+    public java.util.List<com.erp.accounting.retirementpay.dto.RetirementPayDtos.EstimateRow> estimate(
+            @RequestParam String baseMonth, @RequestParam(required = false) String employeeCode,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(defaultValue = "false") boolean includeUnderOneYear) {
+        return estimateService.estimate(baseMonth, employeeCode, departmentId, includeUnderOneYear);
+    }
 
     @GetMapping
     public List<RetirementPayResponse> list(@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
