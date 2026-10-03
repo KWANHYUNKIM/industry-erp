@@ -1110,4 +1110,17 @@ th.ec-empty {
 .ec-org-children::before { content: ""; position: absolute; top: -18px; left: 50%; height: 18px; border-left: var(--ec-hair) solid var(--ec-line); }
 .ec-org-children > .ec-org-branch { position: relative; }
 .ec-org-children > .ec-org-branch::before { content: ""; position: absolute; top: -18px; left: 50%; height: 18px; border-left: var(--ec-hair) solid var(--ec-line); }
+/* 조직도현황 성명 → 사원 카드(E090220 실측: 404x171 · 여백 9 · 둥글기 10 · 머리카락 테두리 · 그림자 pop,
+   사진 칸 133x152 --ec-bg-page 둥글기 10, 이름표 회색 폭 71 · 값 왼쪽 여백 4.5, 이름 아래 2.7) */
+.ec-org-members > li { position: relative; }
+.ec-org-profile { position: absolute; top: 100%; left: 0; z-index: 30; display: flex; gap: 15px; width: 404px; padding: 9px;
+  background: var(--ec-bg-panel); border: var(--ec-hair) solid var(--ec-line); border-radius: var(--ec-radius);
+  box-shadow: var(--ec-shadow-pop); text-align: left; cursor: default; }
+.ec-org-profile-img { flex: 0 0 133px; height: 152px; background: var(--ec-bg-page); border-radius: var(--ec-radius); }
+.ec-org-profile-body { flex: 1; min-width: 0; }
+.ec-org-profile-body .name { padding-bottom: 2.7px; }
+.ec-org-profile-body dl { display: grid; grid-template-columns: 71px 1fr; margin: 9px 0 0; row-gap: 4.5px; }
+.ec-org-profile-body dt { color: var(--ec-icon); }
+.ec-org-profile-body dd { margin: 0; padding-left: 4.5px; }
+.ec-org-profile-close { position: absolute; top: 4.5px; right: 9px; border: 0; background: transparent; color: var(--ec-icon); cursor: pointer; }
 } /* @layer components */

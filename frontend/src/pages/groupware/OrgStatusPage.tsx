@@ -40,6 +40,9 @@ function buildTree(depts: Department[], emps: EmployeeMaster[]): Node[] {
  *
  * <p>실측: 부서 머리 바탕 --ec-blue-hover(원본 실측값과 같다) · 흰 글자 12px 700 · 위 모서리 10 · 여백 6.3 4.5 ·
  * 상자 폭 161 · 사람 줄 여백 4.5 0. 위아래 상자는 가는 선으로 잇는다.
+ *
+ * <p>[성명]을 누르면 그 자리 아래에 <b>사원 카드</b>가 뜬다 — 사진 칸 · 부서 · 성명 · 직위/직급 · 직책 · 전화 · 모바일 ·
+ * 이메일, 오른쪽 위 ×(2026-10-03 실측). 우리 사원에는 직책 칸이 없어 이름표만 둔다(원본 회사도 빈칸이었다).
  */
 export default function OrgStatusPage() {
   const [depts, setDepts] = useState<Department[]>([])
@@ -47,6 +50,8 @@ export default function OrgStatusPage() {
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
   const [zoom, setZoom] = useState(1)
+  /** 카드를 띄운 사원. */
+  const [profileId, setProfileId] = useState<number | null>(null)
   const chartRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -78,8 +83,26 @@ export default function OrgStatusPage() {
           <ul className="ec-org-members">
             {n.members.map((m) => (
               <li key={m.id} className={keyword && m.name.includes(keyword) ? 'hit' : ''}>
-                <span className="text-ec-navy">{m.name}</span>
+                <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-navy"
+                        onClick={() => setProfileId(profileId === m.id ? null : m.id)}>{m.name}</button>
                 <span>{m.jobTitle}</span>
+                {profileId === m.id && (
+                  <div className="ec-org-profile" role="dialog" aria-label="사원 카드">
+                    <div className="ec-org-profile-img" />
+                    <div className="ec-org-profile-body">
+                      <div>{m.department}</div>
+                      <div className="name">{m.name}</div>
+                      <dl>
+                        <dt>직위/직급</dt><dd>{m.jobTitle}</dd>
+                        <dt>직책</dt><dd />
+                        <dt>전화</dt><dd>{m.phone ?? ''}</dd>
+                        <dt>모바일</dt><dd>{m.mobile ?? ''}</dd>
+                        <dt>이메일</dt><dd>{m.email ?? ''}</dd>
+                      </dl>
+                    </div>
+                    <button type="button" className="ec-org-profile-close" aria-label="닫기" onClick={() => setProfileId(null)}>×</button>
+                  </div>
+                )}
               </li>
             ))}
           </ul>

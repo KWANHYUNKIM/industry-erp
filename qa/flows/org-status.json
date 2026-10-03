@@ -1,15 +1,27 @@
 {
-  "about": "조직도현황(원본 E090220) — 부서 상자 나무(머리 = 부서명, 줄 = 성명 · 직급), 확대·축소, 하단 [인쇄] 하나. node qa/shot.mjs qa/flows/org-status.json",
+  "about": "조직도현황(원본 E090220) — 부서 상자 나무(머리 = 부서명, 줄 = 성명 · 직급), 확대·축소, 하단 [인쇄] 하나, [성명]을 누르면 사원 카드(부서 · 성명 · 직위/직급 · 직책 · 전화 · 모바일 · 이메일, ×로 닫음). node qa/shot.mjs qa/flows/org-status.json",
   "shots": [
     {
       "name": "부서 상자와 사람 줄이 그려지고, 확대하면 크기가 바뀐다",
       "path": "/groupware/org-status",
       "steps": [
+        "wait:800",
         "expect:document.querySelectorAll('.ec-org-head').length >= 1",
         "expect:document.querySelectorAll('.ec-org-members li').length >= 1 && [...document.querySelectorAll('.ec-org-members li')].every((li) => li.children.length === 2)",
         "js:document.querySelector('button[aria-label=확대]').click(); true",
         "expect:document.querySelector('.ec-org-chart').style.zoom === '1.1'",
         "expect:[...document.querySelectorAll('button')].some((b) => b.textContent.trim() === '인쇄') && ![...document.querySelectorAll('button')].some((b) => b.textContent.trim() === '신규(F2)')"
+      ]
+    },
+    {
+      "name": "성명을 누르면 사원 카드 → ×로 닫힘",
+      "path": "/groupware/org-status",
+      "steps": [
+        "js:document.querySelector('.ec-org-members li button').click(); true",
+        "expect:(() => { const c = document.querySelector('[role=dialog][aria-label=\"사원 카드\"]'); return !!c && [...c.querySelectorAll('dt')].map((x) => x.textContent).join(',') === '직위/직급,직책,전화,모바일,이메일' && c.querySelector('.name').textContent === document.querySelector('.ec-org-members li button').textContent })()",
+        "expect:getComputedStyle(document.querySelector('.ec-org-profile')).width === '404px' && getComputedStyle(document.querySelector('.ec-org-profile-img')).height === '152px'",
+        "js:document.querySelector('.ec-org-profile-close').click(); true",
+        "expect:!document.querySelector('.ec-org-profile')"
       ]
     }
   ]
