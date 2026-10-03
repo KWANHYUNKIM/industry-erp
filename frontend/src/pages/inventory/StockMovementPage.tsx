@@ -8,6 +8,7 @@ import { INQUIRY_FULL_PICKS, ymd } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useItemFlags } from '../../utils/useInactiveItems'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
+import { stockBuckets, bucketTotals, type BucketTx, type StockBucket } from '../../utils/stockBuckets'
 
 /**
  * 재고 > 재고변동표 (이카운트 E040719)
@@ -32,16 +33,8 @@ interface MovementRow {
   opening: number; inQty: number; outQty: number; closing: number
 }
 
-/** 일별·월별 보기의 한 줄. 구간(날짜 또는 월)마다 기초·입고·출고·기말을 낸다. */
-interface BucketRow {
-  key: string
-  opening: number; inQty: number; outQty: number; closing: number; count: number
-}
-
-interface LedgerTx {
-  transactionDate: string
-  quantityChange: number
-}
+/** 일별·월별 보기의 한 줄. 구간(날짜 또는 월)마다 기초·입고·출고·기말을 낸다(utils/stockBuckets). */
+type BucketRow = StockBucket
 
 const num = (n: number) => n.toLocaleString('ko-KR')
 const firstOfMonth = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01` }
@@ -130,29 +123,14 @@ export default function StockMovementPage() {
       if (mode === '집계') {
         setBuckets([])
       } else {
-        // 구간별 기초는 '기간 전체의 기초'에서 시작해 앞 구간의 기말을 다음 구간의 기초로 굴린다.
-        // 그래야 구간끼리 이어지고 마지막 구간의 기말이 집계 보기의 기말과 맞는다.
         const openingTotal = res.data.reduce((n, r) => n + r.opening, 0)
-        const led = await api.get<{ rows: LedgerTx[] }>('/stock/ledger', { params })
-        const bucketOf = (d: string) => (mode === '월별' ? d.slice(0, 7) : d.slice(0, 10))
-
-        const map = new Map<string, { inQty: number; outQty: number; count: number }>()
-        led.data.rows.forEach((t) => {
-          const k = bucketOf(t.transactionDate)
-          const b = map.get(k) ?? { inQty: 0, outQty: 0, count: 0 }
-          if (t.quantityChange >= 0) b.inQty += t.quantityChange
-          else b.outQty += -t.quantityChange
-          b.count += 1
-          map.set(k, b)
-        })
-
-        let running = openingTotal
-        setBuckets([...map.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([key, b]) => {
-          const opening = running
-          const closing = opening + b.inQty - b.outQty
-          running = closing
-          return { key, opening, inQty: b.inQty, outQty: b.outQty, closing, count: b.count }
-        }))
+        /*
+         * <b>all=true</b> — 재고수불부 API 는 기본으로 앞 5천 줄에서 자른다(원본 [오천건이상조회]).
+         * 여기서는 줄을 보여 주는 것이 아니라 <b>다 더하는</b> 것이라, 잘린 채 더하면 뒤쪽 날짜의
+         * 입고·출고가 조용히 빠지고 마지막 구간 기말이 집계 보기의 기말과 어긋난다.
+         */
+        const led = await api.get<{ rows: BucketTx[] }>('/stock/ledger', { params: { ...params, all: 'true' } })
+        setBuckets(stockBuckets(openingTotal, led.data.rows, mode))
       }
     } catch (err) { setError(extractErrorMessage(err)); setRows([]); setBuckets([]) }
     finally { setLoading(false) }
@@ -228,9 +206,10 @@ export default function StockMovementPage() {
   }, [rows, keyword, itemCond, hideZero, rollUp, items, withUntracked, withInactive, byItemName, untracked, inactive,
     category, itemGroup, categoryOf, groupOf, mgmtCond, mgmt])
 
-  const totals = useMemo(() => shown.reduce((s, r) => ({
+  /* [일별]·[월별] 이면 그 표의 구간들로 센다 — 집계 줄(품목·검색어로 걸러진)로 세면 위 줄들과 어긋난다. */
+  const totals = useMemo(() => (mode !== '집계' ? bucketTotals(shownBuckets) : shown.reduce((s, r) => ({
     opening: s.opening + r.opening, inQty: s.inQty + r.inQty, outQty: s.outQty + r.outQty, closing: s.closing + r.closing,
-  }), { opening: 0, inQty: 0, outQty: 0, closing: 0 }), [shown])
+  }), { opening: 0, inQty: 0, outQty: 0, closing: 0 })), [mode, shown, shownBuckets])
 
 
   return (
