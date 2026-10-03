@@ -2306,11 +2306,13 @@ export interface OtherWithholding {
   id: number
   docNo: string
   payDate: string
+  attributionMonth: string
   incomeType: IncomeType
   incomeTypeName: string
   partnerId: number | null
   payeeName: string
   payeeRegNo: string | null
+  incomeCode: string | null
   grossAmount: number
   expenseAmount: number
   taxableAmount: number

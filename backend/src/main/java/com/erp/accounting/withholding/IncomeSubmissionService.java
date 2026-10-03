@@ -47,7 +47,10 @@ public class IncomeSubmissionService {
         List<OtherWithholding> rows = otherWithholdingRepository.findByAttributionBetween(f.toString(), t.toString()).stream()
                 .filter(w -> w.getIncomeType() == type)
                 .toList();
-        long payees = rows.stream().map(w -> w.getPayeeName() + "\u0000" + Objects.toString(w.getPayeeRegNo(), "")).distinct().count();
+        // [매수] = 지급조서 쪽수 — 소득자 × 업종구분코드(소득코드)마다 한 장. 원본 2025 사업소득: 소득자 셋 중 두뇌발달센터가
+        // 940903 학원강사 · 940909 기타자영업 두 코드로 나뉘어 4매(2026-10-04 실측).
+        long payees = rows.stream().map(w -> w.getPayeeName() + "\u0000" + Objects.toString(w.getPayeeRegNo(), "")
+                + "\u0000" + Objects.toString(w.getIncomeCode(), "")).distinct().count();
         return new IncomeSubmission(kind, (int) payees, rows.size(),
                 rows.stream().map(OtherWithholding::getGrossAmount).reduce(BigDecimal.ZERO, BigDecimal::add),
                 rows.stream().map(OtherWithholding::getIncomeTax).reduce(BigDecimal.ZERO, BigDecimal::add),

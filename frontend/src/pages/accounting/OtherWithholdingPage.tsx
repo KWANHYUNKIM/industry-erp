@@ -12,6 +12,14 @@ const thisMonth = () => ymd(new Date()).slice(0, 7)
 const today = () => ymd(new Date())
 
 /** 소득구분별 세율. 화면 미리보기용 — 확정 계산은 서버가 한다. */
+/** 원본 [업종구분코드](사업소득) · [소득코드](기타 · 이자배당) — loginaa 기타원천세에서 쓰인 것(2026-10-04). 소득코드 60 은 필요경비가 없다. */
+const CODES: Record<IncomeType, { code: string; name: string }[]> = {
+  BUSINESS: [{ code: '940903', name: '학원강사' }, { code: '940909', name: '기타자영업' }],
+  OTHER: [{ code: '60', name: '필요경비 없음' }, { code: '62', name: '' }, { code: '76', name: '' }, { code: '79', name: '' }],
+  INTEREST: [{ code: '22', name: '' }],
+  DIVIDEND: [{ code: '22', name: '' }],
+}
+
 const TYPES: { value: IncomeType; label: string; rate: number; expenseRate: number; hint: string }[] = [
   { value: 'BUSINESS', label: '사업소득', rate: 0.03, expenseRate: 0, hint: '프리랜서·용역. 3% + 지방세 → 3.3%' },
   { value: 'OTHER', label: '기타소득', rate: 0.20, expenseRate: 0.60, hint: '강연료·원고료. 필요경비 60% 차감 후 20% → 실효 8.8%' },
@@ -184,6 +192,8 @@ function WithholdingForm({ partners, onClose, onSaved }: {
   const [partnerId, setPartnerId] = useState('')
   const [payeeName, setPayeeName] = useState('')
   const [payeeRegNo, setPayeeRegNo] = useState('')
+  const [incomeCode, setIncomeCode] = useState('')
+  const [attributionMonth, setAttributionMonth] = useState('')
   const [grossAmount, setGrossAmount] = useState('')
   const [description, setDescription] = useState('')
   const [saving, setSaving] = useState(false)
@@ -191,10 +201,12 @@ function WithholdingForm({ partners, onClose, onSaved }: {
 
   const spec = TYPES.find((t) => t.value === incomeType)!
   const gross = Number(grossAmount) || 0
-  const expense = Math.floor(gross * spec.expenseRate)
+  const expenseRate = incomeType === 'OTHER' && incomeCode === '60' ? 0 : spec.expenseRate
+  const expense = Math.floor(gross * expenseRate)
   const taxable = gross - expense
-  const incomeTax = Math.floor(taxable * spec.rate)
-  const localTax = Math.floor(incomeTax * 0.1)
+  // 서버와 같게 소득세 · 지방소득세 모두 10원 미만 버림(원본 1,231,234 × 3% = 36,930)
+  const incomeTax = Math.floor(Math.floor(taxable * spec.rate) / 10) * 10
+  const localTax = Math.floor(Math.floor(incomeTax * 0.1) / 10) * 10
   const net = gross - incomeTax - localTax
 
   function pickPartner(id: string) {
@@ -218,6 +230,8 @@ function WithholdingForm({ partners, onClose, onSaved }: {
         partnerId: partnerId ? Number(partnerId) : null,
         payeeName: payeeName.trim() || null,
         payeeRegNo: payeeRegNo.trim() || null,
+        incomeCode: incomeCode || null,
+        attributionMonth: attributionMonth || null,
         grossAmount: gross,
         description: description.trim() || null,
       })
@@ -243,7 +257,7 @@ function WithholdingForm({ partners, onClose, onSaved }: {
               <tr>
                 <th className="w-[100px] bg-ec-page">소득구분</th>
                 <td colSpan={3}>
-                  <select className="ec-input" value={incomeType} onChange={(e) => setIncomeType(e.target.value as IncomeType)} style={{ width: 130 }}>
+                  <select className="ec-input" value={incomeType} onChange={(e) => { setIncomeType(e.target.value as IncomeType); setIncomeCode('') }} style={{ width: 130 }}>
                     {TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select>
                   <span className="ml-[8px] text-[11.5px] text-ec-hint">{spec.hint}</span>
@@ -254,6 +268,17 @@ function WithholdingForm({ partners, onClose, onSaved }: {
                 <td><input type="date" className="ec-input" value={payDate} onChange={(e) => setPayDate(e.target.value)} style={{ width: 150 }} /></td>
                 <th className="w-[80px] bg-ec-page">지급액<span className="text-ec-danger">*</span></th>
                 <td><input className="ec-input" type="number" value={grossAmount} onChange={(e) => setGrossAmount(e.target.value)} style={{ width: 130, textAlign: 'right' }} /></td>
+              </tr>
+              <tr>
+                <th className="bg-ec-page">{incomeType === 'BUSINESS' ? '업종구분코드' : '소득코드'}</th>
+                <td>
+                  <select className="ec-input w-[150px]" value={incomeCode} onChange={(e) => setIncomeCode(e.target.value)}>
+                    <option value="">(선택 안 함)</option>
+                    {CODES[incomeType].map((c) => <option key={c.code} value={c.code}>{c.code}{c.name ? ` ${c.name}` : ''}</option>)}
+                  </select>
+                </td>
+                <th className="bg-ec-page">귀속연월</th>
+                <td><input type="month" className="ec-input w-[130px]" value={attributionMonth} onChange={(e) => setAttributionMonth(e.target.value)} title="비우면 지급일의 연월" /></td>
               </tr>
               <tr>
                 <th className="bg-ec-page">거래처</th>
@@ -279,9 +304,9 @@ function WithholdingForm({ partners, onClose, onSaved }: {
           </table>
 
           <div className="mt-[10px] p-[10px] bg-ec-page border border-ec-line border-solid text-[12.5px]">
-            {spec.expenseRate > 0 && (
+            {expenseRate > 0 && (
               <div className="flex justify-between text-ec-label">
-                <span>필요경비 ({spec.expenseRate * 100}%)</span><span>{won(expense)} 원</span>
+                <span>필요경비 ({expenseRate * 100}%)</span><span>{won(expense)} 원</span>
               </div>
             )}
             <div className="flex justify-between">

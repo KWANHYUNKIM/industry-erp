@@ -53,6 +53,10 @@ public class OtherWithholding extends BaseTimeEntity {
     @Column(name = "payee_reg_no", length = 20)
     private String payeeRegNo;
 
+    /** 원본 [업종구분코드](사업소득 940903 · 940909 …) / [소득코드](기타소득 60 · 62 · 76 · 79, 이자배당 22). 지급조서 매수를 가른다. */
+    @Column(name = "income_code", length = 10)
+    private String incomeCode;
+
     @Column(name = "gross_amount", nullable = false, precision = 18, scale = 2)
     private BigDecimal grossAmount;
 

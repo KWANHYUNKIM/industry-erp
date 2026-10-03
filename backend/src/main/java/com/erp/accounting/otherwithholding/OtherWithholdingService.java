@@ -30,6 +30,8 @@ public class OtherWithholdingService {
 
     /** 지방소득세 = 소득세의 10% */
     private static final BigDecimal LOCAL_RATE = new BigDecimal("0.10");
+    /** 원본 소득코드 60 — 필요경비 없는 기타소득. */
+    private static final String NO_EXPENSE_CODE = "60";
 
     private final OtherWithholdingRepository repository;
     private final PartnerService partnerService;
@@ -77,8 +79,11 @@ public class OtherWithholdingService {
         }
 
         IncomeType type = req.incomeType();
-        // 기타소득만 필요경비 60% 를 인정한다. 과세대상은 그 나머지.
-        BigDecimal expense = req.grossAmount().multiply(type.getExpenseRate()).setScale(0, RoundingMode.DOWN);
+        String incomeCode = req.incomeCode() != null && !req.incomeCode().isBlank() ? req.incomeCode().trim() : null;
+        // 기타소득만 필요경비 60% 를 인정한다(원 미만 버림 — 원본 1,231,233 → 738,739). 과세대상은 그 나머지.
+        // 단 소득코드 60(필요경비 없는 기타소득)은 경비가 없다 — 원본 555,555 → 소득세 111,110.
+        BigDecimal expenseRate = type == IncomeType.OTHER && NO_EXPENSE_CODE.equals(incomeCode) ? BigDecimal.ZERO : type.getExpenseRate();
+        BigDecimal expense = req.grossAmount().multiply(expenseRate).setScale(0, RoundingMode.DOWN);
         BigDecimal taxable = req.grossAmount().subtract(expense);
         // 소득세도 10원 미만 버림 — 원본 기타원천세(2026-10-04 실측): 사업소득 1,231,234 × 3% = 36,937 → 36,930,
         // 기타소득 9,950,309 → 소득금액 3,980,124 × 20% = 796,024 → 796,020.
@@ -97,6 +102,7 @@ public class OtherWithholdingService {
                 .payeeRegNo(req.payeeRegNo() != null && !req.payeeRegNo().isBlank()
                         ? req.payeeRegNo().trim()
                         : (partner != null ? partner.getBizRegNo() : null))
+                .incomeCode(incomeCode)
                 .grossAmount(req.grossAmount())
                 .expenseAmount(expense)
                 .taxableAmount(taxable)

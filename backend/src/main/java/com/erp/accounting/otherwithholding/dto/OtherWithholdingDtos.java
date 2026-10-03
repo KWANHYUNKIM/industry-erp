@@ -26,7 +26,10 @@ public class OtherWithholdingDtos {
             String description,
             /** 원본 [귀속연월] YYYY-MM — 비우면 지급일의 연월. */
             @jakarta.validation.constraints.Pattern(regexp = "\\d{4}-\\d{2}", message = "귀속연월 형식이 올바르지 않습니다(YYYY-MM).")
-            String attributionMonth
+            String attributionMonth,
+            /** 원본 [업종구분코드](사업소득 940903 …) / [소득코드](기타소득 60 · 62 · 76 · 79, 이자배당 22). 기타소득 60 은 필요경비가 없다. */
+            @jakarta.validation.constraints.Pattern(regexp = "\\d{2,6}", message = "소득코드는 숫자 2~6자리입니다.")
+            String incomeCode
     ) {}
 
     public record OtherWithholdingResponse(
@@ -39,6 +42,7 @@ public class OtherWithholdingDtos {
             Long partnerId,
             String payeeName,
             String payeeRegNo,
+            String incomeCode,
             BigDecimal grossAmount,
             BigDecimal expenseAmount,
             BigDecimal taxableAmount,
@@ -53,7 +57,7 @@ public class OtherWithholdingDtos {
                     w.getId(), w.getDocNo(), w.getPayDate(), w.getAttributionMonth(),
                     w.getIncomeType(), w.getIncomeType().getDisplayName(),
                     w.getPartner() != null ? w.getPartner().getId() : null,
-                    w.getPayeeName(), w.getPayeeRegNo(),
+                    w.getPayeeName(), w.getPayeeRegNo(), w.getIncomeCode(),
                     w.getGrossAmount(), w.getExpenseAmount(), w.getTaxableAmount(),
                     w.getIncomeTax(), w.getLocalIncomeTax(), w.getNetAmount(),
                     w.getDescription(), w.getCreatedBy());
