@@ -2149,6 +2149,9 @@ export interface EmploymentContract {
   signedBy: string | null
   remark: string | null
   createdBy: string | null
+  /** 원본 근로계약현황 [요청일시] · [최종수정일자] */
+  sentAt: string | null
+  updatedAt: string | null
 }
 
 // ===== 일용근로급여 =====

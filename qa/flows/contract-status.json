@@ -1,0 +1,23 @@
+{
+  "about": "관리 > 근로계약현황(E061104) — 근로계약을 작성만 하면 이 현황에 없고, 발송하면 [진행중]으로 뜬다(요청일시 = 발송한 때 · 계약서명 '계약번호 사원명 근로계약서' · 구분명 계약직). [완료] 알약에서는 안 보인다. 시험 계약은 지운다.",
+  "shots": [
+    {
+      "name": "작성 → 현황에 없음 → 발송 → 진행중 → 정리",
+      "path": "/hr/contracts/status",
+      "steps": [
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const emps=await (await fetch('/api/employees',{headers:h})).json();const e=emps.find(x=>x.code==='EMP-0001');const c=await (await fetch('/api/employment-contracts',{method:'POST',headers:h,body:JSON.stringify({employeeId:e.id,type:'FIXED_TERM',startDate:'2091-01-01',endDate:'2091-12-31',monthlySalary:3000000,weeklyHours:40,remark:'QA관리-계약'})})).json();sessionStorage.setItem('qaCs',JSON.stringify({id:c.id,no:c.contractNo}));return c.id?true:JSON.stringify(c)})()",
+        "js:location.reload();true",
+        "wait:2000",
+        "expect:![...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes(JSON.parse(sessionStorage.getItem('qaCs')).no))",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const q=JSON.parse(sessionStorage.getItem('qaCs'));const r=await fetch('/api/employment-contracts/'+q.id+'/send',{method:'POST',headers:h});return r.ok?true:'send '+r.status})()",
+        "js:location.reload();true",
+        "wait:2000",
+        "expect:(()=>{const q=JSON.parse(sessionStorage.getItem('qaCs'));const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes(q.no));return tr&&tr.innerText.includes('진행중')&&tr.innerText.includes('근로계약서')&&tr.innerText.includes('계약직')&&tr.innerText.includes('2091/12/31')})()",
+        "click:완료",
+        "expect:![...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes(JSON.parse(sessionStorage.getItem('qaCs')).no))",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const q=JSON.parse(sessionStorage.getItem('qaCs'));const r=await fetch('/api/employment-contracts/'+q.id,{method:'DELETE',headers:h});sessionStorage.setItem('qaCsClean',String(r.ok));return true})()",
+        "expect:sessionStorage.getItem('qaCsClean')==='true'"
+      ]
+    }
+  ]
+}
