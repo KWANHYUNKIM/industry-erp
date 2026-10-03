@@ -98,6 +98,17 @@ public class Employee extends BaseTimeEntity {
     @Column(name = "resign_reason", length = 100)
     private String resignReason;
 
+    /** 원본 [외국어성명1] · [외국어성명2] — 성명 아래 칸. */
+    @Column(name = "foreign_name1", length = 100)
+    private String foreignName1;
+
+    @Column(name = "foreign_name2", length = 100)
+    private String foreignName2;
+
+    /** 원본 [세대주여부] — 세대주 · 세대원 · 세대주의 배우자(원본 처음 값 세대주). */
+    @Column(length = 20)
+    private String household;
+
     /** 원본 [우편번호] — 주소 앞 칸. */
     @Column(length = 10)
     private String zipcode;

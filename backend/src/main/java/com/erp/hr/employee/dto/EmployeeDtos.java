@@ -123,6 +123,9 @@ public class EmployeeDtos {
             String mobile,
             @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
             String resignReason,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String foreignName1,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String foreignName2,
+            @Size(max = 20, message = "입력한 글자가 너무 깁니다. 20자까지 넣을 수 있습니다.") String household,
             @Size(max = 10, message = "입력한 글자가 너무 깁니다. 10자까지 넣을 수 있습니다.")
             String zipcode,
             @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
@@ -168,6 +171,9 @@ public class EmployeeDtos {
             String mobile,
             @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
             String resignReason,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String foreignName1,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String foreignName2,
+            @Size(max = 20, message = "입력한 글자가 너무 깁니다. 20자까지 넣을 수 있습니다.") String household,
             @Size(max = 10, message = "입력한 글자가 너무 깁니다. 10자까지 넣을 수 있습니다.")
             String zipcode,
             @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
@@ -221,7 +227,7 @@ public class EmployeeDtos {
             /* 원본 [담당자연락처]·[담당자Email]·[검색창내용]·[적요]. */
             String phone, String email, String searchKeyword, String remark,
             /* 원본 관리 > 사원등록의 [급여구분]·[모바일]·[퇴사사유]·[주소]. */
-            PayType payType, String payTypeName, String mobile, String resignReason, String zipcode, String address,
+            PayType payType, String payTypeName, String mobile, String resignReason, String foreignName1, String foreignName2, String household, String zipcode, String address,
             /* 원본 [급여통장] */
             String bankCode, String bankName, String accountNo, String accountHolder,
             /* 원본 [입사구분] · [직책] */
@@ -237,7 +243,7 @@ public class EmployeeDtos {
                     e.getHireDate(), e.getResignDate(), e.isActive(),
                     e.getPhone(), e.getEmail(), e.getSearchKeyword(), e.getRemark(),
                     e.getPayType(), e.getPayType().getDisplayName(),
-                    e.getMobile(), e.getResignReason(), e.getZipcode(), e.getAddress(),
+                    e.getMobile(), e.getResignReason(), e.getForeignName1(), e.getForeignName2(), e.getHousehold(), e.getZipcode(), e.getAddress(),
                     e.getBankCode(), e.getBankName(), e.getAccountNo(), e.getAccountHolder(), e.getHireKind(), e.getDuty());
         }
 
@@ -256,7 +262,7 @@ public class EmployeeDtos {
                     null, hireDate, resignDate, active,
                     /* 연락처·적요는 급여가 아니다 — 가릴 것은 급여 칸 하나뿐이다. */
                     phone, email, searchKeyword, remark,
-                    payType, payTypeName, mobile, resignReason, zipcode, address,
+                    payType, payTypeName, mobile, resignReason, foreignName1, foreignName2, household, zipcode, address,
                     /* 급여통장도 급여 정보다 — 기본급과 같이 가린다 */
                     null, null, null, null, hireKind, duty);
         }
