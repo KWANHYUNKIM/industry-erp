@@ -444,3 +444,17 @@ export function comparePeriodOf(from: string, to: string, kind: ComparePeriod): 
   end.setDate(end.getDate() + days)
   return { from: ymd(start), to: ymd(end) }
 }
+
+/**
+ * 서버에 물을 기간 — 비교기간을 켜면 <b>지금 구간과 비교 구간을 둘 다 덮는다.</b>
+ *
+ * <p>현황 화면들이 기간을 서버로 보내기 시작하면서(받는 양을 줄이려고) 비교기간 합계가
+ * <b>늘 0</b> 이 되었다 — 비교 구간은 지금 구간보다 앞이라 받은 줄에 하나도 없었다.
+ * 화면은 그 0 을 그대로 '건수 0 → 2' 로 찍었다. 표는 어차피 지금 구간으로 다시 거르므로
+ * 더 받아도 표는 그대로다. 빈 날짜는 안 보낸다(전 기간).
+ */
+export function fetchWindow(from: string, to: string, kind: ComparePeriod): { from?: string; to?: string } {
+  const prev = comparePeriodOf(from, to, kind)
+  if (!prev) return { from: from || undefined, to: to || undefined }
+  return { from: prev.from < from ? prev.from : from, to: prev.to > to ? prev.to : to }
+}

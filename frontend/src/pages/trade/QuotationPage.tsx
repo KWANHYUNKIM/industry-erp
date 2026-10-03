@@ -3,7 +3,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
-import { COMPARE_PERIODS, comparePeriodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
+import { COMPARE_PERIODS, comparePeriodOf, fetchWindow, type ComparePeriod } from '../../components/EcPeriodPicks'
 import EcBarChart from '../../components/EcBarChart'
 import CodePickerField from '../../components/CodePickerField'
 import CustomFieldsPanel from '../../components/CustomFieldsPanel'
@@ -81,16 +81,19 @@ export default function QuotationPage() {
 
   const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(''), 2500) }
 
+  /* 원본 [구분]의 비교기간 — load 가 그 구간까지 받으므로 load 보다 먼저 둔다. */
+  const [compare, setCompare] = useState<ComparePeriod>('사용안함')
+
   function load() {
     setError('')
-    api.get<Quotation[]>('/quotations', { params: { from: from || undefined, to: to || undefined } }).then((r) => setRows(r.data)).catch((e) => setError(extractErrorMessage(e)))
+    api.get<Quotation[]>('/quotations', { params: fetchWindow(from, to, compare) }).then((r) => setRows(r.data)).catch((e) => setError(extractErrorMessage(e)))
   }
 
   /*
    * <b>기간을 서버에 보낸다.</b> 조건 판에 [기간]을 물어 놓고 서버에는 아무것도 안 보내
    * 전 기간을 받아 브라우저에서 걸렀다. 기간이 바뀌면 다시 물어본다.
    */
-  useEffect(() => { load() }, [from, to])
+  useEffect(() => { load() }, [from, to, compare])
 
   useEffect(() => {
     api.get<Item[]>('/items').then((r) => setItems(r.data)).catch(() => {})
@@ -167,7 +170,6 @@ export default function QuotationPage() {
    * "이번 달에 어느 거래처에 얼마나 견적을 냈나" 를 이 화면에서 못 봤다.
    */
   const [menu, setMenu] = useState<'현황' | '집계'>('현황')
-  const [compare, setCompare] = useState<ComparePeriod>('사용안함')
 
   const shown = useMemo(() => rows
     .filter((r) => tab === '전체' || r.status === TAB_STATUS[tab])
@@ -196,7 +198,10 @@ export default function QuotationPage() {
     [rows, tab, from, to, itemCond, sentCond, whCond, projCond, noCond, mgmtCond, mgmt.options,
       byUpdated, authorCond, partnerCond, specCond, remarkCond, validCond, pmCond, partners,
       upFrom, upTo])
-  const tabCount = (t: Tab) => rows.filter((r) => t === '전체' || r.status === TAB_STATUS[t]).length
+  /* 비교기간을 켜면 앞 구간까지 받아 온다 — 탭의 건수는 지금 구간만 센다. */
+  const tabCount = (t: Tab) => rows
+    .filter((r) => (!from || r.quoteDate >= from) && (!to || r.quoteDate <= to))
+    .filter((r) => t === '전체' || r.status === TAB_STATUS[t]).length
 
   /**
    * 원본 [구분]의 <b>비교기간</b>. 같은 길이의 앞 구간을 같은 조건으로 다시 세어

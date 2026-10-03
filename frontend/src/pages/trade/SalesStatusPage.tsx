@@ -1,7 +1,7 @@
 import { useRef, useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
-import { periodOf, STATUS_PICKS, comparePeriodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
+import { periodOf, STATUS_PICKS, comparePeriodOf, fetchWindow, type ComparePeriod } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
 import { api, extractErrorMessage } from '../../api/client'
@@ -131,7 +131,7 @@ export default function SalesStatusPage() {
   async function load() {
     setLoading(true)
     try {
-      const res = await api.get<SalesDoc[]>('/sales', { params: { from: from || undefined, to: to || undefined } })
+      const res = await api.get<SalesDoc[]>('/sales', { params: fetchWindow(from, to, compare) })
       const flat: Row[] = []
       for (const d of res.data) {
         d.lines.forEach((l, idx) => flat.push({
@@ -176,7 +176,7 @@ export default function SalesStatusPage() {
    * <b>기간을 서버에 보낸다.</b> 예전에는 조건 판에 [기간]을 물어 놓고 서버에는 아무것도
    * 안 보내, 전 기간을 받아 브라우저에서 걸렀다. 기간이 바뀌면 다시 물어본다.
    */
-  useEffect(() => { load() }, [from, to])
+  useEffect(() => { load() }, [from, to, compare])
 
   useEffect(() => {
     // 조건에 쓸 마스터. 못 받아도 화면은 뜬다 — 조건만 비어 보인다.

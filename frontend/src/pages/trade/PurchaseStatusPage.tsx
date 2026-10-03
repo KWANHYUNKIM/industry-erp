@@ -4,7 +4,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 import { dateNo } from '../../utils/dateNo'
 import type { PurchaseDoc } from '../../types/api'
-import { STATUS_PICKS, comparePeriodOf, periodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
+import { STATUS_PICKS, comparePeriodOf, fetchWindow, periodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
 import { GROUP_KEYS, aggregate, type GroupKey } from '../../utils/statusAggregate'
@@ -142,7 +142,7 @@ export default function PurchaseStatusPage() {
   async function load() {
     setLoading(true)
     try {
-      const res = await api.get<PurchaseDoc[]>('/purchases', { params: { from: filters.dateFrom || undefined, to: filters.dateTo || undefined } })
+      const res = await api.get<PurchaseDoc[]>('/purchases', { params: fetchWindow(filters.dateFrom, filters.dateTo, compare) })
       const flat: Row[] = []
       for (const d of res.data) {
         d.lines.forEach((l, idx) => flat.push({
@@ -184,7 +184,7 @@ export default function PurchaseStatusPage() {
    * <b>기간을 서버에 보낸다.</b> 예전에는 조건 판에 [기간]을 물어 놓고 서버에는 아무것도
    * 안 보내, 전 기간을 받아 브라우저에서 걸렀다. 기간이 바뀌면 다시 물어본다.
    */
-  useEffect(() => { load() }, [filters.dateFrom, filters.dateTo])
+  useEffect(() => { load() }, [filters.dateFrom, filters.dateTo, compare])
 
   /** 상단 키워드 + 상세검색 조건을 모두 통과한 행 */
   const shown = useMemo(() => {

@@ -16,7 +16,7 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { comparePeriodOf, fiscalYearStartOf, periodOf, shiftMonths, ymd } from './periods.ts'
+import { comparePeriodOf, fetchWindow, fiscalYearStartOf, periodOf, shiftMonths, ymd } from './periods.ts'
 
 /** 로컬 시각으로 Date 를 만든다. new Date('2026-08-26') 은 UTC 로 읽혀서 하루 밀린다. */
 const at = (y: number, m: number, d: number, h = 0) => new Date(y, m - 1, d, h)
@@ -107,6 +107,19 @@ test('비교기간 — 전년·전주·전일', () => {
     { from: '2026-08-17', to: '2026-08-19' })
   assert.deepEqual(comparePeriodOf('2026-08-26', '2026-08-26', '전일동일기간'),
     { from: '2026-08-25', to: '2026-08-25' })
+})
+
+test('서버에 물을 기간 — 비교기간을 켜면 두 구간을 다 덮는다', () => {
+  // 2026-10-01~10-03 을 전주동일기간(09-24~09-26)과 견주면 09-24~10-03 을 받아야 한다.
+  // 지금 구간만 받으면 비교 구간의 줄이 하나도 없어 비교 합계가 늘 0 이었다.
+  assert.deepEqual(fetchWindow('2026-10-01', '2026-10-03', '전주동일기간'),
+    { from: '2026-09-24', to: '2026-10-03' })
+  assert.deepEqual(fetchWindow('2026-10-01', '2026-10-31', '전년동일기간'),
+    { from: '2025-10-01', to: '2026-10-31' })
+  assert.deepEqual(fetchWindow('2026-10-01', '2026-10-03', '사용안함'),
+    { from: '2026-10-01', to: '2026-10-03' })
+  // 빈 날짜는 보내지 않는다 — 전 기간
+  assert.deepEqual(fetchWindow('', '', '전월동일기간'), { from: undefined, to: undefined })
 })
 
 test('비교기간 — 사용안함이거나 날짜가 비면 null', () => {

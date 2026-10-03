@@ -4,7 +4,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 import { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
-import { comparePeriodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
+import { comparePeriodOf, fetchWindow, type ComparePeriod } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { usePartnerManagers } from '../../utils/partnerManagers'
@@ -204,7 +204,7 @@ export default function SalesOrderStatusPage() {
   async function load() {
     setLoading(true)
     try {
-      const res = await api.get<SalesOrderResponse[]>('/sales-orders', { params: { from: filters.dateFrom || undefined, to: filters.dateTo || undefined } })
+      const res = await api.get<SalesOrderResponse[]>('/sales-orders', { params: fetchWindow(filters.dateFrom, filters.dateTo, compare) })
       const flat: Row[] = []
       for (const d of res.data) {
         d.lines.forEach((l, idx) => {
@@ -250,37 +250,44 @@ export default function SalesOrderStatusPage() {
    * <b>기간을 서버에 보낸다.</b> 조건 판에 [기간]을 물어 놓고 서버에는 아무것도 안 보내
    * 전 기간을 받아 브라우저에서 걸렀다. 기간이 바뀌면 다시 물어본다.
    */
-  useEffect(() => { load() }, [filters.dateFrom, filters.dateTo])
+  useEffect(() => { load() }, [filters.dateFrom, filters.dateTo, compare])
 
-  const shown = useMemo(() => {
+  /**
+   * 기간 밖의 조건을 다 잰다 — 목록과 비교기간 합계가 <b>같은 조건</b>을 쓰게 한 곳에 둔다.
+   * 예전 비교기간은 거래처·품목·상태·미출하만 걸어서, 창고를 고르면 지금은 그 창고,
+   * 비교는 전 창고를 세어 견줬다.
+   */
+  const matches = (r: Row) => {
     const kw = keyword.trim()
     const f = filters
-    const out = rows.filter((r) => {
-      if (kw && !r.partner.includes(kw) && !r.itemName.includes(kw) && !r.orderNo.includes(kw)) return false
-      if (f.dateFrom && r.date < f.dateFrom) return false
-      if (f.dateTo && r.date > f.dateTo) return false
-      if (f.partner && String(r.partnerId) !== f.partner) return false
-      if (f.item && String(r.itemId) !== f.item) return false
-      if (f.status && r.status !== f.status) return false
-      if (f.unshippedOnly && r.unshipped <= 0) return false
-      if (f.warehouse && String(r.warehouseId) !== f.warehouse) return false
-      if (f.project && String(r.projectId) !== f.project) return false
-      if (f.employee && (r.employee ?? '') !== f.employee) return false
-      if (f.partnerMgr && pmgr.managerOfName(r.partner) !== f.partnerMgr) return false
-      if (f.taxType && (r.vat > 0 ? '과세' : '면세') !== f.taxType) return false
-      if (f.spec && !(r.spec ?? '').includes(f.spec)) return false
-      if (f.remark && !(r.remark ?? '').includes(f.remark)) return false
-      if (f.createdBy && (r.createdBy ?? '') !== f.createdBy) return false
-      if (!inRange(r.qty, f.qtyFrom, f.qtyTo)) return false
-      if (!inRange(r.unitPrice, f.priceFrom, f.priceTo)) return false
-      if (!inRange(r.supply, f.supplyFrom, f.supplyTo)) return false
-      if (!inRange(r.vat, f.vatFrom, f.vatTo)) return false
-      return true
-    })
+    if (kw && !r.partner.includes(kw) && !r.itemName.includes(kw) && !r.orderNo.includes(kw)) return false
+    if (f.partner && String(r.partnerId) !== f.partner) return false
+    if (f.item && String(r.itemId) !== f.item) return false
+    if (f.status && r.status !== f.status) return false
+    if (f.unshippedOnly && r.unshipped <= 0) return false
+    if (f.warehouse && String(r.warehouseId) !== f.warehouse) return false
+    if (f.project && String(r.projectId) !== f.project) return false
+    if (f.employee && (r.employee ?? '') !== f.employee) return false
+    if (f.partnerMgr && pmgr.managerOfName(r.partner) !== f.partnerMgr) return false
+    if (f.taxType && (r.vat > 0 ? '과세' : '면세') !== f.taxType) return false
+    if (f.spec && !(r.spec ?? '').includes(f.spec)) return false
+    if (f.remark && !(r.remark ?? '').includes(f.remark)) return false
+    if (f.createdBy && (r.createdBy ?? '') !== f.createdBy) return false
+    if (!inRange(r.qty, f.qtyFrom, f.qtyTo)) return false
+    if (!inRange(r.unitPrice, f.priceFrom, f.priceTo)) return false
+    if (!inRange(r.supply, f.supplyFrom, f.supplyTo)) return false
+    if (!inRange(r.vat, f.vatFrom, f.vatTo)) return false
+    return true
+  }
+
+  const shown = useMemo(() => {
+    const f = filters
+    const out = rows.filter((r) => (!f.dateFrom || r.date >= f.dateFrom) && (!f.dateTo || r.date <= f.dateTo) && matches(r))
     out.sort((a, b) => f.sortByDoc
       ? (a.orderNo < b.orderNo ? 1 : a.orderNo > b.orderNo ? -1 : 0)
       : (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
     return out
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, keyword, filters])
 
   const totals = useMemo(() => shown.reduce(
@@ -298,16 +305,12 @@ export default function SalesOrderStatusPage() {
   const prevRange = comparePeriodOf(filters.dateFrom, filters.dateTo, compare)
   const prevTotals = useMemo(() => {
     if (!prevRange) return null
-    const f = filters
     return rows
-      .filter((r) => r.date >= prevRange.from && r.date <= prevRange.to)
-      .filter((r) => !f.partner || String(r.partnerId) === f.partner)
-      .filter((r) => !f.item || String(r.itemId) === f.item)
-      .filter((r) => !f.status || r.status === f.status)
-      .filter((r) => !f.unshippedOnly || r.unshipped > 0)
+      .filter((r) => r.date >= prevRange.from && r.date <= prevRange.to && matches(r))
       .reduce((s2, r) => ({ supply: s2.supply + r.supply, qty: s2.qty + r.qty, count: s2.count + 1 }),
         { supply: 0, qty: 0, count: 0 })
-  }, [rows, prevRange, filters])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, prevRange?.from, prevRange?.to, keyword, filters])
 
   /** 집계 보기 — 거래처별로 묶는다. 원본 [집계]도 같은 자료를 묶어서 본다. */
   const grouped = useMemo(() => {
