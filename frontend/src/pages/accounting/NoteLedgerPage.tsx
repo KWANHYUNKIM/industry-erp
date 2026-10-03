@@ -6,12 +6,11 @@ import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { NOTE_FLOW_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import { noteLedgerGroups } from '../../utils/noteLedger'
 import type { NoteSummary, NoteType, PromissoryNote } from '../../types/api'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 
-/** 어음 하나가 남기는 움직임 — 받은(발행한) 날 증가, 손을 떠난 날(결제 · 할인 · 부도) 감소. */
-interface Move { date: string; kind: '증가' | '감소'; note: PromissoryNote }
 
 /**
  * 회계 I &gt; 어음거래 &gt; <b>받을어음거래내역</b>(E010623) · <b>지급어음거래내역</b>(E010631) — 2026-10-02 loginaa 실측.
@@ -21,8 +20,9 @@ interface Move { date: string; kind: '증가' | '감소'; note: PromissoryNote }
  * 기타([잔액0포함] 켜짐). 열: 일자 · 증감구분 · 어음번호 · 거래처명 · 계정명 · 부서명 · 프로젝트명 · 적요 · 증가금액 · 감소금액 · 잔액.
  *
  * <p>우리 어음은 부서 · 프로젝트를 들지 않아 그 두 조건과 두 열(부서명 · 프로젝트명)은 두지 않는다 — 열만 세우면 늘 빈칸이다.
- * 원본에 자료가 없어 <b>이월 줄 · 소계 줄의 모양은 못 쟀다</b>. 그래서 이월 줄을 지어내지 않고, 잔액은 기간 안의 증감을
- * 묶음(거래처 · 거래처/어음번호)마다 차례로 더해 센다. 묶음 끝에 '소계' 한 줄을 둔다.
+ * 원본에 자료가 없어 이월 줄 · 소계 줄의 모양은 못 쟀다. 잔액은 <b>기간 첫날 들고 있던 어음(이월잔액)</b>에서 시작한다 —
+ * 예전엔 기간 안 증감만 더해, 기간 앞에 받아 기간 안에 결제된 어음은 잔액이 음수로 찍히고 들고만 있던 어음은 안 보였다.
+ * 이월 줄은 같은 판인 수령수표거래내역(실측)처럼 '이월잔액'(잔액 칸에만 값)으로 둔다. 묶음 끝에 '소계' 한 줄을 둔다.
  */
 export default function NoteLedgerPage({ type }: { type: NoteType }) {
   const title = type === 'RECEIVABLE' ? '받을어음거래내역' : '지급어음거래내역'
@@ -56,32 +56,14 @@ export default function NoteLedgerPage({ type }: { type: NoteType }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { void load() }, [from, to, type])
 
-  const groups = useMemo(() => {
-    const moves: Move[] = []
-    for (const n of notes) {
-      if (n.type !== type) continue
-      if (noteNo && !n.noteNo.includes(noteNo)) continue
-      if (partner && String(n.partnerId) !== partner) continue
-      if (n.issueDate >= from && n.issueDate <= to) moves.push({ date: n.issueDate, kind: '증가', note: n })
-      if (n.closedDate && n.closedDate >= from && n.closedDate <= to) moves.push({ date: n.closedDate, kind: '감소', note: n })
-    }
-    const keyOf = (m: Move) => (basis === '거래처별' ? m.note.partnerName : `${m.note.partnerName} / ${m.note.noteNo}`)
-    const by = new Map<string, Move[]>()
-    for (const m of moves) by.set(keyOf(m), [...(by.get(keyOf(m)) ?? []), m])
-    return [...by.entries()]
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([key, ms]) => {
-        ms.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.kind === b.kind ? a.note.noteNo.localeCompare(b.note.noteNo) : a.kind === '증가' ? -1 : 1))
-        let bal = 0
-        const lines = ms.map((m) => {
-          const amt = Number(m.note.amount)
-          bal += m.kind === '증가' ? amt : -amt
-          return { m, inc: m.kind === '증가' ? amt : 0, dec: m.kind === '감소' ? amt : 0, bal }
-        })
-        return { key, lines, inc: lines.reduce((a, l) => a + l.inc, 0), dec: lines.reduce((a, l) => a + l.dec, 0), bal }
-      })
-      .filter((g) => withZero || g.bal !== 0)
-  }, [notes, type, from, to, noteNo, partner, basis, withZero])
+  const groups = useMemo(() => noteLedgerGroups(
+    notes
+      .filter((n) => n.type === type)
+      .filter((n) => !noteNo || n.noteNo.includes(noteNo))
+      .filter((n) => !partner || String(n.partnerId) === partner),
+    from, to, basis,
+  ).filter((g) => withZero || g.bal !== 0),
+  [notes, type, from, to, noteNo, partner, basis, withZero])
 
   const partners = useMemo(() => {
     const m = new Map<number, string>()
@@ -163,14 +145,20 @@ export default function NoteLedgerPage({ type }: { type: NoteType }) {
           ) : groups.length === 0 ? (
             <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : groups.flatMap((g) => [
+            ...(g.opening !== 0 ? [
+              <tr key={`${g.key}-open`}>
+                <td colSpan={8}>이월잔액</td>
+                <td className="text-right">{Math.round(g.opening).toLocaleString('ko-KR')}</td>
+              </tr>,
+            ] : []),
             ...g.lines.map((l, i) => (
               <tr key={`${g.key}-${i}`}>
-                <td className="text-center">{dateText(l.m.date)}</td>
-                <td className="text-center">{l.m.kind}</td>
-                <td>{l.m.note.noteNo}</td>
-                <td>{l.m.note.partnerName}</td>
+                <td className="text-center">{dateText(l.date)}</td>
+                <td className="text-center">{l.kind}</td>
+                <td>{l.note.noteNo}</td>
+                <td>{l.note.partnerName}</td>
                 <td>{account}</td>
-                <td>{l.m.note.remark ?? ''}</td>
+                <td>{l.note.remark ?? ''}</td>
                 <td className="text-right">{won(l.inc)}</td>
                 <td className="text-right">{won(l.dec)}</td>
                 <td className="text-right">{Math.round(l.bal).toLocaleString('ko-KR')}</td>
