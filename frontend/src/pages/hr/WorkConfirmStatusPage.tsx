@@ -45,7 +45,7 @@ export default function WorkConfirmStatusPage() {
 
   function search() {
     setError('')
-    api.get<ConfirmRow[]>('/work-records/confirms', { params: range }).then((r) => setRows(r.data)).catch((e) => setError(extractErrorMessage(e)))
+    api.get<ConfirmRow[]>('/work-records/confirms', { params: { from: range.from, to: range.to } }).then((r) => setRows(r.data)).catch((e) => setError(extractErrorMessage(e)))
   }
   useEffect(() => {
     search()
