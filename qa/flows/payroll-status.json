@@ -1,5 +1,5 @@
 {
-  "about": "관리 > 급여현황(E090115) — 원본처럼 라인별은 명세마다 한 줄 · 성명 가나다 순 · 사원마다 '성명 계' · 끝에 합계, 급여대장별은 귀속월(대장)마다 한 줄. 수당 · 공제 항목 열 뒤에 지급총액 · 공제총액 · 실지급액. 시험 명세는 지운다.",
+  "about": "관리 > 급여현황(E090115) — 원본처럼 라인별은 명세마다 한 줄 · 성명 가나다 순 · 사원마다 '성명 계' · 끝에 합계, 급여대장별은 귀속월(대장)마다 한 줄. 수당 · 공제 항목 열 뒤에 지급총액 · 공제총액 · 실지급액. 시험 명세는 지운다. 공제 열은 원본 이름(소득세 · 주민세 · 국민연금 · 건강보험 · 고용보험 · 장기요양)으로 그 차례에 서고, 주민세 칸에 값이 든다.",
   "shots": [
     {
       "name": "라인별 소계 · 합계 → 급여대장별 한 줄 → 뒷정리",
@@ -11,6 +11,7 @@
         "click:검색(F8)",
         "wait:1500",
         "expect:(()=>{const x=document.querySelector('table').innerText;return /이영희 계/.test(x)&&/정수진 계/.test(x)&&/합계/.test(x)&&x.indexOf('이영희')<x.indexOf('정수진')&&[...document.querySelectorAll('table thead th')].slice(-3).map(t=>t.innerText).join(',')==='지급총액,공제총액,실지급액'})()",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map(t=>t.innerText.trim());const i=h.indexOf('소득세');const r=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('합계'));return h.slice(i,i+6).join(',')==='소득세,주민세,국민연금,건강보험,고용보험,장기요양'&&!h.includes('지방소득세')&&!h.includes('장기요양보험')&&r.cells[r.cells.length-(h.length-i-1)].innerText.trim()!==''})()",
         "js:document.querySelectorAll('input[name=pay-status-mode]')[1].click();true",
         "wait:500",
         "expect:[...document.querySelectorAll('table tbody tr')].filter(t=>/^2091\\/06 -1/.test(t.innerText)).length===1",
