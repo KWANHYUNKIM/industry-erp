@@ -311,7 +311,7 @@ public class StockService {
      * <b>재고를 움직이는 것 자체가 목적</b>이기 때문이다. 아무 일도 안 하고 성공했다고
      * 답하면 사람이 조정한 줄 알고 넘어간다.
      */
-    void requireStockTracked(Item item) {
+    public void requireStockTracked(Item item) {
         if (!item.isStockTracked()) {
             throw ApiException.badRequest(
                     "'" + item.getName() + "' 은(는) 수량관리제외 품목이라 재고를 움직일 수 없습니다.");

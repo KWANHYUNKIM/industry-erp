@@ -102,6 +102,11 @@ public class StockAdjustmentService {
                 if (qty.signum() <= 0) {
                     throw ApiException.badRequest("수량은 0보다 커야 합니다.");
                 }
+                /*
+                 * 수량관리제외 품목은 applyDelta 가 아무것도 안 하고 null 을 돌려준다 — 그대로 두면 아래
+                 * tx.getBalanceAfter() 에서 500 이 났다(불량처리·자가사용·대체사용·폐기). 재고조정(adjustTo)과 같이 거절한다.
+                 */
+                stockService.requireStockTracked(item);
                 yield stockService.applyDelta(item, warehouse, qty.negate(),
                         StockTransactionType.OUTBOUND, null, date, note, username);
             }
