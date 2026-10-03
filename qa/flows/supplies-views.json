@@ -1,0 +1,32 @@
+{
+  "about": "공용품관리(원본 E070204) 일간 · 월간 · 공용품별 — 오늘 10:00~11:00 시험 사용 한 건이 일간 'AM 10:00' 줄, 월간 오늘 칸, 공용품별 그 공용품 줄 · AM 10:00 칸에 뜬다. 시험 공용품·사용은 API 로 만들고 지운다. node qa/shot.mjs qa/flows/supplies-views.json",
+  "shots": [
+    {
+      "name": "준비",
+      "path": "/groupware/supplies",
+      "steps": [
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const s = await (await fetch('/api/supplies', { method: 'POST', headers: H, body: JSON.stringify({ code: 'QAGW-SUP2', name: 'QA그룹웨어-빔2', category: '사무용품', unit: '개', stockQty: 0 }) })).json(); const users = await (await fetch('/api/users', { headers: H })).json(); const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const u = await (await fetch('/api/supply-usages', { method: 'POST', headers: H, body: JSON.stringify({ supplyItemId: s.id, userId: users[0].id, useDate: day, startTime: '10:00', endTime: '11:00', allDay: false, title: 'QA그룹웨어-시간표', returnStatus: 'NOT_RETURNED' }) })).json(); sessionStorage.setItem('qaSup', JSON.stringify([s.id, u.id])); return s.id + '/' + u.id })()"
+      ]
+    },
+    {
+      "name": "일간 → 월간 → 공용품별",
+      "path": "/groupware/supplies",
+      "steps": [
+        "js:[...document.querySelectorAll('.ec-pill')].find((b) => b.textContent.trim() === '일간').click(); true",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.cells[0]?.innerText.trim() === 'AM 10:00' && tr.innerText.includes('QA그룹웨어-시간표'))",
+        "expect:![...document.querySelectorAll('tbody tr')].some((tr) => tr.cells[0]?.innerText.trim() === 'AM 09:00' && tr.innerText.includes('QA그룹웨어-시간표'))",
+        "js:[...document.querySelectorAll('.ec-pill')].find((b) => b.textContent.trim() === '월간').click(); true",
+        "expect:document.querySelector('tbody td.bg-ec-blue-wash')?.innerText.includes('QA그룹웨어-시간표')",
+        "js:[...document.querySelectorAll('.ec-pill')].find((b) => b.textContent.trim() === '공용품별').click(); true",
+        "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.cells[0]?.innerText.trim() === 'QA그룹웨어-빔2'); return !!tr && tr.cells[3].innerText.includes('QA그룹웨어-시간표') && !tr.cells[2].innerText.includes('QA그룹웨어-시간표') })()"
+      ]
+    },
+    {
+      "name": "정리",
+      "path": "/groupware/supplies",
+      "steps": [
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const [s, u] = JSON.parse(sessionStorage.getItem('qaSup')); const a = await fetch('/api/supply-usages/' + u, { method: 'DELETE', headers: H }); const b = await fetch('/api/supplies/' + s, { method: 'DELETE', headers: H }); return a.status + ' ' + b.status })()"
+      ]
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
@@ -9,6 +9,7 @@ import { useAuth } from '../../features/auth/AuthContext'
 import { useShortcut } from '../../utils/useShortcut'
 import { openPrintWindow, fillAndPrint } from '../../utils/print'
 import { escapeHtml } from '../../utils/escapeHtml'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 
 /**
  * 그룹웨어 > 사내관리 > 공용품관리 (이카운트 E070204)
@@ -60,11 +61,30 @@ interface Usage {
   returnStatus: ReturnStatus; returnStatusName: string
 }
 
-/** 묶어 보기의 그룹 키. 기본 보기는 묶지 않는다. */
-function groupKeyOf(u: Usage, view: View): string {
-  if (view === '일간') return u.useDate.replace(/-/g, '/')
-  if (view === '월간') return u.useDate.slice(0, 7).replace('-', '/')
-  return `${u.supplyItemCode} ${u.supplyItemName}`
+/** 일간 · 공용품별 시간 줄 — 원본은 AM 08:00 ~ PM 06:00 한 시간 간격이다. */
+const HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
+const hourText = (h: number) => `${h < 12 ? 'AM' : 'PM'} ${String(h > 12 ? h - 12 : h).padStart(2, '0')}:00`
+const toMin = (t: string | null) => { if (!t) return null; const [hh, mm] = t.split(':').map(Number); return hh * 60 + (mm || 0) }
+/** 이 시각(h:00~h+1:00)에 걸친 사용인가. 종일이면 모든 칸. */
+function overlaps(u: Usage, h: number) {
+  if (u.allDay) return true
+  const s = toMin(u.startTime) ?? 0
+  const e = toMin(u.endTime) ?? s + 60
+  return s < (h + 1) * 60 && e > h * 60
+}
+/** '10/03 (토)' */
+const dayHead = (d: Date) => `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} (${DOW[d.getDay()]})`
+/** 그 달 1일이 든 주의 일요일부터 — 마지막 주가 다음 달뿐이면 뺀다. */
+function monthWeeks(c: Date): Date[][] {
+  const first = new Date(c.getFullYear(), c.getMonth(), 1)
+  const start = new Date(first); start.setDate(1 - first.getDay())
+  const out: Date[][] = []
+  for (let w = 0; w < 6; w++) {
+    const week = Array.from({ length: 7 }, (_, i) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + w * 7 + i))
+    if (w > 0 && week[0].getMonth() !== c.getMonth()) break
+    out.push(week)
+  }
+  return out
 }
 
 /** '2026/01/23 (금)' */
@@ -236,17 +256,31 @@ ${line('적요', u.remark)}${line('라벨', u.labelText)}${line('반납여부', 
     || r.userName.includes(keyword)
     || (r.remark ?? '').includes(keyword))
 
-  /** 기본 보기는 그룹 없이 한 덩어리. 나머지는 키별로 나눈다. */
-  const groups = useMemo(() => {
-    if (view === '기본') return [['', shown] as const]
-    const map = new Map<string, Usage[]>()
-    shown.forEach((u) => {
-      const k = groupKeyOf(u, view)
-      const list = map.get(k)
-      if (list) list.push(u); else map.set(k, [u])
-    })
-    return [...map.entries()].sort((a, b) => a[0] < b[0] ? 1 : -1).map(([k, v]) => [k, v] as const)
-  }, [shown, view])
+  /** 일간 · 월간 · 공용품별 — 원본은 묶은 목록이 아니라 시간표 · 달력 · 공용품×시간 표다(2026-10-03 실측). */
+  const [cursor, setCursor] = useState(() => new Date())
+  const [calRows, setCalRows] = useState<Usage[]>([])
+  const step = (n: number) => setCursor((c) => view === '월간'
+    ? new Date(c.getFullYear(), c.getMonth() + n, 1)
+    : new Date(c.getFullYear(), c.getMonth(), c.getDate() + n))
+  useEffect(() => {
+    if (view === '기본') return
+    const f = view === '월간' ? ymd(new Date(cursor.getFullYear(), cursor.getMonth(), 1)) : ymd(cursor)
+    const t = view === '월간' ? ymd(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0)) : ymd(cursor)
+    api.get<Usage[]>('/supply-usages', { params: { from: f, to: t } })
+      .then((r) => setCalRows(r.data)).catch((err) => setError(extractErrorMessage(err)))
+  }, [view, cursor])
+  /* 달력 · 공용품×시간 표는 칸을 만들어 내므로 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  const monthRef = useRef<HTMLTableElement>(null)
+  const supplyRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(monthRef, '공용품관리 월간', [view, cursor.getTime(), calRows.length])
+  useTableColumnCheck(supplyRef, '공용품관리 공용품별', [view, cursor.getTime(), calRows.length])
+  const bySupply = (() => {
+    const m = new Map<string, Usage[]>()
+    for (const u of calRows.filter((x) => x.useDate === ymd(cursor))) {
+      const l = m.get(u.supplyItemName); if (l) l.push(u); else m.set(u.supplyItemName, [u])
+    }
+    return [...m.entries()]
+  })()
 
   const linkCls = 'no-ec bg-transparent border-0 p-0 cursor-pointer text-left text-ec-navy'
 
@@ -257,11 +291,9 @@ ${line('적요', u.remark)}${line('라벨', u.labelText)}${line('반납여부', 
       onSearchChange={setKeyword}
       onNew={openNew}
       collapseConditions
-      actions={[
-        { label: '미리보기' },
-        { label: '인쇄' },
-        { label: 'Excel' },
-      ]}
+      // 원본 하단: 기본 [미리보기][인쇄][Excel] · 일간 [인쇄][Excel] · 월간 · 공용품별 [인쇄]
+      actions={view === '기본' ? [{ label: '미리보기' }, { label: '인쇄' }, { label: 'Excel' }]
+        : view === '일간' ? [{ label: '인쇄' }, { label: 'Excel' }] : [{ label: '인쇄' }]}
     >
       {/* 원본 '공용품관리등록' 창 — 항목이 한 줄에 하나씩 */}
       <Modal error={error} open={showForm} title="공용품관리등록" width={780} onClose={() => setShowForm(false)}>
@@ -397,6 +429,8 @@ ${line('적요', u.remark)}${line('라벨', u.labelText)}${line('반납여부', 
         ))}
       </div>
 
+      {view === '기본' ? (
+        <>
       {/* 원본 차례: 기준일자 · 시간 · 사용자 · 공용물품 · 라벨 · 제목 · 적요 · 반납여부 · 전체시간표시 — 접어 두고 [Search(F3)] 로 편다 */}
       <ul className="ec-cond mb-[6px]">
         <EcCond label="기준일자">
@@ -452,32 +486,109 @@ ${line('적요', u.remark)}${line('라벨', u.labelText)}${line('반납여부', 
         <tbody>
           {shown.length === 0 ? (
             <tr><td colSpan={9} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
-          ) : groups.map(([key, list]) => (
-            <Fragment key={key || 'all'}>
-              {key && (
-                <tr>
-                  <td colSpan={9} className="bg-ec-page font-bold">
-                    {key} <span className="text-ec-label font-normal">({list.length}건)</span>
-                  </td>
-                </tr>
-              )}
-              {list.map((r, i) => (
-                <tr key={r.id}>
-                  <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
-                  <td><button type="button" className={linkCls} onClick={() => setViewing(r)}>{dayText(r.useDate)}</button></td>
-                  <td className="text-center">{r.allDay ? '종일' : (r.startTime ?? '')}</td>
-                  <td className="text-center">{r.allDay ? '' : (r.endTime ?? '')}</td>
-                  <td>{r.supplyItemName}</td>
-                  <td><button type="button" className={linkCls} onClick={() => setViewing(r)}>{r.title}</button></td>
-                  <td>{r.remark ?? ''}</td>
-                  <td>{r.userName}</td>
-                  <td>{RETURN_LABEL[r.returnStatus]}</td>
-                </tr>
-              ))}
-            </Fragment>
+          ) : shown.map((r, i) => (
+            <tr key={r.id}>
+              <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
+              <td><button type="button" className={linkCls} onClick={() => setViewing(r)}>{dayText(r.useDate)}</button></td>
+              <td className="text-center">{r.allDay ? '종일' : (r.startTime ?? '')}</td>
+              <td className="text-center">{r.allDay ? '' : (r.endTime ?? '')}</td>
+              <td>{r.supplyItemName}</td>
+              <td><button type="button" className={linkCls} onClick={() => setViewing(r)}>{r.title}</button></td>
+              <td>{r.remark ?? ''}</td>
+              <td>{r.userName}</td>
+              <td>{RETURN_LABEL[r.returnStatus]}</td>
+            </tr>
           ))}
         </tbody>
       </table>
+        </>
+      ) : (
+        <>
+          {/* 원본 일간 · 월간 · 공용품별: ‹ 이전 · 오늘 · 다음 › 으로 날(월간은 달)을 넘긴다 */}
+          <div className="flex items-center gap-[4px] mb-[6px]">
+            <button type="button" className="ec-btn ec-btn-sm" onClick={() => step(-1)}>‹ 이전</button>
+            <button type="button" className="ec-btn ec-btn-sm" onClick={() => setCursor(new Date())}>오늘</button>
+            <button type="button" className="ec-btn ec-btn-sm" onClick={() => step(1)}>다음 ›</button>
+            <span className="ml-auto text-[12px] text-ec-ink">
+              {view === '월간' ? `${cursor.getFullYear()}년 ${pad2(cursor.getMonth() + 1)}월` : view === '공용품별' ? dayText(ymd(cursor)) : ''}
+            </span>
+          </div>
+
+          {view === '일간' && (
+            <table className="w-[612px] max-w-full text-left">
+              <thead><tr><th className="w-[64px] text-center">시간</th><th className="text-center">{dayHead(cursor)}</th></tr></thead>
+              <tbody>
+                {HOURS.map((h) => (
+                  <tr key={h}>
+                    <td className="text-center">{hourText(h)}</td>
+                    <td>
+                      {calRows.filter((u) => u.useDate === ymd(cursor) && overlaps(u, h)).map((u) => (
+                        <button key={u.id} type="button" className={`${linkCls} mr-[8px]`} onClick={() => setViewing(u)}>{u.title}</button>
+                      ))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          {view === '월간' && (
+            <table ref={monthRef} className="w-[612px] max-w-full table-fixed">
+              <thead><tr>{DOW.map((d) => <th key={d} className="text-center">{d}</th>)}</tr></thead>
+              <tbody>
+                {monthWeeks(cursor).map((week, wi) => (
+                  <tr key={wi}>
+                    {week.map((d) => {
+                      const key = ymd(d)
+                      const inMonth = d.getMonth() === cursor.getMonth()
+                      return (
+                        <td key={key} className={`align-top h-[64px] p-[2.7px] ${!inMonth ? 'bg-ec-disabled' : key === ymd(new Date()) ? 'bg-ec-blue-wash' : ''}`}>
+                          {inMonth && (
+                            <>
+                              <div className={`text-right ${key === ymd(new Date()) ? 'font-bold' : ''}`}>{d.getDate()}</div>
+                              {calRows.filter((u) => u.useDate === key).map((u) => (
+                                <button key={u.id} type="button" className={`${linkCls} block truncate w-full`} onClick={() => setViewing(u)}>{u.title}</button>
+                              ))}
+                            </>
+                          )}
+                        </td>
+                      )
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          {view === '공용품별' && (
+            <table ref={supplyRef} className="w-full text-left table-fixed">
+              <thead>
+                <tr>
+                  <th rowSpan={2} className="w-[120px] text-center">공용품관리</th>
+                  <th colSpan={HOURS.length} className="text-center">{dayHead(cursor)}</th>
+                </tr>
+                <tr>{HOURS.map((h) => <th key={h} className="text-center">{hourText(h)}</th>)}</tr>
+              </thead>
+              <tbody>
+                {bySupply.length === 0 ? (
+                  <tr><td colSpan={HOURS.length + 1} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
+                ) : bySupply.map(([name, list]) => (
+                  <tr key={name}>
+                    <td>{name}</td>
+                    {HOURS.map((h) => (
+                      <td key={h}>
+                        {list.filter((u) => overlaps(u, h)).map((u) => (
+                          <button key={u.id} type="button" className={`${linkCls} block truncate w-full`} onClick={() => setViewing(u)}>{u.title}</button>
+                        ))}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </>
+      )}
     </EcListShell>
   )
 }
