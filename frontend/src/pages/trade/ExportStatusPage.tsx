@@ -41,19 +41,24 @@ export default function ExportStatusPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  /* 서버는 Invoice 일자로 기간을 자른다 — 기준일자(전표 일자)와 다를 수 있어 넓게 받고 화면에서 전표 일자로 거른다. */
+  /*
+   * 서버는 Invoice 일자로 기간을 자른다. 기준일자는 전표 [일자]라 다를 수 있어 앞뒤로 한 해씩 넓혀 받고,
+   * 화면에서 전표 일자로 다시 거른다.
+   */
   async function load() {
     setLoading(true)
     setError('')
     try {
-      setRows((await api.get<ExportSummary>('/exports')).data.exports)
+      const wide = (d: string, years: number) => `${Number(d.slice(0, 4)) + years}${d.slice(4)}`
+      setRows((await api.get<ExportSummary>('/exports', { params: { from: wide(from, -1), to: wide(to, 1) } })).data.exports)
     } catch (e) {
       setError(extractErrorMessage(e))
     } finally {
       setLoading(false)
     }
   }
-  useEffect(() => { void load() }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { void load() }, [from, to])
 
   /** 일자-No. 의 번호 — 같은 전표 일자 안에서 먼저 만든 차례. */
   const seqOf = useMemo(() => {

@@ -617,7 +617,7 @@
  ],
  [
   "매출계획현황",
-  "trade/SalesPlanPage.tsx"
+  "trade/SalesPlanStatusPage.tsx"
  ],
  [
   "오더관리유형등록",
