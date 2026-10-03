@@ -104,6 +104,10 @@ export default function ApprovalListPage({
   // 그러려면 행을 고를 수 있어야 하는데 우리 목록엔 그 방법이 없었다.
   // 고르는 방식은 판매조회·전표입력과 같다 — 회색 행번호 칸을 누른다.
   const [selected, setSelected] = useState<Set<number>>(new Set())
+  /** 원본 목록은 한 쪽 15줄이다(2026-10-03 실측 — 1 2 3 / 3). */
+  const [page, setPage] = useState(1)
+  /** 조건 판 — 원본은 접어 두고 [Search(F3)] 로 편다. */
+  const [condOpen, setCondOpen] = useState(false)
   // 원본은 목록 위에 기안일자 기간을 놓는다(기본 오늘 −30일 ~ +30일).
   const [from, setFrom] = useState(() => ymd(new Date(Date.now() - 30 * 86400000)))
   const [to, setTo] = useState(() => ymd(new Date(Date.now() + 30 * 86400000)))
@@ -203,6 +207,9 @@ export default function ApprovalListPage({
     구분: (r) => r.formTypeName,
     기안자: (r) => r.drafterName,
   })
+  const PAGE_SIZE = 15
+  const pages = Math.max(1, Math.ceil(sort.sorted.length / PAGE_SIZE))
+  const curPage = Math.min(page, pages)
 
   /** 조건 보기에 채울 값 — 지금 목록에 실제로 있는 것만 고르게 한다. */
   const formTypes = [...new Set(rows.map((r) => r.formTypeName).filter(Boolean))].sort()
@@ -343,7 +350,6 @@ export default function ApprovalListPage({
 
   const copy = (d: ApprovalDoc) => navigate('/groupware/approval/draft', { state: { copyFrom: d } })
 
-  const tabCount = (t: Tab) => rows.filter((r) => inTab(r, t, user?.name)).filter(inPeriod).length
 
 
   /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
@@ -356,7 +362,6 @@ export default function ApprovalListPage({
         <span className="text-ec-star text-[14px] mr-[4px]">☆</span>
         <span className="text-[15px] font-extrabold text-ec-text">{title}</span>
         <div className="ml-auto flex items-center gap-[4px] relative">
-          <button className="ec-btn" onClick={load}>새로고침</button>
           <input
             className="ec-input"
             placeholder="입력 후 [Enter]"
@@ -365,7 +370,8 @@ export default function ApprovalListPage({
             onKeyDown={(e) => { if (e.key === 'Enter') filterRows(search) }}
             style={{ width: 150 }}
           />
-          <button className="ec-btn ec-btn-primary" onClick={() => filterRows(search)}>Search(F3)</button>
+          {/* 원본: 검색창이 빈 채로 [Search(F3)] 를 누르면 조건 판이 펴진다(2026-10-03 실측 — 조건은 접혀 있다). */}
+          <button className="ec-btn ec-btn-primary" onClick={() => (search.trim() ? filterRows(search) : setCondOpen((v) => !v))}>Search(F3)</button>
           <button className="ec-btn" onClick={() => setOptionOpen((v) => !v)}>Option</button>
           <button className="ec-btn" onClick={() => setHelpOpen(true)}>도움말</button>
 
@@ -394,16 +400,16 @@ export default function ApprovalListPage({
       <div className="ec-pills" style={{ marginBottom: 6 }}>
         {TABS.map((t) => (
           <button
-            key={t} type="button" onClick={() => setTab(t)}
+            key={t} type="button" onClick={() => { setTab(t); setPage(1) }}
             className={`ec-pill no-ec${tab === t ? ' active' : ''}`}
           >
-            {t} ({tabCount(t)})
+            {t}
           </button>
         ))}
       </div>
 
-      {/* 원본은 알약 아래에 기안일자 기간 + [출력양식]·[부서] 조건을 적어 둔다 */}
-      <div className="flex items-center flex-wrap gap-[4px] mb-[6px]">
+      {/* 원본은 조건을 접어 두고 [Search(F3)] 로 편다. 펴면 기안일자 기간 + 조건들이 나온다. */}
+      {condOpen && <div className="flex items-center flex-wrap gap-[4px] mb-[6px] ec-search-conds">
         {/*
           <b>이 파일이 겸하는 두 화면은 이 줄을 서로 다르게 부른다</b>(사본 실측) —
           기안서통합관리는 [일자], 내결재관리는 [기준일자]다. 한 이름으로 눌러 두면
@@ -459,6 +465,17 @@ export default function ApprovalListPage({
           <option value="">전체</option>
           {labels.map((x) => <option key={x} value={x}>{x}</option>)}
         </select>
+      </div>}
+
+      {/* 원본: 쪽번호(한 쪽 15줄)는 왼쪽, 기안일자 기간은 오른쪽 — 표 바로 위 */}
+      <div className="flex items-center gap-[6px] mb-[4px]">
+        <div className="ec-paging">
+          {Array.from({ length: pages }, (_, k) => k + 1).map((p) => (
+            <button key={p} type="button" className={p === curPage ? 'active' : ''} onClick={() => setPage(p)}>{p}</button>
+          ))}
+        </div>
+        <span className="text-[12px] text-ec-ink">/ {pages}</span>
+        <span className="ml-auto text-[12px] text-ec-ink">{from.replace(/-/g, '/')} ~{to.replace(/-/g, '/')}</span>
       </div>
 
       <div ref={bodyRef} className="flex-1 min-h-0 overflow-x-auto">
@@ -501,7 +518,7 @@ export default function ApprovalListPage({
               <tr><td colSpan={colCount} className="ec-empty">불러오는 중…</td></tr>
             ) : filtered.length === 0 ? (
               <tr><td colSpan={colCount} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-            ) : sort.sorted.map((r, i) => (
+            ) : sort.sorted.slice((curPage - 1) * PAGE_SIZE, curPage * PAGE_SIZE).map((r, i0) => { const i = (curPage - 1) * PAGE_SIZE + i0; return (
               <tr key={r.id} style={{ opacity: r.deleted ? 0.55 : 1 }}>
                 <td
                   style={{
@@ -559,7 +576,7 @@ export default function ApprovalListPage({
                   </td>
                 )}
               </tr>
-            ))}
+            )})}
           </tbody>
         </table>
       </div>
