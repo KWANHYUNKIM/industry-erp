@@ -92,6 +92,9 @@ public final class AsRepairDtos {
             @NotNull(message = "단가를 입력하세요.") @Positive(message = "단가를 입력하세요.") BigDecimal unitPrice
     ) {}
 
+    /** 목록 [진행상태변경]. */
+    public record StatusRequest(AsRepairStatus status) {}
+
     public record LinkSaleRequest(
             LocalDate saleDate,
             @NotEmpty(message = "품목을 1개 이상 입력하세요.") List<@Valid SaleLineRequest> lines

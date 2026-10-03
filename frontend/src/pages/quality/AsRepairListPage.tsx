@@ -51,7 +51,12 @@ interface Repair {
   updatedAt: string | null
 }
 interface AsReq { id: number; asNo: string; receiptDate: string; partnerId: number; partnerName: string; title: string | null; warehouseId: number | null; lines: { itemId: number; quantity: number }[] }
-type Tab = '전체' | '진행중' | '완료'
+/*
+ * 원본 탭 [전체 · 확인 · 진행중 · 완료](2026-10-04 실측). [확인]은 진행상태가 아니라 <b>전표상태</b>다 — [진행상태변경] 메뉴가
+ * '전표상태: 확인' 과 '진행상태: 진행중 · 완료' 둘로 나뉜다. 원본 수리 26건이 모두 확인이었고 미확인으로 돌리는 길이 없다
+ * (결재를 거치지 않는 회사). 우리도 저장한 수리는 모두 확인이라 [확인] 탭은 전체와 같다.
+ */
+type Tab = '전체' | '확인' | '진행중' | '완료'
 type FormLine = { itemId: string; quantity: string }
 const blankLines = (): FormLine[] => [{ itemId: '', quantity: '' }, { itemId: '', quantity: '' }, { itemId: '', quantity: '' }]
 
@@ -90,7 +95,7 @@ export default function AsRepairListPage() {
   const shown = useMemo(() => rows
     .filter((r) => !partner || String(r.partnerId) === partner)
     .filter((r) => !item || r.lines.some((l) => String(l.itemId) === item))
-    .filter((r) => tab === '전체' || STATUS_LABEL[r.status] === tab)
+    .filter((r) => tab === '전체' || tab === '확인' || STATUS_LABEL[r.status] === tab)
     .sort(byUpdated
       ? (a, b) => ((a.updatedAt ?? '') < (b.updatedAt ?? '') ? 1 : (a.updatedAt ?? '') > (b.updatedAt ?? '') ? -1 : 0)
       : (a, b) => (a.repairDate > b.repairDate ? -1 : a.repairDate < b.repairDate ? 1 : b.repairNo.localeCompare(a.repairNo))),
@@ -198,17 +203,31 @@ export default function AsRepairListPage() {
     catch (e) { setSaleError(extractErrorMessage(e)) }
   }
 
-  async function printRepair(r: Repair) {
+  /** 목록 [진행상태변경] — 고른 수리를 진행중 · 완료로. */
+  const [statusOpen, setStatusOpen] = useState(false)
+  async function changeStatus(status: Status) {
+    const ids = [...picked]
+    const results = await Promise.allSettled(ids.map((id) => api.patch(`/as-repairs/${id}/status`, { status })))
+    const failed = results.filter((x) => x.status === 'rejected') as PromiseRejectedResult[]
+    setStatusOpen(false)
+    setPicked(new Set())
+    setError(failed.map((x) => extractErrorMessage(x.reason)).join(' / '))
+    load()
+  }
+
+  /** 목록 [인쇄] — 고른 수리를 한 번에(줄의 [인쇄]는 한 건). */
+  async function printRepairs(rs: Repair[]) {
     const ours = await loadSupplierParty('수리처')
-    await printDocuments([{
+    await printDocuments(rs.map((r) => ({
       title: 'A/S 수리내역', docNo: r.repairNo, docDate: r.repairDate,
       supplier: ours ?? { label: '수리처', name: '(회사정보 미등록)' },
       customer: { label: '의뢰처', name: r.partnerName },
       extra: [{ label: '제목', value: r.title }, { label: '수리유형', value: r.repairTypeName }, { label: '수리담당자', value: r.charge }, { label: '수리진행상태', value: r.statusName }],
       remark: r.content, hideAmounts: true,
       lines: r.lines.map((l) => ({ itemName: l.itemName, spec: l.itemSpec ?? undefined, unit: '', quantity: l.quantity, unitPrice: 0, supplyAmount: 0, vatAmount: 0 })),
-    }])
+    })))
   }
+  const printRepair = (r: Repair) => printRepairs([r])
 
   const partnerPicks = partners.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))
   const itemPicks = items.map((x) => ({ value: String(x.id), code: x.code, name: x.name, sub: x.spec }))
@@ -221,6 +240,10 @@ export default function AsRepairListPage() {
       searchable={false}
       onNew={openNew}
       actions={[
+        /* 원본 버튼줄: 신규(F2) · Email · 진행상태변경 · 보내기 · 인쇄 · 바코드(품목) · 다른전표생성 · 선택삭제 · Excel · 이력조회.
+           Email · 보내기는 바깥으로 보내는 일이라 두지 않는다. */
+        { label: '진행상태변경', onClick: () => setStatusOpen(true), disabled: picked.size === 0 },
+        { label: '인쇄', onClick: () => void printRepairs(rows.filter((r) => picked.has(r.id))), disabled: picked.size === 0 },
         { label: '선택삭제', onClick: removeChecked, disabled: picked.size === 0 },
         { label: 'Excel' },
       ]}
@@ -248,9 +271,9 @@ export default function AsRepairListPage() {
         </EcCond>
       </ul>
 
-      {/* 원본 알약: 전체 · 진행중 – 완료 */}
+      {/* 원본 알약: 전체 · 확인 · 진행중 · 완료 */}
       <div className="ec-pills mb-[8px]">
-        {(['전체', '진행중', '완료'] as const).map((t) => (
+        {(['전체', '확인', '진행중', '완료'] as const).map((t) => (
           <button key={t} type="button" className={`ec-pill no-ec${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>{t}</button>
         ))}
       </div>
@@ -400,6 +423,15 @@ export default function AsRepairListPage() {
         <div className="flex gap-[4px] mt-[9px]">
           <button className="ec-btn ec-btn-primary" onClick={addSale}>신규(F2)</button>
           <button className="ec-btn" onClick={() => setSaleFor(null)}>닫기</button>
+        </div>
+      </Modal>
+      {/* 원본 [진행상태변경] 메뉴 — 전표상태(확인) · 진행상태(진행중 · 완료). 전표상태는 늘 확인이라 진행상태만 고른다. */}
+      <Modal error={error} open={statusOpen} title="진행상태변경" onClose={() => setStatusOpen(false)} width={320}>
+        <p className="mb-[8px]">진행상태</p>
+        <div className="flex gap-[6px]">
+          {(Object.keys(STATUS_LABEL) as Status[]).map((st) => (
+            <button key={st} type="button" className="ec-btn" onClick={() => void changeStatus(st)}>{STATUS_LABEL[st]}</button>
+          ))}
         </div>
       </Modal>
     </EcListShell>

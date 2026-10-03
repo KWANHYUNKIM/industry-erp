@@ -4,6 +4,7 @@ import com.erp.quality.asrepair.dto.AsRepairDtos.ConsumptionLine;
 import com.erp.quality.asrepair.dto.AsRepairDtos.LinkSaleRequest;
 import com.erp.quality.asrepair.dto.AsRepairDtos.RepairRequest;
 import com.erp.quality.asrepair.dto.AsRepairDtos.RepairResponse;
+import com.erp.quality.asrepair.dto.AsRepairDtos.StatusRequest;
 import com.erp.security.UserPrincipal;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
@@ -50,6 +51,12 @@ public class AsRepairController {
     @PutMapping("/{id}")
     public RepairResponse update(@PathVariable Long id, @Valid @RequestBody RepairRequest req) {
         return service.update(id, req);
+    }
+
+    /** 목록 [진행상태변경] — 진행중 · 완료. */
+    @PatchMapping("/{id}/status")
+    public RepairResponse changeStatus(@PathVariable Long id, @RequestBody StatusRequest req) {
+        return service.changeStatus(id, req.status());
     }
 
     @DeleteMapping("/{id}")

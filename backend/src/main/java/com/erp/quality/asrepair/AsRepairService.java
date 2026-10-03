@@ -78,6 +78,14 @@ public class AsRepairService {
         return get(id);
     }
 
+    /** 목록 [진행상태변경] — 고른 수리의 진행상태만 바꾼다(원본 메뉴: 진행상태 진행중 · 완료). */
+    @Transactional
+    public RepairResponse changeStatus(Long id, AsRepairStatus status) {
+        if (status == null) throw ApiException.badRequest("진행상태를 고르세요.");
+        find(id).setStatus(status);
+        return get(id);
+    }
+
     /** 판매연결전표가 남아 있으면 지우지 않는다 — 판매를 먼저 지워 재고 · 매출을 되돌린다. */
     @Transactional
     public void delete(Long id) {
