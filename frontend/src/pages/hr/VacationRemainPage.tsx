@@ -15,6 +15,11 @@ import CodePickerField from '../../components/CodePickerField'
  * <p>이 화면은 원래부터 <b>연도별</b>로 센다 — 서버가 그 해에 시작한 휴가만 사용일수에 넣는다.
  * 그런데 화면이 연도를 보내지도 보여 주지도 않아서, <b>지금 보는 숫자가 몇 년치인지
  * 알 방법이 없었다.</b> 원본의 [휴가명] 열이 바로 그 값이라 함께 붙인다.
+ *
+ * <p>[휴가코드]에서 <b>휴가항목등록의 코드</b>를 고르면 원본 셈으로 바뀐다(2026-10-03 loginaa 실측: 휴가코드 20192 '2024 연차' —
+ * 사원마다 휴가일수 · 휴가사용일수 · 휴가잔여일수, 부여가 없는 사원은 빈칸, 끝에 합계 377.73).
+ * 휴가일수 = 사원별휴가일수조회의 휴가일수(이월 + 당해년), 휴가사용일수 = 근태항목이 그 휴가코드를 가리키는 근태 중
+ * 사용기간 안에 시작한 것의 일수. 코드를 비우면 예전처럼 연도별 자동 연차로 센다.
  */
 interface Row {
   /** 휴가명 — '연차(2026년)'. 계산에 쓴 연도를 서버가 적어 보낸다. */
@@ -46,6 +51,8 @@ export default function VacationRemainPage() {
   const [employment, setEmployment] = useState<'ACTIVE' | 'RESIGNED' | 'ALL'>('ACTIVE')
   /** 기준연도. 서버는 진작 받고 있었는데 화면이 안 보내서 늘 올해로만 보였다. */
   const [year, setYear] = useState(new Date().getFullYear())
+  /** 원본 조건 [휴가코드]. 줄의 '연차(2026년)' 같은 값이다. */
+  const [leaveCode, setLeaveCode] = useState('')
 
   async function load() {
     setLoading(true)
@@ -61,6 +68,42 @@ export default function VacationRemainPage() {
 
   useEffect(() => { load() }, [employment, year])
 
+  // ── 휴가항목(휴가코드) 셈 — 원본 휴가잔여일수현황 ──
+  interface VKind { id: number; code: string; name: string; periodFrom: string; periodTo: string }
+  interface AKind { name: string; vacationKindId: number | null }
+  interface Emp { id: number; code: string; name: string; department: string; active: boolean }
+  interface Vac { empCode: string | null; type: string; startDate: string; days: number }
+  interface Grant { employeeId: number; totalDays: number }
+  const [vkinds, setVkinds] = useState<VKind[]>([])
+  const [codeRows, setCodeRows] = useState<Row[] | null>(null)
+  useEffect(() => {
+    api.get<VKind[]>('/hr/vacation-kinds').then((r) => setVkinds(r.data)).catch(() => setVkinds([]))
+  }, [])
+  async function loadCode(kindId: number) {
+    const vk = vkinds.find((k) => k.id === kindId)
+    if (!vk) return
+    try {
+      const [g, e, a, v] = await Promise.all([
+        api.get<Grant[]>(`/hr/vacation-kinds/${kindId}/grants`),
+        api.get<Emp[]>('/employees/all'),
+        api.get<AKind[]>('/hr/attendance-kinds'),
+        api.get<Vac[]>('/hr/vacations', { params: { from: vk.periodFrom, to: vk.periodTo } }),
+      ])
+      const types = new Set(a.data.filter((k) => k.vacationKindId === kindId).map((k) => k.name))
+      setCodeRows(e.data.map((emp) => {
+        const total = g.data.find((x) => x.employeeId === emp.id)?.totalDays ?? 0
+        const used = v.data.filter((x) => x.empCode === emp.code && types.has(x.type)).reduce((t, x) => t + Number(x.days), 0)
+        return { leaveName: vk.name, empName: emp.name, department: emp.department, active: emp.active,
+          totalDays: Number(total), usedDays: used, remainingDays: Number(total) - used }
+      }))
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    }
+  }
+  useEffect(() => {
+    if (leaveCode.startsWith('VK:')) loadCode(Number(leaveCode.slice(3))); else setCodeRows(null)
+  }, [leaveCode, vkinds])
+
   /*
    * 원본 조건 판 실측(사본): 휴가코드 · 사원 · 부서 · 프로젝트 · 적요 · 상태 · 재직구분 ·
    * [기타] 사용중단휴가코드포함 · 정렬/소계기준 · 소수점
@@ -72,15 +115,15 @@ export default function VacationRemainPage() {
    * <b>부서별로 얼마가 남았는지</b>를 눈으로 더해야 했다. 연차 소진 독려는
    * 대개 부서 단위로 한다.
    */
-  /** 원본 조건 [휴가코드]. 줄의 '연차(2026년)' 같은 값이다. */
-  const [leaveCode, setLeaveCode] = useState('')
   const SUBTOTALS = ['부서', '휴가명'] as const
   const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('부서')
 
-  const shown = rows.filter((r) => {
+  const byCode = codeRows !== null
+  const shown = (byCode ? codeRows : rows).filter((r) => {
     if (emp && !r.empName.includes(emp)) return false
     if (dept && !(r.department ?? '').includes(dept)) return false
-    if (leaveCode && r.leaveName !== leaveCode) return false
+    if (!byCode && leaveCode && r.leaveName !== leaveCode) return false
+    if (byCode && employment !== 'ALL' && (employment === 'ACTIVE') !== r.active) return false
     return true
   })
   const days = (n: number) => formatDays(n, decimals)
@@ -121,8 +164,10 @@ export default function VacationRemainPage() {
         <EcCond label="휴가코드" pick>
           <CodePickerField label="휴가코드" hideLabel width={180} emptyLabel="전체"
                            value={leaveCode} onChange={(v) => setLeaveCode(v)}
-                           items={[...new Set(rows.map((r) => r.leaveName).filter(Boolean))]
-                             .map((n) => ({ value: n, name: n }))} />
+                           items={[
+                             ...vkinds.map((k) => ({ value: `VK:${k.id}`, code: k.code, name: k.name })),
+                             ...[...new Set(rows.map((r) => r.leaveName).filter(Boolean))].map((n) => ({ value: n, name: n })),
+                           ]} />
         </EcCond>
         <EcCond label="사원" pick>
           <input className="ec-input" placeholder="사원명 일부" value={emp}
@@ -194,8 +239,8 @@ export default function VacationRemainPage() {
               <td>{r.leaveName}</td>
               <td>{r.department ?? ''}</td>
               <td>{r.empName}{r.active ? '' : ' (퇴사)'}</td>
-              <td className="text-right">{days(r.totalDays)}</td>
-              <td className="text-right">{days(r.usedDays)}</td>
+              <td className="text-right">{byCode && !r.totalDays ? '' : days(r.totalDays)}</td>
+              <td className="text-right">{byCode && !r.usedDays ? '' : days(r.usedDays)}</td>
               <td style={{ textAlign: 'right', fontWeight: 700, color: r.remainingDays <= 0 ? 'var(--ec-danger)' : undefined }}>{days(r.remainingDays)}</td>
             </tr>
           ))}

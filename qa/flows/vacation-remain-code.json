@@ -1,0 +1,19 @@
+{
+  "about": "관리 > 휴가잔여일수현황(E020716) — [휴가코드]에서 휴가항목을 고르면 원본 셈: 사원마다 휴가일수(사원별휴가일수) · 휴가사용일수(그 휴가코드를 가리키는 근태항목의 근태) · 휴가잔여일수. 2091 휴가항목에 EMP-0001 15일 부여 · 근태 1.5일(계정이 이어져 있으면)이면 15.000 / 1.500 / 13.500. 시험 자료는 지운다.",
+  "shots": [
+    {
+      "name": "휴가코드 고르기 → 부여 · 사용 · 잔여 → 정리",
+      "path": "/hr/vacation-remain",
+      "steps": [
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const emps=await (await fetch('/api/employees/all',{headers:h})).json();const e=emps.find(x=>x.code==='EMP-0001');const v=await (await fetch('/api/hr/vacation-kinds',{method:'POST',headers:h,body:JSON.stringify({name:'QA관리-휴가R',periodFrom:'2091-01-01',periodTo:'2091-12-31',carryOver:false})})).json();const k=await (await fetch('/api/hr/attendance-kinds',{method:'POST',headers:h,body:JSON.stringify({name:'QA관리-연차R',type:'VACATION',vacationKindId:v.id,hourUnit:false})})).json();await fetch('/api/hr/vacation-kinds/'+v.id+'/grants',{method:'PUT',headers:h,body:JSON.stringify([{employeeId:e.id,carryOverDays:0,currentDays:15}])});const users=await (await fetch('/api/users',{headers:h})).json();const u=users.find(x=>x.employeeId===e.id);let vac=null;if(u){vac=await (await fetch('/api/hr/vacations',{method:'POST',headers:h,body:JSON.stringify({userId:u.id,type:'QA관리-연차R',startDate:'2091-03-02',endDate:'2091-03-03',days:1.5,reason:'QA관리-잔여'})})).json()}sessionStorage.setItem('qaVr',JSON.stringify({v:v.id,k:k.id,code:v.code,name:e.name,vac:vac&&vac.id}));return true})()",
+        "js:location.reload();true",
+        "wait:2500",
+        "pick:휴가코드:QA관리-휴가R",
+        "wait:1500",
+        "expect:(()=>{const q=JSON.parse(sessionStorage.getItem('qaVr'));const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes(q.name)&&t.innerText.includes('QA관리-휴가R'));if(!tr)return false;const c=[...tr.cells].map(x=>x.innerText.trim());return c[4]==='15.000'&&(q.vac?(c[5]==='1.500'&&c[6]==='13.500'):c[6]==='15.000')})()",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const q=JSON.parse(sessionStorage.getItem('qaVr'));let ok=true;if(q.vac)ok=(await fetch('/api/hr/vacations/'+q.vac,{method:'DELETE',headers:h})).ok&&ok;ok=(await fetch('/api/hr/vacation-kinds/'+q.v+'/grants',{method:'DELETE',headers:h})).ok&&ok;ok=(await fetch('/api/hr/attendance-kinds/'+q.k,{method:'DELETE',headers:h})).ok&&ok;ok=(await fetch('/api/hr/vacation-kinds/'+q.v,{method:'DELETE',headers:h})).ok&&ok;sessionStorage.setItem('qaVrClean',String(ok));return true})()",
+        "expect:sessionStorage.getItem('qaVrClean')==='true'"
+      ]
+    }
+  ]
+}
