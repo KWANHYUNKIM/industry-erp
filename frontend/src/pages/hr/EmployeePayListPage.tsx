@@ -37,7 +37,7 @@ const defaultRange = () => {
  *
  * <p>수당 열은 그 기간에 금액이 있는 항목만, 표시순서대로(원본 수당리스트 13줄 중 금액이 있는 넷만 섰다).
  * 공제 열은 STATUTORY + 사용 중인 공제항목 전부.
- * 급여구분은 '급여' 하나다. 급여대장 · 급여구분 · 지급구분 · 프로젝트 조건과 Email · 미발송은 아직 없다.
+ * 급여구분은 '급여' 하나다. 급여대장 · 사원 · 부서는 여러 개 고르는 코드도움. 급여구분 · 지급구분 · 프로젝트 조건과 Email · 미발송은 아직 없다.
  * [선택삭제]는 확정 안 된 명세만 지운다(서버가 막는다).
  */
 export default function EmployeePayListPage() {
@@ -47,6 +47,9 @@ export default function EmployeePayListPage() {
   const [employees, setEmployees] = useState<EmployeeMaster[]>([])
   const [depts, setDepts] = useState<DeptRow[]>([])
   const [items, setItems] = useState<PayItem[]>([])
+  /** [급여대장] — 대장은 귀속월마다 하나라 귀속월로 거른다. */
+  const [ledgerCond, setLedgerCond] = useState<string[]>([])
+  const [ledgers, setLedgers] = useState<{ payMonth: string; name: string }[]>([])
   const [empCond, setEmpCond] = useState<string[]>([])
   const [deptCond, setDeptCond] = useState<string[]>([])
   const [error, setError] = useState('')
@@ -62,11 +65,13 @@ export default function EmployeePayListPage() {
   useEffect(() => {
     api.get<EmployeeMaster[]>('/employees/all').then((r) => setEmployees(r.data)).catch(() => setEmployees([]))
     api.get<DeptRow[]>('/departments').then((r) => setDepts(r.data)).catch(() => setDepts([]))
+    api.get<{ payMonth: string; name: string }[]>('/pay-ledgers').then((r) => setLedgers(r.data)).catch(() => setLedgers([]))
     api.get<PayItem[]>('/pay-settings/items').then((r) => setItems(r.data)).catch(() => setItems([]))
   }, [])
 
   const deptNames = depts.filter((d) => deptCond.includes(String(d.id))).map((d) => d.name)
   const shown = rows
+    .filter((p) => ledgerCond.length === 0 || ledgerCond.includes(p.payMonth))
     .filter((p) => empCond.length === 0 || empCond.includes(String(p.employeeId)))
     .filter((p) => deptNames.length === 0 || deptNames.includes(p.department ?? ''))
 
@@ -116,6 +121,10 @@ export default function EmployeePayListPage() {
     >
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond mb-[8px]">
+        <EcCond label="급여대장">
+          <CodePickerField label="급여대장" hideLabel fill multiple placeholder="급여대장" values={ledgerCond} onChangeMulti={(v) => setLedgerCond(v)}
+                           items={ledgers.map((l) => ({ value: l.payMonth, code: l.payMonth.replace('-', '/'), name: l.name }))} />
+        </EcCond>
         <EcCond label="귀속연월">
           <input type="month" className="ec-input w-[140px]" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
           ~

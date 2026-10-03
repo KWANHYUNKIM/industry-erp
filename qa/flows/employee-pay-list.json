@@ -12,6 +12,10 @@
         "wait:1500",
         "expect:/2091\\/05\\s+급여\\s+EMP-0004\\s+정수진/.test(document.querySelector('table').innerText) && [...document.querySelectorAll('table thead th')].some(th=>th.innerText==='국민연금') && [...document.querySelectorAll('table thead th')].some(th=>th.innerText==='실지급액')",
         "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map(th=>th.innerText.trim());const i=h.indexOf('지급총액');return h.slice(i+1,i+7).join(',')==='소득세,주민세,국민연금,건강보험,고용보험,장기요양'&&!h.includes('지방소득세')&&!h.includes('장기요양보험')&&[...document.querySelectorAll('table tbody tr')][0].cells[i+2].innerText.trim()!==''})()",
+        "js:document.querySelector('button[title=\"급여대장 선택\"]').click();true",
+        "wait:300",
+        "expect:!!document.querySelector('[role=dialog]')&&document.querySelector('[role=dialog]').innerText.includes('급여대장')",
+        "clicklast:확인",
         "js:(async()=>{const t=localStorage.getItem('erp_token');const r=await fetch('/api/payslips/'+sessionStorage.getItem('qaEpl'),{method:'DELETE',headers:{Authorization:'Bearer '+t}});sessionStorage.setItem('qaEplDel',String(r.ok));return true})()",
         "expect:sessionStorage.getItem('qaEplDel')==='true'"
       ]
