@@ -34,4 +34,16 @@ public class WorkJournalController {
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(workJournalService.create(req, principal.getUsername()));
     }
+
+    @PutMapping("/{id}")
+    public WorkJournalResponse update(@PathVariable Long id, @Valid @RequestBody CreateWorkJournalRequest req,
+                                      @AuthenticationPrincipal UserPrincipal principal) {
+        return workJournalService.update(id, req, principal.getUsername());
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
+        workJournalService.delete(id, principal.getUsername());
+        return ResponseEntity.noContent().build();
+    }
 }

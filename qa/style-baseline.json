@@ -565,8 +565,8 @@
   "palette": 0
  },
  "pages/groupware/WorkLogPage.tsx": {
-  "inline": 20,
-  "color": 5,
+  "inline": 0,
+  "color": 0,
   "palette": 0
  },
  "pages/hr/AttendanceInputPage.tsx": {

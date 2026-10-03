@@ -726,6 +726,8 @@ export interface WorkJournal {
   projectName: string | null
   title: string
   content: string
+  /** 원본 '조회' 머리의 작성 시각 */
+  createdAt: string | null
 }
 
 // ===== 그룹웨어: 출퇴근 =====
