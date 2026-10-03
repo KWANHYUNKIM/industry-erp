@@ -1,0 +1,32 @@
+{
+  "about": "관리 > 일용근로 사원리스트 [변경](E020105) — 사원리스트와 같은 창(원본 2026-10-04 실측: 항목검색 성명 · 부서코드 · … · 일근무 · 소득세 · 지방소득세 · 외국인 · 고용보험). 일근무를 한꺼번에 120,000 으로 → 저장 → 다른 칸(모바일 · 고용보험 · 입사일)은 그대로. 시험 사원 둘은 지운다.",
+  "shots": [
+    {
+      "name": "변경 — 일근무 한꺼번에 → 저장 → 정리",
+      "path": "/hr/daily-workers",
+      "steps": [
+        "wait:1500",
+        "click:변경",
+        "expect:document.body.innerText.includes('리스트에 선택된 자료가 없습니다. 체크박스에 체크한 후 다시 시도 바랍니다.')",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const ids=[];for(const n of ['QA관리-일용변경A','QA관리-일용변경B']){const r=await (await fetch('/api/hr/daily-workers',{method:'POST',headers:h,body:JSON.stringify({name:n,hireDate:'2091-01-01',employmentInsurance:true,dailyWage:100000,mobile:'010-3333-4444'})})).json();ids.push(r.id)}sessionStorage.setItem('qaDbc',JSON.stringify(ids));return ids.every(Boolean)?true:JSON.stringify(ids)})()",
+        "js:location.reload();true",
+        "wait:2000",
+        "js:(()=>{const n=['QA관리-일용변경A','QA관리-일용변경B'];let k=0;for(const t of document.querySelectorAll('table tbody tr')){if(n.some(x=>t.innerText.includes(x))){t.querySelector('input[type=checkbox]').click();k++}}return k===2?true:'ticked '+k})()",
+        "click:변경",
+        "wait:400",
+        "js:(()=>{[...document.querySelectorAll('[role=dialog]')].pop().querySelector('input[aria-label=\"일근무\"]').click();return true})()",
+        "js:(()=>{[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find(b=>b.innerText.startsWith('적용')).click();return true})()",
+        "wait:400",
+        "expect:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('thead th')].map(t=>t.innerText.trim()).filter(Boolean).join(',')==='사원번호,성명,일근무'",
+        "js:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const i=d.querySelector('.ec-form input');const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;set.call(i,'120000');i.dispatchEvent(new Event('input',{bubbles:true}));[...d.querySelectorAll('.ec-form button')].find(b=>b.innerText.trim()==='적용').click();return true})()",
+        "wait:200",
+        "js:(()=>{[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find(b=>b.innerText.startsWith('저장')).click();return true})()",
+        "wait:3000",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const ids=JSON.parse(sessionStorage.getItem('qaDbc'));const all=await (await fetch('/api/hr/daily-workers',{headers:h})).json();sessionStorage.setItem('qaDbcGot',JSON.stringify(ids.map(i=>{const w=all.find(e=>e.id===i);return [Number(w.dailyWage),w.mobile,w.employmentInsurance,w.hireDate]})));return true})()",
+        "expect:JSON.parse(sessionStorage.getItem('qaDbcGot')).every(x=>x[0]===120000&&x[1]==='010-3333-4444'&&x[2]===true&&x[3]==='2091-01-01')",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const ids=JSON.parse(sessionStorage.getItem('qaDbc'));let ok=true;for(const i of ids)ok=(await fetch('/api/hr/daily-workers/'+i,{method:'DELETE',headers:h})).ok&&ok;sessionStorage.setItem('qaDbcClean',String(ok));return true})()",
+        "expect:sessionStorage.getItem('qaDbcClean')==='true'"
+      ]
+    }
+  ]
+}

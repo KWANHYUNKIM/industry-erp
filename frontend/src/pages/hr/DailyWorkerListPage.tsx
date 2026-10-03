@@ -3,6 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { BANK_CODES } from '../../utils/bankCodes'
 import Modal from '../../components/Modal'
+import BulkChangeModal, { type BulkDraft, type BulkField } from '../../components/BulkChangeModal'
 import { useTableSort } from '../../utils/useTableSort'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
@@ -60,6 +61,8 @@ export default function DailyWorkerListPage() {
   const [error, setError] = useState('')
   const [quick, setQuick] = useState('')
   const [checked, setChecked] = useState<Set<number>>(new Set())
+  /** 원본 [변경] — 체크한 사원들의 항목을 한 번에 고친다(사원등록과 같은 창). */
+  const [bulkOpen, setBulkOpen] = useState(false)
   const [open, setOpen] = useState(false)
   const [formError, setFormError] = useState('')
   const [editId, setEditId] = useState<number | null>(null)
@@ -156,6 +159,11 @@ export default function DailyWorkerListPage() {
       onSearch={load}
       onNew={openNew}
       actions={[
+        { label: '화면인쇄', onClick: () => window.print() },
+        { label: '변경', onClick: () => {
+          if (checked.size === 0) { setError('리스트에 선택된 자료가 없습니다. 체크박스에 체크한 후 다시 시도 바랍니다.'); return }
+          setError(''); setBulkOpen(true)
+        } },
         { label: '선택삭제', onClick: deleteChecked, disabled: checked.size === 0 },
         { label: 'Excel' },
       ]}
@@ -198,6 +206,12 @@ export default function DailyWorkerListPage() {
         </tbody>
       </table>
 
+      {bulkOpen && (
+        <BulkChangeModal rows={rows.filter((r) => checked.has(r.id))} codeLabel="사원번호" fields={bulkFields(departments)}
+                         initial={bulkInitial} saveRow={bulkSave}
+                         onClose={() => setBulkOpen(false)}
+                         onSaved={() => { setBulkOpen(false); setChecked(new Set()); load() }} />
+      )}
       <Modal error={formError} open={open} title="사원등록" width={820} onClose={() => setOpen(false)}>
         <div className="ec-pills mb-[8px]">
           {(['기본', '급여지급사항'] as const).map((t) => (
@@ -327,4 +341,40 @@ export default function DailyWorkerListPage() {
       </Modal>
     </EcListShell>
   )
+}
+
+/*
+ * [변경] 항목 — 원본 일용근로 [항목검색](2026-10-04 실측: 성명 · 부서코드 · 프로젝트 · 전화 · 모바일 · 여권번호 · Email · 입사일자 · 퇴사일자 ·
+ * 우편번호 · 주소 · 적요 · 수당항목 일근무 · 공제항목 소득세 · 지방소득세 · 추가정보 · 주민등록번호 · 외국인 · 고용보험 · 국민연금 · 건강보험) 중
+ * 일용 사원에 담을 칸이 있는 것만. 수정 API 가 통째로 바꾸므로 고르지 않은 칸은 지금 값을 그대로 다시 보낸다.
+ */
+const bulkFields = (departments: Department[]): BulkField[] => [
+  { key: 'name', label: '성명', kind: 'text' },
+  { key: 'departmentId', label: '부서코드', kind: 'select', options: departments.map((d) => [String(d.id), d.name]) },
+  { key: 'mobile', label: '모바일', kind: 'text' },
+  { key: 'email', label: 'Email', kind: 'text' },
+  { key: 'hireDate', label: '입사일자', kind: 'date' },
+  { key: 'resignDate', label: '퇴사일자', kind: 'date' },
+  { key: 'zipcode', label: '우편번호', kind: 'text' },
+  { key: 'address', label: '주소', kind: 'text' },
+  { key: 'remark', label: '적요', kind: 'text' },
+  { key: 'dailyWage', label: '일근무', kind: 'number' },
+  { key: 'fixedIncomeTax', label: '소득세', kind: 'number' },
+  { key: 'fixedLocalTax', label: '지방소득세', kind: 'number' },
+  { key: 'foreigner', label: '외국인', kind: 'select', options: [['true', 'Yes'], ['false', 'No']] },
+  { key: 'employmentInsurance', label: '고용보험', kind: 'select', options: [['true', 'Yes'], ['false', 'No']] },
+]
+const bulkInitial = (w: DailyWorker): BulkDraft =>
+  Object.fromEntries(Object.entries(w).map(([k, v]) => [k, v == null ? '' : String(v)]))
+async function bulkSave(w: DailyWorker, d: BulkDraft) {
+  if (!d.name.trim()) throw new Error('성명을 입력 바랍니다.')
+  await api.put(`/hr/daily-workers/${w.id}`, {
+    ...w,
+    name: d.name.trim(), departmentId: d.departmentId ? Number(d.departmentId) : null,
+    mobile: d.mobile.trim() || null, email: d.email.trim() || null,
+    hireDate: d.hireDate || null, resignDate: d.resignDate || null,
+    zipcode: d.zipcode.trim() || null, address: d.address.trim() || null, remark: d.remark.trim() || null,
+    dailyWage: num(d.dailyWage), fixedIncomeTax: num(d.fixedIncomeTax), fixedLocalTax: num(d.fixedLocalTax),
+    foreigner: d.foreigner === 'true', employmentInsurance: d.employmentInsurance === 'true',
+  })
 }
