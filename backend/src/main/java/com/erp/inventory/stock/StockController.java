@@ -23,6 +23,18 @@ import com.erp.inventory.stock.dto.StockDtos;
 public class StockController {
 
     private final StockService stockService;
+    private final StockFifoService fifoService;
+
+    /**
+     * 원본 이익현황 원가 [선입선출(판매)] — 판매 전표 · 품목별 선입선출 원가. 그 날까지의 움직임을 다 본다
+     * (원가는 언제 들어온 층이든 그 앞의 층에 달려 있다).
+     */
+    @GetMapping("/fifo-sale-costs")
+    public List<StockFifoService.SaleCost> fifoSaleCosts(
+            @RequestParam @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate to) {
+        return fifoService.saleCosts(to);
+    }
 
     /** 현재고 목록 */
     /**

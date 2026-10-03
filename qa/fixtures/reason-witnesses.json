@@ -336,15 +336,6 @@
   ],
   "in": "backend/src/main/java/com/erp/inventory/item/Item.java"
  },
- "선입선출(판매)": {
-  "claim": "입고 레이어를 남기지 않아 선입선출로 못 센다",
-  "absent": [
-   "StockLayer",
-   "CostLayer",
-   "InboundLayer"
-  ],
-  "in": "backend"
- },
  "원가생성_수정|공정명": {
   "claim": "원가를 공정 단위로 쌓지 않는다",
   "absent": [

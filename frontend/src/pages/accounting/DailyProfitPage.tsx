@@ -63,7 +63,7 @@ const MODES = ['라인별', '품목별', '거래처별', '품목별거래처별'
  * 숫자가 그럴듯해서 눈으로는 안 걸린다. 이제 품목의 구매단가를 읽는다.
  * 구매단가를 안 정한 품목(0)은 기준이 없는 것이므로 원가·이익을 '—' 로 둔다.
  *
- * <p>선입선출은 아직 없다 — 로트별 입고원가를 따라가야 해서 자료가 더 필요하다.
+ * <p>[선입선출(판매)] 는 서버(/stock/fifo-sale-costs)가 재고 이력을 일어난 차례로 걸어 판매 출고가 꺼낸 입고 층의 단가로 셈한다.
  */
 type Basis = CostBasis
 
@@ -92,6 +92,8 @@ export default function DailyProfitPage() {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [costs, setCosts] = useState<CostRow[]>([])
   const [lastPrices, setLastPrices] = useState<{ itemId: number; unitPrice: number }[]>([])
+  /* 원가 [선입선출(판매)] — 판매 전표 · 품목별 선입선출 단가(서버가 재고 이력으로 셈한다). 키는 '전표번호#품목id'. */
+  const [fifo, setFifo] = useState<Map<string, number>>(new Map())
   /** 품목별 <b>구매단가</b>. 원가 기준 '입고단가(품목)' 이 쓴다. 0 이면 기준 없음. */
   const [unitPrices, setUnitPrices] = useState<Map<number, number>>(new Map())
   const [loading, setLoading] = useState(true)
@@ -110,7 +112,8 @@ export default function DailyProfitPage() {
    * 품목을 모아야 한다. 이익현황은 품목으로 접어 보는 것이 첫 화면이다.
    */
   const [mode, setMode] = useState<Mode>('품목별')
-  const [basis, setBasis] = useState<Basis>('입고단가(품목)')
+  /* 원본 기본 원가는 [선입선출(판매)] 다(2026-10-04 실측 — 라디오가 거기 찍혀 있다). */
+  const [basis, setBasis] = useState<Basis>('선입선출(판매)')
   const [withVat, setWithVat] = useState(false)
   /**
    * 원본 [거래구분] — 전체 · 반품만 · 반품제외.
@@ -163,9 +166,13 @@ export default function DailyProfitPage() {
       api.get<{ itemId: number; unitPrice: number }[]>('/purchases/item-prices'),
       // 원가 기준 '입고단가(품목)' 은 <b>구매단가</b>다. 판매단가(unitPrice)가 아니다.
       api.get<{ id: number; purchasePrice: number }[]>('/items'),
+      /* 원가 [선입선출(판매)] — 그 날까지의 재고 이력으로 판매 줄마다 꺼낸 층의 원가. */
+      api.get<{ docNo: string; itemId: number; quantity: number; cost: number }[]>('/stock/fifo-sale-costs', { params: { to: cond.to || ymd(new Date()) } }),
     ])
-      .then(([s, w, c, p, i]) => {
+      .then(([s, w, c, p, i, f]) => {
         setSales(s.data); setWarehouses(w.data); setCosts(c.data); setLastPrices(p.data)
+        setFifo(new Map(f.data.filter((r) => Number(r.quantity) > 0)
+          .map((r) => [`${r.docNo}#${r.itemId}`, Number(r.cost) / Number(r.quantity)])))
         setUnitPrices(new Map(i.data.map((it) => [it.id, it.purchasePrice])))
       })
       .catch((err) => setError(extractErrorMessage(err)))
@@ -185,10 +192,11 @@ export default function DailyProfitPage() {
     () => new Map(lastPrices.map((r) => [r.itemId, r.unitPrice])), [lastPrices])
 
   /** 원가단가. 규칙은 utils/costBasis 에 있다 — 거기서 못 박아 두고 여기서는 잇기만 한다. */
-  const costPrice = (itemId: number, saleDate: string): number | null => costOf(basis, {
+  const costPrice = (itemId: number, saleDate: string, docNo: string): number | null => costOf(basis, {
     monthlyCost: costByItemPeriod.get(`${itemId}:${saleDate.slice(0, 7)}`) ?? null,
     lastPurchasePrice: lastPurchasePrice.get(itemId) ?? null,
     itemPurchasePrice: unitPrices.get(itemId) ?? null,
+    fifoUnitCost: fifo.get(`${docNo}#${itemId}`) ?? null,
   })
 
   /** 조건을 통과한 판매 라인 하나하나. 모든 구분이 여기서 갈라져 나간다. */
@@ -212,7 +220,7 @@ export default function DailyProfitPage() {
       .filter((l) => !cond.itemGroup || mgmtItems.groupOf(l.itemId) === cond.itemGroup)
       .map((l) => {
         const revenue = withVat ? l.supplyAmount + l.vatAmount : l.supplyAmount
-        const price = costPrice(l.itemId, d.saleDate)
+        const price = costPrice(l.itemId, d.saleDate, d.docNo)
         const cost = price === null ? null : price * l.quantity
         return {
           key: `${d.id}-${l.itemId}-${l.lotNo ?? ''}`,
@@ -290,7 +298,7 @@ export default function DailyProfitPage() {
   const allUnknown = lines.length > 0 && known.length === 0
 
   const reset = () => {
-    setMode('라인별'); setBasis('입고단가(품목)'); setWithVat(false)
+    setMode('라인별'); setBasis('선입선출(판매)'); setWithVat(false)
     setCond({ from: init.from, to: init.to, warehouseId: '', project: '', partner: '', item: '',
       partnerGroup: '', category: '', itemGroup: '', employee: '', partnerMgr: '', taxType: '' })
     setTradeKind('전체')
@@ -436,7 +444,7 @@ export default function DailyProfitPage() {
         {/* 원본 조건의 [거래구분]. 반품 전표는 수량·금액이 음수라 이익에서 저절로 빠진다. */}
         <EcCond label="원가">
           <div className="ec-pills">
-            {(['월별원가', '최종구매가', '입고단가(품목)'] as const).map((b) => (
+            {(['선입선출(판매)', '월별원가', '최종구매가', '입고단가(품목)'] as const).map((b) => (
               <button key={b} type="button" className={`ec-pill no-ec${basis === b ? ' active' : ''}`}
                       onClick={() => setBasis(b)}>
                 {b}

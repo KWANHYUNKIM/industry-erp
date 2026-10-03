@@ -13,6 +13,11 @@ import java.util.List;
 
 public interface StockTransactionRepository extends JpaRepository<StockTransaction, Long> {
 
+    /** 선입선출 원가 — 그 날까지의 모든 움직임을 일어난 차례로. */
+    @Query("select t from StockTransaction t join fetch t.item join fetch t.warehouse " +
+            "where t.transactionDate <= :to order by t.transactionDate asc, t.id asc")
+    java.util.List<StockTransaction> findUpToWithItem(@Param("to") java.time.LocalDate to);
+
     /** 최근 입출고 이력 (품목/창고 함께 로딩, 최신순) */
     @Query(value = "select t from StockTransaction t " +
             "join fetch t.item join fetch t.warehouse " +

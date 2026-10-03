@@ -30,6 +30,15 @@ test('기준마다 다른 값을 고른다', () => {
   assert.equal(costOf('입고단가(품목)', src), 9000)
 })
 
+test("'선입선출(판매)' 은 그 판매 줄의 선입선출 단가를 쓰고, 출고가 없으면 null 이다", () => {
+  // 원본 이익현황의 기본 원가다(2026-10-04). 0원 층에서 꺼냈으면 0 도 '아는 원가' 다.
+  const base = { monthlyCost: 3000, lastPurchasePrice: 5000, itemPurchasePrice: 9000 }
+  assert.equal(costOf('선입선출(판매)', { ...base, fifoUnitCost: 1200 }), 1200)
+  assert.equal(costOf('선입선출(판매)', { ...base, fifoUnitCost: 0 }), 0)
+  assert.equal(costOf('선입선출(판매)', { ...base, fifoUnitCost: null }), null)
+  assert.equal(costOf('선입선출(판매)', base), null)
+})
+
 test('원가를 모르는 줄은 합계에서 뺀다', () => {
   const rows = [
     { revenue: 10000, cost: 6000 },

@@ -67,6 +67,8 @@ export default function MonthlyProfitPage() {
   const [sales, setSales] = useState<SalesDoc[]>([])
   const [costs, setCosts] = useState<CostRow[]>([])
   const [lastPrices, setLastPrices] = useState<{ itemId: number; unitPrice: number }[]>([])
+  /* 원가 [선입선출(판매)] — 판매 전표 · 품목별 선입선출 단가(서버가 재고 이력으로 셈한다). 키는 '전표번호#품목id'. */
+  const [fifo, setFifo] = useState<Map<string, number>>(new Map())
   /** 품목별 <b>구매단가</b>. 원가 기준 '입고단가(품목)' 이 쓴다. 0 이면 기준 없음. */
   const [unitPrices, setUnitPrices] = useState<Map<number, number>>(new Map())
   const [loading, setLoading] = useState(true)
@@ -125,9 +127,13 @@ export default function MonthlyProfitPage() {
       api.get<{ itemId: number; unitPrice: number }[]>('/purchases/item-prices'),
       // 원가 기준 '입고단가(품목)' 은 구매단가다. 판매단가(unitPrice)가 아니다.
       api.get<{ id: number; purchasePrice: number }[]>('/items'),
+      /* 원가 [선입선출(판매)] — 그 날까지의 재고 이력으로 판매 줄마다 꺼낸 층의 원가. */
+      api.get<{ docNo: string; itemId: number; quantity: number; cost: number }[]>('/stock/fifo-sale-costs', { params: { to: period.to } }),
     ])
-      .then(([s, c, p, i]) => {
+      .then(([s, c, p, i, f]) => {
         setSales(s.data); setCosts(c.data); setLastPrices(p.data)
+        setFifo(new Map(f.data.filter((r) => Number(r.quantity) > 0)
+          .map((r) => [`${r.docNo}#${r.itemId}`, Number(r.cost) / Number(r.quantity)])))
         setUnitPrices(new Map(i.data.map((it) => [it.id, it.purchasePrice])))
       })
       .catch((err) => setError(extractErrorMessage(err)))
@@ -146,10 +152,11 @@ export default function MonthlyProfitPage() {
     () => new Map(lastPrices.map((r) => [r.itemId, r.unitPrice])), [lastPrices])
 
   /** 원가단가. 규칙은 utils/costBasis 에 있다 — 거기서 못 박아 두고 여기서는 잇기만 한다. */
-  const costPrice = (itemId: number, saleDate: string): number | null => costOf(basis, {
+  const costPrice = (itemId: number, saleDate: string, docNo: string): number | null => costOf(basis, {
     monthlyCost: costByItemPeriod.get(`${itemId}:${saleDate.slice(0, 7)}`) ?? null,
     lastPurchasePrice: lastPurchasePrice.get(itemId) ?? null,
     itemPurchasePrice: unitPrices.get(itemId) ?? null,
+    fifoUnitCost: fifo.get(`${docNo}#${itemId}`) ?? null,
   })
 
   /**
@@ -185,7 +192,7 @@ export default function MonthlyProfitPage() {
       .filter((l) => !cond.itemGroup || mgmt.groupOf(l.itemId) === cond.itemGroup)
       .map((l) => {
       const revenue = withVat ? l.supplyAmount + l.vatAmount : l.supplyAmount
-      const price = costPrice(l.itemId, d.saleDate)
+      const price = costPrice(l.itemId, d.saleDate, d.docNo)
       const cost = price === null ? null : price * l.quantity
       return {
         month: d.saleDate.slice(0, 7),
@@ -314,7 +321,7 @@ export default function MonthlyProfitPage() {
         </div>
         <span className="text-[12.5px] text-ec-label ml-[8px]">원가</span>
         <div className="ec-pills">
-          {(['월별원가', '최종구매가', '입고단가(품목)'] as const).map((b) => (
+          {(['선입선출(판매)', '월별원가', '최종구매가', '입고단가(품목)'] as const).map((b) => (
             <button key={b} type="button" className={`ec-pill no-ec${basis === b ? ' active' : ''}`}
                     onClick={() => setBasis(b)}>{b}</button>
           ))}
