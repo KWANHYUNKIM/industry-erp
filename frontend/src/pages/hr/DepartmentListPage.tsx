@@ -5,6 +5,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Department } from '../../types/api'
+import DepartmentHierarchy from '../../features/department/components/DepartmentHierarchy'
 
 /**
  * 관리 &gt; 급여관리 &gt; 기본사항등록 &gt; <b>부서등록</b> (원본 E010105, 화면 제목 '부서리스트').
@@ -18,7 +19,8 @@ import type { Department } from '../../types/api'
  *   <li>[삭제]: '삭제하시겠습니까? 조직도에 포함된 부서인 경우에는 조직도에서도 하위부서를 포함하여 모두 삭제됩니다.'
  *       — 하위 부서는 부서로 남고 조직도 배치만 풀린다(서버 DepartmentService.delete). 사원이 든 부서는 서버가 막는다.</li>
  * </ul>
- * [부서계층그룹]은 우리 부서의 상위 부서(조직도 나무)로 고른다. [추가사업장] · [계층그룹] 단추는 없다 — 사업장을 하나만 둔다.
+ * [부서계층그룹]은 우리 부서의 상위 부서(조직도 나무)로 고른다. [계층그룹] 단추는 그 나무를 보고 옮기는 창(DepartmentHierarchy).
+ * [추가사업장]은 없다 — 사업장을 하나만 둔다.
  */
 export default function DepartmentListPage() {
   const [rows, setRows] = useState<Department[]>([])
@@ -26,6 +28,7 @@ export default function DepartmentListPage() {
   const [checked, setChecked] = useState<Set<number>>(new Set())
   const [quick, setQuick] = useState('')
   const [includeInactive, setIncludeInactive] = useState(false)
+  const [hierOpen, setHierOpen] = useState(false)
   const tableRef = useRef<HTMLTableElement>(null)
 
   const [formOpen, setFormOpen] = useState(false)
@@ -114,11 +117,13 @@ export default function DepartmentListPage() {
       onSearch={() => undefined}
       onNew={openNew}
       actions={[
+        { label: '계층그룹', onClick: () => setHierOpen(true) },
         { label: '사용중단/재사용 ▲', onClick: () => setMenuOpen((v) => !v), disabled: checked.size === 0 },
         { label: includeInactive ? '사용중단제외' : '사용중단포함', onClick: () => setIncludeInactive((v) => !v) },
         { label: 'Excel' },
       ]}
     >
+      {hierOpen && <DepartmentHierarchy departments={rows} onClose={() => setHierOpen(false)} onChanged={load} />}
       {menuOpen && (
         <>
           <div className="ec-backdrop-clear" onClick={() => setMenuOpen(false)} />
