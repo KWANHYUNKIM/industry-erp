@@ -12,6 +12,7 @@ import { useShortcut } from '../../utils/useShortcut'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcRowCap, { capRows } from '../../components/EcRowCap'
 import { DocPullButton, type PulledLine } from '../../features/quality/DocPull'
+import { printDocuments } from '../../utils/printDocument'
 
 const today = () => ymd(new Date())
 const qty0 = (n: number) => Math.round(n).toLocaleString('ko-KR')
@@ -38,7 +39,35 @@ const num = (v: string) => Number(v || 0)
 /* 전수면 시료 = 수량(원본은 시료 칸을 막고 수량을 그대로 찍는다). 적격 = 시료 − 부적격. */
 const sampleOf = (l: LineForm) => (l.method === 'FULL' ? num(l.quantity) : num(l.sampleQty))
 
-type Tab = '전체' | '진행중' | '완료'
+/*
+ * 원본 알약(2026-10-04): 전체 · 확인 · 진행중(기본) · 완료. [확인]은 전표상태라 결재 없는 회사에서는 전체와 같다
+ * (A/S접수조회 · 수리조회와 같음).
+ */
+type Tab = '전체' | '확인' | '진행중' | '완료'
+
+/** 원본 [인쇄] — 검사 한 건의 품목 줄(검사방법 · 수량 · 시료 · 적격 · 부적격 · 합격여부). 목록 [인쇄]는 고른 검사를 한 번에. */
+async function printInspections(rs: QualityInspection[]) {
+  await printDocuments(rs.map((r) => ({
+    title: '품질검사서',
+    docNo: r.inspectionNo,
+    docDate: r.inspectionDate,
+    hideAmounts: true,
+    hideParties: true,
+    supplier: { label: '', name: '' },
+    customer: { label: '', name: '' },
+    extra: [
+      { label: '담당자', value: r.inspector },
+      { label: '검사요청', value: r.requestNo },
+      { label: '종결여부', value: r.statusName },
+    ],
+    remark: r.remark,
+    lines: r.lines.map((l) => ({
+      itemCode: l.itemCode, itemName: l.itemName, spec: l.spec ?? undefined,
+      quantity: l.quantity, unitPrice: 0, supplyAmount: 0, vatAmount: 0,
+      remark: `${l.methodName} · 시료 ${l.sampleQty} · 적격 ${l.goodQty} · 부적격 ${l.defectQty} · ${l.passResultName}`,
+    })),
+  })))
+}
 
 /**
  * 재고 II &gt; 품질관리 &gt; 품질검사 &gt; <b>품질검사조회</b>(E040622) · <b>품질검사입력</b>(E040621) — 2026-10-04 loginaa 실측(자료가 든 판, 입력 · 완료 · 삭제까지).
@@ -121,7 +150,7 @@ export default function QualityInspectionPage() {
     .map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword })), [items])
 
   const shown = rows
-    .filter((r) => tab === '전체' || (tab === '진행중' ? r.status === 'IN_PROGRESS' : r.status === 'COMPLETED'))
+    .filter((r) => tab === '전체' || tab === '확인' || (tab === '진행중' ? r.status === 'IN_PROGRESS' : r.status === 'COMPLETED'))
     .filter((r) => !itemCond || r.lines.some((l) => String(l.itemId) === itemCond))
     .filter((r) => !whCond || String(r.warehouseId) === whCond)
     .filter((r) => !projCond || String(r.projectId) === projCond)
@@ -227,6 +256,17 @@ export default function QualityInspectionPage() {
     if (ids.length === 0) return setError('리스트에 선택된 자료가 없습니다.\n체크박스에 체크한 후 다시 시도 바랍니다.')
     if (window.confirm('선택한 전표를 삭제 하겠습니까?')) void removeIds(ids)
   }
+  /** 목록 [진행상태변경] — 고른 검사를 진행중 · 완료로. */
+  const [statusOpen, setStatusOpen] = useState(false)
+  async function changeStatus(status: 'IN_PROGRESS' | 'COMPLETED') {
+    const results = await Promise.allSettled([...picked].map((id) => api.patch(`/quality-inspections/${id}/status`, { status })))
+    const failed = results.filter((x) => x.status === 'rejected') as PromiseRejectedResult[]
+    setStatusOpen(false)
+    setPicked(new Set())
+    setError(failed.map((x) => extractErrorMessage(x.reason)).join(' / '))
+    await load()
+  }
+
   async function toggleStatus(r: QualityInspection) {
     try {
       await api.patch(`/quality-inspections/${r.id}/status`, { status: r.status === 'IN_PROGRESS' ? 'COMPLETED' : 'IN_PROGRESS' })
@@ -247,6 +287,9 @@ export default function QualityInspectionPage() {
       onNew={openNew}
       actions={[
         /* 원본은 누른 뒤 '리스트에 선택된 자료가 없습니다.' — 우리는 고른 줄이 없으면 미리 잠근다(저장소 규칙). */
+        /* 원본 버튼줄: 신규(F2) · Email · 진행상태변경 · 보내기 · 인쇄 · 바코드(품목) · 다른전표생성 · 선택삭제 · Excel · 이력조회. */
+        { label: '진행상태변경', onClick: () => setStatusOpen(true), disabled: picked.size === 0 },
+        { label: '인쇄', onClick: () => void printInspections(rows.filter((r) => picked.has(r.id))), disabled: picked.size === 0 },
         { label: '선택삭제', onClick: removeChecked, disabled: picked.size === 0 },
         { label: 'Excel' },
       ]}
@@ -274,7 +317,7 @@ export default function QualityInspectionPage() {
       </ul>
 
       <div className="ec-pills mb-[8px]">
-        {(['전체', '진행중', '완료'] as const).map((t) => (
+        {(['전체', '확인', '진행중', '완료'] as const).map((t) => (
           <button key={t} type="button" className={`ec-pill no-ec${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>{t}</button>
         ))}
       </div>
@@ -324,7 +367,7 @@ export default function QualityInspectionPage() {
                 <button type="button" className={`ec-link${r.status === 'COMPLETED' ? ' text-ec-warn' : ''}`}
                         onClick={() => toggleStatus(r)}>{r.statusName}</button>
               </td>
-              <td className="text-center"><button type="button" className="ec-link" onClick={() => window.print()}>인쇄</button></td>
+              <td className="text-center"><button type="button" className="ec-link" onClick={() => void printInspections([r])}>인쇄</button></td>
             </tr>
           ))}
         </tbody>
@@ -465,6 +508,13 @@ export default function QualityInspectionPage() {
         <div className="flex gap-[4px] mt-[9px]">
           <button className="ec-btn ec-btn-primary" disabled={pullPick == null} onClick={applyRequest}>잔량적용(F8)</button>
           <button className="ec-btn" onClick={() => setPullOpen(false)}>닫기</button>
+        </div>
+      </Modal>
+      <Modal error={error} open={statusOpen} title="진행상태변경" onClose={() => setStatusOpen(false)} width={320}>
+        <p className="mb-[8px]">진행상태</p>
+        <div className="flex gap-[6px]">
+          <button type="button" className="ec-btn" onClick={() => void changeStatus('IN_PROGRESS')}>진행중</button>
+          <button type="button" className="ec-btn" onClick={() => void changeStatus('COMPLETED')}>완료</button>
         </div>
       </Modal>
     </EcListShell>
