@@ -148,7 +148,12 @@ public class MedicalSupplyService {
         e.setReportMonth(req.reportMonth());
         e.setSupplyType(req.supplyType());
         e.setSupplyShape(req.supplyShape());
+        /*
+         * 줄을 비운 것을 <b>먼저 DB 에 내보낸다</b>. 안 그러면 Hibernate 가 새 줄 INSERT 를 지운 줄 DELETE 보다
+         * 먼저 내보내, 같은 판매 줄을 그대로 다시 저장하는 수정이 sales_line_id UNIQUE 에 걸려 늘 실패했다.
+         */
         e.getLines().clear();
+        if (e.getId() != null) repository.flush();
         int no = 0;
         for (EntryLineRequest r : req.lines()) {
             BigDecimal price = r.unitPrice() == null ? BigDecimal.ZERO : r.unitPrice();
@@ -168,7 +173,8 @@ public class MedicalSupplyService {
                     .itemName(r.itemName())
                     .quantity(r.quantity())
                     .unitPrice(price)
-                    .amount(r.amount() != null ? r.amount() : price.multiply(r.quantity()))
+                    /* 금액은 서버가 단가 × 수량으로 매긴다 — 화면이 보낸 금액과 어긋나도 장부가 하나로 맞는다. */
+                    .amount(price.multiply(r.quantity()).setScale(2, java.math.RoundingMode.HALF_UP))
                     .build());
         }
     }

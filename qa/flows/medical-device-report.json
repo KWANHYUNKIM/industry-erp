@@ -2,7 +2,7 @@
   "about": "의료기기공급내역보고(C001403) — 원본은 보고 줄을 저장한다. [신규]가 판매검색창을 바로 띄우고, 고른 판매에서 시리얼(UDI)이 달린 줄만 불러온다(UDI 없는 줄은 안 온다). 저장하면 목록에 '미전송' 줄이 서고, 같은 판매를 다시 불러오면 원본 문구로 막는다. 만든 보고는 지운다. 앞 단계: QA데이터센터-산소발생기(UDI-DI 02103151626568) 를 시리얼 PO2104600107 로 판 판매(비고 QA데이터센터)가 있어야 한다.",
   "shots": [
     {
-      "name": "신규 → 판매 고르기 → UDI 줄만 → 저장 → 목록 미전송 → 다시 불러오면 막음 → 지움",
+      "name": "신규 → 판매 고르기 → UDI 줄만 → 저장 → 목록 미전송 → 다시 불러오면 막음 → 같은 줄로 수정 저장(금액 = 단가×수량) → 지움",
       "path": "/datacenter/medical-device-report",
       "steps": [
         "allowapi:400: /api/medical-device-reports/entries/pull",
@@ -25,6 +25,7 @@
         "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('tr')].find((tr) => tr.innerText.includes('QA데이터센터-산소발생기')).querySelector('input[type=checkbox]').click(); true",
         "click:적용(F8)",
         "expect:document.body.innerText.includes('시리얼(UDI)이 등록된 모든 내역이 저장되었거나 불러올 내역이 없습니다. 확인 후 다시 시도 바랍니다.')",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const rows = await (await fetch('/api/medical-device-reports/entries?from=2000-01-01&to=2099-12-31', { headers: H })).json(); const r = rows.find((x) => x.itemName === 'QA데이터센터-산소발생기'); const e = await (await fetch('/api/medical-device-reports/entries/' + r.entryId, { headers: H })).json(); e.lines[0].quantity = 2; const res = await fetch('/api/medical-device-reports/entries/' + r.entryId, { method: 'PUT', headers: H, body: JSON.stringify({ reportMonth: e.reportMonth, supplyType: e.supplyType, supplyShape: e.supplyShape, lines: e.lines }) }); const d = await res.json(); return res.ok && Number(d.lines[0].amount) === 2 * Number(d.lines[0].unitPrice) })()",
         "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const rows = await (await fetch('/api/medical-device-reports/entries?from=2000-01-01&to=2099-12-31', { headers: H })).json(); for (const r of rows.filter((x) => x.itemName === 'QA데이터센터-산소발생기')) await fetch('/api/medical-device-reports/entries/' + r.entryId, { method: 'DELETE', headers: H }); return '지운 줄 ' + rows.filter((x) => x.itemName === 'QA데이터센터-산소발생기').length })()"
       ]
     }
