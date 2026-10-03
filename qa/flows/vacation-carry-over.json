@@ -2,7 +2,7 @@
   "about": "관리 > 휴가항목등록(E020702) [이월 휴가코드] → 사원별휴가일수입력(E020703) — 원본 2026-10-04 실측: 이월 잔여일수 자동계산 [사용]을 고르면 [이월 휴가코드] 칸이 나오고, 사원별휴가일수입력에 사번을 넣으면 이월 잔여일수가 그 휴가코드의 잔여로 찬다(16일 받은 사원 → 16, 휴가일수 16). 시험 휴가항목은 지운다.",
   "shots": [
     {
-      "name": "휴가항목 신규 — [사용]이면 이월 휴가코드 칸",
+      "name": "휴가항목 신규 — [사용]이면 이월 휴가코드 칸 · 머리 눌러 정렬",
       "path": "/hr/vacation-kinds",
       "steps": [
         "wait:1200",
@@ -12,7 +12,13 @@
         "js:(()=>{const l=[...document.querySelectorAll('[role=dialog] label')].find(x=>x.innerText.trim()==='사용');l.querySelector('input').click();return true})()",
         "wait:300",
         "expect:!!document.querySelector('[role=dialog] button[title=\"이월 휴가코드 선택\"]')",
-        "js:(()=>{document.querySelector('[role=dialog] button.close').click();return true})()"
+        "js:(()=>{document.querySelector('[role=dialog] button.close').click();return true})()",
+        "js:(()=>{[...document.querySelectorAll('table thead th')].find(t=>t.innerText.startsWith('휴가코드')).click();return true})()",
+        "wait:200",
+        "expect:[...document.querySelectorAll('table thead th')].find(t=>t.innerText.startsWith('휴가코드')).innerText.includes('▲')",
+        "js:(()=>{[...document.querySelectorAll('table thead th')].find(t=>t.innerText.startsWith('휴가코드')).click();return true})()",
+        "wait:200",
+        "expect:[...document.querySelectorAll('table thead th')].find(t=>t.innerText.startsWith('휴가코드')).innerText.includes('▼')"
       ]
     },
     {

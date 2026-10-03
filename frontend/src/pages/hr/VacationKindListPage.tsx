@@ -3,6 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import CodePickerField from '../../components/CodePickerField'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 
 interface Vacation { id: number; code: string; name: string; periodFrom: string; periodTo: string; carryOver: boolean; carryFromId: number | null; remark: string | null; active: boolean }
@@ -43,7 +44,12 @@ export default function VacationKindListPage() {
   }
   useEffect(() => { load() }, [])
 
-  const shown = rows.filter((r) => (includeInactive || r.active) && (!quick || r.code.includes(quick) || r.name.includes(quick)))
+  const filtered = rows.filter((r) => (includeInactive || r.active) && (!quick || r.code.includes(quick) || r.name.includes(quick)))
+  /** 원본 머리마다 ▼ — 눌러 정렬(근태항목등록과 같다). */
+  const sort = useTableSort(filtered, {
+    휴가코드: (r) => r.code, 휴가명: (r) => r.name, 사용기간: (r) => r.periodFrom, 사용: (r) => (r.active ? 'Yes' : 'No'),
+  })
+  const shown = sort.sorted
   useTableColumnCheck(tableRef, '휴가항목등록', [shown.length])
   const allChecked = shown.length > 0 && shown.every((r) => checked.has(r.id))
 
@@ -120,10 +126,10 @@ export default function VacationKindListPage() {
             <th className="w-[34px] text-center">
               <input type="checkbox" checked={allChecked} onChange={() => setChecked(allChecked ? new Set() : new Set(shown.map((r) => r.id)))} />
             </th>
-            <th>휴가코드</th>
-            <th>휴가명</th>
-            <th className="text-center">사용기간</th>
-            <th className="text-center">사용</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('휴가코드')}>휴가코드 {sort.mark('휴가코드')}</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('휴가명')}>휴가명 {sort.mark('휴가명')}</th>
+            <th className="text-center cursor-pointer" onClick={() => sort.toggle('사용기간')}>사용기간 {sort.mark('사용기간')}</th>
+            <th className="text-center cursor-pointer" onClick={() => sort.toggle('사용')}>사용 {sort.mark('사용')}</th>
           </tr>
         </thead>
         <tbody>
