@@ -47,8 +47,8 @@ export default function EmployeePayListPage() {
   const [employees, setEmployees] = useState<EmployeeMaster[]>([])
   const [depts, setDepts] = useState<DeptRow[]>([])
   const [items, setItems] = useState<PayItem[]>([])
-  const [empCond, setEmpCond] = useState('')
-  const [deptCond, setDeptCond] = useState('')
+  const [empCond, setEmpCond] = useState<string[]>([])
+  const [deptCond, setDeptCond] = useState<string[]>([])
   const [error, setError] = useState('')
   const [checked, setChecked] = useState<Set<number>>(new Set())
   const tableRef = useRef<HTMLTableElement>(null)
@@ -65,10 +65,10 @@ export default function EmployeePayListPage() {
     api.get<PayItem[]>('/pay-settings/items').then((r) => setItems(r.data)).catch(() => setItems([]))
   }, [])
 
-  const deptName = depts.find((d) => String(d.id) === deptCond)?.name
+  const deptNames = depts.filter((d) => deptCond.includes(String(d.id))).map((d) => d.name)
   const shown = rows
-    .filter((p) => !empCond || String(p.employeeId) === empCond)
-    .filter((p) => !deptName || p.department === deptName)
+    .filter((p) => empCond.length === 0 || empCond.includes(String(p.employeeId)))
+    .filter((p) => deptNames.length === 0 || deptNames.includes(p.department ?? ''))
 
   const { allowanceCols, deductionCols } = useMemo(() => {
     const order = (kind: string) => items.filter((i) => i.kind === kind && i.active)
@@ -122,11 +122,11 @@ export default function EmployeePayListPage() {
           <input type="month" className="ec-input w-[140px]" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
         </EcCond>
         <EcCond label="사원">
-          <CodePickerField label="사원" hideLabel placeholder="사원" value={empCond} onChange={(v) => setEmpCond(v)}
+          <CodePickerField label="사원" hideLabel fill multiple placeholder="사원" values={empCond} onChangeMulti={(v) => setEmpCond(v)}
                            items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
         </EcCond>
         <EcCond label="부서">
-          <CodePickerField label="부서" hideLabel placeholder="부서" value={deptCond} onChange={(v) => setDeptCond(v)}
+          <CodePickerField label="부서" hideLabel fill multiple placeholder="부서" values={deptCond} onChangeMulti={(v) => setDeptCond(v)}
                            items={depts.map((x) => ({ value: String(x.id), code: x.code ?? undefined, name: x.name }))} />
         </EcCond>
       </ul>

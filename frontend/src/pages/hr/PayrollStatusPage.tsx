@@ -64,8 +64,8 @@ export default function PayrollStatusPage() {
   const [mode, setMode] = useState<Mode>('라인별')
   const [range, setRange] = useState(pick('전월+금월'))
   const [confirmCond, setConfirmCond] = useState<Confirm>('전체')
-  const [empCond, setEmpCond] = useState('')
-  const [deptCond, setDeptCond] = useState('')
+  const [empCond, setEmpCond] = useState<string[]>([])
+  const [deptCond, setDeptCond] = useState<string[]>([])
   const [slips, setSlips] = useState<Payslip[]>([])
   const [items, setItems] = useState<PayItem[]>([])
   const [ledgers, setLedgers] = useState<Ledger[]>([])
@@ -86,10 +86,10 @@ export default function PayrollStatusPage() {
     api.get<DeptRow[]>('/departments').then((r) => setDepts(r.data)).catch(() => setDepts([]))
   }, [])
 
-  const deptName = depts.find((d) => String(d.id) === deptCond)?.name
+  const deptNames = depts.filter((d) => deptCond.includes(String(d.id))).map((d) => d.name)
   const filtered = slips
-    .filter((p) => !empCond || String(p.employeeId) === empCond)
-    .filter((p) => !deptName || p.department === deptName)
+    .filter((p) => empCond.length === 0 || empCond.includes(String(p.employeeId)))
+    .filter((p) => deptNames.length === 0 || deptNames.includes(p.department ?? ''))
     .filter((p) => confirmCond === '전체' || (confirmCond === '확정' ? p.status === 'CONFIRMED' : p.status !== 'CONFIRMED'))
 
   // 원본은 수당 · 공제 항목을 금액과 상관없이 모두 열로 세운다(표시순서)
@@ -173,11 +173,11 @@ export default function PayrollStatusPage() {
           <input type="month" className="ec-input w-[140px]" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
         </EcCond>
         <EcCond label="부서">
-          <CodePickerField label="부서" hideLabel placeholder="부서" value={deptCond} onChange={(v) => setDeptCond(v)}
+          <CodePickerField label="부서" hideLabel fill multiple placeholder="부서" values={deptCond} onChangeMulti={(v) => setDeptCond(v)}
                            items={depts.map((x) => ({ value: String(x.id), code: x.code ?? undefined, name: x.name }))} />
         </EcCond>
         <EcCond label="사원">
-          <CodePickerField label="사원" hideLabel placeholder="사원" value={empCond} onChange={(v) => setEmpCond(v)}
+          <CodePickerField label="사원" hideLabel fill multiple placeholder="사원" values={empCond} onChangeMulti={(v) => setEmpCond(v)}
                            items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
         </EcCond>
         <EcCond label="확정여부">
