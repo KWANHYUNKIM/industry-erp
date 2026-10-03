@@ -29,7 +29,7 @@ const thisYear = () => {
 export default function WorkListPage() {
   const nav = useNavigate()
   const [range, setRange] = useState(thisYear())
-  const [{ from, to }, setApplied] = useState(range)
+  const [shownRange, setShownRange] = useState(range)
   const [empCond, setEmpCond] = useState<string[]>([])
   const [itemCond, setItemCond] = useState<string[]>([])
   const [employees, setEmployees] = useState<EmployeeMaster[]>([])
@@ -46,10 +46,10 @@ export default function WorkListPage() {
 
   function load() {
     setError('')
-    api.get<SlipRow[]>('/work-records', { params: { from, to } })
-      .then((r) => setRows(r.data)).catch((e) => setError(extractErrorMessage(e)))
+    api.get<SlipRow[]>('/work-records', { params: { from: range.from, to: range.to } })
+      .then((r) => { setRows(r.data); setShownRange(range) }).catch((e) => setError(extractErrorMessage(e)))
   }
-  useEffect(() => { load() }, [from, to])
+  useEffect(() => { load() }, [])
 
   const keyOf = (r: SlipRow) => `${r.slipDate}/${r.slipNo}`
   const shown = rows.filter((r) => (r.lines ?? []).some((l) =>
@@ -96,11 +96,11 @@ export default function WorkListPage() {
                            items={payItems.map((i) => ({ value: String(i.id), code: i.code, name: i.name }))} />
         </EcCond>
         <li className="flex flex-wrap items-center gap-[6px]">
-          <button type="button" className="ec-btn ec-btn-primary" onClick={() => setApplied(range)}>검색(F8)</button>
+          <button type="button" className="ec-btn ec-btn-primary" onClick={load}>검색(F8)</button>
           <EcPeriodPicks labels={WORK_LIST_PICKS} currentFrom={range.from} onPick={setRange} />
         </li>
       </ul>
-      <div className="text-right text-ec-hint mb-[4px]">{from.replace(/-/g, '/')} ~ {to.replace(/-/g, '/')}</div>
+      <div className="text-right text-ec-hint mb-[4px]">{shownRange.from.replace(/-/g, '/')} ~ {shownRange.to.replace(/-/g, '/')}</div>
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
