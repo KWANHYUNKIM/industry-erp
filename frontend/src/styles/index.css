@@ -1078,3 +1078,15 @@ th.ec-empty {
 }
 
 } /* @layer components */
+/* 라벨·일정구분 칩 — 원본 일정관리(E070201)·공지사항(E200080) 실측: 12px 400 흰 글자 · 여백 3.6 4.5 2.7 · 둥글기 10 */
+.ec-label-chip {
+  display: inline-block;
+  padding: 3.6px 4.5px 2.7px;
+  border-radius: var(--ec-radius);
+  background: var(--ec-bg-label);
+  color: var(--ec-bg-panel);
+  font-size: var(--ec-fs);
+  font-weight: 400;
+  line-height: 1;
+  white-space: nowrap;
+}
