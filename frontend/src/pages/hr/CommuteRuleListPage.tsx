@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 
 type Method = 'WORK_TIME' | 'LATE' | 'EARLY_LEAVE' | 'FORMULA'
@@ -54,7 +55,12 @@ export default function CommuteRuleListPage() {
   }
   useEffect(() => { load() }, [])
 
-  const shown = rows.filter((r) => includeInactive || r.active)
+  /** 원본 머리마다 ▼ — 눌러 정렬(2026-10-04 실측). */
+  const sort = useTableSort(rows.filter((r) => includeInactive || r.active), {
+    반영기준코드: (r) => r.code, 반영기준명: (r) => r.name, 반영방식: (r) => r.methodName, 적용기준: (r) => r.basisName,
+    적요: (r) => r.remark ?? '', 사용: (r) => (r.active ? 'Yes' : 'No'),
+  })
+  const shown = sort.sorted
   useTableColumnCheck(tableRef, '출/퇴근반영기준', [shown.length])
   const allChecked = shown.length > 0 && shown.every((r) => checked.has(r.id))
   const str = (v: unknown) => (v == null ? '' : String(v))
@@ -156,12 +162,12 @@ export default function CommuteRuleListPage() {
             <th className="w-[34px] text-center">
               <input type="checkbox" checked={allChecked} onChange={() => setChecked(allChecked ? new Set() : new Set(shown.map((r) => r.id)))} />
             </th>
-            <th>반영기준코드</th>
-            <th>반영기준명</th>
-            <th>반영방식</th>
-            <th>적용기준</th>
-            <th>적요</th>
-            <th className="text-center">사용</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('반영기준코드')}>반영기준코드 {sort.mark('반영기준코드')}</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('반영기준명')}>반영기준명 {sort.mark('반영기준명')}</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('반영방식')}>반영방식 {sort.mark('반영방식')}</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('적용기준')}>적용기준 {sort.mark('적용기준')}</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('적요')}>적요 {sort.mark('적요')}</th>
+            <th className="text-center cursor-pointer" onClick={() => sort.toggle('사용')}>사용 {sort.mark('사용')}</th>
           </tr>
         </thead>
         <tbody>

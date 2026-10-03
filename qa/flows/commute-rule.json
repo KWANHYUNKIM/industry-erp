@@ -5,6 +5,13 @@
       "name": "반영기준 신규 → 다시 열기 → 삭제",
       "path": "/hr/commute-rules",
       "steps": [
+        "wait:1200",
+        "js:(()=>{[...document.querySelectorAll('table thead th')].find(t=>t.innerText.startsWith('반영기준코드')).click();return true})()",
+        "wait:200",
+        "expect:[...document.querySelectorAll('table thead th')].find(t=>t.innerText.startsWith('반영기준코드')).innerText.includes('▲')",
+        "js:(()=>{[...document.querySelectorAll('table thead th')].find(t=>t.innerText.startsWith('반영기준코드')).click();return true})()",
+        "wait:200",
+        "expect:[...document.querySelectorAll('table thead th')].find(t=>t.innerText.startsWith('반영기준코드')).innerText.includes('▼')",
         "js:window.confirm=()=>true;true",
         "click:신규(F2)",
         "setnear:반영기준명|QA관리-지각기준",
