@@ -31,7 +31,7 @@ const qty = (n: number) => (Number.isInteger(n) ? String(n) : String(Number(n.to
  * 보이는 것은 급여계산/대장의 [근무기록확정]에서 확정한 값이다(근무입력 그대로가 아니다).
  *
  * <p>구분은 라인별만, 조건은 기준월 · 부서 · 사원번호 · 수당항목(모두 여러 개 고르는 코드도움)만 만들었다.
- * 지급연월 · 지급일 · 급여구분 · 프로젝트 · 결재방표시 · 정렬/소계기준은 없다.
+ * 지급연월 · 지급일([사용])은 그 귀속월 급여대장의 지급일로 거른다. 급여구분 · 프로젝트 · 결재방표시 · 정렬/소계기준은 없다.
  */
 export default function WorkConfirmStatusPage() {
   const [range, setRange] = useState(pick('전월+금월'))
@@ -40,6 +40,12 @@ export default function WorkConfirmStatusPage() {
   const [items, setItems] = useState<PayItem[]>([])
   const [depts, setDepts] = useState<{ id: number; code?: string | null; name: string }[]>([])
   const [deptCond, setDeptCond] = useState<string[]>([])
+  /** 원본 [지급연월] · [지급일]([사용]) — 그 귀속월 급여대장의 지급일로 거른다. */
+  const [ledgers, setLedgers] = useState<{ payMonth: string; payDate: string | null }[]>([])
+  const [usePaidMonth, setUsePaidMonth] = useState(false)
+  const [paidMonth, setPaidMonth] = useState(range)
+  const [usePayDate, setUsePayDate] = useState(false)
+  const [payDate, setPayDate] = useState({ from: `${range.from}-01`, to: `${range.to}-28` })
   const [empCond, setEmpCond] = useState<string[]>([])
   const [itemCond, setItemCond] = useState<string[]>([])
   const [error, setError] = useState('')
@@ -53,12 +59,19 @@ export default function WorkConfirmStatusPage() {
   useEffect(() => {
     search()
     api.get<EmployeeMaster[]>('/employees/all').then((r) => setEmployees(r.data)).catch(() => setEmployees([]))
+    api.get<typeof ledgers>('/pay-ledgers').then((r) => setLedgers(r.data)).catch(() => setLedgers([]))
     api.get<{ id: number; code?: string | null; name: string }[]>('/departments').then((r) => setDepts(r.data)).catch(() => setDepts([]))
     api.get<PayItem[]>('/pay-settings/items').then((r) => setItems(r.data.filter((i) => i.kind === 'ALLOWANCE'))).catch(() => setItems([]))
   }, [])
 
   const deptOf = new Map(employees.map((e) => [e.id, e.departmentId]))
   const shown = rows
+    .filter((r) => {
+      const d = ledgers.find((l) => l.payMonth === r.payMonth)?.payDate ?? ''
+      if (usePaidMonth && !(d && d.slice(0, 7) >= paidMonth.from && d.slice(0, 7) <= paidMonth.to)) return false
+      if (usePayDate && !(d && d >= payDate.from && d <= payDate.to)) return false
+      return true
+    })
     .filter((r) => deptCond.length === 0 || deptCond.includes(String(deptOf.get(r.employeeId) ?? '')))
     .filter((r) => empCond.length === 0 || empCond.includes(String(r.employeeId)))
     .filter((r) => itemCond.length === 0 || itemCond.includes(String(r.payItemId)))
@@ -73,6 +86,30 @@ export default function WorkConfirmStatusPage() {
           <input type="month" className="ec-input w-[140px]" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
           ~
           <input type="month" className="ec-input w-[140px]" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
+        </EcCond>
+        <EcCond label="지급연월">
+          {usePaidMonth && (
+            <>
+              <input type="month" className="ec-input w-[140px]" aria-label="지급연월 시작" value={paidMonth.from} onChange={(e) => setPaidMonth({ ...paidMonth, from: e.target.value })} />
+              ~
+              <input type="month" className="ec-input w-[140px]" aria-label="지급연월 끝" value={paidMonth.to} onChange={(e) => setPaidMonth({ ...paidMonth, to: e.target.value })} />
+            </>
+          )}
+          <label className="inline-flex items-center gap-[4px] ml-[6px]">
+            <input type="checkbox" checked={usePaidMonth} onChange={(e) => { setUsePaidMonth(e.target.checked); if (e.target.checked) setPaidMonth(range) }} /> 사용
+          </label>
+        </EcCond>
+        <EcCond label="지급일">
+          {usePayDate && (
+            <>
+              <input type="date" className="ec-input w-[150px]" aria-label="지급일 시작" value={payDate.from} onChange={(e) => setPayDate({ ...payDate, from: e.target.value })} />
+              ~
+              <input type="date" className="ec-input w-[150px]" aria-label="지급일 끝" value={payDate.to} onChange={(e) => setPayDate({ ...payDate, to: e.target.value })} />
+            </>
+          )}
+          <label className="inline-flex items-center gap-[4px] ml-[6px]">
+            <input type="checkbox" checked={usePayDate} onChange={(e) => setUsePayDate(e.target.checked)} /> 사용
+          </label>
         </EcCond>
         <EcCond label="부서" pick>
           <CodePickerField label="부서" hideLabel fill multiple placeholder="부서" values={deptCond} onChangeMulti={(v) => setDeptCond(v)}

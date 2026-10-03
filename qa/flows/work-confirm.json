@@ -1,5 +1,5 @@
 {
-  "about": "관리 > 급여계산/대장 [사전작업] 근무기록확정 · 근무확정현황(E090116) — 원본처럼 확정 창의 [근무기록]이 근무입력의 그 달 합계를 불러오고 [저장]하면 목록이 '근무기록확정[1]', 근무확정현황에 '귀속월 계'로 뜬다. 시험 자료는 지운다. 근무확정현황 [부서] · [사원번호]는 여러 개 고르는 코드도움 — 그 사원 부서면 보이고, 다른 사원번호만 고르면 빠진다.",
+  "about": "관리 > 급여계산/대장 [사전작업] 근무기록확정 · 근무확정현황(E090116) — 원본처럼 확정 창의 [근무기록]이 근무입력의 그 달 합계를 불러오고 [저장]하면 목록이 '근무기록확정[1]', 근무확정현황에 '귀속월 계'로 뜬다. 시험 자료는 지운다. 근무확정현황 [부서] · [사원번호]는 여러 개 고르는 코드도움 — 그 사원 부서면 보이고, 다른 사원번호만 고르면 빠진다. 지급일[사용]은 그 귀속월 급여대장의 지급일(2091/08/25)로 거른다.",
   "shots": [
     {
       "name": "근무기록확정 창 → [근무기록] → 저장",
@@ -7,7 +7,7 @@
       "steps": [
         "js:(async()=>{const t=localStorage.getItem('erp_token');const h={Authorization:'Bearer '+t,'Content-Type':'application/json'};const it=await (await fetch('/api/pay-settings/items',{method:'POST',headers:h,body:JSON.stringify({code:'QAWC',name:'QA관리-확정수당',kind:'ALLOWANCE',defaultAmount:10000,sortOrder:98,payMethod:'HOURLY',taxFreeType:'NONE'})})).json();sessionStorage.setItem('qaWcItem',String(it.id));return true})()",
         "js:(async()=>{const t=localStorage.getItem('erp_token');const h={Authorization:'Bearer '+t,'Content-Type':'application/json'};const emps=await (await fetch('/api/employees',{headers:h})).json();const e=emps.find(x=>x.code==='EMP-0003');const s=await (await fetch('/api/work-records',{method:'POST',headers:h,body:JSON.stringify({slipDate:'2091-08-01',lines:[{workDate:'2091-08-05',employeeId:e.id,payItemId:Number(sessionStorage.getItem('qaWcItem')),quantity:4}]})})).json();sessionStorage.setItem('qaWc',JSON.stringify({item:Number(sessionStorage.getItem('qaWcItem')),slip:s.slipDate+'/'+s.slipNo}));return true})()",
-        "js:(async()=>{const t=localStorage.getItem('erp_token');const h={Authorization:'Bearer '+t,'Content-Type':'application/json'};await fetch('/api/pay-ledgers',{method:'POST',headers:h,body:JSON.stringify({payMonth:'2091-08',name:'QA관리-확정시험대장'})});return true})()",
+        "js:(async()=>{const t=localStorage.getItem('erp_token');const h={Authorization:'Bearer '+t,'Content-Type':'application/json'};await fetch('/api/pay-ledgers',{method:'POST',headers:h,body:JSON.stringify({payMonth:'2091-08',payDate:'2091-08-25',name:'QA관리-확정시험대장'})});return true})()",
         "js:location.reload();true",
         "wait:4000",
         "js:(async()=>{for(let i=0;i<60;i++){const r=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('QA관리-확정시험대장'));if(r){[...r.querySelectorAll('a')].find(a=>a.textContent.startsWith('근무기록확정')).click();return true}await new Promise(z=>setTimeout(z,250))}return 'not found: QA관리-확정시험대장'})()",
@@ -43,6 +43,15 @@
         "clicklast:확인",
         "wait:300",
         "expect:/QA관리-확정수당/.test(document.querySelector('table').innerText)",
+        "js:(()=>{[...document.querySelectorAll('label')].filter(l=>l.textContent.trim()==='사용')[1].querySelector('input').click();return true})()",
+        "wait:300",
+        "set:input[aria-label=\"지급일 시작\"]|2091-08-25",
+        "set:input[aria-label=\"지급일 끝\"]|2091-08-25",
+        "wait:300",
+        "expect:/QA관리-확정수당/.test(document.querySelector('table').innerText)",
+        "set:input[aria-label=\"지급일 시작\"]|2091-08-26",
+        "wait:300",
+        "expect:!/QA관리-확정수당/.test(document.querySelector('table').innerText)",
         "js:(async()=>{const t=localStorage.getItem('erp_token');const h={Authorization:'Bearer '+t};const k=JSON.parse(sessionStorage.getItem('qaWc'));const ls=await (await fetch('/api/pay-ledgers',{headers:h})).json();const l=ls.find(x=>x.payMonth==='2091-08');const a=await fetch('/api/pay-ledgers/'+l.id,{method:'DELETE',headers:h});const b=await fetch('/api/work-records/'+k.slip,{method:'DELETE',headers:h});const c=await fetch('/api/pay-settings/items/'+k.item,{method:'DELETE',headers:h});sessionStorage.setItem('qaWcDel',String(a.ok&&b.ok&&c.ok));return true})()",
         "expect:sessionStorage.getItem('qaWcDel')==='true'"
       ]
