@@ -44,6 +44,15 @@ public class WithholdingController {
 
 
     /** 원천징수이행상황신고서 (귀속월) */
+    /**
+     * 원천징수영수증(일용직) (C000733) — 지급연월의 출역을 사원마다 [사원번호 · 사원명 · 총지급액 · 비과세총액 · 소득세 · 지방소득세].
+     * 원본 목록 열 그대로(주민등록번호는 두지 않는다).
+     */
+    @GetMapping("/daily-receipts")
+    public List<WithholdingDtos.DailyReceipt> dailyReceipts(@RequestParam String month) {
+        return service.dailyReceipts(month);
+    }
+
     /** 소득자료제출집계표 (E030508) — kind 는 원본 [출력구분] 이름(사업소득 · 기타소득 …), 귀속연월 from ~ to. */
     @GetMapping("/income-submission")
     public WithholdingDtos.IncomeSubmission incomeSubmission(@RequestParam String kind, @RequestParam String from,

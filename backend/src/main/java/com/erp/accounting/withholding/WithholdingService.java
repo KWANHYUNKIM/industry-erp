@@ -268,6 +268,18 @@ public class WithholdingService {
         return out;
     }
 
+    /** 원천징수영수증(일용직) — 그 달(근무일 기준) 출역을 사원마다. */
+    @Transactional(readOnly = true)
+    public List<WithholdingDtos.DailyReceipt> dailyReceipts(String month) {
+        if (month == null || !MONTH.matcher(month).matches()) {
+            throw ApiException.badRequest("지급연월 형식이 올바르지 않습니다(YYYY-MM): " + month);
+        }
+        return dailyWorkService.monthWorkers(java.time.YearMonth.parse(month)).stream()
+                .map(w -> new WithholdingDtos.DailyReceipt(w.employeeId(), w.code(), w.name(), w.days(), w.lastDate(),
+                        w.wage(), BigDecimal.ZERO, w.incomeTax(), w.localIncomeTax()))
+                .toList();
+    }
+
     private BigDecimal deduction(Payslip p, String name) {
         return sumDeductions(p, Set.of(name));
     }
