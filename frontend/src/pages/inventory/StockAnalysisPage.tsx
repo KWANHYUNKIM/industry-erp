@@ -157,6 +157,18 @@ export default function StockAnalysisPage() {
       a.quantity += s.quantity
       if (s.quantity > 0) a.whCount += 1
     }
+    /*
+     * 원본 [재고수량0포함]을 켜면 재고 줄이 한 번도 없던 품목까지 0 으로 나온다(2026-10-03 loginaa 실측 — 52 → 73품목,
+     * '사과' · 자리표 품목처럼 입출고가 없던 것도 빈 재고로 찍혔다). 우리는 재고 줄이 있는 품목만 모아 그런 품목이 빠졌다 —
+     * 품목 마스터에서 채운다. 수량관리제외 · 사용중단 · 품목 조건은 아래 걸름이 그대로 맡는다.
+     */
+    if (includeZero) {
+      for (const it of items) {
+        if (m.has(it.id)) continue
+        m.set(it.id, { itemId: it.id, itemCode: it.code, itemName: it.name, spec: it.spec, unit: it.unit,
+          quantity: 0, safetyStock: it.safetyStock ?? 0, unitPrice: priceById.get(it.id) ?? 0, value: 0, whCount: 0 })
+      }
+    }
     const kw = keyword.trim()
     const out = [...m.values()]
     for (const a of out) a.value = a.quantity * a.unitPrice
@@ -172,7 +184,7 @@ export default function StockAnalysisPage() {
       // 원본 '재고수량0포함' — 끄면 0 인 품목을 뺀다. 0 만 잔뜩 뜨면 분석표를 읽을 수 없다.
       .filter((a) => includeZero || a.quantity !== 0)
       .sort((a, b) => b.value - a.value)
-  }, [stocks, priceById, warehouseId, keyword, itemCond, category, itemGroup, itemById, shortageOnly, includeZero, withUntracked, withInactive, untracked, inactive])
+  }, [stocks, items, priceById, warehouseId, keyword, itemCond, category, itemGroup, itemById, shortageOnly, includeZero, withUntracked, withInactive, untracked, inactive])
 
   const reset = () => {
     setWarehouseId(''); setKeyword(''); setItemCond(''); setShortageOnly(false); setIncludeZero(false)
