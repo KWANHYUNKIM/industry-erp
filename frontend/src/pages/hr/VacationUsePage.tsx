@@ -4,6 +4,7 @@ import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { formatDays } from '../../utils/dayCount'
 import { dateText } from '../../utils/dateText'
+import { withRemain } from '../../utils/vacationRemain'
 
 /** 관리 > 휴가사용실적현황 — 사원별 휴가 종류·기간·사용일수 실적 조회 (백엔드 /api/hr/vacations 연동) */
 interface Row {
@@ -115,25 +116,9 @@ export default function VacationUsePage() {
    *
    * <p>차감은 <b>확인(승인)된 것만</b> 한다. 결재중·반려까지 빼면 마지막 줄의 잔여가
    * 휴가잔여일수현황과 어긋난다 — 두 화면이 다른 숫자를 말하면 둘 다 못 믿게 된다.
+   * 같은 까닭으로 <b>연차·반차</b>만 뺀다(utils/vacationRemain).
    */
-  const withRemain = (() => {
-    const byEmp = new Map<string, Row[]>()
-    for (const r of shown) {
-      if (!byEmp.has(r.empName)) byEmp.set(r.empName, [])
-      byEmp.get(r.empName)!.push(r)
-    }
-    const out: { row: Row; grant: number | null; remain: number | null; first: boolean }[] = []
-    for (const [name, list] of [...byEmp.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
-      list.sort((a, b) => a.startDate.localeCompare(b.startDate) || a.id - b.id)
-      const grant = grants.get(name)
-      let remain = grant ?? null
-      list.forEach((row, idx) => {
-        if (remain != null && row.status === 'APPROVED') remain = Math.round((remain - row.days) * 1000) / 1000
-        out.push({ row, grant: idx === 0 ? (grant ?? null) : null, remain, first: idx === 0 })
-      })
-    }
-    return out
-  })()
+  const remainLines = withRemain(shown, grants)
 
   return (
     <EcListShell
@@ -213,7 +198,7 @@ export default function VacationUsePage() {
             <tr><td colSpan={13} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
             <tr><td colSpan={13} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : withRemain.map(({ row: r, grant, remain, first }, i) => (
+          ) : remainLines.map(({ row: r, grant, remain, first }, i) => (
             <tr key={r.id} style={first && i > 0 ? { borderTop: '2px solid #d7dce3' } : undefined}>
               <td className="text-center text-ec-hint">{i + 1}</td>
               <td style={mono}>{r.docNo}</td>
