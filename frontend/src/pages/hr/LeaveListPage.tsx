@@ -64,7 +64,14 @@ export default function LeaveListPage() {
    * 전체 목록이 나오면 다시 찾아야 해서, 눌러 온 뜻이 없어진다.
    */
   const [searchParams] = useSearchParams()
-  const [emp, setEmp] = useState(searchParams.get('emp') ?? '')
+  /** [사원] · [부서] — 여러 개 고르는 코드도움. 근태 줄은 계정 단위라 사원 이름 · 부서 이름으로 거른다. ?emp= 로 들어오면 그 사원을 골라 둔다. */
+  const [emp, setEmp] = useState<string[]>(searchParams.get('emp') ? [searchParams.get('emp')!] : [])
+  const [empList, setEmpList] = useState<{ id: number; code: string; name: string; department: string }[]>([])
+  const [deptList, setDeptList] = useState<{ id: number; code?: string | null; name: string }[]>([])
+  useEffect(() => {
+    api.get<typeof empList>('/employees/all').then((r) => setEmpList(r.data)).catch(() => setEmpList([]))
+    api.get<typeof deptList>('/departments').then((r) => setDeptList(r.data)).catch(() => setDeptList([]))
+  }, [])
   /** [근태항목] — 근태항목등록 마스터에서 여러 개 고른다. */
   const [type, setType] = useState<string[]>([])
   const [kindMaster, setKindMaster] = useState<{ code: string; name: string; kindGroup: string | null; vacationKindId: number | null }[]>([])
@@ -82,7 +89,7 @@ export default function LeaveListPage() {
    * 원본 근태조회의 조건 차례는 <b>기준일자 · 사원 · 부서 · … · 적요 · 근태일자</b> 다
    * (사본 실측). 부서와 적요가 없었는데 <b>둘 다 이미 목록에 실려 오고 있었다</b>.
    */
-  const [dept, setDept] = useState('')
+  const [dept, setDept] = useState<string[]>([])
   /*
    * 원본 근태조회(E020711) 조건 <b>[부서계층그룹]</b>. 2026-09-09 에 원본을 열어 재니
    * [부서] 바로 다음이 이것이다. [부서]는 그 부서 하나로 좁히지만 이쪽은
@@ -150,12 +157,12 @@ export default function LeaveListPage() {
   }
 
   const shown = useMemo(() => rows.filter((r) => {
-    if (emp && !r.empName.includes(emp)) return false
+    if (emp.length && !emp.includes(r.empName)) return false
     if (type.length && !type.includes(r.type)) return false
     const km = kindMaster.find((k) => k.name === r.type)
     if (vkCond.length && !vkCond.includes(String(km?.vacationKindId ?? ''))) return false
     if (groupCond.length && !groupCond.includes(km?.kindGroup ?? '')) return false
-    if (dept && !(r.department ?? '').includes(dept)) return false
+    if (dept.length && !dept.includes(r.department ?? '')) return false
     if (!inGroup(r.department, deptGroup)) return false
     if (reasonCond && !(r.reason ?? '').includes(reasonCond)) return false
     if (dayCond && !(r.startDate <= dayCond && dayCond <= r.endDate)) return false
@@ -252,14 +259,15 @@ export default function LeaveListPage() {
           <input type="date" className="ec-input" value={dayCond}
                  onChange={(e) => setDayCond(e.target.value)} style={{ width: 140 }} />
         </EcCond>
-        <EcCond label="사원" pick>
-          <input className="ec-input" placeholder="사원명 일부" value={emp}
-                 onChange={(e) => setEmp(e.target.value)} style={{ width: 180 }} />
+        <EcCond label="사원">
+          <CodePickerField label="사원" hideLabel fill multiple placeholder="사원" values={emp} onChangeMulti={(v) => setEmp(v)}
+                           items={[...empList.map((e) => ({ value: e.name, code: e.code, name: e.name, sub: e.department })),
+                             ...emp.filter((n) => !empList.some((e) => e.name === n)).map((n) => ({ value: n, name: n }))]} />
         </EcCond>
         {/* 원본은 [사원] 바로 다음이 [부서]다. */}
-        <EcCond label="부서">
-          <input className="ec-input" placeholder="부서명 일부" value={dept}
-                 onChange={(e) => setDept(e.target.value)} style={{ width: 160 }} />
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel fill multiple placeholder="부서" values={dept} onChangeMulti={(v) => setDept(v)}
+                           items={deptList.map((d) => ({ value: d.name, code: d.code ?? undefined, name: d.name }))} />
         </EcCond>
         <EcCond label="부서계층그룹">
           <select className="ec-input" value={deptGroup} style={{ width: 160 }}
