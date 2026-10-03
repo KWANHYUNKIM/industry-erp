@@ -19,8 +19,8 @@ public class SimplePaymentController {
     private final SimplePaymentService service;
 
     @GetMapping
-    public List<StatementResponse> list() {
-        return service.list();
+    public List<StatementResponse> list(@RequestParam(defaultValue = "false") boolean daily) {
+        return service.list(daily);
     }
 
     @PostMapping

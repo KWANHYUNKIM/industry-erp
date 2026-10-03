@@ -30,7 +30,12 @@ public final class SimplePaymentDtos {
     ) {}
 
     /** [조회] 서식 — 근로소득은 labor, 사업 · 기타소득은 payees 를 채운다. */
-    public record SheetResponse(StatementResponse statement, List<LaborRow> labor, List<PayeeRow> payees) {}
+    public record SheetResponse(StatementResponse statement, List<LaborRow> labor, List<PayeeRow> payees,
+                                List<DailyRow> daily) {}
+
+    /** 일용근로소득 한 사람 — 근무월 · 근무일수 · 최종근무일 · 과세소득 · 세액(비과세는 출역에 없어 0). */
+    public record DailyRow(String name, int days, LocalDate lastDate, BigDecimal taxable,
+                           BigDecimal incomeTax, BigDecimal localIncomeTax) {}
 
     /** 근로소득 한 사람 — 근무기간과 반기 여섯 달의 급여 등(과세). */
     public record LaborRow(String employeeName, LocalDate workFrom, LocalDate workTo, List<BigDecimal> monthlyPay,

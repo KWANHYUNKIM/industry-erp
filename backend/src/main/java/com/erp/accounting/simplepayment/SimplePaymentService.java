@@ -2,6 +2,7 @@ package com.erp.accounting.simplepayment;
 
 import com.erp.accounting.otherwithholding.OtherWithholding;
 import com.erp.accounting.otherwithholding.OtherWithholdingRepository;
+import com.erp.accounting.simplepayment.dto.SimplePaymentDtos.DailyRow;
 import com.erp.accounting.simplepayment.dto.SimplePaymentDtos.LaborRow;
 import com.erp.accounting.simplepayment.dto.SimplePaymentDtos.PayeeRow;
 import com.erp.accounting.simplepayment.dto.SimplePaymentDtos.SheetResponse;
@@ -35,10 +36,13 @@ public class SimplePaymentService {
     private final SimplePaymentStatementRepository repository;
     private final OtherWithholdingRepository otherWithholdingRepository;
     private final WithholdingService withholdingService;
+    private final com.erp.hr.dailywork.DailyWorkService dailyWorkService;
 
+    /** daily 면 지급명세서(일용직)만, 아니면 간이지급명세서(일용 빼고). */
     @Transactional(readOnly = true)
-    public List<StatementResponse> list() {
+    public List<StatementResponse> list(boolean daily) {
         return repository.findAll().stream()
+                .filter(s -> (s.getKind() == SimplePaymentKind.DAILY) == daily)
                 .sorted(Comparator.comparing(SimplePaymentStatement::getPayYear).reversed()
                         .thenComparing(s -> s.getKind() == SimplePaymentKind.LABOR)
                         .thenComparing(SimplePaymentStatement::getPeriod, Comparator.reverseOrder())
@@ -86,9 +90,15 @@ public class SimplePaymentService {
                 rows.add(new LaborRow(e.employeeName(), workFrom, workTo, monthly,
                         monthly.stream().filter(Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add)));
             }
-            return new SheetResponse(toResponse(s), rows, List.of());
+            return new SheetResponse(toResponse(s), rows, List.of(), List.of());
         }
         YearMonth ym = YearMonth.of(s.getPayYear(), s.getPeriod());
+        if (s.getKind() == SimplePaymentKind.DAILY) {
+            List<DailyRow> rows = dailyWorkService.monthWorkers(ym).stream()
+                    .map(w -> new DailyRow(w.name(), w.days(), w.lastDate(), w.wage(), w.incomeTax(), w.localIncomeTax()))
+                    .toList();
+            return new SheetResponse(toResponse(s), List.of(), List.of(), rows);
+        }
         Map<String, List<OtherWithholding>> byPayee = new LinkedHashMap<>();
         for (OtherWithholding w : otherWithholdingRepository.findBetween(ym.atDay(1), ym.atEndOfMonth())) {
             if (w.getIncomeType() != s.getKind().getIncomeType()) continue;
@@ -103,7 +113,7 @@ public class SimplePaymentService {
                     sum(list, OtherWithholding::getTaxableAmount), rate,
                     sum(list, OtherWithholding::getIncomeTax), sum(list, OtherWithholding::getLocalIncomeTax)));
         });
-        return new SheetResponse(toResponse(s), List.of(), rows);
+        return new SheetResponse(toResponse(s), List.of(), rows, List.of());
     }
 
     private static BigDecimal sum(List<OtherWithholding> list, java.util.function.Function<OtherWithholding, BigDecimal> f) {

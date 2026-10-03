@@ -159,6 +159,28 @@ public class DailyWorkService {
                 rs.stream().map(DailyWorkRecord::getLocalIncomeTax).reduce(BigDecimal.ZERO, BigDecimal::add));
     }
 
+    /** 지급명세서(일용직) 한 사람 — 그 달 근무일수 · 최종근무일 · 지급액 · 세액. */
+    public record MonthWorker(String name, int days, java.time.LocalDate lastDate, BigDecimal wage,
+                              BigDecimal incomeTax, BigDecimal localIncomeTax) {}
+
+    /** 그 달(근무일 기준) 출역을 사람마다 묶는다 — 지급명세서(일용직)의 ② 소득자 줄. 이름 차례. */
+    @Transactional(readOnly = true)
+    public List<MonthWorker> monthWorkers(YearMonth ym) {
+        java.util.Map<Long, List<DailyWorkRecord>> by = new java.util.LinkedHashMap<>();
+        for (DailyWorkRecord r : repository.findBetween(ym.atDay(1), ym.atEndOfMonth())) {
+            by.computeIfAbsent(r.getEmployee().getId(), k -> new java.util.ArrayList<>()).add(r);
+        }
+        return by.values().stream().map(rs -> new MonthWorker(
+                        rs.get(0).getEmployee().getName(),
+                        (int) rs.stream().map(DailyWorkRecord::getWorkDate).distinct().count(),
+                        rs.stream().map(DailyWorkRecord::getWorkDate).max(java.util.Comparator.naturalOrder()).orElse(null),
+                        rs.stream().map(DailyWorkRecord::getDailyWage).reduce(BigDecimal.ZERO, BigDecimal::add),
+                        rs.stream().map(DailyWorkRecord::getIncomeTax).reduce(BigDecimal.ZERO, BigDecimal::add),
+                        rs.stream().map(DailyWorkRecord::getLocalIncomeTax).reduce(BigDecimal.ZERO, BigDecimal::add)))
+                .sorted(java.util.Comparator.comparing(MonthWorker::name))
+                .toList();
+    }
+
     /** 지급된 출역은 지울 수 없다. 잘못 지급했다면 회계에서 되돌려야 한다. */
     @Transactional
     public void delete(Long id) {
