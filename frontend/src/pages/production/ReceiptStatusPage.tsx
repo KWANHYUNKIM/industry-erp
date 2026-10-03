@@ -699,7 +699,8 @@ export default function ReceiptStatusPage() {
                   {r.slipAmount == null ? '-' : num(Math.round(r.slipAmount))}
                 </td>
                 <td className="text-right text-ec-hint">{r.matCount}</td>
-                <td>{r.createdBy ?? ''}</td>
+                {/* [담당자] 는 전표의 담당 사원이다 — 만든 계정(createdBy, [최초작성자])이 아니다. */}
+                <td>{empName(r.employeeId)}</td>
                 <td className="text-ec-hint">{r.note ?? ''}</td>
               </tr>
             ))}
