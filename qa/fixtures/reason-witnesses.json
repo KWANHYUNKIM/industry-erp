@@ -3381,7 +3381,7 @@
  "설문조사조회|사용": {
   "claim": "설문 머리말 사용여부는 등록 화면에서 정한다 — 조회 조건이 아니다",
   "present": [
-   "<th style={th}>머리말</th>"
+   "<div className=\"title\">머리말</div>"
   ],
   "file": "groupware/SurveyInputPage.tsx"
  },
@@ -3808,7 +3808,7 @@
  "설문조사조회|사용안함": {
   "claim": "설문 머리말 사용여부는 등록 화면에서 정한다 — 조회 조건이 아니다(위 [설문조사조회|사용] 과 같은 사실이다)",
   "present": [
-   "<th style={th}>머리말</th>"
+   "<div className=\"title\">머리말</div>"
   ],
   "file": "groupware/SurveyInputPage.tsx"
  },

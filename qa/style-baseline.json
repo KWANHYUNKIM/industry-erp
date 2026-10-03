@@ -565,8 +565,8 @@
   "palette": 0
  },
  "pages/groupware/SurveyInputPage.tsx": {
-  "inline": 17,
-  "color": 1,
+  "inline": 4,
+  "color": 0,
   "palette": 0
  },
  "pages/groupware/SurveyPage.tsx": {
