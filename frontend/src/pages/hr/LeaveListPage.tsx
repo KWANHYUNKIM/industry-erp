@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
+import CodePickerField from '../../components/CodePickerField'
 import { openAppBarPanel } from '../../components/AppBarPanel'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
@@ -64,7 +65,12 @@ export default function LeaveListPage() {
    */
   const [searchParams] = useSearchParams()
   const [emp, setEmp] = useState(searchParams.get('emp') ?? '')
-  const [type, setType] = useState('')
+  /** [근태항목] — 근태항목등록 마스터에서 여러 개 고른다. */
+  const [type, setType] = useState<string[]>([])
+  const [kindMaster, setKindMaster] = useState<{ code: string; name: string }[]>([])
+  useEffect(() => {
+    api.get<{ code: string; name: string }[]>('/hr/attendance-kinds').then((r) => setKindMaster(r.data)).catch(() => setKindMaster([]))
+  }, [])
   /*
    * 원본 근태조회의 조건 차례는 <b>기준일자 · 사원 · 부서 · … · 적요 · 근태일자</b> 다
    * (사본 실측). 부서와 적요가 없었는데 <b>둘 다 이미 목록에 실려 오고 있었다</b>.
@@ -138,7 +144,7 @@ export default function LeaveListPage() {
 
   const shown = useMemo(() => rows.filter((r) => {
     if (emp && !r.empName.includes(emp)) return false
-    if (type && !r.type.includes(type)) return false
+    if (type.length && !type.includes(r.type)) return false
     if (dept && !(r.department ?? '').includes(dept)) return false
     if (!inGroup(r.department, deptGroup)) return false
     if (reasonCond && !(r.reason ?? '').includes(reasonCond)) return false
@@ -254,8 +260,11 @@ export default function LeaveListPage() {
         </EcCond>
         {/* 원본 근태조회의 이름은 [근태코드]가 아니라 <b>[근태항목]</b> 이다(사본 실측). */}
         <EcCond label="근태항목" pick>
-          <input className="ec-input" placeholder="연차·반차 등" value={type}
-                 onChange={(e) => setType(e.target.value)} style={{ width: 160 }} />
+          <CodePickerField label="근태항목" hideLabel fill multiple placeholder="근태항목"
+                           values={type} onChangeMulti={(v) => setType(v)}
+                           items={[...kindMaster.map((k) => ({ value: k.name, code: k.code, name: k.name })),
+                             ...[...new Set(rows.map((r) => r.type))].filter((t) => t && !kindMaster.some((k) => k.name === t))
+                               .map((t) => ({ value: t, name: t }))]} />
         </EcCond>
         <EcCond label="적요">
           <input className="ec-input" value={reasonCond}

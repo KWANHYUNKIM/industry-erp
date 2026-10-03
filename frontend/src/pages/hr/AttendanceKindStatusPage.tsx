@@ -103,7 +103,12 @@ export default function AttendanceKindStatusPage() {
    */
   const [dayCond, setDayCond] = useState('')
   const [emp, setEmp] = useState('')
-  const [kind, setKind] = useState('')
+  /** [근태항목] — 근태항목등록 마스터에서 여러 개 고른다(값은 근태 줄에 적히는 근태항목명). */
+  const [kind, setKind] = useState<string[]>([])
+  const [kindMaster, setKindMaster] = useState<{ code: string; name: string }[]>([])
+  useEffect(() => {
+    api.get<{ code: string; name: string }[]>('/hr/attendance-kinds').then((r) => setKindMaster(r.data)).catch(() => setKindMaster([]))
+  }, [])
   const [employment, setEmployment] = useState<'ACTIVE' | 'RESIGNED' | 'ALL'>('ACTIVE')
   const [reason, setReason] = useState('')
   /**
@@ -141,7 +146,7 @@ export default function AttendanceKindStatusPage() {
 
   const reset = () => {
     setFrom(init.from); setTo(init.to)
-    setDept(''); setEmp(''); setKind(''); setReason('')
+    setDept(''); setEmp(''); setKind([]); setReason('')
     setDeptGroup(''); setDayCond('')
     setStAll(false); setStPending(false); setStConfirmed(true); setSubtotal('없음')
   }
@@ -154,7 +159,7 @@ export default function AttendanceKindStatusPage() {
     if (dept && !(r.department ?? '').includes(dept)) return false
     if (!inGroup(r.department, deptGroup)) return false
     if (emp && !r.empName.includes(emp)) return false
-    if (kind && !r.type.includes(kind)) return false
+    if (kind.length && !kind.includes(r.type)) return false
     if (reason && !(r.reason ?? '').includes(reason)) return false
     /* [전체]를 켜면 상태를 안 가린다. 아니면 켜 둔 것에 걸리는 줄만 남긴다. */
     if (!stAll) {
@@ -220,14 +225,14 @@ export default function AttendanceKindStatusPage() {
           원본 근태현황의 이름은 [근태종류]가 아니라 <b>[근태항목]</b> 이다(사본 실측).
           근태조회는 진작 그 이름인데 이 화면만 달랐다 — 같은 값을 두 이름으로 부르고 있었다.
 
-          후보는 <b>실제로 올라온 근태</b>에서 뽑는다. 근태항목 마스터가 없어 고를 목록을
-          지어낼 수 없고, 지어내면 골라도 아무것도 안 나오는 보기가 생긴다.
+          후보는 근태항목등록 마스터(코드 · 이름)에, 마스터에 없는 옛 근태 이름을 더한다. 여러 개 고른다.
         */}
         <EcCond label="근태항목" pick>
-          <CodePickerField label="근태항목" hideLabel width={180} emptyLabel="전체"
-                           value={kind} onChange={setKind}
-                           items={[...new Set(rows.map((r) => r.type))].filter(Boolean).sort()
-                             .map((t) => ({ value: t, name: t }))} />
+          <CodePickerField label="근태항목" hideLabel fill multiple placeholder="근태항목"
+                           values={kind} onChangeMulti={(v) => setKind(v)}
+                           items={[...kindMaster.map((k) => ({ value: k.name, code: k.code, name: k.name })),
+                             ...[...new Set(rows.map((r) => r.type))].filter((t) => t && !kindMaster.some((k) => k.name === t))
+                               .map((t) => ({ value: t, name: t }))]} />
         </EcCond>
         <EcCond label="적요">
           <input className="ec-input" placeholder="적요 일부" value={reason}
