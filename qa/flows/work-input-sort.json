@@ -1,9 +1,32 @@
 {
-  "about": "관리 > 근무입력(E090113) 격자 [정렬] — 원본 2026-10-04 실측 '정렬기준' 창: 정렬기준 두 칸(처음 사원 · 수당항목) · 정렬방법 오름차순(처음) · 내림차순 · 적용 · 닫기. 근무일자로 오름 → 3/1 · 3/5, 내림 → 3/5 · 3/1. 저장하지 않는다.",
+  "about": "관리 > 근무입력(E090113) 격자 [정렬] — 원본 2026-10-04 실측 '정렬기준' 창: 정렬기준 두 칸(처음 사원 · 수당항목) · 정렬방법 오름차순(처음) · 내림차순 · 적용 · 닫기. 근무일자로 오름 → 3/1 · 3/5, 내림 → 3/5 · 3/1. 저장하지 않는다. 일용근로 근무입력(E020138)도 같은 창.",
   "shots": [
     {
       "name": "정렬 — 근무일자 오름 · 내림",
       "path": "/hr/work-input",
+      "steps": [
+        "wait:1500",
+        "set:table input[type=date]#0|2091-03-05",
+        "set:table input[type=date]#1|2091-03-01",
+        "click:정렬",
+        "wait:300",
+        "expect:[...document.querySelectorAll('[role=dialog]')].find(d=>d.getAttribute('aria-label')==='정렬기준').querySelector('select[aria-label=\"정렬기준1\"]').value==='사원'&&[...document.querySelectorAll('[role=dialog]')].find(d=>d.getAttribute('aria-label')==='정렬기준').querySelector('select[aria-label=\"정렬기준2\"]').value==='수당항목'",
+        "js:(()=>{const s=[...document.querySelectorAll('[role=dialog]')].find(d=>d.getAttribute('aria-label')==='정렬기준').querySelector('select[aria-label=\"정렬기준1\"]');const set=Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set;set.call(s,'근무일자');s.dispatchEvent(new Event('change',{bubbles:true}));return true})()",
+        "js:(()=>{[...[...document.querySelectorAll('[role=dialog]')].find(d=>d.getAttribute('aria-label')==='정렬기준').querySelectorAll('button')].find(b=>b.innerText.trim()==='적용').click();return true})()",
+        "wait:200",
+        "expect:[...document.querySelectorAll('table input[type=date]')].map(i=>i.value)[0]==='2091-03-01'&&[...document.querySelectorAll('table input[type=date]')].map(i=>i.value)[1]==='2091-03-05'",
+        "click:정렬",
+        "wait:300",
+        "js:(()=>{const s=[...document.querySelectorAll('[role=dialog]')].find(d=>d.getAttribute('aria-label')==='정렬기준').querySelector('select[aria-label=\"정렬기준1\"]');const set=Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set;set.call(s,'근무일자');s.dispatchEvent(new Event('change',{bubbles:true}));return true})()",
+        "js:(()=>{const l=[...[...document.querySelectorAll('[role=dialog]')].find(d=>d.getAttribute('aria-label')==='정렬기준').querySelectorAll('label')].find(x=>x.innerText.trim()==='내림차순');l.querySelector('input').click();return true})()",
+        "js:(()=>{[...[...document.querySelectorAll('[role=dialog]')].find(d=>d.getAttribute('aria-label')==='정렬기준').querySelectorAll('button')].find(b=>b.innerText.trim()==='적용').click();return true})()",
+        "wait:200",
+        "expect:[...document.querySelectorAll('table input[type=date]')].map(i=>i.value)[0]==='2091-03-05'&&[...document.querySelectorAll('table input[type=date]')].map(i=>i.value)[1]==='2091-03-01'"
+      ]
+    },
+    {
+      "name": "일용근로 근무입력 정렬 — 근무일자 오름 · 내림",
+      "path": "/hr/daily-work-input",
       "steps": [
         "wait:1500",
         "set:table input[type=date]#0|2091-03-05",

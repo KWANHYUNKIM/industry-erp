@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
+import GridSortModal from '../../components/GridSortModal'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import { ymd } from '../../utils/periods'
@@ -30,6 +31,8 @@ export default function DailyWorkInputPage() {
   const [slipDate, setSlipDate] = useState(editDate ?? ymd(new Date()))
   const [rows, setRows] = useState<Row[]>(Array.from({ length: BLANK_ROWS }, blank))
   const [workers, setWorkers] = useState<Worker[]>([])
+  /** 원본 격자 [정렬](2026-10-04 실측 — 근무입력과 같은 정렬기준 창). 수당항목은 일근무 하나뿐이라 그 축은 늘 같다. */
+  const [sortOpen, setSortOpen] = useState(false)
   const [error, setError] = useState('')
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '일용근로 근무입력', [rows.length])
@@ -106,6 +109,13 @@ export default function DailyWorkInputPage() {
           </div>
         </li>
       </ul>
+      <div className="flex gap-[6px] mb-[6px]">
+        <button type="button" className="ec-btn ec-btn-sm" onClick={() => setSortOpen(true)}>정렬</button>
+      </div>
+      <GridSortModal open={sortOpen} error={error} keys={['근무일자', '사원', '수당항목'] as const} initial={['사원', '수당항목']} rows={rows}
+                     keyOf={(r, k) => k === '근무일자' ? r.workDate : k === '사원' ? workers.find((w) => String(w.id) === r.workerId)?.code ?? '' : ''}
+                     isFilled={(r) => !!(r.workerId || r.workDate || r.quantity || r.amount)}
+                     onApply={(sorted) => { setRows(sorted); setSortOpen(false) }} onClose={() => setSortOpen(false)} />
       <div className="overflow-x-auto">
         <table ref={tableRef} className="w-full text-left">
           <thead>
