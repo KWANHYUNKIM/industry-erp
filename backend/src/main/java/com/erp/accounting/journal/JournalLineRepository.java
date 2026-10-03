@@ -69,4 +69,17 @@ public interface JournalLineRepository extends JpaRepository<JournalLine, Long> 
             "and a.division = com.erp.accounting.account.AccountDivision.REVENUE and a.detailCategory = '매출액' " +
             "group by year(e.entryDate), month(e.entryDate)")
     List<Object[]> sumSalesByMonth(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /** 지출증빙현황: [계정설정]에서 '표시' 로 고른 계정의 기간 내 분개 줄(전표 · 거래처 · 계정 함께) */
+    @Query("select l from JournalLine l join fetch l.entry e left join fetch e.partner join fetch l.account a " +
+            "where a.evidenceReport = true and e.entryDate between :from and :to " +
+            "order by e.entryDate, e.docNo, l.lineNo")
+    List<JournalLine> findEvidenceReportLines(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /** 전표마다 매입 부가세(135 차변 − 대변)와 그 밖 계정의 차변 합 — 지출증빙현황의 '매출매입자료' 가 이것이다. */
+    @Query("select l.entry.id, " +
+            "coalesce(sum(case when l.account.code = '135' then l.debit - l.credit else 0 end),0), " +
+            "coalesce(sum(case when l.account.code <> '135' then l.debit else 0 end),0) " +
+            "from JournalLine l where l.entry.id in :ids group by l.entry.id")
+    List<Object[]> purchaseVatByEntry(@Param("ids") java.util.Collection<Long> ids);
 }
