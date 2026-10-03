@@ -25,7 +25,7 @@
       "steps": [
         "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes(sessionStorage.getItem('qaAp')) || tr.innerText.includes('QA 15회차 결재 시험'))",
         "js:window.prompt = () => 'QA 화면 시험 반려'; [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('QA 15회차 결재 시험')).querySelectorAll('button').forEach((b) => { if (b.textContent.trim() === '반려') b.click() }); true",
-        "js:new Promise((r) => setTimeout(r, 800)).then(() => fetch('/api/approvals', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } })).then((r) => r.json()).then((d) => { const x = (d.rows ?? d).find((a) => a.docNo === sessionStorage.getItem('qaAp')); sessionStorage.setItem('qaApStatus', x ? (x.statusName ?? x.status) : '(없음)'); return true })",
+        "js:(async () => { /* 반려는 확인 창 뒤에 비동기로 간다 — 부하가 걸리면 800ms 로는 아직 '진행중'이었다. 5초까지 기다린다. */ for (let i = 0; i < 10; i++) { await new Promise((r) => setTimeout(r, 500)); const d = await (await fetch('/api/approvals', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } })).json(); const x = (d.rows ?? d).find((a) => a.docNo === sessionStorage.getItem('qaAp')); const st = x ? (x.statusName ?? x.status) : '(없음)'; sessionStorage.setItem('qaApStatus', st); if (st === '반려' || st === 'REJECTED') break } return sessionStorage.getItem('qaApStatus') })()",
         "expect:['반려', 'REJECTED'].includes(sessionStorage.getItem('qaApStatus'))"
       ]
     },
