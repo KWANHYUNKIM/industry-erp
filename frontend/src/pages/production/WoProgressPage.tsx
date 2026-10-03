@@ -393,14 +393,15 @@ export default function WoProgressPage() {
    * 원본과 같게 <b>품목으로 묶고</b> 묶음마다 [코드 / 이름  계] 줄을 하나 둔다.
    */
   const progressRows = useMemo(() => {
-    type Need = { orderNo: string; date: string; itemId: number; code: string; name: string; qty: number }
+    /** woId — 이 줄이 그 작업지시의 <b>제품</b> 줄이면 지시 id, BOM 자재 줄이면 null. */
+    type Need = { orderNo: string; date: string; itemId: number; code: string; name: string; qty: number; woId: number | null }
     const needs: Need[] = []
     for (const o of shown) {
       needs.push({ orderNo: o.orderNo, date: o.orderDate, itemId: o.productId,
-        code: o.productCode, name: o.productName, qty: o.plannedQty })
+        code: o.productCode, name: o.productName, qty: o.plannedQty, woId: o.id })
       for (const l of bomBy.get(o.productId) ?? []) {
         needs.push({ orderNo: o.orderNo, date: o.orderDate, itemId: l.componentId,
-          code: l.componentCode, name: l.componentName, qty: l.quantity * o.plannedQty })
+          code: l.componentCode, name: l.componentName, qty: l.quantity * o.plannedQty, woId: null })
       }
     }
     const byItem = new Map<number, Need[]>()
@@ -424,28 +425,36 @@ export default function WoProgressPage() {
       const proc = processOf(itemId)
       const onHand = onHandOf(itemId)
       /*
-       * 생산전표는 <b>품목</b>에 붙지 작업지시 줄마다 붙지 않는다. 그래서 그 품목의
-       * 기간 생산을 한 번만 세고, 묶음의 <b>첫 줄</b>에만 적는다 —
-       * 줄마다 적으면 같은 생산이 여러 번 더해져 합계가 부푼다.
+       * 생산전표는 <b>자기 작업지시의 제품 줄</b>에 적는다. 예전엔 품목의 기간 생산을 통째로
+       * 묶음의 첫 줄에만 적어서, 지시 5 를 다 만든 줄에 다른 지시의 생산까지 얹혀
+       * '생산 12 · 미생산 -7' 이 되고 정작 생산이 있던 지시는 '생산 0' 으로 보였다(2026-10-03 실측).
+       * 작업지시 없이 넣은 생산(또는 이 표에 안 보이는 지시의 생산)만 예전처럼 첫 줄에 둔다.
+       * 어느 쪽이든 전표 하나는 한 줄에만 세므로 묶음 [계] 와 합계는 그대로다.
        */
       const pds = prodOf.get(itemId) ?? []
+      const listed = new Set(list.map((n) => n.woId).filter((id): id is number => id != null))
+      const orphan = pds.filter((x) => x.workOrderId == null || !listed.has(x.workOrderId))
+      const pdsOfRow = (n: Need, i: number) => [
+        ...(n.woId != null ? pds.filter((x) => x.workOrderId === n.woId) : []),
+        ...(i === 0 ? orphan : []),
+      ].sort((x, y) => (x.productionDate < y.productionDate ? -1 : x.productionDate > y.productionDate ? 1 : x.id - y.id))
       const produced = pds.reduce((n, x) => n + x.producedQty, 0)
-      const factory = [...new Set(pds.map((x) => x.fromWarehouseName || x.warehouseName))].join(', ')
-      const last = pds[pds.length - 1]
       let sum = 0
       list.forEach((n, i) => {
         sum += n.qty
+        const mine = pdsOfRow(n, i)
+        const made = mine.reduce((a, x) => a + x.producedQty, 0)
+        const last = mine[mine.length - 1]
         out.push({
           key: `${itemId}-${n.orderNo}-${i}`, sub: false,
           orderNo: n.orderNo, label: `[${n.code}] ${n.name}`,
           process: proc, bomDate: n.date, required: n.qty,
-          factory: i === 0 ? factory : '',
-          prodProcess: i === 0 && pds.length ? proc : '',
-          prodDate: i === 0 && last ? last.productionDate : '',
-          prodNo: i === 0 && last ? last.prodNo : '',
-          produced: i === 0 ? produced : 0,
-          /* 생산은 묶음의 첫 줄에만 적히므로, 미생산도 줄마다 그 줄 기준으로 낸다. */
-          unmade: n.qty - (i === 0 ? produced : 0), onHand,
+          factory: [...new Set(mine.map((x) => x.fromWarehouseName || x.warehouseName))].join(', '),
+          prodProcess: mine.length ? proc : '',
+          prodDate: last ? last.productionDate : '',
+          prodNo: last ? last.prodNo : '',
+          produced: made,
+          unmade: n.qty - made, onHand,
         })
       })
       out.push({
