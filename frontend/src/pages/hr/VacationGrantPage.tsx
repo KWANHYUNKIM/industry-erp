@@ -27,6 +27,10 @@ const num = (s: string) => Number(s) || 0
  * [연차계산]은 사번이 든 줄의 당해년 휴가일수를 입사일로 채운다(원본 연차계산기준 40시간제와 같은 셈 — utils/annualLeave).
  * 원본은 줄을 고르고 연차계산기준(40시간제 · 44시간제)을 골라 [적용]하는데, 우리는 40시간제 하나로 셈한다.
  * 찾기(F3) · 웹자료올리기는 없다.
+ *
+ * <p>휴가항목의 [이월 잔여일수 자동계산]이 사용이고 [이월 휴가코드]가 있으면, 사번을 넣을 때 이월 잔여일수가 그 휴가항목의 잔여일수로 찬다
+ * (2026-10-04 원본 실측: 이월 휴가코드 2024 연차에 16일 받은 사원 → 16). 잔여 = 그 휴가항목 휴가일수 − 확인된 근태(그 휴가코드를 가리키는
+ * 근태항목, 그 사용기간 안)로, 휴가잔여일수현황 [휴가코드] 셈과 같다. 이월 휴가코드에 휴가일수가 없는 사원은 비워 둔다.
  */
 export default function VacationGrantPage() {
   const [rows, setRows] = useState<Summary[]>([])
@@ -36,6 +40,8 @@ export default function VacationGrantPage() {
   const [open, setOpen] = useState<Summary | null>(null)
   const [lines, setLines] = useState<Row[]>([])
   const [formError, setFormError] = useState('')
+  /** 이월 휴가코드의 사원별 잔여일수(employeeId → 일수). 이월을 안 쓰면 빈 맵. */
+  const [carryMap, setCarryMap] = useState<Map<string, number>>(new Map())
   const tableRef = useRef<HTMLTableElement>(null)
   const gridRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '사원별휴가일수조회', [rows.length])
@@ -56,6 +62,7 @@ export default function VacationGrantPage() {
       const got = (await api.get<GrantRow[]>(`/hr/vacation-kinds/${s.vacationKindId}/grants`)).data
         .map((g) => ({ employeeId: String(g.employeeId), carryOverDays: String(Number(g.carryOverDays)), currentDays: String(Number(g.currentDays)) }))
       setLines([...got, ...Array.from({ length: Math.max(1, 3 - got.length) }, blank)])
+      setCarryMap(await carryOverRemains(s.vacationKindId))
       setOpen(s)
     } catch (e) {
       setError(extractErrorMessage(e))
@@ -64,7 +71,15 @@ export default function VacationGrantPage() {
 
   function edit(i: number, patch: Partial<Row>) {
     setLines((ls) => {
-      const next = ls.map((l, j) => (j === i ? { ...l, ...patch } : l))
+      const next = ls.map((l, j) => {
+        if (j !== i) return l
+        const merged = { ...l, ...patch }
+        // 사번을 새로 넣으면 이월 잔여일수를 이월 휴가코드의 잔여로 채운다(원본과 같다)
+        if (patch.employeeId && patch.employeeId !== l.employeeId && carryMap.has(patch.employeeId)) {
+          merged.carryOverDays = String(carryMap.get(patch.employeeId))
+        }
+        return merged
+      })
       return next[next.length - 1].employeeId ? [...next, blank()] : next
     })
   }
@@ -206,4 +221,30 @@ export default function VacationGrantPage() {
       </Modal>
     </EcListShell>
   )
+}
+
+interface KindLite { id: number; carryOver: boolean; carryFromId: number | null; periodFrom: string; periodTo: string }
+interface VacLite { empCode: string | null; type: string; days: number; status: string }
+
+/** 이월 휴가코드의 사원별 잔여일수 — 휴가일수 − 확인된 근태(그 휴가코드를 가리키는 근태항목). */
+async function carryOverRemains(kindId: number): Promise<Map<string, number>> {
+  const kinds = (await api.get<KindLite[]>('/hr/vacation-kinds')).data
+  const k = kinds.find((x) => x.id === kindId)
+  const src = k?.carryOver && k.carryFromId ? kinds.find((x) => x.id === k.carryFromId) : undefined
+  if (!src) return new Map()
+  const [g, e, a, v] = await Promise.all([
+    api.get<GrantRow[]>(`/hr/vacation-kinds/${src.id}/grants`),
+    api.get<EmployeeMaster[]>('/employees/all'),
+    api.get<{ name: string; vacationKindId: number | null }[]>('/hr/attendance-kinds'),
+    api.get<VacLite[]>('/hr/vacations', { params: { from: src.periodFrom, to: src.periodTo } }),
+  ])
+  const types = new Set(a.data.filter((x) => x.vacationKindId === src.id).map((x) => x.name))
+  const out = new Map<string, number>()
+  for (const grant of g.data) {
+    const emp = e.data.find((x) => x.id === grant.employeeId)
+    const used = v.data.filter((x) => emp && x.empCode === emp.code && types.has(x.type) && x.status === 'APPROVED')
+      .reduce((t, x) => t + Number(x.days), 0)
+    out.set(String(grant.employeeId), Number(grant.carryOverDays) + Number(grant.currentDays) - used)
+  }
+  return out
 }

@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import CodePickerField from '../../components/CodePickerField'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 
-interface Vacation { id: number; code: string; name: string; periodFrom: string; periodTo: string; carryOver: boolean; remark: string | null; active: boolean }
-interface Form { code: string; name: string; periodFrom: string; periodTo: string; carryOver: boolean; remark: string }
+interface Vacation { id: number; code: string; name: string; periodFrom: string; periodTo: string; carryOver: boolean; carryFromId: number | null; remark: string | null; active: boolean }
+interface Form { code: string; name: string; periodFrom: string; periodTo: string; carryOver: boolean; carryFromId: string; remark: string }
 const year = new Date().getFullYear()
-const blankForm = (): Form => ({ code: '', name: '', periodFrom: `${year}-01-01`, periodTo: `${year}-12-31`, carryOver: false, remark: '' })
+const blankForm = (): Form => ({ code: '', name: '', periodFrom: `${year}-01-01`, periodTo: `${year}-12-31`, carryOver: false, carryFromId: '', remark: '' })
 const slash = (s: string) => s.replace(/-/g, '/')
 
 /**
@@ -55,13 +56,13 @@ export default function VacationKindListPage() {
   }
   function openEdit(v: Vacation) {
     setEditId(v.id); setFormError('')
-    setForm({ code: v.code, name: v.name, periodFrom: v.periodFrom, periodTo: v.periodTo, carryOver: v.carryOver, remark: v.remark ?? '' })
+    setForm({ code: v.code, name: v.name, periodFrom: v.periodFrom, periodTo: v.periodTo, carryOver: v.carryOver, carryFromId: v.carryFromId ? String(v.carryFromId) : '', remark: v.remark ?? '' })
     setOpen(true)
   }
 
   async function save() {
     if (!form.name.trim()) { setFormError('휴가명을 입력 바랍니다.'); return }
-    const body = { ...form, code: form.code.trim() || null }
+    const body = { ...form, code: form.code.trim() || null, carryFromId: form.carryOver && form.carryFromId ? Number(form.carryFromId) : null }
     try {
       if (editId) await api.put(`/hr/vacation-kinds/${editId}`, { ...body, active: rows.find((r) => r.id === editId)?.active ?? true })
       else await api.post('/hr/vacation-kinds', body)
@@ -79,7 +80,7 @@ export default function VacationKindListPage() {
       for (const v of rows.filter((x) => checked.has(x.id))) {
         if (op === '삭제') await api.delete(`/hr/vacation-kinds/${v.id}`)
         else await api.put(`/hr/vacation-kinds/${v.id}`, {
-          code: v.code, name: v.name, periodFrom: v.periodFrom, periodTo: v.periodTo, carryOver: v.carryOver, remark: v.remark, active: op === '재사용',
+          code: v.code, name: v.name, periodFrom: v.periodFrom, periodTo: v.periodTo, carryOver: v.carryOver, carryFromId: v.carryFromId, remark: v.remark, active: op === '재사용',
         })
       }
     } catch (e) {
@@ -173,6 +174,18 @@ export default function VacationKindListPage() {
               ))}
             </div>
           </li>
+          {/* 원본(2026-10-04 실측): [사용]을 고르면 아래에 [이월 휴가코드] 코드도움이 나온다 — 사원별휴가일수입력에서 사번을 넣으면
+              그 휴가항목의 잔여일수가 이월 잔여일수로 찬다. */}
+          {form.carryOver && (
+            <li className="wide">
+              <span className="title">이월 휴가코드</span>
+              <div className="form">
+                <CodePickerField label="이월 휴가코드" hideLabel fill placeholder="이월 휴가코드" value={form.carryFromId}
+                                 onChange={(v) => setForm({ ...form, carryFromId: v })}
+                                 items={rows.filter((r) => r.id !== editId).map((r) => ({ value: String(r.id), code: r.code, name: r.name }))} />
+              </div>
+            </li>
+          )}
           <li className="wide">
             <span className="title">적요</span>
             <div className="form"><textarea className="ec-input w-full h-[48px]" placeholder="적요" value={form.remark} onChange={(e) => setForm({ ...form, remark: e.target.value })} /></div>
