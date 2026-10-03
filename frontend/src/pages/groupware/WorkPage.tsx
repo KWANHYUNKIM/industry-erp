@@ -60,7 +60,14 @@ const emptyForm = (): Form => ({ title: '', content: '', forwardTo: '', ccTo: ''
  */
 export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: 'WORK' | 'NOTICE'; title?: string } = {}) {
   const [rows, setRows] = useState<WorkPost[]>([])
-  const [tab, setTab] = useState<'전체' | '진행중' | '완료'>('전체')
+  const [tab, setTab] = useState<string>('전체')
+  /*
+   * 진행상태는 게시판마다 회사가 정한다(원본 '진행상태를 자유롭게 추가 가능합니다'). 2026-10-03 원본 공지사항은
+   * 상태가 <b>'기본' 하나</b> — 알약 [전체][기본], 모든 줄의 진행상태 '기본'. WORK 는 진행중 · 완료 그대로.
+   * 우리 서버의 상태(진행중/완료)는 WORK 의 것이라 공지사항에서는 쓰지 않고 '기본' 으로 보인다.
+   */
+  const statuses: string[] = board === 'NOTICE' ? ['기본'] : ['진행중', '완료']
+  const statusOf = (r: WorkPost) => (board === 'NOTICE' ? '기본' : r.statusName)
   const [keyword, setKeyword] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -279,10 +286,17 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
 
   const shown = rows
     .filter((r) => r.postDate >= from && r.postDate <= to)
-    .filter((r) => tab === '전체' || r.statusName === tab)
+    .filter((r) => tab === '전체' || statusOf(r) === tab)
     .filter((r) => !keyword || r.title.includes(keyword) || (r.writerName ?? r.writer).includes(keyword))
-  /** 원본: 공지사항여부를 켠 글은 맨 위에 한 번 더 붙는다(행번호 없이). */
-  const pinned = shown.filter((r) => r.notice)
+  /*
+   * 원본(2026-10-03 같은 글 넷을 넣어 견줌): 번호 붙은 줄은 공지 여부와 상관없이 <b>새 글부터</b>(15 · 14 · 13 · 12),
+   * 공지사항여부를 켠 글은 그와 별도로 맨 위에 한 번 더(행번호 없이, 역시 새 글부터). 서버는 공지를 앞에 세워 주는데
+   * 그 차례를 그대로 쓰면 번호 줄에서도 공지가 위로 올라갔다(3 · 2 · 4 · 1).
+   */
+  const newestFirst = (a: WorkPost, b: WorkPost) =>
+    a.postDate !== b.postDate ? (a.postDate < b.postDate ? 1 : -1) : b.postNo - a.postNo
+  const numbered = [...shown].sort(newestFirst)
+  const pinned = shown.filter((r) => r.notice).sort(newestFirst)
 
   /** 격자 한 줄의 데이터 칸(게시글번호부터). 맨 위 공지 줄과 번호 붙은 줄이 같이 쓴다. */
   const cells = (r: WorkPost, pin: boolean) => {
@@ -300,7 +314,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
         </td>
         <td className={bg}>{r.writerName ?? r.writer}</td>
         <td className={bg}>{r.forwardTo ?? ''}</td>
-        <td className={`${bg} text-ec-navy`}>{r.statusName}</td>
+        <td className={`${bg} text-ec-navy`}>{statusOf(r)}</td>
         {/* 원본 [첨부]. 파일이 없으면 원본도 빈 칸이다. */}
         <td className={`${bg} text-center`}>
           {r.attachmentId && (
@@ -325,7 +339,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
         <span className="text-[15px] font-extrabold text-ec-text">{title}</span>
         {/* 상태 알약은 원본처럼 제목 바로 옆에 붙는다. */}
         <div className="ec-pills ml-[8px]">
-          {(['전체', '진행중', '완료'] as const).map((t) => (
+          {['전체', ...statuses].map((t) => (
             <button
               key={t} type="button" onClick={() => setTab(t)}
               className={`ec-pill no-ec${tab === t ? ' active' : ''}`}
@@ -333,6 +347,8 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
               {t}
             </button>
           ))}
+          {/* 원본 공지사항은 알약 끝에 이 안내가 붙는다(누르면 회사 진행상태 설정 — 우리에게는 아직 없다). */}
+          {board === 'NOTICE' && <span className="ec-pill no-ec">진행상태를 자유롭게 추가 가능합니다</span>}
         </div>
         <div className="ml-auto flex gap-[4px]">
           <input className="ec-input w-[110px]" placeholder="입력 후 [Enter]" value={keyword}
@@ -382,7 +398,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
                     {cells(r, true)}
                   </tr>
                 ))}
-                {shown.map((r, i) => (
+                {numbered.map((r, i) => (
                   <Fragment key={r.id}>
                     <tr>
                       <td className={`text-center cursor-pointer select-none ${selected.has(r.id)
@@ -415,7 +431,8 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
           [인쇄]는 원본처럼 View 창 안에 있다. [웹자료올리기]는 입력 창의 첨부 자리다.
         */}
         <button className="ec-btn ec-btn-primary" onClick={openNew}>신규(F2)</button>
-        <button className="ec-btn disabled:opacity-45" disabled={selected.size === 0} onClick={() => void changeStatusSelected()}>진행상태변경</button>
+        {/* 공지사항은 상태가 '기본' 하나라 바꿀 곳이 없다. */}
+        <button className="ec-btn disabled:opacity-45" disabled={selected.size === 0 || board === 'NOTICE'} onClick={() => void changeStatusSelected()}>진행상태변경</button>
         <span className="relative">
           <button className="ec-btn disabled:opacity-45" disabled={selected.size === 0} onClick={openLabels}>라벨변경</button>
           {labelOpen && (

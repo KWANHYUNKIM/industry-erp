@@ -1,0 +1,37 @@
+{
+  "about": "원본 loginaa 공지사항 자료를 우리 화면으로만 똑같이 넣고(신규 폼 · 공지사항여부 · 라벨변경) 목록이 원본과 같은 모양인지 본다 — 원본 2026-10-03: 맨 위 공지 둘([중요] 지출결의서 및 가지급금정산서 작성방법 · [외근] 근태/출장/외근 관련 법인차량 사용관련 공지건, 행번호 없음), 그 아래 1~4 새 글부터(2026.10 인사발령 공지 · 지출결의서… · 근태/… · 신규입사자 안내), 진행상태는 모두 '기본', 알약 [전체][기본]. 제목에 QA 를 붙이고 끝에 지운다. node qa/shot.mjs qa/flows/mirror-notice.json",
+  "shots": [
+    {
+      "name": "글 넷을 신규 폼으로(오래된 것부터, 둘은 공지)",
+      "path": "/groupware/notice",
+      "steps": [
+        "wait:800",
+        "expect:[...document.querySelectorAll('.ec-pill')].map((p) => p.textContent.trim()).join(',') === '전체,기본,진행상태를 자유롭게 추가 가능합니다'",
+        "js:window.__post = (title, notice) => new Promise((ok) => { [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '신규(F2)').click(); setTimeout(() => { const d = document.querySelector('[role=dialog]'); const t = [...d.querySelectorAll('input')].find((i) => i.type !== 'checkbox' && i.type !== 'date' && i.type !== 'file'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(t, title); t.dispatchEvent(new Event('input', { bubbles: true })); const ta = d.querySelector('textarea'); Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(ta, '본문'); ta.dispatchEvent(new Event('input', { bubbles: true })); if (notice) d.querySelector('input[type=checkbox]').click(); setTimeout(() => { [...d.querySelectorAll('button')].find((b) => b.textContent.trim() === '저장(F8)').click(); setTimeout(ok, 1200) }, 300) }, 500) }); true",
+        "js:window.__post('QA신규입사자 안내', false).then(() => window.__post('QA근태/출장/외근 관련 법인차량 사용관련 공지건', true)).then(() => window.__post('QA지출결의서 및 가지급금정산서 작성방법', true)).then(() => window.__post('QA2026.10 인사발령 공지', false)).then(() => 'posted')",
+        "wait:1500"
+      ]
+    },
+    {
+      "name": "라벨 — 외근 · 중요를 [라벨변경]으로",
+      "path": "/groupware/notice",
+      "steps": [
+        "wait:800",
+        "js:window.__label = (title, label) => new Promise((ok) => { const tr = [...document.querySelectorAll('#work-list tbody tr')].find((r) => r.innerText.includes(title) && r.cells[0].textContent.trim() !== ''); tr.cells[0].click(); setTimeout(() => { [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '라벨변경').click(); setTimeout(() => { const pop = document.querySelector('[role=dialog][aria-label=\"라벨변경\"]'); const known = [...pop.querySelectorAll('label')].find((l) => l.textContent.trim() === label); if (known) known.querySelector('input').click(); else { const i = pop.querySelector('input[aria-label=\"새 라벨\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, label); i.dispatchEvent(new Event('input', { bubbles: true })); setTimeout(() => pop.querySelector('button[aria-label=\"라벨 더하기\"]').click(), 100) } setTimeout(() => { pop.querySelector('button[aria-label=\"적용\"]').click(); setTimeout(ok, 1200) }, 400) }, 400) }, 300) }); true",
+        "js:window.__label('QA근태/출장/외근 관련 법인차량 사용관련 공지건', '외근').then(() => window.__label('QA지출결의서 및 가지급금정산서 작성방법', '중요')).then(() => 'labelled')",
+        "wait:1500",
+        "js:location.reload(); true",
+        "wait:3500",
+        "expect:(() => { const rows = [...document.querySelectorAll('#work-list tbody tr')].filter((r) => r.innerText.includes('QA')).map((r) => [r.cells[0].textContent.trim() === '' ? 'P' : 'N', (r.querySelector('.ec-label-chip')?.textContent ?? '-'), r.cells[2].innerText.replace(/^(중요|외근)/, '').trim(), r.cells[5].textContent.trim()].join(':')); return JSON.stringify(rows) === JSON.stringify(['P:중요:QA지출결의서 및 가지급금정산서 작성방법:기본', 'P:외근:QA근태/출장/외근 관련 법인차량 사용관련 공지건:기본', 'N:-:QA2026.10 인사발령 공지:기본', 'N:중요:QA지출결의서 및 가지급금정산서 작성방법:기본', 'N:외근:QA근태/출장/외근 관련 법인차량 사용관련 공지건:기본', 'N:-:QA신규입사자 안내:기본']) })()",
+        "expect:(() => { const nums = [...document.querySelectorAll('#work-list tbody tr')].filter((r) => r.innerText.includes('QA') && r.cells[0].textContent.trim() !== '').map((r) => r.cells[0].textContent.trim()); return nums.join(',') === '1,2,3,4' })()"
+      ]
+    },
+    {
+      "name": "정리",
+      "path": "/groupware/notice",
+      "steps": [
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const ps = await (await fetch('/api/work-posts?board=NOTICE', { headers: H })).json(); const out = []; for (const p of ps.filter((x) => x.title.startsWith('QA'))) out.push((await fetch('/api/work-posts/' + p.id, { method: 'DELETE', headers: H })).status); return 'del ' + out.join(',') })()"
+      ]
+    }
+  ]
+}
