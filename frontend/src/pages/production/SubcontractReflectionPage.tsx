@@ -7,7 +7,7 @@ import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
-import { dateText } from '../../utils/dateText'
+import { dateNo } from '../../utils/dateNo'
 
 /**
  * 재고 I &gt; 생산/외주 &gt; 외주비회계반영 &gt; <b>외주비일괄회계반영</b>.
@@ -209,7 +209,7 @@ export default function SubcontractReflectionPage() {
                 {mode === '전표별' && (
                   <td>
                     <Link to={`/production/receipt-bom?no=${encodeURIComponent(g.rows[0].prodNo)}`} style={{ color: 'var(--ec-blue)' }}>
-                      {dateText(g.rows[0].productionDate)} {g.rows[0].prodNo}
+                      {dateNo(g.rows[0].productionDate, g.rows[0].prodNo)}
                     </Link>
                   </td>
                 )}
@@ -232,7 +232,7 @@ export default function SubcontractReflectionPage() {
                 <tr key={r.productionId} className="bg-ec-page text-ec-label text-[12px]">
                   <td />
                   <td colSpan={mode === '전표별' ? 2 : 1}>
-                    {dateText(r.productionDate)} {r.prodNo} · {r.productName} {won(r.producedQty)} × {won(r.unitPrice)}
+                    {dateNo(r.productionDate, r.prodNo)} · {r.productName} {won(r.producedQty)} × {won(r.unitPrice)}
                   </td>
                   <td className="text-right">{won(r.amount)}</td>
                   <td colSpan={3} />
