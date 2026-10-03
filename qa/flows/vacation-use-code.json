@@ -1,11 +1,12 @@
 {
-  "about": "관리 > 휴가사용실적현황(E020719) — [휴가코드]에서 휴가항목을 고르면 원본 꼴: 사원마다 한 장, 머리 '회사명 : … / 휴가명 / 사원', 첫 줄 [휴가] 에 부여(사원별휴가일수), 근태마다 잔여가 줄고 합계. 2091 휴가항목에 EMP-0001 12일 부여면 [휴가] 12.000 · 합계 잔여 12.000. 시험 자료는 지운다.",
+  "about": "관리 > 휴가사용실적현황(E020719) — [휴가코드]에서 휴가항목을 고르면 원본 꼴: 사원마다 한 장, 머리 '회사명 : … / 휴가명 / 사원', 첫 줄 [휴가] 에 부여(사원별휴가일수), 근태마다 잔여가 줄고 합계. 2091 휴가항목에 EMP-0001 12일 부여면 [휴가] 12.000 · 합계 잔여 12.000. 시험 자료는 지운다. 조건 판 — 상태는 체크박스(처음엔 확인만), 재직구분은 라디오(재직자).",
   "shots": [
     {
       "name": "휴가코드 고르기 → 사원별 장 → 정리",
       "path": "/hr/vacation-use",
       "steps": [
         "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const emps=await (await fetch('/api/employees/all',{headers:h})).json();const e=emps.find(x=>x.code==='EMP-0001');const v=await (await fetch('/api/hr/vacation-kinds',{method:'POST',headers:h,body:JSON.stringify({name:'QA관리-휴가U',periodFrom:'2091-01-01',periodTo:'2091-12-31',carryOver:false})})).json();await fetch('/api/hr/vacation-kinds/'+v.id+'/grants',{method:'PUT',headers:h,body:JSON.stringify([{employeeId:e.id,carryOverDays:2,currentDays:10}])});sessionStorage.setItem('qaVu',JSON.stringify({v:v.id,name:e.name}));return true})()",
+        "expect:(()=>{const ls=[...document.querySelectorAll('.ec-cond label')].map(l=>l.textContent.trim());const cb=l=>[...document.querySelectorAll('.ec-cond label')].find(x=>x.textContent.trim()===l)?.querySelector('input');return ls.includes('결재중')&&cb('확인').checked&&!cb('결재중').checked&&cb('재직자').type==='radio'&&cb('재직자').checked})()",
         "js:location.reload();true",
         "wait:2500",
         "pick:휴가코드:QA관리-휴가U",

@@ -37,7 +37,8 @@ interface Row {
 type VacationStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
 
 /** 원본 [재직구분]. 휴가잔여일수현황과 같은 값이라 이름도 같게 둔다. */
-const EMPLOYMENTS = [['ACTIVE', '재직자'], ['RESIGNED', '퇴사자'], ['ALL', '전체']] as const
+/** 원본 [재직구분] 라디오 차례: 전체 · 재직자 · 퇴사자 (기본 재직자) */
+const EMPLOYMENTS = [['ALL', '전체'], ['ACTIVE', '재직자'], ['RESIGNED', '퇴사자']] as const
 
 /** 휴가잔여일수현황과 같은 요약. 여기서는 사원별 <b>휴가일수(부여)</b>를 가져오는 데 쓴다. */
 interface SummaryRow {
@@ -59,11 +60,19 @@ export default function VacationUsePage() {
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [emp, setEmp] = useState('')
-  const [dept, setDept] = useState('')
+  /** 사원 · 부서는 여러 개 고르는 코드도움 — 휴가 줄은 계정 단위라 이름으로 거른다. */
+  const [emp, setEmp] = useState<string[]>([])
+  const [dept, setDept] = useState<string[]>([])
+  const [empList, setEmpList] = useState<{ id: number; code: string; name: string; department: string }[]>([])
+  const [deptList, setDeptList] = useState<{ id: number; code?: string | null; name: string }[]>([])
+  useEffect(() => {
+    api.get<typeof empList>('/employees/all').then((r) => setEmpList(r.data)).catch(() => setEmpList([]))
+    api.get<typeof deptList>('/departments').then((r) => setDeptList(r.data)).catch(() => setDeptList([]))
+  }, [])
   const [vtype, setVtype] = useState('')
   const [reason, setReason] = useState('')
-  const [status, setStatus] = useState('전체')
+  /** 원본 [상태] 체크박스 — 전체 · 결재중 · UserPay · 확인, 처음엔 확인만. UserPay(사원 신청)는 우리에게 없어 칸을 두지 않는다. */
+  const [statuses, setStatuses] = useState<Set<'PENDING' | 'APPROVED'>>(new Set(['APPROVED']))
   const [employment, setEmployment] = useState<'ACTIVE' | 'RESIGNED' | 'ALL'>('ACTIVE')
   const [grants, setGrants] = useState<Map<string, number>>(new Map())
   // ── 휴가항목(휴가코드) 꼴 — 원본 휴가사용실적현황 ──
@@ -140,11 +149,11 @@ export default function VacationUsePage() {
   const shown = rows.filter((r) => {
     if (employment === 'ACTIVE' && !r.active) return false
     if (employment === 'RESIGNED' && r.active) return false
-    if (emp && !r.empName.includes(emp)) return false
-    if (dept && !(r.department ?? '').includes(dept)) return false
+    if (emp.length && !emp.includes(r.empName)) return false
+    if (dept.length && !dept.includes(r.department ?? '')) return false
     if (vtype && !r.type.includes(vtype)) return false
     if (reason && !(r.reason ?? '').includes(reason)) return false
-    if (status !== '전체' && r.status !== (status === '결재중' ? 'PENDING' : 'APPROVED')) return false
+    if (!statuses.has(r.status as 'PENDING' | 'APPROVED')) return false
     return true
   })
   const totalDays = shown.reduce((n, r) => n + r.days, 0)
@@ -167,7 +176,7 @@ export default function VacationUsePage() {
       onNew={undefined}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setEmp(''); setDept(''); setVtype(''); setCodePick(''); setReason(''); setStatus('전체'); setEmployment('ACTIVE') } },
+        { label: '다시 작성', onClick: () => { setEmp([]); setDept([]); setVtype(''); setCodePick(''); setReason(''); setStatuses(new Set(['APPROVED'])); setEmployment('ACTIVE') } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -181,33 +190,36 @@ export default function VacationUsePage() {
                              ...[...new Set(rows.map((r) => r.type))].map((t) => ({ value: t, name: t })),
                            ]} />
         </EcCond>
-        <EcCond label="사원" pick>
-          <input className="ec-input" placeholder="사원명 일부" value={emp}
-                 onChange={(e) => setEmp(e.target.value)} style={{ width: 180 }} />
+        <EcCond label="사원">
+          <CodePickerField label="사원" hideLabel fill multiple placeholder="사원" values={emp} onChangeMulti={(v) => setEmp(v)}
+                           items={empList.map((e) => ({ value: e.name, code: e.code, name: e.name, sub: e.department }))} />
         </EcCond>
         <EcCond label="부서" pick>
-          <input className="ec-input" placeholder="부서명 일부" value={dept}
-                 onChange={(e) => setDept(e.target.value)} style={{ width: 180 }} />
+          <CodePickerField label="부서" hideLabel fill multiple placeholder="부서" values={dept} onChangeMulti={(v) => setDept(v)}
+                           items={deptList.map((d) => ({ value: d.name, code: d.code ?? undefined, name: d.name }))} />
         </EcCond>
         <EcCond label="적요">
           <input className="ec-input" placeholder="사유 일부" value={reason}
                  onChange={(e) => setReason(e.target.value)} style={{ width: 220 }} />
         </EcCond>
         <EcCond label="상태">
-          <div className="ec-pills">
-            {['전체', '결재중', '확인'].map((s) => (
-              <button key={s} type="button" className={`ec-pill no-ec${status === s ? ' active' : ''}`}
-                      onClick={() => setStatus(s)}>{s}</button>
-            ))}
-          </div>
+          <label className="inline-flex items-center gap-[4px] mr-[10px]">
+            <input type="checkbox" checked={statuses.size === 2} onChange={(e) => setStatuses(new Set(e.target.checked ? ['PENDING', 'APPROVED'] : []))} /> 전체
+          </label>
+          {([['PENDING', '결재중'], ['APPROVED', '확인']] as const).map(([v, l]) => (
+            <label key={v} className="inline-flex items-center gap-[4px] mr-[10px]">
+              <input type="checkbox" checked={statuses.has(v)} onChange={(e) => {
+                const next = new Set(statuses); if (e.target.checked) next.add(v); else next.delete(v); setStatuses(next)
+              }} /> {l}
+            </label>
+          ))}
         </EcCond>
         <EcCond label="재직구분">
-          <div className="ec-pills">
-            {EMPLOYMENTS.map(([v, label]) => (
-              <button key={v} type="button" className={`ec-pill no-ec${employment === v ? ' active' : ''}`}
-                      onClick={() => setEmployment(v)}>{label}</button>
-            ))}
-          </div>
+          {EMPLOYMENTS.map(([v, label]) => (
+            <label key={v} className="inline-flex items-center gap-[4px] mr-[10px]">
+              <input type="radio" name="vu-employment" checked={employment === v} onChange={() => setEmployment(v)} /> {label}
+            </label>
+          ))}
         </EcCond>
       </ul>
 
@@ -219,7 +231,7 @@ export default function VacationUsePage() {
 
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {codeBlocks ? (
-        <VacationCodeUseReport blocks={codeBlocks.filter((b) => (employment === 'ALL' || (employment === 'ACTIVE') === b.emp.active) && (!emp || b.emp.name.includes(emp)))}
+        <VacationCodeUseReport blocks={codeBlocks.filter((b) => (employment === 'ALL' || (employment === 'ACTIVE') === b.emp.active) && (emp.length === 0 || emp.includes(b.emp.name)))}
                                companyName={companyName} vacationName={vkinds.find((k) => `VK:${k.id}` === codePick)?.name ?? ''} />
       ) : (
       <table className="w-full text-left">
