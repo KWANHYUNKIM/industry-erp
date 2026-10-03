@@ -1699,6 +1699,11 @@ export interface EmployeeMaster {
   mobile: string | null
   resignReason: string | null
   address: string | null
+  /** 원본 사원등록 [급여통장] — 급여 권한이 없으면 null */
+  bankCode: string | null
+  bankName: string | null
+  accountNo: string | null
+  accountHolder: string | null
 }
 
 export type EmployeePayType = 'FIXED' | 'VARIABLE'

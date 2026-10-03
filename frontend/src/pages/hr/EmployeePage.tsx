@@ -49,6 +49,7 @@ export default function EmployeePage() {
     hireDate: new Date().toISOString().slice(0, 10), resignDate: '', resignReason: '',
     phone: '', mobile: '', email: '', address: '', remark: '',
     payType: 'FIXED' as EmployeePayType, baseSalary: '',
+    bankCode: '', bankName: '', accountNo: '', accountHolder: '',
   }
   const [form, setForm] = useState(empty)
 
@@ -88,6 +89,7 @@ export default function EmployeePage() {
       phone: e.phone ?? '', mobile: e.mobile ?? '', email: e.email ?? '',
       address: e.address ?? '', remark: e.remark ?? '',
       payType: e.payType, baseSalary: e.baseSalary == null ? '' : String(e.baseSalary),
+      bankCode: e.bankCode ?? '', bankName: e.bankName ?? '', accountNo: e.accountNo ?? '', accountHolder: e.accountHolder ?? '',
     })
     setShowForm(true)
   }
@@ -113,6 +115,10 @@ export default function EmployeePage() {
       mobile: form.mobile.trim() || null,
       resignReason: form.resignReason.trim() || null,
       address: form.address.trim() || null,
+      bankCode: form.bankCode.trim() || null,
+      bankName: form.bankName.trim() || null,
+      accountNo: form.accountNo.trim() || null,
+      accountHolder: form.accountHolder.trim() || null,
     }
     try {
       if (editId) {
@@ -306,6 +312,15 @@ export default function EmployeePage() {
                   onChange={(v) => setForm({ ...form, departmentId: v })}
                   items={depts.map((d) => ({ value: String(d.id), code: d.code ?? undefined, name: d.name }))}
                 />
+              </Field>
+              {/* 원본 [급여통장] — 은행 · 계좌번호 · 예금주 세 칸을 한 이름표 아래 쌓는다 */}
+              <Field label="급여통장" wide>
+                <div className="flex gap-[6px] w-full mobile:flex-col">
+                  <input className="ec-input w-[80px]" value={form.bankCode} onChange={set('bankCode')} placeholder="은행코드" />
+                  <input className="ec-input flex-1" value={form.bankName} onChange={set('bankName')} placeholder="은행" />
+                  <input className="ec-input flex-1" value={form.accountNo} onChange={set('accountNo')} placeholder="계좌번호" />
+                  <input className="ec-input flex-1" value={form.accountHolder} onChange={set('accountHolder')} placeholder="예금주" />
+                </div>
               </Field>
               <Field label="주소" wide>
                 <textarea className={inputCls} rows={2} value={form.address} onChange={set('address')} placeholder="주소" />
