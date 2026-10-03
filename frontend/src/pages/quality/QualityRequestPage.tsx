@@ -48,8 +48,9 @@ const today = () => ymd(new Date())
  * 0 으로 채우면 "0원짜리 거래" 로 읽힌다(창고이동증·생산불출증과 같은 규칙).
  * 공급자/공급받는자 칸도 없다 — 사내에서 도는 지시서라 상대가 없다.
  */
-async function printRequest(r: QualityInspectionRequest) {
-  await printDocuments([{
+/** 목록 [인쇄](고른 요청 한 번에) · 줄의 [인쇄](한 건). */
+async function printRequests(rs: QualityInspectionRequest[]) {
+  await printDocuments(rs.map((r) => ({
     title: '품질검사요청서',
     docNo: r.requestNo,
     docDate: r.requestDate,
@@ -71,8 +72,9 @@ async function printRequest(r: QualityInspectionRequest) {
       quantity: l.quantity, unitPrice: 0, supplyAmount: 0, vatAmount: 0,
       remark: l.methodName,
     })),
-  }])
+  })))
 }
+const printRequest = (r: QualityInspectionRequest) => printRequests([r])
 
 export default function QualityRequestPage() {
   /**
@@ -171,6 +173,17 @@ export default function QualityRequestPage() {
       await load()
     } catch (err) { setError(extractErrorMessage(err)) }
   }
+  /** 목록 [진행상태변경] — 고른 요청을 진행중 · 완료로(줄의 [종결여부]를 누르는 것과 같은 길). */
+  const [statusOpen, setStatusOpen] = useState(false)
+  async function changeStatus(status: 'REQUESTED' | 'INSPECTED') {
+    const results = await Promise.allSettled([...picked].map((id) => api.patch(`/quality-inspection-requests/${id}/status`, { status })))
+    const failed = results.filter((x) => x.status === 'rejected') as PromiseRejectedResult[]
+    setStatusOpen(false)
+    setPicked(new Set())
+    setError(failed.map((x) => extractErrorMessage(x.reason)).join(' / '))
+    await load()
+  }
+
   async function toggleStatus(r: QualityInspectionRequest) {
     try {
       await api.patch(`/quality-inspection-requests/${r.id}/status`, { status: r.status === 'INSPECTED' ? 'REQUESTED' : 'INSPECTED' })
@@ -202,6 +215,10 @@ export default function QualityRequestPage() {
       onSearch={load}
       onNew={openNew}
       actions={[
+        /* 원본 버튼줄(2026-10-04): 신규(F2) · Email · 진행상태변경 · 보내기 · 인쇄 · 바코드(품목) · 전자결재 · 선택삭제 · Excel · 이력조회 · 웹자료올리기.
+           Email · 보내기는 바깥으로 보내는 일이라 두지 않는다. */
+        { label: '진행상태변경', disabled: picked.size === 0, onClick: () => setStatusOpen(true) },
+        { label: '인쇄', disabled: picked.size === 0, onClick: () => void printRequests(rows.filter((r) => picked.has(r.id))) },
         { label: '선택삭제', disabled: picked.size === 0,
           onClick: () => { if (window.confirm('전표를 삭제하겠습니까?')) void removeIds([...picked]) } },
         { label: 'Excel' },
@@ -388,6 +405,13 @@ export default function QualityRequestPage() {
             ? <button className="ec-btn" onClick={() => { if (window.confirm('전표를 삭제하겠습니까?')) void removeIds([editing.id]) }}>삭제</button>
             : <button className="ec-btn" onClick={() => setLines(emptyLines())}>다시 작성</button>}
           <button className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
+        </div>
+      </Modal>
+      <Modal error={error} open={statusOpen} title="진행상태변경" onClose={() => setStatusOpen(false)} width={320}>
+        <p className="mb-[8px]">진행상태</p>
+        <div className="flex gap-[6px]">
+          <button type="button" className="ec-btn" onClick={() => void changeStatus('REQUESTED')}>진행중</button>
+          <button type="button" className="ec-btn" onClick={() => void changeStatus('INSPECTED')}>완료</button>
         </div>
       </Modal>
     </EcListShell>
