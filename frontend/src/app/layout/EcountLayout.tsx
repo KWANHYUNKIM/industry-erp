@@ -563,6 +563,7 @@ const MENU: TopMenu[] = [
             { label: '공제항목등록', to: '/hr/deduction-items' },
             { label: '수당/공제그룹등록', to: '/hr/pay-groups' },
             { label: '부서등록', to: '/hr/departments' },
+            { label: '프로젝트등록', to: '/inventory/projects' },
             { label: '담당자별 실적', to: '/hr/performance' },
           ] },
           { label: '급여작업', children: [{ label: '급여계산/대장', to: '/hr/payroll' }, { label: '수당·공제그룹/급여이체', to: '/hr/pay-settings' }] },

@@ -2655,6 +2655,8 @@ export interface Project {
   statusName: string
   remark: string | null
   createdBy: string | null
+  /** 원본 프로젝트리스트의 [사용] */
+  active: boolean
 }
 
 export interface ProjectProfitRow {
