@@ -6,7 +6,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { AS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
-import { EcReportHead, EcReportFoot, reportPeriod } from '../../components/EcReportFrame'
+import { EcReportHead, EcReportFoot, reportDate, reportPeriod } from '../../components/EcReportFrame'
 import { AsAggControls, AsAggregateTable, AS_AGG_KEYS, type AsAggLine, type AsAggValue } from '../../features/as/AsAggregate'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerGroups } from '../../utils/partnerGroups'
@@ -21,6 +21,9 @@ interface Repair {
   warehouseName: string | null
   lines: { itemId: number; itemCode: string; itemName: string; itemSpec: string | null; quantity: number }[]; saleAmount: number
 }
+/** 원본 ◉내역 선택상자(차례 그대로). 거래처별라인별(전송용)은 내보내기용 판이라 두지 않는다. */
+const FORMS = ['일별', '월별', '라인별', '전표별', '품목별', '전표별품목별', '거래처별', '담당자별'] as const
+type Form = (typeof FORMS)[number]
 const REPAIR_TYPES: Record<string, string> = { FREE_EXCHANGE: '무상교환', FREE_REPAIR: '무상수리', PAID_EXCHANGE: '유상교환', PAID_REPAIR: '유상수리', RETURN: '반품' }
 
 /**
@@ -36,7 +39,10 @@ const REPAIR_TYPES: Record<string, string> = { FREE_EXCHANGE: '무상교환', FR
  * <p>[구분] ○집계 — 2026-10-04 실측: 집계조건 창의 후보가 A/S접수현황과 같고(A/S수리 묶음 = 담당자 · 창고 · 관리항목),
  * 담당자로 묶으면 [담당자 | 수량] 최혁순 1.00 · 합계 1.00. 수량은 수리 품목 줄의 수량을 더한다.
  * 머리글은 'A/S수리현황'(내역은 'AS수리현황'), 꼬리에 [P.1] 이 없다. 수리에는 프로젝트가 없어 그 축은 뺀다.
- * ◉내역의 선택상자(일별 · 월별 · 라인별 · 전표별 …)는 아직 라인별 한 장이다.
+ * ◉내역 — 2026-10-04 원본에 두 줄 수리(A001 1 · QA2FIFO01 2)를 넣고 잼: <b>라인별은 수리 품목 줄마다 한 행</b>
+ * (예전 우리는 수리 한 건이 한 행이고 첫 품목만 찍었다 — 그건 원본의 [전표별]이다), 일별은 [일자-No.] 칸에 2026/10/04.
+ * 묶는 판은 A/S접수현황과 같다(처음 줄의 값). 소모(판매)금액은 수리 전표의 값이라 그 수리의 첫 줄에만 싣는다 —
+ * 판매연결이 든 두 줄 수리는 원본에서 못 재서, 합계가 수리 합과 같게만 맞춘다.
  */
 export default function AsRepairStatusPage() {
   const pickers = useCondPickers(['warehouses', 'partners', 'items'])
@@ -56,6 +62,7 @@ export default function AsRepairStatusPage() {
   const [loading, setLoading] = useState(true)
   /** 원본 [구분] — ◉내역 ○집계. 집계면 집계조건1 · 2 · 코드포함. */
   const [gubun, setGubun] = useState<'내역' | '집계'>('내역')
+  const [form, setForm] = useState<Form>('라인별')
   const [agg, setAgg] = useState<AsAggValue>({ agg1: '', agg2: '', codeIncl: false })
   const mgmt = useItemMgmt()
   const pgroup = usePartnerGroups()
@@ -104,6 +111,26 @@ export default function AsRepairStatusPage() {
     itemName: l.itemName, itemSpec: l.itemSpec, itemCode: l.itemCode, itemGroup: mgmt.groupOf(l.itemId) ?? '',
     project: ['', ''] as [string, string], qty: Number(l.quantity),
   })))
+  /** ◉내역의 줄 — 라인별이면 수리 품목 줄마다, 아니면 고른 판으로 묶어 처음 줄의 값 + 금액 합. */
+  const listRows = useMemo(() => {
+    type L = { r: Repair; itemId: number | null; itemName: string; amt: number }
+    const lines: L[] = shown.flatMap((r) => (r.lines.length ? r.lines : [null]).map((l, i) => ({
+      r, itemId: l?.itemId ?? null, itemName: l?.itemName ?? '', amt: i === 0 ? Number(r.saleAmount) : 0,
+    })))
+    const keyOf = (x: L) => form === '일별' ? x.r.repairDate : form === '월별' ? x.r.repairDate.slice(0, 7)
+      : form === '전표별' ? String(x.r.id) : form === '품목별' ? String(x.itemId) : form === '전표별품목별' ? `${x.r.id}|${x.itemId}`
+      : form === '거래처별' ? String(x.r.partnerId) : form === '담당자별' ? x.r.charge ?? '' : ''
+    const groups: L[][] = []
+    if (form === '라인별') lines.forEach((x) => groups.push([x]))
+    else {
+      const m = new Map<string, L[]>()
+      lines.forEach((x) => { const k = keyOf(x); if (!m.has(k)) { m.set(k, []); groups.push(m.get(k)!) } m.get(k)!.push(x) })
+    }
+    return groups.map((g, i) => ({
+      key: `${form}-${i}`, r: g[0].r, itemName: g[0].itemName, amt: g.reduce((n, x) => n + x.amt, 0),
+      dateCell: form === '일별' ? reportDate(g[0].r.repairDate) : form === '월별' ? reportDate(g[0].r.repairDate).slice(0, 7) : dateNo(g[0].r.repairDate, g[0].r.repairNo),
+    }))
+  }, [shown, form])
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, 'A/S수리현황', [shown.length, gubun, agg.agg1, agg.agg2])
 
@@ -127,7 +154,11 @@ export default function AsRepairStatusPage() {
                 <input type="radio" name="asr-gubun" checked={gubun === g} onChange={() => setGubun(g)} /> {g}
               </label>
             ))}
-            {gubun === '내역' ? <span className="text-ec-label">라인별</span>
+            {gubun === '내역' ? (
+              <select className="ec-input w-[140px]" value={form} onChange={(e) => setForm(e.target.value as Form)}>
+                {FORMS.map((f) => <option key={f} value={f}>{f}</option>)}
+              </select>
+            )
               : <AsAggControls value={agg} onChange={(p) => setAgg((v) => ({ ...v, ...p }))} keys={AS_AGG_KEYS.filter((k) => k !== '프로젝트')} />}
           </span>
         </EcCond>
@@ -192,17 +223,17 @@ export default function AsRepairStatusPage() {
         <tbody>
           {loading ? (
             <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
-          ) : shown.length === 0 ? (
+          ) : listRows.length === 0 ? (
             <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((r) => (
-            <tr key={r.id}>
-              <td className="text-center">{dateNo(r.repairDate, r.repairNo)}</td>
+          ) : listRows.map(({ key, r, itemName, amt, dateCell }) => (
+            <tr key={key}>
+              <td className="text-center">{dateCell}</td>
               <td>{r.title ?? ''}</td>
               <td>{r.partnerName}</td>
               <td>{r.repairTypeName ?? ''}</td>
               <td>{r.charge}</td>
-              <td>{r.lines[0]?.itemName ?? ''}</td>
-              <td className="text-right">{won(Number(r.saleAmount))}</td>
+              <td>{itemName}</td>
+              <td className="text-right">{won(amt)}</td>
               <td>{r.content ?? ''}</td>
             </tr>
           ))}
