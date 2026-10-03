@@ -23,5 +23,8 @@ public interface DailyWorkEntryRepository extends JpaRepository<DailyWorkEntry, 
     @Query("delete from DailyWorkEntry e where e.slipDate = :slipDate and e.slipNo = :slipNo")
     void deleteSlip(LocalDate slipDate, int slipNo);
 
+    @Query("select e from DailyWorkEntry e join fetch e.worker where e.workDate between :from and :to")
+    List<DailyWorkEntry> findInWorkPeriod(LocalDate from, LocalDate to);
+
     boolean existsByWorker_Id(Long workerId);
 }
