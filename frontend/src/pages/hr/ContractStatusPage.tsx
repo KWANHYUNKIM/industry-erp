@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
+import EcPeriodPicks from '../../components/EcPeriodPicks'
+import { EcCond } from '../../components/EcStatusPanel'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { ContractStatus, EmploymentContract } from '../../types/api'
@@ -12,6 +14,8 @@ const PILL_STATUS: Record<Exclude<Pill, '전체'>, ContractStatus> = { 진행중
 const STATUS_NAME: Partial<Record<ContractStatus, string>> = { SENT: '진행중', TERMINATED: '취소', SIGNED: '완료' }
 const slash = (s: string) => s.replace(/-/g, '/')
 const dt = (s: string | null) => (s ? `${slash(s.slice(0, 10))} ${s.slice(11, 16)}` : '')
+/** 원본 [Search(F3)] 빠른선택(2026-10-04 실측) — 끝의 [3개월]은 석 달 전 1일 ~ 오늘(처음 기간과 같다). */
+const PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '종료일', '최근7일'] as const
 const threeMonths = () => { const d = new Date(); return { from: ymd(new Date(d.getFullYear(), d.getMonth() - 3, 1)), to: ymd(d) } }
 
 /**
@@ -23,11 +27,13 @@ const threeMonths = () => { const d = new Date(); return { from: ymd(new Date(d.
  * 계약서명은 '계약번호 사원명 근로계약서', 만료일은 계약 종료일, 구분명은 정규직 · 계약직 · 일용직.
  * 원본 [요청]은 사원에게 메일 · 문자로 서명을 청한다(바깥 발송이라 원본에서 누르지 않았다) — 우리 발송은 상태만 바꾼다.
  * 요청기능(요청취소 · 재요청) · 선택삭제는 근로계약서진행단계에서 한다.
+ * 조건 판은 접혀 있고 [Search(F3)]로 편다 — 기준일자(요청일) · 계약서명. 최초작성자 · 최종수정자는 계약에 작성자를 담지 않아 없다.
  */
 export default function ContractStatusPage() {
   const nav = useNavigate()
   const [pill, setPill] = useState<Pill>('전체')
   const [range, setRange] = useState(threeMonths())
+  const [nameCond, setNameCond] = useState('')
   const [rows, setRows] = useState<EmploymentContract[]>([])
   const [error, setError] = useState('')
   const tableRef = useRef<HTMLTableElement>(null)
@@ -40,22 +46,31 @@ export default function ContractStatusPage() {
     .filter((r) => r.status !== 'DRAFT' && r.sentAt)
     .filter((r) => pill === '전체' || r.status === PILL_STATUS[pill])
     .filter((r) => r.sentAt!.slice(0, 10) >= range.from && r.sentAt!.slice(0, 10) <= range.to)
+    .filter((r) => !nameCond || `${r.contractNo} ${r.employeeName} 근로계약서`.includes(nameCond))
     .sort((a, b) => (b.sentAt ?? '').localeCompare(a.sentAt ?? ''))
   useTableColumnCheck(tableRef, '근로계약현황', [shown.length])
 
   return (
-    <EcListShell title="근로계약현황" searchable={false} actions={[{ label: 'Excel' }]}>
+    <EcListShell title="근로계약현황" searchable={false} collapseConditions actions={[{ label: 'Excel' }]}>
       <div className="ec-pills mb-[8px]">
         {(['전체', '진행중', '취소', '완료'] as const).map((p) => (
           <button key={p} type="button" className={`ec-pill${pill === p ? ' active' : ''}`} onClick={() => setPill(p)}>{p}</button>
         ))}
       </div>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
-      <div className="flex items-center justify-end gap-[6px] mb-[6px]">
-        <input type="date" className="ec-input w-[150px]" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
-        ~
-        <input type="date" className="ec-input w-[150px]" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
-      </div>
+      <ul className="ec-cond mb-[8px]">
+        <EcCond label="기준일자">
+          <input type="date" className="ec-input w-[150px]" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
+          ~
+          <input type="date" className="ec-input w-[150px]" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
+        </EcCond>
+        <EcCond label="계약서명"><input className="ec-input w-full" placeholder="계약서명" value={nameCond} onChange={(e) => setNameCond(e.target.value)} /></EcCond>
+        <li className="flex flex-wrap items-center gap-[6px]">
+          <EcPeriodPicks labels={PICKS} currentFrom={range.from} onPick={setRange} />
+          <button type="button" className="ec-btn ec-btn-pick" onClick={() => setRange(threeMonths())}>3개월</button>
+        </li>
+      </ul>
+      <div className="text-right text-ec-hint mb-[6px]">{slash(range.from)} ~ {slash(range.to)}</div>
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
