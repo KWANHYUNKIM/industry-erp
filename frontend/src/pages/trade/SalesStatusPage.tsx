@@ -680,7 +680,8 @@ export default function SalesStatusPage() {
               <tr className="ec-list-total">
                 <td colSpan={2} className="text-center font-bold">총합계</td>
                 <td className="text-right font-bold">{shown.reduce((a, x) => a + x.qty, 0).toLocaleString()}</td>
-                <td></td>
+                {/* 원본 [총합계]도 월 계처럼 단가를 더해 찍는다(2026-10-03 loginaa 전월: 6,785 · 12,585,400 · …) — 구매현황과 같다. */}
+                <td className="text-right font-bold">{shown.reduce((a, x) => a + x.unitPrice, 0).toLocaleString()}</td>
                 <td className="text-right font-bold">{totals.supply.toLocaleString()}</td>
                 <td className="text-right font-bold">{totals.vat.toLocaleString()}</td>
                 <td className="text-right font-bold">{(totals.supply + totals.vat).toLocaleString()}</td>
