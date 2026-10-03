@@ -6,7 +6,10 @@ import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { AS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
-import { dateText } from '../../utils/dateText'
+import { EcReportHead, EcReportFoot, reportPeriod } from '../../components/EcReportFrame'
+import { AsAggControls, AsAggregateTable, AS_AGG_KEYS, type AsAggLine, type AsAggValue } from '../../features/as/AsAggregate'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
+import { usePartnerGroups } from '../../utils/partnerGroups'
 import { dateNo } from '../../utils/dateNo'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
@@ -15,7 +18,8 @@ interface Repair {
   id: number; repairNo: string; repairDate: string; partnerId: number; partnerName: string
   receiptDate: string | null; receiptCharge: string | null; warehouseId: number
   charge: string; repairType: string | null; repairTypeName: string | null; title: string | null; content: string | null
-  lines: { itemId: number; itemName: string }[]; saleAmount: number
+  warehouseName: string | null
+  lines: { itemId: number; itemCode: string; itemName: string; itemSpec: string | null; quantity: number }[]; saleAmount: number
 }
 const REPAIR_TYPES: Record<string, string> = { FREE_EXCHANGE: '무상교환', FREE_REPAIR: '무상수리', PAID_EXCHANGE: '유상교환', PAID_REPAIR: '유상수리', RETURN: '반품' }
 
@@ -28,7 +32,11 @@ const REPAIR_TYPES: Record<string, string> = { FREE_EXCHANGE: '무상교환', FR
  *
  * <p>한 줄 = <b>A/S수리 전표</b> 하나(기준일자 = 수리일자). 소모(판매)금액은 그 수리의 판매연결전표 합계,
  * 접수담당자는 불러온 A/S접수의 담당자다. 예전엔 접수의 상태가 완료인 것을 수리로 보고 A/S 소모부품에서 금액을 모았다.
- * [구분]의 [집계]는 원본 집계 판을 못 재서 내역 한 장만 세운다.
+ *
+ * <p>[구분] ○집계 — 2026-10-04 실측: 집계조건 창의 후보가 A/S접수현황과 같고(A/S수리 묶음 = 담당자 · 창고 · 관리항목),
+ * 담당자로 묶으면 [담당자 | 수량] 최혁순 1.00 · 합계 1.00. 수량은 수리 품목 줄의 수량을 더한다.
+ * 머리글은 'A/S수리현황'(내역은 'AS수리현황'), 꼬리에 [P.1] 이 없다. 수리에는 프로젝트가 없어 그 축은 뺀다.
+ * ◉내역의 선택상자(일별 · 월별 · 라인별 · 전표별 …)는 아직 라인별 한 장이다.
  */
 export default function AsRepairStatusPage() {
   const pickers = useCondPickers(['warehouses', 'partners', 'items'])
@@ -46,6 +54,17 @@ export default function AsRepairStatusPage() {
   const [rows, setRows] = useState<Repair[]>([])
   const [repairType, setRepairType] = useState('')
   const [loading, setLoading] = useState(true)
+  /** 원본 [구분] — ◉내역 ○집계. 집계면 집계조건1 · 2 · 코드포함. */
+  const [gubun, setGubun] = useState<'내역' | '집계'>('내역')
+  const [agg, setAgg] = useState<AsAggValue>({ agg1: '', agg2: '', codeIncl: false })
+  const mgmt = useItemMgmt()
+  const pgroup = usePartnerGroups()
+  const [codes, setCodes] = useState<{ wh: Map<number, string>; pa: Map<number, string> }>({ wh: new Map(), pa: new Map() })
+  useEffect(() => {
+    type C = { id: number; code: string }
+    const get = (u: string) => api.get<C[]>(u).then((r) => new Map(r.data.map((x) => [x.id, x.code] as [number, string]))).catch(() => new Map<number, string>())
+    Promise.all([get('/warehouses'), get('/partners')]).then(([wh, pa]) => setCodes({ wh, pa }))
+  }, [])
   const [error, setError] = useState('')
 
   /* 소모 줄은 서버가 접수일로 자른다 — 수리가 기간 안이면 접수는 그 끝날 이전이니 끝날까지 받는다. */
@@ -76,8 +95,17 @@ export default function AsRepairStatusPage() {
   const total = shown.reduce((a, r) => a + Number(r.saleAmount), 0)
   const charges = useMemo(() => [...new Set(rows.map((r) => r.charge).filter(Boolean))].sort(), [rows])
   const authors = useMemo(() => [...new Set(rows.map((r) => r.receiptCharge).filter(Boolean) as string[])].sort(), [rows])
+  /** ○집계가 읽는 줄 — 수리 품목 줄마다 하나. */
+  const aggLines: AsAggLine[] = shown.flatMap((r) => r.lines.map((l) => ({
+    date: r.repairDate, charge: r.charge ?? '',
+    warehouse: [r.warehouseName ?? '', codes.wh.get(r.warehouseId) ?? ''] as [string, string],
+    mgmt: mgmt.nameOf(l.itemId) ?? '',
+    partner: [r.partnerName, codes.pa.get(r.partnerId) ?? ''] as [string, string], partnerGroup: pgroup.groupOfName(r.partnerName) ?? '',
+    itemName: l.itemName, itemSpec: l.itemSpec, itemCode: l.itemCode, itemGroup: mgmt.groupOf(l.itemId) ?? '',
+    project: ['', ''] as [string, string], qty: Number(l.quantity),
+  })))
   const tableRef = useRef<HTMLTableElement>(null)
-  useTableColumnCheck(tableRef, 'A/S수리현황', [shown.length])
+  useTableColumnCheck(tableRef, 'A/S수리현황', [shown.length, gubun, agg.agg1, agg.agg2])
 
   return (
     <EcListShell
@@ -92,6 +120,17 @@ export default function AsRepairStatusPage() {
     >
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        <EcCond label="구분">
+          <span className="inline-flex flex-wrap items-center gap-[8px]">
+            {(['내역', '집계'] as const).map((g) => (
+              <label key={g} className="inline-flex items-center gap-[3px]">
+                <input type="radio" name="asr-gubun" checked={gubun === g} onChange={() => setGubun(g)} /> {g}
+              </label>
+            ))}
+            {gubun === '내역' ? <span className="text-ec-label">라인별</span>
+              : <AsAggControls value={agg} onChange={(p) => setAgg((v) => ({ ...v, ...p }))} keys={AS_AGG_KEYS.filter((k) => k !== '프로젝트')} />}
+          </span>
+        </EcCond>
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
           <span className="my-0 mx-[4px]">~</span>
@@ -133,9 +172,10 @@ export default function AsRepairStatusPage() {
         </EcCond>
       </ul>
 
-      <h3 className="text-[13px] font-bold mt-[4px] mx-0 mb-[6px]">
-        AS수리현황 <span className="font-normal text-ec-hint">{dateText(from)} ~ {dateText(to)}</span>
-      </h3>
+      {gubun === '집계' ? (
+        <AsAggregateTable title="A/S수리현황" period={reportPeriod(from, to)} lines={aggLines} value={agg} />
+      ) : (<>
+      <EcReportHead title="AS수리현황" period={reportPeriod(from, to)} />
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
@@ -176,6 +216,8 @@ export default function AsRepairStatusPage() {
           </tr>
         </tfoot>
       </table>
+      <EcReportFoot />
+      </>)}
     </EcListShell>
   )
 }

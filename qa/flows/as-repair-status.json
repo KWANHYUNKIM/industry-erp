@@ -1,5 +1,5 @@
 {
-  "about": "A/S수리현황(E040611) — 2026-10-03 원본: A/S수리 전표를 한 줄씩(일자-No. · 제목 · 거래처명 · 수리유형명 · 담당자명 · 품목명 · 소모(판매)금액 · 수리내용) + 합계. 소모(판매)금액은 판매연결전표의 합계. 구매로 재고를 넣고 수리 + 판매연결을 만든 뒤 보고 모두 지운다.",
+  "about": "A/S수리현황(E040611) — 2026-10-03 원본: A/S수리 전표를 한 줄씩(일자-No. · 제목 · 거래처명 · 수리유형명 · 담당자명 · 품목명 · 소모(판매)금액 · 수리내용) + 합계. 소모(판매)금액은 판매연결전표의 합계. 구매로 재고를 넣고 수리 + 판매연결을 만든 뒤 보고 모두 지운다. 2026-10-04: [구분] ○집계(담당자 → [담당자 | 수량] + 합계, 머리글 'A/S수리현황' · [P.1] 없음)도 본다.",
   "shots": [
     {
       "name": "수리(유상수리) + 판매연결 2×3,000 → 현황 줄에 수리유형명 · 6,600 → 수리유형 조건 무상교환이면 안 보임 → 지움",
@@ -13,6 +13,11 @@
         "wait:1500",
         "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA재고2-수리현황') && tr.innerText.includes('유상수리') && tr.innerText.includes('QA기사') && tr.innerText.includes('6,600') && tr.innerText.includes('QA수리내용'))",
         "expect:[...document.querySelectorAll('th')].map((t) => t.innerText.trim()).join('|').includes('거래처명|수리유형명|담당자명')",
+        "expect:document.querySelector('.ec-report-title')?.innerText.trim() === 'AS수리현황' && document.querySelector('.ec-report-foot')?.innerText.includes('[P.1]')",
+        "js:(async () => { const S = (el, v) => { Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('change', { bubbles: true })) }; const W = (ms) => new Promise((r) => setTimeout(r, ms)); [...document.querySelectorAll('input[name=asr-gubun]')][1].click(); await W(300); S([...document.querySelectorAll('select')].find((x) => [...x.options].some((o) => o.value === '관리항목')), '담당자'); await W(300); return 'ok' })()",
+        "expect:[...document.querySelector('table thead tr').cells].map((c) => c.innerText.trim()).join('|') === '담당자|수량' && [...document.querySelectorAll('tbody tr')].some((tr) => tr.cells[0].innerText.trim() === 'QA기사') && document.querySelector('tfoot tr').innerText.includes('합계')",
+        "expect:document.querySelector('.ec-report-title')?.innerText.trim() === 'A/S수리현황' && !document.querySelector('.ec-report-foot').innerText.includes('[P.1]')",
+        "js:(async () => { [...document.querySelectorAll('input[name=asr-gubun]')][0].click(); await new Promise((r) => setTimeout(r, 300)); return 'ok' })()",
         "js:(() => { const s = [...document.querySelectorAll('select')].find((x) => [...x.options].some((o) => o.text === '무상교환')); s.value = 'FREE_EXCHANGE'; s.dispatchEvent(new Event('change', { bubbles: true })); return true })()",
         "wait:500",
         "expect:![...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA재고2-수리현황'))",

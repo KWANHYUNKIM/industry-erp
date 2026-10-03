@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
@@ -10,7 +9,7 @@ import { usePartnerGroups } from '../../utils/partnerGroups'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 import { EcReportHead, EcReportFoot, reportDate, reportPeriod } from '../../components/EcReportFrame'
-import { weekOfYear } from '../../utils/statusAggregate'
+import { AsAggControls, AsAggregateTable, type AsAggKey, type AsAggLine } from '../../features/as/AsAggregate'
 
 /**
  * 재고 II > A/S관리 > A/S접수현황 (이카운트 E040610). 데이터는 GET /api/as-requests 의 접수와 그 품목 줄.
@@ -69,7 +68,7 @@ interface Filters {
    * 수리가 이번 달인 건이 통째로 빠진다.
    */
   /** 원본 [구분] — ◉내역(아래 선택상자) · ○집계(집계조건1 · 2 · 코드포함). 검색할 때 걸린다. */
-  gubun: '내역' | '집계'; form: Form; agg1: AggKey | ''; agg2: AggKey | ''; codeIncl: boolean
+  gubun: '내역' | '집계'; form: Form; agg1: AsAggKey | ''; agg2: AsAggKey | ''; codeIncl: boolean
   warehouse: string; project: string
   partner: string; item: string; charge: string; status: '' | AsStatus
   /** 2026-09-08 실측으로 드러난 일곱. */
@@ -90,11 +89,6 @@ const EMPTY_FILTERS: Filters = { dateFrom: init.from, dateTo: init.to, gubun: '�
 /** 원본 ◉내역 선택상자(차례 그대로). 거래처별라인별(전송용)은 내보내기용 판이라 두지 않는다. */
 const FORMS = ['일별', '월별', '라인별', '전표별', '품목별', '전표별품목별', '거래처별', '담당자별'] as const
 type Form = (typeof FORMS)[number]
-/** 원본 [집계조건] 창의 후보(기준일자 · A/S접수 · 거래처 · 품목 · 프로젝트 묶음). 이름이 곧 열 머리다. */
-const AGG_KEYS = ['일별', '주차별', '월별', '분기별', '반기별', '연별', '담당자', '창고', '관리항목',
-  '거래처', '거래처그룹1', '품목명[규격]', '품목그룹1', '프로젝트'] as const
-type AggKey = (typeof AGG_KEYS)[number]
-
 export default function AsStatusPage() {
   const [rows, setRows] = useState<AsRow[]>([])
   /* 거래처그룹1·품목그룹1 은 마스터에 붙는 값이라 마스터를 받아 이름·id 로 잇는다. */
@@ -219,55 +213,17 @@ export default function AsStatusPage() {
     Promise.all([get('/warehouses'), get('/partners'), get('/projects')]).then(([wh, pa, pj]) => setCodes({ wh, pa, pj }))
   }, [])
 
-  /** 집계 축 하나의 [이름, 코드]. 코드가 없는 축(날짜 · 담당자 · 관리항목 · 그룹)은 코드가 null 이다. */
-  const axis = (k: AggKey, r: AsRow, l: AsLine): [string, string | null] => {
-    const d = r.receiptDate
-    const y = d.slice(0, 4), mo = Number(d.slice(5, 7))
-    switch (k) {
-      case '일별': return [reportDate(d), null]
-      case '주차별': return [`${y}년 ${weekOfYear(d)}주`, null]
-      case '월별': return [reportDate(d).slice(0, 7), null]
-      case '분기별': return [`${y} ${Math.floor((mo - 1) / 3) + 1}분기`, null]
-      case '반기별': return [`${y} ${mo <= 6 ? '상' : '하'}반기`, null]
-      case '연별': return [y, null]
-      case '담당자': return [r.charge ?? '', null]
-      case '창고': return [r.warehouseName ?? '', r.warehouseId != null ? codes.wh.get(r.warehouseId) ?? '' : '']
-      case '관리항목': return [mgmt.nameOf(l.itemId) ?? '', null]
-      case '거래처': return [r.partnerName, codes.pa.get(r.partnerId) ?? '']
-      case '거래처그룹1': return [pgroup.groupOfName(r.partnerName) ?? '', null]
-      /* 집계의 품목 이름은 규격 앞에 한 칸을 띄운다(내역은 붙인다) — 원본 그대로. */
-      case '품목명[규격]': return [l.itemName + (l.itemSpec ? ` [${l.itemSpec}]` : ''), l.itemCode]
-      case '품목그룹1': return [mgmt.groupOf(l.itemId) ?? '', null]
-      case '프로젝트': return [r.projectName ?? '', r.projectId != null ? codes.pj.get(r.projectId) ?? '' : '']
-    }
-  }
-  /** 코드가 있는 축 — [코드포함] 이면 이름 앞에 '<이름>코드' 열이 선다. */
-  const hasCode = (k: AggKey | '') => k === '창고' || k === '거래처' || k === '품목명[규격]' || k === '프로젝트'
-
-  /** ○집계 — 조건1(+조건2)로 묶어 수량을 더한다. 차례는 코드순(코드가 없으면 이름). */
-  const aggRows = useMemo(() => {
-    const { agg1, agg2 } = filters
-    if (!agg1) return []
-    const m = new Map<string, { n1: string; c1: string | null; n2: string; c2: string | null; qty: number }>()
-    for (const { r, l } of lineRows) {
-      const [n1, c1] = axis(agg1, r, l)
-      const [n2, c2] = agg2 ? axis(agg2, r, l) : ['', null]
-      const k = `${n1}␟${n2}`
-      const cur = m.get(k) ?? { n1, c1, n2, c2, qty: 0 }
-      cur.qty += Number(l.quantity)
-      m.set(k, cur)
-    }
-    const key = (n: string, c: string | null) => c || n
-    return [...m.values()].sort((a, b) => key(a.n1, a.c1).localeCompare(key(b.n1, b.c1), 'ko') || key(a.n2, a.c2).localeCompare(key(b.n2, b.c2), 'ko'))
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lineRows.length, sort.sorted, filters.agg1, filters.agg2, codes, filters.item])
+  /** ○집계가 읽는 줄 — 접수 품목 줄마다 하나. 코드는 마스터에서 잇는다. */
+  const aggLines: AsAggLine[] = lineRows.map(({ r, l }) => ({
+    date: r.receiptDate, charge: r.charge ?? '',
+    warehouse: [r.warehouseName ?? '', r.warehouseId != null ? codes.wh.get(r.warehouseId) ?? '' : ''],
+    mgmt: mgmt.nameOf(l.itemId) ?? '',
+    partner: [r.partnerName, codes.pa.get(r.partnerId) ?? ''], partnerGroup: pgroup.groupOfName(r.partnerName) ?? '',
+    itemName: l.itemName, itemSpec: l.itemSpec, itemCode: l.itemCode, itemGroup: mgmt.groupOf(l.itemId) ?? '',
+    project: [r.projectName ?? '', r.projectId != null ? codes.pj.get(r.projectId) ?? '' : ''],
+    qty: Number(l.quantity),
+  }))
   const totalQty = lineRows.reduce((a, x) => a + Number(x.l.quantity), 0)
-  const aggHead = (k: AggKey | '') => (k ? [...(filters.codeIncl && hasCode(k) ? [`${k}코드`] : []), k] : [])
-  const aggCols = [...aggHead(filters.agg1), ...aggHead(filters.agg2)]
-  /* 조건2 · 코드포함에 따라 열이 는다 — 렌더된 표를 직접 잰다. */
-  const aggRef = useRef<HTMLTableElement>(null)
-  useTableColumnCheck(aggRef, 'A/S접수현황 집계', [filters.agg1, filters.agg2, filters.codeIncl, filters.gubun, aggRows.length])
-  const aggCells = (n: string, c: string | null, k: AggKey | '') => (k ? [...(filters.codeIncl && hasCode(k) ? [c ?? ''] : []), n] : [])
 
   return (
     <EcListShell
@@ -301,54 +257,8 @@ export default function AsStatusPage() {
                       return [...m].map(([label, value]) => ({ label, value }))
                     })()} />
       ) : filters.gubun === '집계' ? (
-        <>
-          {/* 원본은 집계 판의 머리글을 'A/S접수현황'(빗금 있음)으로 적는다 — 내역 판은 'AS접수현황'. */}
-          <EcReportHead title="A/S접수현황" period={reportPeriod(filters.dateFrom, filters.dateTo)} />
-          {!filters.agg1 ? (
-            <p className="ec-alert ec-alert-danger">집계조건은 1개 이상 선택해야 합니다.</p>
-          ) : (
-          <table ref={aggRef} className="w-full text-left">
-            <thead><tr>
-              {aggCols.map((h) => <th key={h}>{h}</th>)}
-              <th className="text-right">수량</th>
-            </tr></thead>
-            <tbody>
-              {aggRows.length === 0 ? (
-                <tr><td colSpan={aggCols.length + 1} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-              ) : aggRows.flatMap((g, i) => {
-                const first = i === 0 || aggRows[i - 1].n1 !== g.n1
-                const last = i === aggRows.length - 1 || aggRows[i + 1].n1 !== g.n1
-                const c1 = aggCells(g.n1, g.c1, filters.agg1)
-                const out = [
-                  <tr key={`${g.n1}␟${g.n2}`}>
-                    {/* 조건2 가 있으면 조건1 칸은 묶음 첫 줄에만 적는다(원본 그대로). */}
-                    {c1.map((v, j) => <td key={j}>{!filters.agg2 || first ? v : ''}</td>)}
-                    {aggCells(g.n2, g.c2, filters.agg2).map((v, j) => <td key={`b${j}`}>{v}</td>)}
-                    <td className="text-right">{qty2(g.qty)}</td>
-                  </tr>,
-                ]
-                if (filters.agg2 && last) {
-                  const sub = aggRows.filter((x) => x.n1 === g.n1).reduce((n, x) => n + x.qty, 0)
-                  out.push(
-                    <tr key={`${g.n1}␟계`} className="ec-list-total">
-                      <td colSpan={aggCols.length} className="text-center font-bold">{g.n1} 계</td>
-                      <td className="text-right font-bold">{qty2(sub)}</td>
-                    </tr>,
-                  )
-                }
-                return out
-              })}
-            </tbody>
-            {aggRows.length > 0 && (
-              <tfoot><tr className="ec-total">
-                <td colSpan={aggCols.length} className="text-center">합계</td>
-                <td className="text-right">{qty2(totalQty)}</td>
-              </tr></tfoot>
-            )}
-          </table>
-          )}
-          <EcReportFoot />
-        </>
+        <AsAggregateTable title="A/S접수현황" period={reportPeriod(filters.dateFrom, filters.dateTo)} lines={aggLines}
+                          value={{ agg1: filters.agg1, agg2: filters.agg2, codeIncl: filters.codeIncl }} />
       ) : (
       <>
       <EcReportHead title="AS접수현황" period={reportPeriod(filters.dateFrom, filters.dateTo)} />
@@ -452,19 +362,7 @@ function SearchPanel({
               {FORMS.map((f) => <option key={f} value={f}>{f}</option>)}
             </select>
           ) : (<>
-            집계조건1
-            <select className="ec-input w-[120px]" value={draft.agg1} onChange={(e) => onChange({ agg1: e.target.value as AggKey | '' })}>
-              <option value=""></option>
-              {AGG_KEYS.map((k) => <option key={k} value={k}>{k}</option>)}
-            </select>
-            집계조건2
-            <select className="ec-input w-[120px]" value={draft.agg2} onChange={(e) => onChange({ agg2: e.target.value as AggKey | '' })}>
-              <option value=""></option>
-              {AGG_KEYS.filter((k) => k !== draft.agg1).map((k) => <option key={k} value={k}>{k}</option>)}
-            </select>
-            <label className="inline-flex items-center gap-[3px]">
-              <input type="checkbox" checked={draft.codeIncl} onChange={(e) => onChange({ codeIncl: e.target.checked })} /> 코드포함
-            </label>
+            <AsAggControls value={{ agg1: draft.agg1, agg2: draft.agg2, codeIncl: draft.codeIncl }} onChange={onChange} />
           </>)}
         </div>
       </div>

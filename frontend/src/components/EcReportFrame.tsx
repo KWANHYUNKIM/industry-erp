@@ -46,7 +46,7 @@ export function EcReportHead({ title, period }: { title: string; period: string 
  * 꼬리 — [P.1] 과 <b>출력한 때</b>. 원본 글자: "2026/09/21  오후 12:33:51"
  * (날짜와 오전·오후 사이가 <b>두 칸</b>이다). 화면에 그린 때를 적는다.
  */
-export function EcReportFoot() {
+export function EcReportFoot({ page = true }: { page?: boolean } = {}) {
   const now = new Date()
   const y = now.getFullYear()
   const m = String(now.getMonth() + 1).padStart(2, '0')
@@ -54,7 +54,8 @@ export function EcReportFoot() {
   const time = now.toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit', second: '2-digit' })
   return (
     <div className="ec-report-foot">
-      <span>[P.1]</span>
+      {/* 원본 집계 판(A/S접수현황 · A/S수리현황 2026-10-04 실측)은 [P.1] 없이 출력한 때만 적는다. */}
+      <span>{page ? '[P.1]' : ''}</span>
       <span>{`${y}/${m}/${d}  ${time}`}</span>
     </div>
   )
