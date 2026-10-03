@@ -46,12 +46,19 @@ export default function FieldWorkStatusPage() {
   const [distMin, setDistMin] = useState('')
   const [distMax, setDistMax] = useState('')
   const [remark, setRemark] = useState('')
+  /*
+   * 원본 조건 [기타](2026-10-03 실측): [도착전내역만보기]를 켜면 주행후 계기판거리가 아직 없는 운행만,
+   * [모든날짜표시]를 켜면 기록이 없는 날도 일자만 한 줄씩 — 차량종류 묶음 뒤에 '[] 계' 로 모아 둔다(합은 없다).
+   */
+  const [beforeArrival, setBeforeArrival] = useState(false)
+  const [allDates, setAllDates] = useState(false)
 
   useEffect(() => { api.get<FieldWorkUser[]>('/users').then((r) => setUsers(r.data)).catch(() => {}) }, [])
 
   function reset() {
     setFrom(monthAgo()); setTo(ymd(new Date()))
     setVehicle(''); setUserId(''); setUsePurpose(''); setDistMin(''); setDistMax(''); setRemark('')
+    setBeforeArrival(false); setAllDates(false)
   }
 
   async function search() {
@@ -64,6 +71,7 @@ export default function FieldWorkStatusPage() {
         .filter((r) => !userId || String(r.userId) === userId)
         .filter((r) => has(r.usePurpose, usePurpose))
         .filter((r) => has(r.purpose, remark))
+        .filter((r) => !beforeArrival || r.odometerAfter == null)
         .filter((r) => !distMin || Number(r.distance ?? 0) >= Number(distMin))
         .filter((r) => !distMax || Number(r.distance ?? 0) <= Number(distMax))
         .sort((a, b) => (a.workDate < b.workDate ? -1 : a.workDate > b.workDate ? 1 : a.id - b.id))
@@ -84,6 +92,15 @@ export default function FieldWorkStatusPage() {
       m.set(key, g)
     }
     return [...m.values()]
+  })()
+  /** [모든날짜표시] — 기간 안에서 기록이 하나도 없는 날. */
+  const emptyDays = (() => {
+    if (!allDates || !from || !to) return [] as string[]
+    const have = new Set(rows.map((r) => r.workDate))
+    const out: string[] = []
+    const d = new Date(`${from}T00:00:00`)
+    for (let i = 0; i < 400 && ymd(d) <= to; i++) { const k = ymd(d); if (!have.has(k)) out.push(k); d.setDate(d.getDate() + 1) }
+    return out
   })()
   const sum = (list: FieldWork[]) => list.reduce((a, r) => a + Number(r.distance ?? 0), 0)
   /** 원본 계 · 합계는 두 계기판 값도 더한다(K5[H] 계 75,000 · 76,000, 실측). */
@@ -131,6 +148,17 @@ export default function FieldWorkStatusPage() {
               <div className="title">적요</div>
               <div className="form"><input className="ec-input flex-1" placeholder="적요" value={remark} onChange={(e) => setRemark(e.target.value)} /></div>
             </li>
+            <li className="wide">
+              <div className="title">기타</div>
+              <div className="form gap-[12px]">
+                <label className="inline-flex items-center gap-[4px] cursor-pointer">
+                  <input type="checkbox" checked={beforeArrival} onChange={(e) => setBeforeArrival(e.target.checked)} />도착전내역만보기
+                </label>
+                <label className="inline-flex items-center gap-[4px] cursor-pointer">
+                  <input type="checkbox" checked={allDates} onChange={(e) => setAllDates(e.target.checked)} />모든날짜표시
+                </label>
+              </div>
+            </li>
           </ul>
           <div className="flex flex-wrap items-center gap-[6px] mt-[8px]">
             <button type="button" className="ec-btn ec-btn-primary" onClick={() => void search()}>검색(F8)</button>
@@ -151,7 +179,7 @@ export default function FieldWorkStatusPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.length === 0 ? (
+              {rows.length === 0 && emptyDays.length === 0 ? (
                 <tr><td colSpan={8} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
               ) : (
                 <>
@@ -181,6 +209,15 @@ export default function FieldWorkStatusPage() {
                       </tr>
                     </Fragment>
                   ))}
+                  {emptyDays.length > 0 && (
+                    <>
+                      {emptyDays.map((d) => <tr key={d}><td className="text-ec-navy">{reportDate(d)}</td><td colSpan={7} /></tr>)}
+                      <tr className="font-bold bg-ec-page">
+                        <td colSpan={4} className="text-center">[] 계</td>
+                        <td colSpan={4} />
+                      </tr>
+                    </>
+                  )}
                   <tr className="font-bold bg-ec-page">
                     <td colSpan={4} className="text-center">합계</td>
                     <td className="text-right">{num(sumOf(rows, 'odometerBefore'))}</td>
