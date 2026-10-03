@@ -13,6 +13,9 @@
       "path": "/groupware/field-work-status",
       "steps": [
         "set:.ec-form input[placeholder=\"적요\"]|QA그룹웨어-외근현황",
+        "expect:['금일','전일','금주(~오늘)','전주','금월(~오늘)','전월','종료일','최근30일'].every((l) => [...document.querySelectorAll('button')].some((b) => b.textContent.trim() === l))",
+        "click:최근30일",
+        "expect:(() => { const ins = document.querySelectorAll('.ec-form input[type=date]'); const p = (x) => x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); const t = new Date(); return ins[1].value === p(t) && ins[0].value < ins[1].value })()",
         "click:검색(F8)",
         "expect:document.querySelector('.ec-report-title')?.textContent === '외근현황'",
         "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA-K5[H] 계') && tr.innerText.includes('150.00'))",

@@ -10,6 +10,8 @@ import { useAuth } from '../../features/auth/AuthContext'
 import FieldWorkFormModal, { type FieldWorkUser } from '../../features/fieldwork/components/FieldWorkFormModal'
 
 /** 원본 기본 기간 — 한 달 전 같은 날 ~ 오늘(2026/09/03 ~ 2026/10/03, 외근조회와 같다). */
+/** 원본 빠른선택(2026-10-03 실측): 금일 · 전일 · 금주(~오늘) · 전주 · 금월(~오늘) · 전월 · 종료일 · <b>최근30일</b>. */
+const FIELD_STATUS_PICKS = [...INQUIRY_PICKS, '최근30일'] as const
 const monthAgo = () => { const d = new Date(); d.setMonth(d.getMonth() - 1); return ymd(d) }
 const num = (v: number) => v.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
@@ -162,7 +164,7 @@ export default function FieldWorkStatusPage() {
           </ul>
           <div className="flex flex-wrap items-center gap-[6px] mt-[8px]">
             <button type="button" className="ec-btn ec-btn-primary" onClick={() => void search()}>검색(F8)</button>
-            <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from}
+            <EcPeriodPicks labels={FIELD_STATUS_PICKS} currentFrom={from}
                            onPick={(r) => { if (r.from) setFrom(r.from); setTo(r.to) }} />
             <button type="button" className="ec-btn" onClick={reset}>다시 작성</button>
           </div>
