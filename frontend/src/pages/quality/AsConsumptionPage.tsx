@@ -21,16 +21,24 @@ interface Row { itemId: number; itemName: string; asCount: number; totalQty: num
  * 로 준다. 거름망은 [집계]와 <b>같은 것</b>이라 두 갈래의 합계가 어긋나지 않는다.
  */
 interface Line {
-  partId: number; asNo: string; repairItemName: string; charge: string | null
+  repairId: number; repairNo: string; repairDate: string
+  repairItemId: number | null; repairItemName: string | null; charge: string
+  repairType: string | null; status: 'IN_PROGRESS' | 'COMPLETED'; title: string | null; content: string | null; createdBy: string | null
+  partnerId: number; partnerName: string; warehouseId: number
+  receiptDate: string | null; receiptCharge: string | null; projectId: number | null
+  salesId: number; salesDocNo: string; saleDate: string
   itemId: number; itemName: string
-  quantity: number; unitPrice: number | null; supplyAmount: number | null
+  quantity: number; unitPrice: number | null; supplyAmount: number | null; vatAmount: number | null
 }
+/* 원본 [수리유형] — A/S수리입력과 같은 코드. */
+const REPAIR_TYPES: Record<string, string> = { FREE_EXCHANGE: '무상교환', FREE_REPAIR: '무상수리', PAID_EXCHANGE: '유상교환', PAID_REPAIR: '유상수리', RETURN: '반품' }
+const STATUS_NAME = { IN_PROGRESS: '진행중', COMPLETED: '완료' } as const
 const won = (n: number) => n.toLocaleString('ko-KR')
 
 const initP = periodOf('금월(~오늘)')!
 
 /** A/S 처리 상태(AsStatus)의 표시 이름. 원본 [수리진행상태]가 고르는 것이 이것이다. */
-const AS_STATUSES = ['접수', '처리중', '완료', '취소'] as const
+const AS_STATUSES = ['진행중', '완료'] as const
 
 /**
  * 원본 [정렬/소계기준]. 축은 [설정] 창에서 고르는데 그 창은 <b>값을 저장</b>하므로 열지 않았다
@@ -47,8 +55,13 @@ const SUBTOTALS = ['없음', '품목구분', '품목그룹1'] as const
 const MODES = ['내역', '집계'] as const
 
 export default function AsConsumptionPage() {
-  const [rows, setRows] = useState<Row[]>([])
   const [lines, setLines] = useState<Line[]>([])
+  /* 원본 [접수담당자] · [수리유형] — 수리 전표가 생기면서 거를 수 있게 됐다. */
+  const [receiptCharge, setReceiptCharge] = useState('')
+  const [repairType, setRepairType] = useState('')
+  /* 원본 [접수일자] — 기본 [사용안함]. 비워 두면 안 거른다. */
+  const [recvFrom, setRecvFrom] = useState('')
+  const [recvTo, setRecvTo] = useState('')
   const [mode, setMode] = useState<'내역' | '집계'>('내역')
   const [keyword, setKeyword] = useState('')
   /*
@@ -105,49 +118,64 @@ export default function AsConsumptionPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
+  /*
+   * 2026-10-03 원본 실측: 소모 = <b>수리에 이어진 판매(판매연결전표)의 줄</b>이다. 예전 우리는 A/S 소모부품(AsPart)을
+   * 재고에서 바로 빼고 그것을 모았다 — 판매가 없어 [소모(판매)번호]·[부가세]를 못 냈다. 이제 수리 · 판매연결 기준이다.
+   * 기준일자(수리일자)로 받아 나머지 조건은 그 줄로 거른다.
+   */
   async function load() {
     setLoading(true); setError('')
-    try {
-      const params = { from, to, warehouseId: warehouseId || undefined,
-        partnerId: partnerId || undefined, repairItemId: repairItemId || undefined,
-        projectId: projectId || undefined,
-        partnerGroup: partnerGroup || undefined, itemCategory: itemCategory || undefined,
-        itemGroup: itemGroup || undefined, status: status || undefined,
-        title: title || undefined, remark: remark || undefined,
-        createdBy: createdBy || undefined, charge: charge || undefined }
-      /* 갈래가 바뀌면 <b>둘 다</b> 새로 받는다 — 위쪽 요약이 늘 보이는 표와 같은 자료여야 한다. */
-      const [agg, det] = await Promise.all([
-        api.get<Row[]>('/as-requests/parts/consumption', { params }),
-        api.get<Line[]>('/as-requests/parts/consumption/lines', { params }),
-      ])
-      setRows(agg.data); setLines(det.data)
-    }
-    catch (err) { setError(extractErrorMessage(err)); setRows([]); setLines([]) }
+    try { setLines((await api.get<Line[]>('/as-repairs/consumption', { params: { from, to } })).data) }
+    catch (err) { setError(extractErrorMessage(err)); setLines([]) }
     finally { setLoading(false) }
   }
-  /*
-   * 원본은 이 화면에 <b>[검색(F8)] 이 없다</b> — 조건을 바꾸면 바로 반영된다.
-   * 우리는 조건을 서버에 넘기면서도 다시 부르지 않아, <b>창고를 골라도 표가 그대로</b>였다
-   * ([새로고침]을 눌러야 바뀌었다). 조건이 바뀌면 다시 부른다.
-   */
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load() }, [from, to, warehouseId, partnerId, repairItemId, projectId,
-    partnerGroup, itemCategory, itemGroup, status, title, remark, createdBy, charge])
+  useEffect(() => { load() }, [from, to])
+
+  const filtered = useMemo(() => lines
+    .filter((l) => !warehouseId || String(l.warehouseId) === warehouseId)
+    .filter((l) => !partnerId || String(l.partnerId) === partnerId)
+    .filter((l) => !repairItemId || String(l.repairItemId) === repairItemId)
+    .filter((l) => !projectId || String(l.projectId) === projectId)
+    .filter((l) => !partnerGroup || pgroup.groupOfName(l.partnerName) === partnerGroup)
+    .filter((l) => !itemCategory || (l.repairItemId != null && categoryOf(l.repairItemId) === itemCategory))
+    .filter((l) => !itemGroup || (l.repairItemId != null && groupOf(l.repairItemId) === itemGroup))
+    .filter((l) => !status || STATUS_NAME[l.status] === status)
+    .filter((l) => !title || (l.title ?? '').includes(title))
+    .filter((l) => !remark || (l.content ?? '').includes(remark))
+    .filter((l) => !createdBy || (l.createdBy ?? '').includes(createdBy))
+    .filter((l) => !charge || l.charge.includes(charge))
+    .filter((l) => !receiptCharge || (l.receiptCharge ?? '').includes(receiptCharge))
+    .filter((l) => !repairType || l.repairType === repairType)
+    .filter((l) => !recvFrom || (l.receiptDate ?? '') >= recvFrom)
+    .filter((l) => !recvTo || (l.receiptDate != null && l.receiptDate <= recvTo)),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [lines, warehouseId, partnerId, repairItemId, projectId, partnerGroup, itemCategory, itemGroup, status, title, remark, createdBy, charge, receiptCharge, repairType, recvFrom, recvTo])
+  /* [집계] — 소모부품 품목별로 합친다. */
+  const rows = useMemo<Row[]>(() => {
+    const m = new Map<number, Row & { repairs: Set<number> }>()
+    for (const l of filtered) {
+      const r = m.get(l.itemId) ?? { itemId: l.itemId, itemName: l.itemName, asCount: 0, totalQty: 0, totalAmount: 0, repairs: new Set<number>() }
+      r.repairs.add(l.repairId); r.totalQty += Number(l.quantity); r.totalAmount += Number(l.supplyAmount ?? 0); r.asCount = r.repairs.size
+      m.set(l.itemId, r)
+    }
+    return [...m.values()]
+  }, [filtered])
 
   const shown = useMemo(() => rows.filter((r) => !keyword || r.itemName.includes(keyword)), [rows, keyword])
   /* 검색어는 <b>소모부품명</b>에 건다 — 집계 쪽과 같은 칸이다. */
   const shownLines = useMemo(
-    () => lines.filter((l) => !keyword || l.itemName.includes(keyword)), [lines, keyword])
+    () => filtered.filter((l) => !keyword || l.itemName.includes(keyword)), [filtered, keyword])
   const lineTotals = useMemo(() => shownLines.reduce(
-    (a, l) => ({ qty: a.qty + l.quantity, amount: a.amount + (l.supplyAmount ?? 0) }),
-    { qty: 0, amount: 0 }), [shownLines])
+    (a, l) => ({ qty: a.qty + Number(l.quantity), amount: a.amount + Number(l.supplyAmount ?? 0), vat: a.vat + Number(l.vatAmount ?? 0) }),
+    { qty: 0, amount: 0, vat: 0 }), [shownLines])
   const totals = useMemo(() => shown.reduce((a, r) => ({ qty: a.qty + r.totalQty, amount: a.amount + r.totalAmount }), { qty: 0, amount: 0 }), [shown])
 
   return (
     <EcListShell title="A/S소모현황" search={keyword} onSearchChange={setKeyword} onSearch={load}
       onNew={undefined} actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}>
       <EcStatusPanel from={from} to={to} onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
-        picks={AS_CONSUMPTION_PICKS} dateLabel="접수일자"
+        picks={AS_CONSUMPTION_PICKS} dateLabel="기준일자"
         subtotal={subtotal} subtotals={SUBTOTALS}
         onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}>
         {/* 원본 조건 판의 첫 칸이 [구분]이다. */}
@@ -156,6 +184,10 @@ export default function AsConsumptionPage() {
                   onChange={(e) => setMode(e.target.value as typeof MODES[number])}>
             {MODES.map((m) => <option key={m} value={m}>{m}</option>)}
           </select>
+        </EcCond>
+        <EcCond label="접수일자" span={2}>
+          <input type="date" className="ec-input" value={recvFrom} onChange={(e) => setRecvFrom(e.target.value)} /> ~
+          <input type="date" className="ec-input" value={recvTo} onChange={(e) => setRecvTo(e.target.value)} />
         </EcCond>
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
@@ -170,6 +202,15 @@ export default function AsConsumptionPage() {
         <EcCond label="수리담당자">
           <input className="ec-input" value={charge} onChange={(e) => setCharge(e.target.value)}
                  style={{ width: 120 }} placeholder="전체" />
+        </EcCond>
+        <EcCond label="접수담당자">
+          <input className="ec-input w-[120px]" value={receiptCharge} onChange={(e) => setReceiptCharge(e.target.value)} placeholder="전체" />
+        </EcCond>
+        <EcCond label="수리유형">
+          <select className="ec-input w-[120px]" value={repairType} onChange={(e) => setRepairType(e.target.value)}>
+            <option value="">전체</option>
+            {Object.entries(REPAIR_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
         </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={170} emptyLabel="전체"
@@ -223,7 +264,7 @@ export default function AsConsumptionPage() {
       </EcStatusPanel>
 
       <div className="mb-[8px] text-[12.5px] text-ec-label flex items-center">
-        <span className="text-ec-hint">A/S 수리에 소모된 부품을 품목별로 집계. 소모부품은 A/S 관리에서 등록합니다.</span>
+        <span className="text-ec-hint">A/S수리에 이어진 판매(판매연결전표)의 줄입니다. 부품 · 수리비는 A/S수리조회 [생성한 전표]에서 판매로 만듭니다.</span>
         <span className="ml-auto">
           품목 <b className="text-ec-text">{shown.length}</b>
           <span className="my-0 mx-[6px] text-ec-off">|</span>
@@ -244,44 +285,49 @@ export default function AsConsumptionPage() {
         부품을 재고에서 빼기만 하고 판매를 만들지 않는다. 부가세도 소모부품 줄
         (<code>AsPart</code>)에 칸이 없다 — 열에 0 을 찍으면 면세로 읽힌다.
       */
-      <table className="w-full text-left">
+      <table className="w-full ec-head700">
         <thead>
           <tr>
             <th className="w-[34px]"></th>
-            <th className="w-[150px]">수리번호</th>
+            <th className="w-[110px] text-center">수리번호</th>
             <th>수리품목명</th>
             <th className="w-[100px]">수리담당자</th>
+            <th className="w-[150px]">소모(판매)번호</th>
             <th>소모부품명</th>
             <th className="text-right w-[90px]">수량</th>
             <th className="text-right w-[110px]">단가</th>
             <th className="text-right w-[120px]">공급가액</th>
+            <th className="text-right w-[110px]">부가세</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={10} className="ec-empty">불러오는 중…</td></tr>
           ) : shownLines.length === 0 ? (
-            <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shownLines.map((l, i) => (
-            <tr key={l.partId}>
+            <tr key={`${l.salesId}-${i}`}>
               <td className="text-center text-ec-hint">{i + 1}</td>
-              <td>{l.asNo}</td>
-              <td>{l.repairItemName}</td>
-              <td style={{ color: l.charge ? undefined : 'var(--ec-text-off)' }}>{l.charge || ''}</td>
+              <td className="text-center">{`${l.repairDate.slice(2).replace(/-/g, '/')}-${Number(l.repairNo.split('-').pop())}`}</td>
+              <td>{l.repairItemName ?? ''}</td>
+              <td>{l.charge}</td>
+              <td>{l.salesDocNo}</td>
               <td>{l.itemName}</td>
-              <td className="text-right font-bold text-ec-warn">{won(l.quantity)}</td>
-              <td className="text-right text-ec-label">{l.unitPrice != null ? won(l.unitPrice) : ''}</td>
-              <td className="text-right font-semibold text-ec-blue">{l.supplyAmount != null ? won(l.supplyAmount) : ''}</td>
+              <td className="text-right">{won(Number(l.quantity))}</td>
+              <td className="text-right">{l.unitPrice != null ? won(Number(l.unitPrice)) : ''}</td>
+              <td className="text-right">{l.supplyAmount != null ? won(Number(l.supplyAmount)) : ''}</td>
+              <td className="text-right">{l.vatAmount != null ? won(Number(l.vatAmount)) : ''}</td>
             </tr>
           ))}
         </tbody>
         {shownLines.length > 0 && (
           <tfoot>
             <tr className="font-bold bg-ec-page">
-              <td colSpan={5} className="text-right">합계</td>
-              <td className="text-right text-ec-warn">{won(lineTotals.qty)}</td>
+              <td colSpan={6} className="text-right">합계</td>
+              <td className="text-right">{won(lineTotals.qty)}</td>
               <td></td>
-              <td className="text-right text-ec-blue">{won(lineTotals.amount)}</td>
+              <td className="text-right">{won(lineTotals.amount)}</td>
+              <td className="text-right">{won(lineTotals.vat)}</td>
             </tr>
           </tfoot>
         )}

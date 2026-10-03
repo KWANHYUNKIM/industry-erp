@@ -196,13 +196,6 @@
   ],
   "in": "backend"
  },
- "A/S소모현황|수리유형": {
-  "claim": "A/S 전표에 수리 갈래를 적는 칸이 없다",
-  "absent": [
-   "repairType"
-  ],
-  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
- },
  "거래이력조회|메뉴": {
   "claim": "우리 화면은 그 거래처의 거래 내역이라 감사 기록의 값이 없다",
   "absent": [
@@ -2835,23 +2828,6 @@
    "STATUS_LABEL"
   ],
   "file": "trade/PurchaseRequestStatusPage.tsx"
- },
- "A/S소모현황|소모(판매)번호": {
-  "claim": "A/S 소모부품이 판매 전표를 만들지 않는다",
-  "absent": [
-   "sales",
-   "salesId",
-   "salesNo"
-  ],
-  "in": "backend/src/main/java/com/erp/quality/asrequest/AsPart.java"
- },
- "A/S소모현황|부가세": {
-  "claim": "소모부품 줄에 부가세 칸이 없다",
-  "absent": [
-   "vatAmount",
-   "getVat"
-  ],
-  "in": "backend/src/main/java/com/erp/quality/asrequest/AsPart.java"
  },
  "불량률파악보고서|불량수량": {
   "claim": "우리 것은 검사에서 나온 [검사불량]이다",
@@ -6515,5 +6491,15 @@
    "<div className=\"title\">설문종료일</div>"
   ],
   "file": "groupware/SurveyStatusPage.tsx"
+ },
+ "A/S접수입력|적요": {
+  "claim": "A/S접수 줄은 품목 · 수량만 든다 — 관리항목 · 금액 · 적요 · 시리얼 칸이 줄에 없다",
+  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequestLine.java",
+  "absent": [
+   "mgmt",
+   "amount",
+   "remark",
+   "lotNo"
+  ]
  }
 }

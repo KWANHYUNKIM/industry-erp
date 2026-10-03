@@ -93,4 +93,19 @@ public final class AsRepairDtos {
             LocalDate saleDate,
             @NotEmpty(message = "품목을 1개 이상 입력하세요.") List<@Valid SaleLineRequest> lines
     ) {}
+
+    /**
+     * A/S소모현황(E040641) 한 줄 — 원본 열 [수리번호 · 수리품목명 · 수리담당자 · 소모(판매)번호 · 소모부품명 · 수량 ·
+     * 단가 · 공급가액 · 부가세](2026-10-03 실측). 소모 = 수리에 이어진 판매의 줄이다. 조건이 거르는 값도 싣는다.
+     */
+    public record ConsumptionLine(
+            Long repairId, String repairNo, LocalDate repairDate,
+            Long repairItemId, String repairItemName, String charge,
+            AsRepairType repairType, AsRepairStatus status, String title, String content, String createdBy,
+            Long partnerId, String partnerName, Long warehouseId,
+            LocalDate receiptDate, String receiptCharge, Long projectId,
+            Long salesId, String salesDocNo, LocalDate saleDate,
+            Long itemId, String itemName, BigDecimal quantity, BigDecimal unitPrice,
+            BigDecimal supplyAmount, BigDecimal vatAmount
+    ) {}
 }

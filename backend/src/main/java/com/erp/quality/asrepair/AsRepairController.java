@@ -1,5 +1,6 @@
 package com.erp.quality.asrepair;
 
+import com.erp.quality.asrepair.dto.AsRepairDtos.ConsumptionLine;
 import com.erp.quality.asrepair.dto.AsRepairDtos.LinkSaleRequest;
 import com.erp.quality.asrepair.dto.AsRepairDtos.RepairRequest;
 import com.erp.quality.asrepair.dto.AsRepairDtos.RepairResponse;
@@ -26,6 +27,14 @@ public class AsRepairController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         return service.list(from != null ? from : LocalDate.of(1, 1, 1), to != null ? to : LocalDate.of(9999, 12, 31));
+    }
+
+    /** A/S소모현황 — 수리에 이어진 판매 줄. */
+    @GetMapping("/consumption")
+    public List<ConsumptionLine> consumption(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return service.consumption(from != null ? from : LocalDate.of(1, 1, 1), to != null ? to : LocalDate.of(9999, 12, 31));
     }
 
     @GetMapping("/{id}")

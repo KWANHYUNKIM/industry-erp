@@ -24,12 +24,8 @@ import { useShortcut } from '../../utils/useShortcut'
  *   <li>목록 알약은 진행단계(접수 – 수리중 – 완료)이고 <b>[접수]로 연다</b>. 수리중으로 바꾸면 그 줄은 접수 알약에서 빠진다.</li>
  *   <li>[선택삭제] · 수정 창 [삭제] — "선택한 전표를 삭제 하겠습니까?". 우리는 지울 수가 없었다.</li>
  * </ul>
- * 소모부품(재고 차감)은 원본에서는 A/S수리입력의 일이다 — 그 화면을 만들 때까지 수정 창 아래에 둔다.
+ * 부품 · 수리비는 원본처럼 A/S수리조회 [생성한 전표](판매연결전표)에서 판매로 잡는다 — 접수에는 소모부품이 없다.
  */
-interface AsPart {
-  id: number; itemId: number; itemName: string; warehouseId: number; warehouseName: string
-  quantity: number; unitPrice: number | null; amount: number | null; remark: string | null
-}
 const won = (n: number) => n.toLocaleString('ko-KR')
 
 type AsStatus = 'RECEIVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED'
@@ -176,7 +172,7 @@ export default function AsManagePage() {
   const setFv = (k: keyof typeof f, v: string) => setF((x) => ({ ...x, [k]: v }))
 
   function openNew() {
-    setEditing(null); setFormError(''); setLines(emptyLines()); setParts([])
+    setEditing(null); setFormError(''); setLines(emptyLines())
     /* 원본은 저장 뒤 새 창에 [창고]를 그대로 남긴다 — 같은 창고로 잇달아 받는다. */
     setF((x) => ({ receiptDate: today(), partnerId: '', charge: '', warehouseId: x.warehouseId, status: 'RECEIVED',
       scheduledDate: today(), projectId: '', title: '', symptom: '' }))
@@ -190,7 +186,6 @@ export default function AsManagePage() {
       title: r.title ?? '', symptom: r.symptom ?? '' })
     setLines([...r.lines.map((l) => ({ itemId: String(l.itemId), quantity: String(l.quantity) })), { itemId: '', quantity: '' }])
     setOpen(true)
-    loadParts(r.id)
   }
   const setLine = (i: number, patch: Partial<FormLine>) => setLines((ls) => {
     const n = ls.map((l, k) => (k === i ? { ...l, ...patch } : l))
@@ -252,34 +247,6 @@ export default function AsManagePage() {
     setStageOpen(false); setPicked(new Set())
     setError(failed.length ? failed.map((x) => extractErrorMessage(x.reason)).join(' / ') : '')
     load()
-  }
-
-  /* ── 소모부품(원본에서는 A/S수리입력) ───────────────────────── */
-  const [parts, setParts] = useState<AsPart[]>([])
-  const [partForm, setPartForm] = useState({ itemId: '', warehouseId: '', quantity: '', unitPrice: '' })
-  const [partError, setPartError] = useState('')
-  async function loadParts(asId: number) {
-    try { setParts((await api.get<AsPart[]>(`/as-requests/${asId}/parts`)).data) } catch { setParts([]) }
-  }
-  async function addPart() {
-    if (!editing) return
-    setPartError('')
-    if (!partForm.itemId) return setPartError('품목을 선택하세요.')
-    if (!partForm.warehouseId) return setPartError('창고를 선택하세요.')
-    if (!(Number(partForm.quantity) > 0)) return setPartError('수량은 0보다 커야 합니다.')
-    try {
-      await api.post(`/as-requests/${editing.id}/parts`, {
-        itemId: Number(partForm.itemId), warehouseId: Number(partForm.warehouseId),
-        quantity: Number(partForm.quantity), unitPrice: partForm.unitPrice ? Number(partForm.unitPrice) : undefined,
-      })
-      setPartForm({ itemId: '', warehouseId: '', quantity: '', unitPrice: '' })
-      loadParts(editing.id)
-    } catch (err) { setPartError(extractErrorMessage(err)) }
-  }
-  async function delPart(pt: AsPart) {
-    if (!editing || !window.confirm(`${pt.itemName} ${won(pt.quantity)}개 소모를 삭제할까요? (재고 복원)`)) return
-    try { await api.delete(`/as-requests/parts/${pt.id}`); loadParts(editing.id) }
-    catch (err) { setPartError(extractErrorMessage(err)) }
   }
 
   /* 원본 [접수일자-번호] '26/10/03-1' */
@@ -584,42 +551,6 @@ export default function AsManagePage() {
           <button className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
         </div>
 
-        {editing && (
-          <div className="mt-[14px] pt-[10px] border-t border-ec-line border-solid">
-            <div className="font-bold mb-[6px]">소모부품 <span className="text-ec-hint font-normal">— 쓰면 그 창고 재고가 빠지고, 지우면 돌아온다(원본은 A/S수리입력에서 한다)</span></div>
-            {editing.status !== 'CANCELED' && (
-              <div className="flex gap-[6px] flex-wrap items-end mb-[8px]">
-                <CodePickerField label="부품(품목)" hideLabel width={180} placeholder="부품(품목)" emptyLabel="선택 해제"
-                                 value={partForm.itemId} onChange={(v) => setPartForm((x) => ({ ...x, itemId: v }))}
-                                 items={items.filter((it) => it.active !== false).map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))} />
-                <CodePickerField label="창고" hideLabel width={150} placeholder="창고" emptyLabel="선택 해제"
-                                 value={partForm.warehouseId} onChange={(v) => setPartForm((x) => ({ ...x, warehouseId: v }))}
-                                 items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name }))} />
-                <input className="ec-input text-right w-[80px]" type="number" placeholder="수량" value={partForm.quantity} onChange={(e) => setPartForm((x) => ({ ...x, quantity: e.target.value }))} />
-                <input className="ec-input text-right w-[100px]" type="number" placeholder="단가" value={partForm.unitPrice} onChange={(e) => setPartForm((x) => ({ ...x, unitPrice: e.target.value }))} />
-                <button className="ec-btn" onClick={addPart}>추가</button>
-              </div>
-            )}
-            {partError && <p className="ec-alert ec-alert-danger mb-[8px]">{partError}</p>}
-            <table className="w-full">
-              <thead><tr><th className="w-[34px]"></th><th>부품</th><th className="w-[120px]">창고</th><th className="w-[80px] text-right">수량</th><th className="w-[100px] text-right">단가</th><th className="w-[110px] text-right">금액</th><th className="w-[140px]">적요</th><th className="w-[50px]"></th></tr></thead>
-              <tbody>
-                {parts.length === 0 ? (
-                  <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-                ) : parts.map((pt, k) => (
-                  <tr key={pt.id}>
-                    <td className="text-center">{k + 1}</td><td>{pt.itemName}</td><td>{pt.warehouseName}</td>
-                    <td className="text-right">{won(pt.quantity)}</td>
-                    <td className="text-right">{pt.unitPrice != null ? won(pt.unitPrice) : ''}</td>
-                    <td className="text-right">{pt.amount != null ? won(pt.amount) : ''}</td>
-                    <td>{pt.remark ?? ''}</td>
-                    <td className="text-center"><button type="button" className="ec-link" onClick={() => delPart(pt)}>삭제</button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </Modal>
     </EcListShell>
   )

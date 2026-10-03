@@ -4,6 +4,7 @@ import com.erp.common.ApiException;
 import com.erp.common.DocumentNoGenerator;
 import com.erp.inventory.item.ItemService;
 import com.erp.inventory.warehouse.WarehouseService;
+import com.erp.quality.asrepair.dto.AsRepairDtos.ConsumptionLine;
 import com.erp.quality.asrepair.dto.AsRepairDtos.LinkSaleRequest;
 import com.erp.quality.asrepair.dto.AsRepairDtos.LinkedSale;
 import com.erp.quality.asrepair.dto.AsRepairDtos.RepairLineRequest;
@@ -134,6 +135,41 @@ public class AsRepairService {
                     .quantity(l.quantity() != null ? l.quantity() : BigDecimal.ONE)
                     .build());
         }
+    }
+
+    /** A/S소모현황 — 기준일자(수리일자) 안의 수리에 이어진 판매 줄. 조건은 화면이 이 줄로 거른다. */
+    @Transactional(readOnly = true)
+    public List<ConsumptionLine> consumption(LocalDate from, LocalDate to) {
+        List<AsRepair> repairs = repository.findWithRefs(from, to);
+        if (repairs.isEmpty()) return List.of();
+        Map<Long, AsRepair> byId = repairs.stream().collect(Collectors.toMap(AsRepair::getId, Function.identity()));
+        List<AsRepairSale> links = saleLinkRepository.findByRepairIdIn(List.copyOf(byId.keySet()));
+        if (links.isEmpty()) return List.of();
+        Set<Long> saleIds = new HashSet<>(links.stream().map(AsRepairSale::getSalesId).toList());
+        Map<Long, SalesResponse> sales = salesService.findAll().stream().filter(s -> saleIds.contains(s.id()))
+                .collect(Collectors.toMap(SalesResponse::id, Function.identity()));
+        List<ConsumptionLine> out = new java.util.ArrayList<>();
+        for (AsRepairSale link : links) {
+            AsRepair r = byId.get(link.getRepair().getId());
+            SalesResponse s = sales.get(link.getSalesId());
+            if (r == null || s == null) continue;
+            var first = r.getLines().isEmpty() ? null : r.getLines().get(0);
+            var req = r.getAsRequest();
+            for (var l : s.lines()) {
+                out.add(new ConsumptionLine(r.getId(), r.getRepairNo(), r.getRepairDate(),
+                        first != null ? first.getItem().getId() : null,
+                        first != null ? first.getItem().getName() : null, r.getCharge(),
+                        r.getRepairType(), r.getStatus(), r.getTitle(), r.getContent(), r.getCreatedBy(),
+                        r.getPartner().getId(), r.getPartner().getName(), r.getWarehouse().getId(),
+                        req != null ? req.getReceiptDate() : null, req != null ? req.getCharge() : null,
+                        req != null && req.getProject() != null ? req.getProject().getId() : null,
+                        s.id(), s.docNo(), s.saleDate(),
+                        l.itemId(), l.itemName(), l.quantity(), l.unitPrice(), l.supplyAmount(), l.vatAmount()));
+            }
+        }
+        out.sort((a, b) -> b.repairDate().compareTo(a.repairDate()) != 0 ? b.repairDate().compareTo(a.repairDate())
+                : b.repairNo().compareTo(a.repairNo()));
+        return out;
     }
 
     private Map<Long, List<LinkedSale>> linkedSales(List<Long> repairIds) {
