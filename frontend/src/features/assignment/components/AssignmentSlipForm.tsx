@@ -18,6 +18,9 @@ interface Row {
 }
 const blank = (): Row => ({ assignDate: '', employeeId: '', type: '', hireKind: '', jobTitle: '', departmentId: '', remark: '' })
 const BLANK_ROWS = 3
+/** 원본 입사구분 코드도움(2026-10-03 loginaa): 100 신입 · 200 경력. 예전에 글자로 적은 값이면 그 값도 후보에 둔다. */
+const HIRE_KINDS = [{ value: '신입', code: '100', name: '신입' }, { value: '경력', code: '200', name: '경력' }]
+const hireKindItems = (cur: string) => (cur && !HIRE_KINDS.some((k) => k.value === cur) ? [...HIRE_KINDS, { value: cur, name: cur }] : HIRE_KINDS)
 
 /**
  * 인사발령입력 격자(원본 E020721 '인사발령입력등록' / 조회에서 열면 '인사발령입력수정').
@@ -31,7 +34,7 @@ const BLANK_ROWS = 3
  *   <li>수정 창: 일자는 막히고(2026/10/03 -1), 버튼 저장(F8) · 닫기 · 삭제('전표를 삭제하겠습니까?').</li>
  * </ul>
  * 발령구분 · 입사구분은 원본이 회사가 등록하는 코드다. 우리 발령구분은 '인사발령'(직위 · 부서만) 외에 입사 · 전보 · 승진 ·
- * 퇴사 · 재입사(재직상태까지 바꾼다)를 고르고, 입사구분은 글자로 적는다. 복사 · H(이력) · 찾기(F3) 는 없다.
+ * 퇴사 · 재입사(재직상태까지 바꾼다)를 고르고, 입사구분은 원본 코드 100 신입 · 200 경력을 고른다. 복사 · H(이력) · 찾기(F3) 는 없다.
  */
 export default function AssignmentSlipForm({
   slipDate: editDate, slipNo: editNo, onSaved, onClose,
@@ -180,7 +183,11 @@ export default function AssignmentSlipForm({
                       {ASSIGNMENT_KINDS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                     </select>
                   </td>
-                  <td><input className="ec-input w-full" value={r.hireKind} onChange={(e) => edit(i, { hireKind: e.target.value })} /></td>
+                  <td>
+                    <CodePickerField label="입사구분" hideLabel fill placeholder="입사구분" emptyLabel="선택 해제"
+                                     value={r.hireKind} onChange={(v) => edit(i, { hireKind: v })}
+                                     items={hireKindItems(r.hireKind)} />
+                  </td>
                   <td>{r.employeeId ? prev[i]?.jobTitle ?? '' : ''}</td>
                   <td><input className="ec-input w-full" value={r.jobTitle} onChange={(e) => edit(i, { jobTitle: e.target.value })} /></td>
                   <td>{r.employeeId ? prev[i]?.department ?? '' : ''}</td>

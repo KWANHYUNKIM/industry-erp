@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import EcPeriodPicks, { STATUS_PICKS } from '../../components/EcPeriodPicks'
 import { EcCond } from '../../components/EcStatusPanel'
+import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import AssignmentConds, { initialAssignmentConds, matchAssignment } from '../../features/assignment/components/AssignmentConds'
 import { slipLabel, type AssignmentLine } from '../../features/assignment/types'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
@@ -11,7 +12,7 @@ import { api, extractErrorMessage } from '../../api/client'
  * 관리 &gt; 인사관리 &gt; 인사발령 &gt; <b>인사발령현황</b> (원본 E020720).
  *
  * <p>2026-10-03 loginaa 실측: 조건이 펼쳐진 현황 — 기준일자(전월+금월) · 발령일자(사용) · 사원 · 발령구분 · 입사구분 ·
- * 직위/직급 · 부서 · 적요 · 재직구분(전체 · 재직자 · 퇴직자). 결과 머리 '회사명 : …' · 기간, 격자 일자-No. · 발령일자 · 사번 ·
+ * 직위/직급 · 부서 · 적요 · 재직구분(전체 · 재직자 · 퇴직자). 결과 머리 큰 제목 · '회사명 : …' · 기간(EcReportHead), 꼬리 [P.1] · 출력 시각, 격자 일자-No. · 발령일자 · 사번 ·
  * 성명 · 발령구분명 · 입사구분명 · 이전 직위/직급 · 발령 직위/직급 · 이전 부서 · 발령 부서 · 적요(발령 줄마다 한 줄, 합계 없음).
  * 버튼 인쇄 · Excel. 조건 판은 조회와 같은 AssignmentConds + 재직구분. 정렬/소계기준 · 양식은 없다(원본 [설정] 창이 열리지 않아 못 쟀다).
  */
@@ -52,8 +53,7 @@ export default function AssignmentStatusPage() {
         <EcPeriodPicks labels={STATUS_PICKS} currentFrom={range.from} onPick={(r) => setConds({ ...conds, range: r })} />
       </div>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
-      <div className="text-center font-bold mb-[2px]">인사발령현황</div>
-      <div className="text-ec-hint mb-[4px]">{shownRange.from.replace(/-/g, '/')} ~ {shownRange.to.replace(/-/g, '/')}</div>
+      <EcReportHead title="인사발령현황" period={reportPeriod(shownRange.from, shownRange.to)} />
       <div className="overflow-x-auto">
         <table ref={tableRef} className="w-full text-left">
           <thead>
@@ -92,6 +92,7 @@ export default function AssignmentStatusPage() {
           </tbody>
         </table>
       </div>
+      <EcReportFoot />
     </EcListShell>
   )
 }

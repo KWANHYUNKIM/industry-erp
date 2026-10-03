@@ -9,13 +9,14 @@
         "pick:사번:EMP-0001",
         "expect:document.querySelector('table tbody tr td:nth-child(4)').textContent.trim().length>0",
         "choose:table tbody select#0|인사발령",
+        "pick:입사구분:신입",
         "set:table tbody tr:first-child td:last-child input|QA관리-화면발령",
         "click:저장(F8)",
         "expect:document.body.innerText.includes('[사원정보에 반영] 체크 시, 저장한 정보로 사원정보가 변경됩니다.')",
         "clicklast:확인",
         "wait:1500",
         "expect:document.querySelector('table tbody tr td:last-child input').value===''",
-        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const d=new Date();const t=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const r=await (await fetch('/api/employees/assignment-slips?from='+t+'&to='+t,{headers:h})).json();const l=r.find(x=>x.remark==='QA관리-화면발령');sessionStorage.setItem('qaAs',String(!!l&&l.type==='GENERAL'&&l.prevJobTitle===l.jobTitle&&l.prevDepartment===l.department&&l.employeeCode==='EMP-0001'));if(l)sessionStorage.setItem('qaAsKey',l.slipDate.replace(/-/g,'/')+' -'+l.slipNo);return true})()",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const d=new Date();const t=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const r=await (await fetch('/api/employees/assignment-slips?from='+t+'&to='+t,{headers:h})).json();const l=r.find(x=>x.remark==='QA관리-화면발령');sessionStorage.setItem('qaAs',String(!!l&&l.type==='GENERAL'&&l.prevJobTitle===l.jobTitle&&l.prevDepartment===l.department&&l.employeeCode==='EMP-0001'&&l.hireKind==='신입'));if(l)sessionStorage.setItem('qaAsKey',l.slipDate.replace(/-/g,'/')+' -'+l.slipNo);return true})()",
         "expect:sessionStorage.getItem('qaAs')==='true'"
       ]
     },
@@ -24,6 +25,8 @@
       "path": "/hr/assignments/status",
       "steps": [
         "expect:[...document.querySelectorAll('table tbody tr')].some(tr=>tr.innerText.includes('QA관리-화면발령')&&tr.innerText.includes('EMP-0001')&&tr.innerText.includes('인사발령'))",
+        "expect:[...document.querySelectorAll('table tbody tr')].some(tr=>tr.innerText.includes('QA관리-화면발령')&&tr.innerText.includes('신입'))",
+        "expect:document.querySelector('.ec-report-head').textContent.includes('회사명 :')&&document.querySelector('.ec-report-foot').textContent.includes('[P.1]')",
         "pick:발령구분:입사",
         "clicklast:확인",
         "click:검색(F8)",
