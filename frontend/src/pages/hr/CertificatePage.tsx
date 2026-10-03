@@ -89,7 +89,8 @@ export default function CertificatePage() {
   }
 
   const docOf = (c: Pick<Certificate, 'issueNo' | 'kind' | 'kindName' | 'employeeName' | 'address' | 'department' | 'jobTitle' | 'hireDate' | 'resignDate' | 'purpose' | 'issueDate'>): CertificateDocData => ({
-    ...c, endDate: c.kind === 'EMPLOYMENT' ? c.issueDate : c.resignDate ?? c.issueDate,
+    // 재직증명서는 발행일까지. 경력증명서는 퇴사일까지 — 아직 다니면 비운다(원본 '2019년 01월 05일~', 2026-10-04 실측).
+    ...c, endDate: c.kind === 'EMPLOYMENT' ? c.issueDate : c.resignDate,
   })
   const formEmp = employees.find((e) => String(e.id) === form.employeeId)
   const editing = rows.find((r) => r.id === editId)

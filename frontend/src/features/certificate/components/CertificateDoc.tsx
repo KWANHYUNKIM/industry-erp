@@ -12,7 +12,7 @@ export interface CertificateDocData {
   department: string
   jobTitle: string
   hireDate: string | null
-  /** 재직증명서는 발행일까지, 퇴직 · 경력증명서는 퇴사일까지(없으면 발행일) */
+  /** 재직증명서는 발행일까지, 퇴직 · 경력증명서는 퇴사일까지(경력증명서는 아직 다니면 비어 '입사일~' 로 찍힌다) */
   endDate: string | null
   purpose: string | null
   issueDate: string
@@ -22,6 +22,8 @@ export interface CertificateDocData {
  * 원본 E020606 '증명서 확인' 판의 증명서 — 2026-10-03 loginaa 재직증명서 실측:
  * 위에 '발급번호 : 2026-1호', 테두리 표 안에 밑줄 친 제목(재 직 증 명 서), 성 명 · 주민등록번호 · 현 주 소 · 소 속 · 직 위 ·
  * 근무기간(2024년 10월 01일~2026년 10월 03일) · 용 도, '위와 같이 증명합니다.', 발행일, 회사 주소 · 대 표 이 사 · 회사명.
+ * 경력증명서(2026-10-04 실측)도 같은 판 — 제목 '경 력 증 명 서', 재직 중이면 근무기간이 '2019년 01월 05일~' 로 끝이 빈다.
+ * 원본은 대표이사 옆에 회사 직인 그림이 찍힌다(우리는 직인 그림이 없다).
  * 주민등록번호는 우리 사원에 없어 비워 둔다(원본 회사 자료도 비어 있었다). 원본은 이 판을 편집기로 고칠 수 있다 — 우리는 보기만.
  */
 export default function CertificateDoc({ d, company }: { d: CertificateDocData; company: CompanyInfo | null }) {
