@@ -55,7 +55,7 @@ public class PaySettingController {
     /** 원본 [적용사원등록] 저장 — 적용사원을 통째로 바꾼다. */
     @PutMapping("/groups/{id}/employees")
     public List<PaySettingDtos.GroupEmployeeResponse> replaceGroupEmployees(
-            @PathVariable Long id, @Valid @RequestBody List<@Valid PaySettingDtos.GroupEmployeeInput> body) {
+            @PathVariable Long id, @Valid @RequestBody List<PaySettingDtos.@Valid GroupEmployeeInput> body) {
         return service.replaceGroupEmployees(id, body);
     }
 
