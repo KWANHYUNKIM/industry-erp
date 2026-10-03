@@ -1,5 +1,5 @@
 {
-  "about": "관리 > 인사발령입력(E020721) · 조회(E020602) · 현황(E020720) — 원본처럼 사번을 고르면 이전/발령 직위·부서가 채워지고, 발령구분 '인사발령'으로 저장하면 '[사원정보에 반영]' 확인 창을 지나 조회 · 현황에 한 줄씩 보인다. 조회의 일자-No. 로 수정 창을 열어 [삭제]로 지운다.",
+  "about": "관리 > 인사발령입력(E020721) · 조회(E020602) · 현황(E020720) — 원본처럼 사번을 고르면 이전/발령 직위·부서가 채워지고, 발령구분 '인사발령'으로 저장하면 '[사원정보에 반영]' 확인 창을 지나 조회 · 현황에 한 줄씩 보인다. 조회의 일자-No. 로 수정 창을 열어 [삭제]로 지운다. 현황에서 조건 판(발령구분 · 발령일자 사용)으로 그 줄이 걸러지는지도 본다.",
   "shots": [
     {
       "name": "인사발령입력 → 저장(사원정보에 반영)",
@@ -20,10 +20,27 @@
       ]
     },
     {
-      "name": "인사발령현황 — 발령 줄",
+      "name": "인사발령현황 — 발령 줄 · 발령구분 · 발령일자 조건",
       "path": "/hr/assignments/status",
       "steps": [
-        "expect:[...document.querySelectorAll('table tbody tr')].some(tr=>tr.innerText.includes('QA관리-화면발령')&&tr.innerText.includes('EMP-0001')&&tr.innerText.includes('인사발령'))"
+        "expect:[...document.querySelectorAll('table tbody tr')].some(tr=>tr.innerText.includes('QA관리-화면발령')&&tr.innerText.includes('EMP-0001')&&tr.innerText.includes('인사발령'))",
+        "pick:발령구분:입사",
+        "clicklast:확인",
+        "click:검색(F8)",
+        "wait:800",
+        "expect:![...document.querySelectorAll('table tbody tr')].some(tr=>tr.innerText.includes('QA관리-화면발령'))",
+        "pick:발령구분:입사",
+        "pick:발령구분:인사발령",
+        "clicklast:확인",
+        "click:검색(F8)",
+        "wait:800",
+        "expect:[...document.querySelectorAll('table tbody tr')].some(tr=>tr.innerText.includes('QA관리-화면발령'))",
+        "js:(()=>{const c=[...document.querySelectorAll('label')].find(l=>l.textContent.trim()==='사용').querySelector('input');c.click();return true})()",
+        "wait:300",
+        "expect:[...document.querySelectorAll('table tbody tr')].some(tr=>tr.innerText.includes('QA관리-화면발령'))",
+        "set:input[aria-label=\"발령일자 시작\"]|2099-01-01",
+        "wait:300",
+        "expect:![...document.querySelectorAll('table tbody tr')].some(tr=>tr.innerText.includes('QA관리-화면발령'))"
       ]
     },
     {

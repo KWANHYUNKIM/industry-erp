@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
-import EcPeriodPicks, { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { STATUS_PICKS } from '../../components/EcPeriodPicks'
 import { EcCond } from '../../components/EcStatusPanel'
+import AssignmentConds, { initialAssignmentConds, matchAssignment } from '../../features/assignment/components/AssignmentConds'
 import { slipLabel, type AssignmentLine } from '../../features/assignment/types'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
@@ -12,13 +13,11 @@ import { api, extractErrorMessage } from '../../api/client'
  * <p>2026-10-03 loginaa 실측: 조건이 펼쳐진 현황 — 기준일자(전월+금월) · 발령일자(사용) · 사원 · 발령구분 · 입사구분 ·
  * 직위/직급 · 부서 · 적요 · 재직구분(전체 · 재직자 · 퇴직자). 결과 머리 '회사명 : …' · 기간, 격자 일자-No. · 발령일자 · 사번 ·
  * 성명 · 발령구분명 · 입사구분명 · 이전 직위/직급 · 발령 직위/직급 · 이전 부서 · 발령 부서 · 적요(발령 줄마다 한 줄, 합계 없음).
- * 버튼 인쇄 · Excel. 발령일자 · 입사구분 · 직위 조건 · 정렬/소계기준은 없다.
+ * 버튼 인쇄 · Excel. 조건 판은 조회와 같은 AssignmentConds + 재직구분. 정렬/소계기준 · 양식은 없다(원본 [설정] 창이 열리지 않아 못 쟀다).
  */
 export default function AssignmentStatusPage() {
-  const [range, setRange] = useState(() => periodOf('전월+금월')!)
-  const [empCond, setEmpCond] = useState('')
-  const [deptCond, setDeptCond] = useState('')
-  const [remarkCond, setRemarkCond] = useState('')
+  const [conds, setConds] = useState(initialAssignmentConds)
+  const range = conds.range
   const [employment, setEmployment] = useState<'all' | 'active' | 'resigned'>('all')
   const [lines, setLines] = useState<AssignmentLine[]>([])
   const [shownRange, setShownRange] = useState(range)
@@ -32,25 +31,14 @@ export default function AssignmentStatusPage() {
   }
   useEffect(() => { search() }, [])
 
-  const has = (s: string | null | undefined, q: string) => !q || (s ?? '').includes(q)
-  const shown = lines.filter((l) =>
-    (has(l.employeeName, empCond) || has(l.employeeCode, empCond))
-    && (has(l.department, deptCond) || has(l.prevDepartment, deptCond))
-    && has(l.remark, remarkCond)
+  const shown = lines.filter((l) => matchAssignment(conds, l)
     && (employment === 'all' || (employment === 'active') === l.employeeActive))
   useTableColumnCheck(tableRef, '인사발령현황', [shown.length])
 
   return (
     <EcListShell title="인사발령현황" searchable={false} collapseConditions={false} actions={[{ label: '인쇄' }, { label: 'Excel' }]}>
       <ul className="ec-cond mb-[8px]">
-        <EcCond label="기준일자">
-          <input type="date" className="ec-input w-[150px]" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
-          ~
-          <input type="date" className="ec-input w-[150px]" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
-        </EcCond>
-        <EcCond label="사원"><input className="ec-input w-full" placeholder="사원" value={empCond} onChange={(e) => setEmpCond(e.target.value)} /></EcCond>
-        <EcCond label="부서"><input className="ec-input w-full" placeholder="부서" value={deptCond} onChange={(e) => setDeptCond(e.target.value)} /></EcCond>
-        <EcCond label="적요"><input className="ec-input w-full" placeholder="적요" value={remarkCond} onChange={(e) => setRemarkCond(e.target.value)} /></EcCond>
+        <AssignmentConds value={conds} onChange={setConds} lines={lines} />
         <EcCond label="재직구분">
           {([['all', '전체'], ['active', '재직자'], ['resigned', '퇴직자']] as const).map(([v, l]) => (
             <label key={v} className="inline-flex items-center gap-[4px] mr-[10px]">
@@ -61,7 +49,7 @@ export default function AssignmentStatusPage() {
       </ul>
       <div className="flex flex-wrap items-center gap-[6px] mb-[8px]">
         <button type="button" className="ec-btn ec-btn-primary" onClick={search}>검색(F8)</button>
-        <EcPeriodPicks labels={STATUS_PICKS} currentFrom={range.from} onPick={setRange} />
+        <EcPeriodPicks labels={STATUS_PICKS} currentFrom={range.from} onPick={(r) => setConds({ ...conds, range: r })} />
       </div>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <div className="text-center font-bold mb-[2px]">인사발령현황</div>

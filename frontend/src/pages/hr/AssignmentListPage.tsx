@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
-import EcPeriodPicks, { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
-import { EcCond } from '../../components/EcStatusPanel'
+import EcPeriodPicks, { STATUS_PICKS } from '../../components/EcPeriodPicks'
+import AssignmentConds, { initialAssignmentConds, matchAssignment } from '../../features/assignment/components/AssignmentConds'
 import Modal from '../../components/Modal'
 import AssignmentSlipForm from '../../features/assignment/components/AssignmentSlipForm'
 import { groupSlips, slipLabel, type AssignmentLine } from '../../features/assignment/types'
@@ -15,14 +15,12 @@ import { api, extractErrorMessage } from '../../api/client'
  * <p>2026-10-03 loginaa 실측: 기간 전월+금월(2026/09/01 ~ 2026/10/03) · 격자 일자-No. · 성명 · 발령구분 · 적요 ·
  * 버튼 신규(F2) · 선택삭제 · Excel. 조건은 접혀 있고 [Search(F3)] 로 편다 — 기준일자 · 발령일자(사용) · 사원 · 발령구분 ·
  * 입사구분 · 직위/직급 · 부서 · 적요. [일자-No.]를 누르면 '인사발령입력수정' 창이 뜬다.
- * 한 전표에 여러 사원이면 성명을 '홍길동 외 1건' 으로 찍는다(근무조회와 같은 꼴). 이력 탭 · 발령일자 · 입사구분 · 직위 조건은 없다.
+ * 한 전표에 여러 사원이면 성명을 '홍길동 외 1건' 으로 찍는다(근무조회와 같은 꼴). 조건 판은 AssignmentConds. 이력 탭은 없다.
  */
 export default function AssignmentListPage() {
   const nav = useNavigate()
-  const [range, setRange] = useState(() => periodOf('전월+금월')!)
-  const [empCond, setEmpCond] = useState('')
-  const [deptCond, setDeptCond] = useState('')
-  const [remarkCond, setRemarkCond] = useState('')
+  const [conds, setConds] = useState(initialAssignmentConds)
+  const range = conds.range
   const [quick, setQuick] = useState('')
   const [lines, setLines] = useState<AssignmentLine[]>([])
   const [error, setError] = useState('')
@@ -37,11 +35,7 @@ export default function AssignmentListPage() {
   }
   useEffect(() => { search() }, [])
 
-  const has = (s: string | null | undefined, q: string) => !q || (s ?? '').includes(q)
-  const slips = groupSlips(lines.filter((l) =>
-    (has(l.employeeName, empCond) || has(l.employeeCode, empCond))
-    && (has(l.department, deptCond) || has(l.prevDepartment, deptCond))
-    && has(l.remark, remarkCond)
+  const slips = groupSlips(lines.filter((l) => matchAssignment(conds, l)
     && (!quick || l.employeeName.includes(quick) || (l.remark ?? '').includes(quick))))
   useTableColumnCheck(tableRef, '인사발령조회', [slips.length])
   const keyOf = (s: AssignmentLine[]) => `${s[0].slipDate}/${s[0].slipNo}`
@@ -73,17 +67,10 @@ export default function AssignmentListPage() {
       ]}
     >
       <ul className="ec-cond mb-[8px]">
-        <EcCond label="기준일자">
-          <input type="date" className="ec-input w-[150px]" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
-          ~
-          <input type="date" className="ec-input w-[150px]" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
-        </EcCond>
-        <EcCond label="사원"><input className="ec-input w-full" placeholder="사원" value={empCond} onChange={(e) => setEmpCond(e.target.value)} /></EcCond>
-        <EcCond label="부서"><input className="ec-input w-full" placeholder="부서" value={deptCond} onChange={(e) => setDeptCond(e.target.value)} /></EcCond>
-        <EcCond label="적요"><input className="ec-input w-full" placeholder="적요" value={remarkCond} onChange={(e) => setRemarkCond(e.target.value)} /></EcCond>
+        <AssignmentConds value={conds} onChange={setConds} lines={lines} />
         <li className="flex flex-wrap items-center gap-[6px]">
           <button type="button" className="ec-btn ec-btn-primary" onClick={search}>검색(F8)</button>
-          <EcPeriodPicks labels={STATUS_PICKS} currentFrom={range.from} onPick={setRange} />
+          <EcPeriodPicks labels={STATUS_PICKS} currentFrom={range.from} onPick={(r) => setConds({ ...conds, range: r })} />
         </li>
       </ul>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
