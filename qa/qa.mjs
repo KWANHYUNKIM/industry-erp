@@ -10442,6 +10442,7 @@ async function main() {
   await scenarioAttendanceKind()
   await scenarioCommuteRule()
   await scenarioEmployeeCommute()
+  await scenarioCorporateTaxChecklist()
   await scenarioPressedTwice(fixtures)
   await scenarioNoPermission()
   await scenarioNewCompany()
@@ -11139,6 +11140,40 @@ async function scenarioAttendanceKind() {
 }
 
 /** 관리 › 출/퇴근반영기준(원본 E020725) — 코드 필수 · 같은 코드 막기 · 제외시간 꼴 · 사용중단 · 삭제. */
+/**
+ * 법인세Checklist(E030401) — 원본 2026 실측의 규칙: 분기만집계 = 석 달 합(분기 끝 달), 분기별 · 반기별집계 = 1월부터 누계,
+ * 합계 = 12월에만. 메모는 제목 · 메모가 필수이고 기준연도 · 항목마다 따로 쌓인다.
+ */
+async function scenarioCorporateTaxChecklist() {
+  section('■ 법인세Checklist')
+  const year = 2026
+  const c = await must('GET', `/corporate-tax/checklist?year=${year}`)
+  const m = (k) => c.sales.find((r) => r.month === k)
+  const s = c.sales.map((r) => Number(r.sales))
+  const q3 = s[6] + s[7] + s[8]
+  eq('매출계정은 열두 달', c.sales.length, 12)
+  eq('분기만집계는 분기 끝 달에만', [1, 2, 4, 5, 7, 8, 10, 11].every((k) => m(k).quarterOnly === null), true)
+  eq('09월 분기만집계 = 7 · 8 · 9월 합', Number(m(9).quarterOnly), q3)
+  eq('09월 분기별집계 = 1~9월 누계', Number(m(9).quarterCumulative), s.slice(0, 9).reduce((a, b) => a + b, 0))
+  eq('반기별집계는 6 · 12월에만', c.sales.filter((r) => r.halfCumulative !== null).map((r) => r.month).join(','), '6,12')
+  eq('합계는 12월에 한 해 합계', Number(m(12).total), s.reduce((a, b) => a + b, 0))
+  eq('급여 차액 = 신고금액 − 급여총액', c.payroll.every((r) => Number(r.difference) === Number(r.reported) - Number(r.salary)), true)
+
+  await rejects('메모 제목이 비면 막는다', 'POST', '/corporate-tax/checklist/memos',
+    { year, section: 1, memoDate: '2026-10-04', title: '', content: 'QA세무' }, '제목을 입력해주세요.')
+  await rejects('메모 내용이 비면 막는다', 'POST', '/corporate-tax/checklist/memos',
+    { year, section: 1, memoDate: '2026-10-04', title: 'QA세무-메모', content: ' ' }, '메모를 입력해주세요.')
+  const memo = await must('POST', '/corporate-tax/checklist/memos',
+    { year, section: 13, memoDate: '2026-10-04', title: 'QA세무-메모', content: 'QA세무' })
+  eq('메모는 그 해 그 항목 목록에', (await must('GET', `/corporate-tax/checklist/memos?year=${year}&section=13`)).some((x) => x.id === memo.id), true)
+  eq('다른 해 목록에는 없다', (await must('GET', `/corporate-tax/checklist/memos?year=${year - 1}&section=13`)).some((x) => x.id === memo.id), false)
+  const edited = await must('PUT', `/corporate-tax/checklist/memos/${memo.id}`,
+    { year, section: 13, memoDate: '2026-10-05', title: 'QA세무-메모2', content: 'QA세무' })
+  eq('메모 수정', `${edited.memoDate} ${edited.title}`, '2026-10-05 QA세무-메모2')
+  await must('DELETE', `/corporate-tax/checklist/memos/${memo.id}`)
+  eq('메모 삭제', (await must('GET', `/corporate-tax/checklist/memos?year=${year}&section=13`)).some((x) => x.id === memo.id), false)
+}
+
 async function scenarioCommuteRule() {
   section('■ 출/퇴근반영기준 — 코드 · 제외시간 · 사용중단 · 삭제')
   await rejects('반영기준코드가 비면 막는다', 'POST', '/hr/commute-rules', { code: '', name: 'QA-기준', method: 'LATE' }, '반영기준코드를 입력')

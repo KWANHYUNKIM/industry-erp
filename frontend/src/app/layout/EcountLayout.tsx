@@ -774,6 +774,7 @@ const MENU: TopMenu[] = [
       {
         label: '법인세',
         nodes: [
+          { label: '법인세Checklist', to: '/accounting/corporate-tax/checklist' },
           { label: '법인세 신고서', to: '/accounting/corporate-tax' },
         ],
       },

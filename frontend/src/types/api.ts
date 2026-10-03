@@ -3066,3 +3066,44 @@ export interface SurveyResult {
   anonymous: boolean
   questions: SurveyQuestionResult[]
 }
+
+/** 법인세Checklist(E030401) — GET /corporate-tax/checklist?year= */
+export interface CorporateTaxChecklist {
+  year: number
+  sales: CorporateTaxSalesMonth[]
+  payroll: CorporateTaxPayrollMonth[]
+}
+
+/** [2. 손익계산서 매출계정 내역] 한 달 — 칸이 없는 달은 null */
+export interface CorporateTaxSalesMonth {
+  month: number
+  sales: number
+  quarterOnly: number | null
+  quarterCumulative: number | null
+  halfCumulative: number | null
+  total: number | null
+}
+
+/** [3. 급여 및 원천세 내역] 한 달. difference = reported − salary */
+export interface CorporateTaxPayrollMonth {
+  month: number
+  reported: number
+  difference: number
+  salary: number
+  bonus: number
+  incomeTax: number
+  localIncomeTax: number
+  pension: number
+  health: number
+  employment: number
+}
+
+export interface CorporateTaxCheckMemo {
+  id: number
+  year: number
+  section: number
+  memoDate: string
+  title: string
+  content: string
+  writer: string | null
+}
