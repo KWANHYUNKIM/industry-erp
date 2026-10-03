@@ -1077,7 +1077,6 @@ th.ec-empty {
   .ec-cond > li > .title { flex-basis: 93px; }
 }
 
-} /* @layer components */
 /* 라벨·일정구분 칩 — 원본 일정관리(E070201)·공지사항(E200080) 실측: 12px 400 흰 글자 · 여백 3.6 4.5 2.7 · 둥글기 10 */
 .ec-label-chip {
   display: inline-block;
@@ -1090,3 +1089,4 @@ th.ec-empty {
   line-height: 1;
   white-space: nowrap;
 }
+} /* @layer components */
