@@ -363,15 +363,17 @@ public class EmployeeService {
         hrDetailRepository.flush();
         int n = 0;
         for (var r : rows) {
-            boolean blank = r.fromDate() == null && r.toDate() == null
-                    && java.util.stream.Stream.of(r.text1(), r.text2(), r.text3(), r.text4(), r.text5(), r.text6(), r.text7())
+            boolean blank = r.fromDate() == null && r.toDate() == null && r.date3() == null && r.date4() == null
+                    && java.util.stream.Stream.of(r.text1(), r.text2(), r.text3(), r.text4(), r.text5(), r.text6(), r.text7(),
+                            r.text8(), r.text9(), r.text10())
                     .allMatch(t -> t == null || t.isBlank());
             if (blank) continue;
             hrDetailRepository.save(EmployeeHrDetail.builder()
                     .employee(e).category(category).lineNo(++n)
-                    .fromDate(r.fromDate()).toDate(r.toDate())
+                    .fromDate(r.fromDate()).toDate(r.toDate()).date3(r.date3()).date4(r.date4())
                     .text1(r.text1()).text2(r.text2()).text3(r.text3()).text4(r.text4())
                     .text5(r.text5()).text6(r.text6()).text7(r.text7())
+                    .text8(r.text8()).text9(r.text9()).text10(r.text10())
                     .build());
         }
         return hrDetails(employeeId, category);

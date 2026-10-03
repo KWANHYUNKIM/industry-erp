@@ -43,6 +43,13 @@ public class EmployeeHrDetail {
     @Column(name = "to_date")
     private LocalDate toDate;
 
+    /** 자격ㆍ면허의 갱신일자 · 말소일자처럼 날짜가 둘보다 많은 항목 */
+    @Column(name = "date3")
+    private LocalDate date3;
+
+    @Column(name = "date4")
+    private LocalDate date4;
+
     @Column(length = 100) private String text1;
     @Column(length = 100) private String text2;
     @Column(length = 100) private String text3;
@@ -50,4 +57,7 @@ public class EmployeeHrDetail {
     @Column(length = 100) private String text5;
     @Column(length = 100) private String text6;
     @Column(length = 100) private String text7;
+    @Column(length = 100) private String text8;
+    @Column(length = 100) private String text9;
+    @Column(length = 100) private String text10;
 }

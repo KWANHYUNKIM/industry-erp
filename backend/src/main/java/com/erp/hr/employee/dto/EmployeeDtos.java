@@ -175,18 +175,21 @@ public class EmployeeDtos {
     /** 원본 사원등록 폼이 열릴 때 미리 채우는 다음 사원번호. */
     /** 인사카드 [인사자료] 한 줄 — 날짜 둘 + 글자 칸 일곱(항목마다 뜻이 다르다, EmployeeHrDetail 참고). */
     public record HrDetailRow(
-            LocalDate fromDate, LocalDate toDate,
+            LocalDate fromDate, LocalDate toDate, LocalDate date3, LocalDate date4,
             @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String text1,
             @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String text2,
             @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String text3,
             @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String text4,
             @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String text5,
             @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String text6,
-            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String text7
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String text7,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String text8,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String text9,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.") String text10
     ) {
         public static HrDetailRow from(com.erp.hr.employee.EmployeeHrDetail d) {
-            return new HrDetailRow(d.getFromDate(), d.getToDate(), d.getText1(), d.getText2(), d.getText3(),
-                    d.getText4(), d.getText5(), d.getText6(), d.getText7());
+            return new HrDetailRow(d.getFromDate(), d.getToDate(), d.getDate3(), d.getDate4(), d.getText1(), d.getText2(), d.getText3(),
+                    d.getText4(), d.getText5(), d.getText6(), d.getText7(), d.getText8(), d.getText9(), d.getText10());
         }
     }
 
