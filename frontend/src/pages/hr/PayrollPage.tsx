@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster, PayGroup, Payslip } from '../../types/api'
@@ -7,9 +8,11 @@ import { ymd } from '../../components/EcPeriodPicks'
 const won = (n: number) => n.toLocaleString('ko-KR')
 const thisMonth = () => ymd(new Date()).slice(0, 7)
 
-/** 급여계산/대장 — 귀속월의 사원별 급여명세. 미작성 사원은 계산, 작성분은 상세/확정. */
+/** 급여대장 — 급여계산/대장 목록의 [조회]. 귀속월의 사원별 급여명세. 미작성 사원은 계산, 작성분은 상세/확정. */
 export default function PayrollPage() {
-  const [month, setMonth] = useState(thisMonth())
+  // 급여계산/대장 목록의 [조회] 가 ?month= 로 그 대장의 귀속월을 연다
+  const [params] = useSearchParams()
+  const [month, setMonth] = useState(params.get('month') ?? thisMonth())
   const [employees, setEmployees] = useState<EmployeeMaster[]>([])
   const [payslips, setPayslips] = useState<Payslip[]>([])
   const [groups, setGroups] = useState<PayGroup[]>([])
@@ -80,7 +83,7 @@ export default function PayrollPage() {
   }), { gross: 0, deduction: 0, net: 0 })
 
   return (
-    <EcListShell title="급여계산/대장" actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
+    <EcListShell title="급여대장" actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
       <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label">
         <span>귀속월</span>
         <input type="month" className="ec-input" value={month} onChange={(e) => setMonth(e.target.value)} style={{ width: 150 }} />
