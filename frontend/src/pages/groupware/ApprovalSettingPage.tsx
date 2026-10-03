@@ -4,6 +4,9 @@ import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
+import Modal from '../../components/Modal'
+import { useTableSort } from '../../utils/useTableSort'
+import { useShortcut } from '../../utils/useShortcut'
 import type {
   ApprovalField, ApprovalFieldType, ApprovalFormTemplateAdmin, ApprovalPreset, MemberOption,
 } from '../../types/api'
@@ -42,6 +45,31 @@ export default function ApprovalSettingPage() {
   const [editingPreset, setEditingPreset] = useState<ApprovalPreset | 'new' | null>(null)
 
   const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(''), 3000) }
+  const tsort = useTableSort(templates, { 정렬순서: (t) => t.sortOrder, 양식명: (t) => t.name })
+  const [quickOpen, setQuickOpen] = useState(false)
+  const [quickName, setQuickName] = useState('')
+  const [quickCopy, setQuickCopy] = useState('')
+  const [quickErr, setQuickErr] = useState('')
+  function openQuickNew() { setQuickName(''); setQuickCopy(''); setQuickErr(''); setQuickOpen(true) }
+  /** '양식등록' — 이름과 복사할 양식만 받아 만든다. 양식코드는 우리 서버가 필수라 자동으로 붙인다(원본 화면에는 없다). */
+  async function quickSave() {
+    setQuickErr('')
+    if (!quickName.trim()) return setQuickErr('양식명을 입력하세요.')
+    const src = templates.find((t) => String(t.id) === quickCopy)
+    try {
+      await api.post('/approval-settings/templates', {
+        code: `FORM-${Date.now().toString(36).toUpperCase()}`,
+        name: quickName.trim(),
+        sortOrder: templates.reduce((m, t) => Math.max(m, t.sortOrder), 0) + 1,
+        active: true,
+        fieldSchema: src ? src.fieldSchema : [],
+      })
+      setQuickOpen(false)
+      flash(`${quickName.trim()} 양식을 저장했습니다.`)
+      await load()
+    } catch (err) { setQuickErr(extractErrorMessage(err)) }
+  }
+  useShortcut('F8', () => void quickSave(), quickOpen)
 
   async function load() {
     setLoading(true)
@@ -88,22 +116,11 @@ export default function ApprovalSettingPage() {
 
   return (
     <EcListShell
-      title={tab}
-      newLabel={tab === '공통양식등록' ? '양식 추가(F2)' : '결재선 추가(F2)'}
-      onNew={() => (tab === '공통양식등록' ? setEditing('new') : setEditingPreset('new'))}
-      actions={[{ label: '새로고침', onClick: load }]}
+      // 원본 공통양식등록 화면의 제목은 '공통양식리스트' 다(2026-10-03 실측). 두 화면은 메뉴가 따로라 화면 안 탭은 없다.
+      title={tab === '공통양식등록' ? '공통양식리스트' : tab}
+      newLabel={tab === '공통양식등록' ? '신규(F2)' : '결재선 추가(F2)'}
+      onNew={() => (tab === '공통양식등록' ? openQuickNew() : setEditingPreset('new'))}
     >
-      <div className="flex gap-[2px] mb-[8px] border-b border-b-ec-line border-solid">
-        {TABS.map((t) => (
-          <button key={t} onClick={() => { setTab(t); setEditing(null); setEditingPreset(null); setError('') }} className="no-ec" style={{
-            padding: '6px 14px', fontSize: 12.5, border: 'none', cursor: 'pointer',
-            background: tab === t ? '#fff' : 'transparent', color: tab === t ? 'var(--ec-blue)' : 'var(--ec-label)',
-            fontWeight: tab === t ? 700 : 400,
-            borderBottom: tab === t ? '2px solid var(--ec-blue)' : '2px solid transparent',
-          }}>{t} ({t === '공통양식등록' ? templates.length : presets.length})</button>
-        ))}
-      </div>
-
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
 
@@ -113,54 +130,61 @@ export default function ApprovalSettingPage() {
             {editing && (
               <TemplateForm
                 template={editing === 'new' ? null : editing}
+                onDelete={editing !== 'new' ? () => { const t = editing; setEditing(null); void removeTemplate(t) } : undefined}
                 onError={setError}
                 onClose={() => setEditing(null)}
                 onSaved={(name) => { setEditing(null); flash(`${name} 양식을 저장했습니다.`); load() }}
               />
             )}
-            <table ref={tableRef} className="w-full text-left">
+            {/*
+              원본 공통양식리스트(E070107): [정렬순서▼][양식명▼][구분▼][결재문서] 네 칸, 양식명을 누르면 그 양식을 고친다,
+              하단 [신규(F2)] 하나. 우리는 순서·양식코드·양식명·입력항목·기안서·사용·처리 일곱 칸이었다.
+              [구분]은 양식 분류(휴가신청서·지출결의서)인데 우리 양식에 분류가 없어 비운다. 삭제는 양식을 열어서 한다.
+            */}
+            <table className="w-full text-left">
               <thead>
                 <tr>
-                  <th className="w-[34px]"></th>
-                  <th className="w-[70px] text-right">순서</th>
-                  <th className="w-[130px]">양식코드</th>
-                  <th className="w-[180px]">양식명</th>
-                  <th>입력항목</th>
-                  <th className="w-[90px] text-center">기안서</th>
-                  <th className="w-[80px] text-center">사용</th>
-                  <th className="w-[110px] text-center">처리</th>
+                  <th className="w-[160px] text-center cursor-pointer text-ec-navy" onClick={() => tsort.toggle('정렬순서')}>정렬순서 {tsort.mark('정렬순서')}</th>
+                  <th className="cursor-pointer text-ec-navy" onClick={() => tsort.toggle('양식명')}>양식명 {tsort.mark('양식명')}</th>
+                  <th className="w-[200px] text-ec-navy">구분 ▼</th>
+                  <th className="w-[150px]">결재문서</th>
                 </tr>
               </thead>
               <tbody>
                 {templates.length === 0 ? (
-                  <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-                ) : templates.map((t, i) => (
+                  <tr><td colSpan={4} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+                ) : tsort.sorted.map((t) => (
                   <tr key={t.id}>
-                    <td className="text-center text-ec-hint">{i + 1}</td>
-                    <td className="text-right text-ec-label">{t.sortOrder}</td>
-                    <td className="text-ec-blue font-semibold">{t.code}</td>
-                    <td className="font-semibold">{t.name}</td>
-                    <td className="text-ec-label text-[12px]">
-                      {t.fieldSchema.length === 0
-                        ? <span className="text-ec-hint">자유서식 (본문만)</span>
-                        : t.fieldSchema.map((f) => f.label).join(' · ')}
+                    <td className="text-center">{t.sortOrder}</td>
+                    <td>
+                      <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-left text-ec-navy"
+                              onClick={() => setEditing(t)}>{t.name}{t.active ? '' : ' (사용중단)'}</button>
                     </td>
-                    <td style={{ textAlign: 'center', color: t.documentCount > 0 ? 'var(--ec-label)' : 'var(--ec-text-hint)' }}>{t.documentCount}건</td>
-                    <td style={{ textAlign: 'center', color: t.active ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>{t.active ? '사용' : '중지'}</td>
-                    <td className="text-center">
-                      <div className="inline-flex gap-[3px]">
-                        <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => setEditing(t)}>수정</button>
-                        <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: t.documentCount > 0 ? 'var(--ec-text-off)' : 'var(--ec-danger)' }}
-                          onClick={() => removeTemplate(t)}>삭제</button>
-                      </div>
-                    </td>
+                    <td />
+                    <td />
                   </tr>
                 ))}
               </tbody>
             </table>
-            <div className="mt-[8px] text-[11.5px] text-ec-hint">
-              ※ 기안서가 한 건이라도 쓰인 양식은 삭제할 수 없습니다(그 기안서들이 양식을 가리킵니다). 사용중지로 내리면 새 기안에서만 사라지고 과거 문서는 그대로 열립니다.
-            </div>
+
+            {/* 원본 [신규(F2)] → '양식등록': 양식명 + 복사대상양식 만 묻는다. 저장하면 목록에 생기고, 양식명을 눌러 칸을 고친다. */}
+            <Modal error={quickErr} open={quickOpen} title="양식등록" width={640} onClose={() => setQuickOpen(false)}>
+              <ul className="ec-form mb-[10px]">
+                <li className="wide"><div className="title">양식명</div><div className="form">
+                  <input className="ec-input w-full" placeholder="양식명" value={quickName} onChange={(e) => setQuickName(e.target.value)} />
+                </div></li>
+                <li className="wide"><div className="title">복사대상양식</div><div className="form">
+                  <select className="ec-input w-full" aria-label="복사대상양식" value={quickCopy} onChange={(e) => setQuickCopy(e.target.value)}>
+                    <option value="">기본(기본)</option>
+                    {templates.map((t) => <option key={t.id} value={String(t.id)}>{t.name}</option>)}
+                  </select>
+                </div></li>
+              </ul>
+              <div className="flex gap-[6px]">
+                <button type="button" className="ec-btn ec-btn-primary" onClick={() => void quickSave()}>저장(F8)</button>
+                <button type="button" className="ec-btn" onClick={() => setQuickOpen(false)}>닫기</button>
+              </div>
+            </Modal>
           </>
         ) : (
           <>
@@ -174,7 +198,7 @@ export default function ApprovalSettingPage() {
                 onSaved={(name) => { setEditingPreset(null); flash(`결재선 "${name}"을 저장했습니다.`); load() }}
               />
             )}
-            <table className="w-full text-left">
+            <table ref={tableRef} className="w-full text-left">
               <thead>
                 <tr>
                   <th className="w-[34px]"></th>
@@ -226,9 +250,11 @@ export default function ApprovalSettingPage() {
 
 interface FieldRow { key: string; label: string; type: ApprovalFieldType; required: boolean }
 
-function TemplateForm({ template, onError, onClose, onSaved }: {
+function TemplateForm({ template, onError, onClose, onSaved, onDelete }: {
   template: ApprovalFormTemplateAdmin | null
   onError: (m: string) => void; onClose: () => void; onSaved: (name: string) => void
+  /** 목록에서 [처리] 칸을 뺐으므로 삭제는 양식을 열어서 한다. */
+  onDelete?: () => void
 }) {
   const isNew = template === null
   // 표(table) 같은 편집 미지원 항목은 건드리지 않고 그대로 보존한다.
@@ -353,6 +379,7 @@ function TemplateForm({ template, onError, onClose, onSaved }: {
       <div className="flex gap-[6px] mt-[8px]">
         <button className="ec-btn" onClick={() => setFields((fs) => [...fs, { key: '', label: '', type: 'text', required: false }])}>+ 항목 추가</button>
         <button className="ec-btn ec-btn-primary" onClick={submit} disabled={saving}>{saving ? '저장 중…' : '저장(F8)'}</button>
+        {onDelete && <button className="ec-btn" onClick={onDelete}>삭제</button>}
         <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={onClose}>닫기</button>
       </div>
     </div>

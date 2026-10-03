@@ -495,8 +495,8 @@
   "palette": 0
  },
  "pages/groupware/ApprovalSettingPage.tsx": {
-  "inline": 21,
-  "color": 1,
+  "inline": 16,
+  "color": 0,
   "palette": 0
  },
  "pages/groupware/AttendancePage.tsx": {
