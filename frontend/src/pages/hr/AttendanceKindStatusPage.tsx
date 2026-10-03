@@ -87,7 +87,7 @@ export default function AttendanceKindStatusPage() {
   const init = periodOf('금월(~오늘)')!
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
-  const [dept, setDept] = useState('')
+  const [dept, setDept] = useState<string[]>([])
   /*
    * 원본 조건 <b>[부서계층그룹]</b> — [부서] 바로 다음이다(2026-09-09 실측).
    * [부서]는 그 부서 하나로 좁히고 이쪽은 <b>그 부서와 그 아래 전부</b>를 본다.
@@ -102,7 +102,14 @@ export default function AttendanceKindStatusPage() {
    * <b>전표일자로는 좁힐 길이 아예 없었다</b>(표에는 열로 찍히는데도).
    */
   const [dayCond, setDayCond] = useState('')
-  const [emp, setEmp] = useState('')
+  /** [사원] · [부서] — 여러 개 고르는 코드도움. 근태 줄은 계정 단위라 이름으로 거른다. */
+  const [emp, setEmp] = useState<string[]>([])
+  const [empList, setEmpList] = useState<{ id: number; code: string; name: string; department: string }[]>([])
+  const [deptList, setDeptList] = useState<{ id: number; code?: string | null; name: string }[]>([])
+  useEffect(() => {
+    api.get<typeof empList>('/employees/all').then((r) => setEmpList(r.data)).catch(() => setEmpList([]))
+    api.get<typeof deptList>('/departments').then((r) => setDeptList(r.data)).catch(() => setDeptList([]))
+  }, [])
   /** [근태항목] — 근태항목등록 마스터에서 여러 개 고른다(값은 근태 줄에 적히는 근태항목명). */
   const [kind, setKind] = useState<string[]>([])
   const [kindMaster, setKindMaster] = useState<{ code: string; name: string; kindGroup: string | null; vacationKindId: number | null }[]>([])
@@ -153,7 +160,7 @@ export default function AttendanceKindStatusPage() {
 
   const reset = () => {
     setFrom(init.from); setTo(init.to)
-    setDept(''); setEmp(''); setKind([]); setVkCond([]); setGroupCond([]); setReason('')
+    setDept([]); setEmp([]); setKind([]); setVkCond([]); setGroupCond([]); setReason('')
     setDeptGroup(''); setDayCond('')
     setStAll(false); setStPending(false); setStConfirmed(true); setSubtotal('없음')
   }
@@ -163,9 +170,9 @@ export default function AttendanceKindStatusPage() {
     if (r.docDate < from || r.docDate > to) return false
     /* 원본 [근태일자] — 그날 근태가 <b>걸쳐 있나</b>. 사흘짜리 휴가는 가운데 날로도 걸려야 한다. */
     if (dayCond && (r.startDate > dayCond || r.endDate < dayCond)) return false
-    if (dept && !(r.department ?? '').includes(dept)) return false
+    if (dept.length && !dept.includes(r.department ?? '')) return false
     if (!inGroup(r.department, deptGroup)) return false
-    if (emp && !r.empName.includes(emp)) return false
+    if (emp.length && !emp.includes(r.empName)) return false
     if (kind.length && !kind.includes(r.type)) return false
     const km = kindMaster.find((k) => k.name === r.type)
     if (vkCond.length && !vkCond.includes(String(km?.vacationKindId ?? ''))) return false
@@ -216,13 +223,13 @@ export default function AttendanceKindStatusPage() {
           원본 근태현황의 조건 이름과 차례는 <b>사원 · 부서</b> 다(사본 실측).
           우리는 [부서명]·[사원명] 으로 이름도 다르고 앞뒤도 뒤집혀 있었다.
         */}
-        <EcCond label="사원" pick>
-          <input className="ec-input" placeholder="사원명 일부" value={emp}
-                 onChange={(e) => setEmp(e.target.value)} style={{ width: 180 }} />
+        <EcCond label="사원">
+          <CodePickerField label="사원" hideLabel fill multiple placeholder="사원" values={emp} onChangeMulti={(v) => setEmp(v)}
+                           items={empList.map((e) => ({ value: e.name, code: e.code, name: e.name, sub: e.department }))} />
         </EcCond>
         <EcCond label="부서" pick>
-          <input className="ec-input" placeholder="부서명 일부" value={dept}
-                 onChange={(e) => setDept(e.target.value)} style={{ width: 180 }} />
+          <CodePickerField label="부서" hideLabel fill multiple placeholder="부서" values={dept} onChangeMulti={(v) => setDept(v)}
+                           items={deptList.map((d) => ({ value: d.name, code: d.code ?? undefined, name: d.name }))} />
         </EcCond>
         <EcCond label="부서계층그룹">
           <select className="ec-input" value={deptGroup} style={{ width: 160 }}
