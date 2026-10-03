@@ -10444,6 +10444,7 @@ async function main() {
   await scenarioEmployeeCommute()
   await scenarioCorporateTaxChecklist()
   await scenarioExpenseEvidence()
+  await scenarioSimplePayment()
   await scenarioPressedTwice(fixtures)
   await scenarioNoPermission()
   await scenarioNewCompany()
@@ -11200,6 +11201,28 @@ async function scenarioExpenseEvidence() {
   }
   await rejects('기준월 형식이 틀리면 막는다', 'GET', '/expense-evidence?from=2026&to=2026-12', undefined, '기준월')
   await must('PUT', '/expense-evidence/accounts', { shownIds: keep })
+}
+
+/**
+ * 간이지급명세서(E030116) — 담당자 세 칸 필수, 사업소득 서식은 그 달 기타원천세를 소득자마다 묶는다(세율 3).
+ */
+async function scenarioSimplePayment() {
+  section('■ 간이지급명세서')
+  const base = { kind: 'BUSINESS', payYear: 2026, period: 9, reportDate: '2026-10-31', managerDept: 'QA세무', managerName: 'QA세무', managerPhone: '02-000-0000', submitter: 'DIRECT' }
+  await rejects('담당자 부서명이 비면 막는다', 'POST', '/simple-payment-statements', { ...base, managerDept: '' }, '부서명을 입력바랍니다.')
+  const ws = []
+  for (const amt of [1000000, 500000]) {
+    ws.push(await must('POST', '/other-withholdings', { payDate: '2026-09-15', incomeType: 'BUSINESS', payeeName: 'QA세무-강사', grossAmount: amt, description: 'QA세무' }))
+  }
+  const st = await must('POST', '/simple-payment-statements', base)
+  const sheet = await must('GET', `/simple-payment-statements/${st.id}/sheet`)
+  const row = sheet.payees.find((p) => p.payeeName === 'QA세무-강사')
+  eq('같은 소득자는 한 줄로 묶는다', `${row?.count} ${Number(row?.gross)}`, '2 1500000')
+  eq('사업소득 세율 3', row?.rate, 3)
+  eq('목록에 지급연월 2026/9', (await must('GET', '/simple-payment-statements')).some((x) => x.id === st.id && x.period === 9), true)
+  await must('POST', '/simple-payment-statements/delete', [st.id])
+  eq('선택삭제', (await must('GET', '/simple-payment-statements')).some((x) => x.id === st.id), false)
+  for (const w of ws) await must('DELETE', `/other-withholdings/${w.id}`)
 }
 
 async function scenarioCommuteRule() {

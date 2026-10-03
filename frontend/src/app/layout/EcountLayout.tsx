@@ -750,6 +750,7 @@ const MENU: TopMenu[] = [
             { label: '퇴사자리스트', to: '/hr/retired' },
             { label: '퇴직금계산', to: '/hr/retirement-pay' },
           ] },
+          { label: '간이지급명세서', to: '/accounting/simple-payment' },
           { label: '출력물', children: [
             { label: '근로소득원천징수영수증', to: '/accounting/withholding?tab=영수증' },
           ] },

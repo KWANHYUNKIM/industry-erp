@@ -3135,3 +3135,26 @@ export interface ExpenseEvidenceCompareRow {
 
 /** 지출증빙현황 [계정설정] 한 줄 — shown 이 인쇄방법 '표시' */
 export interface ExpenseEvidenceAccount { id: number; code: string; name: string; shown: boolean }
+
+/** 간이지급명세서(E030116) */
+export type SimplePaymentKind = 'LABOR' | 'BUSINESS' | 'OTHER'
+export interface SimplePaymentStatement {
+  id: number
+  kind: SimplePaymentKind
+  kindName: string
+  payYear: number
+  /** 근로소득은 반기(1 · 2), 사업 · 기타소득은 달(1~12) */
+  period: number
+  reportDate: string
+  managerDept: string
+  managerName: string
+  managerPhone: string
+  submitter: 'DIRECT' | 'AGENT'
+  submitterName: string
+}
+export interface SimplePaymentSheet {
+  statement: SimplePaymentStatement
+  labor: { employeeName: string; workFrom: string; workTo: string; monthlyPay: (number | null)[]; total: number }[]
+  payees: { payeeName: string; payeeRegNo: string | null; count: number; gross: number; expense: number; taxable: number;
+    rate: number; incomeTax: number; localIncomeTax: number }[]
+}
