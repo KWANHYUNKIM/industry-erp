@@ -27,6 +27,7 @@ public class EmployeeService {
     private final EmployeeAssignmentRepository assignmentRepository;
     private final DepartmentService departmentService;
     private final DocumentNoGenerator documentNoGenerator;
+    private final EmployeeHrDetailRepository hrDetailRepository;
 
     /** 재직 중인 사원 (급여·조직도용) */
     @Transactional(readOnly = true)
@@ -243,6 +244,51 @@ public class EmployeeService {
                 .createdBy(username)
                 .build();
         return AssignmentResponse.from(assignmentRepository.save(a));
+    }
+
+    /** 인사카드 [인사자료] 한 항목의 줄들. */
+    @Transactional(readOnly = true)
+    public List<com.erp.hr.employee.dto.EmployeeDtos.HrDetailRow> hrDetails(Long employeeId, HrDetailCategory category) {
+        get(employeeId);
+        return hrDetailRepository.findByEmployee_IdAndCategoryOrderByLineNo(employeeId, category).stream()
+                .map(com.erp.hr.employee.dto.EmployeeDtos.HrDetailRow::from).toList();
+    }
+
+    /** 원본 [인사자료] 입력 창 [저장] — 그 항목의 줄을 통째로 바꾼다(빈 줄은 버린다). */
+    @Transactional
+    public List<com.erp.hr.employee.dto.EmployeeDtos.HrDetailRow> saveHrDetails(
+            Long employeeId, HrDetailCategory category, List<com.erp.hr.employee.dto.EmployeeDtos.HrDetailRow> rows) {
+        Employee e = get(employeeId);
+        hrDetailRepository.deleteByEmployee_IdAndCategory(employeeId, category);
+        hrDetailRepository.flush();
+        int n = 0;
+        for (var r : rows) {
+            boolean blank = r.fromDate() == null && r.toDate() == null
+                    && java.util.stream.Stream.of(r.text1(), r.text2(), r.text3(), r.text4(), r.text5(), r.text6(), r.text7())
+                    .allMatch(t -> t == null || t.isBlank());
+            if (blank) continue;
+            hrDetailRepository.save(EmployeeHrDetail.builder()
+                    .employee(e).category(category).lineNo(++n)
+                    .fromDate(r.fromDate()).toDate(r.toDate())
+                    .text1(r.text1()).text2(r.text2()).text3(r.text3()).text4(r.text4())
+                    .text5(r.text5()).text6(r.text6()).text7(r.text7())
+                    .build());
+        }
+        return hrDetails(employeeId, category);
+    }
+
+    /** 원본 [인사자료] 입력 창 [삭제] — '한번 지워진 자료는 복구될 수 없습니다.' */
+    @Transactional
+    public void deleteHrDetails(Long employeeId, HrDetailCategory category) {
+        hrDetailRepository.deleteByEmployee_IdAndCategory(employeeId, category);
+    }
+
+    /** 인사카드 목록에서 [입력] 칸을 자료 있음으로 칠하려고 — 항목별 줄 수. */
+    @Transactional(readOnly = true)
+    public java.util.Map<HrDetailCategory, Long> hrDetailCounts(Long employeeId) {
+        java.util.Map<HrDetailCategory, Long> out = new java.util.EnumMap<>(HrDetailCategory.class);
+        for (var d : hrDetailRepository.findByEmployee_IdOrderByCategoryAscLineNoAsc(employeeId)) out.merge(d.getCategory(), 1L, Long::sum);
+        return out;
     }
 
     /** 같은 모듈의 다른 서비스(근로계약 등)가 사원 엔티티를 얻는 진입점. */

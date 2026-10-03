@@ -84,6 +84,28 @@ public class EmployeeController {
         return employeeService.createAssignment(id, req, principal.getUsername());
     }
 
+    /** 인사카드 [인사자료] — 항목별 줄 수(자료 있는 [입력]을 칠한다). */
+    @GetMapping("/{id}/hr-details")
+    public java.util.Map<HrDetailCategory, Long> hrDetailCounts(@PathVariable Long id) {
+        return employeeService.hrDetailCounts(id);
+    }
+
+    @GetMapping("/{id}/hr-details/{category}")
+    public List<EmployeeDtos.HrDetailRow> hrDetails(@PathVariable Long id, @PathVariable HrDetailCategory category) {
+        return employeeService.hrDetails(id, category);
+    }
+
+    @PutMapping("/{id}/hr-details/{category}")
+    public List<EmployeeDtos.HrDetailRow> saveHrDetails(@PathVariable Long id, @PathVariable HrDetailCategory category,
+                                                        @Valid @RequestBody List<EmployeeDtos.HrDetailRow> rows) {
+        return employeeService.saveHrDetails(id, category, rows);
+    }
+
+    @DeleteMapping("/{id}/hr-details/{category}")
+    public void deleteHrDetails(@PathVariable Long id, @PathVariable HrDetailCategory category) {
+        employeeService.deleteHrDetails(id, category);
+    }
+
     /** 원본 사원등록 폼이 미리 채우는 다음 사원번호. */
     @GetMapping("/next-code")
     public EmployeeDtos.NextCodeResponse nextCode() {
