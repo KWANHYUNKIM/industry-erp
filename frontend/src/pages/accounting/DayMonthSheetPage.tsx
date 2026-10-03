@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
+import { cashSplit } from '../../utils/cashSplit'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
@@ -28,7 +29,8 @@ const addDays = (d: string, n: number) => {
  * 기타(결재방표시). 열: 차변합계 · 차변대체 · 차변현금(출금) · 계정명 · 대변현금(입금) · 대변대체 · 대변합계. 계정마다 한 줄,
  * 끝에 [월계](일계표면 [일계]) · [금일/전일] · [합계] 줄(바탕 rgb(243,243,243) · 굵게).
  *
- * <p>현금(101)이 든 전표에서 현금 반대편 줄이 '현금'(출금 · 입금)이고, 나머지는 모두 '대체'다. 현금 계정 자신은 줄로 세우지 않는다.
+ * <p>현금(101)이 든 전표에서 현금 반대편 줄에 현금 금액만큼이 '현금'(출금 · 입금)이고, 넘치는 몫과 나머지는 모두 '대체'다
+ * (현금 열 합 = 현금 계정의 대 · 차 합). 현금 계정 자신은 줄로 세우지 않는다.
  * [금일/전일]은 현금 잔고다 — 차변 쪽에 기간 끝 잔고, 대변 쪽에 기간 첫날 전 잔고. [합계] = [월계] + [금일/전일](그래서 차 · 대가 맞는다).
  * 부서 · 프로젝트는 회계전표가 들지 않는다.
  */
@@ -81,14 +83,14 @@ export default function DayMonthSheetPage() {
       const cashCredit = cash.reduce((s, l) => s + Number(l.credit), 0)
       cashIn += cashDebit
       cashOut += cashCredit
-      for (const l of e.lines) {
-        if (l.accountCode === CASH) continue
+      /* 현금 반대편 줄에 현금 금액만큼만 '현금'을 주고 넘치는 몫은 '대체' — utils/cashSplit. */
+      const parts = cashSplit(e.lines, CASH)
+      e.lines.forEach((l, i) => {
+        if (l.accountCode === CASH) return
         const row = get(l.accountCode, l.accountName)
-        const d = Number(l.debit), c = Number(l.credit)
-        /* 현금이 대변(출금)에 있으면 차변 줄이 현금 출금, 현금이 차변(입금)에 있으면 대변 줄이 현금 입금이다. */
-        if (d) { if (cashCredit > 0) row.dCash += d; else row.dTrans += d }
-        if (c) { if (cashDebit > 0) row.cCash += c; else row.cTrans += c }
-      }
+        const x = parts[i]
+        row.dCash += x.dCash; row.dTrans += x.dTrans; row.cCash += x.cCash; row.cTrans += x.cTrans
+      })
     }
     return { lines: [...by.values()].sort((a, b) => a.code.localeCompare(b.code)), cashIn, cashOut }
   }, [entries])
