@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
+import { dateNo } from '../../utils/dateNo'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
@@ -224,7 +225,7 @@ export default function JournalHistoryPage() {
           ) : rows.map((r) => (
             <tr key={r.key}>
               <td className="text-center">{slash(r.at.slice(0, 10))}</td>
-              <td className="text-center text-ec-blue">{slash(r.e.entryDate)} -{r.e.docNo}</td>
+              <td className="text-center text-ec-blue">{dateNo(r.e.entryDate, r.e.docNo)}</td>
               <td>{r.e.sourceTypeName}</td>
               <td className="text-right">{won(Number(r.e.totalDebit))}</td>
               <td className="text-center">{r.act}</td>

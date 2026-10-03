@@ -1,10 +1,11 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
+import { dateNo } from '../../utils/dateNo'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
-import EcPeriodPicks, { SETTLE_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { SETTLE_PICKS, fiscalYearStartOf, periodOf } from '../../components/EcPeriodPicks'
 import { useAuth } from '../../features/auth/AuthContext'
 import type { AccountDivision, AccountLedger, LedgerRow } from '../../types/api'
 
@@ -57,9 +58,14 @@ export default function AccountPartnerLedgerPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  /* 기수 시작월 — 수익 · 비용 계정의 이월잔액은 기수 첫날부터만 쌓는다(지난 기수 손익은 이익잉여금으로 넘어갔다). */
+  const [fiscalStart, setFiscalStart] = useState<number | null>(null)
   useEffect(() => {
     api.get<AccountOpt[]>('/accounts').then((r) => setAccounts(r.data)).catch(() => setAccounts([]))
     api.get<PartnerOpt[]>('/partners').then((r) => setPartners(r.data)).catch(() => setPartners([]))
+    api.get<{ fiscalStart?: string } | null>('/preferences')
+      .then((r) => { const m = Number(r.data?.fiscalStart); if (m >= 1 && m <= 12) setFiscalStart(m) })
+      .catch(() => setFiscalStart(null))
   }, [])
 
   /* 이월잔액을 내려면 기간 첫날 전 줄도 있어야 해서 처음부터 끝날까지 받는다. */
@@ -84,6 +90,7 @@ export default function AccountPartnerLedgerPage() {
   const amt = (r: { debit: number | string; credit: number | string }) =>
     debitSide ? Number(r.debit) - Number(r.credit) : Number(r.credit) - Number(r.debit)
 
+  const plCut = ledger && fiscalStart && (ledger.division === 'REVENUE' || ledger.division === 'EXPENSE') ? fiscalYearStartOf(from, fiscalStart) : null
   const blocks = useMemo(() => {
     if (!ledger) return [] as Block[]
     const m = new Map<number, Block>()
@@ -101,14 +108,14 @@ export default function AccountPartnerLedgerPage() {
       if (manager && (p?.manager ?? '') !== manager) continue
       if (!m.has(key)) m.set(key, { key, code: p?.code ?? '', name: p?.name ?? r.partnerName ?? '', carry: 0, rows: [] })
       const b = m.get(key)!
-      if (r.entryDate < from) { if (withCarry) b.carry += amt(r) }
+      if (r.entryDate < from) { if (withCarry && !(plCut && r.entryDate < plCut)) b.carry += amt(r) }
       else b.rows.push(r)
     }
     return [...m.values()]
       .filter((b) => b.rows.length > 0 || (!hideIdle && b.carry !== 0))
       .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ledger, pById, byParent, noCodeOnly, withInactive, partner, manager, withCarry, hideIdle, from])
+  }, [ledger, pById, byParent, noCodeOnly, withInactive, partner, manager, withCarry, hideIdle, from, plCut])
 
   const sumOf = (rows: LedgerRow[]) => rows.reduce((s, r) => ({ d: s.d + Number(r.debit), c: s.c + Number(r.credit) }), { d: 0, c: 0 })
   const total = blocks.reduce((s, b) => { const x = sumOf(b.rows); return { carry: s.carry + b.carry, d: s.d + x.d, c: s.c + x.c } }, { carry: 0, d: 0, c: 0 })
@@ -180,7 +187,7 @@ export default function AccountPartnerLedgerPage() {
                     const lastOfDay = mode !== '건별' || gs[gi + 1]?.rows[0].entryDate !== r.entryDate
                     return (
                       <tr key={g.key}>
-                        <td className="text-ec-blue">{mode === '건별' ? `${slash(r.entryDate)} -${r.docNo}` : slash(g.key)}</td>
+                        <td className="text-ec-blue">{mode === '건별' ? dateNo(r.entryDate, r.docNo) : slash(g.key)}</td>
                         <td>{mode === '건별' ? r.description ?? '' : ''}</td>
                         <td className="text-right">{won(x.d)}</td>
                         <td className="text-right">{won(x.c)}</td>

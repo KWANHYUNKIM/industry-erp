@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
+import { dateNo } from '../../utils/dateNo'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
@@ -198,7 +199,7 @@ export default function AccountRemarkLedgerPage() {
                     return [
                       ...ms.map((r) => (
                         <tr key={r.key}>
-                          <td className="text-center text-ec-blue">{slash(r.date)} -{r.no}</td>
+                          <td className="text-center text-ec-blue">{dateNo(r.date, r.no)}</td>
                           <td>{r.text}</td>
                           <td>{r.partner}</td>
                           <td className="text-right">{won(r.d)}</td>
