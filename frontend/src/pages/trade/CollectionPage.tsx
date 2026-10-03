@@ -6,6 +6,7 @@ import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
 import { SETTLE_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
+import { dateNo } from '../../utils/dateNo'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { subtotalBy } from '../../utils/subtotalBy'
@@ -263,7 +264,7 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
             <tr key={r.id}>
               <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
               <td className="text-center">
-                {r.settleDate.replace(/-/g, '/')} {r.docNo}
+                {dateNo(r.settleDate, r.docNo)}
               </td>
               <td>{r.partnerName}</td>
               <td className="text-right font-bold">{r.amount.toLocaleString()}</td>
