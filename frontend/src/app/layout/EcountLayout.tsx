@@ -707,7 +707,7 @@ const MENU: TopMenu[] = [
               { label: '출퇴근/근태/일정 통합현황', to: '/hr/work-integrated' },
             ],
           },
-          { label: '출/퇴근(사원)', children: [{ label: '출/퇴근반영기준', to: '/hr/commute-rules' }, { label: '출/퇴근기록부(사원)', to: '/hr/employee-commutes' }, { label: '출/퇴근기록부(ID)', to: '/groupware/attendance' }] },
+          { label: '출/퇴근(사원)', children: [{ label: '출/퇴근반영기준', to: '/hr/commute-rules' }, { label: '출/퇴근기록부(사원)', to: '/hr/employee-commutes' }, { label: '출/퇴근현황(사원)', to: '/hr/employee-commutes/status' }, { label: '지각현황(사원)', to: '/hr/employee-commutes/late' }, { label: '출/퇴근기록부(ID)', to: '/groupware/attendance' }] },
           {
             label: '출력물',
             children: [

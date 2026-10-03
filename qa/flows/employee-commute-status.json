@@ -1,0 +1,30 @@
+{
+  "about": "관리 > 출/퇴근현황(사원)(E020722) · 지각현황(사원)(E020723) — 2091/06/01 에 사원 하나가 09:30 출근 · 18:30 퇴근하면, 출/퇴근현황(사원)에 근무시간 8.00(점심 1시간 뺌), 지각현황(사원)에 같은 날 출근시간 · 출근적요가 보인다(09:00 넘음). 시험 기록은 지운다.",
+  "shots": [
+    {
+      "name": "출/퇴근현황(사원) — 근무시간",
+      "path": "/hr/employee-commutes/status",
+      "steps": [
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const emps=await (await fetch('/api/employees',{headers:h})).json();const e=emps.find(x=>x.code==='EMP-0001');const a=await (await fetch('/api/hr/employee-commutes/clock',{method:'POST',headers:h,body:JSON.stringify({employeeId:e.id,at:'2091-06-01T09:30:00',reason:'QA관리-지각'})})).json();await fetch('/api/hr/employee-commutes/clock',{method:'POST',headers:h,body:JSON.stringify({employeeId:e.id,at:'2091-06-01T18:30:00'})});sessionStorage.setItem('qaEcs',String(a.id));return true})()",
+        "set:input[type=date]#0|2091-06-01",
+        "set:input[type=date]#1|2091-06-30",
+        "click:검색(F8)",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes('2091/06/01')&&t.innerText.includes('오전 9:30:00')&&t.innerText.includes('오후 6:30:00')&&t.innerText.trim().endsWith('8.00'))"
+      ]
+    },
+    {
+      "name": "지각현황(사원) → 정리",
+      "path": "/hr/employee-commutes/late",
+      "steps": [
+        "set:input[type=date]#0|2091-06-01",
+        "set:input[type=date]#1|2091-06-30",
+        "click:검색(F8)",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes('2091/06/01')&&t.innerText.includes('오전 9:30:00')&&t.innerText.includes('QA관리-지각'))",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const r=await fetch('/api/hr/employee-commutes/'+sessionStorage.getItem('qaEcs'),{method:'DELETE',headers:h});sessionStorage.setItem('qaEcsClean',String(r.ok));return true})()",
+        "expect:sessionStorage.getItem('qaEcsClean')==='true'"
+      ]
+    }
+  ]
+}

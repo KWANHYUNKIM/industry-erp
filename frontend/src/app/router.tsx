@@ -265,6 +265,8 @@ const VacationKindListPage = lazy(() => import('../pages/hr/VacationKindListPage
 const VacationGrantPage = lazy(() => import('../pages/hr/VacationGrantPage'))
 const CommuteRuleListPage = lazy(() => import('../pages/hr/CommuteRuleListPage'))
 const EmployeeCommutePage = lazy(() => import('../pages/hr/EmployeeCommutePage'))
+const EmployeeCommuteStatusPage = lazy(() => import('../pages/hr/EmployeeCommuteStatusPage'))
+const EmployeeLatePage = lazy(() => import('../pages/hr/EmployeeLatePage'))
 const DailyWorkerListPage = lazy(() => import('../pages/hr/DailyWorkerListPage'))
 const DailyPayItemListPage = lazy(() => import('../pages/hr/DailyPayItemListPage'))
 const DailyWorkInputPage = lazy(() => import('../pages/hr/DailyWorkInputPage'))
@@ -708,6 +710,8 @@ export default function AppRouter() {
         <Route path="/hr/vacation-grants" element={<VacationGrantPage />} />
         <Route path="/hr/commute-rules" element={<CommuteRuleListPage />} />
         <Route path="/hr/employee-commutes" element={<EmployeeCommutePage />} />
+        <Route path="/hr/employee-commutes/status" element={<EmployeeCommuteStatusPage />} />
+        <Route path="/hr/employee-commutes/late" element={<EmployeeLatePage />} />
         <Route path="/hr/daily-workers" element={<DailyWorkerListPage />} />
         <Route path="/hr/daily-allowance-items" element={<DailyPayItemListPage kind="ALLOWANCE" />} />
         <Route path="/hr/daily-deduction-items" element={<DailyPayItemListPage kind="DEDUCTION" />} />
