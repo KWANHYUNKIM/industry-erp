@@ -48,12 +48,18 @@ const blank = (): Row => ({
  * 버튼줄: 저장(F8) · 사용중단/재사용(▲ 사용중단 · 삭제 · 재사용) · 사용중단포함 · 웹자료올리기 · H.
  * 저장하면 표시순서로 다시 정렬되고 안내는 없다. 수당항목명 · 표시순서가 비면 그 칸이 빨갛게 막힌다.
  *
+ * <p><b>공제항목등록</b>(원본 E090114, '공제리스트')도 이 화면이다 — 열이 공제항목코드 · 공제항목명 · 표시순서 ·
+ * 계산식 · 산출방법뿐이고(배율 · 비과세유형 · 지급유형이 없다) 버튼줄 · 저장 · 삭제는 같다.
+ * 원본 공제리스트의 소득세 · 주민세 · 국민연금 · 건강보험 · 고용보험 · 장기요양은 우리 급여계산이 따로 셈하는
+ * 법정 공제라 항목으로 두지 않는다.
+ *
  * <p>[계산식]은 그리지 않았다 — 원본은 항목마다 사용시점별 계산식(예: R( 기본급(급여지급사항) , 0 ))을
  * 따로 두고 급여계산이 그것을 푼다. 우리 급여계산은 그룹 금액을 그대로 더하므로 계산식을 담을 자리가 없다.
  * 웹자료올리기 · H(이력)도 없다.
  */
 export default function PayItemListPage({ kind = 'ALLOWANCE' }: { kind?: PayslipLineKind }) {
-  const word = kind === 'ALLOWANCE' ? '수당' : '공제'
+  const isAllowance = kind === 'ALLOWANCE'
+  const word = isAllowance ? '수당' : '공제'
   const [rows, setRows] = useState<Row[]>([])
   const [error, setError] = useState('')
   const [includeInactive, setIncludeInactive] = useState(false)
@@ -82,7 +88,7 @@ export default function PayItemListPage({ kind = 'ALLOWANCE' }: { kind?: Payslip
     taxable: r.taxFreeType === 'NONE', defaultAmount: r.defaultAmount, active: r.active,
     sortOrder: r.sortOrder === '' ? 0 : Number(r.sortOrder),
     rate: r.rate === '' ? null : Number(r.rate),
-    taxFreeType: kind === 'ALLOWANCE' ? r.taxFreeType : null,
+    taxFreeType: isAllowance ? r.taxFreeType : null,
     payMethod: r.payMethod,
     calcNote: r.calcNote.trim() || null,
   })
@@ -163,9 +169,9 @@ export default function PayItemListPage({ kind = 'ALLOWANCE' }: { kind?: Payslip
             <th className="w-[130px]">{word}항목코드</th>
             <th className="w-[180px]">{word}항목명</th>
             <th className="w-[80px] text-right">표시순서</th>
-            <th className="w-[70px] text-right">배율</th>
-            <th className="w-[120px]">비과세유형</th>
-            <th className="w-[130px]">지급유형</th>
+            {isAllowance && <th className="w-[70px] text-right">배율</th>}
+            {isAllowance && <th className="w-[120px]">비과세유형</th>}
+            {isAllowance && <th className="w-[130px]">지급유형</th>}
             <th>산출방법</th>
           </tr>
         </thead>
@@ -193,24 +199,28 @@ export default function PayItemListPage({ kind = 'ALLOWANCE' }: { kind?: Payslip
                 <input className="ec-input w-full text-right" inputMode="numeric" value={r.sortOrder}
                        onChange={(e) => edit(idx, { sortOrder: e.target.value.replace(/[^0-9]/g, '') })} />
               </td>
-              <td>
-                <input className="ec-input w-full text-right" inputMode="decimal" value={r.rate}
-                       onChange={(e) => edit(idx, { rate: e.target.value.replace(/[^0-9.]/g, '') })} />
-              </td>
-              <td>
-                {kind === 'ALLOWANCE' ? (
+              {isAllowance && (
+                <td>
+                  <input className="ec-input w-full text-right" inputMode="decimal" value={r.rate}
+                         onChange={(e) => edit(idx, { rate: e.target.value.replace(/[^0-9.]/g, '') })} />
+                </td>
+              )}
+              {isAllowance && (
+                <td>
                   <select className="ec-input w-full" value={r.taxFreeType}
                           onChange={(e) => edit(idx, { taxFreeType: e.target.value as PayTaxFreeType })}>
                     {TAX_FREE.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                   </select>
-                ) : null}
-              </td>
-              <td>
-                <select className="ec-input w-full" value={r.payMethod}
-                        onChange={(e) => edit(idx, { payMethod: e.target.value as PayMethod })}>
-                  {METHODS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                </select>
-              </td>
+                </td>
+              )}
+              {isAllowance && (
+                <td>
+                  <select className="ec-input w-full" value={r.payMethod}
+                          onChange={(e) => edit(idx, { payMethod: e.target.value as PayMethod })}>
+                    {METHODS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
+                </td>
+              )}
               <td><input className="ec-input w-full" value={r.calcNote} onChange={(e) => edit(idx, { calcNote: e.target.value })} /></td>
             </tr>
           ))}

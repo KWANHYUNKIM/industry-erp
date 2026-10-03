@@ -648,6 +648,7 @@ export default function AppRouter() {
         <Route path="/hr/performance" element={<EmployeePerformancePage />} />
         <Route path="/hr/pay-settings" element={<PaySettingPage />} />
         <Route path="/hr/allowance-items" element={<PayItemListPage kind="ALLOWANCE" />} />
+        <Route path="/hr/deduction-items" element={<PayItemListPage kind="DEDUCTION" />} />
         <Route path="/hr/records" element={<HrRecordPage />} />
         <Route path="/hr/contracts" element={<LaborContractPage />} />
         <Route path="/hr/daily-wage" element={<DailyWagePage />} />
