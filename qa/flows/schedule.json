@@ -1,0 +1,49 @@
+{
+  "about": "일정관리(원본 E070201) — 월간 달력으로 열림 → 신규(F2) 시간 기본값 다음 정각~+1시간 → 빈 제목 거절 → 저장하면 오늘 칸에 → 눌러 '일정조회' → [수정]으로 장소 바꿈 → [삭제] 원본 문구 → 사라짐. node qa/shot.mjs qa/flows/schedule.json",
+  "shots": [
+    {
+      "name": "월간 달력 → 신규 — 시간 기본값, 빈 제목 거절, 저장하면 오늘 칸에 칩 없이 굵은 제목",
+      "path": "/groupware/schedule",
+      "steps": [
+        "expect:!!document.querySelector('#schedule-month table') && document.querySelector('#schedule-month .bg-ec-blue-wash')",
+        "click:신규(F2)",
+        "expect:document.querySelector('[role=dialog]')?.getAttribute('aria-label') === '일정관리등록'",
+        "expect:/^\\d{2}:00$/.test(document.querySelectorAll('[role=dialog] input[type=time]')[0].value) && Number(document.querySelectorAll('[role=dialog] input[type=time]')[1].value.slice(0, 2)) === Number(document.querySelectorAll('[role=dialog] input[type=time]')[0].value.slice(0, 2)) + 1",
+        "click:저장(F8)",
+        "expect:document.querySelector('[role=dialog]')?.innerText.includes('일정 제목을 입력하세요.')",
+        "setnear:제목|QA그룹웨어-일정",
+        "setnear:장소|QA회의실",
+        "click:저장(F8)",
+        "expect:!document.querySelector('[role=dialog]')",
+        "expect:document.querySelector('#schedule-month .bg-ec-blue-wash')?.innerText.includes('QA그룹웨어-일정')"
+      ]
+    },
+    {
+      "name": "일정을 누르면 '일정조회' → [수정]으로 장소를 바꾸면 다시 열었을 때 바뀐 값",
+      "path": "/groupware/schedule",
+      "steps": [
+        "js:[...document.querySelectorAll('#schedule-month button')].find((b) => b.title === 'QA그룹웨어-일정').click(); true",
+        "expect:document.querySelector('[role=dialog]')?.getAttribute('aria-label') === '일정조회' && document.querySelector('[role=dialog]').innerText.includes('QA회의실')",
+        "click:수정",
+        "expect:document.querySelector('[role=dialog]')?.getAttribute('aria-label') === '일정관리등록' && [...document.querySelectorAll('[role=dialog] input')].some((i) => i.value === 'QA그룹웨어-일정')",
+        "setnear:장소|QA회의실2",
+        "click:저장(F8)",
+        "expect:!document.querySelector('[role=dialog]')",
+        "wait:1500",
+        "expect:fetch('/api/schedule-events', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()).then((d) => d.some((e) => e.title === 'QA그룹웨어-일정' && e.location === 'QA회의실2'))",
+        "js:[...document.querySelectorAll('#schedule-month button')].find((b) => b.title === 'QA그룹웨어-일정').click(); true",
+        "expect:document.querySelector('[role=dialog]')?.innerText.includes('QA회의실2')"
+      ]
+    },
+    {
+      "name": "'일정조회' [삭제] — 원본 문구를 묻고 지우면 달력에서 사라짐",
+      "path": "/groupware/schedule",
+      "steps": [
+        "js:window.__asked = ''; window.confirm = (m) => { window.__asked = m; return true }; [...document.querySelectorAll('#schedule-month button')].find((b) => b.title === 'QA그룹웨어-일정').click(); true",
+        "click:삭제",
+        "expect:window.__asked.startsWith('선택한 일정이 삭제 됩니다.') && window.__asked.endsWith('계속 진행 하겠습니까?')",
+        "expect:![...document.querySelectorAll('#schedule-month button')].some((b) => b.title === 'QA그룹웨어-일정')"
+      ]
+    }
+  ]
+}

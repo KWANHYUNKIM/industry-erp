@@ -6534,5 +6534,13 @@
   "present": [
    "books.map(bookTable)"
   ]
+ },
+ "공지사항|일자-No.": {
+  "claim": "원본 목록에는 없고 View 창 안에만 있다 — 우리도 View 창에 둔다",
+  "present": [
+   "title={`${title}View`}",
+   "일자-No."
+  ],
+  "file": "groupware/WorkPage.tsx"
  }
 }

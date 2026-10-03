@@ -559,11 +559,6 @@
   "color": 4,
   "palette": 0
  },
- "pages/groupware/SchedulePage.tsx": {
-  "inline": 29,
-  "color": 1,
-  "palette": 0
- },
  "pages/groupware/ShortMessagePage.tsx": {
   "inline": 11,
   "color": 3,

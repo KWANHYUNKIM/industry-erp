@@ -302,7 +302,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
         </div>
       </div>
 
-      {error && !showForm && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {error && !showForm && !viewing && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       {/* 원본 목록 오른쪽 위의 조회 기간 */}
       <div className="text-right text-[12px] text-ec-ink mb-[4px]">{dateText(from)} ~ {dateText(to)}</div>
@@ -434,7 +434,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
       </Modal>
 
       {/* 원본 '공지사항View' 창 */}
-      <Modal open={!!viewing} title={`${title}View`} onClose={() => setViewing(null)} width={780}>
+      <Modal error={error} open={!!viewing} title={`${title}View`} onClose={() => setViewing(null)} width={780}>
         {viewing && (
           <>
             <div className="bg-ec-page rounded-ec px-[12px] py-[8px] text-[12px] font-bold text-ec-ink">
