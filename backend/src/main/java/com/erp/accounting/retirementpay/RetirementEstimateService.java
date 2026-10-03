@@ -26,7 +26,7 @@ import java.util.*;
  * <ul>
  *   <li>3개월 = 기준월 바로 앞 석 달(2026/10 이면 7 · 8 · 9월), 근무일수 = 그 석 달의 날수(92).</li>
  *   <li>재직일수 = 정산시작일 ~ 기준월 말일(양 끝 포함).</li>
- *   <li>퇴직급여 = (3개월 급여 + 1년 상여 × 3/12) ÷ 3개월 근무일수 × 30 × 재직일수 ÷ 365, 원 미만 버림.</li>
+ *   <li>퇴직급여 = 1일 평균임금[(3개월 급여 + 1년 상여 × 3/12) ÷ 3개월 근무일수, 소수 둘째 자리 반올림] × 30 × 재직일수 ÷ 365, 원 단위 반올림.</li>
  *   <li>근속 년/월/일 = (기준월 다음 달 1일) − 정산시작일, 일이 모자라면 정산시작일이 든 달의 날수를 빌린다
  *       (변종호 2/15 → 11/01: 1 + 28 − 15 = 14일).</li>
  *   <li>1년 미만자는 [1년 미만자 포함]을 켜야 나온다.</li>
@@ -76,8 +76,11 @@ public class RetirementEstimateService {
             BigDecimal p3 = pay3.getOrDefault(e.id(), BigDecimal.ZERO);
             BigDecimal b3 = bonus12.getOrDefault(e.id(), BigDecimal.ZERO).multiply(BigDecimal.valueOf(3))
                     .divide(BigDecimal.valueOf(12), 0, RoundingMode.DOWN);
-            BigDecimal amount = p3.add(b3).multiply(BigDecimal.valueOf(30)).multiply(BigDecimal.valueOf(serviceDays))
-                    .divide(BigDecimal.valueOf((long) threeMonthDays * 365), 0, RoundingMode.DOWN);
+            // 1일 평균임금을 소수 둘째 자리까지 반올림 → × 30 × 재직일수 ÷ 365 를 원 단위 반올림. 원본 6명이 모두 맞는 규칙은 이것뿐이다
+            // (변종호 155,184.78 → 35,917,836 · 신문섭 108,586.96 → 18,447,883 · 윤지헌 102,000.00 → 14,939,507, 합계 129,210,221).
+            BigDecimal daily = p3.add(b3).divide(BigDecimal.valueOf(threeMonthDays), 2, RoundingMode.HALF_UP);
+            BigDecimal amount = daily.multiply(BigDecimal.valueOf(30)).multiply(BigDecimal.valueOf(serviceDays))
+                    .divide(BigDecimal.valueOf(365), 0, RoundingMode.HALF_UP);
             rows.add(new EstimateRow(e.id(), e.code(), e.name(), start, p3, b3, ymd[0], ymd[1], ymd[2],
                     threeMonthDays, serviceDays, amount));
         }
