@@ -1,0 +1,18 @@
+{
+  "about": "익명게시판(원본 E070252) — 글상자에 쓰고 [저장(F8)] → 목록 맨 위에 글 한 줄 · 그 아래 시각 한 줄('2026/10/03 오후 3:05:09'), [삭제] 없음. 빈 채로 저장하면 거절. 시험 글은 API 로 지운다. node qa/shot.mjs qa/flows/anonymous-board.json",
+  "shots": [
+    {
+      "name": "쓰기 → 두 줄로 쌓임",
+      "path": "/groupware/anonymous-board",
+      "steps": [
+        "click:저장(F8)",
+        "expect:document.body.innerText.includes('내용을 입력하세요.')",
+        "js:(() => { const t = document.querySelector('textarea'); Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(t, 'QA그룹웨어-익명'); t.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "click:저장(F8)",
+        "expect:(() => { const trs = [...document.querySelectorAll('tbody tr')]; return trs[0]?.innerText.trim() === 'QA그룹웨어-익명' && /^\\d{4}\\/\\d{2}\\/\\d{2} (오전|오후) \\d{1,2}:\\d{2}:\\d{2}$/.test(trs[1]?.innerText.trim() ?? '') })()",
+        "expect:![...document.querySelectorAll('button')].some((b) => b.textContent.trim() === '삭제')",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = await (await fetch('/api/board', { headers: H })).json(); const x = d.filter((p) => (p.content || p.title) === 'QA그룹웨어-익명'); const out = []; for (const p of x) out.push((await fetch('/api/board/' + p.id, { method: 'DELETE', headers: H })).status); return 'del ' + out.join(',') })()"
+      ]
+    }
+  ]
+}
