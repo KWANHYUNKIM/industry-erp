@@ -1,5 +1,5 @@
 {
-  "about": "관리 > 급여계산/대장 [사전작업] 근무기록확정 · 근무확정현황(E090116) — 원본처럼 확정 창의 [근무기록]이 근무입력의 그 달 합계를 불러오고 [저장]하면 목록이 '근무기록확정[1]', 근무확정현황에 '귀속월 계'로 뜬다. 시험 자료는 지운다.",
+  "about": "관리 > 급여계산/대장 [사전작업] 근무기록확정 · 근무확정현황(E090116) — 원본처럼 확정 창의 [근무기록]이 근무입력의 그 달 합계를 불러오고 [저장]하면 목록이 '근무기록확정[1]', 근무확정현황에 '귀속월 계'로 뜬다. 시험 자료는 지운다. 근무확정현황 [부서] · [사원번호]는 여러 개 고르는 코드도움 — 그 사원 부서면 보이고, 다른 사원번호만 고르면 빠진다.",
   "shots": [
     {
       "name": "근무기록확정 창 → [근무기록] → 저장",
@@ -29,6 +29,20 @@
         "click:검색(F8)",
         "wait:1500",
         "expect:/2091\\/08 -1\\s+이영희\\s+QA관리-확정수당\\s+변동\\(시간\\)\\s+4/.test(document.querySelector('table').innerText) && /2091\\/08 계\\s+4/.test(document.querySelector('table').innerText)",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const es=await (await fetch('/api/employees/all',{headers:h})).json();const ds=await (await fetch('/api/departments',{headers:h})).json();const e=es.find(x=>x.name==='이영희');sessionStorage.setItem('qaWcMine',ds.find(x=>x.id===e.departmentId).code);document.querySelector('button[title=\"부서 선택\"]').click();return true})()",
+        "pickrow:@qaWcMine",
+        "clicklast:확인",
+        "wait:300",
+        "expect:/QA관리-확정수당/.test(document.querySelector('table').innerText)",
+        "pick:사원번호:EMP-0004",
+        "clicklast:확인",
+        "wait:300",
+        "expect:!/QA관리-확정수당/.test(document.querySelector('table').innerText)",
+        "js:document.querySelector('button[title=\"사원번호 선택\"]').click();true",
+        "clicklast:전체 해제",
+        "clicklast:확인",
+        "wait:300",
+        "expect:/QA관리-확정수당/.test(document.querySelector('table').innerText)",
         "js:(async()=>{const t=localStorage.getItem('erp_token');const h={Authorization:'Bearer '+t};const k=JSON.parse(sessionStorage.getItem('qaWc'));const ls=await (await fetch('/api/pay-ledgers',{headers:h})).json();const l=ls.find(x=>x.payMonth==='2091-08');const a=await fetch('/api/pay-ledgers/'+l.id,{method:'DELETE',headers:h});const b=await fetch('/api/work-records/'+k.slip,{method:'DELETE',headers:h});const c=await fetch('/api/pay-settings/items/'+k.item,{method:'DELETE',headers:h});sessionStorage.setItem('qaWcDel',String(a.ok&&b.ok&&c.ok));return true})()",
         "expect:sessionStorage.getItem('qaWcDel')==='true'"
       ]

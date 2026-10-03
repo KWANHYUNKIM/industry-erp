@@ -30,15 +30,18 @@ const qty = (n: number) => (Number.isInteger(n) ? String(n) : String(Number(n.to
  * 결과: 귀속연월-NO · 성명 · 수당항목명 · 단위 · 근무기록, 귀속월마다 'YYYY/MM 계', 끝에 합계.
  * 보이는 것은 급여계산/대장의 [근무기록확정]에서 확정한 값이다(근무입력 그대로가 아니다).
  *
- * <p>구분은 라인별만, 조건은 기준월 · 사원번호 · 수당항목만 만들었다.
+ * <p>구분은 라인별만, 조건은 기준월 · 부서 · 사원번호 · 수당항목(모두 여러 개 고르는 코드도움)만 만들었다.
+ * 지급연월 · 지급일 · 급여구분 · 프로젝트 · 결재방표시 · 정렬/소계기준은 없다.
  */
 export default function WorkConfirmStatusPage() {
   const [range, setRange] = useState(pick('전월+금월'))
   const [rows, setRows] = useState<ConfirmRow[]>([])
   const [employees, setEmployees] = useState<EmployeeMaster[]>([])
   const [items, setItems] = useState<PayItem[]>([])
-  const [empCond, setEmpCond] = useState('')
-  const [itemCond, setItemCond] = useState('')
+  const [depts, setDepts] = useState<{ id: number; code?: string | null; name: string }[]>([])
+  const [deptCond, setDeptCond] = useState<string[]>([])
+  const [empCond, setEmpCond] = useState<string[]>([])
+  const [itemCond, setItemCond] = useState<string[]>([])
   const [error, setError] = useState('')
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '근무확정현황', [rows.length])
@@ -50,12 +53,15 @@ export default function WorkConfirmStatusPage() {
   useEffect(() => {
     search()
     api.get<EmployeeMaster[]>('/employees/all').then((r) => setEmployees(r.data)).catch(() => setEmployees([]))
+    api.get<{ id: number; code?: string | null; name: string }[]>('/departments').then((r) => setDepts(r.data)).catch(() => setDepts([]))
     api.get<PayItem[]>('/pay-settings/items').then((r) => setItems(r.data.filter((i) => i.kind === 'ALLOWANCE'))).catch(() => setItems([]))
   }, [])
 
+  const deptOf = new Map(employees.map((e) => [e.id, e.departmentId]))
   const shown = rows
-    .filter((r) => !empCond || String(r.employeeId) === empCond)
-    .filter((r) => !itemCond || String(r.payItemId) === itemCond)
+    .filter((r) => deptCond.length === 0 || deptCond.includes(String(deptOf.get(r.employeeId) ?? '')))
+    .filter((r) => empCond.length === 0 || empCond.includes(String(r.employeeId)))
+    .filter((r) => itemCond.length === 0 || itemCond.includes(String(r.payItemId)))
   const months = [...new Set(shown.map((r) => r.payMonth))].sort()
   const total = shown.reduce((s, r) => s + Number(r.quantity), 0)
 
@@ -68,12 +74,16 @@ export default function WorkConfirmStatusPage() {
           ~
           <input type="month" className="ec-input w-[140px]" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
         </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel fill multiple placeholder="부서" values={deptCond} onChangeMulti={(v) => setDeptCond(v)}
+                           items={depts.map((x) => ({ value: String(x.id), code: x.code ?? undefined, name: x.name }))} />
+        </EcCond>
         <EcCond label="사원번호">
-          <CodePickerField label="사원번호" hideLabel placeholder="사원번호" value={empCond} onChange={(v) => setEmpCond(v)}
+          <CodePickerField label="사원번호" hideLabel fill multiple placeholder="사원번호" values={empCond} onChangeMulti={(v) => setEmpCond(v)}
                            items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
         </EcCond>
         <EcCond label="수당항목">
-          <CodePickerField label="수당항목" hideLabel placeholder="수당항목" value={itemCond} onChange={(v) => setItemCond(v)}
+          <CodePickerField label="수당항목" hideLabel fill multiple placeholder="수당항목" values={itemCond} onChangeMulti={(v) => setItemCond(v)}
                            items={items.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
         </EcCond>
       </ul>
