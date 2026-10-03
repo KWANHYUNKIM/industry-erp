@@ -105,9 +105,16 @@ export default function AttendanceKindStatusPage() {
   const [emp, setEmp] = useState('')
   /** [근태항목] — 근태항목등록 마스터에서 여러 개 고른다(값은 근태 줄에 적히는 근태항목명). */
   const [kind, setKind] = useState<string[]>([])
-  const [kindMaster, setKindMaster] = useState<{ code: string; name: string }[]>([])
+  const [kindMaster, setKindMaster] = useState<{ code: string; name: string; kindGroup: string | null; vacationKindId: number | null }[]>([])
+  /** [휴가항목] · [근태그룹] — 근태 줄의 근태항목이 가리키는 휴가코드 · 근태그룹으로 거른다. */
+  const [vkCond, setVkCond] = useState<string[]>([])
+  const [groupCond, setGroupCond] = useState<string[]>([])
+  const [vkMaster, setVkMaster] = useState<{ id: number; code: string; name: string }[]>([])
+  const [groupMaster, setGroupMaster] = useState<{ code: string; name: string }[]>([])
   useEffect(() => {
-    api.get<{ code: string; name: string }[]>('/hr/attendance-kinds').then((r) => setKindMaster(r.data)).catch(() => setKindMaster([]))
+    api.get<typeof kindMaster>('/hr/attendance-kinds').then((r) => setKindMaster(r.data)).catch(() => setKindMaster([]))
+    api.get<typeof vkMaster>('/hr/vacation-kinds').then((r) => setVkMaster(r.data)).catch(() => setVkMaster([]))
+    api.get<typeof groupMaster>('/hr/attendance-kind-groups').then((r) => setGroupMaster(r.data)).catch(() => setGroupMaster([]))
   }, [])
   const [employment, setEmployment] = useState<'ACTIVE' | 'RESIGNED' | 'ALL'>('ACTIVE')
   const [reason, setReason] = useState('')
@@ -146,7 +153,7 @@ export default function AttendanceKindStatusPage() {
 
   const reset = () => {
     setFrom(init.from); setTo(init.to)
-    setDept(''); setEmp(''); setKind([]); setReason('')
+    setDept(''); setEmp(''); setKind([]); setVkCond([]); setGroupCond([]); setReason('')
     setDeptGroup(''); setDayCond('')
     setStAll(false); setStPending(false); setStConfirmed(true); setSubtotal('없음')
   }
@@ -160,6 +167,9 @@ export default function AttendanceKindStatusPage() {
     if (!inGroup(r.department, deptGroup)) return false
     if (emp && !r.empName.includes(emp)) return false
     if (kind.length && !kind.includes(r.type)) return false
+    const km = kindMaster.find((k) => k.name === r.type)
+    if (vkCond.length && !vkCond.includes(String(km?.vacationKindId ?? ''))) return false
+    if (groupCond.length && !groupCond.includes(km?.kindGroup ?? '')) return false
     if (reason && !(r.reason ?? '').includes(reason)) return false
     /* [전체]를 켜면 상태를 안 가린다. 아니면 켜 둔 것에 걸리는 줄만 남긴다. */
     if (!stAll) {
@@ -170,7 +180,7 @@ export default function AttendanceKindStatusPage() {
     if (employment === 'ACTIVE' && !r.active) return false
     if (employment === 'RESIGNED' && r.active) return false
     return true
-  }), [rows, from, to, dept, deptGroup, inGroup, dayCond, emp, kind, reason,
+  }), [rows, from, to, dept, deptGroup, inGroup, dayCond, emp, kind, vkCond, groupCond, kindMaster, reason,
     stAll, stPending, stConfirmed, employment])
 
   const totalDays = shown.reduce((n, r) => n + r.days, 0)
@@ -233,6 +243,14 @@ export default function AttendanceKindStatusPage() {
                            items={[...kindMaster.map((k) => ({ value: k.name, code: k.code, name: k.name })),
                              ...[...new Set(rows.map((r) => r.type))].filter((t) => t && !kindMaster.some((k) => k.name === t))
                                .map((t) => ({ value: t, name: t }))]} />
+        </EcCond>
+        <EcCond label="휴가항목">
+          <CodePickerField label="휴가항목" hideLabel fill multiple placeholder="휴가항목" values={vkCond} onChangeMulti={(v) => setVkCond(v)}
+                           items={vkMaster.map((v) => ({ value: String(v.id), code: v.code, name: v.name }))} />
+        </EcCond>
+        <EcCond label="근태그룹">
+          <CodePickerField label="근태그룹" hideLabel fill multiple placeholder="근태그룹" values={groupCond} onChangeMulti={(v) => setGroupCond(v)}
+                           items={groupMaster.map((g) => ({ value: g.name, code: g.code, name: g.name }))} />
         </EcCond>
         <EcCond label="적요">
           <input className="ec-input" placeholder="적요 일부" value={reason}
