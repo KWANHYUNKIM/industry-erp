@@ -93,10 +93,12 @@ export default function SurveyStatusPage() {
     api.get<UserRow[]>('/users').then((r) => setUsers(r.data)).catch(() => {})
   }, [])
 
+  /* 처음 연 판으로 — 예전엔 기간을 전월 1일~<b>오늘</b>로 되돌려 처음(전월+금월, 금월 말일까지)과 달랐고 [진행]은 그대로 남겼다. */
   function reset() {
-    setFrom(ymd(new Date(today.getFullYear(), today.getMonth() - 1, 1)))
-    setTo(ymd(today))
-    setScope(''); setUseEnd(false); setTitle(''); setQuestion(''); setWriter(''); setPostNo('')
+    const p = periodOf('전월+금월')!
+    setFrom(p.from)
+    setTo(p.to)
+    setScope(''); setProgress('전체'); setUseEnd(false); setTitle(''); setQuestion(''); setWriter(''); setPostNo('')
   }
 
   /*
