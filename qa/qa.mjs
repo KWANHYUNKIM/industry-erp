@@ -10440,6 +10440,7 @@ async function main() {
   await scenarioHrCertificate()
   await scenarioDailyWorker()
   await scenarioAttendanceKind()
+  await scenarioCommuteRule()
   await scenarioPressedTwice(fixtures)
   await scenarioNoPermission()
   await scenarioNewCompany()
@@ -11120,6 +11121,20 @@ async function scenarioAttendanceKind() {
   await must('DELETE', `/hr/vacation-kinds/${v.id}`)
   eq('next-code 가 다섯 자리', /^\d{5}$/.test((await must('GET', '/hr/vacation-kinds/next-code')).code), 'true')
   eq('지운 항목은 목록에 없다', (await must('GET', '/hr/attendance-kinds')).some((x) => x.id === k.id), 'false')
+}
+
+/** 관리 › 출/퇴근반영기준(원본 E020725) — 코드 필수 · 같은 코드 막기 · 제외시간 꼴 · 사용중단 · 삭제. */
+async function scenarioCommuteRule() {
+  section('■ 출/퇴근반영기준 — 코드 · 제외시간 · 사용중단 · 삭제')
+  await rejects('반영기준코드가 비면 막는다', 'POST', '/hr/commute-rules', { code: '', name: 'QA-기준', method: 'LATE' }, '반영기준코드를 입력')
+  const r = await must('POST', '/hr/commute-rules', { code: 'QA9101', name: 'QA-기준', method: 'LATE', minHours: 0, minMinutes: 10, ex1From: '0|12:00', ex1To: '0|13:00' })
+  eq('반영방식 · 적용기준 · 제외시간', `${r.methodName}/${r.basisName}/${r.ex1From}~${r.ex1To}`, '지각/근무시간설정기준/0|12:00~0|13:00')
+  await rejects('같은 반영기준코드는 막는다', 'POST', '/hr/commute-rules', { code: 'QA9101', name: 'QA-기준2', method: 'LATE' }, '이미 등록된 반영기준코드')
+  await rejects('제외시간 꼴이 틀리면 막는다', 'PUT', `/hr/commute-rules/${r.id}`, { code: 'QA9101', name: 'QA-기준', method: 'LATE', ex1From: '25:00' }, '제외시간 꼴')
+  const off = await must('PUT', `/hr/commute-rules/${r.id}`, { code: 'QA9101', name: 'QA-기준', method: 'EARLY_LEAVE', directBasis: true, active: false })
+  eq('수정 · 사용중단', `${off.methodName}/${off.basisName}/${off.active}`, '조퇴/직접설정/false')
+  await must('DELETE', `/hr/commute-rules/${r.id}`)
+  eq('지운 기준은 목록에 없다', (await must('GET', '/hr/commute-rules')).some((x) => x.id === r.id), 'false')
 }
 
 async function scenarioRollback(f) {

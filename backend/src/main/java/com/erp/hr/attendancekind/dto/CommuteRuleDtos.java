@@ -23,12 +23,12 @@ public class CommuteRuleDtos {
             boolean directBasis,
             @Min(value = 0, message = "최소시간은 0 이상이어야 합니다.") @Max(value = 23, message = "최소시간은 23시간까지입니다.") Integer minHours,
             @Min(value = 0, message = "최소시간(분)은 0 이상이어야 합니다.") @Max(value = 59, message = "최소시간(분)은 59분까지입니다.") Integer minMinutes,
-            @Pattern(regexp = SLOT, message = "제외시간 꼴이 맞지 않습니다.") String ex1From,
-            @Pattern(regexp = SLOT, message = "제외시간 꼴이 맞지 않습니다.") String ex1To,
-            @Pattern(regexp = SLOT, message = "제외시간 꼴이 맞지 않습니다.") String ex2From,
-            @Pattern(regexp = SLOT, message = "제외시간 꼴이 맞지 않습니다.") String ex2To,
-            @Pattern(regexp = SLOT, message = "제외시간 꼴이 맞지 않습니다.") String ex3From,
-            @Pattern(regexp = SLOT, message = "제외시간 꼴이 맞지 않습니다.") String ex3To,
+            @Size(max = 8, message = "제외시간 꼴이 맞지 않습니다.") @Pattern(regexp = SLOT, message = "제외시간 꼴이 맞지 않습니다.") String ex1From,
+            @Size(max = 8, message = "제외시간 꼴이 맞지 않습니다.") @Pattern(regexp = SLOT, message = "제외시간 꼴이 맞지 않습니다.") String ex1To,
+            @Size(max = 8, message = "제외시간 꼴이 맞지 않습니다.") @Pattern(regexp = SLOT, message = "제외시간 꼴이 맞지 않습니다.") String ex2From,
+            @Size(max = 8, message = "제외시간 꼴이 맞지 않습니다.") @Pattern(regexp = SLOT, message = "제외시간 꼴이 맞지 않습니다.") String ex2To,
+            @Size(max = 8, message = "제외시간 꼴이 맞지 않습니다.") @Pattern(regexp = SLOT, message = "제외시간 꼴이 맞지 않습니다.") String ex3From,
+            @Size(max = 8, message = "제외시간 꼴이 맞지 않습니다.") @Pattern(regexp = SLOT, message = "제외시간 꼴이 맞지 않습니다.") String ex3To,
             @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.") String remark,
             Boolean active
     ) {}

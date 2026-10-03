@@ -1,0 +1,33 @@
+{
+  "about": "관리 > 출/퇴근반영기준(E020725) — 원본처럼 반영기준코드를 직접 적고, 반영기준명 · 반영방식(지각) · 최소시간 · 제외시간1(당일 12:00 ~ 당일 13:00)을 넣어 저장하면 목록에 '지각 · 근무시간설정기준' 으로 붙는다. 다시 열면 제외시간이 남아 있고, ▲ › 삭제로 지운다. 코드가 비면 '반영기준코드를 입력 바랍니다.'.",
+  "shots": [
+    {
+      "name": "반영기준 신규 → 다시 열기 → 삭제",
+      "path": "/hr/commute-rules",
+      "steps": [
+        "js:window.confirm=()=>true;true",
+        "click:신규(F2)",
+        "setnear:반영기준명|QA관리-지각기준",
+        "clicklast:저장(F8)",
+        "expect:document.body.innerText.includes('반영기준코드를 입력 바랍니다.')",
+        "setnear:반영기준코드|QA9001",
+        "js:[...document.querySelectorAll('[role=dialog] input[name=cr-method]')].find(r=>r.parentElement.textContent.trim()==='지각').click();true",
+        "choose:[role=dialog] select#0|00",
+        "js:(()=>{const s=[...document.querySelectorAll('[role=dialog] select')];const set=(el,v)=>{Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(el,v);el.dispatchEvent(new Event('change',{bubbles:true}))};set(s[1],'10');return true})()",
+        "js:(()=>{const s=[...document.querySelectorAll('[role=dialog] select')];const set=(el,v)=>{Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(el,v);el.dispatchEvent(new Event('change',{bubbles:true}))};set(s[3],'12');set(s[6],'13');return true})()",
+        "clicklast:저장(F8)",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes('QA9001')&&t.innerText.includes('지각')&&t.innerText.includes('근무시간설정기준'))",
+        "js:[...document.querySelectorAll('table tbody a')].find(a=>a.textContent==='QA9001').click();true",
+        "wait:600",
+        "expect:(()=>{const s=[...document.querySelectorAll('[role=dialog] select')];return s[3].value==='12'&&s[6].value==='13'&&s[1].value==='10'})()",
+        "clicklast:닫기",
+        "js:(()=>{const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('QA9001'));tr.querySelector('input[type=checkbox]').click();return true})()",
+        "click:사용중단/재사용",
+        "js:[...document.querySelectorAll('.ec-menu button')].find(b=>b.textContent==='삭제').click();true",
+        "wait:1200",
+        "expect:![...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes('QA9001'))"
+      ]
+    }
+  ]
+}
