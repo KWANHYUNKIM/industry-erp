@@ -226,6 +226,8 @@ export default function PayrollStatusPage() {
         {['금월', '전월', '전월+금월', '금년', '전년'].map((l) => (
           <button key={l} type="button" className="ec-btn" onClick={() => setRange(pick(l))}>{l}</button>
         ))}
+        {/* 원본 끝 단추 [종료월] — 시작은 그대로 두고 끝을 이번 달로 */}
+        <button type="button" className="ec-btn" onClick={() => setRange({ ...range, to: pick('금월').to })}>종료월</button>
       </div>
       <div className="text-center font-bold mb-[2px]">급여현황</div>
       <div className="text-ec-hint mb-[4px]">{range.from.replace('-', '/')}/01 ~ {range.to.replace('-', '/')}</div>
