@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
@@ -8,27 +9,40 @@ import EcBarChart from '../../components/EcBarChart'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
+import { EcReportHead, EcReportFoot, reportDate, reportPeriod } from '../../components/EcReportFrame'
+import { weekOfYear } from '../../utils/statusAggregate'
 
 /**
- * 재고 II > A/S관리 > A/S현황 (이카운트 E040610 A/S접수현황 · E040611 A/S수리현황)
- * A/S 접수·수리를 기간·상태로 필터하고 상태별 건수와 평균 처리일수를 집계하는 현황.
- * 접수/수리 입력·전이는 A/S 접수·수리 관리(AsManagePage). 데이터는 GET /api/as-requests 그대로(백엔드 무변경).
+ * 재고 II > A/S관리 > A/S접수현황 (이카운트 E040610). 데이터는 GET /api/as-requests 의 접수와 그 품목 줄.
  *
- * 우리 모델은 접수→처리중→완료를 하나의 AsRequest 상태전이로 다룬다(별도 수리 전표 없음).
- * 따라서 접수현황과 수리현황을 한 화면에서 상태 필터로 함께 본다.
+ * <p>2026-10-04 원본 실측(두 접수 · 네 줄로 [구분]을 하나씩 바꿔 가며 잼):
+ * <ul>
+ *   <li><b>◉내역</b> 아래 선택상자 일별 · 월별 · <b>라인별</b>(기본) · 전표별 · 품목별 · 전표별품목별 · 거래처별 · 담당자별 ·
+ *       거래처별라인별(전송용). 열은 모두 같고, 묶은 줄은 <b>처음 줄의 값</b>에 수량만 더한다 —
+ *       전표별은 첫 품목 하나(외 n건 없음, -2 A001 6.00), 품목별은 전표를 넘어 묶는다(A001 1+1+3 = 5),
+ *       일별은 [일자-No.] 칸에 2026/10/04, 월별은 2026/10.</li>
+ *   <li><b>○집계</b> — [집계조건1] · [집계조건2] 를 고른다. 안 고르고 검색하면 "집계조건은 1개 이상 선택해야 합니다.".
+ *       열은 [조건 이름 · 수량], [코드포함] 이면 이름 앞에 [이름+코드] 열(창고코드 · 품목명[규격]코드).
+ *       조건2 가 있으면 조건1 묶음 끝에 '<b>본사창고 계</b>' 소계 줄, 맨 끝 [합계].
+ *       품목 이름은 '익스트림 울트라 명품 조립PC [1EA]' 처럼 규격 앞에 한 칸을 띄운다(내역은 붙인다).</li>
+ *   <li>출력물 머리 — 내역은 'AS접수현황', 집계는 'A/S접수현황'(원본이 둘을 다르게 적는다) · 회사명 · 기간, 꼬리 [P.1].</li>
+ * </ul>
+ * 예전엔 원본에 없는 건수 · 상태별 · 평균처리 요약 줄과 [수리일자] 조건을 두었다 — 수리일로 보는 것은
+ * A/S수리현황(/quality/as-repair-status)이 따로 맡는다. 접수/수리 입력·전이는 AsManagePage.
  */
 type AsStatus = 'RECEIVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED'
 const STATUSES: AsStatus[] = ['RECEIVED', 'IN_PROGRESS', 'COMPLETED', 'CANCELED']
 const LABEL: Record<AsStatus, string> = { RECEIVED: '접수', IN_PROGRESS: '수리중', COMPLETED: '완료', CANCELED: '취소' }
-const COLOR: Record<AsStatus, string> = { RECEIVED: 'var(--ec-warn)', IN_PROGRESS: 'var(--ec-blue)', COMPLETED: 'var(--ec-success)', CANCELED: 'var(--ec-text-hint)' }
 
 /** 원본 수량 칸은 소수 둘째 자리까지 찍는다(2.00). */
 const qty2 = (n: number) => Number(n).toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
+type AsLine = { id: number; itemId: number; itemCode: string; itemName: string; itemSpec: string | null; quantity: number }
+
 interface AsRow {
   id: number; asNo: string; partnerId: number; partnerName: string; itemId: number; itemName: string
   receiptDate: string; symptom: string | null; charge: string | null
-  warehouseName: string | null; projectName: string | null
+  warehouseId: number | null; warehouseName: string | null; projectId: number | null; projectName: string | null
   status: AsStatus; statusName: string; doneDate: string | null; repairNote: string | null
   /*
    * 2026-09-08 에 원본(E040610)의 조건 판을 재니 <b>스물아홉</b>이다(사본에는 아홉).
@@ -42,7 +56,7 @@ interface AsRow {
   scheduledDate: string | null
   createdBy: string | null
   /** 접수 품목 줄 — 원본 격자는 줄마다 한 행이다(2026-10-03 실측: 두 줄 접수 → 두 행 + [합계] 수량). */
-  lines?: { id: number; itemId: number; itemCode: string; itemName: string; itemSpec: string | null; quantity: number }[]
+  lines?: AsLine[]
 }
 
 interface Filters {
@@ -54,7 +68,8 @@ interface Filters {
    * 이번 달에 <b>고친</b> 건이 몇 건인지를 볼 수가 없었다 — 접수는 지난달인데
    * 수리가 이번 달인 건이 통째로 빠진다.
    */
-  doneFrom: string; doneTo: string
+  /** 원본 [구분] — ◉내역(아래 선택상자) · ○집계(집계조건1 · 2 · 코드포함). 검색할 때 걸린다. */
+  gubun: '내역' | '집계'; form: Form; agg1: AggKey | ''; agg2: AggKey | ''; codeIncl: boolean
   warehouse: string; project: string
   partner: string; item: string; charge: string; status: '' | AsStatus
   /** 2026-09-08 실측으로 드러난 일곱. */
@@ -69,16 +84,16 @@ interface Filters {
  */
 const init = periodOf('금월(~오늘)')!
 
-const EMPTY_FILTERS: Filters = { dateFrom: init.from, dateTo: init.to, doneFrom: '', doneTo: '', warehouse: '', project: '', partner: '', item: '', charge: '', status: '',
+const EMPTY_FILTERS: Filters = { dateFrom: init.from, dateTo: init.to, gubun: '내역', form: '라인별', agg1: '', agg2: '', codeIncl: false, warehouse: '', project: '', partner: '', item: '', charge: '', status: '',
   partnerGroup: '', category: '', itemGroup: '', schedFrom: '', schedTo: '', title: '', remark: '', author: '' }
 
-/** receiptDate ~ doneDate 사이 일수(완료건만). 둘 다 YYYY-MM-DD 문자열. */
-function daysBetween(from: string, to: string | null): number | null {
-  if (!to) return null
-  const a = Date.parse(from), b = Date.parse(to)
-  if (Number.isNaN(a) || Number.isNaN(b)) return null
-  return Math.round((b - a) / 86400000)
-}
+/** 원본 ◉내역 선택상자(차례 그대로). 거래처별라인별(전송용)은 내보내기용 판이라 두지 않는다. */
+const FORMS = ['일별', '월별', '라인별', '전표별', '품목별', '전표별품목별', '거래처별', '담당자별'] as const
+type Form = (typeof FORMS)[number]
+/** 원본 [집계조건] 창의 후보(기준일자 · A/S접수 · 거래처 · 품목 · 프로젝트 묶음). 이름이 곧 열 머리다. */
+const AGG_KEYS = ['일별', '주차별', '월별', '분기별', '반기별', '연별', '담당자', '창고', '관리항목',
+  '거래처', '거래처그룹1', '품목명[규격]', '품목그룹1', '프로젝트'] as const
+type AggKey = (typeof AGG_KEYS)[number]
 
 export default function AsStatusPage() {
   const [rows, setRows] = useState<AsRow[]>([])
@@ -96,15 +111,8 @@ export default function AsStatusPage() {
   async function load() {
     setLoading(true)
     try {
-      /*
-       * 원본 A/S수리현황(E040611)의 주 조건은 <b>수리한 날</b>이다 — 그것을 주면 서버가
-       * 그 축으로 좁혀 준다(안 고친 건은 그 날이 없어 빠진다). 안 주면 예전처럼 접수일로 건다.
-       */
       const res = await api.get<AsRow[]>('/as-requests', {
-        params: {
-          from: filters.dateFrom || undefined, to: filters.dateTo || undefined,
-          doneFrom: filters.doneFrom || undefined, doneTo: filters.doneTo || undefined,
-        },
+        params: { from: filters.dateFrom || undefined, to: filters.dateTo || undefined },
       })
       setRows(res.data)
     } catch (err) {
@@ -117,7 +125,7 @@ export default function AsStatusPage() {
    * <b>기간을 서버에 보낸다.</b> 조건 판에 [기간]을 물어 놓고 서버에는 아무것도 안 보내
    * 전 기간을 받아 브라우저에서 걸렀다. 기간이 바뀌면 다시 물어본다.
    */
-  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [filters.dateFrom, filters.dateTo, filters.doneFrom, filters.doneTo])
+  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [filters.dateFrom, filters.dateTo])
 
   /**
    * 원본 [데이터 보기형식] · [그래프로 보기] — 조건 판 <b>맨 끝</b>이다(사본 실측:
@@ -136,12 +144,6 @@ export default function AsStatusPage() {
       if (kw && !r.partnerName.includes(kw) && !r.itemName.includes(kw) && !r.asNo.includes(kw)) return false
       if (f.dateFrom && r.receiptDate < f.dateFrom) return false
       if (f.dateTo && r.receiptDate > f.dateTo) return false
-      /*
-       * 원본 A/S수리현황의 [기준일자] — 수리한 날. 이제 <b>서버가</b> 그 축으로 좁혀 주지만,
-       * 받아 온 뒤 조건을 다시 만져도 표가 맞도록 화면에서도 같은 잣대로 한 번 더 거른다.
-       */
-      if (f.doneFrom && (r.doneDate == null || r.doneDate < f.doneFrom)) return false
-      if (f.doneTo && (r.doneDate == null || r.doneDate > f.doneTo)) return false
       if (f.partner && !r.partnerName.includes(f.partner)) return false
       if (f.item && !(r.lines?.length ? r.lines.some((l) => l.itemName.includes(f.item)) : r.itemName.includes(f.item))) return false
       if (f.warehouse && (r.warehouseName ?? '') !== f.warehouse) return false
@@ -161,23 +163,9 @@ export default function AsStatusPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, keyword, filters, pgroup.groupOptions, mgmt.groupOptions])
 
-  const stats = useMemo(() => {
-    const byStatus: Record<AsStatus, number> = { RECEIVED: 0, IN_PROGRESS: 0, COMPLETED: 0, CANCELED: 0 }
-    let doneDaysSum = 0, doneCount = 0
-    for (const r of shown) {
-      byStatus[r.status]++
-      const d = r.status === 'COMPLETED' ? daysBetween(r.receiptDate, r.doneDate) : null
-      if (d !== null) { doneDaysSum += d; doneCount++ }
-    }
-    const open = byStatus.RECEIVED + byStatus.IN_PROGRESS
-    const avgDays = doneCount > 0 ? doneDaysSum / doneCount : null
-    return { byStatus, open, avgDays }
-  }, [shown])
-
   const activeCount = useMemo(() => {
     let n = 0
     if (filters.dateFrom || filters.dateTo) n++
-    if (filters.doneFrom || filters.doneTo) n++
     if (filters.partner) n++
     if (filters.item) n++
     if (filters.charge) n++
@@ -203,9 +191,87 @@ export default function AsStatusPage() {
     .filter((l) => !filters.item || l.itemName.includes(filters.item))
     .map((l) => ({ r, l })))
 
+  /*
+   * ◉내역 — 고른 판으로 묶는다. 묶은 줄은 <b>처음 줄</b>의 값을 두고 수량만 더한다(원본 실측, 위 머리 주석).
+   * 일별 · 월별은 [일자-No.] 칸에 날짜(달)만 적는다.
+   */
+  const listRows = useMemo(() => {
+    const form = filters.form
+    const one = ({ r, l }: { r: AsRow; l: AsLine }) => ({ key: `${r.id}-${l.id}`, r, l, qty: Number(l.quantity), dateCell: dateNo(r.receiptDate, r.asNo) })
+    if (form === '라인별') return lineRows.map(one)
+    const keyOf = ({ r, l }: { r: AsRow; l: AsLine }) => form === '일별' ? r.receiptDate : form === '월별' ? r.receiptDate.slice(0, 7)
+      : form === '전표별' ? String(r.id) : form === '품목별' ? String(l.itemId) : form === '전표별품목별' ? `${r.id}|${l.itemId}`
+      : form === '거래처별' ? String(r.partnerId) : (r.charge ?? '')
+    const m = new Map<string, { r: AsRow; l: AsLine }[]>()
+    lineRows.forEach((x) => m.set(keyOf(x), [...(m.get(keyOf(x)) ?? []), x]))
+    return [...m.entries()].map(([k, ls]) => ({
+      ...one(ls[0]), key: k, qty: ls.reduce((n, x) => n + Number(x.l.quantity), 0),
+      dateCell: form === '일별' ? reportDate(ls[0].r.receiptDate) : form === '월별' ? reportDate(ls[0].r.receiptDate).slice(0, 7) : dateNo(ls[0].r.receiptDate, ls[0].r.asNo),
+    }))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lineRows.length, sort.sorted, filters.form, filters.item])
+
+  /* [코드포함] 의 코드 — 응답에는 창고 · 거래처 · 프로젝트의 id 만 있어 마스터에서 잇는다. */
+  const [codes, setCodes] = useState<{ wh: Map<number, string>; pa: Map<number, string>; pj: Map<number, string> }>({ wh: new Map(), pa: new Map(), pj: new Map() })
+  useEffect(() => {
+    type C = { id: number; code: string }
+    const get = (u: string) => api.get<C[]>(u).then((r) => new Map(r.data.map((x) => [x.id, x.code] as [number, string]))).catch(() => new Map<number, string>())
+    Promise.all([get('/warehouses'), get('/partners'), get('/projects')]).then(([wh, pa, pj]) => setCodes({ wh, pa, pj }))
+  }, [])
+
+  /** 집계 축 하나의 [이름, 코드]. 코드가 없는 축(날짜 · 담당자 · 관리항목 · 그룹)은 코드가 null 이다. */
+  const axis = (k: AggKey, r: AsRow, l: AsLine): [string, string | null] => {
+    const d = r.receiptDate
+    const y = d.slice(0, 4), mo = Number(d.slice(5, 7))
+    switch (k) {
+      case '일별': return [reportDate(d), null]
+      case '주차별': return [`${y}년 ${weekOfYear(d)}주`, null]
+      case '월별': return [reportDate(d).slice(0, 7), null]
+      case '분기별': return [`${y} ${Math.floor((mo - 1) / 3) + 1}분기`, null]
+      case '반기별': return [`${y} ${mo <= 6 ? '상' : '하'}반기`, null]
+      case '연별': return [y, null]
+      case '담당자': return [r.charge ?? '', null]
+      case '창고': return [r.warehouseName ?? '', r.warehouseId != null ? codes.wh.get(r.warehouseId) ?? '' : '']
+      case '관리항목': return [mgmt.nameOf(l.itemId) ?? '', null]
+      case '거래처': return [r.partnerName, codes.pa.get(r.partnerId) ?? '']
+      case '거래처그룹1': return [pgroup.groupOfName(r.partnerName) ?? '', null]
+      /* 집계의 품목 이름은 규격 앞에 한 칸을 띄운다(내역은 붙인다) — 원본 그대로. */
+      case '품목명[규격]': return [l.itemName + (l.itemSpec ? ` [${l.itemSpec}]` : ''), l.itemCode]
+      case '품목그룹1': return [mgmt.groupOf(l.itemId) ?? '', null]
+      case '프로젝트': return [r.projectName ?? '', r.projectId != null ? codes.pj.get(r.projectId) ?? '' : '']
+    }
+  }
+  /** 코드가 있는 축 — [코드포함] 이면 이름 앞에 '<이름>코드' 열이 선다. */
+  const hasCode = (k: AggKey | '') => k === '창고' || k === '거래처' || k === '품목명[규격]' || k === '프로젝트'
+
+  /** ○집계 — 조건1(+조건2)로 묶어 수량을 더한다. 차례는 코드순(코드가 없으면 이름). */
+  const aggRows = useMemo(() => {
+    const { agg1, agg2 } = filters
+    if (!agg1) return []
+    const m = new Map<string, { n1: string; c1: string | null; n2: string; c2: string | null; qty: number }>()
+    for (const { r, l } of lineRows) {
+      const [n1, c1] = axis(agg1, r, l)
+      const [n2, c2] = agg2 ? axis(agg2, r, l) : ['', null]
+      const k = `${n1}␟${n2}`
+      const cur = m.get(k) ?? { n1, c1, n2, c2, qty: 0 }
+      cur.qty += Number(l.quantity)
+      m.set(k, cur)
+    }
+    const key = (n: string, c: string | null) => c || n
+    return [...m.values()].sort((a, b) => key(a.n1, a.c1).localeCompare(key(b.n1, b.c1), 'ko') || key(a.n2, a.c2).localeCompare(key(b.n2, b.c2), 'ko'))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lineRows.length, sort.sorted, filters.agg1, filters.agg2, codes, filters.item])
+  const totalQty = lineRows.reduce((a, x) => a + Number(x.l.quantity), 0)
+  const aggHead = (k: AggKey | '') => (k ? [...(filters.codeIncl && hasCode(k) ? [`${k}코드`] : []), k] : [])
+  const aggCols = [...aggHead(filters.agg1), ...aggHead(filters.agg2)]
+  /* 조건2 · 코드포함에 따라 열이 는다 — 렌더된 표를 직접 잰다. */
+  const aggRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(aggRef, 'A/S접수현황 집계', [filters.agg1, filters.agg2, filters.codeIncl, filters.gubun, aggRows.length])
+  const aggCells = (n: string, c: string | null, k: AggKey | '') => (k ? [...(filters.codeIncl && hasCode(k) ? [c ?? ''] : []), n] : [])
+
   return (
     <EcListShell
-      title="A/S현황"
+      title="A/S접수현황"
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={load}
@@ -227,20 +293,6 @@ export default function AsStatusPage() {
                      view={view} onViewChange={setView} />
       )}
 
-      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
-        건수 <b className="text-ec-text">{shown.length.toLocaleString()}</b>
-        <span className="my-0 mx-[8px] text-ec-off">|</span>
-        {STATUSES.map((s) => (
-          <span key={s} className="ml-[8px]">
-            {LABEL[s]} <b style={{ color: COLOR[s] }}>{stats.byStatus[s]}</b>
-          </span>
-        ))}
-        <span className="my-0 mx-[8px] text-ec-off">|</span>
-        미완료 <b className="text-ec-warn text-[14px]">{stats.open}</b>
-        <span className="my-0 mx-[8px] text-ec-off">|</span>
-        평균처리 <b className="text-ec-text">{stats.avgDays === null ? '-' : `${stats.avgDays.toFixed(1)}일`}</b>
-      </div>
-
       {view === '그래프' ? (
         <EcBarChart unit=" 건" emptyText="조회된 접수가 없습니다."
                     rows={(() => {
@@ -248,18 +300,64 @@ export default function AsStatusPage() {
                       for (const r of shown) m.set(r.statusName, (m.get(r.statusName) ?? 0) + 1)
                       return [...m].map(([label, value]) => ({ label, value }))
                     })()} />
+      ) : filters.gubun === '집계' ? (
+        <>
+          {/* 원본은 집계 판의 머리글을 'A/S접수현황'(빗금 있음)으로 적는다 — 내역 판은 'AS접수현황'. */}
+          <EcReportHead title="A/S접수현황" period={reportPeriod(filters.dateFrom, filters.dateTo)} />
+          {!filters.agg1 ? (
+            <p className="ec-alert ec-alert-danger">집계조건은 1개 이상 선택해야 합니다.</p>
+          ) : (
+          <table ref={aggRef} className="w-full text-left">
+            <thead><tr>
+              {aggCols.map((h) => <th key={h}>{h}</th>)}
+              <th className="text-right">수량</th>
+            </tr></thead>
+            <tbody>
+              {aggRows.length === 0 ? (
+                <tr><td colSpan={aggCols.length + 1} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              ) : aggRows.flatMap((g, i) => {
+                const first = i === 0 || aggRows[i - 1].n1 !== g.n1
+                const last = i === aggRows.length - 1 || aggRows[i + 1].n1 !== g.n1
+                const c1 = aggCells(g.n1, g.c1, filters.agg1)
+                const out = [
+                  <tr key={`${g.n1}␟${g.n2}`}>
+                    {/* 조건2 가 있으면 조건1 칸은 묶음 첫 줄에만 적는다(원본 그대로). */}
+                    {c1.map((v, j) => <td key={j}>{!filters.agg2 || first ? v : ''}</td>)}
+                    {aggCells(g.n2, g.c2, filters.agg2).map((v, j) => <td key={`b${j}`}>{v}</td>)}
+                    <td className="text-right">{qty2(g.qty)}</td>
+                  </tr>,
+                ]
+                if (filters.agg2 && last) {
+                  const sub = aggRows.filter((x) => x.n1 === g.n1).reduce((n, x) => n + x.qty, 0)
+                  out.push(
+                    <tr key={`${g.n1}␟계`} className="ec-list-total">
+                      <td colSpan={aggCols.length} className="text-center font-bold">{g.n1} 계</td>
+                      <td className="text-right font-bold">{qty2(sub)}</td>
+                    </tr>,
+                  )
+                }
+                return out
+              })}
+            </tbody>
+            {aggRows.length > 0 && (
+              <tfoot><tr className="ec-total">
+                <td colSpan={aggCols.length} className="text-center">합계</td>
+                <td className="text-right">{qty2(totalQty)}</td>
+              </tr></tfoot>
+            )}
+          </table>
+          )}
+          <EcReportFoot />
+        </>
       ) : (
+      <>
+      <EcReportHead title="AS접수현황" period={reportPeriod(filters.dateFrom, filters.dateTo)} />
       <table className="w-full text-left">
         <thead>
           {/*
-            원본 격자(2026-09-09 E040610 실측):
+            원본 격자(2026-09-09 E040610 실측, 2026-10-04 다시 잼):
             <b>일자-No. · 진행상태 · 창고명 · 담당자명 · 거래처명 · 제목 · 품목코드 ·
-            품목명[규격] · 수량 · 관리항목명 · 적요</b>.
-            우리는 (1) 일자와 번호를 두 칸으로 갈랐고, (2) <b>[창고명]·[제목]·[품목코드]·
-            [관리항목명] 넷을 아예 안 찍고</b> 있었다(넷 다 진작 받아 두거나 받을 수 있던 값이다),
-            (3) 이름이 넷 달랐다 - 거래처/품목/담당/상태.
-            [수량]은 못 만든다 - A/S 접수에 수량 칸이 없다(예외에 적었다).
-            증상·완료일·처리일수는 원본에 없지만 우리가 더 두는 열이다.
+            품목명[규격] · 수량 · 관리항목명 · 적요</b>. ◉내역의 어느 판이든 열은 같다.
           */}
           <tr>
             <th className="w-[34px]"></th>
@@ -279,13 +377,13 @@ export default function AsStatusPage() {
         <tbody>
           {loading ? (
             <tr><td colSpan={12} className="ec-empty">불러오는 중…</td></tr>
-          ) : lineRows.length === 0 ? (
+          ) : listRows.length === 0 ? (
             <tr><td colSpan={12} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : lineRows.map(({ r, l }, i) => (
-              <tr key={`${r.id}-${l.id}`}>
+          ) : listRows.map(({ key, r, l, qty, dateCell }, i) => (
+              <tr key={key}>
                 <td className="text-center text-ec-hint">{i + 1}</td>
-                {/* 원본은 일자와 번호를 한 칸에 적는다. */}
-                <td className="text-center">{dateNo(r.receiptDate, r.asNo)}</td>
+                {/* 원본은 일자와 번호를 한 칸에 적는다(일별 · 월별은 날짜 · 달만). */}
+                <td className="text-center">{dateCell}</td>
                 <td className="text-center">{r.statusName || LABEL[r.status]}</td>
                 <td>{r.warehouseName || ''}</td>
                 <td>{r.charge || ''}</td>
@@ -294,21 +392,23 @@ export default function AsStatusPage() {
                 <td>{l.itemCode || ''}</td>
                 {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다. */}
                 <td>{l.itemName}{l.itemSpec ? '[' + l.itemSpec + ']' : ''}</td>
-                <td className="text-right">{qty2(l.quantity)}</td>
+                <td className="text-right">{qty2(qty)}</td>
                 {/* 관리항목은 품목 마스터에 붙는 값이라 줄에는 없다 - itemId 로 화면에서 잇는다. */}
                 <td className="text-ec-label">{mgmt.nameOf(l.itemId)}</td>
                 <td>{r.repairNote || ''}</td>
               </tr>
           ))}
         </tbody>
-        {lineRows.length > 0 && (
+        {listRows.length > 0 && (
           <tfoot><tr className="ec-total">
             <td colSpan={9} className="text-center">합계</td>
-            <td className="text-right">{qty2(lineRows.reduce((a, x) => a + Number(x.l.quantity), 0))}</td>
+            <td className="text-right">{qty2(totalQty)}</td>
             <td></td><td></td>
           </tr></tfoot>
         )}
       </table>
+      <EcReportFoot />
+      </>
       )}
     </EcListShell>
   )
@@ -338,6 +438,36 @@ function SearchPanel({
       onKeyDown={(e) => { if (e.key === 'Enter') onApply() }}
       style={{ border: '1px solid var(--ec-line)', borderRadius: 4, background: 'var(--ec-bg-page)', padding: '4px 14px 12px', marginBottom: 10 }}
     >
+      {/* 원본 첫 줄 [구분] — ◉내역 ○집계, 내역이면 판 선택상자, 집계면 집계조건1 · 2 · [기타] 코드포함. */}
+      <div style={rowStyle}>
+        <span style={label}>구분</span>
+        <div className="flex flex-wrap items-center gap-[8px]">
+          {(['내역', '집계'] as const).map((g) => (
+            <label key={g} className="inline-flex items-center gap-[3px]">
+              <input type="radio" name="as-gubun" checked={draft.gubun === g} onChange={() => onChange({ gubun: g })} /> {g}
+            </label>
+          ))}
+          {draft.gubun === '내역' ? (
+            <select className="ec-input w-[140px]" value={draft.form} onChange={(e) => onChange({ form: e.target.value as Form })}>
+              {FORMS.map((f) => <option key={f} value={f}>{f}</option>)}
+            </select>
+          ) : (<>
+            집계조건1
+            <select className="ec-input w-[120px]" value={draft.agg1} onChange={(e) => onChange({ agg1: e.target.value as AggKey | '' })}>
+              <option value=""></option>
+              {AGG_KEYS.map((k) => <option key={k} value={k}>{k}</option>)}
+            </select>
+            집계조건2
+            <select className="ec-input w-[120px]" value={draft.agg2} onChange={(e) => onChange({ agg2: e.target.value as AggKey | '' })}>
+              <option value=""></option>
+              {AGG_KEYS.filter((k) => k !== draft.agg1).map((k) => <option key={k} value={k}>{k}</option>)}
+            </select>
+            <label className="inline-flex items-center gap-[3px]">
+              <input type="checkbox" checked={draft.codeIncl} onChange={(e) => onChange({ codeIncl: e.target.checked })} /> 코드포함
+            </label>
+          </>)}
+        </div>
+      </div>
       <div style={rowStyle}>
         <span style={label}>기준일자</span>
         <input type="date" className="ec-input" value={draft.dateFrom}
@@ -349,21 +479,6 @@ function SearchPanel({
             <EcPeriodPicks labels={AS_PICKS} currentFrom={draft.dateFrom}
               onPick={(r) => onChange({ dateFrom: r.from, dateTo: r.to })} />
           </span>
-      </div>
-      {/*
-        원본 A/S수리현황(E040611)의 <b>[기준일자]</b> 자리다 — 그 화면은 <b>수리한 날</b>로
-        거르고 접수일자를 따로 둔다. 우리는 한 화면이 접수현황·수리현황을 겸하면서
-        접수일 하나뿐이라, 이번 달에 <b>고친</b> 건을 볼 수가 없었다.
-        (원본은 이쪽이 주 조건이고 접수일자가 보조인데, 우리는 서버가 접수일로 기간을 받아
-         차례가 반대다. 접수일로 좁힌 안에서 수리일을 다시 거른다.)
-      */}
-      <div style={rowStyle}>
-        <span style={label}>수리일자</span>
-        <input type="date" className="ec-input" value={draft.doneFrom}
-          onChange={(e) => onChange({ doneFrom: e.target.value })} style={{ width: 150 }} />
-        <span className="my-0 mx-[6px] text-ec-hint">~</span>
-        <input type="date" className="ec-input" value={draft.doneTo}
-          onChange={(e) => onChange({ doneTo: e.target.value })} style={{ width: 150 }} />
       </div>
       <div style={rowStyle}>
         {/* 원본 A/S접수현황 차례: <b>창고 · 프로젝트</b> · 담당자 · 접수진행상태 · 거래처 · 품목 */}
