@@ -36,6 +36,22 @@ public class SalesPlanController {
         return service.comparison(year, saleFlag);
     }
 
+    /** 원본 매출계획비교표(E040626) — 기간 · 반품구분 · 표시조건1/2 · 조건 다섯. */
+    @GetMapping("/compare")
+    public List<com.erp.trade.salesplan.dto.SalesPlanDtos.CompareRow> compare(
+            @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate from,
+            @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate to,
+            @RequestParam(required = false) String saleFlag,
+            @RequestParam(required = false) String by1,
+            @RequestParam(required = false) String by2,
+            @RequestParam(required = false) Long itemId,
+            @RequestParam(required = false) Long partnerId,
+            @RequestParam(required = false) Long warehouseId,
+            @RequestParam(required = false) Long employeeId,
+            @RequestParam(required = false) Long projectId) {
+        return service.compare(from, to, saleFlag, by1, by2, itemId, partnerId, warehouseId, employeeId, projectId);
+    }
+
     @PostMapping
     public ResponseEntity<SalesPlanResponse> create(
             @Valid @RequestBody CreateSalesPlanRequest req,

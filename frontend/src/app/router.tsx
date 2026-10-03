@@ -204,6 +204,7 @@ const ItemEntryPage = lazy(() => import('../pages/trade/ItemEntryPage'))
 const MonthlyCumulativePage = lazy(() => import('../pages/trade/MonthlyCumulativePage'))
 const PivotSummaryPage = lazy(() => import('../pages/trade/PivotSummaryPage'))
 const SalesPlanPage = lazy(() => import('../pages/trade/SalesPlanPage'))
+const SalesPlanComparePage = lazy(() => import('../pages/trade/SalesPlanComparePage'))
 const UnorderedStatusPage = lazy(() => import('../pages/trade/UnorderedStatusPage'))
 const UnpurchasedStatusPage = lazy(() => import('../pages/trade/UnpurchasedStatusPage'))
 const PurchaseOrderStatusPage = lazy(() => import('../pages/trade/PurchaseOrderStatusPage'))
@@ -436,6 +437,7 @@ export default function AppRouter() {
         <Route path="/sales/monthly-cumulative" element={<MonthlyCumulativePage />} />
         <Route path="/sales/pivot-summary" element={<PivotSummaryPage />} />
         <Route path="/sales/sales-plan" element={<SalesPlanPage />} />
+        <Route path="/sales/sales-plan-compare" element={<SalesPlanComparePage />} />
         <Route path="/sales/unordered" element={<UnorderedStatusPage />} />
         <Route path="/sales/quotations" element={<QuotationPage />} />
         <Route path="/sales/purchase-orders" element={<PurchaseOrderPage />} />

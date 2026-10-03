@@ -184,6 +184,80 @@ public class SalesPlanService {
     }
 
     /**
+     * 원본 매출계획비교표(E040626) — 기간 안 계획(예상매출일자)과 기간 안 판매(공급가액 · 수량)를
+     * [표시조건1 · 2] 축으로 묶어 견준다. 판매는 계획이 있든 없든 다 센다(원본 9월 실측: 계획 97,000 · 매출 590,280,000).
+     * 조건(품목 · 거래처 · 창고 · 담당자 · 프로젝트)은 양쪽에 같이 건다 — 품목은 줄, 나머지는 전표 머리의 값이다.
+     *
+     * @param by1 by2 ITEM · PARTNER · WAREHOUSE · EMPLOYEE · PROJECT 또는 없음
+     */
+    @Transactional(readOnly = true)
+    public List<com.erp.trade.salesplan.dto.SalesPlanDtos.CompareRow> compare(
+            LocalDate from, LocalDate to, String saleFlag, String by1, String by2,
+            Long itemId, Long partnerId, Long warehouseId, Long employeeId, Long projectId) {
+        boolean withNormal = saleFlag == null || saleFlag.isBlank() || "전체".equals(saleFlag) || "일반".equals(saleFlag);
+        boolean withReturn = saleFlag == null || saleFlag.isBlank() || "전체".equals(saleFlag) || "반품".equals(saleFlag);
+        if (!withNormal && !withReturn) {
+            throw ApiException.badRequest("반품구분은 전체 · 일반 · 반품 중 하나여야 합니다: " + saleFlag);
+        }
+        java.util.Map<String, BigDecimal[]> acc = new java.util.LinkedHashMap<>();
+        java.util.Map<String, String[]> labels = new java.util.HashMap<>();
+        for (SalesPlan p : planRepository.findByPlanDateBetween(from, to)) {
+            if (!pass(itemId, p.getItem()) || !pass(partnerId, p.getPartner()) || !pass(warehouseId, p.getWarehouse())
+                    || !pass(employeeId, p.getEmployee()) || !pass(projectId, p.getProject())) continue;
+            Object[] dims = {p.getItem(), p.getPartner(), p.getWarehouse(), p.getEmployee(), p.getProject()};
+            add(acc, labels, dims, by1, by2, nz(p.getPlanAmount()), nz(p.getPlanQty()), BigDecimal.ZERO, BigDecimal.ZERO);
+        }
+        for (Sales s : salesRepository.findWithLinesBySaleDateBetween(from, to)) {
+            if (s.isReturnSlip() ? !withReturn : !withNormal) continue;
+            if (!pass(partnerId, s.getPartner()) || !pass(warehouseId, s.getWarehouse())
+                    || !pass(employeeId, s.getEmployee()) || !pass(projectId, s.getProject())) continue;
+            for (SalesLine l : s.getLines()) {
+                if (!pass(itemId, l.getItem())) continue;
+                Object[] dims = {l.getItem(), s.getPartner(), s.getWarehouse(), s.getEmployee(), s.getProject()};
+                add(acc, labels, dims, by1, by2, BigDecimal.ZERO, BigDecimal.ZERO, nz(l.getSupplyAmount()), nz(l.getQuantity()));
+            }
+        }
+        List<com.erp.trade.salesplan.dto.SalesPlanDtos.CompareRow> out = new ArrayList<>();
+        acc.forEach((k, v) -> {
+            String[] lb = labels.get(k);
+            out.add(new com.erp.trade.salesplan.dto.SalesPlanDtos.CompareRow(lb[0], lb[1], lb[2], lb[3], v[0], v[1], v[2], v[3]));
+        });
+        out.sort(java.util.Comparator.comparing((com.erp.trade.salesplan.dto.SalesPlanDtos.CompareRow r) -> r.key1Code() == null ? "" : r.key1Code())
+                .thenComparing(r -> r.key2Code() == null ? "" : r.key2Code()));
+        return out;
+    }
+
+    private boolean pass(Long id, Object master) {
+        return id == null || (master != null && idOf(master).equals(id));
+    }
+
+    private void add(java.util.Map<String, BigDecimal[]> acc, java.util.Map<String, String[]> labels, Object[] dims,
+                     String by1, String by2, BigDecimal planAmt, BigDecimal planQty, BigDecimal saleAmt, BigDecimal saleQty) {
+        String[] k1 = keyOf(dims, by1), k2 = keyOf(dims, by2);
+        String key = k1[0] + "\u0001" + k2[0];
+        labels.putIfAbsent(key, new String[]{k1[0], k1[1], k2[0], k2[1]});
+        BigDecimal[] v = acc.computeIfAbsent(key, x -> new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO});
+        v[0] = v[0].add(planAmt); v[1] = v[1].add(planQty); v[2] = v[2].add(saleAmt); v[3] = v[3].add(saleQty);
+    }
+
+    /** 축 하나의 [코드, 이름]. 고르지 않은 축(없음)은 빈 칸 하나로 모은다. 값이 없는 전표는 코드 없이 '(미지정)'. */
+    private String[] keyOf(Object[] dims, String by) {
+        int i = by == null ? -1 : switch (by) {
+            case "ITEM" -> 0; case "PARTNER" -> 1; case "WAREHOUSE" -> 2; case "EMPLOYEE" -> 3; case "PROJECT" -> 4;
+            default -> -1;
+        };
+        if (i < 0) return new String[]{null, null};
+        Object o = dims[i];
+        if (o == null) return new String[]{"", "(미지정)"};
+        if (o instanceof Item it) return new String[]{it.getCode(), it.getName()};
+        if (o instanceof com.erp.inventory.warehouse.Warehouse w) return new String[]{w.getCode(), w.getName()};
+        if (o instanceof com.erp.inventory.project.Project pr) return new String[]{pr.getCode(), pr.getName()};
+        if (o instanceof com.erp.trade.partner.BusinessPartner bp) return new String[]{bp.getCode(), bp.getName()};
+        if (o instanceof com.erp.hr.employee.Employee e) return new String[]{e.getCode(), e.getName()};
+        return new String[]{"", String.valueOf(o)};
+    }
+
+    /**
      * 계획이 고른 축과 전표의 축이 맞나. <b>계획이 안 고른 축(널)은 무엇과도 맞는다</b> —
      * "그 축은 안 나눈다" 는 뜻이기 때문이다.
      */
@@ -198,6 +272,7 @@ public class SalesPlanService {
         if (o instanceof com.erp.inventory.project.Project pr) return pr.getId();
         if (o instanceof com.erp.trade.partner.BusinessPartner bp) return bp.getId();
         if (o instanceof com.erp.hr.employee.Employee e) return e.getId();
+        if (o instanceof Item it) return it.getId();
         throw new IllegalStateException("맞출 수 없는 축: " + o.getClass());
     }
 

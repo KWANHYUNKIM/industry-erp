@@ -58,6 +58,14 @@ public final class SalesPlanDtos {
     }
 
     /** 매출계획비교표 한 줄: 계획 vs 실적(판매 집계)과 달성률. id 는 계획행 삭제용. */
+    /**
+     * 원본 매출계획비교표(E040626) 한 줄 — [표시조건1 · 2] 로 묶은 칸과 예상매출(계획) · 매출(판매 공급가액) 금액 · 수량.
+     * 표시조건이 없으면 한 줄(기간 전체). 2026-10-04 실측: 9월 예상매출 97,000 · 매출 590,280,000 — 매출은 <b>계획이 없는 판매까지</b>
+     * 기간 안 판매 전부의 공급가액이다(판매조회 9/4~9/30 합계 648,648,000 ÷ 1.1 과 맞물린다).
+     */
+    public record CompareRow(String key1Code, String key1Name, String key2Code, String key2Name,
+                             BigDecimal planAmount, BigDecimal planQty, BigDecimal saleAmount, BigDecimal saleQty) {}
+
     public record ComparisonRow(
             Long id,
             /*
