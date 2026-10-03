@@ -37,6 +37,8 @@ public class PayrollService {
     private final EmployeeRepository employeeRepository;
     private final PayGroupRepository payGroupRepository;
     private final PayGroupEmployeeRepository payGroupEmployeeRepository;
+    private final com.erp.hr.workrecord.WorkRecordService workRecordService;
+    private final PaySettingService paySettingService;
     private final WithholdingTaxCalculator taxCalculator;
 
     @Transactional(readOnly = true)
@@ -93,6 +95,9 @@ public class PayrollService {
         }
         if (group != null) {
             for (PayGroupLine gl : group.getLines()) {
+                // 변동(시간·일) 항목의 그룹 금액은 단가다 — 아래 근무기록으로 셈하고 여기서는 넣지 않는다
+                PayMethod m = gl.getPayItem().getPayMethod();
+                if (m == PayMethod.HOURLY || m == PayMethod.DAILY) continue;
                 p.addLine(PayslipLine.builder()
                         .kind(gl.getPayItem().getKind())
                         .name(gl.getPayItem().getName())
@@ -102,6 +107,31 @@ public class PayrollService {
                         .auto(false)
                         .build());
             }
+        }
+
+        // 1-1) 변동수당 — 원본 계산식 'R( 야근수당(급여지급사항) * 야근수당(근무기록확정) , 0 )' 처럼
+        //      그 달 근무일자의 근무기록(근무입력) × 단가. 단가는 사원 그룹에 그 항목이 있으면 그 금액,
+        //      없으면 항목 기본금액이다. 지급유형이 변동(시간) · 변동(일)인 항목만 셈한다.
+        java.time.YearMonth ym = java.time.YearMonth.parse(req.payMonth());
+        java.util.Map<Long, BigDecimal> worked = workRecordService.sumByItem(emp.getId(), ym.atDay(1), ym.atEndOfMonth());
+        for (var e : worked.entrySet()) {
+            PayItem item = paySettingService.item(e.getKey());
+            if (item.getPayMethod() != PayMethod.HOURLY && item.getPayMethod() != PayMethod.DAILY) continue;
+            BigDecimal unit = item.getDefaultAmount();
+            if (group != null) {
+                for (PayGroupLine gl : group.getLines()) {
+                    if (gl.getPayItem().getId().equals(item.getId())) unit = gl.resolveAmount();
+                }
+            }
+            BigDecimal amount = unit.multiply(e.getValue()).setScale(0, java.math.RoundingMode.HALF_UP);
+            if (amount.signum() == 0) continue;
+            p.addLine(PayslipLine.builder()
+                    .kind(item.getKind())
+                    .name(item.getName())
+                    .amount(amount)
+                    .taxable(item.isTaxable())
+                    .auto(false)
+                    .build());
         }
 
         // 2) 사용자 입력 수당·수동공제 (그룹에 없는 이번 달만의 항목)

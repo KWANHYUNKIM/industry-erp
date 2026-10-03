@@ -202,7 +202,9 @@ public class PaySettingService {
         }
     }
 
-    private PayItem item(Long id) {
+    /** 같은 모듈의 근무기록(workrecord)이 수당항목 엔티티를 얻는 진입점. */
+    @Transactional(readOnly = true)
+    public PayItem item(Long id) {
         return itemRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("수당·공제 항목을 찾을 수 없습니다. id=" + id));
     }
