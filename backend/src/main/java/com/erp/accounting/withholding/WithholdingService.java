@@ -44,6 +44,7 @@ public class WithholdingService {
     private static final Pattern MONTH = Pattern.compile("\\d{4}-\\d{2}");
 
     private final PayslipRepository payslipRepository;
+    private final WithholdingReturnRepository returnRepository;
     private final com.erp.hr.dailywork.DailyWorkService dailyWorkService;
     private final com.erp.accounting.otherwithholding.OtherWithholdingRepository otherWithholdingRepository;
 
@@ -220,6 +221,51 @@ public class WithholdingService {
                 first.getEmployee().getId(), first.getEmployee().getCode(), first.getEmployee().getName(),
                 gross, incomeTax, local, incomeTax.add(local), social,
                 months);
+    }
+
+    /**
+     * 법인세Checklist(E030401) [3. 급여 및 원천세 내역] — 기준연도의 달마다 급여대장 합계와 원천세 신고금액.
+     * 급여대장은 작성 중인 명세까지 센다(원본 급여대장과 같다). 신고금액은 그 달을 귀속연월로 낸 신고서가 있을 때만
+     * 확정 명세의 총지급액이고, 없으면 0 — 원본 도움말 '신고서금액과 급여총액의 차이 … 미제출 비과세 금액이 표시될 수 있습니다'.
+     * 급여도 신고도 없는 달은 행을 만들지 않는다(원본 2026 은 급여가 있는 01~10월만).
+     */
+    @Transactional(readOnly = true)
+    public List<WithholdingDtos.PayrollTaxMonth> payrollTaxMonths(int year) {
+        String prefix = String.valueOf(year);
+        java.util.Set<String> reportedMonths = new java.util.TreeSet<>();
+        for (WithholdingReturn r : returnRepository.findAllByOrderByAttributionMonthDescIdDesc()) {
+            if (r.getAttributionMonth().startsWith(prefix + "-")) reportedMonths.add(r.getAttributionMonth());
+        }
+        java.util.Map<String, List<Payslip>> byMonth = new java.util.TreeMap<>();
+        for (Payslip p : payslipRepository.findByYear(prefix)) {
+            byMonth.computeIfAbsent(p.getPayMonth(), k -> new ArrayList<>()).add(p);
+        }
+        java.util.Set<String> months = new java.util.TreeSet<>(byMonth.keySet());
+        months.addAll(reportedMonths);
+        List<WithholdingDtos.PayrollTaxMonth> out = new ArrayList<>();
+        for (String m : months) {
+            List<Payslip> slips = byMonth.getOrDefault(m, List.of());
+            BigDecimal gross = BigDecimal.ZERO, bonus = BigDecimal.ZERO, tax = BigDecimal.ZERO, local = BigDecimal.ZERO,
+                    pension = BigDecimal.ZERO, health = BigDecimal.ZERO, employment = BigDecimal.ZERO;
+            for (Payslip p : slips) {
+                gross = gross.add(p.grossPay());
+                bonus = bonus.add(p.getLines().stream()
+                        .filter(l -> l.getKind() == PayslipLineKind.ALLOWANCE && l.getName().contains("상여"))
+                        .map(PayslipLine::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add));
+                tax = tax.add(deduction(p, INCOME_TAX));
+                local = local.add(deduction(p, LOCAL_INCOME_TAX));
+                pension = pension.add(deduction(p, "국민연금"));
+                health = health.add(deduction(p, "건강보험"));
+                employment = employment.add(deduction(p, "고용보험"));
+            }
+            BigDecimal reported = reportedMonths.contains(m)
+                    ? slips.stream().filter(p -> p.getStatus() == PayslipStatus.CONFIRMED)
+                            .map(Payslip::grossPay).reduce(BigDecimal.ZERO, BigDecimal::add)
+                    : BigDecimal.ZERO;
+            out.add(new WithholdingDtos.PayrollTaxMonth(m, reported, gross.subtract(bonus), bonus, tax, local,
+                    pension, health, employment));
+        }
+        return out;
     }
 
     private BigDecimal deduction(Payslip p, String name) {

@@ -184,6 +184,16 @@ public class JournalQueryService {
                 expenses, totalExpense, totalRevenue.subtract(totalExpense));
     }
 
+    /** 손익계산서 매출액 계정의 달별 금액 — 1월부터 12월까지 열두 칸(전표 없는 달은 0). 법인세Checklist 가 쓴다. */
+    @Transactional(readOnly = true)
+    public List<BigDecimal> monthlySales(int year) {
+        List<BigDecimal> out = new ArrayList<>(java.util.Collections.nCopies(12, BigDecimal.ZERO));
+        for (Object[] r : lineRepository.sumSalesByMonth(LocalDate.of(year, 1, 1), LocalDate.of(year, 12, 31))) {
+            out.set(((Number) r[1]).intValue() - 1, (BigDecimal) r[2]);
+        }
+        return out;
+    }
+
     /** 자산·비용은 차변이 증가 방향, 부채·자본·수익은 대변이 증가 방향. */
     private static boolean isDebitSide(AccountDivision division) {
         return division == AccountDivision.ASSET || division == AccountDivision.EXPENSE;

@@ -61,4 +61,12 @@ public interface JournalLineRepository extends JpaRepository<JournalLine, Long> 
             "group by l.account.id, l.account.code, l.account.name, l.account.division " +
             "order by l.account.code")
     List<Object[]> sumByAccount(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /** 법인세Checklist [2. 손익계산서 매출계정 내역]: 손익계산서 '매출액' 계정(대변 − 차변)을 달별로 */
+    @Query("select year(e.entryDate), month(e.entryDate), coalesce(sum(l.credit - l.debit),0) " +
+            "from JournalLine l join l.entry e join l.account a " +
+            "where e.entryDate between :from and :to " +
+            "and a.division = com.erp.accounting.account.AccountDivision.REVENUE and a.detailCategory = '매출액' " +
+            "group by year(e.entryDate), month(e.entryDate)")
+    List<Object[]> sumSalesByMonth(@Param("from") LocalDate from, @Param("to") LocalDate to);
 }

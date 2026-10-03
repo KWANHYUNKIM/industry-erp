@@ -118,4 +118,14 @@ public final class WithholdingDtos {
             LocalDate hireDate, LocalDate resignDate,
             List<LedgerMonth> months
     ) {}
+
+    /**
+     * 법인세Checklist [3. 급여 및 원천세 내역] 한 달 — 원천세 신고금액(그 달을 귀속으로 낸 신고서의 근로소득 총지급액,
+     * 신고서가 없으면 0)과 급여대장(그 달 급여명세 전부) 합계.
+     */
+    public record PayrollTaxMonth(
+            String month, BigDecimal reported,
+            BigDecimal salary, BigDecimal bonus, BigDecimal incomeTax, BigDecimal localIncomeTax,
+            BigDecimal pension, BigDecimal health, BigDecimal employment
+    ) {}
 }
