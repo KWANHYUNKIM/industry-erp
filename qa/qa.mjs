@@ -11052,7 +11052,7 @@ async function scenarioHrCertificate() {
 
 /** 관리 › 일용근로 사원등록(원본 E020105) — 다음 번호 다섯 자리, 같은 번호 막기, 일근무 · 월정공제 저장, 삭제. */
 async function scenarioDailyWorker() {
-  section('■ 일용근로 사원등록 — 번호 · 중복 · 급여지급사항 · 삭제')
+  section('■ 일용근로 사원등록 · 근무입력 — 번호 · 중복 · 급여지급사항 · 근무 전표 · 쓰인 사원 삭제 막기')
   const next = (await must('GET', '/hr/daily-workers/next-code')).code
   eq('다음 사원번호는 다섯 자리', /^\d{5}$/.test(next), 'true')
   const w = await must('POST', '/hr/daily-workers', {
@@ -11064,6 +11064,15 @@ async function scenarioDailyWorker() {
     { code: w.code, name: 'QA-일용2', foreigner: false, employmentInsurance: true, pensionAuto: false, healthAuto: false }, '이미 등록된 사원번호')
   const u = await must('PUT', `/hr/daily-workers/${w.id}`, { ...w, name: 'QA-일용수정', dailyWage: 160000 })
   eq('고친 일근무가 읽힌다', Number((await must('GET', `/hr/daily-workers/${u.id}`)).dailyWage), 160000)
+  const d = new Date()
+  const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  const slip = await must('POST', '/hr/daily-work-entries', { slipDate: today, lines: [{ workDate: today, workerId: w.id, quantity: 2 }] })
+  const lines = await must('GET', `/hr/daily-work-entries?from=${today}&to=${today}`)
+  eq('근무조회에 일근무 2 한 줄', lines.filter((l) => l.workerId === w.id).map((l) => `${l.payItem} ${Number(l.quantity)}`).join(','), '일근무 2')
+  await must('PUT', `/hr/daily-work-entries/${slip.slipDate}/${slip.slipNo}`, { slipDate: today, lines: [{ workDate: today, workerId: w.id, quantity: 3 }] })
+  eq('고친 근무기록이 읽힌다', Number((await must('GET', `/hr/daily-work-entries/${slip.slipDate}/${slip.slipNo}`)).lines[0].quantity), 3)
+  await rejects('근무입력에 쓰인 사원은 지울 수 없다', 'DELETE', `/hr/daily-workers/${w.id}`, undefined, '근무입력에 쓰인 사원')
+  await must('DELETE', `/hr/daily-work-entries/${slip.slipDate}/${slip.slipNo}`)
   await must('DELETE', `/hr/daily-workers/${w.id}`)
   eq('지운 사원은 목록에 없다', (await must('GET', '/hr/daily-workers')).some((x) => x.id === w.id), 'false')
 }
