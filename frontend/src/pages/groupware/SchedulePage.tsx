@@ -32,10 +32,10 @@ const CATEGORIES = ['회의', '출장', '교육', '기타']
 const DOW = ['일', '월', '화', '수', '목', '금', '토']
 
 /**
- * 원본 [양식] 고르기. '월간' 은 달력 칸, '기본(수정불가)' 는 일정 목록, '일간' 은 하루의 시간 줄,
+ * 원본 [양식] 고르기. '월간양식' 은 달력 칸(일정구분 칩), '월간' 은 같은 달력에서 칩 없이 제목만, '기본(수정불가)' 는 일정 목록, '일간' 은 하루의 시간 줄,
  * '사용자별' 은 사람 × 시간 표다(2026-10-03 실측 — 원본 고르기 차례는 월간양식 · 기본(수정불가) · 일간 · 월간 · 사용자별).
  */
-const VIEWS = ['월간', '기본(수정불가)', '일간', '사용자별'] as const
+const VIEWS = ['월간양식', '기본(수정불가)', '일간', '월간', '사용자별'] as const
 type View = typeof VIEWS[number]
 
 type Form = {
@@ -106,7 +106,9 @@ type Calendar = typeof CALENDARS[number]
 
 export default function SchedulePage() {
   const { user } = useAuth()
-  const [view, setView] = useState<View>('월간')
+  const [view, setView] = useState<View>('월간양식')
+  /** 달력 칸을 쓰는 두 양식 — 월간양식은 일정구분 칩을 붙이고, 월간은 붙이지 않는다(2026-10-03 실측). */
+  const isMonth = view === '월간양식' || view === '월간'
   /** 월간 양식이 보는 달(그 달 1일). */
   const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1) })
   /** 일간 · 사용자별 이 보는 날. */
@@ -350,7 +352,7 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
       search={keyword}
       onSearchChange={setKeyword}
       onNew={() => openNew()}
-      actions={view === '월간' || view === '사용자별'
+      actions={isMonth || view === '사용자별'
         // 원본 월간 · 사용자별 양식 하단은 [신규(F2)][인쇄] 뿐이다. 일간은 [Excel] 이 더 있다.
         ? [{ label: '인쇄' }]
         : view === '일간'
@@ -451,7 +453,7 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
 
       {viewPicker}
 
-      {view === '월간' ? (
+      {isMonth ? (
         <div className="flex gap-[10px] items-start">
           {/* 원본 왼쪽: 연도 넘기기 + 1~12월 + [오늘], 그 아래 캘린더 고르기 */}
           <div className="w-[200px] shrink-0 bg-ec-panel rounded-ec-panel p-[9px] mobile:w-full">
@@ -497,7 +499,7 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
                                         className={`no-ec flex items-center w-full border-0 py-[3.6px] px-[0.9px] cursor-pointer text-left text-ec-ink ${r.startTime ? 'bg-transparent' : 'bg-ec-calendar'}`}>
                                   {/* 원본: 시간 없는(종일) 일정은 캘린더 색 막대, 시간 있는 일정은 그 색 점(7.19 동그라미) */}
                                   {r.startTime && <span className="inline-block shrink-0 w-[7.1875px] h-[7.1875px] mr-[4.5px] rounded-full bg-ec-calendar" />}
-                                  {r.category && <span className="ec-label-chip mr-[4.5px]">{r.category}</span>}
+                                  {view === '월간양식' && r.category && <span className="ec-label-chip mr-[4.5px]">{r.category}</span>}
                                   <b className="truncate">{r.title}</b>
                                 </button>
                               ))}

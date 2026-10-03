@@ -1,5 +1,5 @@
 {
-  "about": "일정관리(원본 E070201) 월간 칸의 시간 있는 일정은 캘린더 색 점(종일은 막대), 일간 · 사용자별 양식 — 오늘 10:00~11:00 시험 일정(참석자 = 첫 사용자)이 일간 'AM 10:00' 줄에만(노란 캘린더 색), 사용자별 그 사람 줄 · AM 10:00 칸에 뜬다. 줄 글은 '제목/MM/DD (요일) 10:00 ~ 11:00/장소/참석자'. 시험 일정은 API 로 만들고 지운다. node qa/shot.mjs qa/flows/schedule-views.json",
+  "about": "일정관리(원본 E070201) 양식 고르기 차례(월간양식 · 기본(수정불가) · 일간 · 월간 · 사용자별), 월간은 칩 없이 제목만, 월간 칸의 시간 있는 일정은 캘린더 색 점(종일은 막대), 일간 · 사용자별 양식 — 오늘 10:00~11:00 시험 일정(참석자 = 첫 사용자)이 일간 'AM 10:00' 줄에만(노란 캘린더 색), 사용자별 그 사람 줄 · AM 10:00 칸에 뜬다. 줄 글은 '제목/MM/DD (요일) 10:00 ~ 11:00/장소/참석자'. 시험 일정은 API 로 만들고 지운다. node qa/shot.mjs qa/flows/schedule-views.json",
   "shots": [
     {
       "name": "준비",
@@ -13,6 +13,10 @@
       "path": "/groupware/schedule",
       "steps": [
         "expect:(() => { const b = [...document.querySelectorAll('#schedule-month button')].find((x) => x.title === 'QA그룹웨어-일간'); return !!b && b.classList.contains('bg-transparent') && !!b.querySelector('span.rounded-full.bg-ec-calendar') })()",
+        "expect:[...document.querySelector('select[aria-label=양식]').options].map((o) => o.text).join(',') === '월간양식,기본(수정불가),일간,월간,사용자별'",
+        "expect:!![...document.querySelectorAll('#schedule-month button')].find((x) => x.title === 'QA그룹웨어-일간').querySelector('.ec-label-chip')",
+        "js:(() => { const s = document.querySelector('select[aria-label=양식]'); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s, '월간'); s.dispatchEvent(new Event('change', { bubbles: true })); return true })()",
+        "expect:![...document.querySelectorAll('#schedule-month button')].find((x) => x.title === 'QA그룹웨어-일간').querySelector('.ec-label-chip') && [...document.querySelectorAll('#schedule-month button')].find((x) => x.title === 'QA그룹웨어-일간').textContent.includes('QA그룹웨어-일간')",
         "js:(() => { const s = document.querySelector('select[aria-label=양식]'); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s, '일간'); s.dispatchEvent(new Event('change', { bubbles: true })); return true })()",
         "expect:[...document.querySelectorAll('tbody tr')].map((tr) => tr.cells[0]?.innerText.trim()).join(',') === 'AM 00:00,AM 08:00,AM 09:00,AM 10:00,AM 11:00,PM 12:00,PM 01:00,PM 02:00,PM 03:00,PM 04:00,PM 05:00,PM 06:00'",
         "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.cells[0]?.innerText.trim() === 'AM 10:00' && tr.classList.contains('bg-ec-calendar') && /QA그룹웨어-일간\\/\\d{2}\\/\\d{2} \\(.\\) 10:00 ~ 11:00\\/QA실\\//.test(tr.innerText))",
