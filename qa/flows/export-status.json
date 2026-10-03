@@ -1,5 +1,5 @@
 {
-  "about": "Invoice/Packing List Status(E040907) — 2026-10-04 원본 실측: 인보이스 품목 줄마다 한 행 [일자-No. · 품목명[규격] · Description of Goods · 수량 · 단가 · 금액 · 거래처명], 달마다 'YYYY/MM 계'(수량 · 단가 · 금액을 더한다) · 합계. 두 줄 인보이스(2×10 · 1×5)를 만들어 두 행 · 계 3 · 15 · 25 를 보고 지운다.",
+  "about": "Invoice/Packing List Status(E040907) — 2026-10-04 원본 실측: 인보이스 품목 줄마다 한 행 [일자-No. · 품목명[규격] · Description of Goods · 수량 · 단가 · 금액 · 거래처명], 달마다 'YYYY/MM 계'(수량 · 단가 · 금액을 더한다) · 합계. 두 줄 인보이스(2×10 · 1×5)를 만들어 두 행 · 계 3 · 15 · 25 를 보고 지운다. 이어서 ○집계(집계조건1 품목명[규격]) → [품목명[규격] | 수량 | 공급가액] · 합계 3.00 · 25(원본: 공급가액은 소수 없이 242,400).",
   "shots": [
     {
       "name": "두 줄 인보이스 → 두 행 · 계 3 · 15 · 25 → 지움",
@@ -11,6 +11,11 @@
         "wait:3000",
         "expect:[...document.querySelector('table thead tr').cells].map((c) => c.innerText.trim()).join('|') === '일자-No.|품목명[규격]|Description of Goods|수량|단가|금액|거래처명' && document.querySelector('.ec-report-title')?.innerText.trim() === 'Invoice/Packing List Status'",
         "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA재고2 goods')) && [...document.querySelectorAll('tbody tr.ec-list-total')].some((tr) => tr.innerText.replace(/\\s+/g, ' ').includes('계 3 15 25'))",
+        "js:document.querySelectorAll('input[name=exs-gubun]')[1].click(); true",
+        "wait:500",
+        "js:(() => { const s = document.querySelector('input[name=exs-gubun]').closest('span').querySelector('select'); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s, '품목명[규격]'); s.dispatchEvent(new Event('change', { bubbles: true })); return true })()",
+        "wait:500",
+        "expect:[...document.querySelector('table thead tr').cells].map((c) => c.innerText.trim()).join('|') === '품목명[규격]|수량|공급가액' && document.querySelector('tfoot tr').innerText.replace(/\\s+/g, ' ').includes('합계 3.00 25')",
         "expect:(async () => { const r = await fetch('/api/exports/' + sessionStorage.getItem('esId'), { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }); return r.status === 204 })()"
       ]
     }

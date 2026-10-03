@@ -88,12 +88,14 @@ export function AsAggControls({ value, onChange, keys = AS_AGG_KEYS }: {
 }
 
 /** ○집계 판 — 머리글 · 표 · 꼬리. */
-export function AsAggregateTable({ title, period, lines, value, measures = ['수량'], blankZero = [] }: {
+export function AsAggregateTable({ title, period, lines, value, measures = ['수량'], blankZero = [], formats = {} }: {
   title: string; period: string; lines: AsAggLine[]; value: AsAggValue
   /** 값 열 이름(기본 [수량]). */
   measures?: string[]
   /** 0 이면 빈칸으로 두는 값 열 — 원본 품질검사현황의 [부적격]. */
   blankZero?: string[]
+  /** 값 열마다 다른 숫자 꼴 — Invoice/Packing List Status 의 [공급가액]은 소수 없이 찍는다(기본은 소수 두 자리). */
+  formats?: Record<string, (n: number) => string>
 }) {
   const { agg1, agg2, codeIncl } = value
   const valsOf = (x: AsAggLine) => x.vals ?? [x.qty]
@@ -109,7 +111,7 @@ export function AsAggregateTable({ title, period, lines, value, measures = ['수
     }
   }
   const sum = (rs: { v: number[] }[]) => measures.map((_, i) => rs.reduce((n, r) => n + r.v[i], 0))
-  const cell = (n: number, i: number) => (blankZero.includes(measures[i]) && n === 0 ? '' : qty2(n))
+  const cell = (n: number, i: number) => (blankZero.includes(measures[i]) && n === 0 ? '' : (formats[measures[i]] ?? qty2)(n))
   /* 차례는 코드순(코드가 없으면 이름) — 원본 정렬 선택상자의 기본값. */
   const key = (n: string, c: string) => c || n
   const rows = [...m.values()].sort((a, b) => key(a.n1, a.c1).localeCompare(key(b.n1, b.c1), 'ko') || key(a.n2, a.c2).localeCompare(key(b.n2, b.c2), 'ko'))

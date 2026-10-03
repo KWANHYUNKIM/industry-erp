@@ -8,9 +8,16 @@ import EcPeriodPicks, { periodOf } from '../../components/EcPeriodPicks'
 import { EcReportHead, EcReportFoot, reportDate, reportPeriod } from '../../components/EcReportFrame'
 import { useCondPickers } from '../../utils/useCondPickers'
 import type { ExportOrder, ExportSummary } from '../../types/api'
+import { usePartnerGroups } from '../../utils/partnerGroups'
+import { useItemFlags } from '../../utils/useInactiveItems'
+import { AsAggControls, AsAggregateTable, type AsAggKey, type AsAggLine, type AsAggValue } from '../../features/as/AsAggregate'
 
 /** 원본 빠른선택(2026-10-04 실측) — 전월이 없고 이번기수(~전월)가 있다. */
 const PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '종료일', '이번기수(~전월)'] as const
+/** 원본 [집계조건] 창의 후보(2026-10-04 실측) — 기준일자 여섯 · 거래처(거래처 · 그룹1) · 품목(품목명[규격] · 그룹1). */
+const EXPORT_AGG_KEYS: AsAggKey[] = ['일별', '주차별', '월별', '분기별', '반기별', '연별', '거래처', '거래처그룹1', '품목명[규격]', '품목그룹1']
+/** 원본 집계 [공급가액]은 소수 없이 찍는다(242,400). */
+const int0 = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const num = (n: number) => Number(n).toLocaleString('en-US', { maximumFractionDigits: 2 })
 
 /**
@@ -20,7 +27,8 @@ const num = (n: number) => Number(n).toLocaleString('en-US', { maximumFractionDi
  * L/C 일자(기본 사용안함) · 거래처 · 품목코드. 열: 일자-No. · 품목명[규격] · Description of Goods · 수량 · 단가 · 금액 · 거래처명.
  * 한 줄 = 인보이스 <b>품목 줄</b> 하나, 기준일자는 전표 [일자](Voucher Date). 달마다 '<b>2026/07 계</b>' — 수량 · 단가 · 금액을
  * 더한다(단가도 더한다: 7월 12 + 12 + 80 = 104), 맨 끝 [합계]. 머리글 'Invoice/Packing List Status', 꼬리 [P.1].
- * [구분]의 ○집계는 아직 안 만들었다.
+ * [구분] ○집계는 A/S 판(AsAggregateTable) — 원본 품목 집계: [품목명[규격] | 수량 | 공급가액] Cookie SET 수입과자 [20개입] 4,200.00 · 50,400,
+ * Chocolate Chunk 수입쿠키 [10개입] 2,400.00 · 192,000, 합계 6,600.00 · 242,400(공급가액은 소수 없음).
  */
 export default function ExportStatusPage() {
   const pickers = useCondPickers(['partners', 'items'])
@@ -37,6 +45,10 @@ export default function ExportStatusPage() {
   const [lcTo, setLcTo] = useState(init.to)
   const [partner, setPartner] = useState('')
   const [item, setItem] = useState('')
+  const [gubun, setGubun] = useState<'내역' | '집계'>('내역')
+  const [agg, setAgg] = useState<AsAggValue>({ agg1: '', agg2: '', codeIncl: false })
+  const pgroup = usePartnerGroups()
+  const flags = useItemFlags()
   const [rows, setRows] = useState<ExportOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -91,8 +103,18 @@ export default function ExportStatusPage() {
     }))
   }, [lines])
   const total = months.reduce((a, g) => ({ qty: a.qty + g.qty, price: a.price + g.price, amount: a.amount + g.amount }), { qty: 0, price: 0, amount: 0 })
+  /* ○집계가 읽는 줄 — 인보이스 품목 줄 하나가 한 줄, 값은 [수량 · 공급가액]. */
+  const aggLines = useMemo<AsAggLine[]>(() => lines.map(({ r, l }) => ({
+    date: r.voucherDate, charge: '', warehouse: ['', ''], mgmt: '',
+    partner: [r.buyerName, pickers.partners.find((p) => p.value === String(r.partnerId))?.code ?? ''],
+    partnerGroup: pgroup.groupOfId(r.partnerId),
+    itemName: l.itemName, itemSpec: pickers.items.find((x) => x.value === String(l.itemId))?.sub ?? null, itemCode: l.itemCode,
+    itemGroup: flags.groupOf(l.itemId), project: ['', ''],
+    qty: Number(l.quantity), vals: [Number(l.quantity), Number(l.amount)],
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  })), [lines, pickers, flags])
   const tableRef = useRef<HTMLTableElement>(null)
-  useTableColumnCheck(tableRef, 'Invoice/Packing List Status', [months.length])
+  useTableColumnCheck(tableRef, 'Invoice/Packing List Status', [months.length, gubun, agg.agg1])
 
   const range = (use: boolean, setUse: (v: boolean) => void, a: string, setA: (v: string) => void, b: string, setB: (v: string) => void, label: string) => (
     <span className="inline-flex flex-wrap items-center gap-[4px]">
@@ -111,14 +133,24 @@ export default function ExportStatusPage() {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setInvoiceNo(''); setUseInv(false); setLcNo(''); setUseLc(false); setPartner(''); setItem('') } },
+        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setInvoiceNo(''); setUseInv(false); setLcNo(''); setUseLc(false); setPartner(''); setItem(''); setGubun('내역'); setAgg({ agg1: '', agg2: '', codeIncl: false }) } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
     >
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond mb-[8px]">
-        <EcCond label="구분"><span className="text-ec-label">내역 · 라인별</span></EcCond>
+        <EcCond label="구분">
+          <span className="inline-flex flex-wrap items-center gap-[8px]">
+            {(['내역', '집계'] as const).map((g) => (
+              <label key={g} className="inline-flex items-center gap-[3px]">
+                <input type="radio" name="exs-gubun" checked={gubun === g} onChange={() => setGubun(g)} /> {g}
+              </label>
+            ))}
+            {gubun === '내역' ? <span className="text-ec-label">라인별</span>
+              : <AsAggControls value={agg} onChange={(p) => setAgg((v) => ({ ...v, ...p }))} keys={EXPORT_AGG_KEYS} />}
+          </span>
+        </EcCond>
         <EcCond label="기준일자">
           <input type="date" className="ec-input w-[145px]" value={from} onChange={(e) => setFrom(e.target.value)} />
           <span className="my-0 mx-[4px]">~</span>
@@ -143,6 +175,10 @@ export default function ExportStatusPage() {
         </EcCond>
       </ul>
 
+      {gubun === '집계' ? (
+        <AsAggregateTable title="Invoice/Packing List Status" period={reportPeriod(from, to)} lines={aggLines} value={agg}
+                          measures={['수량', '공급가액']} formats={{ 공급가액: int0 }} />
+      ) : (<>
       <EcReportHead title="Invoice/Packing List Status" period={reportPeriod(from, to)} />
       <table ref={tableRef} className="w-full text-left">
         <thead>
@@ -193,6 +229,7 @@ export default function ExportStatusPage() {
         )}
       </table>
       <EcReportFoot />
+      </>)}
     </EcListShell>
   )
 }
