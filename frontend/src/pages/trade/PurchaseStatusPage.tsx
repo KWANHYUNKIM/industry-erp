@@ -2,6 +2,7 @@ import { useRef, useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
+import { dateNo } from '../../utils/dateNo'
 import type { PurchaseDoc } from '../../types/api'
 import { STATUS_PICKS, comparePeriodOf, periodOf, type ComparePeriod } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
@@ -11,7 +12,6 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { usePartnerManagers } from '../../utils/partnerManagers'
-import { dateText } from '../../utils/dateText'
 
 /** 구매 > 구매현황 — 구매 전표를 품목라인 단위로 펼친 실제 매입 내역 (/api/purchases 연동) */
 /*
@@ -635,7 +635,7 @@ export default function PurchaseStatusPage() {
                   </tr>
                 ) : (
                   <tr key={x.key} className={i % 2 ? 'ec-list-alt' : undefined}>
-                    <td style={{ textAlign: 'center', color: 'rgb(25, 53, 140)' }}>{dateText(x.r.date)} {x.r.docNo}</td>
+                    <td style={{ textAlign: 'center', color: 'rgb(25, 53, 140)' }}>{dateNo(x.r.date, x.r.docNo)}</td>
                     {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다 - 없는 품목은 이름만 찍는다. */}
                     <td>{x.r.itemName}{x.r.spec ? ` [${x.r.spec}]` : ''}</td>
                     <td className="text-right">{x.r.qty.toLocaleString()}</td>

@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
+import { dateNo } from '../../utils/dateNo'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import EcPeriodPicks, { NOTE_FLOW_PICKS, periodOf } from '../../components/EcPeriodPicks'
-import { dateText } from '../../utils/dateText'
 import type { AccountLedger, LedgerRow } from '../../types/api'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
@@ -119,7 +119,7 @@ export default function CashBookPage() {
             <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : rows.map(({ key, r, bal }) => (
             <tr key={key}>
-              <td className="text-center">{dateText(r.entryDate)} {r.docNo}</td>
+              <td className="text-center">{dateNo(r.entryDate, r.docNo)}</td>
               <td>{r.counterAccountName ?? ''}</td>
               <td>{r.partnerName ?? ''}</td>
               <td>{r.description ?? ''}</td>

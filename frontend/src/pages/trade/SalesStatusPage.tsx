@@ -5,12 +5,12 @@ import { periodOf, STATUS_PICKS, comparePeriodOf, type ComparePeriod } from '../
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
 import { api, extractErrorMessage } from '../../api/client'
+import { dateNo } from '../../utils/dateNo'
 import CodePickerField from '../../components/CodePickerField'
 import { GROUP_KEYS, aggregate, type GroupKey } from '../../utils/statusAggregate'
 import type { Item, Partner, SalesDoc, Warehouse } from '../../types/api'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { partnerCodeItems } from '../../utils/codeItems'
-import { dateText } from '../../utils/dateText'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 
 /** 영업 > 판매현황 — 판매 전표를 품목라인 단위로 펼친 실제 매출 내역 (/api/sales 연동) */
@@ -660,7 +660,7 @@ export default function SalesStatusPage() {
             ) : (
               <tr key={x.key} style={i % 2 ? { background: 'rgb(249, 249, 249)' } : undefined}>
                 <td className="text-center">
-                  <span className="ec-link">{dateText(x.r.date)} {x.r.docNo}</span>
+                  <span className="ec-link">{dateNo(x.r.date, x.r.docNo)}</span>
                 </td>
                 {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다 — 없는 품목은 이름만 찍는다. */}
                 <td>{x.r.itemName}{x.r.spec ? ` [${x.r.spec}]` : ''}</td>
