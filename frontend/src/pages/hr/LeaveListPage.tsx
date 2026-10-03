@@ -67,9 +67,16 @@ export default function LeaveListPage() {
   const [emp, setEmp] = useState(searchParams.get('emp') ?? '')
   /** [근태항목] — 근태항목등록 마스터에서 여러 개 고른다. */
   const [type, setType] = useState<string[]>([])
-  const [kindMaster, setKindMaster] = useState<{ code: string; name: string }[]>([])
+  const [kindMaster, setKindMaster] = useState<{ code: string; name: string; kindGroup: string | null; vacationKindId: number | null }[]>([])
+  /** 원본 [휴가항목] · [근태그룹](근태항목 다음) — 근태 줄의 근태항목이 가리키는 휴가코드 · 근태그룹으로 거른다. */
+  const [vkCond, setVkCond] = useState<string[]>([])
+  const [groupCond, setGroupCond] = useState<string[]>([])
+  const [vkMaster, setVkMaster] = useState<{ id: number; code: string; name: string }[]>([])
+  const [groupMaster, setGroupMaster] = useState<{ code: string; name: string }[]>([])
   useEffect(() => {
-    api.get<{ code: string; name: string }[]>('/hr/attendance-kinds').then((r) => setKindMaster(r.data)).catch(() => setKindMaster([]))
+    api.get<typeof kindMaster>('/hr/attendance-kinds').then((r) => setKindMaster(r.data)).catch(() => setKindMaster([]))
+    api.get<typeof vkMaster>('/hr/vacation-kinds').then((r) => setVkMaster(r.data)).catch(() => setVkMaster([]))
+    api.get<typeof groupMaster>('/hr/attendance-kind-groups').then((r) => setGroupMaster(r.data)).catch(() => setGroupMaster([]))
   }, [])
   /*
    * 원본 근태조회의 조건 차례는 <b>기준일자 · 사원 · 부서 · … · 적요 · 근태일자</b> 다
@@ -145,6 +152,9 @@ export default function LeaveListPage() {
   const shown = useMemo(() => rows.filter((r) => {
     if (emp && !r.empName.includes(emp)) return false
     if (type.length && !type.includes(r.type)) return false
+    const km = kindMaster.find((k) => k.name === r.type)
+    if (vkCond.length && !vkCond.includes(String(km?.vacationKindId ?? ''))) return false
+    if (groupCond.length && !groupCond.includes(km?.kindGroup ?? '')) return false
     if (dept && !(r.department ?? '').includes(dept)) return false
     if (!inGroup(r.department, deptGroup)) return false
     if (reasonCond && !(r.reason ?? '').includes(reasonCond)) return false
@@ -156,7 +166,7 @@ export default function LeaveListPage() {
     if (tab === '확인' && r.status !== 'APPROVED') return false
     if (tab === '이력' && r.status !== 'REJECTED') return false
     return true
-  }), [rows, emp, type, tab, dept, deptGroup, inGroup, reasonCond, dayCond, fromCond, toCond])
+  }), [rows, emp, type, vkCond, groupCond, kindMaster, tab, dept, deptGroup, inGroup, reasonCond, dayCond, fromCond, toCond])
 
   const total = shown.reduce((n, r) => n + r.days, 0)
 
@@ -265,6 +275,14 @@ export default function LeaveListPage() {
                            items={[...kindMaster.map((k) => ({ value: k.name, code: k.code, name: k.name })),
                              ...[...new Set(rows.map((r) => r.type))].filter((t) => t && !kindMaster.some((k) => k.name === t))
                                .map((t) => ({ value: t, name: t }))]} />
+        </EcCond>
+        <EcCond label="휴가항목">
+          <CodePickerField label="휴가항목" hideLabel fill multiple placeholder="휴가항목" values={vkCond} onChangeMulti={(v) => setVkCond(v)}
+                           items={vkMaster.map((v) => ({ value: String(v.id), code: v.code, name: v.name }))} />
+        </EcCond>
+        <EcCond label="근태그룹">
+          <CodePickerField label="근태그룹" hideLabel fill multiple placeholder="근태그룹" values={groupCond} onChangeMulti={(v) => setGroupCond(v)}
+                           items={groupMaster.map((g) => ({ value: g.name, code: g.code, name: g.name }))} />
         </EcCond>
         <EcCond label="적요">
           <input className="ec-input" value={reasonCond}

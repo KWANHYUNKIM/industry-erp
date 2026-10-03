@@ -1,5 +1,5 @@
 {
-  "about": "관리 > 근태조회(E020711) · 근태현황(E020715) — [근태항목]은 근태항목등록 마스터(30001 연차 …)를 여러 개 고르는 코드도움이다. 연차를 고르면 근태 줄이 연차만 남는다. 근태현황 [휴가항목](20001 …) · [근태그룹] 코드도움도 있다.",
+  "about": "관리 > 근태조회(E020711) · 근태현황(E020715) — [근태항목]은 근태항목등록 마스터(30001 연차 …)를 여러 개 고르는 코드도움이다. 연차를 고르면 근태 줄이 연차만 남는다. 근태조회 · 근태현황 둘 다 [휴가항목](20001 …) · [근태그룹] 코드도움이 있다(원본 근태조회 조건: 기준일자 · 근태일자 · 사원 · 부서 · 프로젝트 · 근태항목 · 휴가항목 · 근태그룹 · 적요).",
   "shots": [
     {
       "name": "근태조회 — 근태항목 코드도움",
@@ -12,7 +12,13 @@
         "pickrow:연차",
         "clicklast:확인",
         "wait:400",
-        "expect:[...document.querySelectorAll('table tbody tr')].filter(t=>t.cells.length>4).every(t=>[...t.cells].some(c=>c.innerText.trim()==='연차'))"
+        "expect:[...document.querySelectorAll('table tbody tr')].filter(t=>t.cells.length>4).every(t=>[...t.cells].some(c=>c.innerText.trim()==='연차'))",
+        "js:document.querySelector('button[title=\"휴가항목 선택\"]').click();true",
+        "wait:400",
+        "expect:(()=>{const dl=[...document.querySelectorAll('[role=dialog]')].pop();return !!dl&&/20001/.test(dl.innerText)})()",
+        "clicklast:확인",
+        "wait:300",
+        "expect:!!document.querySelector('button[title=\"근태그룹 선택\"]')"
       ]
     },
     {
