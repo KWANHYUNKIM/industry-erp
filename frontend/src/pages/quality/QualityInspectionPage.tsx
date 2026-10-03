@@ -11,6 +11,7 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { useShortcut } from '../../utils/useShortcut'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcRowCap, { capRows } from '../../components/EcRowCap'
+import { DocPullButton, type PulledLine } from '../../features/quality/DocPull'
 
 const today = () => ymd(new Date())
 const qty0 = (n: number) => Math.round(n).toLocaleString('ko-KR')
@@ -80,6 +81,14 @@ export default function QualityInspectionPage() {
    * '품질검사요청검색창(조회)', 알약 진행중, 단추 잔량적용 · 전체적용). 불러온 요청이 그 요청의 [연결전표] 로 이어진다.
    */
   const [requestId, setRequestId] = useState<number | null>(null)
+  /* 원본 입력 판 단추 차례: 판매 · 검사요청 · 발주 · 주문 · 작업지시서 · 구매 · 생산 · 이동 · 재고불러오기(2026-10-04 실측).
+     판매 · 발주 · 주문 · 구매는 features/quality/DocPull — 품목 · 수량을 줄로 들이고 단추를 거둔다(검사요청과 이어지지 않는다). */
+  const [pulled, setPulled] = useState(false)
+  function applyPull(ls: PulledLine[]) {
+    setLines([...ls.map((l) => ({ ...emptyLine(), itemId: String(l.itemId), quantity: String(Number(l.quantity)) })), emptyLine()])
+    setRequestId(null)
+    setPulled(true)
+  }
   const [pullOpen, setPullOpen] = useState(false)
   const [openRequests, setOpenRequests] = useState<QualityInspectionRequest[]>([])
   const [pullPick, setPullPick] = useState<number | null>(null)
@@ -128,12 +137,14 @@ export default function QualityInspectionPage() {
     setF({ inspectionDate: today(), inspector: '', remark: '' })
     setLines(emptyLines())
     setRequestId(null)
+    setPulled(false)
     setOpen(true)
   }
   function openEdit(r: QualityInspection) {
     setEditing(r); setFormError('')
     setF({ inspectionDate: r.inspectionDate, inspector: r.inspector ?? '', remark: r.remark ?? '' })
     setRequestId(r.requestId)
+    setPulled(false)
     setLines([...r.lines.map((l) => ({
       method: l.method, itemId: String(l.itemId), quantity: String(l.quantity), sampleQty: String(l.sampleQty),
       defectQty: l.defectQty ? String(l.defectQty) : '', passResult: l.passResult, defectType: l.defectType ?? '',
@@ -334,7 +345,13 @@ export default function QualityInspectionPage() {
         </ul>
 
         <div className="flex gap-[4px] items-center mt-[8px]">
-          <button type="button" className="ec-btn ec-btn-sm" onClick={openPull}>검사요청</button>
+          {!pulled && (<>
+            <DocPullButton kind="판매" onApply={applyPull} />
+            <button type="button" className="ec-btn ec-btn-sm" onClick={openPull}>검사요청</button>
+            <DocPullButton kind="발주" onApply={applyPull} />
+            <DocPullButton kind="주문" onApply={applyPull} />
+            <DocPullButton kind="구매" onApply={applyPull} />
+          </>)}
           {requestId != null && <span className="text-ec-hint text-[12px]">
             검사요청 {(() => { const r = openRequests.find((x) => x.id === requestId); return r ? dateNo(r.requestDate, r.requestNo) : (editing?.requestNo ?? '') })()}
           </span>}

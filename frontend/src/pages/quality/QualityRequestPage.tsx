@@ -12,6 +12,7 @@ import EcPeriodPicks, { ymd, periodOf, QUALITY_REQUEST_PICKS } from '../../compo
 
 import { printDocuments } from '../../utils/printDocument'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
+import { DocPullButton, PULLS, type PullKind, type PulledLine } from '../../features/quality/DocPull'
 
 /**
  * 재고 II &gt; 품질관리 &gt; 품질검사요청 — <b>품질검사요청조회</b>(E040629) · <b>품질검사요청입력</b>(E040628), 2026-10-04 loginaa 실측(입력 · 삭제).
@@ -106,43 +107,13 @@ export default function QualityRequestPage() {
   const [saving, setSaving] = useState(false)
   const [linksOf, setLinksOf] = useState<QualityInspectionRequest | null>(null)
 
-  /*
-   * 원본 입력 창 [판매 · 구매 …] 불러오기(2026-10-04 실측): 구매검색창(조회)에 [일자-No. · 거래처명 · 품목명(요약) · 금액합계 · 창고명],
-   * 기간은 최근30일(+1개월). 하나를 골라 [적용(F8)] 하면 그 전표의 품목 · 수량이 줄로 들어오고(검사방법 전수),
-   * 불러오기 단추들은 사라진다 — 한 요청은 한 전표에서만 불러온다. 요청에는 원 전표가 남지 않는다([연결전표]는 이어 만든 검사).
-   */
-  /* 원본 단추 차례: 판매 · 발주 · 주문 · 구매 · 생산 · 이동 · A/S접수. 앞 넷(판매 · 발주 · 주문 · 구매)만 만들었다. */
-  const PULLS = {
-    판매: { url: '/sales', no: 'docNo', date: 'saleDate' },
-    발주: { url: '/purchase-orders', no: 'orderNo', date: 'orderDate' },
-    주문: { url: '/sales-orders', no: 'orderNo', date: 'orderDate' },
-    구매: { url: '/purchases', no: 'docNo', date: 'purchaseDate' },
-  } as const
-  type PullKind = keyof typeof PULLS
-  interface PullDoc { id: number; docNo: string; date: string; partnerName: string; warehouseName: string; totalAmount: number; lines: { itemId: number; itemName: string; quantity: number }[] }
-  const [pullKind, setPullKind] = useState<PullKind | null>(null)
-  const [pullRows, setPullRows] = useState<PullDoc[]>([])
-  const [pullPick, setPullPick] = useState<number | null>(null)
+  /* 입력 판 [판매 · 발주 · 주문 · 구매] 불러오기(features/quality/DocPull) — 한 번 불러오면 단추가 사라진다. */
   const [pulled, setPulled] = useState(false)
-  async function openPull(kind: PullKind) {
-    setPullKind(kind); setPullPick(null); setPullRows([])
-    const r = periodOf('최근30일(+1개월)')!
-    try {
-      const c = PULLS[kind]
-      const data = (await api.get<Record<string, unknown>[]>(c.url, { params: { from: r.from, to: r.to } })).data
-      setPullRows(data.map((d) => ({
-        id: d.id as number, docNo: d[c.no] as string, date: d[c.date] as string,
-        partnerName: (d.partnerName as string) ?? '', warehouseName: (d.warehouseName as string) ?? '', totalAmount: Number(d.totalAmount),
-        lines: (d.lines as { itemId: number; itemName: string; quantity: number }[]) ?? [],
-      })).sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id))
-    } catch (e) { setFormError(extractErrorMessage(e)) }
+  function applyPull(ls: PulledLine[]) {
+    setLines([...ls.map((l) => ({ method: 'FULL' as Method, itemId: String(l.itemId), quantity: String(Number(l.quantity)) })), emptyLine()])
+    setPulled(true)
   }
-  function applyPull() {
-    const d = pullRows.find((x) => x.id === pullPick)
-    if (!d) return
-    setLines([...d.lines.map((l) => ({ method: 'FULL' as Method, itemId: String(l.itemId), quantity: String(Number(l.quantity)) })), emptyLine()])
-    setPulled(true); setPullKind(null)
-  }
+
 
   async function load() {
     setLoading(true)
@@ -404,9 +375,7 @@ export default function QualityRequestPage() {
         </ul>
         {!editing && !pulled && (
           <div className="flex gap-[4px] mt-[8px]">
-            {(Object.keys(PULLS) as PullKind[]).map((k) => (
-              <button key={k} type="button" className="ec-btn ec-btn-sm" onClick={() => void openPull(k)}>{k}</button>
-            ))}
+            {(Object.keys(PULLS) as PullKind[]).map((k) => <DocPullButton key={k} kind={k} onApply={applyPull} />)}
           </div>
         )}
         <table className="w-full ec-head700 mt-[8px]">
@@ -457,32 +426,6 @@ export default function QualityRequestPage() {
         <div className="flex gap-[6px]">
           <button type="button" className="ec-btn" onClick={() => void changeStatus('REQUESTED')}>진행중</button>
           <button type="button" className="ec-btn" onClick={() => void changeStatus('INSPECTED')}>완료</button>
-        </div>
-      </Modal>
-      <Modal error={formError} open={pullKind != null} title={`${pullKind ?? ''}검색창(조회)`} onClose={() => setPullKind(null)} width={760}>
-        <table className="w-full text-left">
-          <thead><tr>
-            <th className="w-[34px]"></th><th className="text-center">일자-No.</th><th>거래처명</th><th>품목명(요약)</th>
-            <th className="text-right">금액합계</th><th>창고명</th>
-          </tr></thead>
-          <tbody>
-            {pullRows.length === 0 ? (
-              <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-            ) : pullRows.map((d) => (
-              <tr key={d.id} className="cursor-pointer" onClick={() => setPullPick(d.id)}>
-                <td className="text-center"><input type="radio" name="qr-pull" checked={pullPick === d.id} onChange={() => setPullPick(d.id)} /></td>
-                <td className="text-center">{dateNo(d.date, d.docNo)}</td>
-                <td>{d.partnerName}</td>
-                <td>{d.lines[0] ? `${d.lines[0].itemName}${d.lines.length > 1 ? ` 외 ${d.lines.length - 1}건` : ''}` : ''}</td>
-                <td className="text-right">{Math.round(d.totalAmount).toLocaleString('ko-KR')}</td>
-                <td>{d.warehouseName}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <div className="flex gap-[4px] mt-[9px]">
-          <button type="button" className="ec-btn ec-btn-primary" disabled={pullPick == null} onClick={applyPull}>적용(F8)</button>
-          <button type="button" className="ec-btn" onClick={() => setPullKind(null)}>닫기</button>
         </div>
       </Modal>
     </EcListShell>
