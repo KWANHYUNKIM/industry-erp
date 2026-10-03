@@ -7,7 +7,7 @@
       "steps": [
         "js:(async()=>{const t=localStorage.getItem('erp_token');const h={Authorization:'Bearer '+t,'Content-Type':'application/json'};const r=await fetch('/api/pay-settings/items',{method:'POST',headers:h,body:JSON.stringify({code:'QAWR',name:'QA관리-시간수당',kind:'ALLOWANCE',defaultAmount:10000,sortOrder:98,payMethod:'HOURLY',taxFreeType:'NONE'})});return r.ok})()",
         "js:location.reload();true",
-        "wait:2500",
+        "wait:5000",
         "pick:사원:EMP-0003",
         "pick:수당항목:QAWR",
         "set:table input[inputmode=decimal]#0|2.5",
