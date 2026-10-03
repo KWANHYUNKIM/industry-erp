@@ -164,6 +164,7 @@ const PurchaseOrderPage = lazy(() => import('../pages/trade/PurchaseOrderPage'))
 const PayablePage = lazy(() => import('../pages/trade/PayablePage'))
 const TradeInquiryPage = lazy(() => import('../pages/trade/TradeInquiryPage'))
 const ExportPage = lazy(() => import('../pages/trade/ExportPage'))
+const ExportStatusPage = lazy(() => import('../pages/trade/ExportStatusPage'))
 const MallPage = lazy(() => import('../pages/trade/MallPage'))
 const PlanningPage = lazy(() => import('../pages/production/PlanningPage'))
 const TransferPage = lazy(() => import('../pages/inventory/TransferPage'))
@@ -446,6 +447,7 @@ export default function AppRouter() {
         <Route path="/sales/purchase-orders" element={<PurchaseOrderPage />} />
         <Route path="/sales/payable" element={<PayablePage />} />
         <Route path="/sales/export" element={<ExportPage />} />
+        <Route path="/sales/export-status" element={<ExportStatusPage />} />
         <Route path="/sales/mall" element={<MallPage />} />
         <Route path="/sales/mall-item-mappings" element={<MallItemMappingPage />} />
         <Route path="/sales/mall-accounts" element={<MallAccountPage />} />

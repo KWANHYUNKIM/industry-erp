@@ -764,6 +764,10 @@
   "trade/ExportPage.tsx"
  ],
  [
+  "Invoice/Packing List Status",
+  "trade/ExportStatusPage.tsx"
+ ],
+ [
   "매입(세금)계산서현황(재고)",
   "production/PurchaseTaxStockPage.tsx"
  ],
