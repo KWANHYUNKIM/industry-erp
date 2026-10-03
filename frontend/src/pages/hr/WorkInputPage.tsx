@@ -8,6 +8,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster, PayItem } from '../../types/api'
 import { ymd } from '../../utils/periods'
+import GridFindButton from '../../components/GridFindButton'
 
 interface Row { workDate: string; employeeId: string; payItemId: string; quantity: string }
 const blank = (): Row => ({ workDate: '', employeeId: '', payItemId: '', quantity: '' })
@@ -131,6 +132,7 @@ export default function WorkInputPage() {
         </li>
       </ul>
       <div className="flex gap-[6px] mb-[6px]">
+        <GridFindButton tableRef={tableRef} />
         <button type="button" className="ec-btn ec-btn-sm" onClick={() => setSortOpen(true)}>정렬</button>
         <button type="button" className="ec-btn ec-btn-sm" onClick={() => setLoadOpen(true)}>조건별 불러오기</button>
       </div>

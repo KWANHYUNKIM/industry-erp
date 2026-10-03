@@ -6,6 +6,7 @@ import { api, extractErrorMessage } from '../../../api/client'
 import type { Department, EmployeeMaster } from '../../../types/api'
 import { ymd } from '../../../utils/periods'
 import { ASSIGNMENT_KINDS, type AssignmentKind, type AssignmentLine } from '../types'
+import GridFindButton from '../../../components/GridFindButton'
 
 interface Row {
   assignDate: string
@@ -147,6 +148,8 @@ export default function AssignmentSlipForm({
           </div>
         </li>
       </ul>
+      {/* 원본 격자 위 [찾기(F3)] */}
+      <div className="flex gap-[6px] mb-[6px]"><GridFindButton tableRef={tableRef} /></div>
       <div className="overflow-x-auto">
         <table ref={tableRef} className="w-full text-left">
           <thead>

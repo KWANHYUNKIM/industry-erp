@@ -6,6 +6,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { ymd } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import { useNavigate } from 'react-router-dom'
+import GridFindButton from '../../components/GridFindButton'
 
 /**
  * 관리 > 근태관리 > 근태입력.
@@ -235,6 +236,8 @@ export default function LeaveInputPage() {
         </span>
       </div>
 
+      {/* 원본 격자 위 [찾기(F3)] */}
+      <div className="flex gap-[6px] mb-[6px]"><GridFindButton tableRef={tableRef} /></div>
       <div className="overflow-x-auto">
         <table ref={tableRef} className="ec-grid w-full text-left">
           <thead>

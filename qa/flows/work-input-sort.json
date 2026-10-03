@@ -1,5 +1,5 @@
 {
-  "about": "관리 > 근무입력(E090113) 격자 [정렬] — 원본 2026-10-04 실측 '정렬기준' 창: 정렬기준 두 칸(처음 사원 · 수당항목) · 정렬방법 오름차순(처음) · 내림차순 · 적용 · 닫기. 근무일자로 오름 → 3/1 · 3/5, 내림 → 3/5 · 3/1. 저장하지 않는다. 일용근로 근무입력(E020138)도 같은 창.",
+  "about": "관리 > 근무입력(E090113) 격자 [정렬] — 원본 2026-10-04 실측 '정렬기준' 창: 정렬기준 두 칸(처음 사원 · 수당항목) · 정렬방법 오름차순(처음) · 내림차순 · 적용 · 닫기. 근무일자로 오름 → 3/1 · 3/5, 내림 → 3/5 · 3/1. 저장하지 않는다. 일용근로 근무입력(E020138)도 같은 창. 격자 [찾기(F3)](원본: 단추 아래 작은 찾기 칸) — Enter 면 그 글자가 든 다음 줄로 가 첫 칸에 커서, 없으면 '찾는 내용이 없습니다.'.",
   "shots": [
     {
       "name": "정렬 — 근무일자 오름 · 내림",
@@ -45,6 +45,40 @@
         "js:(()=>{[...[...document.querySelectorAll('[role=dialog]')].find(d=>d.getAttribute('aria-label')==='정렬기준').querySelectorAll('button')].find(b=>b.innerText.trim()==='적용').click();return true})()",
         "wait:200",
         "expect:[...document.querySelectorAll('table input[type=date]')].map(i=>i.value)[0]==='2091-03-05'&&[...document.querySelectorAll('table input[type=date]')].map(i=>i.value)[1]==='2091-03-01'"
+      ]
+    },
+    {
+      "name": "근무입력 찾기(F3) — 다음 줄로 · 없으면 안내",
+      "path": "/hr/work-input",
+      "steps": [
+        "wait:1500",
+        "set:table input[type=date]#0|2091-03-05",
+        "set:table input[type=date]#1|2091-03-01",
+        "click:찾기(F3)",
+        "wait:200",
+        "js:(()=>{const i=document.querySelector('input[aria-label=\"격자 찾기\"]');const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;set.call(i,'2091-03-01');i.dispatchEvent(new Event('input',{bubbles:true}));i.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));return true})()",
+        "wait:200",
+        "expect:(()=>{const rows=[...document.querySelectorAll('table tbody tr')];return rows[1].contains(document.activeElement)})()",
+        "js:(()=>{const i=document.querySelector('input[aria-label=\"격자 찾기\"]');const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;set.call(i,'QA없는글자');i.dispatchEvent(new Event('input',{bubbles:true}));i.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));return true})()",
+        "wait:200",
+        "expect:document.body.innerText.includes('찾는 내용이 없습니다.')"
+      ]
+    },
+    {
+      "name": "근태입력 찾기(F3) — 다음 줄로 · 없으면 안내",
+      "path": "/hr/leave-input",
+      "steps": [
+        "wait:1500",
+        "set:table input[type=date]#0|2091-03-05",
+        "set:table input[type=date]#2|2091-03-09",
+        "click:찾기(F3)",
+        "wait:200",
+        "js:(()=>{const i=document.querySelector('input[aria-label=\"격자 찾기\"]');const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;set.call(i,'2091-03-09');i.dispatchEvent(new Event('input',{bubbles:true}));i.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));return true})()",
+        "wait:200",
+        "expect:(()=>{const rows=[...document.querySelectorAll('table tbody tr')];return rows[1].contains(document.activeElement)})()",
+        "js:(()=>{const i=document.querySelector('input[aria-label=\"격자 찾기\"]');const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;set.call(i,'QA없는글자');i.dispatchEvent(new Event('input',{bubbles:true}));i.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));return true})()",
+        "wait:200",
+        "expect:document.body.innerText.includes('찾는 내용이 없습니다.')"
       ]
     }
   ]

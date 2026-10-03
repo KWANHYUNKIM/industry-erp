@@ -7,6 +7,7 @@ import ConditionLoadModal from '../../components/ConditionLoadModal'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import { ymd } from '../../utils/periods'
+import GridFindButton from '../../components/GridFindButton'
 
 interface Worker { id: number; code: string; name: string; dailyWage: number | null }
 interface Row { workDate: string; workerId: string; quantity: string; amount: string }
@@ -113,6 +114,7 @@ export default function DailyWorkInputPage() {
         </li>
       </ul>
       <div className="flex gap-[6px] mb-[6px]">
+        <GridFindButton tableRef={tableRef} />
         <button type="button" className="ec-btn ec-btn-sm" onClick={() => setSortOpen(true)}>정렬</button>
         <button type="button" className="ec-btn ec-btn-sm" onClick={() => setLoadOpen(true)}>조건별 불러오기</button>
       </div>
