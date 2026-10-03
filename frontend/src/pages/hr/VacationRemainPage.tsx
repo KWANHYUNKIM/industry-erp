@@ -66,6 +66,8 @@ export default function VacationRemainPage() {
   const [leaveCode, setLeaveCode] = useState('')
   /** 원본 [기타] 사용중단휴가코드포함(2026-10-04 실측 — 처음엔 꺼짐). 끄면 사용중단한 휴가항목은 휴가코드 후보에 없다. */
   const [includeStopped, setIncludeStopped] = useState(false)
+  /** 원본 [상태] 전체 · 결재중 · UserPay · 확인 — 처음엔 확인만(2026-10-04 실측). 휴가사용일수에 넣을 근태의 상태다. UserPay(사원 신청)는 우리에 없다. */
+  const [statuses, setStatuses] = useState<Set<'PENDING' | 'APPROVED'>>(new Set(['APPROVED']))
 
   async function load() {
     setLoading(true)
@@ -85,7 +87,7 @@ export default function VacationRemainPage() {
   interface VKind { id: number; code: string; name: string; periodFrom: string; periodTo: string; active: boolean }
   interface AKind { name: string; vacationKindId: number | null }
   interface Emp { id: number; code: string; name: string; department: string; active: boolean }
-  interface Vac { empCode: string | null; type: string; startDate: string; days: number }
+  interface Vac { empCode: string | null; type: string; startDate: string; days: number; status: string }
   interface Grant { employeeId: number; totalDays: number }
   const [vkinds, setVkinds] = useState<VKind[]>([])
   const [codeRows, setCodeRows] = useState<Row[] | null>(null)
@@ -105,7 +107,7 @@ export default function VacationRemainPage() {
       const types = new Set(a.data.filter((k) => k.vacationKindId === kindId).map((k) => k.name))
       setCodeRows(e.data.map((emp) => {
         const total = g.data.find((x) => x.employeeId === emp.id)?.totalDays ?? 0
-        const used = v.data.filter((x) => x.empCode === emp.code && types.has(x.type)).reduce((t, x) => t + Number(x.days), 0)
+        const used = v.data.filter((x) => x.empCode === emp.code && types.has(x.type) && (statuses as Set<string>).has(x.status)).reduce((t, x) => t + Number(x.days), 0)
         return { leaveCode: vk.code, empCode: emp.code, leaveName: vk.name, empName: emp.name, department: emp.department, active: emp.active,
           totalDays: Number(total), usedDays: used, remainingDays: Number(total) - used }
       }))
@@ -115,7 +117,7 @@ export default function VacationRemainPage() {
   }
   useEffect(() => {
     if (leaveCode.startsWith('VK:')) loadCode(Number(leaveCode.slice(3))); else setCodeRows(null)
-  }, [leaveCode, vkinds])
+  }, [leaveCode, vkinds, statuses])
 
   /*
    * 원본 조건 판 실측(사본): 휴가코드 · 사원 · 부서 · 프로젝트 · 적요 · 상태 · 재직구분 ·
@@ -158,7 +160,7 @@ export default function VacationRemainPage() {
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: () => {
-          setEmp([]); setDept([]); setDecimals(3); setEmployment('ACTIVE'); setIncludeStopped(false)
+          setEmp([]); setDept([]); setDecimals(3); setEmployment('ACTIVE'); setIncludeStopped(false); setStatuses(new Set(['APPROVED']))
           setYear(new Date().getFullYear())
         } },
         { label: '인쇄' },
@@ -194,6 +196,18 @@ export default function VacationRemainPage() {
           원본 조건 [휴가코드]. 줄에 '연차(2026년)' 처럼 코드가 찍히는데 그걸로 거를
           자리가 없었다 — 연차 말고 다른 휴가를 따로 볼 수가 없었다.
         */}
+        <EcCond label="상태">
+          <label className="inline-flex items-center gap-[4px] mr-[10px]">
+            <input type="checkbox" checked={statuses.size === 2} onChange={(e) => setStatuses(new Set(e.target.checked ? ['PENDING', 'APPROVED'] : []))} /> 전체
+          </label>
+          {([['PENDING', '결재중'], ['APPROVED', '확인']] as const).map(([v, l]) => (
+            <label key={v} className="inline-flex items-center gap-[4px] mr-[10px]">
+              <input type="checkbox" checked={statuses.has(v)} onChange={(e) => {
+                const next = new Set(statuses); if (e.target.checked) next.add(v); else next.delete(v); setStatuses(next)
+              }} /> {l}
+            </label>
+          ))}
+        </EcCond>
         <EcCond label="재직구분">
           {EMPLOYMENTS.map(([v, label]) => (
             <label key={v} className="inline-flex items-center gap-[4px] mr-[10px]">
