@@ -54,11 +54,14 @@ public class StockService {
      * 이력이 지워지거나 잔량만 손으로 고쳐진 자료가 섞이면 그 시점 숫자가 통째로 틀린다.
      * (잔량과 이력 합이 같은지는 schema-check 가 따로 지킨다.)
      *
-     * <p>오늘 이후 날짜를 주면 현재고 그대로다 — 앞날의 재고를 지어내지 않는다.
+     * <p><b>오늘·앞날도 똑같이 뺀다.</b> 예전에는 "오늘 이후면 현재고 그대로" 로 건너뛰었는데,
+     * 현재고에는 <b>앞날짜로 넣은 전표</b>(10/10 창고이동을 10/3 에 입력)가 이미 들어 있다.
+     * 그래서 기준일자 오늘의 재고현황·창고별재고가 아직 일어나지 않은 이동을 반영했다
+     * (본사창고 89 여야 할 것이 85). 기준일 뒤 변동이 없으면 빼는 것이 0 이라 현재고와 같다.
      */
     @Transactional(readOnly = true)
     public List<StockResponse> stockAsOf(LocalDate asOf) {
-        if (asOf == null || !asOf.isBefore(LocalDate.now())) return currentStock();
+        if (asOf == null) return currentStock();
 
         Map<String, BigDecimal> after = new HashMap<>();
         for (Object[] row : transactionRepository.sumChangeAfter(asOf)) {
