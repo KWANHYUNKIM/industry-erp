@@ -8,6 +8,7 @@ interface Group { id: number; code: string; name: string }
 /**
  * 근태항목등록의 [근태그룹] 칸 — 원본은 코드도움('근태그룹검색': 근태그룹 코드 · 근태그룹 명, [신규] · [수정])이다(2026-10-03 실측).
  * 고르면 그룹 <b>이름</b>을 담는다. 옆 [신규]가 원본 '근태그룹등록' 창(근태그룹 코드 00001 꼴 미리 채움 · 근태그룹 명)을 연다.
+ * [수정]은 고른 그룹의 이름을 바꾼다(코드는 막힘) — 그 그룹을 쓰던 근태항목도 서버가 같이 바꾼다.
  */
 export default function AttendanceGroupField({ value, onChange }: { value: string; onChange: (name: string) => void }) {
   const [groups, setGroups] = useState<Group[]>([])
@@ -15,18 +16,25 @@ export default function AttendanceGroupField({ value, onChange }: { value: strin
   const [code, setCode] = useState('')
   const [name, setName] = useState('')
   const [error, setError] = useState('')
+  const [editId, setEditId] = useState<number | null>(null)
 
   const load = () => api.get<Group[]>('/hr/attendance-kind-groups').then((r) => setGroups(r.data)).catch(() => setGroups([]))
   useEffect(() => { load() }, [])
 
   async function openNew() {
-    setError(''); setName(''); setCode(''); setOpen(true)
+    setError(''); setName(''); setCode(''); setEditId(null); setOpen(true)
     try { setCode((await api.get<{ code: string }>('/hr/attendance-kind-groups/next-code')).data.code) } catch { /* 비우면 서버가 매긴다 */ }
+  }
+  function openEdit() {
+    const g = groups.find((x) => x.name === value)
+    if (!g) return
+    setError(''); setEditId(g.id); setCode(g.code); setName(g.name); setOpen(true)
   }
   async function save() {
     if (!name.trim()) { setError('근태그룹 명을 입력 바랍니다.'); return }
     try {
-      const r = await api.post<Group>('/hr/attendance-kind-groups', { code: code.trim() || null, name: name.trim() })
+      const body = { code: code.trim() || null, name: name.trim() }
+      const r = editId ? await api.put<Group>(`/hr/attendance-kind-groups/${editId}`, body) : await api.post<Group>('/hr/attendance-kind-groups', body)
       await load()
       onChange(r.data.name)
       setOpen(false)
@@ -45,11 +53,12 @@ export default function AttendanceGroupField({ value, onChange }: { value: strin
                          value={value} onChange={(v) => onChange(v)} items={items} />
       </div>
       <button type="button" className="ec-btn ec-btn-sm" onClick={openNew}>신규</button>
+      <button type="button" className="ec-btn ec-btn-sm" disabled={!groups.some((g) => g.name === value)} onClick={openEdit}>수정</button>
       <Modal error={error} open={open} title="근태그룹등록" width={520} onClose={() => setOpen(false)}>
         <ul className="ec-form">
           <li className="wide">
             <span className="title">근태그룹 코드</span>
-            <div className="form"><input className="ec-input w-full" value={code} onChange={(e) => setCode(e.target.value)} /></div>
+            <div className="form"><input className="ec-input w-full" value={code} disabled={editId !== null} onChange={(e) => setCode(e.target.value)} /></div>
           </li>
           <li className="wide">
             <span className="title">근태그룹 명</span>
