@@ -168,13 +168,15 @@ export default function LeaveInputPage() {
           setError(''); setBulkForm((f) => ({ ...f, startDate: baseDate, endDate: baseDate })); setBulkOpen(true)
         } },
         { label: saving ? '저장 중…' : '저장(F8)', primary: true, onClick: save },
+        // 원본 아래 버튼줄 차례(2026-10-04 실측): 저장(F8) · 저장/전표(F7) · 다시 작성 · 리스트 · 웹자료올리기
+        { label: '다시 작성', onClick: () => setLines([emptyLine(baseDate), emptyLine(baseDate), emptyLine(baseDate)]) },
         /*
          * 원본 [리스트] — 넣은 것을 보러 근태조회로 간다. 저장해도 이 화면에
          * 그대로 남아(줄만 비워진다) 방금 넣은 것을 확인할 길이 없었다.
          */
         { label: '리스트', onClick: () => navigate('/hr/leave-list') },
+        // 우리에게만 있는 [줄 추가] — 원본 격자는 줄이 모자라면 스스로 늘린다. 차례상 맨 끝.
         { label: '줄 추가', onClick: () => setLines((p) => [...p, emptyLine(baseDate)]) },
-        { label: '다시 작성', onClick: () => setLines([emptyLine(baseDate), emptyLine(baseDate), emptyLine(baseDate)]) },
       ]}
     >
       <Modal error={error} open={bulkOpen} title="근태일괄입력" onClose={() => setBulkOpen(false)}>{(
