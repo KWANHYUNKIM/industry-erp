@@ -1079,19 +1079,9 @@
   "color": 5,
   "palette": 0
  },
- "pages/settings/PreferencesPage.tsx": {
-  "inline": 2,
-  "color": 2,
-  "palette": 0
- },
  "pages/settings/PrintSignLinePage.tsx": {
   "inline": 14,
   "color": 4,
-  "palette": 0
- },
- "pages/settings/SecurityPage.tsx": {
-  "inline": 7,
-  "color": 0,
   "palette": 0
  },
  "pages/trade/AccountingReflectionPage.tsx": {
