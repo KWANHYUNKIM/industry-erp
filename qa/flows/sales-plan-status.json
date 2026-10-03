@@ -1,5 +1,5 @@
 {
-  "about": "매출계획현황(E040640) — 2026-10-04 원본 실측: 계획 줄마다 한 행 [일자-No. · 거래처명 · 담당자명 · 품명 · 금액](금액 소수 한 자리), 달마다 'YYYY/MM 계' · 합계, 머리글 '매출계획현황'. 두 줄 계획(7,000 · 4,000)을 오늘로 만들어 두 행 · 계에 11,000.0 이 더해지는지 보고 지운다.",
+  "about": "매출계획현황(E040640) — 2026-10-04 원본 실측: 계획 줄마다 한 행 [일자-No. · 거래처명 · 담당자명 · 품명 · 금액](금액 소수 한 자리), 달마다 'YYYY/MM 계' · 합계, 머리글 '매출계획현황'. 두 줄 계획(7,000 · 4,000)을 오늘로 만들어 두 행 · 계에 11,000.0 이 더해지는지 보고 지운다. 이어서 ○집계(집계조건1 거래처) → [거래처 | 금액] · 합계가 달 계와 같은지(원본: 빛나오토파츠 86,000.00 · 이카건설 11,000.00 · 합계 97,000.00).",
   "shots": [
     {
       "name": "두 줄 계획 → 두 행 · 계 → 지움",
@@ -11,6 +11,12 @@
         "wait:3000",
         "expect:[...document.querySelector('table thead tr').cells].map((c) => c.innerText.trim()).join('|') === '일자-No.|거래처명|담당자명|품명|금액' && document.querySelector('.ec-report-title')?.innerText.trim() === '매출계획현황'",
         "expect:[...document.querySelectorAll('tbody tr')].filter((tr) => tr.innerText.includes('7,000.0') || tr.innerText.includes('4,000.0')).length >= 2 && [...document.querySelectorAll('tbody tr.ec-list-total')].some((tr) => tr.innerText.includes(Number(sessionStorage.getItem('spsSum')).toLocaleString('ko-KR') + '.0'))",
+        "js:document.querySelectorAll('input[name=sps-gubun]')[1].click(); true",
+        "wait:500",
+        "expect:!!document.querySelector('.ec-alert-danger') && document.querySelector('.ec-alert-danger').innerText.includes('집계조건은 1개 이상 선택해야 합니다.')",
+        "js:(() => { const s = document.querySelector('input[name=sps-gubun]').closest('span').querySelector('select'); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s, '거래처'); s.dispatchEvent(new Event('change', { bubbles: true })); return true })()",
+        "wait:500",
+        "expect:[...document.querySelector('table thead tr').cells].map((c) => c.innerText.trim()).join('|') === '거래처|금액' && document.querySelector('tfoot tr').innerText.includes(Number(sessionStorage.getItem('spsSum')).toLocaleString('ko-KR', { minimumFractionDigits: 2 }))",
         "expect:(async () => { const r = await fetch('/api/sales-plans/docs/' + encodeURIComponent(sessionStorage.getItem('spsNo')), { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }); return r.status === 204 })()"
       ]
     }

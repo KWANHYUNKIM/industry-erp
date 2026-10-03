@@ -10,18 +10,22 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { dateNo } from '../../utils/dateNo'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { useItemFlags } from '../../utils/useInactiveItems'
+import { AsAggControls, AsAggregateTable, AS_AGG_KEYS, type AsAggLine, type AsAggValue } from '../../features/as/AsAggregate'
 
 interface PlanRow {
   id: number; planNo: string; planDate: string; lineNo: number
   itemId: number; itemCode: string; itemName: string
   employeeId: number | null; employeeName: string | null
-  partnerId: number | null; partnerName: string | null
+  partnerId: number | null; partnerCode: string | null; partnerName: string | null
   warehouseId: number | null; warehouseName: string | null
   projectId: number | null; projectName: string | null
   planQty: number; unitPrice: number; planAmount: number; remark: string | null; createdBy: string | null
 }
 
 /** 원본 금액 칸은 소수 한 자리까지 찍는다(7,000.0). */
+/** 원본 [집계조건] 창의 후보(2026-10-04 실측) — A/S 판에서 [관리항목]만 없다(매출계획 묶음은 담당자 · 창고). */
+const PLAN_AGG_KEYS = AS_AGG_KEYS.filter((k) => k !== '관리항목')
+
 const amt1 = (n: number) => Number(n).toLocaleString('ko-KR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
 
 /**
@@ -32,7 +36,7 @@ const amt1 = (n: number) => Number(n).toLocaleString('ko-KR', { minimumFractionD
  * 열: 일자-No. · 거래처명 · 담당자명 · 품명 · 금액 — 계획 <b>줄마다</b> 한 행, 달마다 '<b>2026/09 계</b>' 와 맨 끝 [합계].
  * 원본 9월: 9/27 -1 이카건설 · 천우석 건축용석재 7,000.0 / 건축용목재 4,000.0, 9/29 -1 빛나오토파츠 · 정재원 두 줄 16,000.0 · 70,000.0,
  * '2026/09 계' 97,000.0. 금액은 소수 한 자리. 머리글 '매출계획현황' · 꼬리 [P.1].
- * 예전엔 [매출계획 / 비교표] 한 화면이 현황을 겸했다(연 · 월 표) — 원본 현황은 계획 줄 목록이다. [구분] ○집계는 아직.
+ * 예전엔 [매출계획 / 비교표] 한 화면이 현황을 겸했다(연 · 월 표) — 원본 현황은 계획 줄 목록이다. [구분] ○집계는 A/S 판(AsAggregateTable)을 그대로 쓴다 — 원본 거래처 집계: [거래처 | 금액] 빛나오토파츠 86,000.00 · 이카건설 11,000.00 · 합계 97,000.00(금액 소수 두 자리, 꼬리 [P.1] 없음).
  */
 export default function SalesPlanStatusPage() {
   const pickers = useCondPickers(['warehouses', 'partners', 'items', 'projects'])
@@ -49,6 +53,8 @@ export default function SalesPlanStatusPage() {
   const [itemGroup, setItemGroup] = useState('')
   const [remark, setRemark] = useState('')
   const [creator, setCreator] = useState('')
+  const [gubun, setGubun] = useState<'내역' | '집계'>('내역')
+  const [agg, setAgg] = useState<AsAggValue>({ agg1: '', agg2: '', codeIncl: false })
   /* 거래처그룹1 · 품목구분 · 품목그룹1 은 마스터에 붙는 값이라 줄의 id 로 잇는다. */
   const pgroup = usePartnerGroups()
   const flags = useItemFlags()
@@ -92,8 +98,27 @@ export default function SalesPlanStatusPage() {
     return [...by.entries()].map(([m, rs]) => ({ m, rs, sum: rs.reduce((n, r) => n + Number(r.planAmount), 0) }))
   }, [shown])
   const total = months.reduce((n, g) => n + g.sum, 0)
+  /* ○집계가 읽는 줄 — 창고 · 프로젝트 코드와 품목 규격은 계획 응답에 없어 마스터에서 잇는다. */
+  const aggLines = useMemo<AsAggLine[]>(() => {
+    const code = (xs: { value: string; code?: string | null }[], id: number | null) => (id == null ? '' : xs.find((x) => x.value === String(id))?.code ?? '')
+    return shown.map((r) => ({
+      date: r.planDate,
+      charge: r.employeeName ?? '',
+      warehouse: [r.warehouseName ?? '', code(pickers.warehouses, r.warehouseId)],
+      mgmt: '',
+      partner: [r.partnerName ?? '', r.partnerCode ?? ''],
+      partnerGroup: pgroup.groupOfId(r.partnerId),
+      itemName: r.itemName,
+      itemSpec: pickers.items.find((x) => x.value === String(r.itemId))?.sub ?? null,
+      itemCode: r.itemCode,
+      itemGroup: flags.groupOf(r.itemId),
+      project: [r.projectName ?? '', code(pickers.projects, r.projectId)],
+      qty: Number(r.planAmount),
+    }))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shown, pickers, flags])
   const tableRef = useRef<HTMLTableElement>(null)
-  useTableColumnCheck(tableRef, '매출계획현황', [months.length])
+  useTableColumnCheck(tableRef, '매출계획현황', [months.length, gubun, agg.agg1])
 
   return (
     <EcListShell
@@ -101,14 +126,24 @@ export default function SalesPlanStatusPage() {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setWarehouse(''); setPartner(''); setItem(''); setProject(''); setEmployee(''); setPartnerGroup(''); setItemCat(''); setItemGroup(''); setRemark(''); setCreator('') } },
+        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setWarehouse(''); setPartner(''); setItem(''); setProject(''); setEmployee(''); setPartnerGroup(''); setItemCat(''); setItemGroup(''); setRemark(''); setCreator(''); setGubun('내역'); setAgg({ agg1: '', agg2: '', codeIncl: false }) } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
     >
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond mb-[8px]">
-        <EcCond label="구분"><span className="text-ec-label">내역 · 라인별</span></EcCond>
+        <EcCond label="구분">
+          <span className="inline-flex flex-wrap items-center gap-[8px]">
+            {(['내역', '집계'] as const).map((g) => (
+              <label key={g} className="inline-flex items-center gap-[3px]">
+                <input type="radio" name="sps-gubun" checked={gubun === g} onChange={() => setGubun(g)} /> {g}
+              </label>
+            ))}
+            {gubun === '내역' ? <span className="text-ec-label">라인별</span>
+              : <AsAggControls value={agg} onChange={(p) => setAgg((v) => ({ ...v, ...p }))} keys={PLAN_AGG_KEYS} />}
+          </span>
+        </EcCond>
         <EcCond label="일자">
           <input type="date" className="ec-input w-[145px]" value={from} onChange={(e) => setFrom(e.target.value)} />
           <span className="my-0 mx-[4px]">~</span>
@@ -154,6 +189,9 @@ export default function SalesPlanStatusPage() {
         </EcCond>
       </ul>
 
+      {gubun === '집계' ? (
+        <AsAggregateTable title="매출계획현황" period={reportPeriod(from, to)} lines={aggLines} value={agg} measures={['금액']} />
+      ) : (<>
       <EcReportHead title="매출계획현황" period={reportPeriod(from, to)} />
       <table ref={tableRef} className="w-full text-left">
         <thead>
@@ -194,6 +232,7 @@ export default function SalesPlanStatusPage() {
         )}
       </table>
       <EcReportFoot />
+      </>)}
     </EcListShell>
   )
 }
