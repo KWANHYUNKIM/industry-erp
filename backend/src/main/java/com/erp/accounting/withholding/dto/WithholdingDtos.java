@@ -136,4 +136,12 @@ public final class WithholdingDtos {
     /** 원천징수영수증(일용직) 한 사원 — 원본 목록 [사원번호 · 사원명 · 총지급액 · 비과세총액 · 소득세 · 지방소득세] + 근무일수 · 최종근무일. */
     public record DailyReceipt(Long employeeId, String employeeCode, String employeeName, int days, LocalDate lastDate,
                                BigDecimal totalPay, BigDecimal nonTaxable, BigDecimal incomeTax, BigDecimal localIncomeTax) {}
+
+    /**
+     * 원천세신고자료비교표 한 줄(기준월 × 구분) — 급여대장(자료) 쪽 인원 · 지급총액 · 비과세 · 소득세 · 지방소득세와
+     * 그 달 신고서의 인원 · 금액 · 소득세. 신고서가 없으면 신고 칸은 null. month 가 null 이면 합계 줄.
+     */
+    public record ComparisonRow(String month, String kind, int count, BigDecimal gross, BigDecimal nonTaxable,
+                                BigDecimal incomeTax, BigDecimal localIncomeTax,
+                                Integer reportedCount, BigDecimal reportedGross, BigDecimal reportedTax, boolean differs) {}
 }

@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 import com.erp.accounting.withholding.dto.WithholdingDtos;
@@ -45,6 +46,7 @@ public class WithholdingService {
 
     private final PayslipRepository payslipRepository;
     private final WithholdingReturnRepository returnRepository;
+    private final com.erp.accounting.retirementpay.RetirementPayRepository retirementPayRepository;
     private final com.erp.hr.dailywork.DailyWorkService dailyWorkService;
     private final com.erp.accounting.otherwithholding.OtherWithholdingRepository otherWithholdingRepository;
 
@@ -278,6 +280,93 @@ public class WithholdingService {
                 .map(w -> new WithholdingDtos.DailyReceipt(w.employeeId(), w.code(), w.name(), w.days(), w.lastDate(),
                         w.wage(), BigDecimal.ZERO, w.incomeTax(), w.localIncomeTax()))
                 .toList();
+    }
+
+    /** 원천세신고자료비교표의 구분 — 원본 차례 그대로. 신고서 소득구분 코드가 있는 것만 신고내역과 견준다. */
+    private static final String[][] COMPARISON_KINDS = {
+            {"근로소득", "A01"}, {"중도퇴사", null}, {"일용근로", "A03"}, {"연말정산", null}, {"퇴직소득", null},
+            {"사업소득", "A25"}, {"기타소득", "A42"}, {"이자소득", "A50"}, {"배당소득", "A60"}, {"법인원천", null}};
+
+    /**
+     * 원천세신고자료비교표(E030104) — 기준연도 달마다 자료(급여대장 · 출역 · 퇴직금 · 기타원천세)와 그 달 신고서를 구분별로 견준다.
+     * 원본 2026: 근로소득 달마다 6 · 21,669,000 · 1,200,000 · 646,370 · 64,620, 자료가 하나도 없는 달은 줄을 만들지 않고
+     * 끝에 합계 열 줄. 급여대장은 작성 중인 명세까지 센다. 중도퇴사 · 연말정산 · 법인원천은 자료가 없어 빈다.
+     */
+    @Transactional(readOnly = true)
+    public List<WithholdingDtos.ComparisonRow> comparison(int year) {
+        String prefix = String.valueOf(year);
+        java.util.Set<String> reported = new java.util.HashSet<>();
+        returnRepository.findAllByOrderByAttributionMonthDescIdDesc().forEach(r -> {
+            if (r.getAttributionMonth().startsWith(prefix + "-")) reported.add(r.getAttributionMonth());
+        });
+        Map<String, List<Payslip>> slips = new java.util.HashMap<>();
+        payslipRepository.findByYear(prefix).forEach(p -> slips.computeIfAbsent(p.getPayMonth(), k -> new ArrayList<>()).add(p));
+        Map<String, List<com.erp.accounting.retirementpay.RetirementPay>> retire = new java.util.HashMap<>();
+        retirementPayRepository.findAll().forEach(r -> {
+            if (r.getWithholdingMonth().startsWith(prefix + "-")) retire.computeIfAbsent(r.getWithholdingMonth(), k -> new ArrayList<>()).add(r);
+        });
+        List<WithholdingDtos.ComparisonRow> out = new ArrayList<>();
+        Map<String, BigDecimal[]> total = new java.util.LinkedHashMap<>();
+        for (int m = 1; m <= 12; m++) {
+            String month = String.format("%s-%02d", prefix, m);
+            java.time.YearMonth ym = java.time.YearMonth.parse(month);
+            Map<String, BigDecimal[]> data = new java.util.HashMap<>();   // kind → [count, gross, nonTaxable, tax, local]
+            List<Payslip> ps = slips.getOrDefault(month, List.of());
+            if (!ps.isEmpty()) {
+                BigDecimal gross = BigDecimal.ZERO, nonTax = BigDecimal.ZERO, tax = BigDecimal.ZERO, local = BigDecimal.ZERO;
+                for (Payslip p : ps) {
+                    gross = gross.add(p.grossPay());
+                    nonTax = nonTax.add(p.getLines().stream().filter(l -> l.getKind() == PayslipLineKind.ALLOWANCE && !l.isTaxable())
+                            .map(PayslipLine::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add));
+                    tax = tax.add(deduction(p, INCOME_TAX));
+                    local = local.add(deduction(p, LOCAL_INCOME_TAX));
+                }
+                data.put("근로소득", new BigDecimal[]{BigDecimal.valueOf(ps.size()), gross, nonTax, tax, local});
+            }
+            var daily = dailyWorkService.monthTotals(ym);
+            if (daily.count() > 0) {
+                data.put("일용근로", new BigDecimal[]{BigDecimal.valueOf(daily.count()), daily.wage(), BigDecimal.ZERO, daily.incomeTax(), daily.localIncomeTax()});
+            }
+            List<com.erp.accounting.retirementpay.RetirementPay> rs = retire.getOrDefault(month, List.of());
+            if (!rs.isEmpty()) {
+                data.put("퇴직소득", new BigDecimal[]{BigDecimal.valueOf(rs.size()),
+                        rs.stream().map(com.erp.accounting.retirementpay.RetirementPay::getRetirementPay).reduce(BigDecimal.ZERO, BigDecimal::add),
+                        rs.stream().map(com.erp.accounting.retirementpay.RetirementPay::getNonTaxable).filter(java.util.Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add),
+                        rs.stream().map(com.erp.accounting.retirementpay.RetirementPay::getIncomeTax).reduce(BigDecimal.ZERO, BigDecimal::add),
+                        rs.stream().map(com.erp.accounting.retirementpay.RetirementPay::getLocalIncomeTax).reduce(BigDecimal.ZERO, BigDecimal::add)});
+            }
+            Map<com.erp.accounting.income.IncomeType, List<com.erp.accounting.otherwithholding.OtherWithholding>> others =
+                    otherWithholdingRepository.findBetween(ym.atDay(1), ym.atEndOfMonth()).stream()
+                            .collect(java.util.stream.Collectors.groupingBy(com.erp.accounting.otherwithholding.OtherWithholding::getIncomeType));
+            others.forEach((type, list) -> data.put(type.getDisplayName(), new BigDecimal[]{
+                    BigDecimal.valueOf(list.stream().map(w -> w.getPayeeName() + "\u0000" + w.getPayeeRegNo()).distinct().count()),
+                    list.stream().map(com.erp.accounting.otherwithholding.OtherWithholding::getGrossAmount).reduce(BigDecimal.ZERO, BigDecimal::add),
+                    BigDecimal.ZERO,
+                    list.stream().map(com.erp.accounting.otherwithholding.OtherWithholding::getIncomeTax).reduce(BigDecimal.ZERO, BigDecimal::add),
+                    list.stream().map(com.erp.accounting.otherwithholding.OtherWithholding::getLocalIncomeTax).reduce(BigDecimal.ZERO, BigDecimal::add)}));
+            Map<String, WithholdingDtos.IncomeSection> sections = new java.util.HashMap<>();
+            if (reported.contains(month)) statement(month).sections().forEach(sec -> sections.put(sec.code(), sec));
+            if (data.isEmpty() && sections.isEmpty()) continue;
+            for (String[] k : COMPARISON_KINDS) {
+                BigDecimal[] d = data.get(k[0]);
+                WithholdingDtos.IncomeSection sec = k[1] == null ? null : sections.get(k[1]);
+                out.add(row(month, k[0], d, sec));
+                if (d != null) {
+                    BigDecimal[] t = total.computeIfAbsent(k[0], x -> new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO});
+                    for (int i = 0; i < 5; i++) t[i] = t[i].add(d[i]);
+                }
+            }
+        }
+        for (String[] k : COMPARISON_KINDS) out.add(row(null, k[0], total.get(k[0]), null));
+        return out;
+    }
+
+    private static WithholdingDtos.ComparisonRow row(String month, String kind, BigDecimal[] d, WithholdingDtos.IncomeSection sec) {
+        boolean differs = sec != null && (d == null ? sec.grossPay().signum() != 0
+                : d[1].subtract(d[2]).compareTo(sec.grossPay()) != 0 || d[3].compareTo(sec.incomeTax()) != 0);
+        return new WithholdingDtos.ComparisonRow(month, kind, d == null ? 0 : d[0].intValue(),
+                d == null ? null : d[1], d == null ? null : d[2], d == null ? null : d[3], d == null ? null : d[4],
+                sec == null ? null : sec.count(), sec == null ? null : sec.grossPay(), sec == null ? null : sec.incomeTax(), differs);
     }
 
     private BigDecimal deduction(Payslip p, String name) {
