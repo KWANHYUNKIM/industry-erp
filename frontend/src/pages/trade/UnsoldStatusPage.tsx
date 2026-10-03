@@ -118,9 +118,14 @@ export default function UnsoldStatusPage() {
   useEffect(() => { load() }, [cond.from, cond.to])
 
   const shown = rows
-    // 기준일자는 납기일로 본다 — '언제까지 매출을 잡아야 했나'가 이 화면의 질문이다.
-    .filter((r) => !cond.from || (r.dueDate ?? r.orderDate) >= cond.from)
-    .filter((r) => !cond.to || (r.dueDate ?? r.orderDate) <= cond.to)
+    /*
+     * 기준일자는 <b>주문일</b>이다 — 서버(/sales-orders/unsold?from&to)가 주문일로 거르고,
+     * 미출하현황·미주문현황의 같은 이름 칸도 전표일이다. 납기는 따로 [품목별납기일자] 가 묻는다.
+     * 예전엔 여기서 납기일로 한 번 더 걸러 <b>두 축의 교집합</b>만 남았다 — 지난달에 받아
+     * 이번 달이 납기인 주문(서버가 뺌)도, 이번 달에 받아 다음 달이 납기인 주문(화면이 뺌)도 사라졌다.
+     */
+    .filter((r) => !cond.from || r.orderDate >= cond.from)
+    .filter((r) => !cond.to || r.orderDate <= cond.to)
     .filter((r) => !cond.partner || String(r.partnerId) === cond.partner)
     .filter((r) => !cond.item || String(r.itemId) === cond.item)
     .filter((r) => !cond.orderNo || r.orderNo.includes(cond.orderNo))
