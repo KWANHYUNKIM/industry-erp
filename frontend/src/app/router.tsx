@@ -52,6 +52,7 @@ const RetirementPayPage = lazy(() => import('../pages/accounting/RetirementPayPa
 const OtherWithholdingPage = lazy(() => import('../pages/accounting/OtherWithholdingPage'))
 const CorporateTaxPage = lazy(() => import('../pages/accounting/CorporateTaxPage'))
 const CorporateTaxChecklistPage = lazy(() => import('../pages/accounting/CorporateTaxChecklistPage'))
+const ExpenseEvidenceStatusPage = lazy(() => import('../pages/accounting/ExpenseEvidenceStatusPage'))
 const PromissoryNotePage = lazy(() => import('../pages/accounting/PromissoryNotePage'))
 const NoteHoldingPage = lazy(() => import('../pages/accounting/NoteHoldingPage'))
 const NoteFlowPage = lazy(() => import('../pages/accounting/NoteFlowPage'))
@@ -513,6 +514,7 @@ export default function AppRouter() {
         <Route path="/hr/retirement-pay" element={<RetirementPayPage />} />
         <Route path="/accounting/other-withholding" element={<OtherWithholdingPage />} />
         <Route path="/accounting/corporate-tax/checklist" element={<CorporateTaxChecklistPage />} />
+        <Route path="/accounting/corporate-tax/expense-evidence" element={<ExpenseEvidenceStatusPage />} />
         <Route path="/accounting/corporate-tax" element={<CorporateTaxPage />} />
         <Route path="/accounting/notes" element={<PromissoryNotePage />} />
         <Route path="/accounting/notes-list" element={<NoteListPage type="RECEIVABLE" />} />

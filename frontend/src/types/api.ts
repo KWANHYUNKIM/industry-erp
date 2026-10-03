@@ -3107,3 +3107,31 @@ export interface CorporateTaxCheckMemo {
   content: string
   writer: string | null
 }
+
+/** 지출증빙현황(E030402) — GET /expense-evidence?from=YYYY-MM&to=YYYY-MM */
+export interface ExpenseEvidenceStatus {
+  from: string
+  to: string
+  kinds: string[]
+  rows: { accountId: number; accountCode: string; accountName: string; amounts: Record<string, number>; total: number }[]
+}
+
+/** 지출증빙현황 금액 링크 → 전표vs매출매입자료비교 한 줄 */
+export interface ExpenseEvidenceCompareRow {
+  entryId: number
+  entryDate: string
+  docNo: string
+  accountName: string
+  partnerName: string | null
+  debit: number
+  credit: number
+  vatDocNo: string | null
+  vatKind: string | null
+  vatPartnerName: string | null
+  supply: number
+  vat: number
+  vatTotal: number
+}
+
+/** 지출증빙현황 [계정설정] 한 줄 — shown 이 인쇄방법 '표시' */
+export interface ExpenseEvidenceAccount { id: number; code: string; name: string; shown: boolean }

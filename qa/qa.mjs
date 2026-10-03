@@ -10443,6 +10443,7 @@ async function main() {
   await scenarioCommuteRule()
   await scenarioEmployeeCommute()
   await scenarioCorporateTaxChecklist()
+  await scenarioExpenseEvidence()
   await scenarioPressedTwice(fixtures)
   await scenarioNoPermission()
   await scenarioNewCompany()
@@ -11172,6 +11173,33 @@ async function scenarioCorporateTaxChecklist() {
   eq('메모 수정', `${edited.memoDate} ${edited.title}`, '2026-10-05 QA세무-메모2')
   await must('DELETE', `/corporate-tax/checklist/memos/${memo.id}`)
   eq('메모 삭제', (await must('GET', `/corporate-tax/checklist/memos?year=${year}&section=13`)).some((x) => x.id === memo.id), false)
+}
+
+/**
+ * 지출증빙현황(E030402) — [계정설정]에서 표시로 고른 계정만 나오고, 줄 합계 = 증빙 칸의 합, 금액 링크의 비교 줄 차변 합 = 그 칸.
+ * 원본처럼 모두 표시안함으로 시작하므로 시험이 끝나면 고른 것을 되돌린다.
+ */
+async function scenarioExpenseEvidence() {
+  section('■ 지출증빙현황')
+  const before = await must('GET', '/expense-evidence/accounts')
+  const keep = before.filter((a) => a.shown).map((a) => a.id)
+  const empty = await must('PUT', '/expense-evidence/accounts', { shownIds: [] })
+  eq('계정설정을 모두 표시안함으로 저장', empty.filter((a) => a.shown).length, 0)
+  eq('표시한 계정이 없으면 빈 판', (await must('GET', '/expense-evidence?from=2026-01&to=2026-12')).rows.length, 0)
+  eq('자료가 없어도 증빙없음 열은 있다', (await must('GET', '/expense-evidence?from=2026-01&to=2026-12')).kinds.includes('증빙없음'), true)
+  const expense = before.filter((a) => /^8/.test(a.code)).map((a) => a.id)
+  await must('PUT', '/expense-evidence/accounts', { shownIds: expense })
+  const st = await must('GET', '/expense-evidence?from=2026-01&to=2026-12')
+  eq('표시한 계정만 나온다', st.rows.every((r) => expense.includes(r.accountId)), true)
+  eq('줄 합계 = 증빙 칸의 합', st.rows.every((r) => Object.values(r.amounts).reduce((a, b) => a + Number(b), 0) === Number(r.total)), true)
+  const r0 = st.rows[0]
+  if (r0) {
+    const k = Object.keys(r0.amounts)[0]
+    const cmp = await must('GET', `/expense-evidence/compare?accountId=${r0.accountId}&kind=${encodeURIComponent(k)}&from=2026-01&to=2026-12`)
+    eq('금액 링크의 비교 줄 차변 − 대변 = 그 칸', cmp.reduce((a, c) => a + Number(c.debit) - Number(c.credit), 0), Number(r0.amounts[k]))
+  }
+  await rejects('기준월 형식이 틀리면 막는다', 'GET', '/expense-evidence?from=2026&to=2026-12', undefined, '기준월')
+  await must('PUT', '/expense-evidence/accounts', { shownIds: keep })
 }
 
 async function scenarioCommuteRule() {

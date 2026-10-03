@@ -5,6 +5,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import type { CorporateTaxChecklist, CorporateTaxCheckMemo } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
+import { EcReportFoot } from '../../components/EcReportFrame'
 
 const won = (n: number | null | undefined) => (n == null ? '' : Number(n).toLocaleString('ko-KR'))
 const mm = (m: number) => `${String(m).padStart(2, '0')}월`
@@ -183,6 +184,7 @@ export default function CorporateTaxChecklistPage() {
               {it.subs?.map((s) => <div key={s}>{s}</div>)}
             </div>
           ))}
+          <EcReportFoot page={false} />
         </div>
       )}
 
