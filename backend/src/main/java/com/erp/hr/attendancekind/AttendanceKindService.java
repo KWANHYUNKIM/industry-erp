@@ -119,6 +119,9 @@ public class AttendanceKindService {
         if (grantRepository.existsByVacationKind_Id(id)) {
             throw ApiException.conflict("사원별휴가일수가 등록된 휴가항목은 삭제할 수 없습니다: " + v.getName());
         }
+        if (vacationRepository.existsByCarryFrom_Id(id)) {
+            throw ApiException.conflict("다른 휴가항목의 이월 휴가코드로 쓰인 휴가항목은 삭제할 수 없습니다: " + v.getName());
+        }
         vacationRepository.delete(v);
     }
 
@@ -180,6 +183,13 @@ public class AttendanceKindService {
         v.setPeriodFrom(req.periodFrom());
         v.setPeriodTo(req.periodTo());
         v.setCarryOver(req.carryOver());
+        // 이월 휴가코드는 [사용]일 때만 — 사용안함으로 바꾸면 비운다. 자기 자신은 고를 수 없다.
+        if (req.carryOver() && req.carryFromId() != null) {
+            if (req.carryFromId().equals(v.getId())) throw ApiException.badRequest("이월 휴가코드에 자기 자신은 고를 수 없습니다.");
+            v.setCarryFrom(vacation(req.carryFromId()));
+        } else {
+            v.setCarryFrom(null);
+        }
         v.setRemark(req.remark() == null || req.remark().isBlank() ? null : req.remark().trim());
     }
 

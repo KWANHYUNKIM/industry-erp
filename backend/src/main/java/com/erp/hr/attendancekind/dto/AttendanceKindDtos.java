@@ -44,16 +44,21 @@ public class AttendanceKindDtos {
             @NotNull(message = "기간을 입력 바랍니다.") LocalDate periodFrom,
             @NotNull(message = "기간을 입력 바랍니다.") LocalDate periodTo,
             boolean carryOver,
+            /** 이월 휴가코드 — carryOver 일 때만 담는다. */
+            Long carryFromId,
             @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.") String remark,
             Boolean active
     ) {}
 
     public record VacationKindResponse(
-            Long id, String code, String name, LocalDate periodFrom, LocalDate periodTo, boolean carryOver, String remark, boolean active
+            Long id, String code, String name, LocalDate periodFrom, LocalDate periodTo, boolean carryOver,
+            Long carryFromId, String carryFromCode, String carryFromName, String remark, boolean active
     ) {
         public static VacationKindResponse from(VacationKind v) {
+            VacationKind f = v.getCarryFrom();
             return new VacationKindResponse(v.getId(), v.getCode(), v.getName(), v.getPeriodFrom(), v.getPeriodTo(),
-                    v.isCarryOver(), v.getRemark(), v.isActive());
+                    v.isCarryOver(), f == null ? null : f.getId(), f == null ? null : f.getCode(), f == null ? null : f.getName(),
+                    v.getRemark(), v.isActive());
         }
     }
 

@@ -39,6 +39,11 @@ public class VacationKind extends BaseTimeEntity {
     @Column(name = "carry_over", nullable = false)
     private boolean carryOver;
 
+    /** 이월 휴가코드 — 이월 잔여일수 자동계산을 [사용]할 때 잔여를 넘겨받을 휴가항목(원본 2026-10-04 실측: 사용을 고르면 나오는 칸). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "carry_from_id")
+    private VacationKind carryFrom;
+
     @Column(length = 500)
     private String remark;
 
