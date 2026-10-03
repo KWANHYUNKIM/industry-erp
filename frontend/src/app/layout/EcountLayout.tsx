@@ -725,25 +725,45 @@ const MENU: TopMenu[] = [
   },
   {
     label: '세무',
+    /*
+     * 원본 사이트맵(2026-10-03 loginaa) 차례 그대로: 원천징수 · 기타원천세 · 부가세 · 법인세.
+     * 묶음 이름도 원본 것(세무신고 · 퇴직정산 · 출력물 · 신고전검토자료 …). 원본에 있는데 아직 없는 화면은 넣지 않는다.
+     * 원본에 없는 우리 화면 셋(근로소득원천징수영수증 · 매입매출·부가세 · 법인세 신고서)은 가장 가까운 묶음 끝에 둔다.
+     */
     tabs: [
       {
         label: '원천징수',
         nodes: [
-          { label: '원천징수이행상황신고서', to: '/accounting/withholding' },
-          { label: '원천징수이행상황신고서확인', to: '/accounting/withholding/confirm' },
-          { label: '원천징수부', to: '/accounting/withholding/ledger' },
-          { label: '소득세확인서', to: '/accounting/withholding/income-tax-cert' },
-          { label: '근로소득원천징수영수증', to: '/accounting/withholding?tab=영수증' },
+          { label: '세무신고', children: [
+            { label: '원천징수이행상황신고서', to: '/accounting/withholding' },
+            { label: '원천징수이행상황신고서확인', to: '/accounting/withholding/confirm' },
+            { label: '원천징수부', to: '/accounting/withholding/ledger' },
+            { label: '소득세확인서', to: '/accounting/withholding/income-tax-cert' },
+          ] },
           { label: '퇴직정산', children: [
             { label: '퇴사자리스트', to: '/hr/retired' },
             { label: '퇴직금계산', to: '/hr/retirement-pay' },
+          ] },
+          { label: '출력물', children: [
+            { label: '근로소득원천징수영수증', to: '/accounting/withholding?tab=영수증' },
           ] },
         ],
       },
       {
         label: '기타원천세',
         nodes: [
-          { label: '기타원천세(사업·기타소득)', to: '/accounting/other-withholding' },
+          { label: '기타원천세', children: [
+            { label: '기타원천세조회', to: '/accounting/other-withholding' },
+          ] },
+        ],
+      },
+      {
+        label: '부가세',
+        nodes: [
+          { label: '신고전검토자료', children: [
+            { label: '매입/매출장', to: '/accounting/vat-book' },
+            { label: '매입매출·부가세', to: '/accounting/vat' },
+          ] },
         ],
       },
       {
@@ -751,10 +771,6 @@ const MENU: TopMenu[] = [
         nodes: [
           { label: '법인세 신고서', to: '/accounting/corporate-tax' },
         ],
-      },
-      {
-        label: '부가세',
-        nodes: [{ label: '신고전검토자료', children: [{ label: '매입매출·부가세', to: '/accounting/vat' }] }],
       },
     ],
   },
