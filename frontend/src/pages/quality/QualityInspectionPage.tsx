@@ -350,7 +350,10 @@ export default function QualityInspectionPage() {
             <button type="button" className="ec-btn ec-btn-sm" onClick={openPull}>검사요청</button>
             <DocPullButton kind="발주" onApply={applyPull} />
             <DocPullButton kind="주문" onApply={applyPull} />
+            <DocPullButton kind="작업지시서" onApply={applyPull} />
             <DocPullButton kind="구매" onApply={applyPull} />
+            <DocPullButton kind="생산" onApply={applyPull} />
+            <DocPullButton kind="이동" onApply={applyPull} />
           </>)}
           {requestId != null && <span className="text-ec-hint text-[12px]">
             검사요청 {(() => { const r = openRequests.find((x) => x.id === requestId); return r ? dateNo(r.requestDate, r.requestNo) : (editing?.requestNo ?? '') })()}

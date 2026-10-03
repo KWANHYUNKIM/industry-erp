@@ -12,7 +12,7 @@ import EcPeriodPicks, { ymd, periodOf, QUALITY_REQUEST_PICKS } from '../../compo
 
 import { printDocuments } from '../../utils/printDocument'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
-import { DocPullButton, PULLS, type PullKind, type PulledLine } from '../../features/quality/DocPull'
+import { DocPullButton, type PullKind, type PulledLine } from '../../features/quality/DocPull'
 
 /**
  * 재고 II &gt; 품질관리 &gt; 품질검사요청 — <b>품질검사요청조회</b>(E040629) · <b>품질검사요청입력</b>(E040628), 2026-10-04 loginaa 실측(입력 · 삭제).
@@ -375,7 +375,7 @@ export default function QualityRequestPage() {
         </ul>
         {!editing && !pulled && (
           <div className="flex gap-[4px] mt-[8px]">
-            {(Object.keys(PULLS) as PullKind[]).map((k) => <DocPullButton key={k} kind={k} onApply={applyPull} />)}
+            {(['판매', '발주', '주문', '구매', '생산', '이동'] as PullKind[]).map((k) => <DocPullButton key={k} kind={k} onApply={applyPull} />)}
           </div>
         )}
         <table className="w-full ec-head700 mt-[8px]">

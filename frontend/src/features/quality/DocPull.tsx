@@ -5,22 +5,46 @@ import { periodOf } from '../../components/EcPeriodPicks'
 import { dateNo } from '../../utils/dateNo'
 
 /**
- * 품질검사요청입력(E040628) · 품질검사입력(E040621) 입력 판의 <b>전표 불러오기</b> 단추 — 판매 · 발주 · 주문 · 구매.
+ * 품질검사요청입력(E040628) · 품질검사입력(E040621) 입력 판의 <b>전표 불러오기</b> 단추 — 판매 · 발주 · 주문 · 작업지시서 · 구매 · 생산 · 이동.
  *
  * <p>2026-10-04 원본 실측: 단추를 누르면 '<종류>검색창(조회)' 이 [일자-No. · 거래처명 · 품목명(요약) · 금액합계 · 창고명]
  * 으로 뜨고(기간 최근30일(+1개월)), 하나를 골라 [적용(F8)] 하면 그 전표의 품목 · 수량이 줄로 들어오고 불러오기 단추들은 사라진다 —
  * 한 전표에서만 불러온다. 원 전표는 저장되지 않는다(조회의 [연결전표]는 이어 만든 다음 전표다).
- * 생산 · 이동 · 작업지시서 · A/S접수 · 재고불러오기는 아직이다.
+ * 작업지시서 · 생산 · 이동은 한 줄이 한 행인 응답이라 전표 번호로 묶고 [금액합계]를 비운다. A/S접수 · 재고불러오기는 아직이다.
  */
+type Row = Record<string, unknown>
+export interface PulledLine { itemId: number; itemName: string; quantity: number }
+interface PullDoc { id: number; docNo: string; date: string; partnerName: string; warehouseName: string; totalAmount: number | null; lines: PulledLine[] }
+
+/** 전표에 줄 배열이 든 응답(판매 · 발주 · 주문 · 구매). */
+const nested = (no: string, date: string) => (data: Row[]): PullDoc[] => data.map((d) => ({
+  id: d.id as number, docNo: d[no] as string, date: d[date] as string,
+  partnerName: (d.partnerName as string) ?? '', warehouseName: (d.warehouseName as string) ?? '', totalAmount: Number(d.totalAmount),
+  lines: ((d.lines as Row[]) ?? []).map((l) => ({ itemId: l.itemId as number, itemName: l.itemName as string, quantity: Number(l.quantity) })),
+}))
+/** 한 줄이 한 행인 응답(작업지시서 · 생산 · 이동) — 전표 번호로 묶는다. 금액이 없어 [금액합계]는 비운다. */
+const flat = (no: string, date: string, item: string, qty: string, wh: string) => (data: Row[]): PullDoc[] => {
+  const by = new Map<string, PullDoc>()
+  for (const d of data) {
+    const k = d[no] as string
+    const doc = by.get(k) ?? { id: d.id as number, docNo: k, date: d[date] as string, partnerName: (d.partnerName as string) ?? '',
+      warehouseName: (d[wh] as string) ?? '', totalAmount: null, lines: [] }
+    doc.lines.push({ itemId: d[`${item}Id`] as number, itemName: d[`${item}Name`] as string, quantity: Number(d[qty]) })
+    by.set(k, doc)
+  }
+  return [...by.values()]
+}
+
 export const PULLS = {
-  판매: { url: '/sales', no: 'docNo', date: 'saleDate' },
-  발주: { url: '/purchase-orders', no: 'orderNo', date: 'orderDate' },
-  주문: { url: '/sales-orders', no: 'orderNo', date: 'orderDate' },
-  구매: { url: '/purchases', no: 'docNo', date: 'purchaseDate' },
+  판매: { url: '/sales', toDocs: nested('docNo', 'saleDate') },
+  발주: { url: '/purchase-orders', toDocs: nested('orderNo', 'orderDate') },
+  주문: { url: '/sales-orders', toDocs: nested('orderNo', 'orderDate') },
+  작업지시서: { url: '/work-orders', toDocs: flat('orderNo', 'orderDate', 'product', 'plannedQty', 'warehouseName') },
+  구매: { url: '/purchases', toDocs: nested('docNo', 'purchaseDate') },
+  생산: { url: '/productions', toDocs: flat('prodNo', 'productionDate', 'product', 'producedQty', 'warehouseName') },
+  이동: { url: '/stock-transfers', toDocs: flat('transferNo', 'transferDate', 'item', 'quantity', 'toWarehouseName') },
 } as const
 export type PullKind = keyof typeof PULLS
-export interface PulledLine { itemId: number; itemName: string; quantity: number }
-interface PullDoc { id: number; docNo: string; date: string; partnerName: string; warehouseName: string; totalAmount: number; lines: PulledLine[] }
 
 /** 불러오기 단추 하나와 검색창. <code>onApply</code> 가 고른 전표의 줄을 받는다. */
 export function DocPullButton({ kind, onApply }: { kind: PullKind; onApply: (lines: PulledLine[]) => void }) {
@@ -34,12 +58,8 @@ export function DocPullButton({ kind, onApply }: { kind: PullKind; onApply: (lin
     const r = periodOf('최근30일(+1개월)')!
     const c = PULLS[kind]
     try {
-      const data = (await api.get<Record<string, unknown>[]>(c.url, { params: { from: r.from, to: r.to } })).data
-      setRows(data.map((d) => ({
-        id: d.id as number, docNo: d[c.no] as string, date: d[c.date] as string,
-        partnerName: (d.partnerName as string) ?? '', warehouseName: (d.warehouseName as string) ?? '', totalAmount: Number(d.totalAmount),
-        lines: (d.lines as PulledLine[]) ?? [],
-      })).sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id))
+      const data = (await api.get<Row[]>(c.url, { params: { from: r.from, to: r.to } })).data
+      setRows(c.toDocs(data).sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id))
     } catch (e) { setError(extractErrorMessage(e)) }
   }
   function apply() {
@@ -66,7 +86,7 @@ export function DocPullButton({ kind, onApply }: { kind: PullKind; onApply: (lin
               <td className="text-center">{dateNo(d.date, d.docNo)}</td>
               <td>{d.partnerName}</td>
               <td>{d.lines[0] ? `${d.lines[0].itemName}${d.lines.length > 1 ? ` 외 ${d.lines.length - 1}건` : ''}` : ''}</td>
-              <td className="text-right">{Math.round(d.totalAmount).toLocaleString('ko-KR')}</td>
+              <td className="text-right">{d.totalAmount == null ? '' : Math.round(d.totalAmount).toLocaleString('ko-KR')}</td>
               <td>{d.warehouseName}</td>
             </tr>
           ))}
