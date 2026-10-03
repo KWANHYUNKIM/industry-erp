@@ -117,7 +117,7 @@ public final class MenuPermissionCatalog {
         // 설정
         put(m, "SETTINGS", "/api/company", "/api/preferences", "/api/security-policy",
                 "/api/currencies", "/api/codes", "/api/print-sign-lines", "/api/custom-fields",
-                "/api/collect-sources");
+                "/api/collect-sources", "/api/collect-data");
         put(m, "USER_MANAGE", "/api/users", "/api/roles", "/api/permissions", "/api/companies");
         return m;
     }
