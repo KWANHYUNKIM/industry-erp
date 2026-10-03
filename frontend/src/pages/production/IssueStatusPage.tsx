@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { dateNo } from '../../utils/dateNo'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
@@ -677,7 +678,7 @@ export default function IssueStatusPage() {
               <tr key={r.id}>
                 <td className="text-center text-ec-hint">{i + 1}</td>
                 {/* 원본은 일자와 번호를 한 칸에 적는다. */}
-                <td className="text-center">{dateText(r.issueDate)} {r.issueNo}</td>
+                <td className="text-center">{r.issueNo ? dateNo(r.issueDate, r.issueNo) : dateText(r.issueDate)}</td>
                 <td>{r.warehouseName}</td>
                 <td style={{ color: r.toWarehouseName ? undefined : 'var(--ec-text-off)' }}>{r.toWarehouseName ?? ''}</td>
                 <td>{r.itemName}{r.itemSpec ? ' [' + r.itemSpec + ']' : ''}</td>

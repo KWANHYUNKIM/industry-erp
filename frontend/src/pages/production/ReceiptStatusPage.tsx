@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { dateNo } from '../../utils/dateNo'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { aggregate, groupCodes, GROUP_CODE_LABEL, AGG_SORTS, sortAggregated, type AggSort, type AggregatableRow, type GroupKey } from '../../utils/statusAggregate'
 import EcListShell from '../../components/EcListShell'
@@ -685,7 +686,8 @@ export default function ReceiptStatusPage() {
             ) : listRows.map((r, i) => (
               <tr key={r.id}>
                 <td className="text-center text-ec-hint">{i + 1}</td>
-                <td className="text-center">{dateText(r.productionDate)} {r.prodNo}</td>
+                {/* 원본 [일자-No.] '2026/10/02 -1'. 일별·월별 줄은 번호가 없어 날짜만 찍는다. */}
+                <td className="text-center">{r.prodNo ? dateNo(r.productionDate, r.prodNo) : dateText(r.productionDate)}</td>
                 <td className="text-ec-label">{r.workOrderNo}</td>
                 <td style={{ color: r.fromWarehouseName ? undefined : 'var(--ec-text-off)' }}>
                   {r.fromWarehouseName ?? r.warehouseName}

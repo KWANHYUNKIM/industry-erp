@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { dateNo } from '../../utils/dateNo'
 import EcListShell from '../../components/EcListShell'
 import { useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
@@ -6,7 +7,6 @@ import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { printDocuments } from '../../utils/printDocument'
-import { dateText } from '../../utils/dateText'
 import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 
@@ -427,7 +427,7 @@ export default function ReceiptInquiryPage() {
                 <a href={`${ENTRY_PATH[r.entryType] ?? ENTRY_PATH.I}?no=${encodeURIComponent(r.prodNo)}`}
                    style={{ color: 'var(--ec-blue)', cursor: 'pointer' }}
                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate(e.currentTarget.getAttribute('href')!) }}>
-                  {dateText(r.productionDate)} {r.prodNo}
+                  {dateNo(r.productionDate, r.prodNo)}
                 </a>
               </td>
               <td>{r.fromWarehouseName ?? r.warehouseName}</td>

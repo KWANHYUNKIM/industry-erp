@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { dateNo } from '../../utils/dateNo'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
@@ -831,7 +832,7 @@ export default function WoProgressPage() {
                 <td className="text-right">{num(r.required)}</td>
                 <td>{r.factory}</td>
                 <td>{r.prodProcess}</td>
-                <td className="text-center">{r.prodDate ? `${dateText(r.prodDate)} ${r.prodNo}` : ''}</td>
+                <td className="text-center">{r.prodDate ? dateNo(r.prodDate, r.prodNo) : ''}</td>
                 <td className="text-right font-semibold text-ec-navy">{r.produced ? num(r.produced) : ''}</td>
                 <td style={{ textAlign: 'right', color: r.unmade > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>{num(r.unmade)}</td>
                 <td className="text-right">{num(r.onHand)}</td>

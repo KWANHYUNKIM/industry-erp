@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { dateNo } from '../../utils/dateNo'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Warehouse } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
@@ -614,12 +615,12 @@ export default function ProductionIssueStatusPage() {
                 flatRows.forEach((r) => byProd.set(r.prod.id, [...(byProd.get(r.prod.id) ?? []), r]))
                 let n = 0
                 return shown.flatMap((p) => {
-                  const dateNo = `${p.productionDate.replace(/-/g, '/')} ${p.prodNo}`
+                  const dateNoText = dateNo(p.productionDate, p.prodNo)
                   const pp = priceOf(p.productId, p.productionDate, prodBasis)
                   return [
                     <tr key={`${p.id}-p`} style={{ background: 'var(--ec-bg-page)' }}>
                       <td className="text-center text-ec-hint">{++n}</td>
-                      <td className="text-center">{dateNo}</td>
+                      <td className="text-center">{dateNoText}</td>
                       <td>{p.productCode}</td>
                       <td>{p.productName}</td>
                       <td></td>
@@ -638,7 +639,7 @@ export default function ProductionIssueStatusPage() {
                       return (
                         <tr key={`${p.id}-${r.componentId}`}>
                           <td className="text-center text-ec-hint">{++n}</td>
-                          <td className="text-center">{dateNo}</td>
+                          <td className="text-center">{dateNoText}</td>
                           <td>{p.productCode}</td>
                           <td>{p.productName}</td>
                           <td>{r.componentCode}</td>

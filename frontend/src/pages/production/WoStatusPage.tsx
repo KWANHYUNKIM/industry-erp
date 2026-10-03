@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { dateNo } from '../../utils/dateNo'
 import EcListShell from '../../components/EcListShell'
 import EcBarChart from '../../components/EcBarChart'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
@@ -643,7 +644,7 @@ export default function WoStatusPage() {
           ) : listRows.map((r, i) => (
             <tr key={r.id}>
               <td className="text-center text-ec-hint">{i + 1}</td>
-              <td className="text-center">{dateText(r.orderDate)} {r.orderNo}</td>
+              <td className="text-center">{r.orderNo ? dateNo(r.orderDate, r.orderNo) : dateText(r.orderDate)}</td>
               <td>{r.productName}{r.productSpec ? `[${r.productSpec}]` : ''}</td>
               <td className="text-right">{r.plannedQty.toLocaleString()}</td>
               <td className="text-right font-semibold text-ec-navy">{r.producedQty.toLocaleString()}</td>

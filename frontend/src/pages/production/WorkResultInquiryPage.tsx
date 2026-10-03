@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { dateNo } from '../../utils/dateNo'
 import { useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import { printDocuments } from '../../utils/printDocument'
@@ -8,7 +9,6 @@ import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
-import { dateText } from '../../utils/dateText'
 
 /**
  * 생산관리 > 작업 > 작업내역조회 (/api/work-results).
@@ -366,7 +366,7 @@ export default function WorkResultInquiryPage() {
                 <td className="text-center">
                   <input type="checkbox" checked={checked.has(r.id)} onChange={() => toggle(r.id)} />
                 </td>
-                <td>{dateText(r.workDate)} {r.resultNo}</td>
+                <td>{dateNo(r.workDate, r.resultNo)}</td>
                 <td style={{ color: r.warehouseName ? undefined : 'var(--ec-text-off)' }}>{r.warehouseName ?? ''}</td>
                 {/* 원본은 '작업품목명[규격명]'. 안 적힌 옛 자료는 비워 둔다 — 공정명으로 채우면 또 거짓말이 된다. */}
                 <td style={{ color: r.workItemName ? undefined : 'var(--ec-text-off)' }}>
