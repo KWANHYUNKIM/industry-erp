@@ -27,7 +27,66 @@ const isGroup = (n: SideNode): n is Group => 'children' in n
 const MENU: TopMenu[] = [
   {
     label: 'MyPage',
-    tabs: [{ label: 'MyPage', nodes: [{ label: '대시보드', to: '/' }] }],
+    /* 원본 MyPage 는 업무 폴더다 — [나만의 업무 폴더] + 업종 예시 넷(제조 · 유통 · 건설 · 비영리)이 2단 메뉴이고,
+       폴더를 고르면 그 안의 첫 화면이 열린다. 예시의 화면 가운데 우리에게 없는 것(매출전표 I · 출고/입고입력 ·
+       (세금)계산서진행단계 · 카드매입조회 · 현장별 전표 · 수입지출명세서 …)은 싣지 않았다(대조 보드 MyPage 행). */
+    tabs: [
+      { label: '나만의 업무 폴더를 만들수 있습니다.', nodes: [
+        { label: '사용할 메뉴를 직접 설정할 수 있습니다.', to: '/groupware/schedule' },
+        { label: '메뉴명도 수정 가능합니다.', to: '/groupware/schedule' },
+      ] },
+      { label: '예시1. 제조업', nodes: [
+        { label: '기초정보', children: [
+          { label: '거래처등록', to: '/sales/partners' }, { label: '창고등록', to: '/inventory/warehouses' }, { label: '품목등록', to: '/inventory/items' },
+        ] },
+        { label: '수발주관리 및 입출고관리', children: [
+          { label: '주문서조회', to: '/sales/orders' }, { label: '발주서조회', to: '/sales/purchase-orders' },
+          { label: '구매조회', to: '/sales/purchase-list' }, { label: '구매입력', to: '/sales/buy' },
+          { label: '판매조회', to: '/sales/sales-list' }, { label: '판매입력', to: '/sales/sell' },
+        ] },
+        { label: '생산관리', children: [
+          { label: 'BOM(소요량)조회', to: '/production/bom' }, { label: '작업지시서조회', to: '/production/work-orders' },
+          { label: '작업지시서입력', to: '/production/work-order-entry' }, { label: '생산입고조회', to: '/production/receipt-inquiry' },
+          { label: '생산입고 I', to: '/production/receipt-bom' }, { label: '생산입고 II', to: '/production/receipt-manual' },
+        ] },
+      ] },
+      { label: '예시2. 유통업', nodes: [
+        { label: '기초정보', children: [
+          { label: '거래처등록', to: '/sales/partners' }, { label: '창고등록', to: '/inventory/warehouses' }, { label: '품목등록', to: '/inventory/items' },
+        ] },
+        { label: '재고관리', children: [
+          { label: '재고현황', to: '/inventory/current' }, { label: '창고별재고현황', to: '/inventory/warehouse-stock' }, { label: '재고수불부', to: '/inventory/ledger' },
+        ] },
+        { label: '매입/매출관리', children: [{ label: '매입/매출장', to: '/accounting/vat-book' }] },
+        { label: '거래처잔액관리', children: [
+          { label: '거래처별채권', to: '/sales/ledger-receivable' }, { label: '거래처별채무', to: '/sales/ledger-payable' },
+        ] },
+        { label: '수금,지급처리', children: [
+          { label: '지출결의서', to: '/accounting/vouchers' }, { label: '입금보고서', to: '/accounting/vouchers?type=DEPOSIT_REPORT' },
+        ] },
+      ] },
+      { label: '예시3. 건설업', nodes: [
+        { label: '기초정보', children: [
+          { label: '거래처등록', to: '/sales/partners' }, { label: '카드등록', to: '/accounting/bank-cards' }, { label: '프로젝트등록', to: '/inventory/projects' },
+        ] },
+        { label: '각종 장부', children: [
+          { label: '자금일보', to: '/accounting/fund-daily' }, { label: '현금출납장', to: '/accounting/cash-book' },
+          { label: '계정별원장', to: '/accounting/ledger-book' }, { label: '매입/매출장', to: '/accounting/vat-book' },
+          { label: '거래처관리대장 I', to: '/sales/ledger' },
+        ] },
+      ] },
+      { label: '예시4. 비영리', nodes: [
+        { label: '기초데이터', children: [
+          { label: '계정등록', to: '/accounting/accounts' }, { label: '카드등록', to: '/accounting/bank-cards' }, { label: '거래처등록', to: '/sales/partners' },
+        ] },
+        { label: '업무', children: [
+          { label: '지출결의서', to: '/accounting/vouchers' }, { label: '입금보고서', to: '/accounting/vouchers?type=DEPOSIT_REPORT' },
+          { label: '기안서작성', to: '/groupware/approval/draft' }, { label: '내결재관리', to: '/groupware/approval/my' },
+          { label: '기안서통합관리', to: '/groupware/approval/all' },
+        ] },
+        { label: '확인&보고서', children: [{ label: '회계거래현황', to: '/accounting/journal-status' }] },
+      ] },
+    ],
   },
   {
     label: 'Self-Customizing',
@@ -38,7 +97,7 @@ const MENU: TopMenu[] = [
       { label: '기타관리시스템', nodes: [{ label: '기타관리시스템', to: '/settings/etc' }, { label: '공통코드', to: '/settings/codes' }, { label: '사용자정의필드', to: '/settings/custom-fields' }, { label: '디자인 시스템', to: '/settings/design-system' }] },
       { label: '보안관리', nodes: [{ label: '보안설정', to: '/settings/security' }] },
       { label: '인쇄서식', nodes: [{ label: '인쇄용 결재라인', to: '/settings/print-sign' }] },
-      { label: '다운로드', nodes: [{ label: '다운로드', to: '/settings/download' }] },
+      { label: '다운로드', nodes: [{ label: '엑셀자료올리기기능', to: '/settings/download' }] },
     ],
   },
   {
@@ -835,15 +894,23 @@ function matchLength(to: string, pathname: string): number {
   return pathname === to || pathname.startsWith(`${to}/`) ? to.length : 0
 }
 
-/** 현재 경로를 담은 [대메뉴, 탭] 인덱스. 가장 구체적으로 일치하는 리프를 고른다. */
-function resolveActive(pathname: string): [number, number] {
+/**
+ * 현재 경로를 담은 [대메뉴, 탭] 인덱스. 가장 구체적으로 일치하는 리프를 고른다.
+ *
+ * <p>MyPage 업무 폴더는 다른 모듈의 화면을 그대로 담는다(원본 예시1~4). 그래서 한 경로가 두 메뉴에 걸린다 —
+ * 메뉴를 눌러 왔으면 <b>누른 그 자리</b>(pin)를 지키고, 주소로 바로 왔으면 MyPage 가 아니라 제 모듈을 고른다.
+ * MyPage 가 MENU 맨 앞이라 '먼저 걸린 것' 으로 두면 판매입력을 재고 I 에서 열어도 MyPage 가 켜진다.
+ */
+function resolveActive(pathname: string, pin?: [number, number] | null): [number, number] {
+  const pinned = pin && MENU[pin[0]]?.tabs[pin[1]]
+  if (pinned && tabLeaves(pinned).some((l) => !!l.to && matchLength(l.to, pathname) > 0)) return pin!
   let best = 0
   let found: [number, number] = [0, 0]
   MENU.forEach((m, mi) =>
     m.tabs.forEach((tab, ti) =>
       tabLeaves(tab).forEach((leaf) => {
         const len = leaf.to ? matchLength(leaf.to, pathname) : 0
-        if (len > best) {
+        if (len > best || (len > 0 && len === best && found[0] === 0 && mi !== 0)) {
           best = len
           found = [mi, ti]
         }
@@ -966,7 +1033,8 @@ export default function EcountLayout() {
     }
   }
 
-  const [topIdx, tabIdx] = useMemo(() => resolveActive(location.pathname), [location.pathname])
+  const menuPin = (location.state as { menuPin?: [number, number] } | null)?.menuPin
+  const [topIdx, tabIdx] = useMemo(() => resolveActive(location.pathname, menuPin), [location.pathname, menuPin])
   const activeTop = MENU[topIdx]
   const activeTab = activeTop.tabs[tabIdx]
 
@@ -979,7 +1047,6 @@ export default function EcountLayout() {
   const topOk = (m: TopMenu) => m.tabs.some(tabOk)
   // 대메뉴/탭을 클릭했을 때 이동할 "접근 가능한" 첫 라우트 (권한 없는 첫 화면으로 튀지 않게)
   const firstAllowedTabRoute = (t: Tab) => tabLeaves(t).find((l) => l.to && canRoute(l.to))?.to
-  const firstAllowedTopRoute = (m: TopMenu) => m.tabs.map(firstAllowedTabRoute).find(Boolean)
 
   // 메뉴검색: 입력값이 있으면 부분일치 결과(최대 12개). 권한 없는 항목은 제외.
   const menuMatches = menuQuery.trim()
@@ -988,15 +1055,16 @@ export default function EcountLayout() {
         .slice(0, 12)
     : []
 
-  function gotoMenu(to: string) {
+  /** pin — 누른 메뉴의 [대메뉴, 탭]. 같은 화면이 MyPage 폴더와 제 모듈에 함께 걸릴 때 어느 쪽을 켤지 정한다. */
+  function gotoMenu(to: string, pin?: [number, number]) {
     setMenuQuery('')
     setSitemapOpen(false)
     setHoverIdx(null)
-    navigate(to)
+    navigate(to, pin ? { state: { menuPin: pin } } : undefined)
   }
 
   function openLeaf(leaf: Leaf) {
-    if (leaf.to) gotoMenu(leaf.to)
+    if (leaf.to) gotoMenu(leaf.to, [topIdx, tabIdx])
     else alert(`[${leaf.label}] 메뉴는 준비 중입니다.`)
   }
 
@@ -1025,7 +1093,7 @@ export default function EcountLayout() {
             <li key={tab.label}>
               <button
                 className={`ec-subnav-item${i === activeTabIdx ? ' active' : ''}`}
-                onClick={() => { const to = firstAllowedTabRoute(tab); if (to) gotoMenu(to) }}
+                onClick={() => { const to = firstAllowedTabRoute(tab); if (to) gotoMenu(to, [MENU.indexOf(menu), i]) }}
               >
                 {tab.label}
               </button>
@@ -1162,7 +1230,11 @@ export default function EcountLayout() {
               <li key={m.label} onMouseEnter={() => setHoverIdx(idx)}>
                 <button
                   className={`ec-gnb-item${idx === topIdx ? ' active' : ''}`}
-                  onClick={() => { const to = firstAllowedTopRoute(m); if (to) gotoMenu(to) }}
+                  onClick={() => {
+                    const ti = m.tabs.findIndex((t) => !!firstAllowedTabRoute(t))
+                    const to = ti >= 0 ? firstAllowedTabRoute(m.tabs[ti]) : undefined
+                    if (to) gotoMenu(to, [idx, ti])
+                  }}
                 >
                   {m.label}
                 </button>
