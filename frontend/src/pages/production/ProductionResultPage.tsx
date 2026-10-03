@@ -13,6 +13,7 @@ import SlipLoadModal, { type LoadedSlip } from '../../features/slipload/componen
 import SalesOrderPickModal, { type SalesOrderLite } from '../../features/salesorder/components/SalesOrderPickModal'
 import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
 import type { Item, Production, ProductionEntryType, ProductionMaterial, Warehouse, WorkOrder } from '../../types/api'
+import { subcontractCost, subcontractVat } from '../../utils/subcontractCost'
 
 /**
  * 원본(이카운트) <b>생산입고 I · II · III</b> 입력 화면. 셋은 뼈대가 같고 소모를 정하는 법만 다르다.
@@ -264,8 +265,8 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
     let unitPrice = l.unitPrice
     if (unitPrice === '' && from?.kind === '외주' && it?.subcontractPrice) unitPrice = String(it.subcontractPrice)
     if (l.amountTouched) return { ...l, unitPrice }
-    const amount = Math.round(num(unitPrice) * num(l.qty))
-    return { ...l, unitPrice, amount: l.productId ? String(amount) : '', vat: l.productId ? String(Math.floor(amount * 0.1)) : '' }
+    const { amount, vat } = subcontractCost(num(unitPrice), num(l.qty))
+    return { ...l, unitPrice, amount: l.productId ? String(amount) : '', vat: l.productId ? String(vat) : '' }
   }
 
   function setLine(key: number, patch: Partial<ProdLine>) {
@@ -543,7 +544,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
                 )}
                 <td>
                   <input className="cell" type="number" step="any" style={{ textAlign: 'right' }} disabled={!l.productId}
-                         value={l.qty} onChange={(e) => setLine(l.key, { qty: e.target.value })} />
+                         value={l.qty} onChange={(e) => setLine(l.key, { qty: e.target.value, amountTouched: false })} />
                 </td>
                 {type !== 'III' && (
                   <td>
@@ -555,7 +556,7 @@ export default function ProductionResultPage({ type = 'I' }: { type?: Production
                   <td>
                     <input className="cell" type="number" step="any" style={{ textAlign: 'right' }} disabled={!l.productId}
                            value={l.amount}
-                           onChange={(e) => setLine(l.key, { amount: e.target.value, vat: String(Math.floor(num(e.target.value) * 0.1)), amountTouched: true })} />
+                           onChange={(e) => setLine(l.key, { amount: e.target.value, vat: String(subcontractVat(num(e.target.value))), amountTouched: true })} />
                   </td>
                 )}
                 {type !== 'III' && (
