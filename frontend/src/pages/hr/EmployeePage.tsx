@@ -6,7 +6,7 @@ import CustomFieldsPanel from '../../components/CustomFieldsPanel'
 import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
-import type { EmployeeMaster } from '../../types/api'
+import type { EmployeeMaster, EmployeePayType } from '../../types/api'
 import { dateText } from '../../utils/dateText'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -14,44 +14,47 @@ const inputCls = 'ec-input w-full'
 
 interface DeptRow { id: number; name: string; code?: string | null }
 
+type FormTab = '기본' | '급여지급사항' | '추가정보'
+
 /**
- * 관리 > <b>사원등록</b> (원본 기초등록의 [사원(담당)등록]).
+ * 관리 &gt; 급여관리 &gt; 기본사항등록 &gt; <b>사원등록</b> (원본 E090101, 화면 제목 '사원리스트').
  *
- * <p>이 화면은 제목이 '사원등록' 인데 <b>등록을 할 수가 없었다.</b> 목록과 기본급 수정만
- * 있었고 사원은 시드로만 존재했다 — 사람이 입사해도 넣을 자리가 없었다.
- * 서버에도 POST·PUT 이 아예 없었고 급여·부서만 따로 고치는 경로가 있었다.
+ * <p>2026-10-03 loginaa 에서 등록 · 수정 · 삭제를 직접 해 보고 맞췄다.
+ * <ul>
+ *   <li>격자: 사원번호 · 성명 · 부서명 · 직위/직급명 · 전화번호 · Email · 입사일자 · 급여구분. 사원번호 순.</li>
+ *   <li>조건([Search(F3)] 로 펼친다): 사원번호 · 성명 · 부서 · 직위/직급 · 급여구분(전체) · 재직구분(재직자).</li>
+ *   <li>[신규(F2)] 는 다음 사원번호(00007 꼴)를 채운 '사원등록' 창. 성명이 비면 '사원명을 입력 바랍니다.'
+ *       저장하면 안내 없이 창이 닫히고 목록이 다시 그려진다.</li>
+ *   <li>성명을 누르면 같은 창이 수정으로 열린다 — 사원번호가 잠기고 [복사] · [삭제] 가 붙는다.</li>
+ *   <li>[선택삭제] · [삭제] 는 '한번 지워진 자료는 복구될 수 없습니다. 삭제하겠습니까?' 를 묻고 실제로 지운다.
+ *       전표 · 급여 · 근태가 물고 있는 사원은 서버가 막는다 — 그런 사원은 퇴사일을 넣어 퇴사자로 내린다.</li>
+ * </ul>
  *
- * <p>사원은 <b>지우지 않는다.</b> 판매·구매·출하·작업지시의 담당자이고 급여·근태·인사기록의
- * 뿌리다. 지우면 지난 전표가 누구 것인지 잃는다. 퇴사하면 사용중단으로 내린다 —
- * 원본 마스터들이 전부 그렇게 한다([사용중단/재사용]).
- *
- * <p>퇴사일을 넣으면 사용중단이 함께 켜진다. 둘을 따로 두면 "퇴사일은 있는데 아직
- * 담당자로 뜨는" 사원이 생긴다.
+ * <p>원본 폼에 있으나 담을 자리가 없어 그리지 않은 것: 외국어성명 · 주민등록번호 · 세대주여부 · 입사구분 · 직책 ·
+ * 여권번호 · 프로젝트 · UserPay비밀번호 · 급여통장 · 우편번호 · 사진 · 첨부, [사원정보] 탭(기본 탭과 같은 칸),
+ * [기타설정] 탭(4대보험 · 공제대상가족 · 간이세액표 …), 기본급 밖의 고정수당 · 월정공제 항목.
  */
 export default function EmployeePage() {
   const [rows, setRows] = useState<EmployeeMaster[]>([])
   const [depts, setDepts] = useState<DeptRow[]>([])
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
-  const [editing, setEditing] = useState<number | null>(null)
-  const [value, setValue] = useState('')
+  const [formError, setFormError] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
-  const [includeInactive, setIncludeInactive] = useState(true)
+  const [tab, setTab] = useState<FormTab>('기본')
+  const [checked, setChecked] = useState<Set<number>>(new Set())
 
   const empty = {
     code: '', name: '', departmentId: '', jobTitle: '',
-    hireDate: '', resignDate: '', baseSalary: '',
-    /* 원본 사원(담당)등록 폼의 나머지 칸들 — 담을 데가 없어 그리지도 못했다. */
-    phone: '', email: '', searchKeyword: '', remark: '',
+    hireDate: new Date().toISOString().slice(0, 10), resignDate: '', resignReason: '',
+    phone: '', mobile: '', email: '', address: '', remark: '',
+    payType: 'FIXED' as EmployeePayType, baseSalary: '',
   }
   const [form, setForm] = useState(empty)
 
-  const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(''), 2500) }
-
   function load() {
     setError('')
-    // 퇴사자까지 봐야 되살릴 수 있다 — /employees 는 재직자만 준다.
+    // 재직구분 [전체]·[퇴사자] 를 거르려면 퇴사자까지 받아야 한다 — /employees 는 재직자만 준다.
     api.get<EmployeeMaster[]>('/employees/all')
       .then((r) => setRows(r.data))
       .catch((e) => setError(extractErrorMessage(e)))
@@ -60,319 +63,352 @@ export default function EmployeePage() {
 
   useEffect(() => { load() }, [])
 
-  function startEdit(e: EmployeeMaster) {
-    setEditing(e.id)
-    setValue(String(e.baseSalary))
-  }
-
-  async function saveSalary(e: EmployeeMaster) {
-    try {
-      await api.put(`/employees/${e.id}/base-salary`, { baseSalary: Number(value) || 0 })
-      setEditing(null)
-      flash(`${e.name} 기본급 저장`)
-      load()
-    } catch (err) {
-      setError(extractErrorMessage(err))
-    }
-  }
-
-  function openNew() {
+  /** 원본은 창을 열자마자 다음 사원번호를 채워 둔다(고칠 수 있다). */
+  async function openNew(base = empty) {
     setEditId(null)
-    setForm(empty)
+    setTab('기본')
+    setFormError('')
+    setForm(base)
     setShowForm(true)
+    try {
+      const r = await api.get<{ code: string }>('/employees/next-code')
+      setForm((f) => (f.code ? f : { ...f, code: r.data.code }))
+    } catch { /* 비워 두면 서버가 매긴다 */ }
   }
 
   function openEdit(e: EmployeeMaster) {
     setEditId(e.id)
+    setTab('기본')
+    setFormError('')
     setForm({
       code: e.code, name: e.name,
       departmentId: e.departmentId ? String(e.departmentId) : '',
       jobTitle: e.jobTitle ?? '',
-      hireDate: e.hireDate ?? '', resignDate: e.resignDate ?? '',
-      baseSalary: String(e.baseSalary ?? 0),
-      phone: e.phone ?? '', email: e.email ?? '',
-      searchKeyword: e.searchKeyword ?? '', remark: e.remark ?? '',
+      hireDate: e.hireDate ?? '', resignDate: e.resignDate ?? '', resignReason: e.resignReason ?? '',
+      phone: e.phone ?? '', mobile: e.mobile ?? '', email: e.email ?? '',
+      address: e.address ?? '', remark: e.remark ?? '',
+      payType: e.payType, baseSalary: e.baseSalary == null ? '' : String(e.baseSalary),
     })
     setShowForm(true)
   }
 
-  async function submit(ev: React.FormEvent) {
-    ev.preventDefault()
+  /** 원본 [복사] — 같은 내용으로 새 사원번호를 받아 신규 창을 연다. */
+  function copyForm() {
+    openNew({ ...form, code: '' })
+  }
+
+  async function submit(ev?: React.FormEvent) {
+    ev?.preventDefault()
+    if (!form.name.trim()) { setTab('기본'); setFormError('사원명을 입력 바랍니다.'); return }
     const body = {
       name: form.name.trim(),
       departmentId: form.departmentId ? Number(form.departmentId) : null,
       jobTitle: form.jobTitle.trim() || null,
       hireDate: form.hireDate || null,
-      baseSalary: Number(form.baseSalary) || 0,
+      baseSalary: form.baseSalary === '' ? null : Number(form.baseSalary.replace(/,/g, '')) || 0,
       phone: form.phone.trim() || null,
       email: form.email.trim() || null,
-      searchKeyword: form.searchKeyword.trim() || null,
       remark: form.remark.trim() || null,
+      payType: form.payType,
+      mobile: form.mobile.trim() || null,
+      resignReason: form.resignReason.trim() || null,
+      address: form.address.trim() || null,
     }
     try {
       if (editId) {
-        await api.put(`/employees/${editId}`, { ...body, resignDate: form.resignDate || null })
-        flash(`${body.name} 저장`)
+        const cur = rows.find((r) => r.id === editId)
+        await api.put(`/employees/${editId}`, {
+          ...body, searchKeyword: cur?.searchKeyword ?? null,
+          resignDate: form.resignDate || null,
+          // 퇴사일을 지우면 재직자로 되돌린다(서버가 퇴사일과 재직을 함께 맞춘다)
+          active: !form.resignDate,
+        })
       } else {
-        await api.post('/employees', { ...body, code: form.code.trim() })
-        flash(`${body.name} 등록`)
+        await api.post('/employees', { ...body, code: form.code.trim() || null })
       }
       setShowForm(false)
       load()
     } catch (err) {
-      setError(extractErrorMessage(err))
+      setFormError(extractErrorMessage(err))
     }
   }
 
-  /** 원본 [사용중단/재사용]. 되살리면 퇴사일도 함께 지워진다(서버가 그렇게 한다). */
-  async function toggleActive(e: EmployeeMaster) {
+  const CONFIRM_DELETE = '한번 지워진 자료는 복구될 수 없습니다.\n\n삭제하겠습니까?'
+
+  async function removeIds(ids: number[]) {
+    for (const id of ids) {
+      await api.delete(`/employees/${id}`)
+    }
+  }
+
+  async function deleteOne() {
+    if (!editId || !window.confirm(CONFIRM_DELETE)) return
     try {
-      await api.put(`/employees/${e.id}`, {
-        name: e.name, departmentId: e.departmentId, jobTitle: e.jobTitle,
-        hireDate: e.hireDate, baseSalary: e.baseSalary,
-        resignDate: null, active: !e.active,
-      })
-      flash(`${e.name} ${e.active ? '사용중단' : '재사용'}`)
+      await removeIds([editId])
+      setShowForm(false)
       load()
+    } catch (err) {
+      setFormError(extractErrorMessage(err))
+    }
+  }
+
+  async function deleteChecked() {
+    if (checked.size === 0 || !window.confirm(CONFIRM_DELETE)) return
+    try {
+      await removeIds([...checked])
     } catch (err) {
       setError(extractErrorMessage(err))
     }
+    setChecked(new Set())
+    load()
   }
 
-  /*
-   * <b>거르는 자리가 [사용중단사원포함] 체크 하나뿐이었다.</b> 사원이 쌓이면 사번이나 이름으로
-   * 좁힐 수가 없어 표를 눈으로 훑어야 했다. 원본 조건 셋을 만든다 —
-   * 사원(담당)코드 · 사원(담당)명 · 사용구분.
-   *
-   * <p>추가항목3~6 은 이름을 지어 정의한다(Self-Customizing). 나머지는 우리 사원에
-   * 그 칸이 없다. 사용구분은 이미 있는 체크와 <b>같은 뜻</b>이라, 체크를 조건으로 옮기고
-   * [전체]를 기본으로 둔다 — 지금 보이던 목록이 그대로다.
-   */
+  // ── 조건 ([Search(F3)] 로 펼치는 판) ──
+  const [quick, setQuick] = useState('')
   const [codeCond, setCodeCond] = useState('')
   const [nameCond, setNameCond] = useState('')
-  /**
-   * 원본 조건 <b>[검색창내용]·[적요]·[담당자연락처]·[담당자Email]</b>.
-   * 사원등록이 곧 <b>담당자 등록</b>이라(원본 이름이 '사원(담당)등록' 이다) 전표의 담당자에게
-   * 연락할 길이 여기 있어야 한다. 전에는 이름만 있어 <b>누가 맡았는지는 알아도 연락할 데가
-   * 없었다.</b> 서버가 이제 실어 준다.
-   */
-  const [kwCond, setKwCond] = useState('')
-  const [remarkCond, setRemarkCond] = useState('')
-  const [phoneCond, setPhoneCond] = useState('')
-  const [emailCond, setEmailCond] = useState('')
+  const [deptCond, setDeptCond] = useState('')
+  const [titleCond, setTitleCond] = useState('')
+  const [payCond, setPayCond] = useState<'ALL' | EmployeePayType>('ALL')
+  const [statusCond, setStatusCond] = useState<'ALL' | 'ACTIVE' | 'RESIGNED'>('ACTIVE')
 
   const shownRows = rows
-    .filter((e) => includeInactive || e.active)
+    .filter((e) => statusCond === 'ALL' || (statusCond === 'ACTIVE' ? !e.resignDate : !!e.resignDate))
+    .filter((e) => payCond === 'ALL' || e.payType === payCond)
     .filter((e) => !codeCond || e.code.includes(codeCond))
     .filter((e) => !nameCond || e.name.includes(nameCond))
-    .filter((e) => !kwCond || (e.searchKeyword ?? '').includes(kwCond))
-    .filter((e) => !remarkCond || (e.remark ?? '').includes(remarkCond))
-    .filter((e) => !phoneCond || (e.phone ?? '').includes(phoneCond))
-    .filter((e) => !emailCond || (e.email ?? '').includes(emailCond))
+    .filter((e) => !deptCond || String(e.departmentId ?? '') === deptCond)
+    .filter((e) => !titleCond || (e.jobTitle ?? '').includes(titleCond))
+    .filter((e) => !quick || e.code.includes(quick) || e.name.includes(quick))
+    .sort((a, b) => a.code.localeCompare(b.code))
 
-  /*
-   * 사본의 사원(담당)등록 격자는 <b>코드·이름·사용</b>에 정렬 표시를 단다(부서등록의
-   * 담당자 격자도 같은 열이다). 우리 [사번]·[성명]·[사용]이 그 세 칸이다.
-   * 원본이 표시를 안 단 칸(부서·직위·입사일 …)에는 걸지 않았다 — 표시 없이 정렬되면
-   * 이번에는 반대쪽 거짓말이 된다.
-   */
+  // 원본은 열마다 ▼ 정렬 표시를 단다.
   const sort = useTableSort(shownRows, {
-    사번: (e) => e.code,
+    사원번호: (e) => e.code,
     성명: (e) => e.name,
-    사용: (e) => (e.active ? '사용' : '중지'),
+    부서명: (e) => e.department,
+    '직위/직급명': (e) => e.jobTitle,
+    전화번호: (e) => e.phone ?? '',
+    Email: (e) => e.email ?? '',
+    입사일자: (e) => e.hireDate ?? '',
+    급여구분: (e) => e.payTypeName,
   })
   const shown = sort.sorted
 
+  const allChecked = shown.length > 0 && shown.every((e) => checked.has(e.id))
+  function toggleAll() {
+    setChecked(allChecked ? new Set() : new Set(shown.map((e) => e.id)))
+  }
+  function toggleOne(id: number) {
+    const next = new Set(checked)
+    if (next.has(id)) next.delete(id); else next.add(id)
+    setChecked(next)
+  }
+
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+    setForm({ ...form, [k]: e.target.value })
+
   return (
     <EcListShell
-      /* 메뉴는 이 화면을 <b>[사원(담당)등록]</b> 이라 부른다(원본 이름) — 제목도 같아야 한다.
-         메뉴에서 누른 이름과 열린 화면의 이름이 다르면 잘못 들어온 줄 안다. */
-      title="사원(담당)등록"
-      onNew={openNew}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
+      title="사원리스트"
+      collapseConditions
+      search={quick}
+      onSearchChange={setQuick}
+      onSearch={() => undefined}
+      onNew={() => openNew()}
+      actions={[
+        { label: '화면인쇄' },
+        { label: '선택삭제', onClick: deleteChecked, disabled: checked.size === 0 },
+        { label: 'Excel' },
+      ]}
     >
-      <p className="mb-[8px] text-[11.5px] text-ec-hint">
-        기본급을 클릭해 바로 고칠 수 있습니다. 급여계산 시 이 값이 기준이 됩니다.
-        퇴사자는 지우지 않고 <b>사용중단</b>으로 내립니다 — 지난 전표의 담당자가 사라지면 안 됩니다.
-      </p>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
-      {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
 
-      {/* 원본 조건 차례: 사원(담당)코드 · 사원(담당)명 · … · 사용구분 (사본 실측) */}
-      <ul className="ec-cond" style={{ marginBottom: 8 }}>
-        <EcCond label="사원(담당)코드">
-          <input className="ec-input" value={codeCond}
-                 onChange={(e) => setCodeCond(e.target.value)} style={{ width: 120 }} />
+      {/* 원본 조건 차례(기본 탭): 사원번호 · 성명 · 부서 · 프로젝트 · 직위/직급 · 급여구분 · 지급구분 · 재직구분 · 근무기간.
+          프로젝트 · 지급구분 · 근무기간은 사원에 그 값이 없어 뺐다. */}
+      <ul className="ec-cond mb-[8px]">
+        <EcCond label="사원번호">
+          <input className="ec-input w-[160px]" value={codeCond} onChange={(e) => setCodeCond(e.target.value)} />
         </EcCond>
-        <EcCond label="사원(담당)명">
-          <input className="ec-input" value={nameCond}
-                 onChange={(e) => setNameCond(e.target.value)} style={{ width: 140 }} />
+        <EcCond label="성명">
+          <input className="ec-input w-[160px]" value={nameCond} onChange={(e) => setNameCond(e.target.value)} />
         </EcCond>
-        {/* 원본 차례: 사원(담당)코드 · 사원(담당)명 · <b>검색창내용 · 적요 · 담당자연락처 ·
-            담당자Email</b> · 추가항목3~6 · 사용구분 (사본 실측). */}
-        <EcCond label="검색창내용">
-          <input className="ec-input" value={kwCond}
-                 onChange={(e) => setKwCond(e.target.value)} style={{ width: 150 }} />
-        </EcCond>
-        <EcCond label="적요">
-          <input className="ec-input" placeholder="적요 일부" value={remarkCond}
-                 onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 180 }} />
-        </EcCond>
-        <EcCond label="담당자연락처">
-          <input className="ec-input" value={phoneCond}
-                 onChange={(e) => setPhoneCond(e.target.value)} style={{ width: 140 }} />
-        </EcCond>
-        <EcCond label="담당자Email">
-          <input className="ec-input" value={emailCond}
-                 onChange={(e) => setEmailCond(e.target.value)} style={{ width: 180 }} />
-        </EcCond>
-        <EcCond label="사용구분">
-          <select className="ec-input" style={{ width: 110 }}
-                  value={includeInactive ? '전체' : '사용'}
-                  onChange={(e) => setIncludeInactive(e.target.value === '전체')}>
-            <option>전체</option><option>사용</option>
+        <EcCond label="부서">
+          <select className="ec-input w-[160px]" value={deptCond} onChange={(e) => setDeptCond(e.target.value)}>
+            <option value="">전체</option>
+            {depts.map((d) => <option key={d.id} value={String(d.id)}>{d.name}</option>)}
           </select>
+        </EcCond>
+        <EcCond label="직위/직급">
+          <input className="ec-input w-[160px]" value={titleCond} onChange={(e) => setTitleCond(e.target.value)} />
+        </EcCond>
+        <EcCond label="급여구분">
+          {([['ALL', '전체'], ['FIXED', '고정급'], ['VARIABLE', '변동급']] as const).map(([v, l]) => (
+            <label key={v} className="mr-[10px]">
+              <input type="radio" name="emp-pay" checked={payCond === v} onChange={() => setPayCond(v)} /> {l}
+            </label>
+          ))}
+        </EcCond>
+        <EcCond label="재직구분">
+          {([['ALL', '전체'], ['ACTIVE', '재직자'], ['RESIGNED', '퇴사자']] as const).map(([v, l]) => (
+            <label key={v} className="mr-[10px]">
+              <input type="radio" name="emp-status" checked={statusCond === v} onChange={() => setStatusCond(v)} /> {l}
+            </label>
+          ))}
         </EcCond>
       </ul>
 
-      <Modal error={error} open={showForm} title={editId ? '사원 수정' : '사원 등록'} onClose={() => setShowForm(false)}>{(
-        <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div>
-              <label className="mb-1 block text-sm text-ec-label">사번 *</label>
-              <input className={inputCls} value={form.code} disabled={!!editId}
-                     onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="EMP-0005" />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-ec-label">성명 *</label>
-              <input className={inputCls} value={form.name}
-                     onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            </div>
-            <div>
-              <CodePickerField
-                label="부서" placeholder="부서 선택" emptyLabel="선택 해제"
-                value={form.departmentId}
-                onChange={(v) => setForm({ ...form, departmentId: v })}
-                items={depts.map((d) => ({ value: String(d.id), code: d.code ?? undefined, name: d.name }))}
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-ec-label">직위</label>
-              <input className={inputCls} value={form.jobTitle}
-                     onChange={(e) => setForm({ ...form, jobTitle: e.target.value })} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-ec-label">입사일</label>
-              <input type="date" className={inputCls} value={form.hireDate}
-                     onChange={(e) => setForm({ ...form, hireDate: e.target.value })} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-ec-label">기본급</label>
-              <input type="number" className={inputCls} value={form.baseSalary}
-                     onChange={(e) => setForm({ ...form, baseSalary: e.target.value })} />
-            </div>
-            {/*
-              원본 [담당자연락처]·[담당자Email] — 사원등록이 곧 <b>담당자 등록</b>이라
-              전표의 담당자에게 연락할 길이 여기 있어야 한다.
-            */}
-            <div>
-              <label className="mb-1 block text-sm text-ec-label">담당자연락처</label>
-              <input className={inputCls} value={form.phone}
-                     onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-ec-label">담당자Email</label>
-              <input className={inputCls} value={form.email}
-                     onChange={(e) => setForm({ ...form, email: e.target.value })} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-ec-label">검색창내용</label>
-              <input className={inputCls} value={form.searchKeyword}
-                     onChange={(e) => setForm({ ...form, searchKeyword: e.target.value })} />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-ec-label">적요</label>
-              <input className={inputCls} value={form.remark}
-                     onChange={(e) => setForm({ ...form, remark: e.target.value })} />
-            </div>
-            {editId && (
-              <div>
-                <label className="mb-1 block text-sm text-ec-label">퇴사일</label>
-                <input type="date" className={inputCls} value={form.resignDate}
-                       onChange={(e) => setForm({ ...form, resignDate: e.target.value })} />
-                <p className="text-[11px] text-ec-hint mt-[3px]">
-                  넣으면 사용중단으로 함께 내려갑니다.
-                </p>
-              </div>
-            )}
+      <Modal error={formError} open={showForm} title="사원등록" width={720} onClose={() => setShowForm(false)}>{(
+        <form onSubmit={submit}>
+          {/* 원본 폼 탭은 알약이다: 기본 · 사원정보 · 급여지급사항 · 추가정보 · 기타설정 (사원정보 · 기타설정은 위 주석) */}
+          <div className="ec-pills mb-[8px]">
+            {(['기본', '급여지급사항', ...(editId ? ['추가정보'] : [])] as FormTab[]).map((t) => (
+              <button key={t} type="button" className={`ec-pill no-ec${tab === t ? ' active' : ''}`}
+                      onClick={() => setTab(t)}>{t}</button>
+            ))}
           </div>
-          {/*
-            <b>추가항목(사용자정의).</b> 원본은 이 자리에 [문자형추가항목1~6]·[숫자형추가항목N]
-            을 이름째 박아 둔다. 우리는 Self-Customizing &gt; 사용자정의필드에서 <b>이름을 지어</b>
-            정의하고, 정의가 있을 때만 여기 뜬다. <b>수정할 때만</b> 보인다 — 값은 그 행에
-            붙는 것이라 행이 아직 없으면 붙일 데가 없다.
-          */}
-          {editId && <CustomFieldsPanel entityType="EMPLOYEE" entityId={editId} />}
+
+          {tab === '기본' && (
+            <ul className="ec-form">
+              <Field label="사원번호">
+                {editId
+                  ? <span>{form.code}</span>
+                  : <input className={inputCls} value={form.code} onChange={set('code')} />}
+              </Field>
+              <Field label="성명">
+                <input className={inputCls} value={form.name} onChange={set('name')} placeholder="성명" autoFocus />
+              </Field>
+              <Field label="입사일자">
+                <input type="date" className={inputCls} value={form.hireDate} onChange={set('hireDate')} />
+              </Field>
+              <Field label="직위/직급">
+                <input className={inputCls} value={form.jobTitle} onChange={set('jobTitle')} placeholder="직위/직급" />
+              </Field>
+              <Field label="퇴사일자">
+                <input type="date" className={inputCls} value={form.resignDate} onChange={set('resignDate')} />
+              </Field>
+              <Field label="퇴사사유">
+                <input className={inputCls} value={form.resignReason} onChange={set('resignReason')} placeholder="퇴사사유" />
+              </Field>
+              <Field label="전화">
+                <input className={inputCls} value={form.phone} onChange={set('phone')} placeholder="전화" />
+              </Field>
+              <Field label="모바일">
+                <input className={inputCls} value={form.mobile} onChange={set('mobile')} placeholder="모바일" />
+              </Field>
+              <Field label="Email">
+                <input className={inputCls} value={form.email} onChange={set('email')} placeholder="Email" />
+              </Field>
+              <Field label="부서코드">
+                <CodePickerField
+                  label="" placeholder="부서코드" emptyLabel="선택 해제"
+                  value={form.departmentId}
+                  onChange={(v) => setForm({ ...form, departmentId: v })}
+                  items={depts.map((d) => ({ value: String(d.id), code: d.code ?? undefined, name: d.name }))}
+                />
+              </Field>
+              <Field label="주소" wide>
+                <textarea className={inputCls} rows={2} value={form.address} onChange={set('address')} placeholder="주소" />
+              </Field>
+              <Field label="적요" wide>
+                <textarea className={inputCls} rows={2} value={form.remark} onChange={set('remark')} placeholder="적요" />
+              </Field>
+            </ul>
+          )}
+
+          {tab === '급여지급사항' && (
+            <>
+              <ul className="ec-form mb-[10px]">
+                <Field label="사원번호"><span>{form.code}</span></Field>
+                <Field label="성명"><span>{form.name}</span></Field>
+                <Field label="급여구분">
+                  {([['FIXED', '고정급'], ['VARIABLE', '변동급']] as const).map(([v, l]) => (
+                    <label key={v} className="mr-[10px]">
+                      <input type="radio" name="emp-form-pay" checked={form.payType === v}
+                             onChange={() => setForm({ ...form, payType: v })} /> {l}
+                    </label>
+                  ))}
+                </Field>
+              </ul>
+              <p className="font-bold mb-[4px]">&gt; 고정수당</p>
+              <table className="w-full">
+                <thead><tr><th>수당항목명</th><th className="w-[45%]">내역</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td>기본급</td>
+                    <td>
+                      <input className="ec-input w-full text-right" inputMode="numeric" value={form.baseSalary}
+                             onChange={set('baseSalary')} />
+                    </td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td className="text-right font-bold">{won(Number(form.baseSalary.replace(/,/g, '')) || 0)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </>
+          )}
+
+          {/* 원본 [추가정보] 는 문자형 · 숫자형 · Y/N · 일자 · 코드형 칸을 이름째 박아 둔다. 우리는
+              Self-Customizing 에서 이름을 지어 정의한 칸이 여기 뜬다. 값은 행에 붙으므로 수정할 때만 있다. */}
+          {tab === '추가정보' && editId && <CustomFieldsPanel entityType="EMPLOYEE" entityId={editId} />}
+
           <div className="flex gap-[6px] mt-[12px]">
             <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
+            {editId && <button type="button" className="ec-btn" onClick={copyForm}>복사</button>}
+            <button type="button" className="ec-btn"
+                    onClick={() => (editId ? openEdit(rows.find((r) => r.id === editId)!) : setForm({ ...empty, code: form.code }))}>
+              다시 작성
+            </button>
+            {editId && <button type="button" className="ec-btn" onClick={deleteOne}>삭제</button>}
             <button type="button" className="ec-btn" onClick={() => setShowForm(false)}>닫기</button>
           </div>
         </form>
       )}</Modal>
 
-      <table className="w-full text-left max-w-[900px]">
+      <table className="w-full text-left">
         <thead>
           <tr>
-            <th className="w-[34px]"></th>
-            <th className="cursor-pointer" onClick={() => sort.toggle('사번')}>사번 {sort.mark('사번')}</th>
+            <th className="w-[34px] text-center"><input type="checkbox" checked={allChecked} onChange={toggleAll} /></th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('사원번호')}>사원번호 {sort.mark('사원번호')}</th>
             <th className="cursor-pointer" onClick={() => sort.toggle('성명')}>성명 {sort.mark('성명')}</th>
-            <th>부서</th>
-            <th>직위</th>
-            <th className="w-[110px]">입사일</th>
-            <th className="w-[110px]">퇴사일</th>
-            <th className="text-right">기본급</th>
-            <th className="w-[90px] text-center cursor-pointer" onClick={() => sort.toggle('사용')}>사용 {sort.mark('사용')}</th>
-            <th className="w-[130px] text-center">처리</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('부서명')}>부서명 {sort.mark('부서명')}</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('직위/직급명')}>직위/직급명 {sort.mark('직위/직급명')}</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('전화번호')}>전화번호 {sort.mark('전화번호')}</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('Email')}>Email {sort.mark('Email')}</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('입사일자')}>입사일자 {sort.mark('입사일자')}</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('급여구분')}>급여구분 {sort.mark('급여구분')}</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((e, i) => (
-            <tr key={e.id} style={{ color: e.active ? undefined : 'var(--ec-text-hint)' }}>
-              <td className="text-center text-ec-hint">{i + 1}</td>
-              <td>{e.code}</td>
-              <td>{e.name}</td>
+            <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+          ) : shown.map((e) => (
+            <tr key={e.id}>
+              <td className="text-center"><input type="checkbox" checked={checked.has(e.id)} onChange={() => toggleOne(e.id)} /></td>
+              <td><a href="#" onClick={(ev) => { ev.preventDefault(); openEdit(e) }}>{e.code}</a></td>
+              <td><a href="#" onClick={(ev) => { ev.preventDefault(); openEdit(e) }}>{e.name}</a></td>
               <td>{e.department}</td>
               <td>{e.jobTitle}</td>
-              <td className="text-[11.5px]">{dateText(e.hireDate) || ''}</td>
-              <td className="text-[11.5px]">{dateText(e.resignDate) || ''}</td>
-              <td className="text-right">
-                {editing === e.id
-                  ? <input className="ec-input" type="number" value={value} onChange={(ev) => setValue(ev.target.value)} style={{ width: 120, textAlign: 'right' }} autoFocus />
-                  : <span onClick={() => startEdit(e)} className="cursor-pointer">{won(e.baseSalary)}</span>}
-              </td>
-              <td className="text-center">
-                <button className="no-ec" onClick={() => toggleActive(e)}
-                        style={{
-                          border: 'none', background: 'none', cursor: 'pointer', fontSize: 11.5,
-                          fontWeight: 700, color: e.active ? 'var(--ec-success)' : 'var(--ec-warn)',
-                        }}>
-                  {e.active ? '사용' : '사용중단'}
-                </button>
-              </td>
-              <td className="text-center">
-                {editing === e.id
-                  ? <div className="inline-flex gap-[3px]">
-                      <button className="ec-btn ec-btn-primary" style={{ height: 20, padding: '0 8px' }} onClick={() => saveSalary(e)}>저장</button>
-                      <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => setEditing(null)}>취소</button>
-                    </div>
-                  : <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => openEdit(e)}>수정</button>}
-              </td>
+              <td>{e.phone}</td>
+              <td>{e.email}</td>
+              <td className="text-center">{dateText(e.hireDate) || ''}</td>
+              <td className="text-center">{e.payTypeName}</td>
             </tr>
           ))}
         </tbody>
       </table>
     </EcListShell>
+  )
+}
+
+/** 원본 입력 판 한 칸 — 이름표 92 · 값. wide 는 두 칸을 차지한다(주소 · 적요). */
+function Field({ label, wide, children }: { label: string; wide?: boolean; children: React.ReactNode }) {
+  return (
+    <li className={wide ? 'wide' : undefined}>
+      <span className="title">{label}</span>
+      <div className="form">{children}</div>
+    </li>
   )
 }

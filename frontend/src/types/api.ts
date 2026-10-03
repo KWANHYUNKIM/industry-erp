@@ -1693,7 +1693,15 @@ export interface EmployeeMaster {
   email: string | null
   searchKeyword: string | null
   remark: string | null
+  /** 원본 관리 > 사원등록의 [급여구분]·[모바일]·[퇴사사유]·[주소]. */
+  payType: EmployeePayType
+  payTypeName: string
+  mobile: string | null
+  resignReason: string | null
+  address: string | null
 }
+
+export type EmployeePayType = 'FIXED' | 'VARIABLE'
 
 export interface PayslipLine {
   id: number

@@ -1,0 +1,21 @@
+{
+  "about": "관리 > 사원등록(E090101) — 원본처럼 [신규(F2)] 창이 다음 사원번호를 채워 열리고, 성명이 비면 '사원명을 입력 바랍니다.', 저장하면 창이 닫히고 사원리스트에 [급여구분] 고정급으로 뜬다. 만든 사원은 지운다.",
+  "shots": [
+    {
+      "name": "사원 등록 → 목록 → 뒷정리",
+      "path": "/hr/employees",
+      "steps": [
+        "click:신규(F2)",
+        "wait:800",
+        "expect:/^[0-9]{5}$/.test(document.querySelector('[role=dialog] input.ec-input').value)",
+        "clicklast:저장(F8)",
+        "expect:document.body.innerText.includes('사원명을 입력 바랍니다.')",
+        "set:[role=dialog] input[placeholder=성명]|QA관리-화면시험",
+        "clicklast:저장(F8)",
+        "wait:800",
+        "expect:!document.querySelector('[role=dialog]') && /QA관리-화면시험\\s+.*고정급/.test(document.querySelector('table').innerText)",
+        "apidel:/employees|QA관리-화면시험|name"
+      ]
+    }
+  ]
+}

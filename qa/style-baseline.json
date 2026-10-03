@@ -634,11 +634,6 @@
   "color": 3,
   "palette": 0
  },
- "pages/hr/EmployeePage.tsx": {
-  "inline": 15,
-  "color": 1,
-  "palette": 0
- },
  "pages/hr/EmployeePerformancePage.tsx": {
   "inline": 8,
   "color": 2,
