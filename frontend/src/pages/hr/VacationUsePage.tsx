@@ -74,9 +74,11 @@ export default function VacationUsePage() {
   /** 원본 [상태] 체크박스 — 전체 · 결재중 · UserPay · 확인, 처음엔 확인만. UserPay(사원 신청)는 우리에게 없어 칸을 두지 않는다. */
   const [statuses, setStatuses] = useState<Set<'PENDING' | 'APPROVED'>>(new Set(['APPROVED']))
   const [employment, setEmployment] = useState<'ACTIVE' | 'RESIGNED' | 'ALL'>('ACTIVE')
+  /** 원본 [기타] 사용중단휴가코드포함(2026-10-04 실측 — 처음엔 꺼짐). 끄면 사용중단한 휴가항목은 휴가코드 후보에 없다. */
+  const [includeStopped, setIncludeStopped] = useState(false)
   const [grants, setGrants] = useState<Map<string, number>>(new Map())
   // ── 휴가항목(휴가코드) 꼴 — 원본 휴가사용실적현황 ──
-  interface VKind { id: number; code: string; name: string; periodFrom: string; periodTo: string }
+  interface VKind { id: number; code: string; name: string; periodFrom: string; periodTo: string; active: boolean }
   interface Emp { id: number; code: string; name: string; active: boolean }
   interface CodeVac { id: number; docNo: string; empCode: string | null; type: string; startDate: string; days: number; reason: string | null }
   const [vkinds, setVkinds] = useState<VKind[]>([])
@@ -186,7 +188,7 @@ export default function VacationUsePage() {
           <CodePickerField label="휴가코드" hideLabel width={180} emptyLabel="전체"
                            value={codePick} onChange={(v) => setCodePick(v)}
                            items={[
-                             ...vkinds.map((k) => ({ value: `VK:${k.id}`, code: k.code, name: k.name })),
+                             ...vkinds.filter((k) => k.active || includeStopped).map((k) => ({ value: `VK:${k.id}`, code: k.code, name: k.name })),
                              ...[...new Set(rows.map((r) => r.type))].map((t) => ({ value: t, name: t })),
                            ]} />
         </EcCond>
@@ -220,6 +222,11 @@ export default function VacationUsePage() {
               <input type="radio" name="vu-employment" checked={employment === v} onChange={() => setEmployment(v)} /> {label}
             </label>
           ))}
+        </EcCond>
+        <EcCond label="기타">
+          <label className="inline-flex items-center gap-[4px]">
+            <input type="checkbox" checked={includeStopped} onChange={(e) => setIncludeStopped(e.target.checked)} /> 사용중단휴가코드포함
+          </label>
         </EcCond>
       </ul>
 
@@ -256,7 +263,7 @@ export default function VacationUsePage() {
         <tbody>
           {loading ? (
             <tr><td colSpan={13} className="ec-empty">불러오는 중…</td></tr>
-          ) : shown.length === 0 ? (
+          ) : remainLines.length === 0 ? (
             <tr><td colSpan={13} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : remainLines.map(({ row: r, grant, remain, first }, i) => (
             <tr key={r.id} style={first && i > 0 ? { borderTop: '2px solid #d7dce3' } : undefined}>

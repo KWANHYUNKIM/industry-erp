@@ -64,6 +64,8 @@ export default function VacationRemainPage() {
   const [year, setYear] = useState(new Date().getFullYear())
   /** 원본 조건 [휴가코드]. 줄의 '연차(2026년)' 같은 값이다. */
   const [leaveCode, setLeaveCode] = useState('')
+  /** 원본 [기타] 사용중단휴가코드포함(2026-10-04 실측 — 처음엔 꺼짐). 끄면 사용중단한 휴가항목은 휴가코드 후보에 없다. */
+  const [includeStopped, setIncludeStopped] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -80,7 +82,7 @@ export default function VacationRemainPage() {
   useEffect(() => { load() }, [employment, year])
 
   // ── 휴가항목(휴가코드) 셈 — 원본 휴가잔여일수현황 ──
-  interface VKind { id: number; code: string; name: string; periodFrom: string; periodTo: string }
+  interface VKind { id: number; code: string; name: string; periodFrom: string; periodTo: string; active: boolean }
   interface AKind { name: string; vacationKindId: number | null }
   interface Emp { id: number; code: string; name: string; department: string; active: boolean }
   interface Vac { empCode: string | null; type: string; startDate: string; days: number }
@@ -156,7 +158,7 @@ export default function VacationRemainPage() {
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: () => {
-          setEmp([]); setDept([]); setDecimals(3); setEmployment('ACTIVE')
+          setEmp([]); setDept([]); setDecimals(3); setEmployment('ACTIVE'); setIncludeStopped(false)
           setYear(new Date().getFullYear())
         } },
         { label: '인쇄' },
@@ -176,7 +178,7 @@ export default function VacationRemainPage() {
           <CodePickerField label="휴가코드" hideLabel width={180} emptyLabel="전체"
                            value={leaveCode} onChange={(v) => setLeaveCode(v)}
                            items={[
-                             ...vkinds.map((k) => ({ value: `VK:${k.id}`, code: k.code, name: k.name })),
+                             ...vkinds.filter((k) => k.active || includeStopped).map((k) => ({ value: `VK:${k.id}`, code: k.code, name: k.name })),
                              ...[...new Set(rows.map((r) => r.leaveName).filter(Boolean))].map((n) => ({ value: n, name: n })),
                            ]} />
         </EcCond>
@@ -198,6 +200,11 @@ export default function VacationRemainPage() {
               <input type="radio" name="vr-employment" checked={employment === v} onChange={() => setEmployment(v)} /> {label}
             </label>
           ))}
+        </EcCond>
+        <EcCond label="기타">
+          <label className="inline-flex items-center gap-[4px]">
+            <input type="checkbox" checked={includeStopped} onChange={(e) => setIncludeStopped(e.target.checked)} /> 사용중단휴가코드포함
+          </label>
         </EcCond>
         <EcCond label="소수점">
           <select className="ec-input" style={{ width: 90 }} value={decimals}
