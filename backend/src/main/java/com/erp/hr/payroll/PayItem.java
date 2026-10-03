@@ -49,4 +49,29 @@ public class PayItem extends BaseTimeEntity {
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;
+
+    /** 원본 [표시순서]. 수당리스트·급여대장의 열 차례. */
+    @Column(name = "sort_order", nullable = false)
+    @Builder.Default
+    private int sortOrder = 0;
+
+    /** 원본 [배율] (예: 야근 1.5). 비우면 없음. */
+    @Column(precision = 9, scale = 4)
+    private BigDecimal rate;
+
+    /** 원본 [비과세유형]. 전액과세가 아니면 taxable=false 로 함께 맞춘다. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tax_free_type", nullable = false, length = 20)
+    @Builder.Default
+    private PayTaxFreeType taxFreeType = PayTaxFreeType.NONE;
+
+    /** 원본 [지급유형]. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "pay_method", nullable = false, length = 20)
+    @Builder.Default
+    private PayMethod payMethod = PayMethod.FIXED;
+
+    /** 원본 [산출방법] — 사람이 읽는 설명(예: 통상시급 * 야간근로시간수 * 1.5). */
+    @Column(name = "calc_note", length = 200)
+    private String calcNote;
 }

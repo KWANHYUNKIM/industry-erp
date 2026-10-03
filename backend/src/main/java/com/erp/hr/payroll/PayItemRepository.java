@@ -8,5 +8,5 @@ public interface PayItemRepository extends JpaRepository<PayItem, Long> {
 
     boolean existsByCode(String code);
 
-    List<PayItem> findAllByOrderByKindAscCodeAsc();
+    List<PayItem> findAllByOrderByKindAscSortOrderAscCodeAsc();
 }

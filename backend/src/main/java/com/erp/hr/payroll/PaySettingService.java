@@ -31,7 +31,7 @@ public class PaySettingService {
 
     @Transactional(readOnly = true)
     public List<PayItemResponse> findItems() {
-        return itemRepository.findAllByOrderByKindAscCodeAsc().stream().map(PayItemResponse::from).toList();
+        return itemRepository.findAllByOrderByKindAscSortOrderAscCodeAsc().stream().map(PayItemResponse::from).toList();
     }
 
     @Transactional
@@ -49,6 +49,7 @@ public class PaySettingService {
                 .defaultAmount(req.defaultAmount() != null ? req.defaultAmount() : BigDecimal.ZERO)
                 .active(req.active() == null || req.active())
                 .build();
+        applyListFields(i, req);
         return PayItemResponse.from(itemRepository.save(i));
     }
 
@@ -61,7 +62,26 @@ public class PaySettingService {
         i.setTaxable(req.kind() == PayslipLineKind.DEDUCTION || req.taxable() == null || req.taxable());
         i.setDefaultAmount(req.defaultAmount() != null ? req.defaultAmount() : i.getDefaultAmount());
         i.setActive(req.active() == null || req.active());
+        applyListFields(i, req);
         return PayItemResponse.from(i);
+    }
+
+    /**
+     * 원본 수당리스트의 칸들. <b>[비과세유형]을 주면 과세 여부가 그것을 따른다</b> — 전액과세가 아니면
+     * 비과세다. 두 값을 따로 두면 "식대인데 과세" 같은 항목이 생겨 급여계산의 과세소득이 틀어진다.
+     */
+    private void applyListFields(PayItem i, PayItemRequest req) {
+        if (req.sortOrder() != null) i.setSortOrder(req.sortOrder());
+        i.setRate(req.rate());
+        if (req.payMethod() != null) i.setPayMethod(req.payMethod());
+        i.setCalcNote(req.calcNote());
+        if (req.taxFreeType() != null && i.getKind() == PayslipLineKind.ALLOWANCE) {
+            i.setTaxFreeType(req.taxFreeType());
+            i.setTaxable(req.taxFreeType() == PayTaxFreeType.NONE);
+        } else if (i.isTaxable()) {
+            // 과세로만 고친 요청(급여 설정 화면) — 비과세유형도 전액과세로 맞춘다
+            i.setTaxFreeType(PayTaxFreeType.NONE);
+        }
     }
 
     // ── 그룹 ──────────────────────────────────────────────────────────

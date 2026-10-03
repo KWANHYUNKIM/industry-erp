@@ -1,5 +1,8 @@
 package com.erp.hr.payroll.dto;
 
+import com.erp.hr.payroll.PayMethod;
+import com.erp.hr.payroll.PayTaxFreeType;
+
 import com.erp.hr.payroll.PayGroup;
 import com.erp.hr.payroll.PayItem;
 import com.erp.hr.payroll.PayrollTransfer;
@@ -31,19 +34,32 @@ public final class PaySettingDtos {
             /** 비과세 수당(식대 등)이면 false. 공제 항목에서는 쓰지 않는다. */
             Boolean taxable,
             @PositiveOrZero(message = "기본금액은 0보다 작을 수 없습니다.") BigDecimal defaultAmount,
-            Boolean active
+            Boolean active,
+            /* 원본 수당항목등록(E090103)의 [표시순서]·[배율]·[비과세유형]·[지급유형]·[산출방법]. */
+            Integer sortOrder,
+            @PositiveOrZero(message = "배율은 0보다 작을 수 없습니다.") BigDecimal rate,
+            PayTaxFreeType taxFreeType,
+            PayMethod payMethod,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
+            String calcNote
     ) {}
 
     public record PayItemResponse(
             Long id, String code, String name,
             PayslipLineKind kind, String kindName,
-            boolean taxable, BigDecimal defaultAmount, boolean active
+            boolean taxable, BigDecimal defaultAmount, boolean active,
+            int sortOrder, BigDecimal rate,
+            PayTaxFreeType taxFreeType, String taxFreeTypeName,
+            PayMethod payMethod, String payMethodName, String calcNote
     ) {
         public static PayItemResponse from(PayItem i) {
             return new PayItemResponse(
                     i.getId(), i.getCode(), i.getName(),
                     i.getKind(), i.getKind().getDisplayName(),
-                    i.isTaxable(), i.getDefaultAmount(), i.isActive());
+                    i.isTaxable(), i.getDefaultAmount(), i.isActive(),
+                    i.getSortOrder(), i.getRate(),
+                    i.getTaxFreeType(), i.getTaxFreeType().getDisplayName(),
+                    i.getPayMethod(), i.getPayMethod().getDisplayName(), i.getCalcNote());
         }
     }
 
