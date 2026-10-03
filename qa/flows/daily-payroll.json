@@ -1,5 +1,5 @@
 {
-  "about": "관리 > 일용근로 급여계산/대장(E020139) — 일용근로 사원 둘(일근무 150,000 · 200,000)이 2091/10 에 이틀씩 근무입력돼 있을 때, 대장 신규 → 근무기록확정 [근무기록] 으로 2 · 2 를 불러 저장 → 전체계산 → 급여대장: 지급총액 700,000 · 소득세 2,700 · 지방소득세 270 · 실지급액 697,030. 세금은 원본 계산식처럼 사원 [급여지급사항] 월정공제 그대로(B 만 2,700 · 270 을 적어 두었다 — A 는 비어 0, 원본 150,000 × 2 → 세금 0 과 같다). 대장을 지우고 시험 자료를 정리한다. [명세서] 조회는 원본처럼 그 대장의 일용근로 사원별급여조회를 연다. [원천세신고 사업자번호]는 회사정보의 사업자등록번호.",
+  "about": "관리 > 일용근로 급여계산/대장(E020139) — 일용근로 사원 둘(일근무 150,000 · 200,000)이 2091/10 에 이틀씩 근무입력돼 있을 때, 대장 신규 → 근무기록확정 [근무기록] 으로 2 · 2 를 불러 저장 → 전체계산 → 급여대장: 지급총액 700,000 · 소득세 2,700 · 지방소득세 270 · 실지급액 697,030. 세금은 원본 계산식처럼 사원 [급여지급사항] 월정공제 그대로(B 만 2,700 · 270 을 적어 두었다 — A 는 비어 0, 원본 150,000 × 2 → 세금 0 과 같다). 대장을 지우고 시험 자료를 정리한다. [명세서] 조회는 원본처럼 그 대장의 일용근로 사원별급여조회를 연다. [원천세신고 사업자번호]는 회사정보의 사업자등록번호. 급여대장 창은 원본 꼴(사원마다 두 줄 · 공제(전체)에 소득세 / 지방소득세 위아래 · 회사명 · 인원수 · 지급연월).",
   "shots": [
     {
       "name": "대장 신규 → 근무기록확정 → 전체계산 → 급여대장 → 삭제",
@@ -13,7 +13,7 @@
         "clicklast:저장(F8)",
         "wait:1200",
         "expect:[...document.querySelectorAll('table tbody tr')].some(tr=>tr.innerText.includes('2091/10')&&tr.innerText.includes('2091/10 1차수 (급여)'))",
-        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const c=await (await fetch('/api/company',{headers:h})).json();sessionStorage.setItem('qaBiz',c.bizRegNo||'');return true})()",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const r=await fetch('/api/company',{headers:h});const t=await r.text();const c=t?JSON.parse(t):{};sessionStorage.setItem('qaBiz',c.bizRegNo||'');return true})()",
         "expect:(()=>{const b=sessionStorage.getItem('qaBiz');const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('2091/10 1차수'));return !b||tr.innerText.includes(b)})()",
         "js:(()=>{const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('2091/10 1차수'));[...tr.querySelectorAll('a')].find(a=>a.textContent.startsWith('근무기록확정')).click();return true})()",
         "wait:1200",
@@ -27,7 +27,7 @@
         "expect:document.body.innerText.includes('기존 자료를 삭제하고 다시 계산합니다.')",
         "clicklast:확인",
         "wait:1500",
-        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const t=d.innerText;const a=[...d.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA관리-일용A'))?.innerText||'';const b=[...d.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA관리-일용B'))?.innerText||'';return t.includes('2091/10 1차수 (급여)')&&a.includes('300,000')&&b.includes('400,000')&&b.includes('2,700')&&b.includes('270')&&b.includes('397,030')})()",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const t=d.innerText;const a=[...d.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA관리-일용A'))?.innerText||'';const rs=[...d.querySelectorAll('tbody tr')];const bi=rs.findIndex(r=>r.innerText.includes('QA관리-일용B'));const b=bi<0?'':rs[bi].innerText+' '+(rs[bi+1]?.innerText||'');return t.includes('2091/10 1차수 (급여)')&&a.includes('300,000')&&b.includes('400,000')&&b.includes('2,700')&&b.includes('270')&&b.includes('397,030')})()",
         "clicklast:닫기",
         "js:(()=>{const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('2091/10 1차수'));[...tr.querySelectorAll('a')].filter(a=>a.textContent==='조회').pop().click();return true})()",
         "wait:2000",

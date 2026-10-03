@@ -41,8 +41,11 @@ export default function DailyPayLedgerPage() {
   const [rows, setRows] = useState<Ledger[]>([])
   /** 원본 [원천세신고 사업자번호](2026-10-04 실측 220-12-34567) — 사업장이 하나라 회사정보의 사업자등록번호를 모든 대장에 찍는다. */
   const [bizRegNo, setBizRegNo] = useState('')
+  const [companyName, setCompanyName] = useState('')
   useEffect(() => {
-    api.get<{ bizRegNo: string | null }>('/company').then((r) => setBizRegNo(r.data.bizRegNo ?? '')).catch(() => setBizRegNo(''))
+    api.get<{ name: string; bizRegNo: string | null }>('/company')
+      .then((r) => { setBizRegNo(r.data.bizRegNo ?? ''); setCompanyName(r.data.name ?? '') })
+      .catch(() => { setBizRegNo(''); setCompanyName('') })
   }, [])
   const [error, setError] = useState('')
   const [formOpen, setFormOpen] = useState(false)
@@ -296,44 +299,62 @@ export default function DailyPayLedgerPage() {
       <Modal error={error} open={!!view} title="급여대장" width={980} onClose={() => setView(null)}>
         {view && totals && (
           <>
-            <div className="text-center font-bold text-[16px] mb-[4px]">{view.ledger.name}</div>
-            <div className="text-right text-ec-hint mb-[4px]">인원수 : {view.lines.length} · 지급연월 : {slash(view.ledger.paidMonth)}</div>
+            {/*
+              원본 급여대장(2026-10-04 실측): 가운데 '2026/07 1차수 (급여)', 왼쪽 회사명, 오른쪽 인원수 · 지급연월. 사원마다 두 줄(성명 / 주민등록번호),
+              열 최종근무일 · 일근무(일수 | 금액) · 지급총액 · 공제(전체 — 소득세 / 지방소득세를 위아래로) · 공제총액 · 실지급액, 끝에 총합계.
+              우리 대장 줄에는 최종근무일 · 주민등록번호가 없어 그 칸은 비워 둔다.
+            */}
+            <div className="text-center font-bold text-[18px] mb-[4px]">{view.ledger.name}</div>
+            <div className="flex justify-between items-end mb-[4px]">
+              <span>회사명 : {companyName}</span>
+              <span className="text-right">인원수 : {view.lines.length}<br />지급연월 : {slash(view.ledger.paidMonth)}</span>
+            </div>
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="ec-report w-full">
                 <thead>
                   <tr>
                     <th>성명</th>
-                    <th className="text-right">일근무</th>
-                    <th className="text-right">일근무 금액</th>
-                    <th className="text-right">지급총액</th>
-                    <th className="text-right">소득세</th>
-                    <th className="text-right">지방소득세</th>
-                    <th className="text-right">공제총액</th>
-                    <th className="text-right">실지급액</th>
+                    <th rowSpan={2}>최종근무일</th>
+                    <th colSpan={2}>일근무</th>
+                    <th rowSpan={2}>지급총액</th>
+                    <th>공제(전체)</th>
+                    <th rowSpan={2}>공제총액</th>
+                    <th rowSpan={2}>실지급액</th>
+                  </tr>
+                  <tr>
+                    <th>주민등록번호</th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
                   {view.lines.length === 0 ? (
                     <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-                  ) : view.lines.map((l) => (
-                    <tr key={l.id}>
+                  ) : view.lines.flatMap((l) => [
+                    <tr key={`${l.id}-a`}>
                       <td>{l.workerName}</td>
+                      <td rowSpan={2} className="text-center"></td>
                       <td className="text-right">{Number(l.days)}</td>
                       <td className="text-right">{won(l.grossPay)}</td>
-                      <td className="text-right">{won(l.grossPay)}</td>
+                      <td rowSpan={2} className="text-right">{won(l.grossPay)}</td>
                       <td className="text-right">{Number(l.incomeTax) ? won(l.incomeTax) : ''}</td>
+                      <td rowSpan={2} className="text-right">{Number(l.incomeTax) + Number(l.localTax) ? won(Number(l.incomeTax) + Number(l.localTax)) : ''}</td>
+                      <td rowSpan={2} className="text-right">{won(l.netPay)}</td>
+                    </tr>,
+                    <tr key={`${l.id}-b`}>
+                      <td></td>
+                      <td></td>
+                      <td></td>
                       <td className="text-right">{Number(l.localTax) ? won(l.localTax) : ''}</td>
-                      <td className="text-right">{Number(l.incomeTax) + Number(l.localTax) ? won(Number(l.incomeTax) + Number(l.localTax)) : ''}</td>
-                      <td className="text-right">{won(l.netPay)}</td>
-                    </tr>
-                  ))}
+                    </tr>,
+                  ])}
                   <tr className="font-bold">
-                    <td className="text-center">총합계</td>
+                    <td colSpan={2} className="text-center">총합계</td>
                     <td className="text-right">{totals.days || ''}</td>
                     <td className="text-right">{won(totals.gross)}</td>
                     <td className="text-right">{won(totals.gross)}</td>
-                    <td className="text-right">{totals.tax ? won(totals.tax) : ''}</td>
-                    <td className="text-right">{totals.local ? won(totals.local) : ''}</td>
+                    <td className="text-right">{totals.tax + totals.local ? won(totals.tax + totals.local) : ''}</td>
                     <td className="text-right">{totals.tax + totals.local ? won(totals.tax + totals.local) : ''}</td>
                     <td className="text-right">{won(totals.net)}</td>
                   </tr>
@@ -341,7 +362,8 @@ export default function DailyPayLedgerPage() {
               </table>
             </div>
             <div className="flex gap-[6px] mt-[12px]">
-              <button type="button" className="ec-btn" onClick={() => window.print()}>인쇄</button>
+              <button type="button" className="ec-btn ec-btn-primary" onClick={() => window.print()}>인쇄</button>
+              <button type="button" className="ec-btn">Excel</button>
               <button type="button" className="ec-btn" onClick={() => setView(null)}>닫기</button>
             </div>
           </>
