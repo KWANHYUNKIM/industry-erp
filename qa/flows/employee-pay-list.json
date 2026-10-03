@@ -1,5 +1,5 @@
 {
-  "about": "관리 > 사원별급여조회(E090110) — 원본처럼 귀속연월 구간의 명세가 사원 한 줄씩, 금액이 있는 수당 · 공제 항목이 열로 서고 지급총액 · 공제총액 · 실지급액이 붙는다. 귀속연월을 누르면 그 달 급여대장. 시험 명세는 지운다.",
+  "about": "관리 > 사원별급여조회(E090110) — 원본처럼 귀속연월 구간의 명세가 사원 한 줄씩, 금액이 있는 수당 항목이 열로 서고, 공제는 소득세 · 주민세 · 국민연금 · 건강보험 · 고용보험 · 장기요양(+공제항목) 이 금액이 없어도 그 차례로 선다. 지급총액 · 공제총액 · 실지급액이 붙는다. 시험 명세는 지운다.",
   "shots": [
     {
       "name": "구간 조회 → 항목 열 → 뒷정리",
@@ -11,6 +11,7 @@
         "set:input[type=month]#1|2091-05",
         "wait:1500",
         "expect:/2091\\/05\\s+급여\\s+EMP-0004\\s+정수진/.test(document.querySelector('table').innerText) && [...document.querySelectorAll('table thead th')].some(th=>th.innerText==='국민연금') && [...document.querySelectorAll('table thead th')].some(th=>th.innerText==='실지급액')",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map(th=>th.innerText.trim());const i=h.indexOf('지급총액');return h.slice(i+1,i+7).join(',')==='소득세,주민세,국민연금,건강보험,고용보험,장기요양'&&!h.includes('지방소득세')&&!h.includes('장기요양보험')&&[...document.querySelectorAll('table tbody tr')][0].cells[i+2].innerText.trim()!==''})()",
         "js:(async()=>{const t=localStorage.getItem('erp_token');const r=await fetch('/api/payslips/'+sessionStorage.getItem('qaEpl'),{method:'DELETE',headers:{Authorization:'Bearer '+t}});sessionStorage.setItem('qaEplDel',String(r.ok));return true})()",
         "expect:sessionStorage.getItem('qaEplDel')==='true'"
       ]

@@ -5,9 +5,20 @@ import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
-import type { EmployeeMaster, Payslip } from '../../types/api'
+import type { EmployeeMaster, PayItem, Payslip } from '../../types/api'
 
 interface DeptRow { id: number; name: string; code?: string | null }
+
+/**
+ * 공제 열 — 원본은 공제리스트의 항목을 금액이 없어도 <b>모두</b> 세운다(2026-10-03 실측: 소득세 · 주민세 · 국민연금 ·
+ * 건강보험 · 고용보험 · 장기요양 · 연말정산 · 사우회비 · 공제항목 추가가능, 뒤 셋은 전부 빈칸). 우리 법정 공제는 급여계산이
+ * 직접 셈해 항목이 아니므로 앞 여섯을 고정하고, 명세 줄 이름을 원본 이름으로 읽는다.
+ */
+const STATUTORY: [string, string[]][] = [
+  ['소득세', ['소득세']], ['주민세', ['지방소득세', '주민세']], ['국민연금', ['국민연금']],
+  ['건강보험', ['건강보험']], ['고용보험', ['고용보험']], ['장기요양', ['장기요양보험', '장기요양']],
+]
+const colOf = (name: string) => STATUTORY.find(([, from]) => from.includes(name))?.[0] ?? name
 
 const won = (n: number) => (n ? Number(n).toLocaleString('ko-KR') : '')
 const ym = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
@@ -24,7 +35,8 @@ const defaultRange = () => {
  * (그 기간에 금액이 있는 수당 항목들) · 지급총액 · (공제 항목들) · 공제총액 · 실지급액. 버튼 Email · 인쇄 · 선택삭제 · Excel.
  * 조건([Search(F3)]): 급여대장 · 귀속연월 · 급여구분 · 지급구분 · 사원 · 부서 · 프로젝트.
  *
- * <p>공제 열 이름은 우리 명세 줄 이름이다(원본 주민세 · 장기요양 = 우리 지방소득세 · 장기요양보험).
+ * <p>수당 열은 그 기간에 금액이 있는 항목만, 표시순서대로(원본 수당리스트 13줄 중 금액이 있는 넷만 섰다).
+ * 공제 열은 STATUTORY + 사용 중인 공제항목 전부.
  * 급여구분은 '급여' 하나다. 급여대장 · 급여구분 · 지급구분 · 프로젝트 조건과 Email · 미발송은 아직 없다.
  * [선택삭제]는 확정 안 된 명세만 지운다(서버가 막는다).
  */
@@ -34,6 +46,7 @@ export default function EmployeePayListPage() {
   const [rows, setRows] = useState<Payslip[]>([])
   const [employees, setEmployees] = useState<EmployeeMaster[]>([])
   const [depts, setDepts] = useState<DeptRow[]>([])
+  const [items, setItems] = useState<PayItem[]>([])
   const [empCond, setEmpCond] = useState('')
   const [deptCond, setDeptCond] = useState('')
   const [error, setError] = useState('')
@@ -49,6 +62,7 @@ export default function EmployeePayListPage() {
   useEffect(() => {
     api.get<EmployeeMaster[]>('/employees/all').then((r) => setEmployees(r.data)).catch(() => setEmployees([]))
     api.get<DeptRow[]>('/departments').then((r) => setDepts(r.data)).catch(() => setDepts([]))
+    api.get<PayItem[]>('/pay-settings/items').then((r) => setItems(r.data)).catch(() => setItems([]))
   }, [])
 
   const deptName = depts.find((d) => String(d.id) === deptCond)?.name
@@ -56,21 +70,25 @@ export default function EmployeePayListPage() {
     .filter((p) => !empCond || String(p.employeeId) === empCond)
     .filter((p) => !deptName || p.department === deptName)
 
-  // 원본처럼 그 기간에 금액이 있는 항목만 열로 세운다 — 수당은 기본급 다음, 공제는 지급총액 다음
   const { allowanceCols, deductionCols } = useMemo(() => {
+    const order = (kind: string) => items.filter((i) => i.kind === kind && i.active)
+      .sort((x, y) => x.sortOrder - y.sortOrder).map((i) => i.name)
     const a: string[] = []
-    const d: string[] = []
+    const d: string[] = [...STATUTORY.map(([c]) => c), ...order('DEDUCTION').filter((n) => !STATUTORY.some(([c]) => c === n))]
     for (const p of shown) for (const l of p.lines) {
       if (!Number(l.amount)) continue
       const bucket = l.kind === 'ALLOWANCE' ? a : d
-      if (!bucket.includes(l.name)) bucket.push(l.name)
+      const c = l.kind === 'ALLOWANCE' ? l.name : colOf(l.name)
+      if (!bucket.includes(c)) bucket.push(c)
     }
-    return { allowanceCols: a, deductionCols: d }
-  }, [shown])
+    const ao = order('ALLOWANCE')
+    const rank = (n: string) => (ao.indexOf(n) < 0 ? 1e9 : ao.indexOf(n))
+    return { allowanceCols: [...a].sort((x, y) => rank(x) - rank(y)), deductionCols: d }
+  }, [shown, items])
   useTableColumnCheck(tableRef, '사원별급여조회', [allowanceCols.length, deductionCols.length, shown.length])
 
-  const amountOf = (p: Payslip, name: string) =>
-    p.lines.filter((l) => l.name === name).reduce((s, l) => s + Number(l.amount), 0)
+  const amountOf = (p: Payslip, col: string, kind: 'ALLOWANCE' | 'DEDUCTION') =>
+    p.lines.filter((l) => l.kind === kind && (kind === 'ALLOWANCE' ? l.name : colOf(l.name)) === col).reduce((s, l) => s + Number(l.amount), 0)
 
   async function deleteChecked() {
     if (checked.size === 0 || !window.confirm('삭제하시겠습니까?')) return
@@ -155,9 +173,9 @@ export default function EmployeePayListPage() {
                 <td>{p.employeeCode}</td>
                 <td>{p.employeeName}</td>
                 <td className="text-right">{won(p.baseSalary)}</td>
-                {allowanceCols.map((c) => <td key={`a-${c}`} className="text-right">{won(amountOf(p, c))}</td>)}
+                {allowanceCols.map((c) => <td key={`a-${c}`} className="text-right">{won(amountOf(p, c, 'ALLOWANCE'))}</td>)}
                 <td className="text-right">{won(p.grossPay)}</td>
-                {deductionCols.map((c) => <td key={`d-${c}`} className="text-right">{won(amountOf(p, c))}</td>)}
+                {deductionCols.map((c) => <td key={`d-${c}`} className="text-right">{won(amountOf(p, c, 'DEDUCTION'))}</td>)}
                 <td className="text-right">{won(p.deductionTotal)}</td>
                 <td className="text-right">{won(p.netPay)}</td>
               </tr>
