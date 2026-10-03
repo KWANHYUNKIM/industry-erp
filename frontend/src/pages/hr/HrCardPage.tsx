@@ -8,14 +8,16 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster } from '../../types/api'
 import { dateText } from '../../utils/dateText'
 
-type Category = 'EDUCATION' | 'CAREER'
-interface Row { fromDate: string; toDate: string; text1: string; text2: string; text3: string; text4: string; text5: string; text6: string; text7: string }
-type TextKey = 'text1' | 'text2' | 'text3' | 'text4' | 'text5' | 'text6' | 'text7'
-interface Col { label: string; key: 'fromDate' | 'toDate' | TextKey; kind?: 'date' | 'select'; options?: string[] }
+type Category = 'EDUCATION' | 'CAREER' | 'LICENSE' | 'FAMILY' | 'LANGUAGE' | 'REWARD' | 'TRAINING' | 'TRIP' | 'MEMO' | 'WORK_STATUS' | 'GUARANTOR'
+type DateKey = 'fromDate' | 'toDate' | 'date3' | 'date4'
+type TextKey = 'text1' | 'text2' | 'text3' | 'text4' | 'text5' | 'text6' | 'text7' | 'text8' | 'text9' | 'text10'
+type Row = Record<DateKey | TextKey, string>
+interface Col { label: string; key: DateKey | TextKey; kind?: 'date' | 'select' | 'number'; options?: string[] }
+const YN = ['여', '부']
 
 /**
- * 원본 [인사자료] 입력 창의 열 차례(2026-10-03 loginaa 실측). 서버는 날짜 둘 + 글자 칸 일곱으로 받는다.
- * 원본에 있는 나머지 항목(자격 · 면허 · 가족 · 외국어 · 상벌 · 교육 · 출장 · 메모 · 근무실태 · 보증인)은 열을 재 오면 더한다.
+ * 원본 [인사자료] 입력 창의 열 차례(2026-10-03 loginaa 실측, 열한 항목 전부). 서버는 날짜 넷 + 글자 칸 열로 받는다.
+ * 원본 가족사항의 동거여부 · 부양여부는 여/부 라디오 — 우리는 여/부 드롭다운. 숫자 칸(비용 · 일수)은 글자로 담고 오른쪽에 붙인다.
  */
 const CATEGORIES: { key: Category; label: string; cols: Col[] }[] = [
   {
@@ -34,8 +36,73 @@ const CATEGORIES: { key: Category; label: string; cols: Col[] }[] = [
       { label: '담당업무(부서)', key: 'text3' }, { label: '퇴사사유', key: 'text4' },
     ],
   },
+  {
+    key: 'LICENSE', label: '자격ㆍ면허', cols: [
+      { label: '자격/면허코드', key: 'text1' }, { label: '자격/면허번호', key: 'text2' }, { label: '자격/면허발행기관', key: 'text3' },
+      { label: '취득일자', key: 'fromDate', kind: 'date' }, { label: '만기일자', key: 'toDate', kind: 'date' },
+      { label: '갱신일자', key: 'date3', kind: 'date' }, { label: '말소일자', key: 'date4', kind: 'date' },
+      { label: '말소사유', key: 'text4' },
+    ],
+  },
+  {
+    key: 'FAMILY', label: '가족사항', cols: [
+      { label: '주민등록번호', key: 'text1' }, { label: '성명', key: 'text2' }, { label: '관계', key: 'text3' },
+      { label: '최종학력', key: 'text4' }, { label: '직업', key: 'text5' }, { label: '회사명', key: 'text6' }, { label: '직위', key: 'text7' },
+      { label: '동거여부', key: 'text8', kind: 'select', options: YN }, { label: '부양여부', key: 'text9', kind: 'select', options: YN },
+    ],
+  },
+  {
+    key: 'LANGUAGE', label: '외국어', cols: [
+      { label: '외국어명', key: 'text1' }, { label: '독해', key: 'text2' }, { label: '작문', key: 'text3' },
+      { label: '회화', key: 'text4' }, { label: '자격증', key: 'text5' },
+    ],
+  },
+  {
+    key: 'REWARD', label: '상벌사항', cols: [
+      { label: '기간', key: 'fromDate', kind: 'date' }, { label: '상벌구분', key: 'text1' }, { label: '사유', key: 'text2' },
+      { label: '시행처', key: 'text3' },
+    ],
+  },
+  {
+    key: 'TRAINING', label: '교육사항', cols: [
+      { label: '교육코드', key: 'text1' }, { label: '시작일자', key: 'fromDate', kind: 'date' }, { label: '종료일자', key: 'toDate', kind: 'date' },
+      { label: '교육기관', key: 'text2' }, { label: '교육내용', key: 'text3' }, { label: '교육비용', key: 'text4', kind: 'number' },
+      { label: '교육결과', key: 'text5' }, { label: '적요', key: 'text6' },
+    ],
+  },
+  {
+    key: 'TRIP', label: '출장사항', cols: [
+      { label: '출장국', key: 'text1' }, { label: '출장비용', key: 'text2', kind: 'number' }, { label: '출장내역', key: 'text3' },
+      { label: '출장시작일', key: 'fromDate', kind: 'date' }, { label: '출장종료일', key: 'toDate', kind: 'date' },
+    ],
+  },
+  {
+    key: 'MEMO', label: '메모사항', cols: [
+      { label: '작성일자', key: 'fromDate', kind: 'date' }, { label: '내용', key: 'text1' },
+    ],
+  },
+  {
+    key: 'WORK_STATUS', label: '근무실태', cols: [
+      { label: '연도', key: 'text1', kind: 'number' }, { label: '총휴가일수', key: 'text2', kind: 'number' },
+      { label: '사용휴가일수', key: 'text3', kind: 'number' }, { label: '연가', key: 'text4', kind: 'number' },
+      { label: '경조', key: 'text5', kind: 'number' }, { label: '특별', key: 'text6', kind: 'number' },
+      { label: '병가', key: 'text7', kind: 'number' }, { label: '조퇴', key: 'text8', kind: 'number' },
+      { label: '기타', key: 'text9', kind: 'number' }, { label: '적요', key: 'text10' },
+    ],
+  },
+  {
+    key: 'GUARANTOR', label: '보증인', cols: [
+      { label: '성명', key: 'text1' }, { label: '주민등록번호', key: 'text2' }, { label: '회사', key: 'text3' },
+      { label: '직위', key: 'text4' }, { label: '관계', key: 'text5' }, { label: '전화번호', key: 'text6' },
+      { label: '우편번호', key: 'text7' }, { label: '주소', key: 'text8' },
+      { label: '보증기간 시작일', key: 'fromDate', kind: 'date' }, { label: '보증기간 종료일', key: 'toDate', kind: 'date' },
+    ],
+  },
 ]
-const blank = (): Row => ({ fromDate: '', toDate: '', text1: '', text2: '', text3: '', text4: '', text5: '', text6: '', text7: '' })
+const blank = (): Row => ({
+  fromDate: '', toDate: '', date3: '', date4: '',
+  text1: '', text2: '', text3: '', text4: '', text5: '', text6: '', text7: '', text8: '', text9: '', text10: '',
+})
 
 /**
  * 관리 &gt; 인사관리 &gt; <b>인사카드등록</b> (원본 C001001).
@@ -45,7 +112,7 @@ const blank = (): Row => ({ fromDate: '', toDate: '', text1: '', text2: '', text
  * '인사카드등록' 창(탭 기본 · 사원정보 · 추가정보 · 신상정보 · 인사자료 · 기타설정)이 열린다.
  * [인사자료]의 항목마다 [입력]을 누르면 줄 입력 창(저장(F8) · 삭제 · 닫기)이 뜨고, 자료가 있는 항목은 [입력]이 칠해진다.
  *
- * <p>여기서는 [인사자료]의 학력사항 · 경력사항만 만들었다. 기본 정보는 사원등록에서 고친다([신규(F2)]도 사원등록으로 간다).
+ * <p>여기서는 [인사자료] 열한 항목을 만들었다. 기본 정보는 사원등록에서 고친다([신규(F2)]도 사원등록으로 간다).
  * 신상정보 · 기타설정 탭, 인쇄 · SMS · 선택삭제 · 웹자료올리기 · 이력조회는 아직 없다.
  */
 export default function HrCardPage() {
@@ -83,7 +150,7 @@ export default function HrCardPage() {
 
   async function saveDetail() {
     if (!card || !detail) return
-    const body = detail.rows.map((r) => ({ ...r, fromDate: r.fromDate || null, toDate: r.toDate || null }))
+    const body = detail.rows.map((r) => ({ ...r, fromDate: r.fromDate || null, toDate: r.toDate || null, date3: r.date3 || null, date4: r.date4 || null }))
     try {
       await api.put(`/employees/${card.id}/hr-details/${detail.cat.key}`, body)
       setDetail(null)
@@ -198,6 +265,9 @@ export default function HrCardPage() {
                                   <option value=""></option>
                                   {c.options!.map((o) => <option key={o}>{o}</option>)}
                                 </select>
+                              ) : c.kind === 'number' ? (
+                                <input className="ec-input w-full text-right" inputMode="decimal" value={r[c.key]}
+                                       onChange={(ev) => set(ev.target.value.replace(/[^0-9.]/g, ''))} />
                               ) : <input className="ec-input w-full" value={r[c.key]} onChange={(ev) => set(ev.target.value)} />}
                           </td>
                         )
