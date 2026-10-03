@@ -7,7 +7,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster, PayItem, Payslip } from '../../types/api'
 
 interface DeptRow { id: number; name: string; code?: string | null }
-interface Ledger { payMonth: string; name: string }
+interface Ledger { payMonth: string; name: string; payDate: string | null }
 type Mode = '라인별' | '급여대장별' | '급여대장별부서별' | '급여대장별프로젝트별' | '급여대장별부서별라인별'
 const MODES: Mode[] = ['라인별', '급여대장별', '급여대장별부서별', '급여대장별프로젝트별', '급여대장별부서별라인별']
 type Confirm = '전체' | '미확정' | '확정'
@@ -58,12 +58,17 @@ interface Row {
  * 그 부서 첫 사원(가나다)이다 — 원본에서 둘이 같은 줄을 냈다(2026-10-03 실측, 경영지원본부 변종호 6,400,000 = 두 사원 기본급 합).
  * 급여대장별프로젝트별은 명세에 프로젝트가 없어 급여대장별과 같다(프로젝트명 빈칸).
  *
- * <p>사용자지정집계는 없다. 지급연월 · 지급일 · 급여구분 · 지급구분 · 프로젝트 · 정렬/소계기준 조건은 없다.
+ * <p>사용자지정집계는 없다. 지급연월 · 지급일([사용])은 그 귀속월 급여대장의 지급일로 거른다. 급여구분 · 지급구분 · 프로젝트 · 정렬/소계기준 조건은 없다.
  */
 export default function PayrollStatusPage() {
   const [mode, setMode] = useState<Mode>('라인별')
   const [range, setRange] = useState(pick('전월+금월'))
   const [confirmCond, setConfirmCond] = useState<Confirm>('전체')
+  /** 원본 [지급연월] · [지급일]([사용]) — 그 귀속월 급여대장의 지급일로 거른다. */
+  const [usePaidMonth, setUsePaidMonth] = useState(false)
+  const [paidMonth, setPaidMonth] = useState(range)
+  const [usePayDate, setUsePayDate] = useState(false)
+  const [payDate, setPayDate] = useState({ from: `${range.from}-01`, to: `${range.to}-28` })
   const [empCond, setEmpCond] = useState<string[]>([])
   const [deptCond, setDeptCond] = useState<string[]>([])
   const [slips, setSlips] = useState<Payslip[]>([])
@@ -90,6 +95,12 @@ export default function PayrollStatusPage() {
   const filtered = slips
     .filter((p) => empCond.length === 0 || empCond.includes(String(p.employeeId)))
     .filter((p) => deptNames.length === 0 || deptNames.includes(p.department ?? ''))
+    .filter((p) => {
+      const d = ledgers.find((l) => l.payMonth === p.payMonth)?.payDate ?? ''
+      if (usePaidMonth && !(d && d.slice(0, 7) >= paidMonth.from && d.slice(0, 7) <= paidMonth.to)) return false
+      if (usePayDate && !(d && d >= payDate.from && d <= payDate.to)) return false
+      return true
+    })
     .filter((p) => confirmCond === '전체' || (confirmCond === '확정' ? p.status === 'CONFIRMED' : p.status !== 'CONFIRMED'))
 
   // 원본은 수당 · 공제 항목을 금액과 상관없이 모두 열로 세운다(표시순서)
@@ -171,6 +182,30 @@ export default function PayrollStatusPage() {
           <input type="month" className="ec-input w-[140px]" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
           ~
           <input type="month" className="ec-input w-[140px]" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
+        </EcCond>
+        <EcCond label="지급연월">
+          {usePaidMonth && (
+            <>
+              <input type="month" className="ec-input w-[140px]" aria-label="지급연월 시작" value={paidMonth.from} onChange={(e) => setPaidMonth({ ...paidMonth, from: e.target.value })} />
+              ~
+              <input type="month" className="ec-input w-[140px]" aria-label="지급연월 끝" value={paidMonth.to} onChange={(e) => setPaidMonth({ ...paidMonth, to: e.target.value })} />
+            </>
+          )}
+          <label className="inline-flex items-center gap-[4px] ml-[6px]">
+            <input type="checkbox" checked={usePaidMonth} onChange={(e) => { setUsePaidMonth(e.target.checked); if (e.target.checked) setPaidMonth(range) }} /> 사용
+          </label>
+        </EcCond>
+        <EcCond label="지급일">
+          {usePayDate && (
+            <>
+              <input type="date" className="ec-input w-[150px]" aria-label="지급일 시작" value={payDate.from} onChange={(e) => setPayDate({ ...payDate, from: e.target.value })} />
+              ~
+              <input type="date" className="ec-input w-[150px]" aria-label="지급일 끝" value={payDate.to} onChange={(e) => setPayDate({ ...payDate, to: e.target.value })} />
+            </>
+          )}
+          <label className="inline-flex items-center gap-[4px] ml-[6px]">
+            <input type="checkbox" checked={usePayDate} onChange={(e) => setUsePayDate(e.target.checked)} /> 사용
+          </label>
         </EcCond>
         <EcCond label="부서">
           <CodePickerField label="부서" hideLabel fill multiple placeholder="부서" values={deptCond} onChangeMulti={(v) => setDeptCond(v)}

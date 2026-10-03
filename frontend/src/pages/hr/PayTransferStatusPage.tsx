@@ -30,13 +30,16 @@ function pick(label: string) {
  * 결과: 회사명 · 기간 머리 + 은행코드 · 은행명 · 계좌번호 · 예금주명 · 실지급액, 명세마다 한 줄(합계줄 없음). 버튼 인쇄 · Excel.
  * 은행 정보는 사원등록 [급여통장]에서 온다 — 비어 있으면 원본처럼 빈칸으로 찍는다.
  * [급여대장] · [이체은행]은 여러 개 고르는 코드도움 — 이체은행 창은 원본 은행코드 85줄(utils/bankCodes).
- * 지급연월(명세에 지급일이 없다) · 정렬/소계기준은 아직 없다.
+ * 지급연월([사용])은 그 귀속월 급여대장의 지급일 달로 거른다. 정렬/소계기준은 아직 없다.
  */
 export default function PayTransferStatusPage() {
   const [range, setRange] = useState(pick('전월+금월'))
   const [banks, setBanks] = useState<string[]>([])
   const [ledgerMonths, setLedgerMonths] = useState<string[]>([])
-  const [ledgers, setLedgers] = useState<{ payMonth: string; name: string }[]>([])
+  const [ledgers, setLedgers] = useState<{ payMonth: string; name: string; payDate: string | null }[]>([])
+  /** 원본 [지급연월]([사용]) — 그 귀속월 급여대장의 지급일 달로 거른다. */
+  const [usePaid, setUsePaid] = useState(false)
+  const [paidRange, setPaidRange] = useState(range)
   const [slips, setSlips] = useState<Payslip[]>([])
   const [employees, setEmployees] = useState<EmployeeMaster[]>([])
   const [error, setError] = useState('')
@@ -51,13 +54,18 @@ export default function PayTransferStatusPage() {
   useEffect(() => {
     search()
     api.get<EmployeeMaster[]>('/employees/all').then((r) => setEmployees(r.data)).catch(() => setEmployees([]))
-    api.get<{ payMonth: string; name: string }[]>('/pay-ledgers').then((r) => setLedgers(r.data)).catch(() => setLedgers([]))
+    api.get<{ payMonth: string; name: string; payDate: string | null }[]>('/pay-ledgers').then((r) => setLedgers(r.data)).catch(() => setLedgers([]))
   }, [])
 
   const byId = new Map(employees.map((e) => [e.id, e]))
   const shown = slips
     .map((p) => ({ p, e: byId.get(p.employeeId) }))
     .filter(({ p }) => ledgerMonths.length === 0 || ledgerMonths.includes(p.payMonth))
+    .filter(({ p }) => {
+      if (!usePaid) return true
+      const d = (ledgers.find((l) => l.payMonth === p.payMonth)?.payDate ?? '').slice(0, 7)
+      return !!d && d >= paidRange.from && d <= paidRange.to
+    })
     .filter(({ e }) => banks.length === 0 || banks.includes(e?.bankCode ?? ''))
 
   return (
@@ -68,6 +76,18 @@ export default function PayTransferStatusPage() {
           <input type="month" className="ec-input w-[140px]" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
           ~
           <input type="month" className="ec-input w-[140px]" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
+        </EcCond>
+        <EcCond label="지급연월">
+          {usePaid && (
+            <>
+              <input type="month" className="ec-input w-[140px]" aria-label="지급연월 시작" value={paidRange.from} onChange={(e) => setPaidRange({ ...paidRange, from: e.target.value })} />
+              ~
+              <input type="month" className="ec-input w-[140px]" aria-label="지급연월 끝" value={paidRange.to} onChange={(e) => setPaidRange({ ...paidRange, to: e.target.value })} />
+            </>
+          )}
+          <label className="inline-flex items-center gap-[4px] ml-[6px]">
+            <input type="checkbox" checked={usePaid} onChange={(e) => { setUsePaid(e.target.checked); if (e.target.checked) setPaidRange(range) }} /> 사용
+          </label>
         </EcCond>
         <EcCond label="급여대장">
           <CodePickerField label="급여대장" hideLabel fill multiple placeholder="급여대장" values={ledgerMonths}
