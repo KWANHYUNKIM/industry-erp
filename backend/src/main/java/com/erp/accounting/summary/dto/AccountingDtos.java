@@ -16,7 +16,8 @@ public final class AccountingDtos {
             BigDecimal purchaseVat,     // 매입 부가세(매입세액)
             BigDecimal purchaseTotal,   // 매입 합계
             BigDecimal expenseVat,      // 지출(비용)의 매입세액 — 46회차에 생긴 칸
-            BigDecimal vatPayable       // 납부(환급)세액 = 매출세액 - 매입세액(구매 + 지출)
+            BigDecimal cardVat,         // 카드 사용의 매입세액 — 분개는 부가세대급금으로 잡는데 요약에서 빠져 있었다
+            BigDecimal vatPayable       // 납부(환급)세액 = 매출세액 - 매입세액(구매 + 지출 + 카드)
     ) {}
 
     /** 품목별 원가·이익 (원가법: 총평균 매입 / 제조원가는 BOM 기반) */

@@ -570,6 +570,8 @@ export interface VatSummary {
   purchaseTotal: number
   /** 지출(비용)의 매입세액 — 46·47회차 */
   expenseVat?: number
+  /** 카드 사용의 매입세액 */
+  cardVat?: number
   vatPayable: number
 }
 

@@ -44,7 +44,7 @@ export default function VatSummaryPage() {
 
   return (
     <EcListShell title="매입매출·부가세" actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
-      <p className="mb-[8px] text-[11.5px] text-ec-hint">부가가치세 신고 기초자료 · 매출세액 − 매입세액(구매 + 비용) = 납부(환급)세액</p>
+      <p className="mb-[8px] text-[11.5px] text-ec-hint">부가가치세 신고 기초자료 · 매출세액 − 매입세액(구매 + 비용 + 카드) = 납부(환급)세액</p>
       <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px]">
         <span className="text-ec-label">과세기간</span>
         <input type="date" className="ec-input" value={period.from} onChange={(e) => setPeriod((p) => ({ ...p, from: e.target.value }))} style={{ width: 140 }} />
@@ -69,6 +69,13 @@ export default function VatSummaryPage() {
             <td className="font-semibold">비용 (매입세액)</td>
             <td className="text-right text-ec-hint">—</td>
             <td className="text-right">{won(d.expenseVat ?? 0)}</td>
+            <td className="text-right text-ec-hint">—</td>
+          </tr>
+          {/* 카드 사용에 붙은 부가세 — 분개가 부가세대급금으로 잡는 매입세액이다. */}
+          <tr>
+            <td className="font-semibold">카드 (매입세액)</td>
+            <td className="text-right text-ec-hint">—</td>
+            <td className="text-right">{won(d.cardVat ?? 0)}</td>
             <td className="text-right text-ec-hint">—</td>
           </tr>
         </tbody>

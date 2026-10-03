@@ -36,6 +36,7 @@ public class AccountingService {
     private final ItemRepository itemRepository;
     private final BomRepository bomRepository;
     private final com.erp.accounting.expense.ExpenseRepository expenseRepository;
+    private final com.erp.accounting.bankcard.CardUsageRepository cardUsageRepository;
 
     /** 매입매출·부가세 요약 */
     @Transactional(readOnly = true)
@@ -60,13 +61,19 @@ public class AccountingService {
             salesSupply = (BigDecimal) s[0]; salesVat = (BigDecimal) s[1]; salesTotal = (BigDecimal) s[2];
             purchaseSupply = (BigDecimal) p[0]; purchaseVat = (BigDecimal) p[1]; purchaseTotal = (BigDecimal) p[2];
         }
-        BigDecimal expenseVat = expenseRepository.sumVat(from != null ? from : LocalDate.of(1, 1, 1),
-                to != null ? to : LocalDate.of(9999, 12, 31));
+        LocalDate vf = from != null ? from : LocalDate.of(1, 1, 1);
+        LocalDate vt = to != null ? to : LocalDate.of(9999, 12, 31);
+        BigDecimal expenseVat = expenseRepository.sumVat(vf, vt);
+        /*
+         * 카드 사용의 부가세도 매입세액이다 — 분개가 차)부가세대급금(135) 으로 잡아 시산표 · 매입/매출장에는 있는데
+         * 이 요약만 빠뜨려, 카드로 산 것이 있으면 납부세액이 그만큼 부풀었다.
+         */
+        BigDecimal cardVat = cardUsageRepository.sumVat(vf, vt);
         return new VatSummaryResponse(
                 salesSupply, salesVat, salesTotal,
                 purchaseSupply, purchaseVat, purchaseTotal,
-                expenseVat,
-                salesVat.subtract(purchaseVat).subtract(expenseVat));
+                expenseVat, cardVat,
+                salesVat.subtract(purchaseVat).subtract(expenseVat).subtract(cardVat));
     }
 
     /** 품목별 원가·이익 */
