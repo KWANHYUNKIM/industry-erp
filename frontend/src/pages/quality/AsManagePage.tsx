@@ -55,9 +55,10 @@ interface AsRow {
 const today = () => ymd(new Date())
 
 /** 원본 [접수증] — 접수한 품목 줄을 찍는다(금액 없는 양식). */
-async function printAsReceipt(r: AsRow, title = 'A/S 접수증') {
+/** 목록 [접수증인쇄]는 고른 접수를 한 번에 찍는다. */
+async function printAsReceipts(rs: AsRow[], title = 'A/S 접수증') {
   const ours = await loadSupplierParty('수리처')
-  await printDocuments([{
+  await printDocuments(rs.map((r) => ({
     title,
     docNo: r.asNo,
     docDate: r.receiptDate,
@@ -76,8 +77,9 @@ async function printAsReceipt(r: AsRow, title = 'A/S 접수증') {
       itemName: l.itemName, spec: l.itemSpec ?? undefined, unit: '',
       quantity: l.quantity, unitPrice: 0, supplyAmount: 0, vatAmount: 0,
     })),
-  }])
+  })))
 }
+const printAsReceipt = (r: AsRow, title?: string) => printAsReceipts([r], title)
 
 type FormLine = { itemId: string; quantity: string }
 const emptyLines = (): FormLine[] => [{ itemId: '', quantity: '' }, { itemId: '', quantity: '' }, { itemId: '', quantity: '' }]
@@ -91,7 +93,11 @@ export default function AsManagePage() {
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
   /* 원본 알약은 [접수]로 연다(2026-10-03 실측). */
-  const [statusFilter, setStatusFilter] = useState<'ALL' | AsStatus>('RECEIVED')
+  /*
+   * 원본 알약(2026-10-04): 전체 · 확인 · 접수 · 수리중 · 완료. [확인]은 진행단계가 아니라 전표상태다 —
+   * 결재를 거치지 않는 회사라 모든 접수가 확인이다(A/S수리조회와 같음). 그래서 [확인] = 전체.
+   */
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'CONFIRMED' | AsStatus>('RECEIVED')
   const [picked, setPicked] = useState<Set<number>>(new Set())
   const [openDetail, setOpenDetail] = useState<number | null>(null)
   /*
@@ -256,7 +262,7 @@ export default function AsManagePage() {
   }
 
   const shownRows = rows
-    .filter((r) => statusFilter === 'ALL' || r.status === statusFilter)
+    .filter((r) => statusFilter === 'ALL' || statusFilter === 'CONFIRMED' || r.status === statusFilter)
     .filter((r) => !keyword || r.partnerName.includes(keyword) || r.itemName.includes(keyword) || r.asNo.includes(keyword))
     .filter((r) => !schedFrom || (r.scheduledDate ?? '') >= schedFrom)
     .filter((r) => !schedTo || (r.scheduledDate != null && r.scheduledDate <= schedTo))
@@ -301,6 +307,8 @@ export default function AsManagePage() {
       onNew={openNew}
       actions={[
         { label: '진행상태변경', onClick: () => setStageOpen(true), disabled: picked.size === 0 },
+        /* 원본 버튼줄: 신규(F2) · Email · 진행상태변경 · 보내기 · 접수증인쇄 · 바코드(품목) · 다른전표생성 · 선택삭제 · Excel · 이력조회. */
+        { label: '접수증인쇄', onClick: () => void printAsReceipts(rows.filter((r) => picked.has(r.id))), disabled: picked.size === 0 },
         { label: '선택삭제', onClick: removeChecked, disabled: picked.size === 0 },
         { label: 'Excel' },
       ]}
@@ -381,12 +389,12 @@ export default function AsManagePage() {
         <input type="date" className="ec-input" value={editedTo} onChange={(e) => setEditedTo(e.target.value)} style={{ width: 140 }} />
       </div>
 
-      {/* 원본 알약은 진행단계다: 전체 · 접수 – 수리중 – 완료. [접수]로 연다. */}
+      {/* 원본 알약: 전체 · 확인 · 접수 – 수리중 – 완료. [접수]로 연다. */}
       <div className="flex items-center justify-between mb-[6px]">
         <div className="ec-pills">
-          {(['ALL', ...STAGES] as const).map((s) => (
+          {(['ALL', 'CONFIRMED', ...STAGES] as const).map((s) => (
             <button key={s} type="button" className={`ec-pill no-ec${statusFilter === s ? ' active' : ''}`}
-                    onClick={() => setStatusFilter(s)}>{s === 'ALL' ? '전체' : LABEL[s]}</button>
+                    onClick={() => setStatusFilter(s)}>{s === 'ALL' ? '전체' : s === 'CONFIRMED' ? '확인' : LABEL[s]}</button>
           ))}
         </div>
         {from && to && <span className="text-ec-label">{dateText(from)} ~ {dateText(to)}</span>}

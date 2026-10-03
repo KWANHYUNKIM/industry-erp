@@ -394,13 +394,6 @@
   ],
   "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrder.java"
  },
- "A/S접수|확인": {
-  "claim": "A/S 전표에 결재·확인 상태가 없다",
-  "absent": [
-   "confirmStatus"
-  ],
-  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
- },
  "창고이동조회|전체": {
   "claim": "창고이동 전표에 결재·확인 상태가 없다",
   "absent": [
@@ -1900,14 +1893,6 @@
    "status"
   ],
   "in": "backend/src/main/java/com/erp/trade/salesplan/SalesPlan.java"
- },
- "A/S접수조회|확인": {
-  "claim": "A/S 상태는 접수·처리중·완료·취소뿐이라 확인 단계가 없다",
-  "absent": [
-   "CONFIRMED",
-   "APPROVED"
-  ],
-  "in": "backend/src/main/java/com/erp/quality/asrequest/AsStatus.java"
  },
  "결제내역조회|품목": {
   "claim": "정산 전표에 품목이 없다 — 수금·지급 한 건이다",
