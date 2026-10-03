@@ -92,7 +92,7 @@ public class WithholdingService {
                         .collect(java.util.stream.Collectors.groupingBy(com.erp.accounting.otherwithholding.OtherWithholding::getIncomeType,
                                 java.util.TreeMap::new, java.util.stream.Collectors.toList()));
         byType.forEach((type, list) -> sections.add(new WithholdingDtos.IncomeSection(
-                type.name(), type.getDisplayName(), list.size(),
+                formCode(type), type.getDisplayName(), list.size(),
                 list.stream().map(com.erp.accounting.otherwithholding.OtherWithholding::getGrossAmount).reduce(BigDecimal.ZERO, BigDecimal::add),
                 list.stream().map(com.erp.accounting.otherwithholding.OtherWithholding::getIncomeTax).reduce(BigDecimal.ZERO, BigDecimal::add),
                 list.stream().map(com.erp.accounting.otherwithholding.OtherWithholding::getLocalIncomeTax).reduce(BigDecimal.ZERO, BigDecimal::add))));
@@ -103,6 +103,19 @@ public class WithholdingService {
                 month, rows.size(), draftCount,
                 totalGross, totalIncomeTax, totalLocal, totalIncomeTax.add(totalLocal),
                 rows, sections, grandTax, grandLocal, grandTax.add(grandLocal));
+    }
+
+    /**
+     * 신고서 서식의 코드 — 원본 신고서는 기타원천세를 사업소득 [매월징수 A25] · 기타소득 [그 외 A42] ·
+     * 이자 [A50] · 배당 [A60] 줄에 싣는다. 예전엔 enum 이름(BUSINESS …)을 코드로 내보내 서식 줄과 이을 수 없었다.
+     */
+    static String formCode(com.erp.accounting.income.IncomeType type) {
+        return switch (type) {
+            case BUSINESS -> "A25";
+            case OTHER -> "A42";
+            case INTEREST -> "A50";
+            case DIVIDEND -> "A60";
+        };
     }
 
     /** 근로소득 원천징수영수증 (연간, 사원별). 확정 명세만 집계한다. */

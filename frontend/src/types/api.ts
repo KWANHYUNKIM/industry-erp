@@ -1945,6 +1945,21 @@ export interface WithholdingStatement {
   grandWithheld: number
 }
 
+/** 원천징수이행상황신고서 목록 한 줄 (E030101) */
+export interface WithholdingReturn {
+  id: number
+  filingType: 'REGULAR' | 'LATE'
+  filingTypeName: string
+  filingMethod: 'MONTHLY' | 'HALF'
+  filingMethodName: string
+  attributionMonth: string
+  payMonth: string
+  reportDate: string
+  includeYearEnd: boolean
+  companyName: string | null
+  bizRegNo: string | null
+}
+
 export interface ReceiptMonth {
   payMonth: string
   grossPay: number
