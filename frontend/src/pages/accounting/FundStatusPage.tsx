@@ -25,6 +25,12 @@ interface PartnerOpt { id: number; code: string; name: string; parentId: number 
 interface Cell { carry: number; inc: number; dec: number }
 interface Line extends Cell { key: string; partner: string; code: string }
 interface Block extends Cell { accCode: string; accName: string; lines: Line[] }
+interface BankTxn { journalEntryId: number | null; bankAccountId: number }
+interface BankAccount { id: number; name: string | null; bankName: string | null; accountNo: string | null }
+/** 현금 · 당좌 · 보통예금 — 이 줄의 거래처 자리는 전표의 거래처가 아니라 통장(현금은 '[ ]')이다. 자금일보와 같은 가름. */
+const CASH_CODES = ['101', '102', '103']
+/** 통장 이름 — 등록한 통장명, 없으면 원본 모양 '은행명-계좌끝4자리'(원본 예: 기업은행-1122). */
+const bookLabel = (a: BankAccount) => a.name || `${a.bankName ?? ''}-${(a.accountNo ?? '').replace(/\D/g, '').slice(-4)}`
 
 /**
  * 회계 I &gt; 경영자료 &gt; <b>자금현황표</b>(E010804) — 2026-10-03 loginaa 실측(자료가 든 판, 최근30일).
@@ -35,6 +41,8 @@ interface Block extends Cell { accCode: string; accName: string; lines: Line[] }
  * <p>한 표 — 계정명 · 거래처명 · 이월잔액[외화] · 증가[외화] · 감소[외화] · 금일잔액[외화] · 거래처코드 · 계정코드(자금일보와 끝 두 칸 차례가
  * 반대다). 계정마다 거래처별 줄(계정명은 첫 줄에만), [계정 계], 끝 [합계]. 잔액은 계정 구분과 상관없이 <b>차변 − 대변</b>으로 쌓는다 —
  * 원본에서 외상매입금 · 미지급금도 그렇게 찍혔다(외상매입금 계 −518,824,300). 거래처 없는 줄은 '[ ]'.
+ * 현금 · 예금 줄의 거래처 자리는 자금일보처럼 통장(계좌 입출금이 가리키는 전표로 찾음, 현금은 '[ ]')이다 — 전표의 거래처를 쓰면
+ * 외상 수금 입금이 '보통예금 / 한울ICT' 로 갈라져 통장 잔액을 볼 수가 없었다.
  * 외화는 회계전표가 외화 금액을 들지 않아 원화만. 부서 · 프로젝트는 회계전표에 없다.
  */
 export default function FundStatusPage() {
@@ -45,6 +53,7 @@ export default function FundStatusPage() {
   const [byParent, setByParent] = useState(true)
   const [partners, setPartners] = useState<PartnerOpt[]>([])
   const [entries, setEntries] = useState<JournalEntry[]>([])
+  const [bookOf, setBookOf] = useState<Map<number, { id: number; label: string; no: string }>>(new Map())
   const [truncated, setTruncated] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -57,7 +66,14 @@ export default function FundStatusPage() {
     setLoading(true)
     setError('')
     try {
-      const r = await api.get<JournalList>('/journals', { params: { from: '1900-01-01', to, all: true } })
+      const [r, t, a] = await Promise.all([
+        api.get<JournalList>('/journals', { params: { from: '1900-01-01', to, all: true } }),
+        api.get<{ rows: BankTxn[] }>('/bank-cards/transactions', { params: { all: true, from: '1900-01-01', to } }).catch(() => ({ data: { rows: [] as BankTxn[] } })),
+        api.get<BankAccount[]>('/bank-cards/accounts').catch(() => ({ data: [] as BankAccount[] })),
+      ])
+      const acc = new Map(a.data.map((x) => [x.id, x]))
+      setBookOf(new Map(t.data.rows.filter((x) => x.journalEntryId != null && acc.has(x.bankAccountId))
+        .map((x) => { const b = acc.get(x.bankAccountId)!; return [x.journalEntryId!, { id: b.id, label: bookLabel(b), no: b.accountNo ?? '' }] })))
       setEntries(r.data.rows)
       setTruncated(r.data.truncated)
     } catch (e) {
@@ -80,9 +96,17 @@ export default function FundStatusPage() {
         if (!FUND_ACCOUNTS.includes(l.accountName)) continue
         if (!m.has(l.accountCode)) m.set(l.accountCode, { accCode: l.accountCode, accName: l.accountName, carry: 0, inc: 0, dec: 0, lines: [] })
         const b = m.get(l.accountCode)!
-        const key = String(pid ?? '')
+        const cash = CASH_CODES.includes(l.accountCode)
+        const bk = cash && l.accountCode !== '101' ? bookOf.get(e.id) : undefined
+        /* 통장은 번호로 묶는다 — 끝 네 자리가 같은 두 통장이 한 줄로 합쳐지지 않게. */
+        const key = cash ? `bank:${bk?.id ?? ''}` : String(pid ?? '')
         let line = b.lines.find((x) => x.key === key)
-        if (!line) { line = { key, partner: p?.name ?? e.partnerName ?? '[ ]', code: p?.code ?? '[ ]', carry: 0, inc: 0, dec: 0 }; b.lines.push(line) }
+        if (!line) {
+          line = cash
+            ? { key, partner: bk?.label ?? '[ ]', code: bk?.no ?? '[ ]', carry: 0, inc: 0, dec: 0 }
+            : { key, partner: p?.name ?? e.partnerName ?? '[ ]', code: p?.code ?? '[ ]', carry: 0, inc: 0, dec: 0 }
+          b.lines.push(line)
+        }
         const d = Number(l.debit), c = Number(l.credit)
         if (e.entryDate < from) { line.carry += d - c; b.carry += d - c }
         else { line.inc += d; line.dec += c; b.inc += d; b.dec += c }
@@ -91,10 +115,10 @@ export default function FundStatusPage() {
     const order = (n: string) => FUND_ACCOUNTS.indexOf(n)
     return [...m.values()]
       .map((b) => ({ ...b, lines: b.lines.filter((x) => x.carry || x.inc || x.dec)
-        .sort((x, y) => (x.partner === '[ ]' ? -1 : y.partner === '[ ]' ? 1 : x.partner.localeCompare(y.partner, 'ko'))) }))
+        .sort((x, y) => (x.partner === '[ ]' ? -1 : y.partner === '[ ]' ? 1 : x.partner.localeCompare(y.partner, 'ko') || x.code.localeCompare(y.code))) }))
       .filter((b) => b.lines.length > 0)
       .sort((a, b) => order(a.accName) - order(b.accName))
-  }, [entries, partners, byParent, from])
+  }, [entries, partners, byParent, from, bookOf])
   const tot = blocks.reduce((s, b) => ({ carry: s.carry + b.carry, inc: s.inc + b.inc, dec: s.dec + b.dec }), { carry: 0, inc: 0, dec: 0 })
   const bal = (c: Cell) => c.carry + c.inc - c.dec
 

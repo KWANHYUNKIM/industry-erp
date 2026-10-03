@@ -50,7 +50,7 @@ export default function FundDailyPage({ variant = 'daily' }: { variant?: 'daily'
   const [to, setTo] = useState(init.to)
   const [entries, setEntries] = useState<JournalEntry[]>([])
   /* 회계전표 → 그 전표를 만든 통장. 원본은 예금 계정을 통장(거래처명 자리)마다 가른다. */
-  const [bookOf, setBookOf] = useState<Map<number, { label: string; no: string }>>(new Map())
+  const [bookOf, setBookOf] = useState<Map<number, { id: number; label: string; no: string }>>(new Map())
   const [truncated, setTruncated] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -67,7 +67,7 @@ export default function FundDailyPage({ variant = 'daily' }: { variant?: 'daily'
       ])
       const acc = new Map(a.data.map((x) => [x.id, x]))
       setBookOf(new Map(t.data.rows.filter((x) => x.journalEntryId != null && acc.has(x.bankAccountId))
-        .map((x) => { const b = acc.get(x.bankAccountId)!; return [x.journalEntryId!, { label: bookLabel(b), no: b.accountNo ?? '' }] })))
+        .map((x) => { const b = acc.get(x.bankAccountId)!; return [x.journalEntryId!, { id: b.id, label: bookLabel(b), no: b.accountNo ?? '' }] })))
       setEntries(r.data.rows)
       setTruncated(r.data.truncated)
     } catch (e) {
@@ -90,8 +90,9 @@ export default function FundDailyPage({ variant = 'daily' }: { variant?: 'daily'
         const f = fm.get(l.accountCode)!
         /* 현금은 통장이 없다. 예금 줄은 그 전표를 만든 통장으로, 통장 없이 잡힌 분개는 '[ ]' 줄로. */
         const bk = l.accountCode === '101' ? undefined : bookOf.get(e.id)
-        const key = bk ? bk.label : '[ ]'
-        if (!f.books.has(key)) f.books.set(key, { label: key, no: bk ? bk.no : '[ ]', carry: 0, inc: 0, dec: 0 })
+        /* 통장 번호로 묶는다 — 끝 네 자리가 같은 두 통장(이름이 같게 보이는 통장)이 한 줄로 합쳐지지 않게. */
+        const key = bk ? `#${bk.id}` : '[ ]'
+        if (!f.books.has(key)) f.books.set(key, { label: bk ? bk.label : '[ ]', no: bk ? bk.no : '[ ]', carry: 0, inc: 0, dec: 0 })
         const b = f.books.get(key)!
         const d = Number(l.debit), c = Number(l.credit)
         if (e.entryDate < from) { f.carry += d - c; b.carry += d - c; continue }
@@ -203,8 +204,8 @@ export default function FundDailyPage({ variant = 'daily' }: { variant?: 'daily'
                   {funds.length === 0 && <tr><td colSpan={8} className="text-center text-ec-hint p-[14px]">등록된 데이터가 없습니다.</td></tr>}
                   {funds.map((f) => (
                     <Fragment key={f.code}>
-                      {[...f.books.values()].filter((b) => b.carry || b.inc || b.dec).sort((x, y) => (x.label === '[ ]' ? -1 : y.label === '[ ]' ? 1 : x.label.localeCompare(y.label, 'ko'))).map((b) => (
-                        <tr key={b.label}>
+                      {[...f.books.values()].filter((b) => b.carry || b.inc || b.dec).sort((x, y) => (x.label === '[ ]' ? -1 : y.label === '[ ]' ? 1 : x.label.localeCompare(y.label, 'ko') || x.no.localeCompare(y.no))).map((b) => (
+                        <tr key={b.no + b.label}>
                           <td>{f.name}</td>
                           <td>{b.label}</td>
                           <td className="text-right">{won(b.carry)}</td>
