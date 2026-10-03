@@ -559,6 +559,7 @@ const MENU: TopMenu[] = [
         nodes: [
           { label: '기본사항등록', children: [
             { label: '사원등록', to: '/hr/employees' },
+            { label: '수당항목등록', to: '/hr/allowance-items' },
             { label: '담당자별 실적', to: '/hr/performance' },
           ] },
           { label: '급여작업', children: [{ label: '급여계산/대장', to: '/hr/payroll' }, { label: '수당·공제그룹/급여이체', to: '/hr/pay-settings' }] },

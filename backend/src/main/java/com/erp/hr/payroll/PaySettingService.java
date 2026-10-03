@@ -128,6 +128,17 @@ public class PaySettingService {
         groupRepository.delete(group(id));
     }
 
+    /**
+     * 항목 삭제. 원본 수당리스트에는 삭제 단추가 없고 [사용중단]으로 내린다 — 화면도 그렇게 한다.
+     * 이 경로는 화면 시험(qa/flows/pay-item-list.json)이 만든 항목을 치우는 데 쓴다.
+     * 그룹이 물고 있으면 FK 가 막는다.
+     */
+    @Transactional
+    public void deleteItem(Long id) {
+        itemRepository.delete(item(id));
+        itemRepository.flush();
+    }
+
     // ── 내부 ──────────────────────────────────────────────────────────
 
     private void applyLines(PayGroup g, List<GroupLineInput> inputs) {

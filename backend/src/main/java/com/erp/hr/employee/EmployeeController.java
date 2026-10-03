@@ -4,7 +4,6 @@ import com.erp.hr.employee.dto.EmployeeDtos.AssignDepartmentRequest;
 import com.erp.hr.employee.dto.EmployeeDtos.AssignmentResponse;
 import com.erp.hr.employee.dto.EmployeeDtos.CreateAssignmentRequest;
 import com.erp.hr.employee.dto.EmployeeDtos.EmployeeResponse;
-import com.erp.hr.employee.dto.EmployeeDtos.UpdateSalaryRequest;
 import com.erp.hr.employee.dto.EmployeePerformanceDtos.PerformanceSummary;
 import com.erp.security.UserPrincipal;
 import jakarta.validation.Valid;
@@ -109,12 +108,6 @@ public class EmployeeController {
     @DeleteMapping("/{id}")
     public void delete(@PathVariable Long id) {
         employeeService.delete(id);
-    }
-
-    /** 사원 기본급 수정 */
-    @PutMapping("/{id}/base-salary")
-    public EmployeeResponse updateBaseSalary(@PathVariable Long id, @Valid @RequestBody UpdateSalaryRequest req) {
-        return employeeService.updateBaseSalary(id, req);
     }
 
     /** 부서 배치 (조직도에서 사원을 부서로 옮길 때) */

@@ -14,10 +14,6 @@ import java.time.LocalDate;
 
 public class EmployeeDtos {
 
-    public record UpdateSalaryRequest(
-            @NotNull(message = "기본급을 입력하세요.") BigDecimal baseSalary
-    ) {}
-
     /** 부서 배치. departmentId 가 null 이면 미배치로 되돌린다. */
     public record AssignDepartmentRequest(Long departmentId) {}
 

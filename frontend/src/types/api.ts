@@ -1744,7 +1744,18 @@ export interface PayItem {
   taxable: boolean
   defaultAmount: number
   active: boolean
+  /** 원본 수당항목등록(E090103)의 [표시순서]·[배율]·[비과세유형]·[지급유형]·[산출방법]. */
+  sortOrder: number
+  rate: number | null
+  taxFreeType: PayTaxFreeType
+  taxFreeTypeName: string
+  payMethod: PayMethod
+  payMethodName: string
+  calcNote: string | null
 }
+
+export type PayTaxFreeType = 'NONE' | 'NIGHT_WORK' | 'CHILDCARE' | 'MEAL' | 'VEHICLE'
+export type PayMethod = 'FIXED' | 'DAILY' | 'HOURLY' | 'RATE' | 'MANUAL'
 
 export interface PayGroupLine {
   payItemId: number

@@ -40,6 +40,12 @@ public class PaySettingController {
         return service.updateItem(id, req);
     }
 
+    /** 화면 시험 뒷정리용 — 원본 화면에는 삭제가 없다(PaySettingService.deleteItem). */
+    @DeleteMapping("/items/{id}")
+    public void deleteItem(@PathVariable Long id) {
+        service.deleteItem(id);
+    }
+
     @GetMapping("/groups")
     public List<PayGroupResponse> groups() {
         return service.findGroups();

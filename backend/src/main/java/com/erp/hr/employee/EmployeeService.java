@@ -8,7 +8,6 @@ import com.erp.hr.employee.dto.EmployeeDtos.CreateAssignmentRequest;
 import com.erp.hr.employee.dto.EmployeeDtos.CreateEmployeeRequest;
 import com.erp.hr.employee.dto.EmployeeDtos.EmployeeResponse;
 import com.erp.hr.employee.dto.EmployeeDtos.UpdateEmployeeRequest;
-import com.erp.hr.employee.dto.EmployeeDtos.UpdateSalaryRequest;
 import com.erp.common.DocumentNoGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -153,15 +152,6 @@ public class EmployeeService {
         return e;
     }
 
-    @Transactional
-    public EmployeeResponse updateBaseSalary(Long id, UpdateSalaryRequest req) {
-        if (req.baseSalary().signum() < 0) {
-            throw ApiException.badRequest("기본급은 0 이상이어야 합니다.");
-        }
-        Employee e = get(id);
-        e.setBaseSalary(req.baseSalary());
-        return EmployeeResponse.from(e);
-    }
 
     /** 부서 배치. departmentId 가 null 이면 미배치로 되돌린다. */
     @Transactional
