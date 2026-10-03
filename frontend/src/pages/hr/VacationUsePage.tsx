@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import CodePickerField from '../../components/CodePickerField'
+import VacationCodeUseReport from '../../features/vacation/components/VacationCodeUseReport'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
@@ -6,7 +8,13 @@ import { formatDays } from '../../utils/dayCount'
 import { dateText } from '../../utils/dateText'
 import { withRemain } from '../../utils/vacationRemain'
 
-/** 관리 > 휴가사용실적현황 — 사원별 휴가 종류·기간·사용일수 실적 조회 (백엔드 /api/hr/vacations 연동) */
+/**
+ * 관리 > 휴가사용실적현황 — 사원별 휴가 종류·기간·사용일수 실적 조회 (백엔드 /api/hr/vacations 연동)
+ *
+ * <p>[휴가코드]에서 <b>휴가항목등록의 코드</b>를 고르면 원본 꼴로 바뀐다(2026-10-03 loginaa 실측: 사원마다 한 장 —
+ * 머리 '회사명 : … / 2024 연차 / 천우석', 격자 전표번호 · 적요 · 휴가일수 · 휴가사용일수 · 휴가잔여일수, 첫 줄 '[휴가]'(부여),
+ * 근태마다 한 줄씩 잔여가 줄고 끝에 합계). 부여는 사원별휴가일수조회, 사용은 근태항목이 그 휴가코드를 가리키는 근태.
+ */
 interface Row {
   id: number
   /** 원본 휴가사용실적현황의 [전표번호]. 근태 전표 번호다. */
@@ -58,6 +66,38 @@ export default function VacationUsePage() {
   const [status, setStatus] = useState('전체')
   const [employment, setEmployment] = useState<'ACTIVE' | 'RESIGNED' | 'ALL'>('ACTIVE')
   const [grants, setGrants] = useState<Map<string, number>>(new Map())
+  // ── 휴가항목(휴가코드) 꼴 — 원본 휴가사용실적현황 ──
+  interface VKind { id: number; code: string; name: string; periodFrom: string; periodTo: string }
+  interface Emp { id: number; code: string; name: string; active: boolean }
+  interface CodeVac { id: number; docNo: string; empCode: string | null; type: string; startDate: string; days: number; reason: string | null }
+  const [vkinds, setVkinds] = useState<VKind[]>([])
+  const [codePick, setCodePick] = useState('')
+  const [codeBlocks, setCodeBlocks] = useState<{ emp: Emp; grant: number | null; lines: CodeVac[] }[] | null>(null)
+  const [companyName, setCompanyName] = useState('')
+  useEffect(() => {
+    api.get<VKind[]>('/hr/vacation-kinds').then((r) => setVkinds(r.data)).catch(() => setVkinds([]))
+    api.get<{ name?: string } | null>('/company').then((r) => setCompanyName(r.data?.name ?? '')).catch(() => {})
+  }, [])
+  useEffect(() => {
+    if (!codePick.startsWith('VK:')) { setCodeBlocks(null); setVtype(codePick); return }
+    setVtype('')
+    const id = Number(codePick.slice(3))
+    const vk = vkinds.find((k) => k.id === id)
+    if (!vk) return
+    Promise.all([
+      api.get<{ employeeId: number; totalDays: number }[]>(`/hr/vacation-kinds/${id}/grants`),
+      api.get<Emp[]>('/employees/all'),
+      api.get<{ name: string; vacationKindId: number | null }[]>('/hr/attendance-kinds'),
+      api.get<CodeVac[]>('/hr/vacations', { params: { from: vk.periodFrom, to: vk.periodTo } }),
+    ]).then(([g, e, a, v]) => {
+      const types = new Set(a.data.filter((k) => k.vacationKindId === id).map((k) => k.name))
+      setCodeBlocks(e.data.map((emp) => ({
+        emp,
+        grant: g.data.find((x) => x.employeeId === emp.id)?.totalDays ?? null,
+        lines: v.data.filter((x) => x.empCode === emp.code && types.has(x.type)).sort((x, y) => x.startDate.localeCompare(y.startDate)),
+      })))
+    }).catch((err) => setError(extractErrorMessage(err)))
+  }, [codePick, vkinds])
 
   async function load() {
     setLoading(true)
@@ -127,15 +167,19 @@ export default function VacationUsePage() {
       onNew={undefined}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setEmp(''); setDept(''); setVtype(''); setReason(''); setStatus('전체'); setEmployment('ACTIVE') } },
+        { label: '다시 작성', onClick: () => { setEmp(''); setDept(''); setVtype(''); setCodePick(''); setReason(''); setStatus('전체'); setEmployment('ACTIVE') } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
     >
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="휴가코드" pick>
-          <input className="ec-input" placeholder="휴가종류 일부" value={vtype}
-                 onChange={(e) => setVtype(e.target.value)} style={{ width: 180 }} />
+          <CodePickerField label="휴가코드" hideLabel width={180} emptyLabel="전체"
+                           value={codePick} onChange={(v) => setCodePick(v)}
+                           items={[
+                             ...vkinds.map((k) => ({ value: `VK:${k.id}`, code: k.code, name: k.name })),
+                             ...[...new Set(rows.map((r) => r.type))].map((t) => ({ value: t, name: t })),
+                           ]} />
         </EcCond>
         <EcCond label="사원" pick>
           <input className="ec-input" placeholder="사원명 일부" value={emp}
@@ -174,6 +218,10 @@ export default function VacationUsePage() {
       </div>
 
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {codeBlocks ? (
+        <VacationCodeUseReport blocks={codeBlocks.filter((b) => (employment === 'ALL' || (employment === 'ACTIVE') === b.emp.active) && (!emp || b.emp.name.includes(emp)))}
+                               companyName={companyName} vacationName={vkinds.find((k) => `VK:${k.id}` === codePick)?.name ?? ''} />
+      ) : (
       <table className="w-full text-left">
         <thead>
           <tr>
@@ -226,6 +274,7 @@ export default function VacationUsePage() {
           ))}
         </tbody>
       </table>
+      )}
     </EcListShell>
   )
 }
