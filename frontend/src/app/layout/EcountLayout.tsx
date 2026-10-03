@@ -673,7 +673,10 @@ const MENU: TopMenu[] = [
             { label: '일용근로 근무입력', to: '/hr/daily-work-input' },
             { label: '일용근로 근무조회', to: '/hr/daily-work-list' },
           ] },
-          { label: '일용근로 급여작업', children: [{ label: '일용근로 출역/급여대장', to: '/hr/daily-wage' }] },
+          { label: '일용근로 급여작업', children: [
+            { label: '일용근로 급여계산/대장', to: '/hr/daily-payroll' },
+            { label: '일용근로 출역/지급(분개)', to: '/hr/daily-wage' },
+          ] },
         ],
       },
       {

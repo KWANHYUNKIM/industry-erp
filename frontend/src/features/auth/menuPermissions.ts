@@ -156,6 +156,7 @@ const RULES: Rule[] = [
   ['/hr/work-input', 'PAYROLL'],
   ['/hr/work-list', 'PAYROLL'],
   ['/hr/daily-wage', 'PAYROLL'],
+  ['/hr/daily-payroll', 'PAYROLL'],
   ['/hr', 'HR'],
 
   // 그룹웨어

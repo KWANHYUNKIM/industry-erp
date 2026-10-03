@@ -1,0 +1,38 @@
+{
+  "about": "관리 > 일용근로 급여계산/대장(E020139) — 일용근로 사원 둘(일근무 150,000 · 200,000)이 2091/10 에 이틀씩 근무입력돼 있을 때, 대장 신규 → 근무기록확정 [근무기록] 으로 2 · 2 를 불러 저장 → 전체계산 → 급여대장: 지급총액 700,000 · 소득세 2,700 · 지방소득세 270 · 실지급액 697,030 (원본 150,000 × 2 → 300,000 · 세금 0 과 같은 셈). 대장을 지우고 시험 자료를 정리한다.",
+  "shots": [
+    {
+      "name": "대장 신규 → 근무기록확정 → 전체계산 → 급여대장 → 삭제",
+      "path": "/hr/daily-payroll",
+      "steps": [
+        "js:window.confirm=()=>true;true",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const mk=async(n,w)=>(await (await fetch('/api/hr/daily-workers',{method:'POST',headers:h,body:JSON.stringify({name:n,foreigner:false,employmentInsurance:true,pensionAuto:false,healthAuto:false,dailyWage:w})})).json());const a=await mk('QA관리-일용A',150000);const b=await mk('QA관리-일용B',200000);const s=await (await fetch('/api/hr/daily-work-entries',{method:'POST',headers:h,body:JSON.stringify({slipDate:'2091-10-05',lines:[{workDate:'2091-10-05',workerId:a.id,quantity:2},{workDate:'2091-10-06',workerId:b.id,quantity:2}]})})).json();sessionStorage.setItem('qaDp',JSON.stringify({a:a.id,b:b.id,slip:s.slipDate+'/'+s.slipNo}));return true})()",
+        "click:신규(F2)",
+        "set:[role=dialog] input[type=month]#0|2091-10",
+        "expect:document.querySelectorAll('[role=dialog] input[type=date]')[0].value==='2091-10-01'&&document.querySelectorAll('[role=dialog] input[type=date]')[1].value==='2091-10-31'",
+        "clicklast:저장(F8)",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('table tbody tr')].some(tr=>tr.innerText.includes('2091/10')&&tr.innerText.includes('2091/10 1차수 (급여)'))",
+        "js:(()=>{const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('2091/10 1차수'));[...tr.querySelectorAll('a')].find(a=>a.textContent.startsWith('근무기록확정')).click();return true})()",
+        "wait:1200",
+        "clicklast:근무기록",
+        "wait:800",
+        "expect:(()=>{const rs=[...document.querySelectorAll('[role=dialog] table tbody tr')];const v=n=>rs.find(r=>r.innerText.includes(n))?.querySelector('input')?.value;return v('QA관리-일용A')==='2'&&v('QA관리-일용B')==='2'&&rs.find(r=>r.innerText.includes('QA관리-일용A')).innerText.includes('2091/10/05')})()",
+        "clicklast:저장(F8)",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('2091/10 1차수')).innerText.match(/근무기록확정\\[(\\d+)\\]/)?.[1]>='2'",
+        "js:(()=>{const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('2091/10 1차수'));[...tr.querySelectorAll('a')].find(a=>a.textContent==='전체계산').click();return true})()",
+        "expect:document.body.innerText.includes('기존 자료를 삭제하고 다시 계산합니다.')",
+        "clicklast:확인",
+        "wait:1500",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const t=d.innerText;const a=[...d.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA관리-일용A'))?.innerText||'';const b=[...d.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA관리-일용B'))?.innerText||'';return t.includes('2091/10 1차수 (급여)')&&a.includes('300,000')&&b.includes('400,000')&&b.includes('2,700')&&b.includes('270')&&b.includes('397,030')})()",
+        "clicklast:닫기",
+        "js:(()=>{const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('2091/10 1차수'));[...tr.querySelectorAll('a')].find(a=>a.textContent==='삭제').click();return true})()",
+        "wait:1200",
+        "expect:![...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes('2091/10 1차수'))",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const q=JSON.parse(sessionStorage.getItem('qaDp'));const r1=await fetch('/api/hr/daily-work-entries/'+q.slip,{method:'DELETE',headers:h});const r2=await fetch('/api/hr/daily-workers/'+q.a,{method:'DELETE',headers:h});const r3=await fetch('/api/hr/daily-workers/'+q.b,{method:'DELETE',headers:h});sessionStorage.setItem('qaDpClean',String(r1.ok&&r2.ok&&r3.ok));return true})()",
+        "expect:sessionStorage.getItem('qaDpClean')==='true'"
+      ]
+    }
+  ]
+}
