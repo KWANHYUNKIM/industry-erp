@@ -3175,3 +3175,10 @@ export interface RetirementEstimateRow {
   threeMonthPay: number; bonusThreeMonths: number; years: number; months: number; days: number
   threeMonthDays: number; serviceDays: number; retirementPay: number
 }
+
+/** 원천세신고자료비교표(E030104) 한 줄 — month 가 null 이면 합계 줄 */
+export interface WithholdingComparisonRow {
+  month: string | null; kind: string; count: number
+  gross: number | null; nonTaxable: number | null; incomeTax: number | null; localIncomeTax: number | null
+  reportedCount: number | null; reportedGross: number | null; reportedTax: number | null; differs: boolean
+}
