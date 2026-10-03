@@ -111,7 +111,14 @@ export default function QualityRequestPage() {
    * 기간은 최근30일(+1개월). 하나를 골라 [적용(F8)] 하면 그 전표의 품목 · 수량이 줄로 들어오고(검사방법 전수),
    * 불러오기 단추들은 사라진다 — 한 요청은 한 전표에서만 불러온다. 요청에는 원 전표가 남지 않는다([연결전표]는 이어 만든 검사).
    */
-  type PullKind = '판매' | '구매'
+  /* 원본 단추 차례: 판매 · 발주 · 주문 · 구매 · 생산 · 이동 · A/S접수. 앞 넷(판매 · 발주 · 주문 · 구매)만 만들었다. */
+  const PULLS = {
+    판매: { url: '/sales', no: 'docNo', date: 'saleDate' },
+    발주: { url: '/purchase-orders', no: 'orderNo', date: 'orderDate' },
+    주문: { url: '/sales-orders', no: 'orderNo', date: 'orderDate' },
+    구매: { url: '/purchases', no: 'docNo', date: 'purchaseDate' },
+  } as const
+  type PullKind = keyof typeof PULLS
   interface PullDoc { id: number; docNo: string; date: string; partnerName: string; warehouseName: string; totalAmount: number; lines: { itemId: number; itemName: string; quantity: number }[] }
   const [pullKind, setPullKind] = useState<PullKind | null>(null)
   const [pullRows, setPullRows] = useState<PullDoc[]>([])
@@ -121,9 +128,10 @@ export default function QualityRequestPage() {
     setPullKind(kind); setPullPick(null); setPullRows([])
     const r = periodOf('최근30일(+1개월)')!
     try {
-      const data = (await api.get<Record<string, unknown>[]>(kind === '구매' ? '/purchases' : '/sales', { params: { from: r.from, to: r.to } })).data
+      const c = PULLS[kind]
+      const data = (await api.get<Record<string, unknown>[]>(c.url, { params: { from: r.from, to: r.to } })).data
       setPullRows(data.map((d) => ({
-        id: d.id as number, docNo: d.docNo as string, date: (kind === '구매' ? d.purchaseDate : d.saleDate) as string,
+        id: d.id as number, docNo: d[c.no] as string, date: d[c.date] as string,
         partnerName: (d.partnerName as string) ?? '', warehouseName: (d.warehouseName as string) ?? '', totalAmount: Number(d.totalAmount),
         lines: (d.lines as { itemId: number; itemName: string; quantity: number }[]) ?? [],
       })).sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id))
@@ -396,7 +404,7 @@ export default function QualityRequestPage() {
         </ul>
         {!editing && !pulled && (
           <div className="flex gap-[4px] mt-[8px]">
-            {(['판매', '구매'] as const).map((k) => (
+            {(Object.keys(PULLS) as PullKind[]).map((k) => (
               <button key={k} type="button" className="ec-btn ec-btn-sm" onClick={() => void openPull(k)}>{k}</button>
             ))}
           </div>
