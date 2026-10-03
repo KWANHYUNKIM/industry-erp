@@ -101,7 +101,7 @@ export default function DailyWorkHoursPage() {
       묶음.set(key, cur)
     }
     return [...묶음.values()].sort((a, b) => a.empName.localeCompare(b.empName, 'ko'))
-  }, [rows, keyword, deptCond, subtotal])
+  }, [rows, keyword, deptCond, deptGroup, inGroup, subtotal])
 
   /** 일자별 총 근무시간(하단 합계행) */
   const dayTotals = useMemo(() => {

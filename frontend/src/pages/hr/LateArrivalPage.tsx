@@ -88,7 +88,7 @@ export default function LateArrivalPage() {
       return { ...r, lateMin: cin != null ? Math.max(0, cin - START_MIN) : 0 }
     })
     .sort((a, b) => b.date.localeCompare(a.date) || b.lateMin - a.lateMin),
-  [rows, keyword, deptCond])
+  [rows, keyword, deptCond, deptGroup, inGroup])
 
   /*
    * 원본 조건 <b>[정렬/소계기준]</b> — 소계를 <b>무엇으로 묶을지</b> 고른다(사본 실측).

@@ -159,7 +159,7 @@ export default function WorkIntegratedPage() {
       // 원본 탭 [사용자] — 내 기록만 본다. 사람이 많은 회사에서 남의 줄 사이를 훑을 일이 아니다.
       .filter((r) => tab === '전체' || r.name === user?.name)
       .sort((a, b) => b.date.localeCompare(a.date) || a.name.localeCompare(b.name, 'ko'))
-  }, [att, events, from, to, keyword, noteCond, nameCond, deptCond, statusCond, catCond, sharedCond, projectCond, tab, user?.name])
+  }, [att, events, from, to, keyword, noteCond, nameCond, deptCond, deptGroup, inGroup, statusCond, catCond, sharedCond, projectCond, tab, user?.name])
 
   const eventTotal = useMemo(() => rows.reduce((s, r) => s + r.events.length, 0), [rows])
 
