@@ -113,7 +113,7 @@ public final class MenuPermissionCatalog {
                 "/api/work-journals", "/api/board", "/api/notices", "/api/surveys",
                 "/api/drive-documents", "/api/mails", "/api/spam-rules", "/api/short-messages", "/api/schedule-events",
                 "/api/chat",
-                "/api/field-works");
+                "/api/field-works", "/api/field-vehicles");
         // 설정
         put(m, "SETTINGS", "/api/company", "/api/preferences", "/api/security-policy",
                 "/api/currencies", "/api/codes", "/api/print-sign-lines", "/api/custom-fields",

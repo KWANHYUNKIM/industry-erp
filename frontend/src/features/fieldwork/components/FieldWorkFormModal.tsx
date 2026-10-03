@@ -5,6 +5,7 @@ import { api, extractErrorMessage } from '../../../api/client'
 import { ymd } from '../../../components/EcPeriodPicks'
 import type { FieldWork } from '../../../types/api'
 import { useShortcut } from '../../../utils/useShortcut'
+import VehiclePicker from './VehiclePicker'
 
 export interface FieldWorkUser { id: number; name: string; username: string }
 
@@ -54,7 +55,9 @@ export default function FieldWorkFormModal({ open, record, users, myUsername, on
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (open) { setForm(record ? fromRecord(record) : blank()); setError('') } }, [open, record])
 
-  useShortcut('F8', () => void submit(), open)
+  /** 원본 [이동수단] 코드도움(이동수단검색) */
+  const [pickerOpen, setPickerOpen] = useState(false)
+  useShortcut('F8', () => void submit(), open && !pickerOpen)
 
   async function submit() {
     setError('')
@@ -111,6 +114,7 @@ export default function FieldWorkFormModal({ open, record, users, myUsername, on
           <div className="title">이동수단</div>
           <div className="form">
             <input className="ec-input w-[160px]" placeholder="이동수단" value={form.vehicleNo} onChange={(e) => set('vehicleNo', e.target.value)} />
+            <button type="button" className="ec-btn ec-btn-sm" aria-label="이동수단검색" onClick={() => setPickerOpen(true)}>🔍</button>
             <input className="ec-input flex-1" placeholder="이동수단명" value={form.vehicleName} onChange={(e) => set('vehicleName', e.target.value)} />
           </div>
         </li>
@@ -142,6 +146,8 @@ export default function FieldWorkFormModal({ open, record, users, myUsername, on
           : <button type="button" className="ec-btn" onClick={() => setForm(blank())}>다시 작성</button>}
         <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
       </div>
+      <VehiclePicker open={pickerOpen} onClose={() => setPickerOpen(false)}
+                     onPick={(v) => { setForm((f) => ({ ...f, vehicleNo: v.code, vehicleName: v.name })); setPickerOpen(false) }} />
     </Modal>
   )
 }
