@@ -1089,4 +1089,24 @@ th.ec-empty {
   line-height: 1;
   white-space: nowrap;
 }
+/* 조직도현황(E090220) — 부서 상자 나무. 실측: 머리 rgb(27,61,161) 흰 12px 700 · 위 모서리 10 · 여백 6.3 4.5 · 상자 폭 161 · 사람 줄 여백 4.5 0 */
+.ec-org-chart { display: flex; gap: 27px; align-items: flex-start; }
+.ec-org-node { display: flex; flex-direction: column; align-items: center; }
+.ec-org-box { width: 161px; background: var(--ec-bg-panel); border-radius: var(--ec-radius) var(--ec-radius) 0 0; }
+.ec-org-head {
+  padding: 6.3px 4.5px;
+  border-radius: var(--ec-radius) var(--ec-radius) 0 0;
+  background: var(--ec-blue-hover);
+  color: var(--ec-bg-panel);
+  font-size: var(--ec-fs);
+  font-weight: 700;
+  text-align: center;
+}
+.ec-org-members { list-style: none; margin: 0; padding: 0; }
+.ec-org-members > li { display: grid; grid-template-columns: 1fr 1fr; padding: 4.5px 0; font-size: var(--ec-fs); text-align: center; }
+.ec-org-members > li.hit { background: var(--ec-blue-wash); font-weight: 700; }
+.ec-org-children { position: relative; display: flex; gap: 9px; margin-top: 18px; padding-top: 18px; border-top: var(--ec-hair) solid var(--ec-line); }
+.ec-org-children::before { content: ""; position: absolute; top: -18px; left: 50%; height: 18px; border-left: var(--ec-hair) solid var(--ec-line); }
+.ec-org-children > .ec-org-branch { position: relative; }
+.ec-org-children > .ec-org-branch::before { content: ""; position: absolute; top: -18px; left: 50%; height: 18px; border-left: var(--ec-hair) solid var(--ec-line); }
 } /* @layer components */

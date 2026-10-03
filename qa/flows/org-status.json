@@ -1,0 +1,16 @@
+{
+  "about": "조직도현황(원본 E090220) — 부서 상자 나무(머리 = 부서명, 줄 = 성명 · 직급), 확대·축소, 하단 [인쇄] 하나. node qa/shot.mjs qa/flows/org-status.json",
+  "shots": [
+    {
+      "name": "부서 상자와 사람 줄이 그려지고, 확대하면 크기가 바뀐다",
+      "path": "/groupware/org-status",
+      "steps": [
+        "expect:document.querySelectorAll('.ec-org-head').length >= 1",
+        "expect:document.querySelectorAll('.ec-org-members li').length >= 1 && [...document.querySelectorAll('.ec-org-members li')].every((li) => li.children.length === 2)",
+        "js:document.querySelector('button[aria-label=확대]').click(); true",
+        "expect:document.querySelector('.ec-org-chart').style.zoom === '1.1'",
+        "expect:[...document.querySelectorAll('button')].some((b) => b.textContent.trim() === '인쇄') && ![...document.querySelectorAll('button')].some((b) => b.textContent.trim() === '신규(F2)')"
+      ]
+    }
+  ]
+}
