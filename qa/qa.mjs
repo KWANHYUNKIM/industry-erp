@@ -11111,6 +11111,12 @@ async function scenarioAttendanceKind() {
   await must('DELETE', `/hr/attendance-kinds/${k.id}`)
   await must('PUT', `/hr/vacation-kinds/${v.id}`, { name: 'QA-휴가2', periodFrom: '2091-01-01', periodTo: '2091-12-31', carryOver: true, active: true })
   eq('휴가항목 수정', (await must('GET', '/hr/vacation-kinds')).find((x) => x.id === v.id)?.carryOver, 'true')
+  const emp = (await must('GET', '/employees'))[0]
+  await must('PUT', `/hr/vacation-kinds/${v.id}/grants`, [{ employeeId: emp.id, carryOverDays: 2, currentDays: 15 }])
+  eq('사원별휴가일수 — 휴가일수 = 이월 + 당해년', Number((await must('GET', `/hr/vacation-kinds/${v.id}/grants`))[0].totalDays), 17)
+  eq('등록인원수', (await must('GET', '/hr/vacation-kinds/grant-summaries')).find((x) => x.vacationKindId === v.id)?.headcount, 1)
+  await rejects('사원별휴가일수가 있는 휴가항목은 지울 수 없다', 'DELETE', `/hr/vacation-kinds/${v.id}`, undefined, '사원별휴가일수가 등록된')
+  await must('DELETE', `/hr/vacation-kinds/${v.id}/grants`)
   await must('DELETE', `/hr/vacation-kinds/${v.id}`)
   eq('next-code 가 다섯 자리', /^\d{5}$/.test((await must('GET', '/hr/vacation-kinds/next-code')).code), 'true')
   eq('지운 항목은 목록에 없다', (await must('GET', '/hr/attendance-kinds')).some((x) => x.id === k.id), 'false')
