@@ -28,6 +28,13 @@ public class EmployeeAssignment extends BaseTimeEntity {
     @JoinColumn(name = "employee_id")
     private Employee employee;
 
+    /** 인사발령입력 전표(원본 일자-No.). 한 전표에 여러 사원의 발령 줄이 든다. */
+    @Column(name = "slip_date", nullable = false)
+    private LocalDate slipDate;
+
+    @Column(name = "slip_no", nullable = false)
+    private Integer slipNo;
+
     @Column(name = "assign_date", nullable = false)
     private LocalDate assignDate;
 
@@ -39,6 +46,18 @@ public class EmployeeAssignment extends BaseTimeEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "department_id")
     private Department department;
+
+    /** 발령 전 부서·직위(원본 '이전 부서' · '이전 직위/직급'). 발령할 때 사원의 그때 값을 적는다. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "prev_department_id")
+    private Department prevDepartment;
+
+    @Column(name = "prev_job_title", length = 100)
+    private String prevJobTitle;
+
+    /** 원본 '입사구분'(신입 · 경력 …) — 회사가 적는 글자 */
+    @Column(name = "hire_kind", length = 50)
+    private String hireKind;
 
     /** 발령 후 직위 */
     @Column(name = "job_title", length = 100)

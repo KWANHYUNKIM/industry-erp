@@ -11,6 +11,7 @@ import jakarta.validation.constraints.PositiveOrZero;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 public class EmployeeDtos {
 
@@ -28,8 +29,31 @@ public class EmployeeDtos {
             String remark
     ) {}
 
+    /** 인사발령입력 한 줄(원본 발령일자 · 사번 · 발령구분 · 입사구분 · 발령 직위/직급 · 발령 부서 · 적요). */
+    public record AssignmentSlipLine(
+            LocalDate assignDate,
+            @NotNull(message = "사번을 입력 바랍니다.") Long employeeId,
+            @NotNull(message = "발령구분을 입력 바랍니다.") AssignmentType type,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
+            String hireKind,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
+            String jobTitle,
+            Long departmentId,
+            @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
+            String remark
+    ) {}
+
+    /** 인사발령입력 전표. reflect = 원본 '[사원정보에 반영]'. */
+    public record AssignmentSlipRequest(
+            @NotNull(message = "일자를 입력 바랍니다.") LocalDate slipDate,
+            boolean reflect,
+            @jakarta.validation.Valid List<AssignmentSlipLine> lines
+    ) {}
+
     public record AssignmentResponse(
             Long id,
+            LocalDate slipDate,
+            Integer slipNo,
             Long employeeId,
             String employeeCode,
             String employeeName,
@@ -39,17 +63,26 @@ public class EmployeeDtos {
             Long departmentId,
             String department,
             String jobTitle,
+            Long prevDepartmentId,
+            String prevDepartment,
+            String prevJobTitle,
+            String hireKind,
+            boolean employeeActive,
             String remark,
             String createdBy
     ) {
         public static AssignmentResponse from(EmployeeAssignment a) {
             return new AssignmentResponse(
-                    a.getId(),
+                    a.getId(), a.getSlipDate(), a.getSlipNo(),
                     a.getEmployee().getId(), a.getEmployee().getCode(), a.getEmployee().getName(),
                     a.getAssignDate(), a.getType(), a.getType().getDisplayName(),
                     a.getDepartment() != null ? a.getDepartment().getId() : null,
                     a.getDepartment() != null ? a.getDepartment().getName() : "",
                     a.getJobTitle() != null ? a.getJobTitle() : "",
+                    a.getPrevDepartment() != null ? a.getPrevDepartment().getId() : null,
+                    a.getPrevDepartment() != null ? a.getPrevDepartment().getName() : "",
+                    a.getPrevJobTitle() != null ? a.getPrevJobTitle() : "",
+                    a.getHireKind(), a.getEmployee().isActive(),
                     a.getRemark(), a.getCreatedBy());
         }
     }

@@ -2,6 +2,7 @@ package com.erp.hr.employee;
 
 import com.erp.hr.employee.dto.EmployeeDtos.AssignDepartmentRequest;
 import com.erp.hr.employee.dto.EmployeeDtos.AssignmentResponse;
+import com.erp.hr.employee.dto.EmployeeDtos.AssignmentSlipRequest;
 import com.erp.hr.employee.dto.EmployeeDtos.CreateAssignmentRequest;
 import com.erp.hr.employee.dto.EmployeeDtos.EmployeeResponse;
 import com.erp.hr.employee.dto.EmployeePerformanceDtos.PerformanceSummary;
@@ -82,6 +83,38 @@ public class EmployeeController {
                                      @Valid @RequestBody CreateAssignmentRequest req,
                                      @AuthenticationPrincipal UserPrincipal principal) {
         return employeeService.createAssignment(id, req, principal.getUsername());
+    }
+
+    /** 인사발령조회 · 현황 — 기준일자(전표 일자) 기간 */
+    @GetMapping("/assignment-slips")
+    public List<AssignmentResponse> assignmentSlips(@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+                                                     @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return employeeService.findAssignmentSlips(from, to);
+    }
+
+    @GetMapping("/assignment-slips/{slipDate}/{slipNo}")
+    public List<AssignmentResponse> assignmentSlip(@PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate slipDate, @PathVariable int slipNo) {
+        return employeeService.findAssignmentSlip(slipDate, slipNo);
+    }
+
+    /** 인사발령입력 [저장(F8)] */
+    @PostMapping("/assignment-slips")
+    public List<AssignmentResponse> createAssignmentSlip(@Valid @RequestBody AssignmentSlipRequest req,
+                                                         @AuthenticationPrincipal UserPrincipal principal) {
+        return employeeService.createAssignmentSlip(req, principal.getUsername());
+    }
+
+    /** 인사발령입력수정 [저장(F8)] */
+    @PutMapping("/assignment-slips/{slipDate}/{slipNo}")
+    public List<AssignmentResponse> updateAssignmentSlip(@PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate slipDate, @PathVariable int slipNo,
+                                                         @Valid @RequestBody AssignmentSlipRequest req,
+                                                         @AuthenticationPrincipal UserPrincipal principal) {
+        return employeeService.updateAssignmentSlip(slipDate, slipNo, req, principal.getUsername());
+    }
+
+    @DeleteMapping("/assignment-slips/{slipDate}/{slipNo}")
+    public void deleteAssignmentSlip(@PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate slipDate, @PathVariable int slipNo) {
+        employeeService.deleteAssignmentSlip(slipDate, slipNo);
     }
 
     /** 인사카드 [인사자료] — 항목별 줄 수(자료 있는 [입력]을 칠한다). */

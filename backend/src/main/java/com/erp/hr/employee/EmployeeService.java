@@ -1,9 +1,12 @@
 package com.erp.hr.employee;
 
+import com.erp.hr.department.Department;
 import com.erp.hr.department.DepartmentService;
 import com.erp.common.ApiException;
 import com.erp.hr.employee.dto.EmployeeDtos.AssignDepartmentRequest;
 import com.erp.hr.employee.dto.EmployeeDtos.AssignmentResponse;
+import com.erp.hr.employee.dto.EmployeeDtos.AssignmentSlipLine;
+import com.erp.hr.employee.dto.EmployeeDtos.AssignmentSlipRequest;
 import com.erp.hr.employee.dto.EmployeeDtos.CreateAssignmentRequest;
 import com.erp.hr.employee.dto.EmployeeDtos.CreateEmployeeRequest;
 import com.erp.hr.employee.dto.EmployeeDtos.EmployeeResponse;
@@ -187,36 +190,57 @@ public class EmployeeService {
 
     /**
      * 인사발령. 이력을 남기고 사원의 현재 상태(부서·직위·재직·입퇴사일)를 갱신한다.
-     * 발령에서 지정하지 않은 부서·직위는 직전 값을 그대로 이어받는다.
+     * 발령에서 지정하지 않은 부서·직위는 직전 값을 그대로 이어받는다. 그날의 새 전표 한 장이 된다.
      */
     @Transactional
     public AssignmentResponse createAssignment(Long employeeId, CreateAssignmentRequest req, String username) {
         Employee e = get(employeeId);
+        Department prevDept = e.getDepartment();
+        String prevTitle = e.getJobTitle();
+        applyAssignment(e, req.type(), req.assignDate(), req.departmentId(), req.jobTitle());
+        EmployeeAssignment a = EmployeeAssignment.builder()
+                .employee(e)
+                .slipDate(req.assignDate())
+                .slipNo(nextSlipNo(req.assignDate()))
+                .assignDate(req.assignDate())
+                .type(req.type())
+                .prevDepartment(prevDept)
+                .prevJobTitle(prevTitle)
+                // 발령에서 바뀌지 않은 항목은 사원의 현재값(= 직전 값)을 그대로 기록한다
+                .department(e.getDepartment())
+                .jobTitle(e.getJobTitle())
+                .remark(req.remark())
+                .createdBy(username)
+                .build();
+        return AssignmentResponse.from(assignmentRepository.save(a));
+    }
 
-        switch (req.type()) {
+    /** 발령 유형대로 사원의 현재 상태를 바꾼다. */
+    private void applyAssignment(Employee e, AssignmentType type, LocalDate date, Long departmentId, String jobTitle) {
+        switch (type) {
             case TRANSFER -> {
                 if (!e.isActive()) throw ApiException.badRequest("퇴사한 사원은 전보할 수 없습니다. 재입사 발령을 먼저 하세요.");
-                if (req.departmentId() == null) throw ApiException.badRequest("전보 발령은 부서를 지정해야 합니다.");
-                e.setDepartment(departmentService.get(req.departmentId()));
+                if (departmentId == null) throw ApiException.badRequest("전보 발령은 부서를 지정해야 합니다.");
+                e.setDepartment(departmentService.get(departmentId));
             }
             case PROMOTION -> {
                 if (!e.isActive()) throw ApiException.badRequest("퇴사한 사원은 승진할 수 없습니다. 재입사 발령을 먼저 하세요.");
-                if (req.jobTitle() == null || req.jobTitle().isBlank()) {
+                if (jobTitle == null || jobTitle.isBlank()) {
                     throw ApiException.badRequest("승진 발령은 직위를 지정해야 합니다.");
                 }
-                e.setJobTitle(req.jobTitle().trim());
-                if (req.departmentId() != null) e.setDepartment(departmentService.get(req.departmentId()));
+                e.setJobTitle(jobTitle.trim());
+                if (departmentId != null) e.setDepartment(departmentService.get(departmentId));
             }
             case RESIGN -> {
                 if (!e.isActive()) throw ApiException.conflict("이미 퇴사한 사원입니다: " + e.getName());
                 e.setActive(false);
-                e.setResignDate(req.assignDate());
+                e.setResignDate(date);
             }
             case HIRE, REHIRE -> {
                 // 재입사는 퇴사자만. 입사는 퇴사자 외에, 입사일이 비어 있는 재직자의 기록 보정도 허용한다
                 // (기존 사원 중 입사일이 없는 사람이 있고, 그걸 넣을 다른 경로가 없다).
                 if (e.isActive()) {
-                    if (req.type() == AssignmentType.REHIRE) {
+                    if (type == AssignmentType.REHIRE) {
                         throw ApiException.conflict("재직 중인 사원입니다: " + e.getName());
                     }
                     if (e.getHireDate() != null) {
@@ -225,25 +249,101 @@ public class EmployeeService {
                 }
                 e.setActive(true);
                 e.setResignDate(null);
-                if (req.type() == AssignmentType.HIRE) {
-                    e.setHireDate(req.assignDate());
+                if (type == AssignmentType.HIRE) {
+                    e.setHireDate(date);
                 }
-                if (req.departmentId() != null) e.setDepartment(departmentService.get(req.departmentId()));
-                if (req.jobTitle() != null && !req.jobTitle().isBlank()) e.setJobTitle(req.jobTitle().trim());
+                if (departmentId != null) e.setDepartment(departmentService.get(departmentId));
+                if (jobTitle != null && !jobTitle.isBlank()) e.setJobTitle(jobTitle.trim());
+            }
+            case GENERAL -> {
+                if (departmentId != null) e.setDepartment(departmentService.get(departmentId));
+                if (jobTitle != null && !jobTitle.isBlank()) e.setJobTitle(jobTitle.trim());
             }
         }
+    }
 
-        EmployeeAssignment a = EmployeeAssignment.builder()
-                .employee(e)
-                .assignDate(req.assignDate())
-                .type(req.type())
-                // 발령에서 바뀌지 않은 항목은 사원의 현재값(= 직전 값)을 그대로 기록한다
-                .department(e.getDepartment())
-                .jobTitle(e.getJobTitle())
-                .remark(req.remark())
-                .createdBy(username)
-                .build();
-        return AssignmentResponse.from(assignmentRepository.save(a));
+    private int nextSlipNo(LocalDate slipDate) {
+        return assignmentRepository.maxSlipNo(slipDate) + 1;
+    }
+
+    /** 인사발령조회 · 현황 — 기준일자(전표 일자) 기간의 발령 줄. 화면이 전표로 묶는다. */
+    @Transactional(readOnly = true)
+    public List<AssignmentResponse> findAssignmentSlips(LocalDate from, LocalDate to) {
+        return assignmentRepository.findBySlipDateBetween(from, to).stream()
+                .map(AssignmentResponse::from)
+                .toList();
+    }
+
+    /** 인사발령입력 전표 한 장의 줄. */
+    @Transactional(readOnly = true)
+    public List<AssignmentResponse> findAssignmentSlip(LocalDate slipDate, int slipNo) {
+        List<EmployeeAssignment> lines = assignmentRepository.findSlip(slipDate, slipNo);
+        if (lines.isEmpty()) throw ApiException.notFound("인사발령 전표를 찾을 수 없습니다.");
+        return lines.stream().map(AssignmentResponse::from).toList();
+    }
+
+    /**
+     * 인사발령입력 [저장(F8)] — 원본처럼 줄마다 사번을 넣으면 이전 직위·부서가 사원의 지금 값으로 채워진다.
+     * '사원정보에 반영' 이 켜져 있으면 발령 직위·부서(와 퇴사 · 입사 유형의 재직상태)를 사원에 옮긴다.
+     */
+    @Transactional
+    public List<AssignmentResponse> createAssignmentSlip(AssignmentSlipRequest req, String username) {
+        return saveSlipLines(req, nextSlipNo(req.slipDate()), username);
+    }
+
+    /** 인사발령입력수정 — 일자는 막히고 줄을 통째로 바꾼다. 지운 줄이 사원에 옮긴 값은 되돌리지 않는다(원본도 같다). */
+    @Transactional
+    public List<AssignmentResponse> updateAssignmentSlip(LocalDate slipDate, int slipNo, AssignmentSlipRequest req, String username) {
+        List<EmployeeAssignment> old = assignmentRepository.findSlip(slipDate, slipNo);
+        if (old.isEmpty()) throw ApiException.notFound("인사발령 전표를 찾을 수 없습니다.");
+        assignmentRepository.deleteAll(old);
+        assignmentRepository.flush();
+        return saveSlipLines(new AssignmentSlipRequest(slipDate, req.reflect(), req.lines()), slipNo, username);
+    }
+
+    /** 인사발령 전표 삭제('전표를 삭제하겠습니까?'). */
+    @Transactional
+    public void deleteAssignmentSlip(LocalDate slipDate, int slipNo) {
+        List<EmployeeAssignment> old = assignmentRepository.findSlip(slipDate, slipNo);
+        if (old.isEmpty()) throw ApiException.notFound("인사발령 전표를 찾을 수 없습니다.");
+        assignmentRepository.deleteAll(old);
+    }
+
+    private List<AssignmentResponse> saveSlipLines(AssignmentSlipRequest req, int slipNo, String username) {
+        if (req.lines() == null || req.lines().isEmpty()) throw ApiException.badRequest("발령 줄을 입력 바랍니다.");
+        List<AssignmentResponse> out = new java.util.ArrayList<>();
+        for (AssignmentSlipLine l : req.lines()) {
+            Employee e = get(l.employeeId());
+            Department prevDept = e.getDepartment();
+            String prevTitle = e.getJobTitle();
+            LocalDate date = l.assignDate() != null ? l.assignDate() : req.slipDate();
+            Department toDept;
+            String toTitle;
+            if (req.reflect()) {
+                applyAssignment(e, l.type(), date, l.departmentId(), l.jobTitle());
+                toDept = e.getDepartment();
+                toTitle = e.getJobTitle();
+            } else {
+                toDept = l.departmentId() != null ? departmentService.get(l.departmentId()) : prevDept;
+                toTitle = l.jobTitle() != null && !l.jobTitle().isBlank() ? l.jobTitle().trim() : prevTitle;
+            }
+            EmployeeAssignment a = EmployeeAssignment.builder()
+                    .employee(e)
+                    .slipDate(req.slipDate())
+                    .slipNo(slipNo)
+                    .assignDate(date)
+                    .type(l.type())
+                    .hireKind(l.hireKind() != null && !l.hireKind().isBlank() ? l.hireKind().trim() : null)
+                    .prevDepartment(prevDept)
+                    .prevJobTitle(prevTitle)
+                    .department(toDept)
+                    .jobTitle(toTitle)
+                    .remark(l.remark())
+                    .createdBy(username)
+                    .build();
+            out.add(AssignmentResponse.from(assignmentRepository.save(a)));
+        }
+        return out;
     }
 
     /** 인사카드 [인사자료] 한 항목의 줄들. */

@@ -6,7 +6,9 @@ public enum AssignmentType {
     TRANSFER("전보"),
     PROMOTION("승진"),
     RESIGN("퇴사"),
-    REHIRE("재입사");
+    REHIRE("재입사"),
+    /** 원본 발령구분 '인사발령' — 직위 · 부서만 바꾼다 */
+    GENERAL("인사발령");
 
     private final String displayName;
 
