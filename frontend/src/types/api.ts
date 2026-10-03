@@ -1769,12 +1769,25 @@ export interface PayGroupLine {
 
 export interface PayGroup {
   id: number
+  /** 원본 [수당/공제그룹코드] (00001 꼴) */
+  code: string
   name: string
   remark: string | null
   active: boolean
   allowanceTotal: number
   deductionTotal: number
   lines: PayGroupLine[]
+  /** 원본 목록 [사원] 칸 — 적용사원 수 */
+  employeeCount: number
+}
+
+/** 원본 [적용사원등록] 한 줄 */
+export interface PayGroupEmployee {
+  employeeId: number
+  employeeCode: string
+  employeeName: string
+  department: string
+  rate: number
 }
 
 export interface PayrollTransferLine {

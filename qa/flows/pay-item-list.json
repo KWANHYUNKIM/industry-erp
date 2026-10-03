@@ -14,7 +14,8 @@
         "click:저장(F8)",
         "wait:1000",
         "expect:/QAFLOW/.test(document.querySelector('table').innerText)",
-        "js:(async()=>{const t=localStorage.getItem('erp_token');const h={Authorization:'Bearer '+t};const l=await (await fetch('/api/pay-settings/items',{headers:h})).json();const i=l.find(x=>x.code==='QAFLOW');if(!i||i.taxable||i.taxFreeType!=='MEAL'||i.payMethod!=='HOURLY')return false;return (await fetch('/api/pay-settings/items/'+i.id,{method:'DELETE',headers:h})).ok})()"
+        "js:(async()=>{const ok=await (async()=>{const t=localStorage.getItem('erp_token');const h={Authorization:'Bearer '+t};const l=await (await fetch('/api/pay-settings/items',{headers:h})).json();const i=l.find(x=>x.code==='QAFLOW');if(!i||i.taxable||i.taxFreeType!=='MEAL'||i.payMethod!=='HOURLY')return false;return (await fetch('/api/pay-settings/items/'+i.id,{method:'DELETE',headers:h})).ok})();sessionStorage.setItem('qaPi0',String(ok));return true})()",
+        "expect:sessionStorage.getItem('qaPi0')==='true'"
       ]
     },
     {
@@ -29,7 +30,8 @@
         "click:저장(F8)",
         "wait:1000",
         "expect:/QAFLOWD/.test(document.querySelector('table').innerText)",
-        "js:(async()=>{const t=localStorage.getItem('erp_token');const h={Authorization:'Bearer '+t};const l=await (await fetch('/api/pay-settings/items',{headers:h})).json();const i=l.find(x=>x.code==='QAFLOWD');if(!i||i.kind!=='DEDUCTION'||i.sortOrder!==98)return false;return (await fetch('/api/pay-settings/items/'+i.id,{method:'DELETE',headers:h})).ok})()"
+        "js:(async()=>{const ok=await (async()=>{const t=localStorage.getItem('erp_token');const h={Authorization:'Bearer '+t};const l=await (await fetch('/api/pay-settings/items',{headers:h})).json();const i=l.find(x=>x.code==='QAFLOWD');if(!i||i.kind!=='DEDUCTION'||i.sortOrder!==98)return false;return (await fetch('/api/pay-settings/items/'+i.id,{method:'DELETE',headers:h})).ok})();sessionStorage.setItem('qaPi1',String(ok));return true})()",
+        "expect:sessionStorage.getItem('qaPi1')==='true'"
       ]
     }
   ]
