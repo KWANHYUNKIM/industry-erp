@@ -1,0 +1,23 @@
+{
+  "about": "품질검사요청입력(E040628) [구매] 불러오기 — 2026-10-04 원본 실측: 구매검색창(조회)에서 전표 하나를 골라 [적용(F8)] 하면 그 전표의 품목 · 수량이 줄로 들어오고(검사방법 전수) 불러오기 단추가 사라진다. 저장은 하지 않는다. 구매 하나(QA재고2, 두 줄 7 · 3)를 만들어 불러오고 끝에 지운다.",
+  "shots": [
+    {
+      "name": "신규 → 구매 → 첫 전표 적용 → 줄 수 = 전표 품목 수 · 단추 사라짐",
+      "path": "/quality/inspection-request",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const A = (m, u, b) => fetch('/api' + u, { method: m, headers: H, body: b ? JSON.stringify(b) : undefined }).then((r) => r.json()); const [pa, it, wh] = await Promise.all([A('GET', '/partners'), A('GET', '/items'), A('GET', '/warehouses')]); const its = it.filter((x) => x.active !== false && x.stockTracked !== false); const pur = await A('POST', '/purchases', { partnerId: pa[0].id, warehouseId: wh[0].id, remark: 'QA재고2 검사요청 불러오기', lines: [{ itemId: its[0].id, quantity: 7, unitPrice: 1000 }, { itemId: its[1].id, quantity: 3, unitPrice: 1000 }] }); sessionStorage.setItem('qrpPur', String(pur.id)); return pur.docNo })()",
+        "js:[...document.querySelectorAll('button')].find((b) => /^신규/.test(b.innerText.trim())).click(); true",
+        "wait:600",
+        "js:[...document.querySelectorAll('.modal button, [role=dialog] button')].find((b) => b.innerText.trim() === '구매').click(); true",
+        "wait:2000",
+        "expect:[...document.querySelectorAll('[role=dialog], .modal')].some((m) => m.innerText.includes('구매검색창(조회)') && m.innerText.includes('품목명(요약)'))",
+        "js:(() => { const m = [...document.querySelectorAll('[role=dialog], .modal')].find((x) => x.innerText.includes('구매검색창(조회)')); const id = sessionStorage.getItem('qrpPur'); const tr = [...m.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('7,000') || t.innerText.includes('11,000') || t.innerText.includes('10,000')) ?? m.querySelector('tbody tr'); tr.querySelector('input[type=radio]').click(); sessionStorage.setItem('qrpN', String((tr.querySelector('td:nth-child(4)').innerText.match(/외 (\\d+)건/) || [0, 0])[1])); return id })()",
+        "js:[...document.querySelectorAll('[role=dialog] button, .modal button')].find((b) => b.innerText.trim() === '적용(F8)').click(); true",
+        "wait:600",
+        "expect:(() => { const m = [...document.querySelectorAll('[role=dialog], .modal')].find((x) => x.innerText.includes('품질검사요청입력')); const n = Number(sessionStorage.getItem('qrpN')) + 1; const filled = [...m.querySelectorAll('tbody tr')].filter((tr) => tr.querySelector('input.text-right')?.value).length; const noPull = ![...m.querySelectorAll('button')].some((b) => b.innerText.trim() === '구매'); return filled === n && noPull })()",
+        "expect:(async () => { const r = await fetch('/api/purchases/' + sessionStorage.getItem('qrpPur'), { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }); return r.status === 204 || r.status === 200 })()"
+      ]
+    }
+  ]
+}
