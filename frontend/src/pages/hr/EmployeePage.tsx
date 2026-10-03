@@ -50,7 +50,7 @@ export default function EmployeePage() {
     hireDate: new Date().toISOString().slice(0, 10), resignDate: '', resignReason: '',
     phone: '', mobile: '', email: '', address: '', remark: '',
     payType: 'FIXED' as EmployeePayType, baseSalary: '',
-    bankCode: '', bankName: '', accountNo: '', accountHolder: '',
+    bankCode: '', bankName: '', accountNo: '', accountHolder: '', hireKind: '',
   }
   const [form, setForm] = useState(empty)
 
@@ -85,7 +85,7 @@ export default function EmployeePage() {
     setForm({
       code: e.code, name: e.name,
       departmentId: e.departmentId ? String(e.departmentId) : '',
-      jobTitle: e.jobTitle ?? '',
+      jobTitle: e.jobTitle ?? '', hireKind: e.hireKind ?? '',
       hireDate: e.hireDate ?? '', resignDate: e.resignDate ?? '', resignReason: e.resignReason ?? '',
       phone: e.phone ?? '', mobile: e.mobile ?? '', email: e.email ?? '',
       address: e.address ?? '', remark: e.remark ?? '',
@@ -120,6 +120,7 @@ export default function EmployeePage() {
       bankName: form.bankName.trim() || null,
       accountNo: form.accountNo.trim() || null,
       accountHolder: form.accountHolder.trim() || null,
+      hireKind: form.hireKind,
     }
     try {
       if (editId) {
@@ -287,6 +288,13 @@ export default function EmployeePage() {
               </Field>
               <Field label="입사일자">
                 <input type="date" className={inputCls} value={form.hireDate} onChange={set('hireDate')} />
+              </Field>
+              {/* 원본 [입사구분] 코드도움 — 100 신입 · 200 경력 */}
+              <Field label="입사구분">
+                <CodePickerField label="입사구분" hideLabel fill placeholder="입사구분" emptyLabel="선택 해제"
+                                 value={form.hireKind} onChange={(v) => setForm({ ...form, hireKind: v })}
+                                 items={[{ value: '신입', code: '100', name: '신입' }, { value: '경력', code: '200', name: '경력' },
+                                   ...(form.hireKind && !['신입', '경력'].includes(form.hireKind) ? [{ value: form.hireKind, name: form.hireKind }] : [])]} />
               </Field>
               <Field label="직위/직급">
                 <input className={inputCls} value={form.jobTitle} onChange={set('jobTitle')} placeholder="직위/직급" />

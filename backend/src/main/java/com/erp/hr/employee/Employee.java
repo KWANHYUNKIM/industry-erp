@@ -41,6 +41,10 @@ public class Employee extends BaseTimeEntity {
     @Column(name = "job_title", length = 100)
     private String jobTitle;
 
+    /** 원본 사원등록 [입사구분] — 코드도움 100 신입 · 200 경력, 고른 이름을 담는다. */
+    @Column(name = "hire_kind", length = 20)
+    private String hireKind;
+
     /** 입사일 */
     private LocalDate hireDate;
 

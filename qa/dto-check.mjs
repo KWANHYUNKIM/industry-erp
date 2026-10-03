@@ -157,6 +157,11 @@ function resolveEntity(stem) {
  */
 const OWNED_HERE = new Map([
   ['Asset|assetNo', 'DocumentNoGenerator 가 매긴다'],
+  ['Assignment|slipDate', '인사발령입력 전표 머리(AssignmentSlipRequest)에서 정한다 — 단건 CreateAssignmentRequest 에는 없다'],
+  ['Assignment|slipNo', '전표 번호 — 그 일자 안에서 서버가 매긴다'],
+  ['Assignment|prevDepartment', '발령 전 부서 — 저장할 때 사원의 지금 부서를 서버가 찍는다'],
+  ['Assignment|prevJobTitle', '발령 전 직위 — 저장할 때 사원의 지금 직위를 서버가 찍는다'],
+  ['Assignment|hireKind', '인사발령입력 줄(AssignmentSlipLine)에서 정한다 — 단건 CreateAssignmentRequest 에는 없다'],
   ['Asset|accumulatedDepreciation', '감가상각을 돌릴 때마다 서버가 쌓는다'],
   ['Asset|disposalAmount', '처분 처리에서 찍는다 — 등록할 때 정하면 안 판 자산에 처분액이 생긴다'],
   ['CollectData|channel', '원본 수집대상은 Email 하나뿐이다 — 고를 것이 없어 서버가 EMAIL 로 둔다'],

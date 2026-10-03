@@ -1751,6 +1751,8 @@ export interface EmployeeMaster {
   bankName: string | null
   accountNo: string | null
   accountHolder: string | null
+  /** 원본 사원등록 [입사구분] — 100 신입 · 200 경력 */
+  hireKind: string | null
 }
 
 export type EmployeePayType = 'FIXED' | 'VARIABLE'

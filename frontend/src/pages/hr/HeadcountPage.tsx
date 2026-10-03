@@ -8,7 +8,7 @@ import EcPeriodPicks, { HEADCOUNT_PICKS, periodOf, ymd } from '../../components/
 import { headcountRows } from '../../utils/headcount'
 import { EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 
-interface Emp { id: number; name: string; department: string | null; jobTitle: string | null; hireDate: string | null; resignDate: string | null }
+interface Emp { id: number; name: string; department: string | null; jobTitle: string | null; hireDate: string | null; resignDate: string | null; hireKind?: string | null }
 type Mode = '일별' | '월별'
 
 const count = (n: number) => (n === 0 ? '' : n.toLocaleString('ko-KR'))
@@ -23,7 +23,7 @@ const two = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2,
  * <p>표: 일자 · 입사자 · 입사인원 · 퇴사자 · 퇴사인원 · 총인원, 끝 [합계](두 칸 묶음). 일별은 하루 한 줄(2026/10/01),
  * 월별은 한 달 한 줄(2025/01). 입사자 · 퇴사자 칸은 그날(그달) 들어오고 나간 사람 이름, 총인원은 그날(달 끝) 재직 인원(소수 두 자리).
  * 합계는 입사 · 퇴사 인원만 더한다. 사원은 퇴사자까지(/employees/all) 받아 입사일자 · 퇴사일자로 센다.
- * 사용자지정집계 판은 아직 없고, 프로젝트 · 입사구분(신입/경력)은 사원에 없다.
+ * 사용자지정집계 판은 아직 없고, 프로젝트는 사원에 없다. 입사구분은 사원등록 [입사구분](100 신입 · 200 경력)을 본다.
  */
 export default function HeadcountPage() {
   const init = periodOf('금월(~오늘)')!
@@ -33,6 +33,7 @@ export default function HeadcountPage() {
   /** [부서] · [직위/직급] — 원본처럼 여러 개 고르는 코드도움. */
   const [dept, setDept] = useState<string[]>([])
   const [title, setTitle] = useState<string[]>([])
+  const [hireKind, setHireKind] = useState<string[]>([])
   const [emps, setEmps] = useState<Emp[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -53,7 +54,8 @@ export default function HeadcountPage() {
 
   const picked = useMemo(() => emps
     .filter((e) => dept.length === 0 || dept.includes(e.department ?? ''))
-    .filter((e) => title.length === 0 || title.includes(e.jobTitle ?? '')), [emps, dept, title])
+    .filter((e) => title.length === 0 || title.includes(e.jobTitle ?? ''))
+    .filter((e) => hireKind.length === 0 || hireKind.includes(e.hireKind ?? '')), [emps, dept, title, hireKind])
 
   const rows = useMemo(() => headcountRows(picked, mode, from, to), [picked, mode, from, to])
   const hiredSum = rows.reduce((s, r) => s + r.hired.length, 0)
@@ -70,7 +72,7 @@ export default function HeadcountPage() {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setMode('일별'); setFrom(init.from); setTo(init.to); setDept([]); setTitle([]) } },
+        { label: '다시 작성', onClick: () => { setMode('일별'); setFrom(init.from); setTo(init.to); setDept([]); setTitle([]); setHireKind([]) } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -112,6 +114,10 @@ export default function HeadcountPage() {
         <EcCond label="직위/직급" pick>
           <CodePickerField label="직위/직급" hideLabel fill multiple placeholder="직위/직급" values={title} onChangeMulti={(v) => setTitle(v)}
                            items={titles.map((t) => ({ value: t, name: t }))} />
+        </EcCond>
+        <EcCond label="입사구분">
+          <CodePickerField label="입사구분" hideLabel fill multiple placeholder="입사구분" values={hireKind} onChangeMulti={(v) => setHireKind(v)}
+                           items={[{ value: '신입', code: '100', name: '신입' }, { value: '경력', code: '200', name: '경력' }]} />
         </EcCond>
       </ul>
 

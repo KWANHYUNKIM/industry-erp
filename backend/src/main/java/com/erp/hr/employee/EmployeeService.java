@@ -82,6 +82,7 @@ public class EmployeeService {
                 .bankName(req.bankName())
                 .accountNo(req.accountNo())
                 .accountHolder(req.accountHolder())
+                .hireKind(blankToNull(req.hireKind()))
                 .active(true)
                 .build();
         return EmployeeResponse.from(employeeRepository.save(e));
@@ -100,6 +101,8 @@ public class EmployeeService {
         e.setName(req.name().trim());
         e.setDepartment(req.departmentId() != null ? departmentService.get(req.departmentId()) : null);
         e.setJobTitle(req.jobTitle());
+        // 안 보낸 화면(옛 클라이언트)이 지우지 않게 — 빈 글자를 보내야 지운다
+        if (req.hireKind() != null) e.setHireKind(blankToNull(req.hireKind()));
         if (req.hireDate() != null) e.setHireDate(req.hireDate());
         if (req.baseSalary() != null) {
             if (req.baseSalary().signum() < 0) {
@@ -398,5 +401,9 @@ public class EmployeeService {
     public Employee get(Long id) {
         return employeeRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("사원을 찾을 수 없습니다. id=" + id));
+    }
+
+    private static String blankToNull(String s) {
+        return s == null || s.isBlank() ? null : s.trim();
     }
 }
