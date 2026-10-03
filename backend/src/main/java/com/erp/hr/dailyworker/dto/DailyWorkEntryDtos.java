@@ -27,11 +27,11 @@ public class DailyWorkEntryDtos {
 
     /** 원본 수당항목 · 단위 열 — 일근무 · 변동(일) 고정. */
     public record LineResponse(
-            Long id, int lineNo, LocalDate workDate, Long workerId, String workerCode, String workerName,
+            Long id, LocalDate slipDate, int slipNo, int lineNo, LocalDate workDate, Long workerId, String workerCode, String workerName,
             String payItem, String unit, BigDecimal quantity, BigDecimal amount
     ) {
         public static LineResponse from(DailyWorkEntry e) {
-            return new LineResponse(e.getId(), e.getLineNo(), e.getWorkDate(), e.getWorker().getId(),
+            return new LineResponse(e.getId(), e.getSlipDate(), e.getSlipNo(), e.getLineNo(), e.getWorkDate(), e.getWorker().getId(),
                     e.getWorker().getCode(), e.getWorker().getName(), "일근무", "변동(일)", e.getQuantity(), e.getAmount());
         }
     }
