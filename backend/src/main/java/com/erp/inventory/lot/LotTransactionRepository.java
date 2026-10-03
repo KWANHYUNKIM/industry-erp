@@ -15,6 +15,10 @@ public interface LotTransactionRepository extends JpaRepository<LotTransaction, 
             "order by l.lotNo asc, t.txDate asc, t.id asc")
     List<LotTransaction> findAllWithRefs();
 
+    List<LotTransaction> findByDocTypeAndSourceIdOrderByIdDesc(String docType, Long sourceId);
+
+    long countByLot(Lot lot);
+
     /*
      * 화면 조건 판의 <b>[기준일자]</b>(2026-09-01 원본 E040620 실측: 기본 [전월+금월]).
      * 예전에는 물어보지도 않고 여태 쌓인 움직임을 통째로 주었다.

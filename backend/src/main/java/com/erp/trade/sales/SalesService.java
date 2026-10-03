@@ -39,6 +39,7 @@ import com.erp.hr.employee.EmployeeService;
 import com.erp.inventory.item.ItemService;
 import com.erp.inventory.project.ProjectService;
 import com.erp.inventory.stock.StockService;
+import com.erp.inventory.lot.LotService;
 import com.erp.inventory.warehouse.WarehouseService;
 import com.erp.trade.sales.dto.SalesDtos;
 
@@ -57,6 +58,7 @@ public class SalesService {
     private final WarehouseService warehouseService;
     private final ItemService itemService;
     private final StockService stockService;
+    private final LotService lotService;
     private final DocumentNoGenerator docNoGenerator;
     // 수정·삭제를 막아야 하는 후속 문서(같은 trade 모듈이라 직접 조회한다)
     private final TaxInvoiceRepository taxInvoiceRepository;
@@ -194,6 +196,7 @@ public class SalesService {
 
         applyContent(sales, req, username);
         Sales saved = salesRepository.save(sales);
+        syncLots(saved);
         refreshOrders(sourceOrders(saved));
         return SalesResponse.from(saved);
     }
@@ -223,9 +226,23 @@ public class SalesService {
         if (req.saleDate() != null) sales.setSaleDate(req.saleDate());
 
         applyContent(sales, req, username);
+        salesRepository.flush();
+        syncLots(sales);
         touchedOrders.addAll(sourceOrders(sales));
         refreshOrders(touchedOrders);
         return SalesResponse.from(sales);
+    }
+
+    /** 원본 시리얼/로트No.내역조회의 [전표구분]. */
+    private static final String LOT_DOC_TYPE = "판매";
+
+    /** 로트No. 를 든 줄을 시리얼/로트 내역에 남긴다 — 나간 수량만큼 −(반품이면 줄 수량이 음수라 +). */
+    private void syncLots(Sales s) {
+        lotService.replaceDocument(LOT_DOC_TYPE, s.getId(), s.getDocNo(), s.getSaleDate(),
+                s.getPartner() != null ? s.getPartner().getName() : null,
+                s.getLines().stream()
+                        .map(l -> new LotService.DocLine(l.getItem(), s.getWarehouse(), l.getLotNo(), l.getQuantity().negate()))
+                        .toList());
     }
 
     /** 판매전표 삭제. 재고를 되돌린 뒤 지운다. */
@@ -235,6 +252,7 @@ public class SalesService {
         ensureEditable(sales, "삭제");
 
         revertStock(sales, "판매삭제 원복", username);
+        lotService.removeDocument(LOT_DOC_TYPE, sales.getId());
         Set<SalesOrder> touchedOrders = sourceOrders(sales);
         salesRepository.delete(sales);
         try {

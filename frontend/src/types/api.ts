@@ -1448,6 +1448,11 @@ export interface LotTransaction {
   balanceAfter: number
   note: string | null
   createdBy: string | null
+  /** 원본 [전표구분] · [연결전표-No.] — 구매 · 판매가 남긴 줄이면 '구매' · 그 전표번호, 직접 남긴 줄이면 null. */
+  docType: string | null
+  sourceId: number | null
+  sourceNo: string | null
+  partnerName: string | null
 }
 
 // ===== 고객관리(CRM) =====

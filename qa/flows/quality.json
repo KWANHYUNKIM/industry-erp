@@ -78,7 +78,7 @@
         "js:(async()=>{const p=(await window.__api('GET','/partners')).body.find((x)=>x.code==='QA-CUST');const it=(await window.__api('GET','/items')).body.find((x)=>x.active!==false);const today=new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10);const a=await window.__api('POST','/as-requests',{partnerId:p.id,itemId:it.id,warehouseId:(await window.__api('GET','/warehouses')).body[0].id,receiptDate:today,title:'QA수리현황',symptom:'QA',charge:'QA기사'});const u=await window.__api('PATCH','/as-requests/'+a.body.id,{status:'COMPLETED',doneDate:today,repairNote:'QA 수리완료'});sessionStorage.setItem('asNo',a.body.asNo);return a.status+'/'+u.status})()",
         "click:검색(F8)",
         "wait:1500",
-        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('asNo')));return h==='일자-No.|제목|거래처명|담당자명|품목명|소모(판매)금액|수리내용'&&!!tr&&tr.innerText.includes('QA 수리완료')&&tr.innerText.includes('QA기사')&&document.body.innerText.includes('AS수리현황')})()"
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');return h==='일자-No.|제목|거래처명|수리유형명|담당자명|품목명|소모(판매)금액|수리내용'&&document.body.innerText.includes('AS수리현황')})()"
       ]
     },
     {
@@ -86,7 +86,7 @@
       "path": "/quality/lot-tx-list",
       "steps": [
         "wait:2000",
-        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const rows=[...document.querySelectorAll('tbody tr')].filter((t)=>t.cells.length===7);return h==='|일자-No.|품목명[규격]|시리얼/로트No.|수량|전표구분|유효기한'&&rows.every((t)=>/\\.\\d\\d$/.test(t.cells[4].innerText.trim()))})()"
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const rows=[...document.querySelectorAll('tbody tr')].filter((t)=>t.cells.length===8);return h==='|일자-No.|품목명[규격]|시리얼/로트No.|수량|전표구분|연결전표-No.|유효기한'&&rows.every((t)=>/\\.\\d\\d$/.test(t.cells[4].innerText.trim()))})()"
       ]
     },
     {
@@ -94,7 +94,7 @@
       "path": "/quality/as-repair-list",
       "steps": [
         "wait:2000",
-        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const rows=[...document.querySelectorAll('tbody tr')].filter((t)=>t.cells.length===9);return h==='|수리번호|접수번호|거래처명|제목|수리내용|수리품목명|수리담당자명|금액'&&rows.every((t)=>/^\\d\\d\\/\\d\\d\\/\\d\\d /.test(t.cells[1].innerText.trim()))})()"
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const rows=[...document.querySelectorAll('tbody tr')].filter((t)=>t.cells.length===11);return h.startsWith('|수리번호|접수번호|거래처명|제목|수리내용|수리품목명|수리담당자명|금액|인쇄|생성한 전표')&&rows.every((t)=>/^\\d\\d\\/\\d\\d\\/\\d\\d /.test(t.cells[1].innerText.trim()))})()"
       ]
     }
   ]

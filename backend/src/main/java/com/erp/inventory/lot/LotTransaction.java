@@ -44,6 +44,24 @@ public class LotTransaction extends BaseTimeEntity {
     @Column(length = 300)
     private String note;
 
+    /*
+     * 원본 시리얼/로트No.내역조회(E040618)의 [전표구분] · [연결전표-No.]. 구매 · 판매 같은 전표가 남긴 줄이면
+     * 그 전표 종류('구매') · id · 번호를 든다 — 그 줄은 그 전표에서만 고치고 지운다(원본 안내 문구).
+     * 로트등록 · 소모 · 실사조정으로 직접 남긴 줄은 셋 다 null 이다.
+     */
+    @Column(name = "doc_type", length = 30)
+    private String docType;
+
+    @Column(name = "source_id")
+    private Long sourceId;
+
+    @Column(name = "source_no", length = 40)
+    private String sourceNo;
+
+    /** 원본 내역현황의 [거래처] — 전표의 거래처 이름(inventory 는 trade 의 거래처를 모른다). */
+    @Column(name = "partner_name", length = 100)
+    private String partnerName;
+
     @Column(name = "created_by", length = 50)
     private String createdBy;
 }

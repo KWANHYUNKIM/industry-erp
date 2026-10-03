@@ -10,6 +10,7 @@
   "pages/production/RequirementCalcPage.tsx": "날짜 칸은 <b>소요량을 계산하는 [일자]</b>다 — 목록을 거르는 기간이 아니다(원본 소요량계산 머리)."
  },
  "기간이 안 걸리는 자리": {
-  "pages/inventory/StockAnalysisPage.tsx  /sales-orders/unsold": "화면은 기간을 <b>묻지만</b>(재고 [기준일]), 이 자리에 걸 기간이 아니다. 재고잔량분석표의 [미판매] 열은 <b>아직 열려 있는 수주 잔량 전부</b>다 — 2026-09-09 에 원본 미판매현황(E040212)과 수치까지 맞춰 확인했다. 그런데 /sales-orders/unsold 의 from·to 는 <b>수주일</b>로 거른다(SalesOrderService.openOrders). 기준일 하루를 보내면 <b>그날 받은 주문만</b> 남아 열이 거의 비어 버린다. 기준일은 이미 /stock?asOf= 로 제 자리에 가 있다."
+  "pages/inventory/StockAnalysisPage.tsx  /sales-orders/unsold": "화면은 기간을 <b>묻지만</b>(재고 [기준일]), 이 자리에 걸 기간이 아니다. 재고잔량분석표의 [미판매] 열은 <b>아직 열려 있는 수주 잔량 전부</b>다 — 2026-09-09 에 원본 미판매현황(E040212)과 수치까지 맞춰 확인했다. 그런데 /sales-orders/unsold 의 from·to 는 <b>수주일</b>로 거른다(SalesOrderService.openOrders). 기준일 하루를 보내면 <b>그날 받은 주문만</b> 남아 열이 거의 비어 버린다. 기준일은 이미 /stock?asOf= 로 제 자리에 가 있다.",
+  "pages/quality/AsRepairListPage.tsx  /as-requests": "화면은 수리의 [기준일자]를 <b>묻지만</b> 이 자리는 입력 창의 <b>[A/S접수] 불러오기</b> 후보다 — 원본 A/S수리입력(E040605)은 접수일과 상관없이 아직 이을 접수를 고르게 한다(2026-10-03). 수리 기준일자로 거르면 지난달 접수를 이번 달에 고칠 수 없다."
  }
 }

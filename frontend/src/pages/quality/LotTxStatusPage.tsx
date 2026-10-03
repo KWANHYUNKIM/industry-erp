@@ -52,6 +52,8 @@ export default function LotTxStatusPage() {
   const [expTo, setExpTo] = useState('')
   const [lotNo, setLotNo] = useState('')
   const [warehouse, setWarehouse] = useState('')
+  /* 원본 기본 판 4번째 [거래처] — 구매 · 판매가 남긴 줄은 그 전표의 거래처를 든다(직접 남긴 줄은 없다). */
+  const [partner, setPartner] = useState('')
   const [item, setItem] = useState('')
   /* 원본 [전표구분] — 우리 로트 움직임의 유형(입고·출고·조정)이 그 자리다. */
   const [docType, setDocType] = useState('')
@@ -80,7 +82,8 @@ export default function LotTxStatusPage() {
   const warehouses = useMemo(
     () => [...new Set(rows.map((r) => r.warehouseName).filter(Boolean) as string[])].sort(), [rows])
   const items = useMemo(() => [...new Set(rows.map((r) => r.itemName))].sort(), [rows])
-  const docTypes = useMemo(() => [...new Set(rows.map((r) => r.typeName))].sort(), [rows])
+  const partners = useMemo(() => [...new Set(rows.map((r) => r.partnerName).filter(Boolean) as string[])].sort(), [rows])
+  const docTypes = useMemo(() => [...new Set(rows.map((r) => (r.docType ?? r.typeName)))].sort(), [rows])
 
   const shown = useMemo(() => {
     const kw = keyword.trim()
@@ -89,24 +92,25 @@ export default function LotTxStatusPage() {
       if (expTo && (r.expireDate == null || r.expireDate > expTo)) return false
       if (lotNo && r.lotNo !== lotNo) return false
       if (warehouse && r.warehouseName !== warehouse) return false
+      if (partner && r.partnerName !== partner) return false
       if (item && r.itemName !== item) return false
-      if (docType && r.typeName !== docType) return false
+      if (docType && (r.docType ?? r.typeName) !== docType) return false
       if (mgmtCond && !mgmt.hits([r.itemId], mgmtCond)) return false
       if (noteCond && !(r.note ?? '').includes(noteCond)) return false
       if (kw && !r.lotNo.includes(kw) && !r.itemName.includes(kw)) return false
       return true
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, expFrom, expTo, lotNo, warehouse, item, docType, keyword, mgmtCond, noteCond, mgmt.options])
+  }, [rows, expFrom, expTo, lotNo, warehouse, partner, item, docType, keyword, mgmtCond, noteCond, mgmt.options])
 
   /** 원본 [구분]이 [집계] 일 때 고른 단위로 합친다. */
   const groups = useMemo(() => {
     const keyOf = (r: LotTransaction) =>
       unit === '일별' ? dateText(r.txDate)
         : unit === '월별' ? r.txDate.slice(0, 7)
-          : unit === '전표별' ? r.typeName
+          : unit === '전표별' ? (r.docType ?? r.typeName)
             : unit === '품목별' ? r.itemName
-              : unit === '전표별품목별' ? `${r.typeName} · ${r.itemName}`
+              : unit === '전표별품목별' ? `${(r.docType ?? r.typeName)} · ${r.itemName}`
                 /* [라인별]은 합칠 것이 없다 — 줄 하나가 곧 라인이라 로트로 묶는다. */
                 : r.lotNo
     return subtotalBy(shown, keyOf, { qty: (r) => r.quantityChange })
@@ -168,6 +172,11 @@ export default function LotTxStatusPage() {
           <CodePickerField label="시리얼/로트No." hideLabel width={190} emptyLabel="전체"
                            value={lotNo} onChange={setLotNo}
                            items={lotNos.map((l) => ({ value: l, name: l }))} />
+        </EcCond>
+        <EcCond label="거래처" pick>
+          <CodePickerField label="거래처" hideLabel width={190} emptyLabel="전체"
+                           value={partner} onChange={setPartner}
+                           items={partners.map((p) => ({ value: p, name: p }))} />
         </EcCond>
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={160} emptyLabel="전체"
@@ -254,7 +263,7 @@ export default function LotTxStatusPage() {
                 <td>{r.itemName}</td>
                 <td style={{ color: r.warehouseName ? undefined : 'var(--ec-text-off)' }}>{r.warehouseName ?? '(미지정)'}</td>
                 <td style={{ color: r.expireDate ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{dateText(r.expireDate) || ''}</td>
-                <td>{r.typeName}</td>
+                <td>{(r.docType ?? r.typeName)}</td>
                 <td style={{ textAlign: 'right', color: r.quantityChange < 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>
                   {num(r.quantityChange)}
                 </td>

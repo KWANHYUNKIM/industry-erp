@@ -49,7 +49,9 @@ public final class LotDtos {
             boolean held,
             LocalDate txDate, LotTxType type, String typeName,
             BigDecimal quantityChange, BigDecimal balanceAfter,
-            String note, String createdBy
+            String note, String createdBy,
+            /* 원본 [전표구분] · [연결전표-No.] — 전표가 남긴 줄이면 '구매' · 'PO-…', 직접 남긴 줄이면 null. */
+            String docType, Long sourceId, String sourceNo, String partnerName
     ) {
         public static LotTransactionResponse from(LotTransaction t) {
             Lot l = t.getLot();
@@ -62,7 +64,8 @@ public final class LotDtos {
                     l.isHeld(),
                     t.getTxDate(), t.getType(), t.getType().getDisplayName(),
                     t.getQuantityChange(), t.getBalanceAfter(),
-                    t.getNote(), t.getCreatedBy());
+                    t.getNote(), t.getCreatedBy(),
+                    t.getDocType(), t.getSourceId(), t.getSourceNo(), t.getPartnerName());
         }
     }
 

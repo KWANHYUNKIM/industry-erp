@@ -149,6 +149,67 @@ public class LotService {
         return LotResponse.from(lot);
     }
 
+    /** 전표 한 줄의 시리얼/로트 — 수량은 부호를 든다(들어오면 +, 나가면 −). */
+    public record DocLine(Item item, Warehouse warehouse, String lotNo, BigDecimal quantity) {}
+
+    /**
+     * 구매 · 판매 같은 전표가 시리얼/로트를 움직인다 — 원본 시리얼/로트No.내역조회(E040618)는 그 줄을
+     * [전표구분] '구매' · [연결전표-No.] 로 보인다(2026-10-03 실측). 예전엔 전표 줄의 로트No. 를 적어 두기만 하고
+     * 로트 재고 · 내역에는 아무 것도 남기지 않아, 로트 화면은 로트등록에서 손으로 넣은 것만 보였다.
+     *
+     * <p>같은 전표가 남긴 줄을 먼저 되돌리고 새로 적는다(수정 = 되돌리고 다시). 없는 로트No. 면 그 품목의
+     * 로트를 새로 만든다. 로트 재고는 막지 않는다 — 원본도 품목 재고와 시리얼 재고가 어긋날 수 있어
+     * [품목vs시리얼재고수량비교] 를 따로 둔다.
+     */
+    @Transactional
+    public void replaceDocument(String docType, Long sourceId, String sourceNo, LocalDate date,
+                                String partnerName, List<DocLine> lines) {
+        removeDocument(docType, sourceId);
+        for (DocLine dl : lines) {
+            if (dl.lotNo() == null || dl.lotNo().isBlank() || dl.quantity().signum() == 0) continue;
+            String no = dl.lotNo().trim();
+            Lot lot = lotRepository.findByLotNo(no).orElse(null);
+            if (lot == null) {
+                BigDecimal in = dl.quantity().max(BigDecimal.ZERO);
+                lot = lotRepository.save(Lot.builder()
+                        .lotNo(no).item(dl.item()).warehouse(dl.warehouse())
+                        .inboundDate(date).inboundQty(in).stockQty(BigDecimal.ZERO)
+                        .held(false).build());
+            } else if (!lot.getItem().getId().equals(dl.item().getId())) {
+                throw ApiException.badRequest("시리얼/로트No. " + no + " 은(는) 다른 품목("
+                        + lot.getItem().getName() + ")에 쓰였습니다.");
+            }
+            lot.setStockQty(lot.getStockQty().add(dl.quantity()));
+            lotTxRepository.save(LotTransaction.builder()
+                    .lot(lot).txDate(date)
+                    .type(dl.quantity().signum() > 0 ? LotTxType.INBOUND : LotTxType.OUTBOUND)
+                    .quantityChange(dl.quantity()).balanceAfter(lot.getStockQty())
+                    .note(docType + " " + sourceNo)
+                    .docType(docType).sourceId(sourceId).sourceNo(sourceNo).partnerName(partnerName)
+                    .build());
+        }
+    }
+
+    /** 전표를 지우면 그 전표가 남긴 시리얼/로트 줄도 되돌려 지운다. 전표로만 생긴 로트는 줄이 다 빠지면 같이 지운다. */
+    @Transactional
+    public void removeDocument(String docType, Long sourceId) {
+        if (sourceId == null) return;
+        List<LotTransaction> txs = lotTxRepository.findByDocTypeAndSourceIdOrderByIdDesc(docType, sourceId);
+        if (txs.isEmpty()) return;
+        java.util.Set<Lot> touched = new java.util.LinkedHashSet<>();
+        for (LotTransaction t : txs) {
+            Lot lot = t.getLot();
+            lot.setStockQty(lot.getStockQty().subtract(t.getQuantityChange()));
+            touched.add(lot);
+        }
+        lotTxRepository.deleteAll(txs);
+        lotTxRepository.flush();
+        for (Lot lot : touched) {
+            if (lotTxRepository.countByLot(lot) == 0) lotRepository.delete(lot);
+        }
+        lotRepository.flush();
+    }
+
     private void recordTx(Lot lot, LotTxType type, BigDecimal change, BigDecimal balanceAfter, String note) {
         recordTx(lot, type, change, balanceAfter, note, LocalDate.now());
     }

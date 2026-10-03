@@ -4708,14 +4708,6 @@
    "시리얼/로트No.(창고별)"
   ]
  },
- "시리얼/로트No.내역현황|거래처": {
-  "claim": "로트 움직임이 거래처를 들지 않는다",
-  "absent": [
-   "Partner",
-   "partner"
-  ],
-  "in": "backend/src/main/java/com/erp/inventory/lot/LotTransaction.java"
- },
  "시리얼/로트No.내역현황|프로젝트": {
   "claim": "로트 움직임에 프로젝트가 없다",
   "absent": [
@@ -5163,10 +5155,10 @@
   "in": "frontend/src/pages/inventory/AdjustListPage.tsx"
  },
  "시리얼/로트No.내역조회|거래처그룹1": {
-  "claim": "로트 움직임이 거래처를 물지 않는다",
+  "claim": "거래처그룹은 안 든다",
   "absent": [
-   "partner",
-   "Partner"
+   "partnerGroup",
+   "PartnerGroup"
   ],
   "in": "backend/src/main/java/com/erp/inventory/lot/LotTransaction.java"
  },

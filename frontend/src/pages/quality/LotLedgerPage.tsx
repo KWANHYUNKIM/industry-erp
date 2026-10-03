@@ -327,7 +327,7 @@ export default function LotLedgerPage() {
                 <td>{r.itemName}</td>
                 <td>{dateText(r.txDate)}</td>
                 <td className="text-center">
-                  <span style={{ background: c.bg, color: c.fg, padding: '1px 6px', borderRadius: 3, fontSize: 11.5, fontWeight: 600 }}>{r.typeName}</span>
+                  <span style={{ background: c.bg, color: c.fg, padding: '1px 6px', borderRadius: 3, fontSize: 11.5, fontWeight: 600 }}>{r.docType ?? r.typeName}</span>
                 </td>
                 <td style={{ textAlign: 'right', color: inQ ? 'var(--ec-blue)' : 'var(--ec-text-off)', fontWeight: inQ ? 600 : 400 }}>{inQ ? num(inQ) : ''}</td>
                 <td style={{ textAlign: 'right', color: outQ ? '#a5561b' : 'var(--ec-text-off)', fontWeight: outQ ? 600 : 400 }}>{outQ ? num(outQ) : ''}</td>

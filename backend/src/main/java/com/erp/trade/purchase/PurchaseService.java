@@ -39,6 +39,7 @@ import com.erp.hr.employee.EmployeeService;
 import com.erp.inventory.item.ItemService;
 import com.erp.inventory.project.ProjectService;
 import com.erp.inventory.stock.StockService;
+import com.erp.inventory.lot.LotService;
 import com.erp.inventory.warehouse.WarehouseService;
 import com.erp.trade.purchase.dto.PurchaseDtos;
 
@@ -57,6 +58,7 @@ public class PurchaseService {
     private final WarehouseService warehouseService;
     private final ItemService itemService;
     private final StockService stockService;
+    private final LotService lotService;
     private final DocumentNoGenerator docNoGenerator;
     // 수정·삭제를 막아야 하는 후속 문서(같은 trade 모듈이라 직접 조회한다)
     private final TaxInvoiceRepository taxInvoiceRepository;
@@ -166,6 +168,7 @@ public class PurchaseService {
 
         applyContent(purchase, req, username);
         Purchase saved = purchaseRepository.save(purchase);
+        syncLots(saved);
         refreshOrders(sourceOrders(saved), username);
         return PurchaseResponse.from(saved);
     }
@@ -192,6 +195,8 @@ public class PurchaseService {
         if (req.purchaseDate() != null) purchase.setPurchaseDate(req.purchaseDate());
 
         applyContent(purchase, req, username);
+        purchaseRepository.flush();
+        syncLots(purchase);
         touchedOrders.addAll(sourceOrders(purchase));
         refreshOrders(touchedOrders, username);
         return PurchaseResponse.from(purchase);
@@ -204,6 +209,7 @@ public class PurchaseService {
         ensureEditable(purchase, "삭제");
 
         revertStock(purchase, "구매삭제 원복", username);
+        lotService.removeDocument(LOT_DOC_TYPE, purchase.getId());
         Set<PurchaseOrder> touchedOrders = sourceOrders(purchase);
 
         // 발주 입고전환으로 생긴 전표라면 발주서의 입고 연결을 풀고 '발주확정'으로 되돌린다.
@@ -220,6 +226,18 @@ public class PurchaseService {
             throw ApiException.badRequest("다른 문서(전자결재 등)가 참조 중이라 삭제할 수 없습니다: " + purchase.getDocNo());
         }
         refreshOrders(touchedOrders, username);
+    }
+
+    /** 원본 시리얼/로트No.내역조회의 [전표구분]. */
+    private static final String LOT_DOC_TYPE = "구매";
+
+    /** 로트No. 를 든 줄을 시리얼/로트 내역에 남긴다 — 들어온 수량만큼 +(반품이면 줄 수량이 음수라 −). */
+    private void syncLots(Purchase p) {
+        lotService.replaceDocument(LOT_DOC_TYPE, p.getId(), p.getDocNo(), p.getPurchaseDate(),
+                p.getPartner() != null ? p.getPartner().getName() : null,
+                p.getLines().stream()
+                        .map(l -> new LotService.DocLine(l.getItem(), p.getWarehouse(), l.getLotNo(), l.getQuantity()))
+                        .toList());
     }
 
     /** 이 전표의 줄들이 근거로 삼은 발주들. */
