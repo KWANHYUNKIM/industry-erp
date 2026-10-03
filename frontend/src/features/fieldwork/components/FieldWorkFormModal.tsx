@@ -13,6 +13,7 @@ type Form = {
   workDate: string; startTime: string; endTime: string; userId: string
   vehicleNo: string; vehicleName: string; usePurpose: string
   departure: string; destination: string; distance: string; purpose: string
+  odometerBefore: string; odometerAfter: string
 }
 
 const hm = (t: string | null) => (t ?? '').slice(0, 5)
@@ -40,6 +41,7 @@ export default function FieldWorkFormModal({ open, record, users, myUsername, on
     return {
       workDate: ymd(new Date()), startTime: '09:00', endTime: '10:00', userId: me ? String(me.id) : '',
       vehicleNo: '', vehicleName: '', usePurpose: '', departure: '', destination: '', distance: '', purpose: '',
+      odometerBefore: '', odometerAfter: '',
     }
   }
   const fromRecord = (r: FieldWork): Form => ({
@@ -47,6 +49,8 @@ export default function FieldWorkFormModal({ open, record, users, myUsername, on
     vehicleNo: r.vehicleNo ?? '', vehicleName: r.vehicleName ?? '', usePurpose: r.usePurpose ?? '',
     departure: r.departure ?? '', destination: r.destination ?? '',
     distance: r.distance != null ? String(r.distance) : '', purpose: r.purpose ?? '',
+    odometerBefore: r.odometerBefore != null ? String(r.odometerBefore) : '',
+    odometerAfter: r.odometerAfter != null ? String(r.odometerAfter) : '',
   })
   const [form, setForm] = useState<Form>(blank)
   const [error, setError] = useState('')
@@ -55,6 +59,17 @@ export default function FieldWorkFormModal({ open, record, users, myUsername, on
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (open) { setForm(record ? fromRecord(record) : blank()); setError('') } }, [open, record])
 
+  /** 두 계기판 값이 다 있으면 운행거리는 주행후 − 주행전(원본과 같이 저절로). */
+  const autoDistance = form.odometerBefore !== '' && form.odometerAfter !== ''
+    ? String(Math.max(0, Number(form.odometerAfter) - Number(form.odometerBefore)))
+    : null
+  /** 차량을 고르면 [주행전 계기판거리]를 그 차량의 마지막 주행후 값으로 채운다(원본 실측). */
+  async function fillOdometer(vehicleNo: string) {
+    try {
+      const r = await api.get<{ odometer: number | null }>('/field-works/last-odometer', { params: { vehicleNo } })
+      if (r.data.odometer != null) setForm((f) => ({ ...f, odometerBefore: String(r.data.odometer) }))
+    } catch { /* 못 받으면 비워 둔다 */ }
+  }
   /** 원본 [이동수단] 코드도움(이동수단검색) */
   const [pickerOpen, setPickerOpen] = useState(false)
   useShortcut('F8', () => void submit(), open && !pickerOpen)
@@ -70,6 +85,8 @@ export default function FieldWorkFormModal({ open, record, users, myUsername, on
       usePurpose: form.usePurpose || null, departure: form.departure || null,
       destination: form.destination || null, distance: form.distance ? Number(form.distance) : null,
       purpose: form.purpose || null,
+      odometerBefore: form.odometerBefore ? Number(form.odometerBefore) : null,
+      odometerAfter: form.odometerAfter ? Number(form.odometerAfter) : null,
     }
     try {
       if (record) await api.put(`/field-works/${record.id}`, body)
@@ -117,6 +134,30 @@ export default function FieldWorkFormModal({ open, record, users, myUsername, on
             <button type="button" className="ec-btn ec-btn-sm" aria-label="이동수단검색" onClick={() => setPickerOpen(true)}>🔍</button>
             <input className="ec-input flex-1" placeholder="이동수단명" value={form.vehicleName} onChange={(e) => set('vehicleName', e.target.value)} />
           </div>
+          {/*
+            원본(2026-10-03 실측): 이동수단을 고르면 그 아래 세 줄 — [주행전 계기판거리](그 차량의 마지막 주행후 값으로 채움 ·
+            16,500) · [주행후 계기판거리] · [운행거리](둘을 다 넣으면 주행후 − 주행전으로 저절로 · 500).
+          */}
+          {form.vehicleNo && (
+            <div className="form flex-col items-stretch gap-[4px] mt-[4px]">
+              <label className="flex items-center gap-[6px]">
+                <span className="w-[120px] text-ec-label">주행전 계기판거리</span>
+                <input type="number" min={0} step="0.01" className="ec-input flex-1 text-right" placeholder="주행전 계기판거리"
+                       value={form.odometerBefore} onChange={(e) => set('odometerBefore', e.target.value)} />
+              </label>
+              <label className="flex items-center gap-[6px]">
+                <span className="w-[120px] text-ec-label">주행후 계기판거리</span>
+                <input type="number" min={0} step="0.01" className="ec-input flex-1 text-right" placeholder="주행후 계기판거리"
+                       value={form.odometerAfter} onChange={(e) => set('odometerAfter', e.target.value)} />
+              </label>
+              <label className="flex items-center gap-[6px]">
+                <span className="w-[120px] text-ec-label">운행거리</span>
+                <input type="number" min={0} step="0.01" className="ec-input flex-1 text-right" placeholder="운행거리"
+                       value={autoDistance ?? form.distance} readOnly={autoDistance != null}
+                       onChange={(e) => set('distance', e.target.value)} />
+              </label>
+            </div>
+          )}
         </li>
         <li className="wide">
           <div className="title">사용목적명</div>
@@ -131,10 +172,6 @@ export default function FieldWorkFormModal({ open, record, users, myUsername, on
           <div className="form"><input className="ec-input w-full" placeholder="도착지 주소" value={form.destination} onChange={(e) => set('destination', e.target.value)} /></div>
         </li>
         <li className="wide">
-          <div className="title">운행거리</div>
-          <div className="form"><input type="number" min={0} step="0.01" className="ec-input w-[140px] text-right" placeholder="운행거리" value={form.distance} onChange={(e) => set('distance', e.target.value)} /></div>
-        </li>
-        <li className="wide">
           <div className="title">적요</div>
           <div className="form"><input className="ec-input w-full" placeholder="적요" value={form.purpose} onChange={(e) => set('purpose', e.target.value)} /></div>
         </li>
@@ -147,7 +184,7 @@ export default function FieldWorkFormModal({ open, record, users, myUsername, on
         <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
       </div>
       <VehiclePicker open={pickerOpen} onClose={() => setPickerOpen(false)}
-                     onPick={(v) => { setForm((f) => ({ ...f, vehicleNo: v.code, vehicleName: v.name })); setPickerOpen(false) }} />
+                     onPick={(v) => { setForm((f) => ({ ...f, vehicleNo: v.code, vehicleName: v.name })); setPickerOpen(false); void fillOdometer(v.code) }} />
     </Modal>
   )
 }

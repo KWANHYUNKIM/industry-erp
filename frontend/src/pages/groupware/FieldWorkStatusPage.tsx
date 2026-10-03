@@ -27,8 +27,7 @@ const num = (v: number) => v.toLocaleString('ko-KR', { minimumFractionDigits: 2,
  *
  * <p>출력물의 [일자]를 누르면 '외근입력' 창이 그 기록으로 열린다(저장 · 삭제 뒤 출력물을 다시 뽑는다, 2026-10-03 실측).
  *
- * <p>[주행전/주행후 계기판거리]는 두지 않았다 — 원본은 차량 마스터가 계기판 값을 들고 있는데(입력 창에는 그 칸이
- * 없다) 우리에게 차량 마스터가 없다. 운행거리는 외근 한 건에 적은 값이다. 조건의 [기타](도착전내역만보기 ·
+ * <p>[주행전/주행후 계기판거리]는 외근입력에서 차량을 고르면 뜨는 두 칸의 값이다(V264). 계 · 합계에 같이 더한다. 조건의 [기타](도착전내역만보기 ·
  * 모든날짜표시) · [최근30일] · 정렬/소계 [설정] 창도 받쳐 줄 것이 없어 두지 않았다.
  */
 export default function FieldWorkStatusPage() {
@@ -87,6 +86,8 @@ export default function FieldWorkStatusPage() {
     return [...m.values()]
   })()
   const sum = (list: FieldWork[]) => list.reduce((a, r) => a + Number(r.distance ?? 0), 0)
+  /** 원본 계 · 합계는 두 계기판 값도 더한다(K5[H] 계 75,000 · 76,000, 실측). */
+  const sumOf = (list: FieldWork[], k: 'odometerBefore' | 'odometerAfter') => list.reduce((a, r) => a + Number(r[k] ?? 0), 0)
 
   return (
     <EcListShell title="외근현황" searchable={view === 'result'} onSearch={() => setView('cond')}
@@ -145,12 +146,13 @@ export default function FieldWorkStatusPage() {
             <thead>
               <tr>
                 <th>일자</th><th>차량종류</th><th>사용자명</th><th>사용목적</th>
+                <th className="text-right">주행전 계기판거리</th><th className="text-right">주행후 계기판거리</th>
                 <th className="text-right">운행거리</th><th>적요</th>
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
-                <tr><td colSpan={6} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={8} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
               ) : (
                 <>
                   {groups.map((g) => (
@@ -164,12 +166,16 @@ export default function FieldWorkStatusPage() {
                           <td>{r.vehicleName ?? r.vehicleNo ?? ''}</td>
                           <td>{r.userName}</td>
                           <td>{r.usePurpose ?? ''}</td>
+                          <td className="text-right">{r.odometerBefore != null ? num(Number(r.odometerBefore)) : ''}</td>
+                          <td className="text-right">{r.odometerAfter != null ? num(Number(r.odometerAfter)) : ''}</td>
                           <td className="text-right">{r.distance != null ? num(Number(r.distance)) : ''}</td>
                           <td>{r.purpose ?? ''}</td>
                         </tr>
                       ))}
                       <tr className="font-bold bg-ec-page">
                         <td colSpan={4} className="text-center">{g.label} 계</td>
+                        <td className="text-right">{num(sumOf(g.list, 'odometerBefore'))}</td>
+                        <td className="text-right">{num(sumOf(g.list, 'odometerAfter'))}</td>
                         <td className="text-right">{num(sum(g.list))}</td>
                         <td />
                       </tr>
@@ -177,6 +183,8 @@ export default function FieldWorkStatusPage() {
                   ))}
                   <tr className="font-bold bg-ec-page">
                     <td colSpan={4} className="text-center">합계</td>
+                    <td className="text-right">{num(sumOf(rows, 'odometerBefore'))}</td>
+                    <td className="text-right">{num(sumOf(rows, 'odometerAfter'))}</td>
                     <td className="text-right">{num(sum(rows))}</td>
                     <td />
                   </tr>

@@ -40,7 +40,11 @@ public final class FieldWorkDtos {
             @PositiveOrZero(message = "운행거리는 0 이상이어야 합니다.")
             BigDecimal distance,
             @Size(max = 300, message = "적요는 300자까지 넣을 수 있습니다.")
-            String purpose
+            String purpose,
+            @PositiveOrZero(message = "주행전 계기판거리는 0 이상이어야 합니다.")
+            BigDecimal odometerBefore,
+            @PositiveOrZero(message = "주행후 계기판거리는 0 이상이어야 합니다.")
+            BigDecimal odometerAfter
     ) {}
 
     public record RejectRequest(
@@ -55,7 +59,9 @@ public final class FieldWorkDtos {
             FieldWorkStatus status, String statusName,
             String approverName, String rejectReason,
             /* 원본 외근조회 격자의 운행 기록 칸 */
-            String departure, String vehicleNo, String vehicleName, String usePurpose, BigDecimal distance
+            String departure, String vehicleNo, String vehicleName, String usePurpose, BigDecimal distance,
+            /* 원본 [주행전 계기판거리][주행후 계기판거리] */
+            BigDecimal odometerBefore, BigDecimal odometerAfter
     ) {
         public static FieldWorkResponse from(FieldWork f) {
             return new FieldWorkResponse(
@@ -66,7 +72,8 @@ public final class FieldWorkDtos {
                     f.getStatus(), f.getStatus().getDisplayName(),
                     f.getApprover() != null ? f.getApprover().getName() : null,
                     f.getRejectReason(),
-                    f.getDeparture(), f.getVehicleNo(), f.getVehicleName(), f.getUsePurpose(), f.getDistance());
+                    f.getDeparture(), f.getVehicleNo(), f.getVehicleName(), f.getUsePurpose(), f.getDistance(),
+                    f.getOdometerBefore(), f.getOdometerAfter());
         }
     }
 

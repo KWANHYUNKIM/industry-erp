@@ -70,7 +70,9 @@ public class FieldWorkService {
                 .vehicleNo(req.vehicleNo())
                 .vehicleName(req.vehicleName())
                 .usePurpose(req.usePurpose())
-                .distance(req.distance())
+                .distance(distanceOf(req))
+                .odometerBefore(req.odometerBefore())
+                .odometerAfter(req.odometerAfter())
                 .status(FieldWorkStatus.REQUESTED)
                 .build();
         return FieldWorkResponse.from(fieldWorkRepository.save(f));
@@ -106,7 +108,9 @@ public class FieldWorkService {
         f.setVehicleNo(req.vehicleNo());
         f.setVehicleName(req.vehicleName());
         f.setUsePurpose(req.usePurpose());
-        f.setDistance(req.distance());
+        f.setDistance(distanceOf(req));
+        f.setOdometerBefore(req.odometerBefore());
+        f.setOdometerAfter(req.odometerAfter());
         return FieldWorkResponse.from(f);
     }
 
@@ -147,6 +151,30 @@ public class FieldWorkService {
             throw ApiException.badRequest("이미 " + f.getStatus().getDisplayName() + "된 외근계는 취소할 수 없습니다.");
         }
         fieldWorkRepository.delete(f);
+    }
+
+    /**
+     * 운행거리 — 두 계기판 값이 다 있으면 원본처럼 주행후 − 주행전(17,000 − 16,500 = 500), 아니면 적은 값.
+     * 주행후가 주행전보다 작으면 거리를 셀 수 없다.
+     */
+    private java.math.BigDecimal distanceOf(CreateFieldWorkRequest req) {
+        if (req.odometerBefore() != null && req.odometerAfter() != null) {
+            if (req.odometerAfter().compareTo(req.odometerBefore()) < 0) {
+                throw ApiException.badRequest("주행후 계기판거리가 주행전 계기판거리보다 작습니다.");
+            }
+            return req.odometerAfter().subtract(req.odometerBefore());
+        }
+        return req.distance();
+    }
+
+    /** 원본: 차량을 고르면 [주행전 계기판거리]에 그 차량의 마지막 주행후 값이 들어간다. 기록이 없으면 null. */
+    @Transactional(readOnly = true)
+    public java.math.BigDecimal lastOdometer(String vehicleNo) {
+        return fieldWorkRepository.findAll().stream()
+                .filter(f -> vehicleNo != null && vehicleNo.equalsIgnoreCase(f.getVehicleNo()) && f.getOdometerAfter() != null)
+                .max(java.util.Comparator.comparing(FieldWork::getWorkDate).thenComparing(FieldWork::getId))
+                .map(FieldWork::getOdometerAfter)
+                .orElse(null);
     }
 
     private FieldWork pending(Long id, String action) {

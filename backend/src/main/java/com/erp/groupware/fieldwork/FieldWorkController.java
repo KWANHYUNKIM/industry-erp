@@ -30,6 +30,14 @@ public class FieldWorkController {
         return service.find(from, to);
     }
 
+    /** 차량의 마지막 주행후 계기판거리 — 원본 외근입력이 [주행전]에 채운다. */
+    @GetMapping("/last-odometer")
+    public java.util.Map<String, java.math.BigDecimal> lastOdometer(@RequestParam String vehicleNo) {
+        java.util.Map<String, java.math.BigDecimal> out = new java.util.HashMap<>();
+        out.put("odometer", service.lastOdometer(vehicleNo));
+        return out;
+    }
+
     @PostMapping
     public ResponseEntity<FieldWorkResponse> create(
             @Valid @RequestBody CreateFieldWorkRequest req,

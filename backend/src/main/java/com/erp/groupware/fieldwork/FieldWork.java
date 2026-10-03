@@ -68,6 +68,14 @@ public class FieldWork extends BaseTimeEntity {
     @Column(precision = 12, scale = 2)
     private java.math.BigDecimal distance;
 
+    /** 원본 [주행전 계기판거리] — 차량을 고르면 그 차량의 마지막 주행후 값으로 채워진다. */
+    @Column(name = "odometer_before", precision = 12, scale = 2)
+    private java.math.BigDecimal odometerBefore;
+
+    /** 원본 [주행후 계기판거리]. 넣으면 운행거리 = 주행후 − 주행전. */
+    @Column(name = "odometer_after", precision = 12, scale = 2)
+    private java.math.BigDecimal odometerAfter;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default

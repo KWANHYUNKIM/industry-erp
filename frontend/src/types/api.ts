@@ -2790,6 +2790,9 @@ export interface FieldWork {
   vehicleName: string | null
   usePurpose: string | null
   distance: number | null
+  /** 원본 [주행전 계기판거리][주행후 계기판거리] */
+  odometerBefore: number | null
+  odometerAfter: number | null
 }
 
 export interface FieldWorkSummary {
