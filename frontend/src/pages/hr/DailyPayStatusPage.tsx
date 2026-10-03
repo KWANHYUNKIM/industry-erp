@@ -1,6 +1,8 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
+import CodePickerField from '../../components/CodePickerField'
+import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import { lastDay, monthRange, slashYm, won, type DailyReportLine } from '../../features/dailypay/report'
@@ -11,13 +13,22 @@ import { lastDay, monthRange, slashYm, won, type DailyReportLine } from '../../f
  * <p>2026-10-03 loginaa 실측: 조건이 펼쳐진 현황 — 구분(라인별 · 급여대장별부서별 · …) · 귀속연월(전월+금월) · 지급연월(사용) ·
  * 지급구분 · 부서 · 사원 · 확정여부(전체 · 미확정 · 확정). 결과 머리 '급여현황' · 회사명 · 기간, 격자 귀속연월-NO · 급여대장명 ·
  * 최종근무일 · 부서명 · 프로젝트명 · 성명 · 지급총액 · 공제총액 · 실지급액, 대장마다 '2026/07-1 계' 소계와 합계.
- * 빠른선택 전월 · 전월+금월 · 금년 · 전년 · 금월. 구분은 라인별만, 지급연월 · 지급구분 · 프로젝트명 · 사용자지정집계는 없다.
+ * 빠른선택 전월 · 전월+금월 · 금년 · 전년 · 금월. 지급연월([사용]) · 부서 · 사원(여러 개 고르는 코드도움)을 거른다.
+ * 구분은 라인별만, 지급구분 · 프로젝트명 · 사용자지정집계 · 결재방표시는 없다.
  */
 export default function DailyPayStatusPage() {
   const [range, setRange] = useState(monthRange('전월+금월'))
   const [shown, setShown] = useState(range)
-  const [deptCond, setDeptCond] = useState('')
-  const [empCond, setEmpCond] = useState('')
+  const [usePaid, setUsePaid] = useState(false)
+  const [paidRange, setPaidRange] = useState(range)
+  const [deptCond, setDeptCond] = useState<string[]>([])
+  const [empCond, setEmpCond] = useState<string[]>([])
+  const [workers, setWorkers] = useState<{ id: number; code: string; name: string }[]>([])
+  const [depts, setDepts] = useState<{ id: number; code?: string | null; name: string }[]>([])
+  useEffect(() => {
+    api.get<typeof workers>('/hr/daily-workers').then((r) => setWorkers(r.data)).catch(() => setWorkers([]))
+    api.get<typeof depts>('/departments').then((r) => setDepts(r.data)).catch(() => setDepts([]))
+  }, [])
   const [confirmed, setConfirmed] = useState<'all' | 'no' | 'yes'>('all')
   const [rows, setRows] = useState<DailyReportLine[]>([])
   const [error, setError] = useState('')
@@ -30,8 +41,9 @@ export default function DailyPayStatusPage() {
   }
   useEffect(() => { search() }, [])
 
-  const list = rows.filter((r) => (!deptCond || r.department.includes(deptCond))
-    && (!empCond || r.workerName.includes(empCond) || r.workerCode.includes(empCond))
+  const list = rows.filter((r) => (!usePaid || (r.paidMonth >= paidRange.from && r.paidMonth <= paidRange.to))
+    && (deptCond.length === 0 || deptCond.includes(r.department))
+    && (empCond.length === 0 || empCond.includes(String(r.workerId)))
     && (confirmed === 'all' || (confirmed === 'yes') === r.confirmed))
   useTableColumnCheck(tableRef, '일용근로 급여현황', [list.length])
   const groups = new Map<number, DailyReportLine[]>()
@@ -49,8 +61,26 @@ export default function DailyPayStatusPage() {
           ~
           <input type="month" className="ec-input w-[140px]" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
         </EcCond>
-        <EcCond label="부서"><input className="ec-input w-full" placeholder="부서" value={deptCond} onChange={(e) => setDeptCond(e.target.value)} /></EcCond>
-        <EcCond label="사원"><input className="ec-input w-full" placeholder="사원" value={empCond} onChange={(e) => setEmpCond(e.target.value)} /></EcCond>
+        <EcCond label="지급연월">
+          {usePaid && (
+            <>
+              <input type="month" className="ec-input w-[140px]" aria-label="지급연월 시작" value={paidRange.from} onChange={(e) => setPaidRange({ ...paidRange, from: e.target.value })} />
+              ~
+              <input type="month" className="ec-input w-[140px]" aria-label="지급연월 끝" value={paidRange.to} onChange={(e) => setPaidRange({ ...paidRange, to: e.target.value })} />
+            </>
+          )}
+          <label className="inline-flex items-center gap-[4px] ml-[6px]">
+            <input type="checkbox" checked={usePaid} onChange={(e) => { setUsePaid(e.target.checked); if (e.target.checked) setPaidRange(range) }} /> 사용
+          </label>
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel fill multiple placeholder="부서" values={deptCond} onChangeMulti={(v) => setDeptCond(v)}
+                           items={depts.map((d) => ({ value: d.name, code: d.code ?? undefined, name: d.name }))} />
+        </EcCond>
+        <EcCond label="사원">
+          <CodePickerField label="사원" hideLabel fill multiple placeholder="사원" values={empCond} onChangeMulti={(v) => setEmpCond(v)}
+                           items={workers.map((w) => ({ value: String(w.id), code: w.code, name: w.name }))} />
+        </EcCond>
         <EcCond label="확정여부">
           {([['all', '전체'], ['no', '미확정'], ['yes', '확정']] as const).map(([v, l]) => (
             <label key={v} className="inline-flex items-center gap-[4px] mr-[10px]">
@@ -66,8 +96,7 @@ export default function DailyPayStatusPage() {
         ))}
       </div>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
-      <div className="text-center font-bold mb-[2px]">급여현황</div>
-      <div className="text-ec-hint mb-[4px]">{shown.from.replace('-', '/')}/01 ~ {lastDay(shown.to).replace(/-/g, '/')}</div>
+      <EcReportHead title="급여현황" period={reportPeriod(`${shown.from}-01`, lastDay(shown.to))} />
       <div className="overflow-x-auto">
         <table ref={tableRef} className="w-full text-left">
           <thead>
@@ -123,6 +152,7 @@ export default function DailyPayStatusPage() {
           </tbody>
         </table>
       </div>
+      <EcReportFoot />
     </EcListShell>
   )
 }
