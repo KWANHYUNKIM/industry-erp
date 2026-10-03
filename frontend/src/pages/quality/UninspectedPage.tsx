@@ -7,8 +7,8 @@ import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { INQUIRY_PICKS, ymd } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
-import { dateText } from '../../utils/dateText'
-import type { QualityInspectionRequest } from '../../types/api'
+import type { QualityInspection, QualityInspectionRequest } from '../../types/api'
+import { EcReportHead, EcReportFoot, reportDate } from '../../components/EcReportFrame'
 
 const qty = (n: number) => n.toLocaleString('ko-KR')
 /** 원본 월 소계 · 총합계 줄(2026-10-03 실측): 바탕 rgb(247,247,247) · 굵게 · 앞 세 칸을 묶어 가운데 정렬. */
@@ -23,7 +23,9 @@ const SUB_ROW: React.CSSProperties = { fontWeight: 700, background: 'rgb(247, 24
  *
  * <p>원본은 일자 하나를 받아 회사 [영업주기]만큼 거슬러 올라간 구간을 본다(그날 머리글이 2024/10/13 ~ 2026/10/03).
  * 우리는 영업주기 설정이 없어 <b>그날까지 쌓인 미검사 전부</b>를 본다 — 밀린 요청이 영업주기 밖이라고 사라지면 안 된다.
- * 미검사수량은 아직 요청(REQUESTED) 상태인 요청의 수량이다 — 우리 요청은 한 번에 검사완료로 닫혀 부분 검사가 없다.
+ * <p>2026-10-04 원본 실측: 줄은 요청의 <b>품목 줄마다</b> 하나다(5/21 -3 이 MSI 10 · 인텔 20 두 행). 미검사수량 = 그 줄 수량 −
+ * 그 요청으로 불러와 만든 검사(연결전표)가 같은 품목에 검사한 수량. 예전 우리는 요청 한 건을 한 행(머리 품목)으로 찍고
+ * 미검사수량을 요청 수량 그대로 적었다 — 요청이 줄 · 부분 검사를 갖게 된 뒤로 틀린 값이었다.
  * 거래처 · 창고 · 관리항목은 검사요청이 들지 않는다.
  */
 export default function UninspectedPage() {
@@ -35,6 +37,8 @@ export default function UninspectedPage() {
   const [qtyFrom, setQtyFrom] = useState('')
   const [qtyTo, setQtyTo] = useState('')
   const [rows, setRows] = useState<QualityInspectionRequest[]>([])
+  /** 요청에서 불러와 만든 검사들 — 요청 줄마다 이미 검사한 수량을 센다. */
+  const [inspections, setInspections] = useState<QualityInspection[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -42,8 +46,12 @@ export default function UninspectedPage() {
     setLoading(true)
     setError('')
     try {
-      const r = await api.get<QualityInspectionRequest[]>('/quality-inspection-requests', { params: { status: 'REQUESTED', to: asOf } })
+      const [r, q] = await Promise.all([
+        api.get<QualityInspectionRequest[]>('/quality-inspection-requests', { params: { status: 'REQUESTED', to: asOf } }),
+        api.get<QualityInspection[]>('/quality-inspections', { params: { to: asOf } }),
+      ])
       setRows(r.data)
+      setInspections(q.data)
     } catch (e) {
       setError(extractErrorMessage(e))
     } finally {
@@ -56,22 +64,46 @@ export default function UninspectedPage() {
   const shown = useMemo(() => rows
     .filter((r) => r.status === 'REQUESTED' && r.requestDate <= asOf)
     .filter((r) => !reqNo || r.requestNo.includes(reqNo))
-    .filter((r) => !item || String(r.itemId) === item)
     .filter((r) => !project || String(r.projectId) === project)
-    .filter((r) => qtyFrom === '' || Number(r.requestQty) >= Number(qtyFrom))
-    .filter((r) => qtyTo === '' || Number(r.requestQty) <= Number(qtyTo))
     .sort((a, b) => (a.requestDate < b.requestDate ? -1 : a.requestDate > b.requestDate ? 1 : a.requestNo.localeCompare(b.requestNo))),
-  [rows, asOf, reqNo, item, project, qtyFrom, qtyTo])
+  [rows, asOf, reqNo, project])
+
+  /** 요청 id + 품목 → 그 요청으로 만든 검사가 그 품목에 검사한 수량(기준일까지). */
+  const inspected = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const q of inspections) {
+      if (q.requestId == null || q.inspectionDate > asOf) continue
+      for (const l of q.lines) m.set(`${q.requestId}|${l.itemId}`, (m.get(`${q.requestId}|${l.itemId}`) ?? 0) + Number(l.quantity))
+    }
+    return m
+  }, [inspections, asOf])
+  /** 줄 — 요청의 품목 줄마다. 같은 품목이 두 줄이면 검사한 수량을 앞 줄부터 덜어 낸다. */
+  type Line = { key: string; r: QualityInspectionRequest; itemId: number; itemName: string; spec: string | null; qty: number; open: number }
+  const lines = useMemo<Line[]>(() => shown.flatMap((r) => {
+    const left = new Map<number, number>()
+    const src = r.lines?.length ? r.lines : [{ id: 0, itemId: r.itemId, itemName: r.itemName, spec: r.spec, quantity: Number(r.requestQty) }]
+    return src.map((l) => {
+      if (!left.has(l.itemId)) left.set(l.itemId, inspected.get(`${r.id}|${l.itemId}`) ?? 0)
+      const used = Math.min(left.get(l.itemId)!, Number(l.quantity))
+      left.set(l.itemId, left.get(l.itemId)! - used)
+      return { key: `${r.id}-${l.id}`, r, itemId: l.itemId, itemName: l.itemName, spec: l.spec, qty: Number(l.quantity), open: Number(l.quantity) - used }
+    })
+  })
+    .filter((l) => l.open > 0)
+    .filter((l) => !item || String(l.itemId) === item)
+    .filter((l) => qtyFrom === '' || l.open >= Number(qtyFrom))
+    .filter((l) => qtyTo === '' || l.open <= Number(qtyTo)), [shown, inspected, item, qtyFrom, qtyTo])
 
   const months = useMemo(() => {
-    const by = new Map<string, QualityInspectionRequest[]>()
-    for (const r of shown) {
-      const m = r.requestDate.slice(0, 7)
-      by.set(m, [...(by.get(m) ?? []), r])
+    const by = new Map<string, Line[]>()
+    for (const l of lines) {
+      const m = l.r.requestDate.slice(0, 7)
+      by.set(m, [...(by.get(m) ?? []), l])
     }
-    return [...by.entries()].map(([m, rs]) => ({ m, rs, sum: rs.reduce((a, r) => a + Number(r.requestQty), 0) }))
-  }, [shown])
+    return [...by.entries()].map(([m, rs]) => ({ m, rs, sum: rs.reduce((a, l) => a + l.qty, 0), open: rs.reduce((a, l) => a + l.open, 0) }))
+  }, [lines])
   const total = months.reduce((a, g) => a + g.sum, 0)
+  const totalOpen = months.reduce((a, g) => a + g.open, 0)
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '미검사현황', [months.length])
 
@@ -110,9 +142,8 @@ export default function UninspectedPage() {
         </EcCond>
       </ul>
 
-      <h3 className="text-[13px] font-bold mt-[4px] mx-0 mb-[6px]">
-        미검사현황 <span className="font-normal text-ec-hint">~ {dateText(asOf)}</span>
-      </h3>
+      {/* 원본 머리글은 영업주기만큼 거슬러 올라간 구간이다 — 우리는 그날까지 쌓인 전부라 끝날만 적는다. */}
+      <EcReportHead title="미검사현황" period={`~ ${reportDate(asOf)}`} />
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
@@ -129,19 +160,19 @@ export default function UninspectedPage() {
           ) : months.length === 0 ? (
             <tr><td colSpan={5} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : months.flatMap((g) => [
-            ...g.rs.map((r) => (
-              <tr key={r.id}>
-                <td className="text-center">{dateNo(r.requestDate, r.requestNo)}</td>
-                <td>{r.requester ?? ''}</td>
-                <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
-                <td className="text-right">{qty(Number(r.requestQty))}</td>
-                <td className="text-right">{qty(Number(r.requestQty))}</td>
+            ...g.rs.map((l) => (
+              <tr key={l.key}>
+                <td className="text-center">{dateNo(l.r.requestDate, l.r.requestNo)}</td>
+                <td>{l.r.requester ?? ''}</td>
+                <td>{l.itemName}{l.spec ? ` [${l.spec}]` : ''}</td>
+                <td className="text-right">{qty(l.qty)}</td>
+                <td className="text-right">{qty(l.open)}</td>
               </tr>
             )),
             <tr key={`sub-${g.m}`} style={SUB_ROW}>
               <td colSpan={3} className="text-center">{g.m.replace('-', '/')} 계</td>
               <td className="text-right">{qty(g.sum)}</td>
-              <td className="text-right">{qty(g.sum)}</td>
+              <td className="text-right">{qty(g.open)}</td>
             </tr>,
           ])}
         </tbody>
@@ -149,10 +180,11 @@ export default function UninspectedPage() {
           <tr style={SUB_ROW}>
             <td colSpan={3} className="text-center">총합계</td>
             <td className="text-right">{qty(total)}</td>
-            <td className="text-right">{qty(total)}</td>
+            <td className="text-right">{qty(totalOpen)}</td>
           </tr>
         </tfoot>
       </table>
+      <EcReportFoot />
     </EcListShell>
   )
 }
