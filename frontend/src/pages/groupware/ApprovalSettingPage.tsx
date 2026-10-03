@@ -45,7 +45,9 @@ export default function ApprovalSettingPage() {
   const [editingPreset, setEditingPreset] = useState<ApprovalPreset | 'new' | null>(null)
 
   const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(''), 3000) }
-  const tsort = useTableSort(templates, { 정렬순서: (t) => t.sortOrder, 양식명: (t) => t.name })
+  /** 기안서작성 맨 위 '00 기본'(BASIC)은 제품이 심는 양식이라 원본 공통양식리스트에 없다(2026-10-03 실측). */
+  const companyTemplates = templates.filter((t) => t.code !== 'BASIC')
+  const tsort = useTableSort(companyTemplates, { 정렬순서: (t) => t.sortOrder, 양식명: (t) => t.name })
   const [quickOpen, setQuickOpen] = useState(false)
   const [quickName, setQuickName] = useState('')
   const [quickCopy, setQuickCopy] = useState('')
@@ -57,16 +59,17 @@ export default function ApprovalSettingPage() {
     if (!quickName.trim()) return setQuickErr('양식명을 입력하세요.')
     const src = templates.find((t) => String(t.id) === quickCopy)
     try {
-      await api.post('/approval-settings/templates', {
+      // 원본: 새 양식의 정렬순서는 0, 저장하면 곧바로 '입력화면설정' 창이 그 양식으로 열린다(2026-10-03 실측).
+      const res = await api.post<ApprovalFormTemplateAdmin>('/approval-settings/templates', {
         code: `FORM-${Date.now().toString(36).toUpperCase()}`,
         name: quickName.trim(),
-        sortOrder: templates.reduce((m, t) => Math.max(m, t.sortOrder), 0) + 1,
+        sortOrder: 0,
         active: true,
         fieldSchema: src ? src.fieldSchema : [],
       })
       setQuickOpen(false)
-      flash(`${quickName.trim()} 양식을 저장했습니다.`)
       await load()
+      setEditing(res.data)
     } catch (err) { setQuickErr(extractErrorMessage(err)) }
   }
   useShortcut('F8', () => void quickSave(), quickOpen)
@@ -92,7 +95,8 @@ export default function ApprovalSettingPage() {
   useEffect(() => { load() }, [])
 
   async function removeTemplate(t: ApprovalFormTemplateAdmin) {
-    if (!window.confirm(`${t.name} 양식을 삭제할까요?`)) return
+    // 원본 '입력화면설정' [삭제] 의 확인 문구 그대로.
+    if (!window.confirm('등록한 양식을 삭제하겠습니까?\n삭제된 양식은 복구되지 않습니다.')) return
     try {
       await api.delete(`/approval-settings/templates/${t.id}`)
       flash(`${t.name} 양식을 삭제했습니다.`)
@@ -151,7 +155,7 @@ export default function ApprovalSettingPage() {
                 </tr>
               </thead>
               <tbody>
-                {templates.length === 0 ? (
+                {companyTemplates.length === 0 ? (
                   <tr><td colSpan={4} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
                 ) : tsort.sorted.map((t) => (
                   <tr key={t.id}>
@@ -176,7 +180,7 @@ export default function ApprovalSettingPage() {
                 <li className="wide"><div className="title">복사대상양식</div><div className="form">
                   <select className="ec-input w-full" aria-label="복사대상양식" value={quickCopy} onChange={(e) => setQuickCopy(e.target.value)}>
                     <option value="">기본(기본)</option>
-                    {templates.map((t) => <option key={t.id} value={String(t.id)}>{t.name}</option>)}
+                    {companyTemplates.map((t) => <option key={t.id} value={String(t.id)}>{t.name}</option>)}
                   </select>
                 </div></li>
               </ul>
@@ -303,7 +307,8 @@ function TemplateForm({ template, onError, onClose, onSaved, onDelete }: {
   return (
     <div className="border border-ec-line border-solid bg-white p-[14px] mb-[8px]">
       <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">
-        {isNew ? '양식 추가' : `양식 수정 — ${template.code}`}
+        {/* 원본은 양식을 열면 '입력화면설정' 창이다 */}
+        {isNew ? '양식 추가' : '입력화면설정'}
       </div>
       <div className="flex gap-[12px] flex-wrap items-end mb-[12px]">
         <Field label="양식코드 *">

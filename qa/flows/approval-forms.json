@@ -1,22 +1,26 @@
 {
-  "about": "공통양식등록(원본 E070107 공통양식리스트) — 머리 [정렬순서▼][양식명▼][구분▼][결재문서] → [신규(F2)] '양식등록'(양식명 · 복사대상양식) → 저장하면 목록에 → 양식명을 눌러 열고 [삭제]. node qa/shot.mjs qa/flows/approval-forms.json",
+  "about": "공통양식등록(원본 E070107 공통양식리스트) — 머리 [정렬순서▼][양식명▼][구분▼][결재문서], '기본'(BASIC)은 목록에 없음 → [신규(F2)] '양식등록'(양식명 · 복사대상양식) → 저장하면 곧바로 '입력화면설정'(정렬순서 0)이 그 양식으로 열림 → [삭제] '등록한 양식을 삭제하겠습니까? …' → 목록에서 사라짐. node qa/shot.mjs qa/flows/approval-forms.json",
   "shots": [
     {
       "name": "목록 → 양식등록 → 열어서 삭제",
       "path": "/groupware/approval/settings?tab=공통양식등록",
       "steps": [
+        "wait:800",
         "expect:[...document.querySelectorAll('thead th')].map((t) => t.textContent.replace(/[▼▲\\s]/g, '')).join(',') === '정렬순서,양식명,구분,결재문서'",
+        "expect:![...document.querySelectorAll('tbody button')].some((b) => b.textContent === '기본')",
         "click:신규(F2)",
         "expect:document.querySelector('[role=dialog]')?.getAttribute('aria-label') === '양식등록'",
         "click:저장(F8)",
         "expect:document.querySelector('[role=dialog]')?.innerText.includes('양식명을 입력하세요.')",
         "setnear:양식명|QA그룹웨어-양식",
         "click:저장(F8)",
-        "expect:!document.querySelector('[role=dialog]')",
-        "expect:[...document.querySelectorAll('tbody button')].some((b) => b.textContent === 'QA그룹웨어-양식')",
-        "js:window.confirm = () => true; [...document.querySelectorAll('tbody button')].find((b) => b.textContent === 'QA그룹웨어-양식').click(); true",
+        "wait:800",
+        "expect:!document.querySelector('[role=dialog]') && document.body.innerText.includes('입력화면설정')",
+        "expect:[...document.querySelectorAll('input')].some((i) => i.value === 'QA그룹웨어-양식') && [...document.querySelectorAll('input[type=number]')].some((i) => i.value === '0')",
+        "js:window.__asked = ''; window.confirm = (m) => { window.__asked = m; return true }; true",
         "click:삭제",
         "wait:800",
+        "expect:window.__asked === '등록한 양식을 삭제하겠습니까?\\n삭제된 양식은 복구되지 않습니다.'",
         "expect:![...document.querySelectorAll('tbody button')].some((b) => b.textContent === 'QA그룹웨어-양식')"
       ]
     }
