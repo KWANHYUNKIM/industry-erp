@@ -93,6 +93,63 @@ public class SalesPlanService {
         return SalesPlanResponse.from(planRepository.save(plan));
     }
 
+    /**
+     * 원본 매출계획입력(E040624) — 여러 줄 전표를 한 번에 저장한다(2026-10-04 실측). 같은 전표번호로 줄마다 한 행.
+     * 예상매출액을 안 적으면 수량 × 단가. 빈 전표는 원본처럼 '자료를 입력 바랍니다.'.
+     */
+    @Transactional
+    public List<SalesPlanResponse> createDoc(com.erp.trade.salesplan.dto.SalesPlanDtos.PlanDocRequest req, String username) {
+        LocalDate d = req.expectedDate();
+        String no = docNoGenerator.next("SP-", "sales_plans", "plan_no", "plan_date", d);
+        return writeDoc(no, req, username);
+    }
+
+    /** 전표 수정 — 줄을 통째로 바꾼다. 번호 · 일자는 그대로. */
+    @Transactional
+    public List<SalesPlanResponse> updateDoc(String planNo, com.erp.trade.salesplan.dto.SalesPlanDtos.PlanDocRequest req, String username) {
+        List<SalesPlan> old = planRepository.findByPlanNoOrderByLineNo(planNo);
+        if (old.isEmpty()) throw ApiException.notFound("매출계획을 찾을 수 없습니다: " + planNo);
+        LocalDate d = old.get(0).getPlanDate();
+        planRepository.deleteAll(old);
+        planRepository.flush();
+        return writeDoc(planNo, new com.erp.trade.salesplan.dto.SalesPlanDtos.PlanDocRequest(d, req.warehouseId(), req.projectId(), req.lines()), username);
+    }
+
+    /** 원본 [삭제] · [선택삭제] 는 전표째 지운다. */
+    @Transactional
+    public void deleteDoc(String planNo) {
+        List<SalesPlan> rows = planRepository.findByPlanNoOrderByLineNo(planNo);
+        if (rows.isEmpty()) throw ApiException.notFound("매출계획을 찾을 수 없습니다: " + planNo);
+        planRepository.deleteAll(rows);
+    }
+
+    private List<SalesPlanResponse> writeDoc(String no, com.erp.trade.salesplan.dto.SalesPlanDtos.PlanDocRequest req, String username) {
+        var lines = req.lines() == null ? List.<com.erp.trade.salesplan.dto.SalesPlanDtos.PlanLineRequest>of() : req.lines();
+        if (lines.isEmpty()) throw ApiException.badRequest("자료를 입력 바랍니다.");
+        LocalDate d = req.expectedDate();
+        var warehouse = req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId());
+        var project = req.projectId() == null ? null : projectService.get(req.projectId());
+        List<SalesPlanResponse> out = new ArrayList<>();
+        int lineNo = 1;
+        for (var l : lines) {
+            BigDecimal qty = nz(l.planQty());
+            BigDecimal price = nz(l.unitPrice());
+            BigDecimal amount = l.planAmount() != null ? l.planAmount() : qty.multiply(price);
+            SalesPlan p = SalesPlan.builder()
+                    .item(itemService.get(l.itemId()))
+                    .planDate(d).planNo(no).lineNo(lineNo++)
+                    .warehouse(warehouse).project(project)
+                    .partner(l.partnerId() == null ? null : partnerService.get(l.partnerId()))
+                    .employee(l.employeeId() == null ? null : employeeService.get(l.employeeId()))
+                    .expectedDate(d).planYear(d.getYear()).planMonth(d.getMonthValue())
+                    .planQty(qty).unitPrice(price).planAmount(amount)
+                    .remark(l.remark()).createdBy(username)
+                    .build();
+            out.add(SalesPlanResponse.from(planRepository.save(p)));
+        }
+        return out;
+    }
+
     @Transactional
     public void delete(Long id) {
         if (!planRepository.existsById(id)) {

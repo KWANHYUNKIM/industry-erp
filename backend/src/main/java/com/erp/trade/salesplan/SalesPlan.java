@@ -80,9 +80,17 @@ public class SalesPlan extends BaseTimeEntity {
     @Column(name = "plan_date", nullable = false)
     private java.time.LocalDate planDate;
 
-    /** 전표번호 SP-yyyyMMdd-NNNN. 계획 한 줄을 가리킬 이름이다. */
-    @Column(name = "plan_no", nullable = false, length = 30, unique = true)
+    /**
+     * 전표번호 SP-yyyyMMdd-NNNN. 원본 매출계획은 여러 줄 전표라(2026-10-04 실측) <b>같은 번호의 줄들이 한 전표</b>다 —
+     * (plan_no, line_no) 가 유일하다.
+     */
+    @Column(name = "plan_no", nullable = false, length = 30)
     private String planNo;
+
+    /** 전표 안 줄 차례(1부터). */
+    @Column(name = "line_no", nullable = false)
+    @Builder.Default
+    private int lineNo = 1;
 
     @Column(name = "plan_year", nullable = false)
     private int planYear;

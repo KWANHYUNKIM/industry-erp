@@ -380,6 +380,8 @@ const MENU: TopMenu[] = [
       {
         label: '계획관리',
         nodes: [
+          /* 원본 매출계획 > [매출계획조회](E040625) · 입력(E040624) — 여러 줄 전표(2026-10-04). */
+          { label: '매출계획조회', to: '/sales/sales-plan-list' },
           { label: '매출계획', to: '/sales/sales-plan' },
           /* 원본 매출계획 > [매출계획비교표](E040626) — 기간 안 계획과 판매 전부를 표시조건으로 견주는 출력물(2026-10-04). */
           { label: '매출계획비교표', to: '/sales/sales-plan-compare' },

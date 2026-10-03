@@ -52,6 +52,26 @@ public class SalesPlanController {
         return service.compare(from, to, saleFlag, by1, by2, itemId, partnerId, warehouseId, employeeId, projectId);
     }
 
+    /** 원본 매출계획입력 — 여러 줄 전표 저장 · 수정 · 삭제(전표번호 단위). */
+    @PostMapping("/docs")
+    public List<SalesPlanResponse> createDoc(@Valid @RequestBody com.erp.trade.salesplan.dto.SalesPlanDtos.PlanDocRequest req,
+                                             @org.springframework.security.core.annotation.AuthenticationPrincipal com.erp.security.UserPrincipal principal) {
+        return service.createDoc(req, principal.getUsername());
+    }
+
+    @PutMapping("/docs/{planNo}")
+    public List<SalesPlanResponse> updateDoc(@PathVariable String planNo,
+                                             @Valid @RequestBody com.erp.trade.salesplan.dto.SalesPlanDtos.PlanDocRequest req,
+                                             @org.springframework.security.core.annotation.AuthenticationPrincipal com.erp.security.UserPrincipal principal) {
+        return service.updateDoc(planNo, req, principal.getUsername());
+    }
+
+    @DeleteMapping("/docs/{planNo}")
+    public ResponseEntity<Void> deleteDoc(@PathVariable String planNo) {
+        service.deleteDoc(planNo);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping
     public ResponseEntity<SalesPlanResponse> create(
             @Valid @RequestBody CreateSalesPlanRequest req,

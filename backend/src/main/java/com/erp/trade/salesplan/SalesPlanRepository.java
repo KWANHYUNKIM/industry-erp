@@ -17,6 +17,8 @@ public interface SalesPlanRepository extends JpaRepository<SalesPlan, Long> {
             "order by p.planMonth asc, p.item.name asc")
     List<SalesPlan> findByPlanYearWithItem(@Param("year") int year);
 
+    List<SalesPlan> findByPlanNoOrderByLineNo(String planNo);
+
     /** 매출계획비교표 — 계획 일자(예상매출일자)가 기간 안인 계획. */
     @Query("select p from SalesPlan p join fetch p.item left join fetch p.partner left join fetch p.warehouse " +
             "left join fetch p.project left join fetch p.employee " +

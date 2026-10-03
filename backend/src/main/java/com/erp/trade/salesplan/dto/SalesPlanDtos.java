@@ -36,6 +36,25 @@ public final class SalesPlanDtos {
             String remark
     ) {}
 
+    /** 원본 매출계획입력(E040624) 한 줄 — 거래처 · 담당자 · 품목 · 수량 · 단가 · 예상매출액 · 비고(2026-10-04 실측). */
+    public record PlanLineRequest(
+            Long partnerId,
+            Long employeeId,
+            @NotNull(message = "품목을 선택하세요.") Long itemId,
+            @PositiveOrZero(message = "수량은 0 이상이어야 합니다.") BigDecimal planQty,
+            @PositiveOrZero(message = "단가는 0 이상이어야 합니다.") BigDecimal unitPrice,
+            @PositiveOrZero(message = "예상매출액은 0 이상이어야 합니다.") BigDecimal planAmount,
+            @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.") String remark
+    ) {}
+
+    /** 원본 매출계획입력 전표 — 머리 [예상매출일자] 와 품목 줄. 창고 · 프로젝트는 머리 값으로 줄마다 같이 든다. */
+    public record PlanDocRequest(
+            @NotNull(message = "예상매출일자를 입력하세요.") java.time.LocalDate expectedDate,
+            Long warehouseId,
+            Long projectId,
+            java.util.List<@jakarta.validation.Valid PlanLineRequest> lines
+    ) {}
+
     public record SalesPlanResponse(
             Long id,
             /** 원본 격자 첫 열 <b>[일자-No.]</b> — 계획 한 줄을 가리키는 이름이다. */
@@ -44,7 +63,10 @@ public final class SalesPlanDtos {
             Long itemId, String itemCode, String itemName, String unit,
             Long employeeId, String employeeName,
             java.time.LocalDate expectedDate,
-            BigDecimal planQty, BigDecimal unitPrice, BigDecimal planAmount, String remark, String createdBy
+            BigDecimal planQty, BigDecimal unitPrice, BigDecimal planAmount, String remark, String createdBy,
+            /* 원본 매출계획조회 [거래처명 · 창고명 · 프로젝트명] 과 전표 안 줄 차례. */
+            int lineNo, Long partnerId, String partnerCode, String partnerName, Long warehouseId, String warehouseName,
+            Long projectId, String projectName
     ) {
         public static SalesPlanResponse from(SalesPlan p) {
             return new SalesPlanResponse(
@@ -53,7 +75,15 @@ public final class SalesPlanDtos {
                     p.getEmployee() != null ? p.getEmployee().getId() : null,
                     p.getEmployee() != null ? p.getEmployee().getName() : null,
                     p.getExpectedDate(),
-                    p.getPlanQty(), p.getUnitPrice(), p.getPlanAmount(), p.getRemark(), p.getCreatedBy());
+                    p.getPlanQty(), p.getUnitPrice(), p.getPlanAmount(), p.getRemark(), p.getCreatedBy(),
+                    p.getLineNo(),
+                    p.getPartner() != null ? p.getPartner().getId() : null,
+                    p.getPartner() != null ? p.getPartner().getCode() : null,
+                    p.getPartner() != null ? p.getPartner().getName() : null,
+                    p.getWarehouse() != null ? p.getWarehouse().getId() : null,
+                    p.getWarehouse() != null ? p.getWarehouse().getName() : null,
+                    p.getProject() != null ? p.getProject().getId() : null,
+                    p.getProject() != null ? p.getProject().getName() : null);
         }
     }
 

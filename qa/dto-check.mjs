@@ -191,6 +191,7 @@ const OWNED_HERE = new Map([
   ['Quotation|convertedOrderId', '수주로 넘길 때 서버가 잇는다'],
   ['SalesPlan|planNo', 'DocumentNoGenerator 가 매긴다'],
   ['SalesPlan|planDate', '[예상매출일자]에서 서버가 정한다 — 안 정하면 계획연월의 첫날이다'],
+  ['SalesPlan|lineNo', '전표 안 줄 차례 — 저장할 때 서버가 1부터 매긴다(여러 줄 전표, 2026-10-04)'],
   ['SpecialPrice|active', '전용 엔드포인트(PATCH /{id}/active)로 바꾼다'],
 ])
 
