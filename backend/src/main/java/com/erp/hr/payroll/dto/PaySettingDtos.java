@@ -1,5 +1,6 @@
 package com.erp.hr.payroll.dto;
 
+import com.erp.hr.payroll.PayGroupEmployee;
 import com.erp.hr.payroll.PayMethod;
 import com.erp.hr.payroll.PayTaxFreeType;
 
@@ -72,6 +73,8 @@ public final class PaySettingDtos {
     ) {}
 
     public record PayGroupRequest(
+            /* 원본 [수당/공제그룹코드]. 비우면 다음 번호. 수정 때는 바꾸지 않는다. */
+            @Size(max = 20, message = "그룹코드는 20자까지 넣을 수 있습니다.") String code,
             @Size(max = 50, message = "그룹명은 50자까지 넣을 수 있습니다.")
             @NotBlank(message = "그룹명을 입력하세요.") String name,
             @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
@@ -86,11 +89,17 @@ public final class PaySettingDtos {
     ) {}
 
     public record PayGroupResponse(
-            Long id, String name, String remark, boolean active,
+            Long id, String code, String name, String remark, boolean active,
             BigDecimal allowanceTotal, BigDecimal deductionTotal,
-            List<GroupLineResponse> lines
+            List<GroupLineResponse> lines,
+            /* 원본 목록의 [사원] 칸 — 적용사원 수 */
+            long employeeCount
     ) {
         public static PayGroupResponse from(PayGroup g) {
+            return from(g, 0);
+        }
+
+        public static PayGroupResponse from(PayGroup g, long employeeCount) {
             List<GroupLineResponse> lines = g.getLines().stream()
                     .map(l -> new GroupLineResponse(
                             l.getPayItem().getId(), l.getPayItem().getCode(), l.getPayItem().getName(),
@@ -103,8 +112,24 @@ public final class PaySettingDtos {
             BigDecimal deduction = lines.stream()
                     .filter(l -> l.kind() == PayslipLineKind.DEDUCTION)
                     .map(GroupLineResponse::amount).reduce(BigDecimal.ZERO, BigDecimal::add);
-            return new PayGroupResponse(g.getId(), g.getName(), g.getRemark(), g.isActive(),
-                    allowance, deduction, lines);
+            return new PayGroupResponse(g.getId(), g.getCode(), g.getName(), g.getRemark(), g.isActive(),
+                    allowance, deduction, lines, employeeCount);
+        }
+    }
+
+    /** 원본 [적용사원등록] 한 줄. 지급율을 비우면 100. */
+    public record GroupEmployeeInput(
+            @NotNull(message = "사원을 선택하세요.") Long employeeId,
+            @PositiveOrZero(message = "지급율은 0보다 작을 수 없습니다.") BigDecimal rate
+    ) {}
+
+    public record GroupEmployeeResponse(
+            Long employeeId, String employeeCode, String employeeName, String department, BigDecimal rate
+    ) {
+        public static GroupEmployeeResponse from(PayGroupEmployee a) {
+            var e = a.getEmployee();
+            return new GroupEmployeeResponse(e.getId(), e.getCode(), e.getName(),
+                    e.getDepartment() != null ? e.getDepartment().getName() : "", a.getRate());
         }
     }
 

@@ -24,6 +24,10 @@ public class PayGroup extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /** 원본 [수당/공제그룹코드]. 비워 저장하면 다음 번호(00001 꼴). */
+    @Column(nullable = false, unique = true, length = 20)
+    private String code;
+
     @Column(nullable = false, unique = true, length = 50)
     private String name;
 

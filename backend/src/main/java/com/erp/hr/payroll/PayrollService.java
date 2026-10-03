@@ -36,6 +36,7 @@ public class PayrollService {
     private final PayslipRepository payslipRepository;
     private final EmployeeRepository employeeRepository;
     private final PayGroupRepository payGroupRepository;
+    private final PayGroupEmployeeRepository payGroupEmployeeRepository;
     private final WithholdingTaxCalculator taxCalculator;
 
     @Transactional(readOnly = true)
@@ -72,18 +73,31 @@ public class PayrollService {
                 .createdBy(username)
                 .build();
 
-        // 1) 수당/공제 그룹 적용 — 직군·직급별로 매달 똑같이 붙는 항목들
+        // 1) 수당/공제 그룹 적용 — 직군·직급별로 매달 똑같이 붙는 항목들.
+        //    그룹을 고르지 않으면 원본처럼 [적용사원등록]에서 이 사원에게 매어 둔 그룹을 쓰고,
+        //    그 [지급율(%)]을 금액에 곱한다.
+        PayGroup group = null;
+        BigDecimal groupRate = BigDecimal.valueOf(100);
         if (req.payGroupId() != null) {
-            PayGroup group = payGroupRepository.findById(req.payGroupId())
+            group = payGroupRepository.findById(req.payGroupId())
                     .orElseThrow(() -> ApiException.notFound("수당/공제 그룹을 찾을 수 없습니다. id=" + req.payGroupId()));
             if (!group.isActive()) {
                 throw ApiException.badRequest("사용중지된 그룹입니다: " + group.getName());
             }
+        } else {
+            var assigned = payGroupEmployeeRepository.findByEmployeeId(emp.getId()).orElse(null);
+            if (assigned != null && assigned.getGroup().isActive()) {
+                group = assigned.getGroup();
+                groupRate = assigned.getRate();
+            }
+        }
+        if (group != null) {
             for (PayGroupLine gl : group.getLines()) {
                 p.addLine(PayslipLine.builder()
                         .kind(gl.getPayItem().getKind())
                         .name(gl.getPayItem().getName())
-                        .amount(gl.resolveAmount())
+                        .amount(gl.resolveAmount().multiply(groupRate)
+                                .divide(BigDecimal.valueOf(100), 0, java.math.RoundingMode.HALF_UP))
                         .taxable(gl.getPayItem().isTaxable())
                         .auto(false)
                         .build());

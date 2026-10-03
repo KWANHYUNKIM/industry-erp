@@ -26,6 +26,9 @@ public class PaySettingService {
 
     private final PayItemRepository itemRepository;
     private final PayGroupRepository groupRepository;
+    private final PayGroupEmployeeRepository groupEmployeeRepository;
+    private final com.erp.hr.employee.EmployeeService employeeService;
+    private final com.erp.common.DocumentNoGenerator documentNoGenerator;
 
     // ── 항목 ──────────────────────────────────────────────────────────
 
@@ -88,7 +91,10 @@ public class PaySettingService {
 
     @Transactional(readOnly = true)
     public List<PayGroupResponse> findGroups() {
-        return groupRepository.findAllWithLines().stream().map(PayGroupResponse::from).toList();
+        java.util.Map<Long, Long> counts = new java.util.HashMap<>();
+        for (Object[] r : groupEmployeeRepository.countByGroup()) counts.put((Long) r[0], (Long) r[1]);
+        return groupRepository.findAllWithLines().stream()
+                .map(g -> PayGroupResponse.from(g, counts.getOrDefault(g.getId(), 0L))).toList();
     }
 
     @Transactional
@@ -96,7 +102,14 @@ public class PaySettingService {
         if (groupRepository.existsByName(req.name())) {
             throw ApiException.conflict("이미 등록된 그룹입니다: " + req.name());
         }
+        String code = req.code() == null || req.code().isBlank()
+                ? documentNoGenerator.nextMasterCode("", "pay_groups", "code", 5)
+                : req.code().trim();
+        if (groupRepository.existsByCode(code)) {
+            throw ApiException.conflict("이미 등록된 그룹코드입니다: " + code);
+        }
         PayGroup g = PayGroup.builder()
+                .code(code)
                 .name(req.name())
                 .remark(req.remark())
                 .active(req.active() == null || req.active())
@@ -125,7 +138,42 @@ public class PaySettingService {
 
     @Transactional
     public void deleteGroup(Long id) {
+        // 원본 [삭제]: '한번 지워진 자료는 복구될 수 없습니다.' — 적용사원 연결도 함께 지운다
+        groupEmployeeRepository.deleteByGroup_Id(id);
         groupRepository.delete(group(id));
+    }
+
+    /** 원본 [적용사원등록] 창이 여는 목록. */
+    @Transactional(readOnly = true)
+    public List<PaySettingDtos.GroupEmployeeResponse> findGroupEmployees(Long groupId) {
+        group(groupId);
+        return groupEmployeeRepository.findByGroupWithEmployee(groupId).stream()
+                .map(PaySettingDtos.GroupEmployeeResponse::from).toList();
+    }
+
+    /**
+     * 원본 [적용사원등록] 저장 — 이 그룹의 적용사원을 통째로 바꾼다.
+     * 사원은 그룹 하나에만 들므로, 다른 그룹에 있던 사원은 그쪽에서 빠지고 이쪽으로 온다.
+     */
+    @Transactional
+    public List<PaySettingDtos.GroupEmployeeResponse> replaceGroupEmployees(
+            Long groupId, List<PaySettingDtos.GroupEmployeeInput> inputs) {
+        PayGroup g = group(groupId);
+        Set<Long> seen = new HashSet<>();
+        for (var in : inputs) {
+            if (!seen.add(in.employeeId())) throw ApiException.badRequest("같은 사원을 두 번 넣을 수 없습니다.");
+        }
+        groupEmployeeRepository.deleteByGroup_Id(groupId);
+        if (!seen.isEmpty()) groupEmployeeRepository.deleteByEmployee_IdIn(List.copyOf(seen));
+        groupEmployeeRepository.flush();
+        for (var in : inputs) {
+            groupEmployeeRepository.save(PayGroupEmployee.builder()
+                    .group(g)
+                    .employee(employeeService.get(in.employeeId()))
+                    .rate(in.rate() != null ? in.rate() : BigDecimal.valueOf(100))
+                    .build());
+        }
+        return findGroupEmployees(groupId);
     }
 
     /**

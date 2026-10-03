@@ -46,6 +46,19 @@ public class PaySettingController {
         service.deleteItem(id);
     }
 
+    /** 원본 수당/공제그룹등록 [사원 등록] — 적용사원 목록. */
+    @GetMapping("/groups/{id}/employees")
+    public List<PaySettingDtos.GroupEmployeeResponse> groupEmployees(@PathVariable Long id) {
+        return service.findGroupEmployees(id);
+    }
+
+    /** 원본 [적용사원등록] 저장 — 적용사원을 통째로 바꾼다. */
+    @PutMapping("/groups/{id}/employees")
+    public List<PaySettingDtos.GroupEmployeeResponse> replaceGroupEmployees(
+            @PathVariable Long id, @Valid @RequestBody List<@Valid PaySettingDtos.GroupEmployeeInput> body) {
+        return service.replaceGroupEmployees(id, body);
+    }
+
     @GetMapping("/groups")
     public List<PayGroupResponse> groups() {
         return service.findGroups();
