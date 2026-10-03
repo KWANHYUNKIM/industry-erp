@@ -72,6 +72,10 @@ public class EmploymentContract extends BaseTimeEntity {
     @Column(length = 200)
     private String duty;
 
+    /** 발송한 때 — 원본 근로계약현황 [요청일시] */
+    @Column(name = "sent_at")
+    private LocalDateTime sentAt;
+
     @Column(name = "signed_at")
     private LocalDateTime signedAt;
 

@@ -83,6 +83,7 @@ public class EmploymentContractService {
             throw ApiException.conflict("작성 상태의 계약만 발송할 수 있습니다. 현재: " + c.getStatus().getDisplayName());
         }
         c.setStatus(ContractStatus.SENT);
+        c.setSentAt(java.time.LocalDateTime.now());
         return ContractResponse.from(c);
     }
 

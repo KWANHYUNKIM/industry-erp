@@ -61,7 +61,10 @@ public class EmploymentContractDtos {
             LocalDateTime signedAt,
             String signedBy,
             String remark,
-            String createdBy
+            String createdBy,
+            /** 원본 근로계약현황 [요청일시] · [최종수정일자] */
+            LocalDateTime sentAt,
+            LocalDateTime updatedAt
     ) {
         public static ContractResponse from(EmploymentContract c) {
             return new ContractResponse(
@@ -76,7 +79,7 @@ public class EmploymentContractDtos {
                     c.getMonthlySalary(), c.getWeeklyHours(),
                     c.getWorkPlace(), c.getDuty(),
                     c.getSignedAt(), c.getSignedBy(),
-                    c.getRemark(), c.getCreatedBy());
+                    c.getRemark(), c.getCreatedBy(), c.getSentAt(), c.getUpdatedAt());
         }
     }
 }
