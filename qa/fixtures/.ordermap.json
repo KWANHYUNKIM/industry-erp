@@ -1094,5 +1094,9 @@
  [
   "고정자산수불부",
   "accounting/FixedAssetStockPage.tsx"
+ ],
+ [
+  "계정별원장",
+  "accounting/AccountLedgerPage.tsx"
  ]
 ]

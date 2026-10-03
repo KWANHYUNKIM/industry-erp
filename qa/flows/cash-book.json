@@ -337,6 +337,14 @@
         "wait:3000",
         "expect:(()=>{const t=document.querySelector('table');if(!t)return document.body.innerText.includes('등록된 데이터가 없습니다');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const r=t.querySelectorAll('tbody tr');return h==='일자|거래처명|적요|증가수량|감소수량|기말수량'&&r[0].cells[0].innerText.trim()==='전월이월'&&r[r.length-1].cells[0].innerText.trim()==='합계'})()"
       ]
+    },
+    {
+      "name": "계정별원장 — 계정마다 일자-No. · 적요 · 거래처명 · 차변금액 · 대변금액 · 잔액, 이월잔액 · 합계",
+      "path": "/accounting/ledger-book",
+      "steps": [
+        "wait:3000",
+        "expect:(()=>{const t=document.querySelector('table');if(!t)return document.body.innerText.includes('등록된 데이터가 없습니다');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const r=t.querySelectorAll('tbody tr');return h==='일자-No.|적요|거래처명|차변금액|대변금액|잔액'&&r[0].cells[0].innerText.trim()==='이월잔액'&&r[r.length-1].cells[0].innerText.trim()==='합계'})()"
+      ]
     }
   ]
 }

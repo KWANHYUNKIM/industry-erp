@@ -1367,6 +1367,7 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     ['가지급금정산서집계', 'accounting/ExpenseSlipSummaryPage.tsx'],
     ['인원현황', 'hr/HeadcountPage.tsx'],
     ['고정자산수불부', 'accounting/FixedAssetStockPage.tsx'],
+    ['계정별원장', 'accounting/AccountLedgerPage.tsx'],
     ['현금흐름(입출금내역)', 'accounting/CashFlowListPage.tsx'],
     ['자금현황표', 'accounting/FundStatusPage.tsx'],
     ['자금증감내역', 'accounting/FundDailyPage.tsx'],
@@ -4182,6 +4183,11 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
      * 기간 칸은 [기준일자]가 아니라 [사용일자], [비고]로 걸어 두었던 글자 칸은 [적요],
      * [결제구분]이라 적어 둔 것은 실은 [결제수단]이다. 아래 넷은 그 결과로 남은 자리다.
      */
+    /* <b>계정별원장(E010807)</b> — 2026-10-03 원본 실측(AccountLedgerPage). */
+    ['계정별원장|부서', '회계전표(JournalEntry)에 부서가 없다 — 계정별거래처별원장과 같은 사실'],
+    ['계정별원장|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['계정별원장|양식구분', '[양식구분]은 [결재방표시] 하나다 — 우리 장부 인쇄는 결재 칸을 그리지 않는다'],
+    ['계정별원장|데이터 보기형식', '그래프로 볼 축이 없다 — 계정마다 한 판인 장부다'],
     /* <b>고정자산수불부(E010618)</b> — 2026-10-03 원본 실측(FixedAssetStockPage). */
     ['고정자산수불부|부서', '고정자산(FixedAsset)에 부서가 없다 — 고정자산증가내역과 같은 사실'],
     ['고정자산수불부|양식구분', '[양식구분]은 [결재방표시] 하나다 — 우리 장부 인쇄는 결재 칸을 그리지 않는다'],
