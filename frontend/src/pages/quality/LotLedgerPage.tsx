@@ -1,24 +1,25 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { LotTransaction, LotTxType } from '../../types/api'
+import type { LotTransaction } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import { dateText } from '../../utils/dateText'
+import { dateNo } from '../../utils/dateNo'
+import { EcReportHead, EcReportFoot, reportPeriod } from '../../components/EcReportFrame'
 import EcPeriodPicks, { periodOf, LOT_LEDGER_PICKS } from '../../components/EcPeriodPicks'
 
 /**
- * 재고 II > 시리얼/로트No. — 로트 수불부 / 내역조회 (이카운트 E040618·E040620·E040639)
- * 로트별 입고·출고·조정 이력을 시간순으로 보고 잔량(balanceAfter)을 읽는다.
- * 데이터는 GET /api/lots/transactions (LotTransactionResponse[], 로트별 오름차순). 백엔드 신설.
+ * 재고 II &gt; 시리얼/로트No. &gt; <b>시리얼/로트No.재고수불부</b>(E040620) — 2026-10-03 loginaa 실측(자료가 든 판).
+ *
+ * <p>[공통] 표는 시리얼/로트 하나가 한 묶음이다: (기초가 있으면) <b>전월이월</b> 줄 → 움직인 줄
+ * (품목명 · 시리얼/로트No. · 유효기한 · 전표구분 · 거래처명 · 적요 · 입고수량 · 출고수량 · 재고수량 · 연결전표) →
+ * <b>'○○ 계'</b> 줄(입고 · 출고 합), 끝에 <b>합계</b>(입고 · 출고 합과 기말 재고 합). 재고수량은 이월에서 이어 가는 잔량이라
+ * 판 것만 있으면 -1.00 처럼 음수로 찍힌다. 기간에 움직임이 없어도 이월이 있으면 이월 줄과 계 줄만 선다.
+ * 예전엔 줄을 한 판에 늘어놓고 저장할 때의 잔량(balanceAfter)을 찍어, 전표를 고치고 지우면 잔량이 어긋났다.
  */
-
-const TYPE_COLOR: Record<LotTxType, { bg: string; fg: string }> = {
-  INBOUND: { bg: '#eef4ff', fg: 'var(--ec-blue)' },
-  OUTBOUND: { bg: '#fdf3ea', fg: '#a5561b' },
-  ADJUST: { bg: '#f3eefb', fg: '#6b3fb0' },
-}
 const num = (n: number) => n.toLocaleString('ko-KR')
+const qty2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 /* 원본 E040620 은 [전월+금월] 을 보고 열린다(2026-09-01 실측). */
 const initP = periodOf('전월+금월')!
@@ -62,7 +63,6 @@ export default function LotLedgerPage() {
   const [hideZero, setHideZero] = useState(false)
   const [warehouse, setWarehouse] = useState('')
   const [item, setItem] = useState('')
-  const [typeFilter, setTypeFilter] = useState<'ALL' | LotTxType>('ALL')
   /*
    * 원본 [유효기한] · [재고수량](2026-10-02 E040620 실측). 유효기한은 사용안함(기본) · 직접입력 · 금일 … 전월 — 고르면 유효기한이
    * 그 구간인 로트만. 재고수량은 전체 · 1 · 0 · 기타 넷이 다 켜진 채 열린다 — 로트의 <b>기말 잔량</b>(기간 안 마지막 줄의 잔량)이
@@ -80,8 +80,9 @@ export default function LotLedgerPage() {
   async function load() {
     setLoading(true); setError('')
     try {
+      /* 이월을 셈하려고 시작일 앞의 움직임까지 받는다 — 기간은 화면이 가른다(끝일만 서버에 보낸다). */
       const res = await api.get<LotTransaction[]>('/lots/transactions', {
-        params: { from: from || undefined, to: to || undefined },
+        params: { to: to || undefined },
       })
       setRows(res.data)
     } catch (err) { setError(extractErrorMessage(err)); setRows([]) }
@@ -99,57 +100,46 @@ export default function LotLedgerPage() {
     return [...m.values()].sort((a, b) => a.name.localeCompare(b.name, 'ko'))
   }, [rows])
 
-  /** 로트마다 기간 안 마지막 줄의 잔량 — [재고수량] 이 이 값으로 가른다. rows 는 로트별 시간순이다. */
-  const closingByLot = useMemo(() => {
-    const m = new Map<string, number>()
-    for (const r of rows) m.set(r.lotNo, r.balanceAfter)
-    return m
-  }, [rows])
-  const shown = useMemo(() => {
-    const kw = keyword.trim()
-    return rows.filter((r) => {
-      if (expiryOpt !== '사용안함' && (!r.expireDate || (expFrom && r.expireDate < expFrom) || (expTo && r.expireDate > expTo))) return false
-      const bal = closingByLot.get(r.lotNo) ?? 0
-      if (bal === 1 ? !qtyOne : bal === 0 ? !qtyZero : !qtyOther) return false
-      /* [포함] 이라 이름 붙은 것은 기본이 '안 넣음' 이다 — 켜야 보인다. */
-      if (!withHeld && r.held) return false
-      /* [입출고수량0제외] — 움직이지 않은 줄(조정으로 0 이 찍힌 것)을 뺀다. */
-      if (hideZero && r.quantityChange === 0) return false
-      if (warehouse && r.warehouseName !== warehouse) return false
-      if (item && String(r.itemId) !== item) return false
-      if (lotNo && r.lotNo !== lotNo) return false
-      if (typeFilter !== 'ALL' && r.type !== typeFilter) return false
-      if (kw && !r.lotNo.includes(kw) && !r.itemName.includes(kw)) return false
-      return true
-    })
-  }, [rows, withHeld, hideZero, warehouse, item, lotNo, typeFilter, keyword, expiryOpt, expFrom, expTo, qtyOne, qtyZero, qtyOther, closingByLot])
-
-  const totals = useMemo(() => shown.reduce((s, r) => {
-    if (r.quantityChange >= 0) s.inQty += r.quantityChange
-    else s.outQty += -r.quantityChange
-    return s
-  }, { inQty: 0, outQty: 0 }), [shown])
   /**
-   * 원본 [시리얼/로트별집계] — 로트마다 한 줄. 잔량은 <b>그 로트의 마지막 줄</b>의 잔량이다
-   * (더하면 안 된다 — 잔량은 누적값이라 더하는 순간 거짓말이 된다).
+   * 시리얼/로트마다 한 묶음. 이월 = 시작일 앞 움직임의 합, 기말 = 이월 + 기간 안 움직임의 합.
+   * [재고수량] · [사용중단포함] · 유효기한 · 창고 · 품목 · 시리얼/로트No. 는 묶음째 거르고, [입출고수량0제외] 는 줄을 뺀다.
    */
-  const byLot = useMemo(() => {
-    const map = new Map<string, { lotNo: string; itemName: string; inQty: number; outQty: number; balance: number; count: number }>()
-    for (const r of shown) {
-      const cur = map.get(r.lotNo) ?? { lotNo: r.lotNo, itemName: r.itemName, inQty: 0, outQty: 0, balance: 0, count: 0 }
-      if (r.quantityChange >= 0) cur.inQty += r.quantityChange
-      else cur.outQty += -r.quantityChange
-      cur.count += 1
-      /* shown 은 로트별 시간순이라 마지막에 본 줄의 잔량이 그 로트의 기말이다. */
-      cur.balance = r.balanceAfter
-      map.set(r.lotNo, cur)
+  const groups = useMemo(() => {
+    const kw = keyword.trim()
+    const by = new Map<string, { head: LotTransaction; opening: number; moves: LotTransaction[] }>()
+    for (const r of [...rows].sort((x, y) => (x.txDate < y.txDate ? -1 : x.txDate > y.txDate ? 1 : x.id - y.id))) {
+      if (from && r.txDate > to) continue
+      const g = by.get(r.lotNo) ?? { head: r, opening: 0, moves: [] as LotTransaction[] }
+      if (from && r.txDate < from) g.opening += Number(r.quantityChange)
+      else g.moves.push(r)
+      by.set(r.lotNo, g)
     }
-    return [...map.values()].sort((a, b) => a.lotNo.localeCompare(b.lotNo, 'ko'))
-  }, [shown])
+    return [...by.values()]
+      .map((g) => {
+        const inQty = g.moves.reduce((a, r) => a + Math.max(Number(r.quantityChange), 0), 0)
+        const outQty = g.moves.reduce((a, r) => a + Math.max(-Number(r.quantityChange), 0), 0)
+        return { ...g, inQty, outQty, closing: g.opening + inQty - outQty }
+      })
+      .filter((g) => g.opening !== 0 || g.moves.length > 0)
+      .filter((g) => {
+        const r = g.head
+        if (expiryOpt !== '사용안함' && (!r.expireDate || (expFrom && r.expireDate < expFrom) || (expTo && r.expireDate > expTo))) return false
+        if (g.closing === 1 ? !qtyOne : g.closing === 0 ? !qtyZero : !qtyOther) return false
+        /* [포함] 이라 이름 붙은 것은 기본이 '안 넣음' 이다 — 켜야 보인다. */
+        if (!withHeld && r.held) return false
+        if (warehouse && r.warehouseName !== warehouse) return false
+        if (item && String(r.itemId) !== item) return false
+        if (lotNo && r.lotNo !== lotNo) return false
+        if (kw && !r.lotNo.includes(kw) && !r.itemName.includes(kw)) return false
+        return true
+      })
+      .map((g) => ({ ...g, moves: hideZero ? g.moves.filter((r) => Number(r.quantityChange) !== 0) : g.moves }))
+      .sort((x, y) => x.head.lotNo.localeCompare(y.head.lotNo, 'ko'))
+  }, [rows, from, to, withHeld, hideZero, warehouse, item, lotNo, keyword, expiryOpt, expFrom, expTo, qtyOne, qtyZero, qtyOther])
 
-  // 단일 로트 선택 시 기말 = 마지막 행 잔량
-  const closing = lotNo && shown.length ? shown[shown.length - 1].balanceAfter : null
-
+  const totals = useMemo(() => groups.reduce((s, g) => ({
+    inQty: s.inQty + g.inQty, outQty: s.outQty + g.outQty, closing: s.closing + g.closing,
+  }), { inQty: 0, outQty: 0, closing: 0 }), [groups])
 
   return (
     <EcListShell
@@ -158,10 +148,8 @@ export default function LotLedgerPage() {
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={load}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
+      actions={[{ label: '검색(F8)', primary: true, onClick: load }, { label: '인쇄' }, { label: 'Excel' }]}
     >
-      <p className="mb-2 text-xs text-ec-hint">로트별 입고·출고·조정 이력과 잔량. 로트를 선택하면 그 로트의 수불부(기말 재고 포함).</p>
-
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         {/* 원본 조건 판의 [기준일자] — 서버가 이 구간만 준다. */}
         {/* 원본 [기타] — 넷 중 뜻이 분명한 둘만. 원본대로 꺼진 채 열린다. */}
@@ -241,26 +229,6 @@ export default function LotLedgerPage() {
                            items={warehouses.map((w) => ({ value: w, name: w }))} />
         </EcCond>
       </ul>
-      {/* 우리가 더 두는 전표 유형 알약과 입고계 · 출고계 · 기말 — 원본 조건 판 밖이라 조건 목록과 갈라 둔다. */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px', marginBottom: 10 }}>
-        <div className="flex gap-[2px]">
-          {(['ALL', 'INBOUND', 'OUTBOUND', 'ADJUST'] as const).map((t) => (
-            <button key={t} onClick={() => setTypeFilter(t)} className="no-ec" style={{
-              padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
-              background: typeFilter === t ? 'var(--ec-blue)' : '#fff', color: typeFilter === t ? '#fff' : 'var(--ec-text)', fontWeight: typeFilter === t ? 700 : 400,
-            }}>{t === 'ALL' ? '전체' : t === 'INBOUND' ? '입고' : t === 'OUTBOUND' ? '출고' : '조정'}</button>
-          ))}
-        </div>
-        <div className="ml-auto text-[12.5px] text-ec-label">
-          입고계 <b className="text-ec-blue text-[14px]">{num(totals.inQty)}</b>
-          <span className="my-0 mx-[6px] text-ec-off">|</span>
-          출고계 <b style={{ color: '#a5561b', fontSize: 14 }}>{num(totals.outQty)}</b>
-          {closing != null && (
-            <><span className="my-0 mx-[6px] text-ec-off">|</span>기말 <b className="text-ec-navy text-[14px]">{num(closing)}</b></>
-          )}
-        </div>
-      </div>
-
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       {mode === '시리얼/로트별집계' ? (
@@ -279,65 +247,95 @@ export default function LotLedgerPage() {
           <tbody>
             {loading ? (
               <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
-            ) : byLot.length === 0 ? (
+            ) : groups.length === 0 ? (
               <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-            ) : byLot.map((g, i) => (
-              <tr key={g.lotNo}>
+            ) : groups.map((g, i) => (
+              <tr key={g.head.lotNo}>
                 <td className="text-center text-ec-hint">{i + 1}</td>
-                <td>{g.lotNo}</td>
-                <td>{g.itemName}</td>
-                <td className="text-right">{num(g.count)}</td>
-                <td className="text-right text-ec-blue">{num(g.inQty)}</td>
-                <td style={{ textAlign: 'right', color: '#a5561b' }}>{num(g.outQty)}</td>
-                <td className="text-right font-bold">{num(g.balance)}</td>
+                <td>{g.head.lotNo}</td>
+                <td>{g.head.itemName}</td>
+                <td className="text-right">{num(g.moves.length)}</td>
+                <td className="text-right">{num(g.inQty)}</td>
+                <td className="text-right">{num(g.outQty)}</td>
+                <td className="text-right font-bold">{num(g.closing)}</td>
               </tr>
             ))}
           </tbody>
         </table>
       ) : (
-      <table className="w-full text-left">
+      <>
+      <EcReportHead title="시리얼/로트No.재고수불부" period={reportPeriod(from, to)} />
+      <table className="ec-report w-full text-left">
         <thead>
           <tr>
-            <th className="w-[34px]"></th>
-            <th>로트No.</th>
-            <th>품목</th>
-            <th>일자</th>
-            <th className="text-center w-[56px]">유형</th>
-            <th className="text-right">입고</th>
-            <th className="text-right">출고</th>
-            <th className="text-right">잔량</th>
-            <th>비고</th>
+            <th>품목명</th>
+            <th>시리얼/로트No.</th>
+            <th className="text-center">유효기한</th>
+            <th className="text-center">전표구분</th>
+            <th>거래처명</th>
+            <th>적요</th>
+            <th className="text-right">입고수량</th>
+            <th className="text-right">출고수량</th>
+            <th className="text-right">재고수량</th>
+            <th className="text-center">연결전표</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
-          ) : shown.length === 0 ? (
-            <tr><td colSpan={9} className="text-center text-ec-hint p-[20px]">
-              {rows.length === 0 ? '로트 이력이 없습니다.' : '조건에 맞는 자료가 없습니다.'}
-            </td></tr>
-          ) : shown.map((r, i) => {
-            const inQ = r.quantityChange >= 0 ? r.quantityChange : 0
-            const outQ = r.quantityChange < 0 ? -r.quantityChange : 0
-            const c = TYPE_COLOR[r.type]
-            return (
-              <tr key={r.id}>
-                <td className="text-center text-ec-hint">{i + 1}</td>
-                <td>{r.lotNo}</td>
-                <td>{r.itemName}</td>
-                <td>{dateText(r.txDate)}</td>
-                <td className="text-center">
-                  <span style={{ background: c.bg, color: c.fg, padding: '1px 6px', borderRadius: 3, fontSize: 11.5, fontWeight: 600 }}>{r.docType ?? r.typeName}</span>
-                </td>
-                <td style={{ textAlign: 'right', color: inQ ? 'var(--ec-blue)' : 'var(--ec-text-off)', fontWeight: inQ ? 600 : 400 }}>{inQ ? num(inQ) : ''}</td>
-                <td style={{ textAlign: 'right', color: outQ ? '#a5561b' : 'var(--ec-text-off)', fontWeight: outQ ? 600 : 400 }}>{outQ ? num(outQ) : ''}</td>
-                <td className="text-right font-semibold">{num(r.balanceAfter)}</td>
-                <td className="text-ec-hint">{r.note ?? ''}</td>
-              </tr>
-            )
+            <tr><td colSpan={10} className="ec-empty">불러오는 중…</td></tr>
+          ) : groups.length === 0 ? (
+            <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+          ) : groups.flatMap((g) => {
+            let bal = g.opening
+            const out = []
+            if (g.opening !== 0) out.push(
+              <tr key={`${g.head.lotNo}-open`}>
+                <td colSpan={8} className="text-center font-bold text-ec-danger">전월이월</td>
+                <td className="text-right font-bold">{qty2(g.opening)}</td>
+                <td></td>
+              </tr>)
+            for (const r of g.moves) {
+              const q = Number(r.quantityChange)
+              bal += q
+              out.push(
+                <tr key={r.id}>
+                  <td>{r.itemName}</td>
+                  <td>{r.lotNo}</td>
+                  <td className="text-center">{r.expireDate ? dateText(r.expireDate) : ''}</td>
+                  <td className="text-center">{r.docType ?? r.typeName}</td>
+                  <td>{r.partnerName ?? ''}</td>
+                  <td>{r.docType ? '' : (r.note ?? '')}</td>
+                  <td className="text-right">{q > 0 ? qty2(q) : ''}</td>
+                  <td className="text-right">{q < 0 ? qty2(-q) : ''}</td>
+                  <td className="text-right">{qty2(bal)}</td>
+                  <td className="text-center ec-link">{r.sourceNo ? dateNo(r.txDate, r.sourceNo) : ''}</td>
+                </tr>)
+            }
+            out.push(
+              <tr key={`${g.head.lotNo}-sum`} className="ec-total">
+                <td colSpan={6} className="text-center">{g.head.lotNo} 계</td>
+                <td className="text-right">{g.inQty ? qty2(g.inQty) : ''}</td>
+                <td className="text-right">{g.outQty ? qty2(g.outQty) : ''}</td>
+                <td></td>
+                <td></td>
+              </tr>)
+            return out
           })}
         </tbody>
+        {groups.length > 0 && (
+          <tfoot>
+            <tr>
+              <td colSpan={6} className="text-center">합계</td>
+              <td className="text-right">{qty2(totals.inQty)}</td>
+              <td className="text-right">{qty2(totals.outQty)}</td>
+              <td className="text-right">{qty2(totals.closing)}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        )}
       </table>
+      <EcReportFoot />
+      </>
       )}
     </EcListShell>
   )

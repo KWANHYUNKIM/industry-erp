@@ -960,8 +960,8 @@
   "palette": 0
  },
  "pages/quality/LotLedgerPage.tsx": {
-  "inline": 13,
-  "color": 10,
+  "inline": 6,
+  "color": 0,
   "palette": 0
  },
  "pages/quality/LotStockComparePage.tsx": {
