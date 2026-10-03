@@ -55,6 +55,7 @@
   --ec-bg-disabled: #e9ecef;                /* 막힌 입력칸 */
   --ec-bg-row-hover: #f2f2f2;               /* 격자 줄에 마우스 */
   --ec-bg-chip: #ced4da;                    /* [사이트맵] 칩 */
+  --ec-bg-pinned: rgb(252, 248, 227);       /* 게시판 맨 위에 붙은 공지 글 줄(공지사항 E200080 실측) */
 
   /* ── 선 ── */
   --ec-hair: 0.5px;
