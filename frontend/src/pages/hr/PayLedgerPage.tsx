@@ -192,7 +192,7 @@ export default function PayLedgerPage() {
               <td className="text-right">{l.headcount || ''}</td>
               <td className="text-center">
                 <div className="flex flex-col items-center">
-                  <a href="#" onClick={(e) => { e.preventDefault(); nav(`/hr/payroll/ledger?month=${l.payMonth}`) }}>조회</a>
+                  <a href="#" onClick={(e) => { e.preventDefault(); nav(`/hr/payroll/ledger?month=${l.payMonth}&view=report`) }}>조회</a>
                   {l.headcount > l.confirmedCount && (
                     <a href="#" onClick={(e) => { e.preventDefault(); confirm(l) }}>확정</a>
                   )}

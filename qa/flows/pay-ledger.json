@@ -1,5 +1,5 @@
 {
-  "about": "관리 > 급여계산/대장(E090106) — 원본처럼 [신규(F2)] 급여정보입력으로 대장을 만들고, 같은 귀속월이면 '동일기간에 이미 생성된 급여가 있습니다.', [전체계산]으로 재직 사원 명세를 셈해 인원수 · 지급총액이 붙고, [조회]가 그 귀속월 급여대장을 연다. 만든 대장은 지운다. [명세서] 조회는 원본처럼 그 대장 한 달의 사원별급여조회를 연다.",
+  "about": "관리 > 급여계산/대장(E090106) — 원본처럼 [신규(F2)] 급여정보입력으로 대장을 만들고, 같은 귀속월이면 '동일기간에 이미 생성된 급여가 있습니다.', [전체계산]으로 재직 사원 명세를 셈해 인원수 · 지급총액이 붙고, [조회]가 그 귀속월 급여대장을 연다. 만든 대장은 지운다. [명세서] 조회는 원본처럼 그 대장 한 달의 사원별급여조회를 연다. 급여대장 [조회]는 원본처럼 항목별 보고서('YYYY/MM 급여', 수당 · 공제 다섯씩, 지급총액 · 공제총액 · 실지급액).",
   "shots": [
     {
       "name": "대장 신규 → 겹침 거절 → 전체계산 → 조회 → 삭제",
@@ -27,6 +27,7 @@
         "js:[...[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('QA관리-화면시험대장')).querySelectorAll('a')].find(a=>a.textContent==='조회').click();true",
         "wait:2000",
         "expect:location.pathname==='/hr/payroll/ledger' && location.search.includes('2091-04') && document.body.innerText.includes('급여대장')",
+        "expect:document.body.innerText.includes('2091/04 급여')&&(()=>{const h=[...document.querySelectorAll('table.ec-report thead th')].map(t=>t.innerText.trim());return h.includes('기본급')&&h.includes('주민세')&&h.includes('지급총액')&&h.includes('실지급액')&&document.querySelectorAll('table.ec-report tbody tr').length>1})()",
         "js:history.back();true",
         "wait:2500",
         "js:[...[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('QA관리-화면시험대장')).querySelectorAll('a')].filter(a=>a.textContent==='조회').pop().click();true",
