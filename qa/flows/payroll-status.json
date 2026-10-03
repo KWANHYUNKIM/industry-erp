@@ -1,0 +1,22 @@
+{
+  "about": "관리 > 급여현황(E090115) — 원본처럼 라인별은 명세마다 한 줄 · 성명 가나다 순 · 사원마다 '성명 계' · 끝에 합계, 급여대장별은 귀속월(대장)마다 한 줄. 수당 · 공제 항목 열 뒤에 지급총액 · 공제총액 · 실지급액. 시험 명세는 지운다.",
+  "shots": [
+    {
+      "name": "라인별 소계 · 합계 → 급여대장별 한 줄 → 뒷정리",
+      "path": "/hr/payroll/status",
+      "steps": [
+        "js:(async()=>{const t=localStorage.getItem('erp_token');const h={Authorization:'Bearer '+t,'Content-Type':'application/json'};const emps=await (await fetch('/api/employees',{headers:h})).json();const ids=[];for(const c of ['EMP-0003','EMP-0004']){const e=emps.find(x=>x.code===c);const r=await fetch('/api/payslips',{method:'POST',headers:h,body:JSON.stringify({employeeId:e.id,payMonth:'2091-06'})});ids.push((await r.json()).id)}sessionStorage.setItem('qaPs',ids.join(','));return true})()",
+        "set:input[type=month]#0|2091-06",
+        "set:input[type=month]#1|2091-06",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:(()=>{const x=document.querySelector('table').innerText;return /이영희 계/.test(x)&&/정수진 계/.test(x)&&/합계/.test(x)&&x.indexOf('이영희')<x.indexOf('정수진')&&[...document.querySelectorAll('table thead th')].slice(-3).map(t=>t.innerText).join(',')==='지급총액,공제총액,실지급액'})()",
+        "js:document.querySelectorAll('input[name=pay-status-mode]')[1].click();true",
+        "wait:500",
+        "expect:[...document.querySelectorAll('table tbody tr')].filter(t=>/^2091\\/06 -1/.test(t.innerText)).length===1",
+        "js:(async()=>{const t=localStorage.getItem('erp_token');let ok=true;for(const id of sessionStorage.getItem('qaPs').split(',')){const r=await fetch('/api/payslips/'+id,{method:'DELETE',headers:{Authorization:'Bearer '+t}});ok=ok&&r.ok}sessionStorage.setItem('qaPsDel',String(ok));return true})()",
+        "expect:sessionStorage.getItem('qaPsDel')==='true'"
+      ]
+    }
+  ]
+}

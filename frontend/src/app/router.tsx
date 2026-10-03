@@ -250,6 +250,7 @@ const WorkInputPage = lazy(() => import('../pages/hr/WorkInputPage'))
 const WorkListPage = lazy(() => import('../pages/hr/WorkListPage'))
 const PayLedgerPage = lazy(() => import('../pages/hr/PayLedgerPage'))
 const EmployeePayListPage = lazy(() => import('../pages/hr/EmployeePayListPage'))
+const PayrollStatusPage = lazy(() => import('../pages/hr/PayrollStatusPage'))
 const HrRecordPage = lazy(() => import('../pages/hr/HrRecordPage'))
 const LaborContractPage = lazy(() => import('../pages/hr/ContractPage'))
 const DailyWagePage = lazy(() => import('../pages/hr/DailyWagePage'))
@@ -660,6 +661,7 @@ export default function AppRouter() {
         <Route path="/hr/payroll" element={<PayLedgerPage />} />
         <Route path="/hr/payroll/ledger" element={<PayrollPage />} />
         <Route path="/hr/payroll/by-employee" element={<EmployeePayListPage />} />
+        <Route path="/hr/payroll/status" element={<PayrollStatusPage />} />
         <Route path="/hr/performance" element={<EmployeePerformancePage />} />
         <Route path="/hr/pay-settings" element={<PaySettingPage />} />
         <Route path="/hr/allowance-items" element={<PayItemListPage kind="ALLOWANCE" />} />
