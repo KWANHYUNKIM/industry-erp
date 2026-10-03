@@ -72,7 +72,7 @@ public final class MedicalSupplyDtos {
     ) {
         public static EntryResponse from(MedicalSupplyEntry e) {
             return new EntryResponse(e.getId(), e.getEntryDate(), e.getEntrySeq(),
-                    docNo(e.getEntryDate(), e.getEntrySeq()), e.getReportMonth(),
+                    MedicalSupplyDtos.docNo(e.getEntryDate(), e.getEntrySeq()), e.getReportMonth(),
                     e.getSupplyType(), e.getSupplyType().label(), e.getSupplyShape(),
                     e.isTransmitted(), e.getTransmittedAt(), e.getCreatedBy(),
                     e.getLines().stream().map(EntryLineResponse::from).toList());
@@ -84,7 +84,9 @@ public final class MedicalSupplyDtos {
             Long entryId, Long lineId, LocalDate entryDate, String docNo, String reportMonth,
             MedicalSupplyType supplyType, String supplyTypeName, String supplyShape,
             String partnerName, String itemName, String udi, BigDecimal quantity,
-            boolean transmitted, String transmitStatus, LocalDateTime transmittedAt
+            boolean transmitted, String transmitStatus, LocalDateTime transmittedAt,
+            /* 조건 [납품일자] · [거래처] · [품목] · [수정일자순(정렬)] 이 거르는 값 */
+            LocalDate deliveryDate, Long partnerId, Long itemId, LocalDateTime updatedAt
     ) {}
 
     /** 판매검색창 한 줄 — 원본 열: 일자-No. · 거래처명 · 품목명(요약) · 금액합계 · 거래유형명 · 창고명 · 회계반영여부. */

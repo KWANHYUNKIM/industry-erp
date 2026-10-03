@@ -53,7 +53,8 @@ public class MedicalSupplyService {
                 rows.add(new EntryRow(e.getId(), l.getId(), e.getEntryDate(), docNo, e.getReportMonth(),
                         e.getSupplyType(), e.getSupplyType().label(), e.getSupplyShape(),
                         l.getPartnerName(), l.getItemName(), l.getUdi(), l.getQuantity(),
-                        e.isTransmitted(), e.isTransmitted() ? "전송" : "미전송", e.getTransmittedAt()));
+                        e.isTransmitted(), e.isTransmitted() ? "전송" : "미전송", e.getTransmittedAt(),
+                        l.getDeliveryDate(), l.getPartnerId(), l.getItemId(), e.getUpdatedAt()));
             }
         }
         return rows;
