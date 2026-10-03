@@ -9,7 +9,7 @@ import type { EmployeeMaster } from '../../types/api'
 import { isHoliday, koreanDateTime, monthToToday, slashDate, type EmployeeCommuteLine } from '../../features/employeecommute/types'
 import { ymd } from '../../utils/periods'
 
-interface Vacation { empCode: string | null; type: string; startDate: string; endDate: string; days: number; reason: string | null }
+interface Vacation { empCode: string | null; type: string; startDate: string; endDate: string; days: number; reason: string | null; status: string }
 interface Kind { code: string; name: string; vacationKindName: string | null; vacationKindId: number | null; kindGroup: string | null }
 type Status = '정상근무' | '지각' | '조기퇴근' | '결근'
 const STATUSES: Status[] = ['정상근무', '지각', '조기퇴근', '결근']
@@ -26,7 +26,8 @@ const WORK_END = '18:00'
  *
  * <p>근태구분은 우리 기준으로 가른다: 지각 = 09:00 넘어 출근, 조기퇴근 = 18:00 전에 퇴근, 결근 = 업무일에 출근도 근태도 없음,
  * 나머지 정상근무. 근태는 사번이 이어진 계정의 근태입력이다. 사원명 · 부서 · 근태항목 · 휴가항목 · 근태그룹은 여러 개 고르는 코드도움
- * (휴가항목 · 근태그룹은 그날 근태의 근태항목이 가리키는 값). 프로젝트 · 상태 조건 · 양식은 없다.
+ * (휴가항목 · 근태그룹은 그날 근태의 근태항목이 가리키는 값). 상태는 근태의 결재 상태(결재중 · 확인, 처음엔 다 켬 —
+ * 2026-10-04 실측, UserPay 는 우리에 없다). 반려된 근태는 어느 상태에도 안 들어 근태내역에 안 찍힌다. 프로젝트 · 양식은 없다.
  */
 export default function EmployeeCommuteAttendancePage() {
   const [range, setRange] = useState(monthToToday())
@@ -49,6 +50,7 @@ export default function EmployeeCommuteAttendancePage() {
   const [dayKind, setDayKind] = useState<Tri>('all')
   const [employment, setEmployment] = useState<Tri>('a')
   const [statuses, setStatuses] = useState<Set<Status>>(new Set(STATUSES))
+  const [vacStatuses, setVacStatuses] = useState<Set<'PENDING' | 'APPROVED'>>(new Set(['PENDING', 'APPROVED']))
   const [employees, setEmployees] = useState<EmployeeMaster[]>([])
   const [commutes, setCommutes] = useState<EmployeeCommuteLine[]>([])
   const [vacations, setVacations] = useState<Vacation[]>([])
@@ -81,7 +83,7 @@ export default function EmployeeCommuteAttendancePage() {
     .filter((e) => (!e.hireDate || e.hireDate <= date) && (!e.resignDate || e.resignDate >= date || employment !== 'a'))
     .map((e) => {
       const c = commutes.find((x) => x.employeeId === e.id && x.workDate === date)
-      const vs = vacations.filter((v) => v.empCode === e.code && v.startDate <= date && v.endDate >= date)
+      const vs = vacations.filter((v) => v.empCode === e.code && v.startDate <= date && v.endDate >= date && (vacStatuses as Set<string>).has(v.status))
       const holiday = isHoliday(date)
       const status: Status = c ? (c.late ? '지각' : c.clockOut && c.clockOut.slice(11, 16) < WORK_END ? '조기퇴근' : '정상근무')
         : (!holiday && vs.length === 0 ? '결근' : '정상근무')
@@ -152,6 +154,18 @@ export default function EmployeeCommuteAttendancePage() {
                            items={groupMaster.map((g) => ({ value: g.name, code: g.code, name: g.name }))} />
         </EcCond>
         <EcCond label="적요"><input className="ec-input w-full" placeholder="적요" value={remarkCond} onChange={(e) => setRemarkCond(e.target.value)} /></EcCond>
+        <EcCond label="상태">
+          <label className="inline-flex items-center gap-[4px] mr-[10px]">
+            <input type="checkbox" checked={vacStatuses.size === 2} onChange={(e) => setVacStatuses(new Set(e.target.checked ? ['PENDING', 'APPROVED'] : []))} /> 전체
+          </label>
+          {([['PENDING', '결재중'], ['APPROVED', '확인']] as const).map(([v, l]) => (
+            <label key={v} className="inline-flex items-center gap-[4px] mr-[10px]">
+              <input type="checkbox" checked={vacStatuses.has(v)} onChange={(e) => {
+                const next = new Set(vacStatuses); if (e.target.checked) next.add(v); else next.delete(v); setVacStatuses(next)
+              }} /> {l}
+            </label>
+          ))}
+        </EcCond>
         <EcCond label="재직구분">{radios('eca-emp', employment, setEmployment, ['전체', '재직자', '퇴사자'])}</EcCond>
       </ul>
       <div className="flex flex-wrap items-center gap-[6px] mb-[8px]">

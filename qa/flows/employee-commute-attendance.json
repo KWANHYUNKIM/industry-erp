@@ -5,6 +5,8 @@
       "name": "날마다 사원 줄 · 근태구분 거르기 → 정리",
       "path": "/hr/employee-commutes/attendance",
       "steps": [
+        "wait:1500",
+        "expect:(()=>{const v=t=>[...document.querySelectorAll('label')].find(x=>x.innerText.trim()===t)?.querySelector('input')?.checked;return v('결재중')===true&&v('확인')===true})()",
         "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const emps=await (await fetch('/api/employees',{headers:h})).json();const e=emps.find(x=>x.code==='EMP-0001');sessionStorage.setItem('qaEcaName',e.name);const a=await (await fetch('/api/hr/employee-commutes/clock',{method:'POST',headers:h,body:JSON.stringify({employeeId:e.id,at:'2091-07-02T09:30:00'})})).json();await fetch('/api/hr/employee-commutes/clock',{method:'POST',headers:h,body:JSON.stringify({employeeId:e.id,at:'2091-07-02T17:00:00'})});sessionStorage.setItem('qaEca',String(a.id));return true})()",
         "set:input[type=date]#0|2091-07-02",
         "set:input[type=date]#1|2091-07-02",
