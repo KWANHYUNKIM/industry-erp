@@ -77,6 +77,7 @@ public class EmployeeService {
                 .payType(req.payType() != null ? req.payType() : PayType.FIXED)
                 .mobile(req.mobile())
                 .resignReason(req.resignReason())
+                .zipcode(blankToNull(req.zipcode()))
                 .address(req.address())
                 .bankCode(req.bankCode())
                 .bankName(req.bankName())
@@ -120,6 +121,7 @@ public class EmployeeService {
         if (req.payType() != null) e.setPayType(req.payType());
         e.setMobile(req.mobile());
         e.setResignReason(req.resignReason());
+        if (req.zipcode() != null) e.setZipcode(blankToNull(req.zipcode()));
         e.setAddress(req.address());
         e.setBankCode(req.bankCode());
         e.setBankName(req.bankName());
