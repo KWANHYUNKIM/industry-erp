@@ -1,5 +1,5 @@
 {
-  "about": "관리 > 출/퇴근현황(사원)(E020722) · 지각현황(사원)(E020723) — 2091/06/01 에 사원 하나가 09:30 출근 · 18:30 퇴근하면, 출/퇴근현황(사원)에 근무시간 8.00(점심 1시간 뺌), 지각현황(사원)에 같은 날 출근시간 · 출근적요가 보인다(09:00 넘음). 시험 기록은 지운다.",
+  "about": "관리 > 출/퇴근현황(사원)(E020722) · 지각현황(사원)(E020723) — 2091/06/01 에 사원 하나가 09:30 출근 · 18:30 퇴근하면, 출/퇴근현황(사원)에 근무시간 8.00(점심 1시간 뺌), 지각현황(사원)에 같은 날 출근시간 · 출근적요가 보인다(09:00 넘음). 시험 기록은 지운다. [사원명] · [부서]는 여러 개 고르는 코드도움 — EMP-0004 만 고르면 EMP-0001 지각 줄이 빠진다.",
   "shots": [
     {
       "name": "출/퇴근현황(사원) — 근무시간",
@@ -22,6 +22,14 @@
         "click:검색(F8)",
         "wait:1200",
         "expect:[...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes('2091/06/01')&&t.innerText.includes('오전 9:30:00')&&t.innerText.includes('QA관리-지각'))",
+        "pick:사원명:EMP-0004",
+        "clicklast:확인",
+        "wait:300",
+        "expect:![...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes('2091/06/01')&&t.innerText.includes('오전 9:30:00'))",
+        "pick:사원명:EMP-0001",
+        "clicklast:확인",
+        "wait:300",
+        "expect:[...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes('2091/06/01')&&t.innerText.includes('오전 9:30:00'))",
         "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const r=await fetch('/api/hr/employee-commutes/'+sessionStorage.getItem('qaEcs'),{method:'DELETE',headers:h});sessionStorage.setItem('qaEcsClean',String(r.ok));return true})()",
         "expect:sessionStorage.getItem('qaEcsClean')==='true'"
       ]
