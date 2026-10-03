@@ -1,0 +1,32 @@
+{
+  "about": "외근현황(원본 E070255) — 조건 판 → [검색(F8)] → 출력물: 차량종류마다 '○○ 계'(대소문자 안 가림) · 합계. 시험 외근 둘(QA-K5[H] · qa-k5[h], 운행거리 100 · 50)을 API 로 만들고 지운다. node qa/shot.mjs qa/flows/field-work-status.json",
+  "shots": [
+    {
+      "name": "준비 — 같은 차를 대소문자만 달리 두 번",
+      "path": "/groupware/field-work-status",
+      "steps": [
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = new Date().toISOString().slice(0, 10); const a = await (await fetch('/api/field-works', { method: 'POST', headers: H, body: JSON.stringify({ workDate: d, vehicleNo: 'QA1', vehicleName: 'QA-K5[H]', distance: 100, purpose: 'QA그룹웨어-외근현황' }) })).json(); const b = await (await fetch('/api/field-works', { method: 'POST', headers: H, body: JSON.stringify({ workDate: d, vehicleNo: 'QA2', vehicleName: 'qa-k5[h]', distance: 50, purpose: 'QA그룹웨어-외근현황' }) })).json(); sessionStorage.setItem('qaFw', JSON.stringify([a.id, b.id])); return a.id + ',' + b.id })()"
+      ]
+    },
+    {
+      "name": "검색 → 출력물 · 차량종류 계 · 합계",
+      "path": "/groupware/field-work-status",
+      "steps": [
+        "set:.ec-form input[placeholder=\"적요\"]|QA그룹웨어-외근현황",
+        "click:검색(F8)",
+        "expect:document.querySelector('.ec-report-title')?.textContent === '외근현황'",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA-K5[H] 계') && tr.innerText.includes('150.00'))",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('합계') && tr.innerText.includes('150.00'))",
+        "click:Search(F3)",
+        "expect:!!document.querySelector('.ec-form')"
+      ]
+    },
+    {
+      "name": "정리",
+      "path": "/groupware/field-work-status",
+      "steps": [
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const out = []; for (const id of JSON.parse(sessionStorage.getItem('qaFw'))) out.push((await fetch('/api/field-works/' + id, { method: 'DELETE', headers: H })).status); return 'del ' + out.join(',') })()"
+      ]
+    }
+  ]
+}

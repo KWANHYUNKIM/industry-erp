@@ -141,6 +141,7 @@ const ApprovalSettingPage = lazy(() => import('../pages/groupware/ApprovalSettin
 const EcDrivePage = lazy(() => import('../pages/groupware/EcDrivePage'))
 const AnonymousBoardPage = lazy(() => import('../pages/groupware/AnonymousBoardPage'))
 const FieldWorkPage = lazy(() => import('../pages/groupware/FieldWorkPage'))
+const FieldWorkStatusPage = lazy(() => import('../pages/groupware/FieldWorkStatusPage'))
 const WorkPage = lazy(() => import('../pages/groupware/WorkPage'))
 const WorkLogPage = lazy(() => import('../pages/groupware/WorkLogPage'))
 const AttendancePage = lazy(() => import('../pages/groupware/AttendancePage'))
@@ -601,6 +602,7 @@ export default function AppRouter() {
         <Route path="/groupware/drive" element={<EcDrivePage />} />
         <Route path="/groupware/anonymous-board" element={<AnonymousBoardPage />} />
         <Route path="/groupware/field-works" element={<FieldWorkPage />} />
+        <Route path="/groupware/field-work-status" element={<FieldWorkStatusPage />} />
         <Route path="/groupware/work" element={<WorkPage />} />
         <Route path="/groupware/worklog" element={<WorkLogPage />} />
         <Route path="/groupware/attendance" element={<AttendancePage />} />
