@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
+import { bankLabel } from '../../utils/bankLabel'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import EcPeriodPicks, { SETTLE_PICKS, periodOf } from '../../components/EcPeriodPicks'
@@ -29,8 +30,6 @@ interface BankTxn { journalEntryId: number | null; bankAccountId: number }
 interface BankAccount { id: number; name: string | null; bankName: string | null; accountNo: string | null }
 /** 현금 · 당좌 · 보통예금 — 이 줄의 거래처 자리는 전표의 거래처가 아니라 통장(현금은 '[ ]')이다. 자금일보와 같은 가름. */
 const CASH_CODES = ['101', '102', '103']
-/** 통장 이름 — 등록한 통장명, 없으면 원본 모양 '은행명-계좌끝4자리'(원본 예: 기업은행-1122). */
-const bookLabel = (a: BankAccount) => a.name || `${a.bankName ?? ''}-${(a.accountNo ?? '').replace(/\D/g, '').slice(-4)}`
 
 /**
  * 회계 I &gt; 경영자료 &gt; <b>자금현황표</b>(E010804) — 2026-10-03 loginaa 실측(자료가 든 판, 최근30일).
@@ -73,7 +72,7 @@ export default function FundStatusPage() {
       ])
       const acc = new Map(a.data.map((x) => [x.id, x]))
       setBookOf(new Map(t.data.rows.filter((x) => x.journalEntryId != null && acc.has(x.bankAccountId))
-        .map((x) => { const b = acc.get(x.bankAccountId)!; return [x.journalEntryId!, { id: b.id, label: bookLabel(b), no: b.accountNo ?? '' }] })))
+        .map((x) => { const b = acc.get(x.bankAccountId)!; return [x.journalEntryId!, { id: b.id, label: bankLabel(b), no: b.accountNo ?? '' }] })))
       setEntries(r.data.rows)
       setTruncated(r.data.truncated)
     } catch (e) {

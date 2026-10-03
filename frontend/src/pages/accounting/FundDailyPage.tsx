@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
+import { bankLabel } from '../../utils/bankLabel'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import EcPeriodPicks, { INQUIRY_PICKS, SETTLE_PICKS, periodOf } from '../../components/EcPeriodPicks'
@@ -21,8 +22,6 @@ interface Book { label: string; no: string; carry: number; inc: number; dec: num
 interface Fund { code: string; name: string; carry: number; inc: number; dec: number; books: Map<string, Book> }
 interface BankTxn { journalEntryId: number | null; bankAccountId: number }
 interface BankAccount { id: number; name: string | null; bankName: string | null; accountNo: string | null }
-/** 통장 이름 — 등록한 통장명, 없으면 원본 모양 '은행명-계좌끝4자리'(원본 예: 기업은행-1122). */
-const bookLabel = (a: BankAccount) => a.name || `${a.bankName ?? ''}-${(a.accountNo ?? '').replace(/\D/g, '').slice(-4)}`
 interface Move { key: string; date: string; counter: string; partner: string; text: string; amount: number }
 
 /**
@@ -67,7 +66,7 @@ export default function FundDailyPage({ variant = 'daily' }: { variant?: 'daily'
       ])
       const acc = new Map(a.data.map((x) => [x.id, x]))
       setBookOf(new Map(t.data.rows.filter((x) => x.journalEntryId != null && acc.has(x.bankAccountId))
-        .map((x) => { const b = acc.get(x.bankAccountId)!; return [x.journalEntryId!, { id: b.id, label: bookLabel(b), no: b.accountNo ?? '' }] })))
+        .map((x) => { const b = acc.get(x.bankAccountId)!; return [x.journalEntryId!, { id: b.id, label: bankLabel(b), no: b.accountNo ?? '' }] })))
       setEntries(r.data.rows)
       setTruncated(r.data.truncated)
     } catch (e) {

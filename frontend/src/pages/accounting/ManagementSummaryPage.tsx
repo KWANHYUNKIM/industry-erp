@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
+import { bankLabel } from '../../utils/bankLabel'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import EcPeriodPicks, { SETTLE_PICKS, periodOf } from '../../components/EcPeriodPicks'
@@ -8,7 +9,7 @@ import { EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 
-interface BankAccount { id: number; code: string; name: string; bankName: string; accountNo: string; glAccountName: string | null; active: boolean }
+interface BankAccount { id: number; code: string; name: string | null; bankName: string; accountNo: string; glAccountName: string | null; active: boolean }
 interface BankTxn { id: number; txnDate: string; bankAccountId: number; deposit: boolean; amount: number }
 interface BankTxnList { rows: BankTxn[] }
 /** 원본 [종류] 코드도움에서 기본으로 잡힌 보고서. 다른 종류는 원본 판에서 못 쟀다. */
@@ -125,7 +126,7 @@ export default function ManagementSummaryPage() {
               {rows.map((r) => (
                 <tr key={r.a.id}>
                   <td>{r.a.glAccountName ?? ''}</td>
-                  <td>{r.a.name}</td>
+                  <td>{bankLabel(r.a)}</td>
                   <td className="text-right">{won(r.carry)}</td>
                   <td className="text-right">{won(r.inc)}</td>
                   <td className="text-right">{won(r.dec)}</td>
