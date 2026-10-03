@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
 import com.erp.trade.quotation.dto.QuotationDtos;
@@ -92,7 +93,9 @@ public class QuotationService {
         for (QuoteLineRequest lr : req.lines()) {
             Item item = itemService.getUsable(lr.itemId());
             BigDecimal supply = lr.quantity().multiply(lr.unitPrice());
-            BigDecimal vat = taxable ? supply.multiply(VAT_RATE) : BigDecimal.ZERO;
+            // 원 단위로 반올림한다 — 수주서(SalesOrderService)와 같은 규칙. 안 하면 777원 줄의 부가세가
+            // 77.7 로 저장돼 미주문현황·견적서에 소수가 찍히고, 수주로 전환하면 78 이 되어 금액이 어긋났다.
+            BigDecimal vat = taxable ? supply.multiply(VAT_RATE).setScale(0, RoundingMode.HALF_UP) : BigDecimal.ZERO;
             q.addLine(QuotationLine.builder()
                     .item(item).quantity(lr.quantity()).unitPrice(lr.unitPrice())
                     .supplyAmount(supply).vatAmount(vat).build());
