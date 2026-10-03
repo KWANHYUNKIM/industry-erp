@@ -48,4 +48,15 @@ public class DailyPayDtos {
                     l.getDays(), l.getWorker().getDailyWage(), l.getGrossPay(), l.getIncomeTax(), l.getLocalTax(), l.getNetPay());
         }
     }
+
+    /** 사원별급여조회 · 급여현황 · 급여이체현황 한 줄 — 대장 · 사원 · 금액 · 급여통장. */
+    public record ReportLine(
+            Long lineId, Long ledgerId, String payMonth, int seq, String ledgerName, String paidMonth, LocalDate payDate,
+            boolean confirmed, Long workerId, String workerCode, String workerName, String department,
+            LocalDate lastWorkDate, BigDecimal days, BigDecimal grossPay, BigDecimal incomeTax, BigDecimal localTax,
+            BigDecimal netPay, String bankName, String accountNo, String accountHolder
+    ) {}
+
+    /** 근무확정현황 한 줄 — 귀속연월-NO · 성명 · 수당항목명(일근무) · 근무기록. */
+    public record ConfirmReportLine(String payMonth, int seq, String workerCode, String workerName, String payItem, BigDecimal days) {}
 }

@@ -7,6 +7,8 @@ import com.erp.hr.dailyworker.dto.DailyPayDtos.ConfirmRow;
 import com.erp.hr.dailyworker.dto.DailyPayDtos.CreateLedgerRequest;
 import com.erp.hr.dailyworker.dto.DailyPayDtos.LedgerResponse;
 import com.erp.hr.dailyworker.dto.DailyPayDtos.LineResponse;
+import com.erp.hr.dailyworker.dto.DailyPayDtos.ConfirmReportLine;
+import com.erp.hr.dailyworker.dto.DailyPayDtos.ReportLine;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -160,6 +162,43 @@ public class DailyPayService {
     public List<LineResponse> lines(Long ledgerId) {
         get(ledgerId);
         return lineRepository.findByLedger(ledgerId).stream().map(LineResponse::from).toList();
+    }
+
+    /** 일용근로 사원별급여조회 · 급여현황 · 급여이체현황 — 귀속연월 구간의 대장 줄. 최종근무일은 대장 대상기간의 근무입력에서. */
+    @Transactional(readOnly = true)
+    public List<ReportLine> reportLines(String from, String to) {
+        Map<String, LocalDate> last = new HashMap<>();
+        List<DailyPayLine> ls = lineRepository.findInMonths(from, to);
+        for (DailyPayLedger g : ls.stream().map(DailyPayLine::getLedger).distinct().toList()) {
+            for (DailyWorkEntry e : entryRepository.findInWorkPeriod(g.getPeriodFrom(), g.getPeriodTo())) {
+                last.merge(g.getId() + "#" + e.getWorker().getId(), e.getWorkDate(), (a, b) -> a.isAfter(b) ? a : b);
+            }
+        }
+        return ls.stream().map(l -> {
+            DailyPayLedger g = l.getLedger();
+            DailyWorker w = l.getWorker();
+            return new ReportLine(l.getId(), g.getId(), g.getPayMonth(), g.getSeq(), g.getName(), g.getPaidMonth(), g.getPayDate(),
+                    g.isConfirmed(), w.getId(), w.getCode(), w.getName(), w.getDepartment() != null ? w.getDepartment().getName() : "",
+                    last.get(g.getId() + "#" + w.getId()), l.getDays(), l.getGrossPay(), l.getIncomeTax(), l.getLocalTax(),
+                    l.getNetPay(), w.getBankName(), w.getAccountNo(), w.getAccountHolder());
+        }).toList();
+    }
+
+    /** 일용근로 근무확정현황 — 귀속연월 구간의 근무기록확정. */
+    @Transactional(readOnly = true)
+    public List<ConfirmReportLine> confirmReport(String from, String to) {
+        return confirmRepository.findInMonths(from, to).stream()
+                .map(c -> new ConfirmReportLine(c.getLedger().getPayMonth(), c.getLedger().getSeq(),
+                        c.getWorker().getCode(), c.getWorker().getName(), "일근무", c.getDays()))
+                .toList();
+    }
+
+    /** 사원별급여조회 [선택삭제] — 대장에서 그 사원의 줄만 지운다. */
+    @Transactional
+    public void deleteLine(Long lineId) {
+        DailyPayLine l = lineRepository.findById(lineId).orElseThrow(() -> ApiException.notFound("급여 줄을 찾을 수 없습니다."));
+        if (l.getLedger().isConfirmed()) throw ApiException.conflict("확정된 급여대장입니다. 확정을 풀고 다시 하세요.");
+        lineRepository.delete(l);
     }
 
     /** 하루치 일용근로소득세 — (일급 − 15만) × 2.7%, 10원 미만 버림, 1,000원 미만 소액부징수. */
