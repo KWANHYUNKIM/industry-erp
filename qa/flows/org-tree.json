@@ -1,0 +1,40 @@
+{
+  "about": "조직도등록(원본 E090222) — 시험 부서 둘(QAGW-D1·D2)을 API 로 만들고 → D1 고르기 → [Fn] 하위부서추가로 D2 를 D1 아래에 → 이름변경 → 끝에 지운다. 회사(맨 위)를 고르면 '조회할 그룹을 선택바랍니다.'. node qa/shot.mjs qa/flows/org-tree.json",
+  "shots": [
+    {
+      "name": "준비 — 시험 부서 둘",
+      "path": "/groupware/org-tree",
+      "steps": [
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const a = await fetch('/api/departments', { method: 'POST', headers: H, body: JSON.stringify({ code: 'QAGW-D1', name: 'QA그룹웨어-부서A', sortOrder: 99 }) }); const b = await fetch('/api/departments', { method: 'POST', headers: H, body: JSON.stringify({ code: 'QAGW-D2', name: 'QA그룹웨어-부서B', sortOrder: 99 }) }); return a.status + ' ' + b.status })()"
+      ]
+    },
+    {
+      "name": "회사 줄은 안내 문구, 부서를 고르면 [Fn] → 하위부서추가 · 이름변경",
+      "path": "/groupware/org-tree",
+      "steps": [
+        "expect:document.body.innerText.includes('조회할 그룹을 선택바랍니다.')",
+        "js:[...document.querySelectorAll('span')].find((s) => s.textContent.startsWith('QA그룹웨어-부서A(')).click(); true",
+        "click:Fn",
+        "click:하위부서추가",
+        "expect:document.querySelector('[role=dialog]')?.getAttribute('aria-label') === '하위부서추가' && document.querySelector('[role=dialog]').innerText.includes('QA그룹웨어-부서A')",
+        "pick:하위부서:QAGW-D2",
+        "click:적용(F8)",
+        "expect:!document.querySelector('[role=dialog]')",
+        "wait:800",
+        "expect:fetch('/api/departments', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()).then((d) => { const a = d.find((x) => x.code === 'QAGW-D1'); const b = d.find((x) => x.code === 'QAGW-D2'); return a && b && b.parentId === a.id })",
+        "click:Fn",
+        "click:이름변경",
+        "js:(() => { const i = document.querySelector('[role=dialog] input'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'QA그룹웨어-부서A2'); i.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "click:적용(F8)",
+        "expect:[...document.querySelectorAll('span')].some((s) => s.textContent.startsWith('QA그룹웨어-부서A2('))"
+      ]
+    },
+    {
+      "name": "정리 — 시험 부서 지움",
+      "path": "/groupware/org-tree",
+      "steps": [
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = await (await fetch('/api/departments', { headers: H })).json(); const out = []; for (const c of ['QAGW-D2', 'QAGW-D1']) { const x = d.find((y) => y.code === c); if (x) out.push(c + ' ' + (await fetch('/api/departments/' + x.id, { method: 'DELETE', headers: H })).status) } return out.join(' / ') })()"
+      ]
+    }
+  ]
+}

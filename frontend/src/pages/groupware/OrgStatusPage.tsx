@@ -38,7 +38,7 @@ function buildTree(depts: Department[], emps: EmployeeMaster[]): Node[] {
  * [성명](링크색) · [직급]이 한 줄씩 놓인다. 위에는 확대·축소(🔍+ 🔍−), 아래는 [인쇄] 하나.
  * 부서·사원을 고치는 것은 조직도등록·사원등록이다.
  *
- * <p>실측: 부서 머리 바탕 rgb(27,61,161)(= --ec-blue-hover) · 흰 글자 12px 700 · 위 모서리 10 · 여백 6.3 4.5 ·
+ * <p>실측: 부서 머리 바탕 --ec-blue-hover(원본 실측값과 같다) · 흰 글자 12px 700 · 위 모서리 10 · 여백 6.3 4.5 ·
  * 상자 폭 161 · 사람 줄 여백 4.5 0. 위아래 상자는 가는 선으로 잇는다.
  */
 export default function OrgStatusPage() {

@@ -663,7 +663,8 @@ const MENU: TopMenu[] = [
             ],
           },
           { label: '조직도관리', children: [
-            { label: '조직도등록', to: '/groupware/org' },
+            // 조직도등록은 부서를 나무로 배치하는 화면이다. /groupware/org 는 재고 I › 부서등록(마스터)이 같이 쓴다.
+            { label: '조직도등록', to: '/groupware/org-tree' },
             { label: '조직도현황', to: '/groupware/org-status' },
           ] },
           {

@@ -256,6 +256,7 @@ const SuppliesPage = lazy(() => import('../pages/groupware/SuppliesPage'))
 const TimeCalcPage = lazy(() => import('../pages/production/TimeCalcPage'))
 const EmployeeContactPage = lazy(() => import('../pages/groupware/EmployeeContactPage'))
 const OrgStatusPage = lazy(() => import('../pages/groupware/OrgStatusPage'))
+const OrgTreePage = lazy(() => import('../pages/groupware/OrgTreePage'))
 const ReceiptStatusPage = lazy(() => import('../pages/production/ReceiptStatusPage'))
 const IssueStatusPage = lazy(() => import('../pages/production/IssueStatusPage'))
 const WorkResultListPage = lazy(() => import('../pages/production/WorkResultListPage'))
@@ -618,6 +619,7 @@ export default function AppRouter() {
         <Route path="/groupware/dev-schedule" element={<SwSchedulePage />} />
         <Route path="/groupware/contacts" element={<EmployeeContactPage />} />
         <Route path="/groupware/org-status" element={<OrgStatusPage />} />
+        <Route path="/groupware/org-tree" element={<OrgTreePage />} />
         <Route path="/groupware/construction-schedule" element={<ConstructionSchedulePage />} />
         <Route path="/groupware/survey-input" element={<SurveyInputPage />} />
         <Route path="/groupware/survey-status" element={<SurveyStatusPage />} />
