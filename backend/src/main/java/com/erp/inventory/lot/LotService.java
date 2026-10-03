@@ -98,7 +98,13 @@ public class LotService {
                 .held(false)
                 .build();
         Lot saved = lotRepository.save(lot);
-        recordTx(saved, LotTxType.INBOUND, req.inboundQty(), saved.getStockQty(), "로트 입고 " + saved.getLotNo());
+        /*
+         * 입고 이력은 <b>입고일자</b>에 단다. 여태 등록한 날(오늘)로 달아, 입고일을 지난 날로 적은 로트가
+         * 기준일자를 그 사이로 잡은 재고현황·품목vs시리얼비교에서 0 으로 되돌려지고(오늘 들어온 것으로 빼서)
+         * 수불부·내역현황에도 입고일이 아니라 등록일에 찍혔다.
+         */
+        recordTx(saved, LotTxType.INBOUND, req.inboundQty(), saved.getStockQty(), "로트 입고 " + saved.getLotNo(),
+                saved.getInboundDate());
         return LotResponse.from(saved);
     }
 
@@ -144,9 +150,14 @@ public class LotService {
     }
 
     private void recordTx(Lot lot, LotTxType type, BigDecimal change, BigDecimal balanceAfter, String note) {
+        recordTx(lot, type, change, balanceAfter, note, LocalDate.now());
+    }
+
+    private void recordTx(Lot lot, LotTxType type, BigDecimal change, BigDecimal balanceAfter, String note,
+                          LocalDate date) {
         lotTxRepository.save(LotTransaction.builder()
                 .lot(lot)
-                .txDate(LocalDate.now())
+                .txDate(date)
                 .type(type)
                 .quantityChange(change)
                 .balanceAfter(balanceAfter)
