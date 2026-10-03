@@ -6,7 +6,7 @@ import { printTable } from '../../utils/print'
 import { findDataTable } from '../../utils/tableExport'
 import { ymd } from '../../components/EcPeriodPicks'
 import type { Attendance } from '../../types/api'
-import { useShortcut } from '../../utils/useShortcut'
+import { useAuth } from '../../features/auth/AuthContext'
 
 const TITLE = '출/퇴근기록부(ID)'
 const DOW = ['일', '월', '화', '수', '목', '금', '토']
@@ -34,18 +34,20 @@ export default function AttendancePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [cursor, setCursor] = useState(() => new Date())
-  /** 사용자 필터. 빈 값이면 전체 — 원본 [사용자] 조건의 기본값이 '전체'다. */
-  const [userFilter, setUserFilter] = useState('')
+  const { user } = useAuth()
+  /**
+   * 원본 위쪽 알약 [사용자][전체] — <b>사용자(나)</b>가 기본이다(2026-10-03 실측). 예전에는 사용자 드롭다운에
+   * '전체' 가 기본이라 남의 기록까지 한 달력에 섞여 나왔다.
+   */
+  const [scope, setScope] = useState<'사용자' | '전체'>('사용자')
 
   // 표 내보내기/인쇄/검색 직접 배선
   const bodyRef = useRef<HTMLDivElement>(null)
-  const [search, setSearch] = useState('')
+  const [, setSearch] = useState('')
   const [optionOpen, setOptionOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const [notice, setNotice] = useState('')
 
-  // Search(F3) — 버튼 라벨이 약속한 단축키
-  useShortcut('F3', () => filterRows(search))
 
   const flash = (msg: string) => {
     setNotice(msg)
@@ -98,12 +100,10 @@ export default function AttendancePage() {
 
   useEffect(() => { load() }, [])
 
-  const moveMonth = (d: number) => setCursor((c) => new Date(c.getFullYear(), c.getMonth() + d, 1))
 
   /** 화면에 보이는 사용자 목록 — 조회된 기록에서 뽑는다(별도 요청 없음). */
-  const userNames = [...new Set(rows.map((r) => r.userName))].sort()
 
-  const shown = rows.filter((r) => !userFilter || r.userName === userFilter)
+  const shown = rows.filter((r) => scope === '전체' || r.userName === user?.name)
 
   /** 날짜 → 그날 기록. 달력 칸마다 훑지 않도록 한 번만 묶는다. */
   const byDate = new Map<string, Attendance[]>()
@@ -147,16 +147,7 @@ export default function AttendancePage() {
         <span className="text-ec-star text-[14px] mr-[4px]">☆</span>
         <span className="text-[15px] font-extrabold text-ec-text">출/퇴근기록부(ID)</span>
         <div className="ml-auto flex items-center gap-[4px] relative">
-          <button className="ec-btn" onClick={load}>새로고침</button>
-          <input
-            className="ec-input"
-            placeholder="입력 후 [Enter]"
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); filterRows(e.target.value) }}
-            onKeyDown={(e) => { if (e.key === 'Enter') filterRows(search) }}
-            style={{ width: 150 }}
-          />
-          <button className="ec-btn ec-btn-primary" onClick={() => filterRows(search)}>Search(F3)</button>
+          {/* 원본 제목 줄에는 [Option][도움말] 뿐이다 — 검색창·[새로고침]은 우리만 있던 것이라 뺐다. */}
           <button className="ec-btn" onClick={() => setOptionOpen((v) => !v)}>Option</button>
           <button className="ec-btn" onClick={() => setHelpOpen(true)}>도움말</button>
 
@@ -195,21 +186,21 @@ export default function AttendancePage() {
         </div>
       </div>
 
-      {/* 조회 조건 — 원본은 [사용자] 와 연/월이 달력 위에 있다 */}
+      {/* 원본: 알약 [사용자][전체], 그 아래 연 · 월 고르기 — 달력 바로 위 */}
+      <div className="ec-pills mb-[6px]">
+        {(['사용자', '전체'] as const).map((t) => (
+          <button key={t} type="button" className={`ec-pill no-ec${scope === t ? ' active' : ''}`} onClick={() => setScope(t)}>{t}</button>
+        ))}
+      </div>
       <div className="flex items-center gap-[6px] mb-[6px]">
-        <span className="text-[12px] text-ec-label">사용자</span>
-        <select className="ec-input" value={userFilter} onChange={(e) => setUserFilter(e.target.value)} style={{ width: 150 }}>
-          <option value="">전체</option>
-          {userNames.map((n) => <option key={n} value={n}>{n}</option>)}
+        <select className="ec-input w-[80px]" aria-label="연" value={cursor.getFullYear()}
+                onChange={(e) => setCursor(new Date(Number(e.target.value), cursor.getMonth(), 1))}>
+          {Array.from({ length: 11 }, (_, k) => new Date().getFullYear() - 5 + k).map((y) => <option key={y} value={y}>{y}</option>)}
         </select>
-        <span className="ml-[12px]">
-          <button className="ec-btn ec-btn-sm" onClick={() => moveMonth(-1)} aria-label="이전 달">‹</button>
-          <span className="my-0 mx-[10px] text-[12px]">
-            {cursor.getFullYear()} / {String(cursor.getMonth() + 1).padStart(2, '0')}
-          </span>
-          <button className="ec-btn ec-btn-sm" onClick={() => moveMonth(1)} aria-label="다음 달">›</button>
-          <button className="ec-btn ec-btn-sm" style={{ marginLeft: 6 }} onClick={() => setCursor(new Date())}>이번 달</button>
-        </span>
+        <select className="ec-input w-[64px]" aria-label="월" value={cursor.getMonth() + 1}
+                onChange={(e) => setCursor(new Date(cursor.getFullYear(), Number(e.target.value) - 1, 1))}>
+          {Array.from({ length: 12 }, (_, k) => k + 1).map((m) => <option key={m} value={m}>{m}</option>)}
+        </select>
       </div>
 
       <div ref={bodyRef} className="flex-1 min-h-0">
@@ -217,8 +208,8 @@ export default function AttendancePage() {
           <colgroup>{DOW.map((d) => <col key={d} className="w-[14.28%]" />)}</colgroup>
           <thead>
             <tr>
-              {DOW.map((d, i) => (
-                <th key={d} style={{ textAlign: 'center', color: i === 0 ? 'var(--ec-danger)' : i === 6 ? 'var(--ec-blue)' : undefined }}>{d}</th>
+              {DOW.map((d) => (
+                <th key={d} className="text-center">{d}</th>
               ))}
             </tr>
           </thead>
@@ -230,17 +221,10 @@ export default function AttendancePage() {
                   const otherMonth = day.getMonth() !== cursor.getMonth()
                   const list = byDate.get(key) ?? []
                   return (
-                    <td key={key} style={{ verticalAlign: 'top', height: 92, padding: 4, background: otherMonth ? 'var(--ec-bg-page)' : undefined }}>
-                      <div style={{
-                        fontSize: 12, marginBottom: 3,
-                        color: otherMonth ? 'var(--ec-text-off)'
-                          : day.getDay() === 0 ? 'var(--ec-danger)'
-                          : day.getDay() === 6 ? 'var(--ec-blue)' : 'var(--ec-text-grid)',
-                        fontWeight: key === todayKey ? 700 : 400,
-                      }}>
-                        {day.getDate()}
-                      </div>
-                      {list.map((r) => (
+                    // 원본: 그 달 밖의 칸은 숫자 없이 회색, 오늘 칸은 옅은 파랑, 주말 색은 따로 없다(2026-10-03 실측).
+                    <td key={key} className={`align-top h-[62px] p-[2.7px] ${otherMonth ? 'bg-ec-disabled' : key === todayKey ? 'bg-ec-blue-wash' : ''}`}>
+                      {!otherMonth && <div className="text-[12px] mb-[3px] text-ec-ink">{day.getDate()}</div>}
+                      {!otherMonth && list.map((r) => (
                         <div key={r.id} className="text-[11.5px] leading-[1.5] whitespace-nowrap overflow-hidden text-ellipsis">
                           <span className="text-ec-label">{r.userName}</span>{' '}
                           <span style={{ color: r.late ? 'var(--ec-danger)' : undefined }}>{r.clockIn ?? '--:--'}</span>
