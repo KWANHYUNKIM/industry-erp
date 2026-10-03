@@ -193,6 +193,18 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
   const authors = [...new Set(rows.filter((r) => r.type === kind)
     .map((r) => r.createdBy).filter((v): v is string => !!v))].sort()
 
+  /** 원본 [품목그룹1] — 품목 마스터에서 잇는다(관리항목과 같은 길). */
+  const mgmt = useItemMgmt()
+  /*
+   * 담당자 이름. 서버는 <b>id 만</b> 준다 — 재고(inventory)는 사원(hr)을 참조할 수 없어서
+   * (CLAUDE.md 4.1 의 순환 금지) 이름은 화면이 목록에서 붙인다. 지워진 사원이면 빈칸이다.
+   *
+   * mgmt 와 이것은 <b>shown 보다 앞에</b> 둔다. 뒤에 있으면 [담당자]·[품목그룹1] 을 고르는 순간
+   * shown 의 거르기가 아직 선언 전인 const 를 불러 ReferenceError 로 화면이 하얗게 뜬다.
+   */
+  const empName = (id: number | null) =>
+    (id == null ? '' : pickers.employees.find((e) => e.id === id)?.name ?? '')
+
   const shown = rows
     .filter((r) => r.type === kind)
     /* 원본 [기타]. 재고조정 말고는 그 칸이 없으니 다른 유형에서는 걸지 않는다. */
@@ -252,8 +264,6 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
    * <p>수량은 <b>절댓값</b>으로 그린다. 조정은 늘기도 줄기도 하는데 부호를 섞어 더하면
    * 서로 지워져 '움직임이 없었다' 로 보인다 — 얼마나 움직였나를 보는 그림이다.
    */
-  /** 원본 [품목그룹1] — 품목 마스터에서 잇는다(관리항목과 같은 길). */
-  const mgmt = useItemMgmt()
   const [view, setView] = useState<'표' | '그래프'>('표')
   const chartRows = useMemo(() => {
     const m = new Map<string, number>()
@@ -291,14 +301,7 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
     return [...m.entries()].map(([k, g]) => ({ k, ...g }))
       .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, kind, cond, subtotal])
-
-  /*
-   * 담당자 이름. 서버는 <b>id 만</b> 준다 — 재고(inventory)는 사원(hr)을 참조할 수 없어서
-   * (CLAUDE.md 4.1 의 순환 금지) 이름은 화면이 목록에서 붙인다. 지워진 사원이면 빈칸이다.
-   */
-  const empName = (id: number | null) =>
-    (id == null ? '' : pickers.employees.find((e) => e.id === id)?.name ?? '')
+  }, [shown, subtotal])
 
 /**
  * 원본의 <b>[금액(수량*입고단가)]</b>.
