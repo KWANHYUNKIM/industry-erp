@@ -53,12 +53,22 @@ export default function LeaveInputPage() {
   const [ok, setOk] = useState('')
   const [saving, setSaving] = useState(false)
   const [types, setTypes] = useState<string[]>(SEED_TYPES)
+  /** 근태항목 → 휴가코드(휴가항목) — 원본 [휴가] 칸이 근태를 고르면 이것으로 찬다 */
+  const [kindVacation, setKindVacation] = useState<Record<string, { name: string; from: string; to: string } | null>>({})
 
   useEffect(() => {
     api.get<UserRow[]>('/users').then((r) => setUsers(r.data)).catch(() => {})
-    api.get<{ name: string; active: boolean }[]>('/hr/attendance-kinds')
-      .then((r) => { const names = r.data.filter((k) => k.active).map((k) => k.name); if (names.length) setTypes(names) })
-      .catch(() => {})
+    Promise.all([
+      api.get<{ name: string; active: boolean; vacationKindId: number | null }[]>('/hr/attendance-kinds'),
+      api.get<{ id: number; name: string; periodFrom: string; periodTo: string }[]>('/hr/vacation-kinds'),
+    ]).then(([k, v]) => {
+      const names = k.data.filter((x) => x.active).map((x) => x.name)
+      if (names.length) setTypes(names)
+      setKindVacation(Object.fromEntries(k.data.map((x) => {
+        const vk = v.data.find((y) => y.id === x.vacationKindId)
+        return [x.name, vk ? { name: vk.name, from: vk.periodFrom, to: vk.periodTo } : null]
+      })))
+    }).catch(() => {})
     setLines([emptyLine(ymd(new Date())), emptyLine(ymd(new Date())), emptyLine(ymd(new Date()))])
   }, [])
 
@@ -107,6 +117,14 @@ export default function LeaveInputPage() {
     setError(''); setOk('')
     const valid = lines.filter((l) => l.userId && Number(l.days) > 0)
     if (valid.length === 0) return setError('사원과 근태(일)를 1줄 이상 입력하세요.')
+    // 원본: 근태의 휴가코드 사용기간이 근태일자를 안 품으면 묻는다(출력물에서 안 보이게 되므로)
+    const outside = valid.map((l) => kindVacation[l.type]).filter((v, i) => v && (valid[i].startDate < v.from || valid[i].startDate > v.to))
+    if (outside.length > 0) {
+      const v = outside[0]!
+      const ok = window.confirm(`휴가 ${v.name} (사용기간 ${v.from.replace(/-/g, '/')} ~ ${v.to.replace(/-/g, '/')})\n\n`
+        + '휴가코드가 입력된 근태일자에 포함되지 않습니다.\n포함되지 않은 코드를 입력한 경우 출력물에서 조회되지 않습니다.\n저장하시겠습니까?')
+      if (!ok) return
+    }
     setSaving(true)
     let done = 0
     const nos: string[] = []
@@ -262,7 +280,9 @@ export default function LeaveInputPage() {
                 </td>
                 <td className="text-ec-muted">
                   {/* 연차·반차만 연차 잔여에서 빠진다 — 병가·경조·공가·기타는 따로 간다(QA 61회차). */}
-                  {!l.startDate ? '' : ANNUAL_TYPES.includes(l.type) ? `연차(${l.startDate.slice(0, 4)}년)` : '— (연차 차감 없음)'}
+                  {/* 원본 [휴가] — 근태항목의 휴가코드(휴가항목등록). 휴가코드가 없는 근태는 연차 차감 여부를 알려 준다. */}
+                  {!l.startDate ? '' : kindVacation[l.type]?.name
+                    ?? (ANNUAL_TYPES.includes(l.type) ? `연차(${l.startDate.slice(0, 4)}년)` : '— (연차 차감 없음)')}
                 </td>
                 <td>
                   {/* 반차 0.5, 시간 단위 0.125 까지 넣는다 — 소수 세 자리로 저장된다. */}
