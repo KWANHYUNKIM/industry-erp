@@ -1,5 +1,5 @@
 {
-  "about": "일별이익현황 원가 [선입선출(판매)](원본 기본값, 2026-10-04 실측) — 회사 전체 품목별 FIFO. 2개 @1,000 · 2개 @1,500 을 사고 3개를 팔면 원가 2×1,000 + 1×1,500 = 3,500. 판매를 고쳐도(원복 줄이 생겨도) 같은 값, 판매를 지우면 층이 돌아와 다시 팔면 같은 값. 품목은 QA2FIFO01(재고 이력 때문에 못 지워 다시 쓴다). 만든 전표는 지운다.",
+  "about": "일별이익현황 원가 [선입선출(판매)](원본 기본값, 2026-10-04 실측) — 회사 전체 품목별 FIFO. 2개 @1,000 · 2개 @1,500 을 사고 3개를 팔면 원가 2×1,000 + 1×1,500 = 3,500. 판매를 고쳐도(원복 줄이 생겨도) 같은 값, 판매를 지우면 층이 돌아와 다시 팔면 같은 값. 품목은 QA2FIFO01(재고 이력 때문에 못 지워 다시 쓴다). 만든 전표는 지운다. 격자 머리는 원본처럼 두 줄(판매 · 원가 · 부대비용 · 이익 · 이익율 / 수량 · 단가 · 금액 …), 이익율은 정수 %, 합계 줄 단가 칸은 빈칸.",
   "shots": [
     {
       "name": "구매 2@1,000 · 2@1,500 → 판매 3 → FIFO 원가 3,500 → 판매 수정해도 3,500 → 화면 기본 원가가 선입선출(판매)",
@@ -12,6 +12,8 @@
         "js:location.reload(); true",
         "wait:2500",
         "expect:[...document.querySelectorAll('.ec-pill.active')].some((b) => b.innerText.trim() === '선입선출(판매)')",
+        "expect:(() => { const t = document.querySelector('table'); const rs = t.tHead.rows; const top = [...rs[0].cells].map((c) => c.innerText.trim()).filter(Boolean); const sub = [...rs[1].cells].map((c) => c.innerText.trim()); return rs.length === 2 && top.slice(-5).join('|') === '판매|원가|부대비용|이익|이익율' && sub.join('|') === '수량|단가|금액|단가|금액|단가|금액' })()",
+        "expect:(() => { const t = document.querySelector('table'); const body = [...t.tBodies[0].rows].filter((r) => r.cells.length > 5); const rates = body.map((r) => r.cells[r.cells.length - 1].innerText.trim()); const f = t.tFoot?.rows[0]; if (!f) return body.length === 0; const c = [...f.cells].map((x) => x.innerText.trim()); return rates.every((x) => x === '—' || /^-?\\d+%$/.test(x)) && c.length === 10 && c[2] === '' && c[4] === '' && c[7] === '' })()",
         "expect:(async () => { const x = JSON.parse(sessionStorage.getItem('fifo')); const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const a = await fetch('/api/sales/' + x.s, { method: 'DELETE', headers: H }); const b = await fetch('/api/purchases/' + x.p2, { method: 'DELETE', headers: H }); const c = await fetch('/api/purchases/' + x.p1, { method: 'DELETE', headers: H }); return a.status === 204 && b.status === 204 && c.status === 204 })()"
       ]
     }

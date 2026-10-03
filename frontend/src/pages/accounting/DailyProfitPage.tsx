@@ -71,7 +71,8 @@ interface CostRow { itemId: number; period: string; standardTotal: number }
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const num = (n: number) => n.toLocaleString()
-const rate = (profit: number, revenue: number) => (revenue === 0 ? 0 : Math.round((profit / revenue) * 1000) / 10)
+/* 원본 [이익율] 은 정수 % 다(2026-10-04 실측: 77%, 합계 41%). */
+const rate = (profit: number, revenue: number) => (revenue === 0 ? 0 : Math.round((profit / revenue) * 100))
 
 export default function DailyProfitPage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
@@ -316,10 +317,10 @@ export default function DailyProfitPage() {
   }
   const heads = HEADS[mode]
   /*
-   * 꼬리 열 <b>열</b> — 수량 · 판매단가 · 판매액 · 원가단가 · 원가 · 이익단가 · 이익 ·
-   * 이익율 · 이익금액(부대비용포함) · 판매부대비용. 원본 두 줄 머리의 잎을 편 것이다.
+   * 꼬리 열 <b>아홉</b> — 판매(수량 · 단가 · 금액) · 원가(단가 · 금액) · 부대비용 · 이익(단가 · 금액) · 이익율.
+   * 원본 두 줄 머리의 잎이다.
    */
-  const TAIL = 10
+  const TAIL = 9
   /** 합계행의 단가도 <b>합계금액 ÷ 합계수량</b>이다 — 줄 단가의 평균이 아니다. */
   const totalQty = rows.reduce((n, r) => n + r.qty, 0)
   const colCount = 1 + heads.length + (mode === '일자별' || mode === '거래처별' ? 1 : 0) + TAIL
@@ -500,47 +501,31 @@ export default function DailyProfitPage() {
       <div ref={tableRef} className="overflow-x-auto">
         <table className="w-full text-left">
           <thead>
+            {/*
+              <b>2026-10-04 원본 격자 실측</b>(품목별, 자료가 든 판) — 머리는 <b>두 줄</b>이다.
+              위: 품목코드 · 품목명[규격] · 판매(3) · 원가(2) · 부대비용 · 이익(2) · 이익율, 아래: 판매 밑 [수량 · 단가 · 금액],
+              원가 · 이익 밑 [단가 · 금액]. 예전엔 한 줄 머리에 [판매단가] 처럼 묶음 이름을 붙였고, 09-09 기록대로
+              [이익금액(부대비용포함)] · [판매부대비용] 을 맨 뒤에 두었는데 지금 원본 기본 판에는 [부대비용] 한 칸뿐이다.
+              앞머리 칸은 [구분]에 따라 갈려 <code>HEADS</code> 가 든다.
+            */}
             <tr>
-              <th className="w-[40px]"></th>
-              {/*
-                앞머리 칸은 <b>[구분]에 따라 갈린다</b> — 이름은 <code>HEADS</code> 가 든다.
-                갈래마다 <code>&lt;th&gt;</code> 를 글자로 적어 보았더니, 여섯 갈래가 <b>한 파일 안에</b>
-                다 있어서 차례 검사가 같은 이름을 여섯 벌로 세었다. 그래서 map 으로 되돌리고,
-                <b>검사가 못 보는 이름</b>은 ui-check 의 MISS_SKIP 에 이유와 함께 적어 두었다.
-              */}
-              {heads.map((h) => <th key={h}>{h}</th>)}
-              {(mode === '일자별' || mode === '거래처별') && <th className="text-right w-[70px]">건수</th>}
+              <th rowSpan={2} className="w-[40px]"></th>
+              {heads.map((h) => <th key={h} rowSpan={2}>{h}</th>)}
+              {(mode === '일자별' || mode === '거래처별') && <th rowSpan={2} className="text-right w-[70px]">건수</th>}
+              <th colSpan={3} className="text-center">판매</th>
+              <th colSpan={2} className="text-center">원가</th>
+              <th rowSpan={2} className="text-right w-[110px]">부대비용</th>
+              <th colSpan={2} className="text-center">이익</th>
+              <th rowSpan={2} className="text-right w-[80px]">이익율</th>
+            </tr>
+            <tr>
               <th className="text-right w-[90px]">수량</th>
-              {/*
-                원본은 판매·원가·이익마다 <b>[단가]와 [금액]</b>을 나란히 둔다(두 줄 머리).
-                우리는 한 줄이라 묶음 이름을 앞에 붙여 [판매단가]·[원가단가]·[이익단가] 로 적는다
-                (작업지시서효율현황의 [소모 표준]과 같은 방식이다).
-                <b>단가는 금액 ÷ 수량</b>이고, 수량이 없으면 0 이 아니라 <b>모른다(—)</b>.
-              */}
-              <th className="text-right w-[110px]">판매단가</th>
-              <th className="text-right w-[120px]">판매액</th>
-              <th className="text-right w-[110px]">원가단가</th>
-              <th className="text-right w-[120px]">원가</th>
-              {/*
-                <b>일별이익현황(E040806) [구분]=품목별 2026-09-09 원본 격자 실측</b>.
-                원본 머리는 <b>두 줄</b>이다 —
-                위: [품목코드 · 품목명[규격] · 판매(3) · 원가(2) · 이익(2) · 이익율 ·
-                이익금액(부대비용포함) · <b>판매부대비용</b>],
-                아래: 판매 밑에 [수량·단가·금액], 원가·이익 밑에 각각 [단가·금액].
-                우리는 한 줄 머리라 <b>금액만</b> 낸다(단가 셋은 아직 없다).
-                이번에 고친 둘: (1) <b>[판매부대비용]이 맨 뒤</b>다 — 우리는
-                [이익금액(부대비용포함)] 앞에 두고 있었다, (2) 품목 칸 이름을
-                <b>[품목명[규격]]</b> 으로(원본이 규격을 대괄호로 붙인다).
-                [이익률]은 원본이 <b>[이익율]</b> 이라는 <b>독립된 칸</b>으로 두는데
-                우리는 [이익] 칸 안에 괄호로 붙여 적는다 — 열 하나를 아끼려던 것이라
-                이름 검사에 걸리게 <b>따옴표 글자로</b> 남겨 둔다.
-              */}
-              <th className="text-right w-[110px]">이익단가</th>
-              <th className="text-right w-[120px]">이익</th>
-              {/* 원본은 [이익율]을 <b>독립된 칸</b>으로 둔다 — 이제 우리도 그렇게 뗐다. */}
-              <th className="text-right w-[80px]">이익율</th>
-              <th className="text-right w-[140px]">이익금액(부대비용포함)</th>
-              <th className="text-right w-[120px]">판매부대비용</th>
+              <th className="text-right w-[110px]">단가</th>
+              <th className="text-right w-[120px]">금액</th>
+              <th className="text-right w-[110px]">단가</th>
+              <th className="text-right w-[120px]">금액</th>
+              <th className="text-right w-[110px]">단가</th>
+              <th className="text-right w-[120px]">금액</th>
             </tr>
           </thead>
           <tbody>
@@ -569,24 +554,13 @@ export default function DailyProfitPage() {
                   <td className="text-right text-ec-label">
                     {per(r.cost, r.qty) === null ? '—' : won(Math.round(per(r.cost, r.qty) as number))}
                   </td>
-                  <td style={{ textAlign: 'right', color: r.cost === null ? 'var(--ec-text-off)' : '#a5561b' }}>
-                    {r.cost === null ? '—' : won(r.cost)}
-                  </td>
-                  <td className="text-right text-ec-label">
+                  <td className="text-right">{r.cost === null ? '—' : won(r.cost)}</td>
+                  <td className="text-right">{won(r.extra)}</td>
+                  <td className="text-right">
                     {per(r.profit, r.qty) === null ? '—' : won(Math.round(per(r.profit, r.qty) as number))}
                   </td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, color }}>
-                    {r.profit === null ? '—' : won(r.profit)}
-                  </td>
-                  <td className="text-right text-ec-label">
-                    {r.profit === null ? '—' : `${rate(r.profit, r.revenue)}%`}
-                  </td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, color: r.profit === null ? 'var(--ec-text-off)' : (r.profit - r.extra) < 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>
-                    {r.profit === null ? '—' : won(r.profit - r.extra)}
-                  </td>
-                  <td style={{ textAlign: 'right', color: r.extra === 0 ? 'var(--ec-text-off)' : '#a5561b' }}>
-                    {r.extra === 0 ? '—' : won(r.extra)}
-                  </td>
+                  <td className="text-right" style={{ color }}>{r.profit === null ? '—' : won(r.profit)}</td>
+                  <td className="text-right" style={{ color }}>{r.profit === null ? '—' : `${rate(r.profit, r.revenue)}%`}</td>
                 </tr>
               )
             })}
@@ -595,34 +569,16 @@ export default function DailyProfitPage() {
             <tfoot>
               <tr>
                 <td colSpan={colCount - TAIL} className="text-right font-bold bg-ec-page">합계</td>
-                <td className="text-right font-bold bg-ec-page">
-                  {num(totalQty)}
-                </td>
-                <td className="text-right font-bold bg-ec-page text-ec-label">
-                  {per(totals.revenue, totalQty) === null ? '—' : won(Math.round(per(totals.revenue, totalQty) as number))}
-                </td>
-                <td className="text-right font-bold bg-ec-page text-ec-blue">{won(totals.revenue)}</td>
-                <td className="text-right font-bold bg-ec-page text-ec-label">
-                  {allUnknown || per(totals.cost, totalQty) === null ? '—' : won(Math.round(per(totals.cost, totalQty) as number))}
-                </td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: allUnknown ? 'var(--ec-text-off)' : '#a5561b' }}>
-                  {allUnknown ? '—' : won(totals.cost)}
-                </td>
-                <td className="text-right font-bold bg-ec-page text-ec-label">
-                  {allUnknown || per(totals.profit, totalQty) === null ? '—' : won(Math.round(per(totals.profit, totalQty) as number))}
-                </td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: allUnknown ? 'var(--ec-text-off)' : totals.profit < 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>
-                  {allUnknown ? '—' : won(totals.profit)}
-                </td>
-                <td className="text-right font-bold bg-ec-page text-ec-label">
-                  {allUnknown ? '—' : `${rate(totals.profit, totals.knownRevenue)}%`}
-                </td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: extraTotals.extra === 0 ? 'var(--ec-text-off)' : '#a5561b' }}>
-                  {extraTotals.extra === 0 ? '—' : won(extraTotals.extra)}
-                </td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: allUnknown ? 'var(--ec-text-off)' : extraTotals.profitWithExtra < 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>
-                  {allUnknown ? '—' : won(extraTotals.profitWithExtra)}
-                </td>
+                {/* 원본 합계 줄은 단가 칸을 비운다(2026-10-04 실측: 72 · · 1,885,292 · · 1,113,858 · 0 · · 771,434 · 41%). */}
+                <td className="text-right font-bold bg-ec-page">{num(totalQty)}</td>
+                <td className="bg-ec-page"></td>
+                <td className="text-right font-bold bg-ec-page">{won(totals.revenue)}</td>
+                <td className="bg-ec-page"></td>
+                <td className="text-right font-bold bg-ec-page">{allUnknown ? '—' : won(totals.cost)}</td>
+                <td className="text-right font-bold bg-ec-page">{won(extraTotals.extra)}</td>
+                <td className="bg-ec-page"></td>
+                <td className="text-right font-bold bg-ec-page">{allUnknown ? '—' : won(totals.profit)}</td>
+                <td className="text-right font-bold bg-ec-page">{allUnknown ? '—' : `${rate(totals.profit, totals.knownRevenue)}%`}</td>
               </tr>
             </tfoot>
           )}
