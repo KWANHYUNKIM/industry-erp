@@ -80,7 +80,9 @@ public class OtherWithholdingService {
         // 기타소득만 필요경비 60% 를 인정한다. 과세대상은 그 나머지.
         BigDecimal expense = req.grossAmount().multiply(type.getExpenseRate()).setScale(0, RoundingMode.DOWN);
         BigDecimal taxable = req.grossAmount().subtract(expense);
-        BigDecimal incomeTax = taxable.multiply(type.getTaxRate()).setScale(0, RoundingMode.DOWN);
+        // 소득세도 10원 미만 버림 — 원본 기타원천세(2026-10-04 실측): 사업소득 1,231,234 × 3% = 36,937 → 36,930,
+        // 기타소득 9,950,309 → 소득금액 3,980,124 × 20% = 796,024 → 796,020.
+        BigDecimal incomeTax = taxable.multiply(type.getTaxRate()).divide(BigDecimal.TEN, 0, RoundingMode.DOWN).multiply(BigDecimal.TEN);
         // 지방소득세는 10원 미만 버림(QA 66회차 — 근로소득과 같은 규칙).
         BigDecimal localTax = incomeTax.multiply(LOCAL_RATE).divide(BigDecimal.TEN, 0, RoundingMode.DOWN).multiply(BigDecimal.TEN);
 
