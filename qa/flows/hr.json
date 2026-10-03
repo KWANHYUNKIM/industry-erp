@@ -40,8 +40,9 @@
       "name": "휴가 목록 — [확인] 하면 잔여 휴가가 1 준다, 지우면 돌아온다",
       "path": "/hr/leave-list",
       "steps": [
-        "expect:document.body.innerText.includes(sessionStorage.getItem('qaVac'))",
-        "js:window.confirm = () => true; [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('qaVac'))).querySelectorAll('button').forEach((b) => { if (b.textContent.trim() === '확인') b.click() }); true",
+        "js:(()=>{const m=/AT-(\\d{4})(\\d{2})(\\d{2})-(\\d+)/.exec(sessionStorage.getItem('qaVac'));sessionStorage.setItem('qaVacShown',m[1]+'/'+m[2]+'/'+m[3]+' -'+Number(m[4]));return true})()",
+        "expect:document.body.innerText.includes(sessionStorage.getItem('qaVacShown'))",
+        "js:window.confirm = () => true; [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('qaVacShown'))).querySelectorAll('button').forEach((b) => { if (b.textContent.trim() === '확인') b.click() }); true",
         "wait:800",
         "js:fetch('/api/hr/vacations/summary?year=2026', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()).then((d) => { const x = (d.rows ?? d).find((a) => a.empName === '이사원'); sessionStorage.setItem('qaRem2', String(x ? x.remainingDays : -1)); return true })",
         "expect:Number(sessionStorage.getItem('qaRem0')) - Number(sessionStorage.getItem('qaRem2')) === 1",

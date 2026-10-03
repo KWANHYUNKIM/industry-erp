@@ -188,14 +188,6 @@
   ],
   "in": "backend"
  },
- "근태조회|휴가항목": {
-  "claim": "휴가코드 마스터가 없어 근태코드 하나로 쓴다",
-  "absent": [
-   "VacationType",
-   "LeaveCode"
-  ],
-  "in": "backend"
- },
  "거래이력조회|메뉴": {
   "claim": "우리 화면은 그 거래처의 거래 내역이라 감사 기록의 값이 없다",
   "absent": [
@@ -6327,15 +6319,6 @@
   "absent": [
    "project",
    "Project"
-  ],
-  "in": "backend/src/main/java/com/erp/hr/employee/Employee.java"
- },
- "인원현황|입사구분": {
-  "claim": "사원에 신입/경력 가름이 없다",
-  "absent": [
-   "hireType",
-   "HireType",
-   "career"
   ],
   "in": "backend/src/main/java/com/erp/hr/employee/Employee.java"
  },

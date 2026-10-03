@@ -309,9 +309,9 @@ export default function LeaveListPage() {
           <thead>
             <tr>
               <th className="w-[34px]"></th>
-              <th className="w-[170px]">근태번호</th>
+              {/* 원본(2026-10-04 실측) 근태번호는 '2026/10/29 -1'(근태일자 -번호) 꼴이고 사원번호 열은 없다. */}
+              <th className="w-[150px]">근태번호</th>
               <th className="text-center w-[190px]">근태일자</th>
-              <th className="w-[110px]">사원번호</th>
               <th className="w-[110px]">사원명</th>
               <th className="w-[100px]">근태코드</th>
               <th className="w-[100px] text-right">근태수</th>
@@ -332,25 +332,23 @@ export default function LeaveListPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={12} className="ec-empty">불러오는 중…</td></tr>
+              <tr><td colSpan={11} className="ec-empty">불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={12} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((r) => (
               <tr key={r.id}>
                 <td className="text-center">
                   <input type="checkbox" checked={checked.has(r.id)} onChange={() => toggle(r.id)} />
                 </td>
-                <td>{r.docNo}</td>
+                <td>{leaveNo(r.docNo, r.startDate)}</td>
                 <td className="text-center">
-                  {r.startDate === r.endDate ? r.startDate : `${r.startDate} ~ ${r.endDate}`}
+                  {r.startDate === r.endDate ? slashDay(r.startDate) : `${slashDay(r.startDate)} ~ ${slashDay(r.endDate)}`}
                 </td>
-                <td style={{ fontFamily: 'monospace', color: r.empCode ? undefined : 'var(--ec-text-off)' }}>{r.empCode ?? ''}</td>
                 <td>{r.empName}</td>
                 <td>{r.type}</td>
                 <td className="text-right">{days(r.days)}</td>
-                <td style={{ textAlign: 'center', color: r.status === 'APPROVED' ? undefined : 'var(--ec-text-off)' }}>
-                  {r.status === 'APPROVED' ? `연차(${r.startDate.slice(0, 4)}년)` : '-'}
-                </td>
+                {/* 휴가명 — 그 근태항목이 [휴가코드]로 가리키는 휴가항목(원본: 휴가코드가 없는 근태항목이면 빈칸) */}
+                <td className="text-center">{vkMaster.find((v) => v.id === kindMaster.find((k) => k.name === r.type)?.vacationKindId)?.name ?? ''}</td>
                 <td className="text-center">{r.reason ?? ''}</td>
                 <td style={{ textAlign: 'center', fontWeight: 700, color: r.status === 'APPROVED' ? 'var(--ec-success)' : r.status === 'REJECTED' ? 'var(--ec-danger)' : 'var(--ec-warn)' }}>
                   {r.statusName}
@@ -374,4 +372,13 @@ export default function LeaveListPage() {
       </div>
     </EcListShell>
   )
+}
+
+const slashDay = (d: string) => d.replace(/-/g, '/')
+
+/** 원본 근태번호 꼴 '2026/10/29 -1' — 우리 번호 AT-20261029-0001 을 그렇게 보인다. */
+function leaveNo(docNo: string | null, startDate: string): string {
+  const m = /^AT-(\d{4})(\d{2})(\d{2})-(\d+)$/.exec(docNo ?? '')
+  if (m) return `${m[1]}/${m[2]}/${m[3]} -${Number(m[4])}`
+  return docNo ?? startDate.replace(/-/g, '/')
 }
