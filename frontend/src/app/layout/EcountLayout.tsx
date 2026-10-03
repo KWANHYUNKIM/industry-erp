@@ -613,6 +613,7 @@ const MENU: TopMenu[] = [
         label: '원천징수',
         nodes: [
           { label: '원천징수이행상황신고서', to: '/accounting/withholding' },
+          { label: '원천징수이행상황신고서확인', to: '/accounting/withholding/confirm' },
           { label: '근로소득원천징수영수증', to: '/accounting/withholding?tab=영수증' },
           { label: '퇴직정산', children: [{ label: '퇴사자리스트', to: '/hr/retired' }] },
         ],

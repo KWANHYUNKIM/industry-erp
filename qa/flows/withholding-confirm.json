@@ -1,0 +1,30 @@
+{
+  "about": "원천징수이행상황신고서확인(E030102) — 만들어 둔 신고서의 귀속연월로 찾아 소득구분마다 귀속·지급년월 · 총인원 · 총지급액 · 소득세등을 확인서 서식에 찍는다(원본: 2026/10 신고서 → '근로소득 | 2026.10 | 2026.10 | 6 | 20,469,000 | 646,370'). 신고서와 일용근로 1건은 API 로 만들고 지운다.",
+  "shots": [
+    {
+      "name": "준비 — 2089/03 신고서 · 일용근로 1건(API)",
+      "path": "/accounting/withholding/confirm",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:window.__api('GET', '/employees').then((r) => window.__api('POST', '/daily-works', { employeeId: r.body[0].id, workDate: '2089-03-20', dailyWage: 200000, workHours: 8 })).then((r) => { sessionStorage.setItem('dwId', r.body.id); return window.__api('POST', '/withholding/returns', { filingType: 'REGULAR', filingMethod: 'MONTHLY', attributionMonth: '2089-03', payMonth: '2089-03', reportDate: '2089-04-10', includeYearEnd: false }) }).then((r) => { sessionStorage.setItem('whId', r.body.id); return r.status })",
+        "wait:1200",
+        "expect:!!sessionStorage.getItem('whId') && !!sessionStorage.getItem('dwId')"
+      ]
+    },
+    {
+      "name": "귀속연월 2089/03 검색 → 근로소득 한 줄",
+      "path": "/accounting/withholding/confirm",
+      "steps": [
+        "wait:800",
+        "js:(() => { const el = document.querySelector('input[type=month]'); const d = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value'); d.set.call(el, '2089-03'); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "js:[...document.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Search(F3)').click(); true",
+        "wait:400",
+        "js:[...document.querySelectorAll('button')].find((b) => b.innerText.trim() === '검색(F8)').click(); true",
+        "wait:1500",
+        "expect:[...document.querySelectorAll('tr')].some((t) => /근로소득\\s*2089\\.03\\s*2089\\.03\\s*1\\s*200,000\\s*1,350/.test(t.innerText))",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then((r) => r.status); Promise.all([window.__api('POST', '/withholding/returns/delete', [Number(sessionStorage.getItem('whId'))]), window.__api('DELETE', '/daily-works/' + sessionStorage.getItem('dwId'))]).then((s) => s.join(','))",
+        "wait:800"
+      ]
+    }
+  ]
+}
