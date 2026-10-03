@@ -263,6 +263,7 @@ const CertificatePage = lazy(() => import('../pages/hr/CertificatePage'))
 const DailyWorkerListPage = lazy(() => import('../pages/hr/DailyWorkerListPage'))
 const DailyWorkInputPage = lazy(() => import('../pages/hr/DailyWorkInputPage'))
 const DailyWorkListPage = lazy(() => import('../pages/hr/DailyWorkListPage'))
+const DailyWorkStatusPage = lazy(() => import('../pages/hr/DailyWorkStatusPage'))
 const DailyPayLedgerPage = lazy(() => import('../pages/hr/DailyPayLedgerPage'))
 const DailyPayByWorkerPage = lazy(() => import('../pages/hr/DailyPayByWorkerPage'))
 const DailyPayStatusPage = lazy(() => import('../pages/hr/DailyPayStatusPage'))
@@ -699,6 +700,7 @@ export default function AppRouter() {
         <Route path="/hr/daily-workers" element={<DailyWorkerListPage />} />
         <Route path="/hr/daily-work-input" element={<DailyWorkInputPage />} />
         <Route path="/hr/daily-work-list" element={<DailyWorkListPage />} />
+        <Route path="/hr/daily-work-status" element={<DailyWorkStatusPage />} />
         <Route path="/hr/daily-payroll" element={<DailyPayLedgerPage />} />
         <Route path="/hr/daily-payroll/by-worker" element={<DailyPayByWorkerPage />} />
         <Route path="/hr/daily-payroll/status" element={<DailyPayStatusPage />} />

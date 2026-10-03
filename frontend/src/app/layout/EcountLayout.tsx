@@ -672,6 +672,7 @@ const MENU: TopMenu[] = [
           { label: '일용근로 근무기록', children: [
             { label: '일용근로 근무입력', to: '/hr/daily-work-input' },
             { label: '일용근로 근무조회', to: '/hr/daily-work-list' },
+            { label: '일용근로 근무현황', to: '/hr/daily-work-status' },
           ] },
           { label: '일용근로 급여작업', children: [
             { label: '일용근로 급여계산/대장', to: '/hr/daily-payroll' },
