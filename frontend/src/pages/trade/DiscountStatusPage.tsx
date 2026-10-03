@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { subtotalBy } from '../../utils/subtotalBy'
+import { discountRows, discountSubtotals, type DiscountSrc } from '../../utils/discountRows'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
@@ -45,36 +45,13 @@ interface SubcontractRow {
 }
 
 /** 세 화면이 읽는 한 장 — 판매·구매 전표와 외주비 줄을 같은 모양으로 맞춘다. */
-interface Src {
-  date: string; docNo: string; partnerId: number; partnerName: string
-  warehouseId: number | null; warehouseName: string | null
-  employeeName: string | null; projectId: number | null; projectName: string | null
-  supplyAmount: number; reflected: boolean; remark: string | null; taxable: boolean
-}
+type Src = DiscountSrc
 const fromDoc = (d: Doc): Src => ({
   date: 'saleDate' in d ? d.saleDate : d.purchaseDate, docNo: d.docNo, partnerId: d.partnerId, partnerName: d.partnerName,
   warehouseId: d.warehouseId ?? null, warehouseName: d.warehouseName, employeeName: d.employeeName,
   projectId: d.projectId ?? null, projectName: d.projectName ?? null,
   supplyAmount: d.supplyAmount, reflected: !!d.accountingReflected, remark: d.remark ?? null, taxable: !!d.taxable,
 })
-
-interface Row {
-  date: string
-  partner: string
-  /** 코드도움 조건은 id 로 견준다 — 거래처·창고 이름은 겹칠 수 있다. */
-  partnerId: number
-  warehouse: string | null
-  warehouseId: number | null
-  employee: string | null
-  project: string | null
-  projectId: number | null
-  /** 전표 공급가액 합(판매·구매·외주). */
-  orgAmount: number
-  /** 그중 회계로 넘어간 금액 */
-  reflectedAmount: number
-  remarks: string[]
-  docNos: string[]
-}
 
 export default function DiscountStatusPage({ kind, title, amountLabel, defaultPick, withTradeType }: {
   /**
@@ -183,36 +160,19 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
     if (r) { applied.current = true; setFrom(r.from); setTo(r.to) }
   }, [fiscalStart, defaultPick])
 
-  /** 원본은 한 줄이 <b>일자 × 거래처</b>다. 전표가 여럿이면 합쳐 한 줄로 낸다. */
-  const rows = useMemo(() => {
-    const m = new Map<string, Row>()
-    for (const d of docs) {
-      const date = d.date
-      if (date < from || date > to) continue
-      if (tradeType !== '전체' && (d.taxable ? '과세' : '면세') !== tradeType) continue
-      const key = `${date}|${d.partnerId}`
-      const cur = m.get(key) ?? {
-        date, partner: d.partnerName, partnerId: d.partnerId,
-        warehouse: d.warehouseName, warehouseId: d.warehouseId ?? null, employee: d.employeeName, project: d.projectName ?? null, projectId: d.projectId ?? null,
-        orgAmount: 0, reflectedAmount: 0, remarks: [], docNos: [],
-      }
-      cur.orgAmount += d.supplyAmount
-      if (d.reflected) cur.reflectedAmount += d.supplyAmount
-      if (d.remark) cur.remarks.push(d.remark)
-      cur.docNos.push(d.docNo)
-      m.set(key, cur)
-    }
-    return [...m.values()].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : a.partner.localeCompare(b.partner)))
-  }, [docs, from, to, tradeType])
+  /**
+   * 원본은 한 줄이 <b>일자 × 거래처</b>다. 창고·담당자·프로젝트·거래유형은 <b>전표마다</b> 걸고 나서 합친다
+   * — 합친 줄의 첫 전표 값으로 거르면 같은 날 다른 창고 전표가 통째로 빠졌다(utils/discountRows).
+   */
+  const rows = useMemo(
+    () => discountRows(docs, { from, to, tradeType, warehouse, employee, project }),
+    [docs, from, to, tradeType, warehouse, employee, project])
 
   const min = Number(discFrom)
   const max = Number(discTo)
   const shown = rows.filter((r) => {
     if (keyword && !r.partner.includes(keyword)) return false
     if (partnerCond && String(r.partnerId) !== partnerCond) return false
-    if (warehouse && String(r.warehouseId) !== warehouse) return false
-    if (employee && !(r.employee ?? '').includes(employee)) return false
-    if (project && String(r.projectId) !== project) return false
     if (discFrom && !Number.isNaN(min) && r.orgAmount - r.reflectedAmount < min) return false
     if (discTo && !Number.isNaN(max) && r.orgAmount - r.reflectedAmount > max) return false
     if (partnerGroup && pgroup.groupOfName(r.partner) !== partnerGroup) return false
@@ -237,9 +197,7 @@ export default function DiscountStatusPage({ kind, title, amountLabel, defaultPi
    */
   const SUBTOTALS = ['거래처', '창고', '담당자'] as const
   const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('거래처')
-  const groups = useMemo(() => subtotalBy(shown,
-    (r) => (subtotal === '창고' ? r.warehouse : subtotal === '담당자' ? r.employee : r.partner),
-    { org: (r) => r.orgAmount, ref: (r) => r.reflectedAmount }), [shown, subtotal])
+  const groups = useMemo(() => discountSubtotals(shown, subtotal), [shown, subtotal])
 
   const totals = shown.reduce(
     (a, r) => ({ org: a.org + r.orgAmount, ref: a.ref + r.reflectedAmount }),
