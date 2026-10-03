@@ -174,9 +174,19 @@ public class StockService {
     /**
      * 재고변동표 — 품목별 기초·입고·출고·기말. warehouseId가 null이면 전 창고 합산.
      * 기간 이전에 활동이 있었거나 기간 내 입출고가 있는 품목만 포함한다.
+     *
+     * <p>{@code includeTransfers=false}(원본 [생산불출/창고이동포함] 꺼짐) 이고 <b>전 창고</b>로 볼 때는 창고이동 줄을 입고·출고에서 뺀다 —
+     * 회사 전체로는 한 창고에서 나가 다른 창고로 들어온 것이라 둘 다 세면 입고·출고가 이동량만큼 부풀고, 같은 날 두 다리가 함께 빠지므로
+     * 기말은 그대로다. 창고를 고르면 이동은 그 창고의 실제 입고 · 출고라 그대로 센다. 우리 생산불출은 공장으로 옮기는 이동이 아니라
+     * 소모(출고 한 다리)라 빼면 기말이 틀어지므로 뺄 대상이 아니다.
      */
     @Transactional(readOnly = true)
     public List<StockDtos.StockMovementRow> movement(LocalDate from, LocalDate to, Long warehouseId) {
+        return movement(from, to, warehouseId, true);
+    }
+
+    @Transactional(readOnly = true)
+    public List<StockDtos.StockMovementRow> movement(LocalDate from, LocalDate to, Long warehouseId, boolean includeTransfers) {
         LocalDate effFrom = from != null ? from : LocalDate.of(1900, 1, 1);
         LocalDate effTo = to != null ? to : LocalDate.of(9999, 12, 31);
 
@@ -185,7 +195,7 @@ public class StockService {
             openingByItem.put(((Number) r[0]).longValue(), toBig(r[1]));
         }
         Map<Long, BigDecimal[]> inOutByItem = new LinkedHashMap<>();
-        for (Object[] r : transactionRepository.aggregateMovement(effFrom, effTo, warehouseId)) {
+        for (Object[] r : transactionRepository.aggregateMovement(effFrom, effTo, warehouseId, !includeTransfers && warehouseId == null)) {
             inOutByItem.put(((Number) r[0]).longValue(), new BigDecimal[]{ toBig(r[1]), toBig(r[2]) });
         }
 

@@ -86,8 +86,10 @@ public class StockController {
     public List<StockDtos.StockMovementRow> movement(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
-            @RequestParam(required = false) Long warehouseId) {
-        return stockService.movement(from, to, warehouseId);
+            @RequestParam(required = false) Long warehouseId,
+            /* 원본 [생산불출/창고이동포함] — 화면 기본은 꺼짐(2026-10-03 실측). API 기본은 예전대로 넣는다. */
+            @RequestParam(defaultValue = "true") boolean includeTransfers) {
+        return stockService.movement(from, to, warehouseId, includeTransfers);
     }
 
     /** 잔량재집계 — 점검만(값을 고치지 않는다). 월은 yyyy-MM. */

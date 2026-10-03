@@ -82,10 +82,12 @@ public interface StockTransactionRepository extends JpaRepository<StockTransacti
             "from StockTransaction t " +
             "where t.transactionDate >= :from and t.transactionDate <= :to " +
             "and (:warehouseId is null or t.warehouse.id = :warehouseId) " +
+            "and (:excludeTransfers = false or t.note is null or t.note not like '창고이동%') " +
             "group by t.item.id")
     List<Object[]> aggregateMovement(@Param("from") LocalDate from,
                                      @Param("to") LocalDate to,
-                                     @Param("warehouseId") Long warehouseId);
+                                     @Param("warehouseId") Long warehouseId,
+                                     @Param("excludeTransfers") boolean excludeTransfers);
 
     /**
      * 잔량재집계 기초 — <b>(품목,창고)별</b> {@code from} 이전 순증감 합. 반환: [itemId, warehouseId, opening].

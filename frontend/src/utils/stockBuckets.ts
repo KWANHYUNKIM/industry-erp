@@ -7,6 +7,8 @@
 export interface BucketTx {
   transactionDate: string
   quantityChange: number
+  /** 수불 줄 적요 — '창고이동 TR-…' 처럼 시작해 재고변동표가 창고이동을 가릴 때 쓴다. */
+  note?: string | null
 }
 
 export interface StockBucket {

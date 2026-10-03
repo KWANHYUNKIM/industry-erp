@@ -55,6 +55,12 @@ export default function StockMovementPage() {
   // 품목 코드도움은 id 를 준다 — 검색창(부분일치)과 칸을 나눈다. 이름이 같은 품목이 정상이라서다.
   const [itemCond, setItemCond] = useState('')
   const [hideZero, setHideZero] = useState(false)
+  /**
+   * 원본 [생산불출/창고이동포함] — <b>꺼진 채</b> 열린다(2026-10-03 loginaa 재고변동표 실측). 꺼져 있고 전 창고로 볼 때는 창고이동 줄을
+   * 입고 · 출고에서 뺀다(회사 전체로는 같은 물건이 자리만 옮긴 것이라 둘 다 세면 부푼다 · 같은 날 두 다리가 빠져 기말은 그대로).
+   * 창고를 고르면 이동은 그 창고의 실제 입출고라 그대로 센다. 우리 생산불출은 소모(출고 한 다리)라 대상이 아니다.
+   */
+  const [withTransfers, setWithTransfers] = useState(false)
   /*
    * 원본 재고변동표(E040719) [기타]는 <b>일곱</b>이다(2026-09-02 실측):
    * 결재방표시 · 수량관리제외품목포함 · 사용중단품목포함 · 생산불출/창고이동포함 ·
@@ -117,7 +123,7 @@ export default function StockMovementPage() {
       if (from) params.from = from
       if (to) params.to = to
       if (warehouseId) params.warehouseId = warehouseId
-      const res = await api.get<MovementRow[]>('/stock/movement', { params })
+      const res = await api.get<MovementRow[]>('/stock/movement', { params: { ...params, includeTransfers: String(withTransfers) } })
       setRows(res.data)
 
       if (mode === '집계') {
@@ -130,7 +136,8 @@ export default function StockMovementPage() {
          * 입고·출고가 조용히 빠지고 마지막 구간 기말이 집계 보기의 기말과 어긋난다.
          */
         const led = await api.get<{ rows: BucketTx[] }>('/stock/ledger', { params: { ...params, all: 'true' } })
-        setBuckets(stockBuckets(openingTotal, led.data.rows, mode))
+        const dropMoves = !withTransfers && !warehouseId
+        setBuckets(stockBuckets(openingTotal, dropMoves ? led.data.rows.filter((r) => !(r.note ?? '').startsWith('창고이동')) : led.data.rows, mode))
       }
     } catch (err) { setError(extractErrorMessage(err)); setRows([]); setBuckets([]) }
     finally { setLoading(false) }
@@ -138,7 +145,7 @@ export default function StockMovementPage() {
   useEffect(() => { loadRefs() }, [])
   // 보기 구분이 바뀌면 계산 근거가 달라지므로 다시 조회한다. 기간·창고도 서버가 거르는 조건이라 바꾸면 다시 받는다
   // — 예전엔 [검색]을 눌러야 해서, 창고를 골라도 목록은 전 창고 그대로였다(QA 22회차, 재고수불부와 같은 문제).
-  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [mode, from, to, warehouseId])
+  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [mode, from, to, warehouseId, withTransfers])
 
   /** 일별·월별 보기에서 '입출고수량0제외' 를 걸면 움직임이 없는 날은 뺀다. */
   const shownBuckets = useMemo(
@@ -290,8 +297,7 @@ export default function StockMovementPage() {
                            items={mgmt.options.map((m) => ({ value: m, name: m }))} />
         </EcCond>
         {/*
-          원본 [기타] 일곱 중 둘은 아직 없다 —
-          [생산불출/창고이동포함]은 우리 재고거래가 그 둘을 따로 표시하지 않아 가릴 축이 없다.
+          원본 [기타] 일곱 중 하나는 아직 없다 —
           [개별창고기준]은 무엇을 가르는지 자료 없이 못 재어 지어내지 않았다.
         */}
         <EcCond label="기타">
@@ -307,6 +313,10 @@ export default function StockMovementPage() {
             <label className="text-[12px]">
               <input type="checkbox" checked={withInactive}
                      onChange={(e) => setWithInactive(e.target.checked)} /> 사용중단품목포함
+            </label>
+            <label className="text-[12px]">
+              <input type="checkbox" checked={withTransfers}
+                     onChange={(e) => setWithTransfers(e.target.checked)} /> 생산불출/창고이동포함
             </label>
             <label className="text-[12px]">
               <input type="checkbox" checked={hideZero}
