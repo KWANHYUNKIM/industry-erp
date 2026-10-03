@@ -691,7 +691,10 @@ export default function WorkResultListPage() {
           </tbody>
           <tfoot>
             <tr className="font-bold bg-ec-page">
-              <td colSpan={9} className="text-right">합계 ({shown.length}건)</td>
+              {/* [수량](양품 + 불량) 열도 더한다 — 예전엔 합계 칸이 그 열까지 덮어 수량 합이 없었다. */}
+              <td colSpan={6} className="text-right">합계 ({shown.length}건)</td>
+              <td className="text-right">{num(totals.good + totals.defect)}</td>
+              <td colSpan={2}></td>
               <td className="text-right text-ec-success">{num(totals.good)}</td>
               <td className="text-right text-ec-danger">{num(totals.defect)}</td>
               <td className="text-right">{num(time.standard)}</td>
