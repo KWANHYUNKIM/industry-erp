@@ -69,6 +69,8 @@ export default function AdjustListPage() {
 
   return (
     <EcListShell
+      /* [검색(F8)]이 조건 판만 닫고 목록은 그대로였다 — 새로 넣은 전표가 안 보였다. 다시 읽는다. */
+      onSearch={load}
       title="재고조정조회"
       searchable={false}
       actions={[

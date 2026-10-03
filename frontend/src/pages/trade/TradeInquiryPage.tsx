@@ -456,6 +456,8 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
 
   return (
     <EcListShell
+      /* [검색(F8)]이 조건 판만 닫고 목록은 그대로였다 — 새로 넣은 전표가 안 보였다. 다시 읽는다. */
+      onSearch={load}
       title={cfg.title} search={keyword} onSearchChange={setKeyword}
       // 원본 목록의 하단 버튼줄은 [신규(F2)] 로 시작한다 — 조회에서 바로 입력 화면으로 간다.
       // 셸에는 이미 그 자리가 있었는데 이 화면이 onNew 를 안 넘겨 비어 있었다.

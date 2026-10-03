@@ -62,7 +62,9 @@ export default function FieldWorkPage() {
   }
 
   return (
-    <EcListShell title="외근조회" actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
+    <EcListShell
+      /* [검색(F8)]이 조건 판만 닫고 목록은 그대로였다 — 새로 넣은 전표가 안 보였다. 다시 읽는다. */
+      onSearch={load} title="외근조회" actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
       <div className="flex items-center gap-[6px] mb-[8px]">
         <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
         <span className="text-ec-hint">~</span>
