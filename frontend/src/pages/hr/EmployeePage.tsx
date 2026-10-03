@@ -9,6 +9,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster, EmployeePayType } from '../../types/api'
 import { dateText } from '../../utils/dateText'
+import EmployeeBulkChange from '../../features/employee/components/EmployeeBulkChange'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const inputCls = 'ec-input w-full'
@@ -44,6 +45,8 @@ export default function EmployeePage() {
   const [editId, setEditId] = useState<number | null>(null)
   const [tab, setTab] = useState<FormTab>('기본')
   const [checked, setChecked] = useState<Set<number>>(new Set())
+  /** 원본 [변경] — 체크한 사원들의 항목을 한 번에 고친다. */
+  const [bulkOpen, setBulkOpen] = useState(false)
 
   const empty = {
     code: '', name: '', departmentId: '', jobTitle: '',
@@ -227,6 +230,10 @@ export default function EmployeePage() {
       onNew={() => openNew()}
       actions={[
         { label: '화면인쇄' },
+        { label: '변경', onClick: () => {
+          if (checked.size === 0) { setError('리스트에 선택된 자료가 없습니다. 체크박스에 체크한 후 다시 시도 바랍니다.'); return }
+          setError(''); setBulkOpen(true)
+        } },
         { label: '선택삭제', onClick: deleteChecked, disabled: checked.size === 0 },
         { label: 'Excel' },
       ]}
@@ -267,6 +274,11 @@ export default function EmployeePage() {
         </EcCond>
       </ul>
 
+      {bulkOpen && (
+        <EmployeeBulkChange employees={rows.filter((r) => checked.has(r.id))} depts={depts}
+                            onClose={() => setBulkOpen(false)}
+                            onSaved={() => { setBulkOpen(false); setChecked(new Set()); load() }} />
+      )}
       <Modal error={formError} open={showForm} title="사원등록" width={720} onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit}>
           {/* 원본 폼 탭은 알약이다: 기본 · 사원정보 · 급여지급사항 · 추가정보 · 기타설정 (사원정보 · 기타설정은 위 주석) */}

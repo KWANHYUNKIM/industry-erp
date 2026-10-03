@@ -1,0 +1,36 @@
+{
+  "about": "관리 > 사원등록 사원리스트 [변경](E090101) — 원본 2026-10-04 실측: 체크 없이 누르면 '리스트에 선택된 자료가 없습니다. 체크박스에 체크한 후 다시 시도 바랍니다.', 체크하고 누르면 [항목검색]에서 항목을 고르고 [적용] → [변경] 창(위 줄 항목 · 값 · 적용으로 모든 줄에 같은 값, 격자 사원번호 · 성명 · 고른 항목) → [저장(F8)]. 시험 사원 둘은 지운다.",
+  "shots": [
+    {
+      "name": "변경 — 직위/직급 한꺼번에 · 전화 한 줄 → 저장 → 정리",
+      "path": "/hr/employees",
+      "steps": [
+        "wait:1500",
+        "click:변경",
+        "expect:document.body.innerText.includes('리스트에 선택된 자료가 없습니다. 체크박스에 체크한 후 다시 시도 바랍니다.')",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const ids=[];for(const n of ['QA관리-변경A','QA관리-변경B']){const r=await (await fetch('/api/employees',{method:'POST',headers:h,body:JSON.stringify({name:n,hireDate:'2091-01-01',jobTitle:'사원',phone:'010-0000-0000'})})).json();ids.push(r.id)}sessionStorage.setItem('qaBc',JSON.stringify(ids));return ids.every(Boolean)?true:JSON.stringify(ids)})()",
+        "js:location.reload();true",
+        "wait:2000",
+        "js:(()=>{const n=['QA관리-변경A','QA관리-변경B'];let k=0;for(const t of document.querySelectorAll('table tbody tr')){if(n.some(x=>t.innerText.includes(x))){t.querySelector('input[type=checkbox]').click();k++}}return k===2?true:'ticked '+k})()",
+        "click:변경",
+        "wait:400",
+        "js:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();d.querySelector('input[aria-label=\"직위/직급\"]').click();d.querySelector('input[aria-label=\"전화\"]').click();return true})()",
+        "js:(()=>{[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find(b=>b.innerText.startsWith('적용')).click();return true})()",
+        "wait:400",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().getAttribute('aria-label')==='변경'&&[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('thead th')].map(t=>t.innerText.trim()).filter(Boolean).join(',')==='사원번호,성명,직위/직급,전화'",
+        "js:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const s=d.querySelector('.ec-form select');const set=Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set;set.call(s,'jobTitle');s.dispatchEvent(new Event('change',{bubbles:true}));return true})()",
+        "wait:200",
+        "js:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const i=d.querySelector('.ec-form input');const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;set.call(i,'대리');i.dispatchEvent(new Event('input',{bubbles:true}));[...d.querySelectorAll('.ec-form button')].find(b=>b.innerText.trim()==='적용').click();return true})()",
+        "wait:200",
+        "js:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const i=d.querySelector('tbody tr:first-child td:nth-child(5) input');const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;set.call(i,'010-1111-2222');i.dispatchEvent(new Event('input',{bubbles:true}));return true})()",
+        "wait:200",
+        "js:(()=>{[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find(b=>b.innerText.startsWith('저장')).click();return true})()",
+        "wait:1500",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const ids=JSON.parse(sessionStorage.getItem('qaBc'));const all=await (await fetch('/api/employees/all',{headers:h})).json();const es=ids.map(i=>all.find(e=>e.id===i));sessionStorage.setItem('qaBcGot',JSON.stringify(es.map(e=>[e.name,e.jobTitle,e.phone,e.hireDate])));return true})()",
+        "expect:(()=>{const g=JSON.parse(sessionStorage.getItem('qaBcGot'));return g.every(x=>x[1]==='대리'&&x[3]==='2091-01-01')&&g.filter(x=>x[2]==='010-1111-2222').length===1&&g.filter(x=>x[2]==='010-0000-0000').length===1})()",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const ids=JSON.parse(sessionStorage.getItem('qaBc'));let ok=true;for(const i of ids)ok=(await fetch('/api/employees/'+i,{method:'DELETE',headers:h})).ok&&ok;sessionStorage.setItem('qaBcClean',String(ok));return true})()",
+        "expect:sessionStorage.getItem('qaBcClean')==='true'"
+      ]
+    }
+  ]
+}
