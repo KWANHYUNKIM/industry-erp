@@ -52,6 +52,7 @@ export default function EmployeePage() {
     code: '', name: '', departmentId: '', jobTitle: '',
     hireDate: new Date().toISOString().slice(0, 10), resignDate: '', resignReason: '',
     phone: '', mobile: '', email: '', zipcode: '', address: '', remark: '',
+    foreignName1: '', foreignName2: '', household: '세대주',
     payType: 'FIXED' as EmployeePayType, baseSalary: '',
     bankCode: '', bankName: '', accountNo: '', accountHolder: '', hireKind: '', duty: '',
   }
@@ -92,6 +93,7 @@ export default function EmployeePage() {
       hireDate: e.hireDate ?? '', resignDate: e.resignDate ?? '', resignReason: e.resignReason ?? '',
       phone: e.phone ?? '', mobile: e.mobile ?? '', email: e.email ?? '',
       zipcode: e.zipcode ?? '', address: e.address ?? '', remark: e.remark ?? '',
+      foreignName1: e.foreignName1 ?? '', foreignName2: e.foreignName2 ?? '', household: e.household ?? '세대주',
       payType: e.payType, baseSalary: e.baseSalary == null ? '' : String(e.baseSalary),
       bankCode: e.bankCode ?? '', bankName: e.bankName ?? '', accountNo: e.accountNo ?? '', accountHolder: e.accountHolder ?? '',
     })
@@ -119,6 +121,7 @@ export default function EmployeePage() {
       mobile: form.mobile.trim() || null,
       resignReason: form.resignReason.trim() || null,
       zipcode: form.zipcode.trim(),
+      foreignName1: form.foreignName1.trim(), foreignName2: form.foreignName2.trim(), household: form.household,
       address: form.address.trim() || null,
       bankCode: form.bankCode.trim() || null,
       bankName: form.bankName.trim() || null,
@@ -299,6 +302,22 @@ export default function EmployeePage() {
               </Field>
               <Field label="성명">
                 <input className={inputCls} value={form.name} onChange={set('name')} placeholder="성명" autoFocus />
+              </Field>
+              {/* 원본 성명 아래 차례(2026-10-04 실측): 외국어성명2 · 외국어성명1 · 주민등록번호 · 세대주여부. 주민등록번호는 개인정보라 두지 않는다. */}
+              <Field label="외국어성명2">
+                <input className={inputCls} value={form.foreignName2} onChange={set('foreignName2')} placeholder="외국어성명2" />
+              </Field>
+              <Field label="외국어성명1">
+                <input className={inputCls} value={form.foreignName1} onChange={set('foreignName1')} placeholder="외국어성명1" />
+              </Field>
+              <Field label="세대주여부">
+                <div className="flex flex-wrap gap-[10px]">
+                  {['세대주', '세대원', '세대주의 배우자'].map((h) => (
+                    <label key={h} className="inline-flex items-center gap-[4px]">
+                      <input type="radio" name="emp-household" checked={form.household === h} onChange={() => setForm((f) => ({ ...f, household: h }))} /> {h}
+                    </label>
+                  ))}
+                </div>
               </Field>
               <Field label="입사일자">
                 <input type="date" className={inputCls} value={form.hireDate} onChange={set('hireDate')} />

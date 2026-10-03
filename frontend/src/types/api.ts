@@ -1745,6 +1745,10 @@ export interface EmployeeMaster {
   payTypeName: string
   mobile: string | null
   resignReason: string | null
+  /** 원본 사원등록 [외국어성명1] · [외국어성명2] · [세대주여부](세대주 · 세대원 · 세대주의 배우자) */
+  foreignName1: string | null
+  foreignName2: string | null
+  household: string | null
   /** 원본 사원등록 [우편번호] */
   zipcode: string | null
   address: string | null
