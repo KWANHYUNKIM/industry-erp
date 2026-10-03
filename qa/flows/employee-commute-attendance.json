@@ -1,5 +1,5 @@
 {
-  "about": "관리 > 출퇴근/근태현황(사원)(E020728) — 날마다 재직 사원 전부를 한 줄씩. 2091/07/02 에 EMP-0001 이 09:30 출근 · 17:00 퇴근이면 그 줄에 출근 · 퇴근 · 근무시간 6.50 이 찍히고, 근태구분에서 지각을 끄면 그 줄이 빠진다(정상근무를 꺼도 남는다). 합계줄이 있다. 시험 기록은 지운다.",
+  "about": "관리 > 출퇴근/근태현황(사원)(E020728) — 날마다 재직 사원 전부를 한 줄씩. 2091/07/02 에 EMP-0001 이 09:30 출근 · 17:00 퇴근이면 그 줄에 출근 · 퇴근 · 근무시간 6.50 이 찍히고, 근태구분에서 지각을 끄면 그 줄이 빠진다(정상근무를 꺼도 남는다). 합계줄이 있다. 시험 기록은 지운다. 사원명 · 부서 · 근태항목 · 휴가항목 · 근태그룹은 여러 개 고르는 코드도움.",
   "shots": [
     {
       "name": "날마다 사원 줄 · 근태구분 거르기 → 정리",
@@ -8,7 +8,9 @@
         "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const emps=await (await fetch('/api/employees',{headers:h})).json();const e=emps.find(x=>x.code==='EMP-0001');sessionStorage.setItem('qaEcaName',e.name);const a=await (await fetch('/api/hr/employee-commutes/clock',{method:'POST',headers:h,body:JSON.stringify({employeeId:e.id,at:'2091-07-02T09:30:00'})})).json();await fetch('/api/hr/employee-commutes/clock',{method:'POST',headers:h,body:JSON.stringify({employeeId:e.id,at:'2091-07-02T17:00:00'})});sessionStorage.setItem('qaEca',String(a.id));return true})()",
         "set:input[type=date]#0|2091-07-02",
         "set:input[type=date]#1|2091-07-02",
-        "setnear:사원명|EMP-0001",
+        "wait:1500",
+        "pick:사원명:EMP-0001",
+        "clicklast:확인",
         "click:검색(F8)",
         "wait:1500",
         "expect:(()=>{const t=[...document.querySelectorAll('table tbody tr')].map(r=>r.innerText);return t.some(x=>x.includes('2091/07/02')&&x.includes('오전 9:30:00')&&x.includes('오후 5:00:00')&&x.includes('6.50'))&&t[t.length-1].includes('합계')})()",

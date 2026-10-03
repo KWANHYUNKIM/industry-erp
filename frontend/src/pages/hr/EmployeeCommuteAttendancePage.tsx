@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import EcPeriodPicks, { INQUIRY_PICKS } from '../../components/EcPeriodPicks'
 import { EcCond } from '../../components/EcStatusPanel'
+import CodePickerField from '../../components/CodePickerField'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster } from '../../types/api'
@@ -9,7 +10,7 @@ import { isHoliday, koreanDateTime, monthToToday, slashDate, type EmployeeCommut
 import { ymd } from '../../utils/periods'
 
 interface Vacation { empCode: string | null; type: string; startDate: string; endDate: string; days: number; reason: string | null }
-interface Kind { name: string; vacationKindName: string | null }
+interface Kind { code: string; name: string; vacationKindName: string | null; vacationKindId: number | null; kindGroup: string | null }
 type Status = '정상근무' | '지각' | '조기퇴근' | '결근'
 const STATUSES: Status[] = ['정상근무', '지각', '조기퇴근', '결근']
 type Tri = 'all' | 'a' | 'b'
@@ -24,14 +25,25 @@ const WORK_END = '18:00'
  * 휴가항목 · 근태그룹 · 적요 · 상태(결재중 · UserPay · 확인) · 재직구분(기본 재직자).
  *
  * <p>근태구분은 우리 기준으로 가른다: 지각 = 09:00 넘어 출근, 조기퇴근 = 18:00 전에 퇴근, 결근 = 업무일에 출근도 근태도 없음,
- * 나머지 정상근무. 근태는 사번이 이어진 계정의 근태입력이다. 프로젝트 · 근태그룹 · 상태 조건 · 양식은 없다.
+ * 나머지 정상근무. 근태는 사번이 이어진 계정의 근태입력이다. 사원명 · 부서 · 근태항목 · 휴가항목 · 근태그룹은 여러 개 고르는 코드도움
+ * (휴가항목 · 근태그룹은 그날 근태의 근태항목이 가리키는 값). 프로젝트 · 상태 조건 · 양식은 없다.
  */
 export default function EmployeeCommuteAttendancePage() {
   const [range, setRange] = useState(monthToToday())
   const [shown, setShown] = useState(range)
-  const [empCond, setEmpCond] = useState('')
-  const [deptCond, setDeptCond] = useState('')
-  const [kindCond, setKindCond] = useState('')
+  const [empCond, setEmpCond] = useState<string[]>([])
+  const [deptCond, setDeptCond] = useState<string[]>([])
+  const [kindCond, setKindCond] = useState<string[]>([])
+  const [vkCond, setVkCond] = useState<string[]>([])
+  const [groupCond, setGroupCond] = useState<string[]>([])
+  const [depts, setDepts] = useState<{ code?: string | null; name: string }[]>([])
+  const [vkMaster, setVkMaster] = useState<{ id: number; code: string; name: string }[]>([])
+  const [groupMaster, setGroupMaster] = useState<{ code: string; name: string }[]>([])
+  useEffect(() => {
+    api.get<typeof depts>('/departments').then((r) => setDepts(r.data)).catch(() => setDepts([]))
+    api.get<typeof vkMaster>('/hr/vacation-kinds').then((r) => setVkMaster(r.data)).catch(() => setVkMaster([]))
+    api.get<typeof groupMaster>('/hr/attendance-kind-groups').then((r) => setGroupMaster(r.data)).catch(() => setGroupMaster([]))
+  }, [])
   const [remarkCond, setRemarkCond] = useState('')
   const [place, setPlace] = useState<Tri>('all')
   const [dayKind, setDayKind] = useState<Tri>('all')
@@ -75,12 +87,14 @@ export default function EmployeeCommuteAttendancePage() {
         : (!holiday && vs.length === 0 ? '결근' : '정상근무')
       return { key: `${date}-${e.id}`, date, e, c, vs, holiday, status }
     }))
-    .filter((r) => (!empCond || r.e.name.includes(empCond) || r.e.code.includes(empCond))
-      && (!deptCond || r.e.department.includes(deptCond))
+    .filter((r) => (empCond.length === 0 || empCond.includes(String(r.e.id)))
+      && (deptCond.length === 0 || deptCond.includes(r.e.department))
       && (place === 'all' || (r.c != null && (place === 'b') === r.c.outside))
       && (dayKind === 'all' || (dayKind === 'b') === r.holiday)
       && statuses.has(r.status)
-      && (!kindCond || r.vs.some((v) => v.type.includes(kindCond)))
+      && (kindCond.length === 0 || r.vs.some((v) => kindCond.includes(v.type)))
+      && (vkCond.length === 0 || r.vs.some((v) => vkCond.includes(String(kinds.find((k) => k.name === v.type)?.vacationKindId ?? ''))))
+      && (groupCond.length === 0 || r.vs.some((v) => groupCond.includes(kinds.find((k) => k.name === v.type)?.kindGroup ?? '')))
       && (!remarkCond || r.vs.some((v) => (v.reason ?? '').includes(remarkCond)) || (r.c?.reason ?? '').includes(remarkCond)))
   useTableColumnCheck(tableRef, '출퇴근/근태현황(사원)', [rows.length])
   const totalHours = rows.reduce((s, r) => s + (r.c?.workMinutes ?? 0), 0) / 60
@@ -103,8 +117,14 @@ export default function EmployeeCommuteAttendancePage() {
           ~
           <input type="date" className="ec-input w-[150px]" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
         </EcCond>
-        <EcCond label="사원명"><input className="ec-input w-full" placeholder="사원명" value={empCond} onChange={(e) => setEmpCond(e.target.value)} /></EcCond>
-        <EcCond label="부서"><input className="ec-input w-full" placeholder="부서" value={deptCond} onChange={(e) => setDeptCond(e.target.value)} /></EcCond>
+        <EcCond label="사원명">
+          <CodePickerField label="사원명" hideLabel fill multiple placeholder="사원명" values={empCond} onChangeMulti={(v) => setEmpCond(v)}
+                           items={employees.map((e) => ({ value: String(e.id), code: e.code, name: e.name, sub: e.department }))} />
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel fill multiple placeholder="부서" values={deptCond} onChangeMulti={(v) => setDeptCond(v)}
+                           items={depts.map((d) => ({ value: d.name, code: d.code ?? undefined, name: d.name }))} />
+        </EcCond>
         <EcCond label="내/외근구분">{radios('eca-place', place, setPlace, ['전체', '내근', '외근'])}</EcCond>
         <EcCond label="근태구분">
           <label className="inline-flex items-center gap-[4px] mr-[10px]">
@@ -119,7 +139,18 @@ export default function EmployeeCommuteAttendancePage() {
           ))}
         </EcCond>
         <EcCond label="업무일/휴일구분">{radios('eca-day', dayKind, setDayKind, ['전체', '업무일', '휴일'])}</EcCond>
-        <EcCond label="근태항목"><input className="ec-input w-full" placeholder="근태항목" value={kindCond} onChange={(e) => setKindCond(e.target.value)} /></EcCond>
+        <EcCond label="근태항목">
+          <CodePickerField label="근태항목" hideLabel fill multiple placeholder="근태항목" values={kindCond} onChangeMulti={(v) => setKindCond(v)}
+                           items={kinds.map((k) => ({ value: k.name, code: k.code, name: k.name }))} />
+        </EcCond>
+        <EcCond label="휴가항목">
+          <CodePickerField label="휴가항목" hideLabel fill multiple placeholder="휴가항목" values={vkCond} onChangeMulti={(v) => setVkCond(v)}
+                           items={vkMaster.map((v) => ({ value: String(v.id), code: v.code, name: v.name }))} />
+        </EcCond>
+        <EcCond label="근태그룹">
+          <CodePickerField label="근태그룹" hideLabel fill multiple placeholder="근태그룹" values={groupCond} onChangeMulti={(v) => setGroupCond(v)}
+                           items={groupMaster.map((g) => ({ value: g.name, code: g.code, name: g.name }))} />
+        </EcCond>
         <EcCond label="적요"><input className="ec-input w-full" placeholder="적요" value={remarkCond} onChange={(e) => setRemarkCond(e.target.value)} /></EcCond>
         <EcCond label="재직구분">{radios('eca-emp', employment, setEmployment, ['전체', '재직자', '퇴사자'])}</EcCond>
       </ul>
