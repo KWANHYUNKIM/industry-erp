@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
+import Modal from '../../components/Modal'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster, PayItem } from '../../types/api'
@@ -10,6 +11,8 @@ import { ymd } from '../../utils/periods'
 interface Row { workDate: string; employeeId: string; payItemId: string; quantity: string }
 const blank = (): Row => ({ workDate: '', employeeId: '', payItemId: '', quantity: '' })
 const BLANK_ROWS = 3
+const SORT_KEYS = ['근무일자', '사원', '수당항목'] as const
+type SortKey = typeof SORT_KEYS[number]
 
 interface SlipLine { workDate: string; employeeId: number; payItemId: number; quantity: number }
 interface Slip { slipDate: string; slipNo: number; lines: SlipLine[] }
@@ -25,7 +28,8 @@ interface Slip { slipDate: string; slipNo: number; lines: SlipLine[] }
  *   <li>버튼 저장(F8) · 다시 작성 · 리스트(근무조회) · 웹자료올리기.</li>
  * </ul>
  * 저장한 근무기록은 급여계산이 그 달 변동수당으로 셈한다(근무시간 × 단가). 근무조회의 [전표일자]를 누르면 이 화면이 그 전표로 열린다.
- * 격자 [찾기(F3)] · [정렬] · [조건별 불러오기] · 웹자료올리기 · 저장/내용유지는 아직 없다.
+ * 격자 [정렬](2026-10-04 실측: 정렬기준 두 칸 — 처음 사원 · 수당항목, 정렬방법 오름차순 · 내림차순(처음 오름차순), 적용 · 닫기)은 채운 줄만 다시 늘어놓는다.
+ * [찾기(F3)] · [조건별 불러오기] · 웹자료올리기 · 저장/내용유지는 아직 없다.
  */
 export default function WorkInputPage() {
   const nav = useNavigate()
@@ -38,6 +42,9 @@ export default function WorkInputPage() {
   const [items, setItems] = useState<PayItem[]>([])
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [sortOpen, setSortOpen] = useState(false)
+  const [sortKeys, setSortKeys] = useState<[SortKey, SortKey]>(['사원', '수당항목'])
+  const [sortDesc, setSortDesc] = useState(false)
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '근무입력', [rows.length])
 
@@ -47,6 +54,19 @@ export default function WorkInputPage() {
       .then((r) => setItems(r.data.filter((i) => i.kind === 'ALLOWANCE' && i.active)))
       .catch(() => setItems([]))
   }, [])
+
+  /** [정렬] 적용 — 채운 줄을 정렬기준 두 칸 차례로 늘어놓고, 빈 줄은 끝에 둔다. */
+  function applySort() {
+    const keyOf = (r: Row, k: SortKey) => k === '근무일자' ? r.workDate
+      : k === '사원' ? employees.find((e) => String(e.id) === r.employeeId)?.code ?? ''
+        : items.find((i) => String(i.id) === r.payItemId)?.code ?? ''
+    const filled = rows.filter((r) => r.employeeId || r.payItemId || r.workDate || r.quantity)
+    const empty = rows.filter((r) => !filled.includes(r))
+    const sign = sortDesc ? -1 : 1
+    filled.sort((a, b) => sign * (keyOf(a, sortKeys[0]).localeCompare(keyOf(b, sortKeys[0])) || keyOf(a, sortKeys[1]).localeCompare(keyOf(b, sortKeys[1]))))
+    setRows([...filled, ...empty])
+    setSortOpen(false)
+  }
 
   function reset() {
     if (editDate && editNo) {
@@ -123,6 +143,38 @@ export default function WorkInputPage() {
           </div>
         </li>
       </ul>
+      <div className="flex gap-[6px] mb-[6px]">
+        <button type="button" className="ec-btn ec-btn-sm" onClick={() => setSortOpen(true)}>정렬</button>
+      </div>
+      <Modal open={sortOpen} title="정렬기준" width={560} onClose={() => setSortOpen(false)}>
+        <ul className="ec-form">
+          <li className="wide">
+            <span className="title">정렬기준</span>
+            <div className="form flex gap-[6px]">
+              {[0, 1].map((i) => (
+                <select key={i} className="ec-input w-[180px]" aria-label={`정렬기준${i + 1}`} value={sortKeys[i]}
+                        onChange={(e) => setSortKeys((k) => (i === 0 ? [e.target.value as SortKey, k[1]] : [k[0], e.target.value as SortKey]))}>
+                  {SORT_KEYS.map((k) => <option key={k} value={k}>{k}</option>)}
+                </select>
+              ))}
+            </div>
+          </li>
+          <li className="wide">
+            <span className="title">정렬방법</span>
+            <div className="form flex gap-[12px]">
+              {([[false, '오름차순'], [true, '내림차순']] as const).map(([v, l]) => (
+                <label key={l} className="inline-flex items-center gap-[4px]">
+                  <input type="radio" name="wi-sort-dir" checked={sortDesc === v} onChange={() => setSortDesc(v)} /> {l}
+                </label>
+              ))}
+            </div>
+          </li>
+        </ul>
+        <div className="flex gap-[6px] mt-[12px]">
+          <button type="button" className="ec-btn ec-btn-primary" onClick={applySort}>적용</button>
+          <button type="button" className="ec-btn" onClick={() => setSortOpen(false)}>닫기</button>
+        </div>
+      </Modal>
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
