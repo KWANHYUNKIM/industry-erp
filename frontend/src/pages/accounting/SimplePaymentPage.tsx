@@ -9,7 +9,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 const won = (n: number | null | undefined) => (n == null ? '' : Number(n).toLocaleString('ko-KR'))
 const pad2 = (n: number) => String(n).padStart(2, '0')
 const dot = (d: string) => d.replace(/-/g, '.')
-type Company = { name?: string; ceo?: string; bizRegNo?: string; corpRegNo?: string; tel?: string; email?: string; address?: string; addressDetail?: string }
+export type Company = { name?: string; ceo?: string; bizRegNo?: string; corpRegNo?: string; tel?: string; email?: string; address?: string; addressDetail?: string }
 
 const KINDS: { value: SimplePaymentKind; label: string }[] = [
   { value: 'LABOR', label: '간이 근로소득' },
@@ -330,7 +330,7 @@ function LaborSheet({ sheet, company, address }: { sheet: SimplePaymentSheet; co
 }
 
 /** 일용근로소득 지급명세서(지급자제출용) [별지 제24호서식(4)] — 월별 집계 + 근로자마다 한 줄. */
-function DailySheet({ sheet, company, address }: { sheet: SimplePaymentSheet; company: Company | null; address: string }) {
+export function DailySheet({ sheet, company, address }: { sheet: SimplePaymentSheet; company: Company | null; address: string }) {
   const s = sheet.statement
   const sum = (k: 'taxable' | 'incomeTax' | 'localIncomeTax') => sheet.daily.reduce((t, r) => t + Number(r[k]), 0)
   return (
