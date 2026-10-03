@@ -375,7 +375,7 @@ export default function QualityRequestPage() {
         </ul>
         {!editing && !pulled && (
           <div className="flex gap-[4px] mt-[8px]">
-            {(['판매', '발주', '주문', '구매', '생산', '이동'] as PullKind[]).map((k) => <DocPullButton key={k} kind={k} onApply={applyPull} />)}
+            {(['판매', '발주', '주문', '구매', '생산', '이동', 'A/S접수'] as PullKind[]).map((k) => <DocPullButton key={k} kind={k} onApply={applyPull} />)}
           </div>
         )}
         <table className="w-full ec-head700 mt-[8px]">

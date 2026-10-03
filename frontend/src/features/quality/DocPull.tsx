@@ -5,12 +5,12 @@ import { periodOf } from '../../components/EcPeriodPicks'
 import { dateNo } from '../../utils/dateNo'
 
 /**
- * 품질검사요청입력(E040628) · 품질검사입력(E040621) 입력 판의 <b>전표 불러오기</b> 단추 — 판매 · 발주 · 주문 · 작업지시서 · 구매 · 생산 · 이동.
+ * 품질검사요청입력(E040628) · 품질검사입력(E040621) 입력 판의 <b>전표 불러오기</b> 단추 — 판매 · 발주 · 주문 · 작업지시서 · 구매 · 생산 · 이동 · A/S접수.
  *
  * <p>2026-10-04 원본 실측: 단추를 누르면 '<종류>검색창(조회)' 이 [일자-No. · 거래처명 · 품목명(요약) · 금액합계 · 창고명]
  * 으로 뜨고(기간 최근30일(+1개월)), 하나를 골라 [적용(F8)] 하면 그 전표의 품목 · 수량이 줄로 들어오고 불러오기 단추들은 사라진다 —
  * 한 전표에서만 불러온다. 원 전표는 저장되지 않는다(조회의 [연결전표]는 이어 만든 다음 전표다).
- * 작업지시서 · 생산 · 이동은 한 줄이 한 행인 응답이라 전표 번호로 묶고 [금액합계]를 비운다. A/S접수 · 재고불러오기는 아직이다.
+ * 작업지시서 · 생산 · 이동은 한 줄이 한 행인 응답이라 전표 번호로 묶고 [금액합계]를 비운다. A/S접수(요청입력에만)는 금액이 없어 [금액합계]를 비운다. 재고불러오기는 아직이다.
  */
 type Row = Record<string, unknown>
 export interface PulledLine { itemId: number; itemName: string; quantity: number }
@@ -19,7 +19,8 @@ interface PullDoc { id: number; docNo: string; date: string; partnerName: string
 /** 전표에 줄 배열이 든 응답(판매 · 발주 · 주문 · 구매). */
 const nested = (no: string, date: string) => (data: Row[]): PullDoc[] => data.map((d) => ({
   id: d.id as number, docNo: d[no] as string, date: d[date] as string,
-  partnerName: (d.partnerName as string) ?? '', warehouseName: (d.warehouseName as string) ?? '', totalAmount: Number(d.totalAmount),
+  partnerName: (d.partnerName as string) ?? '', warehouseName: (d.warehouseName as string) ?? '',
+  totalAmount: d.totalAmount == null ? null : Number(d.totalAmount),
   lines: ((d.lines as Row[]) ?? []).map((l) => ({ itemId: l.itemId as number, itemName: l.itemName as string, quantity: Number(l.quantity) })),
 }))
 /** 한 줄이 한 행인 응답(작업지시서 · 생산 · 이동) — 전표 번호로 묶는다. 금액이 없어 [금액합계]는 비운다. */
@@ -43,6 +44,8 @@ export const PULLS = {
   구매: { url: '/purchases', toDocs: nested('docNo', 'purchaseDate') },
   생산: { url: '/productions', toDocs: flat('prodNo', 'productionDate', 'product', 'producedQty', 'warehouseName') },
   이동: { url: '/stock-transfers', toDocs: flat('transferNo', 'transferDate', 'item', 'quantity', 'toWarehouseName') },
+  /* A/S접수는 금액이 없다 — [금액합계]를 비운다. */
+  'A/S접수': { url: '/as-requests', toDocs: nested('asNo', 'receiptDate') },
 } as const
 export type PullKind = keyof typeof PULLS
 
