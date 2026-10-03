@@ -122,6 +122,7 @@ public class BankCheckService {
 
         BankAccount account = bankAccount(req.bankAccountId());
         LocalDate date = req.depositDate() != null ? req.depositDate() : LocalDate.now();
+        requireNotBeforeIssue(c, date, "입금일");
         c.setBankAccount(account);
         c.setStatus(CheckStatus.DEPOSITED);
         c.setSettledDate(date);
@@ -140,7 +141,8 @@ public class BankCheckService {
         requireType(c, CheckType.RECEIVED, "받은수표만 부도 처리할 수 있습니다");
         requireHeld(c, "부도");
 
-        LocalDate date = req.settledDate() != null ? req.settledDate() : LocalDate.now();
+        LocalDate date = req != null && req.settledDate() != null ? req.settledDate() : LocalDate.now();
+        requireNotBeforeIssue(c, date, "부도일");
         c.setStatus(CheckStatus.DISHONORED);
         c.setSettledDate(date);
         c.setSettleJournalId(journalService.createFromCheckDishonor(c, date, username).getId());
@@ -156,8 +158,10 @@ public class BankCheckService {
         requireType(c, CheckType.ISSUED, "발행수표만 결제 확인할 수 있습니다");
         requireHeld(c, "결제 확인");
 
+        LocalDate date = req != null && req.settledDate() != null ? req.settledDate() : LocalDate.now();
+        requireNotBeforeIssue(c, date, "결제일");
         c.setStatus(CheckStatus.PAID);
-        c.setSettledDate(req.settledDate() != null ? req.settledDate() : LocalDate.now());
+        c.setSettledDate(date);
         return CheckResponse.from(c);
     }
 
@@ -166,6 +170,18 @@ public class BankCheckService {
     private void requireType(BankCheck c, CheckType type, String message) {
         if (c.getType() != type) {
             throw ApiException.badRequest(message + ": " + c.getCheckNo() + "은(는) " + c.getType().getDisplayName() + "입니다.");
+        }
+    }
+
+    /**
+     * 입금 · 부도 · 결제는 수표를 받은(발행한) 날 이후다. 앞 날짜를 받아 주면 그 분개가 수표 수취 전에 잡혀
+     * 그 사이 받을수표 잔액이 음수가 되고, 수령수표현황 · 거래내역이 받기도 전에 손을 떠난 수표를 그린다.
+     * 어음은 QA 57회차에 같은 검사를 넣었는데 수표에는 없었다.
+     */
+    private static void requireNotBeforeIssue(BankCheck c, LocalDate date, String what) {
+        if (date.isBefore(c.getIssueDate())) {
+            throw ApiException.badRequest(String.format("%s(%s)이 %s 의 %s일(%s)보다 빠를 수 없습니다.",
+                    what, date, c.getCheckNo(), c.getType() == CheckType.RECEIVED ? "수령" : "발행", c.getIssueDate()));
         }
     }
 
