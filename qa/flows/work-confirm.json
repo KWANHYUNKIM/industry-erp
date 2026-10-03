@@ -1,0 +1,35 @@
+{
+  "about": "관리 > 급여계산/대장 [사전작업] 근무기록확정 · 근무확정현황(E090116) — 원본처럼 확정 창의 [근무기록]이 근무입력의 그 달 합계를 불러오고 [저장]하면 목록이 '근무기록확정[1]', 근무확정현황에 '귀속월 계'로 뜬다. 시험 자료는 지운다.",
+  "shots": [
+    {
+      "name": "근무기록확정 창 → [근무기록] → 저장",
+      "path": "/hr/payroll",
+      "steps": [
+        "js:(async()=>{const t=localStorage.getItem('erp_token');const h={Authorization:'Bearer '+t,'Content-Type':'application/json'};const it=await (await fetch('/api/pay-settings/items',{method:'POST',headers:h,body:JSON.stringify({code:'QAWC',name:'QA관리-확정수당',kind:'ALLOWANCE',defaultAmount:10000,sortOrder:98,payMethod:'HOURLY',taxFreeType:'NONE'})})).json();const emps=await (await fetch('/api/employees',{headers:h})).json();const e=emps.find(x=>x.code==='EMP-0003');const s=await (await fetch('/api/work-records',{method:'POST',headers:h,body:JSON.stringify({slipDate:'2091-08-01',lines:[{workDate:'2091-08-05',employeeId:e.id,payItemId:it.id,quantity:4}]})})).json();await fetch('/api/pay-ledgers',{method:'POST',headers:h,body:JSON.stringify({payMonth:'2091-08',name:'QA관리-확정시험대장'})});sessionStorage.setItem('qaWc',JSON.stringify({item:it.id,slip:s.slipDate+'/'+s.slipNo}));return true})()",
+        "js:location.reload();true",
+        "wait:2500",
+        "js:[...[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('QA관리-확정시험대장')).querySelectorAll('a')].find(a=>a.textContent.startsWith('근무기록확정')).click();true",
+        "wait:1500",
+        "click:근무기록",
+        "wait:1000",
+        "expect:[...document.querySelectorAll('[role=dialog] input')].some(i=>i.value==='4')",
+        "clicklast:저장(F8)",
+        "wait:1500",
+        "expect:/근무기록확정\\[1\\]/.test([...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('QA관리-확정시험대장')).innerText)"
+      ]
+    },
+    {
+      "name": "근무확정현황 → 뒷정리",
+      "path": "/hr/payroll/work-confirms",
+      "steps": [
+        "set:input[type=month]#0|2091-08",
+        "set:input[type=month]#1|2091-08",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:/2091\\/08 -1\\s+이영희\\s+QA관리-확정수당\\s+변동\\(시간\\)\\s+4/.test(document.querySelector('table').innerText) && /2091\\/08 계\\s+4/.test(document.querySelector('table').innerText)",
+        "js:(async()=>{const t=localStorage.getItem('erp_token');const h={Authorization:'Bearer '+t};const k=JSON.parse(sessionStorage.getItem('qaWc'));const ls=await (await fetch('/api/pay-ledgers',{headers:h})).json();const l=ls.find(x=>x.payMonth==='2091-08');const a=await fetch('/api/pay-ledgers/'+l.id,{method:'DELETE',headers:h});const b=await fetch('/api/work-records/'+k.slip,{method:'DELETE',headers:h});const c=await fetch('/api/pay-settings/items/'+k.item,{method:'DELETE',headers:h});sessionStorage.setItem('qaWcDel',String(a.ok&&b.ok&&c.ok));return true})()",
+        "expect:sessionStorage.getItem('qaWcDel')==='true'"
+      ]
+    }
+  ]
+}
