@@ -28,6 +28,7 @@ public class PayLedgerService {
     private final PayslipRepository payslipRepository;
     private final PayrollService payrollService;
     private final EmployeeService employeeService;
+    private final com.erp.hr.workrecord.WorkRecordService workRecordService;
 
     @Transactional(readOnly = true)
     public List<LedgerResponse> findAll() {
@@ -100,6 +101,7 @@ public class PayLedgerService {
             throw ApiException.badRequest("확정된 급여는 삭제할 수 없습니다.");
         }
         payslipRepository.deleteAll(slips);
+        workRecordService.deleteConfirms(l.getPayMonth());   // 대장의 근무기록확정도 함께
         ledgerRepository.delete(l);
     }
 
@@ -114,6 +116,8 @@ public class PayLedgerService {
                 .map(p -> p.getBaseSalary().add(p.getAllowanceTotal()))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         long confirmed = slips.stream().filter(p -> p.getStatus() == PayslipStatus.CONFIRMED).count();
-        return new LedgerResponse(l.getId(), l.getPayMonth(), l.getName(), l.getPayDate(), slips.size(), gross, confirmed);
+        long workConfirmed = workRecordService.findConfirms(l.getPayMonth(), l.getPayMonth()).stream()
+                .map(c -> c.employeeId()).distinct().count();
+        return new LedgerResponse(l.getId(), l.getPayMonth(), l.getName(), l.getPayDate(), slips.size(), gross, confirmed, workConfirmed);
     }
 }

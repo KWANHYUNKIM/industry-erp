@@ -20,7 +20,9 @@ public class PayLedgerDtos {
     /** 대장 목록 한 줄. 인원수 · 지급총액은 그 귀속월 급여명세를 센다(계산 전이면 0). */
     public record LedgerResponse(
             Long id, String payMonth, String name, LocalDate payDate,
-            long headcount, BigDecimal grossTotal, long confirmedCount
+            long headcount, BigDecimal grossTotal, long confirmedCount,
+            /* 원본 [사전작업] '근무기록확정[n]' 의 n — 근무기록을 확정한 사원 수 */
+            long workConfirmCount
     ) {}
 
     /** [전체계산] 결과 — 원본처럼 지급총액 0 이하는 빼고 센다. */

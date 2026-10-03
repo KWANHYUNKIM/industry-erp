@@ -24,6 +24,7 @@ import java.util.*;
 public class WorkRecordService {
 
     private final WorkRecordRepository repository;
+    private final WorkConfirmRepository confirmRepository;
     private final EmployeeService employeeService;
     private final PaySettingService paySettingService;
     private final DocumentNoGenerator documentNoGenerator;
@@ -69,6 +70,66 @@ public class WorkRecordService {
     public void delete(LocalDate slipDate, int slipNo) {
         findSlip(slipDate, slipNo);
         repository.deleteBySlipDateAndSlipNo(slipDate, slipNo);
+    }
+
+    /** 근무확정현황 · 근무기록확정 창: 귀속월 구간의 확정값. */
+    @Transactional(readOnly = true)
+    public List<com.erp.hr.workrecord.dto.WorkRecordDtos.ConfirmRow> findConfirms(String from, String to) {
+        return confirmRepository.findInMonths(from, to).stream().map(c -> new com.erp.hr.workrecord.dto.WorkRecordDtos.ConfirmRow(
+                c.getPayMonth(), c.getEmployee().getId(), c.getEmployee().getCode(), c.getEmployee().getName(),
+                c.getPayItem().getId(), c.getPayItem().getName(), c.getPayItem().getPayMethod().getDisplayName(),
+                c.getQuantity())).toList();
+    }
+
+    /**
+     * 원본 근무기록확정 창의 [근무기록] — 근무입력에서 그 귀속월 근무일자의 기록을 사원 · 항목별로 더해 내놓는다.
+     * 저장하지 않는다(창에 채워 보여 주고, 사람이 고쳐서 [저장]한다).
+     */
+    @Transactional(readOnly = true)
+    public List<com.erp.hr.workrecord.dto.WorkRecordDtos.ConfirmRow> loadFromRecords(String payMonth) {
+        java.time.YearMonth ym = java.time.YearMonth.parse(payMonth);
+        Map<String, com.erp.hr.workrecord.dto.WorkRecordDtos.ConfirmRow> acc = new LinkedHashMap<>();
+        for (WorkRecord w : repository.findInWorkPeriod(ym.atDay(1), ym.atEndOfMonth())) {
+            String k = w.getEmployee().getId() + "#" + w.getPayItem().getId();
+            var prev = acc.get(k);
+            BigDecimal q = (prev == null ? BigDecimal.ZERO : prev.quantity()).add(w.getQuantity());
+            acc.put(k, new com.erp.hr.workrecord.dto.WorkRecordDtos.ConfirmRow(payMonth,
+                    w.getEmployee().getId(), w.getEmployee().getCode(), w.getEmployee().getName(),
+                    w.getPayItem().getId(), w.getPayItem().getName(), w.getPayItem().getPayMethod().getDisplayName(), q));
+        }
+        return List.copyOf(acc.values());
+    }
+
+    /** 근무기록확정 [저장] — 그 귀속월 확정값을 통째로 바꾼다. 0 인 칸은 넣지 않는다. */
+    @Transactional
+    public List<com.erp.hr.workrecord.dto.WorkRecordDtos.ConfirmRow> saveConfirms(
+            String payMonth, List<com.erp.hr.workrecord.dto.WorkRecordDtos.ConfirmCell> cells) {
+        confirmRepository.deleteByPayMonth(payMonth);
+        confirmRepository.flush();
+        for (var c : cells) {
+            if (c.quantity() == null || c.quantity().signum() == 0) continue;
+            confirmRepository.save(WorkConfirm.builder()
+                    .payMonth(payMonth)
+                    .employee(employeeService.get(c.employeeId()))
+                    .payItem(paySettingService.item(c.payItemId()))
+                    .quantity(c.quantity())
+                    .build());
+        }
+        return findConfirms(payMonth, payMonth);
+    }
+
+    /** 근무기록확정 [삭제]. */
+    @Transactional
+    public void deleteConfirms(String payMonth) {
+        confirmRepository.deleteByPayMonth(payMonth);
+    }
+
+    /** 급여계산용: 그 귀속월에 확정한 근무기록을 수당항목 id 별로. */
+    @Transactional(readOnly = true)
+    public Map<Long, BigDecimal> confirmedByItem(Long employeeId, String payMonth) {
+        Map<Long, BigDecimal> out = new HashMap<>();
+        for (WorkConfirm c : confirmRepository.findFor(payMonth, employeeId)) out.merge(c.getPayItem().getId(), c.getQuantity(), BigDecimal::add);
+        return out;
     }
 
     /** 급여계산용: 그 사원의 기간 근무기록을 수당항목 id 별로 더한다. */

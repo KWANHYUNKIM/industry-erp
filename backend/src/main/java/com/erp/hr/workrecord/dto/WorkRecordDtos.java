@@ -39,6 +39,19 @@ public class WorkRecordDtos {
         }
     }
 
+    /** 근무기록확정 한 칸 — 사원 · 수당항목 · 확정 근무기록. */
+    public record ConfirmCell(
+            @NotNull(message = "사원을 선택 바랍니다.") Long employeeId,
+            @NotNull(message = "수당항목을 선택 바랍니다.") Long payItemId,
+            @NotNull(message = "근무기록을 입력 바랍니다.") BigDecimal quantity
+    ) {}
+
+    /** 근무기록확정 · 근무확정현황 한 줄. */
+    public record ConfirmRow(
+            String payMonth, Long employeeId, String employeeCode, String employeeName,
+            Long payItemId, String payItemName, String unit, BigDecimal quantity
+    ) {}
+
     /** 근무조회 한 줄 = 전표 한 장. 사원 · 수당항목은 첫 줄 것, 여러 줄이면 '외 n건'. */
     public record SlipResponse(
             LocalDate slipDate, int slipNo, String employeeLabel, String payItemLabel,

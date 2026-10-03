@@ -17,6 +17,10 @@ public interface WorkRecordRepository extends JpaRepository<WorkRecord, Long> {
            "where w.slipDate = :slipDate and w.slipNo = :slipNo order by w.lineNo")
     List<WorkRecord> findSlip(LocalDate slipDate, int slipNo);
 
+    @Query("select w from WorkRecord w join fetch w.employee join fetch w.payItem " +
+           "where w.workDate between :from and :to order by w.employee.name, w.payItem.sortOrder")
+    List<WorkRecord> findInWorkPeriod(LocalDate from, LocalDate to);
+
     @Query("select coalesce(max(w.slipNo), 0) from WorkRecord w where w.slipDate = :slipDate")
     int maxSlipNo(LocalDate slipDate);
 
