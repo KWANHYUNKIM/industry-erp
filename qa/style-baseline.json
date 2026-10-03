@@ -569,11 +569,6 @@
   "color": 0,
   "palette": 0
  },
- "pages/groupware/SurveyStatusPage.tsx": {
-  "inline": 16,
-  "color": 0,
-  "palette": 0
- },
  "pages/groupware/SwSchedulePage.tsx": {
   "inline": 23,
   "color": 1,

@@ -6507,5 +6507,21 @@
    "일자-No."
   ],
   "file": "groupware/WorkPage.tsx"
+ },
+ "설문조사현황|진행중": {
+  "claim": "원본 조건 판에 [진행]이 없다",
+  "present": [
+   "<div className=\"title\">정렬/소계기준</div>",
+   "<div className=\"title\">설문종료일</div>"
+  ],
+  "file": "groupware/SurveyStatusPage.tsx"
+ },
+ "설문조사현황|완료": {
+  "claim": "원본 조건 판에 [진행]이 없다",
+  "present": [
+   "<div className=\"title\">정렬/소계기준</div>",
+   "<div className=\"title\">설문종료일</div>"
+  ],
+  "file": "groupware/SurveyStatusPage.tsx"
  }
 }
