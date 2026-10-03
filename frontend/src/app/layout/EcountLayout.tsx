@@ -754,6 +754,9 @@ const MENU: TopMenu[] = [
           { label: '지급명세서', children: [
             { label: '소득자료제출집계표', to: '/accounting/withholding/income-submission' },
           ] },
+          { label: '일용근로', children: [
+            { label: '지급명세서(일용직)', to: '/accounting/withholding/daily-statement' },
+          ] },
           { label: '출력물', children: [
             { label: '근로소득원천징수영수증', to: '/accounting/withholding?tab=영수증' },
           ] },

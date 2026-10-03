@@ -19,6 +19,7 @@ const KINDS: { value: SimplePaymentKind; label: string }[] = [
 
 /** 원본 목록의 [지급연월] — '2026년 하반기 (7~12)' · '2026년 09 - 09월' */
 function periodText(s: { kind: SimplePaymentKind; payYear: number; period: number }) {
+  if (s.kind === 'DAILY') return `${s.payYear}년 ${s.period}월`
   if (s.kind === 'LABOR') return `${s.payYear}년 ${s.period === 1 ? '상반기 (1~6)' : '하반기 (7~12)'}`
   return `${s.payYear}년 ${pad2(s.period)} - ${pad2(s.period)}월`
 }
@@ -63,6 +64,15 @@ function defaults(kind: SimplePaymentKind, keep?: Partial<Form>): Form {
  * (기타소득 서식은 합계가 찍힌다) 우리는 두 서식 모두 합계를 찍는다.
  */
 export default function SimplePaymentPage() {
+  return <StatementListPage daily={false} />
+}
+
+/**
+ * 간이지급명세서와 지급명세서(일용직, E020146 '일용근로지급명세서파일생성')가 같이 쓰는 목록 · 입력 · 조회.
+ * 일용직은 자료구분이 일용근로소득 하나라 입력 창에 자료구분 · 사업장 칸이 없고, 목록의 [자료구분] 이 사업자등록번호 뒤에 선다.
+ */
+export function StatementListPage({ daily }: { daily: boolean }) {
+  const title = daily ? '일용근로지급명세서파일생성' : '간이지급명세서'
   const [rows, setRows] = useState<SimplePaymentStatement[]>([])
   const [company, setCompany] = useState<Company | null>(null)
   const [picked, setPicked] = useState<Set<number>>(new Set())
@@ -74,14 +84,14 @@ export default function SimplePaymentPage() {
 
   function load() {
     setError('')
-    api.get<SimplePaymentStatement[]>('/simple-payment-statements')
+    api.get<SimplePaymentStatement[]>('/simple-payment-statements', { params: { daily } })
       .then((r) => { setRows(r.data); setPicked(new Set()) })
       .catch((e) => { setRows([]); setError(extractErrorMessage(e)) })
   }
   useEffect(() => {
     load()
     api.get<Company | null>('/company').then((r) => setCompany(r.data)).catch(() => setCompany(null))
-  }, [])
+  }, [])   // eslint-disable-line react-hooks/exhaustive-deps
 
   async function save() {
     if (!form) return
@@ -116,8 +126,8 @@ export default function SimplePaymentPage() {
   const years = (() => { const y = new Date().getFullYear(); return [y + 1, y, y - 1, y - 2] })()
 
   return (
-    <EcListShell title="간이지급명세서" option={false}
-                 onNew={() => { setFormError(''); setForm(defaults('LABOR')) }}
+    <EcListShell title={title} option={false}
+                 onNew={() => { setFormError(''); setForm(defaults(daily ? 'DAILY' : 'LABOR')) }}
                  actions={[{ label: '선택삭제', onClick: () => setConfirmDelete(true), disabled: picked.size === 0 }]}>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
@@ -129,10 +139,11 @@ export default function SimplePaymentPage() {
                      onChange={() => setPicked(allPicked ? new Set() : new Set(rows.map((r) => r.id)))} />
             </th>
             <th>지급연월</th>
-            <th>자료구분</th>
-            <th>제출일자</th>
+            {!daily && <th>자료구분</th>}
+            <th>{daily ? '신고일자' : '제출일자'}</th>
             <th>회사명</th>
             <th>사업자등록번호</th>
+            {daily && <th>자료구분</th>}
             <th>조회</th>
           </tr>
         </thead>
@@ -149,10 +160,11 @@ export default function SimplePaymentPage() {
               <td>
                 <button className="ec-link" onClick={() => { setFormError(''); setForm({ ...r }) }}>{periodText(r)}</button>
               </td>
-              <td>{r.kindName}</td>
+              {!daily && <td>{r.kindName}</td>}
               <td>{dot(r.reportDate)}</td>
               <td>{company?.name ?? ''}</td>
               <td>{company?.bizRegNo ?? ''}</td>
+              {daily && <td>{r.kindName}</td>}
               <td><button className="ec-link" onClick={() => setViewing(r.id)}>조회</button></td>
             </tr>
           ))}
@@ -160,9 +172,9 @@ export default function SimplePaymentPage() {
       </table>
 
       {form && (
-        <Modal open error={formError} title="간이지급명세서파일생성" width={760} onClose={() => setForm(null)}>
+        <Modal open error={formError} title={daily ? '일용근로지급명세서파일생성' : '간이지급명세서파일생성'} width={760} onClose={() => setForm(null)}>
           <ul className="ec-form">
-            <EcCond label="자료구분" span="full">
+            {!daily && <><EcCond label="자료구분" span="full">
               <select className="ec-input w-full" value={form.kind}
                       onChange={(e) => setForm(defaults(e.target.value as SimplePaymentKind, form))}>
                 {KINDS.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}
@@ -172,7 +184,7 @@ export default function SimplePaymentPage() {
               <select className="ec-input w-full" disabled value="">
                 <option value="">{company?.name ?? ''} {company?.bizRegNo ?? ''}</option>
               </select>
-            </EcCond>
+            </EcCond></>}
             <EcCond label="지급연월" span="full">
               <select className="ec-input w-[160px]" value={form.payYear}
                       onChange={(e) => setForm({ ...form, payYear: Number(e.target.value) })}>
@@ -247,14 +259,14 @@ function SheetModal({ id, company, onClose }: { id: number; company: Company | n
   const [y, m, d] = (s?.reportDate ?? '').split('-')
 
   return (
-    <Modal open title="간이지급명세서" width={900} error={error} onClose={onClose}>
+    <Modal open title={s?.kind === 'DAILY' ? '일용근로소득 지급명세서' : '간이지급명세서'} width={900} error={error} onClose={onClose}>
       {s && (
         <div>
-          {s.kind === 'LABOR'
-            ? <LaborSheet sheet={sheet!} company={company} address={address} />
-            : <PayeeSheet sheet={sheet!} company={company} address={address} />}
+          {s.kind === 'LABOR' ? <LaborSheet sheet={sheet!} company={company} address={address} />
+            : s.kind === 'DAILY' ? <DailySheet sheet={sheet!} company={company} address={address} />
+              : <PayeeSheet sheet={sheet!} company={company} address={address} />}
           <p className="mt-[12px]">
-            {s.kind === 'LABOR' ? '원천징수의무자는 소득세법 제164조의3제1항에 따라 위의 내용을 제출하며 위 내용을 충분히 검토하고 원천징수의무자가 알고 있는 사실 그대로를 정확하게 적었음을 확인합니다.'
+            {s.kind === 'DAILY' ? '위와 같이 제출합니다.' : s.kind === 'LABOR' ? '원천징수의무자는 소득세법 제164조의3제1항에 따라 위의 내용을 제출하며 위 내용을 충분히 검토하고 원천징수의무자가 알고 있는 사실 그대로를 정확하게 적었음을 확인합니다.'
               : '지급자는 「소득세법」 제164조의3제1항에 따라 위의 내용을 제출하며, 위 내용을 충분히 검토하고 지급자가 알고 있는 사실 그대로를 정확하게 적었음을 확인합니다.'}
           </p>
           <p className="text-center my-[8px]">{y} 년 {m} 월 {d} 일</p>
@@ -311,6 +323,72 @@ function LaborSheet({ sheet, company, address }: { sheet: SimplePaymentSheet; co
             )),
             <tr key={`${i}-sum`}><td className="text-center">합계</td><td className="text-right">{won(r.total)}</td><td></td></tr>,
           ])}
+        </tbody>
+      </table>
+    </>
+  )
+}
+
+/** 일용근로소득 지급명세서(지급자제출용) [별지 제24호서식(4)] — 월별 집계 + 근로자마다 한 줄. */
+function DailySheet({ sheet, company, address }: { sheet: SimplePaymentSheet; company: Company | null; address: string }) {
+  const s = sheet.statement
+  const sum = (k: 'taxable' | 'incomeTax' | 'localIncomeTax') => sheet.daily.reduce((t, r) => t + Number(r[k]), 0)
+  return (
+    <>
+      <p>소득세법 시행규칙 [별지 제24호서식(4)]</p>
+      <div className="ec-report-title">일용근로소득 지급명세서 (지급자제출용)</div>
+      <p className="text-center mb-[8px]">[일용근로소득 지급명세서(원천징수영수증) 월별 제출집계표]</p>
+      <table className="w-full ec-report ec-report-head400 mb-[12px]">
+        <tbody>
+          <tr><th>① 상호(법인명)</th><td>{company?.name ?? ''}</td><th>② 성명(대표자)</th><td>{company?.ceo ?? ''}</td><th>③ 사업자등록번호</th><td>{company?.bizRegNo ?? ''}</td></tr>
+          <tr><th>④ 주민(법인)등록번호</th><td>{company?.corpRegNo ?? ''}</td><th>⑤ 소재지(주소)</th><td colSpan={3}>{address}</td></tr>
+          <tr><th>⑥ 전화번호</th><td>{company?.tel ?? ''}</td><th>⑦ 전자우편주소</th><td colSpan={3}>{company?.email ?? ''}</td></tr>
+        </tbody>
+      </table>
+      <p className="mb-[4px]">① 월별 원천징수 집계 현황</p>
+      <table className="w-full ec-report ec-report-head400 mb-[12px]">
+        <tbody>
+          <tr>
+            <th>⑧ 귀속연도</th><td>{s.payYear}</td><th>⑨ 지급월</th>
+            <td colSpan={3}>{Array.from({ length: 12 }, (_, i) => `[ ${s.period === i + 1 ? 'O' : ' '} ] ${i + 1}월`).join('  ')}</td>
+          </tr>
+          <tr><th>⑩ 일용근로자수</th><th>⑪ 제출자료건수</th><th>⑫ 과세소득 합계</th><th>⑬ 비과세소득 합계</th><th>⑭ 소득세</th><th>⑮ 지방소득세</th></tr>
+          <tr>
+            <td className="text-right">{sheet.daily.length} 명</td>
+            <td className="text-right">{sheet.daily.length} 건</td>
+            <td className="text-right">{won(sum('taxable'))}</td>
+            <td className="text-right">0</td>
+            <td className="text-right">{won(sum('incomeTax'))}</td>
+            <td className="text-right">{won(sum('localIncomeTax'))}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p className="mb-[4px]">② 소득자 인적사항 및 일용근로소득 지급내용</p>
+      <table className="w-full ec-report ec-report-head400">
+        <thead>
+          <tr>
+            <th className="text-center">⑯ 번호</th><th>⑰ 성명</th><th className="text-center">㉑ 근무월</th>
+            <th className="text-right">㉒ 근무일수</th><th className="text-center">㉓ 최종근무일</th>
+            <th className="text-right">㉔ 과세소득</th><th className="text-right">㉕ 비과세소득</th>
+            <th className="text-right">㉖ 소득세</th><th className="text-right">㉗ 지방소득세</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sheet.daily.length === 0 ? (
+            <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+          ) : sheet.daily.map((r, i) => (
+            <tr key={i}>
+              <td className="text-center">{i + 1}</td>
+              <td>{r.name}</td>
+              <td className="text-center">{pad2(s.period)}</td>
+              <td className="text-right">{r.days}</td>
+              <td className="text-center">{r.lastDate ? r.lastDate.slice(8) : ''}</td>
+              <td className="text-right">{won(r.taxable)}</td>
+              <td className="text-right">0</td>
+              <td className="text-right">{won(r.incomeTax)}</td>
+              <td className="text-right">{won(r.localIncomeTax)}</td>
+            </tr>
+          ))}
         </tbody>
       </table>
     </>

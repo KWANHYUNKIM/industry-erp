@@ -3137,7 +3137,7 @@ export interface ExpenseEvidenceCompareRow {
 export interface ExpenseEvidenceAccount { id: number; code: string; name: string; shown: boolean }
 
 /** 간이지급명세서(E030116) */
-export type SimplePaymentKind = 'LABOR' | 'BUSINESS' | 'OTHER'
+export type SimplePaymentKind = 'LABOR' | 'BUSINESS' | 'OTHER' | 'DAILY'
 export interface SimplePaymentStatement {
   id: number
   kind: SimplePaymentKind
@@ -3157,6 +3157,7 @@ export interface SimplePaymentSheet {
   labor: { employeeName: string; workFrom: string; workTo: string; monthlyPay: (number | null)[]; total: number }[]
   payees: { payeeName: string; payeeRegNo: string | null; count: number; gross: number; expense: number; taxable: number;
     rate: number; incomeTax: number; localIncomeTax: number }[]
+  daily: { name: string; days: number; lastDate: string | null; taxable: number; incomeTax: number; localIncomeTax: number }[]
 }
 
 /** 소득자료제출집계표(E030508) — GET /withholding/income-submission */
