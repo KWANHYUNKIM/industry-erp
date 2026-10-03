@@ -39,6 +39,7 @@ export default function EcDrivePage() {
   const [uploading, setUploading] = useState(false)
   const [keyword, setKeyword] = useState('')
   const [nameCond, setNameCond] = useState('')
+  const [condOpen, setCondOpen] = useState(false)
   /** 원본 ECDrive 조건 차례는 [이름] · [최초작성자] · [최종수정자] 다. 올린 사람이 곧 최초작성자다. */
   const [authorCond, setAuthorCond] = useState('')
   /** 열려 있는 [더보기] ⋮ 메뉴의 문서 id */
@@ -95,21 +96,6 @@ export default function EcDrivePage() {
 
   useEffect(() => { load(sel) /* eslint-disable-next-line */ }, [sel])
 
-  async function addDoc() {
-    if (sel === 'trash') return
-    const name = window.prompt('문서 이름을 입력하세요. (예: 견적서_대신전자.xlsx)', '')
-    if (!name || !name.trim()) return
-    const sizeStr = window.prompt('파일 크기(KB, 선택):', '0')
-    const sizeBytes = Math.round(Number(sizeStr || 0) * 1024)
-    const drive = sel === 'shared' ? 'SHARED' : 'MY'
-    try {
-      await api.post('/drive-documents', { name: name.trim(), drive, sizeBytes: sizeBytes || 0 })
-      load(sel)
-    } catch (err) {
-      alert(extractErrorMessage(err))
-    }
-  }
-
   /** 실제 파일 업로드 — 이름·크기는 서버가 올린 파일에서 가져온다. */
   async function uploadFile(file: File) {
     const fd = new FormData()
@@ -160,7 +146,8 @@ export default function EcDrivePage() {
           <input className="ec-input" placeholder="입력 후 [Enter]" value={keyword}
                  onChange={(e) => setKeyword(e.target.value)}
                  onKeyDown={(e) => { if (e.key === 'Enter') load(sel) }} style={{ width: 150 }} />
-          <button className="ec-btn ec-btn-primary" onClick={() => load(sel)}>Search(F3)</button>
+          {/* 원본처럼 검색창이 빈 채로 누르면 조건 줄을 편다(조건은 접어 둔다). */}
+          <button className="ec-btn ec-btn-primary" onClick={() => (keyword.trim() ? load(sel) : setCondOpen((v) => !v))}>Search(F3)</button>
           <button className="ec-btn">Option</button>
           <button className="ec-btn">도움말</button>
         </div>
@@ -187,7 +174,7 @@ export default function EcDrivePage() {
             </div>
           ))}
           <div className="mt-[12px] py-[8px] px-[14px] border-t border-t-ec-line-soft border-solid text-[11.5px] text-ec-hint">
-            드라이브 사용용량<br /><strong className="text-ec-text">{totalKB.toLocaleString()}KB</strong> 사용됨
+            내드라이브 사용용량<br /><strong className="text-ec-text">{totalKB.toLocaleString()}KB</strong> 사용됨
           </div>
         </div>
 
@@ -220,8 +207,8 @@ export default function EcDrivePage() {
             />
           </div>
 
-          {/* 원본 ECDrive 조건 차례: <b>이름</b> · 최초작성자 · 최종수정자 */}
-          <div className="flex items-center gap-[6px] my-[8px] mx-0 text-[12.5px] text-ec-label">
+          {/* 원본 ECDrive 조건 차례: <b>이름</b> · 최초작성자 · 최종수정자 — 접어 두고 [Search(F3)] 로 편다 */}
+          {condOpen && <div className="flex items-center gap-[6px] my-[8px] mx-0 text-[12.5px] text-ec-label ec-search-conds">
             <span>이름</span>
             <input className="ec-input" value={nameCond} placeholder="파일·폴더 이름"
                    onChange={(e) => setNameCond(e.target.value)} style={{ width: 200 }} />
@@ -235,10 +222,10 @@ export default function EcDrivePage() {
               <option value="">전체</option>
               {uploaders.map((u) => <option key={u} value={u}>{u}</option>)}
             </select>
-          </div>
+          </div>}
 
           {/* 원본 실측 폭(67-984-447-224-89-134)을 비율로 옮겼다 */}
-          <table className="w-full text-left">
+          <table className="w-full text-left" data-ctx-skip="true">
             <colgroup>
               {['3.4%', '50.6%', '23%', '11.5%', '4.6%', '6.9%'].map((w, i) => <col key={i} style={{ width: w }} />)}
             </colgroup>
@@ -259,7 +246,8 @@ export default function EcDrivePage() {
               ) : shown.length === 0 ? (
                 <tr><td colSpan={6} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
               ) : shown.map((d, i) => (
-                <tr key={d.id} title={d.uploader ? `올린 사람: ${d.uploader}` : undefined}>
+                <tr key={d.id} title={d.uploader ? `올린 사람: ${d.uploader}` : undefined}
+                    onContextMenu={(e) => { e.preventDefault(); setMenuFor(d.id) }}>
                   <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
                   <td>
                     {d.fileId ? (
@@ -317,9 +305,9 @@ export default function EcDrivePage() {
             <button className="ec-btn ec-btn-primary" onClick={() => fileInput.current?.click()} disabled={uploading || sel === 'trash'}>
               {uploading ? '올리는 중…' : 'File'}
             </button>
-            <button className="ec-btn" onClick={addDoc} disabled={sel === 'trash'}>항목만 등록</button>
+            {/* 원본 하단은 [File▲](펴면 Folder) 와 안내 한 줄뿐이다(2026-10-03 실측). [항목만 등록]은 우리만 있던 것이라 뺐다. */}
             <span className="text-[11.5px] text-ec-label">
-              ※ [더보기] ⋮ 로 기능을 사용할 수 있습니다. 업로드 상한 10MB.
+              ※ 우클릭을 통해 기능을 사용할 수 있습니다.
             </span>
           </div>
         </div>

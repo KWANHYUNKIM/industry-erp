@@ -1,0 +1,32 @@
+{
+  "about": "ECDrive(원본 E077100) — 왼쪽 My Drive · Shared Drive · 중요문서함 · 휴지통 · 내드라이브 사용용량, 조건 줄은 접혀 있고 빈 검색창 [Search(F3)] 로 편다, 줄에서 우클릭하면 기능 메뉴, 하단 [File] + 안내. 시험 문서는 API 로 만들고 지운다. node qa/shot.mjs qa/flows/drive.json",
+  "shots": [
+    {
+      "name": "준비",
+      "path": "/groupware/drive",
+      "steps": [
+        "js:fetch('/api/drive-documents', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }, body: JSON.stringify({ name: 'QA그룹웨어-문서.txt', drive: 'MY', sizeBytes: 0 }) }).then((r) => r.json()).then((d) => { sessionStorage.setItem('qaDoc', d.id); return 'doc ' + d.id })"
+      ]
+    },
+    {
+      "name": "접힌 조건 · 우클릭 메뉴 · 하단",
+      "path": "/groupware/drive",
+      "steps": [
+        "expect:document.body.innerText.includes('내드라이브 사용용량') && document.body.innerText.includes('※ 우클릭을 통해 기능을 사용할 수 있습니다.')",
+        "expect:![...document.querySelectorAll('button')].some((b) => b.textContent.trim() === '항목만 등록')",
+        "expect:!document.querySelector('.ec-search-conds')",
+        "click:Search(F3)",
+        "expect:!!document.querySelector('.ec-search-conds')",
+        "js:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('QA그룹웨어-문서.txt')); tr.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })); return true })()",
+        "expect:[...document.querySelectorAll('button')].some((b) => b.textContent.trim() === '휴지통으로')"
+      ]
+    },
+    {
+      "name": "정리",
+      "path": "/groupware/drive",
+      "steps": [
+        "js:fetch('/api/drive-documents/' + sessionStorage.getItem('qaDoc'), { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => 'del ' + r.status)"
+      ]
+    }
+  ]
+}
