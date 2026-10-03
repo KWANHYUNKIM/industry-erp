@@ -1,0 +1,20 @@
+{
+  "about": "소득세확인서(E030103) — 조회일자 · 사원번호로 「갑종근로소득에 대한 소득세원천징수확인서」를 띄운다. 급여액은 비과세까지 넣은 지급액(원본 변종호 4,559,000 = 과세 4,259,000 + 비과세 300,000), 세액은 소득세만. withholding-ledger 흐름이 남겨 두는 2088-01 확정 명세(EMP-0001, 기본급 3,000,000 + 비과세 식대 200,000)를 읽는다.",
+  "shots": [
+    {
+      "name": "조회일자 2088/01 ~ 2088/03 · EMP-0001",
+      "path": "/accounting/withholding/income-tax-cert",
+      "steps": [
+        "wait:1000",
+        "set:input[type=month]#0|2088-01",
+        "set:input[type=month]#1|2088-03",
+        "pick:사원번호:EMP-0001",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:document.body.innerText.includes('갑종근로소득에 대한 소득세원천징수확인서')",
+        "expect:[...document.querySelectorAll('tr')].some((t) => t.innerText.includes('2088.01') && [...t.querySelectorAll('input')].some((i) => i.value === '3,200,000') && t.innerText.includes('74,350'))",
+        "expect:[...document.querySelectorAll('tr')].some((t) => /계\\s*3,200,000\\s*74,350/.test(t.innerText))"
+      ]
+    }
+  ]
+}

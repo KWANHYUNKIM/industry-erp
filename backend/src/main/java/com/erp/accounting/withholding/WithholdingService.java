@@ -127,10 +127,27 @@ public class WithholdingService {
         if (month == null || !MONTH.matcher(month).matches()) {
             throw ApiException.badRequest("기준연월 형식이 올바르지 않습니다(YYYY-MM): " + month);
         }
+        return ledger(month.substring(0, 4) + "-01", month);
+    }
+
+    /**
+     * 기간판 — 소득세확인서(E030103)의 [조회일자] 처럼 해를 넘길 수 있다. from ~ to (YYYY-MM, 양끝 포함).
+     */
+    @Transactional(readOnly = true)
+    public List<WithholdingDtos.LedgerEmployee> ledger(String from, String to) {
+        if (from == null || !MONTH.matcher(from).matches() || to == null || !MONTH.matcher(to).matches()) {
+            throw ApiException.badRequest("조회일자 형식이 올바르지 않습니다(YYYY-MM): " + from + " ~ " + to);
+        }
+        if (from.compareTo(to) > 0) {
+            throw ApiException.badRequest("조회일자의 시작이 끝보다 늦습니다: " + from + " ~ " + to);
+        }
         java.util.Map<Long, List<Payslip>> byEmployee = new java.util.LinkedHashMap<>();
-        for (Payslip p : payslipRepository.findByYear(month.substring(0, 4))) {
-            if (p.getStatus() != PayslipStatus.CONFIRMED || p.getPayMonth().compareTo(month) > 0) continue;
-            byEmployee.computeIfAbsent(p.getEmployee().getId(), k -> new ArrayList<>()).add(p);
+        for (int y = Integer.parseInt(from.substring(0, 4)); y <= Integer.parseInt(to.substring(0, 4)); y++) {
+            for (Payslip p : payslipRepository.findByYear(String.valueOf(y))) {
+                if (p.getStatus() != PayslipStatus.CONFIRMED
+                        || p.getPayMonth().compareTo(from) < 0 || p.getPayMonth().compareTo(to) > 0) continue;
+                byEmployee.computeIfAbsent(p.getEmployee().getId(), k -> new ArrayList<>()).add(p);
+            }
         }
         List<WithholdingDtos.LedgerEmployee> out = new ArrayList<>();
         for (List<Payslip> slips : byEmployee.values()) {
