@@ -34,6 +34,11 @@ public class AttendanceKind extends BaseTimeEntity {
     @Column(nullable = false, length = 20)
     private AttendanceKindType type;
 
+    /** 근태유형이 '휴가' 일 때 원본 [휴가코드](휴가항목) — 꼭 고른다 */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "vacation_kind_id")
+    private VacationKind vacationKind;
+
     @Column(name = "hour_unit", nullable = false)
     private boolean hourUnit;
 
