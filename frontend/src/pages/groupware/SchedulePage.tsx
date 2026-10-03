@@ -28,7 +28,12 @@ interface ScheduleEvent {
   createdBy: string | null
 }
 
-const CATEGORIES = ['회의', '출장', '교육', '기타']
+/*
+ * 원본 [일정구분]은 고르는 목록이 아니라 글자 칸(코드도움)이다 — loginaa 회사는 주말근무 · 회의 · 회식 · 연차 · 출장 ·
+ * 외부인미팅 · 내부교육을 쓴다(2026-10-03, 원본 10월 일정 16건을 그대로 넣어 견주다 알았다). 우리는 회의 · 출장 · 교육 ·
+ * 기타 넷만 고를 수 있어 원본 자료를 넣을 수조차 없었다. 칸에 적고, 이미 쓴 구분을 후보로 띄운다.
+ */
+const CATEGORY_HINTS = ['회의', '출장', '교육', '기타']
 const DOW = ['일', '월', '화', '수', '목', '금', '토']
 
 /**
@@ -141,7 +146,7 @@ export default function SchedulePage() {
   const [selected, setSelected] = useState<Set<number>>(new Set())
 
   const emptyForm = (date = ymd(new Date())): Form => ({
-    eventDate: date, ...defaultTimes(), title: '', category: '회의', owner: '',
+    eventDate: date, ...defaultTimes(), title: '', category: '', owner: '',
     location: '', labelText: '', attendees: user?.name ?? '', remark: '',
   })
   const [form, setForm] = useState<Form>(() => emptyForm())
@@ -375,9 +380,11 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
           <li>
             <div className="title">일정구분</div>
             <div className="form">
-              <select className="ec-input w-full" value={form.category} onChange={(e) => set('category', e.target.value)}>
-                {[...new Set([...CATEGORIES, form.category].filter(Boolean))].map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
+              <input className="ec-input w-full" placeholder="일정구분" list="schedule-categories" maxLength={30}
+                     value={form.category} onChange={(e) => set('category', e.target.value)} />
+              <datalist id="schedule-categories">
+                {[...new Set([...rows.map((r) => r.category ?? ''), ...CATEGORY_HINTS].filter(Boolean))].map((c) => <option key={c} value={c} />)}
+              </datalist>
             </div>
           </li>
           <li>
@@ -401,6 +408,12 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
               <input type="time" className="ec-input w-[110px]" value={form.startTime} onChange={(e) => set('startTime', e.target.value)} />
               <span className="text-ec-label">~</span>
               <input type="time" className="ec-input w-[110px]" value={form.endTime} onChange={(e) => set('endTime', e.target.value)} />
+              {/* 원본 [종일] — 켜면 시간 없이 하루 전체(달력에는 막대로 선다). */}
+              <label className="inline-flex items-center gap-[4px] cursor-pointer">
+                <input type="checkbox" checked={!form.startTime && !form.endTime}
+                       onChange={(e) => setForm((f) => ({ ...f, ...(e.target.checked ? { startTime: '', endTime: '' } : defaultTimes()) }))} />
+                종일
+              </label>
             </div>
           </li>
           <li className="wide">
