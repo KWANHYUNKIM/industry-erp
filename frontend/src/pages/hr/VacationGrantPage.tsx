@@ -5,6 +5,7 @@ import Modal from '../../components/Modal'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster } from '../../types/api'
+import { annualLeaveDays } from '../../utils/annualLeave'
 
 interface Summary { vacationKindId: number; code: string; name: string; periodFrom: string; periodTo: string; headcount: number }
 interface GrantRow { employeeId: number; carryOverDays: number; currentDays: number }
@@ -23,7 +24,9 @@ const num = (s: string) => Number(s) || 0
  *       당해년 휴가일수 · 휴가일수, 합계줄. 사번을 넣으면 사원명 · 부서명 · 직급 · 입사일이 채워지고, 당해년 휴가일수를 넣으면
  *       휴가일수 = 이월 잔여일수 + 당해년 휴가일수. 저장하면 목록 등록인원수가 는다. 버튼 찾기(F3) · 연차계산 · 저장(F8) · 닫기.</li>
  * </ul>
- * [연차계산](입사일로 연차 일수를 채우는 것) · 찾기(F3) · 웹자료올리기는 없다. 근태 차감 · 잔여 셈은 아직 이 일수를 쓰지 않는다.
+ * [연차계산]은 사번이 든 줄의 당해년 휴가일수를 입사일로 채운다(원본 연차계산기준 40시간제와 같은 셈 — utils/annualLeave).
+ * 원본은 줄을 고르고 연차계산기준(40시간제 · 44시간제)을 골라 [적용]하는데, 우리는 40시간제 하나로 셈한다.
+ * 찾기(F3) · 웹자료올리기는 없다.
  */
 export default function VacationGrantPage() {
   const [rows, setRows] = useState<Summary[]>([])
@@ -135,6 +138,14 @@ export default function VacationGrantPage() {
               <li><span className="title">휴가</span><div className="form">{open.code}</div></li>
               <li><span className="title">사용기간</span><div className="form">{slash(open.periodFrom)} ~ {slash(open.periodTo)}</div></li>
             </ul>
+            <div className="flex gap-[6px] mb-[6px]">
+              <button type="button" className="ec-btn ec-btn-sm"
+                      onClick={() => setLines(lines.map((l) => {
+                        if (!l.employeeId) return l
+                        const e = employees.find((x) => String(x.id) === l.employeeId)
+                        return { ...l, currentDays: String(annualLeaveDays(e?.hireDate, open.periodFrom)) }
+                      }))}>연차계산</button>
+            </div>
             <div className="overflow-x-auto">
               <table ref={gridRef} className="w-full text-left">
                 <thead>
