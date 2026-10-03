@@ -11,13 +11,13 @@ import { dateNo } from '../../utils/dateNo'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 
-interface AsRow {
-  id: number; asNo: string; partnerId: number; partnerName: string; itemId: number; itemName: string
-  receiptDate: string; title: string | null; charge: string | null
-  warehouseId: number | null
-  status: string; doneDate: string | null; repairNote: string | null; createdBy: string | null
+interface Repair {
+  id: number; repairNo: string; repairDate: string; partnerId: number; partnerName: string
+  receiptDate: string | null; receiptCharge: string | null; warehouseId: number
+  charge: string; repairType: string | null; repairTypeName: string | null; title: string | null; content: string | null
+  lines: { itemId: number; itemName: string }[]; saleAmount: number
 }
-interface ConsumptionLine { asNo: string; supplyAmount: number }
+const REPAIR_TYPES: Record<string, string> = { FREE_EXCHANGE: '무상교환', FREE_REPAIR: '무상수리', PAID_EXCHANGE: '유상교환', PAID_REPAIR: '유상수리', RETURN: '반품' }
 
 /**
  * 재고 II &gt; A/S관리 &gt; A/S수리 &gt; <b>A/S수리현황</b>(E040611) — 2026-10-03 loginaa 실측(자료가 든 판).
@@ -26,10 +26,8 @@ interface ConsumptionLine { asNo: string; supplyAmount: number }
  * 접수일자(기본 [사용안함]) · 창고 · 수리담당자 · 접수담당자 · 수리유형 · 거래처 · 품목.
  * 열: 일자-No. · 제목 · 거래처명 · 수리유형명 · 담당자명 · 품목명 · 소모(판매)금액 · 수리내용, 끝에 '합계'. 머리글 이름은 'AS수리현황'.
  *
- * <p>기준일자는 <b>수리한 날</b>(완료일)이다 — 접수는 지난달이어도 이번 달에 고쳤으면 여기 뜬다.
- * 우리는 수리를 따로 전표로 두지 않고 A/S 한 건이 접수 → 완료로 넘어가므로, 완료일이 있는 A/S 가 수리 한 건이다.
- * 소모(판매)금액은 그 A/S 에 쓴 부품(A/S 소모)의 공급가 합이다.
- * [수리유형]은 우리 A/S 가 유상 · 무상교환 같은 유형을 들지 않아 조건도 열도 두지 않았다.
+ * <p>한 줄 = <b>A/S수리 전표</b> 하나(기준일자 = 수리일자). 소모(판매)금액은 그 수리의 판매연결전표 합계,
+ * 접수담당자는 불러온 A/S접수의 담당자다. 예전엔 접수의 상태가 완료인 것을 수리로 보고 A/S 소모부품에서 금액을 모았다.
  * [구분]의 [집계]는 원본 집계 판을 못 재서 내역 한 장만 세운다.
  */
 export default function AsRepairStatusPage() {
@@ -45,8 +43,8 @@ export default function AsRepairStatusPage() {
   const [author, setAuthor] = useState('')
   const [partner, setPartner] = useState('')
   const [item, setItem] = useState('')
-  const [rows, setRows] = useState<AsRow[]>([])
-  const [used, setUsed] = useState<Map<string, number>>(new Map())
+  const [rows, setRows] = useState<Repair[]>([])
+  const [repairType, setRepairType] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -55,14 +53,7 @@ export default function AsRepairStatusPage() {
     setLoading(true)
     setError('')
     try {
-      const [a, c] = await Promise.all([
-        api.get<AsRow[]>('/as-requests', { params: { doneFrom: from, doneTo: to } }),
-        api.get<ConsumptionLine[]>('/as-requests/parts/consumption/lines', { params: { to } }),
-      ])
-      setRows(a.data)
-      const m = new Map<string, number>()
-      for (const l of c.data) m.set(l.asNo, (m.get(l.asNo) ?? 0) + Number(l.supplyAmount))
-      setUsed(m)
+      setRows((await api.get<Repair[]>('/as-repairs', { params: { from, to } })).data)
     } catch (e) {
       setError(extractErrorMessage(e))
     } finally {
@@ -73,18 +64,18 @@ export default function AsRepairStatusPage() {
   useEffect(() => { void load() }, [from, to])
 
   const shown = useMemo(() => rows
-    .filter((r) => !!r.doneDate && r.doneDate >= from && r.doneDate <= to)
-    .filter((r) => !useReceipt || (r.receiptDate >= recFrom && r.receiptDate <= recTo))
+    .filter((r) => !useReceipt || (r.receiptDate != null && r.receiptDate >= recFrom && r.receiptDate <= recTo))
     .filter((r) => !warehouse || String(r.warehouseId) === warehouse)
-    .filter((r) => !charge || (r.charge ?? '') === charge)
-    .filter((r) => !author || (r.createdBy ?? '') === author)
+    .filter((r) => !charge || r.charge === charge)
+    .filter((r) => !author || (r.receiptCharge ?? '') === author)
+    .filter((r) => !repairType || r.repairType === repairType)
     .filter((r) => !partner || String(r.partnerId) === partner)
-    .filter((r) => !item || String(r.itemId) === item)
-    .sort((a, b) => ((a.doneDate ?? '') < (b.doneDate ?? '') ? -1 : (a.doneDate ?? '') > (b.doneDate ?? '') ? 1 : a.asNo.localeCompare(b.asNo))),
-  [rows, from, to, useReceipt, recFrom, recTo, warehouse, charge, author, partner, item])
-  const total = shown.reduce((a, r) => a + (used.get(r.asNo) ?? 0), 0)
-  const charges = useMemo(() => [...new Set(rows.map((r) => r.charge).filter(Boolean) as string[])].sort(), [rows])
-  const authors = useMemo(() => [...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort(), [rows])
+    .filter((r) => !item || r.lines.some((l) => String(l.itemId) === item))
+    .sort((a, b) => (a.repairDate < b.repairDate ? -1 : a.repairDate > b.repairDate ? 1 : a.repairNo.localeCompare(b.repairNo))),
+  [rows, useReceipt, recFrom, recTo, warehouse, charge, author, repairType, partner, item])
+  const total = shown.reduce((a, r) => a + Number(r.saleAmount), 0)
+  const charges = useMemo(() => [...new Set(rows.map((r) => r.charge).filter(Boolean))].sort(), [rows])
+  const authors = useMemo(() => [...new Set(rows.map((r) => r.receiptCharge).filter(Boolean) as string[])].sort(), [rows])
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, 'A/S수리현황', [shown.length])
 
@@ -94,7 +85,7 @@ export default function AsRepairStatusPage() {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setUseReceipt(false); setRecFrom(init.from); setRecTo(init.to); setWarehouse(''); setCharge(''); setAuthor(''); setPartner(''); setItem('') } },
+        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setUseReceipt(false); setRecFrom(init.from); setRecTo(init.to); setWarehouse(''); setCharge(''); setAuthor(''); setRepairType(''); setPartner(''); setItem('') } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -128,6 +119,12 @@ export default function AsRepairStatusPage() {
           <CodePickerField label="접수담당자" hideLabel width={170} emptyLabel="전체" value={author} onChange={setAuthor}
                            items={authors.map((a) => ({ value: a, name: a }))} />
         </EcCond>
+        <EcCond label="수리유형">
+          <select className="ec-input w-[130px]" value={repairType} onChange={(e) => setRepairType(e.target.value)}>
+            <option value="">전체</option>
+            {Object.entries(REPAIR_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+        </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={220} emptyLabel="전체" value={partner} onChange={setPartner} items={pickers.partners} />
         </EcCond>
@@ -145,6 +142,7 @@ export default function AsRepairStatusPage() {
             <th className="text-center">일자-No.</th>
             <th>제목</th>
             <th>거래처명</th>
+            <th>수리유형명</th>
             <th>담당자명</th>
             <th>품목명</th>
             <th className="text-right">소모(판매)금액</th>
@@ -153,25 +151,26 @@ export default function AsRepairStatusPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r) => (
             <tr key={r.id}>
-              <td className="text-center">{dateNo(r.doneDate ?? '', r.asNo)}</td>
+              <td className="text-center">{dateNo(r.repairDate, r.repairNo)}</td>
               <td>{r.title ?? ''}</td>
               <td>{r.partnerName}</td>
-              <td>{r.charge ?? ''}</td>
-              <td>{r.itemName}</td>
-              <td className="text-right">{won(used.get(r.asNo) ?? 0)}</td>
-              <td>{r.repairNote ?? ''}</td>
+              <td>{r.repairTypeName ?? ''}</td>
+              <td>{r.charge}</td>
+              <td>{r.lines[0]?.itemName ?? ''}</td>
+              <td className="text-right">{won(Number(r.saleAmount))}</td>
+              <td>{r.content ?? ''}</td>
             </tr>
           ))}
         </tbody>
         <tfoot>
           <tr style={{ fontWeight: 700, background: 'rgb(243, 243, 243)' }}>
             {/* 원본 합계 줄: 소모금액 앞 칸을 다 묶어 가운데 · 바탕 rgb(243,243,243) · 굵게(2026-10-03 실측). */}
-            <td colSpan={5} className="text-center">합계</td>
+            <td colSpan={6} className="text-center">합계</td>
             <td className="text-right">{won(total)}</td>
             <td></td>
           </tr>

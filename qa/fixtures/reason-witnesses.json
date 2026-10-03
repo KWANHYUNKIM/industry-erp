@@ -5082,14 +5082,6 @@
   ],
   "in": "frontend/src/pages/quality/AsRepairStatusPage.tsx"
  },
- "A/S수리현황|수리유형": {
-  "claim": "A/S 가 수리유형을 들지 않는다",
-  "absent": [
-   "repairType",
-   "RepairType"
-  ],
-  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
- },
  "A/S수리현황|결재방표시": {
   "claim": "우리 현황 인쇄는 결재란을 그리지 않는다",
   "absent": [
@@ -5101,7 +5093,7 @@
  "A/S수리현황|정렬/소계기준": {
   "claim": "수리일 오름차순 하나로 세운다",
   "present": [
-   "(a.doneDate ?? '') < (b.doneDate ?? '')"
+   "a.repairDate < b.repairDate"
   ]
  },
  "품질검사조회|출처(요청)구분": {

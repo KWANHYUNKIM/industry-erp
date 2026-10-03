@@ -54,6 +54,8 @@ public final class AsRepairDtos {
             Long id, String repairNo, LocalDate repairDate,
             Long partnerId, String partnerName,
             Long asRequestId, String asNo, LocalDate receiptDate,
+            /** 원본 A/S수리현황 조건 [접수담당자] — 불러온 접수의 담당자. */
+            String receiptCharge,
             Long warehouseId, String warehouseName,
             String charge, AsRepairType repairType, String repairTypeCode, String repairTypeName,
             String title, String content,
@@ -72,6 +74,7 @@ public final class AsRepairDtos {
                     r.getAsRequest() != null ? r.getAsRequest().getId() : null,
                     r.getAsRequest() != null ? r.getAsRequest().getAsNo() : null,
                     r.getAsRequest() != null ? r.getAsRequest().getReceiptDate() : null,
+                    r.getAsRequest() != null ? r.getAsRequest().getCharge() : null,
                     r.getWarehouse().getId(), r.getWarehouse().getName(),
                     r.getCharge(), r.getRepairType(),
                     r.getRepairType() != null ? r.getRepairType().code() : null,

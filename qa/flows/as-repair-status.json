@@ -1,0 +1,23 @@
+{
+  "about": "A/S수리현황(E040611) — 2026-10-03 원본: A/S수리 전표를 한 줄씩(일자-No. · 제목 · 거래처명 · 수리유형명 · 담당자명 · 품목명 · 소모(판매)금액 · 수리내용) + 합계. 소모(판매)금액은 판매연결전표의 합계. 구매로 재고를 넣고 수리 + 판매연결을 만든 뒤 보고 모두 지운다.",
+  "shots": [
+    {
+      "name": "수리(유상수리) + 판매연결 2×3,000 → 현황 줄에 수리유형명 · 6,600 → 수리유형 조건 무상교환이면 안 보임 → 지움",
+      "path": "/quality/as-repair-status",
+      "steps": [
+        "wait:2000",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => (r.status === 204 ? null : r.json())); const [pa, it, wh] = await Promise.all([A('GET', '/partners'), A('GET', '/items'), A('GET', '/warehouses')]); const c = pa[0], w = wh[0], i = it[0]; const pur = await A('POST', '/purchases', { partnerId: c.id, warehouseId: w.id, remark: 'QA재고2', lines: [{ itemId: i.id, quantity: 5, unitPrice: 1000 }] }); const r = await A('POST', '/as-repairs', { partnerId: c.id, warehouseId: w.id, charge: 'QA기사', repairType: 'PAID_REPAIR', title: 'QA재고2-수리현황', content: 'QA수리내용', lines: [{ itemId: i.id, quantity: 1 }] }); const linked = await A('POST', '/as-repairs/' + r.id + '/sales', { lines: [{ itemId: i.id, quantity: 2, unitPrice: 3000 }] }); sessionStorage.setItem('reps', JSON.stringify({ id: r.id, sale: linked.sales[0].salesId, pur: pur.id })); return '금액 ' + linked.saleAmount })()",
+        "js:location.reload(); true",
+        "wait:3000",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA재고2-수리현황') && tr.innerText.includes('유상수리') && tr.innerText.includes('QA기사') && tr.innerText.includes('6,600') && tr.innerText.includes('QA수리내용'))",
+        "expect:[...document.querySelectorAll('th')].map((t) => t.innerText.trim()).join('|').includes('거래처명|수리유형명|담당자명')",
+        "js:(() => { const s = [...document.querySelectorAll('select')].find((x) => [...x.options].some((o) => o.text === '무상교환')); s.value = 'FREE_EXCHANGE'; s.dispatchEvent(new Event('change', { bubbles: true })); return true })()",
+        "wait:500",
+        "expect:![...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA재고2-수리현황'))",
+        "js:(async () => { const x = JSON.parse(sessionStorage.getItem('reps')); const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; await fetch('/api/as-repairs/' + x.id + '/sales/' + x.sale, { method: 'DELETE', headers: H }); const d = await fetch('/api/as-repairs/' + x.id, { method: 'DELETE', headers: H }); await fetch('/api/purchases/' + x.pur, { method: 'DELETE', headers: H }); return '수리 삭제 ' + d.status })()"
+      ]
+    }
+  ]
+}
