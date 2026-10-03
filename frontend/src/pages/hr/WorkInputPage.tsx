@@ -146,7 +146,7 @@ export default function WorkInputPage() {
       <div className="flex gap-[6px] mb-[6px]">
         <button type="button" className="ec-btn ec-btn-sm" onClick={() => setSortOpen(true)}>정렬</button>
       </div>
-      <Modal open={sortOpen} title="정렬기준" width={560} onClose={() => setSortOpen(false)}>
+      <Modal error={error} open={sortOpen} title="정렬기준" width={560} onClose={() => setSortOpen(false)}>
         <ul className="ec-form">
           <li className="wide">
             <span className="title">정렬기준</span>
