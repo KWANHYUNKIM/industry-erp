@@ -8,6 +8,7 @@ import { dateText } from '../../utils/dateText'
 import { dateNo } from '../../utils/dateNo'
 import { EcReportHead, EcReportFoot, reportPeriod } from '../../components/EcReportFrame'
 import EcPeriodPicks, { periodOf, LOT_LEDGER_PICKS } from '../../components/EcPeriodPicks'
+import { expiryDirectRange } from '../../utils/expiryRange'
 
 /**
  * 재고 II &gt; 시리얼/로트No. &gt; <b>시리얼/로트No.재고수불부</b>(E040620) — 2026-10-03 loginaa 실측(자료가 든 판).
@@ -179,6 +180,8 @@ export default function LotLedgerPage() {
                     setExpiryOpt(v)
                     const r = v === '사용안함' || v === '직접입력' ? null : periodOf(v)
                     if (r) { setExpFrom(r.from); setExpTo(r.to) }
+                    /* 원본 직접입력 — 오늘 ~ 5년 뒤 하루 전(2026-10-04 실측). */
+                    if (v === '직접입력') { const d = expiryDirectRange(periodOf('금일')!.from); setExpFrom(d.from); setExpTo(d.to) }
                     if (v === '사용안함') { setExpFrom(''); setExpTo('') }
                   }}>
             {EXPIRY_OPTS.map((o) => <option key={o} value={o}>{o}</option>)}

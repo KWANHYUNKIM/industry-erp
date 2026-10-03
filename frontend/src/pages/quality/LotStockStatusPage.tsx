@@ -6,6 +6,7 @@ import EcPeriodPicks, { ymd, INQUIRY_PICKS, periodOf } from '../../components/Ec
 import { api, extractErrorMessage } from '../../api/client'
 import type { Lot } from '../../types/api'
 import { dateText } from '../../utils/dateText'
+import { expiryDirectRange } from '../../utils/expiryRange'
 
 /**
  * 재고 II &gt; 시리얼/로트No. &gt; <b>시리얼/로트No.재고현황</b> (이카운트 E040619)
@@ -145,6 +146,8 @@ export default function LotStockStatusPage() {
                     setExpiryOpt(v)
                     const r = v === '사용안함' || v === '직접입력' ? null : periodOf(v)
                     if (r) { setExpFrom(r.from); setExpTo(r.to) }
+                    /* 원본 직접입력 — 오늘 ~ 5년 뒤 하루 전(2026-10-04 실측). */
+                    if (v === '직접입력') { const d = expiryDirectRange(periodOf('금일')!.from); setExpFrom(d.from); setExpTo(d.to) }
                     if (v === '사용안함') { setExpFrom(''); setExpTo('') }
                   }}>
             {EXPIRY_OPTS.map((o) => <option key={o} value={o}>{o}</option>)}
