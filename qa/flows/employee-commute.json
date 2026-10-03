@@ -1,0 +1,32 @@
+{
+  "about": "관리 > 출/퇴근기록부(사원)(E020726) — [신규(F2)] 창에서 사원 · 시간(오늘 09:00)을 넣고 [출근] 하면 달력 오늘 칸에 '1(1 + 0)'. 같은 사원으로 다시 열면 단추가 [퇴근]이 되고 18:00 으로 퇴근하면 [리스트]에 출근 · 퇴근시간 · 내근이 보인다. 선택삭제('선택한 사원의 근무기록을 삭제하겠습니까?')로 지운다.",
+  "shots": [
+    {
+      "name": "출근 → 달력 → 퇴근 → 리스트 → 삭제",
+      "path": "/hr/employee-commutes",
+      "steps": [
+        "js:window.confirm=()=>true;(()=>{const d=new Date();sessionStorage.setItem('qaEcDay',d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));return true})()",
+        "click:신규(F2)",
+        "pick:사원:EMP-0001",
+        "js:(()=>{const el=document.querySelector('[role=dialog] input[type=datetime-local]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,sessionStorage.getItem('qaEcDay')+'T09:00');el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));return true})()",
+        "setnear:사유|QA관리-출근",
+        "clicklast:출근",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('table tbody td')].some(td=>td.querySelector('div')?.textContent===String(Number(sessionStorage.getItem('qaEcDay').slice(8)))&&/\\d+\\(\\d+ \\+ \\d+\\)/.test(td.innerText))",
+        "click:신규(F2)",
+        "pick:사원:EMP-0001",
+        "js:(()=>{const el=document.querySelector('[role=dialog] input[type=datetime-local]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,sessionStorage.getItem('qaEcDay')+'T18:00');el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));return true})()",
+        "expect:[...document.querySelectorAll('[role=dialog] button')].some(b=>b.textContent==='퇴근')",
+        "clicklast:퇴근",
+        "wait:1200",
+        "click:리스트",
+        "wait:1000",
+        "expect:[...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes('오전 9:00:00')&&t.innerText.includes('오후 6:00:00')&&t.innerText.includes('내근'))",
+        "js:(()=>{const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('오전 9:00:00')&&t.innerText.includes('오후 6:00:00'));tr.querySelector('input[type=checkbox]').click();return true})()",
+        "click:선택삭제",
+        "wait:1200",
+        "expect:![...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes('오전 9:00:00')&&t.innerText.includes('오후 6:00:00'))"
+      ]
+    }
+  ]
+}

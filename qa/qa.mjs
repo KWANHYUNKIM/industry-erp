@@ -10441,6 +10441,7 @@ async function main() {
   await scenarioDailyWorker()
   await scenarioAttendanceKind()
   await scenarioCommuteRule()
+  await scenarioEmployeeCommute()
   await scenarioPressedTwice(fixtures)
   await scenarioNoPermission()
   await scenarioNewCompany()
@@ -11135,6 +11136,22 @@ async function scenarioCommuteRule() {
   eq('수정 · 사용중단', `${off.methodName}/${off.basisName}/${off.active}`, '조퇴/직접설정/false')
   await must('DELETE', `/hr/commute-rules/${r.id}`)
   eq('지운 기준은 목록에 없다', (await must('GET', '/hr/commute-rules')).some((x) => x.id === r.id), 'false')
+}
+
+/** 관리 › 출/퇴근기록부(사원)(원본 E020726) — 출근 → 퇴근 → 세 번째는 막기 · 퇴근이 출근보다 앞서면 막기 · 삭제. */
+async function scenarioEmployeeCommute() {
+  section('■ 출/퇴근기록부(사원) — 출근 · 퇴근 · 막기 · 삭제')
+  const emp = (await must('GET', '/employees'))[0]
+  await rejects('시간이 비면 막는다', 'POST', '/hr/employee-commutes/clock', { employeeId: emp.id }, '시간을 입력')
+  const a = await must('POST', '/hr/employee-commutes/clock', { employeeId: emp.id, at: '2091-05-02T09:00:00', place: '사무실', outside: true })
+  eq('그날 처음은 출근', `${a.clockIn}/${a.clockOut}/${a.outside}`, '2091-05-02T09:00:00/null/true')
+  await rejects('퇴근시간이 출근보다 앞서면 막는다', 'POST', '/hr/employee-commutes/clock', { employeeId: emp.id, at: '2091-05-02T08:00:00' }, '퇴근시간이 출근시간보다')
+  const b = await must('POST', '/hr/employee-commutes/clock', { employeeId: emp.id, at: '2091-05-02T18:30:00' })
+  eq('두 번째는 퇴근', b.clockOut, '2091-05-02T18:30:00')
+  await rejects('세 번째는 막는다', 'POST', '/hr/employee-commutes/clock', { employeeId: emp.id, at: '2091-05-02T19:00:00' }, '이미 퇴근한 사원')
+  eq('기간 조회', (await must('GET', '/hr/employee-commutes?from=2091-05-01&to=2091-05-31')).filter((x) => x.id === a.id).length, 1)
+  await must('DELETE', `/hr/employee-commutes/${a.id}`)
+  eq('지운 기록은 없다', (await must('GET', '/hr/employee-commutes?from=2091-05-01&to=2091-05-31')).some((x) => x.id === a.id), 'false')
 }
 
 async function scenarioRollback(f) {
