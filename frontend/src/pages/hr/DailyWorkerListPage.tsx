@@ -89,8 +89,9 @@ export default function DailyWorkerListPage() {
   const allChecked = shown.length > 0 && shown.every((r) => checked.has(r.id))
   const set = (patch: Partial<Form>) => setForm((f) => ({ ...f, ...patch }))
 
-  async function openNew() {
-    setEditId(null); setForm(blankForm()); setFormError(''); setTab('기본'); setOpen(true)
+  /** base 를 주면 그 값으로 새 사원을 연다 — 원본 [복사](사원번호만 새로 매긴다). */
+  async function openNew(base?: Form) {
+    setEditId(null); setForm(base ?? blankForm()); setFormError(''); setTab('기본'); setOpen(true)
     try {
       const r = await api.get<{ code: string }>('/hr/daily-workers/next-code')
       setForm((f) => (f.code ? f : { ...f, code: r.data.code }))
@@ -120,6 +121,17 @@ export default function DailyWorkerListPage() {
     try {
       if (editId) await api.put(`/hr/daily-workers/${editId}`, body)
       else await api.post('/hr/daily-workers', body)
+      setOpen(false)
+      load()
+    } catch (e) {
+      setFormError(extractErrorMessage(e))
+    }
+  }
+
+  async function deleteOne() {
+    if (!editId || !window.confirm('한번 지워진 자료는 복구될 수 없습니다.\n\n삭제하겠습니까?')) return
+    try {
+      await api.delete(`/hr/daily-workers/${editId}`)
       setOpen(false)
       load()
     } catch (e) {
@@ -157,7 +169,7 @@ export default function DailyWorkerListPage() {
       search={quick}
       onSearchChange={setQuick}
       onSearch={load}
-      onNew={openNew}
+      onNew={() => openNew()}
       actions={[
         { label: '화면인쇄', onClick: () => window.print() },
         { label: '변경', onClick: () => {
@@ -335,7 +347,10 @@ export default function DailyWorkerListPage() {
         )}
         <div className="flex gap-[6px] mt-[12px]">
           <button type="button" className="ec-btn ec-btn-primary" onClick={save}>저장(F8)</button>
+          {/* 원본 수정 창 버튼(2026-10-04 실측): 저장(F8) · 복사 · 다시 작성 · 삭제 · 닫기 · H */}
+          {editId && <button type="button" className="ec-btn" onClick={() => openNew({ ...form, code: '' })}>복사</button>}
           <button type="button" className="ec-btn" onClick={() => { const w = rows.find((x) => x.id === editId); if (w) openEdit(w); else setForm({ ...blankForm(), code: form.code }) }}>다시 작성</button>
+          {editId && <button type="button" className="ec-btn" onClick={deleteOne}>삭제</button>}
           <button type="button" className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
         </div>
       </Modal>
