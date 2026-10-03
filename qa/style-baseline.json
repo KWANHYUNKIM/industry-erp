@@ -944,11 +944,6 @@
   "color": 0,
   "palette": 0
  },
- "pages/quality/AsRepairListPage.tsx": {
-  "inline": 4,
-  "color": 2,
-  "palette": 0
- },
  "pages/quality/AsRepairStatusPage.tsx": {
   "inline": 6,
   "color": 2,
