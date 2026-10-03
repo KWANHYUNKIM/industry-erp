@@ -677,7 +677,12 @@ function QuotationForm({ items, partners, warehouses, projects, onClose, onSaved
 
   const calc = lines.map((l) => (Number(l.quantity) || 0) * (Number(l.unitPrice) || 0))
   const supply = calc.reduce((a, b) => a + b, 0)
-  const vat = Math.round(supply * 0.1)
+  /*
+   * 부가세는 <b>줄마다</b> 원 단위로 반올림해 더한다 — 서버(QuotationService)가 그렇게 저장한다.
+   * 합계에 한 번 반올림하면 1,665원 줄 둘이 333원(저장은 167+167=334원)으로 미리보기와 저장값이 갈렸다.
+   * ÷10 으로 재는 것은 ×0.1 의 부동소수 오차(…4999)를 피하려는 것이다.
+   */
+  const vat = calc.reduce((a, s) => a + Math.round(s / 10), 0)
 
   async function save() {
     setError('')
