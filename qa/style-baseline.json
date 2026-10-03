@@ -985,8 +985,8 @@
   "palette": 0
  },
  "pages/quality/QualityRequestPage.tsx": {
-  "inline": 22,
-  "color": 2,
+  "inline": 3,
+  "color": 0,
   "palette": 0
  },
  "pages/quality/QualityRequestStatusPage.tsx": {

@@ -22,4 +22,8 @@ public interface QualityInspectionRepository extends JpaRepository<QualityInspec
             "where q.inspectionDate between :from and :to " +
             "order by q.inspectionDate desc, q.id desc")
     List<QualityInspection> findWithRefsByPeriod(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /** 요청에 이어진 검사들 — 요청의 [연결전표] · 남은 수량을 셈한다. */
+    @Query("select q from QualityInspection q where q.request.id in :ids order by q.inspectionDate, q.id")
+    List<QualityInspection> findByRequestIds(@Param("ids") java.util.Collection<Long> ids);
 }

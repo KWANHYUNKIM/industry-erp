@@ -951,6 +951,9 @@ export interface QualityInspection {
   /** 원본 품질검사입력의 품목 줄 — 머리의 품목 · 검사수량(시료 합) · 불량수량(부적격 합)은 여기서 모은 값이다. */
   lines: QualityInspectionLine[]
   totalQuantity: number
+  /** 불러온 검사요청(원본 목록의 [출처]). */
+  requestId: number | null
+  requestNo: string | null
 }
 
 export interface QualityInspectionLine {
@@ -998,6 +1001,13 @@ export interface QualityInspectionRequest {
   samplePercent: number | null
   requester: string | null
   remark: string | null
+  /** 원본 품질검사요청입력의 품목 줄(2026-10-04 실측). 머리의 품목 · 요청수량은 여기서 모은 값이다. */
+  lines: { id: number; lineNo: number; itemId: number; itemCode: string; itemName: string; spec: string | null; method: 'FULL' | 'SAMPLING'; methodName: string; quantity: number }[]
+  /** 원본 [연결전표] — 이 요청을 [검사요청] 으로 불러와 만든 검사들. */
+  inspections: { id: number; inspectionNo: string; inspectionDate: string; quantity: number }[]
+  inspectedQty: number
+  /** 원본 [잔량적용] 이 불러오는 남은 수량. */
+  remainingQty: number
 }
 
 // ===== 재고 창고간이동 =====

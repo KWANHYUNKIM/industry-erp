@@ -98,6 +98,11 @@ public class QualityInspection extends BaseTimeEntity {
     @Column(length = 300)
     private String remark;
 
+    /** 원본 [검사요청] 으로 불러온 요청 — 요청 목록의 [연결전표] 가 이 검사다. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "request_id")
+    private com.erp.quality.inspectionrequest.QualityInspectionRequest request;
+
     /** 원본 [종결여부] — 저장하면 진행중, 목록에서 누르면 완료(2026-10-04 실측). */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

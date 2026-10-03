@@ -2891,38 +2891,13 @@
   ],
   "in": "backend/src/main/java/com/erp/production/production/Production.java"
  },
- "품질검사요청조회|품목명(요약)": {
-  "claim": "요청 한 건이 품목 하나짜리라 요약할 것이 없다",
+ "품질검사요청입력|추가수량": {
+  "claim": "추가수량을 들지 않는다",
   "absent": [
-   "lines",
-   "List<"
+   "additionalQty",
+   "extraQty"
   ],
-  "in": "backend/src/main/java/com/erp/quality/inspectionrequest/dto/QualityRequestDtos.java"
- },
- "품질검사요청조회|수량합계": {
-  "claim": "요청 한 건이 품목 하나짜리라 합칠 줄이 없다 — [수량] 이 곰 그 값이다",
-  "absent": [
-   "lines",
-   "List<"
-  ],
-  "in": "backend/src/main/java/com/erp/quality/inspectionrequest/dto/QualityRequestDtos.java"
- },
- "품질검사요청조회|연결전표": {
-  "claim": "검사요청이 근거 전표를 물지 않는다",
-  "absent": [
-   "sourceDoc",
-   "purchase",
-   "salesOrder"
-  ],
-  "in": "backend/src/main/java/com/erp/quality/inspectionrequest/dto/QualityRequestDtos.java"
- },
- "품질검사요청조회|생성한전표": {
-  "claim": "요청에서 검사 전표를 자동으로 만들지 않는다",
-  "absent": [
-   "inspection",
-   "createdSlip"
-  ],
-  "in": "backend/src/main/java/com/erp/quality/inspectionrequest/dto/QualityRequestDtos.java"
+  "in": "backend/src/main/java/com/erp/quality/inspectionrequest/QualityInspectionRequestLine.java"
  },
  "품질검사요청조회|창고": {
   "claim": "검사요청이 창고를 안 든다",

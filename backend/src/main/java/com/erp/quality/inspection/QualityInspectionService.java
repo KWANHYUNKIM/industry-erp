@@ -32,6 +32,8 @@ public class QualityInspectionService {
     /* 다른 모듈의 값은 그 모듈의 service 를 거친다(CLAUDE.md 4.2). */
     private final WarehouseService warehouseService;
     private final ProjectService projectService;
+    /* 같은 모듈 — [검사요청] 으로 불러온 요청의 종결여부를 다시 본다. */
+    private final com.erp.quality.inspectionrequest.QualityInspectionRequestService requestService;
 
     @Transactional(readOnly = true)
     public List<InspectionResponse> findAll() {
@@ -71,7 +73,9 @@ public class QualityInspectionService {
                 .remark(req.remark())
                 .build();
         applyContent(q, req);
-        return InspectionResponse.from(inspectionRepository.save(q));
+        QualityInspection saved = inspectionRepository.save(q);
+        refreshRequest(saved.getRequest());
+        return InspectionResponse.from(saved);
     }
 
     /** 수정 — 줄을 통째로 바꾼다. 일자는 그대로(번호가 일자를 문다). */
@@ -81,7 +85,10 @@ public class QualityInspectionService {
         if (req.type() != null) q.setType(req.type());
         if (req.inspector() != null && !req.inspector().isBlank()) q.setInspector(req.inspector());
         q.setRemark(req.remark());
+        com.erp.quality.inspectionrequest.QualityInspectionRequest before = q.getRequest();
         applyContent(q, req);
+        refreshRequest(before);
+        if (q.getRequest() != before) refreshRequest(q.getRequest());
         return InspectionResponse.from(q);
     }
 
@@ -145,6 +152,14 @@ public class QualityInspectionService {
         q.setLot(req.lotNo() != null && !req.lotNo().isBlank() ? lotService.findByLotNo(req.lotNo()).orElse(null) : null);
         q.setWarehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()));
         q.setProject(req.projectId() == null ? null : projectService.get(req.projectId()));
+        q.setRequest(req.requestId() == null ? null : requestService.getRequest(req.requestId()));
+    }
+
+    /** 요청의 [종결여부] 를 이어진 검사 수량으로 다시 본다 — 저장한 검사가 먼저 DB 에 닿아야 센다. */
+    private void refreshRequest(com.erp.quality.inspectionrequest.QualityInspectionRequest r) {
+        if (r == null) return;
+        inspectionRepository.flush();
+        requestService.refreshStatus(r);
     }
 
     /** 옛 모양(품목 하나) → 전수 줄 하나. 시료 = 검사수량, 부적격 = 불량수량. */
@@ -166,7 +181,10 @@ public class QualityInspectionService {
 
     @Transactional
     public void delete(Long id) {
-        inspectionRepository.delete(getInspection(id));
+        QualityInspection q = getInspection(id);
+        com.erp.quality.inspectionrequest.QualityInspectionRequest r = q.getRequest();
+        inspectionRepository.delete(q);
+        refreshRequest(r);
     }
 
     /** 판정 미지정 시 자동판정: 불량 0=합격, 불량률<3%=조건부합격, 그 외 불합격 */

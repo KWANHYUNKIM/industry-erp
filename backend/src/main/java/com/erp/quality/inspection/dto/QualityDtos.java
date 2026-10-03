@@ -45,7 +45,9 @@ public final class QualityDtos {
             @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
             String remark,
             /* 원본 품질검사입력의 품목 줄(2026-10-04 실측). */
-            List<@Valid InspectionLineRequest> lines
+            List<@Valid InspectionLineRequest> lines,
+            /* 원본 [검사요청] 으로 불러온 요청 — 그 요청의 [연결전표] 가 이 검사가 된다. */
+            Long requestId
     ) {}
 
     /** 품목 줄 — 적격은 서버가 시료 − 부적격으로 셈한다. 전수면 시료 = 수량이다. */
@@ -95,7 +97,9 @@ public final class QualityDtos {
             String inspector, String remark,
             /* 원본 [종결여부] · 품목 줄 · 줄 수량 합(원본 목록 [수량]). */
             InspectionStatus status, String statusName,
-            List<InspectionLineResponse> lines, BigDecimal totalQuantity
+            List<InspectionLineResponse> lines, BigDecimal totalQuantity,
+            /* 불러온 검사요청(원본 목록의 [출처]). */
+            Long requestId, String requestNo
     ) {
         public static InspectionResponse from(QualityInspection q) {
             BigDecimal good = q.getInspectedQty().subtract(q.getDefectQty());
@@ -119,7 +123,9 @@ public final class QualityDtos {
                     q.getInspector(), q.getRemark(),
                     q.getStatus(), q.getStatus().getDisplayName(),
                     q.getLines().stream().map(InspectionLineResponse::from).toList(),
-                    q.getLines().stream().map(QualityInspectionLine::getQuantity).reduce(BigDecimal.ZERO, BigDecimal::add));
+                    q.getLines().stream().map(QualityInspectionLine::getQuantity).reduce(BigDecimal.ZERO, BigDecimal::add),
+                    q.getRequest() != null ? q.getRequest().getId() : null,
+                    q.getRequest() != null ? q.getRequest().getRequestNo() : null);
         }
     }
 }

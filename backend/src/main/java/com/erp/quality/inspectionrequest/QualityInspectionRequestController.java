@@ -41,6 +41,11 @@ public class QualityInspectionRequestController {
         return ResponseEntity.ok(requestService.create(req, principal.getName()));
     }
 
+    @PutMapping("/{id}")
+    public RequestResponse update(@PathVariable Long id, @Valid @RequestBody CreateRequestReq req) {
+        return requestService.update(id, req);
+    }
+
     @PatchMapping("/{id}/status")
     public RequestResponse updateStatus(@PathVariable Long id, @Valid @RequestBody UpdateStatusReq req) {
         return requestService.updateStatus(id, req.status());

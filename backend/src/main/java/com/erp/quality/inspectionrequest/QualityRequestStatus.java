@@ -5,8 +5,8 @@ package com.erp.quality.inspectionrequest;
  * 미검사현황은 REQUESTED 상태의 요청을 말한다.
  */
 public enum QualityRequestStatus {
-    REQUESTED("요청"),
-    INSPECTED("검사완료"),
+    REQUESTED("진행중"),
+    INSPECTED("완료"),
     CANCELED("취소");
 
     private final String displayName;

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { CommonCode, Item, QualityInspection, QualityInspectionLine } from '../../types/api'
+import type { CommonCode, Item, QualityInspection, QualityInspectionLine, QualityInspectionRequest } from '../../types/api'
+import { dateNo } from '../../utils/dateNo'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import CodePickerField from '../../components/CodePickerField'
@@ -51,7 +52,7 @@ type Tab = '전체' | '진행중' | '완료'
  *       '선택한 전표를 삭제 하겠습니까?', 고른 것이 없으면 '리스트에 선택된 자료가 없습니다.'</li>
  * </ul>
  * 예전 화면은 품목 하나짜리 검사성적(검사구분 · 로트 · 검사수량 · 불량수 · 판정)이라 줄도 시료도 종결여부도 없었다.
- * [확인] 알약(전표 확인 결재)과 [출처](검사요청 · 구매 … 에서 불러오기)는 아직 없다 — 출처 칸은 빈칸이다.
+ * [출처] 는 [검사요청] 으로 불러온 검사만 '검사요청' 으로 찍는다 — 구매 · 생산 … 에서 불러오기와 [확인] 알약(전표 확인 결재)은 아직 없다.
  * 조건 판은 원본 조건 대조표의 것(기준일자 · 품목 · 창고 · 프로젝트)을 그대로 둔다.
  */
 export default function QualityInspectionPage() {
@@ -74,6 +75,14 @@ export default function QualityInspectionPage() {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<QualityInspection | null>(null)
   const [f, setF] = useState({ inspectionDate: today(), inspector: '', remark: '' })
+  /*
+   * 원본 입력 판의 [검사요청] — 진행중 요청을 띄워 [잔량적용] 으로 남은 수량을 줄로 불러온다(2026-10-04 실측: 검색창
+   * '품질검사요청검색창(조회)', 알약 진행중, 단추 잔량적용 · 전체적용). 불러온 요청이 그 요청의 [연결전표] 로 이어진다.
+   */
+  const [requestId, setRequestId] = useState<number | null>(null)
+  const [pullOpen, setPullOpen] = useState(false)
+  const [openRequests, setOpenRequests] = useState<QualityInspectionRequest[]>([])
+  const [pullPick, setPullPick] = useState<number | null>(null)
   const [lines, setLines] = useState<LineForm[]>(emptyLines())
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -118,11 +127,13 @@ export default function QualityInspectionPage() {
     setEditing(null); setFormError('')
     setF({ inspectionDate: today(), inspector: '', remark: '' })
     setLines(emptyLines())
+    setRequestId(null)
     setOpen(true)
   }
   function openEdit(r: QualityInspection) {
     setEditing(r); setFormError('')
     setF({ inspectionDate: r.inspectionDate, inspector: r.inspector ?? '', remark: r.remark ?? '' })
+    setRequestId(r.requestId)
     setLines([...r.lines.map((l) => ({
       method: l.method, itemId: String(l.itemId), quantity: String(l.quantity), sampleQty: String(l.sampleQty),
       defectQty: l.defectQty ? String(l.defectQty) : '', passResult: l.passResult, defectType: l.defectType ?? '',
@@ -148,6 +159,7 @@ export default function QualityInspectionPage() {
       inspectionDate: f.inspectionDate,
       inspector: f.inspector || undefined,
       remark: f.remark || undefined,
+      requestId: requestId ?? undefined,
       lines: filled.map((l) => ({
         itemId: Number(l.itemId), method: l.method, quantity: num(l.quantity),
         sampleQty: sampleOf(l), defectQty: num(l.defectQty), passResult: l.passResult,
@@ -168,6 +180,27 @@ export default function QualityInspectionPage() {
   }
   useShortcut('F8', save, open)
   useShortcut('F2', openNew, !open)
+
+  async function openPull() {
+    setPullPick(null)
+    try {
+      const r = await api.get<QualityInspectionRequest[]>('/quality-inspection-requests', { params: { status: 'REQUESTED' } })
+      setOpenRequests(r.data.filter((x) => x.remainingQty > 0))
+      setPullOpen(true)
+    } catch (err) { setFormError(extractErrorMessage(err)) }
+  }
+  /* [잔량적용] — 아직 검사 안 한 수량만큼. 줄이 하나면 남은 수량, 여럿이면 요청 줄을 그대로(남은 만큼 고쳐 쓴다). */
+  function applyRequest() {
+    const r = openRequests.find((x) => x.id === pullPick)
+    if (!r) return
+    const partial = r.inspectedQty > 0
+    setLines([...r.lines.map((l) => ({
+      ...emptyLine(), method: l.method, itemId: String(l.itemId),
+      quantity: String(partial && r.lines.length === 1 ? r.remainingQty : l.quantity),
+    })), emptyLine()])
+    setRequestId(r.id)
+    setPullOpen(false)
+  }
 
   async function removeIds(ids: number[]) {
     try {
@@ -275,7 +308,7 @@ export default function QualityInspectionPage() {
               <td className="text-right">{qty2(r.inspectedQty)}</td>
               <td className="text-right">{qty2(r.goodQty)}</td>
               <td className="text-right">{r.defectQty ? qty2(r.defectQty) : ''}</td>
-              <td></td>
+              <td>{r.requestNo ? '검사요청' : ''}</td>
               <td className="text-center">
                 <button type="button" className={`ec-link${r.status === 'COMPLETED' ? ' text-ec-warn' : ''}`}
                         onClick={() => toggleStatus(r)}>{r.statusName}</button>
@@ -300,6 +333,12 @@ export default function QualityInspectionPage() {
           </div></li>
         </ul>
 
+        <div className="flex gap-[4px] items-center mt-[8px]">
+          <button type="button" className="ec-btn ec-btn-sm" onClick={openPull}>검사요청</button>
+          {requestId != null && <span className="text-ec-hint text-[12px]">
+            검사요청 {(() => { const r = openRequests.find((x) => x.id === requestId); return r ? dateNo(r.requestDate, r.requestNo) : (editing?.requestNo ?? '') })()}
+          </span>}
+        </div>
         <table className="w-full ec-head700 mt-[8px]">
           <thead><tr>
             <th className="w-[34px]"></th>
@@ -375,6 +414,37 @@ export default function QualityInspectionPage() {
             ? <button className="ec-btn" onClick={() => { if (window.confirm('선택한 전표를 삭제 하겠습니까?')) void removeIds([editing.id]) }}>삭제</button>
             : <button className="ec-btn" onClick={() => setLines(emptyLines())}>다시 작성</button>}
           <button className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
+        </div>
+      </Modal>
+
+      <Modal open={pullOpen} width={760} title="품질검사요청검색창(조회)" error={formError} onClose={() => setPullOpen(false)}>
+        <table className="w-full text-left">
+          <thead><tr>
+            <th className="w-[34px]"></th>
+            <th className="text-center">검사요청번호</th>
+            <th>담당자명</th>
+            <th>품목</th>
+            <th className="text-right">수량</th>
+            <th className="text-right">잔량</th>
+          </tr></thead>
+          <tbody>
+            {openRequests.length === 0
+              ? <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              : openRequests.map((r) => (
+                <tr key={r.id}>
+                  <td className="text-center"><input type="radio" name="qi-pull" checked={pullPick === r.id} onChange={() => setPullPick(r.id)} /></td>
+                  <td className="text-center">{dateNo(r.requestDate, r.requestNo)}</td>
+                  <td>{r.requester ?? ''}</td>
+                  <td>{r.lines.length > 1 ? `${r.lines[0].itemName} 외 ${r.lines.length - 1}건` : r.itemName}</td>
+                  <td className="text-right">{qty0(r.requestQty)}</td>
+                  <td className="text-right">{qty0(r.remainingQty)}</td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+        <div className="flex gap-[4px] mt-[9px]">
+          <button className="ec-btn ec-btn-primary" disabled={pullPick == null} onClick={applyRequest}>잔량적용(F8)</button>
+          <button className="ec-btn" onClick={() => setPullOpen(false)}>닫기</button>
         </div>
       </Modal>
     </EcListShell>

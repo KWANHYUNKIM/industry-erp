@@ -87,4 +87,14 @@ public class QualityInspectionRequest extends BaseTimeEntity {
 
     @Column(length = 300)
     private String remark;
+
+    /**
+     * 품목 줄(원본은 여러 품목을 한 요청으로 낸다). 머리의 품목 · 요청수량은 이 줄에서 모은 값이다
+     * (첫 줄 품목, 수량 합) — 미검사현황 · 품질검사요청현황이 머리를 읽는다.
+     */
+    @OneToMany(mappedBy = "request", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("lineNo")
+    @org.hibernate.annotations.BatchSize(size = 100)
+    @Builder.Default
+    private java.util.List<QualityInspectionRequestLine> lines = new java.util.ArrayList<>();
 }
