@@ -32,8 +32,12 @@ public class ProjectService {
     @Transactional
     public ProjectResponse create(CreateProjectRequest req, String username) {
         LocalDate start = req.startDate() != null ? req.startDate() : LocalDate.now();
+        String code = req.code() == null || req.code().isBlank() ? generateCode(start) : req.code().trim();
+        if (projectRepository.existsByCode(code)) {
+            throw ApiException.conflict("이미 등록된 프로젝트코드입니다: " + code);
+        }
         Project p = Project.builder()
-                .code(generateCode(start))
+                .code(code)
                 .name(req.name())
                 .manager(req.manager())
                 .startDate(start)
@@ -65,6 +69,7 @@ public class ProjectService {
         if (req.progress() != null) p.setProgress(req.progress());
         if (req.status() != null) p.setStatus(req.status());
         if (req.remark() != null) p.setRemark(req.remark());
+        if (req.active() != null) p.setActive(req.active());
 
         // 완료 처리 시 진척률 100 동기화
         if (p.getStatus() == ProjectStatus.DONE) p.setProgress(100);

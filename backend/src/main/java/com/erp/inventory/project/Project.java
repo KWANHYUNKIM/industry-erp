@@ -55,4 +55,9 @@ public class Project extends BaseTimeEntity {
 
     @Column(length = 50)
     private String createdBy;
+
+    /** 원본 프로젝트리스트의 [사용] — [사용중단/재사용]으로 내리고 올린다. */
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean active = true;
 }
