@@ -99,7 +99,7 @@ export default function PayrollPage() {
   if (view === 'report') {
     return (
       <EcListShell title="급여대장" searchable={false} actions={[
-        { label: '인쇄', primary: true, onClick: () => window.print() },
+        { label: '인쇄', primary: true },  // 셸의 기본 인쇄 — 보고서 표를 찍는다
         { label: 'Excel' },
         { label: '사원별 조회', onClick: () => nav(`/hr/payroll/by-employee?ledger=${month}`) },
         { label: '작업 화면', onClick: () => setView('work') },

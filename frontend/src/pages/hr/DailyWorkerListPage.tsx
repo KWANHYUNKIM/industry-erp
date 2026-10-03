@@ -171,7 +171,7 @@ export default function DailyWorkerListPage() {
       onSearch={load}
       onNew={() => openNew()}
       actions={[
-        { label: '화면인쇄', onClick: () => window.print() },
+        { label: '화면인쇄' },  // 셸의 기본 인쇄(결재란 · 표)
         { label: '변경', onClick: () => {
           if (checked.size === 0) { setError('리스트에 선택된 자료가 없습니다. 체크박스에 체크한 후 다시 시도 바랍니다.'); return }
           setError(''); setBulkOpen(true)
