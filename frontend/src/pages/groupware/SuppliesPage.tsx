@@ -256,6 +256,12 @@ ${line('적요', u.remark)}${line('라벨', u.labelText)}${line('반납여부', 
     || r.supplyItemName.includes(keyword)
     || r.userName.includes(keyword)
     || (r.remark ?? '').includes(keyword))
+    /*
+     * 원본 기본 목록은 <b>오래된 날부터</b>(2026/01/23 → 10/23, 같은 날은 시작시간 차례)다 — 원본 사용 20건을 우리 화면으로
+     * 똑같이 넣어 견주다 알았다(2026-10-03). 서버는 최근 날부터 준다(일간 · 월간이 같이 쓰는 차례라 서버는 그대로 둔다).
+     */
+    .sort((a, b) => (a.useDate !== b.useDate ? (a.useDate < b.useDate ? -1 : 1)
+      : (a.startTime ?? '') !== (b.startTime ?? '') ? ((a.startTime ?? '') < (b.startTime ?? '') ? -1 : 1) : a.id - b.id))
 
   /** 일간 · 월간 · 공용품별 — 원본은 묶은 목록이 아니라 시간표 · 달력 · 공용품×시간 표다(2026-10-03 실측). */
   const [cursor, setCursor] = useState(() => new Date())
