@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { leaveNo } from '../../utils/leaveNo'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
@@ -41,6 +42,7 @@ interface Vacation {
   id: number
   /** 전표일자 — 이 근태를 올린 날. 근태일자와 다르다(미리 올릴 수 있다). */
   docDate: string
+  docNo: string | null
   empName: string
   /** 사원번호·직급. 계정이 사원과 안 이어져 있으면 null. */
   empCode: string | null
@@ -349,7 +351,7 @@ export default function AttendanceKindStatusPage() {
               {/* 원본은 [전표일자]를 눌러 그 근태 전표를 연다. 우리는 근태조회로 넘긴다. */}
               <td>
                 <Link to={`/hr/leave-list?emp=${encodeURIComponent(r.empName)}`}
-                      style={{ color: 'var(--ec-blue)' }}>{r.docDate}</Link>
+                      style={{ color: 'var(--ec-blue)' }}>{leaveNo(r.docNo, r.startDate)}</Link>
               </td>
               <td className="text-center">
                 {r.startDate}{r.endDate !== r.startDate ? ` ~ ${r.endDate}` : ''}

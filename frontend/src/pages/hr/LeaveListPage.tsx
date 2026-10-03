@@ -4,6 +4,7 @@ import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { openAppBarPanel } from '../../components/AppBarPanel'
 import { EcCond } from '../../components/EcStatusPanel'
+import { leaveNo } from '../../utils/leaveNo'
 import { api, extractErrorMessage } from '../../api/client'
 import { useDeptGroups } from '../../utils/deptGroups'
 import { printDocuments } from '../../utils/printDocument'
@@ -375,10 +376,3 @@ export default function LeaveListPage() {
 }
 
 const slashDay = (d: string) => d.replace(/-/g, '/')
-
-/** 원본 근태번호 꼴 '2026/10/29 -1' — 우리 번호 AT-20261029-0001 을 그렇게 보인다. */
-function leaveNo(docNo: string | null, startDate: string): string {
-  const m = /^AT-(\d{4})(\d{2})(\d{2})-(\d+)$/.exec(docNo ?? '')
-  if (m) return `${m[1]}/${m[2]}/${m[3]} -${Number(m[4])}`
-  return docNo ?? startDate.replace(/-/g, '/')
-}
