@@ -8,7 +8,8 @@ import type { EmployeeMaster, PayItem, Payslip } from '../../types/api'
 
 interface DeptRow { id: number; name: string; code?: string | null }
 interface Ledger { payMonth: string; name: string }
-type Mode = '라인별' | '급여대장별'
+type Mode = '라인별' | '급여대장별' | '급여대장별부서별' | '급여대장별프로젝트별' | '급여대장별부서별라인별'
+const MODES: Mode[] = ['라인별', '급여대장별', '급여대장별부서별', '급여대장별프로젝트별', '급여대장별부서별라인별']
 type Confirm = '전체' | '미확정' | '확정'
 
 const won = (n: number) => (n ? Number(n).toLocaleString('ko-KR') : '')
@@ -53,9 +54,11 @@ interface Row {
  * 지급구분 · 부서 · 프로젝트 · 사원 · 확정여부(전체 · 미확정 · 확정) · 결재방표시 · 정렬/소계기준.
  * 결과(라인별): 귀속연월-NO · 급여대장명 · 부서명 · 프로젝트명 · 성명 · 수당 항목 전부 · 공제 항목 전부 · 지급총액 ·
  * 공제총액 · 실지급액, 성명 가나다 순, 사원마다 '성명 계', 끝에 합계. 급여대장별은 대장마다 한 줄이고 부서명 · 성명은
- * 그 대장 첫 사원 것이다(원본 그대로).
+ * 그 대장 첫 사원 것이다(원본 그대로). 급여대장별부서별 · 급여대장별부서별라인별은 대장 × 부서마다 한 줄이고 성명은
+ * 그 부서 첫 사원(가나다)이다 — 원본에서 둘이 같은 줄을 냈다(2026-10-03 실측, 경영지원본부 변종호 6,400,000 = 두 사원 기본급 합).
+ * 급여대장별프로젝트별은 명세에 프로젝트가 없어 급여대장별과 같다(프로젝트명 빈칸).
  *
- * <p>구분은 라인별 · 급여대장별만 만들었다. 지급연월 · 지급일 · 급여구분 · 지급구분 · 프로젝트 · 정렬/소계기준 조건은 없다.
+ * <p>사용자지정집계는 없다. 지급연월 · 지급일 · 급여구분 · 지급구분 · 프로젝트 · 정렬/소계기준 조건은 없다.
  */
 export default function PayrollStatusPage() {
   const [mode, setMode] = useState<Mode>('라인별')
@@ -123,11 +126,17 @@ export default function PayrollStatusPage() {
   const lines: Row[] = useMemo(() => {
     const sorted = [...filtered].sort((a, b) => a.employeeName.localeCompare(b.employeeName, 'ko') || a.payMonth.localeCompare(b.payMonth))
     if (mode === '라인별') return sorted.map(toRow)
-    const byMonth = new Map<string, Payslip[]>()
-    for (const p of sorted) byMonth.set(p.payMonth, [...(byMonth.get(p.payMonth) ?? []), p])
-    return [...byMonth.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([m, ps]) => {
+    // 대장(귀속월)마다 · 부서별이면 대장 × 부서마다 한 줄. 프로젝트별은 명세에 프로젝트가 없어 대장별과 같다.
+    const byDept = mode === '급여대장별부서별' || mode === '급여대장별부서별라인별'
+    const groupsBy = new Map<string, Payslip[]>()
+    for (const p of sorted) {
+      const k = byDept ? `${p.payMonth}|${p.department ?? ''}` : p.payMonth
+      groupsBy.set(k, [...(groupsBy.get(k) ?? []), p])
+    }
+    return [...groupsBy.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([k, ps]) => {
       const first = ps[0]
-      return sumRows(ps.map(toRow), { key: m, label: `${m.replace('-', '/')} -1`, ledgerName: ledgerName(m), department: first.department ?? '', employeeName: first.employeeName })
+      const m = first.payMonth
+      return sumRows(ps.map(toRow), { key: k, label: `${m.replace('-', '/')} -1`, ledgerName: ledgerName(m), department: first.department ?? '', employeeName: first.employeeName })
     })
   }, [filtered, mode, ledgers])
 
@@ -154,7 +163,7 @@ export default function PayrollStatusPage() {
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond mb-[8px]">
         <EcCond label="구분">
-          {(['라인별', '급여대장별'] as Mode[]).map((m) => (
+          {MODES.map((m) => (
             <label key={m} className="mr-[10px]"><input type="radio" name="pay-status-mode" checked={mode === m} onChange={() => setMode(m)} /> {m}</label>
           ))}
         </EcCond>
