@@ -346,7 +346,9 @@ public class WithholdingService {
                     list.stream().map(com.erp.accounting.otherwithholding.OtherWithholding::getLocalIncomeTax).reduce(BigDecimal.ZERO, BigDecimal::add)}));
             Map<String, WithholdingDtos.IncomeSection> sections = new java.util.HashMap<>();
             if (reported.contains(month)) statement(month).sections().forEach(sec -> sections.put(sec.code(), sec));
-            if (data.isEmpty() && sections.isEmpty()) continue;
+            boolean anyReported = sections.values().stream()
+                    .anyMatch(sec -> sec.grossPay().signum() != 0 || sec.incomeTax().signum() != 0);
+            if (data.isEmpty() && !anyReported) continue;
             for (String[] k : COMPARISON_KINDS) {
                 BigDecimal[] d = data.get(k[0]);
                 WithholdingDtos.IncomeSection sec = k[1] == null ? null : sections.get(k[1]);
