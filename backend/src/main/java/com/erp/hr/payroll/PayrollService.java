@@ -112,8 +112,8 @@ public class PayrollService {
         // 1-1) 변동수당 — 원본 계산식 'R( 야근수당(급여지급사항) * 야근수당(근무기록확정) , 0 )' 처럼
         //      그 달 근무일자의 근무기록(근무입력) × 단가. 단가는 사원 그룹에 그 항목이 있으면 그 금액,
         //      없으면 항목 기본금액이다. 지급유형이 변동(시간) · 변동(일)인 항목만 셈한다.
-        java.time.YearMonth ym = java.time.YearMonth.parse(req.payMonth());
-        java.util.Map<Long, BigDecimal> worked = workRecordService.sumByItem(emp.getId(), ym.atDay(1), ym.atEndOfMonth());
+        java.time.YearMonth workMonth = java.time.YearMonth.parse(req.payMonth());
+        java.util.Map<Long, BigDecimal> worked = workRecordService.sumByItem(emp.getId(), workMonth.atDay(1), workMonth.atEndOfMonth());
         for (var e : worked.entrySet()) {
             PayItem item = paySettingService.item(e.getKey());
             if (item.getPayMethod() != PayMethod.HOURLY && item.getPayMethod() != PayMethod.DAILY) continue;
