@@ -1065,8 +1065,8 @@
   "palette": 0
  },
  "pages/trade/ExportPage.tsx": {
-  "inline": 90,
-  "color": 41,
+  "inline": 0,
+  "color": 1,
   "palette": 0
  },
  "pages/trade/ItemEntryPage.tsx": {

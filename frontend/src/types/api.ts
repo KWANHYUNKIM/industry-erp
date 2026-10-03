@@ -2552,6 +2552,12 @@ export interface ExportOrderLine {
   quantity: number
   unitPrice: number
   amount: number
+  /** 원본 품목 격자의 패킹리스트 칸(2026-10-04). */
+  marks: string | null
+  description: string | null
+  netWeight: number | null
+  grossWeight: number | null
+  measurement: number | null
 }
 
 export interface ExportOrder {
@@ -2579,6 +2585,20 @@ export interface ExportOrder {
   /** 원본 [기타]의 [수정일자순(정렬)] 이 쓰는 축. */
   updatedAt: string | null
   lines: ExportOrderLine[]
+  /* 원본 Invoice/Packing List 입력 머리(2026-10-04 실측). voucherDate 가 목록 [Voucher Date] 다. */
+  voucherDate: string
+  lcNo: string | null
+  lcDate: string | null
+  lcBank: string | null
+  shipper: string | null
+  messrs: string | null
+  notifyParty: string | null
+  portOfLoading: string | null
+  carrier: string | null
+  sailingDate: string | null
+  weightUnit: string | null
+  /** 원본 목록 탭 [미확인] · [확인]. */
+  confirmed: boolean
 }
 
 export interface ExportSummary {
