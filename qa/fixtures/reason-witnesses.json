@@ -418,13 +418,6 @@
   ],
   "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrder.java"
  },
- "A/S접수|전체": {
-  "claim": "A/S 전표에 결재·확인 상태가 없다",
-  "absent": [
-   "confirmStatus"
-  ],
-  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
- },
  "A/S접수|확인": {
   "claim": "A/S 전표에 결재·확인 상태가 없다",
   "absent": [
@@ -1931,14 +1924,6 @@
    "status"
   ],
   "in": "backend/src/main/java/com/erp/trade/salesplan/SalesPlan.java"
- },
- "A/S접수조회|전체": {
-  "claim": "A/S 상태는 접수·처리중·완료·취소뿐이라 확인 단계가 없다",
-  "absent": [
-   "CONFIRMED",
-   "APPROVED"
-  ],
-  "in": "backend/src/main/java/com/erp/quality/asrequest/AsStatus.java"
  },
  "A/S접수조회|확인": {
   "claim": "A/S 상태는 접수·처리중·완료·취소뿐이라 확인 단계가 없다",
@@ -3964,11 +3949,13 @@
   ]
  },
  "A/S접수입력|&nbsp;": {
-  "claim": "A/S 전표에 줄을 담는 자리가 없다 — 수리 대상 품목 하나를 들고, 쓴 부품은 [부품] 창에서 따로 단다. 격자가 없으니 그 열들도 없다",
+  "claim": "A/S접수 줄은 품목 · 수량만 든다 — 규격 · 단위 · 추가수량 칸이 줄에 없다",
+  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequestLine.java",
   "absent": [
-   "OneToMany"
-  ],
-  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
+   "unit",
+   "spec",
+   "extraQuantity"
+  ]
  },
  "매출계획입력|&nbsp;": {
   "claim": "매출계획에 줄을 담는 자리가 없다 — 한 줄이 곧 한 계획(품목+월+축)이라 격자가 없고, 그 열들도 없다",
@@ -4311,89 +4298,102 @@
   ],
   "in": "backend/src/main/java/com/erp/trade/salesplan/SalesPlan.java"
  },
- "A/S접수입력|품목코드": {
-  "claim": "A/S 전표에 줄을 담는 자리가 없다 — 수리 대상 품목 하나를 들고, 쓴 부품은 [부품] 창에서 따로 단다. 격자가 없으니 그 열들도 없다",
-  "absent": [
-   "OneToMany"
-  ],
-  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
- },
- "A/S접수입력|품목명": {
-  "claim": "A/S 전표에 줄을 담는 자리가 없다 — 수리 대상 품목 하나를 들고, 쓴 부품은 [부품] 창에서 따로 단다. 격자가 없으니 그 열들도 없다",
-  "absent": [
-   "OneToMany"
-  ],
-  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
- },
  "A/S접수입력|규격": {
-  "claim": "A/S 전표에 줄을 담는 자리가 없다 — 수리 대상 품목 하나를 들고, 쓴 부품은 [부품] 창에서 따로 단다. 격자가 없으니 그 열들도 없다",
+  "claim": "A/S접수 줄은 품목 · 수량만 든다 — 규격 · 단위 · 추가수량 칸이 줄에 없다",
+  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequestLine.java",
   "absent": [
-   "OneToMany"
-  ],
-  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
+   "unit",
+   "spec",
+   "extraQuantity"
+  ]
  },
  "A/S접수입력|추가수량": {
-  "claim": "A/S 전표에 줄을 담는 자리가 없다 — 수리 대상 품목 하나를 들고, 쓴 부품은 [부품] 창에서 따로 단다. 격자가 없으니 그 열들도 없다",
+  "claim": "A/S접수 줄은 품목 · 수량만 든다 — 규격 · 단위 · 추가수량 칸이 줄에 없다",
+  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequestLine.java",
   "absent": [
-   "OneToMany"
-  ],
-  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
+   "unit",
+   "spec",
+   "extraQuantity"
+  ]
  },
  "A/S접수입력|단위": {
-  "claim": "A/S 전표에 줄을 담는 자리가 없다 — 수리 대상 품목 하나를 들고, 쓴 부품은 [부품] 창에서 따로 단다. 격자가 없으니 그 열들도 없다",
+  "claim": "A/S접수 줄은 품목 · 수량만 든다 — 규격 · 단위 · 추가수량 칸이 줄에 없다",
+  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequestLine.java",
   "absent": [
-   "OneToMany"
-  ],
-  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
+   "unit",
+   "spec",
+   "extraQuantity"
+  ]
  },
  "A/S접수입력|관리항목": {
-  "claim": "A/S 전표에 줄을 담는 자리가 없다 — 수리 대상 품목 하나를 들고, 쓴 부품은 [부품] 창에서 따로 단다. 격자가 없으니 그 열들도 없다",
+  "claim": "A/S접수 줄은 품목 · 수량만 든다 — 관리항목 · 금액 · 적요 · 시리얼 칸이 줄에 없다",
+  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequestLine.java",
   "absent": [
-   "OneToMany"
-  ],
-  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
+   "mgmt",
+   "amount",
+   "remark",
+   "lotNo"
+  ]
  },
  "A/S접수입력|금액1": {
-  "claim": "A/S 전표에 줄을 담는 자리가 없다 — 수리 대상 품목 하나를 들고, 쓴 부품은 [부품] 창에서 따로 단다. 격자가 없으니 그 열들도 없다",
+  "claim": "A/S접수 줄은 품목 · 수량만 든다 — 관리항목 · 금액 · 적요 · 시리얼 칸이 줄에 없다",
+  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequestLine.java",
   "absent": [
-   "OneToMany"
-  ],
-  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
+   "mgmt",
+   "amount",
+   "remark",
+   "lotNo"
+  ]
  },
  "A/S접수입력|금액2": {
-  "claim": "A/S 전표에 줄을 담는 자리가 없다 — 수리 대상 품목 하나를 들고, 쓴 부품은 [부품] 창에서 따로 단다. 격자가 없으니 그 열들도 없다",
+  "claim": "A/S접수 줄은 품목 · 수량만 든다 — 관리항목 · 금액 · 적요 · 시리얼 칸이 줄에 없다",
+  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequestLine.java",
   "absent": [
-   "OneToMany"
-  ],
-  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
+   "mgmt",
+   "amount",
+   "remark",
+   "lotNo"
+  ]
  },
  "A/S접수입력|적요1": {
-  "claim": "A/S 전표에 줄을 담는 자리가 없다 — 수리 대상 품목 하나를 들고, 쓴 부품은 [부품] 창에서 따로 단다. 격자가 없으니 그 열들도 없다",
+  "claim": "A/S접수 줄은 품목 · 수량만 든다 — 관리항목 · 금액 · 적요 · 시리얼 칸이 줄에 없다",
+  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequestLine.java",
   "absent": [
-   "OneToMany"
-  ],
-  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
+   "mgmt",
+   "amount",
+   "remark",
+   "lotNo"
+  ]
  },
  "A/S접수입력|적요2": {
-  "claim": "A/S 전표에 줄을 담는 자리가 없다 — 수리 대상 품목 하나를 들고, 쓴 부품은 [부품] 창에서 따로 단다. 격자가 없으니 그 열들도 없다",
+  "claim": "A/S접수 줄은 품목 · 수량만 든다 — 관리항목 · 금액 · 적요 · 시리얼 칸이 줄에 없다",
+  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequestLine.java",
   "absent": [
-   "OneToMany"
-  ],
-  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
+   "mgmt",
+   "amount",
+   "remark",
+   "lotNo"
+  ]
  },
  "A/S접수입력|적요3": {
-  "claim": "A/S 전표에 줄을 담는 자리가 없다 — 수리 대상 품목 하나를 들고, 쓴 부품은 [부품] 창에서 따로 단다. 격자가 없으니 그 열들도 없다",
+  "claim": "A/S접수 줄은 품목 · 수량만 든다 — 관리항목 · 금액 · 적요 · 시리얼 칸이 줄에 없다",
+  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequestLine.java",
   "absent": [
-   "OneToMany"
-  ],
-  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
+   "mgmt",
+   "amount",
+   "remark",
+   "lotNo"
+  ]
  },
  "A/S접수입력|시리얼/로트No.": {
-  "claim": "A/S 전표에 줄을 담는 자리가 없다 — 수리 대상 품목 하나를 들고, 쓴 부품은 [부품] 창에서 따로 단다. 격자가 없으니 그 열들도 없다",
+  "claim": "A/S접수 줄은 품목 · 수량만 든다 — 관리항목 · 금액 · 적요 · 시리얼 칸이 줄에 없다",
+  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequestLine.java",
   "absent": [
-   "OneToMany"
-  ],
-  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
+   "mgmt",
+   "amount",
+   "remark",
+   "lotNo"
+  ]
  },
  "설문조사조회|보기항목1": {
   "claim": "사본이 질문 격자가 열린 채로 찍혔다 — 그 격자는 설문조사입력에 그대로 있다",

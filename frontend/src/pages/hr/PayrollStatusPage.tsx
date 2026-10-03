@@ -25,13 +25,8 @@ function pick(label: string) {
     default: return { from: ym(new Date(y, m - 1, 1)), to: ym(n) }
   }
 }
-/**
- * 우리 급여계산이 자동으로 넣는 법정 공제 — 원본 공제리스트의 앞 여섯(2026-10-03 실측 열 이름). 우리 명세 줄 이름
- * 지방소득세 · 장기요양보험은 원본 이름 주민세 · 장기요양 열로 읽는다(사원별급여조회와 같다).
- */
-const STATUTORY = ['소득세', '주민세', '국민연금', '건강보험', '고용보험', '장기요양']
-const RENAME: Record<string, string> = { 지방소득세: '주민세', 장기요양보험: '장기요양' }
-const colOf = (l: { kind: string; name: string }) => (l.kind === 'ALLOWANCE' ? l.name : RENAME[l.name] ?? l.name)
+/** 우리 급여계산이 자동으로 넣는 법정 공제 — 원본 공제리스트의 앞 여섯과 같은 자리(이름은 우리 명세 이름). */
+const STATUTORY = ['소득세', '지방소득세', '국민연금', '건강보험', '고용보험', '장기요양보험']
 
 interface Row {
   key: string
@@ -97,7 +92,7 @@ export default function PayrollStatusPage() {
     const d = [...STATUTORY, ...byOrder('DEDUCTION').filter((n) => !STATUTORY.includes(n))]
     for (const p of filtered) for (const l of p.lines) {
       const bucket = l.kind === 'ALLOWANCE' ? a : d
-      if (!bucket.includes(colOf(l))) bucket.push(colOf(l))
+      if (!bucket.includes(l.name)) bucket.push(l.name)
     }
     return { allowanceCols: a, deductionCols: d }
   }, [items, filtered])
@@ -106,7 +101,7 @@ export default function PayrollStatusPage() {
   const ledgerName = (m: string) => ledgers.find((l) => l.payMonth === m)?.name ?? `${m.replace('-', '/')} 급여`
   const toRow = (p: Payslip): Row => {
     const amounts = new Map<string, number>([['기본급', Number(p.baseSalary)]])
-    for (const l of p.lines) amounts.set(colOf(l), (amounts.get(colOf(l)) ?? 0) + Number(l.amount))
+    for (const l of p.lines) amounts.set(l.name, (amounts.get(l.name) ?? 0) + Number(l.amount))
     return {
       key: String(p.id), label: `${p.payMonth.replace('-', '/')} -1`, ledgerName: ledgerName(p.payMonth),
       department: p.department ?? '', employeeName: p.employeeName, amounts,

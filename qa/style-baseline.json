@@ -940,8 +940,8 @@
   "palette": 0
  },
  "pages/quality/AsManagePage.tsx": {
-  "inline": 40,
-  "color": 3,
+  "inline": 13,
+  "color": 0,
   "palette": 0
  },
  "pages/quality/AsRepairListPage.tsx": {
