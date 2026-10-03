@@ -4,7 +4,7 @@ import Modal from '../../components/Modal'
 import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Item } from '../../api/types'
+import type { Item } from '../../types/api'
 
 /**
  * 생산관리 > BOR(작업소요시간).
@@ -70,6 +70,13 @@ export default function BorPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
+  /*
+   * 원본 BOR(작업소요시간)은 <b>[생산품목]·[생산공정]을 따로</b> 묻는다(대조표 실측).
+   * 우리는 둘을 키워드 한 칸으로 합쳐 두었는데, 그 칸이 <b>셸이 그리는 검색 상자와
+   * 같은 상태</b>라 같은 칸이 화면에 두 번 서 있었다 — 한쪽에 치면 다른 쪽이 같이 변했다.
+   */
+  const [itemCond, setItemCond] = useState('')
+  const [processCond, setProcessCond] = useState('')
   const [useTab, setUseTab] = useState<'전체' | '사용' | '사용중단'>('사용')
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
@@ -150,7 +157,21 @@ export default function BorPage() {
   const shown = rows.filter((r) => !keyword
     || r.productName.includes(keyword) || r.productCode.includes(keyword)
     || r.processName.includes(keyword) || r.workName.includes(keyword))
+    .filter((r) => !itemCond || String(r.productId) === itemCond)
+    .filter((r) => !processCond || String(r.processId) === processCond)
     .filter((r) => useTab === '전체' || (useTab === '사용' ? r.active : !r.active))
+
+  /**
+   * 원본 BOR(작업소요시간) 목록은 <b>BOR 이 없는 품목도</b> 한 줄씩 보인다(2026-10-02 loginaa 실측: 포장김치 · 투광등 ·
+   * 코카콜라 1box 처럼 작업 칸이 빈 줄). 눌러서 바로 BOR 을 등록한다. 품목·공정으로 걸렀거나 [사용중단] 탭이면 안 보인다.
+   */
+  const noBor = useMemo(() => {
+    if (keyword || itemCond || processCond || useTab === '사용중단') return []
+    const has = new Set(rows.map((r) => r.productId))
+    /* 원본은 제품 · 반제품 · 상품만 보인다 — 원재료·부재료는 만드는 품목이 아니라 BOR 을 달 일이 없다. */
+    return items.filter((i) => i.active && !has.has(i.id) && i.category !== 'RAW_MATERIAL' && i.category !== 'SUB_MATERIAL')
+      .sort((a, b) => a.code.localeCompare(b.code))
+  }, [rows, items, keyword, itemCond, processCond, useTab])
 
   /** 품목별 1개당 표준시간 합. 원본은 품목 아래에 작업을 늘어놓으므로 소계가 뜻을 갖는다. */
   const perProduct = useMemo(() => {
@@ -171,9 +192,9 @@ export default function BorPage() {
       onNew={openCreate}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <Modal open={showForm} title={editId ? '작업 수정' : '작업 등록'} onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title={editId ? '작업 수정' : '작업 등록'} onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
           <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
             <CodePickerField
@@ -187,11 +208,11 @@ export default function BorPage() {
               items={processes.filter((p) => p.active !== false).map((p) => ({ value: String(p.id), code: p.code, name: p.name, sub: p.workcenter ?? undefined }))}
             />
             <div>
-              <label className="mb-1 block text-sm text-slate-600">작업순서 *</label>
+              <label className="mb-1 block text-sm text-ec-label">작업순서 *</label>
               <input className="ec-input w-full" type="number" value={form.seq} onChange={(e) => set('seq', e.target.value)} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">작업명 *</label>
+              <label className="mb-1 block text-sm text-ec-label">작업명 *</label>
               <input className="ec-input w-full" list="bor-op-list" value={form.workName}
                      onChange={(e) => set('workName', e.target.value)} placeholder="예: 절단, 조립, 검사" />
               {/* 고른 공정의 작업코드를 먼저 보여 준다. 마스터가 비어 있으면 그냥 자유입력이다. */}
@@ -212,44 +233,60 @@ export default function BorPage() {
               items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, alias: i.searchKeyword, sub: i.categoryName }))}
             />
             <div>
-              <label className="mb-1 block text-sm text-slate-600">작업량</label>
+              <label className="mb-1 block text-sm text-ec-label">작업량</label>
               <input className="ec-input w-full text-right" type="number" step="any" value={form.workQty}
                      disabled={!form.workItemId}
                      onChange={(e) => set('workQty', e.target.value)} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">생산수량</label>
+              <label className="mb-1 block text-sm text-ec-label">생산수량</label>
               <input className="ec-input w-full text-right" type="number" step="any" value={form.baseQty}
                      onChange={(e) => set('baseQty', e.target.value)} />
-              <p style={{ fontSize: 11.5, color: '#8a929c', marginTop: 3 }}>
+              <p className="text-[11.5px] text-ec-hint mt-[3px]">
                 아래 작업시간이 <b>몇 개를 만드는 기준</b>인지. 1개 기준이면 1, 100개 로트 기준이면 100.
               </p>
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">작업시간(H) *</label>
+              <label className="mb-1 block text-sm text-ec-label">작업시간(H) *</label>
               <input className="ec-input w-full text-right" type="number" step="any" value={form.workHours}
                      onChange={(e) => set('workHours', e.target.value)} placeholder="예: 1.5" />
             </div>
             <div className="sm:col-span-2">
-              <label className="mb-1 block text-sm text-slate-600">적요</label>
+              <label className="mb-1 block text-sm text-ec-label">적요</label>
               <input className="ec-input w-full" value={form.remark} onChange={(e) => set('remark', e.target.value)} />
             </div>
           </div>
-          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
+          <div className="mt-[12px] flex justify-end">
             <button type="submit" className="ec-btn ec-btn-primary">{editId ? '저장' : '등록'}</button>
           </div>
         </form>
       )}</Modal>
 
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
-        <EcCond label="생산품목·공정" pick>
-          <input className="ec-input" placeholder="품목·공정·작업명 일부" value={keyword}
-                 onChange={(e) => setKeyword(e.target.value)} style={{ width: 220 }} />
+        {/* 원본 차례: <b>생산품목 · 생산공정 · 생산수량</b>(대조표 실측). */}
+        {/* 마스터를 고르는 조건은 코드도움으로 든다(이 저장소의 규칙 — ui-check 가 지킨다). */}
+        <EcCond label="생산품목" pick>
+          <CodePickerField
+            hideLabel label="생산품목" placeholder="생산품목 선택" emptyLabel="선택 해제" width={200}
+            value={itemCond} onChange={setItemCond}
+            items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, alias: i.searchKeyword, sub: i.categoryName }))}
+          />
         </EcCond>
-        <EcCond label="로트수량">
+        <EcCond label="생산공정" pick>
+          <CodePickerField
+            hideLabel label="생산공정" placeholder="생산공정 선택" emptyLabel="선택 해제" width={180}
+            value={processCond} onChange={setProcessCond}
+            items={processes.map((p) => ({ value: String(p.id), code: p.code, name: p.name, sub: p.workcenter ?? undefined }))}
+          />
+        </EcCond>
+        {/*
+          원본은 이 칸을 <b>[생산수량]</b> 이라 부른다 — 우리 표의 열 이름도 [생산수량] 인데
+          조건에서만 [로트수량] 이라 불러 같은 값이 두 이름으로 서 있었다.
+        */}
+        <EcCond label="생산수량" span={2}>
           <input className="ec-input text-right" type="number" value={lotSize}
                  onChange={(e) => setLotSize(e.target.value)} style={{ width: 100 }} />
-          <span style={{ fontSize: 11.5, color: '#8a929c' }}>이 수량을 만들 때의 시간을 함께 보여 줍니다.</span>
+          <span className="text-[11.5px] text-ec-hint">이 수량을 만들 때의 시간을 함께 보여 줍니다.</span>
         </EcCond>
       </ul>
 
@@ -267,73 +304,85 @@ export default function BorPage() {
       </div>
         <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
+              <th className="w-[34px]"></th>
               <th>생산품목코드</th>
               <th>생산품목명</th>
-              <th style={{ width: 80 }}>품목구분</th>
+              <th className="w-[80px]">품목구분</th>
               <th>생산공정명</th>
-              <th style={{ width: 80, textAlign: 'right' }}>생산수량</th>
+              <th className="w-[80px] text-right">생산수량</th>
               {/* 원본 실측: [작업순서]는 왼쪽이다 — 세는 수가 아니라 차례를 적는 칸이다. */}
-              <th style={{ width: 80 }}>작업순서</th>
+              <th className="w-[80px]">작업순서</th>
               <th>작업명</th>
-              <th style={{ width: 100, textAlign: 'right' }}>작업시간(H)</th>
+              <th className="w-[100px] text-right">작업시간(H)</th>
               {/*
                 원본 차례: … 작업시간(H) · <b>작업기준품목코드 · 작업기준품목명 · 작업량</b>.
                 이 작업이 <b>어느 품목을 얼마만큼</b> 다루는가 — 같은 공정이라도 다루는 물건과
                 양이 다르면 걸리는 시간이 달라지는데, 작업시간만 적어 두면 그 근거가 안 남는다.
               */}
-              <th style={{ width: 110 }}>작업기준품목코드</th>
-              <th style={{ width: 140 }}>작업기준품목명</th>
-              <th style={{ width: 90, textAlign: 'right' }}>작업량</th>
-              <th style={{ width: 100, textAlign: 'right' }}>1개당(H)</th>
-              <th style={{ width: 110, textAlign: 'right' }}>{lot.toLocaleString('ko-KR')}개 소요</th>
-              <th style={{ width: 80, textAlign: 'center' }}>관리</th>
+              <th className="w-[110px]">작업기준품목코드</th>
+              <th className="w-[140px]">작업기준품목명</th>
+              <th className="w-[90px] text-right">작업량</th>
+              <th className="w-[100px] text-right">1개당(H)</th>
+              <th className="w-[110px] text-right">{lot.toLocaleString('ko-KR')}개 소요</th>
+              <th className="w-[80px] text-center">관리</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
-            ) : shown.length === 0 ? (
-              <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={15} className="ec-empty">불러오는 중…</td></tr>
+            ) : noBor.length === 0 && shown.length === 0 ? (
+              <tr><td colSpan={15} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((r, i) => {
               const first = i === 0 || shown[i - 1].productId !== r.productId
               return (
                 <tr key={r.id} style={first && i > 0 ? { borderTop: '2px solid #d7dce3' } : undefined}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                  <td style={{ fontFamily: 'monospace' }}>{first ? r.productCode : ''}</td>
+                  <td className="text-center text-ec-hint">{i + 1}</td>
+                  <td>{first ? r.productCode : ''}</td>
                   <td>{first ? r.productName : ''}</td>
-                  <td style={{ color: '#5a626e' }}>{first ? (r.categoryName ? `[${r.categoryName}]` : '') : ''}</td>
+                  <td className="text-ec-label">{first ? (r.categoryName ? `[${r.categoryName}]` : '') : ''}</td>
                   <td>{r.processName}</td>
-                  <td style={{ textAlign: 'right', color: '#5a626e' }}>{r.baseQty.toLocaleString('ko-KR')}</td>
+                  <td className="text-right text-ec-label">{r.baseQty.toLocaleString('ko-KR')}</td>
                   {/* 원본 실측: 왼쪽이다 — 세는 수가 아니라 차례를 적는 칸이라 자릿수를 맞출 일이 없다. */}
                   <td>{r.seq}</td>
                   <td>{r.workName}</td>
-                  <td style={{ textAlign: 'right' }}>{r.workHours.toLocaleString('ko-KR')}</td>
-                  <td style={{ fontFamily: 'monospace', color: r.workItemCode ? '#5a626e' : '#c9ced6' }}>{r.workItemCode ?? ''}</td>
-                  <td style={{ color: r.workItemName ? undefined : '#c9ced6' }}>{r.workItemName ?? ''}</td>
-                  <td style={{ textAlign: 'right', color: r.workQty != null ? undefined : '#c9ced6' }}>
+                  <td className="text-right">{r.workHours.toLocaleString('ko-KR')}</td>
+                  <td style={{ fontFamily: 'monospace', color: r.workItemCode ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{r.workItemCode ?? ''}</td>
+                  <td style={{ color: r.workItemName ? undefined : 'var(--ec-text-off)' }}>{r.workItemName ?? ''}</td>
+                  <td style={{ textAlign: 'right', color: r.workQty != null ? undefined : 'var(--ec-text-off)' }}>
                     {r.workQty != null ? r.workQty.toLocaleString('ko-KR') : '-'}
                   </td>
-                  <td style={{ textAlign: 'right', color: '#5a626e' }}>{r.hoursPerUnit.toFixed(4)}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700 }}>{hhmm(r.hoursPerUnit * lot)}</td>
-                  <td style={{ textAlign: 'center' }}>
+                  <td className="text-right text-ec-label">{r.hoursPerUnit.toFixed(4)}</td>
+                  <td className="text-right font-bold">{hhmm(r.hoursPerUnit * lot)}</td>
+                  <td className="text-center">
                     <button onClick={() => openEdit(r)} style={{ color: 'var(--ec-blue)', marginRight: 8, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>수정</button>
-                    <button onClick={() => remove(r)} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                    <button onClick={() => remove(r)} style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
                   </td>
                 </tr>
               )
-            })}
+            }).concat(noBor.map((it, k) => (
+              <tr key={`nb${it.id}`} style={k === 0 && shown.length > 0 ? { borderTop: '2px solid #d7dce3' } : undefined}>
+                <td className="text-center text-ec-hint">{shown.length + k + 1}</td>
+                <td>{it.code}</td>
+                <td>{it.name}</td>
+                <td className="text-ec-label">{it.categoryName ? `[${it.categoryName}]` : ''}</td>
+                <td colSpan={10} className="text-ec-off">BOR 없음</td>
+                <td className="text-center">
+                  <button onClick={() => { setForm({ ...emptyForm, productId: String(it.id) }); setShowForm(true) }}
+                          style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>BOR등록</button>
+                </td>
+              </tr>
+            )))}
           </tbody>
           {shown.length > 0 && (
             <tfoot>
-              <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-                <td colSpan={12} style={{ textAlign: 'right' }}>
+              <tr className="font-bold bg-ec-page">
+                <td colSpan={12} className="text-right">
                   품목 {perProduct.size}개 · 작업 {shown.length}줄
                 </td>
-                <td style={{ textAlign: 'right' }}>
+                <td className="text-right">
                   {[...perProduct.values()].reduce((n, v) => n + v, 0).toFixed(4)}
                 </td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>
+                <td className="text-right text-ec-navy">
                   {hhmm([...perProduct.values()].reduce((n, v) => n + v, 0) * lot)}
                 </td>
                 <td></td>

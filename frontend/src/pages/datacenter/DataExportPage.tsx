@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
@@ -22,7 +22,12 @@ interface Dataset {
   name: string
   /** 기간 필터가 적용되는 날짜 컬럼 index (없으면 null = 마스터성 데이터) */
   dateCol: number | null
-  fetch: () => Promise<Table>
+  /**
+   * 자료를 받아 온다. <b>기간을 받을 줄 아는 자리는 서버에 넘긴다</b> —
+   * 판매·구매가 그렇다. 안 받는 자리(마스터·재고수불)는 이 값을 그냥 무시하고,
+   * 아래 applyPeriod 가 화면에서 거른다.
+   */
+  fetch: (period: Record<string, string>) => Promise<Table>
 }
 
 const DATASETS: Dataset[] = [
@@ -58,8 +63,8 @@ const DATASETS: Dataset[] = [
   },
   {
     id: 4, module: '영업', name: '판매 전표', dateCol: 0,
-    fetch: async () => {
-      const { data } = await api.get<SalesRes[]>('/sales')
+    fetch: async (period) => {
+      const { data } = await api.get<SalesRes[]>('/sales', { params: period })
       return {
         header: ['판매일자', '전표번호', '거래처', '출고창고', '공급가액', '부가세', '합계'],
         rows: data.map((r) => [r.saleDate, r.docNo, r.partnerName, r.warehouseName, r.supplyAmount, r.vatAmount, r.totalAmount]),
@@ -68,8 +73,8 @@ const DATASETS: Dataset[] = [
   },
   {
     id: 5, module: '구매', name: '구매 전표', dateCol: 0,
-    fetch: async () => {
-      const { data } = await api.get<PurchaseRes[]>('/purchases')
+    fetch: async (period) => {
+      const { data } = await api.get<PurchaseRes[]>('/purchases', { params: period })
       return {
         header: ['구매일자', '전표번호', '거래처', '입고창고', '공급가액', '부가세', '합계'],
         rows: data.map((r) => [r.purchaseDate, r.docNo, r.partnerName, r.warehouseName, r.supplyAmount, r.vatAmount, r.totalAmount]),
@@ -123,19 +128,35 @@ export default function DataExportPage() {
   const [exporting, setExporting] = useState(false)
   const [error, setError] = useState('')
 
+  /* 서버가 받을 줄 아는 자리에 넘길 창. 비면 안 보낸다. */
+  const period = useMemo(() => {
+    const p: Record<string, string> = {}
+    if (from) p.from = from
+    if (to) p.to = to
+    return p
+  }, [from, to])
+
   async function loadCounts() {
     setLoading(true)
     setError('')
-    const results = await Promise.allSettled(DATASETS.map((d) => d.fetch()))
+    const results = await Promise.allSettled(DATASETS.map((d) => d.fetch(period)))
     const next: Record<number, number | null> = {}
     results.forEach((r, i) => {
-      next[DATASETS[i].id] = r.status === 'fulfilled' ? r.value.rows.length : null
+      /*
+       * <b>건수도 그 기간 것으로 센다.</b> 여태 건수는 전 기간이고 내보내기는 기간이라
+       * 둘이 어긋나 있었다 — 표에 "1,968건" 이라 적혀 있는데 받아 보면 9건이었다.
+       * 이제 표에 적힌 수가 <b>지금 내보내면 나올 줄 수</b>다.
+       */
+      next[DATASETS[i].id] = r.status === 'fulfilled'
+        ? applyPeriod(DATASETS[i], r.value).rows.length : null
     })
     setCounts(next)
     setLoading(false)
   }
 
-  useEffect(() => { loadCounts() }, [])
+  /* 기간을 바꾸면 건수도 그 기간으로 다시 센다. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { loadCounts() }, [from, to])
 
   const toggle = (id: number) => setChecked((s) => {
     const n = new Set(s)
@@ -162,7 +183,7 @@ export default function DataExportPage() {
     try {
       const targets = DATASETS.filter((d) => checked.has(d.id))
       for (const d of targets) {
-        const table = applyPeriod(d, await d.fetch())
+        const table = applyPeriod(d, await d.fetch(period))
         const base = `${d.module}_${d.name}_${to}`.replace(/[\\/:*?"<>| ]/g, '_')
         if (format === 'JSON') {
           const objs = table.rows.map((row) => Object.fromEntries(table.header.map((h, i) => [h, row[i]])))
@@ -196,31 +217,31 @@ export default function DataExportPage() {
         { label: '건수 새로고침', onClick: loadCounts },
       ]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
-        <label style={{ fontSize: 12.5 }}>기간&nbsp;
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      <div className="flex items-center gap-[10px] mb-[10px] flex-wrap">
+        <label className="text-[12.5px]">기간&nbsp;
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} />
           &nbsp;~&nbsp;
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} />
         </label>
-        <label style={{ fontSize: 12.5 }}>형식&nbsp;
+        <label className="text-[12.5px]">형식&nbsp;
           <select className="ec-input" value={format} onChange={(e) => setFormat(e.target.value as typeof format)}>
             <option>Excel</option><option>CSV</option><option>JSON</option>
           </select>
         </label>
-        <span style={{ fontSize: 11.5, color: '#8a929c' }}>* 기간은 일자 컬럼이 있는 전표성 데이터에만 적용</span>
-        <span style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>선택 <b style={{ color: 'var(--ec-blue-dark)' }}>{checked.size}</b> / {DATASETS.length}</span>
+        <span className="text-[11.5px] text-ec-hint">* 기간은 일자 컬럼이 있는 전표성 데이터에만 적용</span>
+        <span className="ml-auto text-[12.5px] text-ec-label">선택 <b className="text-ec-navy">{checked.size}</b> / {DATASETS.length}</span>
       </div>
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34, textAlign: 'center' }}>
+            <th className="w-[34px] text-center">
               <input type="checkbox" checked={allChecked} onChange={toggleAll} />
             </th>
-            <th style={{ width: 90, cursor: 'pointer' }} onClick={() => sort.toggle('모듈')}>모듈 {sort.mark('모듈')}</th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('데이터셋')}>데이터셋 {sort.mark('데이터셋')}</th>
-            <th style={{ width: 160 }}>유형</th>
-            <th style={{ width: 110, textAlign: 'right' }}>건수</th>
+            <th className="w-[90px] cursor-pointer" onClick={() => sort.toggle('모듈')}>모듈 {sort.mark('모듈')}</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('데이터셋')}>데이터셋 {sort.mark('데이터셋')}</th>
+            <th className="w-[160px]">유형</th>
+            <th className="w-[110px] text-right">건수</th>
           </tr>
         </thead>
         <tbody>
@@ -228,12 +249,12 @@ export default function DataExportPage() {
             const c = counts[d.id]
             return (
               <tr key={d.id}>
-                <td style={{ textAlign: 'center' }}><input type="checkbox" checked={checked.has(d.id)} onChange={() => toggle(d.id)} /></td>
-                <td style={{ fontWeight: 700, color: 'var(--ec-blue-dark)' }}>{d.module}</td>
+                <td className="text-center"><input type="checkbox" checked={checked.has(d.id)} onChange={() => toggle(d.id)} /></td>
+                <td className="font-bold text-ec-navy">{d.module}</td>
                 <td>{d.name}</td>
-                <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: '#5a626e' }}>{d.dateCol !== null ? '전표성(기간필터)' : '마스터'}</td>
-                <td style={{ textAlign: 'right', color: '#5a626e' }}>
-                  {loading ? '…' : c === null ? <span style={{ color: '#c60a2e' }}>조회실패</span> : (c ?? 0).toLocaleString()}
+                <td className="text-[11.5px] text-ec-label">{d.dateCol !== null ? '전표성(기간필터)' : '마스터'}</td>
+                <td className="text-right text-ec-label">
+                  {loading ? '…' : c === null ? <span className="text-ec-danger">조회실패</span> : (c ?? 0).toLocaleString()}
                 </td>
               </tr>
             )

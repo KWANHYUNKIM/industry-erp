@@ -23,7 +23,7 @@ const EMPTY: CompanyForm = {
   tel: '', fax: '', email: '', zipcode: '', address: '', addressDetail: '',
 }
 
-const thStyle: React.CSSProperties = { width: 120, background: '#f5f7fa', textAlign: 'left', fontWeight: 700, color: '#3a4453', padding: '8px 10px', border: '1px solid var(--ec-border)', fontSize: 12.5 }
+const thStyle: React.CSSProperties = { width: 120, background: 'var(--ec-bg-page)', textAlign: 'left', fontWeight: 700, color: 'var(--ec-text)', padding: '8px 10px', border: '1px solid var(--ec-border)', fontSize: 12.5 }
 const tdStyle: React.CSSProperties = { padding: '6px 10px', border: '1px solid var(--ec-border)' }
 
 export default function CompanyInfoPage() {
@@ -89,20 +89,20 @@ export default function CompanyInfoPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ color: '#f5b301', fontSize: 14, marginRight: 4 }}>☆</span>
-        <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ec-text)' }}>회사정보관리</span>
+    <div className="flex flex-col min-h-[100%]">
+      <div className="flex items-center mb-[8px]">
+        <span className="text-ec-star text-[14px] mr-[4px]">☆</span>
+        <span className="text-[15px] font-extrabold text-ec-text">회사정보관리</span>
       </div>
 
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {ok && <p style={{ marginBottom: 8, background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
       {loading ? (
-        <p style={{ color: '#9aa1ab', padding: 20 }}>불러오는 중…</p>
+        <p className="text-ec-hint p-[20px]">불러오는 중…</p>
       ) : (
         <>
-          <table style={{ borderCollapse: 'collapse', width: '100%', maxWidth: 760 }}>
+          <table className="border-collapse w-full max-w-[760px]">
             <tbody>
               <tr>
                 <th style={thStyle}>회사명 *</th>
@@ -149,7 +149,7 @@ export default function CompanyInfoPage() {
             </tbody>
           </table>
 
-          <div style={{ display: 'flex', gap: 6, marginTop: 14 }}>
+          <div className="flex gap-[6px] mt-[14px]">
             <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>{saving ? '저장 중…' : '저장(F8)'}</button>
             <button className="ec-btn" onClick={load} disabled={saving}>되돌리기</button>
           </div>
@@ -165,21 +165,21 @@ export default function CompanyInfoPage() {
           }}
         >
           <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, width: 460, maxWidth: '92vw', boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}>
-            <div style={{ padding: '10px 14px', borderBottom: '1px solid #e6eaef', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
+            <div className="py-[10px] px-[14px] border-b border-b-ec-line-soft border-solid font-extrabold text-[14px] flex items-center">
               <span>주소검색</span>
-              <span style={{ marginLeft: 8, fontSize: 11.5, fontWeight: 400, color: '#8a929c' }}>우편번호 API 미연동 · 직접 입력</span>
+              <span className="ml-[8px] text-[11.5px] font-normal text-ec-hint">우편번호 API 미연동 · 직접 입력</span>
               <button type="button" className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => setAddrOpen(false)}>닫기</button>
             </div>
-            <div style={{ padding: 14, fontSize: 12.5 }}>
-              <label style={{ display: 'block', marginBottom: 8 }}>
-                <span style={{ display: 'inline-block', width: 72, color: '#5a626e' }}>우편번호</span>
+            <div className="p-[14px] text-[12.5px]">
+              <label className="block mb-[8px]">
+                <span className="inline-block w-[72px] text-ec-label">우편번호</span>
                 <input className="ec-input" value={addrZip} onChange={(e) => setAddrZip(e.target.value)} style={{ width: 120 }} placeholder="06236" />
               </label>
-              <label style={{ display: 'block' }}>
-                <span style={{ display: 'inline-block', width: 72, color: '#5a626e' }}>도로명주소</span>
+              <label className="block">
+                <span className="inline-block w-[72px] text-ec-label">도로명주소</span>
                 <input className="ec-input" value={addrRoad} onChange={(e) => setAddrRoad(e.target.value)} style={{ width: 300 }} placeholder="서울특별시 강남구 테헤란로 123" />
               </label>
-              <div style={{ display: 'flex', gap: 6, marginTop: 14, justifyContent: 'flex-end' }}>
+              <div className="flex gap-[6px] mt-[14px] justify-end">
                 <button type="button" className="ec-btn ec-btn-primary" onClick={applyAddr} disabled={!addrZip.trim() && !addrRoad.trim()}>적용</button>
                 <button type="button" className="ec-btn" onClick={() => setAddrOpen(false)}>취소</button>
               </div>

@@ -28,9 +28,9 @@ interface Employee {
 const mono = { fontFamily: 'monospace' as const }
 const inputCls = 'ec-input w-full'
 function statusColor(s: string) {
-  if (s === '정상') return '#1c7c3c'
-  if (s === '결근') return '#c60a2e'
-  return '#c07a00'
+  if (s === '정상') return 'var(--ec-success)'
+  if (s === '결근') return 'var(--ec-danger)'
+  return 'var(--ec-warn)'
 }
 
 const today = ymd(new Date())
@@ -41,6 +41,8 @@ export default function AttendanceInputPage() {
   const [employees, setEmployees] = useState<Employee[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  /** 저장·삭제 결과 안내 — 예전엔 창이 닫히고 목록만 다시 떴다(QA 16회차). */
+  const [ok, setOk] = useState('')
   const [keyword, setKeyword] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyForm)
@@ -65,13 +67,13 @@ export default function AttendanceInputPage() {
 
   async function submit(e: FormEvent) {
     e.preventDefault()
-    setError('')
+    setError(''); setOk('')
     if (!form.userId) {
       setError('사원을 선택하세요.')
       return
     }
     try {
-      await api.post('/hr/attendance', {
+      const res = await api.post<{ empName: string; date: string; status: string }>('/hr/attendance', {
         userId: Number(form.userId),
         date: form.date,
         clockIn: form.clockIn || null,
@@ -80,6 +82,19 @@ export default function AttendanceInputPage() {
       })
       setForm(emptyForm)
       setShowForm(false)
+      setOk(`${res.data.empName} ${dateText(res.data.date)} 근태 저장 · ${res.data.status}`)
+      load()
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    }
+  }
+
+  /** 날짜를 잘못 골라 넣은 기록을 지운다 — 출·퇴근을 비워도 그 날이 근무일·결근으로 집계됐다. */
+  async function remove(r: { id: number; date: string; empName: string }) {
+    if (!confirm(`${r.empName} ${dateText(r.date)} 근태를 삭제할까요?`)) return
+    try {
+      await api.delete(`/hr/attendance/${r.id}`)
+      setOk(`${r.empName} ${dateText(r.date)} 근태 삭제`)
       load()
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -97,14 +112,15 @@ export default function AttendanceInputPage() {
       onNew={() => setShowForm(true)}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
-      <Modal open={showForm} title="근태입력" onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title="근태입력" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>근태 입력</div>
+          <div className="text-[13px] font-extrabold text-ec-navy mb-[8px]">근태 입력</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-5">
             <div>
-              <label className="mb-1 block text-sm text-slate-600">사원 *</label>
+              <label className="mb-1 block text-sm text-ec-label">사원 *</label>
               {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측 525칸, 예외 없음) — 드롭다운은 항목이 늘면 못 찾는다. */}
               <CodePickerField label="사원 *" hideLabel fill placeholder="사원"
                                emptyLabel="선택"
@@ -112,23 +128,23 @@ export default function AttendanceInputPage() {
                                items={employees.map((x) => ({ value: String(x.id), name: x.name, sub: x.department }))} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">일자 *</label>
+              <label className="mb-1 block text-sm text-ec-label">일자 *</label>
               <input type="date" className={inputCls} value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">출근</label>
+              <label className="mb-1 block text-sm text-ec-label">출근</label>
               <input type="time" className={inputCls} value={form.clockIn} onChange={(e) => setForm({ ...form, clockIn: e.target.value })} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">퇴근</label>
+              <label className="mb-1 block text-sm text-ec-label">퇴근</label>
               <input type="time" className={inputCls} value={form.clockOut} onChange={(e) => setForm({ ...form, clockOut: e.target.value })} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">비고</label>
+              <label className="mb-1 block text-sm text-ec-label">비고</label>
               <input className={inputCls} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
             </div>
           </div>
-          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
+          <div className="mt-[12px] flex justify-end">
             <button type="submit" className="ec-btn ec-btn-primary">저장</button>
           </div>
         </form>
@@ -137,29 +153,33 @@ export default function AttendanceInputPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th className="w-[34px]"></th>
             <th>일자</th>
             <th>사원명</th>
             <th>출근</th>
             <th>퇴근</th>
-            <th style={{ textAlign: 'right' }}>근무시간</th>
-            <th style={{ textAlign: 'center' }}>상태</th>
+            <th className="text-right">근무시간</th>
+            <th className="text-center">상태</th>
+            <th className="w-[60px] text-center">삭제</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
               <td style={mono}>{dateText(r.date)}</td>
               <td>{r.empName}</td>
               <td style={mono}>{r.clockIn ?? ''}</td>
               <td style={mono}>{r.clockOut ?? ''}</td>
-              <td style={{ textAlign: 'right' }}>{r.workHours.toLocaleString()}</td>
+              <td className="text-right">{r.workHours.toLocaleString()}</td>
               <td style={{ textAlign: 'center', fontWeight: 700, color: statusColor(r.status) }}>{r.status}</td>
+              <td className="text-center">
+                <button onClick={() => remove(r)} style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+              </td>
             </tr>
           ))}
         </tbody>

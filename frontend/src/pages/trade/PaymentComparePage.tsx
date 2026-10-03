@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
+import { usePartnerGroups } from '../../utils/partnerGroups'
 import { subtotalBy } from '../../utils/subtotalBy'
 import { COMPARE_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import EcRowCap, { capRows } from '../../components/EcRowCap'
 
 /**
  * 영업 > 결제내역자료비교.
@@ -26,6 +28,7 @@ interface SettlementRow {
   id: number
   docNo: string
   typeName: string
+  partnerId: number
   partnerName: string
   settleDate: string
   amount: number
@@ -35,6 +38,7 @@ interface SettlementRow {
 interface SalesDoc {
   id: number
   docNo: string
+  partnerId: number
   partnerName: string
   saleDate: string
   supplyAmount: number
@@ -46,6 +50,8 @@ interface SalesDoc {
 interface CompareRow {
   key: string
   date: string
+  /** 줄을 묶고 거래처 조건을 거는 축. 이름은 겹칠 수 있어 id 로 묶는다. */
+  partnerId: number
   partnerName: string
   saleDocNos: string[]
   supplyAmount: number
@@ -85,15 +91,33 @@ export default function PaymentComparePage() {
   const [to, setTo] = useState(init.to)
   const [partner, setPartner] = useState('')
   const [basis, setBasis] = useState<Basis>('전체')
+  /*
+   * 원본 조건 <b>[거래처그룹1]</b>. 2026-09-09 에 원본(E040255)을 열어 재니 조건이
+   * 아홉이고([기준일자]·[거래처]·<b>[거래처그룹1]·[거래처그룹2]·[거래처계층그룹]</b>·
+   * [자료기준]·양식·[적용양식]·[정렬/소계기준]) 대조표에는 다섯만 적혀 있었다.
+   * 이 화면은 <b>대사</b> 화면이라 "이 그룹 거래처들만 맞춰 보자" 가 늘 있는 물음인데
+   * 거래처 하나씩만 좁힐 수 있었다. 거래처그룹은 마스터에 진작 있다.
+   * (거래처그룹2·거래처계층그룹은 우리 그룹이 하나뿐이라 전역 예외다.)
+   */
+  const [partnerGroup, setPartnerGroup] = useState('')
+  const { groupOptions, groupOfName } = usePartnerGroups()
   // '이번기수(~전월)' 은 회사 회계연도 시작월을 알아야 계산된다. 1월로 넘겨짚지 않는다.
   const [fiscalStart, setFiscalStart] = useState<number | undefined>(undefined)
 
   async function load() {
     setLoading(true)
     try {
+      const period: Record<string, string> = {}
+      if (from) period.from = from
+      if (to) period.to = to
       const [res, sl] = await Promise.all([
-        api.get<SettlementRow[]>('/settlements'),
-        api.get<SalesDoc[]>('/sales'),
+        /*
+       * <b>고른 기간을 서버에도 보낸다.</b> 여태 전표를 통째로 받아 아래에서 걸렀다 —
+       * 화면은 [기간]을 묻고 서버에는 아무것도 안 보내는 꼴이었다.
+         * 판매는 saleDate, 결제는 settleDate 로 거른다 — 둘 다 자기 날짜다.
+         */
+        api.get<SettlementRow[]>('/settlements', { params: period }),
+        api.get<SalesDoc[]>('/sales', { params: period }),
       ])
       const list = [...res.data].sort((a, b) => (a.settleDate < b.settleDate ? 1 : a.settleDate > b.settleDate ? -1 : 0))
       setRows(list)
@@ -105,7 +129,9 @@ export default function PaymentComparePage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  /* 기간을 바꾸면 그 기간으로 다시 받는다. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [from, to])
 
   useEffect(() => {
     api.get<{ fiscalStart?: string } | null>('/preferences')
@@ -132,10 +158,10 @@ export default function PaymentComparePage() {
    */
   const compared = useMemo(() => {
     const m = new Map<string, CompareRow>()
-    const at = (date: string, partnerName: string) => {
-      const key = `${date}|${partnerName}`
+    const at = (date: string, partnerId: number, partnerName: string) => {
+      const key = `${date}|${partnerId}`
       const cur = m.get(key) ?? {
-        key, date, partnerName,
+        key, date, partnerId, partnerName,
         saleDocNos: [], supplyAmount: 0, vatAmount: 0, saleTotal: 0,
         payDocNos: [], payTotal: 0,
       }
@@ -144,7 +170,7 @@ export default function PaymentComparePage() {
     }
     for (const d of sales) {
       if (d.saleDate < from || d.saleDate > to) continue
-      const r = at(d.saleDate, d.partnerName)
+      const r = at(d.saleDate, d.partnerId, d.partnerName)
       r.saleDocNos.push(d.docNo)
       r.supplyAmount += d.supplyAmount
       r.vatAmount += d.vatAmount
@@ -154,7 +180,7 @@ export default function PaymentComparePage() {
       if (p.settleDate < from || p.settleDate > to) continue
       // 지급(구매 대금)은 판매와 맞댈 것이 아니다 — 수금만 본다.
       if (p.typeName !== '수금') continue
-      const r = at(p.settleDate, p.partnerName)
+      const r = at(p.settleDate, p.partnerId, p.partnerName)
       r.payDocNos.push(p.docNo)
       r.payTotal += p.amount
     }
@@ -169,18 +195,20 @@ export default function PaymentComparePage() {
   const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('거래처')
 
   const shown = useMemo(() => compared.filter((r) => {
-    if (partner && !(r.partnerName.includes(partner)
-      || r.saleDocNos.some((n) => n.includes(partner))
-      || r.payDocNos.some((n) => n.includes(partner)))) return false
+    if (partner && String(r.partnerId) !== partner) return false
+    if (partnerGroup && groupOfName(r.partnerName) !== partnerGroup) return false
     if (basis !== '전체') {
       const same = Math.abs(r.saleTotal - r.payTotal) < 0.005
       if (basis === '일치' ? !same : same) return false
     }
     return true
-  }), [compared, partner, basis])
+  }), [compared, partner, partnerGroup, groupOfName, basis])
 
   const mismatchCount = useMemo(
     () => shown.filter((r) => Math.abs(r.saleTotal - r.payTotal) >= 0.005).length, [shown])
+  /* 그리는 줄만 자른다 — 아래 합계는 자르기 전 전부로 낸 값이다. 자른 것은 표 위에 적는다. */
+  const capped = capRows(shown, 300)
+
   const totals = useMemo(() => shown.reduce(
     (a, r) => ({ sale: a.sale + r.saleTotal, pay: a.pay + r.payTotal }),
     { sale: 0, pay: 0 },
@@ -193,7 +221,7 @@ export default function PaymentComparePage() {
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: () => {
-          setFrom(init.from); setTo(init.to); setPartner(''); setBasis('전체')
+          setFrom(init.from); setTo(init.to); setPartner(''); setPartnerGroup(''); setBasis('전체')
         } },
         { label: '인쇄' },
         { label: 'Excel' },
@@ -212,6 +240,13 @@ export default function PaymentComparePage() {
                            value={partner} onChange={(v) => setPartner(v)}
                            items={pickers.partners} />
         </EcCond>
+        <EcCond label="거래처그룹1">
+          <select className="ec-input" value={partnerGroup} style={{ width: 170 }}
+                  onChange={(e) => setPartnerGroup(e.target.value)}>
+            <option value="">전체</option>
+            {groupOptions.map((g) => <option key={g} value={g}>{g}</option>)}
+          </select>
+        </EcCond>
         <EcCond label="자료기준">
           <div className="ec-pills">
             {(['전체', '일치', '불일치'] as const).map((b) => (
@@ -222,68 +257,70 @@ export default function PaymentComparePage() {
         </EcCond>
       </EcStatusPanel>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        불일치 <b style={{ color: '#c60a2e', fontSize: 14 }}>{mismatchCount}</b>건 / 전체 {shown.length}건
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        불일치 <b className="text-ec-danger text-[14px]">{mismatchCount}</b>건 / 전체 {shown.length}건
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
         판매 <b>{totals.sale.toLocaleString('ko-KR')}</b>
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
         결제 <b>{totals.pay.toLocaleString('ko-KR')}</b>
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-        차이 <b style={{ color: totals.sale - totals.pay ? '#c60a2e' : '#1c7c3c' }}>
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
+        차이 <b style={{ color: totals.sale - totals.pay ? 'var(--ec-danger)' : 'var(--ec-success)' }}>
           {(totals.sale - totals.pay).toLocaleString('ko-KR')}
         </b>
       </div>
       {/* 원본은 [결제내역] 과 [판매전표II] 를 좌우로 놓고 맨 끝에 차이를 둔다. */}
       <div className="overflow-x-auto">
+        <EcRowCap capped={capped.capped} shown={capped.rows.length} total={capped.total}
+                  hint="기간을 좁혀 보세요." />
         <table className="ec-grid w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
-              <th style={{ width: 100 }}>일자</th>
+              <th className="w-[34px]"></th>
+              <th className="w-[100px]">일자</th>
               <th>거래처명</th>
               <th>판매전표</th>
-              <th style={{ width: 120, textAlign: 'right' }}>공급가액합계</th>
-              <th style={{ width: 110, textAlign: 'right' }}>부가세합계</th>
-              <th style={{ width: 120, textAlign: 'right' }}>금액합계</th>
+              <th className="w-[120px] text-right">공급가액합계</th>
+              <th className="w-[110px] text-right">부가세합계</th>
+              <th className="w-[120px] text-right">금액합계</th>
               <th>결제내역</th>
-              <th style={{ width: 120, textAlign: 'right' }}>결제합계</th>
-              <th style={{ width: 120, textAlign: 'right' }}>차이</th>
-              <th style={{ width: 70, textAlign: 'center' }}>상태</th>
+              <th className="w-[120px] text-right">결제합계</th>
+              <th className="w-[120px] text-right">차이</th>
+              <th className="w-[70px] text-center">상태</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={11} className="ec-empty">불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-            ) : shown.slice(0, 300).map((r, i) => {
+              <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            ) : capped.rows.map((r, i) => {
               const diff = r.saleTotal - r.payTotal
               const same = Math.abs(diff) < 0.005
               return (
                 <tr key={r.key}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                  <td style={{ fontFamily: 'monospace' }}>{r.date.replace(/-/g, '/')}</td>
+                  <td className="text-center text-ec-hint">{i + 1}</td>
+                  <td>{r.date.replace(/-/g, '/')}</td>
                   <td>{r.partnerName}</td>
-                  <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: '#5a626e' }}>
+                  <td className="text-[11.5px] text-ec-label">
                     {r.saleDocNos.length === 0
-                      ? <span style={{ color: '#c9ced6' }}>없음</span>
+                      ? <span className="text-ec-off">없음</span>
                       : `${r.saleDocNos[0]}${r.saleDocNos.length > 1 ? ` 외 ${r.saleDocNos.length - 1}` : ''}`}
                   </td>
-                  <td style={{ textAlign: 'right' }}>{r.supplyAmount.toLocaleString('ko-KR')}</td>
-                  <td style={{ textAlign: 'right' }}>{r.vatAmount.toLocaleString('ko-KR')}</td>
-                  <td style={{ textAlign: 'right' }}>{r.saleTotal.toLocaleString('ko-KR')}</td>
-                  <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: '#5a626e' }}>
+                  <td className="text-right">{r.supplyAmount.toLocaleString('ko-KR')}</td>
+                  <td className="text-right">{r.vatAmount.toLocaleString('ko-KR')}</td>
+                  <td className="text-right">{r.saleTotal.toLocaleString('ko-KR')}</td>
+                  <td className="text-[11.5px] text-ec-label">
                     {r.payDocNos.length === 0
-                      ? <span style={{ color: '#c9ced6' }}>없음</span>
+                      ? <span className="text-ec-off">없음</span>
                       : `${r.payDocNos[0]}${r.payDocNos.length > 1 ? ` 외 ${r.payDocNos.length - 1}` : ''}`}
                   </td>
-                  <td style={{ textAlign: 'right' }}>{r.payTotal.toLocaleString('ko-KR')}</td>
+                  <td className="text-right">{r.payTotal.toLocaleString('ko-KR')}</td>
                   {/* 양수는 아직 못 받은 돈, 음수는 판 것보다 더 받은 돈(선수금) */}
-                  <td style={{ textAlign: 'right', fontWeight: 700, color: same ? '#9aa1ab' : diff > 0 ? '#c60a2e' : '#c07a00' }}>
+                  <td style={{ textAlign: 'right', fontWeight: 700, color: same ? 'var(--ec-text-hint)' : diff > 0 ? 'var(--ec-danger)' : 'var(--ec-warn)' }}>
                     {diff.toLocaleString('ko-KR')}
                   </td>
-                  <td style={{ textAlign: 'center', fontWeight: 700, color: same ? '#1c7c3c' : '#c60a2e' }}>
+                  <td style={{ textAlign: 'center', fontWeight: 700, color: same ? 'var(--ec-success)' : 'var(--ec-danger)' }}>
                     {same ? '일치' : '불일치'}
                   </td>
                 </tr>
@@ -292,12 +329,12 @@ export default function PaymentComparePage() {
           </tbody>
           {shown.length > 0 && (
             <tfoot>
-              <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-                <td colSpan={6} style={{ textAlign: 'right' }}>합계 ({shown.length}줄)</td>
-                <td style={{ textAlign: 'right' }}>{totals.sale.toLocaleString('ko-KR')}</td>
+              <tr className="font-bold bg-ec-page">
+                <td colSpan={6} className="text-right">합계 ({shown.length}줄)</td>
+                <td className="text-right">{totals.sale.toLocaleString('ko-KR')}</td>
                 <td></td>
-                <td style={{ textAlign: 'right' }}>{totals.pay.toLocaleString('ko-KR')}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>
+                <td className="text-right">{totals.pay.toLocaleString('ko-KR')}</td>
+                <td className="text-right text-ec-navy">
                   {(totals.sale - totals.pay).toLocaleString('ko-KR')}
                 </td>
                 <td></td>
@@ -310,26 +347,26 @@ export default function PaymentComparePage() {
             { sale: (r) => r.saleTotal, pay: (r) => r.payTotal })
           return (
             <>
-              <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+              <h3 className="text-[13px] font-bold mt-[16px] mx-0 mb-[6px]">{subtotal} 소계</h3>
               <table className="w-full text-left">
                 <thead><tr>
                   <th>{subtotal}</th>
-                  <th style={{ width: 90, textAlign: 'right' }}>건수</th>
-                  <th style={{ width: 150, textAlign: 'right' }}>매출</th>
-                  <th style={{ width: 150, textAlign: 'right' }}>수금</th>
-                  <th style={{ width: 150, textAlign: 'right' }}>차액</th>
+                  <th className="w-[90px] text-right">건수</th>
+                  <th className="w-[150px] text-right">매출</th>
+                  <th className="w-[150px] text-right">수금</th>
+                  <th className="w-[150px] text-right">차액</th>
                 </tr></thead>
                 <tbody>
                   {groups.map((g) => {
                     const gap = g.sums.sale - g.sums.pay
                     return (
                       <tr key={g.label}>
-                        <td style={{ fontWeight: 600 }}>{g.label}</td>
-                        <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
-                        <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.sums.sale.toLocaleString('ko-KR')}</td>
-                        <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.sums.pay.toLocaleString('ko-KR')}</td>
+                        <td className="font-semibold">{g.label}</td>
+                        <td className="text-right">{g.count}</td>
+                        <td className="text-right">{g.sums.sale.toLocaleString('ko-KR')}</td>
+                        <td className="text-right">{g.sums.pay.toLocaleString('ko-KR')}</td>
                         <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700,
-                                     color: Math.abs(gap) < 0.005 ? '#9aa1ab' : '#c60a2e' }}>
+                                     color: Math.abs(gap) < 0.005 ? 'var(--ec-text-hint)' : 'var(--ec-danger)' }}>
                           {gap.toLocaleString('ko-KR')}
                         </td>
                       </tr>
@@ -341,7 +378,7 @@ export default function PaymentComparePage() {
           )
         })()}
         {shown.length > 300 && (
-          <p style={{ fontSize: 11.5, color: '#c07a00', marginTop: 6 }}>
+          <p className="text-[11.5px] text-ec-warn mt-[6px]">
             * 앞의 300줄만 보여 줍니다({shown.length}줄 중). 기간이나 거래처를 좁혀 주세요.
           </p>
         )}

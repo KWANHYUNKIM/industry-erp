@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import CodePickerField from '../../components/CodePickerField'
-import type { Item, Partner, Warehouse } from '../../api/types'
+import type { Item, Partner, Warehouse } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
@@ -9,18 +9,31 @@ import { ymd } from '../../components/EcPeriodPicks'
 import { loadSupplierParty, printDocuments } from '../../utils/printDocument'
 import { Link } from 'react-router-dom'
 import { dateText } from '../../utils/dateText'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
+import { usePartnerGroups } from '../../utils/partnerGroups'
+import { useShortcut } from '../../utils/useShortcut'
 
-interface AsPart {
-  id: number; itemId: number; itemName: string; warehouseId: number; warehouseName: string
-  quantity: number; unitPrice: number | null; amount: number | null; remark: string | null
-}
+/**
+ * 재고 II › A/S관리 › A/S접수조회(E040602) · A/S접수입력(E040601) · A/S접수수정
+ *
+ * <p>2026-10-03 원본(loginaa)에서 직접 접수 → 수정 → 진행상태 변경 → 삭제를 해 보고 맞췄다.
+ * <ul>
+ *   <li>접수는 <b>품목을 격자로 여러 줄</b> 받는다(품목코드 · 품목명 · 수량, 합계줄). 우리는 품목 하나였다.</li>
+ *   <li><b>[창고]가 없으면 저장하지 않는다</b>(빨간 테두리). 접수는 재고를 움직이지 않는다.</li>
+ *   <li>수정 창은 <b>일자만 잠그고</b> 나머지는 다 고친다. 우리는 상태·담당·제목·예정일만 고쳤다.</li>
+ *   <li>목록 알약은 진행단계(접수 – 수리중 – 완료)이고 <b>[접수]로 연다</b>. 수리중으로 바꾸면 그 줄은 접수 알약에서 빠진다.</li>
+ *   <li>[선택삭제] · 수정 창 [삭제] — "선택한 전표를 삭제 하겠습니까?". 우리는 지울 수가 없었다.</li>
+ * </ul>
+ * 부품 · 수리비는 원본처럼 A/S수리조회 [생성한 전표](판매연결전표)에서 판매로 잡는다 — 접수에는 소모부품이 없다.
+ */
 const won = (n: number) => n.toLocaleString('ko-KR')
 
 type AsStatus = 'RECEIVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED'
-const LABEL: Record<AsStatus, string> = { RECEIVED: '접수', IN_PROGRESS: '처리중', COMPLETED: '완료', CANCELED: '취소' }
-const COLOR: Record<AsStatus, string> = { RECEIVED: '#c07a00', IN_PROGRESS: 'var(--ec-blue)', COMPLETED: '#1c7c3c', CANCELED: '#8a929c' }
-const NEXT: Record<AsStatus, AsStatus | null> = { RECEIVED: 'IN_PROGRESS', IN_PROGRESS: 'COMPLETED', COMPLETED: null, CANCELED: null }
+/* 원본 접수진행상태 — 000 접수 · 200 수리중 · 300 완료. [취소]는 우리 것이다(소모부품을 되돌리는 문). */
+const LABEL: Record<AsStatus, string> = { RECEIVED: '접수', IN_PROGRESS: '수리중', COMPLETED: '완료', CANCELED: '취소' }
+const STAGES: AsStatus[] = ['RECEIVED', 'IN_PROGRESS', 'COMPLETED', 'CANCELED']
 
+interface AsLine { id: number; lineNo: number; itemId: number; itemCode: string; itemName: string; itemSpec: string | null; quantity: number }
 interface AsRow {
   id: number; asNo: string; partnerId: number; partnerName: string; itemId: number; itemName: string
   receiptDate: string; title: string | null; scheduledDate: string | null
@@ -28,47 +41,46 @@ interface AsRow {
   projectId: number | null; projectName: string | null
   symptom: string | null; charge: string | null
   status: AsStatus; statusName: string; doneDate: string | null; repairNote: string | null
+  /** 원본 조건 [품목구분]. 품목 마스터의 값이라 서버가 실어 준다. */
+  itemCategoryName: string | null
+  /** 원본 조건 [최초작성자]·[최초작성일자]·[최종작업일자], [기타]의 수정일자순(정렬). */
+  createdBy: string | null
+  createdAt: string | null
+  updatedAt: string | null
+  /** 원본 A/S접수 품목 격자와 [수량] 합계. */
+  lines: AsLine[]
+  totalQuantity: number
 }
 
 const today = () => ymd(new Date())
 
-/**
- * 원본 A/S접수 격자의 <b>[접수증]</b> — 그 한 건을 접수증으로 찍는다.
- *
- * <p>고친 물건을 돌려줄 때 손에 쥐여 주는 종이다. 우리는 <b>찍을 데가 없어</b>
- * 화면을 그대로 인쇄하거나 손으로 적어 줬다.
- *
- * <p>줄은 <b>쓴 부품</b>이다. 부품이 없으면(아직 안 고쳤거나 부품이 안 드는 수리)
- * 줄이 없는 종이가 나오는데, 그게 맞다 — 없는 부품을 지어내지 않는다.
- * 증상·수리내용은 머리에 적는다.
- */
-async function printAsReceipt(r: AsRow) {
-  let parts: AsPart[] = []
-  try { parts = (await api.get<AsPart[]>(`/as-requests/${r.id}/parts`)).data } catch { /* 부품이 없어도 찍는다 */ }
+/** 원본 [접수증] — 접수한 품목 줄을 찍는다(금액 없는 양식). */
+async function printAsReceipt(r: AsRow, title = 'A/S 접수증') {
   const ours = await loadSupplierParty('수리처')
   await printDocuments([{
-    title: 'A/S 접수증',
+    title,
     docNo: r.asNo,
     docDate: r.receiptDate,
     supplier: ours ?? { label: '수리처', name: '(회사정보 미등록)' },
     customer: { label: '의뢰처', name: r.partnerName },
     extra: [
-      { label: '접수품목', value: r.itemName },
-      { label: '증상', value: r.symptom },
+      { label: '제목', value: r.title },
+      { label: '접수내용', value: r.symptom },
       { label: '수리예정일자', value: r.scheduledDate },
-      { label: '담당자', value: r.charge },
-      { label: '진행상태', value: r.statusName },
+      { label: '접수담당자', value: r.charge },
+      { label: '접수진행상태', value: r.statusName },
     ],
     remark: r.repairNote,
-    lines: parts.map((pt) => ({
-      itemName: pt.itemName, unit: '',
-      quantity: pt.quantity,
-      unitPrice: pt.unitPrice ?? 0,
-      supplyAmount: pt.amount ?? 0,
-      vatAmount: 0,
+    hideAmounts: true,
+    lines: r.lines.map((l) => ({
+      itemName: l.itemName, spec: l.itemSpec ?? undefined, unit: '',
+      quantity: l.quantity, unitPrice: 0, supplyAmount: 0, vatAmount: 0,
     })),
   }])
 }
+
+type FormLine = { itemId: string; quantity: string }
+const emptyLines = (): FormLine[] => [{ itemId: '', quantity: '' }, { itemId: '', quantity: '' }, { itemId: '', quantity: '' }]
 
 export default function AsManagePage() {
   const [rows, setRows] = useState<AsRow[]>([])
@@ -77,31 +89,11 @@ export default function AsManagePage() {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [projects, setProjects] = useState<{ id: number; code: string; name: string }[]>([])
   const [error, setError] = useState('')
-
-  // 소모부품 관리
-  /*
-   * 원본 격자의 <b>[상세내역]</b> — 줄을 눌러 그 접수에 쓴 부품을 <b>그 자리에서</b> 편다.
-   * 우리는 [부품] 창을 따로 열어야만 볼 수 있었다. 창을 열면 목록이 가려져,
-   * 여러 건을 견주려면 열었다 닫았다 해야 했다.
-   */
-  const [openDetail, setOpenDetail] = useState<number | null>(null)
-  const [detailParts, setDetailParts] = useState<AsPart[]>([])
-  const [partsFor, setPartsFor] = useState<AsRow | null>(null)
-  const [parts, setParts] = useState<AsPart[]>([])
-  const [partForm, setPartForm] = useState({ itemId: '', warehouseId: '', quantity: '', unitPrice: '' })
-  const [partError, setPartError] = useState('')
-  const [ok, setOk] = useState('')
-  /** 펼칠 때 그 줄의 부품만 가져온다 — 목록을 열 때 전부 가져오면 안 볼 것까지 부른다. */
-  async function toggleDetail(r: AsRow) {
-    if (openDetail === r.id) { setOpenDetail(null); return }
-    setOpenDetail(r.id)
-    setDetailParts([])
-    try { setDetailParts((await api.get<AsPart[]>(`/as-requests/${r.id}/parts`)).data) }
-    catch (err) { setError(extractErrorMessage(err)) }
-  }
-  const [showForm, setShowForm] = useState(false)
   const [keyword, setKeyword] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'ALL' | AsStatus>('ALL')
+  /* 원본 알약은 [접수]로 연다(2026-10-03 실측). */
+  const [statusFilter, setStatusFilter] = useState<'ALL' | AsStatus>('RECEIVED')
+  const [picked, setPicked] = useState<Set<number>>(new Set())
+  const [openDetail, setOpenDetail] = useState<number | null>(null)
   /*
    * 원본 A/S접수의 조건에 <b>[담당자]</b> 가 있다(사본 실측). 담당자는 이미 목록에
    * 찍히는 값이다(AsResponse.charge) — 누가 맡았는지 보이면서도 그것으로 모아 볼 수 없었다.
@@ -123,26 +115,36 @@ export default function AsManagePage() {
   const [whCond, setWhCond] = useState('')
   const [itemCond, setItemCond] = useState('')
   const [projCond, setProjCond] = useState('')
-
-  const [partnerId, setPartnerId] = useState('')
-  const [itemId, setItemId] = useState('')
-  const [receiptDate, setReceiptDate] = useState(today())
-  const [symptom, setSymptom] = useState('')
-  /* 원본 A/S접수입력의 [제목]·[수리예정일자]. 목록에서 한 건이 무슨 일인지
-     증상 전문을 읽어야 알았고, 언제까지 고쳐 주기로 했는지는 적을 데가 없었다. */
-  const [title, setTitle] = useState('')
-  const [scheduledDate, setScheduledDate] = useState('')
-  /* 원본 A/S접수의 [창고]·[프로젝트]. 접수 시점에 못 적어 소모부품 창고로만 되짚어야 했다. */
-  const [fWarehouse, setFWarehouse] = useState('')
-  const [fProject, setFProject] = useState('')
-  const [charge, setCharge] = useState('')
-
-  const customers = useMemo(() => partners.filter((p) => p.type === 'CUSTOMER' || p.type === 'BOTH'), [partners])
+  /*
+   * 2026-09-08 에 원본(E040602)을 열어 조건을 <b>전부</b> 쟀다 — <b>서른하나</b>다.
+   * 사본에는 열하나뿐이었고 <b>맨 앞의 [기준일자]</b>가 빠져 있었다(발주서조회·
+   * 창고이동조회·결제내역조회에 이어 네 번째로 첫 줄을 건너뛴 사본이다).
+   * [수리예정일자]는 둘째 줄이다. 기본 기간은 [최근30일(+1개월)] 이다.
+   */
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
+  const [partnerCond, setPartnerCond] = useState('')
+  const [partnerGroupCond, setPartnerGroupCond] = useState('')
+  const [categoryCond, setCategoryCond] = useState('')
+  const [itemGroupCond, setItemGroupCond] = useState('')
+  const [symptomCond, setSymptomCond] = useState('')
+  const [remarkCond, setRemarkCond] = useState('')
+  const [authorCond, setAuthorCond] = useState('')
+  const [madeFrom, setMadeFrom] = useState('')
+  const [madeTo, setMadeTo] = useState('')
+  const [editedFrom, setEditedFrom] = useState('')
+  const [editedTo, setEditedTo] = useState('')
+  const [byUpdated, setByUpdated] = useState(false)
+  const mgmt = useItemMgmt()
+  const pgroups = usePartnerGroups()
 
   async function load() {
     try {
+      const period: Record<string, string> = {}
+      if (from) period.from = from
+      if (to) period.to = to
       const [a, p, i, w, pj] = await Promise.all([
-        api.get<AsRow[]>('/as-requests'),
+        api.get<AsRow[]>('/as-requests', { params: period }),
         api.get<Partner[]>('/partners'),
         api.get<Item[]>('/items'),
         api.get<Warehouse[]>('/warehouses'),
@@ -151,78 +153,106 @@ export default function AsManagePage() {
       setRows(a.data); setPartners(p.data); setItems(i.data); setWarehouses(w.data); setProjects(pj.data)
     } catch (err) { setError(extractErrorMessage(err)) }
   }
-  useEffect(() => { load() }, [])
+  /* 기간을 바꾸면 그 기간으로 다시 받는다. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [from, to])
 
-  async function openParts(r: AsRow) {
-    setPartsFor(r); setPartError(''); setPartForm({ itemId: '', warehouseId: '', quantity: '', unitPrice: '' })
-    try { setParts((await api.get<AsPart[]>(`/as-requests/${r.id}/parts`)).data) }
-    catch (err) { setPartError(extractErrorMessage(err)) }
-  }
-  async function addPart() {
-    if (!partsFor) return
-    setPartError('')
-    if (!partForm.itemId) return setPartError('품목을 선택하세요.')
-    if (!partForm.warehouseId) return setPartError('창고를 선택하세요.')
-    if (!(Number(partForm.quantity) > 0)) return setPartError('수량은 0보다 커야 합니다.')
-    try {
-      await api.post(`/as-requests/${partsFor.id}/parts`, {
-        itemId: Number(partForm.itemId), warehouseId: Number(partForm.warehouseId),
-        quantity: Number(partForm.quantity), unitPrice: partForm.unitPrice ? Number(partForm.unitPrice) : undefined,
-      })
-      setPartForm({ itemId: '', warehouseId: '', quantity: '', unitPrice: '' })
-      setParts((await api.get<AsPart[]>(`/as-requests/${partsFor.id}/parts`)).data)
-    } catch (err) { setPartError(extractErrorMessage(err)) }
-  }
-  async function delPart(p: AsPart) {
-    if (!partsFor) return
-    if (!confirm(`${p.itemName} ${won(p.quantity)}개 소모를 삭제할까요? (재고 복원)`)) return
-    try {
-      await api.delete(`/as-requests/parts/${p.id}`)
-      setParts((await api.get<AsPart[]>(`/as-requests/${partsFor.id}/parts`)).data)
-    } catch (err) { alert(extractErrorMessage(err)) }
-  }
+  const customers = useMemo(() => partners.filter((p) => p.type === 'CUSTOMER' || p.type === 'BOTH'), [partners])
 
-  async function submit(e: FormEvent) {
-    e.preventDefault()
-    setError(''); setOk('')
-    if (!partnerId) return setError('거래처를 선택하세요.')
-    if (!itemId) return setError('품목을 선택하세요.')
-    try {
-      const res = await api.post<AsRow>('/as-requests', {
-        partnerId: Number(partnerId), itemId: Number(itemId), receiptDate,
-        title: title || undefined, scheduledDate: scheduledDate || undefined,
-        warehouseId: fWarehouse ? Number(fWarehouse) : undefined,
-        projectId: fProject ? Number(fProject) : undefined,
-        symptom: symptom || undefined, charge: charge || undefined,
-      })
-      setOk(`${res.data.asNo} A/S 접수 완료`)
-      setSymptom(''); setCharge('')
-      load()
-    } catch (err) { setError(extractErrorMessage(err)) }
-  }
+  /* ── A/S접수입력 · A/S접수수정 ─────────────────────────────── */
+  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState<AsRow | null>(null)
+  const [f, setF] = useState({
+    receiptDate: today(), partnerId: '', charge: '', warehouseId: '', status: 'RECEIVED' as AsStatus,
+    scheduledDate: today(), projectId: '', title: '', symptom: '',
+  })
+  const [lines, setLines] = useState<FormLine[]>(emptyLines())
+  const [formError, setFormError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const setFv = (k: keyof typeof f, v: string) => setF((x) => ({ ...x, [k]: v }))
 
-  async function advance(r: AsRow) {
-    const next = NEXT[r.status]
-    if (!next) return
-    let repairNote: string | undefined
-    if (next === 'COMPLETED') {
-      const v = prompt('수리내역을 입력하세요.', r.repairNote ?? '')
-      if (v === null) return
-      repairNote = v
+  function openNew() {
+    setEditing(null); setFormError(''); setLines(emptyLines())
+    /* 원본은 저장 뒤 새 창에 [창고]를 그대로 남긴다 — 같은 창고로 잇달아 받는다. */
+    setF((x) => ({ receiptDate: today(), partnerId: '', charge: '', warehouseId: x.warehouseId, status: 'RECEIVED',
+      scheduledDate: today(), projectId: '', title: '', symptom: '' }))
+    setOpen(true)
+  }
+  async function openEdit(r: AsRow) {
+    setEditing(r); setFormError('')
+    setF({ receiptDate: r.receiptDate, partnerId: String(r.partnerId), charge: r.charge ?? '',
+      warehouseId: r.warehouseId ? String(r.warehouseId) : '', status: r.status,
+      scheduledDate: r.scheduledDate ?? '', projectId: r.projectId ? String(r.projectId) : '',
+      title: r.title ?? '', symptom: r.symptom ?? '' })
+    setLines([...r.lines.map((l) => ({ itemId: String(l.itemId), quantity: String(l.quantity) })), { itemId: '', quantity: '' }])
+    setOpen(true)
+  }
+  const setLine = (i: number, patch: Partial<FormLine>) => setLines((ls) => {
+    const n = ls.map((l, k) => (k === i ? { ...l, ...patch } : l))
+    /* 마지막 줄을 채우면 빈 줄을 하나 더 단다(원본 격자처럼). */
+    if (n[n.length - 1].itemId) n.push({ itemId: '', quantity: '' })
+    return n
+  })
+  const filled = lines.filter((l) => l.itemId)
+  const totalQty = filled.reduce((a, l) => a + (Number(l.quantity) || 0), 0)
+
+  async function save() {
+    if (saving) return
+    if (!f.partnerId) return setFormError('거래처를 선택하세요.')
+    if (!f.warehouseId) return setFormError('창고를 선택하세요.')
+    if (filled.length === 0) return setFormError('품목을 1개 이상 입력하세요.')
+    if (filled.some((l) => !(Number(l.quantity) > 0))) return setFormError('수량은 0보다 커야 합니다.')
+    setSaving(true); setFormError('')
+    const body = {
+      partnerId: Number(f.partnerId), warehouseId: Number(f.warehouseId),
+      projectId: f.projectId ? Number(f.projectId) : undefined,
+      title: f.title, scheduledDate: f.scheduledDate || undefined, symptom: f.symptom, charge: f.charge,
+      lines: filled.map((l) => ({ itemId: Number(l.itemId), quantity: Number(l.quantity) })),
     }
-    try { await api.patch(`/as-requests/${r.id}`, { status: next, repairNote }); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
+    try {
+      if (editing) {
+        await api.patch(`/as-requests/${editing.id}`, { ...body, status: f.status })
+        setOpen(false)
+      } else {
+        await api.post('/as-requests', { ...body, receiptDate: f.receiptDate })
+        openNew()   /* 원본은 저장하면 빈 입력 창으로 돌아간다. */
+      }
+      load()
+    } catch (err) { setFormError(extractErrorMessage(err)) } finally { setSaving(false) }
   }
-  async function cancel(r: AsRow) {
-    if (!confirm(`${r.asNo} A/S를 취소할까요?`)) return
-    try { await api.patch(`/as-requests/${r.id}`, { status: 'CANCELED' }); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
+  useShortcut('F8', save, open)
+
+  async function removeOne() {
+    if (!editing || !window.confirm('선택한 전표를 삭제 하겠습니까?')) return
+    try { await api.delete(`/as-requests/${editing.id}`); setOpen(false); load() }
+    catch (err) { setFormError(extractErrorMessage(err)) }
+  }
+  async function removeChecked() {
+    const ids = [...picked]
+    if (ids.length === 0 || !window.confirm('선택한 전표를 삭제 하겠습니까?')) return
+    const results = await Promise.allSettled(ids.map((id) => api.delete(`/as-requests/${id}`)))
+    const failed = results.filter((x) => x.status === 'rejected') as PromiseRejectedResult[]
+    setPicked(new Set())
+    setError(failed.length ? failed.map((x) => extractErrorMessage(x.reason)).join(' / ') : '')
+    load()
   }
 
-  /** 원본은 일자와 번호를 '2026/08/03 -1' 로 한 칸에 적는다(판매조회와 같은 규칙). */
+  /* 원본 [진행상태변경] — 고른 접수의 단계를 한 번에 바꾼다. */
+  const [stageOpen, setStageOpen] = useState(false)
+  const [stageTo, setStageTo] = useState<AsStatus>('IN_PROGRESS')
+  async function changeStage() {
+    const ids = [...picked]
+    const results = await Promise.allSettled(ids.map((id) => api.patch(`/as-requests/${id}`, { status: stageTo })))
+    const failed = results.filter((x) => x.status === 'rejected') as PromiseRejectedResult[]
+    setStageOpen(false); setPicked(new Set())
+    setError(failed.length ? failed.map((x) => extractErrorMessage(x.reason)).join(' / ') : '')
+    load()
+  }
+
+  /* 원본 [접수일자-번호] '26/10/03-1' */
   const dateNo = (r: AsRow) => {
     const seq = r.asNo.split('-').pop() ?? ''
-    return `${r.receiptDate.replace(/-/g, '/')} -${Number(seq) || seq}`
+    return `${r.receiptDate.slice(2).replace(/-/g, '/')}-${Number(seq) || seq}`
   }
 
   const shownRows = rows
@@ -232,271 +262,296 @@ export default function AsManagePage() {
     .filter((r) => !schedTo || (r.scheduledDate != null && r.scheduledDate <= schedTo))
     .filter((r) => !chargeCond || (r.charge ?? '').includes(chargeCond))
     .filter((r) => !itemCond || r.itemName.includes(itemCond))
-    .filter((r) => !whCond || r.warehouseName === whCond)
-    .filter((r) => !projCond || r.projectName === projCond)
+    /* 이름은 겹칠 수 있다 — id 로 거른다(QA 9회차). */
+    .filter((r) => !whCond || String(r.warehouseId) === whCond)
+    .filter((r) => !projCond || String(r.projectId) === projCond)
     .filter((r) => !titleCond || (r.title ?? '').includes(titleCond))
+    /* 원본 첫 줄 [기준일자] — 접수한 날이다. 둘째 줄 [수리예정일자]와 다르다. */
+    .filter((r) => !from || r.receiptDate >= from)
+    .filter((r) => !to || r.receiptDate <= to)
+    .filter((r) => !partnerCond || String(r.partnerId) === partnerCond)
+    .filter((r) => !partnerGroupCond || pgroups.groupOfName(r.partnerName) === partnerGroupCond)
+    .filter((r) => !categoryCond || (r.itemCategoryName ?? '') === categoryCond)
+    .filter((r) => !itemGroupCond || mgmt.groupOf(r.itemId) === itemGroupCond)
+    .filter((r) => !symptomCond || (r.symptom ?? '').includes(symptomCond))
+    .filter((r) => !remarkCond || (r.repairNote ?? '').includes(remarkCond))
+    .filter((r) => !authorCond || (r.createdBy ?? '') === authorCond)
+    .filter((r) => !madeFrom || (r.createdAt ?? '').slice(0, 10) >= madeFrom)
+    .filter((r) => !madeTo || ((r.createdAt ?? '') !== '' && r.createdAt!.slice(0, 10) <= madeTo))
+    .filter((r) => !editedFrom || (r.updatedAt ?? '').slice(0, 10) >= editedFrom)
+    .filter((r) => !editedTo || ((r.updatedAt ?? '') !== '' && r.updatedAt!.slice(0, 10) <= editedTo))
+    /* 원본 [기타]의 수정일자순(정렬). */
+    .sort((a, b) => (byUpdated ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') : 0))
 
-  /* 세 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. */
   const sort = useTableSort(shownRows, {
-    '일자-No.': (r) => `${r.receiptDate} ${r.asNo}`,
+    '접수일자-번호': (r) => `${r.receiptDate} ${r.asNo}`,
     거래처: (r) => r.partnerName,
   })
   const shown = sort.sorted
-  const openCount = rows.filter((r) => r.status === 'RECEIVED' || r.status === 'IN_PROGRESS').length
-
-  const inputCls = 'ec-input'
-  const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 74 }
+  const pickable = shown.map((r) => r.id)
+  const allPicked = pickable.length > 0 && pickable.every((id) => picked.has(id))
+  const itemPicks = useMemo(() => items.map((x) => ({ value: String(x.id), code: x.code, name: x.name, sub: x.spec })), [items])
+  const itemById = useMemo(() => new Map(items.map((x) => [String(x.id), x])), [items])
 
   return (
     <EcListShell
-      title="A/S 접수·수리 관리"
+      title="A/S접수조회"
       search={keyword}
       onSearchChange={setKeyword}
-      newLabel={showForm ? '입력닫기' : 'A/S접수(F2)'}
-      onNew={() => setShowForm(true)}
-      actions={[{ label: 'Excel' }, { label: '인쇄' }]}
+      onNew={openNew}
+      actions={[
+        { label: '진행상태변경', onClick: () => setStageOpen(true), disabled: picked.size === 0 },
+        { label: '선택삭제', onClick: removeChecked, disabled: picked.size === 0 },
+        { label: 'Excel' },
+      ]}
     >
-      <p className="mb-2 text-xs text-slate-500">고객 제품의 A/S 접수·수리 관리 · 접수 → 처리중 → 완료 · 미완료 {openCount}건</p>
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <Modal open={showForm} title="A/S 접수·수리 등록" onClose={() => setShowForm(false)}>{(
-        <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 12, marginBottom: 10, maxWidth: 820 }}>
-          <table className="w-full text-left">
-            <tbody>
-              <tr>
-                <th style={th}>거래처 *</th>
-                <td>
-                {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다. */}
-                <CodePickerField label="거래처 *" hideLabel fill
-                                 emptyLabel="선택하세요"
-                                 value={partnerId} onChange={setPartnerId}
-                                 items={customers.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
-                </td>
-                {/* 원본 A/S접수입력의 이름은 [접수일]이 아니라 <b>[일자]</b> 다(사본 실측). */}
-                <th style={th}>일자</th>
-                <td><input type="date" className={inputCls} value={dateText(receiptDate)} onChange={(e) => setReceiptDate(e.target.value)} style={{ width: 150 }} /></td>
-              </tr>
-              <tr>
-                <th style={th}>품목 *</th>
-                <td>
-                {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다. */}
-                <CodePickerField label="품목 *" hideLabel width={200} emptyLabel="선택하세요"
-                                 value={itemId} onChange={setItemId}
-                                 items={items.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
-                </td>
-                <th style={th}>담당</th>
-                <td><input className={inputCls} value={charge} onChange={(e) => setCharge(e.target.value)} style={{ width: 150 }} /></td>
-              </tr>
-              <tr>
-                <th style={th}>창고</th>
-                <td>
-                  <CodePickerField label="창고" hideLabel width={200} emptyLabel="선택 안 함"
-                                   value={fWarehouse} onChange={setFWarehouse}
-                                   items={warehouses.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
-                </td>
-                <th style={th}>프로젝트</th>
-                <td>
-                  <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="선택 안 함"
-                                   value={fProject} onChange={setFProject}
-                                   items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
-                </td>
-              </tr>
-              <tr>
-                <th style={th}>제목</th>
-                <td><input className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} style={{ width: '100%' }} placeholder="무슨 건인지 한 줄로" /></td>
-                <th style={th}>수리예정일자</th>
-                <td><input type="date" className={inputCls} value={dateText(scheduledDate)} onChange={(e) => setScheduledDate(e.target.value)} style={{ width: 150 }} /></td>
-              </tr>
-              <tr>
-                <th style={th}>증상</th>
-                <td colSpan={3}><input className={inputCls} value={symptom} onChange={(e) => setSymptom(e.target.value)} style={{ width: '100%' }} placeholder="고장 증상을 입력하세요" /></td>
-              </tr>
-            </tbody>
-          </table>
-          {error && <p className="mt-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-          {ok && <p className="mt-2 rounded bg-green-50 px-3 py-2 text-sm text-green-700">{ok}</p>}
-          <div style={{ marginTop: 10 }}><button type="submit" className="ec-btn ec-btn-primary">접수(F8)</button></div>
-        </form>
-      )}</Modal>
-
-      <Modal open={!!partsFor} title={`소모부품 · ${partsFor?.asNo ?? ''}`} onClose={() => setPartsFor(null)}>{(
-        <div style={{ padding: 4, minWidth: 560 }}>
-          <p className="mb-2 text-xs text-slate-500">A/S 수리에 사용한 부품. 등록 시 창고 재고가 차감되고, 삭제 시 복원됩니다.</p>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 10 }}>
-            <select className="ec-input" value={partForm.itemId} onChange={(e) => setPartForm((f) => ({ ...f, itemId: e.target.value }))} style={{ minWidth: 180 }}>
-              <option value="">부품(품목) 선택</option>
-              {items.map((it) => <option key={it.id} value={it.id}>[{it.code}] {it.name}</option>)}
-            </select>
-            <select className="ec-input" value={partForm.warehouseId} onChange={(e) => setPartForm((f) => ({ ...f, warehouseId: e.target.value }))} style={{ minWidth: 130 }}>
-              <option value="">창고</option>
-              {warehouses.map((w) => <option key={w.id} value={w.id}>[{w.code}] {w.name}</option>)}
-            </select>
-            <input className="ec-input text-right" type="number" placeholder="수량" value={partForm.quantity} onChange={(e) => setPartForm((f) => ({ ...f, quantity: e.target.value }))} style={{ width: 80 }} />
-            <input className="ec-input text-right" type="number" placeholder="단가" value={partForm.unitPrice} onChange={(e) => setPartForm((f) => ({ ...f, unitPrice: e.target.value }))} style={{ width: 100 }} />
-            <button className="ec-btn ec-btn-primary" onClick={addPart}>추가(재고차감)</button>
-          </div>
-          {partError && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{partError}</p>}
-          <table className="w-full text-left">
-            <thead>
-              {/*
-                원본 부품 격자에 [적요]가 있다. AsPart.remark 도 AsPartResponse.remark 도
-                진작 있었는데 <b>격자에만 그 칸이 없었다</b> — 부품마다 왜 갈았는지를 적어 두고도
-                볼 수가 없었다.
-              */}
-              <tr><th style={{ width: 34 }}></th><th>부품</th><th>창고</th><th style={{ textAlign: 'right' }}>수량</th><th style={{ textAlign: 'right' }}>단가</th><th style={{ textAlign: 'right' }}>금액</th><th style={{ width: 140 }}>적요</th><th style={{ textAlign: 'center' }}></th></tr>
-            </thead>
-            <tbody>
-              {parts.length === 0 ? (
-                <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 14 }}>소모부품 없음</td></tr>
-              ) : parts.map((p, i) => (
-                <tr key={p.id}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                  <td>{p.itemName}</td>
-                  <td>{p.warehouseName}</td>
-                  <td style={{ textAlign: 'right' }}>{won(p.quantity)}</td>
-                  <td style={{ textAlign: 'right' }}>{p.unitPrice != null ? won(p.unitPrice) : ''}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 600 }}>{p.amount != null ? won(p.amount) : ''}</td>
-                  <td style={{ color: '#5a626e' }}>{p.remark ?? ''}</td>
-                  <td style={{ textAlign: 'center' }}><button className="no-ec" onClick={() => delPart(p)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>삭제</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}</Modal>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
-        <span>수리예정일자</span>
+      <div className="ec-search-conds flex flex-wrap items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label">
+        {/* 원본 첫 줄은 <b>[기준일자]</b>(접수한 날)고 [수리예정일자]는 둘째 줄이다(2026-09-08 실측). */}
+        <span>기준일자</span>
+        <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
+        <span className="text-ec-hint">~</span>
+        <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
+        <span className="ml-[8px]">수리예정일자</span>
         <input type="date" className="ec-input" value={schedFrom} onChange={(e) => setSchedFrom(e.target.value)} style={{ width: 140 }} />
-        <span style={{ color: '#9aa1ab' }}>~</span>
+        <span className="text-ec-hint">~</span>
         <input type="date" className="ec-input" value={schedTo} onChange={(e) => setSchedTo(e.target.value)} style={{ width: 140 }} />
         {/* 원본 차례: 수리예정일자 · <b>창고</b> · 거래처 · 품목 · 프로젝트 · 담당자 · 제목. */}
-        <span style={{ marginLeft: 8 }}>창고</span>
+        <span className="ml-[8px]">창고</span>
         <CodePickerField label="창고" hideLabel width={140} emptyLabel="전체"
                          value={whCond} onChange={setWhCond}
-                         items={warehouses.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
-        <span style={{ marginLeft: 8 }}>프로젝트</span>
+                         items={warehouses.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+        {/* 원본 차례: 창고 · (창고계층그룹) · <b>거래처 · 거래처그룹1</b> · 품목 · 품목구분 · 품목그룹1 · 프로젝트 … */}
+        <span className="ml-[8px]">거래처</span>
+        <CodePickerField label="거래처" hideLabel width={150} emptyLabel="전체"
+                         value={partnerCond} onChange={setPartnerCond}
+                         items={[...new Map(rows.map((r) => [r.partnerId, r.partnerName])).entries()]
+                           .sort((a, b) => a[1].localeCompare(b[1], 'ko')).map(([id, n]) => ({ value: String(id), name: n }))} />
+        <span className="ml-[8px]">거래처그룹1</span>
+        <CodePickerField label="거래처그룹1" hideLabel width={140} emptyLabel="전체"
+                         value={partnerGroupCond} onChange={setPartnerGroupCond}
+                         items={pgroups.groupOptions.map((n) => ({ value: n, name: n }))} />
+        <span className="ml-[8px]">프로젝트</span>
         <CodePickerField label="프로젝트" hideLabel width={150} emptyLabel="전체"
                          value={projCond} onChange={setProjCond}
-                         items={projects.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
-        <span style={{ marginLeft: 8 }}>품목</span>
+                         items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+        <span className="ml-[8px]">품목</span>
         <input className="ec-input" value={itemCond} onChange={(e) => setItemCond(e.target.value)}
                placeholder="품목" style={{ width: 150 }} />
-        <span style={{ marginLeft: 8 }}>담당자</span>
+        <span className="ml-[8px]">품목구분</span>
+        <CodePickerField label="품목구분" hideLabel width={130} emptyLabel="전체"
+                         value={categoryCond} onChange={setCategoryCond}
+                         items={[...new Set(rows.map((r) => r.itemCategoryName).filter(Boolean) as string[])].sort()
+                           .map((n) => ({ value: n, name: n }))} />
+        <span className="ml-[8px]">품목그룹1</span>
+        <CodePickerField label="품목그룹1" hideLabel width={130} emptyLabel="전체"
+                         value={itemGroupCond} onChange={setItemGroupCond}
+                         items={mgmt.groupOptions.map((n) => ({ value: n, name: n }))} />
+        <span className="ml-[8px]">담당자</span>
         <input className="ec-input" value={chargeCond} onChange={(e) => setChargeCond(e.target.value)}
                placeholder="담당자" style={{ width: 150 }} />
-        <span style={{ marginLeft: 8 }}>제목</span>
+        <span className="ml-[8px]">제목</span>
         <input className="ec-input" value={titleCond} onChange={(e) => setTitleCond(e.target.value)}
                placeholder="제목" style={{ width: 170 }} />
+        {/* 원본 차례: 제목 · (최종수정자) · 기타 · (발송여부) · 접수내용 · 적요 · 최초작성자 · 최초작성일자 · 최종작업일자 … */}
+        <span className="ml-[8px]">기타</span>
+        <label className="text-[12.5px] inline-flex items-center gap-[4px]">
+          <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
+          수정일자순(정렬)
+        </label>
+        <span className="ml-[8px]">접수내용</span>
+        <input className="ec-input" value={symptomCond} onChange={(e) => setSymptomCond(e.target.value)}
+               placeholder="접수내용" style={{ width: 150 }} />
+        <span className="ml-[8px]">적요</span>
+        <input className="ec-input" value={remarkCond} onChange={(e) => setRemarkCond(e.target.value)}
+               placeholder="적요" style={{ width: 150 }} />
+        <span className="ml-[8px]">최초작성자</span>
+        <CodePickerField label="최초작성자" hideLabel width={130} emptyLabel="전체"
+                         value={authorCond} onChange={setAuthorCond}
+                         items={[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
+                           .map((n) => ({ value: n, name: n }))} />
+        <span className="ml-[8px]">최초작성일자</span>
+        <input type="date" className="ec-input" value={madeFrom} onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
+        <span className="text-ec-hint">~</span>
+        <input type="date" className="ec-input" value={madeTo} onChange={(e) => setMadeTo(e.target.value)} style={{ width: 140 }} />
+        <span className="ml-[8px]">최종작업일자</span>
+        <input type="date" className="ec-input" value={editedFrom} onChange={(e) => setEditedFrom(e.target.value)} style={{ width: 140 }} />
+        <span className="text-ec-hint">~</span>
+        <input type="date" className="ec-input" value={editedTo} onChange={(e) => setEditedTo(e.target.value)} style={{ width: 140 }} />
       </div>
 
-      {/* 원본 A/S접수의 조건 이름은 <b>[접수진행상태]</b> 다 — 이 알약이 그 일을 한다. */}
-      <div style={{ display: 'flex', gap: 2, marginBottom: 8, alignItems: 'center' }}>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginRight: 6 }}>접수진행상태</span>
-        {(['ALL', 'RECEIVED', 'IN_PROGRESS', 'COMPLETED', 'CANCELED'] as const).map((s) => (
-          <button key={s} onClick={() => setStatusFilter(s)} className="no-ec" style={{
-            padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
-            background: statusFilter === s ? 'var(--ec-blue)' : '#fff', color: statusFilter === s ? '#fff' : '#3a4453', fontWeight: statusFilter === s ? 700 : 400,
-          }}>{s === 'ALL' ? '전체' : LABEL[s]} ({s === 'ALL' ? rows.length : rows.filter((r) => r.status === s).length})</button>
-        ))}
+      {/* 원본 알약은 진행단계다: 전체 · 접수 – 수리중 – 완료. [접수]로 연다. */}
+      <div className="flex items-center justify-between mb-[6px]">
+        <div className="ec-pills">
+          {(['ALL', ...STAGES] as const).map((s) => (
+            <button key={s} type="button" className={`ec-pill no-ec${statusFilter === s ? ' active' : ''}`}
+                    onClick={() => setStatusFilter(s)}>{s === 'ALL' ? '전체' : LABEL[s]}</button>
+          ))}
+        </div>
+        {from && to && <span className="text-ec-label">{dateText(from)} ~ {dateText(to)}</span>}
       </div>
 
-      <table className="w-full text-left">
+      <table className="w-full ec-head700">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            {/*
-              원본 A/S접수의 첫 열은 <b>[일자-No.]</b> 한 칸이다 — 접수번호와 접수일을
-              따로 두지 않는다(판매조회·견적서와 같은 관용구). 우리는 두 칸으로 갈라 두어
-              <b>같은 값을 두 번</b> 보여 주고 있었다.
-            */}
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('일자-No.')}>일자-No. {sort.mark('일자-No.')}</th><th>제목</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처')}>거래처명 {sort.mark('거래처')}</th><th>품목</th><th>증상</th>
-            {/* 원본 A/S접수의 이름은 [담당]·[상태]가 아니라 <b>[담당자명]·[진행상태]</b> 다(사본 실측). */}
-            <th>담당자명</th><th>수리예정일자</th>
-            {/* 원본 차례는 수리예정일자 <b>다음</b>이 [접수증] 이다(사본 실측). */}
-            <th style={{ width: 60, textAlign: 'center' }}>접수증</th>
-            {/* 원본 차례: 접수증 · <b>상세내역</b> · 진행상태 · <b>생성한 전표</b>. */}
-            <th style={{ width: 66, textAlign: 'center' }}>상세내역</th>
-            <th style={{ textAlign: 'center' }}>진행상태</th>
-            {/*
-              원본 [생성한 전표] — 그 접수에서 <b>나온 전표</b>로 건너뛴다.
-              우리 A/S 는 부품을 쓸 때마다 재고 출고 전표를 남긴다(적요에 'A/S소모 접수번호').
-              재고수불부를 그 번호로 걸러 연다 — 접수와 전표가 이어져 있는데 <b>건너갈 길만</b> 없었다.
-            */}
-            <th style={{ width: 84, textAlign: 'center' }}>생성한 전표</th>
-            <th>완료일</th><th style={{ textAlign: 'center' }}>처리</th>
+            <th className="w-[40px] text-center">
+              <input type="checkbox" checked={allPicked} disabled={pickable.length === 0}
+                     onChange={() => setPicked(allPicked ? new Set() : new Set(pickable))} />
+            </th>
+            <th className="w-[110px] text-center cursor-pointer" onClick={() => sort.toggle('접수일자-번호')}>접수일자-번호 {sort.mark('접수일자-번호')}</th>
+            <th className="w-[100px]">접수담당자</th>
+            <th>제목</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('거래처')}>거래처 {sort.mark('거래처')}</th>
+            <th>접수내용</th>
+            <th className="w-[100px] text-center">수리예정일자</th>
+            <th className="w-[70px] text-center">상세내역</th>
+            <th className="w-[70px] text-center">접수증</th>
+            <th className="w-[90px] text-center">접수단계</th>
+            <th className="w-[84px] text-center">생성한 전표</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((r, i) => [
+            <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+          ) : shown.map((r) => [
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{dateNo(r)}</td>
-              <td>{r.title ?? ''}</td>
-              <td>{r.partnerName}</td>
-              <td>{r.itemName}</td>
-              <td>{r.symptom ?? ''}</td>
+              <td className="text-center">
+                <input type="checkbox" checked={picked.has(r.id)} onChange={() => setPicked((s) => {
+                  const n = new Set(s); if (n.has(r.id)) n.delete(r.id); else n.add(r.id); return n
+                })} />
+              </td>
+              <td className="text-center"><a className="ec-link cursor-pointer" onClick={() => openEdit(r)}>{dateNo(r)}</a></td>
               <td>{r.charge ?? ''}</td>
-              <td>{dateText(r.scheduledDate) || ''}</td>
-              <td style={{ textAlign: 'center' }}>
-                <button onClick={() => printAsReceipt(r)}
-                        style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
+              <td>
+                <button type="button" className="ec-link mr-[4px]" title="품목 줄"
+                        onClick={() => setOpenDetail(openDetail === r.id ? null : r.id)}>{openDetail === r.id ? '▾' : '▸'}</button>
+                {r.title ?? ''}
               </td>
-              <td style={{ textAlign: 'center' }}>
-                <button onClick={() => toggleDetail(r)}
-                        style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>
-                  {openDetail === r.id ? '접기' : '펼치기'}
-                </button>
+              <td>{r.partnerName}</td>
+              <td>{r.symptom ?? ''}</td>
+              <td className="text-center">{r.scheduledDate ? r.scheduledDate.slice(2).replace(/-/g, '/') : ''}</td>
+              <td className="text-center">
+                {/* 원본 [상세내역]은 인쇄 링크다(2026-10-03 실측) — 품목 줄은 이름 옆 ▸ 로 그 자리에서 편다. */}
+                <button type="button" className="ec-link" onClick={() => printAsReceipt(r, 'A/S 상세내역')}>인쇄</button>
               </td>
-              <td style={{ textAlign: 'center', color: COLOR[r.status], fontWeight: 700 }}>{r.statusName}</td>
-              <td style={{ textAlign: 'center' }}>
-                <Link to={`/inventory/ledger?keyword=${encodeURIComponent(r.asNo)}`}
-                      style={{ color: 'var(--ec-blue)', fontSize: 12 }}>재고수불</Link>
-              </td>
-              <td>{dateText(r.doneDate) || ''}</td>
-              <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
-                {NEXT[r.status] && <button className="no-ec" onClick={() => advance(r)} style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>→ {LABEL[NEXT[r.status]!]}</button>}
-                <button className="no-ec" onClick={() => openParts(r)} style={{ border: 'none', background: 'none', color: '#5a626e', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>부품</button>
-                {r.status !== 'COMPLETED' && r.status !== 'CANCELED' && <button className="no-ec" onClick={() => cancel(r)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>취소</button>}
+              <td className="text-center"><button type="button" className="ec-link" onClick={() => printAsReceipt(r)}>인쇄</button></td>
+              <td className="text-center">{r.statusName}</td>
+              <td className="text-center">
+                <Link className="ec-link" to={`/inventory/ledger?keyword=${encodeURIComponent(r.asNo)}`}>조회</Link>
               </td>
             </tr>,
             openDetail === r.id ? (
-              /* 펼친 줄 — 그 접수에 쓴 부품. 아직 안 썼으면 그렇게 적는다(빈 표를 그리지 않는다). */
-              <tr key={`${r.id}-detail`}>
-                <td colSpan={14} style={{ background: '#fbfcfe', padding: '8px 14px' }}>
-                  {detailParts.length === 0 ? (
-                    <span style={{ fontSize: 12, color: '#9aa1ab' }}>쓴 부품이 없습니다.</span>
-                  ) : (
-                    <table className="w-full text-left" style={{ maxWidth: 720 }}>
-                      <thead><tr>
-                        <th style={{ width: 34 }}></th><th>부품</th><th style={{ width: 120 }}>창고</th>
-                        <th style={{ width: 80, textAlign: 'right' }}>수량</th>
-                        <th style={{ width: 100, textAlign: 'right' }}>단가</th>
-                        <th style={{ width: 110, textAlign: 'right' }}>금액</th>
-                        <th style={{ width: 140 }}>적요</th>
-                      </tr></thead>
-                      <tbody>
-                        {detailParts.map((pt, k) => (
-                          <tr key={pt.id}>
-                            <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{k + 1}</td>
-                            <td>{pt.itemName}</td>
-                            <td style={{ color: '#5a626e' }}>{pt.warehouseName}</td>
-                            <td style={{ textAlign: 'right' }}>{won(pt.quantity)}</td>
-                            <td style={{ textAlign: 'right' }}>{pt.unitPrice != null ? won(pt.unitPrice) : ''}</td>
-                            <td style={{ textAlign: 'right', fontWeight: 600 }}>{pt.amount != null ? won(pt.amount) : ''}</td>
-                            <td style={{ color: '#5a626e' }}>{pt.remark ?? ''}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
+              <tr key={`${r.id}-d`}>
+                <td colSpan={11} className="bg-ec-page py-[8px] px-[14px]">
+                  <table className="w-full max-w-[640px]">
+                    <thead><tr><th className="w-[34px]"></th><th className="w-[120px]">품목코드</th><th>품목명</th><th className="w-[80px] text-right">수량</th></tr></thead>
+                    <tbody>
+                      {r.lines.map((l) => (
+                        <tr key={l.id}><td className="text-center">{l.lineNo}</td><td>{l.itemCode}</td><td>{l.itemName}{l.itemSpec ? ` [${l.itemSpec}]` : ''}</td><td className="text-right">{won(Number(l.quantity))}</td></tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </td>
               </tr>
             ) : null,
           ]).flat()}
         </tbody>
       </table>
+
+      <Modal open={stageOpen} title="진행상태변경" error={error} onClose={() => setStageOpen(false)} width={360}>
+        <div className="flex flex-col gap-[6px]">
+          {STAGES.map((s) => (
+            <label key={s} className="flex items-center gap-[4px]">
+              <input type="radio" checked={stageTo === s} onChange={() => setStageTo(s)} />{LABEL[s]}
+            </label>
+          ))}
+        </div>
+        <div className="flex gap-[4px] mt-[10px]">
+          <button className="ec-btn ec-btn-primary" onClick={changeStage}>적용</button>
+          <button className="ec-btn" onClick={() => setStageOpen(false)}>닫기</button>
+        </div>
+      </Modal>
+
+      <Modal open={open} width={980} error={formError} onClose={() => setOpen(false)}
+             title={editing ? 'A/S접수수정' : 'A/S접수입력'}>
+        <ul className="ec-form">
+          <li><div className="title">일자</div><div className="form">
+            {/* 원본 수정 창은 일자를 잠근다. */}
+            <input type="date" className="ec-input w-[150px]" value={f.receiptDate} disabled={!!editing}
+                   onChange={(e) => setFv('receiptDate', e.target.value)} />
+          </div></li>
+          <li><div className="title">거래처</div><div className="form">
+            <CodePickerField label="거래처" hideLabel fill emptyLabel="" placeholder="거래처" value={f.partnerId}
+                             onChange={(v) => setFv('partnerId', v)}
+                             items={customers.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+          </div></li>
+          <li><div className="title">담당자</div><div className="form">
+            <input className="ec-input w-full" placeholder="담당자" value={f.charge} onChange={(e) => setFv('charge', e.target.value)} />
+          </div></li>
+          <li><div className="title">창고</div><div className="form">
+            <CodePickerField label="창고" hideLabel fill emptyLabel="" placeholder="창고" value={f.warehouseId}
+                             onChange={(v) => setFv('warehouseId', v)}
+                             items={warehouses.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+          </div></li>
+          <li><div className="title">접수진행상태</div><div className="form">
+            <select className="ec-input w-[150px]" value={f.status} disabled={!editing}
+                    onChange={(e) => setFv('status', e.target.value)}>
+              {STAGES.map((s) => <option key={s} value={s}>{LABEL[s]}</option>)}
+            </select>
+          </div></li>
+          <li><div className="title">수리예정일자</div><div className="form">
+            <input type="date" className="ec-input w-[150px]" value={f.scheduledDate} onChange={(e) => setFv('scheduledDate', e.target.value)} />
+          </div></li>
+          <li><div className="title">프로젝트</div><div className="form">
+            <CodePickerField label="프로젝트" hideLabel fill emptyLabel="선택 안 함" placeholder="프로젝트" value={f.projectId}
+                             onChange={(v) => setFv('projectId', v)}
+                             items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+          </div></li>
+          <li className="wide"><div className="title">제목</div><div className="form">
+            <input className="ec-input w-full" placeholder="제목" value={f.title} onChange={(e) => setFv('title', e.target.value)} />
+          </div></li>
+          <li className="wide"><div className="title">접수내용</div><div className="form">
+            <textarea className="ec-input w-full h-[52px]" placeholder="접수내용" value={f.symptom} onChange={(e) => setFv('symptom', e.target.value)} />
+          </div></li>
+        </ul>
+
+        <table className="w-full ec-head700 mt-[8px]">
+          <thead><tr>
+            <th className="w-[34px]"></th>
+            <th className="w-[200px]">품목코드</th>
+            <th>품목명</th>
+            <th className="w-[120px] text-right">수량</th>
+          </tr></thead>
+          <tbody>
+            {lines.map((l, i) => {
+              const it = itemById.get(l.itemId)
+              return (
+                <tr key={i}>
+                  <td className="text-center">{i + 1}</td>
+                  <td>
+                    <CodePickerField label="품목" hideLabel fill emptyLabel="지우기" placeholder="품목코드" value={l.itemId}
+                                     onChange={(v) => setLine(i, { itemId: v, quantity: l.quantity || (v ? '1' : '') })} items={itemPicks} />
+                  </td>
+                  <td>{it ? `${it.name}${it.spec ? ` [${it.spec}]` : ''}` : ''}</td>
+                  <td><input className="ec-input w-full text-right" value={l.quantity} disabled={!l.itemId}
+                             onChange={(e) => setLine(i, { quantity: e.target.value })} /></td>
+                </tr>
+              )
+            })}
+          </tbody>
+          <tfoot><tr><td colSpan={3}></td><td className="text-right">{won(totalQty)}</td></tr></tfoot>
+        </table>
+
+        <div className="flex gap-[4px] mt-[9px]">
+          <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>저장(F8)</button>
+          {editing
+            ? <button className="ec-btn" onClick={removeOne}>삭제</button>
+            : <button className="ec-btn" onClick={() => { setLines(emptyLines()); setF((x) => ({ ...x, partnerId: '', title: '', symptom: '' })) }}>다시 작성</button>}
+          <button className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
+        </div>
+
+      </Modal>
     </EcListShell>
   )
 }

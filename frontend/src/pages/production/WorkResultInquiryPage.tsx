@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { dateNo } from '../../utils/dateNo'
 import { useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import { printDocuments } from '../../utils/printDocument'
@@ -7,7 +8,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { STATUS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
-import { dateText } from '../../utils/dateText'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
 
 /**
  * 생산관리 > 작업 > 작업내역조회 (/api/work-results).
@@ -26,13 +27,18 @@ import { dateText } from '../../utils/dateText'
  * 공정이 아니다 — 품목별로 작업량을 셀 수가 없었다. 아직 안 적힌 옛 자료는 빈 칸이다.
  */
 interface Row {
+  /** 원본 [최초작성자] — 넣은 계정(2026-10-02 전에 넣은 작업내역은 비어 있다). */
+  createdBy?: string | null
   id: number
+  /** 전표번호 WR-yyyyMMdd-NNNN. 원본 첫 열 [일자-No.] 의 No. 다(2026-09-09에 채번을 만들었다). */
+  resultNo: string
   workOrderNo: string | null
   process: string
   /** 원본 [작업품목명[규격명]]. 옛 자료에는 없다. */
   workItemCode: string | null
   workItemName: string | null
   workItemSpec: string | null
+  warehouseId: number | null
   warehouseName: string | null
   productCode: string | null
   productName: string | null
@@ -43,6 +49,15 @@ interface Row {
   workTimeMin: number
   workDate: string
   note: string | null
+  /** 원본 조건 [작업품목]·[생산품목] 아래의 [품목구분]. 둘이 다른 품목이라 따로 온다. */
+  workItemId: number | null
+  workItemCategoryName: string | null
+  productId: number | null
+  productCategoryName: string | null
+  /** 원본 조건 [프로젝트]. 응답에 진작 오는데 이 화면이 안 받아 두고 있었다. */
+  projectName: string | null
+  /** 원본 [기타]의 수정일자순(정렬)이 쓰는 축. */
+  updatedAt: string | null
 }
 
 const num = (n: number) => n.toLocaleString('ko-KR')
@@ -54,7 +69,7 @@ const num = (n: number) => n.toLocaleString('ko-KR')
 async function printOne(r: Row) {
   await printDocuments([{
     title: '작업내역서',
-    docNo: r.workOrderNo ? `${r.workDate} / ${r.workOrderNo}` : r.workDate,
+    docNo: r.resultNo,
     docDate: r.workDate,
     hideAmounts: true,
     hideParties: true,
@@ -103,6 +118,23 @@ export default function WorkResultInquiryPage() {
   const [warehouse, setWarehouse] = useState('')
   const [worker, setWorker] = useState('')
   const [workItem, setWorkItem] = useState('')
+  /*
+   * 2026-09-08 에 원본(E040431)을 열어 조건을 <b>전부</b> 쟀다 — <b>스물일곱</b>이다.
+   * 사본에는 여섯뿐이었다(열 번째 같은 구멍). 기본 기간은 [최근30일(+1개월)] 이고,
+   * [기타] 안에는 <b>수정일자순(정렬)</b> 하나다.
+   *
+   * <p>이 화면은 <b>[품목구분]·[품목그룹1] 이 두 벌</b>이다 — [작업품목] 아래에 한 벌,
+   * [생산품목] 아래에 또 한 벌. 둘은 다른 품목이라 값도 따로 나온다.
+   */
+  const [workItemCategory, setWorkItemCategory] = useState('')
+  const [workItemGroup, setWorkItemGroup] = useState('')
+  const [productCategory, setProductCategory] = useState('')
+  const [productGroup, setProductGroup] = useState('')
+  const [projectCond, setProjectCond] = useState('')
+  const [noteCond, setNoteCond] = useState('')
+  const [authorCond, setAuthorCond] = useState('')
+  const [byUpdated, setByUpdated] = useState(false)
+  const mgmt = useItemMgmt()
 
   async function load() {
     setLoading(true)
@@ -123,12 +155,25 @@ export default function WorkResultInquiryPage() {
   const shown = useMemo(() => rows.filter((r) => {
     if (r.workDate < from || r.workDate > to) return false
     if (process && !r.process.includes(process)) return false
-    if (product && !(r.productName ?? '').includes(product)) return false
-    if (warehouse && !(r.warehouseName ?? '').includes(warehouse)) return false
+    if (product && String(r.productId) !== product) return false
+    if (warehouse && String(r.warehouseId) !== warehouse) return false
     if (worker && !(r.worker ?? '').includes(worker)) return false
-    if (workItem && !(r.workItemName ?? '').includes(workItem)) return false
+    if (workItem && String(r.workItemId) !== workItem) return false
+    if (workItemCategory && (r.workItemCategoryName ?? '') !== workItemCategory) return false
+    if (workItemGroup && mgmt.groupOf(r.workItemId) !== workItemGroup) return false
+    if (productCategory && (r.productCategoryName ?? '') !== productCategory) return false
+    if (productGroup && mgmt.groupOf(r.productId) !== productGroup) return false
+    if (projectCond && (r.projectName ?? '') !== projectCond) return false
+    if (noteCond && !(r.note ?? '').includes(noteCond)) return false
+    if (authorCond && (r.createdBy ?? '') !== authorCond) return false
     return true
-  }), [rows, from, to, process, product, warehouse, worker, workItem])
+  })
+    /* 원본 [기타]의 수정일자순(정렬) — 켜면 마지막에 고친 작업이 위로 온다. */
+    .sort((a, b) => (byUpdated ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') : 0)),
+  /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  [rows, from, to, process, product, warehouse, worker, workItem,
+   workItemCategory, workItemGroup, productCategory, productGroup, mgmt.groupOptions,
+   projectCond, noteCond, authorCond, byUpdated])
 
   const totals = useMemo(() => shown.reduce(
     (s, r) => ({ qty: s.qty + r.goodQty + r.defectQty, time: s.time + r.workTimeMin }),
@@ -157,6 +202,8 @@ export default function WorkResultInquiryPage() {
 
   return (
     <EcListShell
+      /* [검색(F8)]이 조건 판만 닫고 목록은 그대로였다 — 새로 넣은 전표가 안 보였다. 다시 읽는다. */
+      onSearch={load}
       title="작업내역조회"
       searchable={false}
       actions={[
@@ -168,18 +215,19 @@ export default function WorkResultInquiryPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <div className="ec-pills" style={{ marginBottom: 8 }}>
         <button type="button" className="ec-pill no-ec active">전체</button>
       </div>
 
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
-        <EcCond label="작업일자">
+        {/* 원본은 이 줄을 <b>[기준일자]</b> 라 부른다(2026-09-08 실측). [작업일자]는 우리가 붙인 이름이었다. */}
+        <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px' }}>~</span>
+          <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
-          <span style={{ marginLeft: 6, display: 'inline-flex', gap: 3 }}>
+          <span className="ml-[6px] inline-flex gap-[3px]">
             {STATUS_PICKS.slice(0, 4).map((label) => (
               <button key={label} type="button" className="ec-btn"
                       onClick={() => { const r = periodOf(label); if (r) { setFrom(r.from); setTo(r.to) } }}>
@@ -204,84 +252,147 @@ export default function WorkResultInquiryPage() {
           <CodePickerField label="담당자" hideLabel width={180} emptyLabel="전체"
                            value={worker} onChange={setWorker} items={pickers.employees} />
         </EcCond>
+        {/*
+          원본 차례: 작업품목 · <b>품목구분 · 품목그룹1</b> · (그룹2·3·계층) ·
+          생산품목 · <b>품목구분 · 품목그룹1</b> · (그룹2·3·계층) · 기타 · (발송여부) ·
+          프로젝트 · (프로젝트그룹1·2) · 적요 · 최초작성자 · (최종수정자) · (양식) · 적용양식.
+          같은 이름이 <b>두 벌</b>이라 대조표에는 [작업품목:품목구분] 처럼 어디 것인지 밝혀 적었다.
+        */}
         <EcCond label="작업품목" pick>
           <CodePickerField label="작업품목" hideLabel width={200} emptyLabel="전체"
                            value={workItem} onChange={setWorkItem} items={pickers.items} />
+        </EcCond>
+        <EcCond label="작업품목:품목구분" pick>
+          <CodePickerField label="작업품목:품목구분" hideLabel width={150} emptyLabel="전체"
+                           value={workItemCategory} onChange={setWorkItemCategory}
+                           items={[...new Set(rows.map((r) => r.workItemCategoryName).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="작업품목:품목그룹1" pick>
+          <CodePickerField label="작업품목:품목그룹1" hideLabel width={150} emptyLabel="전체"
+                           value={workItemGroup} onChange={setWorkItemGroup}
+                           items={mgmt.groupOptions.map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="생산품목" pick>
           <CodePickerField label="생산품목" hideLabel width={200} emptyLabel="전체"
                            value={product} onChange={(v) => setProduct(v)}
                            items={pickers.items} />
         </EcCond>
+        <EcCond label="생산품목:품목구분" pick>
+          <CodePickerField label="생산품목:품목구분" hideLabel width={150} emptyLabel="전체"
+                           value={productCategory} onChange={setProductCategory}
+                           items={[...new Set(rows.map((r) => r.productCategoryName).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="생산품목:품목그룹1" pick>
+          <CodePickerField label="생산품목:품목그룹1" hideLabel width={150} emptyLabel="전체"
+                           value={productGroup} onChange={setProductGroup}
+                           items={mgmt.groupOptions.map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="기타">
+          <label className="text-[12.5px] flex items-center gap-[4px]">
+            <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
+            수정일자순(정렬)
+          </label>
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
+                           value={projectCond} onChange={setProjectCond}
+                           items={[...new Set(rows.map((r) => r.projectName).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" value={noteCond}
+                 onChange={(e) => setNoteCond(e.target.value)} style={{ width: 170 }} />
+        </EcCond>
+        <EcCond label="최초작성자" pick>
+          <CodePickerField label="최초작성자" hideLabel width={150} emptyLabel="전체"
+                           value={authorCond} onChange={setAuthorCond}
+                           items={[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
       </ul>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
         {shown.length}건
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-        작업수량 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{num(totals.qty)}</b>
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-        작업시간 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{num(totals.time)}</b>분
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
+        작업수량 <b className="text-ec-navy text-[14px]">{num(totals.qty)}</b>
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
+        작업시간 <b className="text-ec-navy text-[14px]">{num(totals.time)}</b>분
       </div>
 
       <div className="overflow-x-auto">
         <table className="ec-grid w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34, textAlign: 'center' }}>
+              <th className="w-[34px] text-center">
                 <input type="checkbox" checked={allOn} onChange={toggleAll} />
               </th>
-              <th style={{ width: 110 }}>일자</th>
-              <th style={{ width: 170 }}>작업지시No.</th>
-              <th style={{ width: 130 }}>생산공장명</th>
-              <th style={{ width: 170 }}>작업품목명[규격명]</th>
-              <th style={{ width: 120 }}>작업(공정)</th>
+              {/*
+                <b>작업내역조회(E040431) 2026-09-09 원본 격자 실측</b> — 열이 일곱이다:
+                [일자-No. · 생산공장명 · 작업품목명[규격명] · 작업수량 · 작업시간 ·
+                <b>작업지시서</b> · 인쇄].
+                우리는 (1) 둘째 칸을 <b>[작업지시No.]</b> 라 부르며 <b>앞쪽</b>에 두었는데,
+                원본에서 그 칸은 <b>[작업지시서]</b> 이고 <b>작업시간 뒤</b>에 있다 —
+                이름과 자리를 원본으로 옮겼다. (2) 첫 칸은 [일자-No.] 인데 우리는
+                <b>날짜만</b> 찍고 있었다. <b>2026-09-09 에 채번을 만들어 고쳤다</b> —
+                작업내역 한 줄을 가리킬 이름이 없어 "어느 작업내역을 고쳤다/지웠다" 고 말할
+                방법이 없었다(매출계획이 같은 까닭으로 SP- 를 얻었다). WR-yyyyMMdd-NNNN 으로
+                채번하고 열 이름을 원본대로 <b>[일자-No.]</b> 로 맞췄다(V214/V87).
+                [작업(공정)]·[생산품목명]·[자원명]·[담당자]·[적요]는 우리 열이다.
+              */}
+              <th className="w-[170px]">일자-No.</th>
+              <th className="w-[130px]">생산공장명</th>
+              <th className="w-[170px]">작업품목명[규격명]</th>
+              <th className="w-[120px]">작업(공정)</th>
               <th>생산품목명</th>
-              <th style={{ width: 120 }}>자원명</th>
-              <th style={{ width: 100 }}>담당자</th>
-              <th style={{ width: 110, textAlign: 'right' }}>작업수량</th>
-              <th style={{ width: 110, textAlign: 'right' }}>작업시간</th>
-              <th style={{ width: 160 }}>적요</th>
+              <th className="w-[120px]">자원명</th>
+              <th className="w-[100px]">담당자</th>
+              <th className="w-[110px] text-right">작업수량</th>
+              <th className="w-[110px] text-right">작업시간</th>
+              <th className="w-[170px]">작업지시서</th>
+              <th className="w-[160px]">적요</th>
               {/* 원본 작업내역조회의 마지막 열 [인쇄] — 그 한 건을 작업내역서로 찍는다. */}
-              <th style={{ width: 60, textAlign: 'center' }}>인쇄</th>
+              <th className="w-[60px] text-center">인쇄</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={13} className="ec-empty">불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={13} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((r) => (
               <tr key={r.id}>
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-center">
                   <input type="checkbox" checked={checked.has(r.id)} onChange={() => toggle(r.id)} />
                 </td>
-                <td style={{ fontFamily: 'monospace' }}>{dateText(r.workDate)}</td>
-                <td style={{ fontFamily: 'monospace', color: r.workOrderNo ? '#5a626e' : '#c9ced6' }}>{r.workOrderNo ?? ''}</td>
-                <td style={{ color: r.warehouseName ? undefined : '#c9ced6' }}>{r.warehouseName ?? ''}</td>
+                <td>{dateNo(r.workDate, r.resultNo)}</td>
+                <td style={{ color: r.warehouseName ? undefined : 'var(--ec-text-off)' }}>{r.warehouseName ?? ''}</td>
                 {/* 원본은 '작업품목명[규격명]'. 안 적힌 옛 자료는 비워 둔다 — 공정명으로 채우면 또 거짓말이 된다. */}
-                <td style={{ color: r.workItemName ? undefined : '#c9ced6' }}>
+                <td style={{ color: r.workItemName ? undefined : 'var(--ec-text-off)' }}>
                   {r.workItemName ? `${r.workItemName}${r.workItemSpec ? `[${r.workItemSpec}]` : ''}` : '-'}
                 </td>
                 <td>{r.process}</td>
                 <td>{r.productName ? `[${r.productCode}] ${r.productName}` : ''}</td>
-                <td style={{ color: r.resourceName ? undefined : '#c9ced6' }}>{r.resourceName ?? ''}</td>
+                <td style={{ color: r.resourceName ? undefined : 'var(--ec-text-off)' }}>{r.resourceName ?? ''}</td>
                 <td>{r.worker ?? ''}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{num(r.goodQty + r.defectQty)}</td>
-                <td style={{ textAlign: 'right' }}>{num(r.workTimeMin)}</td>
-                <td style={{ color: '#8a929c' }}>{r.note ?? ''}</td>
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-right font-semibold text-ec-navy">{num(r.goodQty + r.defectQty)}</td>
+                <td className="text-right">{num(r.workTimeMin)}</td>
+                <td style={{ fontFamily: 'monospace', color: r.workOrderNo ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{r.workOrderNo ?? ''}</td>
+                <td className="text-ec-hint">{r.note ?? ''}</td>
+                <td className="text-center">
                   <button onClick={() => printOne(r)} style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
                 </td>
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={9} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
-              <td style={{ textAlign: 'right' }}>{num(totals.qty)}</td>
-              <td style={{ textAlign: 'right' }}>{num(totals.time)}</td>
-              {/* 적요 · 인쇄 */}
-              <td colSpan={2}></td>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={8} className="text-right">합계 ({shown.length}건)</td>
+              <td className="text-right">{num(totals.qty)}</td>
+              <td className="text-right">{num(totals.time)}</td>
+              {/* 작업지시서 · 적요 · 인쇄 */}
+              <td colSpan={3}></td>
             </tr>
           </tfoot>
         </table>

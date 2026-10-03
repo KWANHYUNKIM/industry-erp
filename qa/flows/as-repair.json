@@ -1,0 +1,24 @@
+{
+  "about": "A/S수리(E040605 · E040606) — 2026-10-03 원본: 수리는 따로인 전표이고 재고를 안 움직인다, 부품 · 수리비는 [판매연결전표]로 판매를 만들어 잇는다(재고 차감 · 매출은 판매). 판매가 남아 있으면 수리를 지우지 않는다. 구매로 재고를 넣고 시험한 뒤 모두 지운다.",
+  "shots": [
+    {
+      "name": "수리 저장(재고 그대로) → 판매연결 2개(재고 −2, 금액) → 삭제 막힘 → 판매 지움(재고 복원) → 수리 지움",
+      "path": "/quality/as-repair-list",
+      "steps": [
+        "allowapi:400: /api/as-repairs/",
+        "wait:2500",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => (r.status === 204 ? null : r.json())); const [pa, it, wh] = await Promise.all([A('GET', '/partners'), A('GET', '/items'), A('GET', '/warehouses')]); const c = pa[0], w = wh[0], i = it[0]; const st = async () => (await A('GET', '/stock')).filter((x) => x.itemId === i.id && x.warehouseId === w.id).reduce((a, x) => a + Number(x.quantity), 0); const pur = await A('POST', '/purchases', { partnerId: c.id, warehouseId: w.id, remark: 'QA재고2', lines: [{ itemId: i.id, quantity: 5, unitPrice: 1000 }] }); const s0 = await st(); const r = await A('POST', '/as-repairs', { partnerId: c.id, warehouseId: w.id, charge: 'QA기사', repairType: 'PAID_REPAIR', title: 'QA재고2-수리', lines: [{ itemId: i.id, quantity: 1 }] }); const s1 = await st(); const linked = await A('POST', '/as-repairs/' + r.id + '/sales', { lines: [{ itemId: i.id, quantity: 2, unitPrice: 3000 }] }); const s2 = await st(); sessionStorage.setItem('rep', JSON.stringify({ id: r.id, sale: linked.sales[0].salesId, pur: pur.id, s0, s1, s2 })); return `재고 ${s0} → 수리 뒤 ${s1} → 판매연결 뒤 ${s2}, 금액 ${linked.saleAmount}` })()",
+        "expect:(() => { const x = JSON.parse(sessionStorage.getItem('rep')); return x.s1 === x.s0 && x.s2 === x.s0 - 2 })()",
+        "js:location.reload(); true",
+        "wait:3500",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA재고2-수리') && tr.innerText.includes('6,600'))",
+        "js:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('QA재고2-수리')).querySelectorAll('button.ec-link')[1].click(); true",
+        "wait:800",
+        "expect:document.body.innerText.includes('판매연결전표') && document.body.innerText.includes('SO-')",
+        "expect:(async () => { const x = JSON.parse(sessionStorage.getItem('rep')); const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = await fetch('/api/as-repairs/' + x.id, { method: 'DELETE', headers: H }); const j = await d.json(); return d.status === 400 && j.message.includes('판매연결전표') })()",
+        "js:(async () => { const x = JSON.parse(sessionStorage.getItem('rep')); const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; await fetch('/api/as-repairs/' + x.id + '/sales/' + x.sale, { method: 'DELETE', headers: H }); const st = (await (await fetch('/api/stock', { headers: H })).json()); const d = await fetch('/api/as-repairs/' + x.id, { method: 'DELETE', headers: H }); await fetch('/api/purchases/' + x.pur, { method: 'DELETE', headers: H }); sessionStorage.setItem('afterUnlinkOk', String(d.status === 204)); return '판매 지운 뒤 수리 삭제 ' + d.status })()",
+        "expect:sessionStorage.getItem('afterUnlinkOk') === 'true'"
+      ]
+    }
+  ]
+}

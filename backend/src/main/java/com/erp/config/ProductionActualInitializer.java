@@ -1,23 +1,24 @@
 package com.erp.config;
 
-import com.erp.production.domain.Bom;
-import com.erp.production.domain.BomLine;
-import com.erp.inventory.domain.Item;
-import com.erp.production.domain.MaterialIssue;
-import com.erp.inventory.domain.StockTransactionType;
-import com.erp.inventory.domain.Warehouse;
-import com.erp.production.domain.WorkOrder;
-import com.erp.production.domain.WorkOrderStatus;
-import com.erp.production.domain.WorkResult;
-import com.erp.production.dto.ProductionDtos.CreateProductionRequest;
-import com.erp.production.repository.BomRepository;
-import com.erp.inventory.repository.ItemRepository;
-import com.erp.production.repository.MaterialIssueRepository;
-import com.erp.inventory.repository.WarehouseRepository;
-import com.erp.production.repository.WorkOrderRepository;
-import com.erp.production.repository.WorkResultRepository;
-import com.erp.production.service.ProductionService;
-import com.erp.inventory.service.StockService;
+import com.erp.production.bom.Bom;
+import com.erp.production.bom.BomLine;
+import com.erp.inventory.item.Item;
+import com.erp.production.materialissue.MaterialIssue;
+import com.erp.inventory.stock.StockTransactionType;
+import com.erp.inventory.warehouse.Warehouse;
+import com.erp.production.workorder.WorkOrder;
+import com.erp.production.workorder.WorkOrderStatus;
+import com.erp.production.workresult.WorkResult;
+import com.erp.production.production.dto.ProductionDtos.CreateProductionRequest;
+import com.erp.production.bom.BomRepository;
+import com.erp.inventory.item.ItemRepository;
+import com.erp.production.materialissue.MaterialIssueRepository;
+import com.erp.inventory.warehouse.WarehouseRepository;
+import com.erp.production.workorder.WorkOrderRepository;
+import com.erp.production.workresult.WorkResultRepository;
+import com.erp.production.production.ProductionService;
+import com.erp.inventory.stock.StockService;
+import com.erp.common.DocumentNoGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
@@ -52,6 +53,7 @@ public class ProductionActualInitializer implements CommandLineRunner {
     private final WorkResultRepository workResultRepository;
     private final StockService stockService;
     private final ProductionService productionService;
+    private final DocumentNoGenerator docNoGenerator;
 
     @Override
     @Transactional
@@ -169,6 +171,7 @@ public class ProductionActualInitializer implements CommandLineRunner {
                                 long good, long defect, int workTimeMin, LocalDate date) {
         workResultRepository.save(WorkResult.builder()
                 .workOrder(wo)
+                .resultNo(docNoGenerator.next("WR-", "work_results", "result_no", "work_date", date))
                 .process(process)
                 .worker(worker)
                 .goodQty(BigDecimal.valueOf(good))
@@ -194,6 +197,7 @@ public class ProductionActualInitializer implements CommandLineRunner {
     private void saveIssue(Item item, Warehouse wh, WorkOrder wo, String qty, LocalDate date) {
         materialIssueRepository.save(MaterialIssue.builder()
                 .item(item)
+                .issueNo(docNoGenerator.next("MI-", "material_issues", "issue_no", "issue_date", date))
                 .warehouse(wh)
                 .workOrder(wo)
                 .qty(new BigDecimal(qty))

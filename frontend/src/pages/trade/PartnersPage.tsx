@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { CodeOption, GroupMaster, Partner } from '../../api/types'
+import type { CodeOption, GroupMaster, Partner } from '../../types/api'
 import { useSearchParams } from 'react-router-dom'
 import { useTableSort } from '../../utils/useTableSort'
 import EcListShell from '../../components/EcListShell'
@@ -70,8 +70,22 @@ export default function PartnersPage() {
   const [searchParams] = useSearchParams()
   const [keyword, setKeyword] = useState(searchParams.get('q') ?? '')
   /*
-   * 원본 [거래처관리대장 II]는 <b>거래처를 찾는 화면</b>이다 — 조건 판에 상호·대표자명·
-   * 업태·종목·전화·Email·주소·검색창내용·사업자번호 …가 다 있다.
+   * 원본 [거래처관리대장 II]는 <b>거래처를 찾는 조건</b>을 다 갖춘 화면이다 — 조건 판에
+   * 상호·대표자명·업태·종목·전화·Email·주소·검색창내용·사업자번호 …가 다 있다.
+   *
+   * <p><b>2026-09-09 원본(E010842)을 열어 보니 그 조건들이 전부가 아니었다.</b>
+   * 조건 판의 <b>첫 칸이 [채권채무구분]</b>(전체·채권★·채무)이고 그다음이 [기준일자] 다 —
+   * 이 화면은 거래처 찾기가 아니라 <b>채권/채무 대장</b>이고, 위 조건들은 그 대장을
+   * <b>어느 거래처로 좁힐지</b> 고르는 자리다. 우리 거래처 목록이 그 조건들을 빌려 쓰는
+   * 것은 그대로 두되, 이 화면이 무엇인지는 바로 적어 둔다.
+   *
+   * <p><b>격자는 못 쟀다.</b> [검색(F8)]을 두 번 눌렀지만 화면(그리고 iframe·shadow root
+   * 어디에도) <b>표가 하나도 나타나지 않았다.</b> [기타]에 [결재방표시]·[거래처코드없는자료인쇄]
+   * 같은 <b>인쇄 옵션</b>이 있는 것으로 보아 결과를 출력물로 내는 화면인 듯하지만,
+   * <b>확인하지 못했으므로 열을 지어내지 않는다</b> — ecount-column-align.json 에 넣지 않았다.
+   */
+  /*
+   * (아래는 앞서 적어 둔 그대로다.)
    * 우리는 검색창 하나뿐이라 코드·상호로만 좁힐 수 있었다. 거래처가 300곳을 넘으면
    * "그 대표자 이름이 뭐였더라" 로는 찾을 길이 없었다.
    *
@@ -127,6 +141,8 @@ export default function PartnersPage() {
   const shown = sort.sorted
   const [formTab, setFormTab] = useState<FormTab>('기본')
   const [error, setError] = useState('')
+  /** 저장 결과 안내 — 예전엔 창이 닫히고 목록만 다시 떴다(QA 19회차). */
+  const [ok, setOk] = useState('')
   const [showForm, setShowForm] = useState(false)
   /**
    * 수정 대상 거래처 id. null 이면 신규.
@@ -229,6 +245,7 @@ export default function PartnersPage() {
       // 거래처코드는 수정 요청에 없다 — 전표가 코드로 묶여 있어 바꾸면 과거 전표와 어긋난다.
       if (editId != null) await api.put(`/partners/${editId}`, body)
       else await api.post('/partners', body)
+      setOk(`거래처 [${form.code}] ${form.name} ${editId != null ? '수정' : '등록'} 완료`)
       setForm({ ...empty })
       setShowForm(false)
       load()
@@ -368,21 +385,22 @@ export default function PartnersPage() {
         { label: '웹자료올리기', onClick: () => setWebOpen(true) },
       ]}
     >
-      {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+      {error && <p className="mb-2 rounded bg-ec-danger-bg px-3 py-2 text-sm text-ec-danger">{error}</p>}
+      {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
-      <label style={{ fontSize: 12.5, display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 8 }}>
+      <label className="text-[12.5px] inline-flex items-center gap-[4px] mb-[8px]">
         <input type="checkbox" checked={withStopped} onChange={(e) => setWithStopped(e.target.checked)} />
         사용중단포함
       </label>
 
       {/* 원본 거래처검색 조건 판. 이름은 원본 그대로 쓴다. */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', marginBottom: 8 }}>
+      <div className="flex flex-wrap gap-[6px] items-center mb-[8px]">
         {(Object.keys(cond) as (keyof typeof cond)[])
           /* 날짜 둘은 아래에서 따로 그린다 — 안내 글이 붙고, 이름표가 정적이어야 검사가 본다. */
           .filter((k) => !k.endsWith('일자'))
           .map((k) => (
-            <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-              <label style={{ fontSize: 12.5, color: '#5a626e' }}>{k}</label>
+            <span key={k} className="inline-flex items-center gap-[4px]">
+              <label className="text-[12.5px] text-ec-label">{k}</label>
               <input className="ec-input" style={{ width: 120 }} value={cond[k]}
                      onChange={(e) => setCd(k, e.target.value)} />
             </span>
@@ -391,13 +409,13 @@ export default function PartnersPage() {
           원본 조건 [최초작성일자]·[최종수정일자]. <b>일부만 쳐도 걸린다</b> —
           2026-08 이면 그 달에 만든 거래처만 남는다. 그래서 날짜 칸이 아니라 글자 칸이다.
         */}
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-          <label style={{ fontSize: 12.5, color: '#5a626e' }}>최초작성일자</label>
+        <span className="inline-flex items-center gap-[4px]">
+          <label className="text-[12.5px] text-ec-label">최초작성일자</label>
           <input className="ec-input" style={{ width: 120 }} placeholder="2026-08"
                  value={cond.최초작성일자} onChange={(e) => setCd('최초작성일자', e.target.value)} />
         </span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-          <label style={{ fontSize: 12.5, color: '#5a626e' }}>최종수정일자</label>
+        <span className="inline-flex items-center gap-[4px]">
+          <label className="text-[12.5px] text-ec-label">최종수정일자</label>
           <input className="ec-input" style={{ width: 120 }} placeholder="2026-08"
                  value={cond.최종수정일자} onChange={(e) => setCd('최종수정일자', e.target.value)} />
         </span>
@@ -408,9 +426,9 @@ export default function PartnersPage() {
         })}>조건 지우기</button>
       </div>
 
-      <Modal open={showForm} title={editId ? '거래처수정' : '거래처등록'} onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title={editId ? '거래처수정' : '거래처등록'} onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginTop: 8, marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>{editId ? '거래처 수정' : '새 거래처 등록'}</div>
+          <div className="text-[13px] font-extrabold text-ec-navy mb-[8px]">{editId ? '거래처 수정' : '새 거래처 등록'}</div>
           <ul className="ec-tabs" style={{ marginBottom: 10 }}>
             {FORM_TABS.map((t) => (
               <li key={t} className={`ec-tab${formTab === t ? ' active' : ''}`}
@@ -421,36 +439,36 @@ export default function PartnersPage() {
           {formTab === '기본' && (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
-              <label className="mb-1 block text-sm text-slate-600">거래처코드 *</label>
+              <label className="mb-1 block text-sm text-ec-label">거래처코드 *</label>
               <input className={inputCls} value={form.code} onChange={(e) => set('code', e.target.value)}
                      disabled={editId != null} title={editId != null ? '전표가 코드로 묶여 있어 수정할 수 없습니다.' : undefined} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">상호(이름) *</label>
+              <label className="mb-1 block text-sm text-ec-label">상호(이름) *</label>
               <input className={inputCls} value={form.name} onChange={(e) => set('name', e.target.value)} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">대표자명</label>
+              <label className="mb-1 block text-sm text-ec-label">대표자명</label>
               <input className={inputCls} value={form.ceoName} onChange={(e) => set('ceoName', e.target.value)} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">업태</label>
+              <label className="mb-1 block text-sm text-ec-label">업태</label>
               <input className={inputCls} value={form.bizType} onChange={(e) => set('bizType', e.target.value)} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">종목</label>
+              <label className="mb-1 block text-sm text-ec-label">종목</label>
               <input className={inputCls} value={form.bizItem} onChange={(e) => set('bizItem', e.target.value)} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">전화</label>
+              <label className="mb-1 block text-sm text-ec-label">전화</label>
               <input className={inputCls} value={form.phone} onChange={(e) => set('phone', e.target.value)} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">주소1 우편번호</label>
+              <label className="mb-1 block text-sm text-ec-label">주소1 우편번호</label>
               <input className={inputCls} value={form.postalCode} onChange={(e) => set('postalCode', e.target.value)} />
             </div>
             <div className="sm:col-span-2">
-              <label className="mb-1 block text-sm text-slate-600">주소1</label>
+              <label className="mb-1 block text-sm text-ec-label">주소1</label>
               <input className={inputCls} value={form.address} onChange={(e) => set('address', e.target.value)} />
             </div>
           </div>
@@ -459,7 +477,7 @@ export default function PartnersPage() {
           {formTab === '거래처정보' && (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
-              <label className="mb-1 block text-sm text-slate-600">구분 *</label>
+              <label className="mb-1 block text-sm text-ec-label">구분 *</label>
               <select className={inputCls} value={form.type} onChange={(e) => set('type', e.target.value)}>
                 {types.map((t) => <option key={t.code} value={t.code}>{t.name}</option>)}
               </select>
@@ -469,27 +487,27 @@ export default function PartnersPage() {
               (사업자 10 · 주민 13). 세금계산서에 그대로 찍히는 값이라 서버가 막는다.
             */}
             <div>
-              <label className="mb-1 block text-sm text-slate-600">거래처코드구분</label>
+              <label className="mb-1 block text-sm text-ec-label">거래처코드구분</label>
               <select className={inputCls} value={form.regNoKind} onChange={(e) => set('regNoKind', e.target.value)}>
                 {['사업자등록번호', '주민등록번호', '외국인'].map((k) => <option key={k} value={k}>{k}</option>)}
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">{form.regNoKind === '외국인' ? '등록번호' : form.regNoKind}</label>
+              <label className="mb-1 block text-sm text-ec-label">{form.regNoKind === '외국인' ? '등록번호' : form.regNoKind}</label>
               <input className={inputCls} value={form.bizRegNo} onChange={(e) => set('bizRegNo', e.target.value)}
                      placeholder={form.regNoKind === '주민등록번호' ? '숫자 13자리'
                        : form.regNoKind === '외국인' ? '형식 검사 없음' : '숫자 10자리'} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">종사업장번호</label>
+              <label className="mb-1 block text-sm text-ec-label">종사업장번호</label>
               <input className={inputCls} value={form.subBizNo} onChange={(e) => set('subBizNo', e.target.value)} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">담당자</label>
+              <label className="mb-1 block text-sm text-ec-label">담당자</label>
               <input className={inputCls} value={form.manager} onChange={(e) => set('manager', e.target.value)} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">모바일</label>
+              <label className="mb-1 block text-sm text-ec-label">모바일</label>
               <input className={inputCls} value={form.mobile} onChange={(e) => set('mobile', e.target.value)} />
             </div>
             {/*
@@ -519,21 +537,21 @@ export default function PartnersPage() {
             </div>
             {/* 원본 거래처관리대장 I 머리말이 찍는 값들 — 우리에겐 적을 자리가 없었다. */}
             <div>
-              <label className="mb-1 block text-sm text-slate-600">Email</label>
+              <label className="mb-1 block text-sm text-ec-label">Email</label>
               <input className={inputCls} value={form.email} onChange={(e) => set('email', e.target.value)}
                      placeholder="세금계산서·거래명세서를 보낼 곳" />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">Fax</label>
+              <label className="mb-1 block text-sm text-ec-label">Fax</label>
               <input className={inputCls} value={form.fax} onChange={(e) => set('fax', e.target.value)} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">여신한도</label>
+              <label className="mb-1 block text-sm text-ec-label">여신한도</label>
               <input className={inputCls} type="number" value={form.creditLimit}
                      onChange={(e) => set('creditLimit', e.target.value)} style={{ textAlign: 'right' }} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">업종별구분</label>
+              <label className="mb-1 block text-sm text-ec-label">업종별구분</label>
               <select className={inputCls} value={form.industryKind} onChange={(e) => set('industryKind', e.target.value)}>
                 {['일반', '관세사', '외화거래처'].map((k) => <option key={k} value={k}>{k}</option>)}
               </select>
@@ -544,13 +562,13 @@ export default function PartnersPage() {
               항목이라 여기서 안 정하면 내보낸 보고파일의 그 칸이 빈다.
             */}
             <div>
-              <label className="mb-1 block text-sm text-slate-600">외화거래처</label>
+              <label className="mb-1 block text-sm text-ec-label">외화거래처</label>
               <select className={inputCls} value={form.foreignCurrency} onChange={(e) => set('foreignCurrency', e.target.value)}>
                 <option value="N">원화</option><option value="Y">외화</option>
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">공급형태</label>
+              <label className="mb-1 block text-sm text-ec-label">공급형태</label>
               <select className={inputCls} value={form.udiSupplyShape}
                       onChange={(e) => set('udiSupplyShape', e.target.value)}>
                 <option value="">(미지정)</option>
@@ -558,11 +576,11 @@ export default function PartnersPage() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">주소2 우편번호</label>
+              <label className="mb-1 block text-sm text-ec-label">주소2 우편번호</label>
               <input className={inputCls} value={form.postalCode2} onChange={(e) => set('postalCode2', e.target.value)} />
             </div>
             <div className="sm:col-span-2">
-              <label className="mb-1 block text-sm text-slate-600">주소2</label>
+              <label className="mb-1 block text-sm text-ec-label">주소2</label>
               <input className={inputCls} value={form.address2} onChange={(e) => set('address2', e.target.value)}
                      placeholder="배송지 등 주소1과 다른 곳" />
             </div>
@@ -571,21 +589,21 @@ export default function PartnersPage() {
               이름을 적어 두고 그걸로 찾는다 — 코드도움이 이 값도 같이 본다.
             */}
             <div className="sm:col-span-3">
-              <label className="mb-1 block text-sm text-slate-600">검색창내용</label>
+              <label className="mb-1 block text-sm text-ec-label">검색창내용</label>
               <input className={inputCls} value={form.searchKeyword}
                      onChange={(e) => set('searchKeyword', e.target.value)}
                      placeholder="약칭·영문명·옛 상호 등 (코드도움에서 이 값으로도 찾습니다)" />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">홈페이지</label>
+              <label className="mb-1 block text-sm text-ec-label">홈페이지</label>
               <input className={inputCls} value={form.homepage} onChange={(e) => set('homepage', e.target.value)} />
             </div>
             <div className="sm:col-span-2">
-              <label className="mb-1 block text-sm text-slate-600">적요</label>
+              <label className="mb-1 block text-sm text-ec-label">적요</label>
               <input className={inputCls} value={form.remark} onChange={(e) => set('remark', e.target.value)} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">세무신고거래처</label>
+              <label className="mb-1 block text-sm text-ec-label">세무신고거래처</label>
               <select className={inputCls} value={form.taxReport ? 'Y' : 'N'}
                       onChange={(e) => setForm((f) => ({ ...f, taxReport: e.target.value === 'Y' }))}>
                 <option value="Y">대상</option>
@@ -593,7 +611,7 @@ export default function PartnersPage() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">출하대상거래처</label>
+              <label className="mb-1 block text-sm text-ec-label">출하대상거래처</label>
               <select className={inputCls} value={form.shipmentTarget ? 'Y' : 'N'}
                       onChange={(e) => setForm((f) => ({ ...f, shipmentTarget: e.target.value === 'Y' }))}>
                 <option value="Y">대상</option>
@@ -601,7 +619,7 @@ export default function PartnersPage() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">사용구분</label>
+              <label className="mb-1 block text-sm text-ec-label">사용구분</label>
               <select className={inputCls} value={form.active ? 'Y' : 'N'}
                       onChange={(e) => setForm((f) => ({ ...f, active: e.target.value === 'Y' }))}>
                 <option value="Y">사용</option>
@@ -619,11 +637,11 @@ export default function PartnersPage() {
             */}
             <div>
               {/* 원본은 이 칸을 <b>[영업단가그룹]</b> 이라 부른다(사본 실측) — 우리는 [판매단가그룹]이었다. */}
-              <label className="mb-1 block text-sm text-slate-600">영업단가그룹</label>
+              <label className="mb-1 block text-sm text-ec-label">영업단가그룹</label>
               <input className={inputCls} value={form.salesPriceGroup} onChange={(e) => set('salesPriceGroup', e.target.value)} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">구매단가그룹</label>
+              <label className="mb-1 block text-sm text-ec-label">구매단가그룹</label>
               <input className={inputCls} value={form.purchasePriceGroup} onChange={(e) => set('purchasePriceGroup', e.target.value)} />
             </div>
             {/*
@@ -633,12 +651,12 @@ export default function PartnersPage() {
               전표 날짜로는 짐작할 수 없다.
             */}
             <div>
-              <label className="mb-1 block text-sm text-slate-600">여신기간</label>
+              <label className="mb-1 block text-sm text-ec-label">여신기간</label>
               <input type="number" className={inputCls} value={form.creditDays}
                      onChange={(e) => set('creditDays', e.target.value)} title="일 단위" />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">수금/지급예정일</label>
+              <label className="mb-1 block text-sm text-ec-label">수금/지급예정일</label>
               <input type="number" min={0} max={31} className={inputCls} value={form.settleDueDay}
                      onChange={(e) => set('settleDueDay', e.target.value)} title="매달 며칠 (0 = 안 정함)" />
             </div>
@@ -647,13 +665,13 @@ export default function PartnersPage() {
               건마다 번호로 맞춰 본다.
             */}
             <div>
-              <label className="mb-1 block text-sm text-slate-600">채권번호관리</label>
+              <label className="mb-1 block text-sm text-ec-label">채권번호관리</label>
               <select className={inputCls} value={form.arNoManaged} onChange={(e) => set('arNoManaged', e.target.value)}>
                 <option value="N">관리안함</option><option value="Y">관리함</option>
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">채무번호관리</label>
+              <label className="mb-1 block text-sm text-ec-label">채무번호관리</label>
               <select className={inputCls} value={form.apNoManaged} onChange={(e) => set('apNoManaged', e.target.value)}>
                 <option value="N">관리안함</option><option value="Y">관리함</option>
               </select>
@@ -663,13 +681,13 @@ export default function PartnersPage() {
               과세 구분이다 — 면세 사업자와 거래하면서 매번 과세로 끊으면 세금계산서가 통째로 틀린다.
             */}
             <div>
-              <label className="mb-1 block text-sm text-slate-600">거래유형(영업)</label>
+              <label className="mb-1 block text-sm text-ec-label">거래유형(영업)</label>
               <select className={inputCls} value={form.salesTaxType} onChange={(e) => set('salesTaxType', e.target.value)}>
                 <option value="">안 정함</option><option value="과세">과세</option><option value="면세">면세</option>
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">거래유형(구매)</label>
+              <label className="mb-1 block text-sm text-ec-label">거래유형(구매)</label>
               <select className={inputCls} value={form.purchaseTaxType} onChange={(e) => set('purchaseTaxType', e.target.value)}>
                 <option value="">안 정함</option><option value="과세">과세</option><option value="면세">면세</option>
               </select>
@@ -681,15 +699,15 @@ export default function PartnersPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             {/* 원본 리스트의 [이체정보] — 지급할 때 쓸 계좌. */}
             <div>
-              <label className="mb-1 block text-sm text-slate-600">은행</label>
+              <label className="mb-1 block text-sm text-ec-label">은행</label>
               <input className={inputCls} value={form.bankName} onChange={(e) => set('bankName', e.target.value)} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">계좌번호</label>
+              <label className="mb-1 block text-sm text-ec-label">계좌번호</label>
               <input className={inputCls} value={form.accountNo} onChange={(e) => set('accountNo', e.target.value)} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">예금주</label>
+              <label className="mb-1 block text-sm text-ec-label">예금주</label>
               <input className={inputCls} value={form.accountHolder} onChange={(e) => set('accountHolder', e.target.value)} />
             </div>
           </div>
@@ -702,7 +720,7 @@ export default function PartnersPage() {
             붙는 것이라 행이 아직 없으면 붙일 데가 없다.
           */}
           {editId != null && <CustomFieldsPanel entityType="PARTNER" entityId={editId} />}
-          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
+          <div className="mt-[12px] flex justify-end gap-[4px]">
             <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
             {/*
               복사 — 원본 폼의 버튼이다. 값은 그대로 두고 코드만 비워 '새 거래처' 로 돌린다.
@@ -725,41 +743,41 @@ export default function PartnersPage() {
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34, textAlign: 'center' }}>
+              <th className="w-[34px] text-center">
                 <input type="checkbox"
                        checked={shown.length > 0 && shown.every((x) => checked.has(x.id))}
                        onChange={() => setChecked(
                          shown.every((x) => checked.has(x.id)) ? new Set() : new Set(shown.map((x) => x.id)),
                        )} />
               </th>
-              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처코드')}>거래처코드 {sort.mark('거래처코드')}</th>
-              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처명')}>거래처명 {sort.mark('거래처명')}</th>
-              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('구분')}>구분 {sort.mark('구분')}</th>
+              <th className="cursor-pointer" onClick={() => sort.toggle('거래처코드')}>거래처코드 {sort.mark('거래처코드')}</th>
+              <th className="cursor-pointer" onClick={() => sort.toggle('거래처명')}>거래처명 {sort.mark('거래처명')}</th>
+              <th className="cursor-pointer" onClick={() => sort.toggle('구분')}>구분 {sort.mark('구분')}</th>
               <th>사업자번호</th>
-              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('대표자명')}>대표자명 {sort.mark('대표자명')}</th>
-              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처그룹')}>거래처그룹 {sort.mark('거래처그룹')}</th>
+              <th className="cursor-pointer" onClick={() => sort.toggle('대표자명')}>대표자명 {sort.mark('대표자명')}</th>
+              <th className="cursor-pointer" onClick={() => sort.toggle('거래처그룹')}>거래처그룹 {sort.mark('거래처그룹')}</th>
               <th>담당자</th>
-              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('전화')}>전화 {sort.mark('전화')}</th>
-              <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('모바일')}>모바일 {sort.mark('모바일')}</th>
+              <th className="cursor-pointer" onClick={() => sort.toggle('전화')}>전화 {sort.mark('전화')}</th>
+              <th className="cursor-pointer" onClick={() => sort.toggle('모바일')}>모바일 {sort.mark('모바일')}</th>
               {/*
                 원본 거래처리스트의 [검색창내용] 열. 품목에는 넣었는데 거래처에는 빠져 있었다 —
                 별명을 적어 놓고도 목록에서는 그게 뭔지 볼 수가 없었다.
               */}
-              <th style={{ cursor: 'pointer', width: 140 }}onClick={() => sort.toggle('검색창내용')}>검색창내용 {sort.mark('검색창내용')}</th>
-              <th style={{ width: 90, textAlign: 'center' }}>사용구분</th>
-              <th style={{ width: 90, textAlign: 'center' }}>이체정보</th>
+              <th className="cursor-pointer w-[140px]"onClick={() => sort.toggle('검색창내용')}>검색창내용 {sort.mark('검색창내용')}</th>
+              <th className="w-[90px] text-center">사용구분</th>
+              <th className="w-[90px] text-center">이체정보</th>
               <th>관리</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={14} className="ec-empty">불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={14} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : (
               shown.map((p) => (
-                <tr key={p.id} style={{ color: p.active ? undefined : '#9aa1ab' }}>
-                  <td style={{ textAlign: 'center' }}>
+                <tr key={p.id} style={{ color: p.active ? undefined : 'var(--ec-text-hint)' }}>
+                  <td className="text-center">
                     <input type="checkbox" checked={checked.has(p.id)} onChange={() => setChecked((prev) => {
                       const next = new Set(prev)
                       if (next.has(p.id)) next.delete(p.id); else next.add(p.id)
@@ -767,7 +785,7 @@ export default function PartnersPage() {
                     })} />
                   </td>
                   {/* 원본은 코드·이름을 눌러 그 건을 연다(사본 실측: 두 칸이 링크다). */}
-                  <td style={{ fontFamily: 'monospace' }}>
+                  <td>
                     <button type="button" onClick={() => openEdit(p)}
                             style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'monospace', fontSize: 12.5 }}>
                       {p.code}
@@ -786,17 +804,17 @@ export default function PartnersPage() {
                   <td>{p.manager ?? ''}</td>
                   <td>{p.phone ?? ''}</td>
                   <td>{p.mobile ?? ''}</td>
-                  <td style={{ color: '#6b7280' }}>{p.searchKeyword ?? ''}</td>
-                  <td style={{ textAlign: 'center', color: p.active ? '#1c7c3c' : '#c60a2e' }}>
+                  <td className="text-ec-muted">{p.searchKeyword ?? ''}</td>
+                  <td style={{ textAlign: 'center', color: p.active ? 'var(--ec-success)' : 'var(--ec-danger)' }}>
                     {p.active ? '사용' : '사용중단'}
                   </td>
                   {/* 원본은 계좌가 있으면 '등록', 없으면 빈칸이다. 계좌번호를 목록에 늘어놓지 않는다. */}
-                  <td style={{ textAlign: 'center', color: p.accountNo ? 'var(--ec-blue)' : '#c9ced6' }}>
+                  <td style={{ textAlign: 'center', color: p.accountNo ? 'var(--ec-blue)' : 'var(--ec-text-off)' }}>
                     {p.accountNo ? '등록' : ''}
                   </td>
                   <td>
                     <button onClick={() => openEdit(p)} style={{ color: 'var(--ec-blue)', marginRight: 8, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>수정</button>
-                    <button onClick={() => remove(p)} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                    <button onClick={() => remove(p)} style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
                   </td>
                 </tr>
               ))
@@ -809,11 +827,11 @@ export default function PartnersPage() {
         원본 [변경] — 고른 거래처의 한 칸을 한 번에 바꾼다. 어떤 칸을 바꿀지 고르고
         새 값을 정한다. 비우면 그 칸을 비운다(담당자 없음 · 그룹 미지정).
       */}
-      <Modal open={bulkOpen} title={`거래처 일괄변경 (${checked.size}건)`} onClose={() => setBulkOpen(false)}>{(
-        <div style={{ padding: 4 }}>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+      <Modal error={error} open={bulkOpen} title={`거래처 일괄변경 (${checked.size}건)`} onClose={() => setBulkOpen(false)}>{(
+        <div className="p-[4px]">
+          <div className="flex gap-[10px] items-end flex-wrap">
             <div>
-              <label className="mb-1 block text-sm text-slate-600">바꿀 항목</label>
+              <label className="mb-1 block text-sm text-ec-label">바꿀 항목</label>
               <select className={inputCls} value={bulkField} style={{ width: 180 }}
                       onChange={(e) => { setBulkField(e.target.value as typeof bulkField); setBulkValue('') }}>
                 <option value="manager">거래처관리담당자</option>
@@ -822,7 +840,7 @@ export default function PartnersPage() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">새 값</label>
+              <label className="mb-1 block text-sm text-ec-label">새 값</label>
               {bulkField === 'manager' ? (
                 <input className={inputCls} value={bulkValue} style={{ width: 220 }}
                        placeholder="거래처관리담당자"
@@ -842,10 +860,10 @@ export default function PartnersPage() {
               )}
             </div>
           </div>
-          <p style={{ marginTop: 8, fontSize: 11.5, color: '#8a929c' }}>
+          <p className="mt-[8px] text-[11.5px] text-ec-hint">
             고른 거래처의 그 칸만 바꿉니다. 나머지 값은 그대로 둡니다.
           </p>
-          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+          <div className="mt-[12px] flex justify-end gap-[6px]">
             <button type="button" className="ec-btn" onClick={() => setBulkOpen(false)}>닫기</button>
             <button type="button" className="ec-btn ec-btn-primary" onClick={bulkChange}>변경</button>
           </div>
@@ -871,26 +889,26 @@ export default function PartnersPage() {
       {webOpen && (
         <div onClick={() => setWebOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, width: 520, maxWidth: '92vw', boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}>
-            <div style={{ padding: '10px 14px', borderBottom: '1px solid #e6eaef', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
+            <div className="py-[10px] px-[14px] border-b border-b-ec-line-soft border-solid font-extrabold text-[14px] flex items-center">
               <span>웹자료올리기 · 거래처 대량 등록</span>
               <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => setWebOpen(false)}>닫기</button>
             </div>
-            <div style={{ padding: 14, fontSize: 12.5, lineHeight: 1.7, color: '#3c4553' }}>
-              <p style={{ margin: '0 0 8px' }}>엑셀/CSV 파일로 거래처를 한 번에 등록하는 기능입니다. 파일을 고르면 형식을 미리 확인할 수 있습니다.</p>
+            <div className="p-[14px] text-[12.5px] leading-[1.7] text-ec-text">
+              <p className="mt-0 mx-0 mb-[8px]">엑셀/CSV 파일로 거래처를 한 번에 등록하는 기능입니다. 파일을 고르면 형식을 미리 확인할 수 있습니다.</p>
               {/* 원본 [웹자료올리기] 도 끌어다 놓을 수 있다. 파일 선택 버튼은 그대로 둔다. */}
               <EcFileDrop
                 hint="여기에 파일 놓기 (엑셀·CSV)"
                 onFiles={(fs) => onPickFile({ target: { files: fs } } as unknown as React.ChangeEvent<HTMLInputElement>)}
               />
               {webFile && (
-                <div style={{ marginTop: 10, border: '1px solid #e6eaef', borderRadius: 3, padding: 10, background: '#f9fbfd' }}>
-                  <div><b>{webFile.name}</b> · 데이터 <b style={{ color: 'var(--ec-blue-dark)' }}>{webFile.total.toLocaleString()}</b>행 인식</div>
-                  {webFile.head.length > 0 && <div style={{ marginTop: 4, color: '#5a626e' }}>헤더: {webFile.head.join(' · ')}</div>}
+                <div className="mt-[10px] border border-ec-line-soft border-solid rounded-[3px] p-[10px] bg-ec-page">
+                  <div><b>{webFile.name}</b> · 데이터 <b className="text-ec-navy">{webFile.total.toLocaleString()}</b>행 인식</div>
+                  {webFile.head.length > 0 && <div className="mt-[4px] text-ec-label">헤더: {webFile.head.join(' · ')}</div>}
                 </div>
               )}
-              <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div className="mt-[12px] flex items-center gap-[8px]">
                 <button className="ec-btn" disabled title="서버 업로드 API 미구현" style={{ opacity: .55, cursor: 'default' }}>업로드 실행 (백엔드 미연동)</button>
-                <span style={{ fontSize: 11.5, color: '#c07a00' }}>* 서버 일괄등록 API가 없어 미리보기까지만 제공합니다.</span>
+                <span className="text-[11.5px] text-ec-warn">* 서버 일괄등록 API가 없어 미리보기까지만 제공합니다.</span>
               </div>
             </div>
           </div>

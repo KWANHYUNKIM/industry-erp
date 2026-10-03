@@ -1,0 +1,43 @@
+{
+  "about": "관리 > 급여현황(E090115) — 원본처럼 라인별은 명세마다 한 줄 · 성명 가나다 순 · 사원마다 '성명 계' · 끝에 합계, 급여대장별은 귀속월(대장)마다 한 줄. 수당 · 공제 항목 열 뒤에 지급총액 · 공제총액 · 실지급액. 시험 명세는 지운다. 공제 열은 원본 이름(소득세 · 주민세 · 국민연금 · 건강보험 · 고용보험 · 장기요양)으로 그 차례에 서고, 주민세 칸에 값이 든다. 급여대장별부서별은 대장 × 부서마다 한 줄. [사원] · [부서]는 여러 개 고르는 코드도움 — EMP-0003 만 고르면 정수진 줄이 빠진다. 지급연월[사용]은 그 귀속월 급여대장의 지급일로 거른다 — 대장이 없는 시험 명세는 빠진다.",
+  "shots": [
+    {
+      "name": "라인별 소계 · 합계 → 급여대장별 한 줄 → 뒷정리",
+      "path": "/hr/payroll/status",
+      "steps": [
+        "js:(async()=>{const t=localStorage.getItem('erp_token');const h={Authorization:'Bearer '+t,'Content-Type':'application/json'};const emps=await (await fetch('/api/employees',{headers:h})).json();const ids=[];for(const c of ['EMP-0003','EMP-0004']){const e=emps.find(x=>x.code===c);const r=await fetch('/api/payslips',{method:'POST',headers:h,body:JSON.stringify({employeeId:e.id,payMonth:'2091-06'})});ids.push((await r.json()).id)}sessionStorage.setItem('qaPs',ids.join(','));return true})()",
+        "set:input[type=month]#0|2091-06",
+        "set:input[type=month]#1|2091-06",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:(()=>{const x=document.querySelector('table').innerText;return /이영희 계/.test(x)&&/정수진 계/.test(x)&&/합계/.test(x)&&x.indexOf('이영희')<x.indexOf('정수진')&&[...document.querySelectorAll('table thead th')].slice(-3).map(t=>t.innerText).join(',')==='지급총액,공제총액,실지급액'})()",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map(t=>t.innerText.trim());const i=h.indexOf('소득세');const r=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('합계'));return h.slice(i,i+6).join(',')==='소득세,주민세,국민연금,건강보험,고용보험,장기요양'&&!h.includes('지방소득세')&&!h.includes('장기요양보험')&&r.cells[r.cells.length-(h.length-i-1)].innerText.trim()!==''})()",
+        "pick:사원:EMP-0003",
+        "clicklast:확인",
+        "wait:300",
+        "expect:(()=>{const x=document.querySelector('table').innerText;return /이영희 계/.test(x)&&!/정수진/.test(x)})()",
+        "pick:사원:EMP-0004",
+        "clicklast:확인",
+        "wait:300",
+        "expect:/정수진 계/.test(document.querySelector('table').innerText)",
+        "js:document.querySelectorAll('input[name=pay-status-mode]')[1].click();true",
+        "wait:500",
+        "expect:[...document.querySelectorAll('table tbody tr')].filter(t=>/^2091\\/06 -1/.test(t.innerText)).length===1",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const emps=await (await fetch('/api/employees',{headers:h})).json();sessionStorage.setItem('qaPsDepts',String(new Set(emps.filter(e=>['EMP-0003','EMP-0004'].includes(e.code)).map(e=>e.department||'')).size));document.querySelectorAll('input[name=pay-status-mode]')[2].click();return true})()",
+        "wait:500",
+        "expect:[...document.querySelectorAll('table tbody tr')].filter(t=>/^2091\\/06 -1/.test(t.innerText)).length===Number(sessionStorage.getItem('qaPsDepts'))",
+        "js:(()=>{[...document.querySelectorAll('label')].filter(l=>l.textContent.trim()==='사용')[0].querySelector('input').click();return true})()",
+        "wait:300",
+        "expect:!/2091\\/06 -1/.test(document.querySelector('table').innerText)",
+        "js:(()=>{[...document.querySelectorAll('label')].filter(l=>l.textContent.trim()==='사용')[0].querySelector('input').click();return true})()",
+        "wait:300",
+        "expect:/2091\\/06 -1/.test(document.querySelector('table').innerText)",
+        "click:종료월",
+        "wait:200",
+        "expect:(()=>{const d=new Date();const m=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');const ms=document.querySelectorAll('input[type=month]');return ms[0].value==='2091-06'&&ms[1].value===m})()",
+        "js:(async()=>{const t=localStorage.getItem('erp_token');let ok=true;for(const id of sessionStorage.getItem('qaPs').split(',')){const r=await fetch('/api/payslips/'+id,{method:'DELETE',headers:{Authorization:'Bearer '+t}});ok=ok&&r.ok}sessionStorage.setItem('qaPsDel',String(ok));return true})()",
+        "expect:sessionStorage.getItem('qaPsDel')==='true'"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "about": "로트관리 품목을 로트No. 없이 저장하면 저장 전에 막는다(62회차 — 품목 화면은 '입출고할 때 로트번호를 받는다' 고 했지만 아무 데서도 지키지 않았다). 저장하지 않는다.",
+  "shots": [
+    {
+      "name": "구매입력 — 로트No. 없이 저장",
+      "path": "/sales/buy",
+      "steps": [
+        "click:거래처 코드도움",
+        "pickrow:QA-SUPP",
+        "js:document.querySelectorAll('input[placeholder=\"품목 선택\"]')[0].click(); true",
+        "pickrow:QA-LOTITEM",
+        "wait:500",
+        "js:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('QA로트품목') || [...t.querySelectorAll('input')].some((i) => (i.value || '').includes('QA로트품목'))); const ins = tr.querySelectorAll('input[type=number]'); const d = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value'); d.set.call(ins[0], '1'); ins[0].dispatchEvent(new Event('input', { bubbles: true })); return ins.length })()",
+        "wait:300",
+        "click:저장",
+        "wait:600",
+        "expect:document.body.innerText.includes('QA-LOTITEM QA로트품목 은(는) 로트관리 품목입니다 — 로트No.를 입력하세요.')"
+      ]
+    }
+  ]
+}

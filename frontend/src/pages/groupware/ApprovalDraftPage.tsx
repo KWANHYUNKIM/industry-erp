@@ -1,17 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
-import ApprovalFormFields from '../../components/approval/ApprovalFormFields'
+import ApprovalFormFields from '../../features/approval/components/ApprovalFormFields'
 import CodePickerField from '../../components/CodePickerField'
 import Modal from '../../components/Modal'
 import EcFileDrop from '../../components/EcFileDrop'
 import { exportTableToXlsx } from '../../utils/excel'
 import { printTable } from '../../utils/print'
 import { findDataTable } from '../../utils/tableExport'
-import type { ApprovalDoc, ApprovalFormTemplate, ApprovalPreset, MemberOption } from '../../api/types'
+import type { ApprovalDoc, ApprovalFormTemplate, ApprovalPreset, MemberOption } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import { useShortcut } from '../../utils/useShortcut'
-import { dateText } from '../../utils/dateText'
+import { useTableSort } from '../../utils/useTableSort'
 
 const TITLE = '기안서작성'
 // 글꼴 select 표시명 → 실제 CSS font-family 매핑
@@ -39,6 +39,7 @@ export default function ApprovalDraftPage() {
   const [members, setMembers] = useState<MemberOption[]>([])
   const [templates, setTemplates] = useState<ApprovalFormTemplate[]>([])
   const [selected, setSelected] = useState<ApprovalFormTemplate | null>(null)
+  const sort = useTableSort(templates, { 정렬순서: (t) => t.sortOrder, 양식명: (t) => t.name })
 
   const [draftDate, setDraftDate] = useState(today())
   const [title, setTitle] = useState('')
@@ -200,7 +201,7 @@ export default function ApprovalDraftPage() {
     }
     setSaving(true)
     try {
-      await api.post('/approvals', {
+      const res = await api.post<ApprovalDoc>('/approvals', {
         formTemplateId: selected!.id,
         title,
         content: body,
@@ -216,7 +217,11 @@ export default function ApprovalDraftPage() {
         shareUserIds: shareIds,
         temporary,
       })
-      navigate('/groupware/approval/my')
+      /* 곧바로 목록으로 넘어가 이 화면의 안내는 못 본다 — 번호는 목록 화면이 받아 띄운다(창을 띄우지 않는다). */
+      const d = res.data
+      navigate('/groupware/approval/my', { state: { notice: temporary
+        ? `${d.docNo} 기안서 임시저장 완료 · ${d.title}`
+        : `${d.docNo} 기안서 상신 완료 · ${d.title} · 결재자 ${approverIds.length}명` } })
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -226,11 +231,11 @@ export default function ApprovalDraftPage() {
 
   const chips = (ids: number[], setIds: (fn: (a: number[]) => number[]) => void, numbered: boolean) =>
     ids.length > 0 && (
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+      <div className="flex flex-wrap gap-[6px] mt-[6px]">
         {ids.map((id, idx) => (
           <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'var(--ec-blue-light)', color: 'var(--ec-blue-dark)', padding: '2px 8px', borderRadius: 12, fontSize: 12 }}>
             {numbered ? `${idx + 1}. ` : ''}{memberName(id)}
-            <span onClick={() => setIds((a) => a.filter((x) => x !== id))} style={{ cursor: 'pointer', fontWeight: 700 }}>×</span>
+            <span onClick={() => setIds((a) => a.filter((x) => x !== id))} className="cursor-pointer font-bold">×</span>
           </span>
         ))}
       </div>
@@ -260,11 +265,11 @@ export default function ApprovalDraftPage() {
   )
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ color: '#f5b301', fontSize: 14, marginRight: 4 }}>☆</span>
-        <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ec-text)' }}>{TITLE}</span>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, position: 'relative' }}>
+    <div className="flex flex-col min-h-[100%]">
+      <div className="flex items-center mb-[8px]">
+        <span className="text-ec-star text-[14px] mr-[4px]">☆</span>
+        <span className="text-[15px] font-extrabold text-ec-text">{TITLE}</span>
+        <div className="ml-auto flex items-center gap-[4px] relative">
           <input
             className="ec-input"
             placeholder="양식검색"
@@ -280,7 +285,7 @@ export default function ApprovalDraftPage() {
           {optionOpen && (
             <>
               <div onClick={() => setOptionOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
-              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, zIndex: 41, background: '#fff', border: '1px solid #c9d1da', borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,.12)', minWidth: 150, padding: 4 }}>
+              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, zIndex: 41, background: '#fff', border: '1px solid var(--ec-line)', borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,.12)', minWidth: 150, padding: 4 }}>
                 {[
                   { label: 'Excel 내려받기', run: () => { void doExcel() } },
                   { label: '인쇄', run: () => doPrint() },
@@ -294,33 +299,45 @@ export default function ApprovalDraftPage() {
         </div>
       </div>
 
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+      {error && !selected && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
 
       {/*
         원본 기안서작성은 **전폭 양식 목록**이다 — 정렬순서·양식명·구분·결재문서 4열.
         양식을 누르면 **모달 팝업**으로 작성 폼이 뜬다.
         우리는 좌우 분할(좁은 목록 + 인라인 편집기)이라 같은 화면인데 전혀 다르게 보였다.
       */}
-      <div ref={bodyRef} style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+      <div ref={bodyRef} className="flex-1 min-h-0 overflow-auto">
         <table className="w-full text-left">
           <thead>
             <tr>
-              {/* 원본 실측: 가운데. */}
-              <th style={{ width: 90, textAlign: 'center' }}>정렬순서</th>
-              <th>양식명</th>
-              {/* 원본 실측: 왼쪽. */}
-              <th style={{ width: 200 }}>구분</th>
-              {/* 원본은 [구분] 200 · [결재문서] 150 이다 — 우리는 거꾸로였다. */}
-              <th style={{ width: 150 }}>결재문서</th>
+              {/*
+                2026-10-03 원본 실측: 머리 셋([정렬순서▼][양식명▼][구분▼])은 눌러 정렬하고 링크색이다.
+                [정렬순서]는 0 을 채우지 않는다('1' · '2' — 우리는 '01' 이었다). [구분]은 양식 분류(휴가신청서 ·
+                지출결의서)인데 우리 양식에는 분류 칸이 없다 — 모든 줄에 '기본' 을 찍던 것을 비운다.
+              */}
+              <th className="w-[90px] text-center cursor-pointer text-ec-navy" onClick={() => sort.toggle('정렬순서')}>정렬순서 {sort.mark('정렬순서')}</th>
+              <th className="cursor-pointer text-ec-navy" onClick={() => sort.toggle('양식명')}>양식명 {sort.mark('양식명')}</th>
+              {/* 원본은 [구분] 200 · [결재문서] 150 이다. */}
+              <th className="w-[200px] cursor-pointer text-ec-navy">구분 ▼</th>
+              <th className="w-[150px]">결재문서</th>
             </tr>
           </thead>
           <tbody>
-            {templates.map((t) => (
-              <tr key={t.id} onClick={() => selectForm(t)} style={{ cursor: 'pointer' }}>
-                <td style={{ textAlign: 'center', color: '#8a929c' }}>{String(t.sortOrder).padStart(2, '0')}</td>
-                <td>{t.name}</td>
-                <td style={{ color: '#8a929c' }}>기본</td>
+            {/* 원본 맨 위 '00 기본' — 칸 없는 기본 기안서, 정렬과 상관없이 초록 바탕으로 붙는다(V252 가 심는다) */}
+            {templates.filter((t) => t.code === 'BASIC').map((t) => (
+              <tr key={t.id} onClick={() => selectForm(t)} className="cursor-pointer bg-ec-basic">
+                <td className="text-center">00</td>
+                <td className="text-ec-navy">{t.name}</td>
+                <td />
+                <td />
+              </tr>
+            ))}
+            {sort.sorted.filter((t) => t.code !== 'BASIC').map((t) => (
+              <tr key={t.id} onClick={() => selectForm(t)} className="cursor-pointer">
+                <td className="text-center">{t.sortOrder}</td>
+                <td className="text-ec-navy">{t.name}</td>
+                <td />
                 <td />
               </tr>
             ))}
@@ -338,27 +355,24 @@ export default function ApprovalDraftPage() {
         {selected && (
             <div>
               {/* 원본의 파란 배지 — [기안서 | 양식명] */}
-              <div style={{ marginBottom: 10 }}>
-                <span style={{
-                  display: 'inline-block', background: 'var(--ec-blue)', color: '#fff',
-                  fontSize: 12, padding: '5px 12px', borderRadius: 5,
-                }}>
+              <div className="mb-[10px]">
+                <span className="inline-block bg-ec-blue text-white text-[12px] py-[5px] px-[12px] rounded-[5px]">
                   기안서 | {selected.name}
                 </span>
               </div>
 
-              <table className="w-full text-left" style={{ marginBottom: 12 }}>
+              <table className="w-full text-left mb-[12px]">
                 <tbody>
                   <tr>
-                    <th style={{ width: 130, background: '#f5f7fa' }}>일자</th>
-                    <td><input className="ec-input" type="date" value={dateText(draftDate)} onChange={(e) => setDraftDate(e.target.value)} style={{ width: 150 }} /></td>
+                    <th className="w-[130px] bg-ec-page">일자</th>
+                    <td><input className="ec-input" type="date" value={draftDate} onChange={(e) => setDraftDate(e.target.value)} style={{ width: 150 }} /></td>
                   </tr>
                   <tr>
-                    <th style={{ background: '#f5f7fa' }}>제목<span style={{ color: '#c60a2e', marginLeft: 2 }}>*</span></th>
+                    <th className="bg-ec-page">제목<span className="text-ec-danger ml-[2px]">*</span></th>
                     <td><input className="ec-input" value={title} onChange={(e) => setTitle(e.target.value)} style={{ width: '100%' }} /></td>
                   </tr>
                   <tr>
-                    <th style={{ background: '#f5f7fa' }}>부서</th>
+                    <th className="bg-ec-page">부서</th>
                     <td><input className="ec-input" value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="예: 부설연구소" style={{ width: 240 }} /></td>
                   </tr>
                   {/*
@@ -366,10 +380,10 @@ export default function ApprovalDraftPage() {
                     우리는 넷을 각각 별도 행으로 두어 같은 라벨이 네 번 나왔다.
                   */}
                   <tr>
-                    <th style={{ background: '#f5f7fa' }}>결재라인</th>
+                    <th className="bg-ec-page">결재라인</th>
                     <td>
-                      <div style={{ display: 'grid', gap: 4 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <div className="grid gap-[4px]">
+                        <div className="flex items-center gap-[8px] flex-wrap">
                           <span className="ec-line-tag">결재라인</span>
                           <CodePickerField
                             label="결재라인" hideLabel placeholder="결재라인 선택" emptyLabel="선택 해제" width={260}
@@ -382,24 +396,24 @@ export default function ApprovalDraftPage() {
                               sub: p.steps.map((st) => st.approverName).join(' → '),
                             }))}
                           />
-                          <span style={{ fontSize: 11.5, color: '#9aa1ab' }}>
+                          <span className="text-[11.5px] text-ec-hint">
                             {presets.length === 0
                               ? '저장된 결재선이 없습니다. [공통양식·결재선 설정]에서 만들 수 있습니다.'
                               : '고르면 아래 결재자가 그 순서대로 채워집니다.'}
                           </span>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <div className="flex items-center gap-[8px] flex-wrap">
                           <span className="ec-line-tag">결재자</span>
                           {picker(approverIds, setApproverIds, '결재자 선택')}
-                          <span style={{ fontSize: 11.5, color: '#9aa1ab' }}>선택 순서대로 결재 진행</span>
+                          <span className="text-[11.5px] text-ec-hint">선택 순서대로 결재 진행</span>
                           {chips(approverIds, setApproverIds, true)}
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <div className="flex items-center gap-[8px] flex-wrap">
                           <span className="ec-line-tag">참조자</span>
                           {picker(referenceIds, setReferenceIds, '참조자 선택')}
                           {chips(referenceIds, setReferenceIds, false)}
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <div className="flex items-center gap-[8px] flex-wrap">
                           <span className="ec-line-tag">공유자</span>
                           {picker(shareIds, setShareIds, '공유자 선택')}
                           {chips(shareIds, setShareIds, false)}
@@ -409,13 +423,13 @@ export default function ApprovalDraftPage() {
                   </tr>
                   {/* 원본은 [구분]과 [출력양식]이 한 줄에 좌우로 놓인다. */}
                   <tr>
-                    <th style={{ background: '#f5f7fa' }}>구분</th>
+                    <th className="bg-ec-page">구분</th>
                     <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+                      <div className="flex items-center gap-[24px] flex-wrap">
                         <input className="ec-input" value={category} onChange={(e) => setCategory(e.target.value)}
                                placeholder="문서 구분" style={{ width: 240 }} />
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ color: 'var(--ec-label)', fontSize: 12 }}>출력양식</span>
+                        <span className="flex items-center gap-[8px]">
+                          <span className="text-ec-label text-[12px]">출력양식</span>
                           <select className="ec-input" value={printFormat} onChange={(e) => setPrintFormat(e.target.value)} style={{ width: 200 }}>
                             <option>기안No.</option>
                             <option>기안서No.</option>
@@ -425,15 +439,15 @@ export default function ApprovalDraftPage() {
                     </td>
                   </tr>
                   <tr>
-                    <th style={{ background: '#f5f7fa' }}>기안서No.</th>
+                    <th className="bg-ec-page">기안서No.</th>
                     <td>
                       <input className="ec-input" value="" readOnly placeholder="(저장 시 자동채번)"
-                             style={{ width: '100%', background: '#f7f8f9', color: '#8a929c' }} />
+                             style={{ width: '100%', background: '#f7f8f9', color: 'var(--ec-text-hint)' }} />
                     </td>
                   </tr>
                   <tr>
-                    <th style={{ background: '#f5f7fa' }}>결재문서</th>
-                    <td style={{ fontSize: 12, color: '#8a929c' }}>
+                    <th className="bg-ec-page">결재문서</th>
+                    <td className="text-[12px] text-ec-hint">
                       전표 · 출력물 —{' '}
                       <span style={{ color: '#62677e' }}>
                         저장한 뒤 [내결재관리]에서 판매·구매·비용 전표를 연결합니다.
@@ -441,7 +455,7 @@ export default function ApprovalDraftPage() {
                     </td>
                   </tr>
                   <tr>
-                    <th style={{ background: '#f5f7fa' }}>첨부</th>
+                    <th className="bg-ec-page">첨부</th>
                     <td>
                       {/* 원본 기안서작성의 [여기에 파일 놓기]. 한 건만 붙는 자리다. */}
                       <EcFileDrop
@@ -449,16 +463,16 @@ export default function ApprovalDraftPage() {
                         onFiles={(fs) => { if (fs[0]) void uploadAttachment(fs[0]) }}
                       >
                         {attachment && (
-                          <span style={{ fontSize: 12, color: 'var(--ec-blue-dark)' }}>
+                          <span className="text-[12px] text-ec-navy">
                             {attachment.name}
-                            <span onClick={() => setAttachment(null)} style={{ cursor: 'pointer', marginLeft: 6, fontWeight: 700 }}>×</span>
+                            <span onClick={() => setAttachment(null)} className="cursor-pointer ml-[6px] font-bold">×</span>
                           </span>
                         )}
                       </EcFileDrop>
                     </td>
                   </tr>
                   <tr>
-                    <th style={{ background: '#f5f7fa' }}>라벨</th>
+                    <th className="bg-ec-page">라벨</th>
                     <td>
                       <input className="ec-input" value={labelText} onChange={(e) => setLabelText(e.target.value)}
                              placeholder="문서를 묶어 보는 꼬리표" style={{ width: 360 }} />
@@ -532,7 +546,13 @@ export default function ApprovalDraftPage() {
                 />
               </div>
 
-              <div style={{ display: 'flex', gap: 6, marginTop: 12, paddingTop: 8, borderTop: '1px solid #eef1f5', alignItems: 'center' }}>
+              {/*
+                작성창이 열려 있으면 오류도 창 안에 띄운다. 예전엔 창 뒤(목록 위)에만 떠서, 필수 항목을 빠뜨리고
+                [저장/결재] 를 누르면 아무 일도 안 일어나는 것처럼 보였다(QA 15회차, 화면으로 기안해 보다 발견).
+              */}
+              {error && <p className="ec-alert ec-alert-danger mt-[10px] mb-0">{error}</p>}
+
+              <div className="flex gap-[6px] mt-[12px] pt-[8px] border-t border-t-ec-line-soft border-solid items-center">
                 {/* 원본 푸터: 저장/결재(F7)▴ · 임시저장/미리보기 · 양식샘플보기 · My도장/서명 · 닫기 */}
                 <button className="ec-btn ec-btn-primary" onClick={() => void save(false)} disabled={saving}>{saving ? '처리 중…' : '저장/결재(F7)'}</button>
                 <button className="ec-btn" onClick={() => void save(true)} disabled={saving}>임시저장/미리보기</button>
@@ -554,7 +574,7 @@ export default function ApprovalDraftPage() {
                 </button>
                 <button className="ec-btn" onClick={() => setSelected(null)}>닫기</button>
                 {missing.length > 0 && (
-                  <span style={{ fontSize: 11.5, color: '#c60a2e', marginLeft: 4 }}>미입력 필수: {missing.join(', ')}</span>
+                  <span className="text-[11.5px] text-ec-danger ml-[4px]">미입력 필수: {missing.join(', ')}</span>
                 )}
               </div>
             </div>
@@ -564,12 +584,12 @@ export default function ApprovalDraftPage() {
       {helpOpen && (
         <div onClick={() => setHelpOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, width: 460, maxWidth: '90vw', boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}>
-            <div style={{ padding: '10px 14px', borderBottom: '1px solid #e6eaef', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
+            <div className="py-[10px] px-[14px] border-b border-b-ec-line-soft border-solid font-extrabold text-[14px] flex items-center">
               <span>{TITLE} · 도움말</span>
               <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => setHelpOpen(false)}>닫기</button>
             </div>
-            <div style={{ padding: 14, fontSize: 12.5, lineHeight: 1.7, color: '#3c4553' }}>
-              <ul style={{ paddingLeft: 16, margin: 0 }}>
+            <div className="p-[14px] text-[12.5px] leading-[1.7] text-ec-text">
+              <ul className="pl-[16px] m-0">
                 <li>좌측 목록에서 <b>결재양식</b>을 고르면 그 양식이 요구하는 입력 항목이 자동으로 나타납니다.</li>
                 <li>양식별 항목은 서버의 <b>양식 마스터</b>가 정의합니다. 출장 양식의 <b>여비산정</b>처럼 표 항목은 합계가 자동 계산됩니다.</li>
                 <li><b>임시저장</b>은 결재선 없이 보관합니다(상태: 기안중). <b>저장/결재(F7)</b>는 결재선 순서대로 상신합니다.</li>

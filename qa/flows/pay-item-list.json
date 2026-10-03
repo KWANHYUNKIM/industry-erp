@@ -1,0 +1,38 @@
+{
+  "about": "관리 > 수당항목등록(E090103) · 공제항목등록(E090114) — 원본처럼 격자 끝 빈 줄에 적고 [저장(F8)] 한 번으로 저장한다. 수당은 비과세유형을 식대로 두면 과세가 꺼진다. 만든 항목은 지운다.",
+  "shots": [
+    {
+      "name": "빈 줄에 수당 추가 → 저장 → 뒷정리",
+      "path": "/hr/allowance-items",
+      "steps": [
+        "wait:800",
+        "set:table tbody tr:not(:has(input[type=checkbox])) input.ec-input#0|QAFLOW",
+        "set:table tbody tr:not(:has(input[type=checkbox])) input.ec-input#1|QA관리-화면시험수당",
+        "set:table tbody tr:not(:has(input[type=checkbox])) input.ec-input#2|98",
+        "choose:table tbody tr:not(:has(input[type=checkbox])) select#0|식대",
+        "choose:table tbody tr:not(:has(input[type=checkbox])) select#1|변동(시간)",
+        "click:저장(F8)",
+        "wait:1000",
+        "expect:/QAFLOW/.test(document.querySelector('table').innerText)",
+        "js:(async()=>{const ok=await (async()=>{const t=localStorage.getItem('erp_token');const h={Authorization:'Bearer '+t};const l=await (await fetch('/api/pay-settings/items',{headers:h})).json();const i=l.find(x=>x.code==='QAFLOW');if(!i||i.taxable||i.taxFreeType!=='MEAL'||i.payMethod!=='HOURLY')return false;return (await fetch('/api/pay-settings/items/'+i.id,{method:'DELETE',headers:h})).ok})();sessionStorage.setItem('qaPi0',String(ok));return true})()",
+        "expect:sessionStorage.getItem('qaPi0')==='true'"
+      ]
+    },
+    {
+      "name": "공제 빈 줄에 추가 → 저장 → 뒷정리",
+      "path": "/hr/deduction-items",
+      "steps": [
+        "wait:800",
+        "expect:!document.querySelector('table thead').innerText.includes('비과세유형')",
+        "set:table tbody tr:not(:has(input[type=checkbox])) input.ec-input#0|QAFLOWD",
+        "set:table tbody tr:not(:has(input[type=checkbox])) input.ec-input#1|QA관리-화면시험공제",
+        "set:table tbody tr:not(:has(input[type=checkbox])) input.ec-input#2|98",
+        "click:저장(F8)",
+        "wait:1000",
+        "expect:/QAFLOWD/.test(document.querySelector('table').innerText)",
+        "js:(async()=>{const ok=await (async()=>{const t=localStorage.getItem('erp_token');const h={Authorization:'Bearer '+t};const l=await (await fetch('/api/pay-settings/items',{headers:h})).json();const i=l.find(x=>x.code==='QAFLOWD');if(!i||i.kind!=='DEDUCTION'||i.sortOrder!==98)return false;return (await fetch('/api/pay-settings/items/'+i.id,{method:'DELETE',headers:h})).ok})();sessionStorage.setItem('qaPi1',String(ok));return true})()",
+        "expect:sessionStorage.getItem('qaPi1')==='true'"
+      ]
+    }
+  ]
+}

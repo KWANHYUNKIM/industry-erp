@@ -1,0 +1,52 @@
+{
+  "about": "퇴직금계산(E030117) — [신규] 사원 · 기산일 · 퇴사일로 평균임금 → 퇴직산출액, 퇴직급여를 고치면 세금만 다시 센다(원본 김은빈 8,778,618 · 근속 2년 → 소득세 130,680 · 지방소득세 13,060). 저장 → 목록 → 선택삭제. withholding-ledger 흐름의 2088-01 확정 명세(EMP-0001)를 쓴다.",
+  "shots": [
+    {
+      "name": "[신규] → 계산 → 퇴직급여 고쳐 세금 다시 → 저장",
+      "path": "/hr/retirement-pay",
+      "steps": [
+        "wait:1000",
+        "click:신규(F2)",
+        "wait:500",
+        "pick:사원:EMP-0001",
+        "wait:1200",
+        "set:[role=dialog] input[type=date]#0|2087-01-01",
+        "set:[role=dialog] input[type=date]#1|2088-02-10",
+        "set:[role=dialog] input[type=date]#2|2088-02-10",
+        "set:[role=dialog] input[type=month]#0|2088-02",
+        "click:퇴직금재계산",
+        "wait:1200",
+        "expect:/ⓕ3개월 근무일수\\s*92/.test(document.querySelector('[role=dialog]').innerText)",
+        "expect:/2088\\.01\\s*3,200,000/.test(document.querySelector('[role=dialog]').innerText)",
+        "js:(() => { const i = [...document.querySelectorAll('[role=dialog] tr')].find((t) => t.innerText.includes('(15)퇴 직 급 여')).querySelector('input'); const d = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value'); d.set.call(i, '8,778,618'); i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:1200",
+        "expect:/\\(46\\)[^\\n]*130,680 · 13,060/.test(document.querySelector('[role=dialog]').innerText)",
+        "expect:/\\(30\\)[^\\n]*40,671,708/.test(document.querySelector('[role=dialog]').innerText)",
+        "click:저장(F8)",
+        "wait:1200",
+        "set:input[type=date]#0|2088-01-01",
+        "set:input[type=date]#1|2088-12-31",
+        "click:검색(F8)",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes('2088/02/10') && t.innerText.includes('8,778,618') && t.innerText.includes('130,680') && t.innerText.includes('8,634,878'))"
+      ]
+    },
+    {
+      "name": "[선택삭제]",
+      "path": "/hr/retirement-pay",
+      "steps": [
+        "wait:800",
+        "set:input[type=date]#0|2088-01-01",
+        "set:input[type=date]#1|2088-12-31",
+        "click:검색(F8)",
+        "wait:1200",
+        "js:[...document.querySelectorAll('tbody tr')].filter((t) => t.innerText.includes('2088/02/10')).forEach((t) => t.querySelector('input[type=checkbox]').click()); true",
+        "click:선택삭제",
+        "wait:300",
+        "click:확인",
+        "wait:1200",
+        "expect:![...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes('2088/02/10'))"
+      ]
+    }
+  ]
+}

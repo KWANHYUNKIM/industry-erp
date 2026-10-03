@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Bom, StockRow, Warehouse } from '../../api/types'
+import type { Bom, StockRow, Warehouse } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { STOCK_PICKS, ymd } from '../../components/EcPeriodPicks'
@@ -26,6 +26,13 @@ import { periodOf } from '../../components/EcPeriodPicks'
  * <p>[기준일자]는 이제 <b>실제로 조회에 쓴다</b>. 예전에는 칸만 두고 무시했다 —
  * 날짜를 바꿔도 늘 현재고가 나왔다. 조건이 있으면 사람은 그 값이 반영된 줄 안다.
  * 서버가 현재고에서 그 뒤의 입출고를 빼서 그 시점 재고를 낸다(GET /stock?asOf=).
+ *
+ * <p><b>2026-09-09 원본을 열어 다시 쟀다.</b> 조건은 여섯(기준일자 · 창고 · 창고계층그룹 ·
+ * 품목코드 · 양식 · 양식구분)으로 대조표와 같다. 그런데 <b>이 화면의 원본에는 화면 위
+ * 격자가 없다</b> — [검색]을 눌러도 표가 그려지지 않고 <b>출력물</b>로 넘어간다
+ * (거래처관리대장1·II 와 같다). 그래서 열 이름·차례·정렬을 잴 축이 아예 없고,
+ * 아래 표의 일곱 칸은 <b>전부 우리가 정한 것</b>이다 — 대조표에 격자를 넣지 않았다.
+ * 지어내지 않는다.
  */
 export default function BomStockPage() {
   const [boms, setBoms] = useState<Bom[]>([])
@@ -120,22 +127,22 @@ export default function BomStockPage() {
       </EcStatusPanel>
 
       {cond.date !== today && (
-        <p style={{ marginBottom: 8, background: '#fff7e6', border: '1px solid #ffe0a3', color: '#8a5a00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
+        <p style={{ marginBottom: 8, background: 'var(--ec-warn-bg)', border: '1px solid #ffe0a3', color: '#8a5a00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
           지금 보는 것은 <b>기준일자 시점의 재고</b>입니다. 현재고에서 그 뒤의 입출고를 빼서 냅니다.
           숫자가 달라지지 않습니다.
         </p>
       )}
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        모품목 <b style={{ color: '#3c4553' }}>{num(rows.length)}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
-        환산가능수량 합 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{num(totalBuildable)}</b>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        모품목 <b className="text-ec-text">{num(rows.length)}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
+        환산가능수량 합 <b className="text-ec-blue text-[14px]">{num(totalBuildable)}</b>
         {blocked > 0 && (
           <>
-            <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
-            생산불가 <b style={{ color: '#c60a2e', fontSize: 14 }}>{num(blocked)}</b>
+            <span className="my-0 mx-[8px] text-ec-off">|</span>
+            생산불가 <b className="text-ec-danger text-[14px]">{num(blocked)}</b>
           </>
         )}
       </div>
@@ -143,9 +150,9 @@ export default function BomStockPage() {
       <div className="overflow-x-auto">
         <table className="w-full text-left">
           <colgroup>
-            <col style={{ width: '4%' }} /><col style={{ width: '14%' }} /><col />
-            <col style={{ width: '8%' }} /><col style={{ width: '11%' }} />
-            <col style={{ width: '11%' }} /><col style={{ width: '13%' }} />
+            <col className="w-[4%]" /><col className="w-[14%]" /><col />
+            <col className="w-[8%]" /><col className="w-[11%]" />
+            <col className="w-[11%]" /><col className="w-[13%]" />
           </colgroup>
           <thead>
             <tr>
@@ -153,22 +160,22 @@ export default function BomStockPage() {
               <th>품목코드</th>
               <th>품목명</th>
               <th>단위</th>
-              <th style={{ textAlign: 'right' }}>소요량</th>
-              <th style={{ textAlign: 'right' }}>현재고</th>
-              <th style={{ textAlign: 'right' }}>환산가능수량</th>
+              <th className="text-right">소요량</th>
+              <th className="text-right">현재고</th>
+              <th className="text-right">환산가능수량</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+              <tr><td colSpan={7} className="text-center text-ec-ink">불러오는 중…</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={7} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
             ) : rows.map((r, i) => (
               <Fragment key={r.bom.id}>
                 <tr style={{ background: '#f2f6fc' }}>
-                  <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
-                  <td style={{ fontFamily: 'monospace', fontWeight: 700 }}>{r.bom.productCode}</td>
-                  <td style={{ fontWeight: 700 }}>
+                  <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
+                  <td className="font-bold">{r.bom.productCode}</td>
+                  <td className="font-bold">
                     {r.bom.productName}
                     {r.bottleneck.length > 0 && r.lines.length > 0 && (
                       <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 400, color: '#a5561b' }}>
@@ -177,23 +184,23 @@ export default function BomStockPage() {
                     )}
                   </td>
                   <td>{r.bom.productUnit}</td>
-                  <td style={{ textAlign: 'right', color: '#9aa1ab' }}>{r.lines.length}건</td>
-                  <td style={{ textAlign: 'right', color: '#9aa1ab' }}>
+                  <td className="text-right text-ec-hint">{r.lines.length}건</td>
+                  <td className="text-right text-ec-hint">
                     {num(stockOf.get(r.bom.productId) ?? 0)}
                   </td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, fontSize: 14, color: r.buildable === 0 ? '#c60a2e' : 'var(--ec-blue)' }}>
+                  <td style={{ textAlign: 'right', fontWeight: 700, fontSize: 14, color: r.buildable === 0 ? 'var(--ec-danger)' : 'var(--ec-blue)' }}>
                     {num(r.buildable)}
                   </td>
                 </tr>
                 {r.lines.map((l) => (
                   <tr key={`c-${r.bom.id}-${l.componentId}`}>
-                    <td style={{ textAlign: 'center', background: '#f3f3f3' }}></td>
-                    <td style={{ fontFamily: 'monospace', paddingLeft: 18, color: '#5a626e' }}>└ {l.componentCode}</td>
-                    <td style={{ color: '#5a626e' }}>{l.componentName}</td>
-                    <td style={{ color: '#8a929c' }}>{l.unit}</td>
-                    <td style={{ textAlign: 'right' }}>{num(l.quantity)}</td>
-                    <td style={{ textAlign: 'right' }}>{num(l.stockQty)}</td>
-                    <td style={{ textAlign: 'right', color: l.buildable === r.buildable ? '#a5561b' : '#8a929c', fontWeight: l.buildable === r.buildable ? 700 : 400 }}>
+                    <td className="text-center bg-ec-stripe"></td>
+                    <td className="pl-[18px] text-ec-label">└ {l.componentCode}</td>
+                    <td className="text-ec-label">{l.componentName}</td>
+                    <td className="text-ec-hint">{l.unit}</td>
+                    <td className="text-right">{num(l.quantity)}</td>
+                    <td className="text-right">{num(l.stockQty)}</td>
+                    <td style={{ textAlign: 'right', color: l.buildable === r.buildable ? '#a5561b' : 'var(--ec-text-hint)', fontWeight: l.buildable === r.buildable ? 700 : 400 }}>
                       {l.buildable === null ? '—' : num(l.buildable)}
                     </td>
                   </tr>
@@ -204,10 +211,10 @@ export default function BomStockPage() {
           {rows.length > 0 && (
             <tfoot>
               <tr>
-                <td colSpan={6} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>
+                <td colSpan={6} className="text-right font-bold bg-ec-page">
                   환산가능수량 합계 ({rows.length}품목)
                 </td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: 'var(--ec-blue)' }}>
+                <td className="text-right font-bold bg-ec-page text-ec-blue">
                   {num(totalBuildable)}
                 </td>
               </tr>

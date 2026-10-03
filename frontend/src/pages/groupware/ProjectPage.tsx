@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, useRef} from 'react'
+import { useEffect, useState, type FormEvent, useRef, useMemo } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcListShell from '../../components/EcListShell'
@@ -9,7 +9,7 @@ import { dateText } from '../../utils/dateText'
 
 type ProjectStatus = 'PLANNING' | 'IN_PROGRESS' | 'ON_HOLD' | 'DONE'
 const LABEL: Record<ProjectStatus, string> = { PLANNING: '기획', IN_PROGRESS: '진행중', ON_HOLD: '보류', DONE: '완료' }
-const COLOR: Record<ProjectStatus, string> = { PLANNING: '#8a929c', IN_PROGRESS: 'var(--ec-blue)', ON_HOLD: '#c07a00', DONE: '#1c7c3c' }
+const COLOR: Record<ProjectStatus, string> = { PLANNING: 'var(--ec-text-hint)', IN_PROGRESS: 'var(--ec-blue)', ON_HOLD: 'var(--ec-warn)', DONE: 'var(--ec-success)' }
 const STATUSES: ProjectStatus[] = ['PLANNING', 'IN_PROGRESS', 'ON_HOLD', 'DONE']
 
 interface Project {
@@ -43,6 +43,16 @@ export default function ProjectPage() {
   const [endDate, setEndDate] = useState('')
   const [status, setStatus] = useState<ProjectStatus>('PLANNING')
   const [remark, setRemark] = useState('')
+  /*
+   * 같은 이름 경고. 이름 겹침은 막지 않는다 — 해마다 '2026 정기점검' 처럼 같은 이름을 쓰는 게
+   * 정상이다. 대신 이미 있다는 걸 보여 주고, 한 번 더 눌러야 등록한다(마스터 중복 관리의 흔한 방식:
+   * 고유키는 코드, 이름 일치는 '같은 것일 수도 있는 후보' 로 알린다).
+   */
+  const sameName = useMemo(() => {
+    const n = name.trim().toLowerCase()
+    return n ? rows.filter((r) => r.name.trim().toLowerCase() === n) : []
+  }, [rows, name])
+  const [dupAcked, setDupAcked] = useState('')
 
   async function load() {
     try {
@@ -56,6 +66,10 @@ export default function ProjectPage() {
     e.preventDefault()
     setError(''); setOk('')
     if (!name.trim()) return setError('프로젝트명을 입력하세요.')
+    if (sameName.length && dupAcked !== name.trim()) {
+      setDupAcked(name.trim())
+      return setError(`같은 이름의 프로젝트가 이미 ${sameName.length}개 있습니다 — 그래도 등록하려면 한 번 더 누르세요.`)
+    }
     try {
       const res = await api.post<Project>('/projects', {
         name, manager: manager || undefined, startDate,
@@ -99,7 +113,7 @@ export default function ProjectPage() {
   const shown = sort.sorted
 
   const inputCls = 'ec-input'
-  const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 74 }
+  const th: React.CSSProperties = { background: 'var(--ec-bg-page)', fontWeight: 700, whiteSpace: 'nowrap', width: 74 }
 
 
   /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
@@ -115,7 +129,7 @@ export default function ProjectPage() {
       onNew={() => setShowForm(true)}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
-      <p className="mb-2 text-xs text-slate-500">프로젝트 진행·진척 관리 · 기획 → 진행중 → 완료(진척 100 자동) · 보류 전환 가능</p>
+      <p className="mb-2 text-xs text-ec-hint">프로젝트 진행·진척 관리 · 기획 → 진행중 → 완료(진척 100 자동) · 보류 전환 가능</p>
 
       <Modal open={showForm} title="프로젝트 등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 12, marginBottom: 10, maxWidth: 820 }}>
@@ -123,15 +137,20 @@ export default function ProjectPage() {
             <tbody>
               <tr>
                 <th style={th}>프로젝트명 *</th>
-                <td><input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} style={{ width: '100%' }} placeholder="프로젝트명을 입력하세요" /></td>
+                <td><input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} style={{ width: '100%' }} placeholder="프로젝트명을 입력하세요" />
+                  {sameName.length > 0 && (
+                    <div style={{ marginTop: 4, fontSize: 12, color: '#b45309' }}>
+                      같은 이름: {sameName.map((r) => `${r.code}${r.remark ? ` (${r.remark})` : ''}`).join(' · ')}
+                    </div>
+                  )}</td>
                 <th style={th}>PM</th>
                 <td><input className={inputCls} value={manager} onChange={(e) => setManager(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
                 <th style={th}>시작일</th>
-                <td><input type="date" className={inputCls} value={dateText(startDate)} onChange={(e) => setStartDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className={inputCls} value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ width: 150 }} /></td>
                 <th style={th}>종료(예정)</th>
-                <td><input type="date" className={inputCls} value={dateText(endDate)} onChange={(e) => setEndDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className={inputCls} value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
                 <th style={th}>상태</th>
@@ -145,19 +164,19 @@ export default function ProjectPage() {
               </tr>
             </tbody>
           </table>
-          {error && <p className="mt-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-          {ok && <p className="mt-2 rounded bg-green-50 px-3 py-2 text-sm text-green-700">{ok}</p>}
-          <div style={{ marginTop: 10 }}><button type="submit" className="ec-btn ec-btn-primary">등록(F8)</button></div>
+          {error && <p className="mt-2 rounded bg-ec-danger-bg px-3 py-2 text-sm text-ec-danger">{error}</p>}
+          {ok && <p className="mt-2 rounded bg-ec-success-bg px-3 py-2 text-sm text-ec-success">{ok}</p>}
+          <div className="mt-[10px]"><button type="submit" className="ec-btn ec-btn-primary">등록(F8)</button></div>
         </form>
       )}</Modal>
 
-      {error && !showForm && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && !showForm && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div style={{ display: 'flex', gap: 2, marginBottom: 8 }}>
+      <div className="flex gap-[2px] mb-[8px]">
         {(['ALL', ...STATUSES] as const).map((s) => (
           <button key={s} onClick={() => setStatusFilter(s)} className="no-ec" style={{
             padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
-            background: statusFilter === s ? 'var(--ec-blue)' : '#fff', color: statusFilter === s ? '#fff' : '#3a4453', fontWeight: statusFilter === s ? 700 : 400,
+            background: statusFilter === s ? 'var(--ec-blue)' : '#fff', color: statusFilter === s ? '#fff' : 'var(--ec-text)', fontWeight: statusFilter === s ? 700 : 400,
           }}>{s === 'ALL' ? '전체' : LABEL[s]} ({s === 'ALL' ? rows.length : rows.filter((r) => r.status === s).length})</button>
         ))}
       </div>
@@ -165,37 +184,37 @@ export default function ProjectPage() {
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('코드')}>코드 {sort.mark('코드')}</th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('프로젝트명')}>프로젝트명 {sort.mark('프로젝트명')}</th>
-            <th style={{ width: 90 }}>PM</th>
-            <th style={{ width: 100 }}>시작일</th>
-            <th style={{ width: 100 }}>종료(예정)</th>
-            <th style={{ textAlign: 'right', width: 170 }}>진척률</th>
-            <th style={{ width: 90, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('상태')}>상태 {sort.mark('상태')}</th>
-            <th style={{ width: 120, textAlign: 'center' }}>처리</th>
+            <th className="w-[34px]"></th>
+            <th className="w-[100px] cursor-pointer" onClick={() => sort.toggle('코드')}>코드 {sort.mark('코드')}</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('프로젝트명')}>프로젝트명 {sort.mark('프로젝트명')}</th>
+            <th className="w-[90px]">PM</th>
+            <th className="w-[100px]">시작일</th>
+            <th className="w-[100px]">종료(예정)</th>
+            <th className="text-right w-[170px]">진척률</th>
+            <th className="w-[90px] text-center cursor-pointer" onClick={() => sort.toggle('상태')}>상태 {sort.mark('상태')}</th>
+            <th className="w-[120px] text-center">처리</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.code}</td>
-              <td style={{ fontWeight: 600 }}>{r.name}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td>{r.code}</td>
+              <td className="font-semibold">{r.name}</td>
               <td>{r.manager ?? ''}</td>
               <td>{dateText(r.startDate)}</td>
               <td>{dateText(r.endDate) || ''}</td>
               <td>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }} onClick={() => editProgress(r)} title="클릭하여 진척률 수정">
-                  <div style={{ flex: 1, height: 8, background: '#eef1f5', borderRadius: 4, overflow: 'hidden' }}>
+                <div className="flex items-center gap-[6px] cursor-pointer" onClick={() => editProgress(r)} title="클릭하여 진척률 수정">
+                  <div className="flex-1 h-[8px] bg-ec-line-soft rounded-[4px] overflow-hidden">
                     <div style={{ width: `${r.progress}%`, height: '100%', background: COLOR[r.status] }} />
                   </div>
-                  <span style={{ width: 34, textAlign: 'right', fontSize: 11.5 }}>{r.progress}%</span>
+                  <span className="w-[34px] text-right text-[11.5px]">{r.progress}%</span>
                 </div>
               </td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <select
                   className="ec-input"
                   value={r.status}
@@ -205,9 +224,9 @@ export default function ProjectPage() {
                   {STATUSES.map((s) => <option key={s} value={s}>{LABEL[s]}</option>)}
                 </select>
               </td>
-              <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+              <td className="text-center whitespace-nowrap">
                 <button className="ec-btn" style={{ height: 20, padding: '0 10px', marginRight: 4 }} onClick={() => editProgress(r)}>진척수정</button>
-                <button className="no-ec" onClick={() => remove(r)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                <button className="no-ec" onClick={() => remove(r)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button>
               </td>
             </tr>
           ))}

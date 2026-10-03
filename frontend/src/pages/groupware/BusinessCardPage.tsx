@@ -3,7 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
-import type { BusinessCard, Partner, User } from '../../api/types'
+import type { BusinessCard, Partner, User } from '../../types/api'
 
 /** 그룹웨어 > 고객관리 > 명함관리 — 거래처 담당자 연락처를 회사 자산으로 남긴다 */
 export default function BusinessCardPage() {
@@ -71,14 +71,14 @@ export default function BusinessCardPage() {
       onSearch={load}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+      <div className="flex items-center gap-[6px] mb-[8px] flex-wrap">
         <button className="ec-btn ec-btn-primary" onClick={() => setEditing('new')}>+ 명함 등록(F2)</button>
-        <span style={{ fontSize: 12, color: '#9aa1ab', marginRight: 6 }}>
+        <span className="text-[12px] text-ec-hint mr-[6px]">
           이름·회사·연락처·메모로 검색됩니다. 거래처를 연결하면 상호가 자동으로 따라옵니다.
         </span>
         {allTags.length > 0 && (
-          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-            <span style={{ fontSize: 12, color: '#5a626e' }}>태그</span>
+          <div className="flex gap-[4px] items-center">
+            <span className="text-[12px] text-ec-label">태그</span>
             <button className="ec-btn" style={{ height: 20, padding: '0 8px', fontWeight: tag === '' ? 700 : 400 }} onClick={() => setTag('')}>전체</button>
             {allTags.map((t) => (
               <button
@@ -94,13 +94,13 @@ export default function BusinessCardPage() {
         )}
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
 
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th className="w-[34px]"></th>
             <th>이름</th>
             <th>회사</th>
             <th>부서 / 직위</th>
@@ -109,38 +109,38 @@ export default function BusinessCardPage() {
             <th>이메일</th>
             <th>태그</th>
             <th>보유자</th>
-            <th style={{ textAlign: 'center', width: 90 }}>처리</th>
+            <th className="text-center w-[90px]">처리</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
+            <tr><td colSpan={10} className="text-center text-ec-hint p-[20px]">
               {cards.length === 0 ? '등록된 명함이 없습니다.' : '검색 결과가 없습니다.'}
             </td></tr>
           ) : shown.map((c, i) => (
             <tr key={c.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontWeight: 700 }}>{c.name}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td className="font-bold">{c.name}</td>
               <td>
                 {c.companyName ?? '-'}
-                {c.partnerId && <span style={{ marginLeft: 4, fontSize: 10.5, color: '#1c7c3c' }}>거래처</span>}
+                {c.partnerId && <span className="ml-[4px] text-[10.5px] text-ec-success">거래처</span>}
               </td>
-              <td style={{ color: '#5a626e' }}>
+              <td className="text-ec-label">
                 {[c.department, c.jobTitle].filter(Boolean).join(' / ') || '-'}
               </td>
-              <td style={{ fontFamily: 'monospace' }}>{c.mobile ?? ''}</td>
-              <td style={{ fontFamily: 'monospace', color: '#8a929c' }}>{c.phone ?? ''}</td>
+              <td>{c.mobile ?? ''}</td>
+              <td className="text-ec-hint">{c.phone ?? ''}</td>
               <td>{c.email ? <a href={`mailto:${c.email}`} style={{ color: 'var(--ec-blue)' }}>{c.email}</a> : ''}</td>
               <td>
                 {c.tags.map((t) => (
-                  <span key={t} style={{ marginRight: 3, fontSize: 11, padding: '1px 5px', background: '#eef5ff', border: '1px solid #cfe0f5', borderRadius: 8, color: '#2b5b91' }}>#{t}</span>
+                  <span key={t} className="mr-[3px] text-[11px] py-[1px] px-[5px] bg-ec-blue-wash border border-ec-info-line border-solid rounded-[8px] text-ec-navy">#{t}</span>
                 ))}
               </td>
-              <td style={{ color: '#8a929c' }}>{c.ownerName ?? ''}</td>
-              <td style={{ textAlign: 'center' }}>
-                <div style={{ display: 'inline-flex', gap: 3 }}>
+              <td className="text-ec-hint">{c.ownerName ?? ''}</td>
+              <td className="text-center">
+                <div className="inline-flex gap-[3px]">
                   <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => setEditing(c)}>수정</button>
-                  <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => remove(c)}>삭제</button>
+                  <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: 'var(--ec-danger)' }} onClick={() => remove(c)}>삭제</button>
                 </div>
               </td>
             </tr>
@@ -220,27 +220,27 @@ function CardForm({ card, partners, users, onClose, onSaved }: {
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 600, maxWidth: '94vw', maxHeight: '90vh', overflow: 'auto', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: '#f5f7fa' }}>
-          <span style={{ fontWeight: 800, color: 'var(--ec-blue-dark)' }}>{card ? '명함 수정' : '명함 등록'}</span>
-          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: '#8a929c' }}>×</span>
+        <div className="flex items-center py-[12px] px-[16px] border-b border-b-ec-line border-solid bg-ec-page">
+          <span className="font-extrabold text-ec-navy">{card ? '명함 수정' : '명함 등록'}</span>
+          <span onClick={onClose} className="ml-auto cursor-pointer text-[18px] text-ec-hint">×</span>
         </div>
-        <div style={{ padding: 16 }}>
-          {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+        <div className="p-[16px]">
+          {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
           <table className="w-full text-left">
             <tbody>
               <tr>
-                <th style={{ width: 90, background: '#f5f7fa' }}>이름<span style={{ color: '#c60a2e' }}>*</span></th>
+                <th className="w-[90px] bg-ec-page">이름<span className="text-ec-danger">*</span></th>
                 <td><input className="ec-input" value={name} onChange={(e) => setName(e.target.value)} style={{ width: 150 }} /></td>
-                <th style={{ width: 70, background: '#f5f7fa' }}>보유자</th>
+                <th className="w-[70px] bg-ec-page">보유자</th>
                 <td>
-                  <select className="ec-input" value={ownerUserId} onChange={(e) => setOwnerUserId(e.target.value)} style={{ width: 150 }}>
-                    <option value="">(미지정)</option>
-                    {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-                  </select>
+                  {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
+                  <CodePickerField label="보유자" hideLabel width={150} placeholder="보유자" emptyLabel="선택 안 함"
+                                   value={ownerUserId} onChange={setOwnerUserId}
+                                   items={users.map((u) => ({ value: String(u.id), code: u.username, name: u.name, sub: u.department }))} />
                 </td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>거래처</th>
+                <th className="bg-ec-page">거래처</th>
                 <td colSpan={3}>
                 {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다 —
                     거래처가 몇백 개가 되면 이름으로도 코드로도 못 찾는다. */}
@@ -251,40 +251,40 @@ function CardForm({ card, partners, users, onClose, onSaved }: {
               </tr>
               {!partnerId && (
                 <tr>
-                  <th style={{ background: '#f5f7fa' }}>회사명<span style={{ color: '#c60a2e' }}>*</span></th>
+                  <th className="bg-ec-page">회사명<span className="text-ec-danger">*</span></th>
                   <td colSpan={3}>
                     <input className="ec-input" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="아직 거래 전인 잠재 고객 등" style={{ width: 240 }} />
                   </td>
                 </tr>
               )}
               <tr>
-                <th style={{ background: '#f5f7fa' }}>부서</th>
+                <th className="bg-ec-page">부서</th>
                 <td><input className="ec-input" value={department} onChange={(e) => setDepartment(e.target.value)} style={{ width: 150 }} /></td>
-                <th style={{ background: '#f5f7fa' }}>직위</th>
+                <th className="bg-ec-page">직위</th>
                 <td><input className="ec-input" value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>휴대폰</th>
+                <th className="bg-ec-page">휴대폰</th>
                 <td><input className="ec-input" value={mobile} onChange={(e) => setMobile(e.target.value)} placeholder="010-0000-0000" style={{ width: 150 }} /></td>
-                <th style={{ background: '#f5f7fa' }}>전화</th>
+                <th className="bg-ec-page">전화</th>
                 <td><input className="ec-input" value={phone} onChange={(e) => setPhone(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>이메일</th>
+                <th className="bg-ec-page">이메일</th>
                 <td colSpan={3}><input className="ec-input" value={email} onChange={(e) => setEmail(e.target.value)} style={{ width: 240 }} /></td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>주소</th>
+                <th className="bg-ec-page">주소</th>
                 <td colSpan={3}><input className="ec-input" value={address} onChange={(e) => setAddress(e.target.value)} style={{ width: '100%' }} /></td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>태그</th>
+                <th className="bg-ec-page">태그</th>
                 <td colSpan={3}>
                   <input className="ec-input" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="쉼표로 구분 (예: 핵심, 구매팀)" style={{ width: '100%' }} />
                 </td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>메모</th>
+                <th className="bg-ec-page">메모</th>
                 <td colSpan={3}>
                   <textarea className="ec-input" value={memo} onChange={(e) => setMemo(e.target.value)} rows={3} style={{ width: '100%', resize: 'vertical' }} />
                 </td>
@@ -292,7 +292,7 @@ function CardForm({ card, partners, users, onClose, onSaved }: {
             </tbody>
           </table>
         </div>
-        <div style={{ display: 'flex', gap: 6, padding: '10px 16px', borderTop: '1px solid var(--ec-border)' }}>
+        <div className="flex gap-[6px] py-[10px] px-[16px] border-t border-t-ec-line border-solid">
           <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>{saving ? '저장 중…' : '저장(F8)'}</button>
           <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={onClose}>닫기</button>
         </div>

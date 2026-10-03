@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Warehouse } from '../../api/types'
+import { dateNo } from '../../utils/dateNo'
+import type { Warehouse } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
 import { INQUIRY_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { printDocuments } from '../../utils/printDocument'
+import { stockCostMapFromLast } from '../../utils/stockValue'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 
@@ -28,11 +30,14 @@ interface Transfer {
   transferNo: string
   transferDate: string
   /** 원본 조건의 [프로젝트]·[담당자]. 담당자는 id 만 온다 — 이름은 화면이 붙인다. */
+  projectId: number | null
   projectName: string | null
   employeeId: number | null
   itemId: number
   itemCode: string
   itemName: string
+  /** 열이 [품목명[규격]] 이다 — 응답이 진작 싣는데 받지 않아 이름만 찍었다. */
+  spec: string | null
   unit: string
   fromWarehouseId: number
   fromWarehouseName: string
@@ -84,13 +89,15 @@ export default function TransferStatusPage() {
   const pickers = useCondPickers(['items', 'projects', 'employees'])
   const [rows, setRows] = useState<Transfer[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
+  /* 평가단가를 내는 재료. 품목 마스터의 구매단가와 실제 입고단가(구매전표)다. */
+  const [costById, setCostById] = useState<Map<number, number | null>>(new Map())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   const [mode, setMode] = useState<'내역' | '집계'>('내역')
   // 원본 기본값이 금월(~오늘)이다.
   /*
-   * 원본 창고이동조회(C000033)는 <b>최근30일(+1개월)</b> 로 열린다(2026-09-07 실측 —
+   * 원본 창고이동조회(E040502)는 <b>최근30일(+1개월)</b> 로 열린다(2026-09-07 실측 —
    * 간편검색 칸에 그 이름이 적혀 있다). '금월(~오늘)' 이라 적어 두었던 것은 근거가 없었다.
    * 이동은 <b>앞으로 옮길 것</b>도 잡아야 해서 미래가 한 달 들어간다.
    */
@@ -102,7 +109,7 @@ export default function TransferStatusPage() {
   const [cond, setCond] = useState({
     from: init.from, to: init.to, warehouseId: '', project: '', item: '', employee: '', reason: '',
     /*
-     * 2026-09-07 에 원본(C000033)을 열어 조건을 전부 쟀다 — <b>스물아홉</b>이다.
+     * 2026-09-07 에 원본(E040502)을 열어 조건을 전부 쟀다 — <b>스물아홉</b>이다.
      * 사본에는 아홉뿐이었고 <b>[기준일자]도 [보내는창고]·[받는창고]도 빠져 있었다</b>.
      * 이동 화면에서 어디서 어디로가 빠진 사본이라니 — 여섯 번째 같은 구멍이다.
      *
@@ -113,6 +120,12 @@ export default function TransferStatusPage() {
     fromWarehouseId: '', toWarehouseId: '',
     category: '', itemGroup: '', author: '',
     madeFrom: '', madeTo: '', editedFrom: '', editedTo: '',
+    /*
+     * 2026-09-08 에 <b>창고이동현황</b>(E040505)도 열어 쟀다 — <b>스물아홉</b>이다
+     * (사본에는 여덟). 조회 쪽과 이름이 거의 같은데 <b>[수량]</b> 이 하나 더 있다.
+     * 그 값은 표에 진작 찍고 있었는데 거를 자리가 없었다.
+     */
+    qtyFrom: '', qtyTo: '',
   })
   /** 원본 [기타] — 이 화면에서는 <b>수정일자순(정렬)</b> 하나다(실측). */
   const [byUpdated, setByUpdated] = useState(false)
@@ -126,8 +139,23 @@ export default function TransferStatusPage() {
     Promise.all([
       api.get<Transfer[]>('/stock-transfers', { params: { from: cond.from || undefined, to: cond.to || undefined } }),
       api.get<Warehouse[]>('/warehouses'),
+      /*
+       * 원본 [금액(수량*입고단가)] 을 내는 재료. 기간을 안 건다 —
+       * 이번 달에 안 샀다고 그 품목의 입고단가가 사라지면 안 된다.
+       */
+      api.get<{ id: number; purchasePrice?: number }[]>('/items'),
+      /*
+       * <b>마지막 입고단가만 받는다.</b> 이 화면이 구매로 하는 일은 평가단가 지도
+       * 하나를 만드는 것뿐인데 구매 전표를 통째로 받고 있었다(실측 984KB).
+       * /purchases/item-prices 는 품목당 한 줄만 낸다 — 2026-09-10 에 만든 자리인데
+       * 이 화면이 안 옮겨져 있었다.
+       */
+      api.get<{ itemId: number; unitPrice: number }[]>('/purchases/item-prices'),
     ])
-      .then(([t, w]) => { setRows(t.data); setWarehouses(w.data) })
+      .then(([t, w, it, pu]) => {
+        setRows(t.data); setWarehouses(w.data)
+        setCostById(stockCostMapFromLast(it.data, pu.data))
+      })
       .catch((err) => setError(extractErrorMessage(err)))
       .finally(() => setLoading(false))
   }
@@ -144,8 +172,8 @@ export default function TransferStatusPage() {
     .filter((r) => !cond.warehouseId
       || String(r.fromWarehouseId) === cond.warehouseId
       || String(r.toWarehouseId) === cond.warehouseId)
-    .filter((r) => !cond.project || r.projectName === cond.project)
-    .filter((r) => !cond.item || r.itemName.includes(cond.item) || r.itemCode.includes(cond.item))
+    .filter((r) => !cond.project || String(r.projectId) === cond.project)
+    .filter((r) => !cond.item || String(r.itemId) === cond.item)
     .filter((r) => !cond.employee || empName(r.employeeId) === cond.employee)
     .filter((r) => !cond.reason || (r.reason ?? '').includes(cond.reason))
     /* [보내는창고]·[받는창고] — 위 [창고]와 달리 한쪽만 본다. */
@@ -154,6 +182,8 @@ export default function TransferStatusPage() {
     .filter((r) => !cond.category || (r.itemCategoryName ?? '') === cond.category)
     .filter((r) => !cond.itemGroup || mgmt.groupOf(r.itemId) === cond.itemGroup)
     .filter((r) => !cond.author || (r.createdBy ?? '') === cond.author)
+    .filter((r) => !cond.qtyFrom || r.quantity >= Number(cond.qtyFrom))
+    .filter((r) => !cond.qtyTo || r.quantity <= Number(cond.qtyTo))
     .filter((r) => !cond.madeFrom || (r.createdAt ?? '').slice(0, 10) >= cond.madeFrom)
     .filter((r) => !cond.madeTo || ((r.createdAt ?? '') !== '' && r.createdAt!.slice(0, 10) <= cond.madeTo))
     .filter((r) => !cond.editedFrom || (r.updatedAt ?? '').slice(0, 10) >= cond.editedFrom)
@@ -190,13 +220,30 @@ export default function TransferStatusPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, cond])
 
+  /**
+   * 원본의 <b>[금액(수량*입고단가)]</b>.
+   *
+   * <p>이름이 계산식 그대로다 — 전표에 적힌 <b>거래 금액이 아니라</b> 그 품목을
+   * <b>얼마에 사 왔는지</b>로 수량을 값으로 환산한 칸이다. 그래서 "창고이동에 단가를
+   * 안 매긴다" 는 것은 못 만드는 이유가 되지 않았다(예전에 그렇게 적어 두었다).
+   * 평가단가는 재고자산·경영자보고서와 <b>같은 규칙</b>을 쓴다
+   * (<code>stockCostMapFromLast</code>: 마지막 입고단가 → 없으면 품목 구매단가).
+   *
+   * <p>단가를 모르는 품목은 <b>빈칸</b>이다 — 0 으로 채우면 "값이 0원" 으로 읽혀
+   * 모르는 것과 구별이 안 된다.
+   */
+  const amountOf = (itemId: number, qty: number) => {
+    const c = costById.get(itemId)
+    return c == null ? null : qty * c
+  }
   const totalQty = shown.reduce((n, r) => n + r.quantity, 0)
+  const totalAmount = shown.reduce((n, r) => n + (amountOf(r.itemId, r.quantity) ?? 0), 0)
   const reset = () => {
     setMode('내역')
     setCond({
       from: init.from, to: init.to, warehouseId: '', project: '', item: '', employee: '', reason: '',
       fromWarehouseId: '', toWarehouseId: '', category: '', itemGroup: '', author: '',
-      madeFrom: '', madeTo: '', editedFrom: '', editedTo: '',
+      madeFrom: '', madeTo: '', editedFrom: '', editedTo: '', qtyFrom: '', qtyTo: '',
     })
     setByUpdated(false)
   }
@@ -292,7 +339,7 @@ export default function TransferStatusPage() {
         </EcCond>
         {/* 원본 차례: 프로젝트 · (프로젝트그룹1·2) · 기타 · 담당자 · 적요 … */}
         <EcCond label="기타">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
             수정일자순(정렬)
           </label>
@@ -306,6 +353,14 @@ export default function TransferStatusPage() {
           <input className="ec-input" placeholder="적요 일부" value={cond.reason}
                  onChange={(e) => setC({ reason: e.target.value })} style={{ width: 220 }} />
         </EcCond>
+        {/* 원본 창고이동<b>현황</b> 차례: … 적요 · (오더관리번호) · <b>수량</b> · (진행상태) · 최초작성자 … */}
+        <EcCond label="수량">
+          <input className="ec-input" type="number" value={cond.qtyFrom}
+                 onChange={(e) => setC({ qtyFrom: e.target.value })} style={{ width: 110, textAlign: 'right' }} />
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
+          <input className="ec-input" type="number" value={cond.qtyTo}
+                 onChange={(e) => setC({ qtyTo: e.target.value })} style={{ width: 110, textAlign: 'right' }} />
+        </EcCond>
         {/* 원본 차례: 적요 · (최종수정자 · 발송여부 · 오더관리번호) · 최초작성자 · 최초작성일자 · 최종작업일자 */}
         <EcCond label="최초작성자" pick>
           <CodePickerField label="최초작성자" hideLabel width={170} emptyLabel="전체"
@@ -315,23 +370,23 @@ export default function TransferStatusPage() {
         </EcCond>
         <EcCond label="최초작성일자">
           <input type="date" className="ec-input" value={cond.madeFrom} onChange={(e) => setC({ madeFrom: e.target.value })} style={{ width: 140 }} />
-          <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
+          <span className="my-0 mx-[6px] text-ec-label">~</span>
           <input type="date" className="ec-input" value={cond.madeTo} onChange={(e) => setC({ madeTo: e.target.value })} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="최종작업일자">
           <input type="date" className="ec-input" value={cond.editedFrom} onChange={(e) => setC({ editedFrom: e.target.value })} style={{ width: 140 }} />
-          <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
+          <span className="my-0 mx-[6px] text-ec-label">~</span>
           <input type="date" className="ec-input" value={cond.editedTo} onChange={(e) => setC({ editedTo: e.target.value })} style={{ width: 140 }} />
         </EcCond>
       </EcStatusPanel>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
         {mode === '내역' ? '건수' : '이동경로'}{' '}
-        <b style={{ color: '#3c4553' }}>{num(mode === '내역' ? shown.length : summary.length)}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
-        이동수량 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{num(totalQty)}</b>
+        <b className="text-ec-text">{num(mode === '내역' ? shown.length : summary.length)}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
+        이동수량 <b className="text-ec-blue text-[14px]">{num(totalQty)}</b>
       </div>
 
       <div className="overflow-x-auto">
@@ -340,13 +395,13 @@ export default function TransferStatusPage() {
         ) : mode === '내역' ? (
           <table className="w-full text-left">
             <colgroup>
-              <col style={{ width: '4%' }} /><col style={{ width: '14%' }} /><col style={{ width: '10%' }} />
-              <col /><col style={{ width: '13%' }} /><col style={{ width: '13%' }} />
-              <col style={{ width: '10%' }} /><col style={{ width: '14%' }} />
+              <col className="w-[4%]" /><col className="w-[14%]" /><col className="w-[10%]" />
+              <col /><col className="w-[13%]" /><col className="w-[13%]" />
+              <col className="w-[10%]" /><col className="w-[14%]" />
             </colgroup>
             <thead>
               <tr>
-                <th style={{ width: 28 }}></th>
+                <th className="w-[28px]"></th>
                 <th></th>
                 {/*
                   원본 창고이동조회의 열은 <b>일자-No. · 보내는창고명 · 받는창고명 ·
@@ -354,38 +409,51 @@ export default function TransferStatusPage() {
                   이름이었고, 일자와 번호도 둘로 나눠 두었다. 생산불출조회는 이미
                   [보내는창고명]·[받는공장명]을 쓰고 있어 <b>우리끼리도 어긋나</b> 있었다.
                 */}
+                {/*
+                  2026-09-09 원본(E040505) 격자 실측 — 이름 셋이 달랐다.
+                  원본은 <b>출고창고명 · 입고창고명 · 품목명[규격]</b> 이다
+                  (생산불출현황도 같은 이름을 쓴다 — 폐기현황만 [규격명] 이었다).
+                  <b>[금액(수량*입고단가)]은 이제 만든다.</b> 예전에 "창고이동에 단가를 안 매긴다"
+                  고 적어 두었는데, 그 칸은 이름이 계산식 그대로다 — 전표의 거래 금액이 아니라
+                  <b>그 품목을 얼마에 사 왔는지</b>로 수량을 환산한 값이다. 이동전표에 단가가
+                  없다는 것은 이 칸을 못 만드는 이유가 아니었다.
+                */}
                 <th>일자-No.</th>
-                <th>보내는창고명</th>
-                <th>받는창고명</th>
-                <th>품목명[규격명]</th>
-                <th style={{ textAlign: 'right' }}>수량</th>
+                <th>출고창고명</th>
+                <th>입고창고명</th>
+                <th>품목명[규격]</th>
+                <th className="text-right">수량</th>
+                <th className="w-[130px] text-right">금액(수량*입고단가)</th>
                 <th>적요</th>
                 {/* 원본 창고이동조회의 마지막 열 [인쇄] — 그 한 건을 이동증으로 찍는다. */}
-                <th style={{ width: 60, textAlign: 'center' }}>인쇄</th>
+                <th className="w-[60px] text-center">인쇄</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+                <tr><td colSpan={10} className="text-center text-ec-ink">불러오는 중…</td></tr>
               ) : shown.length === 0 ? (
-                <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={10} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
               ) : shown.map((r, i) => (
                 <tr key={r.id}>
-                  <td style={{ textAlign: 'center', background: '#f3f3f3' }}>
+                  <td className="text-center bg-ec-stripe">
                     <input type="checkbox" checked={picked.has(r.id)} onChange={() => pick(r.id)} />
                   </td>
-                  <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
-                  <td style={{ fontFamily: 'monospace' }}>
-                    {r.transferDate.replace(/-/g, '/')} {r.transferNo}
+                  <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
+                  <td>
+                    {dateNo(r.transferDate, r.transferNo)}
                   </td>
                   <td style={{ color: '#a5561b' }}>{r.fromWarehouseName}</td>
-                  <td style={{ color: 'var(--ec-blue)' }}>{r.toWarehouseName}</td>
-                  <td>{r.itemName} <span style={{ fontSize: 11, color: '#9aa1ab' }}>{r.itemCode}</span></td>
-                  <td style={{ textAlign: 'right', fontWeight: 700 }}>
-                    {num(r.quantity)} <span style={{ fontSize: 11, fontWeight: 400, color: '#9aa1ab' }}>{r.unit}</span>
+                  <td className="text-ec-blue">{r.toWarehouseName}</td>
+                  <td>{r.itemName}{r.spec ? `[${r.spec}]` : ''} <span className="text-[11px] text-ec-hint">{r.itemCode}</span></td>
+                  <td className="text-right font-bold">
+                    {num(r.quantity)} <span className="text-[11px] font-normal text-ec-hint">{r.unit}</span>
                   </td>
-                  <td style={{ color: '#5a626e' }}>{r.reason ?? ''}</td>
-                  <td style={{ textAlign: 'center' }}>
+                  <td className="text-right text-ec-label">
+                    {amountOf(r.itemId, r.quantity) == null ? '' : num(amountOf(r.itemId, r.quantity)!)}
+                  </td>
+                  <td className="text-ec-label">{r.reason ?? ''}</td>
+                  <td className="text-center">
                     <button onClick={() => printTransfer(r)}
                             style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
                   </td>
@@ -395,9 +463,10 @@ export default function TransferStatusPage() {
             {shown.length > 0 && (
               <tfoot>
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: 'var(--ec-blue)' }}>{num(totalQty)}</td>
-                  <td colSpan={2} style={{ background: '#f5f7fa' }}></td>
+                  <td colSpan={6} className="text-right font-bold bg-ec-page">합계</td>
+                  <td className="text-right font-bold bg-ec-page text-ec-blue">{num(totalQty)}</td>
+                  <td className="text-right font-bold bg-ec-page">{num(totalAmount)}</td>
+                  <td colSpan={2} className="bg-ec-page"></td>
                 </tr>
               </tfoot>
             )}
@@ -405,9 +474,9 @@ export default function TransferStatusPage() {
         ) : (
           <table className="w-full text-left">
             <colgroup>
-              <col style={{ width: '5%' }} /><col style={{ width: '16%' }} /><col style={{ width: '16%' }} />
-              <col style={{ width: '15%' }} /><col />
-              <col style={{ width: '9%' }} /><col style={{ width: '13%' }} />
+              <col className="w-[5%]" /><col className="w-[16%]" /><col className="w-[16%]" />
+              <col className="w-[15%]" /><col />
+              <col className="w-[9%]" /><col className="w-[13%]" />
             </colgroup>
             <thead>
               <tr>
@@ -416,25 +485,25 @@ export default function TransferStatusPage() {
                 <th>입고창고</th>
                 <th>품목코드</th>
                 <th>품목명</th>
-                <th style={{ textAlign: 'right' }}>건수</th>
-                <th style={{ textAlign: 'right' }}>이동수량</th>
+                <th className="text-right">건수</th>
+                <th className="text-right">이동수량</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+                <tr><td colSpan={7} className="text-center text-ec-ink">불러오는 중…</td></tr>
               ) : summary.length === 0 ? (
-                <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={7} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
               ) : summary.map((g, i) => (
                 <tr key={g.k}>
-                  <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+                  <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
                   <td style={{ color: '#a5561b' }}>{g.from}</td>
-                  <td style={{ color: 'var(--ec-blue)' }}>{g.to}</td>
-                  <td style={{ fontFamily: 'monospace' }}>{g.itemCode}</td>
+                  <td className="text-ec-blue">{g.to}</td>
+                  <td>{g.itemCode}</td>
                   <td>{g.itemName}</td>
-                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(g.count)}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700 }}>
-                    {num(g.qty)} <span style={{ fontSize: 11, fontWeight: 400, color: '#9aa1ab' }}>{g.unit}</span>
+                  <td className="text-right text-ec-hint">{num(g.count)}</td>
+                  <td className="text-right font-bold">
+                    {num(g.qty)} <span className="text-[11px] font-normal text-ec-hint">{g.unit}</span>
                   </td>
                 </tr>
               ))}
@@ -442,8 +511,8 @@ export default function TransferStatusPage() {
             {summary.length > 0 && (
               <tfoot>
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: 'var(--ec-blue)' }}>{num(totalQty)}</td>
+                  <td colSpan={6} className="text-right font-bold bg-ec-page">합계</td>
+                  <td className="text-right font-bold bg-ec-page text-ec-blue">{num(totalQty)}</td>
                 </tr>
               </tfoot>
             )}

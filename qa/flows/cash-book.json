@@ -1,0 +1,350 @@
+{
+  "about": "현금출납장(E010801) — 원본 열 차례, 기간을 넓히면 현금 분개가 상대계정명과 함께 뜨는지 본다.",
+  "shots": [
+    {
+      "name": "현금출납장 — 머리 일자-No. · 상대계정명 · 상대거래처명 · 적요 · 차변금액 · 대변금액 · 잔액, [금년]으로 넓히고 [예금포함]을 켜면 줄마다 상대계정명이 찍힌다",
+      "path": "/accounting/cash-book",
+      "steps": [
+        "wait:2000",
+        "expect:[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|')==='일자-No.|상대계정명|상대거래처명|적요|차변금액|대변금액|잔액'",
+        "js:(()=>{[...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='예금포함').querySelector('input').click();return true})()",
+        "js:(()=>{const f=[...document.querySelectorAll('input[type=date]')];const y=new Date().getFullYear();const set=(el,v)=>{Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,v);el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))};set(f[0],(y-1)+'-01-01');return true})()",
+        "wait:2500",
+        "expect:(()=>{const rows=[...document.querySelectorAll('tbody tr')].filter((t)=>t.cells.length===7);return rows.length===0||rows.some((t)=>t.cells[1].innerText.trim()!=='')})()"
+      ]
+    },
+    {
+      "name": "분개장 — 머리 전표번호 · 계정명 · 거래처 · 차변 · 대변 · 적요, 줄이 있으면 합계의 차변 = 대변",
+      "path": "/accounting/journal-book",
+      "steps": [
+        "wait:2500",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const f=document.querySelector('tfoot tr');return h==='전표번호|계정명|거래처|차변|대변|적요'&&(!f||f.cells[1].innerText===f.cells[2].innerText)})()"
+      ]
+    },
+    {
+      "name": "일/월계표 — 머리 차변합계 · 차변대체 · 차변현금(출금) · 계정명 · 대변현금(입금) · 대변대체 · 대변합계, 끝 [월계] · [금일/전일] · [합계], 합계의 차변 = 대변",
+      "path": "/accounting/day-month-sheet",
+      "steps": [
+        "wait:3000",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const f=[...document.querySelectorAll('tfoot tr')];const last=f[2];return h==='차변합계|차변대체|차변현금(출금)|계정명|대변현금(입금)|대변대체|대변합계'&&f.map((t)=>t.cells[3].innerText.trim()).join('|')==='[월계]|[금일/전일]|[합계]'&&last.cells[0].innerText===last.cells[6].innerText})()"
+      ]
+    },
+    {
+      "name": "계정별거래처별원장 — 외상매출금(108)을 고르면 거래처마다 표(일자-No. · 적요 · 차변금액 · 대변금액 · 잔액, 끝 [합계]), 거래처별집계는 한 표에 끝 [합계]",
+      "path": "/accounting/account-partner-ledger",
+      "steps": [
+        "wait:2000",
+        "pick:계정:108",
+        "click:검색(F8)",
+        "wait:2500",
+        "expect:(()=>{const t=document.querySelector('table');if(!t)return document.body.innerText.includes('등록된 데이터가 없습니다');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const last=t.querySelector('tbody tr:last-child');return h==='일자-No.|적요|차변금액|대변금액|잔액'&&last.cells[0].innerText.trim()==='합계'})()",
+        "js:[...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='거래처별집계').querySelector('input').click()",
+        "wait:800",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((x)=>x.innerText.trim()).join('|');return h==='거래처코드|거래처명|이월잔액|차변|대변|잔액'&&document.querySelector('tfoot tr').cells[0].innerText.trim()==='합계'})()"
+      ]
+    },
+    {
+      "name": "거래처별계정별원장 — 거래처를 고르면 계정마다 표(일자-No. · 적요 · 차변금액 · 대변금액 · 잔액, 끝 [합계]), 계정별집계는 한 표에 끝 [합계]",
+      "path": "/accounting/partner-account-ledger",
+      "steps": [
+        "wait:2000",
+        "pick:거래처:QA-CUST",
+        "click:검색(F8)",
+        "wait:2500",
+        "expect:(()=>{const t=document.querySelector('table');if(!t)return document.body.innerText.includes('등록된 데이터가 없습니다');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const last=t.querySelector('tbody tr:last-child');return h==='일자-No.|적요|차변금액|대변금액|잔액'&&last.cells[0].innerText.trim()==='합계'})()",
+        "js:[...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='계정별집계').querySelector('input').click()",
+        "wait:800",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((x)=>x.innerText.trim()).join('|');return h==='계정코드|계정명|이월잔액|차변|대변|잔액'&&document.querySelector('tfoot tr').cells[0].innerText.trim()==='합계'})()"
+      ]
+    },
+    {
+      "name": "계정별적요별원장 — 외상매출금(108)을 고르면 00(기 타) 한 표(일자-No. · 적요 · 거래처명 · 차변금액 · 대변금액, 끝 [합계]), 적요별은 적요 · 차변 · 대변",
+      "path": "/accounting/account-remark-ledger",
+      "steps": [
+        "wait:2000",
+        "pick:계정:108",
+        "click:검색(F8)",
+        "wait:2500",
+        "expect:(()=>{const t=document.querySelector('table');if(!t)return document.body.innerText.includes('등록된 데이터가 없습니다');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const last=t.querySelector('tbody tr:last-child');return h==='일자-No.|적요|거래처명|차변금액|대변금액'&&last.cells[0].innerText.trim()==='합계'})()",
+        "js:[...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='적요별').querySelector('input').click()",
+        "wait:800",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((x)=>x.innerText.trim()).join('|');return h==='적요|차변|대변'&&document.querySelector('tfoot tr').cells[0].innerText.trim()==='합계'})()"
+      ]
+    },
+    {
+      "name": "계정증감내역 — 외상매출금(108)을 고르면 증가 · 감소 두 표(일자 · 적요 · 거래처코드 · 거래처명 · 금액, 끝 [합계])",
+      "path": "/accounting/account-flow",
+      "steps": [
+        "wait:2000",
+        "pick:계정:108",
+        "click:전월",
+        "wait:2500",
+        "expect:(()=>{const ts=[...document.querySelectorAll('table')];return ts.length===2&&ts.every((t)=>[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|')==='일자|적요|거래처코드|거래처명|금액'&&t.querySelector('tbody tr:last-child').cells[0].innerText.trim()==='합계')})()"
+      ]
+    },
+    {
+      "name": "매입/매출장 — 머리 일자-No. · 유형명 · 전자구분 · 거래처명 · 세부내역 · 매출공급가액 · 매출부가세, 매출집계는 사업자등록번호 · 거래처명 · 매수 · 공급가액 · 세액 · 합계",
+      "path": "/accounting/vat-book",
+      "steps": [
+        "wait:2500",
+        "expect:[...document.querySelector('table').querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|')==='일자-No.|유형명|전자구분|거래처명|세부내역|매출공급가액|매출부가세'",
+        "js:[...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='매출집계').querySelector('input').click()",
+        "wait:800",
+        "expect:[...document.querySelector('table').querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|')==='사업자등록번호|거래처명|매수|공급가액|세액|합계'"
+      ]
+    },
+    {
+      "name": "거래처거래내역조회 — 거래처마다 표(일자-No. · 적요 · 차변금액 · 대변금액, 끝 [합계]), 거래처별집계는 한 표",
+      "path": "/accounting/partner-tx-list",
+      "steps": [
+        "wait:2500",
+        "expect:(()=>{const t=document.querySelector('table');if(!t)return document.body.innerText.includes('등록된 데이터가 없습니다');return [...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|')==='일자-No.|적요|차변금액|대변금액'&&t.querySelector('tbody tr:last-child').cells[0].innerText.trim()==='합계'})()",
+        "js:[...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='거래처별집계').querySelector('input').click()",
+        "wait:800",
+        "expect:[...document.querySelector('table').querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|')==='거래처코드|거래처명|차변금액|대변금액'"
+      ]
+    },
+    {
+      "name": "합계잔액시산표 — 머리 기말잔액(차변) · 기말금액(차변) · 계정명 · 기말금액(대변) · 기말잔액(대변), 끝 [합계]의 기말금액 차 = 대",
+      "path": "/accounting/trial-balance",
+      "steps": [
+        "wait:2500",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((x)=>x.innerText.trim()).join('|');const f=document.querySelector('tfoot tr');return h==='기말잔액(차변)|기말금액(차변)|계정명|기말금액(대변)|기말잔액(대변)'&&f.cells[2].innerText.trim()==='합계'&&f.cells[1].innerText===f.cells[3].innerText})()"
+      ]
+    },
+    {
+      "name": "재무상태표 — 재무제표표시명 | (기준) 두 칸 | (비교) 두 칸, 1. 자산 · 2. 부채 · 3. 자본 · 부채와자본총계",
+      "path": "/accounting/balance-sheet",
+      "steps": [
+        "wait:2500",
+        "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim());const body=t.innerText;return h[0]==='재무제표표시명'&&h[1].endsWith('(기준)')&&h[2].endsWith('(비교)')&&body.includes('1. 자산')&&body.includes('부채와자본총계')})()"
+      ]
+    },
+    {
+      "name": "손익계산서 — 재무제표표시명 | (기준) 두 칸 | (비교) 두 칸, 3. 매출총이익 · 5. 영업손익 · 8. 법인세비용차감전순손익 · 12. 당기순이익",
+      "path": "/accounting/income-statement",
+      "steps": [
+        "wait:2500",
+        "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim());const body=t.innerText;return h[0]==='재무제표표시명'&&h[1].endsWith('(기준)')&&['3. 매출총이익','5. 영업손익','8. 법인세비용차감전순손익','12. 당기순이익'].every((x)=>body.includes(x))})()"
+      ]
+    },
+    {
+      "name": "원가명세서 — 재무제표표시명 | (기준) | (비교), Ⅳ. 당기총비용합계 · 기초재공품재고액 · 합 계 · 기말재공품재고액 · 당기제품제조원가",
+      "path": "/accounting/cost-statement",
+      "steps": [
+        "wait:3000",
+        "expect:(()=>{const t=document.querySelector('table');const body=t.innerText;return [...t.querySelectorAll('thead th')][0].innerText.trim()==='재무제표표시명'&&['Ⅳ. 당기총비용합계','기초재공품재고액','합 계','기말재공품재고액','당기제품제조원가'].every((x)=>body.includes(x))})()"
+      ]
+    },
+    {
+      "name": "계정명세서 — 계정마다 표(계정명 · 거래처명 · 금액, 끝 [합계])",
+      "path": "/accounting/account-detail",
+      "steps": [
+        "wait:3000",
+        "expect:(()=>{const t=document.querySelector('table');if(!t)return document.body.innerText.includes('등록된 데이터가 없습니다');return [...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|')==='계정명|거래처명|금액'&&t.querySelector('tbody tr:last-child').cells[0].innerText.trim()==='합계'})()"
+      ]
+    },
+    {
+      "name": "회계거래현황 — 머리 전표번호 · 거래유형 · 금액 · 거래처명 · 적요, 끝 [합계]",
+      "path": "/accounting/journal-status",
+      "steps": [
+        "wait:2500",
+        "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const last=t.querySelector('tbody tr:last-child');return h==='전표번호|거래유형|금액|거래처명|적요'&&(document.body.innerText.includes('등록된 데이터가 없습니다')||last.cells[0].innerText.trim()==='합계')})()"
+      ]
+    },
+    {
+      "name": "매출(세금)계산서현황 — 머리 일자-No. · 거래처명 · 공급가액 · 매출부가세 · 매출합계 · 내역보기",
+      "path": "/accounting/sales-tax-journal",
+      "steps": [
+        "wait:2500",
+        "expect:[...document.querySelector('table').querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|')==='일자-No.|거래처명|공급가액|매출부가세|매출합계|내역보기'"
+      ]
+    },
+    {
+      "name": "매입(세금)계산서현황 — 머리 일자-No. · 거래처명 · 공급가액 · 매입부가세 · 매입합계 · 내역보기",
+      "path": "/accounting/purchase-tax-journal",
+      "steps": [
+        "wait:2500",
+        "expect:[...document.querySelector('table').querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|')==='일자-No.|거래처명|공급가액|매입부가세|매입합계|내역보기'"
+      ]
+    },
+    {
+      "name": "거래이력조회(회계) — 머리 작업일자 · 전표번호 · 거래유형 · 금액 · 행위 · 거래처코드 · 거래처명 · 적요 · 작업자 · 전표상태 · 이력",
+      "path": "/accounting/journal-history",
+      "steps": [
+        "wait:2500",
+        "expect:[...document.querySelector('table').querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|')==='작업일자|전표번호|거래유형|금액|행위|거래처코드|거래처명|적요|작업자|전표상태|이력'"
+      ]
+    },
+    {
+      "name": "지출결의서이체리스트 — 머리 전표일자 · 적요 · 거래처명 · 적요1 · 은행 · 계좌번호 · 금액, 끝 [합계]",
+      "path": "/accounting/transfer-list",
+      "steps": [
+        "wait:2500",
+        "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const last=t.querySelector('tbody tr:last-child');return h==='전표일자|적요|거래처명|적요1|은행|계좌번호|금액'&&(document.body.innerText.includes('등록된 데이터가 없습니다')||last.cells[0].innerText.trim()==='합계')})()"
+      ]
+    },
+    {
+      "name": "자금일보 — 1 . 자금 현황(계정명 · 거래처명 · 이월잔액[외화] … 거래처코드) · 2 . 자금의 증가 · 3 . 자금의 감소, 전월이면 금일잔액 = 이월 + 증가 − 감소",
+      "path": "/accounting/fund-daily",
+      "steps": [
+        "wait:2000",
+        "click:전월",
+        "wait:2500",
+        "expect:(()=>{const ts=[...document.querySelectorAll('table')];const h=[...ts[0].querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const b=document.body.innerText;return ts.length===3&&h==='계정명|거래처명|이월잔액[외화]|증가[외화]|감소[외화]|금일잔액[외화]|계정코드|거래처코드'&&b.includes('2 . 자금의 증가')&&b.includes('3 . 자금의 감소')})()"
+      ]
+    },
+    {
+      "name": "현금흐름(입출금내역) — 구분 · 계정명 · 고른 기간 · 하루 앞당긴 기간, 기초잔액 · 소계 · 기말잔액, 기말 = 기초 + 증가 − 감소",
+      "path": "/accounting/cash-flow",
+      "steps": [
+        "wait:2000",
+        "click:전월",
+        "wait:2500",
+        "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim());const rows=[...t.querySelectorAll('tbody tr')];const n=(s)=>Number((s||'0').replace(/,/g,''))||0;const first=rows[0],last=rows[rows.length-1];const subs=rows.filter((r)=>r.cells[0].innerText.trim()==='소계');return h[0]==='구분'&&h[1]==='계정명'&&first.cells[0].innerText.trim()==='기초잔액'&&last.cells[0].innerText.trim()==='기말잔액'&&subs.length===2&&n(last.cells[1].innerText)===n(first.cells[1].innerText)+n(subs[0].cells[1].innerText)-n(subs[1].cells[1].innerText)})()"
+      ]
+    },
+    {
+      "name": "자금현황표 — 계정명 · 거래처명 · 이월잔액[외화] · 증가[외화] · 감소[외화] · 금일잔액[외화] · 거래처코드 · 계정코드, 끝 [합계]",
+      "path": "/accounting/fund-status",
+      "steps": [
+        "wait:2500",
+        "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const last=t.querySelector('tbody tr:last-child');return h==='계정명|거래처명|이월잔액[외화]|증가[외화]|감소[외화]|금일잔액[외화]|거래처코드|계정코드'&&(document.body.innerText.includes('등록된 데이터가 없습니다')||last.cells[0].innerText.trim()==='합계')})()"
+      ]
+    },
+    {
+      "name": "자금증감내역 — 1 . 자금의 증가 · 2 . 자금의 감소 두 표(일자 · 상대계정명 · 상대거래처명 · 적요 · 금액, 끝 [합계])",
+      "path": "/accounting/fund-flow",
+      "steps": [
+        "wait:2500",
+        "expect:(()=>{const ts=[...document.querySelectorAll('table')];const b=document.body.innerText;return ts.length===2&&ts.every((t)=>[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|')==='일자|상대계정명|상대거래처명|적요|금액')&&b.includes('1 . 자금의 증가')&&b.includes('2 . 자금의 감소')})()"
+      ]
+    },
+    {
+      "name": "월별손익분석 — 머리 계정명 · YYYY년 M월 … · 집계, 3. 매출총이익 · 5. 영업손익 · 12. 당기순이익 줄",
+      "path": "/accounting/monthly-pnl",
+      "steps": [
+        "wait:4000",
+        "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim());const b=t.innerText;return h[0]==='계정명'&&h[h.length-1]==='집계'&&/년 \\d+월$/.test(h[1])&&['3. 매출총이익','5. 영업손익','12. 당기순이익'].every((x)=>b.includes(x))})()"
+      ]
+    },
+    {
+      "name": "월별원가분석 — 계정명 · YYYY년 M월 … · 합계, IV. 당기총비용합계 … IX. 당기제품제조원가",
+      "path": "/accounting/monthly-cost",
+      "steps": [
+        "wait:5000",
+        "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim());const b=t.innerText;return h[0]==='계정명'&&h[h.length-1]==='합계'&&['IV. 당기총비용합계','V. 기초재공품재고액','VI. 합계','VII. 기말재공품재고액','VIII. 타계정대체액','IX. 당기제품제조원가'].every((x)=>b.includes(x))})()"
+      ]
+    },
+    {
+      "name": "채권/채무회수기간표 — 외상매출금(108)을 고르면 거래처코드 · 거래처명 · 잔액 · 미회수월수, 끝 [합계]",
+      "path": "/accounting/arap-aging",
+      "steps": [
+        "wait:2000",
+        "pick:계정:108",
+        "click:검색(F8)",
+        "wait:2500",
+        "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const last=t.querySelector('tbody tr:last-child');return h==='거래처코드|거래처명|잔액|미회수월수'&&last.cells[0].innerText.trim()==='합계'})()"
+      ]
+    },
+    {
+      "name": "채권/채무잔액분석표 — 머리 담당자코드 · 담당자 · 거래처코드 · 거래처명 · 여신한도 · 총채권 · 받을어음 · 외상매출금 계 …, 끝 [합계], 채무로 바꾸면 지급어음 · 외상매입금",
+      "path": "/accounting/arap-balance",
+      "steps": [
+        "wait:3000",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead tr:first-child th')].map((x)=>x.innerText.trim());return h.slice(0,8).join('|')==='담당자코드|담당자|거래처코드|거래처명|여신한도|총채권|받을어음|외상매출금 계'&&h.includes('외상매출금 현황')&&h.includes('수금계획 현황')})()",
+        "js:[...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='채무').querySelector('input').click()",
+        "wait:1500",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead tr:first-child th')].map((x)=>x.innerText.trim());return h.includes('지급어음')&&h.includes('외상매입금 계')&&h.includes('지급계획 현황')})()"
+      ]
+    },
+    {
+      "name": "경영요약보고서 — 1. 통장잔액비교표: 계정명 · 계좌명 · 이월잔액[외화] … 연결여부, 끝 [합계]",
+      "path": "/accounting/management-summary",
+      "steps": [
+        "wait:2500",
+        "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');return h==='계정명|계좌명|이월잔액[외화]|증가[외화]|감소[외화]|금일잔액[외화]|실제통장잔액[외화]|차이[외화]|연결여부'&&document.body.innerText.includes('1. 통장잔액비교표')})()"
+      ]
+    },
+    {
+      "name": "회계집계표 — 기본 계정 · 이월잔액 · 차변 · 대변 · 금액, 끝 [합계]의 차변 = 대변(처음부터 쌓았으니)",
+      "path": "/accounting/account-aggregate",
+      "steps": [
+        "wait:3000",
+        "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const last=t.querySelector('tbody tr:last-child');return h==='계정|이월잔액|차변|대변|금액'&&last.cells[0].innerText.trim()==='합계'&&last.cells[2].innerText===last.cells[3].innerText})()"
+      ]
+    },
+    {
+      "name": "월별매출집계표 — 거래처코드 · 거래처명 · YYYY.M … · 집계, 끝 [합계]",
+      "path": "/accounting/monthly-sales-summary",
+      "steps": [
+        "wait:2500",
+        "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim());const last=t.querySelector('tbody tr:last-child');return h[0]==='거래처코드'&&h[1]==='거래처명'&&h[h.length-1]==='집계'&&(document.body.innerText.includes('등록된 데이터가 없습니다')||last.cells[0].innerText.trim()==='합계')})()"
+      ]
+    },
+    {
+      "name": "월별매입집계표 — 거래처코드 · 거래처명 · YYYY.M … · 집계, 끝 [합계]",
+      "path": "/accounting/monthly-purchase-summary",
+      "steps": [
+        "wait:2500",
+        "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim());const last=t.querySelector('tbody tr:last-child');return h[0]==='거래처코드'&&h[1]==='거래처명'&&h[h.length-1]==='집계'&&(document.body.innerText.includes('등록된 데이터가 없습니다')||last.cells[0].innerText.trim()==='합계')})()"
+      ]
+    },
+    {
+      "name": "지출결의서집계 — 라인별: 일자-No. · 출금계좌명 · 계정명 · 거래처명 · 적요 · 금액 · 수수료 · 부가세, 끝 [합계]",
+      "path": "/accounting/expense-slip-summary",
+      "steps": [
+        "wait:3000",
+        "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const last=t.querySelector('tbody tr:last-child');return h==='일자-No.|출금계좌명|계정명|거래처명|적요|금액|수수료|부가세'&&(document.body.innerText.includes('등록된 데이터가 없습니다')||last.cells[0].innerText.trim()==='합계')})()"
+      ]
+    },
+    {
+      "name": "입금보고서집계 — 라인별: 일자-No. · 입금계좌명 · 계정명 · 거래처명 · 적요 · 금액 · 수수료 · 부가세, 끝 [합계]",
+      "path": "/accounting/deposit-slip-summary",
+      "steps": [
+        "wait:3000",
+        "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const last=t.querySelector('tbody tr:last-child');return h==='일자-No.|입금계좌명|계정명|거래처명|적요|금액|수수료|부가세'&&(document.body.innerText.includes('등록된 데이터가 없습니다')||last.cells[0].innerText.trim()==='합계')})()"
+      ]
+    },
+    {
+      "name": "가지급금정산서집계 — 라인별: 일자-No. · 사원명 · 계정명 · 거래처명 · 적요 · 금액 · 수수료 · 부가세, 끝 [합계]",
+      "path": "/accounting/advance-slip-summary",
+      "steps": [
+        "wait:3000",
+        "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const last=t.querySelector('tbody tr:last-child');return h==='일자-No.|사원명|계정명|거래처명|적요|금액|수수료|부가세'&&(document.body.innerText.includes('등록된 데이터가 없습니다')||last.cells[0].innerText.trim()==='합계')})()"
+      ]
+    },
+    {
+      "name": "퇴사자리스트 — 사번 · 성명 · 부서 · 입사일자 · 퇴사일자 · 중도정산귀속월 …, 퇴사일자가 있는 사원만",
+      "path": "/hr/retired",
+      "steps": [
+        "wait:3000",
+        "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');return h==='|사번|성명|부서|입사일자|퇴사일자|중도정산귀속월|중도정산원천징수연월|퇴직소득귀속월|퇴직소득원천징수연월|퇴직소득지급일자'})()"
+      ]
+    },
+    {
+      "name": "인원현황 — 일별: 일자 · 입사자 · 입사인원 · 퇴사자 · 퇴사인원 · 총인원, 끝 [합계]",
+      "path": "/hr/headcount",
+      "steps": [
+        "wait:3000",
+        "expect:(()=>{const t=document.querySelector('table');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const last=t.querySelector('tbody tr:last-child');return h==='일자|입사자|입사인원|퇴사자|퇴사인원|총인원'&&last.cells[0].innerText.trim()==='합계'})()"
+      ]
+    },
+    {
+      "name": "고정자산수불부 — 일반: 자산마다 일자 · 거래처명 · 적요 · 증가수량 · 감소수량 · 기말수량, 전월이월 · 합계",
+      "path": "/accounting/fixed-asset-stock",
+      "steps": [
+        "wait:3000",
+        "expect:(()=>{const t=document.querySelector('table');if(!t)return document.body.innerText.includes('등록된 데이터가 없습니다');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const r=t.querySelectorAll('tbody tr');return h==='일자|거래처명|적요|증가수량|감소수량|기말수량'&&r[0].cells[0].innerText.trim()==='전월이월'&&r[r.length-1].cells[0].innerText.trim()==='합계'})()"
+      ]
+    },
+    {
+      "name": "계정별원장 — 계정마다 일자-No. · 적요 · 거래처명 · 차변금액 · 대변금액 · 잔액, 이월잔액 · 합계",
+      "path": "/accounting/ledger-book",
+      "steps": [
+        "wait:3000",
+        "expect:(()=>{const t=document.querySelector('table');if(!t)return document.body.innerText.includes('등록된 데이터가 없습니다');const h=[...t.querySelectorAll('thead th')].map((x)=>x.innerText.trim()).join('|');const r=t.querySelectorAll('tbody tr');return h==='일자-No.|적요|거래처명|차변금액|대변금액|잔액'&&r[0].cells[0].innerText.trim()==='이월잔액'&&r[r.length-1].cells[0].innerText.trim()==='합계'})()"
+      ]
+    }
+  ]
+}

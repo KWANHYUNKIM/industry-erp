@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { StockRow, Warehouse } from '../../api/types'
+import type { StockRow, Warehouse } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import { ymd } from '../../components/EcPeriodPicks'
 
@@ -85,10 +85,12 @@ export default function StocktakePage() {
     if (warehouseId === '') return
     if (targets.length === 0) { setError('차이가 있는 실사수량이 없습니다.'); return }
     setSaving(true); setError(''); setOk('')
+    /* 조정 전표 번호는 서버가 매긴다 — 받아 두었다가 안내에 붙인다 */
+    const nos: string[] = []
     try {
       const date = today()
       for (const r of targets) {
-        await api.post('/stock-adjustments', {
+        const res = await api.post<{ adjustNo: string }>('/stock-adjustments', {
           type: 'ADJUST',
           itemId: r.itemId,
           warehouseId,
@@ -96,11 +98,14 @@ export default function StocktakePage() {
           adjustDate: date,
           reason: `재고실사 (${date})`,
         })
+        nos.push(res.data.adjustNo)
       }
-      setOk(`${targets.length}개 품목 실사 조정 반영 완료`)
       await loadStock(warehouseId)      // 반영 후 장부수량 재조회(=실사수량으로 맞춰짐)
+      // loadStock 이 ok 를 지우므로 그 뒤에 남긴다
+      const range = nos.length > 1 ? `${nos[0]} ~ ${nos[nos.length - 1]}` : nos[0]
+      setOk(`${range} 실사 조정 반영 완료 · ${nos.length}개 품목`)
     } catch (e) {
-      setError(extractErrorMessage(e))
+      setError(extractErrorMessage(e) + (nos.length > 0 ? ` — 앞서 ${nos.length}건은 이미 반영됨(${nos.join(', ')})` : ''))
     } finally {
       setSaving(false)
     }
@@ -113,12 +118,12 @@ export default function StocktakePage() {
       onSearchChange={setKeyword}
       actions={[{ label: '새로고침', onClick: () => warehouseId !== '' && loadStock(warehouseId) }, { label: 'Excel' }]}
     >
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {ok && <p style={{ marginBottom: 8, background: '#eafaef', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {ok && <p style={{ marginBottom: 8, background: '#eafaef', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
 
       {/* 실사 대상 선택 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600 }}>실사창고</span>
+      <div className="flex items-center gap-[10px] mb-[10px] flex-wrap">
+        <span className="text-[12.5px] text-ec-text font-semibold">실사창고</span>
         <select
           className="ec-input"
           value={warehouseId}
@@ -127,15 +132,15 @@ export default function StocktakePage() {
         >
           {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
         </select>
-        <label style={{ fontSize: 12.5, color: '#3c4553', display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', marginLeft: 8 }}>
+        <label className="text-[12.5px] text-ec-text flex items-center gap-[5px] cursor-pointer ml-[8px]">
           <input type="checkbox" checked={diffOnly} onChange={(e) => setDiffOnly(e.target.checked)} />
           차이만 보기
         </label>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 12.5, color: '#5a626e' }}>
-            실사 입력 <b style={{ color: '#3c4553' }}>{countedCount}</b>
-            <span style={{ margin: '0 6px', color: '#c5cbd3' }}>|</span>
-            차이 <b style={{ color: targets.length > 0 ? '#c07a00' : '#3c4553' }}>{targets.length}</b>
+        <div className="ml-auto flex items-center gap-[12px]">
+          <span className="text-[12.5px] text-ec-label">
+            실사 입력 <b className="text-ec-text">{countedCount}</b>
+            <span className="my-0 mx-[6px] text-ec-off">|</span>
+            차이 <b style={{ color: targets.length > 0 ? 'var(--ec-warn)' : 'var(--ec-text)' }}>{targets.length}</b>
           </span>
           <button
             className="ec-btn ec-btn-primary"
@@ -151,34 +156,34 @@ export default function StocktakePage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th className="w-[34px]"></th>
             <th>품목코드</th>
             <th>품목명</th>
             <th>규격</th>
-            <th style={{ textAlign: 'center' }}>단위</th>
-            <th style={{ textAlign: 'right' }}>장부수량</th>
-            <th style={{ textAlign: 'right', width: 120 }}>실사수량</th>
-            <th style={{ textAlign: 'right' }}>차이</th>
+            <th className="text-center">단위</th>
+            <th className="text-right">장부수량</th>
+            <th className="text-right w-[120px]">실사수량</th>
+            <th className="text-right">차이</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
+            <tr><td colSpan={8} className="text-center text-ec-hint p-[20px]">
               {rows.length === 0 ? '이 창고에 재고 품목이 없습니다.' : '조건에 맞는 품목이 없습니다.'}
             </td></tr>
           ) : shown.map((r, i) => {
             const d = diffOf(r)
             return (
               <tr key={r.itemId}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td>{r.itemCode}</td>
                 <td>{r.itemName}</td>
-                <td style={{ color: r.spec ? undefined : '#c5cbd3' }}>{r.spec || ''}</td>
-                <td style={{ textAlign: 'center', color: '#8a929c' }}>{r.unit}</td>
-                <td style={{ textAlign: 'right' }}>{num(r.quantity)}</td>
-                <td style={{ textAlign: 'right' }}>
+                <td style={{ color: r.spec ? undefined : 'var(--ec-text-off)' }}>{r.spec || ''}</td>
+                <td className="text-center text-ec-hint">{r.unit}</td>
+                <td className="text-right">{num(r.quantity)}</td>
+                <td className="text-right">
                   <input
                     className="ec-input"
                     type="number"
@@ -190,7 +195,7 @@ export default function StocktakePage() {
                 </td>
                 <td style={{
                   textAlign: 'right', fontWeight: d ? 700 : 400,
-                  color: d === null ? '#c5cbd3' : d === 0 ? '#8a929c' : d > 0 ? '#1c6b32' : '#c60a2e',
+                  color: d === null ? 'var(--ec-text-off)' : d === 0 ? 'var(--ec-text-hint)' : d > 0 ? '#1c6b32' : 'var(--ec-danger)',
                 }}>
                   {d === null ? '—' : d > 0 ? `+${num(d)}` : num(d)}
                 </td>

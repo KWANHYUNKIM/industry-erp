@@ -1,0 +1,44 @@
+{
+  "about": "전자결재 — 기안자(admin)가 양식을 골라 결재자(김부장=manager)를 넣고 상신 → 결재자가 자기 화면에서 [반려] → 문서가 '반려'. 승인된 문서는 지울 수 없어(의도된 규칙) 화면 시험은 반려로 돌고 끝에 지운다 — 승인 흐름은 qa.mjs 가 API 로 본다. node qa/shot.mjs qa/flows/approval.json",
+  "shots": [
+    {
+      "name": "기안서 작성 — 필수 항목(시행 일자)을 비우면 창 안에 그 말 → 넣고 [저장/결재] → 목록 화면에 번호와 함께 '상신 완료'",
+      "path": "/groupware/approval/draft",
+      "steps": [
+        "js:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('내부일반문서')).click(); true",
+        "setnear:제목|QA 15회차 결재 시험",
+        "click:결재자 선택",
+        "pickrow:김부장",
+        "click:확인",
+        "click:저장/결재",
+        "expect:document.querySelector('[role=dialog]')?.innerText.includes('필수 항목을 입력하세요: 시행 일자')",
+        "setnear:시행 일자|2026-10-01",
+        "click:저장/결재",
+        "expect:/AP-[0-9]{8}-[0-9]{4} 기안서 상신 완료/.test(document.body.innerText)",
+        "js:sessionStorage.setItem('qaAp', document.body.innerText.match(/AP-[0-9]{8}-[0-9]{4}(?= 기안서 상신 완료)/)[0]); true"
+      ]
+    },
+    {
+      "name": "결재자(김부장) 화면 — 그 문서가 보이고 [반려] 하면 '반려'",
+      "as": "manager|manager1234",
+      "path": "/groupware/approval/my",
+      "steps": [
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes(sessionStorage.getItem('qaAp')) || tr.innerText.includes('QA 15회차 결재 시험'))",
+        "expect:[...document.querySelectorAll('.ec-pill')].map((p) => p.textContent.trim() + (p.classList.contains('active') ? '*' : '')).join(',') === '전체,기안중,진행중*,반려,결재,수신참조'",
+        "expect:[...document.querySelectorAll('thead th')].map((t) => t.textContent.replace(/[▼▲\\s]/g, '')).join(',') === ',기안일자,제목,기안자,결재자,진행상태,결재,기안서복사,연결전표,첨부'",
+        "js:window.prompt = () => 'QA 화면 시험 반려'; [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('QA 15회차 결재 시험')).querySelectorAll('a').forEach((a) => { if (a.textContent.trim() === '보기') a.click() }); true",
+        "wait:500",
+        "js:[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '반려' && !b.classList.contains('ec-pill')).click(); true",
+        "js:(async () => { /* 반려는 확인 창 뒤에 비동기로 간다 — 부하가 걸리면 800ms 로는 아직 '진행중'이었다. 5초까지 기다린다. */ for (let i = 0; i < 10; i++) { await new Promise((r) => setTimeout(r, 500)); const d = await (await fetch('/api/approvals', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } })).json(); const x = (d.rows ?? d).find((a) => a.docNo === sessionStorage.getItem('qaAp')); const st = x ? (x.statusName ?? x.status) : '(없음)'; sessionStorage.setItem('qaApStatus', st); if (st === '반려' || st === 'REJECTED') break } return sessionStorage.getItem('qaApStatus') })()",
+        "expect:['반려', 'REJECTED'].includes(sessionStorage.getItem('qaApStatus'))"
+      ]
+    },
+    {
+      "name": "뒷정리(기안자)",
+      "path": "/groupware/approval/my",
+      "steps": [
+        "apidel:/approvals|@qaAp|docNo"
+      ]
+    }
+  ]
+}

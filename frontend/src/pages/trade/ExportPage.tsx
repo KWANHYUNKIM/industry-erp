@@ -2,8 +2,10 @@ import { Fragment, useEffect, useMemo, useState, useRef} from 'react'
 import EcListShell from '../../components/EcListShell'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import Modal from '../../components/Modal'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Currency, ExportOrder, ExportStatus, ExportSummary, Item, Partner } from '../../api/types'
+import type { Currency, ExportOrder, ExportStatus, ExportSummary, Item, Partner } from '../../types/api'
+import { partnerCodeItems } from '../../utils/codeItems'
 import EcPeriodPicks, { ymd, periodOf, EXPORT_PICKS } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 
@@ -60,7 +62,8 @@ export default function ExportPage() {
   const [notice, setNotice] = useState('')
   const [showForm, setShowForm] = useState(false)
 
-  const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(''), 2500) }
+  /* 짧은 안내는 2.5초 뒤 지운다 — 그사이 다른 안내로 바뀌었으면 그대로 둔다 */
+  const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice((cur) => (cur === m ? '' : cur)), 2500) }
 
   function load() {
     setError('')
@@ -301,13 +304,13 @@ export default function ExportPage() {
         </tbody>
       </table>
 
-      <Modal open={showForm} title="수출 등록" onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title="수출 등록" onClose={() => setShowForm(false)}>{(
         <ExportForm
           partners={partners}
           currencies={currencies}
           items={items}
           onClose={() => setShowForm(false)}
-          onSaved={() => { setShowForm(false); flash('인보이스를 발행했습니다.'); load() }}
+          onSaved={(r) => { setShowForm(false); setNotice(`${r.invoiceNo} 인보이스 발행 완료 · ${r.buyerName} · ${fx(r.foreignAmount, r.currencySymbol)} ${r.currencyCode} (원화 ${won(r.krwAmount)})`); load() }}
         />
       )}</Modal>
     </EcListShell>
@@ -328,7 +331,7 @@ function ExportForm({ partners, currencies, items, onClose, onSaved }: {
   currencies: Currency[]
   items: Item[]
   onClose: () => void
-  onSaved: () => void
+  onSaved: (r: ExportOrder) => void
 }) {
   const [partnerId, setPartnerId] = useState('')
   const [currencyId, setCurrencyId] = useState('')
@@ -357,11 +360,11 @@ function ExportForm({ partners, currencies, items, onClose, onSaved }: {
     if (payload.length === 0) return setError('품목을 1개 이상 입력하세요.')
     setSaving(true)
     try {
-      await api.post('/exports', {
+      const res = await api.post<ExportOrder>('/exports', {
         partnerId: Number(partnerId), currencyId: Number(currencyId), invoiceDate,
         incoterms: incoterms || undefined, destination: destination || undefined, lines: payload,
       })
-      onSaved()
+      onSaved(res.data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -388,13 +391,12 @@ function ExportForm({ partners, currencies, items, onClose, onSaved }: {
               <tr>
                 <th style={{ width: 90, background: '#f5f7fa' }}>Buyer<span style={{ color: '#c60a2e' }}>*</span></th>
                 <td>
-                  <select className="ec-input" value={partnerId} onChange={(e) => setPartnerId(e.target.value)} style={{ width: 220 }}>
-                    <option value="">수입자 선택</option>
-                    {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
+                  <CodePickerField label="수입자" hideLabel width={220} emptyLabel="선택 안 함" placeholder="수입자 선택"
+                                   value={partnerId} onChange={setPartnerId}
+                                   items={partnerCodeItems(partners.filter((p) => p.type !== 'SUPPLIER'))} />
                 </td>
                 <th style={{ width: 70, background: '#f5f7fa' }}>발행일</th>
-                <td><input type="date" className="ec-input" value={dateText(invoiceDate)} onChange={(e) => setInvoiceDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className="ec-input" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
                 <th style={{ background: '#f5f7fa' }}>통화<span style={{ color: '#c60a2e' }}>*</span></th>
@@ -439,10 +441,10 @@ function ExportForm({ partners, currencies, items, onClose, onSaved }: {
                 <tr key={i}>
                   <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
                   <td>
-                    <select className="ec-input" value={l.itemId} onChange={(e) => setLine(i, { itemId: e.target.value })} style={{ width: '100%' }}>
-                      <option value="">품목 선택</option>
-                      {items.map((it) => <option key={it.id} value={it.id}>{it.code} {it.name}</option>)}
-                    </select>
+                    {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
+                    <CodePickerField label="품목" hideLabel fill placeholder="품목" emptyLabel="선택 해제"
+                                     value={l.itemId} onChange={(v) => setLine(i, { itemId: v })}
+                                     items={items.filter((it) => it.active !== false).map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))} />
                   </td>
                   <td><input className="ec-input" type="number" value={l.quantity} onChange={(e) => setLine(i, { quantity: e.target.value })} style={{ width: '100%', textAlign: 'right' }} /></td>
                   <td><input className="ec-input" type="number" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: e.target.value })} style={{ width: '100%', textAlign: 'right' }} /></td>

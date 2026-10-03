@@ -1,0 +1,38 @@
+{
+  "about": "카드사용·계좌간이동 삭제 — 잘못 넣은 것을 지우면 회계전표도 지워지고 계좌 잔액이 돌아온다(56회차 — 지울 길이 없었다). 카드사용 1건·계좌간이동 1건을 API 로 만들고 화면의 [삭제] 로 지운다.",
+  "shots": [
+    {
+      "name": "준비 — 카드사용 1건·계좌간이동 1건(API)",
+      "path": "/accounting/bank-cards",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:Promise.all(['/bank-cards/cards','/accounts','/bank-cards/accounts'].map((p) => window.__api('GET', p))).then(([c, a, b]) => { const card = c.body.find((x) => x.active), acc = a.body.find((x) => x.code === '830'); const banks = b.body.filter((x) => x.active && Number(x.balance) > 10000); sessionStorage.setItem('tf', JSON.stringify({ fromAccountId: banks[0].id, toAccountId: banks[1].id, amount: 1000, transferDate: new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10), description: 'QA 화면시험 56' })); return window.__api('POST', '/bank-cards/usages', { cardId: card.id, merchant: 'QA 화면시험 56', expenseAccountId: acc.id, supplyAmount: 1000, usageDate: new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10) }) }).then((r) => { sessionStorage.setItem('cuNo', r.body.usageNo); return window.__api('POST', '/cash-details/account-transfers', JSON.parse(sessionStorage.getItem('tf'))) }).then((r) => { sessionStorage.setItem('atNo', r.body.transferNo); return r.status })",
+        "expect:!!sessionStorage.getItem('atNo')"
+      ]
+    },
+    {
+      "name": "카드사용 [삭제]",
+      "path": "/accounting/bank-cards",
+      "steps": [
+        "js:window.confirm = () => true; true",
+        "click:카드사용",
+        "wait:1000",
+        "js:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes(sessionStorage.getItem('cuNo'))); [...tr.querySelectorAll('button')].find((b) => b.innerText === '삭제').click(); return true })()",
+        "wait:1200",
+        "expect:document.body.innerText.includes(sessionStorage.getItem('cuNo') + ' 삭제 — 회계전표도 지웠습니다.')",
+        "expect:!([...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes(sessionStorage.getItem('cuNo'))))"
+      ]
+    },
+    {
+      "name": "계좌간이동 [삭제]",
+      "path": "/accounting/cash-details",
+      "steps": [
+        "js:window.confirm = () => true; true",
+        "wait:1000",
+        "js:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes(sessionStorage.getItem('atNo'))); [...tr.querySelectorAll('button')].find((b) => b.innerText === '삭제').click(); return true })()",
+        "wait:1200",
+        "expect:document.body.innerText.includes(sessionStorage.getItem('atNo') + ' 삭제 — 1,000원이 출금 계좌로 돌아갔습니다.')"
+      ]
+    }
+  ]
+}

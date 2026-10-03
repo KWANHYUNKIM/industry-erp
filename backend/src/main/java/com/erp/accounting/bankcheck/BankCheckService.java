@@ -1,0 +1,204 @@
+package com.erp.accounting.bankcheck;
+
+import com.erp.accounting.bankcard.BankCardService;
+import com.erp.accounting.journal.JournalService;
+import com.erp.common.ApiException;
+import com.erp.accounting.bankcard.BankAccount;
+import com.erp.accounting.journal.JournalEntry;
+import com.erp.accounting.journal.JournalEntryRepository;
+import com.erp.accounting.journal.JournalSourceType;
+import com.erp.accounting.bankcheck.dto.BankCheckDtos.CheckResponse;
+import com.erp.accounting.bankcheck.dto.BankCheckDtos.CreateCheckRequest;
+import com.erp.accounting.bankcheck.dto.BankCheckDtos.DepositRequest;
+import com.erp.accounting.bankcheck.dto.BankCheckDtos.SettleRequest;
+import com.erp.accounting.bankcard.BankAccountRepository;
+import com.erp.trade.partner.BusinessPartnerRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.util.List;
+import com.erp.accounting.bankcheck.dto.BankCheckDtos;
+
+/**
+ * 회계 II > 수표관리.
+ *   받은수표: 수취(보유) → 계좌 입금 또는 부도
+ *   발행수표: 당좌계좌에서 발행(그 순간 예금이 빠진다) → 은행 인출 확인 시 결제완료 표시
+ * 계좌가 실제로 움직이는 건 발행·입금 두 순간이고, 그때 계좌 잔액과 입출금 내역도 함께 남긴다.
+ */
+@Service
+@RequiredArgsConstructor
+public class BankCheckService {
+
+    private final BankCheckRepository checkRepository;
+    private final BankAccountRepository bankAccountRepository;
+    private final BusinessPartnerRepository partnerRepository;
+    private final JournalService journalService;
+    private final JournalEntryRepository journalRepository;
+    private final BankCardService bankCardService;
+
+    @Transactional(readOnly = true)
+    public List<CheckResponse> findAll() {
+        return findAll(null, null);
+    }
+
+    /**
+     * 화면 조건 판의 <b>[기간]</b>. 안 주면 <b>넓은 경계</b>로 채운다 —
+     * <code>:from is null or …</code> 로 쓰면 PostgreSQL 이 파라미터 타입을 못 정해
+     * 42P18 로 터진다(기타이동 기간 조건에서 겪은 함정이다).
+     */
+    @Transactional(readOnly = true)
+    public List<CheckResponse> findAll(java.time.LocalDate from, java.time.LocalDate to) {
+        List<BankCheck> checks = checkRepository.findAllWithRefs(
+                from != null ? from : java.time.LocalDate.of(1900, 1, 1),
+                to != null ? to : java.time.LocalDate.of(9999, 12, 31));
+        /*
+         * 원본 수령수표증가 · 감소현황의 [일자-No.] — 받을 때 분개(source_id = 수표)와 손을 떠날 때 분개(settle_journal_id)의 번호.
+         * 한 번에 모아 찾는다(수표마다 따로 찾으면 N+1).
+         */
+        java.util.Map<Long, String> issueNo = new java.util.HashMap<>();
+        java.util.List<Long> ids = checks.stream().map(BankCheck::getId).toList();
+        if (!ids.isEmpty()) {
+            for (JournalEntry j : journalRepository.findBySourceTypeAndSourceIdIn(JournalSourceType.CHECK, ids)) {
+                issueNo.putIfAbsent(j.getSourceId(), j.getDocNo());
+            }
+        }
+        java.util.List<Long> settleIds = checks.stream().map(BankCheck::getSettleJournalId).filter(java.util.Objects::nonNull).toList();
+        java.util.Map<Long, String> settleNo = new java.util.HashMap<>();
+        for (JournalEntry j : journalRepository.findAllById(settleIds)) settleNo.put(j.getId(), j.getDocNo());
+        return checks.stream()
+                .map((c) -> CheckResponse.from(c, issueNo.get(c.getId()),
+                        c.getSettleJournalId() != null ? settleNo.get(c.getSettleJournalId()) : null))
+                .toList();
+    }
+
+    @Transactional
+    public CheckResponse create(CreateCheckRequest req, String username) {
+        if (checkRepository.existsByCheckNo(req.checkNo())) {
+            throw ApiException.conflict("이미 등록된 수표번호입니다: " + req.checkNo());
+        }
+        BankAccount account = null;
+        if (req.type() == CheckType.ISSUED) {
+            if (req.bankAccountId() == null) {
+                throw ApiException.badRequest("발행수표는 끊어 줄 당좌계좌를 선택하세요.");
+            }
+            account = bankAccount(req.bankAccountId());
+        }
+
+        LocalDate date = req.issueDate() != null ? req.issueDate() : LocalDate.now();
+        BankCheck c = BankCheck.builder()
+                .checkNo(req.checkNo())
+                .type(req.type())
+                .status(CheckStatus.HELD)
+                .issueDate(date)
+                .amount(req.amount())
+                .bankName(req.bankName())
+                .partner(req.partnerId() != null
+                        ? partnerRepository.findById(req.partnerId())
+                            .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + req.partnerId()))
+                        : null)
+                .bankAccount(account)
+                .remark(req.remark())
+                .createdBy(username)
+                .build();
+        checkRepository.save(c);
+
+        JournalEntry entry = journalService.createFromCheckIssue(c);
+        // 발행수표는 끊는 순간 당좌예금이 빠진다. 분개는 위에서 만들었으므로 잔액·내역만 남긴다.
+        if (req.type() == CheckType.ISSUED) {
+            bankCardService.recordExternal(account.getId(), false, c.getAmount(), date,
+                    "수표 발행 " + c.getCheckNo(), entry, username);
+        }
+        return CheckResponse.from(c);
+    }
+
+    /** 받은수표를 계좌에 입금 */
+    @Transactional
+    public CheckResponse deposit(Long id, DepositRequest req, String username) {
+        BankCheck c = check(id);
+        requireType(c, CheckType.RECEIVED, "받은수표만 입금할 수 있습니다");
+        requireHeld(c, "입금");
+
+        BankAccount account = bankAccount(req.bankAccountId());
+        LocalDate date = req.depositDate() != null ? req.depositDate() : LocalDate.now();
+        requireNotBeforeIssue(c, date, "입금일");
+        c.setBankAccount(account);
+        c.setStatus(CheckStatus.DEPOSITED);
+        c.setSettledDate(date);
+
+        JournalEntry entry = journalService.createFromCheckDeposit(c, date, username);
+        c.setSettleJournalId(entry.getId());
+        bankCardService.recordExternal(account.getId(), true, c.getAmount(), date,
+                "수표 입금 " + c.getCheckNo(), entry, username);
+        return CheckResponse.from(c);
+    }
+
+    /** 받은수표 부도 — 현금은 움직이지 않고 채권으로 되돌린다 */
+    @Transactional
+    public CheckResponse dishonor(Long id, SettleRequest req, String username) {
+        BankCheck c = check(id);
+        requireType(c, CheckType.RECEIVED, "받은수표만 부도 처리할 수 있습니다");
+        requireHeld(c, "부도");
+
+        LocalDate date = req != null && req.settledDate() != null ? req.settledDate() : LocalDate.now();
+        requireNotBeforeIssue(c, date, "부도일");
+        c.setStatus(CheckStatus.DISHONORED);
+        c.setSettledDate(date);
+        c.setSettleJournalId(journalService.createFromCheckDishonor(c, date, username).getId());
+        return CheckResponse.from(c);
+    }
+
+    /**
+     * 발행수표가 은행에서 인출됐음을 확인. 회계는 발행 시 이미 반영됐으므로 상태만 바꾼다.
+     */
+    @Transactional
+    public CheckResponse settle(Long id, SettleRequest req) {
+        BankCheck c = check(id);
+        requireType(c, CheckType.ISSUED, "발행수표만 결제 확인할 수 있습니다");
+        requireHeld(c, "결제 확인");
+
+        LocalDate date = req != null && req.settledDate() != null ? req.settledDate() : LocalDate.now();
+        requireNotBeforeIssue(c, date, "결제일");
+        c.setStatus(CheckStatus.PAID);
+        c.setSettledDate(date);
+        return CheckResponse.from(c);
+    }
+
+    // ── 내부 ──────────────────────────────────────────────────────────
+
+    private void requireType(BankCheck c, CheckType type, String message) {
+        if (c.getType() != type) {
+            throw ApiException.badRequest(message + ": " + c.getCheckNo() + "은(는) " + c.getType().getDisplayName() + "입니다.");
+        }
+    }
+
+    /**
+     * 입금 · 부도 · 결제는 수표를 받은(발행한) 날 이후다. 앞 날짜를 받아 주면 그 분개가 수표 수취 전에 잡혀
+     * 그 사이 받을수표 잔액이 음수가 되고, 수령수표현황 · 거래내역이 받기도 전에 손을 떠난 수표를 그린다.
+     * 어음은 QA 57회차에 같은 검사를 넣었는데 수표에는 없었다.
+     */
+    private static void requireNotBeforeIssue(BankCheck c, LocalDate date, String what) {
+        if (date.isBefore(c.getIssueDate())) {
+            throw ApiException.badRequest(String.format("%s(%s)이 %s 의 %s일(%s)보다 빠를 수 없습니다.",
+                    what, date, c.getCheckNo(), c.getType() == CheckType.RECEIVED ? "수령" : "발행", c.getIssueDate()));
+        }
+    }
+
+    private void requireHeld(BankCheck c, String action) {
+        if (c.getStatus() != CheckStatus.HELD) {
+            throw ApiException.conflict("이미 " + c.getStatus().getDisplayName() + " 처리된 수표입니다: "
+                    + c.getCheckNo() + " (" + action + " 불가)");
+        }
+    }
+
+    private BankCheck check(Long id) {
+        return checkRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("수표를 찾을 수 없습니다. id=" + id));
+    }
+
+    private BankAccount bankAccount(Long id) {
+        return bankAccountRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("계좌를 찾을 수 없습니다. id=" + id));
+    }
+}

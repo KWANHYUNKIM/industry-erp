@@ -1,0 +1,40 @@
+{
+  "about": "관리 > 각종증명서인쇄(E020606) — 원본처럼 [신규(F2)] 창에서 재직증명서 · 사원 · 용도를 넣고 ▸ 증명서 확인으로 증명서를 본 뒤 저장하면 목록 맨 위에 '해-차례' 발행번호로 붙는다. 줄 [인쇄]로 증명서를 열고, 발행번호를 눌러 고친 뒤 선택삭제로 지운다. 조건 판 [증명서종류] — 경력증명서로 바꾼 시험 증명서는 재직증명서를 고르면 빠지고 경력증명서면 보인다.",
+  "shots": [
+    {
+      "name": "발급 → 인쇄 → 수정 → 삭제",
+      "path": "/hr/certificates",
+      "steps": [
+        "js:window.confirm=()=>true;true",
+        "click:신규(F2)",
+        "choose:[role=dialog] select#0|재직증명서",
+        "js:document.querySelector('[role=dialog] button[title=\"사원번호 선택\"]').click();true",
+        "pickrow:EMP-0001",
+        "setnear:용도|QA관리-화면증명",
+        "clicklast:▸ 증명서 확인",
+        "expect:document.querySelector('[role=dialog]').innerText.includes('위와 같이 증명합니다.')&&document.querySelector('[role=dialog]').innerText.includes('재 직 증 명 서')",
+        "clicklast:저장(F8)",
+        "wait:1200",
+        "expect:(()=>{const tr=document.querySelector('table tbody tr');return tr&&tr.innerText.includes('QA관리-화면증명')&&tr.innerText.includes('재직증명서')&&/^\\d{4}-\\d+/.test(tr.cells[1].innerText.trim())})()",
+        "js:(()=>{const tr=document.querySelector('table tbody tr');sessionStorage.setItem('qaCertNo',tr.cells[1].innerText.trim());[...tr.querySelectorAll('a')].find(a=>a.textContent==='인쇄').click();return true})()",
+        "expect:[...document.querySelectorAll('[role=dialog]')].some(d=>d.innerText.includes('발급번호 : '+sessionStorage.getItem('qaCertNo')+'호')&&d.innerText.includes('QA관리-화면증명'))",
+        "clicklast:닫기",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const l=await (await fetch('/api/hr/certificates',{headers:h})).json();const c=l.find(x=>x.purpose==='QA관리-화면증명');const one=await (await fetch('/api/hr/certificates/'+c.id,{headers:h})).json();const u=await fetch('/api/hr/certificates/'+c.id,{method:'PUT',headers:h,body:JSON.stringify({kind:'CAREER',employeeId:one.employeeId,purpose:'QA관리-화면증명2',issueDate:one.issueDate})});const after=await (await fetch('/api/hr/certificates/'+c.id,{headers:h})).json();sessionStorage.setItem('qaCertUpd',String(u.ok&&after.kindName==='경력증명서'&&after.issueNo===c.issueNo));return true})()",
+        "expect:sessionStorage.getItem('qaCertUpd')==='true'",
+        "js:location.reload();true",
+        "wait:2000",
+        "wait:800",
+        "choose:.ec-cond select#0|재직증명서",
+        "wait:300",
+        "expect:![...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes('QA관리-화면증명2'))",
+        "choose:.ec-cond select#0|경력증명서",
+        "wait:300",
+        "expect:[...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes('QA관리-화면증명2'))",
+        "js:window.confirm=()=>true;(async()=>{for(let i=0;i<40;i++){const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('QA관리-화면증명2'));if(tr){tr.querySelector('input[type=checkbox]').click();return true}await new Promise(z=>setTimeout(z,250))}return 'not found'})()",
+        "click:선택삭제",
+        "wait:1200",
+        "expect:![...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes('QA관리-화면증명'))"
+      ]
+    }
+  ]
+}

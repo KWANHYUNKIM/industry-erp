@@ -1,0 +1,122 @@
+package com.erp.trade.purchase;
+
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+
+public interface PurchaseRepository extends JpaRepository<Purchase, Long> {
+
+    @Query("select p from Purchase p join fetch p.partner join fetch p.warehouse " +
+            "order by p.purchaseDate desc, p.id desc")
+    List<Purchase> findAllWithRefs();
+
+    /**
+     * 기간으로 걸러 온다. 안 준 쪽은 서비스가 열린 끝으로 채워 준다 —
+     * <code>:from is null</code> 로 쓰면 PostgreSQL 이 그 자리의 형을 못 정해 터진다.
+     */
+    @Query("select p from Purchase p join fetch p.partner join fetch p.warehouse " +
+            "where p.purchaseDate between :from and :to " +
+            "order by p.purchaseDate desc, p.id desc")
+    List<Purchase> findWithRefsByPeriod(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /** 전표 + 라인 + 품목까지 한 번에(회계미반영현황의 품목 줄). N+1 방지. */
+    @Query("select distinct p from Purchase p join fetch p.partner join fetch p.warehouse " +
+            "left join fetch p.lines l left join fetch l.item " +
+            "order by p.purchaseDate desc, p.id desc")
+    List<Purchase> findAllWithRefsAndLines();
+
+    /** 기간 내 구매 전표 (이익현황 집계용) */
+    List<Purchase> findByPurchaseDateBetween(LocalDate from, LocalDate to);
+
+    /** 기간 내 구매 전표 + 라인 + 품목까지 fetch (구매/외주 할인현황 집계용) */
+    @Query("select distinct p from Purchase p join fetch p.partner " +
+            "left join fetch p.lines l left join fetch l.item " +
+            "where p.purchaseDate between :from and :to " +
+            "order by p.purchaseDate desc, p.id desc")
+    List<Purchase> findWithLinesByPurchaseDateBetween(LocalDate from, LocalDate to);
+
+    /** 거래처별 매입 합계(=채무) */
+    @Query("select p.partner.id as partnerId, coalesce(sum(p.totalAmount), 0) as total " +
+            "from Purchase p group by p.partner.id")
+    List<PartnerAmount> sumTotalByPartner();
+
+    /** 거래처별 매입 합계 — 기준일자까지(채권/채무현황의 as-of 잔액). */
+    @Query("select p.partner.id as partnerId, coalesce(sum(p.totalAmount), 0) as total " +
+            "from Purchase p where p.purchaseDate <= :asOf group by p.partner.id")
+    List<PartnerAmount> sumTotalByPartnerUntil(@Param("asOf") LocalDate asOf);
+
+    /** 거래처별 매입 합계 — 기간 내(거래처별채무의 [재고매입]). */
+    @Query("select p.partner.id as partnerId, coalesce(sum(p.totalAmount), 0) as total " +
+            "from Purchase p where p.purchaseDate between :from and :to group by p.partner.id")
+    List<PartnerAmount> sumTotalByPartnerBetween(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    interface PartnerAmount {
+        Long getPartnerId();
+        BigDecimal getTotal();
+    }
+
+    @Query("select coalesce(sum(p.supplyAmount),0) from Purchase p")
+    BigDecimal sumSupply();
+
+    /** 기간의 [공급가액, 부가세, 합계] — 부가세 신고는 과세기간 단위다(47회차). */
+    @Query("select coalesce(sum(p.supplyAmount),0), coalesce(sum(p.vatAmount),0), coalesce(sum(p.totalAmount),0) " +
+            "from Purchase p where p.purchaseDate between :from and :to")
+    List<Object[]> sumsBetween(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    @Query("select coalesce(sum(p.vatAmount),0) from Purchase p")
+    BigDecimal sumVat();
+
+    @Query("select coalesce(sum(p.totalAmount),0) from Purchase p")
+    BigDecimal sumTotal();
+
+    /**
+     * 기간 내 프로젝트별 구매원가 합계(공급가액). 자바에서 묶으면 LAZY 인 project 때문에
+     * 전표 수만큼 쿼리가 나간다(N+1). 집계는 DB 에서 한 번에 한다.
+     */
+    @Query("select p.project.id as projectId, coalesce(sum(p.supplyAmount), 0) as amount, count(p) as count " +
+            "from Purchase p where p.purchaseDate between :from and :to and p.project is not null " +
+            "group by p.project.id")
+    List<ProjectAmount> sumSupplyByProject(LocalDate from, LocalDate to);
+
+    /** 프로젝트가 지정되지 않은 구매의 합계 (미지정) */
+    @Query("select coalesce(sum(p.supplyAmount), 0) from Purchase p " +
+            "where p.purchaseDate between :from and :to and p.project is null")
+    BigDecimal sumSupplyWithoutProject(LocalDate from, LocalDate to);
+
+    interface ProjectAmount {
+        Long getProjectId();
+        BigDecimal getAmount();
+        long getCount();
+    }
+
+    /** 통합검색: 전표번호·거래처명 부분일치 상위 N건 */
+    @Query("select p from Purchase p join fetch p.partner bp " +
+           "where lower(p.docNo) like :q or lower(bp.name) like :q " +
+           "order by p.purchaseDate desc, p.id desc")
+    List<Purchase> searchTop(@Param("q") String q, Pageable pageable);
+
+    @Query("select count(p) from Purchase p where lower(p.docNo) like :q or lower(p.partner.name) like :q")
+    long searchCount(@Param("q") String q);
+
+    /**
+     * 품목별 <b>마지막 입고단가</b>를 낼 재료. 줄 단위 투영이라 전표를 통째로 싣지 않는다.
+     *
+     * <p>여섯 화면이 [금액(수량*입고단가)] 하나를 내려고 구매 전표를 <b>통째로</b> 받고 있었다
+     * (2026-09-10 실측 984KB). 필요한 것은 품목당 한 줄뿐이다.
+     * 차례는 <b>오래된 것부터</b> — 접으면서 뒤엣것이 이기게 두면 그것이 마지막 입고다.
+     */
+    @Query("select l.item.id as itemId, l.unitPrice as unitPrice, p.purchaseDate as purchaseDate "
+           + "from Purchase p join p.lines l order by p.purchaseDate, p.id")
+    List<ItemPriceRow> findItemPriceRows();
+
+    interface ItemPriceRow {
+        Long getItemId();
+        BigDecimal getUnitPrice();
+        java.time.LocalDate getPurchaseDate();
+    }
+}

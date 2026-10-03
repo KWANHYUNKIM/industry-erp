@@ -1,0 +1,35 @@
+{
+  "about": "관리 > 급여계산/대장(E090106) — 원본처럼 [신규(F2)] 급여정보입력으로 대장을 만들고, 같은 귀속월이면 '동일기간에 이미 생성된 급여가 있습니다.', [전체계산]으로 재직 사원 명세를 셈해 인원수 · 지급총액이 붙고, [조회]가 그 귀속월 급여대장을 연다. 만든 대장은 지운다.",
+  "shots": [
+    {
+      "name": "대장 신규 → 겹침 거절 → 전체계산 → 조회 → 삭제",
+      "path": "/hr/payroll",
+      "steps": [
+        "js:window.confirm=()=>true;true",
+        "click:신규(F2)",
+        "wait:500",
+        "set:[role=dialog] input[type=month]|2091-04",
+        "set:[role=dialog] input[placeholder=\"급여대장명칭\"]|QA관리-화면시험대장",
+        "clicklast:저장(F8)",
+        "wait:1500",
+        "expect:/2091\\/04 -1\\s+급여\\s+1차수\\s+QA관리-화면시험대장/.test(document.querySelector('table').innerText)",
+        "click:신규(F2)",
+        "wait:500",
+        "set:[role=dialog] input[type=month]|2091-04",
+        "allowapi:409: /api/pay-ledgers",
+        "clicklast:저장(F8)",
+        "wait:1000",
+        "expect:document.body.innerText.includes('동일기간에 이미 생성된 급여가 있습니다')",
+        "clicklast:닫기",
+        "js:[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('QA관리-화면시험대장')).querySelector('a').click();true",
+        "wait:4000",
+        "expect:/QA관리-화면시험대장[^\\n]*\\n?[\\s\\S]*?[0-9]+\\s+조회/.test(document.querySelector('table').innerText) && /[1-9][0-9,]{5,}/.test([...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('QA관리-화면시험대장')).innerText)",
+        "js:[...[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('QA관리-화면시험대장')).querySelectorAll('a')].find(a=>a.textContent==='조회').click();true",
+        "wait:2000",
+        "expect:location.pathname==='/hr/payroll/ledger' && location.search.includes('2091-04') && document.body.innerText.includes('급여대장')",
+        "js:(async()=>{const t=localStorage.getItem('erp_token');const h={Authorization:'Bearer '+t};const ls=await (await fetch('/api/pay-ledgers',{headers:h})).json();const l=ls.find(x=>x.payMonth==='2091-04');const r=await fetch('/api/pay-ledgers/'+l.id,{method:'DELETE',headers:h});sessionStorage.setItem('qaPl',String(r.ok&&l.headcount>0));return true})()",
+        "expect:sessionStorage.getItem('qaPl')==='true'"
+      ]
+    }
+  ]
+}

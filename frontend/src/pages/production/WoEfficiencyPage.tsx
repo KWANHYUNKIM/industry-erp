@@ -7,10 +7,11 @@ import {
   actualConsume, materialDiff, standardConsume, workTime,
   type BomLine, type PriceOf,
 } from '../../utils/woEfficiency'
-import { stockCostMap } from '../../utils/stockValue'
-import type { Item, PurchaseDoc } from '../../api/types'
+import { stockCostMapFromLast } from '../../utils/stockValue'
+import type { Item } from '../../types/api'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { usePartnerManagers } from '../../utils/partnerManagers'
 import { dateText } from '../../utils/dateText'
 
 /**
@@ -47,10 +48,12 @@ interface WorkOrderRow {
   orderDate: string
   dueDate: string | null
   /** 원본 조건 판의 [창고]. 응답에 이미 있는데 이 화면이 안 받고 있었다. */
+  warehouseId: number | null
   warehouseName: string | null
   /** 원본 조건 판의 [담당자]. 응답에 이미 있는데 이 화면이 안 받고 있었다. */
   employeeId: number | null
   /** 원본 조건 판의 [거래처] — 작업지시의 납품처. 위와 같이 안 받고 있었다. */
+  partnerId: number | null
   partnerName: string | null
   /** 원본 조건 판의 [적요]. 위와 같음. */
   remark: string | null
@@ -106,7 +109,7 @@ export default function WoEfficiencyPage() {
   const [boms, setBoms] = useState<BomRow[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [processes, setProcesses] = useState<ProcessRow[]>([])
-  const [purchases, setPurchases] = useState<PurchaseDoc[]>([])
+  const [purchases, setPurchases] = useState<{ itemId: number; unitPrice: number }[]>([])
   const [results, setResults] = useState<WorkResultRow[]>([])
   const [bor, setBor] = useState<BorRow[]>([])
   /** 하위공정(자재)을 펼친 작업지시 id */
@@ -122,6 +125,14 @@ export default function WoEfficiencyPage() {
   const [orderNo, setOrderNo] = useState('')
   /** 원본 [담당자]. 작업지시는 사람을 id 로 가리키므로 이름 ↔ id 를 사원 목록으로 잇는다. */
   const [manager, setManager] = useState('')
+  /*
+   * 원본 [거래처관리담당자]. 앞서 "작업지시에는 거래처가 <b>납품처로만</b> 붙는다" 고 적어
+   * 못 만드는 것으로 두었는데 <b>이유가 되지 않는다</b> — 납품처든 아니든 거래처는 거래처이고,
+   * 관리담당자는 <b>거래처 마스터</b>에 붙는 값이라 이름으로 이으면 그만이다
+   * (판매·구매·미주문·미판매현황이 모두 그 길을 쓴다). 응답이 partnerName 을 진작 싣는다.
+   */
+  const [partnerMgr, setPartnerMgr] = useState('')
+  const pmgr = usePartnerManagers()
   const [remarkCond, setRemarkCond] = useState('')
   /** 원본 [최초작성자] — 차례는 [진행상태] 뒤, [최종수정자] 앞이다(사본 실측). */
   const [author, setAuthor] = useState('')
@@ -142,14 +153,36 @@ export default function WoEfficiencyPage() {
     setLoading(true)
     setError('')
     try {
+      const period: Record<string, string> = {}
+      if (from) period.from = from
+      if (to) period.to = to
+      /*
+       * <b>생산실적은 지시일로 좁힌다.</b> 이 표의 기간은 <b>지시일</b>이고
+       * (아래 <code>r.orderDate &lt; from</code>), 실적은 <code>workOrderId</code> 로 묶어
+       * 합치므로(producedByWo), 기간 안의 지시에 <b>다음 달에 찍힌 실적</b>이 있으면
+       * 그것까지 세어야 한다 — <b>생산일</b>로 자르면 효율이 조용히 낮게 나온다.
+       *
+       * <p>그래서 여태 전 기간을 통째로 받았다(2026-09-21 실측 202KB). 서버에
+       * <code>woFrom·woTo</code>(지시일) 축을 두어, <b>세는 규칙은 그대로 두고</b>
+       * 받는 것만 이 기간의 지시로 줄였다.
+       */
+      const woPeriod: Record<string, string> = {}
+      if (from) woPeriod.woFrom = from
+      if (to) woPeriod.woTo = to
       const [woRes, prodRes, bomRes, itemRes, procRes, resultRes, purchaseRes, borRes] = await Promise.all([
-        api.get<WorkOrderRow[]>('/work-orders'),
-        api.get<ProductionRow[]>('/productions'),
+        api.get<WorkOrderRow[]>('/work-orders', { params: period }),
+        api.get<ProductionRow[]>('/productions', { params: woPeriod }),
         api.get<BomRow[]>('/boms'),
         api.get<Item[]>('/items'),
         api.get<ProcessRow[]>('/processes'),
         api.get<WorkResultRow[]>('/work-results'),
-        api.get<PurchaseDoc[]>('/purchases'),
+        /*
+         * <b>마지막 입고단가만 받는다.</b> 이 화면이 구매로 하는 일은 평가단가 지도
+         * 하나를 만드는 것뿐인데 구매 전표를 통째로 받고 있었다(실측 984KB).
+         * /purchases/item-prices 는 품목당 한 줄만 낸다 — 2026-09-10 에 만든 자리인데
+         * 이 화면이 안 옮겨져 있었다.
+         */
+        api.get<{ itemId: number; unitPrice: number }[]>('/purchases/item-prices'),
         api.get<BorRow[]>('/bor'),
       ])
       setOrders([...woRes.data].sort((a, b) => (a.orderDate < b.orderDate ? 1 : a.orderDate > b.orderDate ? -1 : b.id - a.id)))
@@ -167,7 +200,9 @@ export default function WoEfficiencyPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  /* 기간을 바꾸면 그 기간으로 다시 받는다. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [from, to])
 
   /**
    * 자재 단가는 재고자산평가와 <b>같은 규칙</b>을 쓴다 — 마지막 입고단가, 없으면 품목의
@@ -177,10 +212,7 @@ export default function WoEfficiencyPage() {
    * <p>모르는 것을 0원으로 채우지 않는다. 0으로 세면 자재를 두 배 써도 차이가 0으로 보인다.
    */
   const priceOf: PriceOf = useMemo(() => {
-    const m = stockCostMap(items, purchases.map((p) => ({
-      purchaseDate: p.purchaseDate,
-      lines: (p.lines ?? []).map((l) => ({ itemId: l.itemId, unitPrice: l.unitPrice })),
-    })))
+    const m = stockCostMapFromLast(items, purchases)
     return (id: number) => m.get(id) ?? null
   }, [items, purchases])
 
@@ -274,11 +306,12 @@ export default function WoEfficiencyPage() {
       if (r.dueDate < dueFrom || r.dueDate > dueTo) return false
     }
     if (orderNo && !r.orderNo.includes(orderNo)) return false
-    if (item && !`${r.productCode} ${r.productName}`.includes(item)) return false
-    if (warehouse && !(r.warehouseName ?? '').includes(warehouse)) return false
+    if (item && String(r.productId) !== item) return false
+    if (warehouse && String(r.warehouseId) !== warehouse) return false
     if (manager && (nameOfEmployee.get(r.employeeId ?? -1) ?? '') !== manager) return false
     if (remarkCond && !(r.remark ?? '').includes(remarkCond)) return false
-    if (partner && (r.partnerName ?? '') !== partner) return false
+    if (partner && String(r.partnerId) !== partner) return false
+    if (partnerMgr && pmgr.managerOfName(r.partnerName ?? '') !== partnerMgr) return false
     if (author && (r.createdBy ?? '') !== author) return false
     if (status !== '전체' && r.statusName !== status) return false
     return true
@@ -319,13 +352,13 @@ export default function WoEfficiencyPage() {
         dateLabel="기준일(영업주기)"
       >
         <EcCond label="납기일자">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={useDue} onChange={(e) => setUseDue(e.target.checked)} />
             사용
           </label>
           <input type="date" className="ec-input" value={dueFrom} disabled={!useDue}
                  onChange={(e) => setDueFrom(e.target.value)} style={{ width: 150 }} />
-          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <span className="text-ec-label">~</span>
           <input type="date" className="ec-input" value={dueTo} disabled={!useDue}
                  onChange={(e) => setDueTo(e.target.value)} style={{ width: 150 }} />
         </EcCond>
@@ -353,6 +386,12 @@ export default function WoEfficiencyPage() {
                            value={manager} onChange={(v) => setManager(v)}
                            items={pickers.employees} />
         </EcCond>
+        {/* 원본 차례: [담당자] 다음이 <b>[거래처관리담당자]</b>, 그 다음이 규격·적요다. */}
+        <EcCond label="거래처관리담당자" pick>
+          <CodePickerField label="거래처관리담당자" hideLabel width={170} emptyLabel="전체"
+                           value={partnerMgr} onChange={(v) => setPartnerMgr(v)}
+                           items={pmgr.options.map((n) => ({ value: n, name: n }))} />
+        </EcCond>
         <EcCond label="적요">
           <input className="ec-input" placeholder="적요 일부" value={remarkCond}
                  onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 200 }} />
@@ -379,75 +418,102 @@ export default function WoEfficiencyPage() {
           </select>
         </EcCond>
         <EcCond label="결재방표시">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
             인쇄물에 결재란(도장칸)을 찍는다
           </label>
         </EcCond>
       </EcStatusPanel>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        작업지시 <b style={{ color: '#3c4553' }}>{shown.length}</b>건
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-        평균 달성효율 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{avgEff}%</b>
-        <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-        소모 차이 합계 <b style={{ color: consumeTotal < 0 ? '#c60a2e' : '#1c7c3c', fontSize: 14 }}>{won(consumeTotal)}</b>
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        작업지시 <b className="text-ec-text">{shown.length}</b>건
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
+        평균 달성효율 <b className="text-ec-navy text-[14px]">{avgEff}%</b>
+        <span className="my-0 mx-[6px] text-ec-off">|</span>
+        소모 차이 합계 <b style={{ color: consumeTotal < 0 ? 'var(--ec-danger)' : 'var(--ec-success)', fontSize: 14 }}>{won(consumeTotal)}</b>
       </div>
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th>전표번호</th>
+            {/*
+              <b>작업지시서효율현황(E040436) 2026-09-09 원본 격자 실측</b>(자료 6줄).
+              원본 머리는 <b>두 줄</b>이다 —
+              위: [작업지시서(4) · 생산(2) · 소모(3) · 시간(3) · 하위공정],
+              아래: [전표번호·품목·납기일자·계획수량] / [생산수량·차이] /
+              [표준·실제·차이] / [표준·실제·차이].
+              <b>열 구성은 우리 것과 같다.</b> 우리는 한 줄 머리라 아래 이름이 겹치는
+              여섯을 [소모 표준]·[소모 실제]·[소모 차이]·[시간 …] 으로 풀어 적는다 —
+              묶음 이름을 앞에 붙인 것이라 뜻이 같고, 한 줄 표에서는 이쪽이 또렷하다.
+              이번에 고친 것은 <b>정렬 둘</b>이다: 원본은 [전표번호]와 [납기일자]를
+              <b>가운데</b>에 둔다.
+              ([진행상태]는 원본 격자에 없는 우리 열이다 — 원본은 조건으로만 둔다.)
+            */}
+            <th className="w-[34px]"></th>
+            <th className="text-center">전표번호</th>
             <th>품목</th>
-            <th>납기일자</th>
-            <th style={{ textAlign: 'right' }}>계획수량</th>
-            <th style={{ textAlign: 'right' }}>생산수량</th>
-            <th style={{ textAlign: 'right' }}>차이</th>
-            <th style={{ textAlign: 'right' }}>소모 표준</th>
-            <th style={{ textAlign: 'right' }}>소모 실제</th>
-            <th style={{ textAlign: 'right' }}>소모 차이</th>
-            <th style={{ textAlign: 'right' }}>시간 표준</th>
-            <th style={{ textAlign: 'right' }}>시간 실제</th>
-            <th style={{ textAlign: 'center' }}>하위공정</th>
-            <th style={{ textAlign: 'center' }}>진행상태</th>
+            <th className="text-center">납기일자</th>
+            <th className="text-right">계획수량</th>
+            <th className="text-right">생산수량</th>
+            <th className="text-right">차이</th>
+            <th className="text-right">소모 표준</th>
+            <th className="text-right">소모 실제</th>
+            <th className="text-right">소모 차이</th>
+            <th className="text-right">시간 표준</th>
+            <th className="text-right">시간 실제</th>
+            {/*
+              2026-09-09 원본 실측(E040436). 원본 격자는 <b>머리가 두 줄</b>이라
+              [작업지시서|생산|소모|시간|하위공정] 아래에 전표번호·품목·납기일자 /
+              계획수량·생산수량·<b>차이</b> / 표준·실제·<b>차이</b> / 표준·실제·<b>차이</b> 가
+              달린다. 우리는 소모 쪽 차이만 두고 <b>시간 쪽 차이를 빼먹고 있었다</b> —
+              표준과 실제를 나란히 두고 뺄셈은 사람에게 시키고 있었던 셈이다.
+            */}
+            <th className="text-right">시간 차이</th>
+            {/* 원본은 이 칸의 [조회] 를 <b>왼쪽</b>에 붙인다(실측). */}
+            <th>하위공정</th>
+            <th className="text-center">진행상태</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={15} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={14} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={15} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.flatMap((r, i) => {
             const e = efficiency.get(r.id)
             const qtyDiff = r.producedQty - r.plannedQty
             const consumeDiff = e ? e.std.amount - e.act.amount : 0
+            const timeDiff = e ? e.time.standard - e.time.actual : 0
             const unknown = e ? e.std.unknown + e.act.unknown : 0
             const expanded = open.has(r.id)
             const detail = (e?.rows ?? []).filter((x) => x.stdQty !== 0 || x.actualQty !== 0)
             const rows = [(
               <tr key={r.id}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.orderNo}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td className="text-center">{r.orderNo}</td>
                 <td>[{r.productCode}] {r.productName}</td>
-                <td style={{ fontFamily: 'monospace' }}>{dateText(r.dueDate) || ''}</td>
-                <td style={{ textAlign: 'right' }}>{r.plannedQty.toLocaleString('ko-KR')}</td>
-                <td style={{ textAlign: 'right' }}>{r.producedQty.toLocaleString('ko-KR')}</td>
-                <td style={{ textAlign: 'right', color: qtyDiff < 0 ? '#c60a2e' : qtyDiff > 0 ? '#1c7c3c' : '#8a929c' }}>
+                <td className="text-center">{dateText(r.dueDate) || ''}</td>
+                <td className="text-right">{r.plannedQty.toLocaleString('ko-KR')}</td>
+                <td className="text-right">{r.producedQty.toLocaleString('ko-KR')}</td>
+                <td style={{ textAlign: 'right', color: qtyDiff < 0 ? 'var(--ec-danger)' : qtyDiff > 0 ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>
                   {qtyDiff.toLocaleString('ko-KR')}
                 </td>
-                <td style={{ textAlign: 'right' }}>{won(e?.std.amount ?? 0)}</td>
-                <td style={{ textAlign: 'right' }}>{won(e?.act.amount ?? 0)}</td>
+                <td className="text-right">{won(e?.std.amount ?? 0)}</td>
+                <td className="text-right">{won(e?.act.amount ?? 0)}</td>
                 {/* 표준 − 실제. 음수면 자재를 더 썼다는 뜻이다. */}
-                <td style={{ textAlign: 'right', fontWeight: 700, color: consumeDiff < 0 ? '#c60a2e' : consumeDiff > 0 ? '#1c7c3c' : '#8a929c' }}>
+                <td style={{ textAlign: 'right', fontWeight: 700, color: consumeDiff < 0 ? 'var(--ec-danger)' : consumeDiff > 0 ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>
                   {won(consumeDiff)}
                   {unknown > 0 && (
-                    <span title={'단가를 모르는 자재 ' + unknown + '건은 빼고 셌습니다.'} style={{ color: '#c07a00' }}> *</span>
+                    <span title={'단가를 모르는 자재 ' + unknown + '건은 빼고 셌습니다.'} className="text-ec-warn"> *</span>
                   )}
                 </td>
-                <td style={{ textAlign: 'right', color: '#5a626e' }}>{e && e.time.standard ? won(e.time.standard) + '분' : ''}</td>
-                <td style={{ textAlign: 'right' }}>{e && e.time.actual ? won(e.time.actual) + '분' : ''}</td>
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-right text-ec-label">{e && e.time.standard ? won(e.time.standard) + '분' : ''}</td>
+                <td className="text-right">{e && e.time.actual ? won(e.time.actual) + '분' : ''}</td>
+                {/* 표준 − 실제. 음수면 예정보다 오래 걸렸다는 뜻이다(소모 차이와 같은 방향). */}
+                <td style={{ textAlign: 'right', fontWeight: 700, color: timeDiff < 0 ? 'var(--ec-danger)' : timeDiff > 0 ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>
+                  {e && (e.time.standard || e.time.actual) ? won(timeDiff) + '분' : ''}
+                </td>
+                <td>
                   {detail.length > 0 ? (
                     <button onClick={() => setOpen((prev) => {
                       const next = new Set(prev)
@@ -456,28 +522,28 @@ export default function WoEfficiencyPage() {
                     })} style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>
                       {expanded ? '접기' : '펼치기 (' + detail.length + ')'}
                     </button>
-                  ) : <span style={{ color: '#c9ced6' }}>-</span>}
+                  ) : <span className="text-ec-off">-</span>}
                 </td>
-                <td style={{ textAlign: 'center', fontWeight: 700, color: r.status === 'COMPLETED' ? '#1c7c3c' : r.status === 'IN_PROGRESS' ? '#c07a00' : '#8a929c' }}>{r.statusName}</td>
+                <td style={{ textAlign: 'center', fontWeight: 700, color: r.status === 'COMPLETED' ? 'var(--ec-success)' : r.status === 'IN_PROGRESS' ? 'var(--ec-warn)' : 'var(--ec-text-hint)' }}>{r.statusName}</td>
               </tr>
             )]
             if (expanded) {
               for (const d of detail) {
                 rows.push(
-                  <tr key={r.id + '-' + d.componentId} style={{ background: '#fafbfc' }}>
+                  <tr key={r.id + '-' + d.componentId} className="bg-ec-page">
                     <td></td>
-                    <td colSpan={2} style={{ paddingLeft: 18, color: '#5a626e' }}>└ {d.componentName}</td>
+                    <td colSpan={2} className="pl-[18px] text-ec-label">└ {d.componentName}</td>
                     <td></td>
-                    <td style={{ textAlign: 'right', color: '#8a929c' }}>{d.stdQty.toLocaleString('ko-KR')}</td>
-                    <td style={{ textAlign: 'right', color: '#8a929c' }}>{d.actualQty.toLocaleString('ko-KR')}</td>
-                    <td style={{ textAlign: 'right', color: '#8a929c' }}>{(d.actualQty - d.stdQty).toLocaleString('ko-KR')}</td>
-                    <td style={{ textAlign: 'right' }}>{d.stdAmount != null ? won(d.stdAmount) : ''}</td>
-                    <td style={{ textAlign: 'right' }}>{d.actualAmount != null ? won(d.actualAmount) : ''}</td>
-                    <td style={{ textAlign: 'right', color: d.diffAmount != null && d.diffAmount < 0 ? '#c60a2e' : '#5a626e' }}>
+                    <td className="text-right text-ec-hint">{d.stdQty.toLocaleString('ko-KR')}</td>
+                    <td className="text-right text-ec-hint">{d.actualQty.toLocaleString('ko-KR')}</td>
+                    <td className="text-right text-ec-hint">{(d.actualQty - d.stdQty).toLocaleString('ko-KR')}</td>
+                    <td className="text-right">{d.stdAmount != null ? won(d.stdAmount) : ''}</td>
+                    <td className="text-right">{d.actualAmount != null ? won(d.actualAmount) : ''}</td>
+                    <td style={{ textAlign: 'right', color: d.diffAmount != null && d.diffAmount < 0 ? 'var(--ec-danger)' : 'var(--ec-label)' }}>
                       {d.diffAmount != null ? won(d.diffAmount) : '단가 없음'}
                     </td>
-                    {/* 시간 표준·실제 · 하위공정 · 진행상태 — 자재 줄에는 없다 */}
-                    <td colSpan={4}></td>
+                    {/* 시간 표준·실제·차이 · 하위공정 · 진행상태 — 자재 줄에는 없다 */}
+                    <td colSpan={5}></td>
                   </tr>,
                 )
               }

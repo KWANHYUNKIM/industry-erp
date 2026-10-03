@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
-import type { PriceOrderLine } from '../../api/types'
+import type { PriceOrderLine } from '../../types/api'
 import { useShortcut } from '../../utils/useShortcut'
 
 type Cat = 'SALES' | 'PURCHASE'
@@ -19,6 +19,15 @@ const CAT_LABEL: Record<Cat, string> = { SALES: '영업관리', PURCHASE: '구�
  * <p>[상세설정]은 그 기능의 값을 실제로 적는 화면으로 보낸다. 순서만 정해 놓고
  * 특별단가를 한 줄도 안 넣으면 이 설정은 아무 일도 하지 않는데, 그 사실을 알 방법이
  * 이 화면에 없었다.
+ *
+ * <p><b>2026-09-09 원본을 직접 열어 쟀다</b>(그전에는 사본만 봤다). 격자는 7행 4열이고
+ * 열 정렬은 기능 좌 · 적용순서 우 · 사용구분 중 · 상세설정 중 — 우리와 같다.
+ * 기능 일곱의 이름과 차례도 같다(창고별특별단가 품목별·품목그룹별 → 거래처별특별단가
+ * 품목별·품목그룹별 → 최종단가 → 거래처조정률 → 출고단가).
+ * <b>다른 것은 [사용구분] 기본값 하나였다</b> — 원본은 <b>[출고단가]만 '사용'</b>이고
+ * 나머지 여섯은 '사용안함'으로 열린다. 서버의 미저장 기본값을 그렇게 고쳤다
+ * (PriceOrderService.DEFAULT_FUNCTIONS 옆).
+ * 버튼줄도 원본과 같다(저장(F8) 하나) — 원본에는 [검색]이 없다.
  */
 
 /**
@@ -90,70 +99,70 @@ export default function PriceOrderPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ color: '#f5b301', fontSize: 14, marginRight: 4 }}>☆</span>
-        <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--ec-text)' }}>단가적용순서설정</span>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+    <div className="flex flex-col min-h-[100%]">
+      <div className="flex items-center mb-[8px]">
+        <span className="text-ec-star text-[14px] mr-[4px]">☆</span>
+        <span className="text-[15px] font-extrabold text-ec-text">단가적용순서설정</span>
+        <div className="ml-auto flex gap-[4px]">
           <button className="ec-btn" onClick={() => load(cat)}>새로고침</button>
           <button className="ec-btn">도움말</button>
         </div>
       </div>
 
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div style={{ display: 'flex', gap: 2, marginBottom: 8, borderBottom: '1px solid var(--ec-border)' }}>
+      <div className="flex gap-[2px] mb-[8px] border-b border-b-ec-line border-solid">
         {(['SALES', 'PURCHASE'] as const).map((t) => (
           <button key={t} onClick={() => setCat(t)} className="no-ec" style={{
             padding: '6px 16px', fontSize: 12.5, border: 'none', cursor: 'pointer',
-            background: cat === t ? '#fff' : 'transparent', color: cat === t ? 'var(--ec-blue)' : '#5a626e',
+            background: cat === t ? '#fff' : 'transparent', color: cat === t ? 'var(--ec-blue)' : 'var(--ec-label)',
             fontWeight: cat === t ? 700 : 400, borderBottom: cat === t ? '2px solid var(--ec-blue)' : '2px solid transparent',
           }}>{CAT_LABEL[t]}</button>
         ))}
       </div>
 
-      <div style={{ maxWidth: 760 }}>
+      <div className="max-w-[760px]">
         <table className="w-full text-left">
           <thead>
             <tr>
               <th>기능</th>
-              <th style={{ width: 140, textAlign: 'right' }}>적용순서</th>
-              <th style={{ width: 150, textAlign: 'center' }}>사용구분</th>
-              <th style={{ textAlign: 'center', width: 150 }}>상세설정</th>
+              <th className="w-[140px] text-right">적용순서</th>
+              <th className="w-[150px] text-center">사용구분</th>
+              <th className="text-center w-[150px]">상세설정</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={4} className="ec-empty">불러오는 중…</td></tr>
             ) : lines.map((l, i) => (
               <tr key={l.functionName}>
-                <td style={{ color: l.active ? undefined : '#9aa1ab' }}>{l.functionName}</td>
-                <td style={{ textAlign: 'right' }}>
-                  <b style={{ marginRight: 6 }}>{i + 1}</b>
+                <td style={{ color: l.active ? undefined : 'var(--ec-text-hint)' }}>{l.functionName}</td>
+                <td className="text-right">
+                  <b className="mr-[6px]">{i + 1}</b>
                   <button className="ec-btn" style={{ height: 20, padding: '0 6px' }} disabled={i === 0} onClick={() => move(i, -1)}>▲</button>
                   <button className="ec-btn" style={{ height: 20, padding: '0 6px', marginLeft: 3 }} disabled={i === lines.length - 1} onClick={() => move(i, 1)}>▼</button>
                 </td>
-                <td style={{ textAlign: 'center' }}>
-                  <label style={{ marginRight: 10, fontSize: 12 }}>
+                <td className="text-center">
+                  <label className="mr-[10px] text-[12px]">
                     <input type="radio" name={`u${i}`} checked={l.active} onChange={() => setActive(i, true)} /> 사용
                   </label>
-                  <label style={{ fontSize: 12 }}>
+                  <label className="text-[12px]">
                     <input type="radio" name={`u${i}`} checked={!l.active} onChange={() => setActive(i, false)} /> 사용안함
                   </label>
                 </td>
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-center">
                   {DETAIL_LINK[l.functionName]
                     ? <Link to={DETAIL_LINK[l.functionName]!.to} style={{ color: 'var(--ec-blue)' }}>
                         {DETAIL_LINK[l.functionName]!.label}
                       </Link>
-                    : <span style={{ color: '#c9ced6' }}>—</span>}
+                    : <span className="text-ec-off">—</span>}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
 
-        <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
+        <div className="flex gap-[6px] mt-[12px]">
           <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>{saving ? '저장 중…' : '저장(F8)'}</button>
         </div>
       </div>

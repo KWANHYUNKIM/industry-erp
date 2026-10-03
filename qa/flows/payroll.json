@@ -1,0 +1,15 @@
+{
+  "about": "급여 화면 회귀 시험 — 비어 있는 먼 달(2039-12)에만 돈다. 시작할 때 그 달이 비었는지 보고, 비었을 때만 끝에 이 시험이 만든 명세를 지운다(남의 자료를 지우지 않게). node qa/shot.mjs qa/flows/payroll.json",
+  "shots": [
+    { "name": "미작성 일괄계산 — 결과를 사실대로(18회차까지 실패를 버리고 늘 'N명 완료')", "path": "/hr/payroll", "steps": [
+      "js:fetch('/api/payslips?month=2039-12', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()).then((d) => { sessionStorage.setItem('qaPay0', String(d.length)); return true })",
+      "expect:sessionStorage.getItem('qaPay0') === '0'",
+      "set:input[type=month]|2039-12", "wait:800",
+      "js:window.confirm = () => true; true",
+      "click:미작성 일괄계산",
+      "expect:/[0-9]+명 급여계산 완료|[0-9]+명 계산, [0-9]+명 실패/.test(document.body.innerText)",
+      "js:fetch('/api/payslips?month=2039-12', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()).then(async (d) => { sessionStorage.setItem('qaPay1', String(d.length)); if (sessionStorage.getItem('qaPay0') === '0') for (const x of d) await fetch('/api/payslips/' + x.id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }); return true })",
+      "expect:Number(sessionStorage.getItem('qaPay1')) > 0"
+    ] }
+  ]
+}

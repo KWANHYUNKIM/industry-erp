@@ -79,7 +79,7 @@ public final class MenuPermissionCatalog {
                 "/api/price-order-settings", "/api/settlements", "/api/custom-fields/values");
         put(m, "PURCHASE", "/api/purchases", "/api/purchase-orders");
         put(m, "PRODUCTION", "/api/productions", "/api/work-orders", "/api/boms", "/api/processes",
-                "/api/resources", "/api/production-plans", "/api/work-results", "/api/work-posts",
+                "/api/resources", "/api/production-plans", "/api/mrp-runs", "/api/work-results", "/api/work-posts",
                 "/api/bor", "/api/process-operations",
                 "/api/material-issues",
                 // 공용품은 문서상 groupware 소관인데 여기 묶여 있다. 사용내역만 떼어 옮기면
@@ -87,7 +87,7 @@ public final class MenuPermissionCatalog {
                 "/api/supplies", "/api/supply-usages");
         put(m, "STOCK_MOVE", "/api/stock", "/api/stock-transfers", "/api/stock-adjustments",
                 "/api/staged-adjustments");
-        put(m, "QUALITY", "/api/quality-inspections", "/api/quality-inspection-requests", "/api/as-requests");
+        put(m, "QUALITY", "/api/quality-inspections", "/api/quality-inspection-requests", "/api/as-requests", "/api/as-repairs");
         put(m, "WMS", "/api/wms");
         put(m, "EXPORT", "/api/exports");
         put(m, "MALL", "/api/mall-orders", "/api/mall-item-mappings", "/api/mall-accounts");
@@ -113,11 +113,11 @@ public final class MenuPermissionCatalog {
                 "/api/work-journals", "/api/board", "/api/notices", "/api/surveys",
                 "/api/drive-documents", "/api/mails", "/api/spam-rules", "/api/short-messages", "/api/schedule-events",
                 "/api/chat",
-                "/api/field-works");
+                "/api/field-works", "/api/field-vehicles");
         // 설정
         put(m, "SETTINGS", "/api/company", "/api/preferences", "/api/security-policy",
                 "/api/currencies", "/api/codes", "/api/print-sign-lines", "/api/custom-fields",
-                "/api/collect-sources");
+                "/api/collect-sources", "/api/collect-data");
         put(m, "USER_MANAGE", "/api/users", "/api/roles", "/api/permissions", "/api/companies");
         return m;
     }

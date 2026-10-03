@@ -1,8 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
-import type { MallAccount, MallAccountType, Partner } from '../../api/types'
+import type { MallAccount, MallAccountType, Partner } from '../../types/api'
+import { partnerCodeItems } from '../../utils/codeItems'
 
 /**
  * 재고 I > 쇼핑몰관리 > 쇼핑몰등록 (이카운트 C000664)
@@ -81,28 +83,27 @@ export default function MallAccountPage() {
       onNew={openNew}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
     >
-      <p className="mb-2 text-xs text-slate-500">우리가 판매하는 쇼핑몰/통합관리솔루션 계정. 주문 수집·품목코드연결의 쇼핑몰 선택지가 되고, 판매전환 시 기본 거래처를 제공합니다. (오픈API 자동수집 연동은 별개.)</p>
+      <p className="mb-2 text-xs text-ec-hint">우리가 판매하는 쇼핑몰/통합관리솔루션 계정. 주문 수집·품목코드연결의 쇼핑몰 선택지가 되고, 판매전환 시 기본 거래처를 제공합니다. (오픈API 자동수집 연동은 별개.)</p>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {ok && <p style={{ background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
-      <Modal open={showForm} title={editId ? '쇼핑몰 수정' : '쇼핑몰 등록'} onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title={editId ? '쇼핑몰 수정' : '쇼핑몰 등록'} onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginTop: 8, marginBottom: 8 }}>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>쇼핑몰명 *</div>
+          <div className="flex gap-[12px] flex-wrap items-end">
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">쇼핑몰명 *</div>
               <input className={inputCls} value={form.name} onChange={(e) => set('name', e.target.value)} style={{ width: 180 }} placeholder="예: 스마트스토어" /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>구분 *</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">구분 *</div>
               <select className={inputCls} value={form.type} onChange={(e) => set('type', e.target.value)} style={{ width: 150 }}>
                 <option value="MALL">쇼핑몰</option><option value="SOLUTION">통합관리솔루션</option>
               </select></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>판매전환 거래처</div>
-              <select className={inputCls} value={form.partnerId} onChange={(e) => set('partnerId', e.target.value)} style={{ width: 200 }}>
-                <option value="">(미지정)</option>
-                {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>판매자 ID</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">판매전환 거래처</div>
+              <CodePickerField label="판매전환 거래처" hideLabel width={200} emptyLabel="(미지정)" placeholder="(미지정)"
+                               value={form.partnerId} onChange={(v) => set('partnerId', v)}
+                               items={partnerCodeItems(partners.filter((p) => p.type !== 'SUPPLIER'))} /></label>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">판매자 ID</div>
               <input className={inputCls} value={form.sellerId} onChange={(e) => set('sellerId', e.target.value)} style={{ width: 150 }} /></label>
-            <label style={{ fontSize: 12.5, flex: 1, minWidth: 160 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>비고</div>
+            <label className="text-[12.5px] flex-1 min-w-[160px]"><div className="text-ec-label mb-[3px]">비고</div>
               <input className={inputCls} value={form.memo} onChange={(e) => set('memo', e.target.value)} style={{ width: '100%' }} /></label>
             <button type="submit" className="ec-btn ec-btn-primary">{editId ? '수정' : '저장'}</button>
           </div>
@@ -111,34 +112,34 @@ export default function MallAccountPage() {
 
       <table className="w-full text-left">
         <thead><tr>
-          <th style={{ width: 34 }}></th>
-          <th style={{ width: 90 }}>코드</th>
+          <th className="w-[34px]"></th>
+          <th className="w-[90px]">코드</th>
           <th>쇼핑몰명</th>
-          <th style={{ width: 130 }}>구분</th>
+          <th className="w-[130px]">구분</th>
           <th>판매전환 거래처</th>
-          <th style={{ width: 120 }}>판매자 ID</th>
-          <th style={{ textAlign: 'center', width: 80 }}>사용</th>
-          <th style={{ textAlign: 'center', width: 90 }}>관리</th>
+          <th className="w-[120px]">판매자 ID</th>
+          <th className="text-center w-[80px]">사용</th>
+          <th className="text-center w-[90px]">관리</th>
         </tr></thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 쇼핑몰이 없습니다. 우측 상단에서 등록하세요.</td></tr>
+            <tr><td colSpan={8} className="text-center text-ec-hint p-[20px]">등록된 쇼핑몰이 없습니다. 우측 상단에서 등록하세요.</td></tr>
           ) : rows.map((a, i) => (
             <tr key={a.id} style={{ opacity: a.active ? 1 : 0.5 }}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace', color: '#8a929c' }}>{a.code}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td className="text-ec-hint">{a.code}</td>
               <td>{a.name}</td>
               <td>{TYPE_LABEL[a.type]}</td>
-              <td style={{ color: a.partnerName ? undefined : '#c07a00' }}>{a.partnerName ?? '미지정'}</td>
-              <td style={{ color: '#6b7280' }}>{a.sellerId ?? ''}</td>
-              <td style={{ textAlign: 'center' }}>
-                <button className="no-ec" onClick={() => toggleActive(a)} style={{ border: '1px solid var(--ec-border)', background: a.active ? '#eaf6ec' : '#f2f3f5', color: a.active ? '#1c7c3c' : '#8a929c', cursor: 'pointer', fontSize: 11.5, padding: '2px 8px', borderRadius: 3 }}>{a.active ? '사용' : '중단'}</button>
+              <td style={{ color: a.partnerName ? undefined : 'var(--ec-warn)' }}>{a.partnerName ?? '미지정'}</td>
+              <td className="text-ec-muted">{a.sellerId ?? ''}</td>
+              <td className="text-center">
+                <button className="no-ec" onClick={() => toggleActive(a)} style={{ border: '1px solid var(--ec-border)', background: a.active ? 'var(--ec-success-bg)' : 'var(--ec-bg-page)', color: a.active ? 'var(--ec-success)' : 'var(--ec-text-hint)', cursor: 'pointer', fontSize: 11.5, padding: '2px 8px', borderRadius: 3 }}>{a.active ? '사용' : '중단'}</button>
               </td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <button className="no-ec" onClick={() => openEdit(a)} style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>수정</button>
-                <button className="no-ec" onClick={() => remove(a.id)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                <button className="no-ec" onClick={() => remove(a.id)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button>
               </td>
             </tr>
           ))}

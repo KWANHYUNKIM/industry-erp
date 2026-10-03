@@ -1,6 +1,6 @@
 import { useRef, useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { SalesDoc } from '../../api/types'
+import type { SalesDoc } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import { costOf, sumExtraCost, type CostBasis } from '../../utils/costBasis'
 import { ymd } from '../../components/EcPeriodPicks'
@@ -10,6 +10,8 @@ import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useItemFlags } from '../../utils/useInactiveItems'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
+import { usePartnerGroups } from '../../utils/partnerGroups'
+import { usePartnerManagers } from '../../utils/partnerManagers'
 
 /**
  * 이익관리 > 월별이익현황
@@ -42,7 +44,6 @@ const MODES = ['품목별', '거래처별', '품목별거래처별', '거래처�
 type Basis = CostBasis
 
 interface CostRow { itemId: number; period: string; standardTotal: number }
-interface PurchaseLite { purchaseDate: string; lines: { itemId: number; unitPrice: number }[] }
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const num = (n: number) => n.toLocaleString()
@@ -65,7 +66,9 @@ export default function MonthlyProfitPage() {
   const [signBox, setSignBox] = useState(false)
   const [sales, setSales] = useState<SalesDoc[]>([])
   const [costs, setCosts] = useState<CostRow[]>([])
-  const [purchases, setPurchases] = useState<PurchaseLite[]>([])
+  const [lastPrices, setLastPrices] = useState<{ itemId: number; unitPrice: number }[]>([])
+  /* 원가 [선입선출(판매)] — 판매 전표 · 품목별 선입선출 단가(서버가 재고 이력으로 셈한다). 키는 '전표번호#품목id'. */
+  const [fifo, setFifo] = useState<Map<string, number>>(new Map())
   /** 품목별 <b>구매단가</b>. 원가 기준 '입고단가(품목)' 이 쓴다. 0 이면 기준 없음. */
   const [unitPrices, setUnitPrices] = useState<Map<number, number>>(new Map())
   const [loading, setLoading] = useState(true)
@@ -92,46 +95,68 @@ export default function MonthlyProfitPage() {
    *
    * <p>[관리항목]은 안 만든다 — 판매 라인이 관리항목을 안 들어서 거를 수가 없다.
    */
-  const [cond, setCond] = useState({ warehouse: '', project: '', partner: '', item: '' })
+  /*
+   * 2026-09-08 에 원본(E040805)의 조건 판을 재니 <b>[전체] 탭이 스물넷</b>이다
+   * ([기본] 탭은 스물하나에 차례도 조금 다르다). 사본에는 열뿐이었다. 접힌 줄은 없다.
+   *
+   * <p>여기서 만든 여섯: 거래처그룹1 · 품목구분 · 품목그룹1 · 담당자 ·
+   * 거래처관리담당자 · 거래유형. 값은 판매 전표 응답에 진작 다 있다.
+   */
+  const [cond, setCond] = useState({ warehouse: '', project: '', partner: '', item: '',
+    partnerGroup: '', category: '', itemGroup: '', employee: '', partnerMgr: '', taxType: '' })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
   function load() {
     setLoading(true)
     setError('')
+    /*
+     * <b>보는 해를 서버에도 보낸다.</b> 여태 전표를 통째로 받아 아래에서
+     * <code>saleDate.slice(0, 4) === year</code> 로 걸렀다 — 화면은 해를 고르게 해 놓고
+     * 서버에는 아무것도 안 보내는 꼴이었다. 이 표에는 <b>이월도 누계도 없다</b>
+     * (거래처원장·월별채권채무와 다르다) — 그 해 전표만 있으면 숫자가 같다.
+     */
+    const period = { from: `${year}-01-01`, to: `${year}-12-31` }
     Promise.all([
-      api.get<SalesDoc[]>('/sales'),
+      api.get<SalesDoc[]>('/sales', { params: period }),
       api.get<CostRow[]>('/costs'),
-      api.get<PurchaseLite[]>('/purchases'),
+      /*
+       * <b>마지막 입고단가만 받는다.</b> 아래 lastPurchasePrice 가 하던 일을 서버가 한다 —
+       * 그 손계산은 <b>목록 차례에 기대는 옛 규칙</b>이었다(같은 날이면 id 가 작은 쪽이
+       * 이긴다). /purchases/item-prices 는 나중에 적은 전표를 마지막 입고로 본다.
+       */
+      api.get<{ itemId: number; unitPrice: number }[]>('/purchases/item-prices'),
       // 원가 기준 '입고단가(품목)' 은 구매단가다. 판매단가(unitPrice)가 아니다.
       api.get<{ id: number; purchasePrice: number }[]>('/items'),
+      /* 원가 [선입선출(판매)] — 그 날까지의 재고 이력으로 판매 줄마다 꺼낸 층의 원가. */
+      api.get<{ docNo: string; itemId: number; quantity: number; cost: number }[]>('/stock/fifo-sale-costs', { params: { to: period.to } }),
     ])
-      .then(([s, c, p, i]) => {
-        setSales(s.data); setCosts(c.data); setPurchases(p.data)
+      .then(([s, c, p, i, f]) => {
+        setSales(s.data); setCosts(c.data); setLastPrices(p.data)
+        setFifo(new Map(f.data.filter((r) => Number(r.quantity) > 0)
+          .map((r) => [`${r.docNo}#${r.itemId}`, Number(r.cost) / Number(r.quantity)])))
         setUnitPrices(new Map(i.data.map((it) => [it.id, it.purchasePrice])))
       })
       .catch((err) => setError(extractErrorMessage(err)))
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { load() }, [])
+  /* 해를 바꾸면 그 해로 다시 받는다. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [year])
 
   const costByItemPeriod = useMemo(
     () => new Map(costs.map((c) => [`${c.itemId}:${c.period}`, c.standardTotal])), [costs])
 
-  const lastPurchasePrice = useMemo(() => {
-    const m = new Map<number, { date: string; price: number }>()
-    purchases.forEach((d) => d.lines.forEach((l) => {
-      const cur = m.get(l.itemId)
-      if (!cur || d.purchaseDate >= cur.date) m.set(l.itemId, { date: d.purchaseDate, price: l.unitPrice })
-    }))
-    return m
-  }, [purchases])
+  /** 그 품목을 마지막으로 산 단가. 서버가 정한 값이다(같은 날이면 나중에 적은 전표). */
+  const lastPurchasePrice = useMemo(
+    () => new Map(lastPrices.map((r) => [r.itemId, r.unitPrice])), [lastPrices])
 
   /** 원가단가. 규칙은 utils/costBasis 에 있다 — 거기서 못 박아 두고 여기서는 잇기만 한다. */
-  const costPrice = (itemId: number, saleDate: string): number | null => costOf(basis, {
+  const costPrice = (itemId: number, saleDate: string, docNo: string): number | null => costOf(basis, {
     monthlyCost: costByItemPeriod.get(`${itemId}:${saleDate.slice(0, 7)}`) ?? null,
-    lastPurchasePrice: lastPurchasePrice.get(itemId)?.price ?? null,
+    lastPurchasePrice: lastPurchasePrice.get(itemId) ?? null,
     itemPurchasePrice: unitPrices.get(itemId) ?? null,
+    fifoUnitCost: fifo.get(`${docNo}#${itemId}`) ?? null,
   })
 
   /**
@@ -140,6 +165,9 @@ export default function MonthlyProfitPage() {
    */
   const mgmt = useItemMgmt()
   const [mgmtCond, setMgmtCond] = useState('')
+  /* 거래처그룹1·거래처관리담당자는 거래처 마스터에 붙는 값이라 이름으로 잇는다. */
+  const pgroup = usePartnerGroups()
+  const pmgr = usePartnerManagers()
 
   const lines = useMemo(() => sales
     .filter((d) => d.saleDate.slice(0, 4) === String(year))
@@ -148,21 +176,30 @@ export default function MonthlyProfitPage() {
       const m = Number(d.saleDate.slice(5, 7))
       return m >= Number(fromMonth) && m <= Number(toMonth)
     })
-    .filter((d) => !cond.warehouse || (d.warehouseName ?? '').includes(cond.warehouse))
-    .filter((d) => !cond.project || (d.projectName ?? '').includes(cond.project))
-    .filter((d) => !cond.partner || d.partnerName.includes(cond.partner))
+    .filter((d) => !cond.warehouse || String(d.warehouseId) === cond.warehouse)
+    .filter((d) => !cond.project || String(d.projectId) === cond.project)
+    .filter((d) => !cond.partner || String(d.partnerId) === cond.partner)
+    .filter((d) => !cond.partnerGroup || pgroup.groupOfName(d.partnerName) === cond.partnerGroup)
+    .filter((d) => !cond.employee || (d.employeeName ?? '') === cond.employee)
+    .filter((d) => !cond.partnerMgr || pmgr.managerOfName(d.partnerName) === cond.partnerMgr)
+    /* 원본 [거래유형] — 과세 · 면세. 전표가 그 값을 든다. */
+    .filter((d) => !cond.taxType || (d.taxable ? '과세' : '면세') === cond.taxType)
     .flatMap((d) => d.lines
-      .filter((l) => !cond.item || l.itemName.includes(cond.item) || l.itemCode.includes(cond.item))
+      .filter((l) => !cond.item || String(l.itemId) === cond.item)
       .filter((l) => withUntracked || !untracked.has(l.itemId))
       .filter((l) => !mgmtCond || mgmt.nameOf(l.itemId) === mgmtCond)
+      .filter((l) => !cond.category || (l.itemCategoryName ?? '') === cond.category)
+      .filter((l) => !cond.itemGroup || mgmt.groupOf(l.itemId) === cond.itemGroup)
       .map((l) => {
       const revenue = withVat ? l.supplyAmount + l.vatAmount : l.supplyAmount
-      const price = costPrice(l.itemId, d.saleDate)
+      const price = costPrice(l.itemId, d.saleDate, d.docNo)
       const cost = price === null ? null : price * l.quantity
       return {
         month: d.saleDate.slice(0, 7),
         partnerId: d.partnerId, partnerName: d.partnerName,
         itemId: l.itemId, itemCode: l.itemCode, itemName: l.itemName,
+        /** 열이 [품목명[규격]] 이다 — 규격을 대괄호로 붙인다(이름만 찍고 있었다, 8회차 화면 점검). */
+        itemLabel: l.itemName + (l.spec ? `[${l.spec}]` : ''),
         quantity: l.quantity, revenue, cost,
         profit: cost === null ? null : revenue - cost,
         /**
@@ -186,10 +223,10 @@ export default function MonthlyProfitPage() {
               : `${l.itemId}:${l.partnerId}`
     const labelOf = (l: typeof lines[number]) =>
       mode === '월별' ? [`${Number(l.month.slice(5))}월`, '', '']
-        : mode === '품목별' ? [l.itemCode, l.itemName, '']
+        : mode === '품목별' ? [l.itemCode, l.itemLabel, '']
           : mode === '거래처별' ? [l.partnerName, '', '']
-            : mode === '거래처별품목별' ? [l.partnerName, l.itemCode, l.itemName]
-              : [l.itemCode, l.itemName, l.partnerName]
+            : mode === '거래처별품목별' ? [l.partnerName, l.itemCode, l.itemLabel]
+              : [l.itemCode, l.itemLabel, l.partnerName]
 
     const m = new Map<string, { key: string; label: string[]; qty: number; revenue: number; cost: number | null; profit: number | null; count: number; extra: number }>()
     lines.forEach((l) => {
@@ -222,14 +259,15 @@ export default function MonthlyProfitPage() {
   const years = [nowYear(), nowYear() - 1, nowYear() - 2]
   /** 구분마다 앞쪽 라벨 열이 다르다. 열 수가 바뀌므로 한 곳에서 정한다. */
   const HEADS: Record<Mode, string[]> = {
-    품목별: ['품목코드', '품목명'],
+    /* 원본은 규격을 품목명 뒤 대괄호에 붙여 <b>[품목명[규격]]</b> 한 칸으로 적는다. */
+    품목별: ['품목코드', '품목명[규격]'],
     거래처별: ['거래처'],
-    품목별거래처별: ['품목코드', '품목명', '거래처'],
-    거래처별품목별: ['거래처', '품목코드', '품목명'],
+    품목별거래처별: ['품목코드', '품목명[규격]', '거래처'],
+    거래처별품목별: ['거래처', '품목코드', '품목명[규격]'],
     월별: ['월'],
   }
   const heads = HEADS[mode]
-  const colCount = 1 + heads.length + 1 + 6
+  const colCount = 1 + heads.length + 1 + 7
 
   /** 판매부대비용과 그것을 뺀 이익. 규칙은 utils/costBasis 에 못 박아 뒀다. */
   const extraTotals = sumExtraCost(lines.map((l) => ({ profit: l.profit, extraCost: l.extraCost })))
@@ -245,44 +283,45 @@ export default function MonthlyProfitPage() {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => setCond({ warehouse: '', project: '', partner: '', item: '' }) },
+        { label: '다시 작성', onClick: () => setCond({ warehouse: '', project: '', partner: '', item: '',
+          partnerGroup: '', category: '', itemGroup: '', employee: '', partnerMgr: '', taxType: '' }) },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
       signLine={signBox}
     >
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>연도</span>
+      <div className="flex items-center gap-[10px] mb-[10px] flex-wrap">
+        <span className="text-[12.5px] text-ec-label">연도</span>
         <select className="ec-input" value={year} onChange={(e) => setYear(Number(e.target.value))} style={{ width: 100 }}>
           {years.map((y) => <option key={y} value={y}>{y}</option>)}
         </select>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>기준월</span>
+        <span className="text-[12.5px] text-ec-label ml-[8px]">기준월</span>
         <select className="ec-input" value={fromMonth} onChange={(e) => setFromMonth(e.target.value)} style={{ width: 80 }}>
           {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((m) => <option key={m} value={m}>{m}월</option>)}
         </select>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>~</span>
+        <span className="text-[12.5px] text-ec-label">~</span>
         <select className="ec-input" value={toMonth} onChange={(e) => setToMonth(e.target.value)} style={{ width: 80 }}>
           {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((m) => <option key={m} value={m}>{m}월</option>)}
         </select>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>구분</span>
+        <span className="text-[12.5px] text-ec-label ml-[8px]">구분</span>
         <div className="ec-pills">
           {MODES.map((m) => (
             <button key={m} type="button" className={`ec-pill no-ec${mode === m ? ' active' : ''}`}
                     onClick={() => setMode(m)}>{m}</button>
           ))}
         </div>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>판매액</span>
+        <span className="text-[12.5px] text-ec-label ml-[8px]">판매액</span>
         <div className="ec-pills">
           {([['공급가액', false], ['공급가액+VAT', true]] as const).map(([label, v]) => (
             <button key={label} type="button" className={`ec-pill no-ec${withVat === v ? ' active' : ''}`}
                     onClick={() => setWithVat(v)}>{label}</button>
           ))}
         </div>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>원가</span>
+        <span className="text-[12.5px] text-ec-label ml-[8px]">원가</span>
         <div className="ec-pills">
-          {(['월별원가', '최종구매가', '입고단가(품목)'] as const).map((b) => (
+          {(['선입선출(판매)', '월별원가', '최종구매가', '입고단가(품목)'] as const).map((b) => (
             <button key={b} type="button" className={`ec-pill no-ec${basis === b ? ' active' : ''}`}
                     onClick={() => setBasis(b)}>{b}</button>
           ))}
@@ -299,36 +338,84 @@ export default function MonthlyProfitPage() {
                            value={cond.warehouse} onChange={(v) => setC({ warehouse: v })}
                            items={pickers.warehouses} />
         </EcCond>
-        <EcCond label="프로젝트" pick>
-          <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
-                           value={cond.project} onChange={(v) => setC({ project: v })}
-                           items={pickers.projects} />
-        </EcCond>
-        {/* 원본 차례: [프로젝트] 다음, [거래처] 앞이다(사본 실측). */}
-        <EcCond label="관리항목" pick>
-          <CodePickerField label="관리항목" hideLabel width={170} emptyLabel="전체"
-                           value={mgmtCond} onChange={setMgmtCond}
-                           items={mgmt.options.map((m) => ({ value: m, name: m }))} />
-        </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
                            value={cond.partner} onChange={(v) => setC({ partner: v })}
                            items={pickers.partners} />
+        </EcCond>
+        {/*
+          원본 [전체] 탭 차례(2026-09-08 실측, 스물넷): 구분 · 기준월 · 창고 ·
+          (창고계층그룹) · 거래처 · <b>거래처그룹1</b> · (거래처그룹2 · 거래처계층그룹) ·
+          품목 · <b>품목구분 · 품목그룹1</b> · (품목그룹2/3 · 품목계층그룹) · 프로젝트 ·
+          (프로젝트그룹1/2) · 관리항목 · <b>담당자 · 거래처관리담당자 · 거래유형</b> ·
+          판매액 · 기타 · 정렬/소계기준.
+          <b>[기본] 탭은 스물하나</b>고 차례가 조금 다르다(프로젝트·관리항목이 앞으로 온다).
+        */}
+        <EcCond label="거래처그룹1" pick>
+          <CodePickerField label="거래처그룹1" hideLabel width={170} emptyLabel="전체"
+                           value={cond.partnerGroup} onChange={(v) => setC({ partnerGroup: v })}
+                           items={pgroup.groupOptions.map((g) => ({ value: g, name: g }))} />
         </EcCond>
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={cond.item} onChange={(v) => setC({ item: v })}
                            items={pickers.items} />
         </EcCond>
+        <EcCond label="품목구분" pick>
+          <CodePickerField label="품목구분" hideLabel width={140} emptyLabel="전체"
+                           value={cond.category} onChange={(v) => setC({ category: v })}
+                           items={[...new Set(sales.flatMap((d) => d.lines.map((l) => l.itemCategoryName))
+                             .filter(Boolean) as string[])].sort().map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="품목그룹1" pick>
+          <CodePickerField label="품목그룹1" hideLabel width={170} emptyLabel="전체"
+                           value={cond.itemGroup} onChange={(v) => setC({ itemGroup: v })}
+                           items={mgmt.groupOptions.map((g) => ({ value: g, name: g }))} />
+        </EcCond>
+        {/*
+          <b>[프로젝트]·[관리항목]의 자리가 탭마다 다르다.</b> [기본] 탭은 창고 다음이고
+          [전체] 탭은 품목그룹1 다음이다(2026-09-08 실측). 조건이 더 많은 <b>[전체]</b>
+          차례에 맞춘다 — 우리가 이번에 만든 담당자·거래처관리담당자·거래유형이 거기 있다.
+        */}
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
+                           value={cond.project} onChange={(v) => setC({ project: v })}
+                           items={pickers.projects} />
+        </EcCond>
+        <EcCond label="관리항목" pick>
+          <CodePickerField label="관리항목" hideLabel width={170} emptyLabel="전체"
+                           value={mgmtCond} onChange={setMgmtCond}
+                           items={mgmt.options.map((m) => ({ value: m, name: m }))} />
+        </EcCond>
+        <EcCond label="담당자" pick>
+          <CodePickerField label="담당자" hideLabel width={140} emptyLabel="전체"
+                           value={cond.employee} onChange={(v) => setC({ employee: v })}
+                           items={[...new Set(sales.map((d) => d.employeeName).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="거래처관리담당자" pick>
+          <CodePickerField label="거래처관리담당자" hideLabel width={150} emptyLabel="전체"
+                           value={cond.partnerMgr} onChange={(v) => setC({ partnerMgr: v })}
+                           items={pmgr.options.map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="거래유형">
+          <div className="ec-pills">
+            {['', '과세', '면세'].map((v) => (
+              <button key={v || 'all'} type="button"
+                      className={'ec-pill no-ec' + (cond.taxType === v ? ' active' : '')}
+                      onClick={() => setC({ taxType: v })}>{v || '전체'}</button>
+            ))}
+          </div>
+        </EcCond>
         {/* 원본 [기타] — 결재방표시와 같은 줄에 선다(사본 실측). */}
         <EcCond label="수량관리제외품목포함">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={withUntracked} onChange={(e) => setWithUntracked(e.target.checked)} />
             재고수량을 안 세는 품목도
           </label>
         </EcCond>
         <EcCond label="결재방표시">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
             인쇄물에 결재란(도장칸)을 찍는다
           </label>
@@ -336,71 +423,92 @@ export default function MonthlyProfitPage() {
       </ul>
 
       {unknownCost > 0 && (
-        <p style={{ marginBottom: 8, background: '#fff7e6', border: '1px solid #ffe0a3', color: '#8a5a00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
+        <p style={{ marginBottom: 8, background: 'var(--ec-warn-bg)', border: '1px solid #ffe0a3', color: '#8a5a00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>
           <b>{num(unknownCost)}</b>개 라인의 {basis} 를 찾지 못했습니다. 그 줄의 원가·이익은 <b>'—'</b> 로 두고
           합계에서도 뺐습니다 — 0 으로 채우면 이익이 매출 전액으로 부풀어 오릅니다.
         </p>
       )}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        판매액 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{won(totals.revenue)}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
-        원가 <b style={{ color: allUnknown ? '#c9ced6' : '#a5561b', fontSize: 14 }}>{allUnknown ? '—' : won(totals.cost)}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
-        이익 <b style={{ color: allUnknown ? '#c9ced6' : totals.profit < 0 ? '#c60a2e' : '#1c7c3c', fontSize: 14 }}>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        판매액 <b className="text-ec-blue text-[14px]">{won(totals.revenue)}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
+        원가 <b style={{ color: allUnknown ? 'var(--ec-text-off)' : '#a5561b', fontSize: 14 }}>{allUnknown ? '—' : won(totals.cost)}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
+        이익 <b style={{ color: allUnknown ? 'var(--ec-text-off)' : totals.profit < 0 ? 'var(--ec-danger)' : 'var(--ec-success)', fontSize: 14 }}>
           {allUnknown ? '—' : won(totals.profit)}
         </b>
-        {!allUnknown && <span style={{ color: '#9aa1ab' }}> ({rate(totals.profit, totals.knownRevenue)}%)</span>}
+        {!allUnknown && <span className="text-ec-hint"> ({rate(totals.profit, totals.knownRevenue)}%)</span>}
       </div>
 
       <div ref={tableRef} className="overflow-x-auto">
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 40 }}></th>
+              <th className="w-[40px]"></th>
               {heads.map((h) => <th key={h}>{h}</th>)}
-              <th style={{ textAlign: 'right', width: 70 }}>건수</th>
-              <th style={{ textAlign: 'right', width: 90 }}>수량</th>
-              <th style={{ textAlign: 'right', width: 130 }}>판매액</th>
-              <th style={{ textAlign: 'right', width: 130 }}>원가</th>
-              <th style={{ textAlign: 'right', width: 140 }}>이익 (이익률)</th>
-              <th style={{ textAlign: 'right', width: 120 }}>판매부대비용</th>
-              <th style={{ textAlign: 'right', width: 140 }}>이익금액(부대비용포함)</th>
+              {/*
+                <b>월별이익현황(E040805) [구분]=품목별 2026-09-09 원본 격자 실측</b>(자료 33줄).
+                원본 머리는 <b>두 줄</b>이다 —
+                위: [품목코드 · 품목명[규격] · 판매(3) · 원가(2) · 이익(2) · <b>이익율</b>],
+                아래: 판매 밑에 [수량·단가·금액], 원가·이익 밑에 각각 [단가·금액].
+                <b>일별이익현황(E040806)과 다른 점</b>: 이쪽에는
+                [이익금액(부대비용포함)]·[판매부대비용]이 <b>없다</b>. 우리는 둘 다 그리는데
+                우리 열이니 그대로 둔다(부대비용을 뺀 이익을 월 단위로도 보고 싶다).
+                [구분]도 넷뿐이다 — 원본에 [라인별]·[사용자지정집계]가 없고,
+                우리 다섯째 [월별]은 우리 것이다. 기본값(품목별)은 같다.
+                우리는 한 줄 머리라 <b>금액만</b> 낸다(단가 셋은 아직 없다).
+                [건수]도 원본에 없는 우리 열이다.
+
+                <p><b>2026-09-10 — [이익]과 [이익율]은 원본에서 두 칸인데 우리는 한 칸에
+                합쳐 그리고 있었다.</b> 머리를 <code>{'{'}'이익'{'}'} ({'{'}'이익율'{'}'})</code> 로
+                적어 두었는데, 정렬 검사는 <code>&lt;th&gt;{'{'}'이름'{'}'}&lt;/th&gt;</code> 처럼
+                <b>표현식 하나만</b> 든 머리는 읽지만 뒤에 글자가 붙으면 못 읽는다 —
+                그래서 이 두 열은 <b>검사에서 통째로 빠져 있었다</b>(정렬 대조표에는
+                [이익율]=우 가 진작 적혀 있었는데 맞춰 볼 머리가 없었다).
+                고정 이름을 표현식에 담으면 <b>검사가 조용해질 뿐 맞는 것이 아니다.</b>
+                두 칸으로 가르고 머리를 글자 그대로 적었다.
+              */}
+              <th className="text-right w-[70px]">건수</th>
+              <th className="text-right w-[90px]">수량</th>
+              <th className="text-right w-[130px]">판매액</th>
+              <th className="text-right w-[130px]">원가</th>
+              <th className="text-right w-[130px]">이익</th>
+              <th className="text-right w-[90px]">이익율</th>
+              <th className="text-right w-[120px]">판매부대비용</th>
+              <th className="text-right w-[140px]">이익금액(부대비용포함)</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={colCount} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+              <tr><td colSpan={colCount} className="text-center text-ec-ink">불러오는 중…</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={colCount} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={colCount} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
             ) : rows.map((r, i) => {
-              const color = r.profit === null ? '#c9ced6' : r.profit > 0 ? '#1c7c3c' : r.profit < 0 ? '#c60a2e' : undefined
+              const color = r.profit === null ? 'var(--ec-text-off)' : r.profit > 0 ? 'var(--ec-success)' : r.profit < 0 ? 'var(--ec-danger)' : undefined
               return (
                 <tr key={r.key}>
-                  <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+                  <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
                   {heads.map((h, hi) => (
                     <td key={h} style={hi === 0 && mode === '품목별' ? { fontFamily: 'monospace' } : undefined}>
                       {r.label[hi]}
                     </td>
                   ))}
-                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(r.count)}</td>
-                  <td style={{ textAlign: 'right' }}>{num(r.qty)}</td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(r.revenue)}</td>
-                  <td style={{ textAlign: 'right', color: r.cost === null ? '#c9ced6' : '#a5561b' }}>
+                  <td className="text-right text-ec-hint">{num(r.count)}</td>
+                  <td className="text-right">{num(r.qty)}</td>
+                  <td className="text-right text-ec-blue">{won(r.revenue)}</td>
+                  <td style={{ textAlign: 'right', color: r.cost === null ? 'var(--ec-text-off)' : '#a5561b' }}>
                     {r.cost === null ? '—' : won(r.cost)}
                   </td>
                   <td style={{ textAlign: 'right', fontWeight: 700, color }}>
-                    {r.profit === null ? '—' : (
-                      <>
-                        {won(r.profit)}
-                        <span style={{ fontSize: 11, fontWeight: 400, color: '#9aa1ab' }}> ({rate(r.profit, r.revenue)}%)</span>
-                      </>
-                    )}
+                    {r.profit === null ? '—' : won(r.profit)}
                   </td>
-                  <td style={{ textAlign: 'right', color: r.extra === 0 ? '#c9ced6' : '#a5561b' }}>
+                  <td style={{ textAlign: 'right', color: r.profit === null ? 'var(--ec-text-off)' : 'var(--ec-text-hint)' }}>
+                    {r.profit === null ? '—' : `${rate(r.profit, r.revenue)}%`}
+                  </td>
+                  <td style={{ textAlign: 'right', color: r.extra === 0 ? 'var(--ec-text-off)' : '#a5561b' }}>
                     {r.extra === 0 ? '—' : won(r.extra)}
                   </td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, color: r.profit === null ? '#c9ced6' : (r.profit - r.extra) < 0 ? '#c60a2e' : '#1c7c3c' }}>
+                  <td style={{ textAlign: 'right', fontWeight: 700, color: r.profit === null ? 'var(--ec-text-off)' : (r.profit - r.extra) < 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>
                     {r.profit === null ? '—' : won(r.profit - r.extra)}
                   </td>
                 </tr>
@@ -410,24 +518,22 @@ export default function MonthlyProfitPage() {
           {rows.length > 0 && (
             <tfoot>
               <tr>
-                <td colSpan={colCount - 6} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{num(totals.qty)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: 'var(--ec-blue)' }}>{won(totals.revenue)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: allUnknown ? '#c9ced6' : '#a5561b' }}>
+                <td colSpan={colCount - 7} className="text-right font-bold bg-ec-page">합계</td>
+                <td className="text-right font-bold bg-ec-page">{num(totals.qty)}</td>
+                <td className="text-right font-bold bg-ec-page text-ec-blue">{won(totals.revenue)}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: allUnknown ? 'var(--ec-text-off)' : '#a5561b' }}>
                   {allUnknown ? '—' : won(totals.cost)}
                 </td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: allUnknown ? '#c9ced6' : totals.profit < 0 ? '#c60a2e' : '#1c7c3c' }}>
-                  {allUnknown ? '—' : (
-                    <>
-                      {won(totals.profit)}
-                      <span style={{ fontSize: 11, fontWeight: 400, color: '#9aa1ab' }}> ({rate(totals.profit, totals.knownRevenue)}%)</span>
-                    </>
-                  )}
+                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: allUnknown ? 'var(--ec-text-off)' : totals.profit < 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>
+                  {allUnknown ? '—' : won(totals.profit)}
                 </td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: extraTotals.extra === 0 ? '#c9ced6' : '#a5561b' }}>
+                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: allUnknown ? 'var(--ec-text-off)' : 'var(--ec-text-hint)' }}>
+                  {allUnknown ? '—' : `${rate(totals.profit, totals.knownRevenue)}%`}
+                </td>
+                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: extraTotals.extra === 0 ? 'var(--ec-text-off)' : '#a5561b' }}>
                   {extraTotals.extra === 0 ? '—' : won(extraTotals.extra)}
                 </td>
-                <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: allUnknown ? '#c9ced6' : extraTotals.profitWithExtra < 0 ? '#c60a2e' : '#1c7c3c' }}>
+                <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: allUnknown ? 'var(--ec-text-off)' : extraTotals.profitWithExtra < 0 ? 'var(--ec-danger)' : 'var(--ec-success)' }}>
                   {allUnknown ? '—' : won(extraTotals.profitWithExtra)}
                 </td>
               </tr>

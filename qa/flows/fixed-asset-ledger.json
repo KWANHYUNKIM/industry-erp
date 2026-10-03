@@ -1,0 +1,51 @@
+{
+  "about": "고정자산대장(E010613) — 원본 열 차례와, 자산이 있으면 계정마다 '… 계' · 합계 줄이 붙는지 본다.",
+  "shots": [
+    {
+      "name": "고정자산대장 — 머리 고정자산계정명 · 고정자산코드 · 고정자산명 · 취득일자 · 취득원가 · 감가상각충당금 · 적요 · 상태 · 감가상각계산여부, 줄이 있으면 '… 계' 와 합계",
+      "path": "/accounting/fixed-asset-ledger",
+      "steps": [
+        "wait:2500",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const tr=[...document.querySelectorAll('tbody tr')];const data=tr.some((t)=>t.cells.length===9);return h==='고정자산계정명|고정자산코드|고정자산명|취득일자|취득원가|감가상각충당금|적요|상태|감가상각계산여부'&&(!data||(tr.some((t)=>/ 계$/.test(t.cells[0].innerText.trim()))&&document.querySelector('tfoot').innerText.includes('합계')))})()"
+      ]
+    },
+    {
+      "name": "고정자산증가내역 — 머리 계정코드 · 계정명 · 자산코드 · 자산명 · 취득일자 · 취득원가 · 적요",
+      "path": "/accounting/fixed-asset-in",
+      "steps": [
+        "wait:2000",
+        "expect:[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|')==='계정코드|계정명|자산코드|자산명|취득일자|취득원가|적요'"
+      ]
+    },
+    {
+      "name": "고정자산감소내역 — 머리 … 감소일자 · 취득원가 · 감가상각충당금 · 매매가액",
+      "path": "/accounting/fixed-asset-out",
+      "steps": [
+        "wait:2000",
+        "expect:[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|')==='계정코드|계정명|자산코드|자산명|감소일자|취득원가|감가상각충당금|매매가액'"
+      ]
+    },
+    {
+      "name": "고정자산증감대장 — 원가+충당금 기본 머리 열여덟, [취득원가]로 바꾸면 충당금 · 미상각잔액 열이 빠진다",
+      "path": "/accounting/fixed-asset-movement",
+      "steps": [
+        "wait:2000",
+        "expect:[...document.querySelectorAll('table thead th')].length===18&&[...document.querySelectorAll('table thead th')][8].innerText.trim()==='기초_원가'",
+        "js:(()=>{[...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='취득원가').querySelector('input').click();return true})()",
+        "wait:400",
+        "expect:[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).slice(8).join('|')==='기초_원가|증가_원가|감소_원가|기말_원가'"
+      ]
+    },
+    {
+      "name": "고정자산전표조회 — 머리 일자-No. · 구분 · 자산계정명 · 원가 · 감가상각충당금 · 처분금액 · 적요, [감가상각]만 끄면 그 줄이 빠진다",
+      "path": "/accounting/fixed-asset-slips",
+      "steps": [
+        "wait:2000",
+        "expect:[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|')==='|일자-No.|구분|자산계정명|원가|감가상각충당금|처분금액|적요'",
+        "js:(()=>{[...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='감가상각').querySelector('input').click();return true})()",
+        "wait:400",
+        "expect:![...document.querySelectorAll('tbody tr')].some((t)=>t.cells[2]&&t.cells[2].innerText.trim()==='감가상각')"
+      ]
+    }
+  ]
+}

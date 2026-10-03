@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Item, StagedAdjustment, StagedStatus, Warehouse } from '../../api/types'
+import type { Item, StagedAdjustment, StagedStatus, Warehouse } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
-import { ymd } from '../../components/EcPeriodPicks'
+import { periodOf, ymd } from '../../components/EcPeriodPicks'
 import { useSearchParams } from 'react-router-dom'
 import { dateText } from '../../utils/dateText'
 
@@ -25,7 +25,7 @@ const TABS: { v: Tab; label: string }[] = [
   { v: 'APPLIED', label: '반영완료' },
   { v: 'REJECTED', label: '반려' },
 ]
-const statusColor = (s: StagedStatus) => (s === 'REQUESTED' ? '#c07a00' : s === 'APPLIED' ? '#1c7c3c' : '#c60a2e')
+const statusColor = (s: StagedStatus) => (s === 'REQUESTED' ? 'var(--ec-warn)' : s === 'APPLIED' ? 'var(--ec-success)' : 'var(--ec-danger)')
 const num = (n: number) => n.toLocaleString('ko-KR')
 
 export default function StagedAdjustmentPage() {
@@ -46,11 +46,17 @@ export default function StagedAdjustmentPage() {
    * 값을 골라 두면 <b>지금 보이던 줄이 소리 없이 사라진다.</b> 비워 두면 예전 그대로 전
    * 기간이고, 좁히는 것은 사람이 정한다.
    */
-  const [from, setFrom] = useState('')
-  const [to, setTo] = useState('')
+  /*
+   * <b>기간 기본값이 비어 있었다</b> — 화면을 열면 전 기간이 내려왔다(2026-09-10 실측 790KB).
+   * 같은 날 고친 회계 화면들과 같은 <b>금월(~오늘)</b> 로 맞춘다. 예전 자료는 기간을 넓히면 보인다.
+   */
+  const [from, setFrom] = useState(periodOf('금월(~오늘)')!.from)
+  const [to, setTo] = useState(periodOf('금월(~오늘)')!.to)
   const pickers = useCondPickers(['warehouses'])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  /* 저장한 조정요청 번호를 남겨 둔다 — 번호는 서버가 매긴다 */
+  const [ok, setOk] = useState('')
   /*
    * 품목등록에서 <b>고른 품목을 물고</b> 넘어온다(?item=id). 원본 품목등록의 [재고조정]이
    * 그 자리에서 조정 화면을 여는데, 우리는 메뉴로 옮겨 가 품목을 다시 찾아야 했다.
@@ -81,17 +87,19 @@ export default function StagedAdjustmentPage() {
   function set(k: keyof typeof form, v: string) { setForm((f) => ({ ...f, [k]: v })) }
 
   async function submit() {
-    setError('')
+    setError(''); setOk('')
     if (!form.itemId) return setError('품목을 선택하세요.')
     if (!form.warehouseId) return setError('창고를 선택하세요.')
     if (form.actualQty === '') return setError('실사수량을 입력하세요.')
     try {
-      await api.post('/staged-adjustments', {
+      const res = await api.post<StagedAdjustment>('/staged-adjustments', {
         itemId: Number(form.itemId), warehouseId: Number(form.warehouseId),
         actualQty: Number(form.actualQty), requestDate: form.requestDate, reason: form.reason || undefined,
       })
       setForm((f) => ({ ...f, itemId: '', warehouseId: '', actualQty: '', reason: '' }))
       setShowForm(false); load()
+      const d = res.data
+      setOk(`${d.adjustNo} 조정요청 등록 완료 · ${d.itemName} · ${d.warehouseName} · 장부 ${num(d.bookQty)} → 실사 ${num(d.actualQty)}`)
     } catch (err) { setError(extractErrorMessage(err)) }
   }
 
@@ -109,7 +117,7 @@ export default function StagedAdjustmentPage() {
   const shown = useMemo(() => rows
     .filter((r) => tab === 'ALL' || r.status === tab)
     .filter((r) => !keyword || r.itemName.includes(keyword) || r.adjustNo.includes(keyword) || r.warehouseName.includes(keyword))
-    .filter((r) => !whCond || r.warehouseName === whCond)
+    .filter((r) => !whCond || String(r.warehouseId) === whCond)
     .filter((r) => !reasonCond || (r.reason ?? '').includes(reasonCond)),
   [rows, tab, keyword, reasonCond, whCond])
   const count = (t: Tab) => (t === 'ALL' ? rows.length : rows.filter((r) => r.status === t).length)
@@ -129,26 +137,27 @@ export default function StagedAdjustmentPage() {
       onNew={() => setShowForm(true)}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
-      <p className="mb-2 text-xs text-slate-500">실사수량을 요청 → 승인(반영)/반려. 반영 시 재고가 실사수량으로 조정됩니다(기타이동 재고조정 탭에도 기록).</p>
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      <p className="mb-2 text-xs text-ec-hint">실사수량을 요청 → 승인(반영)/반려. 반영 시 재고가 실사수량으로 조정됩니다(기타이동 재고조정 탭에도 기록).</p>
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
-      <Modal open={showForm} title="단계별재고조정 요청" onClose={() => setShowForm(false)}>{(
-        <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginTop: 8, marginBottom: 8 }}>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>요청일자</div>
+      <Modal error={error} open={showForm} title="단계별재고조정 요청" onClose={() => setShowForm(false)}>{(
+        <div className="border border-ec-line border-solid bg-white p-[14px] mt-[8px] mb-[8px]">
+          <div className="flex gap-[12px] flex-wrap items-end">
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">요청일자</div>
               <input className={inputCls} type="date" value={form.requestDate} onChange={(e) => set('requestDate', e.target.value)} style={{ width: 140 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>품목 *</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">품목 *</div>
               <CodePickerField label="품목" hideLabel width={220} placeholder="선택하세요" emptyLabel="선택 해제"
                            value={form.itemId} onChange={(v) => set('itemId', v)}
                            items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, alias: it.searchKeyword, sub: it.spec }))} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>창고 *</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">창고 *</div>
               <select className={inputCls} value={form.warehouseId} onChange={(e) => set('warehouseId', e.target.value)} style={{ width: 160 }}>
                 <option value="">선택하세요</option>
                 {warehouses.map((w) => <option key={w.id} value={w.id}>[{w.code}] {w.name}</option>)}
               </select></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>실사수량 *</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">실사수량 *</div>
               <input className={`${inputCls} text-right`} type="number" step="any" value={form.actualQty} onChange={(e) => set('actualQty', e.target.value)} style={{ width: 110 }} /></label>
-            <label style={{ fontSize: 12.5, flex: 1, minWidth: 160 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>사유</div>
+            <label className="text-[12.5px] flex-1 min-w-[160px]"><div className="text-ec-label mb-[3px]">사유</div>
               <input className={inputCls} value={form.reason} onChange={(e) => set('reason', e.target.value)} style={{ width: '100%' }} /></label>
             <button className="ec-btn ec-btn-primary" onClick={submit}>요청</button>
           </div>
@@ -160,7 +169,7 @@ export default function StagedAdjustmentPage() {
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from}
                  onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: 'var(--ec-label)' }}>~</span>
+          <span className="my-0 mx-[4px] text-ec-label">~</span>
           <input type="date" className="ec-input" value={to}
                  onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
@@ -175,11 +184,11 @@ export default function StagedAdjustmentPage() {
         </EcCond>
       </ul>
 
-      <div style={{ display: 'flex', gap: 2, marginBottom: 8 }}>
+      <div className="flex gap-[2px] mb-[8px]">
         {TABS.map((t) => (
           <button key={t.v} onClick={() => setTab(t.v)} className="no-ec" style={{
             padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
-            background: tab === t.v ? 'var(--ec-blue)' : '#fff', color: tab === t.v ? '#fff' : '#3a4453', fontWeight: tab === t.v ? 700 : 400,
+            background: tab === t.v ? 'var(--ec-blue)' : '#fff', color: tab === t.v ? '#fff' : 'var(--ec-text)', fontWeight: tab === t.v ? 700 : 400,
           }}>{t.label} ({count(t.v)})</button>
         ))}
       </div>
@@ -187,42 +196,42 @@ export default function StagedAdjustmentPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ width: 130 }}>조정번호</th>
-            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('요청일')}>요청일 {sort.mark('요청일')}</th>
+            <th className="w-[34px]"></th>
+            <th className="w-[130px]">조정번호</th>
+            <th className="w-[100px] cursor-pointer" onClick={() => sort.toggle('요청일')}>요청일 {sort.mark('요청일')}</th>
             <th>품목</th>
             <th>창고</th>
-            <th style={{ textAlign: 'right' }}>장부수량</th>
-            <th style={{ textAlign: 'right' }}>실사수량</th>
-            <th style={{ textAlign: 'right' }}>차이</th>
-            <th style={{ textAlign: 'center' }}>상태</th>
-            <th style={{ width: 160, textAlign: 'center' }}>처리</th>
+            <th className="text-right">장부수량</th>
+            <th className="text-right">실사수량</th>
+            <th className="text-right">차이</th>
+            <th className="text-center">상태</th>
+            <th className="w-[160px] text-center">처리</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.adjustNo}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td>{r.adjustNo}</td>
               <td>{dateText(r.requestDate)}</td>
               <td>{r.itemName}</td>
               <td>{r.warehouseName}</td>
-              <td style={{ textAlign: 'right', color: '#5a626e' }}>{num(r.bookQty)}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600 }}>{num(r.actualQty)}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600, color: r.diff > 0 ? '#1c7c3c' : r.diff < 0 ? '#c60a2e' : '#c5cbd3' }}>{r.diff > 0 ? '+' : ''}{num(r.diff)}</td>
+              <td className="text-right text-ec-label">{num(r.bookQty)}</td>
+              <td className="text-right font-semibold">{num(r.actualQty)}</td>
+              <td style={{ textAlign: 'right', fontWeight: 600, color: r.diff > 0 ? 'var(--ec-success)' : r.diff < 0 ? 'var(--ec-danger)' : 'var(--ec-text-off)' }}>{r.diff > 0 ? '+' : ''}{num(r.diff)}</td>
               <td style={{ textAlign: 'center', color: statusColor(r.status), fontWeight: 700 }}>{r.statusName}</td>
-              <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+              <td className="text-center whitespace-nowrap">
                 {r.status === 'REQUESTED' ? (
                   <>
-                    <button className="no-ec" onClick={() => act(r, 'apply')} style={{ border: 'none', background: 'none', color: '#1c7c3c', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>반영</button>
-                    <button className="no-ec" onClick={() => act(r, 'reject')} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>반려</button>
-                    <button className="no-ec" onClick={() => remove(r)} style={{ border: 'none', background: 'none', color: '#8a929c', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                    <button className="no-ec" onClick={() => act(r, 'apply')} style={{ border: 'none', background: 'none', color: 'var(--ec-success)', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>반영</button>
+                    <button className="no-ec" onClick={() => act(r, 'reject')} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>반려</button>
+                    <button className="no-ec" onClick={() => remove(r)} style={{ border: 'none', background: 'none', color: 'var(--ec-text-hint)', cursor: 'pointer', fontSize: 12 }}>삭제</button>
                   </>
-                ) : <span style={{ color: '#c5cbd3', fontSize: 12 }}>{r.handler ?? '—'}</span>}
+                ) : <span className="text-ec-off text-[12px]">{r.handler ?? '—'}</span>}
               </td>
             </tr>
           ))}

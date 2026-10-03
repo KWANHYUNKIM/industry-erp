@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
+import { dateNo } from '../../utils/dateNo'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { INQUIRY_FULL_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { usePartnerManagers } from '../../utils/partnerManagers'
+import EcBarChart from '../../components/EcBarChart'
+import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 
 /**
  * 영업관리 > 미판매현황 (이카운트 E040212)
@@ -17,9 +21,17 @@ import { useCondPickers } from '../../utils/useCondPickers'
  * 판매 라인은 수주 <b>헤더</b>만 가리키므로(SalesLine.sourceOrder) 라인 대 라인이 아니라
  * 품목으로 맞춘다. 주문보다 많이 판 경우는 음수 대신 0 으로 둔다(GET /api/sales-orders/unsold).
  *
- * 원본 조건: 구분(품목별/라인별) · 기준일자(영업주기) · 품목별납기일자 · 창고 · 프로젝트 ·
- * 거래처 · 품목 · 담당자 · 거래처관리담당자 · 미판매수량(범위).
- * 창고·프로젝트·담당자·거래처관리담당자는 수주 라인에 없어 넣지 않았다(미출하현황과 같은 이유).
+ * <p>2026-09-08 에 원본을 열어 접힌 줄까지 재니 조건은 <b>스물둘</b>이다(사본에는 없었다):
+ * 구분 · 기준일자(영업주기) · 품목별납기일자 · 창고 · 프로젝트 · 거래처 · 품목 · 담당자 ·
+ * 거래처관리담당자 · 미판매수량 · 오더관리번호 · 적요 · 수량 · 내.외자구분 · 거래유형 ·
+ * 규격 · 진행상태 · 작성자 · 최종수정자 · 적용양식 · 정렬기준 · 데이터 보기형식.
+ *
+ * <p>머리말에 "창고·프로젝트·담당자·거래처관리담당자는 수주 라인에 없어 넣지 않았다" 고
+ * 적혀 있었는데 <b>수주 전표에는 다 있다</b> — 이 응답만 안 실었을 뿐이고,
+ * <b>같은 파일의 미출하 응답은 이미 싣고 있었다</b>(미출하와 미판매는 같은 수주를
+ * 다른 잣대로 보는 화면이라 조건도 거의 같다). <code>UnsoldLineResponse</code> 를
+ * 미출하와 같은 모양으로 넓히고 여섯을 만들었다 —
+ * 창고 · 프로젝트 · 담당자 · 적요 · 규격 · 작성자.
  */
 interface UnsoldLine {
   orderId: number
@@ -40,6 +52,20 @@ interface UnsoldLine {
   unsoldQty: number
   unitPrice: number
   unsoldAmount: number
+  /* 2026-09-08 에 응답을 넓혀 받은 것들 — 수주 전표와 품목 마스터가 진작 들던 값이다. */
+  warehouseId: number | null
+  warehouseName: string | null
+  projectId: number | null
+  projectName: string | null
+  employeeName: string | null
+  remark: string | null
+  spec: string | null
+  createdBy: string | null
+  /**
+   * 원본 [거래유형] — 과세 · 면세. 줄에는 부가세가 없어(미판매수량·금액만 낸다)
+   * 화면이 스스로 되짚을 수 없다 — 서버가 전표 부가세로 되짚어 실어 준다.
+   */
+  taxable: boolean
 }
 
 const num = (n: number) => n.toLocaleString()
@@ -53,14 +79,26 @@ const init = periodOf('금월(~오늘)')!
 export default function UnsoldStatusPage() {
   const navigate = useNavigate()
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
-  const pickers = useCondPickers(['partners', 'items'])
+  const pickers = useCondPickers(['partners', 'items', 'warehouses', 'projects'])
+  const pmgr = usePartnerManagers()
   const [rows, setRows] = useState<UnsoldLine[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   /** 원본 [구분] — 품목별(품목으로 합침) / 라인별(주문 라인 그대로). */
   const [mode, setMode] = useState<'품목별' | '라인별'>('라인별')
-  const [cond, setCond] = useState({ from: init.from, to: init.to, partner: '', item: '', orderNo: '', qtyFrom: '', qtyTo: '' })
+  const [cond, setCond] = useState({
+    from: init.from, to: init.to, partner: '', item: '', orderNo: '', qtyFrom: '', qtyTo: '',
+    warehouse: '', project: '', employee: '', partnerMgr: '', remark: '', spec: '',
+    status: '', createdBy: '', dueFrom: '', dueTo: '', orderQtyFrom: '', orderQtyTo: '',
+    taxType: '',
+  })
+  /**
+   * 원본 [정렬기준]·[데이터 보기형식] — 조건 판의 맨 끝 둘이다.
+   * 미판매는 <b>어느 거래처의 수주가 얼마나 매출로 안 잡혔나</b> 를 보는 표라 거래처로 묶어 그린다.
+   */
+  const [byDue, setByDue] = useState(false)
+  const [view, setView] = useState<'표' | '그래프'>('표')
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
   async function load() {
@@ -81,14 +119,40 @@ export default function UnsoldStatusPage() {
   useEffect(() => { load() }, [cond.from, cond.to])
 
   const shown = rows
-    // 기준일자는 납기일로 본다 — '언제까지 매출을 잡아야 했나'가 이 화면의 질문이다.
-    .filter((r) => !cond.from || (r.dueDate ?? r.orderDate) >= cond.from)
-    .filter((r) => !cond.to || (r.dueDate ?? r.orderDate) <= cond.to)
-    .filter((r) => !cond.partner || r.partnerName.includes(cond.partner))
-    .filter((r) => !cond.item || r.itemName.includes(cond.item) || r.itemCode.includes(cond.item))
+    /*
+     * 기준일자는 <b>주문일</b>이다 — 서버(/sales-orders/unsold?from&to)가 주문일로 거르고,
+     * 미출하현황·미주문현황의 같은 이름 칸도 전표일이다. 납기는 따로 [품목별납기일자] 가 묻는다.
+     * 예전엔 여기서 납기일로 한 번 더 걸러 <b>두 축의 교집합</b>만 남았다 — 지난달에 받아
+     * 이번 달이 납기인 주문(서버가 뺌)도, 이번 달에 받아 다음 달이 납기인 주문(화면이 뺌)도 사라졌다.
+     */
+    .filter((r) => !cond.from || r.orderDate >= cond.from)
+    .filter((r) => !cond.to || r.orderDate <= cond.to)
+    .filter((r) => !cond.partner || String(r.partnerId) === cond.partner)
+    .filter((r) => !cond.item || String(r.itemId) === cond.item)
     .filter((r) => !cond.orderNo || r.orderNo.includes(cond.orderNo))
     .filter((r) => !cond.qtyFrom || r.unsoldQty >= Number(cond.qtyFrom))
     .filter((r) => !cond.qtyTo || r.unsoldQty <= Number(cond.qtyTo))
+    /* 2026-09-08 실측으로 만든 것들. 응답을 넓혀 받은 값을 그대로 건다. */
+    .filter((r) => !cond.warehouse || String(r.warehouseId) === cond.warehouse)
+    .filter((r) => !cond.project || String(r.projectId) === cond.project)
+    .filter((r) => !cond.employee || (r.employeeName ?? '') === cond.employee)
+    .filter((r) => !cond.partnerMgr || pmgr.managerOfName(r.partnerName) === cond.partnerMgr)
+    .filter((r) => !cond.remark || (r.remark ?? '').includes(cond.remark))
+    .filter((r) => !cond.spec || (r.spec ?? '').includes(cond.spec))
+    .filter((r) => !cond.status || r.status === cond.status)
+    .filter((r) => !cond.createdBy || (r.createdBy ?? '') === cond.createdBy)
+    /* 원본 [거래유형]. 서버가 전표 부가세로 되짚어 준 값을 그대로 쓴다. */
+    .filter((r) => !cond.taxType || (r.taxable ? '과세' : '면세') === cond.taxType)
+    /* 원본 [품목별납기일자] — 라인 납기가 없어 전표 납기로 본다(아래 [남은 것] 참고). */
+    .filter((r) => !cond.dueFrom || (r.dueDate ?? '') >= cond.dueFrom)
+    .filter((r) => !cond.dueTo || (r.dueDate ?? '') <= cond.dueTo)
+    /* 원본 [수량] — 미판매수량이 아니라 <b>주문수량</b> 범위다. 둘은 다른 물음이다. */
+    .filter((r) => !cond.orderQtyFrom || r.orderQty >= Number(cond.orderQtyFrom))
+    .filter((r) => !cond.orderQtyTo || r.orderQty <= Number(cond.orderQtyTo))
+    .slice()
+    .sort((a, b) => (byDue
+      ? ((a.dueDate ?? '') < (b.dueDate ?? '') ? -1 : (a.dueDate ?? '') > (b.dueDate ?? '') ? 1 : 0)
+      : 0))
 
   /** 품목별 보기 — 주문번호가 여럿 섞이므로 건수로 대신 보여 준다. */
   const byItem = useMemo(() => {
@@ -104,11 +168,27 @@ export default function UnsoldStatusPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, cond])
 
+  /*
+   * 원본 미판매현황(E040212)의 마지막 열 <b>[미판매부가세]</b>.
+   * 줄에는 부가세가 오지 않는다(미판매수량·공급가액만). 대신 서버가 그 줄이
+   * 과세인지(<code>taxable</code>)를 되짚어 실어 주므로, 저장소가 쓰는 식 그대로
+   * 공급가액의 10%로 낸다(면세면 0). 판매·발주 입력 화면이 이미 같은 식을 쓴다.
+   */
+  const lineVat = (r: UnsoldLine) => (r.taxable ? Math.round(r.unsoldAmount * 0.1) : 0)
   const totals = shown.reduce(
-    (a, r) => ({ qty: a.qty + r.unsoldQty, amount: a.amount + r.unsoldAmount }),
-    { qty: 0, amount: 0 },
+    (a, r) => ({ qty: a.qty + r.unsoldQty, amount: a.amount + r.unsoldAmount, vat: a.vat + lineVat(r) }),
+    { qty: 0, amount: 0, vat: 0 },
   )
-  const reset = () => { setMode('라인별'); setCond({ from: init.from, to: init.to, partner: '', item: '', orderNo: '', qtyFrom: '', qtyTo: '' }) }
+  const reset = () => {
+    setMode('라인별')
+    setCond({
+      from: init.from, to: init.to, partner: '', item: '', orderNo: '', qtyFrom: '', qtyTo: '',
+      warehouse: '', project: '', employee: '', partnerMgr: '', remark: '', spec: '',
+      status: '', createdBy: '', dueFrom: '', dueTo: '', orderQtyFrom: '', orderQtyTo: '',
+      taxType: '',
+    })
+    setByDue(false); setView('표')
+  }
 
   return (
     <EcListShell
@@ -124,8 +204,9 @@ export default function UnsoldStatusPage() {
       <EcStatusPanel
         from={cond.from} to={cond.to}
         onPeriod={(r) => setC({ from: r.from, to: r.to })}
+        dateLabel="기준일자(영업주기)"
+        view={view} onViewChange={setView}
         picks={INQUIRY_FULL_PICKS}
-        dateLabel="납기일자"
       >
         <EcCond label="구분">
           <div className="ec-pills">
@@ -137,6 +218,28 @@ export default function UnsoldStatusPage() {
             ))}
           </div>
         </EcCond>
+        {/*
+          원본 차례(2026-09-08 실측): 구분 · 기준일자(영업주기) · <b>품목별납기일자</b> ·
+          <b>창고 · 프로젝트</b> · 거래처 · 품목 · <b>담당자 · 거래처관리담당자</b> ·
+          미판매수량 · 오더관리번호 · <b>적요</b> · 수량 · … · <b>규격 · 진행상태 · 작성자</b>.
+        */}
+        <EcCond label="품목별납기일자">
+          <input type="date" className="ec-input" value={cond.dueFrom}
+                 onChange={(e) => setC({ dueFrom: e.target.value })} style={{ width: 140 }} />
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
+          <input type="date" className="ec-input" value={cond.dueTo}
+                 onChange={(e) => setC({ dueTo: e.target.value })} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="창고" pick>
+          <CodePickerField label="창고" hideLabel width={180} emptyLabel="전체"
+                           value={cond.warehouse} onChange={(v) => setC({ warehouse: v })}
+                           items={pickers.warehouses} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={180} emptyLabel="전체"
+                           value={cond.project} onChange={(v) => setC({ project: v })}
+                           items={pickers.projects} />
+        </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
                            value={cond.partner} onChange={(v) => setC({ partner: v })}
@@ -147,6 +250,17 @@ export default function UnsoldStatusPage() {
                            value={cond.item} onChange={(v) => setC({ item: v })}
                            items={pickers.items} />
         </EcCond>
+        <EcCond label="담당자" pick>
+          <CodePickerField label="담당자" hideLabel width={150} emptyLabel="전체"
+                           value={cond.employee} onChange={(v) => setC({ employee: v })}
+                           items={[...new Set(rows.map((r) => r.employeeName).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="거래처관리담당자" pick>
+          <CodePickerField label="거래처관리담당자" hideLabel width={160} emptyLabel="전체"
+                           value={cond.partnerMgr} onChange={(v) => setC({ partnerMgr: v })}
+                           items={pmgr.options.map((n) => ({ value: n, name: n }))} />
+        </EcCond>
         <EcCond label="주문번호">
           <input className="ec-input" placeholder="SO-…" value={cond.orderNo}
                  onChange={(e) => setC({ orderNo: e.target.value })} style={{ width: 220 }} />
@@ -154,73 +268,146 @@ export default function UnsoldStatusPage() {
         <EcCond label="미판매수량">
           <input className="ec-input" type="number" value={cond.qtyFrom}
                  onChange={(e) => setC({ qtyFrom: e.target.value })} style={{ width: 120 }} />
-          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <span className="text-ec-label">~</span>
           <input className="ec-input" type="number" value={cond.qtyTo}
                  onChange={(e) => setC({ qtyTo: e.target.value })} style={{ width: 120 }} />
         </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" placeholder="적요" value={cond.remark}
+                 onChange={(e) => setC({ remark: e.target.value })} style={{ width: 200 }} />
+        </EcCond>
+        <EcCond label="수량">
+          <input className="ec-input" type="number" style={{ width: 100 }} value={cond.orderQtyFrom}
+                 onChange={(e) => setC({ orderQtyFrom: e.target.value })} />
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
+          <input className="ec-input" type="number" style={{ width: 100 }} value={cond.orderQtyTo}
+                 onChange={(e) => setC({ orderQtyTo: e.target.value })} />
+        </EcCond>
+        {/* 원본 차례: [수량] 다음이 내.외자구분·<b>[거래유형]</b>·규격이다. */}
+        <EcCond label="거래유형">
+          <select className="ec-input" value={cond.taxType} style={{ width: 110 }}
+                  onChange={(e) => setC({ taxType: e.target.value })}>
+            <option value="">전체</option><option>과세</option><option>면세</option>
+          </select>
+        </EcCond>
+        <EcCond label="규격">
+          <ItemSuggestInput field="spec" value={cond.spec} placeholder="규격"
+                            onChange={(v) => setC({ spec: v })} width={140} />
+        </EcCond>
+        <EcCond label="진행상태">
+          <select className="ec-input" value={cond.status} style={{ width: 120 }}
+                  onChange={(e) => setC({ status: e.target.value })}>
+            <option value="">전체</option>
+            {[...new Set(rows.map((r) => r.status))].map((k) => (
+              <option key={k} value={k}>{rows.find((r) => r.status === k)?.statusName ?? k}</option>
+            ))}
+          </select>
+        </EcCond>
+        <EcCond label="작성자">
+          <select className="ec-input" value={cond.createdBy} style={{ width: 140 }}
+                  onChange={(e) => setC({ createdBy: e.target.value })}>
+            <option value="">전체</option>
+            {[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
+              .map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </EcCond>
+        {/* 원본 [정렬기준] — [데이터 보기형식] 바로 앞줄이다. */}
+        <EcCond label="정렬기준">
+          <label className="text-[12.5px] flex items-center gap-[4px]">
+            <input type="checkbox" checked={byDue} onChange={(e) => setByDue(e.target.checked)} />
+            납기일순 (기본: 미판매수량순)
+          </label>
+        </EcCond>
       </EcStatusPanel>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {/*
+        원본 [데이터 보기형식]이 <b>그래프</b>면 거래처별 미판매금액을 막대로 그린다 —
+        "어느 거래처의 수주가 얼마나 매출로 안 잡혔나" 가 이 화면의 물음이다.
+      */}
+      {view === '그래프' && (
+        <EcBarChart unit=" 원" emptyText="조회된 미판매 수주가 없습니다."
+                    rows={(() => {
+                      const m = new Map<string, number>()
+                      for (const r of shown) m.set(r.partnerName, (m.get(r.partnerName) ?? 0) + r.unsoldAmount)
+                      return [...m].map(([label, value]) => ({ label, value }))
+                    })()} />
+      )}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
         {mode === '품목별' ? '품목' : '라인'}{' '}
-        <b style={{ color: '#3c4553' }}>{num(mode === '품목별' ? byItem.length : shown.length)}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
+        <b className="text-ec-text">{num(mode === '품목별' ? byItem.length : shown.length)}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
         미판매수량 <b style={{ color: '#a5561b', fontSize: 14 }}>{num(totals.qty)}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
-        미판매금액 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{num(totals.amount)}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
+        미판매금액 <b className="text-ec-blue text-[14px]">{num(totals.amount)}</b>
       </div>
 
       <div className="overflow-x-auto">
         {mode === '라인별' ? (
           <table className="w-full text-left">
             <colgroup>
-              <col style={{ width: '4%' }} /><col style={{ width: '12%' }} /><col style={{ width: '10%' }} />
-              <col style={{ width: '15%' }} /><col />
-              <col style={{ width: '9%' }} /><col style={{ width: '9%' }} />
-              <col style={{ width: '9%' }} /><col style={{ width: '12%' }} />
+              <col className="w-[4%]" /><col className="w-[13%]" /><col />
+              <col className="w-[8%]" /><col className="w-[8%]" /><col className="w-[8%]" />
+              <col className="w-[10%]" /><col className="w-[12%]" /><col className="w-[12%]" />
+              <col className="w-[9%]" /><col className="w-[10%]" />
             </colgroup>
+            {/*
+              2026-09-09 원본 실측 — 격자 열은
+              <b>일자-No. · 품목명(규격) · 수량 · 미판매수량 · 미판매공급가액 · 거래처명 ·
+              적요 · 품목별납기일자 · 미판매부가세</b> 다([검색(F8)] 을 눌러야 머리가 나온다).
+              우리 이름은 넷이 달랐고([주문번호]·[거래처]·[품목]·[주문수량]),
+              <b>[적요]와 [미판매부가세]는 아예 없었다</b> — 적요는 응답이 진작 싣던 값이다.
+              [판매수량]은 우리 것이라 그대로 둔다(미판매가 왜 그만큼인지 보는 칸이다).
+            */}
             <thead>
               <tr>
                 <th></th>
-                <th>주문번호</th>
+                <th>일자-No.</th>
+                <th>품목명(규격)</th>
+                <th className="text-right">수량</th>
+                <th className="text-right">판매수량</th>
+                <th className="text-right">미판매수량</th>
+                <th className="text-right">미판매공급가액</th>
+                <th>거래처명</th>
+                <th>적요</th>
+                {/* 원본 이름은 [품목별납기일자] 지만 우리 납기는 전표 단위 하나다 — 이름을 그대로 쓰면 거짓이 된다. */}
                 <th>납기일자</th>
-                <th>거래처</th>
-                <th>품목</th>
-                <th style={{ textAlign: 'right' }}>주문수량</th>
-                <th style={{ textAlign: 'right' }}>판매수량</th>
-                <th style={{ textAlign: 'right' }}>미판매수량</th>
-                <th style={{ textAlign: 'right' }}>미판매금액</th>
+                <th className="text-right">미판매부가세</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+                <tr><td colSpan={11} className="text-center text-ec-ink">불러오는 중…</td></tr>
               ) : shown.length === 0 ? (
-                <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={11} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
               ) : shown.map((r, i) => (
-                <tr key={r.orderLineId} style={{ cursor: 'pointer' }}
+                <tr key={r.orderLineId} className="cursor-pointer"
                     onClick={() => navigate('/sales/order-status')}>
-                  <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
-                  <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{r.orderNo}</td>
-                  <td>{(r.dueDate ?? r.orderDate).replace(/-/g, '/')}</td>
-                  <td>{r.partnerName}</td>
-                  <td>{r.itemName} <span style={{ fontSize: 11, color: '#9aa1ab' }}>{r.itemCode}</span></td>
-                  <td style={{ textAlign: 'right' }}>{num(r.orderQty)}</td>
-                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(r.soldQty)}</td>
+                  <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
+                  <td className="text-ec-blue">{dateNo(r.orderDate, r.orderNo)}</td>
+                  <td>{r.itemName}{r.spec ? ` (${r.spec})` : ''} <span className="text-[11px] text-ec-hint">{r.itemCode}</span></td>
+                  <td className="text-right">{num(r.orderQty)}</td>
+                  <td className="text-right text-ec-hint">{num(r.soldQty)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 700, color: '#a5561b' }}>
-                    {num(r.unsoldQty)} <span style={{ fontSize: 11, fontWeight: 400, color: '#9aa1ab' }}>{r.unit}</span>
+                    {num(r.unsoldQty)} <span className="text-[11px] font-normal text-ec-hint">{r.unit}</span>
                   </td>
-                  <td style={{ textAlign: 'right' }}>{num(r.unsoldAmount)}</td>
+                  <td className="text-right">{num(r.unsoldAmount)}</td>
+                  <td>{r.partnerName}</td>
+                  <td className="text-ec-hint">{r.remark ?? ''}</td>
+                  <td>{r.dueDate ? r.dueDate.replace(/-/g, '/') : ''}</td>
+                  <td className="text-right text-ec-hint">{num(lineVat(r))}</td>
                 </tr>
               ))}
             </tbody>
             {shown.length > 0 && (
               <tfoot>
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: '#a5561b' }}>{num(totals.qty)}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: 'var(--ec-blue)' }}>{num(totals.amount)}</td>
+                  <td colSpan={5} className="text-right font-bold bg-ec-page">합계</td>
+                  <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: '#a5561b' }}>{num(totals.qty)}</td>
+                  <td className="text-right font-bold bg-ec-page text-ec-blue">{num(totals.amount)}</td>
+                  <td colSpan={3} className="bg-ec-page"></td>
+                  <td className="text-right font-bold bg-ec-page text-ec-hint">{num(totals.vat)}</td>
                 </tr>
               </tfoot>
             )}
@@ -228,48 +415,48 @@ export default function UnsoldStatusPage() {
         ) : (
           <table className="w-full text-left">
             <colgroup>
-              <col style={{ width: '4%' }} /><col style={{ width: '14%' }} /><col />
-              <col style={{ width: '8%' }} /><col style={{ width: '10%' }} />
-              <col style={{ width: '10%' }} /><col style={{ width: '10%' }} /><col style={{ width: '13%' }} />
+              <col className="w-[4%]" /><col className="w-[14%]" /><col />
+              <col className="w-[8%]" /><col className="w-[10%]" />
+              <col className="w-[10%]" /><col className="w-[10%]" /><col className="w-[13%]" />
             </colgroup>
             <thead>
               <tr>
                 <th></th>
                 <th>품목코드</th>
                 <th>품목명</th>
-                <th style={{ textAlign: 'right' }}>건수</th>
-                <th style={{ textAlign: 'right' }}>주문수량</th>
-                <th style={{ textAlign: 'right' }}>판매수량</th>
-                <th style={{ textAlign: 'right' }}>미판매수량</th>
-                <th style={{ textAlign: 'right' }}>미판매금액</th>
+                <th className="text-right">건수</th>
+                <th className="text-right">주문수량</th>
+                <th className="text-right">판매수량</th>
+                <th className="text-right">미판매수량</th>
+                <th className="text-right">미판매금액</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+                <tr><td colSpan={8} className="text-center text-ec-ink">불러오는 중…</td></tr>
               ) : byItem.length === 0 ? (
-                <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={8} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
               ) : byItem.map((g, i) => (
                 <tr key={g.itemId}>
-                  <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
-                  <td style={{ fontFamily: 'monospace' }}>{g.itemCode}</td>
+                  <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
+                  <td>{g.itemCode}</td>
                   <td>{g.itemName}</td>
-                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(g.count)}</td>
-                  <td style={{ textAlign: 'right' }}>{num(g.orderQty)}</td>
-                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{num(g.soldQty)}</td>
+                  <td className="text-right text-ec-hint">{num(g.count)}</td>
+                  <td className="text-right">{num(g.orderQty)}</td>
+                  <td className="text-right text-ec-hint">{num(g.soldQty)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 700, color: '#a5561b' }}>
-                    {num(g.unsoldQty)} <span style={{ fontSize: 11, fontWeight: 400, color: '#9aa1ab' }}>{g.unit}</span>
+                    {num(g.unsoldQty)} <span className="text-[11px] font-normal text-ec-hint">{g.unit}</span>
                   </td>
-                  <td style={{ textAlign: 'right' }}>{num(g.unsoldAmount)}</td>
+                  <td className="text-right">{num(g.unsoldAmount)}</td>
                 </tr>
               ))}
             </tbody>
             {byItem.length > 0 && (
               <tfoot>
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: '#a5561b' }}>{num(totals.qty)}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa', color: 'var(--ec-blue)' }}>{num(totals.amount)}</td>
+                  <td colSpan={6} className="text-right font-bold bg-ec-page">합계</td>
+                  <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: '#a5561b' }}>{num(totals.qty)}</td>
+                  <td className="text-right font-bold bg-ec-page text-ec-blue">{num(totals.amount)}</td>
                 </tr>
               </tfoot>
             )}

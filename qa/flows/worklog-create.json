@@ -1,0 +1,36 @@
+{
+  "about": "업무일지(원본 E070304) 신규를 화면으로 — 조건 판 [검색(F8)] → 격자 → [신규(F2)] '업무일지게시글작성'에서 업무보고일 · 부서(코드도움) · 제목만 넣고(원본처럼 본문 없이) [저장(F8)] → 다시 읽어도 그 부서 줄 · 그날 칸에 제목. 끝에 지운다. node qa/shot.mjs qa/flows/worklog-create.json",
+  "shots": [
+    {
+      "name": "신규 폼으로 일지 하나",
+      "path": "/groupware/worklog",
+      "steps": [
+        "wait:800",
+        "click:검색(F8)",
+        "wait:800",
+        "click:신규(F2)",
+        "expect:document.querySelector('[role=dialog]')?.getAttribute('aria-label') === '업무일지게시글작성' && document.querySelector('[role=dialog]').innerText.includes('작성자 :')",
+        "js:(() => { const d = document.querySelector('[role=dialog]'); const t = new Date(); const day = t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); sessionStorage.setItem('qaWlDay', day.slice(5, 7) + '/' + day.slice(8, 10)); const i = d.querySelector('input[type=date]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, day); i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new Event('change', { bubbles: true })); d.querySelector('button[title=\"부서 선택\"]').click(); return true })()",
+        "wait:600",
+        "js:(() => { const m = [...document.querySelectorAll('[role=dialog]')].find((x) => x.getAttribute('aria-label') === '부서 선택'); const tr = [...m.querySelectorAll('tbody tr')].find((r) => !r.innerText.includes('전체') && !r.innerText.includes('선택 안 함')); sessionStorage.setItem('qaWlDept', tr.innerText.replace(/\\s+/g, ' ').trim()); tr.click(); return sessionStorage.getItem('qaWlDept') })()",
+        "wait:400",
+        "setnear:제목|QA그룹웨어-화면일지",
+        "click:저장(F8)",
+        "wait:1200",
+        "expect:!document.querySelector('[role=dialog]')",
+        "js:location.reload(); true",
+        "wait:2500",
+        "click:검색(F8)",
+        "wait:1000",
+        "expect:(() => { const md = sessionStorage.getItem('qaWlDay'); const picked = sessionStorage.getItem('qaWlDept'); const ths = [...document.querySelectorAll('thead th')]; const col = ths.findIndex((th) => th.textContent.startsWith(md)); const tr = [...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QA그룹웨어-화면일지')); return col > 0 && !!tr && picked.includes(tr.cells[0].textContent.trim()) && tr.cells[1 + (col - 1) * 2].textContent.includes('QA그룹웨어-화면일지') })()"
+      ]
+    },
+    {
+      "name": "정리",
+      "path": "/groupware/worklog",
+      "steps": [
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const js = await (await fetch('/api/work-journals', { headers: H })).json(); const out = []; for (const j of js.filter((x) => x.title.startsWith('QA그룹웨어'))) out.push((await fetch('/api/work-journals/' + j.id, { method: 'DELETE', headers: H })).status); return 'del ' + out.join(',') })()"
+      ]
+    }
+  ]
+}

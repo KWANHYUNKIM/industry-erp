@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { dateNo } from '../../utils/dateNo'
 import EcListShell from '../../components/EcListShell'
 import { useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
@@ -6,8 +7,8 @@ import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { printDocuments } from '../../utils/printDocument'
-import { dateText } from '../../utils/dateText'
 import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
 
 /**
  * 생산관리 > 생산입고조회 — 완제품 생산입고 내역 조회 (/api/productions 연동).
@@ -16,27 +17,63 @@ import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPerio
  * 수량 · 담당자명. 우리는 [생산된공장]과 [담당자]가 빠져 있어 붙인다 — 자재가 어느 공장에서
  * 빠졌는지 여기서 못 보면 공장별 재고가 왜 줄었는지 되짚을 자리가 없다.
  */
+/** 원본 생산입고조회 탭. */
+const STATUS_TABS = ['전체', '결재중', '미확인', '확인'] as const
+const STATUS_OF: Record<string, string> = { 결재중: 'IN_APPROVAL', 미확인: 'UNCONFIRMED', 확인: 'CONFIRMED' }
+
+/** 생산입고를 넣은 화면별 주소. */
+const ENTRY_PATH: Record<string, string> = {
+  I: '/production/receipt-bom',
+  II: '/production/receipt-manual',
+  III: '/production/receipt-qr',
+}
+
 interface Row {
   id: number
   prodNo: string
-  workOrderNo: string
+  /** 넣은 화면(I·II·III). 번호를 누르면 그 화면으로 전표를 연다. */
+  entryType: 'I' | 'II' | 'III'
+  /** 진행상태 — 원본 탭 [결재중 · 미확인 · 확인]. */
+  confirmStatus: 'UNCONFIRMED' | 'IN_APPROVAL' | 'CONFIRMED'
+  /** 원본처럼 작업지시서 없이도 입고한다 — 없으면 null. */
+  workOrderNo: string | null
   productCode: string
   productName: string
   productUnit: string
+  warehouseId: number
   warehouseName: string
+  fromWarehouseId: number | null
   fromWarehouseName: string | null
+  /**
+   * 만든 자리의 구분 — 창고 · 공장 · <b>외주</b>. 원본 [기타]의 [외주공장만] 이 이 값을 본다.
+   * <code>Warehouse.kind</code> 가 진작 들고 있는데 응답이 안 실어 못 만들고 있던 값이다.
+   */
+  fromWarehouseKind: string | null
   /* 서버는 프로젝트명을 이미 보내고 있었다 — 화면이 안 받아 조건으로 쓸 수 없었다. */
+  projectId: number | null
   projectName: string | null
   producedQty: number
   productionDate: string
   createdBy: string | null
+  /** 원본 조건 [품목]·[규격]·[품목구분]·[품목그룹1] 이 보는 값. 서버는 진작 보낸다. */
+  productId: number
+  productSpec: string | null
+  productCategoryName: string | null
+  /** 원본 조건 [담당자]. id 만 온다 — 이름은 화면이 붙인다(production 은 hr 을 못 참조한다). */
+  employeeId: number | null
+  /** 원본 조건 [적요]. */
+  note: string | null
+  /** 원본 조건 [최초작성일자]·[최종작업일자], [기타]의 수정일자순(정렬). */
+  createdAt: string | null
+  updatedAt: string | null
 }
 
 /**
  * 원본 생산입고조회 격자의 마지막 열 <b>[인쇄]</b> — 그 한 건을 생산입고증으로 찍는다.
  * 금액 칸은 안 그린다(생산입고는 사내 이동이라 금액이 없다 — 0 으로 채우면 0원 거래로 읽힌다).
  */
-async function printOne(r: Row) {
+/** 담당자는 전표의 사원이다 — 만든 계정(createdBy)이 아니다. 이름은 부르는 쪽이 붙여 준다. */
+async function printOne(r: Row, employeeName: string) {
   await printDocuments([{
     title: '생산입고증',
     docNo: r.prodNo,
@@ -48,8 +85,8 @@ async function printOne(r: Row) {
     extra: [
       { label: '생산된공장', value: r.fromWarehouseName ?? r.warehouseName },
       { label: '받는창고', value: r.warehouseName },
-      { label: '작업지시서', value: r.workOrderNo },
-      { label: '담당자', value: r.createdBy },
+      { label: '작업지시서', value: r.workOrderNo ?? '' },
+      { label: '담당자', value: employeeName },
     ],
     lines: [{
       itemCode: r.productCode, itemName: r.productName, unit: r.productUnit,
@@ -79,13 +116,54 @@ export default function ReceiptInquiryPage() {
   const [warehouseCond, setWarehouseCond] = useState('')
   const [projectCond, setProjectCond] = useState('')
   const [itemCond, setItemCond] = useState('')
-  const pickers = useCondPickers(['warehouses', 'projects', 'items'])
+  /*
+   * 2026-09-08 에 원본(E040408)을 열어 조건을 <b>전부</b> 쟀다 — <b>서른둘</b>이다.
+   * 사본에는 넷뿐이었다(여덟 번째 같은 구멍). 기본 기간은 [최근30일(+1개월)] 이고,
+   * [기타] 안에는 <b>수정일자순(정렬)</b>과 <b>외주공장만</b> 둘이 있다.
+   */
+  const [fromWhCond, setFromWhCond] = useState('')
+  const [toWhCond, setToWhCond] = useState('')
+  const [categoryCond, setCategoryCond] = useState('')
+  const [itemGroupCond, setItemGroupCond] = useState('')
+  const [empCond, setEmpCond] = useState('')
+  const [noteCond, setNoteCond] = useState('')
+  const [specCond, setSpecCond] = useState('')
+  const [authorCond, setAuthorCond] = useState('')
+  const [entryCond, setEntryCond] = useState('')
+  const [madeFrom, setMadeFrom] = useState('')
+  const [madeTo, setMadeTo] = useState('')
+  const [editedFrom, setEditedFrom] = useState('')
+  const [editedTo, setEditedTo] = useState('')
+  const [byUpdated, setByUpdated] = useState(false)
+  /*
+   * 원본 [기타]의 <b>[외주공장만]</b> — 기본은 꺼짐이다(2026-09-08 실측).
+   * '창고 갈래를 응답이 안 싣는다' 는 이유로 못 만들고 있었는데, 그 갈래를 실었으니
+   * 이제 만든다. <b>만든 자리(보내는창고)</b>가 외주인 줄만 남긴다 — 생산입고에서
+   * 물건이 만들어진 곳이 보내는창고이고, 외주로 돌린 것을 보려는 체크이기 때문이다.
+   */
+  const [outsourcedOnly, setOutsourcedOnly] = useState(false)
+  const mgmt = useItemMgmt()
+  const pickers = useCondPickers(['warehouses', 'projects', 'items', 'employees'])
+  /**
+   * 담당자 이름. 서버가 못 붙여서(production 은 hr 을 못 참조) 화면이 붙인다.
+   * 사원 후보의 value 는 <b>이름</b>이고 id 는 따로 있다 — value 를 id 와 견주어 [담당자명] 칸이 늘 비고
+   * [담당자] 조건을 고르면 목록이 통째로 비었다.
+   */
+  const empName = (id: number | null) =>
+    (id == null ? '' : (pickers.employees.find((e) => e.id === id)?.name ?? ''))
 
   async function load() {
     setLoading(true)
     setError('')
     try {
-      const res = await api.get<Row[]>('/productions')
+      /*
+       * <b>고른 기간을 서버에도 보낸다.</b> 이 표는 실적을 <b>그 실적일로</b> 거른다
+       * (아래 <code>r.productionDate &gt;= from</code>) — 서버에 같은 창을 주면 된다.
+       */
+      const period: Record<string, string> = {}
+      if (from) period.from = from
+      if (to) period.to = to
+      const res = await api.get<Row[]>('/productions', { params: period })
       setRows([...res.data].sort((a, b) => (a.productionDate < b.productionDate ? 1 : a.productionDate > b.productionDate ? -1 : b.id - a.id)))
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -94,13 +172,36 @@ export default function ReceiptInquiryPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  /* 기간을 바꾸면 그 기간으로 다시 받는다. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [from, to])
 
   /**
    * 원본은 목록 첫 칸에서 줄을 골라 [선택삭제] 한다(사본 실측: CHK_H 열).
    * 우리는 줄마다 지우거나 아예 못 지웠다 — 잘못 넣은 열 건을 치우려면 열 번 눌러야 했다.
    */
   const [checked, setChecked] = useState<Set<number>>(new Set())
+  /** 원본 탭 [전체 · 결재중 · 미확인 · 확인]. */
+  const [statusTab, setStatusTab] = useState<(typeof STATUS_TABS)[number]>('전체')
+  const [statusPick, setStatusPick] = useState(false)
+
+  /**
+   * 원본 [진행상태변경] — 고른 줄의 전표를 미확인 ↔ 확인. 확인한 전표는 확인취소를 먼저 해야 고치거나 지울 수 있다.
+   * 결재중은 전자결재가 정한다.
+   */
+  async function changeStatus(status: 'CONFIRMED' | 'UNCONFIRMED') {
+    const nos = [...new Set(shown.filter((x) => checked.has(x.id)).map((x) => x.prodNo))]
+    if (nos.length === 0) { setError('바꿀 줄을 고르세요.'); return }
+    setError('')
+    try {
+      const r = await api.post<{ changed: number }>('/productions/slips/status', { prodNos: nos, status })
+      setChecked(new Set())
+      await load()
+      setError(r.data.changed === 0 ? '이미 그 진행상태입니다.' : '')
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    }
+  }
 
   async function removeChecked() {
     const targets = shown.filter((x) => checked.has(x.id))
@@ -114,13 +215,31 @@ export default function ReceiptInquiryPage() {
     if (failed > 0) setError(`${targets.length - failed}건 삭제, ${failed}건 실패(참조 중이면 못 지운다).`)
   }
 
-  const shown = rows.filter((r) => (!keyword
-    || r.productName.includes(keyword) || r.prodNo.includes(keyword) || r.workOrderNo.includes(keyword))
-    && (!warehouseCond || r.warehouseName.includes(warehouseCond)
-      || (r.fromWarehouseName ?? '').includes(warehouseCond))
-    && (!projectCond || (r.projectName ?? '').includes(projectCond))
-    && (!itemCond || r.productName.includes(itemCond))
-    && (!from || r.productionDate >= from) && (!to || r.productionDate <= to))
+  const shown = rows.filter((r) => (statusTab === '전체' || STATUS_OF[statusTab] === r.confirmStatus)
+    && (!keyword
+    || r.productName.includes(keyword) || r.prodNo.includes(keyword) || (r.workOrderNo ?? '').includes(keyword))
+    && (!warehouseCond || String(r.warehouseId) === warehouseCond
+      || String(r.fromWarehouseId) === warehouseCond)
+    && (!projectCond || String(r.projectId) === projectCond)
+    && (!itemCond || String(r.productId) === itemCond)
+    && (!from || r.productionDate >= from) && (!to || r.productionDate <= to)
+    /* [보내는창고]·[받는창고] — 위 [창고]와 달리 한쪽만 본다. */
+    && (!fromWhCond || String(r.fromWarehouseId) === fromWhCond)
+    && (!toWhCond || String(r.warehouseId) === toWhCond)
+    && (!categoryCond || (r.productCategoryName ?? '') === categoryCond)
+    && (!itemGroupCond || mgmt.groupOf(r.productId) === itemGroupCond)
+    && (!empCond || empName(r.employeeId).includes(empCond))
+    && (!noteCond || (r.note ?? '').includes(noteCond))
+    && (!specCond || (r.productSpec ?? '') === specCond)
+    && (!authorCond || (r.createdBy ?? '') === authorCond)
+    && (!entryCond || (r.entryType ?? 'I') === entryCond)
+    && (!madeFrom || (r.createdAt ?? '').slice(0, 10) >= madeFrom)
+    && (!madeTo || ((r.createdAt ?? '') !== '' && r.createdAt!.slice(0, 10) <= madeTo))
+    && (!editedFrom || (r.updatedAt ?? '').slice(0, 10) >= editedFrom)
+    && (!editedTo || ((r.updatedAt ?? '') !== '' && r.updatedAt!.slice(0, 10) <= editedTo))
+    && (!outsourcedOnly || (r.fromWarehouseKind ?? '') === '외주'))
+    /* 원본 [기타]의 수정일자순(정렬). */
+    .sort((a, b) => (byUpdated ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') : 0))
 
   return (
     <EcListShell
@@ -132,23 +251,39 @@ export default function ReceiptInquiryPage() {
        * 원본 생산입고조회의 버튼은 신규(F2) · 진행상태변경 · 보내기 · 인쇄 · 바코드(품목) ·
        * 전자결재 · 선택삭제 · 이력조회다. 우리에겐 [신규(F2)] 자리가 비어 있었다 —
        * 조회에서 "하나 더 넣자" 가 되면 메뉴를 다시 뒤져야 했다.
-       * 원본의 신규는 생산입고 I(BOM기준소모)로 간다.
+       * 원본의 신규는 생산입고 I(BOM기준소모)로 가고, 단추 이름도 [생산입고I] 다(loginaa 실측 2026-10-02).
        */
+      newLabel="생산입고I"
       onNew={() => navigate('/production/receipt-bom')}
       actions={[{ label: '검색(F8)', onClick: load },
+                { label: '진행상태변경', onClick: () => setStatusPick((v) => !v), disabled: checked.size === 0 },
+                { label: '인쇄' },
                 { label: `선택삭제${checked.size ? ` (${checked.size})` : ''}`, onClick: removeChecked },
                 { label: 'Excel' }]}
     >
+      {statusPick && (
+        <div className="flex items-center gap-[6px] mb-[8px] py-[6px] px-[8px] border border-ec-line border-solid bg-white">
+          <span className="text-[12.5px]">고른 {checked.size}줄의 전표를</span>
+          <button type="button" className="ec-btn ec-btn-primary" onClick={() => { setStatusPick(false); void changeStatus('CONFIRMED') }}>확인</button>
+          <button type="button" className="ec-btn" onClick={() => { setStatusPick(false); void changeStatus('UNCONFIRMED') }}>확인취소</button>
+          <button type="button" className="ec-btn" onClick={() => setStatusPick(false)}>닫기</button>
+        </div>
+      )}
+      <div className="ec-pills" style={{ marginBottom: 8 }}>
+        {STATUS_TABS.map((t) => (
+          <button key={t} type="button" className={`ec-pill no-ec${statusTab === t ? ' active' : ''}`} onClick={() => setStatusTab(t)}>{t}</button>
+        ))}
+      </div>
       {/* 원본 조건 차례: 창고 · 프로젝트 · 품목 */}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         {/* 원본 조건 첫째 <b>[기준일자]</b>(사본 실측). */}
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from}
                  onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
           <input type="date" className="ec-input" value={to}
                  onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from}
               onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
@@ -156,6 +291,15 @@ export default function ReceiptInquiryPage() {
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={170} emptyLabel="전체"
                            value={warehouseCond} onChange={setWarehouseCond} items={pickers.warehouses} />
+        </EcCond>
+        {/* 원본 차례: 창고 · (창고계층그룹) · 보내는창고 · 받는창고 · 프로젝트 · 품목 · 품목구분 · 품목그룹1 … */}
+        <EcCond label="보내는창고" pick>
+          <CodePickerField label="보내는창고" hideLabel width={170} emptyLabel="전체"
+                           value={fromWhCond} onChange={setFromWhCond} items={pickers.warehouses} />
+        </EcCond>
+        <EcCond label="받는창고" pick>
+          <CodePickerField label="받는창고" hideLabel width={170} emptyLabel="전체"
+                           value={toWhCond} onChange={setToWhCond} items={pickers.warehouses} />
         </EcCond>
         <EcCond label="프로젝트" pick>
           <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
@@ -165,58 +309,143 @@ export default function ReceiptInquiryPage() {
           <CodePickerField label="품목" hideLabel width={170} emptyLabel="전체"
                            value={itemCond} onChange={setItemCond} items={pickers.items} />
         </EcCond>
+        <EcCond label="품목구분" pick>
+          <CodePickerField label="품목구분" hideLabel width={150} emptyLabel="전체"
+                           value={categoryCond} onChange={setCategoryCond}
+                           items={[...new Set(rows.map((r) => r.productCategoryName).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="품목그룹1" pick>
+          <CodePickerField label="품목그룹1" hideLabel width={150} emptyLabel="전체"
+                           value={itemGroupCond} onChange={setItemGroupCond}
+                           items={mgmt.groupOptions.map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        {/* 원본 차례: (품목그룹2·3·계층) · 기타 · (발송여부 · 오더관리번호) · 담당자 · 생산입고구분 · 적요 · 규격 … */}
+        <EcCond label="기타">
+          <label className="text-[12.5px] flex items-center gap-[4px]">
+            <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
+            수정일자순(정렬)
+          </label>
+          <label className="text-[12.5px] flex items-center gap-[4px] ml-[10px]">
+            <input type="checkbox" checked={outsourcedOnly}
+                   onChange={(e) => setOutsourcedOnly(e.target.checked)} />
+            외주공장만
+          </label>
+        </EcCond>
+        <EcCond label="담당자" pick>
+          <CodePickerField label="담당자" hideLabel width={170} emptyLabel="전체"
+                           value={empCond} onChange={setEmpCond} items={pickers.employees} />
+        </EcCond>
+        {/* 원본 조건 [생산입고구분] — 생산입고 I·II·III 중 어느 화면으로 넣은 전표인가. */}
+        <EcCond label="생산입고구분">
+          <select className="ec-input" value={entryCond} onChange={(e) => setEntryCond(e.target.value)} style={{ width: 120 }}>
+            <option value="">전체</option>
+            <option value="I">생산입고 I</option>
+            <option value="II">생산입고 II</option>
+            <option value="III">생산입고 III</option>
+          </select>
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" value={noteCond}
+                 onChange={(e) => setNoteCond(e.target.value)} style={{ width: 170 }} />
+        </EcCond>
+        <EcCond label="규격" pick>
+          <CodePickerField label="규격" hideLabel width={150} emptyLabel="전체"
+                           value={specCond} onChange={setSpecCond}
+                           items={[...new Set(rows.map((r) => r.productSpec).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        {/* 원본 차례: 규격 · (채무번호) · 최초작성자 · (최종수정자) · 최초작성일자 · 최종작업일자 … */}
+        <EcCond label="최초작성자" pick>
+          <CodePickerField label="최초작성자" hideLabel width={150} emptyLabel="전체"
+                           value={authorCond} onChange={setAuthorCond}
+                           items={[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="최초작성일자">
+          <input type="date" className="ec-input" value={madeFrom} onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
+          <input type="date" className="ec-input" value={madeTo} onChange={(e) => setMadeTo(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
+        <EcCond label="최종작업일자">
+          <input type="date" className="ec-input" value={editedFrom} onChange={(e) => setEditedFrom(e.target.value)} style={{ width: 140 }} />
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
+          <input type="date" className="ec-input" value={editedTo} onChange={(e) => setEditedTo(e.target.value)} style={{ width: 140 }} />
+        </EcCond>
       </ul>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34, textAlign: 'center' }}>
+            <th className="w-[34px] text-center">
               <input type="checkbox"
                      checked={shown.length > 0 && shown.every((x) => checked.has(x.id))}
                      onChange={() => setChecked(
                        shown.every((x) => checked.has(x.id)) ? new Set() : new Set(shown.map((x) => x.id)),
                      )} />
             </th>
-            <th>일자</th>
-            <th>입고번호</th>
-            <th>작업지시번호</th>
-            <th>완제품명</th>
-            <th style={{ textAlign: 'right' }}>입고수량</th>
-            <th>단위</th>
-            <th>생산된공장</th>
-            <th>받는창고</th>
-            <th>담당자</th>
+            {/*
+              원본 격자(2026-09-09 E040408 실측):
+              <b>일자-No. · 생산된공장명 · 받는창고명 · 품목명[규격] · 수량 · 담당자명 ·
+              작업지시서 · 인쇄</b>.
+              우리는 (1) 일자와 번호를 두 칸으로 갈랐고, (2) <b>작업지시번호를 맨 앞</b>에
+              두었는데 원본은 <b>담당자명 뒤</b>이고 이름도 [작업지시서] 다,
+              (3) 만든 자리·받는 자리를 <b>품목 뒤</b>에 두었는데 원본은 <b>품목 앞</b>이다,
+              (4) 이름이 다섯 다르다 - 완제품명/입고수량/생산된공장/받는창고/담당자.
+              [단위]는 원본에 없지만 우리가 더 두는 열이라 맨 뒤에 붙인다.
+            */}
+            <th className="text-center">일자-No.</th>
+            <th>생산된공장명</th>
+            <th>받는창고명</th>
+            <th>품목명[규격]</th>
+            <th className="text-right">수량</th>
+            <th>담당자명</th>
+            <th>작업지시서</th>
             {/* 원본 생산입고조회의 마지막 열 [인쇄]. */}
-            <th style={{ width: 60, textAlign: 'center' }}>인쇄</th>
+            <th className="w-[60px] text-center">인쇄</th>
+            <th>단위</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <input type="checkbox" checked={checked.has(r.id)} onChange={() => setChecked((prev) => {
                   const next = new Set(prev)
                   if (next.has(r.id)) next.delete(r.id); else next.add(r.id)
                   return next
                 })} />
               </td>
-              <td style={{ fontFamily: 'monospace' }}>{dateText(r.productionDate)}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.prodNo}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.workOrderNo}</td>
-              <td>[{r.productCode}] {r.productName}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue-dark)' }}>{r.producedQty.toLocaleString()}</td>
-              <td>{r.productUnit}</td>
+              {/* 원본은 일자와 번호를 한 칸에 적는다. */}
+              {/* 원본처럼 번호를 누르면 그 전표를 넣은 화면(I·II·III)으로 열어 고친다. */}
+              <td className="text-center">
+                <a href={`${ENTRY_PATH[r.entryType] ?? ENTRY_PATH.I}?no=${encodeURIComponent(r.prodNo)}`}
+                   style={{ color: 'var(--ec-blue)', cursor: 'pointer' }}
+                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate(e.currentTarget.getAttribute('href')!) }}>
+                  {dateNo(r.productionDate, r.prodNo)}
+                </a>
+              </td>
               <td>{r.fromWarehouseName ?? r.warehouseName}</td>
               <td>{r.warehouseName}</td>
-              <td>{r.createdBy ?? ''}</td>
-              <td style={{ textAlign: 'center' }}>
-                <button onClick={() => printOne(r)} style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
+              {/*
+                원본 열 이름이 [품목명[규격]] 이라 규격을 대괄호에 붙인다.
+                품목코드는 여기서 빠진다 - 원본도 이 칸에 코드를 안 적는다(조건 판의
+                [품목] 코드도움에서 코드로 고른다).
+              */}
+              <td>{r.productName}{r.productSpec ? ` [${r.productSpec}]` : ''}</td>
+              <td className="text-right font-semibold text-ec-navy">{r.producedQty.toLocaleString()}</td>
+              {/* [담당자명] 은 전표의 담당자(사원)다 — 입력한 로그인 사용자가 아니다. */}
+              <td>{empName(r.employeeId)}</td>
+              <td>{r.workOrderNo ?? ''}</td>
+              <td className="text-center">
+                <button onClick={() => printOne(r, empName(r.employeeId))} style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
               </td>
+              <td>{r.productUnit}</td>
             </tr>
           ))}
         </tbody>

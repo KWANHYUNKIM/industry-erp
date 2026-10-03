@@ -1,14 +1,14 @@
 package com.erp.config;
 
-import com.erp.groupware.domain.BoardPost;
-import com.erp.groupware.domain.Survey;
-import com.erp.groupware.domain.SurveyQuestion;
-import com.erp.groupware.domain.SurveyStatus;
-import com.erp.groupware.domain.enums.SurveyQuestionType;
-import com.erp.groupware.domain.SupplyItem;
-import com.erp.groupware.repository.BoardRepository;
-import com.erp.groupware.repository.SupplyRepository;
-import com.erp.groupware.repository.SurveyRepository;
+import com.erp.groupware.board.BoardPost;
+import com.erp.groupware.survey.Survey;
+import com.erp.groupware.survey.SurveyQuestion;
+import com.erp.groupware.survey.SurveyStatus;
+import com.erp.groupware.survey.SurveyQuestionType;
+import com.erp.groupware.supply.SupplyItem;
+import com.erp.groupware.board.BoardRepository;
+import com.erp.groupware.supply.SupplyRepository;
+import com.erp.groupware.survey.SurveyRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;

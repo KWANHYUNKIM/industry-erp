@@ -1,0 +1,51 @@
+{
+  "about": "원본 loginaa 외근 자료를 우리 화면으로만 똑같이 넣고(이동수단등록 · 외근입력에서 차량 고르기 · 계기판), 외근조회 · 외근현황 숫자가 원본과 같은지 본다 — 원본 2026-10-03: 9/07 789하7899 K5[H] 59,000→59,500 서울 강동→충남 천안 · 9/10 123하1234 k5[H] 16,000→16,500 서울 강동→충남 당진, 외근현황 'K5[H] 계 75,000.00 · 76,000.00 · 1,000.00' · 합계 같음. 이름에 QA 를 붙이고 끝에 지운다. node qa/shot.mjs qa/flows/mirror-fieldwork.json",
+  "shots": [
+    {
+      "name": "이동수단 둘을 화면에서 등록",
+      "path": "/groupware/field-works",
+      "steps": [
+        "wait:600",
+        "click:신규(F2)",
+        "js:document.querySelector('button[aria-label=\"이동수단검색\"]').click(); true",
+        "wait:500",
+        "click:신규 및 수정",
+        "wait:500",
+        "js:(() => { const reg = (code, name) => { const list = [...document.querySelectorAll('[role=dialog]')].find((d) => d.getAttribute('aria-label') === '이동수단리스트'); [...list.querySelectorAll('button')].find((b) => b.textContent.trim() === '신규(F2)').click(); return new Promise((ok) => setTimeout(() => { const d = [...document.querySelectorAll('[role=dialog]')].find((x) => x.getAttribute('aria-label') === '이동수단등록'); const set = (ph, v) => { const i = d.querySelector('input[placeholder=\"' + ph + '\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, v); i.dispatchEvent(new Event('input', { bubbles: true })) }; set('이동수단코드', code); set('이동수단명', name); const s = d.querySelector('select[aria-label=\"차종\"]'); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s, '중형차'); s.dispatchEvent(new Event('change', { bubbles: true })); [...d.querySelectorAll('button')].find((b) => b.textContent.trim() === '저장(F8)').click(); setTimeout(ok, 900) }, 400)) }; return reg('QA123하1234', 'k5[H]').then(() => reg('QA789하7899', 'K5[H]')).then(() => 'ok') })()",
+        "wait:800",
+        "expect:(() => { const list = [...document.querySelectorAll('[role=dialog]')].find((d) => d.getAttribute('aria-label') === '이동수단리스트'); const t = list.innerText; return t.includes('QA123하1234') && t.includes('QA789하7899') })()"
+      ]
+    },
+    {
+      "name": "외근 둘을 화면에서 입력(차량 고르기 · 계기판 · 출발 · 도착 · 적요)",
+      "path": "/groupware/field-works",
+      "steps": [
+        "wait:600",
+        "js:window.__trip = (date, code, before, after, dest) => new Promise((ok) => { [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '신규(F2)').click(); setTimeout(() => { const f = [...document.querySelectorAll('[role=dialog]')].find((d) => d.getAttribute('aria-label') === '외근입력'); const setv = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })) }; setv(f.querySelector('input[type=date]'), date); f.querySelector('button[aria-label=\"이동수단검색\"]').click(); setTimeout(() => { const s = [...document.querySelectorAll('[role=dialog]')].find((d) => d.getAttribute('aria-label') === '이동수단검색'); [...s.querySelectorAll('tbody button')].find((b) => b.textContent.trim() === code).click(); setTimeout(() => { const g = (ph) => f.querySelector('input[placeholder=\"' + ph + '\"]'); setv(g('주행전 계기판거리'), String(before)); setv(g('주행후 계기판거리'), String(after)); setv(g('사용목적명'), '일반업무'); setv(g('출발지 주소'), '서울 강동'); setv(g('도착지 주소'), dest); setv(g('적요'), 'QA그룹웨어-외근일정 수행'); setTimeout(() => { [...f.querySelectorAll('button')].find((b) => b.textContent.trim() === '저장(F8)').click(); setTimeout(ok, 1200) }, 300) }, 900) }, 700) }, 500) }); true",
+        "js:window.__trip('2026-09-07', 'QA789하7899', 59000, 59500, '충남 천안').then(() => window.__trip('2026-09-10', 'QA123하1234', 16000, 16500, '충남 당진')).then(() => 'saved')",
+        "wait:1500",
+        "js:location.reload(); true",
+        "wait:1500",
+        "expect:(() => { const trs = [...document.querySelectorAll('tbody tr')].filter((tr) => tr.innerText.includes('QA그룹웨어-외근일정 수행')); return trs.length === 2 && trs.some((tr) => tr.innerText.includes('2026/09/10 -') && tr.innerText.includes('QA123하1234') && tr.innerText.includes('k5[H]') && tr.innerText.includes('서울 강동') && tr.innerText.includes('충남 당진') && tr.innerText.includes('500.00')) && trs.some((tr) => tr.innerText.includes('2026/09/07 -') && tr.innerText.includes('QA789하7899') && tr.innerText.includes('충남 천안') && tr.innerText.includes('500.00')) })()"
+      ]
+    },
+    {
+      "name": "외근현황 — 원본과 같은 숫자",
+      "path": "/groupware/field-work-status",
+      "steps": [
+        "wait:600",
+        "js:(() => { const ins = document.querySelectorAll('.ec-form input[type=date]'); const setv = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })) }; setv(ins[0], '2026-09-03'); setv(ins[1], '2026-10-03'); const v = document.querySelector('input[placeholder=\"이동수단\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(v, 'QA'); v.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "click:검색(F8)",
+        "wait:1000",
+        "expect:[...document.querySelectorAll('tbody tr')].map((tr) => tr.innerText.replace(/\\s+/g, ' ').trim()).join(' | ').includes('2026/09/07 K5[H] 시스템 관리자 일반업무 59,000.00 59,500.00 500.00 QA그룹웨어-외근일정 수행 | 2026/09/10 k5[H] 시스템 관리자 일반업무 16,000.00 16,500.00 500.00 QA그룹웨어-외근일정 수행 | K5[H] 계 75,000.00 76,000.00 1,000.00 | 합계 75,000.00 76,000.00 1,000.00')"
+      ]
+    },
+    {
+      "name": "정리",
+      "path": "/groupware/field-works",
+      "steps": [
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const rows = (await (await fetch('/api/field-works?from=2026-01-01&to=2026-12-31', { headers: H })).json()).rows.filter((r) => (r.purpose ?? '').startsWith('QA그룹웨어-')); const out = []; for (const r of rows) out.push((await fetch('/api/field-works/' + r.id, { method: 'DELETE', headers: H })).status); const vs = await (await fetch('/api/field-vehicles?all=true', { headers: H })).json(); for (const v of vs.filter((x) => x.code.startsWith('QA'))) out.push((await fetch('/api/field-vehicles/' + v.id, { method: 'DELETE', headers: H })).status); return 'del ' + out.join(',') })()"
+      ]
+    }
+  ]
+}

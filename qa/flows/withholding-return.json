@@ -1,0 +1,62 @@
+{
+  "about": "원천징수이행상황신고서(E030101) — 원본처럼 [신규]로 신고서를 만들어 목록에 두고, 같은 귀속·지급연월은 막고, [조회]로 서식 줄(A01 · A10 · A99)을 보고, [선택삭제]로 지운다. 예전엔 귀속월만 골라 세는 화면이라 신고서를 남길 수 없었다.",
+  "shots": [
+    {
+      "name": "[신규] → 저장",
+      "path": "/accounting/withholding",
+      "steps": [
+        "js:window.__set = (el, v) => { const d = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value'); d.set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; window.__btn = (t) => [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === t); true",
+        "wait:800",
+        "js:window.__btn('신규(F2)').click(); true",
+        "wait:400",
+        "js:(() => { const m = document.querySelectorAll('[role=dialog] input[type=month]'); window.__set(m[0], '2091-04'); window.__set(m[1], '2091-04'); return true })()",
+        "js:window.__btn('저장(F8)').click(); true",
+        "wait:1000",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes('2091/04'))"
+      ]
+    },
+    {
+      "name": "같은 귀속·지급연월은 막는다",
+      "path": "/accounting/withholding",
+      "steps": [
+        "allowapi:409: /api/withholding/returns",
+        "js:window.__set = (el, v) => { const d = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value'); d.set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; window.__btn = (t) => [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === t); true",
+        "wait:800",
+        "js:window.__btn('신규(F2)').click(); true",
+        "wait:400",
+        "js:(() => { const m = document.querySelectorAll('[role=dialog] input[type=month]'); window.__set(m[0], '2091-04'); window.__set(m[1], '2091-04'); return true })()",
+        "js:window.__btn('저장(F8)').click(); true",
+        "wait:800",
+        "expect:document.querySelector('[role=dialog]').innerText.includes('동일한 원천징수이행상황신고서가 있습니다.')",
+        "js:window.__btn('닫기').click(); true"
+      ]
+    },
+    {
+      "name": "[조회] — 서식 줄",
+      "path": "/accounting/withholding",
+      "steps": [
+        "wait:800",
+        "js:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('2091/04')); [...tr.querySelectorAll('a')].find((a) => a.innerText === '조회').click(); return true })()",
+        "wait:1000",
+        "expect:['A01', 'A10', 'A99'].every((c) => document.querySelector('[role=dialog]').innerText.includes(c))",
+        "js:[...document.querySelectorAll('[role=dialog] button')].find((b) => b.innerText.trim() === '닫기').click(); true"
+      ]
+    },
+    {
+      "name": "[선택삭제]",
+      "path": "/accounting/withholding",
+      "steps": [
+        "js:window.__btn = (t) => [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === t); true",
+        "wait:800",
+        "expect:window.__btn('선택삭제').disabled",
+        "js:[...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('2091/04')).querySelector('input[type=checkbox]').click(); true",
+        "js:window.__btn('선택삭제').click(); true",
+        "wait:300",
+        "expect:document.body.innerText.includes('삭제한 데이터는 복구되지 않습니다.')",
+        "js:window.__btn('확인').click(); true",
+        "wait:1000",
+        "expect:!([...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes('2091/04')))"
+      ]
+    }
+  ]
+}

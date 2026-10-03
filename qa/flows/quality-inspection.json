@@ -1,0 +1,54 @@
+{
+  "about": "품질검사조회 · 입력(E040622 · E040621) — 2026-10-04 원본: 품목 줄을 든 전표(검사방법 전수 · 샘플링 · 수량 · 시료 · 적격 = 시료 − 부적격 · 합격여부). 빈 저장은 '자료를 입력 바랍니다.', 시료 > 수량은 '시료는 수량보다 클 수 없습니다.'. 저장하면 진행중, 목록의 진행중을 누르면 완료. 여러 줄이면 '○○ 외 1건'. 만든 검사는 지운다.",
+  "shots": [
+    {
+      "name": "빈 저장 막힘 → 시료>수량 막힘 → 두 줄 저장(샘플링 5/3/부적격1 + 전수 2) → 목록 '외 1건' 7 · 5.00 · 4.00 · 1.00 · 진행중 → 완료 → 지움",
+      "path": "/quality/inspection",
+      "steps": [
+        "allowapi:400: /api/quality-inspections",
+        "wait:2000",
+        "click:신규(F2)",
+        "wait:600",
+        "clicklast:저장(F8)",
+        "wait:400",
+        "expect:document.body.innerText.includes('자료를 입력 바랍니다.')",
+        "clicklast:닫기",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const it = (await (await fetch('/api/items', { headers: H })).json()).filter((x) => x.active !== false); const r = await fetch('/api/quality-inspections', { method: 'POST', headers: H, body: JSON.stringify({ remark: 'QA재고2', lines: [{ itemId: it[0].id, method: 'SAMPLING', quantity: 5, sampleQty: 8 }] }) }); const j = await r.json(); sessionStorage.setItem('qi-items', JSON.stringify([it[0].id, it[1].id, it[0].name])); return r.status === 400 && j.message === '시료는 수량보다 클 수 없습니다.' })()",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const [a, b] = JSON.parse(sessionStorage.getItem('qi-items')); const r = await (await fetch('/api/quality-inspections', { method: 'POST', headers: H, body: JSON.stringify({ remark: 'QA재고2', lines: [{ itemId: a, method: 'SAMPLING', quantity: 5, sampleQty: 3, defectQty: 1, passResult: 'FAIL' }, { itemId: b, method: 'FULL', quantity: 2 }] }) })).json(); sessionStorage.setItem('qi', JSON.stringify({ id: r.id, no: r.inspectionNo })); return r.inspectionNo + ' 시료 ' + r.inspectedQty + ' 불량 ' + r.defectQty + ' ' + r.resultName })()",
+        "js:location.reload(); true",
+        "wait:3000",
+        "expect:[...document.querySelectorAll('table thead th')].map((t) => t.innerText.trim()).join('|') === '|검사번호|품목|수량|시료|적격|부적격|출처|종결여부|인쇄'",
+        "expect:(() => { const name = JSON.parse(sessionStorage.getItem('qi-items'))[2]; const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes(name + ' 외 1건')); if (!tr) return false; const c = [...tr.cells].map((x) => x.innerText.trim()); return c[3] === '7' && c[4] === '5.00' && c[5] === '4.00' && c[6] === '1.00' && c[8] === '진행중' && /^\\d\\d\\/\\d\\d\\/\\d\\d-\\d+$/.test(c[1]) })()",
+        "js:(() => { const name = JSON.parse(sessionStorage.getItem('qi-items'))[2]; const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes(name + ' 외 1건')); tr.cells[8].querySelector('button').click(); return true })()",
+        "wait:1500",
+        "expect:![...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes(JSON.parse(sessionStorage.getItem('qi-items'))[2] + ' 외 1건'))",
+        "click:완료",
+        "wait:500",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes(JSON.parse(sessionStorage.getItem('qi-items'))[2] + ' 외 1건') && t.innerText.includes('완료'))",
+        "expect:(async () => { const x = JSON.parse(sessionStorage.getItem('qi')); const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = await fetch('/api/quality-inspections/' + x.id, { method: 'DELETE', headers: H }); return d.status === 204 })()"
+      ]
+    },
+    {
+      "name": "[검사요청] → 요청 고르기 → [잔량적용] 으로 줄이 차고 → 저장하면 요청이 완료 · 연결전표 → 지움",
+      "path": "/quality/inspection",
+      "steps": [
+        "wait:1500",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const it = (await (await fetch('/api/items', { headers: H })).json()).filter((x) => x.active !== false); const r = await (await fetch('/api/quality-inspection-requests', { method: 'POST', headers: H, body: JSON.stringify({ requester: 'QA재고2-당김', lines: [{ itemId: it[0].id, method: 'FULL', quantity: 3 }] }) })).json(); sessionStorage.setItem('qp', JSON.stringify({ id: r.id, no: r.requestNo })); return r.requestNo })()",
+        "click:신규(F2)",
+        "wait:600",
+        "click:검사요청",
+        "wait:1200",
+        "js:(() => { const tr = [...document.querySelectorAll('[role=dialog] tr')].find((t) => t.innerText.includes('QA재고2-당김')); tr.querySelector('input[type=radio]').click(); return true })()",
+        "wait:300",
+        "click:잔량적용(F8)",
+        "wait:500",
+        "expect:[...document.querySelectorAll('[role=dialog] tbody input.text-right')][0].value === '3'",
+        "clicklast:저장(F8)",
+        "wait:1500",
+        "expect:(async () => { const x = JSON.parse(sessionStorage.getItem('qp')); const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const r = (await (await fetch('/api/quality-inspection-requests', { headers: H })).json()).find((y) => y.id === x.id); x.q = r.inspections[0] && r.inspections[0].id; sessionStorage.setItem('qp', JSON.stringify(x)); return r.status === 'INSPECTED' && r.inspections.length === 1 })()",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.cells[7] && t.cells[7].innerText.trim() === '검사요청')",
+        "expect:(async () => { const x = JSON.parse(sessionStorage.getItem('qp')); const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; await fetch('/api/quality-inspections/' + x.q, { method: 'DELETE', headers: H }); const d = await fetch('/api/quality-inspection-requests/' + x.id, { method: 'DELETE', headers: H }); return d.status === 204 })()"
+      ]
+    }
+  ]
+}

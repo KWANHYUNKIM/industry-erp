@@ -1,0 +1,24 @@
+{
+  "about": "외근조회(원본 E070254) — 기간 한 달 전~오늘 · 격자 8칸 → 신규 '외근입력'(이동시간 09:00~10:00, 사용자 = 나) → 이동수단 없이 저장하면 거절 → 넣으면 '2026/10/03 -1' 줄 → [선택삭제]. node qa/shot.mjs qa/flows/field-work.json",
+  "shots": [
+    {
+      "name": "목록 · 입력 · 선택삭제",
+      "path": "/groupware/field-works",
+      "steps": [
+        "expect:[...document.querySelectorAll('thead th')].slice(1).map((t) => t.textContent.trim()).join(',') === '일자No.,사용자명,이동수단코드,이동수단명,출발지 주소,도착지 주소,운행거리,적요'",
+        "click:신규(F2)",
+        "expect:document.querySelector('[role=dialog]')?.getAttribute('aria-label') === '외근입력'",
+        "expect:[...document.querySelectorAll('[role=dialog] input[type=time]')].map((i) => i.value).join('~') === '09:00~10:00'",
+        "click:저장(F8)",
+        "expect:document.querySelector('[role=dialog]')?.innerText.includes('이동수단을 입력하세요.')",
+        "js:(() => { const set = (ph, v) => { const i = document.querySelector('[role=dialog] input[placeholder=\"' + ph + '\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, v); i.dispatchEvent(new Event('input', { bubbles: true })) }; set('이동수단', 'QA12가3456'); set('이동수단명', 'QA그룹웨어-차'); set('출발지 주소', 'QA출발'); set('도착지 주소', 'QA도착'); set('운행거리', '12.5'); set('적요', 'QA그룹웨어-외근'); return true })()",
+        "click:저장(F8)",
+        "expect:!document.querySelector('[role=dialog]')",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA그룹웨어-외근') && /\\d{4}\\/\\d{2}\\/\\d{2} -\\d+/.test(tr.innerText) && tr.innerText.includes('12.50'))",
+        "js:window.confirm = () => true; [...document.querySelectorAll('tbody tr')].filter((tr) => tr.innerText.includes('QA그룹웨어-외근')).forEach((tr) => tr.cells[0].click()); true",
+        "click:선택삭제",
+        "expect:![...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA그룹웨어-외근'))"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "about": "외근입력 [이동수단] 코드도움(원본 E070254) — 🔍 '이동수단검색' [차량번호][차량명][차종] → [신규 및 수정] '이동수단리스트' → [신규(F2)] '이동수단등록'(이동수단코드 · 이동수단명 · 구분 차량/차량아님 · 차종 경차 기본) → 비우고 저장하면 '이동수단코드를 입력하세요.' → 넣고 저장 → [이전] 으로 검색 창 → 차량번호를 누르면 외근입력 이동수단 · 이동수단명이 채워진다. 시험 이동수단은 끝에 API 로 지운다. node qa/shot.mjs qa/flows/field-vehicles.json",
+  "shots": [
+    {
+      "name": "검색 → 리스트 → 등록 → 이전 → 고르기",
+      "path": "/groupware/field-works",
+      "steps": [
+        "wait:600",
+        "click:신규(F2)",
+        "js:document.querySelector('button[aria-label=\"이동수단검색\"]').click(); true",
+        "wait:500",
+        "expect:[...document.querySelectorAll('[role=dialog]')].some((d) => d.getAttribute('aria-label') === '이동수단검색' && [...d.querySelectorAll('thead th')].map((t) => t.textContent.replace(/[▼\\s]/g, '')).join(',') === '차량번호,차량명,차종')",
+        "click:신규 및 수정",
+        "wait:500",
+        "expect:[...document.querySelectorAll('[role=dialog]')].some((d) => d.getAttribute('aria-label') === '이동수단리스트')",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].find((d) => d.getAttribute('aria-label') === '이동수단리스트').querySelectorAll('button')].find((b) => b.textContent.trim() === '신규(F2)').click(); true",
+        "wait:400",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].find((x) => x.getAttribute('aria-label') === '이동수단등록'); return !!d && d.querySelector('select[aria-label=\"차종\"]').value === '경차' && [...d.querySelector('select[aria-label=\"차종\"]').options].map((o) => o.text).join(',') === '경차,소형차,준중형차,중형차,대형차,승합차,화물차' })()",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].find((d) => d.getAttribute('aria-label') === '이동수단등록').querySelectorAll('button')].find((b) => b.textContent.trim() === '저장(F8)').click(); true",
+        "wait:300",
+        "expect:[...document.querySelectorAll('[role=dialog]')].find((d) => d.getAttribute('aria-label') === '이동수단등록').innerText.includes('이동수단코드를 입력하세요.')",
+        "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].find((x) => x.getAttribute('aria-label') === '이동수단등록'); const set = (ph, v) => { const i = d.querySelector('input[placeholder=\"' + ph + '\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, v); i.dispatchEvent(new Event('input', { bubbles: true })) }; set('이동수단코드', 'QAGW12가3456'); set('이동수단명', 'QA그룹웨어-소나타'); const s = d.querySelector('select[aria-label=\"차종\"]'); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s, '중형차'); s.dispatchEvent(new Event('change', { bubbles: true })); [...d.querySelectorAll('button')].find((b) => b.textContent.trim() === '저장(F8)').click(); return true })()",
+        "wait:800",
+        "expect:[...[...document.querySelectorAll('[role=dialog]')].find((d) => d.getAttribute('aria-label') === '이동수단리스트').querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QAGW12가3456') && tr.innerText.includes('중형차'))",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].find((d) => d.getAttribute('aria-label') === '이동수단리스트').querySelectorAll('button')].find((b) => b.textContent.trim() === '이전').click(); true",
+        "wait:600",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].find((d) => d.getAttribute('aria-label') === '이동수단검색').querySelectorAll('tbody button')].find((b) => b.textContent.trim() === 'QAGW12가3456').click(); true",
+        "wait:400",
+        "expect:![...document.querySelectorAll('[role=dialog]')].some((d) => d.getAttribute('aria-label') === '이동수단검색') && document.querySelector('[role=dialog] input[placeholder=\"이동수단\"]').value === 'QAGW12가3456' && document.querySelector('[role=dialog] input[placeholder=\"이동수단명\"]').value === 'QA그룹웨어-소나타'"
+      ]
+    },
+    {
+      "name": "정리",
+      "path": "/groupware/field-works",
+      "steps": [
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const vs = await (await fetch('/api/field-vehicles?all=true', { headers: H })).json(); const out = []; for (const v of vs.filter((x) => x.code.startsWith('QAGW'))) out.push((await fetch('/api/field-vehicles/' + v.id, { method: 'DELETE', headers: H })).status); return 'del ' + out.join(',') })()"
+      ]
+    }
+  ]
+}

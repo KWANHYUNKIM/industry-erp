@@ -5,6 +5,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import EcPeriodPicks, { periodOf, ORDER_STAGE_PICKS } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
 import { useNavigate } from 'react-router-dom'
+import EcRowCap, { capRows } from '../../components/EcRowCap'
 
 /**
  * 영업 > 오더관리진행단계.
@@ -154,6 +155,8 @@ export default function OrderStagePage() {
     /* 원본 [수정일자순(정렬)] — 켜면 나중에 고친 오더가 위다. 안 켜면 서버가 준 차례 그대로. */
     .slice()
     .sort((a, b) => (byUpdated ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') : 0))
+  /* 그리는 줄만 자른다 — 자른 것은 표 위에 적는다. 세는 줄은 안 줄인다. */
+  const capped = capRows(shown, 200)
 
   const detail = detailId != null ? orders.find((o) => o.id === detailId) ?? null : null
   /** [선택상세보기] — 고른 줄을 <b>한 창에 이어서</b> 편다. 한 건씩 열었다 닫으면 견줄 수가 없다. */
@@ -219,15 +222,15 @@ export default function OrderStagePage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         {/* 원본 조건 판의 첫 줄 [기준일자] — 서버가 이 구간만 준다. */}
         <EcCond label="기준일자">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <div className="flex items-center gap-[6px] flex-wrap">
             <input type="date" className="ec-input" value={from}
                    onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-            <span style={{ color: 'var(--ec-label)' }}>~</span>
+            <span className="text-ec-label">~</span>
             <input type="date" className="ec-input" value={to}
                    onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
             <EcPeriodPicks labels={ORDER_STAGE_PICKS} currentFrom={from}
@@ -249,7 +252,7 @@ export default function OrderStagePage() {
         </EcCond>
         {/* 원본 조건 차례에서 [기타]는 [오더관리번호] 다음, [검색창내용] 앞이다(실측). */}
         <EcCond label="기타">
-          <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+          <label className="flex items-center gap-[3px] text-[12.5px]">
             <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
             수정일자순(정렬)
           </label>
@@ -278,73 +281,75 @@ export default function OrderStagePage() {
       </ul>
 
       <div className="overflow-x-auto">
+        <EcRowCap capped={capped.capped} shown={capped.rows.length} total={capped.total}
+                  hint="검색어나 유형으로 좁혀 보세요." />
         <table ref={tableRef} className="ec-grid w-full text-left">
           <thead>
             <tr>
               {/* [사용중단/재사용]·[선택상세보기]가 고를 자리. 원본도 줄마다 고르게 한다. */}
-              <th style={{ width: 30, textAlign: 'center' }}>
+              <th className="w-[30px] text-center">
                 <input type="checkbox"
                        checked={shown.length > 0 && shown.every((o) => checked.has(o.id))}
                        onChange={() => setChecked(
                          shown.every((o) => checked.has(o.id)) ? new Set() : new Set(shown.map((o) => o.id)))} />
               </th>
-              <th style={{ width: 34 }}></th>
-              <th style={{ width: 170 }}>오더관리번호</th>
+              <th className="w-[34px]"></th>
+              <th className="w-[170px]">오더관리번호</th>
               <th>오더관리명</th>
-              <th style={{ width: 100 }}>오더관리유형명</th>
-              <th style={{ width: 100 }}>기준일자</th>
+              <th className="w-[100px]">오더관리유형명</th>
+              <th className="w-[100px]">기준일자</th>
               <th>진행단계</th>
               {/* 원본 폭 실측: [오더관리유형명] 100 · [상세] 50 — 상세는 링크 한 칸이라 좁다. */}
-              <th style={{ width: 50, textAlign: 'center' }}>상세</th>
+              <th className="w-[50px] text-center">상세</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-            ) : shown.slice(0, 200).map((o, i) => {
+              <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            ) : capped.rows.map((o, i) => {
               const steps = o.orderTypeId != null ? (stepsOf.get(o.orderTypeId) ?? []) : []
               const at = steps.findIndex((s) => s.stageId === o.stageId)
               const done = steps.length > 0 && at === steps.length - 1
               return (
                 <tr key={o.id}>
-                  <td style={{ textAlign: 'center' }}>
+                  <td className="text-center">
                     <input type="checkbox" checked={checked.has(o.id)} onChange={() => setChecked((prev) => {
                       const next = new Set(prev)
                       if (next.has(o.id)) next.delete(o.id); else next.add(o.id)
                       return next
                     })} />
                   </td>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                  <td style={{ fontFamily: 'monospace' }}>{o.orderNo}</td>
+                  <td className="text-center text-ec-hint">{i + 1}</td>
+                  <td>{o.orderNo}</td>
                   <td>
                     {o.partnerName}
-                    <span style={{ color: '#8a929c', fontSize: 11.5 }}>
+                    <span className="text-ec-hint text-[11.5px]">
                       {o.lines.length > 0 && ` · ${o.lines[0].itemName}${o.lines.length > 1 ? ` 외 ${o.lines.length - 1}` : ''}`}
                     </span>
                   </td>
                   <td>
-                    {o.orderTypeName ?? <span style={{ color: '#c9ced6' }}>(미지정)</span>}
+                    {o.orderTypeName ?? <span className="text-ec-off">(미지정)</span>}
                   </td>
-                  <td style={{ fontFamily: 'monospace' }}>{o.orderDate.replace(/-/g, '/')}</td>
+                  <td>{o.orderDate.replace(/-/g, '/')}</td>
                   <td>
                     {/* 유형에 적힌 순서를 늘어놓고 현재 위치를 짚는다. 단계 이름만 보여 주면
                         "다음이 무엇인지" 를 알 수 없다. */}
                     {steps.length === 0 ? (
-                      <span style={{ color: '#c9ced6' }}>유형에 단계가 없습니다</span>
+                      <span className="text-ec-off">유형에 단계가 없습니다</span>
                     ) : steps.map((s, k) => (
                       <span key={s.seq}>
-                        {k > 0 && <span style={{ color: '#c9ced6', margin: '0 3px' }}>›</span>}
+                        {k > 0 && <span className="text-ec-off my-0 mx-[3px]">›</span>}
                         <span style={{
                           fontWeight: s.stageId === o.stageId ? 700 : 400,
                           color: s.stageId === o.stageId ? 'var(--ec-blue-dark)'
-                            : (at >= 0 && k < at ? '#1c7c3c' : '#9aa1ab'),
+                            : (at >= 0 && k < at ? 'var(--ec-success)' : 'var(--ec-text-hint)'),
                         }}>{s.stageName}</span>
                       </span>
                     ))}
                   </td>
-                  <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                  <td className="text-center whitespace-nowrap">
                     {o.orderTypeId == null ? (
                       <select className="ec-input" style={{ width: 120, fontSize: 11.5 }} defaultValue=""
                               onChange={(e) => e.target.value && patch(o, `?orderTypeId=${e.target.value}`)}>
@@ -354,13 +359,13 @@ export default function OrderStagePage() {
                     ) : (
                       <>
                         <button onClick={() => patch(o, '')} disabled={done}
-                                style={{ color: done ? '#c9ced6' : 'var(--ec-blue)', marginRight: 6, background: 'none', border: 'none', cursor: done ? 'default' : 'pointer', fontSize: 12 }}>
+                                style={{ color: done ? 'var(--ec-text-off)' : 'var(--ec-blue)', marginRight: 6, background: 'none', border: 'none', cursor: done ? 'default' : 'pointer', fontSize: 12 }}>
                           다음단계
                         </button>
                       </>
                     )}
                     <button onClick={() => setDetailId(o.id)}
-                            style={{ color: '#5a626e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>
+                            style={{ color: 'var(--ec-label)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>
                       상세
                     </button>
                   </td>
@@ -370,7 +375,7 @@ export default function OrderStagePage() {
           </tbody>
         </table>
         {shown.length > 200 && (
-          <p style={{ fontSize: 11.5, color: '#c07a00', marginTop: 6 }}>
+          <p className="text-[11.5px] text-ec-warn mt-[6px]">
             * 앞의 200건만 보여 줍니다({shown.length}건 중). 조건을 좁혀 주세요.
           </p>
         )}
@@ -379,23 +384,23 @@ export default function OrderStagePage() {
       {details.length > 0 && (
         <div onClick={() => { setDetailId(null); setMultiDetail([]) }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, width: 520, maxWidth: '92vw', boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}>
-            <div style={{ padding: '10px 14px', borderBottom: '1px solid #e6eaef', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
+            <div className="py-[10px] px-[14px] border-b border-b-ec-line-soft border-solid font-extrabold text-[14px] flex items-center">
               <span>오더 상세{details.length > 1 ? ` · ${details.length}건` : ` · ${details[0].orderNo}`}</span>
               <button className="ec-btn" style={{ marginLeft: 'auto' }}
                       onClick={() => { setDetailId(null); setMultiDetail([]) }}>닫기</button>
             </div>
             {/* 여러 건을 고르면 <b>한 창에 이어서</b> 편다 — 한 건씩 열었다 닫으면 견줄 수가 없다. */}
-            <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+            <div className="max-h-[70vh] overflow-y-auto">
               {details.map((d) => (
-                <div key={d.id} style={{ padding: 14, fontSize: 12.5, lineHeight: 1.9, borderBottom: '1px solid #eef1f5' }}>
-                  {details.length > 1 && <div style={{ fontWeight: 700, color: 'var(--ec-blue-dark)' }}>{d.orderNo}</div>}
+                <div key={d.id} className="p-[14px] text-[12.5px] leading-[1.9] border-b border-b-ec-line-soft border-solid">
+                  {details.length > 1 && <div className="font-bold text-ec-navy">{d.orderNo}</div>}
                   <div>거래처 <b>{d.partnerName}</b></div>
                   <div>기준일자 {d.orderDate} · 납기 {d.dueDate ?? '-'}</div>
                   <div>유형 {d.orderTypeName ?? '(미지정)'} · 진행단계 <b>{d.stageName ?? '(없음)'}</b></div>
                   <div>수주상태 {d.statusName} · 합계 {won(d.totalAmount)}</div>
-                  <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid #e6eaef' }}>
+                  <div className="mt-[8px] pt-[8px] border-t border-t-ec-line-soft border-solid">
                     {d.lines.map((l, k) => (
-                      <div key={k}>{l.itemName} <span style={{ color: '#8a929c' }}>{won(l.quantity)}</span></div>
+                      <div key={k}>{l.itemName} <span className="text-ec-hint">{won(l.quantity)}</span></div>
                     ))}
                   </div>
                 </div>

@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
+import { usePartnerGroups } from '../../utils/partnerGroups'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
 import { SETTLE_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
+import { dateNo } from '../../utils/dateNo'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { subtotalBy } from '../../utils/subtotalBy'
@@ -37,8 +39,11 @@ interface Settlement {
   amount: number
   method: string | null
   /** 귀속 프로젝트. 원본 수금현황·지급현황 조건의 [프로젝트]. */
+  projectId: number | null
   projectName: string | null
   note: string | null
+  /** 원본 조건의 [최초작성자]. 응답이 진작 싣던 값인데 화면이 안 받고 있었다. */
+  createdBy: string | null
 }
 
 /** 수금현황(RECEIPT)·지급현황(PAYMENT)이 같은 화면이라 종류만 바꿔 쓴다. */
@@ -62,18 +67,18 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
   const [fiscalStart, setFiscalStart] = useState<number | undefined>(undefined)
   const [partners, setPartners] = useState<{ id: number; manager: string | null }[]>([])
   /*
-   * 원본 수금현황의 기본 기간은 <b>[이번기수]</b> 다(사본 조건 판의 버튼).
-   * 우리는 비워 두어 수금 전체가 나왔다 — 이번 기수에 얼마 받았는지를 보는 화면인데
-   * 지난 기수 것까지 섞여 합계가 그 뜻이 아니게 된다.
+   * <b>원본 수금현황의 기본 기간은 [금월(~오늘)] 이다</b> — 2026-09-08 에 원본(E040217)을
+   * 열어 간편검색 칸에서 직접 쟀다. 사본을 보고 [이번기수]로 적어 두었던 것이 틀렸다.
+   * [이번기수]·[직전기수]는 이 화면에만 있는 <b>버튼</b>이라 사본에 눈에 띄었을 뿐,
+   * 눌려 있는 것은 [금월(~오늘)]다.
+   *
+   * <p>그대로 두면 화면을 열자마자 <b>기수 전체</b>의 수금이 합계로 잡힌다 —
+   * 원본을 열었을 때 보이는 숫자와 다르다.
    */
-  /*
-   * [이번기수] 는 회계연도 시작월을 알아야 계산된다 — 모르면 periodOf 가 null 이다.
-   * ! 로 눌러 두어서 <b>수금현황·지급현황이 통째로 하얗게 떴다</b>(브라우저로 열어 보고 알았다).
-   * 시작월은 아래에서 받아 오는데 첫 그림 다음이라 늦다 — 그때까지는 [금월(~오늘)]로 연다.
-   */
-  const initPeriod = periodOf('이번기수', new Date(), undefined) ?? periodOf('금월(~오늘)')!
+  const initPeriod = periodOf('금월(~오늘)')!
   const [cond, setCond] = useState({
-    from: initPeriod.from, to: initPeriod.to, partner: '', method: '', manager: '', project: '',
+    from: initPeriod.from, to: initPeriod.to, partner: '', manager: '', project: '',
+    partnerGroup: '', author: '',
   })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
 
@@ -103,17 +108,8 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
       .catch(() => {})
   }, [])
 
-  /* 시작월을 받으면 원본 기본 기간([이번기수])으로 한 번 다시 건다. */
-  const applied = useRef(false)
-  useEffect(() => {
-    if (applied.current || !fiscalStart) return
-    const r = periodOf('이번기수', new Date(), fiscalStart)
-    if (r) { applied.current = true; setC({ from: r.from, to: r.to }) }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fiscalStart])
-
-  const methods = useMemo(
-    () => [...new Set(rows.map((r) => r.method).filter(Boolean))].sort() as string[], [rows])
+  /** [거래처그룹1] — 거래처 마스터에 붙는 값이라 정산 전표 응답에는 없다. 이름으로 잇는다. */
+  const pgroup = usePartnerGroups()
 
   const managerOf = useMemo(
     () => new Map(partners.map((p) => [p.id, p.manager ?? ''])),
@@ -124,17 +120,20 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
    * 원본 [정렬/소계기준]. 수금은 한 거래처에서 여러 번 들어오고 방법도 섞인다 —
    * 어느 거래처에서 얼마가 들어왔는지, 어느 방법으로 들어왔는지를 눈으로 더해야 했다.
    */
-  const SUBTOTALS = ['거래처', '수금방법', '거래처관리담당자'] as const
-  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('거래처')
+  // 지급현황도 이 화면을 쓴다 — '수금방법' 을 박아 두면 지급현황의 알약이 수금방법으로 나왔다.
+  const methodLabel = `${moneyLabel}방법`
+  const SUBTOTALS = ['거래처', methodLabel, '거래처관리담당자']
+  const [subtotal, setSubtotal] = useState<string>('거래처')
   const shown = rows
     .filter((r) => !cond.from || r.settleDate >= cond.from)
     .filter((r) => !cond.to || r.settleDate <= cond.to)
-    .filter((r) => !cond.partner || r.partnerName.includes(cond.partner))
-    .filter((r) => !cond.method || r.method === cond.method)
+    .filter((r) => !cond.partner || String(r.partnerId) === cond.partner)
+    .filter((r) => !cond.partnerGroup || pgroup.groupOfName(r.partnerName) === cond.partnerGroup)
+    .filter((r) => !cond.author || (r.createdBy ?? '') === cond.author)
     // 거래처관리담당자는 정산이 아니라 거래처에 달려 있다 — 거래처를 통해 잇는다.
     .filter((r) => !cond.manager
       || (managerOf.get(r.partnerId) ?? '').includes(cond.manager))
-    .filter((r) => !cond.project || (r.projectName ?? '').includes(cond.project))
+    .filter((r) => !cond.project || String(r.projectId) === cond.project)
     .filter((r) => !keyword || r.partnerName.includes(keyword) || r.docNo.includes(keyword))
 
   const total = useMemo(() => shown.reduce((s, r) => s + r.amount, 0), [shown])
@@ -150,7 +149,7 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
     return [...m].map(([label, value]) => ({ label, value }))
   }, [shown])
   const reset = () => {
-    setCond({ from: '', to: '', partner: '', method: '', manager: '', project: '' })
+    setCond({ from: '', to: '', partner: '', manager: '', project: '', partnerGroup: '', author: '' })
     setKeyword('')
   }
 
@@ -175,7 +174,7 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
       ]}
       signLine={signBox}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <EcStatusPanel
         from={cond.from} to={cond.to}
@@ -184,12 +183,24 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
         fiscalStart={fiscalStart}
         view={view} onViewChange={setView}
         subtotal={subtotal} subtotals={SUBTOTALS}
-        onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}
+        onSubtotalChange={(v) => setSubtotal(v)}
       >
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
                            value={cond.partner} onChange={(v) => setC({ partner: v })}
                            items={pickers.partners} />
+        </EcCond>
+        {/*
+          원본 차례(2026-09-08 실측, 열아홉 — 이 화면은 <b>접힌 줄이 없다</b>):
+          기준일자 · 거래처 · <b>거래처그룹1</b> · (거래처그룹2 · 거래처계층그룹) ·
+          (부서 · 부서계층그룹) · 프로젝트 · (프로젝트그룹1 · 프로젝트그룹2) ·
+          거래처관리담당자 · <b>최초작성자</b> · (최종수정자 · 양식) ·
+          적용양식 · 양식구분 · 정렬/소계기준 · 데이터 보기형식.
+        */}
+        <EcCond label="거래처그룹1" pick>
+          <CodePickerField label="거래처그룹1" hideLabel width={170} emptyLabel="전체"
+                           value={cond.partnerGroup} onChange={(v) => setC({ partnerGroup: v })}
+                           items={pgroup.groupOptions.map((g) => ({ value: g, name: g }))} />
         </EcCond>
         <EcCond label="프로젝트" pick>
           <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
@@ -201,24 +212,28 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
                            value={cond.manager} onChange={(v) => setC({ manager: v })}
                            items={pickers.employees} />
         </EcCond>
-        <EcCond label={moneyLabel === '수금' ? '수금방법' : '지급방법'}>
-          <select className="ec-input" value={cond.method} onChange={(e) => setC({ method: e.target.value })} style={{ width: 220 }}>
-            <option value="">전체</option>
-            {methods.map((m) => <option key={m} value={m}>{m}</option>)}
-          </select>
+        {/*
+          <b>[수금방법]/[지급방법] 을 걷어냈다.</b> 원본 조건 판 열아홉에 그런 칸이 없다 —
+          우리만 하나 더 두고 있었다. 수금방법은 표의 열로는 그대로 보인다.
+        */}
+        <EcCond label="최초작성자" pick>
+          <CodePickerField label="최초작성자" hideLabel width={170} emptyLabel="전체"
+                           value={cond.author} onChange={(v) => setC({ author: v })}
+                           items={[...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="결재방표시">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
             인쇄물에 결재란(도장칸)을 찍는다
           </label>
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        건수 <b style={{ color: '#3c4553' }}>{shown.length.toLocaleString()}</b>
-        <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
-        {moneyLabel} 합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{total.toLocaleString()}</b>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        건수 <b className="text-ec-text">{shown.length.toLocaleString()}</b>
+        <span className="my-0 mx-[8px] text-ec-off">|</span>
+        {moneyLabel} 합계 <b className="text-ec-navy text-[14px]">{total.toLocaleString()}</b>
       </div>
 
       {view === '그래프' ? (
@@ -226,44 +241,44 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
       ) : (
       <table className="w-full text-left">
         <colgroup>
-          <col style={{ width: '4%' }} /><col style={{ width: '12%' }} /><col style={{ width: '18%' }} />
-          <col /><col style={{ width: '14%' }} /><col style={{ width: '12%' }} /><col style={{ width: '20%' }} />
+          <col className="w-[4%]" /><col className="w-[12%]" /><col className="w-[18%]" />
+          <col /><col className="w-[14%]" /><col className="w-[12%]" /><col className="w-[20%]" />
         </colgroup>
         <thead>
           <tr>
             <th></th>
-            <th style={{ textAlign: 'center', width: 190, cursor: 'pointer' }} onClick={() => sort.toggle('일자-No.')}>일자-No. {sort.mark('일자-No.')}</th>
+            <th className="text-center w-[190px] cursor-pointer" onClick={() => sort.toggle('일자-No.')}>일자-No. {sort.mark('일자-No.')}</th>
             {/* 원본 열 이름 그대로 — 수금현황·지급현황 둘 다 [거래처명]·[금액]·[적요] 다. */}
             <th>거래처명</th>
-            <th style={{ textAlign: 'right' }}>금액</th>
-            <th style={{ textAlign: 'center' }}>{moneyLabel}방법</th>
+            <th className="text-right">금액</th>
+            <th className="text-center">{moneyLabel}방법</th>
             <th>적요</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+            <tr><td colSpan={6} className="text-center text-ec-ink">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={6} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
-              <td style={{ textAlign: 'center', fontFamily: 'monospace' }}>
-                {r.settleDate.replace(/-/g, '/')} {r.docNo}
+              <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
+              <td className="text-center">
+                {dateNo(r.settleDate, r.docNo)}
               </td>
               <td>{r.partnerName}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700 }}>{r.amount.toLocaleString()}</td>
-              <td style={{ textAlign: 'center' }}>{r.method ?? ''}</td>
-              <td style={{ color: '#5a626e' }}>{r.note ?? ''}</td>
+              <td className="text-right font-bold">{r.amount.toLocaleString()}</td>
+              <td className="text-center">{r.method ?? ''}</td>
+              <td className="text-ec-label">{r.note ?? ''}</td>
             </tr>
           ))}
         </tbody>
         {shown.length > 0 && (
           <tfoot>
             <tr>
-              <td colSpan={3} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계 ({shown.length}건)</td>
-              <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{total.toLocaleString()}</td>
-              <td colSpan={2} style={{ background: '#f5f7fa' }}></td>
+              <td colSpan={3} className="text-right font-bold bg-ec-page">합계 ({shown.length}건)</td>
+              <td className="text-right font-bold bg-ec-page">{total.toLocaleString()}</td>
+              <td colSpan={2} className="bg-ec-page"></td>
             </tr>
           </tfoot>
         )}
@@ -272,25 +287,25 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
 
       {view === '표' && shown.length > 0 && (() => {
         const groups = subtotalBy(shown,
-          (r) => (subtotal === '수금방법' ? r.method
+          (r) => (subtotal === methodLabel ? r.method
             : subtotal === '거래처관리담당자' ? (managerOf.get(r.partnerId) || null)
               : r.partnerName),
           { amount: (r) => r.amount })
         return (
           <>
-            <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+            <h3 className="text-[13px] font-bold mt-[16px] mx-0 mb-[6px]">{subtotal} 소계</h3>
             <table className="w-full text-left">
               <thead><tr>
                 <th>{subtotal}</th>
-                <th style={{ width: 90, textAlign: 'right' }}>건수</th>
-                <th style={{ width: 160, textAlign: 'right' }}>{moneyLabel}액</th>
+                <th className="w-[90px] text-right">건수</th>
+                <th className="w-[160px] text-right">{moneyLabel}액</th>
               </tr></thead>
               <tbody>
                 {groups.map((g) => (
                   <tr key={g.label}>
-                    <td style={{ fontWeight: 600 }}>{g.label}</td>
-                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{g.count}</td>
-                    <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700 }}>
+                    <td className="font-semibold">{g.label}</td>
+                    <td className="text-right">{g.count}</td>
+                    <td className="text-right font-bold">
                       {g.sums.amount.toLocaleString()}
                     </td>
                   </tr>

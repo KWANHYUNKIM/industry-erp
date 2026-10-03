@@ -1,11 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Partner, PurchaseDoc, SalesDoc } from '../../api/types'
+import type { Partner, PurchaseDoc, SalesDoc } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { ymd } from '../../components/EcPeriodPicks'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import { monthRows, partnerYearRows, type MonthRow, type PartnerYearRow } from '../../utils/monthlyArAp'
 
 /**
  * 영업관리 > 월별채권/채무증감내역 (이카운트 E040713·E040714)
@@ -23,11 +26,13 @@ interface Settlement {
   partnerId: number; partnerName: string; settleDate: string; amount: number
 }
 
-interface MonthRow { month: number; opening: number; increase: number; decrease: number; closing: number }
+/** /ledger/partner-balances 한 줄 — 그 시점의 거래처별 채권·채무. */
+interface Opening { partnerId: number; name: string; receivable: number; payable: number }
 
 const won = (n: number) => n.toLocaleString('ko-KR')
+/** 원본은 기간의 달마다 열을 하나씩 둔다. 우리 기간은 한 해라 열둘이다. */
+const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 const thisYear = () => Number(ymd(new Date()).slice(0, 4))
-const ym = (d: string) => ({ y: Number(d.slice(0, 4)), m: Number(d.slice(5, 7)) })
 
 export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: Mode }) {
   const [year, setYear] = useState<number>(thisYear())
@@ -59,84 +64,110 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
    */
   const [rollUp, setRollUp] = useState(false)
   const [partnerRows, setPartnerRows] = useState<Partner[]>([])
+  /** 그 해 시작 <b>전날까지</b>의 잔액 — 이것이 1월의 [전월이월]이다. 서버가 낸다. */
+  const [openings, setOpenings] = useState<Opening[]>([])
   const pickers = useCondPickers(['partners'])
 
   async function load() {
     setLoading(true); setError('')
     try {
-      const [s, b, st, pr] = await Promise.all([
-        api.get<SalesDoc[]>('/sales'),
-        api.get<PurchaseDoc[]>('/purchases'),
-        api.get<Settlement[]>('/settlements'),
+      /*
+       * <b>전표는 그 해만 받고, [전월이월]은 서버가 낸다.</b>
+       *
+       * <p>여태 전표를 통째로 받아 <code>ym(d.date).y &lt; year</code> 인 것을 접어
+       * 이월을 냈다. 거래처원장에서 같은 자리를 풀었고(2026-09-10),
+       * <code>/ledger/partner-balances?asOf=</code> 가 그 값을 그대로 낸다 —
+       * 자료로 맞대어 봤다: 2027년 1월 이월을 거래처 일곱에서 채권·채무 모두
+       * <b>다른 것이 하나도 없었다</b>(채권합 26,440,090 · 채무합 12,427,701).
+       */
+      const period = { from: `${year}-01-01`, to: `${year}-12-31` }
+      const [s, b, st, pr, ob] = await Promise.all([
+        api.get<SalesDoc[]>('/sales', { params: period }),
+        api.get<PurchaseDoc[]>('/purchases', { params: period }),
+        api.get<Settlement[]>('/settlements', { params: period }),
         api.get<Partner[]>('/partners'),
+        api.get<Opening[]>('/ledger/partner-balances', { params: { asOf: `${year - 1}-12-31` } })
+          .catch(() => ({ data: [] as Opening[] })),
       ])
       setSales(s.data); setPurchases(b.data); setSettlements(st.data); setPartnerRows(pr.data)
+      setOpenings(ob.data)
     } catch (err) { setError(extractErrorMessage(err)) }
     finally { setLoading(false) }
   }
-  useEffect(() => { load() }, [])
+  /* 해를 바꾸면 그 해로 다시 받는다(이월도 같이). */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [year])
   // 채권판·채무판이 같은 컴포넌트를 쓰므로 메뉴를 갈아타도 다시 마운트되지 않는다 — 값을 따라가게 한다.
   useEffect(() => { setMode(defaultMode) }, [defaultMode])
 
-  const rows = useMemo<MonthRow[]>(() => {
+  /*
+   * 거른 전표를 <b>한 번만</b> 고른다 - 달별 표와 거래처별 표가 같은 자료를 본다.
+   * 갈라 두지 않으면 두 표가 서로 다른 조건으로 셀 수 있다.
+   */
+  const docs = useMemo(() => {
     // 증가/감소 소스: 채권=매출/수금, 채무=매입/지급
     /* 거래처를 고르면 <b>증가·감소 양쪽</b>을 같이 좁힌다 — 한쪽만 좁히면 잔액이 거짓말이 된다. */
     /*
-     * 고른 거래처의 <b>이름 집합</b>을 먼저 만든다. [대표거래처로 합산]을 켜면 그 회사를
-     * 대표로 둔 거래처의 이름을 함께 넣는다 — 전표는 이름으로만 이어져 있어서다.
+     * 고른 거래처의 <b>id 집합</b>을 먼저 만든다(코드도움 값이 id 다 — 거래처명은 겹칠 수 있다).
+     * [대표거래처로 합산]을 켜면 그 회사를 대표로 둔 거래처를 함께 넣는다.
      */
-    const 고른이름 = new Set<string>()
+    const 고른id = new Set<number>()
     if (partner) {
-      고른이름.add(partner)
-      if (rollUp) {
-        const 머리 = partnerRows.find((p) => p.name === partner)
-        if (머리) for (const p of partnerRows) if (p.parentId === 머리.id) 고른이름.add(p.name)
-      }
+      고른id.add(Number(partner))
+      if (rollUp) for (const p of partnerRows) if (String(p.parentId) === partner) 고른id.add(p.id)
     }
     /*
      * 원본 [거래처그룹1] — 담당자와 같은 성질이다. 거래처 마스터에 붙는 값이라
      * 전표에서는 이름으로 잇는다. 하나뿐인 그룹에 원본의 '1' 을 붙인다(거래처등록과 같다).
      */
-    const 그룹이름 = partnerGroup
-      ? new Set(partnerRows.filter((p) => (p.partnerGroupName ?? '') === partnerGroup).map((p) => p.name))
+    const 그룹id = partnerGroup
+      ? new Set(partnerRows.filter((p) => (p.partnerGroupName ?? '') === partnerGroup).map((p) => p.id))
       : null
-    /* 담당자로 좁힐 때 쓸 이름 집합. 거래처 마스터의 값이라 전표에서는 이름으로 잇는다. */
-    const 담당이름 = manager
-      ? new Set(partnerRows.filter((p) => (p.manager ?? '') === manager).map((p) => p.name))
+    /* 담당자로 좁힐 때 쓸 거래처 id 집합. 거래처 마스터의 값이라 전표에서는 거래처 id 로 잇는다. */
+    const 담당id = manager
+      ? new Set(partnerRows.filter((p) => (p.manager ?? '') === manager).map((p) => p.id))
       : null
-    const mine = (name: string | null | undefined) => {
-      const n = name ?? ''
-      if (고른이름.size && !고른이름.has(n)) return false
-      if (담당이름 && !담당이름.has(n)) return false
-      if (그룹이름 && !그룹이름.has(n)) return false
+    const keep = (id: number) => {
+      if (고른id.size && !고른id.has(id)) return false
+      if (담당id && !담당id.has(id)) return false
+      if (그룹id && !그룹id.has(id)) return false
       return true
     }
+    /* 거래처 축을 세우려면 이름을 버리면 안 된다 - 원본 격자가 거래처별 두 줄이다. */
     const incDocs = mode === 'AR'
-      ? sales.filter((d) => mine(d.partnerName)).map((d) => ({ date: d.saleDate, amt: d.totalAmount }))
-      : purchases.filter((d) => mine(d.partnerName)).map((d) => ({ date: d.purchaseDate, amt: d.totalAmount }))
+      ? sales.filter((d) => keep(d.partnerId)).map((d) => ({ date: d.saleDate, amt: d.totalAmount, name: d.partnerName ?? '' }))
+      : purchases.filter((d) => keep(d.partnerId)).map((d) => ({ date: d.purchaseDate, amt: d.totalAmount, name: d.partnerName ?? '' }))
     const decType: SettlementType = mode === 'AR' ? 'RECEIPT' : 'PAYMENT'
-    const decDocs = settlements.filter((s) => s.type === decType && mine(s.partnerName))
-      .map((s) => ({ date: s.settleDate, amt: s.amount }))
+    const decDocs = settlements.filter((s) => s.type === decType && keep(s.partnerId))
+      .map((s) => ({ date: s.settleDate, amt: s.amount, name: s.partnerName ?? '' }))
 
-    // 연초 이전 누적 순잔액 = 전월이월(1월)
-    let opening = 0
-    for (const d of incDocs) if (ym(d.date).y < year) opening += d.amt
-    for (const d of decDocs) if (ym(d.date).y < year) opening -= d.amt
+    /*
+     * 이월(서버가 낸 기초잔액)도 줄과 <b>같은 잣대</b>로 여기서 거른다 — 그 해에 거래가
+     * 없던 거래처도 이월은 있을 수 있어서, '그 해 전표에 나온 거래처' 로 거르면 그런
+     * 거래처의 이월이 조용히 빠진다. 다 거른 뒤라 셈(monthlyArAp)의 mine 은 전부 통과시킨다.
+     */
+    return { inc: incDocs, dec: decDocs, openings: openings.filter((b) => keep(b.partnerId)), mine: () => true }
+  }, [sales, purchases, settlements, openings, mode, partner, manager, rollUp, partnerRows, partnerGroup])
 
-    const inc = new Array(13).fill(0)
-    const dec = new Array(13).fill(0)
-    for (const d of incDocs) { const { y, m } = ym(d.date); if (y === year && m >= 1 && m <= 12) inc[m] += d.amt }
-    for (const d of decDocs) { const { y, m } = ym(d.date); if (y === year && m >= 1 && m <= 12) dec[m] += d.amt }
+  /* 셈은 utils/monthlyArAp 에 있다 — 거래처별 표와 늘 맞아야 해서 테스트로 못 박았다. */
+  const rows = useMemo<MonthRow[]>(
+    () => monthRows(docs.inc, docs.dec, docs.openings, docs.mine, mode, year),
+    [docs, mode, year])
 
-    const out: MonthRow[] = []
-    let carry = opening
-    for (let m = 1; m <= 12; m++) {
-      const closing = carry + inc[m] - dec[m]
-      out.push({ month: m, opening: carry, increase: inc[m], decrease: dec[m], closing })
-      carry = closing
-    }
-    return out
-  }, [sales, purchases, settlements, mode, year, partner, manager, rollUp, partnerRows])
+  /**
+   * 원본 격자 - <b>거래처별 × 달</b>. 우리는 온 회사를 달마다 한 줄로만 보여 주고 있어서
+   * <b>어느 거래처가 그 달을 밀었는지</b>를 이 화면에서 볼 수가 없었다(조건으로 하나씩
+   * 골라 보는 수밖에 없었다). 위 <code>rows</code> 와 같은 자료를 거래처로 갈라 센다.
+   */
+  /*
+   * 거래처별 이월은 <b>서버가 낸 잔액에서만</b> 온다(2026-09-21 고침 — 전에는 전 해 전표를 접어
+   * 냈는데 그런 전표가 더는 오지 않아 <b>늘 0</b> 이었다). 월별 합계와 늘 맞는지를
+   * utils/monthlyArAp.test.ts 가 지킨다.
+   */
+  const byPartner = useMemo<PartnerYearRow[]>(() => {
+    const codeOf = new Map(partnerRows.map((p) => [p.name, p.code]))
+    return partnerYearRows(docs.inc, docs.dec, docs.openings, docs.mine, mode, year, (n) => codeOf.get(n) ?? '')
+  }, [docs, partnerRows, year, mode])
 
   /** 담당자 목록은 거래처 마스터에 실제로 적힌 것만 — 없는 이름을 고르게 하지 않는다. */
   const managers = useMemo(
@@ -147,6 +178,13 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
   const years = [thisYear() + 1, thisYear(), thisYear() - 1, thisYear() - 2]
   const incLabel = mode === 'AR' ? '매출(증가)' : '매입(증가)'
   const decLabel = mode === 'AR' ? '수금(감소)' : '지급(감소)'
+  /* 원본 [구분] 칸에 찍히는 글자 — 채권은 매출/수금, 채무는 매입/지급이다(실측). */
+  const incWord = mode === 'AR' ? '매출' : '매입'
+  const decWord = mode === 'AR' ? '수금' : '지급'
+
+  /* 달 열이 늘었다 줄었다 하는 표라 정적 검사로는 칸 수를 셀 수 없다 — 렌더된 표를 잰다. */
+  const tableRef = useRef<HTMLDivElement>(null)
+  useTableColumnCheck(tableRef, '월별채권/채무증감내역', [mode, year, byPartner.length])
   const incColor = 'var(--ec-blue)'
   const decColor = '#a5561b'
 
@@ -159,87 +197,198 @@ export default function MonthlyArApPage({ defaultMode = 'AR' }: { defaultMode?: 
       title={mode === 'AP' ? '월별채무증감내역' : '월별채권증감내역'}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
     >
-      <p className="mb-2 text-xs text-slate-500">
+      <p className="mb-2 text-xs text-ec-hint">
         채권=매출−수금, 채무=매입−지급. 전월이월(1월) = 해당 연도 시작 이전 누적 순잔액.
         {settlements.length === 0 && ' (정산 데이터가 없어 감소=0으로 표시됩니다.)'}
       </p>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600 }}>연도</span>
+      <div className="flex items-center gap-[12px] mb-[10px] flex-wrap">
+        <div className="flex items-center gap-[6px]">
+          <span className="text-[12.5px] text-ec-text font-semibold">연도</span>
           <select className="ec-input" value={year} onChange={(e) => setYear(Number(e.target.value))} style={{ width: 100 }}>
             {years.map((y) => <option key={y} value={y}>{y}년</option>)}
           </select>
         </div>
         {/* 원본 조건 [거래처] — 이름은 응답에 진작 실려 오는데 거를 수가 없었다. */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600 }}>거래처</span>
+        <div className="flex items-center gap-[6px]">
+          <span className="text-[12.5px] text-ec-text font-semibold">거래처</span>
           <CodePickerField label="거래처" hideLabel width={180} emptyLabel="전체"
                            value={partner} onChange={setPartner} items={pickers.partners} />
         </div>
         {/* 원본 차례: 거래처 → <b>거래처그룹1</b> → [대표거래처로 합산] → [거래처관리담당자] (사본 실측). */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600 }}>거래처그룹1</span>
+        <div className="flex items-center gap-[6px]">
+          <span className="text-[12.5px] text-ec-text font-semibold">거래처그룹1</span>
           <CodePickerField label="거래처그룹1" hideLabel width={150} emptyLabel="전체"
                            value={partnerGroup} onChange={setPartnerGroup}
                            items={pgroups.groupOptions.map((g) => ({ value: g, name: g }))} />
         </div>
-        <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+        <label className="text-[12.5px] flex items-center gap-[4px]">
           <input type="checkbox" checked={rollUp} onChange={(e) => setRollUp(e.target.checked)} disabled={!partner} />
           <span style={{ color: partner ? undefined : '#a8b0ba' }}>대표거래처로 합산</span>
         </label>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600 }}>거래처관리담당자</span>
+        <div className="flex items-center gap-[6px]">
+          <span className="text-[12.5px] text-ec-text font-semibold">거래처관리담당자</span>
           {/* 원본은 사람을 고르는 칸을 <b>코드도움</b>으로 둔다 — 거래처 칸과 같은 모양이다. */}
           <CodePickerField label="거래처관리담당자" hideLabel width={150} emptyLabel="전체"
                            value={manager} onChange={setManager}
                            items={managers.map((m) => ({ value: m, name: m }))} />
         </div>
-        <div style={{ display: 'flex', gap: 2 }}>
+        <div className="flex gap-[2px]">
           {(['AR', 'AP'] as const).map((m) => (
             <button key={m} onClick={() => setMode(m)} className="no-ec" style={{
               padding: '5px 14px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
-              background: mode === m ? 'var(--ec-blue)' : '#fff', color: mode === m ? '#fff' : '#3a4453', fontWeight: mode === m ? 700 : 400,
+              background: mode === m ? 'var(--ec-blue)' : '#fff', color: mode === m ? '#fff' : 'var(--ec-text)', fontWeight: mode === m ? 700 : 400,
             }}>{m === 'AR' ? '채권(받을 돈)' : '채무(줄 돈)'}</button>
           ))}
         </div>
-        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>
-          연말잔액 <b style={{ color: closing >= 0 ? 'var(--ec-blue-dark)' : '#c60a2e', fontSize: 15 }}>{won(closing)}</b>
+        <div className="ml-auto text-[12.5px] text-ec-label">
+          연말잔액 <b style={{ color: closing >= 0 ? 'var(--ec-blue-dark)' : 'var(--ec-danger)', fontSize: 15 }}>{won(closing)}</b>
         </div>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <table className="w-full text-left">
+      {/*
+        원본 격자(E040713): 거래처코드 · 거래처명 · 구분 · 이월잔액 · (기간의 달마다 한 열) · 잔액.
+
+        <b>2026-09-21 에 자료가 있는 기간으로 다시 쟀다.</b> 2026-09-09 에는 그 회사 자료가 없어
+        "원본은 [이월잔액]·[잔액]을 두 줄에 따로 두는데 아래 줄에 무엇이 드는지 못 읽었다" 고
+        적고 두 칸을 합쳐 두었다. 2025/10~2026/09 로 열어 보니 거래처 하나가 <b>다섯 줄</b>이다:
+        <b>매출 · 수금 · 기타할인등차액 · 잔액 · 미회수액</b>. 시작을 2026/05 로 당겨 앞선 매출을
+        이월로 넣어 보니 <b>이월잔액은 [잔액] 줄에만</b> 서고(명현농장 26,400,000) 매출·수금 줄의
+        이월 칸은 빈다. 끝의 [잔액] 열은 매출·수금 줄에서는 <b>기간의 합</b>, 잔액 줄에서는
+        <b>기말 잔액</b>이다.
+
+        <p>만든 것: 매출 · 수금 · <b>잔액</b> 세 줄. 안 만든 둘 —
+        <b>[기타할인등차액]</b>: 우리 정산은 수금·지급 두 갈래뿐이라(SettlementType) 할인·차액을
+        담을 자리가 없다. 늘 빈 줄을 그리면 '할인 0' 으로 읽히니 줄을 안 둔다.
+        <b>[미회수액]</b>: 원본은 그 달 매출 중 아직 못 받은 몫을 달 칸에 찍는다(누계로 맞춰 봤다:
+        2026/06 212,900,000 = 노른터 60,000,000 + 예림종돈 53,900,000 + 예림육종 99,000,000).
+        그러려면 수금이 <b>어느 달 매출을 갚았는지</b>를 알아야 하는데 정산이 그걸 안 든다 —
+        채권현황 [청구금액]과 같은 까닭이다. 순서대로 갚았다고 치면 셈은 되지만 그건 배분 규칙을
+        지어내는 일이다(실측 자료에 일부만 갚은 거래처가 없어 원본 규칙도 못 가렸다).
+      */}
+      <div className="overflow-x-auto" ref={tableRef}>
+      {/*
+        <b>출력물 격자</b>(index.css .ec-report) — 원본 실측값으로 맞췄다(2026-09-21).
+        열 폭도 원본대로 박는다: <b>거래처코드 100 · 거래처명 115 · 구분 100 · 이월잔액 100 ·
+        달마다 100 · 잔액 100px</b>, table-layout fixed, 표 폭은 그 합이다(원본 금월 판 615px =
+        달 한 열. 달이 늘면 100px 씩 늘어난다).
+        거래처 하나가 세 줄이라 줄무늬는 <b>덩어리마다</b> 건다(줄에 ec-stripe).
+        원본은 숫자를 <b>검정</b>으로, 거래처 코드·이름을 <b>보통 굵기의 맑은 고딕</b>으로 찍는다 —
+        예전의 파랑·갈색 숫자와 굵은 이름·고정폭 코드는 우리가 덧칠한 것이었다.
+      */}
+      <div className="ec-report-frame">
+      <EcReportHead title={mode === 'AP' ? '월별채무증감내역' : '월별채권증감내역'}
+                    period={reportPeriod(`${year}-01-01`, `${year}-12-31`)} />
+      <table className="text-left ec-report ec-report-fixed">
         <thead>
           <tr>
-            <th style={{ width: 70 }}>월</th>
-            <th style={{ textAlign: 'right' }}>전월이월</th>
-            <th style={{ textAlign: 'right' }}>{incLabel}</th>
-            <th style={{ textAlign: 'right' }}>{decLabel}</th>
-            <th style={{ textAlign: 'right' }}>당월잔액</th>
+            <th className="w-[100px]">거래처코드</th>
+            <th className="w-[115px]">거래처명</th>
+            <th className="w-[100px]">구분</th>
+            <th className="text-right w-[100px]">이월잔액</th>
+            {MONTHS.map((mo) => (
+              <th key={mo} className="text-right w-[100px]">{year}/{String(mo).padStart(2, '0')}</th>
+            ))}
+            <th className="text-right w-[100px]">잔액</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={16} className="ec-empty">불러오는 중…</td></tr>
+          ) : byPartner.length === 0 ? (
+            <tr><td colSpan={16} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+          ) : byPartner.flatMap((r, ri) => {
+            /*
+             * <b>줄마다 [이월잔액]·[잔액] 칸의 뜻이 다르다</b> — 2026-09-21 원본 실측.
+             * 매출·수금 줄은 이월이 <b>비고</b> 끝 칸이 <b>그 기간의 합</b>이다. 이월과 기말 잔액은
+             * <b>[잔액] 줄</b>에 선다. 예전에는 뜻을 몰라 두 칸을 매출·수금 두 줄에 걸쳐 합쳐 두었다.
+             */
+            const sumInc = MONTHS.reduce((s, mo) => s + r.inc[mo], 0)
+            const sumDec = MONTHS.reduce((s, mo) => s + r.dec[mo], 0)
+            /* [잔액] 줄 — 달마다 <b>그 달 말의 누적 잔액</b>이다. 0 인 달은 원본처럼 비운다. */
+            const running: number[] = []
+            let bal = r.opening
+            for (const mo of MONTHS) { bal += r.inc[mo] - r.dec[mo]; running[mo] = bal }
+            /* 원본은 거래처 덩어리마다 번갈아 회색이다(경지양돈 덩어리가 rgb(243,243,243)). */
+            const stripe = ri % 2 === 1 ? 'ec-stripe' : undefined
+            return [
+              <tr key={`${r.name}-inc`} className={stripe}>
+                <td rowSpan={3}>{r.code}</td>
+                <td rowSpan={3}>{r.name}</td>
+                <td>{incWord}</td>
+                <td className="text-right" />
+                {MONTHS.map((mo) => (
+                  <td key={mo} className="text-right">
+                    {r.inc[mo] ? won(r.inc[mo]) : ''}
+                  </td>
+                ))}
+                <td className="text-right">{sumInc ? won(sumInc) : ''}</td>
+              </tr>,
+              <tr key={`${r.name}-dec`} className={stripe}>
+                <td>{decWord}</td>
+                <td className="text-right" />
+                {MONTHS.map((mo) => (
+                  <td key={mo} className="text-right">
+                    {r.dec[mo] ? won(r.dec[mo]) : ''}
+                  </td>
+                ))}
+                <td className="text-right">{sumDec ? won(sumDec) : ''}</td>
+              </tr>,
+              <tr key={`${r.name}-bal`} className={stripe}>
+                <td>잔액</td>
+                <td className="text-right">{r.opening ? won(r.opening) : ''}</td>
+                {MONTHS.map((mo) => (
+                  <td key={mo} className="text-right">
+                    {running[mo] ? won(running[mo]) : ''}
+                  </td>
+                ))}
+                <td className="text-right">{r.closing ? won(r.closing) : ''}</td>
+              </tr>,
+            ]
+          })}
+        </tbody>
+      </table>
+      <EcReportFoot />
+      </div>
+      </div>
+
+      {/*
+        아래는 원본에 없다 — 온 회사를 달마다 한 줄로 접은 <b>우리가 더 두는 표</b>다.
+        위 표가 거래처별로 갈리므로 "이 달에 통틀어 얼마" 는 여기서 본다.
+      */}
+      <h3 className="text-[13px] font-bold mt-[16px] mx-0 mb-[6px]">월별 합계</h3>
+      <table className="w-full text-left">
+        <thead>
+          <tr>
+            <th className="w-[70px]">월</th>
+            <th className="text-right">전월이월</th>
+            <th className="text-right">{incLabel}</th>
+            <th className="text-right">{decLabel}</th>
+            <th className="text-right">당월잔액</th>
+          </tr>
+        </thead>
+        <tbody>
+          {loading ? (
+            <tr><td colSpan={5} className="ec-empty">불러오는 중…</td></tr>
           ) : rows.map((r) => (
             <tr key={r.month}>
-              <td style={{ fontWeight: 600 }}>{r.month}월</td>
-              <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(r.opening)}</td>
-              <td style={{ textAlign: 'right', color: r.increase ? incColor : '#c5cbd3', fontWeight: r.increase ? 600 : 400 }}>{r.increase ? won(r.increase) : ''}</td>
-              <td style={{ textAlign: 'right', color: r.decrease ? decColor : '#c5cbd3', fontWeight: r.decrease ? 600 : 400 }}>{r.decrease ? won(r.decrease) : ''}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(r.closing)}</td>
+              <td className="font-semibold">{r.month}월</td>
+              <td className="text-right text-ec-hint">{won(r.opening)}</td>
+              <td style={{ textAlign: 'right', color: r.increase ? incColor : 'var(--ec-text-off)', fontWeight: r.increase ? 600 : 400 }}>{r.increase ? won(r.increase) : ''}</td>
+              <td style={{ textAlign: 'right', color: r.decrease ? decColor : 'var(--ec-text-off)', fontWeight: r.decrease ? 600 : 400 }}>{r.decrease ? won(r.decrease) : ''}</td>
+              <td className="text-right font-bold">{won(r.closing)}</td>
             </tr>
           ))}
         </tbody>
         <tfoot>
-          <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+          <tr className="font-bold bg-ec-page">
             <td>연간합계</td>
             <td></td>
             <td style={{ textAlign: 'right', color: incColor }}>{won(totals.inc)}</td>
             <td style={{ textAlign: 'right', color: decColor }}>{won(totals.dec)}</td>
-            <td style={{ textAlign: 'right' }}>{won(closing)}</td>
+            <td className="text-right">{won(closing)}</td>
           </tr>
         </tfoot>
       </table>

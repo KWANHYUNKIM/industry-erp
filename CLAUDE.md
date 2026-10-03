@@ -1,11 +1,12 @@
 # 아키텍처 규칙
 
-이 문서는 **백엔드 패키지 구조와 의존 규칙**을 정의합니다. 새 코드는 이 규칙을 따르고,
+이 문서는 **백엔드·프론트엔드 패키지 구조와 의존 규칙**을 정의합니다. 새 코드는 이 규칙을 따르고,
 기존 코드를 만질 때 규칙에서 벗어난 부분이 보이면 그 자리에서 고칩니다.
 
-**2026-07-16 모듈 우선 구조 이행 완료.** 백엔드는 `com/erp/<module>/<layer>/` 구조입니다
-(예: `com/erp/trade/service/SalesService.java`). 옛 계층 우선 평면 구조(`controller/`, `service/`, …)는
-더 이상 없습니다. 아래 의존 규칙을 계속 적용하세요.
+**2026-10-01 기능 패키지 구조로 이행 완료.** 백엔드는 `com/erp/<module>/<feature>/` 구조입니다
+(예: `com/erp/trade/sales/SalesService.java`, DTO 는 `com/erp/trade/sales/dto/SalesDtos.java`).
+계층 폴더(`controller/`, `service/`, `domain/` …)는 더 이상 없습니다. 계층은 **클래스 이름 접미사**로
+구분하고(`…Controller`·`…Service`·`…Repository`), 아래 의존 규칙은 그대로 적용합니다.
 
 ---
 
@@ -15,18 +16,18 @@
 
 | 모듈 | 책임 | 대표 엔티티 |
 |------|------|-------------|
-| `common` | 공통 기반. 다른 모듈을 몰라야 함. 메타/헬스 등 인프라 엔드포인트 포함 | `BaseTimeEntity`, `ApiException`, `GlobalExceptionHandler` |
+| `common` | 공통 기반. 다른 모듈을 몰라야 함(여러 모듈을 아우르는 메타 엔드포인트는 `config`) | `BaseTimeEntity`, `ApiException`, `GlobalExceptionHandler` |
 | `auth` | 사용자·역할·인증·권한 | `User`, `Role`, `Permission` |
 | `inventory` | 품목·창고·재고·프로젝트 (기초 마스터 데이터) | `Item`, `Warehouse`, `Stock`, `StockTransaction`, `Lot`, `ManagementItem`, `Project` |
 | `trade` | 판매·구매·거래처·정산·출하·세금계산서·단가일괄 | `BusinessPartner`, `Sales`, `Purchase`, `SalesOrder`, `Settlement`, `Shipment`, `TaxInvoice` |
 | `production` | BOM·작업지시·생산실적·생산계획·공정·자원 | `Bom`, `WorkOrder`, `Production`, `ProductionPlan`, `MaterialIssue` |
-| `accounting` | 계정·비용·원가·손익 + 자금(은행·카드·어음)·자산·감가상각·세무·통화 | `Account`, `Expense`, `ItemCost`, `BankAccount`, `FixedAsset`, `Currency`, `CorporateTaxReturn` |
+| `accounting` | 계정·비용·원가·손익 + 자금(은행·카드·어음)·자산·감가상각·세무 | `Account`, `Expense`, `ItemCost`, `BankAccount`, `FixedAsset`, `CorporateTaxReturn` |
 | `quality` | 품질검사·A/S | `QualityInspection`, `AsRequest` |
 | `hr` | 사원·부서·근태·급여·근로계약·휴가 | `Employee`, `Department`, `Attendance`, `Payslip`, `EmploymentContract` |
 | `groupware` | 전자결재·업무일지·게시판·CRM·메일·드라이브·일정·공용품·E Note | `ApprovalDocument`, `WorkJournal`, `WorkPost`, `Mail`, `SupplyItem` |
-| `settings` | Self-Customizing (회사·환경설정·보안정책·공통코드·단가설정) | `CompanyInfo`, `Company`, `Preference`, `SecurityPolicy`, `CommonCode` |
+| `settings` | Self-Customizing (회사·환경설정·보안정책·공통코드·단가설정·통화) | `CompanyInfo`, `Company`, `Preference`, `SecurityPolicy`, `CommonCode`, `Currency` |
 
-> `config`·`security`·`tenant`은 모듈이 아니라 인프라 패키지로, 계층 없이 평면 유지합니다.
+> `config`·`security`·`tenant`은 모듈이 아니라 인프라 패키지로, 기능 없이 평면 유지합니다.
 > HR/급여/근태는 원래 groupware의 근태만 있었으나 사원·부서·급여까지 커지며 `hr` 모듈로 분리했습니다(2026-07-16).
 
 새 클래스는 **자신이 다루는 주 엔티티가 속한 모듈**에 둡니다.
@@ -34,30 +35,35 @@
 
 ---
 
-## 2. 목표 패키지 구조
+## 2. 패키지 구조
 
-모듈 안에 MVC 계층을 둡니다. 계층 안에 모듈을 두지 않습니다.
+모듈 안에 **기능(feature) 패키지**를 두고, 기능 하나의 Controller·Service·Repository·엔티티·enum 을
+그 폴더에 평평하게 둡니다. DTO 만 `dto/` 하위 폴더로 뺍니다. 계층 폴더를 다시 만들지 마세요.
 
 ```
 com/erp/
 ├─ BackendApplication.java
-├─ common/            # 전역 예외, BaseTimeEntity
-├─ security/          # JWT 필터, SecurityConfig  (인프라)
-├─ auth/
-│  ├─ controller/     AuthController, UserController, RoleController
-│  ├─ service/
-│  ├─ repository/
-│  ├─ domain/         User, Role
-│  └─ dto/
-├─ inventory/
-│  ├─ controller/     ItemController, WarehouseController, StockController
-│  ├─ service/
-│  ├─ repository/
-│  ├─ domain/         Item, Warehouse, Stock, StockTransaction
-│  │  └─ enums/       StockTransactionType, LotStatus
-│  └─ dto/            ItemDtos, StockDtos
-├─ trade/  production/  accounting/  quality/  groupware/  settings/
+├─ common/  config/  security/  tenant/      # 인프라 (평면)
+├─ trade/
+│  ├─ TradeMasters.java  VatAllocator.java   # 모듈 안 여러 기능이 같이 쓰는 것만 모듈 루트에
+│  ├─ sales/
+│  │  ├─ SalesController.java
+│  │  ├─ SalesService.java
+│  │  ├─ SalesRepository.java  SalesLineRepository.java
+│  │  ├─ Sales.java  SalesLine.java          # 엔티티
+│  │  ├─ SalesConfirmStatus.java             # enum
+│  │  └─ dto/SalesDtos.java
+│  └─ salesorder/  purchase/  partner/  shipment/ …
+├─ inventory/   item/ stock/ warehouse/ lot/ project/ …
+└─ auth/  production/  accounting/  quality/  hr/  groupware/  settings/
 ```
+
+- **기능 이름은 주 엔티티 이름을 소문자로 붙여 씁니다** (`SalesOrder` → `salesorder`).
+  같은 기능의 줄·이력 엔티티와 enum 도 그 폴더에 둡니다(`SalesLine`, `PurchaseOrderHistory`).
+- 모듈 루트에는 **여러 기능이 공유하는 것만** 둡니다
+  (`trade/TradeMasters`, `accounting/StandardAccounts`, `accounting/PaymentMethod`).
+  기능이 하위 패키지라 package-private 은 안 보입니다 — 공유하는 것은 `public` 이어야 합니다.
+- 새 클래스가 어느 기능 소속인지 애매하면 **같은 테이블 묶음을 다루는 쪽**에 넣습니다.
 
 `@SpringBootApplication`이 `com.erp`에 있고 `@EntityScan`/`@EnableJpaRepositories`를
 하드코딩한 곳이 없으므로, 하위 패키지는 자동으로 스캔됩니다. **스캔 설정을 추가하지 마세요.**
@@ -85,17 +91,26 @@ controller  →  service  →  repository  →  domain
 
 ### 4.1 의존 방향은 단방향이어야 합니다
 
-현재 코드에서 실제로 측정한 모듈 의존 간선입니다. **순환이 없습니다(DAG).**
-이 성질을 깨는 의존을 새로 만들지 마세요.
+설계상 허용하는 모듈 의존 간선입니다. 목표는 **순환 없는 DAG** 입니다.
+이 표에 없는 의존을 새로 만들지 마세요 — `node qa/arch-check.mjs` 가 import 를 재서 막습니다(래칫).
+
+> **2026-10-01(QA 13회차) 실측 — 표 밖의 간선이 아직 있습니다(부채).** 이 문서는 한동안 "순환이 없다"고 했지만
+> 실제로는 순환이 넷이었습니다. 어음 enum 이 groupware 에 잘못 놓여 생긴 accounting↔groupware 와
+> common 이 다른 모듈을 참조하던 것(MetaController → config 로)은 그날 끊었고, 남은 것은 `qa/arch-check.mjs` 의
+> `KNOWN` 에 적어 두었습니다(14회차에 통화를 settings 로 옮겨 accounting↔trade 를 끊었습니다): `trade→hr`·`hr→trade`(담당자 Employee · 사원 실적),
+> `accounting→hr`(급여이체 분개), `hr→auth`, `groupware→accounting`. 그래서 **accounting·hr·production·trade 넷이 서로 닿는 고리가 남아 있습니다**
+> (예: hr→accounting→trade→hr). 결정적인 간선은 `trade→hr`(판매·구매·주문의 담당자가 `Employee` 엔티티 —
+> production 처럼 `Long employeeId` 로 바꾸면 끊긴다)와 `accounting→hr`(급여이체 분개가 `PayrollTransfer` 를 받는다) 둘입니다. 하나를 끊으면 KNOWN 에서 지우세요(안 지우면 검사가 알려 줍니다).
 
 | 의존하는 모듈 | 의존받는 모듈 |
 |---------------|----------------|
-| `trade` | `inventory` |
+| `trade` | `inventory`, `settings` (수출의 통화) |
 | `production` | `inventory`, `trade` (작업지시서의 납품처가 `PartnerService` 를 참조) |
 | `quality` | `inventory`, `trade` |
-| `accounting` | `inventory`, `trade`, `production` (표준원가 생성이 `BomService`를 참조) |
+| `accounting` | `inventory`, `trade`, `production` (표준원가 생성이 `BomService`를 참조), `settings` (은행계좌의 통화) |
 | `hr` | `accounting` (급여의 원천징수 계산이 `WithholdingService`를 참조) |
 | `groupware` | `auth`, `trade`, `inventory` |
+| `auth` | `settings` (회사코드 로그인이 `CompanyRepository` 로 회사를 찾는다) |
 
 - `Project`는 원래 `groupware`에 있었으나, 판매·구매·비용 전표가 프로젝트를 참조해야 하는데
   (`trade` → `groupware`) `groupware → trade` 와 맞물려 순환이 되므로 기초 마스터(`inventory`)로 옮겼습니다.
@@ -104,10 +119,14 @@ controller  →  service  →  repository  →  domain
   맞물리면 순환이 됩니다. 작업지시서의 [담당자]가 그래서 `@ManyToOne` 이 아니라 평범한 `Long employeeId` 입니다.
   `inventory.Warehouse` 의 공정·외주거래처, `auth.User` 의 사원도 같은 이유로 id 만 듭니다.
   이름은 화면이 각자 목록에서 붙입니다.
-- `inventory`와 `auth`는 **아무 모듈에도 의존하지 않는 기반층입니다.**
-  여기서 다른 모듈을 참조하는 순간 순환이 생깁니다.
-- `common`은 모두가 의존하고 아무것도 의존하지 않습니다.
-- `settings`는 아직 다른 모듈에 의존하지 않습니다. 그대로 유지하세요.
+- `inventory`는 **아무 모듈에도 의존하지 않는 기반층입니다.** 여기서 다른 모듈을 참조하는 순간 순환이 생깁니다.
+  (2026-10-01 까지 `ProjectController` 가 `accounting.ProjectProfitService` 를 불렀다 — `/api/projects/profit` 은
+  주소는 그대로 두고 `accounting/project/ProjectProfitController` 로 옮겼다.)
+- `auth`는 `settings` 하나에만 의존합니다(로그인 시 회사코드 → 회사). 그래서 **`settings`는 `auth`를 참조할 수 없습니다.**
+  회사를 만들 때 관리자 계정을 심는 일은 인프라 패키지 `tenant`(`TenantSeeder`)가 맡습니다.
+- `common`은 모두가 의존하고 아무것도 의존하지 않습니다. 여러 모듈을 아우르는 인프라 엔드포인트(`/api/meta`)는
+  `common` 이 아니라 `config` 에 둡니다.
+- `settings`는 다른 모듈에 의존하지 않습니다. 그대로 유지하세요.
 - 새 의존을 추가하기 전에 위 표에서 반대 방향 간선이 이미 있는지 확인하세요.
   예를 들어 `inventory`가 `trade`를 참조하면 `trade → inventory`와 맞물려 순환이 됩니다.
 
@@ -138,10 +157,10 @@ public class WorkOrderService {
 DB 스키마도 바뀌지 않습니다.
 
 ```java
-// trade/domain/Sales.java
+// trade/sales/Sales.java
 @ManyToOne(fetch = FetchType.LAZY, optional = false)
 @JoinColumn(name = "warehouse_id")
-private Warehouse warehouse;              // inventory.domain.Warehouse — 허용
+private Warehouse warehouse;              // inventory.warehouse.Warehouse — 허용
 ```
 
 단, **읽기만 허용합니다.** 다른 모듈 엔티티의 상태를 바꾸는 것은 그 모듈의 `service`를 통해서만 합니다.
@@ -161,11 +180,11 @@ stockService.decrease(itemId, warehouseId, qty);
 조회해서 연관관계에 붙이려는 목적입니다.
 
 한 번에 고치지 말고, **해당 서비스를 수정할 일이 생겼을 때 그 서비스만** 규칙에 맞게 바꿉니다.
-어떤 서비스가 어떤 리포지토리를 주입하는지는 아래로 확인하고, 1번 모듈 표와 대조해
-교차 여부를 판단하세요.
+어떤 서비스가 어떤 리포지토리를 주입하는지는 아래로 확인하고, import 경로의 모듈(`com.erp.<모듈>.`)을
+그 서비스의 모듈과 대조해 교차 여부를 판단하세요.
 
 ```bash
-grep -rn 'import com\.erp\.repository\.' backend/src/main/java/com/erp/service/
+grep -rn --include='*Service.java' -E 'import com.erp.w+.w+.w+Repository;' backend/src/main/java/com/erp/
 ```
 
 대표적인 교차 지점: `SalesService → ItemRepository/WarehouseRepository`,
@@ -179,8 +198,8 @@ grep -rn 'import com\.erp\.repository\.' backend/src/main/java/com/erp/service/
 
 ### 5.1 enum
 
-`domain/`에 엔티티와 enum을 섞지 않습니다. enum은 해당 모듈의 `domain/enums/`에 둡니다.
-(현재 `domain/` 75개 중 20개가 enum입니다.)
+enum 은 그것을 쓰는 엔티티의 기능 폴더에 둡니다(`trade/sales/SalesConfirmStatus.java`).
+여러 기능이 같이 쓰는 enum 만 모듈 루트에 둡니다(`accounting/PaymentMethod`·`ReceiptMethod` — 지출·수입·빠른전표).
 
 ### 5.2 지연 로딩
 
@@ -300,7 +319,7 @@ docker compose down -v && docker compose up -d
 
 ## 8. DTO
 
-- 요청/응답 DTO는 자기 모듈의 `dto/` 아래 둡니다.
+- 요청/응답 DTO는 자기 기능의 `dto/` 아래 둡니다(`trade/sales/dto/SalesDtos.java`).
 - 여러 DTO를 한 파일에 중첩 record로 묶는 기존 패턴(`ItemDtos`, `ProductionDtos`)을 유지합니다.
 - 다른 모듈의 DTO를 재사용하지 마세요. 필드가 같아도 각자 정의합니다. 그래야 한쪽 API 변경이
   다른 모듈로 번지지 않습니다.
@@ -337,7 +356,7 @@ cd frontend && npm run typecheck     # = tsc --noEmit -p tsconfig.app.json
 cd frontend && npm run test:unit    # node --test, src/**/*.test.ts
 ```
 
-기간 계산(`components/periods.ts`)이 첫 대상입니다 — 화면 50여 곳이 이 함수로 조회 기간을
+기간 계산(`utils/periods.ts`)이 첫 대상입니다 — 화면 50여 곳이 이 함수로 조회 기간을
 정하는데 여기가 하루 밀리면 **모든 현황 화면이 조용히 틀린 기간을 봅니다.**
 테스트 파일은 `tsconfig.app.json` 의 `exclude` 로 앱 빌드에서 빼 뒀습니다(node 타입이 없어
 넣어 두면 typecheck·build 가 깨집니다).
@@ -348,6 +367,20 @@ cd frontend && npm run test:unit    # node --test, src/**/*.test.ts
 node qa/ui-check.mjs     # 표 헤더 ↔ 합계행 열 수, 메뉴 ↔ 라우트
 node qa/dto-check.mjs    # 응답에는 있는데 등록·수정 요청에 빠진 필드
 ```
+
+그려진 화면은 헤드리스 Chrome 으로 봅니다(앱이 떠 있어야 합니다 — 백엔드 8081, 프론트 5180):
+
+```bash
+node qa/screen-check.mjs          # 라우트 전부(약 8분) — 빈 화면, '품목명(규격)' 열에 규격을 안 찍는 칸
+node qa/screen-check.mjs sales    # 접두사(/sales)만. Git Bash 는 '/sales' 를 윈도 경로로 바꾸므로 슬래시 없이
+node qa/shot.mjs <시나리오.json>   # QA 기록용 캡처(조건 코드도움 고르기 step 지원)
+for f in qa/flows/*.json; do node qa/shot.mjs $f; done   # 화면을 사람처럼 써 보는 회귀 시험(입력→저장→안내, 만든 전표는 지움)
+bash qa/precommit.sh               # 커밋 전 — typecheck·test:unit·ui-check·dto-check·arch-check·style-check, 하나라도 실패하면 exit 1
+```
+
+`screen-check` 는 화면마다 알약 버튼과 [검색]을 눌러 JS 예외·실패한 API(4xx/5xx)도 모읍니다.
+입력 화면을 고쳤으면 `qa/flows/` 에 그 흐름을 하나 더해 두세요 — 타입체크도 API 시험(qa.mjs)도
+"저장하고 나서 화면이 아무 말도 안 한다" 같은 것은 못 잡습니다(9회차에 판매·구매입력이 그랬다).
 
 `dto-check` 는 **볼 수는 있는데 정할 수 없는 값**을 잡습니다. 엔티티에 필드를 만들고 응답 DTO 에도
 실었는데 `Create…Request`·`Update…Request` 에만 빠뜨리면, 화면이 값을 보내도 **서버가 조용히 버립니다.**
@@ -367,9 +400,130 @@ record 에 없는 필드는 JSON 에서 그냥 무시되므로 컴파일도 타�
 
 ---
 
-## 10. 패키지 이동 (완료됨 · 2026-07-16)
+## 10. 프론트엔드 구조
 
-계층 우선 → 모듈 우선 이동을 **이미 완료**했습니다. 558개 파일을 `com/erp/<module>/<layer>/`로
+```
+frontend/src/
+├─ main.tsx                 # 렌더만 한다
+├─ app/
+│  ├─ App.tsx               # BrowserRouter · AuthProvider 로 감싼다
+│  ├─ router.tsx            # 라우트 표 (lazy import)
+│  └─ layout/               # EcountLayout(상단 메뉴, FLAT_MENU 단일 소스), Layout
+├─ pages/<모듈>/             # URL 하나 = 화면 하나
+├─ features/<기능>/          # 기능 전용: components/ · api/ · hooks/ · types.ts
+│  ├─ auth/                 # AuthContext, menuPermissions, components/ProtectedRoute
+│  └─ approval/components/  # 결재 상세·양식 필드
+├─ components/              # 공통 UI (Ec*·Modal·패널)
+├─ api/client.ts            # 공통 API 클라이언트
+├─ types/api.ts             # 서버 요청·응답 타입
+├─ utils/                   # 순수 함수 (periods 등). *.test.ts 는 같은 자리에
+└─ styles/index.css
+```
+
+- **한 화면만 쓰는 컴포넌트·API 호출은 아직 `pages/` 파일 안에 있습니다.** 한 번에 빼지 말고,
+  그 화면을 고칠 일이 생겼을 때 `features/<기능>/` 로 옮깁니다(4.4 와 같은 방식).
+- 공통인데 UI 가 아닌 것(계산·포맷)은 `components/` 가 아니라 `utils/` 에 둡니다.
+- `app/router.tsx`·`app/layout/EcountLayout.tsx`·`features/auth/menuPermissions.ts`·`utils/periods.ts` 는
+  `qa/ui-check.mjs` 가 경로로 읽습니다. 옮기면 그쪽 경로도 같이 고치세요.
+
+
+### 10.1 화면 디자인 규칙 (이카운트 ec56 과 같게)
+
+색·크기·둥글기의 **단일 출처는 `styles/tokens.css`** 입니다(2026-10-03 loginaa ec56 판매조회·판매입력·MyPage
+`getComputedStyle` 실측). 화면 틀은 `styles/shell.css`, 부품(버튼·칸·격자·판)은 `styles/index.css` 가 토큰으로 그립니다.
+
+| 부품 | 클래스 | 원본 값 |
+|------|--------|---------|
+| 버튼 | `.ec-btn` / `.ec-btn-primary` / 붙은 묶음 `.ec-btn-group` · `.ec-btn-arrow` | h26 · 여백 0 9px · 둥글기 10 · 머리카락 테두리 #dee2e6 |
+| 입력칸 | `.ec-input` · 코드도움 `.ec-code` (붙는 쪽 모서리만 각짐) | h26 · 여백 5.4px · 둥글기 10 · 막힘 #e9ecef |
+| 툴바 버튼 | `.ec-btn.ec-btn-sm` | h22 |
+| 알약 | `.ec-pills > .ec-pill(.active)` | h25 · 둥글기 30 · 꺼짐 #e7efff/#606c93 · 켜짐 #1f48d4/흰 |
+| 입력·조건 판 | `.ec-form` · `.ec-cond` | 흰 바탕 · 여백 9 · 둥글기 20 |
+| 격자 | `table` (전역) · `.ec-list-grid` · `.ec-report` | 머리 #f7f8f9 · 윗선 #9bb0be · 머리 35/본문 30 · 줄 마우스 #f2f2f2 · 링크 #19358c · 그림자 없음 |
+| 화면 제목 | `.ec-page-head > .ec-page-title` · `.tools` | 14px 700 |
+| 쪽번호 | `.ec-paging > .active` | 파란 동그라미 · 꺼짐 #868d93 |
+| 틀 | `.ec-bookbar` · `.ec-gnb(-item)` · `.ec-subnav(-item)` · `.ec-lnb-group/-leaf` · `.ec-frame` · `.ec-appbar` | 북마크 h26 #e9ecef · 머리 h46 · 왼쪽 209 · 본문 틀 위 모서리 20 |
+
+**3층 구조**(큰 회사 디자인 시스템과 같은 방식):
+
+```
+1층 토큰   styles/tokens.css            --ec-blue · --ec-ctl-h …  (원본 실측값, 단일 출처)
+   ↓       styles/index.css @theme      토큰 → Tailwind 클래스: text-ec-hint · bg-ec-page · border-ec-line · rounded-ec
+2층 부품   styles/shell.css · index.css .ec-btn · .ec-input · .ec-alert · .ec-empty · .ec-widget …  (@layer components)
+           components/ui/               EcButton · EcAlert · EcEmptyRow · EcBadge
+3층 화면   pages/                       부품을 조립만 한다. 색·px 를 고르지 않는다.
+```
+
+- 견본: **`/settings/design-system`**(Self-Customizing › 기타관리시스템 › 디자인 시스템) — 토큰 값(실행 중에 읽음)과
+  부품을 한 화면에서 봅니다. 새 부품을 만들면 여기에 한 칸 더합니다.
+- 화면 안 배치(정렬·여백·폭)는 Tailwind 유틸리티(`text-right` · `mb-[6px]` · `w-[120px]`)로 씁니다. 색은 반드시 토큰 클래스
+  (`text-ec-danger`)로 — Tailwind 기본 팔레트(`text-slate-600` · `bg-red-50`)는 래칫(`palette`)이 막습니다.
+- 우리 부품 CSS 는 `@layer components` 안에 있어 **유틸리티 클래스가 이깁니다**(인라인 style 이 이기던 것과 같은 순서).
+  층 밖에 규칙을 새로 쓰면 유틸리티가 지고 화면이 조용히 어긋납니다 — 새 규칙도 층 안에 넣으세요.
+- **모양을 건드리는 큰 변경은 회귀 시험으로 확인합니다**(앱이 떠 있어야 함):
+  ```bash
+  node qa/style-snapshot.mjs save /tmp/before        # 고치기 전 — 화면마다 모든 요소의 계산된 스타일
+  node qa/style-snapshot.mjs save /tmp/after         # 고친 뒤
+  node qa/style-snapshot.mjs diff /tmp/before /tmp/after   # 어느 화면 어느 요소의 무엇이 바뀌었나
+  ```
+  인라인 → 클래스 이관처럼 "모양은 그대로여야 하는" 변경에서, 바뀐 요소가 0 인지 보는 데 씁니다.
+
+- **화면 코드(.tsx)에 색·px 를 새로 쓰지 마세요.** 위 클래스를 붙이고, 인라인이 꼭 필요하면 `var(--ec-…)` 토큰을 씁니다.
+  `#1f48d4` 같은 값을 직접 쓰면 원본이 바뀔 때 그 자리만 남습니다(2026-10-03 원본이 h28·둥글기 5 → h26·둥글기 10 으로
+  바뀌었는데 틀 전체가 인라인이라 한 군데도 따라가지 않았습니다).
+- **값은 재서 넣습니다.** 원본 여백이 6.3px·9px·11.7px 처럼 보여도 반올림하지 않습니다(원본 여백이 정수 × 0.9 로 그려짐) —
+  반올림하면 버튼 폭·칸 높이가 1px 씩 어긋납니다. 새 값은 원본에서 재서 `tokens.css` 에 이름을 붙여 더합니다.
+- **`node qa/style-check.mjs` 가 막습니다(래칫, `precommit.sh` 포함).** 파일마다 인라인 `style={…}` 과 색 값
+  (`#fff`·`rgb(`)의 개수를 `qa/style-baseline.json` 에 적어 두고, 늘면 실패합니다(새 파일의 기준은 0).
+  줄여도 실패합니다 — `node qa/style-check.mjs --update` 로 기준을 조이세요. 2026-10-03 처음 잰 값은 인라인 13,609 · 색 5,651,
+  같은 날 화면 274개의 색을 토큰으로 바꿔 색은 831 로 줄었습니다.
+- 테두리는 `var(--ec-hair)`(0.5px, 레티나에서 기기 픽셀 1칸)입니다. 본문 틀(`.ec-frame`)만 원본도 1px 입니다.
+- Tailwind 둥글기·그림자는 `index.css` 가 원본 단계로 덮습니다(`rounded-lg` → 10, `rounded-xl/2xl` → 20, 그림자 없음).
+  새 화면에서는 Tailwind 색·둥글기 대신 위 클래스를 쓰세요.
+- 한 화면을 원본과 맞출 때는 `/ecount-diff` 스킬을 씁니다(조건·열·기본값 + 그 화면만의 디자인).
+
+
+### 10.2 반응형 (PC · 태블릿 · 휴대폰)
+
+원본 ec56 을 따릅니다(2026-10-03 실측 — 창 폭을 1px 씩 줄여 가며 쟀습니다).
+**화면 폭 768px 이하에서 휴대폰 틀**로 바뀝니다(769 는 PC 틀). 그 사이 크기 단계는 없습니다 —
+1024 · 800 에서도 원본은 PC 틀 그대로 표만 옆으로 밉니다.
+
+| 부분 | PC (≥769) | 휴대폰·태블릿 (≤768) |
+|------|-----------|----------------------|
+| 머리 | 북마크 줄 26 + 1단 글자 메뉴 46 + 떠 있는 2단 판 | 높이 50: 로고 · ☰(남색 동그라미) · ★(노란 동그라미) … 앱 모음 · 사용자 |
+| 메뉴 | 왼쪽 메뉴 209 | ☰ → 머리 아래 전체를 덮는 판: 왼쪽 1단(고른 것 아래 2단 카드) / 오른쪽 3·4단 나무 |
+| 본문 틀 | 위 모서리 20, 왼쪽 메뉴 · 앱바 사이 | 화면 폭 전부, 각진 모서리 |
+| 목록 머리 | ★제목 + 검색 · Search · Option · 도움말 | 제목 · 도움말을 감추고 검색 도구만 |
+| 하단 버튼줄 | 줄바꿈 | 한 줄 + 끝에 ⌄(펼치면 전부) |
+| 격자 | — | 격자 그대로, **표 안에서만** 옆으로 민다 |
+| 입력 폼 · 조회 조건 | 2열 · 여러 칸 | 1열, 이름표 93 |
+
+- 규칙은 `styles/shell.css`(틀) · `styles/index.css`(부품) 의 `@media (max-width: 768px)` 에 있습니다. 화면 코드에서는
+  Tailwind 변형 **`mobile:`** 을 씁니다(`mobile:hidden` · `mobile:w-full`, index.css `@custom-variant mobile`).
+  `md:` · `lg:` 같은 Tailwind 기본 구간은 원본과 경계가 달라(768 · 1024) 쓰지 않습니다.
+- 화면마다 손으로 짠 줄(버튼 · 입력칸을 늘어놓은 `flex`)은 휴대폰에서 **자동으로 접힙니다**. 줄이 접히면 안 되는 곳에만
+  `flex-nowrap` 을 붙이세요. px 로 박은 폭(`w-[420px]`)은 화면 폭을 넘지 않게 눌립니다.
+- 입력 화면을 만들거나 고쳤으면 휴대폰 폭으로도 봅니다:
+  ```bash
+  node qa/mobile-check.mjs sales                     # 폭 375 — 화면 밖으로 삐져나간 것 · PC 틀이 남은 것
+  ROUTES=/sales/sell,/sales/buy node qa/mobile-check.mjs   # 몇 화면만
+  ```
+  표 안의 넘침은 괜찮습니다(표가 스스로 민다). 본문 틀 자체가 옆으로 밀리면 실패입니다.
+
+---
+
+## 11. 패키지 이동 기록
+
+**2026-10-01 · 계층 폴더 → 기능 폴더.** `com/erp/<module>/<layer>/` 의 691개 파일을 `com/erp/<module>/<feature>/` 로
+옮겼습니다. 패키지 선언·import·본문 FQN 을 다시 쓰고, 같은 계층 폴더라 import 없이 쓰던 참조에 import 를 넣었습니다.
+`rm -rf target && ./mvnw -o compile` + 앱 기동(Bean 스캔·JPA `validate`) + qa.mjs 1821 · schema-check 93 · dto-check · ui-check 107
+전부 통과로 검증했습니다. 이때 `qa/fixtures/reason-witnesses.json` 의 파일 경로 54곳이 옛 위치를 가리켜 증거 검사가
+**조용히 빈 채로 통과**하고 있었습니다(셋은 옮기기 전부터 틀려 있었음). 지금은 경로가 없으면 실패합니다.
+
+### 2026-07-16 · 계층 우선 → 모듈 우선
+
+계층 우선 → 모듈 우선 이동을 완료했습니다. 558개 파일을 `com/erp/<module>/<layer>/`로
 옮기고, 패키지 선언·import·본문 FQN을 재작성했으며, `rm -rf target && ./mvnw -o compile` 통과 +
 앱 기동(Bean 스캔·JPA `validate`) + QA 하네스 405개 전부 통과로 검증했습니다.
 아래는 그때 확인한 전제조건이며, 이후 유사 이동 시 참고용으로 남깁니다.

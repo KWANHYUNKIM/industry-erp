@@ -46,6 +46,15 @@ const SEP = /[\\/]/
 const ALL_REASON_KEYS = new Set()
 const collectReasons = (m) => { for (const k of m.keys()) ALL_REASON_KEYS.add(k) }
 
+/**
+ * <b>정렬 대조(1-g)가 찾아낸 "원본에 있는데 우리에게 없는 열".</b>
+ *
+ * <p>여기서 재 놓고 <b>판정은 아래 열 대조(2-h)에서</b> 한다 — 이유 지도(NO_COLUMN)가
+ * 그 블록 안에 있기 때문이다. 검사 차례가 바뀌어 안 채워진 채로 판정하면
+ * <b>아무것도 안 재면서 조용히 통과</b>하므로, 쓰는 쪽에서 null 인지 먼저 건다.
+ */
+let MISSING_COLUMNS = null
+
 const walk = (dir) => readdirSync(dir).flatMap((f) => {
   const p = join(dir, f)
   return statSync(p).isDirectory() ? walk(p) : [p]
@@ -101,9 +110,10 @@ const withLocalDeps = (file, depth = 2, seen = new Set()) => {
   seen.add(file)
   let text = readFileSync(file, 'utf8')
   const dir = file.split(sep).slice(0, -1).join(sep)
-  for (const m of text.matchAll(/from\s+'\.\/([\w-]+)'/g)) {
+  // 곁 파일('./x')과 공통 유틸('../utils/x', '../../utils/x' …)만 따라간다. periods.ts 가 utils 에 있다.
+  for (const m of text.matchAll(/from\s+'((?:\.\/)|(?:\.\.\/)+utils\/)([\w-]+)'/g)) {
     for (const ext of ['.ts', '.tsx']) {
-      const dep = join(dir, m[1] + ext)
+      const dep = join(dir, m[1] + m[2] + ext)
       // 두 단계까지 따라간다 — 패널 → EcPeriodPicks → periods 가 실제 깊이다.
       if (existsSync(dep)) { text += withLocalDeps(dep, depth - 1, seen); break }
     }
@@ -125,7 +135,7 @@ const shellSrcFor = (src) => [...SHELL_FILES]
  * 조용히 어긋난다.
  */
 const COMPARE_PERIOD_NAMES = (() => {
-  const f = join('frontend', 'src', 'components', 'periods.ts')
+  const f = join('frontend', 'src', 'utils', 'periods.ts')
   if (!existsSync(f)) return []
   const m = readFileSync(f, 'utf8').match(/COMPARE_PERIODS[^\n=]*=\s*\[([^\]]*)\]/)
   return m ? [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]) : []
@@ -398,9 +408,25 @@ const choiceNames = (src) => {
  */
 const noArrow = (h) => h.replace(/=>/g, '  ')
 
-const MARK_TAIL = '(?:\u25bc|\\{sort\\.mark\\([^)]*\\)\\})?'
+/*
+ * 정렬표시를 그리는 식. 한 화면이 표를 둘 이상 들면 이름을 갈라 둔다
+ * (창고이동입력의 <code>transferSort</code>·<code>adjustSort</code>). 예전에는 <code>sort.mark</code> 하나만 읽어
+ * 그런 자리의 열은 <b>이름이 글자로 적혀 있는데도</b> 못 찾았다(2026-09-10).
+ */
+const MARK_TAIL = '(?:▼|\\{[A-Za-z]*[Ss]ort\\.mark\\([^}]*\\)\\})?'
 
 const PENDING = new Set(JSON.parse(readFileSync(join('qa', 'fixtures', 'pending-screens.json'), 'utf8')))
+
+/**
+ * <b>원본 표와 우리 표를 짝지을 수 없는 화면.</b> 정렬·폭 검사는 원본 열 이름이 가장 많이
+ * 맞는 &lt;thead&gt; 하나를 골라 재는데, <b>두 표가 같은 수만큼 맞으면</b> 어느 쪽인지 고를 수
+ * 없어 통째로 건너뛴다. 그동안 그건 <b>수</b>로만 남아, 늘어도 아무도 몰랐다.
+ *
+ * <p>왜 못 짝짓는지는 화면마다 다르다 — 우리가 원본의 표 하나를 <b>둘로 쪼갠</b> 자리가 있고,
+ * 입력 화면처럼 <b>폼 이름표와 격자가 섞인</b> 자리가 있다. 이유를 적어 두고 그 수가
+ * 늘지 않게 못 박는다. 새 화면이 여기 들어오면 <b>왜인지 적게</b> 된다.
+ */
+const UNPAIRED = JSON.parse(readFileSync(join('qa', 'fixtures', 'unpaired-tables.json'), 'utf8'))
 
 const pageSource = (rel) => {
   const path = join('frontend', 'src', 'pages', ...rel.split('/'))
@@ -785,7 +811,6 @@ console.log('\n■ 코드로 고르는 칸을 드롭다운으로 두지 않았�
     ['trade/PartnersPage.tsx|세무신고거래처', '위와 같음 — 거래처를 고르는 칸이 아니라 <b>대상/제외</b> 두 값이다'],
     ['production/ResourcePage.tsx|자원명 *', '남의 자원을 고르는 칸이 아니라 <b>이 자원의 이름</b>이다'],
     ['groupware/ApprovalListPage.tsx|부서', '마스터가 아니라 <b>올라온 기안서에 적힌 부서</b>를 모은 목록이다'],
-    ['groupware/ApprovalListPage.tsx|프로젝트', '위와 같음'],
     /*
      * 이름 안에 마스터 낱말이 <b>들어 있을 뿐</b>인 칸들. '품목공유여부'에 '품목'이,
      * '생산전표생성-창고이동'에 '창고'가 들어 있어 걸렸다 — 둘 다 고를 값이 둘뿐이다.
@@ -878,7 +903,10 @@ console.log('\n■ 대조표를 다 쓰고 있나')
       || f === 'unwitnessed-reasons.json'
       /* 화면이 아니라 <b>서버 자리</b>를 키로 쓴다. */
       || f === 'server-only-endpoints.json'
-      || f === 'ecount-missing-columns.json') continue
+      /* 화면 이름이 아니라 <b>우리 파일 경로</b>를 키로 쓴다 — 원본에 없는 우리 판단이라 그렇다. */
+      || f === 'open-with-all-period.json'
+      /* 화면 이름이 아니라 <b>수 하나</b>다(못 박아 늘지만 않게 하는 자리). */
+      || f === 'period-not-sent.json') continue
     let j
     try { j = JSON.parse(readFileSync(join('qa', 'fixtures', f), 'utf8')) } catch { continue }
     if (Array.isArray(j)) continue
@@ -989,8 +1017,8 @@ console.log('\n■ 훅을 컴포넌트 최상위에서 부르나')
 // ── 2) 메뉴 ↔ 라우트 ───────────────────────────────────────────────────────
 console.log('\n■ 메뉴 ↔ 라우트')
 
-const app = readFileSync('frontend/src/App.tsx', 'utf8')
-const menu = readFileSync('frontend/src/components/EcountLayout.tsx', 'utf8')
+const app = readFileSync('frontend/src/app/router.tsx', 'utf8')
+const menu = readFileSync('frontend/src/app/layout/EcountLayout.tsx', 'utf8')
 
 const routes = new Set([...app.matchAll(/<Route\s+path="([^"]+)"/g)].map((m) => m[1]))
 const menuTargets = new Map()
@@ -1065,8 +1093,9 @@ console.log('\n■ 메뉴 이름 ↔ 화면이 여는 자리')
   const routeComp = new Map()
   for (const m of app.matchAll(/<Route\s+path="([^"]+)"\s+element=\{<(\w+)/g)) routeComp.set(m[1], m[2])
   const compFile = new Map()
-  for (const m of app.matchAll(/const (\w+) = lazy\(\(\) => import\('\.\/([^']+)'\)\)/g)) compFile.set(m[1], m[2])
-  for (const m of app.matchAll(/import (\w+) from '\.\/([^']+)'/g)) compFile.set(m[1], m[2])
+  // 라우터가 src/app/ 에 있어서 화면은 '../pages/...' 로 불린다 — src 기준 경로를 뽑는다.
+  for (const m of app.matchAll(/const (\w+) = lazy\(\(\) => import\('\.\.\/([^']+)'\)\)/g)) compFile.set(m[1], m[2])
+  for (const m of app.matchAll(/import (\w+) from '\.\.\/([^']+)'/g)) compFile.set(m[1], m[2])
 
   const bad = []
   for (const [to, labels] of byTo) {
@@ -1105,8 +1134,8 @@ console.log('\n■ 형제 메뉴는 같은 종류인가')
   const routeComp2 = new Map()
   for (const m of app.matchAll(/<Route\s+path="([^"]+)"\s+element=\{<(\w+)/g)) routeComp2.set(m[1], m[2])
   const compFile2 = new Map()
-  for (const m of app.matchAll(/const (\w+) = lazy\(\(\) => import\('\.\/([^']+)'\)\)/g)) compFile2.set(m[1], m[2])
-  for (const m of app.matchAll(/import (\w+) from '\.\/([^']+)'/g)) compFile2.set(m[1], m[2])
+  for (const m of app.matchAll(/const (\w+) = lazy\(\(\) => import\('\.\.\/([^']+)'\)\)/g)) compFile2.set(m[1], m[2])
+  for (const m of app.matchAll(/import (\w+) from '\.\.\/([^']+)'/g)) compFile2.set(m[1], m[2])
 
   /** 뒤에 붙은 (…) 와 로마숫자·번호를 떼고 남는 줄기. 줄기가 같으면 형제다. */
   const stem = (s) => s.replace(/\s*\([^)]*\)\s*$/, '').replace(/\s*(I{1,3}|IV|V|\d+)\s*$/, '').trim()
@@ -1161,12 +1190,12 @@ console.log('\n■ 원본 메뉴 이름을 우리도 쓰고 있나')
   /** 원본에 있으나 우리 메뉴에 그 이름이 없는 것. 왜 없는지를 적는다. */
   const NOT_OURS = new Map([
     // 원본 좌측 메뉴의 접힌 그룹 이름. 우리는 그 아래 항목만 평평하게 둔다.
-    ['BOM(소요량)', '원본의 접힌 그룹 이름 — 우리는 그 아래 [BOM(소요량)등록] 만 둔다'],
+    ['BOM(소요량)', '원본의 접힌 그룹 이름 — 그 아래 [BOM(소요량)조회] · [BOM(소요량)현황] · [소요량계산] 을 둔다'],
     ['공정', '접힌 그룹 이름 — 아래에 공정등록·자원등록이 있다'],
     ['작업지시서', '접힌 그룹 이름'],
     ['작업', '접힌 그룹 이름 — 아래에 작업내역입력·조회·현황이 있다'],
     ['생산입고', '접힌 그룹 이름'],
-    ['생산불출', '접힌 그룹 이름 — 우리는 겸용 화면 하나를 [생산불출] 로 건다'],
+    ['생산불출', '접힌 그룹 이름 — 그 아래 [생산불출조회](입력을 겸한다) · [생산불출현황] 을 둔다'],
     ['비용내역', '접힌 그룹 이름'],
     ['단가관리', '접힌 그룹 이름 — 아래 네 항목을 우리는 기초등록에 평평하게 둔다'],
     ['기본 메일함', '접힌 그룹 이름'],
@@ -1174,10 +1203,8 @@ console.log('\n■ 원본 메뉴 이름을 우리도 쓰고 있나')
     // 한 화면이 원본의 입력·조회를 겸한다. 없는 이름을 만들지 않고 있는 것만 건다.
     ['출하입력', '출하지시서조회 화면이 입력을 겸한다'],
     ['출하지시서입력', '위와 같다'],
-    ['생산불출입력', '[생산불출] 한 화면이 입력·조회를 겸한다'],
-    ['생산불출조회', '위와 같다'],
-    ['작업지시서입력', '[작업지시] 한 화면이 입력·조회를 겸한다'],
-    ['작업지시서조회', '위와 같다'],
+    ['생산불출입력', '[생산불출조회] 한 화면이 입력(팝업)을 겸한다'],
+
     ['비용내역조회', '[비용내역현황] 이 조회를 겸한다'],
 
     // 화면 안에 있는 것 — 메뉴로 나누지 않는다.
@@ -1192,7 +1219,7 @@ console.log('\n■ 원본 메뉴 이름을 우리도 쓰고 있나')
 
     // 아직 안 만든 것 — 무엇을 그릴지 잴 근거가 없다.
     ['판매입력 II', '조정 그리드 구조를 사본만으로 확정할 수 없다(금액조정항목명·증감구분)'],
-    ['외주비회계반영', '외주가공비를 전표로 받는 자리가 없어 반영할 것이 없다. 화면 사본도 없다'],
+    ['외주비회계반영', '원본의 접힌 그룹 이름 — 그 아래 [외주비일괄회계반영](E040418) 하나를 둔다(2026-10-02 만듦)'],
     ['품목별단가', '화면 사본이 없어 무엇을 그릴지 잴 수가 없다'],
     ['각종코드변경', '위와 같다'],
     ['인쇄용결재라인등록(재고)', '우리 인쇄 결재란은 [인쇄용결재라인] 하나로 두고 재고/회계를 안 가른다'],
@@ -1245,13 +1272,29 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
   /** 사본 화면 이름 → 우리 화면 파일 */
   const FILE_OF = new Map([
     ['채권현황', 'trade/ArApStatusPage.tsx'],
+    /*
+     * <b>채권/채무현황(E040703)</b> 은 채권현황(E040721)과 <b>다른 화면</b>이다 —
+     * 판도 다르고(이쪽에만 [구분]·[양식], 체크가 [기타] 안에 묶인다),
+     * <b>기준일자 기본값도 다르다</b> — 채권현황 금월(~오늘) · 채권/채무현황 <b>금일</b>.
+     * 우리 화면 하나(ArApStatusPage)가 mode 로 셋을 겸한다.
+     */
+    ['채권/채무현황', 'trade/ArApStatusPage.tsx'],
+    /* 채무현황(E040722)도 같은 표가 겸한다 — 조건·격자·버튼줄이 채권현황과 글자 하나까지 같다. */
+    ['채무현황', 'trade/ArApStatusPage.tsx'],
     ['판매현황', 'trade/SalesStatusPage.tsx'],
     ['구매현황', 'trade/PurchaseStatusPage.tsx'],
     ['거래처관리대장 I', 'trade/PartnerLedgerPage.tsx'],
+    /*
+     * <b>판매일괄회계반영(E040215)</b> — 원본은 [전월]로 열린다(2026-09-09 실측).
+     * 같은 파일이 겸하는 회계미반영현황은 금월이라, 메뉴가 넘기는 <code>?view=</code>
+     * 로 갈라 준다. 이 검사는 <b>그 파일이 그 기본값을 쓰기는 하나</b>까지만 본다.
+     */
+    ['판매일괄회계반영', 'trade/AccountingReflectionPage.tsx'],
     ['결제내역자료비교', 'trade/PaymentComparePage.tsx'],
     ['구매할인현황', 'trade/PurchaseDiscountPage.tsx'],
     ['수금현황', 'trade/CollectionPage.tsx'],
-    ['지급현황', 'trade/CollectionPage.tsx'],
+    /* 메뉴 [지급현황]은 /sales/payment 로 간다 — 수금현황과 같은 파일이 아니다(2026-09-10 바로잡음). */
+    ['지급현황', 'trade/PaymentPage.tsx'],
     ['업무일지', 'groupware/WorkLogPage.tsx'],
     ['작업지시서작업처리', 'production/WorkProcessPage.tsx'],
     ['품질검사요청조회', 'quality/QualityRequestPage.tsx'],
@@ -1276,6 +1319,62 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     ['발주계획현황', 'trade/PurchaseRequestStatusPage.tsx'],
     ['단가요청현황', 'trade/PurchaseRequestStatusPage.tsx'],
     ['견적서조회', 'trade/QuotationPage.tsx'],
+    ['품질검사요청현황', 'quality/QualityRequestStatusPage.tsx'],
+    ['A/S수리현황', 'quality/AsRepairStatusPage.tsx'],
+    ['품질검사조회', 'quality/QualityInspectionPage.tsx'],
+    ['자가사용조회', 'inventory/StockMoveListPage.tsx'],
+    ['불량처리조회', 'inventory/StockMoveListPage.tsx'],
+    ['재고조정진행단계', 'inventory/StagedProgressPage.tsx'],
+    ['재고조정조회', 'inventory/AdjustListPage.tsx'],
+    ['재고실사조회', 'inventory/StocktakeListPage.tsx'],
+    ['시리얼/로트No.내역조회', 'quality/LotTxListPage.tsx'],
+    ['주문서조회', 'trade/SalesOrderPage.tsx'],
+    ['발주요청조회', 'trade/PurchaseRequestListPage.tsx'],
+    ['발주계획조회', 'trade/PurchasePlanListPage.tsx'],
+    ['단가요청조회', 'trade/PriceRequestListPage.tsx'],
+    ['매출(세금)계산서현황(재고)', 'production/PurchaseTaxStockPage.tsx'],
+    ['매출(세금)계산서조회(재고)', 'production/PurchaseTaxStockPage.tsx'],
+    ['매입(세금)계산서조회(재고)', 'production/PurchaseTaxStockPage.tsx'],
+    ['A/S수리조회', 'quality/AsRepairListPage.tsx'],
+    ['비용내역조회', 'accounting/ExpenseListPage.tsx'],
+    ['받을어음조회', 'accounting/NoteListPage.tsx'],
+    ['지급어음조회', 'accounting/NoteListPage.tsx'],
+    ['고정자산대장', 'accounting/FixedAssetLedgerPage.tsx'],
+    ['고정자산증가내역', 'accounting/FixedAssetFlowPage.tsx'],
+    ['고정자산감소내역', 'accounting/FixedAssetFlowPage.tsx'],
+    ['고정자산증감대장', 'accounting/FixedAssetMovementPage.tsx'],
+    ['고정자산전표조회', 'accounting/FixedAssetSlipListPage.tsx'],
+    ['현금출납장', 'accounting/CashBookPage.tsx'],
+    ['분개장', 'accounting/JournalBookPage.tsx'],
+    ['일/월계표', 'accounting/DayMonthSheetPage.tsx'],
+    ['계정별거래처별원장', 'accounting/AccountPartnerLedgerPage.tsx'],
+    ['거래처별계정별원장', 'accounting/PartnerAccountLedgerPage.tsx'],
+    ['계정별적요별원장', 'accounting/AccountRemarkLedgerPage.tsx'],
+    ['계정증감내역', 'accounting/AccountFlowPage.tsx'],
+    ['매입/매출장', 'accounting/VatBookPage.tsx'],
+    ['거래처거래내역조회', 'accounting/PartnerTxListPage.tsx'],
+    ['합계잔액시산표', 'accounting/TrialBalancePage.tsx'],
+    ['회계거래현황', 'accounting/JournalStatusPage.tsx'],
+    ['거래이력조회(회계)', 'accounting/JournalHistoryPage.tsx'],
+    ['지출결의서이체리스트', 'accounting/TransferListPage.tsx'],
+    ['자금일보', 'accounting/FundDailyPage.tsx'],
+    ['경영요약보고서', 'accounting/ManagementSummaryPage.tsx'],
+    ['회계집계표', 'accounting/AccountAggregatePage.tsx'],
+    ['월별매출집계표', 'accounting/MonthlyVatSummaryPage.tsx'],
+    ['월별매입집계표', 'accounting/MonthlyVatSummaryPage.tsx'],
+    ['지출결의서집계', 'accounting/ExpenseSlipSummaryPage.tsx'],
+    ['입금보고서집계', 'accounting/ExpenseSlipSummaryPage.tsx'],
+    ['가지급금정산서집계', 'accounting/ExpenseSlipSummaryPage.tsx'],
+    ['인원현황', 'hr/HeadcountPage.tsx'],
+    ['고정자산수불부', 'accounting/FixedAssetStockPage.tsx'],
+    ['계정별원장', 'accounting/AccountLedgerPage.tsx'],
+    ['현금흐름(입출금내역)', 'accounting/CashFlowListPage.tsx'],
+    ['자금현황표', 'accounting/FundStatusPage.tsx'],
+    ['자금증감내역', 'accounting/FundDailyPage.tsx'],
+    ['매출(세금)계산서현황', 'accounting/TaxInvoiceJournalPage.tsx'],
+    ['매입(세금)계산서현황', 'accounting/TaxInvoiceJournalPage.tsx'],
+    ['수령수표조회', 'accounting/CheckListPage.tsx'],
+    ['발행수표조회', 'accounting/CheckListPage.tsx'],
     ['주문서현황', 'trade/SalesOrderStatusPage.tsx'],
     ['미주문현황', 'trade/UnorderedStatusPage.tsx'],
     ['미판매현황', 'trade/UnsoldStatusPage.tsx'],
@@ -1301,12 +1400,23 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     ['재고잔량분석표', 'inventory/StockAnalysisPage.tsx'],
     ['A/S소모현황', 'quality/AsConsumptionPage.tsx'],
     ['판매구매집계표', 'trade/SalesPurchaseSummaryPage.tsx'],
+    /* 단가변동표는 2026-09-08 에 원본(E040819)을 열어 [기준일자] 칸에서 직접 쟀다 — 달 칸이 09 하나다. */
+    ['단가변동표', 'trade/PriceMovementPage.tsx'],
+    /* 경영자보고서(E040704)도 같은 날 열어 쟀다 — 조건이 [기준일자]·[기타] 둘뿐인 화면이다. */
+    ['경영자보고서', 'inventory/ExecutiveReportPage.tsx'],
     ['의료기기공급내역보고', 'datacenter/MedicalDeviceReportPage.tsx'],
     ['비용내역현황', 'accounting/ExpenseDetailPage.tsx'],
     ['기타이동현황', 'inventory/TransferPage.tsx'],
+    /* 창고이동조회는 2026-09-07 에 원본(E040502)을 열어 간편검색 칸에서 직접 쟀다. */
+    ['창고이동조회', 'inventory/TransferStatusPage.tsx'],
     /* 할인현황 셋은 얇은 껍데기가 DiscountStatusPage 를 부른다 — 기간은 그 안에서 정한다. */
-    ['판매할인현황', 'trade/DiscountStatusPage.tsx'],
-    ['외주비할인현황', 'trade/DiscountStatusPage.tsx'],
+    /*
+     * 셋은 <b>파일이 다 다르다</b> — 메뉴가 /sales/sales-discount · /sales/purchase-discount ·
+     * /sales/outsourcing-discount 로 따로 간다. 여기 둘을 DiscountStatusPage 로 적어 두어
+     * <b>사용자가 안 여는 파일</b>의 기본값을 재고 있었다(2026-09-10 바로잡음).
+     */
+    ['판매할인현황', 'trade/SalesDiscountPage.tsx'],
+    ['외주비할인현황', 'trade/OutsourcingDiscountPage.tsx'],
   ])
 
   /**
@@ -1326,9 +1436,13 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     if (NOT_YET.has(fam)) continue
     const rel = FILE_OF.get(fam)
     if (!rel) { bad.push(fam + '  (어느 화면인지 안 이어 놓았다)'); continue }
-    const file = 'frontend/src/pages/' + rel
-    if (!existsSync(file)) { bad.push(fam + '  (' + rel + ' 없음)'); continue }
-    const src = readFileSync(file, 'utf8')
+    /*
+     * <b>감싸기만 하는 파일이면 감싸인 쪽까지 읽는다.</b> 판매·외주비할인현황과 지급현황은
+     * 열 줄짜리 감싸개라(<code>&lt;DiscountStatusPage kind="SALES" …/&gt;</code>) 그 파일만 보면
+     * 기간 기본값이 <b>아예 없는 것처럼</b> 보인다. 다른 검사들이 쓰는 pageSource 를 여기서도 쓴다.
+     */
+    const src = pageSource(rel)
+    if (!src) { bad.push(fam + '  (' + rel + ' 없음)'); continue }
     checked++
     // 그 화면이 쓰는 periodOf 라벨 가운데 원본 기본값이 하나라도 있으면 통과.
     // periodOf('이번기수', new Date(), fiscalStart) 처럼 인자가 더 붙기도 한다.
@@ -1378,6 +1492,12 @@ console.log('\n■ 화면을 열었을 때 켜져 있는 [구분]이 원본과 �
     ['폐기현황', 'inventory/StockMoveStatusPage.tsx'],
     ['재고조정현황', 'inventory/StockMoveStatusPage.tsx'],
     ['재고실사현황', 'inventory/StocktakeStatusPage.tsx'],
+    /*
+     * <b>창고별재고현황(E040711)</b> — 원본 [구분]은 <b>창고별(종)/창고별(횡)</b> 이고
+     * 기본이 <b>횡</b>이다(2026-09-09 실측). 우리 상태는 그 괄호 안만 담아 '종'·'횡' 이라
+     * 적으므로 대조표의 [값]도 그렇게 적었다 — 화면에 찍히는 글자는 원본 그대로다.
+     */
+    ['창고별재고현황', 'inventory/WarehouseStockPage.tsx'],
     ['생산불출현황', 'production/IssueStatusPage.tsx'],
     ['생산입고현황', 'production/ReceiptStatusPage.tsx'],
     ['작업지시서별진행현황', 'production/WoProgressPage.tsx'],
@@ -1385,6 +1505,13 @@ console.log('\n■ 화면을 열었을 때 켜져 있는 [구분]이 원본과 �
     ['작업내역현황', 'production/WorkResultListPage.tsx'],
     ['미판매현황', 'trade/UnsoldStatusPage.tsx'],
     ['거래처별채권', 'trade/LedgerPage.tsx'],
+    /*
+     * <b>거래처관리대장1(채권·채무) E040723·E040724</b> — 원본 [집계구분]은
+     * 전표별/전표별+내역/일별/월별/회계전표별 이고 <b>기본이 [전표별+내역]</b> 이다
+     * (2026-09-09 실측). 대조표의 열쇠 이름은 이 검사가 보는 '구분' 으로 적는다.
+     */
+    ['거래처관리대장1(채권)', 'trade/PartnerLedgerPage.tsx'],
+    ['거래처관리대장1(채무)', 'trade/PartnerLedgerPage.tsx'],
     ['일별이익현황', 'accounting/DailyProfitPage.tsx'],
     ['실제원가현황', 'accounting/ActualCostPage.tsx'],
     ['월별이익현황', 'accounting/MonthlyProfitPage.tsx'],
@@ -1555,8 +1682,8 @@ console.log('\n■ 같은 메뉴 그룹은 같은 권한')
  * 실제로 새로 만든 재고현황 8개가 접두어 규칙에 걸려 INV_MASTER 로 새고 있었다.
  */
 {
-  const menuSrc = readFileSync('frontend/src/components/EcountLayout.tsx', 'utf8')
-  const permSrc = readFileSync('frontend/src/auth/menuPermissions.ts', 'utf8')
+  const menuSrc = readFileSync('frontend/src/app/layout/EcountLayout.tsx', 'utf8')
+  const permSrc = readFileSync('frontend/src/features/auth/menuPermissions.ts', 'utf8')
 
   // menuPermissions 의 규칙을 그대로 읽어 같은 방식(최장 접두어)으로 푼다.
   const rules = [...permSrc.matchAll(/\['(\/[^']*)',\s*(?:'(\w+)'|null)\]/g)]
@@ -1613,6 +1740,12 @@ console.log('\n■ 같은 메뉴 그룹은 같은 권한')
     ['출/퇴근(사원)', '근태(HR)와 그룹웨어 화면이 섞인다'],
     ['출/퇴근', '위와 같다'],
     ['조직도관리', '사원(HR)과 조직도·연락처(GROUPWARE)가 섞인다'],
+    ['신고전검토자료', '원본 세무 › 부가세 묶음이 회계의 매입/매출장을 그대로 둔다 — 그 하나만 ACCOUNTING'],
+    // MyPage 업종 예시 폴더(원본 예시1~4) — 업종에 필요한 화면을 모듈을 가리지 않고 한 폴더에 모은 것이 원본이다
+    ['기초정보', 'MyPage 예시 폴더 — 거래처 · 창고 · 품목 · 카드 · 프로젝트 등록을 한데 모은다'],
+    ['수발주관리 및 입출고관리', 'MyPage 예시1 — 주문 · 발주 · 구매 · 판매를 한데 모은다'],
+    ['기초데이터', 'MyPage 예시4 — 계정 · 카드 · 거래처 등록을 한데 모은다'],
+    ['업무', 'MyPage 예시4 — 지출결의서 · 입금보고서(회계)와 전자결재(그룹웨어)를 한데 모은다'],
   ])
 
   const mixed = []
@@ -1697,8 +1830,43 @@ console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
    */
   const thFor = (head, name) => head.match(new RegExp('<th\\b([^>]*)>\\s*' + esc(name) + '\\s*' + MARK_TAIL + '\\s*</th>'))
     || head.match(new RegExp('<th\\b([^>]*)>\\s*\\{[^{}]*\'' + esc(name) + '\'[^{}]*\\}\\s*</th>'))
-  const alignOf = (attrs) => (/textAlign:\s*'right'/.test(attrs) ? '우'
-    : /textAlign:\s*'center'/.test(attrs) ? '중' : '좌')
+    /*
+     * 이름을 <b>삼항으로 적은 머리</b>에 <code>{sort.mark(...)}</code> 까지 붙어 있으면
+     * 식이 <b>둘</b>이라 바로 위 꼴로는 안 걸린다 — 발주요청현황의 [일자-No.] 가
+     * 단가요청현황과 이름이 갈리면서 그렇게 됐고, 있는 열이 <b>없는 것</b>으로 잡혔다.
+     */
+    || head.match(new RegExp('<th\\b([^>]*)>\\s*\\{[^{}]*\'' + esc(name) + '\'[^{}]*\\}\\s*' + MARK_TAIL + '\\s*</th>'))
+  // 정렬은 인라인(textAlign) 이든 클래스(text-right · text-center, CLAUDE.md 10.1) 든 읽는다
+  const alignOf = (attrs) => (/textAlign:\s*'right'|(?<![\w-])text-right(?![\w-])/.test(attrs) ? '우'
+    : /textAlign:\s*'center'|(?<![\w-])text-center(?![\w-])/.test(attrs) ? '중' : '좌')
+
+  /**
+   * <b>우리는 그리는데 검사가 못 보는 칸</b> — 왜인지 적는다.
+   *
+   * <p>머리를 <code>{heads.map((h) =&gt; &lt;th key={h}&gt;{h}&lt;/th&gt;)}</code> 로 그리는 표가 있다
+   * ([구분]에 따라 앞머리 칸이 갈리는 화면들). 그러면 <b>열 이름이 따옴표 글자로 남지 않아</b>
+   * 아래 '없는 열' 세기가 <b>있는 열을 없다고</b> 말한다. 갈래마다 글자로 적어 보면
+   * 이번엔 여섯 갈래가 한 파일에 다 있어 <b>차례 검사가 같은 이름을 여러 벌</b>로 센다.
+   * 둘 중 하나는 틀리므로, map 으로 두고 <b>이 자리에 이유를 적어</b> 뺀다.
+   * (이름이 진짜 있는지는 아래 1-j 가 따옴표 글자로 확인한다 — 거기서는 걸린다.)
+   */
+  const MISS_SKIP = new Set([
+    '일별이익현황|품목코드', '일별이익현황|품목명[규격]',
+  ])
+
+  /** 겸하는 원본끼리 정렬이 어긋나 못 맞추는 칸 — 왜인지 적는다. */
+  const NO_ALIGN = new Map([
+    /*
+     * <b>발주요청현황(E040318) vs 발주계획현황(E041015)</b> — 2026-09-09 둘 다 격자 실측.
+     * 한 표(PurchaseRequestStatusPage)가 겸하는데 <b>같은 칸을 다르게 붙여 놓았다</b> —
+     * 발주요청현황은 [일자-No.] 를 왼쪽에, 발주계획현황은 <b>가운데</b>에 둔다.
+     * [납기일자]도 발주계획현황만 가운데다(발주요청현황 격자에는 그 열이 아예 없다 —
+     * 우리가 더 두는 열이라 왼쪽 기본을 따랐다).
+     * 주인인 발주요청현황 쪽으로 맞추고, 발주계획현황의 두 칸만 뺀다.
+     */
+    ['발주계획현황|일자-No.', '겸하는 발주요청현황은 같은 칸을 왼쪽에 둔다 — 주인 쪽으로 맞췄다'],
+    ['발주계획현황|납기일자', '위와 같은 표다. 발주요청현황 격자에는 이 열이 없어 우리 기본(왼쪽)을 따랐다'],
+  ])
 
   const cap = JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-column-align.json'), 'utf8'))
   const bad = []
@@ -1755,6 +1923,7 @@ console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
          * <b>있나 없나</b>만은 화면 전체에서 본다.
          */
         if (thFor(kin, name)) continue
+        if (MISS_SKIP.has(screen + '|' + name)) continue
         missing.push(`${screen}  [${name}]`)
       }
     }
@@ -1763,6 +1932,15 @@ console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
       // '?' 는 정렬을 못 잰 열이다 — 사본에서 그 표가 비어 있어 칸의 정렬을 볼 수 없었다.
       // 이름과 차례는 다른 검사가 본다. 여기서는 세지 않는다.
       if (want === '?') { unknown += 1; continue }
+      /*
+       * <b>한 표가 원본 여럿을 겸하면 정렬이 맞물리지 않는 칸이 생긴다.</b>
+       * 같은 <code>&lt;th&gt;</code> 하나를 두 원본이 서로 다르게 붙여 놓았으면
+       * 어느 쪽으로 맞춰도 다른 쪽이 틀린다 — 이름처럼 삼항으로 가를 수도 없다
+       * (<code>alignOf</code> 는 attrs 의 글자만 보므로 삼항을 쓰면 <b>모든 화면</b>이
+       * 그쪽으로 잡힌다). 그런 칸만 이유를 적고 뺀다. <b>수를 늘리기 전에
+       * 정말 겸하는 표인지 확인할 것</b> — 아니면 그냥 우리가 틀린 것이다.
+       */
+      if (NO_ALIGN.has(screen + '|' + name)) { unknown += 1; continue }
       const m = thFor(noArrow(best), name)
       if (!m) continue
       checked++
@@ -1773,6 +1951,14 @@ console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
   eq(`원본과 견준 열 ${checked}개의 정렬이 같다 (정렬을 못 잰 ${unknown}개는 뺐다)`
     + (skipped.length ? ` (표를 못 짝지어 건너뛴 화면 ${skipped.length}: ${skipped.join(', ')})` : ''),
     bad.join('\n') || '없음', '없음')
+
+  /*
+   * <b>건너뛴 화면이 늘면 걸린다.</b> 못 짝짓는 것 자체는 잘못이 아니다 — 우리가 원본의
+   * 표 하나를 둘로 쪼갠 자리도 있고, 입력 화면처럼 폼 이름표와 격자가 섞인 자리도 있다.
+   * <b>왜인지 안 적는 것</b>이 문제다. 새로 건너뛰는 화면은 목록에 이유와 함께 올리게 한다.
+   */
+  eq(`표를 못 짝지은 화면 ${skipped.length}개가 다 이유를 들고 있다`,
+    skipped.filter((n) => !UNPAIRED[n]).join(', ') || '없음', '없음')
 
   /*
    * 지금 없는 열을 <code>ecount-missing-columns.json</code> 에 적어 두고 <b>늘지만 않게</b> 한다.
@@ -1792,6 +1978,10 @@ console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
    *   <li><b>생산불출조회·생산불출입력 [불러온 전표No.]</b> — 있다. 우리는 [작업지시서] 라고
    *       부른다. 우리가 불러오는 전표는 작업지시서뿐이라 그 이름이 더 또렷하다
    *       (IssuePage 의 그 열 주석에 같은 말이 적혀 있다).</li>
+   *   <li><b>미판매현황 [품목별납기일자]</b> — 이름만 다르다. 우리도 납기를 찍지만
+   *       그건 <b>전표 단위</b>(SalesOrderLine 에 dueDate 가 없다)라 [납기일자] 로 부른다.
+   *       원본 이름을 그대로 쓰면 <b>줄마다 다를 수 있다고 읽혀</b> 거짓이 된다
+   *       (2026-09-09 원본 실측으로 드러난 열이다).</li>
    *   <li><b>판매입력II [금액조정항목명]</b> — 진짜로 없다. 앞서 "다른 화면 것" 이라고 적었는데
    *       <b>그건 틀렸다.</b> 화면코드 지도(ecount-screen-codes.json)로 보니 ESD066M 이 바로
    *       판매입력 II 다. 원본에는 판매입력(ESD006M)과 판매입력 II(ESD066M)가 따로 있고,
@@ -1799,12 +1989,16 @@ console.log('\n■ 표 안의 값이 원본과 같은 쪽으로 붙나')
    *       앞엣것(ESD006M)을 따라서 그 표가 없다.</li>
    * </ul>
    */
-  const knownMissing = JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-missing-columns.json'), 'utf8'))
-  const grown = missing.filter((x) => !knownMissing.includes(x))
-  const stale = knownMissing.filter((x) => !missing.includes(x))
-  eq(`원본에 있는데 우리에게 없는 열이 늘지 않았다 (아직 ${knownMissing.length}개 남음)`,
-    grown.join('\n') || '없음', '없음')
-  eq('채워 놓고 목록에 남겨 둔 열이 없다', stale.join('\n') || '없음', '없음')
+  /*
+   * <p><b>2026-09-21 — 목록을 지웠다.</b> 마흔을 하나씩 열어 보니 <b>마흔이 다</b>
+   * 아래 열 대조(2-h)의 <code>NO_COLUMN</code> 에 이미 이유가 적혀 있었다. 이유 없는 것은
+   * <b>하나도 없었다.</b> 두 검사가 같은 사실을 두 번 세고 있었고, <b>한쪽만 이유를 알았다</b> —
+   * 그래서 이 목록만 보는 사람은 "아직 안 만든 마흔 개" 로 읽고 같은 조사를 처음부터
+   * 되풀이한다(위 &lt;ul&gt; 이 그 흔적이고, 2026-09-21 에 또 한 번 되풀이했다).
+   * 이제 이 자리는 <b>NO_COLUMN 을 그대로 본다</b>(아래 2-h 로 옮겼다) — 이유가 있으면 빠지고,
+   * 이유 없이 없는 열은 <code>pending-columns.json</code> 에 적힌 것만 봐준다.
+   */
+  MISSING_COLUMNS = missing
 }
 
 // ── 1-h) 원본이 합계를 찍는 자리에 우리도 찍나 ────────────────────────────
@@ -1842,8 +2036,8 @@ console.log('\n■ 원본이 표 아래에 합계를 두는 화면')
     ['근태현황', 'hr/AttendanceKindStatusPage.tsx'],
     ['생산불출입력', 'production/IssuePage.tsx'],
     ['생산불출조회', 'production/IssuePage.tsx'],
-    ['생산입고 III-소모품목 선택', 'production/ManualConsumeReceiptPage.tsx'],
-    ['생산입고II-소모품목 선택', 'production/ManualConsumeReceiptPage.tsx'],
+    ['생산입고 III-소모품목 선택', 'production/ProductionResultPage.tsx'],
+    ['생산입고II-소모품목 선택', 'production/ProductionResultPage.tsx'],
     ['소요시간계산', 'production/TimeCalcPage.tsx'],
     ['작업내역입력', 'production/WorkResultPage.tsx'],
     ['회계미반영현황(판매)', 'trade/AccountingReflectionPage.tsx'],
@@ -1851,7 +2045,6 @@ console.log('\n■ 원본이 표 아래에 합계를 두는 화면')
   ])
   /** 원본에는 합계가 있지만 우리 화면 구조가 달라 붙일 자리가 없는 것 — 이유를 적는다. */
   const NO_PLACE = new Map([
-    ['작업지시서입력', '우리 작업지시서는 품목 하나짜리 폼이라 더할 줄이 없다'],
     ['판매입력II', '금액조정 화면을 아직 안 만들었다'],
     ['생산입고I-BOM기준소모', 'BOM대로 자동 소모라 사람이 줄을 넣지 않는다'],
   ])
@@ -1889,6 +2082,17 @@ console.log('\n■ 화면을 열었을 때 켜져 있는 조건이 원본과 같
  *
  * <p>사본에서 <code>&lt;input type=checkbox … checked&gt;</code> 여부를 뽑아
  * <code>qa/fixtures/ecount-checkbox-default.json</code>(35화면 88개)에 적었다.
+ *
+ * <p><b>2026-09-09 — 원본을 코드로 바로 열어 [기타] 안을 재기 시작했다.</b>
+ * 사이트맵에서 긁은 링크를 <code>sessionStorage</code> 에 담아 두면 새로고침해도 남아서,
+ * 화면 하나에 두 번 부르면 [기타] 체크박스와 <b>켜짐/꺼짐</b>까지 읽힌다.
+ * 그날 넷을 쟀는데 <b>창고이동조회·A/S접수조회·발주서조회·매출계획조회 모두
+ * [수정일자순(정렬)] 하나가 꺼진 채</b>였다 — 조회 계열은 이 모양이 같다.
+ *
+ * <p><b>주소의 prgId 만 바꾸면 화면이 안 바뀐다.</b> 해시에서 prgId 만 갈아 끼우고
+ * 새로고침하면 <b>제목도 조건도 그대로</b>다 — 앱은 <code>menuSeq</code> 를 보고 화면을
+ * 고른다. 실제로 경영자보고서에서 prgId 만 E040502 로 바꿔 봤더니 창고이동조회가
+ * 아니라 <b>경영자보고서가 다시 그려졌다.</b> 링크(href)를 통째로 써야 한다.
  * 우리에 없는 조건은 건너뛴다 — 조건을 다 만들었는지가 아니라 <b>만든 것의 기본값</b>을 본다.
  */
 {
@@ -1905,9 +2109,9 @@ console.log('\n■ 화면을 열었을 때 켜져 있는 조건이 원본과 같
   for (const [screen, boxes] of Object.entries(cap)) {
     const rel = BOX_MAP.get(screen)
     if (!rel) continue
-    const path = join('frontend', 'src', 'pages', ...rel.split('/'))
-    if (!existsSync(path)) continue
-    const src = readFileSync(path, 'utf8')
+    /* 감싸기만 하는 파일이면 감싸인 쪽까지 읽는다 — 안 그러면 그 화면을 조용히 건너뛴다. */
+    const src = pageSource(rel)
+    if (!src) continue
     for (const [label, want] of Object.entries(boxes)) {
       // 라벨 앞의 <input type="checkbox" checked={변수} … /> 를 찾는다
       let m = null
@@ -1972,6 +2176,14 @@ console.log('\n■ 화면을 열었을 때 켜져 있는 조건이 원본과 같
       if (got !== want) bad.push(`${rel.split('/').pop()}  [${label}] 원본 ${want} · 우리 ${got}`)
     }
   }
+  /*
+   * <b>같은 이름이 두 자리에 있으면 엉뚱한 것을 잰다.</b> 다섯 화면의 대조표에
+   * "기타": "켜짐" 이 적혀 있었는데 그건 <b>[입력경로] 라디오의 옵션</b>
+   * (전체·웹(ERP)·자료올리기·<b>기타</b>)이지 조건 묶음 이름 <b>[기타]</b> 가 아니다.
+   * 생산불출조회에 [기타](수정일자순(정렬))를 만들자마자 이 검사가 <b>남의 값</b>으로
+   * '원본 켜짐 · 우리 꺼짐' 이라 잡았다. 대조표에서 그 옵션을 <b>입력경로:기타</b> 로
+   * 고쳐 적어 이름이 안 겹치게 했다 — 지우지 않고 어디 것인지만 밝힌 것이다.
+   */
   eq(`원본과 견준 조건 ${checked}개의 기본 켜짐이 같다`, bad.join('\n') || '없음', '없음')
 }
 
@@ -1989,6 +2201,48 @@ console.log('\n■ 표의 열이 원본과 같은 차례로 서 있나')
  * <p>정렬 fixture(<code>ecount-column-align.json</code>)는 원본 열 차례를 그대로 담고 있다.
  * 양쪽에 다 있는 열만 골라 <b>상대 차례</b>를 견준다 — 우리에만 있는 열(단위·상태·관리)은
  * 자리를 따지지 않는다.
+ *
+ * <p><b>2026-09-09 — 이 fixture 는 사본에서 뽑았는데, 원본으로 재 보니 맞았다.</b>
+ * 근태조회(E020711)를 열어 격자 머리를 그대로 읽으니
+ * <code>근태번호 · 근태일자 · 사원명 · 근태코드 · 근태수 · 휴가명 · 적요 · 인쇄</code> 로
+ * fixture 와 <b>글자 하나까지 같다</b>. 조건은 사본이 크게 덜 적었지만
+ * <b>열은 사본이 제대로 담았다</b> — 조건 판은 JS 가 그리지만 격자 머리는 사본에 남는다.
+ *
+ * <p><b>'거를 수는 있는데 볼 수는 없는 열' 을 잡는 검사는 만들지 않았다.</b>
+ * 나흘에 걸쳐 네 번 같은 구멍이 나왔다 — 미출하현황 [창고명] · 주문서현황 [적요] ·
+ * 미판매현황 [적요] · 발주요청현황 [적요]. 넷 다 <b>조건으로는 거르는데 열로는 안 찍는</b>
+ * 값이었다. 그래서 "필터에만 쓰이고 화면에 안 찍히는 줄 필드" 를 뽑아 봤더니
+ * <b>104자리</b>가 나왔고, 그중 거의 다가 멀쩡한 것이었다(탭이 쓰는 <code>r.status</code>,
+ * 화면은 <code>statusName</code> 을 찍는다 …). 이런 것을 목록으로 못 박으면
+ * <b>검사만 늘고 재는 것은 없다.</b>
+ *
+ * <p>네 번 다 진짜 원인은 하나였다 — <b>그 화면의 열 대조표가 없었다.</b> 대조표만 있으면
+ * 바로 위의 '원본 열이 우리 표에도 있나' 가 그 자리에서 잡는다(실제로 잡았다).
+ * 그러니 예방책은 새 heuristic 이 아니라 <b>열 대조표를 채우는 것</b>이다.
+ *
+ * <p>그래서 <b>'응답은 주는데 화면이 안 쓰는 칸'</b>(2026-09-08 에 기계로 뽑은 26자리)은
+ * 이 fixture 로 갈릴 수 있다. 갈라 보니 아홉은 <b>원본 열에 아예 없다</b> —
+ * 그대로 두는 것이 맞다:
+ *   근태조회 jobTitle(직급) · 작업지시서현황 productUnit(단위) ·
+ *   BOR productUnit·processCode · 소요시간계산 processId·orderNo ·
+ *   생산계획/MRP productId·productUnit · 구매단가일괄변경 slipId(내부 키).
+ * <p><b>정렬은 자료가 있어야 잰다.</b> 2026-09-09 에 프로젝트계획조회를 열어 보니 격자에
+ * 줄이 하나도 없었다 — 그때 머리 칸의 정렬(가운데)을 자료 칸의 것으로 읽으면
+ * <b>전부 '중' 이라고 적게 된다.</b> 실제로 그렇게 적었다가 검사가 [시작일]·[종료일]에서
+ * 잡아 줬다. 열 이름과 차례만 적고 정렬은 <code>?</code>(못 쟀음)로 둔다.
+ *
+ * <p><b>권한이 없어 못 여는 화면도 있다.</b> 같은 날 출/퇴근현황(사원 E020722)과
+ * 지각현황(사원 E020723)을 열었더니 둘 다 <b>[권한없음]</b> 이 떴다.
+ * <b>거래이력조회(E010712)도 같다</b>(2026-09-09) — 이 계정으로는 못 연다.
+ * TradeHistoryPage 의 격자는 <b>원본과 대조된 적이 없다</b>. 다시 열지 말 것. 그래서
+ * AttendanceStatusPage 의 <code>normalDays</code> 와 LateArrivalPage 의
+ * <code>clockOut·workHours</code> 는 <b>원본에 그 열이 있는지 아직 모른다</b> —
+ * 지어내지 않고 그대로 둔다.
+ *
+ * 나머지 열일곱은 <b>그 화면의 열 대조표가 아직 없다</b> — 원본을 열어 격자 머리를
+ * 읽어야 갈린다(실제원가현황·프로젝트계획조회·의료기기공급내역보고·출/퇴근현황·
+ * 지각현황·일별재고현황·잔량재집계·작업지시서효율현황·작업지시서작업처리·
+ * 결제내역자료비교·발주요청현황·주문서현황·미출하현황·미판매현황).
  */
 {
   const ORDER_MAP = new Map(JSON.parse(readFileSync(join('qa', 'fixtures', '.ordermap.json'), 'utf8')))
@@ -2015,6 +2269,38 @@ console.log('\n■ 표의 열이 원본과 같은 차례로 서 있나')
     if (!expr) return []
     return [...expr[0].matchAll(/'([^']{1,20})'/g)].map((m) => flat(m[1])).filter(Boolean)
   }
+  /**
+   * <b>머리가 두 줄인 표는 문서 차례와 보이는 차례가 다르다.</b>
+   *
+   * <p>원본 작업지시서별진행현황의 머리가 그렇다 —
+   * 위 [작업지시서번호 · 품목 · <b>BOM기준</b>(3칸) · <b>생산</b>(4칸) · 미생산 · 현재고],
+   * 아래 [생산공정 · 일자 · 필요수량 · 공장 · 생산공정 · 일자 · 수량].
+   * <b>눈에 보이는</b> 차례는 …필요수량 · 공장 … 수량 · 미생산 · 현재고 인데,
+   * 소스에 적힌 차례대로 &lt;th&gt; 를 주우면 <b>미생산 · 현재고</b>가 아래 줄보다
+   * 먼저 나온다(위 줄에 rowSpan 으로 있어서다). 그대로 견주면 <b>제대로 그린 표가
+   * 틀렸다고 걸린다.</b>
+   *
+   * <p>그래서 위 줄의 <code>colSpan</code> 자리마다 아래 줄 칸을 그만큼 끼워 넣어
+   * <b>맨 아래 칸(잎)만</b> 왼쪽부터 늘어놓는다. 머리가 한 줄이면 하던 대로다.
+   */
+  const leafCells = (head) => {
+    const rows = [...head.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/g)].map((r) => r[1])
+    const cells = (row) => [...row.matchAll(/<th\b([^>]*)>([\s\S]*?)<\/th>/g)]
+      .map((m) => [m[0], m[2], m[1]])
+    if (rows.length !== 2) return cells(rows.join(' ') || head)
+    const top = cells(rows[0])
+    const sub = cells(rows[1])
+    const out = []
+    let k = 0
+    for (const c of top) {
+      const cs = Number((c[2].match(/colSpan=\{(\d+)\}/) || [])[1] || 1)
+      if (cs > 1) { for (let i = 0; i < cs && k < sub.length; i++) out.push(sub[k++]) }
+      else out.push(c)
+    }
+    while (k < sub.length) out.push(sub[k++])
+    return out
+  }
+
   /** 차례를 견줄 수 없는 화면 — 왜인지 적는다. */
   const ORDER_SKIP = new Map([
     ['생산불출조회',
@@ -2022,6 +2308,10 @@ console.log('\n■ 표의 열이 원본과 같은 차례로 서 있나')
       + ' 두 격자의 열을 하나로 이어 붙인 차례와 견주게 된다 — 원본에도 없는 차례다'],
     ['시리얼/로트No.내역조회',
       '한 화면이 원본 <b>둘</b>을 겸하는데 차례가 서로 다르다 — [시리얼/로트No.등록]은 로트번호가 먼저고 [내역조회]는 품목명이 먼저다. 등록 쪽 차례를 따른다(그 화면이 이 표의 주인이다)'],
+    ['단가요청현황',
+      '한 표가 원본 <b>셋</b>(발주요청현황·발주계획현황·단가요청현황)을 겸하는데 <b>거래처명 자리가 다르다</b> — 발주요청현황은 [공급가액] 뒤인데 단가요청현황은 <b>둘째 칸</b>이다(2026-09-09 실측). 주인인 발주요청현황 차례를 따른다'],
+    ['발주계획현황',
+      '위와 같은 표다. 게다가 원본은 전표 하나를 <b>두 줄</b>로 편다(위: 일자-No.·거래처명·담당자명·납기일자·참조·진행상태 / 아래: 품목명[규격명]·수량·단가·공급가액·부가세) — 우리 한 줄 차례와는 견줄 축이 없다'],
   ])
 
   const bad = []
@@ -2029,18 +2319,27 @@ console.log('\n■ 표의 열이 원본과 같은 차례로 서 있나')
   for (const [screen, cols] of Object.entries(cap)) {
     const rel = ORDER_MAP.get(screen)
     if (!rel || ORDER_SKIP.has(screen)) continue
-    const path = join('frontend', 'src', 'pages', ...rel.split('/'))
-    if (!existsSync(path)) continue
-    const src = readFileSync(path, 'utf8')
+    /* 감싸기만 하는 파일이면 감싸인 쪽까지 읽는다 — 안 그러면 그 화면을 조용히 건너뛴다. */
+    const src = pageSource(rel)
+    if (!src) continue
     const names = Object.keys(cols)
     const scored = [...src.matchAll(/<thead>[\s\S]*?<\/thead>/g)].map((h) => ({
       head: h[0],
       hit: names.filter((n) => new RegExp('<th\\b[^>]*>\\s*' + esc(n) + '\\s*' + MARK_TAIL + '\\s*</th>').test(noArrow(h[0]))).length,
     })).filter((x) => x.hit > 1).sort((a, b) => b.hit - a.hit)
     if (!scored.length || (scored.length > 1 && scored[0].hit === scored[1].hit)) continue
-    const ours = [...noArrow(scored[0].head).matchAll(/<th\b[^>]*>([\s\S]*?)<\/th>/g)].map((m) => thNames(m[1]))
+    const ours = leafCells(noArrow(scored[0].head)).map((m) => thNames(m[1]))
     const want = names.map(flat).filter((n) => ours.some((c) => c.includes(n)))
+    /*
+     * <b>같은 이름이 두 번 나오는 머리</b>는 한 번으로 줄여서 견준다.
+     * 사본 대조표는 JSON 객체라 열 이름을 <b>한 번밖에</b> 못 적는다 —
+     * 작업지시서별진행현황의 원본 머리에는 [생산공정]·[일자]가 <b>BOM기준</b>과
+     * <b>생산</b> 밑에 하나씩, 즉 두 번씩 있는데 대조표에는 각각 한 줄뿐이다.
+     * 줄이지 않으면 <b>원본과 똑같이 그린 표가</b> "우리가 두 번 적었다" 고 걸린다.
+     */
+    const seen = new Set()
     const got = ours.map((c) => c.find((x) => want.includes(x))).filter(Boolean)
+      .filter((n) => !seen.has(n) && seen.add(n))
     checked += want.length
     if (want.join(' ') !== got.join(' ')) {
       bad.push(`${rel.split('/').pop()}\n     원본 ${want.join(' · ')}\n     우리 ${got.join(' · ')}`)
@@ -2094,12 +2393,194 @@ console.log('\n■ 원본 표의 열이 우리 표에도 있나')
   /** 원본에 있지만 우리에게 없는 열 — 왜 없는지 적는다. 이유 없이 늘리지 말 것. */
   const NO_COLUMN = new Map([
     /*
+     * <b>A/S접수현황(E040610) [수량]</b> - 2026-09-09 원본 격자 실측.
+     * 원본 A/S 접수는 <b>몇 대를 받았는지</b>를 적는다. 우리 접수(<code>AsRequest</code>)는
+     * <b>품목 하나</b>를 물 뿐 수량 칸이 없다 - 소모부품 쪽(AsPart)에만 수량이 있는데
+     * 그건 <b>고치며 쓴 부품 수</b>지 받은 대수가 아니다. 다른 값에 같은 이름표를 붙이지 않는다.
+     */
+    /*
+     * <b>공지사항(E200080) [일자-No.]</b> - 2026-10-03 원본을 직접 열어 글을 올리고 고치고 지우며 실측.
+     * 원본 <b>목록</b> 머리는 게시글번호·제목·작성자명·전달자·진행상태·첨부·조회 일곱뿐이고, [일자-No.]는
+     * 제목을 눌러 연 <b>'공지사항View' 창 안</b>에만 있다('2026/10/03 -1'). 대조표(사본)가 View 안의 칸까지
+     * 목록 열로 적었다. 우리도 View 창에 둔다.
+     */
+    ['공지사항|일자-No.', '원본 목록에는 없고 View 창 안에만 있다 - 2026-10-03 실측, 우리도 View 창에 둔다'],
+    /*
+     * <b>단가요청현황(E040325)</b> - 2026-09-09 원본 격자 실측.
+     * 원본은 단가를 <b>세 칸</b>으로 편다 - [단가(요청단가)]·[단가(수취단가)]·[단가(확정단가)].
+     * [구분] 라디오도 그 셋이다(내역/집계가 아니다. 기본은 <b>요청단가</b>).
+     * 우리 발주 줄(<code>PurchaseOrderLine</code>)은 <b>단가가 하나</b>다 - 요청한 값·
+     * 받아 온 값·확정한 값을 따로 담지 않고 덮어쓴다. 한 값을 세 이름으로 세 번 찍으면
+     * 세 단가가 늘 같아 보이는 거짓이 된다.
+     */
+    ['단가요청현황|단가(요청단가)', '발주 줄에 단가가 하나뿐이다 - 요청·수취·확정을 따로 담지 않고 덮어쓴다'],
+    /*
+     * <b>발주계획현황(E041015) [진행상태]</b> - 2026-09-09 원본 격자 실측.
+     * 원본은 진행상태를 <b>열</b>로 찍는다(조건 [진행상태] 기본이 [전체]라 여러 상태가 섞여 온다).
+     * 우리 표는 위 카드로 <b>한 상태만</b> 골라 펴 놓는 꼴이라(status), 열로 두면
+     * <b>모든 줄이 같은 값</b>이 된다 - 고른 상태가 이미 카드에 커다랗게 떠 있다.
+     */
+    ['발주계획현황|진행상태', '우리 표는 위 카드로 고른 한 상태만 편다 - 열로 두면 모든 줄이 같은 값이다'],
+    /*
+    /*
+     * <b>재고수불부(E040702) [거래처명] 은 2026-09-09 에 만들었다</b> - 예외에서 뺐다.
+     * "재고 움직임 줄에 거래처가 없다 - inventory 가 trade 를 참조하면 순환이라 id 조차
+     * 안 둔다" 고 적어 두었는데, <b>앞말은 맞고 결론이 틀렸다</b>.
+     * 백엔드는 그대로 두는 것이 맞다(CLAUDE.md 4.1 - inventory 는 trade 를 몰라야 한다).
+     * 그런데 <b>화면은 둘 다 부를 수 있다</b> - 담당자 이름·거래처그룹을 이미 그렇게 붙인다.
+     * 이을 실은 <code>note</code> 다: 판매·구매가 재고를 움직일 때
+     * "판매 " + docNo 꼴로 적어 둔다(SalesService·PurchaseService).
+     * 그 뒷토막을 전표번호로 보고 판매·구매 목록에서 찾는다. 못 찾으면 빈칸이다.
+     */
+    /*
+     * <b>A/S소모현황(E040641)</b> - 2026-09-09 원본 격자 실측([구분] 기본이 [내역]이다).
+     * 원본은 소모부품을 <b>판매 전표로 청구</b>하고 그 번호를 [소모(판매)번호] 에 단다.
+     * 우리 A/S 는 부품을 <b>재고에서 빼기만</b> 하고 판매를 만들지 않는다 -
+     * 없는 전표의 번호를 지어낼 수 없다.
+     * [부가세]도 소모부품 줄(<code>AsPart</code>)에 칸이 없다. 0 을 찍으면 <b>면세로 읽힌다</b>.
+     */
+    /*
+     * <b>작업내역조회(E040431) [일자-No.] 는 2026-09-09 에 만들었다</b> - 예외에서 뺐다.
+     * "작업내역 전표에 번호가 없다" 고 적어 두었는데, 그건 <b>안 만든 것</b>이지 못 만드는
+     * 것이 아니었다 - 작업내역 한 줄을 가리킬 이름이 없어 "어느 작업내역을 고쳤다/지웠다"
+     * 고 말할 방법이 없었다. 매출계획이 같은 까닭으로 SP- 를 얻었듯(V205/V78)
+     * WR-yyyyMMdd-NNNN 으로 채번한다(V214/V87, 본사·테넌트 양쪽).
+     * <b>이 예외의 근거(resultNo 가 없다)가 그 자리에서 낡음을 잡아 주었다.</b>
+     */
+    /*
+     * <b>불량률파악보고서(E040512) [생산수량] — 2026-09-21 에 만들었다. 앞 판단이 틀렸다.</b>
+     *
+     * <p>2026-09-09 에는 격자를 <b>머리만</b> 보고 "원본도 우리처럼 검사에서 수를 얻는데
+     * 검사 안 한 생산분이 줄에 없어 생산수량이라 부르면 거짓이 된다" 고 적었다.
+     * 2026-09-21 에 <b>자료가 있는 기간</b>(2024/01/01~2026/09/21)으로 열어 보니
+     * 이 칸은 <b>검사와 아무 상관이 없었다</b> — 생산실적 수량이다(반제품제조 312 ·
+     * 완제품제조 212 · 합계 524). 결정적인 것은 <b>제품자재창고 송풍기 줄</b>이다:
+     * 생산수량이 비어 있고 불량수량만 2 다. 두 칸이 서로 다른 자료에서 오고
+     * 줄은 <b>합집합</b>이라는 뜻이라, 검사 기반이라는 앞 설명으로는 설 수 없는 줄이다.
+     *
+     * <p>우리도 생산실적을 들고 있으므로 만들 수 있었다(/productions). 만들었으니 뺀다.
+     * <b>[불량수량]은 아직 예외로 둔다</b> — 원본 [처리방법] 후보가 폐기·품목대체·정상사용
+     * 이라 <b>폐기가 불량처리의 한 갈래</b>로 보이는데, 우리는 불량처리와 폐기를 <b>다른 유형</b>
+     * (DEFECT·DISPOSAL)으로 든다. 원본 [불량수량]에 폐기가 들어가는지는 못 쟀다.
+     */
+    /*
+     * <b>[생산공정명] 셋은 2026-09-09 에 다 만들었다</b> - 예외에서 뺐다.
+     * "우리 재고는 창고 단위라 <b>공정별 재공</b>이 없어 넣을 값이 없다" 고 세 화면에
+     * 적어 두었는데, 실제원가현황(E040804)의 자료 125줄을 읽어 보니 <b>그 칸은 재공을
+     * 가르는 축이 아니었다</b> - 줄은 <b>품목별 하나</b>고(같은 품목코드가 두 번 서는 일이
+     * 0건), 값이 채워진 줄은 <b>열다섯</b>뿐이며 전부 만들어지는 품목이다
+     * (제품 완제품공정 · 반제품 반제품공정 · 시제품 시제품공정). 사 오는 원재료는 빈칸이다.
+     * 즉 <b>그 품목이 어느 공정에서 만들어지는가</b>이고, 그 값은 BOR 이 진작 들고 있다.
+     */
+
+    /*
+     * <b>품질검사요청조회(E040629)</b> — 2026-09-09 원본 격자 실측(여덟 칸).
+     * 원본은 <b>요청 한 건이 여러 품목을 싣는</b> 전표라 품목을 요약하고 수량을 합치는데,
+     * 우리 요청은 <b>품목 하나짜리</b>다. 나머지 둘은 요청이 근거 전표를 물지 않아서다.
+     */
+    ['품질검사요청입력|추가수량', '원본 [추가수량] 은 새 요청에서 0 으로 서고 무엇을 더하는지 재지 못했다(2026-10-04) — 지어내지 않는다'],
+    /*
+     * <b>아래 셋은 남의 이유를 물고 있었다.</b> '위와 같음' 이라 적혀 있었지만 그 위는
+     * <b>품질검사요청이 검사 전표를 만드나</b> 하는 이야기다 — 불량률파악보고서의 [불량수량]
+     * 과도, 단가요청현황의 단가 칸과도 아무 상관이 없다. 매출계획입력 여섯을 옮긴 것과
+     * <b>같은 실수</b>다(위 2560줄께). 각자 자기 이유를 들게 한다.
+     */
+    ['불량률파악보고서|불량수량', '우리 [불량수량]은 <b>검사에서 나온 수</b>다 — 화면이 그것을 [검사불량]이라 부른다. 검사 안 한 생산분까지 센 것처럼 읽히면 거짓이 되므로 원본 이름을 그대로 쓰지 않는다'],
+    ['단가요청현황|단가(수취단가)', '발주 줄이 <b>단가를 하나만</b> 든다 — 매입처가 회신한 금액을 따로 적는 칸이 없어 요청단가·수취단가·확정단가로 가를 축이 없다(화면 주석에 같은 내력이 적혀 있다)'],
+    ['단가요청현황|단가(확정단가)', '위와 같음 — 우리가 드는 그 하나가 <b>확정단가</b>다. 같은 값을 두 칸에 찍으면 다를 수 있다고 읽힌다'],
+    /*
+     * <b>미구매현황(E040307)</b> - 2026-09-09 원본 격자 실측. 미주문현황과 같은 꼴이다.
+     * [수량](발주수량)과 [미구매수량]을 나란히 두는 것은 발주가 <b>부분만</b> 입고될 수
+     * 있기 때문인데, 우리 발주는 <b>통째로</b> 구매로 넘어간다 - 둘이 늘 같은 수라
+     * 같은 수를 두 번 찍지 않는다.
+     * [품목별납기일자]는 미판매현황에 진작 적어 둔 것과 같은 까닭이다 - 우리 납기는
+     * <b>전표 단위</b>(PurchaseOrder.dueDate)라 그 이름을 쓰면 줄마다 다를 수 있다고 읽힌다.
+     */
+    ['미구매현황|수량', '우리 발주는 통째로 구매로 넘어간다 - 부분 입고가 없어 [수량]과 [미구매수량]이 늘 같은 수다'],
+    ['미구매현황|품목별납기일자', '우리 납기는 전표 단위다 - 그 이름을 쓰면 줄마다 다를 수 있다고 읽혀 거짓이 된다(우리 열 이름은 [납기])'],
+    /*
+     * <b>창고이동조회(E040502) vs 창고이동현황(E040505)</b> - 2026-09-09 둘 다 격자 실측.
+     * <b>같은 자리를 원본이 서로 다르게 부른다</b> - 조회는 [보내는창고명]·[받는창고명]·
+     * [품목명[규격명]] 이고, 현황은 [출고창고명]·[입고창고명]·[품목명[규격]] 이다.
+     * 우리 화면은 <b>하나</b>이고 메뉴 이름이 [창고이동현황] 이라 그쪽 이름을 따랐다.
+     * 갈래를 가를 값이 화면에 없어(라우트도 하나다) 두 이름을 같이 그릴 수 없다 -
+     * 조회 화면을 따로 세우게 되면 그때 갈라 적는다.
+     */
+    ['창고이동조회|보내는창고명', '같은 자리를 창고이동현황은 [출고창고명] 이라 부른다 - 우리 화면 하나가 둘을 겸해 현황 쪽 이름을 따랐다'],
+    ['창고이동조회|받는창고명', '위와 같음 - 현황은 [입고창고명] 이다'],
+    ['창고이동조회|품목명[규격명]', '위와 같음 - 현황은 [품목명[규격]] 이다'],
+    /*
+     * <b>[금액(수량*입고단가)] 세 자리는 2026-09-09 에 만들었다</b> - 예외에서 뺐다.
+     * "전표에 단가를 안 매긴다" 고 적어 두었는데, 그 칸은 <b>이름이 계산식 그대로</b>다 -
+     * 전표의 거래 금액이 아니라 <b>그 품목을 얼마에 사 왔는지</b>로 수량을 환산한 값이다.
+     * 전표에 단가가 없다는 것은 못 만드는 이유가 아니었다(재고자산·경영자보고서가
+     * 쓰는 stockCostMap 을 그대로 쓴다). 단가를 모르는 품목은 빈칸이다.
+     */
+    /*
+     * <b>대체사용현황(E040510)·재고조정현황(E040608)</b> - 2026-09-09 원본 격자 실측.
+     * 대체사용은 <b>불량수량과 정상수량을 나란히</b> 적는다(불량 난 것을 정상품으로
+     * 바꿔 쓴 전표라 두 수가 다르다). 우리 기타이동 전표는 <b>증감 한 수</b>만 든다.
+     */
+    ['대체사용현황|불량수량', '기타이동 전표는 증감 한 수만 든다 - 불량분과 정상분을 갈라 적지 않는다'],
+    ['대체사용현황|정상수량', '위와 같음'],
+    /*
+     * <b>자가사용현황(E040506)</b> - 2026-09-09 원본 격자 실측.
+     * 원본은 자가사용 줄에 <b>거래처</b>와 <b>금액</b>을 같이 찍는다.
+     * 우리 기타이동 전표(<code>StockAdjustment</code>)는 <b>사내에서 재고만 움직이는</b>
+     * 전표라 <b>상대가 없다</b>. ([금액] 은 위 설명대로 이제 만든다.)
+     */
+    ['자가사용현황|거래처명', '기타이동은 사내에서 재고만 움직이는 전표라 상대가 없다'],
+    /* 생산불출현황 [생산금액] 은 2026-10-02 에 만들었다 — 원본도 수량 × 입고단가(소모현황의 소모품목단가와 같은 값)였다. */
+    /*
+     * <b>품질검사현황(E040623) [검사방법]·[시료]</b> - 2026-09-09 원본 격자 실측.
+     * 원본은 샘플링 검사를 전제로 <b>[시료]</b>(뽑은 개수)를 따로 적고, 그 앞에
+     * [검사방법](전수/샘플링)을 둔다. 우리 검사는 <b>검사수량 하나</b>만 든다 -
+     * 갈라 적지 않으므로 두 칸 다 채울 값이 없다. 같은 까닭을 조건 예외에도 적어 두었다.
+     */
+    /*
+     * <b>미주문현황(E040211) [수량]</b> - 2026-09-09 원본 격자 실측. 원본은 [수량](견적수량)과
+     * [미주문수량]을 나란히 둔다. 견적이 <b>부분만</b> 수주로 넘어갈 수 있어 둘이 다르기 때문이다.
+     * 우리 견적은 <b>통째로</b> 전환된다(<code>Quotation.convertedOrderId</code> 하나) - 부분 전환이
+     * 없어 두 값이 늘 같은 수다. 같은 수를 두 번 찍지 않는다.
+     */
+    ['미주문현황|수량', '우리 견적은 통째로 수주 전환된다 - 부분 전환이 없어 [수량]과 [미주문수량]이 늘 같은 수다'],
+    /*
+     * <b>채권현황(E040721) 2026-09-09 원본 실측</b> — 격자가
+     * 거래처코드 · 거래처명 · <b>청구금액 · 미청구금액</b> · 합계 다.
+     * 청구·미청구를 가르려면 <b>수금이 어느 청구를 갚은 것인지</b>를 알아야 하는데
+     * <code>Settlement</code> 에 그 연결이 없다. 세금계산서가 어느 판매에 붙었는지는
+     * 알지만(TaxInvoice.sales), 우리 채권은 <b>수금을 뺀 순액</b>이라 그것만으로는
+     * 순액을 둘로 못 나눈다 — 배분 규칙을 지어내야 한다.
+     * ([합계]는 만들었다 — 채권현황으로 볼 때 우리 [채권] 열의 이름이 그것으로 바뀐다.)
+     */
+    ['채권현황|청구금액', '수금이 어느 청구를 갚은 것인지 <code>Settlement</code> 가 안 든다 — 순액을 청구분·미청구분으로 가를 배분 규칙이 없다'],
+    ['채권현황|미청구금액', '위와 같음'],
+    ['채무현황|청구금액', '위와 같음 — 지급이 어느 청구를 갚은 것인지 <code>Settlement</code> 가 안 든다'],
+    ['채무현황|미청구금액', '위와 같음'],
+    /*
+     * <b>채권/채무현황(E040703) 2026-09-09 원본 격자 실측.</b>
+     * 이 화면은 [구분] 기본이 <b>채권</b>이라 열면 채권현황과 <b>똑같은 다섯 칸</b>이 뜬다
+     * (거래처코드 · 거래처명 · 청구금액 · 미청구금액 · 합계). 그래서 못 내는 것도 같다.
+     * [구분]을 <b>채권/채무</b>로 바꾸면 머리가 두 줄로 갈라지며 청구·미청구가
+     * 채권 밑에 한 벌, 채무 밑에 한 벌 — <b>네 칸</b>이 되는데 이유는 하나다.
+     */
+    ['채권/채무현황|청구금액', '위와 같음 — 채권현황과 같은 격자다(수금이 어느 청구를 갚았는지가 없다)'],
+    ['채권/채무현황|미청구금액', '위와 같음'],
+    /*
      * 결제내역조회가 못 내는 다섯. 우리 결제(정산) 전표는 <b>수금·지급 한 건</b>이라
      * 품목도, 카드 승인도, 그에서 나온 재고전표도 없다.
      * <b>[품목]은 특히 조심해야 한다</b> — 화면 코드의 필드 이름이 itemSummary 였는데
      * 실제로 담긴 값은 <b>결제방법 글자</b>였다. 이름만 보고 열을 만들면
      * 머리는 [품목]인데 값은 결제방법이 된다(그래서 이름을 methodText 로 고쳤다).
      */
+    /*
+     * <b>미판매현황 [품목별납기일자]</b> — 2026-09-09 원본 실측으로 드러난 열이다.
+     * 우리도 납기를 찍기는 하는데 그건 <b>전표 단위</b>(<code>SalesOrder.dueDate</code>)라
+     * 이름을 그대로 쓰면 거짓이 된다 — 줄마다 다를 수 있다고 읽힌다.
+     * 그래서 우리 열 이름은 [납기일자] 로 두고 이 이름은 예외로 남긴다.
+     * (같은 이유가 주문서현황 조건에도 이미 있다.)
+     */
+    ['미판매현황|품목별납기일자', '수주의 납기는 전표 단위 하나다 — 라인마다 납기를 따로 두지 않아 [납기일자] 로 찍는다'],
     ['결제내역조회|품목', '결제 전표에 품목이 없다 — 수금·지급 한 건이다'],
     ['결제내역조회|결제상태', '결제 자체의 단계(요청·완료·취소)를 두지 않는다 — 우리 상태는 <b>회계반영</b> 여부다'],
     ['결제내역조회|승인번호', '카드 승인번호를 받아 두지 않는다'],
@@ -2117,7 +2598,7 @@ console.log('\n■ 원본 표의 열이 우리 표에도 있나')
      * 대상이 [판매전표] 하나뿐이었다(이번 판에 넷으로 열었다). 발주서는 그 넷에도 없다 —
      * 발주서 화면(PurchaseOrderPage)이 추가항목을 아직 안 읽는다.
      */
-    ['발주서입력|추가문자형식1', '원본은 격자 열을 <b>회사가 직접 늘린다</b> — 추가문자·추가숫자·추가일자·추가코드 형식으로 스물다섯 칸을 열어 둔다. 우리 추가항목은 이제 발주서 <b>머리</b>까지 읽지만(펼친 줄에 뜬다) <b>격자 열은 아직이다</b>. 게다가 우리 칸은 이름을 회사가 지어 붙이므로 원본처럼 [추가문자형식1] 이라는 <b>이름</b>으로 서지 않는다 — 그 이름을 만들 일은 영영 없다'],
+    ['발주서입력|추가문자형식1', '원본은 격자 열을 <b>회사가 직접 늘린다</b> — 추가문자·추가숫자·추가일자·추가코드 형식으로 스물다섯 칸을 열어 둔다. 우리 추가항목은 이제 발주서 <b>머리와 줄(격자 열)</b>을 다 읽는다 — Self-Customizing 에서 정의하면 그만큼 열이 생긴다. 다만 우리 칸은 <b>이름을 회사가 지어 붙이므로</b> 원본처럼 [추가문자형식1] 이라는 이름으로 설 일은 영영 없다. 그래서 이 예외는 남는다'],
     ['발주서입력|추가문자형식2', '위와 같음'],
     ['발주서입력|추가문자형식3', '위와 같음'],
     ['발주서입력|추가문자형식4', '위와 같음'],
@@ -2144,8 +2625,12 @@ console.log('\n■ 원본 표의 열이 우리 표에도 있나')
     ['발주서입력|적요3', '위와 같음'],
     /* 격자에 값이 없는 나머지 여섯. */
     ['발주서입력|&nbsp;', '맨 앞 빈 칸은 원본이 <b>고르는 칸</b>으로 쓴다 — 우리는 줄 번호를 찍는다'],
-    ['발주서입력|전체수량', '주문하면서 <b>지금 재고</b>를 같이 보여 주는 기능이 없다'],
-    ['발주서입력|창고수량', '위와 같음 — 그 창고의 재고를 붙이지 않는다'],
+    /*
+     * <b>[발주서입력|전체수량]·[창고수량] 은 이제 만들었다.</b> 이유('지금 재고를 같이
+     * 보여 주는 기능이 없다')는 <b>기능이 없다</b>는 말이었는데, 재고는 <code>/api/stock</code>
+     * 로 진작 열려 있었고 생산불출입력이 같은 단추([재고불러오기])로 이미 쓰고 있었다.
+     * 발주야말로 <b>모자라는 것을 채우는 일</b>이라 이 두 칸이 제일 필요한 화면이다.
+     */
     ['발주서입력|추가수량', '수량을 <b>둘로</b> 나눠 적지 않는다'],
     ['발주서입력|관리항목', '발주 줄에 관리항목을 달지 않는다 — 마스터는 있지만 전표가 물지 않는다'],
     ['발주서입력|시리얼/로트', '발주 줄에 로트를 달지 않는다 — 로트는 <b>입고할 때</b> 정해진다'],
@@ -2161,7 +2646,6 @@ console.log('\n■ 원본 표의 열이 우리 표에도 있나')
      * 있었지만 그 위는 [담당자]의 <b>이름</b> 이야기였다. 격자가 없어서 없는 열이니
      * 여기(격자 이유) 아래로 옮긴다.
      */
-    ['매출계획입력|단가', '위와 같음'],
     ['매출계획입력|금액1', '위와 같음'],
     ['매출계획입력|금액2', '위와 같음'],
     ['매출계획입력|적요1', '위와 같음'],
@@ -2181,15 +2665,24 @@ console.log('\n■ 원본 표의 열이 우리 표에도 있나')
      */
     ['매출계획|금액', '우리 표는 <b>계획금액과 실적금액을 나란히</b> 낸다 — 이름 없는 [금액] 한 칸으로는 어느 쪽인지 알 수 없다'],
     ['매출계획조회|금액', '위와 같음'],
+    /*
+     * <b>매출계획현황(E040640)</b> - 2026-09-09 원본 격자 실측(매출계획조회도 같이 쟀다).
+     * 세 화면이 한 표를 겸하는데 <b>원본이 품목 칸을 서로 다르게 부른다</b> -
+     * 매출계획·매출계획조회는 <b>[품목명]</b>, 매출계획현황만 <b>[품명]</b> 이다.
+     * (현황은 창고명·프로젝트명도 없이 다섯 칸으로 줄여 놓았다.)
+     * 우리 표는 하나이고 갈래를 가를 값이 없어 <b>둘 중 많은 쪽</b>인 [품목명] 을 따랐다.
+     */
+    ['매출계획현황|품명', '같은 자리를 매출계획·매출계획조회는 [품목명] 이라 부른다 - 우리 표 하나가 셋을 겸해 많은 쪽 이름을 따랐다'],
+    ['매출계획현황|금액', '위 [매출계획|금액]과 같음 - 우리 표는 계획금액과 실적금액을 나란히 낸다'],
 
     /*
      * A/S 목록의 뒤쪽 셋 — <b>접수증</b>(인쇄물), <b>상세내역</b>(줄을 눌러 펼치는 창),
      * <b>생성한 전표</b>(그 접수에서 나온 전표로 건너뛰기). 셋 다 <b>기능</b>이지 값이 아니다.
      * 우리는 부품을 [부품] 창에서 달고 재고만 깎을 뿐, 그 접수와 이어 둔 전표 목록이 없다.
      */
-    ['A/S접수입력|&nbsp;', '원본 A/S접수는 <b>여러 줄의 품목 격자</b>다 — 한 접수에 부품 여럿을 수량·금액과 함께 적는다. 우리 A/S 전표는 <b>수리 대상 품목 하나</b>를 들고, 쓴 부품은 [부품] 창에서 따로 단다. 격자가 없으니 그 열들도 없다'],
-    ['A/S접수입력|품목코드', '위와 같음'],
-    ['A/S접수입력|품목명', '위와 같음'],
+    /* 2026-10-03 — A/S접수도 품목 격자를 받게 됐다(as_request_lines: 품목 · 수량). 나머지 열은 아직 줄에 없다. */
+    ['A/S접수입력|&nbsp;', 'A/S접수 줄은 <b>품목 · 수량</b>만 든다(as_request_lines) — 원본 양식이 더 둘 수 있는 규격 · 추가수량 · 단위 · 관리항목 · 금액 · 적요 · 시리얼 칸은 줄에 없다'],
+    ['A/S접수입력|적요', '위와 같음 — 예전 [부품] 격자의 적요였다. 부품은 이제 A/S수리의 판매연결전표가 든다'],
     ['A/S접수입력|규격', '위와 같음'],
     /*
      * [적요]는 뺐다 — <b>[부품] 격자에 만들었다.</b> 묶음 이유가 '격자가 없으니 그 열들도
@@ -2213,9 +2706,6 @@ console.log('\n■ 원본 표의 열이 우리 표에도 있나')
     ['카드등록|검색창내용', '위와 같음'],
     ['계좌등록|이체정보', '자동이체 설정을 들지 않는다'],
     ['카드등록|카드관리자', '우리 카드는 <b>명의자</b>만 든다 — 회사 안에서 누가 들고 다니나는 다른 값이다'],
-    /* 수집데이터는 <b>정의</b>만 든다 — 돌리는 일(스케줄·상태)이 없다. */
-    ['수집데이터등록|진행상태', '수집을 돌리지 않는다 — 어디서 가져올지 <b>정의만</b> 든다'],
-    ['수집데이터등록|조건', '위와 같음'], ['수집데이터등록|연결업무', '위와 같음'],
     ['단가요청진행단계|수취금액', '단가요청에 받은 금액을 적는 칸이 없다 — 확정 단가만 든다'],
     /*
      * 특별단가의 <b>좁히는 축</b> 넷 — 원본은 거래처·창고·품목·품목그룹 <b>넷으로</b> 좁힐 수
@@ -2235,9 +2725,6 @@ console.log('\n■ 원본 표의 열이 우리 표에도 있나')
      */
     ['원가생성_수정|계산기준', '원본에서도 표의 열이 아니라 조건이다 — 우리도 조건으로 있다'],
     ['원가생성/수정|계산기준', '위와 같음'],
-    ['생산계획/MRP생성|생산계획기간', '위와 같음'],
-    ['생산계획/MRP생성|기준품목', '위와 같음'],
-    ['생산계획/MRP생성|적요', '위와 같음 — 적요는 [비고] 열로 이미 찍는다'],
     ['공정등록|작업코드등록', '줄마다가 아니라 화면 위 버튼 하나로 연다'],
     /*
      * <b>생산불출의 [불러온 전표No.]</b> — 원본은 [불러온 전표No.] 와 [작업지시서] 를 따로 둔다.
@@ -2289,13 +2776,11 @@ console.log('\n■ 원본 표의 열이 우리 표에도 있나')
      * 화면이 된다. 값이 든 사본을 얻으면 그때 만든다.
      */
     /*
-     * <b>[작업] 은 잴 수가 없다.</b> 사본에 BOR 격자의 <b>머리만</b> 있고 줄이 없어,
-     * 그 칸이 [작업명]·[생산공정명] 과 무엇이 다른지 확인할 길이 없다.
-     * 아카이브를 두 번 뒤졌지만 그 격자의 값은 어디에도 없었다.
-     * <b>짐작으로 만들면 이름만 같고 뜻이 다른 칸</b>이 된다 — 잴 수 있게 되면 만든다.
-     * (같은 묶음의 [작업기준품목]·[작업량] 은 이름이 그 자체로 뜻을 말해 이번에 만들었다.)
+     * <b>[작업] 은 [작업명] 이다</b>(2026-10-02 loginaa 실측). BOR등록 격자 머리가 작업 · 작업기준품목코드 · 작업기준품목명 ·
+     * 작업량 · 작업시간(H) 이고, 그 줄의 [작업] 값이 목록의 [작업명] 으로 그대로 찍힌다. 우리는 격자가 아니라 등록 폼이라
+     * 같은 값을 [작업명] 칸으로 받는다 — 이름만 다르다.
      */
-    ['BOR(작업소요시간)|작업', '사본에 그 격자의 줄이 없어 [작업명]과 무엇이 다른지 잴 수 없다'],
+    ['BOR(작업소요시간)|작업', '원본 BOR등록 격자의 [작업] 은 목록의 [작업명] 과 같은 값이다 — 우리 등록 폼은 그 칸을 [작업명] 으로 적는다'],
     /*
      * 사본 '원가생성_수정' 도 표가 아니라 <b>원가생성 실행 화면</b>이다. 그 칸들이
      * 격자 열처럼 잡혔다. [공정명]·[창고코드/명]은 우리가 원가를 공정·창고 단위로
@@ -2319,11 +2804,6 @@ console.log('\n■ 원본 표의 열이 우리 표에도 있나')
      * 계획을 만드는 일도 한다(미판매 잔량 기준). 못 하는 것은 <b>소요량 전개</b>뿐이다.
      * 원본에서 이것들이 표의 열이 아니라 생성 폼의 칸·버튼이라는 것이 진짜 이유다.
      */
-    ['생산계획/MRP생성|생성일자', '표의 열이 아니라 생성 폼의 칸이다 — 우리는 조건으로 뒀다'],
-    ['생산계획/MRP생성|생산계획계산', '표의 열이 아니라 버튼이다 — 우리는 미판매 잔량으로 계획을 만든다'],
-    ['생산계획/MRP생성|MRP계산', '표의 열이 아니라 버튼이고, 소요량 전개(BOM 역산) 엔진이 없어 그 버튼도 없다'],
-    ['생산계획/MRP생성|생산계획/MRP현황', '표의 열이 아니라 생성 폼 안의 보기다'],
-    ['생산계획/MRP생성|기타', '위와 같음'],
     /*
      * 이 다섯은 <b>바로 윗줄이 아닌 것</b>을 가리키고 있었다 — 위는 생산계획/MRP 이야기다.
      * 원가생성은 그 위(원가생성_수정|기준년월)와 같은 까닭이라 줄마다 그대로 적는다.
@@ -2342,14 +2822,6 @@ console.log('\n■ 원본 표의 열이 우리 표에도 있나')
      * 같은 말을 적는다 — 우리 화면은 그 칸들을 <b>조건으로</b> 들고 있고,
      * 못 하는 것은 소요량 전개(BOM 역산)뿐이다.
      */
-    ['생산계획_MRP리스트|생성일자', '표의 열이 아니라 생성 폼의 칸이다 — 우리는 조건으로 뒀다'],
-    ['생산계획_MRP리스트|생산계획기간', '위와 같음'],
-    ['생산계획_MRP리스트|기준품목', '위와 같음'],
-    ['생산계획_MRP리스트|적요', '위와 같음'],
-    ['생산계획_MRP리스트|생산계획계산', '표의 열이 아니라 버튼이다 — 우리는 미판매 잔량으로 계획을 만든다'],
-    ['생산계획_MRP리스트|MRP계산', '표의 열이 아니라 버튼이고, 소요량 전개(BOM 역산) 엔진이 없어 그 버튼도 없다'],
-    ['생산계획_MRP리스트|생산계획/MRP현황', '표의 열이 아니라 생성 폼 안의 보기다'],
-    ['생산계획_MRP리스트|기타', '위와 같음'],
   ])
   collectReasons(NO_COLUMN)
   /*
@@ -2385,9 +2857,29 @@ console.log('\n■ 원본 표의 열이 우리 표에도 있나')
    * 그중 하나를 만들었을 때 지우기 쉽지 않은데, 그대로 두면 그 자리는 이후로
    * 아무도 안 본다. 아래 [낡은 예외] 단언이 이 목록을 강제한다.
    */
-  /* 생산입고 I 은 격자로 바꿨다 — 적요·노무시간·수량이 이제 열이다. */
-  for (const k of ['생산입고I-BOM기준소모|적요', '생산입고I-BOM기준소모|노무시간',
+  /*
+   * 생산입고 I 은 격자로 바꿨다 — 적요·수량이 이제 열이다.
+   * <b>[노무시간]은 아니었다.</b> 여기 같이 적어 두고 있었는데, 화면에서 그 글자는
+   * <b>격자 머리가 아니라 폼 이름표</b>(<code>&lt;th style={th}&gt;</code>)였다 —
+   * 검사가 이름표까지 열로 세고 있어서 <b>있는 것처럼 보였다</b>(위 ours 주석 참고).
+   * 이름표를 빼고 세게 고치자 바로 드러났다. 목록(pending-columns)으로 옮긴다.
+   */
+  for (const k of ['생산입고I-BOM기준소모|적요',
     '생산입고I-BOM기준소모|수량']) NO_COLUMN.delete(k)
+  /*
+   * 2026-10-02 생산입고 I·II·III 을 원본처럼 <b>전표 격자</b>로 다시 만들었다(머리 + [생산]·[소모] 탭).
+   * 이제 열로 있는 것은 빼고, 아직 없는 것(불러온 전표일자·No.·작업지시품목코드·생산공정·
+   * 시리얼/로트No.·BOM버전)만 묶음 이유에 남긴다.
+   */
+  for (const screen of ['생산입고I-BOM기준소모', '생산입고II-소모품목 선택', '생산입고 III-소모품목 선택']) {
+    for (const c of ['생산품목코드', '생산품목명', '규격', '수량', '적요', '노무시간', '작지 수량', '시리얼/로트No.', 'BOM버전']) {
+      NO_COLUMN.delete(screen + '|' + c)
+    }
+  }
+  /* 작업지시서입력도 같은 날 품목 격자로 다시 만들었다. */
+  for (const c of ['품목코드', '품목명', '규격', '수량']) NO_COLUMN.delete('작업지시서입력|' + c)
+  NO_COLUMN.set('작업지시서입력|창고',
+    '같은 칸을 원본 격자가 [생산공장] 이라 부른다(2026-10-02 loginaa 작업지시서입력 실측: 품목코드·품목명·규격·수량·생산공장) — 그 이름으로 그린다')
 
   let pending = 0
   const stale = []   // 이미 만들었는데 예외로 남아 있는 것
@@ -2398,7 +2890,32 @@ console.log('\n■ 원본 표의 열이 우리 표에도 있나')
     if (PENDING.has(screen)) { pending++; continue }
     if (!pageSource(rel)) continue
     const src = pageSource(rel)   // 감싸기만 하는 화면은 감싸인 쪽까지 읽는다
-    const ours = new Set([...noArrow(src).matchAll(/<th\b[^>]*>([\s\S]*?)<\/th>/g)].map((m) => flat(m[1])))
+    /*
+     * <b>조건 판의 이름표도 <code>&lt;th&gt;</code> 다.</b> 그룹웨어·생산 쪽 열다섯 화면이
+     * 조건을 표로 그리면서 <code>&lt;th style={th}&gt;질문내용&lt;/th&gt;</code> 처럼 이름표를 th 로 둔다.
+     * 그걸 열로 세면 <b>거를 수만 있고 못 보는 칸이 있는 열로</b> 잡혀,
+     * 없는 열이 <b>있다</b> 고 나온다(설문조사현황의 [질문내용]이 그랬다).
+     * 이름표 자리는 빼고 <b>진짜 격자 머리</b>만 본다.
+     */
+    const ours = new Set([...noArrow(src).matchAll(/<th\b([^>]*)>([\s\S]*?)<\/th>/g)]
+      .filter((m) => !/style=\{th\}/.test(m[1]))
+      .map((m) => flat(m[2])))
+    /*
+     * <b>머리 이름이 감싸개에서 건너오는 자리.</b> 할인현황 셋은 표가 하나이고
+     * <code>&lt;th&gt;{amountLabel}&lt;/th&gt;</code> 로 그리는데, 그 이름은 감싸는 파일이
+     * <code>amountLabel="판매금액"</code> 으로 넘겨 준다. th 안만 보면 빈 글자라
+     * <b>있는 열을 없다고</b> 한다. 식으로 적힌 머리의 이름을 그 식과 같은 이름의
+     * prop 에서 찾아 함께 든다(pageSource 가 감싸개까지 읽어 두었다).
+     */
+    for (const m of noArrow(src).matchAll(/<th\b[^>]*>\s*\{(\w+)\}\s*<\/th>/g)) {
+      /*
+       * <code>{label}</code> 같은 <b>흔한 이름</b>은 뺀다 — 감싸개가 넘겨 주는 prop 이 아니라
+       * 그 화면 안의 지역 변수인 경우가 많고(매출계획입력의 소계 머리가 그렇다),
+       * 그러면 조건 이름표의 label="적요" 까지 열로 주워 와 <b>없는 열이 있다</b>고 하게 된다.
+       */
+      if (m[1] === 'label' || m[1].length < 6) continue
+      for (const v of src.matchAll(new RegExp(m[1] + '="([^"]+)"', 'g'))) ours.add(flat(v[1]))
+    }
     for (const name of Object.keys(cols)) {
       const exempt = NO_COLUMN.has(screen + '|' + name)
       if (!exempt) checked++
@@ -2455,6 +2972,32 @@ console.log('\n■ 원본 표의 열이 우리 표에도 있나')
     grown.join('\n') || '없음', '없음')
   eq('만들어 놓고 목록에 남겨 둔 열이 없다', gone.join('\n') || '없음', '없음')
   eq(`열 예외 ${NO_COLUMN.size}개가 아직 필요하다`, stale.join('\n') || '없음', '없음')
+
+  /*
+   * <b>정렬 대조가 찾은 "없는 열" 도 같은 이유 지도로 판정한다.</b>
+   *
+   * <p>그쪽(1-g)은 원본 <b>정렬 대조표</b>에서 열 이름을 얻고 이쪽(2-h)은 <b>열 대조표</b>에서
+   * 얻는다 — 재는 자리가 달라 둘 다 필요하다. 그런데 판정까지 따로 두었더니 <b>같은 열을
+   * 두 번 세면서 한쪽만 이유를 아는</b> 꼴이 되었다: 1-g 가 마흔 개를 이유 없는 목록
+   * (ecount-missing-columns.json)에 쌓아 두었는데, 2026-09-21 에 마흔을 다 열어 보니
+   * <b>마흔이 다</b> 여기 NO_COLUMN 에 이유가 있었다. 이유 없는 것은 하나도 없었다.
+   *
+   * <p>그 목록은 지웠다. 이제 <b>이유가 있으면 빠지고</b>, 이유 없이 없는 열은
+   * <code>pending-columns.json</code>(2-h 가 이미 쓰는 그 목록)에 적힌 것만 봐준다.
+   * 둘 중 어디에도 없는 열이 새로 생기면 <b>그 자리에서 걸린다</b> — 목록에 한 줄
+   * 덧붙이는 것으로는 못 넘어가고, 이유를 적거나 열을 만들어야 한다.
+   */
+  if (MISSING_COLUMNS === null) {
+    eq('정렬 대조가 찾은 없는 열을 판정할 수 있다', '1-g 가 아직 안 돌았다 — 검사 차례가 바뀌었다', '없음')
+  } else {
+    const unexcused = MISSING_COLUMNS.filter((x) => {
+      const i = x.indexOf('  ')
+      const key = x.slice(0, i) + '|' + x.slice(i + 2).replace(/^\[/, '').replace(/\]$/, '')
+      return !NO_COLUMN.has(key) && !TODO.includes(x)
+    })
+    eq(`정렬 대조가 찾은 없는 열 ${MISSING_COLUMNS.length}개가 다 이유를 들고 있다`,
+      unexcused.join('\n') || '없음', '없음')
+  }
 }
 
 // ── 2-i) 원본 화면의 버튼 ↔ 우리 버튼 ─────────────────────────────────────
@@ -2521,7 +3064,6 @@ console.log('\n■ 원본 화면에 있는 버튼이 우리 화면에도 있나'
     ['근태입력|저장/전표(F7)', '근태를 회계전표로 넘기지 않는다'],
 
     ['설문조사조회|Email', '전표를 메일로 보내지 않는다'],
-    ['생산입고조회|생산입고I', '입력 화면을 [신규(F2)]로 연다'],
     ['생산입고조회|Email', '전표를 메일로 보내지 않는다'],
     ['거래명세서인쇄|Email', '위와 같음'],
     ['SW개발일정관리|공용메일설정', '사내 공용메일 설정 화면이 없다'],
@@ -2547,9 +3089,8 @@ console.log('\n■ 원본 화면에 있는 버튼이 우리 화면에도 있나'
     ['거래처관리대장 II|검색(F8)', '거래처등록은 검색상자(Search(F3))로 찾는다'],
     ['거래처관리대장 I|닫기', '화면을 닫는 버튼을 두지 않는다 — 메뉴로 옮긴다'],
 
-    ['생산계획_MRP리스트|H', '생성 팝업의 시간 단위 토글 — 그 팝업을 안 만든다'],
-    ['생산계획_MRP리스트|신규(F2)', '위와 같음'], ['생산계획_MRP리스트|저장(F8)', '위와 같음'],
-    ['생산계획_MRP리스트|닫기', '위와 같음'], ['생산계획_MRP리스트|삭제', '위와 같음'],
+    ['생산계획_MRP리스트|H', '생성 팝업의 시간 단위(H) 토글 — 계획은 날짜 단위로만 센다'],
+    /* [닫기] 는 2026-10-02 생산계획현황·MRP현황 창이 생기면서 있다. */
     ['공지사항|업무지원AI', '업무지원 AI 를 붙이지 않았다'],
     /*
      * 꼬리표(라벨) 자체는 공용품·일정에도 <b>있다</b> — 없는 것은 <b>[라벨변경]</b>,
@@ -2562,7 +3103,6 @@ console.log('\n■ 원본 화면에 있는 버튼이 우리 화면에도 있나'
     ['내결재관리|보내기', '전표를 메일로 보내지 않는다'],
     ['작업내역조회|보내기', '위와 같음'], ['작업내역조회|바코드(품목)', '바코드를 찍지 않는다'],
     ['생산입고조회|바코드(품목)', '위와 같음'],
-    ['생산입고조회|진행상태변경', '생산입고에 진행상태가 없다'],
     ['생산입고조회|보내기', '전표를 메일로 보내지 않는다'], ['생산입고조회|전자결재', '생산 전표를 결재에 올리지 않는다'],
 
     /*
@@ -2571,10 +3111,8 @@ console.log('\n■ 원본 화면에 있는 버튼이 우리 화면에도 있나'
      * 상태를 바꾸는 자리는 출하지시서조회고, 거기는 이번에 <b>고른 줄을 한 번에</b> 바꾸게 했다.
      */
     ['출하조회|진행상태변경', '보기만 하는 화면이라 상태를 바꾸지 않는다 — 바꾸는 자리는 출하지시서조회다'],
-    ['소요시간계산|주문', '수주에서 불러오지 않는다 — 작업지시에서 불러온다'],
     ['소요시간계산|바코드', '바코드를 찍지 않는다'],
     ['구매조회|발주', '발주는 발주서 화면에서 만든다'],
-    ['작업지시서작업처리|작업내역입력', '작업내역은 그 화면에서 바로 넣는다'],
     ['품목등록 리스트|관계설정', '품목 사이 관계(대체품·세트) 개념이 없다'],
 
 
@@ -2612,7 +3150,7 @@ console.log('\n■ 원본 화면에 있는 버튼이 우리 화면에도 있나'
     '계좌등록', '관리항목등록', '기타이동현황', '단가변동표', '단가요청진행단계', '매출계획', '매출계획비교표', '매출계획조회', '매출계획현황',
     '미구매현황', '발주서', '발주서조회', '발주서현황', '쇼핑몰품목코드연결', '수집데이터등록', '시리얼/로트No.등록', '오더관리유형등록',
     '외화등록', '원가생성/수정', '집계표', '창고등록', '카드등록', '특별단가등록', '판매구매집계표', '품목vs시리얼재고수량비교', '품목등록',
-    '품질검사현황', '프로젝트계획', '프로젝트계획조회', '현황누계표']) {
+    '품질검사현황', '프로젝트계획', '프로젝트계획조회', '현황누계표', '의료기기공급내역보고']) {
     for (const b of ['검색(F8)', '저장/검색(F8)']) {
       NO_BUTTON.set(screen + '|' + b, '조건을 바꾸면 바로 반영된다 — 따로 눌러 실행하지 않는다')
     }
@@ -2664,8 +3202,6 @@ console.log('\n■ 원본 화면에 있는 버튼이 우리 화면에도 있나'
   for (const [screen, why] of [
     ['창고이동조회', '창고이동에는 상태 칸이 없다 — 넣는 순간 재고가 움직이고 끝이다'],
     ['생산불출', '생산불출에도 상태 칸이 없다 — 위와 같다'],
-    ['A/S접수', '다음 단계가 [수리완료]면 수리내역을 받아야 한다 — 고른 줄마다 묻게 된다'],
-    ['A/S접수조회', '위와 같음'],
   ]) NO_BUTTON.set(screen + '|진행상태변경', why)
 
   /*
@@ -2687,9 +3223,7 @@ console.log('\n■ 원본 화면에 있는 버튼이 우리 화면에도 있나'
    */
   for (const [screen, why] of [
     ['창고이동조회', '이동을 넣는 자리는 기타이동(TransferPage)이다 — 조회에서 만들지 않는다'],
-    ['생산계획/MRP생성', 'MRP 는 소요량을 <b>계산해서</b> 만든다 — 손으로 한 줄씩 넣는 것이 아니다'],
     ['단가요청진행단계', '단가요청은 발주서에서 나온다 — 이 화면은 그 문서가 지금 어느 단계인지만 본다'],
-    ['의료기기공급내역보고', '보고는 [보고파일 생성]으로 만든다 — 빈 보고를 새로 여는 자리가 아니다'],
   ]) NO_BUTTON.set(screen + '|신규(F2)', why)
 
   /*
@@ -2725,11 +3259,7 @@ console.log('\n■ 원본 화면에 있는 버튼이 우리 화면에도 있나'
    * 창고이동조회·쇼핑몰품목코드연결·수집데이터등록).
    */
   for (const [screen, why] of [
-    ['A/S접수', '서버에 A/S접수를 지우는 자리가 없다 — 지울 수 있는 것은 소모부품뿐이다'],
-    ['A/S접수입력', '위와 같음'], ['A/S접수조회', '위와 같음'],
     ['시리얼/로트No.등록', '로트를 지우는 자리가 없다 — 재고 이력이 물고 있다'],
-    ['의료기기공급내역보고', '격자가 <b>집계한 공급내역</b>이라 지울 수 있는 줄이 아니다'
-      + ' (지울 것은 아래 보고이력인데, 위에서 고른 것과 다른 표다)'],
   ]) NO_BUTTON.set(screen + '|선택삭제', why)
 
   /*
@@ -2754,21 +3284,38 @@ console.log('\n■ 원본 화면에 있는 버튼이 우리 화면에도 있나'
    * (lines/setLines/+ 행 추가). 묶음으로 이유를 적으면 그 안에 사실이 아닌 것이 섞여도
    * 아무도 안 본다 — 격자가 정말 없는 화면들만 예외로 남긴다.
    */
-  for (const k of ['발주서입력|저장(F8)', '매출계획입력|저장(F8)',
+  for (const k of ['발주서입력|저장(F8)', '매출계획입력|저장(F8)', 'A/S접수입력|저장(F8)', '품질검사요청입력|저장(F8)',
     '발주서입력|My품목', '생산불출입력|My품목',
     /* 생산불출입력 격자에 [전체수량·보내는창고수량·받는창고수량] 셋을 만들면서 붙였다. */
     '생산불출입력|재고불러오기',
     /* 생산입고 II·III 은 소모자재 격자가 줄마다 품목을 고른다 — 부을 자리가 있다.
        생산입고 I 은 줄이 <b>작업지시</b>라 품목을 부을 자리가 없어 예외가 그대로 맞는다. */
-    '생산입고II-소모품목 선택|My품목', '생산입고 III-소모품목 선택|My품목']) NO_BUTTON.delete(k)
+    '생산입고II-소모품목 선택|My품목', '생산입고 III-소모품목 선택|My품목',
+    /* 2026-10-02 생산입고 I·II·III 을 전표 격자로 다시 만들며 단 것. 생산불출의 [작업지시서]도 그날 붙였다. */
+    '생산입고I-BOM기준소모|My품목', '생산입고I-BOM기준소모|작업지시서', '생산입고I-BOM기준소모|리스트',
+    '생산입고II-소모품목 선택|작업지시서', '생산입고II-소모품목 선택|저장(F8)', '생산입고II-소모품목 선택|리스트',
+    '생산입고 III-소모품목 선택|작업지시서', '생산입고 III-소모품목 선택|저장(F8)', '생산입고 III-소모품목 선택|리스트',
+    /* 2026-10-02 생산입고 [생산] 탭 툴바의 [주문](주문서검색창 — 작업지시서입력과 같은 창). */
+    '생산입고I-BOM기준소모|주문', '생산입고II-소모품목 선택|주문',
+    /* 같은 날 [전표불러오기](메뉴검색 → 전표 → 품목 줄) — features/slipload SlipLoadModal. */
+    '생산입고I-BOM기준소모|전표불러오기', '생산입고II-소모품목 선택|전표불러오기', '생산입고 III-소모품목 선택|전표불러오기',
+    '생산불출입력|전표불러오기', '작업지시서입력|전표불러오기', '작업지시서입력|재고불러오기',
+    '생산불출입력|저장(F8)', '생산불출입력|리스트',
+    '생산불출입력|작업지시서', '생산불출조회|작업지시서',
+    '작업지시서입력|My품목', '작업지시서입력|저장(F8)', '작업지시서입력|리스트', '작업지시서입력|주문']) NO_BUTTON.delete(k)
+  /*
+   * [재고불러오기] — 생산입고 II·III 의 [소모] 탭에 달았다(생산된공장의 재고를 소모 줄로). 세 화면이 한 파일이라
+   * I 도 글자로는 있는 것으로 보인다. I 은 [소모] 탭이 없어(BOM 이 소모를 정한다) 화면에는 안 뜬다 — 알고 뺀다.
+   */
+  for (const s3 of ['생산입고I-BOM기준소모', '생산입고II-소모품목 선택', '생산입고 III-소모품목 선택']) NO_BUTTON.delete(s3 + '|재고불러오기')
 
   /*
-   * <b>의료기기공급내역보고 — 심평원 전송 연동을 붙이지 않았다.</b>
-   * 우리는 보고파일(CSV)을 만들어 <b>사람이 올린다</b>. 원본은 그 자리에서 전송하고
-   * 인증정보를 등록하고 송신이력을 본다 — 연동이 없으면 넷 다 누를 것이 없다.
+   * <b>의료기기공급내역보고 — 의료기기 통합시스템 전송 연동을 붙이지 않았다.</b>
+   * 보고 줄은 원본처럼 저장하지만(2026-10-03) 보내지는 않는다 — 늘 [미전송]이다. 원본은 그 자리에서
+   * 전송하고 인증정보를 등록하고 송신이력을 본다 — 연동이 없으면 넷 다 누를 것이 없다.
    */
   for (const b of ['전송(F8)', '인증정보등록', '매핑조회', '송신이력']) {
-    NO_BUTTON.set('의료기기공급내역보고|' + b, '심평원 전송 연동이 없다 — 보고파일을 만들어 사람이 올린다')
+    NO_BUTTON.set('의료기기공급내역보고|' + b, '통합시스템 전송 연동이 없다 — 보고 줄은 저장하지만 늘 미전송이다')
   }
 
   for (const [k, why] of [
@@ -2789,10 +3336,10 @@ console.log('\n■ 원본 화면에 있는 버튼이 우리 화면에도 있나'
     }
   }
 
-  for (const [screen, btns] of [['생산불출조회', ['Email', '진행상태변경', '보내기', '바코드(품목)', '전자결재', '선택삭제',
-    '정렬', 'My품목', '작업지시서', '전표불러오기', '재고불러오기', '바코드', '검증', '저장(F8)', '저장/전표(F7)', '닫기']],
-  ['작업지시서조회', ['Email', '진행상태변경', '보내기', '바코드(품목)', '전자결재', '선택삭제']],
-  ['작업내역입력', ['정렬', 'My품목', '연결전표', '바코드', '검증', '작업지시서', '저장(F8)', '저장/전표(F7)', '리스트']],
+  for (const [screen, btns] of [['생산불출조회', ['Email', '보내기', '바코드(품목)', '전자결재',
+    '정렬', 'My품목', '작업지시서', '재고불러오기', '바코드', '검증', '저장/전표(F7)', '닫기']],
+  ['작업지시서조회', ['Email', '보내기', '바코드(품목)', '전자결재']],
+  ['작업내역입력', ['정렬', 'My품목', '바코드', '검증', '작업지시서', '저장/전표(F7)']],
   ['작업내역조회', ['Email']]]) {
     for (const b of btns) NO_BUTTON.set(screen + '|' + b, '전표 입력 격자·전자결재·바코드를 이 화면에 붙이지 않았다')
   }
@@ -2812,6 +3359,37 @@ console.log('\n■ 원본 화면에 있는 버튼이 우리 화면에도 있나'
   NO_BUTTON.delete('구매조회|회계반영')
   NO_BUTTON.delete('생산불출조회|My품목')
   NO_BUTTON.delete('생산불출조회|재고불러오기')
+  /* 2026-10-02 진행상태(V225)와 [진행상태변경] 을 생산불출·작업지시서에도 달았다. */
+  for (const k of ['생산불출조회|진행상태변경', '작업지시서조회|진행상태변경', '생산불출|진행상태변경']) NO_BUTTON.delete(k)
+  NO_BUTTON.delete('생산불출조회|작업지시서')
+  /*
+   * <b>발주서입력의 [재고불러오기]</b> — 묶음 이유('우리 폼에는 [등록] 하나뿐이다')가
+   * 이 화면에는 안 맞는다. 줄을 여럿 넣는 격자이고(lines/setLines/[+ 행 추가]),
+   * 원본 격자의 [전체수량]·[창고수량] 두 칸을 이 단추가 채운다.
+   */
+  NO_BUTTON.delete('발주서입력|재고불러오기')
+  /*
+   * <b>생산입고 II·III 소모품목 선택의 [재고불러오기]</b> — 묶음 이유('우리 폼에는
+   * [등록] 하나뿐이다')는 <b>이 둘에는 안 맞는다</b>. 줄마다 품목을 고르는 격자이고
+   * (그래서 [My품목]은 이미 달았다), 소모는 <b>있는 것을 빼는 일</b>이라 재고가
+   * 제일 아쉬운 자리다. 그런데 <b>아직 못 만든다</b> — 이 단추가 채우는 칸의
+   * <b>이름을 모른다</b>. 발주서입력은 ecount-column-width.json 에 [전체수량]·
+   * [창고수량] 이 잡혀 있어 그대로 만들 수 있었지만, 소모품목 선택 두 화면은
+   * 그 대조표에 없고 <b>쓰기 화면이라 원본을 열어 재지 않는다</b>(조회만 연다).
+   * 이름을 지어내지 않고, 사실대로 적어 둔다.
+   */
+  /* 2026-10-02 [소모] 탭에 [재고불러오기] 를 달았다 — 생산된공장의 재고를 소모 줄로 붓는다(위 삭제 목록). */
+  /*
+   * <b>작업내역입력의 [My품목]</b> — 묶음 이유가 '전표 입력 격자를 이 화면에 붙이지
+   * 않았다' 였는데 <b>사실이 아니었다</b>. 이 화면은 진작 격자고(wrLines·[줄 추가])
+   * 줄마다 [작업품목]을 고른다 — 부을 자리가 있었다.
+   * (같이 묶여 있던 품질검사요청입력·A/S접수입력·매출계획입력·작업지시서입력·
+   * BOR 다섯은 줄 격자가 없는 <b>한 품목짜리 폼</b>이라 이유가 그대로 맞는다.
+   * 생산입고 I 도 줄이 <b>작업지시</b>라 품목을 부을 자리가 없다.)
+   */
+  NO_BUTTON.delete('작업내역입력|My품목')
+  /* 2026-10-02 [작업지시서] 를 달았다 — 진행 중인 지시서를 골라 작업 줄을 채운다. */
+  NO_BUTTON.delete('작업내역입력|작업지시서')
 
   const bad = []
   let checked = 0
@@ -2820,7 +3398,7 @@ console.log('\n■ 원본 화면에 있는 버튼이 우리 화면에도 있나'
    * 묶음으로 뺐지만 실제로는 있는 것들. 아래 [낡은 예외] 단언이 이 목록을 강제한다.
    * [닫기] 둘은 그 화면이 팝업(Modal)으로 입력을 받아서 팝업에 닫기가 있다.
    */
-  for (const k of ['생산불출조회|선택삭제', '생산입고I-BOM기준소모|저장(F8)',
+  for (const k of ['생산입고I-BOM기준소모|저장(F8)',
     'BOR(작업소요시간)|닫기', '생산불출조회|닫기']) NO_BUTTON.delete(k)
 
   let pending = 0
@@ -3113,18 +3691,69 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
    * 사본을 뜰 때 그것을 안 펼친 것으로 보인다 — 2026-09-07 에 판매조회(E040206)를 열어
    * 펼쳐 재 보니 <b>스물넷</b>이었는데 사본에는 <b>열하나</b>만 적혀 있었다.
    *
-   * <p>지금 '조회' 로 끝나는 화면의 사본 조건 수는 이렇다:
-   *   생산불출조회 5 · 생산입고조회 6 · 작업지시서조회 6 · 구매조회 7 · 매출계획조회 7 ·
-   *   설문조사조회 7 · 거래이력조회 8 · 발주서조회 8 · 작업내역조회 8 · 근태조회 9 ·
-   *   창고이동조회 9 · 결제내역조회 10 · 출하조회 10 · 출하지시서조회 10 ·
-   *   프로젝트계획조회 10 · A/S접수조회 11 · <b>판매조회 24(실측)</b>
+   * <p>여섯 화면을 실제로 재 보니 사본이 얼마나 덜 적혔는지가 이렇다:
+   *   판매조회 11 → <b>24</b> · 구매조회 7 → <b>22</b> · 출하조회 10 → <b>24</b> ·
+   *   출하지시서조회 10 → <b>33</b> · 발주서조회 8 → <b>35</b> · 창고이동조회 9 → <b>29</b>
+   *   (발주서조회·창고이동조회는 사본에 <b>[기준일자]조차</b> 빠져 있었고,
+   *    창고이동조회는 이동 화면인데 <b>[보내는창고]·[받는창고]</b> 가 없었다.)
+   *
+   * <p>여기 "아직 안 잰" 이라고 열한 화면을 적어 두었었는데, 2026-09-09 에 다시 세어 보니
+   * <b>여덟은 이미 원본으로 재어 둔 것</b>이었다(생산불출조회 29 · 생산입고조회 32 ·
+   * 작업지시서조회 31 · 매출계획조회 27 · 거래이력조회 27 · 작업내역조회 27 ·
+   * 결제내역조회 12 · A/S접수조회 31). 목록이 낡아 같은 화면을 다시 열게 만들고 있었다.
+   *
+   * <p>그날 셋을 원본에서 <b>다시 열어 대조</b>해 대조표가 맞는지 확인했다:
+   *   생산불출조회(E040405) 29 · 결제내역조회(E040254) 12 · 설문조사조회(E070257) 8 —
+   *   <b>셋 다 글자 하나까지 같았다.</b> 설문조사조회는 접힌 줄 자체가 없고
+   *   (<code>.view-hidden-item</code> 이 없다), 생산불출조회는 토글은 있지만 눌러도
+   *   줄이 늘지 않는다. 결제내역조회도 토글이 없다 — <b>모든 화면에 접힌 줄이 있는 것은 아니다.</b>
+   *
+   * <p><b>2026-09-09 (그날 늦게) — 다시 열어 대조한 화면들.</b> 사이트맵으로 코드만 알면
+   * 바로 열 수 있게 되어, 사본에서 온 대조표가 정말 맞는지 하나씩 되짚고 있다.
+   * 지금까지 되짚은 것은 <b>전부 맞았다</b> — 생산불출조회 29 · 결제내역조회 12 ·
+   * 설문조사조회 8 · 표준원가현황 10 · 경영자보고서 2 · 매출계획조회 27 ·
+   * 거래이력조회 27 · <b>수금현황 18</b> · <b>판매할인현황 19</b>.
+   * 틀린 것이 나온 곳은 조건이 <b>크게</b> 모자란 화면들이었지(의료기기 10→24,
+   * 근태조회 9→14, 결제내역자료비교 5→9) 한두 개 어긋난 경우는 아직 없다.
+   *
+   * <p><b>접힘 토글이 있다고 줄이 늘지는 않는다.</b> 수금현황·판매할인현황 둘 다
+   * <code>collapsed</code> 가 붙은 토글이 있는데 눌러도 줄 수가 그대로였다(19·20).
+   * 토글의 있고 없음으로 '접힌 줄이 있다' 고 넘겨짚으면 안 된다 — <b>눌러 보고 세야</b> 한다.
+   *
+   * <p><b>2026-09-09 — 이 목록은 이제 비었다.</b> 남아 있던 둘을 마저 쟀다:
+   *   근태조회(E020711)는 <b>아홉이 아니라 열넷</b>이었고([부서계층그룹]을 만들고
+   *   [근태일자] 차례를 고쳤다), 프로젝트계획조회(E040636)는 열하나로 <b>대조표와 같았다</b>.
+   *   프로젝트계획조회는 그룹웨어가 아니라 <b>재고 II &gt; 계획관리(C000094)</b> 에 있다 —
+   *   화면 주석이 '회계 &gt; 프로젝트' 라 적어 두어 못 찾고 있었다.
+   *   그 화면은 <b>메뉴 이름과 제목이 다르다</b>: 메뉴는 [프로젝트계획조회],
+   *   열리는 화면 제목은 [프로젝트계획 리스트] 다.
    *
    * <p>판매조회만 유별난 것이 아니라 <b>나머지가 덜 적힌 것</b>이다. 그 화면들을 다 맞춰
    * 놓고 '일치' 라 적으면 <b>덜 적힌 대조표에 맞춘 것</b>일 뿐이다.
    *
-   * <p>그러니 조회 화면을 손볼 때는 <b>원본을 열어 접힌 줄을 펼치고</b> 사본을 갈아 끼운 뒤에
-   * 시작한다. 현황 화면은 그럴 필요가 없다 — 거래처별채권을 다시 열어 보니 조건 판이
-   * 통째로 펼쳐져 있고 접힌 줄이 없었다.
+   * <p><b>사본 HTML 로는 이걸 고칠 수 없다.</b> 2026-09-08 에 <code>Desktop\ERP</code> 의
+   * 사본 파일을 직접 뒤져 확인했다 — 판매조회·구매조회·결제내역조회·근태조회·출하지시서조회
+   * 다섯 파일(각 3.4MB) 어디에도 <b>[기준일자]·[발송여부]·[오더관리번호] 같은 조건 이름이
+   * 한 글자도 없다.</b> <code>wrapper-form</code> 은 한 번 나오는데 그 안에 li 가 없다.
+   * 조건 판은 통째로 JS 가 그리는데 사본은 그리기 <b>전</b>을 담았다.
+   * 그러니 사본에 '실측' 이라 적힌 조건 목록은 사실 <b>화면을 눈으로 보고 옮겨 적은 것</b>이고,
+   * 접힌 줄이 눈에 안 보였으니 빠진 것이다. 파일을 다시 파 봐야 나올 것이 없다 —
+   * <b>원본을 열어 접힌 줄을 펼치는 수밖에 없다.</b>
+   *
+   * <p><b>⚠ '현황 화면은 그럴 필요가 없다' 고 적어 두었던 것이 틀렸다.</b>
+   * 거래처별채권 한 화면만 보고 그렇게 적었는데, 2026-09-08 에 <b>판매현황(E040207)</b> 을
+   * 열어 보니 <b>접힌 줄이 있다</b> — 펼치면 열하나가 <b>스물일곱</b>이 된다.
+   * 사본에는 열넷이라 적혀 있다.
+   *
+   * <p>펼쳐서 더 나온 열여섯: 오더관리번호 · 담당자 · 거래처관리담당자 · 외화종류 · 규격 ·
+   * 수량 · 단가 · 공급가액 · 부가세 · 적요 · 부대비용 · 판매구분 · 진행상태 · 채권번호 ·
+   * 작성자 · 최종수정자 · 사용자지정. (사본에 있는 [관리항목]은 <b>원본에 없었다</b> —
+   * 판매조회에서 겪은 것과 같다. [적용양식]·[정렬기준]·[데이터 보기형식]은 조건 판이
+   * 아니라 다른 자리에 있는 것으로 보인다 — 아직 못 찾아 지우지 않는다.)
+   *
+   * <p>그러니 <b>현황 화면 마흔 남짓도 다시 재야 한다.</b> 조회 열여섯을 한 바퀴에
+   * 하나씩 잰 것과 같은 길이다. 거래처별채권처럼 접힌 줄이 <b>없는</b> 현황도 있으므로
+   * 화면마다 확인해야 한다 — 하나를 보고 나머지를 짐작한 것이 이 오류의 원인이었다.
    */
   /** 원본에 있지만 우리에게 없는 조건 — 왜 없는지 적는다. */
   const NO_FIELD = new Map([
@@ -3331,7 +3960,6 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
      * 것이다. 사본을 실측대로 고치니 우리가 못 만든 것 여섯이 드러났다.
      * <b>덜 적힌 대조표는 우리를 안심시킬 뿐이다.</b>
      */
-    ['판매조회|오더관리번호', '판매 전표에 오더 참조가 없다 — 오더관리는 수주에 붙는다'],
     /*
      * <b>구매조회 여덟</b> — 판매조회와 같은 까닭으로 사본을 실측으로 갈아 끼우며 드러났다.
      * 사본에는 일곱 줄만 적혀 있었는데 원본은 <b>스물둘</b>이다. 이름이 판매 쪽과 다른 것이
@@ -3355,20 +3983,20 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
      * (이 회사도 이름을 안 붙여 '문자형식1' 그대로다) 우리에게 그런 자리가 아예 없다 —
      * 사본에 안 적었고 실측 목록에도 넣지 않는다.
      */
-    ['출하조회|오더관리번호', '출하 전표에 오더 참조가 없다 — 오더관리는 수주에 붙는다'],
     ['출하조회|최종수정자', '누가 고쳤는지는 안 남긴다 — 고친 때(updatedAt)만 남는다'],
+
     ['출하조회|제목', '[보내기]에 붙이는 제목이다 — 전표를 내보내는 기능이 없다'],
     ['출하조회|입력경로', '어느 길로 들어온 전표인지(웹·자료올리기·OAPI) 남기지 않는다'],
     ['출하조회|삭제구분', '지운 전표를 남기지 않는다 — 지우면 사라진다(소프트 삭제가 아니다)'],
     /*
-     * <b>출하지시서조회(C000120)</b> — 2026-09-07 원본 실측. 사본에는 열뿐이었는데
+     * <b>출하지시서조회(E040221)</b> — 2026-09-07 원본 실측. 사본에는 열뿐이었는데
      * 조건 판 아래 '···' 줄을 펼치니 <b>서른셋</b>이었다. 판매·구매·출하에 이어 네 번째다.
      * 그중 여덟(출하예정일·규격·담당자·거래처관리담당자·연락처·주소·적요·작성자)은
      * 응답이 이미 싣고 있어 만들었고, [기타]의 <b>수정일자순(정렬)</b>도 만들었다.
      * 남은 것은 출하조회와 같은 까닭이다 — 같은 <code>/shipments</code> 를 본다.
      */
     /*
-     * <b>발주서조회(C000077)</b> — 2026-09-07 원본 실측. 사본에는 여덟뿐이었고
+     * <b>발주서조회(E040302)</b> — 2026-09-07 원본 실측. 사본에는 여덟뿐이었고
      * <b>[기준일자]조차 빠져 있었다</b>. 원본은 <b>서른다섯</b>이다(다섯 번째 같은 구멍).
      * 이번에 열둘을 만들었다 — 품목구분·품목그룹1·거래처그룹1·납기일자·규격·담당자·
      * 거래처관리담당자·적요·참조·최초작성자·최초작성일자·최종작업일자, 그리고 [기타].
@@ -3376,19 +4004,676 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
      * 조건 판에는 안 만들어 두었다 — 실어 놓고 쓰지 않은 값이었다.
      */
     /*
-     * <b>창고이동조회(C000033)</b> — 2026-09-07 원본 실측. 사본에는 아홉뿐이었고
+     * <b>창고이동조회(E040502)</b> — 2026-09-07 원본 실측. 사본에는 아홉뿐이었고
      * <b>[기준일자]도 [보내는창고]·[받는창고]도 빠져 있었다</b>. 이동 화면 사본에서
      * '어디서 어디로' 가 빠져 있었다는 뜻이다. 원본은 <b>스물아홉</b>이다(여섯 번째 같은 구멍).
      * 만든 것: 보내는창고·받는창고·품목구분·품목그룹1·최초작성자·최초작성일자·최종작업일자,
      * 그리고 [기타]의 수정일자순(정렬). 기본 기간도 최근30일(+1개월)로 바로잡았다.
      */
+    /*
+     * <b>생산불출조회</b> — 2026-09-08 원본 실측. 사본에는 다섯뿐이었는데 원본은
+     * <b>스물아홉</b>이다(일곱 번째 같은 구멍). 창고이동조회와 판박이 구성이다.
+     * 만든 것: 보내는창고·받는창고·품목구분·품목그룹1·프로젝트·최초작성일자·최종작업일자
+     * 와 [기타]의 수정일자순(정렬). [프로젝트]는 '응답에 그 값이 없다' 고 적혀 있었으나
+     * MaterialIssueResponse 가 진작 싣고 있었다 — 화면이 안 받아 두었을 뿐이다.
+     */
+    /*
+     * <b>생산입고조회(E040408)</b> — 2026-09-08 원본 실측, <b>서른둘</b>이다(사본은 넷).
+     * [기타] 안에 <b>수정일자순(정렬)</b>과 <b>외주공장만</b> 둘이 있다.
+     *
+     * <p><b>[외주공장만] 을 만들었다(2026-09-08).</b> 여기 '생산입고 응답이 창고 갈래를
+     * 안 싣는다' 고 적어 두었던 것은 <b>고칠 이유가 아니라 만들 일</b>이었다 —
+     * <code>Warehouse.kind</code> 가 창고·공장·<b>외주</b> 를 진작 들고 있으니
+     * <code>ProductionResponse</code> 에 <code>fromWarehouseKind</code> 를 실으면 그만이다.
+     * <b>만든 자리(보내는창고)</b>가 외주인 줄만 남긴다 — 생산입고에서 물건이 만들어진
+     * 곳이 보내는창고이고, 외주로 돌린 것을 보려는 체크이기 때문이다.
+     */
+    /*
+     * <b>작업지시서조회(E040412)</b> — 2026-09-08 원본 실측, <b>서른하나</b>다(사본은 다섯).
+     * 만든 것: 거래처그룹1 · 품목구분 · 품목그룹1 · 납기일자 · 담당자 · 거래처관리담당자 ·
+     * 적요 · 규격 · 최초작성자 · 최초작성일자 · 최종작업일자 + [기타] 의 수정일자순(정렬).
+     * 담당자·적요·규격·작성자는 응답이 진작 싣는데 조건이 없어 못 거르고 있었다.
+     */
+    /*
+     * <b>작업내역조회(E040431)</b> — 2026-09-08 원본 실측, <b>스물일곱</b>이다(사본은 여섯).
+     * 이 화면은 <b>[품목구분]·[품목그룹1] 이 두 벌</b>이다 — [작업품목] 아래 한 벌,
+     * [생산품목] 아래 또 한 벌. 이름이 겹쳐 대조표에 그냥 적으면 어느 쪽인지 못 가리므로
+     * <b>[작업품목:품목구분]</b> 처럼 어디 것인지 밝혀 적었다(입력경로:기타 와 같은 방식).
+     * 원본이 이 줄을 [작업일자] 가 아니라 <b>[기준일자]</b> 라 부르는 것도 이번에 바로잡았다.
+     */
+    /*
+     * <b>A/S접수조회(E040602)</b> — 2026-09-08 원본 실측, <b>서른하나</b>다(사본은 열하나).
+     * 사본이 <b>맨 앞의 [기준일자]</b>(접수한 날)를 또 빠뜨렸다 — 발주서조회·창고이동조회·
+     * 결제내역조회에 이어 <b>네 번째</b>다. 눈으로 옮겨 적을 때 첫 줄을 자꾸 건너뛴다.
+     * 만든 것: 기준일자 · 거래처 · 거래처그룹1 · 품목구분 · 품목그룹1 · 접수내용 · 적요 ·
+     * 최초작성자 · 최초작성일자 · 최종작업일자 + [기타] 의 수정일자순(정렬).
+     */
+    /*
+     * <b>설문조사조회(E070257)</b> — 2026-09-08 원본 실측. 여기는 <b>덜 적힌 게 아니라
+     * 우리가 하나 더 두고 있었다.</b> 원본 조건은 여덟이고(작성일·설문종료일·설문대상구분·
+     * 제목·작성자·게시글번호·양식·적용양식) 그 안에 <b>[결과공개범위]가 없다</b> —
+     * 그건 설문조사<b>입력</b>(만드는 화면)의 칸이다. 대조표도 그렇게 적고 있었는데
+     * 화면만 조건으로 그리고 있었다. 뺐다.
+     *
+     * <p>보기 대조표(ecount-radio-options)의 설문조사조회 항목도 입력 화면 것을 통째로
+     * 베껴 두고 있었다(survey_open·survey_header). 실측한 <b>[설문대상구분] 전체·내부·외부</b>
+     * 하나로 갈아 끼웠다.
+     */
+    ['설문조사조회|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
+    /*
+     * <b>같은 구역 머리가 세 화면에만 이유 없이 목록에 남아 있었다</b>(2026-09-21).
+     * 거래처관리대장1(채권)·(채무)·생산입고/소모현황 I 이다. 셋 다 원본 조건 대조표에서
+     * <code>양식 · 적용양식 · 양식구분</code> 이 <b>이어서</b> 나온다 — 이유를 이미 단
+     * 마흔다섯 화면과 <b>글자까지 같은 차례</b>다. 다른 무엇이어서 목록에 남은 것이 아니라
+     * 이유를 안 단 채로 남은 것이라, 같은 이유를 단다.
+     *
+     * <p>견줄 것: 같은 대조표의 <b>거래처관리대장 I</b> 은 [적용양식]·[양식구분]만 있고
+     * <b>[양식]이 없다</b> — 구역 머리가 있는 화면에만 이 이름이 선다는 뜻이다.
+     */
+    ['거래처관리대장1(채권)|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
+    ['거래처관리대장1(채무)|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
+    ['생산입고/소모현황 I|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
+    /*
+     * <b>매출계획조회(E040625)</b> — 2026-09-08 원본 실측, <b>스물일곱</b>이다(사본은 일곱).
+     * 이 파일은 원본 <b>다섯</b>을 겸한다(매출계획·입력·조회·비교표·현황). 조회에는
+     * [구분]·[담당자]·[반품구분]·[표시조건]·[설정]이 없다 — 그것들은 비교표·현황 것이다.
+     * 만든 것: 거래처그룹1 · 품목구분 · 품목그룹1 · 거래처관리담당자 · 적요 ·
+     * 최초작성자 · 최초작성일자 · 최종작업일자.
+     */
+    /*
+     * <b>프로젝트계획조회 = 프로젝트계획 리스트(E040636)</b> — 2026-09-08 원본 실측.
+     * <b>사본이 옳았던 첫 화면이다</b> — 열 조건이 한 글자도 안 어긋났고 접힌 줄도 없다.
+     * 빠진 것은 [적용양식] 위의 구역 머리 [양식] 하나뿐이라 그것만 더했다.
+     * 사이트맵 메뉴는 [프로젝트계획조회] 인데 화면 제목은 [프로젝트계획 리스트] 다
+     * (거래이력조회=전표이력조회와 같은 경우). 우리 화면 제목이 이미 뒤엣것이다.
+     */
+    ['결제내역자료비교|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
+    ['단가요청현황|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
+    /*
+     * <b>BOM환산재고현황(E040726) 2026-09-09 원본 실측 — 조건이 여섯이다</b>(대조표엔 넷).
+     * 빠져 있던 둘: <b>[창고계층그룹]</b> 과 [양식]. 앞엣것은 창고를 묶는 마스터가 없어
+     * 못 만드는 전역 예외와 같은 까닭이고, 뒤엣것은 [양식구분] 위의 구역 머리다.
+     * 이 화면은 [적용양식] 이 없고 <b>[양식구분]</b> 만 있다 — 그래서 구역 머리가
+     * [적용양식] 이 아니라 [양식구분] 위에 선다.
+     */
+    ['BOM환산재고현황|양식', '원본은 [양식구분] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
+    ['재고잔량분석표|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
+    ['재고현황|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
+    /*
+     * <b>내결재관리(E070105) 2026-09-09 원본 실측 — 탭이 둘이고 [전체]가 열셋이다</b>
+     * (대조표엔 [기본]의 여섯만 적혀 있었다). 늘어난 일곱 중 다섯은 이미 있거나
+     * 예외였고, <b>[거래처]·[품목]</b> 둘만 남았다.
+     *
+     * <p>기안서에는 거래처도 품목도 <b>붙지 않는다</b> — ApprovalDocument 가 드는 것은
+     * 부서·프로젝트·라벨까지다. 원본이 그 둘로 거를 수 있는 까닭은 <b>양식 안에 넣은 칸</b>
+     * 을 뒤지기 때문인데, 우리 양식 값은 <code>formData</code> 라는 자유로운 Map 이라
+     * <b>칸 이름이 회사마다 다르다</b>. 이름을 모르는 칸으로 거를 수는 없다.
+     */
+    ['내결재관리|거래처', '기안서에 거래처를 달지 않는다 — 양식 안의 자유 칸(formData)이라 이름이 회사마다 다르다'],
+    ['내결재관리|품목', '위와 같음 — 기안서에 품목을 달지 않는다'],
+    ['프로젝트계획조회|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
+    ['프로젝트계획|양식', '위와 같음'],
+    ['매출계획조회|기준일자', '우리 매출계획 화면은 <b>연도를 고르는 화면</b>이다 — 계획은 연·월 단위라 위에서 해를 고르고 열두 달을 한꺼번에 본다. 원본처럼 날짜 구간으로 자르면 달이 반쪽만 보인다'],
+    ['매출계획조회|입력경로', '어느 길로 들어온 전표인지(웹·자료올리기·OAPI) 남기지 않는다'],
+    ['매출계획조회|삭제구분', '지운 계획을 남기지 않는다 — 지우면 사라진다(소프트 삭제가 아니다)'],
+    ['매출계획조회|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
+    ['A/S접수조회|입력경로', '어느 길로 들어온 전표인지(웹·자료올리기·OAPI) 남기지 않는다'],
+    ['A/S접수조회|삭제구분', '지운 접수를 남기지 않는다 — 지우면 사라진다(소프트 삭제가 아니다)'],
+    ['A/S접수조회|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
+    ['작업내역조회|작업품목:품목그룹2', '우리 품목그룹은 하나뿐이라 2·3 에 해당하는 칸이 없다(전역 [품목그룹2]와 같은 까닭)'],
+    ['작업내역조회|작업품목:품목그룹3', '위와 같음'],
+    ['작업내역조회|작업품목:품목계층그룹', '품목을 계층으로 묶는 마스터가 없다 — 평면이다'],
+    ['작업내역조회|생산품목:품목그룹2', '위와 같음'],
+    ['작업내역조회|생산품목:품목그룹3', '위와 같음'],
+    ['작업내역조회|생산품목:품목계층그룹', '위와 같음'],
+    ['작업내역조회|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
+    /*
+     * <b>작업내역현황(E040432)</b> — 2026-09-08 원본 실측, <b>서른둘</b>이다
+     * (사본은 열하나). 접힌 줄은 없다.
+     *
+     * <p>만든 것 아홉: 작업품목:품목구분 · 작업품목:품목그룹1 · 생산품목:품목구분 ·
+     * 생산품목:품목그룹1 · 프로젝트 · 자원 · 수량 · 작업시간 · 적요.
+     * 값은 <code>WorkResultResponse</code> 에 진작 다 있었다 —
+     * <b>작업내역조회가 이미 쓰는 값인데 현황만 뒤처져 있었다.</b> 서버는 안 고쳤다.
+     *
+     * <p><b>[작업지시No.] 를 걷어냈다</b> — 원본 작업내역현황에도 작업내역조회에도
+     * 그런 조건이 없다(표의 열로는 그대로 보인다). 이름도 [작업(공정)] → [작업] 로 맞췄다.
+     *
+     * <p>못 만드는 여덟은 <b>작업내역조회에 적어 둔 이유와 같다</b> — 같은 전표를 본다.
+     */
+    ['작업내역현황|작업품목:품목그룹2', '우리 품목그룹은 하나뿐이라 2·3 에 해당하는 칸이 없다(전역 [품목그룹2]와 같은 까닭)'],
+    ['작업내역현황|작업품목:품목그룹3', '위와 같음'],
+    ['작업내역현황|작업품목:품목계층그룹', '품목을 계층으로 묶는 마스터가 없다 — 평면이다'],
+    ['작업내역현황|생산품목:품목그룹2', '위와 같음'],
+    ['작업내역현황|생산품목:품목그룹3', '위와 같음'],
+    ['작업내역현황|생산품목:품목계층그룹', '위와 같음'],
+    ['작업내역현황|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
+    ['작업지시서조회|오더관리번호', '작업지시가 무는 것은 수주가 아니라 품목·창고다 — 오더 참조 칸이 없다'],
+    ['작업지시서조회|입력경로', '어느 길로 들어온 전표인지(웹·자료올리기·OAPI) 남기지 않는다'],
+    ['작업지시서조회|삭제구분', '지운 지시를 남기지 않는다 — 지우면 사라진다(소프트 삭제가 아니다)'],
+    ['작업지시서조회|제목', '[보내기]에 붙이는 제목이다 — 전표를 내보내는 기능이 없다'],
+    ['작업지시서조회|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
+    /*
+     * <b>작업지시서별진행현황(E040414) 2026-09-09 원본 실측 — 조건이 스물아홉이다</b>(사본은 열하나).
+     * 빠져 있던 열여덟 가운데 <b>여덟</b>은 그 자리에서 만들었다 —
+     * 거래처그룹1 · 품목코드(하위품목) · 품목구분 · 품목그룹1 · 납기일자 · 적요 ·
+     * 진행상태 · 최초작성자. 뒤 넷은 <b>서버가 이미 보내던 값</b>인데 화면이 받아 두지 않아
+     * 걸 수가 없었다(WorkOrderResponse 의 dueDate·remark·statusName·createdBy).
+     * 아래 셋은 작업지시서조회에 적어 둔 것과 같은 까닭이다.
+     */
+    ['작업지시서별진행현황|오더관리번호', '작업지시가 무는 것은 수주가 아니라 품목·창고다 — 오더 참조 칸이 없다(작업지시서조회와 같음)'],
+    ['작업지시서별진행현황|제목', '[보내기]에 붙이는 제목이다 — 전표를 내보내는 기능이 없다'],
+    ['작업지시서별진행현황|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
+    ['생산입고조회|보내는창고계층그룹', '창고를 계층으로 묶는 마스터가 없다 — 평면이다(전역 [창고계층그룹]과 같은 까닭)'],
+    ['생산입고조회|받는창고계층그룹', '위와 같음'],
+    ['생산입고조회|오더관리번호', '사내 입고라 근거가 될 오더가 없다 — 생산입고가 무는 것은 작업지시서다'],
+    ['생산입고조회|채무번호', '생산입고에 채무가 붙지 않는다 — 외주비는 따로 [외주비할인현황]·[외주비회계반영]이 본다'],
+    ['생산입고조회|입력경로', '어느 길로 들어온 전표인지(웹·자료올리기·OAPI) 남기지 않는다'],
+    ['생산입고조회|삭제구분', '지운 입고를 남기지 않는다 — 지우면 사라진다(소프트 삭제가 아니다)'],
+    ['생산입고조회|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
+    /*
+     * <b>비용내역현황(E060815)</b> — 2026-09-08 원본 실측. 사본에는 열뿐이었는데
+     * 원본은 <b>스물</b>이다. 접힌 줄 토글이 있지만 눌러도 줄이 늘지 않는다.
+     * 만든 것: 거래처그룹1 · 정렬/소계기준, 그리고 <b>이름이 틀렸던 칸 셋</b>을 바로잡았다 —
+     * 기간 칸은 [기준일자]가 아니라 [사용일자], [비고]로 걸어 두었던 글자 칸은 [적요],
+     * [결제구분]이라 적어 둔 것은 실은 [결제수단]이다. 아래 넷은 그 결과로 남은 자리다.
+     */
+    /* <b>계정별원장(E010807)</b> — 2026-10-03 원본 실측(AccountLedgerPage). */
+    ['계정별원장|부서', '회계전표(JournalEntry)에 부서가 없다 — 계정별거래처별원장과 같은 사실'],
+    ['계정별원장|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['계정별원장|양식구분', '[양식구분]은 [결재방표시] 하나다 — 우리 장부 인쇄는 결재 칸을 그리지 않는다'],
+    ['계정별원장|데이터 보기형식', '그래프로 볼 축이 없다 — 계정마다 한 판인 장부다'],
+    /* <b>고정자산수불부(E010618)</b> — 2026-10-03 원본 실측(FixedAssetStockPage). */
+    ['고정자산수불부|부서', '고정자산(FixedAsset)에 부서가 없다 — 고정자산증가내역과 같은 사실'],
+    ['고정자산수불부|양식구분', '[양식구분]은 [결재방표시] 하나다 — 우리 장부 인쇄는 결재 칸을 그리지 않는다'],
+    /* <b>인원현황(E020609)</b> — 2026-10-03 원본 실측(HeadcountPage). */
+    ['인원현황|프로젝트', '사원(Employee)에 프로젝트가 없다'],
+    ['인원현황|입사구분', '사원(Employee)에 신입/경력 가름이 없다'],
+    /* <b>사원등록(E090101 관리)</b> — 2026-10-03 원본 실측(EmployeePage). */
+    ['사원등록|프로젝트', '사원(Employee)에 프로젝트가 없다'],
+    ['사원등록|지급구분', '급여 차수(1차수 …)를 사원에 매기지 않는다 — 급여계산이 차수 없이 한 달에 한 번 돈다'],
+    ['사원등록|근무기간', '근무기간 조건은 입사일~퇴사일을 기간으로 거른다 — 재직구분과 입사일자 열로 대신하고 아직 기간 칸을 안 만들었다'],
+    /* <b>퇴사자리스트(E020126)</b> — 2026-10-03 원본 실측(RetiredEmployeePage). */
+    ['퇴사자리스트|세무신고사업장', '회사 정보(CompanyInfo)에 사업장 목록이 없다 — 우리 회사는 사업장을 하나만 둔다'],
+    /* <b>가지급금정산서집계(E010840)</b> — 2026-10-03 원본 실측(ExpenseSlipSummaryPage side='가지급금'). */
+    ['가지급금정산서집계|부서', '간편전표(FastVoucher)에 부서가 없다 — 지출결의서집계와 같은 사실'],
+    ['가지급금정산서집계|프로젝트', '위와 같음 — 간편전표에 프로젝트가 없다'],
+    ['가지급금정산서집계|사원', '간편전표(FastVoucher)에 사원이 없다 — 가지급금을 누구에게 줬는지 적는 칸이 없어 [사원명] 열도 빈다'],
+    ['가지급금정산서집계|기 타', '[기 타]는 [결재방표시] 하나다 — 우리 장부 인쇄는 결재 칸을 그리지 않는다'],
+    ['가지급금정산서집계|데이터 보기형식', '그래프로 볼 축이 없다 — 정산 한 줄이 한 줄인 집계다'],
+    /* <b>입금보고서집계(E010836)</b> — 2026-10-03 원본 실측(ExpenseSlipSummaryPage side='입금'). */
+    ['입금보고서집계|부서', '간편전표(FastVoucher)에 부서가 없다 — 지출결의서집계와 같은 사실'],
+    ['입금보고서집계|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['입금보고서집계|양식구분', '[양식구분]은 [결재방표시] 하나다 — 우리 장부 인쇄는 결재 칸을 그리지 않는다'],
+    ['입금보고서집계|데이터 보기형식', '그래프로 볼 축이 없다 — 입금 한 줄이 한 줄인 집계다'],
+    /* <b>지출결의서집계(E010835)</b> — 2026-10-03 원본 실측(ExpenseSlipSummaryPage). */
+    ['지출결의서집계|부서', '간편전표(FastVoucher)에 부서가 없다'],
+    ['지출결의서집계|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['지출결의서집계|기 타', '[기 타]는 [결재방표시] 하나다 — 우리 장부 인쇄는 결재 칸을 그리지 않는다'],
+    ['지출결의서집계|데이터 보기형식', '그래프로 볼 축이 없다 — 지출 한 줄이 한 줄인 집계다'],
+    /* <b>월별매출집계표(E010839) · 월별매입집계표(E010838)</b> — 2026-10-03 원본 실측(MonthlyVatSummaryPage). */
+    ['월별매출집계표|부서', '회계전표(JournalEntry)에 부서가 없다 — 회계집계표와 같은 사실'],
+    ['월별매출집계표|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['월별매출집계표|결재방표시', '인쇄물에 결재란을 찍을지 고르는 칸이다 — 우리 장부 인쇄는 결재 칸을 그리지 않는다'],
+    ['월별매입집계표|부서', '회계전표(JournalEntry)에 부서가 없다 — 회계집계표와 같은 사실'],
+    ['월별매입집계표|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['월별매입집계표|결재방표시', '인쇄물에 결재란을 찍을지 고르는 칸이다 — 우리 장부 인쇄는 결재 칸을 그리지 않는다'],
+    /* <b>회계집계표(E010843)</b> — 2026-10-03 원본 실측(AccountAggregatePage). */
+    ['회계집계표|부서', '회계전표(JournalEntry)에 부서가 없다 — 경영자료의 다른 화면과 같은 사실'],
+    ['회계집계표|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['회계집계표|기타', '[기타]는 [결재방표시] 하나다 — 우리 장부 인쇄는 결재 칸을 그리지 않는다'],
+    /* <b>경영요약보고서(E010821)</b> — 2026-10-03 원본 실측(ManagementSummaryPage). */
+    ['경영요약보고서|기타', '[기타]는 [결재방표시] 하나다 — 우리 장부 인쇄는 결재 칸을 그리지 않는다'],
+    /* <b>채권/채무잔액분석표(E010823)</b> — 2026-10-03 원본 실측(ArApBalancePage). */
+    ['채권/채무잔액분석표|부서', '회계전표(JournalEntry)에 부서가 없다 — 채권/채무회수기간표와 같은 사실'],
+    ['채권/채무잔액분석표|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    /* <b>채권/채무회수기간표(E010822)</b> — 2026-10-03 원본 실측(ArApAgingPage). */
+    ['채권/채무회수기간표|부서', '회계전표(JournalEntry)에 부서가 없다 — 월별원가분석과 같은 사실'],
+    ['채권/채무회수기간표|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    /* <b>월별원가분석(E010824)</b> — 2026-10-03 원본 실측(MonthlyCostPage). */
+    ['월별원가분석|부서', '회계전표(JournalEntry)에 부서가 없다 — 원가명세서와 같은 사실'],
+    ['월별원가분석|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['월별원가분석|기타', '[결재방표시](우리 인쇄는 결재 칸을 그리지 않는다) · [기초,당기,기말표시](아직 없다) 둘이다 — 월별손익분석과 같은 사실'],
+    /* <b>월별손익분석(E010819)</b> — 2026-10-03 원본 실측(MonthlyPnlPage). */
+    ['월별손익분석|부서', '회계전표(JournalEntry)에 부서가 없다 — 손익계산서와 같은 사실'],
+    ['월별손익분석|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['월별손익분석|기타', '[결재방표시](우리 인쇄는 결재 칸을 그리지 않는다) · [기초,당기,기말표시](원가 계정 쪽 표시, 손익계산서처럼 아직 없다) 둘이다'],
+    /* <b>자금증감내역(E010815)</b> — 2026-10-03 원본 실측(FundDailyPage variant=flow). */
+    ['자금증감내역|부서', '회계전표(JournalEntry)에 부서가 없다 — 자금일보와 같은 사실'],
+    ['자금증감내역|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['자금증감내역|기타', '[기타]는 [결재방표시] 하나다 — 우리 장부 인쇄는 결재 칸을 그리지 않는다'],
+    /* <b>자금현황표(E010804)</b> — 2026-10-03 원본 실측(FundStatusPage). */
+    ['자금현황표|부서', '회계전표(JournalEntry)에 부서가 없다 — 현금흐름과 같은 사실'],
+    ['자금현황표|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['자금현황표|기타', '[기타]는 [결재방표시] 하나다 — 우리 장부 인쇄는 결재 칸을 그리지 않는다'],
+    /* <b>현금흐름(입출금내역)(E010805)</b> — 2026-10-03 원본 실측(CashFlowListPage). */
+    ['현금흐름(입출금내역)|부서', '회계전표(JournalEntry)에 부서가 없다 — 자금일보와 같은 사실'],
+    ['현금흐름(입출금내역)|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['현금흐름(입출금내역)|기타', '[기타]는 [결재방표시] 하나다 — 우리 장부 인쇄는 결재란을 그리지 않는다'],
+    /* <b>자금일보(E010830)</b> — 2026-10-03 원본 실측(FundDailyPage). */
+    ['자금일보|부서', '회계전표(JournalEntry)에 부서가 없다 — 지출결의서이체리스트와 같은 사실'],
+    ['자금일보|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['자금일보|기타', '[기타]는 [결재방표시] 하나다 — 우리 장부 인쇄는 결재란을 그리지 않는다'],
+    /* <b>지출결의서이체리스트(E010834)</b> — 2026-10-03 원본 실측(TransferListPage). */
+    ['지출결의서이체리스트|부서', '회계전표(JournalEntry)에 부서가 없다 — 거래이력조회(회계)와 같은 사실'],
+    ['지출결의서이체리스트|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['지출결의서이체리스트|결재방표시', '인쇄물에 결재란을 찍을지 고르는 칸이다 — 우리 장부 인쇄는 결재란을 그리지 않는다'],
+    ['지출결의서이체리스트|데이터 보기형식', '그래프로 볼 축이 없다 — 이체 한 건이 한 줄인 목록이다'],
+    /* <b>거래이력조회(회계)(E010712)</b> — 2026-10-03 원본 실측(JournalHistoryPage). */
+    ['거래이력조회(회계)|부서', '회계전표(JournalEntry)에 부서가 없다 — 회계거래현황과 같은 사실'],
+    ['거래이력조회(회계)|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['거래이력조회(회계)|전표일자', '원본 기본이 [사용안함]이다 — 우리는 작업일자 하나로 거르고 전표일자 구간은 아직 두지 않았다'],
+    /* <b>매출(세금)계산서현황(E010845) · 매입(세금)계산서현황(E010846)</b> — 2026-10-03 원본 실측(TaxInvoiceJournalPage). */
+    ['매출(세금)계산서현황|부서', '회계전표(JournalEntry)에 부서가 없다 — 회계거래현황과 같은 사실'],
+    ['매출(세금)계산서현황|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['매출(세금)계산서현황|데이터 보기형식', '그래프로 볼 축이 없다 — 전표 한 장이 한 줄인 현황이다'],
+    ['매입(세금)계산서현황|부서', '회계전표(JournalEntry)에 부서가 없다 — 회계거래현황과 같은 사실'],
+    ['매입(세금)계산서현황|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['매입(세금)계산서현황|데이터 보기형식', '그래프로 볼 축이 없다 — 전표 한 장이 한 줄인 현황이다'],
+    /* <b>회계거래현황(E010847)</b> — 2026-10-03 원본 실측(JournalStatusPage). */
+    ['회계거래현황|부서', '회계전표(JournalEntry)에 부서가 없다 — 분개장과 같은 사실'],
+    ['회계거래현황|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['회계거래현황|채권/채무(어음)No.', '회계전표가 채권 · 채무번호나 어음번호를 물지 않는다 — 분개장과 같은 사실'],
+    ['회계거래현황|결재방표시', '인쇄물에 결재란을 찍을지 고르는 칸이다 — 우리 장부 인쇄는 결재란을 그리지 않는다'],
+    ['회계거래현황|데이터 보기형식', '그래프로 볼 축이 없다 — 전표 한 장이 한 줄인 현황이다'],
+    /* <b>계정명세서(E010844)</b> — 2026-10-03 원본 실측(AccountDetailPage). */
+    ['계정명세서|부서', '회계전표(JournalEntry)에 부서가 없다 — 원가명세서와 같은 사실'],
+    ['계정명세서|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['계정명세서|결재방표시', '인쇄물에 결재란을 찍을지 고르는 칸이다 — 우리 장부 인쇄는 결재란을 그리지 않는다'],
+    ['계정명세서|데이터 보기형식', '그래프로 볼 축이 없다 — 계정마다 표 하나인 명세서다'],
+    /* <b>원가명세서(E010816)</b> — 2026-10-03 원본 실측(CostStatementPage). */
+    ['원가명세서|부서', '회계전표(JournalEntry)에 부서가 없다 — 손익계산서와 같은 사실'],
+    ['원가명세서|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['원가명세서|부서표시방법', '부서를 종 · 횡으로 펼칠 축이다 — 회계전표에 부서가 없다'],
+    ['원가명세서|프로젝트표시방법', '프로젝트를 종 · 횡으로 펼칠 축이다 — 회계전표에 프로젝트가 없다'],
+    /* <b>손익계산서(E010812)</b> — 2026-10-03 원본 실측(IncomeStatementPage). */
+    ['손익계산서|부서', '회계전표(JournalEntry)에 부서가 없다 — 재무상태표와 같은 사실'],
+    ['손익계산서|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['손익계산서|부서표시방법', '부서를 종 · 횡으로 펼칠 축이다 — 회계전표에 부서가 없다'],
+    ['손익계산서|프로젝트표시방법', '프로젝트를 종 · 횡으로 펼칠 축이다 — 회계전표에 프로젝트가 없다'],
+    /* <b>재무상태표(E010813)</b> — 2026-10-03 원본 실측(BalanceSheetPage). */
+    ['재무상태표|부서', '회계전표(JournalEntry)에 부서가 없다 — 합계잔액시산표와 같은 사실'],
+    ['재무상태표|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['재무상태표|부서표시방법', '부서를 종 · 횡으로 펼칠 축이다 — 회계전표에 부서가 없다'],
+    ['재무상태표|프로젝트표시방법', '프로젝트를 종 · 횡으로 펼칠 축이다 — 회계전표에 프로젝트가 없다'],
+    /* <b>합계잔액시산표(E010811)</b> — 2026-10-03 원본 실측(TrialBalancePage). */
+    ['합계잔액시산표|부서', '회계전표(JournalEntry)에 부서가 없다 — 거래처거래내역조회와 같은 사실'],
+    ['합계잔액시산표|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    /* <b>거래처거래내역조회(E010829)</b> — 2026-10-03 원본 실측(PartnerTxListPage). */
+    ['거래처거래내역조회|부서', '회계전표(JournalEntry)에 부서가 없다 — 매입/매출장과 같은 사실'],
+    ['거래처거래내역조회|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['거래처거래내역조회|기타', '[기타]는 [결재방표시] 하나다 — 우리 장부 인쇄는 결재란을 그리지 않는다'],
+    ['거래처거래내역조회|데이터 보기형식', '그래프로 볼 축이 없다 — 거래처마다 표 하나인 장부다'],
+    /* <b>매입/매출장(E010806)</b> — 2026-10-03 원본 실측(VatBookPage). */
+    ['매입/매출장|부서', '회계전표(JournalEntry)에 부서가 없다 — 계정증감내역과 같은 사실'],
+    ['매입/매출장|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['매입/매출장|최종수정자', '회계전표가 마지막으로 고친 사람을 들지 않는다(만든 사람만 든다)'],
+    ['매입/매출장|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['매입/매출장|결재방표시', '인쇄물에 결재란을 찍을지 고르는 칸이다 — 우리 장부 인쇄는 결재란을 그리지 않는다'],
+    ['매입/매출장|데이터 보기형식', '그래프로 볼 축이 없다 — 전표 한 장이 한 줄인 장부다'],
+    /* <b>계정증감내역(E010857)</b> — 2026-10-03 원본 실측(AccountFlowPage). */
+    ['계정증감내역|부서', '회계전표(JournalEntry)에 부서가 없다 — 계정별적요별원장과 같은 사실'],
+    ['계정증감내역|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['계정증감내역|기타', '[기타]는 [결재방표시] 하나다 — 인쇄물에 결재란을 찍을지 고르는 칸인데 우리 장부 인쇄는 결재란을 그리지 않는다'],
+    /* <b>계정별적요별원장(E010856)</b> — 2026-10-03 원본 실측(AccountRemarkLedgerPage). */
+    ['계정별적요별원장|부서', '회계전표(JournalEntry)에 부서가 없다 — 계정별거래처별원장과 같은 사실'],
+    ['계정별적요별원장|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['계정별적요별원장|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['계정별적요별원장|결재방표시', '인쇄물에 결재란을 찍을지 고르는 칸이다 — 우리 장부 인쇄는 결재란을 그리지 않는다'],
+    ['계정별적요별원장|정렬/소계기준', '일자 · 전표번호 · 줄 차례 하나로 세운다 — 원본 [설정] 팝업은 값을 저장하는 창이라 안 열었다'],
+    ['계정별적요별원장|데이터 보기형식', '그래프로 볼 축이 없다 — 적요코드가 없어 모든 줄이 00(기 타) 한 표에 든다'],
+    /* <b>거래처별계정별원장(E010809)</b> — 2026-10-03 원본 실측(PartnerAccountLedgerPage). */
+    ['거래처별계정별원장|부서', '회계전표(JournalEntry)에 부서가 없다 — 계정별거래처별원장과 같은 사실'],
+    ['거래처별계정별원장|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['거래처별계정별원장|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['거래처별계정별원장|결재방표시', '인쇄물에 결재란을 찍을지 고르는 칸이다 — 우리 장부 인쇄는 결재란을 그리지 않는다'],
+    ['거래처별계정별원장|데이터 보기형식', '그래프로 볼 축이 없다 — 계정마다 표 하나인 장부다'],
+    /* <b>계정별거래처별원장(E010808)</b> — 2026-10-03 원본 실측(AccountPartnerLedgerPage). */
+    ['계정별거래처별원장|부서', '회계전표(JournalEntry)에 부서가 없다 — 현금출납장과 같은 사실'],
+    ['계정별거래처별원장|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['계정별거래처별원장|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['계정별거래처별원장|결재방표시', '인쇄물에 결재란을 찍을지 고르는 칸이다 — 우리 장부 인쇄는 결재란을 그리지 않는다'],
+    ['계정별거래처별원장|데이터 보기형식', '그래프로 볼 축이 없다 — 거래처마다 표 하나인 장부다'],
+    /* <b>일/월계표(E010803)</b> — 2026-10-03 원본 실측(DayMonthSheetPage). */
+    ['일/월계표|부서', '회계전표(JournalEntry)에 부서가 없다 — 분개장과 같은 사실'],
+    ['일/월계표|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['일/월계표|기타', '[기타]는 [결재방표시] 하나다 — 인쇄물에 결재란을 찍을지 고르는 칸인데 우리 장부 인쇄는 결재란을 그리지 않는다'],
+    /* <b>분개장(E010802)</b> — 2026-10-03 원본 실측(JournalBookPage). */
+    ['분개장|부서', '회계전표(JournalEntry)에 부서가 없다 — 현금출납장과 같은 사실'],
+    ['분개장|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['분개장|채권/채무(어음) No.', '회계전표가 채권 · 채무번호나 어음번호를 물지 않는다'],
+    ['분개장|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['분개장|결재방표시', '인쇄물에 결재란을 찍을지 고르는 칸이다 — 우리 장부 인쇄는 결재란을 그리지 않는다'],
+    ['분개장|정렬/소계기준', '일자 · 전표번호 · 줄 차례 하나로 세운다 — 원본 [설정] 팝업은 값을 저장하는 창이라 안 열었다'],
+    /* <b>현금출납장(E010801)</b> — 2026-10-03 원본 실측(CashBookPage). */
+    ['현금출납장|부서', '회계전표(JournalEntry)에 부서가 없다'],
+    ['현금출납장|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['현금출납장|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['현금출납장|결재방표시', '인쇄물에 결재란을 찍을지 고르는 칸이다 — 우리 장부 인쇄는 결재란을 그리지 않는다'],
+    ['현금출납장|데이터 보기형식', '그래프로 볼 축이 없다 — 분개 한 줄이 한 줄인 장부다'],
+    /* <b>고정자산전표조회(E010619)</b> — 2026-10-03 원본 실측(FixedAssetSlipListPage). */
+    ['고정자산전표조회|기타', '[기타]의 [수정순] 하나인데 자산 응답이 고친 시각을 싣지 않는다'],
+    ['고정자산전표조회|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    /* <b>고정자산증감대장(E010617)</b> — 2026-10-03 원본 실측(FixedAssetMovementPage). */
+    ['고정자산증감대장|부서', '고정자산(FixedAsset)에 부서가 없다 — 고정자산대장과 같은 사실'],
+    ['고정자산증감대장|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['고정자산증감대장|결재방표시', '인쇄물에 결재란을 찍을지 고르는 칸이다 — 우리 현황 인쇄는 결재란을 그리지 않는다'],
+    ['고정자산증감대장|정렬/소계기준', '고정자산계정마다 "계정코드 계" 소계를 고정으로 넣는다 — 원본 [설정] 팝업은 값을 저장하는 창이라 안 열었다'],
+    ['고정자산증감대장|데이터 보기형식', '그래프로 볼 축이 없다 — 자산 한 건이 한 줄인 대장이다'],
+    /* <b>고정자산증가내역(E010614) · 고정자산감소내역(E010615)</b> — 2026-10-03 원본 실측(FixedAssetFlowPage). */
+    ['고정자산증가내역|부서', '고정자산(FixedAsset)에 부서가 없다 — 고정자산대장과 같은 사실'],
+    ['고정자산증가내역|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['고정자산증가내역|결재방표시', '인쇄물에 결재란을 찍을지 고르는 칸이다 — 우리 현황 인쇄는 결재란을 그리지 않는다'],
+    ['고정자산증가내역|정렬/소계기준', '고정자산계정마다 "계정명 계" 소계를 고정으로 넣는다 — 원본 [설정] 팝업은 값을 저장하는 창이라 안 열었다'],
+    ['고정자산증가내역|데이터 보기형식', '그래프로 볼 축이 없다 — 자산 한 건이 한 줄인 내역이다'],
+    ['고정자산감소내역|부서', '고정자산(FixedAsset)에 부서가 없다 — 고정자산대장과 같은 사실'],
+    ['고정자산감소내역|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['고정자산감소내역|결재방표시', '인쇄물에 결재란을 찍을지 고르는 칸이다 — 우리 현황 인쇄는 결재란을 그리지 않는다'],
+    ['고정자산감소내역|정렬/소계기준', '고정자산계정마다 "계정명 계" 소계를 고정으로 넣는다 — 원본 [설정] 팝업은 값을 저장하는 창이라 안 열었다'],
+    ['고정자산감소내역|데이터 보기형식', '그래프로 볼 축이 없다 — 자산 한 건이 한 줄인 내역이다'],
+    /* <b>고정자산대장(E010613)</b> — 2026-10-03 원본 실측(FixedAssetLedgerPage). */
+    ['고정자산대장|부서', '고정자산(FixedAsset)에 부서가 없다'],
+    ['고정자산대장|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['고정자산대장|결재방표시', '인쇄물에 결재란을 찍을지 고르는 칸이다 — 우리 현황 인쇄는 결재란을 그리지 않는다'],
+    ['고정자산대장|정렬/소계기준', '고정자산계정마다 "계정명 계" 소계를 고정으로 넣는다 — 원본 [설정] 팝업은 값을 저장하는 창이라 안 열었다'],
+    ['고정자산대장|데이터 보기형식', '그래프로 볼 축이 없다 — 자산 한 건이 한 줄인 대장이다'],
+    /* <b>받을어음조회(E010622) · 지급어음조회(E010630)</b> — 2026-10-03 원본 실측(NoteListPage, type 만). */
+    ['받을어음조회|부서', '어음(PromissoryNote)에 부서가 없다 — 받을어음거래내역과 같은 사실'],
+    ['받을어음조회|프로젝트', '위와 같음 — 어음에 프로젝트가 없다'],
+    ['받을어음조회|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['지급어음조회|부서', '어음(PromissoryNote)에 부서가 없다 — 받을어음거래내역과 같은 사실'],
+    ['지급어음조회|프로젝트', '위와 같음 — 어음에 프로젝트가 없다'],
+    ['지급어음조회|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    /* <b>비용내역조회(E060813)</b> — 2026-10-03 원본 실측(ExpenseListPage). 비용내역현황과 같은 사실은 같은 이유다. */
+    ['비용내역조회|비고', '비용 전표의 글자 칸은 content 하나뿐이고 그것이 [적요]다 — 비고에 담을 값이 없다(비용내역현황과 같은 사실)'],
+    ['비용내역조회|결제구분', '원본 [결제구분]은 개인비용 · 회사비용인데 비용 전표에 그 구분이 없다(비용내역현황과 같은 사실)'],
+    ['비용내역현황|기준일자',
+      '비용 전표에 날짜가 <code>expenseDate</code> 하나뿐이다 — 원본은 [기준일자]와 [사용일자]를 따로 두는데'
+      + ' 우리 것은 표에 [사용일자]로 찍히는 그 값이라 기간 칸을 [사용일자]로 붙였다'],
+    ['비용내역현황|비고',
+      '비용 전표의 글자 칸은 <code>content</code> 하나뿐이고 그것이 표의 [적요] 열이다 —'
+      + ' 원본은 비고와 적요를 따로 두지만 우리에겐 비고에 담을 값이 없다'],
+    ['비용내역현황|결제구분',
+      '원본 [결제구분]은 <b>개인비용·회사비용</b> 두 갈래인데(실측한 라디오 셋: 전체·개인비용·회사비용)'
+      + ' 비용 전표에 그 구분이 없다. 우리가 든 것은 결제수단(법인카드·계좌이체·현금)이라 이름을 [결제수단]으로 바로잡았다'],
+    ['비용내역현황|최초작성자',
+      '쓴 사람과 만든 사람을 따로 두지 않는다 — <code>Expense.createdBy</code> 하나가 원본 [사원](표의 [사용자명]) 자리를 겸한다'],
+    ['비용내역현황|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
+    /*
+     * <b>기타이동 다섯 화면의 [양식]</b> — 2026-09-08 에 다섯을 다 열어 재었다
+     * (자가사용 E040506 · 불량처리 E040509 · 대체사용 E040510 · 폐기 E040511 · 재고조정 E040608).
+     * 사본에는 [적용양식] 부터 있었는데 원본은 그 위에 <b>[양식]</b> 이라는 구역 머리를
+     * 하나 더 둔다 — 다섯 화면 모두 그렇다. 값을 고르는 칸이 아니다.
+     *
+     * <p>같이 확인한 것: <b>[기타]는 재고조정현황에만 있다.</b> 나머지 넷의 조건 판에는
+     * 그 칸이 아예 없다(그래서 우리 화면도 재고조정에서만 그린다).
+     * 접힌 줄 토글은 다섯 다 눌러도 줄이 늘지 않는다 — 사용자정의 칸을 안 쓴다.
+     */
+    /*
+     * <b>판매구매집계표(E040725)</b> — 2026-09-08 원본 실측. 사본에는 열뿐이었는데
+     * 원본은 <b>스물일곱</b>이다. 화면코드도 틀려 있었다(사본의 ESZ006R → 실제 E040725).
+     * 만든 것: 거래처그룹1 · 거래처관리담당자 · 품목구분 · 품목그룹1 · 거래유형,
+     * 그리고 이름 둘을 원본대로 고쳤다 — [기간]→<b>[기준일자]</b>,
+     * [집계기준]→<b>[집계조건]</b>(자리도 맨 뒤가 아니라 기준일자 바로 다음이다).
+     */
+    /*
+     * <b>집계표(E040710)</b> — 2026-09-08 원본 실측. 사본에는 열하나뿐이었는데
+     * 원본은 <b>마흔둘</b>이다. 화면코드도 틀려 있었다(사본의 ESG011R → 실제 E040710).
+     * 만든 것: 거래처그룹1 · 담당자 · 거래처관리담당자 · 품목구분 · 품목그룹1 · 규격 ·
+     * 적요 · 진행상태 · 최초작성자 + 숫자 범위 다섯(수량·단가·공급가액·부가세·부대비용).
+     * <b>[관리항목]은 원본에 없어서 뺐다</b> — 사본을 보고 우리가 만들어 둔 것이었다.
+     * [메뉴구분]도 이름을 원본대로(판매·구매·판매구매) 고쳤다.
+     */
+    ['집계표|구분',
+      '원본 [구분]은 집계조건1~5 를 <b>겹쳐</b> 고르는 칸이다. 우리 표는 거래처(또는 품목) × 12개월 피벗이라'
+      + ' 행 축이 <b>하나뿐</b>이고, 그 축은 [거래처별]·[품목별] 알약이 고른다'],
+    ['집계표|정렬/소계기준', '위와 같음 — 피벗의 행 축이 곧 소계 축이라 따로 고를 것이 없다'],
+    ['집계표|오더관리번호', '판매·구매 전표에 오더관리번호를 안 붙인다 — 오더관리는 수주·발주 쪽에만 건다'],
+    ['집계표|외화종류', '위와 같음(판매구매집계표) — 판매·구매 DTO 어디에도 통화 칸이 없어 원화 하나로 본다'],
+    ['집계표|판매구분',
+      '원본 [판매구분]은 <b>판매 · 판매II</b> 를 가른다 — 원본은 판매입력과 판매입력 II 를 다른 전표로 세지만'
+      + ' 우리는 한 전표(<code>Sales</code>)로 넣는다. 가를 값이 없다'],
+    ['집계표|채권번호', '판매 전표에 채권번호를 안 붙인다 — 정산(Settlement)이 전표를 물지 전표가 채권을 물지 않는다'],
+    ['집계표|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
+    ['판매구매집계표|외화종류',
+      '판매·구매 전표에 통화를 안 붙인다 — <code>SalesDtos</code>·<code>PurchaseDtos</code> 어디에도 통화 칸이 없어 원화 하나로 본다'],
+    ['판매구매집계표|양식', '원본은 [양식구분] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
+    ['재고조정현황|양식', '위와 같음 — 2026-09-08 실측에서 [적용양식] 위의 구역 머리가 드러났다(사본에는 없었다)'],
+    /*
+     * <b>주문서현황(E040209)</b> — 2026-09-08 원본 실측, <b>서른하나</b>다.
+     * 대조표에는 <b>조건이 한 줄도 안 적혀 있던</b> 화면이다(빈 화면이었다).
+     * 판이 셋으로 갈려 있고 가운데 판이 접혀 있어 여덟만 보이고 스물여덟이 숨어 있었다.
+     *
+     * <p>여기서 만든 것: 창고 · 프로젝트 · 담당자 · 거래처관리담당자 · 검색창내용 ·
+     * 수량 · 단가 · 공급가액 · 부가세 · 적요 · 작성자 · 데이터 보기형식,
+     * 그리고 [메뉴]·[구분] 이름표. <b>창고·프로젝트·담당자는 서버가 진작 싣고 있었다</b> —
+     * 화면 머리말의 "응답에 필드가 없어 의도적으로 제외" 는 틀린 말이었다.
+     *
+     * <p>아래 아홉은 수주 전표에 그 값이 없다.
+     */
+    /*
+     * <b>미주문현황(E040211)</b> — 2026-09-08 원본 실측. 접힌 줄을 펴면
+     * <b>열하나 → 마흔둘</b>로 늘어난다(사용자정의 칸 일곱을 뺀 서른여덟을 적었다).
+     * 대조표에는 조건이 한 줄도 없던 화면이다.
+     *
+     * <p>머리말의 "창고·프로젝트·담당자·거래처관리담당자·관리항목은 Quotation 에 필드가
+     * 없어 의도적 제외" 는 <b>대부분 틀린 말이었다</b> — 정말 없는 것은 담당자 하나다.
+     * 이번에 창고·프로젝트·관리항목·거래처관리담당자·유효기간·미주문수량·수량·단가·
+     * 공급가액·부가세·적요·진행상태·작성자·정렬기준·데이터 보기형식을 만들었다.
+     *
+     * <p>아래 열다섯은 견적 전표에 그 값이 없다. <b>적요1~3 · 금액1·2 · 제목 · 추가수량 ·
+     * 단가(vat포함)</b> 는 원본 견적 라인이 가진 <b>추가 칸</b>이고, 우리 라인은
+     * 품목·수량·단가·금액만 든다.
+     */
+    /*
+     * <b>미판매현황(E040212)</b> — 2026-09-08 원본 실측, 접힌 줄을 펴면 <b>스물둘</b>이다
+     * (대조표에 조건이 한 줄도 없던 화면이다).
+     *
+     * <p>머리말에 "창고·프로젝트·담당자·거래처관리담당자는 수주 라인에 없어 넣지 않았다"
+     * 고 적혀 있었는데 <b>수주 전표에는 다 있다</b> — 이 응답만 안 실었을 뿐이고,
+     * <b>같은 파일의 미출하 응답은 이미 싣고 있었다</b>. UnsoldLineResponse 를 미출하와
+     * 같은 모양으로 넓히고(창고·프로젝트·담당자·적요·규격·작성자) 조건을 만들었다.
+     */
+    /*
+     * <b>미구매현황(E040307)</b> — 2026-09-08 원본 실측, 접힌 줄을 펴면 <b>스물여덟</b>이다
+     * (대조표에 조건이 한 줄도 없던 화면이다).
+     *
+     * <p>머리말의 "거래처관리담당자·프로젝트는 PurchaseOrder 에 필드가 없어 의도적 제외" 도
+     * 틀린 말이었다 — <b>프로젝트는 있고</b>(projectName), 외화종류·거래유형도
+     * currency·taxable 로 진작 실려 온다. 미주문·미판매에 이어 <b>세 화면 연속</b>으로
+     * 같은 꼴의 거짓 이유가 나왔다.
+     * 이번에 만든 것: 납기일자 · 프로젝트 · 거래처관리담당자 · 미구매수량 · 외화종류 ·
+     * 거래유형 · 규격 · 수량 · 단가 · 공급가액 · 부가세 · 적요 · 작성자 · 정렬기준 ·
+     * 데이터 보기형식, 그리고 기간 칸 이름 [기준일자(영업주기)].
+     */
+    /*
+     * <b>발주요청현황(E040318)</b> — 2026-09-08 원본 실측, 접힌 줄을 펴면 <b>서른일곱</b>이다
+     * (대조표에 조건이 한 줄도 없던 마지막 화면이다).
+     *
+     * <p>한 파일이 셋을 겸하는데 <b>이름표가 화면마다 다르다</b> —
+     * 발주요청현황만 [메뉴]·[발주요청No.]·[작성자]·[정렬기준] 이고,
+     * 발주계획현황·단가요청현황은 [구분]·[발주No.]·[최초작성자]·[정렬/소계기준] 이다.
+     * 이름을 파일에 박아 두면 어느 한 화면이 늘 어긋나므로 화면이 정하게 두었다.
+     * 여기서 만든 것: [관리항목] 과 그 이름표 다섯.
+     *
+     * <p>아래 아홉은 원본 발주 라인의 <b>추가 칸</b>이거나 발주에 없는 값이다 —
+     * 미주문현황에 적어 둔 것과 같은 까닭이다.
+     */
+    ['발주요청현황|오더관리번호', '발주에 오더관리를 걸지 않는다 — 오더관리는 수주 쪽 개념이다'],
+    ['발주요청현황|추가수량', '발주 라인에 <b>추가수량</b> 칸이 없다 — 수량 하나만 든다'],
+    ['발주요청현황|단가(vat포함)', '단가를 공급가 기준 하나로 든다 — vat 포함 단가를 따로 저장하지 않는다'],
+    ['발주요청현황|금액1', '발주 라인의 <b>추가 금액 칸</b>이다 — 우리 라인은 공급가액·부가세만 든다'],
+    ['발주요청현황|금액2', '위와 같음'],
+    ['발주요청현황|적요1', '발주 라인의 <b>추가 적요 칸</b>이다 — 우리는 줄 적요 하나만 든다'],
+    ['발주요청현황|적요2', '위와 같음'],
+    ['발주요청현황|적요3', '위와 같음'],
+    ['발주요청현황|제목', '발주에 제목 칸이 없다 — 전표번호와 거래처로 가린다'],
+    ['미구매현황|오더관리번호', '발주에 오더관리를 걸지 않는다 — 오더관리는 수주 쪽 개념이다'],
+    ['미구매현황|참조', '발주는 시작점이라 근거전표를 달지 않는다(구매가 발주를 문다)'],
+    ['미판매현황|오더관리번호', '수주에 오더관리 유형·진행단계는 있어도 번호를 매기지 않는다(주문서현황과 같음)'],
+    ['미주문현황|담당자', '견적 전표에 담당자를 안 붙인다 — <code>Quotation</code> 에 employeeId 가 없다(수주부터 붙는다)'],
+    /*
+     * <b>[거래유형]은 예외에서 뺐다(2026-09-08).</b> "과세·면세를 견적에서 정하지 않는다" 고
+     * 적어 두었는데 틀린 말이었다 — 견적서 등록이 <code>taxable</code> 을 받고 서비스가
+     * 그것으로 부가세를 매긴다. 엔티티에 칸이 없을 뿐이고 전환할 때도 부가세로 되짚는다.
+     * 응답을 넓힐 것도 없이 줄의 부가세를 보면 된다 — 만들었다.
+     */
+    ['미주문현황|오더관리번호', '견적에 오더관리를 걸지 않는다 — 수주부터다'],
+    ['미주문현황|외화종류', '견적에 통화 칸이 없다 — 원화 하나로 본다'],
+    ['미주문현황|참조', '견적은 시작점이라 근거전표를 달지 않는다'],
+    ['미주문현황|결제조건', '거래처에도 견적에도 결제조건 칸이 없다'],
+    ['미주문현황|추가수량', '견적 라인에 <b>추가수량</b> 칸이 없다 — 수량 하나만 든다'],
+    ['미주문현황|단가(vat포함)', '단가를 공급가 기준 하나로 든다 — vat 포함 단가를 따로 저장하지 않는다'],
+    ['미주문현황|금액1', '견적 라인의 <b>추가 금액 칸</b>이다 — 우리 라인은 공급가액·부가세만 든다'],
+    ['미주문현황|금액2', '위와 같음'],
+    ['미주문현황|적요1', '견적 라인의 <b>추가 적요 칸</b>이다 — 우리는 전표 적요 하나만 든다'],
+    ['미주문현황|적요2', '위와 같음'],
+    ['미주문현황|적요3', '위와 같음'],
+    ['미주문현황|제목', '견적에 제목 칸이 없다 — 전표번호와 거래처로 가린다'],
+    /*
+     * <b>견적서현황(E040208)</b> — 2026-09-08 원본 실측, <b>열하나</b>다.
+     * 이 화면도 대조표에 조건이 한 줄도 없었다. 한 파일(QuotationPage)이
+     * 견적서·견적서조회·견적서현황 셋을 겸한다.
+     * 여기서 만든 것: [메뉴](현황·집계) · [구분](비교기간) · [거래처].
+     * 접힌 줄 토글은 눌러도 줄이 늘지 않는다.
+     */
+    ['견적서현황|시리얼/로트No.',
+      '견적 라인에 시리얼/로트를 달지 않는다 — 아직 물건이 움직이지 않은 전표다.'
+      + ' 로트는 입고·생산·출하에서 잡는다(<code>QuoteLine</code> 에 lotNo 가 없다)'],
+    /*
+     * <b>[거래유형]은 예외에서 뺐다(2026-09-08).</b> 견적에서 한 번 걸러낸 것과 같은 꼴이
+     * 수주에도 있었다 — <code>CreateSalesOrderRequest</code> 가 taxable 을 받고
+     * <code>SalesOrderService</code> 가 그것으로 부가세를 매긴다. 엔티티에 칸이 없을 뿐이다.
+     * 주문서현황은 줄의 부가세로 되짚고, 미판매현황은 줄에 부가세가 없어
+     * <code>UnsoldLineResponse</code> 에 <b>taxable</b> 을 실어 주었다.
+     */
+    ['주문서현황|품목별납기일자',
+      '수주의 납기는 <b>전표 단위</b>(<code>dueDate</code>) 하나다 — 라인마다 납기를 따로 두지 않는다'],
+    ['주문서현황|오더관리번호',
+      '수주에 오더관리 <b>유형·진행단계</b>는 있어도 번호를 매기지 않는다(<code>orderTypeName</code>·<code>stageName</code> 뿐이다)'],
+    ['주문서현황|외화종류', '수주에 통화 칸이 없다 — 원화 하나로 본다(판매·구매와 같다)'],
+    ['주문서현황|참조', '수주는 <b>시작점</b>이라 근거전표를 달지 않는다(판매·출하가 수주를 문다)'],
+    ['주문서현황|결제조건', '거래처에도 수주에도 결제조건 칸이 없다'],
+    ['주문서현황|유효기간', '유효기간은 <b>견적</b>의 개념이다 — 수주에는 없다'],
+    ['주문서현황|거래구분', '수주에 반품 갈래가 없다 — 반품은 판매에서 생긴다'],
+    /*
+     * <b>채권/채무현황(E040703)</b> — 2026-09-08 원본 실측, <b>열셋</b>이다(대조표에 아예 없던 화면이다).
+     * 채권현황(E040721)과 이름도 조건 수도 비슷하지만 <b>다른 화면</b>이다 —
+     * 이쪽에만 [구분](채권★·채무·채권/채무)과 [양식]이 있고, 체크가 [기타] 안에 묶여 있다.
+     * 우리 화면 하나(ArApStatusPage)가 mode 로 둘을 겸한다.
+     */
+    ['채권/채무현황|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
+    ['채권현황|양식', '위와 같음 — 값을 고르는 칸이 아니라 구역 머리다'],
+    ['채무현황|양식', '위와 같음'],
+    ['자가사용현황|양식', '위와 같음'],
+    ['불량처리현황|양식', '위와 같음'],
+    ['대체사용현황|양식', '위와 같음'],
+    ['폐기현황|양식', '위와 같음'],
+    ['생산불출조회|보내는창고계층그룹', '창고를 계층으로 묶는 마스터가 없다 — 평면이다(전역 [창고계층그룹]과 같은 까닭)'],
+    ['생산불출조회|받는창고계층그룹', '위와 같음'],
+    ['생산불출조회|발송여부', '불출 전표를 어디로 내보내는 기능이 없다 — 사내에서 낸 것이라 보낼 상대가 없다'],
+    ['생산불출조회|오더관리번호', '사내 불출이라 근거가 될 오더가 없다 — 불출이 무는 것은 작업지시서다'],
+    ['생산불출조회|입력경로', '어느 길로 들어온 전표인지(웹·자료올리기·OAPI) 남기지 않는다'],
+    ['생산불출조회|삭제구분', '지운 불출을 남기지 않는다 — 지우면 사라진다(소프트 삭제가 아니다)'],
+    ['생산불출조회|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다(발주서조회·창고이동조회와 같음)'],
     ['창고이동조회|보내는창고계층그룹', '창고를 계층으로 묶는 마스터가 없다 — 평면이다(전역 [창고계층그룹]과 같은 까닭)'],
     ['창고이동조회|받는창고계층그룹', '위와 같음'],
     ['창고이동조회|오더관리번호', '창고이동은 사내 이동이라 근거가 될 오더가 없다 — 상대가 없다'],
     ['창고이동조회|입력경로', '어느 길로 들어온 전표인지(웹·자료올리기·OAPI) 남기지 않는다'],
     ['창고이동조회|삭제구분', '지운 이동을 남기지 않는다 — 지우면 사라진다(소프트 삭제가 아니다)'],
     ['창고이동조회|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다(발주서조회와 같음)'],
+    /*
+     * <b>창고이동현황(E040505)</b> — 2026-09-08 원본 실측, <b>스물아홉</b>이다
+     * (사본은 여덟). 접힌 줄은 없다. 조회 쪽(E040502, 스물아홉)과 이름이 거의 같은데
+     * <b>[수량]</b> 이 하나 더 있다 — 표에 진작 찍고 있었는데 거를 자리가 없었다. 만들었다.
+     *
+     * <p>기간 조건의 <b>이름이 두 화면에서 다르다</b> — 조회는 [기준일자], 현황은 [일자].
+     * 한 파일(TransferStatusPage)이 둘을 겸하므로 하나만 적을 수 있고,
+     * 조건이 같은 수라면 <b>먼저 잰 조회 쪽</b> 이름을 그대로 둔다.
+     *
+     * <p>나머지는 조회 쪽에 이미 적어 둔 이유와 같다 — 같은 전표를 본다.
+     */
+    ['창고이동현황|일자', '원본 두 화면이 같은 기간 조건을 다르게 부른다 — 창고이동<b>조회</b>는 [기준일자], 현황은 [일자] 다. 한 파일이 둘을 겸해 이름을 하나만 적을 수 있어 조회 쪽을 따랐다'],
+    ['창고이동현황|보내는창고계층그룹', '창고를 계층으로 묶는 마스터가 없다 — 평면이다'],
+    ['창고이동현황|받는창고계층그룹', '위와 같음'],
+    ['창고이동현황|오더관리번호', '창고이동은 사내 이동이라 근거가 될 오더가 없다 — 상대가 없다'],
+    ['창고이동현황|진행상태', '이동 전표에 확인 상태가 없다 — 넣는 순간 재고가 움직이고 끝이다(자가사용현황과 같은 까닭)'],
+    ['창고이동현황|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
+    ['창고이동현황|정렬/소계기준', '[구분]이 이미 그 축을 고른다'],
+    /*
+     * <b>재고실사현황(E040615)</b> — 2026-09-08 원본 실측, <b>스물하나</b>다(사본은 아홉).
+     * 접힌 줄은 없다. 기본 기간은 [금년]이 맞았다(실사는 한 해에 몇 번뿐이다).
+     *
+     * <p>만든 것 셋: 품목구분 · 품목그룹1 · 최초작성자. 품목구분은
+     * <code>StagedResponse</code> 에 이번에 실었다(품목 마스터의 값이다).
+     *
+     * <p><b>[구분]이 두 벌이다</b> — 조건 판의 [구분](내역·집계·라인별)과, 그 아래
+     * <b>실사 방식</b>을 고르는 [구분](전체·간편·단계별). 대조표에는 둘째를
+     * [실사:구분] 으로 밝혀 적었다(작업내역현황의 [작업품목:품목구분] 과 같은 방식).
+     *
+     * <p><b>[기타]의 [수량관리제외품목포함] 을 만들었다(2026-09-08).</b> 처음에
+     * '실사 요청 줄이 품목의 수량관리 여부를 안 들어 만들 수 없다' 고 적었는데
+     * <b>사실이 아니었다</b> — 품목 마스터가 <code>stockTracked</code> 를 진작 들고 있다
+     * (품목등록의 [재고수량관리] 열이 그 값이다). 줄의 itemId 로 이으면 그만이라,
+     * <b>이유를 고쳐 쓸 것이 아니라 만들 일</b>이었다. 꺼져 있으면 재고를 잡지 않는
+     * 품목의 줄을 감춘다.
+     * 우리 [차이있는것만] 은 원본에 없는 체크지만 실사는 어긋난 줄만 보려고 여는
+     * 화면이라 같은 [기타] 안에 남긴다.
+     *
+     * <p>우리 [상태](요청·반영완료·반려)는 <b>원본에 없는 축</b>이라 맨 뒤로 옮겨 두었다 —
+     * 지우면 반려된 줄을 감출 길이 사라진다.
+     */
+    ['재고실사현황|실사:구분', '원본은 실사를 <b>간편·단계별</b> 두 방식으로 나눠 그 축으로 거른다. 우리 실사는 방식이 하나라 그 축이 없다(대신 요청·반영완료·반려로 흐른다)'],
+    ['재고실사현황|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
+    ['재고실사현황|정렬/소계기준', '[구분]이 이미 그 축을 고른다'],
+    /*
+     * <b>불량률파악보고서(E040512)</b> — 2026-09-08 원본 실측, <b>스물하나</b>다
+     * (사본은 여덟). 접힌 줄은 없다. 이 화면에는 <b>[구분]이 없다</b>.
+     *
+     * <p>만든 것 셋: 품목구분 · 품목그룹1 · 규격. 셋 다 <b>품목 마스터</b>의 값이라
+     * 마스터를 받아 itemId 로 잇는다 — 이 화면은 품목별로 합친 표라 줄에 그 값이 없다.
+     *
+     * <p>두 가지를 더 바로잡았다.
+     * ① 기간 이름표를 [기간] 이라 적고 있었는데 원본은 <b>[기준일자]</b> 다.
+     * ② <b>[품목]의 자리</b>가 처리방법 <b>뒤</b>인데 우리는 앞에 두고 있었다.
+     *
+     * <p>원본 [처리방법]의 후보는 <b>전체·폐기·품목대체·정상사용</b> 이고 우리 것은
+     * 전체·불량·폐기다 — 우리 재고조정이 불량처리·폐기 둘로만 갈리기 때문이다.
+     * 후보를 지어내지 않는다.
+     */
+    ['불량률파악보고서|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
+    /*
+     * <b>2026-09-21 에 이유를 다시 썼다.</b> 전에는 "이 표는 불량률 높은 순 하나로 세운다 —
+     * <b>고를 축이 없다</b>" 였다. 그날 원본 격자를 열어 보니 <b>축이 있었다</b>: 줄이 창고로
+     * 묶이고 <b>창고별 소계줄</b>이 선다('반제품제조 계 312' · '완제품제조 계 212' ·
+     * '제품자재창고 계 2'). 그래서 소계를 만들고 표를 창고 × 품목코드 순으로 세웠다.
+     * <b>이 이유의 근거가 그 자리에서 낡음을 잡아 주었다</b> — 정렬을 바꾸자
+     * "적어 둔 근거가 화면에 없다" 로 걸렸다.
+     *
+     * <p>남은 것은 <b>고르게 하는 것</b>이다. 원본은 이 줄이 [설정] 링크 하나라
+     * 고를 수 있는 축이 무엇인지 팝업을 열어야 보이는데 <b>아직 못 쟀다</b>.
+     * 지어내지 않고, 원본 격자가 실제로 쓰는 축(창고)으로 소계를 둔다.
+     */
+    ['불량률파악보고서|정렬/소계기준', '원본이 실제로 쓰는 축(창고)으로 소계를 둔다 — 고르게 하는 [설정] 팝업의 후보는 아직 못 쟀다'],
     ['발주서조회|오더관리번호', '발주에 오더관리번호를 매기지 않는다 — 우리 발주번호가 그 자리다'],
+    /*
+     * <b>발주서현황(E040306)</b> — 2026-09-08 원본 실측, <b>마흔하나</b>다(사본은 아홉).
+     * 접힌 줄은 없다. 지금까지 잰 화면 가운데 조건이 가장 많다.
+     *
+     * <p>만든 것 열넷: 품목별납기일자 · 거래처그룹1 · 품목구분 · 품목그룹1 ·
+     * 거래처관리담당자 · 외화종류 · 거래유형 · 참조 · 규격 · 수량 · 단가 ·
+     * 공급가액 · 부가세 · 적요 · 최초작성자.
+     * <b>값은 응답에 진작 다 있었다</b> — 이 화면이 전표를 줄로 펼 때 그 칸들을
+     * 버리고 있었을 뿐이다. 서버는 안 고쳤다.
+     *
+     * <p>고치면서 <b>합계줄의 말</b>도 바꿨다 — [수량]·[공급가액]·[부가세]를 조건으로
+     * 만들자, 합계줄에 적힌 같은 글자가 조건 판보다 <b>위에</b> 있어 차례가 어긋난
+     * 것으로 읽혔다. 합계는 [총수량]·[총공급가액]·[총부가세] 로 구분해 적는다.
+     */
+    ['발주서현황|오더관리번호', '발주에 오더관리번호를 매기지 않는다 — 우리 발주번호가 그 자리다(발주서조회와 같음)'],
+    ['발주서현황|거래구분', '발주에 반품이 없다 — 되돌려 보내는 것은 구매 전표에서 잡는다'],
+    ['발주서현황|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
+    ['발주서현황|정렬/소계기준', '[구분]이 이미 그 축을 고른다(집계를 켜면 1·2차 집계조건을 고른다)'],
     ['발주서조회|입력경로', '어느 길로 들어온 전표인지(웹·자료올리기·OAPI) 남기지 않는다'],
     ['발주서조회|삭제구분', '지운 발주를 남기지 않는다 — 지우면 사라진다(소프트 삭제가 아니다)'],
     ['발주서조회|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니라 이름표다. 우리는 화면마다 양식이 하나라 그 구역 자체가 없다'],
@@ -3397,11 +4682,88 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
     ['출하지시서조회|제목', '위와 같음 — [보내기]에 붙이는 제목이다'],
     ['출하지시서조회|입력경로', '위와 같음 — 들어온 길을 남기지 않는다'],
     ['출하지시서조회|삭제구분', '위와 같음 — 지우면 사라진다'],
-    ['구매조회|오더관리번호', '구매 전표에 오더 참조가 없다 — 오더관리는 수주에 붙는다'],
     ['구매조회|세금계산서구분', '구매 전표에 세금계산서 청구 상태를 남기지 않는다'],
     ['구매조회|채무번호', '채무에 번호를 매기지 않는다 — 거래처별 잔액으로만 본다'],
     ['구매조회|입력경로', '어느 길로 들어온 전표인지(웹·자료올리기·OAPI) 남기지 않는다'],
     ['구매조회|삭제구분', '지운 전표를 남기지 않는다 — 지우면 사라진다(소프트 삭제가 아니다)'],
+    /*
+     * <b>판매현황(E040207)</b> — 2026-09-08 접힌 줄을 펼쳐 실측, <b>스물일곱</b>이다
+     * (사본은 열넷). 현황 화면 가운데 처음으로 다시 잰 것이다.
+     * 만든 것 열여섯: 오더관리번호 · 담당자 · 거래처관리담당자 · 규격 · 수량 · 단가 ·
+     * 공급가액 · 부가세 · 적요 · 부대비용 · 작성자. 전부 응답에 진작 오던 값이다.
+     * 사본에 있던 <b>[관리항목]은 원본에 없어</b> 화면에서도 뺐다(판매조회와 같다).
+     */
+    /*
+     * <b>구매현황(E040305)</b> — 2026-09-08 접힌 줄을 펼쳐 실측, <b>스물넷</b>이다
+     * (사본은 열하나). 판매현황과 판박이다 — 이름만 판매구분→구매구분, 채권번호→채무번호로
+     * 바뀌고 [시리얼/로트No.]·[거래구분]·[부대비용]이 없다.
+     * 만든 것 열: 오더관리번호 · 담당자 · 거래처관리담당자 · 규격 · 수량 · 단가 ·
+     * 공급가액 · 부가세 · 적요 · 작성자.
+     */
+    ['구매현황|채무번호', '채무에 번호를 매기지 않는다 — 거래처별 잔액으로만 본다'],
+    ['구매현황|외화종류', '구매 전표에 통화 칸이 없다 — 통화 마스터(accounting.Currency)는 있지만 전표가 물지 않는다'],
+    /*
+     * <b>2026-09-09 — 여기 적혀 있던 이유가 틀렸다.</b> "그 상태로 거르는 자리는
+     * 구매조회에 있다" 고 적어 두었는데, 근거를 걸려고 보니 <b>구매조회에도 그 축이 없다</b> —
+     * 확인 탭은 <code>isSales</code> 일 때만 그려지고, <code>Purchase</code> 엔티티에
+     * confirmStatus 가 아예 없다(판매에만 있다). 같은 파일이 이미 그렇게 적어 두고 있었다.
+     * 판매현황 쪽 이유는 그대로 맞다 — 그쪽은 판매조회 탭이 실제로 그 축을 고른다.
+     */
+    ['구매현황|진행상태', '구매 전표에 <b>확인상태 자체가 없다</b> — 확인은 판매전표에만 있다(Purchase 에 confirmStatus 가 없다)'],
+    ['구매현황|사용자지정', '원본이 <b>회사가 이름 지어 늘린 칸</b>을 여기 모아 거르게 한다. 우리 추가항목은 이름을 회사가 짓는 방식이라 [사용자지정] 이라는 이름의 칸으로 설 일이 없다'],
+    /*
+     * <b>출하현황(E040227)</b> — 2026-09-08 접힌 줄을 펼쳐 실측, <b>서른</b>이다
+     * (사본은 열둘). 현황 화면 셋째다.
+     * 만든 것 여덟: 오더관리번호 · 규격 · 담당자 · 거래처관리담당자 · 연락처 · 주소 ·
+     * 적요 · 작성자. 전부 응답에 진작 오던 값이다 — 연락처·주소는 출하조회에서
+     * '보내기에 딸린 칸이라 못 만든다' 고 적어 두었던 것을 앞서 바로잡은 그 값이다.
+     *
+     * <p>여기서 <b>[적용양식]·[정렬기준]·[데이터 보기형식]이 조건 판 안에 있는 것을
+     * 처음 보았다</b>(세 번째 ul). 판매현황·구매현황에서는 DOM 에 아예 없어 [Option]
+     * 단추 뒤라고 적었는데, 화면마다 다르거나 늦게 그려지는 것으로 보인다.
+     * 셋 다 전역 예외라 대조표는 그대로 둔다.
+     *
+     * <p>문자형식1~5·장문형식1 은 원본의 <b>사용자정의 칸</b>이라 실측 목록에 안 넣었다
+     * (출하지시서조회와 같다 — 이 회사도 이름을 안 붙여 '문자형식1' 그대로다).
+     */
+    ['출하현황|제목', '[보내기]에 붙이는 제목이다 — 전표를 내보내는 기능이 없다'],
+    ['출하현황|사용자지정', '원본이 <b>회사가 이름 지어 늘린 칸</b>을 여기 모아 거르게 한다. 우리 추가항목은 이름을 회사가 짓는 방식이라 [사용자지정] 이라는 이름의 칸으로 설 일이 없다'],
+    /*
+     * <b>출하지시서현황(E040222)</b> — 2026-09-08 접힌 줄을 펼쳐 실측, <b>스물둘</b>이다
+     * (사본은 열둘). 현황 화면 넷째다.
+     * 만든 것 일곱: 오더관리번호 · 규격 · 담당자 · 거래처관리담당자 · 진행상태 · 적요 · 작성자.
+     * 전부 <code>ShipmentResponse</code> 가 진작 싣던 값이다 — 화면이 묻지 않았을 뿐이다.
+     *
+     * <p>여기서 <b>[진행상태] 를 만들면서 화면이 READY 만 그리던 것을 걷어냈다.</b>
+     * 원본이 상태를 고르게 한다는 것은 <b>전부를 그리는 화면</b>이라는 뜻이다.
+     * 밀린 것만 보는 화면은 미출하현황이 따로 있다.
+     *
+     * <p>출하현황과 달리 [시리얼/로트No.]·[연락처]·[주소]는 <b>원본에도 없다</b> —
+     * 없는 것을 예외로 적지 않는다.
+     */
+    ['출하지시서현황|제목', '[보내기]에 붙이는 제목이다 — 전표를 내보내는 기능이 없다(출하현황과 같다)'],
+    /*
+     * <b>미출하현황(E040228)</b> — 2026-09-08 접힌 줄을 펼쳐 실측, <b>스물다섯</b>이다
+     * (사본은 열둘). 현황 화면 다섯째다.
+     *
+     * <p><b>여기서 접힘 표시를 알아보는 법이 하나 더 있다는 걸 배웠다.</b> 이 화면의
+     * <code>.view-hidden-item</code> 에는 <code>collapsed</code> 클래스가 <b>붙지 않는다</b> —
+     * 접혀 있는데도 클래스가 없어 '펼쳐져 있다' 고 읽었다. 눌러 보니 열둘이 서른하나가 됐다.
+     * <b>클래스를 믿지 말고 줄 수를 세라.</b>
+     *
+     * 만든 것 여섯: 오더관리번호(옛 [주문번호]를 원본 이름으로) · 수량 · 규격 ·
+     * 적요 · 진행상태 · 작성자. 규격·작성자는 <code>UnshippedLineResponse</code> 에
+     * 같이 실었다(품목 마스터와 수주 전표가 진작 들고 있던 값이다).
+     */
+    ['미출하현황|연락처', '수주(<code>SalesOrder</code>)에 배송지 칸이 없다 — 연락처·주소는 <b>출하지시서</b>가 든다. 미출하에는 아직 지시가 안 난 줄도 섞여 있어 붙일 데가 없다'],
+    ['미출하현황|주소', '위와 같음 — 수주에 배송지가 없다'],
+    ['미출하현황|제목', '[보내기]에 붙이는 제목이다 — 전표를 내보내는 기능이 없다'],
+    ['출하지시서현황|사용자지정', '원본이 <b>회사가 이름 지어 늘린 칸</b>을 여기 모아 거르게 한다. 우리 추가항목은 이름을 회사가 짓는 방식이라 [사용자지정] 이라는 이름의 칸으로 설 일이 없다'],
+    ['판매현황|판매구분', '판매·판매II 를 전표에 구분해 남기지 않는다 — 입력 화면만 둘이다'],
+    ['판매현황|채권번호', '채권에 번호를 매기지 않는다 — 거래처별 잔액으로만 본다'],
+    ['판매현황|외화종류', '판매 전표에 통화 칸이 없다 — 통화 마스터(accounting.Currency)는 있지만 전표가 물지 않는다'],
+    ['판매현황|진행상태', '판매현황은 <b>줄 단위</b>로 펴 보는 화면이라 전표의 확인 상태를 줄에 붙이지 않는다 — 그 상태로 거르는 자리는 판매조회에 있다'],
+    ['판매현황|사용자지정', '원본이 <b>회사가 이름 지어 늘린 칸</b>을 여기 모아 거르게 한다. 우리 추가항목은 이름을 회사가 짓는 방식이라 [사용자지정] 이라는 이름의 칸으로 설 일이 없다(발주서입력의 [추가문자형식1]과 같은 까닭)'],
     ['판매조회|판매구분', '판매·판매II 를 전표에 구분해 남기지 않는다 — 입력 화면만 둘이다'],
     ['판매조회|채권번호', '채권에 번호를 매기지 않는다 — 거래처별 잔액으로만 본다'],
     ['판매조회|입력경로', '어느 길로 들어온 전표인지(웹·자료올리기·OAPI) 남기지 않는다'],
@@ -3432,7 +4794,6 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
      * 셋 다 엔티티·응답 DTO·스키마 어디에도 사람 칸이 없어, 조건을 만들려면
      * <b>컬럼 추가와 마이그레이션이 먼저</b>다. 날짜만 남기고 사람은 안 남긴다.
      */
-    ['수집데이터등록|최초작성자', '수집 소스에는 만든 사람을 남기지 않는다 — 일시만 든다'],
     ['거래처등록|최초작성자', '거래처 마스터에는 만든 사람을 남기지 않는다 — 최초작성일자·최종수정일자만 든다'],
     ['품목등록|최초작성자', '품목 마스터에는 만든 사람을 남기지 않는다 — 최초작성일자·최종수정일자만 든다'],
     /*
@@ -3445,6 +4806,15 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
      * <p>[창고명]·[품목명]은 <b>결제가 돈이라 창고도 품목도 안 탄다.</b> 목록의 [결제방법] 열이
      * 원본 [품목] 자리에 오는 것도 같은 이유다.
      */
+    /*
+     * <b>결제내역조회(E040254)</b> — 2026-09-08 원본 실측, <b>열둘</b>이다(사본은 열).
+     * 이 화면은 <b>접힌 줄이 없다</b> — 조건 판이 통째로 펼쳐져 있다. 사본이 빠뜨린 둘은
+     * 맨 앞의 [결제요청일자]와 [적용양식] 위의 구역 머리 [양식]이다.
+     * 기간 기본값도 그 <b>[결제요청일자]</b>가 [최근7일] 이고, [전표일자]는 [사용안함] 으로
+     * 열린다 — 우리는 전표일자 하나에 최근7일을 걸어 두었으니 뜻은 같은 자리다.
+     */
+    ['결제내역조회|결제요청일자', '결제에 <b>요청 단계가 없다</b> — 우리 결제는 만들면 곧 완료다(같은 화면의 [결제상태] 예외와 같은 까닭). 요청한 날을 따로 적을 칸이 없다'],
+    ['결제내역조회|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
     ['결제내역조회|결제상태', 'PG 결제 상태(승인·취소) — 그 연동이 없어 값이 안 생긴다'],
     ['결제내역조회|승인번호', '위와 같음 — PG 승인번호'],
     ['결제내역조회|카드/식별번호', '위와 같음 — PG 카드번호'],
@@ -3478,7 +4848,92 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
      * 이건 어디서 왔는지라, 비슷하다고 그 자리에 끼우면 고른 것과 걸리는 값이 달라진다.
      */
     ['품질검사현황|출처(요청)구분', '검사를 전표에 이어 두지 않아 출처가 안 생긴다 — [검사구분]과 다른 값이다'],
+    /*
+     * <b>품질검사현황(E040623)</b> — 2026-09-08 원본 실측, <b>서른둘</b>이다(사본은 일곱).
+     * 접힌 줄은 없다.
+     *
+     * <p>만든 것 다섯: 품목구분 · 품목그룹1 · 규격 · 불량유형 · 적요.
+     * 앞의 셋은 <b>품목 마스터</b>의 값이라 마스터를 받아 itemId 로 잇는다.
+     *
+     * <p>이름도 셋을 원본대로 고쳤다 — [검사일자]→<b>[기준일자]</b>,
+     * [판정결과]→<b>[합격여부]</b>, [검사자]→<b>[담당자]</b>.
+     *
+     * <p>원본 [합격여부]의 후보는 전체·해당없음·합격·불합격 이고 우리 판정은
+     * 합격·조건부합격·불합격 이다 — <b>후보가 다르다</b>. 지어내지 않는다.
+     *
+     * <p>코드형·숫자형·문자형 <b>검사항목 1~4</b> 는 원본의 사용자정의 칸이라 실측
+     * 목록에 안 넣었다(다른 화면의 문자형식1~5 와 같다).
+     */
+    ['품질검사현황|오더관리번호', '검사를 전표에 이어 두지 않아 근거가 될 오더가 없다'],
+    ['품질검사현황|거래처관리담당자', '검사에 거래처가 없다 — 우리 검사는 <b>품목</b>에 대고 하지 상대에 대고 하지 않는다'],
+    ['품질검사현황|출처(검사)구분', '위 [출처(요청)구분]과 같은 까닭 — 검사를 전표에 이어 두지 않아 출처가 안 생긴다'],
+    ['품질검사현황|최초작성자', '만든 사람을 안 남긴다 — <code>QualityInspection</code> 에 createdBy 칸이 없다(검사자와 다른 사람이다)'],
+    ['품질검사현황|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
+    ['품질검사현황|정렬/소계기준', '이 표는 원본 기본 판대로 검사일 오름차순에 달마다 \'2026/10 계\' 소계를 세운다 — 원본 [설정] 창은 값을 저장하는 창이라 다른 축은 안 연다'],
+    /*
+     * <b>A/S접수현황(E040610)</b> — 2026-09-08 원본 실측, <b>스물아홉</b>이다(사본은 아홉).
+     * 접힌 줄은 없다.
+     *
+     * <p>만든 것 여덟: 거래처그룹1 · 품목구분 · 품목그룹1 · 수리예정일자 · 제목 ·
+     * 적요 · 최초작성자. <b>값은 <code>AsResponse</code> 가 진작 싣던 것</b>이고
+     * 이 화면이 받아 두지 않았을 뿐이다 — 서버는 안 고쳤다.
+     * 기간 이름표도 [접수일] → <b>[기준일자]</b> 로 원본을 따랐다.
+     *
+     * <p>2026-10-04 [구분](내역 여덟 판 · 집계)을 만들고, 원본에 없던 [수리일자] 조건은 뺐다 —
+     * 수리한 날로 보는 것은 A/S수리현황(/quality/as-repair-status)이 맡는다.
+     */
+    ['A/S접수현황|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
+    ['A/S접수현황|정렬/소계기준', '이 표는 접수일 내림차순 하나로 세운다 — 고를 축이 없다'],
+    /*
+     * <b>매출계획현황(E040640)</b> — 2026-09-08 원본 실측, <b>스물다섯</b>이다(사본은 여섯).
+     * 접힌 줄은 없다. 이 화면에는 <b>[데이터 보기형식]이 없다</b>(그래프로 보기가 없다).
+     *
+     * <p><b>새로 만든 것이 없다</b> — 한 파일(SalesPlanPage)이 매출계획·매출계획조회·
+     * 매출계획현황·매출계획비교표를 겸하는데, 조회 쪽을 앞서 스물일곱으로 맞춰 두어
+     * 현황이 묻는 스물다섯이 <b>이미 다 서 있었다</b>. 대조표만 실측대로 넓힌다.
+     *
+     * <p><b>2026-09-09 — 여기 적혀 있던 이유가 틀렸다.</b> "조회 쪽 이름인 [기준일자] 를
+     * 따랐다" 고 적어 두었는데, 증거를 달려고 찾아보니 <b>이 화면에 [기준일자] 가 없다.</b>
+     * 바로 아래 [매출계획조회|기준일자] 예외가 그 까닭을 이미 적고 있다 — 우리 매출계획
+     * 화면은 <b>[계획연도]를 고르는 화면</b>이라 날짜 구간 조건 자체가 없다.
+     * 두 예외가 서로 다른 말을 하고 있었던 셈이라, 사실인 쪽으로 고쳐 적는다.
+     * (창고이동현황 [일자]는 진짜로 이름만 다른 자리다 — 거기는 [기준일자]가 실제로 있다.)
+     */
+    ['매출계획현황|일자', '우리 매출계획 화면은 <b>[계획연도]를 고르는 화면</b>이라 날짜 구간 조건이 아예 없다 — 이름이 [일자]냐 [기준일자]냐의 문제가 아니다([매출계획조회|기준일자]와 같은 까닭)'],
+    ['매출계획현황|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
+    ['매출계획현황|정렬/소계기준', '[구분]이 이미 그 축을 고른다'],
+    /*
+     * <b>매출계획비교표(E040626)</b> — 2026-09-08 원본 실측, <b>스물하나</b>다(사본은 아홉).
+     * 접힌 줄이 없고, 조건 판이 <b>두 벌</b>로 그려진다([기본]·[전체] 탭이 같은 판을 쓴다).
+     *
+     * <p>못 만든다고 새로 적을 것이 <b>없었다</b> — 스물하나가 이미 다 서 있거나 전역
+     * 예외로 덮여 있었다. 대조표만 실측대로 넓힌다.
+     *
+     * <p>다만 <b>[표시조건]이 다섯 줄</b>이었다(사본을 보고 둘이라 적어 두었는데 틀렸다).
+     * 묶는 코드가 고른 축을 이어 붙이는 방식이라 다섯으로 늘리는 데 다른 손질이
+     * 필요 없었다 — 그대로 만들었다.
+     *
+     * <p>이 화면의 <b>[기타]는 [결재방표시]</b> 하나다(매출계획조회의 [기타]는
+     * [수정일자순(정렬)] 이다 — 한 파일이 넷을 겸하므로 조회 쪽 체크를 그대로 둔다).
+     */
+    /*
+     * <b>의료기기공급내역보고(E040231) 2026-09-09 원본 실측 — 조건이 스물넷이다</b>(사본은 열).
+     * 사본에 없던 것: 기준일자 · 거래처그룹 · 거래처계층그룹 · 납품거래처그룹 ·
+     * 품목구분 · 품목그룹1~3 · 품목계층그룹 · 최초작성자 · 최종수정자 ·
+     * 최초작성일자 · 최종작업일자.
+     *
+     * <p><b>[기준일자]와 [납품일자]는 다른 것이다</b> — 앞엣것은 전표를 끊은 날,
+     * 뒤엣것은 실제로 납품한 날. 우리 공급내역에는 날짜가 <b>하나뿐</b>(전표일자)이라
+     * 그 구간을 [기준일자] 로 세우고 [납품일자]를 예외로 옮겼다.
+     * (예전 주석에는 "원본 이름은 [기준일자]가 아니라 [납품일자] 다" 라고 적혀 있었는데
+     * 사본만 보고 적은 것이라 틀렸다.)
+     */
     ['의료기기공급내역보고|납품거래처', '판매 전표에 납품처를 가리키는 칸이 없다 — 배송지는 주소 글자뿐이다'],
+    ['의료기기공급내역보고|납품거래처그룹', '위와 같음 — 납품처가 없으니 그 그룹도 없다'],
+    ['의료기기공급내역보고|최초작성자', '공급내역은 전표에서 그때그때 뽑아 내는 목록이라 그 줄에 작성자가 없다'],
+    ['의료기기공급내역보고|최초작성일자', '위와 같음 — 줄에 남는 날짜는 전표일자뿐이다'],
+    ['의료기기공급내역보고|최종작업일자', '위와 같음'],
+    ['의료기기공급내역보고|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
     /*
      * 아래 이유는 틀렸었다 — '우리는 입력 화면에 있다' 라고 적어 뒀는데, 원본 조회의
      * 조건은 <b>고치는 칸이 아니라 거르는 칸</b>이다. 목록에는 그 값이 열로 있으니
@@ -3505,9 +4960,22 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
      * 다른 한쪽으로 찾는 사람이 <b>없는 걸로 오해</b>한다 — 칸을 쪼개기 전에는 못 만든다.
      * (이미 만든 [거래처]·[접수일자]·[창고]·[수리품목]은 서버가 걸러서 합친다.)
      */
-    ['A/S소모현황|수리담당자', 'A/S 전표의 담당자가 하나라 접수·수리로 가를 수 없다'],
-    ['A/S소모현황|접수담당자', '위와 같음'],
-    ['A/S소모현황|수리유형', 'A/S 전표에 수리 갈래를 적는 칸이 없다'],
+    /*
+     * <b>[A/S소모현황|수리담당자] 는 이제 있다.</b> 이유('담당자가 하나라 접수·수리로
+     * 가를 수 없다')는 <b>둘로 가르는 것</b>에 대해서만 맞았다 — 하나뿐이어도
+     * <b>그 하나로 거르는 것</b>은 처음부터 할 수 있었다. [내역] 격자에 이 열을
+     * 그리기 시작하자 '볼 수는 있는데 거를 수는 없는 칸' 이 되어 검사가 잡았다.
+     * (원본 [접수담당자]는 그대로 못 만든다 — 아래에 따로 있다.)
+     */
+    /*
+     * <b>A/S소모현황(E040641) 2026-09-09 원본 실측 — 조건이 서른이다</b>(사본은 열).
+     * 빠져 있던 것 가운데 <b>일곱</b>은 그 자리에서 만들었다 — 거래처그룹1 · 품목구분 ·
+     * 품목그룹1 · 수리진행상태 · 제목 · 적요 · 최초작성자. 이 화면은 응답이 <b>품목별로
+     * 이미 합쳐져</b> 오므로 화면에서는 거를 수 없어, 일곱을 전부 <b>서버 쪽 조건</b>으로 넣었다
+     * (AsService.consumption). 합친 뒤에는 거래처도 상태도 제목도 줄에 남지 않는다.
+     * [양식]만 못 만든다 — 값을 고르는 칸이 아니라 구역 머리다.
+     */
+    ['A/S소모현황|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
     ['발주서|발송여부', '전표를 거래처에 내보내는 기능이 없어 보낸 것이 하나도 생기지 않는다'],
     ['발주서조회|발송여부', '위와 같음'],
     ['생산입고조회|발송여부', '위와 같음'],
@@ -3536,9 +5004,34 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
     ['일보|종류', '이 화면이 합치는 매출·매입 전표에 그 갈래를 적는 칸이 없다'],
     ['품목vs시리얼재고수량비교|비교기준', '우리 비교는 <b>품목재고 vs 로트재고</b> 하나뿐이라 고를 기준이 없다'],
     ['근태조회|휴가항목', '휴가코드 마스터가 없어 근태코드 하나로 쓴다 — 고를 후보가 없다'],
+    /*
+     * <b>근태조회(E020711) 2026-09-09 원본 실측 — 조건이 열넷이다</b>(사본은 아홉).
+     * 탭이 둘이라 <code>ul.wrapper-form</code> 도 둘인데([기본] 11 · [전체] 14),
+     * 여기 적는 것은 <b>[전체] 쪽</b>이다. 사본에 없던 것: 부서계층그룹 ·
+     * 프로젝트그룹1·2 · <b>최초작성자</b> · 최종수정자, 그리고 [근태일자]가
+     * 맨 뒤가 아니라 <b>[기준일자] 바로 뒤</b>였다.
+     *
+     * <p>[부서계층그룹]은 그 자리에서 만들었다 — 부서 트리는 진작 있었다.
+     * [최초작성자]는 못 만든다: 휴가 신청(VacationRequest)에 <b>createdBy 가 없다.</b>
+     * 신청자는 <code>user</code> 인데 그건 [사원] 이 이미 거르는 값이고,
+     * 대신 넣으면 <b>다른 값에 같은 이름표</b>를 붙이는 셈이 된다.
+     */
+    ['근태조회|최초작성자', '휴가 신청에 만든 사람을 따로 남기지 않는다 — 신청자(user)가 곧 [사원] 이다'],
     ['근태조회|근태그룹', '위와 같음 — 근태항목을 묶는 상위가 없다'],
     ['근태현황|휴가항목', '위와 같음'],
     ['근태현황|근태그룹', '위와 같음'],
+    /*
+     * <b>근태현황(E020715) 2026-09-09 원본 실측 — 조건이 스물하나다</b>(사본은 열하나).
+     * 사본이 빠뜨린 열 가운데 [부서계층그룹]·[근태일자]·[정렬/소계기준] 셋은 그 자리에서
+     * 만들었고, [기준일자]와 [근태일자]가 <b>서로 다른 것</b>이라는 것도 여기서 드러났다 —
+     * 우리는 기간 하나를 근태일자에 걸면서 이름만 [근태일자]라 달아 두어
+     * <b>전표일자로 좁힐 길이 아예 없었다.</b>
+     *
+     * <p>아래 둘은 못 만든다. [최초작성자]는 근태조회와 같은 까닭이고([신청자]가 곧 [사원]),
+     * [양식]은 값을 고르는 칸이 아니라 <b>구역 머리</b>다(거래이력조회·설문조사조회와 같다).
+     */
+    ['근태현황|최초작성자', '휴가 신청에 만든 사람을 따로 남기지 않는다 — 신청자(user)가 곧 [사원] 이다'],
+    ['근태현황|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
     /*
      * <b>[판매계획]·[구매계획]·[노무비계획]·[경비계획] 넷은 이제 만들 수 있다.</b>
      * "우리 계획은 매출·이익 두 값이라 조건을 만들 축이 없다" 고 적어 두었는데, 2026-09-01 에
@@ -3559,12 +5052,18 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
     ['재고변동표|생산불출/창고이동포함', '위와 같음'],
     ['재고변동표|개별창고기준', '무엇을 가르는지 자료 없이 재지 못했다 — 이 회사에 재고변동 자료가 없어 켜고 끈 차이를 볼 수 없다'],
     ['판매조회|통화', '판매·구매 전표에 통화 칸이 없다 — 통화 마스터(accounting.Currency)는 있지만 전표가 물지 않는다'],
+    /*
+     * <b>거래이력조회 = 전표이력조회(E040716)</b> — 2026-09-08 원본 실측, <b>스물일곱</b>이다
+     * (사본은 여덟). 메뉴 이름은 [거래이력조회] 인데 열면 제목이 [전표이력조회] 다 —
+     * 사본에 적힌 여덟이 이 스물일곱의 <b>정확한 부분집합</b>이라 같은 화면이 맞다.
+     */
+    ['거래이력조회|작업일자', '원본 거래이력조회는 <b>누가 언제 어느 화면에서 무엇을 고쳤나</b> 를 남기는 감사 기록이다. 우리 화면은 같은 이름이지만 <b>그 거래처의 거래 내역</b>(일자·전표번호·품목·금액)이라 그 값이 없다'],
+    ['거래이력조회|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
     ['거래이력조회|작업시간', '원본 거래이력조회는 <b>누가 언제 어느 화면에서 무엇을 고쳤나</b> 를 남기는 감사 기록이다. 우리 화면은 같은 이름이지만 <b>그 거래처의 거래 내역</b>(일자·전표번호·품목·금액)이라 그 값이 없다'],
     ['거래이력조회|메뉴', '원본 거래이력조회는 <b>누가 언제 어느 화면에서 무엇을 고쳤나</b> 를 남기는 감사 기록이다. 우리 화면은 같은 이름이지만 <b>그 거래처의 거래 내역</b>(일자·전표번호·품목·금액)이라 그 값이 없다'],
     ['거래이력조회|작업자', '원본 거래이력조회는 <b>누가 언제 어느 화면에서 무엇을 고쳤나</b> 를 남기는 감사 기록이다. 우리 화면은 같은 이름이지만 <b>그 거래처의 거래 내역</b>(일자·전표번호·품목·금액)이라 그 값이 없다'],
     ['거래이력조회|행위', '원본 거래이력조회는 <b>누가 언제 어느 화면에서 무엇을 고쳤나</b> 를 남기는 감사 기록이다. 우리 화면은 같은 이름이지만 <b>그 거래처의 거래 내역</b>(일자·전표번호·품목·금액)이라 그 값이 없다'],
     ['구매조회|통화', '위와 같음'],
-    ['생산입고_소모현황 I|정렬/소계기준', '[구분]이 이미 그 축을 고른다(생산품목별·소모품목별·라인별)'],
     ['출하현황|정렬기준', '위와 같음 — [구분]이 내역·집계·라인별로 그 축을 고른다'],
     ['출하지시서현황|정렬기준', '위와 같음'],
     ['판매현황|정렬기준', '위와 같음'],
@@ -3591,9 +5090,401 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
     ['판매단가일괄변경|프로젝트', '위와 같음'],
     ['수금현황|부서', '정산에도 거래처에도 부서가 없다 — 붙일 값이 없다'],
     ['지급현황|부서', '위와 같음'],
+    /*
+     * <b>수금현황(E040217) · 지급현황(E040310)</b> — 2026-09-08 둘 다 원본 실측.
+     * <b>열여덟</b>이고 둘의 조건이 글자 하나까지 같다(사본에는 아홉만 적혀 있었다).
+     * 이 둘은 <b>접힌 줄이 없다</b> — 접힘 표시를 눌러도 줄 수가 그대로다.
+     *
+     * <p>같이 드러난 것 둘.
+     * ① <b>기본 기간이 [이번기수] 가 아니라 [금월(~오늘)] 이다.</b> 사본에 [이번기수]·
+     *    [직전기수] 버튼이 이 화면에만 있어 그것이 눌려 있는 줄 알고 적어 두었는데,
+     *    실제로 눌려 있는 것은 [금월(~오늘)]다. 그대로 두면 화면을 열자마자
+     *    <b>기수 전체</b>의 수금·지급이 합계로 잡혀 원본과 다른 숫자가 보인다.
+     * ② <b>[수금방법]/[지급방법] 은 원본에 없다.</b> 우리만 하나 더 두고 있었다 — 걷어냈다
+     *    (표의 열과 [정렬/소계기준]에는 그대로 있다).
+     *
+     * 만든 것 둘: 거래처그룹1 · 최초작성자.
+     */
+    ['수금현황|부서계층그룹', '부서를 붙일 자리가 없으니 그 위의 계층도 없다 — 위 [부서] 와 같은 까닭이다'],
+    ['지급현황|부서계층그룹', '위와 같음'],
+    ['수금현황|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
+    ['지급현황|양식', '위와 같음'],
+    /*
+     * <b>판매할인현황(E040216) · 구매할인현황(E040313)</b> — 2026-09-08 둘 다 원본 실측.
+     * <b>열아홉</b>이고 두 화면이 글자 하나까지 같다(사본에는 열하나만 적혀 있었다).
+     * 접힌 줄은 없다.
+     *
+     * <p>같이 드러난 것 둘.
+     * ① <b>구매할인현황의 기본 기간이 [직전기수] 가 아니라 [금월(~오늘)] 이다.</b>
+     *    수금현황과 똑같은 함정이다 — 기수 버튼이 이 화면에만 있어 사본에 눈에 띄었을 뿐,
+     *    눌려 있는 것은 [금월(~오늘)]다. (판매할인현황은 진작 [금월(~오늘)]로 맞아 있었다.)
+     * ② <b>[할인금액]은 구간</b>이다. 우리는 '차액 이상' 한 칸이었다 — 위아래로 받는다.
+     *
+     * 만든 것 둘: 거래처그룹1 · 적요(줄에 이미 모아 오는데 거를 자리가 없었다).
+     *
+     * <p><b>외주비할인현황은 이번에 못 열었다</b>(메뉴가 눌리지 않았다). 같은 파일이 그리므로
+     * 위 둘에 만든 조건이 그 화면에도 생기지만, 그 화면의 조건 판은 <b>안 재었다</b> —
+     * 대조표를 고치지 않고 열 그대로 둔다.
+     */
+    ['판매할인현황|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
+    ['구매할인현황|양식', '위와 같음'],
+    /*
+     * <b>외주비할인현황</b> — 앞 바퀴에 '메뉴가 안 눌린다' 고 적고 넘겼는데, 눌린 것이
+     * <b>늦게</b> 그려졌을 뿐이었다(다음 바퀴에 열어 보니 그 화면이 떠 있었다).
+     * 2026-09-08 실측 <b>열여덟</b> — 판매·구매할인현황 열아홉에서 [거래유형] 하나만 빠진다.
+     * 기본 기간도 [금월(~오늘)]로 셋이 같다.
+     *
+     * <p>화면코드는 <b>E040419</b> 다 — 2026-10-02 에 [생산입고/소모현황 I](E040415) 에서 메뉴를 눌러 주소창이
+     * E040419 로 바뀌는 것을 봤다(예전엔 '앞 화면 코드가 남는다' 고 적었는데 그게 이 화면의 코드였다).
+     */
+    ['외주비할인현황|양식', '위와 같음'],
+    /*
+     * <b>매입(세금)계산서현황(재고)(E040320)</b> — 2026-10-02 원본 실측 열둘: 기준일자 · 회계전표No. · 부서 · 프로젝트 ·
+     * 거래처 · 거래처관리담당자 · 부가세유형 · 상태 · 양식 · 적용양식 · 정렬/소계기준 · 데이터 보기형식.
+     * 이 화면은 회계전표(JournalEntry)를 본다 — 그 전표가 드는 것은 번호 · 일자 · 적요 · 거래처 · 근거 · 작성자 · 분개줄뿐이다.
+     */
+    /* <b>받을어음증가현황(E010624) · 받을어음감소현황(E010625)</b> — 2026-10-02 원본 실측(NoteFlowPage 하나). */
+    ['받을어음증가현황|부서', '어음(PromissoryNote)에 부서가 없다 — 보유어음현황과 같은 사실'],
+    ['받을어음증가현황|프로젝트', '위와 같음 — 어음에 프로젝트가 없다'],
+    ['받을어음증가현황|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['받을어음증가현황|정렬/소계기준', '일자 오름차순 하나로 세운다 — 원본 [설정] 팝업의 후보는 값을 저장하는 창이라 안 열어 못 쟀다'],
+    ['받을어음증가현황|데이터 보기형식', '그래프로 볼 축이 없다 — 어음 한 장이 한 줄인 목록이다'],
+    ['받을어음감소현황|부서', '어음(PromissoryNote)에 부서가 없다 — 보유어음현황과 같은 사실'],
+    ['받을어음감소현황|프로젝트', '위와 같음 — 어음에 프로젝트가 없다'],
+    ['받을어음감소현황|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['받을어음감소현황|정렬/소계기준', '일자 오름차순 하나로 세운다 — 원본 [설정] 팝업의 후보는 값을 저장하는 창이라 안 열어 못 쟀다'],
+    ['받을어음감소현황|데이터 보기형식', '그래프로 볼 축이 없다 — 어음 한 장이 한 줄인 목록이다'],
+    /* <b>단가요청조회(E040322)</b> — 2026-10-03 원본 실측(PriceRequestListPage). */
+    ['단가요청조회|발송여부', '단가요청을 메일 · 문자로 보내지 않아 발송 이력이 없다'],
+    ['단가요청조회|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    /* <b>발주요청조회(E040315)</b> — 2026-10-03 원본 실측(PurchaseRequestListPage). */
+    ['발주요청조회|관리항목', '발주서(PurchaseOrder)가 관리항목을 들지 않는다 — 발주요청현황과 같은 사실'],
+    ['발주요청조회|발송여부', '발주요청을 메일 · 문자로 보내지 않아 발송 이력이 없다'],
+    /* <b>주문서조회(E040204)</b> — 2026-10-03 원본 실측(SalesOrderPage). */
+    ['주문서조회|내.외자구분', '수주가 내자 · 외자를 가르지 않는다 — 외화 주문은 수출 화면이 따로 다룬다'],
+    ['주문서조회|발송여부', '주문서를 메일 · 문자로 보내지 않아 발송 이력이 없다'],
+    /* <b>시리얼/로트No.내역조회(E040618)</b> — 2026-10-03 원본 실측(LotTxListPage). */
+    ['시리얼/로트No.내역조회|거래처그룹1', '로트 줄은 전표의 거래처 이름만 들고(inventory 는 trade 의 거래처를 모른다) 거래처그룹은 안 든다'],
+    ['시리얼/로트No.내역조회|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    /* <b>재고실사조회(E040613)</b> — 2026-10-03 원본 실측(StocktakeListPage). */
+    ['재고실사조회|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    /* <b>재고조정조회(E040614)</b> — 2026-10-03 원본 실측(AdjustListPage). */
+    ['재고조정조회|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['재고조정조회|결재방표시', '인쇄물에 결재란을 찍을지 고르는 칸이다 — 우리 목록 인쇄는 결재란을 그리지 않는다'],
+    /* <b>재고조정진행단계(C000089)</b> — 2026-10-03 원본 실측(StagedProgressPage). */
+    ['재고조정진행단계|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    /* <b>불량처리조회(C000088)</b> — 2026-10-03 원본 실측(StockMoveListPage kind=DEFECT). */
+    ['불량처리조회|발송여부', '불량처리 전표를 메일 · 문자로 보내지 않아 발송 이력이 없다'],
+    ['불량처리조회|기타', '[기타]의 [수정일자순(정렬)] 하나인데 목록 응답이 고친 시각을 싣지 않는다'],
+    ['불량처리조회|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    /* <b>자가사용조회(E040504)</b> — 2026-10-03 원본 실측(StockMoveListPage). */
+    ['자가사용조회|거래처', '자가사용(재고조정 SELF_USE)은 거래처를 들지 않는다 — 회사 안에서 쓰는 것이다'],
+    ['자가사용조회|발송여부', '자가사용 전표를 메일 · 문자로 보내지 않아 발송 이력이 없다'],
+    ['자가사용조회|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    /* <b>품질검사조회(E040622)</b> — 2026-10-03 원본 실측(QualityInspectionPage). */
+    ['품질검사조회|출처(요청)구분', '검사를 전표에 이어 두지 않아 출처가 안 생긴다 — 품질검사현황과 같은 사실'],
+    ['품질검사조회|삭제구분', '검사는 지우면 행이 사라진다 — 삭제 표시만 남기는 칸이 없어 가를 것이 없다'],
+    ['품질검사조회|발송여부', '검사 전표를 메일 · 문자로 보내지 않아 발송 이력이 없다'],
+    ['품질검사조회|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    /* <b>A/S수리조회(E040606)</b> — 2026-10-03 원본 실측(AsRepairListPage). */
+    ['A/S수리조회|발송여부', 'A/S 를 메일 · 문자로 보내지 않아 발송 이력이 없다'],
+    ['A/S수리조회|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    /* <b>A/S수리현황(E040611)</b> — 2026-10-03 원본 실측(AsRepairStatusPage). */
+    ['A/S수리현황|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['A/S수리현황|결재방표시', '인쇄물에 결재란을 찍을지 고르는 칸이다 — 우리 현황 인쇄는 결재란을 그리지 않는다'],
+    ['A/S수리현황|정렬/소계기준', '수리일 오름차순 하나로 세운다 — 원본 [설정] 팝업은 값을 저장하는 창이라 안 열었다'],
+    /* <b>품질검사요청현황(E040630)</b> — 2026-10-03 원본 실측(QualityRequestStatusPage). */
+    ['품질검사요청현황|창고', '검사요청이 창고를 안 든다 - 품목과 로트로만 요청한다'],
+    ['품질검사요청현황|거래처', '검사요청이 거래처를 안 든다 - 수입검사도 품목으로만 건다'],
+    ['품질검사요청현황|관리항목', '검사요청에 관리항목을 걸지 않는다'],
+    ['품질검사요청현황|정렬기준', '요청일 오름차순 · 달마다 소계 하나로 세운다 — 원본 [설정] 팝업은 값을 저장하는 창이라 안 열었다'],
+    ['품질검사요청현황|데이터 보기형식', '그래프로 볼 축이 없다 — 요청 품목 줄이 한 줄인 목록이다'],
+    ['품질검사요청현황|비교기간', '원본 [집계] 판의 비교 축이다 — 2026-10-04 집계조건1 · 2 는 만들었고 비교 축은 아직 안 만들었다'],
+    /* <b>미검사현황(E040631)</b> — 2026-10-03 원본 실측(UninspectedPage). */
+    ['미검사현황|창고', '검사요청이 창고를 안 든다 - 품목과 로트로만 요청한다'],
+    ['미검사현황|거래처', '검사요청이 거래처를 안 든다 - 수입검사도 품목으로만 건다'],
+    ['미검사현황|관리항목', '검사요청에 관리항목을 걸지 않는다'],
+    ['미검사현황|정렬기준', '요청일 오름차순 · 달마다 소계 하나로 세운다 — 원본 [설정] 팝업은 값을 저장하는 창이라 안 열었다'],
+    ['미검사현황|데이터 보기형식', '그래프로 볼 축이 없다 — 요청 한 건이 한 줄인 목록이다'],
+    /* <b>수령수표조회(E060603) · 발행수표조회(E060607)</b> — 2026-10-03 원본 실측(CheckListPage 하나, type 만). */
+    ['수령수표조회|부서', '수표(BankCheck)에 부서가 없다 — 수령수표현황과 같은 사실'],
+    ['수령수표조회|프로젝트', '위와 같음 — 수표에 프로젝트가 없다'],
+    ['수령수표조회|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['발행수표조회|부서', '수표(BankCheck)에 부서가 없다 — 수령수표현황과 같은 사실'],
+    ['발행수표조회|프로젝트', '위와 같음 — 수표에 프로젝트가 없다'],
+    ['발행수표조회|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    /* <b>발행수표거래내역(E060614)</b> — 수령수표거래내역과 같은 판(같은 페이지, type 만). */
+    ['발행수표거래내역|부서', '수표(BankCheck)에 부서가 없다 — 수령수표현황과 같은 사실'],
+    ['발행수표거래내역|프로젝트', '위와 같음 — 수표에 프로젝트가 없다'],
+    ['발행수표거래내역|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['발행수표거래내역|데이터 보기형식', '그래프로 볼 축이 없다 — 움직임 한 건이 한 줄인 원장이다'],
+    /* <b>수령수표거래내역(E060613)</b> — 2026-10-02 원본 실측(자료 든 판, 기간을 2015년까지 넓혀 쟀다). */
+    ['수령수표거래내역|부서', '수표(BankCheck)에 부서가 없다 — 수령수표현황과 같은 사실'],
+    ['수령수표거래내역|프로젝트', '위와 같음 — 수표에 프로젝트가 없다'],
+    ['수령수표거래내역|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['수령수표거래내역|데이터 보기형식', '그래프로 볼 축이 없다 — 움직임 한 건이 한 줄인 원장이다'],
+    /* <b>발행수표증가현황(E060611) · 감소현황(E060612)</b> — 수령수표증가 · 감소현황과 같은 판(같은 페이지, type 만). */
+    ['발행수표증가현황|부서', '수표(BankCheck)에 부서가 없다 — 수령수표현황과 같은 사실'],
+    ['발행수표증가현황|프로젝트', '위와 같음 — 수표에 프로젝트가 없다'],
+    ['발행수표증가현황|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['발행수표증가현황|정렬/소계기준', '일자 오름차순 하나로 세운다 — 원본 [설정] 팝업의 후보는 값을 저장하는 창이라 안 열어 못 쟀다'],
+    ['발행수표증가현황|데이터 보기형식', '그래프로 볼 축이 없다 — 수표 한 장이 한 줄인 목록이다'],
+    ['발행수표감소현황|부서', '수표(BankCheck)에 부서가 없다 — 수령수표현황과 같은 사실'],
+    ['발행수표감소현황|프로젝트', '위와 같음 — 수표에 프로젝트가 없다'],
+    ['발행수표감소현황|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['발행수표감소현황|정렬/소계기준', '일자 오름차순 하나로 세운다 — 원본 [설정] 팝업의 후보는 값을 저장하는 창이라 안 열어 못 쟀다'],
+    ['발행수표감소현황|데이터 보기형식', '그래프로 볼 축이 없다 — 수표 한 장이 한 줄인 목록이다'],
+    /* <b>수령수표증가현황(E060609) · 감소현황(E060610)</b> — 2026-10-02 원본 실측(CheckFlowPage 하나). */
+    ['수령수표증가현황|부서', '수표(BankCheck)에 부서가 없다 — 수령수표현황과 같은 사실'],
+    ['수령수표증가현황|프로젝트', '위와 같음 — 수표에 프로젝트가 없다'],
+    ['수령수표증가현황|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['수령수표증가현황|정렬/소계기준', '일자 오름차순 하나로 세운다 — 원본 [설정] 팝업의 후보는 값을 저장하는 창이라 안 열어 못 쟀다'],
+    ['수령수표증가현황|데이터 보기형식', '그래프로 볼 축이 없다 — 수표 한 장이 한 줄인 목록이다'],
+    ['수령수표감소현황|부서', '수표(BankCheck)에 부서가 없다 — 수령수표현황과 같은 사실'],
+    ['수령수표감소현황|프로젝트', '위와 같음 — 수표에 프로젝트가 없다'],
+    ['수령수표감소현황|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['수령수표감소현황|정렬/소계기준', '일자 오름차순 하나로 세운다 — 원본 [설정] 팝업의 후보는 값을 저장하는 창이라 안 열어 못 쟀다'],
+    ['수령수표감소현황|데이터 보기형식', '그래프로 볼 축이 없다 — 수표 한 장이 한 줄인 목록이다'],
+    /* <b>발행수표현황(E060608)</b> — 수령수표현황과 같은 판(같은 페이지, type 만). */
+    ['발행수표현황|부서', '수표(BankCheck)에 부서가 없다 — 수령수표현황과 같은 사실'],
+    ['발행수표현황|프로젝트', '위와 같음 — 수표에 프로젝트가 없다'],
+    ['발행수표현황|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['발행수표현황|정렬/소계기준', '원본이 실제로 쓰는 축(거래처)으로 묶음과 소계를 둔다 — 고르게 하는 [설정] 팝업은 값을 저장하는 창이라 안 열어 못 쟀다'],
+    ['발행수표현황|데이터 보기형식', '그래프로 볼 축이 없다 — 수표 한 장이 한 줄인 목록이다'],
+    /* <b>수령수표현황(E060604)</b> — 2026-10-02 원본 실측(자료가 든 판). */
+    ['수령수표현황|부서', '수표(BankCheck)에 부서가 없다 — 번호 · 구분 · 상태 · 받은/낸 날 · 금액 · 은행 · 거래처 · 계좌 · 닫힌 날 · 비고뿐'],
+    ['수령수표현황|프로젝트', '위와 같음 — 수표에 프로젝트가 없다'],
+    ['수령수표현황|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['수령수표현황|정렬/소계기준', '원본이 실제로 쓰는 축(거래처)으로 묶음과 소계를 둔다 — 고르게 하는 [설정] 팝업은 값을 저장하는 창이라 안 열어 못 쟀다'],
+    ['수령수표현황|데이터 보기형식', '그래프로 볼 축이 없다 — 수표 한 장이 한 줄인 목록이다'],
+    /* <b>시리얼/로트No.내역현황(E040639)</b> — 2026-10-02 원본 실측(접힌 줄까지 스물여덟). [관리항목] · [적요]는 만들었다. */
+    ['시리얼/로트No.내역현황|프로젝트', '위와 같음 — 로트 움직임에 프로젝트가 없다'],
+    ['시리얼/로트No.내역현황|담당자', '위와 같음 — 로트 움직임에 담당자(사원)가 없다(작성자는 계정이라 다른 값이다)'],
+    ['시리얼/로트No.내역현황|udi코드', '로트에 의료기기 UDI 칸이 없다'],
+    ['시리얼/로트No.내역현황|문자형식2', '로트에 추가항목(문자 · 코드 · 숫자 · 일자 형식) 칸이 없다 — 원본의 회사별 사용자 정의 칸이다'],
+    ['시리얼/로트No.내역현황|문자형식3', '위와 같음'],
+    ['시리얼/로트No.내역현황|문자형식4', '위와 같음'],
+    ['시리얼/로트No.내역현황|문자형식5', '위와 같음'],
+    ['시리얼/로트No.내역현황|코드형추가항목1', '위와 같음'],
+    ['시리얼/로트No.내역현황|코드형추가항목2', '위와 같음'],
+    ['시리얼/로트No.내역현황|코드형추가항목3', '위와 같음'],
+    ['시리얼/로트No.내역현황|숫자형식1', '위와 같음'],
+    ['시리얼/로트No.내역현황|숫자형식2', '위와 같음'],
+    ['시리얼/로트No.내역현황|숫자형식3', '위와 같음'],
+    ['시리얼/로트No.내역현황|일자형식1', '위와 같음'],
+    ['시리얼/로트No.내역현황|일자형식2', '위와 같음'],
+    ['시리얼/로트No.내역현황|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['시리얼/로트No.내역현황|정렬/소계기준', '[구분] [집계]의 단위(일별 · 월별 · 라인별 · 전표별 · 품목별 · 전표별품목별)가 그 묶음을 맡는다 — 원본 [설정] 팝업 후보는 값을 저장하는 창이라 안 열어 못 쟀다'],
+    /* <b>시리얼/로트No.재고현황(E040619)</b> — 2026-10-02 원본 실측: 구분 · 기준일자 · 유효기한 · 시리얼/로트No. · 품목 · 재고수량 · 기타 · 정렬/소계기준. */
+    ['시리얼/로트No.재고현황|정렬/소계기준', '[구분]의 (창고별)이 창고로 묶는다 — 원본 [설정] 팝업의 후보는 값을 저장하는 창이라 안 열어 못 쟀다'],
+    /* <b>받을어음거래내역(E010623)</b> — 2026-10-02 원본 실측. 조회기준 거래처별(기본) | 거래처/어음번호별, 기타 [잔액0포함] 켜짐. */
+    ['받을어음거래내역|부서', '어음(PromissoryNote)에 부서가 없다 — 보유어음현황과 같은 사실'],
+    ['받을어음거래내역|프로젝트', '위와 같음 — 어음에 프로젝트가 없다'],
+    ['받을어음거래내역|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['받을어음거래내역|데이터 보기형식', '그래프로 볼 축이 없다 — 움직임 한 건이 한 줄인 원장이다'],
+    /* <b>지급어음거래내역(E010631)</b> — 받을어음거래내역과 글자 하나까지 같다(같은 페이지, type 만). */
+    ['지급어음거래내역|부서', '어음(PromissoryNote)에 부서가 없다 — 보유어음현황과 같은 사실'],
+    ['지급어음거래내역|프로젝트', '위와 같음 — 어음에 프로젝트가 없다'],
+    ['지급어음거래내역|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['지급어음거래내역|데이터 보기형식', '그래프로 볼 축이 없다 — 움직임 한 건이 한 줄인 원장이다'],
+    /* <b>지급어음증가현황(E010632) · 감소현황(E010633)</b> — 받을어음 쪽과 글자 하나까지 같다(같은 페이지, type 만 다르다). */
+    ['지급어음증가현황|부서', '어음(PromissoryNote)에 부서가 없다 — 보유어음현황과 같은 사실'],
+    ['지급어음증가현황|프로젝트', '위와 같음 — 어음에 프로젝트가 없다'],
+    ['지급어음증가현황|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['지급어음증가현황|정렬/소계기준', '일자 오름차순 하나로 세운다 — 원본 [설정] 팝업의 후보는 값을 저장하는 창이라 안 열어 못 쟀다'],
+    ['지급어음증가현황|데이터 보기형식', '그래프로 볼 축이 없다 — 어음 한 장이 한 줄인 목록이다'],
+    ['지급어음감소현황|부서', '어음(PromissoryNote)에 부서가 없다 — 보유어음현황과 같은 사실'],
+    ['지급어음감소현황|프로젝트', '위와 같음 — 어음에 프로젝트가 없다'],
+    ['지급어음감소현황|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['지급어음감소현황|정렬/소계기준', '일자 오름차순 하나로 세운다 — 원본 [설정] 팝업의 후보는 값을 저장하는 창이라 안 열어 못 쟀다'],
+    ['지급어음감소현황|데이터 보기형식', '그래프로 볼 축이 없다 — 어음 한 장이 한 줄인 목록이다'],
+    /* <b>보유어음현황(E010626) · 미지급어음현황(E010634)</b> — 2026-10-02 원본 실측. 두 화면 조건이 같다(NoteHoldingPage 하나). */
+    ['보유어음현황|부서', '어음(PromissoryNote)에 부서가 없다 — 번호 · 구분 · 거래처 · 발행/만기일 · 금액 · 상태 · 닫힌 날 · 은행 · 비고뿐'],
+    ['보유어음현황|프로젝트', '위와 같음 — 어음에 프로젝트가 없다'],
+    ['보유어음현황|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['보유어음현황|정렬/소계기준', '만기일자 오름차순 하나로 세운다 — 원본 [설정] 팝업의 후보는 값을 저장하는 창이라 안 열어 못 쟀다'],
+    ['보유어음현황|데이터 보기형식', '그래프로 볼 축이 없다 — 어음 한 장이 한 줄인 목록이다'],
+    ['미지급어음현황|부서', '위와 같음'],
+    ['미지급어음현황|프로젝트', '위와 같음'],
+    ['미지급어음현황|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['미지급어음현황|정렬/소계기준', '만기일자 오름차순 하나로 세운다 — 원본 [설정] 팝업의 후보는 값을 저장하는 창이라 안 열어 못 쟀다'],
+    ['미지급어음현황|데이터 보기형식', '그래프로 볼 축이 없다 — 어음 한 장이 한 줄인 목록이다'],
+    /* <b>BOM(소요량)현황(E040402)</b> — 2026-10-02 원본 실측 여섯: 생산품목 · 소모품목 · 생산공정 · 기타 · 양식 · 적용양식. */
+    ['BOM(소요량)현황|생산공정', '우리 BOM(Bom · BomLine)은 생산공정을 들지 않는다 — 품목 · 버전 · 소모품목 · 소요량뿐(공정은 BOR 이 따로 든다)'],
+    ['BOM(소요량)현황|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    /* <b>매입(세금)계산서조회(재고)(E040219)</b> — 2026-10-03 원본 실측(PurchaseTaxStockPage list). */
+    ['매입(세금)계산서조회(재고)|부서', '회계전표(JournalEntry)에 부서가 없다 — 매출 · 매입 현황과 같은 사실'],
+    ['매입(세금)계산서조회(재고)|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['매입(세금)계산서조회(재고)|부가세유형', '우리 매입 분개는 부가세대급금(135) 한 계정으로만 적어 과세 · 영세 · 불공제 같은 유형을 남기지 않는다'],
+    ['매입(세금)계산서조회(재고)|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['매입(세금)계산서조회(재고)|적용양식', '인쇄 양식을 고르게 하지 않는다(전역 예외와 같은 이유)'],
+    /* <b>매출(세금)계산서조회(재고)(E040218)</b> — 2026-10-03 원본 실측(PurchaseTaxStockPage kind=SALES list). */
+    ['매출(세금)계산서조회(재고)|부서', '회계전표(JournalEntry)에 부서가 없다 — 매출 · 매입 현황과 같은 사실'],
+    ['매출(세금)계산서조회(재고)|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['매출(세금)계산서조회(재고)|부가세유형', '우리 매출 분개는 부가세예수금(255) 한 계정으로만 적어 과세 · 영세 · 면세 같은 유형을 남기지 않는다'],
+    ['매출(세금)계산서조회(재고)|발송여부', '매출 전표를 메일 · 문자로 보내지 않아 발송 이력이 없다'],
+    ['매출(세금)계산서조회(재고)|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['매출(세금)계산서조회(재고)|적용양식', '인쇄 양식을 고르게 하지 않는다(전역 예외와 같은 이유)'],
+    /* <b>매출(세금)계산서현황(재고)(E040223)</b> — 2026-10-03 원본 실측. 매입 쪽과 같은 판(kind=SALES). [기타] 아래 [세무신고거래처]가 더 있다. */
+    ['매출(세금)계산서현황(재고)|부서', '회계전표(JournalEntry)에 부서가 없다 — 매입 쪽과 같은 사실'],
+    ['매출(세금)계산서현황(재고)|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['매출(세금)계산서현황(재고)|부가세유형', '우리 매출 분개는 부가세예수금(255) 한 계정으로만 적어 과세 · 영세 · 면세 같은 유형을 남기지 않는다'],
+    ['매출(세금)계산서현황(재고)|상태', '회계전표에 결재 · 확인 상태가 없다 — 회계반영으로 만들어지면 곧 확정이다'],
+    ['매출(세금)계산서현황(재고)|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['매출(세금)계산서현황(재고)|적용양식', '인쇄 양식을 고르게 하지 않는다(전역 예외와 같은 이유)'],
+    ['매출(세금)계산서현황(재고)|정렬/소계기준', '표가 달마다 "YYYY/MM 계" 소계를 고정으로 넣는다 — 원본 [설정] 팝업은 값을 저장하는 창이라 안 열었다'],
+    ['매출(세금)계산서현황(재고)|데이터 보기형식', '그래프로 볼 축이 없다 — 전표 한 장이 한 줄인 목록이다'],
+    ['매입(세금)계산서현황(재고)|부서', '회계전표(JournalEntry)에 부서가 없다 — 번호 · 일자 · 적요 · 거래처 · 근거 · 작성자 · 분개줄뿐'],
+    ['매입(세금)계산서현황(재고)|프로젝트', '위와 같음 — 회계전표에 프로젝트가 없다'],
+    ['매입(세금)계산서현황(재고)|부가세유형', '우리 매입 분개는 부가세대급금(135) 한 계정으로만 적어 과세 · 영세 · 불공제 같은 유형을 남기지 않는다'],
+    ['매입(세금)계산서현황(재고)|상태', '회계전표에 결재 · 확인 상태가 없다 — 회계반영으로 만들어지면 곧 확정이다'],
+    ['매입(세금)계산서현황(재고)|양식', '[적용양식] 위의 구역 머리라 값을 고르는 칸이 아니다'],
+    ['매입(세금)계산서현황(재고)|적용양식', '인쇄 양식을 고르게 하지 않는다(전역 예외와 같은 이유)'],
+    ['매입(세금)계산서현황(재고)|정렬/소계기준', '표가 달마다 "YYYY/MM 계" 소계를 고정으로 넣는다 — 원본 [설정] 팝업의 후보는 값을 저장하는 창이라 안 열어 못 쟀다'],
+    ['매입(세금)계산서현황(재고)|데이터 보기형식', '그래프로 볼 축이 없다 — 전표 한 장이 한 줄인 목록이다'],
+    /*
+     * <b>회계미반영현황(판매)(E040609)</b> — 2026-09-08 원본 실측, <b>스물여덟</b>이다.
+     * 사본에는 (구매) 쪽이 열하나로만 적혀 있었고 (판매)는 대조표에 아예 없었다.
+     *
+     * <p>만든 것 일곱: 거래처그룹1 · 품목구분 · 품목그룹1 · 적요 · 오더관리번호 ·
+     * 규격 · 최초작성자. 뒤의 넷은 <code>SlipLine</code>·<code>SlipResponse</code> 가
+     * 진작 들고 있거나(createdBy·note) 품목 마스터에 있는 값이라, 응답에 실어 주기만 하면
+     * 됐다 — 규격·품목구분·근거 전표번호를 SlipLine 에 더했다.
+     *
+     * <p>[구분]·[판매No.]·[관리항목]·[거래구분]·[담당자]는 같은 파일이 겸하는
+     * <b>판매·구매일괄회계반영</b>의 조건이다. 이 화면에는 없다.
+     * (구매) 쪽은 이번에 안 재었으므로 그 대조표는 열하나 그대로 둔다.
+     */
+    ['회계미반영현황(판매)|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
+    /*
+     * <b>회계미반영현황 (구매)(E040319)</b> — 2026-09-08 실측. 조건은 (판매)와
+     * <b>같은 스물여덟</b>인데 <b>끝 넷의 차례가 다르다</b>:
+     *   (판매) … 금액 · 적요 · <b>오더관리번호 · 규격 · 최초작성자 · 최종수정자</b> · 양식 …
+     *   (구매) … 금액 · 적요 · <b>최초작성자 · 최종수정자 · 오더관리번호 · 규격</b> · 양식 …
+     * 한 파일이 둘을 겸하므로 둘 다 맞출 수 없다 — 아래 ORDER_SKIP 에 적었다.
+     * 앞 바퀴에 (판매)로 만든 조건 일곱이 그대로 (구매)에도 선다.
+     */
+    ['회계미반영현황 (구매)|양식', '위와 같음'],
+    /*
+     * <b>작업지시서현황(E040413)</b> — 2026-09-08 원본 실측, <b>서른하나</b>다
+     * (사본은 일곱). 접힌 줄은 없다.
+     *
+     * <p>만든 것 열하나: 납기일자 · 거래처그룹1 · 품목구분 · 품목그룹1 · 담당자 ·
+     * 거래처관리담당자 · 규격 · 수량 · 적요 · 진행상태 · 최초작성자.
+     * 값은 <code>WorkOrderResponse</code> 와 마스터에 진작 다 있었다 —
+     * 화면이 받아 두지 않아 거를 수가 없었을 뿐이라 서버는 한 줄도 안 고쳤다.
+     *
+     * <p>[구분]에 <b>[라인별]</b>이 하나 더 있는 것도 이번에 보았다(사본에는 둘).
+     * 대조표에는 셋으로 적되 화면에는 안 만든다 — 우리 작업지시는 한 건에 품목이
+     * <b>하나</b>라 라인별과 내역이 글자 그대로 같은 표다.
+     */
+    ['작업지시서현황|오더관리번호', '작업지시가 수주를 근거로 끊어지지 않는다 — <code>WorkOrder</code> 에 근거 전표 칸이 없다(출하는 있다)'],
+    ['작업지시서현황|제목', '[보내기]에 붙이는 제목이다 — 전표를 내보내는 기능이 없다'],
+    ['작업지시서현황|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
+    ['작업지시서현황|정렬/소계기준', '[구분]이 이미 그 축을 고른다(집계를 켜면 품목·창고·거래처·담당자·월 중에서 고른다)'],
+    /*
+     * <b>생산불출현황(E040409)</b> — 2026-09-08 원본 실측, <b>스물여덟</b>이다
+     * (사본은 열). 접힌 줄은 없다.
+     *
+     * <p>만든 것 넷: 보내는창고 · 받는창고 · 품목구분 · 품목그룹1.
+     * <b>[창고]의 뜻도 고쳤다</b> — 원본에서 [창고]는 보내는·받는 어느 쪽이든 걸리고
+     * [보내는창고]·[받는창고]가 한쪽만 건다(생산불출조회에서 확인한 규칙이다).
+     * 우리 [창고]는 보내는 쪽만 보고 있어 받는 창고로 고르면 그 줄이 통째로 사라졌다.
+     *
+     * <p>못 만드는 다섯은 <b>생산불출조회에 이미 적어 둔 이유와 같다</b> —
+     * 같은 전표(MaterialIssue)를 보는 화면이라 사정이 같다.
+     */
+    ['생산불출현황|보내는창고계층그룹', '창고를 계층으로 묶는 마스터가 없다 — 평면이다(전역 [창고계층그룹]과 같은 까닭)'],
+    ['생산불출현황|받는창고계층그룹', '위와 같음'],
+    ['생산불출현황|오더관리번호', '사내 불출이라 근거가 될 오더가 없다 — 불출이 무는 것은 작업지시서다'],
+    ['생산불출현황|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
+    /*
+     * <b>생산입고현황(E040410)</b> — 2026-09-08 원본 실측, <b>서른둘</b>이다
+     * (사본은 열하나). 접힌 줄은 없다.
+     *
+     * <p>만든 것 여섯: 보내는창고 · 받는창고 · 품목구분 · 품목그룹1 · 규격 · 최초작성자.
+     * 생산불출현황과 <b>같은 두 잘못이 여기에도 있었다</b> —
+     * ① [창고]가 받는 쪽만 보고 있었고(원본은 어느 쪽이든 걸린다),
+     * ② <b>[담당자] 칸이 작성자(createdBy)를 거르고 있었다</b>. 원본은 [담당자](전표의
+     *    담당 사원)와 [최초작성자](만든 계정)를 따로 묻는다 — <code>Production</code> 은
+     *    employeeId 를 진작 들고 응답도 싣는데 화면이 안 받고 있었다.
+     */
+    ['생산입고현황|보내는창고계층그룹', '창고를 계층으로 묶는 마스터가 없다 — 평면이다'],
+    ['생산입고현황|받는창고계층그룹', '위와 같음'],
+    ['생산입고현황|오더관리번호', '사내 생산이라 근거가 될 오더가 없다 — 생산입고가 무는 것은 작업지시서다(생산불출현황과 같은 까닭)'],
+    ['생산입고현황|거래구분', '생산입고에 반품이 없다 — 만든 것을 되돌려 받는 자리가 아니다(판매·구매에만 있다)'],
+    ['생산입고현황|양식', '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다 — 값을 고르는 칸이 아니다'],
+
+    /*
+     * <b>품질검사요청조회(E040629)</b> — 조건 판을 펼쳐 재니 <b>스물아홉 칸</b>이다
+     * (닫힌 판은 열둘). 아래 열일곱은 <code>QualityInspectionRequest</code> 가
+     * 그 값을 아예 안 들고 있다 — 요청은 품목·로트·수량·기한만으로 선다.
+     */
+    ['품질검사요청조회|품질검사요청No.', '원본 입력 화면은 같은 칸을 [일자-No.] 라 부른다 - 한 파일이 둘을 겸해 둘 다 맞출 수 없다'],
+
+    /*
+     * <b>견적서조회(E040202)</b> — 2026-09-09 조건 판을 펼쳐 재니 <b>서른다섯 칸</b>이다
+     * (닫힌 판은 열). 아래 열여덟은 <code>Quotation</code> 이 그 값을 안 들고 있다.
+     * 표에는 찍는데 거를 수만 없던 셋(규격·적요·유효기간)은 이 바퀴에 만들었다.
+     */
+    ['견적서조회|오더관리번호', '견적에 오더관리 유형·진행단계를 걸지 않는다'],
+    ['견적서조회|담당자', '견적에 담당 사원을 달지 않는다 - 만든 계정([작성자])만 남는다'],
+    ['견적서조회|거래유형', '견적에 거래유형(부가세율 묶음)을 걸지 않는다 - 과세/면세만 정한다'],
+    ['견적서조회|적요1', '줄마다 적는 적요가 없다 - 전표 적요 한 칸이다'],
+    ['견적서조회|적요2', '위와 같음'],
+    ['견적서조회|적요3', '위와 같음'],
+    /*
+     * 이 이유는 <b>2026-09-10 까지 거짓이었다</b> — '이름을 지어 정의한다' 고 적어 두었는데
+     * 견적서 화면이 <code>/custom-fields</code> 를 한 번도 안 불러서 <b>정의해도 뜰 자리가
+     * 없었다.</b> 이제 펼친 줄에 추가항목 판이 뜬다(entityType=QUOTE). 발주서에서 똑같은
+     * 것을 한 번 잡았고, 그 전에도 마스터 셋이 같았다 — <b>묶음 이유는 이렇게 오래 산다.</b>
+     */
+    ['견적서조회|문자형식1', '추가항목은 칸 이름을 박지 않고 <b>사용자정의필드에서 이름을 지어</b> 정의한다 — 견적서 화면이 그것을 읽는다(entityType=QUOTE)'],
+    ['견적서조회|문자형식2', '위와 같음'],
+    ['견적서조회|문자형식3', '위와 같음'],
+    ['견적서조회|문자형식4', '위와 같음'],
+    ['견적서조회|문자형식5', '위와 같음'],
+    ['견적서조회|장문형식1', '위와 같음 - 긴 글 칸도 사용자정의필드로 만든다'],
+    ['견적서조회|참조', '견적에 참조 칸이 없다'],
+    ['견적서조회|결제조건', '견적에 결제조건 칸이 없다 - 거래처 마스터의 결제조건을 따른다'],
+    ['견적서조회|최초작성일자', '만든 때로 거르지 않는다 - 응답이 createdAt 을 안 싣는다(updatedAt 만 싣는다)'],
+    ['견적서조회|입력경로', '어느 길로 넣었는지 안 남긴다 - 화면 하나로만 넣는다'],
+    ['견적서조회|삭제구분', '지운 견적을 남겨 두지 않는다 - 지우면 줄이 사라진다(소프트 삭제가 아니다)'],
+    ['견적서조회|제목', '견적에 제목이 없다 - 적요 한 칸으로 적는다'],
+    ['품질검사요청조회|창고', '검사요청이 창고를 안 든다 - 품목과 로트로만 요청한다'],
+    ['품질검사요청조회|거래처', '검사요청이 거래처를 안 든다 - 수입검사도 품목으로만 건다'],
+    ['품질검사요청조회|관리항목', '검사요청에 관리항목을 걸지 않는다'],
+    ['품질검사요청조회|거래처관리담당자', '거래처 자체를 안 드니 그 담당자도 없다 - 위 [거래처] 와 같은 까닭'],
+    ['품질검사요청조회|발송여부', '검사요청을 보내는 자리가 없다 - 사내에서 도는 전표다'],
+    ['품질검사요청조회|오더관리번호', '검사요청이 근거 오더를 물지 않는다 - 위 [연결전표] 와 같은 까닭'],
+    ['품질검사요청조회|작성자', '만든 계정을 안 남긴다 - [요청자]는 사람 이름을 손으로 적는 칸이지 계정이 아니다'],
+    ['품질검사요청조회|최초작성일자', '만든 때로 거르지 않는다 - 응답이 createdAt 을 안 싣는다'],
+    ['품질검사요청조회|최종작업일자', '위와 같음 - 응답이 updatedAt 을 안 싣는다'],
+    ['품질검사요청조회|삭제구분', '지운 요청을 남겨 두지 않는다 - 지우면 줄이 사라진다(소프트 삭제가 아니다)'],
+    ['품질검사요청조회|제목', '검사요청에 제목이 없다 - 적요 한 칸으로 적는다'],
+    ['품질검사요청조회|문자형식1', '추가항목은 칸 이름을 박지 않고 사용자정의필드에서 이름을 지어 정의한다'],
+    ['품질검사요청조회|문자형식2', '추가항목은 칸 이름을 박지 않고 사용자정의필드에서 이름을 지어 정의한다'],
+    ['품질검사요청조회|문자형식3', '추가항목은 칸 이름을 박지 않고 사용자정의필드에서 이름을 지어 정의한다'],
+    ['품질검사요청조회|문자형식4', '추가항목은 칸 이름을 박지 않고 사용자정의필드에서 이름을 지어 정의한다'],
+    ['품질검사요청조회|문자형식5', '추가항목은 칸 이름을 박지 않고 사용자정의필드에서 이름을 지어 정의한다'],
+    ['품질검사요청조회|문자형식6', '추가항목은 칸 이름을 박지 않고 사용자정의필드에서 이름을 지어 정의한다'],
+    /*
+     * <b>생산입고/소모현황 I(E040415)</b> — 2026-09-09 원본 조건 판을 처음 열어 쟀다.
+     * 사본에는 여덟 칸으로 적혀 있었는데 실제로는 <b>서른다섯</b>이다. 아래 아홉은
+     * 화면 사정이 아니라 <b>마스터 구조</b>의 일이라 같은 이유가 형제 화면
+     * (생산입고현황·생산입고조회)에 이미 적혀 있다.
+     */
+    ['생산입고/소모현황 I|보내는창고계층그룹', '창고를 계층으로 묶는 마스터가 없다 — 평면이다'],
+    ['생산입고/소모현황 I|받는창고계층그룹', '위와 같음'],
+    ['생산입고/소모현황 I|생산품목계층그룹', '품목그룹 위에 그룹을 두지 않는다 — 평면이다'],
+    ['생산입고/소모현황 I|소모품목계층그룹', '위와 같음'],
+    ['생산입고/소모현황 I|생산품목그룹2', '그룹 축이 <b>하나뿐</b>이다 — 원본의 2·3 에 해당하는 칸이 우리에겐 없다(1 은 만들었다)'],
+    ['생산입고/소모현황 I|생산품목그룹3', '위와 같음'],
+    ['생산입고/소모현황 I|소모품목그룹2', '위와 같음'],
+    ['생산입고/소모현황 I|소모품목그룹3', '위와 같음'],
+    ['생산입고/소모현황 I|오더관리번호', '사내 생산이라 근거가 될 오더가 없다 — 생산입고가 무는 것은 작업지시서다(생산입고현황과 같은 까닭)'],
     ['휴가사용실적현황|프로젝트', '휴가에 프로젝트를 달지 않는다 — 잔여일수 응답에도 없다'],
     ['휴가잔여일수현황|프로젝트', '위와 같음'],
-    ['작업지시서입력|첨부', '작업지시에 붙임 파일을 달지 않는다 — 기안서와 달리 attachmentId 가 없다'],
     ['거래처관리대장 II|거래처그룹2', '거래처그룹이 하나다 — [거래처그룹1] 만 있다'],
     ['판매조회|발송여부',
       '전표를 보냈는지(메일·팩스)를 기록하지 않는다 — 보낼 자리가 없으니 보낸 표시도 없다.'
@@ -3727,7 +5618,13 @@ console.log('\n■ 원본 화면 머리의 조건이 우리 화면에도 있나'
      */
     ['자가사용현황|오더관리번호', '위와 같음'], ['불량처리현황|오더관리번호', '위와 같음'],
     ['대체사용현황|오더관리번호', '위와 같음'], ['폐기현황|오더관리번호', '위와 같음'],
-    ['작업지시서효율현황|거래처관리담당자', '작업지시에는 거래처가 납품처로만 붙는다'],
+    /*
+     * <b>[작업지시서효율현황|거래처관리담당자]는 예외에서 뺐다(2026-09-08).</b>
+     * "작업지시에는 거래처가 <b>납품처로만</b> 붙는다" 고 적어 두었는데 <b>이유가 되지 않는다</b> —
+     * 납품처든 아니든 거래처는 거래처이고, 관리담당자는 거래처 마스터에 붙는 값이라
+     * 이름으로 이으면 그만이다(판매·구매·미주문·미판매현황이 모두 그 길을 쓴다).
+     * 응답은 partnerName 을 진작 싣고 있었고 [거래처] 조건도 이미 있었다.
+     */
     ['작업지시서효율현황|규격', '효율 화면은 품목이 아니라 지시 단위로 센다'],
   ])
   collectReasons(NO_FIELD_ON)
@@ -3940,10 +5837,19 @@ console.log('\n■ 화면 머리의 조건이 원본과 같은 차례로 서 있
       + ' 판매조회는 거래유형·창고·프로젝트·거래처·품목, 구매조회는 거래처·담당자·입고창고·'
       + '거래유형·프로젝트. 판매조회 차례에 맞췄다(조건이 더 많다). 이름도 원본을 따라'
       + ' 판매는 [창고], 구매는 [입고창고] 로 갈라 그린다'],
+    ['작업지시서입력',
+      '작업지시서조회와 한 파일(WorkOrderPage)인데 <b>원본 두 화면의 차례가 다르다</b> — 입력 폼 머리는 담당자·납기일자·작업지시No. 이고, 조회 조건 판은 작업지시No.·창고·거래처·품목·…·<b>납기일자·담당자</b> 다. 자리를 재는 곳이 조건 판이라 입력 폼 차례로는 견줄 수 없다(생산불출입력·출하지시서입력과 같은 까닭). 조건이 훨씬 많은 조회 차례(서른하나)에 맞췄다'],
+    ['생산불출입력',
+      '생산불출조회와 한 파일(IssuePage)인데 <b>원본 두 화면의 차례가 다르다</b> — 입력 폼 머리는 담당자·보내는창고·프로젝트 이고, 조회 조건 판은 창고·보내는창고·받는창고·품목·품목구분·품목그룹1·<b>프로젝트·담당자</b> 다. 자리를 재는 곳이 조건 판이라 입력 폼 차례로는 견줄 수 없다(출하지시서입력·거래처관리대장 II 와 같은 까닭). 조건이 훨씬 많은 조회 차례(스물아홉)에 맞췄다'],
     ['창고이동현황',
       '창고이동조회와 한 파일(TransferStatusPage)인데 <b>원본 두 화면의 조건 차례가 다르다</b> — 창고이동현황은 창고·<b>프로젝트·품목</b> 이고, 창고이동조회는 창고·보내는창고·받는창고·<b>품목·품목구분·품목그룹1·프로젝트</b> 다. 조건이 훨씬 많은 조회 쪽(스물아홉)에 맞췄다'],
     ['출하지시서입력',
       '출하지시서조회와 한 파일(ShipmentOrderPage)이고, 원본 두 화면은 <b>같은 이름을 다른</b> 차례로 쓴다 — 입력 폼은 거래처·담당자·연락처·출하예정일 이고, 조회 조건 판은 거래처·(…)·출하예정일·(…)·담당자·연락처 다. 자리를 재는 곳이 <b>조건 판</b>이라 입력 폼 차례로는 견줄 수 없다(거래처관리대장 II 와 같은 까닭). 조회 차례에 맞췄다 — 폼 안에서는 원본 입력 차례를 그대로 둔다'],
+    ['회계미반영현황 (구매)',
+      '<b>원본 두 회계미반영현황이 끝 넷을 다른 차례로 쓴다</b> — (판매)는 오더관리번호·규격·'
+      + '최초작성자·최종수정자 이고, (구매)는 최초작성자·최종수정자·오더관리번호·규격 이다.'
+      + ' 한 파일(AccountingReflectionPage)이 둘을 겸해서 둘 다 맞출 수 없다.'
+      + ' 앞 바퀴에 실측한 (판매) 차례에 맞췄다'],
     ['판매일괄회계반영',
       '위와 같은 까닭이다. 원본 <b>판매</b>일괄회계반영은 창고·거래처·품목·프로젝트·담당자·'
       + '거래처관리담당자·<b>거래유형</b> 차례인데, 같은 파일이 겸하는 회계미반영현황(구매)는'
@@ -4086,7 +5992,11 @@ console.log('\n■ 원본과 우리의 열 폭 차례가 뒤집히지 않았나'
 
   const bad = []
   let checked = 0
-  let skipped = 0
+  /*
+   * <b>건너뛴 것은 이름으로 남긴다.</b> 수만 세면 다섯이 빠져도 아무도 어느 화면인지 모른다 —
+   * 정렬 검사는 진작 이름을 냈는데 여기만 수만 내고 있었다(2026-09-10).
+   */
+  const skippedNames = []
   for (const [screen, cols] of Object.entries(cap)) {
     const rel = WIDTH_MAP.get(screen)
     if (!rel || PENDING.has(screen)) continue
@@ -4103,7 +6013,7 @@ console.log('\n■ 원본과 우리의 열 폭 차례가 뒤집히지 않았나'
        */
       hit: names.filter((n) => new RegExp(String.raw`<th\b[^>]*>\s*${esc(n)}\s*${MARK_TAIL}\s*</th>`).test(noArrow(h[0]))).length,
     })).filter((x) => x.hit > 1).sort((a, b) => b.hit - a.hit)
-    if (!scored.length || (scored.length > 1 && scored[0].hit === scored[1].hit)) { skipped++; continue }
+    if (!scored.length || (scored.length > 1 && scored[0].hit === scored[1].hit)) { skippedNames.push(screen); continue }
 
     const widths = new Map()
     for (const m of noArrow(scored[0].head).matchAll(/<th\b([^>]*)>([\s\S]*?)<\/th>/g)) {
@@ -4133,7 +6043,16 @@ console.log('\n■ 원본과 우리의 열 폭 차례가 뒤집히지 않았나'
     }
   }
   eq('폭을 견준 열 짝 ' + checked + '개의 앞뒤가 원본과 같다 (표를 못 짝지어 건너뛴 '
-    + skipped + '개)', bad.join('\n') || '없음', '없음')
+    + skippedNames.length + (skippedNames.length ? '개: ' + skippedNames.join(', ') : '개') + ')',
+    bad.join(String.fromCharCode(10)) || '없음', '없음')
+
+  /*
+   * <b>건너뛴 화면이 늘면 걸린다.</b> 못 짝짓는 것 자체는 잘못이 아니다 — 우리가 원본의
+   * 표 하나를 둘로 쪼갠 자리도 있고, 입력 화면처럼 폼 이름표와 격자가 섞인 자리도 있다.
+   * <b>왜인지 안 적는 것</b>이 문제다. 새로 건너뛰는 화면은 목록에 이유와 함께 올리게 한다.
+   */
+  eq(`표를 못 짝지은 화면 ${skippedNames.length}개가 다 이유를 들고 있다`,
+    skippedNames.filter((n) => !UNPAIRED[n]).join(', ') || '없음', '없음')
 }
 
 // ── 2-s) 회계기수 기간을 ! 로 눌러 쓰지 않았나 ────────────────────────────
@@ -4286,10 +6205,9 @@ console.log('\n■ 화면을 열었을 때 붙는 이름이 원본과 같나')
      * 지도를 137 → 147 로 넓히며 나온 것들. 원본이 <b>입력·조회·현황을 따로 둔</b> 자리를
      * 우리는 한 화면으로 겸하는 경우다 — 제목이 다른 것은 그 때문이다.
      */
-    ['A/S접수', 'A/S 접수·수리 관리 한 화면이 접수 입력·조회를 겸한다 — 우리는 접수→처리중→완료를 한 전표의 상태전이로 다뤄 수리 전표가 따로 없다'],
+    ['A/S접수', 'A/S접수조회 한 화면이 접수 입력(창)·조회를 겸한다 — 우리는 접수→수리중→완료를 한 전표의 상태전이로 다뤄 수리 전표가 따로 없다'],
     ['A/S접수입력', '위와 같음'],
     ['A/S접수조회', '위와 같음'],
-    ['A/S접수현황', 'A/S현황 한 화면이 <b>접수현황·수리현황</b>을 상태 필터로 겸한다(화면 주석에 적혀 있다)'],
     ['품질검사요청입력', '품질검사요청 한 화면이 입력(팝업)과 목록을 겸한다'],
     ['품질검사요청조회', '위와 같음 — 그 목록이 곧 조회다(원본 E040629 의 조건 판을 이 화면이 그린다)'],
     ['창고등록', '우리 제목은 [창고등록 리스트] 다 — 한 화면이 등록과 목록을 겸한다'],
@@ -4306,12 +6224,9 @@ console.log('\n■ 화면을 열었을 때 붙는 이름이 원본과 같나')
     ['오더관리유형등록', '오더관리유형리스트 한 화면이 등록과 목록을 겸한다'],
     ['판매입력II', '판매입력 한 화면이 겸한다 — 원본 II 는 격자만 간단한 판이다'],
     ['거래처관리대장 II', '위와 같음'],
-    ['생산입고II-소모품목 선택', '한 화면이 II·III 을 [품질검사요청] 여부로 겸한다'],
-    ['생산입고 III-소모품목 선택', '위와 같음'],
     ['회계미반영현황(판매)', '일괄회계반영 화면이 반영·미반영을 겸한다'],
     ['회계미반영현황 (구매)', '위와 같음'],
     ['기안서작성', '기안서통합관리에서 [신규]로 연다'],
-    ['작업지시서입력', '작업지시서조회 한 화면이 입력(팝업)과 목록을 겸한다'],
     /*
      * 발주 진행단계 셋은 <b>한 파일</b>이 그린다(PurchaseRequestStatusPage) — 제목을
      * 속성으로 받아 화면마다 갈아 끼우므로 파일에서 글자로 읽을 수가 없다.
@@ -4414,7 +6329,6 @@ console.log('\n■ 원본이 눌러서 여는 칸을 우리도 눌러 열 수 �
      */
     ['거래처별채권|기타할인등차액', '잔액에서 나머지로 뽑은 값이라 열어 볼 전표가 없다 — 셈의 결과지 전표가 아니다'],
     ['거래처별채무|기타할인등차액', '위와 같음'],
-    ['생산계획_MRP리스트|생성일자', '생성 팝업을 안 만든다'],
     ['회계미반영현황 (구매)|일자-No.', '전표는 구매조회에서 연다'],
     ['회계미반영현황(판매)|일자-No.', '전표는 판매조회에서 연다'],
     ['BOR(작업소요시간)|생산품목코드', '품목은 품목등록에서 연다 — BOR 은 작업 줄만 고친다'],
@@ -4488,25 +6402,39 @@ console.log('\n■ 원본이 고르게 하는 보기가 우리 화면에도 있�
      */
     ['거래처관리대장 II|거래처관계기준', '거래처등록 화면이라 합칠 잔액 자체가 없다'],
     ['거래처관리대장 II|개별거래처기준', '위와 같음'],
-    ['직접입력', '생산계획/MRP 생성 팝업을 안 만든다'],
+    ['직접입력', '기준품목은 [전체/직접입력] 대신 코드도움 하나로 고른다(비우면 전체) — 여러 품목을 골라 담는 목록은 없다'],
+    /*
+     * <b>설문조사현황(E070258) [진행] 전체·진행중·완료</b> — 사본 대조표에는 있는데 2026-10-03 원본을 열어 보니
+     * 조건 판에 없다(작성일 · 설문대상구분 · 설문종료일 · 제목 · 질문내용 · 작성자 · 게시글번호 · 적용양식 ·
+     * 정렬/소계기준 아홉뿐 — ecount-form-fields.json 도 아홉이다). 없는 조건을 만들지 않는다.
+     */
+    ['설문조사현황|진행중', '원본 조건 판에 [진행]이 없다(2026-10-03 실측, form-fields 아홉 칸과 같다)'],
+    ['설문조사현황|완료', '위와 같음 — 원본 조건 판에 [진행]이 없다'],
     ['수율차이', '공정별 투입·산출을 쌓지 않아 수율을 못 낸다'],
-    ['노무비배부액', '배부 자료(공정별 노무비)가 없다'],
-    ['경비배부액', '위와 같음'],
+    /*
+     * <b>[노무비배부액]·[경비배부액] 은 2026-09-09 에 만들었다</b> — 예외에서 뺐다.
+     * "배부 자료(공정별 노무비·경비)가 없다" 고 적어 두었는데 <b>진작 있었다</b>:
+     * ProcessExpense(노무비/경비등록)가 기준월·공정·창고별 총액을 들고,
+     * CostService.calcActual 이 그것을 표준 작업시간 비율로 품목에 배부해
+     * ItemCost.actualLabor·actualOverhead 에 넣고 있었다. 배부는 하고 있었고
+     * <b>보여 주지만 않았다.</b>
+     */
     ['사용자지정집계', '집계축을 사람이 정의하는 기능이 없다'],
-    ['선입선출(판매)', '입고 레이어를 남기지 않아 선입선출로 못 센다'],
-    ['입고단가(VAT포함)', '생산실적에 단가 칸이 없다'],
-    ['입고단가', '위와 같음'],
     /* 화면을 가려 적는다 — 등록 화면에는 실제로 있고, 조회 화면에만 없다. */
     /*
      * 사본의 보기 묶음을 다시 뽑으며 드러난 것들.
      * 거래처관리대장 I 의 [구분]은 원장을 <b>얼마나 잘게</b> 볼지다. 우리 움직임 표는
      * 기간을 통째로 한 줄(거래처마다)로 내므로 전표·일·월로 쪼갤 것이 없다.
      */
-    ['거래처관리대장 I|전표별', '원장을 전표·일·월 단위로 쪼개지 않는다 — 기간 합계를 거래처마다 한 줄로 낸다'],
-    ['거래처관리대장 I|전표별+내역', '위와 같음'],
-    ['거래처관리대장 I|일별', '위와 같음'],
-    ['거래처관리대장 I|월별', '위와 같음'],
-    ['거래처관리대장 I|회계전표별', '위와 같음 — 회계전표 단위 원장도 따로 두지 않는다'],
+    /*
+     * <b>[전표별]·[일별]·[월별]은 2026-09-10 에 만들었다.</b> 여기 있던 이유는
+     * "원장을 전표·일·월 단위로 쪼개지 않는다" 였는데, 그건 <b>기능이 없다</b>는 말이었지
+     * 값이 없다는 말이 아니었다 — 판매·구매·정산 전표가 일자와 전표번호와 금액을 다 들고
+     * 있었다. 남은 둘은 성질이 달라 <b>각자 이유를 들게</b> 했다. 묶음 이유는 이렇게
+     * 성질이 다른 것을 한 줄에 묶어 진짜 구멍을 가린다.
+     */
+    ['거래처관리대장 I|전표별+내역', '전표를 <b>줄(품목)까지</b> 펴는 자리다 — [전표별]은 만들었지만 줄까지 펴는 것은 원장 표에 품목 축을 하나 더 세우는 별개의 일이다'],
+    ['거래처관리대장 I|회계전표별', '회계전표 <b>단위</b> 원장은 따로 두지 않는다 — 축이 다르다(판매·구매·정산이 아니라 분개다). 통제계정을 움직인 회계전표는 [회계매출]·[수금합계] 안에 이미 들어 있다'],
     ['거래처관리대장 II|전체', '거래처등록 화면이라 채권·채무를 가르지 않는다'],
     ['거래처관리대장 II|채권', '위와 같음'], ['거래처관리대장 II|채무', '위와 같음'],
     ['설문조사조회|사용', '설문 머리말 사용여부는 등록 화면에서 정한다 — 조회 조건이 아니다'],
@@ -4628,14 +6556,8 @@ console.log('\n■ 원본 화면의 탭이 우리 화면에도 있나')
     ['발주서|미확인', '원본은 <b>결재·확인 흐름</b>의 탭이다 — 우리 전표에는 그 상태가 없다(작업지시·출하와 같은 이유)'],
     ['발주서|확인', '원본은 <b>결재·확인 흐름</b>의 탭이다 — 우리 전표에는 그 상태가 없다(작업지시·출하와 같은 이유)'],
     ['창고이동조회|전체', '원본은 <b>결재·확인 흐름</b>의 탭이다 — 우리 전표에는 그 상태가 없다(작업지시·출하와 같은 이유)'],
-    ['A/S접수|전체', '원본은 <b>결재·확인 흐름</b>의 탭이다 — 우리 전표에는 그 상태가 없다(작업지시·출하와 같은 이유)'],
     ['A/S접수|확인', '원본은 <b>결재·확인 흐름</b>의 탭이다 — 우리 전표에는 그 상태가 없다(작업지시·출하와 같은 이유)'],
-    ['A/S접수조회|전체', '원본은 <b>결재·확인 흐름</b>의 탭이다 — 우리 전표에는 그 상태가 없다(작업지시·출하와 같은 이유)'],
     ['A/S접수조회|확인', '원본은 <b>결재·확인 흐름</b>의 탭이다 — 우리 전표에는 그 상태가 없다(작업지시·출하와 같은 이유)'],
-    ['생산불출|전체', '원본은 <b>결재·확인 흐름</b>의 탭이다 — 우리 전표에는 그 상태가 없다(작업지시·출하와 같은 이유)'],
-    ['생산불출|결재중', '원본은 <b>결재·확인 흐름</b>의 탭이다 — 우리 전표에는 그 상태가 없다(작업지시·출하와 같은 이유)'],
-    ['생산불출|미확인', '원본은 <b>결재·확인 흐름</b>의 탭이다 — 우리 전표에는 그 상태가 없다(작업지시·출하와 같은 이유)'],
-    ['생산불출|확인', '원본은 <b>결재·확인 흐름</b>의 탭이다 — 우리 전표에는 그 상태가 없다(작업지시·출하와 같은 이유)'],
     ['창고이동조회|결재중', '원본은 <b>결재·확인 흐름</b>의 탭이다 — 우리 전표에는 그 상태가 없다(작업지시·출하와 같은 이유)'],
     ['창고이동조회|미확인', '원본은 <b>결재·확인 흐름</b>의 탭이다 — 우리 전표에는 그 상태가 없다(작업지시·출하와 같은 이유)'],
     ['창고이동조회|확인', '원본은 <b>결재·확인 흐름</b>의 탭이다 — 우리 전표에는 그 상태가 없다(작업지시·출하와 같은 이유)'],
@@ -4654,11 +6576,15 @@ console.log('\n■ 원본 화면의 탭이 우리 화면에도 있나')
      * 예전에는 이 탭이 '있다' 고 나왔는데, 조건에 있던 '전체' 라는 <b>안 거른다</b> 보기를
      * 탭으로 잘못 읽은 것이었다(이번에 검사를 고치며 드러났다).
      */
-    ['의료기기공급내역보고|전체', '미전송·전송을 함께 보는 탭이라, 그 둘이 없으면 뜻이 없다'],
-    ['의료기기공급내역보고|미전송', '<b>대외 전송을 하지 않는다</b> — 심평원 제출 채널·인증서가 없어 산출·보관·이력까지가 범위다(화면 주석에 적혀 있다)'],
-    ['의료기기공급내역보고|전송', '<b>대외 전송을 하지 않는다</b> — 심평원 제출 채널·인증서가 없어 산출·보관·이력까지가 범위다(화면 주석에 적혀 있다)'],
-    ['품목등록|원가', '표준원가(재료비·경비·노무비·외주비) 칸이 우리 품목에 없다 — 눌러도 빈 탭은 있는 것만 못하다'],
-    ['품목등록|부가정보', '원본의 [숫자형추가항목1~10] 자리다 — 우리 품목에 그 칸이 없다'],
+    /*
+     * <b>이 둘도 근거가 반쯤 거짓이었다.</b> '표준원가 넷이 다 없다' 고 적었는데
+     * <b>외주비는 있다</b> — <code>Item.subcontractPrice</code> 이고 [단가] 탭에
+     * <b>[외주비단가]</b> 로 이미 떠 있다. 없는 것은 재료비·노무비·경비 셋이다.
+     * '부가정보' 는 아예 방향이 틀렸다 — 값을 담을 자리가 <b>있다</b>(사용자정의필드).
+     * 발주서의 [추가문자형식1] 과 같은 모양이다: 고정 이름의 칸이 없을 뿐이다.
+     */
+    ['품목등록|원가', '표준원가 넷 중 셋(재료비·노무비·경비)이 우리 품목에 없다 — 외주비는 [단가] 탭의 [외주비단가]로 이미 있다. 하나 때문에 탭을 따로 두면 빈 탭이 된다'],
+    ['품목등록|부가정보', '값을 담을 자리는 있다 — 폼 아래 사용자정의 패널(entityType=ITEM)이 그것이다. 다만 우리 칸은 이름을 회사가 지어 붙이므로 원본처럼 [숫자형추가항목1] 이라는 이름의 탭으로 설 일이 없다'],
     /*
      * 출하 두 화면. 원본은 판매·구매와 같은 <b>확인 상태</b> 탭(결재중·미확인·확인)을
      * 출하에도 붙이는데, 우리 출하 전표에는 그 상태가 없다 — 생산 쪽과 같은 이유다.
@@ -4675,17 +6601,7 @@ console.log('\n■ 원본 화면의 탭이 우리 화면에도 있나')
       + ' <b>아래에 펴</b> 둔다 — 전표를 보면서 조정을 넣는 편이 오가지 않아도 된다'],
     ['소요시간계산|소요시간계산', '위와 같음 — 계산 화면 자신이다'],
     ['소요시간계산|내역', '계산한 것을 남겨 두지 않는다 — 물을 때마다 다시 센다'],
-    ['생산불출조회|결재중', '생산 전표를 전자결재에 올리지 않는다'],
-    ['생산불출조회|미확인', '생산 전표에 확인 상태가 없다(판매·구매에만 있다)'],
-    ['생산불출조회|확인', '위와 같음'], ['생산불출조회|전체', '가를 것이 없어 탭을 두지 않는다'],
-    ['생산입고조회|결재중', '위와 같음'], ['생산입고조회|미확인', '위와 같음'],
-    ['생산입고조회|확인', '위와 같음'], ['생산입고조회|전체', '위와 같음'],
-    ['작업지시서조회|결재중', '위와 같음'], ['작업지시서조회|미확인', '위와 같음'],
-    ['작업지시서조회|확인', '위와 같음'],
-    ['생산입고II-소모품목 선택|생산', '원본은 생산 격자와 소모 격자를 탭으로 가르지만 우리는 한 화면에 둔다'],
-    ['생산입고II-소모품목 선택|소모', '위와 같음'],
-    ['생산입고 III-소모품목 선택|생산', '위와 같음'],
-    ['생산입고 III-소모품목 선택|소모', '위와 같음'],
+    /* 생산불출조회·작업지시서조회의 진행상태 탭은 2026-10-02 에 만들었다(V225). */
   ])
   collectReasons(NO_TAB)
 
@@ -4790,31 +6706,30 @@ console.log('\n■ 코드도움 칸이 무엇을 고르는 자리인지 스스�
 console.log('\n■ 코드도움이 주는 값으로 화면이 실제로 거르나')
 
 /*
- * <b>고른 값과 거르는 값이 같은 종류여야 한다.</b> useCondPickers 의 창고·품목·
- * 프로젝트·담당자는 <b>이름</b>을 주는데 거래처만 <b>id</b> 를 줬다. 그래서 조회조건에서
- * 거래처를 고르면 <code>partnerName.includes('12')</code> 가 되어 <b>목록이 통째로 비었다</b> —
- * 고른 사람은 "그 거래처는 거래가 없구나" 로 읽는다. 일곱 화면이 그 상태였다.
+ * <b>고른 값과 거르는 값이 같은 종류여야 한다.</b> 예전엔 useCondPickers 가 창고·품목·
+ * 담당자는 <b>이름</b>을, 거래처만 <b>id</b> 를 줬다. 그래서 조회조건에서 거래처를 고르면
+ * <code>partnerName.includes('12')</code> 가 되어 <b>목록이 통째로 비었다</b> — 일곱 화면이 그 상태였다.
+ * 그 뒤 거래처를 이름으로 맞췄더니 이번엔 <b>이름이 겹치는 거래처·창고·품목이 한데 섞였다</b>
+ * (제조업에선 이름이 같고 규격만 다른 품목이 정상이다). 그래서 지금은 거꾸로
+ * <b>거래처·창고·품목·프로젝트는 id</b>, 담당자만 이름이다(사원 이름은 화면이 id 로 붙인다).
  *
  * <p>타입은 둘 다 string 이라 타입체크가 못 잡는다. 그래서 여기서 잡는다:
- * 코드도움이 주는 값이 이름인지, 그리고 화면이 그 값을 이름과 견주는지.
+ * 코드도움이 주는 값의 종류, 그리고 화면이 그 값을 같은 종류와 견주는지(1-p).
  */
 {
   const src = readFileSync(join('frontend', 'src', 'utils', 'useCondPickers.ts'), 'utf8')
   const bad = []
-  /*
-   * 각 목록이 무엇을 value 로 담는지 본다. 이름이어야 한다 —
-   * 화면들이 전부 '이름 부분일치' 로 거르기 때문이다.
-   */
-  for (const [name, want] of [['warehouses', 'w.name'], ['items', 'x.name'],
-    ['projects', 'p.name'], ['employees', 'e.name']]) {
-    const m = src.match(new RegExp(name + String.raw`:[\s\S]{0,400}?value: ([\w.]+)`))
-    if (m && m[1] !== want) bad.push(`${name} 의 value 가 ${m[1]} 이다 — 이름이어야 한다`)
+  for (const [name, want] of [['warehouses', 'String(w.id)'], ['items', 'String(x.id)'],
+    ['projects', 'String(p.id)'], ['employees', 'e.name']]) {
+    const m = src.match(new RegExp(name + String.raw`:[\s\S]{0,400}?value: ([\w.()]+)`))
+    if (m && m[1] !== want) bad.push(`${name} 의 value 가 ${m[1]} 이다 — ${want} 여야 한다`)
   }
-  // 거래처는 partnerCodeItems(값이 id) 를 쓰므로 이름으로 바꿔 담는지 본다
-  if (!/partners: partnerCodeItems\([\s\S]{0,120}?value: x\.name/.test(src)) {
-    bad.push('partners 의 value 가 이름이 아니다 — 거래처를 고르면 목록이 빈다')
+  // 거래처는 partnerCodeItem(값이 String(p.id)) 을 그대로 담아야 한다 — 이름으로 바꿔 담으면 안 된다
+  if (!/partners: r\.data\.map\(\(p\) => \(\{ \.\.\.partnerCodeItem\(p\)/.test(src)
+      || /partners:[\s\S]{0,200}?value: \w+\.name/.test(src)) {
+    bad.push('partners 의 value 가 id 가 아니다 — 이름이 겹치는 거래처가 한데 걸린다')
   }
-  eq('코드도움이 이름을 주고 화면이 이름으로 거른다', bad.join('\n') || '없음', '없음')
+  eq('코드도움이 id 를 주고(담당자만 이름) 화면이 같은 종류로 거른다', bad.join('\n') || '없음', '없음')
 }
 
 // ── 1-p) 코드도움이 주는 값 ↔ 화면이 거르는 값 (화면별) ──────────────────
@@ -4839,8 +6754,10 @@ console.log('\n■ 코드도움이 주는 값으로 그 화면이 거르나')
       const val = block.match(/value=\{([\w.]+)\}/)
       if (!val) continue
       const path = val[1]
-      const shared = /items=\{pickers\.\w+\}/.test(block)   // 공용 목록 = 이름
-      const byId = /value: String\(/.test(block)
+      // 공용 목록은 id — 담당자만 이름이다(1-o 참고)
+      const sharedById = /items=\{\w+\.(partners|warehouses|items|projects)\}/.test(block)
+      const shared = /items=\{\w+\.employees\}/.test(block)
+      const byId = /value: String\(/.test(block) || sharedById
       if (!byId && !shared) continue
       const lines = src.split('\n')
         .filter((l) => new RegExp(escRe(path) + '\\b').test(l) && /filter|includes|===/.test(l))
@@ -4854,6 +6771,64 @@ console.log('\n■ 코드도움이 주는 값으로 그 화면이 거르나')
     }
   }
   eq(`코드도움 ${checked}곳이 받은 값 그대로 거른다`, bad.join('\n') || '없음', '없음')
+}
+
+/*
+ * 1-p 는 '담는 값과 거르는 값이 같은 종류인가' 만 본다 — 화면이 직접 만든 목록이 이름을 담고 이름으로
+ * 거르면 둘이 맞아서 통과해 버린다. 9회차에 그런 곳이 9화면 15곳 남아 있었다(견적서조회 거래처는 부분일치였다).
+ * 거래처·품목·창고는 이름이 겹칠 수 있으므로 <b>목록이 이름을 담는 것 자체</b>를 막는다. 담당자는 이름이 맞다.
+ */
+{
+  const bad = []
+  for (const f of walk(join('frontend', 'src', 'pages')).filter((x) => x.endsWith('.tsx'))) {
+    const src = readFileSync(f, 'utf8')
+    for (const m of src.matchAll(/\b(partners|items|warehouses|customers|suppliers|products)\b[^=\n]*\.map\(\((\w+)\) => \(\{[^}\n]*value: \2\.name\b/g)) {
+      bad.push(`${f.split(sep).pop()}  ${m[1]} 코드도움이 이름을 담는다 — String(${m[2]}.id) 로`)
+    }
+  }
+  eq('거래처·품목·창고 코드도움은 이름이 아니라 id 를 담는다', bad.join('\n') || '없음', '없음')
+}
+
+/*
+ * 창(Modal) 안의 폼이 낸 오류가 창 <b>뒤</b>에 뜨면 안 보인다 — [저장]을 눌러도 아무 일도 안 일어나는 것처럼
+ * 보인다(15회차, 64화면이 그랬다). 화면에 error 상태가 있으면, 그 화면의 창은 error={error} 를 받거나
+ * 창 안에서 직접 {error && …} 를 그려야 한다.
+ */
+{
+  const bad = []
+  let checked = 0
+  for (const f of walk(join('frontend', 'src', 'pages')).filter((x) => x.endsWith('.tsx'))) {
+    const src = readFileSync(f, 'utf8')
+    if (!/const \[error, setError\]/.test(src)) continue
+    for (const m of src.matchAll(/<Modal\b[^>]*>/g)) {
+      checked++
+      const end = src.indexOf('</Modal>', m.index)
+      const body = src.slice(m.index, end > 0 ? end : undefined)
+      if (/\berror=\{/.test(m[0]) || /\{\s*error\s*&&/.test(body)) continue
+      // 그 창이 들어 있는 함수에 error 가 없으면(결과 보기 창 같은 하위 컴포넌트) 볼 것이 없다
+      const fnStart = src.lastIndexOf('function ', m.index)
+      if (fnStart >= 0 && !/\berror\b/.test(src.slice(fnStart, m.index))) continue
+      bad.push(`${f.split(sep).pop()}  ${src.slice(0, m.index).split('\n').length}행 — 창에 error={error} 가 없다`)
+    }
+  }
+  eq(`화면 오류가 창 ${checked}개 안에도 뜬다`, bad.join('\n') || '없음', '없음')
+}
+
+/*
+ * 마스터(품목·거래처·사원·프로젝트·작업지시 …)를 고르는 칸은 드롭다운이 아니라 코드도움이다.
+ * 드롭다운은 항목이 수백이면 찾을 수가 없다 — 4·9·17·21회차에 화면마다 따로 고치다 21회차에 한꺼번에 바꿨다.
+ * 창고는 수가 적어 아직 드롭다운을 허용한다(바꾸면 이 목록에서 뺄 것).
+ */
+{
+  const bad = []
+  const MASTER = /^(items|products|materials|partners|customers|suppliers|users|employees|members|projects|workOrders|orders|selectable)$/
+  for (const f of walk(join('frontend', 'src')).filter((x) => x.endsWith('.tsx'))) {
+    const src = readFileSync(f, 'utf8')
+    for (const m of src.matchAll(/<select\b[\s\S]{0,400}?\{\s*(\w+)(?:\.filter\([^)]*\))?\.map\(\((\w+)\)\s*=>\s*<option/g)) {
+      if (MASTER.test(m[1])) bad.push(`${f.split(sep).pop()}  ${src.slice(0, m.index).split('\n').length}행 — ${m[1]} 를 드롭다운으로 고른다`)
+    }
+  }
+  eq('마스터를 고르는 칸은 코드도움이다(창고 제외)', bad.join('\n') || '없음', '없음')
 }
 
 // ── 1-q) 고를 수는 있는데 아무 일도 안 하는 조건 ─────────────────────────
@@ -5006,9 +6981,32 @@ console.log('\n■ 원본이 조건으로도 두는 값을 우리는 거를 수 
        * 그 화면은 <code>&lt;div class="title"&gt;요일&lt;/div&gt;</code> 로 이름표를 그리는데,
        * EcCond 와 &lt;span&gt; 만 찾고 있어서 조건 다섯을 통째로 못 봤다.
        */
-      const asCond = new RegExp('EcCond[^>]{0,90}label=["\']' + n + '["\']|<span[^>]*>' + n
-        // 이름표 뒤에 오는 것이 칸 하나일 수도, <b>알약 묶음(div 안의 button)</b>일 수도 있다
-        + '</span>[^<]{0,4}<(input|select|CodePickerField|div[^>]{0,200}>[\\s\\S]{0,400}?<button)'
+      const asCond = new RegExp('EcCond[^>]{0,90}label=["\']' + n + '["\']'
+        /*
+         * <b>이름표를 갈래로 정하는 조건</b>도 본다 — <code>label={kind === 'X' ? 'A' : 'B'}</code>.
+         * 한 화면이 여러 원본 화면을 겸하면 같은 자리를 원본이 서로 다르게 부른다
+         * (기타이동현황의 [불량유형]·[사용유형]). 이걸 안 보면 <b>멀쩡히 거르는 조건</b>을
+         * "열로는 찍는데 거를 수 없다" 고 한다 — 실제로 그렇게 잡혀서 조건을 갈래마다
+         * 하나씩 베껴 두는 헛일을 할 뻔했다. 조건 이름 검사(labelSet)는 진작 이 꼴을 읽는다.
+         */
+        + '|EcCond[^>]{0,120}label=\\{[^}]{0,120}[\'"]' + n + '[\'"]'
+        /*
+         * <b>이름을 설정표나 기본값으로 넘기는 조건</b>도 본다 —
+         * <code>docNoLabel: '발주No.'</code> 를 두고 <code>&lt;EcCond label={docNoLabel}&gt;</code>
+         * 로 그리는 꼴이다(발주요청현황·발주계획현황·단가요청현황이 한 파일을 겸한다).
+         * 이름 검사(labelSet)는 진작 이 꼴을 읽는데 여기만 못 읽고 있었다.
+         */
+        + '|\\w*Label\\s*[:=]\\s*[\'"]' + n + '[\'"]'
+        + '|<span[^>]*>' + n
+        /*
+         * 이름표 뒤에 오는 것이 칸 하나일 수도, <b>알약 묶음(div 안의 button)</b>일 수도,
+         * <b>범위 두 칸을 감싼 span</b>(<code>a ~ b</code>)일 수도 있다.
+         * 마지막 꼴을 안 보고 있어서 집계표의 [수량]·[공급가액]·[부가세]를 "못 거른다" 고
+         * 말했다 — 화면은 멀쩡히 거르고 있었다. 감싼 span 안에 <b>input 이 곧 나올 때만</b>
+         * 센다(그냥 다음 span 을 다 받아 주면 아무 글자나 조건으로 세어진다).
+         */
+        + '</span>[^<]{0,4}<(input|select|CodePickerField|div[^>]{0,200}>[\\s\\S]{0,400}?<button'
+        + '|span[^>]{0,160}>[\\s\\S]{0,200}?<input)'
         + '|<div className="title">' + n + '</div>'
         + '|\\blabel\\(\\s*[\'"]' + n + '[\'"]'
         + '|<label[^>]*>' + n + '</label>'
@@ -5028,7 +7026,7 @@ console.log('\n■ 원본이 조건으로도 두는 값을 우리는 거를 수 
        * 등록 창 밖의 것만 조건으로 친다.
        */
       const asThLabel = [...noHead.matchAll(new RegExp(
-        '<th\\b[^>]*>' + n + '\\s*\\*?</th>|<CodePickerField[^>]{0,60}label="' + n + '"', 'g'))]
+        '<th\\b[^>]*>(?:' + n + '|\\{[^{}]*\'' + n + '\'[^{}]*\\})\\s*(?:<span[^>]*>\\*</span>)?\\s*\\*?</th>|<CodePickerField[^>]{0,60}label="' + n + '"', 'g'))]
         .some((m) => !inModal(flat, m.index) && !/hideLabel/.test(m[0]))
       if (!asCond.test(flat) && !asThLabel) bad.push(`${rel.split('/').pop()}  ${screen} [${n}] — 열로는 찍는데 거를 수 없다`)
     }
@@ -5166,6 +7164,12 @@ console.log('\n■ 표에 찍는 날짜가 원본 모양인가')
       if (/dateText|replace|dateNo|slice|format|toLocale/.test(L)) return
       for (const m of L.matchAll(/\{([A-Za-z0-9_.?\s]*[Dd]ate[A-Za-z0-9_]*)\s*(?:(?:\?\?|\|\|)\s*'[^']*')?\}/g)) {
         if (!/(date|Date)$/.test(m[1].trim())) continue
+        /*
+         * 속성값(value={quoteDate})은 화면에 찍는 글자가 아니다. 예전엔 이것도 걸어서,
+         * 누군가 이 검사를 넘기려고 <input type="date" value={dateText(…)}> 로 바꿨고 —
+         * 날짜 입력칸 30곳이 2026/07/16 을 못 알아듣고 빈칸으로 떴다(2026-10-01 발견).
+         */
+        if (L[m.index - 1] === '=') continue
         checked += 1
         bad.push(`${f.split(/[\\/]/).slice(-2).join('/')}:${i + 1}  ${m[0]}`)
       }
@@ -5425,6 +7429,7 @@ console.log('\n■ 수량·금액 칸이 음수를 그냥 받지 않나')
   const 예외 = {
     'CreateVacationRequest.days': '서비스가 0 초과인지도 보고 기간 일수보다 많은지도 본다(HrService.createVacation)',
     'CreateAssetRequest.declineRate': '정률법일 때만 뜻이 있다 — 그때만 0 초과를 본다(FixedAssetService)',
+    'CreateSettlementRequest.amount': '음수는 되돌린 돈(수금 − = 매출처 환불, 지급 − = 매입처 환급)이라 받는다 — 0 만 서비스가 막는다(SettlementService.create, 27회차)',
   }
   const 숫자 = /(BigDecimal|Integer|Long|int|long|Double|double)\s+(\w+)$/
   const 이름 = /(qty|quantity|price|amount|rate|cost|total|unit|stock|days|hours|count|weight|discount)/i
@@ -5518,7 +7523,7 @@ console.log('\n■ 글자 칸이 표 길이만큼만 받나')
   /* 1) 엔티티마다 글자 칸 길이 */
   const ent = new Map()
   for (const f of walk(join('backend', 'src', 'main', 'java'))) {
-    if (!f.endsWith('.java') || !f.includes('domain')) continue
+    if (!f.endsWith('.java')) continue
     const src = readFileSync(f, 'utf8')
     if (!/@Entity\b/.test(src)) continue
     const m2 = new Map()
@@ -5536,7 +7541,8 @@ console.log('\n■ 글자 칸이 표 길이만큼만 받나')
   for (const f of walk(join('backend', 'src', 'main', 'java'))) {
     if (!f.endsWith('.java') || !f.includes('dto')) continue
     const src = readFileSync(f, 'utf8')
-    const cands = [...src.matchAll(/import\s+com\.erp\.[\w.]*domain\.(\w+);/g)]
+    // 엔티티는 기능 패키지(com.erp.<모듈>.<기능>.X)에 있다 — 클래스 import 를 다 모아 엔티티만 남긴다.
+    const cands = [...src.matchAll(/import\s+com\.erp\.[\w.]*\.([A-Z]\w*);/g)]
       .map((m) => m[1]).filter((c) => ent.has(c))
     for (const m of src.matchAll(/record\s+(\w+Request)\s*\(([\s\S]*?)\)\s*\{/g)) {
       const parts = []
@@ -5699,6 +7705,34 @@ console.log('\n■ 화면코드 지도가 우리 화면 이름과 맞물리나')
  * <p>지도에 적힌 이름이 <b>우리가 아는 화면 이름</b>인지 본다. 절반 넘게 걸리면 뽑는 방식이
  * 어긋난 것이다 — 이름이 통째로 밀리거나 엉뚱한 h3 를 집은 경우가 그렇다.
  * 원본에만 있고 우리에겐 없는 화면도 많으므로 <b>모두 맞을 필요는 없다.</b>
+ *
+ * <p><b>2026-09-08 — 사본에서 뽑은 코드와 메뉴가 쓰는 코드는 다른 것이다.</b>
+ * 사본의 <code>data-ecpageid</code> 는 <b>양식의 내부 id</b>(ESZ001R·ESJ012R…)이고,
+ * 메뉴가 여는 주소의 <code>prgId</code> 는 따로 있다(E040701·E040414…).
+ * 단가변동표에서 <code>ESP021R_1459442235331∫header∫basic∫…</code> 로 직접 보았다.
+ * 이 지도의 약속은 <b>주소창의 prgId</b> 다 — 메뉴 트리의 &lt;a href&gt; 에서 긁어
+ * 173쌍을 받아 채웠고, 같은 이름에 사본 내부 id 가 함께 남아 있던 열셋을 지웠다.
+ *
+ * <p><b>2026-09-08 (그날 늦게) — C 코드는 화면이 아니라 <u>메뉴 그룹</u> 이었다.</b>
+ * 여기 "조회 화면이라고 다 C 코드인 것은 아니다" 라며 판매조회 C000030 ·
+ * 생산입고조회 C000032 · 창고이동조회 C000033 · 발주서조회 C000077 ·
+ * 출하지시서조회 C000120 을 세어 두었는데, <b>다섯 다 틀렸다.</b>
+ * 메뉴 트리를 통째로 긁어 보니 C000030=영업관리 · C000032=생산/외주 ·
+ * C000033=기타이동 · C000120=출하지시서 · C000091=A/S관리 — 전부 <b>그룹 노드</b>다.
+ *
+ * <p>왜 그렇게 읽혔나: <b>그룹을 누르면 그 그룹의 첫 화면이 열리는데 주소창의
+ * prgId 는 그룹 코드 그대로 남는다.</b> 그래서 화면을 제대로 열어 놓고도 코드는
+ * 그룹 것을 적게 된다 — 재는 것은 맞았고 이름표만 틀린 셈이다.
+ * 실제 화면 코드는 판매조회 E040206 · 생산입고조회 E040408 · 창고이동조회 E040502 ·
+ * 발주서조회 E040302 · 출하지시서조회 E040221 · A/S접수조회 E040602 다.
+ * <b>화면 코드는 E 로 시작한다</b>(생산불출조회 E040405 도 처음부터 그랬다).
+ *
+ * <p>그래서 코드를 읽을 때는 <b>그 화면의 메뉴 링크(&lt;a href&gt;)에서</b> 읽는다 —
+ * 그룹을 눌러 열린 주소창을 읽으면 그룹 코드가 잡힌다. 이번에 네 모듈의 링크를
+ * 긁어 122쌍을 채우고, 그룹이 화면 이름을 달고 앉아 있던 다섯 줄을 지웠다.
+ * 덤으로 두 자리가 잘못 적혀 있던 것도 드러났다 — E040302 는 구매조회가 아니라
+ * <b>발주서조회</b>(구매조회는 E040304), E040419 는 생산입고조회가 아니라
+ * <b>외주비할인현황</b> 이다.
  */
 {
   const codes = JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-screen-codes.json'), 'utf8'))
@@ -5712,11 +7746,413 @@ console.log('\n■ 화면코드 지도가 우리 화면 이름과 맞물리나')
   /* 코드 모양이 성한지 — 영문 대문자·숫자로 된 프로그램 id 여야 한다. */
   const 이상한코드 = 짝.filter(([c]) => !/^[A-Z][A-Z0-9_]{2,}$/.test(c)).map(([c]) => c)
   eq('지도의 코드가 프로그램 id 모양이다', 이상한코드.join(', ') || '없음', '없음')
-  eq(`지도 ${짝.length}쌍 중 우리가 아는 이름이 절반은 넘는다 (지금 ${걸린것.length}쌍)`,
-    걸린것.length * 2 > 짝.length, true)
+  /*
+   * <b>2026-09-09 — '절반은 넘는다' 를 버렸다.</b> 그때까지 지도는 <b>우리가 만든 화면</b>만
+   * 담고 있어서 그 비율이 뜻이 있었다(엉뚱한 값이 잔뜩 들어오면 비율이 무너진다).
+   * 그날 원본의 <b>사이트맵</b>을 한 번 눌러 메뉴 링크 561개를 통째로 긁었고 —
+   * 그때까지 열 몇 번을 메뉴 하나씩 눌러 가며 모으던 것이다 — 지도가
+   * <b>이카운트 전체 메뉴</b>가 되었다(370→658쌍). 우리가 안 만든 화면이 더 많으니
+   * 비율은 당연히 절반 아래로 내려간다. 그건 지도가 망가진 것이 아니라 <b>넓어진 것</b>이다.
+   *
+   * <p>대신 <b>방향을 뒤집어</b> 잰다 — 우리가 만든 화면이 지도에 다 걸려 있나.
+   * 이쪽이 애초에 이 검사가 막고 싶던 것이다(이름을 고쳤는데 지도를 안 고치는 일).
+   */
+  const 지도이름 = new Set(Object.values(codes))
+  const 지도에없는우리화면 = [...우리이름].filter((n) => !지도이름.has(n))
+  eq(`지도 ${짝.length}쌍에 우리 화면 이름이 걸려 있다 (${걸린것.length}쌍이 우리 것)`,
+    지도에없는우리화면.length <= 우리이름.size / 2, true)
   /* 뒤바꿔 읽었던 그 둘은 못 박아 둔다. */
   eq('ESD006M 은 판매입력이다', codes.ESD006M, '판매입력')
   eq('ESD066M 은 판매입력 II 다', codes.ESD066M, '판매입력 II')
+}
+
+// ── 1-p) 화면을 열자마자 전 기간을 받는 자리 ──────────────────────────────
+console.log('\n■ 화면을 열 때 기간 기본값이 있나')
+
+/*
+ * <b>기간 칸이 있는데 기본값이 비어 있으면, 화면을 여는 순간 전 기간이 내려온다.</b>
+ * 서버는 기간을 받을 줄 아는데 화면이 빈 값을 보내니 아무것도 안 걸러지는 것이다.
+ *
+ * <p>2026-09-10 에 브라우저로 재 보고 찾았다 — 정적 검사도 qa 하네스도 이걸 못 본다.
+ * 응답은 200이고 화면은 멀쩡히 그려지기 때문이다. 그날 잰 값:
+ * 빠른전표 5,158KB · 어음·기타 3,746KB · 수표 2,383KB · 계약 2,334KB ·
+ * 현금거래 1,866KB · 미출하현황 1,328KB · 출하조회 1,075KB · 단계별재고조정 790KB.
+ * (MyPage 는 다른 꼴이었다 — 여섯 줄을 그리려고 4.6MB 를 받고 있었다.)
+ *
+ * <p><b>기본값을 두면 안 되는 화면도 있다.</b> 자산대장은 취득일로 거르고 위에서
+ * [사용중 건수·취득가액]을 더하므로 금월로 열면 <b>가진 자산이 사라진 것처럼</b> 보이고,
+ * 미출하현황은 <b>지난달에 받아 아직 못 보낸 주문</b>이 핵심이다. 그런 자리는 목록에
+ * 이유와 함께 올린다 — 안 적으면 다음 사람이 또 재고 또 판단해야 한다.
+ */
+{
+/*
+ * <b>받아 놓고 안 쓰는 조건은 조용히 거짓말을 한다.</b>
+ *
+ * <p>컨트롤러가 <code>@RequestParam</code> 을 선언해 두고 본문에서 안 쓰면, 화면은
+ * 좁힌 줄 알고 전 기간을 본다 — <b>400도 안 나고 200에 자료도 그럴듯해서</b> 아무도 모른다.
+ *
+ * <p>2026-09-10 에 발주 목록에서 그 꼴을 하나 잡았다 — 상태를 주면 기간이 버려졌다.
+ * 다만 그건 파라미터를 <b>쓰긴 쓰되 한쪽 갈래에서만</b> 쓴 것이라 이 검사로는 안 잡힌다.
+ * 그 모양(<code>x != null ? f(x) : g(y, z)</code>)을 잡는 규칙도 재 봤는데
+ * <b>저장소에 그런 갈림길이 하나도 없어</b> 아무것도 안 재는 검사가 되므로 만들지 않았다.
+ * 여기서는 <b>아예 안 쓰는 것</b>만 본다 — 지금 쉰여덟 자리를 실제로 센다.
+ */
+{
+  const METHOD = /@(?:Get|Post|Put|Delete|Patch)Mapping[\s\S]{0,300}?public\s+[\w.<>,\[\] ?]+\s+(\w+)\s*\(([\s\S]{0,1200}?)\)\s*\{([\s\S]{0,2000}?)\n    \}/g
+  const PARAM = /@RequestParam(?:\([^)]*\))?\s*(?:@\w+(?:\([^)]*\))?\s*)*[\w.<>,\[\] ?]+\s+(\w+)\s*(?:,|$)/g
+  const bad = []
+  let checked = 0
+  for (const f of walk(join('backend', 'src', 'main', 'java'))) {
+    if (!f.endsWith('Controller.java')) continue
+    const src = readFileSync(f, 'utf8')
+    for (const m of src.matchAll(METHOD)) {
+      const params = [...m[2].matchAll(PARAM)].map((x) => x[1])
+      /* 하나만 받는 자리는 갈래가 없다 — 안 쓰면 그건 딴 이야기다. */
+      if (params.length < 2) continue
+      checked += 1
+      const unused = params.filter((p) => !new RegExp('\\b' + p + '\\b').test(m[3]))
+      if (unused.length > 0) {
+        bad.push(`${f.split(sep).pop()}  ${m[1]}(…) — 받아 놓고 안 쓰는 조건: ${unused.join(', ')}`)
+      }
+    }
+  }
+  eq(`조건을 둘 이상 받는 자리 ${checked}곳이 다 그것을 쓴다`, bad.join(String.fromCharCode(10)) || '없음', '없음')
+}
+
+/*
+ * <b>화면은 [기간]을 묻는데 서버에는 안 보내는 자리.</b>
+ *
+ * <p>서버가 <code>LocalDate from</code> 을 받을 줄 아는 경로를, 기간 조건을 그리는 화면이
+ * <code>params</code> 없이 부르면 <b>전 기간이 통째로 내려온다</b>. 그리고 화면이
+ * 브라우저에서 다시 거른다 — 숫자는 맞지만 받는 것은 전부다. 응답은 200이고 표도
+ * 멀쩡해서 <b>정적 검사도 qa 하네스도 이걸 못 본다.</b>
+ *
+ * <p>2026-09-10 에 처음 세었더니 <b>쉰아홉 자리</b>였다. 한 판에 다 고칠 수 없으니
+ * <b>수를 못 박아 늘지만 않게</b> 한다(재고수불부·무증거 이유와 같은 방식).
+ * 줄이는 것은 언제든 좋다 — 줄이면 이 수도 같이 내린다.
+ *
+ * <p><b>기본값을 주는 것과는 다른 일이다.</b> 여기서 잡는 것은 "고른 기간을 안 보낸다" 이고,
+ * 빈 기간으로 여는 것은 위 open-with-all-period 검사가 따로 본다. 한 화면이 둘 다인
+ * 경우도 있다(거래이력조회가 그랬다).
+ */
+{
+  const cap = JSON.parse(readFileSync(join('qa', 'fixtures', 'period-not-sent.json'), 'utf8'))
+  const takes = new Set()
+  for (const f of walk(join('backend', 'src', 'main', 'java'))) {
+    if (!f.endsWith('Controller.java')) continue
+    const src = readFileSync(f, 'utf8')
+    const base = (src.match(/@RequestMapping\("([^"]+)"/) || [])[1] || ''
+    for (const m of src.matchAll(/@GetMapping(?:\((?:value\s*=\s*)?"([^"]*)"\))?([\s\S]{0,900}?)\{/g)) {
+      const sub = m[1] ?? ''
+      if (sub.includes('{')) continue
+      if (/LocalDate\s+from/.test(m[2])) takes.add((base + sub).replace('/api', ''))
+    }
+  }
+  const hits = new Set()
+  /*
+   * <b>화면은 기간을 묻는데, 그 자리에 걸 기간이 아닌 것</b>도 있다. 위 "안 묻는 화면" 은
+   * 파일째 빼는 것이라 여기엔 못 쓴다 — 재고잔량분석표는 [기준일]을 <b>묻고</b> /stock 에는
+   * 제대로 보낸다. 같은 화면의 <b>한 자리</b>만 성격이 다르다(/sales-orders/unsold 의
+   * from·to 는 수주일로 거른다). 그래서 자리 단위로 이름과 이유를 적어 뺀다.
+   */
+  const 안걸리는자리 = cap['기간이 안 걸리는 자리'] ?? {}
+  const 든자리 = new Set()
+  for (const f of walk(join('frontend', 'src'))) {
+    if (!f.endsWith('.tsx') && !f.endsWith('.ts')) continue
+    const rel = f.split(sep).join('/').split('frontend/src/')[1]
+    const src = readFileSync(f, 'utf8')
+    /*
+     * 기간을 <b>묻는</b> 화면만 본다 — 안 묻는 화면이 전부 받는 것은 딴 이야기다.
+     *
+     * <p>이 잣대는 <b>느슨하다</b>: 파일에 periodOf·EcPeriodPicks 가 보이면 묻는다고 친다.
+     * 그래서 <b>폼에 날짜를 적는 화면</b>(수주서입력의 [수주일] 등)까지 걸린다.
+     * 조여 보았더니 이번엔 <b>연도로 묻는 화면</b>(월별채권채무·현황누계표)이 빠져
+     * 더 나빴다 — 그건 안 보는 쪽이 위험하다. 그래서 느슨하게 두고
+     * <b>안 묻는 화면은 이름과 이유로 적어 뺀다.</b>
+     */
+    if (cap['안 묻는 화면']?.[rel]) continue
+    if (!/periodOf\(|EcPeriodPicks|const \[from, setFrom\]|dateLabel=/.test(src)) continue
+    for (const m of src.matchAll(/api\.get<[^>]*>\(\s*'([^']+)'\s*([,)])/g)) {
+      if (m[2] === ',') continue
+      const path = m[1].split('?')[0]
+      if (!takes.has(path)) continue
+      const key = `${rel}  ${path}`
+      if (안걸리는자리[key]) { 든자리.add(key); continue }
+      hits.add(key)
+    }
+  }
+  eq(`고른 기간을 서버에 안 보내는 자리가 ${cap.gap}곳을 넘지 않는다 (지금 ${hits.size}곳)`,
+    hits.size <= cap.gap ? '없음'
+      : `${hits.size - cap.gap}곳 늘었다 — 그 기간을 서버에도 보내거나, 이 수를 올리며 왜인지 커밋에 적으세요`,
+    '없음')
+  /*
+   * <b>빼 둔 것이 아직 그 자리에 있나.</b> 없는 자리에 이유를 적어 두면 그 줄은 아무것도
+   * 안 지키면서 수만 깎는다 — open-with-all-period 에서 같은 반대 방향 못을 이미 박았다.
+   */
+  eq(`기간이 안 걸린다고 적어 둔 자리 ${Object.keys(안걸리는자리).length}곳이 다 실제로 그렇다`,
+    Object.keys(안걸리는자리).filter((k) => !든자리.has(k)).join(', ') || '없음', '없음')
+  /*
+   * "안 묻는 화면" 도 마찬가지다. 화면이 기간을 묻게 바뀌거나 파일이 사라지면
+   * 그 줄은 <b>조용히 한 자리를 가린다</b>.
+   */
+  const 사라진화면 = Object.keys(cap['안 묻는 화면'] ?? {}).filter((rel) => {
+    const p = join('frontend', 'src', ...rel.split('/'))
+    return !existsSync(p) || !/periodOf\(|EcPeriodPicks|const \[from, setFrom\]|dateLabel=/
+      .test(readFileSync(p, 'utf8'))
+  })
+  eq('기간을 안 묻는다고 적어 둔 화면이 다 실제로 그렇다', 사라진화면.join(', ') || '없음', '없음')
+}
+
+/*
+ * <b>표에서 조용히 줄을 버리지 않는다.</b>
+ *
+ * <p>브라우저는 표 한 장에 몇만 줄을 깔면 멈춘다 — 원가집계표 [감소내역]이 63,486줄을
+ * 한 번에 그려 <b>탭이 얼어붙었다</b>(2026-09-10 실측). 그래서 자르는 것은 맞다.
+ * 문제는 <b>말없이</b> 자르는 것이다: 이 저장소에 <code>slice(0, 300)</code> 로 그냥 버리는
+ * 화면이 셋 있었다(공정별재공·오더관리진행단계·결제내역자료비교). 자른 줄 모르면
+ * 사람은 <b>표에 보이는 것이 전부</b>라고 읽는다 — 회계전표조회가 서버에서 자를 때
+ * "몇 중 몇" 을 반드시 적는 것과 같은 규칙이 화면 쪽에도 있어야 한다.
+ *
+ * <p>그리는 자리에서 <code>.slice(0, N)</code> 을 쓰면 그 파일에 <code>EcRowCap</code> 이
+ * 함께 있어야 한다. 상한을 두는 것은 좋다 — 안 적는 것이 문제다.
+ */
+{
+  const bad = []
+  let checked = 0
+  for (const f of walk(join('frontend', 'src', 'pages'))) {
+    if (!f.endsWith('.tsx')) continue
+    const rel = f.split(sep).join('/').split('frontend/src/pages/')[1]
+    const src = readFileSync(f, 'utf8')
+    /*
+     * <b>두 꼴을 다 센다.</b> 옛 꼴(<code>.slice(0, N).map(</code>)만 세게 두었더니,
+     * 그 자리를 <code>capRows</code> 로 다 옮긴 순간 <b>세는 것이 0이 되었다</b> —
+     * 통과했다고 안심하는데 실은 아무것도 안 재는 검사가 된다(이 저장소가 여러 번
+     * 데인 함정이다). 그래서 <b>자르는 두 길</b>을 함께 본다.
+     */
+    const ways = [
+      ...src.matchAll(/\.slice\(\s*0\s*,\s*(\d{2,})\s*\)\s*\.map\(/g),
+      ...src.matchAll(/capRows\(\s*[\w.]+\s*(?:,\s*(\d+)\s*)?\)/g),
+    ]
+    for (const m of ways) {
+      checked += 1
+      if (!src.includes('EcRowCap capped') && !src.includes('<EcRowCap')) {
+        bad.push(`${rel} — 표에 앞 ${m[1] ?? '몇'}줄만 그리면서 그 사실을 안 적는다. components/EcRowCap 을 쓰세요`)
+      }
+    }
+  }
+  eq(`표를 앞줄만 그리는 자리 ${checked}곳이 다 그 사실을 적는다`, bad.join(String.fromCharCode(10)) || '없음', '없음')
+}
+
+  const OPEN_ALL = JSON.parse(readFileSync(join('qa', 'fixtures', 'open-with-all-period.json'), 'utf8'))
+  const bad = []
+  let checked = 0
+  for (const f of walk(join('frontend', 'src', 'pages'))) {
+    if (!f.endsWith('.tsx')) continue
+    const rel = f.split(sep).join('/').split('frontend/src/pages/')[1]
+    const src = readFileSync(f, 'utf8')
+    /*
+     * <b>기간을 담는 꼴이 하나가 아니다.</b> 처음에는 <code>from: x || undefined</code> 만
+     * 봤는데, 어음관리는 <code>if (pFrom) params.from = pFrom</code> 으로 담는다 —
+     * 같은 일을 하는데 검사가 <b>못 보고 지나갔다</b>(2026-09-10 에 브라우저로 재다가 찾았다.
+     * 어음 5,000장 6,558KB). 지각현황·출퇴근통합도 같은 꼴로 숨어 있었다.
+     */
+    for (const m of src.matchAll(/from:\s*([\w.]+)\s*\|\|\s*undefined|params\.from\s*=\s*([\w.]+)/g)) {
+      const id = m[1] ?? m[2]
+      const Q = String.fromCharCode(39)
+      /* 그 기간 상태의 초기값이 빈 글자인가 */
+      const empty = id.includes('.')
+        /*
+         * 객체에 담은 기간(cond.from)은 <b>from 과 to 가 함께 빈</b> 초기값만 본다 —
+         * 파일 어딘가의 from: '' 하나만 보면 다시 작성 단추의 초기화 객체까지 걸린다.
+         */
+        ? new RegExp('from:\\s*' + Q + Q + ',\\s*to:\\s*' + Q + Q).test(src)
+        : new RegExp('const \\[' + id + '[,\\]][^=]*=\\s*useState\\(\\s*' + Q + Q + '\\s*\\)').test(src)
+      if (!empty) continue
+      checked += 1
+      if (!OPEN_ALL[rel]) bad.push(`${rel} [${id}] — 기간 기본값이 비어 열자마자 전 기간을 받는다. 기본값을 주거나, 그러면 안 되는 화면이면 open-with-all-period.json 에 왜인지 적으세요`)
+    }
+  }
+  /* 없는 자리에 이유를 적어 두면 그 줄은 아무것도 안 지킨다 — 반대로도 건다. */
+  const ghosts = Object.keys(OPEN_ALL).filter((rel) => {
+    const src = pageSource(rel)
+    return !src || !/from:\s*[\w.]+\s*\|\|\s*undefined|params\.from\s*=\s*[\w.]+/.test(src)
+  })
+  eq(`기간을 안 주고 여는 화면 ${checked}개가 다 이유를 들고 있다`, bad.join(String.fromCharCode(10)) || '없음', '없음')
+  eq('적어 둔 화면이 다 실제로 그렇다', ghosts.join(', ') || '없음', '없음')
+}
+// ── 1-q') 화면→파일 지도가 둘인데 서로 어긋나지 않나 ─────────────────────
+console.log('\n■ 화면이 어느 파일인지 두 지도가 같게 말하나')
+
+/*
+ * <b>같은 것을 두 곳에 적어 두면 갈라진다.</b> 화면 이름 → 우리 파일 지도가 둘이다 —
+ * <code>.ordermap.json</code> 과, 기본값 검사들이 안에 손으로 들고 있는 <code>FILE_OF</code>.
+ *
+ * <p>2026-09-10 에 맞대 보니 <b>넷이 어긋나 있었다</b>. 셋은 FILE_OF 가 틀렸다 —
+ * 판매할인현황·외주비할인현황·지급현황을 <b>감싸인 쪽 파일</b>로 적어 두어,
+ * 기간 기본값 검사가 <b>사용자가 여는 파일이 아닌 것</b>을 재고 있었다. 라우트가 심판이다
+ * (/sales/sales-discount · /sales/outsourcing-discount · /sales/payment).
+ * 바로잡고 나니 그 검사가 셋을 못 찾는다고 했고, 그건 감싸개를 안 따라가서였다 —
+ * pageSource 로 바꾸니 통과했다. <b>지도가 틀리면 검사는 조용히 딴 것을 잰다.</b>
+ *
+ * <p>남은 하나(거래처관리대장 I)는 <b>아직 못 가렸다</b> — 우리 화면 둘이 다 대장 꼴이라
+ * 어느 쪽이 원본 [거래처관리대장 I] 인지 원본을 열어 봐야 한다. 이유와 함께 예외로 둔다.
+ */
+{
+  const src = readFileSync(join('qa', 'ui-check.mjs'), 'utf8')
+  const OM = new Map(JSON.parse(readFileSync(join('qa', 'fixtures', '.ordermap.json'), 'utf8')))
+
+  /** 아직 못 가린 짝 — 왜인지 적는다. */
+  const UNSETTLED = new Map([
+    ['거래처관리대장 I', '우리 화면 둘(LedgerPage·PartnerLedgerPage)이 다 대장 꼴이라 어느 쪽이 원본 [거래처관리대장 I] 인지 못 가렸다. 원본을 열 때 가린다'],
+  ])
+
+  const bad = []
+  let checked = 0
+  for (const m of src.matchAll(/const FILE_OF = new Map\(\[([\s\S]*?)\n {2}\]\)/g)) {
+    for (const e of m[1].matchAll(/\['([^']+)',\s*'([^']+)'\]/g)) {
+      const [, screen, rel] = e
+      if (!OM.has(screen)) { bad.push(`${screen} — FILE_OF 에는 있는데 .ordermap 에 없다`); continue }
+      checked += 1
+      if (OM.get(screen) === rel) continue
+      if (UNSETTLED.has(screen)) continue
+      bad.push(`${screen} — FILE_OF [${rel}] · .ordermap [${OM.get(screen)}]`)
+    }
+  }
+  eq(`두 지도가 겹쳐 든 화면 ${checked}개를 같게 말한다`, bad.join(String.fromCharCode(10)) || '없음', '없음')
+}
+// ── 1-r) 원본에 없는데 우리가 그리는 조건 ────────────────────────────────
+console.log('\n■ 원본에 없는 조건을 우리가 만들지 않았나')
+
+/*
+ * <b>대조는 지금까지 한 방향만 재고 있었다.</b> "원본에 있는데 우리에게 없는 것" 은
+ * 열도 조건도 세고 있었는데, <b>우리가 원본에 없는 것을 만든</b> 자리는 아무도 안 봤다 —
+ * 조건 차례 검사(2-p)는 우리에 없는 조건을 건너뛸 뿐이고, 더 그린 조건은 볼 자리가 없다.
+ *
+ * <p>그래서 채권/채무현황 [데이터 보기형식]은 <b>사람 눈에 우연히</b> 걸렸다. 2026-09-10 에
+ * 이 방향을 처음 재 보니 서른일곱이 나왔고, 그중 BOR 은 <b>셸이 그리는 검색 상자와 같은
+ * 상태를 조건 줄로 한 번 더 그려</b> 같은 칸이 화면에 두 번 서 있었다.
+ *
+ * <p>우리 칸을 두는 것 자체는 잘못이 아니다 — 원본에 없어도 우리 업무에 필요한 칸이 있다.
+ * <b>왜 두는지 적혀 있지 않은 것</b>이 문제다. 그래서 목록(our-own-conditions.json)에
+ * 이유와 함께 올리게 한다. 새 조건을 원본 대조 없이 슬쩍 늘리면 여기서 걸린다.
+ *
+ * <p><b>같은 것을 열에는 안 건다 — 2026-09-10 에 재 보고 접었다.</b>
+ * 조건은 대조표(ecount-form-fields)가 <b>원본 조건을 다 담은 목록</b>이라 이 방향이 성립한다.
+ * 열은 그렇지 않다 — 정렬 대조표는 <b>잰 열만</b> 담고(견적서현황의 [견적일]조차 없다),
+ * 폭 대조표는 54화면만 있다. 폭 대조표로 재 보니 우리 열 273개가 걸렸고,
+ * 표를 <b>가장 많이 맞는 것 하나</b>로 좁혀도 215개였다. 그 대부분은
+ * [처리]·[관리]·[담당자]·[적요] 처럼 <b>우리가 일부러 더 두는 열</b>이다.
+ * 이유를 215줄 적게 하면 <b>검사만 늘고 재는 것은 없다</b> — 이 저장소가 이미 경고한 함정이다.
+ * 열은 화면을 열어 격자를 잴 때 <b>그 화면 안에서</b> 가리는 편이 낫다.
+ * * <p>한 파일이 원본 여러 화면을 겸하면 <b>그 화면들의 조건을 합쳐</b> 허용 집합으로 둔다 —
+ * 겸하는 쪽에만 있는 칸을 "우리가 만든 것" 으로 잘못 세지 않기 위해서다.
+ */
+{
+  const cap = JSON.parse(readFileSync(join('qa', 'fixtures', 'ecount-form-fields.json'), 'utf8'))
+  const mine = JSON.parse(readFileSync(join('qa', 'fixtures', 'our-own-conditions.json'), 'utf8'))
+  const MAP = new Map(JSON.parse(readFileSync(join('qa', 'fixtures', '.ordermap.json'), 'utf8')))
+
+  /* 파일 → 그 파일이 겸하는 원본 화면들 */
+  const byFile = new Map()
+  for (const [screen, rel] of MAP) {
+    if (!rel) continue
+    if (!byFile.has(rel)) byFile.set(rel, [])
+    byFile.get(rel).push(screen)
+  }
+
+  const bad = []
+  const seenFile = new Set()
+  let checked = 0
+  for (const screen of Object.keys(cap)) {
+    const rel = MAP.get(screen)
+    if (!rel || seenFile.has(rel) || PENDING.has(screen)) continue
+    const src = pageSource(rel)
+    if (!src) continue
+    seenFile.add(rel)
+    const allowed = new Set()
+    for (const s of byFile.get(rel) ?? [screen]) for (const f of cap[s] ?? []) allowed.add(f)
+    for (const m of new Set([...src.matchAll(/<EcCond label="([^"]+)"/g)].map((x) => x[1]))) {
+      if (allowed.has(m)) continue
+      checked += 1
+      if (!mine[`${screen}|${m}`]) bad.push(`${screen} [${m}] — 원본 조건표에 없다. 우리 칸이면 왜 두는지 our-own-conditions.json 에 적으세요`)
+    }
+  }
+
+  /* 없는 자리에 이유를 적어 두면 그 줄은 영원히 아무것도 안 지킨다 — 반대로도 건다. */
+  const ghosts = Object.keys(mine).filter((k) => !k.startsWith('_'))
+    .filter((k) => {
+      const [screen, name] = k.split('|')
+      const rel = MAP.get(screen)
+      const src = rel ? pageSource(rel) : null
+      return !src || !src.includes(`<EcCond label="${name}"`)
+    })
+
+  eq(`우리가 더 둔 조건 ${checked}개가 다 이유를 들고 있다`, bad.join(String.fromCharCode(10)) || '없음', '없음')
+  eq(`적어 둔 우리 조건 ${ghosts.length ? '' : Object.keys(mine).length - 1 + '개가 '}다 실제로 그려진다`,
+    ghosts.join(', ') || '없음', '없음')
+}
+// ── 1-r') 날짜 입력칸에 화면용 날짜를 넣는 자리 ──────────────────────────
+console.log('\n■ 날짜 입력칸이 기본 날짜를 그리나')
+
+/*
+ * <b>&lt;input type="date"&gt; 의 value 는 2026-07-16 꼴이라야 한다.</b> dateText() 는 화면에
+ * 찍는 2026/07/16 을 만든다 — 그걸 넣으면 브라우저가 못 알아듣고 <b>빈칸(연도-월-일)</b>으로 그린다.
+ * 저장하면 서버가 오늘로 채워 넣어 아무 오류도 안 나서, 견적서·발주서·수주·프로젝트 등 22개 화면
+ * 30칸이 기본 날짜를 안 보여 주고 있었다(2026-10-01, 유저처럼 써 보다 발견).
+ */
+{
+  const bad = []
+  for (const f of walk(join('frontend', 'src')).filter((x) => x.endsWith('.tsx'))) {
+    const src = readFileSync(f, 'utf8')
+    for (const el of src.match(/<input\b[\s\S]*?\/>/g) ?? []) {
+      if (/type="date"/.test(el) && /value=\{dateText\(/.test(el)) bad.push(f.split(sep).pop())
+    }
+  }
+  eq('날짜 입력칸 value 에 dateText 를 안 쓴다', [...new Set(bad)].join(', ') || '없음', '없음')
+}
+
+// ── 1-s) 고정 이름을 표현식에 담은 머리 ──────────────────────────────────
+console.log('\n■ 머리에 적힌 이름을 검사가 읽을 수 있나')
+
+/*
+ * <b>글자로 적으면 될 이름을 표현식에 담으면 검사가 그 열을 못 본다.</b>
+ *
+ * <p>열 이름을 찾는 자리(thFor)는 세 꼴만 읽는다 — 글자 그대로,
+ * <code>&lt;th&gt;{'{'}…'이름'…{'}'}&lt;/th&gt;</code>, 그리고 거기에 정렬표시 식이 하나 더
+ * 붙은 것. <b>표현식 뒤에 글자가 더 붙으면 못 읽는다.</b>
+ *
+ * <p>2026-09-10 에 월별이익현황이 그랬다 — 원본이 <b>두 칸</b>으로 두는 [이익]·[이익율]을
+ * 한 칸에 <code>{'{'}'이익'{'}'} ({'{'}'이익율'{'}'})</code> 로 합쳐 그려 놓아서,
+ * 정렬 대조표에 [이익율]=우 가 진작 적혀 있었는데도 <b>맞춰 볼 머리가 없어</b>
+ * 두 열이 통째로 검사 밖에 있었다. 검사는 조용했고 열은 원본과 달랐다.
+ *
+ * <p>화면에 따라 이름이 갈리는 머리(삼항)는 <b>정상</b>이다 — 그건 위 두 번째 꼴로 읽힌다.
+ * 여기서 잡는 것은 <b>읽을 수 없는 자리에 이름을 숨긴 것</b>뿐이다.
+ */
+{
+  const HANGUL = /[가-힣]/
+  const bad = []
+  for (const f of walk(join('frontend', 'src'))) {
+    if (!f.endsWith('.tsx')) continue
+    /* 속성에 든 화살표(=>)의 > 를 태그 끝으로 읽지 않게 다른 검사와 같은 손질을 먼저 한다. */
+    const src = noArrow(readFileSync(f, 'utf8'))
+    for (const m of src.matchAll(/<th\b[^>]*>([\s\S]*?)<\/th>/g)) {
+      const inner = m[1].trim()
+      if (!/\{[^{}]*'[^']*'[^{}]*\}/.test(inner)) continue          /* 따옴표 이름이 없으면 볼 것 없다 */
+      if (/^\{[^{}]*\}$/.test(inner)) continue                       /* 식 하나 — 읽힌다 */
+      if (/^\{[^{}]*\}\s*\{[^{}]*\}$/.test(inner)) continue          /* 식 + 정렬표시 — 읽힌다 */
+      if (new RegExp('^[^{}]*' + MARK_TAIL + '$').test(inner)) continue   /* 글자 + 정렬표시 — 읽힌다 */
+      /* 필수 표시(<span>*</span>)가 붙은 폼 이름표 — 이름은 식 하나에 다 있어 읽힌다. */
+      if (/^\{[^{}]*\}\s*<span[^>]*>\*<\/span>$/.test(inner)) continue
+      /* 열리고 닫히는 것이 엇갈리면 한 덩어리가 통째로 잡힌다 — 그건 머리가 아니다. */
+      if (/<th\b|<\/tr>|<thead\b/.test(inner)) continue
+      const names = [...inner.matchAll(/'([^']*)'/g)].map((n) => n[1]).filter((n) => HANGUL.test(n))
+      if (!names.length) continue
+      bad.push(`${f.split(String.fromCharCode(92)).join('/')} — <th>${inner.replace(/\s+/g, ' ').slice(0, 60)}</th> ` +
+        `(숨은 이름: ${names.join('·')}) — 글자 그대로 적거나 열을 가르세요`)
+    }
+  }
+  eq('머리의 이름이 다 읽히는 자리에 있다', bad.join('\n') || '없음', '없음')
 }
 
 // ── 1-t) 예외에 적어 둔 이유가 아직 사실인가 ────────────────────────────
@@ -5755,6 +8191,11 @@ console.log('\n■ 못 만든다고 적어 둔 이유가 아직 사실인가')
 {
   const witnesses = JSON.parse(readFileSync(join('qa', 'fixtures', 'reason-witnesses.json'), 'utf8'))
   const cache = new Map()
+  /*
+   * package·import 줄은 뺀다. 기능 패키지로 옮긴 뒤 com.erp.quality.inspectionrequest 라는
+   * <b>패키지 이름</b>에 든 'inspection' 이 '검사 전표를 만든다' 는 증거인 척했다.
+   */
+  const code = (f) => readFileSync(f, 'utf8').replace(/^(?:package|import)\s[^\n]*$/gm, '')
   const treeText = (where) => {
     if (cache.has(where)) return cache.get(where)
     const roots = where === 'backend' ? ['backend/src/main/java']
@@ -5765,10 +8206,10 @@ console.log('\n■ 못 만든다고 적어 둔 이유가 아직 사실인가')
     for (const r of roots) {
       if (!existsSync(r)) continue
       /* 파일 하나를 가리켜도 된다 — 그 화면에만 있으면 되는 이름이 있다. */
-      if (!statSync(r).isDirectory()) { all += readFileSync(r, 'utf8'); continue }
+      if (!statSync(r).isDirectory()) { all += code(r); continue }
       for (const f of walk(r)) {
         if (!/[.](java|ts|tsx)$/.test(f)) continue
-        all += readFileSync(f, 'utf8')
+        all += code(f)
       }
     }
     cache.set(where, all)
@@ -5788,6 +8229,14 @@ console.log('\n■ 못 만든다고 적어 둔 이유가 아직 사실인가')
   const stale = []
   let checked = 0
   for (const [key, w] of Object.entries(witnesses)) {
+    /*
+     * 가리키는 파일이 없으면 읽을 글이 없어 '없음' 이 저절로 참이 된다 — 패키지를 옮겼을 때
+     * 이렇게 54건이 조용히 통과했다(그중 셋은 옮기기 전부터 경로가 틀려 있었다).
+     */
+    if (w.in && !['backend', 'frontend', 'both'].includes(w.in) && !existsSync(w.in)) {
+      stale.push(`[${key}] — 증거 자리 ${w.in} 가 없다. 파일을 옮겼으면 경로를 고치세요`)
+      continue
+    }
     for (const name of w.absent ?? []) {
       checked++
       if (treeText(w.in).includes(name)) {
@@ -5817,6 +8266,24 @@ console.log('\n■ 못 만든다고 적어 둔 이유가 아직 사실인가')
    * 여덟 판에 일곱 개가 그렇게 쌓여 있었다. 그래서 <b>수</b>를 세어 못 박는다.
    * 예외를 새로 적으려면 증거를 같이 달거나, 못 재는 이유라면 이 수를 손으로 올리며
    * <b>왜 못 재는지</b>를 커밋에 적게 된다. 줄이는 것은 언제든 좋다.
+   *
+   * <p><b>남은 452개 중 절반은 애초에 코드로 잴 수 없는 이유다.</b> 2026-09-08 에 한 번
+   * 훑어 갈라 봤다 — 188개가 <b>'위와 같음'</b> 이라 앞 이유를 따라가고, 26개는
+   * '원본은 [적용양식] 위에 <b>양식</b> 이라는 구역 머리를 하나 더 둔다' 처럼
+   * <b>원본이 어떻게 생겼나</b>를 말할 뿐 우리 코드에 대한 주장이 아니다.
+   * 이런 이유에 억지로 없는 이름을 붙이면 <b>검사만 늘고 재는 것은 없다</b> —
+   * 바로 위 문단이 경고하는 그 함정이다. 그러니 이 수가 0이 되는 것이 목표가 아니다.
+   * <b>우리 코드에 대한 주장</b>인 이유부터 골라 달면 된다(그날 32개를 그렇게 달았다:
+   * [입력경로] 10 · [창고계층그룹] 7 · [결재·확인 탭] 11 · [삭제구분] 2 · [품목계층그룹] 2).
+   *
+   * <p><b>일부러 증거를 안 단 덩어리도 있다.</b> [Email]·[보내기]·[제목] 열 자리는
+   * '전표를 메일로 내보내는 기능이 없다' 고 적혀 있는데, 이걸 없음으로 재려면
+   * <code>sendDocumentMail</code> 같은 <b>있지도 않을 이름</b>을 골라 대야 한다 —
+   * 바로 위에서 경고한, 없는 이름 셋으로 아무 거짓말이나 증명하는 짓이다.
+   * (groupware 에 Mail 은 있다. 없는 것은 <b>전표를</b> 내보내는 길이다.)
+   * 마찬가지로 [재고실사현황|실사:구분] 도 남겼다 — StockAdjustment 에 type·kind 가
+   * 실제로 있어서, 없음으로 재면 검사가 거짓으로 조용해진다.
+   * <b>못 재는 것은 못 잰다고 두는 편이 낫다.</b>
    */
   const cap = JSON.parse(readFileSync(join('qa', 'fixtures', 'unwitnessed-reasons.json'), 'utf8'))
   /*
@@ -5842,6 +8309,19 @@ console.log('\n■ 못 만든다고 적어 둔 이유가 아직 사실인가')
     }
     eq('예외를 같은 키로 두 번 적지 않았다', dup.join(String.fromCharCode(10)) || '없음', '없음')
   }
+
+  /*
+   * <b>근거의 주장이 '위와 같음' 이면 그 근거는 혼자서 아무것도 안 말한다.</b>
+   *
+   * <p>예외 목록은 <b>차례가 있는 배열</b>이라 '위와 같음' 이 바로 윗줄을 가리키지만,
+   * 근거 표는 <b>차례가 없는 객체</b>다 — 거기 적힌 '위와 같음' 은 가리킬 위가 없다.
+   * 그래서 왜 그 예외가 옳은지 보려고 표를 열면 <b>같은 말만 스물일곱 번</b> 나왔다.
+   *
+   * <p>2026-09-10 에 스물일곱을 다 채웠다. 다시 쌓이지 않게 못 박는다 —
+   * 근거를 새로 달 때 주장을 <b>그 자리에서 다시 쓰게</b> 하려는 것이다.
+   */
+  const echo = Object.keys(witnesses).filter((k) => /^위와 같음/.test(String(witnesses[k].claim ?? '')))
+  eq('근거의 주장이 저 혼자 읽히나', echo.join(', ') || '없음', '없음')
 
   const ghosts = Object.keys(witnesses).filter((k) => !ALL_REASON_KEYS.has(k))
   eq(`증거를 단 이유 ${Object.keys(witnesses).length}개가 다 실제 예외다`,

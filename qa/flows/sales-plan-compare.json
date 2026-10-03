@@ -1,0 +1,23 @@
+{
+  "about": "매출계획비교표(E040626) — 2026-10-04 원본: 기간 안 계획(예상매출일자)과 기간 안 판매 전부(공급가액)를 표시조건으로 견준다. 계획이 없는 판매도 센다. 열 [축] 예상매출금액 · 매출금액 · 차이금액(= 예상 − 매출) · 차이금액비율(매출 ÷ 예상 × 100 (%)), 합계. 오늘 품목 하나에 계획 10,000(QA재고2), 판매 공급가 3,000 → 품목 조건 · 표시조건 품목명: 10,000 · 3,000 · 7,000 · 30 (%) → 계획 없는 품목도 판매만으로 줄이 선다 → 지움.",
+  "shots": [
+    {
+      "name": "계획 10,000 · 판매 3,000 → 7,000 · 30 (%) · 계획 없는 판매도 잡힘",
+      "path": "/sales/sales-plan-compare",
+      "steps": [
+        "wait:2000",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => (r.status === 204 ? null : r.json())); const [pa, it, wh] = await Promise.all([A('GET', '/partners'), A('GET', '/items'), A('GET', '/warehouses')]); const items = it.filter((x) => x.active !== false); const i1 = items[0], i2 = items[1]; const d = new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10); const plan = await A('POST', '/sales-plans', { itemId: i1.id, planYear: Number(d.slice(0, 4)), planMonth: Number(d.slice(5, 7)), expectedDate: d, planQty: 0, unitPrice: 0, planAmount: 10000, remark: 'QA재고2' }); const s1 = await A('POST', '/stock/transactions', { itemId: i1.id, warehouseId: wh[0].id, type: 'INBOUND', quantity: 5 }); const s2 = await A('POST', '/stock/transactions', { itemId: i2.id, warehouseId: wh[0].id, type: 'INBOUND', quantity: 5 }); const sale = await A('POST', '/sales', { partnerId: pa[0].id, warehouseId: wh[0].id, saleDate: d, remark: 'QA재고2', lines: [{ itemId: i1.id, quantity: 3, unitPrice: 1000 }, { itemId: i2.id, quantity: 1, unitPrice: 500 }] }); sessionStorage.setItem('spc', JSON.stringify({ plan: plan.id, sale: sale.id, i1: i1.id, i2: i2.id, n1: i1.name, n2: i2.name, w: wh[0].id })); return '계획 ' + plan.planNo + ' 판매 ' + sale.docNo })()",
+        "expect:(async () => { const x = JSON.parse(sessionStorage.getItem('spc')); const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10); const rows = await (await fetch('/api/sales-plans/compare?from=' + d + '&to=' + d + '&by1=ITEM&itemId=' + x.i1, { headers: H })).json(); const r = rows[0]; return rows.length === 1 && Number(r.planAmount) >= 10000 && Number(r.saleAmount) >= 3000 && r.key1Name === x.n1 })()",
+        "expect:(async () => { const x = JSON.parse(sessionStorage.getItem('spc')); const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10); const rows = await (await fetch('/api/sales-plans/compare?from=' + d + '&to=' + d + '&by1=ITEM&itemId=' + x.i2, { headers: H })).json(); return rows.length === 1 && Number(rows[0].saleAmount) >= 500 && Number(rows[0].planAmount) === 0 })()",
+        "js:location.reload(); true",
+        "wait:2500",
+        "expect:[...document.querySelectorAll('table thead th')].map((t) => t.innerText.trim()).join('|') === '예상매출금액|매출금액|차이금액|차이금액비율'",
+        "expect:!!document.querySelector('tfoot') && document.body.innerText.includes('매출계획비교표')",
+        "js:(() => { const s = [...document.querySelectorAll('select')].find((x) => [...x.options].some((o) => o.text === '품목명')); s.value = 'ITEM'; s.dispatchEvent(new Event('change', { bubbles: true })); return true })()",
+        "wait:1500",
+        "expect:(() => { const x = JSON.parse(sessionStorage.getItem('spc')); const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.cells[0].innerText.trim() === x.n1); if (!tr) return false; const c = [...tr.cells].map((y) => y.innerText.trim()); const plan = Number(c[1].replace(/,/g, '')), sale = Number(c[2].replace(/,/g, '')); return Number(c[3].replace(/,/g, '')) === plan - sale && c[4] === Math.round(sale / plan * 100) + ' (%)' })()",
+        "expect:(async () => { const x = JSON.parse(sessionStorage.getItem('spc')); const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const a = await fetch('/api/sales/' + x.sale, { method: 'DELETE', headers: H }); const b = await fetch('/api/sales-plans/' + x.plan, { method: 'DELETE', headers: H }); for (const i of [x.i1, x.i2]) await fetch('/api/stock/transactions', { method: 'POST', headers: H, body: JSON.stringify({ itemId: i, warehouseId: x.w, type: 'OUTBOUND', quantity: 5 }) }); return a.status === 204 && b.status === 204 })()"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "about": "관리 > 일용근로 근무입력(E020138) · 근무조회(E020751) — 일용근로 사원(QA관리-일용, 일근무 150,000)을 골라 근무일자 · 근무기록 2 를 넣고 저장하면 폼이 비고, 근무조회(금월)에 일근무 2.00 한 줄이 보인다. 전표일자를 누르면 근무입력이 그 전표로 열린다. 근무를 선택삭제하면 사원도 지울 수 있다(쓰인 사원 삭제 막기는 qa.mjs). 근무조회 조건 판 — 근무일자[사용] 2099 부터면 줄이 빠지고, [사원]으로 그 사원을 고르면 보인다.",
+  "shots": [
+    {
+      "name": "근무입력 → 저장",
+      "path": "/hr/daily-work-input",
+      "steps": [
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const w=await (await fetch('/api/hr/daily-workers',{method:'POST',headers:h,body:JSON.stringify({name:'QA관리-일용',foreigner:false,employmentInsurance:true,pensionAuto:false,healthAuto:false,dailyWage:150000})})).json();sessionStorage.setItem('qaDwId',String(w.id));sessionStorage.setItem('qaDwCode',w.code);return true})()",
+        "js:location.reload();true",
+        "wait:2000",
+        "js:(()=>{const d=new Date();sessionStorage.setItem('qaToday',d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));return true})()",
+        "js:(()=>{const el=document.querySelector('table tbody tr:first-child td:nth-child(2) input');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,sessionStorage.getItem('qaToday'));el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));return true})()",
+        "pick:사원:QA관리-일용",
+        "expect:document.querySelector('table tbody tr:first-child td:nth-child(4)').textContent==='일근무'&&document.querySelector('table tbody tr:first-child td:nth-child(5)').textContent==='변동(일)'",
+        "set:table tbody tr:first-child td:nth-child(6) input|2",
+        "click:저장(F8)",
+        "wait:1200",
+        "expect:document.querySelector('table tbody tr:first-child td:nth-child(6) input').value===''"
+      ]
+    },
+    {
+      "name": "근무조회 → 전표 열기 → 근무 삭제 → 사원 삭제",
+      "path": "/hr/daily-work-list",
+      "steps": [
+        "js:window.confirm=()=>true;true",
+        "expect:[...document.querySelectorAll('table tbody tr')].some(tr=>tr.innerText.includes('QA관리-일용')&&tr.innerText.includes('일근무')&&tr.innerText.includes('2.00'))",
+        "js:(()=>{[...document.querySelectorAll('label')].find(l=>l.textContent.trim()==='사용').querySelector('input').click();return true})()",
+        "wait:300",
+        "expect:[...document.querySelectorAll('table tbody tr')].some(tr=>tr.innerText.includes('QA관리-일용'))",
+        "set:input[aria-label=\"근무일자 시작\"]|2099-01-01",
+        "wait:300",
+        "expect:![...document.querySelectorAll('table tbody tr')].some(tr=>tr.innerText.includes('QA관리-일용'))",
+        "js:(()=>{[...document.querySelectorAll('label')].find(l=>l.textContent.trim()==='사용').querySelector('input').click();return true})()",
+        "wait:300",
+        "expect:[...document.querySelectorAll('table tbody tr')].some(tr=>tr.innerText.includes('QA관리-일용'))",
+        "pick:사원:QA관리-일용",
+        "clicklast:확인",
+        "wait:300",
+        "expect:[...document.querySelectorAll('table tbody tr')].some(tr=>tr.innerText.includes('QA관리-일용'))",
+        "js:(()=>{const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('QA관리-일용'));tr.querySelector('a').click();return true})()",
+        "wait:1500",
+        "expect:location.pathname==='/hr/daily-work-input'&&document.querySelector('table tbody tr:first-child td:nth-child(6) input').value==='2'",
+        "js:history.back();true",
+        "wait:1500",
+        "js:window.confirm=()=>true;(async()=>{for(let i=0;i<40;i++){const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('QA관리-일용'));if(tr){tr.querySelector('input[type=checkbox]').click();return true}await new Promise(z=>setTimeout(z,250))}return 'not found'})()",
+        "click:선택삭제",
+        "wait:1200",
+        "expect:![...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes('QA관리-일용'))",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const r=await fetch('/api/hr/daily-workers/'+sessionStorage.getItem('qaDwId'),{method:'DELETE',headers:h});sessionStorage.setItem('qaDwDel',String(r.ok));return true})()",
+        "expect:sessionStorage.getItem('qaDwDel')==='true'"
+      ]
+    }
+  ]
+}

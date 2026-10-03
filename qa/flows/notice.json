@@ -1,0 +1,47 @@
+{
+  "about": "공지사항(원본 E200080) — 신규(F2) → 빈 제목 거절 → 공지사항여부 켜고 저장 → 맨 위에 한 번 더 붙음 → 제목 눌러 View(머리줄 작성일시) → 수정으로 공지 끄기 → 맨 위에서 빠짐 → View [삭제] '삭제하겠습니까?' → 목록에서 사라짐. node qa/shot.mjs qa/flows/notice.json",
+  "shots": [
+    {
+      "name": "신규 — 제목 없이 저장하면 창 안에 '제목을 입력하세요.' → 넣고 공지로 저장하면 맨 위 줄(행번호 없음)과 번호 줄 두 군데",
+      "path": "/groupware/notice",
+      "steps": [
+        "click:신규(F2)",
+        "expect:document.querySelector('[role=dialog]')?.getAttribute('aria-label') === '공지사항입력'",
+        "click:저장(F8)",
+        "expect:document.querySelector('[role=dialog]')?.innerText.includes('제목을 입력하세요.')",
+        "setnear:제목|QA그룹웨어-공지 시험",
+        "js:(() => { const d = document.querySelector('[role=dialog]'); const cb = d.querySelector('input[type=checkbox]'); cb.click(); const ta = d.querySelector('textarea'); Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(ta, 'QA그룹웨어 본문'); ta.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "click:저장(F8)",
+        "expect:!document.querySelector('[role=dialog]')",
+        "expect:(() => { const trs = [...document.querySelectorAll('#work-list tbody tr')].filter((tr) => tr.innerText.includes('QA그룹웨어-공지 시험')); return trs.length === 2 && trs[0].cells[0].innerText.trim() === '' && document.querySelector('#work-list tbody tr').innerText.includes('QA그룹웨어-공지 시험') })()"
+      ]
+    },
+    {
+      "name": "제목을 누르면 '공지사항View' — 머리줄 '번호 | 제목 | 작성자 | 2026/10/03 (토) 오후 12:53:08' · 일자-No.",
+      "path": "/groupware/notice",
+      "steps": [
+        "js:[...document.querySelectorAll('#work-list tbody button')].find((b) => b.textContent.includes('QA그룹웨어-공지 시험')).click(); true",
+        "expect:document.querySelector('[role=dialog]')?.getAttribute('aria-label') === '공지사항View'",
+        "expect:/\\d+ \\| QA그룹웨어-공지 시험 \\| .+ \\| \\d{4}\\/\\d{2}\\/\\d{2} \\([일월화수목금토]\\) (오전|오후) \\d{1,2}:\\d{2}:\\d{2}/.test(document.querySelector('[role=dialog]').innerText)",
+        "expect:document.querySelector('[role=dialog]').innerText.includes('일자-No.')",
+        "click:수정",
+        "expect:document.querySelector('[role=dialog]')?.getAttribute('aria-label') === '공지사항입력(수정)'",
+        "js:document.querySelector('[role=dialog] input[type=checkbox]').click(); true",
+        "click:저장(F8)",
+        "expect:!document.querySelector('[role=dialog]')",
+        "expect:[...document.querySelectorAll('#work-list tbody tr')].filter((tr) => tr.innerText.includes('QA그룹웨어-공지 시험')).length === 1"
+      ]
+    },
+    {
+      "name": "View [삭제] — '삭제하겠습니까?' 를 묻고 지우면 목록에서 사라짐",
+      "path": "/groupware/notice",
+      "steps": [
+        "js:window.__asked = ''; window.confirm = (m) => { window.__asked = m; return true }; [...document.querySelectorAll('#work-list tbody button')].find((b) => b.textContent.includes('QA그룹웨어-공지 시험')).click(); true",
+        "wait:1000",
+        "click:삭제",
+        "expect:window.__asked === '삭제하겠습니까?'",
+        "expect:![...document.querySelectorAll('#work-list tbody tr')].some((tr) => tr.innerText.includes('QA그룹웨어-공지 시험'))"
+      ]
+    }
+  ]
+}

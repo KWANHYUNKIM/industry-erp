@@ -1,0 +1,17 @@
+{
+  "about": "관리 > 인원현황(E020609) — [부서] · [직위/직급]은 여러 개 고르는 코드도움. 한 부서만 고르면 총인원이 전체 총인원보다 크지 않고 그 부서 재직 사원 수와 같다.",
+  "shots": [
+    {
+      "name": "부서 거르기 → 총인원",
+      "path": "/hr/headcount",
+      "steps": [
+        "wait:2000",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const es=await (await fetch('/api/employees/all',{headers:h})).json();const d=es.find(e=>e.code==='EMP-0001').department;sessionStorage.setItem('qaHcDept',d);sessionStorage.setItem('qaHcN',String(es.filter(e=>e.active&&e.department===d&&(!e.hireDate||e.hireDate<=new Date().toISOString().slice(0,10))).length));const t=[...document.querySelectorAll('table tbody tr')].filter(r=>r.cells.length>=6);sessionStorage.setItem('qaHcAll',t.length?t[t.length-1].cells[5].innerText.trim():'');document.querySelector('button[title=\"부서 선택\"]').click();return true})()",
+        "pickrow:@qaHcDept",
+        "clicklast:확인",
+        "wait:500",
+        "expect:(()=>{const t=[...document.querySelectorAll('table tbody tr')].filter(r=>r.cells.length>=6);const n=Number((t[t.length-1]?.cells[5].innerText||'0').replace(/,/g,''));const all=Number((sessionStorage.getItem('qaHcAll')||'0').replace(/,/g,''));return t.length>0&&n<=all&&n===Number(sessionStorage.getItem('qaHcN'))})()"
+      ]
+    }
+  ]
+}

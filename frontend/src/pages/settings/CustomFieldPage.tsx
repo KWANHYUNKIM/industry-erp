@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
-import type { CustomFieldDef, CustomFieldType } from '../../api/types'
+import type { CustomFieldDef, CustomFieldType } from '../../types/api'
 
 /**
  * Self-Customizing > 사용자정의필드 (판매입력 II 등 '추가 형식필드'의 정의 관리)
@@ -25,11 +25,20 @@ const ENTITY_TYPES = [
   { key: 'PURCHASE', label: '구매전표 머리(구매입력 II)' },
   { key: 'PURCHASE_LINE', label: '구매전표 줄(격자 열)' },
   /*
-   * <b>발주서 머리.</b> 열 예외에 "발주서 화면이 아직 안 읽는다" 고 적혀 있었다.
-   * 줄(격자 열)은 아직 안 읽으므로 <b>여기 목록에도 넣지 않는다</b> — 정의할 수 있는데
-   * 어디에도 안 뜨는 칸을 만들어 두면 쓰는 사람만 헛수고한다.
+   * <b>발주서 머리·줄.</b> 열 예외에 "발주서 화면이 아직 안 읽는다" 고 적혀 있던 것을
+   * 두 번에 나눠 이었다 — 머리는 펼친 줄의 패널로, 줄은 입력 격자의 열로.
+   * 판매·구매와 같은 <code>/custom-fields</code> 를 그대로 쓴다.
    */
   { key: 'PURCHASE_ORDER', label: '발주서 머리(발주서)' },
+  { key: 'PURCHASE_ORDER_LINE', label: '발주서 줄(격자 열)' },
+  /*
+   * <b>견적서 머리.</b> 열 예외에 "추가항목은 칸 이름을 박지 않고 사용자정의필드에서
+   * 이름을 지어 정의한다" 고 적혀 있었는데(원본 견적서조회의 [문자형식1~5]·[장문형식1]),
+   * <b>견적서 화면이 /custom-fields 를 한 번도 안 불렀다</b> — 정의해도 뜰 자리가 없었다.
+   * 발주서에서 똑같은 것을 한 번 잡았고, 그 전에도 "정의할 수는 있는데 아무도 못 쓰고
+   * 있었다" 고 이 파일 머리에 적혀 있다. 같은 실수가 세 번째다.
+   */
+  { key: 'QUOTE', label: '견적서 머리(견적서)' },
   /*
    * <b>마스터에도 추가항목을 붙인다.</b> 원본 품목등록·거래처등록·사원등록에는
    * [문자형추가항목1~6]·[숫자형추가항목1~10] 이 <b>칸 이름째로 박혀</b> 있다(사본 실측).
@@ -106,76 +115,76 @@ export default function CustomFieldPage() {
 
   return (
     <EcListShell title="사용자정의필드" onNew={openNew} actions={[{ label: '새로고침', onClick: load }]}>
-      <p className="mb-2 text-xs text-slate-500">화면(전표)마다 추가 형식필드를 정의합니다. 정의하면 해당 전표 화면의 '추가항목'으로 나타나 값 입력이 가능해집니다(우리 전표 모델은 변경하지 않는 범용 방식).</p>
+      <p className="mb-2 text-xs text-ec-hint">화면(전표)마다 추가 형식필드를 정의합니다. 정의하면 해당 전표 화면의 '추가항목'으로 나타나 값 입력이 가능해집니다(우리 전표 모델은 변경하지 않는 범용 방식).</p>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-        <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600 }}>대상 화면</span>
+      <div className="flex items-center gap-[8px] mb-[10px]">
+        <span className="text-[12.5px] text-ec-text font-semibold">대상 화면</span>
         <select className={inputCls} value={entityType} onChange={(e) => setEntityType(e.target.value)} style={{ width: 220 }}>
           {ENTITY_TYPES.map((e) => <option key={e.key} value={e.key}>{e.label}</option>)}
         </select>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {ok && <p style={{ background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
-      <Modal open={showForm} title={editId ? '사용자정의필드 수정' : '사용자정의필드 추가'} onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title={editId ? '사용자정의필드 수정' : '사용자정의필드 추가'} onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginTop: 8, marginBottom: 8 }}>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>필드 키 *</div>
+          <div className="flex gap-[12px] flex-wrap items-end">
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">필드 키 *</div>
               <input className={inputCls} value={form.fieldKey} disabled={!!editId} onChange={(e) => set('fieldKey', e.target.value)} style={{ width: 130 }} placeholder="예: channel" /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>라벨 *</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">라벨 *</div>
               <input className={inputCls} value={form.label} onChange={(e) => set('label', e.target.value)} style={{ width: 160 }} placeholder="예: 판매채널" /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>형식 *</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">형식 *</div>
               <select className={inputCls} value={form.fieldType} onChange={(e) => set('fieldType', e.target.value)} style={{ width: 100 }}>
                 <option value="TEXT">문자</option><option value="NUMBER">숫자</option><option value="DATE">일자</option><option value="CODE">코드</option>
               </select></label>
             {form.fieldType === 'CODE' && (
-              <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>코드 선택지(콤마)</div>
+              <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">코드 선택지(콤마)</div>
                 <input className={inputCls} value={form.options} onChange={(e) => set('options', e.target.value)} style={{ width: 200 }} placeholder="온라인,오프라인,B2B" /></label>
             )}
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>정렬</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">정렬</div>
               <input className={`${inputCls} text-right`} type="number" value={form.sortOrder} onChange={(e) => set('sortOrder', e.target.value)} style={{ width: 70 }} /></label>
-            <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <label className="text-[12.5px] flex items-center gap-[4px]">
               <input type="checkbox" checked={form.required} onChange={(e) => set('required', e.target.checked)} /> 필수
             </label>
             <button type="submit" className="ec-btn ec-btn-primary">{editId ? '수정' : '저장'}</button>
           </div>
-          {editId && <p style={{ fontSize: 11.5, color: '#8a929c', marginTop: 8 }}>필드 키는 값과 연결되므로 수정할 수 없습니다.</p>}
+          {editId && <p className="text-[11.5px] text-ec-hint mt-[8px]">필드 키는 값과 연결되므로 수정할 수 없습니다.</p>}
         </form>
       )}</Modal>
 
       <table className="w-full text-left">
         <thead><tr>
-          <th style={{ width: 34 }}></th>
-          <th style={{ textAlign: 'right', width: 60 }}>정렬</th>
-          <th style={{ width: 140 }}>필드 키</th>
+          <th className="w-[34px]"></th>
+          <th className="text-right w-[60px]">정렬</th>
+          <th className="w-[140px]">필드 키</th>
           <th>라벨</th>
-          <th style={{ width: 70 }}>형식</th>
+          <th className="w-[70px]">형식</th>
           <th>선택지</th>
-          <th style={{ textAlign: 'center', width: 50 }}>필수</th>
-          <th style={{ textAlign: 'center', width: 80 }}>사용</th>
-          <th style={{ textAlign: 'center', width: 90 }}>관리</th>
+          <th className="text-center w-[50px]">필수</th>
+          <th className="text-center w-[80px]">사용</th>
+          <th className="text-center w-[90px]">관리</th>
         </tr></thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((d) => (
             <tr key={d.id} style={{ opacity: d.active ? 1 : 0.5 }}>
               <td></td>
-              <td style={{ textAlign: 'right', color: '#9aa1ab' }}>{d.sortOrder}</td>
-              <td style={{ fontFamily: 'monospace', color: '#8a929c' }}>{d.fieldKey}</td>
+              <td className="text-right text-ec-hint">{d.sortOrder}</td>
+              <td className="text-ec-hint">{d.fieldKey}</td>
               <td>{d.label}</td>
               <td>{TYPE_LABEL[d.fieldType]}</td>
-              <td style={{ color: '#6b7280' }}>{d.options ?? ''}</td>
-              <td style={{ textAlign: 'center' }}>{d.required ? '●' : ''}</td>
-              <td style={{ textAlign: 'center' }}>
-                <button className="no-ec" onClick={() => toggleActive(d)} style={{ border: '1px solid var(--ec-border)', background: d.active ? '#eaf6ec' : '#f2f3f5', color: d.active ? '#1c7c3c' : '#8a929c', cursor: 'pointer', fontSize: 11.5, padding: '2px 8px', borderRadius: 3 }}>{d.active ? '사용' : '중단'}</button>
+              <td className="text-ec-muted">{d.options ?? ''}</td>
+              <td className="text-center">{d.required ? '●' : ''}</td>
+              <td className="text-center">
+                <button className="no-ec" onClick={() => toggleActive(d)} style={{ border: '1px solid var(--ec-border)', background: d.active ? 'var(--ec-success-bg)' : 'var(--ec-bg-page)', color: d.active ? 'var(--ec-success)' : 'var(--ec-text-hint)', cursor: 'pointer', fontSize: 11.5, padding: '2px 8px', borderRadius: 3 }}>{d.active ? '사용' : '중단'}</button>
               </td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <button className="no-ec" onClick={() => openEdit(d)} style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>수정</button>
-                <button className="no-ec" onClick={() => remove(d.id)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                <button className="no-ec" onClick={() => remove(d.id)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button>
               </td>
             </tr>
           ))}

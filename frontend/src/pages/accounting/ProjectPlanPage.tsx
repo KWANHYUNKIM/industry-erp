@@ -3,12 +3,22 @@ import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Project } from '../../api/types'
+import type { Project } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 
 /**
- * 회계 > 프로젝트 > 프로젝트계획 / 계획·실적현황 (이카운트 C000653·E040636·E040637)
+ * 재고 II &gt; 계획관리 &gt; 프로젝트계획조회 / 프로젝트계획·실적현황
+ * (이카운트 <b>E040636·E040637</b>)
+ *
+ * <p>여기 <code>C000653</code> 이라 적혀 있었는데 그런 코드는 메뉴에 없다.
+ * 2026-09-09 에 메뉴 트리를 통째로 긁어 보니 이 화면이 매달린 곳은
+ * <b>재고 II &gt; 계획관리(C000094)</b> 이고, C 코드는 화면이 아니라 <b>그룹</b>이다.
+ * 회계 쪽이 아니라 재고 II 쪽이었다.
+ *
+ * <p>그날 조건도 다시 재어 대조했다 — 열하나로 대조표와 <b>글자 하나까지 같다</b>
+ * (접힌 줄은 없다). 다만 <b>메뉴 이름과 화면 제목이 다르다</b> —
+ * 메뉴는 [프로젝트계획조회] 인데 열리는 화면의 제목은 <b>[프로젝트계획 리스트]</b> 다.
  * 프로젝트별 연간 계획 매출·원가를 등록하고, 전표 집계 실적과 대조해 달성률을 본다.
  * 백엔드 신규: project_plans 테이블 + /api/project-plans, /api/project-plans/comparison?year=
  * 실적은 저장하지 않고 판매·구매·비용 전표를 프로젝트로 집계(ProjectProfitService)해 계산한다.
@@ -39,7 +49,7 @@ interface ComparisonRow {
 }
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const rateColor = (r: number) => (r >= 100 ? '#1c7c3c' : r >= 80 ? '#c07a00' : '#c60a2e')
+const rateColor = (r: number) => (r >= 100 ? 'var(--ec-success)' : r >= 80 ? 'var(--ec-warn)' : 'var(--ec-danger)')
 const thisYear = () => Number(ymd(new Date()).slice(0, 4))
 
 /**
@@ -143,7 +153,7 @@ export default function ProjectPlanPage() {
   }
 
   const shown = rows
-    .filter((r) => !projectCond || r.projectName === projectCond)
+    .filter((r) => !projectCond || String(r.projectId) === projectCond)
     .filter((r) => !startFrom || (r.startDate != null && r.startDate >= startFrom))
     .filter((r) => !startTo || (r.startDate != null && r.startDate <= startTo))
     .filter((r) => !endFrom || (r.endDate != null && r.endDate >= endFrom))
@@ -205,10 +215,10 @@ export default function ProjectPlanPage() {
         /* 원본 버튼줄은 [신규(F2)]·[선택삭제]·[Excel] 뿐이다 — [인쇄] 는 우리가 없는 것을 만든 것이었다. */
       ]}
     >
-      <p className="mb-2 text-xs text-slate-500">프로젝트별 연간 계획 매출·원가 등록 → 전표 집계 실적과 대조(달성률). 실적은 판매·구매·비용 전표에서 계산.</p>
+      <p className="mb-2 text-xs text-ec-hint">프로젝트별 연간 계획 매출·원가 등록 → 전표 집계 실적과 대조(달성률). 실적은 판매·구매·비용 전표에서 계산.</p>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-        <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600 }}>계획연도</span>
+      <div className="flex items-center gap-[8px] mb-[10px]">
+        <span className="text-[12.5px] text-ec-text font-semibold">계획연도</span>
         <select className={inputCls} value={year} onChange={(e) => setYear(Number(e.target.value))} style={{ width: 110 }}>
           {years.map((y) => <option key={y} value={y}>{y}년</option>)}
         </select>
@@ -216,21 +226,21 @@ export default function ProjectPlanPage() {
           원본 프로젝트계획 조건의 <b>[프로젝트]</b>. 프로젝트는 목록에 찍히는데
           그것으로 거를 수가 없어, 한 프로젝트의 계획·실적만 보려 해도 표 전체를 훑어야 했다.
         */}
-        <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600, marginLeft: 6 }}>프로젝트</span>
+        <span className="text-[12.5px] text-ec-text font-semibold ml-[6px]">프로젝트</span>
         <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"
                          value={projectCond} onChange={setProjectCond}
-                         items={projects.map((p) => ({ value: p.name, code: p.code, name: p.name }))} />
+                         items={projects.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))} />
         {/* 원본 [시작일]·[종료일] 은 구간이다 — 한 칸씩만 두어 어느 달에 시작한 계획인지 못 좁혔다. */}
-        <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600, marginLeft: 6 }}>시작일</span>
+        <span className="text-[12.5px] text-ec-text font-semibold ml-[6px]">시작일</span>
         <input type="date" className={inputCls} value={startFrom}
                onChange={(e) => setStartFrom(e.target.value)} style={{ width: 140 }} />
-        <span style={{ color: 'var(--ec-label)' }}>~</span>
+        <span className="text-ec-label">~</span>
         <input type="date" className={inputCls} value={startTo}
                onChange={(e) => setStartTo(e.target.value)} style={{ width: 140 }} />
-        <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600, marginLeft: 6 }}>종료일</span>
+        <span className="text-[12.5px] text-ec-text font-semibold ml-[6px]">종료일</span>
         <input type="date" className={inputCls} value={endFrom}
                onChange={(e) => setEndFrom(e.target.value)} style={{ width: 140 }} />
-        <span style={{ color: 'var(--ec-label)' }}>~</span>
+        <span className="text-ec-label">~</span>
         <input type="date" className={inputCls} value={endTo}
                onChange={(e) => setEndTo(e.target.value)} style={{ width: 140 }} />
       </div>
@@ -239,69 +249,69 @@ export default function ProjectPlanPage() {
         원본 조건 [판매계획]·[구매계획]·[노무비계획]·[경비계획] — 넷 다 금액 구간이다.
         지난 판까지는 그 값 자체가 없어 <b>거를 축이 없었다</b>. V212 로 값을 만들면서 이제 건다.
       */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600 }}>판매계획</span>
+      <div className="flex items-center gap-[8px] mb-[10px] flex-wrap">
+        <span className="text-[12.5px] text-ec-text font-semibold">판매계획</span>
         <input className={`${inputCls} text-right`} type="number" step="any" placeholder="판매계획"
                value={saleFrom} onChange={(e) => setSaleFrom(e.target.value)} style={{ width: 110 }} />
-        <span style={{ color: 'var(--ec-label)' }}>~</span>
+        <span className="text-ec-label">~</span>
         <input className={`${inputCls} text-right`} type="number" step="any"
                value={saleTo} onChange={(e) => setSaleTo(e.target.value)} style={{ width: 110, marginRight: 6 }} />
-        <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600 }}>구매계획</span>
+        <span className="text-[12.5px] text-ec-text font-semibold">구매계획</span>
         <input className={`${inputCls} text-right`} type="number" step="any" placeholder="구매계획"
                value={purchaseFrom} onChange={(e) => setPurchaseFrom(e.target.value)} style={{ width: 110 }} />
-        <span style={{ color: 'var(--ec-label)' }}>~</span>
+        <span className="text-ec-label">~</span>
         <input className={`${inputCls} text-right`} type="number" step="any"
                value={purchaseTo} onChange={(e) => setPurchaseTo(e.target.value)} style={{ width: 110, marginRight: 6 }} />
-        <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600 }}>노무비계획</span>
+        <span className="text-[12.5px] text-ec-text font-semibold">노무비계획</span>
         <input className={`${inputCls} text-right`} type="number" step="any" placeholder="노무비계획"
                value={laborFrom} onChange={(e) => setLaborFrom(e.target.value)} style={{ width: 110 }} />
-        <span style={{ color: 'var(--ec-label)' }}>~</span>
+        <span className="text-ec-label">~</span>
         <input className={`${inputCls} text-right`} type="number" step="any"
                value={laborTo} onChange={(e) => setLaborTo(e.target.value)} style={{ width: 110, marginRight: 6 }} />
-        <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600 }}>경비계획</span>
+        <span className="text-[12.5px] text-ec-text font-semibold">경비계획</span>
         <input className={`${inputCls} text-right`} type="number" step="any" placeholder="경비계획"
                value={expenseFrom} onChange={(e) => setExpenseFrom(e.target.value)} style={{ width: 110 }} />
-        <span style={{ color: 'var(--ec-label)' }}>~</span>
+        <span className="text-ec-label">~</span>
         <input className={`${inputCls} text-right`} type="number" step="any"
                value={expenseTo} onChange={(e) => setExpenseTo(e.target.value)} style={{ width: 110, marginRight: 6 }} />
         {/* 원본 조건 차례에서 [적요] 는 네 금액 <b>다음</b>이다(2026-09-01 실측). */}
-        <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600 }}>적요</span>
+        <span className="text-[12.5px] text-ec-text font-semibold">적요</span>
         <input className={inputCls} value={remarkCond} placeholder="적요"
                onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 150 }} />
         {/* 원본 조건 차례의 마지막 [기타] — [수정일자순(정렬)] 하나다(실측). */}
-        <span style={{ fontSize: 12.5, color: '#3c4553', fontWeight: 600, marginLeft: 6 }}>기타</span>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5, color: '#3c4553' }}>
+        <span className="text-[12.5px] text-ec-text font-semibold ml-[6px]">기타</span>
+        <label className="flex items-center gap-[3px] text-[12.5px] text-ec-text">
           <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
           수정일자순(정렬)
         </label>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {ok && <p style={{ background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
-      <Modal open={showForm} title={`프로젝트계획 등록 (${year}년)`} onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title={`프로젝트계획 등록 (${year}년)`} onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginTop: 8, marginBottom: 8 }}>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>프로젝트 *</div>
-              <select className={inputCls} value={form.projectId} onChange={(e) => set('projectId', e.target.value)} style={{ width: 240 }}>
-                <option value="">선택하세요</option>
-                {projects.map((p) => <option key={p.id} value={p.id}>[{p.code}] {p.name}</option>)}
-              </select></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>계획매출</div>
+          <div className="flex gap-[12px] flex-wrap items-end">
+            {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). label 로 감싸면 팝업 행 클릭이 안 먹어 div 로. */}
+            <div className="text-[12.5px]"><div className="text-ec-label mb-[3px]">프로젝트 *</div>
+              <CodePickerField label="프로젝트" hideLabel width={240} placeholder="프로젝트" emptyLabel="선택 해제"
+                               value={form.projectId} onChange={(v) => set('projectId', v)}
+                               items={projects.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))} /></div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">계획매출</div>
               <input className={`${inputCls} text-right`} type="number" step="any" value={form.planRevenue} onChange={(e) => set('planRevenue', e.target.value)} style={{ width: 150 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>계획원가</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">계획원가</div>
               <input className={`${inputCls} text-right`} type="number" step="any" value={form.planCost} onChange={(e) => set('planCost', e.target.value)} style={{ width: 150 }} /></label>
             {/*
               원본 격자의 <b>[구매]·[노무비]·[경비]</b>. 계획을 네 갈래로 적는데 우리는
               원가 한 칸뿐이라 <b>갈라 적을 데가 없었다</b>. 계획원가는 합계 그대로 둔다.
             */}
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>구매</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">구매</div>
               <input className={`${inputCls} text-right`} type="number" step="any" value={form.planPurchase} onChange={(e) => set('planPurchase', e.target.value)} style={{ width: 130 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>노무비</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">노무비</div>
               <input className={`${inputCls} text-right`} type="number" step="any" value={form.planLabor} onChange={(e) => set('planLabor', e.target.value)} style={{ width: 130 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>경비</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">경비</div>
               <input className={`${inputCls} text-right`} type="number" step="any" value={form.planExpense} onChange={(e) => set('planExpense', e.target.value)} style={{ width: 130 }} /></label>
-            <label style={{ fontSize: 12.5, flex: 1, minWidth: 160 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>비고</div>
+            <label className="text-[12.5px] flex-1 min-w-[160px]"><div className="text-ec-label mb-[3px]">비고</div>
               <input className={inputCls} value={form.remark} onChange={(e) => set('remark', e.target.value)} style={{ width: '100%' }} /></label>
             <button type="submit" className="ec-btn ec-btn-primary">저장</button>
           </div>
@@ -311,74 +321,74 @@ export default function ProjectPlanPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 28, textAlign: 'center' }}></th>
-            <th style={{ width: 34 }}></th>
+            <th className="w-[28px] text-center"></th>
+            <th className="w-[34px]"></th>
             {/*
               원본 격자 차례: <b>프로젝트코드 · 프로젝트명 · 시작일 · 종료일</b> · 판매 · 구매 · 노무비 · 경비.
               우리는 코드와 이름을 한 칸에 붙여 놓고 <b>시작일·종료일은 아예 없었다</b> —
               조건으로 시작일·종료일을 거를 수는 있는데 정작 그 값이 목록에 안 보였다.
             */}
-            <th style={{ width: 90 }}>프로젝트코드</th>
+            <th className="w-[90px]">프로젝트코드</th>
             <th>프로젝트명</th>
-            <th style={{ width: 100 }}>시작일</th>
-            <th style={{ width: 100 }}>종료일</th>
+            <th className="w-[100px]">시작일</th>
+            <th className="w-[100px]">종료일</th>
             {/* 원본 격자의 마지막 넷: <b>판매 · 구매 · 노무비 · 경비</b>. 판매는 계획매출이 곧 그것이다. */}
-            <th style={{ textAlign: 'right' }}>판매</th>
-            <th style={{ textAlign: 'right' }}>구매</th>
-            <th style={{ textAlign: 'right' }}>노무비</th>
-            <th style={{ textAlign: 'right' }}>경비</th>
-            <th style={{ textAlign: 'right' }}>실적매출</th>
-            <th style={{ textAlign: 'right' }}>매출달성</th>
-            <th style={{ textAlign: 'right' }}>계획이익</th>
-            <th style={{ textAlign: 'right' }}>실적이익</th>
-            <th style={{ textAlign: 'right' }}>이익달성</th>
-            <th style={{ textAlign: 'center', width: 50 }}>삭제</th>
+            <th className="text-right">판매</th>
+            <th className="text-right">구매</th>
+            <th className="text-right">노무비</th>
+            <th className="text-right">경비</th>
+            <th className="text-right">실적매출</th>
+            <th className="text-right">매출달성</th>
+            <th className="text-right">계획이익</th>
+            <th className="text-right">실적이익</th>
+            <th className="text-right">이익달성</th>
+            <th className="text-center w-[50px]">삭제</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={16} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={16} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={16} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>{year}년 프로젝트계획이 없습니다. 우측 상단에서 등록하세요.</td></tr>
+            <tr><td colSpan={16} className="text-center text-ec-hint p-[20px]">{year}년 프로젝트계획이 없습니다. 우측 상단에서 등록하세요.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <input type="checkbox" checked={picked.has(r.id)} onChange={() => pick(r.id)} />
               </td>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{r.projectCode}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td className="text-ec-label">{r.projectCode}</td>
               <td>{r.projectName}</td>
-              <td style={{ color: r.startDate ? '#5a626e' : '#c9ced6' }}>{dateText(r.startDate) || ''}</td>
-              <td style={{ color: r.endDate ? '#5a626e' : '#c9ced6' }}>{dateText(r.endDate) || ''}</td>
-              <td style={{ textAlign: 'right' }}>{won(r.planRevenue)}</td>
-              <td style={{ textAlign: 'right' }}>{won(r.planPurchase)}</td>
-              <td style={{ textAlign: 'right' }}>{won(r.planLabor)}</td>
-              <td style={{ textAlign: 'right' }}>{won(r.planExpense)}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(r.actualRevenue)}</td>
+              <td style={{ color: r.startDate ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{dateText(r.startDate) || ''}</td>
+              <td style={{ color: r.endDate ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{dateText(r.endDate) || ''}</td>
+              <td className="text-right">{won(r.planRevenue)}</td>
+              <td className="text-right">{won(r.planPurchase)}</td>
+              <td className="text-right">{won(r.planLabor)}</td>
+              <td className="text-right">{won(r.planExpense)}</td>
+              <td className="text-right font-semibold text-ec-blue">{won(r.actualRevenue)}</td>
               <td style={{ textAlign: 'right', fontWeight: 700, color: rateColor(r.revenueAchieveRate) }}>{r.revenueAchieveRate.toFixed(1)}%</td>
-              <td style={{ textAlign: 'right' }}>{won(r.planProfit)}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600, color: r.actualProfit >= 0 ? '#1c7c3c' : '#c60a2e' }}>{won(r.actualProfit)}</td>
+              <td className="text-right">{won(r.planProfit)}</td>
+              <td style={{ textAlign: 'right', fontWeight: 600, color: r.actualProfit >= 0 ? 'var(--ec-success)' : 'var(--ec-danger)' }}>{won(r.actualProfit)}</td>
               <td style={{ textAlign: 'right', fontWeight: 700, color: rateColor(r.profitAchieveRate) }}>{r.profitAchieveRate.toFixed(1)}%</td>
-              <td style={{ textAlign: 'center' }}>
-                <button className="no-ec" onClick={() => remove(r.id)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+              <td className="text-center">
+                <button className="no-ec" onClick={() => remove(r.id)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button>
               </td>
             </tr>
           ))}
         </tbody>
         {shown.length > 0 && (
           <tfoot>
-            <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
-              <td colSpan={6} style={{ textAlign: 'right' }}>합계</td>
-              <td style={{ textAlign: 'right' }}>{won(totals.planRevenue)}</td>
-              <td style={{ textAlign: 'right' }}>{won(totals.planPurchase)}</td>
-              <td style={{ textAlign: 'right' }}>{won(totals.planLabor)}</td>
-              <td style={{ textAlign: 'right' }}>{won(totals.planExpense)}</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(totals.actualRevenue)}</td>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={6} className="text-right">합계</td>
+              <td className="text-right">{won(totals.planRevenue)}</td>
+              <td className="text-right">{won(totals.planPurchase)}</td>
+              <td className="text-right">{won(totals.planLabor)}</td>
+              <td className="text-right">{won(totals.planExpense)}</td>
+              <td className="text-right text-ec-blue">{won(totals.actualRevenue)}</td>
               <td style={{ textAlign: 'right', color: rateColor(totals.planRevenue > 0 ? totals.actualRevenue / totals.planRevenue * 100 : 0) }}>
                 {totals.planRevenue > 0 ? (totals.actualRevenue / totals.planRevenue * 100).toFixed(1) : '0.0'}%
               </td>
-              <td style={{ textAlign: 'right' }}>{won(totals.planProfit)}</td>
-              <td style={{ textAlign: 'right', color: totals.actualProfit >= 0 ? '#1c7c3c' : '#c60a2e' }}>{won(totals.actualProfit)}</td>
+              <td className="text-right">{won(totals.planProfit)}</td>
+              <td style={{ textAlign: 'right', color: totals.actualProfit >= 0 ? 'var(--ec-success)' : 'var(--ec-danger)' }}>{won(totals.actualProfit)}</td>
               <td></td><td></td>
             </tr>
           </tfoot>

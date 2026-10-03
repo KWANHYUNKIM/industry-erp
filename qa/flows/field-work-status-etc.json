@@ -1,0 +1,37 @@
+{
+  "about": "외근현황 조건 [기타](원본 E070255) — [도착전내역만보기]는 주행후 계기판거리가 없는 운행만, [모든날짜표시]는 기록 없는 날도 일자만 한 줄씩 차량종류 묶음 뒤에 두고 '[] 계' 로 모은다. 시험 외근 둘(도착 · 도착전)은 API 로 만들고 지운다. node qa/shot.mjs qa/flows/field-work-status-etc.json",
+  "shots": [
+    {
+      "name": "준비",
+      "path": "/groupware/field-work-status",
+      "steps": [
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const mk = (b) => fetch('/api/field-works', { method: 'POST', headers: H, body: JSON.stringify(Object.assign({ workDate: day, startTime: '09:00', endTime: '10:00', vehicleNo: 'QAGW77가7777', vehicleName: 'QA그룹웨어-승합' }, b)) }).then((r) => r.json()); const a = await mk({ odometerBefore: 100, odometerAfter: 150, purpose: 'QA그룹웨어-도착' }); const b = await mk({ odometerBefore: 200, purpose: 'QA그룹웨어-도착전' }); return a.id + '/' + b.id })()"
+      ]
+    },
+    {
+      "name": "도착전내역만보기 → 모든날짜표시",
+      "path": "/groupware/field-work-status",
+      "steps": [
+        "wait:600",
+        "js:(() => { const i = document.querySelector('input[placeholder=\"이동수단\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'QAGW77'); i.dispatchEvent(new Event('input', { bubbles: true })); [...document.querySelectorAll('label')].find((l) => l.textContent.trim() === '도착전내역만보기').querySelector('input').click(); return true })()",
+        "click:검색(F8)",
+        "wait:800",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA그룹웨어-도착전')) && ![...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA그룹웨어-도착') && !tr.innerText.includes('도착전'))",
+        "click:Search(F3)",
+        "wait:400",
+        "js:[...document.querySelectorAll('label')].find((l) => l.textContent.trim() === '도착전내역만보기').querySelector('input').click(); [...document.querySelectorAll('label')].find((l) => l.textContent.trim() === '모든날짜표시').querySelector('input').click(); true",
+        "click:검색(F8)",
+        "wait:800",
+        "expect:[...document.querySelectorAll('tbody tr')].filter((tr) => tr.innerText.includes('QA그룹웨어-도착')).length === 2",
+        "expect:(() => { const trs = [...document.querySelectorAll('tbody tr')]; const empt = trs.findIndex((tr) => tr.innerText.trim() === '[] 계'); const sum = trs.findIndex((tr) => tr.innerText.trim().startsWith('합계')); const dateOnly = trs.filter((tr) => /^\\d{4}\\/\\d{2}\\/\\d{2}$/.test(tr.innerText.trim())).length; return empt > 0 && sum === empt + 1 && dateOnly >= 20 })()"
+      ]
+    },
+    {
+      "name": "정리",
+      "path": "/groupware/field-work-status",
+      "steps": [
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const rows = (await (await fetch('/api/field-works?from=2026-01-01&to=2026-12-31', { headers: H })).json()).rows.filter((r) => (r.purpose ?? '').startsWith('QA그룹웨어-')); const out = []; for (const r of rows) out.push((await fetch('/api/field-works/' + r.id, { method: 'DELETE', headers: H })).status); return 'del ' + out.join(',') })()"
+      ]
+    }
+  ]
+}

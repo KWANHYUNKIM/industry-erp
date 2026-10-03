@@ -1,0 +1,26 @@
+{
+  "about": "MyPage > 나만의 업무 폴더 설정 — 폴더를 만들면 MyPage 2단 메뉴가 원본 안내 탭 대신 그 폴더로 바뀌고, 담은 메뉴가 왼쪽 메뉴에 이름 그대로(고친 이름으로) 서며, 지우면 안내 탭이 돌아온다. 만든 폴더는 지운다.",
+  "shots": [
+    {
+      "name": "폴더 만들기 → 메뉴 담기 · 이름 바꾸기 → 폴더 지우기",
+      "path": "/mypage/folders",
+      "steps": [
+        "wait:1000",
+        "set:input[placeholder=\"새 폴더명\"]|QAself-화면시험",
+        "click:폴더 추가",
+        "wait:1000",
+        "expect:/폴더를 만들었습니다/.test(document.body.innerText)",
+        "expect:/QAself-화면시험/.test(document.querySelector('.ec-subnav').innerText)",
+        "expect:!/나만의 업무 폴더를 만들수 있습니다/.test(document.querySelector('.ec-subnav').innerText)",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const l=await (await fetch('/api/my-folders',{headers:h})).json();const f=l.find(x=>x.name==='QAself-화면시험');let r=await (await fetch('/api/my-folders/'+f.id+'/items',{method:'POST',headers:h,body:JSON.stringify({label:'판매입력',path:'/sales/sell'})})).json();const it=r.find(x=>x.id===f.id).items[0];r=await (await fetch('/api/my-folders/items/'+it.id,{method:'PUT',headers:h,body:JSON.stringify({label:'QAself-내판매입력'})})).json();window.dispatchEvent(new CustomEvent('my-folders-changed',{detail:r}));return true})()",
+        "wait:800",
+        "expect:[...document.querySelectorAll('.ec-lnb-leaf')].some(b=>b.textContent.trim()==='QAself-내판매입력')",
+        "js:(()=>{window.confirm=()=>true;return true})()",
+        "click:폴더 삭제",
+        "wait:1000",
+        "expect:/폴더를 지웠습니다/.test(document.body.innerText)",
+        "expect:/나만의 업무 폴더를 만들수 있습니다/.test(document.querySelector('.ec-subnav').innerText)"
+      ]
+    }
+  ]
+}

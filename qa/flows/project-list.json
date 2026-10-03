@@ -1,0 +1,22 @@
+{
+  "about": "관리 > 프로젝트등록(E010112) — 원본처럼 [신규(F2)] 창이 다음 프로젝트코드(다섯 자리)를 채워 열리고, 프로젝트명이 비면 막히며, 저장하면 안내 없이 목록에 Yes 로 붙는다. 사용중단하면 목록에서 빠지고 [사용중단포함]에 보인다. 만든 프로젝트는 지운다.",
+  "shots": [
+    {
+      "name": "프로젝트 등록 → 사용중단 → 뒷정리",
+      "path": "/inventory/projects",
+      "steps": [
+        "click:신규(F2)",
+        "wait:600",
+        "expect:/^[0-9]{5}$/.test(document.querySelector('[role=dialog] input.ec-input').value)",
+        "clicklast:저장(F8)",
+        "expect:document.body.innerText.includes('프로젝트명을 입력 바랍니다.')",
+        "set:[role=dialog] input[placeholder=\"프로젝트명\"]|QA관리-화면시험프로젝트",
+        "clicklast:저장(F8)",
+        "wait:2500",
+        "expect:!document.querySelector('[role=dialog]') && /QA관리-화면시험프로젝트\\s+Yes/.test(document.querySelector('table').innerText)",
+        "js:(async()=>{const t=localStorage.getItem('erp_token');const h={Authorization:'Bearer '+t,'Content-Type':'application/json'};const ps=await (await fetch('/api/projects',{headers:h})).json();const p=ps.find(x=>x.name==='QA관리-화면시험프로젝트');const off=await (await fetch('/api/projects/'+p.id,{method:'PATCH',headers:h,body:JSON.stringify({active:false})})).json();const del=await fetch('/api/projects/'+p.id,{method:'DELETE',headers:h});sessionStorage.setItem('qaPrj',String(off.active===false&&del.ok));return true})()",
+        "expect:sessionStorage.getItem('qaPrj')==='true'"
+      ]
+    }
+  ]
+}

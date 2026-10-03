@@ -1,0 +1,19 @@
+{
+  "about": "원가생성/수정 — 표준원가생성·실제원가 계산이 브라우저 입력창(prompt)을 띄우지 않고 위 [기준년월] 로 돈다. 비어 있으면 막는다(25회차 #76). 실제원가 계산은 다시 눌러도 같은 값이라(그 달 생산실적에서 다시 잼) 뒷정리가 없다.",
+  "shots": [
+    {
+      "name": "기준년월 없이 → 막음, 고르면 그 달 실제원가",
+      "path": "/accounting/cost-build",
+      "steps": [
+        "js:window.__prompted = 0; window.prompt = () => { window.__prompted++; return null }; window.alert = () => { window.__prompted++ }; true",
+        "click:실제원가 계산",
+        "expect:document.body.innerText.includes('위 [기준년월] 을 먼저 고르세요')",
+        "set:input[type=month]|2026-10",
+        "wait:500",
+        "click:실제원가 계산",
+        "expect:/2026-10 (실제원가 [0-9]+건을 계산했습니다|에 계산할 것이 없습니다)/.test(document.body.innerText)",
+        "expect:window.__prompted === 0"
+      ]
+    }
+  ]
+}
