@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import GridSortModal from '../../components/GridSortModal'
+import ConditionLoadModal from '../../components/ConditionLoadModal'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import { ymd } from '../../utils/periods'
@@ -33,6 +34,8 @@ export default function DailyWorkInputPage() {
   const [workers, setWorkers] = useState<Worker[]>([])
   /** 원본 격자 [정렬](2026-10-04 실측 — 근무입력과 같은 정렬기준 창). 수당항목은 일근무 하나뿐이라 그 축은 늘 같다. */
   const [sortOpen, setSortOpen] = useState(false)
+  /** 원본 [조건별 불러오기] — 근무입력과 같은 창. 수당항목은 일근무 하나라 그 열 하나다. */
+  const [loadOpen, setLoadOpen] = useState(false)
   const [error, setError] = useState('')
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '일용근로 근무입력', [rows.length])
@@ -111,7 +114,16 @@ export default function DailyWorkInputPage() {
       </ul>
       <div className="flex gap-[6px] mb-[6px]">
         <button type="button" className="ec-btn ec-btn-sm" onClick={() => setSortOpen(true)}>정렬</button>
+        <button type="button" className="ec-btn ec-btn-sm" onClick={() => setLoadOpen(true)}>조건별 불러오기</button>
       </div>
+      <ConditionLoadModal open={loadOpen} onClose={() => setLoadOpen(false)}
+                          people={workers.map((w) => ({ value: String(w.id), code: w.code, name: w.name }))}
+                          items={[{ value: '02', code: '02', name: '일근무' }]}
+                          onApply={(lines) => {
+                            setRows((rs) => [...rs.filter((r) => r.workerId || r.workDate || r.quantity || r.amount),
+                              ...lines.map((l) => ({ workDate: l.workDate, workerId: l.who, quantity: l.quantity, amount: '' })), blank()])
+                            setLoadOpen(false)
+                          }} />
       <GridSortModal open={sortOpen} error={error} keys={['근무일자', '사원', '수당항목'] as const} initial={['사원', '수당항목']} rows={rows}
                      keyOf={(r, k) => k === '근무일자' ? r.workDate : k === '사원' ? workers.find((w) => String(w.id) === r.workerId)?.code ?? '' : ''}
                      isFilled={(r) => !!(r.workerId || r.workDate || r.quantity || r.amount)}

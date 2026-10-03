@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import GridSortModal from '../../components/GridSortModal'
+import ConditionLoadModal from '../../components/ConditionLoadModal'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster, PayItem } from '../../types/api'
@@ -28,7 +29,8 @@ interface Slip { slipDate: string; slipNo: number; lines: SlipLine[] }
  * </ul>
  * 저장한 근무기록은 급여계산이 그 달 변동수당으로 셈한다(근무시간 × 단가). 근무조회의 [전표일자]를 누르면 이 화면이 그 전표로 열린다.
  * 격자 [정렬](2026-10-04 실측: 정렬기준 두 칸 — 처음 사원 · 수당항목, 정렬방법 오름차순 · 내림차순(처음 오름차순), 적용 · 닫기)은 채운 줄만 다시 늘어놓는다.
- * [찾기(F3)] · [조건별 불러오기] · 웹자료올리기 · 저장/내용유지는 아직 없다.
+ * [조건별 불러오기](원본 실측: 일별/사원별 · 근무기간 · 사원 · 수당항목 → 날짜 × 사원 격자에 수당항목마다 한 칸 · 일괄적용 → 적용)는 넣은 칸마다 줄을 더한다.
+ * [찾기(F3)] · 웹자료올리기 · 저장/내용유지는 아직 없다.
  */
 export default function WorkInputPage() {
   const nav = useNavigate()
@@ -42,6 +44,7 @@ export default function WorkInputPage() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [sortOpen, setSortOpen] = useState(false)
+  const [loadOpen, setLoadOpen] = useState(false)
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '근무입력', [rows.length])
 
@@ -129,7 +132,16 @@ export default function WorkInputPage() {
       </ul>
       <div className="flex gap-[6px] mb-[6px]">
         <button type="button" className="ec-btn ec-btn-sm" onClick={() => setSortOpen(true)}>정렬</button>
+        <button type="button" className="ec-btn ec-btn-sm" onClick={() => setLoadOpen(true)}>조건별 불러오기</button>
       </div>
+      <ConditionLoadModal open={loadOpen} onClose={() => setLoadOpen(false)}
+                          people={employees.map((e) => ({ value: String(e.id), code: e.code, name: e.name }))}
+                          items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name }))}
+                          onApply={(lines) => {
+                            setRows((rs) => [...rs.filter((r) => r.employeeId || r.payItemId || r.workDate || r.quantity),
+                              ...lines.map((l) => ({ workDate: l.workDate, employeeId: l.who, payItemId: l.item, quantity: l.quantity })), blank()])
+                            setLoadOpen(false)
+                          }} />
       <GridSortModal open={sortOpen} error={error} keys={SORT_KEYS} initial={['사원', '수당항목']} rows={rows}
                      keyOf={(r, k) => k === '근무일자' ? r.workDate
                        : k === '사원' ? employees.find((e) => String(e.id) === r.employeeId)?.code ?? ''
