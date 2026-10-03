@@ -484,6 +484,23 @@ export default function PurchaseOrderStatusPage() {
             </tr>
           ))}
         </tbody>
+        {/*
+          원본은 달마다 '2026/09 계' 를 끼우고 <b>맨 끝에 '총합계'</b> 를 둔다(미구매현황 E040307 실측 —
+          "미주문현황·발주서현황과 같다"). 우리는 달 소계만 있고 총합계가 없어, 두 달 이상을 보면
+          전체 합은 위 요약 줄에서만 볼 수 있었다.
+        */}
+        {lineRows.length > 0 && (
+          <tfoot>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={7} className="text-right">총합계 ({shown.length}줄)</td>
+              <td className="text-right">{totals.qty.toLocaleString()}</td>
+              <td></td>
+              <td className="text-right">{totals.supply.toLocaleString()}</td>
+              <td className="text-right">{totals.vat.toLocaleString()}</td>
+              <td colSpan={2}></td>
+            </tr>
+          </tfoot>
+        )}
       </table>
     )}
     </EcListShell>
