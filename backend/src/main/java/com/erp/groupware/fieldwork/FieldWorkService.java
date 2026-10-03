@@ -45,15 +45,18 @@ public class FieldWorkService {
                 all.stream().map(FieldWorkResponse::from).toList());
     }
 
+    /**
+     * 외근 한 건 = 차량 운행 한 번(원본 외근입력). 같은 날 여러 번 다닐 수 있다 — 원본 [일자No.] 가
+     * '2026/09/10 -1' 처럼 그날 안의 차례를 단다. 예전의 '하루 한 건' 막음은 우리 신청서 모델의 것이라 뺐다.
+     */
     @Transactional
     public FieldWorkResponse create(CreateFieldWorkRequest req, String username) {
-        User user = user(username);
+        User user = req.userId() != null
+                ? userRepository.findById(req.userId())
+                        .orElseThrow(() -> ApiException.notFound("사용자를 찾을 수 없습니다. id=" + req.userId()))
+                : user(username);
         if (req.startTime() != null && req.endTime() != null && req.endTime().isBefore(req.startTime())) {
             throw ApiException.badRequest("종료 시각이 시작 시각보다 빠를 수 없습니다.");
-        }
-        if (fieldWorkRepository.existsByUser_IdAndWorkDateAndStatusNot(
-                user.getId(), req.workDate(), FieldWorkStatus.REJECTED)) {
-            throw ApiException.conflict(req.workDate() + " 외근계가 이미 있습니다. 기존 건을 반려하거나 취소한 뒤 신청하세요.");
         }
 
         FieldWork f = FieldWork.builder()
@@ -63,6 +66,11 @@ public class FieldWorkService {
                 .endTime(req.endTime())
                 .destination(req.destination())
                 .purpose(req.purpose())
+                .departure(req.departure())
+                .vehicleNo(req.vehicleNo())
+                .vehicleName(req.vehicleName())
+                .usePurpose(req.usePurpose())
+                .distance(req.distance())
                 .status(FieldWorkStatus.REQUESTED)
                 .build();
         return FieldWorkResponse.from(fieldWorkRepository.save(f));

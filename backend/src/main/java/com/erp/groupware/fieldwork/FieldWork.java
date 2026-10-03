@@ -40,13 +40,33 @@ public class FieldWork extends BaseTimeEntity {
     @Column(name = "end_time")
     private LocalTime endTime;
 
-    /** 외근지 (거래처명·현장명) */
-    @Column(nullable = false, length = 200)
+    /** 원본 [도착지 주소]. 비워 둘 수 있다(원본 필수는 사용자·이동수단뿐). */
+    @Column(length = 200)
     private String destination;
 
-    /** 외근 사유 */
-    @Column(nullable = false, length = 300)
+    /** 원본 [적요]. */
+    @Column(length = 300)
     private String purpose;
+
+    /** 원본 [출발지 주소]. */
+    @Column(length = 200)
+    private String departure;
+
+    /** 원본 [이동수단] 코드 — 차량번호(123하1234). 차량 마스터가 없어 글자로 받는다. */
+    @Column(name = "vehicle_no", length = 30)
+    private String vehicleNo;
+
+    /** 원본 [이동수단명] — 차량명(k5[H]). */
+    @Column(name = "vehicle_name", length = 100)
+    private String vehicleName;
+
+    /** 원본 [사용목적명]. */
+    @Column(name = "use_purpose", length = 100)
+    private String usePurpose;
+
+    /** 원본 격자 [운행거리](500.00). */
+    @Column(precision = 12, scale = 2)
+    private java.math.BigDecimal distance;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
