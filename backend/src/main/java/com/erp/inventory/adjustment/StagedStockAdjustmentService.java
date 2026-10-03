@@ -8,7 +8,7 @@ import com.erp.inventory.adjustment.dto.StagedAdjustmentDtos.CreateStagedRequest
 import com.erp.inventory.adjustment.dto.StagedAdjustmentDtos.StagedResponse;
 import com.erp.inventory.adjustment.dto.StockAdjustmentDtos.CreateAdjustmentRequest;
 import com.erp.inventory.item.ItemRepository;
-import com.erp.inventory.stock.StockRepository;
+import com.erp.inventory.stock.StockService;
 import com.erp.inventory.warehouse.WarehouseRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -25,7 +25,7 @@ public class StagedStockAdjustmentService {
     private final StagedStockAdjustmentRepository stagedRepository;
     private final ItemRepository itemRepository;
     private final WarehouseRepository warehouseRepository;
-    private final StockRepository stockRepository;
+    private final StockService stockService;
     private final StockAdjustmentService stockAdjustmentService;
     private final DocumentNoGenerator docNoGenerator;
 
@@ -59,12 +59,13 @@ public class StagedStockAdjustmentService {
         Warehouse warehouse = warehouseRepository.findById(req.warehouseId())
                 .orElseThrow(() -> ApiException.notFound("창고를 찾을 수 없습니다. id=" + req.warehouseId()));
 
-        // 요청 시점의 장부수량 스냅샷(없으면 0)
-        BigDecimal bookQty = stockRepository.findByItemIdAndWarehouseId(item.getId(), warehouse.getId())
-                .map(s -> s.getQuantity())
-                .orElse(BigDecimal.ZERO);
-
         LocalDate date = req.requestDate() != null ? req.requestDate() : LocalDate.now();
+        /*
+         * 장부수량은 <b>실사일자의</b> 재고다(없으면 0). 예전에는 입력하는 순간의 현재고를 박아서,
+         * 9/30 실사를 10/3 에 넣으면 그 사이 출고만큼 [차이]가 생겼다 — 재고실사현황의
+         * 장부·차이 합계가 통째로 어긋난다. 재고조정(adjustTo)이 지난 날짜를 견주는 방식과 같다.
+         */
+        BigDecimal bookQty = stockService.quantityOn(item.getId(), warehouse.getId(), date);
         StagedStockAdjustment staged = StagedStockAdjustment.builder()
                 .adjustNo(docNoGenerator.next("ST-", "staged_stock_adjustments", "adjust_no", "request_date", date))
                 .requestDate(date)

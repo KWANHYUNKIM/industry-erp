@@ -76,6 +76,17 @@ public class StockService {
                 .toList();
     }
 
+    /**
+     * 특정 (품목, 창고)의 <b>그날 마감 재고</b> — 현재고에서 그날 뒤(앞날짜 전표 포함)의 변동을 뺀다.
+     * 단계별조정(재고실사)의 [장부수량] 이 이것이다: 실사일의 장부와 견줘야 차이가 맞는다.
+     */
+    @Transactional(readOnly = true)
+    public BigDecimal quantityOn(Long itemId, Long warehouseId, LocalDate date) {
+        LocalDate on = date != null ? date : LocalDate.now();
+        return quantityOf(itemId, warehouseId)
+                .subtract(transactionRepository.sumChangeAfterFor(itemId, warehouseId, on));
+    }
+
     /** 특정 (품목, 창고)의 현재고. 없으면 0. WMS 로케이션 배치가 이 수량을 넘지 못한다. */
     @Transactional(readOnly = true)
     public BigDecimal quantityOf(Long itemId, Long warehouseId) {
@@ -313,10 +324,15 @@ public class StockService {
          * 9/30 에 45 개를 세고 10/1 에 5 개가 나간 뒤 9/30 실사를 넣으면 차이는 0 이지
          * (45 − 현재고 40) = +5 가 아니다(QA 55회차). 그 뒤 거래는 실사 뒤에 그대로 일어난 것이다.
          */
-        boolean past = date != null && date.isBefore(LocalDate.now());
-        BigDecimal onDate = past
-                ? current.subtract(transactionRepository.sumChangeAfterFor(item.getId(), warehouse.getId(), date))
-                : current;
+        /*
+         * 오늘 날짜도 뺀다 — 현재고에는 앞날짜로 넣은 전표(다음 주 창고이동)가 이미 들어 있다.
+         * 예전에는 지난 날짜만 뺐다. 그래서 오늘 실사가 아직 안 일어난 이동까지 장부로 보고
+         * 그만큼 엉뚱하게 조정했다. 그 뒤 변동이 없으면 빼는 것이 0 이라 예전과 같다.
+         */
+        LocalDate on = date != null ? date : LocalDate.now();
+        BigDecimal later = transactionRepository.sumChangeAfterFor(item.getId(), warehouse.getId(), on);
+        BigDecimal onDate = current.subtract(later);
+        boolean past = later.signum() != 0 || on.isBefore(LocalDate.now());
         BigDecimal delta = targetQty.subtract(onDate);
         if (delta.signum() == 0) {
             throw ApiException.badRequest(!past
