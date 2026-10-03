@@ -675,6 +675,10 @@ const MENU: TopMenu[] = [
           ] },
           { label: '일용근로 급여작업', children: [
             { label: '일용근로 급여계산/대장', to: '/hr/daily-payroll' },
+            { label: '일용근로 사원별급여조회', to: '/hr/daily-payroll/by-worker' },
+            { label: '일용근로 급여현황', to: '/hr/daily-payroll/status' },
+            { label: '일용근로 근무확정현황', to: '/hr/daily-payroll/work-confirms' },
+            { label: '일용근로 급여이체현황', to: '/hr/daily-payroll/transfer-status' },
             { label: '일용근로 출역/지급(분개)', to: '/hr/daily-wage' },
           ] },
         ],
