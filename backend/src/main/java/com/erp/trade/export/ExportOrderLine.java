@@ -43,4 +43,23 @@ public class ExportOrderLine {
     @Column(name = "line_no", nullable = false)
     @Builder.Default
     private Integer lineNo = 1;
+
+    /* 원본 품목 격자의 [단위] · [Mark&amp;Number of PKGS] · [Description of Goods] · [Net Weight] · [Gross Weight] · [Measurement]. */
+    @Column(length = 20)
+    private String unit;
+
+    @Column(length = 200)
+    private String marks;
+
+    @Column(length = 300)
+    private String description;
+
+    @Column(name = "net_weight", precision = 18, scale = 3)
+    private BigDecimal netWeight;
+
+    @Column(name = "gross_weight", precision = 18, scale = 3)
+    private BigDecimal grossWeight;
+
+    @Column(precision = 18, scale = 3)
+    private BigDecimal measurement;
 }

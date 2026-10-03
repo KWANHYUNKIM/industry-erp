@@ -89,6 +89,50 @@ public class ExportOrder extends BaseTimeEntity {
     @Column(length = 300)
     private String remark;
 
+    /*
+     * 원본 Invoice/Packing List 입력(C000652, 2026-10-04 실측)의 머리 칸들. [일자]는 전표일자(목록 Voucher Date),
+     * [Invoice 일자]는 인보이스에 찍히는 날로 따로 둔다. 나머지는 인보이스 · 패킹리스트 인쇄에 그대로 실린다.
+     */
+    @Column(name = "voucher_date", nullable = false)
+    private LocalDate voucherDate;
+
+    @Column(name = "lc_no", length = 50)
+    private String lcNo;
+
+    @Column(name = "lc_date")
+    private LocalDate lcDate;
+
+    @Column(name = "lc_bank", length = 300)
+    private String lcBank;
+
+    @Column(length = 300)
+    private String shipper;
+
+    /** For Account &amp; Risk of Messrs */
+    @Column(length = 300)
+    private String messrs;
+
+    @Column(name = "notify_party", length = 300)
+    private String notifyParty;
+
+    @Column(name = "port_of_loading", length = 100)
+    private String portOfLoading;
+
+    @Column(length = 100)
+    private String carrier;
+
+    /** Sailing on or about */
+    @Column(name = "sailing_date")
+    private LocalDate sailingDate;
+
+    @Column(name = "weight_unit", length = 20)
+    private String weightUnit;
+
+    /** 원본 목록 탭 [미확인] · [확인] 과 [진행상태변경] 이 바꾸는 값. */
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean confirmed = false;
+
     @Column(name = "created_by", length = 50)
     private String createdBy;
 

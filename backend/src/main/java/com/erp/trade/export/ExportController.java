@@ -1,6 +1,7 @@
 package com.erp.trade.export;
 
 import com.erp.trade.export.dto.ExportDtos.CreateExportRequest;
+import com.erp.trade.export.dto.ExportDtos.ConfirmRequest;
 import com.erp.trade.export.dto.ExportDtos.CustomsRequest;
 import com.erp.trade.export.dto.ExportDtos.ExportResponse;
 import com.erp.trade.export.dto.ExportDtos.ExportSummary;
@@ -42,6 +43,23 @@ public class ExportController {
             @Valid @RequestBody CreateExportRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(service.create(req, principal.getUsername()));
+    }
+
+    @PutMapping("/{id}")
+    public ExportResponse update(@PathVariable Long id, @Valid @RequestBody CreateExportRequest req) {
+        return service.update(id, req);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        service.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** 원본 [진행상태변경] — 미확인 ↔ 확인. */
+    @PatchMapping("/{id}/confirm")
+    public ExportResponse confirm(@PathVariable Long id, @RequestBody ConfirmRequest req) {
+        return service.confirm(id, req.confirmed());
     }
 
     @PostMapping("/{id}/customs")
