@@ -12,7 +12,9 @@ type Tri = 'all' | 'a' | 'b'
 /**
  * 출/퇴근현황(사원) · 지각현황(사원) 이 같이 쓰는 몸통 — 조건 판(기간 금월(~오늘) · 사원명 · 부서 · 내/외근구분 · 업무일/휴일구분 ·
  * 재직구분) · 빠른선택(금일 · 전일 · 금주(~오늘) · 전주 · 금월(~오늘) · 전월 · 종료일) · 결과 머리(회사명 · 기간) · 격자.
- * 열만 다르다. 사원명 · 부서는 여러 개 고르는 코드도움. 정렬/소계기준 · 모든날짜검색 · 양식은 없다.
+ * 열만 다르다. 사원명 · 부서는 여러 개 고르는 코드도움. 정렬/소계기준 · 양식은 없다.
+ * 2026-10-04 실측 처음 값: 출/퇴근현황은 내/외근 [내근] · 재직구분 [재직자], 지각현황은 [전체] · [재직자].
+ * 출/퇴근현황만 [기타] 모든날짜검색(처음 꺼짐) — 켜면 기간의 날마다 줄을 두고 기록이 없는 날은 일자만 찍는다. 끝에 합계 줄.
  */
 export default function EmployeeCommuteStatusView({ title, lateOnly }: { title: string; lateOnly: boolean }) {
   const [range, setRange] = useState(monthToToday())
@@ -25,9 +27,10 @@ export default function EmployeeCommuteStatusView({ title, lateOnly }: { title: 
     api.get<typeof empList>('/employees/all').then((r) => setEmpList(r.data)).catch(() => setEmpList([]))
     api.get<typeof deptList>('/departments').then((r) => setDeptList(r.data)).catch(() => setDeptList([]))
   }, [])
-  const [place, setPlace] = useState<Tri>('all')
+  const [place, setPlace] = useState<Tri>(lateOnly ? 'all' : 'a')
   const [dayKind, setDayKind] = useState<Tri>('all')
-  const [employment, setEmployment] = useState<Tri>('all')
+  const [employment, setEmployment] = useState<Tri>('a')
+  const [allDates, setAllDates] = useState(false)
   const [rows, setRows] = useState<EmployeeCommuteLine[]>([])
   const [error, setError] = useState('')
   const tableRef = useRef<HTMLTableElement>(null)
@@ -45,7 +48,13 @@ export default function EmployeeCommuteStatusView({ title, lateOnly }: { title: 
     && (place === 'all' || (place === 'b') === r.outside)
     && (dayKind === 'all' || (dayKind === 'b') === isHoliday(r.workDate))
     && (employment === 'all' || (employment === 'a') === r.employeeActive))
-  useTableColumnCheck(tableRef, title, [list.length])
+  /** 모든날짜검색 — 기간의 날마다, 그날 기록이 없으면 빈 줄(null). */
+  const lines: (EmployeeCommuteLine | { blank: string })[] = !allDates || lateOnly ? list : eachDay(shown.from, shown.to).flatMap((d): (EmployeeCommuteLine | { blank: string })[] => {
+    const day = list.filter((r) => r.workDate === d)
+    return day.length ? day : [{ blank: d }]
+  })
+  const totalMinutes = list.reduce((n, r) => n + (r.workMinutes ?? 0), 0)
+  useTableColumnCheck(tableRef, title, [lines.length])
 
   const radios = (name: string, value: Tri, set: (v: Tri) => void, labels: [string, string, string]) => (
     <>
@@ -76,6 +85,13 @@ export default function EmployeeCommuteStatusView({ title, lateOnly }: { title: 
         <EcCond label="내/외근구분">{radios(`${title}-place`, place, setPlace, ['전체', '내근', '외근'])}</EcCond>
         <EcCond label="업무일/휴일구분">{radios(`${title}-day`, dayKind, setDayKind, ['전체', '업무일', '휴일'])}</EcCond>
         <EcCond label="재직구분">{radios(`${title}-emp`, employment, setEmployment, ['전체', '재직자', '퇴사자'])}</EcCond>
+        {!lateOnly && (
+          <EcCond label="기타">
+            <label className="inline-flex items-center gap-[4px]">
+              <input type="checkbox" checked={allDates} onChange={(e) => setAllDates(e.target.checked)} /> 모든날짜검색
+            </label>
+          </EcCond>
+        )}
       </ul>
       <div className="flex flex-wrap items-center gap-[6px] mb-[8px]">
         <button type="button" className="ec-btn ec-btn-primary" onClick={search}>검색(F8)</button>
@@ -93,9 +109,11 @@ export default function EmployeeCommuteStatusView({ title, lateOnly }: { title: 
           )}
         </thead>
         <tbody>
-          {list.length === 0 ? (
+          {lines.length === 0 ? (
             <tr><td colSpan={5} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : list.map((r) => (lateOnly ? (
+          ) : lines.map((r) => ('blank' in r ? (
+            <tr key={`d-${r.blank}`}><td className="text-center">{slashDate(r.blank)}</td><td></td><td></td><td></td><td></td></tr>
+          ) : lateOnly ? (
             <tr key={r.id}>
               <td className="text-center">{slashDate(r.workDate)}</td>
               <td>{r.employeeName}</td>
@@ -113,7 +131,20 @@ export default function EmployeeCommuteStatusView({ title, lateOnly }: { title: 
             </tr>
           )))}
         </tbody>
+        {!lateOnly && lines.length > 0 && (
+          <tfoot>
+            <tr><td colSpan={4}>합계</td><td className="text-right">{(totalMinutes / 60).toFixed(2)}</td></tr>
+          </tfoot>
+        )}
       </table>
     </EcListShell>
   )
+}
+
+function eachDay(from: string, to: string): string[] {
+  const out: string[] = []
+  for (let d = new Date(`${from}T00:00:00`); d <= new Date(`${to}T00:00:00`) && out.length < 400; d.setDate(d.getDate() + 1)) {
+    out.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)
+  }
+  return out
 }

@@ -1,5 +1,5 @@
 {
-  "about": "관리 > 출/퇴근현황(사원)(E020722) · 지각현황(사원)(E020723) — 2091/06/01 에 사원 하나가 09:30 출근 · 18:30 퇴근하면, 출/퇴근현황(사원)에 근무시간 8.00(점심 1시간 뺌), 지각현황(사원)에 같은 날 출근시간 · 출근적요가 보인다(09:00 넘음). 시험 기록은 지운다. [사원명] · [부서]는 여러 개 고르는 코드도움 — EMP-0004 만 고르면 EMP-0001 지각 줄이 빠진다.",
+  "about": "관리 > 출/퇴근현황(사원)(E020722) · 지각현황(사원)(E020723) — 2091/06/01 에 사원 하나가 09:30 출근 · 18:30 퇴근하면, 출/퇴근현황(사원)에 근무시간 8.00(점심 1시간 뺌), 지각현황(사원)에 같은 날 출근시간 · 출근적요가 보인다(09:00 넘음). 시험 기록은 지운다. [사원명] · [부서]는 여러 개 고르는 코드도움 — EMP-0004 만 고르면 EMP-0001 지각 줄이 빠진다. 처음 값은 원본대로 출/퇴근현황 내근 · 재직자, 지각현황 전체 · 재직자. 출/퇴근현황 [기타] 모든날짜검색을 켜면 기간 30일이 다 줄로 나오고 기록 없는 날은 일자만. 합계 줄은 근무시간 합.",
   "shots": [
     {
       "name": "출/퇴근현황(사원) — 근무시간",
@@ -10,7 +10,12 @@
         "set:input[type=date]#1|2091-06-30",
         "click:검색(F8)",
         "wait:1200",
-        "expect:[...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes('2091/06/01')&&t.innerText.includes('오전 9:30:00')&&t.innerText.includes('오후 6:30:00')&&t.innerText.trim().endsWith('8.00'))"
+        "expect:[...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes('2091/06/01')&&t.innerText.includes('오전 9:30:00')&&t.innerText.includes('오후 6:30:00')&&t.innerText.trim().endsWith('8.00'))",
+        "expect:(()=>{const f=document.querySelector('table tfoot tr');return !!f&&f.innerText.includes('합계')&&f.innerText.trim().endsWith('8.00')})()",
+        "expect:document.querySelectorAll('table tbody tr').length===1",
+        "js:(()=>{const l=[...document.querySelectorAll('label')].find(x=>x.innerText.trim()==='모든날짜검색');l.querySelector('input').click();return true})()",
+        "wait:300",
+        "expect:(()=>{const trs=[...document.querySelectorAll('table tbody tr')];const d2=trs.find(t=>t.cells[0].innerText.trim()==='2091/06/02');return trs.length===30&&!!d2&&d2.innerText.trim()==='2091/06/02'})()"
       ]
     },
     {
