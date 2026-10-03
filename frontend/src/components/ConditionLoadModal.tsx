@@ -8,7 +8,7 @@ export interface LoadedLine { workDate: string; who: string; item: string; quant
 
 /**
  * 입력 격자 [조건별 불러오기](원본 근무입력 · 일용근로 근무입력, 2026-10-04 실측).
- * ① 조건: 구분 일별(처음) · 사원별, 근무기간(처음 오늘 ~ 오늘), 사원(꼭 — 비우면 칸이 빨갛게), 수당항목 → [검색(F8)] · [다시 작성]
+ * ① 조건: 구분 일별(처음) · 사원별, 근무기간(처음 오늘 ~ 오늘), 사원(꼭 — 비우고 검색하면 원본처럼 안내 없이 칸 테두리만 빨갛게), 수당항목 → [검색(F8)] · [다시 작성]
  * ② 결과 격자: 근무일자 · 사원 · 수당항목마다 한 칸(일별은 날짜 먼저, 사원별은 사원 먼저), [일괄적용] 체크 → 한 칸에 넣으면 그 열 전부, [적용] · [닫기]
  * [적용]은 값을 넣은 칸마다 입력 격자에 한 줄(근무일자 · 사원 · 수당항목 · 근무기록)을 더한다. 수당항목을 비우면 후보 전부를 열로 둔다.
  */
@@ -27,6 +27,7 @@ export default function ConditionLoadModal({ open, people, items, onApply, onClo
   const [who, setWho] = useState<string[]>([])
   const [itemSel, setItemSel] = useState<string[]>([])
   const [error, setError] = useState('')
+  const [whoMissing, setWhoMissing] = useState(false)
   const [values, setValues] = useState<Record<string, string>>({})
   const [bulk, setBulk] = useState(false)
 
@@ -36,11 +37,11 @@ export default function ConditionLoadModal({ open, people, items, onApply, onClo
   const rows = byPerson ? who.flatMap((p) => days.map((d) => ({ d, p }))) : days.flatMap((d) => who.map((p) => ({ d, p })))
   const keyOf = (d: string, p: string, it: string) => `${d}|${p}|${it}`
 
-  function reset() { setByPerson(false); setFrom(today); setTo(today); setWho([]); setItemSel([]); setError('') }
+  function reset() { setByPerson(false); setFrom(today); setTo(today); setWho([]); setItemSel([]); setError(''); setWhoMissing(false) }
   function search() {
-    if (who.length === 0) { setError('사원을 입력 바랍니다.'); return }
+    if (who.length === 0) { setWhoMissing(true); return }
     if (to < from) { setError('근무기간의 끝이 시작보다 앞섭니다.'); return }
-    setError(''); setValues({}); setBulk(false); setStep('grid')
+    setError(''); setWhoMissing(false); setValues({}); setBulk(false); setStep('grid')
   }
   function close() { setStep('cond'); onClose() }
   function set(d: string, p: string, it: string, v: string) {
@@ -77,8 +78,8 @@ export default function ConditionLoadModal({ open, people, items, onApply, onClo
           </li>
           <li className="wide">
             <span className="title">사원</span>
-            <div className="form">
-              <CodePickerField label="불러올 사원" hideLabel fill multiple placeholder="사원" values={who} onChangeMulti={setWho} items={people} />
+            <div className={`form${whoMissing ? ' rounded-ec outline outline-1 outline-ec-danger' : ''}`} data-invalid={whoMissing || undefined}>
+              <CodePickerField label="불러올 사원" hideLabel fill multiple placeholder="사원" values={who} onChangeMulti={(v) => { setWho(v); if (v.length) setWhoMissing(false) }} items={people} />
             </div>
           </li>
           {items.length > 1 && (
