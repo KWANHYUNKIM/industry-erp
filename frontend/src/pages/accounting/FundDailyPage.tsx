@@ -17,7 +17,12 @@ const FUND_CODES = ['101', '102', '103']
 const FLOW_PICKS = [...SETTLE_PICKS, '최근30일'] as const
 
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
-interface Fund { code: string; name: string; carry: number; inc: number; dec: number }
+interface Book { label: string; no: string; carry: number; inc: number; dec: number }
+interface Fund { code: string; name: string; carry: number; inc: number; dec: number; books: Map<string, Book> }
+interface BankTxn { journalEntryId: number | null; bankAccountId: number }
+interface BankAccount { id: number; name: string | null; bankName: string | null; accountNo: string | null }
+/** 통장 이름 — 등록한 통장명, 없으면 원본 모양 '은행명-계좌끝4자리'(원본 예: 기업은행-1122). */
+const bookLabel = (a: BankAccount) => a.name || `${a.bankName ?? ''}-${(a.accountNo ?? '').replace(/\D/g, '').slice(-4)}`
 interface Move { key: string; date: string; counter: string; partner: string; text: string; amount: number }
 
 /**
@@ -29,7 +34,8 @@ interface Move { key: string; date: string; counter: string; partner: string; te
  * 같은 날의 둘째 줄부터 일자를 비움, 끝 [합계]).
  *
  * <p>자금 계정은 현금 · 당좌 · 보통예금(101 · 102 · 103). 원본은 예금 계정을 통장(거래처, 예: 기업은행-1122)마다 갈라 [거래처명] ·
- * [거래처코드]에 찍는데 우리 자금 분개는 통장을 들지 않아 '[ ]' 한 줄이다. 외화는 회계전표가 외화 금액을 들지 않아 원화만.
+ * [거래처코드]에 찍는다 — 우리도 계좌 입출금(/bank-cards/transactions)이 가리키는 회계전표로 통장을 찾아 가른다(통장명이 없으면
+ * '은행명-계좌끝4자리', 거래처코드 자리는 계좌번호). 통장 없이 잡힌 분개(수표 입금 등)는 '[ ]' 줄이다. 외화는 회계전표가 외화 금액을 들지 않아 원화만.
  * 상대계정명은 같은 전표의 다른 줄 계정(둘 이상이면 '첫 계정 외 n'), 상대거래처명은 전표의 거래처. 부서 · 프로젝트는 회계전표에 없다.
  *
  * <p><b>자금증감내역</b>(E010815, variant="flow") — 같은 날 실측. 자금일보의 증가 · 감소 두 표만 있다(번호가 <b>1 . 자금의 증가 · 2 . 자금의 감소</b>로
@@ -43,6 +49,8 @@ export default function FundDailyPage({ variant = 'daily' }: { variant?: 'daily'
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
   const [entries, setEntries] = useState<JournalEntry[]>([])
+  /* 회계전표 → 그 전표를 만든 통장. 원본은 예금 계정을 통장(거래처명 자리)마다 가른다. */
+  const [bookOf, setBookOf] = useState<Map<number, { label: string; no: string }>>(new Map())
   const [truncated, setTruncated] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -52,7 +60,14 @@ export default function FundDailyPage({ variant = 'daily' }: { variant?: 'daily'
     setLoading(true)
     setError('')
     try {
-      const r = await api.get<JournalList>('/journals', { params: { from: '1900-01-01', to, all: true } })
+      const [r, t, a] = await Promise.all([
+        api.get<JournalList>('/journals', { params: { from: '1900-01-01', to, all: true } }),
+        api.get<{ rows: BankTxn[] }>('/bank-cards/transactions', { params: { all: true, from: '1900-01-01', to } }).catch(() => ({ data: { rows: [] as BankTxn[] } })),
+        api.get<BankAccount[]>('/bank-cards/accounts').catch(() => ({ data: [] as BankAccount[] })),
+      ])
+      const acc = new Map(a.data.map((x) => [x.id, x]))
+      setBookOf(new Map(t.data.rows.filter((x) => x.journalEntryId != null && acc.has(x.bankAccountId))
+        .map((x) => { const b = acc.get(x.bankAccountId)!; return [x.journalEntryId!, { label: bookLabel(b), no: b.accountNo ?? '' }] })))
       setEntries(r.data.rows)
       setTruncated(r.data.truncated)
     } catch (e) {
@@ -71,11 +86,16 @@ export default function FundDailyPage({ variant = 'daily' }: { variant?: 'daily'
     for (const e of sorted) {
       for (const l of e.lines) {
         if (!FUND_CODES.includes(l.accountCode)) continue
-        if (!fm.has(l.accountCode)) fm.set(l.accountCode, { code: l.accountCode, name: l.accountName, carry: 0, inc: 0, dec: 0 })
+        if (!fm.has(l.accountCode)) fm.set(l.accountCode, { code: l.accountCode, name: l.accountName, carry: 0, inc: 0, dec: 0, books: new Map() })
         const f = fm.get(l.accountCode)!
+        /* 현금은 통장이 없다. 예금 줄은 그 전표를 만든 통장으로, 통장 없이 잡힌 분개는 '[ ]' 줄로. */
+        const bk = l.accountCode === '101' ? undefined : bookOf.get(e.id)
+        const key = bk ? bk.label : '[ ]'
+        if (!f.books.has(key)) f.books.set(key, { label: key, no: bk ? bk.no : '[ ]', carry: 0, inc: 0, dec: 0 })
+        const b = f.books.get(key)!
         const d = Number(l.debit), c = Number(l.credit)
-        if (e.entryDate < from) { f.carry += d - c; continue }
-        f.inc += d; f.dec += c
+        if (e.entryDate < from) { f.carry += d - c; b.carry += d - c; continue }
+        f.inc += d; f.dec += c; b.inc += d; b.dec += c
         const others = [...new Set(e.lines.filter((o) => o !== l && !FUND_CODES.includes(o.accountCode)).map((o) => o.accountName))]
         const counter = others.length === 0 ? '' : others.length === 1 ? others[0] : `${others[0]} 외 ${others.length - 1}`
         const m = { key: `${e.id}-${l.id}`, date: e.entryDate, counter, partner: e.partnerName ?? '', text: l.description ?? e.description ?? '' }
@@ -84,7 +104,7 @@ export default function FundDailyPage({ variant = 'daily' }: { variant?: 'daily'
       }
     }
     return { funds: [...fm.values()].filter((f) => f.carry || f.inc || f.dec).sort((a, b) => a.code.localeCompare(b.code)), incs, decs }
-  }, [entries, from])
+  }, [entries, from, bookOf])
   const tot = funds.reduce((s, f) => ({ carry: s.carry + f.carry, inc: s.inc + f.inc, dec: s.dec + f.dec }), { carry: 0, inc: 0, dec: 0 })
 
   const tableRef = useRef<HTMLTableElement>(null)
@@ -183,16 +203,18 @@ export default function FundDailyPage({ variant = 'daily' }: { variant?: 'daily'
                   {funds.length === 0 && <tr><td colSpan={8} className="text-center text-ec-hint p-[14px]">등록된 데이터가 없습니다.</td></tr>}
                   {funds.map((f) => (
                     <Fragment key={f.code}>
-                      <tr>
-                        <td>{f.name}</td>
-                        <td>[ ]</td>
-                        <td className="text-right">{won(f.carry)}</td>
-                        <td className="text-right">{won(f.inc)}</td>
-                        <td className="text-right">{won(f.dec)}</td>
-                        <td className="text-right">{won(f.carry + f.inc - f.dec)}</td>
-                        <td>{f.code}</td>
-                        <td>[ ]</td>
-                      </tr>
+                      {[...f.books.values()].filter((b) => b.carry || b.inc || b.dec).sort((x, y) => (x.label === '[ ]' ? -1 : y.label === '[ ]' ? 1 : x.label.localeCompare(y.label, 'ko'))).map((b) => (
+                        <tr key={b.label}>
+                          <td>{f.name}</td>
+                          <td>{b.label}</td>
+                          <td className="text-right">{won(b.carry)}</td>
+                          <td className="text-right">{won(b.inc)}</td>
+                          <td className="text-right">{won(b.dec)}</td>
+                          <td className="text-right">{won(b.carry + b.inc - b.dec)}</td>
+                          <td>{f.code}</td>
+                          <td>{b.no}</td>
+                        </tr>
+                      ))}
                       <tr style={SUB_ROW}>
                         <td colSpan={2} className="text-center">{f.name} 계</td>
                         <td className="text-right">{won(f.carry)}</td>
