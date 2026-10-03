@@ -84,7 +84,8 @@ export default function ApprovalListPage({
   const [lineCond, setLineCond] = useState('')
   /** 원본 [첨부] — 붙임 파일이 있는 문서만/없는 문서만. */
   const [attachCond, setAttachCond] = useState<'전체' | '있음' | '없음'>('전체')
-  const [tab, setTab] = useState<Tab>('전체')
+  /* 원본 기안서통합관리는 [진행중] 알약이 켜진 채로 열린다(2026-10-03 실측). 내결재관리는 전체. */
+  const [tab, setTab] = useState<Tab>(scope === 'all' ? '진행중' : '전체')
   const TABS: readonly Tab[] = scope === 'mine' ? TABS_MINE : TABS_ALL
   /* 기간 줄의 이름은 화면마다 다르다 — 내결재관리 [기준일자] · 기안서통합관리 [일자](사본 실측). */
   const dateLabel = scope === 'mine' ? '기준일자' : '일자'
@@ -536,7 +537,8 @@ export default function ApprovalListPage({
                 <td className="whitespace-nowrap">{r.draftNo}</td>
                 <td><a onClick={() => setDetail(r)} className="text-ec-blue cursor-pointer">{r.title}</a></td>
                 <td className="text-center">{r.voucherCount > 0 ? r.voucherCount : ''}</td>
-                <td>{r.formTypeName}</td>
+                {/* 원본 [구분]은 양식 분류(휴가신청서 · 지출결의서)다 — 분류 없는 양식(비품 구매 신청서)은 빈칸. 우리 양식에는 분류가 없어 빈칸이다. 양식 이름은 칸 풍선으로. */}
+                <td title={r.formTypeName} />
                 <td>{r.drafterName}</td>
                 <td>{r.currentApproverName ?? ''}</td>
                 <td className="text-center">
@@ -545,7 +547,10 @@ export default function ApprovalListPage({
                     : <span style={{ color: statusColor(r.status) }}>{STATUS_LABEL[r.status]}</span>}
                 </td>
                 <td className="text-center">
-                  {isMyTurn(r) ? (
+                  {/* 원본 기안서통합관리의 [결재] 칸은 줄마다 '보기'(문서를 열어 거기서 결재한다), [조회]는 빈칸. 내결재관리는 그 자리에서 승인 · 반려. */}
+                  {scope === 'all' ? (
+                    <a onClick={() => setDetail(r)} className="text-ec-navy cursor-pointer">보기</a>
+                  ) : isMyTurn(r) ? (
                     <div className="inline-flex gap-[3px]">
                       <button className="ec-btn ec-btn-primary" style={{ height: 20, padding: '0 8px' }} onClick={() => act(r, 'approve')}>승인</button>
                       <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: 'var(--ec-danger)' }} onClick={() => act(r, 'reject')}>반려</button>
@@ -560,7 +565,7 @@ export default function ApprovalListPage({
                   <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => copy(r)}>복사</button>
                 </td>
                 <td className="text-center">
-                  <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => setDetail(r)}>보기</button>
+                  {scope !== 'all' && <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => setDetail(r)}>보기</button>}
                 </td>
                 <td className="whitespace-nowrap">
                   {r.vouchers.map((v) => (
