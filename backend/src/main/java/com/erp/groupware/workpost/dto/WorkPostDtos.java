@@ -51,6 +51,12 @@ public final class WorkPostDtos {
             Long attachmentId
     ) {}
 
+    /** 원본 '조회자 현황'의 오른쪽 한 줄 — 이름 · 최초조회일시 · 최종조회일시. */
+    public record Reader(String name, LocalDateTime firstReadAt, LocalDateTime lastReadAt) {}
+
+    /** 원본 '조회자 현황' — 왼쪽 미조회자 이름, 오른쪽 조회자. */
+    public record ReadersResponse(java.util.List<Reader> readers, java.util.List<String> nonReaders) {}
+
     /** 원본 하단 [라벨변경] — 고른 라벨로 바꾼다(빈 목록이면 라벨을 뗀다). */
     public record UpdateWorkPostLabelsRequest(
             java.util.List<@jakarta.validation.constraints.Size(max = 20, message = "라벨은 20자까지 넣을 수 있습니다.") String> labels

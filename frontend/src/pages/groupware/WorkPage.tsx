@@ -236,6 +236,13 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
     load()
   }
 
+  /** 원본 '조회자 현황' — 왼쪽 미조회자, 오른쪽 조회자 [이름][최초조회일시][최종조회일시]. */
+  const [readers, setReaders] = useState<{ readers: { name: string; firstReadAt: string; lastReadAt: string }[]; nonReaders: string[] } | null>(null)
+  async function openReaders(r: WorkPost) {
+    try { setReaders((await api.get(`/work-posts/${r.id}/readers`)).data) }
+    catch (err) { setError(extractErrorMessage(err)) }
+  }
+
   /** 원본 [선택삭제] */
   async function deleteSelected() {
     const targets = shown.filter((r) => selected.has(r.id))
@@ -302,8 +309,11 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
                   className="cursor-pointer text-ec-blue">📎</span>
           )}
         </td>
-        {/* 원본 [조회] — 글을 연 횟수. */}
-        <td className={`${bg} text-ec-navy`}>{r.viewCount ?? 0}</td>
+        {/* 원본 [조회] — 숫자가 아니라 'R' 링크, 누르면 '조회자 현황'(2026-10-03 실측). 연 횟수는 글자 풍선으로. */}
+        <td className={`${bg} text-center`}>
+          <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-navy"
+                  title={`연 횟수 ${r.viewCount ?? 0}`} onClick={() => void openReaders(r)}>R</button>
+        </td>
       </>
     )
   }
@@ -526,6 +536,45 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
             </div>
           </>
         )}
+      </Modal>
+
+      {/* 원본 '조회자 현황' 창 */}
+      <Modal error={error} open={!!readers} title="조회자 현황" width={780} onClose={() => setReaders(null)}>
+        {readers && (
+          <div className="flex gap-[10px] items-start">
+            <div className="w-[200px] shrink-0">
+              <div className="text-[12px] mb-[4px]">▸ 미조회자</div>
+              <table className="w-full text-left">
+                <thead><tr><th className="text-center">이름</th></tr></thead>
+                <tbody>
+                  {readers.nonReaders.length === 0
+                    ? <tr><td className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
+                    : readers.nonReaders.map((n, i) => <tr key={`${n}-${i}`}><td className="text-center">{n}</td></tr>)}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[12px] mb-[4px]">▸ 조회자</div>
+              <table className="w-full text-left">
+                <thead><tr><th className="text-center">이름</th><th className="text-center">최초조회일시</th><th className="text-center">최종조회일시</th></tr></thead>
+                <tbody>
+                  {readers.readers.length === 0
+                    ? <tr><td colSpan={3} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
+                    : readers.readers.map((x, i) => (
+                      <tr key={`${x.name}-${i}`}>
+                        <td className="text-center">{x.name}</td>
+                        <td className="text-center">{stampText(x.firstReadAt)}</td>
+                        <td className="text-center">{stampText(x.lastReadAt)}</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+        <div className="flex gap-[6px] mt-[10px]">
+          <button type="button" className="ec-btn" onClick={() => setReaders(null)}>닫기</button>
+        </div>
       </Modal>
     </div>
   )

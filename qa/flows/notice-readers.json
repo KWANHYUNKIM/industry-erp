@@ -1,0 +1,38 @@
+{
+  "about": "공지사항 [조회] 'R'(원본 E200080) — 글을 열면 조회자로 남고, 'R' 을 누르면 '조회자 현황'(왼쪽 ▸ 미조회자 [이름], 오른쪽 ▸ 조회자 [이름][최초조회일시][최종조회일시], [닫기]). 시험 글은 API 로 만들고 지운다. node qa/shot.mjs qa/flows/notice-readers.json",
+  "shots": [
+    {
+      "name": "준비",
+      "path": "/groupware/notice",
+      "steps": [
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const r = await (await fetch('/api/work-posts', { method: 'POST', headers: H, body: JSON.stringify({ board: 'NOTICE', title: 'QA그룹웨어-조회자', content: 'QA' }) })).json(); sessionStorage.setItem('qaRd', r.id); return 'post ' + r.id })()"
+      ]
+    },
+    {
+      "name": "읽기 전 → 제목을 열고 → R",
+      "path": "/groupware/notice",
+      "steps": [
+        "wait:800",
+        "js:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('QA그룹웨어-조회자')).querySelectorAll('button').forEach((b) => { if (b.textContent.trim() === 'R') b.click() }); true",
+        "wait:600",
+        "expect:(() => { const m = document.querySelector('[role=dialog][aria-label=\"조회자 현황\"]'); return !!m && m.innerText.includes('▸ 미조회자') && m.innerText.includes('▸ 조회자') && [...m.querySelectorAll('table')][1].innerText.includes('등록된 데이터가 없습니다.') })()",
+        "click:닫기",
+        "js:[...document.querySelectorAll('tbody button')].find((b) => b.textContent.trim() === 'QA그룹웨어-조회자').click(); true",
+        "wait:800",
+        "js:document.querySelector('[role=dialog] [aria-label=\"닫기\"], [role=dialog] button[title=\"닫기\"]')?.click(); [...document.querySelectorAll('[role=dialog] button')].filter((b) => b.textContent.trim() === '닫기').forEach((b) => b.click()); true",
+        "wait:400",
+        "js:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('QA그룹웨어-조회자')).querySelectorAll('button').forEach((b) => { if (b.textContent.trim() === 'R') b.click() }); true",
+        "wait:600",
+        "expect:(() => { const m = document.querySelector('[role=dialog][aria-label=\"조회자 현황\"]'); const rows = [...[...m.querySelectorAll('table')][1].querySelectorAll('tbody tr')]; return rows.length === 1 && /\\d{4}\\/\\d{2}\\/\\d{2} \\(.\\) (오전|오후) \\d{1,2}:\\d{2}:\\d{2}/.test(rows[0].cells[1].textContent) && [...m.querySelectorAll('thead th')].map((t) => t.textContent.trim()).join(',') === '이름,이름,최초조회일시,최종조회일시' })()",
+        "expect:(() => { const m = document.querySelector('[role=dialog][aria-label=\"조회자 현황\"]'); const me = [...[...m.querySelectorAll('table')][1].querySelectorAll('tbody tr')][0].cells[0].textContent.trim(); return ![...[...m.querySelectorAll('table')][0].querySelectorAll('tbody td')].some((td) => td.textContent.trim() === me) })()"
+      ]
+    },
+    {
+      "name": "정리",
+      "path": "/groupware/notice",
+      "steps": [
+        "js:fetch('/api/work-posts/' + sessionStorage.getItem('qaRd'), { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => 'del ' + r.status)"
+      ]
+    }
+  ]
+}

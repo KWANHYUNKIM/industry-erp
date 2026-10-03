@@ -1,7 +1,7 @@
 package com.erp.groupware.workpost;
 
 import com.erp.auth.user.User;
-import com.erp.auth.user.UserRepository;
+import com.erp.auth.user.UserService;
 import com.erp.common.ApiException;
 import com.erp.common.StoredFile;
 import com.erp.common.StoredFileRepository;
@@ -24,7 +24,8 @@ public class WorkPostService {
 
     private final WorkPostRepository workPostRepository;
     // writer 는 로그인 아이디다(FK). 화면에는 사람 이름을 보여야 하므로 여기서 옮긴다.
-    private final UserRepository userRepository;
+    private final UserService userService;
+    private final WorkPostReadRepository readRepository;
     private final DocumentNoGenerator docNo;
     private final StoredFileRepository storedFileRepository;
 
@@ -41,7 +42,8 @@ public class WorkPostService {
     /** 로그인 아이디 → 표시 이름. 계정이 지워졌으면 아이디를 그대로 보여 준다. */
     private String displayName(String username) {
         if (username == null) return null;
-        return userRepository.findByUsername(username).map(User::getName).orElse(username);
+        try { return userService.getByUsername(username).getName(); }
+        catch (ApiException e) { return username; }
     }
 
     @Transactional(readOnly = true)
@@ -123,10 +125,38 @@ public class WorkPostService {
      * 같이 올라가서, 그 숫자가 '몇 명이 봤나' 를 뜻하지 않게 된다.
      */
     @Transactional
-    public WorkPostResponse read(Long id) {
+    public WorkPostResponse read(Long id, String username) {
         WorkPost post = getPost(id);
         post.setViewCount(post.getViewCount() + 1);
+        /* 원본 '조회자 현황' — 사람마다 처음 · 마지막으로 연 때. 로그인한 사람을 못 찾으면 세기만 한다. */
+        if (username != null) {
+            User me;
+            try { me = userService.getByUsername(username); } catch (ApiException e) { me = null; }
+            if (me != null) {
+                java.time.LocalDateTime now = java.time.LocalDateTime.now();
+                WorkPostRead r = readRepository.findByPostIdAndUserId(post.getId(), me.getId()).orElse(null);
+                if (r == null) readRepository.save(WorkPostRead.builder().post(post).user(me).firstReadAt(now).lastReadAt(now).build());
+                else r.setLastReadAt(now);
+            }
+        }
         return WorkPostResponse.from(post, displayName(post.getWriter()));
+    }
+
+    /** 원본 [조회] 'R' → '조회자 현황': 조회자(처음 연 차례)와 아직 안 연 사람(사용 중인 사용자 중). */
+    @Transactional(readOnly = true)
+    public WorkPostDtos.ReadersResponse readers(Long id) {
+        WorkPost post = getPost(id);
+        List<WorkPostRead> reads = readRepository.findAllByPostIdWithUser(post.getId());
+        java.util.Set<Long> readIds = new java.util.HashSet<>();
+        List<WorkPostDtos.Reader> readers = reads.stream().map(r -> {
+            readIds.add(r.getUser().getId());
+            return new WorkPostDtos.Reader(r.getUser().getName(), r.getFirstReadAt(), r.getLastReadAt());
+        }).toList();
+        List<String> nonReaders = userService.findAll().stream()
+                .filter(u -> u.enabled() && !readIds.contains(u.id()))
+                .map(u -> u.name())
+                .toList();
+        return new WorkPostDtos.ReadersResponse(readers, nonReaders);
     }
 
     @Transactional

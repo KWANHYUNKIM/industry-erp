@@ -56,8 +56,15 @@ public class WorkPostController {
 
     /** 원본 [조회] 열. 글을 펼칠 때 부른다. */
     @PostMapping("/{id}/read")
-    public WorkPostDtos.WorkPostResponse read(@PathVariable Long id) {
-        return workPostService.read(id);
+    public WorkPostDtos.WorkPostResponse read(@PathVariable Long id,
+                                              @org.springframework.security.core.annotation.AuthenticationPrincipal com.erp.security.UserPrincipal principal) {
+        return workPostService.read(id, principal != null ? principal.getUsername() : null);
+    }
+
+    /** 원본 [조회] 'R' → '조회자 현황'. */
+    @GetMapping("/{id}/readers")
+    public WorkPostDtos.ReadersResponse readers(@PathVariable Long id) {
+        return workPostService.readers(id);
     }
 
     @DeleteMapping("/{id}")
