@@ -6,8 +6,8 @@ import { EcReportHead, EcReportFoot, reportPeriod, reportDate } from '../../comp
 import { api, extractErrorMessage } from '../../api/client'
 import type { FieldWork, FieldWorkSummary } from '../../types/api'
 import { useShortcut } from '../../utils/useShortcut'
-
-interface UserRow { id: number; name: string; username: string }
+import { useAuth } from '../../features/auth/AuthContext'
+import FieldWorkFormModal, { type FieldWorkUser } from '../../features/fieldwork/components/FieldWorkFormModal'
 
 /** 원본 기본 기간 — 한 달 전 같은 날 ~ 오늘(2026/09/03 ~ 2026/10/03, 외근조회와 같다). */
 const monthAgo = () => { const d = new Date(); d.setMonth(d.getMonth() - 1); return ymd(d) }
@@ -25,12 +25,16 @@ const num = (v: number) => v.toLocaleString('ko-KR', { minimumFractionDigits: 2,
  *       'K5[H] 계' 한 줄로 묶였다), 끝에 '합계', [P.1] · 출력 시각, 하단 [인쇄][Excel].</li>
  * </ol>
  *
+ * <p>출력물의 [일자]를 누르면 '외근입력' 창이 그 기록으로 열린다(저장 · 삭제 뒤 출력물을 다시 뽑는다, 2026-10-03 실측).
+ *
  * <p>[주행전/주행후 계기판거리]는 두지 않았다 — 원본은 차량 마스터가 계기판 값을 들고 있는데(입력 창에는 그 칸이
  * 없다) 우리에게 차량 마스터가 없다. 운행거리는 외근 한 건에 적은 값이다. 조건의 [기타](도착전내역만보기 ·
  * 모든날짜표시) · [최근30일] · 정렬/소계 [설정] 창도 받쳐 줄 것이 없어 두지 않았다.
  */
 export default function FieldWorkStatusPage() {
-  const [users, setUsers] = useState<UserRow[]>([])
+  const { user } = useAuth()
+  const [users, setUsers] = useState<FieldWorkUser[]>([])
+  const [editing, setEditing] = useState<FieldWork | null>(null)
   const [error, setError] = useState('')
   const [view, setView] = useState<'cond' | 'result'>('cond')
   const [rows, setRows] = useState<FieldWork[]>([])
@@ -44,7 +48,7 @@ export default function FieldWorkStatusPage() {
   const [distMax, setDistMax] = useState('')
   const [remark, setRemark] = useState('')
 
-  useEffect(() => { api.get<UserRow[]>('/users').then((r) => setUsers(r.data)).catch(() => {}) }, [])
+  useEffect(() => { api.get<FieldWorkUser[]>('/users').then((r) => setUsers(r.data)).catch(() => {}) }, [])
 
   function reset() {
     setFrom(monthAgo()); setTo(ymd(new Date()))
@@ -68,7 +72,7 @@ export default function FieldWorkStatusPage() {
       setView('result')
     } catch (err) { setError(extractErrorMessage(err)) }
   }
-  useShortcut('F8', () => void search(), view === 'cond')
+  useShortcut('F8', () => void search(), view === 'cond' && !editing)
 
   /** 차량종류별 묶음 — 원본은 대소문자를 가리지 않고 묶는다. 이름표는 처음 나온 모양을 대문자로. */
   const groups = (() => {
@@ -153,7 +157,10 @@ export default function FieldWorkStatusPage() {
                     <Fragment key={g.label}>
                       {g.list.map((r) => (
                         <tr key={r.id}>
-                          <td className="text-ec-navy">{reportDate(r.workDate)}</td>
+                          <td>
+                            <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-navy"
+                                    onClick={() => setEditing(r)}>{reportDate(r.workDate)}</button>
+                          </td>
                           <td>{r.vehicleName ?? r.vehicleNo ?? ''}</td>
                           <td>{r.userName}</td>
                           <td>{r.usePurpose ?? ''}</td>
@@ -178,6 +185,8 @@ export default function FieldWorkStatusPage() {
             </tbody>
           </table>
           <EcReportFoot />
+          <FieldWorkFormModal open={!!editing} record={editing} users={users} myUsername={user?.username}
+                              onClose={() => setEditing(null)} onSaved={() => void search()} />
         </>
       )}
     </EcListShell>

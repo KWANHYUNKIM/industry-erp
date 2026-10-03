@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
-import Modal from '../../components/Modal'
-import CodePickerField from '../../components/CodePickerField'
+import FieldWorkFormModal, { type FieldWorkUser } from '../../features/fieldwork/components/FieldWorkFormModal'
 import { api, extractErrorMessage } from '../../api/client'
 import { useAuth } from '../../features/auth/AuthContext'
-import type { FieldWorkSummary } from '../../types/api'
+import type { FieldWork, FieldWorkSummary } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { useShortcut } from '../../utils/useShortcut'
@@ -13,13 +12,6 @@ const today = () => ymd(new Date())
 /** 원본 기본 기간 — 한 달 전 같은 날 ~ 오늘(2026/09/03 ~ 2026/10/03, 실측). */
 const monthAgo = () => { const d = new Date(); d.setMonth(d.getMonth() - 1); return ymd(d) }
 
-interface UserRow { id: number; name: string; username: string }
-
-type Form = {
-  workDate: string; startTime: string; endTime: string; userId: string
-  vehicleNo: string; vehicleName: string; usePurpose: string
-  departure: string; destination: string; distance: string; purpose: string
-}
 
 /**
  * 그룹웨어 > 공유정보 > 외근조회 > 외근조회 (이카운트 E070254)
@@ -34,6 +26,8 @@ type Form = {
  * (차량번호 · 차량명 · 차종)에서 고르는데 우리에게 차량 마스터가 없어 번호·이름을 적는다.
  * [운행거리]는 원본 입력 창에 안 보이지만 격자에는 있어 칸을 둔다.
  *
+ * <p>[일자No.]를 누르면 같은 '외근입력' 창이 그 기록으로 열려 고치고 지운다(외근현황도 같다).
+ *
  * <p>원본에 있지만 두지 않은 것: 프로젝트 · 부서코드 · 출발전/도착 후 사진 · 웹자료올리기. 승인/반려 API 는 서버에 남아 있다.
  */
 export default function FieldWorkPage() {
@@ -41,20 +35,12 @@ export default function FieldWorkPage() {
   const [from, setFrom] = useState(monthAgo())
   const [to, setTo] = useState(today())
   const [summary, setSummary] = useState<FieldWorkSummary | null>(null)
-  const [users, setUsers] = useState<UserRow[]>([])
+  const [users, setUsers] = useState<FieldWorkUser[]>([])
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [selected, setSelected] = useState<Set<number>>(new Set())
-
-  const blank = (): Form => {
-    const me = users.find((u) => u.username === user?.username)
-    return {
-      workDate: today(), startTime: '09:00', endTime: '10:00', userId: me ? String(me.id) : '',
-      vehicleNo: '', vehicleName: '', usePurpose: '', departure: '', destination: '', distance: '', purpose: '',
-    }
-  }
-  const [form, setForm] = useState<Form>(blank)
-  const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }))
+  /** '외근입력' 창이 고치는 기록. null 이면 신규. */
+  const [editing, setEditing] = useState<FieldWork | null>(null)
 
   function load() {
     setError('')
@@ -64,7 +50,7 @@ export default function FieldWorkPage() {
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load() }, [])
-  useEffect(() => { api.get<UserRow[]>('/users').then((r) => setUsers(r.data)).catch(() => {}) }, [])
+  useEffect(() => { api.get<FieldWorkUser[]>('/users').then((r) => setUsers(r.data)).catch(() => {}) }, [])
 
   const rows = summary?.rows ?? []
   /** 원본 [일자No.] — '2026/09/10 -1'. 같은 날 안의 차례(등록 순)다. */
@@ -78,27 +64,9 @@ export default function FieldWorkPage() {
       .map((r) => ({ r, no: no.get(r.id) ?? 1 }))
   }, [rows])
 
-  function openNew() { setForm(blank()); setError(''); setShowForm(true) }
+  function openNew() { setEditing(null); setShowForm(true) }
+  function openEdit(r: FieldWork) { setEditing(r); setShowForm(true) }
   useShortcut('F2', openNew, !showForm)
-  useShortcut('F8', () => void submit(), showForm)
-
-  async function submit() {
-    setError('')
-    if (!form.userId) return setError('사용자를 선택하세요.')
-    if (!form.vehicleNo.trim()) return setError('이동수단을 입력하세요.')
-    if (form.startTime && form.endTime && form.endTime < form.startTime) return setError('종료 시각이 시작 시각보다 빠를 수 없습니다.')
-    try {
-      await api.post('/field-works', {
-        workDate: form.workDate, startTime: form.startTime || null, endTime: form.endTime || null,
-        userId: Number(form.userId), vehicleNo: form.vehicleNo, vehicleName: form.vehicleName || null,
-        usePurpose: form.usePurpose || null, departure: form.departure || null,
-        destination: form.destination || null, distance: form.distance ? Number(form.distance) : null,
-        purpose: form.purpose || null,
-      })
-      setShowForm(false)
-      load()
-    } catch (err) { setError(extractErrorMessage(err)) }
-  }
 
   async function deleteSelected() {
     const targets = rows.filter((r) => selected.has(r.id))
@@ -153,7 +121,10 @@ export default function FieldWorkPage() {
             <tr key={r.id}>
               <td className={`text-center cursor-pointer ${selected.has(r.id) ? 'bg-ec-blue-wash text-ec-navy font-bold' : 'bg-ec-stripe text-ec-hint'}`}
                   onClick={() => toggle(r.id)}>{i + 1}</td>
-              <td className="text-ec-navy whitespace-nowrap">{dateText(r.workDate)} -{no}</td>
+              <td className="whitespace-nowrap">
+                <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-navy"
+                        onClick={() => openEdit(r)}>{dateText(r.workDate)} -{no}</button>
+              </td>
               <td>{r.userName}</td>
               <td>{r.vehicleNo ?? ''}</td>
               <td>{r.vehicleName ?? ''}</td>
@@ -166,62 +137,9 @@ export default function FieldWorkPage() {
         </tbody>
       </table>
 
-      {/* 원본 '외근입력' 창 */}
-      <Modal error={error} open={showForm} title="외근입력" width={780} onClose={() => setShowForm(false)}>
-        <ul className="ec-form mb-[10px]">
-          <li>
-            <div className="title">일자</div>
-            <div className="form"><input type="date" className="ec-input w-[150px]" value={form.workDate} onChange={(e) => set('workDate', e.target.value)} /></div>
-          </li>
-          <li>
-            <div className="title">이동시간</div>
-            <div className="form">
-              <input type="time" className="ec-input w-[110px]" value={form.startTime} onChange={(e) => set('startTime', e.target.value)} />
-              <span className="text-ec-label">~</span>
-              <input type="time" className="ec-input w-[110px]" value={form.endTime} onChange={(e) => set('endTime', e.target.value)} />
-            </div>
-          </li>
-          <li className="wide">
-            <div className="title">사용자</div>
-            <div className="form">
-              <CodePickerField label="사용자" hideLabel width={220} emptyLabel="선택 안 함" value={form.userId} onChange={(v) => set('userId', v)}
-                               items={users.map((u) => ({ value: String(u.id), code: u.username, name: u.name }))} />
-            </div>
-          </li>
-          <li className="wide">
-            <div className="title">이동수단</div>
-            <div className="form">
-              <input className="ec-input w-[160px]" placeholder="이동수단" value={form.vehicleNo} onChange={(e) => set('vehicleNo', e.target.value)} />
-              <input className="ec-input flex-1" placeholder="이동수단명" value={form.vehicleName} onChange={(e) => set('vehicleName', e.target.value)} />
-            </div>
-          </li>
-          <li className="wide">
-            <div className="title">사용목적명</div>
-            <div className="form"><input className="ec-input w-full" placeholder="사용목적명" value={form.usePurpose} onChange={(e) => set('usePurpose', e.target.value)} /></div>
-          </li>
-          <li className="wide">
-            <div className="title">출발지 주소</div>
-            <div className="form"><input className="ec-input w-full" placeholder="출발지 주소" value={form.departure} onChange={(e) => set('departure', e.target.value)} /></div>
-          </li>
-          <li className="wide">
-            <div className="title">도착지 주소</div>
-            <div className="form"><input className="ec-input w-full" placeholder="도착지 주소" value={form.destination} onChange={(e) => set('destination', e.target.value)} /></div>
-          </li>
-          <li className="wide">
-            <div className="title">운행거리</div>
-            <div className="form"><input type="number" min={0} step="0.01" className="ec-input w-[140px] text-right" placeholder="운행거리" value={form.distance} onChange={(e) => set('distance', e.target.value)} /></div>
-          </li>
-          <li className="wide">
-            <div className="title">적요</div>
-            <div className="form"><input className="ec-input w-full" placeholder="적요" value={form.purpose} onChange={(e) => set('purpose', e.target.value)} /></div>
-          </li>
-        </ul>
-        <div className="flex gap-[6px]">
-          <button type="button" className="ec-btn ec-btn-primary" onClick={() => void submit()}>저장(F8)</button>
-          <button type="button" className="ec-btn" onClick={() => setForm(blank())}>다시 작성</button>
-          <button type="button" className="ec-btn" onClick={() => setShowForm(false)}>닫기</button>
-        </div>
-      </Modal>
+      {/* 원본 '외근입력' 창 — [신규(F2)] 와 [일자No.] 가 같이 연다 */}
+      <FieldWorkFormModal open={showForm} record={editing} users={users} myUsername={user?.username}
+                          onClose={() => setShowForm(false)} onSaved={load} />
     </EcListShell>
   )
 }

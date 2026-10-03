@@ -1,0 +1,39 @@
+{
+  "about": "외근 고치기 · 지우기(원본 E070254 · E070255) — [일자No.]/[일자]를 누르면 '외근입력' 창이 그 기록으로 열리고 하단이 [저장(F8)][삭제][닫기]. 외근조회에서 적요를 고쳐 저장하면 줄이 바뀌고, 외근현황 출력물의 [일자]로 열어 [삭제]하면 출력물에서 사라진다. 시험 기록은 API 로 만든다. node qa/shot.mjs qa/flows/field-work-edit.json",
+  "shots": [
+    {
+      "name": "준비",
+      "path": "/groupware/field-works",
+      "steps": [
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const r = await (await fetch('/api/field-works', { method: 'POST', headers: H, body: JSON.stringify({ workDate: day, startTime: '09:00', endTime: '10:00', vehicleNo: 'QA12가3456', vehicleName: 'QA그룹웨어-차', distance: 7, purpose: 'QA그룹웨어-고치기전' }) })).json(); sessionStorage.setItem('qaFw', r.id); return 'fw ' + r.id })()"
+      ]
+    },
+    {
+      "name": "외근조회 — 일자No. 로 열어 적요 고치기",
+      "path": "/groupware/field-works",
+      "steps": [
+        "js:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('QA그룹웨어-고치기전')).querySelector('button').click(); true",
+        "expect:document.querySelector('[role=dialog]')?.getAttribute('aria-label') === '외근입력' && document.querySelector('[role=dialog] input[placeholder=\"이동수단명\"]').value === 'QA그룹웨어-차'",
+        "expect:[...document.querySelectorAll('[role=dialog] button')].map((b) => b.textContent.trim()).filter((t) => ['저장(F8)', '삭제', '닫기', '다시 작성'].includes(t)).join(',') === '저장(F8),삭제,닫기'",
+        "js:(() => { const i = document.querySelector('[role=dialog] input[placeholder=\"적요\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'QA그룹웨어-고친뒤'); i.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "click:저장(F8)",
+        "wait:800",
+        "expect:!document.querySelector('[role=dialog]')",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA그룹웨어-고친뒤')) && ![...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA그룹웨어-고치기전'))"
+      ]
+    },
+    {
+      "name": "외근현황 — 출력물 일자로 열어 삭제",
+      "path": "/groupware/field-work-status",
+      "steps": [
+        "click:검색(F8)",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA그룹웨어-고친뒤'))",
+        "js:window.confirm = () => true; [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('QA그룹웨어-고친뒤')).querySelector('button').click(); true",
+        "expect:document.querySelector('[role=dialog]')?.getAttribute('aria-label') === '외근입력'",
+        "click:삭제",
+        "wait:800",
+        "expect:!document.querySelector('[role=dialog]') && ![...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA그룹웨어-고친뒤'))"
+      ]
+    }
+  ]
+}

@@ -76,6 +76,40 @@ public class FieldWorkService {
         return FieldWorkResponse.from(fieldWorkRepository.save(f));
     }
 
+    /**
+     * 원본 외근현황 · 외근조회의 [일자]를 누르면 같은 '외근입력' 창이 그 기록으로 열리고 [저장(F8)]으로 고친다
+     * (2026-10-03 실측). 고치는 규칙은 지우기와 같다 — 본인 기록만, 승인 전에만.
+     */
+    @Transactional
+    public FieldWorkResponse update(Long id, CreateFieldWorkRequest req, String username) {
+        FieldWork f = fieldWorkRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("외근계를 찾을 수 없습니다. id=" + id));
+        if (!f.getUser().getUsername().equals(username)) {
+            throw ApiException.badRequest("본인이 신청한 외근계만 고칠 수 있습니다.");
+        }
+        if (f.getStatus() != FieldWorkStatus.REQUESTED) {
+            throw ApiException.badRequest("이미 " + f.getStatus().getDisplayName() + "된 외근계는 고칠 수 없습니다.");
+        }
+        if (req.startTime() != null && req.endTime() != null && req.endTime().isBefore(req.startTime())) {
+            throw ApiException.badRequest("종료 시각이 시작 시각보다 빠를 수 없습니다.");
+        }
+        if (req.userId() != null && !req.userId().equals(f.getUser().getId())) {
+            f.setUser(userRepository.findById(req.userId())
+                    .orElseThrow(() -> ApiException.notFound("사용자를 찾을 수 없습니다. id=" + req.userId())));
+        }
+        f.setWorkDate(req.workDate());
+        f.setStartTime(req.startTime());
+        f.setEndTime(req.endTime());
+        f.setDestination(req.destination());
+        f.setPurpose(req.purpose());
+        f.setDeparture(req.departure());
+        f.setVehicleNo(req.vehicleNo());
+        f.setVehicleName(req.vehicleName());
+        f.setUsePurpose(req.usePurpose());
+        f.setDistance(req.distance());
+        return FieldWorkResponse.from(f);
+    }
+
     @Transactional
     public FieldWorkResponse approve(Long id, String username) {
         FieldWork f = pending(id, "승인");

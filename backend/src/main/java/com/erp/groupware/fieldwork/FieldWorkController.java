@@ -37,6 +37,12 @@ public class FieldWorkController {
         return ResponseEntity.ok(service.create(req, principal.getUsername()));
     }
 
+    @PutMapping("/{id}")
+    public FieldWorkResponse update(@PathVariable Long id, @Valid @RequestBody CreateFieldWorkRequest req,
+                                    @AuthenticationPrincipal UserPrincipal principal) {
+        return service.update(id, req, principal.getUsername());
+    }
+
     @PostMapping("/{id}/approve")
     public FieldWorkResponse approve(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
         return service.approve(id, principal.getUsername());
