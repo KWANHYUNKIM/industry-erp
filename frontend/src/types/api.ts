@@ -2507,6 +2507,32 @@ export interface CollectSource {
   updatedAt: string | null
 }
 
+/** 수집데이터등록(C001401)의 [수신문서] */
+export type CollectDocType = 'STATEMENT' | 'QUOTATION' | 'PURCHASE_ORDER'
+
+/** 데이터센터 › 수집데이터등록 한 줄 — 이메일로 받은 문서를 모을 규칙. */
+export interface CollectData {
+  id: number
+  /** [데이터코드] — 기본 줄은 널 */
+  code: string | null
+  name: string
+  channel: string
+  docType: CollectDocType
+  docTypeLabel: string
+  senderCompany: string | null
+  /** [진행상태] */
+  status: string
+  /** [조건] '거래명세서' · '거래명세서 AND 보낸회사' */
+  condition: string
+  /** [연결업무] — 기본 줄만 */
+  linkedTask: string | null
+  builtIn: boolean
+  createdBy: string | null
+  updatedBy: string | null
+  createdAt: string | null
+  updatedAt: string | null
+}
+
 // ===== 사용자정의 필드(Self-Customizing) =====
 
 export type CustomFieldType = 'TEXT' | 'NUMBER' | 'DATE' | 'CODE'

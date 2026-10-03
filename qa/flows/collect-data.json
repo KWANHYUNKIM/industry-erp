@@ -1,0 +1,23 @@
+{
+  "about": "수집데이터등록(C001401) — 원본은 '이메일로 받은 문서를 모을 규칙'을 등록한다. 기본 줄 셋(거래명세서·견적서·발주서)이 처음부터 있고, 신규는 데이터코드 00001~, 같은 수신문서·보낸회사는 원본 문구로 막는다. 만든 줄은 지운다.",
+  "shots": [
+    {
+      "name": "기본 줄 셋 → 중복 거절 → 보낸회사 넣어 저장 → 조건 '거래명세서 AND 회사' → 지움",
+      "path": "/datacenter/collect-sources",
+      "steps": [
+        "expect:['거래명세서수집','견적서수집','발주서수집'].every((t) => document.body.innerText.includes(t))",
+        "click:신규(F2)",
+        "wait:800",
+        "expect:[...document.querySelectorAll('[role=dialog] input')].some((i) => /^\\d{5}$/.test(i.value))",
+        "setnear:데이터명|QA데이터센터-명세서",
+        "pick:수신문서|거래명세서",
+        "click:저장(F8)",
+        "expect:document.body.innerText.includes('이미 수집데이터등록에 존재하는 수집 대상입니다. 수집대상 확인 후 재시도 바랍니다.')",
+        "setnear:보낸회사|QA데이터센터-회사",
+        "click:저장(F8)",
+        "expect:document.body.innerText.includes('거래명세서 AND QA데이터센터-회사')",
+        "apidel:/collect-data|QA데이터센터-명세서|name"
+      ]
+    }
+  ]
+}

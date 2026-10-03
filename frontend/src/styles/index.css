@@ -254,6 +254,11 @@ main table,
 #root table.ec-list-grid thead th {
   font-weight: 700 !important;
 }
+/* 머리만 굵은 격자 — 수집데이터등록(C001401, 2026-10-03 실측: 머리 700 · 여백은 기본과 같다 · 본문 세로선 있음).
+   ec-list-grid 는 본문 세로선을 지우므로 못 쓴다. 이 화면들에만 붙인다. */
+#root table.ec-head700 thead th {
+  font-weight: 700 !important;
+}
 /*
  * 조회 목록 본문 — 2026-09-21 구매조회 실측(줄마다 읽음):
  * 줄무늬는 <b>한 줄 건너</b> (249,249,249), 본문 칸에는 <b>세로선이 없고</b> 아래 선 1px 만 있다

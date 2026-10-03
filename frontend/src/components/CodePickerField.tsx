@@ -238,7 +238,8 @@ export default function CodePickerField({
               <th className="w-[120px]"></th>
             </tr></thead>
             <tbody>
-              {!multiple && (
+              {/* emptyLabel="" — 꼭 하나를 골라야 하는 칸(수집데이터등록 [수신문서])은 지우기 줄이 없다. */}
+              {!multiple && emptyLabel !== '' && (
                 <tr onClick={() => pick(null)} className="cursor-pointer">
                   <td colSpan={3} className="text-ec-hint">({emptyLabel})</td>
                 </tr>

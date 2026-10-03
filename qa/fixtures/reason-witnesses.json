@@ -1293,7 +1293,7 @@
  },
  "출하조회|최종수정자": {
   "claim": "누가 고쳤는지는 안 남긴다 — 고친 때(updatedAt)만 남는다",
-  "in": "backend",
+  "in": "backend/src/main/java/com/erp/trade/shipment",
   "absent": [
    "updatedBy",
    "modifiedBy",
@@ -1302,7 +1302,7 @@
  },
  "출하지시서조회|최종수정자": {
   "claim": "누가 고쳤는지는 안 남긴다",
-  "in": "backend",
+  "in": "backend/src/main/java/com/erp/trade/shipment",
   "absent": [
    "updatedBy",
    "modifiedBy",
@@ -2201,11 +2201,11 @@
   "in": "backend"
  },
  "최종수정자": {
-  "claim": "고친 사람을 아무 데도 남기지 않는다 — updatedBy 필드가 없다",
+  "claim": "거래 전표(판매·구매·출하 …)는 고친 사람을 남기지 않는다 — updatedBy 필드가 없다(고친 사람을 남기는 것은 수집데이터등록뿐이다)",
   "absent": [
    "updatedBy"
   ],
-  "in": "backend"
+  "in": "backend/src/main/java/com/erp/trade"
  },
  "거래처등록|최초작성자": {
   "claim": "거래처 마스터에는 만든 사람을 남기지 않는다",
@@ -2220,20 +2220,6 @@
    "createdBy"
   ],
   "in": "backend/src/main/java/com/erp/inventory/item/Item.java"
- },
- "수집데이터등록|최초작성자": {
-  "claim": "수집 소스에는 만든 사람을 남기지 않는다",
-  "absent": [
-   "createdBy"
-  ],
-  "in": "backend/src/main/java/com/erp/settings/collectsource/CollectSource.java"
- },
- "수집데이터등록|진행상태": {
-  "claim": "수집을 돌리지 않는다 — 어디서 가져올지 정의만 든다",
-  "absent": [
-   "status"
-  ],
-  "in": "backend/src/main/java/com/erp/settings/collectsource/CollectSource.java"
  },
  "주문서현황|품목별납기일자": {
   "claim": "수주의 납기는 전표 단위 하나다 — 라인마다 따로 두지 않는다",
@@ -3971,13 +3957,6 @@
   ],
   "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrder.java"
  },
- "수집데이터등록|조건": {
-  "claim": "수집을 돌리지 않는다 — 어디서 가져올지 정의만 든다(위 [수집데이터등록|진행상태] 과 같은 사실이다)",
-  "absent": [
-   "status"
-  ],
-  "in": "backend/src/main/java/com/erp/settings/collectsource/CollectSource.java"
- },
  "구매일괄회계반영|환율": {
   "claim": "외화·조정 항목을 만들지 않는다(위 [구매일괄회계반영|조정] 과 같은 사실이다)",
   "absent": [
@@ -4450,13 +4429,6 @@
    "OneToMany"
   ],
   "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
- },
- "수집데이터등록|연결업무": {
-  "claim": "수집을 돌리지 않는다 — 어디서 가져올지 정의만 든다",
-  "absent": [
-   "status"
-  ],
-  "in": "backend/src/main/java/com/erp/settings/collectsource/CollectSource.java"
  },
  "설문조사조회|보기항목1": {
   "claim": "사본이 질문 격자가 열린 채로 찍혔다 — 그 격자는 설문조사입력에 그대로 있다",

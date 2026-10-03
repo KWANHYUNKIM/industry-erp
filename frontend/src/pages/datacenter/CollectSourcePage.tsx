@@ -1,208 +1,225 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import { EcCond } from '../../components/EcStatusPanel'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
-import type { CollectSource } from '../../types/api'
+import { useShortcut } from '../../utils/useShortcut'
+import type { CollectData, CollectDocType } from '../../types/api'
 
 /**
- * 데이터센터 > 수집데이터등록 (이카운트 E100000)
- * 데이터수집(DataCollectPage)이 실행하는 수집 소스를 등록·관리한다. 소스 = 우리 API 목록 GET 엔드포인트.
- * 코드 배포 없이 소스를 추가/비활성할 수 있다. 백엔드 신규: collect_sources + /api/collect-sources.
+ * 데이터센터 › 수집데이터등록 (이카운트 C001401)
+ *
+ * <p>원본은 <b>이메일로 받은 문서를 어떤 조건으로 모을지</b>를 등록한다 — 수집대상 Email,
+ * [수신문서](거래명세서 · 견적서 · 발주서)와 [보낸회사]. 문서마다 기본 줄이 하나씩 있어
+ * (코드 없음 · 이름이 링크가 아님 · 체크박스 막힘) 각 …수집조회 화면으로 이어진다.
+ *
+ * <p>예전 이 화면은 <b>우리 API 엔드포인트 목록</b>(collect_sources)을 등록했다 — 원본에 없는 개념이라
+ * 열(정렬 · 구분 · 엔드포인트 · 페이지 · 사용 · 관리)도 입력칸도 하나도 안 맞았다. 그 표는 데이터수집
+ * 화면이 그대로 읽는다.
  */
-const empty = { code: '', name: '', category: '', endpoint: '', paged: false, sortOrder: '0' }
+const DOCS: { value: CollectDocType; name: string; sub: string }[] = [
+  { value: 'STATEMENT', name: '거래명세서', sub: '영업관리' },
+  { value: 'QUOTATION', name: '견적서', sub: '영업관리' },
+  { value: 'PURCHASE_ORDER', name: '발주서', sub: '구매관리' },
+]
+
+const emptyForm = { code: '', name: '', docType: '' as CollectDocType | '', senderCompany: '' }
+
+/* 원본 조건(Search(F3) 판): 데이터코드 · 데이터명 · 수집대상 · 최초작성자 · 최종수정자 · 최초작성일자 · 최종작업일자 · 기타 */
+const emptyCond = { code: '', name: '', createdBy: '', updatedBy: '', madeFrom: '', madeTo: '', workedFrom: '', workedTo: '', byUpdated: false }
 
 export default function CollectSourcePage() {
-  const [rows, setRows] = useState<CollectSource[]>([])
+  const [rows, setRows] = useState<CollectData[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [ok, setOk] = useState('')
-  /* 원본 수집데이터등록의 조건에 <b>[데이터명]</b> 이 있다 — 표에 찍히는데 거를 수가 없었다. */
-  const [nameCond, setNameCond] = useState('')
-  /*
-   * 원본 조건의 <b>[수집대상]</b>. 우리 표는 그것을 [구분] 열로 찍는데
-   * 그 값으로 거를 수가 없었다. 데이터원이 늘수록 목록에서 찾기 어려워진다.
-   */
-  const [targetCond, setTargetCond] = useState('')
-  /*
-   * 원본 차례: <b>데이터코드</b> · 데이터명 · 수집대상 · 최초작성자 · 최종수정자 ·
-   * <b>최초작성일자</b> · <b>최종작업일자</b>. 뒤 둘은 BaseTimeEntity 가 이미 들고 있던 값인데
-   * <b>응답에 안 실려서</b> 볼 수도 거를 수도 없었다.
-   */
-  const [codeCond, setCodeCond] = useState('')
-  const [madeFrom, setMadeFrom] = useState('')
-  const [workedFrom, setWorkedFrom] = useState('')
-  const shown = rows
-    .filter((r) => !codeCond || (r.code ?? '').includes(codeCond))
-    .filter((r) => !madeFrom || (r.createdAt ?? '') >= madeFrom)
-    .filter((r) => !workedFrom || (r.updatedAt ?? '') >= workedFrom)
-    .filter((r) => !nameCond || r.name.includes(nameCond))
-    .filter((r) => !targetCond || r.category === targetCond)
-  const [showForm, setShowForm] = useState(false)
-  const [editId, setEditId] = useState<number | null>(null)
-  const [form, setForm] = useState(empty)
+  const [keyword, setKeyword] = useState('')
+  const [cond, setCond] = useState(emptyCond)
+  const [picked, setPicked] = useState<Set<number>>(new Set())
+
+  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState<CollectData | null>(null)
+  const [form, setForm] = useState(emptyForm)
+  const [formError, setFormError] = useState('')
+  const [saving, setSaving] = useState(false)
 
   async function load() {
     setLoading(true); setError('')
-    try { setRows((await api.get<CollectSource[]>('/collect-sources')).data) }
+    try { setRows((await api.get<CollectData[]>('/collect-data')).data) }
     catch (err) { setError(extractErrorMessage(err)) }
     finally { setLoading(false) }
   }
   useEffect(() => { load() }, [])
 
-  const set = (k: keyof typeof form, v: string | boolean) => setForm((f) => ({ ...f, [k]: v }))
+  const inRange = (v: string | null, from: string, to: string) =>
+    (!from || (v ?? '').slice(0, 10) >= from) && (!to || (v ?? '').slice(0, 10) <= to)
+  const shown = rows
+    .filter((r) => !keyword || (r.code ?? '').includes(keyword) || r.name.includes(keyword))
+    .filter((r) => !cond.code || (r.code ?? '').includes(cond.code))
+    .filter((r) => !cond.name || r.name.includes(cond.name))
+    .filter((r) => !cond.createdBy || (r.createdBy ?? '').includes(cond.createdBy))
+    .filter((r) => !cond.updatedBy || (r.updatedBy ?? '').includes(cond.updatedBy))
+    .filter((r) => inRange(r.createdAt, cond.madeFrom, cond.madeTo))
+    .filter((r) => inRange(r.updatedAt, cond.workedFrom, cond.workedTo))
+  /* [수정일자순(정렬)] — 켜면 마지막으로 고친 줄이 위로 온다. */
+  const ordered = cond.byUpdated
+    ? [...shown].sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
+    : shown
 
-  function openNew() { setEditId(null); setForm({ ...empty, sortOrder: String(rows.length + 1) }); setShowForm(true) }
-  function openEdit(s: CollectSource) {
-    setEditId(s.id); setForm({ code: s.code ?? '', name: s.name, category: s.category, endpoint: s.endpoint, paged: s.paged, sortOrder: String(s.sortOrder) }); setShowForm(true)
+  async function openNew() {
+    setEditing(null); setFormError('')
+    let code = ''
+    try { code = (await api.get<{ code: string }>('/collect-data/next-code')).data.code } catch { /* 저장할 때 서버가 매긴다 */ }
+    setForm({ ...emptyForm, code }); setOpen(true)
+  }
+  function openEdit(r: CollectData) {
+    setEditing(r); setFormError('')
+    setForm({ code: r.code ?? '', name: r.name, docType: r.docType, senderCompany: r.senderCompany ?? '' })
+    setOpen(true)
   }
 
-  async function submit(e: FormEvent) {
-    e.preventDefault(); setError(''); setOk('')
-    if (!form.name.trim() || !form.category.trim() || !form.endpoint.trim()) return setError('소스명·구분·엔드포인트를 입력하세요.')
-    const body = { code: form.code || undefined, name: form.name, category: form.category, endpoint: form.endpoint, paged: form.paged, sortOrder: Number(form.sortOrder) || 0 }
+  async function save(next: boolean) {
+    if (saving) return
+    if (!form.name.trim()) return setFormError('데이터명을 입력하세요.')
+    if (!form.docType) return setFormError('수신문서를 고르세요.')
+    setSaving(true); setFormError('')
     try {
-      if (editId) { await api.put(`/collect-sources/${editId}`, body); setOk('소스를 수정했습니다.') }
-      else { await api.post('/collect-sources', body); setOk('소스를 등록했습니다.') }
-      setShowForm(false); load()
-    } catch (err) { setError(extractErrorMessage(err)) }
+      if (editing) {
+        await api.put(`/collect-data/${editing.id}`, { name: form.name, senderCompany: form.senderCompany })
+      } else {
+        await api.post('/collect-data', { code: form.code, name: form.name, docType: form.docType, senderCompany: form.senderCompany })
+      }
+      await load()
+      if (next) await openNew()
+      else setOpen(false)
+    } catch (err) { setFormError(extractErrorMessage(err)) }
+    finally { setSaving(false) }
+  }
+  useShortcut('F8', () => save(false), open)
+
+  async function removeOne() {
+    if (!editing || !window.confirm('삭제하겠습니까?')) return
+    try { await api.delete(`/collect-data/${editing.id}`); setOpen(false); load() }
+    catch (err) { setFormError(extractErrorMessage(err)) }
   }
 
-  async function toggleActive(s: CollectSource) {
-    setError('')
-    try { await api.put(`/collect-sources/${s.id}`, { name: s.name, category: s.category, endpoint: s.endpoint, paged: s.paged, sortOrder: s.sortOrder, active: !s.active }); load() }
-    catch (err) { setError(extractErrorMessage(err)) }
-  }
-
-  async function remove(id: number) {
-    if (!confirm('이 수집 소스를 삭제할까요?')) return
-    setError('')
-    try { await api.delete(`/collect-sources/${id}`); load() }
-    catch (err) { setError(extractErrorMessage(err)) }
-  }
-
-  const inputCls = 'ec-input'
-
-  /*
-   * 원본 하단 단추줄의 <b>[선택삭제]</b> — 고른 줄을 한 번에 지운다.
-   *
-   * <p>하나가 막혀도 <b>거기서 멈추지 않는다</b> — 나머지는 지우고 몇 건이 남았는지 알려 준다.
-   */
-  const [picked, setPicked] = useState<Set<number>>(new Set())
-  const pick = (id: number) => setPicked((s) => {
+  const togglePick = (id: number) => setPicked((s) => {
     const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n
   })
+  const pickable = ordered.filter((r) => !r.builtIn)
+  const allPicked = pickable.length > 0 && pickable.every((r) => picked.has(r.id))
 
+  /* 원본 [선택삭제]는 안 고르고 누르면 '리스트에 선택된 자료가 없습니다.' 를 띄운다 — 우리는 미리 잠근다(ui-check 규칙). */
   async function removeChecked() {
     const ids = [...picked]
-    if (ids.length === 0) { setError('삭제할 수집처을(를) 고르세요.'); return }
-    if (!window.confirm(`고른 ${ids.length}건을 삭제할까요?`)) return
-    const results = await Promise.allSettled(ids.map((id) => api.delete(`/collect-sources/${id}`)))
+    if (ids.length === 0) return
+    if (!window.confirm('삭제하겠습니까?')) return
+    const results = await Promise.allSettled(ids.map((id) => api.delete(`/collect-data/${id}`)))
     const failed = results.filter((r) => r.status === 'rejected').length
     setPicked(new Set())
-    setError(failed ? `${failed}건은 삭제하지 못했습니다(이미 수집한 자료가 붙어 있을 수 있습니다).` : '')
+    setError(failed ? `${failed}건은 삭제하지 못했습니다.` : '')
     load()
   }
 
+  const setD = (k: keyof typeof emptyCond, v: string | boolean) => setCond((d) => ({ ...d, [k]: v }))
+
   return (
-    <EcListShell title="수집데이터등록" onNew={openNew} actions={[
-      { label: '새로고침', onClick: load },
-      /* 원본 차례: 신규(F2) · 선택삭제 (사본 실측) */
-      { label: `선택삭제${picked.size ? ` (${picked.size})` : ''}`, onClick: removeChecked },
-    ]}>
-      <p className="mb-2 text-xs text-ec-hint">데이터수집 화면이 실행하는 소스 목록입니다. 소스 = 우리 API 목록 GET 엔드포인트(예: /sales, /shipments). 여기서 추가하면 코드 배포 없이 수집 대상이 늘어납니다.</p>
-
+    <EcListShell title="수집데이터등록" collapseConditions onNew={openNew}
+                 search={keyword} onSearchChange={setKeyword} onSearch={load}
+                 actions={[{ label: '선택삭제', onClick: removeChecked, disabled: picked.size === 0 }]}>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
-      {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
-      <Modal error={error} open={showForm} title={editId ? '수집 소스 수정' : '수집 소스 등록'} onClose={() => setShowForm(false)}>{(
-        <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginTop: 8, marginBottom: 8 }}>
-          <div className="flex gap-[12px] flex-wrap items-end">
-            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">소스명 *</div>
-              <input className={inputCls} value={form.name} onChange={(e) => set('name', e.target.value)} style={{ width: 180 }} placeholder="예: 견적 전표" /></label>
-            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">데이터코드</div>
-              <input className={inputCls} value={form.code} onChange={(e) => set('code', e.target.value)} style={{ width: 120 }} placeholder="D001" /></label>
-            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">구분 *</div>
-              <input className={inputCls} value={form.category} onChange={(e) => set('category', e.target.value)} style={{ width: 110 }} placeholder="예: 영업" /></label>
-            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">엔드포인트 *</div>
-              <input className={inputCls} value={form.endpoint} onChange={(e) => set('endpoint', e.target.value)} style={{ width: 240 }} placeholder="예: /quotations" /></label>
-            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">정렬</div>
-              <input className={`${inputCls} text-right`} type="number" value={form.sortOrder} onChange={(e) => set('sortOrder', e.target.value)} style={{ width: 70 }} /></label>
-            <label className="text-[12.5px] flex items-center gap-[4px]">
-              <input type="checkbox" checked={form.paged} onChange={(e) => set('paged', e.target.checked)} /> 페이지응답(totalElements)
-            </label>
-            <button type="submit" className="ec-btn ec-btn-primary">{editId ? '수정' : '저장'}</button>
-          </div>
-          <p className="text-[11.5px] text-ec-hint mt-[8px]">엔드포인트는 배열을 반환하는 목록 GET 이어야 하며, 페이지 응답이면 '페이지응답'을 체크하세요(건수=totalElements).</p>
-        </form>
-      )}</Modal>
+      <ul className="ec-cond mb-[8px]">
+        <EcCond label="데이터코드"><input className="ec-input w-[180px]" placeholder="데이터코드" value={cond.code} onChange={(e) => setD('code', e.target.value)} /></EcCond>
+        <EcCond label="데이터명"><input className="ec-input w-[180px]" placeholder="데이터명" value={cond.name} onChange={(e) => setD('name', e.target.value)} /></EcCond>
+        <EcCond label="수집대상"><label className="flex items-center gap-[4px]"><input type="radio" checked readOnly /> Email</label></EcCond>
+        <EcCond label="최초작성자"><input className="ec-input w-[180px]" placeholder="최초작성자" value={cond.createdBy} onChange={(e) => setD('createdBy', e.target.value)} /></EcCond>
+        <EcCond label="최종수정자"><input className="ec-input w-[180px]" placeholder="최종수정자" value={cond.updatedBy} onChange={(e) => setD('updatedBy', e.target.value)} /></EcCond>
+        <EcCond label="최초작성일자">
+          <input type="date" className="ec-input" value={cond.madeFrom} onChange={(e) => setD('madeFrom', e.target.value)} /> ~
+          <input type="date" className="ec-input" value={cond.madeTo} onChange={(e) => setD('madeTo', e.target.value)} />
+        </EcCond>
+        <EcCond label="최종작업일자">
+          <input type="date" className="ec-input" value={cond.workedFrom} onChange={(e) => setD('workedFrom', e.target.value)} /> ~
+          <input type="date" className="ec-input" value={cond.workedTo} onChange={(e) => setD('workedTo', e.target.value)} />
+        </EcCond>
+        <EcCond label="기타"><label className="flex items-center gap-[4px]"><input type="checkbox" checked={cond.byUpdated} onChange={(e) => setD('byUpdated', e.target.checked)} /> 수정일자순(정렬)</label></EcCond>
+      </ul>
 
-      {/* 원본 조건 차례: <b>데이터코드</b> · 데이터명 · 수집대상 · … · <b>최초작성일자</b> · <b>최종작업일자</b> */}
-      <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label">
-        <span>데이터코드</span>
-        <input className="ec-input" value={codeCond} placeholder="데이터코드"
-               onChange={(e) => setCodeCond(e.target.value)} style={{ width: 120 }} />
-        <span>데이터명</span>
-        <input className="ec-input" value={nameCond} onChange={(e) => setNameCond(e.target.value)} style={{ width: 170 }} />
-        <span>수집대상</span>
-        <select className="ec-input" value={targetCond} onChange={(e) => setTargetCond(e.target.value)} style={{ width: 140 }}>
-          <option value="">전체</option>
-          {[...new Set(rows.map((r) => r.category))].map((c) => <option key={c}>{c}</option>)}
-        </select>
-        <span>최초작성일자</span>
-        <input type="date" className="ec-input" value={madeFrom}
-               onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
-        <span>최종작업일자</span>
-        <input type="date" className="ec-input" value={workedFrom}
-               onChange={(e) => setWorkedFrom(e.target.value)} style={{ width: 140 }} />
-      </div>
-
-      <table className="w-full text-left">
+      <table className="w-full ec-head700">
         <thead><tr>
-          <th className="w-[28px] text-center"></th>
-          <th className="w-[34px]"></th>
-          <th className="text-right w-[60px]">정렬</th>
-          <th className="w-[90px]">데이터코드</th>
-          {/* 원본 수집데이터등록의 이름은 [소스명]이 아니라 <b>[데이터명]</b> 이다(사본 실측). */}
-            <th>데이터명</th>
-          <th className="w-[100px]">구분</th>
-          <th className="w-[260px]">엔드포인트</th>
-          <th className="text-center w-[70px]">페이지</th>
-          <th className="text-center w-[110px]">최초작성일자</th>
-          <th className="text-center w-[110px]">최종작업일자</th>
-          <th className="text-center w-[80px]">사용</th>
-          <th className="text-center w-[90px]">관리</th>
+          <th className="w-[44px] text-center">
+            <input type="checkbox" checked={allPicked} disabled={pickable.length === 0}
+                   onChange={() => setPicked(allPicked ? new Set() : new Set(pickable.map((r) => r.id)))} />
+          </th>
+          <th className="w-[12%]">데이터코드</th>
+          <th className="w-[29%]">데이터명</th>
+          <th className="w-[12%]">진행상태</th>
+          <th>조건</th>
+          <th className="w-[10%]">연결업무</th>
         </tr></thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={12} className="ec-empty">불러오는 중…</td></tr>
-          ) : shown.length === 0 ? (
-            <tr><td colSpan={12} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((s) => (
-            <tr key={s.id} style={{ opacity: s.active ? 1 : 0.5 }}>
+            <tr><td colSpan={6} className="ec-empty">불러오는 중…</td></tr>
+          ) : ordered.length === 0 ? (
+            <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+          ) : ordered.map((r) => (
+            <tr key={r.id}>
               <td className="text-center">
-                <input type="checkbox" checked={picked.has(s.id)} onChange={() => pick(s.id)} />
+                <input type="checkbox" disabled={r.builtIn} checked={picked.has(r.id)} onChange={() => togglePick(r.id)} />
               </td>
-              <td></td>
-              <td className="text-right text-ec-hint">{s.sortOrder}</td>
-              <td className="text-ec-label">{s.code ?? ''}</td>
-              <td className="font-semibold">{s.name}</td>
-              <td>{s.category}</td>
-              <td className="text-[11.5px] text-ec-label">GET /api{s.endpoint}</td>
-              <td className="text-center">{s.paged ? '●' : ''}</td>
-              {/* 원본 [최초작성일자]·[최종작업일자] — 날짜만 적는다(시각은 표에서 뜻이 없다). */}
-              <td className="text-center text-ec-label">{s.createdAt?.slice(0, 10) ?? ''}</td>
-              <td className="text-center text-ec-label">{s.updatedAt?.slice(0, 10) ?? ''}</td>
-              <td className="text-center">
-                <button className="no-ec" onClick={() => toggleActive(s)} style={{ border: '1px solid var(--ec-border)', background: s.active ? 'var(--ec-success-bg)' : 'var(--ec-bg-page)', color: s.active ? 'var(--ec-success)' : 'var(--ec-text-hint)', cursor: 'pointer', fontSize: 11.5, padding: '2px 8px', borderRadius: 3 }}>{s.active ? '사용' : '중단'}</button>
-              </td>
-              <td className="text-center">
-                <button className="no-ec" onClick={() => openEdit(s)} style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>수정</button>
-                <button className="no-ec" onClick={() => remove(s.id)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button>
-              </td>
+              {/* 원본: 더한 줄만 코드 · 이름이 링크다(기본 줄은 열리지 않는다). */}
+              <td>{r.builtIn ? '' : <a className="ec-link cursor-pointer" onClick={() => openEdit(r)}>{r.code}</a>}</td>
+              <td>{r.builtIn ? r.name : <a className="ec-link cursor-pointer" onClick={() => openEdit(r)}>{r.name}</a>}</td>
+              <td>{r.status}</td>
+              <td>{r.condition}</td>
+              <td>{r.linkedTask ?? ''}</td>
             </tr>
           ))}
         </tbody>
       </table>
+
+      <Modal open={open} title="수집데이터등록" error={formError} onClose={() => setOpen(false)} width={780}>
+        <ul className="ec-form grid-cols-1">
+          <li>
+            <div className="title">데이터코드</div>
+            <div className="form">
+              {editing ? <span className="px-[5px]">{form.code}</span>
+                : <input className="ec-input w-full" placeholder="데이터코드" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />}
+            </div>
+          </li>
+          <li>
+            <div className="title">데이터명</div>
+            <div className="form"><input className="ec-input w-full" placeholder="데이터명" autoFocus value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+          </li>
+          <li>
+            <div className="title">수집대상</div>
+            <div className="form flex-col items-stretch">
+              <label className="flex items-center gap-[4px]"><input type="radio" checked readOnly disabled={!!editing} /> Email</label>
+              <div className="flex items-center gap-[4px]">
+                <span className="shrink-0 bg-ec-page text-ec-label rounded-ec px-[5px] py-[2px] text-[11px]">수신문서</span>
+                <CodePickerField label="수신문서" hideLabel fill emptyLabel="" placeholder="수신문서" disabled={!!editing}
+                                 value={form.docType} items={DOCS}
+                                 onChange={(v) => setForm({ ...form, docType: v as CollectDocType })} />
+              </div>
+              <div className="flex items-center gap-[4px]">
+                <span className="shrink-0 bg-ec-page text-ec-label rounded-ec px-[5px] py-[2px] text-[11px]">보낸회사</span>
+                <input className="ec-input w-full" placeholder="보낸회사" value={form.senderCompany} onChange={(e) => setForm({ ...form, senderCompany: e.target.value })} />
+              </div>
+            </div>
+          </li>
+        </ul>
+        <div className="flex gap-[4px] mt-[9px]">
+          <button className="ec-btn ec-btn-primary" onClick={() => save(false)} disabled={saving}>저장(F8)</button>
+          {editing ? (
+            <button className="ec-btn" onClick={removeOne}>삭제</button>
+          ) : (<>
+            <button className="ec-btn" onClick={() => save(true)} disabled={saving}>저장/신규</button>
+            <button className="ec-btn" onClick={() => setForm({ ...emptyForm, code: form.code })}>다시작성</button>
+          </>)}
+          <button className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
+        </div>
+      </Modal>
     </EcListShell>
   )
 }

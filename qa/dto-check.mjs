@@ -159,6 +159,8 @@ const OWNED_HERE = new Map([
   ['Asset|assetNo', 'DocumentNoGenerator 가 매긴다'],
   ['Asset|accumulatedDepreciation', '감가상각을 돌릴 때마다 서버가 쌓는다'],
   ['Asset|disposalAmount', '처분 처리에서 찍는다 — 등록할 때 정하면 안 판 자산에 처분액이 생긴다'],
+  ['CollectData|channel', '원본 수집대상은 Email 하나뿐이다 — 고를 것이 없어 서버가 EMAIL 로 둔다'],
+  ['CollectData|builtIn', '문서마다 처음부터 있는 기본 줄(마이그레이션이 심는다) — 사람이 만들 수 없다'],
   ['Bookmark|sortOrder', '새 북마크는 맨 뒤(max+1)로 서버가 매긴다. 차례 바꾸기는 통째로 다시 보내는 자리가 따로 있다'],
   ['FieldWork|rejectReason', '반려할 때 찍는다(POST /{id}/reject)'],
   ['Payslip|allowanceTotal', '수당 줄에서 더한다'],
