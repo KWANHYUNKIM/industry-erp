@@ -266,7 +266,8 @@ export default function ActualCostPage() {
       }
     })
     .sort((a, b) => a.itemCode.localeCompare(b.itemCode)),
-  [movement, priceOf, categoryOf, keyword, itemCond, withInactive, inactive, withUntracked, untracked])
+  [movement, priceOf, categoryOf, keyword, itemCond, withInactive, inactive, withUntracked, untracked,
+    categoryCond, itemGroupCond, mgmt.groupOptions])
 
   /**
    * 원본 원가집계표의 <b>품목구분별 소계</b>(원재료 계 · 부재료 계 · … · 누계).
@@ -298,7 +299,8 @@ export default function ActualCostPage() {
     .filter((r) => (mode === '증가내역' ? r.quantityChange > 0 : r.quantityChange < 0))
     .filter((r) => hit(r.itemCode, r.itemName, r.itemId))
     .sort((a, b) => (a.transactionDate < b.transactionDate ? 1 : a.transactionDate > b.transactionDate ? -1 : b.id - a.id)),
-  [ledger, mode, keyword, itemCond, withInactive, inactive, withUntracked, untracked])
+  [ledger, mode, keyword, itemCond, withInactive, inactive, withUntracked, untracked,
+    categoryCond, itemGroupCond, mgmt.groupOptions])
 
   /*
    * <b>그리는 줄만 자른다.</b> 아래 합계는 <code>detail</code> 전부를 더하므로 숫자는 안 변한다 —
@@ -361,7 +363,8 @@ export default function ActualCostPage() {
       onSearch={load}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setPeriod(thisMonth()); setKeyword(''); setItemCond(''); setWithInactive(false) } },
+        /* 처음 연 판으로 — 사용중단품목포함은 켜짐이 기본이다(위 실측). 예전엔 꺼 버리고 품목구분 · 품목그룹1 · 수량관리제외는 남겼다. */
+        { label: '다시 작성', onClick: () => { setPeriod(thisMonth()); setKeyword(''); setItemCond(''); setWithInactive(true); setCategoryCond(''); setItemGroupCond(''); setWithUntracked(false) } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
