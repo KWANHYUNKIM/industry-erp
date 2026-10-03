@@ -564,11 +564,6 @@
   "color": 3,
   "palette": 0
  },
- "pages/groupware/SuppliesPage.tsx": {
-  "inline": 32,
-  "color": 1,
-  "palette": 0
- },
  "pages/groupware/SurveyInputPage.tsx": {
   "inline": 17,
   "color": 1,
