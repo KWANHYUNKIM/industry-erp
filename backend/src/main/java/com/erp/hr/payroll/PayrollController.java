@@ -25,6 +25,12 @@ public class PayrollController {
         return service.payroll(month);
     }
 
+    /** 사원별급여조회: 귀속월 구간(YYYY-MM ~ YYYY-MM) */
+    @GetMapping("/range")
+    public List<PayslipResponse> range(@RequestParam String from, @RequestParam String to) {
+        return service.payrollBetween(from, to);
+    }
+
     @GetMapping("/{id}")
     public PayslipResponse get(@PathVariable Long id) {
         return service.get(id);

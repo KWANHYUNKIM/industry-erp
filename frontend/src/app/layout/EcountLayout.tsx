@@ -572,7 +572,7 @@ const MENU: TopMenu[] = [
             { label: '근무입력', to: '/hr/work-input' },
             { label: '근무조회', to: '/hr/work-list' },
           ] },
-          { label: '급여작업', children: [{ label: '급여계산/대장', to: '/hr/payroll' }, { label: '수당·공제그룹/급여이체', to: '/hr/pay-settings' }] },
+          { label: '급여작업', children: [{ label: '급여계산/대장', to: '/hr/payroll' }, { label: '사원별급여조회', to: '/hr/payroll/by-employee' }, { label: '수당·공제그룹/급여이체', to: '/hr/pay-settings' }] },
           { label: '일용근로', children: [{ label: '일용근로급여관리', to: '/hr/daily-wage' }] },
         ],
       },

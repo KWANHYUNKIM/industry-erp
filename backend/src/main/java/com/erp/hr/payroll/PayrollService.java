@@ -48,6 +48,14 @@ public class PayrollService {
                 .toList();
     }
 
+    /** 사원별급여조회 — 귀속월 구간의 명세를 귀속월 최신순 · 사원코드순으로. */
+    @Transactional(readOnly = true)
+    public List<PayslipResponse> payrollBetween(String from, String to) {
+        return payslipRepository.findByPayMonthBetween(from, to).stream()
+                .map(PayslipResponse::from)
+                .toList();
+    }
+
     @Transactional(readOnly = true)
     public PayslipResponse get(Long id) {
         return PayslipResponse.from(getPayslip(id));
