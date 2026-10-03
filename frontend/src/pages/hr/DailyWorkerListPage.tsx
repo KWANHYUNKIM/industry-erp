@@ -79,6 +79,7 @@ export default function DailyWorkerListPage() {
   const filtered = rows.filter((r) => !quick || r.code.includes(quick) || r.name.includes(quick))
   const sort = useTableSort(filtered, {
     사원번호: (r) => r.code, 성명: (r) => r.name, 입사일자: (r) => r.hireDate ?? '', 퇴사일자: (r) => r.resignDate ?? '',
+    주소: (r) => r.address ?? '',
   })
   const shown = sort.sorted
   useTableColumnCheck(tableRef, '일용근로 사원리스트', [shown.length])
@@ -171,7 +172,7 @@ export default function DailyWorkerListPage() {
             <th className="cursor-pointer" onClick={() => sort.toggle('성명')}>성명 {sort.mark('성명')}</th>
             <th className="text-center cursor-pointer" onClick={() => sort.toggle('입사일자')}>입사일자 {sort.mark('입사일자')}</th>
             <th className="text-center cursor-pointer" onClick={() => sort.toggle('퇴사일자')}>퇴사일자 {sort.mark('퇴사일자')}</th>
-            <th>주소</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('주소')}>주소 {sort.mark('주소')}</th>
           </tr>
         </thead>
         <tbody>
