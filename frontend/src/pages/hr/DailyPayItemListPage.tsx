@@ -5,6 +5,9 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 const ALLOWANCES = [
   { code: '02', name: '일근무', order: 1, method: '변동(일)', rate: '', record: '', tax: '전액과세', formula: 'R( 일근무(급여지급사항) * 일근무(근무기록확정) , 0 )' },
 ]
+/** 원본 계산식 뒤 빈 열 — 기본 항목은 값이 없다. */
+const ALLOWANCE_EXTRA = ['산출방법', '공통숫자항목2', '공통숫자항목3', '공통문자항목2', '공통문자항목3']
+const DEDUCTION_EXTRA = ['산출방법', '공통숫자항목1', '공통숫자항목2', '공통숫자항목3', '공통문자항목1', '공통문자항목2', '공통문자항목3']
 const DEDUCTIONS = [
   { code: '01', name: '소득세', order: 1, formula: 'R( 소득세(급여지급사항) , 0 )' },
   { code: '02', name: '지방소득세', order: 2, formula: 'R( 지방소득세(급여지급사항) , 0 )' },
@@ -17,6 +20,8 @@ const DEDUCTIONS = [
  * <p>2026-10-03 loginaa 실측: 수당리스트 열 수당항목코드 · 수당항목명 · 표시순서 · 지급유형 · 배율 · 근무기록 · 과세구분 · 계산식 · 산출방법,
  * 기본 항목 02 일근무(변동(일) · 전액과세 · R( 일근무(급여지급사항) * 일근무(근무기록확정) , 0 )).
  * 공제리스트 열 공제항목코드 · 공제항목명 · 표시순서 · 계산식 · 산출방법, 01 소득세 R( 소득세(급여지급사항) , 0 ) · 02 지방소득세.
+ * 2026-10-04 다시 잼: 계산식 뒤에 산출방법 · 공통숫자항목 · 공통문자항목 열이 더 있다(수당리스트 2 · 3, 공제리스트 1 · 2 · 3 — 기본 항목은 모두 빈칸).
+ * 지급유형 후보는 고정 · 변동(일) · 변동(시간) · 변동(지급률) · 변동(직접입력).
  * 버튼 저장(F8) · 사용중단/재사용 · 사용중단포함 · 웹자료올리기 · H.
  *
  * <p>우리 일용근로 급여계산(DailyPayService)은 이 세 계산식을 그대로 셈한다. 항목을 더하거나 계산식을 고치는 것은 아직 없다 —
@@ -45,6 +50,7 @@ export default function DailyPayItemListPage({ kind = 'ALLOWANCE' }: { kind?: 'A
                 <th>근무기록</th>
                 <th>과세구분</th>
                 <th>계산식</th>
+                {ALLOWANCE_EXTRA.map((h) => <th key={h}>{h}</th>)}
               </tr>
             </thead>
             <tbody>
@@ -59,6 +65,7 @@ export default function DailyPayItemListPage({ kind = 'ALLOWANCE' }: { kind?: 'A
                   <td>{r.record}</td>
                   <td>{r.tax}</td>
                   <td>{r.formula}</td>
+                  {ALLOWANCE_EXTRA.map((h) => <td key={h}></td>)}
                 </tr>
               ))}
             </tbody>
@@ -72,6 +79,7 @@ export default function DailyPayItemListPage({ kind = 'ALLOWANCE' }: { kind?: 'A
                 <th>공제항목명</th>
                 <th className="text-right">표시순서</th>
                 <th>계산식</th>
+                {DEDUCTION_EXTRA.map((h) => <th key={h}>{h}</th>)}
               </tr>
             </thead>
             <tbody>
@@ -82,6 +90,7 @@ export default function DailyPayItemListPage({ kind = 'ALLOWANCE' }: { kind?: 'A
                   <td>{r.name}</td>
                   <td className="text-right">{r.order}</td>
                   <td>{r.formula}</td>
+                  {DEDUCTION_EXTRA.map((h) => <td key={h}></td>)}
                 </tr>
               ))}
             </tbody>
