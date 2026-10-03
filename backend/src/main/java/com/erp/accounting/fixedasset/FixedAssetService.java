@@ -41,6 +41,8 @@ public class FixedAssetService {
     private final AccountRepository accountRepository;
     private final JournalService journalService;
     private final DocumentNoGenerator docNoGenerator;
+    /* accounting → settings 는 허용된 방향이다(CLAUDE.md 4.1). 회계연도 시작월(환경설정)을 읽는다. */
+    private final com.erp.settings.preference.PreferenceService preferenceService;
 
     @Transactional(readOnly = true)
     public List<AssetResponse> findAll() {
@@ -122,6 +124,7 @@ public class FixedAssetService {
         int skipped = 0;
         List<String> gaps = new ArrayList<>();
 
+        String fiscalYearStart = fiscalYearStart(ym, fiscalStartMonth()).toString();
         for (FixedAsset asset : assetRepository.findByStatusWithAccount(AssetStatus.IN_USE)) {
             if (asset.getAcquisitionDate().isAfter(lastDay)) {          // 아직 취득 전
                 skipped++;
@@ -131,7 +134,7 @@ public class FixedAssetService {
                 skipped++;
                 continue;
             }
-            BigDecimal amount = monthlyAmount(asset);
+            BigDecimal amount = monthlyAmount(asset, fiscalYearStart);
             if (amount.signum() <= 0) {                                  // 상각 완료(잔존가액 도달)
                 skipped++;
                 continue;
@@ -209,8 +212,14 @@ public class FixedAssetService {
      * 원 단위로 끊는다. 예전엔 소수 둘째 자리라 1,000만 원 · 5년이면 매달 166,666.67원이 분개에 찍혔다(34회차).
      * 반올림한 만큼의 끝전은 마지막 달이 남은 상각가능액으로 잘려 맞춰진다(raw.min(remaining)).
      */
-    /** 이번 달 상각액. 잔존가액 아래로는 내려가지 않도록 남은 상각가능액으로 자른다. */
-    private BigDecimal monthlyAmount(FixedAsset asset) {
+    /**
+     * 이번 달 상각액. 잔존가액 아래로는 내려가지 않도록 남은 상각가능액으로 자른다.
+     *
+     * <p>정률법은 <b>기초(회계연도 첫날) 미상각잔액 × 연 상각률</b>을 그해 열두 달에 1/12 씩 나눈다(법인세법 시행령 26조).
+     * 예전엔 매달 <b>그달의</b> 장부가에 상각률/12 를 곱해 달마다 복리로 줄었다 — 연 45.1% 를 넣어도 한 해 상각이
+     * 기초 장부가의 36.9% 에 그쳤다. 그해 취득한 자산은 기초 장부가가 취득가액이다(취득 앞 상각이 없다).
+     */
+    private BigDecimal monthlyAmount(FixedAsset asset, String fiscalYearStart) {
         BigDecimal remaining = asset.depreciableRemaining();
         if (remaining.signum() <= 0) {
             return BigDecimal.ZERO;
@@ -219,11 +228,31 @@ public class FixedAssetService {
             case STRAIGHT_LINE -> asset.getAcquisitionCost().subtract(asset.getSalvageValue())
                     .divide(BigDecimal.valueOf(asset.getUsefulLifeYears()).multiply(MONTHS_PER_YEAR),
                             0, RoundingMode.HALF_UP);
-            case DECLINING_BALANCE -> asset.bookValue()
-                    .multiply(asset.getDeclineRate()).divide(HUNDRED, 10, RoundingMode.HALF_UP)
-                    .divide(MONTHS_PER_YEAR, 0, RoundingMode.HALF_UP);
+            case DECLINING_BALANCE -> decliningMonthly(
+                    asset.getAcquisitionCost().subtract(depreciationRepository.sumBefore(asset.getId(), fiscalYearStart)),
+                    asset.getDeclineRate());
         };
         return raw.min(remaining);
+    }
+
+    /** 정률법 한 달 몫 = 기초 장부가 × 연 상각률(%) ÷ 12, 원 단위. */
+    static BigDecimal decliningMonthly(BigDecimal openingBook, BigDecimal annualRatePct) {
+        return openingBook.multiply(annualRatePct).divide(HUNDRED, 10, RoundingMode.HALF_UP)
+                .divide(MONTHS_PER_YEAR, 0, RoundingMode.HALF_UP);
+    }
+
+    /** ym 이 속한 회계연도의 첫 달. 시작월이 4월이면 2026-03 → 2025-04, 2026-04 → 2026-04. */
+    static YearMonth fiscalYearStart(YearMonth ym, int startMonth) {
+        return ym.getMonthValue() >= startMonth ? YearMonth.of(ym.getYear(), startMonth) : YearMonth.of(ym.getYear() - 1, startMonth);
+    }
+
+    private int fiscalStartMonth() {
+        try {
+            int m = Integer.parseInt(preferenceService.get().fiscalStart().trim());
+            return m >= 1 && m <= 12 ? m : 1;
+        } catch (RuntimeException e) {
+            return 1;
+        }
     }
 
     private YearMonth parsePeriod(String period) {

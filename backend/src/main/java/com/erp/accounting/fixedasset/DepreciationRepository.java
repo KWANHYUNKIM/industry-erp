@@ -24,4 +24,8 @@ public interface DepreciationRepository extends JpaRepository<Depreciation, Long
     @Query("select d from Depreciation d join fetch d.asset a join fetch a.assetAccount " +
            "left join fetch d.journalEntry where d.period = :period order by d.id")
     List<Depreciation> findByPeriodWithRefs(String period);
+
+    /** 그 자산의 귀속월(yyyy-MM)이 before 앞인 상각 합 — 정률법의 기초(회계연도 첫날) 장부가를 구한다. */
+    @Query("select coalesce(sum(d.amount), 0) from Depreciation d where d.asset.id = :assetId and d.period < :before")
+    java.math.BigDecimal sumBefore(@Param("assetId") Long assetId, @Param("before") String before);
 }

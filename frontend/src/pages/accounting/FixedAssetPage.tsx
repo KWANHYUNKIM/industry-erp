@@ -367,7 +367,7 @@ function AssetForm({ accounts, onError, onSaved }: {
         <button className="ec-btn ec-btn-primary" onClick={submit}>등록</button>
       </div>
       <div className="mt-[8px] text-[11.5px] text-ec-hint">
-        ※ 정액법은 (취득가액 − 잔존가액) ÷ 내용연수를 매달 1/12씩, 정률법은 장부가액 × 상각률을 매달 1/12씩 상각합니다. 잔존가액 아래로는 내려가지 않습니다.
+        ※ 정액법은 (취득가액 − 잔존가액) ÷ 내용연수를 매달 1/12씩, 정률법은 기초(회계연도 첫날) 장부가액 × 상각률을 그해 매달 1/12씩 상각합니다. 잔존가액 아래로는 내려가지 않습니다.
       </div>
     </div>
   )
