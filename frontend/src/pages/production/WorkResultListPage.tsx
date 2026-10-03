@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { dateNo } from '../../utils/dateNo'
+import { dateText } from '../../utils/dateText'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
@@ -641,7 +643,7 @@ export default function WorkResultListPage() {
                 <td className="text-center text-ec-hint">{i + 1}</td>
                 <td className="text-center">
                   {/* 원본 [일자-No.] 는 작업내역 전표 번호다(작업지시서 번호가 아니다). */}
-                  {r.workDate} {r.resultNo}
+                  {r.resultNo ? dateNo(r.workDate, r.resultNo) : dateText(r.workDate)}
                 </td>
                 <td style={{ color: r.warehouseName ? undefined : 'var(--ec-text-off)' }}>{r.warehouseName ?? ''}</td>
                 {/*
