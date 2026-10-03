@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Item, QualityInspection, QualityInspectionType, QualityResult } from '../../types/api'
+import type { Item, QualityInspection, QualityInspectionLine, QualityInspectionType } from '../../types/api'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { dateNo } from '../../utils/dateNo'
 import EcPeriodPicks, { INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
@@ -22,12 +22,11 @@ const TYPES: QualityInspectionType[] = ['INCOMING', 'PROCESS', 'SHIPMENT']
 const TYPE_LABEL: Record<QualityInspectionType, string> = {
   INCOMING: '수입검사', PROCESS: '공정검사', SHIPMENT: '출하검사',
 }
-const RESULTS: QualityResult[] = ['PASS', 'CONDITIONAL', 'FAIL']
-const RESULT_LABEL: Record<QualityResult, string> = {
-  PASS: '합격', CONDITIONAL: '조건부합격', FAIL: '불합격',
-}
-const resultColor = (r: QualityResult | null) =>
-  r === 'FAIL' ? 'var(--ec-danger)' : r === 'CONDITIONAL' ? 'var(--ec-warn)' : r === 'PASS' ? 'var(--ec-success)' : 'var(--ec-text-hint)'
+/* 원본 [합격여부] 후보 — 전체 · 해당없음 · 합격 · 불합격. 2026-10-04 부터 검사 줄이 이 값을 든다. */
+type Pass = QualityInspectionLine['passResult']
+const PASSES: Pass[] = ['NA', 'PASS', 'FAIL']
+const PASS_LABEL: Record<Pass, string> = { NA: '해당없음', PASS: '합격', FAIL: '불합격' }
+const qty2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 interface Filters {
   dateFrom: string
@@ -37,7 +36,10 @@ interface Filters {
   dateTo: string
   type: '' | QualityInspectionType
   item: string
-  result: '' | QualityResult
+  result: '' | Pass
+  /* 원본 [진행상태](검사 전표의 종결여부) · [검사방법](줄의 전수 · 샘플링) — 2026-10-04 검사가 줄과 종결여부를 들면서 생겼다. */
+  status: '' | QualityInspection['status']
+  method: '' | QualityInspectionLine['method']
   inspector: string
   /*
    * 2026-09-08 에 원본(E040623)의 조건 판을 재니 <b>서른둘</b>이다(사본에는 일곱).
@@ -58,7 +60,7 @@ interface Filters {
  */
 const init = periodOf('금월(~오늘)')!
 
-const EMPTY_FILTERS: Filters = { dateFrom: init.from, dateTo: init.to, type: '', item: '', warehouse: '', project: '', result: '', inspector: '',
+const EMPTY_FILTERS: Filters = { dateFrom: init.from, dateTo: init.to, type: '', item: '', warehouse: '', project: '', result: '', status: '', method: '', inspector: '',
   category: '', itemGroup: '', spec: '', defectType: '', remark: '' }
 
 const pct = (n: number) => `${(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}%`
@@ -121,7 +123,9 @@ export default function QualityStatusPage() {
       if (f.dateTo && r.inspectionDate > f.dateTo) return false
       if (f.type && r.type !== f.type) return false
       if (f.item && !r.itemName.includes(f.item)) return false
-      if (f.result && r.result !== f.result) return false
+      if (f.status && r.status !== f.status) return false
+      if (f.result && !r.lines.some((l) => l.passResult === f.result)) return false
+      if (f.method && !r.lines.some((l) => l.method === f.method)) return false
       if (f.inspector && !(r.inspector ?? '').includes(f.inspector)) return false
       if (f.category && (itemById.get(r.itemId)?.categoryName ?? '') !== f.category) return false
       if (f.itemGroup && mgmt.groupOf(r.itemId) !== f.itemGroup) return false
@@ -133,17 +137,24 @@ export default function QualityStatusPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, keyword, filters, itemById, mgmt.groupOptions])
 
+  /*
+   * 원본 격자는 <b>검사 줄</b>이 한 줄이다(일자-No. · 검사방법 · 품목명[규격명] · 수량 · 시료 · 적격 · 부적격 · 합격여부).
+   * 합격여부 · 검사방법 조건은 줄에 건다.
+   */
+  const lineRows = useMemo(() => shown.flatMap((r) => r.lines
+    .filter((l) => (!filters.result || l.passResult === filters.result) && (!filters.method || l.method === filters.method))
+    .map((l) => ({ r, l }))), [shown, filters.result, filters.method])
   const totals = useMemo(() => {
-    const t = shown.reduce((s, r) => ({
-      inspected: s.inspected + r.inspectedQty,
-      defect: s.defect + r.defectQty,
-      good: s.good + r.goodQty,
-      pass: s.pass + (r.result === 'PASS' ? 1 : 0),
-      fail: s.fail + (r.result === 'FAIL' ? 1 : 0),
+    const t = lineRows.reduce((s, { l }) => ({
+      inspected: s.inspected + l.sampleQty,
+      defect: s.defect + l.defectQty,
+      good: s.good + l.goodQty,
+      pass: s.pass + (l.passResult === 'PASS' ? 1 : 0),
+      fail: s.fail + (l.passResult === 'FAIL' ? 1 : 0),
     }), { inspected: 0, defect: 0, good: 0, pass: 0, fail: 0 })
     const rate = t.inspected > 0 ? (t.defect / t.inspected) * 100 : 0
     return { ...t, rate }
-  }, [shown])
+  }, [lineRows])
 
   const activeCount = useMemo(() => {
     let n = 0
@@ -151,6 +162,8 @@ export default function QualityStatusPage() {
     if (filters.type) n++
     if (filters.item) n++
     if (filters.result) n++
+    if (filters.status) n++
+    if (filters.method) n++
     if (filters.inspector) n++
     return n
   }, [filters])
@@ -190,7 +203,7 @@ export default function QualityStatusPage() {
       )}
 
       <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
-        건수 <b className="text-ec-text">{shown.length.toLocaleString()}</b>
+        건수 <b className="text-ec-text">{lineRows.length.toLocaleString()}</b>
         <span className="my-0 mx-[8px] text-ec-off">|</span>
         검사수량 <b className="text-ec-text text-[14px]">{totals.inspected.toLocaleString()}</b>
         <span className="my-0 mx-[8px] text-ec-off">|</span>
@@ -205,9 +218,9 @@ export default function QualityStatusPage() {
         <EcBarChart unit=" 건" emptyText="불합격 판정이 없습니다."
                     rows={(() => {
                       const m = new Map<string, number>()
-                      for (const r of shown) {
-                        if (r.result !== 'FAIL') continue
-                        m.set(r.itemName, (m.get(r.itemName) ?? 0) + 1)
+                      for (const { l } of lineRows) {
+                        if (l.passResult !== 'FAIL') continue
+                        m.set(l.itemName, (m.get(l.itemName) ?? 0) + 1)
                       }
                       return [...m].map(([label, value]) => ({ label, value }))
                     })()} />
@@ -227,39 +240,42 @@ export default function QualityStatusPage() {
           <tr>
             <th className="w-[34px]"></th>
             <th className="cursor-pointer text-center" onClick={() => sort.toggle('검사일자')}>일자-No. {sort.mark('검사일자')}</th>
-            <th className="text-center">검사구분</th>
+            <th className="text-center">검사방법</th>
             <th>품목명[규격명]</th>
-            <th>로트</th>
             <th className="text-right">수량</th>
+            <th className="text-right">시료</th>
             <th className="text-right">적격</th>
             <th className="text-right">부적격</th>
-            <th className="text-right">불량률</th>
             <th className="text-center">합격여부</th>
+            <th className="text-center">검사구분</th>
+            <th>로트</th>
+            <th className="text-right">불량률</th>
             <th>검사자</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} className="ec-empty">불러오는 중…</td></tr>
-          ) : shown.length === 0 ? (
-            <tr><td colSpan={11} className="text-center text-ec-hint p-[20px]">
+            <tr><td colSpan={13} className="ec-empty">불러오는 중…</td></tr>
+          ) : lineRows.length === 0 ? (
+            <tr><td colSpan={13} className="text-center text-ec-hint p-[20px]">
               {rows.length === 0 ? '품질검사 내역이 없습니다.' : '검색조건에 맞는 자료가 없습니다.'}
             </td></tr>
-          ) : sort.sorted.map((r, i) => (
-            <tr key={r.id}>
+          ) : sort.sorted.flatMap((r) => lineRows.filter((x) => x.r === r)).map(({ r, l }, i) => (
+            <tr key={l.id}>
               <td className="text-center text-ec-hint">{i + 1}</td>
               {/* 원본은 일자와 번호를 한 칸에 적는다. */}
               <td className="text-center">{dateNo(r.inspectionDate, r.inspectionNo)}</td>
+              <td className="text-center">{l.methodName}</td>
+              <td>{l.itemName}{l.spec ? ` [${l.spec}]` : ''}</td>
+              <td className="text-right">{qty2(l.quantity)}</td>
+              <td className="text-right">{qty2(l.sampleQty)}</td>
+              <td className="text-right">{qty2(l.goodQty)}</td>
+              <td className="text-right">{qty2(l.defectQty)}</td>
+              <td className="text-center">{l.passResultName}</td>
               <td className="text-center">{r.typeName}</td>
-              {/* 규격은 품목 마스터가 든다 - 이 화면은 조건으로 거르려고 진작 받아 두고 있었다. */}
-              <td>{r.itemName}{itemById.get(r.itemId)?.spec ? ` [${itemById.get(r.itemId)?.spec}]` : ''}</td>
-              <td style={{ fontFamily: 'monospace', color: r.lotNo ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{r.lotNo ?? ''}</td>
-              <td className="text-right">{r.inspectedQty.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', color: '#1c6b32' }}>{r.goodQty.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', color: r.defectQty > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)', fontWeight: r.defectQty > 0 ? 600 : 400 }}>{r.defectQty.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', color: r.defectRate > 0 ? 'var(--ec-danger)' : 'var(--ec-text-hint)' }}>{pct(r.defectRate)}</td>
-              <td style={{ textAlign: 'center', color: resultColor(r.result), fontWeight: 700 }}>{r.resultName || '미판정'}</td>
-              <td style={{ color: r.inspector ? undefined : 'var(--ec-text-off)' }}>{r.inspector || ''}</td>
+              <td className="text-ec-label">{r.lotNo ?? ''}</td>
+              <td className="text-right">{pct(l.sampleQty > 0 ? (l.defectQty / l.sampleQty) * 100 : 0)}</td>
+              <td>{r.inspector || ''}</td>
             </tr>
           ))}
         </tbody>
@@ -365,16 +381,31 @@ function SearchPanel({
           {TYPES.map((t) => <option key={t} value={t}>{TYPE_LABEL[t]}</option>)}
         </select>
       </div>
-      {/*
-        원본은 이 칸을 <b>[합격여부]</b> 라 부르고 후보가 전체·해당없음·합격·불합격 이다.
-        우리 판정은 합격·조건부합격·불합격 셋이라 <b>후보가 다르다</b> — 지어내지 않는다.
-      */}
+      <div style={rowStyle}>
+        <span style={label}>진행상태</span>
+        <select className="ec-input w-[150px]" value={draft.status}
+          onChange={(e) => onChange({ status: e.target.value as Filters['status'] })}>
+          <option value="">전체</option>
+          <option value="IN_PROGRESS">진행중</option>
+          <option value="COMPLETED">완료</option>
+        </select>
+      </div>
+      {/* 원본 [합격여부] 후보 전체 · 해당없음 · 합격 · 불합격 — 2026-10-04 부터 검사 줄이 이 값을 든다. */}
       <div style={rowStyle}>
         <span style={label}>합격여부</span>
         <select className="ec-input" value={draft.result}
           onChange={(e) => onChange({ result: e.target.value as Filters['result'] })} style={{ width: 150 }}>
           <option value="">전체</option>
-          {RESULTS.map((r) => <option key={r} value={r}>{RESULT_LABEL[r]}</option>)}
+          {PASSES.map((r) => <option key={r} value={r}>{PASS_LABEL[r]}</option>)}
+        </select>
+      </div>
+      <div style={rowStyle}>
+        <span style={label}>검사방법</span>
+        <select className="ec-input w-[150px]" value={draft.method}
+          onChange={(e) => onChange({ method: e.target.value as Filters['method'] })}>
+          <option value="">전체</option>
+          <option value="FULL">전수</option>
+          <option value="SAMPLING">샘플링</option>
         </select>
       </div>
       <div style={{ ...rowStyle, borderBottom: 'none' }}>

@@ -97,4 +97,20 @@ public class QualityInspection extends BaseTimeEntity {
 
     @Column(length = 300)
     private String remark;
+
+    /** 원본 [종결여부] — 저장하면 진행중, 목록에서 누르면 완료(2026-10-04 실측). */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private InspectionStatus status = InspectionStatus.IN_PROGRESS;
+
+    /**
+     * 품목 줄(원본은 여러 품목을 한 전표로 검사한다). 머리의 품목 · 검사수량 · 불량수량은 이 줄에서 모은 값이다
+     * (첫 줄 품목, 시료 합, 부적격 합) — 품질검사현황 · 불량률파악보고서가 머리를 읽는다.
+     */
+    @OneToMany(mappedBy = "inspection", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("lineNo")
+    @org.hibernate.annotations.BatchSize(size = 100)
+    @Builder.Default
+    private java.util.List<QualityInspectionLine> lines = new java.util.ArrayList<>();
 }

@@ -149,6 +149,12 @@ public class LotService {
         return LotResponse.from(lot);
     }
 
+    /** 로트No. 로 등록된 로트를 찾는다(품질검사가 자유입력 로트No. 를 등록된 로트와 잇는다). */
+    @Transactional(readOnly = true)
+    public java.util.Optional<Lot> findByLotNo(String lotNo) {
+        return lotRepository.findByLotNo(lotNo);
+    }
+
     /** 전표 한 줄의 시리얼/로트 — 수량은 부호를 든다(들어오면 +, 나가면 −). */
     public record DocLine(Item item, Warehouse warehouse, String lotNo, BigDecimal quantity) {}
 

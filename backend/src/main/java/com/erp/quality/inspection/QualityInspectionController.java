@@ -35,6 +35,18 @@ public class QualityInspectionController {
         return ResponseEntity.ok(qualityInspectionService.create(req, principal.getName()));
     }
 
+    @PutMapping("/{id}")
+    public InspectionResponse update(@PathVariable Long id, @Valid @RequestBody CreateInspectionRequest req) {
+        return qualityInspectionService.update(id, req);
+    }
+
+    /** 원본 목록의 [종결여부] 진행중 ↔ 완료. */
+    @PatchMapping("/{id}/status")
+    public InspectionResponse changeStatus(@PathVariable Long id,
+                                           @Valid @RequestBody com.erp.quality.inspection.dto.QualityDtos.StatusRequest req) {
+        return qualityInspectionService.changeStatus(id, req.status());
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         qualityInspectionService.delete(id);

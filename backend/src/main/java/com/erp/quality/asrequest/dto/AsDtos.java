@@ -69,7 +69,7 @@ public final class AsDtos {
     /** A/S접수 품목 한 줄 — 원본 격자 [품목코드 · 품목명 · 수량]. */
     public record AsLineRequest(
             @NotNull(message = "품목을 선택하세요.") Long itemId,
-            @jakarta.validation.constraints.Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity
+            @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity
     ) {}
 
     public record AsLineResponse(Long id, int lineNo, Long itemId, String itemCode, String itemName, String itemSpec,

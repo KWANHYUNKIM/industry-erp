@@ -2716,24 +2716,6 @@
   ],
   "in": "backend/src/main/java/com/erp/trade/quotation/QuotationLine.java"
  },
- "품질검사현황|검사방법": {
-  "claim": "샘플링·전수를 갈라 적지 않는다",
-  "absent": [
-   "sampleQty",
-   "inspectionMethod",
-   "samplingType"
-  ],
-  "in": "backend/src/main/java/com/erp/quality/inspection/QualityInspection.java"
- },
- "품질검사현황|시료": {
-  "claim": "뽑은 시료 수를 따로 안 든다",
-  "absent": [
-   "sampleQty",
-   "inspectionMethod",
-   "samplingType"
-  ],
-  "in": "backend/src/main/java/com/erp/quality/inspection/QualityInspection.java"
- },
  "자가사용현황|거래처명": {
   "claim": "기타이동은 사내에서 재고만 움직이는 전표라 상대가 없다",
   "absent": [
@@ -3428,14 +3410,6 @@
    "api.post"
   ],
   "in": "frontend/src/pages/production/TimeCalcPage.tsx"
- },
- "품질검사현황|진행상태": {
-  "claim": "검사는 하면 곧 판정이 난다 — 진행중·완료로 흐르는 단계가 없다",
-  "absent": [
-   "status",
-   "Status"
-  ],
-  "in": "backend/src/main/java/com/erp/quality/inspection/QualityInspection.java"
  },
  "직접입력": {
   "claim": "기준품목은 [전체/직접입력] 대신 코드도움 하나로 고른다",

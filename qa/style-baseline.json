@@ -984,11 +984,6 @@
   "color": 0,
   "palette": 0
  },
- "pages/quality/QualityInspectionPage.tsx": {
-  "inline": 14,
-  "color": 0,
-  "palette": 0
- },
  "pages/quality/QualityRequestPage.tsx": {
   "inline": 22,
   "color": 2,
@@ -1000,8 +995,8 @@
   "palette": 0
  },
  "pages/quality/QualityStatusPage.tsx": {
-  "inline": 46,
-  "color": 2,
+  "inline": 44,
+  "color": 1,
   "palette": 0
  },
  "pages/quality/SerialLotPage.tsx": {

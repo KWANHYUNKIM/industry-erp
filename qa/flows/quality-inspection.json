@@ -1,23 +1,31 @@
 {
-  "about": "품질검사 등록 — 검사수량 0 은 저장 전에 막고(53회차 — 불량 0 이라 '합격' 으로 남았다), 200개 중 5개 불량은 2.5% 조건부합격으로 자동판정. 만든 검사성적은 끝에 지운다.",
+  "about": "품질검사조회 · 입력(E040622 · E040621) — 2026-10-04 원본: 품목 줄을 든 전표(검사방법 전수 · 샘플링 · 수량 · 시료 · 적격 = 시료 − 부적격 · 합격여부). 빈 저장은 '자료를 입력 바랍니다.', 시료 > 수량은 '시료는 수량보다 클 수 없습니다.'. 저장하면 진행중, 목록의 진행중을 누르면 완료. 여러 줄이면 '○○ 외 1건'. 만든 검사는 지운다.",
   "shots": [
     {
-      "name": "검사수량 0 거부 → 200/5 조건부합격",
+      "name": "빈 저장 막힘 → 시료>수량 막힘 → 두 줄 저장(샘플링 5/3/부적격1 + 전수 2) → 목록 '외 1건' 7 · 5.00 · 4.00 · 1.00 · 진행중 → 완료 → 지움",
       "path": "/quality/inspection",
       "steps": [
+        "allowapi:400: /api/quality-inspections",
+        "wait:2000",
         "click:신규(F2)",
-        "clicklast:품목 선택",
-        "pickrow:SNS-TH01",
-        "set:[role=dialog] input[type=number]#0|0",
-        "clicklast:저장",
+        "wait:600",
+        "clicklast:저장(F8)",
         "wait:400",
-        "expect:document.body.innerText.includes('검사수량은 0 보다 커야 합니다.')",
-        "set:[role=dialog] input[type=number]#0|200",
-        "set:[role=dialog] input[type=number]#1|5",
-        "clicklast:저장",
-        "wait:1200",
-        "expect:/QC-[0-9]{8}-[0-9]{4} 품질검사 등록 완료 · 온습도 센서 · 검사 200 \\/ 불량 5 · 조건부합격/.test(document.body.innerText)",
-        "apidel:/quality-inspections|QC-[0-9]{8}-[0-9]{4}|inspectionNo"
+        "expect:document.body.innerText.includes('자료를 입력 바랍니다.')",
+        "clicklast:닫기",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const it = (await (await fetch('/api/items', { headers: H })).json()).filter((x) => x.active !== false); const r = await fetch('/api/quality-inspections', { method: 'POST', headers: H, body: JSON.stringify({ remark: 'QA재고2', lines: [{ itemId: it[0].id, method: 'SAMPLING', quantity: 5, sampleQty: 8 }] }) }); const j = await r.json(); sessionStorage.setItem('qi-items', JSON.stringify([it[0].id, it[1].id, it[0].name])); return r.status === 400 && j.message === '시료는 수량보다 클 수 없습니다.' })()",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const [a, b] = JSON.parse(sessionStorage.getItem('qi-items')); const r = await (await fetch('/api/quality-inspections', { method: 'POST', headers: H, body: JSON.stringify({ remark: 'QA재고2', lines: [{ itemId: a, method: 'SAMPLING', quantity: 5, sampleQty: 3, defectQty: 1, passResult: 'FAIL' }, { itemId: b, method: 'FULL', quantity: 2 }] }) })).json(); sessionStorage.setItem('qi', JSON.stringify({ id: r.id, no: r.inspectionNo })); return r.inspectionNo + ' 시료 ' + r.inspectedQty + ' 불량 ' + r.defectQty + ' ' + r.resultName })()",
+        "js:location.reload(); true",
+        "wait:3000",
+        "expect:[...document.querySelectorAll('table thead th')].map((t) => t.innerText.trim()).join('|') === '|검사번호|품목|수량|시료|적격|부적격|출처|종결여부|인쇄'",
+        "expect:(() => { const name = JSON.parse(sessionStorage.getItem('qi-items'))[2]; const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes(name + ' 외 1건')); if (!tr) return false; const c = [...tr.cells].map((x) => x.innerText.trim()); return c[3] === '7' && c[4] === '5.00' && c[5] === '4.00' && c[6] === '1.00' && c[8] === '진행중' && /^\\d\\d\\/\\d\\d\\/\\d\\d-\\d+$/.test(c[1]) })()",
+        "js:(() => { const name = JSON.parse(sessionStorage.getItem('qi-items'))[2]; const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes(name + ' 외 1건')); tr.cells[8].querySelector('button').click(); return true })()",
+        "wait:1500",
+        "expect:![...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes(JSON.parse(sessionStorage.getItem('qi-items'))[2] + ' 외 1건'))",
+        "click:완료",
+        "wait:500",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes(JSON.parse(sessionStorage.getItem('qi-items'))[2] + ' 외 1건') && t.innerText.includes('완료'))",
+        "expect:(async () => { const x = JSON.parse(sessionStorage.getItem('qi')); const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = await fetch('/api/quality-inspections/' + x.id, { method: 'DELETE', headers: H }); return d.status === 204 })()"
       ]
     }
   ]

@@ -2,17 +2,22 @@
   "about": "품질 화면 회귀 시험. node qa/shot.mjs qa/flows/quality.json — 만든 전표는 끝에 지운다.",
   "shots": [
     {
-      "name": "품질검사 등록 — 품목을 코드도움으로 골라 저장하면 번호와 함께 '등록 완료'(11회차까지 긴 드롭다운 · 번호 안내 없음)",
+      "name": "품질검사 입력 — 첫 줄 품목을 코드도움으로 골라 수량 10(전수)로 저장하면 목록 진행중 줄에 수량 10 · 시료 10.00 · 적격 10.00(2026-10-04 원본처럼 품목 줄 전표)",
       "path": "/quality/inspection",
       "steps": [
+        "wait:1500",
+        "js:sessionStorage.setItem('qc-before', ''); (async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const l = await (await fetch('/api/quality-inspections', { headers: H })).json(); sessionStorage.setItem('qc-before', String(Math.max(0, ...l.map((x) => x.id)))); return 'before ' + sessionStorage.getItem('qc-before') })()",
         "click:신규",
-        "clicklast:품목 선택",
+        "wait:600",
+        "js:[...document.querySelectorAll('[role=dialog] button[title=\"품목 선택\"]')][0].click(); true",
+        "wait:600",
         "pickrow:QA-PROD",
-        "set:[role=dialog] input[type=number]#0|10",
-        "set:[role=dialog] input[type=number]#1|0",
-        "click:저장",
-        "expect:/QC-[0-9]{8}-[0-9]{4} 품질검사 등록 완료/.test(document.body.innerText)",
-        "apidel:/quality-inspections|QC-[0-9]{8}-[0-9]{4}|inspectionNo"
+        "set:[role=dialog] tbody input.text-right#0|10",
+        "clicklast:저장(F8)",
+        "wait:1500",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => { const c = [...tr.cells].map((x) => x.innerText.trim()); return c[3] === '10' && c[4] === '10.00' && c[5] === '10.00' && c[8] === '진행중' })",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const l = await (await fetch('/api/quality-inspections', { headers: H })).json(); const mine = l.filter((x) => x.id > Number(sessionStorage.getItem('qc-before'))).sort((a, b) => b.id - a.id)[0]; sessionStorage.setItem('qc-no', mine ? mine.inspectionNo : ''); return mine ? mine.inspectionNo : '없음' })()",
+        "apidel:/quality-inspections|@qc-no|inspectionNo"
       ]
     },
     {

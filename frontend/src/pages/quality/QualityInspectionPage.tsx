@@ -1,37 +1,58 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { CommonCode, Item, QualityInspection, QualityInspectionType, QualityResult } from '../../types/api'
+import type { CommonCode, Item, QualityInspection, QualityInspectionLine } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
-import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { QUOTATION_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
 import { EcCond } from '../../components/EcStatusPanel'
 import { useCondPickers } from '../../utils/useCondPickers'
-import { dateText } from '../../utils/dateText'
+import { useShortcut } from '../../utils/useShortcut'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcRowCap, { capRows } from '../../components/EcRowCap'
 
 const today = () => ymd(new Date())
+const qty0 = (n: number) => Math.round(n).toLocaleString('ko-KR')
+const qty2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+/* 원본 [검사번호] '26/10/04-1' — 우리 번호 'QC-20261004-0001' 에서 일자와 끝 일련번호만 뗀다. */
+const shortNo = (r: QualityInspection) => {
+  const seq = Number(r.inspectionNo.split('-').pop()) || r.inspectionNo
+  return `${r.inspectionDate.slice(2).replace(/-/g, '/')}-${seq}`
+}
+/* 원본 [품목] 'MSI BIG BANG Z77 MPOWER [1EA]' · 여러 줄이면 '… 외 1건'. */
+const itemText = (r: QualityInspection) => {
+  const first = r.lines[0]
+  if (!first) return r.itemName
+  if (r.lines.length > 1) return `${first.itemName} 외 ${r.lines.length - 1}건`
+  return `${first.itemName}${first.spec ? ` [${first.spec}]` : ''}`
+}
 
-const TYPES: { v: QualityInspectionType; label: string }[] = [
-  { v: 'INCOMING', label: '수입검사' },
-  { v: 'PROCESS', label: '공정검사' },
-  { v: 'SHIPMENT', label: '출하검사' },
-]
-const RESULTS: { v: QualityResult; label: string }[] = [
-  { v: 'PASS', label: '합격' },
-  { v: 'CONDITIONAL', label: '조건부합격' },
-  { v: 'FAIL', label: '불합격' },
-]
+type Method = QualityInspectionLine['method']
+type Pass = QualityInspectionLine['passResult']
+interface LineForm { method: Method; itemId: string; quantity: string; sampleQty: string; defectQty: string; passResult: Pass; defectType: string }
+const emptyLine = (): LineForm => ({ method: 'FULL', itemId: '', quantity: '', sampleQty: '', defectQty: '', passResult: 'NA', defectType: '' })
+const emptyLines = () => [emptyLine(), emptyLine(), emptyLine()]
+const num = (v: string) => Number(v || 0)
+/* 전수면 시료 = 수량(원본은 시료 칸을 막고 수량을 그대로 찍는다). 적격 = 시료 − 부적격. */
+const sampleOf = (l: LineForm) => (l.method === 'FULL' ? num(l.quantity) : num(l.sampleQty))
 
-const resultColor = (r: QualityResult) => (r === 'FAIL' ? 'var(--ec-danger)' : r === 'CONDITIONAL' ? 'var(--ec-warn)' : 'var(--ec-success)')
+type Tab = '전체' | '진행중' | '완료'
 
 /**
- * 재고 II > 품질관리 — 수입/공정/출하 검사성적 (실제 연동).
+ * 재고 II &gt; 품질관리 &gt; 품질검사 &gt; <b>품질검사조회</b>(E040622) · <b>품질검사입력</b>(E040621) — 2026-10-04 loginaa 실측(자료가 든 판, 입력 · 완료 · 삭제까지).
  *
- * <p>원본 <b>품질검사조회</b>(E040622) 조건 판 — 2026-10-03 loginaa 실측: 기준일자(구간, 기본 <b>최근30일(+1개월)</b>) ·
- * 품목 · 창고 · 프로젝트 · 출처(요청)구분 · 삭제구분(기본 미삭제) · 기타(수정일자순) · 발송여부(전체).
- * 출처는 검사를 전표에 이어 두지 않아 안 생기고(품질검사현황과 같은 사실), 검사는 지우면 사라져 삭제구분이 없다.
+ * <ul>
+ *   <li>알약 전체 · 확인 · 진행중 · 완료, 진행중을 보고 열린다. 열: 검사번호(26/10/04-1) · 품목('○○ [규격]', 여럿이면 '○○ 외 1건') ·
+ *       수량(정수) · 시료 · 적격 · 부적격(소수 둘째, 0 이면 빈칸) · 출처 · 종결여부 · 인쇄.</li>
+ *   <li>입력은 품목 줄을 든 전표다: 검사방법(전수 · 샘플링) · 품목 · 수량 · 시료 · 적격 · 부적격 · 합격여부(해당없음 · 합격 · 불합격).
+ *       전수면 시료 = 수량이고 칸이 막힌다. 적격 = 시료 − 부적격. 부적격은 [부적격관리] 에서 불량유형마다 넣는다.</li>
+ *   <li>빈 저장 — '자료를 입력 바랍니다.', 시료 &gt; 수량 — '시료는 수량보다 클 수 없습니다.'</li>
+ *   <li>저장하면 [종결여부] 진행중, 목록의 진행중을 누르면 완료(주황)로 넘어간다. 완료도 [선택삭제] 로 지워진다 —
+ *       '선택한 전표를 삭제 하겠습니까?', 고른 것이 없으면 '리스트에 선택된 자료가 없습니다.'</li>
+ * </ul>
+ * 예전 화면은 품목 하나짜리 검사성적(검사구분 · 로트 · 검사수량 · 불량수 · 판정)이라 줄도 시료도 종결여부도 없었다.
+ * [확인] 알약(전표 확인 결재)과 [출처](검사요청 · 구매 … 에서 불러오기)는 아직 없다 — 출처 칸은 빈칸이다.
+ * 조건 판은 원본 조건 대조표의 것(기준일자 · 품목 · 창고 · 프로젝트)을 그대로 둔다.
  */
 export default function QualityInspectionPage() {
   const pickers = useCondPickers(['items', 'warehouses', 'projects'])
@@ -41,120 +62,158 @@ export default function QualityInspectionPage() {
   const [itemCond, setItemCond] = useState('')
   const [whCond, setWhCond] = useState('')
   const [projCond, setProjCond] = useState('')
+  const [tab, setTab] = useState<Tab>('진행중')
   const [rows, setRows] = useState<QualityInspection[]>([])
   const [items, setItems] = useState<Item[]>([])
+  const [defectTypes, setDefectTypes] = useState<CommonCode[]>([])
   const [keyword, setKeyword] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  /* 저장한 검사번호를 남겨 둔다 — 번호는 서버가 매긴다 */
-  const [ok, setOk] = useState('')
-  const [showForm, setShowForm] = useState(false)
-  const [defectTypes, setDefectTypes] = useState<CommonCode[]>([])
-  const [projects, setProjects] = useState<{ id: number; code: string; name: string }[]>([])
-  const [form, setForm] = useState({
-    inspectionDate: today(), type: 'INCOMING', itemId: '',
-    lotNo: '', inspectedQty: '', defectQty: '0', defectType: '', result: '', inspector: '',
-    projectId: '',
-  })
+  const [picked, setPicked] = useState<Set<number>>(new Set())
+
+  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState<QualityInspection | null>(null)
+  const [f, setF] = useState({ inspectionDate: today(), inspector: '', remark: '' })
+  const [lines, setLines] = useState<LineForm[]>(emptyLines())
+  const [formError, setFormError] = useState('')
+  const [saving, setSaving] = useState(false)
 
   async function load() {
     setLoading(true)
     try {
-      const [q, i, d, pj] = await Promise.all([
+      const [q, i, d] = await Promise.all([
         api.get<QualityInspection[]>('/quality-inspections', { params: { from, to } }),
         api.get<Item[]>('/items'),
-        /* 원본 [불량유형]은 코드도움이다 — 공통코드 그룹 DEFECT_TYPE 에서 가져온다. */
+        /* 원본 [부적격관리]의 불량유형 — 공통코드 그룹 DEFECT_TYPE. */
         api.get<CommonCode[]>('/codes/DEFECT_TYPE'),
-        api.get<{ id: number; code: string; name: string }[]>('/projects'),
       ])
-      setRows(q.data)
-      setItems(i.data)
-      setDefectTypes(d.data); setProjects(pj.data)
+      setRows(q.data); setItems(i.data); setDefectTypes(d.data)
+      setPicked(new Set())
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
       setLoading(false)
     }
   }
-
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load() }, [from, to])
 
-  function set(k: keyof typeof form, v: string) { setForm((f) => ({ ...f, [k]: v })) }
+  const itemById = useMemo(() => new Map(items.map((it) => [String(it.id), it])), [items])
+  const itemPicks = useMemo(() => items.filter((it) => it.active !== false)
+    .map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword })), [items])
 
-  async function submit() {
-    setError(''); setOk('')
-    if (!form.itemId) return setError('품목을 선택하세요.')
-    if (form.inspectedQty === '') return setError('검사수량을 입력하세요.')
-    if (!(Number(form.inspectedQty) > 0)) return setError('검사수량은 0 보다 커야 합니다.')
+  const shown = rows
+    .filter((r) => tab === '전체' || (tab === '진행중' ? r.status === 'IN_PROGRESS' : r.status === 'COMPLETED'))
+    .filter((r) => !itemCond || r.lines.some((l) => String(l.itemId) === itemCond))
+    .filter((r) => !whCond || String(r.warehouseId) === whCond)
+    .filter((r) => !projCond || String(r.projectId) === projCond)
+    .filter((r) => !keyword || r.lines.some((l) => l.itemName.includes(keyword)) || r.inspectionNo.includes(keyword))
+    .sort((a, b) => (a.inspectionDate < b.inspectionDate ? 1 : a.inspectionDate > b.inspectionDate ? -1 : b.id - a.id))
+  /* 그리는 줄만 자른다 — 검사가 수천 줄이면 브라우저가 멈춘다(2026-09-10 실측 2,316줄). 거르는 것은 전부에서. */
+  const capped = capRows(shown)
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, '품질검사조회', [shown.length])
+
+  function openNew() {
+    setEditing(null); setFormError('')
+    setF({ inspectionDate: today(), inspector: '', remark: '' })
+    setLines(emptyLines())
+    setOpen(true)
+  }
+  function openEdit(r: QualityInspection) {
+    setEditing(r); setFormError('')
+    setF({ inspectionDate: r.inspectionDate, inspector: r.inspector ?? '', remark: r.remark ?? '' })
+    setLines([...r.lines.map((l) => ({
+      method: l.method, itemId: String(l.itemId), quantity: String(l.quantity), sampleQty: String(l.sampleQty),
+      defectQty: l.defectQty ? String(l.defectQty) : '', passResult: l.passResult, defectType: l.defectType ?? '',
+    })), emptyLine()])
+    setOpen(true)
+  }
+  const setLine = (i: number, patch: Partial<LineForm>) =>
+    setLines((ls) => {
+      const next = ls.map((l, j) => (j === i ? { ...l, ...patch } : l))
+      return next[next.length - 1].itemId ? [...next, emptyLine()] : next
+    })
+  const filled = lines.filter((l) => l.itemId)
+  const sums = filled.reduce((s, l) => ({
+    qty: s.qty + num(l.quantity), sample: s.sample + sampleOf(l),
+    good: s.good + sampleOf(l) - num(l.defectQty), defect: s.defect + num(l.defectQty),
+  }), { qty: 0, sample: 0, good: 0, defect: 0 })
+
+  async function save() {
+    setFormError('')
+    if (filled.length === 0) return setFormError('자료를 입력 바랍니다.')
+    if (filled.some((l) => sampleOf(l) > num(l.quantity))) return setFormError('시료는 수량보다 클 수 없습니다.')
+    const body = {
+      inspectionDate: f.inspectionDate,
+      inspector: f.inspector || undefined,
+      remark: f.remark || undefined,
+      lines: filled.map((l) => ({
+        itemId: Number(l.itemId), method: l.method, quantity: num(l.quantity),
+        sampleQty: sampleOf(l), defectQty: num(l.defectQty), passResult: l.passResult,
+        defectType: l.defectType || undefined,
+      })),
+    }
+    setSaving(true)
     try {
-      const res = await api.post<QualityInspection>('/quality-inspections', {
-        inspectionDate: form.inspectionDate,
-        type: form.type,
-        itemId: Number(form.itemId),
-        lotNo: form.lotNo || undefined,
-        inspectedQty: Number(form.inspectedQty),
-        defectQty: Number(form.defectQty || 0),
-        defectType: form.defectType || undefined,
-        projectId: form.projectId ? Number(form.projectId) : undefined,
-        result: form.result || undefined,
-        inspector: form.inspector || undefined,
-      })
-      setForm((f) => ({ ...f, itemId: '', lotNo: '', inspectedQty: '', defectQty: '0', defectType: '', result: '', inspector: '', projectId: '' }))
-      setShowForm(false)
-      load()
-      const d = res.data
-      setOk(`${d.inspectionNo} 품질검사 등록 완료 · ${d.itemName} · 검사 ${d.inspectedQty.toLocaleString()} / 불량 ${d.defectQty.toLocaleString()} · ${d.resultName}`)
+      if (editing) await api.put(`/quality-inspections/${editing.id}`, body)
+      else await api.post('/quality-inspections', body)
+      setOpen(false)
+      await load()
+    } catch (err) {
+      setFormError(extractErrorMessage(err))
+    } finally {
+      setSaving(false)
+    }
+  }
+  useShortcut('F8', save, open)
+  useShortcut('F2', openNew, !open)
+
+  async function removeIds(ids: number[]) {
+    try {
+      for (const id of ids) await api.delete(`/quality-inspections/${id}`)
+      setOpen(false)
+      await load()
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    }
+  }
+  function removeChecked() {
+    const ids = [...picked]
+    if (ids.length === 0) return setError('리스트에 선택된 자료가 없습니다.\n체크박스에 체크한 후 다시 시도 바랍니다.')
+    if (window.confirm('선택한 전표를 삭제 하겠습니까?')) void removeIds(ids)
+  }
+  async function toggleStatus(r: QualityInspection) {
+    try {
+      await api.patch(`/quality-inspections/${r.id}/status`, { status: r.status === 'IN_PROGRESS' ? 'COMPLETED' : 'IN_PROGRESS' })
+      await load()
     } catch (err) {
       setError(extractErrorMessage(err))
     }
   }
 
-  const shownRows = rows
-    .filter((r) => !itemCond || String(r.itemId) === itemCond)
-    .filter((r) => !whCond || String(r.warehouseId) === whCond)
-    .filter((r) => !projCond || String(r.projectId) === projCond)
-    .filter((r) => !keyword || r.itemName.includes(keyword) || (r.lotNo ?? '').includes(keyword))
-
-  /*
-   * 네 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. [검사구분]·[판정]은 안쪽 코드가 아니라
-   * 화면에 찍히는 이름으로 세운다.
-   */
-  const sort = useTableSort(shownRows, {
-    검사일자: (r) => r.inspectionDate,
-    검사구분: (r) => r.typeName,
-    품목명: (r) => r.itemName,
-    판정: (r) => r.resultName,
-  })
-  /*
-   * <b>그리는 줄만 자른다.</b> 이 화면은 검사 <b>전부</b>를 받아 전부 그린다 —
-   * 2026-09-10 실측 2,316줄·2,145KB 다. 표가 길어지면 브라우저가 멈추므로 앞줄만 그리고
-   * 그 사실을 적는다. <b>거르는 것은 그대로다</b> — 검색어는 전부에서 찾는다.
-   *
-   * <p>기간은 2026-10-03 에 원본 품질검사조회를 재고 넣었다 — 기본 [최근30일(+1개월)].
-   */
-  const shown = sort.sorted
-  const capped = capRows(shown)
-  const inputCls = 'ec-input'
+  const allPicked = capped.rows.length > 0 && capped.rows.every((r) => picked.has(r.id))
 
   return (
     <EcListShell
-      /* [검색(F8)]이 조건 판만 닫고 목록은 그대로였다 — 새로 넣은 전표가 안 보였다. 다시 읽는다. */
       onSearch={load}
       title="품질검사조회"
       search={keyword}
       onSearchChange={setKeyword}
-      onNew={() => setShowForm(true)}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
+      onNew={openNew}
+      actions={[
+        /* 원본은 누른 뒤 '리스트에 선택된 자료가 없습니다.' — 우리는 고른 줄이 없으면 미리 잠근다(저장소 규칙). */
+        { label: '선택삭제', onClick: removeChecked, disabled: picked.size === 0 },
+        { label: 'Excel' },
+      ]}
     >
-      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
-      {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px] whitespace-pre-line">{error}</p>}
 
-      <ul className="ec-cond" style={{ marginBottom: 8 }}>
+      <ul className="ec-cond mb-[8px]">
         <EcCond label="기준일자">
-          <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 145 }} />
+          <input type="date" className="ec-input w-[145px]" value={from} onChange={(e) => setFrom(e.target.value)} />
           <span className="my-0 mx-[4px]">~</span>
-          <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
+          <input type="date" className="ec-input w-[145px]" value={to} onChange={(e) => setTo(e.target.value)} />
           <span className="ml-[6px]">
             <EcPeriodPicks labels={QUOTATION_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
@@ -170,101 +229,154 @@ export default function QualityInspectionPage() {
         </EcCond>
       </ul>
 
-      <Modal error={error} open={showForm} title="품질검사입력" onClose={() => setShowForm(false)}>{(
-        <div className="border border-ec-line border-solid bg-white p-[14px] mt-[8px] mb-[8px]">
-          <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">검사성적 등록</div>
-          <div className="flex gap-[12px] flex-wrap items-end">
-            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">검사일자</div>
-              <input className={inputCls} type="date" value={form.inspectionDate} onChange={(e) => set('inspectionDate', e.target.value)} style={{ width: 140 }} /></label>
-            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">검사구분</div>
-              <select className={inputCls} value={form.type} onChange={(e) => set('type', e.target.value)} style={{ width: 110 }}>
-                {TYPES.map((t) => <option key={t.v} value={t.v}>{t.label}</option>)}
-              </select></label>
-            {/* 긴 드롭다운이었다(QA 11회차). 코드도움은 <label> 로 감싸면 팝업의 클릭이 먹히지 않아 div 로 둔다. */}
-            <div className="text-[12.5px]"><div className="text-ec-label mb-[3px]">품목 *</div>
-              <CodePickerField label="품목" hideLabel width={220} placeholder="선택하세요" emptyLabel="선택 해제"
-                               value={form.itemId} onChange={(v) => set('itemId', v)}
-                               items={items.filter((it) => it.active !== false).map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))} /></div>
-            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">로트No.</div>
-              <input className={inputCls} value={form.lotNo} onChange={(e) => set('lotNo', e.target.value)} style={{ width: 150 }} /></label>
-            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">검사수량 *</div>
-              <input className={inputCls} type="number" step="any" value={form.inspectedQty} onChange={(e) => set('inspectedQty', e.target.value)} style={{ width: 90 }} /></label>
-            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">불량수</div>
-              <input className={inputCls} type="number" step="any" value={form.defectQty} onChange={(e) => set('defectQty', e.target.value)} style={{ width: 80 }} /></label>
-            {/*
-              원본 불량률파악보고서의 [불량유형]. 여기서 안 받으면 <b>그 조건이 걸 값이
-              어디서도 안 생긴다.</b> 불량수가 0 이면 고를 것이 없다 — 전량 양품인데
-              '치수불량' 이 붙어 있으면 헷갈리므로 서버도 버린다.
-            */}
-            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">불량유형</div>
-              <select className={inputCls} value={form.defectType} disabled={Number(form.defectQty || 0) <= 0}
-                      onChange={(e) => set('defectType', e.target.value)} style={{ width: 120 }}>
-                <option value="">(미지정)</option>
-                {defectTypes.map((d) => <option key={d.id} value={d.code}>{d.name}</option>)}
-              </select></label>
-            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">판정(자동)</div>
-              <select className={inputCls} value={form.result} onChange={(e) => set('result', e.target.value)} style={{ width: 120 }}>
-                <option value="">자동판정</option>
-                {RESULTS.map((r) => <option key={r.v} value={r.v}>{r.label}</option>)}
-              </select></label>
-            {/*
-              원본 품질검사요청입력의 [프로젝트]. <b>검사에는 진작 프로젝트 칸이 있었는데</b>
-              이 화면이 정할 데도, 보여 줄 데도 두지 않았다 — 불량률파악보고서는 그 값으로
-              거르고 있었으니 늘 빈 채로 걸렸다.
-            */}
-            <div className="text-[12.5px]"><div className="text-ec-label mb-[3px]">프로젝트</div>
-              <CodePickerField label="프로젝트" hideLabel width={160} placeholder="(없음)" emptyLabel="선택 해제"
-                               value={form.projectId} onChange={(v) => set('projectId', v)}
-                               items={projects.map((pj) => ({ value: String(pj.id), code: pj.code, name: pj.name }))} /></div>
-            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">검사자</div>
-              <input className={inputCls} value={form.inspector} onChange={(e) => set('inspector', e.target.value)} placeholder="미입력시 본인" style={{ width: 110 }} /></label>
-            <button className="ec-btn ec-btn-primary" onClick={submit}>저장</button>
-          </div>
-        </div>
-      )}</Modal>
+      <div className="ec-pills mb-[8px]">
+        {(['전체', '진행중', '완료'] as const).map((t) => (
+          <button key={t} type="button" className={`ec-pill no-ec${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>{t}</button>
+        ))}
+      </div>
 
       <EcRowCap capped={capped.capped} shown={capped.rows.length} total={capped.total} sums={false}
                 hint="검색어로 좁혀 보세요 — 검색은 전부에서 찾습니다." />
-      <table className="w-full text-left">
+      <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th className="w-[34px]"></th>
-            <th className="w-[130px]">검사번호</th>
-            <th className="w-[100px] cursor-pointer" onClick={() => sort.toggle('검사일자')}>검사일자 {sort.mark('검사일자')}</th>
-            <th className="w-[90px] cursor-pointer" onClick={() => sort.toggle('검사구분')}>검사구분 {sort.mark('검사구분')}</th>
-            <th className="cursor-pointer" onClick={() => sort.toggle('품목명')}>품목명 {sort.mark('품목명')}</th>
-            <th className="w-[130px]">로트No.</th>
-            <th className="w-[80px] text-right">검사수량</th>
-            <th className="w-[60px] text-right">불량수</th>
-            <th className="w-[80px] text-right">불량률(%)</th>
-            <th className="w-[90px] text-center cursor-pointer" onClick={() => sort.toggle('판정')}>판정 {sort.mark('판정')}</th>
-            <th className="w-[100px]">프로젝트</th>
-            <th className="w-[80px]">검사자</th>
+            <th className="w-[34px] text-center">
+              <input type="checkbox" checked={allPicked} onChange={(e) =>
+                setPicked(e.target.checked ? new Set(capped.rows.map((r) => r.id)) : new Set())} />
+            </th>
+            <th className="text-center">검사번호</th>
+            <th>품목</th>
+            <th className="text-right">수량</th>
+            <th className="text-right">시료</th>
+            <th className="text-right">적격</th>
+            <th className="text-right">부적격</th>
+            <th>출처</th>
+            <th className="text-center">종결여부</th>
+            <th className="text-center">인쇄</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={12} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={10} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={12} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : capped.rows.map((r, i) => (
+            <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+          ) : capped.rows.map((r) => (
             <tr key={r.id}>
-              <td className="text-center text-ec-hint">{i + 1}</td>
-              <td>{r.inspectionNo}</td>
-              <td>{dateText(r.inspectionDate)}</td>
-              <td>{r.typeName}</td>
-              <td>{r.itemName}</td>
-              <td>{r.lotNo ?? ''}</td>
-              <td className="text-right">{r.inspectedQty.toLocaleString()}</td>
-              <td className="text-right">{r.defectQty.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', color: r.defectRate >= 3 ? 'var(--ec-danger)' : undefined }}>{r.defectRate.toFixed(1)}</td>
-              <td style={{ textAlign: 'center', color: resultColor(r.result), fontWeight: 700 }}>{r.resultName}</td>
-              <td style={{ color: r.projectName ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{r.projectName ?? ''}</td>
-              <td>{r.inspector ?? ''}</td>
+              <td className="text-center">
+                <input type="checkbox" checked={picked.has(r.id)} onChange={() => setPicked((s) => {
+                  const n = new Set(s)
+                  if (n.has(r.id)) n.delete(r.id); else n.add(r.id)
+                  return n
+                })} />
+              </td>
+              <td className="text-center"><button type="button" className="ec-link" onClick={() => openEdit(r)}>{shortNo(r)}</button></td>
+              <td>{itemText(r)}</td>
+              <td className="text-right">{qty0(r.totalQuantity)}</td>
+              <td className="text-right">{qty2(r.inspectedQty)}</td>
+              <td className="text-right">{qty2(r.goodQty)}</td>
+              <td className="text-right">{r.defectQty ? qty2(r.defectQty) : ''}</td>
+              <td></td>
+              <td className="text-center">
+                <button type="button" className={`ec-link${r.status === 'COMPLETED' ? ' text-ec-warn' : ''}`}
+                        onClick={() => toggleStatus(r)}>{r.statusName}</button>
+              </td>
+              <td className="text-center"><button type="button" className="ec-link" onClick={() => window.print()}>인쇄</button></td>
             </tr>
           ))}
         </tbody>
       </table>
+
+      <Modal open={open} width={1080} error={formError} onClose={() => setOpen(false)}
+             title={editing ? '품질검사수정' : '품질검사입력'}>
+        <ul className="ec-form">
+          <li><div className="title">일자</div><div className="form">
+            {/* 수정 창은 일자를 잠근다 — 번호가 일자를 문다. */}
+            <input type="date" className="ec-input w-[150px]" value={f.inspectionDate} disabled={!!editing}
+                   onChange={(e) => setF((x) => ({ ...x, inspectionDate: e.target.value }))} />
+          </div></li>
+          <li><div className="title">담당자</div><div className="form">
+            <input className="ec-input w-full" placeholder="담당자" value={f.inspector}
+                   onChange={(e) => setF((x) => ({ ...x, inspector: e.target.value }))} />
+          </div></li>
+        </ul>
+
+        <table className="w-full ec-head700 mt-[8px]">
+          <thead><tr>
+            <th className="w-[34px]"></th>
+            <th className="w-[96px]">검사방법</th>
+            <th className="w-[180px]">품목코드</th>
+            <th>품목명</th>
+            <th className="w-[80px] text-right">수량</th>
+            <th className="w-[80px] text-right">시료</th>
+            <th className="w-[70px] text-right">적격</th>
+            <th className="w-[80px] text-right">부적격</th>
+            <th className="w-[100px]">합격여부</th>
+            <th className="w-[120px]">부적격관리</th>
+          </tr></thead>
+          <tbody>
+            {lines.map((l, i) => {
+              const it = itemById.get(l.itemId)
+              const sample = sampleOf(l)
+              return (
+                <tr key={i}>
+                  <td className="text-center">{i + 1}</td>
+                  <td>
+                    <select className="ec-input w-full" value={l.method} onChange={(e) => setLine(i, { method: e.target.value as Method })}>
+                      <option value="FULL">전수</option>
+                      <option value="SAMPLING">샘플링</option>
+                    </select>
+                  </td>
+                  <td>
+                    <CodePickerField label="품목" hideLabel fill emptyLabel="지우기" placeholder="품목코드" value={l.itemId}
+                                     onChange={(v) => setLine(i, { itemId: v })} items={itemPicks} />
+                  </td>
+                  <td>{it ? it.name : ''}</td>
+                  <td><input className="ec-input w-full text-right" value={l.quantity} disabled={!l.itemId}
+                             onChange={(e) => setLine(i, { quantity: e.target.value })} /></td>
+                  <td><input className="ec-input w-full text-right" disabled={!l.itemId || l.method === 'FULL'}
+                             value={l.method === 'FULL' ? (l.quantity || '') : l.sampleQty}
+                             onChange={(e) => setLine(i, { sampleQty: e.target.value })} /></td>
+                  <td className="text-right">{l.itemId ? qty0(sample - num(l.defectQty)) : ''}</td>
+                  <td><input className="ec-input w-full text-right" value={l.defectQty} disabled={!l.itemId}
+                             onChange={(e) => setLine(i, { defectQty: e.target.value })} /></td>
+                  <td>
+                    <select className="ec-input w-full" value={l.passResult} disabled={!l.itemId}
+                            onChange={(e) => setLine(i, { passResult: e.target.value as Pass })}>
+                      <option value="NA">해당없음</option>
+                      <option value="PASS">합격</option>
+                      <option value="FAIL">불합격</option>
+                    </select>
+                  </td>
+                  <td>
+                    {/* 원본 [부적격관리] 는 불량유형마다 수량을 나눈다 — 우리는 주된 유형 하나를 고른다. */}
+                    <select className="ec-input w-full" value={l.defectType} disabled={num(l.defectQty) <= 0}
+                            onChange={(e) => setLine(i, { defectType: e.target.value })}>
+                      <option value="">(불량유형)</option>
+                      {defectTypes.map((d) => <option key={d.id} value={d.code}>{d.name}</option>)}
+                    </select>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+          <tfoot><tr>
+            <td colSpan={4}></td>
+            <td className="text-right">{qty0(sums.qty)}</td>
+            <td className="text-right">{qty0(sums.sample)}</td>
+            <td className="text-right">{qty0(sums.good)}</td>
+            <td className="text-right">{qty0(sums.defect)}</td>
+            <td colSpan={2}></td>
+          </tr></tfoot>
+        </table>
+
+        <div className="flex gap-[4px] mt-[9px]">
+          <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>저장(F8)</button>
+          {editing
+            ? <button className="ec-btn" onClick={() => { if (window.confirm('선택한 전표를 삭제 하겠습니까?')) void removeIds([editing.id]) }}>삭제</button>
+            : <button className="ec-btn" onClick={() => setLines(emptyLines())}>다시 작성</button>}
+          <button className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
+        </div>
+      </Modal>
     </EcListShell>
   )
 }

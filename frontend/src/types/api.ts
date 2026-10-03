@@ -945,6 +945,30 @@ export interface QualityInspection {
    * 불량이 없는 검사에는 없다. 이름은 화면이 공통코드에서 붙인다.
    */
   defectType: string | null
+  /** 원본 [종결여부] 진행중 · 완료(2026-10-04 실측). */
+  status: 'IN_PROGRESS' | 'COMPLETED'
+  statusName: string
+  /** 원본 품질검사입력의 품목 줄 — 머리의 품목 · 검사수량(시료 합) · 불량수량(부적격 합)은 여기서 모은 값이다. */
+  lines: QualityInspectionLine[]
+  totalQuantity: number
+}
+
+export interface QualityInspectionLine {
+  id: number
+  lineNo: number
+  itemId: number
+  itemCode: string
+  itemName: string
+  spec: string | null
+  method: 'FULL' | 'SAMPLING'
+  methodName: string
+  quantity: number
+  sampleQty: number
+  goodQty: number
+  defectQty: number
+  passResult: 'NA' | 'PASS' | 'FAIL'
+  passResultName: string
+  defectType: string | null
 }
 
 export type QualityRequestStatus = 'REQUESTED' | 'INSPECTED' | 'CANCELED'
