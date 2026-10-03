@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import CodePickerField from '../../components/CodePickerField'
 import { useTableSort } from '../../utils/useTableSort'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 
 type KindType = 'BASIC' | 'VACATION' | 'COMMUTE'
-interface Kind { id: number; code: string; name: string; kindGroup: string | null; type: KindType; typeName: string; hourUnit: boolean; remark: string | null; active: boolean }
-interface Form { code: string; name: string; kindGroup: string; type: KindType; hourUnit: boolean; remark: string }
-const blankForm = (): Form => ({ code: '', name: '', kindGroup: '', type: 'BASIC', hourUnit: false, remark: '' })
+interface Kind { id: number; code: string; name: string; kindGroup: string | null; type: KindType; typeName: string; vacationKindId: number | null; hourUnit: boolean; remark: string | null; active: boolean }
+interface Vacation { id: number; code: string; name: string; active: boolean }
+interface Form { code: string; name: string; kindGroup: string; type: KindType; vacationKindId: string; hourUnit: boolean; remark: string }
+const blankForm = (): Form => ({ code: '', name: '', kindGroup: '', type: 'BASIC', vacationKindId: '', hourUnit: false, remark: '' })
 const TYPES: [KindType, string][] = [['BASIC', '기본'], ['VACATION', '휴가'], ['COMMUTE', '출/퇴근']]
 
 /**
@@ -20,11 +22,12 @@ const TYPES: [KindType, string][] = [['BASIC', '기본'], ['VACATION', '휴가']
  *   <li>[신규(F2)] '근태항목등록' 창: 근태코드(다음 번호 30013 미리 채움) · 근태명칭 · 근태그룹 · 근태유형(기본 · 휴가 · 출/퇴근) ·
  *       계산단위(일 · 시간) · 적요. 저장하면 안내 없이 목록에 붙는다. 삭제는 '삭제하시겠습니까?'.</li>
  * </ul>
- * 근태입력의 [근태항목]이 이 목록(사용 중인 것)에서 고른다. 원본은 근태유형이 '휴가' 면 [휴가코드](휴가항목등록)를 꼭 골라야 하는데,
- * 우리는 휴가항목이 아직 없어 그 칸이 없다 — 연차에서 빼는 것은 이름이 연차 · 반차인 항목이다. 근태그룹은 글자로 적는다(코드도움 아님).
+ * 근태입력의 [근태항목]이 이 목록(사용 중인 것)에서 고른다. 근태유형이 '휴가' 면 원본처럼 [휴가코드](휴가항목등록)가 나타나고
+ * 비면 '휴가코드를 입력 바랍니다.' 로 막힌다. 연차에서 빼는 것은 여전히 이름이 연차 · 반차인 항목이다. 근태그룹은 글자로 적는다(코드도움 아님).
  */
 export default function AttendanceKindListPage() {
   const [rows, setRows] = useState<Kind[]>([])
+  const [vacations, setVacations] = useState<Vacation[]>([])
   const [error, setError] = useState('')
   const [quick, setQuick] = useState('')
   const [includeInactive, setIncludeInactive] = useState(false)
@@ -40,7 +43,10 @@ export default function AttendanceKindListPage() {
     setError('')
     api.get<Kind[]>('/hr/attendance-kinds').then((r) => setRows(r.data)).catch((e) => setError(extractErrorMessage(e)))
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+    api.get<Vacation[]>('/hr/vacation-kinds').then((r) => setVacations(r.data)).catch(() => setVacations([]))
+  }, [])
 
   const filtered = rows.filter((r) => (includeInactive || r.active) && (!quick || r.code.includes(quick) || r.name.includes(quick)))
   const sort = useTableSort(filtered, {
@@ -59,13 +65,14 @@ export default function AttendanceKindListPage() {
   }
   function openEdit(k: Kind) {
     setEditId(k.id); setFormError('')
-    setForm({ code: k.code, name: k.name, kindGroup: k.kindGroup ?? '', type: k.type, hourUnit: k.hourUnit, remark: k.remark ?? '' })
+    setForm({ code: k.code, name: k.name, kindGroup: k.kindGroup ?? '', type: k.type, vacationKindId: k.vacationKindId ? String(k.vacationKindId) : '', hourUnit: k.hourUnit, remark: k.remark ?? '' })
     setOpen(true)
   }
 
   async function save() {
     if (!form.name.trim()) { setFormError('근태명칭을 입력 바랍니다.'); return }
-    const body = { ...form, code: form.code.trim() || null }
+    if (form.type === 'VACATION' && !form.vacationKindId) { setFormError('휴가코드를 입력 바랍니다.'); return }
+    const body = { ...form, code: form.code.trim() || null, vacationKindId: form.type === 'VACATION' ? Number(form.vacationKindId) : null }
     try {
       if (editId) await api.put(`/hr/attendance-kinds/${editId}`, { ...body, active: rows.find((r) => r.id === editId)?.active ?? true })
       else await api.post('/hr/attendance-kinds', body)
@@ -83,7 +90,7 @@ export default function AttendanceKindListPage() {
       for (const k of rows.filter((x) => checked.has(x.id))) {
         if (op === '삭제') await api.delete(`/hr/attendance-kinds/${k.id}`)
         else await api.put(`/hr/attendance-kinds/${k.id}`, {
-          code: k.code, name: k.name, kindGroup: k.kindGroup, type: k.type, hourUnit: k.hourUnit, remark: k.remark, active: op === '재사용',
+          code: k.code, name: k.name, kindGroup: k.kindGroup, type: k.type, vacationKindId: k.vacationKindId, hourUnit: k.hourUnit, remark: k.remark, active: op === '재사용',
         })
       }
     } catch (e) {
@@ -177,6 +184,16 @@ export default function AttendanceKindListPage() {
               ))}
             </div>
           </li>
+          {form.type === 'VACATION' && (
+            <li className="wide">
+              <span className="title">휴가코드</span>
+              <div className="form">
+                <CodePickerField label="휴가코드" hideLabel fill placeholder="휴가코드" emptyLabel="선택 해제"
+                                 value={form.vacationKindId} onChange={(v) => setForm({ ...form, vacationKindId: v })}
+                                 items={vacations.filter((x) => x.active).map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+              </div>
+            </li>
+          )}
           <li className="wide">
             <span className="title">계산단위</span>
             <div className="form flex items-center gap-[12px]">

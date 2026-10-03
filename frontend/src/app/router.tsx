@@ -261,6 +261,7 @@ const AssignmentInputPage = lazy(() => import('../pages/hr/AssignmentInputPage')
 const AssignmentStatusPage = lazy(() => import('../pages/hr/AssignmentStatusPage'))
 const CertificatePage = lazy(() => import('../pages/hr/CertificatePage'))
 const AttendanceKindListPage = lazy(() => import('../pages/hr/AttendanceKindListPage'))
+const VacationKindListPage = lazy(() => import('../pages/hr/VacationKindListPage'))
 const DailyWorkerListPage = lazy(() => import('../pages/hr/DailyWorkerListPage'))
 const DailyPayItemListPage = lazy(() => import('../pages/hr/DailyPayItemListPage'))
 const DailyWorkInputPage = lazy(() => import('../pages/hr/DailyWorkInputPage'))
@@ -700,6 +701,7 @@ export default function AppRouter() {
         <Route path="/hr/assignments/status" element={<AssignmentStatusPage />} />
         <Route path="/hr/certificates" element={<CertificatePage />} />
         <Route path="/hr/attendance-kinds" element={<AttendanceKindListPage />} />
+        <Route path="/hr/vacation-kinds" element={<VacationKindListPage />} />
         <Route path="/hr/daily-workers" element={<DailyWorkerListPage />} />
         <Route path="/hr/daily-allowance-items" element={<DailyPayItemListPage kind="ALLOWANCE" />} />
         <Route path="/hr/daily-deduction-items" element={<DailyPayItemListPage kind="DEDUCTION" />} />

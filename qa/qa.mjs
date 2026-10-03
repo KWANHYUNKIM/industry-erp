@@ -11096,16 +11096,23 @@ async function scenarioDailyWorker() {
 
 /** 관리 › 근태항목등록(원본 E020701) — 심어 둔 연차 · 반차, 다음 번호, 같은 명칭 막기, 사용중단 · 삭제. */
 async function scenarioAttendanceKind() {
-  section('■ 근태항목등록 — 기본 항목 · 번호 · 명칭 중복 · 사용중단 · 삭제')
+  section('■ 근태항목등록 · 휴가항목등록 — 기본 항목 · 번호 · 명칭 중복 · 휴가코드 · 사용중단 · 삭제')
   const all = await must('GET', '/hr/attendance-kinds')
   eq('연차 · 반차가 심어져 있다', ['연차', '반차'].every((n) => all.some((k) => k.name === n)), 'true')
   const next = (await must('GET', '/hr/attendance-kinds/next-code')).code
   const k = await must('POST', '/hr/attendance-kinds', { name: 'QA-근태', type: 'BASIC', hourUnit: true })
   eq('비우면 다음 근태코드', k.code, next)
   await rejects('같은 근태명칭은 막는다', 'POST', '/hr/attendance-kinds', { name: 'QA-근태', type: 'BASIC', hourUnit: false }, '이미 등록된 근태명칭')
-  const off = await must('PUT', `/hr/attendance-kinds/${k.id}`, { name: 'QA-근태', type: 'VACATION', hourUnit: true, active: false })
-  eq('사용중단 · 유형 변경', `${off.active}/${off.typeName}`, 'false/휴가')
+  await rejects('휴가 유형은 휴가코드가 없으면 막는다', 'PUT', `/hr/attendance-kinds/${k.id}`, { name: 'QA-근태', type: 'VACATION', hourUnit: true }, '휴가코드를 입력')
+  const v = await must('POST', '/hr/vacation-kinds', { name: 'QA-휴가', periodFrom: '2091-01-01', periodTo: '2091-12-31', carryOver: false })
+  const off = await must('PUT', `/hr/attendance-kinds/${k.id}`, { name: 'QA-근태', type: 'VACATION', vacationKindId: v.id, hourUnit: true, active: false })
+  eq('사용중단 · 유형 변경 · 휴가코드', `${off.active}/${off.typeName}/${off.vacationKindName}`, 'false/휴가/QA-휴가')
+  await rejects('근태항목이 가리키는 휴가항목은 지울 수 없다', 'DELETE', `/hr/vacation-kinds/${v.id}`, undefined, '근태항목에 쓰인 휴가항목')
   await must('DELETE', `/hr/attendance-kinds/${k.id}`)
+  await must('PUT', `/hr/vacation-kinds/${v.id}`, { name: 'QA-휴가2', periodFrom: '2091-01-01', periodTo: '2091-12-31', carryOver: true, active: true })
+  eq('휴가항목 수정', (await must('GET', '/hr/vacation-kinds')).find((x) => x.id === v.id)?.carryOver, 'true')
+  await must('DELETE', `/hr/vacation-kinds/${v.id}`)
+  eq('next-code 가 다섯 자리', /^\d{5}$/.test((await must('GET', '/hr/vacation-kinds/next-code')).code), 'true')
   eq('지운 항목은 목록에 없다', (await must('GET', '/hr/attendance-kinds')).some((x) => x.id === k.id), 'false')
 }
 
