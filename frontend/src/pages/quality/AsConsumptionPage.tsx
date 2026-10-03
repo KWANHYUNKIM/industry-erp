@@ -8,13 +8,23 @@ import { AS_CONSUMPTION_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { useItemFlags } from '../../utils/useInactiveItems'
 import { subtotalBy } from '../../utils/subtotalBy'
+import { useItemMgmt } from '../../utils/itemMgmtItems'
+import { EcReportHead, EcReportFoot, reportPeriod } from '../../components/EcReportFrame'
+import { AsAggControls, AsAggregateTable, type AsAggKey, type AsAggLine, type AsAggValue } from '../../features/as/AsAggregate'
 
 /**
  * 품질 > A/S소모현황 (이카운트 E040641 A/S소모현황)
  * A/S 수리에 소모된 부품 — 소모는 <b>A/S수리에 이어진 판매(판매연결전표)의 줄</b>이다(2026-10-03 원본 실측).
- * 백엔드 `GET /api/as-repairs/consumption` 이 줄을 주고, [집계]는 화면이 품목별로 합친다.
+ * 백엔드 `GET /api/as-repairs/consumption` 이 줄을 준다.
+ *
+ * <p>2026-10-04 원본 실측 — [구분] ○집계는 A/S접수현황 · A/S수리현황과 같은 판이다([조건 | 수량] + 소계 · 합계,
+ * features/as/AsAggregate). 다만 집계조건 창의 기준일자가 <b>일별 · 월별 · 연별</b> 셋뿐이고, 품목 묶음 이름이
+ * <b>품목(소모)</b> — 품목명[규격]은 소모부품이다. [집계대상] 창에는 <b>수량</b> 하나뿐이다.
+ * 예전 우리 집계([품목 · A/S 건수 · 소모수량 · 소모금액])와 그 위 요약 줄 · 안내 글은 원본에 없어 뺐다.
+ * 출력물 머리글은 내역도 'A/S소모현황'(빗금 있음) · 꼬리 [P.1].
  */
-interface Row { itemId: number; itemName: string; asCount: number; totalQty: number; totalAmount: number }
+/** 소모 화면의 집계조건 — 기준일자는 일별 · 월별 · 연별뿐이다(원본 창 그대로). */
+const CONS_AGG_KEYS: AsAggKey[] = ['일별', '월별', '연별', '담당자', '창고', '관리항목', '거래처', '거래처그룹1', '품목명[규격]', '품목그룹1', '프로젝트']
 /**
  * 원본 [구분]의 <b>[내역]</b> 한 줄 — 판매연결전표의 판매 줄 하나. [집계]도 이 줄을 합치므로 두 갈래의 합계가 어긋나지 않는다.
  */
@@ -47,8 +57,7 @@ const SUBTOTALS = ['없음', '품목구분', '품목그룹1'] as const
 
 /**
  * 원본 [구분]. <b>기본이 [내역]</b> 이다(2026-09-09 E040641 실측) — 열면 소모부품이
- * 한 줄씩 뜨고, [집계]로 바꿔야 품목별로 합친다. 우리는 <b>집계만</b> 내고 있어서
- * "어느 수리에 무엇이 몇 개 들어갔나" 를 이 화면에서 볼 수 없었다.
+ * 한 줄씩 뜨고, [집계]로 바꿔야 묶는다.
  */
 const MODES = ['내역', '집계'] as const
 
@@ -61,6 +70,7 @@ export default function AsConsumptionPage() {
   const [recvFrom, setRecvFrom] = useState('')
   const [recvTo, setRecvTo] = useState('')
   const [mode, setMode] = useState<'내역' | '집계'>('내역')
+  const [agg, setAgg] = useState<AsAggValue>({ agg1: '', agg2: '', codeIncl: false })
   const [keyword, setKeyword] = useState('')
   /*
    * 원본 A/S소모현황(E040641) 조건 <b>실측(2026-09-01 원본 직접 확인)</b>:
@@ -149,25 +159,38 @@ export default function AsConsumptionPage() {
     .filter((l) => !recvTo || (l.receiptDate != null && l.receiptDate <= recvTo)),
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [lines, warehouseId, partnerId, repairItemId, projectId, partnerGroup, itemCategory, itemGroup, status, title, remark, createdBy, charge, receiptCharge, repairType, recvFrom, recvTo])
-  /* [집계] — 소모부품 품목별로 합친다. */
-  const rows = useMemo<Row[]>(() => {
-    const m = new Map<number, Row & { repairs: Set<number> }>()
-    for (const l of filtered) {
-      const r = m.get(l.itemId) ?? { itemId: l.itemId, itemName: l.itemName, asCount: 0, totalQty: 0, totalAmount: 0, repairs: new Set<number>() }
-      r.repairs.add(l.repairId); r.totalQty += Number(l.quantity); r.totalAmount += Number(l.supplyAmount ?? 0); r.asCount = r.repairs.size
-      m.set(l.itemId, r)
-    }
-    return [...m.values()]
-  }, [filtered])
-
-  const shown = useMemo(() => rows.filter((r) => !keyword || r.itemName.includes(keyword)), [rows, keyword])
-  /* 검색어는 <b>소모부품명</b>에 건다 — 집계 쪽과 같은 칸이다. */
+  /* 검색어는 <b>소모부품명</b>에 건다. */
   const shownLines = useMemo(
     () => filtered.filter((l) => !keyword || l.itemName.includes(keyword)), [filtered, keyword])
   const lineTotals = useMemo(() => shownLines.reduce(
     (a, l) => ({ qty: a.qty + Number(l.quantity), amount: a.amount + Number(l.supplyAmount ?? 0), vat: a.vat + Number(l.vatAmount ?? 0) }),
     { qty: 0, amount: 0, vat: 0 }), [shownLines])
-  const totals = useMemo(() => shown.reduce((a, r) => ({ qty: a.qty + r.totalQty, amount: a.amount + r.totalAmount }), { qty: 0, amount: 0 }), [shown])
+
+  /* [코드포함] · 품목명[규격] 의 코드 · 규격 — 소모 줄에는 id 만 있어 마스터에서 잇는다. */
+  const mgmt = useItemMgmt()
+  const [masters, setMasters] = useState<{ wh: Map<number, string>; pa: Map<number, string>; pj: Map<number, string>; it: Map<number, { code: string; spec: string | null; name: string }> }>(
+    { wh: new Map(), pa: new Map(), pj: new Map(), it: new Map() })
+  useEffect(() => {
+    type C = { id: number; code: string; name: string; spec?: string | null }
+    const get = (u: string) => api.get<C[]>(u).then((r) => r.data).catch(() => [] as C[])
+    Promise.all([get('/warehouses'), get('/partners'), get('/projects'), get('/items')]).then(([wh, pa, pj, it]) => setMasters({
+      wh: new Map(wh.map((x) => [x.id, x.code])), pa: new Map(pa.map((x) => [x.id, x.code])), pj: new Map(pj.map((x) => [x.id, x.code])),
+      it: new Map(it.map((x) => [x.id, { code: x.code, spec: x.spec ?? null, name: x.name }])),
+    }))
+  }, [])
+  const warehouseName = (id: number) => pickers.warehouses.find((w) => w.value === String(id))?.name ?? ''
+  const projectName = (id: number | null) => (id == null ? '' : pickers.projects.find((w) => w.value === String(id))?.name ?? '')
+  /** ○집계가 읽는 줄 — 소모(판매) 줄마다 하나. 품목은 <b>소모부품</b>이다. */
+  const aggLines: AsAggLine[] = shownLines.map((l) => ({
+    date: l.repairDate, charge: l.charge ?? '',
+    warehouse: [warehouseName(l.warehouseId), masters.wh.get(l.warehouseId) ?? ''],
+    mgmt: mgmt.nameOf(l.itemId) ?? '',
+    partner: [l.partnerName, masters.pa.get(l.partnerId) ?? ''], partnerGroup: pgroup.groupOfName(l.partnerName) ?? '',
+    itemName: l.itemName, itemSpec: masters.it.get(l.itemId)?.spec ?? null, itemCode: masters.it.get(l.itemId)?.code ?? '',
+    itemGroup: mgmt.groupOf(l.itemId) ?? '',
+    project: [projectName(l.projectId), l.projectId != null ? masters.pj.get(l.projectId) ?? '' : ''],
+    qty: Number(l.quantity),
+  }))
 
   return (
     <EcListShell title="A/S소모현황" search={keyword} onSearchChange={setKeyword} onSearch={load}
@@ -178,10 +201,15 @@ export default function AsConsumptionPage() {
         onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}>
         {/* 원본 조건 판의 첫 칸이 [구분]이다. */}
         <EcCond label="구분">
-          <select className="ec-input" value={mode} style={{ width: 100 }}
-                  onChange={(e) => setMode(e.target.value as typeof MODES[number])}>
-            {MODES.map((m) => <option key={m} value={m}>{m}</option>)}
-          </select>
+          <span className="inline-flex flex-wrap items-center gap-[8px]">
+            {MODES.map((m) => (
+              <label key={m} className="inline-flex items-center gap-[3px]">
+                <input type="radio" name="asc-gubun" checked={mode === m} onChange={() => setMode(m)} /> {m}
+              </label>
+            ))}
+            {mode === '내역' ? <span className="text-ec-label">라인별</span>
+              : <AsAggControls value={agg} onChange={(p) => setAgg((v) => ({ ...v, ...p }))} keys={CONS_AGG_KEYS} />}
+          </span>
         </EcCond>
         <EcCond label="접수일자" span={2}>
           <input type="date" className="ec-input" value={recvFrom} onChange={(e) => setRecvFrom(e.target.value)} /> ~
@@ -261,17 +289,6 @@ export default function AsConsumptionPage() {
         </EcCond>
       </EcStatusPanel>
 
-      <div className="mb-[8px] text-[12.5px] text-ec-label flex items-center">
-        <span className="text-ec-hint">A/S수리에 이어진 판매(판매연결전표)의 줄입니다. 부품 · 수리비는 A/S수리조회 [생성한 전표]에서 판매로 만듭니다.</span>
-        <span className="ml-auto">
-          품목 <b className="text-ec-text">{shown.length}</b>
-          <span className="my-0 mx-[6px] text-ec-off">|</span>
-          소모수량 <b className="text-ec-warn text-[14px]">{won(totals.qty)}</b>
-          <span className="my-0 mx-[6px] text-ec-off">|</span>
-          소모금액 <b className="text-ec-blue text-[14px]">{won(totals.amount)}</b>
-        </span>
-      </div>
-
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       {mode === '내역' ? (
@@ -280,6 +297,8 @@ export default function AsConsumptionPage() {
         [수리번호 · 수리품목명 · 수리담당자 · 소모(판매)번호 · 소모부품명 · 수량 · 단가 ·
         공급가액 · 부가세]. 2026-10-03 부터 소모가 판매연결전표의 판매 줄이라 둘 다 판매에서 온다.
       */
+      <>
+      <EcReportHead title="A/S소모현황" period={reportPeriod(from, to)} />
       <table className="w-full ec-head700">
         <thead>
           <tr>
@@ -327,49 +346,20 @@ export default function AsConsumptionPage() {
           </tfoot>
         )}
       </table>
+        <EcReportFoot />
+      </>
       ) : (
-      <table className="w-full text-left">
-        <thead>
-          <tr>
-            <th className="w-[34px]"></th>
-            <th>품목</th>
-            <th className="text-right">A/S 건수</th>
-            <th className="text-right">소모수량</th>
-            <th className="text-right">소모금액</th>
-          </tr>
-        </thead>
-        <tbody>
-          {loading ? (
-            <tr><td colSpan={5} className="ec-empty">불러오는 중…</td></tr>
-          ) : shown.length === 0 ? (
-            <tr><td colSpan={5} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((r, i) => (
-            <tr key={r.itemId}>
-              <td className="text-center text-ec-hint">{i + 1}</td>
-              <td>{r.itemName}</td>
-              <td className="text-right">{won(r.asCount)}</td>
-              <td className="text-right font-bold text-ec-warn">{won(r.totalQty)}</td>
-              <td className="text-right font-semibold text-ec-blue">{won(r.totalAmount)}</td>
-            </tr>
-          ))}
-        </tbody>
-        {shown.length > 0 && (
-          <tfoot>
-            <tr className="font-bold bg-ec-page">
-              <td colSpan={3} className="text-right">합계</td>
-              <td className="text-right text-ec-warn">{won(totals.qty)}</td>
-              <td className="text-right text-ec-blue">{won(totals.amount)}</td>
-            </tr>
-          </tfoot>
-        )}
-      </table>
+        <AsAggregateTable
+          /* 조건을 바꾸면 표를 새로 세운다(열 수가 바뀐다). */
+          key={`${agg.agg1}|${agg.agg2}|${agg.codeIncl}`}
+          title="A/S소모현황" period={reportPeriod(from, to)} lines={aggLines} value={agg} />
       )}
 
-      {mode === '집계' && subtotal !== '없음' && shown.length > 0 && (() => {
-        /* 소계 축은 품목 마스터의 값이라 줄에서 바로 못 읽는다 — itemId 로 되짚는다. */
-        const keyOf = (r: Row) => (subtotal === '품목구분' ? categoryOf(r.itemId) : groupOf(r.itemId))
-        const groupsOf = subtotalBy(shown, keyOf, {
-          qty: (r) => r.totalQty, amount: (r) => r.totalAmount,
+      {mode === '내역' && subtotal !== '없음' && shownLines.length > 0 && (() => {
+        /* 소계 축은 소모부품 품목 마스터의 값이라 줄에서 바로 못 읽는다 — itemId 로 되짚는다. */
+        const keyOf = (l: Line) => (subtotal === '품목구분' ? categoryOf(l.itemId) : groupOf(l.itemId))
+        const groupsOf = subtotalBy(shownLines, keyOf, {
+          qty: (l) => Number(l.quantity), amount: (l) => Number(l.supplyAmount ?? 0),
         })
         return (
           <>
