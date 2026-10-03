@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
@@ -42,13 +42,16 @@ const defaultRange = () => {
  */
 export default function EmployeePayListPage() {
   const nav = useNavigate()
-  const [range, setRange] = useState(defaultRange())
+  /** 급여계산/대장 [명세서 조회]에서 오면 ?ledger=YYYY-MM — 원본처럼 그 대장 한 달로 연다(2026-10-04 실측: 2026/10/01 ~ 2026/10/31). */
+  const [params] = useSearchParams()
+  const fromLedger = params.get('ledger')
+  const [range, setRange] = useState(fromLedger ? { from: fromLedger, to: fromLedger } : defaultRange())
   const [rows, setRows] = useState<Payslip[]>([])
   const [employees, setEmployees] = useState<EmployeeMaster[]>([])
   const [depts, setDepts] = useState<DeptRow[]>([])
   const [items, setItems] = useState<PayItem[]>([])
   /** [급여대장] — 대장은 귀속월마다 하나라 귀속월로 거른다. */
-  const [ledgerCond, setLedgerCond] = useState<string[]>([])
+  const [ledgerCond, setLedgerCond] = useState<string[]>(fromLedger ? [fromLedger] : [])
   const [ledgers, setLedgers] = useState<{ payMonth: string; name: string }[]>([])
   const [empCond, setEmpCond] = useState<string[]>([])
   const [deptCond, setDeptCond] = useState<string[]>([])

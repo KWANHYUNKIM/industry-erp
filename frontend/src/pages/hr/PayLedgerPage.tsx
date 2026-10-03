@@ -27,7 +27,7 @@ const slash = (s: string) => s.replace(/-/g, '/')
  * [저장]한 값만 급여계산에 들어간다(원본 계산식 '야근수당(근무기록확정)'). n 은 확정한 사원 수다.
  * 우리는 사원 · 귀속월에 명세가 하나라 대장도 귀속월에 하나다(원본은 -1, -2 …) — 신고귀속은 늘 '-1'.
  * 급여구분은 '급여', 지급구분은 '1차수' 하나다(상여 · 차수가 없다). 사전작업의 금액직접입력 ·
- * 개인별계산 · 일괄수정 · 명세서 Email · 상여지급률은 아직 없다.
+ * [명세서] 조회는 그 대장 한 달의 사원별급여조회로 연다(원본과 같다). 개인별계산 · 금액직접입력 · 일괄수정 · 명세서 Email 은 아직 없다.
  */
 export default function PayLedgerPage() {
   const nav = useNavigate()
@@ -164,12 +164,15 @@ export default function PayLedgerPage() {
             <th className="text-center">급여계산</th>
             <th className="text-right">인원수</th>
             <th className="text-center">급여대장</th>
+            {/* 원본 [명세서] 조회 · Email — 조회는 그 대장 한 달의 사원별급여조회를 연다. Email 은 바깥 발송이라 없다. */}
+            <th className="text-center">명세서</th>
             <th className="text-right">지급총액</th>
+            <th className="text-right">상여지급률(액)</th>
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={13} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((l) => (
             <tr key={l.id}>
               <td>{slash(l.payMonth)} -1</td>
@@ -196,7 +199,12 @@ export default function PayLedgerPage() {
                   <a href="#" onClick={(e) => { e.preventDefault(); remove(l) }}>삭제</a>
                 </div>
               </td>
+              <td className="text-center">
+                {l.headcount > 0 && <a href="#" onClick={(e) => { e.preventDefault(); nav(`/hr/payroll/by-employee?ledger=${l.payMonth}`) }}>조회</a>}
+              </td>
               <td className="text-right">{l.headcount ? won(l.grossTotal) : ''}</td>
+              {/* 급여구분이 '급여' 하나라(상여 대장 없음) 늘 빈칸 — 원본 급여 대장도 빈칸이다. */}
+              <td className="text-right"></td>
             </tr>
           ))}
         </tbody>
