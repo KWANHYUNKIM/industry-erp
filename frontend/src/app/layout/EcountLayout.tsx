@@ -645,9 +645,10 @@ const MENU: TopMenu[] = [
         label: '공유정보',
         nodes: [
           // 순서·묶음은 원본 공유정보 메뉴 트리 그대로다.
-          // 원본에 있으나 우리에게 없는 항목(사원연락처·조직도현황·외근현황)은 원본에서도
+          // 원본에 있으나 우리에게 없는 항목(조직도현황·외근현황)은 원본에서도
           // '권한없음'이라 화면을 볼 수 없어 근거가 없다. 근거가 생기면 그 자리에 넣는다.
           { label: '주요전달사항', to: '/groupware/key-notice' },
+          // 사원연락처는 2026-10-03 원본이 열려 실측해 넣었다.
           { label: '게시판', children: [
             { label: '공지사항', to: '/groupware/notice' },
           ] },
@@ -657,6 +658,7 @@ const MENU: TopMenu[] = [
               { label: '일정관리', to: '/groupware/schedule' },
               { label: '공용품관리', to: '/groupware/supplies' },
             ],
+              { label: '사원연락처', to: '/groupware/contacts' },
           },
           { label: '조직도관리', children: [
             { label: '조직도등록', to: '/groupware/org' },

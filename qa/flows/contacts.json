@@ -1,0 +1,17 @@
+{
+  "about": "사원연락처(원본 E070202) — 읽기만 하는 화면. 머리 성명·부서·전화·모바일·Email, 한 쪽 10명, 쪽번호는 표 위, [성명] 눌러 정렬, 하단 Excel 하나. node qa/shot.mjs qa/flows/contacts.json",
+  "shots": [
+    {
+      "name": "목록 — 머리·쪽 크기·정렬·하단 버튼",
+      "path": "/groupware/contacts",
+      "steps": [
+        "expect:[...document.querySelectorAll('thead th')].map((t) => t.textContent.replace(/[▼▲\\s]/g, '')).join(',') === '성명,부서,전화,모바일,Email'",
+        "expect:document.querySelectorAll('tbody tr').length >= 1 && document.querySelectorAll('tbody tr').length <= 10",
+        "expect:!!document.querySelector('.ec-paging .active')",
+        "js:document.querySelector('thead th').click(); true",
+        "expect:(() => { const n = [...document.querySelectorAll('tbody tr')].map((tr) => tr.cells[0].innerText); return n.every((v, i) => i === 0 || n[i - 1].localeCompare(v, 'ko') <= 0) })()",
+        "expect:![...document.querySelectorAll('button')].some((b) => b.textContent.trim() === '신규(F2)')"
+      ]
+    }
+  ]
+}
