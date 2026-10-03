@@ -60,4 +60,14 @@ public class DriveDocument extends BaseTimeEntity {
     @Column(nullable = false)
     @Builder.Default
     private boolean trashed = false;
+
+    /** 폴더면 true — 원본 [새 폴더](E077100). 폴더는 파일이 없고 크기가 0 이다. */
+    @Column(name = "is_folder", nullable = false)
+    @Builder.Default
+    private boolean folder = false;
+
+    /** 들어 있는 폴더. 최상위면 null. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_id")
+    private DriveDocument parent;
 }

@@ -1517,6 +1517,10 @@ export interface DriveDocument {
   updatedAt: string | null
   /** 실제 업로드된 파일 id. null 이면 메타데이터만 등록된 항목(다운로드 불가). */
   fileId: number | null
+  /** 폴더면 true(원본 [새 폴더]) */
+  folder: boolean
+  /** 들어 있는 폴더 id. 최상위면 null */
+  parentId: number | null
 }
 
 // ===== 증빙(증빙센터) =====

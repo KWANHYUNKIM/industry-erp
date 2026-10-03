@@ -520,8 +520,8 @@
   "palette": 0
  },
  "pages/groupware/EcDrivePage.tsx": {
-  "inline": 12,
-  "color": 3,
+  "inline": 0,
+  "color": 0,
   "palette": 0
  },
  "pages/groupware/KeyNoticePage.tsx": {

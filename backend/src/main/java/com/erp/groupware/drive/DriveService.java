@@ -4,6 +4,7 @@ import com.erp.common.ApiException;
 import com.erp.common.FileStorageService;
 import com.erp.common.StoredFile;
 import com.erp.groupware.drive.dto.DriveDtos.CreateDocumentRequest;
+import com.erp.groupware.drive.dto.DriveDtos.CreateFolderRequest;
 import com.erp.groupware.drive.dto.DriveDtos.DocumentResponse;
 import com.erp.groupware.drive.dto.DriveDtos.UpdateDocumentRequest;
 import lombok.RequiredArgsConstructor;
@@ -24,9 +25,20 @@ public class DriveService {
     /** folder: my / shared / important / trash */
     @Transactional(readOnly = true)
     public List<DocumentResponse> list(String folder) {
+        return list(folder, null, false);
+    }
+
+    /**
+     * My Drive · Shared Drive 는 <b>그 폴더 바로 안</b>(parentId, 없으면 최상위)만 낸다. all 이면 폴더 안까지 전부
+     * (사용용량 · 나무 그리기용). 휴지통 · 중요문서함은 폴더와 상관없이 전부.
+     */
+    @Transactional(readOnly = true)
+    public List<DocumentResponse> list(String folder, Long parentId, boolean all) {
         String f = folder != null ? folder.toLowerCase() : "my";
+        boolean byParent = !all && ("my".equals(f) || "shared".equals(f));
         return documentRepository.findAllOrdered().stream()
                 .filter(d -> matchesFolder(d, f))
+                .filter(d -> !byParent || java.util.Objects.equals(d.getParent() != null ? d.getParent().getId() : null, parentId))
                 .map(DocumentResponse::from)
                 .toList();
     }
@@ -54,13 +66,50 @@ public class DriveService {
         return DocumentResponse.from(documentRepository.save(doc));
     }
 
+    /** 원본 우클릭 [새 폴더] → '새 폴더' 창의 [저장(F8)]. 폴더 안에 폴더도 만든다. */
+    @Transactional
+    public DocumentResponse createFolder(CreateFolderRequest req, String uploader) {
+        DriveDocument parent = req.parentId() != null ? getDoc(req.parentId()) : null;
+        if (parent != null && !parent.isFolder()) throw ApiException.badRequest("폴더 안에만 폴더를 만들 수 있습니다.");
+        DriveDocument doc = DriveDocument.builder()
+                .name(req.name().trim())
+                .drive(parent != null ? parent.getDrive() : ("SHARED".equalsIgnoreCase(req.drive()) ? "SHARED" : "MY"))
+                .sizeBytes(0L)
+                .uploader(uploader)
+                .important(false)
+                .trashed(false)
+                .folder(true)
+                .parent(parent)
+                .build();
+        return DocumentResponse.from(documentRepository.save(doc));
+    }
+
     @Transactional
     public DocumentResponse update(Long id, UpdateDocumentRequest req) {
         DriveDocument doc = getDoc(id);
         if (req.name() != null && !req.name().isBlank()) doc.setName(req.name());
         if (req.important() != null) doc.setImportant(req.important());
-        if (req.trashed() != null) doc.setTrashed(req.trashed());
+        /* 폴더를 휴지통에 넣거나 꺼내면 안에 든 것도 같이 간다 — 원본 휴지통도 폴더째 옮긴다. */
+        if (req.trashed() != null) for (DriveDocument d : withChildren(doc)) d.setTrashed(req.trashed());
         return DocumentResponse.from(doc);
+    }
+
+    /** 이 항목과, 폴더면 그 안에 든 것 전부(깊이 우선, 자기 자신이 맨 앞). */
+    private List<DriveDocument> withChildren(DriveDocument root) {
+        List<DriveDocument> all = documentRepository.findAllOrdered();
+        List<DriveDocument> out = new java.util.ArrayList<>();
+        java.util.ArrayDeque<DriveDocument> stack = new java.util.ArrayDeque<>();
+        stack.push(root);
+        while (!stack.isEmpty()) {
+            DriveDocument cur = stack.pop();
+            out.add(cur);
+            if (cur.isFolder()) {
+                for (DriveDocument d : all) {
+                    if (d.getParent() != null && d.getParent().getId().equals(cur.getId())) stack.push(d);
+                }
+            }
+        }
+        return out;
     }
 
     /**
@@ -69,6 +118,15 @@ public class DriveService {
      */
     @Transactional
     public DocumentResponse upload(MultipartFile file, String drive, String uploader) {
+        return upload(file, drive, null, uploader);
+    }
+
+    /** 폴더 안에 올리면 그 폴더의 드라이브를 따른다. */
+    @Transactional
+    public DocumentResponse upload(MultipartFile file, String drive, Long parentId, String uploader) {
+        DriveDocument parent = parentId != null ? getDoc(parentId) : null;
+        if (parent != null && !parent.isFolder()) throw ApiException.badRequest("폴더 안에만 올릴 수 있습니다.");
+        if (parent != null) drive = parent.getDrive();
         StoredFile stored = fileStorage.store(file, uploader);
         /* 붙는 순간 이 파일의 주인을 적는다 — 내려받기를 이 코드로 막는다. */
         stored.setOwnerCode("GROUPWARE");
@@ -80,6 +138,7 @@ public class DriveService {
                 .file(stored)
                 .important(false)
                 .trashed(false)
+                .parent(parent)
                 .build();
         return DocumentResponse.from(documentRepository.save(doc));
     }
@@ -97,11 +156,16 @@ public class DriveService {
     /** 문서를 지우면 붙어 있던 파일도 함께 지운다 — 참조가 사라진 바이트를 남겨둘 이유가 없다. */
     @Transactional
     public void delete(Long id) {
-        DriveDocument doc = getDoc(id);
-        Long fileId = doc.getFile() != null ? doc.getFile().getId() : null;
-        documentRepository.delete(doc);
-        if (fileId != null) {
-            fileStorage.delete(fileId);
+        /* 폴더면 안에 든 것부터(자식 → 부모 차례로) 지운다 — parent_id 외래키가 걸려 있다. */
+        List<DriveDocument> targets = withChildren(getDoc(id));
+        java.util.Collections.reverse(targets);
+        for (DriveDocument doc : targets) {
+            Long fileId = doc.getFile() != null ? doc.getFile().getId() : null;
+            documentRepository.delete(doc);
+            documentRepository.flush();
+            if (fileId != null) {
+                fileStorage.delete(fileId);
+            }
         }
     }
 

@@ -1,0 +1,40 @@
+{
+  "about": "ECDrive 폴더(원본 E077100) — 나무의 My Drive 우클릭 → [새 폴더] → '새 폴더' 창(비우면 '폴더 이름을 입력하세요.') → 저장하면 나무 · 목록에 📁, 크기 빈칸, 최종수정일자 '2026/10/03 오후 6:34:41' 꼴 → 폴더를 눌러 들어가면 머리 'My Drive › 이름' · 빈 목록 → ⋮ [휴지통으로이동] '선택한 폴더/파일을 휴지통으로 이동하시겠습니까? …' → 휴지통에서 [영구삭제]. node qa/shot.mjs qa/flows/drive-folders.json",
+  "shots": [
+    {
+      "name": "새 폴더 → 들어가기 → 휴지통 → 영구삭제",
+      "path": "/groupware/drive",
+      "steps": [
+        "wait:800",
+        "js:(() => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim().endsWith('My Drive')); b.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })); return true })()",
+        "click:새 폴더",
+        "expect:document.querySelector('[role=dialog]')?.getAttribute('aria-label') === '새 폴더' && document.querySelector('[role=dialog]').innerText.includes('최대 50자까지 입력 가능합니다.')",
+        "click:저장(F8)",
+        "expect:document.querySelector('[role=dialog]')?.innerText.includes('폴더 이름을 입력하세요.')",
+        "js:(() => { const i = document.querySelector('[role=dialog] input[aria-label=\"새 폴더 이름\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'QA그룹웨어-폴더'); i.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "click:저장(F8)",
+        "wait:800",
+        "expect:!document.querySelector('[role=dialog]')",
+        "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('📁 QA그룹웨어-폴더')); return !!tr && tr.cells[3].textContent.trim() === '' && /^\\d{4}\\/\\d{2}\\/\\d{2} (오전|오후) \\d{1,2}:\\d{2}:\\d{2}$/.test(tr.cells[2].textContent.trim()) })()",
+        "expect:[...document.querySelectorAll('button')].filter((b) => b.textContent.includes('QA그룹웨어-폴더')).length >= 2",
+        "js:[...document.querySelectorAll('tbody button')].find((b) => b.textContent.includes('QA그룹웨어-폴더')).click(); true",
+        "wait:600",
+        "expect:(() => { const h = [...document.querySelectorAll('div.font-bold')].find((x) => x.innerText.includes('›')); return !!h && h.innerText.includes('QA그룹웨어-폴더') })()",
+        "expect:document.querySelector('tbody').innerText.includes('등록된 데이터가 없습니다.')",
+        "js:[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'My Drive').click(); true",
+        "wait:600",
+        "js:window.__asked = ''; window.confirm = (m) => { window.__asked = m; return true }; [...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QA그룹웨어-폴더')).querySelector('.ec-btn').click(); true",
+        "click:휴지통으로이동",
+        "wait:800",
+        "expect:window.__asked.startsWith('선택한 폴더/파일을 휴지통으로 이동하시겠습니까?') && window.__asked.includes(\"'QA그룹웨어-폴더' 가 30일 후 완전히 삭제 됩니다.\")",
+        "expect:![...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes('QA그룹웨어-폴더'))",
+        "js:[...document.querySelectorAll('button')].find((b) => b.textContent.trim().endsWith('휴지통')).click(); true",
+        "wait:800",
+        "js:[...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QA그룹웨어-폴더')).querySelector('.ec-btn').click(); true",
+        "click:영구삭제",
+        "wait:800",
+        "expect:![...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes('QA그룹웨어-폴더'))"
+      ]
+    }
+  ]
+}

@@ -18,7 +18,7 @@
         "click:Search(F3)",
         "expect:!!document.querySelector('.ec-search-conds')",
         "js:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('QA그룹웨어-문서.txt')); tr.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })); return true })()",
-        "expect:[...document.querySelectorAll('button')].some((b) => b.textContent.trim() === '휴지통으로')"
+        "expect:[...document.querySelectorAll('button')].some((b) => b.textContent.trim() === '휴지통으로이동')"
       ]
     },
     {

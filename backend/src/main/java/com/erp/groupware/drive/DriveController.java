@@ -1,6 +1,7 @@
 package com.erp.groupware.drive;
 
 import com.erp.groupware.drive.dto.DriveDtos.CreateDocumentRequest;
+import com.erp.groupware.drive.dto.DriveDtos.CreateFolderRequest;
 import com.erp.groupware.drive.dto.DriveDtos.DocumentResponse;
 import com.erp.groupware.drive.dto.DriveDtos.UpdateDocumentRequest;
 import com.erp.security.UserPrincipal;
@@ -22,8 +23,18 @@ public class DriveController {
     private final DriveService driveService;
 
     @GetMapping
-    public List<DocumentResponse> list(@RequestParam(required = false, defaultValue = "my") String folder) {
-        return driveService.list(folder);
+    public List<DocumentResponse> list(@RequestParam(required = false, defaultValue = "my") String folder,
+                                       @RequestParam(required = false) Long parentId,
+                                       @RequestParam(required = false, defaultValue = "false") boolean all) {
+        return driveService.list(folder, parentId, all);
+    }
+
+    /** 원본 우클릭 [새 폴더]. */
+    @PostMapping("/folders")
+    public ResponseEntity<DocumentResponse> createFolder(
+            @Valid @RequestBody CreateFolderRequest req,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(driveService.createFolder(req, principal.getUsername()));
     }
 
     @PostMapping
@@ -38,8 +49,9 @@ public class DriveController {
     public ResponseEntity<DocumentResponse> upload(
             @RequestPart("file") MultipartFile file,
             @RequestParam(required = false, defaultValue = "MY") String drive,
+            @RequestParam(required = false) Long parentId,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(driveService.upload(file, drive, principal.getUsername()));
+        return ResponseEntity.ok(driveService.upload(file, drive, parentId, principal.getUsername()));
     }
 
     /** 다운로드는 공통 파일 엔드포인트로 넘긴다(파일 id 를 알려준다). */
