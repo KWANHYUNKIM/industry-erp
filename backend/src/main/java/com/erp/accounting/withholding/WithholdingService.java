@@ -118,6 +118,41 @@ public class WithholdingService {
         };
     }
 
+    /**
+     * 원천징수부(E020116) — 기준연월의 연도 1월부터 기준연월까지, 사원마다 달별 총급여(과세) · 비과세 · 소득세 · 지방소득세.
+     * 확정 명세만 센다. 원본은 기준연월 2026/10 이면 2026.01 ~ 2026.10 을 찍고 11 · 12 칸은 비운다.
+     */
+    @Transactional(readOnly = true)
+    public List<WithholdingDtos.LedgerEmployee> ledger(String month) {
+        if (month == null || !MONTH.matcher(month).matches()) {
+            throw ApiException.badRequest("기준연월 형식이 올바르지 않습니다(YYYY-MM): " + month);
+        }
+        java.util.Map<Long, List<Payslip>> byEmployee = new java.util.LinkedHashMap<>();
+        for (Payslip p : payslipRepository.findByYear(month.substring(0, 4))) {
+            if (p.getStatus() != PayslipStatus.CONFIRMED || p.getPayMonth().compareTo(month) > 0) continue;
+            byEmployee.computeIfAbsent(p.getEmployee().getId(), k -> new ArrayList<>()).add(p);
+        }
+        List<WithholdingDtos.LedgerEmployee> out = new ArrayList<>();
+        for (List<Payslip> slips : byEmployee.values()) {
+            var e = slips.get(0).getEmployee();
+            List<WithholdingDtos.LedgerMonth> months = slips.stream()
+                    .sorted(java.util.Comparator.comparing(Payslip::getPayMonth))
+                    .map(p -> {
+                        BigDecimal nonTaxable = p.getLines().stream()
+                                .filter(l -> l.getKind() == PayslipLineKind.ALLOWANCE && !l.isTaxable())
+                                .map(PayslipLine::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+                        return new WithholdingDtos.LedgerMonth(p.getPayMonth(), p.grossPay().subtract(nonTaxable), nonTaxable,
+                                deduction(p, INCOME_TAX), deduction(p, LOCAL_INCOME_TAX));
+                    })
+                    .toList();
+            out.add(new WithholdingDtos.LedgerEmployee(e.getId(), e.getCode(), e.getName(),
+                    e.getHireDate(), e.getResignDate(), months));
+        }
+        out.sort(java.util.Comparator.comparing(WithholdingDtos.LedgerEmployee::employeeCode,
+                java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())));
+        return out;
+    }
+
     /** 근로소득 원천징수영수증 (연간, 사원별). 확정 명세만 집계한다. */
     @Transactional(readOnly = true)
     public List<WithholdingReceipt> receipts(int year) {

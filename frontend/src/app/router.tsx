@@ -46,6 +46,7 @@ const ItemCostPage = lazy(() => import('../pages/accounting/ItemCostPage'))
 const VatSummaryPage = lazy(() => import('../pages/accounting/VatSummaryPage'))
 const WithholdingPage = lazy(() => import('../pages/accounting/WithholdingPage'))
 const WithholdingConfirmPage = lazy(() => import('../pages/accounting/WithholdingConfirmPage'))
+const WithholdingLedgerPage = lazy(() => import('../pages/accounting/WithholdingLedgerPage'))
 const OtherWithholdingPage = lazy(() => import('../pages/accounting/OtherWithholdingPage'))
 const CorporateTaxPage = lazy(() => import('../pages/accounting/CorporateTaxPage'))
 const PromissoryNotePage = lazy(() => import('../pages/accounting/PromissoryNotePage'))
@@ -455,6 +456,7 @@ export default function AppRouter() {
         <Route path="/datacenter/medical-device-report" element={<MedicalDeviceReportPage />} />
         <Route path="/accounting/withholding" element={<WithholdingPage />} />
         <Route path="/accounting/withholding/confirm" element={<WithholdingConfirmPage />} />
+        <Route path="/accounting/withholding/ledger" element={<WithholdingLedgerPage />} />
         <Route path="/accounting/other-withholding" element={<OtherWithholdingPage />} />
         <Route path="/accounting/corporate-tax" element={<CorporateTaxPage />} />
         <Route path="/accounting/notes" element={<PromissoryNotePage />} />

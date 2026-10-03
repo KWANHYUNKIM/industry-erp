@@ -48,6 +48,12 @@ public class WithholdingController {
         return service.statement(month);
     }
 
+    /** 원천징수부 (기준연월까지, 사원별 달별 지급명세) */
+    @GetMapping("/ledger")
+    public List<WithholdingDtos.LedgerEmployee> ledger(@RequestParam String month) {
+        return service.ledger(month);
+    }
+
     /** 근로소득 원천징수영수증 (연간, 사원별) */
     @GetMapping("/receipts")
     public List<WithholdingReceipt> receipts(@RequestParam int year) {

@@ -1968,6 +1968,16 @@ export interface WithholdingReturn {
   bizRegNo: string | null
 }
 
+/** 원천징수부 (E020116) — 소득자 한 사람의 달별 근로소득 지급명세 */
+export interface WithholdingLedgerEmployee {
+  employeeId: number
+  employeeCode: string
+  employeeName: string
+  hireDate: string | null
+  resignDate: string | null
+  months: { payMonth: string; taxablePay: number; nonTaxablePay: number; incomeTax: number; localIncomeTax: number }[]
+}
+
 export interface ReceiptMonth {
   payMonth: string
   grossPay: number

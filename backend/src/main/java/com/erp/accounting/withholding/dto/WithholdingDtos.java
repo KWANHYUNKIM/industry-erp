@@ -102,4 +102,20 @@ public final class WithholdingDtos {
                     company == null ? null : company.bizRegNo());
         }
     }
+
+    /** 원천징수부 — 지급연월 한 줄. 총급여는 과세분(기본급 + 과세 수당)이고 비과세 수당은 따로 든다(원본 Ⅰ · Ⅱ쪽). */
+    public record LedgerMonth(
+            String payMonth,
+            BigDecimal taxablePay,
+            BigDecimal nonTaxablePay,
+            BigDecimal incomeTax,
+            BigDecimal localIncomeTax
+    ) {}
+
+    /** 원천징수부 — 소득자 한 사람의 귀속연도(기준연월까지) 근로소득 지급명세. */
+    public record LedgerEmployee(
+            Long employeeId, String employeeCode, String employeeName,
+            LocalDate hireDate, LocalDate resignDate,
+            List<LedgerMonth> months
+    ) {}
 }
