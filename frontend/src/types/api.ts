@@ -1494,8 +1494,10 @@ export interface WorkPost {
   attachmentId: number | null
   attachmentName: string | null
   attachmentSize: number | null
-  /** 원본 격자의 [조회] 열 — 글을 편 횟수. */
+  /** 원본 격자의 [조회] 열 — 글을 연 횟수. */
   viewCount: number
+  /** 원본 View 머리줄의 작성 일시. */
+  createdAt: string | null
   status: WorkPostStatus
   statusName: string
 }

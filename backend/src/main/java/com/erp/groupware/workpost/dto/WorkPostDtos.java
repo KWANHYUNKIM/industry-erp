@@ -79,7 +79,9 @@ public final class WorkPostDtos {
             /** 원본 [첨부] 열. 파일이 없으면 셋 다 null 이다. */
             Long attachmentId, String attachmentName, Long attachmentSize,
             /** 원본 [조회] 열. */
-            int viewCount
+            int viewCount,
+            /** 원본 View 머리줄의 작성 일시 — '16 | 제목 | guest | 2026/10/03 (토) 오후 12:53:08'. */
+            LocalDateTime createdAt
     ) {
         public static WorkPostResponse from(WorkPost p, String writerName) {
             var f = p.getAttachment();
@@ -92,7 +94,7 @@ public final class WorkPostDtos {
                     f != null ? f.getId() : null,
                     f != null ? f.getName() : null,
                     f != null ? f.getSizeBytes() : null,
-                    p.getViewCount());
+                    p.getViewCount(), p.getCreatedAt());
         }
     }
 }

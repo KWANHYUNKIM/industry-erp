@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from 'react'
 import { exportTableToXlsx } from '../../utils/excel'
-import { printTable } from '../../utils/print'
+import { openPrintWindow, fillAndPrint } from '../../utils/print'
+import { escapeHtml } from '../../utils/escapeHtml'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { WorkPost } from '../../types/api'
@@ -12,6 +13,28 @@ import { dateText } from '../../utils/dateText'
 
 const today = () => ymd(new Date())
 
+/** 원본 목록 오른쪽 위의 조회 기간 — 오늘부터 1년 전 같은 날까지(2025/10/03 ~ 2026/10/03). */
+function periodFrom() {
+  const d = new Date()
+  d.setFullYear(d.getFullYear() - 1)
+  return ymd(d)
+}
+
+const WEEK = ['일', '월', '화', '수', '목', '금', '토']
+
+/** 원본 View 머리줄의 작성 일시: '2026/10/03 (토) 오후 12:53:08'. */
+function stampText(iso?: string | null) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const h = d.getHours()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${dateText(ymd(d))} (${WEEK[d.getDay()]}) ${h < 12 ? '오전' : '오후'} ${h % 12 === 0 ? 12 : h % 12}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
+
+type Form = { title: string; content: string; forwardTo: string; ccTo: string; notice: boolean; postDate: string }
+const emptyForm = (): Form => ({ title: '', content: '', forwardTo: '', ccTo: '', notice: false, postDate: today() })
+
 /**
  * 게시판 목록 화면. 원본은 게시판을 여러 개 두고 게시글을 그 아래 다는데,
  * 화면 모양은 게시판마다 똑같다 — 업무관리 &gt; WORK 와 공유정보 &gt; 공지사항이 그렇다.
@@ -19,25 +42,21 @@ const today = () => ymd(new Date())
  *
  * 그래서 한 컴포넌트가 board 만 바꿔 두 화면을 낸다(내결재관리·기안서통합관리와 같은 방식).
  *
- * <p><b>글을 읽을 수가 없었다.</b> 목록에 제목만 있고 펼치거나 여는 자리가 없어,
- * 올린 내용을 이 화면에서 볼 방법이 아예 없었다. 게시판인데 읽기가 안 되는 셈이다.
- * 원본은 제목을 누르면 그 자리에서 펼쳐지고, 하단 [모두펼쳐보기]로 전부 편다.
- * 펼친 글 아래에는 답글(F8)·복사·<b>수정</b>·<b>삭제</b>·닫기가 붙는다.
+ * <p><b>2026-10-03 원본 공지사항(E200080)을 직접 쓰며 다시 맞췄다.</b>
+ * <ul>
+ *   <li>격자는 <b>게시글번호 · 제목 · 작성자명 · 전달자 · 진행상태 · 첨부 · 조회</b>다. [일자-No.]는 목록에 없고
+ *       글을 연 View 안에만 있다 — 우리는 목록 첫 열에 두고 있었다.</li>
+ *   <li>[공지사항여부]를 켠 글은 목록 <b>맨 위에 한 번 더</b> 붙는다(행번호 없이, 옅은 노랑 바탕). 아래 번호 붙은
+ *       목록에도 그대로 남는다. 우리는 제목 앞에 빨간 [공지] 글자만 달았다.</li>
+ *   <li>제목을 누르면 <b>'공지사항View' 창</b>이 뜬다 — 머리줄 '16 | 제목 | 작성자 | 2026/10/03 (토) 오후 12:53:08',
+ *       그 아래 일자-No.·첨부와 본문, 하단 [수정]·[삭제]·[닫기]·[인쇄]. 우리는 목록 안에서 펼쳤다.
+ *       [모두펼쳐보기]만 목록 안에서 편다(원본도 그 버튼은 목록 안에서 편다).</li>
+ *   <li>[수정]은 입력 창을 '…입력(수정)' 으로 다시 띄운다. [삭제]는 '삭제하겠습니까?' 를 묻는다.</li>
+ *   <li>[인쇄]는 목록 하단이 아니라 View 안에 있다 — 글 한 건을 찍는다.</li>
+ * </ul>
  *
- * <p>답글·복사는 받쳐 줄 것이 없어 만들지 않는다 — 눌러도 아무 일 없는 버튼은
- * 있는 것만 못하다.
- *
- * <p><b>[인쇄]는 그 셈이 아니었다.</b> 이 화면은 목록 껍데기(EcListShell)를 안 쓰는 탓에
- * 인쇄가 없었을 뿐, <b>받쳐 줄 것은 이미 다 있었다</b> — 다른 목록 화면이 쓰는
- * <code>printTable</code> 이 그 자리에서 도는 표를 그대로 종이로 옮긴다.
- * '기능이 없어 안 만든다' 와 '껍데기를 안 써서 못 붙였다' 는 다른 말인데,
- * 예전 주석은 앞엣것처럼 적혀 있었다. Excel 이 이미 같은 표를 긁어 가고 있었으니
- * 인쇄만 빠져 있을 까닭이 없다.
- *
- * <p>격자의 <b>[첨부]·[조회]</b> 두 열은 만들어 두고 채우지 못하고 있었다. 첨부 칸은 늘
- * 비어 있었고(붙일 자리가 없었다), 조회 칸에는 완료/재개 버튼이 들어가 있어 <b>열 이름과
- * 내용이 어긋나</b> 있었다. 이제 첨부는 실제 파일이고, 조회는 글을 편 횟수다.
- * 완료/재개는 원본대로 하단 [진행상태변경]으로 옮겼다.
+ * <p>답글·복사·보내기·업무지원AI·라벨·이력조회는 받쳐 줄 것이 없어 만들지 않는다 — 눌러도
+ * 아무 일 없는 버튼은 있는 것만 못하다.
  */
 export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: 'WORK' | 'NOTICE'; title?: string } = {}) {
   const [rows, setRows] = useState<WorkPost[]>([])
@@ -45,23 +64,28 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
   const [keyword, setKeyword] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  /** 입력 창. editId 가 있으면 '…입력(수정)'. */
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ title: '', content: '', forwardTo: '', ccTo: '', postDate: today() })
-  /** 원본 WORK입력 폼의 [공지사항여부]. 켜면 목록 맨 위에 붙는다. */
-  const [notice, setNotice] = useState(false)
-  /** 새 글에 붙일 파일. 원본 [웹자료올리기]·[여기에 파일 놓기]. */
+  const [editId, setEditId] = useState<number | null>(null)
+  const [form, setForm] = useState<Form>(emptyForm)
+  /** 글에 붙일 파일. 원본 [웹자료올리기]·[여기에 파일 놓기]. */
   const [attachment, setAttachment] = useState<{ id: number; name: string } | null>(null)
   const [uploading, setUploading] = useState(false)
   // 원본 하단의 [진행상태변경]·[선택삭제]는 고른 글에 한꺼번에 하는 동작이다.
   // 고르는 방식은 다른 목록과 같다 — 회색 행번호 칸을 누른다.
   const [selected, setSelected] = useState<Set<number>>(new Set())
-  /** 펼쳐 놓은 글. 원본 [모두펼쳐보기]는 이걸 전부 채운다. */
-  const [opened, setOpened] = useState<Set<number>>(new Set())
-  /** 고치는 중인 글. 원본 펼친 글의 [수정]. */
-  const [editing, setEditing] = useState<{ id: number; title: string; content: string; forwardTo: string; ccTo: string; notice: boolean } | null>(null)
+  /** [모두펼쳐보기]로 목록 안에 펴 놓은 글. */
+  const [opened, setOpened] = useState(false)
+  /** View 창에 띄운 글. */
+  const [viewing, setViewing] = useState<WorkPost | null>(null)
 
-  // Search(F3) — 버튼 라벨이 약속한 단축키
-  useShortcut('F3', load)
+  const from = periodFrom()
+  const to = today()
+
+  // Search(F3) — 버튼 라벨이 약속한 단축키. 창이 떠 있을 때는 뒤 화면이 바뀌면 안 된다.
+  useShortcut('F3', load, !showForm && !viewing)
+  useShortcut('F2', openNew, !showForm && !viewing)
+  useShortcut('F8', () => void submit(), showForm)
 
   async function load() {
     setLoading(true)
@@ -78,54 +102,49 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
   useEffect(() => { load() }, [board])
 
   /**
-   * 글을 편다. <b>펼 때만</b> 조회수를 올린다 — 목록을 부르는 것만으로 올리면
+   * View 창을 연다. <b>열 때만</b> 조회수를 올린다 — 목록을 부르는 것만으로 올리면
    * 화면을 열 때마다 모든 글이 같이 올라가서 그 숫자가 '몇 명이 봤나' 를 뜻하지 않게 된다.
-   * 접을 때는 올리지 않는다.
    */
-  const toggleOpen = (id: number) => {
-    const willOpen = !opened.has(id)
-    setOpened((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id); else next.add(id)
-      return next
-    })
-    if (!willOpen) return
-    api.post<WorkPost>(`/work-posts/${id}/read`)
-      .then((r) => setRows((prev) => prev.map((x) => (x.id === id ? r.data : x))))
-      .catch(() => { /* 조회수는 곁다리다 — 실패해도 글은 펴진다. */ })
+  function openView(r: WorkPost) {
+    setViewing(r)
+    api.post<WorkPost>(`/work-posts/${r.id}/read`)
+      .then((res) => {
+        setRows((prev) => prev.map((x) => (x.id === r.id ? res.data : x)))
+        setViewing((v) => (v && v.id === r.id ? res.data : v))
+      })
+      .catch(() => { /* 조회수는 곁다리다 — 실패해도 글은 보인다. */ })
   }
 
-  async function saveEdit() {
-    if (!editing) return
-    if (!editing.title.trim()) return setError('제목을 입력하세요.')
-    if (!editing.content.trim()) return setError('내용을 입력하세요.')
+  function openNew() {
+    setEditId(null)
+    setForm(emptyForm())
+    setAttachment(null)
     setError('')
-    try {
-      await api.put(`/work-posts/${editing.id}`, {
-        title: editing.title, content: editing.content,
-        forwardTo: editing.forwardTo || null,
-        ccTo: editing.ccTo || null,
-        notice: editing.notice,
-      })
-      setEditing(null)
-      load()
-    } catch (err) {
-      setError(extractErrorMessage(err))
-    }
+    setShowForm(true)
+  }
+
+  /** 원본 View 의 [수정] — 같은 입력 창을 '…입력(수정)' 으로 띄운다. */
+  function openEdit(r: WorkPost) {
+    setViewing(null)
+    setEditId(r.id)
+    setForm({ title: r.title, content: r.content, forwardTo: r.forwardTo ?? '', ccTo: r.ccTo ?? '', notice: r.notice, postDate: r.postDate })
+    setAttachment(r.attachmentId ? { id: r.attachmentId, name: r.attachmentName ?? '첨부' } : null)
+    setError('')
+    setShowForm(true)
   }
 
   async function removeOne(id: number) {
-    if (!confirm('이 글을 삭제할까요?')) return
+    if (!confirm('삭제하겠습니까?')) return
     try {
       await api.delete(`/work-posts/${id}`)
-      setOpened((prev) => { const n = new Set(prev); n.delete(id); return n })
+      setViewing(null)
       load()
     } catch (err) {
       setError(extractErrorMessage(err))
     }
   }
 
-  function set(k: keyof typeof form, v: string) { setForm((f) => ({ ...f, [k]: v })) }
+  function set<K extends keyof Form>(k: K, v: Form[K]) { setForm((f) => ({ ...f, [k]: v })) }
 
   /** 파일을 먼저 올려 id 를 받고, 글을 저장할 때 그 id 를 붙인다(기안서와 같은 방식). */
   async function upload(file: File) {
@@ -147,17 +166,18 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
     setError('')
     if (!form.title.trim()) return setError('제목을 입력하세요.')
     if (!form.content.trim()) return setError('내용을 입력하세요.')
+    const common = {
+      title: form.title, content: form.content,
+      forwardTo: form.forwardTo || null, ccTo: form.ccTo || null,
+      notice: form.notice,
+      // 수정은 통째로 덮는다 — 첨부를 안 보내면 서버가 뗀다(예전 수정이 그래서 첨부를 잃었다).
+      attachmentId: attachment ? attachment.id : null,
+    }
     try {
-      await api.post('/work-posts', {
-        board, title: form.title, content: form.content,
-        forwardTo: form.forwardTo || undefined, ccTo: form.ccTo || undefined,
-        notice, postDate: form.postDate,
-        attachmentId: attachment ? attachment.id : null,
-      })
-      setForm({ title: '', content: '', forwardTo: '', ccTo: '', postDate: today() })
-      setNotice(false)
-      setAttachment(null)
+      if (editId != null) await api.put(`/work-posts/${editId}`, common)
+      else await api.post('/work-posts', { ...common, board, postDate: form.postDate })
       setShowForm(false)
+      setEditId(null)
       load()
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -191,7 +211,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
   async function deleteSelected() {
     const targets = shown.filter((r) => selected.has(r.id))
     if (targets.length === 0) return setError('지울 글을 고르세요. 행번호 칸을 누르면 선택됩니다.')
-    if (!window.confirm(`${targets.length}건을 삭제할까요?`)) return
+    if (!window.confirm('삭제하겠습니까?')) return
     for (const r of targets) {
       try {
         await api.delete(`/work-posts/${r.id}`)
@@ -203,251 +223,247 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
     load()
   }
 
-  /** 목록 표를 찾는다 — Excel 과 인쇄가 같은 표를 본다. */
-  function listTable() {
-    return document.querySelector('#work-list table') as HTMLTableElement | null
-  }
-
   async function doExcel() {
-    const table = listTable()
+    const table = document.querySelector('#work-list table') as HTMLTableElement | null
     if (!table) return setError('내보낼 표가 없습니다.')
-    if (!(await exportTableToXlsx(table, 'WORK'))) setError('내보낼 자료가 없습니다.')
+    if (!(await exportTableToXlsx(table, title))) setError('내보낼 자료가 없습니다.')
   }
 
-  function doPrint() {
-    const table = listTable()
-    if (!table) return setError('인쇄할 표가 없습니다.')
-    if (!printTable(table, title)) setError('인쇄할 자료가 없습니다.')
+  /** 원본 View 의 [인쇄] — 펼쳐 놓은 글 한 건을 찍는다. */
+  function printPost(r: WorkPost) {
+    const win = openPrintWindow()
+    if (!win) return
+    fillAndPrint(win, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${escapeHtml(r.title)}</title>
+<style>body{font-family:sans-serif;font-size:12px;padding:24px}h1{font-size:14px;margin:0 0 8px}
+.meta{margin-bottom:12px}.body{white-space:pre-wrap;border-top:1px solid;padding-top:12px}</style></head>
+<body><h1>${escapeHtml(`${r.postNo} | ${r.title} | ${r.writerName ?? r.writer} | ${stampText(r.createdAt)}`)}</h1>
+<div class="meta">일자-No. ${escapeHtml(`${dateText(r.postDate)} -1`)}${r.attachmentName ? ` · 첨부 ${escapeHtml(r.attachmentName)}` : ''}</div>
+<div class="body">${escapeHtml(r.content)}</div></body></html>`)
   }
 
   const shown = rows
+    .filter((r) => r.postDate >= from && r.postDate <= to)
     .filter((r) => tab === '전체' || r.statusName === tab)
     .filter((r) => !keyword || r.title.includes(keyword) || (r.writerName ?? r.writer).includes(keyword))
+  /** 원본: 공지사항여부를 켠 글은 맨 위에 한 번 더 붙는다(행번호 없이). */
+  const pinned = shown.filter((r) => r.notice)
+
+  /** 격자 한 줄의 데이터 칸(게시글번호부터). 맨 위 공지 줄과 번호 붙은 줄이 같이 쓴다. */
+  const cells = (r: WorkPost, pin: boolean) => {
+    const bg = pin ? 'bg-ec-pinned' : ''
+    return (
+      <>
+        <td className={bg}>{r.postNo}</td>
+        <td className={bg}>
+          <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-left text-ec-navy"
+                  onClick={() => openView(r)}>
+            {r.title}
+          </button>
+        </td>
+        <td className={bg}>{r.writerName ?? r.writer}</td>
+        <td className={bg}>{r.forwardTo ?? ''}</td>
+        <td className={`${bg} text-ec-navy`}>{r.statusName}</td>
+        {/* 원본 [첨부]. 파일이 없으면 원본도 빈 칸이다. */}
+        <td className={`${bg} text-center`}>
+          {r.attachmentId && (
+            <span title={`${r.attachmentName} (${formatBytes(r.attachmentSize ?? 0)})`}
+                  onClick={() => void downloadStoredFile(r.attachmentId!, r.attachmentName ?? '첨부')}
+                  className="cursor-pointer text-ec-blue">📎</span>
+          )}
+        </td>
+        {/* 원본 [조회] — 글을 연 횟수. */}
+        <td className={`${bg} text-ec-navy`}>{r.viewCount ?? 0}</td>
+      </>
+    )
+  }
 
   return (
     <div className="flex flex-col min-h-[100%]">
       <div className="flex items-center mb-[8px]">
         <span className="text-ec-star text-[14px] mr-[4px]">☆</span>
         <span className="text-[15px] font-extrabold text-ec-text">{title}</span>
+        {/* 상태 알약은 원본처럼 제목 바로 옆에 붙는다. */}
+        <div className="ec-pills ml-[8px]">
+          {(['전체', '진행중', '완료'] as const).map((t) => (
+            <button
+              key={t} type="button" onClick={() => setTab(t)}
+              className={`ec-pill no-ec${tab === t ? ' active' : ''}`}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
         <div className="ml-auto flex gap-[4px]">
-          <input className="ec-input" placeholder="입력 후 [Enter]" value={keyword} onChange={(e) => setKeyword(e.target.value)} style={{ width: 150 }} />
+          <input className="ec-input w-[110px]" placeholder="입력 후 [Enter]" value={keyword}
+                 onChange={(e) => setKeyword(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') load() }} />
           <button className="ec-btn ec-btn-primary" onClick={load}>Search(F3)</button>
           <button className="ec-btn">Option</button>
           <button className="ec-btn">도움말</button>
         </div>
       </div>
 
-      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {error && !showForm && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <Modal error={error} open={showForm} title="신규 등록" onClose={() => setShowForm(false)}>{(
-        <div className="border border-ec-line border-solid bg-white p-[14px] mb-[8px]">
-          <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">업무 등록</div>
-          <table className="w-full text-left mb-[10px]">
-            <tbody>
-              <tr>
-                <th className="w-[80px] bg-ec-page">제목 *</th>
-                <td><input className="ec-input" value={form.title} onChange={(e) => set('title', e.target.value)} style={{ width: '100%' }} /></td>
-                <th className="w-[80px] bg-ec-page">전달자</th>
-                <td><input className="ec-input" value={form.forwardTo} onChange={(e) => set('forwardTo', e.target.value)} placeholder="공유대상" style={{ width: 160 }} /></td>
-              </tr>
-              <tr>
-                <th className="w-[80px] bg-ec-page">참조자</th>
-                <td><input className="ec-input" value={form.ccTo} onChange={(e) => set('ccTo', e.target.value)} placeholder="참조대상" style={{ width: '100%' }} /></td>
-                {/* 원본 WORK입력 폼의 [공지사항여부]. 켜면 목록 맨 위에 붙는다. */}
-                <th className="w-[80px] bg-ec-page">공지사항여부</th>
-                <td>
-                  <label className="inline-flex items-center gap-[6px] text-[12.5px] cursor-pointer">
-                    <input type="checkbox" checked={notice} onChange={(e) => setNotice(e.target.checked)} />
-                    맨 위에 고정
-                  </label>
-                </td>
-              </tr>
-              <tr>
-                <th className="bg-ec-page align-top">내용 *</th>
-                <td colSpan={3}><textarea value={form.content} onChange={(e) => set('content', e.target.value)} style={{ width: '100%', height: 100, border: '1px solid var(--ec-border)', padding: 8, fontSize: 13, resize: 'vertical', outline: 'none' }} /></td>
-              </tr>
-            </tbody>
-          </table>
-          {/* 원본 [웹자료올리기]·[여기에 파일 놓기]. 한 건만 붙는 자리다. */}
-          <div className="mb-[10px]">
-            <EcFileDrop busy={uploading} disabled={uploading}
-                        onFiles={(fs) => { if (fs[0]) void upload(fs[0]) }}>
-              {attachment && (
-                <span className="text-[12px] text-ec-navy">
-                  {attachment.name}
-                  <span onClick={() => setAttachment(null)}
-                        className="cursor-pointer ml-[6px] font-bold">×</span>
-                </span>
-              )}
-            </EcFileDrop>
-          </div>
-
-          <div className="flex gap-[6px]">
-            <button className="ec-btn ec-btn-primary" onClick={submit}>저장</button>
-            <button className="ec-btn" onClick={() => setShowForm(false)}>취소</button>
-          </div>
-        </div>
-      )}</Modal>
-
-      {/* 상태 필터는 원본에서 알약(pill)이다. 앞서 다른 화면들을 일괄로 바꿀 때 이 화면만 빠져 있었다. */}
-      <div className="ec-pills" style={{ marginBottom: 6 }}>
-        {(['전체', '진행중', '완료'] as const).map((t) => (
-          <button
-            key={t} type="button" onClick={() => setTab(t)}
-            className={`ec-pill no-ec${tab === t ? ' active' : ''}`}
-          >
-            {t}{t !== '전체' ? ` (${rows.filter((r) => r.statusName === t).length})` : ` (${rows.length})`}
-          </button>
-        ))}
-      </div>
+      {/* 원본 목록 오른쪽 위의 조회 기간 */}
+      <div className="text-right text-[12px] text-ec-ink mb-[4px]">{dateText(from)} ~ {dateText(to)}</div>
 
       <div id="work-list" className="flex-1 min-h-0">
         <table className="w-full text-left">
           <thead>
             <tr>
               {/* 1열은 행머리 — 헤더는 전체선택, 본문은 회색 행번호(눌러서 선택). 다른 목록과 같은 규칙. */}
-              <th
-                style={{ width: 34, cursor: shown.length > 0 ? 'pointer' : 'default' }}
-                title="전체 선택 / 해제"
-                onClick={() => setSelected(
-                  selected.size === shown.length ? new Set() : new Set(shown.map((r) => r.id)),
-                )}
-              >
+              <th className="w-[34px] cursor-pointer" title="전체 선택 / 해제"
+                  onClick={() => setSelected(
+                    selected.size === shown.length ? new Set() : new Set(shown.map((r) => r.id)),
+                  )}>
                 {shown.length > 0 && selected.size === shown.length ? '☑' : ''}
               </th>
-              {/* 원본 컬럼 순서: 일자-No. · 게시글번호 · 제목 · 작성자명 · 전달자 · 진행상태 · 첨부 · 조회 */}
-              <th className="w-[110px] text-center">일자-No.</th>
+              {/* 원본 컬럼 순서: 게시글번호 · 제목 · 작성자명 · 전달자 · 진행상태 · 첨부 · 조회 */}
               <th className="w-[90px] text-center">게시글번호</th>
-              <th>제목</th>
-              <th className="w-[90px]">작성자명</th>
-              <th className="w-[120px]">전달자</th>
-              <th className="w-[90px] text-center">진행상태</th>
+              <th className="text-center">제목</th>
+              <th className="w-[100px] text-center">작성자명</th>
+              <th className="w-[150px] text-center">전달자</th>
+              <th className="w-[150px] text-center">진행상태</th>
               <th className="w-[60px] text-center">첨부</th>
               <th className="w-[60px] text-center">조회</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
+              <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-            ) : shown.map((r, i) => (
-              <Fragment key={r.id}>
-              <tr>
-                <td
-                  style={{
-                    textAlign: 'center',
-                    background: selected.has(r.id) ? 'var(--ec-blue-light)' : 'var(--ec-report-stripe)',
-                    color: selected.has(r.id) ? 'var(--ec-blue-dark)' : 'var(--ec-text-hint)',
-                    fontWeight: selected.has(r.id) ? 700 : 400,
-                    cursor: 'pointer', userSelect: 'none',
-                  }}
-                  title="눌러서 이 글을 고릅니다"
-                  onClick={() => toggleSelect(r.id)}
-                >
-                  {i + 1}
-                </td>
-                {/* 원본은 '일자-No.' 한 칸에 「2026/07/06 -1」처럼 일자와 순번을 함께 쓴다 */}
-                <td className="text-center whitespace-nowrap">{dateText(r.postDate)} -1</td>
-                <td className="text-center">{r.postNo}</td>
-                <td>
-                  <button type="button" className="no-ec" onClick={() => toggleOpen(r.id)}
-                          title="눌러서 내용을 폅니다"
-                          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-                                   font: 'inherit', color: 'var(--ec-blue-dark)', textAlign: 'left' }}>
-                    <span className="text-ec-hint mr-[4px]">{opened.has(r.id) ? '▾' : '▸'}</span>
-                    {r.notice && (
-                      <span className="text-ec-danger font-extrabold mr-[4px]">[공지]</span>
+              <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            ) : (
+              <>
+                {pinned.map((r) => (
+                  <tr key={`pin-${r.id}`}>
+                    <td className="bg-ec-pinned" />
+                    {cells(r, true)}
+                  </tr>
+                ))}
+                {shown.map((r, i) => (
+                  <Fragment key={r.id}>
+                    <tr>
+                      <td className={`text-center cursor-pointer select-none ${selected.has(r.id)
+                            ? 'bg-ec-blue-wash text-ec-navy font-bold' : 'bg-ec-stripe text-ec-hint'}`}
+                          title="눌러서 이 글을 고릅니다"
+                          onClick={() => toggleSelect(r.id)}>
+                        {i + 1}
+                      </td>
+                      {cells(r, false)}
+                    </tr>
+                    {opened && (
+                      <tr>
+                        <td colSpan={8} className="bg-ec-page px-[14px] py-[10px]">
+                          <div className="whitespace-pre-wrap text-[12px] text-ec-ink min-h-[20px]">{r.content}</div>
+                        </td>
+                      </tr>
                     )}
-                    {r.title}
-                  </button>
-                </td>
-                <td>{r.writerName ?? r.writer}</td>
-                <td>{r.forwardTo ?? ''}</td>
-                <td className="text-center">
-                  <span style={{ color: r.status === 'DONE' ? 'var(--ec-success)' : 'var(--ec-blue)', fontWeight: 700 }}>{r.statusName}</span>
-                  {/* 원본 WORK입력 폼의 [완료일시]. 언제 끝난 일인지가 아무 데도 안 남아 있었다. */}
-                  {r.completedAt && (
-                    <div className="text-ec-hint text-[11px]">{r.completedAt.slice(0, 16).replace('T', ' ')}</div>
-                  )}
-                </td>
-                {/* 원본 [첨부]. 파일이 없으면 원본도 빈 칸이다. */}
-                <td className="text-center">
-                  {r.attachmentId ? (
-                    <span title={`${r.attachmentName} (${formatBytes(r.attachmentSize ?? 0)})`}
-                          onClick={() => void downloadStoredFile(r.attachmentId!, r.attachmentName ?? '첨부')}
-                          style={{ cursor: 'pointer', color: 'var(--ec-blue)' }}>📎</span>
-                  ) : <span className="text-ec-off">—</span>}
-                </td>
-                {/* 원본 [조회] — 글을 편 횟수다. 완료/재개는 하단 [진행상태변경]으로 옮겼다. */}
-                <td className="text-center text-ec-label">{r.viewCount ?? 0}</td>
-              </tr>
-              {opened.has(r.id) && (
-                <tr>
-                  <td colSpan={9} style={{ background: '#fafbfd', padding: '10px 14px' }}>
-                    {editing?.id === r.id ? (
-                      <div className="flex flex-col gap-[6px]">
-                        <input className="ec-input" value={editing.title}
-                               onChange={(e) => setEditing({ ...editing, title: e.target.value })} />
-                        <input className="ec-input" value={editing.forwardTo} placeholder="전달자"
-                               onChange={(e) => setEditing({ ...editing, forwardTo: e.target.value })} />
-                        <input className="ec-input" value={editing.ccTo} placeholder="참조자"
-                               onChange={(e) => setEditing({ ...editing, ccTo: e.target.value })} />
-                        <label className="inline-flex items-center gap-[6px] text-[12.5px] cursor-pointer">
-                          <input type="checkbox" checked={editing.notice}
-                                 onChange={(e) => setEditing({ ...editing, notice: e.target.checked })} />
-                          공지사항여부
-                        </label>
-                        <textarea className="ec-input" rows={5} value={editing.content}
-                                  onChange={(e) => setEditing({ ...editing, content: e.target.value })} />
-                        <div className="flex gap-[4px]">
-                          <button className="ec-btn ec-btn-primary" onClick={() => void saveEdit()}>저장</button>
-                          <button className="ec-btn" onClick={() => setEditing(null)}>취소</button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="whitespace-pre-wrap text-[12.5px] text-ec-text min-h-[20px]">
-                          {r.content}
-                        </div>
-                        <div className="flex gap-[4px] mt-[8px] pt-[6px] border-t border-t-ec-line-soft border-solid">
-                          <button className="ec-btn" onClick={() => setEditing({
-                            id: r.id, title: r.title, content: r.content, forwardTo: r.forwardTo ?? '',
-                            ccTo: r.ccTo ?? '', notice: r.notice,
-                          })}>수정</button>
-                          <button className="ec-btn" onClick={() => void removeOne(r.id)}>삭제</button>
-                          <button className="ec-btn" onClick={() => toggleOpen(r.id)}>닫기</button>
-                        </div>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              )}
-              </Fragment>
-            ))}
+                  </Fragment>
+                ))}
+              </>
+            )}
           </tbody>
         </table>
       </div>
 
       <div className="flex gap-[6px] mt-[10px] pt-[8px] border-t border-t-ec-line-soft border-solid">
         {/*
-          원본 하단: 신규(F2)·보내기·업무지원AI·진행상태변경·모두펼쳐보기·선택삭제·Excel·이력조회·웹자료올리기.
-          받쳐 줄 기능이 있는 것만 둔다 — 보내기·업무지원AI·이력조회는 아직 없다.
-          [인쇄]는 이제 있다 — Excel 이 긁어 가던 그 표를 그대로 종이로 옮긴다.
-          [모두펼쳐보기]는 이제 있다 — 내용을 읽을 자리가 그것뿐이었다.
-          [웹자료올리기]도 이제 있다 — 등록 폼의 첨부 자리가 그것이다.
+          원본 하단: 신규(F2)·보내기·업무지원AI·진행상태변경·라벨변경·라벨설정·모두펼쳐보기·선택삭제·Excel·이력조회·웹자료올리기.
+          받쳐 줄 기능이 있는 것만 둔다 — 보내기·업무지원AI·라벨·이력조회는 아직 없다.
+          [인쇄]는 원본처럼 View 창 안에 있다. [웹자료올리기]는 입력 창의 첨부 자리다.
         */}
-        <button className="ec-btn ec-btn-primary" onClick={() => setShowForm((v) => !v)}>{showForm ? '입력닫기' : '신규(F2)'}</button>
-        <button className="ec-btn" disabled={selected.size === 0} style={selected.size === 0 ? { opacity: 0.45, cursor: 'not-allowed' } : undefined} onClick={() => void changeStatusSelected()}>진행상태변경</button>
-        <button className="ec-btn" onClick={() => setOpened(
-          opened.size === shown.length ? new Set() : new Set(shown.map((r) => r.id)),
-        )}>
-          {opened.size === shown.length && shown.length > 0 ? '모두접기' : '모두펼쳐보기'}
-        </button>
-        <button className="ec-btn" disabled={selected.size === 0} style={selected.size === 0 ? { opacity: 0.45, cursor: 'not-allowed' } : undefined} onClick={() => void deleteSelected()}>선택삭제</button>
+        <button className="ec-btn ec-btn-primary" onClick={openNew}>신규(F2)</button>
+        <button className="ec-btn disabled:opacity-45" disabled={selected.size === 0} onClick={() => void changeStatusSelected()}>진행상태변경</button>
+        <button className="ec-btn" onClick={() => setOpened((v) => !v)}>{opened ? '모두접기' : '모두펼쳐보기'}</button>
+        <button className="ec-btn disabled:opacity-45" disabled={selected.size === 0} onClick={() => void deleteSelected()}>선택삭제</button>
         <button className="ec-btn" onClick={() => void doExcel()}>Excel</button>
-        <button className="ec-btn" onClick={doPrint}>인쇄</button>
       </div>
+
+      {/* 원본 '공지사항입력' / '공지사항입력(수정)' 창 — 항목이 한 줄에 하나씩 세로로 놓인다. */}
+      <Modal error={error} open={showForm} title={`${title}입력${editId != null ? '(수정)' : ''}`}
+             onClose={() => setShowForm(false)} width={780}>
+        <ul className="ec-form mb-[10px]">
+          <li className="wide">
+            <div className="title">제목</div>
+            <div className="form flex-col items-start">
+              <input className="ec-input w-full" placeholder="제목" value={form.title}
+                     onChange={(e) => set('title', e.target.value)} />
+              {/* 원본은 제목 칸 바로 아래에 [공지사항여부]를 단다. 켜면 목록 맨 위에 한 번 더 붙는다. */}
+              <label className="inline-flex items-center gap-[6px] text-[12px] cursor-pointer">
+                공지사항여부
+                <input type="checkbox" checked={form.notice} onChange={(e) => set('notice', e.target.checked)} />
+              </label>
+            </div>
+          </li>
+          <li className="wide">
+            <div className="title">전달자</div>
+            <div className="form"><input className="ec-input w-full" value={form.forwardTo} placeholder="전체"
+                                         onChange={(e) => set('forwardTo', e.target.value)} /></div>
+          </li>
+          <li className="wide">
+            <div className="title">참조자</div>
+            <div className="form"><input className="ec-input w-full" value={form.ccTo} placeholder="전체"
+                                         onChange={(e) => set('ccTo', e.target.value)} /></div>
+          </li>
+          <li className="wide">
+            <div className="title">첨부</div>
+            <div className="form">
+              <EcFileDrop busy={uploading} disabled={uploading}
+                          onFiles={(fs) => { if (fs[0]) void upload(fs[0]) }}>
+                {attachment && (
+                  <span className="text-[12px] text-ec-navy">
+                    {attachment.name}
+                    <span onClick={() => setAttachment(null)} className="cursor-pointer ml-[6px] font-bold">×</span>
+                  </span>
+                )}
+              </EcFileDrop>
+            </div>
+          </li>
+        </ul>
+        <textarea className="ec-input w-full h-[160px] py-[8px] resize-y" value={form.content}
+                  onChange={(e) => set('content', e.target.value)} />
+        <div className="flex gap-[6px] mt-[10px]">
+          <button className="ec-btn ec-btn-primary" onClick={() => void submit()}>저장(F8)</button>
+          {editId == null && (
+            <button className="ec-btn" onClick={() => { setForm(emptyForm()); setAttachment(null); setError('') }}>다시 작성</button>
+          )}
+          <button className="ec-btn" onClick={() => setShowForm(false)}>닫기</button>
+          {editId != null && <button className="ec-btn" onClick={() => void removeOne(editId).then(() => setShowForm(false))}>삭제</button>}
+        </div>
+      </Modal>
+
+      {/* 원본 '공지사항View' 창 */}
+      <Modal open={!!viewing} title={`${title}View`} onClose={() => setViewing(null)} width={780}>
+        {viewing && (
+          <>
+            <div className="bg-ec-page rounded-ec px-[12px] py-[8px] text-[12px] font-bold text-ec-ink">
+              {viewing.postNo} | {viewing.title} | {viewing.writerName ?? viewing.writer} | {stampText(viewing.createdAt)}
+            </div>
+            <ul className="ec-form border-0 mb-[6px]">
+              <li className="wide"><div className="title">일자-No.</div><div className="form text-ec-navy">{dateText(viewing.postDate)} -1</div></li>
+              <li className="wide">
+                <div className="title">첨부</div>
+                <div className="form">
+                  {viewing.attachmentId && (
+                    <span className="cursor-pointer text-ec-navy"
+                          onClick={() => void downloadStoredFile(viewing.attachmentId!, viewing.attachmentName ?? '첨부')}>
+                      {viewing.attachmentName} ({formatBytes(viewing.attachmentSize ?? 0)})
+                    </span>
+                  )}
+                </div>
+              </li>
+            </ul>
+            <div className="whitespace-pre-wrap text-[12px] text-ec-ink min-h-[120px] px-[12px]">{viewing.content}</div>
+            <div className="flex gap-[6px] mt-[10px]">
+              <button className="ec-btn" onClick={() => openEdit(viewing)}>수정</button>
+              <button className="ec-btn" onClick={() => void removeOne(viewing.id)}>삭제</button>
+              <button className="ec-btn" onClick={() => setViewing(null)}>닫기</button>
+              <button className="ec-btn" onClick={() => printPost(viewing)}>인쇄</button>
+            </div>
+          </>
+        )}
+      </Modal>
     </div>
   )
 }
