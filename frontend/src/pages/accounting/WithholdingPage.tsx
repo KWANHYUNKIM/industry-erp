@@ -307,23 +307,12 @@ function formCells(stmt: WithholdingStatement): Record<string, Cell> {
   return cells
 }
 
-/** 원본 [신고서 조회] — 서식 1쪽 Ⅰ. 원천징수 명세 및 납부세액(단위: 원). */
-function StatementModal({ ret, onClose }: { ret: WithholdingReturn; onClose: () => void }) {
-  const [stmt, setStmt] = useState<WithholdingStatement | null>(null)
-  const [error, setError] = useState('')
-  function load() {
-    setError('')
-    api.get<WithholdingStatement>('/withholding/statement', { params: { month: ret.attributionMonth } })
-      .then((r) => setStmt(r.data))
-      .catch((e) => setError(extractErrorMessage(e)))
-  }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(load, [ret.id])
+/** 신고서 서식 1쪽 — 조회 창과 원천세신고서 PDF 다운로드의 인쇄가 같이 쓴다. */
+export function StatementSheet({ ret, stmt }: { ret: WithholdingReturn; stmt: WithholdingStatement | null }) {
   const cells = stmt ? formCells(stmt) : {}
   const rows = [...FORM_ROWS, { code: 'A99', group: '', label: '총 합 계', pay: true }]
-
   return (
-    <Modal open title="원천징수이행상황신고서" onClose={onClose} width={900} error={error}>
+    <>
       <p className="text-[12px] mb-[6px]">
         ② 귀속연월 {ret.attributionMonth.replace('-', '년 ')}월 · ③ 지급연월 {ret.payMonth.replace('-', '년 ')}월 ·
         ① 신고구분 {ret.filingMethodName} · {ret.filingTypeName}
@@ -368,6 +357,26 @@ function StatementModal({ ret, onClose }: { ret: WithholdingReturn; onClose: () 
           })}
         </tbody>
       </table>
+    </>
+  )
+}
+
+/** 원본 [신고서 조회] — 서식 1쪽 Ⅰ. 원천징수 명세 및 납부세액(단위: 원). 원천세신고서 PDF 다운로드도 [조회]로 연다. */
+export function StatementModal({ ret, onClose }: { ret: WithholdingReturn; onClose: () => void }) {
+  const [stmt, setStmt] = useState<WithholdingStatement | null>(null)
+  const [error, setError] = useState('')
+  function load() {
+    setError('')
+    api.get<WithholdingStatement>('/withholding/statement', { params: { month: ret.attributionMonth } })
+      .then((r) => setStmt(r.data))
+      .catch((e) => setError(extractErrorMessage(e)))
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(load, [ret.id])
+
+  return (
+    <Modal open title="원천징수이행상황신고서" onClose={onClose} width={900} error={error}>
+      <StatementSheet ret={ret} stmt={stmt} />
       <div className="flex gap-[6px] mt-[12px]">
         <button className="ec-btn" onClick={load}>새로불러오기</button>
         <button className="ec-btn" onClick={onClose}>닫기</button>

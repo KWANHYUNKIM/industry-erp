@@ -741,6 +741,7 @@ const MENU: TopMenu[] = [
         nodes: [
           { label: '세무신고', children: [
             { label: '원천징수이행상황신고서', to: '/accounting/withholding' },
+            { label: '원천세신고서 PDF 다운로드', to: '/accounting/withholding/pdf' },
             { label: '원천징수이행상황신고서확인', to: '/accounting/withholding/confirm' },
             { label: '원천징수부', to: '/accounting/withholding/ledger' },
             { label: '소득세확인서', to: '/accounting/withholding/income-tax-cert' },
@@ -1200,8 +1201,10 @@ export default function EcountLayout() {
     )
   }
 
+  /* 가장 길게 맞는 메뉴 하나만 켠다 — '/accounting/withholding' 과 '/accounting/withholding/pdf' 가 함께 켜지지 않게 */
+  const bestLeafLen = Math.max(0, ...FLAT_MENU.map((f) => matchLength(f.to, location.pathname)))
   function sidebarLeaf(leaf: Leaf) {
-    const on = !!leaf.to && matchLength(leaf.to, location.pathname) > 0
+    const on = !!leaf.to && bestLeafLen > 0 && matchLength(leaf.to, location.pathname) === bestLeafLen
     return (
       <button
         key={leaf.label}

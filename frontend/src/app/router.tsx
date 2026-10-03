@@ -46,6 +46,7 @@ const ItemCostPage = lazy(() => import('../pages/accounting/ItemCostPage'))
 const VatSummaryPage = lazy(() => import('../pages/accounting/VatSummaryPage'))
 const WithholdingPage = lazy(() => import('../pages/accounting/WithholdingPage'))
 const WithholdingConfirmPage = lazy(() => import('../pages/accounting/WithholdingConfirmPage'))
+const WithholdingPdfPage = lazy(() => import('../pages/accounting/WithholdingPdfPage'))
 const WithholdingLedgerPage = lazy(() => import('../pages/accounting/WithholdingLedgerPage'))
 const IncomeTaxCertPage = lazy(() => import('../pages/accounting/IncomeTaxCertPage'))
 const RetirementPayPage = lazy(() => import('../pages/accounting/RetirementPayPage'))
@@ -508,6 +509,7 @@ export default function AppRouter() {
         <Route path="/accounting/evidence-center" element={<EvidenceCenterPage />} />
         <Route path="/datacenter/medical-device-report" element={<MedicalDeviceReportPage />} />
         <Route path="/accounting/withholding" element={<WithholdingPage />} />
+        <Route path="/accounting/withholding/pdf" element={<WithholdingPdfPage />} />
         <Route path="/accounting/withholding/confirm" element={<WithholdingConfirmPage />} />
         <Route path="/accounting/withholding/ledger" element={<WithholdingLedgerPage />} />
         <Route path="/accounting/withholding/income-tax-cert" element={<IncomeTaxCertPage />} />
