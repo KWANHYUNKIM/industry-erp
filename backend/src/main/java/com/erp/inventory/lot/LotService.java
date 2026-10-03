@@ -138,7 +138,14 @@ public class LotService {
         }
         lot.setStockQty(target);
         String note = "로트 실사조정" + (req.note() != null && !req.note().isBlank() ? " (" + req.note() + ")" : "");
-        recordTx(lot, LotTxType.ADJUST, delta, target, note);
+        /*
+         * 원본 시리얼/로트No.재고조정(E040634)이 남기는 줄은 [전표구분] '재고조정' · [연결전표-No.] 없음이다
+         * (2026-10-04 실측: QA재고2-LOT1 을 0 → 5 로 맞추면 내역조회에 2026/10/04 -1 · 재고조정 한 줄).
+         */
+        lotTxRepository.save(LotTransaction.builder()
+                .lot(lot).txDate(LocalDate.now()).type(LotTxType.ADJUST)
+                .quantityChange(delta).balanceAfter(target).note(note).docType("재고조정")
+                .build());
         return LotResponse.from(lot);
     }
 
