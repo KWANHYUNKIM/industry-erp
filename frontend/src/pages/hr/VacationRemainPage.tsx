@@ -22,6 +22,9 @@ import CodePickerField from '../../components/CodePickerField'
  * 사용기간 안에 시작한 것의 일수. 코드를 비우면 예전처럼 연도별 자동 연차로 센다.
  */
 interface Row {
+  /** 휴가코드 · 사번 — 휴가코드(휴가항목) 셈일 때만 있다(연도별 자동 연차는 계정 단위라 사번이 없다). */
+  leaveCode?: string
+  empCode?: string
   /** 휴가명 — '연차(2026년)'. 계산에 쓴 연도를 서버가 적어 보낸다. */
   leaveName: string
   empName: string
@@ -93,7 +96,7 @@ export default function VacationRemainPage() {
       setCodeRows(e.data.map((emp) => {
         const total = g.data.find((x) => x.employeeId === emp.id)?.totalDays ?? 0
         const used = v.data.filter((x) => x.empCode === emp.code && types.has(x.type)).reduce((t, x) => t + Number(x.days), 0)
-        return { leaveName: vk.name, empName: emp.name, department: emp.department, active: emp.active,
+        return { leaveCode: vk.code, empCode: emp.code, leaveName: vk.name, empName: emp.name, department: emp.department, active: emp.active,
           totalDays: Number(total), usedDays: used, remainingDays: Number(total) - used }
       }))
     } catch (err) {
@@ -219,9 +222,10 @@ export default function VacationRemainPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th className="w-[34px]"></th>
+            <th className="w-[90px]">휴가코드</th>
             <th className="w-[140px]">휴가명</th>
             <th>부서명</th>
+            <th className="w-[100px]">사번</th>
             <th>성명</th>
             <th className="text-right">휴가일수</th>
             <th className="text-right">휴가사용일수</th>
@@ -230,14 +234,15 @@ export default function VacationRemainPage() {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.empName + i}>
-              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td>{r.leaveCode ?? ''}</td>
               <td>{r.leaveName}</td>
               <td>{r.department ?? ''}</td>
+              <td>{r.empCode ?? ''}</td>
               <td>{r.empName}{r.active ? '' : ' (퇴사)'}</td>
               <td className="text-right">{byCode && !r.totalDays ? '' : days(r.totalDays)}</td>
               <td className="text-right">{byCode && !r.usedDays ? '' : days(r.usedDays)}</td>
@@ -247,7 +252,7 @@ export default function VacationRemainPage() {
         </tbody>
         <tfoot>
           <tr className="font-bold bg-ec-page">
-            <td colSpan={4} className="text-right">합계 ({shown.length}명)</td>
+            <td colSpan={5} className="text-right">합계 ({shown.length}명)</td>
             <td className="text-right">{days(totals.total)}</td>
             <td className="text-right">{days(totals.used)}</td>
             <td className="text-right text-ec-navy">{days(totals.remain)}</td>
