@@ -12,12 +12,12 @@ type Category = 'EDUCATION' | 'CAREER' | 'LICENSE' | 'FAMILY' | 'LANGUAGE' | 'RE
 type DateKey = 'fromDate' | 'toDate' | 'date3' | 'date4'
 type TextKey = 'text1' | 'text2' | 'text3' | 'text4' | 'text5' | 'text6' | 'text7' | 'text8' | 'text9' | 'text10'
 type Row = Record<DateKey | TextKey, string>
-interface Col { label: string; key: DateKey | TextKey; kind?: 'date' | 'select' | 'number'; options?: string[] }
+interface Col { label: string; key: DateKey | TextKey; kind?: 'date' | 'select' | 'number' | 'radio'; options?: string[] }
 const YN = ['여', '부']
 
 /**
  * 원본 [인사자료] 입력 창의 열 차례(2026-10-03 loginaa 실측, 열한 항목 전부). 서버는 날짜 넷 + 글자 칸 열로 받는다.
- * 원본 가족사항의 동거여부 · 부양여부는 여/부 라디오 — 우리는 여/부 드롭다운. 숫자 칸(비용 · 일수)은 글자로 담고 오른쪽에 붙인다.
+ * 원본 가족사항의 동거여부 · 부양여부는 여/부 라디오 — 우리도 라디오(줄마다 이름을 따로 둔다). 숫자 칸(비용 · 일수)은 글자로 담고 오른쪽에 붙인다.
  */
 const CATEGORIES: { key: Category; label: string; cols: Col[] }[] = [
   {
@@ -48,7 +48,7 @@ const CATEGORIES: { key: Category; label: string; cols: Col[] }[] = [
     key: 'FAMILY', label: '가족사항', cols: [
       { label: '주민등록번호', key: 'text1' }, { label: '성명', key: 'text2' }, { label: '관계', key: 'text3' },
       { label: '최종학력', key: 'text4' }, { label: '직업', key: 'text5' }, { label: '회사명', key: 'text6' }, { label: '직위', key: 'text7' },
-      { label: '동거여부', key: 'text8', kind: 'select', options: YN }, { label: '부양여부', key: 'text9', kind: 'select', options: YN },
+      { label: '동거여부', key: 'text8', kind: 'radio', options: YN }, { label: '부양여부', key: 'text9', kind: 'radio', options: YN },
     ],
   },
   {
@@ -265,6 +265,14 @@ export default function HrCardPage() {
                                   <option value=""></option>
                                   {c.options!.map((o) => <option key={o}>{o}</option>)}
                                 </select>
+                              ) : c.kind === 'radio' ? (
+                                <span className="inline-flex gap-[8px] whitespace-nowrap">
+                                  {c.options!.map((o) => (
+                                    <label key={o} className="inline-flex items-center gap-[3px]">
+                                      <input type="radio" name={`hr-${detail.cat.key}-${c.key}-${i}`} checked={r[c.key] === o} onChange={() => set(o)} /> {o}
+                                    </label>
+                                  ))}
+                                </span>
                               ) : c.kind === 'number' ? (
                                 <input className="ec-input w-full text-right" inputMode="decimal" value={r[c.key]}
                                        onChange={(ev) => set(ev.target.value.replace(/[^0-9.]/g, ''))} />
