@@ -1753,6 +1753,8 @@ export interface EmployeeMaster {
   accountHolder: string | null
   /** 원본 사원등록 [입사구분] — 100 신입 · 200 경력 */
   hireKind: string | null
+  /** 원본 사원등록 [직책] — 100 팀원 · 200 팀장 */
+  duty: string | null
 }
 
 export type EmployeePayType = 'FIXED' | 'VARIABLE'

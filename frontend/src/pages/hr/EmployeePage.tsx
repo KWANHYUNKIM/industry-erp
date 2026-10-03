@@ -50,7 +50,7 @@ export default function EmployeePage() {
     hireDate: new Date().toISOString().slice(0, 10), resignDate: '', resignReason: '',
     phone: '', mobile: '', email: '', address: '', remark: '',
     payType: 'FIXED' as EmployeePayType, baseSalary: '',
-    bankCode: '', bankName: '', accountNo: '', accountHolder: '', hireKind: '',
+    bankCode: '', bankName: '', accountNo: '', accountHolder: '', hireKind: '', duty: '',
   }
   const [form, setForm] = useState(empty)
 
@@ -85,7 +85,7 @@ export default function EmployeePage() {
     setForm({
       code: e.code, name: e.name,
       departmentId: e.departmentId ? String(e.departmentId) : '',
-      jobTitle: e.jobTitle ?? '', hireKind: e.hireKind ?? '',
+      jobTitle: e.jobTitle ?? '', hireKind: e.hireKind ?? '', duty: e.duty ?? '',
       hireDate: e.hireDate ?? '', resignDate: e.resignDate ?? '', resignReason: e.resignReason ?? '',
       phone: e.phone ?? '', mobile: e.mobile ?? '', email: e.email ?? '',
       address: e.address ?? '', remark: e.remark ?? '',
@@ -121,6 +121,7 @@ export default function EmployeePage() {
       accountNo: form.accountNo.trim() || null,
       accountHolder: form.accountHolder.trim() || null,
       hireKind: form.hireKind,
+      duty: form.duty,
     }
     try {
       if (editId) {
@@ -298,6 +299,13 @@ export default function EmployeePage() {
               </Field>
               <Field label="직위/직급">
                 <input className={inputCls} value={form.jobTitle} onChange={set('jobTitle')} placeholder="직위/직급" />
+              </Field>
+              {/* 원본 [직책] 코드도움 — 100 팀원 · 200 팀장 */}
+              <Field label="직책">
+                <CodePickerField label="직책" hideLabel fill placeholder="직책" emptyLabel="선택 해제"
+                                 value={form.duty} onChange={(v) => setForm({ ...form, duty: v })}
+                                 items={[{ value: '팀원', code: '100', name: '팀원' }, { value: '팀장', code: '200', name: '팀장' },
+                                   ...(form.duty && !['팀원', '팀장'].includes(form.duty) ? [{ value: form.duty, name: form.duty }] : [])]} />
               </Field>
               <Field label="퇴사일자">
                 <input type="date" className={inputCls} value={form.resignDate} onChange={set('resignDate')} />
