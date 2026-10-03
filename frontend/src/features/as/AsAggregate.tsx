@@ -15,6 +15,8 @@ import { weekOfYear } from '../../utils/statusAggregate'
  *   <li>조건2 가 있으면 조건1 칸은 묶음 첫 줄에만 적고, 묶음 끝에 '&lt;이름&gt; 계' 소계, 맨 끝 [합계].</li>
  *   <li>품목 이름은 규격 앞에 한 칸을 띄운다('익스트림 울트라 명품 조립PC [1EA]').</li>
  *   <li>출력물 머리글은 'A/S…현황'(내역 판은 'AS…현황'), 꼬리에 [P.1] 이 없다.</li>
+ *   <li>품질검사현황(E040623)도 같은 판이고 값 열이 넷이다 — [수량 · 시료 · 적격 · 부적격](2026-10-04 실측).
+ *       그래서 값 열은 <code>measures</code> 로 받는다(기본 [수량]).</li>
  * </ul>
  */
 export const AS_AGG_KEYS = ['일별', '주차별', '월별', '분기별', '반기별', '연별', '담당자', '창고', '관리항목',
@@ -33,6 +35,8 @@ export interface AsAggLine {
   itemGroup: string
   project: [string, string]
   qty: number
+  /** 값 열이 여럿인 화면(품질검사현황)의 값 — <code>measures</code> 와 같은 차례. 없으면 [qty]. */
+  vals?: number[]
 }
 
 const CODED: AsAggKey[] = ['창고', '거래처', '품목명[규격]', '프로젝트']
@@ -84,28 +88,35 @@ export function AsAggControls({ value, onChange, keys = AS_AGG_KEYS }: {
 }
 
 /** ○집계 판 — 머리글 · 표 · 꼬리. */
-export function AsAggregateTable({ title, period, lines, value }: {
+export function AsAggregateTable({ title, period, lines, value, measures = ['수량'], blankZero = [] }: {
   title: string; period: string; lines: AsAggLine[]; value: AsAggValue
+  /** 값 열 이름(기본 [수량]). */
+  measures?: string[]
+  /** 0 이면 빈칸으로 두는 값 열 — 원본 품질검사현황의 [부적격]. */
+  blankZero?: string[]
 }) {
   const { agg1, agg2, codeIncl } = value
-  const m = new Map<string, { n1: string; c1: string; n2: string; c2: string; qty: number }>()
+  const valsOf = (x: AsAggLine) => x.vals ?? [x.qty]
+  const m = new Map<string, { n1: string; c1: string; n2: string; c2: string; v: number[] }>()
   if (agg1) {
     for (const x of lines) {
       const [n1, c1] = axis(agg1, x)
       const [n2, c2] = agg2 ? axis(agg2, x) : ['', '']
       const k = `${n1}␟${n2}`
-      const cur = m.get(k) ?? { n1, c1, n2, c2, qty: 0 }
-      cur.qty += x.qty
+      const cur = m.get(k) ?? { n1, c1, n2, c2, v: measures.map(() => 0) }
+      valsOf(x).forEach((n, i) => { cur.v[i] += n })
       m.set(k, cur)
     }
   }
+  const sum = (rs: { v: number[] }[]) => measures.map((_, i) => rs.reduce((n, r) => n + r.v[i], 0))
+  const cell = (n: number, i: number) => (blankZero.includes(measures[i]) && n === 0 ? '' : qty2(n))
   /* 차례는 코드순(코드가 없으면 이름) — 원본 정렬 선택상자의 기본값. */
   const key = (n: string, c: string) => c || n
   const rows = [...m.values()].sort((a, b) => key(a.n1, a.c1).localeCompare(key(b.n1, b.c1), 'ko') || key(a.n2, a.c2).localeCompare(key(b.n2, b.c2), 'ko'))
   const head = (k: AsAggKey | '') => (k ? [...(codeIncl && CODED.includes(k) ? [`${k}코드`] : []), k] : [])
   const cells = (n: string, c: string, k: AsAggKey | '') => (k ? [...(codeIncl && CODED.includes(k) ? [c] : []), n] : [])
   const cols = [...head(agg1), ...head(agg2)]
-  const total = lines.reduce((n, x) => n + x.qty, 0)
+  const total = sum(lines.map((x) => ({ v: valsOf(x) })))
   /* 조건2 · 코드포함에 따라 열이 는다 — 렌더된 표를 직접 잰다. */
   const ref = useRef<HTMLTableElement>(null)
   useTableColumnCheck(ref, `${title} 집계`, [agg1, agg2, codeIncl, rows.length])
@@ -118,11 +129,11 @@ export function AsAggregateTable({ title, period, lines, value }: {
         <table ref={ref} className="w-full text-left">
           <thead><tr>
             {cols.map((h) => <th key={h}>{h}</th>)}
-            <th className="text-right">수량</th>
+            {measures.map((h) => <th key={h} className="text-right">{h}</th>)}
           </tr></thead>
           <tbody>
             {rows.length === 0 ? (
-              <tr><td colSpan={cols.length + 1} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={cols.length + measures.length} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : rows.flatMap((g, i) => {
               const first = i === 0 || rows[i - 1].n1 !== g.n1
               const last = i === rows.length - 1 || rows[i + 1].n1 !== g.n1
@@ -130,14 +141,14 @@ export function AsAggregateTable({ title, period, lines, value }: {
                 <tr key={`${g.n1}␟${g.n2}`}>
                   {cells(g.n1, g.c1, agg1).map((v, j) => <td key={j}>{!agg2 || first ? v : ''}</td>)}
                   {cells(g.n2, g.c2, agg2).map((v, j) => <td key={`b${j}`}>{v}</td>)}
-                  <td className="text-right">{qty2(g.qty)}</td>
+                  {g.v.map((n, j) => <td key={`v${j}`} className="text-right">{cell(n, j)}</td>)}
                 </tr>,
               ]
               if (agg2 && last) {
                 out.push(
                   <tr key={`${g.n1}␟계`} className="ec-list-total">
                     <td colSpan={cols.length} className="text-center font-bold">{g.n1} 계</td>
-                    <td className="text-right font-bold">{qty2(rows.filter((x) => x.n1 === g.n1).reduce((n, x) => n + x.qty, 0))}</td>
+                    {sum(rows.filter((x) => x.n1 === g.n1)).map((n, j) => <td key={`s${j}`} className="text-right font-bold">{cell(n, j)}</td>)}
                   </tr>,
                 )
               }
@@ -147,7 +158,7 @@ export function AsAggregateTable({ title, period, lines, value }: {
           {rows.length > 0 && (
             <tfoot><tr className="ec-total">
               <td colSpan={cols.length} className="text-center">합계</td>
-              <td className="text-right">{qty2(total)}</td>
+              {total.map((n, j) => <td key={`t${j}`} className="text-right">{cell(n, j)}</td>)}
             </tr></tfoot>
           )}
         </table>

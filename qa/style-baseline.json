@@ -996,7 +996,7 @@
  },
  "pages/quality/QualityStatusPage.tsx": {
   "inline": 44,
-  "color": 1,
+  "color": 0,
   "palette": 0
  },
  "pages/quality/SerialLotPage.tsx": {

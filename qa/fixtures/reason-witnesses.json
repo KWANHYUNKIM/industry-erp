@@ -3277,9 +3277,10 @@
   ]
  },
  "품질검사현황|정렬/소계기준": {
-  "claim": "이 표는 검사일 내림차순 하나로 세운다 — 고를 축이 없다",
+  "claim": "이 표는 원본 기본 판대로 검사일 오름차순에 달마다 '2026/10 계' 소계를 세운다",
   "present": [
-   "a.inspectionDate < b.inspectionDate ? 1"
+   "a.inspectionDate < b.inspectionDate ? -1",
+   " 계</td>"
   ]
  },
  "A/S접수현황|정렬/소계기준": {
