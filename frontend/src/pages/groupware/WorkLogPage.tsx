@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import Modal from '../../components/Modal'
 import EcPeriodPicks, { periodOf, ymd } from '../../components/EcPeriodPicks'
+
+const WORKLOG_PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월', '전월', '금년', '전년', '종료일', '최근3일+7일'] as const
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableSort } from '../../utils/useTableSort'
@@ -320,7 +322,9 @@ export default function WorkLogPage() {
       {/* 원본 하단: 검색(F8) + 기간 빠른선택 + 다시 작성 */}
       <div className="flex flex-wrap gap-[4px] items-center mb-[10px]">
         <button className="ec-btn ec-btn-primary" onClick={() => flash(`조회 결과 ${shown.length}건`)}>검색(F8)</button>
-        <EcPeriodPicks onPick={(r) => setCond((c) => ({ ...c, from: r.from, to: r.to }))} />
+        {/* 원본 업무일지 빠른선택(2026-10-03 실측): 금일 · 전일 · 금주(~오늘) · 전주 · 금월 · 전월 · 금년 · 전년 · <b>종료일</b> · 최근3일+7일.
+            공용 기본 묶음(JOURNAL_PICKS)에는 [종료일]이 없어 이 화면만 따로 넘긴다 — 공용 기본을 바꾸면 다른 화면이 같이 바뀐다. */}
+        <EcPeriodPicks labels={WORKLOG_PICKS} onPick={(r) => setCond((c) => ({ ...c, from: r.from, to: r.to }))} />
         <button
           className="ec-btn"
           onClick={() => {
