@@ -639,7 +639,14 @@ const MENU: TopMenu[] = [
         label: '인사관리',
         nodes: [
           { label: '인사카드등록', to: '/hr/cards' },
-          { label: '인사발령', to: '/hr/records' },
+          {
+            label: '인사발령',
+            children: [
+              { label: '인사발령조회', to: '/hr/assignments' },
+              { label: '인사발령입력', to: '/hr/assignments/input' },
+              { label: '인사발령현황', to: '/hr/assignments/status' },
+            ],
+          },
           { label: '인사관리현황', children: [{ label: '인원현황', to: '/hr/headcount' }] },
           { label: '조직도', to: '/groupware/org' },
         ],

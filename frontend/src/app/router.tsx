@@ -256,6 +256,9 @@ const WorkConfirmStatusPage = lazy(() => import('../pages/hr/WorkConfirmStatusPa
 const PayTransferStatusPage = lazy(() => import('../pages/hr/PayTransferStatusPage'))
 const HrCardPage = lazy(() => import('../pages/hr/HrCardPage'))
 const HrRecordPage = lazy(() => import('../pages/hr/HrRecordPage'))
+const AssignmentListPage = lazy(() => import('../pages/hr/AssignmentListPage'))
+const AssignmentInputPage = lazy(() => import('../pages/hr/AssignmentInputPage'))
+const AssignmentStatusPage = lazy(() => import('../pages/hr/AssignmentStatusPage'))
 const LaborContractPage = lazy(() => import('../pages/hr/ContractPage'))
 const DailyWagePage = lazy(() => import('../pages/hr/DailyWagePage'))
 const NoticePage = lazy(() => import('../pages/groupware/NoticePage'))
@@ -680,6 +683,9 @@ export default function AppRouter() {
         <Route path="/hr/work-input" element={<WorkInputPage />} />
         <Route path="/hr/work-list" element={<WorkListPage />} />
         <Route path="/hr/records" element={<HrRecordPage />} />
+        <Route path="/hr/assignments" element={<AssignmentListPage />} />
+        <Route path="/hr/assignments/input" element={<AssignmentInputPage />} />
+        <Route path="/hr/assignments/status" element={<AssignmentStatusPage />} />
         <Route path="/hr/contracts" element={<LaborContractPage />} />
         <Route path="/hr/daily-wage" element={<DailyWagePage />} />
 
