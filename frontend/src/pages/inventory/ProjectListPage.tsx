@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import BulkChangeModal from '../../components/BulkChangeModal'
 import { useTableSort } from '../../utils/useTableSort'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
@@ -26,6 +27,8 @@ export default function ProjectListPage() {
   const [checked, setChecked] = useState<Set<number>>(new Set())
   const [quick, setQuick] = useState('')
   const [includeInactive, setIncludeInactive] = useState(false)
+  /** 원본 [변경](2026-10-04 실측: 항목검색 프로젝트명 · 프로젝트그룹1 · 2 · 적요 · 부가정보 · 사용구분) — 담을 칸이 있는 것만. */
+  const [bulkOpen, setBulkOpen] = useState(false)
   const tableRef = useRef<HTMLTableElement>(null)
 
   const [formOpen, setFormOpen] = useState(false)
@@ -107,11 +110,30 @@ export default function ProjectListPage() {
       onSearch={() => undefined}
       onNew={openNew}
       actions={[
+        { label: '변경', onClick: () => {
+          if (checked.size === 0) { setError('리스트에 선택된 자료가 없습니다. 체크박스에 체크한 후 다시 시도 바랍니다.'); return }
+          setError(''); setBulkOpen(true)
+        } },
         { label: '사용중단/재사용 ▲', onClick: () => setMenuOpen((v) => !v), disabled: checked.size === 0 },
         { label: includeInactive ? '사용중단제외' : '사용중단포함', onClick: () => setIncludeInactive((v) => !v) },
         { label: 'Excel' },
       ]}
     >
+      {bulkOpen && (
+        <BulkChangeModal rows={rows.filter((r) => checked.has(r.id))} codeLabel="프로젝트코드"
+                         fields={[
+                           { key: 'name', label: '프로젝트명', kind: 'text' },
+                           { key: 'remark', label: '적요', kind: 'text' },
+                           { key: 'active', label: '사용구분', kind: 'select', options: [['true', 'Yes'], ['false', 'No']] },
+                         ]}
+                         initial={(p) => ({ name: p.name, remark: p.remark ?? '', active: String(p.active) })}
+                         saveRow={async (p, d) => {
+                           if (!d.name.trim()) throw new Error('프로젝트명을 입력 바랍니다.')
+                           await api.patch(`/projects/${p.id}`, { name: d.name.trim(), remark: d.remark.trim(), active: d.active !== 'false' })
+                         }}
+                         onClose={() => setBulkOpen(false)}
+                         onSaved={() => { setBulkOpen(false); setChecked(new Set()); load() }} />
+      )}
       {menuOpen && (
         <>
           <div className="ec-backdrop-clear" onClick={() => setMenuOpen(false)} />
