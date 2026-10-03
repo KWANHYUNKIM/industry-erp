@@ -40,4 +40,9 @@ public class Account extends BaseTimeEntity {
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;
+
+    /** 지출증빙현황 [계정설정]의 인쇄방법 — true 면 '표시'. 원본은 모든 계정이 '표시안함' 으로 시작한다. */
+    @Column(name = "evidence_report", nullable = false)
+    @Builder.Default
+    private boolean evidenceReport = false;
 }
