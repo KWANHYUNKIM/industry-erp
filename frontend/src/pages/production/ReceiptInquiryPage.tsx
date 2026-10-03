@@ -72,7 +72,8 @@ interface Row {
  * 원본 생산입고조회 격자의 마지막 열 <b>[인쇄]</b> — 그 한 건을 생산입고증으로 찍는다.
  * 금액 칸은 안 그린다(생산입고는 사내 이동이라 금액이 없다 — 0 으로 채우면 0원 거래로 읽힌다).
  */
-async function printOne(r: Row) {
+/** 담당자는 전표의 사원이다 — 만든 계정(createdBy)이 아니다. 이름은 부르는 쪽이 붙여 준다. */
+async function printOne(r: Row, employeeName: string) {
   await printDocuments([{
     title: '생산입고증',
     docNo: r.prodNo,
@@ -85,7 +86,7 @@ async function printOne(r: Row) {
       { label: '생산된공장', value: r.fromWarehouseName ?? r.warehouseName },
       { label: '받는창고', value: r.warehouseName },
       { label: '작업지시서', value: r.workOrderNo ?? '' },
-      { label: '담당자', value: r.createdBy },
+      { label: '담당자', value: employeeName },
     ],
     lines: [{
       itemCode: r.productCode, itemName: r.productName, unit: r.productUnit,
@@ -143,9 +144,13 @@ export default function ReceiptInquiryPage() {
   const [outsourcedOnly, setOutsourcedOnly] = useState(false)
   const mgmt = useItemMgmt()
   const pickers = useCondPickers(['warehouses', 'projects', 'items', 'employees'])
-  /** 담당자 이름. 서버가 못 붙여서(production 은 hr 을 못 참조) 화면이 붙인다. */
+  /**
+   * 담당자 이름. 서버가 못 붙여서(production 은 hr 을 못 참조) 화면이 붙인다.
+   * 사원 후보의 value 는 <b>이름</b>이고 id 는 따로 있다 — value 를 id 와 견주어 [담당자명] 칸이 늘 비고
+   * [담당자] 조건을 고르면 목록이 통째로 비었다.
+   */
   const empName = (id: number | null) =>
-    (id == null ? '' : (pickers.employees.find((e) => String(e.value) === String(id))?.name ?? ''))
+    (id == null ? '' : (pickers.employees.find((e) => e.id === id)?.name ?? ''))
 
   async function load() {
     setLoading(true)
@@ -438,7 +443,7 @@ export default function ReceiptInquiryPage() {
               <td>{empName(r.employeeId)}</td>
               <td>{r.workOrderNo ?? ''}</td>
               <td className="text-center">
-                <button onClick={() => printOne(r)} style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
+                <button onClick={() => printOne(r, empName(r.employeeId))} style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
               </td>
               <td>{r.productUnit}</td>
             </tr>
