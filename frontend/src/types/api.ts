@@ -2002,6 +2002,56 @@ export interface WithholdingLedgerEmployee {
   months: { payMonth: string; taxablePay: number; nonTaxablePay: number; incomeTax: number; localIncomeTax: number }[]
 }
 
+/** 퇴직금계산 (E030117) 목록 한 줄 */
+export interface RetirementPay {
+  id: number
+  employeeId: number
+  employeeCode: string
+  employeeName: string
+  department: string
+  hireDate: string | null
+  startDate: string
+  retireDate: string
+  payDate: string
+  withholdingMonth: string
+  retireReason: string | null
+  executive: boolean
+  extraPay: number
+  retirementPay: number
+  nonTaxable: number
+  incomeTax: number
+  localIncomeTax: number
+  deductionTotal: number
+  netPay: number
+}
+
+/** 퇴직금계산 내역(ⓐ~ⓘ) · 퇴직소득세 (28)~(34) */
+export interface RetirementPayCalculation {
+  wageFrom: string
+  wageTo: string
+  wages: { month: string; amount: number }[]
+  wage3m: number
+  bonusFrom: string
+  bonusTo: string
+  bonuses: { month: string; amount: number }[]
+  bonus1y: number
+  bonus3m: number
+  extraPay: number
+  total3m: number
+  workDays3m: number
+  dailyWage: number
+  serviceDays: number
+  computedPay: number
+  serviceMonths: number
+  serviceYears: number
+  retirementPay: number
+  nonTaxable: number
+  tax: {
+    income: number; serviceDeduction: number; converted: number; convertedDeduction: number
+    taxBase: number; convertedTax: number; computedTax: number; incomeTax: number; localIncomeTax: number
+  }
+}
+
 export interface ReceiptMonth {
   payMonth: string
   grossPay: number
