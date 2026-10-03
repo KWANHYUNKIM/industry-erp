@@ -1,5 +1,5 @@
 {
-  "about": "관리 > 휴가잔여일수현황(E020716) — [휴가코드]에서 휴가항목을 고르면 원본 셈: 사원마다 휴가일수(사원별휴가일수) · 휴가사용일수(그 휴가코드를 가리키는 근태항목의 근태) · 휴가잔여일수. 2091 휴가항목에 EMP-0001 15일 부여 · 근태 1.5일(계정이 이어져 있으면)이면 15.000 / 1.500 / 13.500. 시험 자료는 지운다. 열은 원본 차례 휴가코드 · 휴가명 · 부서명 · 사번 · 성명 · 휴가일수 · 휴가사용일수 · 휴가잔여일수.",
+  "about": "관리 > 휴가잔여일수현황(E020716) — [휴가코드]에서 휴가항목을 고르면 원본 셈: 사원마다 휴가일수(사원별휴가일수) · 휴가사용일수(그 휴가코드를 가리키는 근태항목의 근태) · 휴가잔여일수. 2091 휴가항목에 EMP-0001 15일 부여 · 근태 1.5일(계정이 이어져 있으면)이면 15.000 / 1.500 / 13.500. 시험 자료는 지운다. 열은 원본 차례 휴가코드 · 휴가명 · 부서명 · 사번 · 성명 · 휴가일수 · 휴가사용일수 · 휴가잔여일수. [사원]은 여러 개 고르는 코드도움 — 고른 사원 줄만 남는다.",
   "shots": [
     {
       "name": "휴가코드 고르기 → 부여 · 사용 · 잔여 → 정리",
@@ -11,6 +11,11 @@
         "pick:휴가코드:QA관리-휴가R",
         "wait:1500",
         "expect:(()=>{const q=JSON.parse(sessionStorage.getItem('qaVr'));const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes(q.name)&&t.innerText.includes('QA관리-휴가R'));if(!tr)return false;const c=[...tr.cells].map(x=>x.innerText.trim());return c[0]===q.code&&c[3]==='EMP-0001'&&c[5]==='15.000'&&(q.vac?(c[6]==='1.500'&&c[7]==='13.500'):c[7]==='15.000')})()",
+        "js:(()=>{sessionStorage.setItem('qaVrName',JSON.parse(sessionStorage.getItem('qaVr')).name);document.querySelector('button[title=\"사원 선택\"]').click();return true})()",
+        "pickrow:@qaVrName",
+        "clicklast:확인",
+        "wait:400",
+        "expect:(()=>{const n=sessionStorage.getItem('qaVrName');const trs=[...document.querySelectorAll('table:first-of-type tbody tr')].filter(t=>t.cells.length>5);return trs.length>0&&trs.every(t=>t.cells[4].innerText.trim().startsWith(n))})()",
         "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const q=JSON.parse(sessionStorage.getItem('qaVr'));let ok=true;if(q.vac)ok=(await fetch('/api/hr/vacations/'+q.vac,{method:'DELETE',headers:h})).ok&&ok;ok=(await fetch('/api/hr/vacation-kinds/'+q.v+'/grants',{method:'DELETE',headers:h})).ok&&ok;ok=(await fetch('/api/hr/attendance-kinds/'+q.k,{method:'DELETE',headers:h})).ok&&ok;ok=(await fetch('/api/hr/vacation-kinds/'+q.v,{method:'DELETE',headers:h})).ok&&ok;sessionStorage.setItem('qaVrClean',String(ok));return true})()",
         "expect:sessionStorage.getItem('qaVrClean')==='true'"
       ]

@@ -37,14 +37,22 @@ interface Row {
 }
 
 /** 원본 [재직구분]. 값은 서버가 그대로 받는다. */
-const EMPLOYMENTS = [['ACTIVE', '재직자'], ['RESIGNED', '퇴사자'], ['ALL', '전체']] as const
+/** 원본 [재직구분] 라디오 차례: 전체 · 재직자 · 퇴사자 (기본 재직자) */
+const EMPLOYMENTS = [['ALL', '전체'], ['ACTIVE', '재직자'], ['RESIGNED', '퇴사자']] as const
 
 export default function VacationRemainPage() {
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [emp, setEmp] = useState('')
-  const [dept, setDept] = useState('')
+  /** 사원 · 부서는 여러 개 고르는 코드도움 — 연도별 줄은 계정 단위라 id 가 없어 이름으로 거른다. */
+  const [emp, setEmp] = useState<string[]>([])
+  const [dept, setDept] = useState<string[]>([])
+  const [empList, setEmpList] = useState<{ id: number; code: string; name: string; department: string }[]>([])
+  const [deptList, setDeptList] = useState<{ id: number; code?: string | null; name: string }[]>([])
+  useEffect(() => {
+    api.get<typeof empList>('/employees/all').then((r) => setEmpList(r.data)).catch(() => setEmpList([]))
+    api.get<typeof deptList>('/departments').then((r) => setDeptList(r.data)).catch(() => setDeptList([]))
+  }, [])
   /**
    * 표시 자릿수. 원본은 15.000 · 9.375 처럼 <b>소수 3자리</b>로 보여 준다.
    * 시간 단위 휴가가 0.125일(1시간)씩 쌓이므로 1자리로 줄이면 합이 안 맞는다 —
@@ -123,8 +131,8 @@ export default function VacationRemainPage() {
 
   const byCode = codeRows !== null
   const shown = (byCode ? codeRows : rows).filter((r) => {
-    if (emp && !r.empName.includes(emp)) return false
-    if (dept && !(r.department ?? '').includes(dept)) return false
+    if (emp.length && !emp.includes(r.empName)) return false
+    if (dept.length && !dept.includes(r.department ?? '')) return false
     if (!byCode && leaveCode && r.leaveName !== leaveCode) return false
     if (byCode && employment !== 'ALL' && (employment === 'ACTIVE') !== r.active) return false
     return true
@@ -148,7 +156,7 @@ export default function VacationRemainPage() {
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: () => {
-          setEmp(''); setDept(''); setDecimals(3); setEmployment('ACTIVE')
+          setEmp([]); setDept([]); setDecimals(3); setEmployment('ACTIVE')
           setYear(new Date().getFullYear())
         } },
         { label: '인쇄' },
@@ -172,25 +180,24 @@ export default function VacationRemainPage() {
                              ...[...new Set(rows.map((r) => r.leaveName).filter(Boolean))].map((n) => ({ value: n, name: n })),
                            ]} />
         </EcCond>
-        <EcCond label="사원" pick>
-          <input className="ec-input" placeholder="사원명 일부" value={emp}
-                 onChange={(e) => setEmp(e.target.value)} style={{ width: 180 }} />
+        <EcCond label="사원">
+          <CodePickerField label="사원" hideLabel fill multiple placeholder="사원" values={emp} onChangeMulti={(v) => setEmp(v)}
+                           items={empList.map((e) => ({ value: e.name, code: e.code, name: e.name, sub: e.department }))} />
         </EcCond>
         <EcCond label="부서" pick>
-          <input className="ec-input" placeholder="부서명 일부" value={dept}
-                 onChange={(e) => setDept(e.target.value)} style={{ width: 180 }} />
+          <CodePickerField label="부서" hideLabel fill multiple placeholder="부서" values={dept} onChangeMulti={(v) => setDept(v)}
+                           items={deptList.map((d) => ({ value: d.name, code: d.code ?? undefined, name: d.name }))} />
         </EcCond>
         {/*
           원본 조건 [휴가코드]. 줄에 '연차(2026년)' 처럼 코드가 찍히는데 그걸로 거를
           자리가 없었다 — 연차 말고 다른 휴가를 따로 볼 수가 없었다.
         */}
         <EcCond label="재직구분">
-          <div className="ec-pills">
-            {EMPLOYMENTS.map(([v, label]) => (
-              <button key={v} type="button" className={`ec-pill no-ec${employment === v ? ' active' : ''}`}
-                      onClick={() => setEmployment(v)}>{label}</button>
-            ))}
-          </div>
+          {EMPLOYMENTS.map(([v, label]) => (
+            <label key={v} className="inline-flex items-center gap-[4px] mr-[10px]">
+              <input type="radio" name="vr-employment" checked={employment === v} onChange={() => setEmployment(v)} /> {label}
+            </label>
+          ))}
         </EcCond>
         <EcCond label="소수점">
           <select className="ec-input" style={{ width: 90 }} value={decimals}
