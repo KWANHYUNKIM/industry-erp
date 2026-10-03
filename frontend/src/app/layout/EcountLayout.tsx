@@ -751,6 +751,9 @@ const MENU: TopMenu[] = [
             { label: '퇴직금계산', to: '/hr/retirement-pay' },
           ] },
           { label: '간이지급명세서', to: '/accounting/simple-payment' },
+          { label: '지급명세서', children: [
+            { label: '소득자료제출집계표', to: '/accounting/withholding/income-submission' },
+          ] },
           { label: '출력물', children: [
             { label: '근로소득원천징수영수증', to: '/accounting/withholding?tab=영수증' },
           ] },

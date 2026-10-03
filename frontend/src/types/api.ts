@@ -3158,3 +3158,6 @@ export interface SimplePaymentSheet {
   payees: { payeeName: string; payeeRegNo: string | null; count: number; gross: number; expense: number; taxable: number;
     rate: number; incomeTax: number; localIncomeTax: number }[]
 }
+
+/** 소득자료제출집계표(E030508) — GET /withholding/income-submission */
+export interface IncomeSubmission { kind: string; pages: number; count: number; income: number; incomeTax: number; localIncomeTax: number }
