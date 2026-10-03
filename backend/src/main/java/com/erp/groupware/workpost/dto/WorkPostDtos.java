@@ -51,6 +51,11 @@ public final class WorkPostDtos {
             Long attachmentId
     ) {}
 
+    /** 원본 하단 [라벨변경] — 고른 라벨로 바꾼다(빈 목록이면 라벨을 뗀다). */
+    public record UpdateWorkPostLabelsRequest(
+            java.util.List<@jakarta.validation.constraints.Size(max = 20, message = "라벨은 20자까지 넣을 수 있습니다.") String> labels
+    ) {}
+
     public record UpdateWorkPostStatusRequest(
             WorkPostStatus status,
             /**
@@ -81,7 +86,9 @@ public final class WorkPostDtos {
             /** 원본 [조회] 열. */
             int viewCount,
             /** 원본 View 머리줄의 작성 일시 — '16 | 제목 | guest | 2026/10/03 (토) 오후 12:53:08'. */
-            LocalDateTime createdAt
+            LocalDateTime createdAt,
+            /** 원본 [라벨] 칩 */
+            java.util.List<String> labels
     ) {
         public static WorkPostResponse from(WorkPost p, String writerName) {
             var f = p.getAttachment();
@@ -94,7 +101,9 @@ public final class WorkPostDtos {
                     f != null ? f.getId() : null,
                     f != null ? f.getName() : null,
                     f != null ? f.getSizeBytes() : null,
-                    p.getViewCount(), p.getCreatedAt());
+                    p.getViewCount(), p.getCreatedAt(),
+                    p.getLabels() == null || p.getLabels().isBlank() ? java.util.List.of()
+                            : java.util.Arrays.stream(p.getLabels().split(",")).map(String::trim).filter(x -> !x.isEmpty()).toList());
         }
     }
 }

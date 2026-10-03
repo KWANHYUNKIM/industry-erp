@@ -1,0 +1,42 @@
+{
+  "about": "공지사항 라벨(원본 E200080) — 글을 고르고 [라벨변경] → 판(전체 · 라벨 체크 · ↵ · + · ×) → 새 라벨을 + 로 더하고 ↵ 하면 제목 앞에 칩 → 다시 열면 그 라벨이 켜져 있고, 끄고 ↵ 하면 칩이 사라진다. 시험 글은 API 로 만들고 지운다. node qa/shot.mjs qa/flows/notice-labels.json",
+  "shots": [
+    {
+      "name": "준비",
+      "path": "/groupware/notice",
+      "steps": [
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const r = await (await fetch('/api/work-posts', { method: 'POST', headers: H, body: JSON.stringify({ board: 'NOTICE', title: 'QA그룹웨어-라벨글', content: 'QA' }) })).json(); sessionStorage.setItem('qaLb', r.id); return 'post ' + r.id })()"
+      ]
+    },
+    {
+      "name": "라벨 달기 → 떼기",
+      "path": "/groupware/notice",
+      "steps": [
+        "wait:800",
+        "expect:[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '라벨변경').disabled",
+        "js:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('QA그룹웨어-라벨글') && tr.cells[0].textContent.trim() !== '').cells[0].click(); true",
+        "click:라벨변경",
+        "expect:!!document.querySelector('[role=dialog][aria-label=\"라벨변경\"]') && document.querySelector('[role=dialog][aria-label=\"라벨변경\"]').innerText.includes('전체')",
+        "js:(() => { const i = document.querySelector('input[aria-label=\"새 라벨\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'QA라벨'); i.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "js:document.querySelector('button[aria-label=\"라벨 더하기\"]').click(); true",
+        "js:document.querySelector('button[aria-label=\"적용\"]').click(); true",
+        "wait:1000",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA그룹웨어-라벨글') && tr.querySelector('.ec-label-chip')?.textContent === 'QA라벨')",
+        "js:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('QA그룹웨어-라벨글') && tr.cells[0].textContent.trim() !== '').cells[0].click(); true",
+        "click:라벨변경",
+        "expect:(() => { const l = [...document.querySelectorAll('[role=dialog][aria-label=\"라벨변경\"] label')].find((x) => x.textContent.includes('QA라벨')); return !!l && l.querySelector('input').checked })()",
+        "js:[...document.querySelectorAll('[role=dialog][aria-label=\"라벨변경\"] label')].find((x) => x.textContent.includes('QA라벨')).querySelector('input').click(); true",
+        "js:document.querySelector('button[aria-label=\"적용\"]').click(); true",
+        "wait:1000",
+        "expect:!([...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('QA그룹웨어-라벨글'))?.querySelector('.ec-label-chip'))"
+      ]
+    },
+    {
+      "name": "정리",
+      "path": "/groupware/notice",
+      "steps": [
+        "js:fetch('/api/work-posts/' + sessionStorage.getItem('qaLb'), { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => 'del ' + r.status)"
+      ]
+    }
+  ]
+}

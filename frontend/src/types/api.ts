@@ -1502,6 +1502,8 @@ export interface WorkPost {
   createdAt: string | null
   status: WorkPostStatus
   statusName: string
+  /** 원본 [라벨] — 제목 앞 칩. */
+  labels: string[]
 }
 
 // ===== ECDrive 문서 드라이브 =====

@@ -207,6 +207,35 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
     load()
   }
 
+  /*
+   * 원본 [라벨변경](2026-10-03 실측): 글을 고르고 누르면 작은 판이 뜬다 — [전체] · 라벨마다 체크(여럿 고름),
+   * 아래 ↵(적용) · +(새 라벨) · ×(닫기). 원본 라벨은 [라벨설정]에서 회사가 정한 목록과 색이다. 우리는 라벨 마스터가
+   * 없어 이 게시판 글에 붙은 라벨을 후보로 세우고, + 로 새 이름을 더한다. 칩 색은 한 가지다.
+   */
+  const [labelOpen, setLabelOpen] = useState(false)
+  const [labelPick, setLabelPick] = useState<Set<string>>(new Set())
+  const [labelNew, setLabelNew] = useState('')
+  const [labelExtra, setLabelExtra] = useState<string[]>([])
+  const knownLabels = [...new Set([...rows.flatMap((r) => r.labels ?? []), ...labelExtra])]
+  function openLabels() {
+    const targets = rows.filter((r) => selected.has(r.id))
+    // 하나만 골랐으면 그 글의 라벨을 켜 두고 연다 — 고칠 때 지금 값에서 시작한다.
+    setLabelPick(new Set(targets.length === 1 ? targets[0].labels ?? [] : []))
+    setLabelNew('')
+    setLabelOpen(true)
+  }
+  const togglePick = (l: string) => setLabelPick((p) => { const n = new Set(p); if (n.has(l)) n.delete(l); else n.add(l); return n })
+  async function applyLabels() {
+    const targets = rows.filter((r) => selected.has(r.id))
+    for (const r of targets) {
+      try { await api.patch(`/work-posts/${r.id}/labels`, { labels: knownLabels.filter((l) => labelPick.has(l)) }) }
+      catch (err) { setError(extractErrorMessage(err)) }
+    }
+    setLabelOpen(false)
+    setSelected(new Set())
+    load()
+  }
+
   /** 원본 [선택삭제] */
   async function deleteSelected() {
     const targets = shown.filter((r) => selected.has(r.id))
@@ -255,6 +284,8 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
       <>
         <td className={bg}>{r.postNo}</td>
         <td className={bg}>
+          {/* 원본 [라벨] 칩 — 제목 앞(여백 3.6 4.5 2.7 · 둥글기 10 · 오른쪽 4.5, 실측) */}
+          {(r.labels ?? []).map((l) => <span key={l} className="ec-label-chip mr-[4.5px]">{l}</span>)}
           <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-left text-ec-navy"
                   onClick={() => openView(r)}>
             {r.title}
@@ -370,11 +401,43 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
       <div className="flex gap-[6px] mt-[10px] pt-[8px] border-t border-t-ec-line-soft border-solid">
         {/*
           원본 하단: 신규(F2)·보내기·업무지원AI·진행상태변경·라벨변경·라벨설정·모두펼쳐보기·선택삭제·Excel·이력조회·웹자료올리기.
-          받쳐 줄 기능이 있는 것만 둔다 — 보내기·업무지원AI·라벨·이력조회는 아직 없다.
+          받쳐 줄 기능이 있는 것만 둔다 — 보내기·업무지원AI·라벨설정·이력조회는 아직 없다.
           [인쇄]는 원본처럼 View 창 안에 있다. [웹자료올리기]는 입력 창의 첨부 자리다.
         */}
         <button className="ec-btn ec-btn-primary" onClick={openNew}>신규(F2)</button>
         <button className="ec-btn disabled:opacity-45" disabled={selected.size === 0} onClick={() => void changeStatusSelected()}>진행상태변경</button>
+        <span className="relative">
+          <button className="ec-btn disabled:opacity-45" disabled={selected.size === 0} onClick={openLabels}>라벨변경</button>
+          {labelOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setLabelOpen(false)} />
+              <div role="dialog" aria-label="라벨변경"
+                   className="absolute bottom-full left-0 mb-[4px] z-[41] min-w-[160px] p-[9px] bg-ec-panel border border-ec-line border-solid rounded-ec shadow-lg">
+                <label className="flex items-center gap-[6px] py-[3px] cursor-pointer">
+                  <input type="checkbox" checked={knownLabels.length > 0 && knownLabels.every((l) => labelPick.has(l))}
+                         onChange={(e) => setLabelPick(new Set(e.target.checked ? knownLabels : []))} />
+                  전체
+                </label>
+                {knownLabels.map((l) => (
+                  <label key={l} className="flex items-center gap-[6px] py-[3px] cursor-pointer">
+                    <input type="checkbox" checked={labelPick.has(l)} onChange={() => togglePick(l)} />
+                    <span className="ec-label-chip">{l}</span>
+                  </label>
+                ))}
+                <div className="flex items-center gap-[4px] mt-[6px]">
+                  <input className="ec-input w-[100px]" aria-label="새 라벨" maxLength={20} value={labelNew}
+                         onChange={(e) => setLabelNew(e.target.value)} placeholder="새 라벨" />
+                </div>
+                <div className="flex justify-between mt-[6px]">
+                  <button type="button" className="ec-btn ec-btn-sm ec-btn-primary" aria-label="적용" onClick={() => void applyLabels()}>↵</button>
+                  <button type="button" className="ec-btn ec-btn-sm" aria-label="라벨 더하기"
+                          onClick={() => { const v = labelNew.trim(); if (!v) return; setLabelExtra((x) => [...x, v]); setLabelPick((p) => new Set([...p, v])); setLabelNew('') }}>+</button>
+                  <button type="button" className="ec-btn ec-btn-sm" aria-label="닫기" onClick={() => setLabelOpen(false)}>×</button>
+                </div>
+              </div>
+            </>
+          )}
+        </span>
         <button className="ec-btn" onClick={() => setOpened((v) => !v)}>{opened ? '모두접기' : '모두펼쳐보기'}</button>
         <button className="ec-btn disabled:opacity-45" disabled={selected.size === 0} onClick={() => void deleteSelected()}>선택삭제</button>
         <button className="ec-btn" onClick={() => void doExcel()}>Excel</button>

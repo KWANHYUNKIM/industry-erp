@@ -104,6 +104,18 @@ public class WorkPostService {
         return WorkPostResponse.from(post, displayName(post.getWriter()));
     }
 
+    /** 원본 [라벨변경] — 고른 라벨로 바꾼다. 같은 이름은 한 번만, 차례는 고른 차례. */
+    @Transactional
+    public WorkPostResponse updateLabels(Long id, java.util.List<String> labels) {
+        WorkPost post = getPost(id);
+        String joined = labels == null ? "" : String.join(",", labels.stream()
+                .map(x -> x == null ? "" : x.trim().replace(",", " "))
+                .filter(x -> !x.isEmpty()).distinct().toList());
+        if (joined.length() > 200) throw ApiException.badRequest("라벨이 너무 많습니다.");
+        post.setLabels(joined.isEmpty() ? null : joined);
+        return WorkPostResponse.from(post, displayName(post.getWriter()));
+    }
+
     /**
      * 원본 격자의 <b>[조회]</b> 열. 글을 펼칠 때 하나 올린다.
      *

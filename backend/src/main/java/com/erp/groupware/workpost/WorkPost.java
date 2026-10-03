@@ -102,4 +102,8 @@ public class WorkPost extends BaseTimeEntity {
     @Column(name = "view_count", nullable = false)
     @Builder.Default
     private int viewCount = 0;
+
+    /** 원본 [라벨] — 제목 앞 칩(중요 · 외근 …). 라벨 이름을 쉼표로 잇는다. 없으면 null. */
+    @Column(length = 200)
+    private String labels;
 }

@@ -49,6 +49,11 @@ public class WorkPostController {
         return workPostService.updateStatus(id, req != null ? req : new UpdateWorkPostStatusRequest(null, null));
     }
 
+    @PatchMapping("/{id}/labels")
+    public WorkPostResponse updateLabels(@PathVariable Long id, @Valid @RequestBody WorkPostDtos.UpdateWorkPostLabelsRequest req) {
+        return workPostService.updateLabels(id, req.labels());
+    }
+
     /** 원본 [조회] 열. 글을 펼칠 때 부른다. */
     @PostMapping("/{id}/read")
     public WorkPostDtos.WorkPostResponse read(@PathVariable Long id) {
