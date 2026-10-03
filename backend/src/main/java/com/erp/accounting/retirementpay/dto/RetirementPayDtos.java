@@ -65,7 +65,7 @@ public final class RetirementPayDtos {
 
     /**
      * 퇴직급여추계액(E030108) 한 사원 — 정산시작일 · 3개월 급여 · 1년 상여(3개월로 환산) · 근속 년/월/일 · 3개월 근무일수 ·
-     * 재직일수 · 퇴직급여(원 미만 버림).
+     * 재직일수 · 퇴직급여(1일 평균임금 소수 둘째 자리 반올림 × 30 × 재직일수 ÷ 365, 원 단위 반올림).
      */
     public record EstimateRow(Long employeeId, String employeeCode, String employeeName, LocalDate startDate,
                               BigDecimal threeMonthPay, BigDecimal bonusThreeMonths, int years, int months, int days,
