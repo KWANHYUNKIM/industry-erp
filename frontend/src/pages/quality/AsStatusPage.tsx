@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
-import { dateText } from '../../utils/dateText'
 import { dateNo } from '../../utils/dateNo'
 import EcPeriodPicks, { AS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import EcBarChart from '../../components/EcBarChart'
@@ -23,6 +22,9 @@ const STATUSES: AsStatus[] = ['RECEIVED', 'IN_PROGRESS', 'COMPLETED', 'CANCELED'
 const LABEL: Record<AsStatus, string> = { RECEIVED: '접수', IN_PROGRESS: '수리중', COMPLETED: '완료', CANCELED: '취소' }
 const COLOR: Record<AsStatus, string> = { RECEIVED: 'var(--ec-warn)', IN_PROGRESS: 'var(--ec-blue)', COMPLETED: 'var(--ec-success)', CANCELED: 'var(--ec-text-hint)' }
 
+/** 원본 수량 칸은 소수 둘째 자리까지 찍는다(2.00). */
+const qty2 = (n: number) => Number(n).toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
 interface AsRow {
   id: number; asNo: string; partnerId: number; partnerName: string; itemId: number; itemName: string
   receiptDate: string; symptom: string | null; charge: string | null
@@ -39,6 +41,8 @@ interface AsRow {
   title: string | null
   scheduledDate: string | null
   createdBy: string | null
+  /** 접수 품목 줄 — 원본 격자는 줄마다 한 행이다(2026-10-03 실측: 두 줄 접수 → 두 행 + [합계] 수량). */
+  lines?: { id: number; itemId: number; itemCode: string; itemName: string; itemSpec: string | null; quantity: number }[]
 }
 
 interface Filters {
@@ -139,7 +143,7 @@ export default function AsStatusPage() {
       if (f.doneFrom && (r.doneDate == null || r.doneDate < f.doneFrom)) return false
       if (f.doneTo && (r.doneDate == null || r.doneDate > f.doneTo)) return false
       if (f.partner && !r.partnerName.includes(f.partner)) return false
-      if (f.item && !r.itemName.includes(f.item)) return false
+      if (f.item && !(r.lines?.length ? r.lines.some((l) => l.itemName.includes(f.item)) : r.itemName.includes(f.item))) return false
       if (f.warehouse && (r.warehouseName ?? '') !== f.warehouse) return false
       if (f.project && (r.projectName ?? '') !== f.project) return false
       if (f.charge && !(r.charge ?? '').includes(f.charge)) return false
@@ -190,6 +194,14 @@ export default function AsStatusPage() {
   const sort = useTableSort(shown, {
     접수일: (r) => r.receiptDate,
   })
+
+  /*
+   * 원본 A/S접수현황은 접수 <b>품목 줄마다</b> 한 행이고 맨 아래 [합계]에 수량을 더한다(2026-10-03 실측).
+   * 줄이 없는 옛 접수(줄 테이블 전)는 머리 품목 1개로 본다.
+   */
+  const lineRows = sort.sorted.flatMap((r) => (r.lines?.length ? r.lines : [{ id: 0, itemId: r.itemId, itemCode: r.itemCode ?? '', itemName: r.itemName, itemSpec: r.itemSpec, quantity: 1 }])
+    .filter((l) => !filters.item || l.itemName.includes(filters.item))
+    .map((l) => ({ r, l })))
 
   return (
     <EcListShell
@@ -259,48 +271,43 @@ export default function AsStatusPage() {
             <th>제목</th>
             <th>품목코드</th>
             <th>품목명[규격]</th>
+            <th className="text-right">수량</th>
             <th>관리항목명</th>
             <th>적요</th>
-            <th>증상</th>
-            <th>완료일</th>
-            <th className="text-right">처리일수</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={14} className="ec-empty">불러오는 중…</td></tr>
-          ) : shown.length === 0 ? (
-            <tr><td colSpan={14} className="text-center text-ec-hint p-[20px]">
-              {rows.length === 0 ? 'A/S 내역이 없습니다.' : '검색조건에 맞는 자료가 없습니다.'}
-            </td></tr>
-          ) : sort.sorted.map((r, i) => {
-            const days = r.status === 'COMPLETED' ? daysBetween(r.receiptDate, r.doneDate) : null
-            return (
-              <tr key={r.id}>
+            <tr><td colSpan={12} className="ec-empty">불러오는 중…</td></tr>
+          ) : lineRows.length === 0 ? (
+            <tr><td colSpan={12} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+          ) : lineRows.map(({ r, l }, i) => (
+              <tr key={`${r.id}-${l.id}`}>
                 <td className="text-center text-ec-hint">{i + 1}</td>
                 {/* 원본은 일자와 번호를 한 칸에 적는다. */}
                 <td className="text-center">{dateNo(r.receiptDate, r.asNo)}</td>
-                <td className="text-center">
-                  <span style={{ color: COLOR[r.status], fontWeight: 700, fontSize: 12 }}>{r.statusName || LABEL[r.status]}</span>
-                </td>
-                <td style={{ color: r.warehouseName ? undefined : 'var(--ec-text-off)' }}>{r.warehouseName || ''}</td>
-                <td style={{ color: r.charge ? undefined : 'var(--ec-text-off)' }}>{r.charge || ''}</td>
+                <td className="text-center">{r.statusName || LABEL[r.status]}</td>
+                <td>{r.warehouseName || ''}</td>
+                <td>{r.charge || ''}</td>
                 <td>{r.partnerName}</td>
-                <td style={{ color: r.title ? undefined : 'var(--ec-text-off)' }}>{r.title || ''}</td>
-                <td style={{ fontFamily: 'monospace', color: r.itemCode ? undefined : 'var(--ec-text-off)' }}>{r.itemCode || ''}</td>
+                <td>{r.title || ''}</td>
+                <td>{l.itemCode || ''}</td>
                 {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다. */}
-                <td>{r.itemName}{r.itemSpec ? ' [' + r.itemSpec + ']' : ''}</td>
+                <td>{l.itemName}{l.itemSpec ? '[' + l.itemSpec + ']' : ''}</td>
+                <td className="text-right">{qty2(l.quantity)}</td>
                 {/* 관리항목은 품목 마스터에 붙는 값이라 줄에는 없다 - itemId 로 화면에서 잇는다. */}
-                <td className="text-ec-label">{mgmt.nameOf(r.itemId)}</td>
-                {/* 원본 [적요] - A/S 전표의 적요는 수리내역이다(A/S소모현황과 같은 매핑). */}
-                <td style={{ color: r.repairNote ? 'var(--ec-label)' : 'var(--ec-text-off)', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.repairNote || ''}</td>
-                <td style={{ color: r.symptom ? undefined : 'var(--ec-text-off)', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.symptom || ''}</td>
-                <td style={{ fontFamily: 'monospace', color: r.doneDate ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{dateText(r.doneDate) || ''}</td>
-                <td style={{ textAlign: 'right', color: days === null ? 'var(--ec-text-off)' : 'var(--ec-text)' }}>{days === null ? '-' : `${days}일`}</td>
+                <td className="text-ec-label">{mgmt.nameOf(l.itemId)}</td>
+                <td>{r.repairNote || ''}</td>
               </tr>
-            )
-          })}
+          ))}
         </tbody>
+        {lineRows.length > 0 && (
+          <tfoot><tr className="ec-total">
+            <td colSpan={9} className="text-center">합계</td>
+            <td className="text-right">{qty2(lineRows.reduce((a, x) => a + Number(x.l.quantity), 0))}</td>
+            <td></td><td></td>
+          </tr></tfoot>
+        )}
       </table>
       )}
     </EcListShell>

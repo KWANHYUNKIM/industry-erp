@@ -2783,14 +2783,6 @@
   ],
   "in": "backend/src/main/java/com/erp/trade/purchaseorder/PurchaseOrderLine.java"
  },
- "A/S접수현황|수량": {
-  "claim": "A/S 접수에 수량 칸이 없다",
-  "absent": [
-   "quantity",
-   "qty"
-  ],
-  "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
- },
  "채권/채무현황|청구금액": {
   "claim": "수금이 어느 청구를 갚은 것인지 정산 전표가 안 든다",
   "absent": [
