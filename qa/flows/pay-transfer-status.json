@@ -1,5 +1,5 @@
 {
-  "about": "관리 > 급여이체현황(E090117) — 원본처럼 귀속연월 구간의 명세마다 은행코드 · 은행명 · 계좌번호 · 예금주명 · 실지급액 한 줄. 은행 정보는 사원등록 [급여통장]에서 온다. 시험 명세 · 통장은 되돌린다.",
+  "about": "관리 > 급여이체현황(E090117) — 원본처럼 귀속연월 구간의 명세마다 은행코드 · 은행명 · 계좌번호 · 예금주명 · 실지급액 한 줄. 은행 정보는 사원등록 [급여통장]에서 온다. 시험 명세 · 통장은 되돌린다. [이체은행]은 원본 은행코드 코드도움 — 004 를 고르면 088 통장 줄이 빠지고 088 이면 보인다. 머리 회사명 · 꼬리 [P.1].",
   "shots": [
     {
       "name": "급여통장 → 이체 목록 → 뒷정리",
@@ -13,6 +13,16 @@
         "click:검색(F8)",
         "wait:1500",
         "expect:/088\\s+QA관리은행\\s+000-000-0000\\s+정수진\\s+[0-9,]+/.test(document.querySelector('table').innerText)",
+        "expect:document.querySelector('.ec-report-head').textContent.includes('회사명 :')&&document.querySelector('.ec-report-foot').textContent.includes('[P.1]')",
+        "pick:이체은행:004",
+        "clicklast:확인",
+        "wait:300",
+        "expect:!/088\\s+QA관리은행/.test(document.querySelector('table').innerText)",
+        "pick:이체은행:004",
+        "pick:이체은행:088",
+        "clicklast:확인",
+        "wait:300",
+        "expect:/088\\s+QA관리은행/.test(document.querySelector('table').innerText)",
         "js:(async()=>{const t=localStorage.getItem('erp_token');const h={Authorization:'Bearer '+t,'Content-Type':'application/json'};const e=JSON.parse(sessionStorage.getItem('qaPtEmp'));const a=await fetch('/api/payslips/'+sessionStorage.getItem('qaPt'),{method:'DELETE',headers:h});const b=await fetch('/api/employees/'+e.id,{method:'PUT',headers:h,body:JSON.stringify({...e,active:true})});sessionStorage.setItem('qaPtDel',String(a.ok&&b.ok));return true})()",
         "expect:sessionStorage.getItem('qaPtDel')==='true'"
       ]

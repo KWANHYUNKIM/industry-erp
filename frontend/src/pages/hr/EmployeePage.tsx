@@ -4,6 +4,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import CustomFieldsPanel from '../../components/CustomFieldsPanel'
 import CodePickerField from '../../components/CodePickerField'
+import { bankItems, bankNameOf } from '../../utils/bankCodes'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster, EmployeePayType } from '../../types/api'
@@ -316,8 +317,15 @@ export default function EmployeePage() {
               {/* 원본 [급여통장] — 은행 · 계좌번호 · 예금주 세 칸을 한 이름표 아래 쌓는다 */}
               <Field label="급여통장" wide>
                 <div className="flex gap-[6px] w-full mobile:flex-col">
-                  <input className="ec-input w-[80px]" value={form.bankCode} onChange={set('bankCode')} placeholder="은행코드" />
-                  <input className="ec-input flex-1" value={form.bankName} onChange={set('bankName')} placeholder="은행" />
+                  {/* 원본 은행 칸은 은행코드 코드도움(85줄) — 고르면 코드 · 은행명이 같이 찬다 */}
+                  <div className="flex-1">
+                    <CodePickerField label="은행" hideLabel fill pair placeholder="은행" emptyLabel="선택 해제"
+                                     value={form.bankCode}
+                                     onChange={(v, it) => setForm({ ...form, bankCode: v, bankName: it?.name ?? '' })}
+                                     items={form.bankCode && !bankNameOf(form.bankCode)
+                                       ? [...bankItems(), { value: form.bankCode, code: form.bankCode, name: form.bankName }]
+                                       : bankItems()} />
+                  </div>
                   <input className="ec-input flex-1" value={form.accountNo} onChange={set('accountNo')} placeholder="계좌번호" />
                   <input className="ec-input flex-1" value={form.accountHolder} onChange={set('accountHolder')} placeholder="예금주" />
                 </div>
