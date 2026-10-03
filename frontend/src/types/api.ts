@@ -2713,12 +2713,20 @@ export interface FieldWork {
   workDate: string
   startTime: string | null
   endTime: string | null
-  destination: string
-  purpose: string
+  /** 원본 [도착지 주소]. 비워 둘 수 있다. */
+  destination: string | null
+  /** 원본 [적요]. */
+  purpose: string | null
   status: FieldWorkStatus
   statusName: string
   approverName: string | null
   rejectReason: string | null
+  /** 원본 외근조회(E070254) 운행 기록 칸 — 출발지 주소 · 이동수단코드(차량번호) · 이동수단명 · 사용목적명 · 운행거리. */
+  departure: string | null
+  vehicleNo: string | null
+  vehicleName: string | null
+  usePurpose: string | null
+  distance: number | null
 }
 
 export interface FieldWorkSummary {

@@ -2984,7 +2984,7 @@ async function scenarioGroupwareShared() {
   }
   await must('DELETE', `/board/${named.id}`)
 
-  // ── 외근조회: 신청 → 승인/반려
+  // ── 외근조회: 운행 기록(원본 E070254) — 이동수단 필수 · 하루 여러 건 · 승인/반려 API 는 남아 있다
   const users = await must('GET', '/users')
   const me = users.find((u) => u.username === USER)
   const DATE = '2026-06-15'
@@ -2993,19 +2993,21 @@ async function scenarioGroupwareShared() {
   for (const f of existing) {
     if (f.status === 'REQUESTED' && f.userId === me.id) await must('DELETE', `/field-works/${f.id}`)
   }
-  const stillThere = (await must('GET', `/field-works?from=${DATE}&to=${DATE}`)).rows
-    .some((f) => f.userId === me.id && f.status !== 'REJECTED')
 
-  if (!stillThere) {
+  {
     const fw = await must('POST', '/field-works', {
-      workDate: DATE, startTime: '09:00', endTime: '18:00',
-      destination: 'QA고객사 본사', purpose: 'QA 설비 점검',
+      workDate: DATE, startTime: '09:00', endTime: '18:00', vehicleNo: 'QA12가3456', vehicleName: 'QA차',
+      departure: 'QA본사', destination: 'QA고객사 본사', distance: 12.5, purpose: 'QA 설비 점검',
     })
-    eq('신규 외근계 상태는 신청', fw.statusName, '신청')
+    eq('신규 외근의 이동수단 · 운행거리가 남는다', `${fw.vehicleNo}/${Number(fw.distance)}`, 'QA12가3456/12.5')
 
-    await rejects('같은 날 외근계 중복 신청은 거부', 'POST', '/field-works', {
-      workDate: DATE, destination: 'QA 다른 곳', purpose: '중복',
-    }, '이미 있습니다')
+    await rejects('이동수단 없으면 거부', 'POST', '/field-works', {
+      workDate: DATE, destination: 'QA 다른 곳', purpose: '이동수단 빠짐',
+    }, '이동수단')
+
+    // 원본 [일자No.] 가 그날 안의 차례를 단다 — 같은 날 두 번째 운행도 받는다.
+    const fw2 = await must('POST', '/field-works', { workDate: DATE, vehicleNo: 'QA12가3456' })
+    eq('같은 날 두 번째 운행도 받는다', typeof fw2.id, 'number')
 
     await rejects('자기 외근계는 자기가 승인 불가', 'POST', `/field-works/${fw.id}/approve`,
       undefined, '자기가 승인할 수 없습니다')
@@ -3013,13 +3015,13 @@ async function scenarioGroupwareShared() {
       { reason: '내가 반려' }, '자기가 반려할 수 없습니다')
 
     await rejects('종료 시각이 시작보다 빠르면 거부', 'POST', '/field-works', {
-      workDate: '2026-06-16', startTime: '18:00', endTime: '09:00',
-      destination: 'QA', purpose: 'QA',
+      workDate: '2026-06-16', startTime: '18:00', endTime: '09:00', vehicleNo: 'QA',
     }, '빠를 수 없습니다')
 
-    // 본인이 취소하면 사라진다
+    // 본인이 지우면 사라진다
     await must('DELETE', `/field-works/${fw.id}`)
-    eq('취소하면 목록에서 사라짐',
+    await must('DELETE', `/field-works/${fw2.id}`)
+    eq('지우면 목록에서 사라짐',
       (await must('GET', `/field-works?from=${DATE}&to=${DATE}`)).rows.some((f) => f.id === fw.id), false)
   }
 
