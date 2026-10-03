@@ -17,6 +17,7 @@ import java.util.List;
 public class DailyWorkerService {
 
     private final DailyWorkerRepository dailyWorkerRepository;
+    private final DailyWorkEntryRepository dailyWorkEntryRepository;
     private final DepartmentService departmentService;
     private final DocumentNoGenerator documentNoGenerator;
 
@@ -58,7 +59,11 @@ public class DailyWorkerService {
     /** 원본 '한번 지워진 자료는 복구될 수 없습니다. 삭제하겠습니까?' */
     @Transactional
     public void delete(Long id) {
-        dailyWorkerRepository.delete(get(id));
+        DailyWorker w = get(id);
+        if (dailyWorkEntryRepository.existsByWorker_Id(id)) {
+            throw ApiException.conflict("근무입력에 쓰인 사원은 삭제할 수 없습니다: " + w.getName());
+        }
+        dailyWorkerRepository.delete(w);
     }
 
     private void apply(DailyWorker w, DailyWorkerRequest req) {
