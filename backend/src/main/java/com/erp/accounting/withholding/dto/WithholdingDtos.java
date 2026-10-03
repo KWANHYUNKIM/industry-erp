@@ -128,4 +128,8 @@ public final class WithholdingDtos {
             BigDecimal salary, BigDecimal bonus, BigDecimal incomeTax, BigDecimal localIncomeTax,
             BigDecimal pension, BigDecimal health, BigDecimal employment
     ) {}
+
+    /** 소득자료제출집계표 한 줄 — 매수(소득자 수) · 건수(명세 줄) · 소득(수입)금액 · 소득세 · 지방소득세. */
+    public record IncomeSubmission(String kind, int pages, int count, BigDecimal income,
+                                   BigDecimal incomeTax, BigDecimal localIncomeTax) {}
 }

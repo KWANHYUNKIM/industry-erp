@@ -18,6 +18,7 @@ public class WithholdingController {
 
     private final WithholdingService service;
     private final WithholdingReturnService returnService;
+    private final IncomeSubmissionService incomeSubmissionService;
 
     /** 원천징수이행상황신고서 목록 (E030101) */
     @GetMapping("/returns")
@@ -43,6 +44,13 @@ public class WithholdingController {
 
 
     /** 원천징수이행상황신고서 (귀속월) */
+    /** 소득자료제출집계표 (E030508) — kind 는 원본 [출력구분] 이름(사업소득 · 기타소득 …), 귀속연월 from ~ to. */
+    @GetMapping("/income-submission")
+    public WithholdingDtos.IncomeSubmission incomeSubmission(@RequestParam String kind, @RequestParam String from,
+                                                            @RequestParam String to) {
+        return incomeSubmissionService.summary(kind, from, to);
+    }
+
     @GetMapping("/statement")
     public WithholdingStatement statement(@RequestParam String month) {
         return service.statement(month);
