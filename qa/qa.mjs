@@ -10438,6 +10438,7 @@ async function main() {
   await scenarioRollback(fixtures)
   await scenarioRoundTrip(fixtures)
   await scenarioHrCertificate()
+  await scenarioDailyWorker()
   await scenarioPressedTwice(fixtures)
   await scenarioNoPermission()
   await scenarioNewCompany()
@@ -11047,6 +11048,24 @@ async function scenarioHrCertificate() {
   }
   await must('DELETE', `/hr/certificates/${c.id}`)
   eq('지운 증명서는 목록에 없다', (await must('GET', '/hr/certificates')).some((x) => x.id === c.id), 'false')
+}
+
+/** 관리 › 일용근로 사원등록(원본 E020105) — 다음 번호 다섯 자리, 같은 번호 막기, 일근무 · 월정공제 저장, 삭제. */
+async function scenarioDailyWorker() {
+  section('■ 일용근로 사원등록 — 번호 · 중복 · 급여지급사항 · 삭제')
+  const next = (await must('GET', '/hr/daily-workers/next-code')).code
+  eq('다음 사원번호는 다섯 자리', /^\d{5}$/.test(next), 'true')
+  const w = await must('POST', '/hr/daily-workers', {
+    name: 'QA-일용', foreigner: false, employmentInsurance: true, pensionAuto: false, healthAuto: false,
+    dailyWage: 150000, fixedIncomeTax: 0, fixedLocalTax: 0,
+  })
+  eq('비우면 다음 번호가 매겨진다', w.code, next)
+  await rejects('같은 사원번호는 막는다', 'POST', '/hr/daily-workers',
+    { code: w.code, name: 'QA-일용2', foreigner: false, employmentInsurance: true, pensionAuto: false, healthAuto: false }, '이미 등록된 사원번호')
+  const u = await must('PUT', `/hr/daily-workers/${w.id}`, { ...w, name: 'QA-일용수정', dailyWage: 160000 })
+  eq('고친 일근무가 읽힌다', Number((await must('GET', `/hr/daily-workers/${u.id}`)).dailyWage), 160000)
+  await must('DELETE', `/hr/daily-workers/${w.id}`)
+  eq('지운 사원은 목록에 없다', (await must('GET', '/hr/daily-workers')).some((x) => x.id === w.id), 'false')
 }
 
 async function scenarioRollback(f) {

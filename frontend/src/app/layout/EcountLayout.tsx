@@ -632,7 +632,6 @@ const MENU: TopMenu[] = [
             { label: '근무조회', to: '/hr/work-list' },
           ] },
           { label: '급여작업', children: [{ label: '급여계산/대장', to: '/hr/payroll' }, { label: '사원별급여조회', to: '/hr/payroll/by-employee' }, { label: '급여현황', to: '/hr/payroll/status' }, { label: '근무확정현황', to: '/hr/payroll/work-confirms' }, { label: '급여이체현황', to: '/hr/payroll/transfer-status' }, { label: '수당·공제그룹/급여이체', to: '/hr/pay-settings' }] },
-          { label: '일용근로', children: [{ label: '일용근로급여관리', to: '/hr/daily-wage' }] },
         ],
       },
       {
@@ -661,6 +660,16 @@ const MENU: TopMenu[] = [
               { label: '조직도현황', to: '/groupware/org-status' },
             ],
           },
+        ],
+      },
+      {
+        label: '일용근로급여관리',
+        nodes: [
+          { label: '일용근로 기본사항 등록', children: [
+            { label: '일용근로 사원등록', to: '/hr/daily-workers' },
+            { label: '프로젝트등록', to: '/inventory/projects' },
+          ] },
+          { label: '일용근로 급여작업', children: [{ label: '일용근로 출역/급여대장', to: '/hr/daily-wage' }] },
         ],
       },
       {
