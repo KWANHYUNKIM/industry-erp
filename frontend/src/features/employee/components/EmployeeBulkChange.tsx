@@ -27,6 +27,7 @@ export default function EmployeeBulkChange({ employees, depts, onClose, onSaved 
     { key: 'resignReason', label: '퇴사사유', kind: 'text' },
     { key: 'remark', label: '적요', kind: 'text' },
     { key: 'payType', label: '급여구분', kind: 'select', options: [['FIXED', '고정급'], ['VARIABLE', '변동급']] },
+    { key: 'zipcode', label: '우편번호', kind: 'text' },
     { key: 'address', label: '주소', kind: 'text' },
   ]
   const initial = (e: EmployeeMaster): BulkDraft => Object.fromEntries(fields.map((f) => {
@@ -51,6 +52,7 @@ export default function EmployeeBulkChange({ employees, depts, onClose, onSaved 
       payType: d.payType || 'FIXED',
       mobile: d.mobile.trim() || null,
       resignReason: d.resignReason.trim() || null,
+      zipcode: d.zipcode.trim(),
       address: d.address.trim() || null,
       bankCode: e.bankCode, bankName: e.bankName, accountNo: e.accountNo, accountHolder: e.accountHolder,
       active: !resignDate,

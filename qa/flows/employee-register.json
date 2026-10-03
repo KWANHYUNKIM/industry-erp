@@ -1,5 +1,5 @@
 {
-  "about": "관리 > 사원등록(E090101) — 원본처럼 [신규(F2)] 창이 다음 사원번호를 채워 열리고, 성명이 비면 '사원명을 입력 바랍니다.', 저장하면 창이 닫히고 사원리스트에 [급여구분] 고정급으로 뜬다. 만든 사원은 지운다. [급여통장] 은행은 은행코드 코드도움 — 088 을 고르면 은행명 신한은행이 저장된다. [입사구분]은 코드도움 100 신입 · 200 경력 — 경력을 고르면 저장된다. [직책]은 코드도움 100 팀원 · 200 팀장.",
+  "about": "관리 > 사원등록(E090101) — 원본처럼 [신규(F2)] 창이 다음 사원번호를 채워 열리고, 성명이 비면 '사원명을 입력 바랍니다.', 저장하면 창이 닫히고 사원리스트에 [급여구분] 고정급으로 뜬다. 만든 사원은 지운다. [급여통장] 은행은 은행코드 코드도움 — 088 을 고르면 은행명 신한은행이 저장된다. [입사구분]은 코드도움 100 신입 · 200 경력 — 경력을 고르면 저장된다. [직책]은 코드도움 100 팀원 · 200 팀장. [주소] 앞 [우편번호] 칸이 저장된다.",
   "shots": [
     {
       "name": "사원 등록 → 목록 → 뒷정리",
@@ -15,10 +15,13 @@
         "pickrow:088",
         "pick:입사구분:경력",
         "pick:직책:팀장",
+        "set:[role=dialog] input[placeholder=우편번호]|04524",
         "clicklast:저장(F8)",
         "wait:800",
         "expect:!document.querySelector('[role=dialog]') && /QA관리-화면시험\\s+.*고정급/.test(document.querySelector('table').innerText)",
         "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const a=await (await fetch('/api/employees/all',{headers:h})).json();const e=a.find(x=>x.name==='QA관리-화면시험');sessionStorage.setItem('qaBank',String(!!e&&e.bankCode==='088'&&e.bankName==='신한은행'&&e.hireKind==='경력'&&e.duty==='팀장'));return true})()",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const a=await (await fetch('/api/employees/all',{headers:h})).json();const e=a.find(x=>x.name==='QA관리-화면시험');sessionStorage.setItem('qaZip',String(e&&e.zipcode));return true})()",
+        "expect:sessionStorage.getItem('qaZip')==='04524'",
         "expect:sessionStorage.getItem('qaBank')==='true'",
         "apidel:/employees|QA관리-화면시험|name"
       ]

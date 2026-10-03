@@ -1745,6 +1745,8 @@ export interface EmployeeMaster {
   payTypeName: string
   mobile: string | null
   resignReason: string | null
+  /** 원본 사원등록 [우편번호] */
+  zipcode: string | null
   address: string | null
   /** 원본 사원등록 [급여통장] — 급여 권한이 없으면 null */
   bankCode: string | null

@@ -51,7 +51,7 @@ export default function EmployeePage() {
   const empty = {
     code: '', name: '', departmentId: '', jobTitle: '',
     hireDate: new Date().toISOString().slice(0, 10), resignDate: '', resignReason: '',
-    phone: '', mobile: '', email: '', address: '', remark: '',
+    phone: '', mobile: '', email: '', zipcode: '', address: '', remark: '',
     payType: 'FIXED' as EmployeePayType, baseSalary: '',
     bankCode: '', bankName: '', accountNo: '', accountHolder: '', hireKind: '', duty: '',
   }
@@ -91,7 +91,7 @@ export default function EmployeePage() {
       jobTitle: e.jobTitle ?? '', hireKind: e.hireKind ?? '', duty: e.duty ?? '',
       hireDate: e.hireDate ?? '', resignDate: e.resignDate ?? '', resignReason: e.resignReason ?? '',
       phone: e.phone ?? '', mobile: e.mobile ?? '', email: e.email ?? '',
-      address: e.address ?? '', remark: e.remark ?? '',
+      zipcode: e.zipcode ?? '', address: e.address ?? '', remark: e.remark ?? '',
       payType: e.payType, baseSalary: e.baseSalary == null ? '' : String(e.baseSalary),
       bankCode: e.bankCode ?? '', bankName: e.bankName ?? '', accountNo: e.accountNo ?? '', accountHolder: e.accountHolder ?? '',
     })
@@ -118,6 +118,7 @@ export default function EmployeePage() {
       payType: form.payType,
       mobile: form.mobile.trim() || null,
       resignReason: form.resignReason.trim() || null,
+      zipcode: form.zipcode.trim(),
       address: form.address.trim() || null,
       bankCode: form.bankCode.trim() || null,
       bankName: form.bankName.trim() || null,
@@ -358,7 +359,9 @@ export default function EmployeePage() {
                   <input className="ec-input flex-1" value={form.accountHolder} onChange={set('accountHolder')} placeholder="예금주" />
                 </div>
               </Field>
+              {/* 원본 [주소]는 우편번호 칸 + 주소 칸이다 */}
               <Field label="주소" wide>
+                <input className="ec-input w-[110px] mb-[4px]" value={form.zipcode} onChange={set('zipcode')} placeholder="우편번호" maxLength={10} />
                 <textarea className={inputCls} rows={2} value={form.address} onChange={set('address')} placeholder="주소" />
               </Field>
               <Field label="적요" wide>
