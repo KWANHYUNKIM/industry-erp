@@ -87,7 +87,7 @@ public final class MenuPermissionCatalog {
                 "/api/supplies", "/api/supply-usages");
         put(m, "STOCK_MOVE", "/api/stock", "/api/stock-transfers", "/api/stock-adjustments",
                 "/api/staged-adjustments");
-        put(m, "QUALITY", "/api/quality-inspections", "/api/quality-inspection-requests", "/api/as-requests");
+        put(m, "QUALITY", "/api/quality-inspections", "/api/quality-inspection-requests", "/api/as-requests", "/api/as-repairs");
         put(m, "WMS", "/api/wms");
         put(m, "EXPORT", "/api/exports");
         put(m, "MALL", "/api/mall-orders", "/api/mall-item-mappings", "/api/mall-accounts");
