@@ -61,13 +61,16 @@ public class DepartmentService {
     @Transactional
     public void delete(Long id) {
         Department d = get(id);
-        if (departmentRepository.existsByParentId(id)) {
-            throw ApiException.conflict("하위 부서가 있어 삭제할 수 없습니다. 하위 부서를 먼저 옮기세요.");
-        }
         long employees = employeeRepository.countByDepartmentId(id);
         if (employees > 0) {
             throw ApiException.conflict("소속 사원이 " + employees + "명 있어 삭제할 수 없습니다. 사원을 먼저 옮기세요.");
         }
+        // 원본 부서등록 [삭제]: "조직도에 포함된 부서인 경우에는 조직도에서도 하위부서를 포함하여 모두 삭제됩니다."
+        // 하위 부서는 부서로 남고 조직도 배치(상위 부서)만 풀린다 — 막지 않는다.
+        departmentRepository.findAll().stream()
+                .filter(c -> c.getParent() != null && c.getParent().getId().equals(id))
+                .forEach(c -> c.setParent(null));
+        departmentRepository.flush();
         departmentRepository.delete(d);
     }
 
@@ -91,21 +94,14 @@ public class DepartmentService {
     }
 
     /**
-     * 다음 부서코드. <b>번호 공간을 먼저 잠근다.</b>
+     * 다음 부서코드 — 원본 부서등록 창처럼 다섯 자리(00010 꼴). 숫자로만 된 코드 중 가장 큰 것 + 1.
+     * <b>번호 공간을 먼저 잠근다</b>(nextMasterCode).
      *
      * <p>잠그지 않으면 두 요청이 같은 count 를 읽어 같은 코드를 만들고, 뒤에 커밋한 쪽이
      * departments.code UNIQUE 제약에 걸려 500 으로 죽는다. 쓰는 사람은 이유를 알 수 없다.
-     *
-     * <p>count + 1 로 시작해 빈 번호를 찾을 때까지 올린다 — 중간 부서를 지우면 count 가
-     * 줄어 이미 쓰는 번호를 가리키기 때문이다(그래서 probe 루프가 필요하다).
      */
-    private String nextCode() {
-        docNoGenerator.lockNumberSpace("DEPT");
-        long n = departmentRepository.count() + 1;
-        String code = String.format("DEPT-%04d", n);
-        while (departmentRepository.existsByCode(code)) {
-            code = String.format("DEPT-%04d", ++n);
-        }
-        return code;
+    @Transactional
+    public String nextCode() {
+        return docNoGenerator.nextMasterCode("", "departments", "code", 5);
     }
 }

@@ -23,6 +23,12 @@ public class DepartmentController {
         return departmentService.findAll();
     }
 
+    /** 원본 부서등록 창이 미리 채우는 다음 부서코드(00010 꼴). */
+    @GetMapping("/next-code")
+    public java.util.Map<String, String> nextCode() {
+        return java.util.Map.of("code", departmentService.nextCode());
+    }
+
     @PostMapping
     public ResponseEntity<DepartmentResponse> create(@Valid @RequestBody CreateDepartmentRequest req) {
         return ResponseEntity.ok(departmentService.create(req));

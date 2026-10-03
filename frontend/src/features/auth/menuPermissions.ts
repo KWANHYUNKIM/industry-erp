@@ -151,6 +151,7 @@ const RULES: Rule[] = [
   ['/hr/allowance-items', 'PAYROLL'],
   ['/hr/deduction-items', 'PAYROLL'],
   ['/hr/pay-groups', 'PAYROLL'],
+  ['/hr/departments', 'HR'],
   ['/hr/daily-wage', 'PAYROLL'],
   ['/hr', 'HR'],
 
