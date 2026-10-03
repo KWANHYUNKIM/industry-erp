@@ -1,5 +1,5 @@
 {
-  "about": "관리 > 일용근로 급여계산/대장(E020139) — 일용근로 사원 둘(일근무 150,000 · 200,000)이 2091/10 에 이틀씩 근무입력돼 있을 때, 대장 신규 → 근무기록확정 [근무기록] 으로 2 · 2 를 불러 저장 → 전체계산 → 급여대장: 지급총액 700,000 · 소득세 2,700 · 지방소득세 270 · 실지급액 697,030. 세금은 원본 계산식처럼 사원 [급여지급사항] 월정공제 그대로(B 만 2,700 · 270 을 적어 두었다 — A 는 비어 0, 원본 150,000 × 2 → 세금 0 과 같다). 대장을 지우고 시험 자료를 정리한다.",
+  "about": "관리 > 일용근로 급여계산/대장(E020139) — 일용근로 사원 둘(일근무 150,000 · 200,000)이 2091/10 에 이틀씩 근무입력돼 있을 때, 대장 신규 → 근무기록확정 [근무기록] 으로 2 · 2 를 불러 저장 → 전체계산 → 급여대장: 지급총액 700,000 · 소득세 2,700 · 지방소득세 270 · 실지급액 697,030. 세금은 원본 계산식처럼 사원 [급여지급사항] 월정공제 그대로(B 만 2,700 · 270 을 적어 두었다 — A 는 비어 0, 원본 150,000 × 2 → 세금 0 과 같다). 대장을 지우고 시험 자료를 정리한다. [명세서] 조회는 원본처럼 그 대장의 일용근로 사원별급여조회를 연다.",
   "shots": [
     {
       "name": "대장 신규 → 근무기록확정 → 전체계산 → 급여대장 → 삭제",
@@ -27,6 +27,11 @@
         "wait:1500",
         "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const t=d.innerText;const a=[...d.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA관리-일용A'))?.innerText||'';const b=[...d.querySelectorAll('tbody tr')].find(r=>r.innerText.includes('QA관리-일용B'))?.innerText||'';return t.includes('2091/10 1차수 (급여)')&&a.includes('300,000')&&b.includes('400,000')&&b.includes('2,700')&&b.includes('270')&&b.includes('397,030')})()",
         "clicklast:닫기",
+        "js:(()=>{const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('2091/10 1차수'));[...tr.querySelectorAll('a')].filter(a=>a.textContent==='조회').pop().click();return true})()",
+        "wait:2000",
+        "expect:location.pathname==='/hr/daily-payroll/by-worker'&&location.search.includes('month=2091-10')&&[...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes('2091/10'))",
+        "js:history.back();true",
+        "wait:2000",
         "js:(()=>{const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('2091/10 1차수'));[...tr.querySelectorAll('a')].find(a=>a.textContent==='삭제').click();return true})()",
         "wait:1200",
         "expect:![...document.querySelectorAll('table tbody tr')].some(t=>t.innerText.includes('2091/10 1차수'))",

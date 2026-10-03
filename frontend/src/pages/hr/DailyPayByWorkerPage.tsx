@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
@@ -16,9 +17,13 @@ import { lastDay, monthRange, slashYm, won, type DailyReportLine } from '../../f
  * 빠른선택 전월 · 전월+금월 · 금년 · 전년 · 종료월 · 금월. 급여대장 · 사원은 여러 개 고르는 코드도움.
  */
 export default function DailyPayByWorkerPage() {
-  const [range, setRange] = useState(monthRange('전월+금월'))
+  /** 일용근로 급여계산/대장 [명세서 조회]에서 오면 ?ledger=대장id&month=YYYY-MM — 그 대장 한 달로 연다(원본과 같다). */
+  const [params] = useSearchParams()
+  const fromLedger = params.get('ledger')
+  const fromMonth = params.get('month')
+  const [range, setRange] = useState(fromMonth ? { from: fromMonth, to: fromMonth } : monthRange('전월+금월'))
   const [shownRange, setShownRange] = useState(range)
-  const [ledgerCond, setLedgerCond] = useState<string[]>([])
+  const [ledgerCond, setLedgerCond] = useState<string[]>(fromLedger ? [fromLedger] : [])
   const [usePaid, setUsePaid] = useState(false)
   const [paidRange, setPaidRange] = useState(range)
   const [workerCond, setWorkerCond] = useState<string[]>([])

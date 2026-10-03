@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
@@ -36,6 +37,7 @@ const monthEnd = (ym: string) => { const [y, m] = ym.split('-').map(Number); ret
  * 일괄수정 · 명세서 · 대상프로젝트 · 프로젝트 열은 없다.
  */
 export default function DailyPayLedgerPage() {
+  const nav = useNavigate()
   const [rows, setRows] = useState<Ledger[]>([])
   const [error, setError] = useState('')
   const [formOpen, setFormOpen] = useState(false)
@@ -159,12 +161,14 @@ export default function DailyPayLedgerPage() {
               <th className="text-center">사전작업</th>
               <th className="text-center">급여계산</th>
               <th className="text-center">급여대장</th>
+              {/* 원본 [명세서] 조회 · Email — 조회는 그 대장의 일용근로 사원별급여조회를 연다. Email 은 바깥 발송이라 없다. */}
+              <th className="text-center">명세서</th>
               <th className="text-right">인원수</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
-              <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : rows.map((l) => (
               <tr key={l.id}>
                 <td className="text-center">{slash(l.payMonth)} -{l.seq}</td>
@@ -180,6 +184,9 @@ export default function DailyPayLedgerPage() {
                     {link(l.confirmed ? '확정취소' : '확정', () => toggleConfirmed(l))}
                     {link('삭제', () => remove(l))}
                   </div>
+                </td>
+                <td className="text-center">
+                  {l.headcount > 0 && link('조회', () => nav(`/hr/daily-payroll/by-worker?ledger=${l.id}&month=${l.payMonth}`))}
                 </td>
                 <td className="text-right">{l.headcount || ''}</td>
               </tr>
