@@ -40,15 +40,26 @@ public class ProjectPlanService {
     public ProjectPlanResponse create(CreateProjectPlanRequest req, String username) {
         Project project = projectRepository.findById(req.projectId())
                 .orElseThrow(() -> ApiException.notFound("프로젝트를 찾을 수 없습니다. id=" + req.projectId()));
+        /* 원본 격자의 [구매]·[노무비]·[경비] — 안 주면 0 이다(엔티티 기본값과 같게 둔다). */
+        BigDecimal purchase = req.planPurchase() != null ? req.planPurchase() : BigDecimal.ZERO;
+        BigDecimal labor = req.planLabor() != null ? req.planLabor() : BigDecimal.ZERO;
+        BigDecimal expense = req.planExpense() != null ? req.planExpense() : BigDecimal.ZERO;
+        /*
+         * 계획원가는 그 셋의 합계다(화면 주석). 목록은 [구매]·[노무비]·[경비] 만 보여 주고
+         * 계획이익은 계획매출 − 계획원가로 내는데, 셋만 적고 계획원가를 비우면 원가 0 으로 읽혀
+         * <b>계획이익 = 계획매출</b>(이익률 100%)이 됐다. 비웠으면 셋의 합으로 채운다 —
+         * 따로 적었으면 그 값을 존중한다.
+         */
+        BigDecimal cost = req.planCost();
+        if (cost.signum() == 0) cost = purchase.add(labor).add(expense);
         ProjectPlan plan = ProjectPlan.builder()
                 .project(project)
                 .planYear(req.planYear())
                 .planRevenue(req.planRevenue())
-                .planCost(req.planCost())
-                /* 원본 격자의 [구매]·[노무비]·[경비] — 안 주면 0 이다(엔티티 기본값과 같게 둔다). */
-                .planPurchase(req.planPurchase() != null ? req.planPurchase() : BigDecimal.ZERO)
-                .planLabor(req.planLabor() != null ? req.planLabor() : BigDecimal.ZERO)
-                .planExpense(req.planExpense() != null ? req.planExpense() : BigDecimal.ZERO)
+                .planCost(cost)
+                .planPurchase(purchase)
+                .planLabor(labor)
+                .planExpense(expense)
                 .remark(req.remark())
                 .createdBy(username)
                 .build();
