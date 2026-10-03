@@ -56,4 +56,19 @@ public class AttendanceKindDtos {
                     v.isCarryOver(), v.getRemark(), v.isActive());
         }
     }
+
+    /** 사원별휴가일수입력 한 줄 — 사번 · 사원명 · 부서명 · 직급 · 입사일 · 이월 잔여일수 · 당해년 휴가일수 · 휴가일수. */
+    public record GrantRow(
+            Long employeeId, String employeeCode, String employeeName, String department, String jobTitle, LocalDate hireDate,
+            java.math.BigDecimal carryOverDays, java.math.BigDecimal currentDays, java.math.BigDecimal totalDays
+    ) {}
+
+    public record GrantCell(
+            @NotNull(message = "사번을 입력 바랍니다.") Long employeeId,
+            @jakarta.validation.constraints.PositiveOrZero(message = "이월 잔여일수는 0 이상이어야 합니다.") java.math.BigDecimal carryOverDays,
+            @jakarta.validation.constraints.PositiveOrZero(message = "당해년 휴가일수는 0 이상이어야 합니다.") java.math.BigDecimal currentDays
+    ) {}
+
+    /** 사원별휴가일수조회 목록 한 줄 — 휴가코드 · 휴가명 · 사용기간 · 등록인원수. */
+    public record GrantSummary(Long vacationKindId, String code, String name, LocalDate periodFrom, LocalDate periodTo, long headcount) {}
 }

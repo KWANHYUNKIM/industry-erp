@@ -6,6 +6,9 @@ import com.erp.hr.attendancekind.dto.AttendanceKindDtos.AttendanceKindRequest;
 import com.erp.hr.attendancekind.dto.AttendanceKindDtos.AttendanceKindResponse;
 import com.erp.hr.attendancekind.dto.AttendanceKindDtos.VacationKindRequest;
 import com.erp.hr.attendancekind.dto.AttendanceKindDtos.VacationKindResponse;
+import com.erp.hr.attendancekind.dto.AttendanceKindDtos.GrantCell;
+import com.erp.hr.attendancekind.dto.AttendanceKindDtos.GrantRow;
+import com.erp.hr.attendancekind.dto.AttendanceKindDtos.GrantSummary;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +25,8 @@ public class AttendanceKindService {
 
     private final AttendanceKindRepository repository;
     private final VacationKindRepository vacationRepository;
+    private final VacationGrantRepository grantRepository;
+    private final com.erp.hr.employee.EmployeeService employeeService;
     private final DocumentNoGenerator documentNoGenerator;
 
     @Transactional(readOnly = true)
@@ -111,7 +116,62 @@ public class AttendanceKindService {
         if (repository.existsByVacationKind_Id(id)) {
             throw ApiException.conflict("근태항목에 쓰인 휴가항목은 삭제할 수 없습니다: " + v.getName());
         }
+        if (grantRepository.existsByVacationKind_Id(id)) {
+            throw ApiException.conflict("사원별휴가일수가 등록된 휴가항목은 삭제할 수 없습니다: " + v.getName());
+        }
         vacationRepository.delete(v);
+    }
+
+    // ── 사원별휴가일수조회(원본 E020703) ─────────────────────────────────────
+
+    /** 목록 — 휴가항목마다 등록인원수. */
+    @Transactional(readOnly = true)
+    public List<GrantSummary> grantSummaries() {
+        java.util.Map<Long, Long> counts = new java.util.HashMap<>();
+        for (Object[] r : grantRepository.countByKind()) counts.put((Long) r[0], (Long) r[1]);
+        return vacationRepository.findAllByOrderByPeriodFromDescCodeDesc().stream()
+                .map(v -> new GrantSummary(v.getId(), v.getCode(), v.getName(), v.getPeriodFrom(), v.getPeriodTo(),
+                        counts.getOrDefault(v.getId(), 0L)))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<GrantRow> grants(Long kindId) {
+        vacation(kindId);
+        return grantRepository.findByKind(kindId).stream().map(this::toRow).toList();
+    }
+
+    /** 사원별휴가일수입력 [저장] — 그 휴가항목의 줄을 통째로 바꾼다. 같은 사원은 한 줄. */
+    @Transactional
+    public List<GrantRow> saveGrants(Long kindId, List<GrantCell> cells) {
+        VacationKind v = vacation(kindId);
+        java.util.Set<Long> seen = new java.util.HashSet<>();
+        for (GrantCell c : cells) {
+            if (!seen.add(c.employeeId())) throw ApiException.badRequest("같은 사원을 두 번 넣었습니다.");
+        }
+        grantRepository.deleteByKind(kindId);
+        grantRepository.flush();
+        for (GrantCell c : cells) {
+            grantRepository.save(VacationGrant.builder().vacationKind(v).employee(employeeService.get(c.employeeId()))
+                    .carryOverDays(c.carryOverDays() != null ? c.carryOverDays() : java.math.BigDecimal.ZERO)
+                    .currentDays(c.currentDays() != null ? c.currentDays() : java.math.BigDecimal.ZERO)
+                    .build());
+        }
+        return grants(kindId);
+    }
+
+    /** 목록 [선택삭제] — 그 휴가항목에 등록한 사원별휴가일수를 지운다(휴가항목은 남는다). */
+    @Transactional
+    public void deleteGrants(Long kindId) {
+        vacation(kindId);
+        grantRepository.deleteByKind(kindId);
+    }
+
+    private GrantRow toRow(VacationGrant g) {
+        var e = g.getEmployee();
+        return new GrantRow(e.getId(), e.getCode(), e.getName(), e.getDepartment() != null ? e.getDepartment().getName() : "",
+                e.getJobTitle() != null ? e.getJobTitle() : "", e.getHireDate(),
+                g.getCarryOverDays(), g.getCurrentDays(), g.getCarryOverDays().add(g.getCurrentDays()));
     }
 
     private void applyVacation(VacationKind v, VacationKindRequest req) {
