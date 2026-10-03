@@ -6,6 +6,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Department } from '../../types/api'
 import DepartmentHierarchy from '../../features/department/components/DepartmentHierarchy'
+import EditStateMenu from '../../components/EditStateMenu'
 
 /**
  * 관리 &gt; 급여관리 &gt; 기본사항등록 &gt; <b>부서등록</b> (원본 E010105, 화면 제목 '부서리스트').
@@ -80,12 +81,13 @@ export default function DepartmentListPage() {
   }
 
   const [menuOpen, setMenuOpen] = useState(false)
-  async function applyToChecked(op: '사용중단' | '삭제' | '재사용') {
+  /** ids 를 주면 그 항목만(수정 창의 [사용중단/재사용 ▲]), 안 주면 체크한 항목들. */
+  async function applyToChecked(op: '사용중단' | '삭제' | '재사용', ids: Set<number> = checked) {
     setMenuOpen(false)
     if (op === '삭제' && !window.confirm(
       '삭제하시겠습니까?\n\n조직도에 포함된 부서인 경우에는 조직도에서도 하위부서를 포함하여 모두 삭제됩니다.')) return
     try {
-      for (const d of rows.filter((x) => checked.has(x.id))) {
+      for (const d of rows.filter((x) => ids.has(x.id))) {
         if (op === '삭제') await api.delete(`/departments/${d.id}`)
         else await api.put(`/departments/${d.id}`, { name: d.name, parentId: d.parentId, sortOrder: d.sortOrder, active: op === '재사용' })
       }
@@ -202,6 +204,7 @@ export default function DepartmentListPage() {
                     onClick={() => { const d = rows.find((x) => x.id === editId); if (d) openEdit(d); else { setName(''); setParentId('') } }}>
               다시 작성
             </button>
+            {editId != null && <EditStateMenu active={rows.find((x) => x.id === editId)?.active ?? true} onPick={(op) => { setFormOpen(false); applyToChecked(op, new Set([editId])) }} />}
             <button type="button" className="ec-btn" onClick={() => setFormOpen(false)}>닫기</button>
           </div>
         </form>

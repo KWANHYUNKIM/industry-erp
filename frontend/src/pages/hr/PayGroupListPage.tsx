@@ -5,6 +5,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { EmployeeMaster, PayGroup, PayGroupEmployee, PayItem, PayslipLineKind } from '../../types/api'
+import EditStateMenu from '../../components/EditStateMenu'
 
 /** 원본 그룹 폼은 수당 · 공제 격자마다 빈 줄 세 개로 시작한다. */
 const BLANK_LINES = 3
@@ -127,11 +128,12 @@ export default function PayGroupListPage() {
 
   // ── 사용중단 · 삭제 · 재사용 ──
   const [menuOpen, setMenuOpen] = useState(false)
-  async function applyToChecked(op: '사용중단' | '삭제' | '재사용') {
+  /** ids 를 주면 그 항목만(수정 창의 [사용중단/재사용 ▲]), 안 주면 체크한 항목들. */
+  async function applyToChecked(op: '사용중단' | '삭제' | '재사용', ids: Set<number> = checked) {
     setMenuOpen(false)
     if (op === '삭제' && !window.confirm('한번 지워진 자료는 복구될 수 없습니다.\n\n삭제하겠습니까?')) return
     try {
-      for (const g of groups.filter((x) => checked.has(x.id))) {
+      for (const g of groups.filter((x) => ids.has(x.id))) {
         if (op === '삭제') await api.delete(`/pay-settings/groups/${g.id}`)
         else {
           await api.put(`/pay-settings/groups/${g.id}`, {
@@ -283,6 +285,7 @@ export default function PayGroupListPage() {
                     onClick={() => { const g = groups.find((x) => x.id === editId); if (g) openEdit(g); else openNew() }}>
               다시 작성
             </button>
+            {editId != null && <EditStateMenu active={groups.find((x) => x.id === editId)?.active ?? true} onPick={(op) => { setFormOpen(false); applyToChecked(op, new Set([editId])) }} />}
             <button type="button" className="ec-btn" onClick={() => setFormOpen(false)}>닫기</button>
           </div>
         </form>

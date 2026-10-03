@@ -4,6 +4,7 @@ import Modal from '../../components/Modal'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { useTableSort } from '../../utils/useTableSort'
 import { api, extractErrorMessage } from '../../api/client'
+import EditStateMenu from '../../components/EditStateMenu'
 
 type Method = 'WORK_TIME' | 'LATE' | 'EARLY_LEAVE' | 'FORMULA'
 interface Rule {
@@ -92,11 +93,12 @@ export default function CommuteRuleListPage() {
     }
   }
 
-  async function applyToChecked(op: '사용중단' | '삭제' | '재사용') {
+  /** ids 를 주면 그 항목만(수정 창의 [사용중단/재사용 ▲]), 안 주면 체크한 항목들. */
+  async function applyToChecked(op: '사용중단' | '삭제' | '재사용', ids: Set<number> = checked) {
     setMenuOpen(false)
     if (op === '삭제' && !window.confirm('삭제하시겠습니까?')) return
     try {
-      for (const r of rows.filter((x) => checked.has(x.id))) {
+      for (const r of rows.filter((x) => ids.has(x.id))) {
         if (op === '삭제') await api.delete(`/hr/commute-rules/${r.id}`)
         else await api.put(`/hr/commute-rules/${r.id}`, { ...r, active: op === '재사용' })
       }
@@ -256,6 +258,7 @@ export default function CommuteRuleListPage() {
         <div className="flex gap-[6px] mt-[12px]">
           <button type="button" className="ec-btn ec-btn-primary" onClick={save}>저장(F8)</button>
           <button type="button" className="ec-btn" onClick={() => { const r = rows.find((x) => x.id === editId); if (r) openEdit(r); else setForm(blankForm()) }}>다시 작성</button>
+          {editId != null && <EditStateMenu active={rows.find((x) => x.id === editId)?.active ?? true} onPick={(op) => { setOpen(false); applyToChecked(op, new Set([editId])) }} />}
           <button type="button" className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
         </div>
       </Modal>

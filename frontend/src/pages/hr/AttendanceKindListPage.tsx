@@ -6,6 +6,7 @@ import AttendanceGroupField from '../../features/attendancekind/components/Atten
 import { useTableSort } from '../../utils/useTableSort'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
+import EditStateMenu from '../../components/EditStateMenu'
 
 type KindType = 'BASIC' | 'VACATION' | 'COMMUTE'
 interface Kind { id: number; code: string; name: string; kindGroup: string | null; type: KindType; typeName: string; vacationKindId: number | null; hourUnit: boolean; remark: string | null; active: boolean }
@@ -84,11 +85,12 @@ export default function AttendanceKindListPage() {
     }
   }
 
-  async function applyToChecked(op: '사용중단' | '삭제' | '재사용') {
+  /** ids 를 주면 그 항목만(수정 창의 [사용중단/재사용 ▲]), 안 주면 체크한 항목들. */
+  async function applyToChecked(op: '사용중단' | '삭제' | '재사용', ids: Set<number> = checked) {
     setMenuOpen(false)
     if (op === '삭제' && !window.confirm('삭제하시겠습니까?')) return
     try {
-      for (const k of rows.filter((x) => checked.has(x.id))) {
+      for (const k of rows.filter((x) => ids.has(x.id))) {
         if (op === '삭제') await api.delete(`/hr/attendance-kinds/${k.id}`)
         else await api.put(`/hr/attendance-kinds/${k.id}`, {
           code: k.code, name: k.name, kindGroup: k.kindGroup, type: k.type, vacationKindId: k.vacationKindId, hourUnit: k.hourUnit, remark: k.remark, active: op === '재사용',
@@ -213,6 +215,7 @@ export default function AttendanceKindListPage() {
         <div className="flex gap-[6px] mt-[12px]">
           <button type="button" className="ec-btn ec-btn-primary" onClick={save}>저장(F8)</button>
           <button type="button" className="ec-btn" onClick={() => { const k = rows.find((x) => x.id === editId); if (k) openEdit(k); else setForm({ ...blankForm(), code: form.code }) }}>다시 작성</button>
+          {editId != null && <EditStateMenu active={rows.find((x) => x.id === editId)?.active ?? true} onPick={(op) => { setOpen(false); applyToChecked(op, new Set([editId])) }} />}
           <button type="button" className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
         </div>
       </Modal>
