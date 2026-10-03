@@ -74,6 +74,10 @@ public class EmployeeService {
                 .mobile(req.mobile())
                 .resignReason(req.resignReason())
                 .address(req.address())
+                .bankCode(req.bankCode())
+                .bankName(req.bankName())
+                .accountNo(req.accountNo())
+                .accountHolder(req.accountHolder())
                 .active(true)
                 .build();
         return EmployeeResponse.from(employeeRepository.save(e));
@@ -108,6 +112,10 @@ public class EmployeeService {
         e.setMobile(req.mobile());
         e.setResignReason(req.resignReason());
         e.setAddress(req.address());
+        e.setBankCode(req.bankCode());
+        e.setBankName(req.bankName());
+        e.setAccountNo(req.accountNo());
+        e.setAccountHolder(req.accountHolder());
 
         boolean active = req.active() == null ? e.isActive() : req.active();
         if (req.resignDate() != null) {

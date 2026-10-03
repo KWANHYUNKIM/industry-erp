@@ -93,4 +93,17 @@ public class Employee extends BaseTimeEntity {
     /** 원본 [주소]. */
     @Column(length = 200)
     private String address;
+
+    /** 원본 사원등록 [급여통장] — 은행 · 계좌번호 · 예금주. 급여이체현황이 이것으로 이체 목록을 만든다. */
+    @Column(name = "bank_code", length = 10)
+    private String bankCode;
+
+    @Column(name = "bank_name", length = 50)
+    private String bankName;
+
+    @Column(name = "account_no", length = 50)
+    private String accountNo;
+
+    @Column(name = "account_holder", length = 50)
+    private String accountHolder;
 }

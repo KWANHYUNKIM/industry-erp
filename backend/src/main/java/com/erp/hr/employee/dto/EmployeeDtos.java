@@ -91,7 +91,12 @@ public class EmployeeDtos {
             @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
             String resignReason,
             @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
-            String address
+            String address,
+            /* 원본 [급여통장] 은행코드 · 은행명 · 계좌번호 · 예금주 */
+            @Size(max = 10, message = "입력한 글자가 너무 깁니다. 10자까지 넣을 수 있습니다.") String bankCode,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.") String bankName,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.") String accountNo,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.") String accountHolder
     ) {}
 
     /**
@@ -126,6 +131,11 @@ public class EmployeeDtos {
             String resignReason,
             @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String address,
+            /* 원본 [급여통장] 은행코드 · 은행명 · 계좌번호 · 예금주 */
+            @Size(max = 10, message = "입력한 글자가 너무 깁니다. 10자까지 넣을 수 있습니다.") String bankCode,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.") String bankName,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.") String accountNo,
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.") String accountHolder,
             Boolean active
     ) {}
 
@@ -146,7 +156,9 @@ public class EmployeeDtos {
             /* 원본 [담당자연락처]·[담당자Email]·[검색창내용]·[적요]. */
             String phone, String email, String searchKeyword, String remark,
             /* 원본 관리 > 사원등록의 [급여구분]·[모바일]·[퇴사사유]·[주소]. */
-            PayType payType, String payTypeName, String mobile, String resignReason, String address
+            PayType payType, String payTypeName, String mobile, String resignReason, String address,
+            /* 원본 [급여통장] */
+            String bankCode, String bankName, String accountNo, String accountHolder
     ) {
         public static EmployeeResponse from(Employee e) {
             return new EmployeeResponse(
@@ -158,7 +170,8 @@ public class EmployeeDtos {
                     e.getHireDate(), e.getResignDate(), e.isActive(),
                     e.getPhone(), e.getEmail(), e.getSearchKeyword(), e.getRemark(),
                     e.getPayType(), e.getPayType().getDisplayName(),
-                    e.getMobile(), e.getResignReason(), e.getAddress());
+                    e.getMobile(), e.getResignReason(), e.getAddress(),
+                    e.getBankCode(), e.getBankName(), e.getAccountNo(), e.getAccountHolder());
         }
 
         /**
@@ -176,7 +189,9 @@ public class EmployeeDtos {
                     null, hireDate, resignDate, active,
                     /* 연락처·적요는 급여가 아니다 — 가릴 것은 급여 칸 하나뿐이다. */
                     phone, email, searchKeyword, remark,
-                    payType, payTypeName, mobile, resignReason, address);
+                    payType, payTypeName, mobile, resignReason, address,
+                    /* 급여통장도 급여 정보다 — 기본급과 같이 가린다 */
+                    null, null, null, null);
         }
     }
 }
