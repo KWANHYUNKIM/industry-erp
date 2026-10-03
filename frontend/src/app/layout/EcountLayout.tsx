@@ -647,8 +647,20 @@ const MENU: TopMenu[] = [
               { label: '인사발령현황', to: '/hr/assignments/status' },
             ],
           },
-          { label: '인사관리현황', children: [{ label: '인원현황', to: '/hr/headcount' }] },
-          { label: '조직도', to: '/groupware/org' },
+          {
+            label: '인사관리현황',
+            children: [
+              { label: '각종증명서인쇄', to: '/hr/certificates' },
+              { label: '인원현황', to: '/hr/headcount' },
+            ],
+          },
+          {
+            label: '조직도관리',
+            children: [
+              { label: '조직도등록', to: '/groupware/org-tree' },
+              { label: '조직도현황', to: '/groupware/org-status' },
+            ],
+          },
         ],
       },
       {

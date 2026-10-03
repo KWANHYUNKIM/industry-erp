@@ -10437,6 +10437,7 @@ async function main() {
   await scenarioSeedRows()
   await scenarioRollback(fixtures)
   await scenarioRoundTrip(fixtures)
+  await scenarioHrCertificate()
   await scenarioPressedTwice(fixtures)
   await scenarioNoPermission()
   await scenarioNewCompany()
@@ -11021,6 +11022,31 @@ async function scenarioRoundTrip(f) {
     eq(`${이름}: 재고가 창고별로 정확히 돌아온다`, 재고차(전, await 재고표()).join(' | ') || '없음', '없음')
     eq(`${이름}: 전표도 안 남는다`, (await must('GET', path)).length, 전개수)
   }
+}
+
+/**
+ * 관리 › 각종증명서인쇄(원본 E020606) — 발행번호는 발행일의 해 - 그해 차례, 고쳐도 번호는 그대로,
+ * 퇴사일 없는 사원의 퇴직증명서는 막는다. 만든 증명서는 지운다.
+ */
+async function scenarioHrCertificate() {
+  section('■ 각종증명서인쇄 — 발행번호 · 수정 · 퇴직증명서 막기 · 삭제')
+  const emp = (await must('GET', '/employees'))[0]
+  const year = new Date().getFullYear()
+  const d = new Date()
+  const today = `${year}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  const maxSeq = Math.max(0, ...(await must('GET', '/hr/certificates'))
+    .filter((x) => x.issueNo.startsWith(`${year}-`)).map((x) => Number(x.issueNo.split('-')[1])))
+  const c = await must('POST', '/hr/certificates', { kind: 'EMPLOYMENT', employeeId: emp.id, purpose: 'QA-증명', issueDate: today })
+  eq('발행번호는 그해 다음 차례', c.issueNo, `${year}-${maxSeq + 1}`)
+  const u = await must('PUT', `/hr/certificates/${c.id}`, { kind: 'CAREER', employeeId: emp.id, purpose: 'QA-증명2', issueDate: today })
+  eq('고쳐도 발행번호는 그대로', u.issueNo, c.issueNo)
+  eq('고친 종류가 읽힌다', (await must('GET', `/hr/certificates/${c.id}`)).kindName, '경력증명서')
+  if (!emp.resignDate) {
+    await rejects('퇴사일 없는 사원의 퇴직증명서는 막는다', 'POST', '/hr/certificates',
+      { kind: 'RESIGNATION', employeeId: emp.id, purpose: 'QA-증명', issueDate: today }, '퇴사일이 없는 사원')
+  }
+  await must('DELETE', `/hr/certificates/${c.id}`)
+  eq('지운 증명서는 목록에 없다', (await must('GET', '/hr/certificates')).some((x) => x.id === c.id), 'false')
 }
 
 async function scenarioRollback(f) {
