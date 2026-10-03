@@ -667,6 +667,8 @@ const MENU: TopMenu[] = [
         nodes: [
           { label: '일용근로 기본사항 등록', children: [
             { label: '일용근로 사원등록', to: '/hr/daily-workers' },
+            { label: '일용근로 수당등록', to: '/hr/daily-allowance-items' },
+            { label: '일용근로 공제등록', to: '/hr/daily-deduction-items' },
             { label: '프로젝트등록', to: '/inventory/projects' },
           ] },
           { label: '일용근로 근무기록', children: [

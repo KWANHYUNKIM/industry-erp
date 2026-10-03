@@ -1,12 +1,12 @@
 {
-  "about": "관리 > 일용근로 급여계산/대장(E020139) — 일용근로 사원 둘(일근무 150,000 · 200,000)이 2091/10 에 이틀씩 근무입력돼 있을 때, 대장 신규 → 근무기록확정 [근무기록] 으로 2 · 2 를 불러 저장 → 전체계산 → 급여대장: 지급총액 700,000 · 소득세 2,700 · 지방소득세 270 · 실지급액 697,030 (원본 150,000 × 2 → 300,000 · 세금 0 과 같은 셈). 대장을 지우고 시험 자료를 정리한다.",
+  "about": "관리 > 일용근로 급여계산/대장(E020139) — 일용근로 사원 둘(일근무 150,000 · 200,000)이 2091/10 에 이틀씩 근무입력돼 있을 때, 대장 신규 → 근무기록확정 [근무기록] 으로 2 · 2 를 불러 저장 → 전체계산 → 급여대장: 지급총액 700,000 · 소득세 2,700 · 지방소득세 270 · 실지급액 697,030. 세금은 원본 계산식처럼 사원 [급여지급사항] 월정공제 그대로(B 만 2,700 · 270 을 적어 두었다 — A 는 비어 0, 원본 150,000 × 2 → 세금 0 과 같다). 대장을 지우고 시험 자료를 정리한다.",
   "shots": [
     {
       "name": "대장 신규 → 근무기록확정 → 전체계산 → 급여대장 → 삭제",
       "path": "/hr/daily-payroll",
       "steps": [
         "js:window.confirm=()=>true;true",
-        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const mk=async(n,w)=>(await (await fetch('/api/hr/daily-workers',{method:'POST',headers:h,body:JSON.stringify({name:n,foreigner:false,employmentInsurance:true,pensionAuto:false,healthAuto:false,dailyWage:w})})).json());const a=await mk('QA관리-일용A',150000);const b=await mk('QA관리-일용B',200000);const s=await (await fetch('/api/hr/daily-work-entries',{method:'POST',headers:h,body:JSON.stringify({slipDate:'2091-10-05',lines:[{workDate:'2091-10-05',workerId:a.id,quantity:2},{workDate:'2091-10-06',workerId:b.id,quantity:2}]})})).json();sessionStorage.setItem('qaDp',JSON.stringify({a:a.id,b:b.id,slip:s.slipDate+'/'+s.slipNo}));return true})()",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const mk=async(n,w)=>(await (await fetch('/api/hr/daily-workers',{method:'POST',headers:h,body:JSON.stringify({name:n,foreigner:false,employmentInsurance:true,pensionAuto:false,healthAuto:false,dailyWage:w})})).json());const a=await mk('QA관리-일용A',150000);const b=await (await fetch('/api/hr/daily-workers',{method:'POST',headers:h,body:JSON.stringify({name:'QA관리-일용B',foreigner:false,employmentInsurance:true,pensionAuto:false,healthAuto:false,dailyWage:200000,fixedIncomeTax:2700,fixedLocalTax:270})})).json();const s=await (await fetch('/api/hr/daily-work-entries',{method:'POST',headers:h,body:JSON.stringify({slipDate:'2091-10-05',lines:[{workDate:'2091-10-05',workerId:a.id,quantity:2},{workDate:'2091-10-06',workerId:b.id,quantity:2}]})})).json();sessionStorage.setItem('qaDp',JSON.stringify({a:a.id,b:b.id,slip:s.slipDate+'/'+s.slipNo}));return true})()",
         "click:신규(F2)",
         "set:[role=dialog] input[type=month]#0|2091-10",
         "expect:document.querySelectorAll('[role=dialog] input[type=date]')[0].value==='2091-10-01'&&document.querySelectorAll('[role=dialog] input[type=date]')[1].value==='2091-10-31'",

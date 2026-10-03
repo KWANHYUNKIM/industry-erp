@@ -25,17 +25,17 @@ import java.util.Map;
  * 일용근로 급여계산/대장(원본 E020139).
  *
  * <p>2026-10-03 loginaa: 일근무 150,000 인 사원의 근무기록확정 일근무 2 → 전체계산 → 지급총액 300,000 · 소득세 0 · 지방소득세 0 ·
- * 실지급액 300,000. 일용근로소득세는 하루치 (일급 − 150,000) × 6% × (1 − 55%) = 2.7%, 하루 세액 1,000원 미만은 소액부징수 0,
- * 지방소득세는 소득세의 10%(10원 미만 버림). 사원 [급여지급사항]의 월정공제(소득세 · 지방소득세)를 적어 두었으면 그 금액을 쓴다.
+ * 실지급액 300,000. 원본 계산식(일용근로 수당등록 · 공제등록) 그대로다:
+ * <ul>
+ *   <li>일근무 = R( 일근무(급여지급사항) × 일근무(근무기록확정) , 0 )</li>
+ *   <li>소득세 = R( 소득세(급여지급사항) , 0 ) · 지방소득세 = R( 지방소득세(급여지급사항) , 0 ) — 사원 [급여지급사항]의 월정공제 금액.
+ *       세율로 셈하지 않는다(그래서 월정공제를 비워 둔 원본 사원은 세금이 0 이었다).</li>
+ * </ul>
  */
 @Service
 @RequiredArgsConstructor
 public class DailyPayService {
 
-    private static final BigDecimal DAILY_DEDUCTION = new BigDecimal("150000");
-    private static final BigDecimal EFFECTIVE_RATE = new BigDecimal("0.027");
-    private static final BigDecimal MIN_TAX = new BigDecimal("1000");
-    private static final BigDecimal LOCAL_RATE = new BigDecimal("0.10");
 
     private final DailyPayLedgerRepository ledgerRepository;
     private final DailyWorkConfirmRepository confirmRepository;
@@ -147,10 +147,8 @@ public class DailyPayService {
             BigDecimal wage = w.getDailyWage() != null ? w.getDailyWage() : BigDecimal.ZERO;
             BigDecimal gross = wage.multiply(c.getDays()).setScale(0, RoundingMode.DOWN);
             if (gross.signum() <= 0) { skipped++; continue; }
-            BigDecimal tax = positive(w.getFixedIncomeTax())
-                    ? w.getFixedIncomeTax() : dailyTax(wage).multiply(c.getDays()).setScale(0, RoundingMode.DOWN);
-            BigDecimal local = positive(w.getFixedLocalTax())
-                    ? w.getFixedLocalTax() : tax.multiply(LOCAL_RATE).divide(BigDecimal.TEN, 0, RoundingMode.DOWN).multiply(BigDecimal.TEN);
+            BigDecimal tax = w.getFixedIncomeTax() != null ? w.getFixedIncomeTax() : BigDecimal.ZERO;
+            BigDecimal local = w.getFixedLocalTax() != null ? w.getFixedLocalTax() : BigDecimal.ZERO;
             lineRepository.save(DailyPayLine.builder().ledger(l).worker(w).days(c.getDays())
                     .grossPay(gross).incomeTax(tax).localTax(local).netPay(gross.subtract(tax).subtract(local)).build());
             done++;
@@ -199,18 +197,6 @@ public class DailyPayService {
         DailyPayLine l = lineRepository.findById(lineId).orElseThrow(() -> ApiException.notFound("급여 줄을 찾을 수 없습니다."));
         if (l.getLedger().isConfirmed()) throw ApiException.conflict("확정된 급여대장입니다. 확정을 풀고 다시 하세요.");
         lineRepository.delete(l);
-    }
-
-    /** 하루치 일용근로소득세 — (일급 − 15만) × 2.7%, 10원 미만 버림, 1,000원 미만 소액부징수. */
-    static BigDecimal dailyTax(BigDecimal wage) {
-        BigDecimal taxable = wage.subtract(DAILY_DEDUCTION);
-        if (taxable.signum() <= 0) return BigDecimal.ZERO;
-        BigDecimal tax = taxable.multiply(EFFECTIVE_RATE).divide(BigDecimal.TEN, 0, RoundingMode.DOWN).multiply(BigDecimal.TEN);
-        return tax.compareTo(MIN_TAX) < 0 ? BigDecimal.ZERO : tax;
-    }
-
-    private static boolean positive(BigDecimal v) {
-        return v != null && v.signum() > 0;
     }
 
     private DailyPayLedger editable(Long ledgerId) {

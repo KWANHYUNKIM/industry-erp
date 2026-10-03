@@ -11072,7 +11072,7 @@ async function scenarioDailyWorker() {
   await must('PUT', `/hr/daily-work-entries/${slip.slipDate}/${slip.slipNo}`, { slipDate: today, lines: [{ workDate: today, workerId: w.id, quantity: 3 }] })
   eq('고친 근무기록이 읽힌다', Number((await must('GET', `/hr/daily-work-entries/${slip.slipDate}/${slip.slipNo}`)).lines[0].quantity), 3)
   await rejects('근무입력에 쓰인 사원은 지울 수 없다', 'DELETE', `/hr/daily-workers/${w.id}`, undefined, '근무입력에 쓰인 사원')
-  // 급여계산/대장 — 일근무 160,000 × 3 = 480,000 · 소득세 (160,000-150,000)×2.7% = 270/일 → 소액부징수 0
+  // 급여계산/대장 — 일근무 160,000 × 3 = 480,000 · 소득세 = 월정공제(비어 있으면 0, 원본 계산식 R( 소득세(급여지급사항) , 0 ))
   const ledger = await must('POST', '/hr/daily-pay-ledgers', { payMonth: '2091-11' })
   eq('대장명칭 기본값', ledger.name, '2091/11 1차수 (급여)')
   const loaded = await must('GET', `/hr/daily-pay-ledgers/${ledger.id}/work-confirms/load`)
@@ -11081,7 +11081,7 @@ async function scenarioDailyWorker() {
   eq('근무기록확정 저장', Number((await must('GET', `/hr/daily-pay-ledgers/${ledger.id}/work-confirms`)).find((r) => r.workerId === w.id).days), 3)
   await must('POST', `/hr/daily-pay-ledgers/${ledger.id}/calculate`)
   const pl = (await must('GET', `/hr/daily-pay-ledgers/${ledger.id}/lines`)).find((l) => l.workerId === w.id)
-  eq('전체계산 지급총액 · 소득세(소액부징수) · 실지급액', `${Number(pl.grossPay)}/${Number(pl.incomeTax)}/${Number(pl.netPay)}`, '480000/0/480000')
+  eq('전체계산 지급총액 · 소득세(월정공제 없음) · 실지급액', `${Number(pl.grossPay)}/${Number(pl.incomeTax)}/${Number(pl.netPay)}`, '480000/0/480000')
   await must('POST', `/hr/daily-pay-ledgers/${ledger.id}/confirm`)
   await rejects('확정한 대장은 다시 계산할 수 없다', 'POST', `/hr/daily-pay-ledgers/${ledger.id}/calculate`, undefined, '확정된 급여대장')
   await must('POST', `/hr/daily-pay-ledgers/${ledger.id}/confirm`)
