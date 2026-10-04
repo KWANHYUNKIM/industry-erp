@@ -790,6 +790,7 @@ const MENU: TopMenu[] = [
             { label: '매입(세금)계산서현황(세무)', to: '/accounting/vat/purchase-tax-status' },
             { label: '각종구분값변경', to: '/accounting/vat/marks' },
             { label: '매입/매출장', to: '/accounting/vat-book' },
+            { label: '매출(세금)계산서요약', to: '/accounting/vat/sales-tax-summary' },
             { label: '매입매출·부가세', to: '/accounting/vat' },
           ] },
         ],
