@@ -154,8 +154,8 @@ export default function WithholdingPayeePage() {
 
       {form && (
         <Modal open error={formError} title="소득자등록" width={640} onClose={() => setForm(null)}>
-          <ul className="ec-form">
-            <EcCond label="구분" span="full">
+          <ul className="ec-form [&>li>.title]:basis-[150px]">
+            <EcCond label="구분" span={2}>
               {([['CORPORATE', '법인'], ['INDIVIDUAL', '개인']] as const).map(([v, l]) => (
                 <label key={v} className="inline-flex items-center gap-[3px] mr-[10px]">
                   <input type="radio" name="payee-kind" checked={form.kind === v} onChange={() => set({ kind: v })} /> {l}
@@ -166,26 +166,27 @@ export default function WithholdingPayeePage() {
               ['사업자등록번호', 'bizRegNo'], ['주민(법인)등록번호', 'regNo'], ['상호', 'tradeName'], ['성명(대표자명)', 'name'],
               ['주소', 'address'], ['영문명', 'englishName'], ['사업장소재지', 'bizAddress'],
             ] as const).map(([label, key]) => (
-              <EcCond key={key} label={label} span="full">
+              <EcCond key={key} label={label} span={2}>
                 <input className="ec-input w-full" placeholder={label} value={form[key]} onChange={(e) => set({ [key]: e.target.value })} />
               </EcCond>
             ))}
-            <EcCond label="소득자구분코드" span="full">
+            <EcCond label="소득자구분코드" span={2}>
               <CodePickerField label="소득자구분코드" hideLabel fill emptyLabel="(선택 안 함)" value={form.payeeKindCode}
                                onChange={(v) => set({ payeeKindCode: v })}
                                items={payeeKinds.map((c) => ({ value: c.code, code: c.code, name: c.name }))} />
             </EcCond>
-            <EcCond label="업종구분코드" span="full">
+            <EcCond label="업종구분코드" span={2}>
               <CodePickerField label="업종구분코드" hideLabel fill emptyLabel="(선택 안 함)" value={form.industryCode}
                                onChange={(v) => set({ industryCode: v })}
                                items={industries.map((c) => ({ value: c.code, code: c.code, name: c.name }))} />
             </EcCond>
             {([['은행명', 'bankName'], ['계좌(증서)번호', 'accountNo']] as const).map(([label, key]) => (
-              <EcCond key={key} label={label} span="full">
+              <EcCond key={key} label={label} span={2}>
                 <input className="ec-input w-full" placeholder={label} value={form[key]} onChange={(e) => set({ [key]: e.target.value })} />
               </EcCond>
             ))}
-            <EcCond label="기타구분" span="full">
+            <EcCond label="기타구분" span={2}>
+              <div className="flex flex-col items-start gap-[4px] w-full">
               <div>
                 {([['nonResident', '비거주자'], ['foreigner', '외국인'], ['nonRealName', '비실명(이자/배당소득용)']] as const).map(([key, l]) => (
                   <label key={key} className="inline-flex items-center gap-[3px] mr-[10px]">
@@ -193,17 +194,18 @@ export default function WithholdingPayeePage() {
                   </label>
                 ))}
               </div>
-              <label className="flex items-center gap-[6px] mt-[4px]">
+              <label className="flex items-center gap-[6px] w-full">
                 생년월일
                 <input className="ec-input flex-1" placeholder="YYYYMMDD" value={form.birthDate} onChange={(e) => set({ birthDate: e.target.value })} />
               </label>
+              </div>
             </EcCond>
             {([['계정코드', 'accountCode'], ['모바일', 'mobile'], ['Email', 'email']] as const).map(([label, key]) => (
-              <EcCond key={key} label={label} span="full">
+              <EcCond key={key} label={label} span={2}>
                 <input className="ec-input w-full" placeholder={label} value={form[key]} onChange={(e) => set({ [key]: e.target.value })} />
               </EcCond>
             ))}
-            <EcCond label="적요" span="full">
+            <EcCond label="적요" span={2}>
               <textarea className="ec-input w-full" rows={3} placeholder="적요" value={form.memo} onChange={(e) => set({ memo: e.target.value })} />
             </EcCond>
           </ul>

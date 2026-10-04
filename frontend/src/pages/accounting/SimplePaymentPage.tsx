@@ -174,18 +174,18 @@ export function StatementListPage({ daily }: { daily: boolean }) {
       {form && (
         <Modal open error={formError} title={daily ? '일용근로지급명세서파일생성' : '간이지급명세서파일생성'} width={760} onClose={() => setForm(null)}>
           <ul className="ec-form">
-            {!daily && <><EcCond label="자료구분" span="full">
+            {!daily && <><EcCond label="자료구분" span={2}>
               <select className="ec-input w-full" value={form.kind}
                       onChange={(e) => setForm(defaults(e.target.value as SimplePaymentKind, form))}>
                 {KINDS.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}
               </select>
             </EcCond>
-            <EcCond label="세무신고사업장" span="full">
+            <EcCond label="세무신고사업장" span={2}>
               <select className="ec-input w-full" disabled value="">
                 <option value="">{company?.name ?? ''} {company?.bizRegNo ?? ''}</option>
               </select>
             </EcCond></>}
-            <EcCond label="지급연월" span="full">
+            <EcCond label="지급연월" span={2}>
               <select className="ec-input w-[160px]" value={form.payYear}
                       onChange={(e) => setForm({ ...form, payYear: Number(e.target.value) })}>
                 {years.map((y) => <option key={y} value={y}>{y}</option>)}
@@ -201,15 +201,15 @@ export function StatementListPage({ daily }: { daily: boolean }) {
               <input type="date" className="ec-input w-[150px]" value={form.reportDate}
                      onChange={(e) => setForm({ ...form, reportDate: e.target.value })} />
             </EcCond>
-            <EcCond label="담당자 부서명" span="full">
+            <EcCond label="담당자 부서명" span={2}>
               <input className="ec-input w-full" placeholder="담당자 부서명" value={form.managerDept}
                      onChange={(e) => setForm({ ...form, managerDept: e.target.value })} />
             </EcCond>
-            <EcCond label="담당자 성명" span="full">
+            <EcCond label="담당자 성명" span={2}>
               <input className="ec-input w-full" placeholder="담당자 성명" value={form.managerName}
                      onChange={(e) => setForm({ ...form, managerName: e.target.value })} />
             </EcCond>
-            <EcCond label="담당자 전화번호" span="full">
+            <EcCond label="담당자 전화번호" span={2}>
               <input className="ec-input w-full" placeholder="담당자 전화번호" value={form.managerPhone}
                      onChange={(e) => setForm({ ...form, managerPhone: e.target.value })} />
             </EcCond>
