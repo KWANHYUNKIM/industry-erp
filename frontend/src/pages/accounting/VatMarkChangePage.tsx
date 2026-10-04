@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { vatSlipAmounts, type VatSide } from '../../utils/vatSlip'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
+import { dateNo } from '../../utils/dateNo'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import type { JournalEntry } from '../../types/api'
@@ -34,7 +35,7 @@ const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart
  * 세무 › 부가세 › 신고전검토자료 › <b>각종구분값변경</b>(E010723) — 2026-10-04 loginaa 실측.
  *
  * <p>목록 [☐ · 일자 · 구분 · 거래처명 · 공급가액 · 부가세 · 전자세금계산서 · 진행상태], 줄은 부가세 줄이 든 회계전표 한 장(utils/vatSlip).
- * 기준일자 기본은 전월 1일 ~ 오늘(10/04 에 2026/09/01 ~ 2026/10/04). 아래 버튼줄
+ * 조건은 접혀 있다([Search(F3)]). 일자순은 최근 일자부터. 기준일자 기본은 전월 1일 ~ 오늘(10/04 에 2026/09/01 ~ 2026/10/04). 아래 버튼줄
  * [구분 드롭다운][변경] — 전자세금계산서 칸을 고른 값으로(전자(세금)계산서-신규는 '전자(세금)계산서' 로 보인다),
  * [기한후발행] → '기한후 발행', [기한내발행으로변경] → '발행 안됨', [타발행] → '타발행'(종이(세금)계산서면 변경불가전표).
  * 확인 창 문구는 원본 그대로.
@@ -90,7 +91,8 @@ export default function VatMarkChangePage() {
         break
       }
     }
-    const byDate = (a: Row, b: Row) => (a.date !== b.date ? a.date.localeCompare(b.date) : a.no.localeCompare(b.no))
+    /* 원본 일자순은 최근 일자부터. */
+    const byDate = (a: Row, b: Row) => (a.date !== b.date ? b.date.localeCompare(a.date) : b.no.localeCompare(a.no))
     return out.sort((a, b) => {
       if (order === '거래처순' && a.partner !== b.partner) return a.partner.localeCompare(b.partner)
       if (order === '구분순' && a.side !== b.side) return a.side === '매출' ? -1 : 1
@@ -130,7 +132,7 @@ export default function VatMarkChangePage() {
   }
 
   return (
-    <EcListShell title="각종구분값변경" onSearch={load} collapseConditions={false}>
+    <EcListShell title="각종구분값변경" onSearch={load} collapseConditions actions={[{ label: 'Excel' }]}>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <ul className="ec-cond mb-[8px]">
@@ -173,6 +175,7 @@ export default function VatMarkChangePage() {
         </li>
       </ul>
 
+      <p className="text-right mb-[4px]">{from.replace(/-/g, '/')} ~{to.replace(/-/g, '/')}</p>
       <table ref={tableRef} className="w-full">
         <thead>
           <tr>
@@ -192,13 +195,14 @@ export default function VatMarkChangePage() {
         <tbody>
           {rows.length === 0 ? (
             <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : rows.map((r) => (
+          ) : rows.map((r, i) => (
             <tr key={r.id}>
-              <td className="text-center">
+              <td className="text-center whitespace-nowrap">
                 <input type="checkbox" aria-label={`${r.no} 선택`} checked={picked.has(r.id)}
                        onChange={() => setPicked((s) => { const n = new Set(s); if (n.has(r.id)) n.delete(r.id); else n.add(r.id); return n })} />
+                {' '}{i + 1}
               </td>
-              <td className="text-center">{r.date.replace(/-/g, '/')}-{r.no}</td>
+              <td className="text-center">{dateNo(r.date, r.no)}</td>
               <td className="text-center">{r.vat === 0 ? '계산서' : '세금계산서'}</td>
               <td>{r.partner}</td>
               <td className="text-right">{won(r.supply)}</td>
