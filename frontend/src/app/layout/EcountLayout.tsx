@@ -797,6 +797,9 @@ const MENU: TopMenu[] = [
             { label: '사업용신용카드 자료비교', to: '/accounting/vat/card-compare' },
             { label: '매입매출·부가세', to: '/accounting/vat' },
           ] },
+          { label: '부가세신고서(일반)', children: [
+            { label: '부가세신고서(일반)', to: '/accounting/vat/return' },
+          ] },
         ],
       },
       {
