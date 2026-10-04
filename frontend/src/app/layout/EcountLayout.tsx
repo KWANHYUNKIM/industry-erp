@@ -793,6 +793,7 @@ const MENU: TopMenu[] = [
             { label: '매출(세금)계산서요약', to: '/accounting/vat/sales-tax-summary' },
             { label: '부가세Checklist', to: '/accounting/vat/checklist' },
             { label: '전표vs매출매입자료비교', to: '/accounting/vat/journal-compare' },
+            { label: '사업용신용카드 자료비교', to: '/accounting/vat/card-compare' },
             { label: '매입매출·부가세', to: '/accounting/vat' },
           ] },
         ],
