@@ -3184,3 +3184,42 @@ export interface WithholdingComparisonRow {
   gross: number | null; nonTaxable: number | null; incomeTax: number | null; localIncomeTax: number | null
   reportedCount: number | null; reportedGross: number | null; reportedTax: number | null; differs: boolean
 }
+
+/** 소득자등록(세무 › 기타원천세 E030301) */
+export type PayeeKind = 'CORPORATE' | 'INDIVIDUAL'
+
+export interface WithholdingPayee {
+  id: number
+  kind: PayeeKind
+  kindName: string
+  bizRegNo: string | null
+  regNo: string
+  regNoFront: string
+  tradeName: string | null
+  name: string
+  address: string | null
+  englishName: string | null
+  bizAddress: string | null
+  payeeKindCode: string | null
+  industryCode: string | null
+  industryName: string | null
+  bankName: string | null
+  accountNo: string | null
+  nonResident: boolean
+  foreigner: boolean
+  nonRealName: boolean
+  birthDate: string | null
+  accountCode: string | null
+  mobile: string | null
+  email: string | null
+  memo: string | null
+  deleted: boolean
+}
+
+/** 기타원천세 코드도움 한 줄 — rate1 · rate2 는 기타소득 소득코드의 기본 필요경비율 · 세율(%). */
+export interface WithholdingCodeItem {
+  code: string
+  name: string
+  rate1: string | null
+  rate2: string | null
+}
