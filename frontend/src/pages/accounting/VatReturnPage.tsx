@@ -8,6 +8,12 @@ import type { JournalEntry } from '../../types/api'
 
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
 interface AccountOpt { code: string; detailCategory: string | null }
+interface PartnerOpt { id: number; name: string; bizRegNo: string | null }
+interface Mark { journalEntryId: number; docKind: string; progress: string }
+/** 합계표 한 장의 계산서 한 장 — 거래처 · 전자 여부 · 금액. */
+interface Invoice { partnerId: number | null; partner: string; bizNo: string; personal: boolean; electronic: boolean; supply: number; vat: number }
+type Doc = '부가가치세신고서' | '매출세금계산서' | '매입세금계산서'
+const DOCS: Doc[] = ['부가가치세신고서', '매출세금계산서', '매입세금계산서']
 interface CompanyInfo {
   name?: string; ceo?: string; bizRegNo?: string; bizType?: string; bizItem?: string
   tel?: string; email?: string; address?: string; addressDetail?: string
@@ -18,6 +24,7 @@ interface Amt { supply: number; vat: number }
 interface Sheet {
   year: number; term: Term; kind: Kind; from: string; to: string
   taxInvoice: Amt; zeroInvoice: Amt; purchaseGeneral: Amt; purchaseFixed: Amt
+  salesInvoices: Invoice[]; purchaseInvoices: Invoice[]
 }
 
 /** 신고기간 — 예정은 그 기의 앞 석 달, 확정은 뒤 석 달(예정신고를 한 법인). */
@@ -49,7 +56,9 @@ const PRINT_CSS = 'body{font-family:sans-serif;font-size:11px;margin:16px}'
  * (10) 매입 중 (12) 고정자산(차변이 유형 · 무형자산 계정)이 아닌 것. 신용카드 · 현금영수증 · 예정신고누락 · 대손 · 경감공제 · 가산세는
  * 우리 자료에 없어 0 이다.
  *
- * <p>두지 않은 것: 신고서 목록 저장([신규(F2)] · [선택삭제] · 이력) · 첨부서류 33종 · 휴폐업조회(홈택스) · 영수증서 · 전자파일 · PDF ·
+ * <p>첨부서류는 위 알약으로 고른다 — 매출 · 매입세금계산서 합계표까지.
+ *
+ * <p>두지 않은 것: 신고서 목록 저장([신규(F2)] · [선택삭제] · 이력) · 나머지 첨부서류 31종 · 휴폐업조회(홈택스) · 영수증서 · 전자파일 · PDF ·
  * [자료입력](칸 손으로 고치기) · 예정신고누락분 · 그 밖의 공제 · 공제받지 못할 · 가산세 명세(모두 0 으로 그린다).
  */
 export default function VatReturnPage() {
@@ -64,6 +73,7 @@ export default function VatReturnPage() {
   const [company, setCompany] = useState<CompanyInfo | null>(null)
   const [accounts, setAccounts] = useState<AccountOpt[]>([])
   const [sheet, setSheet] = useState<Sheet | null>(null)
+  const [doc, setDoc] = useState<Doc>('부가가치세신고서')
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -75,7 +85,22 @@ export default function VatReturnPage() {
     setError('')
     const p = periodOf(year, term, kind)
     try {
-      const r = await api.get<JournalList>('/journals', { params: { from: p.from, to: p.to, all: true } })
+      const [r, pr, mk] = await Promise.all([
+        api.get<JournalList>('/journals', { params: { from: p.from, to: p.to, all: true } }),
+        api.get<PartnerOpt[]>('/partners'),
+        api.get<Mark[]>('/vat-invoice-marks'),
+      ])
+      const partnerOf = new Map(pr.data.map((x) => [x.id, x]))
+      const markOf = new Map(mk.data.map((x) => [x.journalEntryId, x]))
+      const salesInvoices: Invoice[] = []
+      const purchaseInvoices: Invoice[] = []
+      const invoiceOf = (e: JournalEntry, a: Amt): Invoice => {
+        const bizNo = (e.partnerId != null ? partnerOf.get(e.partnerId)?.bizRegNo : null)?.replace(/-/g, '') ?? ''
+        const m = markOf.get(e.id)
+        /* 각종구분값변경의 종이(세금)계산서 · 기한후 발행은 '전자세금계산서 외의 발급분'. */
+        const electronic = !(m && (m.docKind === 'PAPER' || m.progress === 'LATE'))
+        return { partnerId: e.partnerId, partner: e.partnerName ?? '', bizNo, personal: bizNo.length === 13, electronic, supply: a.supply, vat: a.vat }
+      }
       const cat = new Map(accounts.map((a) => [a.code, a.detailCategory ?? '']))
       let taxInvoice = ZERO, zeroInvoice = ZERO, purchaseGeneral = ZERO, purchaseFixed = ZERO
       for (const e of r.data.rows) {
@@ -83,15 +108,17 @@ export default function VatReturnPage() {
         if (s) {
           if (s.vat === 0) zeroInvoice = add(zeroInvoice, s)
           else taxInvoice = add(taxInvoice, s)
+          salesInvoices.push(invoiceOf(e, s))
         }
         const b = vatSlipAmounts(e.lines, '매입')
         if (b) {
           const fixed = e.lines.some((l) => Number(l.debit) > 0 && FIXED_CATEGORIES.includes(cat.get(l.accountCode) ?? ''))
           if (fixed) purchaseFixed = add(purchaseFixed, b)
           else purchaseGeneral = add(purchaseGeneral, b)
+          purchaseInvoices.push(invoiceOf(e, b))
         }
       }
-      setSheet({ year, term, kind, from: p.from, to: p.to, taxInvoice, zeroInvoice, purchaseGeneral, purchaseFixed })
+      setSheet({ year, term, kind, from: p.from, to: p.to, taxInvoice, zeroInvoice, purchaseGeneral, purchaseFixed, salesInvoices, purchaseInvoices })
     } catch (e) {
       setSheet(null); setError(extractErrorMessage(e))
     }
@@ -129,7 +156,18 @@ export default function VatReturnPage() {
         </li>
       </ul>
 
-      {sheet && <div id="vat-return-sheet"><ReturnSheet s={sheet} c={company} /></div>}
+      {sheet && (
+        <>
+          <div className="ec-pills mb-[8px]">
+            {DOCS.map((d) => <button key={d} className={`ec-pill${doc === d ? ' active' : ''}`} onClick={() => setDoc(d)}>{d}</button>)}
+          </div>
+          <div id="vat-return-sheet">
+            {doc === '부가가치세신고서' && <ReturnSheet s={sheet} c={company} />}
+            {doc === '매출세금계산서' && <InvoiceSummarySheet side="매출" s={sheet} c={company} invoices={sheet.salesInvoices} />}
+            {doc === '매입세금계산서' && <InvoiceSummarySheet side="매입" s={sheet} c={company} invoices={sheet.purchaseInvoices} />}
+          </div>
+        </>
+      )}
     </EcListShell>
   )
 }
@@ -222,6 +260,87 @@ function ReturnSheet({ s, c }: { s: Sheet; c: CompanyInfo | null }) {
           <tr><td className="text-center">(31)</td><td>{c?.bizType ?? ''}</td><td>{c?.bizItem ?? ''}</td><td className="text-right">{won(sales.supply)}</td></tr>
           <tr><td className="text-center">(34)</td><td>수입금액제외</td><td></td><td className="text-right"></td></tr>
           <tr className="ec-total"><td className="text-center">(35)</td><td colSpan={2} className="font-bold">합 계</td><td className="text-right font-bold">{won(sales.supply)}</td></tr>
+        </tbody>
+      </table>
+    </>
+  )
+}
+
+/**
+ * 첨부서류 1 · 2 — <b>매출처별세금계산서합계표 (갑)</b>([별지 제38호서식(2)]) · 매입처별 — 원본 2026 2기 예정 실측.
+ * 1. 제출자 인적사항, 2. 총합계 [매출처수 · 매수 · 공급가액 · 세액] — 합계 / 전자세금계산서 발급분(사업자등록번호 · 주민등록번호 · 소계) /
+ * 그 외 발급분(같은 셋), 3. 그 외 발급분의 거래처별 명세. 원본 2기 예정 매출 10곳 · 19매 · 396,450,000 · 39,645,000 이 모두 전자.
+ */
+function InvoiceSummarySheet({ side, s, c, invoices }: { side: '매출' | '매입'; s: Sheet; c: CompanyInfo | null; invoices: Invoice[] }) {
+  const p = periodOf(s.year, s.term, s.kind)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const who = side === '매출' ? '매출처' : '매입처'
+  const tally = (list: Invoice[]) => ({
+    partners: new Set(list.map((i) => i.partnerId ?? i.partner)).size, count: list.length,
+    supply: list.reduce((a, i) => a + i.supply, 0), vat: list.reduce((a, i) => a + i.vat, 0),
+  })
+  const row = (label: string, list: Invoice[], key: string, bold = false) => {
+    const t = tally(list)
+    const cls = bold ? 'text-right font-bold' : 'text-right'
+    return (
+      <tr key={key}>
+        <td className={bold ? 'font-bold' : undefined}>{label}</td>
+        <td className={cls}>{t.partners || ''}</td><td className={cls}>{t.count || ''}</td>
+        <td className={cls}>{t.count ? won(t.supply) : ''}</td><td className={cls}>{t.count ? won(t.vat) : ''}</td>
+      </tr>
+    )
+  }
+  const elec = invoices.filter((i) => i.electronic)
+  const other = invoices.filter((i) => !i.electronic)
+  const byPartner = [...other.reduce((m, i) => {
+    const k = String(i.partnerId ?? i.partner)
+    const r = m.get(k) ?? { bizNo: i.bizNo, name: i.partner, count: 0, supply: 0, vat: 0 }
+    r.count += 1; r.supply += i.supply; r.vat += i.vat
+    return m.set(k, r)
+  }, new Map<string, { bizNo: string; name: string; count: number; supply: number; vat: number }>()).values()]
+  const address = [c?.address, c?.addressDetail].filter(Boolean).join(' ')
+  return (
+    <>
+      <p>■ 부가가치세법 시행규칙 [별지 제38호서식(2)]</p>
+      <p className="ec-report-title">{who}별세금계산서합계표 (갑)</p>
+      <p className="text-center mb-[8px]">{s.year}년 제 {s.term}기 ({pad(p.first)}월 01일 ~ {pad(p.last)}월 {pad(p.end)}일)</p>
+      <p className="mb-[4px]">1. 제출자 인적사항</p>
+      <table className="w-full ec-report mb-[8px]">
+        <tbody>
+          <tr><th>①사업자등록번호</th><td>{c?.bizRegNo ?? ''}</td><th>②상호(법인명)</th><td>{c?.name ?? ''}</td></tr>
+          <tr><th>③성명(대표자)</th><td>{c?.ceo ?? ''}</td><th>④사업장소재지</th><td>{address}</td></tr>
+          <tr><th>⑤거래기간</th><td>{s.year}년 {pad(p.first)}월 01일 ~ {s.year}년 {pad(p.last)}월 {pad(p.end)}일</td><th>⑥작성일</th><td></td></tr>
+        </tbody>
+      </table>
+      <p className="mb-[4px]">2. {side}세금계산서 총합계</p>
+      <table className="w-full ec-report mb-[8px]">
+        <thead>
+          <tr><th>구 분</th><th className="text-right">⑦ {who}수</th><th className="text-right">⑧ 매수</th><th className="text-right">⑨ 공급가액</th><th className="text-right">⑩ 세액</th></tr>
+        </thead>
+        <tbody>
+          {row('합 계', invoices, 'all', true)}
+          {row('전자세금계산서 발급분 · 사업자등록번호 발급분', elec.filter((i) => !i.personal), 'e-biz')}
+          {row('전자세금계산서 발급분 · 주민등록번호 발급분', elec.filter((i) => i.personal), 'e-per')}
+          {row('전자세금계산서 발급분 · 소 계', elec, 'e-sum', true)}
+          {row('위 전자세금계산서 외의 발급분 · 사업자등록번호 발급분', other.filter((i) => !i.personal), 'o-biz')}
+          {row('위 전자세금계산서 외의 발급분 · 주민등록번호 발급분', other.filter((i) => i.personal), 'o-per')}
+          {row('위 전자세금계산서 외의 발급분 · 소 계', other, 'o-sum', true)}
+        </tbody>
+      </table>
+      <p className="mb-[4px]">3. 전자세금계산서 외 발급분 {who}별 명세(합계금액으로 적음)</p>
+      <table className="w-full ec-report">
+        <thead>
+          <tr><th className="text-center">⑪ 번호</th><th>⑫ 사업자등록번호</th><th>⑬ 상호(법인명)</th><th className="text-right">⑭ 매수</th><th className="text-right">⑮ 공급가액</th><th className="text-right">⑯ 세액</th><th>비고</th></tr>
+        </thead>
+        <tbody>
+          {byPartner.length === 0 ? (
+            <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+          ) : byPartner.map((r, i) => (
+            <tr key={i}>
+              <td className="text-center">{i + 1}</td><td>{r.bizNo}</td><td>{r.name}</td>
+              <td className="text-right">{r.count}</td><td className="text-right">{won(r.supply)}</td><td className="text-right">{won(r.vat)}</td><td></td>
+            </tr>
+          ))}
         </tbody>
       </table>
     </>
