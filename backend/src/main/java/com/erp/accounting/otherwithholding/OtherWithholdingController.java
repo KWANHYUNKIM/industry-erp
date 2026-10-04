@@ -82,4 +82,11 @@ public class OtherWithholdingController {
         service.deleteSlips(keys);
         return ResponseEntity.noContent().build();
     }
+
+    /** 원천징수영수증(보관용) — kind: BUSINESS · INTEREST(이자배당) · OTHER, 귀속연월 from ~ to(YYYY-MM). */
+    @GetMapping("/receipts")
+    public java.util.List<OtherWithholdingDtos.ReceiptPayee> receipts(@RequestParam String kind, @RequestParam String from,
+                                                                      @RequestParam String to) {
+        return service.receipts(kind, from, to);
+    }
 }

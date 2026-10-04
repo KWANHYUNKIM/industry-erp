@@ -321,4 +321,47 @@ public class OtherWithholdingService {
     private static BigDecimal sumOf(List<OtherWithholding> rows, java.util.function.Function<OtherWithholding, BigDecimal> f) {
         return rows.stream().map(f).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
+
+    /**
+     * 원천징수영수증(보관용, E030318) — 서식구분(사업 · 이자배당 · 기타)과 귀속연월 from ~ to 의 지급을 소득자마다 묶는다.
+     * 원본 2026/01 ~ 10 사업소득: '-'(소득자 없는 줄 27,017,060) · 유강사 1,231,234 · 피아노레슨 888,594, 이름 차례('-' 가 먼저).
+     * 소득자 없는 줄의 묶음은 사업소득에서만 나온다 — 원본 기타소득 목록에는 2026/05 소득자 없는 50,000,000 이 없다.
+     * 이름은 상호가 아니라 성명(유강사). 업종구분은 그 소득자 줄의 업종구분코드(지급 줄의 코드, 소득자등록 기본값이 아니다).
+     */
+    @Transactional(readOnly = true)
+    public List<OtherWithholdingDtos.ReceiptPayee> receipts(String kind, String from, String to) {
+        java.util.Set<IncomeType> types = switch (kind) {
+            case "BUSINESS" -> java.util.Set.of(IncomeType.BUSINESS);
+            case "OTHER" -> java.util.Set.of(IncomeType.OTHER);
+            case "INTEREST" -> java.util.Set.of(IncomeType.INTEREST, IncomeType.DIVIDEND);
+            default -> throw ApiException.badRequest("서식구분이 올바르지 않습니다: " + kind);
+        };
+        YearMonth f = parseMonth(from), t = parseMonth(to);
+        java.util.Map<Long, List<OtherWithholding>> byPayee = new java.util.LinkedHashMap<>();
+        for (OtherWithholding w : repository.findLinesBetween(java.time.LocalDate.of(2000, 1, 1), java.time.LocalDate.of(2999, 12, 31))) {
+            if (!types.contains(w.getIncomeType())) continue;
+            if (w.getAttributionMonth().compareTo(f.toString()) < 0 || w.getAttributionMonth().compareTo(t.toString()) > 0) continue;
+            if (w.getPayee() == null && !"BUSINESS".equals(kind)) continue;
+            byPayee.computeIfAbsent(w.getPayee() == null ? 0L : w.getPayee().getId(), k -> new ArrayList<>()).add(w);
+        }
+        List<OtherWithholdingDtos.ReceiptPayee> out = new ArrayList<>();
+        byPayee.forEach((id, lines) -> {
+            com.erp.accounting.withholdingpayee.WithholdingPayee p = lines.get(0).getPayee();
+            List<OtherWithholdingDtos.ReceiptLine> rl = lines.stream().map(w -> new OtherWithholdingDtos.ReceiptLine(
+                    w.getPayDate(), w.getAttributionMonth(), w.getIncomeCode(), w.getGrossAmount(), w.getExpenseAmount(),
+                    w.getTaxableAmount(), w.getTaxRate(), w.getIncomeTax(), w.getLocalIncomeTax(),
+                    w.getIncomeTax().add(w.getLocalIncomeTax()))).toList();
+            BigDecimal gross = sumOf(lines, OtherWithholding::getGrossAmount);
+            BigDecimal tax = sumOf(lines, OtherWithholding::getIncomeTax).add(sumOf(lines, OtherWithholding::getLocalIncomeTax));
+            List<String> codes = lines.stream().map(OtherWithholding::getIncomeCode).filter(java.util.Objects::nonNull).distinct().toList();
+            out.add(p == null
+                    ? new OtherWithholdingDtos.ReceiptPayee(null, null, "", null, null, null, null, false, codes.isEmpty() ? null : codes.get(0),
+                            codes, gross, tax, rl)
+                    : new OtherWithholdingDtos.ReceiptPayee(p.getId(), p.getRegNo(), p.getName(), p.getTradeName(), p.getBizRegNo(),
+                            p.getAddress(), p.getBizAddress(), p.isForeigner(), codes.isEmpty() ? p.getIndustryCode() : codes.get(codes.size() - 1),
+                            codes, gross, tax, rl));
+        });
+        out.sort(java.util.Comparator.comparing(OtherWithholdingDtos.ReceiptPayee::name));
+        return out;
+    }
 }

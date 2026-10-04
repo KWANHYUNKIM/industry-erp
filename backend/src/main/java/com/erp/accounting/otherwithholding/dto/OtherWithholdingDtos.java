@@ -143,4 +143,19 @@ public class OtherWithholdingDtos {
 
     /** 여러 전표를 고를 때(선택삭제) — 지급일자 + 순번. */
     public record SlipKey(@NotNull LocalDate payDate, @NotNull Integer slipSeq) {}
+
+    // ── 원본 원천징수영수증(보관용) E030318 ────────────────────────────────────────
+
+    /** 영수증 한 줄 — 지급 연월일 · 귀속연월 · 지급(총)액 · 필요경비 · 소득금액 · 세율(%) · 소득세 · 지방소득세 · 계. */
+    public record ReceiptLine(LocalDate payDate, String attributionMonth, String incomeCode, BigDecimal grossAmount,
+                              BigDecimal expenseAmount, BigDecimal taxableAmount, BigDecimal taxRate,
+                              BigDecimal incomeTax, BigDecimal localIncomeTax, BigDecimal taxTotal) {}
+
+    /**
+     * 소득자 한 사람의 영수증 — 목록 [주민(법인)등록번호 · 소득자명 · 지급총액 · 세액합계] 과 서식 칸(상호 · 사업장소재지 · 성명 ·
+     * 주소 · 업종구분 · 소득구분코드). 소득자가 없는 줄은 payeeId null · 이름 빈 한 묶음('-').
+     */
+    public record ReceiptPayee(Long payeeId, String regNo, String name, String tradeName, String bizRegNo, String address,
+                               String bizAddress, boolean foreigner, String industryCode, List<String> incomeCodes,
+                               BigDecimal grossAmount, BigDecimal taxTotal, List<ReceiptLine> lines) {}
 }

@@ -774,6 +774,9 @@ const MENU: TopMenu[] = [
             { label: '기타원천세조회', to: '/accounting/other-withholding' },
             { label: '기타원천세현황', to: '/accounting/other-withholding/status' },
           ] },
+          { label: '조회/인쇄', children: [
+            { label: '원천징수영수증(보관용)', to: '/accounting/other-withholding/receipts' },
+          ] },
         ],
       },
       {

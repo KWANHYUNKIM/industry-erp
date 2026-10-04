@@ -3289,3 +3289,33 @@ export interface WithholdingLineReportRow {
   taxTotal: number
   description: string | null
 }
+
+/** 기타원천세 원천징수영수증(보관용) — 소득자 한 사람 */
+export interface WithholdingReceiptLine {
+  payDate: string
+  attributionMonth: string
+  incomeCode: string | null
+  grossAmount: number
+  expenseAmount: number
+  taxableAmount: number
+  taxRate: number
+  incomeTax: number
+  localIncomeTax: number
+  taxTotal: number
+}
+
+export interface WithholdingReceiptPayee {
+  payeeId: number | null
+  regNo: string | null
+  name: string
+  tradeName: string | null
+  bizRegNo: string | null
+  address: string | null
+  bizAddress: string | null
+  foreigner: boolean
+  industryCode: string | null
+  incomeCodes: string[]
+  grossAmount: number
+  taxTotal: number
+  lines: WithholdingReceiptLine[]
+}
