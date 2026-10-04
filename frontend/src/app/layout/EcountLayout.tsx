@@ -770,6 +770,7 @@ const MENU: TopMenu[] = [
         nodes: [
           { label: '소득자등록', to: '/accounting/other-withholding/payees' },
           { label: '기타원천세', children: [
+            { label: '기타원천세입력', to: '/accounting/other-withholding/input' },
             { label: '기타원천세조회', to: '/accounting/other-withholding' },
           ] },
         ],

@@ -4,6 +4,7 @@ import com.erp.accounting.otherwithholding.OtherWithholding;
 import com.erp.accounting.income.IncomeType;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
@@ -84,4 +85,60 @@ public class OtherWithholdingDtos {
             List<IncomeTypeSummary> byIncomeType,
             List<OtherWithholdingResponse> rows
     ) {}
+
+    // ── 원본 기타원천세입력(E030314) — 전표 한 장 · 여러 줄 ─────────────────────────────
+
+    /**
+     * 전표 한 줄. 소득자(payeeId)가 없어도 된다(원본에도 빈 줄이 있다). 세율 · 필요경비율은 %.
+     * 사업소득은 incomeCode 에 업종구분코드, 기타 · 이자배당은 소득코드.
+     */
+    public record SlipLineRequest(
+            Long payeeId,
+            @jakarta.validation.constraints.Pattern(regexp = "\\d{2,6}", message = "소득코드는 숫자 2~6자리입니다.") String incomeCode,
+            @NotNull(message = "지급총액을 입력바랍니다.") @Positive(message = "지급총액을 입력바랍니다.") BigDecimal grossAmount,
+            @PositiveOrZero(message = "필요경비율이 올바르지 않습니다.") BigDecimal expenseRate,
+            @NotNull(message = "세율을 선택바랍니다.") @PositiveOrZero(message = "세율이 올바르지 않습니다.") BigDecimal taxRate,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String description
+    ) {}
+
+    /** 전표 머리 — 지급일자 · 귀속연월 · 지급연월 · 소득구분(이자배당은 INTEREST 로 보내면 소득코드로 이자 · 배당을 가른다). */
+    public record SlipRequest(
+            @NotNull(message = "지급일자를 입력하세요.") LocalDate payDate,
+            @NotNull(message = "귀속연월을 입력하세요.")
+            @jakarta.validation.constraints.Pattern(regexp = "\\d{4}-\\d{2}", message = "귀속연월 형식이 올바르지 않습니다(YYYY-MM).") String attributionMonth,
+            @NotNull(message = "지급연월을 입력하세요.")
+            @jakarta.validation.constraints.Pattern(regexp = "\\d{4}-\\d{2}", message = "지급연월 형식이 올바르지 않습니다(YYYY-MM).") String payMonth,
+            @NotNull(message = "소득구분을 선택하세요.") IncomeType incomeType,
+            @jakarta.validation.Valid List<SlipLineRequest> lines
+    ) {}
+
+    public record SlipLineResponse(
+            Long id, int lineNo, Long payeeId, String payeeName, String payeeKindName, String incomeCode, String incomeCodeName,
+            BigDecimal grossAmount, BigDecimal expenseRate, BigDecimal expenseAmount, BigDecimal taxableAmount,
+            BigDecimal taxRate, BigDecimal incomeTax, BigDecimal localIncomeTax, BigDecimal taxTotal, BigDecimal netAmount,
+            String description
+    ) {}
+
+    /** 전표 한 장. slipNo 는 원본 표기 그대로 '2025/07/31-2'. */
+    public record SlipResponse(
+            String slipNo, LocalDate payDate, int slipSeq, String attributionMonth, String payMonth,
+            IncomeType incomeType, String incomeTypeName, List<SlipLineResponse> lines
+    ) {}
+
+    /** 기타원천세조회 한 줄 — 전표마다. 소득자명은 '두뇌발달센터 외 2건'. */
+    public record SlipListRow(
+            String slipNo, LocalDate payDate, int slipSeq, String attributionMonth, String payMonth,
+            String payeeSummary, IncomeType incomeType, String incomeTypeName,
+            BigDecimal grossAmount, BigDecimal taxTotal, BigDecimal netAmount
+    ) {}
+
+    /** 기타원천세현황 한 줄 — 지급 줄마다. 사업소득의 소득코드는 원본처럼 '00'. */
+    public record LineReportRow(
+            String slipNo, LocalDate payDate, int slipSeq, String attributionMonth, String payMonth,
+            String payeeName, IncomeType incomeType, String incomeTypeName, String incomeCode,
+            BigDecimal grossAmount, BigDecimal incomeAmount, BigDecimal taxRate, BigDecimal taxTotal, String description
+    ) {}
+
+    /** 여러 전표를 고를 때(선택삭제) — 지급일자 + 순번. */
+    public record SlipKey(@NotNull LocalDate payDate, @NotNull Integer slipSeq) {}
 }

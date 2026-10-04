@@ -58,6 +58,7 @@ const IncomeTaxCertPage = lazy(() => import('../pages/accounting/IncomeTaxCertPa
 const RetirementPayPage = lazy(() => import('../pages/accounting/RetirementPayPage'))
 const OtherWithholdingPage = lazy(() => import('../pages/accounting/OtherWithholdingPage'))
 const WithholdingPayeePage = lazy(() => import('../pages/accounting/WithholdingPayeePage'))
+const OtherWithholdingInputPage = lazy(() => import('../pages/accounting/OtherWithholdingInputPage'))
 const CorporateTaxPage = lazy(() => import('../pages/accounting/CorporateTaxPage'))
 const CorporateTaxChecklistPage = lazy(() => import('../pages/accounting/CorporateTaxChecklistPage'))
 const ExpenseEvidenceStatusPage = lazy(() => import('../pages/accounting/ExpenseEvidenceStatusPage'))
@@ -529,6 +530,7 @@ export default function AppRouter() {
         <Route path="/hr/retirement-pay" element={<RetirementPayPage />} />
         <Route path="/accounting/other-withholding" element={<OtherWithholdingPage />} />
         <Route path="/accounting/other-withholding/payees" element={<WithholdingPayeePage />} />
+        <Route path="/accounting/other-withholding/input" element={<OtherWithholdingInputPage />} />
         <Route path="/accounting/corporate-tax/checklist" element={<CorporateTaxChecklistPage />} />
         <Route path="/accounting/corporate-tax/expense-evidence" element={<ExpenseEvidenceStatusPage />} />
         <Route path="/accounting/corporate-tax" element={<CorporateTaxPage />} />

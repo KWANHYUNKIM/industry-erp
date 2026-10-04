@@ -36,4 +36,50 @@ public class OtherWithholdingController {
         service.delete(id);
         return ResponseEntity.noContent().build();
     }
+
+    // ── 원본 기타원천세입력 · 조회 · 현황(E030314 · E030315 · E030316) ──────────────────
+
+    /** 기타원천세조회 — 전표마다(from ~ to 지급일자). */
+    @GetMapping("/slips")
+    public java.util.List<OtherWithholdingDtos.SlipListRow> slips(
+            @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate from,
+            @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate to) {
+        return service.listSlips(from, to);
+    }
+
+    /** 기타원천세현황 — 지급 줄마다. */
+    @GetMapping("/lines")
+    public java.util.List<OtherWithholdingDtos.LineReportRow> lines(
+            @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate from,
+            @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate to) {
+        return service.lineReport(from, to);
+    }
+
+    @GetMapping("/slips/{payDate}/{slipSeq}")
+    public OtherWithholdingDtos.SlipResponse slip(
+            @PathVariable @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate payDate,
+            @PathVariable int slipSeq) {
+        return service.getSlip(payDate, slipSeq);
+    }
+
+    @PostMapping("/slips")
+    public OtherWithholdingDtos.SlipResponse createSlip(@Valid @RequestBody OtherWithholdingDtos.SlipRequest req,
+                                                        @AuthenticationPrincipal UserPrincipal principal) {
+        return service.createSlip(req, principal.getUsername());
+    }
+
+    @PutMapping("/slips/{payDate}/{slipSeq}")
+    public OtherWithholdingDtos.SlipResponse updateSlip(
+            @PathVariable @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate payDate,
+            @PathVariable int slipSeq, @Valid @RequestBody OtherWithholdingDtos.SlipRequest req,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return service.updateSlip(payDate, slipSeq, req, principal.getUsername());
+    }
+
+    /** [선택삭제] */
+    @PostMapping("/slips/delete")
+    public ResponseEntity<Void> deleteSlips(@RequestBody java.util.List<OtherWithholdingDtos.SlipKey> keys) {
+        service.deleteSlips(keys);
+        return ResponseEntity.noContent().build();
+    }
 }

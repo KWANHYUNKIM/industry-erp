@@ -32,10 +32,13 @@ public class OtherWithholdingService {
     private static final BigDecimal LOCAL_RATE = new BigDecimal("0.10");
     /** 원본 소득코드 60 — 필요경비 없는 기타소득. */
     private static final String NO_EXPENSE_CODE = "60";
+    private static final BigDecimal HUNDRED = new BigDecimal("100");
+    private static final BigDecimal THOUSAND = new BigDecimal("1000");
 
     private final OtherWithholdingRepository repository;
     private final PartnerService partnerService;
     private final DocumentNoGenerator docNoGenerator;
+    private final com.erp.accounting.withholdingpayee.WithholdingPayeeService payeeService;
 
     @Transactional(readOnly = true)
     public MonthlySummary findMonth(String month) {
@@ -94,6 +97,11 @@ public class OtherWithholdingService {
         OtherWithholding w = OtherWithholding.builder()
                 .docNo(docNoGenerator.next("WT-", "other_withholdings", "doc_no", "pay_date", req.payDate()))
                 .payDate(req.payDate())
+                .slipSeq(repository.maxSlipSeq(req.payDate()) + 1)
+                .lineNo(1)
+                .payMonth(YearMonth.from(req.payDate()).toString())
+                .taxRate(type.getTaxRate().movePointRight(2))
+                .expenseRate(type == IncomeType.OTHER ? expenseRate.movePointRight(2) : null)
                 .attributionMonth(req.attributionMonth() != null && !req.attributionMonth().isBlank()
                         ? req.attributionMonth() : java.time.YearMonth.from(req.payDate()).toString())
                 .incomeType(type)
@@ -133,5 +141,183 @@ public class OtherWithholdingService {
         } catch (Exception e) {
             throw ApiException.badRequest("귀속월 형식이 잘못되었습니다 (예: 2026-07): " + month);
         }
+    }
+
+    // ── 원본 기타원천세입력(E030314) — 전표 한 장 · 여러 줄 ─────────────────────────────
+
+    /** 원본 사업소득 세율 선택지(%) — 3 · 5 · 20. */
+    private static final List<BigDecimal> BUSINESS_RATES = List.of(new BigDecimal("3"), new BigDecimal("5"), new BigDecimal("20"));
+    /** 원본 기타소득 세율 선택지(%) — 0 · 15 · 20 · 30. */
+    private static final List<BigDecimal> OTHER_RATES = List.of(BigDecimal.ZERO, new BigDecimal("15"), new BigDecimal("20"), new BigDecimal("30"));
+    /** 원본 필요경비율 선택지(%) — 0 · 60 · 70 · 80 · 90 ('====' 는 안 고른 것). */
+    private static final List<BigDecimal> EXPENSE_RATES = List.of(BigDecimal.ZERO, new BigDecimal("60"), new BigDecimal("70"),
+            new BigDecimal("80"), new BigDecimal("90"));
+    private static final java.time.format.DateTimeFormatter SLIP_DATE = java.time.format.DateTimeFormatter.ofPattern("yyyy/MM/dd");
+
+    @Transactional(readOnly = true)
+    public OtherWithholdingDtos.SlipResponse getSlip(java.time.LocalDate payDate, int slipSeq) {
+        List<OtherWithholding> lines = repository.findSlip(payDate, slipSeq);
+        if (lines.isEmpty()) throw ApiException.notFound("전표를 찾을 수 없습니다. " + slipNo(payDate, slipSeq));
+        return toSlip(lines);
+    }
+
+    /** 새 전표 — 같은 지급일자의 다음 순번을 매긴다(2025/07/31-1, -2 …). */
+    @Transactional
+    public OtherWithholdingDtos.SlipResponse createSlip(OtherWithholdingDtos.SlipRequest req, String username) {
+        int seq = repository.maxSlipSeq(req.payDate()) + 1;
+        return toSlip(saveLines(req, seq, username));
+    }
+
+    /** 고치기 — 줄을 통째로 갈아 끼운다. 지급일자를 바꾸면 새 날짜의 다음 순번으로 옮긴다(원본도 전표번호가 바뀐다). */
+    @Transactional
+    public OtherWithholdingDtos.SlipResponse updateSlip(java.time.LocalDate payDate, int slipSeq,
+                                                      OtherWithholdingDtos.SlipRequest req, String username) {
+        List<OtherWithholding> old = repository.findSlip(payDate, slipSeq);
+        if (old.isEmpty()) throw ApiException.notFound("전표를 찾을 수 없습니다. " + slipNo(payDate, slipSeq));
+        repository.deleteAll(old);
+        repository.flush();
+        int seq = payDate.equals(req.payDate()) ? slipSeq : repository.maxSlipSeq(req.payDate()) + 1;
+        return toSlip(saveLines(req, seq, username));
+    }
+
+    @Transactional
+    public void deleteSlips(List<OtherWithholdingDtos.SlipKey> keys) {
+        if (keys == null || keys.isEmpty()) throw ApiException.badRequest("선택된 자료가 없습니다.");
+        for (OtherWithholdingDtos.SlipKey k : keys) repository.deleteAll(repository.findSlip(k.payDate(), k.slipSeq()));
+    }
+
+    /**
+     * 기타원천세조회 — 전표마다 한 줄, 최근 지급일자부터. 소득자가 하나도 없는 전표는 빠진다
+     * (원본 2025/04/04 이자배당 전표 · 2026/03/30 사업소득 전표가 현황에만 보이고 조회에는 없다).
+     */
+    @Transactional(readOnly = true)
+    public List<OtherWithholdingDtos.SlipListRow> listSlips(java.time.LocalDate from, java.time.LocalDate to) {
+        java.util.Map<String, List<OtherWithholding>> bySlip = new java.util.LinkedHashMap<>();
+        for (OtherWithholding w : repository.findLinesBetween(from, to)) {
+            bySlip.computeIfAbsent(slipNo(w.getPayDate(), w.getSlipSeq()), k -> new ArrayList<>()).add(w);
+        }
+        List<OtherWithholdingDtos.SlipListRow> rows = new ArrayList<>();
+        bySlip.forEach((no, lines) -> {
+            List<OtherWithholding> named = lines.stream().filter(w -> w.getPayeeName() != null).toList();
+            if (named.isEmpty()) return;
+            OtherWithholding h = lines.get(0);
+            String summary = named.get(0).getPayeeName() + (named.size() > 1 ? " 외 " + (named.size() - 1) + "건" : "");
+            BigDecimal gross = sumOf(lines, OtherWithholding::getGrossAmount);
+            BigDecimal tax = sumOf(lines, OtherWithholding::getIncomeTax).add(sumOf(lines, OtherWithholding::getLocalIncomeTax));
+            rows.add(new OtherWithholdingDtos.SlipListRow(no, h.getPayDate(), h.getSlipSeq(), h.getAttributionMonth(), h.getPayMonth(),
+                    summary, h.getIncomeType(), slipTypeName(h.getIncomeType()), gross, tax, gross.subtract(tax)));
+        });
+        java.util.Collections.reverse(rows);
+        return rows;
+    }
+
+    /** 기타원천세현황 — 지급 줄마다(소득자 없는 줄 포함), 지급일자 · 순번 · 줄 차례. 달 소계는 화면이 붙인다. */
+    @Transactional(readOnly = true)
+    public List<OtherWithholdingDtos.LineReportRow> lineReport(java.time.LocalDate from, java.time.LocalDate to) {
+        return repository.findLinesBetween(from, to).stream()
+                .map(w -> new OtherWithholdingDtos.LineReportRow(slipNo(w.getPayDate(), w.getSlipSeq()), w.getPayDate(),
+                        w.getSlipSeq(), w.getAttributionMonth(), w.getPayMonth(), w.getPayeeName(), w.getIncomeType(),
+                        slipTypeName(w.getIncomeType()),
+                        w.getIncomeType() == IncomeType.BUSINESS ? "00" : w.getIncomeCode(),
+                        w.getGrossAmount(), w.getTaxableAmount(), w.getTaxRate(),
+                        w.getIncomeTax().add(w.getLocalIncomeTax()), w.getDescription()))
+                .toList();
+    }
+
+    private List<OtherWithholding> saveLines(OtherWithholdingDtos.SlipRequest req, int seq, String username) {
+        List<OtherWithholdingDtos.SlipLineRequest> lines = req.lines() == null ? List.of() : req.lines();
+        if (lines.isEmpty()) throw ApiException.badRequest("지급총액을 입력바랍니다.");
+        List<OtherWithholding> saved = new ArrayList<>();
+        int lineNo = 0;
+        for (OtherWithholdingDtos.SlipLineRequest l : lines) {
+            saved.add(repository.save(line(req, l, seq, ++lineNo, username)));
+        }
+        return saved;
+    }
+
+    private OtherWithholding line(OtherWithholdingDtos.SlipRequest req, OtherWithholdingDtos.SlipLineRequest l,
+                                  int seq, int lineNo, String username) {
+        String code = l.incomeCode() == null || l.incomeCode().isBlank() ? null : l.incomeCode().trim();
+        IncomeType type = req.incomeType();
+        // 이자배당소득은 한 소득구분이다 — 소득코드 5x(배당)면 배당소득, 아니면 이자소득으로 센다.
+        if (type == IncomeType.INTEREST || type == IncomeType.DIVIDEND) {
+            type = code != null && code.startsWith("5") ? IncomeType.DIVIDEND : IncomeType.INTEREST;
+        }
+        BigDecimal taxRate = l.taxRate();
+        BigDecimal expenseRate = null;
+        String industryName = null;
+        if (type == IncomeType.BUSINESS) {
+            if (BUSINESS_RATES.stream().noneMatch(r -> r.compareTo(taxRate) == 0)) throw ApiException.badRequest("세율은 3% · 5% · 20% 중에서 고르세요.");
+            if (code != null) {
+                industryName = com.erp.accounting.WithholdingCodes.industryName(code);
+                if (industryName == null) throw ApiException.badRequest("업종구분코드가 올바르지 않습니다: " + code);
+            }
+        } else if (type == IncomeType.OTHER) {
+            if (code != null && com.erp.accounting.WithholdingCodes.otherIncome(code) == null) {
+                throw ApiException.badRequest("소득코드가 올바르지 않습니다: " + code);
+            }
+            if (OTHER_RATES.stream().noneMatch(r -> r.compareTo(taxRate) == 0)) throw ApiException.badRequest("세율은 0% · 15% · 20% · 30% 중에서 고르세요.");
+            if (l.expenseRate() == null) throw ApiException.badRequest("필요경비율을 선택바랍니다.");
+            if (EXPENSE_RATES.stream().noneMatch(r -> r.compareTo(l.expenseRate()) == 0)) throw ApiException.badRequest("필요경비율은 0% · 60% · 70% · 80% · 90% 중에서 고르세요.");
+            expenseRate = l.expenseRate();
+        } else if (taxRate.signum() < 0 || taxRate.compareTo(new BigDecimal("100")) > 0) {
+            throw ApiException.badRequest("세율이 올바르지 않습니다.");
+        }
+        com.erp.accounting.withholdingpayee.WithholdingPayee payee = l.payeeId() == null ? null : payeeService.find(l.payeeId());
+        BigDecimal gross = l.grossAmount();
+        BigDecimal expense = expenseRate == null ? BigDecimal.ZERO
+                : gross.multiply(expenseRate).divide(HUNDRED, 0, RoundingMode.DOWN);       // 원본 1,231,233 × 60% = 738,739
+        BigDecimal taxable = gross.subtract(expense);
+        BigDecimal incomeTax = taxable.multiply(taxRate).divide(THOUSAND, 0, RoundingMode.DOWN).multiply(BigDecimal.TEN);   // 10원 미만 버림
+        BigDecimal localTax = incomeTax.multiply(LOCAL_RATE).divide(BigDecimal.TEN, 0, RoundingMode.DOWN).multiply(BigDecimal.TEN);
+        return OtherWithholding.builder()
+                .docNo(docNoGenerator.next("WT-", "other_withholdings", "doc_no", "pay_date", req.payDate()))
+                .payDate(req.payDate()).slipSeq(seq).lineNo(lineNo)
+                .attributionMonth(req.attributionMonth()).payMonth(req.payMonth())
+                .incomeType(type)
+                .payee(payee)
+                .payeeName(payee == null ? null : (payee.getTradeName() != null ? payee.getTradeName() : payee.getName()))
+                .payeeRegNo(payee == null ? null : (payee.getBizRegNo() != null ? payee.getBizRegNo() : payee.getRegNo()))
+                .incomeCode(code).industryName(industryName)
+                .expenseRate(expenseRate).taxRate(taxRate)
+                .grossAmount(gross).expenseAmount(expense).taxableAmount(taxable)
+                .incomeTax(incomeTax).localIncomeTax(localTax)
+                .netAmount(gross.subtract(incomeTax).subtract(localTax))
+                .description(l.description())
+                .createdBy(username)
+                .build();
+    }
+
+    private OtherWithholdingDtos.SlipResponse toSlip(List<OtherWithholding> lines) {
+        OtherWithholding h = lines.get(0);
+        List<OtherWithholdingDtos.SlipLineResponse> out = lines.stream().map(w -> new OtherWithholdingDtos.SlipLineResponse(
+                w.getId(), w.getLineNo(), w.getPayee() == null ? null : w.getPayee().getId(), w.getPayeeName(),
+                w.getPayee() == null ? null : w.getPayee().getKind().getDisplayName().replace(" ", ""),
+                w.getIncomeCode(), codeName(w), w.getGrossAmount(), w.getExpenseRate(), w.getExpenseAmount(), w.getTaxableAmount(),
+                w.getTaxRate(), w.getIncomeTax(), w.getLocalIncomeTax(), w.getIncomeTax().add(w.getLocalIncomeTax()),
+                w.getNetAmount(), w.getDescription())).toList();
+        return new OtherWithholdingDtos.SlipResponse(slipNo(h.getPayDate(), h.getSlipSeq()), h.getPayDate(), h.getSlipSeq(),
+                h.getAttributionMonth(), h.getPayMonth(), h.getIncomeType(), slipTypeName(h.getIncomeType()), out);
+    }
+
+    private static String codeName(OtherWithholding w) {
+        if (w.getIncomeType() == IncomeType.BUSINESS) return w.getIncomeCode() == null ? null
+                : (w.getIndustryName() != null ? w.getIndustryName() : com.erp.accounting.WithholdingCodes.industryName(w.getIncomeCode()));
+        com.erp.accounting.WithholdingCodes.OtherIncomeCode c = com.erp.accounting.WithholdingCodes.otherIncome(w.getIncomeCode());
+        return c == null ? null : c.name();
+    }
+
+    /** 원본 소득구분 이름 — 이자 · 배당은 한 구분 '이자배당소득'. */
+    private static String slipTypeName(IncomeType t) {
+        return t == IncomeType.INTEREST || t == IncomeType.DIVIDEND ? "이자배당소득" : t.getDisplayName();
+    }
+
+    /** 원본 전표번호 표기 — 2025/07/31-2. */
+    public static String slipNo(java.time.LocalDate payDate, int seq) {
+        return payDate.format(SLIP_DATE) + "-" + seq;
+    }
+
+    private static BigDecimal sumOf(List<OtherWithholding> rows, java.util.function.Function<OtherWithholding, BigDecimal> f) {
+        return rows.stream().map(f).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 }

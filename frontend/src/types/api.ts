@@ -3223,3 +3223,69 @@ export interface WithholdingCodeItem {
   rate1: string | null
   rate2: string | null
 }
+
+/** 기타원천세 전표 한 줄(원본 기타원천세입력 E030314) */
+export interface WithholdingSlipLine {
+  id: number
+  lineNo: number
+  payeeId: number | null
+  payeeName: string | null
+  payeeKindName: string | null
+  incomeCode: string | null
+  incomeCodeName: string | null
+  grossAmount: number
+  expenseRate: number | null
+  expenseAmount: number
+  taxableAmount: number
+  taxRate: number
+  incomeTax: number
+  localIncomeTax: number
+  taxTotal: number
+  netAmount: number
+  description: string | null
+}
+
+/** 기타원천세 전표 한 장 — slipNo 는 원본 표기 '2025/07/31-2'. */
+export interface WithholdingSlip {
+  slipNo: string
+  payDate: string
+  slipSeq: number
+  attributionMonth: string
+  payMonth: string
+  incomeType: IncomeType
+  incomeTypeName: string
+  lines: WithholdingSlipLine[]
+}
+
+/** 기타원천세조회 한 줄 */
+export interface WithholdingSlipListRow {
+  slipNo: string
+  payDate: string
+  slipSeq: number
+  attributionMonth: string
+  payMonth: string
+  payeeSummary: string
+  incomeType: IncomeType
+  incomeTypeName: string
+  grossAmount: number
+  taxTotal: number
+  netAmount: number
+}
+
+/** 기타원천세현황 한 줄 */
+export interface WithholdingLineReportRow {
+  slipNo: string
+  payDate: string
+  slipSeq: number
+  attributionMonth: string
+  payMonth: string
+  payeeName: string | null
+  incomeType: IncomeType
+  incomeTypeName: string
+  incomeCode: string | null
+  grossAmount: number
+  incomeAmount: number
+  taxRate: number
+  taxTotal: number
+  description: string | null
+}
