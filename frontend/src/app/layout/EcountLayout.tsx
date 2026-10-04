@@ -800,6 +800,7 @@ const MENU: TopMenu[] = [
           { label: '부가세신고서(일반)', children: [
             { label: '부가세신고서(일반)', to: '/accounting/vat/return' },
           ] },
+          { label: '세무증명서류', to: '/accounting/vat/tax-certificate' },
         ],
       },
       {
