@@ -790,6 +790,7 @@ const MENU: TopMenu[] = [
             { label: '매입(세금)계산서현황(세무)', to: '/accounting/vat/purchase-tax-status' },
             { label: '각종구분값변경', to: '/accounting/vat/marks' },
             { label: '매입/매출장', to: '/accounting/vat-book' },
+            { label: '이카운트 vs 홈택스 자료비교', to: '/accounting/vat/hometax-compare' },
             { label: '매출(세금)계산서요약', to: '/accounting/vat/sales-tax-summary' },
             { label: '부가세Checklist', to: '/accounting/vat/checklist' },
             { label: '전표vs매출매입자료비교', to: '/accounting/vat/journal-compare' },
