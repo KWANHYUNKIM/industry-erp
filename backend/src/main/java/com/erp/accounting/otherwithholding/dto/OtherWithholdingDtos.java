@@ -158,4 +158,16 @@ public class OtherWithholdingDtos {
     public record ReceiptPayee(Long payeeId, String regNo, String name, String tradeName, String bizRegNo, String address,
                                String bizAddress, boolean foreigner, String industryCode, List<String> incomeCodes,
                                BigDecimal grossAmount, BigDecimal taxTotal, List<ReceiptLine> lines) {}
+
+    // ── 원본 지급명세서(보고용) E030319 ─────────────────────────────────────────────
+
+    /** 2. 소득자 인적사항 및 연간 소득내용 한 줄 — 소득자 × 업종(소득)코드 × 지급연도 × 세율. */
+    public record StatementRow(String code, String name, String regNo, boolean foreigner, int payYear, int count,
+                               BigDecimal grossAmount, BigDecimal expenseAmount, BigDecimal taxableAmount, BigDecimal taxRate,
+                               BigDecimal incomeTax, BigDecimal localIncomeTax, BigDecimal taxTotal) {}
+
+    /** 지급명세서 한 장 — 1. 합계사항(④ 인원 · ⑤ 건수 · ⑥ 지급액 · 소득금액 · 세액) 과 2. 소득자별 줄, 소액부징수(세액 0) 연간 합계. */
+    public record PaymentStatement(int year, int payeeCount, int lineCount, BigDecimal grossAmount, BigDecimal taxableAmount,
+                                   BigDecimal incomeTax, BigDecimal localIncomeTax, BigDecimal taxTotal,
+                                   int smallCount, BigDecimal smallGross, List<StatementRow> rows) {}
 }

@@ -89,4 +89,10 @@ public class OtherWithholdingController {
                                                                       @RequestParam String to) {
         return service.receipts(kind, from, to);
     }
+
+    /** 지급명세서(보고용) — kind: BUSINESS · INTEREST(이자배당) · OTHER, 귀속연도. */
+    @GetMapping("/payment-statement")
+    public OtherWithholdingDtos.PaymentStatement paymentStatement(@RequestParam String kind, @RequestParam int year) {
+        return service.paymentStatement(kind, year);
+    }
 }

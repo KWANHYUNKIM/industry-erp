@@ -3319,3 +3319,34 @@ export interface WithholdingReceiptPayee {
   taxTotal: number
   lines: WithholdingReceiptLine[]
 }
+
+/** 기타원천세 지급명세서(보고용) — 소득자별 연간집계표 */
+export interface WithholdingStatementRow {
+  code: string | null
+  name: string
+  regNo: string | null
+  foreigner: boolean
+  payYear: number
+  count: number
+  grossAmount: number
+  expenseAmount: number
+  taxableAmount: number
+  taxRate: number
+  incomeTax: number
+  localIncomeTax: number
+  taxTotal: number
+}
+
+export interface WithholdingPaymentStatement {
+  year: number
+  payeeCount: number
+  lineCount: number
+  grossAmount: number
+  taxableAmount: number
+  incomeTax: number
+  localIncomeTax: number
+  taxTotal: number
+  smallCount: number
+  smallGross: number
+  rows: WithholdingStatementRow[]
+}

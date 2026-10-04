@@ -776,6 +776,7 @@ const MENU: TopMenu[] = [
           ] },
           { label: '조회/인쇄', children: [
             { label: '원천징수영수증(보관용)', to: '/accounting/other-withholding/receipts' },
+            { label: '지급명세서(보고용)', to: '/accounting/other-withholding/payment-statement' },
           ] },
         ],
       },
