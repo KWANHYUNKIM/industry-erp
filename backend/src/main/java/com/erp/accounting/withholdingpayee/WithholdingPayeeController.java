@@ -46,7 +46,10 @@ public class WithholdingPayeeController {
         return ResponseEntity.noContent().build();
     }
 
-    /** 코드도움 — kind: industry(업종구분코드) · payee-kind(소득자구분코드) · other-income(기타소득 소득코드). */
+    /**
+     * 코드도움 — kind: industry(업종구분코드) · payee-kind(소득자구분코드) · other-income(기타소득 소득코드) ·
+     * interest-income(이자배당 소득코드) · taxation(과세구분) · special(조세특례) · product(금융상품).
+     */
     @GetMapping("/codes/{kind}")
     public List<CodeItem> codes(@PathVariable String kind) {
         return switch (kind) {
@@ -56,7 +59,15 @@ public class WithholdingPayeeController {
                     .map(c -> new CodeItem(c.code(), c.name(),
                             c.expenseRate() == null ? null : String.valueOf(c.expenseRate()), String.valueOf(c.taxRate())))
                     .toList();
+            case "interest-income" -> list(WithholdingCodes.INTEREST_INCOME);
+            case "taxation" -> list(WithholdingCodes.TAXATION);
+            case "special" -> list(WithholdingCodes.SPECIAL);
+            case "product" -> list(WithholdingCodes.PRODUCT);
             default -> throw com.erp.common.ApiException.badRequest("코드 종류가 올바르지 않습니다: " + kind);
         };
+    }
+
+    private static List<CodeItem> list(List<WithholdingCodes.Code> codes) {
+        return codes.stream().map(c -> new CodeItem(c.code(), c.name(), null, null)).toList();
     }
 }

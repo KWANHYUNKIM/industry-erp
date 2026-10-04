@@ -20,7 +20,21 @@ type Line = {
   industryName?: string | null
   /** [소액부징수] · [과세최저한] 으로 세액을 0 으로 둔 줄 */
   taxExempt?: 'SMALL' | 'MIN' | null
+  /** 이자배당소득 전용 칸 */
+  interest: Interest
 }
+
+/** 이자배당소득 줄의 지급명세서 칸 — 원본 격자 차례. */
+type Interest = {
+  accountNo: string; taxationCode: string; specialCode: string; productCode: string; securityCode: string; bondInterestCode: string
+  periodFrom: string; periodTo: string; interestRate: string; changeKind: string; changeMonth: string; trustIncome: boolean
+}
+const EMPTY_INTEREST: Interest = {
+  accountNo: '', taxationCode: '', specialCode: '', productCode: '', securityCode: '', bondInterestCode: '',
+  periodFrom: '', periodTo: '', interestRate: '', changeKind: 'FIRST', changeMonth: '', trustIncome: false,
+}
+/** 원본 변동자료구분 선택지(기본 처음제출되는자료). */
+const CHANGE_KINDS = [['FIRST', '처음제출되는자료'], ['DELETE', '삭제[기제출정정]'], ['AMEND_OLD', '수정[서식개정전]'], ['AMEND_NEW', '수정[서식개정후]']] as const
 
 const KINDS: { value: Kind; label: string }[] = [
   { value: 'BUSINESS', label: '사업소득' },
@@ -33,6 +47,7 @@ const EXPENSE_RATES = ['0', '60', '70', '80', '90']
 
 const blankLine = (kind: Kind): Line => ({
   payeeId: '', incomeCode: '', grossAmount: '', expenseRate: '', taxRate: kind === 'BUSINESS' ? '3' : kind === 'OTHER' ? '0' : '14', description: '',
+  interest: { ...EMPTY_INTEREST },
 })
 const won = (n: number) => (n ? Math.trunc(n).toLocaleString('ko-KR') : '')
 const today = () => new Date().toISOString().slice(0, 10)
@@ -76,6 +91,7 @@ export default function OtherWithholdingInputPage() {
   const [payees, setPayees] = useState<WithholdingPayee[]>([])
   const [industries, setIndustries] = useState<WithholdingCodeItem[]>([])
   const [otherCodes, setOtherCodes] = useState<WithholdingCodeItem[]>([])
+  const [interestCodes, setInterestCodes] = useState<Record<string, WithholdingCodeItem[]>>({})
   const [company, setCompany] = useState<{ name: string; bizRegNo: string | null } | null>(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -84,6 +100,9 @@ export default function OtherWithholdingInputPage() {
     api.get<WithholdingPayee[]>('/withholding-payees').then((r) => setPayees(r.data)).catch(() => setPayees([]))
     api.get<WithholdingCodeItem[]>('/withholding-payees/codes/industry').then((r) => setIndustries(r.data)).catch(() => setIndustries([]))
     api.get<WithholdingCodeItem[]>('/withholding-payees/codes/other-income').then((r) => setOtherCodes(r.data)).catch(() => setOtherCodes([]))
+    for (const k of ['interest-income', 'taxation', 'special', 'product']) {
+      api.get<WithholdingCodeItem[]>(`/withholding-payees/codes/${k}`).then((r) => setInterestCodes((m) => ({ ...m, [k]: r.data }))).catch(() => undefined)
+    }
     api.get<{ name: string; bizRegNo: string | null } | null>('/company').then((r) => setCompany(r.data)).catch(() => setCompany(null))
   }, [])
 
@@ -98,6 +117,13 @@ export default function OtherWithholdingInputPage() {
           expenseRate: l.expenseRate == null ? '' : String(Number(l.expenseRate)), taxRate: String(Number(l.taxRate)),
           description: l.description ?? '', industryName: s.incomeType === 'BUSINESS' ? l.incomeCodeName : null,
           taxExempt: l.taxExempt,
+          interest: l.interest ? {
+            accountNo: l.interest.accountNo ?? '', taxationCode: l.interest.taxationCode ?? '', specialCode: l.interest.specialCode ?? '',
+            productCode: l.interest.productCode ?? '', securityCode: l.interest.securityCode ?? '', bondInterestCode: l.interest.bondInterestCode ?? '',
+            periodFrom: l.interest.periodFrom ?? '', periodTo: l.interest.periodTo ?? '',
+            interestRate: l.interest.interestRate == null ? '' : String(Number(l.interest.interestRate)),
+            changeKind: l.interest.changeKind ?? 'FIRST', changeMonth: l.interest.changeMonth ?? '', trustIncome: l.interest.trustIncome,
+          } : { ...EMPTY_INTEREST },
         })), blankLine(k)])
       })
       .catch((e) => setError(extractErrorMessage(e)))
@@ -117,6 +143,15 @@ export default function OtherWithholdingInputPage() {
       if (last.payeeId || last.grossAmount || last.incomeCode) next.push(blankLine(kind))
       return next
     })
+  }
+
+  function setInterest(i: number, patch: Partial<Interest>) {
+    setLine(i, { interest: { ...lines[i].interest, ...patch } })
+  }
+
+  function codePicker(label: string, k: string, value: string, onChange: (v: string) => void) {
+    return <CodePickerField label={label} hideLabel fill emptyLabel="(없음)" value={value} onChange={onChange}
+                            items={(interestCodes[k] ?? []).map((c) => ({ value: c.code, code: c.code, name: c.name }))} />
   }
 
   function pickPayee(i: number, id: string) {
@@ -162,6 +197,11 @@ export default function OtherWithholdingInputPage() {
         expenseRate: kind === 'OTHER' ? Number(l.expenseRate) : null, taxRate: Number(l.taxRate), description: l.description || null,
         industryName: kind === 'BUSINESS' ? l.industryName ?? null : null,
         taxExempt: l.taxExempt ?? null,
+        interest: kind === 'INTEREST' ? {
+          ...l.interest, taxationCode: l.interest.taxationCode || null, specialCode: l.interest.specialCode || null,
+          productCode: l.interest.productCode || null, periodFrom: l.interest.periodFrom || null, periodTo: l.interest.periodTo || null,
+          interestRate: l.interest.interestRate === '' ? null : Number(l.interest.interestRate), changeMonth: l.interest.changeMonth || null,
+        } : null,
       })),
     }
     try {
@@ -238,13 +278,21 @@ export default function OtherWithholdingInputPage() {
               {kind === 'BUSINESS' && <><th className="text-center">업종구분코드</th><th className="text-center">업종명</th><th className="text-right">지급총액</th></>}
               {kind === 'OTHER' && <><th className="text-center">소득코드</th><th className="text-right">지급액</th><th className="text-center">필요경비율(%)</th>
                 <th className="text-right">필요경비</th><th className="text-right">소득금액</th></>}
-              {kind === 'INTEREST' && <><th className="text-center">소득코드</th><th className="text-right">소득금액</th></>}
+              {kind === 'INTEREST' && <><th className="text-center">계좌(발행)번호</th><th className="text-center">과세구분코드</th>
+                <th className="text-center">소득코드</th><th className="text-center">조세특례코드</th><th className="text-center">금융상품코드</th>
+                <th className="text-right">소득금액</th></>}
               <th className="text-center">세율{kind === 'BUSINESS' ? '' : '(%)'}</th>
               <th className="text-right">{kind === 'INTEREST' ? '세액' : '소득세'}</th>
               <th className="text-right">지방소득세</th>
               <th className="text-right">합계</th>
               <th className="text-right">실지급액</th>
               <th className="text-center">적요</th>
+              {kind === 'INTEREST' && <>
+                <th className="text-center">유가증권코드</th><th className="text-center">채권이자구분</th>
+                <th className="text-center">지급대상기간 시작일</th><th className="text-center">지급대상기간 종료일</th>
+                <th className="text-right">이자율등</th><th className="text-center">변동자료구분</th><th className="text-center">변동자료제출연월</th>
+                <th className="text-center">신탁이익</th>
+              </>}
             </tr>
           </thead>
           <tbody>
@@ -271,15 +319,20 @@ export default function OtherWithholdingInputPage() {
                     </td>
                     <td>{l.industryName ?? industries.find((c) => c.code === l.incomeCode)?.name ?? ''}</td>
                   </>}
-                  {kind !== 'BUSINESS' && (
+                  {kind === 'OTHER' && (
                     <td className="min-w-[120px]">
-                      {kind === 'OTHER'
-                        ? <CodePickerField label="소득코드" hideLabel fill emptyLabel="(없음)" value={l.incomeCode}
-                                           onChange={(v) => pickOtherCode(i, v)}
-                                           items={otherCodes.map((c) => ({ value: c.code, code: c.code, name: c.name }))} />
-                        : <input className="ec-input w-full" value={l.incomeCode} onChange={(e) => setLine(i, { incomeCode: e.target.value })} />}
+                      <CodePickerField label="소득코드" hideLabel fill emptyLabel="(없음)" value={l.incomeCode}
+                                       onChange={(v) => pickOtherCode(i, v)}
+                                       items={otherCodes.map((c) => ({ value: c.code, code: c.code, name: c.name }))} />
                     </td>
                   )}
+                  {kind === 'INTEREST' && <>
+                    <td><input className="ec-input w-full min-w-[120px]" maxLength={50} value={l.interest.accountNo} onChange={(e) => setInterest(i, { accountNo: e.target.value })} /></td>
+                    <td className="min-w-[110px]">{codePicker('과세구분코드', 'taxation', l.interest.taxationCode, (v) => setInterest(i, { taxationCode: v }))}</td>
+                    <td className="min-w-[110px]">{codePicker('소득코드', 'interest-income', l.incomeCode, (v) => setLine(i, { incomeCode: v }))}</td>
+                    <td className="min-w-[110px]">{codePicker('조세특례코드', 'special', l.interest.specialCode, (v) => setInterest(i, { specialCode: v }))}</td>
+                    <td className="min-w-[110px]">{codePicker('금융상품코드', 'product', l.interest.productCode, (v) => setInterest(i, { productCode: v }))}</td>
+                  </>}
                   <td>
                     <input className="ec-input w-full min-w-[100px] text-right" inputMode="numeric" min={1}
                            value={l.grossAmount ? Number(l.grossAmount).toLocaleString('ko-KR') : ''}
@@ -309,11 +362,25 @@ export default function OtherWithholdingInputPage() {
                   <td>
                     <input className="ec-input w-full min-w-[100px]" maxLength={200} value={l.description} onChange={(e) => setLine(i, { description: e.target.value })} />
                   </td>
+                  {kind === 'INTEREST' && <>
+                    <td><input className="ec-input w-full min-w-[100px]" maxLength={30} value={l.interest.securityCode} onChange={(e) => setInterest(i, { securityCode: e.target.value })} /></td>
+                    <td><input className="ec-input w-[60px]" maxLength={2} value={l.interest.bondInterestCode} onChange={(e) => setInterest(i, { bondInterestCode: e.target.value })} /></td>
+                    <td><input type="date" className="ec-input w-[140px]" value={l.interest.periodFrom} onChange={(e) => setInterest(i, { periodFrom: e.target.value })} /></td>
+                    <td><input type="date" className="ec-input w-[140px]" value={l.interest.periodTo} onChange={(e) => setInterest(i, { periodTo: e.target.value })} /></td>
+                    <td><input className="ec-input w-[80px] text-right" inputMode="decimal" min={0} value={l.interest.interestRate} onChange={(e) => setInterest(i, { interestRate: e.target.value.replace(/[^\d.]/g, '') })} /></td>
+                    <td>
+                      <select className="ec-input w-[150px]" value={l.interest.changeKind} onChange={(e) => setInterest(i, { changeKind: e.target.value })}>
+                        {CHANGE_KINDS.map(([v, n]) => <option key={v} value={v}>{n}</option>)}
+                      </select>
+                    </td>
+                    <td><input type="month" className="ec-input w-[130px]" value={l.interest.changeMonth} onChange={(e) => setInterest(i, { changeMonth: e.target.value })} /></td>
+                    <td className="text-center"><input type="checkbox" aria-label={`${i + 1}줄 신탁이익`} checked={l.interest.trustIncome} onChange={(e) => setInterest(i, { trustIncome: e.target.checked })} /></td>
+                  </>}
                 </tr>
               )
             })}
             <tr className="ec-total">
-              <td colSpan={kind === 'BUSINESS' ? 5 : 4} />
+              <td colSpan={kind === 'BUSINESS' ? 5 : kind === 'INTEREST' ? 8 : 4} />
               <td className="text-right">{won(total.gross)}</td>
               {kind === 'OTHER' && <><td /><td className="text-right">{won(total.expense)}</td><td className="text-right">{won(total.taxable)}</td></>}
               <td />
@@ -322,6 +389,7 @@ export default function OtherWithholdingInputPage() {
               <td className="text-right">{won(total.total)}</td>
               <td className="text-right">{won(total.net)}</td>
               <td />
+              {kind === 'INTEREST' && <td colSpan={8} />}
             </tr>
           </tbody>
         </table>

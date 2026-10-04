@@ -102,7 +102,25 @@ public class OtherWithholdingDtos {
             /** 사업소득 업종명 — 비우면 코드표 이름. 고쳐 저장할 때 지급 당시 이름(원본 940909 '기타자영업')을 그대로 둔다. */
             @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.") String industryName,
             /** [소액부징수] · [과세최저한] 을 눌러 세액을 0 으로 둔 줄. */
-            com.erp.accounting.otherwithholding.TaxExempt taxExempt
+            com.erp.accounting.otherwithholding.TaxExempt taxExempt,
+            /** 이자배당소득 줄만 — 지급명세서 칸. */
+            @jakarta.validation.Valid InterestDetail interest
+    ) {}
+
+    /** 이자배당소득 전용 칸(원본 격자 차례). */
+    public record InterestDetail(
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.") String accountNo,
+            @Size(max = 1, message = "과세구분코드는 한 글자입니다.") String taxationCode,
+            @Size(max = 2, message = "조세특례코드는 두 글자입니다.") String specialCode,
+            @Size(max = 3, message = "금융상품코드는 세 글자입니다.") String productCode,
+            @Size(max = 30, message = "입력한 글자가 너무 깁니다. 30자까지 넣을 수 있습니다.") String securityCode,
+            @Size(max = 2, message = "채권이자구분은 두 글자까지입니다.") String bondInterestCode,
+            LocalDate periodFrom,
+            LocalDate periodTo,
+            @PositiveOrZero(message = "이자율이 올바르지 않습니다.") BigDecimal interestRate,
+            com.erp.accounting.otherwithholding.ChangeKind changeKind,
+            @jakarta.validation.constraints.Pattern(regexp = "\\d{4}-\\d{2}", message = "변동자료제출연월 형식이 올바르지 않습니다(YYYY-MM).") String changeMonth,
+            boolean trustIncome
     ) {}
 
     /** 전표 머리 — 지급일자 · 귀속연월 · 지급연월 · 소득구분(이자배당은 INTEREST 로 보내면 소득코드로 이자 · 배당을 가른다). */
@@ -120,7 +138,7 @@ public class OtherWithholdingDtos {
             Long id, int lineNo, Long payeeId, String payeeName, String payeeKindName, String incomeCode, String incomeCodeName,
             BigDecimal grossAmount, BigDecimal expenseRate, BigDecimal expenseAmount, BigDecimal taxableAmount,
             BigDecimal taxRate, BigDecimal incomeTax, BigDecimal localIncomeTax, BigDecimal taxTotal, BigDecimal netAmount,
-            String description, com.erp.accounting.otherwithholding.TaxExempt taxExempt
+            String description, com.erp.accounting.otherwithholding.TaxExempt taxExempt, InterestDetail interest
     ) {}
 
     /** 전표 한 장. slipNo 는 원본 표기 그대로 '2025/07/31-2'. */

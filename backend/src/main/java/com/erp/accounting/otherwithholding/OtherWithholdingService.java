@@ -240,8 +240,21 @@ public class OtherWithholdingService {
         String code = l.incomeCode() == null || l.incomeCode().isBlank() ? null : l.incomeCode().trim();
         IncomeType type = req.incomeType();
         // 이자배당소득은 한 소득구분이다 — 소득코드 5x(배당)면 배당소득, 아니면 이자소득으로 센다.
+        OtherWithholdingDtos.InterestDetail in = null;
         if (type == IncomeType.INTEREST || type == IncomeType.DIVIDEND) {
             type = code != null && code.startsWith("5") ? IncomeType.DIVIDEND : IncomeType.INTEREST;
+            if (code != null && !com.erp.accounting.WithholdingCodes.contains(com.erp.accounting.WithholdingCodes.INTEREST_INCOME, code)) {
+                throw ApiException.badRequest("소득코드가 올바르지 않습니다: " + code);
+            }
+            in = l.interest();
+            if (in != null) {
+                checkCode(com.erp.accounting.WithholdingCodes.TAXATION, in.taxationCode(), "과세구분코드");
+                checkCode(com.erp.accounting.WithholdingCodes.SPECIAL, in.specialCode(), "조세특례코드");
+                checkCode(com.erp.accounting.WithholdingCodes.PRODUCT, in.productCode(), "금융상품코드");
+                if (in.periodFrom() != null && in.periodTo() != null && in.periodTo().isBefore(in.periodFrom())) {
+                    throw ApiException.badRequest("지급대상기간 종료일이 시작일보다 빠릅니다.");
+                }
+            }
         }
         BigDecimal taxRate = l.taxRate();
         BigDecimal expenseRate = null;
@@ -294,6 +307,18 @@ public class OtherWithholdingService {
                 .payeeRegNo(payee == null ? null : (payee.getBizRegNo() != null ? payee.getBizRegNo() : payee.getRegNo()))
                 .incomeCode(code).industryName(industryName)
                 .expenseRate(expenseRate).taxRate(taxRate).taxExempt(l.taxExempt())
+                .accountNo(in == null ? null : blankToNull(in.accountNo()))
+                .taxationCode(in == null ? null : blankToNull(in.taxationCode()))
+                .specialCode(in == null ? null : blankToNull(in.specialCode()))
+                .productCode(in == null ? null : blankToNull(in.productCode()))
+                .securityCode(in == null ? null : blankToNull(in.securityCode()))
+                .bondInterestCode(in == null ? null : blankToNull(in.bondInterestCode()))
+                .periodFrom(in == null ? null : in.periodFrom())
+                .periodTo(in == null ? null : in.periodTo())
+                .interestRate(in == null ? null : in.interestRate())
+                .changeKind(in == null ? null : (in.changeKind() == null ? ChangeKind.FIRST : in.changeKind()))
+                .changeMonth(in == null ? null : blankToNull(in.changeMonth()))
+                .trustIncome(in != null && in.trustIncome())
                 .grossAmount(gross).expenseAmount(expense).taxableAmount(taxable)
                 .incomeTax(incomeTax).localIncomeTax(localTax)
                 .netAmount(gross.subtract(incomeTax).subtract(localTax))
@@ -309,7 +334,12 @@ public class OtherWithholdingService {
                 w.getPayee() == null ? null : w.getPayee().getKind().getDisplayName().replace(" ", ""),
                 w.getIncomeCode(), codeName(w), w.getGrossAmount(), w.getExpenseRate(), w.getExpenseAmount(), w.getTaxableAmount(),
                 w.getTaxRate(), w.getIncomeTax(), w.getLocalIncomeTax(), w.getIncomeTax().add(w.getLocalIncomeTax()),
-                w.getNetAmount(), w.getDescription(), w.getTaxExempt())).toList();
+                w.getNetAmount(), w.getDescription(), w.getTaxExempt(),
+                w.getIncomeType() == IncomeType.INTEREST || w.getIncomeType() == IncomeType.DIVIDEND
+                        ? new OtherWithholdingDtos.InterestDetail(w.getAccountNo(), w.getTaxationCode(), w.getSpecialCode(),
+                                w.getProductCode(), w.getSecurityCode(), w.getBondInterestCode(), w.getPeriodFrom(), w.getPeriodTo(),
+                                w.getInterestRate(), w.getChangeKind(), w.getChangeMonth(), w.isTrustIncome())
+                        : null)).toList();
         return new OtherWithholdingDtos.SlipResponse(slipNo(h.getPayDate(), h.getSlipSeq()), h.getPayDate(), h.getSlipSeq(),
                 h.getAttributionMonth(), h.getPayMonth(), h.getIncomeType(), slipTypeName(h.getIncomeType()), out);
     }
@@ -419,5 +449,15 @@ public class OtherWithholdingService {
                 (int) lines.stream().map(w -> w.getPayee().getId()).distinct().count(), lines.size(),
                 sumOf(lines, OtherWithholding::getGrossAmount), sumOf(lines, OtherWithholding::getTaxableAmount),
                 tax, local, tax.add(local), small.size(), sumOf(small, OtherWithholding::getGrossAmount), rows);
+    }
+
+    private static void checkCode(List<com.erp.accounting.WithholdingCodes.Code> codes, String code, String label) {
+        if (code != null && !code.isBlank() && !com.erp.accounting.WithholdingCodes.contains(codes, code.trim())) {
+            throw ApiException.badRequest(label + "가 올바르지 않습니다: " + code);
+        }
+    }
+
+    private static String blankToNull(String s) {
+        return s == null || s.isBlank() ? null : s.trim();
     }
 }

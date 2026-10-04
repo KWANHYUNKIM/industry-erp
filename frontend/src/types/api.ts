@@ -3245,6 +3245,12 @@ export interface WithholdingSlipLine {
   description: string | null
   /** 소액부징수(SMALL) · 과세최저한(MIN) 으로 세액을 0 으로 둔 줄 */
   taxExempt: 'SMALL' | 'MIN' | null
+  /** 이자배당소득 줄의 지급명세서 칸(다른 줄은 null) */
+  interest: {
+    accountNo: string | null; taxationCode: string | null; specialCode: string | null; productCode: string | null
+    securityCode: string | null; bondInterestCode: string | null; periodFrom: string | null; periodTo: string | null
+    interestRate: number | null; changeKind: string | null; changeMonth: string | null; trustIncome: boolean
+  } | null
 }
 
 /** 기타원천세 전표 한 장 — slipNo 는 원본 표기 '2025/07/31-2'. */

@@ -85,6 +85,51 @@ public class OtherWithholding extends BaseTimeEntity {
     @Column(name = "expense_rate", precision = 5, scale = 2)
     private BigDecimal expenseRate;
 
+    // ── 이자배당소득 전용 칸(원본 기타원천세입력 이자배당소득 격자) ──
+    /** 계좌(발행)번호 */
+    @Column(name = "account_no", length = 50)
+    private String accountNo;
+
+    /** 과세구분코드(T 일반과세 · C 법인 원천징수대상 …) */
+    @Column(name = "taxation_code", length = 1)
+    private String taxationCode;
+
+    /** 조세특례코드(NN 적용받지 않음 …) */
+    @Column(name = "special_code", length = 2)
+    private String specialCode;
+
+    /** 금융상품코드(구분 글자 + 번호, A3C …) */
+    @Column(name = "product_code", length = 3)
+    private String productCode;
+
+    @Column(name = "security_code", length = 30)
+    private String securityCode;
+
+    @Column(name = "bond_interest_code", length = 2)
+    private String bondInterestCode;
+
+    /** 지급대상기간 시작일 · 종료일 */
+    @Column(name = "period_from")
+    private LocalDate periodFrom;
+
+    @Column(name = "period_to")
+    private LocalDate periodTo;
+
+    /** 이자율 등(%) */
+    @Column(name = "interest_rate", precision = 9, scale = 4)
+    private BigDecimal interestRate;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "change_kind", length = 10)
+    private ChangeKind changeKind;
+
+    /** 변동자료제출연월 YYYY-MM */
+    @Column(name = "change_month", length = 7)
+    private String changeMonth;
+
+    @Column(name = "trust_income", nullable = false)
+    private boolean trustIncome;
+
     /** 세액을 0 으로 둔 까닭(소액부징수 · 과세최저한). 없으면 null. */
     @Enumerated(EnumType.STRING)
     @Column(name = "tax_exempt", length = 10)
