@@ -92,6 +92,7 @@ const TaxInvoiceListPage = lazy(() => import('../pages/accounting/TaxInvoiceList
 const VatMarkChangePage = lazy(() => import('../pages/accounting/VatMarkChangePage'))
 const SalesTaxSummaryPage = lazy(() => import('../pages/accounting/SalesTaxSummaryPage'))
 const VatChecklistPage = lazy(() => import('../pages/accounting/VatChecklistPage'))
+const JournalVatComparePage = lazy(() => import('../pages/accounting/JournalVatComparePage'))
 const JournalHistoryPage = lazy(() => import('../pages/accounting/JournalHistoryPage'))
 const TransferListPage = lazy(() => import('../pages/accounting/TransferListPage'))
 const FundDailyPage = lazy(() => import('../pages/accounting/FundDailyPage'))
@@ -580,6 +581,7 @@ export default function AppRouter() {
         <Route path="/accounting/vat/marks" element={<VatMarkChangePage />} />
         <Route path="/accounting/vat/sales-tax-summary" element={<SalesTaxSummaryPage />} />
         <Route path="/accounting/vat/checklist" element={<VatChecklistPage />} />
+        <Route path="/accounting/vat/journal-compare" element={<JournalVatComparePage />} />
         <Route path="/accounting/purchase-tax-journal" element={<TaxInvoiceJournalPage side="매입" />} />
         <Route path="/accounting/journal-history" element={<JournalHistoryPage />} />
         <Route path="/accounting/transfer-list" element={<TransferListPage />} />
