@@ -6,7 +6,7 @@ import { dateNo } from '../../utils/dateNo'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
-import EcPeriodPicks, { INQUIRY_PICKS, NOTE_FLOW_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { INQUIRY_PICKS, NOTE_FLOW_PICKS, SALES_TAX_STOCK_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useAuth } from '../../features/auth/AuthContext'
 import type { JournalEntry } from '../../types/api'
 
@@ -34,10 +34,14 @@ interface Row { key: string; date: string; no: string; partner: string; supply: 
  * 우리 회계전표는 결재를 거치지 않고 저장하면 곧 확인이라 [상태]는 확인 · 전체만 줄이 나오고 결재중 · 미확인은 비어 있다.
  * 부서 · 프로젝트는 회계전표에 없다.
  */
-export default function TaxInvoiceJournalPage({ side }: { side: Side }) {
+/**
+ * menu='세무' — 세무 › 부가세 › 신고전검토자료의 매출(세금)계산서현황(세무) E030212 · 매입(세금)계산서현황(세무). 원본 판이 회계 I 판과
+ * 같고(조건 · 상태 기본 확인) 제목에 '(세무)' 가 붙고 기간 빠른선택에 직전분기 · 직전반기 · 최근30일이 붙는다(2026-10-04 실측).
+ */
+export default function TaxInvoiceJournalPage({ side, menu }: { side: Side; menu?: '세무' }) {
   const { companyName } = useAuth()
   const init = side === '매출' ? periodOf('최근30일')! : periodOf('금월(~오늘)')!
-  const title = side === '매출' ? '매출(세금)계산서현황' : '매입(세금)계산서현황'
+  const title = (side === '매출' ? '매출(세금)계산서현황' : '매입(세금)계산서현황') + (menu === '세무' ? '(세무)' : '')
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
   const [docNo, setDocNo] = useState('')
@@ -103,7 +107,7 @@ export default function TaxInvoiceJournalPage({ side }: { side: Side }) {
 
   return (
     <EcListShell
-      title={side === '매출' ? '매출(세금)계산서현황' : '매입(세금)계산서현황'}
+      title={title}
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
@@ -119,7 +123,7 @@ export default function TaxInvoiceJournalPage({ side }: { side: Side }) {
           <span className="my-0 mx-[4px]">~</span>
           <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 145 }} />
           <span className="ml-[6px]">
-            <EcPeriodPicks labels={side === '매출' ? NOTE_FLOW_PICKS : INQUIRY_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
+            <EcPeriodPicks labels={menu === '세무' ? SALES_TAX_STOCK_PICKS : side === '매출' ? NOTE_FLOW_PICKS : INQUIRY_PICKS} currentFrom={from} onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
         </EcCond>
         <EcCond label="회계전표No.">

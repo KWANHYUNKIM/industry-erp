@@ -88,6 +88,7 @@ const CostStatementPage = lazy(() => import('../pages/accounting/CostStatementPa
 const AccountDetailPage = lazy(() => import('../pages/accounting/AccountDetailPage'))
 const JournalStatusPage = lazy(() => import('../pages/accounting/JournalStatusPage'))
 const TaxInvoiceJournalPage = lazy(() => import('../pages/accounting/TaxInvoiceJournalPage'))
+const TaxInvoiceListPage = lazy(() => import('../pages/accounting/TaxInvoiceListPage'))
 const JournalHistoryPage = lazy(() => import('../pages/accounting/JournalHistoryPage'))
 const TransferListPage = lazy(() => import('../pages/accounting/TransferListPage'))
 const FundDailyPage = lazy(() => import('../pages/accounting/FundDailyPage'))
@@ -569,6 +570,10 @@ export default function AppRouter() {
         <Route path="/accounting/account-detail" element={<AccountDetailPage />} />
         <Route path="/accounting/journal-status" element={<JournalStatusPage />} />
         <Route path="/accounting/sales-tax-journal" element={<TaxInvoiceJournalPage side="매출" />} />
+        <Route path="/accounting/vat/sales-tax-list" element={<TaxInvoiceListPage side="매출" />} />
+        <Route path="/accounting/vat/purchase-tax-list" element={<TaxInvoiceListPage side="매입" />} />
+        <Route path="/accounting/vat/sales-tax-status" element={<TaxInvoiceJournalPage side="매출" menu="세무" />} />
+        <Route path="/accounting/vat/purchase-tax-status" element={<TaxInvoiceJournalPage side="매입" menu="세무" />} />
         <Route path="/accounting/purchase-tax-journal" element={<TaxInvoiceJournalPage side="매입" />} />
         <Route path="/accounting/journal-history" element={<JournalHistoryPage />} />
         <Route path="/accounting/transfer-list" element={<TransferListPage />} />
