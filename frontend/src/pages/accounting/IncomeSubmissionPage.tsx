@@ -5,7 +5,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { IncomeSubmission } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 
-const won = (n: number) => Number(n).toLocaleString('ko-KR')
+const won = (n: number) => (Number(n) ? Number(n).toLocaleString('ko-KR') : '')
 type Company = { name?: string; ceo?: string; bizRegNo?: string; corpRegNo?: string; tel?: string; address?: string; addressDetail?: string }
 
 const KINDS = ['연말정산', '중도정산', '연말정산+중도정산', '퇴직소득', '사업소득', '이자소득', '배당소득', '기타소득']
@@ -132,7 +132,7 @@ export default function IncomeSubmissionPage() {
                 <td className="text-right">{result.count}</td>
                 <td className="text-right">{won(result.income)}</td>
                 <td className="text-right">{won(result.incomeTax)}</td>
-                <td></td>
+                <td className="text-right">{won(result.corporateTax)}</td>
                 <td></td>
                 <td className="text-right">{won(result.localIncomeTax)}</td>
               </tr>
