@@ -125,6 +125,8 @@ public class WithholdingService {
         boolean corporate = w.getPayee() != null && w.getPayee().getKind() == com.erp.accounting.withholdingpayee.PayeeKind.CORPORATE;
         if (corporate && (w.getIncomeType() == com.erp.accounting.income.IncomeType.INTEREST
                 || w.getIncomeType() == com.erp.accounting.income.IncomeType.DIVIDEND)) return "A80";
+        if (w.getIncomeType() == com.erp.accounting.income.IncomeType.NON_RESIDENT && w.getIncomeCode() != null
+                && w.getIncomeCode().startsWith("4")) return "A25";
         return formCode(w.getIncomeType());
     }
 
@@ -134,6 +136,8 @@ public class WithholdingService {
             case OTHER -> "A42";
             case INTEREST -> "A50";
             case DIVIDEND -> "A60";
+            // 비거주자사업기타소득 — 신고서 사업 · 기타소득 줄이 '개인(거주자·비거주자)' 이다. 사업류(40 · 41 · 42)는 줄 단위에서 A25 로 돌린다.
+            case NON_RESIDENT -> "A42";
         };
     }
 

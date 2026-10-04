@@ -7,7 +7,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { IncomeType, WithholdingCodeItem, WithholdingPayee, WithholdingSlip } from '../../types/api'
 
-type Kind = 'BUSINESS' | 'INTEREST' | 'OTHER'
+type Kind = 'BUSINESS' | 'INTEREST' | 'OTHER' | 'NON_RESIDENT'
 
 type Line = {
   payeeId: string
@@ -40,13 +40,16 @@ const KINDS: { value: Kind; label: string }[] = [
   { value: 'BUSINESS', label: '사업소득' },
   { value: 'INTEREST', label: '이자배당소득' },
   { value: 'OTHER', label: '기타소득' },
+  { value: 'NON_RESIDENT', label: '비거주자사업기타소득' },
 ]
 /** 원본 세율 선택지 — 사업 3 · 5 · 20(기본 3), 기타 0 · 15 · 20 · 30(기본 0, 소득코드를 고르면 채워진다). */
-const TAX_RATES: Record<Kind, string[]> = { BUSINESS: ['3', '5', '20'], OTHER: ['0', '15', '20', '30'], INTEREST: [] }
+const TAX_RATES: Record<Kind, string[]> = { BUSINESS: ['3', '5', '20'], OTHER: ['0', '15', '20', '30'], INTEREST: [], NON_RESIDENT: [] }
 const EXPENSE_RATES = ['0', '60', '70', '80', '90']
+/** 원본 비거주자 필요경비율 선택지 — 0 · 70 · 80(소득코드 기본값 40 · 41 · 61 → 0, 42 · 62 → 80). */
+const NR_EXPENSE_RATES = ['0', '70', '80']
 
 const blankLine = (kind: Kind): Line => ({
-  payeeId: '', incomeCode: '', grossAmount: '', expenseRate: '', taxRate: kind === 'BUSINESS' ? '3' : kind === 'OTHER' ? '0' : '14', description: '',
+  payeeId: '', incomeCode: '', grossAmount: '', expenseRate: '', taxRate: kind === 'BUSINESS' ? '3' : kind === 'OTHER' ? '0' : kind === 'NON_RESIDENT' ? '' : '14', description: '',
   interest: { ...EMPTY_INTEREST },
 })
 const won = (n: number) => (n ? Math.trunc(n).toLocaleString('ko-KR') : '')
@@ -56,7 +59,7 @@ const floor10 = (n: number) => Math.floor(Math.floor(n) / 10) * 10
 /** 서버와 같은 셈 — 필요경비 원 미만 버림, 소득세 · 지방소득세 10원 미만 버림(원본 1,231,233 → 738,739 · 98,490 · 9,840). */
 function calc(l: Line, kind: Kind) {
   const gross = Number(l.grossAmount) || 0
-  const expense = kind === 'OTHER' && l.expenseRate !== '' ? Math.floor(gross * Number(l.expenseRate) / 100) : 0
+  const expense = (kind === 'OTHER' || kind === 'NON_RESIDENT') && l.expenseRate !== '' ? Math.floor(gross * Number(l.expenseRate) / 100) : 0
   const taxable = gross - expense
   const tax = l.taxExempt ? 0 : floor10(taxable * (Number(l.taxRate) || 0) / 100)
   const local = floor10(tax * 0.1)
@@ -91,6 +94,7 @@ export default function OtherWithholdingInputPage() {
   const [payees, setPayees] = useState<WithholdingPayee[]>([])
   const [industries, setIndustries] = useState<WithholdingCodeItem[]>([])
   const [otherCodes, setOtherCodes] = useState<WithholdingCodeItem[]>([])
+  const [nrCodes, setNrCodes] = useState<WithholdingCodeItem[]>([])
   const [interestCodes, setInterestCodes] = useState<Record<string, WithholdingCodeItem[]>>({})
   const [company, setCompany] = useState<{ name: string; bizRegNo: string | null } | null>(null)
   const [error, setError] = useState('')
@@ -100,6 +104,7 @@ export default function OtherWithholdingInputPage() {
     api.get<WithholdingPayee[]>('/withholding-payees').then((r) => setPayees(r.data)).catch(() => setPayees([]))
     api.get<WithholdingCodeItem[]>('/withholding-payees/codes/industry').then((r) => setIndustries(r.data)).catch(() => setIndustries([]))
     api.get<WithholdingCodeItem[]>('/withholding-payees/codes/other-income').then((r) => setOtherCodes(r.data)).catch(() => setOtherCodes([]))
+    api.get<WithholdingCodeItem[]>('/withholding-payees/codes/non-resident-income').then((r) => setNrCodes(r.data)).catch(() => setNrCodes([]))
     for (const k of ['interest-income', 'taxation', 'special', 'product']) {
       api.get<WithholdingCodeItem[]>(`/withholding-payees/codes/${k}`).then((r) => setInterestCodes((m) => ({ ...m, [k]: r.data }))).catch(() => undefined)
     }
@@ -110,7 +115,7 @@ export default function OtherWithholdingInputPage() {
     if (!editing) return
     api.get<WithholdingSlip>(`/other-withholdings/slips/${editing.date}/${editing.seq}`)
       .then(({ data: s }) => {
-        const k: Kind = s.incomeType === 'BUSINESS' ? 'BUSINESS' : s.incomeType === 'OTHER' ? 'OTHER' : 'INTEREST'
+        const k: Kind = s.incomeType === 'BUSINESS' ? 'BUSINESS' : s.incomeType === 'OTHER' ? 'OTHER' : s.incomeType === 'NON_RESIDENT' ? 'NON_RESIDENT' : 'INTEREST'
         setPayDate(s.payDate); setKind(k); setAttributionMonth(s.attributionMonth); setPayMonth(s.payMonth)
         setLines([...s.lines.map((l) => ({
           payeeId: l.payeeId ? String(l.payeeId) : '', incomeCode: l.incomeCode ?? '', grossAmount: String(l.grossAmount),
@@ -174,7 +179,7 @@ export default function OtherWithholdingInputPage() {
     setLines((ls) => ls.map((l, i) => {
       if (!picked.has(i) || !l.grossAmount) return l
       const s = calc({ ...l, taxExempt: null }, kind)
-      const ok = kindOf === 'SMALL' ? kind !== 'BUSINESS' && s.tax < 1000 : kind === 'OTHER' && s.taxable <= 50000
+      const ok = kindOf === 'SMALL' ? kind !== 'BUSINESS' && s.tax < 1000 : (kind === 'OTHER' || kind === 'NON_RESIDENT') && s.taxable <= 50000
       return ok ? { ...l, taxExempt: kindOf } : l
     }))
   }
@@ -189,12 +194,13 @@ export default function OtherWithholdingInputPage() {
     setError(''); setNotice('')
     const filled = lines.filter((l) => l.payeeId || l.grossAmount || l.incomeCode || l.description)
     if (filled.length === 0 || filled.some((l) => !(Number(l.grossAmount) > 0))) return setError('지급총액을 입력바랍니다.')
-    if (kind === 'OTHER' && filled.some((l) => l.expenseRate === '')) return setError('필요경비율을 선택바랍니다.')
+    if ((kind === 'OTHER' || kind === 'NON_RESIDENT') && filled.some((l) => l.expenseRate === '')) return setError('필요경비율을 선택바랍니다.')
+    if (kind === 'NON_RESIDENT' && filled.some((l) => l.taxRate === '')) return setError('세율을 입력바랍니다.')
     const body = {
       payDate, attributionMonth, payMonth, incomeType: kind as IncomeType,
       lines: filled.map((l) => ({
         payeeId: l.payeeId ? Number(l.payeeId) : null, incomeCode: l.incomeCode || null, grossAmount: Number(l.grossAmount),
-        expenseRate: kind === 'OTHER' ? Number(l.expenseRate) : null, taxRate: Number(l.taxRate), description: l.description || null,
+        expenseRate: kind === 'OTHER' || kind === 'NON_RESIDENT' ? Number(l.expenseRate) : null, taxRate: Number(l.taxRate), description: l.description || null,
         industryName: kind === 'BUSINESS' ? l.industryName ?? null : null,
         taxExempt: l.taxExempt ?? null,
         interest: kind === 'INTEREST' ? {
@@ -263,7 +269,7 @@ export default function OtherWithholdingInputPage() {
           선택삭제
         </button>
         <button className="ec-btn ec-btn-sm" onClick={() => exempt('SMALL')}>소액부징수</button>
-        {kind === 'OTHER' && <button className="ec-btn ec-btn-sm" onClick={() => exempt('MIN')}>과세최저한</button>}
+        {(kind === 'OTHER' || kind === 'NON_RESIDENT') && <button className="ec-btn ec-btn-sm" onClick={() => exempt('MIN')}>과세최저한</button>}
       </div>
       <div className="overflow-x-auto">
         <table ref={tableRef} className="w-full">
@@ -276,13 +282,13 @@ export default function OtherWithholdingInputPage() {
               <th className="text-center">소득자</th>
               <th className="text-center">구분</th>
               {kind === 'BUSINESS' && <><th className="text-center">업종구분코드</th><th className="text-center">업종명</th><th className="text-right">지급총액</th></>}
-              {kind === 'OTHER' && <><th className="text-center">소득코드</th><th className="text-right">지급액</th><th className="text-center">필요경비율(%)</th>
+              {(kind === 'OTHER' || kind === 'NON_RESIDENT') && <><th className="text-center">소득코드</th><th className="text-right">지급액</th><th className="text-center">필요경비율(%)</th>
                 <th className="text-right">필요경비</th><th className="text-right">소득금액</th></>}
               {kind === 'INTEREST' && <><th className="text-center">계좌(발행)번호</th><th className="text-center">과세구분코드</th>
                 <th className="text-center">소득코드</th><th className="text-center">조세특례코드</th><th className="text-center">금융상품코드</th>
                 <th className="text-right">소득금액</th></>}
               <th className="text-center">세율{kind === 'BUSINESS' ? '' : '(%)'}</th>
-              <th className="text-right">{kind === 'INTEREST' ? '세액' : '소득세'}</th>
+              <th className="text-right">{kind === 'INTEREST' || kind === 'NON_RESIDENT' ? '세액' : '소득세'}</th>
               <th className="text-right">지방소득세</th>
               <th className="text-right">합계</th>
               <th className="text-right">실지급액</th>
@@ -326,6 +332,13 @@ export default function OtherWithholdingInputPage() {
                                        items={otherCodes.map((c) => ({ value: c.code, code: c.code, name: c.name }))} />
                     </td>
                   )}
+                  {kind === 'NON_RESIDENT' && (
+                    <td className="min-w-[120px]">
+                      <CodePickerField label="소득코드" hideLabel fill emptyLabel="(없음)" value={l.incomeCode}
+                                       onChange={(v) => { const c = nrCodes.find((x) => x.code === v); setLine(i, { incomeCode: v, ...(c ? { expenseRate: c.rate1 ?? '' } : {}) }) }}
+                                       items={nrCodes.map((c) => ({ value: c.code, code: c.code, name: c.name }))} />
+                    </td>
+                  )}
                   {kind === 'INTEREST' && <>
                     <td><input className="ec-input w-full min-w-[120px]" maxLength={50} value={l.interest.accountNo} onChange={(e) => setInterest(i, { accountNo: e.target.value })} /></td>
                     <td className="min-w-[110px]">{codePicker('과세구분코드', 'taxation', l.interest.taxationCode, (v) => setInterest(i, { taxationCode: v }))}</td>
@@ -338,18 +351,18 @@ export default function OtherWithholdingInputPage() {
                            value={l.grossAmount ? Number(l.grossAmount).toLocaleString('ko-KR') : ''}
                            onChange={(e) => setLine(i, { grossAmount: e.target.value.replace(/\D/g, ''), taxExempt: null })} />
                   </td>
-                  {kind === 'OTHER' && <>
+                  {(kind === 'OTHER' || kind === 'NON_RESIDENT') && <>
                     <td>
                       <select className="ec-input w-full" value={l.expenseRate} onChange={(e) => setLine(i, { expenseRate: e.target.value })}>
                         <option value="">====</option>
-                        {EXPENSE_RATES.map((r) => <option key={r} value={r}>{r}%</option>)}
+                        {(kind === 'OTHER' ? EXPENSE_RATES : NR_EXPENSE_RATES).map((r) => <option key={r} value={r}>{r}%</option>)}
                       </select>
                     </td>
                     <td className="text-right">{won(s.expense)}</td>
                     <td className="text-right">{won(s.taxable)}</td>
                   </>}
                   <td>
-                    {kind === 'INTEREST'
+                    {kind === 'INTEREST' || kind === 'NON_RESIDENT'
                       ? <input className="ec-input w-[60px] text-right" value={l.taxRate} onChange={(e) => setLine(i, { taxRate: e.target.value.replace(/[^\d.]/g, '') })} />
                       : <select className="ec-input w-full" value={l.taxRate} onChange={(e) => setLine(i, { taxRate: e.target.value })}>
                           {TAX_RATES[kind].map((r) => <option key={r} value={r}>{r}%</option>)}
@@ -382,7 +395,7 @@ export default function OtherWithholdingInputPage() {
             <tr className="ec-total">
               <td colSpan={kind === 'BUSINESS' ? 5 : kind === 'INTEREST' ? 8 : 4} />
               <td className="text-right">{won(total.gross)}</td>
-              {kind === 'OTHER' && <><td /><td className="text-right">{won(total.expense)}</td><td className="text-right">{won(total.taxable)}</td></>}
+              {(kind === 'OTHER' || kind === 'NON_RESIDENT') && <><td /><td className="text-right">{won(total.expense)}</td><td className="text-right">{won(total.taxable)}</td></>}
               <td />
               <td className="text-right">{won(total.tax)}</td>
               <td className="text-right">{won(total.local)}</td>

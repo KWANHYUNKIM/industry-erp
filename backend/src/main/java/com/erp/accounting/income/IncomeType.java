@@ -12,7 +12,9 @@ public enum IncomeType {
     BUSINESS("사업소득", new BigDecimal("0.03"), BigDecimal.ZERO),
     OTHER("기타소득", new BigDecimal("0.20"), new BigDecimal("0.60")),
     INTEREST("이자소득", new BigDecimal("0.14"), BigDecimal.ZERO),
-    DIVIDEND("배당소득", new BigDecimal("0.14"), BigDecimal.ZERO);
+    DIVIDEND("배당소득", new BigDecimal("0.14"), BigDecimal.ZERO),
+    /** 비거주자사업기타소득 — 원본 기타원천세입력 네 번째 소득구분. 세율은 줄마다 직접 적고(조세조약), 필요경비율은 소득코드 기본값. */
+    NON_RESIDENT("비거주자사업기타소득", new BigDecimal("0.20"), BigDecimal.ZERO);
 
     private final String displayName;
     private final BigDecimal taxRate;

@@ -513,6 +513,14 @@ public final class WithholdingCodes {
             new Code("B9A", "기타파생결합증권(61) · 원화 · 기타"),
             new Code("B9B", "기타파생결합증권(61) · 원화 · 복합"));
 
+    /** 비거주자사업기타소득 소득코드 5개와 원본이 채우는 기본 필요경비율(%) — 세율은 원본도 비워 두고 사람이 적는다. */
+    public static final List<OtherIncomeCode> NON_RESIDENT_INCOME = List.of(
+            new OtherIncomeCode("40", "사업소득", 0, 0),
+            new OtherIncomeCode("41", "선박등 임대소득", 0, 0),
+            new OtherIncomeCode("42", "인적용역소득", 80, 0),
+            new OtherIncomeCode("61", "사용료소득", 0, 0),
+            new OtherIncomeCode("62", "기타소득", 80, 0));
+
     public static boolean contains(List<Code> codes, String code) {
         return codes.stream().anyMatch(c -> c.code().equals(code));
     }

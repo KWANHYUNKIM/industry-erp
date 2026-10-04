@@ -8,9 +8,10 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { WithholdingReceiptPayee } from '../../types/api'
 import type { Company } from './SimplePaymentPage'
 
-type Kind = 'BUSINESS' | 'INTEREST' | 'OTHER'
+type Kind = 'BUSINESS' | 'INTEREST' | 'OTHER' | 'NON_RESIDENT'
 const KINDS: { value: Kind; label: string }[] = [
   { value: 'BUSINESS', label: '사업소득' }, { value: 'INTEREST', label: '이자배당소득' }, { value: 'OTHER', label: '기타소득' },
+  { value: 'NON_RESIDENT', label: '비거주자사업기타소득' },
 ]
 /** 원본 기타소득 영수증 (9) 소득구분코드 — 해당 코드에 ⓥ. */
 const OTHER_CODES = [
@@ -20,6 +21,8 @@ const OTHER_CODES = [
   ['75', '원고료 등'], ['76', '강연료 등'], ['77', '종교인소득'], ['78', '사례금'], ['79', '자문료'], ['80', '통신판매 대여소득'],
   ['62', '그 밖에 필요경비 있는 기타소득([64]·[68]·[69]·[71]~[77]·[79]·[80]제외)'],
 ] as const
+/** 비거주자사업기타소득 소득코드 — 원본 코드도움 그대로. */
+const NR_CODES = [['40', '사업소득'], ['41', '선박등 임대소득'], ['42', '인적용역소득'], ['61', '사용료소득'], ['62', '기타소득']] as const
 /** 원본 영수증은 지급 줄 칸이 늘 14줄이다(쓴 줄 + 빈 줄). */
 const SHEET_ROWS = 14
 
@@ -197,7 +200,8 @@ export default function OtherWithholdingReceiptPage() {
 function ReceiptSheet({ kind, payee: p, company, year, submitDate, forIssuer }: {
   kind: Kind; payee: WithholdingReceiptPayee; company: Company | null; year: string; submitDate: string; forIssuer: boolean
 }) {
-  const other = kind === 'OTHER'
+  const nr = kind === 'NON_RESIDENT'
+  const other = kind === 'OTHER' || nr
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '원천징수영수증', [kind, p])
   const blanks = Math.max(0, SHEET_ROWS - p.lines.length)
@@ -207,9 +211,9 @@ function ReceiptSheet({ kind, payee: p, company, year, submitDate, forIssuer }: 
   const use = (issuer: boolean) => `${forIssuer === issuer ? '☑' : '☐'}${issuer ? '발행자 보관용' : '소득자 보관용'}`
   return (
     <>
-      <p>■ 소득세법 시행규칙 [별지 제23호서식({other ? '4' : '2'})]</p>
+      <p>■ 소득세법 시행규칙 [별지 제23호서식({nr ? '5' : other ? '4' : '2'})]</p>
       <div className="ec-report-title">
-        거주자의 {other ? '기타소득' : kind === 'INTEREST' ? '이자 · 배당소득' : '사업소득'} 원천징수영수증
+        {nr ? '비거주자의 사업 · 기타소득' : `거주자의 ${other ? '기타소득' : kind === 'INTEREST' ? '이자 · 배당소득' : '사업소득'}`} 원천징수영수증
         <br />( {use(false)}  {use(true)} )
       </div>
       <table className="w-full ec-report ec-report-head400 mb-[8px]">
@@ -238,7 +242,7 @@ function ReceiptSheet({ kind, payee: p, company, year, submitDate, forIssuer }: 
             <tr><th>(8) 주 소</th><td colSpan={5}>{p.address ?? ''}</td></tr>
             <tr>
               <th colSpan={2}>(9) 소득구분코드</th>
-              <td colSpan={5}>{OTHER_CODES.map(([c, n]) => `[${c}]${n}${p.incomeCodes.includes(c) ? 'ⓥ' : ''}`).join(' ')}</td>
+              <td colSpan={5}>{(nr ? NR_CODES : OTHER_CODES).map(([c, n]) => `[${c}]${n}${p.incomeCodes.includes(c) ? 'ⓥ' : ''}`).join(' ')}</td>
             </tr>
           </> : <>
             <tr>

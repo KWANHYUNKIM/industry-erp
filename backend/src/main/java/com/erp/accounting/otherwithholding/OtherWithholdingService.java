@@ -152,6 +152,8 @@ public class OtherWithholdingService {
     /** 원본 필요경비율 선택지(%) — 0 · 60 · 70 · 80 · 90 ('====' 는 안 고른 것). */
     private static final List<BigDecimal> EXPENSE_RATES = List.of(BigDecimal.ZERO, new BigDecimal("60"), new BigDecimal("70"),
             new BigDecimal("80"), new BigDecimal("90"));
+    /** 원본 비거주자 필요경비율 선택지(%) — 0 · 70 · 80. */
+    private static final List<BigDecimal> NON_RESIDENT_EXPENSE = List.of(BigDecimal.ZERO, new BigDecimal("70"), new BigDecimal("80"));
     private static final java.time.format.DateTimeFormatter SLIP_DATE = java.time.format.DateTimeFormatter.ofPattern("yyyy/MM/dd");
 
     @Transactional(readOnly = true)
@@ -274,6 +276,15 @@ public class OtherWithholdingService {
             if (l.expenseRate() == null) throw ApiException.badRequest("필요경비율을 선택바랍니다.");
             if (EXPENSE_RATES.stream().noneMatch(r -> r.compareTo(l.expenseRate()) == 0)) throw ApiException.badRequest("필요경비율은 0% · 60% · 70% · 80% · 90% 중에서 고르세요.");
             expenseRate = l.expenseRate();
+        } else if (type == IncomeType.NON_RESIDENT) {
+            // 원본 비거주자사업기타소득 — 소득코드 40 · 41 · 42 · 61 · 62, 필요경비율 0 · 70 · 80, 세율은 직접(조세조약).
+            if (code != null && com.erp.accounting.WithholdingCodes.NON_RESIDENT_INCOME.stream().noneMatch(c -> c.code().equals(code))) {
+                throw ApiException.badRequest("소득코드가 올바르지 않습니다: " + code);
+            }
+            if (l.expenseRate() == null) throw ApiException.badRequest("필요경비율을 선택바랍니다.");
+            if (NON_RESIDENT_EXPENSE.stream().noneMatch(r -> r.compareTo(l.expenseRate()) == 0)) throw ApiException.badRequest("필요경비율은 0% · 70% · 80% 중에서 고르세요.");
+            if (taxRate.signum() < 0 || taxRate.compareTo(new BigDecimal("100")) > 0) throw ApiException.badRequest("세율이 올바르지 않습니다.");
+            expenseRate = l.expenseRate();
         } else if (taxRate.signum() < 0 || taxRate.compareTo(new BigDecimal("100")) > 0) {
             throw ApiException.badRequest("세율이 올바르지 않습니다.");
         }
@@ -290,7 +301,7 @@ public class OtherWithholdingService {
             if (type == IncomeType.BUSINESS) throw ApiException.badRequest("사업소득은 소액부징수 대상이 아닙니다.");
             if (incomeTax.compareTo(THOUSAND) >= 0) throw ApiException.badRequest("소득세가 1,000원 미만인 줄만 소액부징수할 수 있습니다.");
         } else if (l.taxExempt() == TaxExempt.MIN) {
-            if (type != IncomeType.OTHER) throw ApiException.badRequest("과세최저한은 기타소득에만 있습니다.");
+            if (type != IncomeType.OTHER && type != IncomeType.NON_RESIDENT) throw ApiException.badRequest("과세최저한은 기타소득 · 비거주자사업기타소득에만 있습니다.");
             if (taxable.compareTo(new BigDecimal("50000")) > 0) throw ApiException.badRequest("소득금액이 50,000원 이하인 줄만 과세최저한으로 둘 수 있습니다.");
         }
         if (l.taxExempt() != null) {
@@ -377,6 +388,7 @@ public class OtherWithholdingService {
             case "BUSINESS" -> java.util.Set.of(IncomeType.BUSINESS);
             case "OTHER" -> java.util.Set.of(IncomeType.OTHER);
             case "INTEREST" -> java.util.Set.of(IncomeType.INTEREST, IncomeType.DIVIDEND);
+            case "NON_RESIDENT" -> java.util.Set.of(IncomeType.NON_RESIDENT);
             default -> throw ApiException.badRequest("서식구분이 올바르지 않습니다: " + kind);
         };
         YearMonth f = parseMonth(from), t = parseMonth(to);
@@ -420,6 +432,7 @@ public class OtherWithholdingService {
             case "BUSINESS" -> java.util.Set.of(IncomeType.BUSINESS);
             case "OTHER" -> java.util.Set.of(IncomeType.OTHER);
             case "INTEREST" -> java.util.Set.of(IncomeType.INTEREST, IncomeType.DIVIDEND);
+            case "NON_RESIDENT" -> java.util.Set.of(IncomeType.NON_RESIDENT);
             default -> throw ApiException.badRequest("서식구분이 올바르지 않습니다: " + kind);
         };
         String prefix = year + "-";
@@ -442,7 +455,7 @@ public class OtherWithholdingService {
         });
         java.util.Comparator<OtherWithholdingDtos.StatementRow> byName = java.util.Comparator.comparing(OtherWithholdingDtos.StatementRow::name);
         java.util.Comparator<OtherWithholdingDtos.StatementRow> byCode = java.util.Comparator.comparing(r -> java.util.Objects.toString(r.code(), ""));
-        rows.sort("OTHER".equals(kind) ? byCode.thenComparing(byName) : byName.thenComparing(byCode));
+        rows.sort("OTHER".equals(kind) || "NON_RESIDENT".equals(kind) ? byCode.thenComparing(byName) : byName.thenComparing(byCode));
         List<OtherWithholding> small = lines.stream().filter(w -> w.getTaxExempt() == TaxExempt.SMALL).toList();
         BigDecimal tax = sumOf(lines, OtherWithholding::getIncomeTax), local = sumOf(lines, OtherWithholding::getLocalIncomeTax);
         return new OtherWithholdingDtos.PaymentStatement(year,

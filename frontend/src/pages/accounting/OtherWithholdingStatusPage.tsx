@@ -9,7 +9,7 @@ import type { WithholdingLineReportRow } from '../../types/api'
 const won = (n: number) => Math.trunc(n).toLocaleString('ko-KR')
 const ym = (s: string) => s.replace('-', '/')
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-const TYPES = ['사업소득', '이자배당소득', '기타소득']
+const TYPES = ['사업소득', '이자배당소득', '기타소득', '비거주자사업기타소득']
 
 /** 원본 기본 기간 — 오늘 기준 한 달 전 같은 날 ~ 한 달 뒤 전날(2026/10/04 → 2026/09/04 ~ 2026/11/03). */
 function defaultPeriod() {

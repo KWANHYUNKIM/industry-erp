@@ -59,6 +59,8 @@ public class WithholdingPayeeController {
                     .map(c -> new CodeItem(c.code(), c.name(),
                             c.expenseRate() == null ? null : String.valueOf(c.expenseRate()), String.valueOf(c.taxRate())))
                     .toList();
+            case "non-resident-income" -> WithholdingCodes.NON_RESIDENT_INCOME.stream()
+                    .map(c -> new CodeItem(c.code(), c.name(), String.valueOf(c.expenseRate()), null)).toList();
             case "interest-income" -> list(WithholdingCodes.INTEREST_INCOME);
             case "taxation" -> list(WithholdingCodes.TAXATION);
             case "special" -> list(WithholdingCodes.SPECIAL);

@@ -7,9 +7,10 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { WithholdingPaymentStatement } from '../../types/api'
 import type { Company } from './SimplePaymentPage'
 
-type Kind = 'BUSINESS' | 'INTEREST' | 'OTHER'
+type Kind = 'BUSINESS' | 'INTEREST' | 'OTHER' | 'NON_RESIDENT'
 const KINDS: { value: Kind; label: string }[] = [
   { value: 'BUSINESS', label: '사업소득' }, { value: 'INTEREST', label: '이자배당소득' }, { value: 'OTHER', label: '기타소득' },
+  { value: 'NON_RESIDENT', label: '비거주자사업기타소득' },
 ]
 /** 원본 2. 소득자 줄 칸은 쓴 줄 뒤로 빈 줄을 채워 적어도 이만큼 그린다. */
 const SHEET_ROWS = 10
@@ -100,22 +101,23 @@ export default function OtherWithholdingStatementPage() {
 }
 
 function StatementSheet({ kind, s, company }: { kind: Kind; s: WithholdingPaymentStatement; company: Company | null }) {
-  const other = kind === 'OTHER'
+  const nr = kind === 'NON_RESIDENT'
+  const other = kind === 'OTHER' || nr
   const business = kind === 'BUSINESS'
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '지급명세서', [kind, s])
-  const label = business ? '사업소득' : other ? '기타소득' : '이자 · 배당소득'
+  const label = business ? '사업소득' : nr ? '사업 · 기타소득' : other ? '기타소득' : '이자 · 배당소득'
   const address = [company?.address, company?.addressDetail].filter(Boolean).join(' ')
   const cols = other ? 15 : 11
   const blanks = Math.max(0, SHEET_ROWS - s.rows.length)
   return (
     <>
-      <p>■ 소득세법 시행규칙 [별지 제23호서식({other ? '4' : '2'})]</p>
+      <p>■ 소득세법 시행규칙 [별지 제23호서식({nr ? '5' : other ? '4' : '2'})]</p>
       <table className="w-full ec-report ec-report-head400 mb-[8px]">
         <tbody>
           <tr>
             <th>귀속연도</th><td>{s.year} 년</td>
-            <td className="ec-report-title">거주자의 {label} 지급명세서 (발행자 보고용)<br />({`거주자의 ${label} 원천징수영수증 발행자 보관용 소득자별 연간집계표`})</td>
+            <td className="ec-report-title">{nr ? '비' : ''}거주자의 {label} 지급명세서 (발행자 보고용)<br />({`${nr ? '비' : ''}거주자의 ${label} 원천징수영수증 발행자 보관용 소득자별 연간집계표`})</td>
             <th>관리번호</th><td></td>
           </tr>
         </tbody>

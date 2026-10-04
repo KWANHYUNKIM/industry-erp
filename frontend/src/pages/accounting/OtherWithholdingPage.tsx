@@ -10,7 +10,7 @@ import type { WithholdingSlip, WithholdingSlipListRow } from '../../types/api'
 const won = (n: number) => Math.trunc(n).toLocaleString('ko-KR')
 const ym = (s: string) => s.replace('-', '/')
 const today = () => new Date().toISOString().slice(0, 10)
-const TYPES = ['사업소득', '이자배당소득', '기타소득']
+const TYPES = ['사업소득', '이자배당소득', '기타소득', '비거주자사업기타소득']
 
 /**
  * 기타원천세 조회 (원본 세무 › 기타원천세 › 기타원천세조회 E030315, 2026-10-04 loginaa 실측).

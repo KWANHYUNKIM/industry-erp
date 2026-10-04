@@ -2300,7 +2300,7 @@ export interface CashPlanStatus {
 
 // ===== 기타원천세 =====
 
-export type IncomeType = 'BUSINESS' | 'OTHER' | 'INTEREST' | 'DIVIDEND'
+export type IncomeType = 'BUSINESS' | 'OTHER' | 'INTEREST' | 'DIVIDEND' | 'NON_RESIDENT'
 
 export interface OtherWithholding {
   id: number
