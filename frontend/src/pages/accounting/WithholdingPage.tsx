@@ -252,7 +252,7 @@ function ReturnForm({ form, onChange }: { form: FormState; onChange: (f: FormSta
 
 /**
  * 원본 신고서 서식 [Ⅰ. 원천징수 명세 및 납부세액] 의 줄(코드 · 소득구분). 원본처럼 줄을 모두 그리고
- * 우리에게 자료가 있는 줄(A01 간이세액 · A03 일용근로 · A25 사업 매월징수 · A42 기타 그 외 · A50 이자 · A60 배당)만 채운다.
+ * 우리에게 자료가 있는 줄(A01 간이세액 · A03 일용근로 · A25 사업 매월징수 · A42 기타 그 외 · A50 이자 · A60 배당 · A80 법인에 준 이자 · 배당)만 채운다.
  * 가감계 줄은 위 줄의 합이고, <b>납부세액은 가감계 · 이자 · 배당 · 총합계 줄에만</b> 찍힌다(원본 그대로).
  */
 const FORM_ROWS: { code: string; group: string; label: string; sum?: string[]; pay?: boolean }[] = [

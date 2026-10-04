@@ -83,19 +83,28 @@ public class WithholdingService {
         }
 
         List<WithholdingDtos.IncomeSection> sections = new ArrayList<>();
-        sections.add(new WithholdingDtos.IncomeSection("A01", "근로소득(간이세액)", rows.size(), totalGross, totalIncomeTax, totalLocal));
+        // A01 총지급액은 비과세를 뺀 과세 급여 — 원본 2025/07 6명 20,469,000(급여대장 21,669,000 − 차량유지비 1,200,000).
+        BigDecimal nonTaxable = all.stream().filter(p -> p.getStatus() == PayslipStatus.CONFIRMED)
+                .flatMap(p -> p.getLines().stream())
+                .filter(l -> l.getKind() == PayslipLineKind.ALLOWANCE && !l.isTaxable())
+                .map(PayslipLine::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        sections.add(new WithholdingDtos.IncomeSection("A01", "근로소득(간이세액)", rows.size(), totalGross.subtract(nonTaxable),
+                totalIncomeTax, totalLocal));
         java.time.YearMonth ym = java.time.YearMonth.parse(month);
         var daily = dailyWorkService.monthTotals(ym);
         if (daily.count() > 0) {
             sections.add(new WithholdingDtos.IncomeSection("A03", "일용근로", daily.count(), daily.wage(),
                     daily.incomeTax(), daily.localIncomeTax()));
         }
-        java.util.Map<com.erp.accounting.income.IncomeType, List<com.erp.accounting.otherwithholding.OtherWithholding>> byType =
-                otherWithholdingRepository.findBetween(ym.atDay(1), ym.atEndOfMonth()).stream()
-                        .collect(java.util.stream.Collectors.groupingBy(com.erp.accounting.otherwithholding.OtherWithholding::getIncomeType,
+        // 기타원천세는 귀속연월로 싣고 인원은 소득자 수 — 원본 2025/07 사업소득 [A25] 2명(5줄) · 1,916,000.
+        // 법인에 준 이자 · 배당은 [A80 내·외국법인원천] — 원본 2025/07 김꽃 꽃꽃이 센터 이자 1,000,000 · 250,000(A50 은 0).
+        java.util.Map<String, List<com.erp.accounting.otherwithholding.OtherWithholding>> byCode =
+                otherWithholdingRepository.findByAttributionBetween(month, month).stream()
+                        .collect(java.util.stream.Collectors.groupingBy(WithholdingService::formCode,
                                 java.util.TreeMap::new, java.util.stream.Collectors.toList()));
-        byType.forEach((type, list) -> sections.add(new WithholdingDtos.IncomeSection(
-                formCode(type), type.getDisplayName(), list.size(),
+        byCode.forEach((code, list) -> sections.add(new WithholdingDtos.IncomeSection(
+                code, "A80".equals(code) ? "내·외국법인원천" : list.get(0).getIncomeType().getDisplayName(),
+                (int) list.stream().map(w -> w.getPayeeName() + "\u0000" + w.getPayeeRegNo()).distinct().count(),
                 list.stream().map(com.erp.accounting.otherwithholding.OtherWithholding::getGrossAmount).reduce(BigDecimal.ZERO, BigDecimal::add),
                 list.stream().map(com.erp.accounting.otherwithholding.OtherWithholding::getIncomeTax).reduce(BigDecimal.ZERO, BigDecimal::add),
                 list.stream().map(com.erp.accounting.otherwithholding.OtherWithholding::getLocalIncomeTax).reduce(BigDecimal.ZERO, BigDecimal::add))));
@@ -112,6 +121,13 @@ public class WithholdingService {
      * 신고서 서식의 코드 — 원본 신고서는 기타원천세를 사업소득 [매월징수 A25] · 기타소득 [그 외 A42] ·
      * 이자 [A50] · 배당 [A60] 줄에 싣는다. 예전엔 enum 이름(BUSINESS …)을 코드로 내보내 서식 줄과 이을 수 없었다.
      */
+    static String formCode(com.erp.accounting.otherwithholding.OtherWithholding w) {
+        boolean corporate = w.getPayee() != null && w.getPayee().getKind() == com.erp.accounting.withholdingpayee.PayeeKind.CORPORATE;
+        if (corporate && (w.getIncomeType() == com.erp.accounting.income.IncomeType.INTEREST
+                || w.getIncomeType() == com.erp.accounting.income.IncomeType.DIVIDEND)) return "A80";
+        return formCode(w.getIncomeType());
+    }
+
     static String formCode(com.erp.accounting.income.IncomeType type) {
         return switch (type) {
             case BUSINESS -> "A25";
@@ -290,7 +306,7 @@ public class WithholdingService {
     /**
      * 원천세신고자료비교표(E030104) — 기준연도 달마다 자료(급여대장 · 출역 · 퇴직금 · 기타원천세)와 그 달 신고서를 구분별로 견준다.
      * 원본 2026: 근로소득 달마다 6 · 21,669,000 · 1,200,000 · 646,370 · 64,620, 자료가 하나도 없는 달은 줄을 만들지 않고
-     * 끝에 합계 열 줄. 급여대장은 작성 중인 명세까지 센다. 중도퇴사 · 연말정산 · 법인원천은 자료가 없어 빈다.
+     * 끝에 합계 열 줄. 급여대장은 작성 중인 명세까지 센다. 중도퇴사 · 연말정산은 자료가 없어 빈다.
      */
     @Transactional(readOnly = true)
     public List<WithholdingDtos.ComparisonRow> comparison(int year) {
@@ -335,10 +351,17 @@ public class WithholdingService {
                         rs.stream().map(com.erp.accounting.retirementpay.RetirementPay::getIncomeTax).reduce(BigDecimal.ZERO, BigDecimal::add),
                         rs.stream().map(com.erp.accounting.retirementpay.RetirementPay::getLocalIncomeTax).reduce(BigDecimal.ZERO, BigDecimal::add)});
             }
-            Map<com.erp.accounting.income.IncomeType, List<com.erp.accounting.otherwithholding.OtherWithholding>> others =
-                    otherWithholdingRepository.findByAttributionBetween(month, month).stream()   // 원본은 귀속연월로 센다
-                            .collect(java.util.stream.Collectors.groupingBy(com.erp.accounting.otherwithholding.OtherWithholding::getIncomeType));
-            others.forEach((type, list) -> data.put(type.getDisplayName(), new BigDecimal[]{
+            // 원본은 귀속연월로 센다. 법인에 준 이자 · 배당은 '법인원천' 줄 — 원본 2025 김꽃 꽃꽃이 센터(법인) 이자 3건이
+            // 이자소득이 아니라 법인원천 1,000,000 · 2,000,000 · 117,205 로 찍힌다(2026-10-04 실측).
+            Map<String, List<com.erp.accounting.otherwithholding.OtherWithholding>> others =
+                    otherWithholdingRepository.findByAttributionBetween(month, month).stream()
+                            .collect(java.util.stream.Collectors.groupingBy(w ->
+                                    (w.getIncomeType() == com.erp.accounting.income.IncomeType.INTEREST
+                                            || w.getIncomeType() == com.erp.accounting.income.IncomeType.DIVIDEND)
+                                            && w.getPayee() != null
+                                            && w.getPayee().getKind() == com.erp.accounting.withholdingpayee.PayeeKind.CORPORATE
+                                            ? "법인원천" : w.getIncomeType().getDisplayName()));
+            others.forEach((kind, list) -> data.put(kind, new BigDecimal[]{
                     BigDecimal.valueOf(list.stream().map(w -> w.getPayeeName() + "\u0000" + w.getPayeeRegNo()).distinct().count()),
                     list.stream().map(com.erp.accounting.otherwithholding.OtherWithholding::getGrossAmount).reduce(BigDecimal.ZERO, BigDecimal::add),
                     BigDecimal.ZERO,
