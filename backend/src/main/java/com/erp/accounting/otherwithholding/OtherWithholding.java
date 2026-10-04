@@ -85,6 +85,11 @@ public class OtherWithholding extends BaseTimeEntity {
     @Column(name = "expense_rate", precision = 5, scale = 2)
     private BigDecimal expenseRate;
 
+    /** 세액을 0 으로 둔 까닭(소액부징수 · 과세최저한). 없으면 null. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tax_exempt", length = 10)
+    private TaxExempt taxExempt;
+
     /** 세율(%) — 사업 3 · 5 · 20, 기타 0 · 15 · 20 · 30, 이자배당은 소득코드마다. */
     @Column(name = "tax_rate", nullable = false, precision = 5, scale = 2)
     private BigDecimal taxRate;

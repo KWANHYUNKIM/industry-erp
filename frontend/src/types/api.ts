@@ -3243,6 +3243,8 @@ export interface WithholdingSlipLine {
   taxTotal: number
   netAmount: number
   description: string | null
+  /** 소액부징수(SMALL) · 과세최저한(MIN) 으로 세액을 0 으로 둔 줄 */
+  taxExempt: 'SMALL' | 'MIN' | null
 }
 
 /** 기타원천세 전표 한 장 — slipNo 는 원본 표기 '2025/07/31-2'. */

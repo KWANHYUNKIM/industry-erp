@@ -271,6 +271,19 @@ public class OtherWithholdingService {
         BigDecimal taxable = gross.subtract(expense);
         BigDecimal incomeTax = taxable.multiply(taxRate).divide(THOUSAND, 0, RoundingMode.DOWN).multiply(BigDecimal.TEN);   // 10원 미만 버림
         BigDecimal localTax = incomeTax.multiply(LOCAL_RATE).divide(BigDecimal.TEN, 0, RoundingMode.DOWN).multiply(BigDecimal.TEN);
+        // [소액부징수] — 소득세 1,000원 미만인 기타 · 이자배당 줄(원본 기타 1,000 → 80 → 0, 사업 1,000 → 30 은 그대로).
+        // [과세최저한] — 기타소득금액 50,000원 이하(원본 소득금액 400 → 0, 80,000 은 그대로).
+        if (l.taxExempt() == TaxExempt.SMALL) {
+            if (type == IncomeType.BUSINESS) throw ApiException.badRequest("사업소득은 소액부징수 대상이 아닙니다.");
+            if (incomeTax.compareTo(THOUSAND) >= 0) throw ApiException.badRequest("소득세가 1,000원 미만인 줄만 소액부징수할 수 있습니다.");
+        } else if (l.taxExempt() == TaxExempt.MIN) {
+            if (type != IncomeType.OTHER) throw ApiException.badRequest("과세최저한은 기타소득에만 있습니다.");
+            if (taxable.compareTo(new BigDecimal("50000")) > 0) throw ApiException.badRequest("소득금액이 50,000원 이하인 줄만 과세최저한으로 둘 수 있습니다.");
+        }
+        if (l.taxExempt() != null) {
+            incomeTax = BigDecimal.ZERO;
+            localTax = BigDecimal.ZERO;
+        }
         return OtherWithholding.builder()
                 .docNo(docNoGenerator.next("WT-", "other_withholdings", "doc_no", "pay_date", req.payDate()))
                 .payDate(req.payDate()).slipSeq(seq).lineNo(lineNo)
@@ -280,7 +293,7 @@ public class OtherWithholdingService {
                 .payeeName(payee == null ? null : (payee.getTradeName() != null ? payee.getTradeName() : payee.getName()))
                 .payeeRegNo(payee == null ? null : (payee.getBizRegNo() != null ? payee.getBizRegNo() : payee.getRegNo()))
                 .incomeCode(code).industryName(industryName)
-                .expenseRate(expenseRate).taxRate(taxRate)
+                .expenseRate(expenseRate).taxRate(taxRate).taxExempt(l.taxExempt())
                 .grossAmount(gross).expenseAmount(expense).taxableAmount(taxable)
                 .incomeTax(incomeTax).localIncomeTax(localTax)
                 .netAmount(gross.subtract(incomeTax).subtract(localTax))
@@ -296,7 +309,7 @@ public class OtherWithholdingService {
                 w.getPayee() == null ? null : w.getPayee().getKind().getDisplayName().replace(" ", ""),
                 w.getIncomeCode(), codeName(w), w.getGrossAmount(), w.getExpenseRate(), w.getExpenseAmount(), w.getTaxableAmount(),
                 w.getTaxRate(), w.getIncomeTax(), w.getLocalIncomeTax(), w.getIncomeTax().add(w.getLocalIncomeTax()),
-                w.getNetAmount(), w.getDescription())).toList();
+                w.getNetAmount(), w.getDescription(), w.getTaxExempt())).toList();
         return new OtherWithholdingDtos.SlipResponse(slipNo(h.getPayDate(), h.getSlipSeq()), h.getPayDate(), h.getSlipSeq(),
                 h.getAttributionMonth(), h.getPayMonth(), h.getIncomeType(), slipTypeName(h.getIncomeType()), out);
     }
@@ -400,7 +413,7 @@ public class OtherWithholdingService {
         java.util.Comparator<OtherWithholdingDtos.StatementRow> byName = java.util.Comparator.comparing(OtherWithholdingDtos.StatementRow::name);
         java.util.Comparator<OtherWithholdingDtos.StatementRow> byCode = java.util.Comparator.comparing(r -> java.util.Objects.toString(r.code(), ""));
         rows.sort("OTHER".equals(kind) ? byCode.thenComparing(byName) : byName.thenComparing(byCode));
-        List<OtherWithholding> small = lines.stream().filter(w -> w.getIncomeTax().signum() == 0).toList();
+        List<OtherWithholding> small = lines.stream().filter(w -> w.getTaxExempt() == TaxExempt.SMALL).toList();
         BigDecimal tax = sumOf(lines, OtherWithholding::getIncomeTax), local = sumOf(lines, OtherWithholding::getLocalIncomeTax);
         return new OtherWithholdingDtos.PaymentStatement(year,
                 (int) lines.stream().map(w -> w.getPayee().getId()).distinct().count(), lines.size(),

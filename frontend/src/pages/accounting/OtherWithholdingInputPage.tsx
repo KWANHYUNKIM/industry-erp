@@ -18,6 +18,8 @@ type Line = {
   description: string
   /** 저장된 줄의 업종명 — 지급 당시 이름 그대로(원본 940909 '기타자영업'). 코드를 다시 고르면 지운다. */
   industryName?: string | null
+  /** [소액부징수] · [과세최저한] 으로 세액을 0 으로 둔 줄 */
+  taxExempt?: 'SMALL' | 'MIN' | null
 }
 
 const KINDS: { value: Kind; label: string }[] = [
@@ -41,7 +43,7 @@ function calc(l: Line, kind: Kind) {
   const gross = Number(l.grossAmount) || 0
   const expense = kind === 'OTHER' && l.expenseRate !== '' ? Math.floor(gross * Number(l.expenseRate) / 100) : 0
   const taxable = gross - expense
-  const tax = floor10(taxable * (Number(l.taxRate) || 0) / 100)
+  const tax = l.taxExempt ? 0 : floor10(taxable * (Number(l.taxRate) || 0) / 100)
   const local = floor10(tax * 0.1)
   return { gross, expense, taxable, tax, local, total: tax + local, net: gross - tax - local }
 }
@@ -95,6 +97,7 @@ export default function OtherWithholdingInputPage() {
           payeeId: l.payeeId ? String(l.payeeId) : '', incomeCode: l.incomeCode ?? '', grossAmount: String(l.grossAmount),
           expenseRate: l.expenseRate == null ? '' : String(Number(l.expenseRate)), taxRate: String(Number(l.taxRate)),
           description: l.description ?? '', industryName: s.incomeType === 'BUSINESS' ? l.incomeCodeName : null,
+          taxExempt: l.taxExempt,
         })), blankLine(k)])
       })
       .catch((e) => setError(extractErrorMessage(e)))
@@ -126,6 +129,21 @@ export default function OtherWithholdingInputPage() {
     setLine(i, { incomeCode: code, ...(c ? { expenseRate: c.rate1 ?? '', taxRate: c.rate2 ?? '0' } : {}) })
   }
 
+  /**
+   * [소액부징수] · [과세최저한] — 고른 줄만. 원본처럼 고른 줄이 없으면 '소득내역이 선택되지 않았습니다.'.
+   * 소액부징수는 소득세 1,000원 미만인 기타 · 이자배당 줄(사업소득 줄은 원본도 그대로), 과세최저한은 소득금액 50,000원 이하인 기타소득 줄.
+   */
+  function exempt(kindOf: 'SMALL' | 'MIN') {
+    setError('')
+    if (picked.size === 0) return setError('소득내역이 선택되지 않았습니다.')
+    setLines((ls) => ls.map((l, i) => {
+      if (!picked.has(i) || !l.grossAmount) return l
+      const s = calc({ ...l, taxExempt: null }, kind)
+      const ok = kindOf === 'SMALL' ? kind !== 'BUSINESS' && s.tax < 1000 : kind === 'OTHER' && s.taxable <= 50000
+      return ok ? { ...l, taxExempt: kindOf } : l
+    }))
+  }
+
   function reset() {
     setLines([blankLine(kind), blankLine(kind), blankLine(kind)])
     setPicked(new Set())
@@ -143,6 +161,7 @@ export default function OtherWithholdingInputPage() {
         payeeId: l.payeeId ? Number(l.payeeId) : null, incomeCode: l.incomeCode || null, grossAmount: Number(l.grossAmount),
         expenseRate: kind === 'OTHER' ? Number(l.expenseRate) : null, taxRate: Number(l.taxRate), description: l.description || null,
         industryName: kind === 'BUSINESS' ? l.industryName ?? null : null,
+        taxExempt: l.taxExempt ?? null,
       })),
     }
     try {
@@ -203,6 +222,8 @@ export default function OtherWithholdingInputPage() {
                 onClick={() => { setLines((ls) => { const n = ls.filter((_, i) => !picked.has(i)); return n.length ? n : [blankLine(kind)] }); setPicked(new Set()) }}>
           선택삭제
         </button>
+        <button className="ec-btn ec-btn-sm" onClick={() => exempt('SMALL')}>소액부징수</button>
+        {kind === 'OTHER' && <button className="ec-btn ec-btn-sm" onClick={() => exempt('MIN')}>과세최저한</button>}
       </div>
       <div className="overflow-x-auto">
         <table ref={tableRef} className="w-full">
@@ -262,7 +283,7 @@ export default function OtherWithholdingInputPage() {
                   <td>
                     <input className="ec-input w-full min-w-[100px] text-right" inputMode="numeric" min={1}
                            value={l.grossAmount ? Number(l.grossAmount).toLocaleString('ko-KR') : ''}
-                           onChange={(e) => setLine(i, { grossAmount: e.target.value.replace(/\D/g, '') })} />
+                           onChange={(e) => setLine(i, { grossAmount: e.target.value.replace(/\D/g, ''), taxExempt: null })} />
                   </td>
                   {kind === 'OTHER' && <>
                     <td>
