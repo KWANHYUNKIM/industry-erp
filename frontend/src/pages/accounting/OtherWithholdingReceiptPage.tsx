@@ -40,7 +40,9 @@ const PRINT_CSS = 'body{font-family:sans-serif;font-size:11px;margin:16px}'
  * (18) 지방소득세 · (19) 계] · '위의 원천징수세액(수입금액)을 정히 영수(지급)합니다.' · 제출일자 · 징수(보고)의무자,
  * 기타소득 서식은 (9) 소득구분코드에 ⓥ 와 [(12) 지급총액 · (13) 비과세소득 · (14) 필요경비 · (15) 소득금액 · (16) 세율 …].
  *
- * <p>두지 않은 것: 조회구분 [건별] · [Email] · 비거주자사업기타소득 · 작성방법 안내문. 이자배당은 원본 서식 대신 지급 줄 표만 그린다.
+ * [조회구분 건별]은 지급 줄마다 [… · 귀속연월 · 지급일자 · …], 지급일자 차례.
+ *
+ * <p>두지 않은 것: [Email] · 비거주자사업기타소득 · 작성방법 안내문. 이자배당은 원본 서식 대신 지급 줄 표만 그린다.
  */
 export default function OtherWithholdingReceiptPage() {
   const year = new Date().getFullYear()
@@ -50,6 +52,8 @@ export default function OtherWithholdingReceiptPage() {
   const [to, setTo] = useState(thisMonth())
   const [submitDate, setSubmitDate] = useState(new Date().toISOString().slice(0, 10))
   const [forIssuer, setForIssuer] = useState(true)
+  const [perLine, setPerLine] = useState(false)
+  const [shownPerLine, setShownPerLine] = useState(false)
   const [rows, setRows] = useState<WithholdingReceiptPayee[]>([])
   const [shownKind, setShownKind] = useState<Kind>('BUSINESS')
   const [picked, setPicked] = useState<Set<number>>(new Set())
@@ -68,6 +72,7 @@ export default function OtherWithholdingReceiptPage() {
       const { data } = await api.get<WithholdingReceiptPayee[]>('/other-withholdings/receipts', { params: { kind, from, to } })
       setRows(data.filter((r) => !payee.trim() || r.name.includes(payee.trim()) || (r.tradeName ?? '').includes(payee.trim())))
       setShownKind(kind)
+      setShownPerLine(perLine)
       setPicked(new Set())
     } catch (e) {
       setRows([]); setError(extractErrorMessage(e))
@@ -81,7 +86,12 @@ export default function OtherWithholdingReceiptPage() {
       + `<body>${sheetRef.current.innerHTML}</body></html>`)
   }
 
-  const allPicked = rows.length > 0 && picked.size === rows.length
+  // 건별 — 지급 줄마다 한 줄, 지급일자 차례(원본 2026/03/30 · 03/30 · 03/30 · 06/15 · 06/15 · 08/19 · 08/19). 조회는 그 한 건의 영수증.
+  const list: WithholdingReceiptPayee[] = shownPerLine
+    ? rows.flatMap((r) => r.lines.map((l) => ({ ...r, lines: [l], grossAmount: l.grossAmount, taxTotal: l.taxTotal })))
+      .sort((a, b) => a.lines[0].payDate.localeCompare(b.lines[0].payDate))
+    : rows
+  const allPicked = list.length > 0 && picked.size === list.length
   const title = shownKind === 'OTHER' ? '기타소득 원천징수영수증' : shownKind === 'INTEREST' ? '이자배당소득 원천징수영수증' : '사업소득 원천징수영수증'
 
   return (
@@ -100,7 +110,11 @@ export default function OtherWithholdingReceiptPage() {
               <input type="radio" name="receipt-kind" checked={kind === k.value} onChange={() => setKind(k.value)} /> {k.label}
             </label>
           ))}
-          <span className="ml-[6px]">조회구분 소득자별</span>
+          <span className="ml-[6px]">조회구분</span>
+          <select className="ec-input w-[120px]" value={perLine ? 'line' : 'payee'} onChange={(e) => setPerLine(e.target.value === 'line')}>
+            <option value="payee">소득자별</option>
+            <option value="line">건별</option>
+          </select>
         </EcCond>
         <EcCond label="소득자">
           <input className="ec-input w-[200px]" placeholder="소득자" value={payee} onChange={(e) => setPayee(e.target.value)} />
@@ -132,10 +146,11 @@ export default function OtherWithholdingReceiptPage() {
           <tr>
             <th className="w-[47px] text-center">
               <input type="checkbox" aria-label="전체 선택" checked={allPicked}
-                     onChange={() => setPicked(allPicked ? new Set() : new Set(rows.map((_, i) => i)))} />
+                     onChange={() => setPicked(allPicked ? new Set() : new Set(list.map((_, i) => i)))} />
             </th>
             <th>주민(법인)등록번호</th>
             <th>소득자명</th>
+            {shownPerLine && <><th className="text-center">귀속연월</th><th className="text-center">지급일자</th></>}
             <th className="text-right">지급총액</th>
             <th className="text-right">세액합계</th>
             <th className="text-center">세무신고사업장</th>
@@ -143,10 +158,10 @@ export default function OtherWithholdingReceiptPage() {
           </tr>
         </thead>
         <tbody>
-          {rows.length === 0 ? (
-            <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : rows.map((r, i) => (
-            <tr key={r.payeeId ?? 0}>
+          {list.length === 0 ? (
+            <tr><td colSpan={shownPerLine ? 9 : 7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+          ) : list.map((r, i) => (
+            <tr key={i}>
               <td className="whitespace-nowrap text-center">
                 <input type="checkbox" aria-label={`${r.name || '-'} 선택`} checked={picked.has(i)}
                        onChange={() => setPicked((s) => { const n = new Set(s); if (n.has(i)) n.delete(i); else n.add(i); return n })} />
@@ -154,6 +169,7 @@ export default function OtherWithholdingReceiptPage() {
               </td>
               <td>{r.regNo ?? ''}</td>
               <td>{r.name}</td>
+              {shownPerLine && <><td className="text-center">{r.lines[0].attributionMonth.replace('-', '/')}</td><td className="text-center">{r.lines[0].payDate.replace(/-/g, '/')}</td></>}
               <td className="text-right">{won(r.grossAmount)}</td>
               <td className="text-right">{won(r.taxTotal)}</td>
               <td className="text-center">{company?.name ?? ''}</td>
