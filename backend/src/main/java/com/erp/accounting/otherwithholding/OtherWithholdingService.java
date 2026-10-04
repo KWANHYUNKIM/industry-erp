@@ -249,8 +249,9 @@ public class OtherWithholdingService {
         if (type == IncomeType.BUSINESS) {
             if (BUSINESS_RATES.stream().noneMatch(r -> r.compareTo(taxRate) == 0)) throw ApiException.badRequest("세율은 3% · 5% · 20% 중에서 고르세요.");
             if (code != null) {
-                industryName = com.erp.accounting.WithholdingCodes.industryName(code);
-                if (industryName == null) throw ApiException.badRequest("업종구분코드가 올바르지 않습니다: " + code);
+                String fromTable = com.erp.accounting.WithholdingCodes.industryName(code);
+                if (fromTable == null) throw ApiException.badRequest("업종구분코드가 올바르지 않습니다: " + code);
+                industryName = l.industryName() != null && !l.industryName().isBlank() ? l.industryName().trim() : fromTable;
             }
         } else if (type == IncomeType.OTHER) {
             if (code != null && com.erp.accounting.WithholdingCodes.otherIncome(code) == null) {

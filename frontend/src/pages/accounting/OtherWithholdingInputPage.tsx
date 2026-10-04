@@ -16,6 +16,8 @@ type Line = {
   expenseRate: string   // '' = '====' (안 고름)
   taxRate: string
   description: string
+  /** 저장된 줄의 업종명 — 지급 당시 이름 그대로(원본 940909 '기타자영업'). 코드를 다시 고르면 지운다. */
+  industryName?: string | null
 }
 
 const KINDS: { value: Kind; label: string }[] = [
@@ -92,7 +94,7 @@ export default function OtherWithholdingInputPage() {
         setLines([...s.lines.map((l) => ({
           payeeId: l.payeeId ? String(l.payeeId) : '', incomeCode: l.incomeCode ?? '', grossAmount: String(l.grossAmount),
           expenseRate: l.expenseRate == null ? '' : String(Number(l.expenseRate)), taxRate: String(Number(l.taxRate)),
-          description: l.description ?? '',
+          description: l.description ?? '', industryName: s.incomeType === 'BUSINESS' ? l.incomeCodeName : null,
         })), blankLine(k)])
       })
       .catch((e) => setError(extractErrorMessage(e)))
@@ -116,7 +118,7 @@ export default function OtherWithholdingInputPage() {
 
   function pickPayee(i: number, id: string) {
     const p = payees.find((x) => String(x.id) === id)
-    setLine(i, { payeeId: id, ...(kind === 'BUSINESS' && p?.industryCode ? { incomeCode: p.industryCode } : {}) })
+    setLine(i, { payeeId: id, ...(kind === 'BUSINESS' && p?.industryCode ? { incomeCode: p.industryCode, industryName: null } : {}) })
   }
 
   function pickOtherCode(i: number, code: string) {
@@ -140,6 +142,7 @@ export default function OtherWithholdingInputPage() {
       lines: filled.map((l) => ({
         payeeId: l.payeeId ? Number(l.payeeId) : null, incomeCode: l.incomeCode || null, grossAmount: Number(l.grossAmount),
         expenseRate: kind === 'OTHER' ? Number(l.expenseRate) : null, taxRate: Number(l.taxRate), description: l.description || null,
+        industryName: kind === 'BUSINESS' ? l.industryName ?? null : null,
       })),
     }
     try {
@@ -242,10 +245,10 @@ export default function OtherWithholdingInputPage() {
                   {kind === 'BUSINESS' && <>
                     <td className="min-w-[150px]">
                       <CodePickerField label="업종구분코드" hideLabel fill emptyLabel="(없음)" value={l.incomeCode}
-                                       onChange={(v) => setLine(i, { incomeCode: v })}
+                                       onChange={(v) => setLine(i, { incomeCode: v, industryName: null })}
                                        items={industries.map((c) => ({ value: c.code, code: c.code, name: c.name }))} />
                     </td>
-                    <td>{industries.find((c) => c.code === l.incomeCode)?.name ?? ''}</td>
+                    <td>{l.industryName ?? industries.find((c) => c.code === l.incomeCode)?.name ?? ''}</td>
                   </>}
                   {kind !== 'BUSINESS' && (
                     <td className="min-w-[120px]">
@@ -257,7 +260,8 @@ export default function OtherWithholdingInputPage() {
                     </td>
                   )}
                   <td>
-                    <input className="ec-input w-full min-w-[100px] text-right" inputMode="numeric" min={1} value={l.grossAmount}
+                    <input className="ec-input w-full min-w-[100px] text-right" inputMode="numeric" min={1}
+                           value={l.grossAmount ? Number(l.grossAmount).toLocaleString('ko-KR') : ''}
                            onChange={(e) => setLine(i, { grossAmount: e.target.value.replace(/\D/g, '') })} />
                   </td>
                   {kind === 'OTHER' && <>

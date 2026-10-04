@@ -98,7 +98,9 @@ public class OtherWithholdingDtos {
             @NotNull(message = "지급총액을 입력바랍니다.") @Positive(message = "지급총액을 입력바랍니다.") BigDecimal grossAmount,
             @PositiveOrZero(message = "필요경비율이 올바르지 않습니다.") BigDecimal expenseRate,
             @NotNull(message = "세율을 선택바랍니다.") @PositiveOrZero(message = "세율이 올바르지 않습니다.") BigDecimal taxRate,
-            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String description
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String description,
+            /** 사업소득 업종명 — 비우면 코드표 이름. 고쳐 저장할 때 지급 당시 이름(원본 940909 '기타자영업')을 그대로 둔다. */
+            @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.") String industryName
     ) {}
 
     /** 전표 머리 — 지급일자 · 귀속연월 · 지급연월 · 소득구분(이자배당은 INTEREST 로 보내면 소득코드로 이자 · 배당을 가른다). */
