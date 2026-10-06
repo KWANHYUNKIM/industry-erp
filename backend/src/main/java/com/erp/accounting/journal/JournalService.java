@@ -268,8 +268,11 @@ public class JournalService {
             if (fee.signum() > 0) addDebit(e, "831", fee, "지급수수료");
             addCredit(e, "108", st.getAmount(), "외상매출금");
         } else {
+            /* 지급 수수료는 더 나가는 돈 — 원본 '매입처로' 분개: 차)외상매입금 1,000 · 지급수수료(판) 100 / 대)현금 1,100. */
+            BigDecimal fee = st.getFee() != null ? st.getFee() : BigDecimal.ZERO;
             addDebit(e, "251", st.getAmount(), "외상매입금");
-            addCredit(e, cash, st.getAmount(), cashName);
+            if (fee.signum() > 0) addDebit(e, "831", fee, "지급수수료");
+            addCredit(e, cash, st.getAmount().add(fee), cashName);
         }
         return save(e);
     }

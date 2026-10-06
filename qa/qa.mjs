@@ -6463,8 +6463,20 @@ async function scenarioSettlementAccounting(f) {
   eq('[원본] 수수료 수금 분개 — 차)현금 1,000 · 지급수수료 100 / 대)외상매출금 1,100',
     `${feeAmt('101', 'debit')} ${feeAmt('831', 'debit')} ${feeAmt('108', 'credit')}`, '1000 100 1100')
   eq('[일관성] 수수료 분개 대차평형', Number(feeGl?.totalDebit), Number(feeGl?.totalCredit))
-  await rejects('지급에는 수수료를 안 받는다', 'POST', '/settlements',
-    { type: 'PAYMENT', partnerId: f.supplier.id, amount: 1100, fee: 100, settleDate: D }, '지급 수수료')
+  /* [원본] 지급 수수료 — 같은 날 '매입처로'(전표 2026/10/06-14, 삭제함): 금액 1,000 · 수수료 100 → 지급현황 1,000,
+     차)외상매입금 1,000 · 지급수수료(판) 100 / 대)현금 1,100. 수금과 달리 amount 는 채무 쪽 금액 그대로다. */
+  const apOfFee = async () => Number((await must('GET', '/ledger/partner-balances')).find((x) => x.partnerId === f.supplier.id)?.payable ?? 0)
+  const ap0fee = await apOfFee()
+  const payFee = await must('POST', '/settlements',
+    { type: 'PAYMENT', partnerId: f.supplier.id, amount: 1000, fee: 100, method: '현금', settleDate: D, note: `${P}지급수수료` })
+  eq('[일관성] 지급 수수료가 있어도 채무는 금액 1,000 만큼 준다', ap0fee - (await apOfFee()), 1000)
+  await must('POST', '/accounting-reflection/reflect', { kind: 'SETTLEMENT', ids: [payFee.id] })
+  const payGl = (await must('GET', `/journals?from=${D}&to=${D}&all=true`)).rows.find((j) => j.sourceType === 'SETTLEMENT' && j.sourceId === payFee.id)
+  const payAmt = (code, k) => Number(payGl?.lines.find((l) => l.accountCode === code)?.[k] ?? 0)
+  eq('[원본] 지급 수수료 분개 — 차)외상매입금 1,000 · 지급수수료 100 / 대)현금 1,100',
+    `${payAmt('251', 'debit')} ${payAmt('831', 'debit')} ${payAmt('101', 'credit')}`, '1000 100 1100')
+  await must('POST', '/accounting-reflection/unreflect', { kind: 'SETTLEMENT', ids: [payFee.id] })
+  await must('DELETE', `/settlements/${payFee.id}`)
   await rejects('수수료가 금액 이상이면 거절', 'POST', '/settlements',
     { type: 'RECEIPT', partnerId: f.customer.id, amount: 100, fee: 100, settleDate: D }, '수수료는 수금 금액보다')
   await must('POST', '/accounting-reflection/unreflect', { kind: 'SETTLEMENT', ids: [withFee.id] })

@@ -59,10 +59,11 @@ public class SettlementService {
         LocalDate date = req.settleDate() != null ? req.settleDate() : LocalDate.now();
         BigDecimal fee = req.fee() != null ? req.fee() : BigDecimal.ZERO;
         if (fee.signum() > 0) {
-            if (req.type() != SettlementType.RECEIPT) {
-                throw ApiException.badRequest("지급 수수료는 아직 받지 않습니다 — 수수료는 수금에만 적습니다.");
+            if (req.amount().signum() < 0) {
+                throw ApiException.badRequest("되돌린 돈(음수)에는 수수료를 적지 않습니다.");
             }
-            if (req.amount().signum() < 0 || fee.compareTo(req.amount()) >= 0) {
+            // 수금은 amount(채권 감소 총액)에서 수수료가 떼이므로 그보다 작아야 한다. 지급은 수수료가 따로 더 나간다.
+            if (req.type() == SettlementType.RECEIPT && fee.compareTo(req.amount()) >= 0) {
                 throw ApiException.badRequest("수수료는 수금 금액보다 작아야 합니다.");
             }
         }

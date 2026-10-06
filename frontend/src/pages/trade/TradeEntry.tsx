@@ -1245,16 +1245,19 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
   async function saveCash() {
     if (!partnerId) return setCashMsg('거래처를 먼저 고르세요.')
     if (num(cashForm.amount) === 0) return setCashMsg('금액을 입력하세요.')
+    /* 원본 '매입처로'는 출금계좌를 비우고 저장하면 그 칸을 빨갛게 막는다(2026-10-06 실측). */
+    if (mode === 'purchase' && !cashForm.method) return setCashMsg('출금계좌를 고르세요.')
     try {
       const r = await api.post<{ docNo: string }>('/settlements', {
         type: mode === 'sales' ? 'RECEIPT' : 'PAYMENT', partnerId: Number(partnerId),
         // 원본은 [금액](받은 돈)과 [수수료]를 따로 적고 채권은 둘을 더한 만큼 준다 — 서버 amount 는 그 총액이다.
+        // 지급은 다르다 — 원본 '매입처로': 금액 1,000 · 수수료 100 → 채무 1,000 감소, 현금 1,100 지출. amount 는 금액 그대로.
         amount: num(cashForm.amount) + (mode === 'sales' ? num(cashForm.fee) : 0),
-        fee: mode === 'sales' && num(cashForm.fee) > 0 ? num(cashForm.fee) : undefined,
+        fee: num(cashForm.fee) > 0 ? num(cashForm.fee) : undefined,
         method: cashForm.method || undefined, settleDate: cashForm.date || undefined, note: cashForm.note.trim() || undefined,
       })
       setCashOpen(false)
-      flash(`${r.data.docNo} ${mode === 'sales' ? '수금' : '지급'} 저장 완료 (${won(num(cashForm.amount))}원${mode === 'sales' && num(cashForm.fee) > 0 ? ` · 수수료 ${won(num(cashForm.fee))}원` : ''})`)
+      flash(`${r.data.docNo} ${mode === 'sales' ? '수금' : '지급'} 저장 완료 (${won(num(cashForm.amount))}원${num(cashForm.fee) > 0 ? ` · 수수료 ${won(num(cashForm.fee))}원` : ''})`)
     } catch (err) {
       setCashMsg(extractErrorMessage(err))
     }
@@ -2027,7 +2030,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
             <EcNumInput className="ec-input ml-[8px] text-right" value={cashForm.amount} onValue={(v) => setCashForm((c) => ({ ...c, amount: v }))} /></label>
           {/* 원본 [수수료] — 수금만(지급 쪽은 원본을 아직 못 봤다). 받은 돈 1,000 · 수수료 100 이면 채권은 1,100 줄고
               분개는 차)현금 1,000 · 지급수수료 100 / 대)외상매출금 1,100(2026-10-06 실측). */}
-          {mode === 'sales' && (
+          {(
             <label className="block mb-[6px]">수수료
               <EcNumInput className="ec-input ml-[8px] text-right" value={cashForm.fee} onValue={(v) => setCashForm((c) => ({ ...c, fee: v }))} /></label>
           )}
