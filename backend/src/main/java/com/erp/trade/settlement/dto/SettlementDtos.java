@@ -26,7 +26,9 @@ public final class SettlementDtos {
             String note,
             /** 수수료(선택, 수금만). amount 에 들어 있는 몫이다 — 받은 돈은 amount − fee. */
             @jakarta.validation.constraints.PositiveOrZero(message = "수수료는 0 이상이어야 합니다.")
-            BigDecimal fee
+            BigDecimal fee,
+            /** 입금 · 출금계좌(등록된 계좌 id). 비우면 현금(또는 결제방법대로). */
+            Long bankAccountId
     ) {}
 
     public record SettlementResponse(
@@ -41,6 +43,8 @@ public final class SettlementDtos {
             /** 귀속 프로젝트. 원본 수금현황·지급현황 조건의 [프로젝트]. */
             Long projectId, String projectName,
             String note, String createdBy,
+            /** 입금 · 출금계좌(등록된 계좌 id). 비었으면 현금. */
+            Long bankAccountId,
             /** 회계반영 여부. 원본 결제내역조회의 [미반영 · 회계반영] 탭. */
             boolean accountingReflected
     ) {
@@ -53,7 +57,7 @@ public final class SettlementDtos {
                     s.getMethod(),
                     s.getProject() != null ? s.getProject().getId() : null,
                     s.getProject() != null ? s.getProject().getName() : null,
-                    s.getNote(), s.getCreatedBy(), s.isAccountingReflected());
+                    s.getNote(), s.getCreatedBy(), s.getBankAccountId(), s.isAccountingReflected());
         }
     }
 }

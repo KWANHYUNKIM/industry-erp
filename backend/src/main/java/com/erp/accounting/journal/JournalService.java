@@ -256,15 +256,20 @@ public class JournalService {
         if (entryRepository.existsBySourceTypeAndSourceId(JournalSourceType.SETTLEMENT, st.getId())) {
             throw ApiException.conflict("이미 회계반영된 결제전표입니다: " + st.getDocNo());
         }
-        String cash = isBankMethod(st.getMethod()) ? "103" : "101";
-        String cashName = "103".equals(cash) ? "보통예금" : "현금";
+        /* 입출금계좌를 골랐으면 그 계좌의 계정(원본 계좌검색), 아니면 결제방법으로 현금/보통예금. */
+        BankAccount bank = st.getBankAccountId() == null ? null
+                : bankAccountRepository.findById(st.getBankAccountId())
+                .orElseThrow(() -> ApiException.notFound("계좌를 찾을 수 없습니다. id=" + st.getBankAccountId()));
+        String cashCode = isBankMethod(st.getMethod()) ? "103" : "101";
+        Account cash = bank != null ? bank.getGlAccount() : account(cashCode);
+        String cashName = bank != null ? bank.getBankName() : "103".equals(cashCode) ? "보통예금" : "현금";
         JournalEntry e = newEntry(JournalSourceType.SETTLEMENT, st.getId(), st.getSettleDate(),
                 st.getType().getDisplayName() + " " + st.getDocNo(), st.getPartner(), st.getCreatedBy());
 
         if (st.getType() == SettlementType.RECEIPT) {
             /* 수수료는 받을 돈에서 떼인 몫 — 원본 '매출처로부터' 분개: 차)현금 1,000 · 지급수수료(판) 100 / 대)외상매출금 1,100. */
             BigDecimal fee = st.getFee() != null ? st.getFee() : BigDecimal.ZERO;
-            addDebit(e, cash, st.getAmount().subtract(fee), cashName);
+            addDebitAccount(e, cash, st.getAmount().subtract(fee), cashName);
             if (fee.signum() > 0) addDebit(e, "831", fee, "지급수수료");
             addCredit(e, "108", st.getAmount(), "외상매출금");
         } else {
@@ -272,7 +277,7 @@ public class JournalService {
             BigDecimal fee = st.getFee() != null ? st.getFee() : BigDecimal.ZERO;
             addDebit(e, "251", st.getAmount(), "외상매입금");
             if (fee.signum() > 0) addDebit(e, "831", fee, "지급수수료");
-            addCredit(e, cash, st.getAmount().add(fee), cashName);
+            addCreditAccount(e, cash, st.getAmount().add(fee), cashName);
         }
         return save(e);
     }

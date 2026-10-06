@@ -6484,6 +6484,43 @@ async function scenarioSettlementAccounting(f) {
   eq('[일관성] 지우면 채권이 처음으로', await feeBalOf(), fee0)
 
   /*
+   * [원본] 입금 · 출금계좌는 <b>등록된 계좌</b>를 고른다 — 2026-10-06 loginaa '매출처로부터' 계좌검색: 000 현금 · 기업은행-1122 ·
+   * 외환은행-2211 …. [일관성] 계좌로 받으면 분개가 그 계좌의 계정으로 서고, 계좌잔액 · 입출금 내역이 받은 돈(금액 − 수수료)만큼
+   * 움직이며, 반영을 취소하면 잔액이 제자리로 온다.
+   */
+  const viaBank = (await must('GET', '/bank-cards/accounts')).find((a) => a.active && a.glAccountCode)
+  if (viaBank) {
+    const balOf = async () => Number((await must('GET', '/bank-cards/accounts')).find((a) => a.id === viaBank.id).balance)
+    const bal0 = await balOf()
+    const rcB = await must('POST', '/settlements', {
+      type: 'RECEIPT', partnerId: f.customer.id, amount: 1100, fee: 100, method: '계좌이체', bankAccountId: viaBank.id, settleDate: D, note: `${P}계좌수금`,
+    })
+    eq('[일관성] 수금이 고른 계좌를 돌려준다', rcB.bankAccountId, viaBank.id)
+    eq('[일관성] 반영 전에는 계좌잔액이 그대로', await balOf(), bal0)
+    await must('POST', '/accounting-reflection/reflect', { kind: 'SETTLEMENT', ids: [rcB.id] })
+    const bGl = (await must('GET', `/journals?from=${D}&to=${D}&all=true`)).rows.find((j) => j.sourceType === 'SETTLEMENT' && j.sourceId === rcB.id)
+    eq('[원본] 계좌 수금 분개 — 차)그 계좌의 계정 1,000 · 지급수수료 100 / 대)외상매출금 1,100',
+      `${Number(bGl?.lines.find((l) => l.accountCode === viaBank.glAccountCode)?.debit ?? 0)} ${Number(bGl?.lines.find((l) => l.accountCode === '831')?.debit ?? 0)} ${Number(bGl?.lines.find((l) => l.accountCode === '108')?.credit ?? 0)}`,
+      '1000 100 1100')
+    eq('[일관성] 반영하면 계좌잔액이 받은 돈 1,000 만큼 는다', (await balOf()) - bal0, 1000)
+    /* 지급은 방금 받은 1,000 이 계좌에 있는 동안 반영한다 — 잔액 부족으로 막히지 않게. */
+    const pyB = await must('POST', '/settlements', {
+      type: 'PAYMENT', partnerId: f.supplier.id, amount: 300, fee: 10, method: '계좌이체', bankAccountId: viaBank.id, settleDate: D, note: `${P}계좌지급`,
+    })
+    const balBeforePay = await balOf()
+    await must('POST', '/accounting-reflection/reflect', { kind: 'SETTLEMENT', ids: [pyB.id] })
+    const pGl = (await must('GET', `/journals?from=${D}&to=${D}&all=true`)).rows.find((j) => j.sourceType === 'SETTLEMENT' && j.sourceId === pyB.id)
+    eq('[원본] 계좌 지급 분개 — 대)그 계좌의 계정 310', Number(pGl?.lines.find((l) => l.accountCode === viaBank.glAccountCode)?.credit ?? 0), 310)
+    eq('[일관성] 계좌 지급을 반영하면 잔액이 금액 + 수수료(310) 만큼 준다', balBeforePay - (await balOf()), 310)
+    await must('POST', '/accounting-reflection/unreflect', { kind: 'SETTLEMENT', ids: [pyB.id] })
+    eq('[일관성] 계좌 지급 반영 취소 → 잔액 제자리', await balOf(), balBeforePay)
+    await must('DELETE', `/settlements/${pyB.id}`)
+    await must('POST', '/accounting-reflection/unreflect', { kind: 'SETTLEMENT', ids: [rcB.id] })
+    eq('[일관성] 반영을 취소하면 계좌잔액이 제자리', await balOf(), bal0)
+    await must('DELETE', `/settlements/${rcB.id}`)
+  }
+
+  /*
    * 원본 판매·구매일괄회계반영의 <b>[회계전표No.]</b> 열.
    *
    * 반영했다는 표시만 있고 어느 분개가 됐는지가 없으면 그 전표를 찾아갈 길이 없다.

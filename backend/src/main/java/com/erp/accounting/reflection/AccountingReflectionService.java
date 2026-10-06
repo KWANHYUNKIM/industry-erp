@@ -36,6 +36,7 @@ public class AccountingReflectionService {
     private final JournalEntryRepository entryRepository;
     private final JournalService journalService;
     private final SalesService salesService;
+    private final com.erp.accounting.bankcard.BankCardService bankCardService;
 
     /**
      * 회계반영된 판매를 <b>매출전표(회계전표)까지 함께</b> 지운다 — 원본 판매조회 [선택삭제]의 [매출전표포함].
@@ -115,7 +116,8 @@ public class AccountingReflectionService {
         if (req.kind() == SlipKind.SETTLEMENT) {
             for (Settlement st : settlementRepository.findAllById(req.ids())) {
                 if (!st.isAccountingReflected()) {
-                    journalService.createFromSettlement(st);
+                    JournalEntry entry = journalService.createFromSettlement(st);
+                    recordBankMove(st, entry);
                     st.setAccountingReflected(true);
                     count++;
                 }
@@ -142,6 +144,22 @@ public class AccountingReflectionService {
         return new ReflectResult(count);
     }
 
+    /**
+     * 계좌로 받은 · 준 결제는 분개와 함께 <b>그 계좌의 잔액 · 입출금 내역</b>도 움직인다 — 계좌 계정(분개)만 늘고
+     * 계좌잔액은 그대로면 계좌별 잔액과 장부가 어긋난다. 수금은 받은 돈(금액 − 수수료)만큼 입금,
+     * 지급은 나간 돈(금액 + 수수료)만큼 출금. 되돌린 돈(음수)은 방향을 뒤집는다. 반영 취소 때 reverseExternal 로 되돌린다.
+     */
+    private void recordBankMove(Settlement st, JournalEntry entry) {
+        if (st.getBankAccountId() == null) return;
+        java.math.BigDecimal fee = st.getFee() != null ? st.getFee() : java.math.BigDecimal.ZERO;
+        boolean receipt = st.getType() == com.erp.trade.settlement.SettlementType.RECEIPT;
+        java.math.BigDecimal moved = receipt ? st.getAmount().subtract(fee) : st.getAmount().add(fee);
+        if (moved.signum() == 0) return;
+        boolean deposit = receipt == (moved.signum() > 0);
+        bankCardService.recordExternal(st.getBankAccountId(), deposit, moved.abs(), st.getSettleDate(),
+                st.getType().getDisplayName() + " " + st.getDocNo() + " " + st.getPartner().getName(), entry, st.getCreatedBy());
+    }
+
     /** 회계반영 취소: 연결된 회계전표를 삭제하고 플래그를 내린다. */
     @Transactional
     public ReflectResult unreflect(ReflectRequest req) {
@@ -152,6 +170,8 @@ public class AccountingReflectionService {
         if (req.kind() == SlipKind.SETTLEMENT) {
             for (Settlement st : settlementRepository.findAllById(req.ids())) {
                 if (st.isAccountingReflected()) {
+                    entryRepository.findBySourceTypeAndSourceId(JournalSourceType.SETTLEMENT, st.getId())
+                            .ifPresent(e -> bankCardService.reverseExternal(e, "회계반영 취소 " + st.getDocNo(), st.getCreatedBy()));
                     journalService.deleteBySource(JournalSourceType.SETTLEMENT, st.getId());
                     st.setAccountingReflected(false);
                     count++;

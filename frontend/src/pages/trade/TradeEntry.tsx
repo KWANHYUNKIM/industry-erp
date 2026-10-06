@@ -307,11 +307,18 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
   /*
    * 원본 판매입력 [현금수금] — 화면을 떠나지 않고 '매출처로부터' 입금 창을 띄운다(2026-10-06 loginaa 실측):
    * 전표일자 오늘 · 입금계좌 000 현금 · 거래처 = 입력 중인 거래처 · 금액 = 전표 합계(1,101) · 수수료 0 · 적요.
-   * 우리 수금(settlement)은 수수료 칸이 없고 입금계좌 대신 결제방법(현금 · 보통예금 이체)으로 현금 · 예금 계정을 가른다.
+   * 입금계좌는 000 현금 또는 등록된 계좌(settlement.bankAccountId) — 아래 cashBanks.
    * 구매입력 [현금지급]도 같은 모양의 '매입처로' 창이다 — 단 <b>출금계좌는 비어</b> 있다(같은 날 실측).
    */
   const [cashOpen, setCashOpen] = useState(false)
   const [cashForm, setCashForm] = useState({ date: '', method: '현금', amount: '', fee: '0', note: '' })
+  /*
+   * [입금계좌]/[출금계좌] 후보 — 원본 계좌검색은 <b>등록된 계좌</b>(기업은행-1122 · 외환은행-2211 …)와 000 현금을 띄운다
+   * (2026-10-06 loginaa 실측). 예전 우리는 '현금 · 보통예금' 두 값뿐이라 어느 통장으로 받았는지 남지 않았다.
+   * 계좌를 고르면 회계반영 때 그 계좌의 계정으로 분개하고 계좌잔액 · 입출금 내역도 같이 움직인다.
+   * 카드사 · PG사 계정과 [다른계정찾기]는 아직 없다.
+   */
+  const [cashBanks, setCashBanks] = useState<{ id: number; code: string | null; name: string | null; bankName: string; accountNo: string | null; active: boolean }[]>([])
   const [cashMsg, setCashMsg] = useState('')
   // 열 선택(F4) — 버튼 라벨이 약속한 단축키. 그리드 셀 안에서 눌러도 먹어야 한다.
   // 이미 열려 있으면 다시 열지 않는다.
@@ -1254,7 +1261,10 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
         // 지급은 다르다 — 원본 '매입처로': 금액 1,000 · 수수료 100 → 채무 1,000 감소, 현금 1,100 지출. amount 는 금액 그대로.
         amount: num(cashForm.amount) + (mode === 'sales' ? num(cashForm.fee) : 0),
         fee: num(cashForm.fee) > 0 ? num(cashForm.fee) : undefined,
-        method: cashForm.method || undefined, settleDate: cashForm.date || undefined, note: cashForm.note.trim() || undefined,
+        ...(cashForm.method.startsWith('bank:')
+          ? { method: '계좌이체', bankAccountId: Number(cashForm.method.slice(5)) }
+          : { method: cashForm.method || undefined }),
+        settleDate: cashForm.date || undefined, note: cashForm.note.trim() || undefined,
       })
       setCashOpen(false)
       flash(`${r.data.docNo} ${mode === 'sales' ? '수금' : '지급'} 저장 완료 (${won(num(cashForm.amount))}원${num(cashForm.fee) > 0 ? ` · 수수료 ${won(num(cashForm.fee))}원` : ''})`)
@@ -1318,6 +1328,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
       onClick: () => {
         setCashMsg('')
         setCashForm({ date: today(), method: mode === 'sales' ? '현금' : '', amount: String(totals.total || ''), fee: '0', note: '' })
+        api.get<typeof cashBanks>('/bank-cards/accounts').then((r) => setCashBanks(r.data)).catch(() => setCashBanks([]))
         setCashOpen(true)
       },
       menu: [
@@ -2023,12 +2034,14 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
             <select className="ec-input ml-[8px]" value={cashForm.method} onChange={(e) => setCashForm((c) => ({ ...c, method: e.target.value }))}>
               {mode === 'purchase' && <option value="">(출금계좌)</option>}
               <option value="현금">000 현금</option>
-              <option value="보통예금 이체">보통예금</option>
+              {cashBanks.filter((b) => b.active).map((b) => (
+                <option key={b.id} value={`bank:${b.id}`}>{[b.code, b.name || [b.bankName, (b.accountNo ?? '').replace(/\D/g, '').slice(-4)].filter(Boolean).join('-')].filter(Boolean).join(' ')}</option>
+              ))}
             </select></label>
           <div className="mb-[6px]">거래처 <b className="ml-[8px]">{partners.find((p) => String(p.id) === partnerId)?.name ?? '(거래처를 먼저 고르세요)'}</b></div>
           <label className="block mb-[6px]">금액
             <EcNumInput className="ec-input ml-[8px] text-right" value={cashForm.amount} onValue={(v) => setCashForm((c) => ({ ...c, amount: v }))} /></label>
-          {/* 원본 [수수료] — 수금만(지급 쪽은 원본을 아직 못 봤다). 받은 돈 1,000 · 수수료 100 이면 채권은 1,100 줄고
+          {/* 원본 [수수료] — 수금 · 지급 둘 다(지급은 채무 금액 그대로 · 현금이 수수료만큼 더 나간다). 받은 돈 1,000 · 수수료 100 이면 채권은 1,100 줄고
               분개는 차)현금 1,000 · 지급수수료 100 / 대)외상매출금 1,100(2026-10-06 실측). */}
           {(
             <label className="block mb-[6px]">수수료

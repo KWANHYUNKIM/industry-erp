@@ -60,6 +60,14 @@ public class Settlement extends BaseTimeEntity {
     @Builder.Default
     private BigDecimal fee = BigDecimal.ZERO;
 
+    /**
+     * 입금계좌(수금) · 출금계좌(지급) — 등록된 계좌(accounting.BankAccount)의 id.
+     * 원본 매출처로부터/매입처로 는 이 칸을 계좌검색(등록된 계좌 · 000 현금)으로 고른다(2026-10-06 loginaa 실측).
+     * trade 는 accounting 을 참조할 수 없어(4.1) @ManyToOne 이 아니라 id 만 든다. 비면 결제방법으로 현금/보통예금을 가른다.
+     */
+    @Column(name = "bank_account_id")
+    private Long bankAccountId;
+
     @Column(length = 500)
     private String note;
 
