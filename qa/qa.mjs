@@ -1597,7 +1597,20 @@ async function scenarioPurchaseOrder(f) {
     saleDate: '2026-07-14', partnerId: f.customer.id, warehouseId: f.warehouse.id,
     lines: [{ itemId: f.product.id, quantity: 3, unitPrice: 333.5, supplyAmount: -1 }],
   }, '공급가액')
-  for (const s of [typed, typedBack]) await must('DELETE', `/sales/${s.id}`)
+  /* [원본] 부가세를 손으로 고친다 — 2026-10-06 loginaa(저장 2026/10/06-6): 1,001 줄 부가세 99 → 합계 1,100, 다시 열어도 99. */
+  const typedVat = await must('POST', '/sales', {
+    saleDate: '2026-07-14', partnerId: f.customer.id, warehouseId: f.warehouse.id, taxable: true,
+    lines: [{ itemId: f.product.id, quantity: 3, unitPrice: 333.5, vatAmount: 99 }],
+  })
+  eq('[원본] 부가세 99 로 고친 판매 → 1,001/99/1,100', amt(typedVat), '1001/99/1100')
+  eq('[일관성] 채권은 고친 합계 1,100 만큼 (앞의 판매 1,110 과 반품 -1,110 은 서로 지운다)',
+    (await arOf(f.customer.id)) - ar1, 1100)
+  const vatFree = await must('POST', '/sales', {
+    saleDate: '2026-07-14', partnerId: f.customer.id, warehouseId: f.warehouse.id, taxable: false,
+    lines: [{ itemId: f.product.id, quantity: 3, unitPrice: 333.5, vatAmount: 99 }],
+  })
+  eq('[일관성] 면세 전표에는 고친 부가세가 붙지 않는다', amt(vatFree), '1001/0/1001')
+  for (const s of [typed, typedBack, typedVat, vatFree]) await must('DELETE', `/sales/${s.id}`)
   await must('DELETE', `/purchases/${typedP.id}`)
   eq('[일관성] 지우면 채권이 처음으로', (await arOf(f.customer.id)) - ar1, 0)
 

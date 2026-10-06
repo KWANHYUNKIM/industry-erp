@@ -54,6 +54,12 @@ interface LineInput {
   supplyOverride: string
   supplyBase: string
   /**
+   * 손으로 고친 부가세. 원본 [부가세] 칸도 고칠 수 있고(2026-10-06 loginaa: 1,001 줄을 99 로 → 합계 1,100 저장, 다시 열어도 99),
+   * <b>공급가액이 바뀌면 다시 계산</b>된다(1,009 로 바꾸자 101). 그래서 고칠 때의 공급가액({@link vatBase})을 같이 든다.
+   */
+  vatOverride: string
+  vatBase: string
+  /**
    * 원본 구매입력 격자의 <b>[품질검사요청]</b>(열 id qcRequest_chk).
    *
    * <p>켜 두고 저장하면 그 줄의 품목·수량으로 <b>입고검사 요청</b>이 만들어진다.
@@ -94,7 +100,7 @@ const today = () => {
 }
 const emptyLine = (): LineInput => ({
   itemId: '', quantity: '', unitPrice: '', lotNo: '', extraCost: '', remark: '',
-  supplyOverride: '', supplyBase: '',
+  supplyOverride: '', supplyBase: '', vatOverride: '', vatBase: '',
   qcRequest: false,
   sourceOrderId: '', sourceDocType: '', sourceDocDate: '', sourceDocNo: '', checked: false,
   custom: {}, lineId: null,
@@ -476,6 +482,10 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
         ...(Math.abs(Number(l.supplyAmount)) !== lineSupply(Math.abs(l.quantity), Number(l.unitPrice))
           ? { supplyOverride: String(Math.abs(Number(l.supplyAmount))), supplyBase: `${Math.abs(l.quantity)}|${l.unitPrice}` }
           : {}),
+        // 부가세도 같다 — 줄마다 계산하는 전표에서 공급가액 × 10% 와 다르면 손으로 고친 값이다.
+        ...(d.taxable && !d.vatBySlip && Math.abs(Number(l.vatAmount)) !== roundWon(Math.abs(Number(l.supplyAmount)) * 0.1)
+          ? { vatOverride: String(Math.abs(Number(l.vatAmount))), vatBase: String(Math.abs(Number(l.supplyAmount))) }
+          : {}),
         remark: l.remark ?? '',
         sourceOrderId: l.sourceOrderId != null ? String(l.sourceOrderId) : '',
         sourceDocType: l.sourceDocType ?? '',
@@ -840,6 +850,8 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
   const computed = (() => {
     const supplies = lines.map((l) => overriddenSupply(l) ?? lineSupply(num(l.quantity), num(l.unitPrice)))
     const vats = supplies.map((sup) => (taxable ? roundWon(sup * 0.1) : 0))
+    // 손으로 고친 부가세는 거래별 배분보다 먼저다 — 서버도 배분한 뒤 그 줄만 덮어쓴다.
+    const typedVat = lines.map((l, i) => (taxable && l.vatOverride !== '' && l.vatBase === String(supplies[i]) ? roundWon(num(l.vatOverride)) : null))
     if (taxable && vatBySlip && supplies.length > 0) {
       const slipVat = roundWon(supplies.reduce((a, b) => a + b, 0) * 0.1)
       const residual = slipVat - vats.reduce((a, b) => a + b, 0)
@@ -850,7 +862,8 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
         vats[big] += residual
       }
     }
-    return supplies.map((supply, i) => ({ supply, vat: vats[i], total: supply + vats[i] }))
+    typedVat.forEach((v, i) => { if (v != null) vats[i] = v })
+    return supplies.map((supply, i) => ({ supply, vat: vats[i], total: supply + vats[i], typedVat: typedVat[i] }))
   })()
   const totals = {
     qty: lines.reduce((s, l) => s + num(l.quantity), 0),
@@ -1064,6 +1077,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
         extraCost: l.extraCost ? num(l.extraCost) : undefined,
         sourceOrderId: l.sourceOrderId ? Number(l.sourceOrderId) : undefined,
         supplyAmount: overriddenSupply(l) ?? undefined,
+        vatAmount: computed[lines.indexOf(l)]?.typedVat ?? undefined,
       }))
     if (!partnerId) return setError(`${cfg.partnerLabel}를 선택하세요.`)
     if (validLines.length === 0) return setError('품목·수량·단가를 1줄 이상 입력하세요.')
@@ -1792,7 +1806,13 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                              onChange={(e) => setLines((ls) => ls.map((x, i) => (i === idx
                                ? { ...x, supplyOverride: e.target.value, supplyBase: `${num(x.quantity)}|${num(x.unitPrice)}` } : x)))} />
                     </td>
-                    <td className="pad text-right text-ec-hint">{l.itemId ? won(computed[idx].vat) : ''}</td>
+                    <td>
+                      <input className="cell" type="number" step="any" style={{ textAlign: 'right' }} disabled={!l.itemId || !taxable}
+                             aria-label="부가세"
+                             value={l.itemId ? (computed[idx].typedVat != null ? l.vatOverride : String(computed[idx].vat)) : ''}
+                             onChange={(e) => setLines((ls) => ls.map((x, i) => (i === idx
+                               ? { ...x, vatOverride: e.target.value, vatBase: String(computed[idx].supply) } : x)))} />
+                    </td>
                     {cols.lineTotal && (
                       <td className="pad text-right font-semibold text-ec-text">
                         {l.itemId ? won(computed[idx].supply + computed[idx].vat) : ''}

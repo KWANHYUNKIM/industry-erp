@@ -536,7 +536,12 @@ public class SalesService {
                         ? lr.supplyAmount().setScale(0, RoundingMode.HALF_UP)
                         : VatAllocator.lineSupply(lr.quantity(), lr.unitPrice())).multiply(sign))
                 .toList();
-        List<BigDecimal> vats = VatAllocator.allocate(supplies, VAT_RATE, taxable, vatBySlip);
+        List<BigDecimal> vats = new java.util.ArrayList<>(VatAllocator.allocate(supplies, VAT_RATE, taxable, vatBySlip));
+        // 손으로 고친 부가세는 그 줄에 그대로 쓴다(면세 전표는 0 이 원칙이라 무시한다).
+        for (int i = 0; taxable && i < req.lines().size(); i++) {
+            BigDecimal typedVat = req.lines().get(i).vatAmount();
+            if (typedVat != null) vats.set(i, typedVat.setScale(0, RoundingMode.HALF_UP).multiply(sign));
+        }
 
         BigDecimal totalSupply = BigDecimal.ZERO;
         BigDecimal totalVat = BigDecimal.ZERO;

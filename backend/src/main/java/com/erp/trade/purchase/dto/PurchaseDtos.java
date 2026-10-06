@@ -40,7 +40,14 @@ public final class PurchaseDtos {
              * 부가세 101 · 합계 1,110 으로 저장되고 단가 333.5 는 그대로 남는다. 수량·단가를 다시 바꾸면 화면이 새로 계산한다.
              */
             @PositiveOrZero(message = "공급가액은 0 이상이어야 합니다.")
-            BigDecimal supplyAmount
+            BigDecimal supplyAmount,
+            /**
+             * 부가세를 손으로 고친 값(선택, 과세 전표에서만). 비우면 공급가액 × 10% 를 원 단위로 반올림.
+             * 원본 구매입력 격자의 [부가세] 칸도 고칠 수 있다 — 2026-10-06 loginaa: 1,001 줄의 부가세를 99 로 고치면
+             * 합계 1,100 으로 저장되고 다시 열어도 99. 공급가액을 바꾸면 화면이 부가세를 다시 계산한다.
+             */
+            @PositiveOrZero(message = "부가세는 0 이상이어야 합니다.")
+            BigDecimal vatAmount
     ) {}
 
     public record CreatePurchaseRequest(

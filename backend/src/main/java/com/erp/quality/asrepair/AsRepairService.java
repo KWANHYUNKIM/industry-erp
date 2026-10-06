@@ -103,7 +103,7 @@ public class AsRepairService {
     public RepairResponse linkSale(Long id, LinkSaleRequest req, String user) {
         AsRepair r = find(id);
         List<SalesLineRequest> lines = req.lines().stream()
-                .map(l -> new SalesLineRequest(l.itemId(), l.quantity(), l.unitPrice(), null, null, null, null, null))
+                .map(l -> new SalesLineRequest(l.itemId(), l.quantity(), l.unitPrice(), null, null, null, null, null, null))
                 .toList();
         SalesResponse sale = salesService.create(new CreateSalesRequest(
                 r.getPartner().getId(), r.getWarehouse().getId(),
