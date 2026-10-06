@@ -107,6 +107,9 @@ const emptyLine = (): LineInput => ({
   custom: {}, lineId: null,
 })
 /** 원본은 빈 입력행 3줄로 뜬다. */
+/** 저장 뒤 거래명세서 인쇄로 넘어가라는 표시 — afterSaveRef 의 특별한 값. */
+const STATEMENT_AFTER_SAVE = '__statement__'
+
 const emptyLines = () => [emptyLine(), emptyLine(), emptyLine()]
 
 /** 손으로 고친 공급가액 — 고친 뒤 수량·단가가 그대로일 때만 살아 있다(원본: 둘 중 하나를 바꾸면 다시 계산). */
@@ -1174,7 +1177,10 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
       setOk(`${res.data.docNo} ${editing ? '수정' : '저장'} 완료 (합계 ${won(res.data.totalAmount)}원)`)
       /* 목록을 아직 안 받았으면 저장했다고 새로 받을 까닭이 없다 — 볼 자리가 안 열려 있다. */
       if (docsAsked.current) void loadDocs()
-      if (afterSaveTo) { const to = afterSaveTo; setAfterSaveTo(null); navigate(to) }
+      const afterSaveTo = afterSaveRef.current
+      afterSaveRef.current = null
+      if (afterSaveTo === STATEMENT_AFTER_SAVE) navigate(`/sales/statement?print=${res.data.id}`)
+      else if (afterSaveTo) navigate(afterSaveTo)
     } catch (err) {
       setError(extractErrorMessage(err))
     }
@@ -1197,7 +1203,11 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
    * 저장이 끝나면 갈 곳. 원본 [저장/결제]가 이 값을 정해 두고 저장을 시킨다 —
    * 저장 자체는 폼 제출 한 길로만 흐르게 두려는 것이다(검증·연결전표가 다 거기 있다).
    */
-  const [afterSaveTo, setAfterSaveTo] = useState<string | null>(null)
+  /*
+   * 상태(useState)가 아니라 ref 다 — 값을 정하고 <b>곧바로</b> 제출하는데, 상태로 두면 제출을 처리하는 함수가
+   * 아직 옛 값(null)을 본다. 그래서 [저장/결제]·[저장/전표(F7)]가 저장만 하고 넘어가지 않았다(2026-10-06 화면으로 확인).
+   */
+  const afterSaveRef = useRef<string | null>(null)
   const formRef = useRef<HTMLFormElement>(null)
 
   /** 원본에 있으나 아직 백엔드가 없는 버튼. 지우지 않고 사유를 붙여 비활성으로 남긴다. */
@@ -1214,7 +1224,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
          * 현금 거래는 전표를 치고 곧바로 돈을 받거나 주는데, 저장하고 메뉴로
          * 돌아가 다시 찾아 들어가야 했다.
          */
-        { label: '저장/결제', onClick: () => { setAfterSaveTo(cfg.cashTo); formRef.current?.requestSubmit() } },
+        { label: '저장/결제', onClick: () => { afterSaveRef.current = cfg.cashTo; formRef.current?.requestSubmit() } },
         { label: '임시저장', onClick: () => saveTemp() },
         { label: '입력값 지우기', onClick: () => reset(true) },
         ...(editing ? [{
@@ -1223,7 +1233,13 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
         }] : []),
       ],
     },
-    { label: '저장/전표(F7)', onClick: doPrint },
+    /*
+     * 원본 판매입력 [저장/전표(F7)] — 저장하고 그 전표의 <b>거래명세서</b>를 띄운다(2026-10-06 loginaa: 2026/10/06-9 저장 뒤
+     * 거래명세서 창). 예전 우리 F7 은 저장 없이 입력 격자만 인쇄했다. 구매입력의 F7 은 원본을 아직 못 봐 예전대로 둔다.
+     */
+    { label: '저장/전표(F7)', onClick: mode === 'sales'
+      ? () => { afterSaveRef.current = STATEMENT_AFTER_SAVE; formRef.current?.requestSubmit() }
+      : doPrint },
     {
       label: '회계전표연결',
       disabled: !savedDoc,

@@ -121,6 +121,21 @@ export default function StatementPrintPage() {
   }, [fromDate, toDate])
 
   /**
+   * 판매입력 [저장/전표(F7)]에서 넘어올 때(<code>?print=전표id</code>) — 그 전표의 거래명세서를 바로 인쇄한다.
+   * 원본은 F7 로 저장하면 거래명세서 창이 뜬다(2026-10-06 loginaa 판매입력). 명세서 서식은 이 화면 것을 그대로 쓴다.
+   */
+  const printId = Number(new URLSearchParams(window.location.search).get('print')) || null
+  const printedRef = useRef(false)
+  useEffect(() => {
+    if (!printId || printedRef.current || loading || supplier === null) return
+    const d = docs.find((x) => x.id === printId)
+    if (!d) return
+    printedRef.current = true
+    void printDocuments([toDocument(d)])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [printId, docs, loading, supplier])
+
+  /**
    * 미수금은 <b>기준일자 끝</b> 시점의 채권 잔액이다. 지금 시점으로 잡으면
    * 지난달 명세서를 다시 뽑을 때 그 뒤에 들어온 수금까지 빠져 숫자가 달라진다.
    */
