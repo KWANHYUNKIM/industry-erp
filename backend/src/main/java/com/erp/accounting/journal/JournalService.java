@@ -262,7 +262,10 @@ public class JournalService {
                 st.getType().getDisplayName() + " " + st.getDocNo(), st.getPartner(), st.getCreatedBy());
 
         if (st.getType() == SettlementType.RECEIPT) {
-            addDebit(e, cash, st.getAmount(), cashName);
+            /* 수수료는 받을 돈에서 떼인 몫 — 원본 '매출처로부터' 분개: 차)현금 1,000 · 지급수수료(판) 100 / 대)외상매출금 1,100. */
+            BigDecimal fee = st.getFee() != null ? st.getFee() : BigDecimal.ZERO;
+            addDebit(e, cash, st.getAmount().subtract(fee), cashName);
+            if (fee.signum() > 0) addDebit(e, "831", fee, "지급수수료");
             addCredit(e, "108", st.getAmount(), "외상매출금");
         } else {
             addDebit(e, "251", st.getAmount(), "외상매입금");

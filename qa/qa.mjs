@@ -6447,6 +6447,31 @@ async function scenarioSettlementAccounting(f) {
     /회계반영을 먼저 취소/.test(String(del.data?.message ?? '')), true)
 
   /*
+   * [원본] 수금 수수료 — 2026-10-06 loginaa '매출처로부터'(전표 2026/10/06-13, 확인 뒤 삭제): 금액 1,000 · 수수료 100 →
+   * 수금현황 1,100, 분개 차)현금 1,000 · 지급수수료(판) 100 / 대)외상매출금 1,100. 우리 amount 는 그 총액(1,100), fee 는 100.
+   */
+  const feeBalOf = async () => Number((await must('GET', '/ledger/partner-balances')).find((x) => x.partnerId === f.customer.id)?.receivable ?? 0)
+  const fee0 = await feeBalOf()
+  const withFee = await must('POST', '/settlements', {
+    type: 'RECEIPT', partnerId: f.customer.id, amount: 1100, fee: 100, method: '현금', settleDate: D, note: `${P}수수료`,
+  })
+  eq('[일관성] 수수료 수금도 채권은 총액 1,100 만큼 준다', fee0 - (await feeBalOf()), 1100)
+  await must('POST', '/accounting-reflection/reflect', { kind: 'SETTLEMENT', ids: [withFee.id] })
+  const feeGl = (await must('GET', `/journals?from=${D}&to=${D}&all=true`)).rows
+    .find((j) => j.sourceType === 'SETTLEMENT' && j.sourceId === withFee.id)
+  const feeAmt = (code, k) => Number(feeGl?.lines.find((l) => l.accountCode === code)?.[k] ?? 0)
+  eq('[원본] 수수료 수금 분개 — 차)현금 1,000 · 지급수수료 100 / 대)외상매출금 1,100',
+    `${feeAmt('101', 'debit')} ${feeAmt('831', 'debit')} ${feeAmt('108', 'credit')}`, '1000 100 1100')
+  eq('[일관성] 수수료 분개 대차평형', Number(feeGl?.totalDebit), Number(feeGl?.totalCredit))
+  await rejects('지급에는 수수료를 안 받는다', 'POST', '/settlements',
+    { type: 'PAYMENT', partnerId: f.supplier.id, amount: 1100, fee: 100, settleDate: D }, '지급 수수료')
+  await rejects('수수료가 금액 이상이면 거절', 'POST', '/settlements',
+    { type: 'RECEIPT', partnerId: f.customer.id, amount: 100, fee: 100, settleDate: D }, '수수료는 수금 금액보다')
+  await must('POST', '/accounting-reflection/unreflect', { kind: 'SETTLEMENT', ids: [withFee.id] })
+  await must('DELETE', `/settlements/${withFee.id}`)
+  eq('[일관성] 지우면 채권이 처음으로', await feeBalOf(), fee0)
+
+  /*
    * 원본 판매·구매일괄회계반영의 <b>[회계전표No.]</b> 열.
    *
    * 반영했다는 표시만 있고 어느 분개가 됐는지가 없으면 그 전표를 찾아갈 길이 없다.

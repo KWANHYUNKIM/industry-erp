@@ -46,6 +46,17 @@ public class Settlement extends BaseTimeEntity {
     @Column(length = 30)
     private String method;
 
+    /**
+     * 수수료 — 받을 돈 중 거래처(카드사 · 은행)가 떼고 보낸 몫. {@link #amount} 는 <b>채권이 줄어드는 총액</b>이다.
+     *
+     * <p>2026-10-06 loginaa '매출처로부터' 실측: 금액 1,000 · 수수료 100 으로 저장하자 수금현황 금액은 <b>1,100</b>,
+     * 분개는 차)현금 1,000 · 지급수수료(판) 100 / 대)외상매출금 1,100. 그래서 채권 · 수금현황은 amount 그대로 두고
+     * 분개만 현금 = amount − fee, 수수료 = fee 로 가른다. 지급 쪽 수수료는 원본을 아직 못 봐 받지 않는다.
+     */
+    @Column(nullable = false, precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal fee = BigDecimal.ZERO;
+
     @Column(length = 500)
     private String note;
 

@@ -23,7 +23,10 @@ public final class SettlementDtos {
             /** 귀속 프로젝트. 원본 수금현황·지급현황 조건의 [프로젝트]. 안 정할 수 있다. */
             Long projectId,
             @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
-            String note
+            String note,
+            /** 수수료(선택, 수금만). amount 에 들어 있는 몫이다 — 받은 돈은 amount − fee. */
+            @jakarta.validation.constraints.PositiveOrZero(message = "수수료는 0 이상이어야 합니다.")
+            BigDecimal fee
     ) {}
 
     public record SettlementResponse(
@@ -32,6 +35,8 @@ public final class SettlementDtos {
             Long partnerId, String partnerName,
             LocalDate settleDate,
             BigDecimal amount,
+            /** 수수료(수금). amount 에 들어 있다. */
+            BigDecimal fee,
             String method,
             /** 귀속 프로젝트. 원본 수금현황·지급현황 조건의 [프로젝트]. */
             Long projectId, String projectName,
@@ -44,7 +49,7 @@ public final class SettlementDtos {
                     s.getId(), s.getDocNo(),
                     s.getType(), s.getType().getDisplayName(),
                     s.getPartner().getId(), s.getPartner().getName(),
-                    s.getSettleDate(), s.getAmount(),
+                    s.getSettleDate(), s.getAmount(), s.getFee(),
                     s.getMethod(),
                     s.getProject() != null ? s.getProject().getId() : null,
                     s.getProject() != null ? s.getProject().getName() : null,

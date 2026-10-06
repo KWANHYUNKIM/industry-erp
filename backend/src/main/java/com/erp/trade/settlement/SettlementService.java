@@ -1,5 +1,6 @@
 package com.erp.trade.settlement;
 
+import java.math.BigDecimal;
 import com.erp.common.ApiException;
 import com.erp.common.DocumentNoGenerator;
 import com.erp.trade.partner.BusinessPartner;
@@ -56,6 +57,15 @@ public class SettlementService {
             throw ApiException.badRequest("금액을 입력하세요. 돌려준 돈(환불)은 음수로 적습니다.");
         }
         LocalDate date = req.settleDate() != null ? req.settleDate() : LocalDate.now();
+        BigDecimal fee = req.fee() != null ? req.fee() : BigDecimal.ZERO;
+        if (fee.signum() > 0) {
+            if (req.type() != SettlementType.RECEIPT) {
+                throw ApiException.badRequest("지급 수수료는 아직 받지 않습니다 — 수수료는 수금에만 적습니다.");
+            }
+            if (req.amount().signum() < 0 || fee.compareTo(req.amount()) >= 0) {
+                throw ApiException.badRequest("수수료는 수금 금액보다 작아야 합니다.");
+            }
+        }
 
         Settlement s = Settlement.builder()
                 .docNo(generateDocNo(req.type(), date))
@@ -63,6 +73,7 @@ public class SettlementService {
                 .partner(partner)
                 .settleDate(date)
                 .amount(req.amount())
+                .fee(fee)
                 .method(req.method())
                 .project(req.projectId() != null ? projectService.get(req.projectId()) : null)
                 .note(req.note())

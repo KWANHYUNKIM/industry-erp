@@ -311,7 +311,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
    * 구매입력 [현금지급]도 같은 모양의 '매입처로' 창이다 — 단 <b>출금계좌는 비어</b> 있다(같은 날 실측).
    */
   const [cashOpen, setCashOpen] = useState(false)
-  const [cashForm, setCashForm] = useState({ date: '', method: '현금', amount: '', note: '' })
+  const [cashForm, setCashForm] = useState({ date: '', method: '현금', amount: '', fee: '0', note: '' })
   const [cashMsg, setCashMsg] = useState('')
   // 열 선택(F4) — 버튼 라벨이 약속한 단축키. 그리드 셀 안에서 눌러도 먹어야 한다.
   // 이미 열려 있으면 다시 열지 않는다.
@@ -1247,11 +1247,14 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
     if (num(cashForm.amount) === 0) return setCashMsg('금액을 입력하세요.')
     try {
       const r = await api.post<{ docNo: string }>('/settlements', {
-        type: mode === 'sales' ? 'RECEIPT' : 'PAYMENT', partnerId: Number(partnerId), amount: num(cashForm.amount),
+        type: mode === 'sales' ? 'RECEIPT' : 'PAYMENT', partnerId: Number(partnerId),
+        // 원본은 [금액](받은 돈)과 [수수료]를 따로 적고 채권은 둘을 더한 만큼 준다 — 서버 amount 는 그 총액이다.
+        amount: num(cashForm.amount) + (mode === 'sales' ? num(cashForm.fee) : 0),
+        fee: mode === 'sales' && num(cashForm.fee) > 0 ? num(cashForm.fee) : undefined,
         method: cashForm.method || undefined, settleDate: cashForm.date || undefined, note: cashForm.note.trim() || undefined,
       })
       setCashOpen(false)
-      flash(`${r.data.docNo} ${mode === 'sales' ? '수금' : '지급'} 저장 완료 (${won(num(cashForm.amount))}원)`)
+      flash(`${r.data.docNo} ${mode === 'sales' ? '수금' : '지급'} 저장 완료 (${won(num(cashForm.amount))}원${mode === 'sales' && num(cashForm.fee) > 0 ? ` · 수수료 ${won(num(cashForm.fee))}원` : ''})`)
     } catch (err) {
       setCashMsg(extractErrorMessage(err))
     }
@@ -1311,7 +1314,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
       label: cfg.cashLabel,
       onClick: () => {
         setCashMsg('')
-        setCashForm({ date: today(), method: mode === 'sales' ? '현금' : '', amount: String(totals.total || ''), note: '' })
+        setCashForm({ date: today(), method: mode === 'sales' ? '현금' : '', amount: String(totals.total || ''), fee: '0', note: '' })
         setCashOpen(true)
       },
       menu: [
@@ -2022,6 +2025,12 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
           <div className="mb-[6px]">거래처 <b className="ml-[8px]">{partners.find((p) => String(p.id) === partnerId)?.name ?? '(거래처를 먼저 고르세요)'}</b></div>
           <label className="block mb-[6px]">금액
             <EcNumInput className="ec-input ml-[8px] text-right" value={cashForm.amount} onValue={(v) => setCashForm((c) => ({ ...c, amount: v }))} /></label>
+          {/* 원본 [수수료] — 수금만(지급 쪽은 원본을 아직 못 봤다). 받은 돈 1,000 · 수수료 100 이면 채권은 1,100 줄고
+              분개는 차)현금 1,000 · 지급수수료 100 / 대)외상매출금 1,100(2026-10-06 실측). */}
+          {mode === 'sales' && (
+            <label className="block mb-[6px]">수수료
+              <EcNumInput className="ec-input ml-[8px] text-right" value={cashForm.fee} onValue={(v) => setCashForm((c) => ({ ...c, fee: v }))} /></label>
+          )}
           <label className="block mb-[6px]">적요
             <input className="ec-input ml-[8px] w-[300px]" value={cashForm.note} onChange={(e) => setCashForm((c) => ({ ...c, note: e.target.value }))} /></label>
         </div>
