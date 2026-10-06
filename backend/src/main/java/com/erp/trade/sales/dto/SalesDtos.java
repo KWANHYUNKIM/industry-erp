@@ -34,7 +34,14 @@ public final class SalesDtos {
             @PositiveOrZero(message = "부대비용은 0 이상이어야 합니다.")
             BigDecimal extraCost,
             /** 이 줄을 담아 온 근거전표(수주) id. 직접 입력한 줄은 null. */
-            Long sourceOrderId
+            Long sourceOrderId,
+            /**
+             * 공급가액을 손으로 고친 값(선택). 비우면 round(수량 × 단가).
+             * 원본 판매입력 격자의 [공급가액] 칸은 고칠 수 있다 — 2026-10-06 loginaa 실측: 3 × 333.5 에서 1,009 로 고치면
+             * 부가세 101 · 합계 1,110 으로 저장되고 단가 333.5 는 그대로 남는다. 수량·단가를 다시 바꾸면 화면이 새로 계산한다.
+             */
+            @PositiveOrZero(message = "공급가액은 0 이상이어야 합니다.")
+            BigDecimal supplyAmount
     ) {}
 
     public record CreateSalesRequest(

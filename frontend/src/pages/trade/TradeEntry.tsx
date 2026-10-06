@@ -46,6 +46,14 @@ interface LineInput {
   /** 부대비용 (원본 cust_amt). 합계 금액에는 더하지 않는다. */
   extraCost: string
   /**
+   * 손으로 고친 공급가액. 원본 격자의 [공급가액] 칸은 고칠 수 있고(2026-10-06 loginaa: 3 × 333.5 → 1,009 로 고치면
+   * 부가세 101 · 합계 1,110 으로 저장, 단가는 그대로), <b>수량이나 단가를 바꾸면 다시 계산</b>된다.
+   * 그래서 고칠 때의 수량|단가({@link supplyBase})를 같이 들고, 둘 중 하나라도 달라지면 이 값을 버린다 —
+   * 특별단가·단가일괄처럼 다른 길로 단가가 바뀌어도 같은 규칙이 걸린다.
+   */
+  supplyOverride: string
+  supplyBase: string
+  /**
    * 원본 구매입력 격자의 <b>[품질검사요청]</b>(열 id qcRequest_chk).
    *
    * <p>켜 두고 저장하면 그 줄의 품목·수량으로 <b>입고검사 요청</b>이 만들어진다.
@@ -86,12 +94,19 @@ const today = () => {
 }
 const emptyLine = (): LineInput => ({
   itemId: '', quantity: '', unitPrice: '', lotNo: '', extraCost: '', remark: '',
+  supplyOverride: '', supplyBase: '',
   qcRequest: false,
   sourceOrderId: '', sourceDocType: '', sourceDocDate: '', sourceDocNo: '', checked: false,
   custom: {}, lineId: null,
 })
 /** 원본은 빈 입력행 3줄로 뜬다. */
 const emptyLines = () => [emptyLine(), emptyLine(), emptyLine()]
+
+/** 손으로 고친 공급가액 — 고친 뒤 수량·단가가 그대로일 때만 살아 있다(원본: 둘 중 하나를 바꾸면 다시 계산). */
+function overriddenSupply(l: LineInput): number | null {
+  if (l.supplyOverride === '' || l.supplyBase !== `${num(l.quantity)}|${num(l.unitPrice)}`) return null
+  return roundWon(num(l.supplyOverride))
+}
 
 const CFG = {
   sales: {
@@ -457,6 +472,10 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
         unitPrice: String(l.unitPrice),
         lotNo: l.lotNo ?? '',
         extraCost: l.extraCost != null ? String(l.extraCost) : '',
+        // 저장된 공급가액이 수량 × 단가와 다르면 손으로 고친 값이다 — 다시 저장해도 남도록 들고 온다.
+        ...(Math.abs(Number(l.supplyAmount)) !== lineSupply(Math.abs(l.quantity), Number(l.unitPrice))
+          ? { supplyOverride: String(Math.abs(Number(l.supplyAmount))), supplyBase: `${Math.abs(l.quantity)}|${l.unitPrice}` }
+          : {}),
         remark: l.remark ?? '',
         sourceOrderId: l.sourceOrderId != null ? String(l.sourceOrderId) : '',
         sourceDocType: l.sourceDocType ?? '',
@@ -819,7 +838,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
   // 부가세 배분은 백엔드 `VatAllocator` 와 같은 규칙이어야 한다 — 화면에 보이는 값과
   // 저장된 값이 1원이라도 다르면 사용자는 화면을 못 믿는다.
   const computed = (() => {
-    const supplies = lines.map((l) => lineSupply(num(l.quantity), num(l.unitPrice)))
+    const supplies = lines.map((l) => overriddenSupply(l) ?? lineSupply(num(l.quantity), num(l.unitPrice)))
     const vats = supplies.map((sup) => (taxable ? roundWon(sup * 0.1) : 0))
     if (taxable && vatBySlip && supplies.length > 0) {
       const slipVat = roundWon(supplies.reduce((a, b) => a + b, 0) * 0.1)
@@ -1044,6 +1063,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
         lotNo: l.lotNo.trim() || undefined,
         extraCost: l.extraCost ? num(l.extraCost) : undefined,
         sourceOrderId: l.sourceOrderId ? Number(l.sourceOrderId) : undefined,
+        supplyAmount: overriddenSupply(l) ?? undefined,
       }))
     if (!partnerId) return setError(`${cfg.partnerLabel}를 선택하세요.`)
     if (validLines.length === 0) return setError('품목·수량·단가를 1줄 이상 입력하세요.')
@@ -1765,7 +1785,13 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                         {l.itemId ? won(Math.round(num(l.unitPrice) * (taxable ? 1.1 : 1))) : ''}
                       </td>
                     )}
-                    <td className="pad text-right text-ec-text">{l.itemId ? won(computed[idx].supply) : ''}</td>
+                    <td>
+                      <input className="cell" type="number" step="any" style={{ textAlign: 'right' }} disabled={!l.itemId}
+                             aria-label="공급가액"
+                             value={l.itemId ? (overriddenSupply(l) != null ? l.supplyOverride : String(computed[idx].supply)) : ''}
+                             onChange={(e) => setLines((ls) => ls.map((x, i) => (i === idx
+                               ? { ...x, supplyOverride: e.target.value, supplyBase: `${num(x.quantity)}|${num(x.unitPrice)}` } : x)))} />
+                    </td>
                     <td className="pad text-right text-ec-hint">{l.itemId ? won(computed[idx].vat) : ''}</td>
                     {cols.lineTotal && (
                       <td className="pad text-right font-semibold text-ec-text">

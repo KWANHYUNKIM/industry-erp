@@ -1571,6 +1571,36 @@ async function scenarioPurchaseOrder(f) {
   await must('DELETE', `/sales-orders/${ho.id}`)
   await must('DELETE', `/purchase-orders/${hpo.id}`)
 
+  /*
+   * [원본] 공급가액을 손으로 고친다 — 2026-10-06 loginaa 판매입력(저장 2026/10/06-4): 3 × 333.5 에서 공급가액 1,009 →
+   * 부가세 101 · 합계 1,110, 다시 열어도 단가 333.5 · 공급가액 1,009. (수량·단가를 바꾸면 화면이 다시 계산 — 화면 몫.)
+   */
+  const ar1 = await arOf(f.customer.id)
+  const typed = await must('POST', '/sales', {
+    saleDate: '2026-07-14', partnerId: f.customer.id, warehouseId: f.warehouse.id, taxable: true,
+    lines: [{ itemId: f.product.id, quantity: 3, unitPrice: 333.5, supplyAmount: 1009 }],
+  })
+  eq('[원본] 공급가액 1,009 로 고친 판매 → 1,009/101/1,110', amt(typed), '1009/101/1110')
+  eq('[원본] 단가는 333.5 그대로', Number(typed.lines[0].unitPrice), 333.5)
+  eq('[일관성] 채권도 고친 합계 1,110 만큼', (await arOf(f.customer.id)) - ar1, 1110)
+  const typedBack = await must('POST', '/sales', {
+    saleDate: '2026-07-14', partnerId: f.customer.id, warehouseId: f.warehouse.id, taxable: true, returnSlip: true,
+    lines: [{ itemId: f.product.id, quantity: 3, unitPrice: 333.5, supplyAmount: 1009 }],
+  })
+  eq('[일관성] 같은 값 반품은 -1,009/-101/-1,110', amt(typedBack), '-1009/-101/-1110')
+  const typedP = await must('POST', '/purchases', {
+    partnerId: f.supplier.id, warehouseId: f.warehouse.id, purchaseDate: '2026-07-14', taxable: true,
+    lines: [{ itemId: f.material.id, quantity: 3, unitPrice: 333.5, supplyAmount: 1009 }],
+  })
+  eq('[일관성] 구매도 고친 공급가액을 받는다 → 1,009/101/1,110', amt(typedP), '1009/101/1110')
+  await rejects('공급가액은 음수로 고칠 수 없다', 'POST', '/sales', {
+    saleDate: '2026-07-14', partnerId: f.customer.id, warehouseId: f.warehouse.id,
+    lines: [{ itemId: f.product.id, quantity: 3, unitPrice: 333.5, supplyAmount: -1 }],
+  }, '공급가액')
+  for (const s of [typed, typedBack]) await must('DELETE', `/sales/${s.id}`)
+  await must('DELETE', `/purchases/${typedP.id}`)
+  eq('[일관성] 지우면 채권이 처음으로', (await arOf(f.customer.id)) - ar1, 0)
+
   // 이 시나리오가 만든 발주·입고전표도 치운다. 입고전표를 지우면 발주가 '발주확정' 으로
   // 돌아가므로 순서는 입고 → 발주다. 매 회차 입고전표 1장이 남던 자리다.
   await must('DELETE', `/purchases/${purchase2.id}`)

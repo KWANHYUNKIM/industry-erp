@@ -474,7 +474,9 @@ public class PurchaseService {
         purchase.setVatBySlip(vatBySlip);
         BigDecimal sign = isReturn ? BigDecimal.ONE.negate() : BigDecimal.ONE;
         List<BigDecimal> supplies = req.lines().stream()
-                .map(lr -> VatAllocator.lineSupply(lr.quantity(), lr.unitPrice()).multiply(sign))
+                .map(lr -> (lr.supplyAmount() != null
+                        ? lr.supplyAmount().setScale(0, RoundingMode.HALF_UP)
+                        : VatAllocator.lineSupply(lr.quantity(), lr.unitPrice())).multiply(sign))
                 .toList();
         List<BigDecimal> vats = VatAllocator.allocate(supplies, VAT_RATE, taxable, vatBySlip);
 
