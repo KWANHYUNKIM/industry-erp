@@ -13,6 +13,7 @@ import Modal from '../../components/Modal'
 import EcPeriodPicks, { ORDER_LIST_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
 import { EcCond } from '../../components/EcStatusPanel'
 import { lineSupply, roundWon } from '../../utils/lineSupply'
+import EcNumInput from '../../components/EcNumInput'
 import { dateText } from '../../utils/dateText'
 
 type OrderStatus = 'RECEIVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED'
@@ -278,8 +279,8 @@ export default function SalesOrderPage() {
                                      value={String(l.itemId)} onChange={(v) => updateLine(idx, 'itemId', v)}
                                      items={itemPicks} />
                   </td>
-                  <td><input type="number" className={`${inputCls} text-right`} style={{ width: '100%' }} value={l.quantity} onChange={(e) => updateLine(idx, 'quantity', e.target.value)} /></td>
-                  <td><input type="number" className={`${inputCls} text-right`} style={{ width: '100%' }} value={l.unitPrice} onChange={(e) => updateLine(idx, 'unitPrice', e.target.value)} /></td>
+                  <td><EcNumInput className={`${inputCls} text-right w-full`} value={l.quantity} onValue={(v) => updateLine(idx, 'quantity', v)} /></td>
+                  <td><EcNumInput className={`${inputCls} text-right w-full`} value={l.unitPrice} onValue={(v) => updateLine(idx, 'unitPrice', v)} /></td>
                   <td className="text-right">{won(computed[idx].supply)}</td>
                   <td className="text-right text-ec-hint">{won(computed[idx].vat)}</td>
                 </tr>

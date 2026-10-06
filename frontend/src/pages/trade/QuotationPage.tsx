@@ -16,6 +16,7 @@ import EcPeriodPicks, { QUOTATION_PICKS, periodOf } from '../../components/EcPer
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 import { partnerCodeItems } from '../../utils/codeItems'
 import { lineSupply } from '../../utils/lineSupply'
+import EcNumInput from '../../components/EcNumInput'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => ymd(new Date())
@@ -763,8 +764,8 @@ function QuotationForm({ items, partners, warehouses, projects, onClose, onSaved
                                      value={l.itemId} onChange={(v) => pickItem(i, v)}
                                      items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, alias: it.searchKeyword, sub: it.spec }))} />
                   </td>
-                  <td><input className="ec-input" type="number" value={l.quantity} onChange={(e) => setLine(i, { quantity: e.target.value })} style={{ width: '100%', textAlign: 'right' }} /></td>
-                  <td><input className="ec-input" type="number" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: e.target.value })} style={{ width: '100%', textAlign: 'right' }} /></td>
+                  <td><EcNumInput className="ec-input w-full text-right" value={l.quantity} onValue={(v) => setLine(i, { quantity: v })} /></td>
+                  <td><EcNumInput className="ec-input w-full text-right" value={l.unitPrice} onValue={(v) => setLine(i, { unitPrice: v })} /></td>
                   <td className="text-right">{won(calc[i])}</td>
                   <td className="text-center">{lines.length > 1 && <button className="ec-btn" onClick={() => setLines((ls) => ls.filter((_, idx) => idx !== i))}>×</button>}</td>
                 </tr>

@@ -12,6 +12,7 @@ import type { CustomFieldDef, Currency, EmployeeMaster, Item, Partner, PurchaseO
 import { partnerCodeItems } from '../../utils/codeItems'
 import { ymd } from '../../components/EcPeriodPicks'
 import { lineSupply, roundWon } from '../../utils/lineSupply'
+import EcNumInput from '../../components/EcNumInput'
 import { dateText } from '../../utils/dateText'
 import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
 import EcPeriodPicks, { ORDER_DOC_PICKS, periodOf } from '../../components/EcPeriodPicks'
@@ -690,8 +691,8 @@ function PriceForm({ order, onClose, onSaved }: { order: PurchaseOrder; onClose:
                   <td>{l.itemCode} {l.itemName}</td>
                   <td className="text-right">{won(l.quantity)} {l.unit}</td>
                   <td>
-                    <input className="ec-input" type="number" value={prices[l.id] ?? ''} style={{ width: '100%', textAlign: 'right' }}
-                      onChange={(e) => setPrices((p) => ({ ...p, [l.id]: e.target.value }))} />
+                    <EcNumInput className="ec-input w-full text-right" value={String(prices[l.id] ?? '')}
+                      onValue={(v) => setPrices((p) => ({ ...p, [l.id]: v }))} />
                   </td>
                   <td className="text-right">{won(lineSupply(l.quantity, Number(prices[l.id]) || 0))}</td>
                 </tr>
@@ -987,8 +988,8 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
                   {/* [재고불러오기]가 채우는 두 칸. 누르기 전에는 '-' 다. */}
                   <td className="text-right text-ec-label">{stockCell(stockAllOf(l.itemId))}</td>
                   <td className="text-right text-ec-label">{stockCell(stockAtOf(l.itemId))}</td>
-                  <td><input className="ec-input" type="number" value={l.quantity} onChange={(e) => setLine(i, { quantity: e.target.value })} style={{ width: '100%', textAlign: 'right' }} /></td>
-                  <td><input className="ec-input" type="number" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: e.target.value })} style={{ width: '100%', textAlign: 'right' }} /></td>
+                  <td><EcNumInput className="ec-input w-full text-right" value={l.quantity} onValue={(v) => setLine(i, { quantity: v })} /></td>
+                  <td><EcNumInput className="ec-input w-full text-right" value={l.unitPrice} onValue={(v) => setLine(i, { unitPrice: v })} /></td>
                   <td className="text-right">{won(calc[i])}</td>
                   <td><input className="ec-input" value={l.remark} onChange={(e) => setLine(i, { remark: e.target.value })} style={{ width: '100%' }} /></td>
                   {/*
