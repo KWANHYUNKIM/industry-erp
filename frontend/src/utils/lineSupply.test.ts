@@ -31,3 +31,13 @@ test('반품(음수)은 크기를 반올림한다 — Java HALF_UP 과 같게', 
 test('0 은 0', () => {
   assert.equal(lineSupply(0, 333.5), 0)
 })
+
+test('천 단위 쉼표 — 정수 부분만, 소수는 친 그대로', async () => {
+  const { withCommas } = await import('./lineSupply.ts')
+  assert.equal(withCommas('1009'), '1,009')
+  assert.equal(withCommas('1234567.5'), '1,234,567.5')
+  assert.equal(withCommas('333.5'), '333.5')
+  assert.equal(withCommas('-1110'), '-1,110')
+  assert.equal(withCommas(''), '')
+  assert.equal(withCommas('12.'), '12.')
+})

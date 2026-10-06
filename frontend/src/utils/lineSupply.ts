@@ -17,3 +17,10 @@ export function roundWon(v: number): number {
   const r = Math.round(Math.abs(exact))
   return exact < 0 ? -r : r
 }
+
+/** 정수 부분에만 천 단위 쉼표를 찍는다 — 소수는 친 그대로(333.5 는 333.5). 빈 값 · 숫자가 아닌 값은 그대로. */
+export function withCommas(raw: string): string {
+  const m = /^(-?)(\d+)(\.\d*)?$/.exec(raw)
+  if (!m) return raw
+  return m[1] + m[2].replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (m[3] ?? '')
+}

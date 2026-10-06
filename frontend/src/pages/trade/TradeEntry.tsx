@@ -17,6 +17,7 @@ import { useShortcut } from '../../utils/useShortcut'
 import { partnerCodeItems } from '../../utils/codeItems'
 import { dateText } from '../../utils/dateText'
 import { lineSupply, roundWon } from '../../utils/lineSupply'
+import EcNumInput from '../../components/EcNumInput'
 import EcRowCap, { capRows } from '../../components/EcRowCap'
 
 /**
@@ -1787,12 +1788,12 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                     )}
                     {cols.unit && <td className="pad text-center text-ec-label">{it?.unit ?? ''}</td>}
                     <td>
-                      <input className="cell" type="number" step="any" style={{ textAlign: 'right' }}
-                             value={l.quantity} onChange={(e) => updateLine(idx, 'quantity', e.target.value)} />
+                      <EcNumInput className="cell text-right"
+                             value={l.quantity} onValue={(v) => updateLine(idx, 'quantity', v)} />
                     </td>
                     <td>
-                      <input className="cell" type="number" step="any" style={{ textAlign: 'right' }}
-                             value={l.unitPrice} onChange={(e) => updateLine(idx, 'unitPrice', e.target.value)} />
+                      <EcNumInput className="cell text-right"
+                             value={l.unitPrice} onValue={(v) => updateLine(idx, 'unitPrice', v)} />
                     </td>
                     {cols.priceVat && (
                       <td className="pad text-right text-ec-hint">
@@ -1800,18 +1801,18 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                       </td>
                     )}
                     <td>
-                      <input className="cell" type="number" step="any" style={{ textAlign: 'right' }} disabled={!l.itemId}
+                      <EcNumInput className="cell text-right" disabled={!l.itemId}
                              aria-label="공급가액"
                              value={l.itemId ? (overriddenSupply(l) != null ? l.supplyOverride : String(computed[idx].supply)) : ''}
-                             onChange={(e) => setLines((ls) => ls.map((x, i) => (i === idx
-                               ? { ...x, supplyOverride: e.target.value, supplyBase: `${num(x.quantity)}|${num(x.unitPrice)}` } : x)))} />
+                             onValue={(v) => setLines((ls) => ls.map((x, i) => (i === idx
+                               ? { ...x, supplyOverride: v, supplyBase: `${num(x.quantity)}|${num(x.unitPrice)}` } : x)))} />
                     </td>
                     <td>
-                      <input className="cell" type="number" step="any" style={{ textAlign: 'right' }} disabled={!l.itemId || !taxable}
+                      <EcNumInput className="cell text-right" disabled={!l.itemId || !taxable}
                              aria-label="부가세"
                              value={l.itemId ? (computed[idx].typedVat != null ? l.vatOverride : String(computed[idx].vat)) : ''}
-                             onChange={(e) => setLines((ls) => ls.map((x, i) => (i === idx
-                               ? { ...x, vatOverride: e.target.value, vatBase: String(computed[idx].supply) } : x)))} />
+                             onValue={(v) => setLines((ls) => ls.map((x, i) => (i === idx
+                               ? { ...x, vatOverride: v, vatBase: String(computed[idx].supply) } : x)))} />
                     </td>
                     {cols.lineTotal && (
                       <td className="pad text-right font-semibold text-ec-text">
@@ -1819,8 +1820,8 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
                       </td>
                     )}
                     <td>
-                      <input className="cell" type="number" step="any" style={{ textAlign: 'right' }} disabled={!l.itemId}
-                             value={l.extraCost} onChange={(e) => updateLine(idx, 'extraCost', e.target.value)} />
+                      <EcNumInput className="cell text-right" disabled={!l.itemId}
+                             value={l.extraCost} onValue={(v) => updateLine(idx, 'extraCost', v)} />
                     </td>
                     {/* 관리항목은 품목 마스터에 붙는 값이라 라인에서는 읽기 전용이다(원본도 disabled). */}
                     {cols.mgmtItem && (
