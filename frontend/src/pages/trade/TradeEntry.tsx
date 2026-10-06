@@ -311,13 +311,15 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
    * 구매입력 [현금지급]도 같은 모양의 '매입처로' 창이다 — 단 <b>출금계좌는 비어</b> 있다(같은 날 실측).
    */
   const [cashOpen, setCashOpen] = useState(false)
-  const [cashForm, setCashForm] = useState({ date: '', method: '현금', amount: '', fee: '0', note: '' })
+  const [cashForm, setCashForm] = useState({ date: '', departmentId: '', projectId: '', method: '현금', amount: '', fee: '0', note: '' })
   /*
    * [입금계좌]/[출금계좌] 후보 — 원본 계좌검색은 <b>등록된 계좌</b>(기업은행-1122 · 외환은행-2211 …)와 000 현금을 띄운다
    * (2026-10-06 loginaa 실측). 예전 우리는 '현금 · 보통예금' 두 값뿐이라 어느 통장으로 받았는지 남지 않았다.
    * 계좌를 고르면 회계반영 때 그 계좌의 계정으로 분개하고 계좌잔액 · 입출금 내역도 같이 움직인다.
    * 카드사 · PG사 계정과 [다른계정찾기]는 아직 없다.
    */
+  /** [부서] 후보 — 원본 창의 둘째 칸. */
+  const [cashDepts, setCashDepts] = useState<{ id: number; code: string | null; name: string }[]>([])
   const [cashBanks, setCashBanks] = useState<{ id: number; code: string | null; name: string | null; bankName: string; accountNo: string | null; active: boolean }[]>([])
   const [cashMsg, setCashMsg] = useState('')
   // 열 선택(F4) — 버튼 라벨이 약속한 단축키. 그리드 셀 안에서 눌러도 먹어야 한다.
@@ -1264,6 +1266,8 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
         ...(cashForm.method.startsWith('bank:')
           ? { method: '계좌이체', bankAccountId: Number(cashForm.method.slice(5)) }
           : { method: cashForm.method || undefined }),
+        departmentId: cashForm.departmentId ? Number(cashForm.departmentId) : undefined,
+        projectId: cashForm.projectId ? Number(cashForm.projectId) : undefined,
         settleDate: cashForm.date || undefined, note: cashForm.note.trim() || undefined,
       })
       setCashOpen(false)
@@ -1327,8 +1331,9 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
       label: cfg.cashLabel,
       onClick: () => {
         setCashMsg('')
-        setCashForm({ date: today(), method: mode === 'sales' ? '현금' : '', amount: String(totals.total || ''), fee: '0', note: '' })
+        setCashForm({ date: today(), departmentId: '', projectId: '', method: mode === 'sales' ? '현금' : '', amount: String(totals.total || ''), fee: '0', note: '' })
         api.get<typeof cashBanks>('/bank-cards/accounts').then((r) => setCashBanks(r.data)).catch(() => setCashBanks([]))
+        api.get<typeof cashDepts>('/departments').then((r) => setCashDepts(r.data)).catch(() => setCashDepts([]))
         setCashOpen(true)
       },
       menu: [
@@ -2030,6 +2035,21 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
         <div className="ec-form">
           <label className="block mb-[6px]">전표일자
             <input className="ec-input ml-[8px]" type="date" value={cashForm.date} onChange={(e) => setCashForm((c) => ({ ...c, date: e.target.value }))} /></label>
+          {/* 원본 창 차례: 전표일자 · 부서 · 프로젝트 · 입금계좌 · 거래처 · 금액 · 수수료 · 적요(2026-10-06 실측). */}
+          <div className="flex items-center gap-[8px] mb-[6px]">부서
+            <CodePickerField
+              label="부서" hideLabel pair
+              value={cashForm.departmentId} onChange={(v) => setCashForm((c) => ({ ...c, departmentId: v }))}
+              items={cashDepts.map((d) => ({ value: String(d.id), code: d.code, name: d.name }))}
+            />
+          </div>
+          <div className="flex items-center gap-[8px] mb-[6px]">프로젝트
+            <CodePickerField
+              label="프로젝트" hideLabel pair
+              value={cashForm.projectId} onChange={(v) => setCashForm((c) => ({ ...c, projectId: v }))}
+              items={projects.map((pj) => ({ value: String(pj.id), code: pj.code, name: pj.name }))}
+            />
+          </div>
           <label className="block mb-[6px]">{mode === 'sales' ? '입금계좌' : '출금계좌'}
             <select className="ec-input ml-[8px]" value={cashForm.method} onChange={(e) => setCashForm((c) => ({ ...c, method: e.target.value }))}>
               {mode === 'purchase' && <option value="">(출금계좌)</option>}

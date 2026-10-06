@@ -10,6 +10,7 @@ import { dateNo } from '../../utils/dateNo'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { subtotalBy } from '../../utils/subtotalBy'
+import { useDeptGroups } from '../../utils/deptGroups'
 
 /**
  * 영업관리 > 수금현황 (이카운트 E040217)
@@ -25,7 +26,7 @@ import { subtotalBy } from '../../utils/subtotalBy'
  * 원본도 정산이 아니라 거래처를 보고 거르는 것이라 거래처를 통해 이으면 된다.
  * <p>[프로젝트]도 이제 있다. 판매·구매·비용은 진작 프로젝트를 다는데 정산만 안 달아서,
  * 프로젝트별로 얼마를 받았는지 셀 수가 없었다.
- * 부서는 정산에도 거래처에도 없어 여전히 만들지 않는다.
+ * [부서]도 이제 있다(2026-10-06) — 판매·구매입력의 현금수금/현금지급 창이 원본처럼 부서를 받는다.
  */
 interface Settlement {
   id: number
@@ -40,6 +41,8 @@ interface Settlement {
   method: string | null
   /** 귀속 프로젝트. 원본 수금현황·지급현황 조건의 [프로젝트]. */
   projectId: number | null
+  /** 부서(id). 원본 조건의 [부서] — 판매·구매입력의 현금수금/현금지급 창에서 정한다. */
+  departmentId: number | null
   projectName: string | null
   note: string | null
   /** 원본 조건의 [최초작성자]. 응답이 진작 싣던 값인데 화면이 안 받고 있었다. */
@@ -66,6 +69,7 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
   const [keyword, setKeyword] = useState('')
   const [fiscalStart, setFiscalStart] = useState<number | undefined>(undefined)
   const [partners, setPartners] = useState<{ id: number; manager: string | null }[]>([])
+  const [depts, setDepts] = useState<{ id: number; code: string | null; name: string }[]>([])
   /*
    * <b>원본 수금현황의 기본 기간은 [금월(~오늘)] 이다</b> — 2026-09-08 에 원본(E040217)을
    * 열어 간편검색 칸에서 직접 쟀다. 사본을 보고 [이번기수]로 적어 두었던 것이 틀렸다.
@@ -77,7 +81,7 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
    */
   const initPeriod = periodOf('금월(~오늘)')!
   const [cond, setCond] = useState({
-    from: initPeriod.from, to: initPeriod.to, partner: '', manager: '', project: '',
+    from: initPeriod.from, to: initPeriod.to, partner: '', manager: '', project: '', dept: '', deptGroup: '',
     partnerGroup: '', author: '',
   })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
@@ -91,6 +95,7 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
       ])
       setRows(res.data.filter((s) => s.type === type))
       setPartners(pt.data)
+      api.get<typeof depts>('/departments').then((r) => setDepts(r.data)).catch(() => setDepts([]))
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -110,6 +115,9 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
 
   /** [거래처그룹1] — 거래처 마스터에 붙는 값이라 정산 전표 응답에는 없다. 이름으로 잇는다. */
   const pgroup = usePartnerGroups()
+  /** [부서계층그룹] — 그 부서와 그 아래 전부. 정산은 부서 id 를 들고 있어 이름으로 바꿔 부서 트리를 탄다. */
+  const { groups: deptGroups, inGroup } = useDeptGroups()
+  const deptName = useMemo(() => new Map(depts.map((d) => [d.id, d.name])), [depts])
 
   const managerOf = useMemo(
     () => new Map(partners.map((p) => [p.id, p.manager ?? ''])),
@@ -133,6 +141,8 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
     // 거래처관리담당자는 정산이 아니라 거래처에 달려 있다 — 거래처를 통해 잇는다.
     .filter((r) => !cond.manager
       || (managerOf.get(r.partnerId) ?? '').includes(cond.manager))
+    .filter((r) => !cond.dept || String(r.departmentId) === cond.dept)
+    .filter((r) => inGroup(r.departmentId != null ? deptName.get(r.departmentId) ?? null : null, cond.deptGroup))
     .filter((r) => !cond.project || String(r.projectId) === cond.project)
     .filter((r) => !keyword || r.partnerName.includes(keyword) || r.docNo.includes(keyword))
 
@@ -149,7 +159,7 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
     return [...m].map(([label, value]) => ({ label, value }))
   }, [shown])
   const reset = () => {
-    setCond({ from: '', to: '', partner: '', manager: '', project: '', partnerGroup: '', author: '' })
+    setCond({ from: '', to: '', partner: '', manager: '', project: '', dept: '', deptGroup: '', partnerGroup: '', author: '' })
     setKeyword('')
   }
 
@@ -201,6 +211,17 @@ export function SettlementStatusPage({ type, title, moneyLabel }: {
           <CodePickerField label="거래처그룹1" hideLabel width={170} emptyLabel="전체"
                            value={cond.partnerGroup} onChange={(v) => setC({ partnerGroup: v })}
                            items={pgroup.groupOptions.map((g) => ({ value: g, name: g }))} />
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={200} emptyLabel="전체"
+                           value={cond.dept} onChange={(v) => setC({ dept: v })}
+                           items={depts.map((d) => ({ value: String(d.id), code: d.code, name: d.name }))} />
+        </EcCond>
+        <EcCond label="부서계층그룹">
+          <select className="ec-input w-[160px]" value={cond.deptGroup} onChange={(e) => setC({ deptGroup: e.target.value })}>
+            <option value="">전체</option>
+            {deptGroups.map((d) => <option key={d} value={d}>{d}</option>)}
+          </select>
         </EcCond>
         <EcCond label="프로젝트" pick>
           <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체"

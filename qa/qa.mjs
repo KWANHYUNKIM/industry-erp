@@ -6488,6 +6488,23 @@ async function scenarioSettlementAccounting(f) {
    * 외환은행-2211 …. [일관성] 계좌로 받으면 분개가 그 계좌의 계정으로 서고, 계좌잔액 · 입출금 내역이 받은 돈(금액 − 수수료)만큼
    * 움직이며, 반영을 취소하면 잔액이 제자리로 온다.
    */
+  /*
+   * [원본] '매출처로부터'/'매입처로' 창의 [부서] — 수금현황 · 지급현황 조건의 [부서]로 거른다(2026-10-06 실측).
+   * [일관성] 저장한 부서가 그대로 돌아오고, 없는 부서는 500 이 아니라 사람이 읽을 거절이다.
+   */
+  const aDept = (await must('GET', '/departments'))[0]
+  if (aDept) {
+    const rcD = await must('POST', '/settlements', {
+      type: 'RECEIPT', partnerId: f.customer.id, amount: 500, method: '현금', departmentId: aDept.id, settleDate: D, note: `${P}부서수금`,
+    })
+    eq('[일관성] 수금이 고른 부서를 돌려준다', rcD.departmentId, aDept.id)
+    eq('[일관성] 목록에도 그 부서가 실린다', (await must('GET', '/settlements')).find((x) => x.id === rcD.id)?.departmentId, aDept.id)
+    await must('DELETE', `/settlements/${rcD.id}`)
+  }
+  const badDept = await call('POST', '/settlements', {
+    type: 'RECEIPT', partnerId: f.customer.id, amount: 500, method: '현금', departmentId: 99999999, settleDate: D,
+  })
+  eq('[일관성] 없는 부서로 수금하면 4xx(500 이 아니다)', badDept.status >= 400 && badDept.status < 500, true)
   const viaBank = (await must('GET', '/bank-cards/accounts')).find((a) => a.active && a.glAccountCode)
   if (viaBank) {
     const balOf = async () => Number((await must('GET', '/bank-cards/accounts')).find((a) => a.id === viaBank.id).balance)

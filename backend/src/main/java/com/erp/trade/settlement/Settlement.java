@@ -68,6 +68,13 @@ public class Settlement extends BaseTimeEntity {
     @Column(name = "bank_account_id")
     private Long bankAccountId;
 
+    /**
+     * 부서(hr.Department 의 id) — 원본 '매출처로부터'/'매입처로' 창의 [부서], 수금현황 · 지급현황 조건의 [부서].
+     * trade → hr 은 걷어낼 부채 간선이라(4.1) 엔티티가 아니라 id 만 든다. 이름은 화면이 부서 목록에서 붙인다.
+     */
+    @Column(name = "department_id")
+    private Long departmentId;
+
     @Column(length = 500)
     private String note;
 

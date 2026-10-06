@@ -76,6 +76,7 @@ public class SettlementService {
                 .amount(req.amount())
                 .fee(fee)
                 .bankAccountId(req.bankAccountId())
+                .departmentId(req.departmentId())
                 .method(req.method())
                 .project(req.projectId() != null ? projectService.get(req.projectId()) : null)
                 .note(req.note())
