@@ -308,7 +308,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
    * 원본 판매입력 [현금수금] — 화면을 떠나지 않고 '매출처로부터' 입금 창을 띄운다(2026-10-06 loginaa 실측):
    * 전표일자 오늘 · 입금계좌 000 현금 · 거래처 = 입력 중인 거래처 · 금액 = 전표 합계(1,101) · 수수료 0 · 적요.
    * 우리 수금(settlement)은 수수료 칸이 없고 입금계좌 대신 결제방법(현금 · 보통예금 이체)으로 현금 · 예금 계정을 가른다.
-   * 구매입력 [현금지급]은 원본을 아직 못 봐 예전처럼 지급 화면으로 간다.
+   * 구매입력 [현금지급]도 같은 모양의 '매입처로' 창이다 — 단 <b>출금계좌는 비어</b> 있다(같은 날 실측).
    */
   const [cashOpen, setCashOpen] = useState(false)
   const [cashForm, setCashForm] = useState({ date: '', method: '현금', amount: '', note: '' })
@@ -1247,11 +1247,11 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
     if (num(cashForm.amount) === 0) return setCashMsg('금액을 입력하세요.')
     try {
       const r = await api.post<{ docNo: string }>('/settlements', {
-        type: 'RECEIPT', partnerId: Number(partnerId), amount: num(cashForm.amount),
-        method: cashForm.method, settleDate: cashForm.date || undefined, note: cashForm.note.trim() || undefined,
+        type: mode === 'sales' ? 'RECEIPT' : 'PAYMENT', partnerId: Number(partnerId), amount: num(cashForm.amount),
+        method: cashForm.method || undefined, settleDate: cashForm.date || undefined, note: cashForm.note.trim() || undefined,
       })
       setCashOpen(false)
-      flash(`${r.data.docNo} 수금 저장 완료 (${won(num(cashForm.amount))}원)`)
+      flash(`${r.data.docNo} ${mode === 'sales' ? '수금' : '지급'} 저장 완료 (${won(num(cashForm.amount))}원)`)
     } catch (err) {
       setCashMsg(extractErrorMessage(err))
     }
@@ -1309,9 +1309,11 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
     { label: '다시 작성', onClick: () => { reset(false); setSavedDoc(null) } },
     {
       label: cfg.cashLabel,
-      onClick: mode === 'sales'
-        ? () => { setCashMsg(''); setCashForm({ date: today(), method: '현금', amount: String(totals.total || ''), note: '' }); setCashOpen(true) }
-        : () => navigate(cfg.cashTo),
+      onClick: () => {
+        setCashMsg('')
+        setCashForm({ date: today(), method: mode === 'sales' ? '현금' : '', amount: String(totals.total || ''), note: '' })
+        setCashOpen(true)
+      },
       menu: [
         { label: '수금 화면으로', onClick: () => navigate('/sales/collection') },
         { label: '지급 화면으로', onClick: () => navigate('/sales/payment') },
@@ -2007,12 +2009,13 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
 
       {/* ── 열 선택 ──────────────────────────────────────── */}
       {/* ── 현금수금(판매) — 원본 '매출처로부터' 입금 창 ───────────────── */}
-      <Modal error={cashMsg} open={cashOpen} title="매출처로부터" width={520} onClose={() => setCashOpen(false)}>
+      <Modal error={cashMsg} open={cashOpen} title={mode === 'sales' ? '매출처로부터' : '매입처로'} width={520} onClose={() => setCashOpen(false)}>
         <div className="ec-form">
           <label className="block mb-[6px]">전표일자
             <input className="ec-input ml-[8px]" type="date" value={cashForm.date} onChange={(e) => setCashForm((c) => ({ ...c, date: e.target.value }))} /></label>
-          <label className="block mb-[6px]">입금계좌
+          <label className="block mb-[6px]">{mode === 'sales' ? '입금계좌' : '출금계좌'}
             <select className="ec-input ml-[8px]" value={cashForm.method} onChange={(e) => setCashForm((c) => ({ ...c, method: e.target.value }))}>
+              {mode === 'purchase' && <option value="">(출금계좌)</option>}
               <option value="현금">000 현금</option>
               <option value="보통예금 이체">보통예금</option>
             </select></label>
