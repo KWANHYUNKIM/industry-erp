@@ -6,7 +6,9 @@ import type {
   SalesDoc, StockRow, Warehouse,
 } from '../../types/api'
 import { exportTableToXlsx } from '../../utils/excel'
-import { printTable } from '../../utils/print'
+import { openPrintWindow, printTable } from '../../utils/print'
+import { loadSupplierParty, printDocuments } from '../../utils/printDocument'
+import { purchaseSlipDocument, salesSlipDocument } from '../../utils/tradeSlipDocument'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import CodePickerField from '../../components/CodePickerField'
 import EcSlipShell, { type SlipAction } from '../../components/EcSlipShell'
@@ -107,8 +109,8 @@ const emptyLine = (): LineInput => ({
   custom: {}, lineId: null,
 })
 /** 원본은 빈 입력행 3줄로 뜬다. */
-/** 저장 뒤 거래명세서 인쇄로 넘어가라는 표시 — afterSaveRef 의 특별한 값. */
-const STATEMENT_AFTER_SAVE = '__statement__'
+/** 저장 뒤 전표 인쇄(판매 거래명세서 · 구매 구매전표)를 하라는 표시 — afterSaveRef 의 특별한 값. */
+const SLIP_PRINT_AFTER_SAVE = '__slip_print__'
 
 const emptyLines = () => [emptyLine(), emptyLine(), emptyLine()]
 
@@ -1066,7 +1068,17 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
     if (!keepHeader) { setPartnerId(''); setProjectId(''); setEmployeeId('') }
   }
 
+  /*
+   * 저장이 어디서 끝나든(검증에 막혀 돌아가든, 서버가 거절하든) 미리 열어 둔 인쇄창이 '준비 중' 빈 창으로
+   * 남지 않게 한다 — 저장에 성공하면 위에서 그 창을 가져가 ref 를 비우므로 여기서는 닫히지 않는다.
+   */
   async function submit(e: FormEvent) {
+    try { await submitInner(e) } finally {
+      if (printWinRef.current) { printWinRef.current.close(); printWinRef.current = null; afterSaveRef.current = null }
+    }
+  }
+
+  async function submitInner(e: FormEvent) {
     e.preventDefault()
     setError(''); setOk('')
     // 요청에 실을 줄과 그 줄의 원본(추가항목 값이 붙어 있다)을 같은 순서로 들고 간다.
@@ -1179,7 +1191,17 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
       if (docsAsked.current) void loadDocs()
       const afterSaveTo = afterSaveRef.current
       afterSaveRef.current = null
-      if (afterSaveTo === STATEMENT_AFTER_SAVE) navigate(`/sales/statement?print=${res.data.id}`)
+      if (afterSaveTo === SLIP_PRINT_AFTER_SAVE) {
+        const win = printWinRef.current
+        printWinRef.current = null
+        if (mode === 'sales') {
+          const d = res.data as SalesDoc
+          void loadSupplierParty().then((sup) =>
+            printDocuments([salesSlipDocument(d, partners.find((p) => p.id === d.partnerId), sup)], win))
+        } else {
+          void printDocuments([purchaseSlipDocument(res.data as PurchaseDoc)], win)
+        }
+      }
       else if (afterSaveTo) navigate(afterSaveTo)
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -1208,6 +1230,19 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
    * 아직 옛 값(null)을 본다. 그래서 [저장/결제]·[저장/전표(F7)]가 저장만 하고 넘어가지 않았다(2026-10-06 화면으로 확인).
    */
   const afterSaveRef = useRef<string | null>(null)
+  /** [저장/전표(F7)] 가 클릭 순간에 열어 둔 인쇄창 — 저장(비동기) 뒤에 열면 팝업 차단에 걸린다. */
+  const printWinRef = useRef<Window | null>(null)
+  /*
+   * 원본 [저장/전표(F7)] — 저장하고 그 전표의 인쇄 양식을 띄운다(2026-10-06 loginaa):
+   * 판매입력은 <b>거래명세서</b>(2026/10/06-9), 구매입력은 <b>구매전표</b>(2026/10/06-4).
+   * 예전 우리 F7 은 저장 없이 입력 격자만 인쇄했다.
+   */
+  function saveAndPrintSlip() {
+    printWinRef.current = openPrintWindow()
+    if (!printWinRef.current) return
+    afterSaveRef.current = SLIP_PRINT_AFTER_SAVE
+    formRef.current?.requestSubmit()
+  }
   const formRef = useRef<HTMLFormElement>(null)
 
   /** 원본에 있으나 아직 백엔드가 없는 버튼. 지우지 않고 사유를 붙여 비활성으로 남긴다. */
@@ -1233,13 +1268,7 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
         }] : []),
       ],
     },
-    /*
-     * 원본 판매입력 [저장/전표(F7)] — 저장하고 그 전표의 <b>거래명세서</b>를 띄운다(2026-10-06 loginaa: 2026/10/06-9 저장 뒤
-     * 거래명세서 창). 예전 우리 F7 은 저장 없이 입력 격자만 인쇄했다. 구매입력의 F7 은 원본을 아직 못 봐 예전대로 둔다.
-     */
-    { label: '저장/전표(F7)', onClick: mode === 'sales'
-      ? () => { afterSaveRef.current = STATEMENT_AFTER_SAVE; formRef.current?.requestSubmit() }
-      : doPrint },
+    { label: '저장/전표(F7)', onClick: saveAndPrintSlip },
     {
       label: '회계전표연결',
       disabled: !savedDoc,
