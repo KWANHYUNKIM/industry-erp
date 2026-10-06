@@ -189,14 +189,26 @@ public class JournalService {
         if (entryRepository.existsBySourceTypeAndSourceId(JournalSourceType.SALES, s.getId())) {
             throw ApiException.conflict("이미 회계반영된 판매전표입니다: " + s.getDocNo());
         }
+        /*
+         * 적요 — 2026-10-06 loginaa 판매일괄회계반영 [매출전표 I] 실측(전표 2026/10/06-11): 과세 일반 판매
+         * (임의거래처 · 포장김치 3 × 333.5) 의 줄 적요는 <b>품목 요약</b>(포장김치 — 규격 없이),
+         * 전표 적요는 <b>"매출 : 세금계산서 / 임의거래처 / 1,001 / 100"</b> 이었다. 원본에서 본 것은 그 경우뿐이라
+         * 면세 · 반품 · 여러 품목 전표는 예전 적요를 그대로 둔다(여러 품목의 요약 모양은 아직 못 봤다).
+         */
+        boolean seen = s.isTaxable() && !s.isReturnSlip() && s.getLines().size() == 1;
+        String lineDesc = seen ? s.getLines().get(0).getItem().getName() : null;
+        String entryDesc = seen
+                ? "매출 : 세금계산서 / " + s.getPartner().getName() + " / "
+                  + String.format("%,d", s.getSupplyAmount().longValue()) + " / " + String.format("%,d", s.getVatAmount().longValue())
+                : "판매 " + s.getDocNo();
         JournalEntry e = newEntry(JournalSourceType.SALES, s.getId(), s.getSaleDate(),
-                "판매 " + s.getDocNo(), s.getPartner(), s.getCreatedBy());
+                entryDesc, s.getPartner(), s.getCreatedBy());
 
-        addDebit(e, "108", s.getTotalAmount(), "외상매출금");
+        addDebit(e, "108", s.getTotalAmount(), seen ? lineDesc : "외상매출금");
         byAccount(s.getLines(),
                 l -> salesAccountOf(l.getItem().getCategory()), l -> l.getSupplyAmount(),
                 s.getSupplyAmount(), "401")
-                .forEach((code, amt) -> addCredit(e, code, amt, ACCOUNT_NAMES.get(code)));
+                .forEach((code, amt) -> addCredit(e, code, amt, seen ? lineDesc : ACCOUNT_NAMES.get(code)));
         /*
          * 반품 전표는 금액이 음수다(수량을 음수로 저장). 예전엔 부가세가 0보다 클 때만 줄을 넣어
          * 반품의 부가세(−1,200)가 빠지고 '차변 −13,200 ≠ 대변 −12,000' 으로 반영이 거절됐다(26회차).
@@ -204,7 +216,7 @@ public class JournalService {
          * 반품은 차)제품매출·부가세예수금 / 대)외상매출금 의 역분개가 된다.
          */
         if (isNonZero(s.getVatAmount())) {
-            addCredit(e, "255", s.getVatAmount(), "부가세예수금");
+            addCredit(e, "255", s.getVatAmount(), seen ? lineDesc : "부가세예수금");
         }
         return save(e);
     }

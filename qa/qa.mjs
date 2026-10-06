@@ -1610,7 +1610,26 @@ async function scenarioPurchaseOrder(f) {
     lines: [{ itemId: f.product.id, quantity: 3, unitPrice: 333.5, vatAmount: 99 }],
   })
   eq('[일관성] 면세 전표에는 고친 부가세가 붙지 않는다', amt(vatFree), '1001/0/1001')
-  for (const s of [typed, typedBack, typedVat, vatFree]) await must('DELETE', `/sales/${s.id}`)
+  /*
+   * [원본] 판매 → 회계반영 — 2026-10-06 loginaa 판매일괄회계반영 [매출전표 I](전표 2026/10/06-11):
+   * 3 × 333.5 과세 판매 → 차)외상매출금 1,101 / 대)제품매출 1,001 · 부가세예수금 100,
+   * 줄 적요 = 품목명(포장김치), 전표 적요 = "매출 : 세금계산서 / 임의거래처 / 1,001 / 100".
+   */
+  const posted = await must('POST', '/sales', {
+    saleDate: '2026-07-14', partnerId: f.customer.id, warehouseId: f.warehouse.id, taxable: true,
+    lines: [{ itemId: f.product.id, quantity: 3, unitPrice: 333.5 }],
+  })
+  await must('POST', '/accounting-reflection/reflect', { kind: 'SALES', ids: [posted.id] })
+  const gl = (await must('GET', '/journals?from=2026-07-14&to=2026-07-14&all=true')).rows
+    .find((j) => j.sourceType === 'SALES' && j.sourceId === posted.id)
+  const glAmt = (code, k) => Number(gl?.lines.find((l) => l.accountCode === code)?.[k] ?? 0)
+  eq('[원본] 반영 분개 — 차)외상매출금 1,101 / 대)제품매출 1,001 · 부가세예수금 100',
+    `${glAmt('108', 'debit')} ${glAmt('404', 'credit')} ${glAmt('255', 'credit')}`, '1101 1001 100')
+  eq('[일관성] 반영 분개 대차평형', Number(gl?.totalDebit), Number(gl?.totalCredit))
+  eq('[원본] 전표 적요 "매출 : 세금계산서 / 거래처 / 1,001 / 100"', gl?.description, `매출 : 세금계산서 / ${f.customer.name} / 1,001 / 100`)
+  eq('[원본] 줄 적요는 품목명', [...new Set(gl?.lines.map((l) => l.description))].join(','), f.product.name)
+  await must('POST', '/accounting-reflection/unreflect', { kind: 'SALES', ids: [posted.id] })
+  for (const s of [typed, typedBack, typedVat, vatFree, posted]) await must('DELETE', `/sales/${s.id}`)
   await must('DELETE', `/purchases/${typedP.id}`)
   eq('[일관성] 지우면 채권이 처음으로', (await arOf(f.customer.id)) - ar1, 0)
 
