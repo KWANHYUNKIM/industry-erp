@@ -111,6 +111,8 @@ const emptyLine = (): LineInput => ({
 /** 원본은 빈 입력행 3줄로 뜬다. */
 /** 저장 뒤 전표 인쇄(판매 거래명세서 · 구매 구매전표)를 하라는 표시 — afterSaveRef 의 특별한 값. */
 const SLIP_PRINT_AFTER_SAVE = '__slip_print__'
+/** 저장 뒤 그 전표의 수정 화면으로 바꾸라는 표시 — 원본 [저장/내용유지]. */
+const KEEP_AFTER_SAVE = '__keep__'
 
 const emptyLines = () => [emptyLine(), emptyLine(), emptyLine()]
 
@@ -1019,13 +1021,6 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
   const snapshot = () => JSON.stringify({
     date, partnerId, employeeId, warehouseId, taxable, returnSlip, foreign, exchangeRate, projectId, remark, customValues, lines,
   })
-  function saveTemp(auto = false) {
-    if (lineCount === 0 && !partnerId) return
-    localStorage.setItem(tempKey, snapshot())
-    setHasTemp(true)
-    setSavedAt(`${new Date().toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' })} 임시저장되었습니다.`)
-    if (!auto) flash('임시저장했습니다.')
-  }
   function applyTemp() {
     const raw = localStorage.getItem(tempKey)
     if (!raw) return
@@ -1191,7 +1186,8 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
       if (docsAsked.current) void loadDocs()
       const afterSaveTo = afterSaveRef.current
       afterSaveRef.current = null
-      if (afterSaveTo === SLIP_PRINT_AFTER_SAVE) {
+      if (afterSaveTo === KEEP_AFTER_SAVE) { ensureDocs(); setSearchParams({ edit: String(res.data.id) }, { replace: true }) }
+      else if (afterSaveTo === SLIP_PRINT_AFTER_SAVE) {
         const win = printWinRef.current
         printWinRef.current = null
         if (mode === 'sales') {
@@ -1253,22 +1249,33 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
   const footerActions: SlipAction[] = [
     {
       label: editing ? '수정저장(F8)' : '저장(F8)', primary: true, submit: true,
+      /*
+       * 원본 [저장(F8)▲] 메뉴(2026-10-06 loginaa 판매입력 실측): 저장/전자결재 · 저장/내용유지 · 보류 · 저장/신규.
+       * [보류]는 툴바에도 있어 거기 하나로 둔다. [저장/결제]는 판매입력 II 의 메뉴(대조표 ecount-buttons)라 남긴다 —
+       * 이 화면이 두 메뉴를 겸한다. 예전 메뉴의 임시저장 · 입력값 지우기는 원본에 없어 뺐다(지우기는 [다시 작성],
+       * 임시저장은 60초마다 저절로 돈다).
+       */
       menu: [
-        /*
-         * 원본 [저장/결제] — 저장하고 바로 수금·지급 화면으로 넘어간다.
-         * 현금 거래는 전표를 치고 곧바로 돈을 받거나 주는데, 저장하고 메뉴로
-         * 돌아가 다시 찾아 들어가야 했다.
-         */
+        { label: '저장/전자결재', onClick: () => flash('전자결재 상신은 [그룹웨어 › 전자결재]에서 이 전표를 첨부해 올립니다(입력 화면에서 바로 올리는 길은 아직 없습니다).') },
+        /* 원본: 저장하고 그 전표의 수정 화면(판매입력(수정))으로 바뀐다 — 입력한 내용이 그대로 남는다. */
+        { label: '저장/내용유지', onClick: () => { afterSaveRef.current = KEEP_AFTER_SAVE; formRef.current?.requestSubmit() } },
+        { label: '저장/신규', onClick: () => formRef.current?.requestSubmit() },
         { label: '저장/결제', onClick: () => { afterSaveRef.current = cfg.cashTo; formRef.current?.requestSubmit() } },
-        { label: '임시저장', onClick: () => saveTemp() },
-        { label: '입력값 지우기', onClick: () => reset(true) },
         ...(editing ? [{
           label: '수정 취소(신규로)',
           onClick: () => { setEditing(null); setSearchParams({}, { replace: true }); reset(false) },
         }] : []),
       ],
     },
-    { label: '저장/전표(F7)', onClick: saveAndPrintSlip },
+    {
+      label: '저장/전표(F7)', onClick: saveAndPrintSlip,
+      /*
+       * 원본 [저장/전표(F7)▲] 의 [저장/회계전표]. [회계전표연결] 단추는 원본 대조표(ecount-buttons)에 있어 그대로 둔다
+       * (2026-10-06 신규 입력 화면에서는 안 보였다 — 저장 뒤에 서는 단추로 보인다).
+       * 원본 이 회사에서는 '회계반영여부를 확인해주세요' 알림으로 멈췄다(설정에 따라 매출전표 I 로 가는 자리) — 우리는 저장하고 회계반영 화면으로 간다.
+       */
+      menu: [{ label: '저장/회계전표', onClick: () => { afterSaveRef.current = '/sales/accounting-reflection'; formRef.current?.requestSubmit() } }],
+    },
     {
       label: '회계전표연결',
       disabled: !savedDoc,
