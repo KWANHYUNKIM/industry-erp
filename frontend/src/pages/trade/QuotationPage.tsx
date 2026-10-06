@@ -15,6 +15,7 @@ import { useItemMgmt } from '../../utils/itemMgmtItems'
 import EcPeriodPicks, { QUOTATION_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 import { partnerCodeItems } from '../../utils/codeItems'
+import { lineSupply } from '../../utils/lineSupply'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => ymd(new Date())
@@ -675,7 +676,7 @@ function QuotationForm({ items, partners, warehouses, projects, onClose, onSaved
     })
   }
 
-  const calc = lines.map((l) => (Number(l.quantity) || 0) * (Number(l.unitPrice) || 0))
+  const calc = lines.map((l) => lineSupply(Number(l.quantity) || 0, Number(l.unitPrice) || 0))
   const supply = calc.reduce((a, b) => a + b, 0)
   /*
    * 부가세는 <b>줄마다</b> 원 단위로 반올림해 더한다 — 서버(QuotationService)가 그렇게 저장한다.

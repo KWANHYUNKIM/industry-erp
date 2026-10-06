@@ -1555,6 +1555,22 @@ async function scenarioPurchaseOrder(f) {
   await must('DELETE', `/purchases/${halfP.id}`)
   eq('[일관성] 지우면 채권·채무가 처음으로', `${(await arOf(f.customer.id)) - ar0}/${(await apOf(f.supplier.id)) - ap0}`, '0/0')
 
+  /* [원본] 2026-10-06 loginaa 견적서입력 · 주문서입력 · 발주서입력도 3 × 333.5 → 1,001 · 100 · 1,101(저장 안 함). */
+  const amt = (d) => `${Number(d.supplyAmount)}/${Number(d.vatAmount)}/${Number(d.totalAmount)}`
+  const halfLine = (itemId) => [{ itemId, quantity: 3, unitPrice: 333.5 }]
+  const hq = await must('POST', '/quotations', {
+    partnerId: f.customer.id, quoteDate: '2026-07-14', taxable: true, lines: halfLine(f.product.id) })
+  eq('[원본] 견적 3 × 333.5 → 1,001/100/1,101', amt(hq), '1001/100/1101')
+  const ho = await must('POST', '/sales-orders', {
+    partnerId: f.customer.id, orderDate: '2026-07-14', taxable: true, lines: halfLine(f.product.id) })
+  eq('[원본] 주문 3 × 333.5 → 1,001/100/1,101', amt(ho), '1001/100/1101')
+  const hpo = await must('POST', '/purchase-orders', {
+    partnerId: f.supplier.id, orderDate: '2026-07-14', warehouseId: f.warehouse.id, taxable: true, lines: halfLine(f.material.id) })
+  eq('[원본] 발주 3 × 333.5 → 1,001/100/1,101', amt(hpo), '1001/100/1101')
+  await must('DELETE', `/quotations/${hq.id}`)
+  await must('DELETE', `/sales-orders/${ho.id}`)
+  await must('DELETE', `/purchase-orders/${hpo.id}`)
+
   // 이 시나리오가 만든 발주·입고전표도 치운다. 입고전표를 지우면 발주가 '발주확정' 으로
   // 돌아가므로 순서는 입고 → 발주다. 매 회차 입고전표 1장이 남던 자리다.
   await must('DELETE', `/purchases/${purchase2.id}`)

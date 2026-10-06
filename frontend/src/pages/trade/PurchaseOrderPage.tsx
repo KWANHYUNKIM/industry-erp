@@ -11,6 +11,7 @@ import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/pr
 import type { CustomFieldDef, Currency, EmployeeMaster, Item, Partner, PurchaseOrder, PurchaseOrderStatus, StockRow, Warehouse } from '../../types/api'
 import { partnerCodeItems } from '../../utils/codeItems'
 import { ymd } from '../../components/EcPeriodPicks'
+import { lineSupply, roundWon } from '../../utils/lineSupply'
 import { dateText } from '../../utils/dateText'
 import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
 import EcPeriodPicks, { ORDER_DOC_PICKS, periodOf } from '../../components/EcPeriodPicks'
@@ -650,8 +651,10 @@ function PriceForm({ order, onClose, onSaved }: { order: PurchaseOrder; onClose:
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  const supply = order.lines.reduce((sum, l) => sum + l.quantity * (Number(prices[l.id]) || 0), 0)
-  const vat = order.taxable ? Math.round(supply * 0.1) : 0
+  // 서버(PurchaseOrderService.recalculate)처럼 줄마다 원 단위로 반올림한 뒤 더한다.
+  const lineSupplies = order.lines.map((l) => lineSupply(l.quantity, Number(prices[l.id]) || 0))
+  const supply = lineSupplies.reduce((a, b) => a + b, 0)
+  const vat = order.taxable ? lineSupplies.reduce((a, s) => a + roundWon(s * 0.1), 0) : 0
 
   async function save() {
     setError('')
@@ -690,7 +693,7 @@ function PriceForm({ order, onClose, onSaved }: { order: PurchaseOrder; onClose:
                     <input className="ec-input" type="number" value={prices[l.id] ?? ''} style={{ width: '100%', textAlign: 'right' }}
                       onChange={(e) => setPrices((p) => ({ ...p, [l.id]: e.target.value }))} />
                   </td>
-                  <td className="text-right">{won(l.quantity * (Number(prices[l.id]) || 0))}</td>
+                  <td className="text-right">{won(lineSupply(l.quantity, Number(prices[l.id]) || 0))}</td>
                 </tr>
               ))}
             </tbody>
@@ -787,9 +790,10 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
     })
   }
 
-  const calc = lines.map((l) => (Number(l.quantity) || 0) * (Number(l.unitPrice) || 0))
+  const calc = lines.map((l) => lineSupply(Number(l.quantity) || 0, Number(l.unitPrice) || 0))
   const supply = calc.reduce((a, b) => a + b, 0)
-  const vat = taxable ? Math.round(supply * 0.1) : 0
+  // 서버처럼 줄마다 반올림한 부가세를 더한다(전표 합계에 한 번 반올림하면 1원씩 어긋난다).
+  const vat = taxable ? calc.reduce((a, s) => a + roundWon(s * 0.1), 0) : 0
 
   async function save() {
     setError('')

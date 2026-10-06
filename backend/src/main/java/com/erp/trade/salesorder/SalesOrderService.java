@@ -1,5 +1,6 @@
 package com.erp.trade.salesorder;
 
+import com.erp.trade.VatAllocator;
 import com.erp.trade.TradeMasters;
 import com.erp.common.ApiException;
 import com.erp.hr.employee.EmployeeService;
@@ -204,7 +205,7 @@ public class SalesOrderService {
 
         for (OrderLineRequest lr : req.lines()) {
             Item item = itemService.getUsable(lr.itemId());
-            BigDecimal supply = lr.quantity().multiply(lr.unitPrice());
+            BigDecimal supply = VatAllocator.lineSupply(lr.quantity(), lr.unitPrice());
             BigDecimal vat = taxable ? supply.multiply(VAT_RATE).setScale(0, RoundingMode.HALF_UP) : BigDecimal.ZERO;
 
             order.addLine(SalesOrderLine.builder()

@@ -12,6 +12,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import EcPeriodPicks, { ORDER_LIST_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
 import { EcCond } from '../../components/EcStatusPanel'
+import { lineSupply, roundWon } from '../../utils/lineSupply'
 import { dateText } from '../../utils/dateText'
 
 type OrderStatus = 'RECEIVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED'
@@ -112,8 +113,8 @@ export default function SalesOrderPage() {
   }
 
   const computed = lines.map((l) => {
-    const supply = (Number(l.quantity) || 0) * (Number(l.unitPrice) || 0)
-    const vat = taxable ? Math.round(supply * 0.1) : 0
+    const supply = lineSupply(Number(l.quantity) || 0, Number(l.unitPrice) || 0)
+    const vat = taxable ? roundWon(supply * 0.1) : 0
     return { supply, vat, total: supply + vat }
   })
   const totals = computed.reduce((a, c) => ({ supply: a.supply + c.supply, vat: a.vat + c.vat, total: a.total + c.total }), { supply: 0, vat: 0, total: 0 })

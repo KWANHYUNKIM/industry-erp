@@ -1,5 +1,6 @@
 package com.erp.trade.purchaseorder;
 
+import com.erp.trade.VatAllocator;
 import com.erp.trade.TradeMasters;
 import com.erp.trade.purchase.PurchaseService;
 import com.erp.common.ApiException;
@@ -343,7 +344,7 @@ public class PurchaseOrderService {
         BigDecimal totalSupply = BigDecimal.ZERO;
         BigDecimal totalVat = BigDecimal.ZERO;
         for (PurchaseOrderLine l : po.getLines()) {
-            BigDecimal supply = l.getQuantity().multiply(l.getUnitPrice());
+            BigDecimal supply = VatAllocator.lineSupply(l.getQuantity(), l.getUnitPrice());
             BigDecimal vat = po.getTaxable()
                     ? supply.multiply(VAT_RATE).setScale(0, RoundingMode.HALF_UP)
                     : BigDecimal.ZERO;
