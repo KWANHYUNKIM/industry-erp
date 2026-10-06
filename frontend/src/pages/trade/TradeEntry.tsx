@@ -304,6 +304,15 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
     mgmtItem: false, srcType: false, srcDate: false, srcNo: false, qcRequest: false,
   })
   const [colPickerOpen, setColPickerOpen] = useState(false)
+  /*
+   * 원본 판매입력 [현금수금] — 화면을 떠나지 않고 '매출처로부터' 입금 창을 띄운다(2026-10-06 loginaa 실측):
+   * 전표일자 오늘 · 입금계좌 000 현금 · 거래처 = 입력 중인 거래처 · 금액 = 전표 합계(1,101) · 수수료 0 · 적요.
+   * 우리 수금(settlement)은 수수료 칸이 없고 입금계좌 대신 결제방법(현금 · 보통예금 이체)으로 현금 · 예금 계정을 가른다.
+   * 구매입력 [현금지급]은 원본을 아직 못 봐 예전처럼 지급 화면으로 간다.
+   */
+  const [cashOpen, setCashOpen] = useState(false)
+  const [cashForm, setCashForm] = useState({ date: '', method: '현금', amount: '', note: '' })
+  const [cashMsg, setCashMsg] = useState('')
   // 열 선택(F4) — 버튼 라벨이 약속한 단축키. 그리드 셀 안에서 눌러도 먹어야 한다.
   // 이미 열려 있으면 다시 열지 않는다.
   useShortcut('F4', () => setColPickerOpen(true), !colPickerOpen)
@@ -1233,6 +1242,21 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
    * 판매입력은 <b>거래명세서</b>(2026/10/06-9), 구매입력은 <b>구매전표</b>(2026/10/06-4).
    * 예전 우리 F7 은 저장 없이 입력 격자만 인쇄했다.
    */
+  async function saveCash() {
+    if (!partnerId) return setCashMsg('거래처를 먼저 고르세요.')
+    if (num(cashForm.amount) === 0) return setCashMsg('금액을 입력하세요.')
+    try {
+      const r = await api.post<{ docNo: string }>('/settlements', {
+        type: 'RECEIPT', partnerId: Number(partnerId), amount: num(cashForm.amount),
+        method: cashForm.method, settleDate: cashForm.date || undefined, note: cashForm.note.trim() || undefined,
+      })
+      setCashOpen(false)
+      flash(`${r.data.docNo} 수금 저장 완료 (${won(num(cashForm.amount))}원)`)
+    } catch (err) {
+      setCashMsg(extractErrorMessage(err))
+    }
+  }
+
   function saveAndPrintSlip() {
     printWinRef.current = openPrintWindow()
     if (!printWinRef.current) return
@@ -1284,7 +1308,10 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
     },
     { label: '다시 작성', onClick: () => { reset(false); setSavedDoc(null) } },
     {
-      label: cfg.cashLabel, onClick: () => navigate(cfg.cashTo),
+      label: cfg.cashLabel,
+      onClick: mode === 'sales'
+        ? () => { setCashMsg(''); setCashForm({ date: today(), method: '현금', amount: String(totals.total || ''), note: '' }); setCashOpen(true) }
+        : () => navigate(cfg.cashTo),
       menu: [
         { label: '수금 화면으로', onClick: () => navigate('/sales/collection') },
         { label: '지급 화면으로', onClick: () => navigate('/sales/payment') },
@@ -1979,6 +2006,28 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
       </EcSlipShell>
 
       {/* ── 열 선택 ──────────────────────────────────────── */}
+      {/* ── 현금수금(판매) — 원본 '매출처로부터' 입금 창 ───────────────── */}
+      <Modal error={cashMsg} open={cashOpen} title="매출처로부터" width={520} onClose={() => setCashOpen(false)}>
+        <div className="ec-form">
+          <label className="block mb-[6px]">전표일자
+            <input className="ec-input ml-[8px]" type="date" value={cashForm.date} onChange={(e) => setCashForm((c) => ({ ...c, date: e.target.value }))} /></label>
+          <label className="block mb-[6px]">입금계좌
+            <select className="ec-input ml-[8px]" value={cashForm.method} onChange={(e) => setCashForm((c) => ({ ...c, method: e.target.value }))}>
+              <option value="현금">000 현금</option>
+              <option value="보통예금 이체">보통예금</option>
+            </select></label>
+          <div className="mb-[6px]">거래처 <b className="ml-[8px]">{partners.find((p) => String(p.id) === partnerId)?.name ?? '(거래처를 먼저 고르세요)'}</b></div>
+          <label className="block mb-[6px]">금액
+            <EcNumInput className="ec-input ml-[8px] text-right" value={cashForm.amount} onValue={(v) => setCashForm((c) => ({ ...c, amount: v }))} /></label>
+          <label className="block mb-[6px]">적요
+            <input className="ec-input ml-[8px] w-[300px]" value={cashForm.note} onChange={(e) => setCashForm((c) => ({ ...c, note: e.target.value }))} /></label>
+        </div>
+        <div className="flex gap-[6px] mt-[8px]">
+          <button type="button" className="ec-btn ec-btn-primary" onClick={() => void saveCash()}>저장</button>
+          <button type="button" className="ec-btn" onClick={() => setCashOpen(false)}>닫기</button>
+        </div>
+      </Modal>
+
       <Modal error={error} open={colPickerOpen} title="열 선택" width={360} onClose={() => setColPickerOpen(false)}>
         <p className="text-[12px] text-ec-label mt-0">
           원본에서 기본 숨김으로 깔려 있는 열입니다. 켜면 그리드에 나타납니다.
