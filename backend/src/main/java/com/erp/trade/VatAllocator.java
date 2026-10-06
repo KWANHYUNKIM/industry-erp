@@ -22,6 +22,17 @@ public final class VatAllocator {
     private VatAllocator() {}
 
     /**
+     * 라인 공급가액 = round(수량 × 단가), 원 단위 반올림.
+     *
+     * <p>2026-10-06 loginaa 판매입력 실측: 3 × 333.5 = 1,000.5 → 공급가액 <b>1,001</b>,
+     * 3 × 333.35 = 1,000.05 → <b>1,000</b>. 저장한 전표의 금액합계도 1,101 이었다.
+     * 예전엔 곱을 그대로 저장해 1,000.50 · 합계 1,100.50 이 채권·전표로 흘러갔다.
+     */
+    public static BigDecimal lineSupply(BigDecimal quantity, BigDecimal unitPrice) {
+        return quantity.multiply(unitPrice).setScale(0, RoundingMode.HALF_UP);
+    }
+
+    /**
      * @param supplies 라인별 공급가액 (순서 보존)
      * @param rate     부가세율
      * @param taxable  과세 전표인가

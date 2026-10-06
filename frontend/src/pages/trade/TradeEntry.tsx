@@ -16,6 +16,7 @@ import { findDataTable } from '../../utils/tableExport'
 import { useShortcut } from '../../utils/useShortcut'
 import { partnerCodeItems } from '../../utils/codeItems'
 import { dateText } from '../../utils/dateText'
+import { lineSupply, roundWon } from '../../utils/lineSupply'
 import EcRowCap, { capRows } from '../../components/EcRowCap'
 
 /**
@@ -818,10 +819,10 @@ export default function TradeEntry({ mode }: { mode: Mode }) {
   // 부가세 배분은 백엔드 `VatAllocator` 와 같은 규칙이어야 한다 — 화면에 보이는 값과
   // 저장된 값이 1원이라도 다르면 사용자는 화면을 못 믿는다.
   const computed = (() => {
-    const supplies = lines.map((l) => num(l.quantity) * num(l.unitPrice))
-    const vats = supplies.map((sup) => (taxable ? Math.round(sup * 0.1) : 0))
+    const supplies = lines.map((l) => lineSupply(num(l.quantity), num(l.unitPrice)))
+    const vats = supplies.map((sup) => (taxable ? roundWon(sup * 0.1) : 0))
     if (taxable && vatBySlip && supplies.length > 0) {
-      const slipVat = Math.round(supplies.reduce((a, b) => a + b, 0) * 0.1)
+      const slipVat = roundWon(supplies.reduce((a, b) => a + b, 0) * 0.1)
       const residual = slipVat - vats.reduce((a, b) => a + b, 0)
       if (residual !== 0) {
         // 잔차는 공급가액이 가장 큰 한 줄에 몰아준다(백엔드와 동일 — 재저장해도 배분이 안 흔들린다).

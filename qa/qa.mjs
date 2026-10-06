@@ -1512,6 +1512,49 @@ async function scenarioPurchaseOrder(f) {
   await must('DELETE', `/purchases/${byLine.id}`)
   await must('DELETE', `/purchases/${bySlip.id}`)
 
+  /*
+   * ── 공급가액 원 단위 반올림 [원본 확인] ──
+   * 2026-10-06 loginaa 판매입력(저장 2026/10/06-2, 임의거래처 · 포장김치)과 구매입력에서
+   * 3 × 333.5 = 1,000.5 → 공급가액 1,001 · 부가세 100 · 합계 1,101. 3 × 333.35 → 1,000.
+   * 예전엔 곱을 그대로 저장해 1,000.50 · 합계 1,100.50 이 채권에 실렸다.
+   * 아래 채권·채무 증감과 반품 되돌림은 [업무 일관성] 검사다(원본에서 잰 값이 아니다).
+   */
+  const balAll = async () => must('GET', '/ledger/partner-balances')
+  const arOf = async (id) => Number((await balAll()).find((x) => x.partnerId === id)?.receivable ?? 0)
+  const apOf = async (id) => Number((await balAll()).find((x) => x.partnerId === id)?.payable ?? 0)
+  const ar0 = await arOf(f.customer.id)
+  const half = await must('POST', '/sales', {
+    saleDate: '2026-07-14', partnerId: f.customer.id, warehouseId: f.warehouse.id, taxable: true,
+    lines: [{ itemId: f.product.id, quantity: 3, unitPrice: 333.5 }],
+  })
+  eq('[원본] 판매 3 × 333.5 → 공급가액 1,001', Number(half.supplyAmount), 1001)
+  eq('[원본] 판매 3 × 333.5 → 부가세 100', Number(half.vatAmount), 100)
+  eq('[원본] 판매 3 × 333.5 → 합계 1,101', Number(half.totalAmount), 1101)
+  eq('라인 공급가액도 1,001 (전표 합과 같다)', Number(half.lines[0].supplyAmount), 1001)
+  eq('[일관성] 채권이 합계 1,101 만큼 는다', (await arOf(f.customer.id)) - ar0, 1101)
+  const back = await must('POST', '/sales', {
+    saleDate: '2026-07-14', partnerId: f.customer.id, warehouseId: f.warehouse.id, taxable: true,
+    returnSlip: true, lines: [{ itemId: f.product.id, quantity: 3, unitPrice: 333.5 }],
+  })
+  eq('[일관성] 같은 값 반품은 -1,101 (음수도 크기를 반올림)', Number(back.totalAmount), -1101)
+  eq('[일관성] 반품 뒤 채권이 처음으로 돌아온다', (await arOf(f.customer.id)) - ar0, 0)
+  const low = await must('POST', '/sales', {
+    saleDate: '2026-07-14', partnerId: f.customer.id, warehouseId: f.warehouse.id, taxable: true,
+    lines: [{ itemId: f.product.id, quantity: 3, unitPrice: 333.35 }],
+  })
+  eq('[원본] 판매 3 × 333.35 → 공급가액 1,000', Number(low.supplyAmount), 1000)
+  const ap0 = await apOf(f.supplier.id)
+  const halfP = await must('POST', '/purchases', {
+    partnerId: f.supplier.id, warehouseId: f.warehouse.id, purchaseDate: '2026-07-14', taxable: true,
+    lines: [{ itemId: f.material.id, quantity: 3, unitPrice: 333.5 }],
+  })
+  eq('[원본] 구매 3 × 333.5 → 공급가액 1,001 · 합계 1,101',
+    `${Number(halfP.supplyAmount)}/${Number(halfP.totalAmount)}`, '1001/1101')
+  eq('[일관성] 채무가 합계 1,101 만큼 는다', (await apOf(f.supplier.id)) - ap0, 1101)
+  for (const s of [half, back, low]) await must('DELETE', `/sales/${s.id}`)
+  await must('DELETE', `/purchases/${halfP.id}`)
+  eq('[일관성] 지우면 채권·채무가 처음으로', `${(await arOf(f.customer.id)) - ar0}/${(await apOf(f.supplier.id)) - ap0}`, '0/0')
+
   // 이 시나리오가 만든 발주·입고전표도 치운다. 입고전표를 지우면 발주가 '발주확정' 으로
   // 돌아가므로 순서는 입고 → 발주다. 매 회차 입고전표 1장이 남던 자리다.
   await must('DELETE', `/purchases/${purchase2.id}`)
@@ -4259,9 +4302,18 @@ async function scenarioDoubleProcess(f) {
 
   // ── 재고실사 반영: 두 번 하면 재고가 두 번 바뀐다
   const before = await qtyOf(f.product.id, f.warehouse.id)
+  /*
+   * 반영은 <b>오늘 날짜</b> 재고조정이고, 재고조정은 그날 재고(현재고 − 그날 뒤 변동)에 맞춘다(4060c2ee).
+   * 실사수량을 현재고 + 10 으로 잡으면 앞날짜 전표가 쌓인 DB 에서는 차이가 +10 이 아니게 된다 —
+   * 2026-10-06 개발 DB 의 앞날짜(2027-05-01) 조정 찌꺼기 때문에 '요청 1,757,987' 로 거절됐다.
+   * 그래서 오늘 재고 + 10 으로 실사한다. 현재고도 정확히 10 늘어야 한다.
+   */
+  const today = new Date(Date.now() + 9 * 3600_000).toISOString().slice(0, 10)
+  const todayQty = Number((await must('GET', `/stock?asOf=${today}`))
+    .find((r) => r.itemId === f.product.id && r.warehouseId === f.warehouse.id)?.quantity ?? 0)
   const staged = await must('POST', '/staged-adjustments', {
-    itemId: f.product.id, warehouseId: f.warehouse.id, actualQty: before + 10,
-    requestDate: '2026-07-14', reason: `${P}이중반영검증`,
+    itemId: f.product.id, warehouseId: f.warehouse.id, actualQty: todayQty + 10,
+    requestDate: today, reason: `${P}이중반영검증`,
   })
   await must('POST', `/staged-adjustments/${staged.id}/apply`)
   const afterOnce = await qtyOf(f.product.id, f.warehouse.id)
@@ -4279,7 +4331,7 @@ async function scenarioDoubleProcess(f) {
   // 되돌린다 — 반영된 실사는 지울 수 없으므로 반대 방향 조정으로 원복한다
   await must('POST', '/stock-adjustments', {
     type: 'ADJUST', itemId: f.product.id, warehouseId: f.warehouse.id,
-    actualQty: before, reason: `${P}이중반영검증 원복`,   // 오늘 — 지난 날짜면 그날 재고와 비교한다(55회차)
+    actualQty: todayQty, reason: `${P}이중반영검증 원복`,   // 오늘 재고로 되돌린다 — 현재고(before)로 맞추면 앞날짜 전표만큼 어긋난다
   })
   eq('원복하면 처음 재고로 돌아온다', await qtyOf(f.product.id, f.warehouse.id), before)
 
@@ -6842,10 +6894,15 @@ async function scenarioDailyWorkTax() {
   }
 
   /* 68회차 — 원천징수이행상황신고서가 근로소득(급여명세)만 세어 일용근로 원천세가 빠졌다. */
+  /* 그 달에 지급까지 끝낸 출역(삭제 불가)이 남아 있을 수 있어 넣기 전후의 차이로 본다. */
+  const a03Of = (s) => s.sections.find((x) => x.code === 'A03')
+  const st0 = await must('GET', '/withholding/statement?month=2091-05')
   const dw = await must('POST', '/daily-works', { employeeId: emp.id, workDate: '2091-05-20', dailyWage: 200_000, workHours: 8 })
   const st = await must('GET', '/withholding/statement?month=2091-05')
-  const a03 = st.sections.find((x) => x.code === 'A03')
-  eq('신고서에 일용근로(A03) 줄이 있다 — 소득세 1,350 · 지방 130', `${Number(a03?.incomeTax)} ${Number(a03?.localIncomeTax)}`, '1350 130')
+  const a03 = a03Of(st)
+  const a030 = a03Of(st0)
+  eq('신고서에 일용근로(A03) 줄이 있다 — 소득세 1,350 · 지방 130',
+    `${Number(a03?.incomeTax) - Number(a030?.incomeTax ?? 0)} ${Number(a03?.localIncomeTax) - Number(a030?.localIncomeTax ?? 0)}`, '1350 130')
   eq('납부할 세액 = 소득구분 줄의 합', Number(st.grandWithheld),
     st.sections.reduce((t, x) => t + Number(x.incomeTax) + Number(x.localIncomeTax), 0))
   await must('DELETE', `/daily-works/${dw.id}`)
@@ -6856,20 +6913,23 @@ async function scenarioDailyWorkTax() {
     (await must('GET', `/journals?from=${date}&to=${date}&all=true`)).rows.find((j) => j.docNo === docNo)
   const side = (j, code, k) => Number(j?.lines.find((l) => l.accountCode === code)?.[k] ?? 0)
 
-  const cashDw = await must('POST', '/daily-works', { employeeId: emp.id, workDate: '2091-05-21', dailyWage: 200_000, workHours: 8 })
-  const [paidCash] = await must('POST', '/daily-works/pay', { ids: [cashDw.id], paidDate: '2091-05-31' })
+  /* 지급한 출역은 지울 수 없어(지급취소가 없다) 실행마다 다른 해를 쓴다. 같은 날을 쓰면 두 번째 실행이
+     '이미 등록된 출역' 409 로 멈추고, 남은 원천세가 위 2091-05 신고서 단언을 깨뜨렸다(2026-10-06). */
+  const payY = 2200 + (Math.floor(Date.now() / 1000) % 700)
+  const cashDw = await must('POST', '/daily-works', { employeeId: emp.id, workDate: `${payY}-05-21`, dailyWage: 200_000, workHours: 8 })
+  const [paidCash] = await must('POST', '/daily-works/pay', { ids: [cashDw.id], paidDate: `${payY}-05-31` })
   eq('현금 지급에 회계전표가 붙는다', String(paidCash.journalNo).startsWith('GL-'), 'true')
-  const jc = await journalOf(paidCash.journalNo, '2091-05-31')
+  const jc = await journalOf(paidCash.journalNo, `${payY}-05-31`)
   eq('현금 지급 분개 — 차)잡급 200,000 / 대)예수금 1,480 · 현금 198,520',
     `${side(jc, '805', 'debit')} ${side(jc, '254', 'credit')} ${side(jc, '101', 'credit')}`, '200000 1480 198520')
   eq('일용직 지급 분개가 대차평형', Number(jc?.totalDebit), Number(jc?.totalCredit))
-  await rejects('이미 지급한 출역 재지급은 거부', 'POST', '/daily-works/pay', { ids: [cashDw.id], paidDate: '2091-05-31' }, '이미 지급')
+  await rejects('이미 지급한 출역 재지급은 거부', 'POST', '/daily-works/pay', { ids: [cashDw.id], paidDate: `${payY}-05-31` }, '이미 지급')
 
   const bank = (await must('GET', '/bank-cards/accounts')).find((a) => a.active && Number(a.balance) >= 198_520)
   if (bank) {
-    const bankDw = await must('POST', '/daily-works', { employeeId: emp.id, workDate: '2091-05-22', dailyWage: 200_000, workHours: 8 })
-    const [paidBank] = await must('POST', '/daily-works/pay', { ids: [bankDw.id], paidDate: '2091-05-31', bankAccountId: bank.id })
-    const jb = await journalOf(paidBank.journalNo, '2091-05-31')
+    const bankDw = await must('POST', '/daily-works', { employeeId: emp.id, workDate: `${payY}-05-22`, dailyWage: 200_000, workHours: 8 })
+    const [paidBank] = await must('POST', '/daily-works/pay', { ids: [bankDw.id], paidDate: `${payY}-05-31`, bankAccountId: bank.id })
+    const jb = await journalOf(paidBank.journalNo, `${payY}-05-31`)
     eq('계좌 지급은 대변이 그 계좌의 예금계정', side(jb, bank.glAccountCode, 'credit'), 198_520)
     const after = (await must('GET', '/bank-cards/accounts')).find((a) => a.id === bank.id)
     eq('계좌 지급만큼 잔액이 줄어든다', Number(after.balance), Number(bank.balance) - 198_520)

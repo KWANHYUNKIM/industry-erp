@@ -300,7 +300,7 @@ public class PurchaseService {
         boolean taxable = slip.isTaxable();
         List<PurchaseLine> lines = slip.getLines();
         List<BigDecimal> supplies = lines.stream()
-                .map(l -> l.getQuantity().multiply(l.getUnitPrice()))
+                .map(l -> VatAllocator.lineSupply(l.getQuantity(), l.getUnitPrice()))
                 .toList();
         List<BigDecimal> vats = VatAllocator.allocate(supplies, VAT_RATE, taxable, slip.isVatBySlip());
 
@@ -474,7 +474,7 @@ public class PurchaseService {
         purchase.setVatBySlip(vatBySlip);
         BigDecimal sign = isReturn ? BigDecimal.ONE.negate() : BigDecimal.ONE;
         List<BigDecimal> supplies = req.lines().stream()
-                .map(lr -> lr.quantity().multiply(lr.unitPrice()).multiply(sign))
+                .map(lr -> VatAllocator.lineSupply(lr.quantity(), lr.unitPrice()).multiply(sign))
                 .toList();
         List<BigDecimal> vats = VatAllocator.allocate(supplies, VAT_RATE, taxable, vatBySlip);
 
