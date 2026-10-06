@@ -401,10 +401,19 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
     const ids = shown.filter((d) => selected.has(d.id)).map((d) => d.id)
     if (ids.length === 0) { setError('지울 전표를 고르세요. 행번호 칸을 누르면 선택됩니다.'); return }
     if (!confirm(`전표 ${ids.length}건을 지울까요? 재고도 함께 되돌아갑니다.`)) return
+    /*
+     * 원본 판매조회는 회계반영된 판매를 지우면 '회계반영된 전표의 경우, 매출전표의 삭제 여부를 선택해주시기 바랍니다'
+     * 창을 띄우고 [매출전표포함](기본 체크)으로 회계전표까지 같이 지운다(2026-10-06 loginaa 실측).
+     * 포함하지 않고 판매만 지우는 길은 원본도 '거래불일치가 발생할 수 있다' 고 경고하는 길이라 두지 않는다.
+     */
+    const reflected = isSales ? shown.filter((d) => selected.has(d.id) && d.accountingReflected) : []
+    if (reflected.length > 0 && !confirm(
+      `회계반영된 전표 ${reflected.length}건(${reflected.map((d) => d.docNo).join(', ')})은 매출전표(회계전표)까지 함께 지웁니다. 계속할까요?`)) return
     const failed: string[] = []
     for (const id of ids) {
       try {
-        await api.delete(`${cfg.url}/${id}`)
+        if (reflected.some((d) => d.id === id)) await api.post('/accounting-reflection/delete-sales-with-journal', { kind: 'SALES', ids: [id] })
+        else await api.delete(`${cfg.url}/${id}`)
       } catch (err) {
         const doc = shown.find((d) => d.id === id)
         failed.push(`${doc?.docNo ?? id}: ${extractErrorMessage(err)}`)

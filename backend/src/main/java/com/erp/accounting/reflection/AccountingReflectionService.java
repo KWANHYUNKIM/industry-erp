@@ -15,6 +15,7 @@ import com.erp.accounting.reflection.dto.AccountingReflectionDtos.SlipKind;
 import com.erp.accounting.reflection.dto.AccountingReflectionDtos.SlipResponse;
 import com.erp.trade.purchase.PurchaseRepository;
 import com.erp.trade.sales.SalesRepository;
+import com.erp.trade.sales.SalesService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +35,32 @@ public class AccountingReflectionService {
     private final SettlementRepository settlementRepository;
     private final JournalEntryRepository entryRepository;
     private final JournalService journalService;
+    private final SalesService salesService;
+
+    /**
+     * 회계반영된 판매를 <b>매출전표(회계전표)까지 함께</b> 지운다 — 원본 판매조회 [선택삭제]의 [매출전표포함].
+     *
+     * <p>2026-10-06 loginaa 실측: 반영된 판매(2026/10/06-9)를 선택삭제하자 '회계반영된 전표의 경우, 매출전표의 삭제 여부를
+     * 선택해주시기 바랍니다' 창에 판매전표 · 연결회계전표 · [매출전표포함](기본 체크)이 떴고, 삭제하자 회계전표 ·
+     * 세금계산서까지 같이 사라졌다. 우리는 '회계반영을 먼저 취소하세요' 로 막아 두 번 일해야 했다.
+     * 분개 삭제 → 반영 표시 내림 → 판매 삭제(재고 되돌림)를 <b>한 트랜잭션</b>에서 해서 어느 하나만 남는 일이 없다.
+     * 반영 안 된 판매도 받는다(그냥 지운다). 판매가 확인 · 결재중 · 세금계산서 발행이면 판매 쪽 규칙대로 거절된다.
+     */
+    @Transactional
+    public ReflectResult deleteSalesWithJournal(List<Long> ids, String username) {
+        if (ids.isEmpty()) throw ApiException.badRequest("지울 전표를 선택하세요.");
+        int count = 0;
+        for (Sales s : salesRepository.findAllById(ids)) {
+            if (s.isAccountingReflected()) {
+                journalService.deleteBySource(JournalSourceType.SALES, s.getId());
+                s.setAccountingReflected(false);
+                salesRepository.flush();
+            }
+            salesService.delete(s.getId(), username);
+            count++;
+        }
+        return new ReflectResult(count);
+    }
 
     @Transactional(readOnly = true)
     public List<SlipResponse> list(SlipKind kind, boolean onlyUnreflected) {

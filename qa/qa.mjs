@@ -1628,8 +1628,21 @@ async function scenarioPurchaseOrder(f) {
   eq('[일관성] 반영 분개 대차평형', Number(gl?.totalDebit), Number(gl?.totalCredit))
   eq('[원본] 전표 적요 "매출 : 세금계산서 / 거래처 / 1,001 / 100"', gl?.description, `매출 : 세금계산서 / ${f.customer.name} / 1,001 / 100`)
   eq('[원본] 줄 적요는 품목명', [...new Set(gl?.lines.map((l) => l.description))].join(','), f.product.name)
-  await must('POST', '/accounting-reflection/unreflect', { kind: 'SALES', ids: [posted.id] })
-  for (const s of [typed, typedBack, typedVat, vatFree, posted]) await must('DELETE', `/sales/${s.id}`)
+  /*
+   * [원본] 반영된 판매를 [매출전표포함]으로 지운다 — 2026-10-06 loginaa: 판매 · 회계전표 · 세금계산서가 같이 사라졌다.
+   * 그냥 DELETE 는 예전처럼 막히고, 함께 지우는 길은 한 번에 판매 · 분개 · 재고를 되돌린다.
+   */
+  await rejects('반영된 판매를 그냥 지우면 거절', 'DELETE', `/sales/${posted.id}`, undefined, '회계반영')
+  const stockBeforeDel = Number((await must('GET', '/stock')).find((r) => r.itemId === f.product.id && r.warehouseId === f.warehouse.id)?.quantity ?? 0)
+  const del = await must('POST', '/accounting-reflection/delete-sales-with-journal', { kind: 'SALES', ids: [posted.id] })
+  eq('[원본] 매출전표포함 삭제 — 한 건', del.reflectedCount, 1)
+  const salesNow = await must('GET', '/sales')
+  eq('[일관성] 판매가 사라진다', (salesNow.content ?? salesNow.rows ?? salesNow).some((x) => x.id === posted.id), false)
+  eq('[일관성] 연결된 분개도 사라진다',
+    (await must('GET', '/journals?from=2026-07-14&to=2026-07-14&all=true')).rows.some((j) => j.sourceType === 'SALES' && j.sourceId === posted.id), false)
+  eq('[일관성] 출고한 3개가 창고로 돌아온다',
+    Number((await must('GET', '/stock')).find((r) => r.itemId === f.product.id && r.warehouseId === f.warehouse.id)?.quantity ?? 0) - stockBeforeDel, 3)
+  for (const s of [typed, typedBack, typedVat, vatFree]) await must('DELETE', `/sales/${s.id}`)
   await must('DELETE', `/purchases/${typedP.id}`)
   eq('[일관성] 지우면 채권이 처음으로', (await arOf(f.customer.id)) - ar1, 0)
 

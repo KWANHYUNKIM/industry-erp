@@ -33,6 +33,13 @@ public class AccountingReflectionController {
         return ResponseEntity.ok(service.reflect(req));
     }
 
+    /** 회계반영된 판매를 매출전표(분개)까지 함께 삭제 — 원본 [선택삭제]의 [매출전표포함]. */
+    @PostMapping("/delete-sales-with-journal")
+    public ResponseEntity<ReflectResult> deleteSalesWithJournal(@Valid @RequestBody ReflectRequest req,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.erp.security.UserPrincipal principal) {
+        return ResponseEntity.ok(service.deleteSalesWithJournal(req.ids(), principal.getUsername()));
+    }
+
     /** 선택 전표 회계반영 취소 (연결 분개 전표 삭제) */
     @PostMapping("/unreflect")
     public ResponseEntity<ReflectResult> unreflect(@Valid @RequestBody ReflectRequest req) {
