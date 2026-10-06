@@ -86,6 +86,23 @@ export default function CodePickerField({
     setOpen(true)
   }
   const [q, setQ] = useState('')
+  /**
+   * 전표 코드칸(pair)에 <b>직접 친 글자</b>. 원본 판매입력 [거래처]·[출하창고]는 코드칸에 바로 쳐서 Enter 한다 —
+   * 2026-10-06 loginaa 실측: 걸리는 것이 한 건이면 바로 고르고(창고 '10'… 은 100·101·102 셋이라 창),
+   * 정확히 같은 코드가 있어도 다른 코드에 함께 걸리면(거래처 '00001' → 00001 · 0000000000001 · SG00001) 고르지 않고
+   * 그 검색어로 목록 창을 연다. 없으면 빈 목록 창. 예전엔 코드칸이 읽기 전용이라 먼저 창부터 열렸다.
+   */
+  const [typed, setTyped] = useState<string | null>(null)
+  function submitTyped() {
+    const needle = (typed ?? '').trim()
+    setTyped(null)
+    if (!needle) { setOpen(true); return }
+    const low = needle.toLowerCase()
+    const hits = items.filter((i) => `${i.code ?? ''} ${i.name}`.toLowerCase().includes(low))
+    if (hits.length === 1) { pick(hits[0]); return }
+    setQ(needle)
+    setOpen(true)
+  }
 
   const picked = values ?? []
   const selected = items.find((i) => i.value === value) ?? null
@@ -145,12 +162,15 @@ export default function CodePickerField({
         <div className="ec-code">
           <input
             className="ec-input code"
-            readOnly
             disabled={disabled}
-            value={selected?.code ?? ''}
+            value={typed ?? selected?.code ?? ''}
             placeholder={label}
-            onClick={(e) => !disabled && openFrom(e)}
-            style={{ background: disabled ? '#f4f5f7' : undefined, cursor: disabled ? 'default' : 'pointer' }}
+            onChange={(e) => setTyped(e.target.value)}
+            // <form> 안에서 Enter 가 바깥 폼을 제출하지 않게 막는다
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submitTyped() } }}
+            // 고르지 않고 떠나면 친 글자를 버리고 원래 값으로 돌아간다
+            onBlur={() => setTyped(null)}
+            style={{ background: disabled ? '#f4f5f7' : undefined }}
           />
           <button
             type="button"
