@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { SalesDoc, PurchaseDoc } from '../../api/types'
+import type { SalesDoc, PurchaseDoc } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import { INQUIRY_PICKS, ymd } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
@@ -49,8 +49,14 @@ export default function DailyReportPage() {
     setLoading(true); setError('')
     try {
       const [s, p, m] = await Promise.all([
-        api.get<SalesDoc[]>('/sales'),
-        api.get<PurchaseDoc[]>('/purchases'),
+        /*
+         * <b>기간을 서버에 넘긴다.</b> 여태 전 기간을 받아 아래에서 걸렀다 —
+         * 일보는 하루치를 보는 화면인데 판매·구매 전표를 <b>통째로</b> 실어 오고 있었다.
+         * 이 화면이 그 둘로 하는 일은 구간 집계와 펼친 하루뿐이고, 펼친 날은 위 useEffect 가
+         * <b>늘 구간 안으로 되돌린다</b>(구간 밖이면 마지막 날로 옮긴다). 그래서 좁혀도 같다.
+         */
+        api.get<SalesDoc[]>('/sales', { params: { from, to } }),
+        api.get<PurchaseDoc[]>('/purchases', { params: { from, to } }),
         api.get<MovementRow[]>('/stock/movement', { params: { from, to } }),
       ])
       setSales(s.data); setPurchases(p.data); setMovement(m.data)
@@ -69,16 +75,16 @@ export default function DailyReportPage() {
 
   /** 조건(거래처·품목)은 두 표에 같은 규칙으로 걸려야 한다 — 한 곳에 적는다. */
   const hitSales = (d: SalesDoc) =>
-    (!partner || d.partnerName.includes(partner))
-    && (!item || d.lines.some((l) => l.itemName.includes(item)))
-    && (!warehouse || d.warehouseName.includes(warehouse))
-    && (!project || (d.projectName ?? '').includes(project))
+    (!partner || String(d.partnerId) === partner)
+    && (!item || d.lines.some((l) => String(l.itemId) === item))
+    && (!warehouse || String(d.warehouseId) === warehouse)
+    && (!project || String(d.projectId) === project)
     && mgmt.hits(d.lines.map((l) => l.itemId), mgmtCond)
   const hitPurch = (d: PurchaseDoc) =>
-    (!partner || d.partnerName.includes(partner))
-    && (!item || d.lines.some((l) => l.itemName.includes(item)))
-    && (!warehouse || d.warehouseName.includes(warehouse))
-    && (!project || (d.projectName ?? '').includes(project))
+    (!partner || String(d.partnerId) === partner)
+    && (!item || d.lines.some((l) => String(l.itemId) === item))
+    && (!warehouse || String(d.warehouseId) === warehouse)
+    && (!project || String(d.projectId) === project)
     && mgmt.hits(d.lines.map((l) => l.itemId), mgmtCond)
 
   const inRange = (d: string) => (!from || d >= from) && (!to || d <= to)
@@ -126,8 +132,8 @@ export default function DailyReportPage() {
   const kpis = [
     { label: '매출', sub: `${periodSum.sCount}건`, value: periodSum.sAmt, color: 'var(--ec-blue)' },
     { label: '매입', sub: `${periodSum.pCount}건`, value: periodSum.pAmt, color: '#a5561b' },
-    { label: '입고수량', sub: '기간', value: moveSum.inQty, color: '#1c7c3c' },
-    { label: '출고수량', sub: '기간', value: moveSum.outQty, color: '#c07a00' },
+    { label: '입고수량', sub: '기간', value: moveSum.inQty, color: 'var(--ec-success)' },
+    { label: '출고수량', sub: '기간', value: moveSum.outQty, color: 'var(--ec-warn)' },
   ]
 
   const reset = () => {
@@ -179,58 +185,58 @@ export default function DailyReportPage() {
         </EcCond>
       </EcStatusPanel>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       {/* KPI 카드 */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+      <div className="flex gap-[8px] mb-[14px] flex-wrap">
         {kpis.map((k) => (
-          <div key={k.label} style={{ flex: '1 1 0', minWidth: 150, border: '1px solid #e2e6eb', borderRadius: 6, padding: '10px 14px', background: '#fbfcfe' }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: k.color }}>{k.label}<span style={{ fontSize: 11, fontWeight: 400, color: '#9aa1ab' }}> · {k.sub}</span></div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#3c4553', lineHeight: 1.2, marginTop: 4 }}>{won(k.value)}</div>
+          <div key={k.label} style={{ flex: '1 1 0', minWidth: 150, border: '1px solid #e2e6eb', borderRadius: 6, padding: '10px 14px', background: 'var(--ec-bg-page)' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: k.color }}>{k.label}<span className="text-[11px] font-normal text-ec-hint"> · {k.sub}</span></div>
+            <div className="text-[20px] font-bold text-ec-text leading-[1.2] mt-[4px]">{won(k.value)}</div>
           </div>
         ))}
       </div>
 
       {/* 일자별 요약 — 구간 조회의 본체. 줄을 누르면 아래에 그날 전표가 펼쳐진다. */}
-      <table className="w-full text-left" style={{ marginBottom: 14 }}>
+      <table className="w-full text-left mb-[14px]">
         <colgroup>
-          <col style={{ width: '5%' }} /><col style={{ width: '18%' }} />
-          <col style={{ width: '10%' }} /><col /><col style={{ width: '10%' }} /><col />
+          <col className="w-[5%]" /><col className="w-[18%]" />
+          <col className="w-[10%]" /><col /><col className="w-[10%]" /><col />
         </colgroup>
         <thead>
           <tr>
             <th></th><th>일자</th>
-            <th style={{ textAlign: 'right' }}>매출건수</th>
-            <th style={{ textAlign: 'right' }}>매출액</th>
-            <th style={{ textAlign: 'right' }}>매입건수</th>
-            <th style={{ textAlign: 'right' }}>매입액</th>
+            <th className="text-right">매출건수</th>
+            <th className="text-right">매출액</th>
+            <th className="text-right">매입건수</th>
+            <th className="text-right">매입액</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+            <tr><td colSpan={6} className="text-center text-ec-ink">불러오는 중…</td></tr>
           ) : daily.length === 0 ? (
-            <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={6} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
           ) : daily.map((r, i) => (
             <tr key={r.date}
                 onClick={() => setDate(r.date)}
-                style={{ cursor: 'pointer', background: r.date === date ? '#eef5ff' : undefined }}>
-              <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+                style={{ cursor: 'pointer', background: r.date === date ? 'var(--ec-blue-wash)' : undefined }}>
+              <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
               <td>{r.date.replace(/-/g, '/')}</td>
-              <td style={{ textAlign: 'right', color: '#8a929c' }}>{r.sCount || ''}</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{r.sAmt ? won(r.sAmt) : ''}</td>
-              <td style={{ textAlign: 'right', color: '#8a929c' }}>{r.pCount || ''}</td>
+              <td className="text-right text-ec-hint">{r.sCount || ''}</td>
+              <td className="text-right text-ec-blue">{r.sAmt ? won(r.sAmt) : ''}</td>
+              <td className="text-right text-ec-hint">{r.pCount || ''}</td>
               <td style={{ textAlign: 'right', color: '#a5561b' }}>{r.pAmt ? won(r.pAmt) : ''}</td>
             </tr>
           ))}
         </tbody>
         {daily.length > 0 && (
           <tfoot>
-            <tr style={{ fontWeight: 700, background: '#f5f7fa' }}>
-              <td colSpan={2} style={{ textAlign: 'right' }}>합계</td>
-              <td style={{ textAlign: 'right' }}>{won(periodSum.sCount)}</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(periodSum.sAmt)}</td>
-              <td style={{ textAlign: 'right' }}>{won(periodSum.pCount)}</td>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={2} className="text-right">합계</td>
+              <td className="text-right">{won(periodSum.sCount)}</td>
+              <td className="text-right text-ec-blue">{won(periodSum.sAmt)}</td>
+              <td className="text-right">{won(periodSum.pCount)}</td>
               <td style={{ textAlign: 'right', color: '#a5561b' }}>{won(periodSum.pAmt)}</td>
             </tr>
           </tfoot>
@@ -238,32 +244,32 @@ export default function DailyReportPage() {
       </table>
 
       {loading ? null : (
-        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+        <div className="flex gap-[16px] flex-wrap items-start">
           {/* 매출 전표 */}
           <div style={{ flex: '1 1 340px', minWidth: 320 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ec-blue)', margin: '0 0 6px' }}>{date.replace(/-/g, '/')} 매출 전표 ({daySales.length})</div>
+            <div className="text-[13px] font-bold text-ec-blue mt-0 mx-0 mb-[6px]">{date.replace(/-/g, '/')} 매출 전표 ({daySales.length})</div>
             <table className="w-full text-left">
               <thead>
-                <tr><th style={{ width: 34 }}></th><th>전표번호</th><th>매출처</th><th style={{ textAlign: 'right' }}>공급가</th><th style={{ textAlign: 'right' }}>합계</th></tr>
+                <tr><th className="w-[34px]"></th><th>전표번호</th><th>매출처</th><th className="text-right">공급가</th><th className="text-right">합계</th></tr>
               </thead>
               <tbody>
                 {daySales.length === 0 ? (
-                  <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>해당 일자 매출 없음</td></tr>
+                  <tr><td colSpan={5} className="text-center text-ec-hint p-[16px]">해당 일자 매출 없음</td></tr>
                 ) : daySales.map((d, i) => (
                   <tr key={d.id}>
-                    <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                    <td style={{ fontFamily: 'monospace' }}>{d.docNo}</td>
+                    <td className="text-center text-ec-hint">{i + 1}</td>
+                    <td>{d.docNo}</td>
                     <td>{d.partnerName}</td>
-                    <td style={{ textAlign: 'right' }}>{won(d.supplyAmount)}</td>
-                    <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(d.totalAmount)}</td>
+                    <td className="text-right">{won(d.supplyAmount)}</td>
+                    <td className="text-right font-semibold text-ec-blue">{won(d.totalAmount)}</td>
                   </tr>
                 ))}
               </tbody>
               {daySales.length > 0 && (
-                <tfoot><tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
-                  <td colSpan={3} style={{ textAlign: 'right' }}>합계</td>
-                  <td style={{ textAlign: 'right' }}>{won(salesSum.supply)}</td>
-                  <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(salesSum.total)}</td>
+                <tfoot><tr className="font-bold bg-ec-page">
+                  <td colSpan={3} className="text-right">합계</td>
+                  <td className="text-right">{won(salesSum.supply)}</td>
+                  <td className="text-right text-ec-blue">{won(salesSum.total)}</td>
                 </tr></tfoot>
               )}
             </table>
@@ -274,25 +280,25 @@ export default function DailyReportPage() {
             <div style={{ fontSize: 13, fontWeight: 700, color: '#a5561b', margin: '0 0 6px' }}>{date.replace(/-/g, '/')} 매입 전표 ({dayPurch.length})</div>
             <table className="w-full text-left">
               <thead>
-                <tr><th style={{ width: 34 }}></th><th>전표번호</th><th>매입처</th><th style={{ textAlign: 'right' }}>공급가</th><th style={{ textAlign: 'right' }}>합계</th></tr>
+                <tr><th className="w-[34px]"></th><th>전표번호</th><th>매입처</th><th className="text-right">공급가</th><th className="text-right">합계</th></tr>
               </thead>
               <tbody>
                 {dayPurch.length === 0 ? (
-                  <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>해당 일자 매입 없음</td></tr>
+                  <tr><td colSpan={5} className="text-center text-ec-hint p-[16px]">해당 일자 매입 없음</td></tr>
                 ) : dayPurch.map((d, i) => (
                   <tr key={d.id}>
-                    <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                    <td style={{ fontFamily: 'monospace' }}>{d.docNo}</td>
+                    <td className="text-center text-ec-hint">{i + 1}</td>
+                    <td>{d.docNo}</td>
                     <td>{d.partnerName}</td>
-                    <td style={{ textAlign: 'right' }}>{won(d.supplyAmount)}</td>
+                    <td className="text-right">{won(d.supplyAmount)}</td>
                     <td style={{ textAlign: 'right', fontWeight: 600, color: '#a5561b' }}>{won(d.totalAmount)}</td>
                   </tr>
                 ))}
               </tbody>
               {dayPurch.length > 0 && (
-                <tfoot><tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
-                  <td colSpan={3} style={{ textAlign: 'right' }}>합계</td>
-                  <td style={{ textAlign: 'right' }}>{won(purchSum.supply)}</td>
+                <tfoot><tr className="font-bold bg-ec-page">
+                  <td colSpan={3} className="text-right">합계</td>
+                  <td className="text-right">{won(purchSum.supply)}</td>
                   <td style={{ textAlign: 'right', color: '#a5561b' }}>{won(purchSum.total)}</td>
                 </tr></tfoot>
               )}

@@ -1,0 +1,50 @@
+{
+  "about": "영업 한 바퀴를 화면으로 — 견적 작성 → 수주전환 → 미출하현황에서 출하지시 → 출하지시서에서 출하완료 → 주문이 완료로. node qa/shot.mjs qa/flows/sales-cycle.json — 만든 전표는 끝에 지운다. 견적 목록은 번호를 원본처럼 '2026/10/01 -5' 로 적는다.",
+  "shots": [
+    {
+      "name": "견적서 작성 → 번호와 함께 '작성 완료', [수주전환] → 수주 번호",
+      "path": "/sales/quotations",
+      "steps": [
+        "click:신규 견적",
+        "clicklast:거래처 선택",
+        "pickrow:QA-CUST",
+        "clicklast:품목 선택",
+        "pickrow:QA-PROD",
+        "set:tbody tr:has(button[title=\"품목 선택\"]) input[type=number]#0|2",
+        "set:tbody tr:has(button[title=\"품목 선택\"]) input[type=number]#1|1000",
+        "click:저장(F8)",
+        "expect:/QT-[0-9]{8}-[0-9]{4} 견적서 작성 완료/.test(document.body.innerText)",
+        "js:sessionStorage.setItem('qaQuote', document.body.innerText.match(/QT-[0-9]{8}-[0-9]{4}(?= 견적서 작성 완료)/)[0]); true",
+        "js:{ const q = sessionStorage.getItem('qaQuote'); const [, d, n] = q.split('-'); sessionStorage.setItem('qaQuoteRow', d.slice(0,4)+'/'+d.slice(4,6)+'/'+d.slice(6)+' -'+Number(n)); } true",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes(sessionStorage.getItem('qaQuoteRow')))",
+        "js:let n = 0; window.confirm = () => n++ === 0; [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('qaQuoteRow'))).querySelectorAll('button').forEach((b) => { if (b.textContent.trim() === '수주전환') b.click() }); true",
+        "expect:/수주 SN-[0-9]{8}-[0-9]{4} 생성됨/.test(document.body.innerText)",
+        "js:sessionStorage.setItem('qaOrder', document.body.innerText.match(/SN-[0-9]{8}-[0-9]{4}(?= 생성됨)/)[0]); true"
+      ]
+    },
+    {
+      "name": "미출하현황 — 전환된 주문이 보이고 [출하지시]",
+      "path": "/sales/unshipped",
+      "steps": [
+        "expect:document.body.innerText.includes(sessionStorage.getItem('qaOrder').replace(/^[A-Z]+-(\\d{4})(\\d{2})(\\d{2})-0*(\\d+)$/, '$1/$2/$3 -$4'))",
+        "js:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('qaOrder').replace(/^[A-Z]+-(\\d{4})(\\d{2})(\\d{2})-0*(\\d+)$/, '$1/$2/$3 -$4'))).querySelectorAll('button').forEach((b) => { if (b.textContent.trim() === '출하지시') b.click() }); true",
+        "expect:/출하지시 SH-[0-9]{8}-[0-9]{4} 생성됨/.test(document.body.innerText)",
+        "js:sessionStorage.setItem('qaShip', document.body.innerText.match(/SH-[0-9]{8}-[0-9]{4}(?= 생성됨)/)[0]); true"
+      ]
+    },
+    {
+      "name": "출하지시서 — [→ 출하완료] 를 누르면 그 줄의 버튼이 사라지고(완료), 주문도 완료. 뒷정리는 주문 → 견적 차례(전환된 견적은 주문이 있으면 못 지운다)",
+      "path": "/sales/shipment-order",
+      "steps": [
+        "expect:document.body.innerText.includes(sessionStorage.getItem('qaShip'))",
+        "js:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('qaShip'))).querySelectorAll('button').forEach((b) => { if (b.textContent.trim() === '→ 출하완료') b.click() }); true",
+        "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('qaShip'))); return tr && ![...tr.querySelectorAll('button')].some((b) => b.textContent.trim() === '→ 출하완료') })()",
+        "js:fetch('/api/sales-orders',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()).then((d)=>{sessionStorage.setItem('qaOrderStatus', d.find((o)=>o.orderNo===sessionStorage.getItem('qaOrder')).statusName);return true})",
+        "expect:sessionStorage.getItem('qaOrderStatus') === '완료'",
+        "apidel:/shipments|@qaShip|shipNo",
+        "apidel:/sales-orders|@qaOrder|orderNo",
+        "apidel:/quotations|@qaQuote|quoteNo"
+      ]
+    }
+  ]
+}

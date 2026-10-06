@@ -1,0 +1,27 @@
+{
+  "about": "A/S수리조회(E040606) [진행상태변경] · 탭 [전체 · 확인 · 진행중 · 완료] — 2026-10-04 원본 실측: 메뉴가 전표상태(확인) · 진행상태(진행중 · 완료)로 나뉘고, 수리 26건이 모두 확인이라 [확인] 탭 = 전체. 수리 하나를 진행중으로 만들어 골라 [진행상태변경] → [완료] → 서버 상태 COMPLETED · [완료] 탭에 보이는지 보고 지운다.",
+  "shots": [
+    {
+      "name": "진행중 수리 → 진행상태변경 완료 → 완료 탭 → 지움",
+      "path": "/quality/as-repair-list",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then((r) => r.json()); const [pa, it, wh] = await Promise.all([A('GET', '/partners'), A('GET', '/items'), A('GET', '/warehouses')]); const d = new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10); const r = await A('POST', '/as-repairs', { repairDate: d, partnerId: pa[0].id, charge: 'QA재고2', warehouseId: wh[0].id, title: 'QA재고2 상태변경', content: 'QA재고2', status: 'IN_PROGRESS', lines: [{ itemId: it[0].id, quantity: 1 }] }); sessionStorage.setItem('rscId', String(r.id)); return r.id })()",
+        "js:location.reload(); true",
+        "wait:3000",
+        "expect:[...document.querySelectorAll('.ec-pills .ec-pill')].map((b) => b.innerText.trim()).join('|') === '전체|확인|진행중|완료'",
+        "js:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('QA재고2 상태변경')); tr.querySelector('input[type=checkbox]').click(); return true })()",
+        "wait:300",
+        "js:[...document.querySelectorAll('button')].find((b) => b.innerText.trim() === '진행상태변경').click(); true",
+        "wait:500",
+        "js:[...document.querySelectorAll('.modal button, [role=dialog] button')].find((b) => b.innerText.trim() === '완료').click(); true",
+        "wait:1500",
+        "expect:(async () => { const r = await fetch('/api/as-repairs/' + sessionStorage.getItem('rscId'), { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((x) => x.json()); return r.status === 'COMPLETED' })()",
+        "js:[...document.querySelectorAll('.ec-pills .ec-pill')].find((b) => b.innerText.trim() === '완료').click(); true",
+        "wait:500",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes('QA재고2 상태변경'))",
+        "expect:(async () => { const r = await fetch('/api/as-repairs/' + sessionStorage.getItem('rscId'), { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }); return r.status === 204 })()"
+      ]
+    }
+  ]
+}

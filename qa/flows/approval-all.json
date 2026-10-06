@@ -1,0 +1,17 @@
+{
+  "about": "기안서통합관리(원본 E070108) — 알약 전체·기안중·진행중·반려·결재·삭제(건수 없음), 조건은 접혀 있고 빈 검색창에 [Search(F3)] 로 편다, 한 쪽 15줄 쪽번호 · 기간은 표 위 오른쪽. node qa/shot.mjs qa/flows/approval-all.json",
+  "shots": [
+    {
+      "name": "알약 · 접힌 조건 · 쪽번호",
+      "path": "/groupware/approval/all",
+      "steps": [
+        "expect:[...document.querySelectorAll('.ec-pills .ec-pill')].map((b) => b.textContent.trim()).join(',') === '전체,기안중,진행중,반려,결재,삭제'",
+        "expect:!document.querySelector('.ec-search-conds')",
+        "click:Search(F3)",
+        "expect:!!document.querySelector('.ec-search-conds')",
+        "expect:!!document.querySelector('.ec-paging .active') && document.querySelectorAll('tbody tr').length <= 15",
+        "expect:![...document.querySelectorAll('button')].some((b) => b.textContent.trim() === '새로고침')"
+      ]
+    }
+  ]
+}

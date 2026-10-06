@@ -1,0 +1,23 @@
+{
+  "about": "Invoice/Packing List Status(E040907) — 2026-10-04 원본 실측: 인보이스 품목 줄마다 한 행 [일자-No. · 품목명[규격] · Description of Goods · 수량 · 단가 · 금액 · 거래처명], 달마다 'YYYY/MM 계'(수량 · 단가 · 금액을 더한다) · 합계. 두 줄 인보이스(2×10 · 1×5)를 만들어 두 행 · 계 3 · 15 · 25 를 보고 지운다. 이어서 ○집계(집계조건1 품목명[규격]) → [품목명[규격] | 수량 | 공급가액] · 합계 3.00 · 25(원본: 공급가액은 소수 없이 242,400).",
+  "shots": [
+    {
+      "name": "두 줄 인보이스 → 두 행 · 계 3 · 15 · 25 → 지움",
+      "path": "/sales/export-status",
+      "steps": [
+        "wait:2000",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then((r) => r.json()); const [pa, it, cu] = await Promise.all([A('GET', '/partners'), A('GET', '/items'), A('GET', '/currencies')]); const c = pa.find((x) => x.type === 'CUSTOMER' || x.type === 'BOTH'); const usd = cu.find((x) => x.code === 'USD') ?? cu.find((x) => x.latestRate != null); const all = (await A('GET', '/exports')).exports; if (all.some((x) => x.voucherDate.slice(0, 7) === new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 7))) return 'SKIP-other-data'; const r = await A('POST', '/exports', { partnerId: c.id, currencyId: usd.id, remark: 'QA재고2', lines: [{ itemId: it[0].id, quantity: 2, unitPrice: 10, description: 'QA재고2 goods' }, { itemId: it[1].id, quantity: 1, unitPrice: 5 }] }); sessionStorage.setItem('esId', r.id); return r.invoiceNo })()",
+        "js:location.reload(); true",
+        "wait:3000",
+        "expect:[...document.querySelector('table thead tr').cells].map((c) => c.innerText.trim()).join('|') === '일자-No.|품목명[규격]|Description of Goods|수량|단가|금액|거래처명' && document.querySelector('.ec-report-title')?.innerText.trim() === 'Invoice/Packing List Status'",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA재고2 goods')) && [...document.querySelectorAll('tbody tr.ec-list-total')].some((tr) => tr.innerText.replace(/\\s+/g, ' ').includes('계 3 15 25'))",
+        "js:document.querySelectorAll('input[name=exs-gubun]')[1].click(); true",
+        "wait:500",
+        "js:(() => { const s = document.querySelector('input[name=exs-gubun]').closest('span').querySelector('select'); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s, '품목명[규격]'); s.dispatchEvent(new Event('change', { bubbles: true })); return true })()",
+        "wait:500",
+        "expect:[...document.querySelector('table thead tr').cells].map((c) => c.innerText.trim()).join('|') === '품목명[규격]|수량|공급가액' && document.querySelector('tfoot tr').innerText.replace(/\\s+/g, ' ').includes('합계 3.00 25')",
+        "expect:(async () => { const r = await fetch('/api/exports/' + sessionStorage.getItem('esId'), { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }); return r.status === 204 })()"
+      ]
+    }
+  ]
+}

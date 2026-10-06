@@ -1,38 +1,52 @@
-import { Fragment, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import Modal from '../../components/Modal'
+import EcMonthCalendar from '../../components/EcMonthCalendar'
 import CodePickerField from '../../components/CodePickerField'
 import { ymd } from '../../components/EcPeriodPicks'
+import { useAuth } from '../../features/auth/AuthContext'
+import { useShortcut } from '../../utils/useShortcut'
+import { openPrintWindow, fillAndPrint } from '../../utils/print'
+import { escapeHtml } from '../../utils/escapeHtml'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
 
 /**
  * 그룹웨어 > 사내관리 > 공용품관리 (이카운트 E070204)
  *
- * 이 화면은 공용품 <b>마스터</b>가 아니라 <b>사용/반납 내역</b>이다. 우리는 그동안
- * 품목코드·재고수량을 관리하는 마스터 화면을 여기에 놓고 있었는데, 원본은
- * "누가 언제 어떤 공용품을 빌려 쓰고 반납했는가"를 기간으로 조회한다. 실측 컬럼:
+ * 이 화면은 공용품 <b>마스터</b>가 아니라 <b>사용/반납 내역</b>이다 — "누가 언제 어떤 공용품을 빌려 쓰고
+ * 반납했는가" 를 기간으로 조회한다. 실측 컬럼:
  *   (선택칸 24) 일자 100 · 시작시간 55 · 종료시간 55 · 물품명 160 · 제목 300 · 적요 170 ·
  *   사용자명 160 · 반납여부 160  (합 1184)
  *
- * 왼쪽 보기 전환은 [기본][일간][월간][공용품별] 네 가지다. 기본은 있는 그대로,
- * 나머지 셋은 같은 자료를 묶어서 본다.
+ * <p><b>2026-10-03 원본을 직접 써 보며 다시 맞췄다.</b>
+ * <ul>
+ *   <li>보기 알약 [기본][일간][월간][공용품별]은 제목 <b>아래 한 줄</b>이다. 우리는 왼쪽 세로 칸에 두었다.</li>
+ *   <li>조회 기간은 <b>올해 1월 1일 ~ 12월 31일</b>이 기본이고 격자 오른쪽 위에 찍힌다(2026/01/01 ~ 2026/12/31).
+ *       우리는 오늘부터 일주일이라 지난 사용 내역이 안 보였다. 조건은 접어 두고 [Search(F3)]로 편다.</li>
+ *   <li>[일자]는 '2026/01/23 (금)' 처럼 요일을 붙이고, 일자·제목을 누르면 <b>'공용품관리' 창</b>이 뜬다 —
+ *       공용품 · 사용자 · 날짜/시간('2026/01/23 11:00 ~ 12:00') · 제목 · 적요 · 라벨 · 반납여부,
+ *       하단 [수정][인쇄][닫기][삭제]. 우리는 이 창이 없어 <b>넣은 내역을 고칠 수 없었다</b>(서버 PUT 은 있었다).</li>
+ *   <li>원본 하단은 [신규(F2)][미리보기][라벨변경][인쇄][Excel]이다 — [선택삭제]는 없다. 반납여부 칸을 눌러
+ *       바꾸는 것도 원본에 없다(창의 [수정]으로 바꾼다).</li>
+ *   <li>신규 '공용품관리등록': 공용품 · 사용자(내가 기본) · 날짜/시간(다음 정각 ~ +1시간) · 종일 · 제목 · <b>적요 · 라벨</b>
+ *       · 반납여부(미반납 기본), [저장(F8)][닫기]. 필수는 공용품·제목(빈 채로 저장하면 그 둘만 빨갛다).</li>
+ * </ul>
  *
- * 공용품 마스터(품목코드·공용품명·재고)는 없어지지 않았다. 원본이 마스터를 어디서 등록하는지
- * 확인하지 못해 메뉴를 새로 만들지 않고, 등록 폼의 [공용품 관리] 버튼으로 열리는 팝업에 두었다.
- * 원본 하단의 [미리보기]·[라벨변경]은 무엇을 하는 화면인지 확인하지 못해 넣지 않았다.
+ * 공용품 마스터(품목코드·공용품명·재고)는 원본이 어디서 등록하는지 확인하지 못해 메뉴를 새로 만들지 않고,
+ * 등록 폼의 [공용품 관리] 버튼으로 열리는 팝업에 두었다.
+ * 원본 하단의 [라벨변경]은 받쳐 줄 것이 없어 넣지 않았다.
  */
 
 type ReturnStatus = 'NOT_RETURNED' | 'RETURNED' | 'UNSPECIFIED'
 const RETURN_LABEL: Record<ReturnStatus, string> = {
   NOT_RETURNED: '미반납', RETURNED: '반납', UNSPECIFIED: '미지정',
 }
-const RETURN_COLOR: Record<ReturnStatus, string> = {
-  NOT_RETURNED: '#c60a2e', RETURNED: '#1c7c3c', UNSPECIFIED: 'var(--ec-label)',
-}
 
 const VIEWS = ['기본', '일간', '월간', '공용품별'] as const
 type View = (typeof VIEWS)[number]
+const DOW = ['일', '월', '화', '수', '목', '금', '토']
 
 interface Supply {
   id: number; code: string; name: string
@@ -48,64 +62,80 @@ interface Usage {
   returnStatus: ReturnStatus; returnStatusName: string
 }
 
-/** 묶어 보기의 그룹 키. 기본 보기는 묶지 않는다. */
-function groupKeyOf(u: Usage, view: View): string {
-  if (view === '일간') return u.useDate.replace(/-/g, '/')
-  if (view === '월간') return u.useDate.slice(0, 7).replace('-', '/')
-  return `${u.supplyItemCode} ${u.supplyItemName}`
+/** 일간 · 공용품별 시간 줄 — 원본은 AM 08:00 ~ PM 06:00 한 시간 간격이다. */
+const HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
+const hourText = (h: number) => `${h < 12 ? 'AM' : 'PM'} ${String(h > 12 ? h - 12 : h).padStart(2, '0')}:00`
+const toMin = (t: string | null) => { if (!t) return null; const [hh, mm] = t.split(':').map(Number); return hh * 60 + (mm || 0) }
+/** 이 시각(h:00~h+1:00)에 걸친 사용인가. 종일이면 모든 칸. */
+function overlaps(u: Usage, h: number) {
+  if (u.allDay) return true
+  const s = toMin(u.startTime) ?? 0
+  const e = toMin(u.endTime) ?? s + 60
+  return s < (h + 1) * 60 && e > h * 60
+}
+/** '10/03 (토)' */
+const dayHead = (d: Date) => `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} (${DOW[d.getDay()]})`
+/** 그 달 1일이 든 주의 일요일부터 — 마지막 주가 다음 달뿐이면 뺀다. */
+function monthWeeks(c: Date): Date[][] {
+  const first = new Date(c.getFullYear(), c.getMonth(), 1)
+  const start = new Date(first); start.setDate(1 - first.getDay())
+  const out: Date[][] = []
+  for (let w = 0; w < 6; w++) {
+    const week = Array.from({ length: 7 }, (_, i) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + w * 7 + i))
+    if (w > 0 && week[0].getMonth() !== c.getMonth()) break
+    out.push(week)
+  }
+  return out
+}
+
+/** '2026/01/23 (금)' */
+const dayText = (d: string) => `${d.replace(/-/g, '/')} (${DOW[new Date(d).getDay()]})`
+const pad2 = (n: number) => String(n).padStart(2, '0')
+
+type Form = {
+  supply: string; user: string; date: string; start: string; end: string; allDay: boolean
+  title: string; remark: string; label: string; ret: ReturnStatus
 }
 
 export default function SuppliesPage() {
+  const { user: me } = useAuth()
   const [rows, setRows] = useState<Usage[]>([])
   const [supplies, setSupplies] = useState<Supply[]>([])
   const [users, setUsers] = useState<UserRow[]>([])
   const [error, setError] = useState('')
-  const [ok, setOk] = useState('')
   const [view, setView] = useState<View>('기본')
   const [keyword, setKeyword] = useState('')
   /*
-   * 원본 공용품관리 조건 차례: 기준일자 · 시간 · 사용자 · 공용물품 · 라벨 ·
-   * <b>제목</b> · <b>적요</b> · <b>반납여부</b>.
-   * 셋 다 표에는 찍는데 <b>거를 수가 없었다</b> — 안 돌려준 것만 보려 해도 눈으로 훑어야 했다.
-   */
-  /*
-   * 원본 공용품관리 조건 차례: 기준일자 · <b>시간</b> · 사용자 · <b>공용물품</b> · 라벨 ·
-   * 제목 · 적요 · 반납여부 · <b>전체시간표시</b>.
-   *
-   * <p>[시간]은 그 시각에 걸친 사용만, [공용물품]은 어느 물건인가,
-   * [전체시간표시]는 <b>종일 잡힌 것</b>까지 같이 볼지다. 셋 다 표에는 찍히는데
-   * 거를 수가 없어, 회의실이 몇 개만 돼도 목록을 눈으로 훑어야 했다.
+   * 원본 공용품관리 조건 차례: 기준일자 · 시간 · 사용자 · 공용물품 · 라벨 · 제목 · 적요 · 반납여부 · 전체시간표시.
+   * [전체시간표시]는 꺼진 채로 열린다(사본 실측) — 종일 잡힌 줄은 켜야 보인다.
    */
   const [timeCond, setTimeCond] = useState('')
   const [itemCond, setItemCond] = useState('')
-  /*
-   * 원본 [전체시간표시]는 <b>꺼진 채</b>로 열린다(사본 실측). 우리는 켜 두어서,
-   * 회의실을 <b>종일 잡아 둔 줄</b>이 시간대로 거른 결과에까지 늘 끼어 있었다 —
-   * "이 시간에 비었나" 를 물으러 온 사람에게 종일 예약이 답으로 나오는 셈이다.
-   */
   const [allDayCond, setAllDayCond] = useState(false)
   const [titleCond, setTitleCond] = useState('')
   const [remarkCond, setRemarkCond] = useState('')
   const [returnCond, setReturnCond] = useState('')
-  const [selected, setSelected] = useState<Set<number>>(new Set())
 
-  const today = ymd(new Date())
-  const weekLater = ymd(new Date(Date.now() + 6 * 86400000))
-  const [from, setFrom] = useState(today)
-  const [to, setTo] = useState(weekLater)
+  /** 원본 기본 기간: 올해 1월 1일 ~ 12월 31일. */
+  const year = new Date().getFullYear()
+  const [from, setFrom] = useState(`${year}-01-01`)
+  const [to, setTo] = useState(`${year}-12-31`)
 
-  // 등록 폼
+  const newForm = (): Form => {
+    const h = Math.min(new Date().getHours() + 1, 23)
+    const mine = users.find((u) => u.username === me?.username)
+    return {
+      supply: '', user: mine ? String(mine.id) : '', date: ymd(new Date()),
+      start: `${pad2(h)}:00`, end: `${pad2(h + 1)}:00`, allDay: false,
+      title: '', remark: '', label: '', ret: 'NOT_RETURNED',
+    }
+  }
   const [showForm, setShowForm] = useState(false)
-  const [fSupply, setFSupply] = useState('')
-  const [fUser, setFUser] = useState('')
-  const [fDate, setFDate] = useState(today)
-  const [fStart, setFStart] = useState('18:00')
-  const [fEnd, setFEnd] = useState('19:00')
-  const [fAllDay, setFAllDay] = useState(false)
-  const [fTitle, setFTitle] = useState('')
-  const [fRemark, setFRemark] = useState('')
-  const [fLabel, setFLabel] = useState('')
-  const [fReturn, setFReturn] = useState<ReturnStatus>('NOT_RETURNED')
+  const [editId, setEditId] = useState<number | null>(null)
+  const [form, setForm] = useState<Form>(newForm)
+  const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }))
+  /** '공용품관리' 조회 창에 띄운 내역. */
+  const [viewing, setViewing] = useState<Usage | null>(null)
 
   // 공용품 마스터 관리 팝업
   const [showMaster, setShowMaster] = useState(false)
@@ -120,44 +150,64 @@ export default function SuppliesPage() {
       setRows((await api.get<Usage[]>('/supply-usages', { params: { from, to } })).data)
     } catch (err) { setError(extractErrorMessage(err)) }
   }
-  useEffect(() => { void load() }, [])
+  useEffect(() => { void load() }, [from, to])
 
   useEffect(() => {
     api.get<Supply[]>('/supplies').then((r) => setSupplies(r.data)).catch(() => {})
     api.get<UserRow[]>('/users').then((r) => setUsers(r.data)).catch(() => {})
   }, [])
 
-  async function submit(e: FormEvent) {
-    e.preventDefault()
-    setError(''); setOk('')
-    if (!fSupply) return setError('공용품을 선택하세요.')
-    if (!fUser) return setError('사용자를 선택하세요.')
-    if (!fTitle.trim()) return setError('제목을 입력하세요.')
+  function openNew() {
+    setEditId(null)
+    setForm(newForm())
+    setError('')
+    setShowForm(true)
+  }
+
+  /** 조회 창의 [수정] — 같은 입력 창을 그 내역으로 채워 띄운다. */
+  function openEdit(u: Usage) {
+    setViewing(null)
+    setEditId(u.id)
+    setForm({
+      supply: String(u.supplyItemId), user: String(u.userId), date: u.useDate,
+      start: u.startTime ?? '', end: u.endTime ?? '', allDay: u.allDay,
+      title: u.title, remark: u.remark ?? '', label: u.labelText ?? '', ret: u.returnStatus,
+    })
+    setError('')
+    setShowForm(true)
+  }
+
+  useShortcut('F2', openNew, !showForm && !viewing && !showMaster)
+  useShortcut('F8', () => void submit(), showForm)
+
+  async function submit(e?: FormEvent) {
+    e?.preventDefault()
+    setError('')
+    if (!form.supply) return setError('공용품을 선택하세요.')
+    if (!form.user) return setError('사용자를 선택하세요.')
+    if (!form.title.trim()) return setError('제목을 입력하세요.')
+    const body = {
+      supplyItemId: Number(form.supply), userId: Number(form.user), useDate: form.date,
+      startTime: form.allDay ? undefined : form.start, endTime: form.allDay ? undefined : form.end,
+      allDay: form.allDay, title: form.title, remark: form.remark,
+      labelText: form.label, returnStatus: form.ret,
+    }
     try {
-      await api.post<Usage>('/supply-usages', {
-        supplyItemId: Number(fSupply), userId: Number(fUser), useDate: fDate,
-        startTime: fAllDay ? undefined : fStart, endTime: fAllDay ? undefined : fEnd,
-        allDay: fAllDay, title: fTitle, remark: fRemark || undefined,
-        labelText: fLabel || undefined, returnStatus: fReturn,
-      })
-      setOk('사용내역 등록 완료')
-      setFTitle(''); setFRemark(''); setFLabel('')
+      if (editId != null) await api.put(`/supply-usages/${editId}`, body)
+      else await api.post<Usage>('/supply-usages', { ...body, remark: form.remark || undefined, labelText: form.label || undefined })
+      setShowForm(false)
+      setEditId(null)
       void load()
     } catch (err) { setError(extractErrorMessage(err)) }
   }
 
-  async function removeSelected() {
-    const targets = shown.filter((r) => selected.has(r.id))
-    if (targets.length === 0) return alert('지울 내역을 고르세요. (왼쪽 회색 번호 칸을 누릅니다)')
-    if (!confirm(`${targets.length}건을 삭제할까요?`)) return
-    const failed: string[] = []
-    for (const r of targets) {
-      try { await api.delete(`/supply-usages/${r.id}`) }
-      catch (err) { failed.push(`${r.title}: ${extractErrorMessage(err)}`) }
-    }
-    setSelected(new Set())
-    void load()
-    if (failed.length) alert(`지우지 못한 내역 ${failed.length}건 — ${failed.join(' / ')}`)
+  async function removeOne(id: number) {
+    if (!confirm('삭제하겠습니까?')) return
+    try {
+      await api.delete(`/supply-usages/${id}`)
+      setViewing(null)
+      void load()
+    } catch (err) { setError(extractErrorMessage(err)) }
   }
 
   async function addSupply(e: FormEvent) {
@@ -179,15 +229,19 @@ export default function SuppliesPage() {
     } catch (err) { alert(extractErrorMessage(err)) }
   }
 
-  /** 반납여부는 목록에서 바로 바꾼다 — 빌린 물건을 돌려받는 순간 누르는 자리가 여기다. */
-  async function toggleReturn(u: Usage) {
-    const next: ReturnStatus = u.returnStatus === 'RETURNED' ? 'NOT_RETURNED' : 'RETURNED'
-    try { await api.put(`/supply-usages/${u.id}`, { returnStatus: next }); void load() }
-    catch (err) { alert(extractErrorMessage(err)) }
-  }
+  const timeText = (u: Usage) =>
+    `${u.useDate.replace(/-/g, '/')} ${u.allDay ? '종일' : `${u.startTime ?? ''} ~ ${u.endTime ?? ''}`}`
 
-  const toggle = (id: number) =>
-    setSelected((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
+  function printOne(u: Usage) {
+    const win = openPrintWindow()
+    if (!win) return
+    const line = (k: string, v: string | null) => `<tr><th>${k}</th><td>${escapeHtml(v ?? '')}</td></tr>`
+    fillAndPrint(win, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>공용품관리</title>
+<style>body{font-family:sans-serif;font-size:12px;padding:24px}table{border-collapse:collapse;width:100%}
+th,td{border:1px solid;padding:4px 6px;text-align:left}th{width:90px}</style></head><body><h1>공용품관리</h1><table>
+${line('공용품', u.supplyItemName)}${line('사용자', u.userName)}${line('날짜/시간', timeText(u))}${line('제목', u.title)}
+${line('적요', u.remark)}${line('라벨', u.labelText)}${line('반납여부', RETURN_LABEL[u.returnStatus])}</table></body></html>`)
+  }
 
   const shown = rows
     .filter((r) => !timeCond || r.allDay
@@ -202,250 +256,358 @@ export default function SuppliesPage() {
     || r.supplyItemName.includes(keyword)
     || r.userName.includes(keyword)
     || (r.remark ?? '').includes(keyword))
+    /*
+     * 원본 기본 목록은 <b>오래된 날부터</b>(2026/01/23 → 10/23, 같은 날은 시작시간 차례)다 — 원본 사용 20건을 우리 화면으로
+     * 똑같이 넣어 견주다 알았다(2026-10-03). 서버는 최근 날부터 준다(일간 · 월간이 같이 쓰는 차례라 서버는 그대로 둔다).
+     */
+    .sort((a, b) => (a.useDate !== b.useDate ? (a.useDate < b.useDate ? -1 : 1)
+      : (a.startTime ?? '') !== (b.startTime ?? '') ? ((a.startTime ?? '') < (b.startTime ?? '') ? -1 : 1) : a.id - b.id))
 
-  /** 기본 보기는 그룹 없이 한 덩어리. 나머지는 키별로 나눈다. */
-  const groups = useMemo(() => {
-    if (view === '기본') return [['', shown] as const]
-    const map = new Map<string, Usage[]>()
-    shown.forEach((u) => {
-      const k = groupKeyOf(u, view)
-      const list = map.get(k)
-      if (list) list.push(u); else map.set(k, [u])
-    })
-    return [...map.entries()].sort((a, b) => a[0] < b[0] ? 1 : -1).map(([k, v]) => [k, v] as const)
-  }, [shown, view])
+  /** 일간 · 월간 · 공용품별 — 원본은 묶은 목록이 아니라 시간표 · 달력 · 공용품×시간 표다(2026-10-03 실측). */
+  const [cursor, setCursor] = useState(() => new Date())
+  const [calRows, setCalRows] = useState<Usage[]>([])
+  /** 원본 일간 · 월간 · 공용품별의 [다음 ›] 옆 달력 단추 — 누르면 작은 달력이 떠 날을 고른다(2026-10-03 실측). */
+  const [pickOpen, setPickOpen] = useState(false)
+  const step = (n: number) => setCursor((c) => view === '월간'
+    ? new Date(c.getFullYear(), c.getMonth() + n, 1)
+    : new Date(c.getFullYear(), c.getMonth(), c.getDate() + n))
+  useEffect(() => {
+    if (view === '기본') return
+    const f = view === '월간' ? ymd(new Date(cursor.getFullYear(), cursor.getMonth(), 1)) : ymd(cursor)
+    const t = view === '월간' ? ymd(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0)) : ymd(cursor)
+    api.get<Usage[]>('/supply-usages', { params: { from: f, to: t } })
+      .then((r) => setCalRows(r.data)).catch((err) => setError(extractErrorMessage(err)))
+  }, [view, cursor])
+  /* 달력 · 공용품×시간 표는 칸을 만들어 내므로 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  const monthRef = useRef<HTMLTableElement>(null)
+  const supplyRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(monthRef, '공용품관리 월간', [view, cursor.getTime(), calRows.length])
+  useTableColumnCheck(supplyRef, '공용품관리 공용품별', [view, cursor.getTime(), calRows.length])
+  const bySupply = (() => {
+    const m = new Map<string, Usage[]>()
+    for (const u of calRows.filter((x) => x.useDate === ymd(cursor))) {
+      const l = m.get(u.supplyItemName); if (l) l.push(u); else m.set(u.supplyItemName, [u])
+    }
+    return [...m.entries()]
+  })()
 
-  const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 84 }
-  const COLS = ['2%', '8.5%', '4.6%', '4.6%', '13.5%', '25.3%', '14.4%', '13.5%', '13.5%']
+  const linkCls = 'no-ec bg-transparent border-0 p-0 cursor-pointer text-left text-ec-navy'
 
   return (
     <EcListShell
       title="공용품관리"
       search={keyword}
       onSearchChange={setKeyword}
-      onNew={() => setShowForm(true)}
-      actions={[
-      /*
-       * 원본 [미리보기] — 인쇄와 <b>같은 종이</b>를 띄우되 인쇄 대화상자는 안 띄운다.
-       * '미리보기 화면이 없다' 고 적고 뺐는데, 셸이 이미 그 종이를 만들고 있었다 —
-       * 없던 것은 <b>대화상자를 안 띄우는 길</b>뿐이었다. 무엇이 나오는지 보려고
-       * [인쇄]를 누르면 대화상자부터 떠서 취소를 먼저 눌러야 했다.
-       */
-        { label: '미리보기' },
-        { label: '인쇄' },
-        { label: '선택삭제', onClick: removeSelected, disabled: selected.size === 0 },
-        { label: 'Excel' },
-      ]}
+      onNew={openNew}
+      collapseConditions
+      // 원본 하단: 기본 [미리보기][인쇄][Excel] · 일간 [인쇄][Excel] · 월간 · 공용품별 [인쇄]
+      actions={view === '기본' ? [{ label: '미리보기' }, { label: '인쇄' }, { label: 'Excel' }]
+        : view === '일간' ? [{ label: '인쇄' }, { label: 'Excel' }] : [{ label: '인쇄' }]}
     >
-      <Modal open={showForm} title="공용품관리등록" width={720} onClose={() => setShowForm(false)}>{(
-        <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 12 }}>
-          <table className="w-full text-left">
-            <tbody>
-              <tr>
-                <th style={th}>공용품 *</th>
-                <td>
-                  <CodePickerField
-                    label="공용품" hideLabel value={fSupply} onChange={setFSupply} emptyLabel="선택 안 함"
-                    items={supplies.map((s) => ({ value: String(s.id), code: s.code, name: s.name, sub: s.category }))}
-                  />
-                  <button type="button" className="ec-btn ec-btn-sm" style={{ marginLeft: 4 }}
-                    onClick={() => setShowMaster(true)}>공용품 관리</button>
-                </td>
-                <th style={th}>사용자 *</th>
-                <td>
-                  <CodePickerField
-                    label="사용자" hideLabel value={fUser} onChange={setFUser} emptyLabel="선택 안 함"
-                    items={users.map((u) => ({ value: String(u.id), code: u.username, name: u.name }))}
-                  />
-                </td>
-              </tr>
-              <tr>
-                <th style={th}>날짜/시간 *</th>
-                <td colSpan={3}>
-                  <input type="date" className="ec-input" value={fDate} onChange={(e) => setFDate(e.target.value)} style={{ width: 150 }} />
-                  <input type="time" className="ec-input" value={fStart} disabled={fAllDay}
-                    onChange={(e) => setFStart(e.target.value)} style={{ width: 110, marginLeft: 6 }} />
-                  <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
-                  <input type="time" className="ec-input" value={fEnd} disabled={fAllDay}
-                    onChange={(e) => setFEnd(e.target.value)} style={{ width: 110 }} />
-                  <label style={{ marginLeft: 10, fontSize: 12 }}>
-                    <input type="checkbox" checked={fAllDay} onChange={(e) => setFAllDay(e.target.checked)} /> 종일
+      {/* 원본 '공용품관리등록' 창 — 항목이 한 줄에 하나씩 */}
+      <Modal error={error} open={showForm} title="공용품관리등록" width={780} onClose={() => setShowForm(false)}>
+        <form onSubmit={(e) => void submit(e)}>
+          <ul className="ec-form mb-[10px]">
+            <li className="wide">
+              <div className="title">공용품</div>
+              <div className="form">
+                <CodePickerField
+                  label="공용품" hideLabel value={form.supply} onChange={(v) => set('supply', v)} emptyLabel="선택 안 함"
+                  items={supplies.map((s) => ({ value: String(s.id), code: s.code, name: s.name, sub: s.category }))}
+                />
+                <button type="button" className="ec-btn ec-btn-sm" onClick={() => setShowMaster(true)}>공용품 관리</button>
+              </div>
+            </li>
+            <li className="wide">
+              <div className="title">사용자</div>
+              <div className="form">
+                <CodePickerField
+                  label="사용자" hideLabel value={form.user} onChange={(v) => set('user', v)} emptyLabel="선택 안 함"
+                  items={users.map((u) => ({ value: String(u.id), code: u.username, name: u.name }))}
+                />
+              </div>
+            </li>
+            <li className="wide">
+              <div className="title">날짜/시간</div>
+              <div className="form">
+                <input type="date" className="ec-input w-[150px]" value={form.date} onChange={(e) => set('date', e.target.value)} />
+                <input type="time" className="ec-input w-[110px]" value={form.start} disabled={form.allDay}
+                       onChange={(e) => set('start', e.target.value)} />
+                <span className="text-ec-label">~</span>
+                <input type="time" className="ec-input w-[110px]" value={form.end} disabled={form.allDay}
+                       onChange={(e) => set('end', e.target.value)} />
+                <label className="ml-[10px] text-[12px] inline-flex items-center gap-[4px]">
+                  <input type="checkbox" checked={form.allDay} onChange={(e) => set('allDay', e.target.checked)} /> 종일
+                </label>
+              </div>
+            </li>
+            <li className="wide">
+              <div className="title">제목</div>
+              <div className="form"><input className="ec-input w-full" placeholder="제목" value={form.title}
+                                           onChange={(e) => set('title', e.target.value)} /></div>
+            </li>
+            {/* 원본 차례: 제목 · 적요 · 라벨 · 반납여부 (2026-10-03 실측) */}
+            <li className="wide">
+              <div className="title">적요</div>
+              <div className="form"><input className="ec-input w-full" placeholder="적요" value={form.remark}
+                                           onChange={(e) => set('remark', e.target.value)} /></div>
+            </li>
+            <li className="wide">
+              <div className="title">라벨</div>
+              <div className="form"><input className="ec-input w-full" placeholder="라벨" value={form.label}
+                                           onChange={(e) => set('label', e.target.value)} /></div>
+            </li>
+            <li className="wide">
+              <div className="title">반납여부</div>
+              <div className="form">
+                {(['NOT_RETURNED', 'RETURNED', 'UNSPECIFIED'] as ReturnStatus[]).map((s) => (
+                  <label key={s} className="mr-[10px] text-[12px] inline-flex items-center gap-[4px]">
+                    <input type="radio" name="ret" checked={form.ret === s} onChange={() => set('ret', s)} /> {RETURN_LABEL[s]}
                   </label>
-                </td>
-              </tr>
-              <tr>
-                <th style={th}>제목 *</th>
-                <td colSpan={3}><input className="ec-input" value={fTitle} onChange={(e) => setFTitle(e.target.value)} style={{ width: '100%' }} /></td>
-              </tr>
-              {/* 원본 공용품관리의 칸 차례는 <b>사용자 · 라벨 · 적요 · 반납여부</b> 이다(사본 실측).
-                  우리는 적요를 라벨 앞에 두어 앞뒤가 바뀌어 있었다. */}
-              <tr>
-                <th style={th}>라벨</th>
-                <td><input className="ec-input" value={fLabel} onChange={(e) => setFLabel(e.target.value)} style={{ width: 150 }} /></td>
-                <th style={th}>적요</th>
-                <td><input className="ec-input" value={fRemark} onChange={(e) => setFRemark(e.target.value)} style={{ width: '100%' }} /></td>
-              </tr>
-              <tr>
-                <th style={th}>반납여부</th>
-                <td>
-                  {(['NOT_RETURNED', 'RETURNED', 'UNSPECIFIED'] as ReturnStatus[]).map((s) => (
-                    <label key={s} style={{ marginRight: 10, fontSize: 12 }}>
-                      <input type="radio" name="ret" checked={fReturn === s} onChange={() => setFReturn(s)} /> {RETURN_LABEL[s]}
-                    </label>
-                  ))}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          {error && <p className="mt-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-          {ok && <p className="mt-2 rounded bg-green-50 px-3 py-2 text-sm text-green-700">{ok}</p>}
-          <div style={{ marginTop: 10 }}><button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button></div>
+                ))}
+              </div>
+            </li>
+          </ul>
+          <div className="flex gap-[6px]">
+            <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
+            <button type="button" className="ec-btn" onClick={() => setShowForm(false)}>닫기</button>
+          </div>
         </form>
-      )}</Modal>
+      </Modal>
 
-      <Modal open={showMaster} title="공용품 등록·관리" width={560} onClose={() => setShowMaster(false)}>{(
+      {/* 원본 '공용품관리' 조회 창 */}
+      <Modal error={error} open={!!viewing} title="공용품관리" width={780} onClose={() => setViewing(null)}>
+        {viewing && (
+          <>
+            <table className="w-full text-left mb-[10px]">
+              <tbody>
+                {([
+                  ['공용품', viewing.supplyItemName], ['사용자', viewing.userName], ['날짜/시간', timeText(viewing)],
+                  ['제목', viewing.title], ['적요', viewing.remark ?? ''], ['라벨', viewing.labelText ?? ''],
+                  ['반납여부', RETURN_LABEL[viewing.returnStatus]],
+                ] as const).map(([k, v]) => (
+                  <tr key={k}><th className="w-[160px] bg-ec-page">{k}</th><td>{v}</td></tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="flex gap-[6px]">
+              <button className="ec-btn ec-btn-primary" onClick={() => openEdit(viewing)}>수정</button>
+              <button className="ec-btn" onClick={() => printOne(viewing)}>인쇄</button>
+              <button className="ec-btn" onClick={() => setViewing(null)}>닫기</button>
+              <button className="ec-btn" onClick={() => void removeOne(viewing.id)}>삭제</button>
+            </div>
+          </>
+        )}
+      </Modal>
+
+      <Modal error={error} open={showMaster} title="공용품 등록·관리" width={560} onClose={() => setShowMaster(false)}>
         <div>
-          <form onSubmit={addSupply} style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
-            <input className="ec-input" placeholder="품목코드" value={mCode} onChange={(e) => setMCode(e.target.value)} style={{ width: 110 }} />
-            <input className="ec-input" placeholder="공용품명" value={mName} onChange={(e) => setMName(e.target.value)} style={{ flex: 1 }} />
-            <input className="ec-input" placeholder="분류" value={mCategory} onChange={(e) => setMCategory(e.target.value)} style={{ width: 100 }} />
-            <input className="ec-input" placeholder="단위" value={mUnit} onChange={(e) => setMUnit(e.target.value)} style={{ width: 60 }} />
+          <form onSubmit={addSupply} className="flex gap-[4px] mb-[8px]">
+            <input className="ec-input w-[110px]" placeholder="품목코드" value={mCode} onChange={(e) => setMCode(e.target.value)} />
+            <input className="ec-input flex-1" placeholder="공용품명" value={mName} onChange={(e) => setMName(e.target.value)} />
+            <input className="ec-input w-[100px]" placeholder="분류" value={mCategory} onChange={(e) => setMCategory(e.target.value)} />
+            <input className="ec-input w-[60px]" placeholder="단위" value={mUnit} onChange={(e) => setMUnit(e.target.value)} />
             <button type="submit" className="ec-btn ec-btn-primary">추가</button>
           </form>
           <table className="w-full text-left">
-            <thead><tr><th style={{ width: 110 }}>품목코드</th><th>공용품명</th><th style={{ width: 100 }}>분류</th><th style={{ textAlign: 'center', width: 60 }}>단위</th><th style={{ width: 60 }}></th></tr></thead>
+            <thead><tr><th className="w-[110px]">품목코드</th><th>공용품명</th><th className="w-[100px]">분류</th><th className="text-center w-[60px]">단위</th><th className="w-[60px]"></th></tr></thead>
             <tbody>
               {supplies.length === 0 ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={5} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
               ) : supplies.map((s) => (
                 <tr key={s.id}>
-                  <td>{s.code}</td><td>{s.name}</td><td>{s.category ?? ''}</td><td style={{ textAlign: 'center' }}>{s.unit ?? ''}</td>
-                  <td style={{ textAlign: 'center' }}>
-                    <button className="ec-btn ec-btn-sm" style={{ color: '#c60a2e' }} onClick={() => void removeSupply(s)}>삭제</button>
+                  <td>{s.code}</td><td>{s.name}</td><td>{s.category ?? ''}</td><td className="text-center">{s.unit ?? ''}</td>
+                  <td className="text-center">
+                    <button className="ec-btn ec-btn-sm text-ec-danger" onClick={() => void removeSupply(s)}>삭제</button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      )}</Modal>
+      </Modal>
 
-      {error && !showForm && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && !showForm && !viewing && !showMaster && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-        {/* 왼쪽 보기 전환 — 원본은 [기본][일간][월간] 한 줄, [공용품별] 다음 줄이다. */}
-        <div className="ec-pills" style={{ flex: '0 0 auto', display: 'flex', flexWrap: 'wrap', width: 190, gap: 4 }}>
-          {VIEWS.map((v) => (
-            <button
-              key={v}
-              type="button"
-              className={`ec-pill no-ec${view === v ? ' active' : ''}`}
-              onClick={() => setView(v)}
-            >
-              {v}
-            </button>
+      {/* 원본 보기 알약 — 제목 아래 한 줄 */}
+      <div className="ec-pills mb-[8px]">
+        {VIEWS.map((v) => (
+          <button key={v} type="button" className={`ec-pill no-ec${view === v ? ' active' : ''}`} onClick={() => setView(v)}>
+            {v}
+          </button>
+        ))}
+      </div>
+
+      {view === '기본' ? (
+        <>
+      {/* 원본 차례: 기준일자 · 시간 · 사용자 · 공용물품 · 라벨 · 제목 · 적요 · 반납여부 · 전체시간표시 — 접어 두고 [Search(F3)] 로 편다 */}
+      <ul className="ec-cond mb-[6px]">
+        <EcCond label="기준일자">
+          <input type="date" className="ec-input w-[130px]" value={from} onChange={(e) => setFrom(e.target.value)} />
+          <span className="text-ec-label">~</span>
+          <input type="date" className="ec-input w-[130px]" value={to} onChange={(e) => setTo(e.target.value)} />
+        </EcCond>
+        <EcCond label="시간">
+          <input type="time" className="ec-input w-[110px]" value={timeCond} onChange={(e) => setTimeCond(e.target.value)} />
+        </EcCond>
+        <EcCond label="공용물품" pick>
+          <CodePickerField label="공용물품" hideLabel width={170} emptyLabel="전체"
+                           value={itemCond} onChange={setItemCond}
+                           items={supplies.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
+        </EcCond>
+        <EcCond label="제목">
+          <input className="ec-input w-[140px]" value={titleCond} placeholder="제목" onChange={(e) => setTitleCond(e.target.value)} />
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input w-[140px]" value={remarkCond} placeholder="적요" onChange={(e) => setRemarkCond(e.target.value)} />
+        </EcCond>
+        <EcCond label="반납여부">
+          <select className="ec-input w-[100px]" value={returnCond} onChange={(e) => setReturnCond(e.target.value)}>
+            <option value="">전체</option>
+            {[...new Set(rows.map((r) => r.returnStatusName))].map((n) => <option key={n}>{n}</option>)}
+          </select>
+        </EcCond>
+        <EcCond label="전체시간표시">
+          <label className="text-[12px] text-ec-label flex items-center gap-[4px]">
+            <input type="checkbox" checked={allDayCond} onChange={(e) => setAllDayCond(e.target.checked)} />
+            종일 잡힌 것도
+          </label>
+        </EcCond>
+      </ul>
+
+      {/* 원본은 격자 오른쪽 위에 조회 기간을 찍는다 */}
+      <div className="text-right text-[12px] text-ec-ink mb-[4px]">{from.replace(/-/g, '/')} ~ {to.replace(/-/g, '/')}</div>
+
+      <table className="w-full text-left table-fixed">
+        <thead>
+          <tr>
+            <th className="w-[2%]"></th>
+            <th className="w-[8.5%]">일자</th>
+            <th className="w-[4.6%] text-center">시작시간</th>
+            <th className="w-[4.6%] text-center">종료시간</th>
+            <th className="w-[13.5%]">물품명</th>
+            <th className="w-[25.3%]">제목</th>
+            <th className="w-[14.4%]">적요</th>
+            <th className="w-[13.5%]">사용자명</th>
+            <th className="w-[13.5%]">반납여부</th>
+          </tr>
+        </thead>
+        <tbody>
+          {shown.length === 0 ? (
+            <tr><td colSpan={9} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
+          ) : shown.map((r, i) => (
+            <tr key={r.id}>
+              <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
+              <td><button type="button" className={linkCls} onClick={() => setViewing(r)}>{dayText(r.useDate)}</button></td>
+              <td className="text-center">{r.allDay ? '종일' : (r.startTime ?? '')}</td>
+              <td className="text-center">{r.allDay ? '' : (r.endTime ?? '')}</td>
+              <td>{r.supplyItemName}</td>
+              <td><button type="button" className={linkCls} onClick={() => setViewing(r)}>{r.title}</button></td>
+              <td>{r.remark ?? ''}</td>
+              <td>{r.userName}</td>
+              <td>{RETURN_LABEL[r.returnStatus]}</td>
+            </tr>
           ))}
-        </div>
-
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
-            {/* 원본 공용품관리는 이 줄을 <b>[기준일자]</b> 라고 부른다(사본 실측). 이름이 없으면 무슨 날짜인지 모른다. */}
-            <span style={{ fontSize: 12.5, color: 'var(--ec-label)' }}>기준일자</span>
-            <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 130 }} />
-            <span style={{ color: 'var(--ec-label)' }}>~</span>
-            <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 130 }} />
-            <button type="button" className="ec-btn ec-btn-primary" onClick={() => void load()}>검색(F8)</button>
+        </tbody>
+      </table>
+        </>
+      ) : (
+        <>
+          {/* 원본 일간 · 월간 · 공용품별: ‹ 이전 · 오늘 · 다음 › 으로 날(월간은 달)을 넘긴다 */}
+          <div className="flex items-center gap-[4px] mb-[6px]">
+            <button type="button" className="ec-btn ec-btn-sm" onClick={() => step(-1)}>‹ 이전</button>
+            <button type="button" className="ec-btn ec-btn-sm" onClick={() => setCursor(new Date())}>오늘</button>
+            <button type="button" className="ec-btn ec-btn-sm" onClick={() => step(1)}>다음 ›</button>
+            {/* 일간 · 월간 · 공용품별 셋 다 있다(실측) */}
+            <span className="relative">
+              <button type="button" className="ec-btn ec-btn-sm" aria-label="날짜 고르기" onClick={() => setPickOpen((o) => !o)}>📅</button>
+              {pickOpen && (
+                <span className="absolute top-full left-0 z-30 mt-[4px] shadow-lg">
+                  <EcMonthCalendar value={ymd(cursor)}
+                                   onPick={(d) => { if (d) setCursor(new Date(`${d}T00:00:00`)); setPickOpen(false) }} />
+                </span>
+              )}
+            </span>
+            <span className="ml-auto text-[12px] text-ec-ink">
+              {view === '월간' ? `${cursor.getFullYear()}년 ${pad2(cursor.getMonth() + 1)}월` : view === '공용품별' ? dayText(ymd(cursor)) : ''}
+            </span>
           </div>
 
-          {/* 원본 차례: … 라벨 · 제목 · 적요 · 반납여부 */}
-          <ul className="ec-cond" style={{ marginBottom: 6 }}>
-            <EcCond label="시간">
-              <input type="time" className="ec-input" value={timeCond}
-                     onChange={(e) => setTimeCond(e.target.value)} style={{ width: 110 }} />
-            </EcCond>
-            <EcCond label="공용물품" pick>
-              <CodePickerField label="공용물품" hideLabel width={170} emptyLabel="전체"
-                               value={itemCond} onChange={setItemCond}
-                               items={supplies.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
-            </EcCond>
-            <EcCond label="제목">
-              <input className="ec-input" value={titleCond} placeholder="제목"
-                     onChange={(e) => setTitleCond(e.target.value)} style={{ width: 140 }} />
-            </EcCond>
-            <EcCond label="적요">
-              <input className="ec-input" value={remarkCond} placeholder="적요"
-                     onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 140 }} />
-            </EcCond>
-            <EcCond label="반납여부">
-              <select className="ec-input" value={returnCond} onChange={(e) => setReturnCond(e.target.value)} style={{ width: 100 }}>
-                <option value="">전체</option>
-                {[...new Set(rows.map((r) => r.returnStatusName))].map((n) => <option key={n}>{n}</option>)}
-              </select>
-            </EcCond>
-            <EcCond label="전체시간표시">
-              <label style={{ fontSize: 12.5, color: '#5a626e', display: 'flex', alignItems: 'center', gap: 4 }}>
-                <input type="checkbox" checked={allDayCond} onChange={(e) => setAllDayCond(e.target.checked)} />
-                종일 잡힌 것도
-              </label>
-            </EcCond>
-          </ul>
+          {view === '일간' && (
+            <table className="w-[612px] max-w-full text-left">
+              <thead><tr><th className="w-[64px] text-center">시간</th><th className="text-center">{dayHead(cursor)}</th></tr></thead>
+              <tbody>
+                {HOURS.map((h) => (
+                  <tr key={h}>
+                    <td className="text-center">{hourText(h)}</td>
+                    <td>
+                      {calRows.filter((u) => u.useDate === ymd(cursor) && overlaps(u, h)).map((u) => (
+                        <button key={u.id} type="button" className={`${linkCls} mr-[8px]`} onClick={() => setViewing(u)}>{u.title}</button>
+                      ))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
 
-          <table className="w-full text-left">
-            <colgroup>{COLS.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
-            <thead>
-              <tr>
-                <th></th><th style={{ textAlign: 'center' }}>일자</th><th style={{ textAlign: 'center' }}>시작시간</th><th style={{ textAlign: 'center' }}>종료시간</th><th>물품명</th>
-                <th>제목</th><th>적요</th><th style={{ textAlign: 'center' }}>사용자명</th><th style={{ textAlign: 'center' }}>반납여부</th>
-              </tr>
-            </thead>
-            <tbody>
-              {shown.length === 0 ? (
-                <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
-              ) : groups.map(([key, list]) => (
-                <Fragment key={key || 'all'}>
-                  {key && (
-                    <tr>
-                      <td colSpan={9} style={{ background: '#f5f7fa', fontWeight: 700 }}>
-                        {key} <span style={{ color: 'var(--ec-label)', fontWeight: 400 }}>({list.length}건)</span>
+          {view === '월간' && (
+            <table ref={monthRef} className="w-[612px] max-w-full table-fixed">
+              <thead><tr>{DOW.map((d) => <th key={d} className="text-center">{d}</th>)}</tr></thead>
+              <tbody>
+                {monthWeeks(cursor).map((week, wi) => (
+                  <tr key={wi}>
+                    {week.map((d) => {
+                      const key = ymd(d)
+                      const inMonth = d.getMonth() === cursor.getMonth()
+                      return (
+                        <td key={key} className={`align-top h-[64px] p-[2.7px] ${!inMonth ? 'bg-ec-disabled' : key === ymd(new Date()) ? 'bg-ec-blue-wash' : ''}`}>
+                          {inMonth && (
+                            <>
+                              <div className={`text-right ${key === ymd(new Date()) ? 'font-bold' : ''}`}>{d.getDate()}</div>
+                              {calRows.filter((u) => u.useDate === key).map((u) => (
+                                <button key={u.id} type="button" className={`${linkCls} block truncate w-full`} onClick={() => setViewing(u)}>{u.title}</button>
+                              ))}
+                            </>
+                          )}
+                        </td>
+                      )
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          {view === '공용품별' && (
+            <table ref={supplyRef} className="w-full text-left table-fixed">
+              <thead>
+                <tr>
+                  <th rowSpan={2} className="w-[120px] text-center">공용품관리</th>
+                  <th colSpan={HOURS.length} className="text-center">{dayHead(cursor)}</th>
+                </tr>
+                <tr>{HOURS.map((h) => <th key={h} className="text-center">{hourText(h)}</th>)}</tr>
+              </thead>
+              <tbody>
+                {bySupply.length === 0 ? (
+                  <tr><td colSpan={HOURS.length + 1} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
+                ) : bySupply.map(([name, list]) => (
+                  <tr key={name}>
+                    <td>{name}</td>
+                    {HOURS.map((h) => (
+                      <td key={h}>
+                        {list.filter((u) => overlaps(u, h)).map((u) => (
+                          <button key={u.id} type="button" className={`${linkCls} block truncate w-full`} onClick={() => setViewing(u)}>{u.title}</button>
+                        ))}
                       </td>
-                    </tr>
-                  )}
-                  {list.map((r, i) => (
-                    <tr key={r.id}>
-                      <td
-                        onClick={() => toggle(r.id)}
-                        title="눌러서 선택 (하단 [선택삭제])"
-                        style={{
-                          textAlign: 'center', cursor: 'pointer',
-                          background: selected.has(r.id) ? 'var(--ec-blue-light)' : '#f3f3f3',
-                          color: selected.has(r.id) ? 'var(--ec-blue-dark)' : '#8a929c',
-                          fontWeight: selected.has(r.id) ? 700 : 400,
-                        }}
-                      >
-                        {i + 1}
-                      </td>
-                      <td style={{ textAlign: 'center' }}>{r.useDate.replace(/-/g, '/')}</td>
-                      <td style={{ textAlign: 'center' }}>{r.allDay ? '종일' : (r.startTime ?? '')}</td>
-                      <td style={{ textAlign: 'center' }}>{r.allDay ? '' : (r.endTime ?? '')}</td>
-                      <td>{r.supplyItemName}</td>
-                      <td>{r.title}</td>
-                      <td>{r.remark ?? ''}</td>
-                      <td style={{ textAlign: 'center' }}>{r.userName}</td>
-                      <td
-                        onClick={() => void toggleReturn(r)}
-                        title="눌러서 반납/미반납 전환"
-                        style={{ textAlign: 'center', cursor: 'pointer', color: RETURN_COLOR[r.returnStatus] }}
-                      >
-                        {RETURN_LABEL[r.returnStatus]}
-                      </td>
-                    </tr>
-                  ))}
-                </Fragment>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </>
+      )}
     </EcListShell>
   )
 }

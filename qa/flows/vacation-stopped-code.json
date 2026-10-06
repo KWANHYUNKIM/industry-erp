@@ -1,0 +1,45 @@
+{
+  "about": "관리 > 휴가잔여일수현황(E020716) · 휴가사용실적현황(E020719) — 원본 [기타] 사용중단휴가코드포함(처음 꺼짐): 끄면 사용중단한 휴가항목이 [휴가코드] 후보에 없고, 켜면 나온다. 시험 휴가항목은 지운다.",
+  "shots": [
+    {
+      "name": "휴가잔여일수현황 — 사용중단 휴가코드",
+      "path": "/hr/vacation-remain",
+      "steps": [
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const v=await (await fetch('/api/hr/vacation-kinds',{method:'POST',headers:h,body:JSON.stringify({name:'QA관리-중단휴가',periodFrom:'2091-01-01',periodTo:'2091-12-31',carryOver:false})})).json();const r=await fetch('/api/hr/vacation-kinds/'+v.id,{method:'PUT',headers:h,body:JSON.stringify({code:v.code,name:v.name,periodFrom:v.periodFrom,periodTo:v.periodTo,carryOver:false,active:false})});sessionStorage.setItem('qaVs',String(v.id));return r.ok?true:'put '+r.status})()",
+        "js:location.reload();true",
+        "wait:2500",
+        "js:(()=>{document.querySelector('button[title=\"휴가코드 선택\"]').click();return true})()",
+        "wait:400",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].find(x=>x.getAttribute('aria-label')==='휴가코드 선택');const t=d?d.innerText:'';d&&d.querySelector('button.close').click();return !!d&&!t.includes('QA관리-중단휴가')})()",
+        "wait:300",
+        "js:(()=>{const l=[...document.querySelectorAll('label')].find(x=>x.innerText.trim()==='사용중단휴가코드포함');l.querySelector('input').click();return true})()",
+        "wait:300",
+        "js:(()=>{document.querySelector('button[title=\"휴가코드 선택\"]').click();return true})()",
+        "wait:400",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].find(x=>x.getAttribute('aria-label')==='휴가코드 선택');const t=d?d.innerText:'';d&&d.querySelector('button.close').click();return !!d&&t.includes('QA관리-중단휴가')})()",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const r=await fetch('/api/hr/vacation-kinds/'+sessionStorage.getItem('qaVs'),{method:'DELETE',headers:h});sessionStorage.setItem('qaVsClean',String(r.ok));return true})()",
+        "expect:sessionStorage.getItem('qaVsClean')==='true'"
+      ]
+    },
+    {
+      "name": "휴가사용실적현황 — 사용중단 휴가코드",
+      "path": "/hr/vacation-use",
+      "steps": [
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const v=await (await fetch('/api/hr/vacation-kinds',{method:'POST',headers:h,body:JSON.stringify({name:'QA관리-중단휴가',periodFrom:'2091-01-01',periodTo:'2091-12-31',carryOver:false})})).json();const r=await fetch('/api/hr/vacation-kinds/'+v.id,{method:'PUT',headers:h,body:JSON.stringify({code:v.code,name:v.name,periodFrom:v.periodFrom,periodTo:v.periodTo,carryOver:false,active:false})});sessionStorage.setItem('qaVs',String(v.id));return r.ok?true:'put '+r.status})()",
+        "js:location.reload();true",
+        "wait:2500",
+        "js:(()=>{document.querySelector('button[title=\"휴가코드 선택\"]').click();return true})()",
+        "wait:400",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].find(x=>x.getAttribute('aria-label')==='휴가코드 선택');const t=d?d.innerText:'';d&&d.querySelector('button.close').click();return !!d&&!t.includes('QA관리-중단휴가')})()",
+        "wait:300",
+        "js:(()=>{const l=[...document.querySelectorAll('label')].find(x=>x.innerText.trim()==='사용중단휴가코드포함');l.querySelector('input').click();return true})()",
+        "wait:300",
+        "js:(()=>{document.querySelector('button[title=\"휴가코드 선택\"]').click();return true})()",
+        "wait:400",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].find(x=>x.getAttribute('aria-label')==='휴가코드 선택');const t=d?d.innerText:'';d&&d.querySelector('button.close').click();return !!d&&t.includes('QA관리-중단휴가')})()",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const r=await fetch('/api/hr/vacation-kinds/'+sessionStorage.getItem('qaVs'),{method:'DELETE',headers:h});sessionStorage.setItem('qaVsClean',String(r.ok));return true})()",
+        "expect:sessionStorage.getItem('qaVsClean')==='true'"
+      ]
+    }
+  ]
+}

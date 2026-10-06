@@ -104,7 +104,7 @@ export default function AttendanceStatusPage() {
     }),
     [shown, subtotal])
 
-  const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 110 }
+  const th: React.CSSProperties = { background: 'var(--ec-bg-page)', fontWeight: 700, whiteSpace: 'nowrap', width: 110 }
   const num = (n: number) => n.toLocaleString('ko-KR')
 
   return (
@@ -119,25 +119,25 @@ export default function AttendanceStatusPage() {
         { label: 'Excel' },
       ]}
     >
-      <table className="w-full text-left" style={{ marginBottom: 10 }}>
+      <table className="w-full text-left mb-[10px]">
         <tbody>
           <tr>
             <th style={th}>기간</th>
             <td colSpan={3}>
               <input type="date" className="ec-input" value={from} disabled={allDates}
                      onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-              <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
+              <span className="my-0 mx-[6px] text-ec-label">~</span>
               <input type="date" className="ec-input" value={to} disabled={allDates}
                      onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
-              <label style={{ marginLeft: 12, fontSize: 12 }}>
+              <label className="ml-[12px] text-[12px]">
                 <input type="checkbox" checked={allDates} onChange={(e) => setAllDates(e.target.checked)} /> 모든날짜검색
               </label>
             </td>
           </tr>
           <tr>
             <th style={th}></th>
-            <td colSpan={3} style={{ paddingTop: 0 }}>
-              <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+            <td colSpan={3} className="pt-0">
+              <div className="flex gap-[3px] flex-wrap">
                 <EcPeriodPicks
                   labels={INQUIRY_PICKS}
                   currentFrom={from}
@@ -181,47 +181,47 @@ export default function AttendanceStatusPage() {
         </tbody>
       </table>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <table className="w-full text-left">
         <colgroup>
-          <col style={{ width: '4%' }} /><col /><col style={{ width: '16%' }} />
-          <col style={{ width: '10%' }} /><col style={{ width: '9%' }} /><col style={{ width: '9%' }} />
-          <col style={{ width: '9%' }} /><col style={{ width: '13%' }} />
+          <col className="w-[4%]" /><col /><col className="w-[16%]" />
+          <col className="w-[10%]" /><col className="w-[9%]" /><col className="w-[9%]" />
+          <col className="w-[9%]" /><col className="w-[13%]" />
         </colgroup>
         <thead>
           <tr>
             <th></th><th>사원명</th><th>부서</th>
-            <th style={{ textAlign: 'right' }}>근무일수</th><th style={{ textAlign: 'right' }}>지각</th><th style={{ textAlign: 'right' }}>조퇴</th><th style={{ textAlign: 'right' }}>결근</th><th style={{ textAlign: 'right' }}>총근무시간</th>
+            <th className="text-right">근무일수</th><th className="text-right">지각</th><th className="text-right">조퇴</th><th className="text-right">결근</th><th className="text-right">총근무시간</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>불러오는 중…</td></tr>
+            <tr><td colSpan={8} className="text-center text-ec-ink">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={8} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={`${r.empName}-${i}`}>
-              <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+              <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
               <td>{r.empName}</td>
               <td>{r.department ?? ''}</td>
-              <td style={{ textAlign: 'right' }}>{num(r.workDays)}</td>
-              <td style={{ textAlign: 'right', color: r.lateDays ? '#c60a2e' : undefined }}>{num(r.lateDays)}</td>
-              <td style={{ textAlign: 'right', color: r.earlyLeaveDays ? '#c07a00' : undefined }}>{num(r.earlyLeaveDays)}</td>
-              <td style={{ textAlign: 'right', color: r.absentDays ? '#c60a2e' : undefined }}>{num(r.absentDays)}</td>
-              <td style={{ textAlign: 'right' }}>{r.totalWorkHours.toLocaleString('ko-KR', { maximumFractionDigits: 1 })}</td>
+              <td className="text-right">{num(r.workDays)}</td>
+              <td style={{ textAlign: 'right', color: r.lateDays ? 'var(--ec-danger)' : undefined }}>{num(r.lateDays)}</td>
+              <td style={{ textAlign: 'right', color: r.earlyLeaveDays ? 'var(--ec-warn)' : undefined }}>{num(r.earlyLeaveDays)}</td>
+              <td style={{ textAlign: 'right', color: r.absentDays ? 'var(--ec-danger)' : undefined }}>{num(r.absentDays)}</td>
+              <td className="text-right">{r.totalWorkHours.toLocaleString('ko-KR', { maximumFractionDigits: 1 })}</td>
             </tr>
           ))}
         </tbody>
         {shown.length > 0 && (
           <tfoot>
             <tr>
-              <td colSpan={3} style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>합계</td>
-              <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{num(totals.workDays)}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{num(totals.lateDays)}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{num(totals.earlyLeaveDays)}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>{num(totals.absentDays)}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700, background: '#f5f7fa' }}>
+              <td colSpan={3} className="text-right font-bold bg-ec-page">합계</td>
+              <td className="text-right font-bold bg-ec-page">{num(totals.workDays)}</td>
+              <td className="text-right font-bold bg-ec-page">{num(totals.lateDays)}</td>
+              <td className="text-right font-bold bg-ec-page">{num(totals.earlyLeaveDays)}</td>
+              <td className="text-right font-bold bg-ec-page">{num(totals.absentDays)}</td>
+              <td className="text-right font-bold bg-ec-page">
                 {totals.totalWorkHours.toLocaleString('ko-KR', { maximumFractionDigits: 1 })}
               </td>
             </tr>
@@ -231,27 +231,27 @@ export default function AttendanceStatusPage() {
 
       {shown.length > 0 && (
         <>
-          <h3 style={{ fontSize: 13, fontWeight: 700, margin: '16px 0 6px' }}>{subtotal} 소계</h3>
+          <h3 className="text-[13px] font-bold mt-[16px] mx-0 mb-[6px]">{subtotal} 소계</h3>
           <table className="w-full text-left">
             <thead><tr>
               <th>{subtotal}</th>
-              <th style={{ width: 80, textAlign: 'right' }}>사원수</th>
-              <th style={{ width: 90, textAlign: 'right' }}>근무일수</th>
-              <th style={{ width: 70, textAlign: 'right' }}>지각</th>
-              <th style={{ width: 70, textAlign: 'right' }}>조퇴</th>
-              <th style={{ width: 70, textAlign: 'right' }}>결근</th>
-              <th style={{ width: 110, textAlign: 'right' }}>총근무시간</th>
+              <th className="w-[80px] text-right">사원수</th>
+              <th className="w-[90px] text-right">근무일수</th>
+              <th className="w-[70px] text-right">지각</th>
+              <th className="w-[70px] text-right">조퇴</th>
+              <th className="w-[70px] text-right">결근</th>
+              <th className="w-[110px] text-right">총근무시간</th>
             </tr></thead>
             <tbody>
               {subtotals.map((g) => (
                 <tr key={g.label}>
-                  <td style={{ fontWeight: 600 }}>{g.label}</td>
-                  <td style={{ textAlign: 'right' }}>{num(g.count)}</td>
-                  <td style={{ textAlign: 'right' }}>{num(g.sums.workDays)}</td>
-                  <td style={{ textAlign: 'right', color: g.sums.lateDays ? '#c60a2e' : undefined }}>{num(g.sums.lateDays)}</td>
-                  <td style={{ textAlign: 'right', color: g.sums.earlyLeaveDays ? '#c07a00' : undefined }}>{num(g.sums.earlyLeaveDays)}</td>
-                  <td style={{ textAlign: 'right', color: g.sums.absentDays ? '#c60a2e' : undefined }}>{num(g.sums.absentDays)}</td>
-                  <td style={{ textAlign: 'right' }}>
+                  <td className="font-semibold">{g.label}</td>
+                  <td className="text-right">{num(g.count)}</td>
+                  <td className="text-right">{num(g.sums.workDays)}</td>
+                  <td style={{ textAlign: 'right', color: g.sums.lateDays ? 'var(--ec-danger)' : undefined }}>{num(g.sums.lateDays)}</td>
+                  <td style={{ textAlign: 'right', color: g.sums.earlyLeaveDays ? 'var(--ec-warn)' : undefined }}>{num(g.sums.earlyLeaveDays)}</td>
+                  <td style={{ textAlign: 'right', color: g.sums.absentDays ? 'var(--ec-danger)' : undefined }}>{num(g.sums.absentDays)}</td>
+                  <td className="text-right">
                     {g.sums.totalWorkHours.toLocaleString('ko-KR', { maximumFractionDigits: 1 })}
                   </td>
                 </tr>

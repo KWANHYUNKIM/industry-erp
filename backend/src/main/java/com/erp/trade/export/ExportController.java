@@ -1,0 +1,79 @@
+package com.erp.trade.export;
+
+import com.erp.trade.export.dto.ExportDtos.CreateExportRequest;
+import com.erp.trade.export.dto.ExportDtos.ConfirmRequest;
+import com.erp.trade.export.dto.ExportDtos.CustomsRequest;
+import com.erp.trade.export.dto.ExportDtos.ExportResponse;
+import com.erp.trade.export.dto.ExportDtos.ExportSummary;
+import com.erp.trade.export.dto.ExportDtos.PayRequest;
+import com.erp.trade.export.dto.ExportDtos.ShipRequest;
+import com.erp.security.UserPrincipal;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+import com.erp.trade.export.dto.ExportDtos;
+
+/** 수출관리 (재고 II) — 인보이스 발행 → 통관진행 → 선적완료 → 입금완료. */
+@RestController
+@RequestMapping("/api/exports")
+@RequiredArgsConstructor
+public class ExportController {
+
+    private final ExportService service;
+
+    @GetMapping
+    public ExportSummary list(
+            /* 화면 조건 판의 [기간] — 안 주면 전 기간이다. */
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate from,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate to) {
+        return service.findAll(from, to);
+    }
+
+    /** 인보이스 발행 (원화 환산은 발행일 고시환율로 고정) */
+    @PostMapping
+    public ResponseEntity<ExportResponse> create(
+            @Valid @RequestBody CreateExportRequest req,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(service.create(req, principal.getUsername()));
+    }
+
+    @PutMapping("/{id}")
+    public ExportResponse update(@PathVariable Long id, @Valid @RequestBody CreateExportRequest req) {
+        return service.update(id, req);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        service.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** 원본 [진행상태변경] — 미확인 ↔ 확인. */
+    @PatchMapping("/{id}/confirm")
+    public ExportResponse confirm(@PathVariable Long id, @RequestBody ConfirmRequest req) {
+        return service.confirm(id, req.confirmed());
+    }
+
+    @PostMapping("/{id}/customs")
+    public ExportResponse customs(@PathVariable Long id, @Valid @RequestBody CustomsRequest req) {
+        return service.customs(id, req);
+    }
+
+    @PostMapping("/{id}/ship")
+    public ExportResponse ship(@PathVariable Long id, @Valid @RequestBody ShipRequest req) {
+        return service.ship(id, req);
+    }
+
+    @PostMapping("/{id}/pay")
+    public ExportResponse pay(@PathVariable Long id, @RequestBody(required = false) PayRequest req) {
+        return service.pay(id, req);
+    }
+}

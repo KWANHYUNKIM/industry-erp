@@ -1,0 +1,93 @@
+{
+  "about": "품질검사요청입력(E040628) [판매 · 발주 · 주문 · 구매] 불러오기 — 2026-10-04 원본 실측: 구매검색창(조회)에서 전표 하나를 골라 [적용(F8)] 하면 그 전표의 품목 · 수량이 줄로 들어오고(검사방법 전수) 불러오기 단추가 사라진다. 저장은 하지 않는다. 구매 하나(QA재고2, 두 줄 7 · 3)를 만들어 불러오고 끝에 지운다. 발주도 하나(QA재고2, 4 × 1,250) 만들어 같은 길로 보고 지운다. 품질검사입력(E040621)도 같은 단추(차례 판매 · 검사요청 · 발주 · 주문 · 구매)로 — QA 구매(6) 하나를 불러오고 지운다. 품질검사입력의 [작업지시서]는 한 줄이 한 행인 응답을 지시서 번호로 묶어 띄운다 — 가장 늦은 지시서를 불러와 줄 수량이 같은지 본다(저장 안 함).",
+  "shots": [
+    {
+      "name": "신규 → 구매 → 첫 전표 적용 → 줄 수 = 전표 품목 수 · 단추 사라짐",
+      "path": "/quality/inspection-request",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const A = (m, u, b) => fetch('/api' + u, { method: m, headers: H, body: b ? JSON.stringify(b) : undefined }).then((r) => r.json()); const [pa, it, wh] = await Promise.all([A('GET', '/partners'), A('GET', '/items'), A('GET', '/warehouses')]); const its = it.filter((x) => x.active !== false && x.stockTracked !== false); const pur = await A('POST', '/purchases', { partnerId: pa[0].id, warehouseId: wh[0].id, remark: 'QA재고2 검사요청 불러오기', lines: [{ itemId: its[0].id, quantity: 7, unitPrice: 1000 }, { itemId: its[1].id, quantity: 3, unitPrice: 1000 }] }); sessionStorage.setItem('qrpPur', String(pur.id)); return pur.docNo })()",
+        "js:[...document.querySelectorAll('button')].find((b) => /^신규/.test(b.innerText.trim())).click(); true",
+        "wait:600",
+        "js:[...document.querySelectorAll('.modal button, [role=dialog] button')].find((b) => b.innerText.trim() === '구매').click(); true",
+        "wait:2000",
+        "expect:[...document.querySelectorAll('[role=dialog], .modal')].some((m) => m.innerText.includes('구매검색창(조회)') && m.innerText.includes('품목명(요약)'))",
+        "js:(() => { const m = [...document.querySelectorAll('[role=dialog], .modal')].find((x) => x.innerText.includes('구매검색창(조회)')); const id = sessionStorage.getItem('qrpPur'); const tr = [...m.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('7,000') || t.innerText.includes('11,000') || t.innerText.includes('10,000')) ?? m.querySelector('tbody tr'); tr.querySelector('input[type=radio]').click(); sessionStorage.setItem('qrpN', String((tr.querySelector('td:nth-child(4)').innerText.match(/외 (\\d+)건/) || [0, 0])[1])); return id })()",
+        "js:[...document.querySelectorAll('[role=dialog] button, .modal button')].find((b) => b.innerText.trim() === '적용(F8)').click(); true",
+        "wait:600",
+        "expect:(() => { const m = [...document.querySelectorAll('[role=dialog], .modal')].find((x) => x.innerText.includes('품질검사요청입력')); const n = Number(sessionStorage.getItem('qrpN')) + 1; const filled = [...m.querySelectorAll('tbody tr')].filter((tr) => tr.querySelector('input.text-right')?.value).length; const noPull = ![...m.querySelectorAll('button')].some((b) => b.innerText.trim() === '구매'); return filled === n && noPull })()",
+        "expect:(async () => { const r = await fetch('/api/purchases/' + sessionStorage.getItem('qrpPur'), { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }); return r.status === 204 || r.status === 200 })()"
+      ]
+    },
+    {
+      "name": "신규 → 발주 → QA 발주 적용 → 줄 하나(4) · 단추 사라짐",
+      "path": "/quality/inspection-request",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const A = (m, u, b) => fetch('/api' + u, { method: m, headers: H, body: b ? JSON.stringify(b) : undefined }).then((r) => r.json()); const [pa, it] = await Promise.all([A('GET', '/partners'), A('GET', '/items')]); const its = it.filter((x) => x.active !== false); const po = await A('POST', '/purchase-orders', { partnerId: pa[0].id, remark: 'QA재고2 검사요청 불러오기', lines: [{ itemId: its[0].id, quantity: 4, unitPrice: 1250 }] }); sessionStorage.setItem('qrpPo', String(po.id)); return po.orderNo })()",
+        "js:[...document.querySelectorAll('button')].find((b) => /^신규/.test(b.innerText.trim())).click(); true",
+        "wait:600",
+        "js:[...document.querySelectorAll('.modal button, [role=dialog] button')].find((b) => b.innerText.trim() === '발주').click(); true",
+        "wait:2000",
+        "js:(() => { const m = [...document.querySelectorAll('[role=dialog], .modal')].find((x) => x.innerText.includes('발주검색창(조회)')); const tr = [...m.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('5,500') || t.innerText.includes('5,000')); tr.querySelector('input[type=radio]').click(); return true })()",
+        "js:[...document.querySelectorAll('[role=dialog] button, .modal button')].find((b) => b.innerText.trim() === '적용(F8)').click(); true",
+        "wait:600",
+        "expect:(() => { const m = [...document.querySelectorAll('[role=dialog], .modal')].find((x) => x.innerText.includes('품질검사요청입력')); const qs = [...m.querySelectorAll('tbody input.text-right')].map((i) => i.value).filter(Boolean); return qs.length === 1 && qs[0] === '4' && ![...m.querySelectorAll('button')].some((b) => b.innerText.trim() === '발주') })()",
+        "expect:(async () => { const r = await fetch('/api/purchase-orders/' + sessionStorage.getItem('qrpPo'), { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }); return r.status === 204 || r.status === 200 })()"
+      ]
+    },
+    {
+      "name": "품질검사입력 — 단추 차례 판매 · 검사요청 · 발주 · 주문 · 작업지시서 · 구매 · 생산 · 이동, 구매 불러오기",
+      "path": "/quality/inspection",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const A = (m, u, b) => fetch('/api' + u, { method: m, headers: H, body: b ? JSON.stringify(b) : undefined }).then((r) => r.json()); const [pa, it, wh] = await Promise.all([A('GET', '/partners'), A('GET', '/items'), A('GET', '/warehouses')]); const its = it.filter((x) => x.active !== false && x.stockTracked !== false); const pur = await A('POST', '/purchases', { partnerId: pa[0].id, warehouseId: wh[0].id, remark: 'QA재고2 검사 불러오기', lines: [{ itemId: its[0].id, quantity: 6, unitPrice: 1000 }] }); sessionStorage.setItem('qipPur', String(pur.id)); return pur.docNo })()",
+        "js:[...document.querySelectorAll('button')].find((b) => /^신규/.test(b.innerText.trim())).click(); true",
+        "wait:600",
+        "expect:(() => { const m = [...document.querySelectorAll('[role=dialog], .modal')].find((x) => x.innerText.includes('품질검사입력')); return [...m.querySelectorAll('button.ec-btn-sm')].map((b) => b.innerText.trim()).join('|').startsWith('판매|검사요청|발주|주문|작업지시서|구매|생산|이동') })()",
+        "js:[...document.querySelectorAll('.modal button, [role=dialog] button')].find((b) => b.innerText.trim() === '구매').click(); true",
+        "wait:2000",
+        "js:(() => { const m = [...document.querySelectorAll('[role=dialog], .modal')].find((x) => x.innerText.includes('구매검색창(조회)')); const tr = [...m.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('6,600') || t.innerText.includes('6,000')); tr.querySelector('input[type=radio]').click(); return true })()",
+        "js:[...document.querySelectorAll('[role=dialog] button, .modal button')].find((b) => b.innerText.trim() === '적용(F8)').click(); true",
+        "wait:600",
+        "expect:(() => { const m = [...document.querySelectorAll('[role=dialog], .modal')].find((x) => x.innerText.includes('품질검사입력')); const qs = [...m.querySelectorAll('tbody tr')].map((tr) => tr.querySelector('td:nth-child(5) input')?.value).filter(Boolean); return qs.length === 1 && qs[0] === '6' && ![...m.querySelectorAll('button')].some((b) => b.innerText.trim() === '구매') })()",
+        "expect:(async () => { const r = await fetch('/api/purchases/' + sessionStorage.getItem('qipPur'), { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }); return r.status === 204 || r.status === 200 })()"
+      ]
+    },
+    {
+      "name": "품질검사입력 — 작업지시서 불러오기(한 줄이 한 행인 응답을 번호로 묶는다)",
+      "path": "/quality/inspection",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const t = new Date(Date.now() + 9 * 36e5); const from = new Date(t.getTime() - 30 * 864e5).toISOString().slice(0, 10); const to = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate())).toISOString().slice(0, 10); const w = await (await fetch('/api/work-orders?from=' + from + '&to=' + to, { headers: H })).json(); const by = {}; for (const r of w) (by[r.orderNo] = by[r.orderNo] || []).push(r); const docs = Object.values(by).sort((a, b) => b[0].orderDate.localeCompare(a[0].orderDate) || b[0].id - a[0].id); sessionStorage.setItem('qiwo', JSON.stringify(docs.length ? docs[0].map((r) => String(Number(r.plannedQty))) : [])); return docs.length })()",
+        "js:[...document.querySelectorAll('button')].find((b) => /^신규/.test(b.innerText.trim())).click(); true",
+        "wait:600",
+        "js:[...document.querySelectorAll('.modal button, [role=dialog] button')].find((b) => b.innerText.trim() === '작업지시서').click(); true",
+        "wait:2000",
+        "expect:[...document.querySelectorAll('[role=dialog], .modal')].some((m) => m.innerText.includes('작업지시서검색창(조회)'))",
+        "js:(() => { const m = [...document.querySelectorAll('[role=dialog], .modal')].find((x) => x.innerText.includes('작업지시서검색창(조회)')); const r = m.querySelector('input[type=radio]'); if (r) r.click(); return !!r })()",
+        "js:[...document.querySelectorAll('[role=dialog] button, .modal button')].find((b) => b.innerText.trim() === '적용(F8)')?.click(); true",
+        "wait:600",
+        "expect:(() => { const want = JSON.parse(sessionStorage.getItem('qiwo')); if (want.length === 0) return true; const m = [...document.querySelectorAll('[role=dialog], .modal')].find((x) => x.innerText.includes('품질검사입력')); const qs = [...m.querySelectorAll('tbody tr')].map((tr) => tr.querySelector('td:nth-child(5) input')?.value).filter(Boolean); return JSON.stringify(qs) === JSON.stringify(want) })()"
+      ]
+    },
+    {
+      "name": "품질검사요청입력 — A/S접수 불러오기(금액합계 빈칸)",
+      "path": "/quality/inspection-request",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const t = new Date(Date.now() + 9 * 36e5); const from = new Date(t.getTime() - 30 * 864e5).toISOString().slice(0, 10); const to = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate())).toISOString().slice(0, 10); const a = (await (await fetch('/api/as-requests?from=' + from + '&to=' + to, { headers: H })).json()).sort((x, y) => y.receiptDate.localeCompare(x.receiptDate) || y.id - x.id); sessionStorage.setItem('qras', JSON.stringify(a.length ? a[0].lines.map((l) => String(Number(l.quantity))) : [])); return a.length })()",
+        "js:[...document.querySelectorAll('button')].find((b) => /^신규/.test(b.innerText.trim())).click(); true",
+        "wait:600",
+        "expect:(() => { const m = [...document.querySelectorAll('[role=dialog], .modal')].find((x) => x.innerText.includes('품질검사요청입력')); return [...m.querySelectorAll('button.ec-btn-sm')].map((b) => b.innerText.trim()).join('|') === '판매|발주|주문|구매|생산|이동|A/S접수' })()",
+        "js:[...document.querySelectorAll('.modal button, [role=dialog] button')].find((b) => b.innerText.trim() === 'A/S접수').click(); true",
+        "wait:2000",
+        "expect:(() => { const m = [...document.querySelectorAll('[role=dialog], .modal')].find((x) => x.innerText.includes('A/S접수검색창(조회)')); return !!m && !m.innerText.includes('NaN') })()",
+        "js:(() => { const m = [...document.querySelectorAll('[role=dialog], .modal')].find((x) => x.innerText.includes('A/S접수검색창(조회)')); const r = m.querySelector('input[type=radio]'); if (r) r.click(); return !!r })()",
+        "js:[...document.querySelectorAll('[role=dialog] button, .modal button')].find((b) => b.innerText.trim() === '적용(F8)')?.click(); true",
+        "wait:600",
+        "expect:(() => { const want = JSON.parse(sessionStorage.getItem('qras')); if (want.length === 0) return true; const m = [...document.querySelectorAll('[role=dialog], .modal')].find((x) => x.innerText.includes('품질검사요청입력')); const qs = [...m.querySelectorAll('tbody input.text-right')].map((i) => i.value).filter(Boolean); return JSON.stringify(qs) === JSON.stringify(want) })()"
+      ]
+    }
+  ]
+}

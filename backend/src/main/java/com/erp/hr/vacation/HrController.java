@@ -1,0 +1,103 @@
+package com.erp.hr.vacation;
+
+import com.erp.hr.vacation.dto.HrDtos.AttendanceInputRequest;
+import com.erp.hr.vacation.dto.HrDtos.AttendanceRow;
+import com.erp.hr.vacation.dto.HrDtos.AttendanceSummaryRow;
+import com.erp.hr.vacation.dto.HrDtos.CreateVacationRequest;
+import com.erp.hr.vacation.dto.HrDtos.EmployeeResponse;
+import com.erp.hr.vacation.dto.HrDtos.UpdateVacationStatusRequest;
+import com.erp.hr.vacation.dto.HrDtos.VacationRow;
+import com.erp.hr.vacation.dto.HrDtos.VacationSummaryRow;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.util.List;
+import com.erp.hr.vacation.dto.HrDtos;
+
+/**
+ * 인사(HR) 근태·휴가 API. 조회는 인증된 사용자 누구나,
+ * 생성/수정은 관리자·매니저만 가능하다.
+ */
+@RestController
+@RequestMapping("/api/hr")
+@RequiredArgsConstructor
+public class HrController {
+
+    private final HrService hrService;
+
+    // ---------------------------------------------------------------- 사원
+
+    @GetMapping("/employees")
+    public List<EmployeeResponse> employees() {
+        return hrService.employees();
+    }
+
+    // -------------------------------------------------------------- 근태
+
+    @GetMapping("/attendance")
+    public List<AttendanceRow> attendance(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return hrService.attendance(from, to);
+    }
+
+    @GetMapping("/attendance/summary")
+    public List<AttendanceSummaryRow> attendanceSummary(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return hrService.attendanceSummary(from, to);
+    }
+
+    @PostMapping("/attendance")
+    public ResponseEntity<AttendanceRow> inputAttendance(@Valid @RequestBody AttendanceInputRequest req) {
+        return ResponseEntity.ok(hrService.upsertAttendance(req));
+    }
+
+    @DeleteMapping("/attendance/{id}")
+    public ResponseEntity<Void> deleteAttendance(@PathVariable Long id) {
+        hrService.deleteAttendance(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // -------------------------------------------------------------- 휴가
+
+    /**
+     * 휴가(근태) 목록. 시작일로 거른다 — {@code from}·{@code to} 를 주면 그 구간, 아니면 {@code year} 한 해(기본 올해).
+     */
+    @GetMapping("/vacations")
+    public List<VacationRow> vacations(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return hrService.vacations(year, from, to);
+    }
+
+    @PostMapping("/vacations")
+    public ResponseEntity<VacationRow> createVacation(@Valid @RequestBody CreateVacationRequest req) {
+        return ResponseEntity.ok(hrService.createVacation(req));
+    }
+
+    @PutMapping("/vacations/{id}/status")
+    public VacationRow updateVacationStatus(@PathVariable Long id,
+                                            @Valid @RequestBody UpdateVacationStatusRequest req) {
+        return hrService.updateVacationStatus(id, req.status());
+    }
+
+    @DeleteMapping("/vacations/{id}")
+    public ResponseEntity<Void> deleteVacation(@PathVariable Long id) {
+        hrService.deleteVacation(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/vacations/summary")
+    public List<VacationSummaryRow> vacationSummary(
+            @RequestParam(required = false) Integer year,
+            /** 재직구분: ACTIVE(기본) | RESIGNED | ALL */
+            @RequestParam(required = false) String employment) {
+        return hrService.vacationSummary(year, employment);
+    }
+}

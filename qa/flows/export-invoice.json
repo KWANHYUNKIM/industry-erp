@@ -1,0 +1,24 @@
+{
+  "about": "Invoice / Packing List(C000652) — 2026-10-04 원본 실측: 목록 탭 [전체 · 미확인 · 확인], 열 [Voucher Date · Customer · Item Name('첫 품목 외 n건') · Invoice No. · Invoice Date · Foreign Currency · Amount · Invoice · P/L], 입력 창 머리(L/C · Shipper · Notify Party · Port of Loading · Carrier …) · 줄(Mark · Description · Net/Gross Weight · Measurement). 두 줄 인보이스를 만들어 목록 · 수정(Carrier) · 진행상태변경(확인 탭) 을 보고 지운다.",
+  "shots": [
+    {
+      "name": "두 줄 인보이스 → 목록 '외 1건' → Voucher Date 눌러 수정 → 진행상태변경 확인 → 지움",
+      "path": "/sales/export",
+      "steps": [
+        "wait:2000",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then((r) => r.json()); const [pa, it, cu] = await Promise.all([A('GET', '/partners'), A('GET', '/items'), A('GET', '/currencies')]); const c = pa.find((x) => x.type === 'CUSTOMER' || x.type === 'BOTH'); const usd = cu.find((x) => x.code === 'USD') ?? cu.find((x) => x.latestRate != null); const r = await A('POST', '/exports', { partnerId: c.id, currencyId: usd.id, shipper: 'QA재고2 Shipper', notifyParty: 'QA Notify', portOfLoading: 'BUSAN', destination: 'LA', remark: 'QA재고2', lines: [{ itemId: it[0].id, quantity: 2, unitPrice: 10, marks: 'QA-M1', netWeight: 1.5 }, { itemId: it[1].id, quantity: 1, unitPrice: 5 }] }); sessionStorage.setItem('exId', r.id); sessionStorage.setItem('exNo', r.invoiceNo); return r.invoiceNo + ' ' + r.foreignAmount })()",
+        "js:location.reload(); true",
+        "wait:3000",
+        "expect:[...document.querySelector('table thead tr').cells].map((c) => c.innerText.trim()).filter(Boolean).join('|') === 'Voucher Date|Customer|Item Name|Invoice No.|Invoice Date|Foreign Currency|Amount|Invoice|P/L'",
+        "expect:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('exNo'))).innerText.includes(' 외 1건') && [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('exNo'))).innerText.includes('25')",
+        "js:(async () => { const S = (el, v) => { const pr = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(pr, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; const W = (ms) => new Promise((r) => setTimeout(r, ms)); [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('exNo'))).querySelector('button.ec-link').click(); await W(600); S(document.querySelector('input[aria-label=\"Carrier\"]'), 'QA Carrier'); await W(200); [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === '저장(F8)').click(); await W(1200); return 'ok' })()",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const s = await (await fetch('/api/exports', { headers: H })).json(); const e = s.exports.find((x) => x.id === Number(sessionStorage.getItem('exId'))); return e.carrier === 'QA Carrier' && e.shipper === 'QA재고2 Shipper' && e.lines.length === 2 && e.lines[0].marks === 'QA-M1' && Number(e.lines[0].netWeight) === 1.5 && document.body.innerText.includes('수정되었습니다') })()",
+        "js:(async () => { [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('exNo'))).querySelector('input[type=checkbox]').click(); await new Promise((r) => setTimeout(r, 200)); [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === '진행상태변경').click(); await new Promise((r) => setTimeout(r, 1200)); [...document.querySelectorAll('.ec-pill')].find((b) => b.innerText.trim() === '확인').click(); await new Promise((r) => setTimeout(r, 300)); return 'ok' })()",
+        "expect:!![...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('exNo')))",
+        "js:(async () => { [...document.querySelectorAll('.ec-pill')].find((b) => b.innerText.trim() === '미확인').click(); await new Promise((r) => setTimeout(r, 300)); return 'ok' })()",
+        "expect:![...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('exNo')))",
+        "expect:(async () => { const r = await fetch('/api/exports/' + sessionStorage.getItem('exId'), { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }); return r.status === 204 })()"
+      ]
+    }
+  ]
+}

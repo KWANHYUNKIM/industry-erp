@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { api } from '../api/client'
-import type { MyItem } from '../api/types'
+import type { MyItem } from '../types/api'
 
 /**
  * 원본 격자 입력 화면 공통 툴바의 <b>[My품목]</b> — 부르는 쪽 로직만 나눠 갖는 훅.
@@ -46,5 +46,5 @@ export function useMyItemsPick(onApply: (items: MyItem[]) => void) {
 /** 훅이 들고 있는 알림을 단추 옆에 그린다. 없으면 아무것도 안 그린다. */
 export function MyItemsNote({ note }: { note: string }) {
   if (!note) return null
-  return <span style={{ fontSize: 12, color: '#5a626e', marginLeft: 6 }}>{note}</span>
+  return <span className="text-[12px] text-ec-label ml-[6px]">{note}</span>
 }

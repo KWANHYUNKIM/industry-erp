@@ -1,0 +1,50 @@
+{
+  "about": "외근 계기판거리(원본 E070254 · E070255) — 이동수단을 고르면 [주행전 계기판거리](그 차량의 마지막 주행후 값) · [주행후 계기판거리] · [운행거리](주행후 − 주행전, 저절로) 세 칸이 뜨고, 외근현황에 두 계기판 열과 계 · 합계가 선다. 시험 이동수단 · 외근은 API 로 만들고 지운다. node qa/shot.mjs qa/flows/field-odometer.json",
+  "shots": [
+    {
+      "name": "준비 — 시험 차량과 앞선 운행(1,000 → 1,200)",
+      "path": "/groupware/field-works",
+      "steps": [
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const v = await (await fetch('/api/field-vehicles', { method: 'POST', headers: H, body: JSON.stringify({ code: 'QAGW99가9999', name: 'QA그룹웨어-트럭', vehicle: true, carType: '화물차' }) })).json(); const d = new Date(Date.now() - 86400000); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const w = await (await fetch('/api/field-works', { method: 'POST', headers: H, body: JSON.stringify({ workDate: day, startTime: '09:00', endTime: '10:00', vehicleNo: 'QAGW99가9999', vehicleName: 'QA그룹웨어-트럭', odometerBefore: 1000, odometerAfter: 1200, purpose: 'QA그룹웨어-앞선운행' }) })).json(); sessionStorage.setItem('qaOdo', JSON.stringify({ v: v.id, w: [w.id] })); return v.id + ' / ' + w.id + ' dist ' + w.distance })()"
+      ]
+    },
+    {
+      "name": "차량 고르기 → 주행전 1,200 → 주행후 1,300 → 운행거리 100 → 저장 → 외근현황",
+      "path": "/groupware/field-works",
+      "steps": [
+        "wait:600",
+        "click:신규(F2)",
+        "expect:!document.querySelector('[role=dialog] input[placeholder=\"주행전 계기판거리\"]')",
+        "js:document.querySelector('button[aria-label=\"이동수단검색\"]').click(); true",
+        "wait:600",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].find((d) => d.getAttribute('aria-label') === '이동수단검색').querySelectorAll('tbody button')].find((b) => b.textContent.trim() === 'QAGW99가9999').click(); true",
+        "wait:800",
+        "expect:Number(document.querySelector('[role=dialog] input[placeholder=\"주행전 계기판거리\"]').value) === 1200",
+        "js:(() => { const i = document.querySelector('[role=dialog] input[placeholder=\"주행후 계기판거리\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, '1300'); i.dispatchEvent(new Event('input', { bubbles: true })); const p = document.querySelector('[role=dialog] input[placeholder=\"적요\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(p, 'QA그룹웨어-계기판'); p.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "expect:document.querySelector('[role=dialog] input[placeholder=\"운행거리\"]').value === '100' && document.querySelector('[role=dialog] input[placeholder=\"운행거리\"]').readOnly",
+        "click:저장(F8)",
+        "wait:1000",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA그룹웨어-계기판') && tr.innerText.includes('100.00'))"
+      ]
+    },
+    {
+      "name": "외근현황 — 두 계기판 열과 계",
+      "path": "/groupware/field-work-status",
+      "steps": [
+        "js:(() => { const i = [...document.querySelectorAll('input[type=date]')][0]; const d = new Date(Date.now() - 3 * 86400000); const v = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, v); i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new Event('change', { bubbles: true })); return true })()",
+        "js:(() => { const i = document.querySelector('input[placeholder=\"이동수단\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'QAGW99'); i.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "click:검색(F8)",
+        "wait:800",
+        "expect:[...document.querySelectorAll('thead th')].map((t) => t.textContent.trim()).join(',') === '일자,차량종류,사용자명,사용목적,주행전 계기판거리,주행후 계기판거리,운행거리,적요'",
+        "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QA그룹웨어-트럭 계')); return !!tr && tr.innerText.includes('2,200.00') && tr.innerText.includes('2,500.00') && tr.innerText.includes('300.00') })()"
+      ]
+    },
+    {
+      "name": "정리",
+      "path": "/groupware/field-works",
+      "steps": [
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const s = JSON.parse(sessionStorage.getItem('qaOdo')); const rows = (await (await fetch('/api/field-works?from=2026-01-01&to=2026-12-31', { headers: H })).json()).rows.filter((r) => (r.purpose ?? '').startsWith('QA그룹웨어-')); const out = []; for (const r of rows) out.push((await fetch('/api/field-works/' + r.id, { method: 'DELETE', headers: H })).status); out.push((await fetch('/api/field-vehicles/' + s.v, { method: 'DELETE', headers: H })).status); return 'del ' + out.join(',') })()"
+      ]
+    }
+  ]
+}

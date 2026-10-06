@@ -1,0 +1,20 @@
+{
+  "about": "설문조사입력(원본 E070256) — 작성자 줄 · 종료일 기본 60일 뒤 · 시각 10분 단위 → 내부 설문을 대상 없이 [저장]하면 '설문대상을 선택하세요.' → [임시저장(F8)]은 저장되고 → 끝에 지운다. node qa/shot.mjs qa/flows/survey-input.json",
+  "shots": [
+    {
+      "name": "기본값 · 필수 · 임시저장",
+      "path": "/groupware/survey-input",
+      "steps": [
+        "expect:[...document.querySelectorAll('.ec-form .title')].map((t) => t.textContent.trim()).join(',') === '작성자,제목,설문종료일,설문대상구분,첨부,결과공개범위,머리말'",
+        "expect:(() => { const d = new Date(Date.now() + 60 * 86400000); const want = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); return document.querySelector('.ec-form input[type=date]').value === want })()",
+        "expect:Number(document.querySelector('.ec-form input[type=time]').value.slice(3)) % 10 === 0",
+        "setnear:제목|QA그룹웨어-설문",
+        "click:저장",
+        "expect:document.body.innerText.includes('설문대상을 선택하세요.')",
+        "click:임시저장(F8)",
+        "expect:/게시글번호 \\d+/.test(document.body.innerText)",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = await (await fetch('/api/surveys', { headers: H })).json(); const x = (d.rows ?? d).filter((s) => s.title === 'QA그룹웨어-설문'); const out = []; for (const s of x) out.push((await fetch('/api/surveys/' + s.id, { method: 'DELETE', headers: H })).status); return 'del ' + out.join(',') })()"
+      ]
+    }
+  ]
+}

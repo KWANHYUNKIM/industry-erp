@@ -1,0 +1,106 @@
+{
+  "about": "품질 화면 회귀 시험. node qa/shot.mjs qa/flows/quality.json — 만든 전표는 끝에 지운다.",
+  "shots": [
+    {
+      "name": "품질검사 입력 — 첫 줄 품목을 코드도움으로 골라 수량 10(전수)로 저장하면 목록 진행중 줄에 수량 10 · 시료 10.00 · 적격 10.00(2026-10-04 원본처럼 품목 줄 전표)",
+      "path": "/quality/inspection",
+      "steps": [
+        "wait:1500",
+        "js:sessionStorage.setItem('qc-before', ''); (async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const l = await (await fetch('/api/quality-inspections', { headers: H })).json(); sessionStorage.setItem('qc-before', String(Math.max(0, ...l.map((x) => x.id)))); return 'before ' + sessionStorage.getItem('qc-before') })()",
+        "click:신규",
+        "wait:600",
+        "js:[...document.querySelectorAll('[role=dialog] button[title=\"품목 선택\"]')][0].click(); true",
+        "wait:600",
+        "pickrow:QA-PROD",
+        "set:[role=dialog] tbody input.text-right#0|10",
+        "clicklast:저장(F8)",
+        "wait:1500",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => { const c = [...tr.cells].map((x) => x.innerText.trim()); return c[3] === '10' && c[4] === '10.00' && c[5] === '10.00' && c[8] === '진행중' })",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const l = await (await fetch('/api/quality-inspections', { headers: H })).json(); const mine = l.filter((x) => x.id > Number(sessionStorage.getItem('qc-before'))).sort((a, b) => b.id - a.id)[0]; sessionStorage.setItem('qc-no', mine ? mine.inspectionNo : ''); return mine ? mine.inspectionNo : '없음' })()",
+        "apidel:/quality-inspections|@qc-no|inspectionNo"
+      ]
+    },
+    {
+      "name": "시리얼/로트No.재고현황 — 원본처럼 [사용중단시리얼/로트포함] · [재고수량] 1 · 기타가 켜진 채 열리고, [유효기한] 은 사용안함 · 직접입력 · 금일 … 전월 여덟이며, [재고수량] 둘을 다 끄면 줄이 없다",
+      "path": "/quality/lot-stock",
+      "steps": [
+        "wait:1800",
+        "expect:(()=>{const c=(t)=>[...document.querySelectorAll('label')].find((l)=>l.textContent.trim()===t)?.querySelector('input')?.checked;return c('사용중단시리얼/로트포함')===true&&c('1')===true&&c('기타')===true&&c('전체')===true})()",
+        "expect:(()=>{const s=[...document.querySelectorAll('select')].find((x)=>[...x.options].some((o)=>o.value==='직접입력'));return !!s&&[...s.options].map((o)=>o.value).join('|')==='사용안함|직접입력|금일|전일|금주(~오늘)|전주|금월(~오늘)|전월'&&s.value==='사용안함'})()",
+        "js:([...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='전체').querySelector('input').click(), new Promise((r)=>setTimeout(()=>r(true),600)))",
+        "expect:![...document.querySelectorAll('table tbody tr')].some((t)=>/[0-9]/.test(t.innerText)&&!t.innerText.includes('없습니다'))"
+      ]
+    },
+    {
+      "name": "시리얼/로트No.내역현황 — 원본 접힌 줄의 [관리항목] · [적요] 가 있고, 적요에 없는 낱말을 넣으면 줄이 빈다",
+      "path": "/quality/lot-tx-status",
+      "steps": [
+        "wait:1800",
+        "expect:document.body.innerText.includes('관리항목')&&document.body.innerText.includes('적요')",
+        "js:sessionStorage.setItem('ltxN', String(document.querySelectorAll('table tbody tr').length)); true",
+        "js:(()=>{const li=[...document.querySelectorAll('li')].find((l)=>l.textContent.trim().startsWith('적요'));const i=li.querySelector('input');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(i,'zz-없는-적요-zz');i.dispatchEvent(new Event('input',{bubbles:true}));return new Promise((r)=>setTimeout(()=>r(true),600))})()",
+        "expect:![...document.querySelectorAll('table tbody tr')].some((t)=>t.innerText.includes('-'))||document.querySelectorAll('table tbody tr').length<=1"
+      ]
+    },
+    {
+      "name": "시리얼/로트No.재고수불부 — 원본 차례(구분 · 기준일자 · 유효기한 · 시리얼/로트No. · 품목 · 재고수량 · 기타)로 서고, [재고수량] 1 · 0 · 기타는 켜짐 · [기타] 둘은 꺼짐으로 연다",
+      "path": "/quality/lot-ledger",
+      "steps": [
+        "wait:1800",
+        "expect:(()=>{const t=document.body.innerText;const ks=['구분','기준일자','유효기한','시리얼/로트No.','재고수량','기타'];let at=-1;for(const k of ks){const i=t.indexOf(k,at+1);if(i<0||i<at)return false;at=i}return true})()",
+        "expect:(()=>{const c=(x)=>[...document.querySelectorAll('label')].find((l)=>l.textContent.trim()===x)?.querySelector('input')?.checked;return c('1')===true&&c('0')===true&&c('기타')===true&&c('사용중단시리얼/로트포함')===false&&c('입출고수량0제외')===false})()"
+      ]
+    },
+    {
+      "name": "미검사현황 — 오늘 요청 1건(API)이 이달 줄에 미검사수량으로 뜨고 'YYYY/MM 계' · 총합계가 붙는다, 끝나면 요청을 지운다",
+      "path": "/quality/uninspected",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const it=(await window.__api('GET','/items')).body.find((x)=>x.active!==false);const today=new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10);const r=await window.__api('POST','/quality-inspection-requests',{requestDate:today,type:'INCOMING',itemId:it.id,requestQty:7,requester:'QA미검사'});sessionStorage.setItem('qrId',r.body&&r.body.id);sessionStorage.setItem('qrNo',r.body&&r.body.requestNo);return r.status})()",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const no=sessionStorage.getItem('qrNo').replace(/^[A-Z]+-(\\d{4})(\\d{2})(\\d{2})-0*(\\d+)$/, '$1/$2/$3 -$4');const tr=[...document.querySelectorAll('tbody tr')];const mine=tr.find((t)=>t.innerText.includes(no));const m=new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 7).replace('-','/');return h==='일자-No.|담당자명|품목명(규격)|수량|미검사수량'&&!!mine&&mine.cells[4].innerText.trim()==='7'&&tr.some((t)=>t.innerText.trim().startsWith(m+' 계'))&&document.querySelector('tfoot').innerText.includes('총합계')})()",
+        "js:(async()=>(await window.__api('DELETE','/quality-inspection-requests/'+sessionStorage.getItem('qrId'))).status)()"
+      ]
+    },
+    {
+      "name": "품질검사요청현황 — 이달 요청이 검사방법과 함께 뜨고 'YYYY/MM 계' · 총합계, 머리글은 '품질검사요청현황내역'",
+      "path": "/quality/request-status",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const it=(await window.__api('GET','/items')).body.find((x)=>x.active!==false);const today=new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10);const r=await window.__api('POST','/quality-inspection-requests',{requestDate:today,type:'INCOMING',itemId:it.id,requestQty:5,inspectMethod:'전수',requester:'QA요청현황'});sessionStorage.setItem('qrId',r.body&&r.body.id);sessionStorage.setItem('qrNo',r.body&&r.body.requestNo);return r.status})()",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const no=sessionStorage.getItem('qrNo').replace(/^[A-Z]+-(\\d{4})(\\d{2})(\\d{2})-0*(\\d+)$/, '$1/$2/$3 -$4');const tr=[...document.querySelectorAll('tbody tr')];const mine=tr.find((t)=>t.innerText.includes(no));const m=new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 7).replace('-','/');return h==='일자-No.|담당자명|검사방법|품목명(규격)|수량'&&!!mine&&mine.cells[2].innerText.trim()==='전수'&&tr.some((t)=>t.innerText.trim().startsWith(m+' 계'))&&document.body.innerText.includes('품질검사요청현황내역')})()",
+        "js:(async()=>(await window.__api('DELETE','/quality-inspection-requests/'+sessionStorage.getItem('qrId'))).status)()"
+      ]
+    },
+    {
+      "name": "A/S수리현황 — 오늘 접수 · 완료한 A/S 1건이 수리내용과 함께 뜨고 머리글은 'AS수리현황'",
+      "path": "/quality/as-repair-status",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const p=(await window.__api('GET','/partners')).body.find((x)=>x.code==='QA-CUST');const it=(await window.__api('GET','/items')).body.find((x)=>x.active!==false);const today=new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10);const a=await window.__api('POST','/as-requests',{partnerId:p.id,itemId:it.id,warehouseId:(await window.__api('GET','/warehouses')).body[0].id,receiptDate:today,title:'QA수리현황',symptom:'QA',charge:'QA기사'});const u=await window.__api('PATCH','/as-requests/'+a.body.id,{status:'COMPLETED',doneDate:today,repairNote:'QA 수리완료'});sessionStorage.setItem('asNo',a.body.asNo);return a.status+'/'+u.status})()",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');return h==='일자-No.|제목|거래처명|수리유형명|담당자명|품목명|소모(판매)금액|수리내용'&&document.body.innerText.includes('AS수리현황')})()"
+      ]
+    },
+    {
+      "name": "시리얼/로트No.내역조회 — 원본 열 차례로 서고, 줄이 있으면 수량은 소수 둘째 자리(1.00)까지 찍는다",
+      "path": "/quality/lot-tx-list",
+      "steps": [
+        "wait:2000",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const rows=[...document.querySelectorAll('tbody tr')].filter((t)=>t.cells.length===8);return h==='|일자-No.|품목명[규격]|시리얼/로트No.|수량|전표구분|연결전표-No.|유효기한'&&rows.every((t)=>/\\.\\d\\d$/.test(t.cells[4].innerText.trim()))})()"
+      ]
+    },
+    {
+      "name": "A/S수리조회 — 기본 6개월(+1개월), 열 수리번호 · 접수번호 · 거래처명 · 제목 · 수리내용 · 수리품목명 · 수리담당자명 · 금액, 날짜는 연도 두 자리",
+      "path": "/quality/as-repair-list",
+      "steps": [
+        "wait:2000",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const rows=[...document.querySelectorAll('tbody tr')].filter((t)=>t.cells.length===11);return h.startsWith('|수리번호|접수번호|거래처명|제목|수리내용|수리품목명|수리담당자명|금액|인쇄|생성한 전표')&&rows.every((t)=>/^\\d\\d\\/\\d\\d\\/\\d\\d /.test(t.cells[1].innerText.trim()))})()"
+      ]
+    }
+  ]
+}

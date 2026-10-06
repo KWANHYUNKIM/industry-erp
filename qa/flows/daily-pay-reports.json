@@ -1,0 +1,98 @@
+{
+  "about": "관리 > 일용근로 사원별급여조회(E020135) · 급여현황(E020753) · 근무확정현황(E020754) · 급여이체현황(E020133) — 2091/12 대장에 일용근로 사원(일근무 200,000 · 월정공제 소득세 4,050 · 지방소득세 400 · 급여통장 QA은행) 3일을 확정 · 계산해 두면, 네 화면이 같은 줄을 보여 준다: 지급총액 600,000 · 공제 4,450(소득세 4,050 · 지방 400) · 실지급 595,550 · 근무기록 3 · 은행 QA은행. 시험 자료는 지운다. 급여현황 조건 — [사원] 코드도움으로 고르면 보이고, 지급연월[사용] 2099 부터면 빠진다. 근무확정현황 조건 — [사원번호] 코드도움으로 고르면 보이고, 지급일[사용] 2099 부터면 빠진다. 급여이체현황 조건 — 급여대장 · 이체은행(004 면 빠짐) · 지급연월[사용] 2099 면 빠짐. 사원별급여조회는 [Search(F3)] 조건 판(급여대장 · 귀속연월 · 지급연월 · 사원).",
+  "shots": [
+    {
+      "name": "준비 → 사원별급여조회",
+      "path": "/hr/daily-payroll/by-worker",
+      "steps": [
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const w=await (await fetch('/api/hr/daily-workers',{method:'POST',headers:h,body:JSON.stringify({name:'QA관리-일용R',foreigner:false,employmentInsurance:true,pensionAuto:false,healthAuto:false,dailyWage:200000,fixedIncomeTax:4050,fixedLocalTax:400,bankName:'QA은행',accountNo:'111-222',accountHolder:'QA관리-일용R'})})).json();const l=await (await fetch('/api/hr/daily-pay-ledgers',{method:'POST',headers:h,body:JSON.stringify({payMonth:'2091-12'})})).json();await fetch('/api/hr/daily-pay-ledgers/'+l.id+'/work-confirms',{method:'PUT',headers:h,body:JSON.stringify([{workerId:w.id,days:3}])});await fetch('/api/hr/daily-pay-ledgers/'+l.id+'/calculate',{method:'POST',headers:h});sessionStorage.setItem('qaDr',JSON.stringify({w:w.id,l:l.id}));return true})()",
+        "set:input[type=month]#0|2091-12",
+        "set:input[type=month]#1|2091-12",
+        "click:검색(F8)",
+        "wait:1200",
+        "expect:(()=>{const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('QA관리-일용R'));return tr&&tr.innerText.includes('2091/12 -1')&&tr.innerText.includes('600,000')&&tr.innerText.includes('4,450')&&tr.innerText.includes('595,550')})()",
+        "pick:사원:QA관리-일용R",
+        "clicklast:확인",
+        "wait:300",
+        "expect:document.querySelector('table').innerText.includes('QA관리-일용R')"
+      ]
+    },
+    {
+      "name": "급여현황 — 대장 소계 · 합계",
+      "path": "/hr/daily-payroll/status",
+      "steps": [
+        "set:input[type=month]#0|2091-12",
+        "set:input[type=month]#1|2091-12",
+        "click:검색(F8)",
+        "wait:1200",
+        "expect:(()=>{const t=document.querySelector('table').innerText;return t.includes('QA관리-일용R')&&t.includes('2091/12 1차수 (급여)')&&t.includes('2091/12-1 계')&&t.includes('합계')&&t.includes('595,550')})()",
+        "pick:사원:QA관리-일용R",
+        "clicklast:확인",
+        "wait:300",
+        "expect:document.querySelector('table').innerText.includes('QA관리-일용R')",
+        "js:(()=>{[...document.querySelectorAll('label')].find(l=>l.textContent.trim()==='사용').querySelector('input').click();return true})()",
+        "wait:300",
+        "expect:document.querySelector('table').innerText.includes('QA관리-일용R')",
+        "set:input[aria-label=\"지급연월 시작\"]|2099-01",
+        "wait:300",
+        "expect:!document.querySelector('table').innerText.includes('QA관리-일용R')",
+        "expect:document.querySelector('.ec-report-head').textContent.includes('회사명 :')&&document.querySelector('.ec-report-foot').textContent.includes('[P.1]')"
+      ]
+    },
+    {
+      "name": "근무확정현황 — 일근무 3",
+      "path": "/hr/daily-payroll/work-confirms",
+      "steps": [
+        "set:input[type=month]#0|2091-12",
+        "set:input[type=month]#1|2091-12",
+        "click:검색(F8)",
+        "wait:1200",
+        "expect:(()=>{const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('QA관리-일용R'));return tr&&tr.innerText.includes('일근무')&&tr.cells[3].innerText.trim()==='3'&&document.querySelector('table').innerText.includes('2091/12 계')})()",
+        "pick:사원번호:QA관리-일용R",
+        "clicklast:확인",
+        "wait:300",
+        "expect:document.querySelector('table').innerText.includes('QA관리-일용R')",
+        "js:(()=>{[...document.querySelectorAll('label')].filter(l=>l.textContent.trim()==='사용')[1].querySelector('input').click();return true})()",
+        "wait:300",
+        "set:input[aria-label=\"지급일 시작\"]|2000-01-01",
+        "set:input[aria-label=\"지급일 끝\"]|2199-12-31",
+        "wait:300",
+        "expect:document.querySelector('table').innerText.includes('QA관리-일용R')",
+        "set:input[aria-label=\"지급일 시작\"]|2199-12-31",
+        "wait:300",
+        "expect:!document.querySelector('table').innerText.includes('QA관리-일용R')"
+      ]
+    },
+    {
+      "name": "급여이체현황 → 정리",
+      "path": "/hr/daily-payroll/transfer-status",
+      "steps": [
+        "set:input[type=month]#0|2091-12",
+        "set:input[type=month]#1|2091-12",
+        "click:검색(F8)",
+        "wait:1200",
+        "expect:(()=>{const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('111-222'));return tr&&tr.innerText.includes('QA은행')&&tr.innerText.includes('595,550')})()",
+        "pick:급여대장:2091/12-1",
+        "clicklast:확인",
+        "wait:300",
+        "expect:document.querySelector('table').innerText.includes('111-222')",
+        "pick:이체은행:004",
+        "clicklast:확인",
+        "wait:300",
+        "expect:!document.querySelector('table').innerText.includes('111-222')",
+        "pick:이체은행:004",
+        "clicklast:확인",
+        "wait:300",
+        "expect:document.querySelector('table').innerText.includes('111-222')",
+        "js:(()=>{[...document.querySelectorAll('label')].find(l=>l.textContent.trim()==='사용').querySelector('input').click();return true})()",
+        "wait:300",
+        "set:input[aria-label=\"지급연월 시작\"]|2099-01",
+        "wait:300",
+        "expect:!document.querySelector('table').innerText.includes('111-222')",
+        "expect:document.querySelector('.ec-report-head').textContent.includes('회사명 :')&&[...document.querySelectorAll('table thead th')][0].innerText.trim()==='급여통장 은행코드'",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const q=JSON.parse(sessionStorage.getItem('qaDr'));const a=await fetch('/api/hr/daily-pay-ledgers/'+q.l,{method:'DELETE',headers:h});const b=await fetch('/api/hr/daily-workers/'+q.w,{method:'DELETE',headers:h});sessionStorage.setItem('qaDrClean',String(a.ok&&b.ok));return true})()",
+        "expect:sessionStorage.getItem('qaDrClean')==='true'"
+      ]
+    }
+  ]
+}

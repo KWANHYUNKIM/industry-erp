@@ -4,17 +4,19 @@ import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import CodePickerField from '../../components/CodePickerField'
+import { useCondPickers } from '../../utils/useCondPickers'
 import CustomFieldsPanel from '../../components/CustomFieldsPanel'
 import EvidencePanel from '../../components/EvidencePanel'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
-import type { SalesConfirmStatus, SalesDoc, PurchaseDoc, Partner, TradeLine } from '../../api/types'
+import type { SalesConfirmStatus, SalesDoc, PurchaseDoc, Partner, TradeLine } from '../../types/api'
 
 /** 판매조회 / 구매조회 — 전표(문서) 단위 조회. 행 클릭 시 품목 상세 펼침. */
 type Mode = 'sales' | 'purchase'
 interface NormalDoc {
-  id: number; docNo: string; partnerId: number; partnerName: string; warehouseName: string
+  id: number; docNo: string; partnerId: number; partnerName: string; warehouseId: number; warehouseName: string
+  projectId: number | null
   date: string; supplyAmount: number; vatAmount: number; totalAmount: number
   createdBy: string | null; remark: string | null
   /**
@@ -45,12 +47,18 @@ const TAB_STATUS: Record<Exclude<SalesTab, '전체'>, SalesConfirmStatus> = {
   확인: 'CONFIRMED',
 }
 const confirmColor = (s?: SalesConfirmStatus) =>
-  s === 'CONFIRMED' ? '#1c7c3c' : s === 'IN_APPROVAL' ? 'var(--ec-blue)' : '#8a929c'
+  s === 'CONFIRMED' ? 'var(--ec-success)' : s === 'IN_APPROVAL' ? 'var(--ec-blue)' : 'var(--ec-text-hint)'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const CFG: Record<Mode, { title: string; url: string; dateKey: 'saleDate' | 'purchaseDate'; partnerLabel: string; accent: string; entryTo: string }> = {
-  sales: { title: '판매조회', url: '/sales', dateKey: 'saleDate', partnerLabel: '매출처', accent: 'var(--ec-blue)', entryTo: '/sales/sell' },
-  purchase: { title: '구매조회', url: '/purchases', dateKey: 'purchaseDate', partnerLabel: '매입처', accent: '#a5561b', entryTo: '/sales/buy' },
+/*
+ * 2026-09-09 원본 격자 실측(E040206 판매조회 · E040304 구매조회) — 두 화면 모두
+ * 그 열을 <b>[거래처명]</b> 이라 부른다. 우리는 [매출처]·[매입처] 로 갈라 적고 있었는데,
+ * 원본은 사는 쪽이든 파는 쪽이든 <b>같은 이름</b>이다. 그래서 화면별 라벨을 없앤다.
+ * (열 구성도 확인했다 — 판매조회는 구매조회에서 [프로젝트명] 하나가 빠진 것이다.)
+ */
+const CFG: Record<Mode, { title: string; url: string; dateKey: 'saleDate' | 'purchaseDate'; accent: string; entryTo: string }> = {
+  sales: { title: '판매조회', url: '/sales', dateKey: 'saleDate', accent: 'var(--ec-blue)', entryTo: '/sales/sell' },
+  purchase: { title: '구매조회', url: '/purchases', dateKey: 'purchaseDate', accent: '#a5561b', entryTo: '/sales/buy' },
 }
 
 export default function TradeInquiryPage({ mode }: { mode: Mode }) {
@@ -111,13 +119,26 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   const [projectCond, setProjectCond] = useState('')
   const [itemCond, setItemCond] = useState('')
   /** 목록의 [거래유형명]과 같은 규칙 — 부가세가 있으면 과세다(전표 입력과 같다). */
-  const tradeTypeOf = (d: { vatAmount: number }) => (d.vatAmount > 0 ? '부가세율 적용' : '면세')
+  const tradeTypeOf = (d: { vatAmount: number }) => (d.vatAmount !== 0 ? '부가세율 적용' : '면세')   // 반품은 부가세가 음수다 — > 0 이면 과세 반품이 면세로 찍혔다(26회차)
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [tab, setTab] = useState<SalesTab>('전체')
   const [openId, setOpenId] = useState<number | null>(null)
   // 이번 세션에서 세금계산서를 발행한 전표 id (버튼 중복 클릭 방지)
   const [taxIssued, setTaxIssued] = useState<Set<number>>(new Set())
+  /*
+   * 이미 세금계산서가 붙은 전표 → 그 계산서 번호. 예전엔 '발행됨' 표시가 이번 세션에서 누른 것만 기억해서
+   * 화면을 다시 열면 발행한 전표에도 [발행] 이 다시 서고, 누르면 409 "이미 발행된 전표" 가 떴다(29회차).
+   * 계산서 목록을 받아 근거전표 번호로 잇는다.
+   */
+  const [invoiceOf, setInvoiceOf] = useState<Map<string, string>>(new Map())
+  const [ok, setOk] = useState('')
+  function loadInvoices() {
+    api.get<{ invoiceNo: string; sourceDocNo: string | null }[]>('/tax-invoices',
+      { params: { type: isSales ? 'SALES' : 'PURCHASE', from: '2000-01-01', to: '2099-12-31' } })
+      .then((r) => setInvoiceOf(new Map(r.data.filter((t) => t.sourceDocNo).map((t) => [t.sourceDocNo as string, t.invoiceNo]))))
+      .catch(() => setInvoiceOf(new Map()))
+  }
   // 원본 목록의 [선택삭제] 대상. 전표 입력 그리드와 같이 **행번호 칸을 눌러** 고른다.
   const [selected, setSelected] = useState<Set<number>>(new Set())
   // 열을 더할 때 합계행(tfoot)을 같이 안 고치면 숫자가 엉뚱한 열 아래에 선다. 개발 모드에서 잡는다.
@@ -125,12 +146,19 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   // 명세서 인쇄용 — 우리 회사(공급자) 정보와 거래처 상세
   const [company, setCompany] = useState<DocParty | null>(null)
   const [partners, setPartners] = useState<Partner[]>([])
+  /*
+   * 거래처·창고·프로젝트·품목 조건은 <b>id</b> 로 거른다. 이 화면만 이름으로 남아 있어
+   * 거래처 코드도움에 코드가 비어 코드(CUST-SH01)로 찾을 수 없었고, 같은 이름이 한데 걸렸다(26회차).
+   * 후보는 다른 조회 화면과 같은 곳에서 받는다.
+   */
+  const pickers = useCondPickers(['partners', 'warehouses', 'items', 'projects'])
 
   function load() {
     setError('')
+    loadInvoices()
     api.get<(SalesDoc | PurchaseDoc)[]>(cfg.url)
       .then((res) => setDocs(res.data.map((d) => ({
-        id: d.id, docNo: d.docNo, partnerId: d.partnerId, partnerName: d.partnerName, warehouseName: d.warehouseName,
+        id: d.id, docNo: d.docNo, partnerId: d.partnerId, partnerName: d.partnerName, warehouseId: d.warehouseId, warehouseName: d.warehouseName, projectId: d.projectId ?? null,
         date: (d as never)[cfg.dateKey] as string,
         supplyAmount: d.supplyAmount, vatAmount: d.vatAmount, totalAmount: d.totalAmount,
         createdBy: d.createdBy, remark: d.remark, updatedAt: d.updatedAt, createdAt: d.createdAt,
@@ -226,12 +254,14 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   }
 
   async function issueTaxInvoice(d: NormalDoc) {
+    setError(''); setOk('')
     try {
-      await api.post('/tax-invoices', { type: isSales ? 'SALES' : 'PURCHASE', sourceId: d.id })
+      const res = await api.post<{ invoiceNo: string }>('/tax-invoices', { type: isSales ? 'SALES' : 'PURCHASE', sourceId: d.id })
       setTaxIssued((s) => new Set(s).add(d.id))
-      alert(`${d.docNo} 세금계산서를 발행했습니다. (${isSales ? '매출' : '매입'} 세금계산서 화면에서 진행단계 관리)`)
+      setInvoiceOf((m) => new Map(m).set(d.docNo, res.data.invoiceNo))
+      setOk(`${d.docNo} → 세금계산서 ${res.data.invoiceNo} 작성 (${isSales ? '매출' : '매입'} 세금계산서 화면에서 진행단계 관리)`)
     } catch (err) {
-      alert(extractErrorMessage(err))
+      setError(extractErrorMessage(err))
     }
   }
 
@@ -257,7 +287,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
       docDate: d.date,
       supplier: isSales ? ourParty : partnerParty,
       customer: isSales ? partnerParty : ourParty,
-      extra: [{ label: '창고', value: d.warehouseName }, { label: '담당', value: d.createdBy }],
+      extra: [{ label: '창고', value: d.warehouseName }, { label: '담당', value: d.employeeName }, { label: '작성', value: d.createdBy }],
       remark: d.remark,
       lines: d.lines,
       footNote: isSales ? '위와 같이 거래하였음을 확인합니다.' : undefined,
@@ -271,13 +301,24 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
    * 그중 <b>우리 자료로 지금 거를 수 있는 셋</b>을 만든다 — 셋 다 응답에 진작 실려 오는데
    * 거를 자리가 없었다(표에는 [회계반영여부]가 열로 찍히고 있었다).
    */
+  /**
+   * 원본 <b>[오더관리번호]</b>. 2026-09-08 에 원본(판매조회)을 열어 그 칸의 속을 보고서야
+   * 만들었다 — <code>btn-code-search</code> + <code>form-control-code</code> 인
+   * <b>코드도움</b>이었다([거래처]·[품목]과 같은 부류다). 치는 칸이었다면 수주에 따로
+   * 매기는 관리번호였을 테고 우리에겐 그 자리가 없었을 것이다.
+   *
+   * <p>고르는 값은 <b>근거 수주의 전표번호</b>다 — 우리 줄의 <code>sourceDocNo</code> 가
+   * 그것이고, 목록의 [근거전표] 열에 진작 찍고 있었다. 예외에 '전표에 오더 참조가 없다'
+   * 고 적어 두었던 것이 거짓이었고(32b7ded), 이제 거를 자리까지 만든다.
+   */
+  const [orderNoCond, setOrderNoCond] = useState('')
   const [specCond, setSpecCond] = useState('')
   const [reflectedCond, setReflectedCond] = useState<'전체' | '반영' | '미반영'>('전체')
   const [remarkCond, setRemarkCond] = useState('')
 
   const shown = useMemo(() => docs
     .filter((d) => !keyword || d.partnerName.includes(keyword) || d.docNo.includes(keyword))
-    .filter((d) => !partnerCond || d.partnerName === partnerCond)
+    .filter((d) => !partnerCond || String(d.partnerId) === partnerCond)
     .filter((d) => !managerCond || (d.employeeName ?? '') === managerCond)
     /* 원본 [작성자] — 차례는 [적요] 다음, [최종수정자] 앞이다. */
     .filter((d) => !authorCond || (d.createdBy ?? '') === authorCond)
@@ -294,11 +335,13 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
      */
     .filter((d) => !madeFrom || (d.createdAt ?? '').slice(0, 10) >= madeFrom)
     .filter((d) => !madeTo || (d.createdAt ?? '').slice(0, 10) <= madeTo)
-    .filter((d) => !whCond || d.warehouseName === whCond)
-    .filter((d) => !itemCond || d.lines.some((l) => l.itemName === itemCond))
+    .filter((d) => !whCond || String(d.warehouseId) === whCond)
+    .filter((d) => !itemCond || d.lines.some((l) => String(l.itemId) === itemCond))
     .filter((d) => !typeCond || tradeTypeOf(d) === typeCond)
-    .filter((d) => !projectCond || (d.projectName ?? '') === projectCond)
+    .filter((d) => !projectCond || String(d.projectId ?? '') === projectCond)
     /* 원본 [규격] — 전표 안의 어느 줄이든 그 규격이면 걸린다(품목과 같은 규칙). */
+    /* 전표 안의 <b>어느 줄이든</b> 그 오더에서 왔으면 걸린다(품목·규격과 같은 규칙). */
+    .filter((d) => !orderNoCond || d.lines.some((l) => (l.sourceDocNo ?? '') === orderNoCond))
     .filter((d) => !specCond || d.lines.some((l) => (l.spec ?? '') === specCond))
     /* 원본 [회계반영여부]. 표에는 진작 열로 찍고 있었는데 그것으로 거를 수가 없었다. */
     .filter((d) => reflectedCond === '전체' || (reflectedCond === '반영') === d.accountingReflected)
@@ -311,7 +354,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
       /* 원본 [수정일자순(정렬)] — 고친 순으로 본다. 안 고친 전표는 만든 때가 곧 고친 때다. */
       ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') || b.id - a.id
       : b.date.localeCompare(a.date) || b.id - a.id)), /* eslint-disable-next-line react-hooks/exhaustive-deps */
-    [docs, keyword, partnerCond, managerCond, whCond, typeCond, projectCond, from, to, tab, isSales, byUpdated, specCond, reflectedCond, remarkCond, authorCond, updFrom, updTo, madeFrom, madeTo, partnerMgrCond, partners])
+    [docs, keyword, partnerCond, managerCond, whCond, typeCond, projectCond, from, to, tab, isSales, byUpdated, orderNoCond, specCond, reflectedCond, remarkCond, authorCond, updFrom, updTo, madeFrom, madeTo, partnerMgrCond, partners])
 
   const toggleSelect = (id: number) => setSelected((s) => {
     const next = new Set(s)
@@ -358,10 +401,19 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
     const ids = shown.filter((d) => selected.has(d.id)).map((d) => d.id)
     if (ids.length === 0) { setError('지울 전표를 고르세요. 행번호 칸을 누르면 선택됩니다.'); return }
     if (!confirm(`전표 ${ids.length}건을 지울까요? 재고도 함께 되돌아갑니다.`)) return
+    /*
+     * 원본 판매조회는 회계반영된 판매를 지우면 '회계반영된 전표의 경우, 매출전표의 삭제 여부를 선택해주시기 바랍니다'
+     * 창을 띄우고 [매출전표포함](기본 체크)으로 회계전표까지 같이 지운다(2026-10-06 loginaa 실측).
+     * 포함하지 않고 판매만 지우는 길은 원본도 '거래불일치가 발생할 수 있다' 고 경고하는 길이라 두지 않는다.
+     */
+    const reflected = isSales ? shown.filter((d) => selected.has(d.id) && d.accountingReflected) : []
+    if (reflected.length > 0 && !confirm(
+      `회계반영된 전표 ${reflected.length}건(${reflected.map((d) => d.docNo).join(', ')})은 매출전표(회계전표)까지 함께 지웁니다. 계속할까요?`)) return
     const failed: string[] = []
     for (const id of ids) {
       try {
-        await api.delete(`${cfg.url}/${id}`)
+        if (reflected.some((d) => d.id === id)) await api.post('/accounting-reflection/delete-sales-with-journal', { kind: 'SALES', ids: [id] })
+        else await api.delete(`${cfg.url}/${id}`)
       } catch (err) {
         const doc = shown.find((d) => d.id === id)
         failed.push(`${doc?.docNo ?? id}: ${extractErrorMessage(err)}`)
@@ -413,6 +465,8 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
 
   return (
     <EcListShell
+      /* [검색(F8)]이 조건 판만 닫고 목록은 그대로였다 — 새로 넣은 전표가 안 보였다. 다시 읽는다. */
+      onSearch={load}
       title={cfg.title} search={keyword} onSearchChange={setKeyword}
       // 원본 목록의 하단 버튼줄은 [신규(F2)] 로 시작한다 — 조회에서 바로 입력 화면으로 간다.
       // 셸에는 이미 그 자리가 있었는데 이 화면이 onNew 를 안 넘겨 비어 있었다.
@@ -434,12 +488,13 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
          * 조회 화면에서 한 거래처만 훑고 싶을 때 조건을 다시 고르지 않아도 된다.
          */
         { label: isSales ? '거래내역보기(판매)' : '거래내역보기(구매)',
-          onClick: () => setPartnerCond(partnerCond || (shown[0]?.partnerName ?? '')) },
+          onClick: () => setPartnerCond(partnerCond || (shown[0] ? String(shown[0].partnerId) : '')) },
         { label: 'Excel' },
         { label: '인쇄' },
       ]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {ok && <p style={{ background: '#eaf6ee', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
 
       {/*
         원본은 이 줄이 [상태 알약]…………[기간] 이다 — 왼쪽에 필터, 오른쪽 끝에 조회 기간.
@@ -447,7 +502,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
         오른쪽이 맞다. 원본은 기간을 텍스트로만 보여 주지만, 우리는 바꿀 수 있게 남긴다 —
         못 바꾸게 만들 이유가 없다.
       */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+      <div className="flex flex-wrap items-center gap-[6px] mb-[6px]">
         {isSales && (
           <div className="ec-pills">
             {SALES_TABS.map((t) => (
@@ -460,10 +515,10 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
             ))}
           </div>
         )}
-        <span style={{ marginLeft: isSales ? 8 : 0, fontSize: 12, color: '#9aa1ab' }}>
+        <span style={{ marginLeft: isSales ? 8 : 0, fontSize: 12, color: 'var(--ec-text-hint)', whiteSpace: 'nowrap' }}>
           총 {shown.length}건 · 행을 클릭하면 품목 상세가 펼쳐집니다.
         </span>
-        <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#62677e' }}>
+        <span style={{ marginLeft: 'auto', display: 'inline-flex', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', gap: 6, fontSize: 12, color: '#62677e' }}>
           {/*
             <b>이 파일이 겸하는 두 화면은 이 줄을 서로 다르게 부른다</b>(사본 실측) —
             판매조회는 [기준일자], 구매조회는 [일자]다. 한 이름으로 눌러 두면 한쪽이 늘 틀린다.
@@ -494,22 +549,22 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
           */}
           <CodePickerField label="창고" width={130} emptyLabel="전체"
                            value={whCond} onChange={setWhCond}
-                           items={[...new Set(docs.map((d) => d.warehouseName).filter(Boolean))].sort()
-                             .map((n) => ({ value: n, name: n }))} />
+                           items={pickers.warehouses} />
           <CodePickerField label="프로젝트" width={130} emptyLabel="전체"
                            value={projectCond} onChange={setProjectCond}
-                           items={[...new Set(docs.map((d) => d.projectName).filter(Boolean) as string[])].sort()
-                             .map((n) => ({ value: n, name: n }))} />
+                           items={pickers.projects} />
           <CodePickerField label="거래처" width={150} emptyLabel="전체"
                            value={partnerCond} onChange={setPartnerCond}
-                           items={[...new Set(docs.map((d) => d.partnerName))].sort()
-                             .map((n) => ({ value: n, name: n }))} />
+                           items={pickers.partners} />
           {/* 원본 [품목] — 전표 안의 어느 줄이든 그 품목이 있으면 걸린다. */}
           <CodePickerField label="품목" width={130} emptyLabel="전체"
                            value={itemCond} onChange={setItemCond}
-                           items={[...new Set(docs.flatMap((d) => d.lines.map((l) => l.itemName)).filter(Boolean))].sort()
+                           items={pickers.items} />
+          {/* 원본 차례: [품목] · (발송여부는 알약) · <b>[오더관리번호]</b> · [규격] · [담당자]. */}
+          <CodePickerField label="오더관리번호" width={130} emptyLabel="전체"
+                           value={orderNoCond} onChange={setOrderNoCond}
+                           items={[...new Set(docs.flatMap((d) => d.lines.map((l) => l.sourceDocNo)).filter(Boolean) as string[])].sort()
                              .map((n) => ({ value: n, name: n }))} />
-          {/* 원본 차례: [품목] 다음이 [발송여부]·[오더관리번호]·<b>[규격]</b>, 그다음이 [담당자] 다. */}
           <CodePickerField label="규격" width={110} emptyLabel="전체"
                            value={specCond} onChange={setSpecCond}
                            items={[...new Set(docs.flatMap((d) => d.lines.map((l) => l.spec)).filter(Boolean) as string[])].sort()
@@ -528,13 +583,13 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                            items={[...new Set(partners.map((p) => p.manager).filter(Boolean) as string[])].sort()
                              .map((n) => ({ value: n, name: n }))} />
           {/* 원본 차례: [거래처관리담당자] 다음이 <b>[회계반영여부]</b> 다. */}
-          <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>회계반영여부</span>
+          <span className="text-[12.5px] text-ec-label ml-[8px]">회계반영여부</span>
           <select className="ec-input" value={reflectedCond} style={{ width: 90 }}
                   onChange={(e) => setReflectedCond(e.target.value as '전체' | '반영' | '미반영')}>
             <option>전체</option><option>반영</option><option>미반영</option>
           </select>
           {/* 원본 차례: [판매구분] 다음이 <b>[적요]</b> 다. 전표 적요로 좁힌다. */}
-          <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>적요</span>
+          <span className="text-[12.5px] text-ec-label ml-[8px]">적요</span>
           <input className="ec-input" value={remarkCond} placeholder="적요 일부" style={{ width: 130 }}
                  onChange={(e) => setRemarkCond(e.target.value)} />
           {/* 원본 차례: [적요] 다음이 <b>[작성자]</b>, 그다음이 [최종수정자] 다. */}
@@ -543,16 +598,16 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                            items={[...new Set(docs.map((d) => d.createdBy).filter(Boolean) as string[])].sort()
                              .map((n) => ({ value: n, name: n }))} />
           {/* 원본 차례: [작성자]·[최종수정자] 다음이 <b>[최초작성일자]</b>, 그다음이 [최종수정일시] 다. */}
-          <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>최초작성일자</span>
+          <span className="text-[12.5px] text-ec-label ml-[8px]">최초작성일자</span>
           <input type="date" className="ec-input" value={madeFrom} style={{ width: 130 }}
                  onChange={(e) => setMadeFrom(e.target.value)} />
-          <span style={{ color: '#9aa1ab' }}>~</span>
+          <span className="text-ec-hint">~</span>
           <input type="date" className="ec-input" value={madeTo} style={{ width: 130 }}
                  onChange={(e) => setMadeTo(e.target.value)} />
-          <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>{updatedLabel}</span>
+          <span className="text-[12.5px] text-ec-label ml-[8px]">{updatedLabel}</span>
           <input type="date" className="ec-input" value={updFrom} style={{ width: 130 }}
                  onChange={(e) => setUpdFrom(e.target.value)} />
-          <span style={{ color: '#9aa1ab' }}>~</span>
+          <span className="text-ec-hint">~</span>
           <input type="date" className="ec-input" value={updTo} style={{ width: 130 }}
                  onChange={(e) => setUpdTo(e.target.value)} />
           {/*
@@ -562,15 +617,15 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
             발송여부 · <b>기타</b> · 적요 차례다.
             원본은 자잘한 체크박스를 이 이름으로 묶고 <b>우리도 묶는다</b>.
           */}
-          <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginLeft: 8 }}>기타</span>
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span className="text-[12.5px] text-ec-label ml-[8px]">기타</span>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
             수정일자순(정렬)
           </label>
         </span>
       </div>
 
-      <table ref={listRef} className="w-full text-left">
+      <table ref={listRef} className="w-full text-left ec-list-grid">
         <thead>
           <tr>
             {/* 원본 1열은 행머리다 — 헤더는 전체선택, 본문은 행번호(눌러서 선택). 전표 입력 그리드와 같은 규칙. */}
@@ -585,36 +640,40 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
               여기까지가 원본 판매조회의 열이고 순서도 같다(실측 폭 70·279·304·715·201·140·201·154·101·101).
               원본은 일자와 번호를 '2026/08/03 -1' 처럼 한 칸에 적는다 — 게시글의 '일자-No.'와 같은 규칙이다.
             */}
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('일자-No.')}>일자-No. {sort.mark('일자-No.')}</th>
-            <th>{cfg.partnerLabel}</th>
+            {/* 칸 정렬 — 2026-09-21 구매조회에서 <b>글자가 칸 안 어디에 앉는지</b>(Range)로 잰 값:
+                [일자-No.] 왼쪽, [거래유형명]·[회계반영여부]·[인쇄]·[불러온전표] 가운데.
+                09-09 대조표는 가운데·좌·좌·좌·우 였는데 글자 위치로 다시 재니 틀렸다. */}
+            <th className="cursor-pointer" onClick={() => sort.toggle('일자-No.')}>일자-No. {sort.mark('일자-No.')}</th>
+            <th>거래처명</th>
             <th>품목명(요약)</th>
-            <th style={{ textAlign: 'right' }}>금액합계</th>
+            <th className="text-right">금액합계</th>
             {/* 원본 구매조회에만 있는 열이다 — 판매조회에는 없다. 실측으로 확인했다. */}
             {!isSales && <th>프로젝트명</th>}
             {/* 원본 '거래유형명'. 우리는 과세/면세를 부가세 유무로 판별한다(전표 입력과 같은 규칙). */}
-            <th>거래유형명</th>
+            <th className="text-center">거래유형명</th>
             <th>창고명</th>
-            <th style={{ textAlign: 'center' }}>회계반영여부</th>
-            <th style={{ textAlign: 'center' }}>인쇄</th>
+            <th className="text-center">회계반영여부</th>
+            <th className="text-center">인쇄</th>
             {/* 이 전표가 어느 수주/발주에서 왔는지 */}
-            <th>불러온전표</th>
+            <th className="text-center">불러온전표</th>
             {/* 아래는 원본에 없지만 우리가 더 보여 주는 열이다. 원본 열을 밀어내지 않도록 뒤에 둔다. */}
-            <th style={{ textAlign: 'right' }}>공급가액</th><th style={{ textAlign: 'right' }}>부가세</th><th>담당</th>
-            {isSales && <><th style={{ textAlign: 'center' }}>확인상태</th><th style={{ textAlign: 'center' }}>확인</th></>}
-            <th style={{ textAlign: 'center' }}>세금계산서</th>
+            <th className="text-right">공급가액</th><th className="text-right">부가세</th><th>담당</th>
+            {isSales && <><th className="text-center">확인상태</th><th className="text-center">확인</th></>}
+            <th className="text-center">세금계산서</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={colCount} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={colCount} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((d, i) => (
             <Fragment key={d.id}>
-              <tr onClick={() => setOpenId(openId === d.id ? null : d.id)} style={{ cursor: 'pointer' }}>
+              <tr className={i % 2 ? 'ec-list-alt' : undefined}
+                  onClick={() => setOpenId(openId === d.id ? null : d.id)} style={{ cursor: 'pointer' }}>
                 <td
                   style={{
                     textAlign: 'center',
-                    background: selected.has(d.id) ? 'var(--ec-blue-light)' : '#f3f3f3',
-                    color: selected.has(d.id) ? 'var(--ec-blue-dark)' : '#8a929c',
+                    background: selected.has(d.id) ? 'var(--ec-blue-light)' : 'var(--ec-report-stripe)',
+                    color: selected.has(d.id) ? 'var(--ec-blue-dark)' : 'var(--ec-text-hint)',
                     fontWeight: selected.has(d.id) ? 700 : 400,
                     cursor: 'pointer', userSelect: 'none',
                   }}
@@ -623,24 +682,26 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                 >
                   {i + 1}
                 </td>
-                <td style={{ fontFamily: 'monospace', color: cfg.accent, fontWeight: 600 }}>
+                {/* 원본: 일자-No 는 링크 색 (25,53,140) · 보통 굵기 · 본문 글꼴이다(2026-09-21 구매조회 실측). */}
+                <td style={{ color: 'rgb(25, 53, 140)' }}>
                   {openId === d.id ? '▾ ' : '▸ '}{dateNo(d)}
                 </td>
                 <td>{d.partnerName}</td>
-                <td style={{ color: '#5a626e' }}>
+                <td>
                   {d.lines[0]?.itemName ?? ''}{d.lines.length > 1 ? ` 외 ${d.lines.length - 1}건` : ''}
                 </td>
-                <td style={{ textAlign: 'right', fontWeight: 700, color: cfg.accent }}>{won(d.totalAmount)}</td>
-                {!isSales && <td style={{ color: '#5a626e' }}>{d.projectName ?? ''}</td>}
-                <td style={{ color: '#5a626e' }}>{d.vatAmount > 0 ? '부가세율 적용' : '면세'}</td>
+                <td className="text-right">{won(d.totalAmount)}</td>
+                {!isSales && <td className="text-ec-label">{d.projectName ?? ''}</td>}
+                <td className="text-center">{tradeTypeOf(d)}</td>
                 <td>{d.warehouseName}</td>
-                <td style={{ textAlign: 'center', color: d.accountingReflected ? '#1c7c3c' : '#9aa1ab' }}>
+                <td className="text-center">
                   {d.accountingReflected ? '반영' : '미반영'}
                 </td>
-                <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
-                  <button className="ec-btn ec-btn-sm" onClick={() => printOne(d)}>인쇄</button>
+                <td className="text-center" onClick={(e) => e.stopPropagation()}>
+                  {/* 원본 [인쇄]는 버튼이 아니라 링크 글자다. */}
+                  <button type="button" className="ec-link" onClick={() => printOne(d)}>인쇄</button>
                 </td>
-                <td style={{ fontFamily: 'monospace', color: '#8a929c' }}>
+                <td className="text-center">
                   {/* 한 전표의 라인들이 서로 다른 근거전표에서 올 수 있다 — 중복을 없애고 요약한다 */}
                   {(() => {
                     const nos = [...new Set(d.lines.map((l) => l.sourceDocNo).filter(Boolean))] as string[]
@@ -648,28 +709,28 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                     return nos.length === 1 ? nos[0] : `${nos[0]} 외 ${nos.length - 1}건`
                   })()}
                 </td>
-                <td style={{ textAlign: 'right' }}>{won(d.supplyAmount)}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(d.vatAmount)}</td>
+                <td className="text-right">{won(d.supplyAmount)}</td>
+                <td className="text-right text-ec-hint">{won(d.vatAmount)}</td>
                 <td>{d.createdBy ?? ''}</td>
                 {isSales && (
                   <>
                     <td style={{ textAlign: 'center', color: confirmColor(d.confirmStatus), fontWeight: 600 }} onClick={(e) => e.stopPropagation()}>
                       {d.confirmStatusName ?? '미확인'}
                     </td>
-                    <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                    <td className="text-center" onClick={(e) => e.stopPropagation()}>
                       {d.confirmStatus === 'CONFIRMED' ? (
                         <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => confirmAct(d, 'unconfirm')}>확인취소</button>
                       ) : d.confirmStatus === 'IN_APPROVAL' ? (
-                        <span style={{ color: '#c9ced6' }}>—</span>
+                        <span className="text-ec-off">—</span>
                       ) : (
                         <button className="ec-btn ec-btn-primary" style={{ height: 20, padding: '0 8px' }} onClick={() => confirmAct(d, 'confirm')}>확인</button>
                       )}
                     </td>
                   </>
                 )}
-                <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
-                  {taxIssued.has(d.id) ? (
-                    <span style={{ color: '#1c7c3c', fontSize: 11.5 }}>발행됨</span>
+                <td className="text-center" onClick={(e) => e.stopPropagation()}>
+                  {taxIssued.has(d.id) || invoiceOf.has(d.docNo) ? (
+                    <span className="text-ec-success text-[11.5px]">{invoiceOf.get(d.docNo) ?? '발행됨'}</span>
                   ) : (
                     <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => issueTaxInvoice(d)}>발행</button>
                   )}
@@ -677,8 +738,8 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
               </tr>
               {openId === d.id && (
                 <tr className="no-ec">
-                  <td colSpan={colCount} style={{ padding: 0, background: '#fafbfc' }}>
-                    <table className="w-full text-left" style={{ margin: '4px 0' }}>
+                  <td colSpan={colCount} className="p-0 bg-ec-page">
+                    <table className="w-full text-left my-[4px] mx-0">
                       <thead>
                         {/*
                           원본 구매조회 라인 열 실측(사본): 품목코드 · 품목명 · <b>규격</b> ·
@@ -688,34 +749,34 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                           수량 이름은 원본이 판매는 '수량', 구매는 '기본수량' 으로 다르다.
                         */}
                         <tr>
-                          <th style={{ width: 34 }}></th>
+                          <th className="w-[34px]"></th>
                           <th>품목코드</th>
                           <th>품목명</th>
-                          <th style={{ width: 110 }}>규격</th>
-                          <th style={{ textAlign: 'right' }}>{isSales ? '수량' : '기본수량'}</th>
-                          <th style={{ textAlign: 'right' }}>단가</th>
-                          <th style={{ textAlign: 'right' }}>공급가액</th>
-                          <th style={{ textAlign: 'right' }}>부가세</th>
-                          <th style={{ width: 160 }}>적요</th>
+                          <th className="w-[110px]">규격</th>
+                          <th className="text-right">{isSales ? '수량' : '기본수량'}</th>
+                          <th className="text-right">단가</th>
+                          <th className="text-right">공급가액</th>
+                          <th className="text-right">부가세</th>
+                          <th className="w-[160px]">적요</th>
                         </tr>
                       </thead>
                       <tbody>
                         {d.lines.map((l, li) => (
                           <tr key={li}>
-                            <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{li + 1}</td>
-                            <td style={{ fontFamily: 'monospace' }}>{l.itemCode}</td>
+                            <td className="text-center text-ec-hint">{li + 1}</td>
+                            <td>{l.itemCode}</td>
                             <td>{l.itemName}</td>
-                            <td style={{ color: '#5a626e' }}>{l.spec ?? ''}</td>
-                            <td style={{ textAlign: 'right' }}>{won(l.quantity)} {l.unit}</td>
-                            <td style={{ textAlign: 'right' }}>{won(l.unitPrice)}</td>
-                            <td style={{ textAlign: 'right' }}>{won(l.supplyAmount)}</td>
-                            <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(l.vatAmount)}</td>
-                            <td style={{ color: '#5a626e' }}>{l.remark ?? ''}</td>
+                            <td className="text-ec-label">{l.spec ?? ''}</td>
+                            <td className="text-right">{won(l.quantity)} {l.unit}</td>
+                            <td className="text-right">{won(l.unitPrice)}</td>
+                            <td className="text-right">{won(l.supplyAmount)}</td>
+                            <td className="text-right text-ec-hint">{won(l.vatAmount)}</td>
+                            <td className="text-ec-label">{l.remark ?? ''}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
-                    <div style={{ padding: '4px 10px 8px', display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <div className="pt-[4px] px-[10px] pb-[8px] flex gap-[6px] items-center">
                       <button className="ec-btn ec-btn-primary" onClick={() => printStatement(d)}>
                         {isSales ? '거래명세서 인쇄' : '매입명세서 인쇄'}
                       </button>
@@ -724,19 +785,19 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
                       <button className="ec-btn" onClick={() => returnDoc(d)}>반품처리</button>
                       <button
                         className="ec-btn"
-                        style={{ color: '#c60a2e', borderColor: '#e2b4bc' }}
+                        style={{ color: 'var(--ec-danger)', borderColor: '#e2b4bc' }}
                         onClick={() => deleteDoc(d)}
                       >
                         삭제
                       </button>
-                      <span style={{ fontSize: 11.5, color: '#8a929c' }}>
+                      <span className="text-[11.5px] text-ec-hint">
                         삭제하면 {isSales ? '출고' : '입고'}분이 재고로 되돌아갑니다.
                         회계반영·확인{isSales ? '' : ''}·세금계산서 발행 전표는 먼저 취소해야 합니다.
                       </span>
                     </div>
-                    {d.remark && <div style={{ padding: '2px 10px 8px', fontSize: 12, color: '#5a626e' }}>비고: {d.remark}</div>}
-                    {isSales && <div style={{ padding: '0 10px 8px' }}><CustomFieldsPanel entityType="SALES" entityId={d.id} /></div>}
-                    <div style={{ padding: '0 10px 8px' }}>
+                    {d.remark && <div className="pt-[2px] px-[10px] pb-[8px] text-[12px] text-ec-label">비고: {d.remark}</div>}
+                    {isSales && <div className="pt-0 px-[10px] pb-[8px]"><CustomFieldsPanel entityType="SALES" entityId={d.id} /></div>}
+                    <div className="pt-0 px-[10px] pb-[8px]">
                       <EvidencePanel
                         entityType={isSales ? 'SALES' : 'PURCHASE'}
                         entityId={d.id}
@@ -751,18 +812,18 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
           ))}
         </tbody>
         <tfoot>
-          <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+          <tr className="font-bold bg-ec-page">
             {/*
               합계행은 머리글과 칸 수가 정확히 같아야 숫자가 제 열 아래에 선다.
               앞 4칸(행머리·일자-No.·거래처·품목명) + 금액합계 + 5칸(거래유형·창고·회계반영·인쇄·불러온전표)
               + 공급가액 + 부가세 + 나머지. 나머지는 colCount 에서 빼서 구한다 —
               열을 늘릴 때 여기를 또 잊어도 어긋나지 않는다.
             */}
-            <td colSpan={4} style={{ textAlign: 'right' }}>합계 ({shown.length}건)</td>
+            <td colSpan={4} className="text-right">합계 ({shown.length}건)</td>
             <td style={{ textAlign: 'right', color: cfg.accent }}>{won(totals.total)}</td>
             <td colSpan={midSpan}></td>
-            <td style={{ textAlign: 'right' }}>{won(totals.supply)}</td>
-            <td style={{ textAlign: 'right' }}>{won(totals.vat)}</td>
+            <td className="text-right">{won(totals.supply)}</td>
+            <td className="text-right">{won(totals.vat)}</td>
             <td colSpan={colCount - (7 + midSpan)}></td>
           </tr>
         </tfoot>

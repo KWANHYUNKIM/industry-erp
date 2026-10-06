@@ -1,0 +1,48 @@
+{
+  "about": "설문 한 바퀴를 화면만으로 — 설문조사입력(제목 · 외부 · 단답형 질문 하나) [저장] '설문조사를 진행하시겠습니까?' → 설문조사 목록 [응답하기] → 답 넣고 [제출] → '참여' → 설문조사현황 [검색(F8)] 출력물에 응답 × 질문 한 줄. 끝에 지운다. node qa/shot.mjs qa/flows/survey-roundtrip.json",
+  "shots": [
+    {
+      "name": "설문조사입력 — 화면으로 저장",
+      "path": "/groupware/survey-input",
+      "steps": [
+        "wait:800",
+        "setnear:제목|QA그룹웨어-화면설문",
+        "js:[...document.querySelectorAll('label')].find((l) => l.textContent.trim() === '외부').querySelector('input').click(); true",
+        "js:(() => { const tr = document.querySelector('.ec-grid-input tbody tr'); const s = tr.querySelector('select'); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s, 'SHORT_TEXT'); s.dispatchEvent(new Event('change', { bubbles: true })); const i = [...tr.querySelectorAll('input')].find((x) => x.type !== 'checkbox' && !x.disabled); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'QA좋아하는 점심메뉴는?'); i.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "js:window.__asked = ''; window.confirm = (m) => { window.__asked = m; return true }; true",
+        "click:저장",
+        "wait:1200",
+        "expect:window.__asked === '설문조사를 진행하시겠습니까?' && !!document.querySelector('.ec-alert-success')"
+      ]
+    },
+    {
+      "name": "설문조사 — 응답하기 → 제출 → 참여",
+      "path": "/groupware/survey",
+      "steps": [
+        "wait:1200",
+        "js:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('QA그룹웨어-화면설문')).querySelectorAll('button').forEach((b) => { if (b.textContent.trim() === '응답하기') b.click() }); true",
+        "wait:800",
+        "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const i = [...d.querySelectorAll('input')].find((x) => x.type !== 'radio' && x.type !== 'checkbox' && x.type !== 'date'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'QA김치찌개'); i.dispatchEvent(new Event('input', { bubbles: true })); [...d.querySelectorAll('button')].find((b) => b.textContent.trim() === '제출').click(); return true })()",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('QA그룹웨어-화면설문'))?.innerText.includes('참여')"
+      ]
+    },
+    {
+      "name": "설문조사현황 — 응답이 출력물에",
+      "path": "/groupware/survey-status",
+      "steps": [
+        "wait:800",
+        "click:검색(F8)",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA그룹웨어-화면설문') && tr.innerText.includes('QA좋아하는 점심메뉴는?') && tr.innerText.includes('QA김치찌개'))"
+      ]
+    },
+    {
+      "name": "정리",
+      "path": "/groupware/survey",
+      "steps": [
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = await (await fetch('/api/surveys', { headers: H })).json(); const out = []; for (const s of (d.rows ?? d).filter((x) => x.title.startsWith('QA그룹웨어'))) out.push((await fetch('/api/surveys/' + s.id, { method: 'DELETE', headers: H })).status); return 'del ' + out.join(',') })()"
+      ]
+    }
+  ]
+}

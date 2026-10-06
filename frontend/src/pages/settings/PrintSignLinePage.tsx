@@ -2,7 +2,7 @@ import { useEffect, useState, useRef} from 'react'
 import EcListShell from '../../components/EcListShell'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
-import type { SignLine, SignSlot } from '../../api/types'
+import type { SignLine, SignSlot } from '../../types/api'
 
 interface SlotForm { title: string; signerName: string }
 const emptySlot = (): SlotForm => ({ title: '', signerName: '' })
@@ -36,48 +36,48 @@ export default function PrintSignLinePage() {
 
   return (
     <EcListShell title="인쇄용 결재라인" actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+      <div className="flex items-center gap-[6px] mb-[8px]">
         <button className="ec-btn ec-btn-primary" onClick={() => setEditing('new')}>+ 결재란 등록(F2)</button>
         <button className="ec-btn" onClick={load}>새로고침</button>
-        <span style={{ marginLeft: 8, fontSize: 12, color: '#9aa1ab' }}>
+        <span className="ml-[8px] text-[12px] text-ec-hint">
           목록 화면의 [인쇄]는 <b>기본 결재란</b>을 출력물 우측 상단에 찍습니다. 결재자 이름을 비우면 도장을 찍을 빈 칸으로 나갑니다.
         </span>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
 
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ width: 200 }}>서식명</th>
+            <th className="w-[34px]"></th>
+            <th className="w-[200px]">서식명</th>
             <th>결재란 미리보기</th>
-            <th style={{ width: 70, textAlign: 'center' }}>기본</th>
-            <th style={{ width: 70, textAlign: 'center' }}>사용</th>
+            <th className="w-[70px] text-center">기본</th>
+            <th className="w-[70px] text-center">사용</th>
             <th>비고</th>
-            <th style={{ width: 150, textAlign: 'center' }}>처리</th>
+            <th className="w-[150px] text-center">처리</th>
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : rows.map((l, i) => (
             <tr key={l.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
               <td style={{ fontWeight: l.defaultLine ? 700 : 400 }}>{l.name}</td>
               <td><SlotPreview slots={l.slots} /></td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 {l.defaultLine
-                  ? <span style={{ color: 'var(--ec-blue)', fontWeight: 700 }}>기본</span>
+                  ? <span className="text-ec-blue font-bold">기본</span>
                   : <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => makeDefault(l)}>기본지정</button>}
               </td>
-              <td style={{ textAlign: 'center', color: l.active ? '#1c7c3c' : '#8a929c' }}>{l.active ? '사용' : '중지'}</td>
-              <td style={{ fontSize: 12, color: '#8a929c' }}>{l.remark ?? ''}</td>
-              <td style={{ textAlign: 'center' }}>
-                <div style={{ display: 'inline-flex', gap: 3 }}>
+              <td style={{ textAlign: 'center', color: l.active ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>{l.active ? '사용' : '중지'}</td>
+              <td className="text-[12px] text-ec-hint">{l.remark ?? ''}</td>
+              <td className="text-center">
+                <div className="inline-flex gap-[3px]">
                   <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => setEditing(l)}>수정</button>
-                  <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => remove(l)}>삭제</button>
+                  <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: 'var(--ec-danger)' }} onClick={() => remove(l)}>삭제</button>
                 </div>
               </td>
             </tr>
@@ -104,18 +104,18 @@ function SlotPreview({ slots }: { slots: SignSlot[] }) {
   useTableColumnCheck(tableRef, '인쇄 결재란', [])
 
   return (
-    <table ref={tableRef} style={{ borderCollapse: 'collapse', width: 'auto' }}>
+    <table ref={tableRef} className="border-collapse w-auto">
       <thead>
         <tr>
           {slots.map((s) => (
-            <th key={s.id} style={{ border: '1px solid #c9d1da', background: '#eff3f8', fontSize: 11, padding: '1px 10px' }}>{s.title}</th>
+            <th key={s.id} style={{ border: '1px solid var(--ec-line)', background: '#eff3f8', fontSize: 11, padding: '1px 10px' }}>{s.title}</th>
           ))}
         </tr>
       </thead>
       <tbody>
         <tr>
           {slots.map((s) => (
-            <td key={s.id} style={{ border: '1px solid #c9d1da', height: 28, minWidth: 52, textAlign: 'center', fontSize: 11, verticalAlign: 'bottom', color: '#5a626e' }}>
+            <td key={s.id} className="border border-ec-line border-solid h-[28px] min-w-[52px] text-center text-[11px] align-bottom text-ec-label">
               {s.signerName ?? ''}
             </td>
           ))}
@@ -171,26 +171,26 @@ function SignLineForm({ line, onClose, onSaved }: {
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 560, maxWidth: '94vw', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: '#f5f7fa' }}>
-          <span style={{ fontWeight: 800, color: 'var(--ec-blue-dark)' }}>{line ? '결재란 수정' : '결재란 등록'}</span>
-          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: '#8a929c' }}>×</span>
+        <div className="flex items-center py-[12px] px-[16px] border-b border-b-ec-line border-solid bg-ec-page">
+          <span className="font-extrabold text-ec-navy">{line ? '결재란 수정' : '결재란 등록'}</span>
+          <span onClick={onClose} className="ml-auto cursor-pointer text-[18px] text-ec-hint">×</span>
         </div>
-        <div style={{ padding: 16 }}>
-          {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-          <table className="w-full text-left" style={{ marginBottom: 12 }}>
+        <div className="p-[16px]">
+          {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+          <table className="w-full text-left mb-[12px]">
             <tbody>
               <tr>
-                <th style={{ width: 90, background: '#f5f7fa' }}>서식명<span style={{ color: '#c60a2e' }}>*</span></th>
+                <th className="w-[90px] bg-ec-page">서식명<span className="text-ec-danger">*</span></th>
                 <td colSpan={3}><input className="ec-input" value={name} onChange={(e) => setName(e.target.value)} style={{ width: '100%' }} /></td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>비고</th>
+                <th className="bg-ec-page">비고</th>
                 <td colSpan={3}><input className="ec-input" value={remark} onChange={(e) => setRemark(e.target.value)} style={{ width: '100%' }} /></td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>설정</th>
-                <td colSpan={3} style={{ fontSize: 12.5 }}>
-                  <label style={{ marginRight: 14 }}>
+                <th className="bg-ec-page">설정</th>
+                <td colSpan={3} className="text-[12.5px]">
+                  <label className="mr-[14px]">
                     <input type="checkbox" checked={defaultLine} onChange={(e) => setDefaultLine(e.target.checked)} /> 기본 결재란으로 지정
                   </label>
                   <label>
@@ -201,20 +201,20 @@ function SignLineForm({ line, onClose, onSaved }: {
             </tbody>
           </table>
 
-          <div style={{ fontWeight: 700, fontSize: 12.5, marginBottom: 4 }}>결재 칸 (최대 5개)</div>
+          <div className="font-bold text-[12.5px] mb-[4px]">결재 칸 (최대 5개)</div>
           <table className="w-full text-left">
             <thead>
               <tr>
-                <th style={{ width: 34 }}></th><th>칸 제목</th><th>결재자 이름 (비우면 빈 칸)</th><th style={{ width: 40 }}></th>
+                <th className="w-[34px]"></th><th>칸 제목</th><th>결재자 이름 (비우면 빈 칸)</th><th className="w-[40px]"></th>
               </tr>
             </thead>
             <tbody>
               {slots.map((s, i) => (
                 <tr key={i}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                  <td className="text-center text-ec-hint">{i + 1}</td>
                   <td><input className="ec-input" value={s.title} onChange={(e) => setSlot(i, { title: e.target.value })} style={{ width: '100%' }} placeholder="담당" /></td>
                   <td><input className="ec-input" value={s.signerName} onChange={(e) => setSlot(i, { signerName: e.target.value })} style={{ width: '100%' }} /></td>
-                  <td style={{ textAlign: 'center' }}>
+                  <td className="text-center">
                     {slots.length > 1 && <button className="ec-btn" onClick={() => setSlots((ss) => ss.filter((_, idx) => idx !== i))}>×</button>}
                   </td>
                 </tr>
@@ -225,7 +225,7 @@ function SignLineForm({ line, onClose, onSaved }: {
             <button className="ec-btn" style={{ marginTop: 8 }} onClick={() => setSlots((ss) => [...ss, emptySlot()])}>+ 칸 추가</button>
           )}
         </div>
-        <div style={{ display: 'flex', gap: 6, padding: '10px 16px', borderTop: '1px solid var(--ec-border)' }}>
+        <div className="flex gap-[6px] py-[10px] px-[16px] border-t border-t-ec-line border-solid">
           <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>{saving ? '저장 중…' : '저장(F8)'}</button>
           <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={onClose}>닫기</button>
         </div>

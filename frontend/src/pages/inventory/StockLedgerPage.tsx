@@ -1,14 +1,16 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { INQUIRY_FULL_PICKS } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Item, StockTransaction, Warehouse } from '../../api/types'
+import type { Item, StockTransaction, Warehouse } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { dateText } from '../../utils/dateText'
 import { periodOf } from '../../components/EcPeriodPicks'
 import { useItemFlags } from '../../utils/useInactiveItems'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 
 /**
  * 재고 > 재고수불부 (이카운트 E040702)
@@ -58,6 +60,66 @@ const initP = periodOf('전월+금월')!
 
 export default function StockLedgerPage() {
   const [items, setItems] = useState<Item[]>([])
+  /**
+   * 전표번호 → 거래처명. 원본 재고수불부의 <b>[거래처명]</b> 을 이 지도로 붙인다.
+   *
+   * <p>여태 "재고 움직임 줄에 거래처가 없다 — inventory 가 trade 를 참조하면 순환이라
+   * id 조차 안 둔다" 고 적어 두고 안 만들었다. <b>백엔드는 그대로 두는 것이 맞다</b>
+   * (CLAUDE.md 4.1 — inventory 는 trade 를 몰라야 한다). 그런데 <b>화면은 둘 다 부를 수
+   * 있다</b> — 담당자 이름·거래처그룹을 이미 그렇게 붙이고 있다.
+   *
+   * <p>이을 실은 <code>note</code> 다. 판매·구매가 재고를 움직일 때
+   * <code>"판매 " + docNo</code> · <code>"구매반품 " + docNo</code> 꼴로 적어 둔다
+   * (SalesService·PurchaseService). 그 <b>뒷토막</b>을 전표번호로 보고 지도에서 찾는다.
+   *
+   * <p><b>못 찾으면 빈칸이다.</b> 적요는 사람이 고쳐 쓸 수도 있는 자유 글자라
+   * 억지로 맞추지 않는다 — 사내 이동·조정처럼 상대가 없는 줄도 빈칸이 맞다.
+   */
+  const [partnerOfDoc, setPartnerOfDoc] = useState<Map<string, string>>(new Map())
+  const partnerOf = (note: string | null) => {
+    const parts = (note ?? '').trim().split(' ').filter(Boolean)
+    return partnerOfDoc.get(parts[parts.length - 1] ?? '') ?? ''
+  }
+  /**
+   * 원본 조건 <b>[단가표시]</b>(차례는 [대표품목으로 합산] 과 [기타] 사이).
+   *
+   * <p>여태 "우리 재고이동은 단가를 하나만 들고 있어 고를 대상이 없다"고 적고 안 만들었다.
+   * <b>절반만 맞는 말이었다</b> — 전표에서 넘어온 그 단가 말고도 품목 마스터가
+   * <b>판매단가(<code>unitPrice</code>)·구매단가(<code>purchasePrice</code>)</b> 를 들고 있고,
+   * 이 화면은 품목 마스터를 이미 통째로 받아 두고 있다. 원본이 [단가표시]로 고르게 하는 것이
+   * 바로 그 축이다("이 수불을 판매단가로 보면 얼마인가").
+   *
+   * <p>원본의 셋 가운데 <b>[기타단가]</b> 는 우리 품목에 그 칸이 없어 못 만든다.
+   * 대신 우리 기본값인 <b>[전표단가]</b>(그 거래에 실제로 매겨진 단가)를 앞에 둔다 —
+   * 그게 없으면 "실제로 얼마에 오갔나" 를 볼 방법이 사라진다.
+   *
+   * <p><b>2026-09-09 원본(E040702)을 열어 [단가표시]를 끝까지 쟀다.</b> 앞 바퀴에
+   * "기본값을 못 쟀다"고 적어 둔 것을 이제 채운다. 원본은 <b>한 줄이 아니라 네 묶음</b>이다:
+   * <ul>
+   *   <li><b>[표시안함 | 표시]</b> — 기본 <b>표시</b>. 단가·금액 칸을 통째로 끄는 스위치다.</li>
+   *   <li>판매단가 기준: <b>판매단가</b>(기본) | 판매단가(vat 포함) | 월별원가 | 출고단가(품목)</li>
+   *   <li>구매단가 기준: <b>구매단가</b>(기본) | 구매단가(vat 포함) | 월별원가 | 입고단가(품목)</li>
+   *   <li>기타단가: <b>적용안함</b>(기본) | 월별원가 | 입고단가(품목)</li>
+   * </ul>
+   * 즉 원본은 판매·구매 단가를 <b>둘 다</b> 내놓고 각각 무엇으로 셀지를 고르게 한다.
+   *
+   * <p>우리는 그중 <b>[표시안함|표시]</b> 와 단가 <b>하나 고르기</b>까지 한다.
+   * vat 포함·월별원가·출고단가(품목)·기타단가는 각각 값을 따로 들여야 해서 아직 없다 —
+   * 지어내지 않고 여기 적어 둔다(보드에도 남겼다).
+   */
+  /** 품목 id → 마스터. [단가표시]가 고른 단가를 여기서 뽑는다. */
+  const itemById = useMemo(() => new Map(items.map((it) => [it.id, it])), [items])
+  const PRICE_BASES = ['전표단가', '판매단가', '구매단가'] as const
+  const [priceBasis, setPriceBasis] = useState<typeof PRICE_BASES[number]>('전표단가')
+  /** 원본 [단가표시]의 첫 갈래 [표시안함 | 표시]. 기본은 <b>표시</b>다(실측). */
+  const [showPrice, setShowPrice] = useState(true)
+  /*
+   * [단가표시]가 [표시안함] 이면 <b>[단가]·[금액] 두 칸이 사라진다</b> — 칸 수가 변하는 표라
+   * 정적 검사(qa/ui-check.mjs)로는 셀 수 없다. 개발 모드에서 실제로 그려진 표를 재서
+   * 머리와 몸이 어긋났는지 잡는다(일별이익현황과 같은 장치).
+   */
+  const tableRef = useRef<HTMLDivElement>(null)
+  useTableColumnCheck(tableRef, '재고수불부', [showPrice, priceBasis])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [rows, setRows] = useState<StockTransaction[]>([])
   /** 조건에 걸린 전체 줄 수와, 잘라서 받았는지. 원본 [오천건이상조회] 자리를 위한 값이다. */
@@ -94,7 +156,19 @@ export default function StockLedgerPage() {
    */
   const [signBox, setSignBox] = useState(false)
   const [withUntracked, setWithUntracked] = useState(false)
-  const [withInactive, setWithInactive] = useState(false)
+  /*
+   * <b>[사용중단품목포함]은 기본이 켜짐이다</b>(2026-09-09 원본 실측). 우리는 꺼짐이었다 —
+   * 수불부에서 그러면 <b>내린 품목의 입출고 기록이 통째로 사라진다.</b> 지난달까지
+   * 사고팔던 물건인데 이력이 안 보이니, 재고가 왜 그 숫자인지 되짚을 수가 없다.
+   * (재고잔량분석표·재고현황에 이어 세 번째로 같은 값이 뒤집혀 있었다.)
+   */
+  const [withInactive, setWithInactive] = useState(true)
+  /*
+   * 원본 조건 <b>[품목구분]·[품목그룹1]</b> — [품목] 바로 뒤에 선다(2026-09-09 실측).
+   * 품목 마스터는 이 화면이 이미 통째로 받고 있고(<code>items</code>), 훅도 그 값을 든다.
+   */
+  const [category, setCategory] = useState('')
+  const [itemGroup, setItemGroup] = useState('')
   const [byItemName, setByItemName] = useState(false)
   const [excludeNoTx, setExcludeNoTx] = useState(false)
 
@@ -104,7 +178,25 @@ export default function StockLedgerPage() {
   }
 
   async function loadRefs() {
-    const [i, w] = await Promise.all([api.get<Item[]>('/items'), api.get<Warehouse[]>('/warehouses')])
+    /*
+     * <b>거래처명을 붙일 재료는 이 기간 것만 받는다.</b> 여태 전 기간을 받았다 —
+     * 이 화면 하나가 판매 3,641KB + 구매 984KB 를 <b>전표번호→거래처명 표 하나</b>를
+     * 만들려고 실어 왔다(2026-09-24 실측, 화면 합계 7.7MB).
+     *
+     * <p>수불 줄은 그 기간 안의 거래이고 그 적요가 가리키는 전표도 같은 기간이라,
+     * 좁혀도 붙는 이름이 달라지지 않는다 — <b>자료로 맞대어 봤다</b>: 2027-05 한 달의
+     * 수불 1,153줄에서 전체 지도(2,477건)와 기간 지도(759건)가 낸 거래처명이
+     * <b>모두 같았고 다른 줄이 하나도 없었다.</b>
+     */
+    const period: Record<string, string> = {}
+    if (filters.from) period.from = filters.from
+    if (filters.to) period.to = filters.to
+    const [i, w, sl, pu] = await Promise.all([
+      api.get<Item[]>('/items'), api.get<Warehouse[]>('/warehouses'),
+      api.get<{ docNo: string; partnerName: string }[]>('/sales', { params: period }),
+      api.get<{ docNo: string; partnerName: string }[]>('/purchases', { params: period }),
+    ])
+    setPartnerOfDoc(new Map([...sl.data, ...pu.data].map((d) => [d.docNo, d.partnerName])))
     setItems(i.data); setWarehouses(w.data)
   }
 
@@ -136,7 +228,14 @@ export default function StockLedgerPage() {
     } finally { setLoading(false) }
   }
 
-  useEffect(() => { loadRefs(); loadLedger() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [])
+  useEffect(() => { loadRefs() }, [])
+  /*
+   * 조건(기간·품목·창고·형제품목)을 바꾸면 바로 다시 받는다. 예전엔 [검색]을 눌러야만 받아서, 품목을 골라도
+   * 칸에는 그 품목이 보이는데 목록은 전 품목 5천 줄 그대로였다(QA 22회차 — 다른 현황 화면은 고르면 바로 걸린다).
+   * 처음 열 때도 이것이 한 번 받는다.
+   */
+  useEffect(() => { loadLedger() /* eslint-disable-next-line react-hooks/exhaustive-deps */ },
+    [filters.from, filters.to, filters.itemId, filters.warehouseId, filters.rollUp])
 
   // 표시 순서(일자·id)대로 잔량 재계산: opening 이 있으면 누적, 없으면 저장된 balanceAfter(행별 실제 잔량) 사용.
   const runningById = useMemo(() => {
@@ -151,7 +250,7 @@ export default function StockLedgerPage() {
   }, [rows, opening])
 
   /* 품목의 [수량관리]·[사용여부] 는 품목 마스터가 든다 — 원장 줄에는 없어 따로 받는다. */
-  const { inactive, untracked } = useItemFlags()
+  const { inactive, untracked, categoryOf, groupOf, categories, groups } = useItemFlags()
 
   const shown = useMemo(() => {
     const kw = keyword.trim()
@@ -163,13 +262,16 @@ export default function StockLedgerPage() {
       /* [포함] 이라 이름 붙은 것은 기본이 '안 넣음' 이다 — 켜야 보인다. */
       if (!withUntracked && untracked.has(r.itemId)) return false
       if (!withInactive && inactive.has(r.itemId)) return false
+      if (category && categoryOf(r.itemId) !== category) return false
+      if (itemGroup && groupOf(r.itemId) !== itemGroup) return false
       return true
     })
     /* 원본 [품목명(정렬)] — 켜면 품목명 가나다순. 안 켜면 서버가 준 차례(일자순) 그대로. */
     return byItemName
       ? [...out].sort((a, b) => a.itemName.localeCompare(b.itemName, 'ko'))
       : out
-  }, [rows, typeFilter, keyword, excludeNoTx, withUntracked, withInactive, byItemName, untracked, inactive])
+  }, [rows, typeFilter, keyword, excludeNoTx, withUntracked, withInactive, byItemName, untracked, inactive,
+    category, itemGroup, categoryOf, groupOf])
 
   const summary = useMemo(() => {
     let inQty = 0, outQty = 0
@@ -193,10 +295,10 @@ export default function StockLedgerPage() {
       search={keyword}
       onSearchChange={setKeyword}
       /* 인자 없이 부른다 — onSearch 가 무엇을 넘기든 all 로 새면 안 된다. */
-      onSearch={() => void loadLedger()}
+      onSearch={() => { void loadRefs(); void loadLedger() }}
       searchable={false}
       actions={[
-        { label: '검색(F8)', primary: true, onClick: () => void loadLedger() },
+        { label: '검색(F8)', primary: true, onClick: () => { void loadRefs(); void loadLedger() } },
         /* 잘려서 왔을 때만 누를 수 있다 — 안 잘렸으면 더 가져올 것이 없다. */
         { label: '오천건이상조회', onClick: () => void loadLedger(true), disabled: !truncated },
         { label: '다시 작성', onClick: reset },
@@ -207,9 +309,9 @@ export default function StockLedgerPage() {
       {/*
         원본 재고수불부(E040702)의 조건 판. 기준일자는 구간이고 빠른선택은 여덟 개다
         (금일·전일·금주(~오늘)·전주·금월(~오늘)·전월·전월+금월·종료일).
-        원본에는 '단가표시'가 있어 판매단가/구매단가/기타단가 중 **어느 단가로 금액을 볼지** 고른다.
-        우리 재고이동은 단가를 하나만 들고 있어(전표에서 넘어온 그 값) 고를 대상이 없다.
-        그래서 그 조건은 넣지 않고 표에는 그 단가를 그대로 보여 준다.
+        원본 [단가표시]는 판매단가/구매단가/기타단가 중 **어느 단가로 금액을 볼지** 고른다.
+        우리는 그중 둘(판매·구매)을 품목 마스터에서 대고, 앞에 [전표단가]를 하나 더 둔다.
+        [기타단가]는 우리 품목에 그 칸이 없다.
       */}
       <EcStatusPanel
         from={filters.from} to={filters.to}
@@ -226,130 +328,293 @@ export default function StockLedgerPage() {
                            onChange={(v) => setF({ itemId: v })}
                            items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, alias: it.searchKeyword, sub: it.spec }))} />
         </EcCond>
-        {/*
-          원본 [기타] 차례 그대로다(2026-09-02 E040702 실측). 안 만든 하나 —
-          [생산불출/창고이동포함]은 우리 재고거래가 그 둘을 따로 표시하지 않아 가릴 축이 없다.
-        */}
-        <EcCond label="기타">
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <label style={{ fontSize: 12 }}>
-              <input type="checkbox" checked={signBox}
-                     onChange={(e) => setSignBox(e.target.checked)} /> 결재방표시
-            </label>
-            <label style={{ fontSize: 12 }}>
-              <input type="checkbox" checked={withUntracked}
-                     onChange={(e) => setWithUntracked(e.target.checked)} /> 수량관리제외품목포함
-            </label>
-            <label style={{ fontSize: 12 }}>
-              <input type="checkbox" checked={withInactive}
-                     onChange={(e) => setWithInactive(e.target.checked)} /> 사용중단품목포함
-            </label>
-            <label style={{ fontSize: 12 }}>
-              <input type="checkbox" checked={excludeNoTx}
-                     onChange={(e) => setExcludeNoTx(e.target.checked)} /> 거래내역없는품목제외
-            </label>
-            <label style={{ fontSize: 12 }}>
-              <input type="checkbox" checked={byItemName}
-                     onChange={(e) => setByItemName(e.target.checked)} /> 품목명(정렬)
-            </label>
-          </div>
+        <EcCond label="품목구분">
+          <select className="ec-input" value={category} style={{ width: 130 }}
+                  onChange={(e) => setCategory(e.target.value)}>
+            <option value="">전체</option>
+            {categories.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
         </EcCond>
-        {/* 원본 차례: [기타] <b>뒤가 마지막</b>이다(사본 실측 — 세 화면이 다 같다). */}
+        <EcCond label="품목그룹1">
+          <select className="ec-input" value={itemGroup} style={{ width: 150 }}
+                  onChange={(e) => setItemGroup(e.target.value)}>
+            <option value="">전체</option>
+            {groups.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+        </EcCond>
+        {/*
+          원본 차례: <b>[대표품목으로 합산] 이 [기타] 앞</b>이다(2026-09-09 실측).
+          예전에는 "[기타] 뒤가 마지막" 이라 적어 두었는데 사본만 보고 적은 것이라 틀렸다.
+        */}
         <EcCond label="대표품목으로 합산">
-          <label style={{ fontSize: 12 }}>
+          <label className="text-[12px]">
             <input type="checkbox" checked={filters.rollUp} disabled={!filters.itemId}
                    onChange={(e) => setF({ rollUp: e.target.checked })} />
             <span style={{ color: filters.itemId ? undefined : '#a8b0ba' }}> 형제 품목까지 함께</span>
           </label>
         </EcCond>
+        {/*
+          원본 [기타] 차례 그대로다(2026-09-02 E040702 실측). 안 만든 하나 —
+          [생산불출/창고이동포함]은 우리 재고거래가 그 둘을 따로 표시하지 않아 가릴 축이 없다.
+        */}
+        {/* 원본 차례: [대표품목으로 합산] 다음이 [단가표시], 그다음이 [기타] 다. */}
+        <EcCond label="단가표시">
+          <div className="flex items-center gap-[10px] flex-wrap">
+            {/* 원본의 첫 갈래 — 끄면 [단가]·[금액] 칸이 통째로 사라진다. */}
+            <div className="ec-pills">
+              {(['표시안함', '표시'] as const).map((v) => (
+                <button key={v} type="button" className={`ec-pill no-ec${showPrice === (v === '표시') ? ' active' : ''}`}
+                        onClick={() => setShowPrice(v === '표시')}>{v}</button>
+              ))}
+            </div>
+            {showPrice && (
+              <div className="ec-pills">
+                {PRICE_BASES.map((b) => (
+                  <button key={b} type="button" className={`ec-pill no-ec${priceBasis === b ? ' active' : ''}`}
+                          onClick={() => setPriceBasis(b)}>{b}</button>
+                ))}
+              </div>
+            )}
+          </div>
+        </EcCond>
+        <EcCond label="기타">
+          <div className="flex gap-[12px] flex-wrap">
+            <label className="text-[12px]">
+              <input type="checkbox" checked={signBox}
+                     onChange={(e) => setSignBox(e.target.checked)} /> 결재방표시
+            </label>
+            <label className="text-[12px]">
+              <input type="checkbox" checked={withUntracked}
+                     onChange={(e) => setWithUntracked(e.target.checked)} /> 수량관리제외품목포함
+            </label>
+            <label className="text-[12px]">
+              <input type="checkbox" checked={withInactive}
+                     onChange={(e) => setWithInactive(e.target.checked)} /> 사용중단품목포함
+            </label>
+            <label className="text-[12px]">
+              <input type="checkbox" checked={excludeNoTx}
+                     onChange={(e) => setExcludeNoTx(e.target.checked)} /> 거래내역없는품목제외
+            </label>
+            <label className="text-[12px]">
+              <input type="checkbox" checked={byItemName}
+                     onChange={(e) => setByItemName(e.target.checked)} /> 품목명(정렬)
+            </label>
+          </div>
+        </EcCond>
       </EcStatusPanel>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {/*
         잘라서 받았으면 <b>반드시 말한다.</b> 말 없이 앞부분만 보여 주면 사람은 그것이 전부인 줄
         알고 합계를 읽는다 — 틀린 숫자를 맞다고 믿게 하는 것이 안 보여 주는 것보다 나쁘다.
       */}
       {truncated && (
-        <p style={{ background: '#fff8e1', color: '#7a5b00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>
+        <p style={{ background: 'var(--ec-warn-bg)', color: '#7a5b00', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>
           모두 {num(totalRows)}줄 중 앞 {num(rows.length)}줄만 보고 있습니다.
           기간을 좁히거나 품목·창고를 고르면 전부 볼 수 있고, 그대로 다 보려면 [오천건이상조회]를 누르세요.
         </p>
       )}
 
       {/* 유형 탭 + 요약 */}
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8, gap: 8, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', gap: 2 }}>
+      <div className="flex items-center mb-[8px] gap-[8px] flex-wrap">
+        <div className="flex gap-[2px]">
           {(['ALL', 'INBOUND', 'OUTBOUND', 'ADJUST'] as const).map((t) => (
             <button key={t} onClick={() => setTypeFilter(t)} className="no-ec" style={{
               padding: '5px 12px', fontSize: 12.5, border: '1px solid var(--ec-border)', cursor: 'pointer', borderRadius: 3,
-              background: typeFilter === t ? 'var(--ec-blue)' : '#fff', color: typeFilter === t ? '#fff' : '#3a4453', fontWeight: typeFilter === t ? 700 : 400,
+              background: typeFilter === t ? 'var(--ec-blue)' : '#fff', color: typeFilter === t ? '#fff' : 'var(--ec-text)', fontWeight: typeFilter === t ? 700 : 400,
             }}>{t === 'ALL' ? '전체' : t === 'INBOUND' ? '입고' : t === 'OUTBOUND' ? '출고' : '조정'} ({t === 'ALL' ? rows.length : rows.filter((r) => r.type === t).length})</button>
           ))}
         </div>
-        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>
+        <div className="ml-auto text-[12.5px] text-ec-label">
           {summary.singleScope && summary.opening != null && (
-            <>기초 <b style={{ color: '#3c4553', fontSize: 14 }}>{num(summary.opening)}</b><span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span></>
+            <>기초 <b className="text-ec-text text-[14px]">{num(summary.opening)}</b><span className="my-0 mx-[6px] text-ec-off">|</span></>
           )}
-          입고계 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{num(summary.inQty)}</b>
-          <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
+          입고계 <b className="text-ec-blue text-[14px]">{num(summary.inQty)}</b>
+          <span className="my-0 mx-[6px] text-ec-off">|</span>
           출고계 <b style={{ color: '#a5561b', fontSize: 14 }}>{num(summary.outQty)}</b>
-          <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-          순증감 <b style={{ color: summary.net >= 0 ? '#1c7c3c' : '#c60a2e', fontSize: 14 }}>{summary.net > 0 ? '+' : ''}{num(summary.net)}</b>
+          <span className="my-0 mx-[6px] text-ec-off">|</span>
+          순증감 <b style={{ color: summary.net >= 0 ? 'var(--ec-success)' : 'var(--ec-danger)', fontSize: 14 }}>{summary.net > 0 ? '+' : ''}{num(summary.net)}</b>
           {summary.singleScope && summary.closing != null && (
-            <><span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>기말 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{num(summary.closing)}</b></>
+            <><span className="my-0 mx-[6px] text-ec-off">|</span>기말 <b className="text-ec-navy text-[14px]">{num(summary.closing)}</b></>
           )}
         </div>
       </div>
 
-      <table className="w-full text-left">
+      <div className="overflow-x-auto">
+      <div className="ec-report-frame" ref={tableRef}>
+      <EcReportHead title="재고수불부" period={reportPeriod(filters.from, filters.to)} />
+      {/*
+        <b>출력물 격자</b>(index.css .ec-report) — 2026-09-23 원본(E040702) getComputedStyle 실측,
+        자료 든 판(전월+금월 2026/08/01~09/23, 품목 269개 = 표 269개):
+        <ul>
+          <li>표 <b>width:649px · table-layout:fixed · border-collapse</b>, 열 폭
+              <b>99 / 184 / 129 / 79 / 79 / 79</b> (일자·거래처명·적요·입고수량·출고수량·재고수량).</li>
+          <li>머리 12px·700·검정·배경 (247,248,249)·6px 3px 3px·27px·가운데, 윗선 (155,176,190).</li>
+          <li>본문 12px·<b>400·검정</b>·3px·24px·줄간격 17.14, 맑은 고딕. 일자 가운데, 글자 왼쪽, 수량 오른쪽.
+              <b>줄무늬 없음</b>(줄마다 읽음 — 본문은 모두 투명, 회색은 계·합계줄뿐).</li>
+          <li>맨 윗줄 <b>[전일재고]</b> — 일자~적요 세 칸을 덮고 가운데, 줄 전체 700, 글자만 빨강
+              rgb(215,62,62)(안쪽 span). 재고수량 칸에 기초 수량.</li>
+          <li><b>[2026/08  계]</b>(달마다) · <b>[합계]</b> — 세 칸을 덮고 가운데, 700, 배경 (243,243,243).
+              재고수량 칸은 그 시점 잔량.</li>
+          <li>숫자: 천 단위 쉼표, 입고·출고가 없으면 <b>빈칸</b>(0 을 안 찍는다), 음수는 검정 '-50'.
+              날짜 2026/08/03.</li>
+        </ul>
+        여태 입고 파랑·출고 주황·굵은 잔량·회색 적요·등폭 날짜로 덧칠했었다 — 원본은 모두 검정 보통이다.
+        원본은 품목마다 표를 따로 찍지만(머리글 "회사명 : … / 품목명 (코드)", 꼬리 [P.n]) 우리는 한 표에
+        편다(위 주석). 그래서 [#]·[유형]·[품목]·[창고]·[단가]·[금액] 은 원본에 없는 우리 열이라 잴 폭이
+        없다 — 글자가 들어갈 만큼만 둔다. [전일재고]·기말 잔량은 품목·창고를 모두 골랐을 때만
+        뜻이 있어(summary.singleScope) 그때만 찍는다.
+      */}
+      <table className="text-left ec-report ec-report-fixed">
+        <colgroup>
+          <col className="w-[34px]" /><col className="w-[99px]" /><col className="w-[50px]" />
+          <col className="w-[200px]" /><col className="w-[100px]" />
+          <col className="w-[184px]" /><col className="w-[129px]" />
+          <col className="w-[79px]" /><col className="w-[79px]" /><col className="w-[79px]" />
+          {showPrice && <col className="w-[90px]" />}
+          {showPrice && <col className="w-[100px]" />}
+        </colgroup>
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th>일자</th>
-            <th style={{ textAlign: 'center', width: 60 }}>유형</th>
+            {/*
+              <b>재고수불부(E040702) 2026-09-09 원본 격자 실측</b> — 원본은 <b>품목마다
+              작은 표를 하나씩</b> 찍는다(자료 286개 품목 = 표 286개). 표 하나의 열은
+              [일자 · <b>거래처명</b> · <b>적요</b> · <b>입고수량</b> · <b>출고수량</b> ·
+              <b>재고수량</b>] 이고, 맨 윗줄이 <b>[전일재고]</b>, 맨 아랫줄이 <b>[합계]</b> 다.
+              우리는 품목·창고를 <b>열</b>로 두고 한 표에 다 편다 — 품목을 안 고르고
+              기간만으로도 볼 수 있어야 하기 때문이다(원본은 품목 수가 많으면
+              "조회품목을 재지정하겠습니까" 를 먼저 묻는다).
+              이름 넷이 어긋나 있었다: [입고]·[출고]·[잔량]·[비고] →
+              <b>[입고수량]·[출고수량]·[재고수량]·[적요]</b>. [적요] 자리도 원본을 따라
+              수량 앞으로 옮겼다. <b>[거래처명]은 2026-09-09 에 만들었다</b> —
+              적요에 적힌 전표번호로 판매·구매를 찾아 화면이 붙인다(위 partnerOf 주석).
+              백엔드는 그대로다.
+              [유형]·[단가]·[금액]은 우리 열이다.
+            */}
+            <th></th>
+            {/* 머리 정렬은 칸 정렬을 적어 둔다 — 화면에는 .ec-report 가 전부 가운데로 덮는다(원본도 머리는 가운데). */}
+            <th className="text-center">일자</th>
+            <th className="text-center">유형</th>
             <th>품목</th>
             <th>창고</th>
-            <th style={{ textAlign: 'right' }}>입고</th>
-            <th style={{ textAlign: 'right' }}>출고</th>
-            <th style={{ textAlign: 'right' }}>잔량</th>
-            <th style={{ textAlign: 'right' }}>단가</th>
-            <th style={{ textAlign: 'right' }}>금액</th>
-            <th>비고</th>
+            <th>거래처명</th>
+            <th>적요</th>
+            <th className="text-right">입고수량</th>
+            <th className="text-right">출고수량</th>
+            <th className="text-right">재고수량</th>
+            {showPrice && <th className="text-right">단가</th>}
+            {showPrice && <th className="text-right">금액</th>}
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={showPrice ? 12 : 10} className="text-center text-ec-ink">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
+            <tr><td colSpan={showPrice ? 12 : 10} className="text-center text-ec-ink">
               {rows.length === 0 ? '해당 기간의 입출고 내역이 없습니다.' : '조건에 맞는 자료가 없습니다.'}
             </td></tr>
-          ) : shown.map((r, i) => {
-            const inQ = r.quantityChange >= 0 ? r.quantityChange : 0
-            const outQ = r.quantityChange < 0 ? -r.quantityChange : 0
-            const amount = r.unitPrice != null ? Math.abs(r.quantityChange) * r.unitPrice : null
-            const bal = runningById.get(r.id)
-            const c = TYPE_COLOR[r.type]
-            return (
-              <tr key={r.id}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{dateText(r.transactionDate)}</td>
-                <td style={{ textAlign: 'center' }}>
-                  <span style={{ background: c.bg, color: c.fg, padding: '1px 6px', borderRadius: 3, fontSize: 11.5, fontWeight: 600 }}>{r.typeName}</span>
-                </td>
-                <td>{r.itemName}</td>
-                <td>{r.warehouseName}</td>
-                <td style={{ textAlign: 'right', color: inQ ? 'var(--ec-blue)' : '#c5cbd3', fontWeight: inQ ? 600 : 400 }}>{inQ ? num(inQ) : ''}</td>
-                <td style={{ textAlign: 'right', color: outQ ? '#a5561b' : '#c5cbd3', fontWeight: outQ ? 600 : 400 }}>{outQ ? num(outQ) : ''}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600 }}>{bal != null ? num(bal) : ''}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{r.unitPrice != null ? num(r.unitPrice) : ''}</td>
-                <td style={{ textAlign: 'right', color: '#5a626e' }}>{amount != null ? num(amount) : ''}</td>
-                <td style={{ color: '#8a929c' }}>{r.note ?? ''}</td>
-              </tr>
-            )
-          })}
+          ) : (() => {
+            const out: ReactElement[] = []
+            /* 원본 맨 윗줄 [전일재고] — 품목·창고를 모두 골랐을 때만 기초가 뜻이 있다. */
+            if (summary.singleScope && summary.opening != null) {
+              out.push(
+                <tr key="opening" className="font-bold">
+                  <td colSpan={7} className="text-center">
+                    {/* 원본 글자색 rgb(215,62,62) — 2026-09-23 E040702 실측(안쪽 span). */}
+                    <span style={{ color: 'rgb(215, 62, 62)' }}>전일재고</span>
+                  </td>
+                  <td></td><td></td>
+                  <td className="text-right">{num(summary.opening)}</td>
+                  {showPrice && <td></td>}
+                  {showPrice && <td></td>}
+                </tr>,
+              )
+            }
+            /*
+             * 원본 [2026/08  계] — 달이 바뀔 때마다 그 달 입고·출고 합과 달말 잔량.
+             * [품목명(정렬)] 을 켜면 달이 섞이므로 달 계를 끼우지 않는다.
+             */
+            const monthly = !byItemName
+            let mIn = 0, mOut = 0, mLastId: number | null = null
+            const pushMonth = (ym: string) => {
+              const bal = summary.singleScope && mLastId != null ? runningById.get(mLastId) : undefined
+              out.push(
+                <tr key={`m-${ym}`} className="ec-total">
+                  <td colSpan={7} className="text-center">{`${ym.replace('-', '/')}  계`}</td>
+                  <td className="text-right">{mIn ? num(mIn) : ''}</td>
+                  <td className="text-right">{mOut ? num(mOut) : ''}</td>
+                  <td className="text-right">{bal != null ? num(bal) : ''}</td>
+                  {showPrice && <td></td>}
+                  {showPrice && <td></td>}
+                </tr>,
+              )
+              mIn = 0; mOut = 0
+            }
+            shown.forEach((r, i) => {
+              const ym = r.transactionDate.slice(0, 7)
+              if (monthly && i > 0 && shown[i - 1].transactionDate.slice(0, 7) !== ym) {
+                pushMonth(shown[i - 1].transactionDate.slice(0, 7))
+              }
+              const inQ = r.quantityChange >= 0 ? r.quantityChange : 0
+              const outQ = r.quantityChange < 0 ? -r.quantityChange : 0
+              mIn += inQ; mOut += outQ; mLastId = r.id
+              /*
+               * 원본 [단가표시]가 고른 단가로 [단가]·[금액]을 낸다. 품목 마스터에 그 단가를
+               * 안 정했으면(0) <b>모른다</b>로 둔다 — 0 으로 쓰면 금액이 0 이 되어
+               * "값이 없는 것" 과 "공짜로 오간 것" 이 화면에서 같아진다.
+               */
+              const master = priceBasis === '전표단가' ? null : itemById.get(r.itemId)
+              const basePrice = priceBasis === '전표단가' ? r.unitPrice
+                : priceBasis === '판매단가' ? (master?.unitPrice || null)
+                  : (master?.purchasePrice || null)
+              const amount = basePrice != null ? Math.abs(r.quantityChange) * basePrice : null
+              const bal = runningById.get(r.id)
+              const c = TYPE_COLOR[r.type]
+              out.push(
+                <tr key={r.id}>
+                  <td className="text-center text-ec-hint">{i + 1}</td>
+                  <td className="text-center">{dateText(r.transactionDate)}</td>
+                  {/* [유형] 은 원본에 없는 우리 열이라 색 표시를 남긴다. */}
+                  <td className="text-center">
+                    <span style={{ background: c.bg, color: c.fg, padding: '1px 6px', borderRadius: 3, fontSize: 11.5, fontWeight: 600 }}>{r.typeName}</span>
+                  </td>
+                  <td>{r.itemName}</td>
+                  <td>{r.warehouseName}</td>
+                  <td>{partnerOf(r.note)}</td>
+                  <td>{r.note ?? ''}</td>
+                  <td className="text-right">{inQ ? num(inQ) : ''}</td>
+                  <td className="text-right">{outQ ? num(outQ) : ''}</td>
+                  <td className="text-right">{bal != null ? num(bal) : ''}</td>
+                  {showPrice && (
+                    <td className="text-right">{basePrice != null ? num(basePrice) : ''}</td>
+                  )}
+                  {showPrice && (
+                    <td className="text-right">{amount != null ? num(amount) : ''}</td>
+                  )}
+                </tr>,
+              )
+            })
+            if (monthly) pushMonth(shown[shown.length - 1].transactionDate.slice(0, 7))
+            return out
+          })()}
         </tbody>
+        {/* 원본 [합계] — 세 칸을 덮고 가운데, 700·회색(.ec-report tfoot). 재고수량 칸은 기말 잔량. */}
+        {!loading && shown.length > 0 && (
+          <tfoot>
+            <tr>
+              <td colSpan={7} className="text-center">합계</td>
+              <td className="text-right">{summary.inQty ? num(summary.inQty) : ''}</td>
+              <td className="text-right">{summary.outQty ? num(summary.outQty) : ''}</td>
+              <td className="text-right">{summary.closing != null ? num(summary.closing) : ''}</td>
+              {showPrice && <td></td>}
+              {showPrice && <td></td>}
+            </tr>
+          </tfoot>
+        )}
       </table>
+      <EcReportFoot />
+      </div>
+      </div>
     </EcListShell>
   )
 }

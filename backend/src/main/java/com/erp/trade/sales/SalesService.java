@@ -1,0 +1,615 @@
+package com.erp.trade.sales;
+
+import com.erp.trade.TradeMasters;
+import com.erp.trade.VatAllocator;
+import com.erp.common.ApiException;
+import com.erp.common.DocumentNoGenerator;
+import com.erp.trade.partner.BusinessPartner;
+import com.erp.inventory.item.Item;
+import com.erp.trade.salesorder.SalesOrder;
+import com.erp.trade.salesorder.SalesOrderLine;
+import com.erp.inventory.stock.StockTransactionType;
+import com.erp.inventory.warehouse.Warehouse;
+import com.erp.trade.sales.dto.SalesDtos.CreateSalesRequest;
+import com.erp.trade.sales.dto.SalesDtos.SalesDiscountRow;
+import com.erp.trade.sales.dto.SalesDtos.SalesLineRequest;
+import com.erp.trade.sales.dto.SalesDtos.SalesResponse;
+import com.erp.trade.partner.BusinessPartnerRepository;
+import com.erp.trade.mall.MallOrderRepository;
+import com.erp.trade.salesorder.SalesOrderRepository;
+import com.erp.trade.salesorder.SalesOrderService;
+import com.erp.trade.taxinvoice.TaxInvoiceRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.LinkedHashMap;
+import java.util.List;
+import com.erp.hr.employee.EmployeeService;
+import com.erp.inventory.item.ItemService;
+import com.erp.inventory.project.ProjectService;
+import com.erp.inventory.stock.StockService;
+import com.erp.inventory.lot.LotService;
+import com.erp.inventory.warehouse.WarehouseService;
+import com.erp.trade.sales.dto.SalesDtos;
+
+@Service
+@RequiredArgsConstructor
+public class SalesService {
+
+    private final ProjectService projectService;
+    private final EmployeeService employeeService;
+
+    private static final BigDecimal VAT_RATE = new BigDecimal("0.10");
+
+    private final SalesRepository salesRepository;
+    private final BusinessPartnerRepository partnerRepository;
+    // 다른 모듈(inventory)은 리포지토리가 아니라 공개 service 를 거친다 — CLAUDE.md 4.2
+    private final WarehouseService warehouseService;
+    private final ItemService itemService;
+    private final StockService stockService;
+    private final LotService lotService;
+    private final DocumentNoGenerator docNoGenerator;
+    // 수정·삭제를 막아야 하는 후속 문서(같은 trade 모듈이라 직접 조회한다)
+    private final TaxInvoiceRepository taxInvoiceRepository;
+    // 명세 라인의 근거전표(수주). 같은 trade 모듈이라 리포지토리를 직접 쓴다.
+    private final SalesOrderRepository salesOrderRepository;
+    private final SalesOrderService salesOrderService;
+    private final SalesLineRepository salesLineRepository;
+    private final MallOrderRepository mallOrderRepository;
+
+    /** 판매전표 확인 처리. 결재중인 전표는 결재로만 확인된다. */
+    @Transactional
+    public SalesResponse confirm(Long id) {
+        Sales s = getSales(id);
+        if (s.getConfirmStatus() == SalesConfirmStatus.IN_APPROVAL) {
+            throw ApiException.badRequest("전자결재 진행중인 전표입니다. 결재가 끝나면 확인 처리됩니다.");
+        }
+        // 이미 확인된 전표를 또 확인하면 markConfirmed 가 확인일시를 지금으로 덮어쓴다.
+        // 확인일시는 마감·감사에서 "언제 확정했나"의 근거라, 더블클릭 한 번에 조용히
+        // 바뀌면 안 된다. 되돌리려면 확인취소를 거치게 한다.
+        if (s.getConfirmStatus() == SalesConfirmStatus.CONFIRMED) {
+            throw ApiException.badRequest("이미 확인된 전표입니다: " + s.getDocNo());
+        }
+        s.markConfirmed();
+        return SalesResponse.from(s);
+    }
+
+    /** 확인취소. 결재로 확인된 전표도 되돌릴 수 있다(이카운트의 '확인취소'). */
+    @Transactional
+    public SalesResponse unconfirm(Long id) {
+        Sales s = getSales(id);
+        if (s.getConfirmStatus() == SalesConfirmStatus.IN_APPROVAL) {
+            throw ApiException.badRequest("전자결재 진행중인 전표는 확인취소할 수 없습니다.");
+        }
+        if (s.getConfirmStatus() != SalesConfirmStatus.CONFIRMED) {
+            throw ApiException.badRequest("확인되지 않은 전표입니다: " + s.getDocNo());
+        }
+        s.markUnconfirmed();
+        return SalesResponse.from(s);
+    }
+
+    /** 다른 서비스가 판매전표 엔티티를 얻는 진입점 (리포지토리를 직접 주입하지 않도록). */
+    @Transactional(readOnly = true)
+    public Sales get(Long id) {
+        return getSales(id);
+    }
+
+    private Sales getSales(Long id) {
+        return salesRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("판매전표를 찾을 수 없습니다. id=" + id));
+    }
+
+    @Transactional(readOnly = true)
+    public List<SalesResponse> findAll() {
+        return findAll(null, null);
+    }
+
+    /**
+     * 판매 목록. 기간을 주면 그만큼만 준다.
+     *
+     * <p>예전에는 기간을 <b>아무도 못 넘겼다.</b> 화면 스무 곳이 이 자리를 부르는데
+     * 판매현황·판매할인현황·판매구매집계표는 조건 판에 [기간]을 물어 놓고 전체를 받아
+     * 브라우저에서 걸렀다 — 1,490줄·1.2MB 를 열 때마다 내려보냈다.
+     *
+     * <p>응답 모양은 <b>그대로 둔다.</b> 스무 군데가 알몸 배열을 기대하고 있어서,
+     * 자르는 껍데기를 씌우면 안 고친 열일곱이 조용히 빈 표가 된다.
+     */
+    @Transactional(readOnly = true)
+    public List<SalesResponse> findAll(LocalDate from, LocalDate to) {
+        return findAll(from, to, null);
+    }
+
+    /**
+     * <b>limit</b> — 최근 몇 건만. 목록이 이미 최신순이라 앞에서 자르면 그게 최근 건이다.
+     *
+     * <p>자르는 자리는 <b>질의가 아니라 여기</b>다. 이 조회는 join fetch 라
+     * 페이지 크기를 질의에 붙이면 하이버네이트가 어차피 <b>메모리에서</b> 자른다
+     * (HHH000104). 여기서 아픈 것은 <b>내려보내는 양</b>이고 — 대시보드가 여섯 줄을
+     * 그리려고 3.6MB 를 받고 있었다 — 그건 이 자리에서 줄어든다.
+     */
+    @Transactional(readOnly = true)
+    public List<SalesResponse> findAll(LocalDate from, LocalDate to, Integer limit) {
+        List<Sales> found = (from == null && to == null)
+                ? salesRepository.findAllWithRefs()
+                : salesRepository.findWithRefsByPeriod(
+                        from != null ? from : LocalDate.of(1, 1, 1),
+                        to != null ? to : LocalDate.of(9999, 12, 31));
+        var stream = found.stream().map(SalesResponse::from);
+        return (limit != null && limit > 0) ? stream.limit(limit).toList() : stream.toList();
+    }
+
+    /**
+     * 판매할인현황: 품목 기준단가(item.unitPrice) 대비 실판매단가(line.unitPrice) 차이를 라인별로 집계.
+     * 기준단가보다 싸게 팔았으면 할인(양수). from/to 미지정 시 전체 기간.
+     */
+    @Transactional(readOnly = true)
+    public List<SalesDiscountRow> findDiscounts(LocalDate from, LocalDate to) {
+        LocalDate f = from != null ? from : LocalDate.of(1900, 1, 1);
+        LocalDate t = to != null ? to : LocalDate.of(9999, 12, 31);
+        List<SalesDiscountRow> rows = new ArrayList<>();
+        for (Sales s : salesRepository.findWithLinesBySaleDateBetween(f, t)) {
+            for (SalesLine l : s.getLines()) {
+                BigDecimal base = l.getItem().getUnitPrice();
+                BigDecimal sale = l.getUnitPrice();
+                BigDecimal perUnit = base.subtract(sale);
+                BigDecimal amount = perUnit.multiply(l.getQuantity());
+                BigDecimal rate = base.compareTo(BigDecimal.ZERO) > 0
+                        ? perUnit.multiply(BigDecimal.valueOf(100)).divide(base, 2, RoundingMode.HALF_UP)
+                        : BigDecimal.ZERO;
+                rows.add(new SalesDiscountRow(
+                        s.getSaleDate(), s.getDocNo(), s.getPartner().getName(),
+                        l.getItem().getCode(), l.getItem().getName(),
+                        s.getWarehouse() != null ? s.getWarehouse().getName() : null,
+                        s.getProject() != null ? s.getProject().getName() : null,
+                        s.getEmployee() != null ? s.getEmployee().getName() : null,
+                        s.isTaxable() ? "과세" : "면세",
+                        l.getQuantity(), base, sale, perUnit, amount, rate));
+            }
+        }
+        return rows;
+    }
+
+    @Transactional
+    public SalesResponse create(CreateSalesRequest req, String username) {
+        LocalDate saleDate = req.saleDate() != null ? req.saleDate() : LocalDate.now();
+        requireUsableMasters(req);
+        requireWithinOrderQty(req, null);
+
+        Sales sales = Sales.builder()
+                .docNo(generateDocNo(saleDate))
+                .partner(resolvePartner(req.partnerId()))
+                .warehouse(warehouseService.getUsable(req.warehouseId()))
+                .saleDate(saleDate)
+                .createdBy(username)
+                .build();
+
+        applyContent(sales, req, username);
+        Sales saved = salesRepository.save(sales);
+        syncLots(saved);
+        refreshOrders(sourceOrders(saved));
+        return SalesResponse.from(saved);
+    }
+
+    /**
+     * 판매전표 수정. 재고에 이미 반영된 전표라서 <b>옛 라인을 재고에 되돌린 뒤 새 라인을 다시 반영</b>한다.
+     * 한 트랜잭션 안이므로 도중에 재고가 모자라면 전부 롤백된다.
+     *
+     * <p>전표번호는 바꾸지 않는다 — 이미 인쇄돼 나간 거래명세서와 어긋나기 때문이다.
+     */
+    @Transactional
+    public SalesResponse update(Long id, CreateSalesRequest req, String username) {
+        Sales sales = getSales(id);
+        ensureEditable(sales, "수정");
+        // 자기 자신은 빼고 센다 — 안 그러면 수량을 그대로 둔 수정도 "잔량 초과" 로 거부된다.
+        requireWithinOrderQty(req, id);
+
+        // 되돌리기는 반드시 '바꾸기 전' 창고·일자로 해야 한다. 창고를 옮기는 수정이면
+        // 옛 창고에 되돌리고 새 창고에서 빼야 재고가 맞는다.
+        revertStock(sales, "판매수정 원복", username);
+        // 근거 주문을 바꾸는 수정이면 옛 주문도 다시 봐야 한다(닫혀 있던 것이 열린다).
+        Set<SalesOrder> touchedOrders = new HashSet<>(sourceOrders(sales));
+        sales.getLines().clear();
+
+        sales.setPartner(resolvePartner(req.partnerId()));
+        sales.setWarehouse(warehouseService.get(req.warehouseId()));
+        if (req.saleDate() != null) sales.setSaleDate(req.saleDate());
+
+        applyContent(sales, req, username);
+        salesRepository.flush();
+        syncLots(sales);
+        touchedOrders.addAll(sourceOrders(sales));
+        refreshOrders(touchedOrders);
+        return SalesResponse.from(sales);
+    }
+
+    /** 원본 시리얼/로트No.내역조회의 [전표구분]. */
+    private static final String LOT_DOC_TYPE = "판매";
+
+    /** 로트No. 를 든 줄을 시리얼/로트 내역에 남긴다 — 나간 수량만큼 −(반품이면 줄 수량이 음수라 +). */
+    private void syncLots(Sales s) {
+        lotService.replaceDocument(LOT_DOC_TYPE, s.getId(), s.getDocNo(), s.getSaleDate(),
+                s.getPartner() != null ? s.getPartner().getName() : null,
+                s.getLines().stream()
+                        .map(l -> new LotService.DocLine(l.getItem(), s.getWarehouse(), l.getLotNo(), l.getQuantity().negate()))
+                        .toList());
+    }
+
+    /** 판매전표 삭제. 재고를 되돌린 뒤 지운다. */
+    @Transactional
+    public void delete(Long id, String username) {
+        Sales sales = getSales(id);
+        ensureEditable(sales, "삭제");
+
+        revertStock(sales, "판매삭제 원복", username);
+        lotService.removeDocument(LOT_DOC_TYPE, sales.getId());
+        Set<SalesOrder> touchedOrders = sourceOrders(sales);
+        salesRepository.delete(sales);
+        try {
+            // 다른 모듈(전자결재 첨부 전표)이 이 전표를 참조하고 있으면 여기서 FK 제약에 걸린다.
+            // trade 는 groupware 를 참조할 수 없으므로(CLAUDE.md 4.1) 직접 조회하지 않고
+            // 제약 위반을 400 으로 번역한다 — ProjectService.delete 와 같은 방식이다.
+            salesRepository.flush();
+        } catch (DataIntegrityViolationException e) {
+            throw ApiException.badRequest("다른 문서(전자결재 등)가 참조 중이라 삭제할 수 없습니다: " + sales.getDocNo());
+        }
+        refreshOrders(touchedOrders);
+    }
+
+    /** 이 전표의 줄들이 근거로 삼은 주문들. */
+    private static Set<SalesOrder> sourceOrders(Sales sales) {
+        Set<SalesOrder> out = new HashSet<>();
+        for (SalesLine l : sales.getLines()) if (l.getSourceOrder() != null) out.add(l.getSourceOrder());
+        return out;
+    }
+
+    /**
+     * 판매로 주문이 다 끊겼는지 다시 본다 — 원본은 판매가 주문서를 불러오면 주문을 완료로 닫는다.
+     * 잔량 합계 쿼리가 방금 바꾼 줄을 보도록 먼저 flush 한다.
+     */
+    private void refreshOrders(Set<SalesOrder> orders) {
+        if (orders.isEmpty()) return;
+        salesRepository.flush();
+        orders.forEach(salesOrderService::refreshProgress);
+    }
+
+
+    /**
+     * Sales 전표 <b>라인 단가</b>를 바꾼다. (단가일괄변경 화면)
+     *
+     * <p>수량은 건드리지 않으므로 재고는 움직이지 않는다. 공급가액·부가세·전표합계만
+     * 다시 계산한다. 부가세 배분 규칙(라인별 반올림 / 거래별부가세계산)은 입력할 때와
+     * 같은 {@link VatAllocator} 를 쓴다 — 여기서 따로 계산하면 두 경로가 갈라진다.
+     *
+     * <p>과세 여부는 <b>전표에 저장된 값</b>을 쓴다. 예전에는 '원래 부가세가 0 이었으면
+     * 면세' 로 되짚었는데, 부가세는 반올림하므로 과세인데 0 인 전표(공급가액 4원)가 나온다.
+     * 그런 전표의 단가를 올리면 면세로 오인해 부가세가 0 으로 남았다 — 실측했다.
+     *
+     * <p>수정 가능 여부는 {@code ensureEditable} 이 그대로 판단한다 — 확인·회계반영·
+     * 세금계산서 발행된 전표는 단가도 못 고친다.
+     *
+     * @param prices 라인 id → 새 단가
+     * @return 실제로 바뀐 전표 (같은 전표의 여러 라인을 한 번에 줘도 한 번만 담긴다)
+     */
+    @Transactional
+    public List<Sales> changeLinePrices(Map<Long, BigDecimal> prices) {
+        if (prices.isEmpty()) return List.of();
+
+        Map<Long, Sales> touched = new LinkedHashMap<>();
+        for (Map.Entry<Long, BigDecimal> e : prices.entrySet()) {
+            SalesLine line = salesLineRepository.findById(e.getKey())
+                    .orElseThrow(() -> ApiException.notFound("전표 라인을 찾을 수 없습니다. id=" + e.getKey()));
+            Sales slip = line.getSales();
+            if (!touched.containsKey(slip.getId())) {
+                ensureEditable(slip, "단가변경");
+                touched.put(slip.getId(), slip);
+            }
+            line.setUnitPrice(e.getValue());
+        }
+        touched.values().forEach(this::recalcAmounts);
+        return List.copyOf(touched.values());
+    }
+
+    /** 라인 단가가 바뀐 뒤 공급가액·부가세·전표합계를 다시 맞춘다. */
+    private void recalcAmounts(Sales slip) {
+        boolean taxable = slip.isTaxable();
+        List<SalesLine> lines = slip.getLines();
+        List<BigDecimal> supplies = lines.stream()
+                .map(l -> VatAllocator.lineSupply(l.getQuantity(), l.getUnitPrice()))
+                .toList();
+        List<BigDecimal> vats = VatAllocator.allocate(supplies, VAT_RATE, taxable, slip.isVatBySlip());
+
+        BigDecimal totalSupply = BigDecimal.ZERO;
+        BigDecimal totalVat = BigDecimal.ZERO;
+        for (int i = 0; i < lines.size(); i++) {
+            lines.get(i).setSupplyAmount(supplies.get(i));
+            lines.get(i).setVatAmount(vats.get(i));
+            totalSupply = totalSupply.add(supplies.get(i));
+            totalVat = totalVat.add(vats.get(i));
+        }
+        slip.setSupplyAmount(totalSupply);
+        slip.setVatAmount(totalVat);
+        slip.setTotalAmount(totalSupply.add(totalVat));
+    }
+
+    /**
+     * 왜 못 고치는지 한 마디로. 고칠 수 있으면 null.
+     *
+     * <p>{@code ensureEditable} 과 같은 조건을 본다 — 화면이 자기 규칙을 따로 쓰면
+     * 언젠가 갈라져서, 화면은 열어 주고 저장에서 거절하는 상태가 된다.
+     */
+    @Transactional(readOnly = true)
+    public String editLockReason(Sales s) {
+        try {
+            ensureEditable(s, "수정");
+            return null;
+        } catch (ApiException e) {
+            return e.getMessage();
+        }
+    }
+
+    /**
+     * 여러 전표의 잠금 사유를 <b>한 번에</b> 알아낸다.
+     *
+     * <p>{@link #editLockReason} 을 전표마다 부르면 그 안에서 세금계산서·쇼핑몰주문을
+     * <b>전표당 두 번씩</b> 묻는다. 단가일괄변경이 그렇게 부르고 있었는데, 1,460줄을 무는
+     * 700여 전표에 질의가 1,400번 더 붙어 그 화면이 2초 걸렸다.
+     *
+     * <p>규칙은 {@link #ensureEditable} 한 곳에만 둔다 — 여기서 규칙을 베끼면 나중에 한쪽만
+     * 고쳐져 갈라진다. 대신 <b>붙어 있는지</b>만 미리 한 번에 받아 두고 그것을 넘긴다.
+     */
+    @Transactional(readOnly = true)
+    public java.util.Map<Long, String> editLockReasons(java.util.List<Sales> list) {
+        java.util.List<Long> ids = list.stream().map(Sales::getId).toList();
+        java.util.Set<Long> withTaxInvoice = ids.isEmpty() ? java.util.Set.of()
+                : new java.util.HashSet<>(taxInvoiceRepository.findSalesIdsIn(ids));
+        java.util.Set<Long> fromMall = ids.isEmpty() ? java.util.Set.of()
+                : new java.util.HashSet<>(mallOrderRepository.findSalesIdsIn(ids));
+        java.util.Map<Long, String> out = new java.util.LinkedHashMap<>();
+        for (Sales s : list) {
+            try {
+                ensureEditable(s, "수정", withTaxInvoice.contains(s.getId()), fromMall.contains(s.getId()));
+                out.put(s.getId(), null);
+            } catch (ApiException e) {
+                out.put(s.getId(), e.getMessage());
+            }
+        }
+        return out;
+    }
+
+    /** 수정·삭제해도 되는 전표인지. 되돌릴 수 없는 후속 처리가 붙었으면 막는다. */
+    private void ensureEditable(Sales s, String action) {
+        ensureEditable(s, action, taxInvoiceRepository.existsBySales_Id(s.getId()),
+                mallOrderRepository.existsBySales_Id(s.getId()));
+    }
+
+    /**
+     * 규칙 본체. 붙어 있는지 여부를 <b>밖에서 받는다</b> — 하나씩 볼 때는 위에서 그때그때 묻고,
+     * 여럿을 볼 때는 {@link #editLockReasons} 가 한 번에 받아 넘긴다. 규칙은 여기 하나뿐이다.
+     */
+    private void ensureEditable(Sales s, String action, boolean hasTaxInvoice, boolean fromMall) {
+        if (s.isAccountingReflected()) {
+            throw ApiException.badRequest("회계반영된 전표는 " + action + "할 수 없습니다. 회계반영을 먼저 취소하세요: " + s.getDocNo());
+        }
+        if (s.getConfirmStatus() == SalesConfirmStatus.IN_APPROVAL) {
+            throw ApiException.badRequest("전자결재 진행중인 전표는 " + action + "할 수 없습니다: " + s.getDocNo());
+        }
+        if (s.getConfirmStatus() == SalesConfirmStatus.CONFIRMED) {
+            throw ApiException.badRequest("확인된 전표는 " + action + "할 수 없습니다. 확인취소를 먼저 하세요: " + s.getDocNo());
+        }
+        if (hasTaxInvoice) {
+            throw ApiException.badRequest("세금계산서가 발행된 전표는 " + action + "할 수 없습니다: " + s.getDocNo());
+        }
+        if (fromMall) {
+            throw ApiException.badRequest("쇼핑몰 주문에서 전환된 전표는 " + action + "할 수 없습니다: " + s.getDocNo());
+        }
+    }
+
+    /**
+     * 출고했던 수량을 창고에 되돌린다(입고). 이력을 지우지 않고 반대 거래를 남긴다.
+     *
+     * <p>반품 전표는 수량이 음수로 저장돼 있어 <b>같은 식이 그대로 반대로</b> 돈다 —
+     * 되돌려받아 들여놨던 물건이 다시 나간다. 이름표(INBOUND/OUTBOUND)만 부호를 따라간다.
+     */
+    private void revertStock(Sales s, String note, String username) {
+        for (SalesLine l : s.getLines()) {
+            boolean back = l.getQuantity().signum() >= 0;
+            stockService.applyDelta(l.getItem(), s.getWarehouse(), l.getQuantity(),
+                    back ? StockTransactionType.INBOUND : StockTransactionType.OUTBOUND,
+                    l.getUnitPrice(), s.getSaleDate(),
+                    note + " " + s.getDocNo(), username);
+        }
+    }
+
+    /**
+     * 새 전표에 사용중지된 마스터를 쓰지 못하게 막는다.
+     *
+     * <p>사용중지는 "더 이상 쓰지 말자"는 표시인데, 지금까지는 표시만 되고 아무것도 막지 않아서
+     * 중지한 품목·거래처로 전표가 그대로 저장됐다. 코드도움 목록에도 남아 있어 실수로 고르기 쉽다.
+     *
+     * <p><b>수정(update)은 막지 않는다.</b> 이미 저장된 전표에 그때는 살아 있던 품목이 들어 있는데,
+     * 나중에 그 품목을 중지했다고 해서 비고 한 줄 고치는 것까지 막으면 옛 전표를 손댈 수 없게 된다.
+     * 새로 쓰는 자리에서만 막는다.
+     */
+    private void requireUsableMasters(CreateSalesRequest req) {
+        TradeMasters.requireUsable(resolvePartner(req.partnerId()));
+        req.lines().forEach(l -> itemService.getUsable(l.itemId()));
+    }
+
+    private BusinessPartner resolvePartner(Long partnerId) {
+        BusinessPartner partner = partnerRepository.findById(partnerId)
+                .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + partnerId));
+        if (!partner.getType().canSell()) {
+            throw ApiException.badRequest("매출처가 아닌 거래처에는 판매할 수 없습니다: " + partner.getName());
+        }
+        return partner;
+    }
+
+    /** 헤더 부가정보 + 라인 + 합계 + 재고 출고. create/update 가 공유한다. */
+    /**
+     * 근거수주가 붙은 라인은 <b>주문수량을 넘길 수 없다.</b>
+     *
+     * <p>출하는 잔량을 검사하는데(초과하면 거부) 판매는 아무 검사가 없었다. 그래서 수주 50개에
+     * 판매전표를 57개까지 끊을 수 있었고(개발 DB 에 실제로 146건), 미판매현황은 음수를
+     * 0 으로 잘라 보여 줘서 <b>화면상으로는 멀쩡해 보였다</b>.
+     *
+     * <p>판매 라인은 수주 <b>헤더</b>만 가리키므로 라인 대 라인이 아니라 품목으로 맞춘다
+     * (미판매현황이 쓰는 것과 같은 규칙).
+     *
+     * @param excludeSalesId 수정 중인 전표. 자기 수량을 두 번 세면 멀쩡한 수정이 거부된다.
+     */
+    private void requireWithinOrderQty(CreateSalesRequest req, Long excludeSalesId) {
+        Map<Long, Map<Long, BigDecimal>> wanted = new HashMap<>();
+        for (SalesLineRequest lr : req.lines()) {
+            if (lr.sourceOrderId() == null) continue;
+            wanted.computeIfAbsent(lr.sourceOrderId(), k -> new HashMap<>())
+                    .merge(lr.itemId(), lr.quantity(), BigDecimal::add);
+        }
+        for (Map.Entry<Long, Map<Long, BigDecimal>> e : wanted.entrySet()) {
+            SalesOrder order = salesOrderRepository.findById(e.getKey())
+                    .orElseThrow(() -> ApiException.notFound("근거전표(수주)를 찾을 수 없습니다. id=" + e.getKey()));
+
+            Map<Long, BigDecimal> ordered = new HashMap<>();
+            for (SalesOrderLine ol : order.getLines()) {
+                ordered.merge(ol.getItem().getId(), ol.getQuantity(), BigDecimal::add);
+            }
+            Map<Long, BigDecimal> already = new HashMap<>();
+            for (SalesLineRepository.OrderItemAggregate a
+                    : salesLineRepository.aggregateSoldByOrder(e.getKey(), excludeSalesId)) {
+                already.merge(a.getItemId(), a.getQty(), BigDecimal::add);
+            }
+
+            for (Map.Entry<Long, BigDecimal> w : e.getValue().entrySet()) {
+                BigDecimal orderQty = ordered.getOrDefault(w.getKey(), BigDecimal.ZERO);
+                if (orderQty.signum() == 0) {
+                    throw ApiException.badRequest(
+                            "근거수주 " + order.getOrderNo() + " 에 없는 품목입니다: "
+                                    + itemService.get(w.getKey()).getName());
+                }
+                BigDecimal remain = orderQty.subtract(already.getOrDefault(w.getKey(), BigDecimal.ZERO));
+                if (w.getValue().compareTo(remain) > 0) {
+                    throw ApiException.badRequest(String.format(
+                            "근거수주의 잔량을 초과합니다. 수주=%s, 품목=%s, 주문=%s, 이미판매=%s, 잔량=%s, 요청=%s",
+                            order.getOrderNo(), itemService.get(w.getKey()).getName(),
+                            orderQty.toPlainString(),
+                            already.getOrDefault(w.getKey(), BigDecimal.ZERO).toPlainString(),
+                            remain.toPlainString(), w.getValue().toPlainString()));
+                }
+            }
+        }
+    }
+
+    private void applyContent(Sales sales, CreateSalesRequest req, String username) {
+        boolean taxable = req.taxable() == null || req.taxable();
+        // 전표의 성질로 남긴다. 안 남기면 나중에 '부가세가 0이면 면세' 로 되짚어야 하고,
+        // 반올림으로 부가세가 0 이 된 과세 전표를 면세로 오인한다.
+        sales.setTaxable(taxable);
+        /*
+         * 원본 [거래구분] — 일반 · 반품. 반품은 판매의 <b>반대</b>다: 물건이 창고로 돌아오고
+         * 채권이 준다. 그래서 <b>여기서 한 번</b> 부호를 뒤집어 저장한다 — 수량도 금액도 음수다.
+         * 읽는 쪽(재고·채권·이익·현황)은 아무것도 안 바꿔도 맞는다. 화면은 되돌려받는 수량을
+         * 양수로 적는다(원본도 그렇다).
+         */
+        boolean isReturn = Boolean.TRUE.equals(req.returnSlip());
+        sales.setReturnSlip(isReturn);
+        sales.setRemark(req.remark());
+        sales.setProject(req.projectId() != null ? projectService.get(req.projectId()) : null);
+        sales.setEmployee(req.employeeId() != null ? employeeService.getUsable(req.employeeId()) : null);
+
+        // 부가세는 라인을 만들기 전에 한꺼번에 배분한다 — [거래별부가세계산] 이 켜져 있으면
+        // 전표 합계를 알아야 반올림할 수 있기 때문이다. 규칙은 VatAllocator 에 모아 뒀다.
+        boolean vatBySlip = Boolean.TRUE.equals(req.vatBySlip());
+        sales.setVatBySlip(vatBySlip);
+        BigDecimal sign = isReturn ? BigDecimal.ONE.negate() : BigDecimal.ONE;
+        List<BigDecimal> supplies = req.lines().stream()
+                .map(lr -> (lr.supplyAmount() != null
+                        ? lr.supplyAmount().setScale(0, RoundingMode.HALF_UP)
+                        : VatAllocator.lineSupply(lr.quantity(), lr.unitPrice())).multiply(sign))
+                .toList();
+        List<BigDecimal> vats = new java.util.ArrayList<>(VatAllocator.allocate(supplies, VAT_RATE, taxable, vatBySlip));
+        // 손으로 고친 부가세는 그 줄에 그대로 쓴다(면세 전표는 0 이 원칙이라 무시한다).
+        for (int i = 0; taxable && i < req.lines().size(); i++) {
+            BigDecimal typedVat = req.lines().get(i).vatAmount();
+            if (typedVat != null) vats.set(i, typedVat.setScale(0, RoundingMode.HALF_UP).multiply(sign));
+        }
+
+        BigDecimal totalSupply = BigDecimal.ZERO;
+        BigDecimal totalVat = BigDecimal.ZERO;
+
+        for (int i = 0; i < req.lines().size(); i++) {
+            SalesLineRequest lr = req.lines().get(i);
+            Item item = itemService.get(lr.itemId());
+            /*
+             * 품목등록의 [시리얼/로트No.] 를 켠 품목은 입출고 때 로트번호를 받는다 — 품목 화면이 그렇게 약속하는데
+             * 아무 데서도 지키지 않아 로트 없이 들고 나서 로트별 재고가 어긋났다(QA 62회차).
+             */
+            if (item.isLotManaged() && (lr.lotNo() == null || lr.lotNo().isBlank())) {
+                throw ApiException.badRequest(item.getCode() + " " + item.getName()
+                        + " 은(는) 로트관리 품목입니다 — 로트No.를 입력하세요.");
+            }
+            BigDecimal supply = supplies.get(i);
+            BigDecimal vat = vats.get(i);
+
+            SalesLine line = SalesLine.builder()
+                    .item(item)
+                    .quantity(lr.quantity().multiply(sign))
+                    .unitPrice(lr.unitPrice())
+                    .supplyAmount(supply)
+                    .vatAmount(vat)
+                    .remark(lr.remark())
+                    .lotNo(lr.lotNo())
+                    .extraCost(lr.extraCost())
+                    .sourceOrder(lr.sourceOrderId() == null ? null
+                            : salesOrderRepository.findById(lr.sourceOrderId())
+                                    .orElseThrow(() -> ApiException.notFound(
+                                            "근거전표(수주)를 찾을 수 없습니다. id=" + lr.sourceOrderId())))
+                    .build();
+            sales.addLine(line);
+
+            totalSupply = totalSupply.add(supply);
+            totalVat = totalVat.add(vat);
+
+            /*
+             * 재고 감소(출고). 재고 부족 시 예외 → 전체 롤백.
+             * 반품이면 반대다 — 되돌려받은 물건이 창고로 들어온다.
+             */
+            stockService.applyDelta(item, sales.getWarehouse(),
+                    lr.quantity().multiply(sign).negate(),
+                    isReturn ? StockTransactionType.INBOUND : StockTransactionType.OUTBOUND,
+                    lr.unitPrice(), sales.getSaleDate(),
+                    (isReturn ? "판매반품 " : "판매 ") + sales.getDocNo(), username);
+        }
+
+        sales.setSupplyAmount(totalSupply);
+        sales.setVatAmount(totalVat);
+        sales.setTotalAmount(totalSupply.add(totalVat));
+    }
+
+    private String generateDocNo(LocalDate date) {
+        return docNoGenerator.next("SO-", "sales", "doc_no", "sale_date", date);
+    }
+
+    /** 통합검색용. 전표번호·거래처명 부분일치 상위 limit 건과 총 건수. */
+    @Transactional(readOnly = true)
+    public List<SalesResponse> search(String like, int limit) {
+        return salesRepository.searchTop(like, PageRequest.of(0, limit)).stream()
+                .map(SalesResponse::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public long searchCount(String like) {
+        return salesRepository.searchCount(like);
+    }
+
+}

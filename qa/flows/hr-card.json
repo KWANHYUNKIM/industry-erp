@@ -1,0 +1,60 @@
+{
+  "about": "관리 > 인사카드등록(C001001) — 원본처럼 성명을 누르면 인사카드 창, [인사자료]의 경력사항 · 자격ㆍ면허 [입력] 창에 한 줄 넣고 저장하면 [입력]이 칠해진다. 시험 줄은 지운다. 가족사항의 동거여부 · 부양여부는 원본처럼 여/부 라디오.",
+  "shots": [
+    {
+      "name": "인사카드 → 경력사항 입력 → 저장 → 뒷정리",
+      "path": "/hr/cards",
+      "steps": [
+        "js:window.confirm=()=>true;true",
+        "js:(async()=>{for(let i=0;i<60;i++){const a=[...document.querySelectorAll('table tbody a')].find(x=>x.textContent==='EMP-0001');if(a){a.click();return true}await new Promise(z=>setTimeout(z,250))}return 'not found'})()",
+        "wait:1500",
+        "js:[...document.querySelectorAll('[role=dialog] button')].filter(b=>b.textContent==='입력')[1].click();true",
+        "wait:1500",
+        "set:[role=dialog]:last-of-type table input.ec-input:not([type=date])#0|QA관리-화면시험회사",
+        "clicklast:저장(F8)",
+        "wait:1500",
+        "expect:[...document.querySelectorAll('[role=dialog] button')].filter(b=>b.textContent==='입력')[1].className.includes('ec-btn-primary')",
+        "js:(async()=>{const t=localStorage.getItem('erp_token');const h={Authorization:'Bearer '+t};const emps=await (await fetch('/api/employees/all',{headers:h})).json();const e=emps.find(x=>x.code==='EMP-0001');const g=await (await fetch('/api/employees/'+e.id+'/hr-details/CAREER',{headers:h})).json();const d=await fetch('/api/employees/'+e.id+'/hr-details/CAREER',{method:'DELETE',headers:h});sessionStorage.setItem('qaHc',String(g.length===1&&g[0].text1==='QA관리-화면시험회사'&&d.ok));return true})()",
+        "expect:sessionStorage.getItem('qaHc')==='true'"
+      ]
+    },
+    {
+      "name": "인사카드 → 자격ㆍ면허(날짜 넷) 입력 → 저장 → 뒷정리",
+      "path": "/hr/cards",
+      "steps": [
+        "js:window.confirm=()=>true;true",
+        "js:(async()=>{for(let i=0;i<60;i++){const a=[...document.querySelectorAll('table tbody a')].find(x=>x.textContent==='EMP-0001');if(a){a.click();return true}await new Promise(z=>setTimeout(z,250))}return 'not found'})()",
+        "wait:1500",
+        "expect:[...document.querySelectorAll('[role=dialog] .title')].map(x=>x.textContent).join('|').includes('자격ㆍ면허|가족사항|외국어|상벌사항|교육사항|출장사항|메모사항|근무실태|보증인')",
+        "js:[...document.querySelectorAll('[role=dialog] button')].filter(b=>b.textContent==='입력')[2].click();true",
+        "wait:1500",
+        "expect:[...document.querySelectorAll('[role=dialog]:last-of-type th')].map(x=>x.textContent).join('|').includes('자격/면허코드|자격/면허번호|자격/면허발행기관|취득일자|만기일자|갱신일자|말소일자|말소사유')",
+        "set:[role=dialog]:last-of-type table tbody tr:first-child td:nth-child(2) input|QA관리-정보처리기사",
+        "set:[role=dialog]:last-of-type table tbody tr:first-child td:nth-child(7) input|2026-09-01",
+        "clicklast:저장(F8)",
+        "wait:1500",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const emps=await (await fetch('/api/employees/all',{headers:h})).json();const e=emps.find(x=>x.code==='EMP-0001');const g=await (await fetch('/api/employees/'+e.id+'/hr-details/LICENSE',{headers:h})).json();const d=await fetch('/api/employees/'+e.id+'/hr-details/LICENSE',{method:'DELETE',headers:h});sessionStorage.setItem('qaLic',String(g.length===1&&g[0].text1==='QA관리-정보처리기사'&&g[0].date3==='2026-09-01'&&d.ok));return true})()",
+        "expect:sessionStorage.getItem('qaLic')==='true'"
+      ]
+    },
+    {
+      "name": "인사카드 → 가족사항 동거 · 부양여부 라디오 → 저장 → 뒷정리",
+      "path": "/hr/cards",
+      "steps": [
+        "js:window.confirm=()=>true;true",
+        "js:(async()=>{for(let i=0;i<60;i++){const a=[...document.querySelectorAll('table tbody a')].find(x=>x.textContent==='EMP-0001');if(a){a.click();return true}await new Promise(z=>setTimeout(z,250))}return 'not found'})()",
+        "wait:1500",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const emps=await (await fetch('/api/employees/all',{headers:h})).json();const e=emps.find(x=>x.code==='EMP-0001');const g=await (await fetch('/api/employees/'+e.id+'/hr-details/FAMILY',{headers:h})).json();sessionStorage.setItem('qaFamPre',String(g.length));return true})()",
+        "expect:sessionStorage.getItem('qaFamPre')==='0'",
+        "js:[...document.querySelectorAll('[role=dialog] button')].filter(b=>b.textContent==='입력')[3].click();true",
+        "wait:1500",
+        "set:[role=dialog]:last-of-type table tbody tr:first-child td:nth-child(3) input|QA관리-가족",
+        "js:(()=>{const tr=[...document.querySelectorAll('[role=dialog]')].pop().querySelector('table tbody tr');const rs=[...tr.querySelectorAll('input[type=radio]')];return rs.length===4&&(rs[0].click(),rs[3].click(),true)})()",
+        "clicklast:저장(F8)",
+        "wait:1500",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const emps=await (await fetch('/api/employees/all',{headers:h})).json();const e=emps.find(x=>x.code==='EMP-0001');const g=await (await fetch('/api/employees/'+e.id+'/hr-details/FAMILY',{headers:h})).json();const d=await fetch('/api/employees/'+e.id+'/hr-details/FAMILY',{method:'DELETE',headers:h});sessionStorage.setItem('qaFam',String(g.length===1&&g[0].text2==='QA관리-가족'&&g[0].text8==='여'&&g[0].text9==='부'&&d.ok));return true})()",
+        "expect:sessionStorage.getItem('qaFam')==='true'"
+      ]
+    }
+  ]
+}

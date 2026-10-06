@@ -47,9 +47,9 @@ export default function EcMonthCalendar({
   return (
     // 폭 240 · 칸 34x26 은 원본 일정관리 왼쪽 달력 실측값이다.
     <div style={{ width: 240, flex: '0 0 auto', border: '1px solid var(--ec-border)', background: '#fff', borderRadius: 5 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px' }}>
+      <div className="flex items-center gap-[6px] py-[8px] px-[10px]">
         <button type="button" className="ec-btn ec-btn-sm" onClick={() => move(-1)} aria-label="이전 달">‹</button>
-        <span style={{ flex: 1, textAlign: 'center', fontSize: 12 }}>
+        <span className="flex-1 text-center text-[12px]">
           {cursor.getFullYear()} / {String(cursor.getMonth() + 1).padStart(2, '0')}
         </span>
         <button type="button" className="ec-btn ec-btn-sm" onClick={() => move(1)} aria-label="다음 달">›</button>
@@ -57,7 +57,7 @@ export default function EcMonthCalendar({
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', padding: '0 6px' }}>
         {['일', '월', '화', '수', '목', '금', '토'].map((d, i) => (
-          <div key={d} style={{ ...head, color: i === 0 ? '#c60a2e' : i === 6 ? 'var(--ec-blue)' : 'var(--ec-label)' }}>
+          <div key={d} style={{ ...head, color: i === 0 ? 'var(--ec-danger)' : i === 6 ? 'var(--ec-blue)' : 'var(--ec-label)' }}>
             {d}
           </div>
         ))}
@@ -82,8 +82,8 @@ export default function EcMonthCalendar({
                 fontSize: 12, borderRadius: 4,
                 background: picked ? 'var(--ec-blue)' : 'transparent',
                 color: picked ? '#fff'
-                  : otherMonth ? '#c8ced6'
-                  : d.getDay() === 0 ? '#c60a2e'
+                  : otherMonth ? 'var(--ec-text-off)'
+                  : d.getDay() === 0 ? 'var(--ec-danger)'
                   : d.getDay() === 6 ? 'var(--ec-blue)'
                   : '#000',
                 fontWeight: s === todayStr && !picked ? 700 : 400,
@@ -105,7 +105,7 @@ export default function EcMonthCalendar({
         })}
       </div>
 
-      <div style={{ padding: '6px 10px 10px' }}>
+      <div className="pt-[6px] px-[10px] pb-[10px]">
         <button type="button" className="ec-btn ec-btn-sm" onClick={() => { setCursor(new Date()); onPick(todayStr) }}>
           오늘
         </button>

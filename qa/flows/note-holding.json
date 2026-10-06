@@ -1,0 +1,126 @@
+{
+  "about": "보유어음현황 · 미지급어음현황 · 받을어음증가현황 · 감소현황 — 어음 하나를 API 로 만들어 화면마다 어디에 뜨나 본다(원본 E010626 · E010634 · E010624 · E010625). 끝에 지운다.",
+  "shots": [
+    {
+      "name": "준비 — 받을어음 1장(오늘 발행, API)",
+      "path": "/accounting/notes-held",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:window.__api('GET', '/partners').then((r) => window.__api('POST', '/notes', { type: 'RECEIVABLE', partnerId: r.body.find((x) => x.code === 'QA-CUST').id, issueDate: new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10), dueDate: new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10), amount: 23456, remark: 'QA 보유어음현황' })).then((r) => { sessionStorage.setItem('nhNo', r.body.noteNo); sessionStorage.setItem('nhId', r.body.id); return r.status })",
+        "expect:!!sessionStorage.getItem('nhNo')"
+      ]
+    },
+    {
+      "name": "보유어음현황 — 오늘 받은 어음이 [받을어음] 계정 줄로 뜨고, 머리는 원본 어음번호 · 거래처명 · 계정명 · 발생일자 · 만기일자 · 적요 · 잔액",
+      "path": "/accounting/notes-held",
+      "steps": [
+        "wait:1800",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');return h==='어음번호|거래처명|계정명|발생일자|만기일자|적요|잔액'})()",
+        "expect:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('nhNo')));return !!tr&&tr.cells[2].innerText.trim()==='받을어음'&&tr.innerText.includes('23,456')})()",
+        "expect:performance.getEntriesByType('resource').some((e)=>/\\/api\\/notes\\?to=\\d{4}-\\d{2}-\\d{2}/.test(e.name))"
+      ]
+    },
+    {
+      "name": "보유어음현황 — 기준일자를 어제로 돌리면 오늘 받은 어음은 그날 들고 있지 않았으므로 빠진다",
+      "path": "/accounting/notes-held",
+      "steps": [
+        "wait:1800",
+        "js:(() => { const i = document.querySelectorAll('input[type=date]')[0]; Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, new Date(Date.now() + 9 * 36e5 - 864e5).toISOString().slice(0, 10)); i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new Event('change', { bubbles: true })); return new Promise((r) => setTimeout(() => r(true), 1500)) })()",
+        "expect:!([...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes(sessionStorage.getItem('nhNo'))))"
+      ]
+    },
+    {
+      "name": "미지급어음현황 — 받을어음은 지급어음 화면에 안 뜬다",
+      "path": "/accounting/notes-unpaid",
+      "steps": [
+        "wait:1800",
+        "expect:document.body.innerText.includes('미지급어음현황')&&!([...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes(sessionStorage.getItem('nhNo'))))"
+      ]
+    },
+    {
+      "name": "받을어음증가현황 — 오늘 받은 어음이 기본 기간(최근30일) 안에 뜨고, 머리는 원본 일자 · 어음번호 · 거래처명 · 계정명 · 적요 · 만기일자 · 금액",
+      "path": "/accounting/notes-in",
+      "steps": [
+        "wait:1800",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');return h==='일자|어음번호|거래처명|계정명|적요|만기일자|금액'})()",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes(sessionStorage.getItem('nhNo'))&&t.innerText.includes('23,456'))"
+      ]
+    },
+    {
+      "name": "받을어음감소현황 — 아직 들고 있는 어음은 감소에 안 뜨고, 머리는 원본 일자 · 어음번호 · 거래처명 · 계정명 · 적요 · 금액(만기일자 없음)",
+      "path": "/accounting/notes-out",
+      "steps": [
+        "wait:1800",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');return h==='일자|어음번호|거래처명|계정명|적요|금액'})()",
+        "expect:!([...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes(sessionStorage.getItem('nhNo'))))"
+      ]
+    },
+    {
+      "name": "지급어음증가현황 · 감소현황 — 받을어음은 지급어음 화면에 안 뜨고, 머리는 받을어음 쪽과 같다",
+      "path": "/accounting/notes-pay-in",
+      "steps": [
+        "wait:1800",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');return document.body.innerText.includes('지급어음증가현황')&&h==='일자|어음번호|거래처명|계정명|적요|만기일자|금액'&&!([...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes(sessionStorage.getItem('nhNo'))))})()"
+      ]
+    },
+    {
+      "name": "받을어음거래내역 — 오늘 받은 어음이 [증가] 줄로 뜨고 잔액에 더해지며, 머리는 원본(부서명 · 프로젝트명 빼고) 일자 · 증감구분 · 어음번호 · 거래처명 · 계정명 · 적요 · 증가금액 · 감소금액 · 잔액",
+      "path": "/accounting/notes-ledger",
+      "steps": [
+        "wait:1800",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');return h==='일자|증감구분|어음번호|거래처명|계정명|적요|증가금액|감소금액|잔액'})()",
+        "expect:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('nhNo')));return !!tr&&tr.cells[1].innerText.trim()==='증가'&&tr.cells[6].innerText.includes('23,456')})()",
+        "expect:document.querySelectorAll('input[type=radio]')[0].checked&&[...document.querySelectorAll('label')].find((l)=>l.textContent.trim()==='잔액0포함').querySelector('input').checked"
+      ]
+    },
+    {
+      "name": "지급어음거래내역 — 받을어음은 지급어음 원장에 안 뜨고, 머리는 받을어음거래내역과 같다",
+      "path": "/accounting/notes-pay-ledger",
+      "steps": [
+        "wait:1800",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');return document.body.innerText.includes('지급어음거래내역')&&h==='일자|증감구분|어음번호|거래처명|계정명|적요|증가금액|감소금액|잔액'&&!([...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes(sessionStorage.getItem('nhNo'))))})()"
+      ]
+    },
+    {
+      "name": "받을어음조회 — 오늘 받은 어음이 '어음증가' 줄로, 원본 열 차례대로 뜬다",
+      "path": "/accounting/notes-list",
+      "steps": [
+        "wait:2000",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('nhNo')));return h==='일자|어음번호|증감구분|거래처명|금액|만기일자|적요|거래유형'&&!!tr&&tr.cells[2].innerText.trim()==='어음증가'})()"
+      ]
+    },
+    {
+      "name": "지급어음조회 — 받을어음은 지급 쪽에 안 뜬다",
+      "path": "/accounting/notes-pay-list",
+      "steps": [
+        "wait:2000",
+        "expect:![...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes(sessionStorage.getItem('nhNo')))"
+      ]
+    },
+    {
+      "name": "정리 — 만든 어음을 지운다(API)",
+      "path": "/accounting/notes-held",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:window.__api('DELETE', '/notes/' + sessionStorage.getItem('nhId')).then((r) => r.status)",
+        "expect:true"
+      ]
+    },
+    {
+      "name": "수령수표현황 — 원본처럼 거래처마다 묶여 '… 계' 줄로 끝나고, 소계의 합이 합계와 같다(자료는 그대로 보기만)",
+      "path": "/accounting/checks-held",
+      "steps": [
+        "wait:2000",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');if(h!=='수령일자|수표번호|거래처명|계정명|적요|금액')return false;const n=(x)=>Number(x.replace(/[^0-9.-]/g,''))||0;const subs=[...document.querySelectorAll('table tbody tr')].filter((t)=>/ 계$/.test(t.cells[0].innerText.trim()));const tot=document.querySelector('table tfoot tr');const sum=subs.reduce((a,t)=>a+n(t.cells[t.cells.length-1].innerText),0);return sum===n(tot.cells[tot.cells.length-1].innerText)})()"
+      ]
+    },
+    {
+      "name": "발행수표현황 — 머리는 원본 발행일자 · 수표번호 · 거래처명 · 계정명 · 적요 · 금액, 조건에 [발행수표계좌], 소계의 합이 합계와 같다",
+      "path": "/accounting/checks-issued",
+      "steps": [
+        "wait:2000",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');if(h!=='발행일자|수표번호|거래처명|계정명|적요|금액')return false;if(!document.body.innerText.includes('발행수표계좌'))return false;const n=(x)=>Number(x.replace(/[^0-9.-]/g,''))||0;const subs=[...document.querySelectorAll('table tbody tr')].filter((t)=>/ 계$/.test(t.cells[0].innerText.trim()));const tot=document.querySelector('table tfoot tr');return subs.reduce((a,t)=>a+n(t.cells[t.cells.length-1].innerText),0)===n(tot.cells[tot.cells.length-1].innerText)})()"
+      ]
+    }
+  ]
+}

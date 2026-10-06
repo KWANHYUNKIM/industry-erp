@@ -1,0 +1,44 @@
+{
+  "about": "발주요청조회(E040315) — 발주서 1장(API, 요청 상태)을 만들어 '진행중' 으로 뜨고 [완료] 탭에서는 빠지는지 본 뒤 지운다. 발주계획조회(C000076)도 — 계획까지 올린 발주서가 건별 줄 · 진행중으로 뜨는지 본다. 단가요청조회(E040322)도 — 단가를 반영(PRICED)한 발주서가 유효기간과 함께 진행중으로 뜨는지 본다.",
+  "shots": [
+    {
+      "name": "발주요청조회 — 오늘 발주요청 1장이 '진행중' 줄로 뜨고 [완료] 탭으로 가면 빠진다, 끝나면 지운다",
+      "path": "/sales/purchase-requests",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const it=(await window.__api('GET','/items')).body.find((x)=>x.active!==false);const ps=(await window.__api('GET','/partners')).body;const p=ps.find((x)=>x.type==='SUPPLIER'||x.type==='BOTH')||ps[0];const today=new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10);const r=await window.__api('POST','/purchase-orders',{partnerId:p.id,orderDate:today,lines:[{itemId:it.id,quantity:3,unitPrice:1000}]});sessionStorage.setItem('prId',r.body&&r.body.id);sessionStorage.setItem('prNo',r.body&&r.body.orderNo);return r.status})()",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('prNo')));return h==='|발주요청일자|거래처명|품목|납기일자|수량|금액(합계)|종결여부|진행상태'&&!!tr&&tr.cells[8].innerText.trim()==='진행중'&&tr.cells[5].innerText.trim()==='3'})()",
+        "click:완료",
+        "wait:500",
+        "expect:![...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes(sessionStorage.getItem('prNo')))",
+        "js:(async()=>(await window.__api('DELETE','/purchase-orders/'+sessionStorage.getItem('prId'))).status)()"
+      ]
+    },
+    {
+      "name": "발주계획조회 — 계획 단계로 올린 발주서 1장이 건별 줄(수량 3.00 · 진행중)로 뜨고, 요청 단계의 것은 안 뜬다, 끝나면 지운다",
+      "path": "/sales/purchase-plans",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const it=(await window.__api('GET','/items')).body.find((x)=>x.active!==false);const ps=(await window.__api('GET','/partners')).body;const p=ps.find((x)=>x.type==='SUPPLIER'||x.type==='BOTH')||ps[0];const today=new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10);const a=await window.__api('POST','/purchase-orders',{partnerId:p.id,orderDate:today,lines:[{itemId:it.id,quantity:3,unitPrice:1000}]});const b=await window.__api('POST','/purchase-orders',{partnerId:p.id,orderDate:today,lines:[{itemId:it.id,quantity:4,unitPrice:1000}]});const pl=await window.__api('POST','/purchase-orders/'+a.body.id+'/plan',{dueDate:today});sessionStorage.setItem('plA',a.body.id);sessionStorage.setItem('plANo',a.body.orderNo);sessionStorage.setItem('plB',b.body.id);sessionStorage.setItem('plBNo',b.body.orderNo);return a.status+'/'+b.status+'/'+pl.status})()",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const tr=[...document.querySelectorAll('tbody tr')];const a=tr.find((t)=>t.innerText.includes(sessionStorage.getItem('plANo').replace(/^[A-Z]+-(\\d{4})(\\d{2})(\\d{2})-0*(\\d+)$/, '$1/$2/$3 -$4')));return h==='|일자-No.|거래처코드명|품목명|수량|단가|금액|부가세|합계|종결여부|진행상태'&&!!a&&a.cells[4].innerText.trim()==='3.00'&&a.cells[10].innerText.trim()==='진행중'&&!tr.some((t)=>t.innerText.includes(sessionStorage.getItem('plBNo').replace(/^[A-Z]+-(\\d{4})(\\d{2})(\\d{2})-0*(\\d+)$/, '$1/$2/$3 -$4')))})()",
+        "js:(async()=>(await window.__api('DELETE','/purchase-orders/'+sessionStorage.getItem('plA'))).status+'/'+(await window.__api('DELETE','/purchase-orders/'+sessionStorage.getItem('plB'))).status)()"
+      ]
+    },
+    {
+      "name": "단가요청조회 — 계획 → 단가 반영(유효기간 오늘)한 발주서가 '진행중' 줄로, 유효기간이 찍혀 뜬다, 끝나면 지운다",
+      "path": "/sales/price-requests",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const it=(await window.__api('GET','/items')).body.find((x)=>x.active!==false);const ps=(await window.__api('GET','/partners')).body;const p=ps.find((x)=>x.type==='SUPPLIER'||x.type==='BOTH')||ps[0];const today=new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10);const a=await window.__api('POST','/purchase-orders',{partnerId:p.id,orderDate:today,lines:[{itemId:it.id,quantity:2,unitPrice:1000}]});await window.__api('POST','/purchase-orders/'+a.body.id+'/plan',{dueDate:today});const pr=await window.__api('POST','/purchase-orders/'+a.body.id+'/prices',{lines:[{lineId:a.body.lines[0].id,unitPrice:1500}],priceValidUntil:today});sessionStorage.setItem('pqId',a.body.id);sessionStorage.setItem('pqNo',a.body.orderNo);sessionStorage.setItem('pqDay',today.replace(/-/g,'/'));return a.status+'/'+pr.status})()",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('pqNo').replace(/^[A-Z]+-(\\d{4})(\\d{2})(\\d{2})-0*(\\d+)$/, '$1/$2/$3 -$4')));return h==='|번호|품목명|금액(합계)|유효기간|진행상태'&&!!tr&&tr.cells[5].innerText.trim()==='진행중'&&tr.cells[4].innerText.trim()===sessionStorage.getItem('pqDay')})()",
+        "js:(async()=>(await window.__api('DELETE','/purchase-orders/'+sessionStorage.getItem('pqId'))).status)()"
+      ]
+    }
+  ]
+}

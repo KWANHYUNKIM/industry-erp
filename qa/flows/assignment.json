@@ -1,0 +1,64 @@
+{
+  "about": "관리 > 인사발령입력(E020721) · 조회(E020602) · 현황(E020720) — 원본처럼 사번을 고르면 이전/발령 직위·부서가 채워지고, 발령구분 '인사발령'으로 저장하면 '[사원정보에 반영]' 확인 창을 지나 조회 · 현황에 한 줄씩 보인다. 조회의 일자-No. 로 수정 창을 열어 [삭제]로 지운다. 현황에서 조건 판(발령구분 · 발령일자 사용)으로 그 줄이 걸러지는지도 본다.",
+  "shots": [
+    {
+      "name": "인사발령입력 → 저장(사원정보에 반영)",
+      "path": "/hr/assignments/input",
+      "steps": [
+        "js:window.confirm=()=>true;true",
+        "pick:사번:EMP-0001",
+        "expect:document.querySelector('table tbody tr td:nth-child(4)').textContent.trim().length>0",
+        "choose:table tbody select#0|인사발령",
+        "pick:입사구분:신입",
+        "set:table tbody tr:first-child td:last-child input|QA관리-화면발령",
+        "click:저장(F8)",
+        "expect:document.body.innerText.includes('[사원정보에 반영] 체크 시, 저장한 정보로 사원정보가 변경됩니다.')",
+        "clicklast:확인",
+        "wait:1500",
+        "expect:document.querySelector('table tbody tr td:last-child input').value===''",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const d=new Date();const t=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const r=await (await fetch('/api/employees/assignment-slips?from='+t+'&to='+t,{headers:h})).json();const l=r.find(x=>x.remark==='QA관리-화면발령');sessionStorage.setItem('qaAs',String(!!l&&l.type==='GENERAL'&&l.prevJobTitle===l.jobTitle&&l.prevDepartment===l.department&&l.employeeCode==='EMP-0001'&&l.hireKind==='신입'));if(l)sessionStorage.setItem('qaAsKey',l.slipDate.replace(/-/g,'/')+' -'+l.slipNo);return true})()",
+        "expect:sessionStorage.getItem('qaAs')==='true'"
+      ]
+    },
+    {
+      "name": "인사발령현황 — 발령 줄 · 발령구분 · 발령일자 조건",
+      "path": "/hr/assignments/status",
+      "steps": [
+        "expect:[...document.querySelectorAll('table tbody tr')].some(tr=>tr.innerText.includes('QA관리-화면발령')&&tr.innerText.includes('EMP-0001')&&tr.innerText.includes('인사발령'))",
+        "expect:[...document.querySelectorAll('table tbody tr')].some(tr=>tr.innerText.includes('QA관리-화면발령')&&tr.innerText.includes('신입'))",
+        "expect:document.querySelector('.ec-report-head').textContent.includes('회사명 :')&&document.querySelector('.ec-report-foot').textContent.includes('[P.1]')",
+        "pick:발령구분:입사",
+        "clicklast:확인",
+        "click:검색(F8)",
+        "wait:800",
+        "expect:![...document.querySelectorAll('table tbody tr')].some(tr=>tr.innerText.includes('QA관리-화면발령'))",
+        "pick:발령구분:입사",
+        "pick:발령구분:인사발령",
+        "clicklast:확인",
+        "click:검색(F8)",
+        "wait:800",
+        "expect:[...document.querySelectorAll('table tbody tr')].some(tr=>tr.innerText.includes('QA관리-화면발령'))",
+        "js:(()=>{const c=[...document.querySelectorAll('label')].find(l=>l.textContent.trim()==='사용').querySelector('input');c.click();return true})()",
+        "wait:300",
+        "expect:[...document.querySelectorAll('table tbody tr')].some(tr=>tr.innerText.includes('QA관리-화면발령'))",
+        "set:input[aria-label=\"발령일자 시작\"]|2099-01-01",
+        "wait:300",
+        "expect:![...document.querySelectorAll('table tbody tr')].some(tr=>tr.innerText.includes('QA관리-화면발령'))"
+      ]
+    },
+    {
+      "name": "인사발령조회 → 수정 창 → 삭제",
+      "path": "/hr/assignments",
+      "steps": [
+        "js:window.confirm=()=>true;true",
+        "js:(async()=>{const k=sessionStorage.getItem('qaAsKey');for(let i=0;i<40;i++){const a=[...document.querySelectorAll('table tbody a')].find(x=>x.textContent===k);if(a){a.click();return true}await new Promise(z=>setTimeout(z,250))}return 'not found '+k})()",
+        "expect:document.body.innerText.includes('인사발령입력수정')",
+        "expect:[...document.querySelectorAll('[role=dialog] table tbody input')].some(i=>i.value==='QA관리-화면발령')",
+        "clicklast:삭제",
+        "wait:1500",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const d=new Date();const t=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const r=await (await fetch('/api/employees/assignment-slips?from='+t+'&to='+t,{headers:h})).json();sessionStorage.setItem('qaAsDel',String(!r.some(x=>x.remark==='QA관리-화면발령')));return true})()",
+        "expect:sessionStorage.getItem('qaAsDel')==='true'"
+      ]
+    }
+  ]
+}

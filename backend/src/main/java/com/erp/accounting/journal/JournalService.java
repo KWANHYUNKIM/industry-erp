@@ -1,0 +1,740 @@
+package com.erp.accounting.journal;
+
+import com.erp.accounting.account.AccountService;
+import com.erp.common.ApiException;
+import com.erp.common.DocumentNoGenerator;
+import com.erp.accounting.account.Account;
+import com.erp.trade.partner.BusinessPartner;
+import com.erp.accounting.expense.Expense;
+import com.erp.trade.purchase.Purchase;
+import com.erp.trade.sales.Sales;
+import com.erp.trade.settlement.Settlement;
+import com.erp.trade.settlement.SettlementType;
+import com.erp.accounting.journal.dto.JournalDtos.CashTxnRequest;
+import com.erp.accounting.journal.dto.JournalDtos.CreateJournalRequest;
+import com.erp.accounting.journal.dto.JournalDtos.ManualLineInput;
+import com.erp.accounting.account.AccountRepository;
+import com.erp.trade.partner.BusinessPartnerRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import com.erp.inventory.item.ItemCategory;
+import com.erp.accounting.bankcard.AccountTransfer;
+import com.erp.accounting.bankcheck.BankCheck;
+import com.erp.accounting.bankcard.BankTransaction;
+import com.erp.accounting.bankcard.CardPayment;
+import com.erp.accounting.bankcard.CardUsage;
+import com.erp.accounting.fixedasset.Depreciation;
+import com.erp.accounting.fastvoucher.FastVoucher;
+import com.erp.accounting.fastvoucher.FastVoucherLine;
+import com.erp.accounting.fixedasset.FixedAsset;
+import com.erp.accounting.noncash.NonCashTransaction;
+import com.erp.accounting.promissorynote.PromissoryNote;
+import com.erp.accounting.bankcheck.CheckType;
+import com.erp.accounting.journal.dto.JournalDtos;
+import com.erp.hr.payroll.PayrollTransfer;
+import com.erp.accounting.bankcard.BankAccount;
+import com.erp.accounting.bankcard.BankAccountRepository;
+
+/**
+ * 회계전표(분개) 생성. 판매/매입/지출 업무전표를 복식부기 분개로 옮긴다.
+ *
+ * 표준 계정코드(한국 상거래 관행):
+ *   108 외상매출금 · 401 상품매출 / 404 제품매출 · 255 부가세예수금
+ *   146 상품 / 150 제품 / 153 원재료 / 162 부재료 · 135 부가세대급금 · 251 외상매입금
+ *   (매출·재고 계정은 줄의 품목구분으로 가른다 — salesAccountOf · stockAccountOf)
+ *   101 현금 · 253 미지급금
+ */
+@Service
+@RequiredArgsConstructor
+public class JournalService {
+
+
+    private final DocumentNoGenerator docNoGenerator;
+    private final JournalEntryRepository entryRepository;
+    private final AccountRepository accountRepository;
+    private final AccountService accountService;
+    private final BusinessPartnerRepository partnerRepository;
+    private final BankAccountRepository bankAccountRepository;
+
+    /** 일반전표 직접입력. 사용자가 차/대변 라인을 입력하며, 차변합=대변합이어야 저장된다. */
+    @Transactional
+    public JournalEntry createManual(CreateJournalRequest req, String username) {
+        List<ManualLineInput> inputs = req.lines();
+        if (inputs == null || inputs.size() < 2) {
+            throw ApiException.badRequest("분개는 차변·대변 최소 2줄이 필요합니다.");
+        }
+        LocalDate date = req.entryDate() != null ? req.entryDate() : LocalDate.now();
+        JournalEntry e = newEntry(JournalSourceType.MANUAL, null, date,
+                req.description(), resolvePartner(req.partnerId()), username);
+
+        for (ManualLineInput in : inputs) {
+            BigDecimal debit = nz(in.debit());
+            BigDecimal credit = nz(in.credit());
+            boolean hasDebit = debit.signum() > 0;
+            boolean hasCredit = credit.signum() > 0;
+            if (hasDebit == hasCredit) {   // 둘 다 있거나 둘 다 없음
+                throw ApiException.badRequest("각 라인은 차변 또는 대변 한쪽만 입력하세요.");
+            }
+            e.addLine(JournalLine.builder()
+                    .account(account(in.accountId())).debit(debit).credit(credit)
+                    .description(in.description()).build());
+        }
+        return save(e);
+    }
+
+    /** 현금거래 간편입력. 입금 → 차)현금·대)상대계정, 출금 → 차)상대계정·대)현금. */
+    @Transactional
+    public JournalEntry createCashTxn(CashTxnRequest req, String username) {
+        if (nz(req.amount()).signum() <= 0) {
+            throw ApiException.badRequest("금액은 0보다 커야 합니다.");
+        }
+        LocalDate date = req.entryDate() != null ? req.entryDate() : LocalDate.now();
+        Account cash = account("101");
+        Account counter = account(req.counterAccountId());
+        String desc = req.description() != null ? req.description()
+                : (req.deposit() ? "현금입금" : "현금출금");
+
+        JournalEntry e = newEntry(JournalSourceType.MANUAL, null, date, desc,
+                resolvePartner(req.partnerId()), username);
+        if (Boolean.TRUE.equals(req.deposit())) {
+            e.addLine(line(cash, req.amount(), BigDecimal.ZERO, desc));
+            e.addLine(line(counter, BigDecimal.ZERO, req.amount(), desc));
+        } else {
+            e.addLine(line(counter, req.amount(), BigDecimal.ZERO, desc));
+            e.addLine(line(cash, BigDecimal.ZERO, req.amount(), desc));
+        }
+        return save(e);
+    }
+
+    /** 수동전표 삭제. 업무전표에서 자동생성된 전표는 회계반영취소로만 지운다. */
+    @Transactional
+    public void deleteManual(Long id) {
+        JournalEntry e = entryRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("회계전표를 찾을 수 없습니다. id=" + id));
+        if (e.getSourceType() != JournalSourceType.MANUAL) {
+            throw ApiException.badRequest("업무전표에서 생성된 회계전표는 회계반영 취소로만 삭제할 수 있습니다.");
+        }
+        entryRepository.delete(e);
+    }
+
+    private JournalLine line(Account account, BigDecimal debit, BigDecimal credit, String desc) {
+        return JournalLine.builder().account(account).debit(debit).credit(credit).description(desc).build();
+    }
+
+    private BusinessPartner resolvePartner(Long id) {
+        if (id == null) return null;
+        return partnerRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + id));
+    }
+
+    private static BigDecimal nz(BigDecimal v) {
+        return v != null ? v : BigDecimal.ZERO;
+    }
+
+    /**
+     * 품목구분 → 매출 계정. 제품·반제품을 팔면 제품매출(404), 그 밖(상품·원재료를 판 것)은 상품매출(401).
+     *
+     * <p>예전엔 무엇을 팔든 상품매출 하나였다 — 제조업체가 만든 제품을 팔아도 상품매출로 잡혀
+     * 손익계산서의 매출 구분(상품/제품)이 늘 한쪽이었다(QA 11회차, 회계반영 분개를 대조하다 발견).
+     */
+    static String salesAccountOf(ItemCategory c) {
+        return c == ItemCategory.FINISHED || c == ItemCategory.SEMI_FINISHED ? "404" : "401";
+    }
+
+    /** 품목구분 → 재고(매입) 계정. 원재료 153 · 부재료 162 · 제품·반제품 150 · 상품(과 미지정) 146. */
+    static String stockAccountOf(ItemCategory c) {
+        if (c == null) return "146";
+        return switch (c) {
+            case RAW_MATERIAL -> "153";
+            case SUB_MATERIAL -> "162";
+            case FINISHED, SEMI_FINISHED -> "150";
+            case MERCHANDISE -> "146";
+        };
+    }
+
+    private static final Map<String, String> ACCOUNT_NAMES = Map.of(
+            "401", "상품매출", "404", "제품매출", "146", "상품", "150", "제품", "153", "원재료", "162", "부재료");
+
+    /**
+     * 줄의 공급가액을 계정별로 모은다. 합계가 머리 공급가액과 다르면(옛 자료·반올림) 차이를
+     * 가장 큰 묶음에 얹어 머리와 맞춘다 — 분개 대차는 머리 금액으로 맞추기 때문이다.
+     */
+    private static <T> Map<String, BigDecimal> byAccount(List<T> lines, Function<T, String> accountOf,
+                                                         Function<T, BigDecimal> amountOf,
+                                                         BigDecimal headerSupply, String fallback) {
+        Map<String, BigDecimal> m = new LinkedHashMap<>();
+        for (T l : lines) m.merge(accountOf.apply(l), nz(amountOf.apply(l)), BigDecimal::add);
+        if (m.isEmpty()) m.put(fallback, BigDecimal.ZERO);
+        BigDecimal sum = m.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal diff = nz(headerSupply).subtract(sum);
+        if (diff.signum() != 0) {
+            String biggest = m.entrySet().stream().max(Map.Entry.comparingByValue()).get().getKey();
+            m.merge(biggest, diff, BigDecimal::add);
+        }
+        m.values().removeIf(v -> v.signum() == 0);
+        return m;
+    }
+
+    /** 판매 → 분개. 차)외상매출금 / 대)상품매출·제품매출(품목구분별)·부가세예수금 */
+    @Transactional
+    public JournalEntry createFromSales(Sales s) {
+        if (entryRepository.existsBySourceTypeAndSourceId(JournalSourceType.SALES, s.getId())) {
+            throw ApiException.conflict("이미 회계반영된 판매전표입니다: " + s.getDocNo());
+        }
+        /*
+         * 적요 — 2026-10-06 loginaa 판매일괄회계반영 [매출전표 I] 실측(전표 2026/10/06-11): 과세 일반 판매
+         * (임의거래처 · 포장김치 3 × 333.5) 의 줄 적요는 <b>품목 요약</b>(포장김치 — 규격 없이),
+         * 전표 적요는 <b>"매출 : 세금계산서 / 임의거래처 / 1,001 / 100"</b> 이었다. 원본에서 본 것은 그 경우뿐이라
+         * 면세 · 반품 · 여러 품목 전표는 예전 적요를 그대로 둔다(여러 품목의 요약 모양은 아직 못 봤다).
+         */
+        boolean seen = s.isTaxable() && !s.isReturnSlip() && s.getLines().size() == 1;
+        String lineDesc = seen ? s.getLines().get(0).getItem().getName() : null;
+        String entryDesc = seen
+                ? "매출 : 세금계산서 / " + s.getPartner().getName() + " / "
+                  + String.format("%,d", s.getSupplyAmount().longValue()) + " / " + String.format("%,d", s.getVatAmount().longValue())
+                : "판매 " + s.getDocNo();
+        JournalEntry e = newEntry(JournalSourceType.SALES, s.getId(), s.getSaleDate(),
+                entryDesc, s.getPartner(), s.getCreatedBy());
+
+        addDebit(e, "108", s.getTotalAmount(), seen ? lineDesc : "외상매출금");
+        byAccount(s.getLines(),
+                l -> salesAccountOf(l.getItem().getCategory()), l -> l.getSupplyAmount(),
+                s.getSupplyAmount(), "401")
+                .forEach((code, amt) -> addCredit(e, code, amt, seen ? lineDesc : ACCOUNT_NAMES.get(code)));
+        /*
+         * 반품 전표는 금액이 음수다(수량을 음수로 저장). 예전엔 부가세가 0보다 클 때만 줄을 넣어
+         * 반품의 부가세(−1,200)가 빠지고 '차변 −13,200 ≠ 대변 −12,000' 으로 반영이 거절됐다(26회차).
+         * 0 이 아니면 넣는다. 음수 금액은 addDebit/addCredit 이 반대편 양수로 뒤집는다 —
+         * 반품은 차)제품매출·부가세예수금 / 대)외상매출금 의 역분개가 된다.
+         */
+        if (isNonZero(s.getVatAmount())) {
+            addCredit(e, "255", s.getVatAmount(), seen ? lineDesc : "부가세예수금");
+        }
+        return save(e);
+    }
+
+    /** 매입 → 분개. 차)상품·제품·원재료·부재료(품목구분별)·부가세대급금 / 대)외상매입금 */
+    @Transactional
+    public JournalEntry createFromPurchase(Purchase p) {
+        if (entryRepository.existsBySourceTypeAndSourceId(JournalSourceType.PURCHASE, p.getId())) {
+            throw ApiException.conflict("이미 회계반영된 구매전표입니다: " + p.getDocNo());
+        }
+        JournalEntry e = newEntry(JournalSourceType.PURCHASE, p.getId(), p.getPurchaseDate(),
+                "구매 " + p.getDocNo(), p.getPartner(), p.getCreatedBy());
+
+        byAccount(p.getLines(),
+                l -> stockAccountOf(l.getItem().getCategory()), l -> l.getSupplyAmount(),
+                p.getSupplyAmount(), "146")
+                .forEach((code, amt) -> addDebit(e, code, amt, ACCOUNT_NAMES.get(code)));
+        if (isNonZero(p.getVatAmount())) {   // 구매반품도 판매반품과 같은 까닭
+            addDebit(e, "135", p.getVatAmount(), "부가세대급금");
+        }
+        addCredit(e, "251", p.getTotalAmount(), "외상매입금");
+        return save(e);
+    }
+
+    /**
+     * 수금·지급(결제) → 분개.
+     *
+     * <p>수금  차)현금·예금 / 대)외상매출금 — 판매로 잡힌 채권을 받아서 지운다.
+     * <p>지급  차)외상매입금 / 대)현금·예금 — 구매로 잡힌 채무를 갚아서 지운다.
+     *
+     * <p>받는·주는 자리는 [결제방법]으로 가른다. '계좌'·'이체'·'예금'·'통장'이 들어 있으면
+     * 보통예금(103), 아니면 현금(101)이다. 카드·어음은 각자 자기 화면에서 이미 분개를
+     * 만들고 있어 여기로 오지 않는다 — 오면 두 번 잡힌다.
+     */
+    @Transactional
+    public JournalEntry createFromSettlement(Settlement st) {
+        if (entryRepository.existsBySourceTypeAndSourceId(JournalSourceType.SETTLEMENT, st.getId())) {
+            throw ApiException.conflict("이미 회계반영된 결제전표입니다: " + st.getDocNo());
+        }
+        /* 입출금계좌를 골랐으면 그 계좌의 계정(원본 계좌검색), 아니면 결제방법으로 현금/보통예금. */
+        BankAccount bank = st.getBankAccountId() == null ? null
+                : bankAccountRepository.findById(st.getBankAccountId())
+                .orElseThrow(() -> ApiException.notFound("계좌를 찾을 수 없습니다. id=" + st.getBankAccountId()));
+        String cashCode = isBankMethod(st.getMethod()) ? "103" : "101";
+        Account cash = bank != null ? bank.getGlAccount() : account(cashCode);
+        String cashName = bank != null ? bank.getBankName() : "103".equals(cashCode) ? "보통예금" : "현금";
+        JournalEntry e = newEntry(JournalSourceType.SETTLEMENT, st.getId(), st.getSettleDate(),
+                st.getType().getDisplayName() + " " + st.getDocNo(), st.getPartner(), st.getCreatedBy());
+
+        if (st.getType() == SettlementType.RECEIPT) {
+            /* 수수료는 받을 돈에서 떼인 몫 — 원본 '매출처로부터' 분개: 차)현금 1,000 · 지급수수료(판) 100 / 대)외상매출금 1,100. */
+            BigDecimal fee = st.getFee() != null ? st.getFee() : BigDecimal.ZERO;
+            addDebitAccount(e, cash, st.getAmount().subtract(fee), cashName);
+            if (fee.signum() > 0) addDebit(e, "831", fee, "지급수수료");
+            addCredit(e, "108", st.getAmount(), "외상매출금");
+        } else {
+            /* 지급 수수료는 더 나가는 돈 — 원본 '매입처로' 분개: 차)외상매입금 1,000 · 지급수수료(판) 100 / 대)현금 1,100. */
+            BigDecimal fee = st.getFee() != null ? st.getFee() : BigDecimal.ZERO;
+            addDebit(e, "251", st.getAmount(), "외상매입금");
+            if (fee.signum() > 0) addDebit(e, "831", fee, "지급수수료");
+            addCreditAccount(e, cash, st.getAmount().add(fee), cashName);
+        }
+        return save(e);
+    }
+
+    /** 통장으로 오간 것인가. 안 적었으면 현금으로 본다. */
+    private static boolean isBankMethod(String method) {
+        if (method == null) return false;
+        String m = method.replace(" ", "");
+        return m.contains("계좌") || m.contains("이체") || m.contains("예금") || m.contains("통장");
+    }
+
+    /** 지출 → 분개. 차)비용계정 / 대)현금 (paymentMethod 가 '외상/미지급'이면 미지급금) */
+    @Transactional
+    public JournalEntry createFromExpense(Expense x) {
+        if (entryRepository.existsBySourceTypeAndSourceId(JournalSourceType.EXPENSE, x.getId())) {
+            throw ApiException.conflict("이미 회계반영된 지출전표입니다.");
+        }
+        Account expenseAccount = x.getAccount();
+        if (expenseAccount == null) {
+            throw ApiException.badRequest("지출전표에 비용 계정이 지정되어 있지 않습니다.");
+        }
+        JournalEntry e = newEntry(JournalSourceType.EXPENSE, x.getId(), x.getExpenseDate(),
+                x.getContent() != null ? x.getContent() : "지출", null, x.getCreatedBy());
+
+        addDebitAccount(e, expenseAccount, x.getAmount(), x.getContent());
+        // 세금계산서를 받은 비용은 부가세를 부가세대급금으로 가른다 — 매입세액 공제(46회차).
+        BigDecimal vat = x.getVatAmount() != null ? x.getVatAmount() : BigDecimal.ZERO;
+        if (isNonZero(vat)) addDebit(e, "135", vat, "부가세대급금");
+        BigDecimal paid = x.getAmount().add(vat);
+        /*
+         * 대변은 결제수단으로 가른다 — 카드·외상은 미지급금(253), 계좌이체는 보통예금(103), 나머지는 현금(101).
+         * 예전엔 계좌이체도 현금으로 나가 현금 장부만 줄고 통장은 그대로였다(39회차). 수금·지급과 같은 판정.
+         */
+        String credit = isOnCredit(x.getPaymentMethod()) ? "253" : isBankMethod(x.getPaymentMethod()) ? "103" : "101";
+        String creditName = "253".equals(credit) ? "미지급금" : "103".equals(credit) ? "보통예금" : "현금";
+        addCredit(e, credit, paid, creditName);
+        return save(e);
+    }
+
+    /**
+     * 계좌 입출금 → 분개.
+     * 입금: 차)예금계정 / 대)상대계정, 출금: 차)상대계정 / 대)예금계정.
+     * 전표번호가 아직 없는(저장 전) 거래를 받으므로 sourceId 는 채우지 않고, 호출부가 연결을 건다.
+     */
+    @Transactional
+    public JournalEntry createFromBankTxn(com.erp.accounting.bankcard.BankTransaction t) {
+        Account bank = t.getBankAccount().getGlAccount();
+        Account counter = t.getCounterAccount();
+        String desc = t.getDescription() != null ? t.getDescription()
+                : (t.isDeposit() ? "계좌입금" : "계좌출금") + " " + t.getTxnNo();
+
+        JournalEntry e = newEntry(JournalSourceType.BANK, null, t.getTxnDate(), desc, t.getPartner(), t.getCreatedBy());
+        if (t.isDeposit()) {
+            e.addLine(line(bank, t.getAmount(), BigDecimal.ZERO, desc));
+            e.addLine(line(counter, BigDecimal.ZERO, t.getAmount(), desc));
+        } else {
+            e.addLine(line(counter, t.getAmount(), BigDecimal.ZERO, desc));
+            e.addLine(line(bank, BigDecimal.ZERO, t.getAmount(), desc));
+        }
+        return save(e);
+    }
+
+    /** 카드사용 → 분개. 차)비용계정·부가세대급금 / 대)미지급금 (결제일에 계좌에서 빠질 때까지 미지급금) */
+    @Transactional
+    public JournalEntry createFromCardUsage(com.erp.accounting.bankcard.CardUsage u) {
+        String desc = u.getMerchant() + (u.getDescription() != null ? " " + u.getDescription() : "");
+        JournalEntry e = newEntry(JournalSourceType.CARD, null, u.getUsageDate(), desc, null, u.getCreatedBy());
+
+        addDebitAccount(e, u.getExpenseAccount(), u.getSupplyAmount(), desc);
+        if (isPositive(u.getVatAmount())) {
+            addDebit(e, "135", u.getVatAmount(), "부가세대급금");
+        }
+        addCredit(e, "253", u.getTotalAmount(), "미지급금 (" + u.getCard().getCardName() + ")");
+        return save(e);
+    }
+
+    /**
+     * 어음 → 분개. 현금이 오가지 않는 단계만 여기서 만든다.
+     *   수취/발행  받을어음: 차)받을어음 / 대)외상매출금    지급어음: 차)외상매입금 / 대)지급어음
+     *   할인료     차)매출채권처분손실 / 대)받을어음        (예금 입금분은 계좌 입출금이 따로 분개한다)
+     *   부도       차)외상매출금 / 대)받을어음              (어음채권을 외상매출금으로 환원)
+     *
+     * 만기결제와 할인 입금은 계좌 잔액이 함께 움직이므로 BankCardService 의 입출금을 거친다
+     * (그쪽이 잔액 잠금·부족 검증을 소유한다). 그래서 여기에는 예금 분개가 없다.
+     */
+    @Transactional
+    public JournalEntry createFromNote(com.erp.accounting.promissorynote.PromissoryNote n, NoteEvent event) {
+        boolean receivable = n.getType().isReceivable();
+        LocalDate date = event == NoteEvent.ISSUE ? n.getIssueDate() : n.getClosedDate();
+        String desc = n.getType().getDisplayName() + " " + event.getDisplayName() + " " + n.getNoteNo();
+
+        // (source_type, source_id) 는 유니크다 — 한 업무전표에 회계전표는 하나라는 규칙이다.
+        // 어음은 수취/발행 이후에도 할인료·부도로 전표가 더 붙으므로, 어음을 대표하는 수취 전표에만
+        // sourceId 를 건다. 나머지는 계좌입출금 전표와 같이 적요의 어음번호로 추적한다.
+        Long sourceId = event == NoteEvent.ISSUE ? n.getId() : null;
+        JournalEntry e = newEntry(JournalSourceType.NOTE, sourceId, date, desc, n.getPartner(), n.getCreatedBy());
+
+        switch (event) {
+            case ISSUE -> {
+                if (receivable) {
+                    addDebit(e, "110", n.getAmount(), "받을어음");
+                    addCredit(e, "108", n.getAmount(), "외상매출금 회수");
+                } else {
+                    addDebit(e, "251", n.getAmount(), "외상매입금 결제");
+                    addCredit(e, "252", n.getAmount(), "지급어음");
+                }
+            }
+            case DISCOUNT_FEE -> {
+                BigDecimal fee = nz(n.getDiscountFee());
+                addDebit(e, "936", fee, "매출채권처분손실(할인료)");
+                addCredit(e, "110", fee, "받을어음");
+            }
+            case DISHONOR -> {
+                addDebit(e, "108", n.getAmount(), "부도어음 → 외상매출금 환원");
+                addCredit(e, "110", n.getAmount(), "받을어음");
+            }
+        }
+        return save(e);
+    }
+
+    /** 어음 처리 단계 중 현금이 오가지 않는 것들. */
+    public enum NoteEvent {
+        ISSUE("수취/발행"), DISCOUNT_FEE("할인료"), DISHONOR("부도");
+
+        private final String displayName;
+
+        NoteEvent(String displayName) {
+            this.displayName = displayName;
+        }
+
+        public String getDisplayName() {
+            return displayName;
+        }
+    }
+
+    /** 감가상각 → 분개. 차)감가상각비 / 대)감가상각누계액 */
+    @Transactional
+    public JournalEntry createFromDepreciation(com.erp.accounting.fixedasset.Depreciation d) {
+        com.erp.accounting.fixedasset.FixedAsset asset = d.getAsset();
+        String desc = "감가상각 " + d.getPeriod() + " " + asset.getName();
+
+        /*
+         * 출처는 <b>상각 행</b>이다(d.getId()). 예전엔 자산 id 를 넣어 (source_type, source_id) 유니크 때문에
+         * 한 자산은 첫 달 말고는 상각할 수 없었다(34회차). 그래서 d 를 먼저 저장하고 부른다(FixedAssetService).
+         */
+        if (d.getId() == null) {
+            throw new IllegalStateException("상각 행을 먼저 저장한 뒤 분개를 만든다");
+        }
+        JournalEntry e = newEntry(JournalSourceType.DEPRECIATION, d.getId(), d.getDepreciationDate(),
+                desc, null, d.getCreatedBy());
+        addDebit(e, "818", d.getAmount(), "감가상각비");
+        addCredit(e, "203", d.getAmount(), "감가상각누계액");
+        return save(e);
+    }
+
+    /**
+     * 고정자산 처분 → 분개.
+     * 차)감가상각누계액·현금(처분가)·유형자산처분손실 / 대)자산계정·유형자산처분이익
+     * 처분손익 = 처분가액 - 장부가액.
+     */
+    @Transactional
+    public JournalEntry createFromDisposal(com.erp.accounting.fixedasset.FixedAsset asset) {
+        BigDecimal cost = asset.getAcquisitionCost();
+        BigDecimal accumulated = asset.getAccumulatedDepreciation();
+        BigDecimal proceeds = asset.getDisposalAmount();
+        BigDecimal gain = proceeds.subtract(cost.subtract(accumulated));   // 처분가 - 장부가
+        String desc = "자산처분 " + asset.getAssetNo() + " " + asset.getName();
+
+        JournalEntry e = newEntry(JournalSourceType.DISPOSAL, asset.getId(), asset.getDisposalDate(),
+                desc, null, asset.getCreatedBy());
+        if (isPositive(accumulated)) {
+            addDebit(e, "203", accumulated, "감가상각누계액 제거");
+        }
+        if (isPositive(proceeds)) {
+            addDebit(e, "101", proceeds, "처분대금");
+        }
+        if (gain.signum() < 0) {
+            addDebit(e, "970", gain.negate(), "유형자산처분손실");
+        }
+        addCreditAccount(e, asset.getAssetAccount(), cost, "자산 제거");
+        if (gain.signum() > 0) {
+            addCredit(e, "914", gain, "유형자산처분이익");
+        }
+        return save(e);
+    }
+
+    /**
+     * FastEntry 간편전표 → 분개.
+     *   지출결의서       차)비용라인들 / 대)결제수단(현금·예금·미지급금)
+     *   입금보고서       차)입금수단(현금·예금·외상매출금) / 대)수입라인들
+     *   가지급금정산서   차)사용비용라인들 (+반납액) / 대)가지급금 (+추가지급액)
+     * settlement 은 결제수단이 실제로 서는 계정(현금 101 / 계좌의 예금계정 / 253·108)이다.
+     */
+    @Transactional
+    public JournalEntry createFromVoucher(com.erp.accounting.fastvoucher.FastVoucher v, Account settlement) {
+        String desc = v.getDescription() != null ? v.getDescription()
+                : v.getType().getDisplayName() + " " + v.getVoucherNo();
+        JournalEntry e = newEntry(JournalSourceType.VOUCHER, null, v.getVoucherDate(),
+                desc, v.getPartner(), v.getCreatedBy());
+
+        switch (v.getType()) {
+            case EXPENSE_REPORT -> {
+                v.getLines().forEach(l -> addDebitAccount(e, l.getAccount(), l.getAmount(), lineDesc(l)));
+                addCreditAccount(e, settlement, v.getTotalAmount(), settlement.getName());
+            }
+            case DEPOSIT_REPORT -> {
+                addDebitAccount(e, settlement, v.getTotalAmount(), settlement.getName());
+                v.getLines().forEach(l -> addCreditAccount(e, l.getAccount(), l.getAmount(), lineDesc(l)));
+            }
+            case ADVANCE_SETTLEMENT -> {
+                v.getLines().forEach(l -> addDebitAccount(e, l.getAccount(), l.getAmount(), lineDesc(l)));
+                BigDecimal balance = v.getAdvanceAmount().subtract(v.getTotalAmount());
+                if (balance.signum() > 0) {                 // 덜 썼다 → 잔액 반납
+                    addDebitAccount(e, settlement, balance, "가지급금 반납");
+                } else if (balance.signum() < 0) {          // 더 썼다 → 추가 지급
+                    addCreditAccount(e, settlement, balance.negate(), "추가 지급");
+                }
+                addCredit(e, "134", v.getAdvanceAmount(), "가지급금 정산");
+            }
+        }
+        return save(e);
+    }
+
+    private static String lineDesc(com.erp.accounting.fastvoucher.FastVoucherLine l) {
+        return l.getDescription() != null ? l.getDescription() : l.getAccount().getName();
+    }
+
+    /** 비현금거래(대체전표) → 분개. 차변계정 하나 / 대변계정 하나. */
+    @Transactional
+    public JournalEntry createFromNonCash(com.erp.accounting.noncash.NonCashTransaction t) {
+        String desc = t.getDescription() != null ? t.getDescription()
+                : t.getType().getDisplayName() + " " + t.getTxnNo();
+
+        JournalEntry e = newEntry(JournalSourceType.NONCASH, null, t.getTxnDate(), desc, t.getPartner(), t.getCreatedBy());
+        addDebitAccount(e, t.getDebitAccount(), t.getAmount(), desc);
+        addCreditAccount(e, t.getCreditAccount(), t.getAmount(), desc);
+        return save(e);
+    }
+
+    /**
+     * 수표 → 분개.
+     *   받은수표 수취   차)받을수표   / 대)외상매출금
+     *   발행수표 발행   차)외상매입금 / 대)발행계좌의 예금계정 (당좌수표는 끊는 순간 예금이 빠진다)
+     *   받은수표 입금   차)입금계좌의 예금계정 / 대)받을수표
+     *   받은수표 부도   차)외상매출금 / 대)받을수표 (현금은 움직이지 않는다)
+     * 한 수표가 전표를 여러 장 만들므로 sourceId 는 최초 수취/발행에만 채운다
+     * (중복반영 방지 유니크 인덱스는 source_id IS NOT NULL 에만 걸린다).
+     */
+    @Transactional
+    public JournalEntry createFromCheckIssue(com.erp.accounting.bankcheck.BankCheck c) {
+        boolean received = c.getType() == com.erp.accounting.bankcheck.CheckType.RECEIVED;
+        String desc = c.getType().getDisplayName() + " " + c.getCheckNo();
+
+        JournalEntry e = newEntry(JournalSourceType.CHECK, c.getId(), c.getIssueDate(), desc, c.getPartner(), c.getCreatedBy());
+        if (received) {
+            addDebit(e, "104", c.getAmount(), "받을수표");
+            addCredit(e, "108", c.getAmount(), "외상매출금");
+        } else {
+            addDebit(e, "251", c.getAmount(), "외상매입금");
+            addCreditAccount(e, c.getBankAccount().getGlAccount(), c.getAmount(), "수표 발행");
+        }
+        return save(e);
+    }
+
+    /** 받은수표 입금 → 차)예금계정 / 대)받을수표 */
+    @Transactional
+    public JournalEntry createFromCheckDeposit(com.erp.accounting.bankcheck.BankCheck c, LocalDate date, String username) {
+        String desc = "수표 입금 " + c.getCheckNo();
+        JournalEntry e = newEntry(JournalSourceType.CHECK, null, date, desc, c.getPartner(), username);
+        addDebitAccount(e, c.getBankAccount().getGlAccount(), c.getAmount(), desc);
+        addCredit(e, "104", c.getAmount(), "받을수표");
+        return save(e);
+    }
+
+    /** 받은수표 부도 → 차)외상매출금 / 대)받을수표 (채권으로 되돌린다) */
+    @Transactional
+    public JournalEntry createFromCheckDishonor(com.erp.accounting.bankcheck.BankCheck c, LocalDate date, String username) {
+        String desc = "수표 부도 " + c.getCheckNo();
+        JournalEntry e = newEntry(JournalSourceType.CHECK, null, date, desc, c.getPartner(), username);
+        addDebit(e, "108", c.getAmount(), "외상매출금 환원");
+        addCredit(e, "104", c.getAmount(), "받을수표");
+        return save(e);
+    }
+
+    /**
+     * 급여이체 → 분개.
+     *   차) 급여(801) 지급총액
+     *   대) 예수금(254) 공제합계   — 4대보험·소득세는 회사가 떼어 두었다가 나중에 납부한다
+     *   대) 예금계정 실지급액       — 계좌에서 실제로 나가는 금액
+     */
+    @Transactional
+    public JournalEntry createFromPayrollTransfer(com.erp.hr.payroll.PayrollTransfer t) {
+        String desc = "급여이체 " + t.getPayMonth() + " " + t.getTransferNo();
+
+        JournalEntry e = newEntry(JournalSourceType.PAYROLL, null, t.getTransferDate(), desc, null, t.getCreatedBy());
+        addDebit(e, "801", t.getTotalPay(), "급여");
+        if (isPositive(t.getTotalDeduction())) {
+            addCredit(e, "254", t.getTotalDeduction(), "예수금 (4대보험·소득세)");
+        }
+        addCreditAccount(e, t.getBankAccount().getGlAccount(), t.getNetPay(), "실지급액");
+        return save(e);
+    }
+
+    /**
+     * 일용직 지급 → 분개. 차)잡급(805) 지급액 / 대)예수금(254) 원천세 · 현금(101) 또는 지급계좌 예금 실지급액.
+     *
+     * <p>지급 처리가 '지급됨' 표시만 하고 장부에는 아무것도 남기지 않아, 일용직 인건비가 손익에서 빠지고
+     * 떼어 둔 원천세가 예수금에 잡히지 않았다(QA 69회차). 원본은 일용근로 급여대장 [확정] → [전표생성] 이다.
+     *
+     * @param bankAccountId 계좌로 줬으면 그 계좌, null 이면 현금 지급
+     */
+    @Transactional
+    public JournalEntry createFromDailyWagePay(LocalDate date, BigDecimal wage, BigDecimal tax,
+                                               Long bankAccountId, String desc, String createdBy) {
+        JournalEntry e = newEntry(JournalSourceType.DAILY_WAGE, null, date, desc, null, createdBy);
+        addDebit(e, "805", wage, "일용직 임금");
+        if (isPositive(tax)) {
+            addCredit(e, "254", tax, "예수금 (일용근로소득세·지방소득세)");
+        }
+        BigDecimal net = wage.subtract(tax == null ? BigDecimal.ZERO : tax);
+        if (bankAccountId == null) {
+            addCredit(e, "101", net, "실지급액 (현금)");
+        } else {
+            BankAccount b = bankAccountRepository.findById(bankAccountId)
+                    .orElseThrow(() -> ApiException.notFound("계좌를 찾을 수 없습니다. id=" + bankAccountId));
+            addCreditAccount(e, b.getGlAccount(), net, "실지급액");
+        }
+        return save(e);
+    }
+
+    /**
+     * 계좌간이동 → 분개. 차)입금계좌 예금계정 / 대)출금계좌 예금계정.
+     * 회사 밖으로 나가는 돈이 아니라 손익에 영향이 없다.
+     */
+    @Transactional
+    public JournalEntry createFromAccountTransfer(com.erp.accounting.bankcard.AccountTransfer t) {
+        String desc = t.getDescription() != null ? t.getDescription() : "계좌간이동 " + t.getTransferNo();
+
+        JournalEntry e = newEntry(JournalSourceType.ACCOUNT_TRANSFER, t.getId(), t.getTransferDate(),
+                desc, null, t.getCreatedBy());
+        addDebitAccount(e, t.getToAccount().getGlAccount(), t.getAmount(), "입금 " + t.getToAccount().getBankName());
+        addCreditAccount(e, t.getFromAccount().getGlAccount(), t.getAmount(), "출금 " + t.getFromAccount().getBankName());
+        return save(e);
+    }
+
+    /**
+     * 법인카드 대금결제 → 분개. 차)미지급금(253) / 대)결제계좌 예금계정.
+     * 카드사용 시점에 이미 비용과 미지급금을 잡아 두었으므로, 결제는 그 미지급금을 갚는 것뿐이다.
+     */
+    @Transactional
+    public JournalEntry createFromCardPayment(com.erp.accounting.bankcard.CardPayment p) {
+        String desc = "카드대금 결제 " + p.getCard().getCardName() + " " + p.getPaymentNo();
+
+        JournalEntry e = newEntry(JournalSourceType.CARD_PAYMENT, p.getId(), p.getPaymentDate(),
+                desc, null, p.getCreatedBy());
+        addDebit(e, "253", p.getAmount(), "미지급금 상환");
+        addCreditAccount(e, p.getBankAccount().getGlAccount(), p.getAmount(), "카드대금 출금");
+        return save(e);
+    }
+
+    /**
+     * 업무전표가 들고 있는 분개를 그 전표와 함께 지운다. 카드사용 분개는 출처 id 없이(저장 전에) 만들어져
+     * {@link #deleteBySource} 로는 못 찾는다(QA 56회차).
+     */
+    @Transactional
+    public void deleteEntry(JournalEntry e) {
+        if (e != null) entryRepository.delete(e);
+    }
+
+    /** 회계반영 취소: 업무전표에 연결된 회계전표 삭제 */
+    @Transactional
+    public void deleteBySource(JournalSourceType type, Long sourceId) {
+        entryRepository.findBySourceTypeAndSourceId(type, sourceId)
+                .ifPresent(entryRepository::delete);
+    }
+
+    // ── 내부 ──────────────────────────────────────────────────────────
+
+    private JournalEntry newEntry(JournalSourceType type, Long sourceId, LocalDate date,
+                                  String desc, com.erp.trade.partner.BusinessPartner partner, String createdBy) {
+        return JournalEntry.builder()
+                // 채번은 공용 DocumentNoGenerator 에 맡긴다. 여기서 직접 max+1 을 하면
+                // 동시에 전표를 만드는 두 트랜잭션이 같은 번호를 받아 unique 제약에서 터진다.
+                .docNo(docNoGenerator.next("GL-", "journal_entries", "doc_no", "entry_date", date))
+                .entryDate(date)
+                .description(desc)
+                .partner(partner)
+                .sourceType(type)
+                .sourceId(sourceId)
+                .createdBy(createdBy)
+                .build();
+    }
+
+    private void addDebit(JournalEntry e, String code, BigDecimal amount, String desc) {
+        addDebitAccount(e, account(code), amount, desc);
+    }
+
+    /*
+     * 음수 금액은 <b>반대편의 양수</b>로 적는다. 분개 줄은 차변·대변이 0 이상이고 한쪽만 서야 한다
+     * (ck_journal_lines_nonneg · one_side). 반품처럼 원 전표가 음수인 거래를 그대로 옮기면
+     * 제약에 걸려 반영이 통째로 거절됐다(26회차). 차)A −x 와 대)A x 는 장부상 같은 뜻이다.
+     */
+    private void addDebitAccount(JournalEntry e, Account account, BigDecimal amount, String desc) {
+        if (amount != null && amount.signum() < 0) {
+            e.addLine(JournalLine.builder()
+                    .account(account).debit(BigDecimal.ZERO).credit(amount.negate()).description(desc).build());
+            return;
+        }
+        e.addLine(JournalLine.builder()
+                .account(account).debit(amount).credit(BigDecimal.ZERO).description(desc).build());
+    }
+
+    private void addCredit(JournalEntry e, String code, BigDecimal amount, String desc) {
+        addCreditAccount(e, account(code), amount, desc);
+    }
+
+    private void addCreditAccount(JournalEntry e, Account account, BigDecimal amount, String desc) {
+        if (amount != null && amount.signum() < 0) {
+            e.addLine(JournalLine.builder()
+                    .account(account).debit(amount.negate()).credit(BigDecimal.ZERO).description(desc).build());
+            return;
+        }
+        e.addLine(JournalLine.builder()
+                .account(account).debit(BigDecimal.ZERO).credit(amount).description(desc).build());
+    }
+
+    private JournalEntry save(JournalEntry e) {
+        if (!e.isBalanced()) {
+            throw ApiException.badRequest(
+                    "분개가 대차평형을 이루지 않습니다. 차변 " + e.totalDebit() + " ≠ 대변 " + e.totalCredit());
+        }
+        return entryRepository.save(e);
+    }
+
+    private Account account(String code) {
+        return accountRepository.findByCode(code)
+                .orElseThrow(() -> ApiException.badRequest("계정과목이 없습니다: " + code + " (계정과목등록 필요)"));
+    }
+
+    /**
+     * <b>사람이 고른</b> 계정. 일반전표입력과 현금거래 간편입력이 쓴다.
+     * 위의 account(String code) 는 자동 분개가 쓰는 기준계정이라 검사하지 않는다.
+     */
+    private Account account(Long id) {
+        return accountService.getUsable(id);
+    }
+
+    private static boolean isNonZero(BigDecimal v) {
+        return v != null && v.signum() != 0;
+    }
+
+    private static boolean isPositive(BigDecimal v) {
+        return v != null && v.compareTo(BigDecimal.ZERO) > 0;
+    }
+
+    private static boolean isOnCredit(String paymentMethod) {
+        if (paymentMethod == null) return false;
+        return paymentMethod.contains("외상") || paymentMethod.contains("미지급") || paymentMethod.contains("카드");
+    }
+}

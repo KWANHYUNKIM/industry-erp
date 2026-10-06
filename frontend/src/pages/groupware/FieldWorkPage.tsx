@@ -1,34 +1,46 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
+import FieldWorkFormModal, { type FieldWorkUser } from '../../features/fieldwork/components/FieldWorkFormModal'
 import { api, extractErrorMessage } from '../../api/client'
-import { useAuth } from '../../auth/AuthContext'
-import type { FieldWork, FieldWorkStatus, FieldWorkSummary } from '../../api/types'
+import { useAuth } from '../../features/auth/AuthContext'
+import type { FieldWork, FieldWorkSummary } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import { useShortcut } from '../../utils/useShortcut'
 
 const today = () => ymd(new Date())
-const monthStart = () => today().slice(0, 8) + '01'
+/** 원본 기본 기간 — 한 달 전 같은 날 ~ 오늘(2026/09/03 ~ 2026/10/03, 실측). */
+const monthAgo = () => { const d = new Date(); d.setMonth(d.getMonth() - 1); return ymd(d) }
 
-const TABS = ['전체', '신청', '승인', '반려'] as const
-type Tab = (typeof TABS)[number]
-const TAB_STATUS: Record<Exclude<Tab, '전체'>, FieldWorkStatus> = {
-  신청: 'REQUESTED', 승인: 'APPROVED', 반려: 'REJECTED',
-}
-const statusColor = (s: FieldWorkStatus) =>
-  s === 'APPROVED' ? '#1c7c3c' : s === 'REJECTED' ? '#c60a2e' : '#c07a00'
 
-/** 외근조회 — 외근계 신청 → 승인/반려. 자기 외근계는 자기가 승인할 수 없다. */
+/**
+ * 그룹웨어 > 공유정보 > 외근조회 > 외근조회 (이카운트 E070254)
+ *
+ * <p><b>2026-10-03 원본을 열어 다시 맞췄다.</b> 원본의 외근은 <b>차량 운행 기록</b>이다 —
+ * 격자 [일자No.][사용자명][이동수단코드][이동수단명][출발지 주소][도착지 주소][운행거리][적요],
+ * 하단 [신규(F2)][선택삭제][Excel], 기간은 한 달 전 같은 날 ~ 오늘. 우리는 '외근계 신청 → 승인/반려'
+ * 화면(외근지 · 사유 · 상태 · 처리 열, 상태 탭)을 놓고 있었다 — 원본에 없는 결재다.
+ *
+ * <p>신규 '외근입력': 일자 · 이동시간(기본 09:00 ~ 10:00) · 사용자 · 이동수단 · 사용목적명 · 출발지 주소 · 도착지 주소 · 적요.
+ * 필수는 <b>사용자 · 이동수단</b>(빈 채로 저장하면 그 둘만 빨개진다). 이동수단은 원본이 차량 마스터
+ * (차량번호 · 차량명 · 차종)에서 고르는데 우리에게 차량 마스터가 없어 번호·이름을 적는다.
+ * [운행거리]는 원본 입력 창에 안 보이지만 격자에는 있어 칸을 둔다.
+ *
+ * <p>[일자No.]를 누르면 같은 '외근입력' 창이 그 기록으로 열려 고치고 지운다(외근현황도 같다).
+ *
+ * <p>원본에 있지만 두지 않은 것: 프로젝트 · 부서코드 · 출발전/도착 후 사진 · 웹자료올리기. 승인/반려 API 는 서버에 남아 있다.
+ */
 export default function FieldWorkPage() {
   const { user } = useAuth()
-  const [from, setFrom] = useState(monthStart())
+  const [from, setFrom] = useState(monthAgo())
   const [to, setTo] = useState(today())
   const [summary, setSummary] = useState<FieldWorkSummary | null>(null)
-  const [tab, setTab] = useState<Tab>('전체')
+  const [users, setUsers] = useState<FieldWorkUser[]>([])
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
   const [showForm, setShowForm] = useState(false)
-
-  const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(''), 2500) }
+  const [selected, setSelected] = useState<Set<number>>(new Set())
+  /** '외근입력' 창이 고치는 기록. null 이면 신규. */
+  const [editing, setEditing] = useState<FieldWork | null>(null)
 
   function load() {
     setError('')
@@ -36,204 +48,98 @@ export default function FieldWorkPage() {
       .then((r) => setSummary(r.data))
       .catch((e) => setError(extractErrorMessage(e)))
   }
-
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load() }, [])
+  useEffect(() => { api.get<FieldWorkUser[]>('/users').then((r) => setUsers(r.data)).catch(() => {}) }, [])
 
   const rows = summary?.rows ?? []
-  const shown = useMemo(() => rows.filter((r) => tab === '전체' || r.status === TAB_STATUS[tab]), [rows, tab])
+  /** 원본 [일자No.] — '2026/09/10 -1'. 같은 날 안의 차례(등록 순)다. */
+  const numbered = useMemo(() => {
+    const seq = new Map<string, number>()
+    const byId = [...rows].sort((a, b) => a.id - b.id)
+    const no = new Map<number, number>()
+    for (const r of byId) { const n = (seq.get(r.workDate) ?? 0) + 1; seq.set(r.workDate, n); no.set(r.id, n) }
+    return [...rows]
+      .sort((a, b) => (a.workDate < b.workDate ? 1 : a.workDate > b.workDate ? -1 : b.id - a.id))
+      .map((r) => ({ r, no: no.get(r.id) ?? 1 }))
+  }, [rows])
 
-  async function approve(f: FieldWork) {
-    try { await api.post(`/field-works/${f.id}/approve`); flash(`${f.userName}의 외근계를 승인했습니다.`); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
+  function openNew() { setEditing(null); setShowForm(true) }
+  function openEdit(r: FieldWork) { setEditing(r); setShowForm(true) }
+  useShortcut('F2', openNew, !showForm)
+
+  async function deleteSelected() {
+    const targets = rows.filter((r) => selected.has(r.id))
+    if (targets.length === 0) return
+    if (!window.confirm('삭제하겠습니까?')) return
+    const failed: string[] = []
+    for (const r of targets) {
+      try { await api.delete(`/field-works/${r.id}`) } catch (err) { failed.push(extractErrorMessage(err)) }
+    }
+    setSelected(new Set())
+    load()
+    if (failed.length) setError(failed.join(' / '))
   }
 
-  async function reject(f: FieldWork) {
-    const reason = window.prompt('반려 사유를 적으세요.', '')
-    if (reason === null || !reason.trim()) return
-    try { await api.post(`/field-works/${f.id}/reject`, { reason }); flash('반려했습니다.'); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
-  }
-
-  async function cancel(f: FieldWork) {
-    if (!window.confirm(`${f.workDate} 외근계를 취소할까요?`)) return
-    try { await api.delete(`/field-works/${f.id}`); flash('취소했습니다.'); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
-  }
+  const toggle = (id: number) => setSelected((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
 
   return (
-    <EcListShell title="외근조회" actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-        <input type="date" className="ec-input" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-        <span style={{ color: '#8a929c' }}>~</span>
-        <input type="date" className="ec-input" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
-        <button className="ec-btn ec-btn-primary" onClick={load}>조회</button>
-        <button className="ec-btn" onClick={() => setShowForm(true)}>+ 외근계 신청</button>
-        <span style={{ marginLeft: 8, fontSize: 12, color: '#9aa1ab' }}>
-          같은 날 외근계는 한 건만 살아 있습니다. 자기 외근계는 자기가 승인할 수 없습니다.
-        </span>
-      </div>
+    <EcListShell
+      /* [검색(F8)]이 조건 판만 닫고 목록은 그대로였다 — 새로 넣은 전표가 안 보였다. 다시 읽는다. */
+      onSearch={load} title="외근조회" onNew={openNew}
+      actions={[
+        { label: '선택삭제', onClick: () => void deleteSelected(), disabled: selected.size === 0 },
+        { label: 'Excel' },
+      ]}>
+      <ul className="ec-cond mb-[6px]">
+        <li>
+          <span className="text-[12px] text-ec-label mr-[6px]">일자</span>
+          <input type="date" className="ec-input w-[140px]" value={from} onChange={(e) => setFrom(e.target.value)} />
+          <span className="text-ec-label mx-[4px]">~</span>
+          <input type="date" className="ec-input w-[140px]" value={to} onChange={(e) => setTo(e.target.value)} />
+        </li>
+      </ul>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+      {error && !showForm && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      {summary && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-          <Tile label="승인 대기" value={`${summary.requestedCount}건`} strong={summary.requestedCount > 0} />
-          <Tile label="승인" value={`${summary.approvedCount}건`} />
-          <Tile label="반려" value={`${summary.rejectedCount}건`} />
-        </div>
-      )}
-
-      <div style={{ display: 'flex', gap: 2, marginBottom: 6, borderBottom: '1px solid var(--ec-border)' }}>
-        {TABS.map((t) => (
-          <button key={t} onClick={() => setTab(t)} className="no-ec" style={{
-            padding: '6px 14px', fontSize: 12.5, border: 'none', cursor: 'pointer',
-            background: tab === t ? '#fff' : 'transparent', color: tab === t ? 'var(--ec-blue)' : '#5a626e',
-            fontWeight: tab === t ? 700 : 400, borderBottom: tab === t ? '2px solid var(--ec-blue)' : '2px solid transparent',
-          }}>{t}</button>
-        ))}
-      </div>
-
+      <div className="text-right text-[12px] text-ec-ink mb-[4px]">{dateText(from)} ~{dateText(to)}</div>
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ width: 100 }}>외근일</th><th style={{ width: 100 }}>사원</th><th style={{ width: 90 }}>부서</th>
-            <th style={{ width: 110 }}>시간</th><th>외근지</th><th>사유</th>
-            <th style={{ width: 90, textAlign: 'center' }}>상태</th>
-            <th style={{ width: 130, textAlign: 'center' }}>처리</th>
+            <th className="w-[34px] cursor-pointer" title="전체 선택 / 해제"
+                onClick={() => setSelected(selected.size === rows.length ? new Set() : new Set(rows.map((r) => r.id)))}>
+              {rows.length > 0 && selected.size === rows.length ? '☑' : ''}
+            </th>
+            <th>일자No.</th><th>사용자명</th><th>이동수단코드</th><th>이동수단명</th>
+            <th>출발지 주소</th><th>도착지 주소</th><th className="text-right">운행거리</th><th>적요</th>
           </tr>
         </thead>
         <tbody>
-          {shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((f, i) => {
-            const mine = f.userId === user?.id
-            return (
-              <tr key={f.id}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td>{dateText(f.workDate)}</td>
-                <td>{f.userName}{mine && <span style={{ fontSize: 11, color: 'var(--ec-blue)' }}> (나)</span>}</td>
-                <td>{f.department ?? ''}</td>
-                <td style={{ color: '#8a929c' }}>
-                  {f.startTime && f.endTime ? `${f.startTime.slice(0, 5)}~${f.endTime.slice(0, 5)}` : '종일'}
-                </td>
-                <td>{f.destination}</td>
-                <td style={{ fontSize: 12.5 }}>
-                  {f.purpose}
-                  {f.status === 'REJECTED' && f.rejectReason && (
-                    <span style={{ color: '#c60a2e', fontSize: 11 }}> · 반려: {f.rejectReason}</span>
-                  )}
-                </td>
-                <td style={{ textAlign: 'center', color: statusColor(f.status) }}>
-                  {f.statusName}
-                  {f.approverName && <div style={{ fontSize: 10.5, color: '#8a929c' }}>{f.approverName}</div>}
-                </td>
-                <td style={{ textAlign: 'center' }}>
-                  {f.status === 'REQUESTED' && (
-                    <div style={{ display: 'inline-flex', gap: 3 }}>
-                      {!mine && <button className="ec-btn ec-btn-primary" style={{ height: 20, padding: '0 8px' }} onClick={() => approve(f)}>승인</button>}
-                      {!mine && <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => reject(f)}>반려</button>}
-                      {mine && <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => cancel(f)}>취소</button>}
-                    </div>
-                  )}
-                </td>
-              </tr>
-            )
-          })}
+          {numbered.length === 0 ? (
+            <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+          ) : numbered.map(({ r, no }, i) => (
+            <tr key={r.id}>
+              <td className={`text-center cursor-pointer ${selected.has(r.id) ? 'bg-ec-blue-wash text-ec-navy font-bold' : 'bg-ec-stripe text-ec-hint'}`}
+                  onClick={() => toggle(r.id)}>{i + 1}</td>
+              <td className="whitespace-nowrap">
+                <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-navy"
+                        onClick={() => openEdit(r)}>{dateText(r.workDate)} -{no}</button>
+              </td>
+              <td>{r.userName}</td>
+              <td>{r.vehicleNo ?? ''}</td>
+              <td>{r.vehicleName ?? ''}</td>
+              <td>{r.departure ?? ''}</td>
+              <td>{r.destination ?? ''}</td>
+              <td className="text-right">{r.distance != null ? Number(r.distance).toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}</td>
+              <td>{r.purpose ?? ''}</td>
+            </tr>
+          ))}
         </tbody>
       </table>
 
-      {showForm && <FieldWorkForm onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); flash('외근계를 신청했습니다.'); load() }} />}
+      {/* 원본 '외근입력' 창 — [신규(F2)] 와 [일자No.] 가 같이 연다 */}
+      <FieldWorkFormModal open={showForm} record={editing} users={users} myUsername={user?.username}
+                          onClose={() => setShowForm(false)} onSaved={load} />
     </EcListShell>
-  )
-}
-
-function Tile({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
-  return (
-    <div style={{ flex: 1, border: '1px solid var(--ec-border)', borderRadius: 3, padding: '8px 10px', background: strong ? '#fff8e6' : '#fff' }}>
-      <div style={{ fontSize: 11.5, color: '#8a929c' }}>{label}</div>
-      <div style={{ fontSize: 16, fontWeight: 700, color: strong ? '#c07a00' : '#2b3440' }}>{value}</div>
-    </div>
-  )
-}
-
-function FieldWorkForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
-  const [workDate, setWorkDate] = useState(today())
-  const [startTime, setStartTime] = useState('')
-  const [endTime, setEndTime] = useState('')
-  const [destination, setDestination] = useState('')
-  const [purpose, setPurpose] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-
-  async function save() {
-    setError('')
-    if (!destination.trim()) return setError('외근지를 입력하세요.')
-    if (!purpose.trim()) return setError('외근 사유를 입력하세요.')
-    setSaving(true)
-    try {
-      await api.post('/field-works', {
-        workDate,
-        startTime: startTime || undefined,
-        endTime: endTime || undefined,
-        destination, purpose,
-      })
-      onSaved()
-    } catch (err) {
-      setError(extractErrorMessage(err))
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 560, maxWidth: '94vw', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: '#f5f7fa' }}>
-          <span style={{ fontWeight: 800, color: 'var(--ec-blue-dark)' }}>외근계 신청</span>
-          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: '#8a929c' }}>×</span>
-        </div>
-        <div style={{ padding: 16 }}>
-          {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-          <table className="w-full text-left">
-            <tbody>
-              <tr>
-                <th style={{ width: 90, background: '#f5f7fa' }}>외근일<span style={{ color: '#c60a2e' }}>*</span></th>
-                <td><input type="date" className="ec-input" value={dateText(workDate)} onChange={(e) => setWorkDate(e.target.value)} style={{ width: 150 }} /></td>
-                <th style={{ width: 70, background: '#f5f7fa' }}>시간</th>
-                <td>
-                  <input type="time" className="ec-input" value={startTime} onChange={(e) => setStartTime(e.target.value)} style={{ width: 100 }} />
-                  <span style={{ margin: '0 4px', color: '#8a929c' }}>~</span>
-                  <input type="time" className="ec-input" value={endTime} onChange={(e) => setEndTime(e.target.value)} style={{ width: 100 }} />
-                </td>
-              </tr>
-              <tr>
-                <th style={{ background: '#f5f7fa' }}>외근지<span style={{ color: '#c60a2e' }}>*</span></th>
-                <td colSpan={3}>
-                  <input className="ec-input" value={destination} onChange={(e) => setDestination(e.target.value)}
-                    style={{ width: '100%' }} placeholder="예: 한울ICT 본사 / 평택 현장" />
-                </td>
-              </tr>
-              <tr>
-                <th style={{ background: '#f5f7fa' }}>사유<span style={{ color: '#c60a2e' }}>*</span></th>
-                <td colSpan={3}>
-                  <input className="ec-input" value={purpose} onChange={(e) => setPurpose(e.target.value)}
-                    style={{ width: '100%' }} placeholder="예: 설비 점검 및 견적 협의" />
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <div style={{ marginTop: 8, fontSize: 12, color: '#8a929c' }}>
-            시간을 비우면 종일 외근으로 봅니다.
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: 6, padding: '10px 16px', borderTop: '1px solid var(--ec-border)' }}>
-          <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>{saving ? '신청 중…' : '신청(F8)'}</button>
-          <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={onClose}>닫기</button>
-        </div>
-      </div>
-    </div>
   )
 }

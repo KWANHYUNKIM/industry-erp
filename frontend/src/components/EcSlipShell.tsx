@@ -62,7 +62,7 @@ function MenuButton({
 }) {
   const [open, setOpen] = useState(false)
   return (
-    <span style={{ position: 'relative', display: 'inline-flex' }}>
+    <span className="relative inline-flex">
       <button
         type="button"
         className={className}
@@ -88,7 +88,7 @@ function MenuButton({
             style={{
               position: 'absolute', zIndex: 41, minWidth: 158, padding: 4,
               ...(up ? { bottom: '100%', marginBottom: 4 } : { top: '100%', marginTop: 4 }),
-              left: 0, background: '#fff', border: '1px solid #c9d1da', borderRadius: 3,
+              left: 0, background: '#fff', border: '1px solid var(--ec-line)', borderRadius: 3,
               boxShadow: '0 4px 12px rgba(0,0,0,.14)',
             }}
           >
@@ -101,7 +101,7 @@ function MenuButton({
                 style={{
                   display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px',
                   fontSize: 12, background: 'none', border: 0,
-                  cursor: m.onClick ? 'pointer' : 'default', color: m.onClick ? '#3c4553' : '#b0b7c0',
+                  cursor: m.onClick ? 'pointer' : 'default', color: m.onClick ? 'var(--ec-text)' : '#b0b7c0',
                   whiteSpace: 'nowrap',
                 }}
               >
@@ -140,9 +140,23 @@ export default function EcSlipShell({
   children: ReactNode
 }) {
   const [helpOpen, setHelpOpen] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)   // 휴대폰: 하단 버튼줄 펼침(⌄)
   const [optionOpen, setOptionOpen] = useState(false)
   const [bookmarked, setBookmarked] = useState(true)   // 원본은 page-bookmark-added 상태로 뜬다
   const footerRef = useRef<HTMLDivElement>(null)
+
+  /*
+   * 저장 = 이 화면을 감싼 form 을 제출. 저장 단추에 ▲ 메뉴(저장/결제·임시저장 …)를 달면서 MenuButton 으로
+   * 그리게 됐는데, MenuButton 의 큰 단추는 onClick 만 불렀고 저장 동작은 onClick 이 아니라 submit 이라서
+   * <b>판매입력·구매입력에서 [저장(F8)]을 눌러도 아무 일도 안 일어났다</b>(메뉴만 열렸다). F8 도
+   * type="submit" 단추를 찾다가 못 찾고 조용히 끝났다(2026-10-01, 주문을 불러와 저장하다 발견).
+   * requestSubmit 은 form 의 검증과 onSubmit 을 그대로 태운다.
+   */
+  const submitForm = () => {
+    const form = footerRef.current?.closest('form')
+    if (form) form.requestSubmit()
+    else footerRef.current?.querySelector<HTMLButtonElement>('button[type="submit"]')?.click()
+  }
 
   // 저장(F8)·저장/전표(F7) — 원본과 같은 단축키. 입력칸 안에서도 먹어야 하므로 window 에 건다.
   // F7 은 라벨에 적혀만 있고 안 걸려 있었다(F8 만 잡고 있었다).
@@ -152,8 +166,7 @@ export default function EcSlipShell({
       if (e.key === 'F8') {
         if (!actions.some((a) => a.submit && !a.disabled)) return
         e.preventDefault()
-        // submit 버튼을 실제로 눌러 form 의 검증·onSubmit 을 그대로 태운다
-        footerRef.current?.querySelector<HTMLButtonElement>('button[type="submit"]')?.click()
+        submitForm()
         return
       }
       if (e.key === 'F7') {
@@ -189,13 +202,13 @@ export default function EcSlipShell({
           onClick={() => setBookmarked((v) => !v)}
           title={bookmarked ? '북마크 해제' : '북마크 추가'}
           className="no-ec"
-          style={{ border: 0, background: 'none', cursor: 'pointer', color: '#f5b301', fontSize: 14, padding: 0, marginRight: 2 }}
+          style={{ border: 0, background: 'none', cursor: 'pointer', color: 'var(--ec-star)', fontSize: 14, padding: 0, marginRight: 2 }}
         >
           {bookmarked ? '★' : '☆'}
         </button>
         <span className="name">{title}</span>
 
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 4, position: 'relative' }}>
+        <div className="ml-auto flex gap-[4px] relative">
           {options.length > 0 && (
             <MenuButton label="Option" items={options} />
           )}
@@ -225,10 +238,11 @@ export default function EcSlipShell({
       )}
 
       {/* .contents */}
-      <div style={{ flex: 1, minHeight: 0, paddingTop: 8 }}>{children}</div>
+      <div className="flex-1 min-h-0 pt-[8px]">{children}</div>
 
       {/* .footer */}
-      <div className="ec-slip-footer" ref={footerRef}>
+      <div className={`ec-slip-footer${moreOpen ? ' open' : ''}`} ref={footerRef}>
+        <div className="ec-footer-btns">
         {actions.map((a) => {
           const cls = `ec-btn${a.primary ? ' ec-btn-primary' : ''}`
           if (a.menu && a.menu.length > 0) {
@@ -239,7 +253,7 @@ export default function EcSlipShell({
                 items={a.menu}
                 className={cls}
                 up
-                onMain={a.onClick}
+                onMain={a.submit ? submitForm : a.onClick}
                 disabled={a.disabled}
                 title={a.disabled ? a.disabledReason : undefined}
               />
@@ -258,9 +272,12 @@ export default function EcSlipShell({
             </button>
           )
         })}
+        </div>
         {savedAt && (
-          <span style={{ marginLeft: 'auto', fontSize: 11.5, color: '#8a929c' }}>{savedAt}</span>
+          <span className="ml-auto text-[11.5px] text-ec-hint">{savedAt}</span>
         )}
+        {/* 휴대폰: 한 줄에 다 안 들어가는 버튼은 ⌄ 로 펼친다(원본) */}
+        <button type="button" className="ec-btn ec-more" aria-label="버튼 더 보기" onClick={() => setMoreOpen((v) => !v)}>{moreOpen ? '⌃' : '⌄'}</button>
       </div>
 
       {helpOpen && (
@@ -275,11 +292,11 @@ export default function EcSlipShell({
             onClick={(e) => e.stopPropagation()}
             style={{ background: '#fff', borderRadius: 4, width: 480, maxWidth: '90vw', boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}
           >
-            <div style={{ padding: '10px 14px', borderBottom: '1px solid #e6eaef', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
+            <div className="py-[10px] px-[14px] border-b border-b-ec-line-soft border-solid font-extrabold text-[14px] flex items-center">
               <span>{title} · 도움말</span>
               <button type="button" className="ec-btn" style={{ marginLeft: 'auto' }} onClick={() => setHelpOpen(false)}>닫기</button>
             </div>
-            <div style={{ padding: 14, fontSize: 12.5, lineHeight: 1.7, color: '#3c4553', maxHeight: '60vh', overflowY: 'auto' }}>
+            <div className="p-[14px] text-[12.5px] leading-[1.7] text-ec-text max-h-[60vh] overflow-y-auto">
               {help}
             </div>
           </div>

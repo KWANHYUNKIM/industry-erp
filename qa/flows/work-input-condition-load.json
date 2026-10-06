@@ -1,0 +1,68 @@
+{
+  "about": "관리 > 근무입력(E090113) · 일용근로 근무입력(E020138) 격자 [조건별 불러오기] — 원본 2026-10-04 실측: 구분 일별/사원별 · 근무기간(오늘 ~ 오늘) · 사원(꼭) · 수당항목 → [검색(F8)] → 근무일자 × 사원 격자(수당항목마다 한 칸) · [일괄적용] → [적용]. 사원 없이 검색 → 안내 없이 사원 칸만 빨갛게(원본과 같다), 3/1~3/2 한 사람 → 두 줄, 일괄적용으로 8 → 적용하면 입력 격자에 두 줄. 저장하지 않는다.",
+  "shots": [
+    {
+      "name": "일용근로 근무입력 — 조건별 불러오기",
+      "path": "/hr/daily-work-input",
+      "steps": [
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const r=await (await fetch('/api/hr/daily-workers',{method:'POST',headers:h,body:JSON.stringify({name:'QA관리-불러오기',hireDate:'2091-01-01',employmentInsurance:true})})).json();sessionStorage.setItem('qaClW',r.name);sessionStorage.setItem('qaClId',String(r.id));return !!r.id})()",
+        "js:location.reload();true",
+        "wait:1200",
+        "click:조건별 불러오기",
+        "wait:300",
+        "js:(()=>{[...[...document.querySelectorAll('[role=dialog]')].filter(d=>d.getAttribute('aria-label')==='조건별 불러오기').pop().querySelectorAll('button')].find(b=>b.innerText.trim().startsWith('검색')).click();return true})()",
+        "wait:200",
+        "expect:[...document.querySelectorAll('[role=dialog]')].filter(d=>d.getAttribute('aria-label')==='조건별 불러오기').pop().querySelector('[data-invalid]')!==null&&[...document.querySelectorAll('[role=dialog]')].filter(d=>d.getAttribute('aria-label')==='조건별 불러오기').pop().querySelector('tbody')===null",
+        "js:(()=>{const x=[...document.querySelectorAll('[role=dialog]')].filter(d=>d.getAttribute('aria-label')==='조건별 불러오기').pop().querySelectorAll('input[type=date]')[0];const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;set.call(x,'2091-03-01');x.dispatchEvent(new Event('input',{bubbles:true}));x.dispatchEvent(new Event('change',{bubbles:true}));return true})()",
+        "js:(()=>{const x=[...document.querySelectorAll('[role=dialog]')].filter(d=>d.getAttribute('aria-label')==='조건별 불러오기').pop().querySelectorAll('input[type=date]')[1];const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;set.call(x,'2091-03-02');x.dispatchEvent(new Event('input',{bubbles:true}));x.dispatchEvent(new Event('change',{bubbles:true}));return true})()",
+        "js:(()=>{[...document.querySelectorAll('[role=dialog]')].filter(d=>d.getAttribute('aria-label')==='조건별 불러오기').pop().querySelector('button[title=\"불러올 사원 선택\"]').click();return true})()",
+        "wait:300",
+        "pickrow:@qaClW",
+        "clicklast:확인",
+        "wait:300",
+        "js:(()=>{[...[...document.querySelectorAll('[role=dialog]')].filter(d=>d.getAttribute('aria-label')==='조건별 불러오기').pop().querySelectorAll('button')].find(b=>b.innerText.trim().startsWith('검색')).click();return true})()",
+        "wait:300",
+        "expect:[...document.querySelectorAll('[role=dialog]')].filter(d=>d.getAttribute('aria-label')==='조건별 불러오기').pop().querySelectorAll('tbody tr').length===2",
+        "js:(()=>{const l=[...[...document.querySelectorAll('[role=dialog]')].filter(d=>d.getAttribute('aria-label')==='조건별 불러오기').pop().querySelectorAll('label')].find(x=>x.innerText.trim()==='일괄적용');l.querySelector('input').click();return true})()",
+        "js:(()=>{const i=[...document.querySelectorAll('[role=dialog]')].filter(d=>d.getAttribute('aria-label')==='조건별 불러오기').pop().querySelector('tbody input');const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;set.call(i,'8');i.dispatchEvent(new Event('input',{bubbles:true}));return true})()",
+        "wait:200",
+        "expect:[...[...document.querySelectorAll('[role=dialog]')].filter(d=>d.getAttribute('aria-label')==='조건별 불러오기').pop().querySelectorAll('tbody tr')].every(r=>r.querySelector('input').value==='8')",
+        "js:(()=>{[...[...document.querySelectorAll('[role=dialog]')].filter(d=>d.getAttribute('aria-label')==='조건별 불러오기').pop().querySelectorAll('button')].find(b=>b.innerText.trim().startsWith('적용')).click();return true})()",
+        "wait:300",
+        "expect:(()=>{const d=[...document.querySelectorAll('table input[type=date]')].map(i=>i.value).filter(Boolean);const q=[...document.querySelectorAll('table input[inputmode=decimal]')].map(i=>i.value).filter(Boolean);return d.join()==='2091-03-01,2091-03-02'&&q.join()==='8,8'})()",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const r=await fetch('/api/hr/daily-workers/'+sessionStorage.getItem('qaClId'),{method:'DELETE',headers:h});sessionStorage.setItem('qaClClean',String(r.ok));return true})()",
+        "expect:sessionStorage.getItem('qaClClean')==='true'"
+      ]
+    },
+    {
+      "name": "근무입력 — 조건별 불러오기",
+      "path": "/hr/work-input",
+      "steps": [
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const r=await (await fetch('/api/employees',{headers:h})).json();sessionStorage.setItem('qaClW',r[0].name);return !!r[0]})()",
+        "wait:1200",
+        "click:조건별 불러오기",
+        "wait:300",
+        "js:(()=>{[...[...document.querySelectorAll('[role=dialog]')].filter(d=>d.getAttribute('aria-label')==='조건별 불러오기').pop().querySelectorAll('button')].find(b=>b.innerText.trim().startsWith('검색')).click();return true})()",
+        "wait:200",
+        "expect:[...document.querySelectorAll('[role=dialog]')].filter(d=>d.getAttribute('aria-label')==='조건별 불러오기').pop().querySelector('[data-invalid]')!==null&&[...document.querySelectorAll('[role=dialog]')].filter(d=>d.getAttribute('aria-label')==='조건별 불러오기').pop().querySelector('tbody')===null",
+        "js:(()=>{const x=[...document.querySelectorAll('[role=dialog]')].filter(d=>d.getAttribute('aria-label')==='조건별 불러오기').pop().querySelectorAll('input[type=date]')[0];const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;set.call(x,'2091-03-01');x.dispatchEvent(new Event('input',{bubbles:true}));x.dispatchEvent(new Event('change',{bubbles:true}));return true})()",
+        "js:(()=>{const x=[...document.querySelectorAll('[role=dialog]')].filter(d=>d.getAttribute('aria-label')==='조건별 불러오기').pop().querySelectorAll('input[type=date]')[1];const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;set.call(x,'2091-03-02');x.dispatchEvent(new Event('input',{bubbles:true}));x.dispatchEvent(new Event('change',{bubbles:true}));return true})()",
+        "js:(()=>{[...document.querySelectorAll('[role=dialog]')].filter(d=>d.getAttribute('aria-label')==='조건별 불러오기').pop().querySelector('button[title=\"불러올 사원 선택\"]').click();return true})()",
+        "wait:300",
+        "pickrow:@qaClW",
+        "clicklast:확인",
+        "wait:300",
+        "js:(()=>{[...[...document.querySelectorAll('[role=dialog]')].filter(d=>d.getAttribute('aria-label')==='조건별 불러오기').pop().querySelectorAll('button')].find(b=>b.innerText.trim().startsWith('검색')).click();return true})()",
+        "wait:300",
+        "expect:[...document.querySelectorAll('[role=dialog]')].filter(d=>d.getAttribute('aria-label')==='조건별 불러오기').pop().querySelectorAll('tbody tr').length===2",
+        "js:(()=>{const l=[...[...document.querySelectorAll('[role=dialog]')].filter(d=>d.getAttribute('aria-label')==='조건별 불러오기').pop().querySelectorAll('label')].find(x=>x.innerText.trim()==='일괄적용');l.querySelector('input').click();return true})()",
+        "js:(()=>{const i=[...document.querySelectorAll('[role=dialog]')].filter(d=>d.getAttribute('aria-label')==='조건별 불러오기').pop().querySelector('tbody input');const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;set.call(i,'8');i.dispatchEvent(new Event('input',{bubbles:true}));return true})()",
+        "wait:200",
+        "expect:[...[...document.querySelectorAll('[role=dialog]')].filter(d=>d.getAttribute('aria-label')==='조건별 불러오기').pop().querySelectorAll('tbody tr')].every(r=>r.querySelector('input').value==='8')",
+        "js:(()=>{[...[...document.querySelectorAll('[role=dialog]')].filter(d=>d.getAttribute('aria-label')==='조건별 불러오기').pop().querySelectorAll('button')].find(b=>b.innerText.trim().startsWith('적용')).click();return true})()",
+        "wait:300",
+        "expect:(()=>{const d=[...document.querySelectorAll('table input[type=date]')].map(i=>i.value).filter(Boolean);const q=[...document.querySelectorAll('table input[inputmode=decimal]')].map(i=>i.value).filter(Boolean);return d.join()==='2091-03-01,2091-03-02'&&q.join()==='8,8'})()"
+      ]
+    }
+  ]
+}

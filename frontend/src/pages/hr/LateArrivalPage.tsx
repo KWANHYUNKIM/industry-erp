@@ -3,7 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
-import { INQUIRY_FULL_PICKS } from '../../components/EcPeriodPicks'
+import { INQUIRY_FULL_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { useDeptGroups } from '../../utils/deptGroups'
 
@@ -41,8 +41,14 @@ const START_MIN = toMinutes(WORK_START)!
 
 export default function LateArrivalPage() {
   const [rows, setRows] = useState<AttendanceRow[]>([])
-  const [from, setFrom] = useState('')
-  const [to, setTo] = useState('')
+  /*
+   * <b>금월로 연다.</b> 여태 빈 기간으로 열어 전 기간 근태를 받았다 — 형제 화면인
+   * 근태종류별현황이 이미 [금월(~오늘)] 로 열고 있어 <b>같은 자리에서 다른 달을 보고</b>
+   * 있었다. 검사(1-p)가 이 꼴을 못 보고 있어 여태 안 걸렸다.
+   */
+  const init = periodOf('금월(~오늘)')!
+  const [from, setFrom] = useState(init.from)
+  const [to, setTo] = useState(init.to)
   const [keyword, setKeyword] = useState('')
   /*
    * 원본 조건은 <b>[사원명]과 [부서]가 따로</b>다. 우리는 한 칸으로 둘을 함께 훑어서
@@ -82,7 +88,7 @@ export default function LateArrivalPage() {
       return { ...r, lateMin: cin != null ? Math.max(0, cin - START_MIN) : 0 }
     })
     .sort((a, b) => b.date.localeCompare(a.date) || b.lateMin - a.lateMin),
-  [rows, keyword, deptCond])
+  [rows, keyword, deptCond, deptGroup, inGroup])
 
   /*
    * 원본 조건 <b>[정렬/소계기준]</b> — 소계를 <b>무엇으로 묶을지</b> 고른다(사본 실측).
@@ -160,26 +166,26 @@ export default function LateArrivalPage() {
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', display: 'flex', alignItems: 'center' }}>
-        <span style={{ color: '#9aa1ab' }}>출근기준 {WORK_START} 이후 = 지각</span>
-        <span style={{ marginLeft: 'auto' }}>
-          지각 <b style={{ color: '#c60a2e', fontSize: 14 }}>{late.length}</b>건
-          <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-          총 지각시간 <b style={{ color: '#c07a00', fontSize: 14 }}>{totalMin.toLocaleString()}</b>분
+      <div className="mb-[8px] text-[12.5px] text-ec-label flex items-center">
+        <span className="text-ec-hint">출근기준 {WORK_START} 이후 = 지각</span>
+        <span className="ml-auto">
+          지각 <b className="text-ec-danger text-[14px]">{late.length}</b>건
+          <span className="my-0 mx-[6px] text-ec-off">|</span>
+          총 지각시간 <b className="text-ec-warn text-[14px]">{totalMin.toLocaleString()}</b>분
         </span>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       {/* 사원별 지각 요약 */}
       {byEmp.length > 0 && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+        <div className="flex gap-[8px] mb-[12px] flex-wrap">
           {byEmp.slice(0, 8).map((e) => (
-            <div key={e.label} style={{ border: '1px solid #e2e6eb', borderRadius: 5, padding: '6px 12px', background: '#fbfcfe', minWidth: 120 }}>
-              <div style={{ fontSize: 12.5, fontWeight: 700, color: '#3c4553' }}>{e.label}
-                <span style={{ fontSize: 11, fontWeight: 400, color: '#9aa1ab' }}> {e.sub}</span></div>
-              <div style={{ fontSize: 11.5, color: '#8a929c', marginTop: 2 }}>
-                <b style={{ color: '#c60a2e', fontSize: 13 }}>{e.count}</b>회 · {e.totalMin.toLocaleString()}분
+            <div key={e.label} style={{ border: '1px solid #e2e6eb', borderRadius: 5, padding: '6px 12px', background: 'var(--ec-bg-page)', minWidth: 120 }}>
+              <div className="text-[12.5px] font-bold text-ec-text">{e.label}
+                <span className="text-[11px] font-normal text-ec-hint"> {e.sub}</span></div>
+              <div className="text-[11.5px] text-ec-hint mt-[2px]">
+                <b className="text-ec-danger text-[13px]">{e.count}</b>회 · {e.totalMin.toLocaleString()}분
               </div>
             </div>
           ))}
@@ -189,26 +195,26 @@ export default function LateArrivalPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th><th>사원명</th><th>부서</th>
-            <th style={{ textAlign: 'center' }}>출근시각</th>
-            <th style={{ textAlign: 'right' }}>지각시간</th>
+            <th className="w-[34px]"></th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th><th>사원명</th><th>부서</th>
+            <th className="text-center">출근시각</th>
+            <th className="text-right">지각시간</th>
             <th>비고</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
           ) : late.length === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
               <td style={mono}>{dateText(r.date)}</td>
               <td>{r.empName}</td>
               <td>{r.department ?? ''}</td>
-              <td style={{ ...mono, textAlign: 'center', color: '#c07a00', fontWeight: 600 }}>{r.clockIn ?? ''}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700, color: '#c60a2e' }}>{r.lateMin.toLocaleString()}분</td>
+              <td style={{ ...mono, textAlign: 'center', color: 'var(--ec-warn)', fontWeight: 600 }}>{r.clockIn ?? ''}</td>
+              <td className="text-right font-bold text-ec-danger">{r.lateMin.toLocaleString()}분</td>
               <td>{r.note ?? ''}</td>
             </tr>
           ))}

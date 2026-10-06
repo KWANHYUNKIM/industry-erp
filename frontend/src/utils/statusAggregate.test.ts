@@ -8,8 +8,8 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { aggregate, groupValue, weekOfYear, type AggregatableRow } from './statusAggregate.ts'
-import { periodOf } from '../components/periods.ts'
+import { aggregate, groupValue, sortAggregated, weekOfYear, type AggregatableRow, type AggregatedRow } from './statusAggregate.ts'
+import { periodOf } from './periods.ts'
 
 const row = (over: Partial<AggregatableRow> = {}): AggregatableRow => ({
   date: '2026-08-26',
@@ -126,4 +126,28 @@ test('금액이 큰 그룹이 위로 온다', () => {
 
 test('빈 목록은 빈 결과', () => {
   assert.deepEqual(aggregate([], '품목별', ''), [])
+})
+
+test('정렬 — 코드순은 코드로(없으면 이름), 코드명순은 이름으로, 수량은 수량으로, 내림은 뒤집는다', () => {
+  const g = (g1: string, qty: number): AggregatedRow => ({ g1, g2: '', count: 1, qty, supply: 0, vat: 0 })
+  const rows = [g('가창고', 5), g('나창고', 9), g('다창고', 1)]
+  const codes = new Map([['가창고', 'W03'], ['나창고', 'W01'], ['다창고', 'W02']])
+  const names = (r: AggregatedRow[]) => r.map((x) => x.g1).join(',')
+  assert.equal(names(sortAggregated(rows, '코드순', false, codes, new Map())), '나창고,다창고,가창고')
+  assert.equal(names(sortAggregated(rows, '코드명순', false, codes, new Map())), '가창고,나창고,다창고')
+  assert.equal(names(sortAggregated(rows, '수량', true, codes, new Map())), '나창고,가창고,다창고')
+  // 코드가 없는 축(날짜)은 이름 그대로가 차례다
+  assert.equal(names(sortAggregated([g('2026-10-02', 1), g('2026-09-30', 1)], '코드순', false, new Map(), new Map())), '2026-09-30,2026-10-02')
+})
+
+test('집계조건3 — 조건1·2 가 같아도 조건3 이 다르면 다른 묶음, 수량 합은 그대로', () => {
+  const base = { date: '2026-10-01', docNo: 'A', partner: '', itemName: 'X', supply: 0, vat: 0, projectName: null, taxable: true, employeeName: null, managementItemName: null }
+  const rows: AggregatableRow[] = [
+    { ...base, qty: 2, warehouseName: 'W1', toWarehouseName: 'P1' },
+    { ...base, qty: 3, warehouseName: 'W1', toWarehouseName: 'P2' },
+    { ...base, qty: 4, warehouseName: 'W1', toWarehouseName: 'P2' },
+  ]
+  const out = aggregate(rows, '월별', '보낸창고별', '받는창고별')
+  assert.deepEqual(out.map((g) => [g.g3, g.qty]).sort(), [['P1', 2], ['P2', 7]])
+  assert.equal(aggregate(rows, '월별', '보낸창고별').length, 1)
 })

@@ -1,21 +1,23 @@
 import { useEffect, useMemo, useState, type FormEvent, useRef} from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
-import type { Item, Partner } from '../../api/types'
+import type { Item, Partner } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { partnerCodeItems } from '../../utils/codeItems'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 
 /** 영업 > 출하지시서 — 출하지시(READY) 등록 → 출하처리(SHIPPED). 백엔드 /shipments 연동 */
 type ShipStatus = 'READY' | 'SHIPPED' | 'CANCELED'
-const STATUS_COLOR: Record<ShipStatus, string> = { READY: '#b6791b', SHIPPED: '#1c7c3c', CANCELED: '#8a929c' }
+const STATUS_COLOR: Record<ShipStatus, string> = { READY: '#b6791b', SHIPPED: 'var(--ec-success)', CANCELED: 'var(--ec-text-hint)' }
 
 /** 원본 조건 [규격]. 서버는 진작 보내는데 이 화면이 안 받아 두고 있었다. */
 interface ShipLine { itemId: number; itemCode: string; itemName: string; unit: string; spec: string | null; quantity: number; unitPrice: number; amount: number; remark: string | null }
@@ -27,6 +29,7 @@ interface Shipment {
   dueDate: string | null
   warehouseId: number | null; warehouseName: string | null
   /** 응답에 이미 오던 값. 원본 조건의 [프로젝트]를 걸려면 화면이 받아 둬야 한다. */
+  projectId: number | null
   projectName: string | null
   employeeId: number | null; employeeName: string | null
   contact: string | null; postalCode: string | null; address: string | null
@@ -46,9 +49,48 @@ const today = () => ymd(new Date())
 interface LineInput { itemId: string; quantity: string; unitPrice: string; remark: string }
 const emptyLine = (): LineInput => ({ itemId: '', quantity: '', unitPrice: '', remark: '' })
 
+/**
+ * 원본 격자의 마지막 열 <b>[인쇄]</b> — 그 한 건을 종이로 찍는다.
+ *
+ * <p><b>금액 칸(단가·공급가액·부가세)은 안 그린다.</b> 출하 전표에는 <b>부가세가 없다</b> —
+ * 부가세는 판매 전표가 매긴다. 0 으로 채워 그리면 "부가세 0원" 이 되어, 과세 거래인데
+ * 면세처럼 읽히는 종이가 나간다. 대신 우리가 <b>아는 값</b>인 출하금액 합계는 머리 항목에
+ * 적는다 — 없는 값을 지어내지 않으면서 아는 값은 버리지 않는다.
+ */
+async function printShipOrder(s: Shipment, company: DocParty | null) {
+  await printDocuments([{
+    title: '출하지시서',
+    docNo: s.shipNo,
+    docDate: s.shipDate,
+    hideAmounts: true,
+    supplier: company ? { ...company, label: '지시자' } : { label: '지시자', name: '(회사정보 미등록)' },
+    customer: { label: '납품처', name: s.partnerName },
+    extra: [
+      { label: '출하예정일', value: s.dueDate },
+      { label: '출하창고', value: s.warehouseName },
+      { label: '근거주문', value: s.salesOrderNo },
+      { label: '담당자', value: s.employeeName },
+      { label: '연락처', value: s.contact },
+      { label: '배송지', value: [s.postalCode, s.address].filter(Boolean).join(' ') },
+      { label: '진행상태', value: s.statusName },
+      { label: '금액', value: s.totalAmount.toLocaleString('ko-KR') },
+    ],
+    remark: s.remark,
+    lines: s.lines.map((l) => ({
+      itemCode: l.itemCode, itemName: l.itemName, spec: l.spec, unit: l.unit,
+      quantity: l.quantity, unitPrice: 0, supplyAmount: 0, vatAmount: 0,
+      remark: l.remark,
+    })),
+    footNote: '위와 같이 출하하여 주시기 바랍니다.',
+  }])
+}
+
 export default function ShipmentOrderPage() {
   const [shipments, setShipments] = useState<Shipment[]>([])
   const [partners, setPartners] = useState<Partner[]>([])
+  /* 인쇄물 머리의 지시자 칸. 회사정보를 한 번만 받아 둔다. */
+  const [company, setCompany] = useState<DocParty | null>(null)
+  useEffect(() => { loadSupplierParty().then(setCompany) }, [])
   const [items, setItems] = useState<Item[]>([])
   const [error, setError] = useState('')
   const [ok, setOk] = useState('')
@@ -95,8 +137,16 @@ export default function ShipmentOrderPage() {
 
   async function load() {
     try {
+      const period: Record<string, string> = {}
+      if (condFrom) period.from = condFrom
+      if (condTo) period.to = condTo
       const [s, p, i, w, e, pj] = await Promise.all([
-        api.get<Shipment[]>('/shipments'),
+        /*
+       * <b>고른 기간을 서버에도 보낸다.</b> 여태 통째로 받아 아래에서 걸렀다 —
+       * 화면은 [기간]을 묻고 서버에는 아무것도 안 보내는 꼴이었다.
+       * 기본값은 안 만들었다 — 이 화면의 원본 기간 기본값을 아직 안 쟀다.
+         */
+        api.get<Shipment[]>('/shipments', { params: period }),
         api.get<Partner[]>('/partners'),
         api.get<Item[]>('/items'),
         api.get<{ id: number; code: string; name: string }[]>('/warehouses'),
@@ -107,7 +157,9 @@ export default function ShipmentOrderPage() {
       setWarehouses(w.data); setEmployees(e.data); setProjects(pj.data)
     } catch (err) { setError(extractErrorMessage(err)) }
   }
-  useEffect(() => { load() }, [])
+  /* 기간을 바꾸면 그 기간으로 다시 받는다. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [condFrom, condTo])
 
   function updateLine(idx: number, field: keyof LineInput, value: string) {
     setLines((ls) => {
@@ -197,7 +249,7 @@ export default function ShipmentOrderPage() {
   const mgmt = useItemMgmt(items)
   const [mgmtCond, setMgmtCond] = useState('')
   /*
-   * 2026-09-07 에 원본(C000120)을 열어 <b>접힌 줄까지 펼쳐</b> 조건을 전부 쟀다(서른셋).
+   * 2026-09-07 에 원본(E040221)을 열어 <b>접힌 줄까지 펼쳐</b> 조건을 전부 쟀다(서른셋).
    * 사본에는 열뿐이었다 — 조건 판 아래 '···' 줄을 안 펼친 채로 사본을 떴기 때문이다.
    * 그중 우리 응답이 <b>이미 싣고 있던 여덟</b>을 만든다: 출하예정일 · 규격 · 담당자 ·
    * 거래처관리담당자 · 연락처 · 주소 · 적요 · 작성자.
@@ -231,10 +283,10 @@ export default function ShipmentOrderPage() {
     .filter((s) => !condFrom || s.shipDate >= condFrom)
     .filter((s) => !condTo || s.shipDate <= condTo)
     .filter((s) => !shipNoCond || s.shipNo.includes(shipNoCond))
-    .filter((s) => !warehouseCond || (s.warehouseName ?? '').includes(warehouseCond))
-    .filter((s) => !projectCond || (s.projectName ?? '').includes(projectCond))
-    .filter((s) => !partnerCond || s.partnerName.includes(partnerCond))
-    .filter((s) => !itemCond || s.lines.some((l) => l.itemName.includes(itemCond)))
+    .filter((s) => !warehouseCond || String(s.warehouseId) === warehouseCond)
+    .filter((s) => !projectCond || String(s.projectId) === projectCond)
+    .filter((s) => !partnerCond || String(s.partnerId) === partnerCond)
+    .filter((s) => !itemCond || s.lines.some((l) => String(l.itemId) === itemCond))
     .filter((s) => mgmt.hits(s.lines.map((l) => l.itemId), mgmtCond))
     .filter((s) => !sendCond || s.status === sendCond)
     /* 원본 [출하예정일] — 기준일자(출하지시일)와 다른 날이다. */
@@ -271,7 +323,7 @@ export default function ShipmentOrderPage() {
   })
   const shown = sort.sorted
   const inputCls = 'ec-input'
-  const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 74 }
+  const th: React.CSSProperties = { background: 'var(--ec-bg-page)', fontWeight: 700, whiteSpace: 'nowrap', width: 74 }
 
 
   /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
@@ -297,13 +349,13 @@ export default function ShipmentOrderPage() {
         { label: '인쇄' },
       ]}
     >
-      <p className="mb-2 text-xs text-slate-500">매출처로 반출할 물품의 출하지시 · 출하지시 → 출하완료. 미출하현황에서 대기건 확인.</p>
+      <p className="mb-2 text-xs text-ec-hint">매출처로 반출할 물품의 출하지시 · 출하지시 → 출하완료. 미출하현황에서 대기건 확인.</p>
 
       {/* 원본 조건 차례: 기준일자 · 출하지시No. · 창고 · 프로젝트 · 관리항목 · 거래처 · 품목 · 발송여부 */}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={condFrom} onChange={(e) => setCondFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
+          <span className="my-0 mx-[6px] text-ec-label">~</span>
           <input type="date" className="ec-input" value={condTo} onChange={(e) => setCondTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="출하지시No.">
@@ -356,7 +408,7 @@ export default function ShipmentOrderPage() {
         */}
         <EcCond label="출하예정일">
           <input type="date" className="ec-input" value={dueFrom} onChange={(e) => setDueFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
+          <span className="my-0 mx-[6px] text-ec-label">~</span>
           <input type="date" className="ec-input" value={dueTo} onChange={(e) => setDueTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="규격" pick>
@@ -397,17 +449,17 @@ export default function ShipmentOrderPage() {
         {/* 원본 [최초작성일자]·[최종작업일자] — 출하조회의 [최종수정일시]와 같은 값이다. */}
         <EcCond label="최초작성일자">
           <input type="date" className="ec-input" value={madeFrom} onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
+          <span className="my-0 mx-[6px] text-ec-label">~</span>
           <input type="date" className="ec-input" value={madeTo} onChange={(e) => setMadeTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="최종작업일자">
           <input type="date" className="ec-input" value={editedFrom} onChange={(e) => setEditedFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
+          <span className="my-0 mx-[6px] text-ec-label">~</span>
           <input type="date" className="ec-input" value={editedTo} onChange={(e) => setEditedTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
         {/* 원본 [기타] — 이 화면에서는 체크 하나뿐이다(실측). 없는 것을 지어내지 않는다. */}
         <EcCond label="기타">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
             수정일자순(정렬)
           </label>
@@ -416,15 +468,14 @@ export default function ShipmentOrderPage() {
 
       <Modal open={showForm} title="출하지시서 등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 12, marginBottom: 10 }}>
-          <table className="w-full text-left" style={{ marginBottom: 8, maxWidth: 700 }}>
+          <table className="w-full text-left mb-[8px] max-w-[700px]">
             <tbody>
               <tr>
                 <th style={th}>매출처 *</th>
                 <td>
-                  <select className={inputCls} value={partnerId} onChange={(e) => setPartnerId(e.target.value)} style={{ minWidth: 220 }}>
-                    <option value="">선택하세요</option>
-                    {customers.map((p) => <option key={p.id} value={p.id}>[{p.code}] {p.name}</option>)}
-                  </select>
+                  {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
+                  <CodePickerField label="매출처" hideLabel width={220} placeholder="매출처" emptyLabel="선택 해제"
+                                   value={partnerId} onChange={setPartnerId} items={partnerCodeItems(customers)} />
                 </td>
                 {/*
                   원본 출하입력의 머리 항목은 <b>[일자-No.]</b> 한 칸이다 — 일자와 전표번호를
@@ -434,7 +485,7 @@ export default function ShipmentOrderPage() {
                 <th style={th}>일자-No.</th>
                 <td>
                   <input type="date" className={inputCls} value={shipDate} onChange={(e) => setShipDate(e.target.value)} style={{ width: 150 }} />
-                  <span style={{ marginLeft: 6, fontSize: 11.5, color: '#9aa1ab' }}>번호는 저장할 때 매깁니다</span>
+                  <span className="ml-[6px] text-[11.5px] text-ec-hint">번호는 저장할 때 매깁니다</span>
                 </td>
               </tr>
               <tr>
@@ -449,7 +500,7 @@ export default function ShipmentOrderPage() {
                 <td>
                   <input type="date" className={inputCls} value={dueDate}
                          onChange={(e) => setDueDate(e.target.value)} style={{ width: 150 }} />
-                  <span style={{ fontSize: 11, color: '#8a929c', marginLeft: 6 }}>비우면 출하일자</span>
+                  <span className="text-[11px] text-ec-hint ml-[6px]">비우면 출하일자</span>
                 </td>
               </tr>
               <tr>
@@ -483,7 +534,7 @@ export default function ShipmentOrderPage() {
             </tbody>
           </table>
 
-          <table ref={tableRef} className="w-full text-left" style={{ tableLayout: 'fixed' }}>
+          <table ref={tableRef} className="w-full text-left table-fixed">
             <thead>
               <tr>
                 {/*
@@ -491,108 +542,125 @@ export default function ShipmentOrderPage() {
                   우리는 고르는 칸 하나뿐이라, 코드를 고른 뒤 <b>무엇을 골랐는지</b>가
                   드롭다운 안에만 있었다 — 줄이 여럿이면 눈으로 훑을 수가 없다.
                 */}
-                <th style={{ width: 34 }}></th><th>품목</th>
-                <th style={{ width: 150 }}>품목명</th>
-                <th style={{ width: 120 }}>규격</th>
-                <th style={{ width: 120, textAlign: 'right' }}>수량</th>
-                <th style={{ width: 140, textAlign: 'right' }}>단가</th>
-                <th style={{ width: 150, textAlign: 'right' }}>금액</th>
-                <th style={{ width: 180 }}>적요</th>
+                <th className="w-[34px]"></th><th>품목</th>
+                <th className="w-[150px]">품목명</th>
+                <th className="w-[120px]">규격</th>
+                <th className="w-[120px] text-right">수량</th>
+                <th className="w-[140px] text-right">단가</th>
+                <th className="w-[150px] text-right">금액</th>
+                <th className="w-[180px]">적요</th>
               </tr>
             </thead>
             <tbody>
               {lines.map((l, idx) => (
                 <tr key={idx}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
+                  <td className="text-center text-ec-hint">{idx + 1}</td>
                   <td>
-                    <select className={inputCls} style={{ width: '100%' }} value={l.itemId} onChange={(e) => updateLine(idx, 'itemId', e.target.value)}>
-                      <option value="">선택</option>
-                      {items.map((it) => <option key={it.id} value={it.id}>[{it.code}] {it.name}</option>)}
-                    </select>
+                    <CodePickerField label="품목" hideLabel fill placeholder="품목" emptyLabel="선택 해제"
+                                     value={l.itemId} onChange={(v) => updateLine(idx, 'itemId', v)}
+                                     items={items.filter((it) => it.active !== false).map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))} />
                   </td>
                   {/* 고른 품목의 이름·규격 — 읽기만 한다. 품목 마스터가 가진 값이다. */}
-                  <td style={{ color: '#5a626e' }}>{itemById.get(l.itemId)?.name ?? ''}</td>
-                  <td style={{ color: '#5a626e' }}>{itemById.get(l.itemId)?.spec ?? ''}</td>
+                  <td className="text-ec-label">{itemById.get(l.itemId)?.name ?? ''}</td>
+                  <td className="text-ec-label">{itemById.get(l.itemId)?.spec ?? ''}</td>
                   <td><input type="number" className={`${inputCls} text-right`} style={{ width: '100%' }} value={l.quantity} onChange={(e) => updateLine(idx, 'quantity', e.target.value)} /></td>
                   <td><input type="number" className={`${inputCls} text-right`} style={{ width: '100%' }} value={l.unitPrice} onChange={(e) => updateLine(idx, 'unitPrice', e.target.value)} /></td>
-                  <td style={{ textAlign: 'right' }}>{won(computed[idx])}</td>
+                  <td className="text-right">{won(computed[idx])}</td>
                   <td><input className={inputCls} style={{ width: '100%' }} value={l.remark}
                              onChange={(e) => updateLine(idx, 'remark', e.target.value)} /></td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
-              <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
+              <tr className="font-bold bg-ec-page">
                 {/* 머리에 [품목명]·[규격]을 더했으니 여기도 2칸 늘린다 — 안 늘리면 합계가 엉뚱한 열 아래 붙는다. */}
-                <td colSpan={4} style={{ textAlign: 'right' }}>합계</td>
-                <td style={{ textAlign: 'right' }}>{won(totals.qty)}</td>
+                <td colSpan={4} className="text-right">합계</td>
+                <td className="text-right">{won(totals.qty)}</td>
                 <td></td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{won(totals.amount)}</td>
+                <td className="text-right text-ec-blue">{won(totals.amount)}</td>
                 <td></td>
               </tr>
             </tfoot>
           </table>
 
-          <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="mt-[8px] flex items-center gap-[8px]">
             <input className={inputCls} placeholder="비고" value={remark} onChange={(e) => setRemark(e.target.value)} style={{ flex: 1, maxWidth: 400 }} />
             <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
           </div>
-          {error && <p className="mt-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-          {ok && <p className="mt-2 rounded bg-green-50 px-3 py-2 text-sm text-green-700">{ok}</p>}
+          {error && <p className="mt-2 rounded bg-ec-danger-bg px-3 py-2 text-sm text-ec-danger">{error}</p>}
+          {ok && <p className="mt-2 rounded bg-ec-success-bg px-3 py-2 text-sm text-ec-success">{ok}</p>}
         </form>
       )}</Modal>
 
-      {!showForm && error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {!showForm && error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <table className="w-full text-left">
         <thead>
           <tr>
             {/* [진행상태변경]이 고를 자리. */}
-            <th style={{ width: 30, textAlign: 'center' }}>
+            <th className="w-[30px] text-center">
               <input type="checkbox"
                      checked={shown.length > 0 && shown.every((s) => checked.has(s.id))}
                      onChange={() => setChecked(
                        shown.every((s) => checked.has(s.id)) ? new Set() : new Set(shown.map((s) => s.id)))} />
             </th>
-            <th style={{ width: 34 }}></th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('출하번호')}>출하번호 {sort.mark('출하번호')}</th><th style={{ width: 130 }}>근거주문</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('출하일')}>출하일 {sort.mark('출하일')}</th>
-            <th style={{ width: 100 }}>출하예정일</th><th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처')}>거래처 {sort.mark('거래처')}</th><th style={{ width: 110 }}>출하창고</th><th>품목</th>
-            <th style={{ textAlign: 'right' }}>수량</th><th style={{ textAlign: 'right' }}>금액</th>
-            <th style={{ width: 110 }}>연락처</th><th style={{ width: 150 }}>적요</th>
-            <th style={{ textAlign: 'center' }}>상태</th><th style={{ textAlign: 'center' }}>처리</th>
+            <th className="w-[34px]"></th>
+            {/*
+              <b>출하지시서조회(E040221) 2026-09-09 원본 격자 실측</b> — 열 여섯:
+              [일자-No. · <b>창고명</b> · 품목명(요약) · 수량합계 · <b>진행상태</b> · 인쇄].
+              바로 앞 바퀴에 잰 <b>출하조회(E040226)와 한 칸만 다르다</b> — 그쪽은
+              다섯째가 [거래처명]이고 이쪽은 [진행상태]다. 나머지는 글자까지 같다.
+              고친 것: (1) 출하번호와 출하일을 <b>두 칸</b>으로 갈라 두었다 → [일자-No.]
+              한 칸, (2) 이름 넷 — [출하창고]→[창고명] · [품목]→[품목명(요약)] ·
+              [수량]→[수량합계] · [상태]→[진행상태].
+              <b>[인쇄]는 원본이 줄마다 두는 열이다</b> — 화면 위 [인쇄] 하나로 갈음하고
+              있었는데, 그건 목록을 통째로 찍는 버튼이라 <b>한 건을 집어 찍을 수가 없었다.</b>
+              이번에 줄마다 달았다.
+              [근거주문]·[출하예정일]·[거래처]·[금액]·[연락처]·[적요]·[처리]는 우리 열이다.
+            */}
+            <th className="cursor-pointer" onClick={() => sort.toggle('출하번호')}>일자-No. {sort.mark('출하번호')}</th><th className="w-[130px]">근거주문</th>
+            <th className="w-[100px]">출하예정일</th><th className="cursor-pointer" onClick={() => sort.toggle('거래처')}>거래처 {sort.mark('거래처')}</th><th className="w-[110px]">창고명</th><th>품목명(요약)</th>
+            <th className="text-right">수량합계</th><th className="text-right">금액</th>
+            <th className="w-[110px]">연락처</th><th className="w-[150px]">적요</th>
+            <th className="text-center">진행상태</th><th className="text-center">처리</th>
+            <th className="w-[60px] text-center">인쇄</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={15} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={15} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((s, i) => (
             <tr key={s.id}>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <input type="checkbox" checked={checked.has(s.id)} onChange={() => setChecked((prev) => {
                   const next = new Set(prev)
                   if (next.has(s.id)) next.delete(s.id); else next.add(s.id)
                   return next
                 })} />
               </td>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{s.shipNo}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              {/* 원본은 일자와 번호를 한 칸에 적는다. */}
+              <td>{dateText(s.shipDate)} {s.shipNo}</td>
               <td style={{ fontFamily: 'monospace', fontSize: 11.5, color: s.salesOrderNo ? 'var(--ec-blue-dark)' : '#b6bcc4' }}>
                 {s.salesOrderNo ?? '직접등록'}
               </td>
-              <td>{dateText(s.shipDate)}</td>
-              <td style={{ color: s.dueDate ? undefined : '#c9ced6' }}>{dateText(s.dueDate) || ''}</td>
+              <td style={{ color: s.dueDate ? undefined : 'var(--ec-text-off)' }}>{dateText(s.dueDate) || ''}</td>
               <td>{s.partnerName}</td>
-              <td style={{ color: s.warehouseName ? undefined : '#c9ced6' }}>{s.warehouseName ?? ''}</td>
+              <td style={{ color: s.warehouseName ? undefined : 'var(--ec-text-off)' }}>{s.warehouseName ?? ''}</td>
               <td>{s.lines[0]?.itemName}{s.lines.length > 1 ? ` 외 ${s.lines.length - 1}건` : ''}</td>
-              <td style={{ textAlign: 'right' }}>{won(s.totalQuantity)}</td>
-              <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ec-blue)' }}>{won(s.totalAmount)}</td>
-              <td style={{ color: s.contact ? undefined : '#c9ced6' }}>{s.contact || ''}</td>
-              <td style={{ color: '#8a929c' }}>{s.remark ?? ''}</td>
+              <td className="text-right">{won(s.totalQuantity)}</td>
+              <td className="text-right font-semibold text-ec-blue">{won(s.totalAmount)}</td>
+              <td style={{ color: s.contact ? undefined : 'var(--ec-text-off)' }}>{s.contact || ''}</td>
+              <td className="text-ec-hint">{s.remark ?? ''}</td>
               <td style={{ textAlign: 'center', color: STATUS_COLOR[s.status], fontWeight: 700 }}>{s.statusName}</td>
-              <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
-                {s.status === 'READY' && <button className="no-ec" onClick={() => advance(s)} style={{ border: 'none', background: 'none', color: '#1c7c3c', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>→ 출하완료</button>}
-                {s.status === 'READY' && <button className="no-ec" onClick={() => cancel(s)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>취소</button>}
-                <button className="no-ec" onClick={() => remove(s)} style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+              <td className="text-center whitespace-nowrap">
+                {s.status === 'READY' && <button className="no-ec" onClick={() => advance(s)} style={{ border: 'none', background: 'none', color: 'var(--ec-success)', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>→ 출하완료</button>}
+                {s.status === 'READY' && <button className="no-ec" onClick={() => cancel(s)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>취소</button>}
+                <button className="no-ec" onClick={() => remove(s)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+              </td>
+              <td className="text-center">
+                <button className="no-ec" onClick={() => printShipOrder(s, company)}
+                        style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>인쇄</button>
               </td>
             </tr>
           ))}

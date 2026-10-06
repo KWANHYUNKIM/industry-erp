@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent, useRef} from 'react'
 import { api, extractErrorMessage } from '../api/client'
 import { useTableColumnCheck } from '../utils/assertTableColumns'
 import CodePickerField from '../components/CodePickerField'
-import type { Role, User } from '../api/types'
+import type { Role, User } from '../types/api'
 import EcListShell from '../components/EcListShell'
 import { useTableSort } from '../utils/useTableSort'
 
@@ -82,48 +82,48 @@ export default function UsersPage() {
       )}
       actions={[{ label: 'Excel' }]}
     >
-      {error && <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+      {error && <p className="mb-2 rounded bg-ec-danger-bg px-3 py-2 text-sm text-ec-danger">{error}</p>}
 
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('아이디')}>아이디 {sort.mark('아이디')}</th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('이름')}>이름 {sort.mark('이름')}</th>
+            <th className="w-[34px]"></th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('아이디')}>아이디 {sort.mark('아이디')}</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('이름')}>이름 {sort.mark('이름')}</th>
             <th>부서</th>
-            <th style={{ width: 110 }}>사원</th>
+            <th className="w-[110px]">사원</th>
             <th>권한</th>
-            <th style={{ textAlign: 'center' }}>상태</th>
-            <th style={{ textAlign: 'center' }}>관리</th>
+            <th className="text-center">상태</th>
+            <th className="text-center">관리</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
           ) : users.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : (
             sort.sorted.map((u, idx) => (
               <tr key={u.id}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{u.username}</td>
+                <td className="text-center text-ec-hint">{idx + 1}</td>
+                <td>{u.username}</td>
                 <td>{u.name}</td>
                 <td>{u.department ?? ''}</td>
-                <td style={{ color: u.employeeId ? undefined : '#c9ced6' }}>{u.employeeId ? '연결됨' : '안 이음'}</td>
+                <td style={{ color: u.employeeId ? undefined : 'var(--ec-text-off)' }}>{u.employeeId ? '연결됨' : '안 이음'}</td>
                 <td>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  <div className="flex flex-wrap gap-[4px]">
                     {u.roles.map((r) => (
                       <span key={r} style={{ background: '#eef1fb', color: 'var(--ec-blue)', padding: '1px 6px', borderRadius: 3, fontSize: 11.5, fontWeight: 600 }}>{roleLabel(r)}</span>
                     ))}
                   </div>
                 </td>
-                <td style={{ textAlign: 'center' }}>
-                  <button onClick={() => toggleEnabled(u)} className="ec-btn" style={{ height: 20, padding: '0 8px', color: u.enabled ? '#1c7c3c' : '#9aa1ab' }}>
+                <td className="text-center">
+                  <button onClick={() => toggleEnabled(u)} className="ec-btn" style={{ height: 20, padding: '0 8px', color: u.enabled ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>
                     {u.enabled ? '활성' : '비활성'}
                   </button>
                 </td>
-                <td style={{ textAlign: 'center' }}>
-                  <button onClick={() => remove(u)} className="no-ec" style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                <td className="text-center">
+                  <button onClick={() => remove(u)} className="no-ec" style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button>
                 </td>
               </tr>
             ))
@@ -196,41 +196,41 @@ function CreateUserForm({ roles, onCreated }: { roles: Role[]; onCreated: () => 
     <form onSubmit={submit}>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <label className="mb-1 block text-sm text-slate-600">아이디 *</label>
+          <label className="mb-1 block text-sm text-ec-label">아이디 *</label>
           <input className={inputCls} value={form.username} onChange={(e) => update('username', e.target.value)} />
         </div>
         <div>
-          <label className="mb-1 block text-sm text-slate-600">비밀번호 *</label>
+          <label className="mb-1 block text-sm text-ec-label">비밀번호 *</label>
           <input type="password" className={inputCls} value={form.password} onChange={(e) => update('password', e.target.value)} />
         </div>
         <div>
-          <label className="mb-1 block text-sm text-slate-600">이름 *</label>
+          <label className="mb-1 block text-sm text-ec-label">이름 *</label>
           <input className={inputCls} value={form.name} onChange={(e) => update('name', e.target.value)} />
         </div>
         <div>
-          <label className="mb-1 block text-sm text-slate-600">부서</label>
+          <label className="mb-1 block text-sm text-ec-label">부서</label>
           <input className={inputCls} value={form.department} onChange={(e) => update('department', e.target.value)} />
         </div>
         <div>
-          <label className="mb-1 block text-sm text-slate-600">사원</label>
+          <label className="mb-1 block text-sm text-ec-label">사원</label>
           {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측 525칸, 예외 없음) — 드롭다운은 항목이 늘면 못 찾는다. */}
           <CodePickerField label="사원" hideLabel fill placeholder="사원"
                            emptyLabel="안 이음"
                            value={form.employeeId} onChange={(v) => update('employeeId', v)}
                            items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
-          <span style={{ fontSize: 11, color: '#8a929c' }}>이어 두면 근태현황에 직급·사원번호가 나옵니다</span>
+          <span className="text-[11px] text-ec-hint">이어 두면 근태현황에 직급·사원번호가 나옵니다</span>
         </div>
         <div>
-          <label className="mb-1 block text-sm text-slate-600">이메일</label>
+          <label className="mb-1 block text-sm text-ec-label">이메일</label>
           <input type="email" className={inputCls} value={form.email} onChange={(e) => update('email', e.target.value)} />
         </div>
       </div>
 
       <div className="mt-4">
-        <label className="mb-2 block text-sm text-slate-600">권한 *</label>
+        <label className="mb-2 block text-sm text-ec-label">권한 *</label>
         <div className="flex flex-wrap gap-3">
           {roles.map((r) => (
-            <label key={r.id} className="flex items-center gap-2 text-sm text-slate-700">
+            <label key={r.id} className="flex items-center gap-2 text-sm text-ec-text">
               <input
                 type="checkbox"
                 checked={selectedRoles.includes(r.name)}
@@ -245,14 +245,14 @@ function CreateUserForm({ roles, onCreated }: { roles: Role[]; onCreated: () => 
       {/* 권한을 전부 해제하면 예전에는 서버가 STAFF(권한 22개)를 조용히 붙였다.
           이제 서버가 거절하므로, 여기서도 눌리기 전에 이유를 보여 준다. */}
       {selectedRoles.length === 0 && (
-        <p style={{ marginTop: 8, color: '#c60a2e', fontSize: 12.5 }}>
+        <p className="mt-[8px] text-ec-danger text-[12.5px]">
           권한그룹을 하나 이상 선택하세요.
         </p>
       )}
 
-      {error && <p style={{ marginTop: 10, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mt-[10px]">{error}</p>}
 
-      <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
+      <div className="mt-[12px] flex justify-end">
         <button
           type="submit"
           disabled={submitting || selectedRoles.length === 0}

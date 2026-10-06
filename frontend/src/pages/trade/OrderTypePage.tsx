@@ -3,7 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
-import { FLAT_MENU } from '../../components/EcountLayout'
+import { FLAT_MENU } from '../../app/layout/EcountLayout'
 import CodePickerField from '../../components/CodePickerField'
 
 /**
@@ -202,37 +202,37 @@ export default function OrderTypePage() {
                 { label: `사용중단/재사용${checked.size ? ` (${checked.size})` : ''}`, onClick: toggleActive },
                 { label: 'Excel' }]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       {/* 원본 조건 차례: <b>처리메뉴 · 사용구분</b>. 사용/중단이 표에는 찍히는데 거를 수가 없었다. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+      <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label">
         <span>처리메뉴</span>
         <CodePickerField label="처리메뉴" hideLabel width={190} emptyLabel="전체"
                          value={menuCond} onChange={setMenuCond}
                          items={FLAT_MENU.map((m) => ({ value: m.to, code: m.to, name: m.label }))} />
-        <span style={{ marginLeft: 10 }}>사용구분</span>
+        <span className="ml-[10px]">사용구분</span>
         <select className="ec-input" value={useCond} onChange={(e) => setUseCond(e.target.value as '전체' | '사용' | '중단')} style={{ width: 100 }}>
           <option>전체</option><option>사용</option><option>중단</option>
         </select>
       </div>
-      <Modal open={showForm} title="오더관리유형 등록" onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title="오더관리유형 등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>{editId ? '오더유형 수정' : '새 오더유형 등록'}</div>
+          <div className="text-[13px] font-extrabold text-ec-navy mb-[8px]">{editId ? '오더유형 수정' : '새 오더유형 등록'}</div>
           <div style={{ display: 'grid', gridTemplateColumns: '160px 200px 1fr 110px', gap: 10 }}>
             <div>
-              <label style={{ display: 'block', fontSize: 12, color: '#5a626e', marginBottom: 4 }}>유형코드 *</label>
+              <label className="block text-[12px] text-ec-label mb-[4px]">유형코드 *</label>
               <input className={inputCls} value={form.code} disabled={!!editId} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))} placeholder="OT-06" />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: 12, color: '#5a626e', marginBottom: 4 }}>유형명 *</label>
+              <label className="block text-[12px] text-ec-label mb-[4px]">유형명 *</label>
               <input className={inputCls} value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="일반수주" />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: 12, color: '#5a626e', marginBottom: 4 }}>설명</label>
+              <label className="block text-[12px] text-ec-label mb-[4px]">설명</label>
               <input className={inputCls} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: 12, color: '#5a626e', marginBottom: 4 }}>사용여부</label>
+              <label className="block text-[12px] text-ec-label mb-[4px]">사용여부</label>
               <select className={inputCls} value={form.active ? 'Y' : 'N'} disabled={!editId} onChange={(e) => setForm((f) => ({ ...f, active: e.target.value === 'Y' }))}>
                 <option value="Y">사용</option>
                 <option value="N">미사용</option>
@@ -242,7 +242,7 @@ export default function OrderTypePage() {
 
           <div style={{ display: 'grid', gridTemplateColumns: '200px 160px', gap: 10, marginTop: 10 }}>
             <div>
-              <label style={{ display: 'block', fontSize: 12, color: '#5a626e', marginBottom: 4 }}>담당자</label>
+              <label className="block text-[12px] text-ec-label mb-[4px]">담당자</label>
               <input className={inputCls} value={form.manager} onChange={(e) => setForm((f) => ({ ...f, manager: e.target.value }))} />
             </div>
             {/*
@@ -250,14 +250,14 @@ export default function OrderTypePage() {
               메뉴를 옮길 때 둘이 갈린다. 안 고르면 어느 화면에서나 쓴다.
             */}
             <div>
-              <label style={{ display: 'block', fontSize: 12, color: '#5a626e', marginBottom: 4 }}>처리메뉴</label>
+              <label className="block text-[12px] text-ec-label mb-[4px]">처리메뉴</label>
               <CodePickerField label="처리메뉴" hideLabel fill emptyLabel="어느 화면에서나"
                                value={form.procMenu}
                                onChange={(v) => setForm((f) => ({ ...f, procMenu: v }))}
                                items={FLAT_MENU.map((m) => ({ value: m.to, code: m.to, name: m.label }))} />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: 12, color: '#5a626e', marginBottom: 4 }}>입력메뉴에서 사용</label>
+              <label className="block text-[12px] text-ec-label mb-[4px]">입력메뉴에서 사용</label>
               <select className={inputCls} value={form.useInInput ? 'Y' : 'N'}
                       onChange={(e) => setForm((f) => ({ ...f, useInInput: e.target.value === 'Y' }))}>
                 <option value="Y">사용</option>
@@ -267,14 +267,14 @@ export default function OrderTypePage() {
           </div>
 
           {/* 원본의 [1단계]~[10단계]. 이 유형의 오더가 밟아 갈 순서다. */}
-          <div style={{ marginTop: 12 }}>
-            <div style={{ fontSize: 12, color: '#5a626e', marginBottom: 6 }}>
-              진행단계 <span style={{ color: '#8a929c' }}>— 앞에서부터 순서대로. 빈 칸은 건너뜁니다.</span>
+          <div className="mt-[12px]">
+            <div className="text-[12px] text-ec-label mb-[6px]">
+              진행단계 <span className="text-ec-hint">— 앞에서부터 순서대로. 빈 칸은 건너뜁니다.</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
               {stepIds.map((v, i) => (
-                <label key={i} style={{ fontSize: 11.5 }}>
-                  <div style={{ color: '#8a929c', marginBottom: 3 }}>{i + 1}단계</div>
+                <label key={i} className="text-[11.5px]">
+                  <div className="text-ec-hint mb-[3px]">{i + 1}단계</div>
                   <select className={inputCls} value={v} onChange={(e) => setStepIds((prev) => {
                     const next = [...prev]
                     next[i] = e.target.value
@@ -296,7 +296,7 @@ export default function OrderTypePage() {
               ))}
             </div>
           </div>
-          <div style={{ marginTop: 10, display: 'flex', justifyContent: 'flex-end' }}>
+          <div className="mt-[10px] flex justify-end">
             <button type="submit" className="ec-btn ec-btn-primary">{editId ? '수정' : '등록'}</button>
           </div>
         </form>
@@ -308,15 +308,15 @@ export default function OrderTypePage() {
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th rowSpan={2} style={{ width: 34, textAlign: 'center' }}>
+            <th rowSpan={2} className="w-[34px] text-center">
               <input type="checkbox"
                      checked={shown.length > 0 && shown.every((r) => checked.has(r.id))}
                      onChange={() => setChecked(
                        shown.every((r) => checked.has(r.id)) ? new Set() : new Set(shown.map((r) => r.id)),
                      )} />
             </th>
-            <th rowSpan={2} style={{ width: 90 }}>유형코드</th>
-            <th rowSpan={2} style={{ width: 130 }}>유형명</th>
+            <th rowSpan={2} className="w-[90px]">유형코드</th>
+            <th rowSpan={2} className="w-[130px]">유형명</th>
             {/*
               원본은 단계를 <b>[1단계] ~ [10단계] 열 열 개</b>로 편다(열 id STEPS∬S1…S10).
               우리는 '진행단계 (1 → n)' 한 칸에 몰아넣고 있었는데, 그 칸에 실제로 그려지던
@@ -331,13 +331,13 @@ export default function OrderTypePage() {
               그대로 읽는다) 사람 이름은 <b>줄 칸 안 둘째 줄</b>에 낸다.
             */}
             {STEP_COLS.map((n) => (
-              <th key={n} style={{ width: 96 }}>{n}단계</th>
+              <th key={n} className="w-[96px]">{n}단계</th>
             ))}
-            <th rowSpan={2} style={{ width: 80, textAlign: 'center' }}>사용구분</th>
-            <th rowSpan={2} style={{ width: 110, textAlign: 'center' }}>입력메뉴에서 사용</th>
+            <th rowSpan={2} className="w-[80px] text-center">사용구분</th>
+            <th rowSpan={2} className="w-[110px] text-center">입력메뉴에서 사용</th>
             {/* 안 정한 유형은 '어느 화면에서나' 다 — 빈칸으로 두면 안 정한 것과 못 쓰는 것이 같아 보인다. */}
-            <th rowSpan={2} style={{ width: 130 }}>처리메뉴</th>
-            <th rowSpan={2} style={{ width: 90 }}>관리</th>
+            <th rowSpan={2} className="w-[130px]">처리메뉴</th>
+            <th rowSpan={2} className="w-[90px]">관리</th>
           </tr>
           {/*
             원본 머리는 <b>두 줄</b>이다 — 단계 열 아래에 [담당자] 가 한 줄 더 붙는다
@@ -346,18 +346,18 @@ export default function OrderTypePage() {
           */}
           <tr>
             {STEP_COLS.map((n) => (
-              <th key={`c${n}`} style={{ fontWeight: 400, fontSize: 11.5, color: '#5a626e' }}>담당자</th>
+              <th key={`c${n}`} style={{ fontWeight: 400, fontSize: 11.5, color: 'var(--ec-label)' }}>담당자</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={17} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={17} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={17} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={17} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <input type="checkbox" checked={checked.has(r.id)} onChange={() => setChecked((prev) => {
                   const next = new Set(prev)
                   if (next.has(r.id)) next.delete(r.id); else next.add(r.id)
@@ -365,7 +365,7 @@ export default function OrderTypePage() {
                 })} />
               </td>
               {/* 원본은 코드·이름을 눌러 그 건을 연다(사본 실측: 두 칸이 링크다). */}
-              <td style={{ fontFamily: 'monospace' }}>
+              <td>
                 <button type="button" onClick={() => openEdit(r)}
                         style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'monospace', fontSize: 12.5 }}>
                   {r.code}
@@ -383,23 +383,23 @@ export default function OrderTypePage() {
                   <td key={n} style={{ color: st ? undefined : '#e2e6ea' }}>
                     {st ? st.stageName : '·'}
                     {st && (
-                      <div style={{ fontSize: 11, color: st.charge ? '#5a626e' : '#c9ced6' }}>
+                      <div style={{ fontSize: 11, color: st.charge ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>
                         {st.charge ?? '·'}
                       </div>
                     )}
                   </td>
                 )
               })}
-              <td style={{ textAlign: 'center', fontWeight: 700, color: r.active ? '#1c7c3c' : '#9aa1ab' }}>{r.active ? '사용' : '미사용'}</td>
-              <td style={{ textAlign: 'center', color: r.useInInput ? '#1c7c3c' : '#9aa1ab' }}>
+              <td style={{ textAlign: 'center', fontWeight: 700, color: r.active ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>{r.active ? '사용' : '미사용'}</td>
+              <td style={{ textAlign: 'center', color: r.useInInput ? 'var(--ec-success)' : 'var(--ec-text-hint)' }}>
                 {r.useInInput ? 'YES' : 'NO'}
               </td>
-              <td style={{ color: r.procMenu ? undefined : '#9aa1ab', fontSize: 11.5 }}>
+              <td style={{ color: r.procMenu ? undefined : 'var(--ec-text-hint)', fontSize: 11.5 }}>
                 {r.procMenu ? (FLAT_MENU.find((m) => m.to === r.procMenu)?.label ?? r.procMenu) : '어느 화면에서나'}
               </td>
               <td>
                 <button onClick={() => openEdit(r)} style={{ color: 'var(--ec-blue)', marginRight: 8, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>수정</button>
-                <button onClick={() => remove(r)} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                <button onClick={() => remove(r)} style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
               </td>
             </tr>
           ))}

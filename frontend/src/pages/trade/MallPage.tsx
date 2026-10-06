@@ -3,7 +3,8 @@ import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Item, MallOrder, MallOrderStatus, MallOverview, Partner, Warehouse } from '../../api/types'
+import type { Item, MallOrder, MallOrderStatus, MallOverview, Partner, Warehouse } from '../../types/api'
+import { partnerCodeItems } from '../../utils/codeItems'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 
@@ -17,9 +18,9 @@ const TAB_STATUS: Record<Exclude<Tab, '전체'>, MallOrderStatus> = {
   반품: 'RETURNED', 교환: 'EXCHANGED', 취소: 'CANCELLED',
 }
 const statusColor = (s: MallOrderStatus) =>
-  s === 'CONVERTED' || s === 'SHIPPED' ? '#1c7c3c'
-    : s === 'RETURNED' ? '#c60a2e' : s === 'EXCHANGED' ? '#8a5cf6'
-    : s === 'CANCELLED' ? '#8a929c' : s === 'CONFIRMED' ? 'var(--ec-blue)' : '#c07a00'
+  s === 'CONVERTED' || s === 'SHIPPED' ? 'var(--ec-success)'
+    : s === 'RETURNED' ? 'var(--ec-danger)' : s === 'EXCHANGED' ? '#8a5cf6'
+    : s === 'CANCELLED' ? 'var(--ec-text-hint)' : s === 'CONFIRMED' ? 'var(--ec-blue)' : 'var(--ec-warn)'
 
 /**
  * 재고 I > 쇼핑몰관리 — 외부몰 주문 수집 → 확인 → 판매전환.
@@ -93,44 +94,44 @@ export default function MallPage() {
 
   return (
     <EcListShell title="쇼핑몰관리" actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+      <div className="flex items-center gap-[6px] mb-[8px]">
         <button className="ec-btn ec-btn-primary" onClick={() => setShowForm(true)}>+ 주문 수집(F2)</button>
-        <span style={{ fontSize: 12, color: '#9aa1ab' }}>
+        <span className="text-[12px] text-ec-hint">
           수집 → 확인 → 판매전환. 재고 차감·채권 계상은 판매전표가 합니다(몰이 재고를 직접 건드리지 않습니다).
         </span>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
 
-      <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
-        <Box label="총 주문" value={`${data?.totalOrders ?? 0} 건`} color="var(--ec-blue-dark)" bg="#f7f9fb" />
-        <Box label="주문 금액" value={`${won(data?.totalAmount ?? 0)} 원`} color="var(--ec-blue)" bg="#f7f9ff" />
-        <Box label="품목 미매핑" value={`${data?.unmapped ?? 0} 건`} color={(data?.unmapped ?? 0) > 0 ? '#c60a2e' : '#2f8401'} bg={(data?.unmapped ?? 0) > 0 ? '#fdf6f6' : '#f4faf5'} />
-        <Box label="미전환" value={`${data?.unconverted ?? 0} 건`} color={(data?.unconverted ?? 0) > 0 ? '#c07a00' : '#2f8401'} bg="#f7f9fb" />
+      <div className="flex gap-[10px] mb-[10px]">
+        <Box label="총 주문" value={`${data?.totalOrders ?? 0} 건`} color="var(--ec-blue-dark)" bg="var(--ec-bg-page)" />
+        <Box label="주문 금액" value={`${won(data?.totalAmount ?? 0)} 원`} color="var(--ec-blue)" bg="var(--ec-blue-wash)" />
+        <Box label="품목 미매핑" value={`${data?.unmapped ?? 0} 건`} color={(data?.unmapped ?? 0) > 0 ? 'var(--ec-danger)' : '#2f8401'} bg={(data?.unmapped ?? 0) > 0 ? 'var(--ec-danger-bg)' : 'var(--ec-success-bg)'} />
+        <Box label="미전환" value={`${data?.unconverted ?? 0} 건`} color={(data?.unconverted ?? 0) > 0 ? 'var(--ec-warn)' : '#2f8401'} bg="var(--ec-bg-page)" />
       </div>
 
       {(data?.byMall.length ?? 0) > 0 && (
         <>
-          <div style={{ padding: '6px 8px', background: '#f5f7fa', border: '1px solid var(--ec-border)', borderBottom: 'none', fontSize: 12.5, fontWeight: 700, color: 'var(--ec-blue-dark)' }}>
+          <div style={{ padding: '6px 8px', background: 'var(--ec-bg-page)', border: '1px solid var(--ec-border)', borderBottom: 'none', fontSize: 12.5, fontWeight: 700, color: 'var(--ec-blue-dark)' }}>
             몰별 집계
           </div>
-          <table className="w-full text-left" style={{ marginBottom: 12 }}>
+          <table className="w-full text-left mb-[12px]">
             <thead>
               <tr>
                 <th>몰</th>
-                <th style={{ textAlign: 'right' }}>주문 건수</th>
-                <th style={{ textAlign: 'right' }}>주문 금액</th>
-                <th style={{ textAlign: 'right' }}>미전환</th>
+                <th className="text-right">주문 건수</th>
+                <th className="text-right">주문 금액</th>
+                <th className="text-right">미전환</th>
               </tr>
             </thead>
             <tbody>
               {data!.byMall.map((m) => (
                 <tr key={m.mall}>
-                  <td style={{ fontWeight: 600 }}>{m.mall}</td>
-                  <td style={{ textAlign: 'right' }}>{m.orderCount}</td>
-                  <td style={{ textAlign: 'right' }}>{won(m.totalAmount)}</td>
-                  <td style={{ textAlign: 'right', color: m.unconverted > 0 ? '#c07a00' : '#c3c8cf' }}>{m.unconverted}</td>
+                  <td className="font-semibold">{m.mall}</td>
+                  <td className="text-right">{m.orderCount}</td>
+                  <td className="text-right">{won(m.totalAmount)}</td>
+                  <td style={{ textAlign: 'right', color: m.unconverted > 0 ? 'var(--ec-warn)' : 'var(--ec-text-off)' }}>{m.unconverted}</td>
                 </tr>
               ))}
             </tbody>
@@ -153,59 +154,56 @@ export default function MallPage() {
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th className="w-[34px]"></th>
             <th>몰</th>
             <th>몰 주문번호</th>
             <th>주문일</th>
             <th>구매자</th>
             <th>몰 상품명</th>
-            <th style={{ width: 180 }}>품목 매핑</th>
-            <th style={{ textAlign: 'right' }}>수량</th>
-            <th style={{ textAlign: 'right' }}>단가</th>
-            <th style={{ textAlign: 'right' }}>금액</th>
-            <th style={{ textAlign: 'center' }}>상태</th>
-            <th style={{ textAlign: 'center', width: 130 }}>처리</th>
+            <th className="w-[180px]">품목 매핑</th>
+            <th className="text-right">수량</th>
+            <th className="text-right">단가</th>
+            <th className="text-right">금액</th>
+            <th className="text-center">상태</th>
+            <th className="text-center w-[130px]">처리</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={12} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={12} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((o, i) => {
             const open = o.status === 'RECEIVED' || o.status === 'CONFIRMED'
             return (
               <tr key={o.id}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
                 <td>{o.mall}</td>
-                <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{o.mallOrderNo}</td>
+                <td className="text-ec-blue">{o.mallOrderNo}</td>
                 <td>{dateText(o.orderDate)}</td>
                 <td>{o.buyerName}</td>
-                <td style={{ color: '#5a626e' }}>{o.productName}</td>
+                <td className="text-ec-label">{o.productName}</td>
                 <td>
                   {open ? (
-                    <select
-                      className="ec-input"
-                      value={o.itemId ?? ''}
-                      onChange={(e) => mapItem(o, e.target.value)}
-                      style={{ width: '100%', borderColor: o.itemId ? undefined : '#c60a2e' }}
-                    >
-                      <option value="">(미매핑)</option>
-                      {items.map((it) => <option key={it.id} value={it.id}>{it.code} {it.name}</option>)}
-                    </select>
+                    /* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). 미매핑이면 빨간 테두리는 감싼 칸이 맡는다. */
+                    <div style={{ outline: o.itemId ? undefined : '1px solid var(--ec-danger)' }}>
+                      <CodePickerField label="품목" hideLabel fill placeholder="품목(미매핑)" emptyLabel="선택 안 함"
+                                       value={String(o.itemId ?? '')} onChange={(v) => mapItem(o, v)}
+                                       items={items.filter((it) => it.active !== false || it.id === o.itemId).map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))} />
+                    </div>
                   ) : (
                     <span>{o.itemName ?? '-'}</span>
                   )}
                 </td>
-                <td style={{ textAlign: 'right' }}>{won(o.quantity)}</td>
-                <td style={{ textAlign: 'right' }}>{won(o.unitPrice)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(o.totalAmount)}</td>
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-right">{won(o.quantity)}</td>
+                <td className="text-right">{won(o.unitPrice)}</td>
+                <td className="text-right font-bold">{won(o.totalAmount)}</td>
+                <td className="text-center">
                   <span style={{ color: statusColor(o.status) }}>{o.statusName}</span>
-                  {o.salesDocNo && <div style={{ fontSize: 10.5, color: '#1c7c3c' }}>{o.salesDocNo}</div>}
-                  {o.trackingNo && <div style={{ fontSize: 10.5, color: '#5a626e' }}>{o.courier} {o.trackingNo}</div>}
-                  {o.closeReason && <div style={{ fontSize: 10.5, color: '#c07a00' }}>{o.closedAt}: {o.closeReason}</div>}
+                  {o.salesDocNo && <div className="text-[10.5px] text-ec-success">{o.salesDocNo}</div>}
+                  {o.trackingNo && <div className="text-[10.5px] text-ec-label">{o.courier} {o.trackingNo}</div>}
+                  {o.closeReason && <div className="text-[10.5px] text-ec-warn">{o.closedAt}: {o.closeReason}</div>}
                 </td>
-                <td style={{ textAlign: 'center' }}>
-                  <div style={{ display: 'inline-flex', gap: 3 }}>
+                <td className="text-center">
+                  <div className="inline-flex gap-[3px]">
                     {o.status === 'RECEIVED' && <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => act(o, 'confirm')}>확인</button>}
                     {o.status === 'CONFIRMED' && (
                       <button className="ec-btn ec-btn-primary" style={{ height: 20, padding: '0 8px' }} onClick={() => setConverting(o)}>판매전환</button>
@@ -215,11 +213,11 @@ export default function MallPage() {
                     )}
                     {o.status === 'SHIPPED' && (
                       <>
-                        <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => setFulfill({ order: o, action: 'return' })}>반품</button>
+                        <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: 'var(--ec-danger)' }} onClick={() => setFulfill({ order: o, action: 'return' })}>반품</button>
                         <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#8a5cf6' }} onClick={() => setFulfill({ order: o, action: 'exchange' })}>교환</button>
                       </>
                     )}
-                    {open && <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => act(o, 'cancel')}>취소</button>}
+                    {open && <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: 'var(--ec-danger)' }} onClick={() => act(o, 'cancel')}>취소</button>}
                   </div>
                 </td>
               </tr>
@@ -292,41 +290,41 @@ function FulfillForm({ order, action, onClose, onSaved }: {
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 460, maxWidth: '94vw', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: '#f5f7fa' }}>
-          <span style={{ fontWeight: 800, color: 'var(--ec-blue-dark)' }}>{title}</span>
-          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: '#8a929c' }}>×</span>
+        <div className="flex items-center py-[12px] px-[16px] border-b border-b-ec-line border-solid bg-ec-page">
+          <span className="font-extrabold text-ec-navy">{title}</span>
+          <span onClick={onClose} className="ml-auto cursor-pointer text-[18px] text-ec-hint">×</span>
         </div>
-        <div style={{ padding: 16 }}>
-          {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-          <p style={{ fontSize: 12.5, color: '#5a626e', marginBottom: 10 }}>
+        <div className="p-[16px]">
+          {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+          <p className="text-[12.5px] text-ec-label mb-[10px]">
             {order.mall} / {order.mallOrderNo} · {order.buyerName} · {order.productName}
           </p>
           <table className="w-full text-left"><tbody>
             {(isShip || action === 'exchange') && (
               <>
                 <tr>
-                  <th style={{ width: 90, background: '#f5f7fa' }}>택배사{isShip && <span style={{ color: '#c60a2e' }}>*</span>}</th>
+                  <th className="w-[90px] bg-ec-page">택배사{isShip && <span className="text-ec-danger">*</span>}</th>
                   <td><input className="ec-input" value={courier} onChange={(e) => setCourier(e.target.value)} style={{ width: '100%' }} placeholder="예: CJ대한통운" /></td>
                 </tr>
                 <tr>
-                  <th style={{ background: '#f5f7fa' }}>송장번호{isShip && <span style={{ color: '#c60a2e' }}>*</span>}</th>
+                  <th className="bg-ec-page">송장번호{isShip && <span className="text-ec-danger">*</span>}</th>
                   <td><input className="ec-input" value={trackingNo} onChange={(e) => setTrackingNo(e.target.value)} style={{ width: '100%' }} /></td>
                 </tr>
               </>
             )}
             {!isShip && (
               <tr>
-                <th style={{ background: '#f5f7fa' }}>사유<span style={{ color: '#c60a2e' }}>*</span></th>
+                <th className="bg-ec-page">사유<span className="text-ec-danger">*</span></th>
                 <td><input className="ec-input" value={reason} onChange={(e) => setReason(e.target.value)} style={{ width: '100%' }} placeholder={action === 'return' ? '예: 단순변심' : '예: 사이즈 교환'} /></td>
               </tr>
             )}
             <tr>
-              <th style={{ background: '#f5f7fa' }}>{isShip ? '배송일' : '처리일'}</th>
-              <td><input className="ec-input" type="date" value={dateText(date)} onChange={(e) => setDate(e.target.value)} style={{ width: 160 }} /></td>
+              <th className="bg-ec-page">{isShip ? '배송일' : '처리일'}</th>
+              <td><input className="ec-input" type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ width: 160 }} /></td>
             </tr>
           </tbody></table>
         </div>
-        <div style={{ display: 'flex', gap: 6, padding: '10px 16px', borderTop: '1px solid var(--ec-border)' }}>
+        <div className="flex gap-[6px] py-[10px] px-[16px] border-t border-t-ec-line border-solid">
           <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>{saving ? '처리 중…' : title}</button>
           <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={onClose}>닫기</button>
         </div>
@@ -338,7 +336,7 @@ function FulfillForm({ order, action, onClose, onSaved }: {
 function Box({ label, value, color, bg }: { label: string; value: string; color: string; bg: string }) {
   return (
     <div style={{ flex: 1, border: '1px solid var(--ec-border)', background: bg, padding: '10px 14px' }}>
-      <div style={{ fontSize: 12, color: '#5a626e' }}>{label}</div>
+      <div className="text-[12px] text-ec-label">{label}</div>
       <div style={{ fontSize: 19, fontWeight: 800, color }}>{value}</div>
     </div>
   )
@@ -397,54 +395,54 @@ function CollectForm({ items, mallNames, onClose, onSaved }: {
       <table className="w-full text-left">
         <tbody>
           <tr>
-            <th style={{ width: 100, background: '#f5f7fa' }}>몰<span style={{ color: '#c60a2e' }}>*</span></th>
+            <th className="w-[100px] bg-ec-page">몰<span className="text-ec-danger">*</span></th>
             <td>
               <input className="ec-input" value={mall} onChange={(e) => setMall(e.target.value)} style={{ width: 140 }} list="mall-name-list" />
               <datalist id="mall-name-list">{mallNames.map((n) => <option key={n} value={n} />)}</datalist>
             </td>
-            <th style={{ width: 90, background: '#f5f7fa' }}>몰 주문번호<span style={{ color: '#c60a2e' }}>*</span></th>
+            <th className="w-[90px] bg-ec-page">몰 주문번호<span className="text-ec-danger">*</span></th>
             <td><input className="ec-input" value={mallOrderNo} onChange={(e) => setMallOrderNo(e.target.value)} placeholder="예: 2026071400123" style={{ width: 160 }} /></td>
           </tr>
           <tr>
-            <th style={{ background: '#f5f7fa' }}>주문일</th>
-            <td><input type="date" className="ec-input" value={dateText(orderDate)} onChange={(e) => setOrderDate(e.target.value)} style={{ width: 140 }} /></td>
-            <th style={{ background: '#f5f7fa' }}>구매자<span style={{ color: '#c60a2e' }}>*</span></th>
+            <th className="bg-ec-page">주문일</th>
+            <td><input type="date" className="ec-input" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} style={{ width: 140 }} /></td>
+            <th className="bg-ec-page">구매자<span className="text-ec-danger">*</span></th>
             <td><input className="ec-input" value={buyerName} onChange={(e) => setBuyerName(e.target.value)} style={{ width: 160 }} /></td>
           </tr>
           <tr>
-            <th style={{ background: '#f5f7fa' }}>연락처</th>
+            <th className="bg-ec-page">연락처</th>
             <td><input className="ec-input" value={buyerPhone} onChange={(e) => setBuyerPhone(e.target.value)} style={{ width: 140 }} /></td>
-            <th style={{ background: '#f5f7fa' }}>배송지</th>
+            <th className="bg-ec-page">배송지</th>
             <td><input className="ec-input" value={address} onChange={(e) => setAddress(e.target.value)} style={{ width: 160 }} /></td>
           </tr>
           <tr>
-            <th style={{ background: '#f5f7fa' }}>몰 상품명<span style={{ color: '#c60a2e' }}>*</span></th>
+            <th className="bg-ec-page">몰 상품명<span className="text-ec-danger">*</span></th>
             <td colSpan={3}><input className="ec-input" value={productName} onChange={(e) => setProductName(e.target.value)} placeholder="몰이 보내준 상품명 원문" style={{ width: '100%' }} /></td>
           </tr>
           <tr>
-            <th style={{ background: '#f5f7fa' }}>몰품목코드</th>
+            <th className="bg-ec-page">몰품목코드</th>
             <td colSpan={3}>
               <input className="ec-input" value={mallProductCode} onChange={(e) => setMallProductCode(e.target.value)} placeholder="몰 상품 key (예: NSP-1001)" style={{ width: 220 }} />
-              <span style={{ marginLeft: 8, fontSize: 11.5, color: '#9aa1ab' }}>품목코드연결에 등록돼 있으면 품목이 자동 연결됩니다.</span>
+              <span className="ml-[8px] text-[11.5px] text-ec-hint">품목코드연결에 등록돼 있으면 품목이 자동 연결됩니다.</span>
             </td>
           </tr>
           <tr>
-            <th style={{ background: '#f5f7fa' }}>품목 매핑</th>
+            <th className="bg-ec-page">품목 매핑</th>
             <td colSpan={3}>
             {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다. */}
             <CodePickerField label="품목 매핑" hideLabel width={280} emptyLabel="(비우면 몰품목코드로 자동연결 시도)"
                              value={itemId} onChange={setItemId}
                              items={items.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
-              <span style={{ marginLeft: 8, fontSize: 11.5, color: '#9aa1ab' }}>매핑해야 판매전환할 수 있습니다.</span>
+              <span className="ml-[8px] text-[11.5px] text-ec-hint">매핑해야 판매전환할 수 있습니다.</span>
             </td>
           </tr>
           <tr>
-            <th style={{ background: '#f5f7fa' }}>수량 / 단가</th>
+            <th className="bg-ec-page">수량 / 단가</th>
             <td colSpan={3}>
               <input className="ec-input" type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} style={{ width: 80, textAlign: 'right' }} />
-              <span style={{ margin: '0 6px' }}>×</span>
+              <span className="my-0 mx-[6px]">×</span>
               <input className="ec-input" type="number" value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} style={{ width: 120, textAlign: 'right' }} />
-              <span style={{ marginLeft: 8, fontWeight: 700 }}>= {won(total)} 원</span>
+              <span className="ml-[8px] font-bold">= {won(total)} 원</span>
             </td>
           </tr>
         </tbody>
@@ -488,24 +486,23 @@ function ConvertForm({ order, partners, warehouses, onClose, onSaved }: {
       <table className="w-full text-left">
         <tbody>
           <tr>
-            <th style={{ width: 110, background: '#f5f7fa' }}>주문</th>
+            <th className="w-[110px] bg-ec-page">주문</th>
             <td>{order.productName} · {won(order.quantity)}개 × {won(order.unitPrice)}원 = <b>{won(order.totalAmount)}원</b></td>
           </tr>
           <tr>
-            <th style={{ background: '#f5f7fa' }}>품목</th>
-            <td>{order.itemName ?? <span style={{ color: '#c60a2e' }}>미매핑</span>}</td>
+            <th className="bg-ec-page">품목</th>
+            <td>{order.itemName ?? <span className="text-ec-danger">미매핑</span>}</td>
           </tr>
           <tr>
-            <th style={{ background: '#f5f7fa' }}>거래처(몰)<span style={{ color: '#c60a2e' }}>*</span></th>
+            <th className="bg-ec-page">거래처(몰)<span className="text-ec-danger">*</span></th>
             <td>
-              <select className="ec-input" value={partnerId} onChange={(e) => setPartnerId(e.target.value)} style={{ width: 220 }}>
-                <option value="">매출처 선택</option>
-                {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
+              <CodePickerField label="거래처(몰)" hideLabel width={220} emptyLabel="선택 안 함" placeholder="매출처 선택"
+                               value={partnerId} onChange={setPartnerId}
+                               items={partnerCodeItems(partners.filter((p) => p.type !== 'SUPPLIER'))} />
             </td>
           </tr>
           <tr>
-            <th style={{ background: '#f5f7fa' }}>출고 창고<span style={{ color: '#c60a2e' }}>*</span></th>
+            <th className="bg-ec-page">출고 창고<span className="text-ec-danger">*</span></th>
             <td>
               <select className="ec-input" value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} style={{ width: 220 }}>
                 {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
@@ -513,16 +510,16 @@ function ConvertForm({ order, partners, warehouses, onClose, onSaved }: {
             </td>
           </tr>
           <tr>
-            <th style={{ background: '#f5f7fa' }}>과세</th>
+            <th className="bg-ec-page">과세</th>
             <td>
-              <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <label className="text-[12.5px] flex items-center gap-[4px]">
                 <input type="checkbox" checked={taxable} onChange={(e) => setTaxable(e.target.checked)} /> 부가세 10% 부과
               </label>
             </td>
           </tr>
         </tbody>
       </table>
-      <p style={{ marginTop: 10, fontSize: 11.5, color: '#9aa1ab' }}>
+      <p className="mt-[10px] text-[11.5px] text-ec-hint">
         ※ 전환하면 판매전표가 만들어지고 재고가 차감됩니다. 재고가 부족하면 전환이 거부됩니다.
       </p>
     </Modal>
@@ -540,15 +537,15 @@ function Modal({ title, children, onClose, onSave, saving, error }: {
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 620, maxWidth: '94vw', maxHeight: '90vh', overflow: 'auto', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: '#f5f7fa' }}>
-          <span style={{ fontWeight: 800, color: 'var(--ec-blue-dark)' }}>{title}</span>
-          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: '#8a929c' }}>×</span>
+        <div className="flex items-center py-[12px] px-[16px] border-b border-b-ec-line border-solid bg-ec-page">
+          <span className="font-extrabold text-ec-navy">{title}</span>
+          <span onClick={onClose} className="ml-auto cursor-pointer text-[18px] text-ec-hint">×</span>
         </div>
-        <div style={{ padding: 16 }}>
-          {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+        <div className="p-[16px]">
+          {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
           {children}
         </div>
-        <div style={{ display: 'flex', gap: 6, padding: '10px 16px', borderTop: '1px solid var(--ec-border)' }}>
+        <div className="flex gap-[6px] py-[10px] px-[16px] border-t border-t-ec-line border-solid">
           <button className="ec-btn ec-btn-primary" onClick={onSave} disabled={saving}>{saving ? '처리 중…' : '확인(F8)'}</button>
           <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={onClose}>닫기</button>
         </div>

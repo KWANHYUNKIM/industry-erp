@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import Modal from './Modal'
 
 /**
@@ -72,17 +72,57 @@ export default function CodePickerField({
   values?: string[]
   onChangeMulti?: (values: string[], items: CodeItem[]) => void
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, rawSetOpen] = useState(false)
+  /*
+   * <b>고르자마자 다시 열리던 것</b>(QA 55회차). 팝업(Modal)은 portal 이 아니라 이 칸 자리에 그려진다 —
+   * 그래서 칸을 <code>&lt;label&gt;</code> 로 감싼 화면(기타이동·은행카드·특별단가 등 15곳)에서는 팝업 안을
+   * 누르면 브라우저가 label 의 '연결된 칸 누르기' 를 한 번 더 일으켜, 방금 닫은 팝업이 바로 다시 열렸다.
+   * 그 가짜 클릭은 detail 이 0 이다. 닫은 직후의 detail 0 클릭만 무시한다 — 키보드(Enter·Space)로 여는 것은 그대로다.
+   */
+  const closedAt = useRef(0)
+  const setOpen = (v: boolean) => { if (!v) closedAt.current = Date.now(); rawSetOpen(v) }
+  const openFrom = (e: React.MouseEvent) => {
+    if (e.detail === 0 && Date.now() - closedAt.current < 400) return
+    setOpen(true)
+  }
   const [q, setQ] = useState('')
+  /**
+   * 전표 코드칸(pair)에 <b>직접 친 글자</b>. 원본 판매입력 [거래처]·[출하창고]는 코드칸에 바로 쳐서 Enter 한다 —
+   * 2026-10-06 loginaa 실측: 걸리는 것이 한 건이면 바로 고르고(창고 '10'… 은 100·101·102 셋이라 창),
+   * 정확히 같은 코드가 있어도 다른 코드에 함께 걸리면(거래처 '00001' → 00001 · 0000000000001 · SG00001) 고르지 않고
+   * 그 검색어로 목록 창을 연다. 없으면 빈 목록 창. 예전엔 코드칸이 읽기 전용이라 먼저 창부터 열렸다.
+   */
+  const [typed, setTyped] = useState<string | null>(null)
+  function submitTyped() {
+    const needle = (typed ?? '').trim()
+    setTyped(null)
+    if (!needle) { setOpen(true); return }
+    const low = needle.toLowerCase()
+    const hits = items.filter((i) => `${i.code ?? ''} ${i.name}`.toLowerCase().includes(low))
+    if (hits.length === 1) { pick(hits[0]); return }
+    setQ(needle)
+    setOpen(true)
+  }
 
   const picked = values ?? []
   const selected = items.find((i) => i.value === value) ?? null
   const pickedItems = items.filter((i) => picked.includes(i.value))
+  /**
+   * 고른 뒤 칸에 적는 이름. 같은 이름의 후보가 또 있으면 <b>규격(sub)이나 코드를 덧붙인다.</b>
+   * 조건 값이 id 라 거르는 건 정확한데, 칸에는 이름만 남아 '어느 QA동명상사를 골랐는지'
+   * 다시 볼 길이 없었다(이름이 같고 규격만 다른 품목이 제조업에선 정상이다).
+   */
+  const labelOf = (i: CodeItem) => {
+    const twins = items.filter((x) => x.name === i.name && x.value !== i.value)
+    if (!twins.length) return i.name
+    const subUnique = i.sub && twins.every((x) => x.sub !== i.sub)
+    return subUnique ? `${i.name} [${i.sub}]` : `${i.name} (${i.code ?? i.value})`
+  }
   const display = multiple
     ? (pickedItems.length === 0 ? ''
-      : pickedItems.length === 1 ? pickedItems[0].name
-      : `${pickedItems[0].name} 외 ${pickedItems.length - 1}명`)
-    : (selected ? selected.name : '')
+      : pickedItems.length === 1 ? labelOf(pickedItems[0])
+      : `${labelOf(pickedItems[0])} 외 ${pickedItems.length - 1}명`)
+    : (selected ? labelOf(selected) : '')
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase()
     if (!needle) return items
@@ -115,25 +155,28 @@ export default function CodePickerField({
   // 입력칸으로 전달돼 행 선택이 먹히지 않고 팝업이 닫히지 않는다(실제로 그렇게 동작했다).
   return (
     <div style={{ fontSize: 12.5, width: fill ? "100%" : undefined }}>
-      {!hideLabel && <div style={{ color: '#5a626e', marginBottom: 3 }}>{label}</div>}
+      {!hideLabel && <div className="text-ec-label mb-[3px]">{label}</div>}
 
       {pair ? (
         /* 전표 코드칸: [코드][🔍][명칭][×] — 원본 .control > .form-control-code */
         <div className="ec-code">
           <input
             className="ec-input code"
-            readOnly
             disabled={disabled}
-            value={selected?.code ?? ''}
+            value={typed ?? selected?.code ?? ''}
             placeholder={label}
-            onClick={() => !disabled && setOpen(true)}
-            style={{ background: disabled ? '#f4f5f7' : undefined, cursor: disabled ? 'default' : 'pointer' }}
+            onChange={(e) => setTyped(e.target.value)}
+            // <form> 안에서 Enter 가 바깥 폼을 제출하지 않게 막는다
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submitTyped() } }}
+            // 고르지 않고 떠나면 친 글자를 버리고 원래 값으로 돌아간다
+            onBlur={() => setTyped(null)}
+            style={{ background: disabled ? '#f4f5f7' : undefined }}
           />
           <button
             type="button"
             className="ec-btn"
             disabled={disabled}
-            onClick={() => setOpen(true)}
+            onClick={openFrom}
             title={`${label} 코드도움`}
           >
             🔍
@@ -144,12 +187,12 @@ export default function CodePickerField({
             disabled={disabled}
             value={selected?.name ?? ''}
             placeholder=""
-            onClick={() => !disabled && setOpen(true)}
+            onClick={(e) => !disabled && openFrom(e)}
             title={selected ? `${selected.code ?? ''} ${selected.name}`.trim() : ''}
             style={{ background: disabled ? '#f4f5f7' : '#fff', cursor: disabled ? 'default' : 'pointer' }}
           />
           {!!selected && !disabled && (
-            <button type="button" className="ec-btn" onClick={clearAll} title="선택 해제" style={{ color: '#c60a2e' }}>
+            <button type="button" className="ec-btn" onClick={clearAll} title="선택 해제" style={{ color: 'var(--ec-danger)' }}>
               ×
             </button>
           )}
@@ -157,12 +200,12 @@ export default function CodePickerField({
       ) : (
       <div style={{ display: 'flex', width: fill ? '100%' : undefined }}>
         <input
-          className="ec-input"
+          className="ec-input ec-pick-input"
           readOnly
           disabled={disabled}
           value={display}
           placeholder={placeholder ?? label}
-          onClick={() => !disabled && setOpen(true)}
+          onClick={(e) => !disabled && openFrom(e)}
           style={{ width: fill ? '100%' : width, flex: fill ? 1 : undefined, minWidth: 0,
                    cursor: disabled ? 'default' : 'pointer', background: disabled ? '#f4f5f7' : undefined }}
           title={multiple ? pickedItems.map((i) => i.name).join(', ') : (selected ? `${selected.code ?? ''} ${selected.name}`.trim() : (placeholder ?? label))}
@@ -171,7 +214,7 @@ export default function CodePickerField({
           type="button"
           className="ec-btn"
           disabled={disabled}
-          onClick={() => setOpen(true)}
+          onClick={openFrom}
           title={`${label} 선택`}
           style={{ marginLeft: -1, padding: '0 7px' }}
         >
@@ -183,7 +226,7 @@ export default function CodePickerField({
             className="ec-btn"
             onClick={clearAll}
             title="선택 해제"
-            style={{ marginLeft: -1, padding: '0 6px', color: '#c60a2e' }}
+            style={{ marginLeft: -1, padding: '0 6px', color: 'var(--ec-danger)' }}
           >
             ×
           </button>
@@ -192,35 +235,37 @@ export default function CodePickerField({
       )}
 
       <Modal open={open} title={`${label} 선택`} width={520} onClose={() => setOpen(false)}>
-        <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+        <div className="flex gap-[6px] mb-[8px]">
           <input
             className="ec-input"
             autoFocus
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && shown.length === 1) pick(shown[0]) }}
+            // <form> 안에 놓이면 Enter 가 바깥 폼을 제출해 버린다 — 막는다
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (shown.length === 1) pick(shown[0]) } }}
             placeholder={items.some((i) => i.extra) ? '코드·이름 외에 대표자·전화·주소로도 찾습니다' : '코드 또는 이름으로 검색'}
             style={{ flex: 1 }}
           />
-          <span style={{ fontSize: 12.5, color: '#8a929c', alignSelf: 'center' }}>{shown.length}건</span>
+          <span style={{ fontSize: 12.5, color: 'var(--ec-text-hint)', alignSelf: 'center' }}>{shown.length}건</span>
         </div>
 
-        <div style={{ maxHeight: 320, overflowY: 'auto', border: '1px solid var(--ec-border)' }}>
+        <div className="max-h-[320px] overflow-y-auto border border-ec-line border-solid">
           <table className="w-full text-left">
             <thead><tr>
-              {multiple && <th style={{ width: 34 }}></th>}
-              <th style={{ width: 120 }}>코드</th>
+              {multiple && <th className="w-[34px]"></th>}
+              <th className="w-[120px]">코드</th>
               <th>이름</th>
-              <th style={{ width: 120 }}></th>
+              <th className="w-[120px]"></th>
             </tr></thead>
             <tbody>
-              {!multiple && (
-                <tr onClick={() => pick(null)} style={{ cursor: 'pointer' }}>
-                  <td colSpan={3} style={{ color: '#8a929c' }}>({emptyLabel})</td>
+              {/* emptyLabel="" — 꼭 하나를 골라야 하는 칸(수집데이터등록 [수신문서])은 지우기 줄이 없다. */}
+              {!multiple && emptyLabel !== '' && (
+                <tr onClick={() => pick(null)} className="cursor-pointer">
+                  <td colSpan={3} className="text-ec-hint">({emptyLabel})</td>
                 </tr>
               )}
               {shown.length === 0 ? (
-                <tr><td colSpan={multiple ? 4 : 3} style={{ textAlign: 'center', color: '#9aa1ab', padding: 16 }}>
+                <tr><td colSpan={multiple ? 4 : 3} className="text-center text-ec-hint p-[16px]">
                   검색 결과가 없습니다.
                 </td></tr>
               ) : shown.map((i) => {
@@ -232,13 +277,13 @@ export default function CodePickerField({
                     style={{ cursor: 'pointer', background: on ? 'var(--ec-blue-light)' : undefined }}
                   >
                     {multiple && (
-                      <td style={{ textAlign: 'center' }}>
+                      <td className="text-center">
                         <input type="checkbox" readOnly checked={on} />
                       </td>
                     )}
-                    <td style={{ fontFamily: 'monospace' }}>{i.code ?? ''}</td>
-                    <td style={{ fontWeight: 600 }}>{i.name}</td>
-                    <td style={{ color: '#8a929c' }}>{i.sub ?? ''}</td>
+                    <td>{i.code ?? ''}</td>
+                    <td className="font-semibold">{i.name}</td>
+                    <td className="text-ec-hint">{i.sub ?? ''}</td>
                   </tr>
                 )
               })}
@@ -247,12 +292,12 @@ export default function CodePickerField({
         </div>
 
         {multiple && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
-            <span style={{ fontSize: 12.5, color: '#5a626e' }}>
-              선택 <b style={{ color: 'var(--ec-blue)' }}>{picked.length}</b>명
-              {pickedItems.length > 0 && <span style={{ color: '#8a929c' }}> · {pickedItems.map((i) => i.name).join(', ')}</span>}
+          <div className="flex items-center gap-[8px] mt-[8px]">
+            <span className="text-[12.5px] text-ec-label">
+              선택 <b className="text-ec-blue">{picked.length}</b>명
+              {pickedItems.length > 0 && <span className="text-ec-hint"> · {pickedItems.map((i) => i.name).join(', ')}</span>}
             </span>
-            <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+            <div className="ml-auto flex gap-[6px]">
               <button type="button" className="ec-btn" onClick={clearAll}>전체 해제</button>
               <button type="button" className="ec-btn ec-btn-primary" onClick={() => { setOpen(false); setQ('') }}>확인</button>
             </div>

@@ -2,7 +2,7 @@ import { useEffect, useState, useRef} from 'react'
 import { Link } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
-import type { Partner } from '../../api/types'
+import type { Partner } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 
@@ -107,9 +107,9 @@ export default function SpecialPriceGroupPage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {/* 원본 조건 차례: 거래처 · 영업단가그룹 · 구매단가그룹 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+      <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label">
         <span>거래처</span>
         <input className="ec-input" value={partnerCond} onChange={(e) => setPartnerCond(e.target.value)}
                placeholder="거래처명 일부" style={{ width: 150 }} />
@@ -128,38 +128,38 @@ export default function SpecialPriceGroupPage() {
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처코드')}>거래처코드 {sort.mark('거래처코드')}</th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처명')}>거래처명 {sort.mark('거래처명')}</th>
-            <th style={{ textAlign: 'right', width: 200, cursor: 'pointer' }} onClick={() => sort.toggle('영업단가그룹명')}>영업단가그룹명 {sort.mark('영업단가그룹명')}</th>
-            <th style={{ textAlign: 'center', width: 200, cursor: 'pointer' }} onClick={() => sort.toggle('구매단가그룹명')}>구매단가그룹명 {sort.mark('구매단가그룹명')}</th>
+            <th className="w-[34px]"></th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('거래처코드')}>거래처코드 {sort.mark('거래처코드')}</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('거래처명')}>거래처명 {sort.mark('거래처명')}</th>
+            <th className="text-right w-[200px] cursor-pointer" onClick={() => sort.toggle('영업단가그룹명')}>영업단가그룹명 {sort.mark('영업단가그룹명')}</th>
+            <th className="text-center w-[200px] cursor-pointer" onClick={() => sort.toggle('구매단가그룹명')}>구매단가그룹명 {sort.mark('구매단가그룹명')}</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={5} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={5} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((p, i) => (
             <tr key={p.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
               {/*
                 원본은 코드·이름을 눌러 그 거래처를 연다(사본 실측). 이 화면은 단가그룹만
                 고치는 자리라 거래처등록으로 보낸다 — 이름으로 찾아 들어가면 된다.
               */}
-              <td style={{ fontFamily: 'monospace' }}>
+              <td>
                 <Link to={`/sales/partners?q=${encodeURIComponent(p.code)}`} style={{ color: 'var(--ec-blue)' }}>{p.code}</Link>
               </td>
               <td>
                 <Link to={`/sales/partners?q=${encodeURIComponent(p.name)}`} style={{ color: 'var(--ec-blue)' }}>{p.name}</Link>
               </td>
-              <td style={{ textAlign: 'right' }}>
+              <td className="text-right">
                 <select className="ec-input" value={groups[p.id]?.sales ?? ''} onChange={(e) => setGroup(p.id, 'sales', e.target.value)} style={{ width: '100%' }}>
                   <option value="">(미지정)</option>
                   {SALES_GROUPS.map((g) => <option key={g} value={g}>{g}</option>)}
                 </select>
               </td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <select className="ec-input" value={groups[p.id]?.purchase ?? ''} onChange={(e) => setGroup(p.id, 'purchase', e.target.value)} style={{ width: '100%' }}>
                   <option value="">(미지정)</option>
                   {PURCHASE_GROUPS.map((g) => <option key={g} value={g}>{g}</option>)}

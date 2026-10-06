@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { ManagementItem } from '../../api/types'
+import type { ManagementItem } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { useTableSort } from '../../utils/useTableSort'
@@ -129,22 +129,22 @@ export default function ManageItemsPage() {
                 { label: `사용중단/재사용${checked.size ? ` (${checked.size})` : ''}`, onClick: toggleCheckedActive },
                 { label: 'Excel' }]}
     >
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <Modal open={showForm} title={editId ? '관리항목 수정' : '관리항목 등록'} onClose={() => { setShowForm(false); setEditId(null) }}>{(
-        <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginTop: 8, marginBottom: 8 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>{editId ? '관리항목 수정' : '관리항목 등록'}</div>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <label style={{ fontSize: 12.5 }}>
-              <div style={{ color: '#5a626e', marginBottom: 3 }}>코드(미입력시 자동)</div>
+      <Modal error={error} open={showForm} title={editId ? '관리항목 수정' : '관리항목 등록'} onClose={() => { setShowForm(false); setEditId(null) }}>{(
+        <div className="border border-ec-line border-solid bg-white p-[14px] mt-[8px] mb-[8px]">
+          <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">{editId ? '관리항목 수정' : '관리항목 등록'}</div>
+          <div className="flex gap-[12px] flex-wrap items-end">
+            <label className="text-[12.5px]">
+              <div className="text-ec-label mb-[3px]">코드(미입력시 자동)</div>
               <input className="ec-input" value={form.code} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))} placeholder="MG001" style={{ width: 130 }} />
             </label>
-            <label style={{ fontSize: 12.5 }}>
-              <div style={{ color: '#5a626e', marginBottom: 3 }}>관리항목명 *</div>
+            <label className="text-[12.5px]">
+              <div className="text-ec-label mb-[3px]">관리항목명 *</div>
               <input className="ec-input" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} style={{ width: 200 }} />
             </label>
-            <label style={{ fontSize: 12.5 }}>
-              <div style={{ color: '#5a626e', marginBottom: 3 }}>설명</div>
+            <label className="text-[12.5px]">
+              <div className="text-ec-label mb-[3px]">설명</div>
               <input className="ec-input" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} style={{ width: 280 }} />
             </label>
             <button className="ec-btn ec-btn-primary" onClick={submit}>저장</button>
@@ -153,7 +153,7 @@ export default function ManageItemsPage() {
       )}</Modal>
 
       {/* 원본 조건 차례: <b>관리항목코드</b> · 관리항목명 · 사용구분 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+      <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label">
         <span>관리항목코드</span>
         <input className="ec-input" value={codeCond} placeholder="관리항목코드"
                onChange={(e) => setCodeCond(e.target.value)} style={{ width: 150 }} />
@@ -166,27 +166,27 @@ export default function ManageItemsPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34, textAlign: 'center' }}>
+            <th className="w-[34px] text-center">
               <input type="checkbox"
                      checked={shown.length > 0 && shown.every((r) => checked.has(r.id))}
                      onChange={() => setChecked(
                        shown.every((r) => checked.has(r.id)) ? new Set() : new Set(shown.map((r) => r.id)),
                      )} />
             </th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('관리항목코드')}>관리항목코드 {sort.mark('관리항목코드')}</th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('관리항목명')}>관리항목명 {sort.mark('관리항목명')}</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('관리항목코드')}>관리항목코드 {sort.mark('관리항목코드')}</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('관리항목명')}>관리항목명 {sort.mark('관리항목명')}</th>
             <th>설명</th>
-            <th style={{ width: 90, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('사용')}>사용 {sort.mark('사용')}</th>
+            <th className="w-[90px] text-center cursor-pointer" onClick={() => sort.toggle('사용')}>사용 {sort.mark('사용')}</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={5} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={5} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r) => (
-            <tr key={r.id} style={{ color: r.active ? undefined : '#9aa1ab' }}>
-              <td style={{ textAlign: 'center' }}>
+            <tr key={r.id} style={{ color: r.active ? undefined : 'var(--ec-text-hint)' }}>
+              <td className="text-center">
                 <input type="checkbox" checked={checked.has(r.id)} onChange={() => setChecked((prev) => {
                   const next = new Set(prev)
                   if (next.has(r.id)) next.delete(r.id); else next.add(r.id)
@@ -194,7 +194,7 @@ export default function ManageItemsPage() {
                 })} />
               </td>
               {/* 원본은 코드·이름을 눌러 그 관리항목을 연다. */}
-              <td style={{ fontFamily: 'monospace' }}>
+              <td>
                 <button type="button" onClick={() => openEdit(r)}
                         style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'monospace', fontSize: 12.5 }}>
                   {r.code}
@@ -206,9 +206,9 @@ export default function ManageItemsPage() {
                   {r.name}
                 </button>
               </td>
-              <td style={{ color: '#5a626e' }}>{r.description ?? ''}</td>
-              <td style={{ textAlign: 'center' }}>
-                <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: r.active ? '#1c7c3c' : '#9aa1ab' }} onClick={() => toggleActive(r)}>
+              <td className="text-ec-label">{r.description ?? ''}</td>
+              <td className="text-center">
+                <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: r.active ? 'var(--ec-success)' : 'var(--ec-text-hint)' }} onClick={() => toggleActive(r)}>
                   {r.active ? '사용' : '중단'}
                 </button>
               </td>

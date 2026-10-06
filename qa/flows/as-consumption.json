@@ -1,0 +1,21 @@
+{
+  "about": "A/S소모현황(E040641) — 2026-10-03 원본 실측: 열 [수리번호 · 수리품목명 · 수리담당자 · 소모(판매)번호 · 소모부품명 · 수량 · 단가 · 공급가액 · 부가세], 소모 = 수리에 이어진 판매(판매연결전표)의 줄. 수리 + 판매연결 2개 × 3,000 을 만들어 현황 한 줄(수량 2 · 공급가액 6,000 · 부가세 600)을 보고 모두 지운다. 2026-10-04: 집계는 [조건 | 수량] 판(담당자 → QA기사 2.00), 집계조건 기준일자는 일별 · 월별 · 연별뿐(주차별 없음), 머리글 'A/S소모현황'.",
+  "shots": [
+    {
+      "name": "수리 + 판매연결 → 소모현황 한 줄(소모(판매)번호 · 부가세) → 지움",
+      "path": "/quality/as-consumption",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then(async (r) => (r.status === 204 ? null : r.json())); const [pa, it, wh] = await Promise.all([A('GET', '/partners'), A('GET', '/items'), A('GET', '/warehouses')]); const c = pa[0], w = wh[0], i = it[0]; const pur = await A('POST', '/purchases', { partnerId: c.id, warehouseId: w.id, remark: 'QA재고2', lines: [{ itemId: i.id, quantity: 5, unitPrice: 1000 }] }); const r = await A('POST', '/as-repairs', { partnerId: c.id, warehouseId: w.id, charge: 'QA기사', repairType: 'PAID_REPAIR', title: 'QA재고2-소모', lines: [{ itemId: i.id, quantity: 1 }] }); const k = await A('POST', '/as-repairs/' + r.id + '/sales', { lines: [{ itemId: i.id, quantity: 2, unitPrice: 3000 }] }); sessionStorage.setItem('cons', JSON.stringify({ id: r.id, sale: k.sales[0].salesId, doc: k.sales[0].docNo, pur: pur.id })); return k.sales[0].docNo })()",
+        "js:location.reload(); true",
+        "wait:3500",
+        "expect:(() => { const x = JSON.parse(sessionStorage.getItem('cons')); return [...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes(x.doc) && tr.innerText.includes('QA기사') && tr.innerText.includes('6,000') && tr.innerText.includes('600')) })()",
+        "expect:document.querySelector('.ec-report-title')?.innerText.trim() === 'A/S소모현황' && document.querySelector('.ec-report-foot')?.innerText.includes('[P.1]') && !document.body.innerText.includes('소모금액 ')",
+        "js:(async () => { const S = (el, v) => { Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('change', { bubbles: true })) }; const W = (ms) => new Promise((r) => setTimeout(r, ms)); [...document.querySelectorAll('input[name=asc-gubun]')][1].click(); await W(300); S([...document.querySelectorAll('select')].find((x) => [...x.options].some((o) => o.value === '관리항목')), '담당자'); await W(300); return [...document.querySelectorAll('select')].find((x) => [...x.options].some((o) => o.value === '관리항목')).options.length })()",
+        "expect:[...document.querySelector('table thead tr').cells].map((c) => c.innerText.trim()).join('|') === '담당자|수량' && [...document.querySelectorAll('tbody tr')].some((tr) => tr.cells[0].innerText.trim() === 'QA기사' && tr.innerText.includes('2.00')) && !document.querySelector('.ec-report-foot').innerText.includes('[P.1]')",
+        "expect:![...document.querySelectorAll('select')].find((x) => [...x.options].some((o) => o.value === '관리항목')).innerHTML.includes('주차별')",
+        "js:(async () => { const x = JSON.parse(sessionStorage.getItem('cons')); const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; await fetch('/api/as-repairs/' + x.id + '/sales/' + x.sale, { method: 'DELETE', headers: H }); const a = await fetch('/api/as-repairs/' + x.id, { method: 'DELETE', headers: H }); const b = await fetch('/api/purchases/' + x.pur, { method: 'DELETE', headers: H }); return '지움 ' + a.status + '/' + b.status })()"
+      ]
+    }
+  ]
+}

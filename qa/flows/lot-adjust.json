@@ -1,0 +1,23 @@
+{
+  "about": "시리얼/로트No.재고조정(E040634) — 2026-10-04 원본 실측: 입력 격자(품목코드 · 품목명 · 시리얼/로트No. · 규격 · 합계(입력) · 상세내역[보기] · 적요(입력)), 합계에 넣은 값이 목표 로트 재고이고 저장하면 '저장되었습니다.', 차이가 [전표구분] 재고조정 이력 한 줄로 남는다. QA 로트(QA재고2-ADJ, 재고 2)를 5 로 맞춰 보고 0 으로 되돌린다.",
+  "shots": [
+    {
+      "name": "QA 로트 2 → 합계 5 저장 → 재고 5 · 재고조정 이력 · [보기] 창 → 0 으로 되돌림",
+      "path": "/quality/lot-adjust",
+      "steps": [
+        "wait:2000",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const lots = await (await fetch('/api/lots', { headers: H })).json(); let lot = lots.find((x) => x.lotNo === 'QA재고2-ADJ'); if (!lot) { const it = await (await fetch('/api/items', { headers: H })).json(); lot = await (await fetch('/api/lots', { method: 'POST', headers: H, body: JSON.stringify({ lotNo: 'QA재고2-ADJ', itemId: it[0].id, inboundQty: 2 }) })).json() } else if (Number(lot.stockQty) !== 2) { lot = await (await fetch('/api/lots/' + lot.id + '/adjust', { method: 'PATCH', headers: H, body: JSON.stringify({ actualQty: 2 }) })).json() } sessionStorage.setItem('adjLot', lot.id); return lot.lotNo + ' ' + lot.stockQty })()",
+        "js:location.reload(); true",
+        "wait:3000",
+        "js:(async () => { const S = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; const W = (ms) => new Promise((r) => setTimeout(r, ms)); S([...document.querySelectorAll('input')].find((x) => !x.type || x.type === 'text' ? x.closest('li')?.innerText.includes('시리얼/로트No.') : false), 'QA재고2-ADJ'); await W(300); return 'ok' })()",
+        "expect:[...document.querySelectorAll('tbody tr')].length === 1 && document.querySelector('input[aria-label=\"QA재고2-ADJ 합계\"]').value === '2'",
+        "js:(async () => { const S = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; const W = (ms) => new Promise((r) => setTimeout(r, ms)); S(document.querySelector('input[aria-label=\"QA재고2-ADJ 합계\"]'), '5'); S(document.querySelector('input[aria-label=\"QA재고2-ADJ 적요\"]'), 'QA재고2'); await W(200); [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === '저장(F8)').click(); await W(1500); return 'ok' })()",
+        "expect:document.body.innerText.includes('저장되었습니다.') && document.querySelector('input[aria-label=\"QA재고2-ADJ 합계\"]').value === '5'",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const tx = (await (await fetch('/api/lots/transactions', { headers: H })).json()).filter((t) => t.lotId === Number(sessionStorage.getItem('adjLot'))); const last = tx.sort((a, b) => b.id - a.id)[0]; return last.docType === '재고조정' && Number(last.quantityChange) === 3 && Number(last.balanceAfter) === 5 })()",
+        "js:(async () => { [...document.querySelectorAll('tbody button')].find((b) => b.innerText.trim() === '보기').click(); await new Promise((r) => setTimeout(r, 800)); return 'ok' })()",
+        "expect:[...document.querySelectorAll('tr')].some((tr) => tr.innerText.includes('QA재고2-ADJ') && tr.innerText.includes('재고조정') && tr.innerText.includes('3.00'))",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const r = await fetch('/api/lots/' + sessionStorage.getItem('adjLot') + '/adjust', { method: 'PATCH', headers: H, body: JSON.stringify({ actualQty: 0, note: 'QA재고2 되돌림' }) }); return r.ok })()"
+      ]
+    }
+  ]
+}

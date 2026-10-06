@@ -1,0 +1,111 @@
+/*
+ * ============================================================
+ *  이카운트(ec56) 디자인 토큰 — 화면의 색·크기·둥글기는 전부 여기서만 정한다.
+ * ============================================================
+ *
+ * 2026-10-03 loginaa.ecount.com/ec56 (판매조회 E040206 · 판매입력 E040205 · MyPage) 에서
+ * getComputedStyle 로 잰 값이다. 짐작한 값은 없다 — 새 값이 필요하면 원본을 열어 재고 여기에 더한다.
+ *
+ * 규칙
+ *  1. 화면 코드(.tsx)에 색·px 를 직접 쓰지 않는다. 토큰을 쓰는 클래스(styles/*.css)를 붙인다.
+ *     꼭 인라인이어야 하면 style={{ color: 'var(--ec-navy)' }} 처럼 토큰을 쓴다.
+ *  2. 원본 값이 7px·10px 같은 정수가 아니라 6.3px·9px 처럼 보이는 것은 원본이 그렇게 그려서다
+ *     (원본 여백이 모두 정수 × 0.9). 반올림하지 않는다 — 버튼·칸 높이가 1px 씩 어긋난다.
+ *  3. 테두리는 머리카락 선(--ec-hair: 0.5px)이다. 레티나에서는 기기 픽셀 1칸, 일반 모니터에서는
+ *     1px 로 그려진다(원본과 같은 동작). 본문 틀(.ec-frame)만 원본도 1px 이다.
+ */
+:root {
+  /* ── 파랑(theme-blue) ── */
+  --ec-blue: #1f48d4;                       /* 주 버튼 · 선택된 알약 · 쪽번호 · 2단 메뉴 밑줄 */
+  --ec-blue-hover: #1b3da1;
+  --ec-blue-tint: rgba(31, 72, 212, 0.13);  /* 1단 메뉴 · 왼쪽 메뉴 그룹이 열렸을 때 바탕 */
+  --ec-blue-wash: rgb(238, 243, 255);       /* 코드도움 칸 포커스 · 자동완성 고른 줄 */
+  --ec-navy: #19358c;                       /* 선택된 메뉴 글자 · 격자 링크(일자-No.·인쇄·조회) */
+
+  /* ── 글자 ── */
+  --ec-ink: #000;                           /* 본문 · 격자 칸 */
+  --ec-text: #142444;                       /* 버튼 · 입력칸 · 메뉴 */
+  --ec-text-sub: #495057;                   /* 북마크 줄 */
+  --ec-text-muted: #6c757d;                 /* 왼쪽 메뉴의 선택 안 된 화면 */
+  --ec-label: #62677e;                      /* 입력 폼 이름표 */
+  --ec-pill-text: #606c93;                  /* 선택 안 된 알약 */
+  --ec-page-off: #868d93;                   /* 선택 안 된 쪽번호 */
+  --ec-icon: #adb5bd;                       /* 코드도움 돋보기 */
+  --ec-ok: #3da621;                         /* 격자의 ✓ */
+  --ec-star: rgb(242, 188, 60);             /* 화면 제목 앞 ★(즐겨찾기에 담긴 화면) */
+
+  --ec-text-hint: #868d93;                  /* 안내·빈 목록 글자(= 꺼진 쪽번호 색) */
+  --ec-text-off: #c5cbd3;                   /* 0 · 없음처럼 흐리게 둘 값(원본 미측정 — 옛 값 유지) */
+
+  /* ── 역할색 — 원본에서 아직 못 쟀다. 옛 값 그대로 이름만 붙였다(값을 바꿀 때는 원본을 재고) ── */
+  --ec-danger: #c60a2e;                     /* 음수 · 오류 · 필수(*) */
+  --ec-danger-bg: #fdecec;
+  --ec-success: #1c7c3c;                    /* 정상 · 사용 · 완료 */
+  --ec-success-bg: #eaf6ec;
+  --ec-warn: #c07a00;                       /* 대기 · 주의 */
+  --ec-warn-bg: #fff8e1;
+  --ec-info-line: #cfe0f5;                  /* 안내 줄 테두리 */
+
+  /* ── 바탕 ── */
+  --ec-bg-shell: #fbfcfc;                   /* 머리 메뉴 · 왼쪽 메뉴 */
+  --ec-bg-bookbar: #e9ecef;                 /* 맨 위 북마크 줄 */
+  --ec-bg-page: #f7f8f9;                    /* 본문 틀 · 격자 머리 · 하단 버튼줄 */
+  --ec-bg-panel: #fff;                      /* 입력 폼 판 · 격자 · 위젯 */
+  --ec-bg-pill: #e7efff;                    /* 선택 안 된 알약 */
+  --ec-bg-disabled: #e9ecef;                /* 막힌 입력칸 */
+  --ec-bg-row-hover: #f2f2f2;               /* 격자 줄에 마우스 */
+  --ec-bg-chip: #ced4da;                    /* [사이트맵] 칩 */
+  --ec-bg-pinned: rgb(252, 248, 227);       /* 게시판 맨 위에 붙은 공지 글 줄(공지사항 E200080 실측) */
+  --ec-bg-label: rgb(136, 163, 249);        /* 라벨·일정구분 칩 바탕(일정관리 E070201 실측 — 원본은 라벨마다 색을 고른다) */
+  --ec-bg-calendar: rgb(249, 230, 173);     /* 일정이 든 시간 칸 — [기본] 공유일정캘린더 색(일정관리 E070201 일간 · 사용자별 실측) */
+  --ec-bg-basic: rgb(223, 240, 216);       /* 기안서작성 맨 위 '00 기본' 양식 줄(E070103 실측, 원본 td.success) */
+
+  /* ── 선 ── */
+  --ec-hair: 0.5px;
+  --ec-line: #dee2e6;                       /* 기본 테두리(버튼·입력칸·격자) */
+  --ec-line-soft: #e9ecef;                  /* 2단 메뉴 판 · 왼쪽 메뉴 나무선 · 첨부 칸 */
+  --ec-line-head: #9bb0be;                  /* 격자 머리의 윗선만 */
+  --ec-line-focus: #4a9ad9;                 /* 빠른검색 칸 */
+
+  /* ── 크기 ── */
+  --ec-fs: 12px;
+  --ec-fs-menu: 14px;                       /* 1단 메뉴 · 화면 제목 */
+  --ec-lh: 18px;
+  --ec-lh-grid: 1.428571;                   /* 격자 칸 줄 간격 17.1429px */
+  --ec-ctl-h: 26px;                         /* 버튼 · 입력칸 · 고르기 */
+  --ec-ctl-h-sm: 22px;                      /* 격자 툴바 버튼 */
+  --ec-pad-btn: 0 9px;                      /* 원본 6.3px 9px — 높이는 --ec-ctl-h 로 */
+  --ec-pad-input: 0 5.4px;
+  --ec-pad-th: 9px 2.7px 7.2px;             /* 머리 칸 높이 35 */
+  --ec-pad-td: 5.4px 2.7px;                 /* 본문 칸 높이 30 */
+
+  /* ── 둥글기 ── */
+  --ec-radius: 10px;                        /* 버튼 · 입력칸 */
+  --ec-radius-menu: 14px;                   /* 왼쪽 메뉴 줄 */
+  --ec-radius-panel: 20px;                  /* 입력 폼 판 · 2단 메뉴 판 · 본문 틀 위 모서리 */
+  --ec-radius-pill: 30px;                   /* 알약 · 쪽번호 */
+
+  /* ── 그림자 — 본문에는 없다. 떠 있는 것(2단 메뉴 · 펼침 메뉴 · 팝업)에만 ── */
+  --ec-shadow-float: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --ec-shadow-pop: 0 10px 15px -3px rgba(0, 0, 0, 0.15), 0 4px 6px -4px rgba(0, 0, 0, 0.15); /* 펼침 메뉴 · 자동완성 */
+  --ec-shadow-modal: 0 25px 50px -12px rgba(0, 0, 0, 0.27);  /* 팝업창 */
+
+  /* ── 틀 치수 ── */
+  --ec-bookbar-h: 26px;
+  --ec-gnb-h: 46px;
+  --ec-lnb-w: 209px;
+  --ec-footer-h: 38px;
+
+  /* ── 옛 이름(화면 코드가 아직 쓴다) → 새 토큰 ── */
+  --ec-blue-dark: var(--ec-navy);
+  --ec-blue-light: #d3daf7;
+  --ec-lightblue: #668fe7;
+  --ec-bookmark-bg: var(--ec-bg-page);
+  --ec-border: var(--ec-line);
+  --ec-border-strong: var(--ec-line-head);
+  --ec-body-bg: var(--ec-bg-page);
+  --ec-text-grid: var(--ec-ink);
+  --ec-shadow-sm: none;
+  --ec-shadow: none;
+  --ec-shadow-lg: var(--ec-shadow-pop);
+}

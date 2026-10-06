@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '../api/client'
 
 /** GET /api/departments 한 줄 중 계층을 세우는 데 필요한 것만. */
@@ -52,8 +52,12 @@ export function useDeptGroups() {
   /**
    * 그 부서가 고른 그룹에 속하나. 자기 자신도 속한다(생산본부를 고르면 생산본부 직속도 나온다).
    * 그룹을 안 골랐으면 전부 통과시킨다.
+   *
+   * <p>부서 목록이 바뀔 때만 새로 만든다 — 화면들이 이 함수와 고른 그룹을 useMemo 의 의존에 넣는다.
+   * 예전엔 지각현황·일별근무시간·출퇴근/근태통합현황이 의존에 고른 그룹을 안 넣어서,
+   * [부서계층그룹]을 골라도 표가 그대로였다(다른 조건을 건드려야 그제야 걸렸다).
    */
-  const inGroup = (deptName: string | null, group: string): boolean => {
+  const inGroup = useCallback((deptName: string | null, group: string): boolean => {
     if (!group) return true
     if (!deptName) return false
     let cur = byName.get(deptName)
@@ -65,7 +69,7 @@ export function useDeptGroups() {
       cur = cur.parentId != null ? byId.get(cur.parentId) : undefined
     }
     return false
-  }
+  }, [byId, byName])
 
   return { groups, inGroup }
 }

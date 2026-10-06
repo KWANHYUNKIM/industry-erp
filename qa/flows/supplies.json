@@ -1,0 +1,55 @@
+{
+  "about": "공용품관리(원본 E070204) — 올해 기간·알약 한 줄 → 신규(F2) 시간 기본값·빈 공용품 거절 → 저장하면 '2026/10/03 (토)' 줄 → 제목 눌러 '공용품관리' 창 → [수정]으로 반납 → [삭제]. 시험용 공용품(QAGW-SUP1)은 API 로 만들고 끝에 지운다. node qa/shot.mjs qa/flows/supplies.json",
+  "shots": [
+    {
+      "name": "준비 — 시험용 공용품 QAGW-SUP1",
+      "path": "/groupware/supplies",
+      "steps": [
+        "js:fetch('/api/supplies', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }, body: JSON.stringify({ code: 'QAGW-SUP1', name: 'QA그룹웨어-빔', category: '사무용품', unit: '개', stockQty: 0 }) }).then((r) => r.status)"
+      ]
+    },
+    {
+      "name": "목록 — 알약 [기본][일간][월간][공용품별] 한 줄, 기간 올해 1/1~12/31 → 신규 시간 기본값, 공용품 없이 저장 거절, 넣으면 줄이 생김",
+      "path": "/groupware/supplies",
+      "steps": [
+        "expect:[...document.querySelectorAll('.ec-pills .ec-pill')].map((b) => b.textContent.trim()).join(',') === '기본,일간,월간,공용품별'",
+        "expect:document.body.innerText.includes(new Date().getFullYear() + '/01/01 ~ ' + new Date().getFullYear() + '/12/31')",
+        "click:신규(F2)",
+        "expect:document.querySelector('[role=dialog]')?.getAttribute('aria-label') === '공용품관리등록'",
+        "expect:/^\\d{2}:00$/.test(document.querySelectorAll('[role=dialog] input[type=time]')[0].value)",
+        "click:저장(F8)",
+        "expect:document.querySelector('[role=dialog]')?.innerText.includes('공용품을 선택하세요.')",
+        "pick:공용품:QAGW-SUP1",
+        "setnear:제목|QA그룹웨어-사용",
+        "click:저장(F8)",
+        "expect:!document.querySelector('[role=dialog]')",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA그룹웨어-사용') && /\\d{4}\\/\\d{2}\\/\\d{2} \\([일월화수목금토]\\)/.test(tr.innerText))"
+      ]
+    },
+    {
+      "name": "제목을 누르면 '공용품관리' 창 → [수정]으로 반납 → 서버도 반납",
+      "path": "/groupware/supplies",
+      "steps": [
+        "js:[...document.querySelectorAll('tbody button')].find((b) => b.textContent === 'QA그룹웨어-사용').click(); true",
+        "expect:document.querySelector('[role=dialog]')?.getAttribute('aria-label') === '공용품관리' && document.querySelector('[role=dialog]').innerText.includes('미반납')",
+        "click:수정",
+        "expect:document.querySelector('[role=dialog]')?.getAttribute('aria-label') === '공용품관리등록'",
+        "js:[...document.querySelectorAll('[role=dialog] label')].find((l) => l.textContent.trim() === '반납').querySelector('input').click(); true",
+        "click:저장(F8)",
+        "expect:!document.querySelector('[role=dialog]')",
+        "wait:1000",
+        "expect:fetch('/api/supply-usages?from=2000-01-01&to=2100-12-31', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()).then((d) => d.some((u) => u.title === 'QA그룹웨어-사용' && u.returnStatus === 'RETURNED'))"
+      ]
+    },
+    {
+      "name": "창의 [삭제] — 묻고 지우면 사라짐 · 시험용 공용품 정리",
+      "path": "/groupware/supplies",
+      "steps": [
+        "js:window.confirm = () => true; [...document.querySelectorAll('tbody button')].find((b) => b.textContent === 'QA그룹웨어-사용').click(); true",
+        "click:삭제",
+        "expect:![...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA그룹웨어-사용'))",
+        "js:fetch('/api/supplies', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()).then((d) => { const s = d.find((x) => x.code === 'QAGW-SUP1'); return s ? fetch('/api/supplies/' + s.id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => 'supply del ' + r.status) : 'no supply' })"
+      ]
+    }
+  ]
+}

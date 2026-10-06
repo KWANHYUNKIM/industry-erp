@@ -7,7 +7,9 @@ import CodePickerField from '../../components/CodePickerField'
 import Modal from '../../components/Modal'
 import EcFileDrop from '../../components/EcFileDrop'
 import { ymd } from '../../components/EcPeriodPicks'
-import type { QuestionType, SurveyDoc } from '../../api/types'
+import { useAuth } from '../../features/auth/AuthContext'
+import { useShortcut } from '../../utils/useShortcut'
+import type { QuestionType, SurveyDoc } from '../../types/api'
 
 /**
  * 그룹웨어 > 공유정보 > 설문조사 > 설문조사입력 (이카운트 E070256)
@@ -50,14 +52,23 @@ interface UserRow { id: number; name: string; username: string }
 
 export default function SurveyInputPage() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [users, setUsers] = useState<UserRow[]>([])
   const [error, setError] = useState('')
   const [ok, setOk] = useState('')
   const [preview, setPreview] = useState(false)
 
   const [title, setTitle] = useState('')
-  const [endDate, setEndDate] = useState(() => ymd(new Date(Date.now() + 30 * 86400000)))
-  const [endTime, setEndTime] = useState('18:00')
+  /*
+   * 원본 설문종료일 기본값: <b>오늘부터 60일 뒤</b>, 시각은 <b>지금을 10분 단위로 올린 것</b>
+   * (2026-10-03 14:38 에 열면 2026/12/02 오후 2:40). 우리는 30일 뒤 18:00 이었다.
+   */
+  const [endDate, setEndDate] = useState(() => ymd(new Date(Date.now() + 60 * 86400000)))
+  const [endTime, setEndTime] = useState(() => {
+    const d = new Date(); const m = Math.ceil(d.getMinutes() / 10) * 10
+    d.setMinutes(m, 0, 0)
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  })
   const [scope, setScope] = useState<'INTERNAL' | 'EXTERNAL'>('INTERNAL')
   const [targets, setTargets] = useState<string[]>([])
   const [anonymous, setAnonymous] = useState(false)
@@ -122,7 +133,11 @@ export default function SurveyInputPage() {
   async function save(draft: boolean) {
     setError(''); setOk('')
     if (!title.trim()) return setError('제목을 입력하세요.')
+    // 원본은 내부 설문에 [설문대상]을 안 고르고 저장하면 그 칸을 빨갛게 한다(2026-10-03 실측).
+    if (!draft && scope === 'INTERNAL' && targets.length === 0) return setError('설문대상을 선택하세요.')
     if (!draft && filled.length === 0) return setError('문항을 한 줄 이상 입력하세요. (초안으로는 저장할 수 있습니다)')
+    // 원본 [저장]은 '설문조사를 진행하시겠습니까?' 를 먼저 묻는다.
+    if (!draft && !window.confirm('설문조사를 진행하시겠습니까?')) return
     try {
       const r = await api.post<SurveyDoc>('/surveys', payload(draft))
       setOk(`${draft ? '초안으로 저장' : '설문 발송'}되었습니다. (게시글번호 ${r.data.postNo})`)
@@ -131,9 +146,8 @@ export default function SurveyInputPage() {
     } catch (err) { setError(extractErrorMessage(err)) }
   }
 
-  const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 110 }
   const radio = (name: string, checked: boolean, onChange: () => void, label: string) => (
-    <label key={label} style={{ marginRight: 12, fontSize: 12 }}>
+    <label key={label} className="mr-[12px] text-[12px]">
       <input type="radio" name={name} checked={checked} onChange={onChange} /> {label}
     </label>
   )
@@ -142,6 +156,8 @@ export default function SurveyInputPage() {
   /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '설문조사입력', [])
+  // 원본 [임시저장(F8)]
+  useShortcut('F8', () => void save(true), !preview)
 
   return (
     <EcListShell
@@ -149,100 +165,103 @@ export default function SurveyInputPage() {
       searchable={false}
       actions={[
         { label: '저장', primary: true, onClick: () => void save(false) },
-        { label: '초안저장', onClick: () => void save(true) },
+        // 원본은 [저장▲] 를 펴면 [임시저장(F8)] 이 나온다. 우리 '초안' 이 그것이다.
+        { label: '임시저장(F8)', onClick: () => void save(true) },
         { label: '미리보기', onClick: () => setPreview(true) },
         { label: '리스트', onClick: () => navigate('/groupware/survey') },
       ]}
     >
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {ok && <p style={{ marginBottom: 8, background: '#eaf7ee', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
-      <table className="w-full text-left" style={{ marginBottom: 10 }}>
-        <tbody>
-          <tr>
-            <th style={th}>제목 *</th>
-            <td colSpan={3}><input className="ec-input" value={title} onChange={(e) => setTitle(e.target.value)} style={{ width: '100%' }} /></td>
-          </tr>
-          <tr>
-            <th style={th}>설문종료일</th>
-            <td>
-              <input type="date" className="ec-input" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ width: 140 }} />
-              <input type="time" className="ec-input" value={endTime} onChange={(e) => setEndTime(e.target.value)} style={{ width: 110, marginLeft: 4 }} />
-            </td>
-            <th style={th}>설문대상구분</th>
-            <td>
+      {/* 원본 차례(2026-10-03 실측): 작성자 · 제목 · 설문종료일 · 설문대상구분(내부/외부 · 설문대상 · 익명사용여부)
+          · 첨부 · 결과공개범위 · 머리말 — 한 줄에 하나씩. */}
+      <ul className="ec-form mb-[10px]">
+        <li className="wide"><div className="title">작성자</div><div className="form">{user?.name ?? ''}</div></li>
+        <li className="wide">
+          <div className="title">제목</div>
+          <div className="form"><input className="ec-input w-full" placeholder="제목" value={title} onChange={(e) => setTitle(e.target.value)} /></div>
+        </li>
+        <li className="wide">
+          <div className="title">설문종료일</div>
+          <div className="form">
+            <input type="date" className="ec-input w-[140px]" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+            <input type="time" className="ec-input w-[110px]" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+          </div>
+        </li>
+        <li className="wide">
+          <div className="title">설문대상구분</div>
+          <div className="form flex-col items-start">
+            <div>
               {radio('scope', scope === 'INTERNAL', () => setScope('INTERNAL'), '내부')}
               {radio('scope', scope === 'EXTERNAL', () => setScope('EXTERNAL'), '외부')}
-            </td>
-          </tr>
-          <tr>
-            <th style={th}>설문대상</th>
-            <td colSpan={3}>
+            </div>
+            <div className="flex items-center gap-[6px] w-full">
+              <span className="text-[12px] text-ec-label">설문대상</span>
               <CodePickerField
                 label="설문대상" hideLabel multiple values={targets}
                 onChangeMulti={(v) => setTargets(v)}
                 items={users.map((u) => ({ value: String(u.id), code: u.username, name: u.name }))}
               />
-            </td>
-          </tr>
-          <tr>
-            <th style={th}>익명사용여부</th>
-            <td>
+            </div>
+            <div className="flex items-center gap-[6px]">
+              <span className="text-[12px] text-ec-label">익명사용여부</span>
               {radio('anon', anonymous, () => setAnonymous(true), '사용')}
               {radio('anon', !anonymous, () => setAnonymous(false), '사용안함')}
-            </td>
-            <th style={th}>결과공개범위</th>
-            <td>
-              {radio('vis', visibility === 'ALL', () => setVisibility('ALL'), '전체공개')}
-              {radio('vis', visibility === 'PARTIAL', () => setVisibility('PARTIAL'), '일부공개')}
-              {radio('vis', visibility === 'NONE', () => setVisibility('NONE'), '비공개')}
-            </td>
-          </tr>
-          <tr>
-            {/* 원본 [첨부] — 머리말 다음 줄이다. */}
-            <th style={th}>첨부</th>
-            <td colSpan={3}>
-              <EcFileDrop busy={uploading} disabled={uploading}
-                          onFiles={(fs) => { if (fs[0]) void upload(fs[0]) }}>
-                {attachment && (
-                  <span style={{ fontSize: 12, color: 'var(--ec-blue-dark)' }}>
-                    {attachment.name}
-                    <span onClick={() => setAttachment(null)}
-                          style={{ cursor: 'pointer', marginLeft: 6, fontWeight: 700 }}>×</span>
-                  </span>
-                )}
-              </EcFileDrop>
-            </td>
-          </tr>
-          <tr>
-            <th style={th}>머리말</th>
-            <td colSpan={3}>
-              {radio('hdr', !useHeader, () => setUseHeader(false), '사용안함')}
-              {radio('hdr', useHeader, () => setUseHeader(true), '사용')}
-              {useHeader && (
-                <input className="ec-input" value={headerText} onChange={(e) => setHeaderText(e.target.value)}
-                  placeholder="설문 맨 위에 보여줄 안내문" style={{ width: '60%', marginLeft: 8 }} />
+            </div>
+          </div>
+        </li>
+        <li className="wide">
+          <div className="title">첨부</div>
+          <div className="form">
+            <EcFileDrop busy={uploading} disabled={uploading}
+                        onFiles={(fs) => { if (fs[0]) void upload(fs[0]) }}>
+              {attachment && (
+                <span className="text-[12px] text-ec-navy">
+                  {attachment.name}
+                  <span onClick={() => setAttachment(null)}
+                        className="cursor-pointer ml-[6px] font-bold">×</span>
+                </span>
               )}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+            </EcFileDrop>
+          </div>
+        </li>
+        <li className="wide">
+          <div className="title">결과공개범위</div>
+          <div className="form">
+            {radio('vis', visibility === 'ALL', () => setVisibility('ALL'), '전체공개')}
+            {radio('vis', visibility === 'PARTIAL', () => setVisibility('PARTIAL'), '일부공개')}
+            {radio('vis', visibility === 'NONE', () => setVisibility('NONE'), '비공개')}
+          </div>
+        </li>
+        <li className="wide">
+          <div className="title">머리말</div>
+          <div className="form">
+            {radio('hdr', !useHeader, () => setUseHeader(false), '사용안함')}
+            {radio('hdr', useHeader, () => setUseHeader(true), '사용')}
+            {useHeader && (
+              <input className="ec-input flex-1" value={headerText} onChange={(e) => setHeaderText(e.target.value)}
+                placeholder="설문 맨 위에 보여줄 안내문" />
+            )}
+          </div>
+        </li>
+      </ul>
 
       {/* 질문 그리드 — 원본 실측: (24) 질문유형·질문내용·보기항목1~5·필수항목 각 100 */}
       <table ref={tableRef} className="w-full text-left ec-grid-input">
         <colgroup>
-          <col style={{ width: '2.9%' }} />
-          <col style={{ width: '12.1%' }} />
-          <col style={{ width: '12.1%' }} />
-          {[0, 1, 2, 3, 4].map((i) => <col key={i} style={{ width: '12.1%' }} />)}
-          <col style={{ width: '12.1%' }} />
+          <col className="w-[2.9%]" />
+          <col className="w-[12.1%]" />
+          <col className="w-[12.1%]" />
+          {[0, 1, 2, 3, 4].map((i) => <col key={i} className="w-[12.1%]" />)}
+          <col className="w-[12.1%]" />
         </colgroup>
         <thead>
           <tr>
             <th></th><th>질문유형</th><th>질문내용</th>
             {/* 원본 실측: 보기항목 다섯 칸과 [필수항목]은 가운데다. */}
-            <th style={{ textAlign: 'center' }}>보기항목1</th><th style={{ textAlign: 'center' }}>보기항목2</th><th style={{ textAlign: 'center' }}>보기항목3</th><th style={{ textAlign: 'center' }}>보기항목4</th><th style={{ textAlign: 'center' }}>보기항목5</th>
-            <th style={{ textAlign: 'center' }}>필수항목</th>
+            <th className="text-center">보기항목1</th><th className="text-center">보기항목2</th><th className="text-center">보기항목3</th><th className="text-center">보기항목4</th><th className="text-center">보기항목5</th>
+            <th className="text-center">필수항목</th>
           </tr>
         </thead>
         <tbody>
@@ -250,7 +269,7 @@ export default function SurveyInputPage() {
             const usesOptions = TYPES.find((t) => t.value === r.type)?.options ?? false
             return (
               <tr key={i}>
-                <td style={{ textAlign: 'center', background: '#f3f3f3', color: '#8a929c' }}>{i + 1}</td>
+                <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
                 <td>
                   <select className="ec-input" value={r.type} onChange={(e) => patch(i, { type: e.target.value as QuestionType })} style={{ width: '100%' }}>
                     <option value="">선택</option>
@@ -265,7 +284,7 @@ export default function SurveyInputPage() {
                       onChange={(e) => patchOption(i, oi, e.target.value)} style={{ width: '100%' }} />
                   </td>
                 ))}
-                <td style={{ textAlign: 'center' }}>
+                <td className="text-center">
                   <input type="checkbox" checked={r.required} onChange={(e) => patch(i, { required: e.target.checked })} />
                 </td>
               </tr>
@@ -273,7 +292,7 @@ export default function SurveyInputPage() {
           })}
         </tbody>
       </table>
-      <div style={{ marginTop: 6 }}>
+      <div className="mt-[6px]">
         <button type="button" className="ec-btn ec-btn-sm" onClick={() => setRows((rs) => [...rs, emptyRow()])}>줄 추가</button>
         {rows.length > 3 && (
           <button type="button" className="ec-btn ec-btn-sm" style={{ marginLeft: 4 }}
@@ -281,24 +300,24 @@ export default function SurveyInputPage() {
         )}
       </div>
 
-      <Modal open={preview} title="미리보기" width={640} onClose={() => setPreview(false)}>{(
-        <div style={{ fontSize: 13 }}>
-          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{title || '(제목 없음)'}</div>
+      <Modal error={error} open={preview} title="미리보기" width={640} onClose={() => setPreview(false)}>{(
+        <div className="text-[13px]">
+          <div className="font-bold text-[15px] mb-[6px]">{title || '(제목 없음)'}</div>
           {useHeader && headerText && (
-            <div style={{ whiteSpace: 'pre-wrap', border: '1px solid var(--ec-border)', padding: 10, marginBottom: 10 }}>{headerText}</div>
+            <div className="whitespace-pre-wrap border border-ec-line border-solid p-[10px] mb-[10px]">{headerText}</div>
           )}
           {filled.length === 0 ? (
-            <p style={{ color: 'var(--ec-label)' }}>문항이 없습니다.</p>
+            <p className="text-ec-label">문항이 없습니다.</p>
           ) : filled.map((r, i) => (
-            <div key={i} style={{ marginBottom: 12 }}>
-              <div style={{ fontWeight: 600 }}>
+            <div key={i} className="mb-[12px]">
+              <div className="font-semibold">
                 {i + 1}. {r.content}
-                {r.required && <span style={{ color: '#c60a2e', marginLeft: 4 }}>*</span>}
-                <span style={{ marginLeft: 6, color: 'var(--ec-label)', fontWeight: 400, fontSize: 11.5 }}>
+                {r.required && <span className="text-ec-danger ml-[4px]">*</span>}
+                <span className="ml-[6px] text-ec-label font-normal text-[11.5px]">
                   {TYPES.find((t) => t.value === r.type)?.label}
                 </span>
               </div>
-              <div style={{ paddingLeft: 14, color: '#3c4553' }}>
+              <div className="pl-[14px] text-ec-text">
                 {r.options.filter(Boolean).map((o, oi) => <div key={oi}>· {o}</div>)}
               </div>
             </div>

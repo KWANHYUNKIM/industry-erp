@@ -1,0 +1,193 @@
+// 프론트 라우트 → 권한 코드 매핑. 백엔드 MenuPermissionCatalog 와 코드 체계를 맞춘다.
+//
+// 메뉴 노출과 라우트 가드에 쓴다. 조회(GET)는 백엔드가 막지 않으므로, 상태·출력물 페이지의
+// 코드가 다소 근사여도 보안 구멍은 아니다(쓰기는 백엔드가 코드로 정확히 차단). null 은 권한
+// 불요(대시보드·데이터센터 등 누구나).
+
+type Rule = [prefix: string, code: string | null]
+
+// 위에서부터 먼저 걸리는(더 구체적인) 규칙이 이긴다.
+const RULES: Rule[] = [
+  ['/', null], // 정확히 루트만 (아래 startsWith 로직에서 특별 처리)
+
+  // 재고
+  ['/inventory/wms', 'WMS'],
+  ['/inventory/current', 'STOCK_MOVE'],
+  ['/inventory/stock-io', 'STOCK_MOVE'],
+  ['/inventory/ledger', 'STOCK_MOVE'],
+  ['/inventory/movement', 'STOCK_MOVE'],
+  ['/inventory/stock-analysis', 'STOCK_MOVE'],
+  ['/inventory/executive-report', 'STOCK_MOVE'],
+  ['/inventory/transfer', 'STOCK_MOVE'],
+  ['/inventory/stocktake', 'STOCK_MOVE'],
+  ['/inventory/staged-adjustment', 'STOCK_MOVE'],
+  ['/inventory/staged-progress', 'STOCK_MOVE'],
+  ['/inventory/reports', 'STOCK_MOVE'],
+  // 재고현황 그룹에 새로 붙은 화면들. 접두어 규칙만 두면 아래 ['/inventory', 'INV_MASTER'] 에
+  // 걸려 형제 화면(재고현황·재고수불부)과 다른 권한 바구니에 들어간다 —
+  // STOCK_MOVE 만 가진 사람에게 재고현황은 보이는데 창고별재고현황은 안 보이게 된다.
+  ['/inventory/warehouse-stock', 'STOCK_MOVE'],
+  ['/inventory/bom-stock', 'STOCK_MOVE'],
+  ['/inventory/daily-stock', 'STOCK_MOVE'],
+  ['/inventory/stocktake-status', 'STOCK_MOVE'],
+  ['/inventory/transfer-status', 'STOCK_MOVE'],
+  ['/inventory/self-use', 'STOCK_MOVE'],
+  ['/inventory/defect', 'STOCK_MOVE'],
+  ['/inventory/adjust-list', 'STOCK_MOVE'],
+  ['/inventory/stocktake-list', 'STOCK_MOVE'],
+  ['/inventory/self-use-status', 'STOCK_MOVE'],
+  ['/inventory/defect-status', 'STOCK_MOVE'],
+  ['/inventory/substitute-status', 'STOCK_MOVE'],
+  ['/inventory/disposal-status', 'STOCK_MOVE'],
+  ['/inventory/adjust-status', 'STOCK_MOVE'],
+  // 잔량재집계·일보도 재고현황 그룹인데 접두어 규칙에 걸려 INV_MASTER 로 새고 있었다
+  // (내가 만든 화면이 아니라 원래부터 그랬다).
+  ['/inventory/recalc', 'STOCK_MOVE'],
+  ['/inventory/daily-report', 'STOCK_MOVE'],
+  ['/inventory/price-order', 'SALES'],
+  ['/inventory/special-price-group', 'SALES'],
+  ['/sales/special-price', 'SALES'],
+  ['/inventory', 'INV_MASTER'], // items · warehouses · manage-items
+
+  // 구매 (영업 라우트와 섞여 있어 먼저 걸러낸다)
+  ['/sales/buy', 'PURCHASE'],
+  ['/sales/purchase-orders', 'PURCHASE'],
+  ['/sales/purchase-list', 'PURCHASE'],
+  ['/sales/purchase-status', 'PURCHASE'],
+  ['/sales/unpurchased', 'PURCHASE'],
+  ['/sales/purchase-order-status', 'PURCHASE'],
+  ['/sales/purchase-requests', 'PURCHASE'],
+  ['/sales/purchase-plans', 'PURCHASE'],
+  ['/sales/price-requests', 'PURCHASE'],
+  ['/sales/purchase-request-status', 'PURCHASE'],
+  ['/sales/purchase-plan-status', 'PURCHASE'],
+  ['/sales/price-request-status', 'PURCHASE'],
+  ['/sales/price-request-progress', 'PURCHASE'],
+  ['/sales/purchase-discount', 'PURCHASE'],
+  ['/sales/purchase-price-bulk', 'PURCHASE'],
+  ['/sales/outsourcing-discount', 'PURCHASE'],
+  ['/sales/payment', 'PURCHASE'],
+  ['/sales/payable', 'PURCHASE'],
+  // 회계성(채권채무·회계반영)
+  ['/sales/ledger', 'ACCOUNTING'],
+  ['/sales/partner-ledger', 'ACCOUNTING'],
+  ['/sales/accounting-reflection', 'ACCOUNTING'],
+  // 거래처
+  ['/sales/partners', 'PARTNER'],
+  // 부가
+  ['/sales/export', 'EXPORT'],
+  ['/sales/mall', 'MALL'],
+  ['/sales/mall-item-mappings', 'MALL'],
+  ['/sales/mall-accounts', 'MALL'],
+  ['/sales/condition-search', 'SALES'],
+  // 나머지 영업 (sell · sales-* · quotations · shipment* · settlement · collection · orders …)
+  ['/sales', 'SALES'],
+
+  // 생산
+  ['/production', 'PRODUCTION'],
+
+  // 품질/AS
+  ['/quality', 'QUALITY'],
+
+  // 회계
+  ['/accounting/tax-invoice', 'TAX_INVOICE'],
+  ['/accounting/bank-cards', 'BANK'],
+  ['/accounting/card-issuers', 'BANK'],
+  ['/accounting/payment-agencies', 'BANK'],
+  ['/accounting/cash-details', 'BANK'],
+  ['/accounting/cash-deposit', 'BANK'],
+  ['/accounting/cash-withdraw', 'BANK'],
+  ['/accounting/cash-plan', 'FINANCE'],
+  ['/accounting/checks', 'BANK'],
+  ['/accounting/checks-held', 'BANK'],
+  ['/accounting/checks-ledger', 'BANK'],
+  ['/accounting/checks-list', 'BANK'],
+  ['/accounting/checks-issued-list', 'BANK'],
+  ['/accounting/checks-issued-ledger', 'BANK'],
+  ['/accounting/checks-issued', 'BANK'],
+  ['/accounting/checks-in', 'BANK'],
+  ['/accounting/checks-out', 'BANK'],
+  ['/accounting/checks-issued-in', 'BANK'],
+  ['/accounting/checks-issued-out', 'BANK'],
+  ['/accounting/non-cash', 'BANK'],
+  ['/accounting/notes', 'BANK'],
+  ['/accounting/notes-ledger', 'BANK'],
+  ['/accounting/notes-in', 'BANK'],
+  ['/accounting/notes-out', 'BANK'],
+  ['/accounting/notes-held', 'BANK'],
+  ['/accounting/notes-unpaid', 'BANK'],
+  ['/accounting/notes-pay-ledger', 'BANK'],
+  ['/accounting/notes-pay-in', 'BANK'],
+  ['/accounting/notes-pay-out', 'BANK'],
+  ['/accounting/fixed-assets', 'FIXED_ASSET'],
+  ['/accounting/fixed-asset-ledger', 'FIXED_ASSET'],
+  ['/accounting/fixed-asset-in', 'FIXED_ASSET'],
+  ['/accounting/fixed-asset-out', 'FIXED_ASSET'],
+  ['/accounting/fixed-asset-movement', 'FIXED_ASSET'],
+  ['/accounting/fixed-asset-slips', 'FIXED_ASSET'],
+  ['/accounting/budget', 'FINANCE'],
+  ['/accounting/contracts', 'FINANCE'],
+  ['/accounting/income', 'FINANCE'],
+  ['/accounting/expense', 'FINANCE'],
+  ['/accounting/withholding', 'TAX'],
+  ['/accounting/other-withholding', 'TAX'],
+  ['/accounting/corporate-tax', 'TAX'],
+  ['/accounting/vat', 'TAX'],
+  ['/accounting/profit', 'PROFIT'],
+  ['/accounting/item-cost', 'PROFIT'],
+  ['/accounting/standard-cost', 'PROFIT'],
+  ['/accounting/actual-cost', 'PROFIT'],
+  ['/accounting/cost-build', 'PROFIT'],
+  ['/accounting/variance', 'PROFIT'],
+  ['/accounting/monthly-profit', 'PROFIT'],
+  ['/accounting/daily-profit', 'PROFIT'],
+  ['/accounting/project-profit', 'PROFIT'],
+  ['/accounting/project-plan', 'PROFIT'],
+  ['/accounting', 'ACCOUNTING'], // accounts · journals · vouchers · 재무제표 · 원장 …
+
+  // 관리(인사/급여)
+  ['/hr/payroll', 'PAYROLL'],
+  ['/hr/pay-settings', 'PAYROLL'],
+  ['/hr/allowance-items', 'PAYROLL'],
+  ['/hr/deduction-items', 'PAYROLL'],
+  ['/hr/pay-groups', 'PAYROLL'],
+  ['/hr/departments', 'HR'],
+  ['/inventory/projects', 'HR'],
+  ['/hr/work-input', 'PAYROLL'],
+  ['/hr/work-list', 'PAYROLL'],
+  ['/hr/daily-wage', 'PAYROLL'],
+  ['/hr/daily-payroll', 'PAYROLL'],
+  ['/hr', 'HR'],
+
+  // 그룹웨어
+  ['/groupware/org', 'HR'],
+  ['/groupware/project', 'PROJECT'],
+  ['/groupware/construction-schedule', 'PROJECT'],
+  ['/groupware/dev-schedule', 'PROJECT'],
+  ['/groupware/crm', 'PARTNER'],
+  ['/groupware/cards', 'PARTNER'],
+  ['/groupware', 'GROUPWARE'],
+
+  // 설정
+  ['/users', 'USER_MANAGE'],
+  ['/roles', 'USER_MANAGE'],
+  ['/companies', 'USER_MANAGE'],
+  ['/settings', 'SETTINGS'],
+
+  // 데이터센터 — 누구나
+  ['/datacenter', null],
+]
+
+/** 라우트를 관장하는 권한 코드. 매핑이 없거나 null 이면 권한 불요(누구나). */
+export function permForRoute(path: string): string | null {
+  if (path === '/') return null
+  let best: Rule | null = null
+  for (const rule of RULES) {
+    const [prefix] = rule
+    if (prefix === '/') continue
+    if (path === prefix || path.startsWith(prefix + '/')) {
+      if (!best || prefix.length > best[0].length) best = rule
+    }
+  }
+  return best ? best[1] : null
+}

@@ -1,0 +1,29 @@
+{
+  "about": "관리 > 수당/공제그룹등록(E090104) — 원본처럼 그룹코드가 미리 채워진 창에서 그룹명 · 수당 줄(식대)을 넣어 저장하고, [사원 등록] 창에서 사원과 지급율(%)을 매긴다. 그 사원의 급여명세를 그룹 없이 만들면 식대가 지급율만큼 들어와야 한다. 만든 명세 · 그룹은 지운다.",
+  "shots": [
+    {
+      "name": "그룹 저장 → 적용사원 50% → 급여명세에 식대 절반",
+      "path": "/hr/pay-groups",
+      "steps": [
+        "click:신규(F2)",
+        "wait:600",
+        "expect:/^[0-9]{5}$/.test(document.querySelector('[role=dialog] input.ec-input').value)",
+        "set:[role=dialog] input[placeholder=\"수당/공제그룹명\"]|QA관리-화면시험그룹",
+        "choose:[role=dialog] table select#0|MEAL",
+        "set:[role=dialog] table input.ec-input#0|200000",
+        "clicklast:저장(F8)",
+        "wait:2500",
+        "expect:!document.querySelector('[role=dialog]') && /QA관리-화면시험그룹\\s+등록/.test(document.querySelector('table').innerText)",
+        "js:(()=>{const tr=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('QA관리-화면시험그룹'));tr.querySelector('td:last-child a').click();return true})()",
+        "wait:800",
+        "choose:[role=dialog] table select#0|EMP-0004 정수진",
+        "set:[role=dialog] table input.ec-input#0|50",
+        "clicklast:저장(F8)",
+        "wait:2500",
+        "expect:/QA관리-화면시험그룹\\s+1명/.test(document.querySelector('table').innerText)",
+        "js:(async()=>{const ok=await (async()=>{const t=localStorage.getItem('erp_token');const h={Authorization:'Bearer '+t,'Content-Type':'application/json'};const emps=await (await fetch('/api/employees',{headers:h})).json();const e=emps.find(x=>x.code==='EMP-0004');const r=await fetch('/api/payslips',{method:'POST',headers:h,body:JSON.stringify({employeeId:e.id,payMonth:'2091-01'})});const p=await r.json();const meal=(p.lines||[]).find(l=>l.name==='식대');await fetch('/api/payslips/'+p.id,{method:'DELETE',headers:h});const gs=await (await fetch('/api/pay-settings/groups',{headers:h})).json();const g=gs.find(x=>x.name==='QA관리-화면시험그룹');await fetch('/api/pay-settings/groups/'+g.id,{method:'DELETE',headers:h});return r.ok&&!!meal&&Number(meal.amount)===100000})();sessionStorage.setItem('qaPg0',String(ok));return true})()",
+        "expect:sessionStorage.getItem('qaPg0')==='true'"
+      ]
+    }
+  ]
+}

@@ -140,6 +140,17 @@ async function seed() {
   }
   console.log(`  로트 ${lot.lotNo} (id=${lot.id})`)
 
+  // 기초재고 — 시나리오들이 '이전 실행이 남긴 재고'에 기대고 있었다. 빈 DB(docker compose down -v)에서는
+  // 1-b 판매가 '재고 부족'으로 첫 단계부터 멈췄다(2026-10-02). 모자라면 1,000 까지 채운다.
+  const stockRows = await must('GET', '/stock')
+  for (const it of [product, material]) {
+    const have = Number(stockRows.find((x) => x.itemId === it.id && x.warehouseId === warehouse.id)?.quantity ?? 0)
+    if (have < 1000) {
+      await must('POST', '/stock/transactions', { itemId: it.id, warehouseId: warehouse.id, type: 'INBOUND', quantity: 1000 - have })
+      console.log(`  기초재고 ${it.code} ${have} → 1000`)
+    }
+  }
+
   return { warehouse, customer, supplier, product, material, process, lot }
 }
 
@@ -166,6 +177,14 @@ async function scenarioSpecialPrice(f) {
     await call('DELETE', `/special-prices/${sp0.id}`)
   }
 
+  /*
+   * 단가적용순서설정에서 [거래처별특별단가] 가 '사용' 이어야 특별단가가 걸린다(51회차 — 설정과 상관없이 늘 걸렸다).
+   * 지금 설정을 받아 두고 켠 뒤 시험하고, 끝에 되돌린다.
+   */
+  const savedOrder = await must('GET', '/price-order-settings?category=SALES')
+  const withPartner = (on) => savedOrder.map((l) => (l.functionName === '거래처별특별단가(품목별)' ? { ...l, active: on } : l))
+  await must('PUT', '/price-order-settings', { category: 'SALES', settings: withPartner(true) })
+
   const before = await ask()
   eq('등록 전에는 특별단가가 없다', before.found, false)
   eq('없을 때 단가는 null 이다(0 이 아니다)', before.unitPrice, null)
@@ -184,8 +203,14 @@ async function scenarioSpecialPrice(f) {
   await must('PATCH', `/special-prices/${sp.id}/active?active=true`)
   eq('다시 켜면 또 찾는다', (await ask()).found, true)
 
+  // 설정에서 거래처별특별단가를 '사용안함' 으로 두면 등록돼 있어도 안 건다 — 원본 기본값이 그렇다
+  await must('PUT', '/price-order-settings', { category: 'SALES', settings: withPartner(false).map((l) => (l.functionName.startsWith('거래처별특별단가') ? { ...l, active: false } : l)) })
+  eq('단가적용순서설정에서 거래처별특별단가를 끄면 안 건다', (await ask()).found, false)
+  await must('PUT', '/price-order-settings', { category: 'SALES', settings: withPartner(true) })
+
   await must('DELETE', `/special-prices/${sp.id}`)
   eq('지우면 표준단가로 돌아간다', (await ask()).found, false)
+  await must('PUT', '/price-order-settings', { category: 'SALES', settings: savedOrder })   // 설정 되돌림
 }
 
 /**
@@ -395,8 +420,118 @@ async function scenarioSaleWithinOrder(f) {
     /근거발주의 잔량을 초과합니다/.test(String(overBuy.data?.message ?? '')), true)
   eq('구매도 수량 그대로 수정은 통과',
     (await call('PUT', `/purchases/${bought.id}`, { ...buy(7), remark: 'QA 그대로' })).status, 200)
+  /* 구매입력 [발주] 불러오기는 잔량(10 − 7 = 3)을 내야 한다 — 발주수량 전체(10)를 또 담았다(42회차). */
+  const un = (await must('GET', '/purchase-orders/unpurchased')).find((r) => r.orderId === po.id)
+  eq('미구매 발주 줄: 발주 10 · 구매 7 · 잔량 3', [Number(un?.orderQty), Number(un?.boughtQty), Number(un?.restQty)].join('/'), '10/7/3')
   await must('DELETE', `/purchases/${bought.id}`)
   await must('DELETE', `/purchase-orders/${po.id}`)
+}
+
+/**
+ * <b>주문을 판매로 다 끊으면 주문이 완료로 닫힌다</b> (QA 기록 #19, 8회차).
+ *
+ * 예전엔 출하완료로만 닫혀서 판매로 다 끊어도 계속 '진행중' 이었다. 원본 이카운트는 판매입력이
+ * 주문서를 불러오면 주문을 완료로 닫는다(진행상태변경설정 '자동변경'). 출하·판매가 서로의 완료를
+ * 뒤집지 않는지(출하 취소가 판매로 닫힌 주문을 다시 열지 않는지)도 같이 본다.
+ * 미출하는 주문 상태가 아니라 출하로 센다 — 판매로 닫혀도 안 나간 물건은 미출하에 남는다.
+ */
+async function scenarioOrderClosesBySales(f) {
+  section('■ 판매로 다 끊은 주문은 완료')
+  const order = await must('POST', '/sales-orders', {
+    partnerId: f.customer.id, orderDate: '2026-07-13',
+    lines: [{ itemId: f.product.id, quantity: 10, unitPrice: 1000 }],
+  })
+  const lineId = order.lines[0].lineId
+  const statusOf = async () => (await must('GET', '/sales-orders')).find((o) => o.id === order.id).statusName
+  const sale = (qty) => must('POST', '/sales', {
+    saleDate: '2026-07-13', partnerId: f.customer.id, warehouseId: f.warehouse.id,
+    lines: [{ itemId: f.product.id, quantity: qty, unitPrice: 1000, sourceOrderId: order.id }],
+  })
+
+  const s1 = await sale(6)
+  eq('일부만 판매하면 진행중', await statusOf(), '진행중')
+  const s2 = await sale(4)
+  eq('주문수량만큼 판매하면 완료', await statusOf(), '완료')
+  eq('판매로 닫혀도 안 나간 물건은 미출하에 남는다',
+    (await must('GET', '/sales-orders/unshipped')).find((r) => r.orderLineId === lineId)?.unshippedQty, 10)
+
+  const ship = await must('POST', `/sales-orders/${order.id}/ship`, {})
+  await must('PATCH', `/shipments/${ship.id}/status`, { status: 'SHIPPED' })
+  eq('출하까지 끝나면 미출하에서 빠진다',
+    (await must('GET', '/sales-orders/unshipped')).filter((r) => r.orderLineId === lineId).length, 0)
+  await must('PATCH', `/shipments/${ship.id}/status`, { status: 'CANCELED' })
+  eq('출하를 취소해도 판매로 닫힌 주문은 완료 그대로', await statusOf(), '완료')
+
+  await must('DELETE', `/sales/${s2.id}`)
+  eq('판매를 지우면 다시 진행중', await statusOf(), '진행중')
+
+  await must('DELETE', `/shipments/${ship.id}`)
+  await must('DELETE', `/sales/${s1.id}`)
+  await must('DELETE', `/sales-orders/${order.id}`)
+}
+
+/**
+ * <b>발주를 구매로 다 끊으면 발주도 닫힌다</b> (QA 9회차). 주문(#19)과 같은 규칙.
+ * 예전엔 [입고전환] 버튼으로만 닫혀, 구매입력에서 발주를 불러와 전량을 사도 '발주요청' 그대로였다.
+ * 구매를 지우면 닫히기 직전 단계로 돌아가고, 바뀔 때마다 이력이 남는다.
+ */
+async function scenarioPurchaseOrderClosesByPurchases(f) {
+  section('■ 구매로 다 끊은 발주는 입고전환')
+  const po = await must('POST', '/purchase-orders', {
+    partnerId: f.supplier.id, orderDate: '2026-07-13', warehouseId: f.warehouse.id,
+    lines: [{ itemId: f.material.id, quantity: 10, unitPrice: 500 }],
+  })
+  const statusOf = async () => (await must('GET', '/purchase-orders')).find((o) => o.id === po.id).statusName
+  const buy = (qty) => must('POST', '/purchases', {
+    purchaseDate: '2026-07-13', partnerId: f.supplier.id, warehouseId: f.warehouse.id,
+    lines: [{ itemId: f.material.id, quantity: qty, unitPrice: 500, sourceOrderId: po.id }],
+  })
+  const before = await statusOf()
+  const b1 = await buy(6)
+  eq('일부만 사면 그대로', await statusOf(), before)
+  const b2 = await buy(4)
+  eq('발주수량만큼 사면 입고전환', await statusOf(), '입고전환')
+  const hist = await must('GET', `/purchase-orders/${po.id}/history`)
+  eq('닫힌 까닭이 이력에 남는다', hist.some((h) => (h.note ?? '').includes('구매입력으로 전량 입고')), true)
+  await must('DELETE', `/purchases/${b2.id}`)
+  eq('구매를 지우면 닫히기 직전 단계로', await statusOf(), before)
+  await must('DELETE', `/purchases/${b1.id}`)
+  await must('DELETE', `/purchase-orders/${po.id}`)
+}
+
+/**
+ * <b>회계반영 분개의 매출·재고 계정은 품목구분으로 가른다</b> (QA 11회차).
+ * 예전엔 무엇을 팔든 상품매출(401), 무엇을 사든 상품(146) 이었다 — 제조업체가 만든 제품을 팔아도
+ * 상품매출, 원재료를 사도 상품으로 잡혀 손익계산서·재무상태표의 구분이 늘 한쪽이었다.
+ */
+async function scenarioReflectionAccounts(f) {
+  section('■ 회계반영 계정 — 제품매출 · 원재료 · 섞인 전표는 나눠서')
+  const day = '2026-07-13'
+  const linesOf = async (kind, id) => {
+    const row = (await must('GET', `/accounting-reflection?kind=${kind}`)).find((r) => r.id === id)
+    return (await must('GET', `/journals/${row.journalEntryId}`)).lines
+  }
+  const amt = (ls, code, side) => Number(ls.find((l) => l.accountCode === code)?.[side] ?? 0)
+  const sale = await must('POST', '/sales', { saleDate: day, partnerId: f.customer.id, warehouseId: f.warehouse.id, taxable: true,
+    lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 100000 }, { itemId: f.material.id, quantity: 1, unitPrice: 20000 }] })
+  const buy = await must('POST', '/purchases', { purchaseDate: day, partnerId: f.supplier.id, warehouseId: f.warehouse.id, taxable: true,
+    lines: [{ itemId: f.material.id, quantity: 2, unitPrice: 30000 }] })
+  try {
+    await must('POST', '/accounting-reflection/reflect', { kind: 'SALES', ids: [sale.id] })
+    await must('POST', '/accounting-reflection/reflect', { kind: 'PURCHASE', ids: [buy.id] })
+    const s = await linesOf('SALES', sale.id)
+    eq('제품을 팔면 제품매출(404)', amt(s, '404', 'credit'), 100000)
+    eq('원재료를 팔면 상품매출(401)', amt(s, '401', 'credit'), 20000)
+    eq('섞인 판매도 대차가 맞는다', s.reduce((n, l) => n + Number(l.debit), 0), s.reduce((n, l) => n + Number(l.credit), 0))
+    const p = await linesOf('PURCHASE', buy.id)
+    eq('원재료를 사면 원재료(153)', amt(p, '153', 'debit'), 60000)
+    eq('상품(146)으로는 안 잡힌다', amt(p, '146', 'debit'), 0)
+  } finally {
+    await call('POST', '/accounting-reflection/unreflect', { kind: 'SALES', ids: [sale.id] })
+    await call('POST', '/accounting-reflection/unreflect', { kind: 'PURCHASE', ids: [buy.id] })
+    await must('DELETE', `/sales/${sale.id}`)
+    await must('DELETE', `/purchases/${buy.id}`)
+  }
 }
 
 /**
@@ -453,10 +588,32 @@ async function scenarioUnsold(f) {
     lines: [{ itemId: f.product.id, quantity: 50, unitPrice: 2000 }],
   })
   const lineId = order.lines[0].lineId
+  /*
+   * 원본 주문서현황(E040209)의 [규격] 조건이 쓰는 값. <code>OrderLineResponse</code> 만
+   * 규격을 안 실어, 그 조건을 오래 '못 만드는 것' 으로 적어 두었었다(2026-09-08 에 실었다).
+   */
+  eq('수주 라인 응답에 [spec] 칸이 있다', 'spec' in order.lines[0], true)
   const un = async () => (await must('GET', '/sales-orders/unsold')).find((r) => r.orderLineId === lineId)
 
   eq('판매 전 미판매 = 주문수량', (await un()).unsoldQty, 50)
   eq('판매 전 미판매금액 = 수량 × 단가', (await un()).unsoldAmount, 100000)
+
+  /*
+   * <b>조건이 걸 값을 응답이 싣고 있나.</b> 2026-09-08 에 원본 미판매현황(E040212)을 재고
+   * 화면에 [창고]·[프로젝트]·[담당자]·[적요]·[규격]·[작성자]를 만들었는데, 그 여섯을
+   * <code>UnsoldLineResponse</code> 가 <b>안 싣고 있었다</b> — 같은 파일의 미출하 응답은
+   * 이미 싣는데 이쪽만 갈라져 있었다.
+   *
+   * <p>값이 아니라 <b>칸이 있는지</b>를 잰다. 자리만 비면 화면은 조용히 '전체' 로 돌아
+   * 아무도 못 알아챈다 — 조건을 만들어 놓고 서버가 값을 안 주는 것이 이 저장소에서
+   * 가장 오래 못 잡던 구멍이다.
+   */
+  {
+    const row = await un()
+    for (const k of ['warehouseName', 'projectName', 'employeeName', 'remark', 'spec', 'createdBy']) {
+      eq(`미판매현황 응답에 [${k}] 칸이 있다`, k in row, true)
+    }
+  }
 
   // 근거전표(수주)를 달고 20개만 판매 → 미판매 30 남아야 한다
   const sale1 = await must('POST', '/sales', {
@@ -706,6 +863,17 @@ async function scenarioRelations(f) {
   isNull('미등록 로트No → lotId 는 null', unlinked.lotId)
   eq('미등록이어도 입력 문자열은 보존', unlinked.lotNo, `${P}없는로트`)
 
+  /*
+   * 자동판정 — 불량 0 합격, 불량률 3% 미만 조건부합격, 그 외 불합격. 200개 중 5개 = 2.5%, 6개 = 3.0%.
+   * 0 개 검사는 불량 0 이라 '합격' 으로 남았다(53회차) — 검사한 것이 없으면 판정할 것도 없다.
+   */
+  const qc5 = await must('POST', '/quality-inspections', { type: 'INCOMING', itemId: f.material.id, inspectedQty: 200, defectQty: 5 })
+  eq('200개 중 5개 불량 → 2.5% 조건부합격', `${qc5.defectRate} ${qc5.result} ${qc5.goodQty}`, '2.5 CONDITIONAL 195')
+  const qc6 = await must('POST', '/quality-inspections', { type: 'INCOMING', itemId: f.material.id, inspectedQty: 200, defectQty: 6 })
+  eq('200개 중 6개 불량 → 3.0% 불합격', `${qc6.defectRate} ${qc6.result}`, '3 FAIL')
+  await rejects('검사수량 0 은 거부', 'POST', '/quality-inspections', { type: 'INCOMING', itemId: f.material.id, inspectedQty: 0, defectQty: 0 })
+  for (const q of [qc5, qc6]) await must('DELETE', `/quality-inspections/${q.id}`)
+
   const wrLinked = await must('POST', '/work-results', {
     process: f.process.name, worker: 'QA', goodQty: 10, defectQty: 0, workTimeMin: 30,
     warehouseId: f.warehouse.id, note: `${P}적요`, workItemId: f.material.id,
@@ -940,8 +1108,13 @@ async function scenarioSalesPlanScope(f) {
 async function scenarioQuotationWarehouseProject(f) {
   section('■ 시나리오. 견적서가 창고·프로젝트를 기억한다')
 
-  const proj = await ensure('/projects', 'code', `${P}PRJQ`, null, {
-    code: `${P}PRJQ`, name: 'QA견적프로젝트', startDate: '2026-01-01',
+  /*
+   * 이름으로 찾는다. 프로젝트 코드는 서버가 매긴다(PRJ-NNNNN) — 보낸 code 는 버려져서
+   * code 로 찾으면 늘 못 찾고 <b>돌 때마다 새로 만들었다</b>. 같은 이름 프로젝트가 461개 쌓여
+   * 이름으로 거르는 화면이 전부 잡히는 버그(2026-10-01)를 덮고 있었다.
+   */
+  const proj = await ensure('/projects', 'name', 'QA견적프로젝트', null, {
+    name: 'QA견적프로젝트', startDate: '2026-01-01',
   })
   const q = await must('POST', '/quotations', {
     partnerId: f.customer.id, warehouseId: f.warehouse.id, projectId: proj.id,
@@ -969,6 +1142,39 @@ async function scenarioQuotationWarehouseProject(f) {
   const ord = (await must('GET', '/sales-orders')).find((x) => x.id === conv.id)
   eq('견적을 수주로 바꾸면 <b>창고가 따라간다</b>', ord?.warehouseName, f.warehouse.name)
   eq('견적을 수주로 바꾸면 <b>프로젝트가 따라간다</b>', ord?.projectName, proj.name)
+
+  /*
+   * <b>수주 → 출하로도 이어지는가.</b> 출하 생성이 "주문서에 프로젝트 칸이 없다" 는 옛 주석대로
+   * 프로젝트를 비워 내보내서, 주문에서 만든 출하가 출하조회·프로젝트별 손익에서 빠졌다(2026-10-01).
+   */
+  const shp = await must('POST', `/sales-orders/${conv.id}/ship`, {})
+  eq('수주에서 출하를 만들면 <b>프로젝트가 따라간다</b>', shp.projectName, proj.name)
+  eq('수주에서 출하를 만들면 <b>창고가 따라간다</b>', shp.warehouseName, f.warehouse.name)
+
+  /*
+   * <b>프로젝트별 손익이 그 프로젝트 전표로 맞게 늘어나는가.</b> 손익은 판매 공급가 − 구매 공급가 − 비용이다.
+   * 판매 하나·구매 하나·비용 하나를 프로젝트에 달고 앞뒤 차이를 잰다(QA 가 돌 때마다 쌓이므로 절대값이 아니라 차이).
+   */
+  const PERIOD = 'from=2026-03-01&to=2026-03-31'
+  const rowOf = async () => (await must('GET', `/projects/profit?${PERIOD}`)).rows.find((r) => r.projectId === proj.id)
+    ?? { revenue: 0, purchaseCost: 0, expense: 0, profit: 0 }
+  const before = await rowOf()
+  const pSale = await must('POST', '/sales', {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2026-03-02', taxable: true, projectId: proj.id,
+    lines: [{ itemId: f.product.id, quantity: 1, unitPrice: 30000 }],
+  })
+  const pBuy = await must('POST', '/purchases', {
+    partnerId: f.supplier.id, warehouseId: f.warehouse.id, purchaseDate: '2026-03-02', taxable: true, projectId: proj.id,
+    lines: [{ itemId: f.material.id, quantity: 2, unitPrice: 5000 }],
+  })
+  const acct = (await must('GET', '/accounts')).find((a) => a.code === '812') ?? (await must('GET', '/accounts'))[0]
+  await must('POST', '/expenses', { accountId: acct.id, expenseDate: '2026-03-02', content: 'QA 프로젝트 비용', amount: 3000, projectId: proj.id })
+  const after = await rowOf()
+  const d = (k) => Number(after[k]) - Number(before[k])
+  eq('프로젝트 손익: 매출이 판매 공급가만큼 는다', d('revenue'), Number(pSale.supplyAmount))
+  eq('프로젝트 손익: 구매원가가 구매 공급가만큼 는다', d('purchaseCost'), Number(pBuy.supplyAmount))
+  eq('프로젝트 손익: 비용이 비용 전표만큼 는다', d('expense'), 3000)
+  eq('프로젝트 손익: 이익 = 매출 − 원가 − 비용', d('profit'), 30000 - 10000 - 3000)
 
   const again = (await must('GET', '/quotations')).find((x) => x.id === q.id)
   eq('다시 조회해도 창고·프로젝트가 남아 있다',
@@ -1034,30 +1240,44 @@ async function scenarioAsConsumption(f) {
   const reread = (await must('GET', '/as-requests')).find((x) => x.id === as.id)
   eq('다시 조회해도 제목·수리예정일자가 남아 있다',
     `${reread?.title}/${reread?.scheduledDate}`, 'QA 제목/2026-03-12')
-  await must('POST', `/as-requests/${as.id}/parts`, {
-    itemId: f.material.id, warehouseId: f.warehouse.id, quantity: 3, unitPrice: 1000,
+  /*
+   * 2026-10-04 — 원본 A/S소모현황(E040641)의 소모는 <b>A/S수리에 이어진 판매(판매연결전표)의 줄</b>이다.
+   * 예전엔 A/S접수에 소모부품(AsPart)을 바로 붙여 재고를 뺐는데, 그 길은 원본에 없어 걷어 냈다.
+   * 수리를 접수에 잇고, 부품은 판매연결전표로 판다 — 재고는 판매가 뺀다.
+   */
+  const repair = await must('POST', '/as-repairs', {
+    repairDate: '2026-03-06', partnerId: f.customer.id, charge: 'QA기사', warehouseId: f.warehouse.id,
+    asRequestId: as.id, repairType: 'PAID_REPAIR', title: 'QA 소모현황용 수리',
+    lines: [{ itemId: f.product.id, quantity: 1 }],
   })
-
-  const qtyOf = (rows) => {
-    const r = rows.find((x) => x.itemId === f.material.id)
-    return r ? Number(r.totalQty) : 0
+  const stockAt = async () => {
+    const r = (await must('GET', '/stock')).find((x) => x.itemId === f.material.id && x.warehouseId === f.warehouse.id)
+    return r ? Number(r.quantity) : 0
   }
-  const url = (q) => `/as-requests/parts/consumption?${q}`
+  const s0 = await stockAt()
+  const linked = await must('POST', `/as-repairs/${repair.id}/sales`, {
+    saleDate: '2026-03-06', lines: [{ itemId: f.material.id, quantity: 3, unitPrice: 1000 }],
+  })
+  eq('판매연결전표로 부품 3개를 팔면 창고 재고가 3 준다', s0 - (await stockAt()), 3)
 
-  eq('접수일자 안이면 소모수량이 잡힌다',
-    qtyOf(await must('GET', url('from=2026-03-01&to=2026-03-31'))) >= 3, true)
-  eq('접수일자 밖이면 안 잡힌다',
-    qtyOf(await must('GET', url('from=2026-01-01&to=2026-01-31'))), 0)
-  eq('다른 창고로 거르면 안 잡힌다',
-    qtyOf(await must('GET', url(`from=2026-03-01&to=2026-03-31&warehouseId=${f.warehouse.id + 99999}`))), 0)
-  eq('그 거래처로 거르면 잡힌다',
-    qtyOf(await must('GET', url(`from=2026-03-01&to=2026-03-31&partnerId=${f.customer.id}`))) >= 3, true)
-  eq('다른 거래처로 거르면 안 잡힌다',
-    qtyOf(await must('GET', url(`from=2026-03-01&to=2026-03-31&partnerId=${f.supplier.id}`))), 0)
-  eq('수리품목으로 거르면 잡힌다 — 소모부품이 아니라 <b>수리 대상</b> 품목이다',
-    qtyOf(await must('GET', url(`from=2026-03-01&to=2026-03-31&repairItemId=${f.product.id}`))) >= 3, true)
-  eq('소모부품 품목을 수리품목으로 주면 안 잡힌다',
-    qtyOf(await must('GET', url(`from=2026-03-01&to=2026-03-31&repairItemId=${f.material.id}`))), 0)
+  const used = async (q) => (await must('GET', `/as-repairs/consumption?${q}`))
+    .filter((x) => x.repairId === repair.id && x.itemId === f.material.id)
+    .reduce((s, x) => s + Number(x.quantity), 0)
+  eq('수리일자 안이면 소모수량이 잡힌다', await used('from=2026-03-01&to=2026-03-31'), 3)
+  eq('수리일자 밖이면 안 잡힌다', await used('from=2026-01-01&to=2026-01-31'), 0)
+  const line = (await must('GET', '/as-repairs/consumption?from=2026-03-01&to=2026-03-31'))
+    .find((x) => x.repairId === repair.id)
+  eq('소모 줄이 수리의 거래처 · 창고 · 수리품목 · 접수를 싣는다',
+    `${line?.partnerId === f.customer.id} ${line?.warehouseId === f.warehouse.id} ${line?.repairItemId === f.product.id} ${line?.receiptDate}`,
+    'true true true 2026-03-05')
+  eq('소모 줄의 공급가액은 판매 줄의 것이다', Number(line?.supplyAmount), 3000)
+
+  await rejects('판매연결전표가 남은 수리는 지울 수 없다', 'DELETE', `/as-repairs/${repair.id}`)
+  await must('DELETE', `/as-repairs/${repair.id}/sales/${linked.sales[0].salesId}`)
+  eq('판매연결전표를 지우면 재고가 돌아온다', await stockAt(), s0)
+  eq('판매를 지우면 소모에서도 빠진다', await used('from=2026-03-01&to=2026-03-31'), 0)
+  await must('DELETE', `/as-repairs/${repair.id}`)
+  await must('DELETE', `/as-requests/${as.id}`)
 }
 
 async function scenarioSettings() {
@@ -1072,7 +1292,17 @@ async function scenarioSettings() {
   const sp = await must('GET', '/security-policy')
   await must('PUT', '/security-policy', { ...sp, pwLength: 12 })
   eq('보안정책이 재조회 후에도 유지', (await must('GET', '/security-policy')).pwLength, 12)
-  await must('PUT', '/security-policy', sp) // 원복
+  /*
+   * 저장만 되고 쓰이지 않던 정책(20회차) — 최소 길이는 이제 사용자 등록에서 지킨다.
+   * 실패해도 정책은 원복해야 하므로 try/finally.
+   */
+  try {
+    await rejects('정책보다 짧은 비밀번호로는 사용자를 못 만든다', 'POST', '/users', {
+      username: `${P.toLowerCase()}pwshort`, password: 'abcd123456', name: 'QA짧은비번',
+    }, '최소 12자')
+  } finally {
+    await must('PUT', '/security-policy', sp) // 원복
+  }
 }
 
 /** 견적 → 발송 → 수주전환 (영업 흐름 시작점) */
@@ -1095,6 +1325,9 @@ async function scenarioQuotation(f) {
   eq('전환된 수주는 접수 상태', order.statusName, '접수')
   eq('수주에 견적 거래처가 승계됨', order.partnerId, f.customer.id)
   eq('수주 합계가 견적 합계와 일치', Number(order.totalAmount), 55000)
+  /* 수주일은 전환한 날, 납기는 비운다 — 견적일·유효기한을 옮기면 지난 날짜에 주문이 생겼다(30회차). */
+  eq('전환한 수주의 일자는 오늘(견적일이 아니다)', order.orderDate, new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10))
+  isNull('견적 유효기한을 납기로 옮기지 않는다', order.dueDate)
 
   const converted = (await must('GET', '/quotations')).find((q) => q.id === quote.id)
   eq('전환 후 견적 상태는 수주전환', converted.statusName, '수주전환')
@@ -1279,11 +1512,200 @@ async function scenarioPurchaseOrder(f) {
   await must('DELETE', `/purchases/${byLine.id}`)
   await must('DELETE', `/purchases/${bySlip.id}`)
 
+  /*
+   * ── 공급가액 원 단위 반올림 [원본 확인] ──
+   * 2026-10-06 loginaa 판매입력(저장 2026/10/06-2, 임의거래처 · 포장김치)과 구매입력에서
+   * 3 × 333.5 = 1,000.5 → 공급가액 1,001 · 부가세 100 · 합계 1,101. 3 × 333.35 → 1,000.
+   * 예전엔 곱을 그대로 저장해 1,000.50 · 합계 1,100.50 이 채권에 실렸다.
+   * 아래 채권·채무 증감과 반품 되돌림은 [업무 일관성] 검사다(원본에서 잰 값이 아니다).
+   */
+  const balAll = async () => must('GET', '/ledger/partner-balances')
+  const arOf = async (id) => Number((await balAll()).find((x) => x.partnerId === id)?.receivable ?? 0)
+  const apOf = async (id) => Number((await balAll()).find((x) => x.partnerId === id)?.payable ?? 0)
+  const ar0 = await arOf(f.customer.id)
+  const half = await must('POST', '/sales', {
+    saleDate: '2026-07-14', partnerId: f.customer.id, warehouseId: f.warehouse.id, taxable: true,
+    lines: [{ itemId: f.product.id, quantity: 3, unitPrice: 333.5 }],
+  })
+  eq('[원본] 판매 3 × 333.5 → 공급가액 1,001', Number(half.supplyAmount), 1001)
+  eq('[원본] 판매 3 × 333.5 → 부가세 100', Number(half.vatAmount), 100)
+  eq('[원본] 판매 3 × 333.5 → 합계 1,101', Number(half.totalAmount), 1101)
+  eq('라인 공급가액도 1,001 (전표 합과 같다)', Number(half.lines[0].supplyAmount), 1001)
+  eq('[일관성] 채권이 합계 1,101 만큼 는다', (await arOf(f.customer.id)) - ar0, 1101)
+  const back = await must('POST', '/sales', {
+    saleDate: '2026-07-14', partnerId: f.customer.id, warehouseId: f.warehouse.id, taxable: true,
+    returnSlip: true, lines: [{ itemId: f.product.id, quantity: 3, unitPrice: 333.5 }],
+  })
+  eq('[일관성] 같은 값 반품은 -1,101 (음수도 크기를 반올림)', Number(back.totalAmount), -1101)
+  eq('[일관성] 반품 뒤 채권이 처음으로 돌아온다', (await arOf(f.customer.id)) - ar0, 0)
+  const low = await must('POST', '/sales', {
+    saleDate: '2026-07-14', partnerId: f.customer.id, warehouseId: f.warehouse.id, taxable: true,
+    lines: [{ itemId: f.product.id, quantity: 3, unitPrice: 333.35 }],
+  })
+  eq('[원본] 판매 3 × 333.35 → 공급가액 1,000', Number(low.supplyAmount), 1000)
+  const ap0 = await apOf(f.supplier.id)
+  const halfP = await must('POST', '/purchases', {
+    partnerId: f.supplier.id, warehouseId: f.warehouse.id, purchaseDate: '2026-07-14', taxable: true,
+    lines: [{ itemId: f.material.id, quantity: 3, unitPrice: 333.5 }],
+  })
+  eq('[원본] 구매 3 × 333.5 → 공급가액 1,001 · 합계 1,101',
+    `${Number(halfP.supplyAmount)}/${Number(halfP.totalAmount)}`, '1001/1101')
+  eq('[일관성] 채무가 합계 1,101 만큼 는다', (await apOf(f.supplier.id)) - ap0, 1101)
+  for (const s of [half, back, low]) await must('DELETE', `/sales/${s.id}`)
+  await must('DELETE', `/purchases/${halfP.id}`)
+  eq('[일관성] 지우면 채권·채무가 처음으로', `${(await arOf(f.customer.id)) - ar0}/${(await apOf(f.supplier.id)) - ap0}`, '0/0')
+
+  /* [원본] 2026-10-06 loginaa 견적서입력 · 주문서입력 · 발주서입력도 3 × 333.5 → 1,001 · 100 · 1,101(저장 안 함). */
+  const amt = (d) => `${Number(d.supplyAmount)}/${Number(d.vatAmount)}/${Number(d.totalAmount)}`
+  const halfLine = (itemId) => [{ itemId, quantity: 3, unitPrice: 333.5 }]
+  const hq = await must('POST', '/quotations', {
+    partnerId: f.customer.id, quoteDate: '2026-07-14', taxable: true, lines: halfLine(f.product.id) })
+  eq('[원본] 견적 3 × 333.5 → 1,001/100/1,101', amt(hq), '1001/100/1101')
+  const ho = await must('POST', '/sales-orders', {
+    partnerId: f.customer.id, orderDate: '2026-07-14', taxable: true, lines: halfLine(f.product.id) })
+  eq('[원본] 주문 3 × 333.5 → 1,001/100/1,101', amt(ho), '1001/100/1101')
+  const hpo = await must('POST', '/purchase-orders', {
+    partnerId: f.supplier.id, orderDate: '2026-07-14', warehouseId: f.warehouse.id, taxable: true, lines: halfLine(f.material.id) })
+  eq('[원본] 발주 3 × 333.5 → 1,001/100/1,101', amt(hpo), '1001/100/1101')
+  await must('DELETE', `/quotations/${hq.id}`)
+  await must('DELETE', `/sales-orders/${ho.id}`)
+  await must('DELETE', `/purchase-orders/${hpo.id}`)
+
+  /*
+   * [원본] 공급가액을 손으로 고친다 — 2026-10-06 loginaa 판매입력(저장 2026/10/06-4): 3 × 333.5 에서 공급가액 1,009 →
+   * 부가세 101 · 합계 1,110, 다시 열어도 단가 333.5 · 공급가액 1,009. (수량·단가를 바꾸면 화면이 다시 계산 — 화면 몫.)
+   */
+  const ar1 = await arOf(f.customer.id)
+  const typed = await must('POST', '/sales', {
+    saleDate: '2026-07-14', partnerId: f.customer.id, warehouseId: f.warehouse.id, taxable: true,
+    lines: [{ itemId: f.product.id, quantity: 3, unitPrice: 333.5, supplyAmount: 1009 }],
+  })
+  eq('[원본] 공급가액 1,009 로 고친 판매 → 1,009/101/1,110', amt(typed), '1009/101/1110')
+  eq('[원본] 단가는 333.5 그대로', Number(typed.lines[0].unitPrice), 333.5)
+  eq('[일관성] 채권도 고친 합계 1,110 만큼', (await arOf(f.customer.id)) - ar1, 1110)
+  const typedBack = await must('POST', '/sales', {
+    saleDate: '2026-07-14', partnerId: f.customer.id, warehouseId: f.warehouse.id, taxable: true, returnSlip: true,
+    lines: [{ itemId: f.product.id, quantity: 3, unitPrice: 333.5, supplyAmount: 1009 }],
+  })
+  eq('[일관성] 같은 값 반품은 -1,009/-101/-1,110', amt(typedBack), '-1009/-101/-1110')
+  const typedP = await must('POST', '/purchases', {
+    partnerId: f.supplier.id, warehouseId: f.warehouse.id, purchaseDate: '2026-07-14', taxable: true,
+    lines: [{ itemId: f.material.id, quantity: 3, unitPrice: 333.5, supplyAmount: 1009 }],
+  })
+  eq('[일관성] 구매도 고친 공급가액을 받는다 → 1,009/101/1,110', amt(typedP), '1009/101/1110')
+  await rejects('공급가액은 음수로 고칠 수 없다', 'POST', '/sales', {
+    saleDate: '2026-07-14', partnerId: f.customer.id, warehouseId: f.warehouse.id,
+    lines: [{ itemId: f.product.id, quantity: 3, unitPrice: 333.5, supplyAmount: -1 }],
+  }, '공급가액')
+  /* [원본] 부가세를 손으로 고친다 — 2026-10-06 loginaa(저장 2026/10/06-6): 1,001 줄 부가세 99 → 합계 1,100, 다시 열어도 99. */
+  const typedVat = await must('POST', '/sales', {
+    saleDate: '2026-07-14', partnerId: f.customer.id, warehouseId: f.warehouse.id, taxable: true,
+    lines: [{ itemId: f.product.id, quantity: 3, unitPrice: 333.5, vatAmount: 99 }],
+  })
+  eq('[원본] 부가세 99 로 고친 판매 → 1,001/99/1,100', amt(typedVat), '1001/99/1100')
+  eq('[일관성] 채권은 고친 합계 1,100 만큼 (앞의 판매 1,110 과 반품 -1,110 은 서로 지운다)',
+    (await arOf(f.customer.id)) - ar1, 1100)
+  const vatFree = await must('POST', '/sales', {
+    saleDate: '2026-07-14', partnerId: f.customer.id, warehouseId: f.warehouse.id, taxable: false,
+    lines: [{ itemId: f.product.id, quantity: 3, unitPrice: 333.5, vatAmount: 99 }],
+  })
+  eq('[일관성] 면세 전표에는 고친 부가세가 붙지 않는다', amt(vatFree), '1001/0/1001')
+  /*
+   * [원본] 판매 → 회계반영 — 2026-10-06 loginaa 판매일괄회계반영 [매출전표 I](전표 2026/10/06-11):
+   * 3 × 333.5 과세 판매 → 차)외상매출금 1,101 / 대)제품매출 1,001 · 부가세예수금 100,
+   * 줄 적요 = 품목명(포장김치), 전표 적요 = "매출 : 세금계산서 / 임의거래처 / 1,001 / 100".
+   */
+  const posted = await must('POST', '/sales', {
+    saleDate: '2026-07-14', partnerId: f.customer.id, warehouseId: f.warehouse.id, taxable: true,
+    lines: [{ itemId: f.product.id, quantity: 3, unitPrice: 333.5 }],
+  })
+  await must('POST', '/accounting-reflection/reflect', { kind: 'SALES', ids: [posted.id] })
+  const gl = (await must('GET', '/journals?from=2026-07-14&to=2026-07-14&all=true')).rows
+    .find((j) => j.sourceType === 'SALES' && j.sourceId === posted.id)
+  const glAmt = (code, k) => Number(gl?.lines.find((l) => l.accountCode === code)?.[k] ?? 0)
+  eq('[원본] 반영 분개 — 차)외상매출금 1,101 / 대)제품매출 1,001 · 부가세예수금 100',
+    `${glAmt('108', 'debit')} ${glAmt('404', 'credit')} ${glAmt('255', 'credit')}`, '1101 1001 100')
+  eq('[일관성] 반영 분개 대차평형', Number(gl?.totalDebit), Number(gl?.totalCredit))
+  eq('[원본] 전표 적요 "매출 : 세금계산서 / 거래처 / 1,001 / 100"', gl?.description, `매출 : 세금계산서 / ${f.customer.name} / 1,001 / 100`)
+  eq('[원본] 줄 적요는 품목명', [...new Set(gl?.lines.map((l) => l.description))].join(','), f.product.name)
+  /*
+   * [원본] 반영된 판매를 [매출전표포함]으로 지운다 — 2026-10-06 loginaa: 판매 · 회계전표 · 세금계산서가 같이 사라졌다.
+   * 그냥 DELETE 는 예전처럼 막히고, 함께 지우는 길은 한 번에 판매 · 분개 · 재고를 되돌린다.
+   */
+  await rejects('반영된 판매를 그냥 지우면 거절', 'DELETE', `/sales/${posted.id}`, undefined, '회계반영')
+  const stockBeforeDel = Number((await must('GET', '/stock')).find((r) => r.itemId === f.product.id && r.warehouseId === f.warehouse.id)?.quantity ?? 0)
+  const del = await must('POST', '/accounting-reflection/delete-sales-with-journal', { kind: 'SALES', ids: [posted.id] })
+  eq('[원본] 매출전표포함 삭제 — 한 건', del.reflectedCount, 1)
+  const salesNow = await must('GET', '/sales')
+  eq('[일관성] 판매가 사라진다', (salesNow.content ?? salesNow.rows ?? salesNow).some((x) => x.id === posted.id), false)
+  eq('[일관성] 연결된 분개도 사라진다',
+    (await must('GET', '/journals?from=2026-07-14&to=2026-07-14&all=true')).rows.some((j) => j.sourceType === 'SALES' && j.sourceId === posted.id), false)
+  eq('[일관성] 출고한 3개가 창고로 돌아온다',
+    Number((await must('GET', '/stock')).find((r) => r.itemId === f.product.id && r.warehouseId === f.warehouse.id)?.quantity ?? 0) - stockBeforeDel, 3)
+  for (const s of [typed, typedBack, typedVat, vatFree]) await must('DELETE', `/sales/${s.id}`)
+  await must('DELETE', `/purchases/${typedP.id}`)
+  eq('[일관성] 지우면 채권이 처음으로', (await arOf(f.customer.id)) - ar1, 0)
+
   // 이 시나리오가 만든 발주·입고전표도 치운다. 입고전표를 지우면 발주가 '발주확정' 으로
   // 돌아가므로 순서는 입고 → 발주다. 매 회차 입고전표 1장이 남던 자리다.
   await must('DELETE', `/purchases/${purchase2.id}`)
   await must('DELETE', `/purchase-orders/${po.id}`)
   await must('DELETE', `/purchase-orders/${dead.id}`)
+}
+
+/**
+ * <b>로트관리 품목은 로트No. 없이 입출고할 수 없다</b>(62회차). 품목등록의 [시리얼/로트No.] 를 켜면
+ * '입출고할 때 로트번호를 받는다' 고 해 놓고 아무 데서도 지키지 않았다.
+ */
+async function scenarioLotRequired(f) {
+  section('■ 로트관리 품목의 로트No.')
+  const lotItem = await ensure('/items', 'code', `${P}LOTITEM`, null, {
+    code: `${P}LOTITEM`, name: 'QA로트품목', unit: 'EA', category: 'RAW_MATERIAL',
+    purchasePrice: 1000, unitPrice: 2000, safetyStock: 0, lotManaged: true,
+  })
+  eq('시험 품목이 로트관리다', lotItem.lotManaged, true)
+  const body = (lotNo) => ({
+    partnerId: f.supplier.id, warehouseId: f.warehouse.id, purchaseDate: '2026-08-30', taxable: true,
+    lines: [{ itemId: lotItem.id, quantity: 1, unitPrice: 1000, lotNo }],
+  })
+  await rejects('로트No. 없이 구매(입고)할 수 없다', 'POST', '/purchases', body(undefined), '로트관리 품목')
+  const ok = await must('POST', '/purchases', body(`${P}LOT-62`))
+  eq('로트No. 를 주면 입고된다', ok.lines[0].lotNo, `${P}LOT-62`)
+  await rejects('로트No. 없이 판매(출고)할 수 없다', 'POST', '/sales', {
+    partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2026-08-30', taxable: true,
+    lines: [{ itemId: lotItem.id, quantity: 1, unitPrice: 2000 }],
+  }, '로트관리 품목')
+  await must('DELETE', `/purchases/${ok.id}`)
+}
+
+/**
+ * 생산 쪽 로트 — 생산불출 · 생산입고 II 의 소모 줄도 로트관리 품목이면 로트No. 를 받는다(판매·구매 62회차와 같은 규칙).
+ * 생산불출은 창고를 안 정해 재고를 안 움직이고, 생산입고 소모는 1 을 넣었다가 지운다.
+ */
+async function scenarioLotRequiredProduction(f) {
+  section('■ 로트관리 품목의 로트No. — 생산불출 · 생산입고')
+  const lotItem = await ensure('/items', 'code', `${P}LOTITEM`, null, {
+    code: `${P}LOTITEM`, name: 'QA로트품목', unit: 'EA', category: 'RAW_MATERIAL',
+    purchasePrice: 1000, unitPrice: 2000, safetyStock: 0, lotManaged: true,
+  })
+  const D = '2087-06-06'
+  await rejects('로트No. 없이 생산불출할 수 없다', 'POST', '/material-issues/batch', {
+    issueDate: D, lines: [{ itemId: lotItem.id, qty: 1 }],
+  }, '로트관리 품목')
+  const issued = await must('POST', '/material-issues/batch', { issueDate: D, lines: [{ itemId: lotItem.id, qty: 1, lotNo: `${P}LOT-MI` }] })
+  eq('로트No. 를 주면 불출된다', issued[0].lotNo, `${P}LOT-MI`)
+  await must('DELETE', `/material-issues/${issued[0].id}`)
+
+  await must('POST', '/stock/transactions', { itemId: lotItem.id, warehouseId: f.warehouse.id, type: 'INBOUND', quantity: 1 })
+  const slip = (lotNo) => ({
+    entryType: 'II', productionDate: D, fromWarehouseId: f.warehouse.id, warehouseId: f.warehouse.id,
+    lines: [{ productId: f.product.id, producedQty: 1, materials: [{ componentId: lotItem.id, quantity: 1, lotNo }] }],
+  })
+  await rejects('로트관리 자재를 로트No. 없이 소모할 수 없다(생산입고 II)', 'POST', '/productions/slips', slip(undefined), '로트관리 품목')
+  const made = await must('POST', '/productions/slips', slip(`${P}LOT-PR`))
+  eq('로트No. 를 주면 소모된다', made[0].materials[0].lotNo, `${P}LOT-PR`)
+  await must('DELETE', `/productions/slips/${made[0].prodNo}`)
+  await must('POST', '/stock/transactions', { itemId: lotItem.id, warehouseId: f.warehouse.id, type: 'OUTBOUND', quantity: 1 })
 }
 
 /** 기타이동 — 자가사용·불량처리(차감) / 재고조정(실사 차이만큼 증감) */
@@ -1295,8 +1717,12 @@ async function scenarioAdjustment(f) {
     const r = rows.find((x) => x.itemId === f.material.id && x.warehouseId === f.warehouse.id)
     return r ? Number(r.quantity) : 0
   }
+  /*
+   * 일자를 안 준다(= 오늘). 예전엔 '2026-07-14' 로 박아 두고 '실사수량 − 현재고' 를 단언했는데,
+   * 지난 날짜 실사는 <b>그날 재고</b>와 비교하는 것이 맞다(55회차) — 그건 scenarioStockAsOf 가 잰다.
+   */
   const adjust = (type, body) => must('POST', '/stock-adjustments', {
-    type, itemId: f.material.id, warehouseId: f.warehouse.id, adjustDate: '2026-07-14', ...body,
+    type, itemId: f.material.id, warehouseId: f.warehouse.id, ...body,
   })
 
   const before = await stockOf()
@@ -1325,6 +1751,19 @@ async function scenarioAdjustment(f) {
 
   eq('기타이동 목록에 3건이 남음',
     (await must('GET', '/stock-adjustments')).rows.filter((r) => [selfUse.id, defect.id, counted.id].includes(r.id)).length, 3)
+
+  /*
+   * 지우면 바뀐 재고가 되돌아온다(10회차 — 그 전엔 지울 길이 없어 반대로 한 번 더 넣어야 했다).
+   * 나중 것부터 지운다: 재고조정은 '그때 현재고' 기준이라 앞의 차감을 먼저 되돌리면 숫자가 달라진다.
+   * 덕분에 이 시나리오가 돌 때마다 기타이동 3건이 쌓이던 것도 없어진다.
+   */
+  await must('DELETE', `/stock-adjustments/${counted.id}`)
+  eq('재고조정을 지우면 조정 전으로', await stockOf(), before - 8)
+  await must('DELETE', `/stock-adjustments/${defect.id}`)
+  await must('DELETE', `/stock-adjustments/${selfUse.id}`)
+  eq('다 지우면 처음 재고로', await stockOf(), before)
+  eq('목록에서도 빠진다',
+    (await must('GET', '/stock-adjustments')).rows.filter((r) => [selfUse.id, defect.id, counted.id].includes(r.id)).length, 0)
 }
 
 async function scenarioWithholding() {
@@ -1358,7 +1797,9 @@ async function scenarioWithholding() {
   const localTax = deduction('지방소득세')
 
   eq('소득세가 자동 공제됨', incomeTax > 0, true)
-  eq('지방소득세 = 소득세의 10%', localTax, Math.floor(incomeTax * 0.1))
+  // 확정돼 재사용한 옛 명세(66회차 전에 만든 것)는 원 단위 버림 그대로다 — 새로 만든 명세만 10원 미만 버림으로 잰다.
+  eq('지방소득세 = 소득세의 10% (10원 미만 버림)', localTax,
+    existing && localTax % 10 !== 0 ? Math.floor(incomeTax * 0.1) : Math.floor(incomeTax * 0.1 / 10) * 10)
   eq('4대보험도 그대로 공제됨', deduction('국민연금') > 0 && deduction('건강보험') > 0, true)
   eq('공제합계 = 각 공제항목의 합',
     Number(slip.deductionTotal),
@@ -1538,6 +1979,12 @@ async function scenarioFixedAsset() {
     acquisitionCost: 1_000_000, usefulLifeYears: 5, method: 'DECLINING_BALANCE',
   }, '상각률')
 
+  /* 현금·외상매출금 같은 유동자산 계정에는 고정자산을 달 수 없다(34회차 — 화면이 그것까지 골라 줬다). */
+  await rejects('유동자산(현금) 계정에는 고정자산을 등록할 수 없다', 'POST', '/fixed-assets', {
+    name: `${P}현금자산`, assetAccountId: accounts.find((a) => a.code === '101').id, acquisitionDate: '2026-01-15',
+    acquisitionCost: 1_000_000, salvageValue: 0, usefulLifeYears: 5, method: 'STRAIGHT_LINE',
+  }, '유형자산')
+
   const run = await must('POST', '/fixed-assets/depreciate', { period: '2026-06' })
   const mine = run.rows.find((r) => r.assetId === asset.id)
   eq('정액법 월 상각액 = (취득가-잔존가)/내용연수/12', Number(mine.amount), 200_000)
@@ -1569,6 +2016,25 @@ async function scenarioFixedAsset() {
 
   await rejects('처분된 자산 재처분은 거부', 'POST', `/fixed-assets/${asset.id}/dispose`,
     { disposalDate: '2026-07-15', disposalAmount: 0 }, '이미 처분')
+
+  /*
+   * <b>같은 자산을 두 달 연속 상각할 수 있는가.</b> 분개의 출처 id 에 자산 id 를 넣어, 유니크 제약 때문에
+   * 첫 달 말고는 409 로 거절됐다(34회차). 위 시험은 한 달만 돌려 몰랐다. 1,000만 · 5년 → 166,667원(원 단위).
+   * 2026-02·03 은 다른 사용중 자산이 아직 취득 전인 달이라 이 자산만 걸린다. 끝에 처분해 남기지 않는다.
+   */
+  const two = await must('POST', '/fixed-assets', {
+    name: `${P}두달상각`, assetAccountId: machine.id, acquisitionDate: '2026-02-01',
+    acquisitionCost: 10_000_000, salvageValue: 0, usefulLifeYears: 5, method: 'STRAIGHT_LINE',
+  })
+  const feb = (await must('POST', '/fixed-assets/depreciate', { period: '2026-02' })).rows.find((r) => r.assetId === two.id)
+  const mar = (await must('POST', '/fixed-assets/depreciate', { period: '2026-03' })).rows.find((r) => r.assetId === two.id)
+  eq('정액 월 상각액은 원 단위(1,000만/60 = 166,667)', Number(feb?.amount), 166_667)
+  eq('두 번째 달도 상각된다(분개 출처가 자산이 아니라 상각 행)', Number(mar?.amount), 166_667)
+  eq('두 달 뒤 장부가 = 10,000,000 − 333,334', Number(mar?.bookValueAfter), 9_666_666)
+  // 59회차 — 3월까지 상각한 자산을 2월 처분일로 받아 줬다. 누계액이 부풀어 처분손익이 틀린다.
+  await rejects('상각한 달보다 앞선 날짜로는 처분할 수 없다', 'POST', `/fixed-assets/${two.id}/dispose`,
+    { disposalDate: '2026-02-15', disposalAmount: 0 }, '2026-03')
+  await must('POST', `/fixed-assets/${two.id}/dispose`, { disposalDate: '2026-03-31', disposalAmount: 0 })
 }
 
 async function scenarioNote(f) {
@@ -1586,11 +2052,18 @@ async function scenarioNote(f) {
     ((await must('GET', '/journals?from=2026-01-01&to=2026-12-31&all=true')).rows)
       .filter((j) => j.sourceType === 'NOTE' && String(j.description).includes(noteNo))
 
+  /*
+   * 어음으로 받으면 그 거래처 외상매출금이 그만큼 준다(60회차 — 채권 잔액은 판매−수금만 세서 어음·수표로
+   * 받은 것이 영영 안 줄었다). 지급어음도 외상매입금을 줄인다.
+   */
+  const balOf = async (id) => (await must('GET', '/ledger/partner-balances')).find((x) => x.partnerId === id)
+  const ar0 = Number((await balOf(f.customer.id)).receivable)
   // ── 받을어음: 수취 → 만기결제
   const recv = await must('POST', '/notes', {
     type: 'RECEIVABLE', partnerId: f.customer.id, issueDate: '2026-07-14', dueDate: '2026-09-14',
     amount: 500000, bankName: 'QA은행',
   })
+  eq('받을어음을 받으면 그 거래처 채권이 어음 금액만큼 준다', ar0 - Number((await balOf(f.customer.id)).receivable), 500000)
   eq('신규 어음 상태는 보유', recv.statusName, '보유')
   eq('받을어음 번호는 BN- 접두어', recv.noteNo.startsWith('BN-'), true)
 
@@ -1627,6 +2100,17 @@ async function scenarioNote(f) {
   })
   await rejects('할인료가 어음 금액 이상이면 거부', 'POST', `/notes/${tooCheap.id}/discount`,
     { bankAccountId: bank.id, discountFee: 10000 }, '할인료가 어음 금액 이상')
+  // 57회차 — 받기 전 날짜·만기 지난 날짜의 할인을 받아 줬다. 분개가 수취보다 앞서 받을어음이 음수가 됐다.
+  await rejects('어음을 받기 전 날짜로는 할인할 수 없다', 'POST', `/notes/${tooCheap.id}/discount`,
+    { bankAccountId: bank.id, discountFee: 100, discountDate: '2026-07-13' }, '수취·발행일')
+  await rejects('만기가 지난 어음은 할인이 아니라 만기결제', 'POST', `/notes/${tooCheap.id}/discount`,
+    { bankAccountId: bank.id, discountFee: 100, discountDate: '2026-12-02' }, '만기결제')
+  await rejects('어음을 받기 전 날짜로는 결제할 수 없다', 'POST', `/notes/${tooCheap.id}/settle`,
+    { bankAccountId: bank.id, settleDate: '2026-07-13' }, '수취·발행일')
+  // 58회차 — 잘못 받아 적은 어음을 지울 길이 없었다. 보유 중이면 지우고 수취 분개도 같이 지운다.
+  await must('DELETE', `/notes/${tooCheap.id}`)
+  eq('보유 중인 어음을 지우면 수취 분개도 지워진다', (await journalsOf(tooCheap.noteNo)).length, 0)
+  await rejects('결제된 어음은 지울 수 없다', 'DELETE', `/notes/${recv.id}`, undefined, '이미')
 
   // ── 받을어음: 부도 → 외상매출금 환원
   const bad = await must('POST', '/notes', {
@@ -1642,10 +2126,15 @@ async function scenarioNote(f) {
   eq('부도 분개 대변은 받을어음(110)', dishonorEntry.lines.find((l) => Number(l.credit) > 0).accountCode, '110')
 
   // ── 지급어음: 발행 → 만기결제(출금)
+  const ap0 = Number((await balOf(f.supplier.id)).payable)
+  const apJ0 = Number((await balOf(f.supplier.id)).payableJournal)
   const pay = await must('POST', '/notes', {
     type: 'PAYABLE', partnerId: f.supplier.id, issueDate: '2026-07-14', dueDate: '2026-09-30', amount: 150000,
   })
   const payIssue = (await journalsOf(pay.noteNo))[0]
+  eq('지급어음을 발행하면 그 거래처 채무가 어음 금액만큼 준다', ap0 - Number((await balOf(f.supplier.id)).payable), 150000)
+  // 65회차 — 그 몫은 [회계전표 몫](payableJournal)으로도 따로 나온다. 채무관리 연령분석이 구매전표 몫과 가른다.
+  eq('그 몫이 회계전표 몫으로 따로 잡힌다', apJ0 - Number((await balOf(f.supplier.id)).payableJournal), 150000)
   eq('지급어음 발행 차변은 외상매입금(251)', payIssue.lines.find((l) => Number(l.debit) > 0).accountCode, '251')
   eq('지급어음 발행 대변은 지급어음(252)', payIssue.lines.find((l) => Number(l.credit) > 0).accountCode, '252')
 
@@ -2510,8 +2999,15 @@ async function scenarioPaySetting() {
   const base = Number(slip.baseSalary)
   const taxableIncome = base + 300_000                       // 기본급 + 과세수당(직책수당). 식대는 빠진다
   const pension = slip.lines.find((l) => l.name === '국민연금')
-  eq('국민연금 = 과세소득 × 4.5% (비과세 식대 제외)',
-    Number(pension.amount), Math.round(taxableIncome * 0.045))
+  /*
+   * 국민연금 근로자 부담률은 귀속연도에 따라 다르다 — 2025 4.5% → 2026 4.75% → 해마다 +0.25%p → 2033 6.5%(36회차).
+   * 기준소득월액 상·하한(2026.7~ 41만~659만) 안으로 자른 뒤 곱한다. 예전 단언은 4.5% 고정이었다.
+   */
+  const yr = Number(month.slice(0, 4))
+  const pensionRate = yr <= 2025 ? 0.045 : 0.045 + 0.0025 * (Math.min(yr, 2033) - 2025)
+  const pensionBase = Math.floor(Math.min(Math.max(taxableIncome, 410_000), 6_590_000) / 1000) * 1000   // 천원 미만 버림
+  eq('국민연금 = 기준소득월액(상·하한·천원 미만 버림) × 그해 요율, 10원 미만 버림 (비과세 식대 제외)',
+    Number(pension.amount), Math.floor(Math.round(pensionBase * pensionRate * 100) / 100 / 10) * 10)
 
   const mealLine = slip.lines.find((l) => l.name === '식대')
   eq('비과세 수당은 명세에 비과세로 남음', mealLine.taxable, false)
@@ -2615,7 +3111,7 @@ async function scenarioGroupwareShared() {
   }
   await must('DELETE', `/board/${named.id}`)
 
-  // ── 외근조회: 신청 → 승인/반려
+  // ── 외근조회: 운행 기록(원본 E070254) — 이동수단 필수 · 하루 여러 건 · 승인/반려 API 는 남아 있다
   const users = await must('GET', '/users')
   const me = users.find((u) => u.username === USER)
   const DATE = '2026-06-15'
@@ -2624,19 +3120,21 @@ async function scenarioGroupwareShared() {
   for (const f of existing) {
     if (f.status === 'REQUESTED' && f.userId === me.id) await must('DELETE', `/field-works/${f.id}`)
   }
-  const stillThere = (await must('GET', `/field-works?from=${DATE}&to=${DATE}`)).rows
-    .some((f) => f.userId === me.id && f.status !== 'REJECTED')
 
-  if (!stillThere) {
+  {
     const fw = await must('POST', '/field-works', {
-      workDate: DATE, startTime: '09:00', endTime: '18:00',
-      destination: 'QA고객사 본사', purpose: 'QA 설비 점검',
+      workDate: DATE, startTime: '09:00', endTime: '18:00', vehicleNo: 'QA12가3456', vehicleName: 'QA차',
+      departure: 'QA본사', destination: 'QA고객사 본사', distance: 12.5, purpose: 'QA 설비 점검',
     })
-    eq('신규 외근계 상태는 신청', fw.statusName, '신청')
+    eq('신규 외근의 이동수단 · 운행거리가 남는다', `${fw.vehicleNo}/${Number(fw.distance)}`, 'QA12가3456/12.5')
 
-    await rejects('같은 날 외근계 중복 신청은 거부', 'POST', '/field-works', {
-      workDate: DATE, destination: 'QA 다른 곳', purpose: '중복',
-    }, '이미 있습니다')
+    await rejects('이동수단 없으면 거부', 'POST', '/field-works', {
+      workDate: DATE, destination: 'QA 다른 곳', purpose: '이동수단 빠짐',
+    }, '이동수단')
+
+    // 원본 [일자No.] 가 그날 안의 차례를 단다 — 같은 날 두 번째 운행도 받는다.
+    const fw2 = await must('POST', '/field-works', { workDate: DATE, vehicleNo: 'QA12가3456' })
+    eq('같은 날 두 번째 운행도 받는다', typeof fw2.id, 'number')
 
     await rejects('자기 외근계는 자기가 승인 불가', 'POST', `/field-works/${fw.id}/approve`,
       undefined, '자기가 승인할 수 없습니다')
@@ -2644,13 +3142,13 @@ async function scenarioGroupwareShared() {
       { reason: '내가 반려' }, '자기가 반려할 수 없습니다')
 
     await rejects('종료 시각이 시작보다 빠르면 거부', 'POST', '/field-works', {
-      workDate: '2026-06-16', startTime: '18:00', endTime: '09:00',
-      destination: 'QA', purpose: 'QA',
+      workDate: '2026-06-16', startTime: '18:00', endTime: '09:00', vehicleNo: 'QA',
     }, '빠를 수 없습니다')
 
-    // 본인이 취소하면 사라진다
+    // 본인이 지우면 사라진다
     await must('DELETE', `/field-works/${fw.id}`)
-    eq('취소하면 목록에서 사라짐',
+    await must('DELETE', `/field-works/${fw2.id}`)
+    eq('지우면 목록에서 사라짐',
       (await must('GET', `/field-works?from=${DATE}&to=${DATE}`)).rows.some((f) => f.id === fw.id), false)
   }
 
@@ -2817,6 +3315,42 @@ async function scenarioCashDetail() {
 
   await rejects('같은 사용건 재결제는 거부', 'POST', '/cash-details/card-payments',
     { cardId: card.id, cardUsageIds: [usage.id] }, '미결제 사용내역이 없습니다')
+
+  /*
+   * <b>지운다(56회차)</b> — 셋 다 지울 길이 없어서 잘못 넣으면 반대로 한 번 더 넣어야 했다.
+   * 결제 → 사용 → 이동 순서로 지우면 두 계좌가 처음 잔액으로 돌아오고 회계전표도 남지 않는다.
+   * 덕분에 이 시나리오가 돌 때마다 계좌에서 돈이 빠져나가던 것도 멈춘다.
+   */
+  await rejects('결제된 카드사용은 지울 수 없다', 'DELETE', `/bank-cards/usages/${usage.id}`, undefined, '대금결제를 먼저')
+  await must('DELETE', `/cash-details/card-payments/${payment.id}`)
+  eq('결제를 지우면 결제계좌로 돈이 돌아온다', await balanceOf(from.id), payFrom)
+  eq('결제를 지우면 그 사용건은 다시 미결제',
+    (await must('GET', `/cash-details/card-payments/unpaid?cardId=${card.id}`)).some((u) => u.id === usage.id), true)
+  eq('결제 분개도 지워진다', (await call('GET', `/journals/${payment.journalEntryId}`)).status, 404)
+  await must('DELETE', `/bank-cards/usages/${usage.id}`)
+  eq('카드사용 분개도 지워진다', (await call('GET', `/journals/${usage.journalEntryId}`)).status, 404)
+  await must('DELETE', `/cash-details/account-transfers/${transfer.id}`)
+  eq('이동을 지우면 두 계좌가 처음 잔액으로', `${await balanceOf(from.id)} ${await balanceOf(to.id)}`, `${fromBefore} ${toBefore}`)
+  eq('이동 분개도 지워진다', (await call('GET', `/journals/${transfer.journalEntryId}`)).status, 404)
+
+  /*
+   * 계좌입출금(직접 넣은 것)도 지운다(63회차). 다른 전표가 만든 입출금은 그 전표에서 지우게 막는다.
+   */
+  const toStart = await balanceOf(to.id)
+  const dep = await must('POST', '/bank-cards/transactions', {
+    bankAccountId: to.id, deposit: true, amount: 10_000,
+    counterAccountId: accounts.find((a) => a.code === '101').id, txnDate: '2026-07-14', description: 'QA 63 입금',
+  })
+  const t2 = await must('POST', '/cash-details/account-transfers', {
+    fromAccountId: from.id, toAccountId: to.id, amount: 1_000, transferDate: '2026-07-14',
+  })
+  const t2Rows = (await must('GET', '/bank-cards/transactions?from=2026-07-14&to=2026-07-14')).rows
+    .filter((r) => String(r.description ?? '').includes(t2.transferNo))
+  await rejects('계좌간이동이 만든 입출금은 여기서 못 지운다', 'DELETE', `/bank-cards/transactions/${t2Rows[0]?.id}`, undefined, '그 전표에서')
+  await must('DELETE', `/cash-details/account-transfers/${t2.id}`)
+  await must('DELETE', `/bank-cards/transactions/${dep.id}`)
+  eq('직접 넣은 입금을 지우면 잔액이 되돌아온다', await balanceOf(to.id), toStart)
+  eq('그 입금의 분개도 지워진다', (await call('GET', `/journals/${dep.journalEntryId}`)).status, 404)
 }
 
 /** 우측 앱바 위젯 — 통합검색 · 알림 · E Note(개인 메모) */
@@ -3081,6 +3615,15 @@ async function scenarioPersonRefs() {
     .find((r) => r.empName === me.name)
   eq('승인한 만큼 사용일수가 는다', Number(after.usedDays) - Number(before.usedDays), 1)
   eq('잔여일수도 그만큼 준다', Number(before.remainingDays) - Number(after.remainingDays), 1)
+
+  // 61회차 — 경조·병가처럼 연차가 아닌 근태도 승인하면 연차 잔여에서 빠졌다.
+  const condolence = await must('POST', '/hr/vacations', {
+    userId: me.id, type: '경조', startDate: '2026-05-11', endDate: '2026-05-13', days: 3, reason: 'QA 경조',
+  })
+  await must('PUT', `/hr/vacations/${condolence.id}/status`, { status: 'APPROVED' })
+  const afterCond = (await must('GET', '/hr/vacations/summary?year=2026')).find((r) => r.empName === me.name)
+  eq('경조휴가는 연차 잔여에서 빠지지 않는다', Number(afterCond.usedDays), Number(after.usedDays))
+  await must('DELETE', `/hr/vacations/${condolence.id}`)
 
   // 일수는 기간 안이어야 한다 — 하루짜리에 100일을 넣으면 잔여일수가 통째로 틀어진다
   await rejects('기간보다 많은 일수는 거부', 'POST', '/hr/vacations', {
@@ -3404,10 +3947,27 @@ function scenarioSourceRules() {
     .sort()
   eq('EAGER 는 User.roles 하나뿐 (§5.2)', eager.join(',') || '없음', 'User.java')
 
+  // §4.1 — 기반층이 위층을 참조하면 순환이 된다. inventory 는 아무 모듈도, settings 도 아무 모듈도,
+  // auth 는 settings 만(회사코드 로그인). inventory 의 ProjectController 가 accounting 을 부르던
+  // 것이 이 검사 없이 남아 있었다(2026-10-01, /api/projects/profit 을 accounting 으로 옮김).
+  const MODULES = ['common', 'auth', 'inventory', 'trade', 'production', 'accounting', 'quality', 'hr', 'groupware', 'settings']
+  const ALLOWED = { inventory: ['common'], settings: ['common'], auth: ['common', 'settings'] }
+  const badDeps = []
+  for (const [f, src] of sources) {
+    const mod = f.split(sep).join('/').match(/com\/erp\/(\w+)\//)?.[1]
+    if (!ALLOWED[mod]) continue
+    for (const [, dep] of src.matchAll(/^import\s+(?:static\s+)?com\.erp\.(\w+)\./gm)) {
+      if (dep !== mod && MODULES.includes(dep) && !ALLOWED[mod].includes(dep)) badDeps.push(`${baseName(f)}→${dep}`)
+    }
+  }
+  eq('기반층(inventory·settings·auth)이 위층 모듈을 참조하지 않는다 (§4.1)', [...new Set(badDeps)].sort().join(',') || '없음', '없음')
+
   // 채번을 count()+1 로 하면 중간 것을 지웠을 때 이미 쓰는 번호를 가리키고,
   // 동시에 부르면 같은 번호를 준다. 번호 공간 락 없이 쓰면 안 된다.
   const unlockedCounting = sources
-    .filter(([, src]) => /count\(\)\s*\+\s*1/.test(src) && !src.includes('lockNumberSpace'))
+    // count() 만 보던 정규식이 countByCodeStartingWith(..) + 1 다섯 곳(프로젝트·카드사·결제대행·
+    // 관리항목·쇼핑몰계정)을 놓쳤다 — count 로 시작하는 메서드 호출 + 1 을 다 본다.
+    .filter(([, src]) => /\bcount\w*\([^()]*\)\s*\+\s*1/.test(src) && !src.includes('lockNumberSpace'))
     .map(([f]) => baseName(f))
     .sort()
   eq('count()+1 채번은 번호 공간을 잠근 곳만',
@@ -3415,7 +3975,9 @@ function scenarioSourceRules() {
 
   // §6 — @Transactional 은 service 에만. controller/repository 에 붙으면
   // 트랜잭션 경계가 두 군데가 되어 롤백 범위를 아무도 설명할 수 없게 된다.
-  const inLayer = (f, layer) => f.split(sep).includes(layer)
+  // 기능 패키지 구조(com/erp/<모듈>/<기능>/)라 계층 폴더가 없다 — 파일명 접미사로 가른다.
+  const LAYER_SUFFIX = { controller: 'Controller.java', service: 'Service.java', repository: 'Repository.java' }
+  const inLayer = (f, layer) => baseName(f).endsWith(LAYER_SUFFIX[layer])
   const strayTx = sources
     .filter(([f, src]) =>
       (inLayer(f, 'controller') || inLayer(f, 'repository')) && src.includes('@Transactional'))
@@ -3831,9 +4393,18 @@ async function scenarioDoubleProcess(f) {
 
   // ── 재고실사 반영: 두 번 하면 재고가 두 번 바뀐다
   const before = await qtyOf(f.product.id, f.warehouse.id)
+  /*
+   * 반영은 <b>오늘 날짜</b> 재고조정이고, 재고조정은 그날 재고(현재고 − 그날 뒤 변동)에 맞춘다(4060c2ee).
+   * 실사수량을 현재고 + 10 으로 잡으면 앞날짜 전표가 쌓인 DB 에서는 차이가 +10 이 아니게 된다 —
+   * 2026-10-06 개발 DB 의 앞날짜(2027-05-01) 조정 찌꺼기 때문에 '요청 1,757,987' 로 거절됐다.
+   * 그래서 오늘 재고 + 10 으로 실사한다. 현재고도 정확히 10 늘어야 한다.
+   */
+  const today = new Date(Date.now() + 9 * 3600_000).toISOString().slice(0, 10)
+  const todayQty = Number((await must('GET', `/stock?asOf=${today}`))
+    .find((r) => r.itemId === f.product.id && r.warehouseId === f.warehouse.id)?.quantity ?? 0)
   const staged = await must('POST', '/staged-adjustments', {
-    itemId: f.product.id, warehouseId: f.warehouse.id, actualQty: before + 10,
-    requestDate: '2026-07-14', reason: `${P}이중반영검증`,
+    itemId: f.product.id, warehouseId: f.warehouse.id, actualQty: todayQty + 10,
+    requestDate: today, reason: `${P}이중반영검증`,
   })
   await must('POST', `/staged-adjustments/${staged.id}/apply`)
   const afterOnce = await qtyOf(f.product.id, f.warehouse.id)
@@ -3851,7 +4422,7 @@ async function scenarioDoubleProcess(f) {
   // 되돌린다 — 반영된 실사는 지울 수 없으므로 반대 방향 조정으로 원복한다
   await must('POST', '/stock-adjustments', {
     type: 'ADJUST', itemId: f.product.id, warehouseId: f.warehouse.id,
-    actualQty: before, adjustDate: '2026-07-14', reason: `${P}이중반영검증 원복`,
+    actualQty: todayQty, reason: `${P}이중반영검증 원복`,   // 오늘 재고로 되돌린다 — 현재고(before)로 맞추면 앞날짜 전표만큼 어긋난다
   })
   eq('원복하면 처음 재고로 돌아온다', await qtyOf(f.product.id, f.warehouse.id), before)
 
@@ -4169,6 +4740,13 @@ async function scenarioNoUnboundedList() {
    * 프로젝트마다 한 줄이라 <b>기간을 좁혀도 줄 수가 같다</b> — 숫자만 바뀐다. 줄 수만 보고
    * "안 받는다" 고 세면 고칠 것이 없는 자리가 목록에 남는다(실제로 그랬다).
    * 그래서 <b>컨트롤러가 그 자리에서 LocalDate 를 받는지</b>를 먼저 본다.
+   *
+   * <p><b>기간의 축이 날짜만은 아니다</b>(2026-09-21). <code>LocalDate from</code> 만 찾았더니,
+   * <b>고쳐 놓은 자리 둘이 목록에 그대로 남았다</b> — 생산계획은 축이 주차 문자열이라
+   * <code>weekFrom·weekTo</code> 를 받고(2026-09-10 에 그렇게 고쳤다), 매출계획은
+   * <code>year</code> 를 받는다. 둘 다 <b>고른 기간만큼만</b> 내주는데 검사가 못 알아봐,
+   * 목록을 읽는 사람은 안 고친 자리로 읽는다(픽스처에 "남았다고 안 고친 것이 아니다" 라고
+   * 적어 두어야 했던 까닭이다). 세 축을 다 알아보게 한다.
    */
   const 기간받는자리 = new Set()
   for (const f of walk(SRC)) {
@@ -4178,7 +4756,9 @@ async function scenarioNoUnboundedList() {
     for (const m of src.matchAll(/@GetMapping(?:\((?:value\s*=\s*)?"([^"]*)"\))?([\s\S]{0,600}?)\{/g)) {
       const sub = m[1] ?? ''
       if (sub.includes('{')) continue
-      if (/LocalDate\s+from/.test(m[2])) 기간받는자리.add((base + sub).replace('/api', ''))
+      if (/LocalDate\s+from|String\s+weekFrom|Integer\s+year/.test(m[2])) {
+        기간받는자리.add((base + sub).replace('/api', ''))
+      }
     }
   }
 
@@ -4200,7 +4780,13 @@ async function scenarioNoUnboundedList() {
      */
     if (Array.isArray(lb) && lb.length === la.length) 안받는것.push(p)
   }
-  const TODO = JSON.parse(readFileSync(join('qa', 'fixtures', 'pending-period.json'), 'utf8'))
+  /*
+   * 목록은 <b>자리마다 왜 남는지</b>를 함께 든다. 경로만 적어 두었더니 다음 사람이
+   * 같은 조사를 되풀이했다 — 2026-09-10 에 여섯을 다 열어 보니 넷은 <b>화면이 기간을
+   * 아예 안 묻는 자리</b>였고(메일함·급여이체), 하나는 열 화면이 드롭다운으로 쓰는
+   * 마스터(프로젝트)였다. 진짜 미완은 하나뿐이었다.
+   */
+  const TODO = Object.keys(JSON.parse(readFileSync(join('qa', 'fixtures', 'pending-period.json'), 'utf8')))
   const 늘었다 = 안받는것.filter((x) => !TODO.includes(x))
   const 고쳤다 = TODO.filter((x) => !안받는것.includes(x))
   eq(`기간을 안 받는 목록이 늘지 않았다 (아직 ${TODO.length}자리 남음)`, 늘었다.join(' / ') || '없음', '없음')
@@ -4222,8 +4808,9 @@ async function scenarioStockRecalc(f) {
 
   // 과거 일자 거래를 하나 넣으면 그 뒤 잔량이 어긋나는 것이 정상이다 —
   // 재집계가 필요한 상황을 만들어, 재집계가 그걸 실제로 잡는지 본다.
-  const item = (await must('GET', '/items')).find((i) => i.active)
-  const wh = (await must('GET', '/warehouses'))[0]
+  // 뒤에 거래가 <b>있는</b> 품목·창고여야 잔량이 어긋난다 — '첫 품목' 은 거래 없는 새 품목일 수 있다.
+  const item = f.material
+  const wh = f.warehouse
   await must('POST', '/stock/transactions', {
     itemId: item.id, warehouseId: wh.id, type: 'INBOUND',
     quantity: 7, unitPrice: 100, transactionDate: '2000-01-05', note: `${P} 과거일자`,
@@ -4242,12 +4829,23 @@ async function scenarioStockRecalc(f) {
    *
    * <p>기계마다 빠르기가 다르니 넉넉히 잡는다 — 되돌아가면 네 배쯤 느려지므로
    * 이 선이면 충분히 갈린다. 재는 것은 <b>두 번째 부름</b>이다(첫 부름은 예열).
+   *
+   * <p><b>2026-09-08 에 5초에서 8초로 올렸다.</b> 하루에 이 하네스를 스무 번 남짓 돌리면서
+   * 전표가 쌓여(한 번에 200줄짜리도 만든다) 같은 코드로도 <b>5.0~5.5초</b>가 나오기
+   * 시작했다. 앱을 새로 띄운 <b>깨끗한 JVM</b>에서도 5025ms 였으니 코드가 되돌아간 것이
+   * 아니라 <b>자료가 는 것</b>이다. 5초 선을 그대로 두면 이 검사는 '코드 모양' 이 아니라
+   * '개발 DB 가 얼마나 컸나' 를 재게 된다.
+   *
+   * <p>선을 8초로 올려도 <b>가리려는 것은 그대로 갈린다</b> — 줄마다 따로 묻는 모양으로
+   * 돌아가면 지금 자료로 스무 초 언저리가 되기 때문이다. 이 선이 또 아슬해지면
+   * <b>선을 올리지 말고</b> 개발 DB 를 비우거나(docker compose down -v) 재는 방식을
+   * 자료량에 견주는 쪽으로 바꿔야 한다.
    */
   await must('GET', `/stock/recalc?${ALL}`)
   const t0 = Date.now()
   await must('GET', `/stock/recalc?${ALL}`)
   const 걸린시간 = Date.now() - t0
-  eq(`전 기간 재집계 점검이 5초 안에 끝난다 (지금 ${걸린시간}ms)`, 걸린시간 < 5000, true)
+  eq(`전 기간 재집계 점검이 8초 안에 끝난다 (지금 ${걸린시간}ms)`, 걸린시간 < 8000, true)
 
   /*
    * <b>단가일괄변경도 같은 함정에 빠져 있었다.</b> 줄마다가 아니라 <b>전표마다</b>
@@ -4272,8 +4870,7 @@ async function scenarioStockRecalc(f) {
    * 그 성질을 못 박는다 — 곱해지기 시작하면 여기서 걸린다.
    */
   await call('POST', '/stock-adjustments', {
-    type: 'ADJUST', itemId: f.product.id, warehouseId: f.warehouse.id, actualQty: 5000,
-    adjustDate: '2026-08-30',
+    type: 'ADJUST', itemId: f.product.id, warehouseId: f.warehouse.id, actualQty: 5000,   // 오늘 — 현재고를 맞춘다(지난 날짜면 그날 재고를 맞춘다, 55회차)
   })
   const 긴전표 = {
     partnerId: f.customer.id, warehouseId: f.warehouse.id, saleDate: '2026-08-30', taxable: true,
@@ -4500,7 +5097,9 @@ async function scenarioProductionBatch(f) {
   eq('담당자는 다시 읽어도 남아 있다',
     (await must('GET', '/productions')).find((x) => x.id === made[0].id).employeeId, emp?.id ?? null)
   eq('줄마다 적요가 따로 남는다', made.map((x) => x.note).join(','), `${P}줄1,${P}줄2`)
-  eq('줄마다 번호가 따로 매겨진다', new Set(made.map((x) => x.prodNo)).size, 2)
+  // 원본(이카운트)은 생산품목이 몇 줄이든 전표번호가 하나다("2026/10/28 -1").
+  eq('한 전표의 줄들은 번호 하나를 나눠 갖는다', new Set(made.map((x) => x.prodNo)).size, 1)
+  eq('줄 차례가 1·2 로 붙는다', made.map((x) => x.lineNo).join(','), '1,2')
   eq('작업지시 기생산이 줄만큼 는다',
     Number((await must('GET', '/work-orders')).find((x) => x.id === a.id).producedQty), 2)
 
@@ -4520,6 +5119,497 @@ async function scenarioProductionBatch(f) {
   })
   eq('시험용 생산은 남기지 않는다',
     (await must('GET', '/productions')).filter((x) => x.productionDate === D).length, 0)
+}
+
+/**
+ * 생산입고 <b>전표</b> — 원본 생산입고 I·II·III.
+ *
+ * <p>작업지시서 없이도 입고하고(원본은 품목코드만 넣고 저장된다), 줄이 몇 개든 번호가 하나다.
+ * I 은 BOM 대로, II 는 [소모] 탭에 넣은 것만 뺀다(비우면 소모 없음). 고치면 옛 줄을 되돌리고
+ * 새 줄로 다시 넣고, 지우면 재고가 처음으로 돌아온다. 생산불출의 [작업지시서] → [잔량으로BOM풀기] 가
+ * 쓰는 잔량(BOM × 지시수량 − 이미 낸 불출)도 잰다.
+ */
+async function scenarioProductionSlip(f) {
+  section('■ 생산입고 전표 — I·II·III, 작업지시 없이, 번호 하나')
+
+  const D = '2087-04-04'
+  const stockOf = async (itemId) => {
+    const r = (await must('GET', '/stock')).find((x) => x.itemId === itemId && x.warehouseId === f.warehouse.id)
+    return r ? Number(r.quantity) : 0
+  }
+  const clear = async () => {
+    const nos = new Set((await must('GET', '/productions')).filter((x) => x.productionDate === D).map((x) => x.prodNo))
+    for (const no of nos) await call('DELETE', `/productions/slips/${no}`)
+    for (const mi of (await must('GET', '/material-issues')).filter((x) => x.issueDate === D)) {
+      await call('DELETE', `/material-issues/${mi.id}`)
+    }
+    for (const w of (await must('GET', '/work-orders')).filter((x) => x.orderDate === D)) {
+      await call('DELETE', `/work-orders/${w.id}`)
+    }
+  }
+  await clear()
+
+  const bom = (await must('GET', '/boms')).find((b) => b.productId === f.product.id)
+  const comp = bom.lines[0]
+  await must('POST', '/stock/transactions', {
+    itemId: comp.componentId, warehouseId: f.warehouse.id, type: 'INBOUND', quantity: 500,
+  })
+  const p0 = await stockOf(f.product.id)
+  const c0 = await stockOf(comp.componentId)
+  const per = Number(comp.quantity)
+
+  // I — 작업지시서 없이 두 줄. 번호 하나, BOM 대로 소모.
+  const one = await must('POST', '/productions/slips', {
+    entryType: 'I', productionDate: D, fromWarehouseId: f.warehouse.id, warehouseId: f.warehouse.id,
+    lines: [
+      { productId: f.product.id, producedQty: 2, subcontractUnitPrice: 1000 },
+      { productId: f.product.id, producedQty: 3 },
+    ],
+  })
+  eq('I: 작업지시서 없이 입고된다', one.every((x) => x.workOrderId === null), true)
+  eq('I: 두 줄이 번호 하나', new Set(one.map((x) => x.prodNo)).size, 1)
+  eq('I: 입고 구분이 I', one[0].entryType, 'I')
+  eq('I: 외주비합계 = 단가 × 수량', Number(one[0].subcontractAmount), 2000)
+  eq('I: 외주비부가세 = 합계의 10%', Number(one[0].subcontractVat), 200)
+  eq('I: 완제품 5 입고', await stockOf(f.product.id), p0 + 5)
+  eq('I: BOM 대로 자재 소모', await stockOf(comp.componentId), c0 - per * 5)
+  // 원본 생산입고입력 머리의 [첨부] — 먼저 올린 파일 id 를 붙이고, 지우면 전표와 함께 사라진다.
+  const fileForm = new FormData()
+  fileForm.append('file', new Blob(['QA 검사성적서'], { type: 'text/plain' }), 'qa-receipt.txt')
+  const recFile = await (await fetch(`${BASE}/files`, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fileForm })).json()
+  const filed = await must('POST', '/productions/slips', {
+    entryType: 'I', productionDate: D, fromWarehouseId: f.warehouse.id, warehouseId: f.warehouse.id, attachmentId: recFile.id,
+    lines: [{ productId: f.product.id, producedQty: 1 }],
+  })
+  eq('생산입고 [첨부]: 붙인 파일 이름이 실린다', filed[0].attachmentName, 'qa-receipt.txt')
+  await must('DELETE', `/productions/slips/${filed[0].prodNo}`)
+  await call('DELETE', `/files/${recFile.id}`)
+
+  // 전표 하나로 다시 읽는다.
+  const slip = await must('GET', `/productions/slips/${one[0].prodNo}`)
+  eq('전표를 번호로 연다(줄 둘)', slip.map((x) => x.lineNo).join(','), '1,2')
+
+  // 고치기 — 수량 5 → 1. 옛 줄이 되돌아가고 새 줄만 남는다. 일자가 같으면 번호를 지킨다.
+  const fixed = await must('PUT', `/productions/slips/${one[0].prodNo}`, {
+    entryType: 'I', productionDate: D, fromWarehouseId: f.warehouse.id, warehouseId: f.warehouse.id,
+    lines: [{ productId: f.product.id, producedQty: 1 }],
+  })
+  eq('고쳐도 번호가 그대로', fixed[0].prodNo, one[0].prodNo)
+  eq('고친 뒤 완제품은 1 만 늘어 있다', await stockOf(f.product.id), p0 + 1)
+  eq('고친 뒤 자재는 1 개분만 빠져 있다', await stockOf(comp.componentId), c0 - per)
+
+  // II — 소모를 비우면 자재는 안 빠진다. 넣으면 넣은 만큼만.
+  const c1 = await stockOf(comp.componentId)
+  await must('POST', '/productions/slips', {
+    entryType: 'II', productionDate: D, fromWarehouseId: f.warehouse.id, warehouseId: f.warehouse.id,
+    lines: [{ productId: f.product.id, producedQty: 1, materials: [] }],
+  })
+  eq('II: 소모를 비우면 자재가 안 빠진다', await stockOf(comp.componentId), c1)
+  const two = await must('POST', '/productions/slips', {
+    entryType: 'II', productionDate: D, fromWarehouseId: f.warehouse.id, warehouseId: f.warehouse.id,
+    lines: [{ productId: f.product.id, producedQty: 1, lotNo: 'QA-LOT-P1',
+      materials: [{ componentId: comp.componentId, quantity: 7, note: 'QA 손실', lotNo: 'QA-LOT-M1' }] }],
+  })
+  eq('II: 생산품목 시리얼/로트No. 가 남는다', two[0].lotNo, 'QA-LOT-P1')
+  eq('II: 소모 시리얼/로트No. 가 남는다', two[0].materials[0].lotNo, 'QA-LOT-M1')
+  eq('II: 넣은 소모만 빠진다', await stockOf(comp.componentId), c1 - 7)
+  eq('II: 소모 적요가 남는다', two[0].materials[0].note, 'QA 손실')
+
+  // III — 줄마다 생산된공장이 있어야 한다.
+  const noFactory = await call('POST', '/productions/slips', {
+    entryType: 'III', productionDate: D,
+    lines: [{ productId: f.product.id, producedQty: 1, warehouseId: f.warehouse.id }],
+  })
+  eq('III: 줄에 생산된공장이 없으면 거부', noFactory.status, 400)
+
+  // 작업지시서를 불러온 줄 — 다른 품목의 지시는 못 붙인다, 붙이면 기생산이 는다.
+  const wo = await must('POST', '/work-orders', {
+    productId: f.product.id, warehouseId: f.warehouse.id, plannedQty: 4, orderDate: D,
+  })
+  const wrong = await call('POST', '/productions/slips', {
+    entryType: 'I', productionDate: D, fromWarehouseId: f.warehouse.id, warehouseId: f.warehouse.id,
+    lines: [{ productId: comp.componentId, workOrderId: wo.id, producedQty: 1 }],
+  })
+  eq('작업지시서와 품목이 다르면 거부', wrong.status, 400)
+  await must('POST', '/productions/slips', {
+    entryType: 'I', productionDate: D, fromWarehouseId: f.warehouse.id, warehouseId: f.warehouse.id,
+    lines: [{ productId: f.product.id, workOrderId: wo.id, producedQty: 3 }],
+  })
+  eq('작업지시서를 불러와 입고하면 기생산이 는다',
+    Number((await must('GET', '/work-orders')).find((x) => x.id === wo.id).producedQty), 3)
+
+  // 생산불출 [작업지시서] → 잔량. 불출 전에는 BOM × 지시수량, 2 를 내면 그만큼 준다.
+  const req0 = (await must('GET', `/material-issues/wo-requirements?workOrderIds=${wo.id}`))
+    .find((x) => x.componentId === comp.componentId)
+  eq('불출 소요량 = BOM × 지시수량', Number(req0.requiredQty), per * 4)
+  const issued = await must('POST', '/material-issues/batch', {
+    warehouseId: f.warehouse.id, issueDate: D,
+    lines: [
+      { itemId: comp.componentId, qty: 2, workOrderId: wo.id },
+      { itemId: comp.componentId, qty: 1, workOrderId: wo.id },
+    ],
+  })
+  eq('불출도 줄이 몇 개든 번호 하나', new Set(issued.map((x) => x.issueNo)).size, 1)
+  const req1 = (await must('GET', `/material-issues/wo-requirements?workOrderIds=${wo.id}`))
+    .find((x) => x.componentId === comp.componentId)
+  eq('잔량 = 소요량 − 이미 낸 불출', Number(req1.remainingQty), Math.max(0, per * 4 - 3))
+
+  await clear()
+  await must('POST', '/stock/transactions', {
+    itemId: comp.componentId, warehouseId: f.warehouse.id, type: 'OUTBOUND', quantity: 500,
+  })
+  eq('지우면 완제품 재고가 처음으로', await stockOf(f.product.id), p0)
+  eq('지우면 자재 재고가 처음으로(넣어 둔 500 을 빼고)', await stockOf(comp.componentId), c0 - 500)
+}
+
+/**
+ * 작업지시서 <b>전표</b> — 원본 작업지시서입력. 품목 여러 줄이 번호 하나를 나눠 갖고,
+ * 줄마다 생산공장이 있다. 고칠 때는 같은 줄 차례의 행을 고친다(생산입고가 그 id 를 가리킨다) —
+ * 이미 생산한 줄은 품목을 못 바꾸고 기생산 밑으로 못 줄인다.
+ */
+async function scenarioWorkOrderSlip(f) {
+  section('■ 작업지시서 전표 — 여러 품목, 번호 하나')
+
+  const D = '2087-05-05'
+  const clear = async () => {
+    const pnos = new Set((await must('GET', '/productions')).filter((x) => x.productionDate === D).map((x) => x.prodNo))
+    for (const no of pnos) await call('DELETE', `/productions/slips/${no}`)
+    const wnos = new Set((await must('GET', '/work-orders')).filter((x) => x.orderDate === D).map((x) => x.orderNo))
+    for (const no of wnos) await call('DELETE', `/work-orders/slips/${no}`)
+  }
+  await clear()
+  const bom = (await must('GET', '/boms')).find((b) => b.productId === f.product.id)
+  const comp = bom.lines[0]
+  await must('POST', '/stock/transactions', {
+    itemId: comp.componentId, warehouseId: f.warehouse.id, type: 'INBOUND', quantity: 100,
+  })
+
+  const made = await must('POST', '/work-orders/slips', {
+    orderDate: D, lines: [
+      { productId: f.product.id, plannedQty: 5, warehouseId: f.warehouse.id },
+      { productId: comp.componentId, plannedQty: 3, warehouseId: f.warehouse.id },
+    ],
+  })
+  eq('작업지시서: 두 줄이 번호 하나', new Set(made.map((x) => x.orderNo)).size, 1)
+  eq('작업지시서: 줄 차례 1·2', made.map((x) => x.lineNo).join(','), '1,2')
+  const no = made[0].orderNo
+
+  // 원본 작업지시서입력 머리의 [첨부] — 먼저 올린 파일 id 를 붙인다.
+  const drawing = new FormData()
+  drawing.append('file', new Blob(['QA 도면'], { type: 'text/plain' }), 'qa-drawing.txt')
+  const upped = await (await fetch(`${BASE}/files`, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: drawing })).json()
+  const oneLine = [{ productId: f.product.id, plannedQty: 1, warehouseId: f.warehouse.id }]
+  const withFile = await must('POST', '/work-orders/slips', { orderDate: D, attachmentId: upped.id, lines: oneLine })
+  eq('작업지시서 [첨부]: 붙인 파일 이름이 실린다', withFile[0].attachmentName, 'qa-drawing.txt')
+  eq('작업지시서 [첨부]: 없는 파일 id 는 404', (await call('POST', '/work-orders/slips', { orderDate: D, attachmentId: 99999999, lines: oneLine })).status, 404)
+  const unFiled = await must('PUT', `/work-orders/slips/${withFile[0].orderNo}`, { orderDate: D, attachmentId: null, lines: oneLine })
+  eq('작업지시서 [첨부]: 고칠 때 빼면 빠진다', unFiled[0].attachmentId, null)
+  await call('DELETE', `/work-orders/slips/${withFile[0].orderNo}`)
+  await call('DELETE', `/files/${upped.id}`)
+
+  // 첫 줄에서 2 를 생산한다.
+  await must('POST', '/productions/slips', {
+    entryType: 'I', productionDate: D, fromWarehouseId: f.warehouse.id, warehouseId: f.warehouse.id,
+    lines: [{ productId: f.product.id, workOrderId: made[0].id, producedQty: 2 }],
+  })
+  const body = (lines) => ({ orderDate: D, lines })
+  eq('생산한 줄의 품목은 못 바꾼다', (await call('PUT', `/work-orders/slips/${no}`, body([
+    { productId: comp.componentId, plannedQty: 5, warehouseId: f.warehouse.id },
+  ]))).status, 400)
+  eq('생산한 줄은 기생산 밑으로 못 줄인다', (await call('PUT', `/work-orders/slips/${no}`, body([
+    { productId: f.product.id, plannedQty: 1, warehouseId: f.warehouse.id },
+  ]))).status, 400)
+  const fixed = await must('PUT', `/work-orders/slips/${no}`, body([
+    { productId: f.product.id, plannedQty: 2, warehouseId: f.warehouse.id },
+  ]))
+  eq('고쳐도 같은 행을 고친다(생산입고 연결이 남는다)', fixed[0].id, made[0].id)
+  eq('줄을 빼면 그 지시가 지워진다', (await must('GET', `/work-orders/slips/${no}`)).length, 1)
+  eq('지시수량 = 기생산이 되면 완료', fixed[0].status, 'COMPLETED')
+  eq('생산실적이 있으면 전표째 못 지운다', (await call('DELETE', `/work-orders/slips/${no}`)).status, 400)
+
+  await clear()
+  await must('POST', '/stock/transactions', {
+    itemId: comp.componentId, warehouseId: f.warehouse.id, type: 'OUTBOUND', quantity: 100,
+  })
+  eq('시험한 작업지시서는 남기지 않는다',
+    (await must('GET', '/work-orders')).filter((x) => x.orderDate === D).length, 0)
+}
+
+/**
+ * 외주비일괄회계반영 — 원본 생산/외주 > 외주비회계반영.
+ *
+ * <p>외주 창고(외주거래처 = 매입처)를 생산된공장으로 생산입고하면 [외주비합계]·[부가세]가 남고,
+ * [매입전표 I] 로 외주처별 매입전표(차 외주가공비·부가세대급금 / 대 외상매입금)가 생긴다.
+ * 반영한 생산입고는 반영을 취소해야 지울 수 있다.
+ */
+async function scenarioSubcontractReflection(f) {
+  section('■ 외주비일괄회계반영 — 생산입고 외주비 → 매입전표')
+
+  const D = '2087-06-06'
+  const outWh = await ensure('/warehouses', 'code', `${P}OUT`, null, {
+    code: `${P}OUT`, name: 'QA외주처', kind: '외주', outsourcingPartnerId: f.supplier.id,
+  })
+  const listOf = async () => must('GET', `/accounting-reflection/subcontract?from=${D}&to=${D}`)
+  const clear = async () => {
+    const rows = await listOf()
+    const bound = rows.filter((r) => r.journalId).map((r) => r.productionId)
+    if (bound.length) await call('POST', '/accounting-reflection/subcontract/unreflect', { productionIds: bound })
+    for (const no of new Set(rows.map((r) => r.prodNo))) await call('DELETE', `/productions/slips/${no}`)
+  }
+  await clear()
+
+  // 외주처에 자재를 보내 둔다(BOM 소모가 외주처 재고에서 빠진다).
+  const comp = (await must('GET', '/boms')).find((b) => b.productId === f.product.id).lines[0]
+  await must('POST', '/stock/transactions', { itemId: comp.componentId, warehouseId: outWh.id, type: 'INBOUND', quantity: 100 })
+
+  const made = await must('POST', '/productions/slips', {
+    entryType: 'I', productionDate: D, fromWarehouseId: outWh.id, warehouseId: f.warehouse.id,
+    lines: [{ productId: f.product.id, producedQty: 3, subcontractUnitPrice: 1000 }],
+  })
+  eq('외주 생산입고: 외주비합계 = 단가 × 수량', Number(made[0].subcontractAmount), 3000)
+
+  const row = (await listOf()).find((r) => r.productionId === made[0].id)
+  eq('외주비 목록에 외주처(외주 창고의 외주거래처)가 붙는다', row?.partnerId, f.supplier.id)
+  eq('외주비 목록: 합계 = 공급가액 + 부가세', Number(row?.total), 3300)
+
+  // 원본처럼 외주비 회계반영은 외주처의 채무를 올린다 — 거래처별채무·채무관리의 그 외주처 잔액(회계전표 몫 포함).
+  const apOf = async () => Number((await must('GET', '/ledger/partner-balances')).find((b) => b.partnerId === f.supplier.id)?.payable ?? 0)
+  const ap0 = await apOf()
+  const res = await must('POST', '/accounting-reflection/subcontract/reflect', {
+    productionIds: [made[0].id], groupBy: 'PARTNER',
+  })
+  eq('매입전표 I: 외주처 하나에 회계전표 하나', res.count, 1)
+  eq('외주비 회계반영이 외주처 채무를 합계만큼 올린다', (await apOf()) - ap0, 3300)
+  const after = (await listOf()).find((r) => r.productionId === made[0].id)
+  eq('반영하면 회계전표No. 가 붙는다', after.journalNo, res.journalNos[0])
+  eq('반영한 생산입고는 지울 수 없다', (await call('DELETE', `/productions/slips/${made[0].prodNo}`)).status, 400)
+  eq('같은 줄을 다시 반영하면 거절한다', (await call('POST', '/accounting-reflection/subcontract/reflect', {
+    productionIds: [made[0].id], groupBy: 'PARTNER',
+  })).status, 400)
+
+  const undo = await must('POST', '/accounting-reflection/subcontract/unreflect', { productionIds: [made[0].id] })
+  eq('반영취소하면 회계전표가 지워진다', undo.journalNos[0], res.journalNos[0])
+  eq('반영취소하면 줄이 풀린다', (await listOf()).find((r) => r.productionId === made[0].id).journalId, null)
+  eq('반영취소하면 외주처 채무가 돌아온다', await apOf(), ap0)
+
+  await clear()
+  await must('POST', '/stock/transactions', { itemId: comp.componentId, warehouseId: outWh.id, type: 'OUTBOUND', quantity: 100 })
+  eq('시험한 외주 생산입고는 남기지 않는다', (await listOf()).length, 0)
+}
+
+/**
+ * BOM풀기 갈래 — 원본 [1단계]·[전체]. 제품 → 반제품(BOM 있음) → 원재료 두 단을 만들어
+ * 1단계는 반제품을, 전체는 원재료(곱한 양)를 내는지 본다. 생산입고 II·III 과 생산불출이 같은 풀이를 쓴다.
+ */
+async function scenarioBomLevels(f) {
+  section('■ BOM풀기 — 1단계 · 전체(반제품을 끝까지)')
+
+  const item = (code, name, category) => ensure('/items', 'code', code, null, { code, name, unit: 'EA', category, unitPrice: 0, safetyStock: 0 })
+  const top = await item(`${P}ML-TOP`, 'QA다단제품', 'FINISHED')
+  const semi = await item(`${P}ML-SEMI`, 'QA다단반제품', 'SEMI_FINISHED')
+  await must('POST', '/boms', { productId: semi.id, lines: [{ componentId: f.material.id, quantity: 3 }] })
+  await must('POST', '/boms', { productId: top.id, lines: [{ componentId: semi.id, quantity: 2 }] })
+
+  const one = await must('GET', `/productions/bom-preview?productId=${top.id}&qty=5&level=ONE`)
+  eq('1단계: 바로 아래 반제품만', one.map((x) => `${x.componentId}:${Number(x.quantity)}`).join(','), `${semi.id}:10`)
+  const all = await must('GET', `/productions/bom-preview?productId=${top.id}&qty=5&level=ALL`)
+  eq('전체: 반제품을 풀어 원재료 × 곱한 양', all.map((x) => `${x.componentId}:${Number(x.quantity)}`).join(','), `${f.material.id}:30`)
+
+  const D = '2087-07-07'
+  const wo = await must('POST', '/work-orders', { productId: top.id, warehouseId: f.warehouse.id, plannedQty: 4, orderDate: D })
+  const reqAll = await must('GET', `/material-issues/wo-requirements?workOrderIds=${wo.id}&level=ALL`)
+  eq('생산불출 [전체]: 지시 4 × 2 × 3 = 원재료 24', Number(reqAll.find((x) => x.componentId === f.material.id)?.requiredQty), 24)
+  await call('DELETE', `/work-orders/${wo.id}`)
+}
+
+/**
+ * 생산계획현황 · MRP현황 — 날짜별 순소요. 제품(다단) 작업지시 5 를 넣으면
+ * 제품 줄에 생산예정 5, 반제품 줄에 소모예정 10(5×2) → 필요·계획 10, 그 계획이 원재료 줄의 소모예정 30(10×3)이 된다.
+ */
+async function scenarioTimePhased(f) {
+  section('■ 생산계획현황 · MRP현황 — 날짜별 순소요')
+
+  const items = await must('GET', '/items')
+  const top = items.find((i) => i.code === `${P}ML-TOP`)
+  const semi = items.find((i) => i.code === `${P}ML-SEMI`)
+  const D = '2087-08-08'
+  const wo = await must('POST', '/work-orders', { productId: top.id, warehouseId: f.warehouse.id, plannedQty: 5, orderDate: D, dueDate: D })
+  try {
+    const r = await must('GET', `/production-plans/time-phased?from=${D}&to=2087-08-10`)
+    eq('날짜 열은 기간의 날마다', r.days.length, 3)
+    const row = (id) => r.rows.find((x) => x.itemId === id)
+    eq('제품 줄: 그날 생산예정 = 작업지시 잔량', Number(row(top.id).days[0].prodQty), 5)
+    eq('반제품 줄: 작업지시가 쓸 소모예정 5×2', Number(row(semi.id).days[0].consumeQty), 10)
+    eq('반제품 줄: 모자란 만큼 필요수량', Number(row(semi.id).days[0].needQty), 10 - Math.min(10, Number(row(semi.id).days[0].opening)))
+    eq('반제품은 생산할 품목(BOM 있음)', row(semi.id).producible, true)
+    const plan = Number(row(semi.id).days[0].planQty)
+    eq('원재료 줄(MRP): 반제품 계획이 소모예정으로 내려온다 ×3', Number(row(f.material.id).days[0].consumeQty) >= plan * 3, true)
+    eq('원재료는 사들이는 자재', row(f.material.id).producible, false)
+    eq('MRP 줄에 주거래처(발주요청을 보낼 곳) 칸이 실린다', 'supplierId' in row(f.material.id), true)
+    eq('기간이 너무 길면 거절', (await call('GET', '/production-plans/time-phased?from=2087-01-01&to=2087-12-31')).status, 400)
+  } finally {
+    await call('DELETE', `/work-orders/${wo.id}`)
+  }
+}
+
+/**
+ * 생산계획/MRP리스트 — 원본처럼 계산 한 번이 한 줄이고 결과를 <b>저장</b>한다.
+ * [생성] → 줄이 저장되고, [수정] 으로 계획수량을 고치고, 다시 [생성] 하면 고친 것이 사라지고 새로 계산된다.
+ * 기준품목을 고르면 그 품목과 BOM 아래만 계산한다. 기간을 바꾸면 저장된 계산이 지워진다.
+ */
+async function scenarioMrpRuns(f) {
+  section('■ 생산계획/MRP리스트 — 생성 · 수정 · 재생성')
+  const items = await must('GET', '/items')
+  const top = items.find((i) => i.code === `${P}ML-TOP`)
+  const semi = items.find((i) => i.code === `${P}ML-SEMI`)
+  const D = '2087-08-18'
+  const wo = await must('POST', '/work-orders', { productId: top.id, warehouseId: f.warehouse.id, plannedQty: 5, orderDate: D, dueDate: D })
+  // 열린 작업지시를 세려면 [미생산/미소모] 를 켠다 — 원본 기본값은 꺼져 있다.
+  const run = await must('POST', '/mrp-runs', { runDate: D, periodFrom: D, periodTo: '2087-08-20', baseItemId: top.id, note: `${P}MRP`, srcUnproduced: true })
+  try {
+    eq('새 줄은 아직 계산 전', run.planGeneratedAt, null)
+    eq('기간이 거꾸로면 거절', (await call('POST', '/mrp-runs', { periodFrom: '2087-08-20', periodTo: D })).status, 400)
+
+    const plan = await must('POST', `/mrp-runs/${run.id}/generate?kind=PLAN`)
+    const semiLine = plan.find((l) => l.itemId === semi.id && Number(l.planQty) > 0)
+    eq('생산계획계산: 반제품 계획 줄이 저장된다(BOM 있음)', !!semiLine, true)
+    eq('생산계획에는 사들이는 자재가 없다', plan.some((l) => l.itemId === f.material.id), false)
+    eq('계산수량 = 계획수량(처음엔 같다)', Number(semiLine.calcQty), Number(semiLine.planQty))
+    eq('감소예정에 작업지시가 쓸 소모가 든다(5×2)', Number(semiLine.decreaseQty) >= 10, true)
+    eq('기준품목 밖의 품목은 안 든다', plan.every((l) => [top.id, semi.id, f.material.id].includes(l.itemId)), true)
+
+    // 원본 [생산계획대상-전표] 기본값(미판매 ✓ · 미구매 ✓ · 미생산/미소모 ✗) — 열린 작업지시의 소모를 안 센다.
+    const plain = await must('POST', '/mrp-runs', { runDate: D, periodFrom: D, periodTo: '2087-08-20', baseItemId: top.id })
+    eq('새 줄의 [생산계획대상] 기본값은 원본처럼 미생산/미소모만 꺼져 있다', [plain.srcUnsold, plain.srcUnpurchased, plain.srcUnproduced].join(','), 'true,true,false')
+    eq('[설정] 적용기준 기본값 — 생산계획 안전재고 ✓ · 최소증가단위 ✗ / MRP 둘 다 ✓', [plain.planSafety, plain.planMinUnit, plain.mrpSafety, plain.mrpMinUnit].join(','), 'true,false,true,true')
+    const plainSemi = (await must('POST', `/mrp-runs/${plain.id}/generate?kind=PLAN`)).find((l) => l.itemId === semi.id)
+    // 작업지시 5 가 쓸 반제품 10 이 빠지고, 그 지시가 채워 주던 완제품을 계획이 대신 세우며 생기는 소모도 달라진다 — 적어도 10 은 빠진다.
+    eq('미생산/미소모를 끄면 작업지시가 쓸 소모(5×2)가 감소예정에서 빠진다', Number(semiLine.decreaseQty) - Number(plainSemi.decreaseQty) >= 10, true)
+    await call('DELETE', `/mrp-runs/${plain.id}`)
+    eq('[설정] 조달기간반영 기본 ✓ · 기준창고 기본 전체', [plain.planLeadTime, plain.mrpLeadTime, plain.stockWarehouseId, plain.docWarehouseId].join(','), 'true,true,,')
+    // [전표수집 기준창고] 를 다른 창고로 두면 이 창고의 작업지시는 안 모인다 — 그 소모가 감소예정에서 빠진다.
+    const otherWh = (await must('GET', '/warehouses')).find((w) => w.id !== f.warehouse.id && w.active)
+    const scoped = await must('POST', '/mrp-runs', { runDate: D, periodFrom: D, periodTo: '2087-08-20', baseItemId: top.id, srcUnproduced: true, docWarehouseId: otherWh.id })
+    const scopedSemi = (await must('POST', `/mrp-runs/${scoped.id}/generate?kind=PLAN`)).find((l) => l.itemId === semi.id)
+    eq('[전표수집 기준창고] 밖의 작업지시는 안 센다', Number(semiLine.decreaseQty) - Number(scopedSemi.decreaseQty) >= 10, true)
+    await call('DELETE', `/mrp-runs/${scoped.id}`)
+
+    const mrp = await must('POST', `/mrp-runs/${run.id}/generate?kind=MRP`)
+    eq('MRP계산: 원재료 줄이 저장된다', mrp.some((l) => l.itemId === f.material.id), true)
+
+    const listed = (await must('GET', '/mrp-runs')).find((r) => r.id === run.id)
+    eq('리스트에 두 계산을 돌린 때가 실린다', !!listed.planGeneratedAt && !!listed.mrpGeneratedAt, true)
+    eq('리스트에 생산계획 줄 수가 실린다', listed.planLines, plan.length)
+
+    const edited = await must('PUT', `/mrp-runs/${run.id}/lines?kind=PLAN`, { lines: [{ id: semiLine.id, planQty: 99 }] })
+    eq('[수정] 은 계획수량만 고친다', Number(edited.find((l) => l.id === semiLine.id).planQty), 99)
+    eq('계산수량은 그대로', Number(edited.find((l) => l.id === semiLine.id).calcQty), Number(semiLine.calcQty))
+    eq('다른 계산의 줄은 못 고친다', (await call('PUT', `/mrp-runs/${run.id}/lines?kind=MRP`, { lines: [{ id: semiLine.id, planQty: 1 }] })).status, 400)
+
+    const again = await must('POST', `/mrp-runs/${run.id}/generate?kind=PLAN`)
+    eq('다시 생성하면 고친 수량이 사라지고 새로 계산된다', again.find((l) => l.itemId === semi.id && Number(l.planQty) > 0)?.planQty, semiLine.planQty)
+    eq('MRP 줄은 생산계획 재생성에 안 건드린다', (await must('GET', `/mrp-runs/${run.id}/lines?kind=MRP`)).length, mrp.length)
+
+    await must('PUT', `/mrp-runs/${run.id}`, { runDate: D, periodFrom: D, periodTo: '2087-08-21', baseItemId: top.id, note: `${P}MRP`, srcUnproduced: true })
+    const afterPeriod = (await must('GET', '/mrp-runs')).find((r) => r.id === run.id)
+    eq('기간을 바꾸면 저장된 계산이 지워진다', afterPeriod.planLines + afterPeriod.mrpLines, 0)
+    eq('계산한 때도 비운다(다시 [생성] 만 보인다)', afterPeriod.planGeneratedAt, null)
+  } finally {
+    await call('DELETE', `/mrp-runs/${run.id}`)
+    await call('DELETE', `/work-orders/${wo.id}`)
+  }
+  eq('줄을 지우면 사라진다', (await must('GET', '/mrp-runs')).some((r) => r.id === run.id), false)
+}
+
+/** 생산입고 진행상태 — 원본 [진행상태변경]. 확인한 전표는 확인취소를 먼저 해야 지울 수 있다(판매와 같다). */
+async function scenarioProductionConfirm(f) {
+  section('■ 생산입고 진행상태 — 미확인 ↔ 확인')
+  const D = '2087-09-09'
+  const comp = (await must('GET', '/boms')).find((b) => b.productId === f.product.id).lines[0]
+  await must('POST', '/stock/transactions', { itemId: comp.componentId, warehouseId: f.warehouse.id, type: 'INBOUND', quantity: 50 })
+  const made = await must('POST', '/productions/slips', {
+    entryType: 'I', productionDate: D, fromWarehouseId: f.warehouse.id, warehouseId: f.warehouse.id,
+    lines: [{ productId: f.product.id, producedQty: 1 }],
+  })
+  const no = made[0].prodNo
+  eq('새 생산입고는 미확인', made[0].confirmStatus, 'UNCONFIRMED')
+  eq('진행상태변경 → 확인', (await must('POST', '/productions/slips/status', { prodNos: [no], status: 'CONFIRMED' })).changed, 1)
+  eq('확인한 전표는 못 지운다', (await call('DELETE', `/productions/slips/${no}`)).status, 400)
+  eq('결재중은 사람이 못 고른다', (await call('POST', '/productions/slips/status', { prodNos: [no], status: 'IN_APPROVAL' })).status, 400)
+  await must('POST', '/productions/slips/status', { prodNos: [no], status: 'UNCONFIRMED' })
+  eq('확인취소하면 지울 수 있다', (await call('DELETE', `/productions/slips/${no}`)).status, 204)
+
+  // 생산불출 · 작업지시서도 같은 규칙(V225).
+  const wos = await must('POST', '/work-orders/slips', { orderDate: D, lines: [{ productId: f.product.id, plannedQty: 1, warehouseId: f.warehouse.id }] })
+  const wno = wos[0].orderNo
+  eq('새 작업지시서는 미확인', wos[0].confirmStatus, 'UNCONFIRMED')
+  await must('POST', '/work-orders/slips/status', { orderNos: [wno], status: 'CONFIRMED' })
+  eq('확인한 작업지시서는 못 지운다', (await call('DELETE', `/work-orders/slips/${wno}`)).status, 400)
+  await must('POST', '/work-orders/slips/status', { orderNos: [wno], status: 'UNCONFIRMED' })
+  eq('확인취소한 작업지시서는 지울 수 있다', (await call('DELETE', `/work-orders/slips/${wno}`)).status, 204)
+
+  const issued = await must('POST', '/material-issues/batch', { warehouseId: f.warehouse.id, issueDate: D, lines: [{ itemId: comp.componentId, qty: 1 }] })
+  eq('새 불출은 미확인', issued[0].confirmStatus, 'UNCONFIRMED')
+  await must('POST', '/material-issues/slips/status', { issueNos: [issued[0].issueNo], status: 'CONFIRMED' })
+  eq('확인한 불출은 못 지운다', (await call('DELETE', `/material-issues/${issued[0].id}`)).status, 400)
+  await must('POST', '/material-issues/slips/status', { issueNos: [issued[0].issueNo], status: 'UNCONFIRMED' })
+  eq('확인취소한 불출은 지울 수 있다', (await call('DELETE', `/material-issues/${issued[0].id}`)).status, 204)
+  await must('POST', '/stock/transactions', { itemId: comp.componentId, warehouseId: f.warehouse.id, type: 'OUTBOUND', quantity: 50 })
+}
+
+/**
+ * BOM 버전 — 원본 품목별BOM조회(BOM번호 · BOM버전 · 기본BOM). 제품 하나에 버전이 여럿이고 하나가 기본이다.
+ * 생산입고 줄의 [BOM버전] 을 고르면 그 버전으로 소모하고, 안 고르면 기본으로 소모한다.
+ */
+async function scenarioBomVersions(f) {
+  section('■ BOM 버전 — 기본 · 다른 버전으로 소모')
+  const items = await must('GET', '/items')
+  const top = items.find((i) => i.code === `${P}ML-TOP`)
+  const semi = items.find((i) => i.code === `${P}ML-SEMI`)
+  const v2 = await must('POST', '/boms', { productId: top.id, versionName: 'QA-V2', lines: [{ componentId: semi.id, quantity: 5 }] })
+  try {
+    eq('새 버전은 기본이 아니다', v2.defaultVersion, false)
+    const all = (await must('GET', '/boms?versions=all')).filter((b) => b.productId === top.id)
+    eq('제품 하나에 버전 둘', all.length, 2)
+    eq('기본 목록에는 제품마다 하나(기본)', (await must('GET', '/boms')).filter((b) => b.productId === top.id).length, 1)
+    eq('[BOM풀기] 버전을 주면 그 버전 소요량', Number((await must('GET', `/productions/bom-preview?productId=${top.id}&qty=2&bomId=${v2.id}`))[0].quantity), 10)
+    eq('[BOM풀기] 안 주면 기본(×2)', Number((await must('GET', `/productions/bom-preview?productId=${top.id}&qty=2`))[0].quantity), 4)
+
+    const D = '2087-10-10'
+    await must('POST', '/stock/transactions', { itemId: semi.id, warehouseId: f.warehouse.id, type: 'INBOUND', quantity: 20 })
+    const made = await must('POST', '/productions/slips', {
+      entryType: 'I', productionDate: D, fromWarehouseId: f.warehouse.id, warehouseId: f.warehouse.id,
+      lines: [{ productId: top.id, producedQty: 2, bomId: v2.id }],
+    })
+    eq('생산입고 I: 고른 버전으로 소모(2×5)', Number(made[0].materials[0].quantity), 10)
+    eq('생산입고 줄에 BOM버전 이름', made[0].bomVersionName, 'QA-V2')
+    await must('DELETE', `/productions/slips/${made[0].prodNo}`)
+    await must('POST', '/stock/transactions', { itemId: semi.id, warehouseId: f.warehouse.id, type: 'OUTBOUND', quantity: 20 })
+
+    // 기본 바꾸기 — v2 를 기본으로 하면 옛 기본은 내려간다.
+    await must('POST', '/boms', { productId: top.id, versionName: 'QA-V2', defaultVersion: true, lines: [{ componentId: semi.id, quantity: 5 }] })
+    const after = (await must('GET', '/boms?versions=all')).filter((b) => b.productId === top.id)
+    eq('기본은 하나뿐', after.filter((b) => b.defaultVersion).map((b) => b.versionName).join(','), 'QA-V2')
+  } finally {
+    // 기본을 되돌리고 시험 버전을 지운다(지우면 남은 버전이 기본이 된다).
+    await call('DELETE', `/boms/${v2.id}`)
+  }
+  const back = (await must('GET', '/boms?versions=all')).filter((b) => b.productId === top.id)
+  eq('시험 버전을 지우면 남은 버전이 기본', back.length === 1 && back[0].defaultVersion, true)
+}
+
+/** BOM 정전개 · 역전개 — 원본 BOM(소요량)조회 [조회]. 다단 제품(제품 → 반제품 ×2 → 원재료 ×3)으로 잰다. */
+async function scenarioBomTree(f) {
+  section('■ BOM 정전개 · 역전개')
+  const items = await must('GET', '/items')
+  const top = items.find((i) => i.code === `${P}ML-TOP`)
+  const semi = items.find((i) => i.code === `${P}ML-SEMI`)
+  const t = await must('GET', `/boms/tree?productId=${top.id}`)
+  eq('정전개: 맨 위가 제품(0단)', t[0].itemId, top.id)
+  eq('정전개: 반제품이 1단 · 소요량 2', `${t[1].itemId}:${t[1].level}:${Number(t[1].qty)}`, `${semi.id}:1:2`)
+  eq('정전개: 원재료가 2단 · 누적 2×3', `${t[2].itemId}:${t[2].level}:${Number(t[2].totalQty)}`, `${f.material.id}:2:6`)
+  const w = await must('GET', `/boms/where-used?itemId=${semi.id}`)
+  eq('역전개: 반제품을 쓰는 제품이 위에(1단)', w.some((x) => x.level === 1 && x.itemId === top.id), true)
 }
 
 async function scenarioWorkResultBatch(f) {
@@ -4550,7 +5640,20 @@ async function scenarioWorkResultBatch(f) {
   })
   eq('한 번에 두 줄이 들어간다', made.length, 2)
   eq('줄마다 작업이 따로 남는다', made.map((x) => x.process).join(','), '조립,검사')
+  // 원본처럼 줄이 몇 개든 작업내역 번호는 하나다(V222).
+  eq('작업내역 두 줄이 번호 하나', new Set(made.map((x) => x.resultNo)).size, 1)
   eq('줄마다 적요가 따로 남는다', made.map((x) => x.note).join(','), `${P}줄1,${P}줄2`)
+  // 원본 작업내역조회·현황 [최초작성자] — 넣은 계정이 줄마다 남는다(2026-10-02 전엔 칸이 없었다).
+  eq('작업내역에 넣은 계정이 남는다', made.map((x) => x.createdBy).join(','), `${USER},${USER}`)
+  // 원본 작업내역입력 [연결전표] → 생산입고연결전표 — 그 작업내역 번호로 만든 생산입고가 잡힌다.
+  const linkedRec = await must('POST', '/productions/slips', {
+    // II 로 넣는다 — 소모를 안 적으면 자재를 안 빼서 재고에 기대지 않는다.
+    entryType: 'II', productionDate: D, fromWarehouseId: f.warehouse.id, warehouseId: f.warehouse.id,
+    workResultNo: made[0].resultNo, lines: [{ productId: f.product.id, producedQty: 1 }],
+  })
+  eq('[연결전표]: 생산입고가 작업내역 번호를 든다', linkedRec[0].workResultNo, made[0].resultNo)
+  eq('[연결전표]: 생산입고연결전표에 잡힌다', (await must('GET', `/productions/by-work-result/${made[0].resultNo}`)).map((x) => x.prodNo).join(','), linkedRec[0].prodNo)
+  await must('DELETE', `/productions/slips/${linkedRec[0].prodNo}`)
   eq('머리의 일자가 모든 줄에 붙는다', made.map((x) => x.workDate).join(','), `${D},${D}`)
   eq('머리의 생산공장이 모든 줄에 붙는다',
     made.every((x) => x.warehouseId === f.warehouse.id), true)
@@ -4736,6 +5839,22 @@ async function scenarioStockAsOf(f) {
   future.setDate(future.getDate() + 30)
   eq('앞날을 물어도 현재고까지만',
     await qtyOf(`?asOf=${future.toISOString().slice(0, 10)}`), now + 100)
+
+  /*
+   * <b>지난 날짜 실사</b>는 그날 재고와 비교한다(55회차). 어제 재고가 before 였고 오늘 100 이 들어왔다 —
+   * 어제 실사가 before + 3 이면 차이는 +3 이다. 고치기 전에는 현재고와 비교해 3 − 100 = −97 이 됐다.
+   */
+  const adjPast = await must('POST', '/stock-adjustments', {
+    type: 'ADJUST', itemId: f.material.id, warehouseId: f.warehouse.id, actualQty: before + 3, adjustDate: y,
+  })
+  eq('어제 날짜 실사는 어제 재고와의 차이만 조정한다',
+    `${adjPast.beforeQty} → ${adjPast.afterQty} (${adjPast.quantityChange})`, `${before} → ${before + 3} (3)`)
+  eq('어제 시점 재고가 실사수량이 된다', await qtyOf(`?asOf=${y}`), before + 3)
+  eq('오늘 들어온 100 은 그 위에 그대로 남는다', await qtyOf(''), now + 103)
+  await rejects('어제 재고와 같은 실사수량이면 차이가 없다', 'POST', '/stock-adjustments', {
+    type: 'ADJUST', itemId: f.material.id, warehouseId: f.warehouse.id, actualQty: before + 3, adjustDate: y,
+  })
+  await must('DELETE', `/stock-adjustments/${adjPast.id}`)
 
   // 되돌린다.
   await must('POST', '/stock/transactions', {
@@ -5328,6 +6447,97 @@ async function scenarioSettlementAccounting(f) {
     /회계반영을 먼저 취소/.test(String(del.data?.message ?? '')), true)
 
   /*
+   * [원본] 수금 수수료 — 2026-10-06 loginaa '매출처로부터'(전표 2026/10/06-13, 확인 뒤 삭제): 금액 1,000 · 수수료 100 →
+   * 수금현황 1,100, 분개 차)현금 1,000 · 지급수수료(판) 100 / 대)외상매출금 1,100. 우리 amount 는 그 총액(1,100), fee 는 100.
+   */
+  const feeBalOf = async () => Number((await must('GET', '/ledger/partner-balances')).find((x) => x.partnerId === f.customer.id)?.receivable ?? 0)
+  const fee0 = await feeBalOf()
+  const withFee = await must('POST', '/settlements', {
+    type: 'RECEIPT', partnerId: f.customer.id, amount: 1100, fee: 100, method: '현금', settleDate: D, note: `${P}수수료`,
+  })
+  eq('[일관성] 수수료 수금도 채권은 총액 1,100 만큼 준다', fee0 - (await feeBalOf()), 1100)
+  await must('POST', '/accounting-reflection/reflect', { kind: 'SETTLEMENT', ids: [withFee.id] })
+  const feeGl = (await must('GET', `/journals?from=${D}&to=${D}&all=true`)).rows
+    .find((j) => j.sourceType === 'SETTLEMENT' && j.sourceId === withFee.id)
+  const feeAmt = (code, k) => Number(feeGl?.lines.find((l) => l.accountCode === code)?.[k] ?? 0)
+  eq('[원본] 수수료 수금 분개 — 차)현금 1,000 · 지급수수료 100 / 대)외상매출금 1,100',
+    `${feeAmt('101', 'debit')} ${feeAmt('831', 'debit')} ${feeAmt('108', 'credit')}`, '1000 100 1100')
+  eq('[일관성] 수수료 분개 대차평형', Number(feeGl?.totalDebit), Number(feeGl?.totalCredit))
+  /* [원본] 지급 수수료 — 같은 날 '매입처로'(전표 2026/10/06-14, 삭제함): 금액 1,000 · 수수료 100 → 지급현황 1,000,
+     차)외상매입금 1,000 · 지급수수료(판) 100 / 대)현금 1,100. 수금과 달리 amount 는 채무 쪽 금액 그대로다. */
+  const apOfFee = async () => Number((await must('GET', '/ledger/partner-balances')).find((x) => x.partnerId === f.supplier.id)?.payable ?? 0)
+  const ap0fee = await apOfFee()
+  const payFee = await must('POST', '/settlements',
+    { type: 'PAYMENT', partnerId: f.supplier.id, amount: 1000, fee: 100, method: '현금', settleDate: D, note: `${P}지급수수료` })
+  eq('[일관성] 지급 수수료가 있어도 채무는 금액 1,000 만큼 준다', ap0fee - (await apOfFee()), 1000)
+  await must('POST', '/accounting-reflection/reflect', { kind: 'SETTLEMENT', ids: [payFee.id] })
+  const payGl = (await must('GET', `/journals?from=${D}&to=${D}&all=true`)).rows.find((j) => j.sourceType === 'SETTLEMENT' && j.sourceId === payFee.id)
+  const payAmt = (code, k) => Number(payGl?.lines.find((l) => l.accountCode === code)?.[k] ?? 0)
+  eq('[원본] 지급 수수료 분개 — 차)외상매입금 1,000 · 지급수수료 100 / 대)현금 1,100',
+    `${payAmt('251', 'debit')} ${payAmt('831', 'debit')} ${payAmt('101', 'credit')}`, '1000 100 1100')
+  await must('POST', '/accounting-reflection/unreflect', { kind: 'SETTLEMENT', ids: [payFee.id] })
+  await must('DELETE', `/settlements/${payFee.id}`)
+  await rejects('수수료가 금액 이상이면 거절', 'POST', '/settlements',
+    { type: 'RECEIPT', partnerId: f.customer.id, amount: 100, fee: 100, settleDate: D }, '수수료는 수금 금액보다')
+  await must('POST', '/accounting-reflection/unreflect', { kind: 'SETTLEMENT', ids: [withFee.id] })
+  await must('DELETE', `/settlements/${withFee.id}`)
+  eq('[일관성] 지우면 채권이 처음으로', await feeBalOf(), fee0)
+
+  /*
+   * [원본] 입금 · 출금계좌는 <b>등록된 계좌</b>를 고른다 — 2026-10-06 loginaa '매출처로부터' 계좌검색: 000 현금 · 기업은행-1122 ·
+   * 외환은행-2211 …. [일관성] 계좌로 받으면 분개가 그 계좌의 계정으로 서고, 계좌잔액 · 입출금 내역이 받은 돈(금액 − 수수료)만큼
+   * 움직이며, 반영을 취소하면 잔액이 제자리로 온다.
+   */
+  /*
+   * [원본] '매출처로부터'/'매입처로' 창의 [부서] — 수금현황 · 지급현황 조건의 [부서]로 거른다(2026-10-06 실측).
+   * [일관성] 저장한 부서가 그대로 돌아오고, 없는 부서는 500 이 아니라 사람이 읽을 거절이다.
+   */
+  const aDept = (await must('GET', '/departments'))[0]
+  if (aDept) {
+    const rcD = await must('POST', '/settlements', {
+      type: 'RECEIPT', partnerId: f.customer.id, amount: 500, method: '현금', departmentId: aDept.id, settleDate: D, note: `${P}부서수금`,
+    })
+    eq('[일관성] 수금이 고른 부서를 돌려준다', rcD.departmentId, aDept.id)
+    eq('[일관성] 목록에도 그 부서가 실린다', (await must('GET', '/settlements')).find((x) => x.id === rcD.id)?.departmentId, aDept.id)
+    await must('DELETE', `/settlements/${rcD.id}`)
+  }
+  const badDept = await call('POST', '/settlements', {
+    type: 'RECEIPT', partnerId: f.customer.id, amount: 500, method: '현금', departmentId: 99999999, settleDate: D,
+  })
+  eq('[일관성] 없는 부서로 수금하면 4xx(500 이 아니다)', badDept.status >= 400 && badDept.status < 500, true)
+  const viaBank = (await must('GET', '/bank-cards/accounts')).find((a) => a.active && a.glAccountCode)
+  if (viaBank) {
+    const balOf = async () => Number((await must('GET', '/bank-cards/accounts')).find((a) => a.id === viaBank.id).balance)
+    const bal0 = await balOf()
+    const rcB = await must('POST', '/settlements', {
+      type: 'RECEIPT', partnerId: f.customer.id, amount: 1100, fee: 100, method: '계좌이체', bankAccountId: viaBank.id, settleDate: D, note: `${P}계좌수금`,
+    })
+    eq('[일관성] 수금이 고른 계좌를 돌려준다', rcB.bankAccountId, viaBank.id)
+    eq('[일관성] 반영 전에는 계좌잔액이 그대로', await balOf(), bal0)
+    await must('POST', '/accounting-reflection/reflect', { kind: 'SETTLEMENT', ids: [rcB.id] })
+    const bGl = (await must('GET', `/journals?from=${D}&to=${D}&all=true`)).rows.find((j) => j.sourceType === 'SETTLEMENT' && j.sourceId === rcB.id)
+    eq('[원본] 계좌 수금 분개 — 차)그 계좌의 계정 1,000 · 지급수수료 100 / 대)외상매출금 1,100',
+      `${Number(bGl?.lines.find((l) => l.accountCode === viaBank.glAccountCode)?.debit ?? 0)} ${Number(bGl?.lines.find((l) => l.accountCode === '831')?.debit ?? 0)} ${Number(bGl?.lines.find((l) => l.accountCode === '108')?.credit ?? 0)}`,
+      '1000 100 1100')
+    eq('[일관성] 반영하면 계좌잔액이 받은 돈 1,000 만큼 는다', (await balOf()) - bal0, 1000)
+    /* 지급은 방금 받은 1,000 이 계좌에 있는 동안 반영한다 — 잔액 부족으로 막히지 않게. */
+    const pyB = await must('POST', '/settlements', {
+      type: 'PAYMENT', partnerId: f.supplier.id, amount: 300, fee: 10, method: '계좌이체', bankAccountId: viaBank.id, settleDate: D, note: `${P}계좌지급`,
+    })
+    const balBeforePay = await balOf()
+    await must('POST', '/accounting-reflection/reflect', { kind: 'SETTLEMENT', ids: [pyB.id] })
+    const pGl = (await must('GET', `/journals?from=${D}&to=${D}&all=true`)).rows.find((j) => j.sourceType === 'SETTLEMENT' && j.sourceId === pyB.id)
+    eq('[원본] 계좌 지급 분개 — 대)그 계좌의 계정 310', Number(pGl?.lines.find((l) => l.accountCode === viaBank.glAccountCode)?.credit ?? 0), 310)
+    eq('[일관성] 계좌 지급을 반영하면 잔액이 금액 + 수수료(310) 만큼 준다', balBeforePay - (await balOf()), 310)
+    await must('POST', '/accounting-reflection/unreflect', { kind: 'SETTLEMENT', ids: [pyB.id] })
+    eq('[일관성] 계좌 지급 반영 취소 → 잔액 제자리', await balOf(), balBeforePay)
+    await must('DELETE', `/settlements/${pyB.id}`)
+    await must('POST', '/accounting-reflection/unreflect', { kind: 'SETTLEMENT', ids: [rcB.id] })
+    eq('[일관성] 반영을 취소하면 계좌잔액이 제자리', await balOf(), bal0)
+    await must('DELETE', `/settlements/${rcB.id}`)
+  }
+
+  /*
    * 원본 판매·구매일괄회계반영의 <b>[회계전표No.]</b> 열.
    *
    * 반영했다는 표시만 있고 어느 분개가 됐는지가 없으면 그 전표를 찾아갈 길이 없다.
@@ -5625,8 +6835,9 @@ async function scenarioIssueEmployee(f) {
   await must('POST', '/stock/transactions', {
     itemId: line.componentId, warehouseId: f.warehouse.id, type: 'INBOUND', quantity: 6,
   })
+  // /stock 은 warehouseId 로 거르지 않는다 — 창고까지 맞춰 찾는다(외주 창고가 생기자 첫 줄이 그쪽 0 이 됐다).
   const before = (await must('GET', `/stock?warehouseId=${f.warehouse.id}`))
-    .find((s) => s.itemId === line.componentId)?.quantity ?? 0
+    .find((s) => s.itemId === line.componentId && s.warehouseId === f.warehouse.id)?.quantity ?? 0
 
   const batch = await must('POST', '/material-issues/batch', {
     warehouseId: f.warehouse.id, issueDate: '2091-07-08', note: null,
@@ -5637,8 +6848,10 @@ async function scenarioIssueEmployee(f) {
   })
   eq('한 번에 두 줄이 들어간다', batch.length, 2)
   eq('줄마다 적요가 따로 남는다', batch.map((x) => x.note).join(','), `${P}줄1,${P}줄2`)
+  // 원본 생산불출현황 [최초작성자] — 넣은 계정이 줄마다 남는다(2026-10-02 전엔 칸이 없었다).
+  eq('불출에 넣은 계정이 남는다', batch.map((x) => x.createdBy).join(','), `${USER},${USER}`)
   const afterBatch = (await must('GET', `/stock?warehouseId=${f.warehouse.id}`))
-    .find((s) => s.itemId === line.componentId)?.quantity ?? 0
+    .find((s) => s.itemId === line.componentId && s.warehouseId === f.warehouse.id)?.quantity ?? 0
   eq('두 줄 합만큼 재고가 준다', Number(before) - Number(afterBatch), 3)
 
   // 둘째 줄이 재고를 넘으면 첫 줄도 들어가면 안 된다.
@@ -5648,7 +6861,7 @@ async function scenarioIssueEmployee(f) {
   })
   eq('한 줄이 막히면 거부한다', partial.status, 400)
   const afterFail = (await must('GET', `/stock?warehouseId=${f.warehouse.id}`))
-    .find((s) => s.itemId === line.componentId)?.quantity ?? 0
+    .find((s) => s.itemId === line.componentId && s.warehouseId === f.warehouse.id)?.quantity ?? 0
   eq('막히면 앞 줄도 안 들어간다(전부 되돌림)', Number(afterFail), Number(afterBatch))
 
   for (const x of batch) await must('DELETE', `/material-issues/${x.id}`)
@@ -5815,6 +7028,207 @@ async function scenarioApprovalLastActor() {
  * 그런데 화면이 연도를 <b>보내지도 보여 주지도</b> 않아서, 지금 보는 숫자가 몇 년치인지
  * 알 방법이 없었다. 다른 해 휴가가 섞여 보이는지도 확인할 수 없었다.
  */
+/**
+ * <b>전자결재의 휴가신청서를 최종 결재하면 근태(휴가)가 생기는가.</b>
+ * 예전엔 결재를 마쳐도 근태에 아무것도 안 남아 휴가잔여일수가 그대로였다(35회차).
+ * 4시간 이하는 반차 0.5일. 결재 문서번호가 사유에 붙는다. 근태는 지우고 끝낸다(승인된 결재 문서는 규칙상 못 지운다).
+ */
+/**
+ * <b>소득세는 국세청 근로소득 간이세액표 값이어야 한다.</b>
+ * 계산식 근사가 특별소득공제를 빠뜨려 월 320만(본인 1명)에 140,825원을 뗐다 — 표는 91,460원(36회차).
+ * 표 구간 셋과 1,000만 초과 계산식 하나를 본다. 만든 명세는 지운다(미확정이라 지울 수 있다).
+ */
+async function scenarioWithholdingTable() {
+  section('■ 근로소득 간이세액표')
+  const emp = (await must('GET', '/employees')).find((e) => e.code === 'QA-EMP') ?? (await must('GET', '/employees'))[0]
+  const cases = [['2098-01', 3_200_000, 91_460], ['2098-02', 3_000_000, 74_350], ['2098-03', 2_000_000, 19_520],
+                 ['2098-04', 12_000_000, 1_507_400 + Math.floor(2_000_000 * 0.98 * 0.35) + 25_000]]
+  for (const [month, pay, expected] of cases) {
+    for (const old of (await must('GET', `/payslips?month=${month}`)).filter((p) => p.employeeId === emp.id)) {
+      await call('DELETE', `/payslips/${old.id}`)
+    }
+    const slip = await must('POST', '/payslips', { employeeId: emp.id, payMonth: month, baseSalary: pay, lines: [] })
+    const tax = Number(slip.lines.find((l) => l.name === '소득세')?.amount ?? 0)
+    eq(`월 ${pay.toLocaleString()}원 · 본인 1명 소득세 = 간이세액표 ${expected.toLocaleString()}`, tax, expected)
+    /* 66회차 — 4대보험·지방소득세는 10원 미만 버림. 원 단위 반올림이라 장기요양이 15,116 처럼 찍혔다. */
+    const amt = (n) => Number(slip.lines.find((l) => l.name === n)?.amount ?? 0)
+    if (month === '2098-01') {
+      eq('지방소득세 91,460 × 10% = 9,146 → 9,140', amt('지방소득세'), 9_140)
+      eq('4대보험·지방소득세가 모두 10원 단위', ['국민연금', '건강보험', '장기요양보험', '고용보험', '지방소득세'].every((n) => amt(n) % 10 === 0), true)
+      eq('장기요양 = 건강보험 × 13.14%, 10원 미만 버림', amt('장기요양보험'), Math.floor(Math.round(amt('건강보험') * 0.1314 * 100) / 100 / 10) * 10)
+    }
+    await must('DELETE', `/payslips/${slip.id}`)
+  }
+}
+
+/**
+ * <b>일용근로소득세</b> = (일당 − 15만) × 6% × (1 − 55%) = 2.7%, 10원 미만 버림, 1,000원 미만 소액부징수(67회차).
+ * 쓰지 않는 먼 날짜(2091-05)에 넣고 지운다.
+ */
+async function scenarioDailyWorkTax() {
+  section('■ 일용근로소득세')
+  const emp = (await must('GET', '/employees')).find((e) => e.active !== false)
+  const cases = [['2091-05-02', 213_500, 1_710, 170], ['2091-05-03', 187_000, 0, 0], ['2091-05-04', 200_000, 1_350, 130]]
+  for (const [date, wage, tax, local] of cases) {
+    const r = await must('POST', '/daily-works', { employeeId: emp.id, workDate: date, dailyWage: wage, workHours: 8 })
+    eq(`일당 ${wage.toLocaleString()} → 소득세 ${tax.toLocaleString()} · 지방 ${local}`, `${Number(r.incomeTax)} ${Number(r.localIncomeTax)}`, `${tax} ${local}`)
+    await must('DELETE', `/daily-works/${r.id}`)
+  }
+
+  /* 68회차 — 원천징수이행상황신고서가 근로소득(급여명세)만 세어 일용근로 원천세가 빠졌다. */
+  /* 그 달에 지급까지 끝낸 출역(삭제 불가)이 남아 있을 수 있어 넣기 전후의 차이로 본다. */
+  const a03Of = (s) => s.sections.find((x) => x.code === 'A03')
+  const st0 = await must('GET', '/withholding/statement?month=2091-05')
+  const dw = await must('POST', '/daily-works', { employeeId: emp.id, workDate: '2091-05-20', dailyWage: 200_000, workHours: 8 })
+  const st = await must('GET', '/withholding/statement?month=2091-05')
+  const a03 = a03Of(st)
+  const a030 = a03Of(st0)
+  eq('신고서에 일용근로(A03) 줄이 있다 — 소득세 1,350 · 지방 130',
+    `${Number(a03?.incomeTax) - Number(a030?.incomeTax ?? 0)} ${Number(a03?.localIncomeTax) - Number(a030?.localIncomeTax ?? 0)}`, '1350 130')
+  eq('납부할 세액 = 소득구분 줄의 합', Number(st.grandWithheld),
+    st.sections.reduce((t, x) => t + Number(x.incomeTax) + Number(x.localIncomeTax), 0))
+  await must('DELETE', `/daily-works/${dw.id}`)
+
+  /* 69회차 — 일용직 지급이 '지급됨' 표시만 하고 회계전표를 남기지 않았다. 원본은 급여대장 [확정] → [전표생성].
+     지급하면 차)잡급(805) 지급액 / 대)예수금(254) 원천세 · 현금(101) 또는 지급계좌 예금 실지급액. */
+  const journalOf = async (docNo, date) =>
+    (await must('GET', `/journals?from=${date}&to=${date}&all=true`)).rows.find((j) => j.docNo === docNo)
+  const side = (j, code, k) => Number(j?.lines.find((l) => l.accountCode === code)?.[k] ?? 0)
+
+  /* 지급한 출역은 지울 수 없어(지급취소가 없다) 실행마다 다른 해를 쓴다. 같은 날을 쓰면 두 번째 실행이
+     '이미 등록된 출역' 409 로 멈추고, 남은 원천세가 위 2091-05 신고서 단언을 깨뜨렸다(2026-10-06). */
+  const payY = 2200 + (Math.floor(Date.now() / 1000) % 700)
+  const cashDw = await must('POST', '/daily-works', { employeeId: emp.id, workDate: `${payY}-05-21`, dailyWage: 200_000, workHours: 8 })
+  const [paidCash] = await must('POST', '/daily-works/pay', { ids: [cashDw.id], paidDate: `${payY}-05-31` })
+  eq('현금 지급에 회계전표가 붙는다', String(paidCash.journalNo).startsWith('GL-'), 'true')
+  const jc = await journalOf(paidCash.journalNo, `${payY}-05-31`)
+  eq('현금 지급 분개 — 차)잡급 200,000 / 대)예수금 1,480 · 현금 198,520',
+    `${side(jc, '805', 'debit')} ${side(jc, '254', 'credit')} ${side(jc, '101', 'credit')}`, '200000 1480 198520')
+  eq('일용직 지급 분개가 대차평형', Number(jc?.totalDebit), Number(jc?.totalCredit))
+  await rejects('이미 지급한 출역 재지급은 거부', 'POST', '/daily-works/pay', { ids: [cashDw.id], paidDate: `${payY}-05-31` }, '이미 지급')
+
+  const bank = (await must('GET', '/bank-cards/accounts')).find((a) => a.active && Number(a.balance) >= 198_520)
+  if (bank) {
+    const bankDw = await must('POST', '/daily-works', { employeeId: emp.id, workDate: `${payY}-05-22`, dailyWage: 200_000, workHours: 8 })
+    const [paidBank] = await must('POST', '/daily-works/pay', { ids: [bankDw.id], paidDate: `${payY}-05-31`, bankAccountId: bank.id })
+    const jb = await journalOf(paidBank.journalNo, `${payY}-05-31`)
+    eq('계좌 지급은 대변이 그 계좌의 예금계정', side(jb, bank.glAccountCode, 'credit'), 198_520)
+    const after = (await must('GET', '/bank-cards/accounts')).find((a) => a.id === bank.id)
+    eq('계좌 지급만큼 잔액이 줄어든다', Number(after.balance), Number(bank.balance) - 198_520)
+  }
+}
+
+/**
+ * <b>근무시간은 점심 휴게(12~13시)를 뺀 실근무여야 한다.</b>
+ * 퇴근 − 출근을 그대로 써서 09:00~18:00 이 9시간이었다(37회차). 지각·조퇴 판정도 함께 본다.
+ * 쓰지 않는 먼 날짜(2091-04)에 넣고 지운다.
+ */
+async function scenarioWorkHours() {
+  section('■ 근무시간(휴게 제외)·지각·조퇴')
+  const me = (await must('GET', '/users')).find((u) => u.username === 'admin')
+  const cases = [
+    ['2091-04-02', '09:00', '18:00', 8.0, '정상'],
+    ['2091-04-03', '09:10', '18:00', 7.8, '지각'],
+    ['2091-04-04', '09:00', '17:30', 7.5, '조퇴'],
+    ['2091-04-05', '13:00', '18:00', 5.0, '지각'],
+    ['2091-04-06', '08:30', '12:30', 3.5, '조퇴'],
+  ]
+  for (const [date, inT, outT, hours, status] of cases) {
+    await must('POST', '/hr/attendance', { userId: me.id, date, clockIn: inT, clockOut: outT })
+  }
+  const rows = (await must('GET', '/hr/attendance?from=2091-04-01&to=2091-04-30')).filter((r) => r.empName === me.name)
+  for (const [date, inT, outT, hours, status] of cases) {
+    const r = rows.find((x) => x.date === date)
+    eq(`${inT}~${outT} 실근무 ${hours}시간(점심 12~13 제외)`, Number(r?.workHours), hours)
+    eq(`${inT}~${outT} 판정 ${status}`, r?.status, status)
+  }
+  for (const r of rows) await must('DELETE', `/hr/attendance/${r.id}`)
+}
+
+/**
+ * <b>지출은 저장과 함께 장부에 올라가야 한다.</b> 분개를 만드는 메서드를 아무도 안 불러 지출 34건이 장부에
+ * 한 장도 없었다(39회차). 계좌이체는 보통예금(103), 카드는 미지급금(253), 현금은 현금(101). 지우면 분개도 지워진다.
+ */
+async function scenarioExpenseJournal() {
+  section('■ 지출 → 회계전표')
+  const accounts = await must('GET', '/accounts')
+  const welfare = accounts.find((a) => a.code === '811')
+  const D = '2091-05-07'
+  const cases = [['계좌이체', '103'], ['법인카드', '253'], ['현금', '101']]
+  for (const [method, code] of cases) {
+    const ex = await must('POST', '/expenses', {
+      accountId: welfare.id, expenseDate: D, content: `${P}지출 ${method}`, amount: 33_000, paymentMethod: method,
+    })
+    const rows = (await must('GET', `/journals?from=${D}&to=${D}&all=true`)).rows
+    const j = rows.find((x) => x.sourceType === 'EXPENSE' && x.sourceId === ex.id)
+    eq(`지출(${method})을 저장하면 회계전표가 생긴다`, !!j, true)
+    eq(`지출(${method}) 차변은 비용계정 811`, j?.lines.find((l) => Number(l.debit) > 0)?.accountCode, '811')
+    eq(`지출(${method}) 대변은 ${code}`, j?.lines.find((l) => Number(l.credit) > 0)?.accountCode, code)
+    await must('DELETE', `/expenses/${ex.id}`)
+    const after = (await must('GET', `/journals?from=${D}&to=${D}&all=true`)).rows
+    eq(`지출(${method})을 지우면 분개도 지워진다`, after.some((x) => x.sourceType === 'EXPENSE' && x.sourceId === ex.id), false)
+  }
+  /* 세금계산서 받은 비용 — 부가세를 부가세대급금(135)으로 가른다. 낸 돈 = 공급가 + 부가세(46회차). */
+  const vx = await must('POST', '/expenses', {
+    accountId: welfare.id, expenseDate: D, content: `${P}지출 부가세`, amount: 100_000, vatAmount: 10_000, paymentMethod: '계좌이체',
+  })
+  eq('지출 응답: 공급가 100,000 · 부가세 10,000 · 합계 110,000', [Number(vx.amount), Number(vx.vatAmount), Number(vx.totalAmount)].join('/'), '100000/10000/110000')
+  const vj = (await must('GET', `/journals?from=${D}&to=${D}&all=true`)).rows.find((x) => x.sourceType === 'EXPENSE' && x.sourceId === vx.id)
+  const amt = (code, side) => Number(vj?.lines.find((l) => l.accountCode === code)?.[side] ?? 0)
+  eq('부가세 지출 분개: 차 811 100,000 · 차 135 10,000 / 대 103 110,000',
+    [amt('811', 'debit'), amt('135', 'debit'), amt('103', 'credit')].join('/'), '100000/10000/110000')
+  /* 부가세 요약이 기간을 받고, 지출의 매입세액도 공제한다(47회차). 그날은 판매·구매가 없는 먼 날짜다. */
+  const vs = await must('GET', `/accounting/vat-summary?from=${D}&to=${D}`)
+  eq('부가세 요약: 그 날의 지출 매입세액 10,000', Number(vs.expenseVat), 10_000)
+  eq('부가세 요약: 납부세액 = 매출세액 − 매입세액(구매+지출)',
+    Number(vs.vatPayable), Number(vs.salesVat) - Number(vs.purchaseVat) - 10_000)
+  await must('DELETE', `/expenses/${vx.id}`)
+}
+
+/**
+ * <b>손익요약·품목별 원가/이익은 기간으로 본다.</b> 창업 이래 합계만 있어 "이번 달 이익" 을 볼 수 없었다(48회차).
+ * 아무도 안 쓰는 먼 날짜에 판매 하나를 넣고, 그 날만 물으면 그 판매만 나오는지 본다. 끝에 지운다.
+ */
+async function scenarioProfitPeriod(f) {
+  section('■ 손익 기간')
+  const D = '2091-08-03'
+  const sale = await must('POST', '/sales', {
+    saleDate: D, partnerId: f.customer.id, warehouseId: f.warehouse.id,
+    lines: [{ itemId: f.product.id, quantity: 2, unitPrice: 1_000 }],
+  })
+  const rows = await must('GET', `/accounting/item-profit?from=${D}&to=${D}`)
+  eq('그 날 품목별 이익에는 그 판매 한 품목만', rows.map((r) => r.itemId).join(','), String(f.product.id))
+  eq('그 날 판매수량·매출액 = 2 · 2,000', [Number(rows[0]?.soldQty), Number(rows[0]?.salesAmount)].join('/'), '2/2000')
+  const sum = await must('GET', `/accounting/profit-summary?from=${D}&to=${D}`)
+  eq('그 날 손익요약 총매출액 = 2,000', Number(sum.totalSales), 2_000)
+  await must('DELETE', `/sales/${sale.id}`)
+}
+
+async function scenarioLeaveApproval() {
+  section('■ 휴가신청서 결재 → 근태')
+  const form = (await must('GET', '/approval-form-templates')).find((t) => t.name === '휴가신청서')
+  const mgr = (await must('GET', '/users')).find((u) => u.username === 'manager')
+  eq('휴가신청서 양식과 결재자(manager)가 있다', !!form && !!mgr, true)
+  if (!form || !mgr) return
+  const doc = await must('POST', '/approvals', {
+    formTemplateId: form.id, title: `${P}반차 결재`, content: '', draftDate: '2091-03-05',
+    formData: { periodFrom: '2091-03-05T09:00:00', periodTo: '2091-03-05T13:00:00', reason: `${P}반차`, detail: '반차' },
+    approverIds: [mgr.id], referenceUserIds: [], shareUserIds: [], temporary: false,
+  })
+  const login = await call('POST', '/auth/login', { username: 'manager', password: 'manager1234' })
+  const saved = token
+  token = login.data.token
+  await must('POST', `/approvals/${doc.id}/approve`, { comment: 'QA 승인' })
+  token = saved
+  const rows = await must('GET', '/hr/vacations?year=2091')
+  const v = rows.find((r) => String(r.reason ?? '').includes(doc.docNo))
+  eq('최종 결재된 휴가신청서가 근태로 들어간다', !!v, true)
+  eq('4시간 이하는 반차', v?.type, '반차')
+  eq('반차는 0.5일', Number(v?.days), 0.5)
+  eq('결재가 곧 승인 — 근태 상태는 승인', v?.status ?? v?.statusName, v?.status ? 'APPROVED' : '승인')
+  if (v) await must('DELETE', `/hr/vacations/${v.id}`)
+}
+
 async function scenarioVacationYear(f) {
   section('■ 휴가잔여일수현황 기준연도')
 
@@ -6463,6 +7877,30 @@ async function scenarioPartnerMovements(f) {
     `/ledger/partner-movements?from=1900-01-01&to=2099-12-31&side=${side}`)
   eq('채권 분해가 항등식을 지킨다', holds(await wide('AR')), true)
   eq('채무 분해가 항등식을 지킨다', holds(await wide('AP')), true)
+  /*
+   * 회계전표가 통제계정을 움직인 것(어음·수표·외주비 회계반영 …)도 이제 잔액에 들어간다(60회차).
+   * 그래서 전 기간으로 재면 <b>설명 못 한 나머지</b>(기타차액)가 남는 거래처가 없어야 한다 —
+   * 외주비 회계반영 채무가 같은 크기의 음수 기타차액으로 떠 있던 것이 이것으로 잡힌다.
+   */
+  const leftover = async (side) => (await wide(side)).filter((m) => Math.abs(m.otherDiff) >= 0.5)
+    .map((m) => `${m.partnerName} ${m.otherDiff}`).join(' / ') || '없음'
+  eq('전 기간 채권에 설명 못 한 기타차액이 없다', await leftover('AR'), '없음')
+  eq('전 기간 채무에 설명 못 한 기타차액이 없다', await leftover('AP'), '없음')
+
+  /*
+   * [전표별] 원장의 줄을 기초에 더해 가면 기말에 닿아야 한다(64회차 — 잔액은 어음·수표를 세는데
+   * 전표별 줄에는 판매·수금만 있어 어음 수취 19억이 줄 없이 잔액에만 있었다).
+   */
+  const reaches = async (side, f2, t2) => {
+    const mv = await must('GET', `/ledger/partner-movements?from=${f2}&to=${t2}&side=${side}`)
+    const en = (await must('GET', `/ledger/partner-entries?from=${f2}&to=${t2}&side=${side}&all=true`)).rows
+    const sum = new Map()
+    for (const e of en) sum.set(e.partnerId, (sum.get(e.partnerId) ?? 0) + Number(e.increase) - Number(e.decrease))
+    return mv.filter((m) => Math.abs(m.opening + (sum.get(m.partnerId) ?? 0) - m.closing) >= 0.5)
+      .map((m) => `${m.partnerName} ${m.opening}+${sum.get(m.partnerId) ?? 0}≠${m.closing}`).join(' / ') || '없음'
+  }
+  eq('전표별 채권 줄을 더하면 기말에 닿는다(2026-07)', await reaches('AR', '2026-07-01', '2026-07-31'), '없음')
+  eq('전표별 채무 줄을 더하면 기말에 닿는다(2026-07)', await reaches('AP', '2026-07-01', '2026-07-31'), '없음')
   eq('시험 기간에서도 항등식을 지킨다', holds(await get('AR')), true)
 
   // 아무 일도 없던 거래처는 줄을 만들지 않는다 — 빈 줄로 표를 채우면 못 읽는다.
@@ -8707,7 +10145,11 @@ async function scenarioIssueNoAndRequestProject(f) {
     mi4.issueNo !== mi.issueNo && mi4.issueNo !== mi3.issueNo, true)
   for (const x of [mi, mi3, mi4]) await must('DELETE', `/material-issues/${x.id}`)
 
-  const pj = (await must('GET', '/projects'))[0]
+  /*
+   * QA 전용 프로젝트에 붙인다. 예전엔 목록 맨 앞([0] — 가장 최근에 만든 것)을 집어서
+   * <b>사람이 방금 만든 실제 프로젝트에 QA 검사요청이 붙었다</b> — 그 프로젝트는 지울 수도 없게 됐다(2026-10-01).
+   */
+  const pj = (await must('GET', '/projects')).find((x) => x.name === 'QA견적프로젝트')
   const req = await must('POST', '/quality-inspection-requests', {
     requestDate: '2026-08-26', type: 'INCOMING', itemId: f.material.id, requestQty: 10,
     projectId: pj ? pj.id : undefined, requester: 'QA',
@@ -8826,7 +10268,20 @@ async function scenarioSettlement(f) {
 
   await rejects('금액이 0이면 거부', 'POST', '/settlements', {
     type: 'RECEIPT', partnerId: f.customer.id, amount: 0, settleDate: '2026-08-20',
-  }, '0보다')
+  }, '금액을 입력하세요')
+  /*
+   * 음수는 되돌린 돈(환불)이라 받는다 — 반품 뒤 매출처에 돌려줄 돈을 넣을 길이 없었다(27회차).
+   * 채권을 그만큼 늘린다(수금 −). 시험한 것은 바로 지운다.
+   */
+  {
+    const before = Number((await must('GET', '/ledger/partner-balances')).find((b) => b.partnerId === f.customer.id)?.receivable ?? 0)
+    const refund = await must('POST', '/settlements', {
+      type: 'RECEIPT', partnerId: f.customer.id, amount: -700, method: '계좌이체', settleDate: '2026-08-20', note: `${P} 환불`,
+    })
+    const after = Number((await must('GET', '/ledger/partner-balances')).find((b) => b.partnerId === f.customer.id)?.receivable ?? 0)
+    eq('환불(수금 −)은 채권을 그만큼 늘린다', after - before, 700)
+    await must('DELETE', `/settlements/${refund.id}`)
+  }
   await rejects('없는 거래처는 거부', 'POST', '/settlements', {
     type: 'RECEIPT', partnerId: 999999, amount: 1000, settleDate: '2026-08-20',
   }, '거래처를 찾을 수 없습니다')
@@ -9047,11 +10502,42 @@ async function main() {
     console.log('\n시드 완료.')
     return
   }
+  // 생산 쪽만 빨리 돌린다(node qa/qa.mjs production) — 전체는 수천 건을 만들고 오래 걸린다.
+  if (cmd === 'production') {
+    await scenarioProduction(fixtures)
+    await scenarioProductionWarehouses(fixtures)
+    await scenarioProductionLaborMinutes(fixtures)
+    await scenarioProductionBatch(fixtures)
+    await scenarioProductionSlip(fixtures)
+    await scenarioWorkOrderSlip(fixtures)
+    await scenarioSubcontractReflection(fixtures)
+    await scenarioBomLevels(fixtures)
+    await scenarioTimePhased(fixtures)
+    await scenarioWorkResultBatch(fixtures)
+    await scenarioProductionConfirm(fixtures)
+    await scenarioBomVersions(fixtures)
+    await scenarioBomTree(fixtures)
+    await scenarioIssueEmployee(fixtures)
+    await scenarioMrpRuns(fixtures)
+    await scenarioLotRequiredProduction(fixtures)
+    console.log(`\n통과 ${pass} · 실패 ${fail}`)
+    process.exit(fail > 0 ? 1 : 0)
+  }
+
+  // A/S 소모 쪽만(node qa/qa.mjs as) — 수리 · 판매연결전표 · 소모현황.
+  if (cmd === 'as') {
+    await scenarioAsConsumption(fixtures)
+    console.log(`\n통과 ${pass} · 실패 ${fail}`)
+    process.exit(fail > 0 ? 1 : 0)
+  }
 
   await scenarioShipment(fixtures)
   await scenarioUnsold(fixtures)
   await scenarioUnshippedMatchesRemaining(fixtures)
   await scenarioSaleWithinOrder(fixtures)
+  await scenarioOrderClosesBySales(fixtures)
+  await scenarioPurchaseOrderClosesByPurchases(fixtures)
+  await scenarioReflectionAccounts(fixtures)
   await scenarioPurchaseDiscountBase(fixtures)
   await scenarioPriceBulkField(fixtures)
   await scenarioSpecialPrice(fixtures)
@@ -9062,6 +10548,8 @@ async function main() {
   await scenarioQuotation(fixtures)
   await scenarioPurchaseOrder(fixtures)
   await scenarioAdjustment(fixtures)
+  await scenarioLotRequired(fixtures)
+  await scenarioDailyWorkTax()
   await scenarioWithholding()
   await scenarioBankCard()
   await scenarioFixedAsset()
@@ -9138,6 +10626,11 @@ async function main() {
   await scenarioStockTracked(fixtures)
   await scenarioPartnerContactAndBank()
   await scenarioVacationYear(fixtures)
+  await scenarioLeaveApproval()
+  await scenarioWithholdingTable()
+  await scenarioWorkHours()
+  await scenarioExpenseJournal()
+  await scenarioProfitPeriod(fixtures)
   await scenarioApprovalLastActor()
   await scenarioSalesConfirmBulk(fixtures)
   await scenarioWorkOrderPartner(fixtures)
@@ -9157,7 +10650,17 @@ async function main() {
   await scenarioStockAsOf(fixtures)
   await scenarioProductionLaborMinutes(fixtures)
   await scenarioProductionBatch(fixtures)
+  await scenarioProductionSlip(fixtures)
+  await scenarioWorkOrderSlip(fixtures)
+  await scenarioSubcontractReflection(fixtures)
+  await scenarioBomLevels(fixtures)
+  await scenarioTimePhased(fixtures)
+  await scenarioMrpRuns(fixtures)
+  await scenarioLotRequiredProduction(fixtures)
   await scenarioWorkResultBatch(fixtures)
+  await scenarioProductionConfirm(fixtures)
+  await scenarioBomVersions(fixtures)
+  await scenarioBomTree(fixtures)
   await scenarioReturnSlip(fixtures)
   await scenarioMasterResave()
   await scenarioMasterEditFromScreen()
@@ -9176,6 +10679,14 @@ async function main() {
   await scenarioSeedRows()
   await scenarioRollback(fixtures)
   await scenarioRoundTrip(fixtures)
+  await scenarioHrCertificate()
+  await scenarioDailyWorker()
+  await scenarioAttendanceKind()
+  await scenarioCommuteRule()
+  await scenarioEmployeeCommute()
+  await scenarioCorporateTaxChecklist()
+  await scenarioExpenseEvidence()
+  await scenarioSimplePayment()
   await scenarioPressedTwice(fixtures)
   await scenarioNoPermission()
   await scenarioNewCompany()
@@ -9524,7 +11035,7 @@ async function scenarioNewCompany() {
     [창고?.id, 품목?.id, 거래처?.id].every((x) => x != null), true)
 
   await 그쪽쓰기('/stock-adjustments', {
-    type: 'ADJUST', itemId: 품목.id, warehouseId: 창고.id, actualQty: 100, adjustDate: '2026-08-30',
+    type: 'ADJUST', itemId: 품목.id, warehouseId: 창고.id, actualQty: 100,
   })
   const [판매st, 판매] = await 그쪽쓰기('/sales', {
     partnerId: 거래처.id, warehouseId: 창고.id, saleDate: '2026-08-30', taxable: true,
@@ -9664,8 +11175,7 @@ async function scenarioPressedTwice(f) {
   section('■ 시나리오 39. 두 번 눌렀을 때')
 
   await call('POST', '/stock-adjustments', {
-    type: 'ADJUST', itemId: f.product.id, warehouseId: f.warehouse.id, actualQty: 900,
-    adjustDate: '2026-08-30',
+    type: 'ADJUST', itemId: f.product.id, warehouseId: f.warehouse.id, actualQty: 900,   // 오늘 — 현재고를 맞춘다(지난 날짜면 그날 재고를 맞춘다, 55회차)
   })
 
   // ── 같은 순간에 여덟 번 만들면 전표번호가 겹치나
@@ -9727,8 +11237,7 @@ async function scenarioRoundTrip(f) {
     code: `${P}WH2`, name: 'QA창고2', location: 'QA동 2층',
   })
   await call('POST', '/stock-adjustments', {
-    type: 'ADJUST', itemId: f.product.id, warehouseId: f.warehouse.id, actualQty: 300,
-    adjustDate: '2026-08-30',
+    type: 'ADJUST', itemId: f.product.id, warehouseId: f.warehouse.id, actualQty: 300,   // 오늘 — 현재고를 맞춘다(지난 날짜면 그날 재고를 맞춘다, 55회차)
   })
 
   const 시험 = [
@@ -9764,13 +11273,235 @@ async function scenarioRoundTrip(f) {
   }
 }
 
+/**
+ * 관리 › 각종증명서인쇄(원본 E020606) — 발행번호는 발행일의 해 - 그해 차례, 고쳐도 번호는 그대로,
+ * 퇴사일 없는 사원의 퇴직증명서는 막는다. 만든 증명서는 지운다.
+ */
+async function scenarioHrCertificate() {
+  section('■ 각종증명서인쇄 — 발행번호 · 수정 · 퇴직증명서 막기 · 삭제')
+  const emp = (await must('GET', '/employees'))[0]
+  const year = new Date().getFullYear()
+  const d = new Date()
+  const today = `${year}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  const maxSeq = Math.max(0, ...(await must('GET', '/hr/certificates'))
+    .filter((x) => x.issueNo.startsWith(`${year}-`)).map((x) => Number(x.issueNo.split('-')[1])))
+  const c = await must('POST', '/hr/certificates', { kind: 'EMPLOYMENT', employeeId: emp.id, purpose: 'QA-증명', issueDate: today })
+  eq('발행번호는 그해 다음 차례', c.issueNo, `${year}-${maxSeq + 1}`)
+  const u = await must('PUT', `/hr/certificates/${c.id}`, { kind: 'CAREER', employeeId: emp.id, purpose: 'QA-증명2', issueDate: today })
+  eq('고쳐도 발행번호는 그대로', u.issueNo, c.issueNo)
+  eq('고친 종류가 읽힌다', (await must('GET', `/hr/certificates/${c.id}`)).kindName, '경력증명서')
+  if (!emp.resignDate) {
+    await rejects('퇴사일 없는 사원의 퇴직증명서는 막는다', 'POST', '/hr/certificates',
+      { kind: 'RESIGNATION', employeeId: emp.id, purpose: 'QA-증명', issueDate: today }, '퇴사일이 없는 사원')
+  }
+  await must('DELETE', `/hr/certificates/${c.id}`)
+  eq('지운 증명서는 목록에 없다', (await must('GET', '/hr/certificates')).some((x) => x.id === c.id), 'false')
+}
+
+/** 관리 › 일용근로 사원등록(원본 E020105) — 다음 번호 다섯 자리, 같은 번호 막기, 일근무 · 월정공제 저장, 삭제. */
+async function scenarioDailyWorker() {
+  section('■ 일용근로 사원등록 · 근무입력 — 번호 · 중복 · 급여지급사항 · 근무 전표 · 쓰인 사원 삭제 막기')
+  const next = (await must('GET', '/hr/daily-workers/next-code')).code
+  eq('다음 사원번호는 다섯 자리', /^\d{5}$/.test(next), 'true')
+  const w = await must('POST', '/hr/daily-workers', {
+    name: 'QA-일용', foreigner: false, employmentInsurance: true, pensionAuto: false, healthAuto: false,
+    dailyWage: 150000, fixedIncomeTax: 0, fixedLocalTax: 0,
+  })
+  eq('비우면 다음 번호가 매겨진다', w.code, next)
+  await rejects('같은 사원번호는 막는다', 'POST', '/hr/daily-workers',
+    { code: w.code, name: 'QA-일용2', foreigner: false, employmentInsurance: true, pensionAuto: false, healthAuto: false }, '이미 등록된 사원번호')
+  const u = await must('PUT', `/hr/daily-workers/${w.id}`, { ...w, name: 'QA-일용수정', dailyWage: 160000 })
+  eq('고친 일근무가 읽힌다', Number((await must('GET', `/hr/daily-workers/${u.id}`)).dailyWage), 160000)
+  const d = new Date()
+  const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  const slip = await must('POST', '/hr/daily-work-entries', { slipDate: today, lines: [{ workDate: today, workerId: w.id, quantity: 2 }] })
+  const lines = await must('GET', `/hr/daily-work-entries?from=${today}&to=${today}`)
+  eq('근무조회에 일근무 2 한 줄', lines.filter((l) => l.workerId === w.id).map((l) => `${l.payItem} ${Number(l.quantity)}`).join(','), '일근무 2')
+  await must('PUT', `/hr/daily-work-entries/${slip.slipDate}/${slip.slipNo}`, { slipDate: today, lines: [{ workDate: today, workerId: w.id, quantity: 3 }] })
+  eq('고친 근무기록이 읽힌다', Number((await must('GET', `/hr/daily-work-entries/${slip.slipDate}/${slip.slipNo}`)).lines[0].quantity), 3)
+  await rejects('근무입력에 쓰인 사원은 지울 수 없다', 'DELETE', `/hr/daily-workers/${w.id}`, undefined, '근무입력에 쓰인 사원')
+  // 급여계산/대장 — 일근무 160,000 × 3 = 480,000 · 소득세 = 월정공제(비어 있으면 0, 원본 계산식 R( 소득세(급여지급사항) , 0 ))
+  const ledger = await must('POST', '/hr/daily-pay-ledgers', { payMonth: '2091-11' })
+  eq('대장명칭 기본값', ledger.name, '2091/11 1차수 (급여)')
+  const loaded = await must('GET', `/hr/daily-pay-ledgers/${ledger.id}/work-confirms/load`)
+  eq('[근무기록] 은 대상기간 밖 근무를 안 부른다', Number(loaded.find((r) => r.workerId === w.id)?.days ?? 0), 0)
+  await must('PUT', `/hr/daily-pay-ledgers/${ledger.id}/work-confirms`, [{ workerId: w.id, days: 3 }])
+  eq('근무기록확정 저장', Number((await must('GET', `/hr/daily-pay-ledgers/${ledger.id}/work-confirms`)).find((r) => r.workerId === w.id).days), 3)
+  await must('POST', `/hr/daily-pay-ledgers/${ledger.id}/calculate`)
+  const pl = (await must('GET', `/hr/daily-pay-ledgers/${ledger.id}/lines`)).find((l) => l.workerId === w.id)
+  eq('전체계산 지급총액 · 소득세(월정공제 없음) · 실지급액', `${Number(pl.grossPay)}/${Number(pl.incomeTax)}/${Number(pl.netPay)}`, '480000/0/480000')
+  await must('POST', `/hr/daily-pay-ledgers/${ledger.id}/confirm`)
+  await rejects('확정한 대장은 다시 계산할 수 없다', 'POST', `/hr/daily-pay-ledgers/${ledger.id}/calculate`, undefined, '확정된 급여대장')
+  await must('POST', `/hr/daily-pay-ledgers/${ledger.id}/confirm`)
+  await must('DELETE', `/hr/daily-pay-ledgers/${ledger.id}/work-confirms`)
+  await must('DELETE', `/hr/daily-pay-ledgers/${ledger.id}`)
+  eq('지운 대장은 목록에 없다', (await must('GET', '/hr/daily-pay-ledgers')).some((l) => l.id === ledger.id), 'false')
+  await must('DELETE', `/hr/daily-work-entries/${slip.slipDate}/${slip.slipNo}`)
+  await must('DELETE', `/hr/daily-workers/${w.id}`)
+  eq('지운 사원은 목록에 없다', (await must('GET', '/hr/daily-workers')).some((x) => x.id === w.id), 'false')
+}
+
+/** 관리 › 근태항목등록(원본 E020701) — 심어 둔 연차 · 반차, 다음 번호, 같은 명칭 막기, 사용중단 · 삭제. */
+async function scenarioAttendanceKind() {
+  section('■ 근태항목등록 · 휴가항목등록 — 기본 항목 · 번호 · 명칭 중복 · 휴가코드 · 사용중단 · 삭제')
+  const all = await must('GET', '/hr/attendance-kinds')
+  eq('연차 · 반차가 심어져 있다', ['연차', '반차'].every((n) => all.some((k) => k.name === n)), 'true')
+  const next = (await must('GET', '/hr/attendance-kinds/next-code')).code
+  const k = await must('POST', '/hr/attendance-kinds', { name: 'QA-근태', type: 'BASIC', hourUnit: true })
+  eq('비우면 다음 근태코드', k.code, next)
+  await rejects('같은 근태명칭은 막는다', 'POST', '/hr/attendance-kinds', { name: 'QA-근태', type: 'BASIC', hourUnit: false }, '이미 등록된 근태명칭')
+  await rejects('휴가 유형은 휴가코드가 없으면 막는다', 'PUT', `/hr/attendance-kinds/${k.id}`, { name: 'QA-근태', type: 'VACATION', hourUnit: true }, '휴가코드를 입력')
+  const v = await must('POST', '/hr/vacation-kinds', { name: 'QA-휴가', periodFrom: '2091-01-01', periodTo: '2091-12-31', carryOver: false })
+  const off = await must('PUT', `/hr/attendance-kinds/${k.id}`, { name: 'QA-근태', type: 'VACATION', vacationKindId: v.id, hourUnit: true, active: false })
+  eq('사용중단 · 유형 변경 · 휴가코드', `${off.active}/${off.typeName}/${off.vacationKindName}`, 'false/휴가/QA-휴가')
+  await rejects('근태항목이 가리키는 휴가항목은 지울 수 없다', 'DELETE', `/hr/vacation-kinds/${v.id}`, undefined, '근태항목에 쓰인 휴가항목')
+  await must('DELETE', `/hr/attendance-kinds/${k.id}`)
+  await must('PUT', `/hr/vacation-kinds/${v.id}`, { name: 'QA-휴가2', periodFrom: '2091-01-01', periodTo: '2091-12-31', carryOver: true, active: true })
+  eq('휴가항목 수정', (await must('GET', '/hr/vacation-kinds')).find((x) => x.id === v.id)?.carryOver, 'true')
+  const emp = (await must('GET', '/employees'))[0]
+  await must('PUT', `/hr/vacation-kinds/${v.id}/grants`, [{ employeeId: emp.id, carryOverDays: 2, currentDays: 15 }])
+  eq('사원별휴가일수 — 휴가일수 = 이월 + 당해년', Number((await must('GET', `/hr/vacation-kinds/${v.id}/grants`))[0].totalDays), 17)
+  eq('등록인원수', (await must('GET', '/hr/vacation-kinds/grant-summaries')).find((x) => x.vacationKindId === v.id)?.headcount, 1)
+  await rejects('사원별휴가일수가 있는 휴가항목은 지울 수 없다', 'DELETE', `/hr/vacation-kinds/${v.id}`, undefined, '사원별휴가일수가 등록된')
+  await must('DELETE', `/hr/vacation-kinds/${v.id}/grants`)
+  await must('DELETE', `/hr/vacation-kinds/${v.id}`)
+  eq('next-code 가 다섯 자리', /^\d{5}$/.test((await must('GET', '/hr/vacation-kinds/next-code')).code), 'true')
+  eq('지운 항목은 목록에 없다', (await must('GET', '/hr/attendance-kinds')).some((x) => x.id === k.id), 'false')
+
+  // 근태그룹 — 원본 [근태그룹] 코드도움 · 근태그룹등록(코드 00001 꼴 · 명). 근태항목은 그룹 이름을 담는다.
+  const gNext = (await must('GET', '/hr/attendance-kind-groups/next-code')).code
+  const g = await must('POST', '/hr/attendance-kind-groups', { name: 'QA-근태그룹' })
+  eq('비우면 다음 근태그룹 코드', g.code, gNext)
+  await rejects('근태그룹 명이 비면 막는다', 'POST', '/hr/attendance-kind-groups', { name: '' }, '근태그룹 명을 입력')
+  await rejects('같은 근태그룹 코드는 막는다', 'POST', '/hr/attendance-kind-groups', { code: g.code, name: 'QA-근태그룹2' }, '이미 등록된 근태그룹 코드')
+  const gk = await must('POST', '/hr/attendance-kinds', { name: 'QA-근태G', kindGroup: 'QA-근태그룹', type: 'BASIC', hourUnit: false })
+  await rejects('근태항목이 쓰는 근태그룹은 지울 수 없다', 'DELETE', `/hr/attendance-kind-groups/${g.id}`, undefined, '근태항목에서 쓰고 있는')
+  await must('PUT', `/hr/attendance-kind-groups/${g.id}`, { code: g.code, name: 'QA-근태그룹B' })
+  eq('그룹 이름을 바꾸면 근태항목의 근태그룹도 바뀐다', (await must('GET', '/hr/attendance-kinds')).find((x) => x.id === gk.id)?.kindGroup, 'QA-근태그룹B')
+  await must('DELETE', `/hr/attendance-kinds/${gk.id}`)
+  await must('DELETE', `/hr/attendance-kind-groups/${g.id}`)
+  eq('지운 근태그룹은 목록에 없다', (await must('GET', '/hr/attendance-kind-groups')).some((x) => x.id === g.id), 'false')
+}
+
+/** 관리 › 출/퇴근반영기준(원본 E020725) — 코드 필수 · 같은 코드 막기 · 제외시간 꼴 · 사용중단 · 삭제. */
+/**
+ * 법인세Checklist(E030401) — 원본 2026 실측의 규칙: 분기만집계 = 석 달 합(분기 끝 달), 분기별 · 반기별집계 = 1월부터 누계,
+ * 합계 = 12월에만. 메모는 제목 · 메모가 필수이고 기준연도 · 항목마다 따로 쌓인다.
+ */
+async function scenarioCorporateTaxChecklist() {
+  section('■ 법인세Checklist')
+  const year = 2026
+  const c = await must('GET', `/corporate-tax/checklist?year=${year}`)
+  const m = (k) => c.sales.find((r) => r.month === k)
+  const s = c.sales.map((r) => Number(r.sales))
+  const q3 = s[6] + s[7] + s[8]
+  eq('매출계정은 열두 달', c.sales.length, 12)
+  eq('분기만집계는 분기 끝 달에만', [1, 2, 4, 5, 7, 8, 10, 11].every((k) => m(k).quarterOnly === null), true)
+  eq('09월 분기만집계 = 7 · 8 · 9월 합', Number(m(9).quarterOnly), q3)
+  eq('09월 분기별집계 = 1~9월 누계', Number(m(9).quarterCumulative), s.slice(0, 9).reduce((a, b) => a + b, 0))
+  eq('반기별집계는 6 · 12월에만', c.sales.filter((r) => r.halfCumulative !== null).map((r) => r.month).join(','), '6,12')
+  eq('합계는 12월에 한 해 합계', Number(m(12).total), s.reduce((a, b) => a + b, 0))
+  eq('급여 차액 = 신고금액 − 급여총액', c.payroll.every((r) => Number(r.difference) === Number(r.reported) - Number(r.salary)), true)
+
+  await rejects('메모 제목이 비면 막는다', 'POST', '/corporate-tax/checklist/memos',
+    { year, section: 1, memoDate: '2026-10-04', title: '', content: 'QA세무' }, '제목을 입력해주세요.')
+  await rejects('메모 내용이 비면 막는다', 'POST', '/corporate-tax/checklist/memos',
+    { year, section: 1, memoDate: '2026-10-04', title: 'QA세무-메모', content: ' ' }, '메모를 입력해주세요.')
+  const memo = await must('POST', '/corporate-tax/checklist/memos',
+    { year, section: 13, memoDate: '2026-10-04', title: 'QA세무-메모', content: 'QA세무' })
+  eq('메모는 그 해 그 항목 목록에', (await must('GET', `/corporate-tax/checklist/memos?year=${year}&section=13`)).some((x) => x.id === memo.id), true)
+  eq('다른 해 목록에는 없다', (await must('GET', `/corporate-tax/checklist/memos?year=${year - 1}&section=13`)).some((x) => x.id === memo.id), false)
+  const edited = await must('PUT', `/corporate-tax/checklist/memos/${memo.id}`,
+    { year, section: 13, memoDate: '2026-10-05', title: 'QA세무-메모2', content: 'QA세무' })
+  eq('메모 수정', `${edited.memoDate} ${edited.title}`, '2026-10-05 QA세무-메모2')
+  await must('DELETE', `/corporate-tax/checklist/memos/${memo.id}`)
+  eq('메모 삭제', (await must('GET', `/corporate-tax/checklist/memos?year=${year}&section=13`)).some((x) => x.id === memo.id), false)
+}
+
+/**
+ * 지출증빙현황(E030402) — [계정설정]에서 표시로 고른 계정만 나오고, 줄 합계 = 증빙 칸의 합, 금액 링크의 비교 줄 차변 합 = 그 칸.
+ * 원본처럼 모두 표시안함으로 시작하므로 시험이 끝나면 고른 것을 되돌린다.
+ */
+async function scenarioExpenseEvidence() {
+  section('■ 지출증빙현황')
+  const before = await must('GET', '/expense-evidence/accounts')
+  const keep = before.filter((a) => a.shown).map((a) => a.id)
+  const empty = await must('PUT', '/expense-evidence/accounts', { shownIds: [] })
+  eq('계정설정을 모두 표시안함으로 저장', empty.filter((a) => a.shown).length, 0)
+  eq('표시한 계정이 없으면 빈 판', (await must('GET', '/expense-evidence?from=2026-01&to=2026-12')).rows.length, 0)
+  eq('자료가 없어도 증빙없음 열은 있다', (await must('GET', '/expense-evidence?from=2026-01&to=2026-12')).kinds.includes('증빙없음'), true)
+  const expense = before.filter((a) => /^8/.test(a.code)).map((a) => a.id)
+  await must('PUT', '/expense-evidence/accounts', { shownIds: expense })
+  const st = await must('GET', '/expense-evidence?from=2026-01&to=2026-12')
+  eq('표시한 계정만 나온다', st.rows.every((r) => expense.includes(r.accountId)), true)
+  eq('줄 합계 = 증빙 칸의 합', st.rows.every((r) => Object.values(r.amounts).reduce((a, b) => a + Number(b), 0) === Number(r.total)), true)
+  const r0 = st.rows[0]
+  if (r0) {
+    const k = Object.keys(r0.amounts)[0]
+    const cmp = await must('GET', `/expense-evidence/compare?accountId=${r0.accountId}&kind=${encodeURIComponent(k)}&from=2026-01&to=2026-12`)
+    eq('금액 링크의 비교 줄 차변 − 대변 = 그 칸', cmp.reduce((a, c) => a + Number(c.debit) - Number(c.credit), 0), Number(r0.amounts[k]))
+  }
+  await rejects('기준월 형식이 틀리면 막는다', 'GET', '/expense-evidence?from=2026&to=2026-12', undefined, '기준월')
+  await must('PUT', '/expense-evidence/accounts', { shownIds: keep })
+}
+
+/**
+ * 간이지급명세서(E030116) — 담당자 세 칸 필수, 사업소득 서식은 그 달 기타원천세를 소득자마다 묶는다(세율 3).
+ */
+async function scenarioSimplePayment() {
+  section('■ 간이지급명세서')
+  const base = { kind: 'BUSINESS', payYear: 2026, period: 9, reportDate: '2026-10-31', managerDept: 'QA세무', managerName: 'QA세무', managerPhone: '02-000-0000', submitter: 'DIRECT' }
+  await rejects('담당자 부서명이 비면 막는다', 'POST', '/simple-payment-statements', { ...base, managerDept: '' }, '부서명을 입력바랍니다.')
+  const ws = []
+  for (const amt of [1000000, 500000]) {
+    ws.push(await must('POST', '/other-withholdings', { payDate: '2026-09-15', incomeType: 'BUSINESS', payeeName: 'QA세무-강사', grossAmount: amt, description: 'QA세무' }))
+  }
+  const st = await must('POST', '/simple-payment-statements', base)
+  const sheet = await must('GET', `/simple-payment-statements/${st.id}/sheet`)
+  const row = sheet.payees.find((p) => p.payeeName === 'QA세무-강사')
+  eq('같은 소득자는 한 줄로 묶는다', `${row?.count} ${Number(row?.gross)}`, '2 1500000')
+  eq('사업소득 세율 3', row?.rate, 3)
+  eq('목록에 지급연월 2026/9', (await must('GET', '/simple-payment-statements')).some((x) => x.id === st.id && x.period === 9), true)
+  await must('POST', '/simple-payment-statements/delete', [st.id])
+  eq('선택삭제', (await must('GET', '/simple-payment-statements')).some((x) => x.id === st.id), false)
+  for (const w of ws) await must('DELETE', `/other-withholdings/${w.id}`)
+}
+
+async function scenarioCommuteRule() {
+  section('■ 출/퇴근반영기준 — 코드 · 제외시간 · 사용중단 · 삭제')
+  await rejects('반영기준코드가 비면 막는다', 'POST', '/hr/commute-rules', { code: '', name: 'QA-기준', method: 'LATE' }, '반영기준코드를 입력')
+  const r = await must('POST', '/hr/commute-rules', { code: 'QA9101', name: 'QA-기준', method: 'LATE', minHours: 0, minMinutes: 10, ex1From: '0|12:00', ex1To: '0|13:00' })
+  eq('반영방식 · 적용기준 · 제외시간', `${r.methodName}/${r.basisName}/${r.ex1From}~${r.ex1To}`, '지각/근무시간설정기준/0|12:00~0|13:00')
+  await rejects('같은 반영기준코드는 막는다', 'POST', '/hr/commute-rules', { code: 'QA9101', name: 'QA-기준2', method: 'LATE' }, '이미 등록된 반영기준코드')
+  await rejects('제외시간 꼴이 틀리면 막는다', 'PUT', `/hr/commute-rules/${r.id}`, { code: 'QA9101', name: 'QA-기준', method: 'LATE', ex1From: '25:00' }, '제외시간 꼴')
+  const off = await must('PUT', `/hr/commute-rules/${r.id}`, { code: 'QA9101', name: 'QA-기준', method: 'EARLY_LEAVE', directBasis: true, active: false })
+  eq('수정 · 사용중단', `${off.methodName}/${off.basisName}/${off.active}`, '조퇴/직접설정/false')
+  await must('DELETE', `/hr/commute-rules/${r.id}`)
+  eq('지운 기준은 목록에 없다', (await must('GET', '/hr/commute-rules')).some((x) => x.id === r.id), 'false')
+}
+
+/** 관리 › 출/퇴근기록부(사원)(원본 E020726) — 출근 → 퇴근 → 세 번째는 막기 · 퇴근이 출근보다 앞서면 막기 · 삭제. */
+async function scenarioEmployeeCommute() {
+  section('■ 출/퇴근기록부(사원) — 출근 · 퇴근 · 막기 · 삭제')
+  const emp = (await must('GET', '/employees'))[0]
+  await rejects('시간이 비면 막는다', 'POST', '/hr/employee-commutes/clock', { employeeId: emp.id }, '시간을 입력')
+  const a = await must('POST', '/hr/employee-commutes/clock', { employeeId: emp.id, at: '2091-05-02T09:00:00', place: '사무실', outside: true })
+  eq('그날 처음은 출근', `${a.clockIn}/${a.clockOut}/${a.outside}`, '2091-05-02T09:00:00/null/true')
+  await rejects('퇴근시간이 출근보다 앞서면 막는다', 'POST', '/hr/employee-commutes/clock', { employeeId: emp.id, at: '2091-05-02T08:00:00' }, '퇴근시간이 출근시간보다')
+  const b = await must('POST', '/hr/employee-commutes/clock', { employeeId: emp.id, at: '2091-05-02T18:30:00' })
+  eq('두 번째는 퇴근', b.clockOut, '2091-05-02T18:30:00')
+  await rejects('세 번째는 막는다', 'POST', '/hr/employee-commutes/clock', { employeeId: emp.id, at: '2091-05-02T19:00:00' }, '이미 퇴근한 사원')
+  eq('기간 조회', (await must('GET', '/hr/employee-commutes?from=2091-05-01&to=2091-05-31')).filter((x) => x.id === a.id).length, 1)
+  await must('DELETE', `/hr/employee-commutes/${a.id}`)
+  eq('지운 기록은 없다', (await must('GET', '/hr/employee-commutes?from=2091-05-01&to=2091-05-31')).some((x) => x.id === a.id), 'false')
+}
+
 async function scenarioRollback(f) {
   section('■ 시나리오 37. 도중에 터지면 앞의 것도 함께 되돌아가나')
 
   // ── 판매: 둘째 줄이 재고 부족으로 터진다
   await call('POST', '/stock-adjustments', {
-    type: 'ADJUST', itemId: f.product.id, warehouseId: f.warehouse.id, actualQty: 500,
-    adjustDate: '2026-08-29',
+    type: 'ADJUST', itemId: f.product.id, warehouseId: f.warehouse.id, actualQty: 500,   // 오늘 — 현재고를 맞춘다(지난 날짜면 그날 재고를 맞춘다, 55회차)
   })
   const 판매전 = (await must('GET', '/stock')).find(
     (s) => s.itemId === f.product.id && s.warehouseName === f.warehouse.name)?.quantity
@@ -9810,8 +11541,7 @@ async function scenarioRollback(f) {
   }
   for (const [item, qty] of [[넉넉자재, 50], [모자란자재, 3]]) {
     await call('POST', '/stock-adjustments', {
-      type: 'ADJUST', itemId: item.id, warehouseId: f.warehouse.id, actualQty: qty,
-      adjustDate: '2026-08-29',
+      type: 'ADJUST', itemId: item.id, warehouseId: f.warehouse.id, actualQty: qty,   // 오늘 — 현재고를 맞춘다(지난 날짜면 그날 재고를 맞춘다, 55회차)
     })
   }
   const 재고of = async (id) => Number((await must('GET', '/stock')).find(
@@ -9934,9 +11664,9 @@ async function scenarioAccountingSummary() {
   const near = (a, b, tol = 1) => Math.abs(Number(a) - Number(b)) <= tol
   eq('매출 합계 = 공급가액 + 부가세', near(vat.salesTotal, Number(vat.salesSupply) + Number(vat.salesVat)), true)
   eq('매입 합계 = 공급가액 + 부가세', near(vat.purchaseTotal, Number(vat.purchaseSupply) + Number(vat.purchaseVat)), true)
-  /* 납부세액은 <b>매출세액 − 매입세액</b> 이다. 부호가 뒤집히면 낼 돈과 받을 돈이 바뀐다. */
-  eq('납부세액 = 매출세액 − 매입세액',
-    near(vat.vatPayable, Number(vat.salesVat) - Number(vat.purchaseVat)), true)
+  /* 납부세액은 <b>매출세액 − 매입세액</b> 이다. 매입세액은 구매 + 지출(47회차부터). 부호가 뒤집히면 낼 돈과 받을 돈이 바뀐다. */
+  eq('납부세액 = 매출세액 − 매입세액(구매 + 지출)',
+    near(vat.vatPayable, Number(vat.salesVat) - Number(vat.purchaseVat) - Number(vat.expenseVat ?? 0)), true)
 
   const items = await must('GET', '/accounting/item-profit')
   eq('품목별 이익이 한 줄 이상 나온다', items.length > 0, true)

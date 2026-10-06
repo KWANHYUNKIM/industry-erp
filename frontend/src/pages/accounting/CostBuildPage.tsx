@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import Modal from '../../components/Modal'
+import CodePickerField from '../../components/CodePickerField'
 import { ymd } from '../../components/EcPeriodPicks'
 import ProcessExpenseModal from './ProcessExpenseModal'
 
@@ -28,7 +29,7 @@ import ProcessExpenseModal from './ProcessExpenseModal'
  * 표준은 BOM·BOR 대로 "들었어야 할" 값이고, 실제는 그 달 생산실적과 노무비/경비등록에
  * 적힌 실제 발생액에서 나온다. 우리는 표준만 있었고 실제원가는 사람이 손으로 넣어야 했다.
  */
-interface Item { id: number; code: string; name: string }
+interface Item { id: number; code: string; name: string; spec?: string | null; searchKeyword?: string | null; active?: boolean }
 interface Cost {
   id: number
   itemId: number
@@ -72,6 +73,7 @@ export default function CostBuildPage() {
   const [basis, setBasis] = useState<Basis>('최종매입가')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [ok, setOk] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [checkOpen, setCheckOpen] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
@@ -138,24 +140,40 @@ export default function CostBuildPage() {
 
   async function remove(r: Cost) {
     if (!window.confirm(`[${r.itemName}] ${r.period} 원가를 삭제할까요?`)) return
+    setError(''); setOk('')
     try {
       await api.delete(`/costs/${r.id}`)
+      setOk(`[${r.itemName}] ${r.period} 원가를 삭제했습니다.`)
       load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      setError(extractErrorMessage(err))
     }
   }
 
+  /*
+   * 원가를 만들 달은 위 [기준년월] 이다. 예전엔 기준년월을 골라 둬도 브라우저 입력창(prompt)이
+   * 다시 물었고 결과도 alert 로 떴다(24회차 #76). 비어 있으면 묻지 않고 막는다 —
+   * 원가생성은 되돌리기 어려운 일이라 아무 달에나 만들지 않는다.
+   */
+  function targetPeriod(what: string): string | null {
+    setError(''); setOk('')
+    if (!periodCond) {
+      setError(`위 [기준년월] 을 먼저 고르세요 — 그 달의 ${what}을(를) 만듭니다.`)
+      return null
+    }
+    return periodCond
+  }
+
   async function build() {
-    const period = window.prompt('표준원가를 자동 생성할 기간을 입력하세요 (예: 2026-06)', thisMonth())
+    const period = targetPeriod('표준원가')
     if (!period) return
     try {
       const res = await api.post<Cost[]>(
         `/costs/build?period=${encodeURIComponent(period)}&basis=${basis === '총평균법' ? 'WEIGHTED_AVG' : 'LAST_PURCHASE'}`)
-      alert(`${res.data.length}건의 표준원가를 ${basis} 으로 생성했습니다.`)
+      setOk(`${period} 표준원가 ${res.data.length}건을 ${basis}으로 생성했습니다.`)
       load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      setError(extractErrorMessage(err))
     }
   }
 
@@ -174,16 +192,18 @@ export default function CostBuildPage() {
    * 그 달 생산실적(실제 투입 자재)과 노무비/경비등록(공정별 실제 발생액)에서 낸다.
    */
   async function calcActual() {
-    const period = window.prompt('실제원가를 계산할 기간을 입력하세요 (예: 2026-06)', thisMonth())
+    const period = targetPeriod('실제원가')
     if (!period) return
     try {
       const res = await api.post<Cost[]>(`/costs/actual?period=${encodeURIComponent(period)}`)
-      alert(res.data.length === 0
-        ? `${period} 에 계산할 것이 없습니다. 그 달 생산실적이 있고 표준원가가 먼저 만들어져 있어야 합니다.`
-        : `${res.data.length}건의 실제원가를 계산했습니다.`)
+      if (res.data.length === 0) {
+        setError(`${period} 에 계산할 것이 없습니다. 그 달 생산실적이 있고 표준원가가 먼저 만들어져 있어야 합니다.`)
+      } else {
+        setOk(`${period} 실제원가 ${res.data.length}건을 계산했습니다.`)
+      }
       load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      setError(extractErrorMessage(err))
     }
   }
 
@@ -191,7 +211,7 @@ export default function CostBuildPage() {
     <EcListShell title="원가생성/수정" search={keyword} onSearchChange={setKeyword}
       newLabel={showForm ? '입력닫기' : '원가등록(F2)'} onNew={() => (showForm ? setShowForm(false) : openNew())}
       actions={[
-        { label: '노무비/경비등록', onClick: () => setExpensePeriod(window.prompt('기준년월 (예: 2026-06)', thisMonth()) || null) },
+        { label: '노무비/경비등록', onClick: () => setExpensePeriod(targetPeriod('노무비/경비')) },
         /*
          * 원본에도 같은 이름의 버튼이 있다. 원가생성은 <b>되돌리기 어려운</b> 일이라
          * 무엇이 갖춰져 있어야 하는지 누르기 전에 볼 자리가 필요하다.
@@ -217,14 +237,14 @@ export default function CostBuildPage() {
           <input type="month" className="ec-input" value={periodCond}
                  onChange={(e) => setPeriodCond(e.target.value)} style={{ width: 140 }} />
         </EcCond>
-        <EcCond label="계산기준">
+        <EcCond label="계산기준" span="full">
           <div className="ec-pills">
             {BASES.map((b) => (
               <button key={b} type="button" className={`ec-pill no-ec${basis === b ? ' active' : ''}`}
                       onClick={() => setBasis(b)}>{b}</button>
             ))}
           </div>
-          <span style={{ marginLeft: 8, fontSize: 11.5, color: '#8a929c' }}>
+          <span className="ml-[8px] text-[11.5px] text-ec-hint">
             총평균법은 그 달 매입 전체(금액 합 ÷ 수량 합)로 잽니다.
             선입선출법은 입고 레이어를 남기지 않아 아직 못 합니다.
           </span>
@@ -234,86 +254,87 @@ export default function CostBuildPage() {
       {expensePeriod && (
         <ProcessExpenseModal period={expensePeriod} onClose={() => setExpensePeriod(null)} />
       )}
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {ok && <p style={{ marginBottom: 8, background: '#eaf6ee', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{ok}</p>}
 
-      <Modal open={showForm} title="원가생성/수정 등록" onClose={() => setShowForm(false)}>{(
-        <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginBottom: 10 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>
+      <Modal error={error} open={showForm} title="원가생성/수정 등록" onClose={() => setShowForm(false)}>{(
+        <div className="border border-ec-line border-solid bg-white p-[14px] mb-[10px]">
+          <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">
             {editId ? `원가 수정 — ${editItemName}` : '원가 등록'}
           </div>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>품목 *</div>
+          <div className="flex gap-[12px] flex-wrap items-end">
+            {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). label 로 감싸면 팝업 행 클릭이 안 먹어 div 로. */}
+            <div className="text-[12.5px]"><div className="text-ec-label mb-[3px]">품목 *</div>
               {editId ? (
                 <input className="ec-input" value={editItemName ?? ''} disabled style={{ width: 180 }} />
               ) : (
-                <select className="ec-input" value={form.itemId} onChange={(e) => set('itemId', e.target.value)} style={{ width: 180 }}>
-                  <option value="">선택하세요</option>
-                  {items.map((it) => <option key={it.id} value={it.id}>[{it.code}] {it.name}</option>)}
-                </select>
+                <CodePickerField label="품목" hideLabel width={180} placeholder="품목" emptyLabel="선택 해제"
+                                 value={form.itemId} onChange={(v) => set('itemId', v)}
+                                 items={items.filter((it) => it.active !== false).map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))} />
               )}
-            </label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>적용기간 *</div>
+            </div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">적용기간 *</div>
               <input className="ec-input" placeholder="2026-06" value={form.period} onChange={(e) => set('period', e.target.value)} disabled={!!editId} style={{ width: 110 }} /></label>
           </div>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginTop: 10 }}>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>표준재료비</div>
+          <div className="flex gap-[12px] flex-wrap items-end mt-[10px]">
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">표준재료비</div>
               <input className="ec-input text-right" type="number" step="any" value={form.materialCost} onChange={(e) => set('materialCost', e.target.value)} style={{ width: 110 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>표준노무비</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">표준노무비</div>
               <input className="ec-input text-right" type="number" step="any" value={form.laborCost} onChange={(e) => set('laborCost', e.target.value)} style={{ width: 110 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>표준경비</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">표준경비</div>
               <input className="ec-input text-right" type="number" step="any" value={form.overheadCost} onChange={(e) => set('overheadCost', e.target.value)} style={{ width: 110 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>실제재료비</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">실제재료비</div>
               <input className="ec-input text-right" type="number" step="any" value={form.actualMaterial} onChange={(e) => set('actualMaterial', e.target.value)} style={{ width: 110 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>실제노무비</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">실제노무비</div>
               <input className="ec-input text-right" type="number" step="any" value={form.actualLabor} onChange={(e) => set('actualLabor', e.target.value)} style={{ width: 110 }} /></label>
-            <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>실제경비</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">실제경비</div>
               <input className="ec-input text-right" type="number" step="any" value={form.actualOverhead} onChange={(e) => set('actualOverhead', e.target.value)} style={{ width: 110 }} /></label>
             <button className="ec-btn ec-btn-primary" onClick={submit}>저장</button>
           </div>
         </div>
       )}</Modal>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e', textAlign: 'right' }}>
-        표준원가 합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{total.toLocaleString()}</b>
+      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
+        표준원가 합계 <b className="text-ec-navy text-[14px]">{total.toLocaleString()}</b>
       </div>
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ width: 90 }}>품목코드</th>
+            <th className="w-[34px]"></th>
+            <th className="w-[90px]">품목코드</th>
             <th>품목명</th>
-            <th style={{ width: 80 }}>기간</th>
-            <th style={{ textAlign: 'right' }}>재료비</th>
-            <th style={{ textAlign: 'right' }}>노무비</th>
-            <th style={{ textAlign: 'right' }}>경비</th>
-            <th style={{ textAlign: 'right' }}>표준원가</th>
-            <th style={{ width: 70, textAlign: 'center' }}></th>
+            <th className="w-[80px]">기간</th>
+            <th className="text-right">재료비</th>
+            <th className="text-right">노무비</th>
+            <th className="text-right">경비</th>
+            <th className="text-right">표준원가</th>
+            <th className="w-[70px] text-center"></th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={9} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td>{r.itemCode}</td>
               <td>{r.itemName}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.period}</td>
-              <td style={{ textAlign: 'right' }}>{r.materialCost.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{r.laborCost.toLocaleString()}</td>
-              <td style={{ textAlign: 'right' }}>{r.overheadCost.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700 }}>{r.standardTotal.toLocaleString()}</td>
-              <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+              <td>{r.period}</td>
+              <td className="text-right">{r.materialCost.toLocaleString()}</td>
+              <td className="text-right">{r.laborCost.toLocaleString()}</td>
+              <td className="text-right">{r.overheadCost.toLocaleString()}</td>
+              <td className="text-right font-bold">{r.standardTotal.toLocaleString()}</td>
+              <td className="text-center whitespace-nowrap">
                 <button className="no-ec" onClick={() => openEdit(r)} title="수정" style={{ border: 'none', background: 'none', color: 'var(--ec-blue-dark)', cursor: 'pointer', fontSize: 13, marginRight: 6 }}>수정</button>
-                <button className="no-ec" onClick={() => remove(r)} title="삭제" style={{ border: 'none', background: 'none', color: '#c60a2e', cursor: 'pointer', fontSize: 13 }}>✕</button>
+                <button className="no-ec" onClick={() => remove(r)} title="삭제" style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 13 }}>✕</button>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-      <Modal open={checkOpen} title="원가생성전 점검사항" onClose={() => setCheckOpen(false)}>{(
+      <Modal error={error} open={checkOpen} title="원가생성전 점검사항" onClose={() => setCheckOpen(false)}>{(
         <div style={{ fontSize: 12.5, lineHeight: 1.9, color: '#3f4855' }}>
           표준원가는 <b>그 기준월의 자료로 한 번에</b> 만듭니다. 아래가 안 갖춰져 있으면
           원가가 0 이거나 일부 품목만 생깁니다.

@@ -1,0 +1,40 @@
+{
+  "about": "전자결재를 원본과 견준다 — 우리 기안서작성으로 결재자를 넣어 상신하면 기안서통합관리 줄이 원본과 같은 꼴(기안일자 'YYYY/MM/DD-순번' · 제목 · ERP전표(건) · 구분 · 기안자 · 결재자 · 진행중 · 보기 · 복사)이고, 원본처럼 [진행중] 알약으로 열리는지 본다. 끝에 지운다. node qa/shot.mjs qa/flows/mirror-approval.json",
+  "shots": [
+    {
+      "name": "기안서 상신(화면)",
+      "path": "/groupware/approval/draft",
+      "steps": [
+        "js:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('내부일반문서')).click(); true",
+        "setnear:제목|QA 15회차 결재 시험",
+        "click:결재자 선택",
+        "pickrow:김부장",
+        "click:확인",
+        "click:저장/결재",
+        "expect:document.querySelector('[role=dialog]')?.innerText.includes('필수 항목을 입력하세요: 시행 일자')",
+        "setnear:시행 일자|2026-10-01",
+        "click:저장/결재",
+        "expect:/AP-[0-9]{8}-[0-9]{4} 기안서 상신 완료/.test(document.body.innerText)",
+        "js:sessionStorage.setItem('qaAp', document.body.innerText.match(/AP-[0-9]{8}-[0-9]{4}(?= 기안서 상신 완료)/)[0]); true"
+      ]
+    },
+    {
+      "name": "기안서통합관리 줄 · 기본 알약",
+      "path": "/groupware/approval/all",
+      "steps": [
+        "wait:1500",
+        "expect:[...document.querySelectorAll('.ec-pill')].map((p) => p.textContent.trim() + (p.classList.contains('active') ? '*' : '')).join(',') === '전체,기안중,진행중*,반려,결재,삭제'",
+        "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((x) => x.innerText.includes('QA 15회차 결재 시험')); if (!tr) return false; const c = [...tr.cells].map((x) => x.innerText.trim()); return /^\\d{4}\\/\\d{2}\\/\\d{2}-\\d+$/.test(c[1]) && c[2] === 'QA 15회차 결재 시험' && c[3] === '' && c[4] === '' && c[6] === '김부장' && c[7] === '진행중' && c[8] === '보기' && c[9] === '복사' && c[10] === '' })()",
+        "js:[...document.querySelectorAll('tbody tr')].find((x) => x.innerText.includes('QA 15회차 결재 시험')).cells[8].querySelector('a').click(); true",
+        "expect:document.body.innerText.includes('내부일반문서 | QA 15회차 결재 시험')"
+      ]
+    },
+    {
+      "name": "정리",
+      "path": "/groupware/approval/my",
+      "steps": [
+        "apidel:/approvals|@qaAp|docNo"
+      ]
+    }
+  ]
+}

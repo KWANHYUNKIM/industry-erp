@@ -186,13 +186,13 @@ export default function ResourcePage() {
         { label: 'Excel' },
       ]}
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       {/*
         원본 [사용여부] — <b>전체 · 사용 · 사용중단</b> 이고 [사용]이 켜진 채 뜬다(사본 실측).
         마스터는 지우지 않고 내리므로, 내린 것을 볼지 고르는 자리가 있어야 한다.
       */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+      <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label">
         {/* 원본 조건 차례: 자원코드 · 자원명 · <b>위치 · 작업</b> · 사용구분 */}
         <span>위치</span>
         <input className="ec-input" value={locCond} onChange={(e) => setLocCond(e.target.value)}
@@ -203,45 +203,45 @@ export default function ResourcePage() {
       </div>
 
       <div className="ec-pills" style={{ marginBottom: 8, alignItems: 'center' }}>
-        <span style={{ fontSize: 12.5, color: 'var(--ec-label)', marginRight: 6 }}>사용구분</span>
+        <span className="text-[12.5px] text-ec-label mr-[6px]">사용구분</span>
         {(['전체', '사용', '사용중단'] as const).map((t) => (
           <button key={t} type="button" className={`ec-pill no-ec${useTab === t ? ' active' : ''}`}
                   onClick={() => setUseTab(t)}>{t}</button>
         ))}
       </div>
 
-      <Modal open={showForm} title="자원등록" onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title="자원등록" onClose={() => setShowForm(false)}>{(
         <form onSubmit={submit} style={{ marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 8 }}>새 자원 등록</div>
+          <div className="text-[13px] font-extrabold text-ec-navy mb-[8px]">새 자원 등록</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-6">
             <div>
-              <label className="mb-1 block text-sm text-slate-600">자원코드 *</label>
+              <label className="mb-1 block text-sm text-ec-label">자원코드 *</label>
               <input className={inputCls} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="RES-003" />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">자원명 *</label>
+              <label className="mb-1 block text-sm text-ec-label">자원명 *</label>
               <input className={inputCls} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">구분</label>
+              <label className="mb-1 block text-sm text-ec-label">구분</label>
               <select className={inputCls} value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
                 {TYPES.map((t) => <option key={t}>{t}</option>)}
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">가용능력</label>
+              <label className="mb-1 block text-sm text-ec-label">가용능력</label>
               <input type="number" step="any" className={inputCls} style={{ textAlign: 'right' }} value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">단위</label>
+              <label className="mb-1 block text-sm text-ec-label">단위</label>
               <input className={inputCls} value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">시간당비용</label>
+              <label className="mb-1 block text-sm text-ec-label">시간당비용</label>
               <input type="number" step="any" className={inputCls} style={{ textAlign: 'right' }} value={form.costPerHr} onChange={(e) => setForm({ ...form, costPerHr: e.target.value })} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">위치</label>
+              <label className="mb-1 block text-sm text-ec-label">위치</label>
               {/* 원본은 이 칸을 <b>코드도움</b>으로 받는다(사본 실측) — 창고가 몇십 개만 돼도
                   드롭다운으로는 코드로도 이름으로도 못 찾는다. */}
               <CodePickerField label="위치" hideLabel fill placeholder="위치" emptyLabel="안 정함"
@@ -249,7 +249,7 @@ export default function ResourcePage() {
                                items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name }))} />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-600">대상작업</label>
+              <label className="mb-1 block text-sm text-ec-label">대상작업</label>
               <select className={inputCls} value={form.processId}
                       onChange={(e) => setForm({ ...form, processId: e.target.value })}>
                 <option value="">(안 정함)</option>
@@ -257,7 +257,7 @@ export default function ResourcePage() {
               </select>
             </div>
           </div>
-          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
+          <div className="mt-[12px] flex justify-end">
             <button type="submit" className="ec-btn ec-btn-primary">등록</button>
           </div>
         </form>
@@ -266,45 +266,45 @@ export default function ResourcePage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34, textAlign: 'center' }}>
+            <th className="w-[34px] text-center">
               <input type="checkbox" checked={allOn}
                      onChange={() => setChecked(allOn ? new Set() : new Set(shown.map((r) => r.id)))} />
             </th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('자원코드')}>자원코드 {sort.mark('자원코드')}</th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('자원명')}>자원명 {sort.mark('자원명')}</th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('위치')}>위치 {sort.mark('위치')}</th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('대상작업')}>대상작업 {sort.mark('대상작업')}</th>
-            <th style={{ textAlign: 'center' }}>구분</th>
-            <th style={{ textAlign: 'right' }}>가용능력</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('자원코드')}>자원코드 {sort.mark('자원코드')}</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('자원명')}>자원명 {sort.mark('자원명')}</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('위치')}>위치 {sort.mark('위치')}</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('대상작업')}>대상작업 {sort.mark('대상작업')}</th>
+            <th className="text-center">구분</th>
+            <th className="text-right">가용능력</th>
             <th>단위</th>
-            <th style={{ textAlign: 'right' }}>시간당비용</th>
-            <th style={{ width: 80, textAlign: 'center' }}>사용구분</th>
-            <th style={{ width: 60, textAlign: 'center' }}>관리</th>
+            <th className="text-right">시간당비용</th>
+            <th className="w-[80px] text-center">사용구분</th>
+            <th className="w-[60px] text-center">관리</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={11} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r) => (
-            <tr key={r.id} style={{ color: r.active ? undefined : '#9aa1ab' }}>
-              <td style={{ textAlign: 'center' }}>
+            <tr key={r.id} style={{ color: r.active ? undefined : 'var(--ec-text-hint)' }}>
+              <td className="text-center">
                 <input type="checkbox" checked={checked.has(r.id)} onChange={() => toggle(r.id)} />
               </td>
-              <td style={{ fontFamily: 'monospace' }}>{r.code}</td>
+              <td>{r.code}</td>
               <td>{r.name}</td>
-              <td style={{ color: r.warehouseName ? undefined : '#c9ced6' }}>{r.warehouseName ?? '안 정함'}</td>
-              <td style={{ color: r.processName ? undefined : '#c9ced6' }}>{r.processName ?? '안 정함'}</td>
-              <td style={{ textAlign: 'center' }}>{r.type}</td>
-              <td style={{ textAlign: 'right' }}>{r.capacity.toLocaleString()}</td>
+              <td style={{ color: r.warehouseName ? undefined : 'var(--ec-text-off)' }}>{r.warehouseName ?? '안 정함'}</td>
+              <td style={{ color: r.processName ? undefined : 'var(--ec-text-off)' }}>{r.processName ?? '안 정함'}</td>
+              <td className="text-center">{r.type}</td>
+              <td className="text-right">{r.capacity.toLocaleString()}</td>
               <td>{r.unit ?? ''}</td>
-              <td style={{ textAlign: 'right' }}>{r.costPerHr.toLocaleString()}</td>
-              <td style={{ textAlign: 'center', color: r.active ? '#1c7c3c' : '#c60a2e' }}>
+              <td className="text-right">{r.costPerHr.toLocaleString()}</td>
+              <td style={{ textAlign: 'center', color: r.active ? 'var(--ec-success)' : 'var(--ec-danger)' }}>
                 {r.active ? '사용' : '사용중단'}
               </td>
-              <td style={{ textAlign: 'center' }}>
-                <button onClick={() => remove(r)} style={{ color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+              <td className="text-center">
+                <button onClick={() => remove(r)} style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
               </td>
             </tr>
           ))}

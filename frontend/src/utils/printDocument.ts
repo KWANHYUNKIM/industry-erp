@@ -249,12 +249,13 @@ export async function loadSupplierParty(label = '공급자'): Promise<DocParty |
  *
  * @returns 인쇄할 전표가 없거나 팝업이 막히면 false
  */
-export async function printDocuments(docs: PrintDocumentOptions[]): Promise<boolean> {
-  if (docs.length === 0) return false
+export async function printDocuments(docs: PrintDocumentOptions[], opened?: Window | null): Promise<boolean> {
+  if (docs.length === 0) { opened?.close(); return false }
 
   // 결재란 조회(await)보다 창을 <b>먼저</b> 연다. 순서를 바꾸면 사용자 제스처가 만료돼
   // 브라우저 팝업 차단에 걸리고, 인쇄 버튼을 눌러도 아무 일도 일어나지 않는다.
-  const win = openPrintWindow()
+  // 저장처럼 더 앞에서 기다리는 일이 있으면 호출부가 클릭 순간에 openPrintWindow() 로 열어 넘긴다.
+  const win = opened ?? openPrintWindow()
   if (!win) return false
 
   try {

@@ -1,0 +1,59 @@
+package com.erp.groupware.businesscontract;
+
+import com.erp.groupware.businesscontract.dto.BusinessContractDtos.ContractResponse;
+import com.erp.groupware.businesscontract.dto.BusinessContractDtos.CreateContractRequest;
+import com.erp.groupware.businesscontract.dto.BusinessContractDtos.SignRequest;
+import com.erp.groupware.businesscontract.dto.BusinessContractDtos.TerminateRequest;
+import com.erp.security.UserPrincipal;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import com.erp.groupware.businesscontract.dto.BusinessContractDtos;
+
+/** 회계 II > 계약관리 · 전자계약 (작성 → 서명요청 → 전자서명 → 해지) */
+@RestController
+@RequestMapping("/api/contracts")
+@RequiredArgsConstructor
+public class BusinessContractController {
+
+    private final BusinessContractService service;
+
+    @GetMapping
+    public List<ContractResponse> list(
+            /* 화면 조건 판의 [기간] — 안 주면 전 기간이다. */
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate from,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate to) {
+        return service.findAll(from, to);
+    }
+
+    @PostMapping
+    public ContractResponse create(@Valid @RequestBody CreateContractRequest req,
+                                   @AuthenticationPrincipal UserPrincipal principal) {
+        return service.create(req, principal.getUsername());
+    }
+
+    @PostMapping("/{id}/send")
+    public ContractResponse send(@PathVariable Long id) {
+        return service.send(id);
+    }
+
+    /** 전자서명 */
+    @PostMapping("/{id}/sign")
+    public ContractResponse sign(@PathVariable Long id, @Valid @RequestBody SignRequest req) {
+        return service.sign(id, req);
+    }
+
+    @PostMapping("/{id}/terminate")
+    public ContractResponse terminate(@PathVariable Long id, @Valid @RequestBody TerminateRequest req) {
+        return service.terminate(id, req);
+    }
+}

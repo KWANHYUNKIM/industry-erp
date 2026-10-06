@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../api/client'
-import type { GroupMaster } from '../api/types'
+import type { GroupMaster } from '../types/api'
 
 /**
  * 계층그룹 모달 — 품목그룹·거래처그룹 마스터를 만들고 소속을 확인한다.
@@ -89,44 +89,44 @@ export default function GroupMasterModal({
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 4, width: 620, maxWidth: '92vw', maxHeight: '84vh', overflow: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,.2)' }}>
-        <div style={{ padding: '10px 14px', borderBottom: '1px solid #e6eaef', fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center' }}>
+        <div className="py-[10px] px-[14px] border-b border-b-ec-line-soft border-solid font-extrabold text-[14px] flex items-center">
           <span>계층그룹 · {title}</span>
           <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={onClose}>닫기</button>
         </div>
-        <div style={{ padding: 14, fontSize: 12.5, color: '#3c4553' }}>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 10 }}>
+        <div className="p-[14px] text-[12.5px] text-ec-text">
+          <div className="flex gap-[6px] items-center mb-[10px]">
             <input className="ec-input" placeholder="그룹코드" value={code} onChange={(e) => setCode(e.target.value)} style={{ width: 110 }} />
             <input className="ec-input" placeholder="그룹명" value={name} onChange={(e) => setName(e.target.value)} style={{ width: 180 }} />
             <button className="ec-btn ec-btn-primary" onClick={add}>그룹 추가</button>
           </div>
-          {error && <p style={{ margin: '0 0 8px', color: '#c60a2e' }}>{error}</p>}
-          {groups.length === 0 && <p style={{ color: '#8a929c' }}>등록된 그룹이 없습니다. 위에서 하나 만들어 보세요.</p>}
+          {error && <p className="mt-0 mx-0 mb-[8px] text-ec-danger">{error}</p>}
+          {groups.length === 0 && <p className="text-ec-hint">등록된 그룹이 없습니다. 위에서 하나 만들어 보세요.</p>}
           {groups.map((g) => {
             const list = members.get(g.name) ?? []
             return (
-              <div key={g.id} style={{ marginBottom: 10, border: '1px solid #e6eaef', borderRadius: 3 }}>
+              <div key={g.id} className="mb-[10px] border border-ec-line-soft border-solid rounded-[3px]">
                 <div style={{ padding: '6px 10px', background: '#f5f8ff', fontWeight: 700, color: 'var(--ec-blue-dark)', display: 'flex', alignItems: 'center' }}>
-                  <span>[{g.code}] {g.name} <span style={{ color: '#8a929c', fontWeight: 400 }}>({list.length})</span></span>
-                  <button onClick={() => remove(g)} style={{ marginLeft: 'auto', color: '#c60a2e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                  <span>[{g.code}] {g.name} <span className="text-ec-hint font-normal">({list.length})</span></span>
+                  <button onClick={() => remove(g)} style={{ marginLeft: 'auto', color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
                 </div>
-                <div style={{ padding: '6px 10px', lineHeight: 1.8 }}>
+                <div className="py-[6px] px-[10px] leading-[1.8]">
                   {list.length === 0
-                    ? <span style={{ color: '#9aa1ab' }}>소속 없음</span>
-                    : list.map((label, i) => <span key={i} style={{ display: 'inline-block', marginRight: 10 }}>{label}</span>)}
+                    ? <span className="text-ec-hint">소속 없음</span>
+                    : list.map((label, i) => <span key={i} className="inline-block mr-[10px]">{label}</span>)}
                 </div>
               </div>
             )
           })}
           {unassigned.length > 0 && (
             <div style={{ border: '1px dashed #d7dce3', borderRadius: 3 }}>
-              <div style={{ padding: '6px 10px', background: '#fafbfc', fontWeight: 700, color: '#5a626e' }}>(미지정) <span style={{ color: '#8a929c', fontWeight: 400 }}>({unassigned.length})</span></div>
-              <div style={{ padding: '6px 10px', lineHeight: 1.8 }}>
-                {unassigned.slice(0, 60).map((label, i) => <span key={i} style={{ display: 'inline-block', marginRight: 10 }}>{label}</span>)}
-                {unassigned.length > 60 && <span style={{ color: '#8a929c' }}>… 외 {unassigned.length - 60}건</span>}
+              <div className="py-[6px] px-[10px] bg-ec-page font-bold text-ec-label">(미지정) <span className="text-ec-hint font-normal">({unassigned.length})</span></div>
+              <div className="py-[6px] px-[10px] leading-[1.8]">
+                {unassigned.slice(0, 60).map((label, i) => <span key={i} className="inline-block mr-[10px]">{label}</span>)}
+                {unassigned.length > 60 && <span className="text-ec-hint">… 외 {unassigned.length - 60}건</span>}
               </div>
             </div>
           )}
-          <p style={{ margin: '8px 0 0', fontSize: 11.5, color: '#8a929c' }}>* 소속 지정은 등록/수정 화면의 [{title}]에서 합니다.</p>
+          <p className="mt-[8px] mx-0 mb-0 text-[11.5px] text-ec-hint">* 소속 지정은 등록/수정 화면의 [{title}]에서 합니다.</p>
         </div>
       </div>
     </div>

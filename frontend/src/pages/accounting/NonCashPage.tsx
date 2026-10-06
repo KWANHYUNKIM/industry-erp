@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
+import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
-import type { NonCashTxn, NonCashType, Partner } from '../../api/types'
-import { ymd } from '../../components/EcPeriodPicks'
+import type { NonCashTxn, NonCashType, Partner } from '../../types/api'
+import { partnerCodeItems } from '../../utils/codeItems'
+import { periodOf, ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 
 const today = () => ymd(new Date())
@@ -37,6 +39,8 @@ const TYPES: {
  */
 export default function NonCashPage() {
   const [rows, setRows] = useState<NonCashTxn[]>([])
+  /* 5천 건을 넘으면 서버가 앞 5천 건만 주고 잘랐다고 밝힌다(QA 52회차) — [오천건이상조회] 로 다 받는다. */
+  const [cut, setCut] = useState<{ total: number; truncated: boolean }>({ total: 0, truncated: false })
   const [accounts, setAccounts] = useState<AccountOption[]>([])
   const [partners, setPartners] = useState<Partner[]>([])
   const [filter, setFilter] = useState<NonCashType | '전체'>('전체')
@@ -46,8 +50,14 @@ export default function NonCashPage() {
    * <p>기본은 <b>비워</b> 둔다 — 미결제 수표·어음은 <b>오래된 것이 살아 있다</b>.
    * 금월로 잘라 놓으면 지난달에 끊어 아직 안 돌아온 건이 화면에서 사라진다.
    */
-  const [from2, setFrom2] = useState('')
-  const [to2, setTo2] = useState('')
+  /*
+   * <b>기간 기본값이 비어 있었다</b> — 그래서 화면을 열면 전 기간을 받았다.
+   * 2026-09-10 에 브라우저로 재 보니 이 화면 하나가 열자마자 받는 양이 <b>3,746KB</b> 였다.
+   * 다른 현황 화면들이 쓰는 <b>금월(~오늘)</b> 로 맞춘다(사용자가 정했다).
+   * 이전 자료는 기간을 넓히면 그대로 보인다.
+   */
+  const [from2, setFrom2] = useState(periodOf('금월(~오늘)')!.from)
+  const [to2, setTo2] = useState(periodOf('금월(~오늘)')!.to)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -55,15 +65,16 @@ export default function NonCashPage() {
 
   const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(''), 3000) }
 
-  async function load() {
+  async function load(all = false) {
     setLoading(true)
     try {
       const [t, a, p] = await Promise.all([
-        api.get<NonCashTxn[]>('/non-cash', { params: { from: from2 || undefined, to: to2 || undefined } }),
+        api.get<{ rows: NonCashTxn[]; totalRows: number; truncated: boolean }>('/non-cash', { params: { ...{ from: from2 || undefined, to: to2 || undefined }, all: all || undefined } }),
         api.get<AccountOption[]>('/accounts'),
         api.get<Partner[]>('/partners'),
       ])
-      setRows(t.data)
+      setRows(t.data.rows)
+      setCut({ total: t.data.totalRows, truncated: t.data.truncated })
       setAccounts(a.data)
       setPartners(p.data)
     } catch (err) {
@@ -76,7 +87,9 @@ export default function NonCashPage() {
   useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [from2, to2])
 
   const shown = rows.filter((r) => filter === '전체' || r.type === filter)
-  const count = (t: NonCashType | '전체') => rows.filter((r) => t === '전체' || r.type === t).length
+  /* 잘려 왔으면 [전체] 는 서버가 센 건수, 유형별은 받은 5천 건 안에서 센 것이라 '+' 를 붙인다. */
+  const count = (t: NonCashType | '전체') => t === '전체' && cut.truncated ? cut.total.toLocaleString()
+    : rows.filter((r) => t === '전체' || r.type === t).length + (cut.truncated ? '+' : '')
 
 
   /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
@@ -89,20 +102,25 @@ export default function NonCashPage() {
       title="비현금거래 (대체전표)"
       newLabel={showForm ? '입력닫기' : '대체전표 작성(F2)'}
       onNew={() => setShowForm(true)}
-      actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}
+      actions={[
+        { label: '새로고침', onClick: () => load() },
+        /* 원본 [오천건이상조회] — 잘려 왔을 때만 눌린다. */
+        { label: '오천건이상조회', onClick: () => load(true), disabled: !cut.truncated },
+        { label: 'Excel' }, { label: '인쇄' },
+      ]}
     >
-      <div style={{ display: 'flex', gap: 2, marginBottom: 8, borderBottom: '1px solid var(--ec-border)' }}>
+      <div className="flex gap-[2px] mb-[8px] border-b border-b-ec-line border-solid">
         {(['전체', ...TYPES.map((t) => t.type)] as const).map((t) => (
           <button key={t} onClick={() => setFilter(t)} className="no-ec" style={{
             padding: '6px 14px', fontSize: 12.5, border: 'none', cursor: 'pointer',
-            background: filter === t ? '#fff' : 'transparent', color: filter === t ? 'var(--ec-blue)' : '#5a626e',
+            background: filter === t ? '#fff' : 'transparent', color: filter === t ? 'var(--ec-blue)' : 'var(--ec-label)',
             fontWeight: filter === t ? 700 : 400,
             borderBottom: filter === t ? '2px solid var(--ec-blue)' : '2px solid transparent',
           }}>
             {t === '전체' ? '전체' : TYPES.find((x) => x.type === t)!.label} ({count(t)})
           </button>
         ))}
-        <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 11.5, color: '#8a929c' }}>
+        <span style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 11.5, color: 'var(--ec-text-hint)' }}>
           현금·예금이 움직이는 거래는 현금거래·계좌입출금 화면에서 처리합니다.
         </span>
       </div>
@@ -111,19 +129,22 @@ export default function NonCashPage() {
         화면 조건 판의 <b>[기간]</b>. 서버가 이 구간만 준다 — 전에는 전 기간을 통째로 받았다.
         비워 두면 전 기간이다(미결제 건은 오래된 것이 살아 있어 기본으로 자르지 않는다).
       */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+      <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label">
         <span>기간</span>
         <input type="date" className="ec-input" value={from2}
                onChange={(e) => setFrom2(e.target.value)} style={{ width: 140 }} />
-        <span style={{ color: 'var(--ec-label)' }}>~</span>
+        <span className="text-ec-label">~</span>
         <input type="date" className="ec-input" value={to2}
                onChange={(e) => setTo2(e.target.value)} style={{ width: 140 }} />
       </div>
 
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {cut.truncated && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'var(--ec-warn-bg)', border: '1px solid #f0d58a', color: '#7a5b00' }}>
+        기간 안에 {cut.total.toLocaleString()}건 — 앞 5,000건만 보입니다. 기간을 좁히거나 [오천건이상조회] 를 누르세요.
+      </div>}
+      {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
 
-      <Modal open={showForm} title="비현금거래 (대체전표) 등록" onClose={() => setShowForm(false)}>{(
+      <Modal error={error} open={showForm} title="비현금거래 (대체전표) 등록" onClose={() => setShowForm(false)}>{(
         <NonCashForm
           accounts={accounts} partners={partners} onError={setError}
           onSaved={(t) => { setShowForm(false); flash(`${t.txnNo} 저장 · 회계전표 ${t.journalDocNo} 생성`); load() }}
@@ -133,35 +154,35 @@ export default function NonCashPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ width: 130 }}>전표번호</th>
-            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th>
-            <th style={{ width: 120 }}>유형</th>
-            <th style={{ width: 150 }}>차변</th>
-            <th style={{ width: 150 }}>대변</th>
-            <th style={{ width: 120, textAlign: 'right' }}>금액</th>
-            <th style={{ width: 120 }}>거래처</th>
-            <th style={{ width: 140 }}>회계전표</th>
+            <th className="w-[34px]"></th>
+            <th className="w-[130px]">전표번호</th>
+            <th className="w-[100px] cursor-pointer" onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th>
+            <th className="w-[120px]">유형</th>
+            <th className="w-[150px]">차변</th>
+            <th className="w-[150px]">대변</th>
+            <th className="w-[120px] text-right">금액</th>
+            <th className="w-[120px]">거래처</th>
+            <th className="w-[140px]">회계전표</th>
             <th>적요</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((t, i) => (
             <tr key={t.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{t.txnNo}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td>{t.txnNo}</td>
               <td>{dateText(t.txnDate)}</td>
-              <td style={{ color: 'var(--ec-blue)' }}>{t.typeName}</td>
+              <td className="text-ec-blue">{t.typeName}</td>
               <td>{t.debitAccountCode} {t.debitAccountName}</td>
-              <td style={{ color: '#5a626e' }}>{t.creditAccountCode} {t.creditAccountName}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(t.amount)}</td>
+              <td className="text-ec-label">{t.creditAccountCode} {t.creditAccountName}</td>
+              <td className="text-right font-bold">{won(t.amount)}</td>
               <td>{t.partnerName ?? ''}</td>
-              <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{t.journalDocNo ?? ''}</td>
-              <td style={{ color: '#5a626e' }}>{t.description ?? ''}</td>
+              <td className="text-ec-blue">{t.journalDocNo ?? ''}</td>
+              <td className="text-ec-label">{t.description ?? ''}</td>
             </tr>
           ))}
         </tbody>
@@ -214,9 +235,9 @@ function NonCashForm({ accounts, partners, onError, onSaved }: {
   }
 
   return (
-    <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginBottom: 8 }}>
-      <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>대체전표 작성</div>
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+    <div className="border border-ec-line border-solid bg-white p-[14px] mb-[8px]">
+      <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">대체전표 작성</div>
+      <div className="flex gap-[12px] flex-wrap items-end">
         <Field label="유형 *">
           <select className="ec-input" value={type} onChange={(e) => { setType(e.target.value as NonCashType); setDebitAccountId(''); setCreditAccountId('') }} style={{ width: 140 }}>
             {TYPES.map((t) => <option key={t.type} value={t.type}>{t.label}</option>)}
@@ -228,33 +249,30 @@ function NonCashForm({ accounts, partners, onError, onSaved }: {
 
         {conf.debit === 'fixed' ? (
           <Field label="차변">
-            <div className="ec-input" style={{ width: 160, background: '#f5f7fa', color: '#5a626e', lineHeight: '22px' }}>
+            <div className="ec-input" style={{ width: 160, background: 'var(--ec-bg-page)', color: 'var(--ec-label)', lineHeight: '22px' }}>
               {type === 'OFFSET' ? '251 외상매입금' : '835 대손상각비'}
             </div>
           </Field>
         ) : (
           <Field label={conf.debit === 'expense' ? '비용계정(차변) *' : '차변계정 *'}>
-            <select className="ec-input" value={debitAccountId} onChange={(e) => setDebitAccountId(e.target.value)} style={{ width: 180 }}>
-              <option value="">선택하세요</option>
-              {(conf.debit === 'expense' ? expenses : selectable).map((a) => (
-                <option key={a.id} value={a.id}>{a.code} {a.name}</option>
-              ))}
-            </select>
+            {/* 긴 드롭다운이었다(계정과목 전체) — 코드도움으로(QA 21회차). */}
+            <CodePickerField label="차변계정" hideLabel width={180} placeholder="계정" emptyLabel="선택 해제"
+                             value={debitAccountId} onChange={setDebitAccountId}
+                             items={(conf.debit === 'expense' ? expenses : selectable).map((a) => ({ value: String(a.id), code: a.code, name: a.name }))} />
           </Field>
         )}
 
         {conf.credit === 'fixed' ? (
           <Field label="대변">
-            <div className="ec-input" style={{ width: 160, background: '#f5f7fa', color: '#5a626e', lineHeight: '22px' }}>
+            <div className="ec-input" style={{ width: 160, background: 'var(--ec-bg-page)', color: 'var(--ec-label)', lineHeight: '22px' }}>
               {type === 'ACCRUAL' ? '253 미지급금' : '108 외상매출금'}
             </div>
           </Field>
         ) : (
           <Field label="대변계정 *">
-            <select className="ec-input" value={creditAccountId} onChange={(e) => setCreditAccountId(e.target.value)} style={{ width: 180 }}>
-              <option value="">선택하세요</option>
-              {selectable.map((a) => <option key={a.id} value={a.id}>{a.code} {a.name}</option>)}
-            </select>
+            <CodePickerField label="대변계정" hideLabel width={180} placeholder="계정" emptyLabel="선택 해제"
+                             value={creditAccountId} onChange={setCreditAccountId}
+                             items={selectable.map((a) => ({ value: String(a.id), code: a.code, name: a.name }))} />
           </Field>
         )}
 
@@ -262,28 +280,28 @@ function NonCashForm({ accounts, partners, onError, onSaved }: {
           <input className="ec-input" type="number" step="any" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ width: 130, textAlign: 'right' }} />
         </Field>
         <Field label="거래처">
-          <select className="ec-input" value={partnerId} onChange={(e) => setPartnerId(e.target.value)} style={{ width: 150 }}>
-            <option value="">선택 안함</option>
-            {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
+          <CodePickerField label="거래처" hideLabel width={150} emptyLabel="선택 안 함" placeholder="선택 안함"
+                           value={partnerId} onChange={setPartnerId}
+                           items={partnerCodeItems(partners)} />
         </Field>
         <Field label="적요">
           <input className="ec-input" value={description} onChange={(e) => setDescription(e.target.value)} style={{ width: 180 }} />
         </Field>
         <button className="ec-btn ec-btn-primary" onClick={submit} disabled={saving}>{saving ? '저장 중…' : '저장(F8)'}</button>
       </div>
-      <div style={{ marginTop: 8, fontSize: 11.5, color: '#8a929c' }}>
+      <div className="mt-[8px] text-[11.5px] text-ec-hint">
         ※ {conf.label} → <b>{conf.formula}</b> 로 분개됩니다. 현금·당좌예금·보통예금은 선택할 수 없습니다(현금이 움직이면 비현금거래가 아닙니다).
       </div>
     </div>
   )
 }
 
+/* label 이 아니라 div — 안에 코드도움이 들어가는데 label 로 감싸면 팝업 행 클릭이 안 먹는다. */
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label style={{ fontSize: 12.5 }}>
-      <div style={{ color: '#5a626e', marginBottom: 3 }}>{label}</div>
+    <div className="text-[12.5px]">
+      <div className="text-ec-label mb-[3px]">{label}</div>
       {children}
-    </label>
+    </div>
   )
 }

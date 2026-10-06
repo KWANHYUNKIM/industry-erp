@@ -1,0 +1,34 @@
+{
+  "about": "업무일지(원본 E070304) — 조건 판 → [검색(F8)] → 부서 × 일자 격자(날마다 'MM/DD(요일)' 두 칸, 제목은 그 부서 · 그날 칸에 링크) → 제목을 누르면 '조회'(번호 · 제목 · 작성자 · 작성 시각 · 업무보고일 : yyyymmdd) → [수정]으로 제목을 고치면 격자가 바뀌고 → [삭제] '게시글을 삭제하면 복구할 수 없습니다. 삭제하겠습니까?' 면 사라진다. 시험 일지는 API 로 만든다. node qa/shot.mjs qa/flows/worklog-grid.json",
+  "shots": [
+    {
+      "name": "준비 — 오늘 · 첫 부서로 시험 일지",
+      "path": "/groupware/worklog",
+      "steps": [
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const ds = (await (await fetch('/api/departments', { headers: H })).json()).filter((d) => d.active); const d = new Date(); const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const j = await (await fetch('/api/work-journals', { method: 'POST', headers: H, body: JSON.stringify({ reportDate: day, department: ds[0].name, title: 'QA그룹웨어-일지', content: '' }) })).json(); sessionStorage.setItem('qaWl', JSON.stringify([j.id, ds[0].name, day.slice(5, 7) + '/' + day.slice(8, 10)])); return j.id + ' ' + ds[0].name })()"
+      ]
+    },
+    {
+      "name": "검색 → 격자 → 조회 → 수정 → 삭제",
+      "path": "/groupware/worklog",
+      "steps": [
+        "click:검색(F8)",
+        "wait:800",
+        "expect:document.querySelector('thead th').textContent.trim() === '부서' && [...document.querySelectorAll('thead th')].slice(1).every((th) => th.colSpan === 2 && /^\\d{2}\\/\\d{2}\\(.\\)$/.test(th.textContent.trim()))",
+        "expect:(() => { const [, dept, md] = JSON.parse(sessionStorage.getItem('qaWl')); const ths = [...document.querySelectorAll('thead th')]; const col = ths.findIndex((th) => th.textContent.startsWith(md)); const tr = [...document.querySelectorAll('tbody tr')].find((r) => r.cells[0].textContent.trim() === dept); return col > 0 && !!tr && tr.cells[1 + (col - 1) * 2].textContent.includes('QA그룹웨어-일지') })()",
+        "js:[...document.querySelectorAll('tbody button')].find((b) => b.textContent.trim() === 'QA그룹웨어-일지').click(); true",
+        "expect:(() => { const m = document.querySelector('[role=dialog]'); const [id] = JSON.parse(sessionStorage.getItem('qaWl')); return m?.getAttribute('aria-label') === '조회' && m.innerText.includes(String(id)) && /\\d{4}\\/\\d{2}\\/\\d{2} (오전|오후) \\d{1,2}:\\d{2}:\\d{2}/.test(m.innerText) && /업무보고일 : \\d{8}/.test(m.innerText) })()",
+        "click:수정",
+        "expect:document.querySelector('[role=dialog]')?.getAttribute('aria-label') === '업무일지게시글작성'",
+        "setnear:제목|QA그룹웨어-일지2",
+        "click:저장(F8)",
+        "wait:800",
+        "expect:[...document.querySelectorAll('tbody button')].some((b) => b.textContent.trim() === 'QA그룹웨어-일지2')",
+        "js:window.__asked = ''; window.confirm = (m) => { window.__asked = m; return true }; [...document.querySelectorAll('tbody button')].find((b) => b.textContent.trim() === 'QA그룹웨어-일지2').click(); true",
+        "click:삭제",
+        "wait:800",
+        "expect:window.__asked === '게시글을 삭제하면 복구할 수 없습니다.\\n삭제하겠습니까?' && ![...document.querySelectorAll('tbody button')].some((b) => b.textContent.includes('QA그룹웨어-일지'))"
+      ]
+    }
+  ]
+}

@@ -10,5 +10,5 @@ import DiscountStatusPage from './DiscountStatusPage'
  * <p>원본 표가 외주비할인현황과 같다 — 회계로 안 넘어간 구매금액을 본다.
  */
 export default function PurchaseDiscountPage() {
-  return <DiscountStatusPage kind="PURCHASE" title="구매할인현황" amountLabel="구매금액" defaultPick="직전기수" withTradeType />
+  return <DiscountStatusPage kind="PURCHASE" title="구매할인현황" amountLabel="구매금액" defaultPick="금월(~오늘)" withTradeType />
 }

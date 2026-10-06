@@ -1,0 +1,22 @@
+{
+  "about": "관리 > 부서등록(E010105) — 원본처럼 [신규(F2)] 창이 다음 부서코드(00010 꼴)를 채워 열리고, 부서명이 비면 막히며, 저장하면 안내 없이 목록에 붙는다. 상위 부서를 지우면 하위 부서는 남고 배치만 풀린다. 만든 부서는 지운다.",
+  "shots": [
+    {
+      "name": "부서 등록 → 하위 부서 → 상위 삭제 → 하위 남음",
+      "path": "/hr/departments",
+      "steps": [
+        "click:신규(F2)",
+        "wait:800",
+        "expect:/^[0-9]{5}$/.test(document.querySelector('[role=dialog] input.ec-input').value)",
+        "clicklast:저장(F8)",
+        "expect:document.body.innerText.includes('부서명을 입력 바랍니다.')",
+        "set:[role=dialog] input[placeholder=\"부서명\"]|QA관리-상위부서",
+        "clicklast:저장(F8)",
+        "wait:2000",
+        "expect:!document.querySelector('[role=dialog]') && /QA관리-상위부서\\s+Yes/.test(document.querySelector('table').innerText)",
+        "js:(async()=>{const t=localStorage.getItem('erp_token');const h={Authorization:'Bearer '+t,'Content-Type':'application/json'};const ds=await (await fetch('/api/departments',{headers:h})).json();const up=ds.find(d=>d.name==='QA관리-상위부서');const c=await (await fetch('/api/departments',{method:'POST',headers:h,body:JSON.stringify({name:'QA관리-하위부서',parentId:up.id})})).json();const del=await fetch('/api/departments/'+up.id,{method:'DELETE',headers:h});const after=await (await fetch('/api/departments',{headers:h})).json();const child=after.find(d=>d.id===c.id);const ok=del.ok&&!!child&&child.parentId===null&&!after.some(d=>d.id===up.id);await fetch('/api/departments/'+c.id,{method:'DELETE',headers:h});sessionStorage.setItem('qaDept',String(ok));return true})()",
+        "expect:sessionStorage.getItem('qaDept')==='true'"
+      ]
+    }
+  ]
+}

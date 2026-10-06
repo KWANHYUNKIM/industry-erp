@@ -1,0 +1,19 @@
+{
+  "about": "품질검사요청현황(E040630) — 2026-10-04 원본 실측: [메뉴] ◉현황 ○집계. 현황은 요청 품목 줄마다 한 행 + 달마다 계 + 총합계(머리글 '품질검사요청현황내역'), 집계는 [집계조건1 · 2] 로 묶어 [조건 | 수량], 묶음마다 '… 계' + '총합계'(머리글 '품질검사요청현황집계'). 두 줄 요청을 만들어 현황 두 행 · 집계(담당자별) 한 묶음 6.00 을 보고 지운다.",
+  "shots": [
+    {
+      "name": "두 줄 요청 → 현황 두 행 · 집계 담당자별 6.00 + 계 → 지움",
+      "path": "/quality/request-status",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const it = await (await fetch('/api/items', { headers: H })).json(); const r = await (await fetch('/api/quality-inspection-requests', { method: 'POST', headers: H, body: JSON.stringify({ requester: 'QA재고2요청', remark: 'QA재고2', lines: [{ itemId: it[0].id, method: 'FULL', quantity: 4 }, { itemId: it[1].id, method: 'FULL', quantity: 2 }] }) })).json(); sessionStorage.setItem('qrsId', r.id); return r.requestNo })()",
+        "js:location.reload(); true",
+        "wait:3000",
+        "expect:[...document.querySelectorAll('tbody tr')].filter((tr) => tr.innerText.includes('QA재고2요청')).length === 2 && document.querySelector('.ec-report-title')?.innerText.trim() === '품질검사요청현황내역' && document.querySelector('tfoot').innerText.includes('총합계')",
+        "js:(async () => { const S = (el, v) => { Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('change', { bubbles: true })) }; const W = (ms) => new Promise((r) => setTimeout(r, ms)); [...document.querySelectorAll('input[name=qrs-menu]')][1].click(); await W(300); S([...document.querySelectorAll('select')].find((x) => [...x.options].some((o) => o.value === '담당자별')), '담당자별'); await W(300); return 'ok' })()",
+        "expect:[...document.querySelector('table thead tr').cells].map((c) => c.innerText.trim()).join('|') === '담당자별|수량' && [...document.querySelectorAll('tbody tr')].filter((tr) => tr.innerText.includes('QA재고2요청')).some((tr) => tr.innerText.includes('6.00')) && [...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.trim().startsWith('QA재고2요청 계')) && document.querySelector('.ec-report-title')?.innerText.trim() === '품질검사요청현황집계'",
+        "expect:(async () => { const r = await fetch('/api/quality-inspection-requests/' + sessionStorage.getItem('qrsId'), { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }); return r.status === 204 || r.status === 200 })()"
+      ]
+    }
+  ]
+}

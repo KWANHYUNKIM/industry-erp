@@ -10,7 +10,9 @@ import { useTableSort } from '../../utils/useTableSort'
 import { useNavigate } from 'react-router-dom'
 import { dateText } from '../../utils/dateText'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
+import { usePartnerGroups } from '../../utils/partnerGroups'
 import { periodOf } from '../../components/EcPeriodPicks'
+import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 
 /**
  * 회계미반영현황 (이카운트 E040319 구매 / 판매도 같은 모양) + 일괄 회계반영.
@@ -51,6 +53,7 @@ const MODES = ['거래처별', '전표별', '품목별'] as const
 type Mode = typeof MODES[number]
 
 interface SlipLine {
+  itemId: number
   itemCode: string
   itemName: string
   quantity: number
@@ -58,6 +61,10 @@ interface SlipLine {
   supplyAmount: number
   vatAmount: number
   remark: string | null
+  /** 규격 · 품목구분 · 근거 전표번호. 원본 회계미반영현황(판매)의 조건 셋이 이 값을 본다. */
+  spec: string | null
+  itemCategoryName: string | null
+  sourceDocNo: string | null
 }
 
 interface Slip {
@@ -67,7 +74,9 @@ interface Slip {
   slipDate: string
   partnerId: number
   partnerName: string
+  warehouseId: number | null
   warehouseName: string | null
+  projectId: number | null
   projectName: string | null
   /** 전표를 친 사람. 원본 조건 판의 [담당자]. */
   employeeName: string | null
@@ -90,13 +99,40 @@ interface Slip {
    */
   journalEntryId: number | null
   journalDocNo: string | null
+  /** 전표를 만든 사람. 원본 [최초작성자]. 응답이 진작 싣는데 이 화면이 안 받고 있었다. */
+  createdBy: string | null
+  /** 전표 적요. 원본 [적요]. 줄 적요와 함께 본다. */
+  note: string | null
 }
 
 /*
  * 원본 회계미반영현황은 <b>금월</b>을 보고 열린다(사본 실측 — 달 스핀박스가 07 하나).
  * 우리는 비워 두어, 반영 안 된 전표가 몇 해치 쌓여 보였다.
+ *
+ * <p><b>2026-09-09 판매일괄회계반영(E040215)을 직접 열어 쟀다 — 그쪽은 [전월]로 열린다</b>
+ * (오늘이 09-09 인데 달 스핀박스가 08~08 이었다). 반영은 <b>지난달 장부를 닫는</b> 일이라
+ * 그렇다. 그런데 이 한 파일이 원본 <b>넷</b>(판매·구매 일괄회계반영, 회계미반영현황 판매·구매)을
+ * 겸하고 라우트도 하나뿐이라, 한쪽을 전월로 맞추면 다른 셋이 어긋난다. 조건이 더 많은
+ * 회계미반영현황 쪽(금월)에 맞춰 둔다 — 차례 예외를 적어 둔 것과 같은 까닭이다.
+ * 라우트를 갈라 화면마다 다른 기본값을 줄 수 있게 되면 그때 전월로 돌린다.
+ *
+ * <p>같이 잰 것: 판매일괄회계반영 조건은 <b>열여섯</b>이다(사본에는 열둘) — 뒤에
+ * 적요 · 최종수정자 · <b>작성자</b> · 오더관리번호가 더 있다. [구분] 기본은 거래처별(맞다),
+ * <b>[내.외자구분] 기본은 [전체]가 아니라 [내자]</b> 다 — 우리 판매전표에는 내·외자 개념이
+ * 아예 없어 그 칸을 만들지 않았으므로 맞출 자리도 없다.
  */
 const initP = periodOf('금월(~오늘)')!
+/*
+ * <b>일괄회계반영은 [전월]로 열린다</b>(2026-09-09 E040215 실측 — 오늘이 09-09 인데
+ * 달 스핀박스가 08~08 이었다). 반영은 <b>지난달 장부를 닫는</b> 일이라 그렇다.
+ *
+ * <p>이 한 파일이 원본 넷(판매·구매 일괄회계반영, 회계미반영현황 판매·구매)을 겸하는데
+ * <b>라우트가 하나라</b> 둘 다 맞출 수가 없었다. 이제 메뉴가 <code>?view=</code> 로
+ * 어느 쪽으로 들어왔는지 알려 준다 — <code>?kind=</code> 가 판매/구매를 가르는 것과 같다.
+ * 기간뿐 아니라 <b>같은 자리를 원본이 달리 부르는 이름</b>도 이것으로 갈린다
+ * (일괄회계반영은 [작성자], 회계미반영현황은 [최초작성자]).
+ */
+const initBatch = periodOf('전월')!
 
 export default function AccountingReflectionPage() {
   /** 원본 [매입전표 I]·[매출전표 I] — 일반전표입력으로 넘긴다. */
@@ -112,6 +148,9 @@ export default function AccountingReflectionPage() {
   const [signBox, setSignBox] = useState(false)
   const [slips, setSlips] = useState<Slip[]>([])
   const [kind, setKind] = useState<Kind>(params.get('kind') === 'purchase' ? 'purchase' : 'sales')
+  /** 어느 원본으로 들어왔나. 메뉴가 <code>?view=unposted</code> 로 알려 준다. */
+  const view: 'batch' | 'unposted' = params.get('view') === 'unposted' ? 'unposted' : 'batch'
+  const initCond = view === 'unposted' ? initP : initBatch
   /*
    * 원본은 <b>거래처별</b>로 열린다. 회계반영은 거래처 단위로 묶어서 하는 일이라
    * 처음 보이는 판이 그 단위여야 한다 — 전표별로 열면 같은 거래처가 여러 줄로 흩어져
@@ -129,7 +168,7 @@ export default function AccountingReflectionPage() {
    * 조건을 안 만들면 열은 보이는데 그걸로 걸러낼 수가 없다.
    */
   const [cond, setCond] = useState({
-    from: initP.from, to: initP.to, partner: '', docNo: '', amtFrom: '', amtTo: '',
+    from: initCond.from, to: initCond.to, partner: '', docNo: '', amtFrom: '', amtTo: '',
     warehouse: '', project: '', item: '', employee: '', vatType: '', tradeKind: '',
     partnerManager: '',
   })
@@ -140,15 +179,17 @@ export default function AccountingReflectionPage() {
   const [error, setError] = useState('')
   const [ok, setOk] = useState('')
 
-  async function load(k: Kind) {
+  async function load(k: Kind): Promise<Slip[]> {
     setLoading(true)
     setError('')
     try {
       const res = await api.get<Slip[]>(`/accounting-reflection?kind=${k.toUpperCase()}`)
       setSlips(res.data)
+      return res.data
     } catch (err) {
       setError(extractErrorMessage(err))
       setSlips([])
+      return []
     } finally {
       setLoading(false)
     }
@@ -166,25 +207,49 @@ export default function AccountingReflectionPage() {
    */
   const mgmt = useItemMgmt()
   const [mgmtCond, setMgmtCond] = useState('')
+  /*
+   * 2026-09-08 에 원본 회계미반영현황(판매)(E040609)의 조건 판을 접힌 줄까지 재니
+   * <b>스물여덟</b>이다. 사본에는 (구매) 쪽이 열하나로만 적혀 있었고 (판매)는 아예 없었다.
+   * 여기서 만든 여섯: 거래처그룹1 · 품목구분 · 품목그룹1 · 적요 · 오더관리번호 ·
+   * 규격 · 최초작성자. 규격·품목구분·오더관리번호는 <code>SlipLine</code> 에 같이 실었다.
+   */
+  const pgroup = usePartnerGroups()
+  const [partnerGroup, setPartnerGroup] = useState('')
+  const [itemCategory, setItemCategory] = useState('')
+  const [itemGroup, setItemGroup] = useState('')
+  const [remarkCond, setRemarkCond] = useState('')
+  const [orderNoCond, setOrderNoCond] = useState('')
+  const [specCond, setSpecCond] = useState('')
+  const [authorCond, setAuthorCond] = useState('')
 
   const shownRows = slips
     .filter((s) => !onlyUnreflected || !s.reflected)
     .filter((s) => !cond.from || s.slipDate >= cond.from)
     .filter((s) => !cond.to || s.slipDate <= cond.to)
-    .filter((s) => !cond.partner || s.partnerName.includes(cond.partner))
+    .filter((s) => !cond.partner || String(s.partnerId) === cond.partner)
     .filter((s) => !cond.docNo || s.docNo.includes(cond.docNo))
     .filter((s) => !cond.amtFrom || s.totalAmount >= Number(cond.amtFrom))
     .filter((s) => !cond.amtTo || s.totalAmount <= Number(cond.amtTo))
     .filter((s) => !cond.vatType || s.vatType === cond.vatType)
     // 원본 [거래구분]·[구매구분]. 반품 전표는 금액이 음수라 반영 금액도 반대로 간다.
     .filter((s) => !cond.tradeKind || s.tradeKind === cond.tradeKind)
-    .filter((s) => !cond.warehouse || (s.warehouseName ?? '').includes(cond.warehouse))
-    .filter((s) => !cond.project || (s.projectName ?? '').includes(cond.project))
+    .filter((s) => !cond.warehouse || String(s.warehouseId) === cond.warehouse)
+    .filter((s) => !cond.project || String(s.projectId) === cond.project)
     .filter((s) => !cond.employee || (s.employeeName ?? '').includes(cond.employee))
     .filter((s) => !cond.partnerManager || (s.partnerManager ?? '').includes(cond.partnerManager))
-    .filter((s) => !cond.item || (s.itemSummary ?? '').includes(cond.item))
+    // itemSummary 는 "첫 품목 외 N건" 이라 둘째 품목부터는 못 걸렀다 — 줄의 id 로 본다.
+    .filter((s) => !cond.item || (s.lines ?? []).some((l) => String(l.itemId) === cond.item))
     /* 이 화면의 줄은 itemCode 만 든다(itemId 가 없다) — 코드로 잇는다. */
     .filter((s) => !mgmtCond || (s.lines ?? []).some((l) => mgmt.nameOfCode(l.itemCode) === mgmtCond))
+    .filter((s) => !partnerGroup || pgroup.groupOfName(s.partnerName) === partnerGroup)
+    .filter((s) => !itemCategory || (s.lines ?? []).some((l) => l.itemCategoryName === itemCategory))
+    .filter((s) => !itemGroup || (s.lines ?? []).some((l) => mgmt.groupOfCode(l.itemCode) === itemGroup))
+    .filter((s) => !remarkCond
+      || (s.note ?? '').includes(remarkCond)
+      || (s.lines ?? []).some((l) => (l.remark ?? '').includes(remarkCond)))
+    .filter((s) => !orderNoCond || (s.lines ?? []).some((l) => (l.sourceDocNo ?? '') === orderNoCond))
+    .filter((s) => !specCond || (s.lines ?? []).some((l) => (l.spec ?? '').includes(specCond)))
+    .filter((s) => !authorCond || (s.createdBy ?? '') === authorCond)
 
   /*
    * 네 칸에 <b>▼ 만 그려 놓고</b> 정렬은 없었다. [회계반영]은 안쪽 참/거짓이 아니라
@@ -212,14 +277,22 @@ export default function AccountingReflectionPage() {
   }
 
   // 두 메뉴가 같은 경로를 가리키므로 서로 오갈 때 컴포넌트가 다시 만들어지지 않는다.
-  useEffect(() => { setKind(params.get('kind') === 'purchase' ? 'purchase' : 'sales') }, [params])
+  useEffect(() => {
+    setKind(params.get('kind') === 'purchase' ? 'purchase' : 'sales')
+    /* 화면이 다시 만들어지지 않으므로 기간도 그 원본의 기본값으로 돌려 준다. */
+    const p2 = params.get('view') === 'unposted' ? initP : initBatch
+    setC({ from: p2.from, to: p2.to })
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [params])
 
   const reset = () => {
     setCond({
-      from: initP.from, to: initP.to, partner: '', docNo: '', amtFrom: '', amtTo: '',
+      from: initCond.from, to: initCond.to, partner: '', docNo: '', amtFrom: '', amtTo: '',
       warehouse: '', project: '', item: '', employee: '', vatType: '', tradeKind: '',
     partnerManager: '',
     })
+    setMgmtCond(''); setPartnerGroup(''); setItemCategory(''); setItemGroup('')
+    setRemarkCond(''); setOrderNoCond(''); setSpecCond(''); setAuthorCond('')
     setOnlyUnreflected(true)   // 조건 판의 체크박스다. 빼먹으면 '전체'로 본 채 초기화된다
     // 선택도 지운다. 조건이 바뀌면 목록이 달라지는데 체크가 남아 있으면
     // 화면에 보이지도 않는 전표를 회계반영하게 된다.
@@ -308,6 +381,17 @@ export default function AccountingReflectionPage() {
     return [...m.values()].sort((a, b) => a.partnerName.localeCompare(b.partnerName))
   }, [shown])
 
+  /**
+   * 반영 뒤 안내에 <b>만들어진 회계전표 번호</b>를 붙인다. "1건 회계반영 완료" 만으로는
+   * 어느 GL 전표를 찾아가 봐야 하는지 몰랐다(24회차). 다시 받은 목록에 번호가 실려 있다.
+   */
+  async function reflectedNote(count: number, ids: number[]) {
+    const rows = await load(kind)
+    const nos = rows.filter((r) => ids.includes(r.id) && r.journalDocNo).map((r) => r.journalDocNo as string)
+    const shown = nos.slice(0, 5).join(', ') + (nos.length > 5 ? ` 외 ${nos.length - 5}건` : '')
+    setOk(`${count}건 회계반영 완료${nos.length ? ` — 회계전표 ${shown}` : ''}`)
+  }
+
   /** 거래처 한 줄을 통째로 반영한다. 미반영 전표가 없으면 부를 일이 없다. */
   async function reflectPartner(ids: number[]) {
     if (ids.length === 0) return
@@ -315,8 +399,7 @@ export default function AccountingReflectionPage() {
     try {
       const res = await api.post<{ reflectedCount: number }>(
         '/accounting-reflection/reflect', { kind: kind.toUpperCase(), ids })
-      setOk(`${res.data.reflectedCount}건 회계반영 완료`)
-      load(kind)
+      await reflectedNote(res.data.reflectedCount, ids)
     } catch (err) {
       setError(extractErrorMessage(err))
     }
@@ -331,9 +414,9 @@ export default function AccountingReflectionPage() {
         kind: kind.toUpperCase(),
         ids: [...checked],
       })
-      setOk(`${res.data.reflectedCount}건 회계반영 완료`)
+      const ids = [...checked]
       setChecked(new Set())
-      load(kind)
+      await reflectedNote(res.data.reflectedCount, ids)
     } catch (err) {
       setError(extractErrorMessage(err))
     }
@@ -412,15 +495,43 @@ export default function AccountingReflectionPage() {
                            value={mgmtCond} onChange={setMgmtCond}
                            items={mgmt.options.map((m) => ({ value: m, name: m }))} />
         </EcCond>
+        {/*
+          원본 회계미반영현황(판매) 차례(2026-09-08 실측, 스물여덟):
+          기준일(영업주기) · 거래유형 · 창고 · (창고계층그룹) · 프로젝트 · (프로젝트그룹1/2) ·
+          거래처 · <b>거래처그룹1</b> · (거래처그룹2 · 거래처계층그룹) · 품목 ·
+          <b>품목구분 · 품목그룹1</b> · (품목그룹2/3 · 품목계층그룹) · 거래처관리담당자 ·
+          금액 · <b>적요 · 오더관리번호 · 규격 · 최초작성자</b> · (최종수정자 · 양식) ·
+          적용양식 · 양식구분 · 정렬/소계기준.
+          [구분]·[판매No.]·[관리항목]·[거래구분]·[담당자]는 같은 파일이 겸하는
+          <b>판매·구매일괄회계반영</b>의 조건이다 — 이 화면에는 없다.
+        */}
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
                            value={cond.partner} onChange={(v) => setC({ partner: v })}
                            items={pickers.partners} />
         </EcCond>
+        <EcCond label="거래처그룹1" pick>
+          <CodePickerField label="거래처그룹1" hideLabel width={170} emptyLabel="전체"
+                           value={partnerGroup} onChange={setPartnerGroup}
+                           items={pgroup.groupOptions.map((g) => ({ value: g, name: g }))} />
+        </EcCond>
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={cond.item} onChange={(v) => setC({ item: v })}
                            items={pickers.items} />
+        </EcCond>
+        {/* 원본 [품목구분] — 품목 마스터의 값이다. 줄에 실어 오므로 줄로 거른다. */}
+        <EcCond label="품목구분" pick>
+          <CodePickerField label="품목구분" hideLabel width={140} emptyLabel="전체"
+                           value={itemCategory} onChange={setItemCategory}
+                           items={[...new Set(slips.flatMap((s2) => (s2.lines ?? [])
+                             .map((l) => l.itemCategoryName)).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="품목그룹1" pick>
+          <CodePickerField label="품목그룹1" hideLabel width={170} emptyLabel="전체"
+                           value={itemGroup} onChange={setItemGroup}
+                           items={mgmt.groupOptions.map((g) => ({ value: g, name: g }))} />
         </EcCond>
         {/* 원본 조건의 [거래유형]. 전표의 과세 여부를 그대로 본다. */}
         {/* 원본 판매일괄회계반영의 [거래구분] · 구매일괄회계반영의 [구매구분]. */}
@@ -449,12 +560,36 @@ export default function AccountingReflectionPage() {
                            value={cond.partnerManager} onChange={(v) => setC({ partnerManager: v })}
                            items={pickers.employees} />
         </EcCond>
+        {/* 아래 넷은 원본 차례로 [금액] 다음이다. */}
         <EcCond label="금액">
           <input className="ec-input" type="number" value={cond.amtFrom}
                  onChange={(e) => setC({ amtFrom: e.target.value })} style={{ width: 120 }} />
-          <span style={{ color: 'var(--ec-label)' }}>~</span>
+          <span className="text-ec-label">~</span>
           <input className="ec-input" type="number" value={cond.amtTo}
                  onChange={(e) => setC({ amtTo: e.target.value })} style={{ width: 120 }} />
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input" value={remarkCond}
+                 onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 200 }} />
+        </EcCond>
+        {/* 원본 [오더관리번호] — 이 줄을 담아 온 근거 전표(수주·발주)의 번호다. */}
+        <EcCond label="오더관리번호" pick>
+          <CodePickerField label="오더관리번호" hideLabel width={150} emptyLabel="전체"
+                           value={orderNoCond} onChange={setOrderNoCond}
+                           items={[...new Set(slips.flatMap((s2) => (s2.lines ?? [])
+                             .map((l) => l.sourceDocNo)).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
+        </EcCond>
+        <EcCond label="규격">
+          <ItemSuggestInput field="spec" value={specCond}
+                            onChange={(v) => setSpecCond(v)} width={140} />
+        </EcCond>
+        {/* 원본이 화면마다 달리 부른다 — 일괄회계반영은 [작성자], 회계미반영현황은 [최초작성자]. */}
+        <EcCond label={view === 'batch' ? '작성자' : '최초작성자'} pick>
+          <CodePickerField label={view === 'batch' ? '작성자' : '최초작성자'} hideLabel width={140} emptyLabel="전체"
+                           value={authorCond} onChange={setAuthorCond}
+                           items={[...new Set(slips.map((s2) => s2.createdBy).filter(Boolean) as string[])].sort()
+                             .map((n) => ({ value: n, name: n }))} />
         </EcCond>
         <EcCond label="정렬/소계기준">
           <div className="ec-pills">
@@ -465,79 +600,79 @@ export default function AccountingReflectionPage() {
           </div>
         </EcCond>
         <EcCond label="결재방표시">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={signBox} onChange={(e) => setSignBox(e.target.checked)} />
             인쇄물에 결재란(도장칸)을 찍는다
           </label>
         </EcCond>
       </EcStatusPanel>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+      <div className="flex items-center gap-[6px] mb-[10px]">
         {kindBtn('sales', '판매')}
         {kindBtn('purchase', '구매')}
-        <label style={{ marginLeft: 8, fontSize: 12.5, color: '#5a626e', display: 'flex', alignItems: 'center', gap: 4 }}>
+        <label className="ml-[8px] text-[12.5px] text-ec-label flex items-center gap-[4px]">
           <input type="checkbox" checked={onlyUnreflected} onChange={(e) => setOnlyUnreflected(e.target.checked)} />
           미반영만 보기
         </label>
-        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>
-          미반영 <b style={{ color: '#c60a2e', fontSize: 14 }}>{unreflectedCount}</b>건
-          <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-          선택합계 <b style={{ color: 'var(--ec-blue-dark)', fontSize: 14 }}>{selectedTotal.toLocaleString()}</b>원
+        <div className="ml-auto text-[12.5px] text-ec-label">
+          미반영 <b className="text-ec-danger text-[14px]">{unreflectedCount}</b>건
+          <span className="my-0 mx-[6px] text-ec-off">|</span>
+          선택합계 <b className="text-ec-navy text-[14px]">{selectedTotal.toLocaleString()}</b>원
         </div>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {ok && <p style={{ background: '#eaf6ec', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{ok}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
       {mode === '품목별' ? (
         <table className="ec-grid w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
+              <th className="w-[34px]"></th>
               {/* 원본 실측: 가운데. */}
-              <th style={{ width: 190, textAlign: 'center' }}>일자-No.</th>
-              <th style={{ width: 150 }}>거래처명</th>
-              <th style={{ width: 120 }}>품목코드</th>
+              <th className="w-[190px] text-center">일자-No.</th>
+              <th className="w-[150px]">거래처명</th>
+              <th className="w-[120px]">품목코드</th>
               <th>품목명</th>
-              <th style={{ width: 90, textAlign: 'right' }}>수량</th>
-              <th style={{ width: 110, textAlign: 'right' }}>단가</th>
-              <th style={{ width: 130, textAlign: 'right' }}>공급가액</th>
-              <th style={{ width: 110, textAlign: 'right' }}>부가세</th>
-              <th style={{ width: 150 }}>적요</th>
+              <th className="w-[90px] text-right">수량</th>
+              <th className="w-[110px] text-right">단가</th>
+              <th className="w-[130px] text-right">공급가액</th>
+              <th className="w-[110px] text-right">부가세</th>
+              <th className="w-[150px]">적요</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={10} className="ec-empty">불러오는 중…</td></tr>
             ) : lineRows.length === 0 ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : lineRows.map((r) => r.kind === 'subtotal' ? (
               <tr key={r.key} style={{ background: '#f3f6fa', fontWeight: 700 }}>
-                <td colSpan={7} style={{ textAlign: 'right' }}>{r.month} 계</td>
-                <td style={{ textAlign: 'right' }}>{r.supply.toLocaleString('ko-KR')}</td>
-                <td style={{ textAlign: 'right' }}>{r.vat.toLocaleString('ko-KR')}</td>
+                <td colSpan={7} className="text-right">{r.month} 계</td>
+                <td className="text-right">{r.supply.toLocaleString('ko-KR')}</td>
+                <td className="text-right">{r.vat.toLocaleString('ko-KR')}</td>
                 <td></td>
               </tr>
             ) : (
               <tr key={r.key}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{r.no}</td>
-                <td style={{ fontFamily: 'monospace', textAlign: 'center' }}>{dateText(r.slip.slipDate)} {r.slip.docNo}</td>
+                <td className="text-center text-ec-hint">{r.no}</td>
+                <td className="text-center">{dateText(r.slip.slipDate)} {r.slip.docNo}</td>
                 <td>{r.slip.partnerName}</td>
-                <td style={{ fontFamily: 'monospace' }}>{r.line.itemCode}</td>
+                <td>{r.line.itemCode}</td>
                 <td>{r.line.itemName}</td>
-                <td style={{ textAlign: 'right' }}>{r.line.quantity.toLocaleString('ko-KR')}</td>
-                <td style={{ textAlign: 'right' }}>{r.line.unitPrice.toLocaleString('ko-KR')}</td>
-                <td style={{ textAlign: 'right' }}>{r.line.supplyAmount.toLocaleString('ko-KR')}</td>
-                <td style={{ textAlign: 'right' }}>{r.line.vatAmount.toLocaleString('ko-KR')}</td>
-                <td style={{ color: '#8a929c' }}>{r.line.remark ?? ''}</td>
+                <td className="text-right">{r.line.quantity.toLocaleString('ko-KR')}</td>
+                <td className="text-right">{r.line.unitPrice.toLocaleString('ko-KR')}</td>
+                <td className="text-right">{r.line.supplyAmount.toLocaleString('ko-KR')}</td>
+                <td className="text-right">{r.line.vatAmount.toLocaleString('ko-KR')}</td>
+                <td className="text-ec-hint">{r.line.remark ?? ''}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-              <td colSpan={7} style={{ textAlign: 'right' }}>합계 ({shown.length}전표)</td>
-              <td style={{ textAlign: 'right' }}>{lineTotal.supply.toLocaleString('ko-KR')}</td>
-              <td style={{ textAlign: 'right' }}>{lineTotal.vat.toLocaleString('ko-KR')}</td>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={7} className="text-right">합계 ({shown.length}전표)</td>
+              <td className="text-right">{lineTotal.supply.toLocaleString('ko-KR')}</td>
+              <td className="text-right">{lineTotal.vat.toLocaleString('ko-KR')}</td>
               <td></td>
             </tr>
           </tfoot>
@@ -546,58 +681,58 @@ export default function AccountingReflectionPage() {
         <table className="ec-grid w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
+              <th className="w-[34px]"></th>
               <th>거래처명</th>
-              <th style={{ width: 170 }}>거래일자</th>
-              <th style={{ width: 80, textAlign: 'right' }}>전표수</th>
-              <th style={{ width: 130, textAlign: 'right' }}>공급가액</th>
-              <th style={{ width: 110, textAlign: 'right' }}>부가세</th>
-              <th style={{ width: 130, textAlign: 'right' }}>합계</th>
+              <th className="w-[170px]">거래일자</th>
+              <th className="w-[80px] text-right">전표수</th>
+              <th className="w-[130px] text-right">공급가액</th>
+              <th className="w-[110px] text-right">부가세</th>
+              <th className="w-[130px] text-right">합계</th>
               <th>품목요약</th>
-              <th style={{ width: 90, textAlign: 'center' }}>부가세유형</th>
-              <th style={{ width: 90, textAlign: 'center' }}>일부반영</th>
-              <th style={{ width: 110, textAlign: 'center' }}>반영</th>
+              <th className="w-[90px] text-center">부가세유형</th>
+              <th className="w-[90px] text-center">일부반영</th>
+              <th className="w-[110px] text-center">반영</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={11} className="ec-empty">불러오는 중…</td></tr>
             ) : byPartner.length === 0 ? (
-              <tr><td colSpan={11} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : byPartner.map((g, i) => {
               const partial = g.reflected > 0 && g.unreflected > 0
               return (
                 <tr key={g.partnerId}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                  <td className="text-center text-ec-hint">{i + 1}</td>
                   <td>{g.partnerName}</td>
-                  <td style={{ fontFamily: 'monospace', fontSize: 11.5 }}>
+                  <td className="text-[11.5px]">
                     {g.firstDate === g.lastDate ? g.firstDate : `${g.firstDate} ~ ${g.lastDate}`}
                   </td>
-                  <td style={{ textAlign: 'right' }}>
+                  <td className="text-right">
                     {g.reflected + g.unreflected}
-                    {g.unreflected > 0 && <span style={{ color: '#c60a2e' }}> (미 {g.unreflected})</span>}
+                    {g.unreflected > 0 && <span className="text-ec-danger"> (미 {g.unreflected})</span>}
                   </td>
-                  <td style={{ textAlign: 'right' }}>{g.supply.toLocaleString('ko-KR')}</td>
-                  <td style={{ textAlign: 'right', color: '#8a929c' }}>{g.vat.toLocaleString('ko-KR')}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700 }}>{(g.supply + g.vat).toLocaleString('ko-KR')}</td>
-                  <td style={{ color: '#5a626e', fontSize: 11.5 }}>
+                  <td className="text-right">{g.supply.toLocaleString('ko-KR')}</td>
+                  <td className="text-right text-ec-hint">{g.vat.toLocaleString('ko-KR')}</td>
+                  <td className="text-right font-bold">{(g.supply + g.vat).toLocaleString('ko-KR')}</td>
+                  <td className="text-ec-label text-[11.5px]">
                     {[...g.items].slice(0, 2).join(', ')}{g.items.size > 2 ? ` 외 ${g.items.size - 2}` : ''}
                   </td>
                   {/* 과세·면세가 섞인 거래처는 둘 다 적는다 — 하나로 적으면 거짓말이 된다. */}
-                  <td style={{ textAlign: 'center', fontSize: 11.5, color: '#5a626e' }}>
+                  <td className="text-center text-[11.5px] text-ec-label">
                     {[...g.vatTypes].join('·')}
                   </td>
                   {/* 일부만 반영된 거래처를 표시하지 않으면 "이 거래처는 끝냈다" 고 착각한다. */}
-                  <td style={{ textAlign: 'center', fontWeight: 700, color: partial ? '#c07a00' : '#c9ced6' }}>
+                  <td style={{ textAlign: 'center', fontWeight: 700, color: partial ? 'var(--ec-warn)' : 'var(--ec-text-off)' }}>
                     {partial ? 'YES' : ''}
                   </td>
-                  <td style={{ textAlign: 'center' }}>
+                  <td className="text-center">
                     {g.ids.length > 0 ? (
                       <button className="ec-btn" style={{ height: 20, padding: '0 6px' }}
                               onClick={() => reflectPartner(g.ids)}>
                         {g.ids.length}건 반영
                       </button>
-                    ) : <span style={{ color: '#1c7c3c', fontSize: 11.5 }}>완료</span>}
+                    ) : <span className="text-ec-success text-[11.5px]">완료</span>}
                   </td>
                 </tr>
               )
@@ -605,11 +740,11 @@ export default function AccountingReflectionPage() {
           </tbody>
           {byPartner.length > 0 && (
             <tfoot>
-              <tr style={{ fontWeight: 700, background: 'var(--ec-body-bg)' }}>
-                <td colSpan={4} style={{ textAlign: 'right' }}>합계 ({byPartner.length}거래처)</td>
-                <td style={{ textAlign: 'right' }}>{byPartner.reduce((n, g) => n + g.supply, 0).toLocaleString('ko-KR')}</td>
-                <td style={{ textAlign: 'right' }}>{byPartner.reduce((n, g) => n + g.vat, 0).toLocaleString('ko-KR')}</td>
-                <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>
+              <tr className="font-bold bg-ec-page">
+                <td colSpan={4} className="text-right">합계 ({byPartner.length}거래처)</td>
+                <td className="text-right">{byPartner.reduce((n, g) => n + g.supply, 0).toLocaleString('ko-KR')}</td>
+                <td className="text-right">{byPartner.reduce((n, g) => n + g.vat, 0).toLocaleString('ko-KR')}</td>
+                <td className="text-right text-ec-navy">
                   {byPartner.reduce((n, g) => n + g.supply + g.vat, 0).toLocaleString('ko-KR')}
                 </td>
                 <td colSpan={4}></td>
@@ -621,41 +756,41 @@ export default function AccountingReflectionPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('전표일')}>전표일 {sort.mark('전표일')}</th>
-            <th style={{ width: 150, cursor: 'pointer' }} onClick={() => sort.toggle('전표번호')}>전표번호 {sort.mark('전표번호')}</th>
-            <th style={{ cursor: 'pointer' }} onClick={() => sort.toggle('거래처')}>거래처 {sort.mark('거래처')}</th>
+            <th className="w-[34px]"></th>
+            <th className="w-[100px] cursor-pointer" onClick={() => sort.toggle('전표일')}>전표일 {sort.mark('전표일')}</th>
+            <th className="w-[150px] cursor-pointer" onClick={() => sort.toggle('전표번호')}>전표번호 {sort.mark('전표번호')}</th>
+            <th className="cursor-pointer" onClick={() => sort.toggle('거래처')}>거래처 {sort.mark('거래처')}</th>
             <th>품목명(요약)</th>
-            <th style={{ width: 120 }}>창고명</th>
-            <th style={{ width: 120, textAlign: 'right' }}>공급가액</th>
-            <th style={{ width: 110, textAlign: 'right' }}>부가세</th>
-            <th style={{ width: 90, textAlign: 'center', cursor: 'pointer' }} onClick={() => sort.toggle('회계반영')}>회계반영 {sort.mark('회계반영')}</th>
-            <th style={{ width: 150 }}>회계전표No.</th>
+            <th className="w-[120px]">창고명</th>
+            <th className="w-[120px] text-right">공급가액</th>
+            <th className="w-[110px] text-right">부가세</th>
+            <th className="w-[90px] text-center cursor-pointer" onClick={() => sort.toggle('회계반영')}>회계반영 {sort.mark('회계반영')}</th>
+            <th className="w-[150px]">회계전표No.</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={10} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((s, i) => (
             <tr key={s.id}>
-              <td style={{ textAlign: 'center' }}>
-                {s.reflected ? <span style={{ color: '#9aa1ab' }}>{i + 1}</span> : <input type="checkbox" checked={checked.has(s.id)} onChange={() => toggle(s.id)} />}
+              <td className="text-center">
+                {s.reflected ? <span className="text-ec-hint">{i + 1}</span> : <input type="checkbox" checked={checked.has(s.id)} onChange={() => toggle(s.id)} />}
               </td>
-              <td style={{ fontFamily: 'monospace' }}>{dateText(s.slipDate)}</td>
-              <td style={{ fontFamily: 'monospace' }}>{s.docNo}</td>
+              <td>{dateText(s.slipDate)}</td>
+              <td>{s.docNo}</td>
               <td>{s.partnerName}</td>
               <td>{s.itemSummary}</td>
               <td>{s.warehouseName ?? ''}</td>
-              <td style={{ textAlign: 'right' }}>{s.supplyAmount.toLocaleString('ko-KR')}</td>
-              <td style={{ textAlign: 'right' }}>{s.vatAmount.toLocaleString('ko-KR')}</td>
-              <td style={{ textAlign: 'center', color: s.reflected ? '#1c7c3c' : '#c60a2e', fontWeight: 700 }}>{s.reflected ? '반영' : '미반영'}</td>
-              <td style={{ fontFamily: 'monospace', fontSize: 11.5 }}>
+              <td className="text-right">{s.supplyAmount.toLocaleString('ko-KR')}</td>
+              <td className="text-right">{s.vatAmount.toLocaleString('ko-KR')}</td>
+              <td style={{ textAlign: 'center', color: s.reflected ? 'var(--ec-success)' : 'var(--ec-danger)', fontWeight: 700 }}>{s.reflected ? '반영' : '미반영'}</td>
+              <td className="text-[11.5px]">
                 {s.journalDocNo ? (
                   <Link to={`/accounting/journals?entryId=${s.journalEntryId}`}
                         style={{ color: 'var(--ec-blue)' }}>{s.journalDocNo}</Link>
-                ) : <span style={{ color: '#c9ced6' }}>—</span>}
+                ) : <span className="text-ec-off">—</span>}
               </td>
             </tr>
           ))}

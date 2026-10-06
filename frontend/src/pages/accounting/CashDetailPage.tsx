@@ -4,8 +4,8 @@ import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import type {
   AccountTransfer, BankAccountRow, CardPayment, CardUsage, CreditCardRow,
-} from '../../api/types'
-import { ymd } from '../../components/EcPeriodPicks'
+} from '../../types/api'
+import { periodOf, ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 
 const today = () => ymd(new Date())
@@ -24,8 +24,14 @@ export default function CashDetailPage() {
    * 화면 조건 판의 <b>[기간]</b>. 서버가 이 구간만 준다 — 전에는 전 기간을 통째로 받았다.
    * 기본은 <b>비워</b> 둔다: 카드결제는 <b>미결제 건이 오래된 것도 살아 있다</b> — 잘라 놓으면 아직 안 낸 건이 사라진다.
    */
-  const [pFrom, setPFrom] = useState('')
-  const [pTo, setPTo] = useState('')
+  /*
+   * <b>기간 기본값이 비어 있었다</b> — 화면을 열면 전 기간이 내려왔다(2026-09-10 실측 1,866KB:
+   * 카드대금 986KB + 계좌간이동 799KB). 다른 현황 화면들이 쓰는 <b>금월(~오늘)</b> 로 맞춘다.
+   * 아래 [미결제 합계]는 <b>다른 자리</b>에서 온다(/cash-details/card-payments/unpaid) —
+   * 기간과 무관한 지금 상태라 이 기본값에 흔들리지 않는다.
+   */
+  const [pFrom, setPFrom] = useState(periodOf('금월(~오늘)')!.from)
+  const [pTo, setPTo] = useState(periodOf('금월(~오늘)')!.to)
   const [tab, setTab] = useState<Tab>('계좌간이동')
   const [banks, setBanks] = useState<BankAccountRow[]>([])
   const [cards, setCards] = useState<CreditCardRow[]>([])
@@ -64,31 +70,31 @@ export default function CashDetailPage() {
       title="현금거래 (계좌간이동 · 카드대금결제)"
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
-      <div style={{ display: 'flex', gap: 2, marginBottom: 8, borderBottom: '1px solid var(--ec-border)' }}>
+      <div className="flex gap-[2px] mb-[8px] border-b border-b-ec-line border-solid">
         {TABS.map((t) => (
           <button key={t} onClick={() => { setTab(t); setError('') }} className="no-ec" style={{
             padding: '6px 14px', fontSize: 12.5, border: 'none', cursor: 'pointer',
-            background: tab === t ? '#fff' : 'transparent', color: tab === t ? 'var(--ec-blue)' : '#5a626e',
+            background: tab === t ? '#fff' : 'transparent', color: tab === t ? 'var(--ec-blue)' : 'var(--ec-label)',
             fontWeight: tab === t ? 700 : 400,
             borderBottom: tab === t ? '2px solid var(--ec-blue)' : '2px solid transparent',
           }}>{t} ({t === '계좌간이동' ? transfers.length : payments.length})</button>
         ))}
       </div>
       {/* 화면 조건 판의 <b>[기간]</b> — 서버가 이 구간만 준다. 비우면 전 기간이다. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+      <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label">
         <span>기간</span>
         <input type="date" className="ec-input" value={pFrom}
                onChange={(e) => setPFrom(e.target.value)} style={{ width: 140 }} />
-        <span style={{ color: 'var(--ec-label)' }}>~</span>
+        <span className="text-ec-label">~</span>
         <input type="date" className="ec-input" value={pTo}
                onChange={(e) => setPTo(e.target.value)} style={{ width: 140 }} />
       </div>
 
 
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
 
-      {loading ? <p style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</p>
+      {loading ? <p className="ec-empty">불러오는 중…</p>
         : tab === '계좌간이동'
           ? <TransferTab banks={banks} rows={transfers} onError={setError}
               onDone={(m) => { flash(m); load() }} />
@@ -113,6 +119,16 @@ function TransferTab({ banks, rows, onError, onDone }: {
   const [saving, setSaving] = useState(false)
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }))
   const from = usable.find((b) => String(b.id) === form.fromAccountId)
+
+  /* 잘못 넣은 이동을 지운다(QA 56회차 — 지울 길이 없었다). 두 계좌 잔액이 되돌아오고 회계전표도 지워진다. */
+  async function remove(t: AccountTransfer) {
+    if (!window.confirm(`${t.transferNo} 계좌간이동을 지울까요? 두 계좌 잔액이 되돌아가고 회계전표도 지워집니다.`)) return
+    onError('')
+    try {
+      await api.delete(`/cash-details/account-transfers/${t.id}`)
+      onDone(`${t.transferNo} 삭제 — ${won(t.amount)}원이 출금 계좌로 돌아갔습니다.`)
+    } catch (err) { onError(extractErrorMessage(err)) }
+  }
 
   async function submit() {
     onError('')
@@ -143,9 +159,9 @@ function TransferTab({ banks, rows, onError, onDone }: {
 
   return (
     <>
-      <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginBottom: 8 }}>
-        <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 10 }}>계좌간이동</div>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+      <div className="border border-ec-line border-solid bg-white p-[14px] mb-[8px]">
+        <div className="text-[13px] font-extrabold text-ec-navy mb-[10px]">계좌간이동</div>
+        <div className="flex gap-[12px] flex-wrap items-end">
           <Field label="일자">
             <input className="ec-input" type="date" value={form.transferDate} onChange={(e) => set('transferDate', e.target.value)} style={{ width: 140 }} />
           </Field>
@@ -155,7 +171,7 @@ function TransferTab({ banks, rows, onError, onDone }: {
               {usable.map((b) => <option key={b.id} value={b.id}>{b.bankName} {b.accountNo} (잔액 {won(b.balance)})</option>)}
             </select>
           </Field>
-          <span style={{ fontSize: 16, color: 'var(--ec-blue)', paddingBottom: 4 }}>→</span>
+          <span className="text-[16px] text-ec-blue pb-[4px]">→</span>
           <Field label="입금 계좌 *">
             <select className="ec-input" value={form.toAccountId} onChange={(e) => set('toAccountId', e.target.value)} style={{ width: 230 }}>
               <option value="">선택하세요</option>
@@ -170,7 +186,7 @@ function TransferTab({ banks, rows, onError, onDone }: {
           </Field>
           <button className="ec-btn ec-btn-primary" onClick={submit} disabled={saving}>{saving ? '처리 중…' : '이동'}</button>
         </div>
-        <div style={{ marginTop: 8, fontSize: 11.5, color: '#8a929c' }}>
+        <div className="mt-[8px] text-[11.5px] text-ec-hint">
           ※ 차)입금계좌 예금계정 / 대)출금계좌 예금계정으로 분개됩니다. 회사 밖으로 나가는 돈이 아니라 손익에 영향이 없습니다.
           출금 계좌 잔액{from ? ` (현재 ${won(from.balance)}원)` : ''}이 모자라면 거절됩니다.
         </div>
@@ -179,29 +195,33 @@ function TransferTab({ banks, rows, onError, onDone }: {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ width: 130 }}>이동번호</th>
-            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th>
-            <th style={{ width: 200 }}>출금 계좌</th>
-            <th style={{ width: 200 }}>입금 계좌</th>
-            <th style={{ width: 130, textAlign: 'right' }}>금액</th>
-            <th style={{ width: 140 }}>회계전표</th>
+            <th className="w-[34px]"></th>
+            <th className="w-[130px]">이동번호</th>
+            <th className="w-[100px] cursor-pointer" onClick={() => sort.toggle('일자')}>일자 {sort.mark('일자')}</th>
+            <th className="w-[200px]">출금 계좌</th>
+            <th className="w-[200px]">입금 계좌</th>
+            <th className="w-[130px] text-right">금액</th>
+            <th className="w-[140px]">회계전표</th>
             <th>적요</th>
+            <th className="w-[50px] text-center">삭제</th>
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((t, i) => (
             <tr key={t.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{t.transferNo}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td>{t.transferNo}</td>
               <td>{dateText(t.transferDate)}</td>
-              <td style={{ color: '#c60a2e' }}>{t.fromAccountName}</td>
-              <td style={{ color: '#1c7c3c' }}>{t.toAccountName}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(t.amount)}</td>
-              <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{t.journalDocNo ?? ''}</td>
-              <td style={{ color: '#5a626e' }}>{t.description ?? ''}</td>
+              <td className="text-ec-danger">{t.fromAccountName}</td>
+              <td className="text-ec-success">{t.toAccountName}</td>
+              <td className="text-right font-bold">{won(t.amount)}</td>
+              <td className="text-ec-blue">{t.journalDocNo ?? ''}</td>
+              <td className="text-ec-label">{t.description ?? ''}</td>
+              <td className="text-center">
+                <button className="no-ec" onClick={() => remove(t)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+              </td>
             </tr>
           ))}
         </tbody>
@@ -241,6 +261,17 @@ function CardPaymentTab({ banks, cards, rows, onError, onDone }: {
 
   const total = unpaid.reduce((s, u) => s + u.totalAmount, 0)
 
+  /* 결제를 지우면 결제계좌로 돈이 돌아오고 묶였던 사용내역은 다시 미결제가 된다(QA 56회차). */
+  async function removePayment(p: CardPayment) {
+    if (!window.confirm(`${p.paymentNo} 카드대금결제를 지울까요? 결제계좌로 ${won(p.amount)}원이 돌아가고 사용내역 ${p.lines.length}건은 다시 미결제가 됩니다.`)) return
+    onError('')
+    try {
+      await api.delete(`/cash-details/card-payments/${p.id}`)
+      await loadUnpaid(cardId)
+      onDone(`${p.paymentNo} 삭제 — ${won(p.amount)}원이 결제계좌로 돌아갔습니다.`)
+    } catch (err) { onError(extractErrorMessage(err)) }
+  }
+
   async function pay() {
     onError('')
     if (!cardId) return onError('카드를 선택하세요.')
@@ -268,8 +299,8 @@ function CardPaymentTab({ banks, cards, rows, onError, onDone }: {
 
   return (
     <>
-      <div style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginBottom: 8 }}>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+      <div className="border border-ec-line border-solid bg-white p-[14px] mb-[8px]">
+        <div className="flex gap-[12px] flex-wrap items-end">
           <Field label="카드 *">
             <select className="ec-input" value={cardId} onChange={(e) => setCardId(e.target.value)} style={{ width: 220 }}>
               <option value="">선택하세요</option>
@@ -288,103 +319,107 @@ function CardPaymentTab({ banks, cards, rows, onError, onDone }: {
             <input className="ec-input" type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} style={{ width: 140 }} />
           </Field>
           <button className="ec-btn ec-btn-primary" onClick={pay} disabled={saving}>{saving ? '결제 중…' : '카드대금 결제'}</button>
-          <div style={{ fontSize: 12.5, paddingBottom: 5 }}>
-            미결제 <b>{unpaid.length}건</b> · <b style={{ color: 'var(--ec-blue-dark)' }}>{won(total)}</b>
+          <div className="text-[12.5px] pb-[5px]">
+            미결제 <b>{unpaid.length}건</b> · <b className="text-ec-navy">{won(total)}</b>
           </div>
         </div>
-        <div style={{ marginTop: 8, fontSize: 11.5, color: '#8a929c' }}>
+        <div className="mt-[8px] text-[11.5px] text-ec-hint">
           ※ 카드사용 때 이미 차)비용·부가세대급금 / 대)미지급금으로 잡았습니다. 결제는 그 미지급금을 갚는 것이라
           차)미지급금 / 대)예금계정으로 분개되고, 결제계좌 잔액이 줄어듭니다. 결제한 사용건은 다시 결제되지 않습니다.
         </div>
       </div>
 
       {unpaid.length > 0 && (
-        <table className="w-full text-left" style={{ marginBottom: 12 }}>
+        <table className="w-full text-left mb-[12px]">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
-              <th style={{ width: 130 }}>전표번호</th>
-              <th style={{ width: 100 }}>사용일</th>
+              <th className="w-[34px]"></th>
+              <th className="w-[130px]">전표번호</th>
+              <th className="w-[100px]">사용일</th>
               <th>가맹점</th>
-              <th style={{ width: 130 }}>비용계정</th>
-              <th style={{ width: 130, textAlign: 'right' }}>금액</th>
+              <th className="w-[130px]">비용계정</th>
+              <th className="w-[130px] text-right">금액</th>
             </tr>
           </thead>
           <tbody>
             {unpaid.map((u, i) => (
               <tr key={u.id}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{u.usageNo}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td>{u.usageNo}</td>
                 <td>{dateText(u.usageDate)}</td>
-                <td style={{ fontWeight: 600 }}>{u.merchant}</td>
-                <td style={{ color: '#5a626e' }}>{u.expenseAccountName}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600 }}>{won(u.totalAmount)}</td>
+                <td className="font-semibold">{u.merchant}</td>
+                <td className="text-ec-label">{u.expenseAccountName}</td>
+                <td className="text-right font-semibold">{won(u.totalAmount)}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
-              <td colSpan={5} style={{ textAlign: 'right' }}>미결제 합계</td>
-              <td style={{ textAlign: 'right', color: 'var(--ec-blue-dark)' }}>{won(total)}</td>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={5} className="text-right">미결제 합계</td>
+              <td className="text-right text-ec-navy">{won(total)}</td>
             </tr>
           </tfoot>
         </table>
       )}
 
-      <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ec-blue-dark)', marginBottom: 6 }}>결제 내역</div>
+      <div className="text-[13px] font-extrabold text-ec-navy mb-[6px]">결제 내역</div>
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ width: 130 }}>결제번호</th>
-            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('결제일')}>결제일 {sort.mark('결제일')}</th>
-            <th style={{ width: 180 }}>카드</th>
-            <th style={{ width: 200 }}>결제계좌</th>
-            <th style={{ width: 70, textAlign: 'center' }}>건수</th>
-            <th style={{ width: 130, textAlign: 'right' }}>결제금액</th>
-            <th style={{ width: 140 }}>회계전표</th>
+            <th className="w-[34px]"></th>
+            <th className="w-[130px]">결제번호</th>
+            <th className="w-[100px] cursor-pointer" onClick={() => sort.toggle('결제일')}>결제일 {sort.mark('결제일')}</th>
+            <th className="w-[180px]">카드</th>
+            <th className="w-[200px]">결제계좌</th>
+            <th className="w-[70px] text-center">건수</th>
+            <th className="w-[130px] text-right">결제금액</th>
+            <th className="w-[140px]">회계전표</th>
+            <th className="w-[50px] text-center">삭제</th>
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((p, i) => (
             <Fragment key={p.id}>
-              <tr onClick={() => setOpenId(openId === p.id ? null : p.id)} style={{ cursor: 'pointer' }}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>
+              <tr onClick={() => setOpenId(openId === p.id ? null : p.id)} className="cursor-pointer">
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td className="text-ec-blue font-semibold">
                   {openId === p.id ? '▾ ' : '▸ '}{p.paymentNo}
                 </td>
                 <td>{dateText(p.paymentDate)}</td>
                 <td>{p.cardCompany} {p.cardName}</td>
-                <td style={{ color: '#5a626e' }}>{p.bankAccountName}</td>
-                <td style={{ textAlign: 'center' }}>{p.lines.length}건</td>
-                <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(p.amount)}</td>
-                <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)' }}>{p.journalDocNo ?? ''}</td>
+                <td className="text-ec-label">{p.bankAccountName}</td>
+                <td className="text-center">{p.lines.length}건</td>
+                <td className="text-right font-bold">{won(p.amount)}</td>
+                <td className="text-ec-blue">{p.journalDocNo ?? ''}</td>
+                <td className="text-center">
+                  <button className="no-ec" onClick={(e) => { e.stopPropagation(); removePayment(p) }} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button>
+                </td>
               </tr>
               {openId === p.id && (
                 <tr className="no-ec">
-                  <td colSpan={8} style={{ padding: 0, background: '#fafbfc' }}>
-                    <table className="w-full text-left" style={{ margin: '4px 0' }}>
+                  <td colSpan={9} className="p-0 bg-ec-page">
+                    <table className="w-full text-left my-[4px] mx-0">
                       <thead>
                         <tr>
-                          <th style={{ width: 34 }}></th>
-                          <th style={{ width: 130 }}>전표번호</th>
-                          <th style={{ width: 100 }}>사용일</th>
+                          <th className="w-[34px]"></th>
+                          <th className="w-[130px]">전표번호</th>
+                          <th className="w-[100px]">사용일</th>
                           <th>가맹점</th>
-                          <th style={{ width: 130 }}>비용계정</th>
-                          <th style={{ width: 130, textAlign: 'right' }}>금액</th>
+                          <th className="w-[130px]">비용계정</th>
+                          <th className="w-[130px] text-right">금액</th>
                         </tr>
                       </thead>
                       <tbody>
                         {p.lines.map((l, idx) => (
                           <tr key={l.cardUsageId}>
-                            <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{idx + 1}</td>
-                            <td style={{ fontFamily: 'monospace' }}>{l.usageNo}</td>
+                            <td className="text-center text-ec-hint">{idx + 1}</td>
+                            <td>{l.usageNo}</td>
                             <td>{dateText(l.usageDate)}</td>
                             <td>{l.merchant}</td>
-                            <td style={{ color: '#5a626e' }}>{l.expenseAccountName}</td>
-                            <td style={{ textAlign: 'right' }}>{won(l.amount)}</td>
+                            <td className="text-ec-label">{l.expenseAccountName}</td>
+                            <td className="text-right">{won(l.amount)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -402,8 +437,8 @@ function CardPaymentTab({ banks, cards, rows, onError, onDone }: {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label style={{ fontSize: 12.5 }}>
-      <div style={{ color: '#5a626e', marginBottom: 3 }}>{label}</div>
+    <label className="text-[12.5px]">
+      <div className="text-ec-label mb-[3px]">{label}</div>
       {children}
     </label>
   )

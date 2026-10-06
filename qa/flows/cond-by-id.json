@@ -1,0 +1,30 @@
+{
+  "about": "조회 조건 코드도움이 id 로 거르는지 — 고르면 남은 줄이 전부 그 거래처·창고·품목이다(5·9회차). node qa/shot.mjs qa/flows/cond-by-id.json 소계·합계 줄은 뺀다.",
+  "shots": [
+    {
+      "name": "견적서조회 — 거래처",
+      "path": "/sales/quotations",
+      "steps": [
+        "pick:거래처:QA-CUST",
+        "expect:[...document.querySelectorAll('tbody tr')].filter((tr) => tr.cells.length > 5 && !/(^|\\s)(소|합)?계(\\s|$)/.test(tr.cells[0].innerText)).every((tr) => tr.innerText.includes('QA고객사'))"
+      ]
+    },
+    {
+      "name": "판매현황 — 창고",
+      "path": "/sales/sales-status",
+      "steps": [
+        "pick:창고:QA-WH",
+        "expect:[...document.querySelectorAll('tbody tr')].filter((tr) => tr.cells.length > 5 && !/(^|\\s)(소|합)?계(\\s|$)/.test(tr.cells[0].innerText)).every((tr) => tr.innerText.includes('QA창고'))"
+      ]
+    },
+    {
+      "name": "미출하현황 — 품목",
+      "path": "/sales/unshipped",
+      "steps": [
+        "pick:품목:QA-PROD",
+        "expect:[...document.querySelectorAll('tbody tr')].filter((tr) => tr.cells.length > 5 && !/(^|\\s)(소|합)?계(\\s|$)/.test(tr.cells[0].innerText)).length > 0",
+        "expect:[...document.querySelectorAll('tbody tr')].filter((tr) => tr.cells.length > 5 && !/(^|\\s)(소|합)?계(\\s|$)/.test(tr.cells[0].innerText)).every((tr) => tr.innerText.includes('QA완제품'))"
+      ]
+    }
+  ]
+}

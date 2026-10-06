@@ -23,8 +23,8 @@ const monthNow = () => {
 const hh = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1))
 /** 상태별 셀 색 — 지각/조퇴/결근을 시각적으로 구분 */
 function cellColor(status: string): string | undefined {
-  if (status === '지각' || status === '조퇴') return '#c07a00'
-  if (status === '결근') return '#c60a2e'
+  if (status === '지각' || status === '조퇴') return 'var(--ec-warn)'
+  if (status === '결근') return 'var(--ec-danger)'
   return undefined
 }
 
@@ -101,7 +101,7 @@ export default function DailyWorkHoursPage() {
       묶음.set(key, cur)
     }
     return [...묶음.values()].sort((a, b) => a.empName.localeCompare(b.empName, 'ko'))
-  }, [rows, keyword, deptCond, subtotal])
+  }, [rows, keyword, deptCond, deptGroup, inGroup, subtotal])
 
   /** 일자별 총 근무시간(하단 합계행) */
   const dayTotals = useMemo(() => {
@@ -111,7 +111,7 @@ export default function DailyWorkHoursPage() {
   }, [matrix])
   const grandTotal = useMemo(() => matrix.reduce((s, e) => s + e.total, 0), [matrix])
 
-  const thBase: React.CSSProperties = { position: 'sticky', top: 0, background: '#f5f7fa', zIndex: 1, whiteSpace: 'nowrap' }
+  const thBase: React.CSSProperties = { position: 'sticky', top: 0, background: 'var(--ec-bg-page)', zIndex: 1, whiteSpace: 'nowrap' }
   const nameCol: React.CSSProperties = { position: 'sticky', left: 0, background: '#fff', zIndex: 1, whiteSpace: 'nowrap', minWidth: 90 }
 
   // 조건부 열이 있어 정적 검사(qa/ui-check.mjs)로는 칸 수를 셀 수 없다.
@@ -122,51 +122,51 @@ export default function DailyWorkHoursPage() {
   return (
     <EcListShell title="일별근무시간(ID)" search={keyword} onSearchChange={setKeyword} onSearch={load}
       onNew={undefined} actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }, { label: '인쇄' }]}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+      <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label">
         {/* 원본은 이 줄을 <b>[기간]</b> 이라 부른다(사본 실측) — 달로 고르는 것은 우리 방식이다. */}
         <span>기간</span>
         <input type="month" className="ec-input" value={month} onChange={(e) => setMonth(e.target.value)} style={{ width: 160 }} />
         {/* 원본 차례: 기간 · <b>사원명 · 부서</b> (사본 실측) */}
-        <span style={{ marginLeft: 8 }}>사원명</span>
+        <span className="ml-[8px]">사원명</span>
         <input className="ec-input" placeholder="사원명 일부" value={keyword}
                onChange={(e) => setKeyword(e.target.value)} style={{ width: 120 }} />
-        <span style={{ marginLeft: 8 }}>부서</span>
+        <span className="ml-[8px]">부서</span>
         <input className="ec-input" placeholder="부서 일부" value={deptCond}
                onChange={(e) => setDeptCond(e.target.value)} style={{ width: 120 }} />
         {/* 원본 차례: [부서] 바로 다음이다(사본 실측). */}
-        <span style={{ marginLeft: 8 }}>부서계층그룹</span>
+        <span className="ml-[8px]">부서계층그룹</span>
         <select className="ec-input" value={deptGroup} style={{ width: 130 }}
                 onChange={(e) => setDeptGroup(e.target.value)}>
           <option value="">전체</option>
           {deptGroups.map((d) => <option key={d} value={d}>{d}</option>)}
         </select>
         {/* 원본 차례: 조건 판 <b>맨 끝</b>이다(사본 실측). */}
-        <span style={{ marginLeft: 8 }}>정렬/소계기준</span>
+        <span className="ml-[8px]">정렬/소계기준</span>
         <div className="ec-pills">
           {SUBTOTALS.map((v) => (
             <button key={v} type="button" className={`ec-pill no-ec${subtotal === v ? ' active' : ''}`}
                     onClick={() => setSubtotal(v)}>{v}</button>
           ))}
         </div>
-        <span style={{ marginLeft: 8, color: '#9aa1ab' }}>셀 = 그날 근무시간(h) · <span style={{ color: '#c07a00' }}>지각/조퇴</span> · <span style={{ color: '#c60a2e' }}>결근</span></span>
-        <span style={{ marginLeft: 'auto', fontSize: 12.5 }}>
-          {subtotal} <b style={{ color: '#3c4553' }}>{matrix.length}</b>{subtotal === '부서' ? '개' : '명'}
-          <span style={{ margin: '0 6px', color: '#c9ced6' }}>|</span>
-          총 근무시간 <b style={{ color: 'var(--ec-blue)', fontSize: 14 }}>{hh(grandTotal)}</b>h
+        <span className="ml-[8px] text-ec-hint">셀 = 그날 근무시간(h) · <span className="text-ec-warn">지각/조퇴</span> · <span className="text-ec-danger">결근</span></span>
+        <span className="ml-auto text-[12.5px]">
+          {subtotal} <b className="text-ec-text">{matrix.length}</b>{subtotal === '부서' ? '개' : '명'}
+          <span className="my-0 mx-[6px] text-ec-off">|</span>
+          총 근무시간 <b className="text-ec-blue text-[14px]">{hh(grandTotal)}</b>h
         </span>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div style={{ overflowX: 'auto', border: '1px solid var(--ec-border)' }}>
-        <table ref={tableRef} className="w-full text-left" style={{ borderCollapse: 'collapse', fontSize: 12 }}>
+      <div className="overflow-x-auto border border-ec-line border-solid">
+        <table ref={tableRef} className="w-full text-left border-collapse text-[12px]">
           <thead>
             <tr>
               <th style={{ ...thBase, ...nameCol, left: 0 }}>{subtotal}</th>
-              <th style={{ ...thBase, position: 'sticky', left: 90, background: '#f5f7fa', whiteSpace: 'nowrap' }}>부서</th>
+              <th style={{ ...thBase, position: 'sticky', left: 90, background: 'var(--ec-bg-page)', whiteSpace: 'nowrap' }}>부서</th>
               {days.map((d) => {
                 const dow = new Date(year, mon - 1, d).getDay()
-                const wk = dow === 0 ? '#c60a2e' : dow === 6 ? '#1c6fb5' : '#8a929c'
+                const wk = dow === 0 ? 'var(--ec-danger)' : dow === 6 ? '#1c6fb5' : 'var(--ec-text-hint)'
                 return <th key={d} style={{ ...thBase, textAlign: 'center', width: 30, color: wk }}>{d}</th>
               })}
               <th style={{ ...thBase, textAlign: 'right', color: 'var(--ec-blue)' }}>합계</th>
@@ -175,35 +175,35 @@ export default function DailyWorkHoursPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={days.length + 4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={days.length + 4} className="ec-empty">불러오는 중…</td></tr>
             ) : matrix.length === 0 ? (
-              <tr><td colSpan={days.length + 4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={days.length + 4} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : matrix.map((e) => (
               <tr key={e.empName}>
                 <td style={{ ...nameCol, fontWeight: 600 }}>{e.empName}</td>
-                <td style={{ whiteSpace: 'nowrap', color: '#5a626e' }}>{e.department ?? ''}</td>
+                <td className="whitespace-nowrap text-ec-label">{e.department ?? ''}</td>
                 {days.map((d) => {
                   const c = e.byDay.get(d)
                   const r = c?.only ?? null
                   return (
                     <td key={d} title={r ? `${r.clockIn ?? ''}~${r.clockOut ?? ''} (${r.status})` : c ? `${c.n}명` : ''}
-                      style={{ textAlign: 'center', color: c ? (r ? cellColor(r.status) : '#5a626e') : '#dfe3e8', fontWeight: r && cellColor(r.status) ? 700 : 400 }}>
+                      style={{ textAlign: 'center', color: c ? (r ? cellColor(r.status) : 'var(--ec-label)') : '#dfe3e8', fontWeight: r && cellColor(r.status) ? 700 : 400 }}>
                       {c ? (r && r.status === '결근' ? '결' : hh(c.hours)) : '·'}
                     </td>
                   )
                 })}
-                <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--ec-blue)' }}>{hh(e.total)}</td>
-                <td style={{ textAlign: 'right' }}>{e.workDays}</td>
+                <td className="text-right font-bold text-ec-blue">{hh(e.total)}</td>
+                <td className="text-right">{e.workDays}</td>
               </tr>
             ))}
           </tbody>
           {matrix.length > 0 && (
             <tfoot>
-              <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
-                <td style={{ ...nameCol, background: '#f7f9fb' }}>일계</td>
+              <tr className="font-bold bg-ec-page">
+                <td style={{ ...nameCol, background: 'var(--ec-bg-page)' }}>일계</td>
                 <td></td>
-                {days.map((d) => <td key={d} style={{ textAlign: 'center', color: '#5a626e' }}>{dayTotals.has(d) ? hh(dayTotals.get(d)!) : ''}</td>)}
-                <td style={{ textAlign: 'right', color: 'var(--ec-blue)' }}>{hh(grandTotal)}</td>
+                {days.map((d) => <td key={d} className="text-center text-ec-label">{dayTotals.has(d) ? hh(dayTotals.get(d)!) : ''}</td>)}
+                <td className="text-right text-ec-blue">{hh(grandTotal)}</td>
                 <td></td>
               </tr>
             </tfoot>

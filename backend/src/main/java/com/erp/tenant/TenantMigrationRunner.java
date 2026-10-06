@@ -1,7 +1,7 @@
 package com.erp.tenant;
 
-import com.erp.settings.domain.Company;
-import com.erp.settings.repository.CompanyRepository;
+import com.erp.settings.company.Company;
+import com.erp.settings.company.CompanyRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.flywaydb.core.Flyway;

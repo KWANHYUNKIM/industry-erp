@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
-import EcPeriodPicks, { ymd, INQUIRY_PICKS } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { ymd, INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Lot } from '../../api/types'
+import type { Lot } from '../../types/api'
 import { dateText } from '../../utils/dateText'
+import { expiryDirectRange } from '../../utils/expiryRange'
 
 /**
  * 재고 II &gt; 시리얼/로트No. &gt; <b>시리얼/로트No.재고현황</b> (이카운트 E040619)
@@ -43,10 +44,22 @@ export default function LotStockStatusPage() {
   const [warehouse, setWarehouse] = useState('')
   const [item, setItem] = useState('')
   /*
-   * 원본 [기타]의 <b>[사용중단시리얼/로트포함]</b> — 꺼진 채로 열린다(실측).
+   * 원본 [기타]의 <b>[사용중단시리얼/로트포함]</b> — <b>켜진 채로</b> 열린다(2026-10-02 loginaa 실측). 예전 주석은 '꺼진 채로' 라
+   * 적었는데 이날 직접 읽은 체크 상태가 켜짐이었다 — 더 새로 잰 값을 따른다.
    * 우리 로트의 '사용중단' 은 <b>보류(held)</b> 다.
    */
-  const [withHeld, setWithHeld] = useState(false)
+  const [withHeld, setWithHeld] = useState(true)
+  /*
+   * 원본 [유효기한] — 사용안함(기본) · 직접입력 · 금일 · 전일 · 금주(~오늘) · 전주 · 금월(~오늘) · 전월(2026-10-02 실측).
+   * 고르면 유효기한이 그 구간 안인 로트만 본다. 유효기한이 없는 로트는 걸리지 않는다.
+   */
+  const EXPIRY_OPTS = ['사용안함', '직접입력', '금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월'] as const
+  const [expiryOpt, setExpiryOpt] = useState<typeof EXPIRY_OPTS[number]>('사용안함')
+  const [expFrom, setExpFrom] = useState('')
+  const [expTo, setExpTo] = useState('')
+  /* 원본 [재고수량] — 전체 · 1 · 기타 세 체크(모두 켜짐). 1 은 잔량이 꼭 1 인 것(시리얼 한 개), 기타는 그 밖. */
+  const [qtyOne, setQtyOne] = useState(true)
+  const [qtyOther, setQtyOther] = useState(true)
 
   async function load() {
     setLoading(true); setError('')
@@ -68,13 +81,15 @@ export default function LotStockStatusPage() {
     const kw = keyword.trim()
     return lots.filter((l) => {
       if (!withHeld && l.held) return false
+      if (expiryOpt !== '사용안함' && (!l.expireDate || (expFrom && l.expireDate < expFrom) || (expTo && l.expireDate > expTo))) return false
+      if (l.stockQty === 1 ? !qtyOne : !qtyOther) return false
       if (lotNo && l.lotNo !== lotNo) return false
       if (warehouse && l.warehouseName !== warehouse) return false
       if (item && l.itemName !== item) return false
       if (kw && !l.lotNo.includes(kw) && !l.itemName.includes(kw)) return false
       return true
     })
-  }, [lots, withHeld, lotNo, warehouse, item, keyword])
+  }, [lots, withHeld, lotNo, warehouse, item, keyword, expiryOpt, expFrom, expTo, qtyOne, qtyOther])
 
   /** 원본 [구분]이 <b>(창고별)</b> 이면 창고로 묶어 잔량을 더한다. */
   const grouped = useMemo(() => {
@@ -99,11 +114,11 @@ export default function LotStockStatusPage() {
       onSearch={load}
       actions={[{ label: '새로고침', onClick: () => load() }, { label: 'Excel' }, { label: '인쇄' }]}
     >
-      <p className="mb-2 text-xs text-slate-500">
+      <p className="mb-2 text-xs text-ec-hint">
         기준일자 시점의 로트 잔량. 그 날 뒤에 일어난 움직임을 되돌려 계산한다.
       </p>
 
-      {error && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         {/* 원본 조건 차례: 구분 · 기준일자 · 유효기한 · 시리얼/로트No. · 창고 · 품목 · 재고수량 · 기타 */}
@@ -116,13 +131,32 @@ export default function LotStockStatusPage() {
           </div>
         </EcCond>
         <EcCond label="기준일자">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <div className="flex items-center gap-[6px] flex-wrap">
             <input type="date" className="ec-input" value={asOf}
                    onChange={(e) => setAsOf(e.target.value)} style={{ width: 150 }} />
             {/* 한 날짜라 빠른선택은 끝날(to)만 받는다. */}
             <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={asOf}
                            onPick={(r) => setAsOf(r.to)} />
           </div>
+        </EcCond>
+        <EcCond label="유효기한">
+          <select className="ec-input" value={expiryOpt} style={{ width: 120 }}
+                  onChange={(e) => {
+                    const v = e.target.value as typeof EXPIRY_OPTS[number]
+                    setExpiryOpt(v)
+                    const r = v === '사용안함' || v === '직접입력' ? null : periodOf(v)
+                    if (r) { setExpFrom(r.from); setExpTo(r.to) }
+                    /* 원본 직접입력 — 오늘 ~ 5년 뒤 하루 전(2026-10-04 실측). */
+                    if (v === '직접입력') { const d = expiryDirectRange(periodOf('금일')!.from); setExpFrom(d.from); setExpTo(d.to) }
+                    if (v === '사용안함') { setExpFrom(''); setExpTo('') }
+                  }}>
+            {EXPIRY_OPTS.map((o) => <option key={o} value={o}>{o}</option>)}
+          </select>
+          {expiryOpt !== '사용안함' && (<>
+            <input type="date" className="ec-input" value={expFrom} onChange={(e) => { setExpFrom(e.target.value); setExpiryOpt('직접입력') }} style={{ width: 145, marginLeft: 6 }} />
+            <span className="my-0 mx-[4px]">~</span>
+            <input type="date" className="ec-input" value={expTo} onChange={(e) => { setExpTo(e.target.value); setExpiryOpt('직접입력') }} style={{ width: 145 }} />
+          </>)}
         </EcCond>
         <EcCond label="시리얼/로트No." pick>
           <CodePickerField label="시리얼/로트No." hideLabel width={190} emptyLabel="전체"
@@ -139,44 +173,55 @@ export default function LotStockStatusPage() {
                            value={item} onChange={setItem}
                            items={items.map((i) => ({ value: i, name: i }))} />
         </EcCond>
+        <EcCond label="재고수량">
+          <label className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
+            <input type="checkbox" checked={qtyOne && qtyOther} onChange={(e) => { setQtyOne(e.target.checked); setQtyOther(e.target.checked) }} /> 전체
+          </label>
+          <label className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
+            <input type="checkbox" checked={qtyOne} onChange={(e) => setQtyOne(e.target.checked)} /> 1
+          </label>
+          <label className="inline-flex items-center gap-[3px] text-[12.5px]">
+            <input type="checkbox" checked={qtyOther} onChange={(e) => setQtyOther(e.target.checked)} /> 기타
+          </label>
+        </EcCond>
         {/*
           원본 [기타]는 [결재방표시]·[사용중단시리얼/로트포함] 둘이다. 결재방은 인쇄물에
           결재란을 찍는 것이라 인쇄 판을 건드려야 해서 아직 없다.
         */}
         <EcCond label="기타">
-          <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5 }}>
+          <label className="flex items-center gap-[3px] text-[12.5px]">
             <input type="checkbox" checked={withHeld} onChange={(e) => setWithHeld(e.target.checked)} />
             사용중단시리얼/로트포함
           </label>
         </EcCond>
       </ul>
 
-      <div style={{ marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
-        {dateText(asOf)} 시점 · 로트 <b style={{ color: '#3a4453' }}>{num(shown.length)}</b>건 ·
-        잔량 <b style={{ color: 'var(--ec-blue-dark)' }}>{num(totalQty)}</b>
+      <div className="mb-[8px] text-[12.5px] text-ec-label">
+        {dateText(asOf)} 시점 · 로트 <b className="text-ec-text">{num(shown.length)}</b>건 ·
+        잔량 <b className="text-ec-navy">{num(totalQty)}</b>
       </div>
 
       {mode === '시리얼/로트No.(창고별)' ? (
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
+              <th className="w-[34px]"></th>
               <th>창고</th>
-              <th style={{ width: 110, textAlign: 'right' }}>로트 수</th>
-              <th style={{ width: 140, textAlign: 'right' }}>재고수량</th>
+              <th className="w-[110px] text-right">로트 수</th>
+              <th className="w-[140px] text-right">재고수량</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={4} className="ec-empty">불러오는 중…</td></tr>
             ) : grouped.length === 0 ? (
-              <tr><td colSpan={4} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={4} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : grouped.map((g, i) => (
               <tr key={g.warehouse}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
                 <td>{g.warehouse}</td>
-                <td style={{ textAlign: 'right' }}>{num(g.lotCount)}</td>
-                <td style={{ textAlign: 'right' }}>{num(g.stockQty)}</td>
+                <td className="text-right">{num(g.lotCount)}</td>
+                <td className="text-right">{num(g.stockQty)}</td>
               </tr>
             ))}
           </tbody>
@@ -185,35 +230,35 @@ export default function LotStockStatusPage() {
         <table className="w-full text-left">
           <thead>
             <tr>
-              <th style={{ width: 34 }}></th>
-              <th style={{ width: 150 }}>시리얼/로트No.</th>
-              <th style={{ width: 110 }}>품목코드</th>
+              <th className="w-[34px]"></th>
+              <th className="w-[150px]">시리얼/로트No.</th>
+              <th className="w-[110px]">품목코드</th>
               <th>품목명</th>
-              <th style={{ width: 100 }}>규격</th>
-              <th style={{ width: 120 }}>창고</th>
-              <th style={{ width: 100 }}>입고일자</th>
-              <th style={{ width: 100 }}>유효기한</th>
-              <th style={{ width: 110, textAlign: 'right' }}>재고수량</th>
-              <th style={{ width: 70, textAlign: 'center' }}>상태</th>
+              <th className="w-[100px]">규격</th>
+              <th className="w-[120px]">창고</th>
+              <th className="w-[100px]">입고일자</th>
+              <th className="w-[100px]">유효기한</th>
+              <th className="w-[110px] text-right">재고수량</th>
+              <th className="w-[70px] text-center">상태</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+              <tr><td colSpan={10} className="ec-empty">불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((l, i) => (
               <tr key={l.id}>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace' }}>{l.lotNo}</td>
-                <td style={{ fontFamily: 'monospace', color: '#5a626e' }}>{l.itemCode}</td>
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td>{l.lotNo}</td>
+                <td className="text-ec-label">{l.itemCode}</td>
                 <td>{l.itemName}</td>
-                <td style={{ color: '#5a626e' }}>{l.spec ?? ''}</td>
-                <td style={{ color: l.warehouseName ? undefined : '#c9ced6' }}>{l.warehouseName ?? '(미지정)'}</td>
+                <td className="text-ec-label">{l.spec ?? ''}</td>
+                <td style={{ color: l.warehouseName ? undefined : 'var(--ec-text-off)' }}>{l.warehouseName ?? '(미지정)'}</td>
                 <td>{dateText(l.inboundDate)}</td>
-                <td style={{ color: l.expireDate ? '#5a626e' : '#c9ced6' }}>{dateText(l.expireDate) || ''}</td>
-                <td style={{ textAlign: 'right' }}>{num(l.stockQty)}</td>
-                <td style={{ textAlign: 'center', color: l.held ? '#c07a00' : '#5a626e' }}>{l.statusName}</td>
+                <td style={{ color: l.expireDate ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{dateText(l.expireDate) || ''}</td>
+                <td className="text-right">{num(l.stockQty)}</td>
+                <td style={{ textAlign: 'center', color: l.held ? 'var(--ec-warn)' : 'var(--ec-label)' }}>{l.statusName}</td>
               </tr>
             ))}
           </tbody>

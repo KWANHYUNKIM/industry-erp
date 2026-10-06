@@ -2,10 +2,10 @@ import { useEffect, useState, useRef} from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
-import { useAuth } from '../../auth/AuthContext'
+import { useAuth } from '../../features/auth/AuthContext'
 import EcListShell from '../../components/EcListShell'
-import ApprovalDetailModal, { STATUS_LABEL, statusColor } from '../../components/approval/ApprovalDetailModal'
-import type { ApprovalDoc, ApprovalField, ApprovalFormTemplate } from '../../api/types'
+import ApprovalDetailModal, { STATUS_LABEL, statusColor } from '../../features/approval/components/ApprovalDetailModal'
+import type { ApprovalDoc, ApprovalField, ApprovalFormTemplate } from '../../types/api'
 
 /**
  * 그룹웨어 > 공유정보 > 주요전달사항 (이카운트 E070205)
@@ -38,7 +38,7 @@ const DOC_COLS = ['10.4%', '23.3%', '11.6%', '13.9%', '11.6%', '11.6%', '7%', '7
 const DOC_HEADS = ['기안일자', '제목', 'ERP전표(건)', '구분', '기안자', '결재자', '진행상태', '결재', '조회']
 
 function SectionTitle({ children }: { children: string }) {
-  return <div style={{ fontSize: 12, color: 'var(--ec-text-grid)', marginBottom: 4 }}>{children}</div>
+  return <div className="text-[12px] text-ec-ink mb-[4px]">{children}</div>
 }
 
 export default function KeyNoticePage() {
@@ -103,22 +103,22 @@ export default function KeyNoticePage() {
 
   const docRows = (rows: ApprovalDoc[]) =>
     rows.length === 0 ? (
-      <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+      <tr><td colSpan={9} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
     ) : rows.map((d) => (
       <tr key={d.id}>
-        <td style={{ textAlign: 'center' }}>{d.draftDate?.replace(/-/g, '/')}</td>
+        <td className="text-center">{d.draftDate?.replace(/-/g, '/')}</td>
         <td>
           <span onClick={() => setDetail({ doc: d, approve: isMyTurn(d) })} style={{ cursor: 'pointer', color: 'var(--ec-blue-dark)' }}>{d.title}</span>
         </td>
-        <td style={{ textAlign: 'center' }}>{d.voucherCount || ''}</td>
-        <td style={{ textAlign: 'center' }}>{d.formTypeName}</td>
-        <td style={{ textAlign: 'center' }}>{d.drafterName}</td>
-        <td style={{ textAlign: 'center' }}>{d.currentApproverName ?? ''}</td>
+        <td className="text-center">{d.voucherCount || ''}</td>
+        <td className="text-center">{d.formTypeName}</td>
+        <td className="text-center">{d.drafterName}</td>
+        <td className="text-center">{d.currentApproverName ?? ''}</td>
         <td style={{ textAlign: 'center', color: statusColor(d.status) }}>{STATUS_LABEL[d.status]}</td>
-        <td style={{ textAlign: 'center' }}>
+        <td className="text-center">
           {isMyTurn(d) && <button className="ec-btn ec-btn-sm" onClick={() => setDetail({ doc: d, approve: true })}>결재</button>}
         </td>
-        <td style={{ textAlign: 'center' }}>
+        <td className="text-center">
           <button className="ec-btn ec-btn-sm" onClick={() => setDetail({ doc: d, approve: false })}>조회</button>
         </td>
       </tr>
@@ -131,33 +131,33 @@ export default function KeyNoticePage() {
 
   return (
     <EcListShell title="주요전달사항" searchable={false}>
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <SectionTitle>1. 미확인쪽지보기</SectionTitle>
-      <table className="w-full text-left" style={{ marginBottom: 12 }}>
+      <table className="w-full text-left mb-[12px]">
         <colgroup>{NOTE_COLS.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
         <thead>
-          <tr><th style={{ textAlign: 'center' }}>보낸사람</th><th>내용</th><th style={{ textAlign: 'center' }}>발송일자</th><th style={{ textAlign: 'center' }}>연결전표</th></tr>
+          <tr><th className="text-center">보낸사람</th><th>내용</th><th className="text-center">발송일자</th><th className="text-center">연결전표</th></tr>
         </thead>
         <tbody>
           {notes.length === 0 ? (
-            <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--ec-text-grid)' }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={4} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
           ) : notes.map((m) => (
             <tr key={m.id}>
-              <td style={{ textAlign: 'center' }}>{m.senderName}</td>
+              <td className="text-center">{m.senderName}</td>
               <td>
                 {/* 자동알림 본문은 이미 '전자결재 > …' 처럼 출처를 달고 오므로 linkSource 를 덧붙이지 않는다. */}
-                <span onClick={() => void readNote(m)} style={{ cursor: 'pointer' }}>{m.content}</span>
+                <span onClick={() => void readNote(m)} className="cursor-pointer">{m.content}</span>
               </td>
-              <td style={{ textAlign: 'center' }}>{dateOf(m.sentAt)}</td>
-              <td style={{ textAlign: 'center', color: 'var(--ec-blue)' }}>{m.linkRef || m.linkPath ? '✓' : ''}</td>
+              <td className="text-center">{dateOf(m.sentAt)}</td>
+              <td className="text-center text-ec-blue">{m.linkRef || m.linkPath ? '✓' : ''}</td>
             </tr>
           ))}
         </tbody>
       </table>
 
       <SectionTitle>2. 결재할문서</SectionTitle>
-      <table ref={tableRef} className="w-full text-left" style={{ marginBottom: 12 }}>
+      <table ref={tableRef} className="w-full text-left mb-[12px]">
         <colgroup>{DOC_COLS.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
         <thead><tr>{DOC_HEADS.map((h) => <th key={h}>{h}</th>)}</tr></thead>
         <tbody>{docRows(pending)}</tbody>

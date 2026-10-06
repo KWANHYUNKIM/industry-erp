@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Lot, StockRow } from '../../api/types'
+import type { Lot, StockRow } from '../../types/api'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 
@@ -69,7 +69,7 @@ export default function LotStockComparePage() {
   useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [asOf])
 
   const rows = useMemo<Row[]>(() => {
-    const keep = (name: string | null) => !warehouse || (name ?? '').includes(warehouse)
+    const keep = (id: number | null) => !warehouse || String(id) === warehouse
     const map = new Map<number, Row>()
     const ensure = (itemId: number, code: string, name: string, unit: string): Row => {
       let r = map.get(itemId)
@@ -78,14 +78,14 @@ export default function LotStockComparePage() {
     }
     // 로트가 있는 품목만 대상(로트 추적 품목)
     for (const lot of lots) {
-      if (!keep(lot.warehouseName)) continue
+      if (!keep(lot.warehouseId)) continue
       const r = ensure(lot.itemId, lot.itemCode, lot.itemName, lot.unit)
       r.lotStock += lot.stockQty
       if (lot.stockQty > 0) r.lotCount += 1
     }
     // 품목재고(창고 합계)를 로트 추적 품목에만 더한다
     for (const st of stocks) {
-      if (!keep(st.warehouseName)) continue
+      if (!keep(st.warehouseId)) continue
       const r = map.get(st.itemId)
       if (r) r.itemStock += st.quantity
     }
@@ -97,7 +97,7 @@ export default function LotStockComparePage() {
     const kw = keyword.trim()
     return rows.filter((r) => {
       if (kw && !r.itemName.includes(kw) && !r.itemCode.includes(kw)) return false
-      if (item && !r.itemName.includes(item)) return false
+      if (item && String(r.itemId) !== item) return false
       if (diffOnly && r.diff === 0) return false
       return true
     })
@@ -117,7 +117,7 @@ export default function LotStockComparePage() {
       actions={[{ label: '새로고침', onClick: load }, { label: '인쇄' }, { label: 'Excel' }]}
     >
       {/* 원본 조건: <b>[창고]</b> — 창고를 고르면 그 창고의 재고와 로트만 다시 센다. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12.5, color: '#5a626e' }}>
+      <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label">
         {/* 원본 차례: 비교기준 · <b>기준일자</b> · 창고 · 품목 (사본 실측). */}
         <span>기준일자</span>
         <input type="date" className="ec-input" value={asOf}
@@ -132,53 +132,53 @@ export default function LotStockComparePage() {
                          value={item} onChange={setItem} items={pickers.items} />
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-        <label style={{ fontSize: 12.5, color: '#3c4553', display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }}>
+      <div className="flex items-center gap-[12px] mb-[10px]">
+        <label className="text-[12.5px] text-ec-text flex items-center gap-[5px] cursor-pointer">
           <input type="checkbox" checked={diffOnly} onChange={(e) => setDiffOnly(e.target.checked)} />
           차이있는 품목만
         </label>
-        <span style={{ fontSize: 11.5, color: '#9aa1ab' }}>로트 추적 품목 기준. 차이 = 품목재고 − 로트재고합</span>
-        <div style={{ marginLeft: 'auto', fontSize: 12.5, color: '#5a626e' }}>
-          대상품목 <b style={{ color: '#3c4553' }}>{stats.items}</b>
-          <span style={{ margin: '0 8px', color: '#c5cbd3' }}>|</span>
-          차이발생 <b style={{ color: stats.mismatched > 0 ? '#c60a2e' : '#1c6b32', fontSize: 14 }}>{stats.mismatched}</b>
+        <span className="text-[11.5px] text-ec-hint">로트 추적 품목 기준. 차이 = 품목재고 − 로트재고합</span>
+        <div className="ml-auto text-[12.5px] text-ec-label">
+          대상품목 <b className="text-ec-text">{stats.items}</b>
+          <span className="my-0 mx-[8px] text-ec-off">|</span>
+          차이발생 <b style={{ color: stats.mismatched > 0 ? 'var(--ec-danger)' : '#1c6b32', fontSize: 14 }}>{stats.mismatched}</b>
         </div>
       </div>
 
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
+            <th className="w-[34px]"></th>
             <th>품목코드</th>
             <th>품목명</th>
-            <th style={{ textAlign: 'center' }}>단위</th>
-            <th style={{ textAlign: 'right' }}>품목재고</th>
-            <th style={{ textAlign: 'right' }}>로트재고합</th>
-            <th style={{ textAlign: 'right' }}>차이</th>
-            <th style={{ textAlign: 'right' }}>로트수</th>
+            <th className="text-center">단위</th>
+            <th className="text-right">품목재고</th>
+            <th className="text-right">로트재고합</th>
+            <th className="text-right">차이</th>
+            <th className="text-right">로트수</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>불러오는 중…</td></tr>
+            <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>
+            <tr><td colSpan={8} className="text-center text-ec-hint p-[20px]">
               {rows.length === 0 ? '로트 추적 품목이 없습니다.' : '조건에 맞는 품목이 없습니다.'}
             </td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.itemId}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td>{r.itemCode}</td>
               <td>{r.itemName}</td>
-              <td style={{ textAlign: 'center', color: '#8a929c' }}>{r.unit}</td>
-              <td style={{ textAlign: 'right' }}>{num(r.itemStock)}</td>
-              <td style={{ textAlign: 'right' }}>{num(r.lotStock)}</td>
-              <td style={{ textAlign: 'right', fontWeight: r.diff !== 0 ? 700 : 400, color: r.diff === 0 ? '#8a929c' : r.diff > 0 ? '#c07a00' : '#c60a2e' }}>
+              <td className="text-center text-ec-hint">{r.unit}</td>
+              <td className="text-right">{num(r.itemStock)}</td>
+              <td className="text-right">{num(r.lotStock)}</td>
+              <td style={{ textAlign: 'right', fontWeight: r.diff !== 0 ? 700 : 400, color: r.diff === 0 ? 'var(--ec-text-hint)' : r.diff > 0 ? 'var(--ec-warn)' : 'var(--ec-danger)' }}>
                 {r.diff === 0 ? '0' : r.diff > 0 ? `+${num(r.diff)}` : num(r.diff)}
               </td>
-              <td style={{ textAlign: 'right', color: '#5a626e' }}>{r.lotCount}</td>
+              <td className="text-right text-ec-label">{r.lotCount}</td>
             </tr>
           ))}
         </tbody>

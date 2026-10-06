@@ -1,3 +1,4 @@
+import { resolveSpecialPrice } from '../../features/price/specialPrice'
 import { Fragment, useEffect, useMemo, useState, useRef} from 'react'
 import { useNavigate } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
@@ -7,8 +8,11 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { api, extractErrorMessage } from '../../api/client'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
-import type { Currency, EmployeeMaster, Item, Partner, PurchaseOrder, PurchaseOrderStatus, Warehouse } from '../../api/types'
+import type { CustomFieldDef, Currency, EmployeeMaster, Item, Partner, PurchaseOrder, PurchaseOrderStatus, StockRow, Warehouse } from '../../types/api'
+import { partnerCodeItems } from '../../utils/codeItems'
 import { ymd } from '../../components/EcPeriodPicks'
+import { lineSupply, roundWon } from '../../utils/lineSupply'
+import EcNumInput from '../../components/EcNumInput'
 import { dateText } from '../../utils/dateText'
 import { useMyItemsPick, MyItemsNote } from '../../components/MyItemsButton'
 import EcPeriodPicks, { ORDER_DOC_PICKS, periodOf } from '../../components/EcPeriodPicks'
@@ -27,7 +31,7 @@ const TAB_STATUS: Record<Exclude<Tab, '전체'>, PurchaseOrderStatus> = {
   발주확정: 'ORDERED', 입고전환: 'RECEIVED', 취소: 'CANCELLED',
 }
 const statusColor = (s: PurchaseOrderStatus) =>
-  s === 'RECEIVED' ? '#1c7c3c' : s === 'CANCELLED' ? '#8a929c' : s === 'ORDERED' ? 'var(--ec-blue)' : '#5a626e'
+  s === 'RECEIVED' ? 'var(--ec-success)' : s === 'CANCELLED' ? 'var(--ec-text-hint)' : s === 'ORDERED' ? 'var(--ec-blue)' : 'var(--ec-label)'
 
 /** GET /purchase-orders/{id}/history 한 줄 — 단계가 언제 누구 손에 바뀌었나. */
 interface HistoryRow {
@@ -38,8 +42,14 @@ interface HistoryRow {
   note: string | null
 }
 
-interface LineForm { itemId: string; quantity: string; unitPrice: string; partnerId: string; remark: string }
-const emptyLine = (): LineForm => ({ itemId: '', quantity: '', unitPrice: '', partnerId: '', remark: '' })
+/**
+ * 줄 하나. <code>custom</code> 은 <b>줄 추가항목</b>(사용자정의)이다 —
+ * 원본 발주서입력 격자는 회사가 추가문자·추가숫자·추가일자·추가코드로 칸을 늘린다.
+ * 우리는 반대로 Self-Customizing 에서 <b>이름을 지어</b> 정의하면 그만큼 열이 생긴다.
+ * 정의가 없으면 열이 하나도 안 생긴다(안 쓰는 회사의 격자는 그대로다).
+ */
+interface LineForm { itemId: string; quantity: string; unitPrice: string; partnerId: string; remark: string; custom: Record<string, string> }
+const emptyLine = (): LineForm => ({ itemId: '', quantity: '', unitPrice: '', partnerId: '', remark: '', custom: {} })
 
 /** 발주서 — 구매 흐름의 시작점. 발주요청 → 발주계획 → 단가확정 → 발주확정 → 입고전환(구매전표 생성). */
 /*
@@ -91,7 +101,7 @@ export default function PurchaseOrderPage() {
   const [itemCond, setItemCond] = useState('')
   const condPickers = useCondPickers(['warehouses', 'partners', 'items'])
   /*
-   * 2026-09-07 에 원본(C000077)을 열어 조건을 <b>전부</b> 쟀다 — 서른넷이다.
+   * 2026-09-07 에 원본(E040302)을 열어 조건을 <b>전부</b> 쟀다 — 서른넷이다.
    * 사본에는 여덟뿐이었고 <b>[기준일자]조차 빠져 있었다</b>(우리는 앞 바퀴에 그걸 만들었다).
    * 판매조회·구매조회·출하조회·출하지시서조회에 이어 다섯 번째 같은 구멍이다.
    *
@@ -129,8 +139,21 @@ export default function PurchaseOrderPage() {
 
   function load() {
     setError('')
-    api.get<PurchaseOrder[]>('/purchase-orders').then((r) => setRows(r.data)).catch((e) => setError(extractErrorMessage(e)))
+    /*
+     * <b>고른 기간을 서버에도 보낸다.</b> 여태 발주를 통째로 받아 아래 shown 에서
+     * <code>r.orderDate &gt;= from</code> 으로 걸렀다 — 화면은 [기간]을 묻고 서버에는
+     * 아무것도 안 보내는 꼴이었다. 탭 수(tabCount)도 이 rows 로 세므로 같은 창이 된다.
+     */
+    const period: Record<string, string> = {}
+    if (from) period.from = from
+    if (to) period.to = to
+    api.get<PurchaseOrder[]>('/purchase-orders', { params: period })
+      .then((r) => setRows(r.data)).catch((e) => setError(extractErrorMessage(e)))
   }
+
+  /* 기간을 바꾸면 그 기간으로 다시 받는다. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [from, to])
 
   useEffect(() => {
     load()
@@ -156,10 +179,10 @@ export default function PurchaseOrderPage() {
     .filter((r) => tab === '전체' || r.status === TAB_STATUS[tab])
     .filter((r) => (!from || r.orderDate >= from) && (!to || r.orderDate <= to))
     .filter((r) => !orderNoCond || r.orderNo.includes(orderNoCond))
-    .filter((r) => !whCond || (r.warehouseName ?? '').includes(whCond))
-    .filter((r) => !projCond || r.projectName === projCond)
-    .filter((r) => !partnerCond || r.partnerName.includes(partnerCond))
-    .filter((r) => !itemCond || r.lines.some((l) => l.itemName.includes(itemCond)))
+    .filter((r) => !whCond || String(r.warehouseId) === whCond)
+    .filter((r) => !projCond || String(r.projectId) === projCond)
+    .filter((r) => !partnerCond || String(r.partnerId) === partnerCond)
+    .filter((r) => !itemCond || r.lines.some((l) => String(l.itemId) === itemCond))
     /* 줄이 여럿이면 <b>한 줄이라도 걸리면</b> 그 발주를 남긴다 — 품목 조건과 같은 규칙이다. */
     .filter((r) => !categoryCond || r.lines.some((l) => (l.itemCategoryName ?? '') === categoryCond))
     .filter((r) => mgmt.groupHits(r.lines.map((l) => l.itemId), itemGroupCond))
@@ -330,15 +353,15 @@ export default function PurchaseOrderPage() {
       { label: `선택삭제${picked.size ? ` (${picked.size})` : ''}`, onClick: removeChecked },
       { label: 'Excel' },
     ]}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+      <div className="flex items-center gap-[6px] mb-[8px]">
         <button className="ec-btn" onClick={load}>새로고침</button>
-        <span style={{ marginLeft: 8, fontSize: 12, color: '#9aa1ab' }}>
+        <span className="ml-[8px] text-[12px] text-ec-hint">
           발주요청 → 발주계획 → 단가확정 → 발주확정 → 입고전환. 재고는 입고전환 시에만 증가합니다.
         </span>
       </div>
 
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {notice && <div style={{ marginBottom: 6, padding: '5px 8px', fontSize: 12, borderRadius: 3, background: '#eef5ff', border: '1px solid #cfe0f5', color: '#2b5b91' }}>{notice}</div>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
 
       {/* 상태 필터는 원본에서 알약(pill)이다 — 선택된 것만 파란 알약으로 채워진다. */}
       {/* 원본 조건 차례: 발주No. · … · 창고 · … · 거래처 · 품목 */}
@@ -347,10 +370,10 @@ export default function PurchaseOrderPage() {
         <EcCond label="기준일자">
           <input type="date" className="ec-input" value={from}
                  onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
           <input type="date" className="ec-input" value={to}
                  onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
-          <span style={{ marginLeft: 6 }}>
+          <span className="ml-[6px]">
             <EcPeriodPicks labels={ORDER_DOC_PICKS} currentFrom={from}
               onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
           </span>
@@ -366,7 +389,7 @@ export default function PurchaseOrderPage() {
         <EcCond label="프로젝트" pick>
           <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
                            value={projCond} onChange={setProjCond}
-                           items={projects.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
+                           items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
         </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={170} emptyLabel="전체"
@@ -403,7 +426,7 @@ export default function PurchaseOrderPage() {
         </EcCond>
         <EcCond label="납기일자">
           <input type="date" className="ec-input" value={dueFrom} onChange={(e) => setDueFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
           <input type="date" className="ec-input" value={dueTo} onChange={(e) => setDueTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="규격" pick>
@@ -441,16 +464,16 @@ export default function PurchaseOrderPage() {
         </EcCond>
         <EcCond label="최초작성일자">
           <input type="date" className="ec-input" value={madeFrom} onChange={(e) => setMadeFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
           <input type="date" className="ec-input" value={madeTo} onChange={(e) => setMadeTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="최종작업일자">
           <input type="date" className="ec-input" value={editedFrom} onChange={(e) => setEditedFrom(e.target.value)} style={{ width: 140 }} />
-          <span style={{ margin: '0 4px', color: '#9aa1ab' }}>~</span>
+          <span className="my-0 mx-[4px] text-ec-hint">~</span>
           <input type="date" className="ec-input" value={editedTo} onChange={(e) => setEditedTo(e.target.value)} style={{ width: 140 }} />
         </EcCond>
         <EcCond label="기타">
-          <label style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <label className="text-[12.5px] flex items-center gap-[4px]">
             <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
             수정일자순(정렬)
           </label>
@@ -471,8 +494,8 @@ export default function PurchaseOrderPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 28, textAlign: 'center' }}></th>
-            <th style={{ width: 34 }}></th>
+            <th className="w-[28px] text-center"></th>
+            <th className="w-[34px]"></th>
             {/*
               원본 발주서의 열은 <b>일자-No. · 거래처명 · 담당자명 · 품목명[규격명] ·
               납기일자 · 발주금액합계 · 진행상태 · 생성한 전표 · 인쇄</b> 다(사본 실측).
@@ -481,106 +504,107 @@ export default function PurchaseOrderPage() {
               규격은 발주 라인 응답에 없어 이름만 적는다 — 열 이름은 원본 그대로 둔다.
               공급가액·부가세는 원본에 없지만 그대로 둔다(더 보여 주는 것이라 어긋남이 아니다).
             */}
-            <th style={{ width: 190 }}>일자-No.</th>
+            <th className="w-[190px]">일자-No.</th>
             <th>거래처명</th>
-            <th style={{ width: 90 }}>담당자명</th>
+            <th className="w-[90px]">담당자명</th>
             <th>품목명[규격명]</th>
-            <th style={{ width: 100, textAlign: 'center' }}>납기일자</th>
-            <th style={{ textAlign: 'right' }}>공급가액</th><th style={{ textAlign: 'right' }}>부가세</th><th style={{ textAlign: 'right' }}>발주금액합계</th>
-            <th style={{ textAlign: 'center' }}>진행상태</th>
+            <th className="w-[100px] text-center">납기일자</th>
+            <th className="text-right">공급가액</th><th className="text-right">부가세</th><th className="text-right">발주금액합계</th>
+            <th className="text-center">진행상태</th>
             {/* 원본은 이 칸을 <b>36px</b> 로 둔다 — 전표로 가는 짧은 링크 자리다.
                 우리도 번호만 짧게 적는다(110 은 담당자명·납기일자보다 넓어 앞뒤가 뒤집혔다). */}
-            <th style={{ width: 60, textAlign: 'center' }}>생성한 전표</th>
-            <th style={{ textAlign: 'center' }}>인쇄</th>
+            <th className="w-[60px] text-center">생성한 전표</th>
+            <th className="text-center">인쇄</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={13} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={13} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((po, i) => (
             <Fragment key={po.id}>
-              <tr onClick={() => toggle(po.id)} style={{ cursor: 'pointer' }}>
-                <td style={{ textAlign: 'center' }}>
+              <tr onClick={() => toggle(po.id)} className="cursor-pointer">
+                <td className="text-center">
                   <input type="checkbox" checked={picked.has(po.id)} onChange={() => pick(po.id)} />
                 </td>
-                <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-                <td style={{ fontFamily: 'monospace', color: 'var(--ec-blue)', fontWeight: 600 }}>
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td className="text-ec-blue font-semibold">
                   {openId === po.id ? '▾ ' : '▸ '}{po.orderDate} {po.orderNo}
                 </td>
                 <td>{po.partnerName}</td>
-                <td style={{ color: po.employeeName ? undefined : '#c9ced6' }}>{po.employeeName ?? ''}</td>
+                <td style={{ color: po.employeeName ? undefined : 'var(--ec-text-off)' }}>{po.employeeName ?? ''}</td>
                 {/* 여러 줄이면 첫 줄에 '외 N건' 을 붙인다 — 원본도 한 칸에 대표 품목을 적는다. */}
                 <td>
                   {po.lines[0]
-                    ? po.lines[0].itemName
+                    // 열 이름이 품목명[규격명] 인데 규격을 안 찍었다(45회차 screen-check) — 같은 이름 다른 규격을 못 가른다.
+                    ? po.lines[0].itemName + (po.lines[0].spec ? ` [${po.lines[0].spec}]` : '')
                       + (po.lines.length > 1 ? ` 외 ${po.lines.length - 1}건` : '')
                     : ''}
                 </td>
-                <td style={{ textAlign: 'center' }}>{dateText(po.dueDate) || ''}</td>
-                <td style={{ textAlign: 'right' }}>{won(po.supplyAmount)}</td>
-                <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(po.vatAmount)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700 }}>{won(po.totalAmount)}</td>
-                <td style={{ textAlign: 'center' }}><span style={{ color: statusColor(po.status) }}>{po.statusName}</span></td>
+                <td className="text-center">{dateText(po.dueDate) || ''}</td>
+                <td className="text-right">{won(po.supplyAmount)}</td>
+                <td className="text-right text-ec-hint">{won(po.vatAmount)}</td>
+                <td className="text-right font-bold">{won(po.totalAmount)}</td>
+                <td className="text-center"><span style={{ color: statusColor(po.status) }}>{po.statusName}</span></td>
                 {/* 원본 [생성한 전표] — 입고로 넘어가며 만들어진 구매 전표를 가리킨다. */}
-                <td style={{ textAlign: 'center', color: po.convertedPurchaseId ? 'var(--ec-blue)' : '#c9ced6' }}>
+                <td style={{ textAlign: 'center', color: po.convertedPurchaseId ? 'var(--ec-blue)' : 'var(--ec-text-off)' }}>
                   {po.convertedPurchaseId ? `#${po.convertedPurchaseId}` : '-'}
                 </td>
-                <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
-                  <div style={{ display: 'inline-flex', gap: 3 }}>
+                <td className="text-center" onClick={(e) => e.stopPropagation()}>
+                  <div className="inline-flex gap-[3px]">
                     <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => printOrder(po)}>인쇄</button>
                     {po.status === 'REQUESTED' && <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => plan(po)}>발주계획</button>}
                     {(po.status === 'PLANNED' || po.status === 'PRICED') && <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => setPricing(po)}>단가확정</button>}
                     {po.status === 'PRICED' && <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} onClick={() => confirm(po)}>발주확정</button>}
                     {po.status === 'ORDERED' && <button className="ec-btn ec-btn-primary" style={{ height: 20, padding: '0 8px' }} onClick={() => receive(po)}>입고전환</button>}
-                    {po.status !== 'RECEIVED' && po.status !== 'CANCELLED' && <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => cancel(po)}>취소</button>}
-                    <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: '#c60a2e' }} onClick={() => remove(po)}>삭제</button>
+                    {po.status !== 'RECEIVED' && po.status !== 'CANCELLED' && <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: 'var(--ec-danger)' }} onClick={() => cancel(po)}>취소</button>}
+                    <button className="ec-btn" style={{ height: 20, padding: '0 8px', color: 'var(--ec-danger)' }} onClick={() => remove(po)}>삭제</button>
                   </div>
                 </td>
               </tr>
               {openId === po.id && (
                 <tr className="no-ec">
-                  <td colSpan={13} style={{ padding: 0, background: '#fafbfc' }}>
-                    <table className="w-full text-left" style={{ margin: '4px 0' }}>
-                      <thead><tr><th style={{ width: 34 }}></th><th>품목코드</th><th>품목명</th><th style={{ textAlign: 'right' }}>수량</th><th style={{ textAlign: 'right' }}>단가</th><th style={{ textAlign: 'right' }}>공급가액</th><th style={{ textAlign: 'right' }}>부가세</th></tr></thead>
+                  <td colSpan={13} className="p-0 bg-ec-page">
+                    <table className="w-full text-left my-[4px] mx-0">
+                      <thead><tr><th className="w-[34px]"></th><th>품목코드</th><th>품목명</th><th className="text-right">수량</th><th className="text-right">단가</th><th className="text-right">공급가액</th><th className="text-right">부가세</th></tr></thead>
                       <tbody>
                         {po.lines.map((l) => (
                           <tr key={l.id}>
-                            <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{l.lineNo}</td>
-                            <td style={{ fontFamily: 'monospace' }}>{l.itemCode}</td>
-                            <td>{l.itemName}</td>
-                            <td style={{ textAlign: 'right' }}>{won(l.quantity)} {l.unit}</td>
-                            <td style={{ textAlign: 'right' }}>{won(l.unitPrice)}</td>
-                            <td style={{ textAlign: 'right' }}>{won(l.supplyAmount)}</td>
-                            <td style={{ textAlign: 'right', color: '#8a929c' }}>{won(l.vatAmount)}</td>
+                            <td className="text-center text-ec-hint">{l.lineNo}</td>
+                            <td>{l.itemCode}</td>
+                            <td>{l.itemName}{l.spec ? ` [${l.spec}]` : ''}</td>
+                            <td className="text-right">{won(l.quantity)} {l.unit}</td>
+                            <td className="text-right">{won(l.unitPrice)}</td>
+                            <td className="text-right">{won(l.supplyAmount)}</td>
+                            <td className="text-right text-ec-hint">{won(l.vatAmount)}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                     {/* 진행이력 — 단계가 바뀐 자취. 아직 안 왔거나 하나도 없으면 그 사실을 적는다. */}
-                    <div style={{ padding: '2px 6px 8px' }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: '#5a626e', margin: '2px 0 4px' }}>진행이력</div>
+                    <div className="pt-[2px] px-[6px] pb-[8px]">
+                      <div className="text-[12px] font-bold text-ec-label mt-[2px] mx-0 mb-[4px]">진행이력</div>
                       {hist[po.id] === undefined ? (
-                        <span style={{ fontSize: 12, color: '#9aa1ab' }}>불러오는 중…</span>
+                        <span className="text-[12px] text-ec-hint">불러오는 중…</span>
                       ) : hist[po.id].length === 0 ? (
-                        <span style={{ fontSize: 12, color: '#9aa1ab' }}>기록된 단계 변경이 없습니다.</span>
+                        <span className="text-[12px] text-ec-hint">기록된 단계 변경이 없습니다.</span>
                       ) : (
-                        <table className="w-full text-left" style={{ maxWidth: 720 }}>
+                        <table className="w-full text-left max-w-[720px]">
                           <thead><tr>
-                            <th style={{ width: 150 }}>일시</th>
-                            <th style={{ width: 180 }}>단계</th>
-                            <th style={{ width: 120 }}>처리자</th>
+                            <th className="w-[150px]">일시</th>
+                            <th className="w-[180px]">단계</th>
+                            <th className="w-[120px]">처리자</th>
                             <th>메모</th>
                           </tr></thead>
                           <tbody>
                             {hist[po.id].map((h, k) => (
                               <tr key={k}>
-                                <td style={{ fontFamily: 'monospace' }}>{h.changedAt.replace('T', ' ').slice(0, 16)}</td>
+                                <td>{h.changedAt.replace('T', ' ').slice(0, 16)}</td>
                                 <td>
                                   {h.fromStatusName ? `${h.fromStatusName} → ` : ''}
                                   <b>{h.toStatusName}</b>
                                 </td>
                                 <td>{h.changedBy ?? ''}</td>
-                                <td style={{ color: h.note ? undefined : '#c9ced6' }}>{h.note ?? ''}</td>
+                                <td style={{ color: h.note ? undefined : 'var(--ec-text-off)' }}>{h.note ?? ''}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -597,7 +621,7 @@ export default function PurchaseOrderPage() {
                       스물다섯 칸을 여는데, 그건 입력 격자를 손봐야 하는 별개의 일이라 여기서
                       반만 만들어 두지 않는다 — 열 예외에 그렇게 적어 두었다.
                     */}
-                    <div style={{ padding: '0 6px 8px' }}>
+                    <div className="pt-0 px-[6px] pb-[8px]">
                       <CustomFieldsPanel entityType="PURCHASE_ORDER" entityId={po.id} />
                     </div>
                   </td>
@@ -628,8 +652,10 @@ function PriceForm({ order, onClose, onSaved }: { order: PurchaseOrder; onClose:
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  const supply = order.lines.reduce((sum, l) => sum + l.quantity * (Number(prices[l.id]) || 0), 0)
-  const vat = order.taxable ? Math.round(supply * 0.1) : 0
+  // 서버(PurchaseOrderService.recalculate)처럼 줄마다 원 단위로 반올림한 뒤 더한다.
+  const lineSupplies = order.lines.map((l) => lineSupply(l.quantity, Number(prices[l.id]) || 0))
+  const supply = lineSupplies.reduce((a, b) => a + b, 0)
+  const vat = order.taxable ? lineSupplies.reduce((a, s) => a + roundWon(s * 0.1), 0) : 0
 
   async function save() {
     setError('')
@@ -650,38 +676,38 @@ function PriceForm({ order, onClose, onSaved }: { order: PurchaseOrder; onClose:
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 640, maxWidth: '94vw', maxHeight: '90vh', overflow: 'auto', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: '#f5f7fa' }}>
-          <span style={{ fontWeight: 800, color: 'var(--ec-blue-dark)' }}>단가확정 — {order.orderNo} ({order.partnerName})</span>
-          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: '#8a929c' }}>×</span>
+        <div className="flex items-center py-[12px] px-[16px] border-b border-b-ec-line border-solid bg-ec-page">
+          <span className="font-extrabold text-ec-navy">단가확정 — {order.orderNo} ({order.partnerName})</span>
+          <span onClick={onClose} className="ml-auto cursor-pointer text-[18px] text-ec-hint">×</span>
         </div>
-        <div style={{ padding: 16 }}>
-          {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
+        <div className="p-[16px]">
+          {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
           <table className="w-full text-left">
-            <thead><tr><th style={{ width: 34 }}></th><th>품목</th><th style={{ textAlign: 'right' }}>수량</th><th style={{ width: 120, textAlign: 'right' }}>확정단가</th><th style={{ textAlign: 'right' }}>공급가액</th></tr></thead>
+            <thead><tr><th className="w-[34px]"></th><th>품목</th><th className="text-right">수량</th><th className="w-[120px] text-right">확정단가</th><th className="text-right">공급가액</th></tr></thead>
             <tbody>
               {order.lines.map((l) => (
                 <tr key={l.id}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{l.lineNo}</td>
+                  <td className="text-center text-ec-hint">{l.lineNo}</td>
                   <td>{l.itemCode} {l.itemName}</td>
-                  <td style={{ textAlign: 'right' }}>{won(l.quantity)} {l.unit}</td>
+                  <td className="text-right">{won(l.quantity)} {l.unit}</td>
                   <td>
-                    <input className="ec-input" type="number" value={prices[l.id] ?? ''} style={{ width: '100%', textAlign: 'right' }}
-                      onChange={(e) => setPrices((p) => ({ ...p, [l.id]: e.target.value }))} />
+                    <EcNumInput className="ec-input w-full text-right" value={String(prices[l.id] ?? '')}
+                      onValue={(v) => setPrices((p) => ({ ...p, [l.id]: v }))} />
                   </td>
-                  <td style={{ textAlign: 'right' }}>{won(l.quantity * (Number(prices[l.id]) || 0))}</td>
+                  <td className="text-right">{won(lineSupply(l.quantity, Number(prices[l.id]) || 0))}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
-              <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
-                <td colSpan={3} style={{ textAlign: 'right' }}>공급가액 / 부가세 / 합계</td>
-                <td colSpan={2} style={{ textAlign: 'right' }}>{won(supply)} / {won(vat)} / <span style={{ color: 'var(--ec-blue-dark)' }}>{won(supply + vat)}</span></td>
+              <tr className="font-bold bg-ec-page">
+                <td colSpan={3} className="text-right">공급가액 / 부가세 / 합계</td>
+                <td colSpan={2} className="text-right">{won(supply)} / {won(vat)} / <span className="text-ec-navy">{won(supply + vat)}</span></td>
               </tr>
             </tfoot>
           </table>
         </div>
-        <div style={{ display: 'flex', gap: 6, padding: '10px 16px', borderTop: '1px solid var(--ec-border)', alignItems: 'center' }}>
-          <label style={{ fontSize: 12.5, color: '#5a626e', display: 'flex', alignItems: 'center', gap: 5 }}>
+        <div className="flex gap-[6px] py-[10px] px-[16px] border-t border-t-ec-line border-solid items-center">
+          <label className="text-[12.5px] text-ec-label flex items-center gap-[5px]">
             유효기간
             <input type="date" className="ec-input" value={validUntil}
                    onChange={(e) => setValidUntil(e.target.value)} style={{ width: 145 }} />
@@ -723,6 +749,22 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
     })
     return [...kept, ...added, emptyLine()]
   }))
+  /**
+   * 줄 추가항목의 <b>정의</b>. 열 예외에 "발주서 화면이 아직 안 읽는다" 고 적혀 있던
+   * 그 나머지 반쪽이다(머리는 앞 커밋에 이었다). 판매·구매 입력이 쓰는 것과 같은 길이다 —
+   * <code>/custom-fields/defs?entityType=PURCHASE_ORDER_LINE</code>.
+   */
+  const [lineDefs, setLineDefs] = useState<CustomFieldDef[]>([])
+  useEffect(() => {
+    api.get<CustomFieldDef[]>('/custom-fields/defs', { params: { entityType: 'PURCHASE_ORDER_LINE' } })
+      .then((r) => setLineDefs(r.data.filter((d) => d.active !== false)))
+      /* 추가항목은 곁가지다 — 못 불러와도 입력을 막지 않는다. */
+      .catch(() => setLineDefs([]))
+  }, [])
+  /** 줄 추가항목 한 칸을 고친다. */
+  const setLineCustom = (idx: number, key: string, value: string) =>
+    setLines((ls) => ls.map((l, i) => (i === idx ? { ...l, custom: { ...l.custom, [key]: value } } : l)))
+
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const specOf = (itemId: string) => items.find((x) => String(x.id) === itemId)?.spec ?? ''
@@ -738,11 +780,21 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
     // 구매단가를 안 정한 품목(0)은 비워 둔다. 판매가를 채우면 그게 발주단가로 굳는다.
     const pp = it?.purchasePrice ?? 0
     setLine(i, { itemId, unitPrice: pp > 0 ? String(pp) : '' })
+    // 매입처의 특별단가(구매)가 있으면 덮는다(50회차 — 발주서는 특별단가를 몰랐다).
+    void resolveSpecialPrice('PURCHASE', itemId, partnerId).then((p) => { if (p != null) setLine(i, { unitPrice: String(p) }) })
+  }
+  /** 매입처를 고르면 담긴 품목의 특별단가를 다시 찾는다 — 품목을 먼저 담아도 걸리게. */
+  function choosePartner(v: string) {
+    setPartnerId(v)
+    lines.forEach((l, i) => {
+      if (l.itemId) void resolveSpecialPrice('PURCHASE', l.itemId, v).then((p) => { if (p != null) setLine(i, { unitPrice: String(p) }) })
+    })
   }
 
-  const calc = lines.map((l) => (Number(l.quantity) || 0) * (Number(l.unitPrice) || 0))
+  const calc = lines.map((l) => lineSupply(Number(l.quantity) || 0, Number(l.unitPrice) || 0))
   const supply = calc.reduce((a, b) => a + b, 0)
-  const vat = taxable ? Math.round(supply * 0.1) : 0
+  // 서버처럼 줄마다 반올림한 부가세를 더한다(전표 합계에 한 번 반올림하면 1원씩 어긋난다).
+  const vat = taxable ? calc.reduce((a, s) => a + roundWon(s * 0.1), 0) : 0
 
   async function save() {
     setError('')
@@ -755,9 +807,11 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
         remark: l.remark || undefined,
       }))
     if (payload.length === 0) return setError('품목을 1개 이상 입력하세요.')
+    /* 보낸 줄과 <b>같은 차례로</b> 돌아온다 — 추가항목을 새 줄 id 에 붙일 때 이 짝을 쓴다. */
+    const kept = lines.filter((l) => l.itemId && Number(l.quantity) > 0)
     setSaving(true)
     try {
-      await api.post('/purchase-orders', {
+      const res = await api.post<PurchaseOrder>('/purchase-orders', {
         partnerId: Number(partnerId), orderDate, dueDate: dueDate || undefined,
         employeeId: employeeId ? Number(employeeId) : undefined,
         warehouseId: warehouseId ? Number(warehouseId) : undefined,
@@ -765,6 +819,24 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
         currency,
         taxable, remark: remark || undefined, lines: payload,
       })
+      /*
+       * 줄 추가항목은 <b>줄 id 가 생긴 뒤에야</b> 붙일 수 있어서 저장을 두 번 한다.
+       * 값을 하나도 안 채운 줄은 부르지 않는다 — 안 쓰는 회사에 헛요청이 줄 수만큼 나간다.
+       * 여기서 실패해도 발주는 이미 저장됐으므로 <b>그 사실을 알리고</b> 닫는다.
+       */
+      if (lineDefs.length > 0) {
+        const newLines = res.data.lines ?? []
+        const puts = kept.map((l, i) => {
+          const id = newLines[i]?.id
+          if (id == null || !Object.values(l.custom ?? {}).some((v) => v?.trim())) return null
+          return api.put('/custom-fields/values', { values: l.custom },
+            { params: { entityType: 'PURCHASE_ORDER_LINE', entityId: id } })
+        }).filter(Boolean) as Promise<unknown>[]
+        if (puts.length > 0) {
+          try { await Promise.all(puts) }
+          catch { setError('발주는 저장했지만 줄 추가항목 저장에 실패했습니다.') }
+        }
+      }
       onSaved()
     } catch (err) {
       setError(extractErrorMessage(err))
@@ -776,40 +848,75 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
 
   /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
   const tableRef = useRef<HTMLTableElement>(null)
-  useTableColumnCheck(tableRef, '발주서 품목 격자', [])
+  useTableColumnCheck(tableRef, '발주서 품목 격자', [lineDefs.length])
+
+  /**
+   * 원본 격자 툴바의 <b>[재고불러오기]</b>와 그것이 채우는 두 칸.
+   *
+   * <p>발주는 <b>모자라는 것을 채우는 일</b>이다. 얼마를 시킬지는 <b>지금 얼마 있나</b>를
+   * 봐야 정하는데, 우리 격자에는 그 칸이 없어 재고현황을 따로 열어 보고 와야 했다.
+   * 원본 발주서입력 격자에는 <b>[전체수량]·[창고수량]</b> 두 칸이 있고
+   * (<code>qa/fixtures/ecount-column-width.json</code> 의 발주서입력 — 각 67),
+   * 이 단추가 그것을 채운다.
+   *
+   * <p>화면을 열 때마다 전 품목 재고를 끌어오지 않는다 — <b>누를 때만</b> 부른다
+   * (생산불출입력·판매/구매입력과 같다). 부르기 전에는 <b>'-'</b> 로 둔다.
+   * 0 으로 채우면 "재고가 없다" 로 읽힌다.
+   */
+  const [stocks, setStocks] = useState<StockRow[]>([])
+  const [stockLoaded, setStockLoaded] = useState(false)
+  const [stockBusy, setStockBusy] = useState(false)
+  async function loadStocks() {
+    setStockBusy(true)
+    try {
+      setStocks((await api.get<StockRow[]>('/stock')).data)
+      setStockLoaded(true)
+    } catch (err) { setError(extractErrorMessage(err)) } finally { setStockBusy(false) }
+  }
+  /** 그 품목의 전 창고 합계. 아직 안 불러왔으면 null 이다(0 이 아니다). */
+  const stockAllOf = (itemId: string): number | null => {
+    if (!stockLoaded || !itemId) return null
+    return stocks.filter((s) => String(s.itemId) === itemId).reduce((a, s) => a + s.quantity, 0)
+  }
+  /** 머리에서 고른 <b>입고창고</b>의 수량. 창고를 안 골랐으면 잴 것이 없어 null 이다. */
+  const stockAtOf = (itemId: string): number | null => {
+    if (!stockLoaded || !itemId || !warehouseId) return null
+    const hit = stocks.find((s) => String(s.itemId) === itemId && String(s.warehouseId) === warehouseId)
+    return hit ? hit.quantity : 0
+  }
+  const stockCell = (n: number | null) => (n === null ? '-' : n.toLocaleString())
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 880, maxWidth: '96vw', maxHeight: '90vh', overflow: 'auto', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--ec-border)', background: '#f5f7fa' }}>
-          <span style={{ fontWeight: 800, color: 'var(--ec-blue-dark)' }}>발주요청</span>
-          <span onClick={onClose} style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 18, color: '#8a929c' }}>×</span>
+        <div className="flex items-center py-[12px] px-[16px] border-b border-b-ec-line border-solid bg-ec-page">
+          <span className="font-extrabold text-ec-navy">발주요청</span>
+          <span onClick={onClose} className="ml-auto cursor-pointer text-[18px] text-ec-hint">×</span>
         </div>
-        <div style={{ padding: 16 }}>
-          {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-          <table className="w-full text-left" style={{ marginBottom: 12 }}>
+        <div className="p-[16px]">
+          {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+          <table className="w-full text-left mb-[12px]">
             <tbody>
               <tr>
-                <th style={{ width: 90, background: '#f5f7fa' }}>매입처<span style={{ color: '#c60a2e' }}>*</span></th>
+                <th className="w-[90px] bg-ec-page">매입처<span className="text-ec-danger">*</span></th>
                 <td>
-                  <select className="ec-input" value={partnerId} onChange={(e) => setPartnerId(e.target.value)} style={{ width: 240 }}>
-                    <option value="">매입처 선택</option>
-                    {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
+                  <CodePickerField label="매입처" hideLabel width={240} emptyLabel="선택 안 함" placeholder="매입처 선택"
+                                   value={partnerId} onChange={choosePartner}
+                                   items={partnerCodeItems(partners.filter((p) => p.type !== 'CUSTOMER'))} />
                 </td>
                 {/* 원본 발주서입력의 이름은 [발주일]이 아니라 <b>[일자]</b> 다(사본 실측). */}
-                <th style={{ width: 70, background: '#f5f7fa' }}>일자</th>
-                <td><input type="date" className="ec-input" value={dateText(orderDate)} onChange={(e) => setOrderDate(e.target.value)} style={{ width: 150 }} /></td>
+                <th className="w-[70px] bg-ec-page">일자</th>
+                <td><input type="date" className="ec-input" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
                 {/* 원본 발주서입력의 이름은 [납기요청일]이 아니라 <b>[납기일자]</b> 다(사본 실측).
                     목록 열도 이미 [납기일자]라 <b>우리끼리도 어긋나</b> 있었다. */}
-                <th style={{ background: '#f5f7fa' }}>납기일자</th>
-                <td><input type="date" className="ec-input" value={dateText(dueDate)} onChange={(e) => setDueDate(e.target.value)} style={{ width: 150 }} /></td>
+                <th className="bg-ec-page">납기일자</th>
+                <td><input type="date" className="ec-input" value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={{ width: 150 }} /></td>
 {/* 원본 차례: 담당자 · 거래유형 · 통화 · 참조 — 담당자가 거래유형보다 앞이다. */}
                 {/* 코드 마스터를 고르는 칸은 드롭다운이 아니라 <b>코드도움</b>이다 —
                     사원·창고가 몇십 개만 돼도 드롭다운으로는 코드로 못 찾는다. */}
-                <th style={{ background: '#f5f7fa' }}>담당자</th>
+                <th className="bg-ec-page">담당자</th>
                 <td>
                   <CodePickerField label="담당자" hideLabel width={150} emptyLabel="담당자 선택"
                                    value={employeeId} onChange={setEmployeeId}
@@ -817,7 +924,7 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
                 </td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>거래유형</th>
+                <th className="bg-ec-page">거래유형</th>
                 <td>
                   <select className="ec-input" value={taxable ? 'VAT' : 'FREE'} onChange={(e) => setTaxable(e.target.value === 'VAT')} style={{ width: 150 }}>
                     <option value="VAT">부가세율 적용</option>
@@ -825,7 +932,7 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
                   </select>
                 </td>
                 {/* 원본 발주서입력의 이름은 [창고]가 아니라 <b>[입고창고]</b> 다 — 목록 상세도 그렇게 적는다. */}
-                <th style={{ background: '#f5f7fa' }}>입고창고</th>
+                <th className="bg-ec-page">입고창고</th>
                 <td>
                   <CodePickerField label="입고창고" hideLabel width={150} emptyLabel="창고 선택"
                                    value={warehouseId} onChange={setWarehouseId}
@@ -833,19 +940,19 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
                 </td>
               </tr>
               <tr>
-                <th style={{ background: '#f5f7fa' }}>통화</th>
+                <th className="bg-ec-page">통화</th>
                 <td>
                   <select className="ec-input" value={currency} onChange={(e) => setCurrency(e.target.value)} style={{ width: 150 }}>
                     <option value="KRW">내자(KRW)</option>
                     {currencies.filter((c) => c.code !== 'KRW').map((c) => <option key={c.id} value={c.code}>{c.code} {c.name}</option>)}
                   </select>
                 </td>
-                <th style={{ background: '#f5f7fa' }}>참조</th>
+                <th className="bg-ec-page">참조</th>
                 <td><input className="ec-input" value={remark} onChange={(e) => setRemark(e.target.value)} placeholder="참조/비고" style={{ width: '100%' }} /></td>
               </tr>
               <tr>
                 {/* 원본 발주서입력 차례의 <b>맨 뒤</b>가 [프로젝트]다(사본 실측). */}
-                <th style={{ background: '#f5f7fa' }}>프로젝트</th>
+                <th className="bg-ec-page">프로젝트</th>
                 <td colSpan={3}>
                   <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="선택 안 함"
                                    value={projectId} onChange={setProjectId}
@@ -862,49 +969,80 @@ function PurchaseOrderForm({ items, partners, employees, warehouses, projects, c
               안 보여 "3" 이 세 개인지 세 박스인지 알 수 없었다. 부가세 포함 단가는 <b>매입처가 부르는 값</b>이라
               머릿속으로 곱해 보고 있었다.
             */}
-            <thead><tr><th style={{ width: 30 }}></th><th>품목</th><th style={{ width: 100 }}>규격</th><th style={{ width: 130 }}>거래처</th><th style={{ width: 70, textAlign: 'right' }}>수량</th><th style={{ width: 90, textAlign: 'right' }}>예상단가</th><th style={{ textAlign: 'right' }}>공급가액</th><th style={{ width: 110 }}>적요</th><th style={{ width: 40 }}>No.</th><th style={{ width: 46 }}>단위</th><th style={{ width: 100, textAlign: 'right' }}>단가(vat포함)</th><th style={{ width: 34 }}></th></tr></thead>
+            <thead><tr><th className="w-[30px]"></th><th>품목</th><th className="w-[100px]">규격</th><th className="w-[130px]">거래처</th><th className="w-[67px] text-right">전체수량</th><th className="w-[67px] text-right">창고수량</th><th className="w-[70px] text-right">수량</th><th className="w-[90px] text-right">예상단가</th><th className="text-right">공급가액</th><th className="w-[110px]">적요</th>{/* 줄 추가항목. 정의한 것만 열이 생긴다 — 안 쓰는 회사는 격자가 그대로다. */}{lineDefs.map((d) => (<th key={d.fieldKey} className="w-[120px]">{d.label}</th>))}<th className="w-[40px]">No.</th><th className="w-[46px]">단위</th><th className="w-[100px] text-right">단가(vat포함)</th><th className="w-[34px]"></th></tr></thead>
             <tbody>
               {lines.map((l, i) => (
                 <tr key={i}>
-                  <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
+                  <td className="text-center text-ec-hint">{i + 1}</td>
                   <td>
                     <CodePickerField label="품목" hideLabel fill placeholder="품목 선택" emptyLabel="선택 해제"
                                      value={l.itemId} onChange={(v) => pickItem(i, v)}
                                      items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, alias: it.searchKeyword, sub: it.spec }))} />
                   </td>
-                  <td style={{ color: '#6b7280' }}>{specOf(l.itemId)}</td>
+                  <td className="text-ec-muted">{specOf(l.itemId)}</td>
                   <td>
-                    <select className="ec-input" value={l.partnerId} onChange={(e) => setLine(i, { partnerId: e.target.value })} style={{ width: '100%' }}>
-                      <option value="">(헤더 매입처)</option>
-                      {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                    </select>
+                    <CodePickerField label="매입처" hideLabel fill emptyLabel="(헤더 매입처)" placeholder="(헤더 매입처)"
+                                     value={l.partnerId} onChange={(v) => setLine(i, { partnerId: v })}
+                                     items={partnerCodeItems(partners.filter((p) => p.type !== 'CUSTOMER'))} />
                   </td>
-                  <td><input className="ec-input" type="number" value={l.quantity} onChange={(e) => setLine(i, { quantity: e.target.value })} style={{ width: '100%', textAlign: 'right' }} /></td>
-                  <td><input className="ec-input" type="number" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: e.target.value })} style={{ width: '100%', textAlign: 'right' }} /></td>
-                  <td style={{ textAlign: 'right' }}>{won(calc[i])}</td>
+                  {/* [재고불러오기]가 채우는 두 칸. 누르기 전에는 '-' 다. */}
+                  <td className="text-right text-ec-label">{stockCell(stockAllOf(l.itemId))}</td>
+                  <td className="text-right text-ec-label">{stockCell(stockAtOf(l.itemId))}</td>
+                  <td><EcNumInput className="ec-input w-full text-right" value={l.quantity} onValue={(v) => setLine(i, { quantity: v })} /></td>
+                  <td><EcNumInput className="ec-input w-full text-right" value={l.unitPrice} onValue={(v) => setLine(i, { unitPrice: v })} /></td>
+                  <td className="text-right">{won(calc[i])}</td>
                   <td><input className="ec-input" value={l.remark} onChange={(e) => setLine(i, { remark: e.target.value })} style={{ width: '100%' }} /></td>
-                  <td style={{ color: '#6b7280' }}>{i + 1}</td>
-                  <td style={{ color: '#6b7280' }}>{unitOf(l.itemId)}</td>
-                  <td style={{ textAlign: 'right', color: '#6b7280' }}>{won(Math.round(Number(l.unitPrice || 0) * (taxable ? 1.1 : 1)))}</td>
-                  <td style={{ textAlign: 'center' }}>{lines.length > 1 && <button className="ec-btn" onClick={() => setLines((ls) => ls.filter((_, idx) => idx !== i))}>×</button>}</td>
+                  {/*
+                    머리의 추가항목과 <b>같은 잣대로</b> 그린다 — [코드] 형식이면 고르는 칸,
+                    나머지는 치는 칸이다. 판매·구매 격자가 예전에 이 둘을 다르게 그려
+                    같은 필드가 위아래에서 다르게 굴었던 적이 있다.
+                  */}
+                  {lineDefs.map((d) => (
+                    <td key={d.fieldKey}>
+                      {d.fieldType === 'CODE' ? (
+                        <select className="ec-input" value={l.custom[d.fieldKey] ?? ''} disabled={!l.itemId}
+                                onChange={(e) => setLineCustom(i, d.fieldKey, e.target.value)} style={{ width: '100%' }}>
+                          <option value=""></option>
+                          {(d.options ?? '').split(',').map((o) => o.trim()).filter(Boolean)
+                            .map((o) => <option key={o} value={o}>{o}</option>)}
+                        </select>
+                      ) : (
+                        <input className="ec-input" disabled={!l.itemId}
+                               type={d.fieldType === 'DATE' ? 'date' : d.fieldType === 'NUMBER' ? 'number' : 'text'}
+                               value={l.custom[d.fieldKey] ?? ''}
+                               onChange={(e) => setLineCustom(i, d.fieldKey, e.target.value)} style={{ width: '100%' }} />
+                      )}
+                    </td>
+                  ))}
+                  <td className="text-ec-muted">{i + 1}</td>
+                  <td className="text-ec-muted">{unitOf(l.itemId)}</td>
+                  <td className="text-right text-ec-muted">{won(Math.round(Number(l.unitPrice || 0) * (taxable ? 1.1 : 1)))}</td>
+                  <td className="text-center">{lines.length > 1 && <button className="ec-btn" onClick={() => setLines((ls) => ls.filter((_, idx) => idx !== i))}>×</button>}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
-              <tr style={{ fontWeight: 700, background: '#f7f9fb' }}>
-                <td colSpan={6} style={{ textAlign: 'right' }}>공급가액 / 부가세 / 합계</td>
-                <td style={{ textAlign: 'right' }} colSpan={6}>{won(supply)} / {won(vat)} / <span style={{ color: 'var(--ec-blue-dark)' }}>{won(supply + vat)}</span></td>
+              <tr className="font-bold bg-ec-page">
+                <td colSpan={8} className="text-right">공급가액 / 부가세 / 합계</td>
+                {/* 추가항목 열이 늘어난 만큼 여기도 늘어야 한다 — 안 그러면 합계가 엉뚱한 열 아래 붙는다. */}
+                <td className="text-right" colSpan={6 + lineDefs.length}>{won(supply)} / {won(vat)} / <span className="text-ec-navy">{won(supply + vat)}</span></td>
               </tr>
             </tfoot>
           </table>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
+          <div className="flex items-center gap-[6px] mt-[8px]">
             <button className="ec-btn" onClick={() => setLines((ls) => [...ls, emptyLine()])}>+ 행 추가</button>
             {/* 단추는 화면이 <b>글자로</b> 그린다 — 자식 컴포넌트에 넣으면 버튼 검사가 못 본다. */}
             <button type="button" className="ec-btn" disabled={myItems.busy} onClick={myItems.pick}>My품목</button>
+            <button type="button" className="ec-btn" disabled={stockBusy} onClick={loadStocks}>재고불러오기</button>
             <MyItemsNote note={myItems.note} />
+            {stockLoaded && (
+              <span className="text-[12px] text-ec-label">
+                재고를 불러왔습니다{warehouseId ? '' : ' — [입고창고]를 고르면 창고수량도 찹니다'}.
+              </span>
+            )}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 6, padding: '10px 16px', borderTop: '1px solid var(--ec-border)' }}>
+        <div className="flex gap-[6px] py-[10px] px-[16px] border-t border-t-ec-line border-solid">
           <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>{saving ? '저장 중…' : '저장(F8)'}</button>
           <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={onClose}>닫기</button>
         </div>

@@ -21,7 +21,7 @@ interface Project {
 }
 
 const STATUS_COLOR: Record<Project['status'], string> = {
-  PLANNING: '#5a626e', IN_PROGRESS: '#c07a00', ON_HOLD: '#c60a2e', DONE: '#1c7c3c',
+  PLANNING: 'var(--ec-label)', IN_PROGRESS: 'var(--ec-warn)', ON_HOLD: 'var(--ec-danger)', DONE: 'var(--ec-success)',
 }
 
 const today = () => ymd(new Date())
@@ -100,7 +100,7 @@ export default function SwSchedulePage() {
     .filter((r) => !title2 || r.name.includes(title2))
     .filter((r) => !keyword || r.name.includes(keyword) || (r.manager ?? '').includes(keyword))
   const inputCls = 'ec-input'
-  const th: React.CSSProperties = { background: '#f5f7fa', fontWeight: 700, whiteSpace: 'nowrap', width: 84 }
+  const th: React.CSSProperties = { background: 'var(--ec-bg-page)', fontWeight: 700, whiteSpace: 'nowrap', width: 84 }
 
 
   /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
@@ -117,7 +117,7 @@ export default function SwSchedulePage() {
       onNew={() => setShowForm(true)}
       actions={[{ label: '새로고침', onClick: load }, { label: 'Excel' }]}
     >
-      <p className="mb-2 text-xs text-slate-500">개발 건별 목표일·진행률(%) 관리 · +10% 버튼으로 진척 반영 (프로젝트관리와 저장소 공유)</p>
+      <p className="mb-2 text-xs text-ec-hint">개발 건별 목표일·진행률(%) 관리 · +10% 버튼으로 진척 반영 (프로젝트관리와 저장소 공유)</p>
 
       {/* 원본 상단 알약 — 전체·진행중·완료 */}
       <div className="ec-pills" style={{ marginBottom: 6 }}>
@@ -129,19 +129,19 @@ export default function SwSchedulePage() {
       </div>
 
       {/* 원본 조회 조건 — 우리 데이터에 있는 것만(계획시작일·계획종료일) */}
-      <table className="w-full text-left" style={{ marginBottom: 8 }}>
+      <table className="w-full text-left mb-[8px]">
         <tbody>
           <tr>
             <th style={{ ...th, width: 110 }}>계획시작일</th>
             <td>
               <input type="date" className={inputCls} value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
-              <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
+              <span className="my-0 mx-[6px] text-ec-label">~</span>
               <input type="date" className={inputCls} value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
             </td>
             <th style={{ ...th, width: 110 }}>계획종료일</th>
             <td>
               <input type="date" className={inputCls} value={endFrom} onChange={(e) => setEndFrom(e.target.value)} style={{ width: 140 }} />
-              <span style={{ margin: '0 6px', color: 'var(--ec-label)' }}>~</span>
+              <span className="my-0 mx-[6px] text-ec-label">~</span>
               <input type="date" className={inputCls} value={endTo} onChange={(e) => setEndTo(e.target.value)} style={{ width: 140 }} />
             </td>
           </tr>
@@ -161,9 +161,9 @@ export default function SwSchedulePage() {
             <tbody>
               <tr>
                 <th style={th}>착수일</th>
-                <td><input type="date" className={inputCls} value={dateText(startDate)} onChange={(e) => setStartDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className={inputCls} value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ width: 150 }} /></td>
                 <th style={th}>목표일</th>
-                <td><input type="date" className={inputCls} value={dateText(endDate)} onChange={(e) => setEndDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className={inputCls} value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
               <tr>
                 <th style={th}>작업/기능명 *</th>
@@ -177,47 +177,47 @@ export default function SwSchedulePage() {
               </tr>
             </tbody>
           </table>
-          {error && <p className="mt-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-          {ok && <p className="mt-2 rounded bg-green-50 px-3 py-2 text-sm text-green-700">{ok}</p>}
-          <div style={{ marginTop: 10 }}><button type="submit" className="ec-btn ec-btn-primary">등록(F8)</button></div>
+          {error && <p className="mt-2 rounded bg-ec-danger-bg px-3 py-2 text-sm text-ec-danger">{error}</p>}
+          {ok && <p className="mt-2 rounded bg-ec-success-bg px-3 py-2 text-sm text-ec-success">{ok}</p>}
+          <div className="mt-[10px]"><button type="submit" className="ec-btn ec-btn-primary">등록(F8)</button></div>
         </form>
       )}</Modal>
 
-      {error && !showForm && <p style={{ marginBottom: 8, background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3 }}>{error}</p>}
+      {error && !showForm && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th style={{ width: 34 }}></th>
-            <th style={{ width: 90 }}>코드</th>
+            <th className="w-[34px]"></th>
+            <th className="w-[90px]">코드</th>
             <th>작업/기능명</th>
-            <th style={{ width: 100 }}>담당</th>
-            <th style={{ width: 100, cursor: 'pointer' }} onClick={() => sort.toggle('목표일')}>목표일 {sort.mark('목표일')}</th>
-            <th style={{ textAlign: 'right', width: 170 }}>진행률(%)</th>
-            <th style={{ width: 70, textAlign: 'center' }}>상태</th>
-            <th style={{ width: 80, textAlign: 'center' }}>처리</th>
+            <th className="w-[100px]">담당</th>
+            <th className="w-[100px] cursor-pointer" onClick={() => sort.toggle('목표일')}>목표일 {sort.mark('목표일')}</th>
+            <th className="text-right w-[170px]">진행률(%)</th>
+            <th className="w-[70px] text-center">상태</th>
+            <th className="w-[80px] text-center">처리</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={8} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : sort.sorted.map((r, i) => (
             <tr key={r.id}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.code ?? ''}</td>
-              <td style={{ fontWeight: 600 }}>{r.name}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td>{r.code ?? ''}</td>
+              <td className="font-semibold">{r.name}</td>
               <td>{r.manager ?? ''}</td>
-              <td style={{ fontFamily: 'monospace' }}>{dateText(r.endDate) || ''}</td>
+              <td>{dateText(r.endDate) || ''}</td>
               <td>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <div style={{ flex: 1, height: 8, background: '#eef1f5', borderRadius: 4, overflow: 'hidden' }}>
+                <div className="flex items-center gap-[6px]">
+                  <div className="flex-1 h-[8px] bg-ec-line-soft rounded-[4px] overflow-hidden">
                     <div style={{ width: `${Math.min(100, r.progress)}%`, height: '100%', background: STATUS_COLOR[r.status] }} />
                   </div>
-                  <span style={{ width: 34, textAlign: 'right', fontSize: 11.5 }}>{r.progress}%</span>
+                  <span className="w-[34px] text-right text-[11.5px]">{r.progress}%</span>
                 </div>
               </td>
               <td style={{ textAlign: 'center', fontWeight: 700, color: STATUS_COLOR[r.status] }}>{r.statusName}</td>
-              <td style={{ textAlign: 'center' }}>
+              <td className="text-center">
                 <button className="ec-btn" style={{ height: 20, padding: '0 8px' }} disabled={r.progress >= 100} onClick={() => addProgress(r)}>+10%</button>
               </td>
             </tr>

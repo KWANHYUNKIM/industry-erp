@@ -1,0 +1,44 @@
+{
+  "about": "판매반품 — 판매 1건을 [반품처리] 로 되돌리고(재고 입고·금액 음수), 둘 다 회계반영한다. 반품은 음수 금액이라 예전엔 부가세 줄이 빠지고 음수 분개가 DB 제약에 걸려 반영이 거절됐다(26회차 #81). 반품은 역분개(차 매출·부가세예수금 / 대 외상매출금)로 선다. 돌려줄 돈은 수금 −(환불)로 넣고 그것도 회계반영한다(27회차 — 예전엔 수금이 0보다 커야 해 환불을 넣을 길이 없었다). 만든 전표·분개는 끝에 지운다.",
+  "shots": [
+    {
+      "name": "판매 1건 만들기(API) → 판매입력 ?returnFrom= 으로 반품 저장",
+      "path": "/sales/sales-list",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:Promise.all(['/partners','/items','/warehouses'].map((p) => window.__api('GET', p))).then(([pa, it, wh]) => { const c = pa.body.find((x) => x.code === 'QA-CUST'), i = it.body.find((x) => x.code === 'QA-PROD'), w = wh.body.find((x) => x.code === 'QA-WH') ?? wh.body[0]; return window.__api('POST', '/sales', { saleDate: new Date().toISOString().slice(0, 10), partnerId: c.id, warehouseId: w.id, lines: [{ itemId: i.id, quantity: 1, unitPrice: 1000 }] }) }).then((r) => { sessionStorage.setItem('rtSale', r.body.docNo); sessionStorage.setItem('rtSaleId', r.body.id); return r.status })",
+        "expect:!!sessionStorage.getItem('rtSaleId')"
+      ]
+    },
+    {
+      "name": "반품 저장 → 금액 음수",
+      "path": "/sales/sell",
+      "steps": [
+        "js:location.href = '/sales/sell?returnFrom=' + sessionStorage.getItem('rtSaleId'); true",
+        "wait:2500",
+        "expect:[...document.querySelectorAll('select')].some((s) => s.options[s.selectedIndex]?.text === '반품')",
+        "click:저장(F8)",
+        "expect:/SO-[0-9]{8}-[0-9]{4} 저장 완료 [(]합계 -1,100원[)]/.test(document.body.innerText)",
+        "js:sessionStorage.setItem('rtRet', document.body.innerText.match(/SO-[0-9]{8}-[0-9]{4}(?= 저장 완료)/)[0]); true"
+      ]
+    },
+    {
+      "name": "둘 다 회계반영 → 반품도 반영된다, 거래처관리대장 구분 '판매반품', 뒷정리",
+      "path": "/sales/partner-ledger-receivable",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:window.__api('GET', '/sales').then((r) => { const ids = r.body.filter((s) => [sessionStorage.getItem('rtSale'), sessionStorage.getItem('rtRet')].includes(s.docNo)).map((s) => s.id); sessionStorage.setItem('rtIds', JSON.stringify(ids)); return window.__api('POST', '/accounting-reflection/reflect', { kind: 'SALES', ids }) }).then((r) => { sessionStorage.setItem('rtReflect', r.status + ':' + (r.body?.reflectedCount ?? r.body?.message)); return true })",
+        "expect:sessionStorage.getItem('rtReflect') === '200:2'",
+        "js:window.__api('POST', '/accounting-reflection/unreflect', { kind: 'SALES', ids: JSON.parse(sessionStorage.getItem('rtIds')) }).then((r) => { sessionStorage.setItem('rtUn', String(r.status)); return true })",
+        "expect:sessionStorage.getItem('rtUn') === '200'",
+        "js:window.__api('GET', '/partners').then((pa) => window.__api('POST', '/settlements', { type: 'RECEIPT', partnerId: pa.body.find((x) => x.code === 'QA-CUST').id, amount: -1100, method: '계좌이체', note: 'QA 반품 환불' })).then((r) => { sessionStorage.setItem('rtRefund', r.status + ':' + (r.body?.id ?? r.body?.message)); return true })",
+        "expect:sessionStorage.getItem('rtRefund').startsWith('200:')",
+        "js:(() => { const id = Number(sessionStorage.getItem('rtRefund').split(':')[1]); return window.__api('POST', '/accounting-reflection/reflect', { kind: 'SETTLEMENT', ids: [id] }).then((r) => { sessionStorage.setItem('rtRefRef', r.status + ':' + (r.body?.reflectedCount ?? r.body?.message)); return window.__api('POST', '/accounting-reflection/unreflect', { kind: 'SETTLEMENT', ids: [id] }) }).then(() => window.__api('DELETE', '/settlements/' + id)).then((r) => { sessionStorage.setItem('rtRefDel', String(r.status)); return true }) })()",
+        "expect:sessionStorage.getItem('rtRefRef') === '200:1'",
+        "expect:['200', '204'].includes(sessionStorage.getItem('rtRefDel'))",
+        "apidel:/sales|@rtRet|docNo",
+        "apidel:/sales|@rtSale|docNo"
+      ]
+    }
+  ]
+}

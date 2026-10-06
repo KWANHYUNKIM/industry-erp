@@ -11,6 +11,13 @@ import { ymd } from '../../components/EcPeriodPicks'
  *  1) 거래별 잔량(balanceAfter) — 저장값은 입력순이라, 과거 일자 거래가 뒤늦게 입력되면 일자순 잔량과 어긋난다.
  *  2) 현재고(stocks.quantity) — 수불 이력 합계와 어긋나면 이력을 진실로 보고 맞춘다.
  * 먼저 '점검'으로 차이를 보여주고, '재집계 반영'을 눌러야 실제로 값을 고친다(되돌릴 수 없는 작업이라 두 단계).
+ *
+ * <p><b>2026-09-09 원본(E040607)을 열어 쟀다</b> — 누르지는 않았다(재집계는 쓰기다).
+ * 조건은 <b>둘</b>뿐이고(시작월 · 종료월, 둘 다 년+월 스핀박스이고 기본이 <b>금월</b>),
+ * 버튼줄은 <b>[잔량재집계(F8)] 하나</b>다. 그리고 <b>화면 위 격자가 없다</b> —
+ * 누르면 결과만 알려 주는 <b>실행 화면</b>이라 잴 열이 아예 없다.
+ * 아래 표(품목코드·품목명·창고·기초·기간거래 …)와 [점검]·[Excel] 은 <b>우리 것</b>이다:
+ * 되돌릴 수 없는 일을 누르기 전에 <b>무엇이 어긋났는지</b>를 먼저 보이자고 만들었다.
  */
 interface RecalcRow {
   itemId: number
@@ -75,7 +82,7 @@ export default function StockRecalcPage() {
         { label: 'Excel' },
       ]}
       help={
-        <div style={{ fontSize: 12.5, lineHeight: 1.7 }}>
+        <div className="text-[12.5px] leading-[1.7]">
           <p>수불 이력을 기준으로 잔량을 다시 계산해 맞춥니다.</p>
           <ul style={{ paddingLeft: 18, listStyle: 'disc' }}>
             <li><b>거래잔량</b> — 과거 일자 거래가 뒤늦게 입력되면 저장된 잔량(입력순)이 일자순 잔량과 어긋납니다. 기간 안의 거래를 일자순으로 다시 누적합니다.</li>
@@ -85,28 +92,28 @@ export default function StockRecalcPage() {
         </div>
       }
     >
-      {error && <p style={{ background: '#fdecec', color: '#c60a2e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{error}</p>}
-      {notice && <p style={{ background: '#eaf4ea', color: '#1c7c3c', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{notice}</p>}
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {notice && <p style={{ background: '#eaf4ea', color: 'var(--ec-success)', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>{notice}</p>}
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end', border: '1px solid var(--ec-border)', background: '#f7f9fb', padding: 10, marginBottom: 10 }}>
-        <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>시작월</div>
+      <div className="flex flex-wrap gap-[10px] items-end border border-ec-line border-solid bg-ec-page p-[10px] mb-[10px]">
+        <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">시작월</div>
           <input type="month" className="ec-input" value={fromMonth} onChange={(e) => setFromMonth(e.target.value)} style={{ width: 140 }} /></label>
-        <label style={{ fontSize: 12.5 }}><div style={{ color: '#5a626e', marginBottom: 3 }}>종료월</div>
+        <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">종료월</div>
           <input type="month" className="ec-input" value={toMonth} onChange={(e) => setToMonth(e.target.value)} style={{ width: 140 }} /></label>
         <button className="ec-btn" onClick={() => run(false)} disabled={busy}>{busy ? '처리 중…' : '점검'}</button>
         <button className="ec-btn ec-btn-primary" onClick={() => run(true)} disabled={busy}>잔량재집계(F8)</button>
-        <span style={{ fontSize: 12, color: '#8a929c' }}>※ 거래잔량 정규화는 선택한 기간, 현재고 대조는 전 기간입니다.</span>
+        <span className="text-[12px] text-ec-hint">※ 거래잔량 정규화는 선택한 기간, 현재고 대조는 전 기간입니다.</span>
       </div>
 
       {result && (
-        <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+        <div className="flex gap-[10px] mb-[10px]">
           {[
-            { label: '점검한 거래', value: result.scannedTx.toLocaleString(), color: '#5a626e' },
-            { label: '거래잔량 어긋남', value: result.balanceMismatch.toLocaleString(), color: result.balanceMismatch ? '#c60a2e' : '#1c7c3c' },
-            { label: '현재고 어긋남', value: result.quantityMismatch.toLocaleString(), color: result.quantityMismatch ? '#c60a2e' : '#1c7c3c' },
+            { label: '점검한 거래', value: result.scannedTx.toLocaleString(), color: 'var(--ec-label)' },
+            { label: '거래잔량 어긋남', value: result.balanceMismatch.toLocaleString(), color: result.balanceMismatch ? 'var(--ec-danger)' : 'var(--ec-success)' },
+            { label: '현재고 어긋남', value: result.quantityMismatch.toLocaleString(), color: result.quantityMismatch ? 'var(--ec-danger)' : 'var(--ec-success)' },
           ].map((c) => (
-            <div key={c.label} style={{ border: '1px solid var(--ec-border)', padding: '8px 14px', minWidth: 130 }}>
-              <div style={{ fontSize: 11.5, color: '#8a929c' }}>{c.label}</div>
+            <div key={c.label} className="border border-ec-line border-solid py-[8px] px-[14px] min-w-[130px]">
+              <div className="text-[11.5px] text-ec-hint">{c.label}</div>
               <div style={{ fontSize: 18, fontWeight: 700, color: c.color }}>{c.value}</div>
             </div>
           ))}
@@ -115,38 +122,38 @@ export default function StockRecalcPage() {
 
       <table className="w-full text-left">
         <thead><tr>
-          <th style={{ width: 34 }}></th>
-          <th style={{ width: 110 }}>품목코드</th>
+          <th className="w-[34px]"></th>
+          <th className="w-[110px]">품목코드</th>
           <th>품목명</th>
-          <th style={{ width: 140 }}>창고</th>
-          <th style={{ width: 100, textAlign: 'right' }}>기초</th>
-          <th style={{ width: 90, textAlign: 'right' }}>기간거래</th>
-          <th style={{ width: 110, textAlign: 'right' }}>잔량어긋남</th>
-          <th style={{ width: 110, textAlign: 'right' }}>현재고(저장)</th>
-          <th style={{ width: 110, textAlign: 'right' }}>이력합계</th>
-          <th style={{ width: 100, textAlign: 'right' }}>차이</th>
+          <th className="w-[140px]">창고</th>
+          <th className="w-[100px] text-right">기초</th>
+          <th className="w-[90px] text-right">기간거래</th>
+          <th className="w-[110px] text-right">잔량어긋남</th>
+          <th className="w-[110px] text-right">현재고(저장)</th>
+          <th className="w-[110px] text-right">이력합계</th>
+          <th className="w-[100px] text-right">차이</th>
         </tr></thead>
         <tbody>
           {!result ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: '#9aa1ab', padding: 20 }}>기간을 정하고 ‘점검’을 누르세요.</td></tr>
+            <tr><td colSpan={10} className="text-center text-ec-hint p-[20px]">기간을 정하고 ‘점검’을 누르세요.</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={10} style={{ textAlign: 'center', color: clean ? '#1c7c3c' : '#9aa1ab', padding: 20 }}>
+            <tr><td colSpan={10} style={{ textAlign: 'center', color: clean ? 'var(--ec-success)' : 'var(--ec-text-hint)', padding: 20 }}>
               {clean ? '이상 없습니다. 잔량이 수불 이력과 모두 일치합니다.' : '표시할 행이 없습니다.'}
             </td></tr>
           ) : rows.map((r, i) => (
             <tr key={`${r.itemId}:${r.warehouseId}`}>
-              <td style={{ textAlign: 'center', color: '#9aa1ab' }}>{i + 1}</td>
-              <td style={{ fontFamily: 'monospace' }}>{r.itemCode}</td>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td>{r.itemCode}</td>
               <td>{r.itemName}</td>
               <td>{r.warehouseName}</td>
-              <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{num(r.opening)}</td>
-              <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{r.txCount.toLocaleString()}</td>
-              <td style={{ textAlign: 'right', fontFamily: 'monospace', color: r.balanceMismatch ? '#c60a2e' : '#8a929c', fontWeight: r.balanceMismatch ? 700 : 400 }}>
+              <td className="text-right">{num(r.opening)}</td>
+              <td className="text-right">{r.txCount.toLocaleString()}</td>
+              <td style={{ textAlign: 'right', fontFamily: 'monospace', color: r.balanceMismatch ? 'var(--ec-danger)' : 'var(--ec-text-hint)', fontWeight: r.balanceMismatch ? 700 : 400 }}>
                 {r.balanceMismatch.toLocaleString()}
               </td>
-              <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{num(r.storedQuantity)}</td>
-              <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{num(r.computedQuantity)}</td>
-              <td style={{ textAlign: 'right', fontFamily: 'monospace', color: Number(r.difference) ? '#c60a2e' : '#8a929c', fontWeight: Number(r.difference) ? 700 : 400 }}>
+              <td className="text-right">{num(r.storedQuantity)}</td>
+              <td className="text-right">{num(r.computedQuantity)}</td>
+              <td style={{ textAlign: 'right', fontFamily: 'monospace', color: Number(r.difference) ? 'var(--ec-danger)' : 'var(--ec-text-hint)', fontWeight: Number(r.difference) ? 700 : 400 }}>
                 {num(r.difference)}
               </td>
             </tr>
