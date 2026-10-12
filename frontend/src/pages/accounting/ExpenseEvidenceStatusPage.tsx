@@ -41,7 +41,8 @@ function rangeOf(label: string, fiscalStart: number, today = new Date()): Range 
  * 2026/01~10 증빙없음 7,962,500 · 합계 7,962,500. 금액 링크 → <b>전표vs매출매입자료비교</b>
  * [전표자료: 전표번호 · 계정 · 거래처 · 차변 · 대변 | 매출매입자료: 매출매입번호 · 유형명 · 거래처 · 공급가액 · 부가세 · 합계] + 합계.
  * 우리 매출매입자료는 매입/매출장과 같이 매입 부가세(135) 줄이 든 회계전표이고 유형은 늘 세금계산서다.
- * 세금계산서 열이 증빙없음 앞에 서는 차례는 원본 자료가 없어 못 쟀다.
+ * 2026-10-13 원본 1469 상품만 표시로 두고 이번기수: 머리 [계정코드 · 계정명 · 세금계산서 · 증빙없음 · 합계] 모두 가운데,
+ * '1469 상품 321,782,000 · (빈칸) · 321,782,000' — 세금계산서가 증빙없음 앞이고 0 은 빈칸, 금액이 없는 계정은 줄이 없다.
  */
 export default function ExpenseEvidenceStatusPage() {
   const [fiscalStart, setFiscalStart] = useState(1)
@@ -106,7 +107,7 @@ export default function ExpenseEvidenceStatusPage() {
           <div className="text-right mb-[4px]">{periodText(data.from, data.to)}</div>
           <table ref={tableRef} className="w-full ec-report ec-report-head400">
             <thead>
-              <tr><th>계정코드</th><th>계정명</th>{kinds.map((k) => <th key={k} className="text-right">{k}</th>)}<th className="text-right">합계</th></tr>
+              <tr><th className="text-center">계정코드</th><th className="text-center">계정명</th>{kinds.map((k) => <th key={k} className="text-center">{k}</th>)}<th className="text-center">합계</th></tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
@@ -124,7 +125,7 @@ export default function ExpenseEvidenceStatusPage() {
               <tfoot>
                 <tr>
                   <td colSpan={2} className="text-center">합계</td>
-                  {kinds.map((k) => <td key={k} className="text-right">{won(colTotal(k))}</td>)}
+                  {kinds.map((k) => <td key={k} className="text-right">{colTotal(k) ? won(colTotal(k)) : ''}</td>)}
                   <td className="text-right">{won(rows.reduce((t, r) => t + Number(r.total), 0))}</td>
                 </tr>
               </tfoot>
