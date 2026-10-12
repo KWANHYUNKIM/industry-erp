@@ -38,8 +38,8 @@ public class ScheduleEventController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        scheduleEventService.delete(id);
+    public ResponseEntity<Void> delete(@PathVariable Long id, @RequestParam(required = false) String scope) {
+        scheduleEventService.delete(id, scope);
         return ResponseEntity.noContent().build();
     }
 }

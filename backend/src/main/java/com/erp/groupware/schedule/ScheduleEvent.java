@@ -85,4 +85,34 @@ public class ScheduleEvent extends BaseTimeEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "project_id")
     private com.erp.inventory.project.Project project;
+
+    /** 원본 [공유자] — 고른 사람 이름(콤마 구분), 또는 '전체'. 참석자와 따로다. */
+    @Column(length = 500)
+    private String sharers;
+
+    /**
+     * 원본 [반복설정] 으로 만든 일정 묶음. 날마다 한 줄씩 펼쳐 넣고 같은 값을 준다 —
+     * 원본 '반복일정삭제'(이번 일정만 · 향후 모든 일정 · 전체 반복일정)가 이 묶음을 기준으로 지운다.
+     */
+    @Column(name = "repeat_group", length = 40)
+    private String repeatGroup;
+
+    /** 원본 반복설정의 요약보기 글('매일, 2026/10/13 부터 3회 까지') — 창의 [반복설정] 자리에 선다. */
+    @Column(name = "repeat_rule", length = 200)
+    private String repeatRule;
+
+    /** 원본 [권한] 게시글권한 — 참석자 수정/삭제(기본 켬). 조회는 늘 된다. */
+    @Column(name = "perm_attendee_edit", nullable = false)
+    @Builder.Default
+    private boolean permAttendeeEdit = true;
+
+    /** 공유자 수정/삭제(기본 켬). */
+    @Column(name = "perm_sharer_edit", nullable = false)
+    @Builder.Default
+    private boolean permSharerEdit = true;
+
+    /** 이외사용자 조회(기본 끔). 수정/삭제는 못 한다. */
+    @Column(name = "perm_others_view", nullable = false)
+    @Builder.Default
+    private boolean permOthersView = false;
 }

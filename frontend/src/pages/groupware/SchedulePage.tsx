@@ -11,6 +11,9 @@ import { useShortcut } from '../../utils/useShortcut'
 import { openPrintWindow, fillAndPrint } from '../../utils/print'
 import { escapeHtml } from '../../utils/escapeHtml'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import { defaultRepeat, repeatSummary, type RepeatRule } from '../../utils/scheduleRepeat'
+import RepeatModal from '../../features/schedule/components/RepeatModal'
+import RepeatScopeModal, { type RepeatScope } from '../../features/schedule/components/RepeatScopeModal'
 
 interface ScheduleEvent {
   id: number
@@ -26,6 +29,15 @@ interface ScheduleEvent {
   labelText: string | null
   remark: string | null
   createdBy: string | null
+  /** 원본 [공유자] — 이름 콤마 구분 또는 '전체'. */
+  sharers?: string | null
+  /** 원본 [반복설정] 으로 만든 묶음 · 요약보기 글. */
+  repeatGroup?: string | null
+  repeatRule?: string | null
+  /** 원본 [권한] 게시글권한. */
+  permAttendeeEdit?: boolean
+  permSharerEdit?: boolean
+  permOthersView?: boolean
 }
 
 /*
@@ -46,6 +58,51 @@ type View = typeof VIEWS[number]
 type Form = {
   eventDate: string; startTime: string; endTime: string; title: string; category: string
   owner: string; location: string; labelText: string; attendees: string; remark: string
+  /** 원본 [공유자] — 선택(이름 콤마 구분) / 전체. */
+  sharers: string; sharersAll: boolean
+  /** 원본 [권한] 게시글권한 — 참석자 · 공유자 수정/삭제, 이외사용자 조회. */
+  permAttendeeEdit: boolean; permSharerEdit: boolean; permOthersView: boolean
+}
+
+/** 원본 [권한] '게시글권한' 을 누르면 펴지는 표(2026-10-13 실측). 조회는 참석자 · 공유자가 늘 켜져 있다. */
+function PermissionPopover({ form, onChange }: {
+  form: Form
+  onChange: (patch: Partial<Form>) => void
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <span className="relative">
+      <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-navy" onClick={() => setOpen((v) => !v)}>게시글권한</button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <table className="absolute left-0 top-full mt-[2px] z-[41] w-[270px] bg-ec-panel" aria-label="게시글권한">
+            <thead><tr><th className="text-center">조회가능자</th><th className="text-center">조회</th><th className="text-center">수정/삭제</th></tr></thead>
+            <tbody>
+              <tr>
+                <td className="text-center">참석자</td>
+                <td className="text-center"><input type="checkbox" checked disabled aria-label="참석자 조회" /></td>
+                <td className="text-center"><input type="checkbox" aria-label="참석자 수정/삭제" checked={form.permAttendeeEdit}
+                                                   onChange={(e) => onChange({ permAttendeeEdit: e.target.checked })} /></td>
+              </tr>
+              <tr>
+                <td className="text-center">공유자</td>
+                <td className="text-center"><input type="checkbox" checked disabled aria-label="공유자 조회" /></td>
+                <td className="text-center"><input type="checkbox" aria-label="공유자 수정/삭제" checked={form.permSharerEdit}
+                                                   onChange={(e) => onChange({ permSharerEdit: e.target.checked })} /></td>
+              </tr>
+              <tr>
+                <td className="text-center">이외사용자</td>
+                <td className="text-center"><input type="checkbox" aria-label="이외사용자 조회" checked={form.permOthersView}
+                                                   onChange={(e) => onChange({ permOthersView: e.target.checked })} /></td>
+                <td className="text-center"><input type="checkbox" disabled aria-label="이외사용자 수정/삭제" checked={false} readOnly /></td>
+              </tr>
+            </tbody>
+          </table>
+        </>
+      )}
+    </span>
+  )
 }
 
 const pad2 = (n: number) => String(n).padStart(2, '0')
@@ -95,7 +152,9 @@ function defaultTimes(now = new Date()) {
  * 줄 글은 '제목/10/03 (토) 10:00 ~ 11:00/장소/참석자' 다.
  *
  * <p>신규 폼 '일정관리등록' 의 시간은 다음 정각부터 한 시간이 기본이고, 참석자에는 나를 넣어 둔다(원본 실측).
- * 원본의 [캘린더]·[공유자]·[권한]·[일정알림]·[반복설정] 은 받쳐 줄 자료가 없어 두지 않았다.
+ * [공유자](선택 / 전체) · [권한](게시글권한 표) · [반복설정](반복설정 창 → 주황 요약 글) 은 2026-10-13 원본을 재서 붙였다.
+ * 반복 일정은 날마다 한 줄씩 들어가고, [수정] · [삭제] 는 먼저 '반복일정삭제' 창(이번 일정만 · 향후 모든 일정 · 전체 반복일정)을 띄운다.
+ * 원본 [일정알림] 은 데모에서 '데모에서는 해당 기능이 제한되어 있습니다.' 만 떠 재지 못했다 — 두지 않는다. [캘린더] 고르기도 아직 없다.
  *
  * <p>기본 양식 목록 컬럼은 (선택칸 25) 일자(요일) 100 · 시작시간 55 · 종료시간 55 · 참석자성명 160 · 제목 300 · 장소 170 이다.
  *
@@ -148,7 +207,15 @@ export default function SchedulePage() {
   const emptyForm = (date = ymd(new Date())): Form => ({
     eventDate: date, ...defaultTimes(), title: '', category: '', owner: '',
     location: '', labelText: '', attendees: user?.name ?? '', remark: '',
+    sharers: '', sharersAll: false, permAttendeeEdit: true, permSharerEdit: true, permOthersView: false,
   })
+  /** 신규 창의 [반복설정] — 적용하면 주황 요약 글이 그 자리에 선다. 고칠 때는 일정에 적힌 요약 글만 보인다. */
+  const [repeat, setRepeat] = useState<RepeatRule | null>(null)
+  const [showRepeat, setShowRepeat] = useState(false)
+  /** 반복 일정의 [수정] · [삭제] 가 먼저 띄우는 '반복일정삭제' 창과, 고칠 때 고른 범위. */
+  const [askScope, setAskScope] = useState<{ action: 'edit' | 'delete'; ev: ScheduleEvent } | null>(null)
+  const [editScope, setEditScope] = useState<RepeatScope>('ONE')
+  const [editing, setEditing] = useState<ScheduleEvent | null>(null)
   const [form, setForm] = useState<Form>(() => emptyForm())
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }))
 
@@ -161,42 +228,64 @@ export default function SchedulePage() {
 
   function openNew(date?: string) {
     setEditId(null)
+    setEditing(null)
+    setRepeat(null)
     setForm(emptyForm(date))
     setError('')
     setShowForm(true)
   }
 
   /** '일정조회' 의 [수정] — 같은 입력 창을 그 일정으로 채워 띄운다. */
-  function openEdit(r: ScheduleEvent) {
+  function openEdit(r: ScheduleEvent, scope: RepeatScope = 'ONE') {
     setViewing(null)
     setEditId(r.id)
+    setEditing(r)
+    setEditScope(scope)
+    setRepeat(null)
     setForm({
       eventDate: r.eventDate, startTime: r.startTime ?? '', endTime: r.endTime ?? '', title: r.title,
       category: r.category ?? '', owner: r.owner ?? '', location: r.location ?? '',
       labelText: r.labelText ?? '', attendees: r.attendees ?? '', remark: r.remark ?? '',
+      sharers: r.sharers === '전체' ? '' : (r.sharers ?? ''), sharersAll: r.sharers === '전체',
+      permAttendeeEdit: r.permAttendeeEdit ?? true, permSharerEdit: r.permSharerEdit ?? true, permOthersView: r.permOthersView ?? false,
     })
     setError('')
     setShowForm(true)
   }
 
-  useShortcut('F2', () => openNew(), !showForm && !viewing)
-  useShortcut('F8', () => void submit(), showForm)
+  /** 원본 '일정조회' [수정] — 반복 일정이면 범위부터 묻는다. */
+  const askEdit = (r: ScheduleEvent) => (r.repeatGroup ? setAskScope({ action: 'edit', ev: r }) : openEdit(r))
+  /** 원본 [복사] — 같은 내용으로 '일정관리등록' 을 연다. */
+  function copyOf(r: ScheduleEvent) {
+    openEdit(r)
+    setEditId(null)
+    setEditing(null)
+  }
+
+  useShortcut('F2', () => openNew(), !showForm && !viewing && !askScope)
+  useShortcut('F8', () => void submit(), showForm && !showRepeat)
 
   async function submit() {
     setError('')
     if (!form.title.trim()) return setError('일정 제목을 입력하세요.')
     if (form.startTime && form.endTime && form.endTime < form.startTime) return setError('종료시간이 시작시간보다 빠릅니다.')
+    const { sharersAll, ...rest } = form
+    const body = { ...rest, sharers: sharersAll ? '전체' : form.sharers }
+    // 원본: 참석자에게 같은 시간 일정이 이미 있으면 'OO님의 공유일정이 존재합니다. 저장 하겠습니까?' 를 묻는다.
+    const clash = attendeeClash()
+    if (clash && !confirm(`${clash}님의 공유일정이 존재합니다.\n저장 하겠습니까?`)) return
     try {
       if (editId != null) {
         // PATCH 는 null 을 '그대로 둠' 으로 읽는다 — 지운 칸은 빈 글자로 보내야 비워진다.
-        await api.patch(`/schedule-events/${editId}`, form)
+        await api.patch(`/schedule-events/${editId}`, { ...body, scope: editScope })
       } else {
         await api.post<ScheduleEvent>('/schedule-events', {
-          ...form,
+          ...body,
           startTime: form.startTime || undefined, endTime: form.endTime || undefined,
           owner: form.owner || undefined, location: form.location || undefined,
           attendees: form.attendees || undefined, labelText: form.labelText || undefined,
-          remark: form.remark || undefined,
+          remark: form.remark || undefined, sharers: body.sharers || undefined,
+          repeat: repeat ? { ...repeat, summary: repeatSummary(repeat) } : undefined,
         })
       }
       setShowForm(false)
@@ -205,17 +294,39 @@ export default function SchedulePage() {
     } catch (err) { setError(extractErrorMessage(err)) }
   }
 
+  /**
+   * 저장하려는 일정과 같은 날 · 겹치는 시간에 참석자의 다른 일정이 있으면 그 사람 이름(처음 한 명).
+   * 반복이면 펼쳐질 날을 다 보지 않고 첫날만 본다. 시간이 없는(종일) 일정은 하루 전체와 겹친다.
+   */
+  function attendeeClash(): string | null {
+    const names = form.attendees.split(',').map((x) => x.trim()).filter(Boolean)
+    const overlaps = (a: ScheduleEvent) => {
+      if (!form.startTime || !a.startTime) return true
+      return (a.startTime < (form.endTime || '24:00')) && (form.startTime < (a.endTime || '24:00'))
+    }
+    for (const n of names) {
+      const hit = rows.find((r) => r.id !== editId && r.eventDate === form.eventDate && overlaps(r)
+        && (r.attendees ?? '').split(',').map((x) => x.trim()).includes(n))
+      if (hit) return n
+    }
+    return null
+  }
+
   /** 원본 '일정조회' 의 [삭제] 문구 그대로. */
   const DELETE_ASK = '선택한 일정이 삭제 됩니다.\n한번 지워진 자료는 복구 될 수 없습니다.\n\n계속 진행 하겠습니까?'
 
-  async function removeOne(id: number) {
+  async function removeOne(id: number, scope?: RepeatScope) {
     if (!confirm(DELETE_ASK)) return
     try {
-      await api.delete(`/schedule-events/${id}`)
+      await api.delete(`/schedule-events/${id}`, scope ? { params: { scope } } : undefined)
       setViewing(null)
+      setShowForm(false)
+      setEditId(null)
       void load()
     } catch (err) { setError(extractErrorMessage(err)) }
   }
+  /** 반복 일정이면 범위('반복일정삭제')부터 묻는다. 고치는 중이면 이미 고른 범위로 지운다. */
+  const askRemove = (r: ScheduleEvent) => (r.repeatGroup ? setAskScope({ action: 'delete', ev: r }) : void removeOne(r.id))
 
   async function removeSelected() {
     const targets = shown.filter((r) => selected.has(r.id))
@@ -370,7 +481,7 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
         ]}
     >
       {/* 원본 '일정관리등록' 창 */}
-      <Modal error={error} open={showForm} title="일정관리등록" onClose={() => setShowForm(false)} width={780}>
+      <Modal error={error} open={showForm} title={editId != null ? '일정관리수정' : '일정관리등록'} onClose={() => setShowForm(false)} width={780}>
         <ul className="ec-form mb-[10px]">
           <li className="wide">
             <div className="title">제목</div>
@@ -414,6 +525,16 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
                        onChange={(e) => setForm((f) => ({ ...f, ...(e.target.checked ? { startTime: '', endTime: '' } : defaultTimes()) }))} />
                 종일
               </label>
+              {/* 원본 [반복설정] — 적용하면 그 자리에 주황 요약 글('매일, 2026/10/13 부터 3회 까지'). 고칠 때는 일정에 적힌 글만. */}
+              {editId != null
+                ? (editing?.repeatRule && <span className="rounded-ec bg-ec-warn text-ec-panel py-[2px] px-[6px]" aria-label="반복설정">{editing.repeatRule}</span>)
+                : (
+                  <button type="button" aria-label="반복설정" onClick={() => setShowRepeat(true)}
+                          className={repeat ? 'no-ec rounded-ec bg-ec-warn text-ec-panel py-[2px] px-[6px] border-0 cursor-pointer'
+                                            : 'no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-navy'}>
+                    {repeat ? repeatSummary(repeat) : '반복설정'}
+                  </button>
+                )}
             </div>
           </li>
           <li className="wide">
@@ -421,14 +542,47 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
             <div className="form"><input className="ec-input w-full" placeholder="참석자 (콤마로 구분)" value={form.attendees}
                                          onChange={(e) => set('attendees', e.target.value)} /></div>
           </li>
+          {/* 원본 [공유자] — [선택▾] 을 누르면 전체 / 선택. 전체면 칸 없이 '전체' 글만 선다. */}
+          <li className="wide">
+            <div className="title">공유자</div>
+            <div className="form">
+              <select className="ec-input w-[70px]" aria-label="공유자 범위" value={form.sharersAll ? '전체' : '선택'}
+                      onChange={(e) => set('sharersAll', e.target.value === '전체')}>
+                <option>선택</option>
+                <option>전체</option>
+              </select>
+              {!form.sharersAll && (
+                <>
+                  <input className="ec-input flex-1" placeholder="공유자" aria-label="공유자" list="schedule-users" value={form.sharers}
+                         onChange={(e) => set('sharers', e.target.value)} />
+                  <datalist id="schedule-users">{users.map((u) => <option key={u.id} value={u.name} />)}</datalist>
+                </>
+              )}
+            </div>
+          </li>
+          <li className="wide">
+            <div className="title">권한</div>
+            <div className="form"><PermissionPopover form={form} onChange={(patch) => setForm((f) => ({ ...f, ...patch }))} /></div>
+          </li>
         </ul>
         <textarea className="ec-input w-full h-[140px] py-[8px] resize-y" aria-label="본문" value={form.remark}
                   onChange={(e) => set('remark', e.target.value)} />
         <div className="flex gap-[6px] mt-[10px]">
           <button className="ec-btn ec-btn-primary" onClick={() => void submit()}>저장(F8)</button>
+          {/* 원본 '일정관리수정' 하단 [저장(F8)][이전][닫기][삭제] — 이전은 일정조회로 돌아간다. */}
+          {editId != null && editing && <button className="ec-btn" onClick={() => { setShowForm(false); setViewing(editing) }}>이전</button>}
           <button className="ec-btn" onClick={() => setShowForm(false)}>닫기</button>
+          {editId != null && <button className="ec-btn" onClick={() => void removeOne(editId, editing?.repeatGroup ? editScope : undefined)}>삭제</button>}
         </div>
       </Modal>
+
+      {showRepeat && (
+        <RepeatModal value={repeat ?? defaultRepeat(form.eventDate)}
+                     onApply={(r) => { setRepeat(r); setShowRepeat(false) }}
+                     onRemove={() => { setRepeat(null); setShowRepeat(false) }}
+                     onClose={() => setShowRepeat(false)} />
+      )}
+
 
       {/* 원본 '일정조회' 창 */}
       <Modal error={error} open={!!viewing} title="일정조회" onClose={() => setViewing(null)} width={780}>
@@ -447,20 +601,33 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
                 </tr>
                 <tr><th className="bg-ec-page">날짜/시간</th><td colSpan={3}>{timeText(viewing)}</td></tr>
                 <tr><th className="bg-ec-page">참석자</th><td colSpan={3}>{viewing.attendees ?? ''}</td></tr>
+                <tr><th className="bg-ec-page">공유자</th><td colSpan={3}>{viewing.sharers ?? ''}</td></tr>
               </tbody>
             </table>
             <div className="whitespace-pre-wrap text-[12px] text-ec-ink min-h-[120px] p-[10px] border border-ec-line border-solid rounded-ec">
               {viewing.remark ?? ''}
             </div>
             <div className="flex gap-[6px] mt-[10px]">
-              <button className="ec-btn ec-btn-primary" onClick={() => openEdit(viewing)}>수정</button>
+              <button className="ec-btn ec-btn-primary" onClick={() => askEdit(viewing)}>수정</button>
               <button className="ec-btn" onClick={() => printOne(viewing)}>인쇄</button>
+              <button className="ec-btn" onClick={() => copyOf(viewing)}>복사</button>
               <button className="ec-btn" onClick={() => setViewing(null)}>닫기</button>
-              <button className="ec-btn" onClick={() => void removeOne(viewing.id)}>삭제</button>
+              <button className="ec-btn" onClick={() => askRemove(viewing)}>삭제</button>
             </div>
           </>
         )}
       </Modal>
+
+      {/* '일정조회' 위에 뜨도록 그 뒤에 둔다. */}
+      {askScope && (
+        <RepeatScopeModal onClose={() => setAskScope(null)}
+                          onApply={(scope) => {
+                            const { action, ev } = askScope
+                            setAskScope(null)
+                            if (action === 'edit') openEdit(ev, scope)
+                            else void removeOne(ev.id, scope)
+                          }} />
+      )}
 
       {error && !showForm && !viewing && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 

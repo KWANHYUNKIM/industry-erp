@@ -5,6 +5,7 @@
       "name": "월간 달력 → 신규 — 시간 기본값, 빈 제목 거절, 저장하면 오늘 칸에 칩 없이 굵은 제목",
       "path": "/groupware/schedule",
       "steps": [
+        "js:window.confirm = () => true; true",
         "expect:!!document.querySelector('#schedule-month table') && document.querySelector('#schedule-month .bg-ec-blue-wash')",
         "click:신규(F2)",
         "expect:document.querySelector('[role=dialog]')?.getAttribute('aria-label') === '일정관리등록'",
@@ -25,7 +26,7 @@
         "js:[...document.querySelectorAll('#schedule-month button')].find((b) => b.title === 'QA그룹웨어-일정').click(); true",
         "expect:document.querySelector('[role=dialog]')?.getAttribute('aria-label') === '일정조회' && document.querySelector('[role=dialog]').innerText.includes('QA회의실')",
         "click:수정",
-        "expect:document.querySelector('[role=dialog]')?.getAttribute('aria-label') === '일정관리등록' && [...document.querySelectorAll('[role=dialog] input')].some((i) => i.value === 'QA그룹웨어-일정')",
+        "expect:document.querySelector('[role=dialog]')?.getAttribute('aria-label') === '일정관리수정' && [...document.querySelectorAll('[role=dialog] input')].some((i) => i.value === 'QA그룹웨어-일정')",
         "setnear:장소|QA회의실2",
         "click:저장(F8)",
         "expect:!document.querySelector('[role=dialog]')",
