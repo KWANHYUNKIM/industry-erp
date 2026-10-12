@@ -1,5 +1,5 @@
 {
-  "about": "현금거래 한 장 입력 [부서] · [프로젝트](원본 영수증으로 E010402 · 현금거래 열한 화면, 2026-10-12 실측 — 전표일자 다음 두 칸). 영수증으로 한 장을 API 로 부서 · 프로젝트를 달아 넣고, 열어서 두 칸이 그 이름으로 찼는지 → 그대로 [저장(F8)](수정) → 서버에 두 값이 남았는지 → API 로 지운다. node qa/shot.mjs qa/flows/cash-dept-project.json",
+  "about": "현금거래 한 장 입력 [부서] · [프로젝트](원본 영수증으로 E010402 · 현금거래 열한 화면, 2026-10-12 실측 — 전표일자 다음 두 칸). 영수증으로 한 장을 API 로 부서 · 프로젝트를 달아 넣고, 열어서 두 칸이 그 이름으로 찼는지 → 그대로 [저장(F8)](수정) → 서버에 두 값이 남았는지 → 다시 열어 [복사] → 번호 없는 새 입력(삭제 단추 없음) → [저장(F8)] → 금액은 비고 계정은 남음(원본 저장 뒤 출금계좌 · 계정이 남는다) → 두 장 다 부서 · 프로젝트를 들었나 → API 로 지운다. node qa/shot.mjs qa/flows/cash-dept-project.json",
   "shots": [
     {
       "name": "영수증으로 부서 · 프로젝트 저장 → 열기 → 수정 저장",
@@ -14,7 +14,15 @@
         "wait:1200",
         "expect:location.pathname === '/accounting/journals'",
         "expect:(async () => { const v = await fetch('/api/vouchers/' + sessionStorage.getItem('dpId'), { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()); return v.departmentId != null && v.projectId != null })()",
-        "expect:(async () => (await fetch('/api/vouchers/' + sessionStorage.getItem('dpId'), { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } })).ok)()"
+        "js:(() => { location.assign('/accounting/receipt-payment?id=' + sessionStorage.getItem('dpId')); return true })()",
+        "wait:2000",
+        "click:복사",
+        "wait:300",
+        "expect:![...document.querySelectorAll('button')].some((b) => b.innerText.trim() === '삭제') && location.search === ''",
+        "click:저장(F8)",
+        "wait:1200",
+        "expect:location.pathname === '/accounting/receipt-payment' && document.querySelector('input[aria-label=\"금액\"]').value === '' && [...document.querySelectorAll('input, button')].some((e) => ((e.value || '') + (e.title || '')).includes('복리후생비'))",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const r = await fetch('/api/vouchers?all=true&from=2000-01-01&to=2099-12-31', { headers: H }).then((x) => x.json()); const mine = r.rows.filter((v) => v.lines.some((l) => l.description === 'QA회계1 부서프로젝트')); const ok = mine.length === 2 && mine.every((v) => v.departmentId != null && v.projectId != null); for (const v of mine) await fetch('/api/vouchers/' + v.id, { method: 'DELETE', headers: H }); return ok })()"
       ]
     }
   ]

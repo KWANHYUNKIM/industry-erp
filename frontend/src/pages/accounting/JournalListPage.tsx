@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { JournalEntry } from '../../types/api'
 
@@ -46,7 +47,9 @@ export default function JournalListPage() {
   const wanted = Number(params.get('entryId')) || null
 
   const [rows, setRows] = useState<Row[]>([])
-  const [statusTab, setStatusTab] = useState<(typeof STATUS_TABS)[number]>('전체')
+  /* 원본은 [확인] 탭으로 열린다(2026-10-13 실측 — 저장한 전표는 곧 확인이라 거기 다 있다). */
+  const [statusTab, setStatusTab] = useState<(typeof STATUS_TABS)[number]>('확인')
+  const [confirmDelete, setConfirmDelete] = useState(false)
   /** 원본 격자 첫 칸(체크) — [확인] · [확인취소] · [선택삭제] 가 고른 줄에 걸린다. */
   const [checked, setChecked] = useState<Set<number>>(new Set())
   /** 간편전표 분개 → 그 결의서 id. [선택삭제]는 결의서째 지운다(분개만 지우면 결의서가 남는다). */
@@ -137,8 +140,8 @@ export default function JournalListPage() {
    * 일반전표는 분개를 지운다. 판매 · 구매에서 온 전표는 회계반영 취소로만 지워진다(서버가 막는다).
    */
   async function removeChecked() {
+    setConfirmDelete(false)
     if (picked.length === 0) { setError('지울 전표를 고르세요.'); return }
-    if (!confirm(`선택한 전표 ${picked.length}건을 삭제하겠습니까?`)) return
     setError('')
     const results = await Promise.allSettled(picked.map((x) => voucherIdOf[x.id]
       ? api.delete(`/vouchers/${voucherIdOf[x.id]}`)
@@ -166,7 +169,8 @@ export default function JournalListPage() {
         /* 원본 버튼줄: 신규 · 보내기 · 확인 · 확인취소 · 전자결재 · 선택삭제. */
         { label: '확인', onClick: () => void changeStatus('CONFIRMED'), disabled: checked.size === 0 },
         { label: '확인취소', onClick: () => void changeStatus('UNCONFIRMED'), disabled: checked.size === 0 },
-        { label: `선택삭제${checked.size ? ` (${checked.size})` : ''}`, onClick: () => void removeChecked(), disabled: checked.size === 0 },
+        /* 원본 확인창 '전표를 삭제하겠습니까? - 회계거래조회'. 확인한 전표도 지워진다(잠그지 않는다 — 2026-10-13 실측). */
+        { label: `선택삭제${checked.size ? ` (${checked.size})` : ''}`, onClick: () => setConfirmDelete(true), disabled: checked.size === 0 },
         /* 잘려서 왔을 때만 누를 수 있다 — 안 잘렸으면 더 가져올 것이 없다. */
         { label: '오천건이상조회', onClick: () => load(undefined, true), disabled: !truncated },
         { label: '다시 작성', onClick: reset },
@@ -287,6 +291,14 @@ export default function JournalListPage() {
           </tr>
         </tfoot>
       </table>
+
+      <Modal open={confirmDelete} title="알림" width={420} error={error} onClose={() => setConfirmDelete(false)}>
+        <p className="mb-[12px]">전표를 삭제하겠습니까?<br />- 회계거래조회</p>
+        <div className="flex gap-[5px]">
+          <button type="button" className="ec-btn ec-btn-primary" onClick={() => void removeChecked()}>확인</button>
+          <button type="button" className="ec-btn" onClick={() => setConfirmDelete(false)}>취소</button>
+        </div>
+      </Modal>
     </EcListShell>
   )
 }

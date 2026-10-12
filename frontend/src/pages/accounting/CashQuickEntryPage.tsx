@@ -199,6 +199,12 @@ export default function CashQuickEntryPage({ type }: { type: CashQuickType }) {
     }
   }
 
+  function copyAsNew() {
+    setEditing(null); setDate(ymd(new Date())); setError('')
+    /* 주소의 ?id= · ?journal= 만 지운다 — 라우터로 옮기면 위 effect 가 폼을 비운다. */
+    window.history.replaceState(window.history.state, '', window.location.pathname)
+  }
+
   async function remove() {
     if (!editing) return
     setConfirmDelete(false)
@@ -250,6 +256,8 @@ export default function CashQuickEntryPage({ type }: { type: CashQuickType }) {
         title={kind.title}
         actions={editing ? [
           { label: '저장(F8)', primary: true, submit: true, disabled: saving },
+          /* 원본 [복사]: 같은 값으로 새 전표 입력이 된다 — 일자가 다시 열리고 번호가 없어진다(영수증으로 2026-10-13 실측). */
+          { label: '복사', onClick: copyAsNew },
           { label: '삭제', onClick: () => setConfirmDelete(true) },
           { label: '리스트', onClick: () => navigate('/accounting/journals') },
         ] : [

@@ -60,8 +60,10 @@ export default function ReceiptPaymentPage() {
       .catch((e) => setError(extractErrorMessage(e)))
   }, [])
 
-  function reset() {
-    setDate(ymd(new Date())); setSettle(''); setAccountId(''); setPayee(''); setAmount(''); setFee(''); setMemo(''); setError('')
+  /** 원본 [다시 작성]: 전부 비운다. 저장 뒤에는 전표일자 · 출금계좌 · 계정이 남는다(keep, 2026-10-13 실측). */
+  function reset(keep = false) {
+    if (!keep) { setDate(ymd(new Date())); setSettle(''); setAccountId('') }
+    setPayee(''); setAmount(''); setFee(''); setMemo(''); setError('')
     setDepartmentId(''); setProjectId('')
   }
 
@@ -118,13 +120,19 @@ export default function ReceiptPaymentPage() {
         navigate('/accounting/journals')
       } else {
         await api.post('/vouchers', body)
-        reset()
+        reset(true)
       }
     } catch (e) {
       setError(extractErrorMessage(e))
     } finally {
       setSaving(false)
     }
+  }
+
+  function copyAsNew() {
+    setEditing(null); setDate(ymd(new Date())); setError('')
+    /* 주소의 ?id= 만 지운다 — 라우터로 옮기면 위 effect 가 폼을 비운다. */
+    window.history.replaceState(window.history.state, '', window.location.pathname)
   }
 
   async function remove() {
@@ -144,11 +152,13 @@ export default function ReceiptPaymentPage() {
         title="영수증으로"
         actions={editing ? [
           { label: '저장(F8)', primary: true, submit: true, disabled: saving },
+          /* 원본 [복사]: 같은 값으로 새 전표 입력이 된다 — 일자가 다시 열리고 번호가 없어진다(2026-10-13 실측). */
+          { label: '복사', onClick: copyAsNew },
           { label: '삭제', onClick: () => setConfirmDelete(true) },
           { label: '리스트', onClick: () => navigate('/accounting/journals') },
         ] : [
           { label: '저장(F8)', primary: true, submit: true, disabled: saving },
-          { label: '다시 작성', onClick: reset },
+          { label: '다시 작성', onClick: () => reset() },
           { label: '리스트', onClick: () => navigate('/accounting/journals') },
         ]}>
         {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}

@@ -54,11 +54,11 @@ public class JournalEntry extends BaseTimeEntity {
     @Column(length = 50)
     private String createdBy;
 
-    /** 진행상태 — 회계거래조회의 [확인] · [확인취소]. 새 전표는 미확인. */
+    /** 진행상태 — 회계거래조회의 [확인] · [확인취소]. 원본은 저장하면 곧 확인이다(2026-10-13 실측, V334). */
     @Enumerated(EnumType.STRING)
     @Column(name = "confirm_status", nullable = false, length = 20)
     @Builder.Default
-    private JournalConfirmStatus confirmStatus = JournalConfirmStatus.UNCONFIRMED;
+    private JournalConfirmStatus confirmStatus = JournalConfirmStatus.CONFIRMED;
 
     @OneToMany(mappedBy = "entry", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("lineNo asc")
