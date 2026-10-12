@@ -2,6 +2,7 @@ package com.erp.trade.export.dto;
 
 import com.erp.trade.export.ExportOrder;
 import com.erp.trade.export.ExportOrderLine;
+import com.erp.trade.export.ExportPartnerMapping;
 import com.erp.trade.export.ExportStatus;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
@@ -34,7 +35,7 @@ public final class ExportDtos {
     /** 수출 인보이스 발행. 원화 환산은 발행일 고시환율로 서버가 고정한다. */
     public record CreateExportRequest(
             @NotNull(message = "수입자를 선택하세요.") Long partnerId,
-            @NotNull(message = "통화를 선택하세요.") Long currencyId,
+            /* 비우면 원본 [통화] 의 '내자'(원화). */ Long currencyId,
             LocalDate invoiceDate,
             @Size(max = 20, message = "입력한 글자가 너무 깁니다. 20자까지 넣을 수 있습니다.")
             String incoterms,
@@ -60,6 +61,25 @@ public final class ExportDtos {
 
     /** 원본 [진행상태변경] — 미확인 ↔ 확인. */
     public record ConfirmRequest(boolean confirmed) {}
+
+    /**
+     * 원본 [매핑조회](매핑리스트) 한 줄 — 열 차례: 거래처코드 · 거래처명 · L/C Issuing Bank · Shipper/Exporter ·
+     * For Account &amp; Risk of Messrs · Notify Party · Port of Loading · Final destination · Carrier · 중량단위 · Remarks.
+     */
+    public record PartnerMappingResponse(
+            Long id, Long partnerId, String partnerCode, String partnerName,
+            String lcBank, String shipper, String messrs, String notifyParty,
+            String portOfLoading, String destination, String carrier, String weightUnit, String remark
+    ) {
+        public static PartnerMappingResponse from(ExportPartnerMapping m) {
+            return new PartnerMappingResponse(m.getId(), m.getPartner().getId(), m.getPartner().getCode(),
+                    m.getPartner().getName(), m.getLcBank(), m.getShipper(), m.getMessrs(), m.getNotifyParty(),
+                    m.getPortOfLoading(), m.getDestination(), m.getCarrier(), m.getWeightUnit(), m.getRemark());
+        }
+    }
+
+    /** 매핑리스트 [선택삭제]. */
+    public record DeleteMappingsRequest(@NotEmpty(message = "리스트에 선택된 자료가 없습니다.") List<Long> ids) {}
 
     /** 통관진행: 수출신고번호를 받는다. */
     public record CustomsRequest(
@@ -118,7 +138,9 @@ public final class ExportDtos {
             return new ExportResponse(
                     e.getId(), e.getInvoiceNo(), e.getInvoiceDate(),
                     e.getBuyer().getId(), e.getBuyer().getName(),
-                    e.getCurrency().getId(), e.getCurrency().getCode(), e.getCurrency().getSymbol(),
+                    e.getCurrency() == null ? null : e.getCurrency().getId(),
+                    e.getCurrency() == null ? null : e.getCurrency().getCode(),
+                    e.getCurrency() == null ? null : e.getCurrency().getSymbol(),
                     e.getForeignAmount(), e.getAppliedRate(), e.getKrwAmount(),
                     e.getIncoterms(), e.getDestination(),
                     e.getStatus(), e.getStatus().getDisplayName(),

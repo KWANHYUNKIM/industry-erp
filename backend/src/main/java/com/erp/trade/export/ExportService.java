@@ -2,7 +2,6 @@ package com.erp.trade.export;
 
 import com.erp.trade.TradeMasters;
 import com.erp.common.ApiException;
-import com.erp.common.DocumentNoGenerator;
 import com.erp.trade.partner.BusinessPartner;
 import com.erp.settings.currency.Currency;
 import com.erp.inventory.item.Item;
@@ -44,7 +43,7 @@ public class ExportService {
     private final BusinessPartnerRepository partnerRepository;
     private final ItemService itemService;
     private final CurrencyService currencyService;
-    private final DocumentNoGenerator docNoGenerator;
+    private final ExportPartnerMappingRepository mappingRepository;
 
     @Transactional(readOnly = true)
     public ExportSummary findAll() {
@@ -87,9 +86,9 @@ public class ExportService {
     @Transactional
     public ExportResponse create(CreateExportRequest req, String username) {
         LocalDate invoiceDate = req.invoiceDate() != null ? req.invoiceDate() : LocalDate.now();
-        String invoiceNo = req.invoiceNo() != null && !req.invoiceNo().isBlank() ? req.invoiceNo().trim()
-                : docNoGenerator.next("INV-", "export_orders", "invoice_no", "invoice_date", invoiceDate);
-        if (exportRepository.existsByInvoiceNo(invoiceNo)) {
+        // 원본은 번호를 비워 저장하면 비운 채로 둔다(2026-10-12 실측) — 예전 우리는 INV-yyyyMMdd-nnnn 을 지어 넣었다.
+        String invoiceNo = req.invoiceNo() != null && !req.invoiceNo().isBlank() ? req.invoiceNo().trim() : null;
+        if (invoiceNo != null && exportRepository.existsByInvoiceNo(invoiceNo)) {
             throw ApiException.badRequest("이미 쓰고 있는 Invoice 번호입니다: " + invoiceNo);
         }
         ExportOrder e = ExportOrder.builder()
@@ -98,7 +97,9 @@ public class ExportService {
                 .createdBy(username)
                 .build();
         apply(e, req);
-        return ExportResponse.from(exportRepository.save(e));
+        ExportOrder saved = exportRepository.save(e);
+        remember(saved);
+        return ExportResponse.from(saved);
     }
 
     /** 원본 Invoice/Packing List 수정 — 머리와 품목 줄을 통째로 바꾼다(줄은 지우고 다시 단다). */
@@ -110,16 +111,47 @@ public class ExportService {
                 throw ApiException.badRequest("이미 쓰고 있는 Invoice 번호입니다: " + req.invoiceNo().trim());
             }
             e.setInvoiceNo(req.invoiceNo().trim());
+        } else {
+            e.setInvoiceNo(null);
         }
         e.getLines().clear();
         exportRepository.flush();
         apply(e, req);
+        remember(e);
         return ExportResponse.from(e);
     }
 
+    /** 지우면 그 거래처의 마지막 인보이스였을 때 [매핑조회] 줄도 사라진다(2026-10-12 원본 실측). */
     @Transactional
     public void delete(Long id) {
-        exportRepository.delete(get(id));
+        ExportOrder e = get(id);
+        Long partnerId = e.getBuyer().getId();
+        exportRepository.delete(e);
+        exportRepository.flush();
+        if (!exportRepository.existsByBuyerId(partnerId)) {
+            mappingRepository.findByPartnerId(partnerId).ifPresent(mappingRepository::delete);
+        }
+    }
+
+    /** 원본 [매핑조회] — 거래처마다 마지막으로 저장한 머리 칸. */
+    @Transactional(readOnly = true)
+    public List<ExportDtos.PartnerMappingResponse> mappings() {
+        return mappingRepository.findAllWithPartner().stream()
+                .map(ExportDtos.PartnerMappingResponse::from).toList();
+    }
+
+    /** 매핑리스트 [선택삭제] — 인보이스는 그대로 두고 기억한 칸만 지운다. */
+    @Transactional
+    public void deleteMappings(List<Long> ids) {
+        mappingRepository.deleteAllById(ids);
+    }
+
+    /** 저장한 인보이스의 머리 칸을 그 거래처의 [매핑조회] 줄로 남긴다(있으면 덮어쓴다). */
+    private void remember(ExportOrder e) {
+        ExportPartnerMapping m = mappingRepository.findByPartnerId(e.getBuyer().getId())
+                .orElseGet(() -> ExportPartnerMapping.builder().partner(e.getBuyer()).build());
+        m.copyFrom(e);
+        mappingRepository.save(m);
     }
 
     /** 원본 [진행상태변경] — 미확인 ↔ 확인. */
@@ -142,7 +174,7 @@ public class ExportService {
         if (!buyer.getType().canSell()) {
             throw ApiException.badRequest("매출처가 아닌 거래처에는 수출할 수 없습니다: " + buyer.getName());
         }
-        Currency currency = currencyService.get(req.currencyId());
+        Currency currency = req.currencyId() == null ? null : currencyService.get(req.currencyId());
         LocalDate invoiceDate = req.invoiceDate() != null ? req.invoiceDate() : LocalDate.now();
         e.setInvoiceDate(invoiceDate);
         e.setVoucherDate(req.voucherDate() != null ? req.voucherDate() : invoiceDate);
@@ -174,9 +206,15 @@ public class ExportService {
             foreignTotal = foreignTotal.add(amount);
         }
 
+        e.setForeignAmount(foreignTotal);
+        if (currency == null) {
+            // 내자(원화) — 환산하지 않는다. 금액이 곧 원화다.
+            e.setAppliedRate(BigDecimal.ONE);
+            e.setKrwAmount(foreignTotal);
+            return;
+        }
         // 원화 환산: 고시단위·직전 고시 적용 규칙은 CurrencyService 가 소유한다.
         ConversionResponse converted = currencyService.convert(currency.getId(), foreignTotal, invoiceDate);
-        e.setForeignAmount(foreignTotal);
         e.setAppliedRate(converted.appliedRate());
         e.setKrwAmount(converted.krwAmount());
     }

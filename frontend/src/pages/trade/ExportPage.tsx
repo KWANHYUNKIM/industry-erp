@@ -7,6 +7,8 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Currency, ExportOrder, ExportSummary, Item, Partner } from '../../types/api'
 import { partnerCodeItems } from '../../utils/codeItems'
 import EcPeriodPicks, { ymd, periodOf, EXPORT_PICKS } from '../../components/EcPeriodPicks'
+import ExportSlipPickModal, { type PickedSlip } from '../../features/export/components/ExportSlipPickModal'
+import ExportMappingModal, { type ExportMapping } from '../../features/export/components/ExportMappingModal'
 
 const fx = (n: number) => Number(n).toLocaleString('en-US', { maximumFractionDigits: 2 })
 const today = () => ymd(new Date())
@@ -57,6 +59,13 @@ export default function ExportPage() {
   const [notice, setNotice] = useState('')
   /** 입력 창 — null 이면 닫힘, 'new' 면 신규, 숫자면 그 전표 수정. */
   const [editing, setEditing] = useState<'new' | ExportOrder | null>(null)
+  const [mappingOpen, setMappingOpen] = useState(false)
+  /** 입력 창이 열릴 때 읽는 [매핑조회] — 거래처를 고르면 머리 칸을 채운다. */
+  const [mappings, setMappings] = useState<ExportMapping[]>([])
+  useEffect(() => {
+    if (editing == null) return
+    api.get<ExportMapping[]>('/exports/mappings').then((r) => setMappings(r.data)).catch(() => setMappings([]))
+  }, [editing])
 
   function load() {
     setError('')
@@ -115,8 +124,9 @@ export default function ExportPage() {
   }
 
   /** Commercial Invoice / Packing List 인쇄. 입력 창의 머리 칸을 그대로 싣는다. */
-  function print(e: ExportOrder, kind: 'INVOICE' | 'PACKING') {
-    const win = window.open('', '_blank', 'width=1024,height=768')
+  function print(e: ExportOrder, kind: 'INVOICE' | 'PACKING', opened?: Window | null) {
+    /* [저장/Invoice(F7)] 는 저장 전에, 누른 순간 창을 열어 둔다 — 저장이 끝난 뒤 열면 팝업 차단에 걸린다. */
+    const win = opened ?? window.open('', '_blank', 'width=1024,height=768')
     if (!win) return setError('팝업이 차단되었습니다.')
     const money = kind === 'INVOICE'
     const head = money
@@ -138,7 +148,7 @@ export default function ExportPage() {
         <tr><th>Remarks</th><td colspan="3">${esc(e.remark)}</td></tr>
       </table>
       <table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>
-      ${money ? `<p><b>Total: ${esc(e.currencyCode)} ${fx(e.foreignAmount)}</b></p>` : ''}
+      ${money ? `<p><b>Total: ${esc(e.currencyCode ?? 'KRW')} ${fx(e.foreignAmount)}</b></p>` : ''}
       <script>window.onload=()=>window.print()<\/script>`)
     win.document.close()
   }
@@ -208,7 +218,7 @@ export default function ExportPage() {
           ) : shown.map((e) => (
             <tr key={e.id}>
               <td className="text-center">
-                <input type="checkbox" aria-label={`${e.invoiceNo} 선택`} checked={picked.includes(e.id)}
+                <input type="checkbox" aria-label={`${voucherText(e)} 선택`} checked={picked.includes(e.id)}
                        onChange={(ev) => setPicked((p) => (ev.target.checked ? [...p, e.id] : p.filter((x) => x !== e.id)))} />
               </td>
               <td className="text-center">
@@ -218,7 +228,7 @@ export default function ExportPage() {
               <td>{e.lines[0]?.itemName ?? ''}{e.lines.length > 1 ? ` 외 ${e.lines.length - 1}건` : ''}</td>
               <td>{e.invoiceNo}</td>
               <td className="text-center">{e.invoiceDate.replace(/-/g, '/')}</td>
-              <td>{currencyName(e.currencyId) || e.currencyCode}</td>
+              <td>{e.currencyId == null ? '' : currencyName(e.currencyId) || e.currencyCode}</td>
               <td className="text-right">{fx(e.foreignAmount)}</td>
               <td className="text-center"><button type="button" className="ec-link" onClick={() => print(e, 'INVOICE')}>인쇄</button></td>
               <td className="text-center"><button type="button" className="ec-link" onClick={() => print(e, 'PACKING')}>인쇄</button></td>
@@ -226,21 +236,26 @@ export default function ExportPage() {
           ))}
         </tbody>
       </table>
-      {/* 원본 아래 버튼줄 — 신규(F2) · 진행상태변경 · 선택삭제 · Excel. Email · 보내기는 바깥으로 보내는 일이라 두지 않는다. */}
+      {/* 원본 아래 버튼줄 — 신규(F2) · 진행상태변경 · 선택삭제 · 매핑조회 · Excel. Email · 보내기는 바깥으로 보내는 일이라 두지 않는다. */}
       <div className="flex flex-wrap gap-[6px] mt-[8px]">
         <button type="button" className="ec-btn ec-btn-primary" onClick={() => setEditing('new')}>신규(F2)</button>
         <button type="button" className="ec-btn" disabled={picked.length === 0} onClick={() => void toggleConfirm()}>진행상태변경</button>
         <button type="button" className="ec-btn" disabled={picked.length === 0} onClick={() => void removePicked()}>선택삭제</button>
+        <button type="button" className="ec-btn" onClick={() => setMappingOpen(true)}>매핑조회</button>
       </div>
+      <ExportMappingModal open={mappingOpen} onClose={() => setMappingOpen(false)} />
 
       <Modal error={error} open={editing != null} title="Invoice/Packing List 입력" width={1100} onClose={() => setEditing(null)}>{(
         editing != null && (
           <ExportForm
             key={editing === 'new' ? 'new' : editing.id}
             initial={editing === 'new' ? null : editing}
-            partners={partners} currencies={currencies} items={items}
+            partners={partners} currencies={currencies} items={items} mappings={mappings}
             onClose={() => setEditing(null)}
-            onSaved={(r, isNew) => { setEditing(null); setNotice(`${r.invoiceNo} ${isNew ? '저장' : '수정'}되었습니다.`); load() }}
+            onSaved={(r, isNew, printWin) => {
+              setEditing(null); setNotice(`${isNew ? '저장' : '수정'}되었습니다.`); load()
+              if (printWin) print(r, 'INVOICE', printWin)
+            }}
           />
         )
       )}</Modal>
@@ -248,57 +263,89 @@ export default function ExportPage() {
   )
 }
 
-function ExportForm({ initial, partners, currencies, items, onClose, onSaved }: {
+function ExportForm({ initial, partners, currencies, items, mappings, onClose, onSaved }: {
   initial: ExportOrder | null
   partners: Partner[]
   currencies: Currency[]
   items: Item[]
+  mappings: ExportMapping[]
   onClose: () => void
-  onSaved: (r: ExportOrder, isNew: boolean) => void
+  onSaved: (r: ExportOrder, isNew: boolean, printWin?: Window | null) => void
 }) {
   const s = (v: string | null | undefined) => v ?? ''
-  const [h, setH] = useState({
+
+  const initHead = () => ({
     voucherDate: initial?.voucherDate ?? today(), partnerId: initial ? String(initial.partnerId) : '',
     invoiceNo: s(initial?.invoiceNo), invoiceDate: initial?.invoiceDate ?? today(),
     lcNo: s(initial?.lcNo), lcDate: s(initial?.lcDate), lcBank: s(initial?.lcBank),
     shipper: s(initial?.shipper), messrs: s(initial?.messrs), notifyParty: s(initial?.notifyParty),
     portOfLoading: s(initial?.portOfLoading), destination: s(initial?.destination), carrier: s(initial?.carrier),
-    sailingDate: s(initial?.sailingDate), currencyId: initial ? String(initial.currencyId) : '', weightUnit: s(initial?.weightUnit),
+    sailingDate: s(initial?.sailingDate), currencyId: initial?.currencyId != null ? String(initial.currencyId) : '', weightUnit: s(initial?.weightUnit),
     remark: s(initial?.remark),
   })
-  const [lines, setLines] = useState<LineForm[]>(initial?.lines.length
+  const initLines = (): LineForm[] => (initial?.lines.length
     ? initial.lines.map((l) => ({ itemId: String(l.itemId), quantity: String(l.quantity), unit: s(l.unit), unitPrice: String(l.unitPrice),
       marks: s(l.marks), description: s(l.description), netWeight: l.netWeight == null ? '' : String(l.netWeight),
       grossWeight: l.grossWeight == null ? '' : String(l.grossWeight), measurement: l.measurement == null ? '' : String(l.measurement) }))
     : [emptyLine(), emptyLine(), emptyLine()])
+  const [h, setH] = useState(initHead)
+  const [lines, setLines] = useState<LineForm[]>(initLines)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const set = (patch: Partial<typeof h>) => setH((v) => ({ ...v, ...patch }))
+  /**
+   * 거래처를 고르면 그 거래처의 [매핑조회] 줄로 머리 칸을 채운다(2026-10-12 원본 실측 — Bisket World 를 고르자
+   * L/C Issuing Bank · Shipper · Messrs · Notify Party · Port of Loading · Final destination · Carrier · Remarks 가 찼다).
+   */
+  function pickPartner(partnerId: string) {
+    const m = mappings.find((x) => String(x.partnerId) === partnerId)
+    set(m && !initial ? {
+      partnerId, lcBank: s(m.lcBank), shipper: s(m.shipper), messrs: s(m.messrs), notifyParty: s(m.notifyParty),
+      portOfLoading: s(m.portOfLoading), destination: s(m.destination), carrier: s(m.carrier), weightUnit: s(m.weightUnit), remark: s(m.remark),
+    } : { partnerId })
+  }
+  /** 툴바 [판매] · [주문] 으로 띄운 검색창. */
+  const [pick, setPick] = useState<'sales' | 'order' | null>(null)
+  /* 원본은 전표를 불러오면 툴바에서 [판매] · [주문] · [전표 바코드] · [전표불러오기] 가 사라진다(실측). */
+  const [loaded, setLoaded] = useState(false)
+  function applySlip(slip: PickedSlip) {
+    if (!h.partnerId && slip.partnerId) pickPartner(String(slip.partnerId))
+    const filled: LineForm[] = slip.lines.map((l) => ({
+      ...emptyLine(), itemId: String(l.itemId), quantity: String(l.quantity), unit: l.unit ?? '', unitPrice: String(l.unitPrice),
+    }))
+    setLines((ls) => [...ls.filter((l) => l.itemId), ...filled])
+    setLoaded(true); setPick(null)
+  }
+  /** 원본 [다시 작성] — 칸을 처음 상태로. 수정 창이면 그 전표 값으로 되돌린다. */
+  function reset() {
+    setError(''); setLoaded(false); setH(initHead()); setLines(initLines())
+  }
   const setLine = (i: number, patch: Partial<LineForm>) => setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)))
   const amount = (l: LineForm) => (Number(l.quantity) || 0) * (Number(l.unitPrice) || 0)
   const itemOf = (id: string) => items.find((it) => String(it.id) === id)
 
-  async function save() {
+  async function save(withInvoice = false) {
     setError('')
-    if (!h.partnerId) return setError('거래처를 선택하세요.')
-    if (!h.currencyId) return setError('통화를 선택하세요.')
+    const printWin = withInvoice ? window.open('', '_blank', 'width=1024,height=768') : null
+    const fail = (msg: string) => { printWin?.close(); setError(msg) }
+    if (!h.partnerId) return fail('거래처를 선택하세요.')
     const payload = lines.filter((l) => l.itemId).map((l) => ({
       itemId: Number(l.itemId), quantity: Number(l.quantity), unitPrice: Number(l.unitPrice), unit: l.unit || null,
       marks: l.marks || null, description: l.description || null,
       netWeight: l.netWeight === '' ? null : Number(l.netWeight), grossWeight: l.grossWeight === '' ? null : Number(l.grossWeight),
       measurement: l.measurement === '' ? null : Number(l.measurement),
     }))
-    if (payload.length === 0) return setError('품목을 1개 이상 입력하세요.')
+    if (payload.length === 0) return fail('품목을 1개 이상 입력하세요.')
     const body = {
-      ...h, partnerId: Number(h.partnerId), currencyId: Number(h.currencyId),
+      ...h, partnerId: Number(h.partnerId), currencyId: h.currencyId ? Number(h.currencyId) : null,
       invoiceNo: h.invoiceNo || null, lcDate: h.lcDate || null, sailingDate: h.sailingDate || null, lines: payload,
     }
     setSaving(true)
     try {
       const res = initial ? await api.put<ExportOrder>(`/exports/${initial.id}`, body) : await api.post<ExportOrder>('/exports', body)
-      onSaved(res.data, !initial)
+      onSaved(res.data, !initial, printWin)
     } catch (err) {
-      setError(extractErrorMessage(err))
+      fail(extractErrorMessage(err))
     } finally {
       setSaving(false)
     }
@@ -329,7 +376,7 @@ function ExportForm({ initial, partners, currencies, items, onClose, onSaved }: 
         <label className="flex items-center gap-[8px]">
           <span className="w-[150px] shrink-0 text-ec-label">거래처</span>
           <CodePickerField label="거래처" hideLabel width={240} emptyLabel="선택 안 함" placeholder="거래처"
-                           value={h.partnerId} onChange={(v) => set({ partnerId: v })} items={partnerCodeItems(partners)} />
+                           value={h.partnerId} onChange={pickPartner} items={partnerCodeItems(partners)} />
         </label>
         {text('invoiceNo', 'Invoice 번호')}
         {date('invoiceDate', 'Invoice 일자')}
@@ -346,14 +393,23 @@ function ExportForm({ initial, partners, currencies, items, onClose, onSaved }: 
         <label className="flex items-center gap-[8px]">
           <span className="w-[150px] shrink-0 text-ec-label">통화</span>
           <select className="ec-input w-full" aria-label="통화" value={h.currencyId} onChange={(e) => set({ currencyId: e.target.value })}>
-            <option value="">통화 선택</option>
-            {currencies.map((c) => <option key={c.id} value={c.id}>{c.code === 'KRW' ? '내자' : c.name}</option>)}
+            {/* 원본 [통화] 의 기본은 '내자'(원화)다(2026-10-12 실측). 통화 마스터에는 외화만 있어 내자는 빈 값이다 — 예전 우리는 '통화 선택' 빈칸으로 열고 고르기 전에는 저장을 막았다. */}
+            <option value="">내자</option>
+            {currencies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </label>
         {text('weightUnit', '중량단위')}
       </div>
       <div className="mb-[10px]">{text('remark', 'Remarks', true)}</div>
 
+      {/* 원본 격자 위 툴바 — 찾기(F3) · 정렬 · My품목 · 판매 · 주문 · 바코드 · 전표 바코드 · 전표불러오기. 우리는 판매 · 주문만 둔다. */}
+      {!loaded && (
+        <div className="flex gap-[4px] mb-[4px]">
+          <button type="button" className="ec-btn ec-btn-sm" onClick={() => setPick('sales')}>판매</button>
+          <button type="button" className="ec-btn ec-btn-sm" onClick={() => setPick('order')}>주문</button>
+        </div>
+      )}
+      <ExportSlipPickModal kind={pick} partnerId={h.partnerId ? Number(h.partnerId) : null} onClose={() => setPick(null)} onApply={applySlip} />
       <div className="overflow-x-auto">
         <table ref={tableRef} className="w-full text-left">
           <thead>
@@ -406,7 +462,10 @@ function ExportForm({ initial, partners, currencies, items, onClose, onSaved }: 
       <button type="button" className="ec-btn mt-[6px]" onClick={() => setLines((ls) => [...ls, emptyLine()])}>+ 행 추가</button>
       <div className="flex gap-[6px] mt-[10px]">
         <button type="button" className="ec-btn ec-btn-primary" onClick={() => void save()} disabled={saving}>저장(F8)</button>
-        <button type="button" className="ec-btn ml-auto" onClick={onClose}>닫기</button>
+        {/* 원본 [저장/Invoice(F7)] — 저장하고 그 전표의 Commercial Invoice 를 띄운다. */}
+        <button type="button" className="ec-btn" onClick={() => void save(true)} disabled={saving}>저장/Invoice(F7)</button>
+        <button type="button" className="ec-btn" onClick={reset}>다시 작성</button>
+        <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
       </div>
     </div>
   )

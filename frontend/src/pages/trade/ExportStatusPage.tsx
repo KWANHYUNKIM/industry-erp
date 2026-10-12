@@ -83,7 +83,7 @@ export default function ExportStatusPage() {
 
   const lines = useMemo(() => rows
     .filter((r) => r.voucherDate >= from && r.voucherDate <= to)
-    .filter((r) => !invoiceNo || r.invoiceNo.includes(invoiceNo))
+    .filter((r) => !invoiceNo || (r.invoiceNo ?? '').includes(invoiceNo))
     .filter((r) => !useInv || (r.invoiceDate >= invFrom && r.invoiceDate <= invTo))
     .filter((r) => !lcNo || (r.lcNo ?? '').includes(lcNo))
     .filter((r) => !useLc || (r.lcDate != null && r.lcDate >= lcFrom && r.lcDate <= lcTo))

@@ -2598,12 +2598,14 @@ export interface ExportOrderLine {
 
 export interface ExportOrder {
   id: number
-  invoiceNo: string
+  /** 원본은 비워 저장하면 비운 채로 둔다(2026-10-12). */
+  invoiceNo: string | null
   invoiceDate: string
   partnerId: number
   buyerName: string
-  currencyId: number
-  currencyCode: string
+  /** 비면 원본 [통화] 의 '내자'(원화). */
+  currencyId: number | null
+  currencyCode: string | null
   currencySymbol: string | null
   foreignAmount: number
   appliedRate: number

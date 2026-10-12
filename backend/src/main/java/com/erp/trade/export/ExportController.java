@@ -56,6 +56,19 @@ public class ExportController {
         return ResponseEntity.noContent().build();
     }
 
+    /** 원본 [매핑조회] — 거래처별로 기억한 인보이스 머리 칸. */
+    @GetMapping("/mappings")
+    public java.util.List<ExportDtos.PartnerMappingResponse> mappings() {
+        return service.mappings();
+    }
+
+    /** 매핑리스트 [선택삭제]. */
+    @PostMapping("/mappings/delete")
+    public ResponseEntity<Void> deleteMappings(@Valid @RequestBody ExportDtos.DeleteMappingsRequest req) {
+        service.deleteMappings(req.ids());
+        return ResponseEntity.noContent().build();
+    }
+
     /** 원본 [진행상태변경] — 미확인 ↔ 확인. */
     @PatchMapping("/{id}/confirm")
     public ExportResponse confirm(@PathVariable Long id, @RequestBody ConfirmRequest req) {

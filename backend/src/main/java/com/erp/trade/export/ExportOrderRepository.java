@@ -7,7 +7,7 @@ import java.util.List;
 
 public interface ExportOrderRepository extends JpaRepository<ExportOrder, Long> {
 
-    @Query("select distinct e from ExportOrder e join fetch e.buyer join fetch e.currency " +
+    @Query("select distinct e from ExportOrder e join fetch e.buyer left join fetch e.currency " +
             "left join fetch e.lines l left join fetch l.item " +
             "where e.invoiceDate >= :from and e.invoiceDate <= :to " +
             "order by e.invoiceDate desc, e.id desc")
@@ -18,4 +18,7 @@ public interface ExportOrderRepository extends JpaRepository<ExportOrder, Long> 
     boolean existsByInvoiceNoAndIdNot(String invoiceNo, Long id);
 
     boolean existsByInvoiceNo(String invoiceNo);
+
+    /** [매핑조회] 줄을 지울지 — 그 거래처의 인보이스가 하나라도 남았나. */
+    boolean existsByBuyerId(Long partnerId);
 }

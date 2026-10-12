@@ -32,7 +32,7 @@ public class ExportOrder extends BaseTimeEntity {
     private Long id;
 
     /** 인보이스 번호 (예: INV-20260714-0001) */
-    @Column(name = "invoice_no", nullable = false, unique = true, length = 30)
+    @Column(name = "invoice_no", unique = true, length = 30)
     private String invoiceNo;
 
     @Column(name = "invoice_date", nullable = false)
@@ -43,8 +43,9 @@ public class ExportOrder extends BaseTimeEntity {
     @JoinColumn(name = "partner_id", nullable = false)
     private BusinessPartner buyer;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "currency_id", nullable = false)
+    /** 비어 있으면 원본 [통화] 의 '내자'(원화)다 — 금액이 곧 원화다. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "currency_id")
     private Currency currency;
 
     /** 외화 합계 */
