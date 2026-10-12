@@ -79,7 +79,11 @@ public final class WithholdingDtos {
             @Size(max = 7) String attributionMonth,
             @Size(max = 7) String payMonth,
             LocalDate reportDate,
-            Boolean includeYearEnd
+            Boolean includeYearEnd,
+            /** 원본 [소득자료반영기준] ○직접지정 */
+            Boolean directIncome,
+            /** 직접지정의 [급여대장] 에서 고른 대장 id */
+            @Size(max = 50, message = "급여대장은 50개까지 고를 수 있습니다.") List<Long> payLedgerIds
     ) {}
 
     /** 원천징수이행상황신고서 목록 한 줄 — 원본 열: 귀속연월 · 신고구분(연말정산) · 지급연월 · 신고일자 · 회사명 · 사업자등록번호. */
@@ -89,7 +93,8 @@ public final class WithholdingDtos {
             WithholdingFilingMethod filingMethod, String filingMethodName,
             String attributionMonth, String payMonth, LocalDate reportDate,
             boolean includeYearEnd,
-            String companyName, String bizRegNo
+            String companyName, String bizRegNo,
+            boolean directIncome, List<Long> payLedgerIds
     ) {
         public static WithholdingReturnResponse from(WithholdingReturn r, CompanyInfoResponse company) {
             return new WithholdingReturnResponse(
@@ -99,7 +104,8 @@ public final class WithholdingDtos {
                     r.getAttributionMonth(), r.getPayMonth(), r.getReportDate(),
                     r.isIncludeYearEnd(),
                     company == null ? null : company.name(),
-                    company == null ? null : company.bizRegNo());
+                    company == null ? null : company.bizRegNo(),
+                    r.isDirectIncome(), r.ledgerIds());
         }
     }
 

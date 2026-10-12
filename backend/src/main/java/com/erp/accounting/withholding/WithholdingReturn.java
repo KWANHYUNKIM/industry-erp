@@ -44,4 +44,17 @@ public class WithholdingReturn extends BaseTimeEntity {
 
     @Column(name = "include_year_end", nullable = false)
     private boolean includeYearEnd;
+
+    /** 원본 [소득자료반영기준] ○직접지정 — 켜면 귀속연월 대신 {@link #payLedgerIds} 의 급여대장을 싣는다. */
+    @Column(name = "direct_income", nullable = false)
+    private boolean directIncome;
+
+    /** 직접지정에서 [급여대장] 으로 고른 대장 id(쉼표로 이음). */
+    @Column(name = "pay_ledger_ids", length = 500)
+    private String payLedgerIds;
+
+    public java.util.List<Long> ledgerIds() {
+        if (payLedgerIds == null || payLedgerIds.isBlank()) return java.util.List.of();
+        return java.util.Arrays.stream(payLedgerIds.split(",")).map(String::trim).filter(x -> !x.isEmpty()).map(Long::valueOf).toList();
+    }
 }

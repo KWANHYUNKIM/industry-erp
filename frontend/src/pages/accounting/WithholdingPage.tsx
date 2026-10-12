@@ -5,6 +5,7 @@ import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { WithholdingReceipt, WithholdingReturn, WithholdingStatement } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
+import CodePickerField from '../../components/CodePickerField'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 
@@ -31,7 +32,15 @@ type FormState = {
   payMonth: string
   reportDate: string
   includeYearEnd: boolean
+  /** 원본 [소득자료반영기준] ◉신고기간 ○직접지정 */
+  directIncome: boolean
+  /** 직접지정의 [급여대장] 에서 고른 대장 */
+  payLedgerIds: number[]
 }
+
+/** 목록 한 줄 + 소득자료반영기준(서버 응답에 있다). */
+type ReturnRow = WithholdingReturn & { directIncome: boolean; payLedgerIds: number[] }
+interface PayLedgerOpt { id: number; payMonth: string; name: string; payDate: string | null; headcount: number; grossTotal: number }
 
 /** 원본 [신규] 창의 기본값 — 귀속 · 지급연월은 이번 달, 신고일자는 이번 달 10일. */
 function blankForm(): FormState {
@@ -40,11 +49,12 @@ function blankForm(): FormState {
     filingType: 'REGULAR', filingMethod: 'MONTHLY',
     attributionMonth: today.slice(0, 7), payMonth: today.slice(0, 7),
     reportDate: `${today.slice(0, 7)}-10`, includeYearEnd: false,
+    directIncome: false, payLedgerIds: [],
   }
 }
 
 function ReturnsView() {
-  const [rows, setRows] = useState<WithholdingReturn[]>([])
+  const [rows, setRows] = useState<ReturnRow[]>([])
   const [picked, setPicked] = useState<Set<number>>(new Set())
   const [error, setError] = useState('')
   const [form, setForm] = useState<FormState | null>(null)
@@ -54,7 +64,7 @@ function ReturnsView() {
 
   function load() {
     setError('')
-    api.get<WithholdingReturn[]>('/withholding/returns')
+    api.get<ReturnRow[]>('/withholding/returns')
       .then((r) => { setRows(r.data); setPicked(new Set()) })
       .catch((e) => { setRows([]); setError(extractErrorMessage(e)) })
   }
@@ -67,6 +77,7 @@ function ReturnsView() {
       filingType: form.filingType, filingMethod: form.filingMethod,
       attributionMonth: form.attributionMonth, payMonth: form.payMonth,
       reportDate: form.reportDate, includeYearEnd: form.includeYearEnd,
+      directIncome: form.directIncome, payLedgerIds: form.directIncome ? form.payLedgerIds : [],
     }
     try {
       if (form.id) await api.put(`/withholding/returns/${form.id}`, body)
@@ -149,6 +160,7 @@ function ReturnsView() {
                     id: r.id, filingType: r.filingType, filingMethod: r.filingMethod,
                     attributionMonth: r.attributionMonth, payMonth: r.payMonth,
                     reportDate: r.reportDate, includeYearEnd: r.includeYearEnd,
+                    directIncome: r.directIncome, payLedgerIds: r.payLedgerIds ?? [],
                   })
                 }}>{r.attributionMonth.replace('-', '/')}</a>
               </td>
@@ -193,6 +205,14 @@ function ReturnsView() {
 function ReturnForm({ form, onChange }: { form: FormState; onChange: (f: FormState) => void }) {
   const locked = Boolean(form.id)
   const set = (patch: Partial<FormState>) => onChange({ ...form, ...patch })
+  const [ledgers, setLedgers] = useState<PayLedgerOpt[]>([])
+  const [ledgerError, setLedgerError] = useState('')
+  useEffect(() => {
+    if (!form.directIncome) return
+    api.get<PayLedgerOpt[]>('/pay-ledgers')
+      .then((r) => setLedgers(r.data))
+      .catch((e) => setLedgerError(extractErrorMessage(e)))
+  }, [form.directIncome])
   return (
     <ul className="ec-form">
       <li className="wide">
@@ -237,6 +257,33 @@ function ReturnForm({ form, onChange }: { form: FormState; onChange: (f: FormSta
                  onChange={(e) => set({ reportDate: e.target.value })} />
         </div>
       </li>
+      <li className="wide">
+        <div className="title">소득자료반영기준</div>
+        <div className="form">
+          {([[false, '신고기간'], [true, '직접지정']] as const).map(([v, l]) => (
+            <label key={l} className="mr-[10px]">
+              <input type="radio" name="wh-basis" checked={form.directIncome === v}
+                     onChange={() => set({ directIncome: v, payLedgerIds: v ? form.payLedgerIds : [] })} /> {l}
+            </label>
+          ))}
+        </div>
+      </li>
+      {form.directIncome && (
+        <li className="wide">
+          <div className="title">급여대장</div>
+          <div className="form">
+            {/* 원본 '급여대장검색' — 여러 개 골라 적용. 근로소득(간이세액)을 고른 대장의 급여로 센다. */}
+            <CodePickerField label="급여대장" hideLabel multiple width={360} emptyLabel="선택 안 함"
+                             values={form.payLedgerIds.map(String)}
+                             onChangeMulti={(vs) => set({ payLedgerIds: vs.map(Number) })}
+                             items={ledgers.map((l) => ({
+                               value: String(l.id), code: `${l.payMonth.replace('-', '/')}-1`, name: l.name,
+                               sub: `${l.payDate ? l.payDate.slice(0, 7).replace('-', '/') : ''} · 급여 · ${l.headcount}명 · ${won(Number(l.grossTotal))}`,
+                             }))} />
+            {ledgerError && <p className="text-ec-danger text-[12px]">{ledgerError}</p>}
+          </div>
+        </li>
+      )}
       <li className="wide">
         <div className="title">기타</div>
         <div className="form">
@@ -367,7 +414,7 @@ export function StatementModal({ ret, onClose }: { ret: WithholdingReturn; onClo
   const [error, setError] = useState('')
   function load() {
     setError('')
-    api.get<WithholdingStatement>('/withholding/statement', { params: { month: ret.attributionMonth } })
+    api.get<WithholdingStatement>('/withholding/statement', { params: { month: ret.attributionMonth, returnId: ret.id } })
       .then((r) => setStmt(r.data))
       .catch((e) => setError(extractErrorMessage(e)))
   }

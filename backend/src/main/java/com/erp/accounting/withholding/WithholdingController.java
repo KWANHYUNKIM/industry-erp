@@ -67,8 +67,8 @@ public class WithholdingController {
     }
 
     @GetMapping("/statement")
-    public WithholdingStatement statement(@RequestParam String month) {
-        return service.statement(month);
+    public WithholdingStatement statement(@RequestParam String month, @RequestParam(required = false) Long returnId) {
+        return service.statement(month, returnId);
     }
 
     /** 원천징수부 (기준연월까지, 사원별 달별 지급명세) */

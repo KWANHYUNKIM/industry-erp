@@ -52,6 +52,7 @@ public class WithholdingReturnService {
                 .reportDate(req.reportDate())
                 .includeYearEnd(Boolean.TRUE.equals(req.includeYearEnd()))
                 .build());
+        applyIncomeBasis(r, req);
         return WithholdingReturnResponse.from(r, companyInfoService.get());
     }
 
@@ -67,6 +68,7 @@ public class WithholdingReturnService {
             r.setFilingType(req.filingType());
         }
         if (req.reportDate() != null) r.setReportDate(req.reportDate());
+        applyIncomeBasis(r, req);
         return WithholdingReturnResponse.from(r, companyInfoService.get());
     }
 
@@ -76,6 +78,15 @@ public class WithholdingReturnService {
             throw ApiException.badRequest("리스트에 선택된 자료가 없습니다.");
         }
         repository.deleteAllById(ids);
+    }
+
+    /** 원본 [소득자료반영기준] — ◉신고기간이면 고른 대장을 지운다. */
+    private static void applyIncomeBasis(WithholdingReturn r, WithholdingReturnRequest req) {
+        boolean direct = Boolean.TRUE.equals(req.directIncome());
+        r.setDirectIncome(direct);
+        List<Long> ids = direct && req.payLedgerIds() != null ? req.payLedgerIds().stream().distinct().toList() : List.of();
+        r.setPayLedgerIds(ids.isEmpty() ? null
+                : ids.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(",")));
     }
 
     private WithholdingReturn find(Long id) {

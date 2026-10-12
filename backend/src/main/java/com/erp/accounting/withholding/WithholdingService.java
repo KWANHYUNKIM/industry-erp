@@ -49,15 +49,32 @@ public class WithholdingService {
     private final WithholdingReturnRepository returnRepository;
     private final com.erp.accounting.retirementpay.RetirementPayRepository retirementPayRepository;
     private final com.erp.hr.dailywork.DailyWorkService dailyWorkService;
+    private final com.erp.hr.payroll.PayLedgerService payLedgerService;
     private final com.erp.accounting.otherwithholding.OtherWithholdingRepository otherWithholdingRepository;
 
     /** 원천징수이행상황신고서 (귀속월 기준) */
     @Transactional(readOnly = true)
     public WithholdingStatement statement(String month) {
+        return statement(month, null);
+    }
+
+    /**
+     * 신고서 한 장의 서식. 그 신고서가 [소득자료반영기준] ○직접지정이고 [급여대장] 을 골랐으면
+     * 근로소득(간이세액)은 귀속연월이 아니라 고른 대장의 급여명세로 센다(원본 '급여대장검색' 에서 고른 2026/10-1 → A01 20,469,000).
+     */
+    @Transactional(readOnly = true)
+    public WithholdingStatement statement(String month, Long returnId) {
         if (month == null || !MONTH.matcher(month).matches()) {
             throw ApiException.badRequest("귀속월 형식이 올바르지 않습니다(YYYY-MM): " + month);
         }
         List<Payslip> all = payslipRepository.findByPayMonth(month);
+        WithholdingReturn ret = returnId == null ? null : returnRepository.findById(returnId).orElse(null);
+        if (ret != null && ret.isDirectIncome() && !ret.ledgerIds().isEmpty()) {
+            java.util.Set<Long> ids = new java.util.HashSet<>(ret.ledgerIds());
+            all = payLedgerService.findAll().stream().filter(l -> ids.contains(l.id()))
+                    .map(com.erp.hr.payroll.dto.PayLedgerDtos.LedgerResponse::payMonth).distinct()
+                    .flatMap(m -> payslipRepository.findByPayMonth(m).stream()).toList();
+        }
 
         List<WithholdingRow> rows = new ArrayList<>();
         BigDecimal totalGross = BigDecimal.ZERO;
