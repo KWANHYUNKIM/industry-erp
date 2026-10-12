@@ -114,6 +114,27 @@ public class JournalService {
         return save(e);
     }
 
+    /**
+     * 회계거래조회 [확인] · [확인취소] — 고른 전표의 진행상태를 미확인 ↔ 확인으로.
+     * 결재중(전자결재 진행 중)인 전표는 건드리지 않는다. 이미 그 상태인 것은 세지 않는다.
+     */
+    @Transactional
+    public int changeStatus(List<Long> ids, JournalConfirmStatus status) {
+        if (status == JournalConfirmStatus.IN_APPROVAL) {
+            throw ApiException.badRequest("결재중은 전자결재로만 바뀝니다.");
+        }
+        int changed = 0;
+        for (JournalEntry e : entryRepository.findAllById(ids)) {
+            if (e.getConfirmStatus() == status) continue;
+            if (e.getConfirmStatus() == JournalConfirmStatus.IN_APPROVAL) {
+                throw ApiException.badRequest("전자결재 진행중인 전표는 바꿀 수 없습니다: " + e.getDocNo());
+            }
+            e.setConfirmStatus(status);
+            changed++;
+        }
+        return changed;
+    }
+
     /** 수동전표 삭제. 업무전표에서 자동생성된 전표는 회계반영취소로만 지운다. */
     @Transactional
     public void deleteManual(Long id) {

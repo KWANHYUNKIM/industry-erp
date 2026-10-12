@@ -80,7 +80,9 @@ public final class JournalDtos {
             BigDecimal totalDebit, BigDecimal totalCredit, boolean balanced,
             List<JournalLineResponse> lines,
             /** 원본 거래이력조회(회계)의 [작업자] · [작업일자] — 만든 사람 · 만든 때 · 마지막으로 고친 때. */
-            String createdBy, java.time.LocalDateTime createdAt, java.time.LocalDateTime updatedAt
+            String createdBy, java.time.LocalDateTime createdAt, java.time.LocalDateTime updatedAt,
+            /** 원본 회계거래조회 탭 [결재중 · 미확인 · 확인] */
+            com.erp.accounting.journal.JournalConfirmStatus confirmStatus
     ) {
         public static JournalEntryResponse from(JournalEntry e) {
             return new JournalEntryResponse(
@@ -90,9 +92,18 @@ public final class JournalDtos {
                     e.getSourceType(), e.getSourceType().getDisplayName(), e.getSourceId(),
                     e.totalDebit(), e.totalCredit(), e.isBalanced(),
                     e.getLines().stream().map(JournalLineResponse::from).toList(),
-                    e.getCreatedBy(), e.getCreatedAt(), e.getUpdatedAt());
+                    e.getCreatedBy(), e.getCreatedAt(), e.getUpdatedAt(),
+                    e.getConfirmStatus());
         }
     }
+
+    /** 회계거래조회 [확인] · [확인취소] — 고른 전표들의 진행상태를 바꾼다. */
+    public record ChangeStatusRequest(
+            @jakarta.validation.constraints.NotEmpty(message = "바꿀 전표를 고르세요.") List<Long> ids,
+            @NotNull(message = "진행상태를 지정하세요.") com.erp.accounting.journal.JournalConfirmStatus status
+    ) {}
+
+    public record ChangeStatusResponse(int changed) {}
 
     /** 계정별원장 한 줄 (잔액은 서비스가 누적 계산) */
     public record LedgerRow(

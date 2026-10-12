@@ -4257,13 +4257,11 @@
   "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
  },
  "매입(세금)계산서현황(재고)|상태": {
-  "claim": "회계전표에 결재 · 확인 상태가 없다",
+  "claim": "이 화면이 회계전표 진행상태로 거르지 않는다",
   "absent": [
-   "Status",
-   "status",
-   "Approval"
+   "confirmStatus"
   ],
-  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+  "in": "frontend/src/pages/production/PurchaseTaxStockPage.tsx"
  },
  "보유어음현황|부서": {
   "claim": "어음에 부서가 없다",
@@ -4966,13 +4964,11 @@
   "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
  },
  "매출(세금)계산서현황(재고)|상태": {
-  "claim": "회계전표에 결재 · 확인 상태가 없다",
+  "claim": "이 화면이 회계전표 진행상태로 거르지 않는다",
   "absent": [
-   "Status",
-   "status",
-   "Approval"
+   "confirmStatus"
   ],
-  "in": "backend/src/main/java/com/erp/accounting/journal/JournalEntry.java"
+  "in": "frontend/src/pages/production/PurchaseTaxStockPage.tsx"
  },
  "매출(세금)계산서현황(재고)|부가세유형": {
   "claim": "매출 분개가 부가세 유형을 남기지 않는다",

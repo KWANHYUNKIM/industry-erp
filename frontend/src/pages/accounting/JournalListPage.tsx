@@ -4,8 +4,14 @@ import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { JournalEntry } from '../../types/api'
 
+/** 원본 회계거래조회 탭 [결재중 · 미확인 · 확인] — 전표의 진행상태. */
+type ConfirmStatus = 'UNCONFIRMED' | 'IN_APPROVAL' | 'CONFIRMED'
+type Row = JournalEntry & { confirmStatus: ConfirmStatus }
+const STATUS_TABS = ['전체', '결재중', '미확인', '확인'] as const
+const STATUS_OF: Record<string, ConfirmStatus> = { 결재중: 'IN_APPROVAL', 미확인: 'UNCONFIRMED', 확인: 'CONFIRMED' }
+
 interface JournalListResponse {
-  rows: JournalEntry[]
+  rows: Row[]
   /** 조건에 걸린 전체 전표 수. 잘렸을 때 "몇 장 중 몇 장" 을 말하려고 받는다. */
   totalRows: number
   /** 잘라서 온 것인가. 이때만 [오천건이상조회] 를 띄운다. */
@@ -39,7 +45,12 @@ export default function JournalListPage() {
   const [params] = useSearchParams()
   const wanted = Number(params.get('entryId')) || null
 
-  const [rows, setRows] = useState<JournalEntry[]>([])
+  const [rows, setRows] = useState<Row[]>([])
+  const [statusTab, setStatusTab] = useState<(typeof STATUS_TABS)[number]>('전체')
+  /** 원본 격자 첫 칸(체크) — [확인] · [확인취소] · [선택삭제] 가 고른 줄에 걸린다. */
+  const [checked, setChecked] = useState<Set<number>>(new Set())
+  /** 간편전표 분개 → 그 결의서 id. [선택삭제]는 결의서째 지운다(분개만 지우면 결의서가 남는다). */
+  const [voucherIdOf, setVoucherIdOf] = useState<Record<number, number>>({})
   /** 간편전표 분개 → 그 결의서 종류(지출결의서 · 입금보고서 · 가지급금정산서). 원본 [거래유형]이 그 이름이다. */
   const [voucherType, setVoucherType] = useState<Record<number, string>>({})
   /** 영수증으로 [거래처명] — 거래처 등록 없이 친 이름. 원본 회계거래조회가 그 글자를 [거래처명]에 찍는다. */
@@ -78,15 +89,16 @@ export default function JournalListPage() {
     api.get<JournalListResponse>('/journals', { params })
       .then((r) => { setRows(r.data.rows); setTotalRows(r.data.totalRows); setTruncated(r.data.truncated) })
       .catch((err) => { setError(extractErrorMessage(err)); setRows([]); setTotalRows(0); setTruncated(false) })
-    api.get<{ rows: { journalEntryId: number | null; type: string; typeName: string; payeeName: string | null; totalAmount: number }[] }>('/vouchers', { params: { ...(range ?? { from, to }), all: true } })
+    api.get<{ rows: { id: number; journalEntryId: number | null; type: string; typeName: string; payeeName: string | null; totalAmount: number }[] }>('/vouchers', { params: { ...(range ?? { from, to }), all: true } })
       .then((r) => {
         const vs = r.data.rows.filter((v) => v.journalEntryId)
         setVoucherType(Object.fromEntries(vs.map((v) => [v.journalEntryId!, v.typeName])))
+        setVoucherIdOf(Object.fromEntries(vs.map((v) => [v.journalEntryId!, v.id])))
         setPayeeOf(Object.fromEntries(vs.filter((v) => v.payeeName).map((v) => [v.journalEntryId!, v.payeeName!])))
         setCashQuickTotal(Object.fromEntries(vs.filter((v) => CASH_QUICK_KINDS.some((k) => k.type === v.type))
           .map((v) => [v.journalEntryId!, v.totalAmount])))
       })
-      .catch(() => { setVoucherType({}); setPayeeOf({}); setCashQuickTotal({}) })
+      .catch(() => { setVoucherType({}); setVoucherIdOf({}); setPayeeOf({}); setCashQuickTotal({}) })
   }
 
   useEffect(() => {
@@ -101,8 +113,43 @@ export default function JournalListPage() {
   }, [])
 
   const shown = useMemo(() => rows.filter((r) =>
-    !keyword || r.docNo.includes(keyword) || (r.description ?? '').includes(keyword) || (r.partnerName ?? '').includes(keyword)
-  ), [rows, keyword])
+    (statusTab === '전체' || STATUS_OF[statusTab] === r.confirmStatus) && (!keyword || r.docNo.includes(keyword) || (r.description ?? '').includes(keyword) || (r.partnerName ?? '').includes(keyword))
+  ), [rows, keyword, statusTab])
+
+  const picked = shown.filter((r) => checked.has(r.id))
+
+  /** 원본 [확인] · [확인취소] — 고른 전표의 진행상태를 미확인 ↔ 확인. */
+  async function changeStatus(status: 'CONFIRMED' | 'UNCONFIRMED') {
+    if (picked.length === 0) { setError('바꿀 전표를 고르세요.'); return }
+    setError('')
+    try {
+      const r = await api.post<{ changed: number }>('/journals/status', { ids: picked.map((x) => x.id), status })
+      setChecked(new Set())
+      load()
+      if (r.data.changed === 0) setError('이미 그 진행상태입니다.')
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    }
+  }
+
+  /**
+   * 원본 [선택삭제]. 결의서 · 현금거래로 만든 전표는 그 결의서째 지운다(계좌 입출금도 되돌아간다),
+   * 일반전표는 분개를 지운다. 판매 · 구매에서 온 전표는 회계반영 취소로만 지워진다(서버가 막는다).
+   */
+  async function removeChecked() {
+    if (picked.length === 0) { setError('지울 전표를 고르세요.'); return }
+    if (!confirm(`선택한 전표 ${picked.length}건을 삭제하겠습니까?`)) return
+    setError('')
+    const results = await Promise.allSettled(picked.map((x) => voucherIdOf[x.id]
+      ? api.delete(`/vouchers/${voucherIdOf[x.id]}`)
+      : api.delete(`/journals/${x.id}`)))
+    const failed = results.filter((x) => x.status === 'rejected') as PromiseRejectedResult[]
+    setChecked(new Set())
+    load()
+    if (failed.length > 0) {
+      setError(`${picked.length - failed.length}건 삭제, ${failed.length}건 실패 — ${extractErrorMessage(failed[0].reason)}`)
+    }
+  }
 
   const total = shown.reduce((a, r) => a + amountOf(r), 0)
   const reset = () => { setFrom(firstOfYear()); setTo(today()); setKeyword('') }
@@ -116,6 +163,10 @@ export default function JournalListPage() {
       actions={[
         /* 인자 없이 부른다 — onClick 이 무엇을 넘기든 range 로 새면 안 된다. */
         { label: '검색(F8)', primary: true, onClick: () => load() },
+        /* 원본 버튼줄: 신규 · 보내기 · 확인 · 확인취소 · 전자결재 · 선택삭제. */
+        { label: '확인', onClick: () => void changeStatus('CONFIRMED'), disabled: checked.size === 0 },
+        { label: '확인취소', onClick: () => void changeStatus('UNCONFIRMED'), disabled: checked.size === 0 },
+        { label: `선택삭제${checked.size ? ` (${checked.size})` : ''}`, onClick: () => void removeChecked(), disabled: checked.size === 0 },
         /* 잘려서 왔을 때만 누를 수 있다 — 안 잘렸으면 더 가져올 것이 없다. */
         { label: '오천건이상조회', onClick: () => load(undefined, true), disabled: !truncated },
         { label: '다시 작성', onClick: reset },
@@ -134,6 +185,13 @@ export default function JournalListPage() {
                  onChange={(e) => setKeyword(e.target.value)} style={{ width: 260 }} />
         </EcCond>
       </EcStatusPanel>
+
+      <div className="ec-pills mb-[8px]">
+        {STATUS_TABS.map((t) => (
+          <button key={t} type="button" className={`ec-pill no-ec${statusTab === t ? ' active' : ''}`}
+                  onClick={() => { setStatusTab(t); setChecked(new Set()) }}>{t}</button>
+        ))}
+      </div>
 
       <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
         총 <b className="text-ec-text">{shown.length}</b>건
@@ -157,6 +215,11 @@ export default function JournalListPage() {
       <table className="w-full text-left">
         <thead>
           <tr>
+            <th className="w-[30px]">
+              <input type="checkbox" aria-label="전체 선택"
+                     checked={shown.length > 0 && shown.every((r) => checked.has(r.id))}
+                     onChange={(e) => setChecked(e.target.checked ? new Set(shown.map((r) => r.id)) : new Set())} />
+            </th>
             <th className="w-[34px]"></th>
             {/* 원본 회계거래조회 격자(2026-10-12 실측): 전표번호 · 거래유형 · 금액 · 거래처명 · 적요. 일자는 전표번호(26/10/12-2)가 든다. */}
             <th>전표번호</th><th>거래유형</th>
@@ -165,10 +228,18 @@ export default function JournalListPage() {
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={6} className="text-center text-ec-hint p-[20px]">조회된 회계전표가 없습니다. (판매/구매 화면에서 회계반영하면 생성됩니다)</td></tr>
+            <tr><td colSpan={7} className="text-center text-ec-hint p-[20px]">조회된 회계전표가 없습니다. (판매/구매 화면에서 회계반영하면 생성됩니다)</td></tr>
           ) : shown.map((r, i) => (
             <Fragment key={r.id}>
               <tr onClick={() => setOpenId(openId === r.id ? null : r.id)} className={`cursor-pointer ${rowBg(r)}`}>
+                <td className="text-center" onClick={(e) => e.stopPropagation()}>
+                  <input type="checkbox" aria-label={`${slipNo(r.docNo)} 선택`} checked={checked.has(r.id)}
+                         onChange={(e) => setChecked((prev) => {
+                           const next = new Set(prev)
+                           if (e.target.checked) next.add(r.id); else next.delete(r.id)
+                           return next
+                         })} />
+                </td>
                 <td className="text-center text-ec-hint">{i + 1}</td>
                 <td>
                   {/* 원본: 전표번호를 누르면 그 전표의 입력 화면(지출결의서 · 입금보고서 …)이 열린다. 우리는 결의서만 열고 나머지는 분개를 펼친다. */}
@@ -184,7 +255,7 @@ export default function JournalListPage() {
               </tr>
               {openId === r.id && (
                 <tr className="no-ec">
-                  <td colSpan={6} className="p-0 bg-ec-page">
+                  <td colSpan={7} className="p-0 bg-ec-page">
                     <table className="w-full text-left my-[4px] mx-0">
                       <thead>
                         <tr><th className="w-[34px]"></th><th>계정코드</th><th>계정과목</th><th>적요</th><th className="text-right">차변</th><th className="text-right">대변</th></tr>
@@ -210,7 +281,7 @@ export default function JournalListPage() {
         </tbody>
         <tfoot>
           <tr className="font-bold bg-ec-page">
-            <td colSpan={3} className="text-right">합계 ({shown.length}건)</td>
+            <td colSpan={4} className="text-right">합계 ({shown.length}건)</td>
             <td className="text-right">{won(total)}</td>
             <td colSpan={2}></td>
           </tr>

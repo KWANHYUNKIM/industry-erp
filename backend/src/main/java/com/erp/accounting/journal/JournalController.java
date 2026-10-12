@@ -49,6 +49,12 @@ public class JournalController {
         return ResponseEntity.ok(JournalEntryResponse.from(entry));
     }
 
+    /** 회계거래조회 [확인] · [확인취소] */
+    @PostMapping("/status")
+    public JournalDtos.ChangeStatusResponse changeStatus(@Valid @RequestBody JournalDtos.ChangeStatusRequest req) {
+        return new JournalDtos.ChangeStatusResponse(journalService.changeStatus(req.ids(), req.status()));
+    }
+
     /** 수동전표 삭제 (업무전표 생성분은 회계반영취소로만) */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {

@@ -1,0 +1,39 @@
+{
+  "about": "회계거래조회(원본 회계 I › 회계거래관리 › 회계거래조회) 탭 [전체 · 결재중 · 미확인 · 확인] · [확인] · [확인취소] · [선택삭제] — 시험 전표(현금출금 복리후생비 3,000 'QA회계1-확인')를 API 로 넣고, 미확인 탭에서 골라 [확인] → 확인 탭으로 옮겨 감 → [확인취소] → 미확인 → [선택삭제] → 사라짐. node qa/shot.mjs qa/flows/journal-confirm.json",
+  "shots": [
+    {
+      "name": "미확인 → 확인 → 확인취소 → 선택삭제",
+      "path": "/accounting/journals",
+      "steps": [
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then((r) => r.json()); const acc = (await A('GET', '/accounts')).find((a) => a.code === '811'); const r = await A('POST', '/journals/cash', { entryDate: new Date().toISOString().slice(0, 10), deposit: false, counterAccountId: acc.id, amount: 3000, description: 'QA회계1-확인' }); sessionStorage.setItem('jcId', r.id); window.confirm = () => true; return r.docNo })()",
+        "click:검색(F8)",
+        "wait:800",
+        "js:(() => { [...document.querySelectorAll('.ec-pill')].find((b) => b.textContent.trim() === '미확인').click(); return true })()",
+        "wait:300",
+        "js:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('QA회계1-확인')); tr.querySelector('input[type=checkbox]').click(); return true })()",
+        "wait:200",
+        "js:(() => { [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '확인' && !b.classList.contains('ec-pill')).click(); return true })()",
+        "wait:800",
+        "expect:![...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes('QA회계1-확인'))",
+        "js:(() => { [...document.querySelectorAll('.ec-pill')].find((b) => b.textContent.trim() === '확인').click(); return true })()",
+        "wait:300",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes('QA회계1-확인'))",
+        
+        "js:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('QA회계1-확인')); tr.querySelector('input[type=checkbox]').click(); return true })()",
+        "wait:200",
+        "click:확인취소",
+        "wait:800",
+        "expect:![...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes('QA회계1-확인'))",
+        "js:(() => { [...document.querySelectorAll('.ec-pill')].find((b) => b.textContent.trim() === '미확인').click(); return true })()",
+        "wait:300",
+        "js:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('QA회계1-확인')); tr.querySelector('input[type=checkbox]').click(); window.confirm = () => true; return true })()",
+        "wait:200",
+        "click:선택삭제",
+        "wait:800",
+        "expect:![...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes('QA회계1-확인'))",
+        "allowapi:404: /api/journals/",
+        "expect:(async () => (await fetch('/api/journals/' + sessionStorage.getItem('jcId'), { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } })).status === 404)()"
+      ]
+    }
+  ]
+}
