@@ -253,7 +253,12 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
   const codesOf = (groupName: string) =>
     (codeGroups.find((g) => g.name === groupName)?.codes ?? []).map((c) => c.name)
   const kindOptions = codesOf(kind === 'SELF_USE' ? '사용유형' : '불량유형')
-  const handlingOptions = codesOf('처리방법')
+  /*
+   * 원본 [처리방법] 후보는 <b>전체 · 폐기 · 품목대체 · 정상사용</b> 고정이다(2026-10-13 불량처리현황 E040509 실측).
+   * 불량처리입력의 [처리방법] 셋과 같고, 저장된 전표의 값도 이 셋뿐이다. 공통코드 DEFECT_HANDLING(폐기 · 재작업 · 반품 · 기타)은
+   * 원본에 없는 값이라 고르면 늘 빈 목록이 됐다.
+   */
+  const handlingOptions = ['폐기', '품목대체', '정상사용']
   /**
    * 원본 [최초작성자] 후보. <b>이 화면에 실제로 있는 이름</b>만 낸다 —
    * 사용자 마스터를 부르면 이 구분(자가사용·폐기 …)에 한 건도 없는 사람까지 목록에 선다.
