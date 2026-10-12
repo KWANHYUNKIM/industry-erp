@@ -159,7 +159,7 @@ export default function CheckHoldingPage({ type }: { type: CheckType }) {
               </tr>
             )),
             <tr key={`sub-${g.cs[0].id}`} style={SUB_ROW}>
-              <td colSpan={5}>{g.cs[0].partnerName ?? ''}{codeOf(g.cs[0].partnerId) ? ` [${codeOf(g.cs[0].partnerId)}]` : ''} 계</td>
+              <td colSpan={5}>{g.cs[0].partnerName ? `${g.cs[0].partnerName} ` : ''}[{codeOf(g.cs[0].partnerId) ?? ''}] 계</td>
               <td className="text-right">{won(g.sum)}</td>
             </tr>,
           ])}
