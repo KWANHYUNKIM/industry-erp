@@ -100,6 +100,7 @@ const RULES: Rule[] = [
   ['/accounting/cash-deposit', 'BANK'],
   ['/accounting/cash-withdraw', 'BANK'],
   ['/accounting/cash-plan', 'FINANCE'],
+  ['/accounting/fund-plans', 'FINANCE'],
   ['/accounting/checks', 'BANK'],
   ['/accounting/checks-held', 'BANK'],
   ['/accounting/checks-ledger', 'BANK'],
