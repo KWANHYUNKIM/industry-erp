@@ -9,7 +9,7 @@ import { ymd } from '../../components/EcPeriodPicks'
 
 const won = (n: number | null | undefined) => (n ? Number(n).toLocaleString('ko-KR') : '')
 const slash = (d?: string | null) => (d ? d.replace(/-/g, '/') : '')
-type Emp = { id: number; code: string; name: string; hireDate?: string | null; resignDate?: string | null }
+type Emp = { id: number; code: string; name: string; hireDate?: string | null; resignDate?: string | null; resignReason?: string | null }
 
 type Form = {
   id?: number
@@ -87,7 +87,7 @@ export default function RetirementPayPage() {
     const retire = e?.resignDate ?? today
     const f: Form = {
       employeeId: id, withholdingMonth: retire.slice(0, 7), payDate: retire,
-      startDate: e?.hireDate ?? retire, retireDate: retire, retireReason: '', executive: false,
+      startDate: e?.hireDate ?? retire, retireDate: retire, retireReason: e?.resignReason ?? '', executive: false,
       extraPay: '', retirementPay: '', nonTaxable: '',
     }
     setForm(f)
@@ -226,8 +226,8 @@ export default function RetirementPayPage() {
             <li>
               <div className="title">퇴직사유</div>
               <div className="form">
-                {/* 원본은 고르는 칸이다(김은빈 건 '정리해고'). 목록 전체를 못 재서 글자로 받는다. */}
-                <input className="ec-input w-[150px]" value={form.retireReason} onChange={(e) => set({ retireReason: e.target.value })} />
+                {/* 원본 E030117 계산 창은 '퇴직사유 : 정리해고' 를 글자로만 보인다 — 사원등록 퇴사사유에서 온다(2026-10-13 김은빈). */}
+                <input className="ec-input w-[150px]" readOnly value={form.retireReason} />
               </div>
             </li>
             <li>
