@@ -18,8 +18,8 @@ const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
  * 증가는 받은 날이 기간 안인 수표, 감소는 손을 떠난 날(입금 · 부도)이 기간 안인 수표다.
  *
  * <p>[일자-No.]는 그 움직임을 적은 회계전표다 — 받을 때 분개(source_id)와 손을 떠날 때 분개(V239 settle_journal_id).
- * [거래유형]은 원본에 자료가 없어 무슨 값이 찍히는지 못 쟀다 — 우리는 그 움직임의 이름(수령 · 입금완료 · 부도)을 열에 적고
- * 같은 값으로 거른다.
+ * [거래유형]은 원본 현황 판에 자료가 없어 못 쟀다 — 우리는 그 움직임의 이름(수령 · 입금완료 · 부도)을 열에 적고 같은 값으로 거른다.
+ * 수표내역입력으로 분개 없이 넣은 수표는 수령수표조회에서 잰 값(2026-10-13) '수표만증가' · '수표만감소' 를 쓴다 — [일자-No.] 도 빈칸.
  * 부서 · 프로젝트는 수표에 없다.
  *
  * <p><b>발행수표증가현황</b>(E060611) · <b>감소현황</b>(E060612)도 조건 · 열이 같다(계좌 조건이 [발행수표계좌]). 증가는 발행한 날,
@@ -74,7 +74,8 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
 
   const dayOf = (c: BankCheck) => (flow === '증가' ? c.issueDate : c.settledDate ?? '')
   const noOf = (c: BankCheck) => (flow === '증가' ? c.issueJournalNo : c.settleJournalNo) ?? ''
-  const kindOf = (c: BankCheck) => (flow === '증가' ? (received ? '수령' : '발행') : c.statusName)
+  const kindOf = (c: BankCheck) => (c.directEntry ? (flow === '증가' ? '수표만증가' : '수표만감소')
+    : flow === '증가' ? (received ? '수령' : '발행') : c.statusName)
   const shown = useMemo(() => checks
     .filter((c) => c.type === type)
     .filter((c) => { const d = dayOf(c); return !!d && d >= from && d <= to })
@@ -142,7 +143,7 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
         <EcCond label="거래유형">
           <select className="ec-input" value={kind} onChange={(e) => setKind(e.target.value)} style={{ width: 120 }}>
             <option value="">전체</option>
-            {(flow === '증가' ? [received ? '수령' : '발행'] : received ? ['입금완료', '부도'] : ['결제완료']).map((k) => <option key={k} value={k}>{k}</option>)}
+            {(flow === '증가' ? [received ? '수령' : '발행', '수표만증가'] : received ? ['입금완료', '부도', '수표만감소'] : ['결제완료', '수표만감소']).map((k) => <option key={k} value={k}>{k}</option>)}
           </select>
         </EcCond>
         <EcCond label="최초작성자" pick>

@@ -194,7 +194,8 @@ export default function CheckPage() {
               <td style={{ textAlign: 'center', color: STATUS_COLOR[c.status], fontWeight: 600 }}>{c.statusName}</td>
               <td>{dateText(c.settledDate) || ''}</td>
               <td className="text-center">
-                {c.status === 'HELD' && (
+                {/* 수표조회 [신규] 수표내역입력으로 분개 없이 넣은 수표는 거기서 감소로 줄인다(분개로 입금 · 부도하면 받은 분개 없이 빠진다). */}
+                {c.status === 'HELD' && !c.directEntry && (
                   <div className="inline-flex gap-[3px]">
                     {c.type === 'RECEIVED' ? (
                       <>
