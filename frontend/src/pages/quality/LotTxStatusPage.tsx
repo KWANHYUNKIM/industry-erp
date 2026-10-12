@@ -67,6 +67,9 @@ export default function LotTxStatusPage() {
   const mgmt = useItemMgmt()
   const [mgmtCond, setMgmtCond] = useState('')
   const [noteCond, setNoteCond] = useState('')
+  /* 접힌 줄의 [프로젝트] · [담당자] — [신규(F2)] 내역입력 창으로 손으로 넣은 줄만 든다(전표가 남긴 줄은 빈칸이라 고르면 빠진다). */
+  const [projectCond, setProjectCond] = useState('')
+  const [chargeCond, setChargeCond] = useState('')
 
   async function load() {
     setLoading(true); setError('')
@@ -86,6 +89,8 @@ export default function LotTxStatusPage() {
     () => [...new Set(rows.map((r) => r.warehouseName).filter(Boolean) as string[])].sort(), [rows])
   const items = useMemo(() => [...new Set(rows.map((r) => r.itemName))].sort(), [rows])
   const partners = useMemo(() => [...new Set(rows.map((r) => r.partnerName).filter(Boolean) as string[])].sort(), [rows])
+  const projects = useMemo(() => [...new Set(rows.map((r) => r.projectName).filter(Boolean) as string[])].sort(), [rows])
+  const charges = useMemo(() => [...new Set(rows.map((r) => r.chargeName).filter(Boolean) as string[])].sort(), [rows])
   const docTypes = useMemo(() => [...new Set(rows.map((r) => (r.docType ?? r.typeName)))].sort(), [rows])
 
   const shown = useMemo(() => {
@@ -98,13 +103,15 @@ export default function LotTxStatusPage() {
       if (partner && r.partnerName !== partner) return false
       if (item && r.itemName !== item) return false
       if (docType && (r.docType ?? r.typeName) !== docType) return false
+      if (projectCond && r.projectName !== projectCond) return false
+      if (chargeCond && r.chargeName !== chargeCond) return false
       if (mgmtCond && !mgmt.hits([r.itemId], mgmtCond)) return false
       if (noteCond && !(r.note ?? '').includes(noteCond)) return false
       if (kw && !r.lotNo.includes(kw) && !r.itemName.includes(kw)) return false
       return true
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, expFrom, expTo, lotNo, warehouse, partner, item, docType, keyword, mgmtCond, noteCond, mgmt.options])
+  }, [rows, expFrom, expTo, lotNo, warehouse, partner, item, docType, keyword, projectCond, chargeCond, mgmtCond, noteCond, mgmt.options])
 
   /** 원본 [구분]이 [집계] 일 때 고른 단위로 합친다. */
   const groups = useMemo(() => {
@@ -209,10 +216,20 @@ export default function LotTxStatusPage() {
                            value={docType} onChange={setDocType}
                            items={docTypes.map((t) => ({ value: t, name: t }))} />
         </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={170} emptyLabel="전체"
+                           value={projectCond} onChange={setProjectCond}
+                           items={projects.map((p) => ({ value: p, name: p }))} />
+        </EcCond>
         <EcCond label="관리항목" pick>
           <CodePickerField label="관리항목" hideLabel width={170} emptyLabel="전체"
                            value={mgmtCond} onChange={setMgmtCond}
                            items={mgmt.options.map((m) => ({ value: m, name: m }))} />
+        </EcCond>
+        <EcCond label="담당자" pick>
+          <CodePickerField label="담당자" hideLabel width={170} emptyLabel="전체"
+                           value={chargeCond} onChange={setChargeCond}
+                           items={charges.map((c) => ({ value: c, name: c }))} />
         </EcCond>
         <EcCond label="적요">
           <input className="ec-input" value={noteCond} onChange={(e) => setNoteCond(e.target.value)} style={{ width: 220 }} />

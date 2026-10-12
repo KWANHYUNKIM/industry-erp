@@ -4483,22 +4483,6 @@
    "시리얼/로트No.(창고별)"
   ]
  },
- "시리얼/로트No.내역현황|프로젝트": {
-  "claim": "로트 움직임에 프로젝트가 없다",
-  "absent": [
-   "Project",
-   "project"
-  ],
-  "in": "backend/src/main/java/com/erp/inventory/lot/LotTransaction.java"
- },
- "시리얼/로트No.내역현황|담당자": {
-  "claim": "로트 움직임에 담당자가 없다",
-  "absent": [
-   "Employee",
-   "employee"
-  ],
-  "in": "backend/src/main/java/com/erp/inventory/lot/LotTransaction.java"
- },
  "시리얼/로트No.내역현황|udi코드": {
   "claim": "로트에 UDI 칸이 없다",
   "absent": [
