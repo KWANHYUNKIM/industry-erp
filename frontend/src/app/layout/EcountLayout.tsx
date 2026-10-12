@@ -830,6 +830,7 @@ const MENU: TopMenu[] = [
             { label: '부가세신고서(일반)', to: '/accounting/vat/return' },
             { label: '부가세신고서 PDF 다운로드', to: '/accounting/vat/return-pdf' },
           ] },
+          { label: '과세자료전산매체', to: '/accounting/vat/media-files' },
           { label: '세무증명서류', to: '/accounting/vat/tax-certificate' },
         ],
       },

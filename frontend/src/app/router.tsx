@@ -100,6 +100,7 @@ const BizCardComparePage = lazy(() => import('../pages/accounting/BizCardCompare
 const HometaxComparePage = lazy(() => import('../pages/accounting/HometaxComparePage'))
 const VatReturnPage = lazy(() => import('../pages/accounting/VatReturnPage'))
 const VatReturnPdfPage = lazy(() => import('../pages/accounting/VatReturnPdfPage'))
+const VatMediaFilePage = lazy(() => import('../pages/accounting/VatMediaFilePage'))
 const TaxCertificatePage = lazy(() => import('../pages/accounting/TaxCertificatePage'))
 const JournalHistoryPage = lazy(() => import('../pages/accounting/JournalHistoryPage'))
 const TransferListPage = lazy(() => import('../pages/accounting/TransferListPage'))
@@ -609,6 +610,7 @@ export default function AppRouter() {
         <Route path="/accounting/vat/hometax-compare" element={<HometaxComparePage />} />
         <Route path="/accounting/vat/return" element={<VatReturnPage />} />
         <Route path="/accounting/vat/return-pdf" element={<VatReturnPdfPage />} />
+        <Route path="/accounting/vat/media-files" element={<VatMediaFilePage />} />
         <Route path="/accounting/vat/tax-certificate" element={<TaxCertificatePage />} />
         <Route path="/accounting/purchase-tax-journal" element={<TaxInvoiceJournalPage side="매입" />} />
         <Route path="/accounting/journal-history" element={<JournalHistoryPage />} />
