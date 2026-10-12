@@ -79,7 +79,12 @@ interface Adjustment {
   /** 원본 조건 [처리방법](불량처리). */
   handling: string | null
   itemCategoryName: string | null
+  /** 원본 [거래처명] — 자가사용입력 머리의 거래처(2026-10-12). 이름은 거래처 목록에서 붙인다. */
+  partnerId?: number | null
 }
+
+/** 거래처 마스터에서 이 화면이 쓰는 칸 — [거래처명] · [거래처그룹1] · [거래처관리담당자]. */
+interface PartnerRow { id: number; code: string; name: string; partnerGroupName: string | null; manager: string | null }
 
 /** 서버가 잘라서 줄 수 있다 — 전체 줄 수와 잘랐는지를 함께 준다. */
 interface AdjustmentList {
@@ -107,6 +112,15 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
    * 만든 것이라, 고를 것이 없는 빈 목록을 그대로 보여 준다.
    */
   const [codeGroups, setCodeGroups] = useState<{ code: string; name: string; codes: { name: string }[] }[]>([])
+  /*
+   * 원본 자가사용현황의 [거래처명] 열 · [거래처] · [거래처그룹1] · [거래처관리담당자] 조건.
+   * 자가사용 전표가 거래처를 들게 된 것은 2026-10-12(자가사용입력) — 다른 네 화면의 전표에는 거래처가 없다.
+   */
+  const [partners, setPartners] = useState<PartnerRow[]>([])
+  useEffect(() => {
+    if (kind !== 'SELF_USE') return
+    api.get<PartnerRow[]>('/partners').then((r) => setPartners(r.data)).catch(() => setPartners([]))
+  }, [kind])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -130,6 +144,8 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
     itemGroup: '',
     /* 원본 [최초작성자] — 응답이 createdBy 를 진작 싣고 있었는데 거를 자리가 없었다. */
     createdBy: '',
+    /* 원본 [거래처] · [거래처그룹1] · [거래처관리담당자](자가사용현황). */
+    partner: '', partnerGroup: '', partnerManager: '',
   })
   const setC = (patch: Partial<typeof cond>) => setCond((c) => ({ ...c, ...patch }))
   /** 원본 [기타] — 재고조정현황에만 있다. 실측한 기본값은 둘 다 꺼짐이다. */
@@ -203,6 +219,7 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
    * mgmt 와 이것은 <b>shown 보다 앞에</b> 둔다. 뒤에 있으면 [담당자]·[품목그룹1] 을 고르는 순간
    * shown 의 거르기가 아직 선언 전인 const 를 불러 ReferenceError 로 화면이 하얗게 뜬다.
    */
+  const partnerOf = (id: number | null | undefined) => (id == null ? undefined : partners.find((p) => p.id === id))
   const empName = (id: number | null) =>
     (id == null ? '' : pickers.employees.find((e) => e.id === id)?.name ?? '')
 
@@ -246,6 +263,9 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
     .filter((r) => !cond.qtyFrom || Math.abs(r.quantityChange) >= Number(cond.qtyFrom))
     .filter((r) => !cond.qtyTo || Math.abs(r.quantityChange) <= Number(cond.qtyTo))
     .filter((r) => !cond.createdBy || (r.createdBy ?? '') === cond.createdBy)
+    .filter((r) => !cond.partner || String(r.partnerId) === cond.partner)
+    .filter((r) => !cond.partnerGroup || partnerOf(r.partnerId)?.partnerGroupName === cond.partnerGroup)
+    .filter((r) => !cond.partnerManager || partnerOf(r.partnerId)?.manager === cond.partnerManager)
 
   /*
    * 원본 조건 판의 <b>[정렬/소계기준]</b> — 집계를 <b>무엇으로 묶을지</b> 고른다(사본 실측).
@@ -329,7 +349,7 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
   const totalChange = shown.reduce((n, r) => n + r.quantityChange, 0)
   const totalAmount = shown.reduce((n, r) => n + (amountOf(r.itemId, r.quantityChange) ?? 0), 0)
   /* 불량처리현황만 앞에 칸이 둘 더 붙는다 - 빈 줄의 colSpan 도 같이 움직여야 한다. */
-  const cols = 11 + (kind === 'DEFECT' ? 2 : 0) + (hasAmount ? 1 : 0)
+  const cols = 11 + (kind === 'DEFECT' ? 2 : 0) + (hasAmount ? 1 : 0) + (kind === 'SELF_USE' ? 1 : 0)
   /* 화면에 따라 칸 수가 달라지므로 정적 검사로는 못 센다 - 렌더된 표를 직접 잰다. */
   const tableRef = useRef<HTMLDivElement>(null)
   useTableColumnCheck(tableRef, '기타이동현황', [kind, mode, shown.length])
@@ -344,6 +364,7 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
     itemGroup: '',
     /* 원본 [최초작성자] — 응답이 createdBy 를 진작 싣고 있었는데 거를 자리가 없었다. */
     createdBy: '',
+    partner: '', partnerGroup: '', partnerManager: '',
     })
   }
 
@@ -389,6 +410,13 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
                            value={cond.project} onChange={(v) => setC({ project: v })}
                            items={pickers.projects} />
         </EcCond>
+        {kind === 'SELF_USE' && (
+          <EcCond label="거래처" pick>
+            <CodePickerField label="거래처" hideLabel width={200} emptyLabel="전체"
+                             value={cond.partner} onChange={(v) => setC({ partner: v })}
+                             items={partners.map((p) => ({ value: String(p.id), code: p.code, name: p.name, sub: p.partnerGroupName }))} />
+          </EcCond>
+        )}
         <EcCond label="품목" pick>
           <CodePickerField label="품목" hideLabel width={200} emptyLabel="전체"
                            value={cond.item} onChange={(v) => setC({ item: v })}
@@ -437,6 +465,21 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
               {handlingOptions.map((v) => <option key={v} value={v}>{v}</option>)}
             </select>
           </EcCond>
+        )}
+        {kind === 'SELF_USE' && (
+          <>
+            <EcCond label="거래처그룹1">
+              <select className="ec-input w-[150px]" value={cond.partnerGroup} onChange={(e) => setC({ partnerGroup: e.target.value })}>
+                <option value="">전체</option>
+                {[...new Set(partners.map((p) => p.partnerGroupName).filter((v): v is string => !!v))].sort().map((g) => <option key={g} value={g}>{g}</option>)}
+              </select>
+            </EcCond>
+            <EcCond label="거래처관리담당자" pick>
+              <CodePickerField label="거래처관리담당자" hideLabel width={170} emptyLabel="전체"
+                               value={cond.partnerManager} onChange={(v) => setC({ partnerManager: v })}
+                               items={[...new Set(partners.map((p) => p.manager).filter((v): v is string => !!v))].sort().map((m) => ({ value: m, name: m }))} />
+            </EcCond>
+          </>
         )}
         {kind === 'SELF_USE' && (
           <EcCond label="수량">
@@ -537,7 +580,7 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
                 <b>장부수량 · 실사수량 · 조정수량</b> · 금액(수량*입고단가) · 적요
               한 표가 다섯을 겸하므로 <b>화면(kind)에 따라 이름을 갈라 적고</b> 그 화면에만
               있는 칸은 그때만 그린다. 한 이름으로 통일하면 넷이 틀린다.
-              못 만드는 것: [거래처명]·[금액(수량*입고단가)]·[불량수량]·[정상수량](예외에 적었다).
+              못 만드는 것: [금액(수량*입고단가)]·[불량수량]·[정상수량](예외에 적었다).
               프로젝트·담당자는 원본에 없지만 우리가 더 두는 열이다.
             */}
             <thead>
@@ -548,6 +591,7 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
                 {kind === 'DEFECT' && <th className="w-[110px]">처리방법</th>}
                 {/* 원본은 일자와 번호를 한 칸에 적는다. */}
                 <th className="text-center">일자-No.</th>
+                {kind === 'SELF_USE' && <th>거래처명</th>}
                 <th>품목코드</th>
                 <th>{kind === 'DISPOSAL' ? '품목명[규격명]' : '품목명[규격]'}</th>
                 <th>창고명</th>
@@ -573,6 +617,7 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
                   {kind === 'DEFECT' && <td className="text-ec-label">{r.kind ?? ''}</td>}
                   {kind === 'DEFECT' && <td className="text-ec-label">{r.handling ?? ''}</td>}
                   <td className="text-center">{dateNo(r.adjustDate, r.adjustNo)}</td>
+                  {kind === 'SELF_USE' && <td>{partnerOf(r.partnerId)?.name ?? ''}</td>}
                   <td>{r.itemCode}</td>
                   {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다 — 우리는 칸을 따로 두고 있었다. */}
                   <td>{r.itemName}{r.spec ? ' [' + r.spec + ']' : ''}</td>
