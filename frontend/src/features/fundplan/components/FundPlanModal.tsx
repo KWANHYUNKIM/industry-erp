@@ -41,7 +41,7 @@ const blank = (): Form => ({
  * <p>칸 차례: 입출구분(출금 · 입금, 기본 출금) · 발생일자 · 부서코드 · 프로젝트코드 · 입력구분(예금(현금) · 어음) + 계좌번호 ·
  * 상대계정 · 거래처 · 금액 · 적요. 버튼줄 신규: 저장(F8) · 다시 작성 · 닫기 / 수정: 저장(F8) · 삭제 · 닫기.
  * 원본은 필수 칸이 없다 — 빈 창을 저장해도 금액 빈 줄이 하나 생긴다. 수정 창은 모든 칸을 고칠 수 있다.
- * [반복설정] · [H](이력)는 두지 않았다.
+ * '어음'을 고르면 계좌 줄이 사라진다(어음번호 칸은 원본에도 없다). [반복설정] · [H](이력)는 두지 않았다.
  */
 export default function FundPlanModal({ open, planId, masters, onClose, onSaved }: {
   open: boolean
@@ -82,7 +82,7 @@ export default function FundPlanModal({ open, planId, masters, onClose, onSaved 
     const body = {
       direction: f.direction, planDate: f.planDate, departmentId: num(f.departmentId), projectId: num(f.projectId),
       method: f.method, bankAccountId: f.method === 'DEPOSIT' ? num(f.bankAccountId) : null,
-      noteNo: f.method === 'NOTE' ? f.noteNo || null : null,
+      noteNo: null,
       counterAccountId: num(f.counterAccountId), partnerId: num(f.partnerId),
       amount: Number(f.amount) || 0, memo: f.memo || null,
     }
@@ -142,11 +142,11 @@ export default function FundPlanModal({ open, planId, masters, onClose, onSaved 
                 {radio('fp-method', 'DEPOSIT', f.method, '예금(현금)', (v) => set({ method: v }))}
                 {radio('fp-method', 'NOTE', f.method, '어음', (v) => set({ method: v }))}
               </span>
-              {f.method === 'DEPOSIT'
-                ? <CodePickerField label="계좌번호" hideLabel width={420} emptyLabel="선택 안 함" value={f.bankAccountId}
-                                   onChange={(v) => set({ bankAccountId: v })} items={masters.bankAccounts} />
-                : <input className="ec-input w-[420px]" aria-label="어음번호" placeholder="어음번호" maxLength={50}
-                         value={f.noteNo} onChange={(e) => set({ noteNo: e.target.value })} />}
+              {/* 원본은 '어음'을 고르면 계좌 줄이 사라지고 다른 칸이 나오지 않는다(2026-10-12 실측) */}
+              {f.method === 'DEPOSIT' && (
+                <CodePickerField label="계좌번호" hideLabel width={420} emptyLabel="선택 안 함" value={f.bankAccountId}
+                                 onChange={(v) => set({ bankAccountId: v })} items={masters.bankAccounts} />
+              )}
             </div>
           </EcCond>
           <EcCond label="상대계정" pick>

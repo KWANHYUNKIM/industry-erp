@@ -616,6 +616,7 @@ const MENU: TopMenu[] = [
         nodes: [
           /* 원본 자금계획 탭(2026-10-12 실측): 계획전표조회 · 계획전표현황 · 출력물(추정자금일보 · 월보 · 연보). */
           { label: '계획전표조회', to: '/accounting/fund-plans' },
+          { label: '계획전표현황', to: '/accounting/fund-plans/status' },
           { label: '자금수지계획', to: '/accounting/cash-plan' },
         ],
       },

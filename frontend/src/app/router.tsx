@@ -73,6 +73,7 @@ const NoteListPage = lazy(() => import('../pages/accounting/NoteListPage'))
 const BudgetPage = lazy(() => import('../pages/accounting/BudgetPage'))
 const CashPlanPage = lazy(() => import('../pages/accounting/CashPlanPage'))
 const FundPlanListPage = lazy(() => import('../pages/accounting/FundPlanListPage'))
+const FundPlanStatusPage = lazy(() => import('../pages/accounting/FundPlanStatusPage'))
 const AccountsPage = lazy(() => import('../pages/accounting/AccountsPage'))
 const JournalListPage = lazy(() => import('../pages/accounting/JournalListPage'))
 const AccountLedgerPage = lazy(() => import('../pages/accounting/AccountLedgerPage'))
@@ -578,6 +579,7 @@ export default function AppRouter() {
         <Route path="/accounting/budget" element={<BudgetPage />} />
         <Route path="/accounting/cash-plan" element={<CashPlanPage />} />
         <Route path="/accounting/fund-plans" element={<FundPlanListPage />} />
+        <Route path="/accounting/fund-plans/status" element={<FundPlanStatusPage />} />
         <Route path="/accounting/accounts" element={<AccountsPage />} />
         <Route path="/accounting/journals" element={<JournalListPage />} />
         <Route path="/accounting/ledger-book" element={<AccountLedgerPage />} />

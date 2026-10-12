@@ -43,6 +43,14 @@ export interface BankAccountOpt {
 }
 
 export const bankLabel = (b: BankAccountOpt) => b.name ?? `${b.bankName} ${b.accountNo}`
-/** 원본 목록 [입력구분] 열 — 예금(현금)은 '자금', 어음은 '어음'. */
-export const methodCell = (m: FundPlanMethod) => (m === 'NOTE' ? '어음' : '자금')
+/**
+ * 원본 목록 · 계획전표현황 [입력구분] 열 — 계획전표는 예금(현금)이든 어음이든 늘 '자금'(2026-10-12 실측: 입금 · 어음 50,000 도 '자금').
+ * '수금 · 지급 · 어음 · 채권 · 채무' 는 다른 전표에서 오는 계획이라 계획전표에는 없다.
+ */
+export const methodCell = (_m: FundPlanMethod) => '자금'
+
+/** 계획전표현황 캘린더 칸 글자 — 원본 실측: 예금(현금)증가 · 예금(현금)감소 · 받을어음증가 · 지급어음증가. */
+export const calendarLabel = (d: FundPlanDirection, m: FundPlanMethod) =>
+  m === 'NOTE' ? (d === 'IN' ? '받을어음증가' : '지급어음증가') : (d === 'IN' ? '예금(현금)증가' : '예금(현금)감소')
+export const CALENDAR_LABEL_ORDER = ['예금(현금)증가', '예금(현금)감소', '받을어음증가', '지급어음증가']
 export const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
