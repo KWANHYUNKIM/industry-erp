@@ -104,7 +104,8 @@ public final class MenuPermissionCatalog {
         put(m, "FINANCE", "/api/budgets", "/api/contracts", "/api/incomes", "/api/expenses",
                 "/api/cash-plans", "/api/bonds", "/api/fund-plans");
         put(m, "TAX", "/api/withholding", "/api/other-withholdings", "/api/corporate-tax",
-                "/api/medical-device-reports");
+                "/api/medical-device-reports", "/api/vat-returns", "/api/vat-media-files", "/api/vat-invoice-marks",
+                "/api/expense-evidence", "/api/withholding-payees");
         // 관리
         put(m, "PAYROLL", "/api/payslips", "/api/pay-settings", "/api/daily-works");
         put(m, "HR", "/api/employees", "/api/hr", "/api/attendances", "/api/employment-contracts",
