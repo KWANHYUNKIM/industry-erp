@@ -73,5 +73,7 @@ export interface CashQuickVoucher {
   cardIssuerId: number | null
   employeeId: number | null
   feeRate: number | null
+  departmentId: number | null
+  projectId: number | null
   lines: { accountId: number; amount: number; description: string | null }[]
 }

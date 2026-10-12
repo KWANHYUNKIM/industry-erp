@@ -6,7 +6,7 @@
       "path": "/accounting/account-transfer",
       "steps": [
         "wait:2500",
-        "expect:[...document.querySelectorAll('.ec-form li .title')].map((t) => t.innerText.trim()).join('|') === '전표일자|입금계좌|출금계좌|금액|수수료|적요|회계전표No.'",
+        "expect:[...document.querySelectorAll('.ec-form li .title')].map((t) => t.innerText.trim()).join('|') === '전표일자|부서|프로젝트|입금계좌|출금계좌|금액|수수료|적요|회계전표No.'",
         "expect:[...document.querySelectorAll('button')].map((b) => b.innerText.trim()).filter((t) => ['저장(F8)', '다시 작성', '리스트'].includes(t)).length === 3",
         "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then((r) => r.json()); const bs = (await A('GET', '/bank-cards/accounts')).filter((b) => b.active && b.balance > 10000); const r = await A('POST', '/vouchers', { type: 'ACCOUNT_TRANSFER', voucherDate: new Date().toISOString().slice(0, 10), method: 'BANK', bankAccountId: bs[0].id, counterBankAccountId: bs[1].id, fee: 100, lines: [{ amount: 5000, description: 'QA회계1-흐름 계좌간' }] }); sessionStorage.setItem('cqId', r.id); sessionStorage.setItem('cqJe', r.journalEntryId); const j = await A('GET', '/journals/' + r.journalEntryId); sessionStorage.setItem('cqLines', j.lines.map((l) => l.accountCode + ':' + l.debit + ':' + l.credit).join(',')); return r.voucherNo })()",
         "expect:sessionStorage.getItem('cqLines') === '103:5000:0,831:100:0,103:0:5100'"
@@ -35,7 +35,7 @@
       "path": "/accounting/card-sales-collection",
       "steps": [
         "wait:2500",
-        "expect:[...document.querySelectorAll('.ec-form li .title')].map((t) => t.innerText.trim()).join('|') === '전표일자|카드사|입금계좌|수수료율|통장입금액|수수료|총금액|적요|회계전표No.'",
+        "expect:[...document.querySelectorAll('.ec-form li .title')].map((t) => t.innerText.trim()).join('|') === '전표일자|부서|프로젝트|카드사|입금계좌|수수료율|통장입금액|수수료|총금액|적요|회계전표No.'",
         "expect:document.querySelector('input[aria-label=\"수수료\"]').disabled && document.querySelector('input[aria-label=\"총금액\"]').disabled"
       ]
     }

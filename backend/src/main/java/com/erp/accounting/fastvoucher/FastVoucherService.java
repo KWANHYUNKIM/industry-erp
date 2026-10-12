@@ -153,6 +153,9 @@ public class FastVoucherService {
 
     /** 요청의 줄 · 머리를 전표에 싣고 분개 · 계좌 입출금을 만든다(등록 · 수정 공통). */
     private void apply(FastVoucher v, CreateVoucherRequest req, String username) {
+        /* 원본 한 장 입력 머리의 [부서] · [프로젝트] — 고른 그대로 남긴다(결의서 격자 화면은 보내지 않아 비어 있다). */
+        v.setDepartmentId(req.departmentId());
+        v.setProjectId(req.projectId());
         if (v.getType().isCashQuick()) {
             applyCashQuick(v, req, username);
             return;

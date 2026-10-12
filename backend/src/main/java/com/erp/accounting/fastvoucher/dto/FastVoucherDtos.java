@@ -67,7 +67,10 @@ public final class FastVoucherDtos {
             /** 일시적으로 [사원]. 이름은 payeeName 으로 함께 보낸다. */
             Long employeeId,
             /** 카드매출대금회수 [수수료율](%). */
-            @PositiveOrZero(message = "수수료율은 0보다 작을 수 없습니다.") BigDecimal feeRate
+            @PositiveOrZero(message = "수수료율은 0보다 작을 수 없습니다.") BigDecimal feeRate,
+            /** 현금거래 한 장 입력(영수증으로 · 매출처로부터 …) [부서] · [프로젝트]. */
+            Long departmentId,
+            Long projectId
     ) {}
 
     public record VoucherLineResponse(
@@ -97,7 +100,8 @@ public final class FastVoucherDtos {
             Long cardIssuerId, String cardIssuerCode, String cardIssuerName,
             Long employeeId, BigDecimal feeRate,
             /** 머리 계좌(현금거래의 입금 · 출금계좌) — 000 현금이면 code '000'. */
-            String bankAccountCode
+            String bankAccountCode,
+            Long departmentId, Long projectId
     ) {
         public static VoucherResponse from(FastVoucher v) {
             BigDecimal balance = v.getAdvanceAmount() != null
@@ -140,7 +144,8 @@ public final class FastVoucherDtos {
                     v.getCardIssuer() != null ? v.getCardIssuer().getCode() : null,
                     v.getCardIssuer() != null ? v.getCardIssuer().getName() : null,
                     v.getEmployeeId(), v.getFeeRate(),
-                    v.getBankAccount() != null ? bankCode(v.getBankAccount()) : (v.getMethod() == PaymentMethod.CASH ? "000" : null));
+                    v.getBankAccount() != null ? bankCode(v.getBankAccount()) : (v.getMethod() == PaymentMethod.CASH ? "000" : null),
+                    v.getDepartmentId(), v.getProjectId());
         }
     }
 

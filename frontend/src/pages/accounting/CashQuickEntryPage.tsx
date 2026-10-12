@@ -10,6 +10,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import { ymd } from '../../components/EcPeriodPicks'
 import type { BankAccountRow, CreditCardRow } from '../../types/api'
 import { cashQuickKind, type CashQuickField, type CashQuickType, type CashQuickVoucher } from '../../features/cashquick/kinds'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 
 /**
  * 회계 I › 현금거래의 한 장짜리 입력 열한 종 — 매출처로부터(E010404) · 카드매출대금회수(E010405) · 일시적으로(입금 E010401 ·
@@ -57,6 +58,9 @@ export default function CashQuickEntryPage({ type }: { type: CashQuickType }) {
   const [editing, setEditing] = useState<CashQuickVoucher | null>(null)
 
   const [date, setDate] = useState(ymd(new Date()))
+  const deptProject = useDeptProjectItems()
+  const [departmentId, setDepartmentId] = useState('')
+  const [projectId, setProjectId] = useState('')
   const [main, setMain] = useState('')          // '000' 현금 · 'b<id>' 계좌
   const [counter, setCounter] = useState('')    // 계좌 id
   const [partnerId, setPartnerId] = useState('')
@@ -91,6 +95,7 @@ export default function CashQuickEntryPage({ type }: { type: CashQuickType }) {
   function reset(keep = false) {
     if (!keep) { setDate(ymd(new Date())); setMain(''); setIssuerId(''); setFeeRate(''); setAccountId('') }
     setCounter(''); setPartnerId(''); setEmployeeId(''); setCardId(''); setAmount(''); setFee(''); setMemo(''); setError('')
+    setDepartmentId(''); setProjectId('')
   }
 
   useEffect(() => {
@@ -111,6 +116,8 @@ export default function CashQuickEntryPage({ type }: { type: CashQuickType }) {
       setAmount(l ? String(l.amount) : '')
       setFee(data.fee ? String(data.fee) : '')
       setMemo(l?.description ?? '')
+      setDepartmentId(data.departmentId ? String(data.departmentId) : '')
+      setProjectId(data.projectId ? String(data.projectId) : '')
     }).catch((e) => setError(extractErrorMessage(e)))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editId, journalId])
@@ -168,6 +175,8 @@ export default function CashQuickEntryPage({ type }: { type: CashQuickType }) {
       cardIssuerId: issuerId ? Number(issuerId) : undefined,
       feeRate: has('feeRate') ? rateNum : undefined,
       fee: has('fee') ? feeNum : 0,
+      departmentId: departmentId ? Number(departmentId) : undefined,
+      projectId: projectId ? Number(projectId) : undefined,
       lines: [{
         accountId: has('account') ? Number(accountId) : undefined,
         amount: amountNum,
@@ -255,6 +264,12 @@ export default function CashQuickEntryPage({ type }: { type: CashQuickType }) {
               <EcDateField value={date} onChange={setDate} disabled={!!editing} />
               {editing && <span className="text-ec-label">{editing.voucherNo}</span>}
             </span>
+          </EcCond>
+          <EcCond label="부서" span={2}>
+            <CodePickerField label="부서" hideLabel pair fill emptyLabel="(없음)" value={departmentId} onChange={setDepartmentId} items={deptProject.departments} />
+          </EcCond>
+          <EcCond label="프로젝트" span={2}>
+            <CodePickerField label="프로젝트" hideLabel pair fill emptyLabel="(없음)" value={projectId} onChange={setProjectId} items={deptProject.projects} />
           </EcCond>
           {kind.fields.map(([f, l]) => (
             <EcCond key={f} label={l} span={2}>{field(f, l)}</EcCond>

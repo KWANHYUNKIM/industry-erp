@@ -104,6 +104,14 @@ public class FastVoucher extends BaseTimeEntity {
     @Column(name = "fee_rate", precision = 7, scale = 3)
     private BigDecimal feeRate;
 
+    /** 현금거래 한 장 입력의 [부서] — hr 를 참조하지 않으려 id 만 든다. */
+    @Column(name = "department_id")
+    private Long departmentId;
+
+    /** 현금거래 한 장 입력의 [프로젝트]. */
+    @Column(name = "project_id")
+    private Long projectId;
+
     @OneToMany(mappedBy = "voucher", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<FastVoucherLine> lines = new ArrayList<>();

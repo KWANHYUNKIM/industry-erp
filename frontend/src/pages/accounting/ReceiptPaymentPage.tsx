@@ -9,6 +9,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import { ymd } from '../../components/EcPeriodPicks'
 import type { BankAccountRow, FastVoucher } from '../../types/api'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 
 /**
  * 회계 I › 현금거래 › 현금예금출금 › [영수증으로](E010402).
@@ -40,6 +41,9 @@ export default function ReceiptPaymentPage() {
   const [banks, setBanks] = useState<BankAccountRow[]>([])
   const [editing, setEditing] = useState<FastVoucher | null>(null)
   const [date, setDate] = useState(ymd(new Date()))
+  const deptProject = useDeptProjectItems()
+  const [departmentId, setDepartmentId] = useState('')
+  const [projectId, setProjectId] = useState('')
   const [settle, setSettle] = useState('')
   const [accountId, setAccountId] = useState('')
   const [payee, setPayee] = useState('')
@@ -58,12 +62,13 @@ export default function ReceiptPaymentPage() {
 
   function reset() {
     setDate(ymd(new Date())); setSettle(''); setAccountId(''); setPayee(''); setAmount(''); setFee(''); setMemo(''); setError('')
+    setDepartmentId(''); setProjectId('')
   }
 
   useEffect(() => {
     if (!editId && !journalId) { setEditing(null); reset(); return }
     const url = editId ? `/vouchers/${editId}` : `/vouchers/by-journal/${journalId}`
-    api.get<FastVoucher>(url).then(({ data }) => {
+    api.get<FastVoucher & { departmentId: number | null; projectId: number | null }>(url).then(({ data }) => {
       const l = data.lines[0]
       setEditing(data)
       setDate(data.voucherDate)
@@ -73,6 +78,8 @@ export default function ReceiptPaymentPage() {
       setAmount(l ? String(l.amount) : '')
       setFee(data.fee ? String(data.fee) : '')
       setMemo(l?.description ?? '')
+      setDepartmentId(data.departmentId ? String(data.departmentId) : '')
+      setProjectId(data.projectId ? String(data.projectId) : '')
     }).catch((e) => setError(extractErrorMessage(e)))
   }, [editId, journalId])
 
@@ -94,6 +101,8 @@ export default function ReceiptPaymentPage() {
       method: 'CASH',
       payeeName: payee.trim() || undefined,
       fee: Number(fee) || 0,
+      departmentId: departmentId ? Number(departmentId) : undefined,
+      projectId: projectId ? Number(projectId) : undefined,
       lines: [{
         accountId: Number(accountId),
         amount: Number(amount),
@@ -149,6 +158,12 @@ export default function ReceiptPaymentPage() {
               <EcDateField value={date} onChange={setDate} disabled={!!editing} />
               {editing && <span className="text-ec-label">{editing.voucherNo}</span>}
             </span>
+          </EcCond>
+          <EcCond label="부서" span={2}>
+            <CodePickerField label="부서" hideLabel pair fill emptyLabel="(없음)" value={departmentId} onChange={setDepartmentId} items={deptProject.departments} />
+          </EcCond>
+          <EcCond label="프로젝트" span={2}>
+            <CodePickerField label="프로젝트" hideLabel pair fill emptyLabel="(없음)" value={projectId} onChange={setProjectId} items={deptProject.projects} />
           </EcCond>
           <EcCond label="출금계좌" span={2}>
             <CodePickerField label="출금계좌" hideLabel pair fill emptyLabel="(없음)" value={settle}
