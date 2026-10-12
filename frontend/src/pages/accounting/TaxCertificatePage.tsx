@@ -1,13 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { vatSlipAmounts } from '../../utils/vatSlip'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { fillAndPrint, openPrintWindow } from '../../utils/print'
-import type { JournalEntry } from '../../types/api'
+import { loadVatSheet, type AccountOpt, type VatReturnRow } from './VatReturnPage'
 
-interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
 interface CompanyInfo {
   name?: string; ceo?: string; bizRegNo?: string; corpRegNo?: string; tel?: string; address?: string; addressDetail?: string
 }
@@ -29,8 +27,8 @@ const PRINT_CSS = 'body{font-family:sans-serif;font-size:11px;margin:16px}'
  * ⑥ 성명 · ⑦ 주민(법인)등록번호, 표 [과세기간 부터 · 까지 · 매출 과세표준(수입금액) · 세목 · 납부세액], 합계, 발행일자.
  * 원본 2026/01~10: 2026/07/01 ~ 2026/09/30 · 396,450,000 · 부가가치세 · 8,121,600 한 줄(신고서를 만든 기간만).
  *
- * <p>우리는 신고서를 저장하지 않아, 과세기간 안의 신고기간(석 달 — 예정 · 확정)마다 발행일자까지 끝났고 매출이 있는 것을 줄로 낸다.
- * 매출 과세표준은 매출 공급가액(과세 + 영세율), 납부세액은 매출세액 − 매입세액(부가가치세신고서 ㉰와 같은 셈).
+ * <p>줄은 저장한 부가세신고서(일반) 중 신고기간이 과세기간 안에 드는 것 한 장씩(2026-10-12 — 예전엔 석 달마다 전표로 지어냈다).
+ * 매출 과세표준은 그 신고서의 (1) + (5) 공급가액, 납부세액은 매출세액 − 매입세액(부가가치세신고서 ㉰와 같은 셈).
  *
  * <p>두지 않은 것: 재무제표등확인 · [다시작성].
  */
@@ -56,26 +54,21 @@ export default function TaxCertificatePage() {
     const end = new Date(Number(toYm.slice(0, 4)), Number(toYm.slice(5, 7)), 0)
     const to = iso(end)
     try {
-      const r = await api.get<JournalList>('/journals', { params: { from, to, all: true } })
-      const out: Row[] = []
-      /* 석 달 단위 신고기간 — 1~3 · 4~6 · 7~9 · 10~12. */
-      for (let y = Number(fromYm.slice(0, 4)); y <= end.getFullYear(); y++) {
-        for (let q = 0; q < 4; q++) {
-          const pFrom = `${y}-${String(q * 3 + 1).padStart(2, '0')}-01`
-          const pEnd = iso(new Date(y, q * 3 + 3, 0))
-          if (pFrom < from || pEnd > to || pEnd > issueDate) continue
-          let sales = 0, salesVat = 0, purchaseVat = 0
-          for (const e of r.data.rows) {
-            if (e.entryDate < pFrom || e.entryDate > pEnd) continue
-            const s = vatSlipAmounts(e.lines, '매출')
-            if (s) { sales += s.supply; salesVat += s.vat }
-            const b = vatSlipAmounts(e.lines, '매입')
-            if (b) purchaseVat += b.vat
-          }
-          if (sales !== 0 || salesVat !== 0 || purchaseVat !== 0) out.push({ from: pFrom, to: pEnd, sales, tax: salesVat - purchaseVat })
-        }
-      }
-      setRows(out)
+      /* 저장한 부가세신고서(일반) 중 신고기간이 과세기간 안에 드는 것 — 한 장이 한 줄. 숫자는 그 신고서 서식과 같은 셈(loadVatSheet). */
+      const [vr, ac] = await Promise.all([
+        api.get<VatReturnRow[]>('/vat-returns', { params: { fromYear: fromYm.slice(0, 4), toYear: end.getFullYear() } }),
+        api.get<AccountOpt[]>('/accounts'),
+      ])
+      const inside = vr.data.filter((v) => {
+        const pFrom = `${v.year}-${String(v.monthFrom).padStart(2, '0')}-01`
+        const pEnd = iso(new Date(v.year, v.monthTo, 0))
+        return pFrom >= from && pEnd <= to
+      })
+      const sheets = await Promise.all(inside.map((v) => loadVatSheet(v, ac.data)))
+      setRows(sheets.map((sh) => ({
+        from: sh.from, to: sh.to, sales: sh.taxInvoice.supply + sh.zeroInvoice.supply,
+        tax: sh.taxInvoice.vat + sh.zeroInvoice.vat - sh.purchaseGeneral.vat - sh.purchaseFixed.vat,
+      })).sort((a, b) => a.from.localeCompare(b.from)))
     } catch (e) {
       setRows(null); setError(extractErrorMessage(e))
     }
