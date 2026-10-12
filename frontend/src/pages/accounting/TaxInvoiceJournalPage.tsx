@@ -20,7 +20,8 @@ interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: bool
 interface PartnerOpt { id: number; code: string; name: string; manager: string | null; taxReport: boolean }
 const KIND_NAME = '세금계산서'
 type Status = '전체' | '결재중' | '미확인' | '확인'
-interface Row { key: string; date: string; no: string; partner: string; supply: number; vat: number; fromSlip: boolean }
+interface Row { key: string; date: string; no: string; kindName: string; partner: string; supply: number; vat: number; source: '거래명세서' | '회계 I' | '세무' }
+interface TaxVoucher { id: number; entryDate: string; entryNo: number; vatType: string; partnerId: number; partnerName: string; supplyAmount: number; vatAmount: number }
 
 /**
  * 회계 I &gt; 출력물 &gt; 기타 &gt; <b>매출(세금)계산서현황</b>(E010845) · <b>매입(세금)계산서현황</b>(E010846) — 2026-10-03 loginaa 실측.
@@ -37,6 +38,8 @@ interface Row { key: string; date: string; no: string; partner: string; supply: 
 /**
  * menu='세무' — 세무 › 부가세 › 신고전검토자료의 매출(세금)계산서현황(세무) E030212 · 매입(세금)계산서현황(세무). 원본 판이 회계 I 판과
  * 같고(조건 · 상태 기본 확인) 제목에 '(세무)' 가 붙고 기간 빠른선택에 직전분기 · 직전반기 · 최근30일이 붙는다(2026-10-04 실측).
+ * (세금)계산서발행/수령에서 쓴 분개 없는 계산서도 [내역보기] '세무' 줄로 싣는다 — 원본 '2026/10/12 -4 (주)구로 123,000 12,300 135,300 세무'
+ * (2026-10-12 실측). 회계 I 판에는 싣지 않는다(그쪽은 아직 재지 않았다).
  */
 export default function TaxInvoiceJournalPage({ side, menu }: { side: Side; menu?: '세무' }) {
   const { companyName } = useAuth()
@@ -52,6 +55,7 @@ export default function TaxInvoiceJournalPage({ side, menu }: { side: Side; menu
   const [kind, setKind] = useState('')
   const [status, setStatus] = useState<Status>('확인')
   const [entries, setEntries] = useState<JournalEntry[]>([])
+  const [vouchers, setVouchers] = useState<TaxVoucher[]>([])
   const [truncated, setTruncated] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -64,8 +68,14 @@ export default function TaxInvoiceJournalPage({ side, menu }: { side: Side; menu
     setLoading(true)
     setError('')
     try {
-      const r = await api.get<JournalList>('/journals', { params: { from, to, all: true } })
+      const [r, v] = await Promise.all([
+        api.get<JournalList>('/journals', { params: { from, to, all: true } }),
+        menu === '세무'
+          ? api.get<TaxVoucher[]>('/tax-vouchers', { params: { from, to, side: side === '매출' ? 'SALES' : 'PURCHASE' } }).then((x) => x.data)
+          : Promise.resolve([] as TaxVoucher[]),
+      ])
       setEntries(r.data.rows)
+      setVouchers(v)
       setTruncated(r.data.truncated)
     } catch (e) {
       setError(extractErrorMessage(e))
@@ -79,7 +89,6 @@ export default function TaxInvoiceJournalPage({ side, menu }: { side: Side; menu
   const pById = useMemo(() => new Map(partners.map((p) => [p.id, p])), [partners])
   const rows = useMemo(() => {
     if (status === '결재중' || status === '미확인') return [] as Row[]
-    if (kind && kind !== KIND_NAME) return [] as Row[]
     const out: Row[] = []
     const sorted = [...entries].sort((a, b) => (a.entryDate < b.entryDate ? -1 : a.entryDate > b.entryDate ? 1 : a.docNo.localeCompare(b.docNo)))
     for (const e of sorted) {
@@ -92,11 +101,20 @@ export default function TaxInvoiceJournalPage({ side, menu }: { side: Side; menu
       const amt = vatSlipAmounts(e.lines, side)
       if (!amt) continue
       const { supply, vat } = amt
-      out.push({ key: String(e.id), date: e.entryDate, no: e.docNo, partner: e.partnerName ?? '', supply, vat,
-        fromSlip: e.sourceType === 'SALES' || e.sourceType === 'PURCHASE' })
+      out.push({ key: String(e.id), date: e.entryDate, no: e.docNo, kindName: KIND_NAME, partner: e.partnerName ?? '', supply, vat,
+        source: e.sourceType === 'SALES' || e.sourceType === 'PURCHASE' ? '거래명세서' : '회계 I' })
     }
-    return out
-  }, [entries, pById, docNo, partner, manager, taxOnly, kind, status, side])
+    for (const v of docNo ? [] : vouchers) {
+      const p = pById.get(v.partnerId)
+      if (partner && String(v.partnerId) !== partner) continue
+      if (manager && (p?.manager ?? '') !== manager) continue
+      if (taxOnly && !p?.taxReport) continue
+      out.push({ key: `tv-${v.id}`, date: v.entryDate, no: String(v.entryNo), kindName: v.vatType, partner: v.partnerName,
+        supply: Number(v.supplyAmount), vat: Number(v.vatAmount), source: '세무' })
+    }
+    out.sort((a, b) => a.date.localeCompare(b.date))
+    return kind ? out.filter((r) => r.kindName === kind) : out
+  }, [entries, vouchers, pById, docNo, partner, manager, taxOnly, kind, status, side])
   const months = [...new Set(rows.map((r) => r.date.slice(0, 7)))]
   const sum = (rs: Row[]) => rs.reduce((s, r) => ({ s: s.s + r.supply, v: s.v + r.vat }), { s: 0, v: 0 })
   const total = sum(rows)
@@ -147,7 +165,7 @@ export default function TaxInvoiceJournalPage({ side, menu }: { side: Side; menu
         <EcCond label="부가세유형">
           <select className="ec-input" value={kind} onChange={(e) => setKind(e.target.value)} style={{ width: 140 }}>
             <option value="">전체</option>
-            <option value={KIND_NAME}>{KIND_NAME}</option>
+            {[...new Set([KIND_NAME, ...vouchers.map((v) => v.vatType)])].map((k) => <option key={k} value={k}>{k}</option>)}
           </select>
         </EcCond>
         <EcCond label="상태">
@@ -195,7 +213,7 @@ export default function TaxInvoiceJournalPage({ side, menu }: { side: Side; menu
                         <td className="text-right">{won(r.supply)}</td>
                         <td className="text-right">{won(r.vat)}</td>
                         <td className="text-right">{won(r.supply + r.vat)}</td>
-                        <td className="text-center text-ec-blue">{r.fromSlip ? '내역보기 거래명세서' : '회계 I'}</td>
+                        <td className={`text-center${r.source === '거래명세서' ? ' text-ec-blue' : ''}`}>{r.source === '거래명세서' ? '내역보기 거래명세서' : r.source}</td>
                       </tr>
                     ))}
                     <tr style={SUB_ROW}>

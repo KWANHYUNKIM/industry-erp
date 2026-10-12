@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.util.List;
 
-/** 세무 › 부가세 › (세금)계산서발행/수령 (원본 C000068). */
+/** 세무 › 부가세 › (세금)계산서발행/수령 (원본 E030202). */
 @RestController
 @RequestMapping("/api/tax-vouchers")
 @RequiredArgsConstructor

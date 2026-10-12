@@ -38,7 +38,7 @@ const today = () => new Date().toLocaleDateString('sv-SE')
 const vatOf = (type: string, supply: string) => (TAXED.has(type) ? String(Math.round((Number(supply) || 0) / 10)) : '0')
 
 /**
- * 세무 › 부가세 › 신고전검토자료 › <b>(세금)계산서발행/수령</b>(원본 C000068) — 2026-10-12 loginaa 실측.
+ * 세무 › 부가세 › 신고전검토자료 › <b>(세금)계산서발행/수령</b>(원본 E030202) — 2026-10-12 loginaa 실측.
  *
  * <p>목록 [☐ · 일자-NO · 구분 · 거래처코드 · 거래처명 · 비고 · 공급가액 · 부가세 · 합계], 기본 조회일자는 올해 1/1 ~ 12/31.
  * 아래 [매출(세금)계산서 ▴(매입(세금)계산서)] · 인쇄 · Excel. 매출 창은 '매출(세금)계산서발행', 매입 창은 '매입(세금)계산서수령' —
