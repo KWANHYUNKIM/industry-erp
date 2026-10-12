@@ -5,13 +5,16 @@ import Modal from '../../components/Modal'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import { ymd } from '../../utils/periods'
+import DailyDirectAmount, { type DailyWorkerRow } from '../../features/dailypay/components/DailyDirectAmount'
+import DailyPayBulkEdit, { type DailyPayLineRow } from '../../features/dailypay/components/DailyPayBulkEdit'
 
 interface Ledger {
   id: number; payMonth: string; seq: number; name: string; paidMonth: string; payDate: string
   periodFrom: string; periodTo: string; confirmed: boolean; workConfirmCount: number; headcount: number; grossTotal: number
+  directAmountCount: number
 }
 interface ConfirmRow { workerId: number; workerCode: string; workerName: string; lastWorkDate: string | null; department: string; days: number }
-interface Line { id: number; workerCode: string; workerName: string; days: number; dailyWage: number | null; grossPay: number; incomeTax: number; localTax: number; netPay: number }
+type Line = DailyPayLineRow
 
 const won = (n: number) => Number(n).toLocaleString('ko-KR')
 const slash = (s: string) => s.replace(/-/g, '/')
@@ -33,8 +36,11 @@ const monthEnd = (ym: string) => { const [y, m] = ym.split('-').map(Number); ret
  *       세금은 원본 공제등록 계산식 R( 소득세(급여지급사항) , 0 ) 대로 사원의 월정공제 금액 그대로다.</li>
  *   <li>삭제: '2026/10 -1 급여가 전체 삭제됩니다. 삭제된 급여는 복구할 수 없습니다. 삭제하겠습니까?'</li>
  * </ul>
- * [근무기록] 은 대상기간 근무입력을 사원마다 더해 채운다(저장 전까지는 창에만). 원천세신고 사업자번호 · 금액직접입력 · 개인별계산 ·
- * 일괄수정 · 명세서 · 대상프로젝트 · 프로젝트 열은 없다.
+ * [근무기록] 은 대상기간 근무입력을 사원마다 더해 채운다(저장 전까지는 창에만).
+ * 2026-10-12 실측으로 더한 것: [개인별계산](일용근로 사원 목록에서 체크한 사원만 지우고 다시 셈 → 급여대장 창, 확인 창
+ * '선택한 사원의 기존 자료를 삭제하고 다시 계산합니다 … 개인별 계산을 진행하겠습니까?' + 지급총액 0 이하 제외),
+ * [금액직접입력[n]](features/dailypay DailyDirectAmount), 급여대장 [일괄수정](DailyPayBulkEdit). 직접입력으로 셈한 일근무 칸은
+ * 원본처럼 모서리에 붉은 표시가 붙는다. 대상프로젝트 · 프로젝트 열 · 명세서 Email 은 없다.
  */
 export default function DailyPayLedgerPage() {
   const nav = useNavigate()
@@ -56,7 +62,15 @@ export default function DailyPayLedgerPage() {
   const [confirmFor, setConfirmFor] = useState<Ledger | null>(null)
   const [cells, setCells] = useState<ConfirmRow[]>([])
   const [confirmError, setConfirmError] = useState('')
-  const [calcFor, setCalcFor] = useState<Ledger | null>(null)
+  const [calcAsk, setCalcAsk] = useState<{ ledger: Ledger; ids: number[] | null } | null>(null)
+  const [excludeZero, setExcludeZero] = useState(true)
+  const [pickFor, setPickFor] = useState<Ledger | null>(null)
+  const [pickWorkers, setPickWorkers] = useState<DailyWorkerRow[]>([])
+  const [picked, setPicked] = useState<Set<number>>(new Set())
+  const [pickQuery, setPickQuery] = useState('')
+  const [pickError, setPickError] = useState('')
+  const [directFor, setDirectFor] = useState<Ledger | null>(null)
+  const [bulkFor, setBulkFor] = useState<Ledger | null>(null)
   const [view, setView] = useState<{ ledger: Ledger; lines: Line[] } | null>(null)
   const tableRef = useRef<HTMLTableElement>(null)
   const confirmRef = useRef<HTMLTableElement>(null)
@@ -125,16 +139,33 @@ export default function DailyPayLedgerPage() {
       setError(extractErrorMessage(e))
     }
   }
-  async function calculate() {
-    if (!calcFor) return
-    const l = calcFor
-    setCalcFor(null)
+  async function openPick(l: Ledger) {
+    setPickError(''); setPicked(new Set()); setPickQuery(''); setPickFor(l)
     try {
-      await api.post(`/hr/daily-pay-ledgers/${l.id}/calculate`)
-      load()
-      openView(l)   // 원본은 계산이 끝나면 급여대장 창을 띄운다
+      const r = await api.get<DailyWorkerRow[]>('/hr/daily-workers')
+      setPickWorkers([...r.data].sort((a, b) => (a.code < b.code ? -1 : a.code > b.code ? 1 : 0)))
     } catch (e) {
-      setError(extractErrorMessage(e))
+      setPickError(extractErrorMessage(e))
+    }
+  }
+  const pickRows = pickWorkers.filter((w) => !pickQuery || [w.code, w.name, w.department ?? ''].some((v) => v.includes(pickQuery)))
+  function askPicked() {
+    if (!pickFor) return
+    if (picked.size === 0) { window.alert('선택된 사원이 없습니다.\n\n계산처리할 사원에 체크한 후 다시 시도 바랍니다.'); return }
+    setExcludeZero(true)
+    setCalcAsk({ ledger: pickFor, ids: [...picked] })
+  }
+  async function calculate() {
+    if (!calcAsk) return
+    const { ledger: l, ids } = calcAsk
+    setCalcAsk(null)
+    try {
+      await api.post(`/hr/daily-pay-ledgers/${l.id}/calculate`, { workerIds: ids, excludeNonPositive: excludeZero })
+      setPickFor(null)
+      load()
+      openView(l)   // 원본은 계산이 끝나면(전체 · 개인별) 급여대장 창을 띄운다
+    } catch (e) {
+      if (ids) setPickError(extractErrorMessage(e)); else setError(extractErrorMessage(e))
     }
   }
   async function toggleConfirmed(l: Ledger) {
@@ -186,11 +217,22 @@ export default function DailyPayLedgerPage() {
                 <td className="text-center">{slash(l.paidMonth)}</td>
                 <td className="text-center">{slash(l.payDate)}</td>
                 <td className="text-center">{bizRegNo}</td>
-                <td className="text-center">{link(`근무기록확정${l.workConfirmCount ? `[${l.workConfirmCount}]` : ''}`, () => openConfirm(l), l.workConfirmCount > 0)}</td>
-                <td className="text-center">{link('전체계산', () => setCalcFor(l))}</td>
+                <td className="text-center">
+                  <div className="flex flex-col items-center">
+                    {link(`근무기록확정${l.workConfirmCount ? `[${l.workConfirmCount}]` : ''}`, () => openConfirm(l), l.workConfirmCount > 0)}
+                    {link(`금액직접입력${l.directAmountCount ? `[${l.directAmountCount}]` : ''}`, () => setDirectFor(l), l.directAmountCount > 0)}
+                  </div>
+                </td>
+                <td className="text-center">
+                  <div className="flex flex-col items-center">
+                    {link('전체계산', () => { setExcludeZero(true); setCalcAsk({ ledger: l, ids: null }) })}
+                    {link('개인별계산', () => openPick(l))}
+                  </div>
+                </td>
                 <td className="text-center">
                   <div className="flex flex-col items-center">
                     {link('조회', () => openView(l))}
+                    {link('일괄수정', () => setBulkFor(l))}
                     {link(l.confirmed ? '확정취소' : '확정', () => toggleConfirmed(l))}
                     {link('삭제', () => remove(l))}
                   </div>
@@ -283,18 +325,75 @@ export default function DailyPayLedgerPage() {
         </div>
       </Modal>
 
-      <Modal error={error} open={!!calcFor} title="알림" width={560} onClose={() => setCalcFor(null)}>
-        <p>기존 자료를 삭제하고 다시 계산합니다.</p>
-        <p className="my-[8px]">급여대장에서 직접 수정한 내역은 유지되지 않습니다.</p>
-        <p>전체 계산을 진행하시겠습니까?</p>
+      <Modal error={pickError} open={!!pickFor} title="개인별계산" width={780} onClose={() => setPickFor(null)}>
+        <div className="flex items-center justify-between mb-[8px]">
+          <b>개인별계산</b>
+          <div className="flex gap-[4px]">
+            <input className="ec-input w-[180px]" placeholder="입력 후 [Enter]" aria-label="개인별계산 검색" value={pickQuery} onChange={(e) => setPickQuery(e.target.value)} />
+            <button type="button" className="ec-btn ec-btn-primary">Search(F3)</button>
+          </div>
+        </div>
+        <div className="overflow-y-auto max-h-[420px]">
+          <table className="w-full whitespace-nowrap">
+            <thead>
+              <tr>
+                <th className="w-[30px] text-center">
+                  <input type="checkbox" aria-label="전체선택" checked={pickRows.length > 0 && pickRows.every((w) => picked.has(w.id))}
+                         onChange={(ev) => setPicked(ev.target.checked ? new Set(pickRows.map((w) => w.id)) : new Set())} />
+                </th>
+                <th>사원번호</th>
+                <th>성명</th>
+                <th>부서명</th>
+                <th className="text-center">입사일자</th>
+                <th className="text-center">퇴사일자</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pickRows.length === 0 ? (
+                <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              ) : pickRows.map((w) => (
+                <tr key={w.id}>
+                  <td className="text-center">
+                    <input type="checkbox" aria-label={`${w.name} 선택`} checked={picked.has(w.id)} onChange={(ev) => {
+                      const next = new Set(picked)
+                      if (ev.target.checked) next.add(w.id); else next.delete(w.id)
+                      setPicked(next)
+                    }} />
+                  </td>
+                  <td>{w.code}</td>
+                  <td>{w.name}</td>
+                  <td>{w.department}</td>
+                  <td className="text-center">{w.hireDate ? slash(w.hireDate) : ''}</td>
+                  <td className="text-center">{w.resignDate ? slash(w.resignDate) : ''}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="flex gap-[6px] mt-[12px]">
+          <button type="button" className="ec-btn ec-btn-primary" onClick={askPicked}>계산처리</button>
+          <button type="button" className="ec-btn" onClick={() => setPickFor(null)}>닫기</button>
+        </div>
+      </Modal>
+
+      <Modal error={error} open={!!calcAsk} title="알림" width={560} onClose={() => setCalcAsk(null)}>
+        <p className="whitespace-pre-line">
+          {calcAsk?.ids
+            ? '선택한 사원의 기존 자료를 삭제하고 다시 계산합니다.\n\n급여대장에서 직접 수정한 내역은 유지되지 않습니다.\n\n개인별 계산을 진행하겠습니까?'
+            : '기존 자료를 삭제하고 다시 계산합니다.\n\n급여대장에서 직접 수정한 내역은 유지되지 않습니다.\n\n전체 계산을 진행하시겠습니까?'}
+        </p>
         <label className="flex items-center gap-[6px] my-[12px]">
-          <input type="checkbox" checked readOnly /> 지급총액 0 이하 제외
+          <input type="checkbox" checked={excludeZero} onChange={(e) => setExcludeZero(e.target.checked)} /> 지급총액 0 이하 제외
         </label>
         <div className="flex gap-[6px]">
           <button type="button" className="ec-btn ec-btn-primary" onClick={calculate}>확인</button>
-          <button type="button" className="ec-btn" onClick={() => setCalcFor(null)}>닫기</button>
+          <button type="button" className="ec-btn" onClick={() => setCalcAsk(null)}>취소</button>
         </div>
       </Modal>
+
+      <DailyDirectAmount ledger={directFor} onClose={() => setDirectFor(null)} onChanged={load} />
+      <DailyPayBulkEdit ledger={bulkFor} bizRegNo={bizRegNo} onClose={() => setBulkFor(null)}
+                        onSaved={() => { setBulkFor(null); load() }} />
 
       <Modal error={error} open={!!view} title="급여대장" width={980} onClose={() => setView(null)}>
         {view && totals && (
@@ -336,7 +435,10 @@ export default function DailyPayLedgerPage() {
                       <td>{l.workerName}</td>
                       <td rowSpan={2} className="text-center"></td>
                       <td className="text-right">{Number(l.days)}</td>
-                      <td className="text-right">{won(l.grossPay)}</td>
+                      <td className="relative text-right" title={l.direct ? '금액직접입력' : undefined}>
+                        {l.direct && <i aria-hidden className="absolute left-0 top-0 border-t-[6px] border-r-[6px] border-t-ec-danger border-r-transparent" />}
+                        {won(l.grossPay)}
+                      </td>
                       <td rowSpan={2} className="text-right">{won(l.grossPay)}</td>
                       <td className="text-right">{Number(l.incomeTax) ? won(l.incomeTax) : ''}</td>
                       <td rowSpan={2} className="text-right">{Number(l.incomeTax) + Number(l.localTax) ? won(Number(l.incomeTax) + Number(l.localTax)) : ''}</td>

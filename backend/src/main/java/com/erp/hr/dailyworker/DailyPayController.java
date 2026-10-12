@@ -1,6 +1,11 @@
 package com.erp.hr.dailyworker;
 
+import com.erp.hr.dailyworker.dto.DailyPayDtos.CalculateRequest;
 import com.erp.hr.dailyworker.dto.DailyPayDtos.CalculateResponse;
+import com.erp.hr.dailyworker.dto.DailyPayDtos.DirectAmountRequest;
+import com.erp.hr.dailyworker.dto.DailyPayDtos.DirectAmountResponse;
+import com.erp.hr.dailyworker.dto.DailyPayDtos.DirectSummary;
+import com.erp.hr.dailyworker.dto.DailyPayDtos.LineEdit;
 import com.erp.hr.dailyworker.dto.DailyPayDtos.ConfirmCell;
 import com.erp.hr.dailyworker.dto.DailyPayDtos.ConfirmRow;
 import com.erp.hr.dailyworker.dto.DailyPayDtos.CreateLedgerRequest;
@@ -79,8 +84,33 @@ public class DailyPayController {
     }
 
     @PostMapping("/{id}/calculate")
-    public CalculateResponse calculate(@PathVariable Long id) {
-        return service.calculate(id);
+    public CalculateResponse calculate(@PathVariable Long id, @RequestBody(required = false) CalculateRequest req) {
+        return service.calculate(id, req);
+    }
+
+    @GetMapping("/{id}/direct-amounts")
+    public List<DirectSummary> directSummary(@PathVariable Long id) {
+        return service.directSummary(id);
+    }
+
+    @GetMapping("/{id}/direct-amounts/{workerId}")
+    public DirectAmountResponse direct(@PathVariable Long id, @PathVariable Long workerId) {
+        return service.direct(id, workerId);
+    }
+
+    @PutMapping("/{id}/direct-amounts/{workerId}")
+    public DirectAmountResponse saveDirect(@PathVariable Long id, @PathVariable Long workerId, @Valid @RequestBody DirectAmountRequest req) {
+        return service.saveDirect(id, workerId, req);
+    }
+
+    @DeleteMapping("/{id}/direct-amounts")
+    public void deleteDirect(@PathVariable Long id, @RequestParam List<Long> workerIds) {
+        service.deleteDirect(id, workerIds);
+    }
+
+    @PutMapping("/{id}/lines")
+    public List<LineResponse> saveLines(@PathVariable Long id, @RequestBody List<@Valid LineEdit> edits) {
+        return service.saveLines(id, edits);
     }
 
     @GetMapping("/{id}/lines")

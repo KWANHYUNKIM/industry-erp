@@ -1,7 +1,12 @@
 package com.erp.hr.dailyworker;
 
 import com.erp.common.ApiException;
+import com.erp.hr.dailyworker.dto.DailyPayDtos.CalculateRequest;
 import com.erp.hr.dailyworker.dto.DailyPayDtos.CalculateResponse;
+import com.erp.hr.dailyworker.dto.DailyPayDtos.DirectAmountRequest;
+import com.erp.hr.dailyworker.dto.DailyPayDtos.DirectAmountResponse;
+import com.erp.hr.dailyworker.dto.DailyPayDtos.DirectSummary;
+import com.erp.hr.dailyworker.dto.DailyPayDtos.LineEdit;
 import com.erp.hr.dailyworker.dto.DailyPayDtos.ConfirmCell;
 import com.erp.hr.dailyworker.dto.DailyPayDtos.ConfirmRow;
 import com.erp.hr.dailyworker.dto.DailyPayDtos.CreateLedgerRequest;
@@ -18,6 +23,9 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Set;
 import java.util.List;
 import java.util.Map;
 
@@ -42,6 +50,7 @@ public class DailyPayService {
     private final DailyPayLineRepository lineRepository;
     private final DailyWorkerRepository workerRepository;
     private final DailyWorkEntryRepository entryRepository;
+    private final DailyPayDirectAmountRepository directRepository;
 
     @Transactional(readOnly = true)
     public List<LedgerResponse> findLedgers() {
@@ -71,6 +80,7 @@ public class DailyPayService {
         DailyPayLedger l = get(ledgerId);
         lineRepository.deleteByLedger(ledgerId);
         confirmRepository.deleteByLedger(ledgerId);
+        directRepository.deleteByLedger(ledgerId);
         ledgerRepository.delete(l);
     }
 
@@ -135,31 +145,129 @@ public class DailyPayService {
         confirmRepository.deleteByLedger(ledgerId);
     }
 
-    /** [전체계산] — '기존 자료를 삭제하고 다시 계산합니다.' 지급총액 0 이하는 넣지 않는다(원본 기본 체크). */
+    /**
+     * [전체계산] · [개인별계산] — '기존 자료를 삭제하고 다시 계산합니다.' 개인별계산은 고른 사원의 줄만 지우고 다시 셈한다.
+     * 일근무 = 금액직접입력의 일근무 금액이 있으면 그 금액, 없으면 일근무 단가 × 근무기록확정 일수(2026-10-12 원본: 직접입력 250,000 ·
+     * 일근무 2 → 지급총액 250,000). 지급총액 0 이하 제외(확인 창 체크, 처음 켬)면 그 사원은 넣지 않는다.
+     */
     @Transactional
-    public CalculateResponse calculate(Long ledgerId) {
+    public CalculateResponse calculate(Long ledgerId, CalculateRequest req) {
         DailyPayLedger l = editable(ledgerId);
-        lineRepository.deleteByLedger(ledgerId);
+        List<Long> ids = req != null && req.workerIds() != null && !req.workerIds().isEmpty() ? req.workerIds() : null;
+        boolean excludeZero = req == null || req.excludeNonPositive() == null || req.excludeNonPositive();
+        if (ids == null) lineRepository.deleteByLedger(ledgerId);
+        else lineRepository.deleteByLedgerAndWorkers(ledgerId, ids);
         lineRepository.flush();
-        int done = 0, skipped = 0;
+        Set<Long> picked = ids == null ? null : new HashSet<>(ids);
+        Map<Long, DailyWorker> workers = new LinkedHashMap<>();
+        Map<Long, BigDecimal> days = new HashMap<>();
         for (DailyWorkConfirm c : confirmRepository.findByLedger(ledgerId)) {
-            DailyWorker w = c.getWorker();
+            if (picked != null && !picked.contains(c.getWorker().getId())) continue;
+            workers.put(c.getWorker().getId(), c.getWorker());
+            days.put(c.getWorker().getId(), c.getDays());
+        }
+        Map<Long, BigDecimal> direct = new HashMap<>();
+        for (DailyPayDirectAmount d : directRepository.findByLedger(ledgerId)) {
+            if (d.getDayAmount() == null || (picked != null && !picked.contains(d.getWorker().getId()))) continue;
+            workers.putIfAbsent(d.getWorker().getId(), d.getWorker());
+            direct.put(d.getWorker().getId(), d.getDayAmount());
+        }
+        int done = 0, skipped = 0;
+        for (DailyWorker w : workers.values()) {
+            BigDecimal d = days.getOrDefault(w.getId(), BigDecimal.ZERO);
             BigDecimal wage = w.getDailyWage() != null ? w.getDailyWage() : BigDecimal.ZERO;
-            BigDecimal gross = wage.multiply(c.getDays()).setScale(0, RoundingMode.DOWN);
-            if (gross.signum() <= 0) { skipped++; continue; }
+            BigDecimal gross = direct.containsKey(w.getId()) ? direct.get(w.getId()) : wage.multiply(d).setScale(0, RoundingMode.DOWN);
+            if (excludeZero && gross.signum() <= 0) { skipped++; continue; }
             BigDecimal tax = w.getFixedIncomeTax() != null ? w.getFixedIncomeTax() : BigDecimal.ZERO;
             BigDecimal local = w.getFixedLocalTax() != null ? w.getFixedLocalTax() : BigDecimal.ZERO;
-            lineRepository.save(DailyPayLine.builder().ledger(l).worker(w).days(c.getDays())
+            lineRepository.save(DailyPayLine.builder().ledger(l).worker(w).days(d)
                     .grossPay(gross).incomeTax(tax).localTax(local).netPay(gross.subtract(tax).subtract(local)).build());
             done++;
         }
         return new CalculateResponse(done, skipped);
     }
 
+    /** [사전작업] 금액직접입력 목록 — 사원마다 손으로 정한 수당총액(일근무) · 공제총액(일용근로 공제는 직접입력 칸이 없어 0). */
+    @Transactional(readOnly = true)
+    public List<DirectSummary> directSummary(Long ledgerId) {
+        get(ledgerId);
+        return directRepository.findByLedger(ledgerId).stream()
+                .map(d -> new DirectSummary(d.getWorker().getId(), d.getDayAmount() != null ? d.getDayAmount() : BigDecimal.ZERO, BigDecimal.ZERO))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public DirectAmountResponse direct(Long ledgerId, Long workerId) {
+        get(ledgerId);
+        return directRepository.findByLedger_IdAndWorker_Id(ledgerId, workerId)
+                .map(d -> new DirectAmountResponse(workerId, d.getDayAmount(), d.getMemo(), d.getTopMessage(), d.getBottomMessage()))
+                .orElse(new DirectAmountResponse(workerId, null, null, null, null));
+    }
+
+    /** 수당/공제 항목입력 [저장(F8)] — 칸이 모두 비면 그 사원의 직접입력을 지운다. */
+    @Transactional
+    public DirectAmountResponse saveDirect(Long ledgerId, Long workerId, DirectAmountRequest req) {
+        DailyPayLedger l = editable(ledgerId);
+        DailyWorker w = workerRepository.findById(workerId).orElseThrow(() -> ApiException.notFound("일용근로 사원을 찾을 수 없습니다."));
+        String memo = blankToNull(req.memo()), top = blankToNull(req.topMessage()), bottom = blankToNull(req.bottomMessage());
+        var found = directRepository.findByLedger_IdAndWorker_Id(ledgerId, workerId);
+        if (req.dayAmount() == null && memo == null && top == null && bottom == null) {
+            found.ifPresent(directRepository::delete);
+            return new DirectAmountResponse(workerId, null, null, null, null);
+        }
+        DailyPayDirectAmount d = found.orElseGet(() -> DailyPayDirectAmount.builder().ledger(l).worker(w).build());
+        d.setDayAmount(req.dayAmount());
+        d.setMemo(memo);
+        d.setTopMessage(top);
+        d.setBottomMessage(bottom);
+        directRepository.save(d);
+        return new DirectAmountResponse(workerId, d.getDayAmount(), memo, top, bottom);
+    }
+
+    /** 금액직접입력 [선택삭제] · 항목입력 [삭제] — '한번 지워진 자료는 복구될 수 없습니다.' */
+    @Transactional
+    public void deleteDirect(Long ledgerId, List<Long> workerIds) {
+        editable(ledgerId);
+        if (workerIds == null || workerIds.isEmpty()) throw ApiException.badRequest("선택된 자료가 없습니다.");
+        directRepository.deleteByLedgerAndWorkers(ledgerId, workerIds);
+    }
+
+    /**
+     * 급여대장 [일괄수정] [저장(F8)] — 고친 줄의 일근무 · 금액 · 세금을 그대로 두고 실지급액만 합으로 맞춘다(세금을 다시 셈하지 않는다).
+     * 금액직접입력으로 셈한 사원의 금액을 고치면 금액직접입력의 금액도 같이 바뀐다(원본 확인 창 '금액직접입력에 입력한 금액도 함께 변경됩니다').
+     * 금액 · 세금이 모두 0 인 줄은 지운다.
+     */
+    @Transactional
+    public List<LineResponse> saveLines(Long ledgerId, List<LineEdit> edits) {
+        editable(ledgerId);
+        Map<Long, DailyPayDirectAmount> direct = new HashMap<>();
+        for (DailyPayDirectAmount d : directRepository.findByLedger(ledgerId)) direct.put(d.getWorker().getId(), d);
+        for (LineEdit e : edits) {
+            DailyPayLine line = lineRepository.findById(e.lineId())
+                    .filter(x -> x.getLedger().getId().equals(ledgerId))
+                    .orElseThrow(() -> ApiException.notFound("급여 줄을 찾을 수 없습니다."));
+            if (e.grossPay().signum() == 0 && e.incomeTax().signum() == 0 && e.localTax().signum() == 0) {
+                lineRepository.delete(line);
+                continue;
+            }
+            DailyPayDirectAmount d = direct.get(line.getWorker().getId());
+            if (d != null && d.getDayAmount() != null && d.getDayAmount().compareTo(e.grossPay()) != 0) d.setDayAmount(e.grossPay());
+            line.setDays(e.days());
+            line.setGrossPay(e.grossPay());
+            line.setIncomeTax(e.incomeTax());
+            line.setLocalTax(e.localTax());
+            line.setNetPay(e.grossPay().subtract(e.incomeTax()).subtract(e.localTax()));
+        }
+        lineRepository.flush();
+        return lines(ledgerId);
+    }
+
     @Transactional(readOnly = true)
     public List<LineResponse> lines(Long ledgerId) {
         get(ledgerId);
-        return lineRepository.findByLedger(ledgerId).stream().map(LineResponse::from).toList();
+        Set<Long> direct = new HashSet<>();
+        for (DailyPayDirectAmount d : directRepository.findByLedger(ledgerId)) if (d.getDayAmount() != null) direct.add(d.getWorker().getId());
+        return lineRepository.findByLedger(ledgerId).stream().map(l -> LineResponse.from(l, direct.contains(l.getWorker().getId()))).toList();
     }
 
     /** 일용근로 사원별급여조회 · 급여현황 · 급여이체현황 — 귀속연월 구간의 대장 줄. 최종근무일은 대장 대상기간의 근무입력에서. */
@@ -201,6 +309,10 @@ public class DailyPayService {
         lineRepository.delete(l);
     }
 
+    private static String blankToNull(String s) {
+        return s == null || s.isBlank() ? null : s.trim();
+    }
+
     private DailyPayLedger editable(Long ledgerId) {
         DailyPayLedger l = get(ledgerId);
         if (l.isConfirmed()) throw ApiException.conflict("확정된 급여대장입니다. 확정을 풀고 다시 하세요.");
@@ -215,6 +327,7 @@ public class DailyPayService {
         List<DailyPayLine> ls = lineRepository.findByLedger(l.getId());
         return new LedgerResponse(l.getId(), l.getPayMonth(), l.getSeq(), l.getName(), l.getPaidMonth(), l.getPayDate(),
                 l.getPeriodFrom(), l.getPeriodTo(), l.isConfirmed(), confirmRepository.countByLedger_Id(l.getId()),
-                ls.size(), ls.stream().map(DailyPayLine::getGrossPay).reduce(BigDecimal.ZERO, BigDecimal::add));
+                ls.size(), ls.stream().map(DailyPayLine::getGrossPay).reduce(BigDecimal.ZERO, BigDecimal::add),
+                directRepository.countByLedger_Id(l.getId()));
     }
 }

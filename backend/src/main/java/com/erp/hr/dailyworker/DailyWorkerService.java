@@ -20,6 +20,7 @@ public class DailyWorkerService {
     private final DailyWorkEntryRepository dailyWorkEntryRepository;
     private final DailyWorkConfirmRepository dailyWorkConfirmRepository;
     private final DailyPayLineRepository dailyPayLineRepository;
+    private final DailyPayDirectAmountRepository dailyPayDirectAmountRepository;
     private final DepartmentService departmentService;
     private final DocumentNoGenerator documentNoGenerator;
 
@@ -65,7 +66,8 @@ public class DailyWorkerService {
         if (dailyWorkEntryRepository.existsByWorker_Id(id)) {
             throw ApiException.conflict("근무입력에 쓰인 사원은 삭제할 수 없습니다: " + w.getName());
         }
-        if (dailyWorkConfirmRepository.existsByWorker_Id(id) || dailyPayLineRepository.existsByWorker_Id(id)) {
+        if (dailyWorkConfirmRepository.existsByWorker_Id(id) || dailyPayLineRepository.existsByWorker_Id(id)
+                || dailyPayDirectAmountRepository.existsByWorker_Id(id)) {
             throw ApiException.conflict("급여대장에 쓰인 사원은 삭제할 수 없습니다: " + w.getName());
         }
         dailyWorkerRepository.delete(w);
