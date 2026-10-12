@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { vatSlipAmounts } from '../../utils/vatSlip'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 import { EcCond } from '../../components/EcStatusPanel'
 import { fillAndPrint, openPrintWindow } from '../../utils/print'
 import type { JournalEntry } from '../../types/api'
@@ -22,18 +23,26 @@ type Term = 1 | 2
 type Kind = '예정' | '확정'
 interface Amt { supply: number; vat: number }
 interface Sheet {
-  year: number; term: Term; kind: Kind; from: string; to: string
+  year: number; term: Term; kind: Kind; first: number; last: number; end: number; from: string; to: string
   taxInvoice: Amt; zeroInvoice: Amt; purchaseGeneral: Amt; purchaseFixed: Amt
   salesInvoices: Invoice[]; purchaseInvoices: Invoice[]
 }
 
-/** 신고기간 — 예정은 그 기의 앞 석 달, 확정은 뒤 석 달(예정신고를 한 법인). */
-function periodOf(year: number, term: Term, kind: Kind) {
-  const first = (term - 1) * 6 + (kind === '예정' ? 1 : 4)
-  const last = first + 2
-  const pad = (n: number) => String(n).padStart(2, '0')
-  const end = new Date(year, last, 0).getDate()
-  return { from: `${year}-${pad(first)}-01`, to: `${year}-${pad(last)}-${pad(end)}`, first, last, end }
+/** 원본 [신고기간] 기 고르기 — 1기 예정(1~3) · 1기 확정(4~6) · 2기 예정(7~9) · 2기 확정(10~12). */
+const TERM_OPTIONS = [['1PRELIM', '1기 예정(1~3)'], ['1FINAL', '1기 확정(4~6)'], ['2PRELIM', '2기 예정(7~9)'], ['2FINAL', '2기 확정(10~12)']] as const
+interface VatReturnRow {
+  id: number; filingType: 'REGULAR' | 'LATE'; returnKind: 'PRELIM' | 'FINAL' | 'MONTHLY'; year: number; monthFrom: number; monthTo: number
+  includesOmitted: boolean; periodName: string; reportDate: string; dueDate: string; taxAgent: boolean; closure: boolean
+}
+interface ReturnForm {
+  id?: number; filingType: 'REGULAR' | 'LATE'; returnKind: 'PRELIM' | 'FINAL'; monthly: boolean; year: number; term: Term; month: number
+  reportDate: string; dueDate: string; taxAgent: boolean; closure: boolean
+}
+interface TaxVoucher { side: 'SALES' | 'PURCHASE'; vatType: string; partnerId: number; partnerName: string; supplyAmount: number; vatAmount: number }
+/** 원본 기본 신고작성일자 · 납부기한 — 신고기간 끝 달의 다음 달 25일(2기 예정 → 2026/10/25). */
+function dueOf(year: number, lastMonth: number) {
+  const d = new Date(year, lastMonth, 25)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-25`
 }
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const add = (a: Amt, b: Amt): Amt => ({ supply: a.supply + b.supply, vat: a.vat + b.vat })
@@ -63,15 +72,18 @@ const PRINT_CSS = 'body{font-family:sans-serif;font-size:11px;margin:16px}'
  */
 export default function VatReturnPage() {
   const today = new Date()
-  /* 원본 첫 줄은 지난 분기의 신고 — 10/04 에 2026년 2기 예정(7~9). */
+  const thisYear = today.getFullYear()
+  /* 원본 [신규(F2)] 의 기본 신고기간은 지난 분기 — 10/12 에 2026년 2기 예정(7~9). */
   const lastQuarter = Math.floor(today.getMonth() / 3) - 1
-  const initYear = lastQuarter < 0 ? today.getFullYear() - 1 : today.getFullYear()
+  const initYear = lastQuarter < 0 ? thisYear - 1 : thisYear
   const q = (lastQuarter + 4) % 4
-  const [year, setYear] = useState(initYear)
-  const [term, setTerm] = useState<Term>(q < 2 ? 1 : 2)
-  const [kind, setKind] = useState<Kind>(q % 2 === 0 ? '예정' : '확정')
   const [company, setCompany] = useState<CompanyInfo | null>(null)
   const [accounts, setAccounts] = useState<AccountOpt[]>([])
+  const [returns, setReturns] = useState<VatReturnRow[]>([])
+  const [picked, setPicked] = useState<Set<number>>(new Set())
+  const [form, setForm] = useState<ReturnForm | null>(null)
+  const [formError, setFormError] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [sheet, setSheet] = useState<Sheet | null>(null)
   const [doc, setDoc] = useState<Doc>('부가가치세신고서')
   const [error, setError] = useState('')
@@ -81,21 +93,41 @@ export default function VatReturnPage() {
     api.get<AccountOpt[]>('/accounts').then((r) => setAccounts(r.data)).catch(() => setAccounts([]))
   }, [])
 
-  async function search() {
+  async function load() {
     setError('')
-    const p = periodOf(year, term, kind)
     try {
-      const [r, pr, mk] = await Promise.all([
-        api.get<JournalList>('/journals', { params: { from: p.from, to: p.to, all: true } }),
+      /* 원본 머리 '귀속연도 : 2025년도 ~ 2026년도' — 지난해와 올해. */
+      const r = await api.get<VatReturnRow[]>('/vat-returns', { params: { fromYear: thisYear - 1, toYear: thisYear } })
+      setReturns(r.data)
+      setPicked(new Set())
+    } catch (e) {
+      setReturns([]); setError(extractErrorMessage(e))
+    }
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { void load() }, [])
+
+  /* 신고서 하나의 숫자를 그 기간의 회계전표 · (세금)계산서발행/수령에서 센다. */
+  async function search(v: VatReturnRow) {
+    setError('')
+    const first = v.monthFrom, last = v.monthTo
+    const end = new Date(v.year, last, 0).getDate()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const from = `${v.year}-${pad(first)}-01`, to = `${v.year}-${pad(last)}-${pad(end)}`
+    try {
+      const [r, pr, mk, tv] = await Promise.all([
+        api.get<JournalList>('/journals', { params: { from, to, all: true } }),
         api.get<PartnerOpt[]>('/partners'),
         api.get<Mark[]>('/vat-invoice-marks'),
+        api.get<TaxVoucher[]>('/tax-vouchers', { params: { from, to } }),
       ])
       const partnerOf = new Map(pr.data.map((x) => [x.id, x]))
       const markOf = new Map(mk.data.map((x) => [x.journalEntryId, x]))
       const salesInvoices: Invoice[] = []
       const purchaseInvoices: Invoice[] = []
+      const bizNoOf = (partnerId: number | null) => (partnerId != null ? partnerOf.get(partnerId)?.bizRegNo : null)?.replace(/-/g, '') ?? ''
       const invoiceOf = (e: JournalEntry, a: Amt): Invoice => {
-        const bizNo = (e.partnerId != null ? partnerOf.get(e.partnerId)?.bizRegNo : null)?.replace(/-/g, '') ?? ''
+        const bizNo = bizNoOf(e.partnerId)
         const m = markOf.get(e.id)
         /* 각종구분값변경의 종이(세금)계산서 · 기한후 발행은 '전자세금계산서 외의 발급분'. */
         const electronic = !(m && (m.docKind === 'PAPER' || m.progress === 'LATE'))
@@ -118,7 +150,23 @@ export default function VatReturnPage() {
           purchaseInvoices.push(invoiceOf(e, b))
         }
       }
-      setSheet({ year, term, kind, from: p.from, to: p.to, taxInvoice, zeroInvoice, purchaseGeneral, purchaseFixed, salesInvoices, purchaseInvoices })
+      /* (세금)계산서발행/수령의 계산서 — 분개는 없지만 원본 매입/매출장에 실린다. 세금계산서 · 영세율 유형만 이 칸들로 센다. */
+      for (const t of tv.data) {
+        const a: Amt = { supply: Number(t.supplyAmount), vat: Number(t.vatAmount) }
+        const bizNo = bizNoOf(t.partnerId)
+        const inv: Invoice = { partnerId: t.partnerId, partner: t.partnerName, bizNo, personal: bizNo.length === 13, electronic: true, supply: a.supply, vat: a.vat }
+        if (t.side === 'SALES') {
+          if (t.vatType === '세금계산서') { taxInvoice = add(taxInvoice, a); salesInvoices.push(inv) }
+          else if (t.vatType === '영세율') { zeroInvoice = add(zeroInvoice, a); salesInvoices.push(inv) }
+        } else if (t.vatType === '세금계산서' || t.vatType.startsWith('세.계')) {
+          if (t.vatType.includes('고정')) purchaseFixed = add(purchaseFixed, a)
+          else purchaseGeneral = add(purchaseGeneral, a)
+          purchaseInvoices.push(inv)
+        }
+      }
+      setDoc('부가가치세신고서')
+      setSheet({ year: v.year, term: first <= 6 ? 1 : 2, kind: v.returnKind === 'FINAL' ? '확정' : '예정', first, last, end, from, to,
+        taxInvoice, zeroInvoice, purchaseGeneral, purchaseFixed, salesInvoices, purchaseInvoices })
     } catch (e) {
       setSheet(null); setError(extractErrorMessage(e))
     }
@@ -132,29 +180,94 @@ export default function VatReturnPage() {
       + `<body>${el.innerHTML}</body></html>`)
   }
 
-  return (
-    <EcListShell title="부가가치세신고서(일반)" onSearch={search} option={false}
-                 actions={sheet ? [{ label: '인쇄', primary: true, onClick: print }] : []}>
-      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+  const openNew = () => {
+    const due = dueOf(initYear, (q + 1) * 3)
+    setFormError(''); setConfirmDelete(false)
+    setForm({ filingType: 'REGULAR', returnKind: q % 2 === 0 ? 'PRELIM' : 'FINAL', monthly: false, year: initYear, term: q < 2 ? 1 : 2,
+      month: (q + 1) * 3, reportDate: due, dueDate: due, taxAgent: false, closure: false })
+  }
+  const openRow = (v: VatReturnRow) => {
+    setFormError(''); setConfirmDelete(false)
+    setForm({ id: v.id, filingType: v.filingType, returnKind: v.returnKind === 'MONTHLY' ? 'PRELIM' : v.returnKind, monthly: v.returnKind === 'MONTHLY',
+      year: v.year, term: v.monthFrom <= 6 ? 1 : 2, month: v.monthFrom, reportDate: v.reportDate, dueDate: v.dueDate, taxAgent: v.taxAgent, closure: v.closure })
+  }
+  const set = (patch: Partial<ReturnForm>) => form && setForm({ ...form, ...patch })
 
-      <ul className="ec-cond mb-[8px]">
-        <EcCond label="신고기간">
-          <select className="ec-input w-[100px]" aria-label="연도" value={year} onChange={(e) => setYear(Number(e.target.value))}>
-            {[today.getFullYear(), today.getFullYear() - 1].map((y) => <option key={y} value={y}>{y}년</option>)}
-          </select>
-          <select className="ec-input w-[80px]" aria-label="기" value={term} onChange={(e) => setTerm(Number(e.target.value) as Term)}>
-            <option value={1}>1기</option><option value={2}>2기</option>
-          </select>
-          <select className="ec-input w-[80px]" aria-label="예정 확정" value={kind} onChange={(e) => setKind(e.target.value as Kind)}>
-            <option value="예정">예정</option><option value="확정">확정</option>
-          </select>
-        </EcCond>
-        <li className="full">
-          <div className="form">
-            <button className="ec-btn ec-btn-primary" onClick={() => void search()}>검색(F8)</button>
-          </div>
-        </li>
-      </ul>
+  async function save() {
+    if (!form) return
+    const body = { filingType: form.filingType, returnKind: form.monthly ? 'MONTHLY' : form.returnKind, year: form.year,
+      term: form.monthly ? null : form.term, month: form.monthly ? form.month : null,
+      reportDate: form.reportDate, dueDate: form.dueDate, taxAgent: form.taxAgent, closure: form.closure }
+    try {
+      if (form.id) await api.put(`/vat-returns/${form.id}`, body)
+      else await api.post('/vat-returns', body)
+      setForm(null)
+      await load()
+    } catch (e) {
+      setFormError(extractErrorMessage(e))
+    }
+  }
+
+  async function removePicked() {
+    try {
+      await api.post('/vat-returns/delete', [...picked])
+      setConfirmDelete(false)
+      setSheet(null)
+      await load()
+    } catch (e) {
+      setError(extractErrorMessage(e))
+    }
+  }
+
+  const allPicked = returns.length > 0 && returns.every((r) => picked.has(r.id))
+  const locked = !!form?.id
+  const periodValue = form ? `${form.term}${form.returnKind}` : ''
+
+  return (
+    <EcListShell title="부가가치세신고서(일반)" option={false} onNew={openNew}
+                 actions={[{ label: '선택삭제', onClick: () => setConfirmDelete(true), disabled: picked.size === 0 },
+                   ...(sheet ? [{ label: '인쇄', onClick: print }] : [])]}>
+      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {confirmDelete && (
+        <div className="ec-alert mb-[8px] flex items-center gap-[6px]">
+          삭제한 데이터는 복구되지 않습니다. 삭제하겠습니까?
+          <button className="ec-btn ec-btn-primary" onClick={() => void removePicked()}>확인</button>
+          <button className="ec-btn" onClick={() => setConfirmDelete(false)}>취소</button>
+        </div>
+      )}
+      <p className="text-right mb-[4px]">귀속연도 : {thisYear - 1}년도 ~ {thisYear}년도</p>
+
+      <table className="w-full mb-[12px]">
+        <thead>
+          <tr>
+            <th className="w-[34px] text-center">
+              <input type="checkbox" aria-label="전체 선택" checked={allPicked}
+                     onChange={() => setPicked(allPicked ? new Set() : new Set(returns.map((r) => r.id)))} />
+            </th>
+            <th className="text-center">신고기간</th>
+            <th className="text-center">예정누락<br />포함여부</th>
+            <th className="text-center">회사명</th>
+            <th className="text-center">신고서등</th>
+          </tr>
+        </thead>
+        <tbody>
+          {returns.length === 0 ? (
+            <tr><td colSpan={5} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+          ) : returns.map((r, i) => (
+            <tr key={r.id}>
+              <td className="text-center whitespace-nowrap">
+                <input type="checkbox" aria-label={`${r.periodName} 선택`} checked={picked.has(r.id)}
+                       onChange={() => setPicked((s) => { const n = new Set(s); if (n.has(r.id)) n.delete(r.id); else n.add(r.id); return n })} />
+                {' '}{i + 1}
+              </td>
+              <td className="text-center"><button className="ec-link" onClick={() => openRow(r)}>{r.periodName}</button></td>
+              <td className="text-center">{r.includesOmitted ? 'YES' : 'NO'}</td>
+              <td className="text-center">{company?.name ?? ''}</td>
+              <td className="text-center"><button className="ec-link" onClick={() => void search(r)}>조회</button></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
 
       {sheet && (
         <>
@@ -168,12 +281,77 @@ export default function VatReturnPage() {
           </div>
         </>
       )}
+
+      {form && (
+        <Modal open error={formError} title="부가가치세신고서(일반)" width={780} onClose={() => setForm(null)}>
+          <ul className="ec-form [&>li>.title]:basis-[120px]">
+            <EcCond label="신고구분" span={2}>
+              {([['REGULAR', '정기신고'], ['LATE', '기한후신고']] as const).map(([v, l]) => (
+                <label key={v} className="inline-flex items-center gap-[3px] mr-[10px]">
+                  <input type="radio" name="vat-filing" checked={form.filingType === v} onChange={() => set({ filingType: v })} /> {l}
+                </label>
+              ))}
+            </EcCond>
+            <EcCond label="세무신고사업장" span={2}>
+              <select className="ec-input w-full" disabled><option>{[company?.name, company?.bizRegNo].filter(Boolean).join(' ')}</option></select>
+            </EcCond>
+            <EcCond label="신고서종류" span={2}>
+              <div className="flex flex-col items-start gap-[4px] w-full">
+                <div>
+                  {([[false, '예정/확정'], [true, '월별신고(조기환급)']] as const).map(([v, l]) => (
+                    <label key={l} className="inline-flex items-center gap-[3px] mr-[10px]">
+                      <input type="radio" name="vat-kind" disabled={locked} checked={form.monthly === v} onChange={() => set({ monthly: v })} /> {l}
+                    </label>
+                  ))}
+                </div>
+                <label className="flex items-center gap-[6px] w-full">
+                  신고기간
+                  <select className="ec-input w-[120px]" aria-label="신고연도" disabled={locked} value={form.year} onChange={(e) => set({ year: Number(e.target.value) })}>
+                    {[thisYear, thisYear - 1].map((y) => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                  {form.monthly ? (
+                    <select className="ec-input flex-1" aria-label="신고월" disabled={locked} value={form.month} onChange={(e) => set({ month: Number(e.target.value) })}>
+                      {Array.from({ length: 12 }, (_, k) => k + 1).map((m) => <option key={m} value={m}>{String(m).padStart(2, '0')}월</option>)}
+                    </select>
+                  ) : (
+                    <select className="ec-input flex-1" aria-label="신고기" disabled={locked} value={periodValue}
+                            onChange={(e) => set({ term: Number(e.target.value[0]) as Term, returnKind: e.target.value.slice(1) as 'PRELIM' | 'FINAL' })}>
+                      {TERM_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                    </select>
+                  )}
+                </label>
+                <span>예정누락 {!form.monthly && form.returnKind === 'FINAL'
+                  ? `${String((form.term - 1) * 6 + 1).padStart(2, '0')}월 ~ ${String((form.term - 1) * 6 + 3).padStart(2, '0')}월` : '=== ~ ==='}</span>
+              </div>
+            </EcCond>
+            <EcCond label="신고작성일자" span={2}>
+              <input type="date" className="ec-input w-[150px]" value={form.reportDate} onChange={(e) => set({ reportDate: e.target.value })} />
+            </EcCond>
+            <EcCond label="납부기한" span={2}>
+              <input type="date" className="ec-input w-[150px]" value={form.dueDate} onChange={(e) => set({ dueDate: e.target.value })} />
+            </EcCond>
+            {([['taxAgent', '세무대리인 여부'], ['closure', '폐업신고 여부']] as const).map(([key, l]) => (
+              <EcCond key={key} label={l} span={2}>
+                {([[true, '여'], [false, '부']] as const).map(([v, t]) => (
+                  <label key={t} className="inline-flex items-center gap-[3px] mr-[10px]">
+                    <input type="radio" name={`vat-${key}`} checked={form[key] === v} onChange={() => set({ [key]: v })} /> {t}
+                  </label>
+                ))}
+              </EcCond>
+            ))}
+          </ul>
+          <div className="flex gap-[6px] mt-[12px]">
+            <button className="ec-btn ec-btn-primary" onClick={() => void save()}>저장(F8)</button>
+            <button className="ec-btn" onClick={() => setForm(null)}>닫기</button>
+          </div>
+        </Modal>
+      )}
     </EcListShell>
   )
 }
 
 function ReturnSheet({ s, c }: { s: Sheet; c: CompanyInfo | null }) {
-  const p = periodOf(s.year, s.term, s.kind)
+  const p = s
   const pad = (n: number) => String(n).padStart(2, '0')
   const sales = add(s.taxInvoice, s.zeroInvoice)
   const purchase = add(s.purchaseGeneral, s.purchaseFixed)
@@ -272,7 +450,7 @@ function ReturnSheet({ s, c }: { s: Sheet; c: CompanyInfo | null }) {
  * 그 외 발급분(같은 셋), 3. 그 외 발급분의 거래처별 명세. 원본 2기 예정 매출 10곳 · 19매 · 396,450,000 · 39,645,000 이 모두 전자.
  */
 function InvoiceSummarySheet({ side, s, c, invoices }: { side: '매출' | '매입'; s: Sheet; c: CompanyInfo | null; invoices: Invoice[] }) {
-  const p = periodOf(s.year, s.term, s.kind)
+  const p = s
   const pad = (n: number) => String(n).padStart(2, '0')
   const who = side === '매출' ? '매출처' : '매입처'
   const tally = (list: Invoice[]) => ({

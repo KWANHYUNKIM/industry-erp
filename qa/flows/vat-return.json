@@ -1,0 +1,37 @@
+{
+  "about": "부가세신고서(일반)(원본 E200928) — [신규(F2)] 올해 1기 확정(4~6) 저장 → 목록 [예정누락 포함여부 YES] → 같은 기간을 또 만들면 '동일한 부가가치세 신고서가 있습니다.' → [신고서등 › 조회] 로 신고서 서식 → [선택삭제] '삭제한 데이터는 복구되지 않습니다.' [확인] → 사라진다. 원본(2026-10-12)에서 2026 1기 확정을 만들고 지워 같은 문구를 확인했다.",
+  "shots": [
+    {
+      "name": "신규 → 1기 확정 저장 → YES · 같은 기간 거절 → 조회 → 선택삭제",
+      "path": "/accounting/vat/return",
+      "steps": [
+        "wait:4000",
+        "clicklast:신규(F2)",
+        "wait:400",
+        "expect:[...document.querySelectorAll('[role=dialog]')].some((d) => d.innerText.includes('신고서종류'))",
+        "choose:select[aria-label=신고기]|1기 확정(4~6)",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().innerText.includes('예정누락 01월 ~ 03월')",
+        "clicklast:저장(F8)",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => /1기 확정\\(4~6\\)\\s+YES/.test(t.innerText))",
+        "clicklast:신규(F2)",
+        "wait:400",
+        "choose:select[aria-label=신고기]|1기 확정(4~6)",
+        "clicklast:저장(F8)",
+        "wait:800",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().innerText.includes('동일한 부가가치세 신고서가 있습니다.')",
+        "allowapi:409: /api/vat-returns",
+        "clicklast:닫기",
+        "js:[...document.querySelectorAll('tbody tr')].find((t) => /1기 확정\\(4~6\\)/.test(t.innerText)).querySelectorAll('button.ec-link')[1].click(); true",
+        "wait:1500",
+        "expect:document.body.innerText.includes('일반과세자 부가가치세') && document.body.innerText.includes('제 1 기 (04월 01일 ~ 06월 30일)')",
+        "js:[...document.querySelectorAll('tbody tr')].find((t) => /1기 확정\\(4~6\\)/.test(t.innerText)).querySelector('input[type=checkbox]').click(); true",
+        "clicklast:선택삭제",
+        "expect:document.body.innerText.includes('삭제한 데이터는 복구되지 않습니다.')",
+        "clicklast:확인",
+        "wait:1200",
+        "expect:![...document.querySelectorAll('tbody tr')].some((t) => /1기 확정\\(4~6\\)/.test(t.innerText))"
+      ]
+    }
+  ]
+}
