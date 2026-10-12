@@ -38,13 +38,16 @@ public final class BankCheckDtos {
 
     public record SettleRequest(LocalDate settledDate) {}
 
+    /** 수령(발행)수표조회 [선택삭제] — 고른 줄의 수표 id 를 감소 · 증가로 나눠 보낸다. */
+    public record DeleteMovesRequest(java.util.List<Long> decreaseIds, java.util.List<Long> increaseIds) {}
+
     public record CheckResponse(
             Long id, String checkNo, CheckType type, String typeName,
             CheckStatus status, String statusName,
             LocalDate issueDate, BigDecimal amount, String bankName,
             Long partnerId, String partnerName,
             Long bankAccountId, String bankAccountName,
-            LocalDate settledDate, String remark, String createdBy,
+            LocalDate settledDate, String remark, String createdBy, String updatedBy,
             /* 원본 수령수표증가 · 감소현황의 [일자-No.] — 받을 때 · 손을 떠날 때 회계전표 번호. 목록에서만 채운다. */
             String issueJournalNo, String settleJournalNo
     ) {
@@ -62,7 +65,7 @@ public final class BankCheckDtos {
                     c.getBankAccount() != null ? c.getBankAccount().getId() : null,
                     c.getBankAccount() != null
                             ? c.getBankAccount().getBankName() + " " + c.getBankAccount().getAccountNo() : null,
-                    c.getSettledDate(), c.getRemark(), c.getCreatedBy(), issueJournalNo, settleJournalNo);
+                    c.getSettledDate(), c.getRemark(), c.getCreatedBy(), c.getUpdatedBy(), issueJournalNo, settleJournalNo);
         }
     }
 }

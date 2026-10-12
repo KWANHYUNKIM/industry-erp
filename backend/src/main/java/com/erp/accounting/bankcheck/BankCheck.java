@@ -73,4 +73,8 @@ public class BankCheck extends BaseTimeEntity {
 
     @Column(length = 50)
     private String createdBy;
+
+    /** 원본 수령(발행)수표조회의 [최종수정자] — 입금 · 부도 · 결제와 그 취소를 한 사람. */
+    @Column(length = 50)
+    private String updatedBy;
 }

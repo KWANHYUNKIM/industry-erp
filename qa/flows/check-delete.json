@@ -1,0 +1,65 @@
+{
+  "about": "수령수표조회 [선택삭제] — 받은수표를 받고 입금한 뒤(API), 감소 줄을 지우면 보유로 돌아오고 입금 분개 · 계좌 입금이 되돌아가며, 증가 줄을 지우면 수표가 사라진다. 감소 줄이 남은 채 증가 줄만 지우면 막는다. [최종수정자] 조건이 있다.",
+  "shots": [
+    {
+      "name": "준비 — 받은수표 1장 받고 오늘 입금(API), 계좌 잔액을 적어 둔다",
+      "path": "/accounting/checks-list",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const today=new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10);const p=(await window.__api('GET','/partners')).body.find((x)=>x.code==='QA-CUST');const acc=(await window.__api('GET','/bank-cards/accounts')).body.find((a)=>a.active!==false);const no='QADEL-'+Date.now();const c=await window.__api('POST','/checks',{type:'RECEIVED',checkNo:no,amount:23456,issueDate:today,partnerId:p.id,remark:'QA회계2 수표삭제'});const before=(await window.__api('GET','/bank-cards/accounts')).body.find((a)=>a.id===acc.id).balance;const dep=await window.__api('POST','/checks/'+c.body.id+'/deposit',{bankAccountId:acc.id,depositDate:today});sessionStorage.setItem('ckNo',no);sessionStorage.setItem('ckId',c.body.id);sessionStorage.setItem('accId',acc.id);sessionStorage.setItem('bal',before);return c.status+'/'+dep.status})()",
+        "expect:!!sessionStorage.getItem('ckNo')",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:!!document.querySelector('[aria-label=\"전체 선택\"]')&&[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|')==='|일자|수표번호|증감구분|거래처명|금액|적요|거래유형|회계전표일자-No.'"
+      ]
+    },
+    {
+      "name": "증가 줄만 지우면 막는다 — '입금완료 처리된 수표입니다 — 감소 줄(입금완료)부터 지우세요.'",
+      "path": "/accounting/checks-list",
+      "steps": [
+        "allowapi:409: /api/checks/delete",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "wait:2000",
+        "js:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('ckNo'))&&t.innerText.includes('수령수표증가'));tr.querySelector('input[type=checkbox]').click();return true})()",
+        "click:선택삭제",
+        "wait:500",
+        "expect:document.body.innerText.includes('전표를 삭제하겠습니까?')",
+        "clicklast:확인",
+        "wait:1500",
+        "expect:document.body.innerText.includes('감소 줄(입금완료)부터 지우세요')"
+      ]
+    },
+    {
+      "name": "감소 줄을 지우면 보유로 돌아오고 계좌 잔액이 입금 전으로 돌아온다",
+      "path": "/accounting/checks-list",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "wait:2000",
+        "js:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('ckNo'))&&t.innerText.includes('수령수표감소'));tr.querySelector('input[type=checkbox]').click();return true})()",
+        "click:선택삭제",
+        "wait:500",
+        "clicklast:확인",
+        "wait:2000",
+        "expect:(()=>{const rows=[...document.querySelectorAll('tbody tr')].filter((t)=>t.innerText.includes(sessionStorage.getItem('ckNo')));return rows.length===1&&rows[0].cells[3].innerText.trim()==='수령수표증가'})()",
+        "js:(async()=>{const c=(await window.__api('GET','/checks')).body.find((x)=>String(x.id)===sessionStorage.getItem('ckId'));const a=(await window.__api('GET','/bank-cards/accounts')).body.find((x)=>String(x.id)===sessionStorage.getItem('accId'));window.__ok=c.status==='HELD'&&!c.settledDate&&Number(a.balance)===Number(sessionStorage.getItem('bal'));return c.status+' '+a.balance+' / '+sessionStorage.getItem('bal')})()",
+        "expect:window.__ok===true"
+      ]
+    },
+    {
+      "name": "증가 줄을 지우면 수표가 사라진다",
+      "path": "/accounting/checks-list",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "wait:2000",
+        "js:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('ckNo')));tr.querySelector('input[type=checkbox]').click();return true})()",
+        "click:선택삭제",
+        "wait:500",
+        "clicklast:확인",
+        "wait:2000",
+        "expect:!([...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes(sessionStorage.getItem('ckNo'))))",
+        "js:(async()=>{window.__gone=!(await window.__api('GET','/checks')).body.some((x)=>String(x.id)===sessionStorage.getItem('ckId'));return window.__gone})()",
+        "expect:window.__gone===true"
+      ]
+    }
+  ]
+}

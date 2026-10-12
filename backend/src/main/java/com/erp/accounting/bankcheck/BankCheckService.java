@@ -101,6 +101,7 @@ public class BankCheckService {
                 .bankAccount(account)
                 .remark(req.remark())
                 .createdBy(username)
+                .updatedBy(username)
                 .build();
         checkRepository.save(c);
 
@@ -125,6 +126,7 @@ public class BankCheckService {
         requireNotBeforeIssue(c, date, "입금일");
         c.setBankAccount(account);
         c.setStatus(CheckStatus.DEPOSITED);
+        c.setUpdatedBy(username);
         c.setSettledDate(date);
 
         JournalEntry entry = journalService.createFromCheckDeposit(c, date, username);
@@ -144,6 +146,7 @@ public class BankCheckService {
         LocalDate date = req != null && req.settledDate() != null ? req.settledDate() : LocalDate.now();
         requireNotBeforeIssue(c, date, "부도일");
         c.setStatus(CheckStatus.DISHONORED);
+        c.setUpdatedBy(username);
         c.setSettledDate(date);
         c.setSettleJournalId(journalService.createFromCheckDishonor(c, date, username).getId());
         return CheckResponse.from(c);
@@ -153,7 +156,7 @@ public class BankCheckService {
      * 발행수표가 은행에서 인출됐음을 확인. 회계는 발행 시 이미 반영됐으므로 상태만 바꾼다.
      */
     @Transactional
-    public CheckResponse settle(Long id, SettleRequest req) {
+    public CheckResponse settle(Long id, SettleRequest req, String username) {
         BankCheck c = check(id);
         requireType(c, CheckType.ISSUED, "발행수표만 결제 확인할 수 있습니다");
         requireHeld(c, "결제 확인");
@@ -161,8 +164,54 @@ public class BankCheckService {
         LocalDate date = req != null && req.settledDate() != null ? req.settledDate() : LocalDate.now();
         requireNotBeforeIssue(c, date, "결제일");
         c.setStatus(CheckStatus.PAID);
+        c.setUpdatedBy(username);
         c.setSettledDate(date);
         return CheckResponse.from(c);
+    }
+
+    /**
+     * 원본 수령(발행)수표조회 [선택삭제] — 한 줄은 수표의 <b>움직임</b>이라 감소 줄과 증가 줄을 따로 지운다.
+     *
+     * <p><b>감소 줄</b>(입금완료 · 부도 · 결제완료)을 지우면 수표가 다시 보유로 돌아온다 — 입금 분개를 지우고
+     * 계좌에 들어간 돈은 반대 내역으로 빼낸다(계좌간이동을 지울 때와 같은 방식). 부도 분개도 지운다.
+     * <b>증가 줄</b>(수령 · 발행)을 지우면 수표가 사라진다 — 받을 때(끊을 때) 분개를 지우고, 발행수표는 빠진 예금을 되돌린다.
+     * 감소 줄이 남은 수표의 증가 줄은 지우지 않는다(손을 떠난 수표를 지우면 입금 분개만 남아 장부가 어긋난다).
+     * 한 번에 둘 다 고르면 감소부터 지운다.
+     */
+    @Transactional
+    public void deleteMoves(List<Long> decreaseIds, List<Long> increaseIds, String username) {
+        for (Long id : decreaseIds == null ? List.<Long>of() : decreaseIds) {
+            BankCheck c = check(id);
+            if (c.getStatus() == CheckStatus.HELD) {
+                throw ApiException.badRequest(c.getCheckNo() + " 은(는) 감소 내역이 없습니다.");
+            }
+            if (c.getSettleJournalId() != null) {
+                JournalEntry e = journalRepository.findById(c.getSettleJournalId()).orElse(null);
+                if (c.getStatus() == CheckStatus.DEPOSITED) {
+                    bankCardService.reverseExternal(e, "수표 입금 취소 " + c.getCheckNo(), username);
+                }
+                journalService.deleteEntry(e);
+            }
+            if (c.getType() == CheckType.RECEIVED) c.setBankAccount(null);
+            c.setStatus(CheckStatus.HELD);
+            c.setSettledDate(null);
+            c.setSettleJournalId(null);
+            c.setUpdatedBy(username);
+        }
+        for (Long id : increaseIds == null ? List.<Long>of() : increaseIds) {
+            BankCheck c = check(id);
+            if (c.getStatus() != CheckStatus.HELD) {
+                throw ApiException.conflict(String.format("%s 은(는) %s 처리된 수표입니다 — 감소 줄(%s)부터 지우세요.",
+                        c.getCheckNo(), c.getStatus().getDisplayName(), c.getStatus().getDisplayName()));
+            }
+            JournalEntry e = journalRepository.findBySourceTypeAndSourceIdIn(JournalSourceType.CHECK, List.of(c.getId()))
+                    .stream().findFirst().orElse(null);
+            if (c.getType() == CheckType.ISSUED) {
+                bankCardService.reverseExternal(e, "수표 발행 취소 " + c.getCheckNo(), username);
+            }
+            journalService.deleteEntry(e);
+            checkRepository.delete(c);
+        }
     }
 
     // ── 내부 ──────────────────────────────────────────────────────────

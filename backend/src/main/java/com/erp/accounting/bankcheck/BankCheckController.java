@@ -57,7 +57,15 @@ public class BankCheckController {
 
     /** 발행수표 은행 인출 확인 */
     @PostMapping("/{id}/settle")
-    public CheckResponse settle(@PathVariable Long id, @RequestBody(required = false) SettleRequest req) {
-        return service.settle(id, req != null ? req : new SettleRequest(null));
+    public CheckResponse settle(@PathVariable Long id, @RequestBody(required = false) SettleRequest req,
+                                @AuthenticationPrincipal UserPrincipal principal) {
+        return service.settle(id, req != null ? req : new SettleRequest(null), principal.getUsername());
+    }
+
+    /** 수령(발행)수표조회 [선택삭제] — 감소 줄(입금 · 부도 · 결제 취소)과 증가 줄(수표 삭제) */
+    @PostMapping("/delete")
+    public void deleteMoves(@RequestBody BankCheckDtos.DeleteMovesRequest req,
+                            @AuthenticationPrincipal UserPrincipal principal) {
+        service.deleteMoves(req.decreaseIds(), req.increaseIds(), principal.getUsername());
     }
 }

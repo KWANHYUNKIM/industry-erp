@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import Modal from '../../components/Modal'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { QUOTATION_PICKS, periodOf } from '../../components/EcPeriodPicks'
@@ -23,8 +24,10 @@ interface Move { key: string; date: string; inc: boolean; c: BankCheck }
  * 버튼줄: 신규(F2) · (발행수표인쇄) · 선택삭제 · Excel.
  *
  * <p>한 줄은 수표가 아니라 <b>움직임</b>이다 — 받은 날 '수령수표증가', 입금 · 부도한 날 '수령수표감소'(발행은 발행 · 결제완료).
- * 우리 수표는 모두 수표관리 화면에서 직접 적으므로 [입력구분]은 늘 '직접입력'이다. 수표를 지우는 API 가 없어
- * [선택삭제]와 그 체크 열은 두지 않는다. [인쇄] 열 · [발행수표인쇄]는 수표 용지 인쇄 이력인데 우리는 수표를 인쇄하지 않는다.
+ * 우리 수표는 모두 수표관리 화면에서 직접 적으므로 [입력구분]은 늘 '직접입력'이다.
+ * [선택삭제]는 고른 <b>움직임</b>을 지운다 — 감소 줄이면 입금 · 부도 · 결제를 취소해 수표가 보유로 돌아오고(입금 분개 · 계좌 입금도 되돌림),
+ * 증가 줄이면 수표를 지운다(감소 줄이 남아 있으면 막는다). 확인 창은 같은 묶음 채권조회(E060403)에서 잰 '전표를 삭제하겠습니까? - 화면이름'.
+ * [최종수정자] = 마지막으로 입금 · 부도 · 결제나 그 취소를 한 사람. [인쇄] 열 · [발행수표인쇄]는 수표 용지 인쇄 이력인데 우리는 수표를 인쇄하지 않는다.
  * [신규(F2)]는 수표를 적는 수표관리 화면으로 보낸다. 원본 판이 비어 합계줄이 있는지 못 쟀다 — 증가 · 감소를 더한 합은 뜻이 없어 두지 않는다.
  */
 export default function CheckListPage({ type }: { type: CheckType }) {
@@ -46,6 +49,9 @@ export default function CheckListPage({ type }: { type: CheckType }) {
   const [bankAccount, setBankAccount] = useState('')
   const [remark, setRemark] = useState('')
   const [author, setAuthor] = useState('')
+  const [editor, setEditor] = useState('')
+  const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [checks, setChecks] = useState<BankCheck[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -57,6 +63,7 @@ export default function CheckListPage({ type }: { type: CheckType }) {
     try {
       const r = await api.get<BankCheck[]>('/checks', { params: { to } })
       setChecks(r.data)
+      setPicked(new Set())
     } catch (e) {
       setError(extractErrorMessage(e))
     } finally {
@@ -84,9 +91,10 @@ export default function CheckListPage({ type }: { type: CheckType }) {
       .filter((m) => !bankAccount || (m.c.bankAccountName ?? '') === bankAccount)
       .filter((m) => !remark || (m.c.remark ?? '').includes(remark))
       .filter((m) => !author || (m.c.createdBy ?? '') === author)
+      .filter((m) => !editor || (m.c.updatedBy ?? '') === editor)
       .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.c.checkNo.localeCompare(b.c.checkNo) || (a.inc ? -1 : 1)))
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ofType, from, to, showInc, showDec, direct, checkNo, kind, partner, bankAccount, remark, author])
+  }, [ofType, from, to, showInc, showDec, direct, checkNo, kind, partner, bankAccount, remark, author, editor])
   const partners = useMemo(() => {
     const m = new Map<number, string>()
     ofType.forEach((c) => { if (c.partnerId != null) m.set(c.partnerId, c.partnerName ?? '') })
@@ -94,6 +102,22 @@ export default function CheckListPage({ type }: { type: CheckType }) {
   }, [ofType])
   const accounts = useMemo(() => [...new Set(ofType.map((c) => c.bankAccountName).filter(Boolean) as string[])].sort(), [ofType])
   const authors = useMemo(() => [...new Set(ofType.map((c) => c.createdBy).filter(Boolean) as string[])].sort(), [ofType])
+  const editors = useMemo(() => [...new Set(ofType.map((c) => c.updatedBy).filter(Boolean) as string[])].sort(), [ofType])
+  const allPicked = moves.length > 0 && moves.every((m) => picked.has(m.key))
+
+  async function removePicked() {
+    setConfirmDelete(false)
+    const chosen = moves.filter((m) => picked.has(m.key))
+    try {
+      await api.post('/checks/delete', {
+        decreaseIds: chosen.filter((m) => !m.inc).map((m) => m.c.id),
+        increaseIds: chosen.filter((m) => m.inc).map((m) => m.c.id),
+      })
+      await load()
+    } catch (e) {
+      setError(extractErrorMessage(e))
+    }
+  }
   const kinds = received ? ['수령', '입금완료', '부도'] : ['발행', '결제완료']
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, title, [moves.length])
@@ -110,8 +134,9 @@ export default function CheckListPage({ type }: { type: CheckType }) {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setCheckNo(''); setShowInc(true); setShowDec(true); setKind(''); setDirect(true); setPartner(''); setBankAccount(''); setRemark(''); setAuthor('') } },
+        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setCheckNo(''); setShowInc(true); setShowDec(true); setKind(''); setDirect(true); setPartner(''); setBankAccount(''); setRemark(''); setAuthor(''); setEditor('') } },
         { label: '신규(F2)', onClick: () => navigate('/accounting/checks') },
+        { label: '선택삭제', disabled: picked.size === 0, onClick: () => setConfirmDelete(true) },
         { label: 'Excel' },
       ]}
     >
@@ -161,6 +186,10 @@ export default function CheckListPage({ type }: { type: CheckType }) {
           <CodePickerField label="최초작성자" hideLabel width={170} emptyLabel="전체" value={author} onChange={setAuthor}
                            items={authors.map((a) => ({ value: a, name: a }))} />
         </EcCond>
+        <EcCond label="최종수정자" pick>
+          <CodePickerField label="최종수정자" hideLabel width={170} emptyLabel="전체" value={editor} onChange={setEditor}
+                           items={editors.map((a) => ({ value: a, name: a }))} />
+        </EcCond>
       </ul>
 
       <h3 className="text-[13px] font-bold mt-[4px] mx-0 mb-[6px]">
@@ -169,6 +198,10 @@ export default function CheckListPage({ type }: { type: CheckType }) {
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
+            <th className="text-center">
+              <input type="checkbox" aria-label="전체 선택" checked={allPicked}
+                     onChange={(e) => setPicked(e.target.checked ? new Set(moves.map((m) => m.key)) : new Set())} />
+            </th>
             <th className="text-center">일자</th>
             <th>수표번호</th>
             <th className="text-center">증감구분</th>
@@ -181,13 +214,17 @@ export default function CheckListPage({ type }: { type: CheckType }) {
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
           ) : moves.length === 0 ? (
-            <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : moves.map((m) => {
             const no = (m.inc ? m.c.issueJournalNo : m.c.settleJournalNo) ?? ''
             return (
               <tr key={m.key}>
+                <td className="text-center">
+                  <input type="checkbox" aria-label={`${m.c.checkNo} ${m.inc ? incName : decName} 선택`} checked={picked.has(m.key)}
+                         onChange={(e) => setPicked((s) => { const n = new Set(s); if (e.target.checked) n.add(m.key); else n.delete(m.key); return n })} />
+                </td>
                 <td className="text-center">{dateText(m.date)}</td>
                 <td>{m.c.checkNo}</td>
                 <td className="text-center">{m.inc ? incName : decName}</td>
@@ -201,6 +238,14 @@ export default function CheckListPage({ type }: { type: CheckType }) {
           })}
         </tbody>
       </table>
+
+      <Modal open={confirmDelete} title="알림" width={420} error={error} onClose={() => setConfirmDelete(false)}>
+        <p className="mb-[12px]">전표를 삭제하겠습니까?<br />- {title}</p>
+        <div className="flex gap-[5px]">
+          <button type="button" className="ec-btn ec-btn-primary" onClick={() => void removePicked()}>확인</button>
+          <button type="button" className="ec-btn" onClick={() => setConfirmDelete(false)}>취소</button>
+        </div>
+      </Modal>
     </EcListShell>
   )
 }

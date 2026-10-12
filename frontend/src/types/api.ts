@@ -1189,6 +1189,8 @@ export interface BankCheck {
   settledDate: string | null
   remark: string | null
   createdBy: string | null
+  /** 원본 [최종수정자] — 입금 · 부도 · 결제와 그 취소를 한 사람 */
+  updatedBy: string | null
   /** 받을 때(발행할 때) 회계전표 번호 — 원본 수령수표증가현황의 [일자-No.]. 목록에서만 온다. */
   issueJournalNo?: string | null
   /** 손을 떠날 때(입금 · 부도) 회계전표 번호 — 원본 수령수표감소현황의 [일자-No.]. 발행수표 결제는 분개가 없어 비어 있다. */

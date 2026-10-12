@@ -1,5 +1,5 @@
 {
-  "about": "수령수표증가현황 · 감소현황 — 받은수표 하나를 받고 오늘 입금해(API) 두 화면의 [일자-No.] 가 각각 받을 때 · 입금할 때 회계전표 번호인지 본다. 수표는 지울 길이 없어 남는다(qa.mjs 수표 시험과 같다).",
+  "about": "수령수표증가현황 · 감소현황 — 받은수표 하나를 받고 오늘 입금해(API) 두 화면의 [일자-No.] 가 각각 받을 때 · 입금할 때 회계전표 번호인지 본다. 수표는 남긴다(지우는 흐름은 check-delete.json).",
   "shots": [
     {
       "name": "준비 — 받은수표 1장 받고 오늘 입금(API)",
@@ -56,7 +56,7 @@
       "path": "/accounting/checks-list",
       "steps": [
         "wait:2000",
-        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const no=sessionStorage.getItem('ckNo');const tr=[...document.querySelectorAll('tbody tr')].filter((t)=>t.innerText.includes(no)).map((t)=>t.cells[2].innerText.trim());return h==='일자|수표번호|증감구분|거래처명|금액|적요|거래유형|회계전표일자-No.'&&tr.includes('수령수표증가')&&tr.includes('수령수표감소')})()"
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const no=sessionStorage.getItem('ckNo');const tr=[...document.querySelectorAll('tbody tr')].filter((t)=>t.innerText.includes(no)).map((t)=>t.cells[3].innerText.trim());return h==='|일자|수표번호|증감구분|거래처명|금액|적요|거래유형|회계전표일자-No.'&&tr.includes('수령수표증가')&&tr.includes('수령수표감소')})()"
       ]
     },
     {
