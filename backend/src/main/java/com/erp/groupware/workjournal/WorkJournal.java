@@ -57,4 +57,8 @@ public class WorkJournal extends BaseTimeEntity {
     // @Lob 은 PostgreSQL 에서 oid(large object)로 매핑된다. V15 에서 text 로 옮겼다.
     @Column(nullable = false, columnDefinition = "text")
     private String content;
+
+    /** 답글이면 원글 id — 원본 '조회' 창 [답글(F8)] · [답변]. 원글이면 null. 격자에는 원글만 찍는다. */
+    @Column(name = "parent_id")
+    private Long parentId;
 }
