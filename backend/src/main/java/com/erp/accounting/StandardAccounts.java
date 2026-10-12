@@ -43,6 +43,8 @@ public final class StandardAccounts {
             required("104", "받을수표", AccountDivision.ASSET, "유동자산"),
             required("108", "외상매출금", AccountDivision.ASSET, "매출채권"),
             required("110", "받을어음", AccountDivision.ASSET, "매출채권"),
+            // 카드매출대금회수가 카드사 미수금을 코드로 찾는다(FastVoucherService).
+            required("120", "미수금", AccountDivision.ASSET, "유동자산"),
             required("134", "가지급금", AccountDivision.ASSET, "유동자산"),
             required("135", "부가세대급금", AccountDivision.ASSET, "유동자산"),
             required("146", "상품", AccountDivision.ASSET, "재고자산"),
@@ -82,9 +84,12 @@ public final class StandardAccounts {
             of("815", "수도광열비", AccountDivision.EXPENSE, "판매관리비"),
             required("818", "감가상각비", AccountDivision.EXPENSE, "판매관리비"),
             of("830", "소모품비", AccountDivision.EXPENSE, "판매관리비"),
-            of("831", "지급수수료", AccountDivision.EXPENSE, "판매관리비"),
+            // 현금거래(영수증으로 · 매출처로부터 …)의 [수수료]가 코드로 찾는다(FastVoucherService).
+            required("831", "지급수수료", AccountDivision.EXPENSE, "판매관리비"),
             of("833", "광고선전비", AccountDivision.EXPENSE, "판매관리비"),
             required("835", "대손상각비", AccountDivision.EXPENSE, "판매관리비"),
+            // 은행차입으로 [수수료] · 은행으로 [이자금액]이 코드로 찾는다(FastVoucherService).
+            required("951", "이자비용", AccountDivision.EXPENSE, "영업외비용"),
             required("936", "매출채권처분손실", AccountDivision.EXPENSE, "영업외비용"),
             required("970", "유형자산처분손실", AccountDivision.EXPENSE, "영업외비용"));
 }

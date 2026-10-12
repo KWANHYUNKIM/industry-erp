@@ -81,6 +81,29 @@ public class FastVoucher extends BaseTimeEntity {
     @Builder.Default
     private BigDecimal fee = BigDecimal.ZERO;
 
+    /** 현금거래 — 계좌간이동의 [출금계좌] · 은행차입으로 · 은행으로의 [차입처]. 머리 {@link #bankAccount} 의 맞은편 계좌. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "counter_bank_account_id")
+    private BankAccount counterBankAccount;
+
+    /** 법인카드대금결제 [카드]. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "credit_card_id")
+    private com.erp.accounting.bankcard.CreditCard creditCard;
+
+    /** 카드매출대금회수 [카드사]. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "card_issuer_id")
+    private com.erp.accounting.cardissuer.CardIssuer cardIssuer;
+
+    /** 일시적으로(입금 · 출금) [사원] — hr 를 참조하지 않으려 id 만 든다(이름은 {@link #payeeName}). */
+    @Column(name = "employee_id")
+    private Long employeeId;
+
+    /** 카드매출대금회수 [수수료율](%). */
+    @Column(name = "fee_rate", precision = 7, scale = 3)
+    private BigDecimal feeRate;
+
     @OneToMany(mappedBy = "voucher", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<FastVoucherLine> lines = new ArrayList<>();

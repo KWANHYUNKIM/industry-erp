@@ -514,6 +514,28 @@ public class JournalService {
         return save(e);
     }
 
+    /** 현금거래 한 장짜리 분개의 한 줄 — 차변이면 {@code debit}. 금액이 0 이면 줄을 만들지 않는다. */
+    public record Posting(boolean debit, Account account, BigDecimal amount) {}
+
+    /**
+     * 현금거래(매출처로부터 · 계좌간이동 …) → 분개. 줄은 서비스가 종류별로 정해 넘긴다
+     * (원본 2026-10-12 loginaa 26/10/12-6~16 전표 실측 — FastVoucherType 주석). 적요는 모든 줄이 머리 적요 하나다.
+     */
+    @Transactional
+    public JournalEntry createFromPostings(com.erp.accounting.fastvoucher.FastVoucher v, List<Posting> postings) {
+        String firstDesc = v.getLines().isEmpty() ? null : v.getLines().get(0).getDescription();
+        String desc = firstDesc != null && !firstDesc.isBlank() ? firstDesc
+                : v.getType().getDisplayName() + " " + v.getVoucherNo();
+        JournalEntry e = newEntry(JournalSourceType.VOUCHER, null, v.getVoucherDate(),
+                desc, v.getPartner(), v.getCreatedBy());
+        for (Posting p : postings) {
+            if (p.amount() == null || p.amount().signum() == 0) continue;
+            if (p.debit()) addDebitAccount(e, p.account(), p.amount(), desc);
+            else addCreditAccount(e, p.account(), p.amount(), desc);
+        }
+        return save(e);
+    }
+
     private static final class SettleGroup { BigDecimal amount = BigDecimal.ZERO; String desc; }
 
     private static Map<Account, SettleGroup> settlementGroups(com.erp.accounting.fastvoucher.FastVoucher v,

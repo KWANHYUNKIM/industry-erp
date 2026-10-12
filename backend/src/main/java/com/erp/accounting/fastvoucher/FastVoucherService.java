@@ -38,11 +38,15 @@ public class FastVoucherService {
     private static final String RECEIVABLE = "108";        // 외상매출금
     private static final String ADVANCE = "134";           // 가지급금
     private static final String FEE = "831";               // 지급수수료
+    private static final String OTHER_RECEIVABLE = "120";  // 미수금 (카드사)
+    private static final String INTEREST = "951";          // 이자비용
 
     private final FastVoucherRepository voucherRepository;
     private final AccountRepository accountRepository;
     private final BankAccountRepository bankAccountRepository;
     private final BusinessPartnerRepository partnerRepository;
+    private final com.erp.accounting.bankcard.CreditCardRepository creditCardRepository;
+    private final com.erp.accounting.cardissuer.CardIssuerRepository cardIssuerRepository;
     private final JournalService journalService;
     private final BankCardService bankCardService;
     private final DocumentNoGenerator docNoGenerator;
@@ -149,8 +153,15 @@ public class FastVoucherService {
 
     /** 요청의 줄 · 머리를 전표에 싣고 분개 · 계좌 입출금을 만든다(등록 · 수정 공통). */
     private void apply(FastVoucher v, CreateVoucherRequest req, String username) {
+        if (v.getType().isCashQuick()) {
+            applyCashQuick(v, req, username);
+            return;
+        }
         if (req.lines() == null || req.lines().isEmpty()) {
             throw ApiException.badRequest("내역을 1줄 이상 입력하세요.");
+        }
+        if (req.lines().stream().anyMatch(l -> l.accountId() == null)) {
+            throw ApiException.badRequest("계정코드를 입력 바랍니다.");
         }
         PaymentMethod method = req.method() != null ? req.method() : PaymentMethod.CASH;
         v.setMethod(method);
@@ -238,6 +249,118 @@ public class FastVoucherService {
         byBank.forEach((bankId, amt) -> {
             if (amt.signum() != 0) bankCardService.recordExternal(bankId, in, amt, v.getVoucherDate(), memo, entry, username);
         });
+    }
+
+    /**
+     * 현금거래 한 장짜리 입력(매출처로부터 · 계좌간이동 …). 원본 2026-10-12 loginaa 에서 종류마다 한 장씩 저장해
+     * 전표를 열어 본 그대로 분개한다(FastVoucherType 주석). 머리 계좌는 [입금계좌] 또는 [출금계좌] — 비우면 000 현금.
+     * 회계거래조회 [금액]은 금액+수수료다(은행차입으로 50,000 · 수수료 1,000 → 51,000).
+     */
+    private void applyCashQuick(FastVoucher v, CreateVoucherRequest req, String username) {
+        FastVoucherType t = v.getType();
+        if (req.lines() == null || req.lines().isEmpty() || req.lines().get(0).amount() == null) {
+            throw ApiException.badRequest("금액: 자료를 입력 바랍니다.");
+        }
+        LineInput in = req.lines().get(0);
+        BigDecimal amount = in.amount();
+        BigDecimal fee = req.fee() != null ? req.fee() : BigDecimal.ZERO;
+        if (t == FastVoucherType.OTHER_DEPOSIT) fee = BigDecimal.ZERO;   // 기타입금에는 [수수료] 칸이 없다
+
+        BankAccount main = req.bankAccountId() != null ? bankAccount(req.bankAccountId()) : null;
+        BankAccount counter = req.counterBankAccountId() != null ? bankAccount(req.counterBankAccountId()) : null;
+        if (t == FastVoucherType.OTHER_WITHDRAW && main == null && fee.signum() > 0) {
+            throw ApiException.badRequest("현금일경우 수수료를 입력할 수 없습니다.");
+        }
+        switch (t) {
+            case ACCOUNT_TRANSFER -> { if (counter == null) throw ApiException.badRequest("출금계좌: 자료를 입력 바랍니다."); }
+            case BANK_BORROWING -> {
+                if (counter == null) throw ApiException.badRequest("차입처(은행): 자료를 입력 바랍니다.");
+                if (fee.compareTo(amount) > 0) throw ApiException.badRequest("수수료가 총차입금보다 클 수 없습니다.");
+            }
+            case LOAN_REPAYMENT -> { if (counter == null) throw ApiException.badRequest("차입처: 자료를 입력 바랍니다."); }
+            case TEMP_DEPOSIT, TEMP_WITHDRAW -> { if (req.employeeId() == null) throw ApiException.badRequest("사원: 자료를 입력 바랍니다."); }
+            case CARD_BILL_PAYMENT -> { if (req.creditCardId() == null) throw ApiException.badRequest("카드: 자료를 입력 바랍니다."); }
+            case CARD_SALES_COLLECTION -> { if (req.cardIssuerId() == null) throw ApiException.badRequest("카드사: 자료를 입력 바랍니다."); }
+            case SALES_COLLECTION, PURCHASE_PAYMENT -> { if (req.partnerId() == null) throw ApiException.badRequest("거래처: 자료를 입력 바랍니다."); }
+            case OTHER_DEPOSIT -> { if (in.accountId() == null) throw ApiException.badRequest("대변계정: 자료를 입력 바랍니다."); }
+            case OTHER_WITHDRAW -> { if (in.accountId() == null) throw ApiException.badRequest("차변계정: 자료를 입력 바랍니다."); }
+            default -> { }
+        }
+
+        var card = req.creditCardId() != null ? creditCardRepository.findById(req.creditCardId())
+                .orElseThrow(() -> ApiException.notFound("카드를 찾을 수 없습니다. id=" + req.creditCardId())) : null;
+        var issuer = req.cardIssuerId() != null ? cardIssuerRepository.findById(req.cardIssuerId())
+                .orElseThrow(() -> ApiException.notFound("카드사를 찾을 수 없습니다. id=" + req.cardIssuerId())) : null;
+
+        v.setMethod(main != null ? PaymentMethod.BANK : PaymentMethod.CASH);
+        v.setBankAccount(main);
+        v.setCounterBankAccount(counter);
+        v.setCreditCard(card);
+        v.setCardIssuer(issuer);
+        v.setEmployeeId(req.employeeId());
+        v.setFeeRate(t == FastVoucherType.CARD_SALES_COLLECTION ? req.feeRate() : null);
+        v.setFee(fee);
+        v.setAdvanceAmount(null);
+        v.setDescription(null);
+        v.setPartner(req.partnerId() != null ? partner(req.partnerId()) : null);
+        // 원본 회계거래조회 [거래처명]: 사원 이름 · 카드사 · 카드 · 차입처 계좌명.
+        v.setPayeeName(switch (t) {
+            case TEMP_DEPOSIT, TEMP_WITHDRAW -> req.payeeName() != null && !req.payeeName().isBlank() ? req.payeeName().trim() : null;
+            case CARD_SALES_COLLECTION -> issuer.getName();
+            case CARD_BILL_PAYMENT -> card.getCardName();
+            case BANK_BORROWING, LOAN_REPAYMENT -> FastVoucherDtos.bankName(counter);
+            case ACCOUNT_TRANSFER -> main != null ? FastVoucherDtos.bankName(main) : "현금";
+            default -> null;
+        });
+        v.setTotalAmount(amount.add(fee));
+
+        Account a = main != null ? main.getGlAccount() : account(CASH);
+        Account other = switch (t) {
+            case SALES_COLLECTION -> account(RECEIVABLE);
+            case CARD_SALES_COLLECTION -> account(OTHER_RECEIVABLE);
+            case TEMP_DEPOSIT, TEMP_WITHDRAW -> account(ADVANCE);
+            case PURCHASE_PAYMENT -> account("251");
+            case CARD_BILL_PAYMENT -> account(PAYABLE);
+            case ACCOUNT_TRANSFER, BANK_BORROWING, LOAN_REPAYMENT -> counter.getGlAccount();
+            default -> account(in.accountId());
+        };
+        v.addLine(FastVoucherLine.builder()
+                .account(other).amount(amount).description(in.description())
+                .ownSettlement(true).bankAccount(main).build());
+
+        Account feeAcc = (t == FastVoucherType.BANK_BORROWING || t == FastVoucherType.LOAN_REPAYMENT)
+                ? account(INTEREST) : account(FEE);
+        BigDecimal gross = amount.add(fee);
+        List<JournalService.Posting> ps = switch (t) {
+            case BANK_BORROWING -> List.of(
+                    new JournalService.Posting(true, a, amount.subtract(fee)),
+                    new JournalService.Posting(true, feeAcc, fee),
+                    new JournalService.Posting(false, other, amount));
+            case OTHER_DEPOSIT -> List.of(
+                    new JournalService.Posting(true, a, amount),
+                    new JournalService.Posting(false, other, amount));
+            default -> t.isCashIn()
+                    ? List.of(new JournalService.Posting(true, a, amount),
+                              new JournalService.Posting(true, feeAcc, fee),
+                              new JournalService.Posting(false, other, gross))
+                    : List.of(new JournalService.Posting(true, other, amount),
+                              new JournalService.Posting(true, feeAcc, fee),
+                              new JournalService.Posting(false, a, gross));
+        };
+        JournalEntry entry = journalService.createFromPostings(v, ps);
+        v.setJournalEntry(entry);
+
+        // 계좌 잔액 · 입출금 내역 — 분개의 계좌 줄과 같은 금액으로.
+        String memo = t.getDisplayName() + " " + v.getVoucherNo();
+        if (main != null) {
+            BigDecimal flow = t == FastVoucherType.BANK_BORROWING ? amount.subtract(fee)
+                    : t.isCashIn() ? amount : gross;
+            if (flow.signum() > 0) bankCardService.recordExternal(main.getId(), t.isCashIn(), flow, v.getVoucherDate(), memo, entry, username);
+        }
+        // 차입처는 빌린 돈의 장부 자리라 예금 잔액을 움직이지 않는다(잔액이 음수가 될 수 없어 차입이 막힌다) — 분개만 선다.
+        if (counter != null && t == FastVoucherType.ACCOUNT_TRANSFER) {
+            bankCardService.recordExternal(counter.getId(), false, gross, v.getVoucherDate(), memo, entry, username);
+        }
     }
 
     private BankAccount bankAccount(Long id) {

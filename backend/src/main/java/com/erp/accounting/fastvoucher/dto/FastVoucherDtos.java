@@ -23,7 +23,8 @@ public final class FastVoucherDtos {
      * {@code cash} 가 참이면 000 현금, {@code bankAccountId} 가 있으면 그 계좌 — 둘 다 없으면 머리 결제수단을 따른다(옛 호출).
      */
     public record LineInput(
-            @NotNull(message = "계정코드를 입력 바랍니다.") Long accountId,
+            /** 현금거래 중 계정이 정해진 종류(매출처로부터 …)는 비워 보낸다 — 서비스가 채운다. 나머지는 서비스가 막는다. */
+            Long accountId,
             @NotNull(message = "금액을 입력 바랍니다.") @Positive(message = "금액은 0보다 커야 합니다.") BigDecimal amount,
             @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String description,
@@ -52,7 +53,17 @@ public final class FastVoucherDtos {
             @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
             String payeeName,
             /** 영수증으로 [수수료]. */
-            @PositiveOrZero(message = "수수료는 0보다 작을 수 없습니다.") BigDecimal fee
+            @PositiveOrZero(message = "수수료는 0보다 작을 수 없습니다.") BigDecimal fee,
+            /** 현금거래: 계좌간이동 [출금계좌] · 은행차입으로 · 은행으로 [차입처]. */
+            Long counterBankAccountId,
+            /** 법인카드대금결제 [카드]. */
+            Long creditCardId,
+            /** 카드매출대금회수 [카드사]. */
+            Long cardIssuerId,
+            /** 일시적으로 [사원]. 이름은 payeeName 으로 함께 보낸다. */
+            Long employeeId,
+            /** 카드매출대금회수 [수수료율](%). */
+            @PositiveOrZero(message = "수수료율은 0보다 작을 수 없습니다.") BigDecimal feeRate
     ) {}
 
     public record VoucherLineResponse(
@@ -74,7 +85,13 @@ public final class FastVoucherDtos {
             Long journalEntryId, String journalDocNo,
             String description, String createdBy,
             List<VoucherLineResponse> lines,
-            String payeeName, BigDecimal fee
+            String payeeName, BigDecimal fee,
+            Long counterBankAccountId, String counterBankAccountCode, String counterBankAccountName,
+            Long creditCardId, String creditCardCode, String creditCardName,
+            Long cardIssuerId, String cardIssuerCode, String cardIssuerName,
+            Long employeeId, BigDecimal feeRate,
+            /** 머리 계좌(현금거래의 입금 · 출금계좌) — 000 현금이면 code '000'. */
+            String bankAccountCode
     ) {
         public static VoucherResponse from(FastVoucher v) {
             BigDecimal balance = v.getAdvanceAmount() != null
@@ -105,7 +122,18 @@ public final class FastVoucherDtos {
                                     l.getPartner() != null ? l.getPartner().getCode() : null,
                                     l.getPartner() != null ? l.getPartner().getName() : null))
                             .toList(),
-                    v.getPayeeName(), v.getFee());
+                    v.getPayeeName(), v.getFee(),
+                    v.getCounterBankAccount() != null ? v.getCounterBankAccount().getId() : null,
+                    v.getCounterBankAccount() != null ? bankCode(v.getCounterBankAccount()) : null,
+                    v.getCounterBankAccount() != null ? bankName(v.getCounterBankAccount()) : null,
+                    v.getCreditCard() != null ? v.getCreditCard().getId() : null,
+                    v.getCreditCard() != null ? v.getCreditCard().getCode() : null,
+                    v.getCreditCard() != null ? v.getCreditCard().getCardName() : null,
+                    v.getCardIssuer() != null ? v.getCardIssuer().getId() : null,
+                    v.getCardIssuer() != null ? v.getCardIssuer().getCode() : null,
+                    v.getCardIssuer() != null ? v.getCardIssuer().getName() : null,
+                    v.getEmployeeId(), v.getFeeRate(),
+                    v.getBankAccount() != null ? bankCode(v.getBankAccount()) : (v.getMethod() == PaymentMethod.CASH ? "000" : null));
         }
     }
 
