@@ -36,6 +36,29 @@ public class PayLedgerController {
         return service.calculate(id, req, principal.getUsername());
     }
 
+    /** [사전작업] 금액직접입력 목록 — 사원마다 손으로 정한 수당총액 · 공제총액 */
+    @GetMapping("/{id}/direct-amounts")
+    public List<com.erp.hr.payroll.dto.PayLedgerDtos.DirectAmountSummary> directSummary(@PathVariable Long id) {
+        return service.directSummary(id);
+    }
+
+    @GetMapping("/{id}/direct-amounts/{employeeId}")
+    public List<com.erp.hr.payroll.dto.PayLedgerDtos.DirectAmountCell> directCells(@PathVariable Long id, @PathVariable Long employeeId) {
+        return service.directCells(id, employeeId);
+    }
+
+    @PutMapping("/{id}/direct-amounts/{employeeId}")
+    public void saveDirect(@PathVariable Long id, @PathVariable Long employeeId,
+                           @Valid @RequestBody com.erp.hr.payroll.dto.PayLedgerDtos.DirectAmountRequest req) {
+        service.saveDirect(id, employeeId, req);
+    }
+
+    /** [삭제] · [선택삭제] — ?employeeIds=1,2 */
+    @DeleteMapping("/{id}/direct-amounts")
+    public void deleteDirect(@PathVariable Long id, @RequestParam List<Long> employeeIds) {
+        service.deleteDirect(id, employeeIds);
+    }
+
     @PostMapping("/{id}/confirm")
     public LedgerResponse confirm(@PathVariable Long id) {
         return service.confirm(id);

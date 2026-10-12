@@ -7,8 +7,9 @@ import { api, extractErrorMessage } from '../../api/client'
 import { ymd } from '../../utils/periods'
 import type { EmployeeMaster, PayItem } from '../../types/api'
 import PayslipBulkEdit from '../../features/payroll/components/PayslipBulkEdit'
+import DirectAmountInput from '../../features/payroll/components/DirectAmountInput'
 
-interface Ledger { id: number; payMonth: string; name: string; payDate: string; headcount: number; grossTotal: number; confirmedCount: number; workConfirmCount: number }
+interface Ledger { id: number; payMonth: string; name: string; payDate: string; headcount: number; grossTotal: number; confirmedCount: number; workConfirmCount: number; directAmountCount: number }
 interface ConfirmRow { employeeId: number; employeeCode: string; employeeName: string; payItemId: number; payItemName: string; quantity: number }
 
 const won = (n: number) => Number(n).toLocaleString('ko-KR')
@@ -27,8 +28,9 @@ const slash = (s: string) => s.replace(/-/g, '/')
  * [사전작업] '근무기록확정[n]' 창은 사원 × 변동수당(시간 · 일) 격자 — [근무기록]이 근무입력의 그 달 합계를 불러오고,
  * [저장]한 값만 급여계산에 들어간다(원본 계산식 '야근수당(근무기록확정)'). n 은 확정한 사원 수다.
  * 우리는 사원 · 귀속월에 명세가 하나라 대장도 귀속월에 하나다(원본은 -1, -2 …) — 신고귀속은 늘 '-1'.
- * 급여구분은 '급여', 지급구분은 '1차수' 하나다(상여 · 차수가 없다). 사전작업의 금액직접입력 ·
- * [명세서] 조회는 그 대장 한 달의 사원별급여조회로 연다(원본과 같다). 금액직접입력 · 개인별계산의 [항목선택계산] · 명세서 Email 은 아직 없다.
+ * 급여구분은 '급여', 지급구분은 '1차수' 하나다(상여 · 차수가 없다).
+ * [명세서] 조회는 그 대장 한 달의 사원별급여조회로 연다(원본과 같다). 개인별계산의 [항목선택계산] · 명세서 Email 은 아직 없다.
+ * [사전작업] 금액직접입력은 features/payroll/components/DirectAmountInput.
  * 급여대장 [일괄수정]은 features/payroll/components/PayslipBulkEdit(대상자 선택 → 급여내역수정 격자).
  * [개인별계산]은 사원(퇴사자 포함) 목록에서 체크한 사원만 지우고 다시 셈하고, 끝나면 그 대장의 급여대장을 띄운다(2026-10-12 실측).
  */
@@ -132,6 +134,8 @@ export default function PayLedgerPage() {
   const [checked, setChecked] = useState<Set<number>>(new Set())
   const [pickQuery, setPickQuery] = useState('')
   const [pickError, setPickError] = useState('')
+  /** 원본 [사전작업] 금액직접입력 — 사원 · 항목마다 손으로 정한 금액(다시 계산할 때 그 항목의 셈 대신 쓴다) */
+  const [directFor, setDirectFor] = useState<Ledger | null>(null)
   /** 원본 급여대장 [일괄수정] — 대상자 선택 → 급여내역수정 격자 */
   const [bulkFor, setBulkFor] = useState<Ledger | null>(null)
   const [calcAsk, setCalcAsk] = useState<{ ledger: Ledger; ids: number[] | null } | null>(null)
@@ -229,9 +233,14 @@ export default function PayLedgerPage() {
               <td className="text-center">{slash(l.payDate)}</td>
               <td className="text-center">{slash(l.payMonth)}</td>
               <td className="text-center">
-                <a href="#" onClick={(e) => { e.preventDefault(); openConfirm(l) }}>
-                  근무기록확정{l.workConfirmCount ? `[${l.workConfirmCount}]` : ''}
-                </a>
+                <div className="flex flex-col items-center">
+                  <a href="#" onClick={(e) => { e.preventDefault(); openConfirm(l) }}>
+                    근무기록확정{l.workConfirmCount ? `[${l.workConfirmCount}]` : ''}
+                  </a>
+                  <a href="#" onClick={(e) => { e.preventDefault(); setDirectFor(l) }}>
+                    금액직접입력{l.directAmountCount ? `[${l.directAmountCount}]` : ''}
+                  </a>
+                </div>
               </td>
               <td className="text-center">
                 <div className="flex flex-col items-center">
@@ -359,6 +368,8 @@ export default function PayLedgerPage() {
           </div>
         </>
       )}</Modal>
+
+      <DirectAmountInput ledger={directFor} onClose={() => setDirectFor(null)} onChanged={load} />
 
       <PayslipBulkEdit ledger={bulkFor} onClose={() => setBulkFor(null)} onSaved={() => { flash('저장되었습니다.'); load() }} />
 

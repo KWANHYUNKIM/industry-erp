@@ -30,6 +30,7 @@ public class PayLedgerService {
     private final PayrollService payrollService;
     private final EmployeeService employeeService;
     private final com.erp.hr.workrecord.WorkRecordService workRecordService;
+    private final PayDirectAmountRepository directAmountRepository;
 
     @Transactional(readOnly = true)
     public List<LedgerResponse> findAll() {
@@ -114,7 +115,56 @@ public class PayLedgerService {
         }
         payslipRepository.deleteAll(slips);
         workRecordService.deleteConfirms(l.getPayMonth());   // 대장의 근무기록확정도 함께
+        directAmountRepository.deleteByPayMonth(l.getPayMonth());   // 금액직접입력도 함께
         ledgerRepository.delete(l);
+    }
+
+    // ── 원본 [사전작업] 금액직접입력(2026-10-12 실측) ──
+    // 목록: 사원(퇴사자 포함)마다 손으로 정한 수당총액 · 공제총액. 사원번호를 누르면 '수당/공제 항목입력'
+    // (기본급 · 수당항목 / 공제항목마다 금액 · 메모). 저장하면 그 대장을 다시 계산할 때 그 항목의 셈 대신 이 금액을 쓴다.
+
+    @Transactional(readOnly = true)
+    public List<com.erp.hr.payroll.dto.PayLedgerDtos.DirectAmountSummary> directSummary(Long id) {
+        var byEmp = new java.util.LinkedHashMap<Long, BigDecimal[]>();
+        for (PayDirectAmount d : directAmountRepository.findByPayMonth(get(id).getPayMonth())) {
+            BigDecimal[] t = byEmp.computeIfAbsent(d.getEmployeeId(), k -> new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO});
+            int i = d.getKind() == PayslipLineKind.ALLOWANCE ? 0 : 1;
+            t[i] = t[i].add(d.getAmount());
+        }
+        return byEmp.entrySet().stream()
+                .map(e -> new com.erp.hr.payroll.dto.PayLedgerDtos.DirectAmountSummary(e.getKey(), e.getValue()[0], e.getValue()[1]))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<com.erp.hr.payroll.dto.PayLedgerDtos.DirectAmountCell> directCells(Long id, Long employeeId) {
+        return directAmountRepository.findByPayMonthAndEmployeeId(get(id).getPayMonth(), employeeId).stream()
+                .map(d -> new com.erp.hr.payroll.dto.PayLedgerDtos.DirectAmountCell(d.getKind(), d.getItemName(), d.getAmount(), d.getMemo()))
+                .toList();
+    }
+
+    /** [저장(F8)] — 그 사원의 칸을 통째로 바꾼다. 금액이 빈 칸은 화면이 보내지 않는다. */
+    @Transactional
+    public void saveDirect(Long id, Long employeeId, com.erp.hr.payroll.dto.PayLedgerDtos.DirectAmountRequest req) {
+        String month = get(id).getPayMonth();
+        employeeService.findAllIncludingResigned().stream().filter(e -> e.id().equals(employeeId)).findFirst()
+                .orElseThrow(() -> ApiException.notFound("사원을 찾을 수 없습니다. id=" + employeeId));
+        directAmountRepository.deleteByPayMonthAndEmployeeId(month, employeeId);
+        directAmountRepository.flush();
+        var seen = new java.util.HashSet<String>();
+        for (var c : req.cells() == null ? List.<com.erp.hr.payroll.dto.PayLedgerDtos.DirectAmountCell>of() : req.cells()) {
+            if (!seen.add(c.kind() + "#" + c.itemName().trim())) continue;
+            directAmountRepository.save(PayDirectAmount.builder().payMonth(month).employeeId(employeeId)
+                    .kind(c.kind()).itemName(c.itemName().trim()).amount(c.amount())
+                    .memo(c.memo() == null || c.memo().isBlank() ? null : c.memo().trim()).build());
+        }
+    }
+
+    /** [삭제] · 목록 [선택삭제] — "한번 지워진 자료는 복구될 수 없습니다." */
+    @Transactional
+    public void deleteDirect(Long id, List<Long> employeeIds) {
+        String month = get(id).getPayMonth();
+        for (Long e : employeeIds) directAmountRepository.deleteByPayMonthAndEmployeeId(month, e);
     }
 
     private PayLedger get(Long id) {
@@ -130,6 +180,8 @@ public class PayLedgerService {
         long confirmed = slips.stream().filter(p -> p.getStatus() == PayslipStatus.CONFIRMED).count();
         long workConfirmed = workRecordService.findConfirms(l.getPayMonth(), l.getPayMonth()).stream()
                 .map(c -> c.employeeId()).distinct().count();
-        return new LedgerResponse(l.getId(), l.getPayMonth(), l.getName(), l.getPayDate(), slips.size(), gross, confirmed, workConfirmed);
+        long direct = directAmountRepository.findByPayMonth(l.getPayMonth()).stream()
+                .map(PayDirectAmount::getEmployeeId).distinct().count();
+        return new LedgerResponse(l.getId(), l.getPayMonth(), l.getName(), l.getPayDate(), slips.size(), gross, confirmed, workConfirmed, direct);
     }
 }

@@ -209,6 +209,14 @@ public class PaySettingService {
                 .orElseThrow(() -> ApiException.notFound("수당·공제 항목을 찾을 수 없습니다. id=" + id));
     }
 
+    /** 금액직접입력으로 명세에 새로 붙는 수당 줄의 과세 여부 — 같은 이름 수당항목을 따르고, 없으면 과세. */
+    @Transactional(readOnly = true)
+    public boolean taxableByName(String name) {
+        return itemRepository.findAll().stream()
+                .filter(i -> i.getKind() == PayslipLineKind.ALLOWANCE && i.getName().equals(name))
+                .findFirst().map(PayItem::isTaxable).orElse(true);
+    }
+
     private PayGroup group(Long id) {
         return groupRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("그룹을 찾을 수 없습니다. id=" + id));

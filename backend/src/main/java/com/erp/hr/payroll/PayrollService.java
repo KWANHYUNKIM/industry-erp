@@ -40,6 +40,7 @@ public class PayrollService {
     private final com.erp.hr.workrecord.WorkRecordService workRecordService;
     private final PaySettingService paySettingService;
     private final WithholdingTaxCalculator taxCalculator;
+    private final PayDirectAmountRepository payDirectAmountRepository;
 
     @Transactional(readOnly = true)
     public List<PayslipResponse> payroll(String month) {
@@ -155,6 +156,19 @@ public class PayrollService {
             }
         }
 
+        // 2-1) 원본 [사전작업] 금액직접입력 — 그 귀속월에 이 사원에게 손으로 정한 금액이 있으면 그 항목의 셈 대신 쓴다.
+        //      기본급 · 수당은 과세소득 셈 전에, 소득세 · 지방소득세는 자동 셈을 막도록 여기서, 4대보험은 자동 셈 뒤에 덮는다.
+        List<PayDirectAmount> direct = payDirectAmountRepository.findByPayMonthAndEmployeeId(req.payMonth(), emp.getId());
+        for (PayDirectAmount d : direct) {
+            if (d.getKind() == PayslipLineKind.ALLOWANCE && "기본급".equals(d.getItemName())) {
+                baseSalary = d.getAmount();
+                p.setBaseSalary(baseSalary);
+            } else if (d.getKind() == PayslipLineKind.ALLOWANCE
+                    || WithholdingService.INCOME_TAX.equals(d.getItemName()) || WithholdingService.LOCAL_INCOME_TAX.equals(d.getItemName())) {
+                overrideLine(p, d);
+            }
+        }
+
         // 3) 4대보험 자동 공제.
         //    과세소득 = 기본급 + '과세' 수당합. 식대 같은 비과세 수당은 여기서 빠진다.
         BigDecimal taxableIncome = baseSalary.add(p.getLines().stream()
@@ -184,8 +198,30 @@ public class PayrollService {
             addAutoDeduction(p, WithholdingService.LOCAL_INCOME_TAX, taxCalculator.localIncomeTax(incomeTax));
         }
 
+        for (PayDirectAmount d : direct) {
+            if (d.getKind() == PayslipLineKind.DEDUCTION
+                    && !WithholdingService.INCOME_TAX.equals(d.getItemName()) && !WithholdingService.LOCAL_INCOME_TAX.equals(d.getItemName())) {
+                overrideLine(p, d);
+            }
+        }
+
         p.recalculate();
         return PayslipResponse.from(payslipRepository.save(p));
+    }
+
+    /** 금액직접입력 한 칸 — 같은 이름 줄이 있으면 금액만 바꾸고(여럿이면 하나로), 없으면 줄을 더한다. 0 이면 그 줄을 뺀다. */
+    private void overrideLine(Payslip p, PayDirectAmount d) {
+        List<PayslipLine> same = p.getLines().stream()
+                .filter(l -> l.getKind() == d.getKind() && l.getName().equals(d.getItemName())).toList();
+        boolean taxable = same.isEmpty()
+                ? d.getKind() == PayslipLineKind.ALLOWANCE && paySettingService.taxableByName(d.getItemName())
+                : same.get(0).isTaxable();
+        p.getLines().removeAll(same);
+        if (d.getAmount().signum() != 0) {
+            p.addLine(PayslipLine.builder().kind(d.getKind()).name(d.getItemName()).amount(d.getAmount())
+                    .taxable(taxable).auto(false).build());
+        }
+        for (int i = 0; i < p.getLines().size(); i++) p.getLines().get(i).setLineNo(i + 1);
     }
 
     @Transactional
