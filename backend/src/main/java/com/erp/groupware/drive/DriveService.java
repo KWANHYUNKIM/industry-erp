@@ -87,11 +87,108 @@ public class DriveService {
     @Transactional
     public DocumentResponse update(Long id, UpdateDocumentRequest req) {
         DriveDocument doc = getDoc(id);
-        if (req.name() != null && !req.name().isBlank()) doc.setName(req.name());
+        if (req.name() != null) {
+            /* 원본 이름변경 창은 비우고 [저장(F8)] 하면 '이름을 입력 바랍니다.' */
+            if (req.name().isBlank()) throw ApiException.badRequest("이름을 입력 바랍니다.");
+            if (doc.isFolder() && req.name().trim().length() > 50) throw ApiException.badRequest("최대 50자까지 입력 가능합니다.");
+            doc.setName(req.name().trim());
+        }
         if (req.important() != null) doc.setImportant(req.important());
         /* 폴더를 휴지통에 넣거나 꺼내면 안에 든 것도 같이 간다 — 원본 휴지통도 폴더째 옮긴다. */
         if (req.trashed() != null) for (DriveDocument d : withChildren(doc)) d.setTrashed(req.trashed());
         return DocumentResponse.from(doc);
+    }
+
+    /**
+     * 원본 [이동] · [복사] 가 받아 주는 곳인지 본다(2026-10-12 loginaa ECDrive 실측).
+     * <ul>
+     *   <li>지금 들어 있는 곳 그대로 → '동일 폴더로는 이동/복사가 불가합니다.'</li>
+     *   <li>자기 자신 · 자기 안의 폴더, Shared Drive 맨 위 → '해당 위치로 이동/복사가 불가합니다.'</li>
+     * </ul>
+     */
+    private DriveDocument checkTarget(DriveDocument doc, DriveDtos.TransferRequest req) {
+        DriveDocument target = req.parentId() != null ? getDoc(req.parentId()) : null;
+        if (target != null && (!target.isFolder() || target.isTrashed())) throw ApiException.badRequest("해당 위치로 이동/복사가 불가합니다.");
+        String drive = target != null ? target.getDrive() : ("SHARED".equalsIgnoreCase(req.drive()) ? "SHARED" : "MY");
+        if (target == null && "SHARED".equals(drive)) throw ApiException.badRequest("해당 위치로 이동/복사가 불가합니다.");
+        Long curParent = doc.getParent() != null ? doc.getParent().getId() : null;
+        Long newParent = target != null ? target.getId() : null;
+        if (java.util.Objects.equals(curParent, newParent) && drive.equalsIgnoreCase(doc.getDrive())) {
+            throw ApiException.badRequest("동일 폴더로는 이동/복사가 불가합니다.");
+        }
+        if (target != null && doc.isFolder()) {
+            for (DriveDocument d : withChildren(doc)) {
+                if (d.getId().equals(target.getId())) throw ApiException.badRequest("해당 위치로 이동/복사가 불가합니다.");
+            }
+        }
+        return target;
+    }
+
+    /** 고른 곳 바로 안에 같은 이름의 폴더가 있으면 그 폴더(원본은 옮긴 폴더를 그 폴더에 합친다). */
+    private DriveDocument sameNameFolder(String drive, DriveDocument target, String name, Long exceptId) {
+        Long pid = target != null ? target.getId() : null;
+        return documentRepository.findAllOrdered().stream()
+                .filter(d -> d.isFolder() && !d.isTrashed() && !d.getId().equals(exceptId))
+                .filter(d -> drive.equalsIgnoreCase(d.getDrive()))
+                .filter(d -> java.util.Objects.equals(d.getParent() != null ? d.getParent().getId() : null, pid))
+                .filter(d -> d.getName().equals(name))
+                .findFirst().orElse(null);
+    }
+
+    /**
+     * 원본 [이동]. 폴더는 안에 든 것까지 같이 간다. 고른 곳에 같은 이름의 폴더가 이미 있으면
+     * 옮긴 폴더의 내용이 그 폴더로 합쳐진다(실측: My Drive 에 'QA그룹웨어-폴더3' 이 있는데 같은 이름을
+     * 옮겨 오니 목록에 한 줄만 남았다).
+     */
+    @Transactional
+    public DocumentResponse move(Long id, DriveDtos.TransferRequest req) {
+        DriveDocument doc = getDoc(id);
+        DriveDocument target = checkTarget(doc, req);
+        String drive = target != null ? target.getDrive() : "MY";
+        return DocumentResponse.from(moveInto(doc, target, drive));
+    }
+
+    private DriveDocument moveInto(DriveDocument doc, DriveDocument target, String drive) {
+        DriveDocument same = doc.isFolder() ? sameNameFolder(drive, target, doc.getName(), doc.getId()) : null;
+        if (same == null) {
+            for (DriveDocument d : withChildren(doc)) d.setDrive(drive);
+            doc.setParent(target);
+            return doc;
+        }
+        List<DriveDocument> kids = documentRepository.findAllOrdered().stream()
+                .filter(d -> d.getParent() != null && d.getParent().getId().equals(doc.getId())).toList();
+        for (DriveDocument k : kids) moveInto(k, same, drive);
+        documentRepository.flush();
+        documentRepository.delete(doc);
+        return same;
+    }
+
+    /** 원본 [복사]. 폴더면 안에 든 것까지 새로 만들고, 파일은 바이트까지 따로 둔다(원본을 지워도 사본은 남는다). */
+    @Transactional
+    public DocumentResponse copy(Long id, DriveDtos.TransferRequest req, String uploader) {
+        DriveDocument doc = getDoc(id);
+        DriveDocument target = checkTarget(doc, req);
+        String drive = target != null ? target.getDrive() : "MY";
+        return DocumentResponse.from(copyInto(doc, target, drive, uploader));
+    }
+
+    private DriveDocument copyInto(DriveDocument src, DriveDocument target, String drive, String uploader) {
+        DriveDocument same = src.isFolder() ? sameNameFolder(drive, target, src.getName(), null) : null;
+        DriveDocument made = same;
+        if (made == null) {
+            made = documentRepository.save(DriveDocument.builder()
+                    .name(src.getName()).drive(drive).category(src.getCategory()).version(src.getVersion())
+                    .sizeBytes(src.getSizeBytes()).uploader(uploader)
+                    .file(src.getFile() != null ? fileStorage.duplicate(src.getFile().getId(), uploader) : null)
+                    .important(false).trashed(false).folder(src.isFolder()).parent(target)
+                    .build());
+        }
+        if (src.isFolder()) {
+            List<DriveDocument> kids = documentRepository.findAllOrdered().stream()
+                    .filter(d -> d.getParent() != null && d.getParent().getId().equals(src.getId()) && !d.isTrashed()).toList();
+            for (DriveDocument k : kids) copyInto(k, made, drive, uploader);
+        }
+        return made;
     }
 
     /** 이 항목과, 폴더면 그 안에 든 것 전부(깊이 우선, 자기 자신이 맨 앞). */

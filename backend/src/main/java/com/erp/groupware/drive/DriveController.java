@@ -67,6 +67,19 @@ public class DriveController {
         return driveService.update(id, req);
     }
 
+    /** 원본 ⋮ [이동] — 'ECDrive' 창에서 고른 폴더로 옮긴다. */
+    @PostMapping("/{id}/move")
+    public DocumentResponse move(@PathVariable Long id, @RequestBody DriveDtos.TransferRequest req) {
+        return driveService.move(id, req);
+    }
+
+    /** 원본 ⋮ [복사] — 폴더면 안에 든 것까지 통째로. */
+    @PostMapping("/{id}/copy")
+    public DocumentResponse copy(@PathVariable Long id, @RequestBody DriveDtos.TransferRequest req,
+                                 @AuthenticationPrincipal UserPrincipal principal) {
+        return driveService.copy(id, req, principal.getUsername());
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         driveService.delete(id);

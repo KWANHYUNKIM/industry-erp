@@ -27,7 +27,11 @@ public final class DriveDtos {
             Long parentId
     ) {}
 
+    /** 원본 [이동] · [복사] 의 'ECDrive' 창에서 고른 곳 — 드라이브(MY · SHARED)와 그 안의 폴더(없으면 최상위). */
+    public record TransferRequest(String drive, Long parentId) {}
+
     public record UpdateDocumentRequest(
+            /* 원본 '폴더/공유드라이브 이름변경' — 최대 50자까지 입력 가능합니다. */
             @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String name,
             Boolean important,
