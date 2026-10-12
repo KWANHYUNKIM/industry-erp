@@ -15,7 +15,13 @@ import type { FundPlan, FundPlanDirection, FundPlanMethod } from './types'
  */
 export const FUND_CODES = ['101', '102', '103']
 
-export interface ActualMove { key: string; date: string; text: string; partner: string; inc: number; dec: number }
+export interface ActualMove {
+  key: string; date: string; text: string; partner: string; inc: number; dec: number
+  /** 일보 1~4번 표 — 계정 · 통장 · 상대계정 · 전표. */
+  entryId: number; accountCode: string; accountName: string; bookKey: string; bookLabel: string; counter: string; entryPartner: string
+  /** 같은 전표의 줄이 모두 자금 계정이면 계좌간이동(원본 4번 표). */
+  transfer: boolean
+}
 export interface PlanFilter {
   dir: '' | FundPlanDirection
   method: '' | FundPlanMethod
@@ -42,12 +48,20 @@ export async function fetchActualMoves(baseDate: string): Promise<ActualMove[]> 
   const out: ActualMove[] = []
   const sorted = [...r.data.rows].sort((x, y) => (x.entryDate < y.entryDate ? -1 : x.entryDate > y.entryDate ? 1 : x.docNo.localeCompare(y.docNo)))
   for (const e of sorted) {
+    const transfer = e.lines.every((o) => FUND_CODES.includes(o.accountCode))
     for (const l of e.lines) {
       if (!FUND_CODES.includes(l.accountCode)) continue
       const d = Number(l.debit), c = Number(l.credit)
       if (!d && !c) continue
-      const partner = (l.accountCode !== '101' && bookOf.get(e.id)) || e.partnerName || ''
-      out.push({ key: `${e.id}-${l.id}`, date: e.entryDate, text: l.description ?? e.description ?? '', partner, inc: d, dec: c })
+      const book = l.accountCode === '101' ? undefined : bookOf.get(e.id)
+      const partner = book || e.partnerName || ''
+      const others = [...new Set(e.lines.filter((o) => o !== l && !FUND_CODES.includes(o.accountCode)).map((o) => o.accountName))]
+      const counter = others.length === 0 ? '' : others.length === 1 ? others[0] : `${others[0]} 외 ${others.length - 1}`
+      out.push({
+        key: `${e.id}-${l.id}`, date: e.entryDate, text: l.description ?? e.description ?? '', partner, inc: d, dec: c,
+        entryId: e.id, accountCode: l.accountCode, accountName: l.accountName, bookKey: book ? `#${book}` : '[ ]', bookLabel: book ?? '[ ]',
+        counter, entryPartner: e.partnerName ?? '', transfer,
+      })
     }
   }
   return out

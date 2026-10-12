@@ -8,6 +8,7 @@ import EcPeriodPicks, { ymd } from '../../components/EcPeriodPicks'
 import { useAuth } from '../../features/auth/AuthContext'
 import { fetchFundPlans, useFundPlanMasters } from '../../features/fundplan/api'
 import type { FundPlan } from '../../features/fundplan/types'
+import { bankLabel } from '../../utils/bankLabel'
 import {
   amt, fetchActualMoves, filterPlans, monthEnd, planDec, planInc, slash, type ActualMove, type PlanFilter,
 } from '../../features/fundplan/forecast'
@@ -29,18 +30,26 @@ import {
  * ①자금의증가계 · 회계감소 · 자금감소 · 지급증가 · 지급어음증가 · 채무증가 · ②자금의감소계 · 순증가액(①-②) · 월말잔액. 모두 보통 줄(굵기 · 바탕 없음),
  * 0 은 빈칸, 순증가액은 음수면 '-'(10월 -20,000). 회계 = 실적기준일까지의 회계전표, 자금 = 계획전표(어음이어도 자금).
  *
+ * <p><b>추정자금일보</b>(E020520) — 조회일자 구간(기본 <b>금일</b>, 빠른선택 금일 · 전일). '회사명 : …' 아래 표가 <b>자료가 있는 것만</b> 차례로
+ * 번호를 달고 선다(2026-10-12 실측: 계획 입금 30,000 하나면 '1. 추정자금현황' · '2. 계획의 증가' 둘만). 표마다 오른쪽에 기간, 아래에 출력 시각.
+ * 1. 추정자금현황(계정명 · 거래처명 · 이월잔액[외화] · 증가[외화] · 감소[외화] · 금일잔액[외화]) — 계정마다 통장 줄(계정명은 첫 줄에만,
+ * 통장 없는 분개는 거래처명 빈칸) · '보통예금 계', 계좌 없는 계획은 '계좌 미지정건' · '계좌 미지정건 계', 끝 '합계'. 그 뒤 자금의 증가 · 자금의 감소
+ * (일자 · 상대계정명 · 상대거래처명 · 적요 · 금액) · 자금의 계좌간이동(일자 · 이동계좌 'A → B' · 적요 · 금액) · 계획의 증가 · 계획의 감소
+ * (일자 · 상대계정명 · 거래처명 · 적요 · 금액). 실측 흐름: 이월 보통예금 921,424,000 + 계좌 미지정건 증가 30,000 → 합계 921,454,000.
+ *
  * <p>수금 · 지급 · 어음 · 채권 · 채무 계획은 다른 전표에서 오는 계획이라 우리에게 자료가 없어 그 줄은 늘 빈칸이다.
  * 부서 · 프로젝트는 계획전표에만 있다(회계전표 실적에는 걸리지 않는다). [양식] · [결재방표시]는 두지 않는다.
  */
 const KINDS = ['자금', '수금', '지급', '어음', '채권', '채무'] as const
 
-export default function FundForecastPage({ variant }: { variant: 'monthly' | 'yearly' }) {
+export default function FundForecastPage({ variant }: { variant: 'daily' | 'monthly' | 'yearly' }) {
   const yearly = variant === 'yearly'
-  const title = yearly ? '추정자금연보' : '추정자금월보'
+  const daily = variant === 'daily'
+  const title = daily ? '추정자금일보' : yearly ? '추정자금연보' : '추정자금월보'
   const { companyName } = useAuth()
   const masters = useFundPlanMasters()
   const today = ymd(new Date())
-  const initFrom = yearly ? today.slice(0, 4) : today.slice(0, 7)
+  const initFrom = daily ? today : yearly ? today.slice(0, 4) : today.slice(0, 7)
   const [from, setFrom] = useState(initFrom)
   const [to, setTo] = useState(initFrom)
   const [base, setBase] = useState(today)
@@ -56,14 +65,14 @@ export default function FundForecastPage({ variant }: { variant: 'monthly' | 'ye
   const [error, setError] = useState('')
 
   /* 조회 구간(날짜) — 월보는 첫 달 1일 ~ 끝 달 말일, 연보는 첫 해 1/1 ~ 끝 해 12/31. */
-  const start = yearly ? `${from}-01-01` : `${from}-01`
-  const end = yearly ? `${to}-12-31` : monthEnd(to)
+  const start = daily ? from : yearly ? `${from}-01-01` : `${from}-01`
+  const end = daily ? to : yearly ? `${to}-12-31` : monthEnd(to)
 
   async function load() {
     setLoading(true)
     setError('')
     try {
-      const [a, p] = await Promise.all([fetchActualMoves(base < end ? base : end), fetchFundPlans(start, end)])
+      const [a, p] = await Promise.all([fetchActualMoves(base < end ? base : end), fetchFundPlans(base < start ? base : start, end)])
       setActuals(a)
       setPlans(p)
     } catch (e) {
@@ -110,7 +119,13 @@ export default function FundForecastPage({ variant }: { variant: 'monthly' | 'ye
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond mb-[8px]">
         <EcCond label="조회일자">
-          {yearly ? (
+          {daily ? (
+            <>
+              <input type="date" className="ec-input w-[145px]" aria-label="조회 시작일" value={from} onChange={(e) => e.target.value && setFrom(e.target.value)} />
+              <span className="my-0 mx-[4px]">~</span>
+              <input type="date" className="ec-input w-[145px]" aria-label="조회 끝일" value={to} onChange={(e) => e.target.value && setTo(e.target.value)} />
+            </>
+          ) : yearly ? (
             <>
               <select className="ec-input w-[90px]" aria-label="조회 시작년도" value={from} onChange={(e) => setFrom(e.target.value)}>
                 {years.map((y) => <option key={y} value={y}>{y}</option>)}
@@ -128,8 +143,8 @@ export default function FundForecastPage({ variant }: { variant: 'monthly' | 'ye
             </>
           )}
           <span className="ml-[6px]">
-            <EcPeriodPicks labels={yearly ? ['금년', '전년'] : ['금월', '전월']} currentFrom={start}
-                           onPick={(r) => { const n = yearly ? 4 : 7; setFrom(r.from.slice(0, n)); setTo(r.to.slice(0, n)) }} />
+            <EcPeriodPicks labels={daily ? ['금일', '전일'] : yearly ? ['금년', '전년'] : ['금월', '전월']} currentFrom={start}
+                           onPick={(r) => { const n = daily ? 10 : yearly ? 4 : 7; setFrom(r.from.slice(0, n)); setTo(r.to.slice(0, n)) }} />
           </span>
         </EcCond>
         <EcCond label="실적기준일">
@@ -173,10 +188,14 @@ export default function FundForecastPage({ variant }: { variant: 'monthly' | 'ye
         <h2 className="ec-report-title">{title}</h2>
         <div className="ec-report-meta">
           <span>회사명 : {companyName ?? ''}</span>
-          <span>{yearly ? `${from} ~ ${to}` : `${slash(from)} ~ ${slash(to)}`}</span>
+          <span>{daily ? '' : yearly ? `${from} ~ ${to}` : `${slash(from)} ~ ${slash(to)}`}</span>
         </div>
         {loading ? (
           <p className="ec-empty">불러오는 중…</p>
+        ) : daily ? (
+          <DailyReport from={start} to={end} base={base} actuals={actuals} plans={shownPlans}
+                       bankOf={(id) => { const b = masters.banks.find((x) => x.id === id); return b ? bankLabel(b) : '' }}
+                       carryPlans={filterPlans(plans, base, filter).filter((p) => p.planDate < start)} />
         ) : yearly ? (
           <YearlyTable fromYear={Number(from)} toYear={Number(to)} base={base} carry={carry} actuals={actuals} plans={shownPlans} />
         ) : (
@@ -328,5 +347,164 @@ function YearlyTable({ fromYear, toYear, base, carry, actuals, plans }: {
         ))}
       </tbody>
     </table>
+  )
+}
+
+interface Book { label: string; carry: number; inc: number; dec: number }
+interface Group { name: string; order: string; books: Map<string, Book> }
+interface Move { key: string; date: string; counter: string; partner: string; text: string; amount: number }
+
+/** 원본 출력 시각 — '2026/10/12 오후 11:37:08'. */
+const printedAt = () => { const d = new Date(); return `${slash(ymd(d))} ${d.toLocaleTimeString('ko-KR')}` }
+
+function DailyReport({ from, to, base, actuals, plans, carryPlans, bankOf }: {
+  from: string; to: string; base: string; actuals: ActualMove[]; plans: FundPlan[]; carryPlans: FundPlan[]
+  /** 계획전표 통장 → 장부 이름(실적 줄과 같은 '은행명-끝4자리'). */
+  bankOf: (id: number) => string
+}) {
+  const at = useMemo(printedAt, [actuals, plans])
+  const { groups, incs, decs, moves, planIncs, planDecs } = useMemo(() => {
+    const gm = new Map<string, Group>()
+    const book = (gKey: string, gName: string, order: string, bKey: string, bLabel: string) => {
+      if (!gm.has(gKey)) gm.set(gKey, { name: gName, order, books: new Map() })
+      const g = gm.get(gKey)!
+      if (!g.books.has(bKey)) g.books.set(bKey, { label: bLabel, carry: 0, inc: 0, dec: 0 })
+      return g.books.get(bKey)!
+    }
+    const incs: Move[] = [], decs: Move[] = []
+    const moves: { key: string; date: string; route: string; text: string; amount: number }[] = []
+    const byEntry = new Map<number, ActualMove[]>()
+    for (const a of actuals) {
+      if (a.date > base || a.date > to) continue
+      const b = book(a.accountName, a.accountName, a.accountCode, a.bookKey, a.bookLabel === '[ ]' ? '' : a.bookLabel)
+      if (a.date < from) { b.carry += a.inc - a.dec; continue }
+      b.inc += a.inc; b.dec += a.dec
+      if (a.transfer) { byEntry.set(a.entryId, [...(byEntry.get(a.entryId) ?? []), a]); continue }
+      const m = { key: a.key, date: a.date, counter: a.counter, partner: a.entryPartner, text: a.text }
+      if (a.inc) incs.push({ ...m, amount: a.inc })
+      if (a.dec) decs.push({ ...m, amount: a.dec })
+    }
+    /* 계좌간이동 — 자금 계정끼리만 오간 전표. 나간 쪽 → 들어온 쪽. */
+    const where = (a: ActualMove) => a.bookLabel !== '[ ]' ? a.bookLabel : a.accountName
+    for (const [id, ls] of byEntry) {
+      const out = ls.filter((l) => l.dec), inn = ls.filter((l) => l.inc)
+      moves.push({ key: `t${id}`, date: ls[0].date, route: `${out.map(where).join(', ')} → ${inn.map(where).join(', ')}`,
+        text: ls[0].text, amount: inn.reduce((s, l) => s + l.inc, 0) })
+    }
+    const planBook = (p: FundPlan) => p.bankAccountId
+      ? book(p.bankGlAccountName ?? '', p.bankGlAccountName ?? '', `~${p.bankGlAccountName}`, `#${bankOf(p.bankAccountId)}`, bankOf(p.bankAccountId))
+      : book('\uffff', '계좌 미지정건', '\uffff', 'none', '')
+    for (const p of carryPlans) planBook(p).carry += planInc(p) - planDec(p)
+    const planIncs: Move[] = [], planDecs: Move[] = []
+    for (const p of plans) {
+      const b = planBook(p)
+      b.inc += planInc(p); b.dec += planDec(p)
+      const m = { key: `p${p.id}`, date: p.planDate, counter: p.counterAccountName ?? '', partner: p.partnerName ?? '', text: p.memo ?? '' }
+      if (planInc(p)) planIncs.push({ ...m, amount: planInc(p) })
+      if (planDec(p)) planDecs.push({ ...m, amount: planDec(p) })
+    }
+    const groups = [...gm.values()]
+      .map((g) => ({ ...g, books: [...g.books.values()].filter((b) => b.carry || b.inc || b.dec).sort((x, y) => x.label.localeCompare(y.label, 'ko')) }))
+      .filter((g) => g.books.length > 0)
+      .sort((a, b) => (a.order < b.order ? -1 : a.order > b.order ? 1 : 0))
+    return { groups, incs, decs, moves, planIncs, planDecs }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [from, to, base, actuals, plans, carryPlans])
+
+  const sum = (bs: Book[]) => bs.reduce((s, b) => ({ carry: s.carry + b.carry, inc: s.inc + b.inc, dec: s.dec + b.dec }), { carry: 0, inc: 0, dec: 0 })
+  const tot = sum(groups.flatMap((g) => g.books))
+  const range = `${slash(from)} ~ ${slash(to)}`
+  const head = (n: number, t: string) => (
+    <div className="flex justify-between font-bold mt-[14px] mb-[4px]"><span>{n}. {t}</span><span className="font-normal">{range}</span></div>
+  )
+  const foot = <div className="ec-report-foot">{at}</div>
+  const moveTable = (n: number, t: string, ms: Move[], partnerHead: string) => (
+    <Fragment key={t}>
+      {head(n, t)}
+      <table className="ec-report w-full text-left">
+        <thead>
+          <tr><th className="text-center">일자</th><th>상대계정명</th><th>{partnerHead}</th><th>적요</th><th className="text-right">금액</th></tr>
+        </thead>
+        <tbody>
+          {ms.map((m) => (
+            <tr key={m.key}>
+              <td className="text-center">{slash(m.date)}</td><td>{m.counter}</td><td>{m.partner}</td><td>{m.text}</td>
+              <td className="text-right">{amt(m.amount)}</td>
+            </tr>
+          ))}
+          <tr className="ec-total"><td colSpan={4} className="text-center">합계</td><td className="text-right">{amt(ms.reduce((s, m) => s + m.amount, 0))}</td></tr>
+        </tbody>
+      </table>
+      {foot}
+    </Fragment>
+  )
+  /* 자료가 있는 표만 차례로 번호를 단다. */
+  const parts: React.ReactNode[] = []
+  let n = 1
+  if (incs.length) parts.push(moveTable(++n, '자금의 증가', incs, '상대거래처명'))
+  if (decs.length) parts.push(moveTable(++n, '자금의 감소', decs, '상대거래처명'))
+  if (moves.length) {
+    const k = ++n
+    parts.push(
+      <Fragment key="moves">
+        {head(k, '자금의 계좌간이동')}
+        <table className="ec-report w-full text-left">
+          <thead><tr><th className="text-center">일자</th><th>이동계좌</th><th>적요</th><th className="text-right">금액</th></tr></thead>
+          <tbody>
+            {moves.map((m) => (
+              <tr key={m.key}><td className="text-center">{slash(m.date)}</td><td>{m.route}</td><td>{m.text}</td><td className="text-right">{amt(m.amount)}</td></tr>
+            ))}
+            <tr className="ec-total"><td colSpan={3} className="text-center">합계</td><td className="text-right">{amt(moves.reduce((s, m) => s + m.amount, 0))}</td></tr>
+          </tbody>
+        </table>
+        {foot}
+      </Fragment>,
+    )
+  }
+  if (planIncs.length) parts.push(moveTable(++n, '계획의 증가', planIncs, '거래처명'))
+  if (planDecs.length) parts.push(moveTable(++n, '계획의 감소', planDecs, '거래처명'))
+
+  return (
+    <>
+      {head(1, '추정자금현황')}
+      <table className="ec-report w-full text-left">
+        <thead>
+          <tr>
+            <th>계정명</th><th>거래처명</th>
+            <th className="text-right">이월잔액[외화]</th><th className="text-right">증가[외화]</th>
+            <th className="text-right">감소[외화]</th><th className="text-right">금일잔액[외화]</th>
+          </tr>
+        </thead>
+        <tbody>
+          {groups.length === 0 && <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>}
+          {groups.map((g) => {
+            const s = sum(g.books)
+            return (
+              <Fragment key={g.name}>
+                {g.books.map((b, i) => (
+                  <tr key={b.label + i}>
+                    <td>{i === 0 ? g.name : ''}</td><td>{b.label}</td>
+                    <td className="text-right">{amt(b.carry)}</td><td className="text-right">{amt(b.inc)}</td>
+                    <td className="text-right">{amt(b.dec)}</td><td className="text-right">{amt(b.carry + b.inc - b.dec)}</td>
+                  </tr>
+                ))}
+                <tr className="ec-total">
+                  <td colSpan={2} className="text-center">{g.name} 계</td>
+                  <td className="text-right">{amt(s.carry)}</td><td className="text-right">{amt(s.inc)}</td>
+                  <td className="text-right">{amt(s.dec)}</td><td className="text-right">{amt(s.carry + s.inc - s.dec)}</td>
+                </tr>
+              </Fragment>
+            )
+          })}
+          <tr className="ec-total">
+            <td colSpan={2} className="text-center">합계</td>
+            <td className="text-right">{amt(tot.carry)}</td><td className="text-right">{amt(tot.inc)}</td>
+            <td className="text-right">{amt(tot.dec)}</td><td className="text-right">{amt(tot.carry + tot.inc - tot.dec)}</td>
+          </tr>
+        </tbody>
+      </table>
+      {foot}
+      {parts}
+    </>
   )
 }

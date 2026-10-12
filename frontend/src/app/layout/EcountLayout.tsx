@@ -634,6 +634,7 @@ const MENU: TopMenu[] = [
           { label: '계획전표조회', to: '/accounting/fund-plans' },
           { label: '계획전표현황', to: '/accounting/fund-plans/status' },
           { label: '출력물', children: [
+            { label: '추정자금일보', to: '/accounting/fund-plans/daily' },
             { label: '추정자금월보', to: '/accounting/fund-plans/monthly' },
             { label: '추정자금연보', to: '/accounting/fund-plans/yearly' },
           ] },
