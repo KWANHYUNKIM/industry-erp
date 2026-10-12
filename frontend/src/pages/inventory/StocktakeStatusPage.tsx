@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import { dateNo } from '../../utils/dateNo'
-import type { Item, Warehouse } from '../../types/api'
+import type { Item, StockAdjustment, Warehouse } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import EcBarChart from '../../components/EcBarChart'
@@ -27,6 +27,16 @@ import { useItemMgmt } from '../../utils/itemMgmtItems'
  * 확정된 차이인 것처럼 섞인다.
  */
 type Status = '' | 'REQUESTED' | 'APPLIED' | 'REJECTED'
+/** 원본 [실사:구분] — 실사 방식(2026-09-08 실측 후보 전체 · 간편 · 단계별). */
+type Sort = '전체' | '간편' | '단계별'
+
+/** 간편재고조정이 남긴 실사(GET /stock-adjustments/stocktakes). 조정을 지웠으면 adjustmentId 가 비어 있다. */
+interface SimpleStocktake {
+  id: number; stocktakeNo: string; stocktakeDate: string
+  warehouseId: number; warehouseName: string
+  itemId: number; itemCode: string; itemName: string
+  actualQty: number; employeeId: number | null; adjustmentId: number | null
+}
 
 interface Staged {
   id: number
@@ -48,6 +58,8 @@ interface Staged {
   handler: string | null
   /** 원본 [품목구분]. 품목 마스터의 값이고 이번에 응답에 실었다. */
   itemCategoryName: string | null
+  /** 원본 [실사:구분] — 간편(간편재고조정이 남긴 실사) · 단계별(단계별재고조정 요청). */
+  sort?: Exclude<Sort, '전체'>
 }
 
 const num = (n: number) => n.toLocaleString()
@@ -56,8 +68,11 @@ const diffColor = (n: number) => (n < 0 ? 'var(--ec-danger)' : n > 0 ? 'var(--ec
 
 export default function StocktakeStatusPage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
-  const pickers = useCondPickers(['items'])
-  const [rows, setRows] = useState<Staged[]>([])
+  const pickers = useCondPickers(['items', 'employees'])
+  const [staged, setStaged] = useState<Staged[]>([])
+  const [simple, setSimple] = useState<SimpleStocktake[]>([])
+  /* 간편 실사의 장부수량은 그때 맞춘 재고조정의 조정 전 수량이다 — 조정을 지웠으면 모른다(실사수량과 같게 두어 차이 0). */
+  const [quickAdjusts, setQuickAdjusts] = useState<StockAdjustment[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -69,7 +84,7 @@ export default function StocktakeStatusPage() {
    */
   const init = periodOf('금년', new Date()) ?? { from: ymd(new Date()), to: ymd(new Date()) }
   const [cond, setCond] = useState({
-    from: init.from, to: init.to, warehouseId: '', item: '', reason: '',
+    from: init.from, to: init.to, sort: '전체' as Sort, warehouseId: '', item: '', reason: '',
     status: '' as Status, diffOnly: false, handler: '',
     /*
      * 2026-09-08 에 원본(E040615)의 조건 판을 재니 <b>스물하나</b>다(사본에는 아홉).
@@ -114,8 +129,12 @@ export default function StocktakeStatusPage() {
       api.get<Staged[]>('/staged-adjustments', { params: period }),
       api.get<Warehouse[]>('/warehouses'),
       api.get<Item[]>('/items'),
+      api.get<SimpleStocktake[]>('/stock-adjustments/stocktakes', { params: period }),
+      api.get<{ rows: StockAdjustment[] }>('/stock-adjustments', { params: { ...period, type: 'ADJUST', all: true } }),
     ])
-      .then(([s, w, it]) => { setRows(s.data); setWarehouses(w.data); setItems(it.data) })
+      .then(([s, w, it, t, a]) => {
+        setStaged(s.data); setWarehouses(w.data); setItems(it.data); setSimple(t.data); setQuickAdjusts(a.data.rows)
+      })
       .catch((err) => setError(extractErrorMessage(err)))
       .finally(() => setLoading(false))
   }
@@ -124,7 +143,34 @@ export default function StocktakeStatusPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load() }, [cond.from, cond.to])
 
+  const empName = useMemo(() => new Map(pickers.employees.map((e) => [e.id, e.name])), [pickers.employees])
+  /**
+   * 간편 실사를 단계별 요청과 같은 줄 모양으로 — 원본 재고실사현황 '2026/10/12 -1 · C001 · 포장김치 [1KG] · 본사창고 · 350.00'
+   * (2026-10-12 실측, 간편재고조정 장부 348 → 실사 350). [장부수량] · [차이] · [상태]는 우리 열이라 간편은 조정에서 채운다.
+   */
+  const rows = useMemo<Staged[]>(() => {
+    const adjById = new Map(quickAdjusts.map((a) => [a.id, a]))
+    const catOf = new Map(items.map((i) => [i.id, i.categoryName ?? null]))
+    const quick: Staged[] = simple.map((t) => {
+      const a = t.adjustmentId != null ? adjById.get(t.adjustmentId) : undefined
+      const actual = Number(t.actualQty)
+      const book = a ? Number(a.beforeQty) : actual
+      return {
+        id: -t.id, adjustNo: t.stocktakeNo, requestDate: t.stocktakeDate, itemId: t.itemId, itemCode: t.itemCode, itemName: t.itemName,
+        unit: items.find((i) => i.id === t.itemId)?.unit ?? '', warehouseId: t.warehouseId, warehouseName: t.warehouseName,
+        bookQty: book, actualQty: actual, diff: actual - book, reason: a?.reason ?? null,
+        /* 간편은 실사와 조정이 한 번에 끝난다 — 조정이 남아 있으면 반영완료, 지웠으면 상태 칸을 비운다. */
+        status: 'APPLIED', statusName: a ? '반영완료' : '',
+        requester: null, handler: t.employeeId != null ? empName.get(t.employeeId) ?? null : null,
+        itemCategoryName: catOf.get(t.itemId) ?? null, sort: '간편',
+      }
+    })
+    return [...staged.map((r) => ({ ...r, sort: '단계별' as const })), ...quick]
+      .sort((x, y) => (x.requestDate > y.requestDate ? -1 : x.requestDate < y.requestDate ? 1 : y.adjustNo.localeCompare(x.adjustNo)))
+  }, [staged, simple, quickAdjusts, items, empName])
+
   const shown = rows
+    .filter((r) => cond.sort === '전체' || r.sort === cond.sort)
     .filter((r) => !cond.from || r.requestDate >= cond.from)
     .filter((r) => !cond.to || r.requestDate <= cond.to)
     .filter((r) => !cond.warehouseId || String(r.warehouseId) === cond.warehouseId)
@@ -180,7 +226,7 @@ export default function StocktakeStatusPage() {
 
   const reset = () => {
     setMode('내역')
-    setCond({ from: init.from, to: init.to, warehouseId: '', item: '', reason: '', handler: '', status: '', diffOnly: false,
+    setCond({ from: init.from, to: init.to, sort: '전체', warehouseId: '', item: '', reason: '', handler: '', status: '', diffOnly: false,
       category: '', itemGroup: '', author: '', inclUntracked: false })
   }
 
@@ -211,6 +257,14 @@ export default function StocktakeStatusPage() {
               </button>
             ))}
           </div>
+        </EcCond>
+        {/* 원본 차례: 구분 · 일자 · <b>구분(전체 · 간편 · 단계별)</b> · 창고 — 둘째 [구분]이라 [실사:구분] 으로 밝혀 적는다. */}
+        <EcCond label="실사:구분">
+          {(['전체', '간편', '단계별'] as const).map((v) => (
+            <label key={v} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
+              <input type="radio" name="stocktake-status-sort" checked={cond.sort === v} onChange={() => setC({ sort: v })} /> {v}
+            </label>
+          ))}
         </EcCond>
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
@@ -276,10 +330,9 @@ export default function StocktakeStatusPage() {
                              .map((n) => ({ value: n, name: n }))} />
         </EcCond>
         {/*
-          <b>[상태]는 원본에 없는 우리 축이다.</b> 원본은 그 자리에 [구분](전체·간편·단계별)
-          — <b>실사 방식</b>을 둔다. 우리 실사는 요청·반영완료·반려로 흐르므로 그 축을
-          그대로 옮길 수 없다. 지우면 반려된 줄을 감출 길이 사라지므로 <b>남기되</b>,
-          실측한 차례를 흐트리지 않게 맨 뒤에 둔다.
+          <b>[상태]는 원본에 없는 우리 축이다</b>(단계별 요청의 요청 · 반영완료 · 반려). 원본의 실사 방식 축은
+          위 [실사:구분] 이다(2026-10-13 간편 실사를 따로 적게 되어 만들었다). 지우면 반려된 줄을 감출 길이
+          사라지므로 <b>남기되</b>, 실측한 차례를 흐트리지 않게 맨 뒤에 둔다.
         */}
         <EcCond label="상태">
           <select className="ec-input" value={cond.status}

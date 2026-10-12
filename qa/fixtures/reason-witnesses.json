@@ -3238,13 +3238,6 @@
   ],
   "in": "frontend/src/pages/production/MrpPage.tsx"
  },
- "재고실사현황|실사:구분": {
-  "claim": "우리 실사는 방식이 하나라 그 축이 없다 — 대신 요청·반영완료·반려로 흐른다",
-  "present": [
-   "<option value=\"APPLIED\">반영완료</option>",
-   "<option value=\"REJECTED\">반려</option>"
-  ]
- },
  "구매현황|진행상태": {
   "claim": "구매 전표에 확인상태 자체가 없다 — 확인은 판매전표에만 있다",
   "absent": [

@@ -24,6 +24,24 @@
         "expect:!window.__row()",
         "expect:(async()=>{const s=JSON.parse(sessionStorage.getItem('stk'));return !(await window.__api('GET','/stock-adjustments/stocktakes?from='+s.date+'&to='+s.date)).body.some((x)=>x.id===s.id)})()"
       ]
+    },
+    {
+      "name": "재고실사현황 — [실사:구분] 간편이 간편 실사를 세운다(장부 → 실사 · 차이 +2), 단계별로 거르면 빠진다",
+      "path": "/inventory/stocktake-status",
+      "steps": [
+        "wait:1200",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const st=(await window.__api('GET','/stock')).body;const a=st.find((s)=>Number(s.quantity)>=1);const r=await window.__api('POST','/stock-adjustments',{type:'ADJUST',itemId:a.itemId,warehouseId:a.warehouseId,actualQty:Number(a.quantity)+2,reason:'QA재고1 간편실사현황'});const d=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10);const t=(await window.__api('GET','/stock-adjustments/stocktakes?from='+d+'&to='+d)).body.find((x)=>x.adjustmentId===r.body.id);sessionStorage.setItem('stk2',JSON.stringify({adj:r.body.id,id:t.id,dn:d.replace(/-/g,'/')+' -'+Number(t.stocktakeNo.split('-').pop()),qty:Number(a.quantity)+2}));return r.status})()",
+        "click:검색(F8)",
+        "wait:1500",
+        "js:window.__r = () => { const s=JSON.parse(sessionStorage.getItem('stk2')); return [...document.querySelectorAll('tbody tr')].find((t)=>t.cells[1]&&t.cells[1].innerText.trim()===s.dn) }; window.__sort=(v)=>{[...document.querySelectorAll('input[name=stocktake-status-sort]')].find((x)=>x.parentElement.innerText.trim()===v).click();return true}; window.__sort('간편')",
+        "wait:300",
+        "expect:(()=>{const s=JSON.parse(sessionStorage.getItem('stk2'));const r=window.__r();return r&&r.cells[6].innerText.replace(/,/g,'').trim()===String(s.qty)&&r.cells[7].innerText.trim().startsWith('+2')})()",
+        "js:window.__sort('단계별')",
+        "wait:300",
+        "expect:!window.__r()",
+        "js:(async()=>{const s=JSON.parse(sessionStorage.getItem('stk2'));const a=await window.__api('DELETE','/stock-adjustments/'+s.adj);const b=await window.__api('DELETE','/stock-adjustments/stocktakes/'+s.id);return a.status+','+b.status})()"
+      ]
     }
   ]
 }
