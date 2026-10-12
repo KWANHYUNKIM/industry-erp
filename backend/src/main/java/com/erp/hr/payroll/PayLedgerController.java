@@ -1,5 +1,6 @@
 package com.erp.hr.payroll;
 
+import com.erp.hr.payroll.dto.PayLedgerDtos.CalculateRequest;
 import com.erp.hr.payroll.dto.PayLedgerDtos.CalculateResult;
 import com.erp.hr.payroll.dto.PayLedgerDtos.CreateLedgerRequest;
 import com.erp.hr.payroll.dto.PayLedgerDtos.LedgerResponse;
@@ -11,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/** 원본 관리 &gt; 급여작업 &gt; 급여계산/대장 — 대장 목록 · 신규 · 전체계산 · 확정 · 삭제. */
+/** 원본 관리 &gt; 급여작업 &gt; 급여계산/대장 — 대장 목록 · 신규 · 전체계산 · 개인별계산 · 확정 · 삭제. */
 @RestController
 @RequestMapping("/api/pay-ledgers")
 @RequiredArgsConstructor
@@ -30,8 +31,9 @@ public class PayLedgerController {
     }
 
     @PostMapping("/{id}/calculate")
-    public CalculateResult calculate(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
-        return service.calculate(id, principal.getUsername());
+    public CalculateResult calculate(@PathVariable Long id, @RequestBody(required = false) CalculateRequest req,
+                                     @AuthenticationPrincipal UserPrincipal principal) {
+        return service.calculate(id, req, principal.getUsername());
     }
 
     @PostMapping("/{id}/confirm")

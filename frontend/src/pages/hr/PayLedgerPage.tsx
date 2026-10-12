@@ -27,7 +27,8 @@ const slash = (s: string) => s.replace(/-/g, '/')
  * [저장]한 값만 급여계산에 들어간다(원본 계산식 '야근수당(근무기록확정)'). n 은 확정한 사원 수다.
  * 우리는 사원 · 귀속월에 명세가 하나라 대장도 귀속월에 하나다(원본은 -1, -2 …) — 신고귀속은 늘 '-1'.
  * 급여구분은 '급여', 지급구분은 '1차수' 하나다(상여 · 차수가 없다). 사전작업의 금액직접입력 ·
- * [명세서] 조회는 그 대장 한 달의 사원별급여조회로 연다(원본과 같다). 개인별계산 · 금액직접입력 · 일괄수정 · 명세서 Email 은 아직 없다.
+ * [명세서] 조회는 그 대장 한 달의 사원별급여조회로 연다(원본과 같다). 금액직접입력 · 일괄수정 · 개인별계산의 [항목선택계산] · 명세서 Email 은 아직 없다.
+ * [개인별계산]은 사원(퇴사자 포함) 목록에서 체크한 사원만 지우고 다시 셈하고, 끝나면 그 대장의 급여대장을 띄운다(2026-10-12 실측).
  */
 export default function PayLedgerPage() {
   const nav = useNavigate()
@@ -122,15 +123,57 @@ export default function PayLedgerPage() {
     }
   }
 
-  async function calculate(l: Ledger) {
-    if (!window.confirm('기존 자료를 삭제하고 다시 계산합니다.\n\n급여대장에서 직접 수정한 내역은 유지되지 않습니다.\n\n전체 계산을 진행하시겠습니까?')) return
+  // ── 원본 [전체계산] · [개인별계산] ──
+  // 개인별계산: 사원(퇴사자 포함, 사원번호 순) 목록에서 체크 → [계산처리] → 확인 창('지급총액 0 이하 제외') → 급여대장 조회.
+  const [pickFor, setPickFor] = useState<Ledger | null>(null)
+  const [allEmployees, setAllEmployees] = useState<EmployeeMaster[]>([])
+  const [checked, setChecked] = useState<Set<number>>(new Set())
+  const [pickQuery, setPickQuery] = useState('')
+  const [pickError, setPickError] = useState('')
+  const [calcAsk, setCalcAsk] = useState<{ ledger: Ledger; ids: number[] | null } | null>(null)
+  const [excludeZero, setExcludeZero] = useState(true)
+
+  async function openPick(l: Ledger) {
+    setPickError(''); setChecked(new Set()); setPickQuery(''); setPickFor(l)
     try {
-      const r = await api.post<{ calculated: number; skipped: number; failures: string }>(`/pay-ledgers/${l.id}/calculate`)
+      const r = await api.get<EmployeeMaster[]>('/employees/all')
+      setAllEmployees([...r.data].sort((a, b) => (a.code < b.code ? -1 : a.code > b.code ? 1 : 0)))
+    } catch (e) {
+      setPickError(extractErrorMessage(e))
+    }
+  }
+  const pickRows = allEmployees.filter((e) => !pickQuery || [e.code, e.name, e.department ?? ''].some((v) => v.includes(pickQuery)))
+
+  function askPicked() {
+    if (!pickFor) return
+    if (checked.size === 0) { window.alert('선택된 사원이 없습니다.\n\n계산처리할 사원에 체크한 후 다시 시도 바랍니다.'); return }
+    setExcludeZero(true)
+    setCalcAsk({ ledger: pickFor, ids: [...checked] })
+  }
+
+  function calculate(l: Ledger) {
+    setExcludeZero(true)
+    setCalcAsk({ ledger: l, ids: null })
+  }
+
+  async function runCalculate() {
+    if (!calcAsk) return
+    const { ledger: l, ids } = calcAsk
+    setCalcAsk(null)
+    try {
+      const r = await api.post<{ calculated: number; skipped: number; failures: string }>(`/pay-ledgers/${l.id}/calculate`,
+        { employeeIds: ids, excludeNonPositive: excludeZero })
       if (r.data.failures) setError(`계산 못 한 사원: ${r.data.failures}`)
+      if (ids) {
+        // 원본은 개인별계산이 끝나면 그 대장의 급여대장(사원 전부)을 띄운다.
+        setPickFor(null)
+        nav(`/hr/payroll/ledger?month=${l.payMonth}&view=report`)
+        return
+      }
       flash(`${r.data.calculated}명 계산${r.data.skipped ? ` · 지급총액 0 이하 ${r.data.skipped}명 제외` : ''}`)
       load()
     } catch (e) {
-      setError(extractErrorMessage(e))
+      if (ids) setPickError(extractErrorMessage(e)); else setError(extractErrorMessage(e))
     }
   }
 
@@ -187,7 +230,10 @@ export default function PayLedgerPage() {
                 </a>
               </td>
               <td className="text-center">
-                <a href="#" onClick={(e) => { e.preventDefault(); calculate(l) }}>전체계산</a>
+                <div className="flex flex-col items-center">
+                  <a href="#" onClick={(e) => { e.preventDefault(); calculate(l) }}>전체계산</a>
+                  <a href="#" onClick={(e) => { e.preventDefault(); openPick(l) }}>개인별계산</a>
+                </div>
               </td>
               <td className="text-right">{l.headcount || ''}</td>
               <td className="text-center">
@@ -252,6 +298,76 @@ export default function PayLedgerPage() {
             <button type="button" className="ec-btn ec-btn-primary" onClick={saveConfirm}>저장(F8)</button>
             <button type="button" className="ec-btn" onClick={() => setConfirmFor(null)}>닫기</button>
             <button type="button" className="ec-btn" onClick={deleteConfirm}>삭제</button>
+          </div>
+        </>
+      )}</Modal>
+
+      <Modal error={pickError} open={!!pickFor} title="개인별계산" width={780} onClose={() => setPickFor(null)}>{(
+        <>
+          <div className="flex items-center justify-between mb-[8px]">
+            <b>개인별계산</b>
+            <form className="flex gap-[4px]" onSubmit={(e) => { e.preventDefault() }}>
+              <input className="ec-input w-[180px]" placeholder="입력 후 [Enter]" aria-label="개인별계산 검색" value={pickQuery} onChange={(e) => setPickQuery(e.target.value)} />
+              <button type="submit" className="ec-btn ec-btn-primary">Search(F3)</button>
+            </form>
+          </div>
+          <div className="overflow-y-auto max-h-[420px]">
+            <table className="w-full whitespace-nowrap">
+              <thead>
+                <tr>
+                  <th className="w-[30px] text-center">
+                    <input type="checkbox" aria-label="전체선택" checked={pickRows.length > 0 && pickRows.every((e) => checked.has(e.id))}
+                           onChange={(ev) => setChecked(ev.target.checked ? new Set(pickRows.map((e) => e.id)) : new Set())} />
+                  </th>
+                  <th>사원번호</th>
+                  <th>성명</th>
+                  <th>부서명</th>
+                  <th className="text-center">입사일자</th>
+                  <th className="text-center">퇴사일자</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pickRows.length === 0 ? (
+                  <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+                ) : pickRows.map((e) => (
+                  <tr key={e.id}>
+                    <td className="text-center">
+                      <input type="checkbox" aria-label={`${e.name} 선택`} checked={checked.has(e.id)} onChange={(ev) => {
+                        const next = new Set(checked)
+                        if (ev.target.checked) next.add(e.id); else next.delete(e.id)
+                        setChecked(next)
+                      }} />
+                    </td>
+                    <td>{e.code}</td>
+                    <td>{e.name}</td>
+                    <td>{e.department}</td>
+                    <td className="text-center">{e.hireDate ? slash(e.hireDate) : ''}</td>
+                    <td className="text-center">{e.resignDate ? slash(e.resignDate) : ''}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex gap-[6px] mt-[12px]">
+            <button type="button" className="ec-btn ec-btn-primary" onClick={askPicked}>계산처리</button>
+            <button type="button" className="ec-btn" onClick={() => setPickFor(null)}>닫기</button>
+          </div>
+        </>
+      )}</Modal>
+
+      <Modal error={error} open={!!calcAsk} title="알림" width={460} onClose={() => setCalcAsk(null)}>{(
+        <>
+          <p className="whitespace-pre-line mb-[10px]">
+            {calcAsk?.ids
+              ? '선택한 사원의 기존 자료를 삭제하고 다시 계산합니다.\n\n급여대장에서 직접 수정한 내역은 유지되지 않습니다.\n\n개인별 계산을 진행하겠습니까?'
+              : '기존 자료를 삭제하고 다시 계산합니다.\n\n급여대장에서 직접 수정한 내역은 유지되지 않습니다.\n\n전체 계산을 진행하시겠습니까?'}
+          </p>
+          <label className="inline-flex items-center gap-[4px]">
+            <input type="checkbox" checked={excludeZero} onChange={(e) => setExcludeZero(e.target.checked)} /> 지급총액 0 이하 제외
+          </label>
+          <div className="flex gap-[6px] mt-[12px]">
+            <button type="button" className="ec-btn ec-btn-primary" onClick={runCalculate}>확인</button>
+            <button type="button" className="ec-btn" onClick={() => setCalcAsk(null)}>취소</button>
           </div>
         </>
       )}</Modal>

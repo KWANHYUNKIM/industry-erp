@@ -25,6 +25,12 @@ public class PayLedgerDtos {
             long workConfirmCount
     ) {}
 
+    /**
+     * 원본 [개인별계산] · [전체계산] 확인 창 — employeeIds 가 비면 전체계산(재직 사원 모두),
+     * 있으면 그 사원들만 지우고 다시 셈한다. excludeNonPositive 는 확인 창의 '지급총액 0 이하 제외'(처음 켬).
+     */
+    public record CalculateRequest(java.util.List<Long> employeeIds, Boolean excludeNonPositive) {}
+
     /** [전체계산] 결과 — 원본처럼 지급총액 0 이하는 빼고 센다. */
     public record CalculateResult(int calculated, int skipped, String failures) {}
 }

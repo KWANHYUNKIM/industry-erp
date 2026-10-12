@@ -2,6 +2,7 @@ package com.erp.hr.payroll;
 
 import com.erp.common.ApiException;
 import com.erp.hr.employee.EmployeeService;
+import com.erp.hr.payroll.dto.PayLedgerDtos.CalculateRequest;
 import com.erp.hr.payroll.dto.PayLedgerDtos.CalculateResult;
 import com.erp.hr.payroll.dto.PayLedgerDtos.CreateLedgerRequest;
 import com.erp.hr.payroll.dto.PayLedgerDtos.LedgerResponse;
@@ -52,31 +53,42 @@ public class PayLedgerService {
 
     /**
      * 원본 [전체계산]: "기존 자료를 삭제하고 다시 계산합니다." — 그 귀속월의 미확정 명세를 지우고
-     * 재직 사원 모두 다시 셈한다. 확정된 명세가 하나라도 있으면 막는다. 지급총액 0 이하는 뺀다.
+     * 재직 사원 모두 다시 셈한다. 확정된 명세가 하나라도 있으면 막는다.
+     *
+     * <p>원본 [개인별계산](2026-10-12 실측): 사원(퇴사자 포함) 목록에서 체크한 사원만 "선택한 사원의 기존 자료를
+     * 삭제하고 다시 계산합니다." — 그 사원들의 명세만 지우고 다시 셈하고, 나머지 사원의 명세는 그대로 둔다.
+     * 두 확인 창 모두 '지급총액 0 이하 제외'(처음 켬) — 끄면 0 이하 명세도 남긴다.
      */
     @Transactional
-    public CalculateResult calculate(Long id, String username) {
+    public CalculateResult calculate(Long id, CalculateRequest req, String username) {
         PayLedger l = get(id);
-        List<Payslip> existing = payslipRepository.findByPayMonth(l.getPayMonth());
+        List<Long> picked = req == null || req.employeeIds() == null || req.employeeIds().isEmpty() ? null : req.employeeIds();
+        boolean exclude = req == null || req.excludeNonPositive() == null || req.excludeNonPositive();
+        List<Payslip> existing = payslipRepository.findByPayMonth(l.getPayMonth()).stream()
+                .filter(p -> picked == null || picked.contains(p.getEmployee().getId()))
+                .toList();
         if (existing.stream().anyMatch(p -> p.getStatus() == PayslipStatus.CONFIRMED)) {
             throw ApiException.badRequest("확정된 급여가 있어 다시 계산할 수 없습니다. 확정을 먼저 푸세요.");
         }
         payslipRepository.deleteAll(existing);
         payslipRepository.flush();
+        var names = new java.util.HashMap<Long, String>();
+        employeeService.findAllIncludingResigned().forEach(e -> names.put(e.id(), e.name()));
+        List<Long> targets = picked != null ? picked : employeeService.findAll().stream().map(e -> e.id()).toList();
         int done = 0, skipped = 0;
         List<String> failures = new ArrayList<>();
-        for (var e : employeeService.findAll()) {
+        for (Long empId : targets) {
             try {
                 PayslipResponse p = payrollService.create(
-                        new CreatePayslipRequest(e.id(), l.getPayMonth(), null, null, null, null), username);
-                if (p.grossPay() == null || p.grossPay().signum() <= 0) {
+                        new CreatePayslipRequest(empId, l.getPayMonth(), null, null, null, null), username);
+                if (exclude && (p.grossPay() == null || p.grossPay().signum() <= 0)) {
                     payrollService.delete(p.id());
                     skipped++;
                 } else {
                     done++;
                 }
             } catch (ApiException ex) {
-                failures.add(e.name() + "(" + ex.getMessage() + ")");
+                failures.add(names.getOrDefault(empId, "#" + empId) + "(" + ex.getMessage() + ")");
             }
         }
         return new CalculateResult(done, skipped, String.join(", ", failures));
