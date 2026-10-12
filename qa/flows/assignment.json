@@ -1,5 +1,5 @@
 {
-  "about": "관리 > 인사발령입력(E020721) · 조회(E020602) · 현황(E020720) — 원본처럼 사번을 고르면 이전/발령 직위·부서가 채워지고, 발령구분 '인사발령'으로 저장하면 '[사원정보에 반영]' 확인 창을 지나 조회 · 현황에 한 줄씩 보인다. 조회의 일자-No. 로 수정 창을 열어 [삭제]로 지운다. 현황에서 조건 판(발령구분 · 발령일자 사용)으로 그 줄이 걸러지는지도 본다.",
+  "about": "관리 > 인사발령입력(E020721) · 조회(E020602) · 현황(E020720) — 원본처럼 사번을 고르면 이전/발령 직위·부서가 채워지고, 발령구분 '인사발령'으로 저장하면 '[사원정보에 반영]' 확인 창을 지나 조회 · 현황에 한 줄씩 보인다. 조회의 일자-No. 로 수정 창을 열어 [삭제]로 지운다. 현황에서 조건 판(발령구분 · 발령일자 사용)으로 그 줄이 걸러지는지도 본다. 수정 창 [복사]는 원본(2026-10-12 실측)처럼 같은 창이 '인사발령입력등록'이 되고 줄은 그대로, 버튼 저장(F8) · 다시 작성 · 닫기 — 저장하면 새 전표가 하나 더 생기고 원래 전표는 남는다(시험 뒤 둘 다 지운다).",
   "shots": [
     {
       "name": "인사발령입력 → 저장(사원정보에 반영)",
@@ -54,6 +54,20 @@
         "js:(async()=>{const k=sessionStorage.getItem('qaAsKey');for(let i=0;i<40;i++){const a=[...document.querySelectorAll('table tbody a')].find(x=>x.textContent===k);if(a){a.click();return true}await new Promise(z=>setTimeout(z,250))}return 'not found '+k})()",
         "expect:document.body.innerText.includes('인사발령입력수정')",
         "expect:[...document.querySelectorAll('[role=dialog] table tbody input')].some(i=>i.value==='QA관리-화면발령')",
+        "clicklast:복사",
+        "wait:500",
+        "expect:(()=>{const d=[...document.querySelectorAll('[role=dialog]')].pop();const b=[...d.querySelectorAll('button')].map(x=>x.textContent.trim());return d.innerText.includes('인사발령입력등록')&&b.includes('다시 작성')&&b.includes('닫기')&&!b.includes('삭제')&&!!d.querySelector('input[type=date]')&&[...d.querySelectorAll('table tbody input')].some(i=>i.value==='QA관리-화면발령')})()",
+        "clicklast:저장(F8)",
+        "wait:500",
+        "clicklast:확인",
+        "wait:1500",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const d=new Date();const t=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const r=await (await fetch('/api/employees/assignment-slips?from='+t+'&to='+t,{headers:h})).json();const mine=r.filter(x=>x.remark==='QA관리-화면발령');const nos=[...new Set(mine.map(x=>x.slipNo))];sessionStorage.setItem('qaAsCopy',String(nos.length===2));const k=sessionStorage.getItem('qaAsKey');const orig=Number(k.split('-').pop());for(const n of nos){if(n!==orig)await fetch('/api/employees/assignment-slips/'+t+'/'+n,{method:'DELETE',headers:h})}return true})()",
+        "expect:sessionStorage.getItem('qaAsCopy')==='true'",
+        "js:location.reload();true",
+        "wait:2000",
+        "js:(async()=>{const k=sessionStorage.getItem('qaAsKey');for(let i=0;i<40;i++){const a=[...document.querySelectorAll('table tbody a')].find(x=>x.textContent===k);if(a){a.click();return true}await new Promise(z=>setTimeout(z,250))}return 'not found '+k})()",
+        "wait:800",
+        "js:window.confirm=()=>true;true",
         "clicklast:삭제",
         "wait:1500",
         "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const d=new Date();const t=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const r=await (await fetch('/api/employees/assignment-slips?from='+t+'&to='+t,{headers:h})).json();sessionStorage.setItem('qaAsDel',String(!r.some(x=>x.remark==='QA관리-화면발령')));return true})()",

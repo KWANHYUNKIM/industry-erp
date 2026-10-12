@@ -32,20 +32,26 @@ const hireKindItems = (cur: string) => (cur && !HIRE_KINDS.some((k) => k.value =
  *   <li>사번을 넣으면 발령일자(머리 일자) · 성명 · 이전/발령 직위 · 이전/발령 부서가 사원의 지금 값으로 채워진다.</li>
  *   <li>발령구분이 비면 저장이 막힌다. 저장하면 '저장하시겠습니까? [사원정보에 반영] 체크 시, 저장한 정보로 사원정보가
  *       변경됩니다.'(체크된 채) — 확인하면 안내 없이 폼이 비워진다.</li>
- *   <li>수정 창: 일자는 막히고(2026/10/03 -1), 버튼 저장(F8) · 닫기 · 삭제('전표를 삭제하겠습니까?').</li>
+ *   <li>수정 창: 일자는 막히고(2026/10/03 -1), 버튼 저장(F8) · 복사 · 닫기 · 삭제('전표를 삭제하겠습니까?').</li>
+ *   <li>[복사](2026-10-12 실측): 같은 창이 '인사발령입력등록' 이 되어 일자가 오늘로 풀리고 줄(발령일자까지)은 그대로,
+ *       버튼은 저장(F8) · 다시 작성 · 닫기. 저장하면 새 전표가 된다(원래 전표는 그대로).</li>
  * </ul>
  * 발령구분 · 입사구분은 원본이 회사가 등록하는 코드다. 우리 발령구분은 '인사발령'(직위 · 부서만) 외에 입사 · 전보 · 승진 ·
- * 퇴사 · 재입사(재직상태까지 바꾼다)를 고르고, 입사구분은 원본 코드 100 신입 · 200 경력을 고른다. 복사 · H(이력) · 찾기(F3) 는 없다.
+ * 퇴사 · 재입사(재직상태까지 바꾼다)를 고르고, 입사구분은 원본 코드 100 신입 · 200 경력을 고른다. H(이력)는 없다.
  */
 export default function AssignmentSlipForm({
-  slipDate: editDate, slipNo: editNo, onSaved, onClose,
+  slipDate: editDate, slipNo: editNo, onSaved, onClose, onTitleChange,
 }: {
   slipDate?: string
   slipNo?: number
   onSaved?: () => void
   onClose?: () => void
+  /** [복사] 로 '인사발령입력수정' → '인사발령입력등록' 이 될 때 창 제목을 바꾼다 */
+  onTitleChange?: (title: string) => void
 }) {
-  const editing = !!(editDate && editNo)
+  /** 원본 수정 창 [복사] — 같은 줄로 새 전표를 쓰는 중 */
+  const [copied, setCopied] = useState(false)
+  const editing = !!(editDate && editNo) && !copied
   const [slipDate, setSlipDate] = useState(editDate ?? ymd(new Date()))
   const [rows, setRows] = useState<Row[]>(Array.from({ length: BLANK_ROWS }, blank))
   const [employees, setEmployees] = useState<EmployeeMaster[]>([])
@@ -74,7 +80,13 @@ export default function AssignmentSlipForm({
       setRows([...got, ...Array.from({ length: Math.max(1, BLANK_ROWS - got.length) }, blank)])
     }).catch((e) => setError(extractErrorMessage(e)))
   }
-  useEffect(() => { reset() }, [editDate, editNo])
+  useEffect(() => { setCopied(false); reset() }, [editDate, editNo])
+
+  function copy() {
+    setCopied(true)
+    setSlipDate(ymd(new Date()))
+    onTitleChange?.('인사발령입력등록')
+  }
 
   function edit(i: number, patch: Partial<Row>) {
     setRows((rs) => {
@@ -210,8 +222,14 @@ export default function AssignmentSlipForm({
         <button type="button" className="ec-btn ec-btn-primary" onClick={askSave}>저장(F8)</button>
         {editing ? (
           <>
+            <button type="button" className="ec-btn" onClick={copy}>복사</button>
             <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
             <button type="button" className="ec-btn" onClick={remove}>삭제</button>
+          </>
+        ) : copied ? (
+          <>
+            <button type="button" className="ec-btn" onClick={() => { setRows(Array.from({ length: BLANK_ROWS }, blank)); setPrev({}) }}>다시 작성</button>
+            <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
           </>
         ) : (
           <>

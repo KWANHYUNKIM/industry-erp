@@ -26,6 +26,8 @@ export default function AssignmentListPage() {
   const [error, setError] = useState('')
   const [checked, setChecked] = useState<Set<string>>(new Set())
   const [open, setOpen] = useState<AssignmentLine | null>(null)
+  /** 원본 창 제목 — [복사] 하면 '인사발령입력등록' 이 된다 */
+  const [slipTitle, setSlipTitle] = useState('인사발령입력수정')
   const tableRef = useRef<HTMLTableElement>(null)
 
   function search() {
@@ -101,7 +103,7 @@ export default function AssignmentListPage() {
                          setChecked(next)
                        }} />
               </td>
-              <td><a href="#" onClick={(e) => { e.preventDefault(); setOpen(s[0]) }}>{slipLabel(s[0])}</a></td>
+              <td><a href="#" onClick={(e) => { e.preventDefault(); setSlipTitle('인사발령입력수정'); setOpen(s[0]) }}>{slipLabel(s[0])}</a></td>
               <td>{s[0].employeeName}{s.length > 1 ? ` 외 ${s.length - 1}건` : ''}</td>
               <td>{s[0].typeName}</td>
               <td>{s[0].remark ?? ''}</td>
@@ -110,9 +112,9 @@ export default function AssignmentListPage() {
         </tbody>
       </table>
 
-      <Modal error={error} open={!!open} title="인사발령입력수정" width={1200} onClose={() => setOpen(null)}>
+      <Modal error={error} open={!!open} title={slipTitle} width={1200} onClose={() => setOpen(null)}>
         {open && (
-          <AssignmentSlipForm slipDate={open.slipDate} slipNo={open.slipNo}
+          <AssignmentSlipForm slipDate={open.slipDate} slipNo={open.slipNo} onTitleChange={setSlipTitle}
                               onClose={() => setOpen(null)} onSaved={() => { setOpen(null); search() }} />
         )}
       </Modal>
