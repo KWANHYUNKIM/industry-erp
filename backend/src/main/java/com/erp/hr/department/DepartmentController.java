@@ -39,6 +39,19 @@ public class DepartmentController {
         return departmentService.update(id, req);
     }
 
+    /** 조직도등록 [부서장지정]. */
+    @PutMapping("/{id}/head")
+    public DepartmentResponse setHead(@PathVariable Long id, @RequestBody DepartmentDtos.SetHeadRequest req) {
+        return departmentService.setHead(id, req.employeeId());
+    }
+
+    /** 조직도등록 [부서장설정] 창 [저장(F8)]. */
+    @PutMapping("/heads")
+    public ResponseEntity<Void> setHeads(@RequestBody List<DepartmentDtos.HeadLine> lines) {
+        departmentService.setHeads(lines);
+        return ResponseEntity.noContent().build();
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         departmentService.delete(id);

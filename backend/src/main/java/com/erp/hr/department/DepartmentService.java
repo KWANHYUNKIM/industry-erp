@@ -58,6 +58,29 @@ public class DepartmentService {
         return DepartmentResponse.from(d, employeeRepository.countByDepartmentId(d.getId()));
     }
 
+    /**
+     * 조직도등록 [부서장지정] — 원본은 한 부서에 부서장 한 명이고, 새로 지정하면 앞사람은 '일반'으로 돌아간다.
+     * 소속을 따지지 않는다(원본 [부서장설정] 창에서 다른 부서 사람도 고를 수 있다).
+     */
+    @Transactional
+    public DepartmentResponse setHead(Long id, Long employeeId) {
+        Department d = get(id);
+        if (employeeId != null && !employeeRepository.existsById(employeeId)) {
+            throw ApiException.notFound("사원을 찾을 수 없습니다. id=" + employeeId);
+        }
+        d.setHeadEmployeeId(employeeId);
+        return DepartmentResponse.from(d, employeeRepository.countByDepartmentId(d.getId()));
+    }
+
+    /** 조직도등록 [부서장설정] 창 [저장(F8)] — 줄마다 부서장을 그대로 덮는다(빈칸이면 부서장 없음). */
+    @Transactional
+    public void setHeads(List<DepartmentDtos.HeadLine> lines) {
+        for (DepartmentDtos.HeadLine l : lines) {
+            if (l.departmentId() == null) continue;
+            setHead(l.departmentId(), l.employeeId());
+        }
+    }
+
     @Transactional
     public void delete(Long id) {
         Department d = get(id);

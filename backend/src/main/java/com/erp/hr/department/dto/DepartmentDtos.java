@@ -23,6 +23,12 @@ public class DepartmentDtos {
             Boolean active
     ) {}
 
+    /** 조직도등록 [부서장지정] — 고른 부서의 부서장을 이 사원으로. null 이면 부서장을 비운다. */
+    public record SetHeadRequest(Long employeeId) {}
+
+    /** 조직도등록 [부서장설정] 창의 한 줄 — 부서 · 부서장 ID. 창 전체를 [저장(F8)] 으로 한 번에 보낸다. */
+    public record HeadLine(Long departmentId, Long employeeId) {}
+
     /** 부서 한 건. 트리는 parentId 로 프론트에서 조립한다. */
     public record DepartmentResponse(
             Long id,
@@ -32,14 +38,16 @@ public class DepartmentDtos {
             String parentName,
             int sortOrder,
             boolean active,
-            long employeeCount
+            long employeeCount,
+            /** 부서장 사원 id — 조직도등록 [부서장] 열. 정하는 곳은 PUT …/{id}/head · PUT …/heads 다. */
+            Long headEmployeeId
     ) {
         public static DepartmentResponse from(Department d, long employeeCount) {
             return new DepartmentResponse(
                     d.getId(), d.getCode(), d.getName(),
                     d.getParent() != null ? d.getParent().getId() : null,
                     d.getParent() != null ? d.getParent().getName() : null,
-                    d.getSortOrder(), d.isActive(), employeeCount);
+                    d.getSortOrder(), d.isActive(), employeeCount, d.getHeadEmployeeId());
         }
     }
 }

@@ -2015,6 +2015,8 @@ export interface Department {
   sortOrder: number
   active: boolean
   employeeCount: number
+  /** 부서장 사원 id — 조직도등록 [부서장] 열 · [부서장지정] · [부서장설정] */
+  headEmployeeId: number | null
 }
 
 // ===== 인사관리 (발령이력) =====

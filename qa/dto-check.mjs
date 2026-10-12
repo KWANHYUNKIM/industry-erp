@@ -156,6 +156,8 @@ function resolveEntity(stem) {
  * 한 화면에서만 서버가 채우는 값은 여기 적는다.
  */
 const OWNED_HERE = new Map([
+  ['WorkPost|labels', '공지사항 하단 [라벨변경] 판의 전용 자리(PATCH …/{id}/labels)에서 정한다 — 원본 E200080 글쓰기 창에는 라벨 칸이 없다'],
+  ['Department|headEmployeeId', '조직도등록 [부서장지정](PUT …/{id}/head) · [부서장설정](PUT …/heads) 전용 자리에서 정한다 — 부서 등록 · 수정 창에는 원본도 부서장 칸이 없다'],
   ['Asset|assetNo', 'DocumentNoGenerator 가 매긴다'],
   ['Assignment|slipDate', '인사발령입력 전표 머리(AssignmentSlipRequest)에서 정한다 — 단건 CreateAssignmentRequest 에는 없다'],
   ['Assignment|slipNo', '전표 번호 — 그 일자 안에서 서버가 매긴다'],

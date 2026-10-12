@@ -36,7 +36,10 @@ function subtreeIds(n: Node): number[] {
   return [n.id, ...n.children.flatMap(subtreeIds)]
 }
 
-type Dialog = 'child' | 'move' | 'rename' | 'deptChange' | null
+type Dialog = 'child' | 'move' | 'rename' | 'deptChange' | 'heads' | null
+
+/** 사용자ID 열 — 사원에 이어진 로그인 계정. */
+interface UserRow { id: number; username: string; employeeId: number | null }
 
 /**
  * 그룹웨어 > 공유정보 > 조직도관리 > 조직도등록 (이카운트 E090222)
@@ -54,8 +57,18 @@ type Dialog = 'child' | 'move' | 'rename' | 'deptChange' | null
  *       회사(맨 위)를 고르면 '조회할 그룹을 선택바랍니다.'.</li>
  * </ul>
  *
+ * <p><b>2026-10-12 부서장 · 사용자ID 를 더했다(원본 CRUD 로 실측).</b>
+ * <ul>
+ *   <li>[부서장지정]: 체크 없음 → '리스트에 선택된 자료가 없습니다. 체크박스에 체크한 후 다시 시도 바랍니다.',
+ *       둘 이상 → '리스트에 하나만 체크가 되어야 합니다. …', 부서장이 없으면 '해당 ID를 부서장으로 지정하시겠습니까?',
+ *       이미 있으면 '이미 지정된 부서장이 있습니다. 선택하신 ID로 부서장을 변경하시겠습니까?'. 지정하면 그 사람이
+ *       격자 맨 위로 오르고 [부서장] 열이 빨간 '부서장'(나머지는 '일반').</li>
+ *   <li>[부서장설정](왼쪽 아래): 창에 부서 · 부서장 ID 격자, 칸을 비우고 [저장(F8)] 하면 부서장이 풀린다. 다른 부서 사람도 고를 수 있다.</li>
+ *   <li>격자 차례는 부서장 먼저, 그다음 사원번호 큰 것부터(원본 인사팀 · 영업팀 실측).</li>
+ * </ul>
+ *
  * <p>원본에 있지만 받쳐 줄 것이 없어 두지 않은 것: [Fn]›미포함(부서를 나무에서 빼되 마스터는 남기는 상태가 우리에게 없다),
- * [순서변경] · [부서장설정] · [부서장지정] · [직위/직급설정] · [인사발령입력], 격자의 [사용자ID] · [부서장] 열.
+ * [순서변경] · [직위/직급설정].
  */
 export default function OrgTreePage() {
   const navigate = useNavigate()
@@ -74,6 +87,9 @@ export default function OrgTreePage() {
   const [pick, setPick] = useState('')
   const [newName, setNewName] = useState('')
   const [checked, setChecked] = useState<Set<number>>(new Set())
+  const [users, setUsers] = useState<UserRow[]>([])
+  /** [부서장설정] 창 — 부서 id → 부서장 사원 id(빈 문자열은 없음). */
+  const [heads, setHeads] = useState<Record<number, string>>({})
 
   async function load() {
     try {
@@ -86,6 +102,8 @@ export default function OrgTreePage() {
     } catch (err) { setError(extractErrorMessage(err)) }
   }
   useEffect(() => { void load() }, [])
+  useEffect(() => { api.get<UserRow[]>('/users').then((r) => setUsers(r.data)).catch(() => {}) }, [])
+  const userIdOf = (employeeId: number) => users.find((u) => u.employeeId === employeeId)?.username ?? ''
 
   const roots = useMemo(() => buildTree(departments), [departments])
   const byId = useMemo(() => {
@@ -101,7 +119,33 @@ export default function OrgTreePage() {
   const members = tab === '미포함'
     ? active.filter((e) => e.departmentId == null || !byId.has(e.departmentId))
     : sel ? active.filter((e) => e.departmentId === sel.id) : []
-  const shown = members.filter((e) => !keyword || e.name.includes(keyword) || (e.code ?? '').includes(keyword))
+  const headId = tab === '포함' ? sel?.headEmployeeId ?? null : null
+  const shown = members
+    .filter((e) => !keyword || e.name.includes(keyword) || (e.code ?? '').includes(keyword))
+    .sort((a, b) => Number(b.id === headId) - Number(a.id === headId) || (b.code ?? '').localeCompare(a.code ?? ''))
+
+  /** 원본 [부서장지정] — 하나만 체크해야 하고, 확인을 받은 뒤 고른 부서의 부서장을 바꾼다. */
+  async function designateHead() {
+    setError('')
+    if (!sel) return
+    if (checked.size === 0) return setError('리스트에 선택된 자료가 없습니다. 체크박스에 체크한 후 다시 시도 바랍니다.')
+    if (checked.size > 1) return setError('리스트에 하나만 체크가 되어야 합니다. 체크박스에 체크한 후 다시 시도 바랍니다.')
+    const [employeeId] = [...checked]
+    const ask = sel.headEmployeeId != null && sel.headEmployeeId !== employeeId
+      ? '이미 지정된 부서장이 있습니다. 선택하신 ID로 부서장을 변경하시겠습니까?'
+      : '해당 ID를 부서장으로 지정하시겠습니까?'
+    if (!window.confirm(ask)) return
+    try {
+      await api.put(`/departments/${sel.id}/head`, { employeeId })
+      setChecked(new Set())
+      await load()
+    } catch (err) { setError(extractErrorMessage(err)) }
+  }
+
+  function openHeads() {
+    setHeads(Object.fromEntries(departments.filter((d) => d.active).map((d) => [d.id, d.headEmployeeId != null ? String(d.headEmployeeId) : ''])))
+    open('heads')
+  }
 
   function open(d: Dialog) {
     setFnOpen(false)
@@ -135,6 +179,8 @@ export default function OrgTreePage() {
         if (!sel) return
         if (!newName.trim()) return setError('부서명을 입력하세요.')
         await putDept(sel, { name: newName.trim() })
+      } else if (dialog === 'heads') {
+        await api.put('/departments/heads', Object.entries(heads).map(([id, emp]) => ({ departmentId: Number(id), employeeId: emp ? Number(emp) : null })))
       } else if (dialog === 'deptChange') {
         if (!pick) return setError('옮길 부서를 선택하세요.')
         for (const id of checked) await api.put(`/employees/${id}/department`, { departmentId: Number(pick) })
@@ -220,6 +266,7 @@ export default function OrgTreePage() {
           </div>
           <div className="flex flex-wrap gap-[4px] mt-[10px]">
             <button type="button" className="ec-btn ec-btn-sm" onClick={() => void doExcel()}>Excel</button>
+            <button type="button" className="ec-btn ec-btn-sm" onClick={openHeads}>부서장설정</button>
             <button type="button" className="ec-btn ec-btn-sm" onClick={() => navigate('/groupware/org-status')}>조직도 미리보기</button>
           </div>
         </div>
@@ -237,6 +284,10 @@ export default function OrgTreePage() {
             </div>
           </div>
           <div className="flex gap-[4px] mb-[6px]">
+            {tab === '포함' && sel && (
+              <button type="button" className="ec-btn ec-btn-sm" onClick={() => void designateHead()}>부서장지정</button>
+            )}
+            <button type="button" className="ec-btn ec-btn-sm" onClick={() => navigate('/hr/assignments/input')}>인사발령입력</button>
             <button type="button" className="ec-btn ec-btn-sm disabled:opacity-45" disabled={checked.size === 0}
                     onClick={() => open('deptChange')}>부서변경</button>
           </div>
@@ -247,27 +298,31 @@ export default function OrgTreePage() {
                     onClick={() => setChecked(checked.size === shown.length ? new Set() : new Set(shown.map((e) => e.id)))}>
                   {shown.length > 0 && checked.size === shown.length ? '☑' : '☐'}
                 </th>
+                <th>사용자ID</th>
                 <th>사원번호</th>
                 <th>성명</th>
                 <th>소속부서</th>
                 <th>직위/직급</th>
+                <th>부서장</th>
               </tr>
             </thead>
             <tbody>
               {tab === '포함' && !sel ? (
-                <tr><td colSpan={5} className="text-center text-ec-ink">조회할 그룹을 선택바랍니다.</td></tr>
+                <tr><td colSpan={7} className="text-center text-ec-ink">조회할 그룹을 선택바랍니다.</td></tr>
               ) : shown.length === 0 ? (
-                <tr><td colSpan={5} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={7} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
               ) : shown.map((e, i) => (
                 <tr key={e.id}>
                   <td className={`text-center cursor-pointer ${checked.has(e.id) ? 'bg-ec-blue-wash text-ec-navy font-bold' : 'bg-ec-stripe text-ec-hint'}`}
                       onClick={() => setChecked((s) => { const x = new Set(s); x.has(e.id) ? x.delete(e.id) : x.add(e.id); return x })}>
                     {i + 1}
                   </td>
+                  <td className="text-ec-navy">{userIdOf(e.id)}</td>
                   <td className="text-ec-navy">{e.code}</td>
-                  <td>{e.name}</td>
+                  <td className="text-ec-navy">{e.name}</td>
                   <td>{e.department}</td>
                   <td>{e.jobTitle}</td>
+                  <td>{e.id === headId ? <span className="text-[var(--ec-text-danger)]">부서장</span> : '일반'}</td>
                 </tr>
               ))}
             </tbody>
@@ -276,8 +331,26 @@ export default function OrgTreePage() {
       </div>
 
       <Modal error={error} open={dialog != null} onClose={() => setDialog(null)} width={640}
-             title={dialog === 'child' ? '하위부서추가' : dialog === 'move' ? '그룹이동' : dialog === 'rename' ? '이름변경' : '부서변경'}>
-        <ul className="ec-form mb-[10px]">
+             title={dialog === 'child' ? '하위부서추가' : dialog === 'move' ? '그룹이동' : dialog === 'rename' ? '이름변경' : dialog === 'heads' ? '부서장설정' : '부서변경'}>
+        {dialog === 'heads' && (
+          <table className="w-full mb-[10px]">
+            <thead><tr><th className="w-[34px]"></th><th className="w-[160px]">부서</th><th>부서장 ID</th></tr></thead>
+            <tbody>
+              {[...byId.values()].map((d, i) => (
+                <tr key={d.id}>
+                  <td className="text-center text-ec-hint">{i + 1}</td>
+                  <td>{d.name}</td>
+                  <td>
+                    <CodePickerField label={`${d.name} 부서장`} hideLabel width={240} emptyLabel="" value={heads[d.id] ?? ''}
+                                     onChange={(v) => setHeads((h) => ({ ...h, [d.id]: v }))}
+                                     items={active.map((e) => ({ value: String(e.id), code: userIdOf(e.id) || e.code, name: e.name, sub: e.department }))} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <ul className={`ec-form mb-[10px]${dialog === 'heads' ? ' hidden' : ''}`}>
           {dialog === 'child' && (
             <>
               <li className="wide"><div className="title">상위부서</div><div className="form">{sel?.name}</div></li>
@@ -312,7 +385,7 @@ export default function OrgTreePage() {
           )}
         </ul>
         <div className="flex gap-[6px]">
-          <button type="button" className="ec-btn ec-btn-primary" onClick={() => void apply()}>적용(F8)</button>
+          <button type="button" className="ec-btn ec-btn-primary" onClick={() => void apply()}>{dialog === 'heads' ? '저장(F8)' : '적용(F8)'}</button>
           <button type="button" className="ec-btn" onClick={() => setDialog(null)}>닫기</button>
         </div>
       </Modal>
