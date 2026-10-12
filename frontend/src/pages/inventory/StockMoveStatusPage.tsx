@@ -94,6 +94,8 @@ interface AdjustmentList {
 }
 
 const num = (n: number) => n.toLocaleString()
+/** 불량처리 전표를 데려가는 현황과 그 [처리방법]. */
+const HANDLING_OF: Partial<Record<AdjustKind, string>> = { DISPOSAL: '폐기', SUBSTITUTE: '품목대체' }
 
 export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
@@ -176,9 +178,18 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
        */
       api.get<{ id: number; purchasePrice?: number }[]>('/items'),
       api.get<{ itemId: number; unitPrice: number }[]>('/purchases/item-prices'),
+      /*
+       * 원본은 불량처리입력의 [처리방법]이 <b>폐기</b>면 폐기현황에, <b>품목대체</b>면 대체사용현황에 그 줄을 세운다
+       * (2026-10-12 실측: 불량처리 폐기 1건 → 폐기현황 '2026/10/12 -1 G001 투광등 100W [100W] 1.00'). 그 둘은 불량처리 전표도 받는다.
+       */
+      HANDLING_OF[kind]
+        ? api.get<AdjustmentList>('/stock-adjustments', { params: { from: cond.from || undefined, to: cond.to || undefined, all, type: 'DEFECT' } })
+        : Promise.resolve({ data: { rows: [], totalRows: 0, truncated: false } as AdjustmentList }),
     ])
-      .then(([a, w, c, g, it, pu]) => {
-        setRows(a.data.rows); setTotalRows(a.data.totalRows); setTruncated(a.data.truncated)
+      .then(([a, w, c, g, it, pu, d]) => {
+        const fromDefect = d.data.rows.filter((r) => r.handling === HANDLING_OF[kind])
+        setRows([...a.data.rows, ...fromDefect]); setTotalRows(a.data.totalRows + fromDefect.length)
+        setTruncated(a.data.truncated || d.data.truncated)
         setWarehouses(w.data); setCats(c.data); setCodeGroups(g.data)
         setCostById(stockCostMapFromLast(it.data, pu.data))
       })
@@ -207,7 +218,7 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
    * 사용자 마스터를 부르면 이 구분(자가사용·폐기 …)에 한 건도 없는 사람까지 목록에 선다.
    * 그래서 기간을 바꾸면 고를 수 있는 이름도 같이 달라진다.
    */
-  const authors = [...new Set(rows.filter((r) => r.type === kind)
+  const authors = [...new Set(rows.filter((r) => r.type === kind || (r.type === 'DEFECT' && r.handling === HANDLING_OF[kind]))
     .map((r) => r.createdBy).filter((v): v is string => !!v))].sort()
 
   /** 원본 [품목그룹1] — 품목 마스터에서 잇는다(관리항목과 같은 길). */
@@ -224,7 +235,7 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
     (id == null ? '' : pickers.employees.find((e) => e.id === id)?.name ?? '')
 
   const shown = rows
-    .filter((r) => r.type === kind)
+    .filter((r) => r.type === kind || (r.type === 'DEFECT' && r.handling === HANDLING_OF[kind]))
     /* 원본 [기타]. 재고조정 말고는 그 칸이 없으니 다른 유형에서는 걸지 않는다. */
     .filter((r) => kind !== 'ADJUST' || withZeroQty || r.quantityChange !== 0)
     .filter((r) => kind !== 'ADJUST' || withUntracked || !untracked.has(r.itemId))

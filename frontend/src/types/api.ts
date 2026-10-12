@@ -1453,6 +1453,8 @@ export interface StockAdjustmentSlip {
   warehouseName: string
   projectId: number | null
   projectName: string | null
+  /** 불량처리의 [처리방법](폐기 · 품목대체 · 정상사용). */
+  handling?: string | null
   lines: StockAdjustment[]
 }
 

@@ -243,6 +243,7 @@ public class StockAdjustmentService {
                     .partnerId(req.partnerId())
                     .reason(line.reason())
                     .kind(line.kind())
+                    .handling(req.handling())
                     .createdBy(username)
                     .build()));
         }

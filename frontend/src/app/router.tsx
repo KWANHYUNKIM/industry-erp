@@ -398,6 +398,7 @@ export default function AppRouter() {
         <Route path="/production/receipt-issue-status" element={<ProductionIssueStatusPage />} />
         <Route path="/inventory/self-use" element={<StockMoveListPage kind="SELF_USE" />} />
         <Route path="/inventory/self-use-input" element={<SelfUseInputPage />} />
+        <Route path="/inventory/defect-input" element={<SelfUseInputPage kind="DEFECT" />} />
         <Route path="/inventory/defect" element={<StockMoveListPage kind="DEFECT" />} />
         <Route path="/inventory/adjust-list" element={<AdjustListPage />} />
         <Route path="/inventory/stocktake-list" element={<StocktakeListPage />} />

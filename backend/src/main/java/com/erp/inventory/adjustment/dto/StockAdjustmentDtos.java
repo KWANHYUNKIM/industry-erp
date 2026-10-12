@@ -93,6 +93,12 @@ public final class StockAdjustmentDtos {
             Long employeeId,
             @NotNull(message = "창고를 입력하세요.") Long warehouseId,
             Long projectId,
+            /*
+             * 원본 불량처리입력 머리의 [처리방법](폐기 · 품목대체 · 정상사용). 전표 한 장에 하나라 머리에 두고
+             * 줄마다 같은 값을 적는다. 폐기현황 · 대체사용현황이 이 값으로 불량처리 전표를 데려간다.
+             */
+            @Size(max = 30, message = "입력한 글자가 너무 깁니다. 30자까지 넣을 수 있습니다.")
+            String handling,
             @jakarta.validation.constraints.NotEmpty(message = "품목을 입력하세요.")
             List<@jakarta.validation.Valid SlipLine> lines
     ) {}
@@ -113,6 +119,8 @@ public final class StockAdjustmentDtos {
             Long partnerId, Long employeeId,
             Long warehouseId, String warehouseName,
             Long projectId, String projectName,
+            /** 불량처리의 [처리방법] — 줄마다 같은 값이라 첫 줄 것. */
+            String handling,
             List<AdjustmentResponse> lines
     ) {
         public static SlipResponse of(List<StockAdjustment> rows) {
@@ -122,6 +130,7 @@ public final class StockAdjustmentDtos {
                     h.getWarehouse().getId(), h.getWarehouse().getName(),
                     h.getProject() != null ? h.getProject().getId() : null,
                     h.getProject() != null ? h.getProject().getName() : null,
+                    h.getHandling(),
                     rows.stream().map(AdjustmentResponse::from).toList());
         }
     }

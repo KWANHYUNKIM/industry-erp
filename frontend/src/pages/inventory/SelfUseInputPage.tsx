@@ -26,10 +26,26 @@ const num = (n: number) => n.toLocaleString('ko-KR')
  *
  * <p>원본에 있는데 두지 않은 것: 격자 위 [찾기(F3) · 정렬 · My품목 · 주문 · 구매 · 재고불러오기 · 바코드 · 전표 바코드 · 검증 · 전표불러오기],
  * [새로운 항목 추가] 열, 아래 [저장/전표(F7) · 웹자료올리기], 수정 창의 [복사 · 이전 · 다음 · 보내기].
+ *
+ * <p><b>불량처리입력</b>(E040507)도 이 화면이다(kind=DEFECT) — 같은 날 실측. 머리 [일자 · 담당자 / <b>발견창고</b> · <b>처리방법</b> / 프로젝트],
+ * [거래처]는 없고 격자 끝 칸이 [불량유형]. 처리방법은 폐기(기본) · 품목대체 · 정상사용. 폐기로 저장하면 발견창고 재고가 수량만큼 빠지고
+ * (재고수불부 '[불량] - 폐기' 출고 1) <b>폐기현황</b>에 그 줄이 선다. 품목대체를 고르면 원본은 [정상품목] 격자가 하나 더 열리는데
+ * 우리는 아직 두지 않았다 — 정상품목이 어디로 들어가는지 재지 못했다.
  */
-export default function SelfUseInputPage({ adjustNo, onDone }: { adjustNo?: string; onDone?: () => void } = {}) {
+type MoveKind = 'SELF_USE' | 'DEFECT'
+const LABEL: Record<MoveKind, { name: string; list: string; warehouse: string; kind: string; kindCodes: string }> = {
+  SELF_USE: { name: '자가사용', list: '/inventory/self-use', warehouse: '창고', kind: '사용유형', kindCodes: '사용유형' },
+  DEFECT: { name: '불량처리', list: '/inventory/defect', warehouse: '발견창고', kind: '불량유형', kindCodes: '불량유형' },
+}
+/** 원본 불량처리입력 [처리방법] 후보 — 차례도 원본 그대로, 기본은 폐기. */
+const HANDLINGS = ['폐기', '품목대체', '정상사용'] as const
+
+export default function SelfUseInputPage({ adjustNo, onDone, kind = 'SELF_USE' }: { adjustNo?: string; onDone?: () => void; kind?: MoveKind } = {}) {
   const navigate = useNavigate()
   const editing = !!adjustNo
+  const L = LABEL[kind]
+  const selfUse = kind === 'SELF_USE'
+  const [handling, setHandling] = useState<string>('폐기')
   const pickers = useCondPickers(['partners', 'warehouses', 'projects', 'items', 'employees'])
   const [date, setDate] = useState(ymd(new Date()))
   const [partnerId, setPartnerId] = useState('')
@@ -44,9 +60,9 @@ export default function SelfUseInputPage({ adjustNo, onDone }: { adjustNo?: stri
 
   useEffect(() => {
     api.get<{ name: string; codes: { name: string }[] }[]>('/codes')
-      .then((r) => setKinds((r.data.find((g) => g.name === '사용유형')?.codes ?? []).map((c) => c.name)))
+      .then((r) => setKinds((r.data.find((g) => g.name === L.kindCodes)?.codes ?? []).map((c) => c.name)))
       .catch(() => setKinds([]))
-  }, [])
+  }, [L.kindCodes])
 
   useEffect(() => {
     if (!adjustNo) return
@@ -57,6 +73,7 @@ export default function SelfUseInputPage({ adjustNo, onDone }: { adjustNo?: stri
         setEmployeeId(s.employeeId != null ? String(s.employeeId) : '')
         setWarehouseId(String(s.warehouseId))
         setProjectId(s.projectId != null ? String(s.projectId) : '')
+        if (s.handling) setHandling(s.handling)
         setLines([...s.lines.map((l) => ({ itemId: String(l.itemId), quantity: String(Math.abs(Number(l.quantityChange))), kind: l.kind ?? '' })), blank()])
       })
       .catch((e) => setError(extractErrorMessage(e)))
@@ -84,13 +101,14 @@ export default function SelfUseInputPage({ adjustNo, onDone }: { adjustNo?: stri
 
   async function save() {
     setError(''); setNotice('')
-    if (!warehouseId) return setError('창고를 입력하세요.')
+    if (!warehouseId) return setError(`${L.warehouse}를 입력하세요.`)
     const filled = lines.filter((l) => l.itemId || l.quantity)
     if (filled.length === 0 || filled.some((l) => !l.itemId)) return setError('품목을 입력하세요.')
     if (filled.some((l) => !(Number(l.quantity) > 0))) return setError('수량을 입력하세요.')
     const body = {
-      type: 'SELF_USE', date,
-      partnerId: partnerId ? Number(partnerId) : null,
+      type: kind, date,
+      partnerId: selfUse && partnerId ? Number(partnerId) : null,
+      handling: selfUse ? null : handling,
       employeeId: employeeId ? Number(employeeId) : null,
       warehouseId: Number(warehouseId),
       projectId: projectId ? Number(projectId) : null,
@@ -119,14 +137,14 @@ export default function SelfUseInputPage({ adjustNo, onDone }: { adjustNo?: stri
   }
 
   const tableRef = useRef<HTMLTableElement>(null)
-  useTableColumnCheck(tableRef, editing ? '자가사용수정' : '자가사용입력', [lines])
+  useTableColumnCheck(tableRef, `${L.name}${editing ? '수정' : '입력'}`, [lines])
   const totalQty = lines.reduce((s, l) => s + (Number(l.quantity) || 0), 0)
   const allPicked = lines.length > 0 && picked.size === lines.length
 
   return (
     <EcSlipShell
-      title={editing ? '자가사용수정' : '자가사용입력'}
-      formTabs={[{ id: 'basic', label: '자가사용입력' }]} activeFormTab="basic"
+      title={`${L.name}${editing ? '수정' : '입력'}`}
+      formTabs={[{ id: 'basic', label: `${L.name}입력` }]} activeFormTab="basic"
       actions={editing
         ? [
             { label: '저장(F8)', primary: true, submit: true, onClick: () => void save() },
@@ -136,7 +154,7 @@ export default function SelfUseInputPage({ adjustNo, onDone }: { adjustNo?: stri
         : [
             { label: '저장(F8)', primary: true, submit: true, onClick: () => void save() },
             { label: '다시 작성', onClick: reset },
-            { label: '리스트', onClick: () => navigate('/inventory/self-use') },
+            { label: '리스트', onClick: () => navigate(L.list) },
           ]}>
       <div>
         {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
@@ -148,18 +166,27 @@ export default function SelfUseInputPage({ adjustNo, onDone }: { adjustNo?: stri
                    onChange={(e) => setDate(e.target.value)} />
             {editing && adjustNo && <span className="ml-[6px]">-{Number(adjustNo.split('-').pop()) || ''}</span>}
           </EcCond>
-          <EcCond label="거래처" pick>
-            <CodePickerField label="거래처" hideLabel fill pair placeholder="거래처" value={partnerId}
-                             onChange={setPartnerId} items={pickers.partners} />
-          </EcCond>
+          {selfUse && (
+            <EcCond label="거래처" pick>
+              <CodePickerField label="거래처" hideLabel fill pair placeholder="거래처" value={partnerId}
+                               onChange={setPartnerId} items={pickers.partners} />
+            </EcCond>
+          )}
           <EcCond label="담당자" pick>
             <CodePickerField label="담당자" hideLabel fill pair placeholder="담당자" value={employeeId}
                              onChange={setEmployeeId} items={employeeItems} />
           </EcCond>
-          <EcCond label="창고" pick>
-            <CodePickerField label="창고" hideLabel fill pair placeholder="창고" value={warehouseId}
+          <EcCond label={L.warehouse} pick>
+            <CodePickerField label={L.warehouse} hideLabel fill pair placeholder={L.warehouse} value={warehouseId}
                              onChange={setWarehouseId} items={pickers.warehouses} />
           </EcCond>
+          {!selfUse && (
+            <EcCond label="처리방법">
+              <select className="ec-input w-full" value={handling} onChange={(e) => setHandling(e.target.value)}>
+                {HANDLINGS.map((h) => <option key={h} value={h}>{h}</option>)}
+              </select>
+            </EcCond>
+          )}
           <EcCond label="프로젝트" pick>
             <CodePickerField label="프로젝트" hideLabel fill pair placeholder="프로젝트" value={projectId}
                              onChange={setProjectId} items={pickers.projects} />
@@ -184,7 +211,7 @@ export default function SelfUseInputPage({ adjustNo, onDone }: { adjustNo?: stri
                 <th className="w-[194px]">품목명</th>
                 <th className="w-[133px]">규격</th>
                 <th className="w-[101px] text-right">수량</th>
-                <th>사용유형</th>
+                <th>{selfUse ? '사용유형' : '불량유형'}</th>
               </tr>
             </thead>
             <tbody>
@@ -208,7 +235,7 @@ export default function SelfUseInputPage({ adjustNo, onDone }: { adjustNo?: stri
                              value={l.quantity} onChange={(e) => setLine(i, { quantity: e.target.value.replace(/[^\d.]/g, '') })} />
                     </td>
                     <td>
-                      <CodePickerField label="사용유형" hideLabel fill value={l.kind}
+                      <CodePickerField label={L.kind} hideLabel fill value={l.kind}
                                        onChange={(v) => setLine(i, { kind: v })} items={kindItems} />
                     </td>
                   </tr>

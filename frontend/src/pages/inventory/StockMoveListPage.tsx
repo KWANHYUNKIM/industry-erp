@@ -106,7 +106,7 @@ export default function StockMoveListPage({ kind }: { kind: 'SELF_USE' | 'DEFECT
   }, [shown, item, keyword, partnerName])
 
   async function removePicked() {
-    if (!confirm('전표를 삭제하겠습니까?')) return
+    if (!confirm('선택한 전표를 삭제 하겠습니까?')) return
     try {
       for (const no of picked) await api.delete(`/stock-adjustments/slips/${encodeURIComponent(no)}`)
       setPicked(new Set())
@@ -126,7 +126,7 @@ export default function StockMoveListPage({ kind }: { kind: 'SELF_USE' | 'DEFECT
       search={keyword}
       onSearchChange={setKeyword}
       onSearch={() => void load()}
-      onNew={() => navigate(selfUse ? '/inventory/self-use-input' : '/inventory/transfer')}
+      onNew={() => navigate(selfUse ? '/inventory/self-use-input' : '/inventory/defect-input')}
       actions={[
         { label: '선택삭제', onClick: () => void removePicked(), disabled: picked.size === 0 },
         { label: 'Excel' },
@@ -214,9 +214,7 @@ export default function StockMoveListPage({ kind }: { kind: 'SELF_USE' | 'DEFECT
                          onChange={() => setPicked((p) => { const n = new Set(p); if (n.has(r.adjustNo)) n.delete(r.adjustNo); else n.add(r.adjustNo); return n })} />
                 </td>
                 <td>
-                  {selfUse
-                    ? <a className="cursor-pointer" onClick={() => setEditNo(r.adjustNo)}>{dateNo(r.adjustDate, r.adjustNo)}</a>
-                    : dateNo(r.adjustDate, r.adjustNo)}
+                  <a className="cursor-pointer" onClick={() => setEditNo(r.adjustNo)}>{dateNo(r.adjustDate, r.adjustNo)}</a>
                 </td>
                 {selfUse && <td>{r.partnerId != null ? partnerName.get(r.partnerId) ?? '' : ''}</td>}
                 <td>{r.warehouseName}</td>
@@ -230,8 +228,8 @@ export default function StockMoveListPage({ kind }: { kind: 'SELF_USE' | 'DEFECT
           })}
         </tbody>
       </table>
-      <Modal open={editNo != null} title="자가사용수정" width={1100} error={error} onClose={() => setEditNo(null)}>
-        {editNo && <SelfUseInputPage adjustNo={editNo} onDone={() => { setEditNo(null); void load() }} />}
+      <Modal open={editNo != null} title={selfUse ? '자가사용수정' : '불량처리수정'} width={1100} error={error} onClose={() => setEditNo(null)}>
+        {editNo && <SelfUseInputPage kind={kind} adjustNo={editNo} onDone={() => { setEditNo(null); void load() }} />}
       </Modal>
     </EcListShell>
   )
