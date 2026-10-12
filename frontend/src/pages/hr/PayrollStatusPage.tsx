@@ -5,11 +5,24 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster, PayItem, Payslip } from '../../types/api'
+import { CustomAggregateConds, CustomAggregateTable, EMPTY_AGG, type AggDim, type AggRecord, type AggState, type AggTarget } from '../../features/payroll/components/CustomAggregate'
 
 interface DeptRow { id: number; name: string; code?: string | null }
 interface Ledger { payMonth: string; name: string; payDate: string | null }
-type Mode = '라인별' | '급여대장별' | '급여대장별부서별' | '급여대장별프로젝트별' | '급여대장별부서별라인별'
-const MODES: Mode[] = ['라인별', '급여대장별', '급여대장별부서별', '급여대장별프로젝트별', '급여대장별부서별라인별']
+type Mode = '라인별' | '급여대장별' | '급여대장별부서별' | '급여대장별프로젝트별' | '급여대장별부서별라인별' | '사용자지정집계'
+const MODES: Mode[] = ['라인별', '급여대장별', '급여대장별부서별', '급여대장별프로젝트별', '급여대장별부서별라인별', '사용자지정집계']
+/**
+ * 원본 사용자지정집계 '집계조건검색'(2026-10-12 실측) — 귀속연월(월별 · 연별) · 급여정보(급여대장 · 부서 · 프로젝트 · 사원 · 지급구분) ·
+ * 사원정보(직위/직급 · 지급구분 · 직책 · 입사구분) · 기타설정(사원)(사원구분 · 세무신고사업장 · 외국인여부 · 비거주자여부).
+ * 우리 명세 · 사원에 없는 프로젝트 · 지급구분 · 기타설정(사원)은 뺐다.
+ */
+const AGG_DIMS: AggDim[] = [
+  { key: 'month', label: '월별', group: '귀속연월' }, { key: 'year', label: '연별', group: '귀속연월' },
+  { key: 'ledger', label: '급여대장', group: '급여정보' }, { key: 'dept', label: '부서', group: '급여정보' }, { key: 'emp', label: '사원', group: '급여정보' },
+  { key: 'jobTitle', label: '직위/직급', group: '사원정보' }, { key: 'duty', label: '직책', group: '사원정보' }, { key: 'hireKind', label: '입사구분', group: '사원정보' },
+]
+const DUTY: Record<string, string> = { '100': '팀원', '200': '팀장' }
+const HIRE_KIND: Record<string, string> = { '100': '신입', '200': '경력' }
 type Confirm = '전체' | '미확정' | '확정'
 
 const won = (n: number) => (n ? Number(n).toLocaleString('ko-KR') : '')
@@ -58,7 +71,9 @@ interface Row {
  * 그 부서 첫 사원(가나다)이다 — 원본에서 둘이 같은 줄을 냈다(2026-10-03 실측, 경영지원본부 변종호 6,400,000 = 두 사원 기본급 합).
  * 급여대장별프로젝트별은 명세에 프로젝트가 없어 급여대장별과 같다(프로젝트명 빈칸).
  *
- * <p>사용자지정집계는 없다. 지급연월 · 지급일([사용])은 그 귀속월 급여대장의 지급일로 거른다. 급여구분 · 지급구분 · 프로젝트 · 정렬/소계기준 조건은 없다.
+ * <p>[사용자지정집계](2026-10-12 실측): 집계조건1~5 · 집계대상(수당금액(전체) · 지급총액 · 공제금액(전체) · 공제총액 · 실지급액) ·
+ * 기타 비율표시 · 코드포함 — features/payroll CustomAggregate. 부서 · 사원 / 지급총액 · 실지급액이면 부서마다 사원 줄과 '부서 계', 끝에 합계.
+ * 지급연월 · 지급일([사용])은 그 귀속월 급여대장의 지급일로 거른다. 급여구분 · 지급구분 · 프로젝트 · 정렬/소계기준 조건은 없다.
  */
 export default function PayrollStatusPage() {
   const [mode, setMode] = useState<Mode>('라인별')
@@ -69,6 +84,7 @@ export default function PayrollStatusPage() {
   const [paidMonth, setPaidMonth] = useState(range)
   const [usePayDate, setUsePayDate] = useState(false)
   const [payDate, setPayDate] = useState({ from: `${range.from}-01`, to: `${range.to}-28` })
+  const [agg, setAgg] = useState<AggState>(EMPTY_AGG)
   const [empCond, setEmpCond] = useState<string[]>([])
   const [deptCond, setDeptCond] = useState<string[]>([])
   const [slips, setSlips] = useState<Payslip[]>([])
@@ -133,6 +149,31 @@ export default function PayrollStatusPage() {
     return { ...base, amounts, gross: rs.reduce((s, r) => s + r.gross, 0), deduction: rs.reduce((s, r) => s + r.deduction, 0), net: rs.reduce((s, r) => s + r.net, 0) }
   }
 
+  const aggTargets: AggTarget[] = [
+    { key: 'allow', label: '수당금액(전체)', cols: allowanceCols }, { key: 'gross', label: '지급총액' },
+    { key: 'deduct', label: '공제금액(전체)', cols: deductionCols }, { key: 'deductTotal', label: '공제총액' }, { key: 'net', label: '실지급액' },
+  ]
+  const aggRecords: AggRecord[] = filtered.map((p) => {
+    const r = toRow(p)
+    const e = employees.find((x) => x.id === p.employeeId)
+    const dept = depts.find((d) => d.name === p.department)
+    const values: Record<string, number> = { 지급총액: r.gross, 공제총액: r.deduction, 실지급액: r.net }
+    for (const [k, v] of r.amounts) values[k] = v
+    return {
+      dims: {
+        month: { code: p.payMonth, name: p.payMonth.replace('-', '/') },
+        year: { code: p.payMonth.slice(0, 4), name: p.payMonth.slice(0, 4) },
+        ledger: { code: p.payMonth, name: r.ledgerName },
+        dept: { code: dept?.code ?? p.department ?? '', name: p.department ?? '' },
+        emp: { code: p.employeeCode, name: p.employeeName },
+        jobTitle: { code: e?.jobTitle ?? '', name: e?.jobTitle ?? '' },
+        duty: { code: e?.duty ?? '', name: DUTY[e?.duty ?? ''] ?? e?.duty ?? '' },
+        hireKind: { code: e?.hireKind ?? '', name: HIRE_KIND[e?.hireKind ?? ''] ?? e?.hireKind ?? '' },
+      },
+      values,
+    }
+  })
+
   // 라인별: 명세 한 장이 한 줄 · 급여대장별: 귀속월(대장)마다 한 줄, 부서 · 성명은 그 대장 첫 사원
   const lines: Row[] = useMemo(() => {
     const sorted = [...filtered].sort((a, b) => a.employeeName.localeCompare(b.employeeName, 'ko') || a.payMonth.localeCompare(b.payMonth))
@@ -177,6 +218,7 @@ export default function PayrollStatusPage() {
           {MODES.map((m) => (
             <label key={m} className="mr-[10px]"><input type="radio" name="pay-status-mode" checked={mode === m} onChange={() => setMode(m)} /> {m}</label>
           ))}
+          {mode === '사용자지정집계' && <CustomAggregateConds dims={AGG_DIMS} targets={aggTargets} value={agg} onChange={setAgg} />}
         </EcCond>
         <EcCond label="귀속연월">
           <input type="month" className="ec-input w-[140px]" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
@@ -231,6 +273,9 @@ export default function PayrollStatusPage() {
       </div>
       <div className="text-center font-bold mb-[2px]">급여현황</div>
       <div className="text-ec-hint mb-[4px]">{range.from.replace('-', '/')}/01 ~ {range.to.replace('-', '/')}</div>
+      {mode === '사용자지정집계' ? (
+        <CustomAggregateTable name="급여현황" dims={AGG_DIMS} targets={aggTargets} records={aggRecords} agg={agg} />
+      ) : (
       <div className="overflow-x-auto">
         <table ref={tableRef} className="w-full text-left whitespace-nowrap">
           <thead>
@@ -264,6 +309,7 @@ export default function PayrollStatusPage() {
           </tbody>
         </table>
       </div>
+      )}
     </EcListShell>
   )
 }
