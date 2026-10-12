@@ -1,5 +1,5 @@
 {
-  "about": "의료기기공급내역보고(C001403) — 원본은 보고 줄을 저장한다. [신규]가 판매검색창을 바로 띄우고, 고른 판매에서 시리얼(UDI)이 달린 줄만 불러온다(UDI 없는 줄은 안 온다). 저장하면 목록에 '미전송' 줄이 서고, 같은 판매를 다시 불러오면 원본 문구로 막는다. 만든 보고는 지운다. 앞 단계: QA데이터센터-산소발생기(UDI-DI 02103151626568) 를 시리얼 PO2104600107 로 판 판매(비고 QA데이터센터)가 있어야 한다.",
+  "about": "의료기기공급내역보고(C001403) — 원본은 보고 줄을 저장한다. [신규]가 판매검색창을 바로 띄우고, 고른 판매에서 시리얼(UDI)이 달린 줄만 불러온다(UDI 없는 줄은 안 온다). 저장하면 목록에 '미전송' 줄이 서고, 같은 판매를 다시 불러오면 원본 문구로 막는다. 입력 창 줄 위 버튼은 원본처럼 [찾기(F3)·정렬·판매·이동]([이동]은 창고이동조회 창). 만든 보고는 지운다. 앞 단계: QA데이터센터-산소발생기(UDI-DI 02103151626568) 를 시리얼 PO2104600107 로 판 판매(비고 QA데이터센터)가 있어야 한다.",
   "shots": [
     {
       "name": "신규 → 판매 고르기 → UDI 줄만 → 저장 → 목록 미전송 → 다시 불러오면 막음 → 같은 줄로 수정 저장(금액 = 단가×수량) → 지움",
@@ -16,6 +16,18 @@
         "wait:800",
         "expect:document.body.innerText.includes('(01)02103151626568(10)PO2104600107')",
         "expect:![...document.querySelectorAll('[role=dialog] td')].some((td) => td.innerText.trim() === 'MQTT 모뎀 v2.0')",
+        "expect:['찾기(F3)','정렬','판매','이동'].every((t) => [...document.querySelectorAll('[role=dialog] button')].some((b) => b.textContent.trim() === t))",
+        "click:이동",
+        "wait:1000",
+        "expect:document.body.innerText.includes('창고이동조회') && document.body.innerText.includes('보내는창고명')",
+        "clicklast:닫기",
+        "wait:300",
+        "click:정렬",
+        "wait:400",
+        "expect:document.body.innerText.includes('정렬기준')",
+        "click:적용",
+        "wait:300",
+        "expect:document.body.innerText.includes('(01)02103151626568(10)PO2104600107')",
         "click:저장(F8)",
         "wait:4000",
         "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA데이터센터-산소발생기') && tr.innerText.includes('미전송') && tr.innerText.includes('(01)02103151626568(10)PO2104600107'))",

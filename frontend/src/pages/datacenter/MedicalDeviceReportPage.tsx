@@ -9,6 +9,9 @@ import { dateText } from '../../utils/dateText'
 import { useShortcut } from '../../utils/useShortcut'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { usePartnerGroups } from '../../utils/partnerGroups'
+import GridFindButton from '../../components/GridFindButton'
+import GridSortModal from '../../components/GridSortModal'
+import { MenuButton } from '../../components/EcSlipShell'
 
 /**
  * 데이터센터 › 의료기기공급내역보고 (이카운트 C001403)
@@ -47,6 +50,18 @@ interface Line {
 interface Entry {
   id: number; docNo: string; reportMonth: string; supplyType: SupplyType; supplyShape: string; lines: Line[]
 }
+/** 창고이동조회 창 한 줄 — /stock-transfers 는 품목마다 한 줄이라 이동번호로 묶어 보인다. */
+interface TransferRow {
+  id: number; transferNo: string; transferDate: string; itemName: string
+  fromWarehouseName: string; toWarehouseName: string; quantity: number
+}
+/* 원본 [정렬] '정렬기준' — 처음은 '없음'(그대로 둔다). */
+const SORT_KEYS = ['없음', '불러온 전표일자-No.', '표준코드(UDI)', '납품일자', '거래처명', '품목명'] as const
+type SortKey = (typeof SORT_KEYS)[number]
+const sortKeyOf = (l: Line, k: SortKey): string => ({
+  '없음': '', '불러온 전표일자-No.': l.sourceDocNo ?? '', '표준코드(UDI)': l.udi ?? '', '납품일자': l.deliveryDate ?? '',
+  '거래처명': l.partnerName ?? '', '품목명': l.itemName ?? '',
+})[k]
 interface SaleCandidate {
   saleId: number; saleDate: string; docNo: string; partnerName: string | null; itemSummary: string
   totalAmount: number; warehouseName: string | null; accountingReflected: boolean
@@ -193,6 +208,35 @@ export default function MedicalDeviceReportPage() {
     load()
   }
 
+  /* ── 줄 위 [찾기(F3)] · [정렬] ──────────────────────────────── */
+  const linesRef = useRef<HTMLTableElement>(null)
+  const [sortOpen, setSortOpen] = useState(false)
+
+  /* ── 창고이동조회 창([이동]) ───────────────────────────────────
+   * 원본 [이동]은 창고이동 전표를 골라 시리얼(UDI) 줄을 불러온다. 우리 창고이동 줄에는 시리얼/로트 칸이 없어
+   * 불러올 UDI 가 생기지 않는다 — 원본이 불러올 것이 없을 때 띄우는 알림을 그대로 띄운다. */
+  const [moveOpen, setMoveOpen] = useState(false)
+  const [moves, setMoves] = useState<TransferRow[]>([])
+  const [movePicked, setMovePicked] = useState<Set<string>>(new Set())
+  const [moveError, setMoveError] = useState('')
+  async function openMoves() {
+    setMovePicked(new Set()); setMoveError(''); setMoveOpen(true)
+    try { setMoves((await api.get<TransferRow[]>('/stock-transfers', { params: { from: initSales.from, to: initSales.to } })).data) }
+    catch (err) { setMoveError(extractErrorMessage(err)) }
+  }
+  const moveDocs = useMemo(() => {
+    const m = new Map<string, { no: string; date: string; from: string; to: string; first: string; more: number; qty: number }>()
+    for (const t of moves) {
+      const cur = m.get(t.transferNo)
+      if (cur) { cur.more += 1; cur.qty += Number(t.quantity) }
+      else m.set(t.transferNo, { no: t.transferNo, date: t.transferDate, from: t.fromWarehouseName, to: t.toWarehouseName, first: t.itemName, more: 0, qty: Number(t.quantity) })
+    }
+    return [...m.values()].sort((a, b) => b.date.localeCompare(a.date) || b.no.localeCompare(a.no))
+  }, [moves])
+  function applyMoves() {
+    setMoveError('시리얼(UDI)이 등록된 모든 내역이 저장되었거나 불러올 내역이 없습니다. 확인 후 다시 시도 바랍니다.')
+  }
+
   /* ── 판매검색창 ──────────────────────────────────────────────── */
   const initSales = periodOf('최근30일(+1개월)')!
   const [salesOpen, setSalesOpen] = useState(false)
@@ -221,7 +265,7 @@ export default function MedicalDeviceReportPage() {
       setSalesOpen(false)
     } catch (err) { setSalesError(extractErrorMessage(err)) }
   }
-  useShortcut('F8', save, open && !salesOpen)
+  useShortcut('F8', save, open && !salesOpen && !moveOpen && !sortOpen)
   const salesShown = sales.filter((s) => salesTab === '전체' || s.confirmStatusName === salesTab)
 
   const total = lines.reduce((a, l) => ({ q: a.q + Number(l.quantity), m: a.m + Number(l.amount) }), { q: 0, m: 0 })
@@ -393,12 +437,16 @@ export default function MedicalDeviceReportPage() {
           </li>
         </ul>
 
+        {/* 원본 줄 위 버튼 — [찾기(F3)] [정렬] [판매] [이동] */}
         <div className="flex gap-[4px] my-[8px]">
+          <GridFindButton tableRef={linesRef} />
+          <button type="button" className="ec-btn ec-btn-sm" onClick={() => setSortOpen(true)}>정렬</button>
           <button type="button" className="ec-btn ec-btn-sm" onClick={openSales}>판매</button>
+          <button type="button" className="ec-btn ec-btn-sm" onClick={openMoves}>이동</button>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full ec-head700">
+          <table ref={linesRef} className="w-full ec-head700">
             <thead><tr>
               <th className="w-[34px]"></th>
               <th>불러온 전표</th>
@@ -458,12 +506,58 @@ export default function MedicalDeviceReportPage() {
           </table>
         </div>
 
+        {/* 원본 [저장(F8)▴] 의 [저장/전송]은 의료기기 통합시스템 전송이라 막아 둔다. */}
         <div className="flex gap-[4px] mt-[9px]">
-          {lines.length > 0 && <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>저장(F8)</button>}
+          {lines.length > 0 && <MenuButton label="저장(F8)" className="ec-btn ec-btn-primary" up disabled={saving}
+                                           onMain={save} items={[{ label: '저장/전송' }]} />}
           {editId
             ? <button className="ec-btn" onClick={removeOne}>삭제</button>
             : <button className="ec-btn" onClick={() => setLines([])}>다시 작성</button>}
           <button className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
+        </div>
+      </Modal>
+
+      <GridSortModal open={sortOpen} keys={SORT_KEYS} initial={['없음', '없음']} rows={lines}
+                     keyOf={sortKeyOf} isFilled={() => true}
+                     onApply={(sorted) => { setLines(sorted); setSortOpen(false) }} onClose={() => setSortOpen(false)} />
+
+      <Modal open={moveOpen} width={900} title="창고이동조회" error={moveError} onClose={() => setMoveOpen(false)}>
+        <div className="flex items-center justify-end mb-[6px]">
+          <span className="text-ec-label">{dateText(initSales.from)} ~ {dateText(initSales.to)}</span>
+        </div>
+        <div className="max-h-[420px] overflow-y-auto">
+          <table className="w-full ec-head700">
+            <thead><tr>
+              <th className="w-[34px]"></th>
+              <th className="w-[120px]">이동번호</th>
+              <th>보내는창고명</th>
+              <th>받는창고명</th>
+              <th>품목</th>
+              <th className="w-[80px] text-right">수량</th>
+            </tr></thead>
+            <tbody>
+              {moveDocs.length === 0 ? (
+                <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              ) : moveDocs.map((d) => (
+                <tr key={d.no}>
+                  <td className="text-center">
+                    <input type="checkbox" checked={movePicked.has(d.no)} onChange={(e) => setMovePicked((p) => {
+                      const n = new Set(p); if (e.target.checked) n.add(d.no); else n.delete(d.no); return n
+                    })} />
+                  </td>
+                  <td>{dateText(d.date)} -{d.no.replace(/.*?(\d+)$/, (_, n: string) => String(Number(n.slice(-4))))}</td>
+                  <td>{d.from}</td>
+                  <td>{d.to}</td>
+                  <td>{d.more ? `${d.first} 외 ${d.more}건` : d.first}</td>
+                  <td className="text-right">{num(d.qty)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="flex gap-[4px] mt-[9px]">
+          <button className="ec-btn ec-btn-primary" onClick={applyMoves} disabled={movePicked.size === 0}>전체적용(F8)</button>
+          <button className="ec-btn" onClick={() => setMoveOpen(false)}>닫기</button>
         </div>
       </Modal>
 

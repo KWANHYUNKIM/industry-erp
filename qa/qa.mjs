@@ -9959,6 +9959,65 @@ async function scenarioReturnSlip(f) {
   eq('넣어 둔 시험 재고도 뺀다', await stockOf(f.product.id), stock0 - 20)
 }
 
+
+/**
+ * 의료기기공급내역보고(C001403) — <b>보고 줄을 저장하는</b> 원본 흐름.
+ * UDI-DI 가 붙은 품목을 시리얼과 함께 판 판매 줄만 불러오고, 한 번 저장한 판매 줄은 다시 불러오지 않는다.
+ * 수량 · 단가에 음수를 받으면 보고파일에 '마이너스 공급' 이 실려 나가므로 막는다. 만든 판매 · 보고는 지운다.
+ */
+async function scenarioMedicalSupplyEntries(f) {
+  section('■ 의료기기공급내역보고 — 판매에서 불러와 저장')
+
+  const item = (await must('GET', '/items')).find((x) => x.id === f.material.id)
+  const saveItem = (udi) => must('PUT', `/items/${f.material.id}`, {
+    name: item.name, spec: item.spec, unit: item.unit, category: item.category,
+    unitPrice: item.unitPrice, safetyStock: item.safetyStock, barcode: item.barcode,
+    udiDi: udi, managementItemId: item.managementItemId, active: true,
+  })
+  await saveItem('08800000000024')
+  const day = '2026-08-23'
+  const sale = await must('POST', '/sales', {
+    saleDate: day, partnerId: f.customer.id, warehouseId: f.warehouse.id, remark: 'QA데이터센터',
+    lines: [{ itemId: f.material.id, quantity: 1, unitPrice: 1100000, lotNo: 'QA데이터센터-SN1' }],
+  })
+  try {
+    const cands = await must('GET', `/medical-device-reports/entries/sales?from=${day}&to=${day}`)
+    eq('판매검색창에 그 판매가 보인다', cands.some((c) => c.saleId === sale.id), true)
+
+    const pulled = await must('POST', '/medical-device-reports/entries/pull', [sale.id])
+    eq('시리얼 판매 줄 하나를 불러온다', pulled.length, 1)
+    eq('UDI 는 (01)UDI-DI(10)시리얼', pulled[0].udi, '(01)08800000000024(10)QA데이터센터-SN1')
+
+    const body = (lines) => ({ reportMonth: '2026-08', supplyType: 'OUT', supplyShape: '제조, 수입, 판매', lines })
+    await rejects('수량이 음수인 보고 줄은 막는다', 'POST', '/medical-device-reports/entries',
+      body([{ ...pulled[0], quantity: -1 }]), '0 이상')
+    await rejects('단가가 음수인 보고 줄은 막는다', 'POST', '/medical-device-reports/entries',
+      body([{ ...pulled[0], unitPrice: -1 }]), '0 이상')
+
+    const saved = await must('POST', '/medical-device-reports/entries', body(pulled))
+    const rows = await must('GET', '/medical-device-reports/entries?from=2000-01-01&to=2099-12-31')
+    const mine = rows.filter((r) => r.entryId === saved.id)
+    eq('저장한 보고가 목록에 한 줄로 선다', mine.length, 1)
+    eq('처음 저장한 보고는 미전송이다', mine[0]?.transmitStatus, '미전송')
+
+    await rejects('한 번 보고한 판매 줄은 다시 못 불러온다', 'POST', '/medical-device-reports/entries/pull', [sale.id],
+      '불러올 내역이 없습니다')
+    const again = await must('POST', `/medical-device-reports/entries/pull?exceptEntryId=${saved.id}`, [sale.id])
+    eq('제 보고를 고칠 때는 그 줄을 다시 불러올 수 있다', again.length, 1)
+
+    const got = await must('GET', `/medical-device-reports/entries/${saved.id}`)
+    await must('PUT', `/medical-device-reports/entries/${saved.id}`, { ...body(got.lines), reportMonth: '2026-09' })
+    eq('고친 보고기준월이 남는다', (await must('GET', `/medical-device-reports/entries/${saved.id}`)).reportMonth, '2026-09')
+
+    await must('DELETE', `/medical-device-reports/entries/${saved.id}`)
+    eq('지운 보고는 목록에서 빠진다',
+      (await must('GET', '/medical-device-reports/entries?from=2000-01-01&to=2099-12-31')).some((r) => r.entryId === saved.id), false)
+  } finally {
+    await must('DELETE', `/sales/${sale.id}`)
+    await saveItem(item.udiDi ?? null)
+  }
+}
+
 /**
  * 의료기기공급내역보고의 <b>[공급형태]</b> — 공급받는 자가 어떤 곳인지.
  *
@@ -10524,6 +10583,14 @@ async function main() {
     process.exit(fail > 0 ? 1 : 0)
   }
 
+  // 의료기기공급내역보고만(node qa/qa.mjs medical) — 판매에서 불러와 저장 · 고침 · 지움.
+  if (cmd === 'medical') {
+    await scenarioUdiSupplyShape(fixtures)
+    await scenarioMedicalSupplyEntries(fixtures)
+    console.log(`\n통과 ${pass} · 실패 ${fail}`)
+    process.exit(fail > 0 ? 1 : 0)
+  }
+
   // A/S 소모 쪽만(node qa/qa.mjs as) — 수리 · 판매연결전표 · 소모현황.
   if (cmd === 'as') {
     await scenarioAsConsumption(fixtures)
@@ -10668,6 +10735,7 @@ async function main() {
   await scenarioQuotationWarehouseProject(fixtures)
   await scenarioSalesPlanScope(fixtures)
   await scenarioUdiSupplyShape(fixtures)
+  await scenarioMedicalSupplyEntries(fixtures)
   await scenarioBankAccountCurrency()
   await scenarioDefectType(fixtures)
   await scenarioIssueNoAndRequestProject(fixtures)

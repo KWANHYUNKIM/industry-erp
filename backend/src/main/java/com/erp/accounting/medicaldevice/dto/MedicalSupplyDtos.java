@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -38,9 +39,9 @@ public final class MedicalSupplyDtos {
             boolean differentPlace,
             Long itemId,
             @Size(max = 200) String itemName,
-            @NotNull(message = "수량을 입력하세요.") BigDecimal quantity,
-            BigDecimal unitPrice,
-            BigDecimal amount
+            @NotNull(message = "수량을 입력하세요.") @PositiveOrZero(message = "수량은 0 이상이어야 합니다.") BigDecimal quantity,
+            @PositiveOrZero(message = "단가는 0 이상이어야 합니다.") BigDecimal unitPrice,
+            @PositiveOrZero(message = "금액은 0 이상이어야 합니다.") BigDecimal amount
     ) {}
 
     public record EntryRequest(
