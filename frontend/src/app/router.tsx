@@ -163,6 +163,7 @@ const AsStatusPage = lazy(() => import('../pages/quality/AsStatusPage'))
 const AsRepairStatusPage = lazy(() => import('../pages/quality/AsRepairStatusPage'))
 const AsRepairListPage = lazy(() => import('../pages/quality/AsRepairListPage'))
 const AsConsumptionPage = lazy(() => import('../pages/quality/AsConsumptionPage'))
+const QualityTypePage = lazy(() => import('../pages/quality/QualityTypePage'))
 const CompanyInfoPage = lazy(() => import('../pages/settings/CompanyInfoPage'))
 const PreferencesPage = lazy(() => import('../pages/settings/PreferencesPage'))
 const SecurityPage = lazy(() => import('../pages/settings/SecurityPage'))
@@ -692,6 +693,7 @@ export default function AppRouter() {
         <Route path="/quality" element={<Navigate to="/quality/inspection" replace />} />
         <Route path="/quality/inspection" element={<QualityInspectionPage />} />
         <Route path="/quality/inspection-status" element={<QualityStatusPage />} />
+        <Route path="/quality/inspection-type" element={<QualityTypePage />} />
         <Route path="/quality/inspection-request" element={<QualityRequestPage />} />
         <Route path="/quality/uninspected" element={<UninspectedPage />} />
         <Route path="/quality/request-status" element={<QualityRequestStatusPage />} />
