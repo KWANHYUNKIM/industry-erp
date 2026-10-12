@@ -60,8 +60,8 @@ function defaults(kind: SimplePaymentKind, keep?: Partial<Form>): Form {
  * 비우면 '부서명을 입력바랍니다.' · '성명을 입력바랍니다.' · '전화번호를 입력바랍니다.' 차례로 막는다.
  * [조회]는 국세청 서식 — 근로소득은 반기 사원별 근무기간 · 달별 급여 등, 사업 · 기타소득은 그 달 기타원천세를 소득자마다.
  *
- * <p>전자파일(생성 · 목록) · 이력 열은 국세청 제출 파일이라 두지 않았다. 원본 사업소득 서식의 ⑤총 지급액 칸은 비어 있는데
- * (기타소득 서식은 합계가 찍힌다) 우리는 두 서식 모두 합계를 찍는다.
+ * <p>전자파일(생성 · 목록) · 이력 열은 국세청 제출 파일이라 두지 않았다. 원본 사업소득 서식의 ⑤총 지급액 칸은 비어 있고
+ * (기타소득 서식은 합계가 찍힌다) 우리도 그렇게 찍는다.
  */
 export default function SimplePaymentPage() {
   return <StatementListPage daily={false} />
@@ -409,7 +409,7 @@ function PayeeSheet({ sheet, company, address }: { sheet: SimplePaymentSheet; co
       <table className="w-full ec-report ec-report-head400 mb-[12px]">
         <tbody>
           <tr><th>① 상호(법인명, 성명)</th><th>② 사업자(주민)등록번호</th><th>③ 소재지(주소)</th><th>④ 소득인원</th><th>⑤ 총 지급액</th></tr>
-          <tr><td>{company?.name ?? ''}</td><td>{company?.bizRegNo ?? ''}</td><td>{address}</td><td className="text-right">{sheet.payees.length}</td><td className="text-right">{won(gross)}</td></tr>
+          <tr><td>{company?.name ?? ''}</td><td>{company?.bizRegNo ?? ''}</td><td>{address}</td><td className="text-right">{sheet.payees.length}</td><td className="text-right">{other ? won(gross) : ''}</td></tr>
           <tr>
             <th>⑥ 지급연도</th><td>{s.payYear} 년</td>
             <th>⑦ 지급월</th>
