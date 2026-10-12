@@ -25,8 +25,12 @@ interface Move { key: string; date: string; inc: boolean; c: BankCheck }
  *
  * <p>한 줄은 수표가 아니라 <b>움직임</b>이다 — 받은 날 '수령수표증가', 입금 · 부도한 날 '수령수표감소'(발행은 발행 · 결제완료).
  * 우리 수표는 모두 수표관리 화면에서 직접 적으므로 [입력구분]은 늘 '직접입력'이다.
- * [선택삭제]는 고른 <b>움직임</b>을 지운다 — 감소 줄이면 입금 · 부도 · 결제를 취소해 수표가 보유로 돌아오고(입금 분개 · 계좌 입금도 되돌림),
- * 증가 줄이면 수표를 지운다(감소 줄이 남아 있으면 막는다). 확인 창은 같은 묶음 채권조회(E060403)에서 잰 '전표를 삭제하겠습니까? - 화면이름'.
+ * [선택삭제]는 고른 <b>움직임</b>을 지운다 — 확인 창 '선택한 전표를 삭제 하겠습니까?'(알림 · 확인/취소, 2026-10-13 실측).
+ * 감소 줄이면 입금 · 부도 · 결제를 취소해 수표가 보유로 돌아오고(입금 분개 · 계좌 입금도 되돌림), 증가 줄이면 수표를 지운다.
+ * 원본은 감소 줄이 남은 수표의 증가 줄도 막지 않는다(감소만 홀로 남음) — 우리 수표는 한 장이라 그 감소를 먼저 취소하고 지운다.
+ * 원본 판(2026-10-13 QA회계2 수표 1장 증가 · 감소): 증감구분 '증가' · '감소', 최근 줄이 위, 합계줄 없음.
+ * 원본 [수령수표내역입력](신규)에서 직접 넣은 줄의 거래유형은 '수표만증가' · '수표만감소', [일자] 칸은 '2026/10/13 -1' 처럼 일자-No. 다.
+ * 우리 수표는 받는 순간 분개가 생기는 연결전표라 거래유형은 수령 · 입금완료 · 부도(발행 · 결제완료)로 둔다.
  * [최종수정자] = 마지막으로 입금 · 부도 · 결제나 그 취소를 한 사람. [인쇄] 열 · [발행수표인쇄]는 수표 용지 인쇄 이력인데 우리는 수표를 인쇄하지 않는다.
  * [신규(F2)]는 수표를 적는 수표관리 화면으로 보낸다. 원본 판이 비어 합계줄이 있는지 못 쟀다 — 증가 · 감소를 더한 합은 뜻이 없어 두지 않는다.
  */
@@ -92,7 +96,8 @@ export default function CheckListPage({ type }: { type: CheckType }) {
       .filter((m) => !remark || (m.c.remark ?? '').includes(remark))
       .filter((m) => !author || (m.c.createdBy ?? '') === author)
       .filter((m) => !editor || (m.c.updatedBy ?? '') === editor)
-      .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.c.checkNo.localeCompare(b.c.checkNo) || (a.inc ? -1 : 1)))
+      // 원본은 최근 줄이 위 — 같은 날이면 나중에 생긴 움직임(감소)이 위.
+      .sort((a, b) => (a.date > b.date ? -1 : a.date < b.date ? 1 : (a.inc === b.inc ? b.c.id - a.c.id : a.inc ? 1 : -1)))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ofType, from, to, showInc, showDec, direct, checkNo, kind, partner, bankAccount, remark, author, editor])
   const partners = useMemo(() => {
@@ -227,7 +232,7 @@ export default function CheckListPage({ type }: { type: CheckType }) {
                 </td>
                 <td className="text-center">{dateText(m.date)}</td>
                 <td>{m.c.checkNo}</td>
-                <td className="text-center">{m.inc ? incName : decName}</td>
+                <td className="text-center">{m.inc ? '증가' : '감소'}</td>
                 <td>{m.c.partnerName ?? ''}</td>
                 <td className="text-right">{won(Number(m.c.amount))}</td>
                 <td>{m.c.remark ?? ''}</td>
@@ -240,7 +245,7 @@ export default function CheckListPage({ type }: { type: CheckType }) {
       </table>
 
       <Modal open={confirmDelete} title="알림" width={420} error={error} onClose={() => setConfirmDelete(false)}>
-        <p className="mb-[12px]">전표를 삭제하겠습니까?<br />- {title}</p>
+        <p className="mb-[12px]">선택한 전표를 삭제 하겠습니까?</p>
         <div className="flex gap-[5px]">
           <button type="button" className="ec-btn ec-btn-primary" onClick={() => void removePicked()}>확인</button>
           <button type="button" className="ec-btn" onClick={() => setConfirmDelete(false)}>취소</button>

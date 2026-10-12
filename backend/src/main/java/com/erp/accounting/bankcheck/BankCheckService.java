@@ -170,17 +170,22 @@ public class BankCheckService {
     }
 
     /**
-     * 원본 수령(발행)수표조회 [선택삭제] — 한 줄은 수표의 <b>움직임</b>이라 감소 줄과 증가 줄을 따로 지운다.
+     * 원본 수령(발행)수표조회 [선택삭제] — 한 줄은 수표의 <b>움직임</b>이라 감소 줄과 증가 줄을 따로 지운다(2026-10-13 loginaa 실측).
      *
      * <p><b>감소 줄</b>(입금완료 · 부도 · 결제완료)을 지우면 수표가 다시 보유로 돌아온다 — 입금 분개를 지우고
      * 계좌에 들어간 돈은 반대 내역으로 빼낸다(계좌간이동을 지울 때와 같은 방식). 부도 분개도 지운다.
      * <b>증가 줄</b>(수령 · 발행)을 지우면 수표가 사라진다 — 받을 때(끊을 때) 분개를 지우고, 발행수표는 빠진 예금을 되돌린다.
-     * 감소 줄이 남은 수표의 증가 줄은 지우지 않는다(손을 떠난 수표를 지우면 입금 분개만 남아 장부가 어긋난다).
-     * 한 번에 둘 다 고르면 감소부터 지운다.
+     * 원본은 감소 줄이 남은 수표의 증가 줄도 막지 않고 지운다(감소 줄만 홀로 남는다). 우리 수표는 증가 · 감소가 한 장이라
+     * 감소만 남길 수 없어, 그 감소를 먼저 취소하고 수표를 지운다.
      */
     @Transactional
     public void deleteMoves(List<Long> decreaseIds, List<Long> increaseIds, String username) {
-        for (Long id : decreaseIds == null ? List.<Long>of() : decreaseIds) {
+        java.util.Set<Long> inc = new java.util.LinkedHashSet<>(increaseIds == null ? List.of() : increaseIds);
+        java.util.Set<Long> dec = new java.util.LinkedHashSet<>(decreaseIds == null ? List.of() : decreaseIds);
+        for (Long id : inc) {
+            if (check(id).getStatus() != CheckStatus.HELD) dec.add(id);
+        }
+        for (Long id : dec) {
             BankCheck c = check(id);
             if (c.getStatus() == CheckStatus.HELD) {
                 throw ApiException.badRequest(c.getCheckNo() + " 은(는) 감소 내역이 없습니다.");
@@ -198,12 +203,8 @@ public class BankCheckService {
             c.setSettleJournalId(null);
             c.setUpdatedBy(username);
         }
-        for (Long id : increaseIds == null ? List.<Long>of() : increaseIds) {
+        for (Long id : inc) {
             BankCheck c = check(id);
-            if (c.getStatus() != CheckStatus.HELD) {
-                throw ApiException.conflict(String.format("%s 은(는) %s 처리된 수표입니다 — 감소 줄(%s)부터 지우세요.",
-                        c.getCheckNo(), c.getStatus().getDisplayName(), c.getStatus().getDisplayName()));
-            }
             JournalEntry e = journalRepository.findBySourceTypeAndSourceIdIn(JournalSourceType.CHECK, List.of(c.getId()))
                     .stream().findFirst().orElse(null);
             if (c.getType() == CheckType.ISSUED) {

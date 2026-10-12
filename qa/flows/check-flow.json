@@ -56,7 +56,7 @@
       "path": "/accounting/checks-list",
       "steps": [
         "wait:2000",
-        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const no=sessionStorage.getItem('ckNo');const tr=[...document.querySelectorAll('tbody tr')].filter((t)=>t.innerText.includes(no)).map((t)=>t.cells[3].innerText.trim());return h==='|일자|수표번호|증감구분|거래처명|금액|적요|거래유형|회계전표일자-No.'&&tr.includes('수령수표증가')&&tr.includes('수령수표감소')})()"
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const no=sessionStorage.getItem('ckNo');const tr=[...document.querySelectorAll('tbody tr')].filter((t)=>t.innerText.includes(no)).map((t)=>t.cells[3].innerText.trim());return h==='|일자|수표번호|증감구분|거래처명|금액|적요|거래유형|회계전표일자-No.'&&tr.includes('증가')&&tr.includes('감소')})()"
       ]
     },
     {

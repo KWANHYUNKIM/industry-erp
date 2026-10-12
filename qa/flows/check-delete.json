@@ -1,5 +1,5 @@
 {
-  "about": "수령수표조회 [선택삭제] — 받은수표를 받고 입금한 뒤(API), 감소 줄을 지우면 보유로 돌아오고 입금 분개 · 계좌 입금이 되돌아가며, 증가 줄을 지우면 수표가 사라진다. 감소 줄이 남은 채 증가 줄만 지우면 막는다. [최종수정자] 조건이 있다.",
+  "about": "수령수표조회 [선택삭제] — 받은수표를 받고 입금한 뒤(API), 감소 줄을 지우면 보유로 돌아오고 입금 분개 · 계좌 입금이 되돌아가며, 증가 줄을 지우면 수표가 사라진다. 입금까지 한 수표의 증가 줄만 지워도 막지 않고(원본과 같다) 감소를 먼저 취소해 계좌가 돌아온다. [최종수정자] 조건이 있다.",
   "shots": [
     {
       "name": "준비 — 받은수표 1장 받고 오늘 입금(API), 계좌 잔액을 적어 둔다",
@@ -14,19 +14,22 @@
       ]
     },
     {
-      "name": "증가 줄만 지우면 막는다 — '입금완료 처리된 수표입니다 — 감소 줄(입금완료)부터 지우세요.'",
+      "name": "입금한 수표의 증가 줄만 지워도 막지 않는다 — 수표가 사라지고 계좌 잔액이 입금 전으로",
       "path": "/accounting/checks-list",
       "steps": [
-        "allowapi:409: /api/checks/delete",
         "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
-        "wait:2000",
-        "js:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('ckNo'))&&t.innerText.includes('수령수표증가'));tr.querySelector('input[type=checkbox]').click();return true})()",
+        "js:(async()=>{const today=new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10);const p=(await window.__api('GET','/partners')).body.find((x)=>x.code==='QA-CUST');const accId=sessionStorage.getItem('accId');const no='QADEL2-'+Date.now();const c=await window.__api('POST','/checks',{type:'RECEIVED',checkNo:no,amount:11111,issueDate:today,partnerId:p.id,remark:'QA회계2 수표삭제'});const before=(await window.__api('GET','/bank-cards/accounts')).body.find((a)=>String(a.id)===accId).balance;await window.__api('POST','/checks/'+c.body.id+'/deposit',{bankAccountId:Number(accId),depositDate:today});sessionStorage.setItem('ck2No',no);sessionStorage.setItem('ck2Id',c.body.id);sessionStorage.setItem('bal2',before);return c.status})()",
+        "click:검색(F8)",
+        "wait:1500",
+        "js:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('ck2No'))&&t.cells[3].innerText.trim()==='증가');tr.querySelector('input[type=checkbox]').click();return true})()",
         "click:선택삭제",
         "wait:500",
-        "expect:document.body.innerText.includes('전표를 삭제하겠습니까?')",
+        "expect:document.body.innerText.includes('선택한 전표를 삭제 하겠습니까?')",
         "clicklast:확인",
-        "wait:1500",
-        "expect:document.body.innerText.includes('감소 줄(입금완료)부터 지우세요')"
+        "wait:2000",
+        "expect:!([...document.querySelectorAll('tbody tr')].some((t)=>t.innerText.includes(sessionStorage.getItem('ck2No'))))",
+        "js:(async()=>{const a=(await window.__api('GET','/bank-cards/accounts')).body.find((x)=>String(x.id)===sessionStorage.getItem('accId'));window.__ok2=Number(a.balance)===Number(sessionStorage.getItem('bal2'));return a.balance+' / '+sessionStorage.getItem('bal2')})()",
+        "expect:window.__ok2===true"
       ]
     },
     {
@@ -35,12 +38,12 @@
       "steps": [
         "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
         "wait:2000",
-        "js:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('ckNo'))&&t.innerText.includes('수령수표감소'));tr.querySelector('input[type=checkbox]').click();return true})()",
+        "js:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('ckNo'))&&t.cells[3].innerText.trim()==='감소');tr.querySelector('input[type=checkbox]').click();return true})()",
         "click:선택삭제",
         "wait:500",
         "clicklast:확인",
         "wait:2000",
-        "expect:(()=>{const rows=[...document.querySelectorAll('tbody tr')].filter((t)=>t.innerText.includes(sessionStorage.getItem('ckNo')));return rows.length===1&&rows[0].cells[3].innerText.trim()==='수령수표증가'})()",
+        "expect:(()=>{const rows=[...document.querySelectorAll('tbody tr')].filter((t)=>t.innerText.includes(sessionStorage.getItem('ckNo')));return rows.length===1&&rows[0].cells[3].innerText.trim()==='증가'})()",
         "js:(async()=>{const c=(await window.__api('GET','/checks')).body.find((x)=>String(x.id)===sessionStorage.getItem('ckId'));const a=(await window.__api('GET','/bank-cards/accounts')).body.find((x)=>String(x.id)===sessionStorage.getItem('accId'));window.__ok=c.status==='HELD'&&!c.settledDate&&Number(a.balance)===Number(sessionStorage.getItem('bal'));return c.status+' '+a.balance+' / '+sessionStorage.getItem('bal')})()",
         "expect:window.__ok===true"
       ]
