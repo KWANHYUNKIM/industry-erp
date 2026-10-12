@@ -225,8 +225,8 @@
   "palette": 0
  },
  "pages/accounting/CostBuildPage.tsx": {
-  "inline": 15,
-  "color": 2,
+  "inline": 0,
+  "color": 0,
   "palette": 0
  },
  "pages/accounting/CostStatementPage.tsx": {

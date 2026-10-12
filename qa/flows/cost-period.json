@@ -1,0 +1,23 @@
+{
+  "about": "원가생성/수정(E040802) — 2026-10-12 원본 실측: 한 줄 = 원가 기간. 열 [기준년월 · 원가계산방법 · 계산기준 · 사전작업 · 원가계산 · 원가현황 · 기타], 맨 위 줄만 버튼을 펼친다. [신규] 기본등록(시작월 잠김 = 앞 기간 다음 달 · 종료월 · 원가계산법 · 외주비기준) 저장 → 맨 위에 새 줄 + 원가생성전 점검사항이 뜬다 → 표준원가생성 · 생성 → [수정] 이 붙는다 → 삭제(복구되지 않습니다) 하면 줄이 사라진다.",
+  "shots": [
+    {
+      "name": "신규 기간 → 점검사항 → 표준원가생성 · 생성 → 수정 창 → 삭제",
+      "path": "/accounting/cost-build",
+      "steps": [
+        "wait:2000",
+        "expect:[...document.querySelector('table thead tr').cells].map((c) => c.innerText.trim()).join('|') === '기준년월|원가계산방법|계산기준|사전작업|원가계산|원가현황|기타'",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); const B = (t, root = document) => [...root.querySelectorAll('button')].find((b) => b.innerText.trim() === t); sessionStorage.setItem('cpBefore', document.querySelectorAll('tbody tr').length); B('신규(F2)').click(); await W(500); return document.querySelector('input[aria-label=\"시작월\"]').value + ' ' + document.querySelector('input[aria-label=\"시작월\"]').disabled })()",
+        "expect:(() => { const B = (t, root = document) => [...root.querySelectorAll('button')].find((b) => b.innerText.trim() === t); const dlg = [...document.querySelectorAll('[role=dialog]')].pop(); return dlg.innerText.includes('기본등록') && ['총평균법', '선입선출법', '최종매입원가법', '품목등록', '실외주비'].every((t) => dlg.innerText.includes(t)) && !!B('저장(F8)', dlg) && !!B('다시 작성', dlg) })()",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); const B = (t, root = document) => [...root.querySelectorAll('button')].find((b) => b.innerText.trim() === t); const s = document.querySelector('input[aria-label=\"시작월\"]').value; sessionStorage.setItem('cpStart', s); B('저장(F8)', [...document.querySelectorAll('[role=dialog]')].pop()).click(); await W(1500); return s })()",
+        "expect:document.body.innerText.includes('원가생성전 점검사항') && document.querySelector('tbody tr td').innerText.trim() === sessionStorage.getItem('cpStart').replace('-', '/') + ' ~ ' + sessionStorage.getItem('cpStart').replace('-', '/')",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); const B = (t, root = document) => [...root.querySelectorAll('button')].find((b) => b.innerText.trim() === t); B('닫기', [...document.querySelectorAll('[role=dialog]')].pop()).click(); await W(300); B('표준원가생성').click(); await W(2000); B('생성').click(); await W(2000); return 'ok' })()",
+        "expect:(() => { const B = (t, root = document) => [...root.querySelectorAll('button')].find((b) => b.innerText.trim() === t); return document.body.innerText.includes('원가생성] 작업이 완료되었습니다') && !!B('수정', document.querySelector('tbody tr')) })()",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); const B = (t, root = document) => [...root.querySelectorAll('button')].find((b) => b.innerText.trim() === t); B('수정', document.querySelector('tbody tr')).click(); await W(600); return [...document.querySelectorAll('[role=dialog]')].pop().innerText.slice(0, 60) })()",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().innerText.includes('원가수정')",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); const B = (t, root = document) => [...root.querySelectorAll('button')].find((b) => b.innerText.trim() === t); B('닫기', [...document.querySelectorAll('[role=dialog]')].pop()).click(); await W(300); window.confirm = () => true; B('삭제', document.querySelector('tbody tr')).click(); await W(1500); return 'ok' })()",
+        "expect:document.body.innerText.includes('원가삭제] 작업이 완료되었습니다') && document.querySelectorAll('tbody tr').length === Number(sessionStorage.getItem('cpBefore'))"
+      ]
+    }
+  ]
+}

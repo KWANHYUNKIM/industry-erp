@@ -156,6 +156,7 @@ function resolveEntity(stem) {
  * 한 화면에서만 서버가 채우는 값은 여기 적는다.
  */
 const OWNED_HERE = new Map([
+  ['CostPeriod|generated', '원가생성/수정 원가계산 [생성](POST /cost-periods/{id}/generate)이 켠다 — 원본 기본등록 창에는 그 칸이 없다(2026-10-12 실측)'],
   ['WorkPost|labels', '공지사항 하단 [라벨변경] 판의 전용 자리(PATCH …/{id}/labels)에서 정한다 — 원본 E200080 글쓰기 창에는 라벨 칸이 없다'],
   ['Department|headEmployeeId', '조직도등록 [부서장지정](PUT …/{id}/head) · [부서장설정](PUT …/heads) 전용 자리에서 정한다 — 부서 등록 · 수정 창에는 원본도 부서장 칸이 없다'],
   ['Asset|assetNo', 'DocumentNoGenerator 가 매긴다'],
