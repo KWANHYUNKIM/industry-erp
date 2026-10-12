@@ -6075,14 +6075,6 @@
    "for (const l of v.lines)"
   ]
  },
- "가지급금정산서집계|사원": {
-  "claim": "가지급금정산서 입력에 사원 칸이 없다(간편전표의 사원은 현금거래 일시적으로 전표에만 선다)",
-  "absent": [
-   "employee",
-   "Employee"
-  ],
-  "in": "frontend/src/pages/accounting/FastVoucherPage.tsx"
- },
  "가지급금정산서집계|기 타": {
   "claim": "결재 칸을 그리지 않는다",
   "absent": [

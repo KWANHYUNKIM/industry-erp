@@ -37,7 +37,7 @@ interface Row { key: string; date: string; no: string; bank: string; account: st
  * 끝 [합계](앞 다섯 칸 묶음). 한 줄은 간편전표(/vouchers?type=…)의 내역 한 줄이다. 계좌명은 그 전표의 계좌(없으면 결제수단 이름).
  * 간편전표에는 수수료 · 부가세가 없어 그 칸은 비운다. 가지급금의 [사원명]은 줄의 [정산자](2026-10-12 가지급금정산서 입력 화면부터).
  * 계좌별계정별집계 · 계정별집계 판은 원본을 못 재 계좌 · 계정으로 묶은 합만 찍는다.
- * [집계](○집계 판)는 아직 없고, 부서 · 프로젝트는 간편전표에 없다.
+ * [집계](○집계 판)는 아직 없고, 부서 · 프로젝트는 결의서 입력이 싣지 않는다(현금거래 한 장 입력만 든다).
  */
 export default function ExpenseSlipSummaryPage({ side = '지출' }: { side?: Side }) {
   const title = TITLE[side]
@@ -170,7 +170,15 @@ export default function ExpenseSlipSummaryPage({ side = '지출' }: { side?: Sid
             {banks.map((b) => <option key={b} value={b}>{b}</option>)}
           </select>
         </EcCond>
-        ) : null}
+        ) : (
+        /* 원본 가지급금정산서집계 [사원] — 줄의 [정산자](가지급금정산서 입력, 2026-10-12)로 거른다. */
+        <EcCond label="사원">
+          <select className="ec-input w-[180px]" aria-label="사원" value={outAccount} onChange={(e) => setOutAccount(e.target.value)}>
+            <option value="">전체</option>
+            {banks.map((b) => <option key={b} value={b}>{b}</option>)}
+          </select>
+        </EcCond>
+        )}
       </ul>
 
       <EcReportHead title={TITLE[side]} period={reportPeriod(from, to)} />
