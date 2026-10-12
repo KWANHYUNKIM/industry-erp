@@ -45,6 +45,24 @@ public class ApprovalSettingController {
         return ResponseEntity.noContent().build();
     }
 
+    /** 원본 '구분검색' — 그룹코드 · 그룹명. */
+    @GetMapping("/groups")
+    public List<com.erp.groupware.approval.dto.ApprovalSettingDtos.GroupResponse> groups() {
+        return service.findGroups();
+    }
+
+    @PostMapping("/groups")
+    public com.erp.groupware.approval.dto.ApprovalSettingDtos.GroupResponse createGroup(
+            @Valid @RequestBody com.erp.groupware.approval.dto.ApprovalSettingDtos.GroupRequest req) {
+        return service.createGroup(req);
+    }
+
+    @PutMapping("/groups/{id}")
+    public com.erp.groupware.approval.dto.ApprovalSettingDtos.GroupResponse updateGroup(
+            @PathVariable Long id, @Valid @RequestBody com.erp.groupware.approval.dto.ApprovalSettingDtos.GroupRequest req) {
+        return service.updateGroup(id, req);
+    }
+
     @GetMapping("/presets")
     public List<PresetResponse> presets() {
         return service.findPresets();

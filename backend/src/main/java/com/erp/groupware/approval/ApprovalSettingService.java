@@ -30,6 +30,7 @@ public class ApprovalSettingService {
     private final ApprovalLinePresetRepository presetRepository;
     private final ApprovalDocumentRepository documentRepository;
     private final UserRepository userRepository;
+    private final ApprovalGroupRepository groupRepository;
 
     // ── 공통양식 ──────────────────────────────────────────────────────
 
@@ -40,7 +41,7 @@ public class ApprovalSettingService {
                     int c = Integer.compare(a.getSortOrder(), b.getSortOrder());
                     return c != 0 ? c : a.getCode().compareTo(b.getCode());
                 })
-                .map(t -> FormTemplateResponse.from(t, documentRepository.countByFormTemplateId(t.getId())))
+                .map(t -> FormTemplateResponse.from(t, documentRepository.countByFormTemplateId(t.getId()), groupName(t.getGroupCode())))
                 .toList();
     }
 
@@ -56,8 +57,9 @@ public class ApprovalSettingService {
                 .sortOrder(req.sortOrder() != null ? req.sortOrder() : 0)
                 .active(req.active() == null || req.active())
                 .fieldSchema(schema(req.fieldSchema()))
+                .groupCode(groupCode(req.groupCode()))
                 .build();
-        return FormTemplateResponse.from(templateRepository.save(t), 0);
+        return FormTemplateResponse.from(templateRepository.save(t), 0, groupName(t.getGroupCode()));
     }
 
     @Transactional
@@ -68,7 +70,8 @@ public class ApprovalSettingService {
         t.setSortOrder(req.sortOrder() != null ? req.sortOrder() : t.getSortOrder());
         t.setActive(req.active() == null || req.active());
         t.setFieldSchema(schema(req.fieldSchema()));
-        return FormTemplateResponse.from(t, documentRepository.countByFormTemplateId(t.getId()));
+        t.setGroupCode(groupCode(req.groupCode()));
+        return FormTemplateResponse.from(t, documentRepository.countByFormTemplateId(t.getId()), groupName(t.getGroupCode()));
     }
 
     /** 기안서가 한 건도 없는 양식만 삭제한다. 쓰인 양식은 사용중지로 내린다. */
@@ -81,6 +84,62 @@ public class ApprovalSettingService {
                     + t.getName() + " (사용중지로 내리세요)");
         }
         templateRepository.delete(t);
+    }
+
+    /**
+     * 양식 목록(기안서작성 · 공통양식리스트)이 쓰는 꼴 — 구분 이름까지. 사용 중인 양식만.
+     * 컨트롤러가 리포지토리를 직접 부르던 자리(CLAUDE.md 3장)를 여기로 옮겼다.
+     */
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> activeTemplates() {
+        return templateRepository.findByActiveTrueOrderBySortOrderAscCodeAsc().stream()
+                .map(t -> {
+                    Map<String, Object> m = new java.util.LinkedHashMap<>();
+                    m.put("id", t.getId());
+                    m.put("code", t.getCode());
+                    m.put("name", t.getName());
+                    m.put("sortOrder", t.getSortOrder());
+                    m.put("fieldSchema", t.getFieldSchema());
+                    m.put("groupCode", t.getGroupCode());
+                    m.put("groupName", groupName(t.getGroupCode()));
+                    return m;
+                })
+                .toList();
+    }
+
+    // ── 구분(그룹) — 원본 '구분검색' ──────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public List<ApprovalSettingDtos.GroupResponse> findGroups() {
+        return groupRepository.findAllByOrderByCodeAsc().stream().map(ApprovalSettingDtos.GroupResponse::from).toList();
+    }
+
+    @Transactional
+    public ApprovalSettingDtos.GroupResponse createGroup(ApprovalSettingDtos.GroupRequest req) {
+        String code = req.code().trim();
+        if (groupRepository.findByCode(code).isPresent()) throw ApiException.conflict("이미 등록된 그룹코드입니다: " + code);
+        return ApprovalSettingDtos.GroupResponse.from(groupRepository.save(
+                ApprovalGroup.builder().code(code).name(req.name().trim()).build()));
+    }
+
+    /** 원본 [수정] — 그룹명만 바꾼다(코드는 양식이 가리키고 있다). */
+    @Transactional
+    public ApprovalSettingDtos.GroupResponse updateGroup(Long id, ApprovalSettingDtos.GroupRequest req) {
+        ApprovalGroup g = groupRepository.findById(id).orElseThrow(() -> ApiException.notFound("구분을 찾을 수 없습니다. id=" + id));
+        g.setName(req.name().trim());
+        return ApprovalSettingDtos.GroupResponse.from(g);
+    }
+
+    private String groupName(String code) {
+        if (code == null || code.isBlank()) return null;
+        return groupRepository.findByCode(code).map(ApprovalGroup::getName).orElse(null);
+    }
+
+    private String groupCode(String code) {
+        if (code == null || code.isBlank()) return null;
+        String c = code.trim();
+        if (groupRepository.findByCode(c).isEmpty()) throw ApiException.badRequest("없는 구분입니다: " + c);
+        return c;
     }
 
     // ── 결재선 프리셋 ──────────────────────────────────────────────────

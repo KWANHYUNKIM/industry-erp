@@ -1,6 +1,7 @@
 package com.erp.groupware.approval.dto;
 
 import com.erp.groupware.approval.ApprovalFormTemplate;
+import com.erp.groupware.approval.ApprovalGroup;
 import com.erp.groupware.approval.ApprovalLinePreset;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
@@ -25,19 +26,40 @@ public final class ApprovalSettingDtos {
             Integer sortOrder,
             Boolean active,
             /** 양식별 입력 항목 정의. 비우면 자유서식(본문만). */
-            List<Map<String, Object>> fieldSchema
+            List<Map<String, Object>> fieldSchema,
+            /** 기본 구분(그룹코드) — 원본 기본값설정 › 구분. 비우면 구분 없음. */
+            @Size(max = 20, message = "구분 코드는 20자까지 넣을 수 있습니다.") String groupCode
     ) {}
 
     public record FormTemplateResponse(
             Long id, String code, String name, Integer sortOrder, boolean active,
             List<Map<String, Object>> fieldSchema,
             /** 이 양식으로 작성된 기안서 수 — 0건일 때만 삭제할 수 있다 */
-            long documentCount
+            long documentCount,
+            String groupCode,
+            /** 공통양식리스트 [구분] 열 — 구분의 이름 */
+            String groupName
     ) {
-        public static FormTemplateResponse from(ApprovalFormTemplate t, long documentCount) {
+        public static FormTemplateResponse from(ApprovalFormTemplate t, long documentCount, String groupName) {
             return new FormTemplateResponse(
                     t.getId(), t.getCode(), t.getName(), t.getSortOrder(), t.isActive(),
-                    t.getFieldSchema(), documentCount);
+                    t.getFieldSchema(), documentCount, t.getGroupCode(), groupName);
+        }
+    }
+
+    // ── 구분(그룹) ────────────────────────────────────────────────────
+
+    /** 원본 '구분검색' [신규(F2)] · [수정] — 그룹코드 · 그룹명. */
+    public record GroupRequest(
+            @Size(max = 20, message = "그룹코드는 20자까지 넣을 수 있습니다.")
+            @NotBlank(message = "그룹코드를 입력하세요.") String code,
+            @Size(max = 50, message = "그룹명은 50자까지 넣을 수 있습니다.")
+            @NotBlank(message = "그룹명을 입력하세요.") String name
+    ) {}
+
+    public record GroupResponse(Long id, String code, String name) {
+        public static GroupResponse from(ApprovalGroup g) {
+            return new GroupResponse(g.getId(), g.getCode(), g.getName());
         }
     }
 

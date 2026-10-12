@@ -12,6 +12,7 @@ import type { ApprovalDoc, ApprovalFormTemplate, ApprovalPreset, MemberOption } 
 import { ymd } from '../../components/EcPeriodPicks'
 import { useShortcut } from '../../utils/useShortcut'
 import { useTableSort } from '../../utils/useTableSort'
+import { fetchApprovalGroups, type ApprovalGroup, type WithGroup } from '../../features/approval/groups'
 
 const TITLE = '기안서작성'
 // 글꼴 select 표시명 → 실제 CSS font-family 매핑
@@ -37,7 +38,9 @@ export default function ApprovalDraftPage() {
   // 기안서통합관리의 '기안서복사'가 원본 문서를 넘겨준다.
   const copyFrom = (useLocation().state as { copyFrom?: ApprovalDoc } | null)?.copyFrom ?? null
   const [members, setMembers] = useState<MemberOption[]>([])
-  const [templates, setTemplates] = useState<ApprovalFormTemplate[]>([])
+  const [templates, setTemplates] = useState<(ApprovalFormTemplate & WithGroup)[]>([])
+  /** 원본 [구분] 코드도움의 후보 — '구분검색'(01 지출결의서 · 02 휴가신청서 …). */
+  const [groups, setGroups] = useState<ApprovalGroup[]>([])
   const [selected, setSelected] = useState<ApprovalFormTemplate | null>(null)
   const sort = useTableSort(templates, { 정렬순서: (t) => t.sortOrder, 양식명: (t) => t.name })
 
@@ -120,8 +123,9 @@ export default function ApprovalDraftPage() {
     api.get<ApprovalPreset[]>('/approval-settings/presets')
       .then((r) => setPresets(r.data.filter((p) => p.active)))
       .catch(() => setPresets([]))
+    fetchApprovalGroups().then(setGroups).catch(() => setGroups([]))
     api
-      .get<ApprovalFormTemplate[]>('/approval-form-templates')
+      .get<(ApprovalFormTemplate & WithGroup)[]>('/approval-form-templates')
       .then((r) => {
         setTemplates(r.data)
         if (!copyFrom) return
@@ -129,6 +133,7 @@ export default function ApprovalDraftPage() {
         const t = r.data.find((x) => x.id === copyFrom.formTemplateId)
         if (!t) return
         setSelected(t)
+        setCategory((copyFrom as { category?: string | null }).category ?? t.groupName ?? '')
         setTitle(`${copyFrom.title} (복사)`)
         setDepartment(copyFrom.department ?? '')
         setBody(copyFrom.content ?? '')
@@ -139,9 +144,11 @@ export default function ApprovalDraftPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  function selectForm(t: ApprovalFormTemplate) {
+  function selectForm(t: ApprovalFormTemplate & WithGroup) {
     setSelected(t)
     setTitle(t.name)
+    // 원본: 양식의 기본값설정 › 구분(휴가신청서 → 02 휴가신청서)으로 [구분] 칸이 열린다.
+    setCategory(t.groupName ?? '')
     setFormData(initialFormData(t))
     setError('')
   }
@@ -314,7 +321,7 @@ export default function ApprovalDraftPage() {
               {/*
                 2026-10-03 원본 실측: 머리 셋([정렬순서▼][양식명▼][구분▼])은 눌러 정렬하고 링크색이다.
                 [정렬순서]는 0 을 채우지 않는다('1' · '2' — 우리는 '01' 이었다). [구분]은 양식 분류(휴가신청서 ·
-                지출결의서)인데 우리 양식에는 분류 칸이 없다 — 모든 줄에 '기본' 을 찍던 것을 비운다.
+                지출결의서) — 양식의 기본 구분 이름(2026-10-12 구분 마스터를 만들어 이어 붙임). 없으면 빈칸.
               */}
               <th className="w-[90px] text-center cursor-pointer text-ec-navy" onClick={() => sort.toggle('정렬순서')}>정렬순서 {sort.mark('정렬순서')}</th>
               <th className="cursor-pointer text-ec-navy" onClick={() => sort.toggle('양식명')}>양식명 {sort.mark('양식명')}</th>
@@ -337,7 +344,7 @@ export default function ApprovalDraftPage() {
               <tr key={t.id} onClick={() => selectForm(t)} className="cursor-pointer">
                 <td className="text-center">{t.sortOrder}</td>
                 <td className="text-ec-navy">{t.name}</td>
-                <td />
+                <td>{t.groupName ?? ''}</td>
                 <td />
               </tr>
             ))}
@@ -426,8 +433,13 @@ export default function ApprovalDraftPage() {
                     <th className="bg-ec-page">구분</th>
                     <td>
                       <div className="flex items-center gap-[24px] flex-wrap">
-                        <input className="ec-input" value={category} onChange={(e) => setCategory(e.target.value)}
-                               placeholder="문서 구분" style={{ width: 240 }} />
+                        {/* 원본 [구분] 코드도움 — 구분검색(그룹코드 · 그룹명)에서 고른다. 양식의 기본 구분으로 열린다. */}
+                        <select className="ec-input" aria-label="구분" value={category} onChange={(e) => setCategory(e.target.value)}
+                                style={{ width: 240 }}>
+                          <option value="">구분</option>
+                          {groups.map((g) => <option key={g.id} value={g.name}>{g.code} {g.name}</option>)}
+                          {category && !groups.some((g) => g.name === category) && <option value={category}>{category}</option>}
+                        </select>
                         <span className="flex items-center gap-[8px]">
                           <span className="text-ec-label text-[12px]">출력양식</span>
                           <select className="ec-input" value={printFormat} onChange={(e) => setPrintFormat(e.target.value)} style={{ width: 200 }}>

@@ -44,6 +44,10 @@ public class ApprovalFormTemplate extends BaseTimeEntity {
     @Builder.Default
     private boolean active = true;
 
+    /** 원본 입력화면설정 › 기본값설정 › [구분] — 기안서 구분(그룹) 코드. 비우면 구분 없음. */
+    @Column(name = "group_code", length = 20)
+    private String groupCode;
+
     /**
      * 양식별 입력 항목 정의. 프론트가 이걸 읽어 폼을 그린다.
      * 빈 배열이면 자유서식(본문 리치텍스트)만 쓴다.

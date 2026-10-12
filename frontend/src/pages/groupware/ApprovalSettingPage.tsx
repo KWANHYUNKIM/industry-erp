@@ -7,6 +7,7 @@ import CodePickerField from '../../components/CodePickerField'
 import Modal from '../../components/Modal'
 import { useTableSort } from '../../utils/useTableSort'
 import { useShortcut } from '../../utils/useShortcut'
+import { fetchApprovalGroups, type ApprovalGroup, type WithGroup } from '../../features/approval/groups'
 import type {
   ApprovalField, ApprovalFieldType, ApprovalFormTemplateAdmin, ApprovalPreset, MemberOption,
 } from '../../types/api'
@@ -143,7 +144,7 @@ export default function ApprovalSettingPage() {
             {/*
               원본 공통양식리스트(E070107): [정렬순서▼][양식명▼][구분▼][결재문서] 네 칸, 양식명을 누르면 그 양식을 고친다,
               하단 [신규(F2)] 하나. 우리는 순서·양식코드·양식명·입력항목·기안서·사용·처리 일곱 칸이었다.
-              [구분]은 양식 분류(휴가신청서·지출결의서)인데 우리 양식에 분류가 없어 비운다. 삭제는 양식을 열어서 한다.
+              [구분]은 양식의 기본 구분(기본값설정 › 구분, '구분검색' 01 지출결의서 · 02 휴가신청서 …)의 이름. 삭제는 양식을 열어서 한다.
             */}
             <table className="w-full text-left">
               <thead>
@@ -164,7 +165,7 @@ export default function ApprovalSettingPage() {
                       <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-left text-ec-navy"
                               onClick={() => setEditing(t)}>{t.name}{t.active ? '' : ' (사용중단)'}</button>
                     </td>
-                    <td />
+                    <td>{(t as WithGroup).groupName ?? ''}</td>
                     <td />
                   </tr>
                 ))}
@@ -267,6 +268,10 @@ function TemplateForm({ template, onError, onClose, onSaved, onDelete }: {
   const [name, setName] = useState(template?.name ?? '')
   const [sortOrder, setSortOrder] = useState(String(template?.sortOrder ?? 0))
   const [active, setActive] = useState(template?.active ?? true)
+  /** 원본 기본값설정 › 구분 — '구분검색'에서 고른 그룹코드. */
+  const [groupCode, setGroupCode] = useState((template as WithGroup | null)?.groupCode ?? '')
+  const [groups, setGroups] = useState<ApprovalGroup[]>([])
+  useEffect(() => { fetchApprovalGroups().then(setGroups).catch(() => setGroups([])) }, [])
   const [fields, setFields] = useState<FieldRow[]>(
     (template?.fieldSchema ?? [])
       .filter((f) => EDITABLE_TYPES.includes(f.type))
@@ -293,7 +298,7 @@ function TemplateForm({ template, onError, onClose, onSaved, onDelete }: {
     ]
     setSaving(true)
     try {
-      const body = { code: code.toUpperCase(), name, sortOrder: Number(sortOrder) || 0, active, fieldSchema: schema }
+      const body = { code: code.toUpperCase(), name, sortOrder: Number(sortOrder) || 0, active, fieldSchema: schema, groupCode: groupCode || null }
       if (isNew) await api.post('/approval-settings/templates', body)
       else await api.put(`/approval-settings/templates/${template.id}`, body)
       onSaved(name)
@@ -320,6 +325,13 @@ function TemplateForm({ template, onError, onClose, onSaved, onDelete }: {
         </Field>
         <Field label="정렬순서">
           <input className="ec-input" type="number" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} style={{ width: 90, textAlign: 'right' }} />
+        </Field>
+        {/* 원본 입력화면설정 › 기본값설정 › [구분] (직접지정 · 코드도움 '구분검색') */}
+        <Field label="구분">
+          <select className="ec-input" aria-label="구분" value={groupCode} onChange={(e) => setGroupCode(e.target.value)}>
+            <option value="">미설정</option>
+            {groups.map((g) => <option key={g.id} value={g.code}>{g.code} {g.name}</option>)}
+          </select>
         </Field>
         <Field label="사용여부">
           <select className="ec-input" value={active ? '1' : '0'} onChange={(e) => setActive(e.target.value === '1')} style={{ width: 100 }}>

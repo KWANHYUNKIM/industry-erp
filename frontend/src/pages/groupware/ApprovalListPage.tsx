@@ -185,10 +185,12 @@ export default function ApprovalListPage({
       .catch(() => {})
   }, [])
 
+  /** 원본 [구분] — 기안서의 구분(그룹) 이름. 양식(formTypeName)과 다르다(휴가신청서 양식 → 구분 '휴가신청서', 출장보고서 양식 → 빈칸). */
+  const catOf = (d: ApprovalDoc) => (d as ApprovalDoc & { category?: string | null }).category ?? ''
   const inPeriod = (d: ApprovalDoc) =>
     (!from || (d.draftDate ?? '') >= from) && (!to || (d.draftDate ?? '') <= to)
   const filtered = rows.filter((r) => inTab(r, tab, user?.name)).filter(inPeriod)
-    .filter((r) => !formType || r.formTypeName === formType)
+    .filter((r) => !formType || catOf(r) === formType)
     .filter((r) => !dept || (r.department ?? '') === dept)
     .filter((r) => !project || String(r.projectId ?? '') === project)
     .filter((r) => !labelCond || (r.labelText ?? '') === labelCond)
@@ -212,7 +214,7 @@ export default function ApprovalListPage({
    */
   const sort = useTableSort(filtered, {
     기안일자: (r) => r.draftNo,
-    구분: (r) => r.formTypeName,
+    구분: (r) => catOf(r),
     기안자: (r) => r.drafterName,
   })
   const PAGE_SIZE = 15
@@ -220,7 +222,7 @@ export default function ApprovalListPage({
   const curPage = Math.min(page, pages)
 
   /** 조건 보기에 채울 값 — 지금 목록에 실제로 있는 것만 고르게 한다. */
-  const formTypes = [...new Set(rows.map((r) => r.formTypeName).filter(Boolean))].sort()
+  const formTypes = [...new Set(rows.map(catOf).filter(Boolean))].sort()
   const depts = [...new Set(rows.map((r) => r.department).filter(Boolean))].sort() as string[]
   /* 프로젝트는 이름이 겹칠 수 있어 id 로 고르고 거른다(코드도움). */
   const projects = [...new Map(rows.filter((r) => r.projectId != null)
@@ -545,8 +547,8 @@ export default function ApprovalListPage({
                 <td className="whitespace-nowrap">{r.draftNo}</td>
                 <td><a onClick={() => setDetail(r)} className="text-ec-blue cursor-pointer">{r.title}</a></td>
                 {isAll && <td className="text-center">{r.voucherCount > 0 ? r.voucherCount : ''}</td>}
-                {/* 원본 [구분]은 양식 분류(휴가신청서 · 지출결의서)다 — 분류 없는 양식(비품 구매 신청서)은 빈칸. 우리 양식에는 분류가 없어 빈칸이다. 양식 이름은 칸 풍선으로. */}
-                {isAll && <td title={r.formTypeName} />}
+                {/* 원본 [구분]은 기안서의 구분(휴가신청서 · 지출결의서)이다 — 구분 없는 문서(비품 구매 신청서)는 빈칸. 양식 이름은 칸 풍선으로. */}
+                {isAll && <td title={r.formTypeName}>{catOf(r)}</td>}
                 <td>{r.drafterName}</td>
                 <td>{r.currentApproverName ?? ''}</td>
                 <td className="text-center">
