@@ -26,10 +26,10 @@ public class OtherWithholdingDtos {
             @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
             String description,
             /** 원본 [귀속연월] YYYY-MM — 비우면 지급일의 연월. */
-            @jakarta.validation.constraints.Pattern(regexp = "\\d{4}-\\d{2}", message = "귀속연월 형식이 올바르지 않습니다(YYYY-MM).")
+            @Size(max = 7, message = "입력한 글자가 너무 깁니다. 7자까지 넣을 수 있습니다.") @jakarta.validation.constraints.Pattern(regexp = "\\d{4}-\\d{2}", message = "귀속연월 형식이 올바르지 않습니다(YYYY-MM).")
             String attributionMonth,
             /** 원본 [업종구분코드](사업소득 940903 …) / [소득코드](기타소득 60 · 62 · 76 · 79, 이자배당 22). 기타소득 60 은 필요경비가 없다. */
-            @jakarta.validation.constraints.Pattern(regexp = "\\d{2,6}", message = "소득코드는 숫자 2~6자리입니다.")
+            @Size(max = 10, message = "입력한 글자가 너무 깁니다. 10자까지 넣을 수 있습니다.") @jakarta.validation.constraints.Pattern(regexp = "\\d{2,6}", message = "소득코드는 숫자 2~6자리입니다.")
             String incomeCode
     ) {}
 
@@ -94,7 +94,7 @@ public class OtherWithholdingDtos {
      */
     public record SlipLineRequest(
             Long payeeId,
-            @jakarta.validation.constraints.Pattern(regexp = "\\d{2,6}", message = "소득코드는 숫자 2~6자리입니다.") String incomeCode,
+            @Size(max = 10, message = "입력한 글자가 너무 깁니다. 10자까지 넣을 수 있습니다.") @jakarta.validation.constraints.Pattern(regexp = "\\d{2,6}", message = "소득코드는 숫자 2~6자리입니다.") String incomeCode,
             @NotNull(message = "지급총액을 입력바랍니다.") @Positive(message = "지급총액을 입력바랍니다.") BigDecimal grossAmount,
             @PositiveOrZero(message = "필요경비율이 올바르지 않습니다.") BigDecimal expenseRate,
             @NotNull(message = "세율을 선택바랍니다.") @PositiveOrZero(message = "세율이 올바르지 않습니다.") BigDecimal taxRate,
@@ -119,7 +119,7 @@ public class OtherWithholdingDtos {
             LocalDate periodTo,
             @PositiveOrZero(message = "이자율이 올바르지 않습니다.") BigDecimal interestRate,
             com.erp.accounting.otherwithholding.ChangeKind changeKind,
-            @jakarta.validation.constraints.Pattern(regexp = "\\d{4}-\\d{2}", message = "변동자료제출연월 형식이 올바르지 않습니다(YYYY-MM).") String changeMonth,
+            @Size(max = 7, message = "입력한 글자가 너무 깁니다. 7자까지 넣을 수 있습니다.") @jakarta.validation.constraints.Pattern(regexp = "\\d{4}-\\d{2}", message = "변동자료제출연월 형식이 올바르지 않습니다(YYYY-MM).") String changeMonth,
             boolean trustIncome
     ) {}
 
@@ -127,9 +127,9 @@ public class OtherWithholdingDtos {
     public record SlipRequest(
             @NotNull(message = "지급일자를 입력하세요.") LocalDate payDate,
             @NotNull(message = "귀속연월을 입력하세요.")
-            @jakarta.validation.constraints.Pattern(regexp = "\\d{4}-\\d{2}", message = "귀속연월 형식이 올바르지 않습니다(YYYY-MM).") String attributionMonth,
+            @Size(max = 7, message = "입력한 글자가 너무 깁니다. 7자까지 넣을 수 있습니다.") @jakarta.validation.constraints.Pattern(regexp = "\\d{4}-\\d{2}", message = "귀속연월 형식이 올바르지 않습니다(YYYY-MM).") String attributionMonth,
             @NotNull(message = "지급연월을 입력하세요.")
-            @jakarta.validation.constraints.Pattern(regexp = "\\d{4}-\\d{2}", message = "지급연월 형식이 올바르지 않습니다(YYYY-MM).") String payMonth,
+            @Size(max = 7, message = "입력한 글자가 너무 깁니다. 7자까지 넣을 수 있습니다.") @jakarta.validation.constraints.Pattern(regexp = "\\d{4}-\\d{2}", message = "지급연월 형식이 올바르지 않습니다(YYYY-MM).") String payMonth,
             @NotNull(message = "소득구분을 선택하세요.") IncomeType incomeType,
             @jakarta.validation.Valid List<SlipLineRequest> lines
     ) {}
