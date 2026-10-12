@@ -11,7 +11,10 @@ import type { JournalEntry } from '../../types/api'
 type Side = '매출' | '매입'
 type Status = '전체' | '결재중' | '미확인' | '확인'
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
-interface Row { key: string; date: string; no: string; partner: string; supply: number; vat: number; fromSlip: boolean }
+/** 내역보기: 판매 · 구매 전표면 거래명세서, 회계에서 바로 쓴 전표면 회계 I, (세금)계산서발행/수령에서 쓴 계산서면 세무. */
+type Source = '거래명세서' | '회계 I' | '세무'
+interface Row { key: string; date: string; no: string; partner: string; supply: number; vat: number; source: Source }
+interface TaxVoucher { id: number; side: 'SALES' | 'PURCHASE'; entryDate: string; entryNo: number; partnerName: string; supplyAmount: number; vatAmount: number }
 const STATUSES: Status[] = ['전체', '결재중', '미확인', '확인']
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 
@@ -23,6 +26,8 @@ const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR')
  * 목록 [☐ · 일자-번호 · 거래처명 · 공급가액 · 부가세 · 합계 · 내역보기], 최근 일자부터. [내역보기]는 판매 · 구매 전표에서 온 줄이면
  * '내역보기 거래명세서', 회계에서 바로 쓴 줄이면 '회계 I'. 줄은 부가세 줄(매출 255 · 매입 135)이 든 회계전표 한 장이다 — 회계 I 의
  * 매출(세금)계산서현황과 같은 셈(utils/vatSlip). 우리 회계전표는 결재를 거치지 않아 결재중 · 미확인은 늘 비어 있다.
+ * (세금)계산서발행/수령(C000068)에서 쓴 계산서도 한 줄씩 싣는다 — 분개가 없는 부가세 신고용 자료라 [내역보기]는 '세무'
+ * (2026-10-12 원본에서 매출 100,000 을 저장해 확인).
  *
  * <p>두지 않은 것: [Email](바깥 전송) · [대화방] · [인쇄] · [확인취소] · [선택삭제] · [Excel] — 확인취소 · 선택삭제는 원본에서 남의 자료를
  * 지워 보지 않고는 잴 수 없었다.
@@ -34,17 +39,22 @@ export default function TaxInvoiceListPage({ side }: { side: Side }) {
   const [to, setTo] = useState(init.to)
   const [status, setStatus] = useState<Status>('확인')
   const [entries, setEntries] = useState<JournalEntry[]>([])
+  const [vouchers, setVouchers] = useState<TaxVoucher[]>([])
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [error, setError] = useState('')
 
   async function load() {
     setError('')
     try {
-      const r = await api.get<JournalList>('/journals', { params: { from, to, all: true } })
+      const [r, v] = await Promise.all([
+        api.get<JournalList>('/journals', { params: { from, to, all: true } }),
+        api.get<TaxVoucher[]>('/tax-vouchers', { params: { from, to, side: side === '매출' ? 'SALES' : 'PURCHASE' } }),
+      ])
       setEntries(r.data.rows)
+      setVouchers(v.data)
       setPicked(new Set())
     } catch (e) {
-      setEntries([]); setError(extractErrorMessage(e))
+      setEntries([]); setVouchers([]); setError(extractErrorMessage(e))
     }
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -57,10 +67,14 @@ export default function TaxInvoiceListPage({ side }: { side: Side }) {
       const amt = vatSlipAmounts(e.lines, side)
       if (!amt) continue
       out.push({ key: String(e.id), date: e.entryDate, no: e.docNo, partner: e.partnerName ?? '', supply: amt.supply, vat: amt.vat,
-        fromSlip: e.sourceType === 'SALES' || e.sourceType === 'PURCHASE' })
+        source: e.sourceType === 'SALES' || e.sourceType === 'PURCHASE' ? '거래명세서' : '회계 I' })
+    }
+    for (const v of vouchers) {
+      out.push({ key: `tv-${v.id}`, date: v.entryDate, no: String(v.entryNo), partner: v.partnerName,
+        supply: Number(v.supplyAmount), vat: Number(v.vatAmount), source: '세무' })
     }
     return out.sort((a, b) => (a.date !== b.date ? b.date.localeCompare(a.date) : b.no.localeCompare(a.no)))
-  }, [entries, status, side])
+  }, [entries, vouchers, status, side])
 
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, title, [rows.length])
@@ -121,7 +135,7 @@ export default function TaxInvoiceListPage({ side }: { side: Side }) {
               <td className="text-right">{won(r.supply)}</td>
               <td className="text-right">{won(r.vat)}</td>
               <td className="text-right">{won(r.supply + r.vat)}</td>
-              <td className="text-center text-ec-blue">{r.fromSlip ? '내역보기 거래명세서' : '회계 I'}</td>
+              <td className={`text-center${r.source === '거래명세서' ? ' text-ec-blue' : ''}`}>{r.source === '거래명세서' ? '내역보기 거래명세서' : r.source}</td>
             </tr>
           ))}
         </tbody>

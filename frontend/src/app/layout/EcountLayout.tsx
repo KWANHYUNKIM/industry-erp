@@ -794,6 +794,7 @@ const MENU: TopMenu[] = [
         label: '부가세',
         nodes: [
           { label: '신고전검토자료', children: [
+            { label: '(세금)계산서발행/수령', to: '/accounting/vat/tax-voucher' },
             { label: '매출(세금)계산서조회(세무)', to: '/accounting/vat/sales-tax-list' },
             { label: '매출(세금)계산서현황(세무)', to: '/accounting/vat/sales-tax-status' },
             { label: '매입(세금)계산서조회(세무)', to: '/accounting/vat/purchase-tax-list' },
