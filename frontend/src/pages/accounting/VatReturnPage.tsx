@@ -457,7 +457,11 @@ export function ReturnSheet({ s, c }: { s: Sheet; c: CompanyInfo | null }) {
  * 1. 제출자 인적사항, 2. 총합계 [매출처수 · 매수 · 공급가액 · 세액] — 합계 / 전자세금계산서 발급분(사업자등록번호 · 주민등록번호 · 소계) /
  * 그 외 발급분(같은 셋), 3. 그 외 발급분의 거래처별 명세. 원본 2기 예정 매출 10곳 · 19매 · 396,450,000 · 39,645,000 이 모두 전자.
  */
-function InvoiceSummarySheet({ side, s, c, invoices }: { side: '매출' | '매입'; s: Sheet; c: CompanyInfo | null; invoices: Invoice[] }) {
+export function InvoiceSummarySheet({ side, s, c, invoices, written }: {
+  side: '매출' | '매입'; s: Sheet; c: CompanyInfo | null; invoices: Invoice[]
+  /** ⑥작성일 — 과세자료전산매체(E030208)는 신고작성일자를 싣는다('2026년 10월 25일'). */
+  written?: string
+}) {
   const p = s
   const pad = (n: number) => String(n).padStart(2, '0')
   const who = side === '매출' ? '매출처' : '매입처'
@@ -495,7 +499,7 @@ function InvoiceSummarySheet({ side, s, c, invoices }: { side: '매출' | '매�
         <tbody>
           <tr><th>①사업자등록번호</th><td>{c?.bizRegNo ?? ''}</td><th>②상호(법인명)</th><td>{c?.name ?? ''}</td></tr>
           <tr><th>③성명(대표자)</th><td>{c?.ceo ?? ''}</td><th>④사업장소재지</th><td>{address}</td></tr>
-          <tr><th>⑤거래기간</th><td>{s.year}년 {pad(p.first)}월 01일 ~ {s.year}년 {pad(p.last)}월 {pad(p.end)}일</td><th>⑥작성일</th><td></td></tr>
+          <tr><th>⑤거래기간</th><td>{s.year}년 {pad(p.first)}월 01일 ~ {s.year}년 {pad(p.last)}월 {pad(p.end)}일</td><th>⑥작성일</th><td>{written ?? ''}</td></tr>
         </tbody>
       </table>
       <p className="mb-[4px]">2. {side}세금계산서 총합계</p>

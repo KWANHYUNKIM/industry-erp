@@ -1,0 +1,40 @@
+{
+  "about": "과세자료전산매체(원본 E030208) — [신규(F2)] 기본값(☑전체 · 이번 기 여섯 달 · 이달 25일) 저장 → 목록 '전체' · 예정누락 '없음' → 같은 기간을 또 저장하면 '동일한 기간에 이미 생성된 자료가 있습니다.' → [합계표 › 조회] → 매출세금계산서 합계표(갑) · ⑥작성일 → [선택삭제] '삭제한 데이터는 복구되지 않습니다.' → 사라진다. 원본(2026-10-12)에서 2026 / 07 ~ 12 를 만들고 지워 같은 문구를 확인했다.",
+  "shots": [
+    {
+      "name": "신규 저장 → 같은 기간 거절 → 합계표 조회 → 선택삭제",
+      "path": "/accounting/vat/media-files",
+      "steps": [
+        "wait:3000",
+        "clicklast:신규(F2)",
+        "wait:400",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().innerText.includes('전산매체 파일생성')",
+        "clicklast:저장(F8)",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => /\\d{4} \\/ (01 ~ 06|07 ~ 12)\\s+없음/.test(t.innerText) && t.innerText.includes('전체'))",
+        "clicklast:신규(F2)",
+        "wait:400",
+        "clicklast:저장(F8)",
+        "wait:800",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().innerText.includes('동일한 기간에 이미 생성된 자료가 있습니다.')",
+        "allowapi:409: /api/vat-media-files",
+        "clicklast:닫기",
+        "js:[...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('전체')).querySelectorAll('button.ec-link')[1].click(); true",
+        "wait:400",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().innerText.includes('매입세금계산서')",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('tbody tr')].find((t) => t.innerText.includes('매출세금계산서')).querySelector('button.ec-link').click(); true",
+        "wait:1500",
+        "expect:document.body.innerText.includes('매출처별세금계산서합계표 (갑)') && /⑥작성일\\s+\\d{4}년 \\d{2}월 25일/.test(document.body.innerText)",
+        "clicklast:닫기",
+        "wait:200",
+        "clicklast:닫기",
+        "js:[...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes('전체')).querySelector('input[type=checkbox]').click(); true",
+        "clicklast:선택삭제",
+        "expect:document.body.innerText.includes('삭제한 데이터는 복구되지 않습니다.')",
+        "clicklast:확인",
+        "wait:1200",
+        "expect:document.body.innerText.includes('등록된 데이터가 없습니다.')"
+      ]
+    }
+  ]
+}
