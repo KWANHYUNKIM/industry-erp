@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
+import SimpleAdjustDialog from '../../features/stockadjust/components/SimpleAdjustDialog'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
@@ -44,6 +45,8 @@ interface Line {
 export default function StocktakeListPage() {
   const pickers = useCondPickers(['warehouses', 'items', 'employees'])
   const init = periodOf('차월')!
+  /* 원본 [간편재고조정] — 품목 × 창고 재고 표에서 실사수량을 넣는 창(SimpleAdjustDialog). */
+  const [simpleOpen, setSimpleOpen] = useState(false)
   const [sort, setSort] = useState<'전체' | '간편' | '단계별'>('전체')
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
@@ -143,12 +146,13 @@ export default function StocktakeListPage() {
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: () => { setSort('전체'); setFrom(init.from); setTo(init.to); setWarehouse(''); setItem(''); setPerson('') } },
         /* 원본 버튼줄 — 재고조정조회와 같은 두 갈래(2026-10-12 실측). */
-        { label: '간편재고조정', onClick: () => navigate('/inventory/transfer?tab=재고조정') },
+        { label: '간편재고조정', onClick: () => setSimpleOpen(true) },
         { label: '단계별재고실사', onClick: () => navigate('/inventory/stocktake') },
         { label: '선택삭제', onClick: () => void removePicked(), disabled: picked.size === 0 },
         { label: 'Excel' },
       ]}
     >
+      <SimpleAdjustDialog open={simpleOpen} onClose={() => setSimpleOpen(false)} onDone={() => void load()} />
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="구분">

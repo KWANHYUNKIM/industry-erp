@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
+import { useNavigate } from 'react-router-dom'
+import SimpleAdjustDialog from '../../features/stockadjust/components/SimpleAdjustDialog'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
@@ -38,6 +40,9 @@ interface Row {
 export default function StagedProgressPage() {
   const pickers = useCondPickers(['warehouses', 'items', 'employees'])
   const init = periodOf('금년')!
+  /* 원본 [간편재고조정] — 품목 × 창고 재고 표에서 실사수량을 넣는 창(SimpleAdjustDialog). */
+  const [simpleOpen, setSimpleOpen] = useState(false)
+  const navigate = useNavigate()
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
   const [warehouse, setWarehouse] = useState('')
@@ -101,9 +106,13 @@ export default function StagedProgressPage() {
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setWarehouse(''); setItem(''); setPerson(''); setAdjusted('전체') } },
+        /* 원본 버튼줄 간편재고조정 · 단계별재고실사 · 재고조정(2026-10-12 실측) — [재고조정]은 무엇을 여는지 아직 안 쟀다. */
+        { label: '간편재고조정', onClick: () => setSimpleOpen(true) },
+        { label: '단계별재고실사', onClick: () => navigate('/inventory/stocktake') },
         { label: 'Excel' },
       ]}
     >
+      <SimpleAdjustDialog open={simpleOpen} onClose={() => setSimpleOpen(false)} onDone={() => void load()} />
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
