@@ -33,6 +33,8 @@ import java.util.*;
 @RequiredArgsConstructor
 public class SimplePaymentService {
 
+    static final String DUPLICATE = "이미 생성된 자료입니다.";
+
     private final SimplePaymentStatementRepository repository;
     private final OtherWithholdingRepository otherWithholdingRepository;
     private final WithholdingService withholdingService;
@@ -54,6 +56,11 @@ public class SimplePaymentService {
     @Transactional
     public StatementResponse create(StatementRequest req) {
         checkPeriod(req);
+        // 원본 E030116: 같은 자료구분 · 지급연월이 이미 있으면 '이미 생성된 자료입니다.'(2026-10-13, 간이 근로소득 2026 하반기)
+        if (req.kind() != SimplePaymentKind.DAILY
+                && repository.existsByKindAndPayYearAndPeriod(req.kind(), req.payYear(), req.period())) {
+            throw ApiException.badRequest(DUPLICATE);
+        }
         SimplePaymentStatement s = SimplePaymentStatement.builder().build();
         apply(s, req);
         return toResponse(repository.save(s));
@@ -63,6 +70,10 @@ public class SimplePaymentService {
     public StatementResponse update(Long id, StatementRequest req) {
         checkPeriod(req);
         SimplePaymentStatement s = find(id);
+        if (req.kind() != SimplePaymentKind.DAILY
+                && repository.existsByKindAndPayYearAndPeriodAndIdNot(req.kind(), req.payYear(), req.period(), id)) {
+            throw ApiException.badRequest(DUPLICATE);
+        }
         apply(s, req);
         return toResponse(s);
     }
