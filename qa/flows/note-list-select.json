@@ -1,0 +1,24 @@
+{
+  "about": "받을어음조회(원본 회계 I › 어음거래 › 받을어음조회 E010622, 2026-10-13 실측: 열 끝 [회계전표일자-No.], 버튼 받을어음증가 · 내역만등록 · 선택삭제 · Excel) — 받을어음 한 장(QA회계1)을 API 로 받아 두고 → 증가 줄의 회계전표일자-No. 가 그 수취 분개('2026/10/13 -n')인지 → 첫 칸으로 골라 [선택삭제] → 창 [확인] → 줄 · 분개가 사라짐. node qa/shot.mjs qa/flows/note-list-select.json",
+  "shots": [
+    {
+      "name": "회계전표일자-No. → 선택삭제",
+      "path": "/accounting/notes-list",
+      "steps": [
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then((r) => r.json()); const p = (await A('GET', '/partners'))[0]; const d = new Date(); const ymd = (x) => x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); const due = new Date(d.getTime() + 20 * 864e5); const n = await A('POST', '/notes', { type: 'RECEIVABLE', partnerId: p.id, issueDate: ymd(d), dueDate: ymd(due), amount: 10000, remark: 'QA회계1-선택삭제' }); sessionStorage.setItem('nlId', n.id); sessionStorage.setItem('nlNo', n.noteNo); const j = (await A('GET', '/journals?from=' + ymd(d) + '&to=' + ymd(d) + '&all=true')).rows.find((x) => x.sourceType === 'NOTE' && x.sourceId === n.id); sessionStorage.setItem('nlJ', ymd(d).replace(/-/g, '/') + ' -' + Number(j.docNo.split('-').pop())); return n.noteNo + ' ' + sessionStorage.getItem('nlJ') })()",
+        "click:검색(F8)",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes(sessionStorage.getItem('nlNo')) && t.innerText.includes('어음증가') && t.innerText.includes(sessionStorage.getItem('nlJ')))",
+        "js:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes(sessionStorage.getItem('nlNo'))); tr.querySelector('input[type=checkbox]').click(); return true })()",
+        "wait:200",
+        "click:선택삭제",
+        "wait:300",
+        "expect:document.body.innerText.includes('전표를 삭제하겠습니까?') && document.body.innerText.includes('- 받을어음조회')",
+        "js:(() => { [...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent.trim() === '확인').click(); return true })()",
+        "wait:1200",
+        "expect:![...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes(sessionStorage.getItem('nlNo')))",
+        "expect:(async () => { const r = await fetch('/api/journals?from=2000-01-01&to=2099-12-31&all=true', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((x) => x.json()); return !r.rows.some((x) => x.sourceType === 'NOTE' && String(x.sourceId) === sessionStorage.getItem('nlId')) })()"
+      ]
+    }
+  ]
+}

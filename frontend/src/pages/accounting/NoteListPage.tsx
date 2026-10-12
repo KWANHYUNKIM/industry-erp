@@ -7,6 +7,8 @@ import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { QUOTATION_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import { dateNo } from '../../utils/dateNo'
+import Modal from '../../components/Modal'
 import type { NoteSummary, NoteType, PromissoryNote } from '../../types/api'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
@@ -23,8 +25,10 @@ interface Move { key: string; date: string; inc: boolean; n: PromissoryNote }
  * 버튼줄 받을어음증가 · 내역만등록 · 선택삭제 · Excel. 수령수표조회와 같은 판이다.
  *
  * <p>한 줄은 어음이 아니라 <b>움직임</b>이다 — 받은 날 '어음증가', 결제 · 할인 · 부도로 손을 떠난 날 '어음감소'.
- * 우리 어음은 모두 어음등록 화면에서 직접 적어 입력구분은 늘 '직접입력'이다. 부서 · 프로젝트는 어음이 들지 않고,
- * 회계전표일자-No. 는 어음 분개를 어음에 잇지 않아(수표는 V239 로 이었다) 열을 두지 않았다.
+ * 우리 어음은 모두 어음등록 화면에서 직접 적어 입력구분은 늘 '직접입력'이다. 부서 · 프로젝트는 어음이 들지 않는다.
+ * <b>회계전표일자-No.</b>: 증가 줄은 수취/발행 분개(출처 어음 · 그 어음 id), 감소 줄은 닫힌 날 적요에 어음번호가 든 분개
+ * (만기결제 · 할인 입금은 계좌 입출금이, 부도는 어음이 만든다 — JournalService.createFromNote 주석).
+ * 첫 칸 체크로 골라 <b>[선택삭제]</b> — 보유 중인 어음만 지워진다(서버가 막는다, 수취 분개도 같이 지운다).
  * <b>지급어음조회</b>(E010630)도 같은 판이다(type).
  */
 export default function NoteListPage({ type }: { type: NoteType }) {
@@ -48,14 +52,23 @@ export default function NoteListPage({ type }: { type: NoteType }) {
   const [notes, setNotes] = useState<PromissoryNote[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  /** 어음 줄 → 회계전표일자-No. 를 찾으려고 같은 기간의 회계전표를 받는다. */
+  const [journals, setJournals] = useState<{ id: number; docNo: string; entryDate: string; description: string | null; sourceType: string; sourceId: number | null }[]>([])
+  const [checked, setChecked] = useState<Set<string>>(new Set())
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   /* 감소는 닫힌 날로 걸어야 해 기간 끝날까지 받은(발행한) 어음을 다 받아 화면에서 날짜로 다시 거른다. */
   async function load() {
     setLoading(true)
     setError('')
     try {
-      const r = await api.get<NoteSummary>('/notes', { params: { to } })
+      const [r, j] = await Promise.all([
+        api.get<NoteSummary>('/notes', { params: { to } }),
+        api.get<{ rows: typeof journals }>('/journals', { params: { from, to, all: true } }).catch(() => ({ data: { rows: [] as typeof journals } })),
+      ])
       setNotes(r.data.notes)
+      setJournals(j.data.rows)
+      setChecked(new Set())
     } catch (e) {
       setError(extractErrorMessage(e))
     } finally {
@@ -93,6 +106,27 @@ export default function NoteListPage({ type }: { type: NoteType }) {
   }, [ofType])
   const authors = useMemo(() => [...new Set(ofType.map((n) => n.createdBy).filter(Boolean) as string[])].sort(), [ofType])
   const kinds = useMemo(() => [...new Set([receivable ? '수취' : '발행', ...ofType.filter((n) => n.closedDate).map((n) => n.statusName)])], [ofType, receivable])
+  /** 회계전표일자-No. — '2026/10/13 -3'. 증가는 출처(어음 · id), 감소는 닫힌 날 적요의 어음번호로 찾는다. */
+  const journalOf = (m: Move) => {
+    const j = m.inc
+      ? journals.find((x) => x.sourceType === 'NOTE' && x.sourceId === m.n.id)
+      : journals.find((x) => x.entryDate === m.date && (x.description ?? '').includes(m.n.noteNo))
+    return j ? dateNo(j.entryDate, j.docNo) : ''
+  }
+  const picked = moves.filter((m) => checked.has(m.key))
+
+  /** 원본 [선택삭제]. 고른 줄의 어음을 지운다 — 보유 중이 아니면 서버가 막고 그 까닭을 띄운다. */
+  async function removeChecked() {
+    setConfirmDelete(false)
+    const ids = [...new Set(picked.map((m) => m.n.id))]
+    if (ids.length === 0) { setError('지울 줄을 고르세요.'); return }
+    setError('')
+    const results = await Promise.allSettled(ids.map((id) => api.delete(`/notes/${id}`)))
+    const failed = results.filter((x) => x.status === 'rejected') as PromiseRejectedResult[]
+    await load()
+    if (failed.length > 0) setError(`${ids.length - failed.length}건 삭제, ${failed.length}건 실패 — ${extractErrorMessage(failed[0].reason)}`)
+  }
+
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, title, [moves.length])
 
@@ -110,6 +144,7 @@ export default function NoteListPage({ type }: { type: NoteType }) {
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setUseDue(false); setNoteNo(''); setShowInc(true); setShowDec(true); setKind(''); setDirect(true); setPartner(''); setRemark(''); setAuthor('') } },
         { label: receivable ? '받을어음증가' : '지급어음증가', onClick: () => navigate('/accounting/notes') },
+        { label: `선택삭제${checked.size ? ` (${checked.size})` : ''}`, onClick: () => setConfirmDelete(true), disabled: checked.size === 0 },
         { label: 'Excel' },
       ]}
     >
@@ -168,6 +203,10 @@ export default function NoteListPage({ type }: { type: NoteType }) {
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
+            <th className="w-[30px]">
+              <input type="checkbox" aria-label="전체 선택" checked={moves.length > 0 && moves.every((m) => checked.has(m.key))}
+                     onChange={(e) => setChecked(e.target.checked ? new Set(moves.map((m) => m.key)) : new Set())} />
+            </th>
             <th className="text-center">일자</th>
             <th>어음번호</th>
             <th className="text-center">증감구분</th>
@@ -176,15 +215,24 @@ export default function NoteListPage({ type }: { type: NoteType }) {
             <th className="text-center">만기일자</th>
             <th>적요</th>
             <th className="text-center">거래유형</th>
+            <th className="text-center">회계전표일자-No.</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={10} className="ec-empty">불러오는 중…</td></tr>
           ) : moves.length === 0 ? (
-            <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : moves.map((m) => (
             <tr key={m.key}>
+              <td className="text-center">
+                <input type="checkbox" aria-label={`${m.n.noteNo} ${m.inc ? '증가' : '감소'} 선택`} checked={checked.has(m.key)}
+                       onChange={(e) => setChecked((prev) => {
+                         const next = new Set(prev)
+                         if (e.target.checked) next.add(m.key); else next.delete(m.key)
+                         return next
+                       })} />
+              </td>
               <td className="text-center">{dateText(m.date)}</td>
               <td>{m.n.noteNo}</td>
               <td className="text-center">{m.inc ? '어음증가' : '어음감소'}</td>
@@ -193,10 +241,20 @@ export default function NoteListPage({ type }: { type: NoteType }) {
               <td className="text-center">{dateText(m.n.dueDate)}</td>
               <td>{m.n.remark ?? ''}</td>
               <td className="text-center">{kindOf(m)}</td>
+              <td className="text-center">{journalOf(m)}</td>
             </tr>
           ))}
         </tbody>
       </table>
+
+      {/* 원본 회계거래조회 [선택삭제] 창과 같은 꼴('전표를 삭제하겠습니까? - 화면이름'). 이 화면의 창은 자료가 없어 못 쟀다. */}
+      <Modal open={confirmDelete} title="알림" width={420} error={error} onClose={() => setConfirmDelete(false)}>
+        <p className="mb-[12px]">전표를 삭제하겠습니까?<br />- {title}</p>
+        <div className="flex gap-[5px]">
+          <button type="button" className="ec-btn ec-btn-primary" disabled={picked.length === 0} onClick={() => void removeChecked()}>확인</button>
+          <button type="button" className="ec-btn" onClick={() => setConfirmDelete(false)}>취소</button>
+        </div>
+      </Modal>
     </EcListShell>
   )
 }
