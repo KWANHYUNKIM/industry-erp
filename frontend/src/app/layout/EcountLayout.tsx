@@ -554,12 +554,14 @@ const MENU: TopMenu[] = [
       {
         label: '채권관리',
         nodes: [
-          /* 원본 채권관리 탭 차례(2026-10-12 실측) — 채권번호로 잇는 채권내역 보조장부. 채권감소등록 · 관리대장 · 잔액분석표는 아직 없다. */
+          /* 원본 채권관리 탭 차례(2026-10-12 실측) — 채권번호로 잇는 채권내역 보조장부. 채권감소등록 · 관리대장인쇄 · 잔액분석표는 아직 없다. */
           { label: '채권조회', to: '/accounting/bonds/ar' },
           { label: '채권거래내역', to: '/accounting/bonds/ar/ledger' },
           { label: '채권증가현황', to: '/accounting/bonds/ar/increase' },
           { label: '채권감소현황', to: '/accounting/bonds/ar/decrease' },
           { label: '채권현황', to: '/accounting/bonds/ar/status' },
+          { label: '거래처채권관리대장', to: '/accounting/bonds/ar/partner-ledger' },
+          { label: '거래처채권집계관리대장', to: '/accounting/bonds/ar/partner-summary' },
           { label: '채권·채무현황', to: '/sales/ledger' },
           { label: '채권/채무현황(기준일자)', to: '/sales/ar-ap-status' },
           { label: '거래처관리대장', to: '/sales/partner-ledger' },
@@ -596,6 +598,8 @@ const MENU: TopMenu[] = [
           { label: '채무증가현황', to: '/accounting/bonds/ap/increase' },
           { label: '채무감소현황', to: '/accounting/bonds/ap/decrease' },
           { label: '채무현황', to: '/accounting/bonds/ap/status' },
+          { label: '거래처채무관리대장', to: '/accounting/bonds/ap/partner-ledger' },
+          { label: '거래처채무집계관리대장', to: '/accounting/bonds/ap/partner-summary' },
           { label: '미지급현황(연령분석)', to: '/sales/payable' },
           { label: '지급현황', to: '/sales/payment' },
           { label: '수금/지급(정산)', to: '/sales/settlement' },

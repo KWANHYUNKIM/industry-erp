@@ -136,6 +136,7 @@ const BondListPage = lazy(() => import('../pages/accounting/BondListPage'))
 const BondLedgerPage = lazy(() => import('../pages/accounting/BondLedgerPage'))
 const BondFlowPage = lazy(() => import('../pages/accounting/BondFlowPage'))
 const BondStatusPage = lazy(() => import('../pages/accounting/BondStatusPage'))
+const BondPartnerLedgerPage = lazy(() => import('../pages/accounting/BondPartnerLedgerPage'))
 const ContractPage = lazy(() => import('../pages/accounting/ContractPage'))
 const CurrencyPage = lazy(() => import('../pages/settings/CurrencyPage'))
 const ExpensePage = lazy(() => import('../pages/accounting/ExpensePage'))
@@ -651,11 +652,15 @@ export default function AppRouter() {
         <Route path="/accounting/bonds/ar/increase" element={<BondFlowPage side="RECEIVABLE" direction="INCREASE" />} />
         <Route path="/accounting/bonds/ar/decrease" element={<BondFlowPage side="RECEIVABLE" direction="DECREASE" />} />
         <Route path="/accounting/bonds/ar/status" element={<BondStatusPage side="RECEIVABLE" />} />
+        <Route path="/accounting/bonds/ar/partner-ledger" element={<BondPartnerLedgerPage side="RECEIVABLE" />} />
+        <Route path="/accounting/bonds/ar/partner-summary" element={<BondPartnerLedgerPage side="RECEIVABLE" summary />} />
         <Route path="/accounting/bonds/ap" element={<BondListPage side="PAYABLE" />} />
         <Route path="/accounting/bonds/ap/ledger" element={<BondLedgerPage side="PAYABLE" />} />
         <Route path="/accounting/bonds/ap/increase" element={<BondFlowPage side="PAYABLE" direction="INCREASE" />} />
         <Route path="/accounting/bonds/ap/decrease" element={<BondFlowPage side="PAYABLE" direction="DECREASE" />} />
         <Route path="/accounting/bonds/ap/status" element={<BondStatusPage side="PAYABLE" />} />
+        <Route path="/accounting/bonds/ap/partner-ledger" element={<BondPartnerLedgerPage side="PAYABLE" />} />
+        <Route path="/accounting/bonds/ap/partner-summary" element={<BondPartnerLedgerPage side="PAYABLE" summary />} />
         <Route path="/accounting/checks-held" element={<CheckHoldingPage type="RECEIVED" />} />
         <Route path="/accounting/checks-issued" element={<CheckHoldingPage type="ISSUED" />} />
         <Route path="/accounting/contracts" element={<ContractPage />} />

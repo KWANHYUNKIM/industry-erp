@@ -57,6 +57,22 @@
       ]
     },
     {
+      "name": "거래처채권관리대장 — 그 번호 증가 50,000 · 감소 20,000 · 잔액 30,000",
+      "path": "/accounting/bonds/ar/partner-ledger",
+      "steps": [
+        "wait:1000",
+        "expect:[...document.querySelectorAll('tbody tr')].filter((t) => t.innerText.includes(sessionStorage.getItem('bno'))).map((t) => t.innerText).join('|').includes('30,000')"
+      ]
+    },
+    {
+      "name": "거래처채권집계관리대장 — 그 번호 한 줄 50,000 · 20,000 · 30,000",
+      "path": "/accounting/bonds/ar/partner-summary",
+      "steps": [
+        "wait:1000",
+        "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.innerText.includes(sessionStorage.getItem('bno')) && t.innerText.includes('50,000') && t.innerText.includes('20,000') && t.innerText.includes('30,000'))"
+      ]
+    },
+    {
       "name": "[선택삭제] — 두 장 다 지운다",
       "path": "/accounting/bonds/ar",
       "steps": [
