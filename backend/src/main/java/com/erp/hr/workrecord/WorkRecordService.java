@@ -7,6 +7,7 @@ import com.erp.hr.workrecord.dto.WorkRecordDtos.LineInput;
 import com.erp.hr.workrecord.dto.WorkRecordDtos.LineResponse;
 import com.erp.hr.workrecord.dto.WorkRecordDtos.SaveSlipRequest;
 import com.erp.hr.workrecord.dto.WorkRecordDtos.SlipResponse;
+import com.erp.hr.workrecord.dto.WorkRecordDtos.HistoryRow;
 import com.erp.common.DocumentNoGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,7 @@ public class WorkRecordService {
     private final EmployeeService employeeService;
     private final PaySettingService paySettingService;
     private final DocumentNoGenerator documentNoGenerator;
+    private final WorkRecordHistoryRepository historyRepository;
 
     /** 근무조회 — 기간 안의 전표를 최신순으로. */
     @Transactional(readOnly = true)
@@ -48,28 +50,57 @@ public class WorkRecordService {
 
     /** 근무입력 [저장] — 새 전표(그 일자의 다음 번호). */
     @Transactional
-    public SlipResponse create(SaveSlipRequest req) {
+    public SlipResponse create(SaveSlipRequest req, String worker) {
         documentNoGenerator.lockNumberSpace("WORKREC" + req.slipDate());
         int slipNo = repository.maxSlipNo(req.slipDate()) + 1;
         saveLines(req.slipDate(), slipNo, req.lines());
-        return findSlip(req.slipDate(), slipNo);
+        SlipResponse saved = findSlip(req.slipDate(), slipNo);
+        record(saved, "신규", worker);
+        return saved;
     }
 
     /** 전표 수정 — 줄을 통째로 바꾼다. */
     @Transactional
-    public SlipResponse update(LocalDate slipDate, int slipNo, SaveSlipRequest req) {
+    public SlipResponse update(LocalDate slipDate, int slipNo, SaveSlipRequest req, String worker) {
         findSlip(slipDate, slipNo);
         repository.deleteBySlipDateAndSlipNo(slipDate, slipNo);
         repository.flush();
         saveLines(slipDate, slipNo, req.lines());
-        return findSlip(slipDate, slipNo);
+        SlipResponse saved = findSlip(slipDate, slipNo);
+        record(saved, "수정", worker);
+        return saved;
     }
 
     /** 근무조회 [선택삭제]. */
     @Transactional
-    public void delete(LocalDate slipDate, int slipNo) {
-        findSlip(slipDate, slipNo);
+    public void delete(LocalDate slipDate, int slipNo, String worker) {
+        SlipResponse before = findSlip(slipDate, slipNo);
         repository.deleteBySlipDateAndSlipNo(slipDate, slipNo);
+        record(before, "삭제", worker);
+    }
+
+    /**
+     * 근무조회 [이력] — 작업일자 구간의 이력, 최신순(원본 2026-10-13 실측: 신규 → 수정(1.00 → 2.00) → 삭제 한 전표가
+     * [최종이력만 검색] 이면 '삭제 · 2.00' 한 줄, H 창은 신규 · 수정 · 삭제 세 줄).
+     */
+    @Transactional(readOnly = true)
+    public List<HistoryRow> findHistories(LocalDate from, LocalDate to) {
+        return historyRepository.findByActedAtBetweenOrderByActedAtDescIdDesc(from.atStartOfDay(), to.plusDays(1).atStartOfDay().minusNanos(1))
+                .stream().map(HistoryRow::from).toList();
+    }
+
+    /** H 창 — 한 전표의 이력, 오래된 것부터. */
+    @Transactional(readOnly = true)
+    public List<HistoryRow> findSlipHistory(LocalDate slipDate, int slipNo) {
+        return historyRepository.findBySlipDateAndSlipNoOrderByActedAtAscIdAsc(slipDate, slipNo).stream().map(HistoryRow::from).toList();
+    }
+
+    private void record(SlipResponse slip, String action, String worker) {
+        historyRepository.save(WorkRecordHistory.builder()
+                .slipDate(slip.slipDate()).slipNo(slip.slipNo()).action(action)
+                .employeeName(slip.employeeLabel()).payItemName(slip.payItemLabel()).quantity(slip.quantity())
+                .worker(worker == null ? "" : worker).actedAt(java.time.LocalDateTime.now())
+                .build());
     }
 
     /** 근무확정현황 · 근무기록확정 창: 귀속월 구간의 확정값. */

@@ -8,6 +8,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.erp.security.UserPrincipal;
+import com.erp.hr.workrecord.dto.WorkRecordDtos.HistoryRow;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -60,19 +63,39 @@ public class WorkRecordController {
     }
 
     @PostMapping
-    public SlipResponse create(@Valid @RequestBody SaveSlipRequest req) {
-        return service.create(req);
+    public SlipResponse create(@Valid @RequestBody SaveSlipRequest req, @AuthenticationPrincipal UserPrincipal principal) {
+        return service.create(req, worker(principal));
     }
 
     @PutMapping("/{slipDate}/{slipNo}")
     public SlipResponse update(@PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate slipDate,
-                               @PathVariable int slipNo, @Valid @RequestBody SaveSlipRequest req) {
-        return service.update(slipDate, slipNo, req);
+                               @PathVariable int slipNo, @Valid @RequestBody SaveSlipRequest req,
+                               @AuthenticationPrincipal UserPrincipal principal) {
+        return service.update(slipDate, slipNo, req, worker(principal));
     }
 
     @DeleteMapping("/{slipDate}/{slipNo}")
     public void delete(@PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate slipDate,
-                       @PathVariable int slipNo) {
-        service.delete(slipDate, slipNo);
+                       @PathVariable int slipNo, @AuthenticationPrincipal UserPrincipal principal) {
+        service.delete(slipDate, slipNo, worker(principal));
+    }
+
+    /** 근무조회 [이력] — 작업일자 구간. */
+    @GetMapping("/histories")
+    public List<HistoryRow> histories(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return service.findHistories(from, to);
+    }
+
+    /** 이력 H 창 — 한 전표의 신규 · 수정 · 삭제. */
+    @GetMapping("/histories/{slipDate}/{slipNo}")
+    public List<HistoryRow> slipHistory(@PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate slipDate,
+                                        @PathVariable int slipNo) {
+        return service.findSlipHistory(slipDate, slipNo);
+    }
+
+    private static String worker(UserPrincipal principal) {
+        return principal == null ? "" : principal.getUsername();
     }
 }

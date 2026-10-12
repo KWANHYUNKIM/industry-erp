@@ -7,6 +7,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import type { EmployeeMaster, PayItem } from '../../types/api'
+import WorkHistoryView from '../../features/workrecord/components/WorkHistoryView'
 
 interface SlipLine { employeeId: number; payItemId: number }
 interface SlipRow { slipDate: string; slipNo: number; employeeLabel: string; payItemLabel: string; quantity: number; lines: SlipLine[] }
@@ -24,10 +25,12 @@ const thisYear = () => {
  * <p>2026-10-03 loginaa 실측: [전체] 알약 · 기간 올해(2026/01/01 ~ 2026/12/31) · 격자 전표일자(2026/10/03 -2) · 사원
  * (여러 줄이면 '정재원 외 1건') · 수당항목 · 근무기록, 최신순. 버튼 신규(F2) · 선택삭제('삭제하시겠습니까?') · Excel.
  * [전표일자]를 누르면 근무입력이 그 전표로 열린다. 조건 판은 접혀 있고 [Search(F3)]로 편다 — 기준일자 · 사원 · 수당항목
- * (여러 개 고르는 코드도움, 전표 줄 하나라도 맞으면 보인다). 프로젝트 조건(근무 전표에 프로젝트가 없다) · 이력은 없다.
+ * (여러 개 고르는 코드도움, 전표 줄 하나라도 맞으면 보인다). 프로젝트 조건(근무 전표에 프로젝트가 없다)은 없다.
+ * 오른쪽 위 [이력] 을 누르면 '근무조회 이력조회'(features/workrecord WorkHistoryView) — 버튼줄은 Excel 만, [전체] 알약으로 돌아온다.
  */
 export default function WorkListPage() {
   const nav = useNavigate()
+  const [historyMode, setHistoryMode] = useState(false)
   const [range, setRange] = useState(thisYear())
   const [shownRange, setShownRange] = useState(range)
   const [empCond, setEmpCond] = useState<string[]>([])
@@ -72,14 +75,23 @@ export default function WorkListPage() {
 
   return (
     <EcListShell
-      title="근무조회"
+      title={historyMode ? '근무조회 이력조회' : '근무조회'}
       searchable={false}
-      onNew={() => nav('/hr/work-input')}
-      actions={[
+      onNew={historyMode ? undefined : () => nav('/hr/work-input')}
+      actions={historyMode ? [{ label: 'Excel' }] : [
         { label: '선택삭제', onClick: deleteChecked, disabled: checked.size === 0 },
         { label: 'Excel' },
       ]}
     >
+      <div className="flex items-center justify-between mb-[8px]">
+        <div className="ec-pills">
+          <button type="button" className={`ec-pill${historyMode ? '' : ' active'}`} onClick={() => { setHistoryMode(false); load() }}>전체</button>
+        </div>
+        <div className="ec-pills">
+          <button type="button" className={`ec-pill${historyMode ? ' active' : ''}`} onClick={() => setHistoryMode(true)}>이력</button>
+        </div>
+      </div>
+      {historyMode ? <WorkHistoryView /> : (<>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond mb-[8px]">
         <EcCond label="기준일자">
@@ -139,6 +151,7 @@ export default function WorkListPage() {
           ))}
         </tbody>
       </table>
+      </>)}
     </EcListShell>
   )
 }

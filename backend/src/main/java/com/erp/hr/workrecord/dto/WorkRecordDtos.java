@@ -57,4 +57,15 @@ public class WorkRecordDtos {
             LocalDate slipDate, int slipNo, String employeeLabel, String payItemLabel,
             BigDecimal quantity, List<LineResponse> lines
     ) {}
+
+    /** 근무조회 [이력] 한 줄 · H 창 한 줄 — 작업일시 · 전표번호 · 행위 · 사원명 · 수당항목 · 근무기록 · 작업자. */
+    public record HistoryRow(
+            Long id, java.time.LocalDateTime actedAt, LocalDate slipDate, int slipNo, String action,
+            String employeeName, String payItemName, BigDecimal quantity, String worker
+    ) {
+        public static HistoryRow from(com.erp.hr.workrecord.WorkRecordHistory h) {
+            return new HistoryRow(h.getId(), h.getActedAt(), h.getSlipDate(), h.getSlipNo(), h.getAction(),
+                    h.getEmployeeName(), h.getPayItemName(), h.getQuantity(), h.getWorker());
+        }
+    }
 }

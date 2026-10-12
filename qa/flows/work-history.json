@@ -1,0 +1,28 @@
+{
+  "about": "관리 > 근무조회 [이력](원본 E090105 '근무조회 이력조회', 2026-10-13 실측) — 근무 전표를 신규 → 수정(1 → 2) → 삭제하면 [최종이력만 검색](기본)이라 '삭제 · 2.00' 한 줄, [H] 를 누르면 '이력' 창에 [2091/01/05 -N] 과 작업자ID · 작업일시 · 상태 세 줄(신규 · 수정 · 삭제)이 오래된 것부터. [최종이력만 검색]을 끄면 세 줄. [전체] 로 돌아오면 근무조회 목록.",
+  "shots": [
+    {
+      "name": "신규 → 수정 → 삭제 → 이력 한 줄 · H 창 세 줄",
+      "path": "/hr/work-list",
+      "steps": [
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const emps=await (await fetch('/api/employees/all',{headers:h})).json();const items=(await (await fetch('/api/pay-settings/items',{headers:h})).json()).filter(i=>i.kind==='ALLOWANCE');const line=q=>({workDate:'2091-01-05',employeeId:emps[0].id,payItemId:items[0].id,quantity:q});const c=await (await fetch('/api/work-records',{method:'POST',headers:h,body:JSON.stringify({slipDate:'2091-01-05',lines:[line(1)]})})).json();await fetch('/api/work-records/2091-01-05/'+c.slipNo,{method:'PUT',headers:h,body:JSON.stringify({slipDate:'2091-01-05',lines:[line(2)]})});const d=await fetch('/api/work-records/2091-01-05/'+c.slipNo,{method:'DELETE',headers:h});sessionStorage.setItem('qaWh',JSON.stringify({no:c.slipNo,emp:emps[0].name,ok:d.ok}));return true})()",
+        "expect:JSON.parse(sessionStorage.getItem('qaWh')).ok===true",
+        "click:이력",
+        "wait:1200",
+        "expect:[...document.querySelectorAll('table thead th')].map(t=>t.innerText.trim()).join(',')==='작업일자,전표번호,행위,사원명,수당항목,근무기록,작업자,이력'",
+        "expect:(()=>{const q=JSON.parse(sessionStorage.getItem('qaWh'));const rs=[...document.querySelectorAll('table tbody tr')].filter(t=>t.innerText.includes('2091/01/05 -'+q.no+'\\t'));return rs.length===1&&rs[0].cells[2].innerText.trim()==='삭제'&&rs[0].cells[5].innerText.trim()==='2.00'&&rs[0].cells[3].innerText.trim()===q.emp})()",
+        "js:(()=>{const q=JSON.parse(sessionStorage.getItem('qaWh'));const r=[...document.querySelectorAll('table tbody tr')].find(t=>t.innerText.includes('2091/01/05 -'+q.no+'\\t'));r.querySelector('a').click();return true})()",
+        "wait:800",
+        "expect:(()=>{const q=JSON.parse(sessionStorage.getItem('qaWh'));const m=document.querySelector('.ec-modal-back');const st=[...m.querySelectorAll('tbody tr')].map(r=>r.cells[3].innerText.trim()).join(',');return m.innerText.includes('[2091/01/05 -'+q.no+']')&&st==='신규,수정,삭제'&&/\\d{4}\\/\\d{2}\\/\\d{2} 오[전후] \\d+:\\d{2}:\\d{2}/.test(m.innerText)})()",
+        "clicklast:닫기",
+        "wait:300",
+        "js:(()=>{[...document.querySelectorAll('label')].find(l=>l.textContent.trim()==='최종이력만 검색').querySelector('input').click();return true})()",
+        "wait:300",
+        "expect:(()=>{const q=JSON.parse(sessionStorage.getItem('qaWh'));return [...document.querySelectorAll('table tbody tr')].filter(t=>t.innerText.includes('2091/01/05 -'+q.no+'\\t')).map(t=>t.cells[2].innerText.trim()).join(',')==='삭제,수정,신규'})()",
+        "click:전체",
+        "wait:800",
+        "expect:[...document.querySelectorAll('table thead th')].map(t=>t.innerText.trim()).slice(1).join(',')==='전표일자,사원,수당항목,근무기록'"
+      ]
+    }
+  ]
+}
