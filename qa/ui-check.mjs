@@ -1338,6 +1338,8 @@ console.log('\n■ 화면을 열었을 때 보이는 기간이 원본과 같나'
     ['A/S수리조회', 'quality/AsRepairListPage.tsx'],
     ['비용내역조회', 'accounting/ExpenseListPage.tsx'],
     ['받을어음조회', 'accounting/NoteListPage.tsx'],
+    /* 회계거래조회(E010701) — 2026-10-13 실측 2026/04/01 ~ 2026/11/12. */
+    ['회계거래조회', 'accounting/JournalListPage.tsx'],
     ['지급어음조회', 'accounting/NoteListPage.tsx'],
     ['고정자산대장', 'accounting/FixedAssetLedgerPage.tsx'],
     ['고정자산증가내역', 'accounting/FixedAssetFlowPage.tsx'],

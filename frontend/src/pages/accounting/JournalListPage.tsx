@@ -18,13 +18,17 @@ interface JournalListResponse {
   /** 잘라서 온 것인가. 이때만 [오천건이상조회] 를 띄운다. */
   truncated: boolean
 }
-import { INQUIRY_FULL_PICKS, ymd } from '../../components/EcPeriodPicks'
+import { periodOf } from '../../components/EcPeriodPicks'
+import { JOURNAL_INQUIRY_PICKS } from '../../utils/periods'
+import CodePickerField from '../../components/CodePickerField'
+import EcNumInput from '../../components/EcNumInput'
+import { useCondPickers } from '../../utils/useCondPickers'
 import { CASH_QUICK_KINDS, VOUCHER_SCREEN_BY_TYPE_NAME } from '../../features/cashquick/kinds'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const firstOfYear = () => `${new Date().getFullYear()}-01-01`
-const today = () => ymd(new Date())
+/** 원본 기본 기간 [6개월(+1개월)] — 2026-10-13 에 2026/04/01 ~ 2026/11/12 였다. */
+const defaultPeriod = () => periodOf('6개월(+1개월)')!
 
 /** 원본 [전표번호] 모양 — GL-20261012-0002 → 26/10/12-2 (회계거래조회 실측). */
 function slipNo(docNo: string) {
@@ -65,8 +69,20 @@ export default function JournalListPage() {
   /* 원본 줄 색: 매출전표 분홍 · 매입전표 연두(td.danger · td.success). */
   const rowBg = (r: JournalEntry) => r.sourceType === 'SALES' ? 'bg-[var(--ec-bg-sales-row)]'
     : r.sourceType === 'PURCHASE' ? 'bg-[var(--ec-bg-basic)]' : ''
-  const [from, setFrom] = useState(firstOfYear())
-  const [to, setTo] = useState(today())
+  const [from, setFrom] = useState(defaultPeriod().from)
+  const [to, setTo] = useState(defaultPeriod().to)
+  /* 원본 조건(2026-10-13 실측): 기준일자 · 회계전표No. · 거래처 · 계정 · 부서 · 프로젝트 · 업무 · 관리번호 · 금액 ~ ·
+     채권/채무(어음) No. · 적요 · 작성자 · 최종수정자 · 기타[수정일자순(정렬)]. 부서 · 프로젝트 · 업무 · 관리번호 ·
+     채권/채무No. · 최종수정자는 회계전표가 들지 않아 없다. */
+  const pickers = useCondPickers(['partners'])
+  const [docCond, setDocCond] = useState('')
+  const [partnerCond, setPartnerCond] = useState('')
+  const [accountCond, setAccountCond] = useState('')
+  const [amountFrom, setAmountFrom] = useState('')
+  const [amountTo, setAmountTo] = useState('')
+  const [memoCond, setMemoCond] = useState('')
+  const [authorCond, setAuthorCond] = useState('')
+  const [byUpdated, setByUpdated] = useState(false)
   const [openId, setOpenId] = useState<number | null>(wanted)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
@@ -115,9 +131,27 @@ export default function JournalListPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const accountItems = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const r of rows) for (const l of r.lines) m.set(l.accountCode, l.accountName)
+    return [...m].sort((a, b) => a[0].localeCompare(b[0])).map(([code, name]) => ({ value: code, code, name }))
+  }, [rows])
+  const authorItems = useMemo(() => [...new Set(rows.map((r) => r.createdBy ?? '').filter(Boolean))].sort()
+    .map((n) => ({ value: n, name: n })), [rows])
+
   const shown = useMemo(() => rows.filter((r) =>
-    (statusTab === '전체' || STATUS_OF[statusTab] === r.confirmStatus) && (!keyword || r.docNo.includes(keyword) || (r.description ?? '').includes(keyword) || (r.partnerName ?? '').includes(keyword))
-  ), [rows, keyword, statusTab])
+    (statusTab === '전체' || STATUS_OF[statusTab] === r.confirmStatus)
+    && (!docCond || r.docNo.includes(docCond) || slipNo(r.docNo).includes(docCond))
+    && (!partnerCond || String(r.partnerId) === partnerCond)
+    && (!accountCond || r.lines.some((l) => l.accountCode === accountCond))
+    && (!amountFrom || amountOf(r) >= Number(amountFrom))
+    && (!amountTo || amountOf(r) <= Number(amountTo))
+    && (!memoCond || (r.description ?? '').includes(memoCond))
+    && (!authorCond || (r.createdBy ?? '') === authorCond)
+    && (!keyword || r.docNo.includes(keyword) || (r.description ?? '').includes(keyword) || (r.partnerName ?? '').includes(keyword))
+  ).sort((a, b) => (byUpdated ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') : 0)),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [rows, keyword, statusTab, docCond, partnerCond, accountCond, amountFrom, amountTo, memoCond, authorCond, byUpdated, cashQuickTotal])
 
   const picked = shown.filter((r) => checked.has(r.id))
 
@@ -155,14 +189,18 @@ export default function JournalListPage() {
   }
 
   const total = shown.reduce((a, r) => a + amountOf(r), 0)
-  const reset = () => { setFrom(firstOfYear()); setTo(today()); setKeyword('') }
+  const reset = () => {
+    const p = defaultPeriod(); setFrom(p.from); setTo(p.to); setKeyword('')
+    setDocCond(''); setPartnerCond(''); setAccountCond(''); setAmountFrom(''); setAmountTo(''); setMemoCond(''); setAuthorCond(''); setByUpdated(false)
+  }
 
   return (
     <EcListShell
       /* [검색(F8)]이 조건 판만 닫고 목록은 그대로였다 — 새로 넣은 전표가 안 보였다. 다시 읽는다. */
       onSearch={load}
       title="회계전표조회"
-      searchable={false}
+      search={keyword}
+      onSearchChange={setKeyword}
       actions={[
         /* 인자 없이 부른다 — onClick 이 무엇을 넘기든 range 로 새면 안 된다. */
         { label: '검색(F8)', primary: true, onClick: () => load() },
@@ -181,12 +219,35 @@ export default function JournalListPage() {
       <EcStatusPanel
         from={from} to={to}
         onPeriod={(r) => { setFrom(r.from); setTo(r.to) }}
-        picks={INQUIRY_FULL_PICKS}
-        dateLabel="기간"
+        picks={JOURNAL_INQUIRY_PICKS}
       >
-        <EcCond label="검색어">
-          <input className="ec-input" placeholder="전표번호·적요·거래처 일부" value={keyword}
-                 onChange={(e) => setKeyword(e.target.value)} style={{ width: 260 }} />
+        <EcCond label="회계전표No.">
+          <input className="ec-input w-full" placeholder="회계전표No." value={docCond} onChange={(e) => setDocCond(e.target.value)} />
+        </EcCond>
+        <EcCond label="거래처" pick>
+          <CodePickerField label="거래처" hideLabel fill emptyLabel="전체" value={partnerCond} onChange={setPartnerCond} items={pickers.partners} />
+        </EcCond>
+        <EcCond label="계정" pick>
+          <CodePickerField label="계정" hideLabel fill emptyLabel="전체" value={accountCond} onChange={setAccountCond} items={accountItems} />
+        </EcCond>
+        <EcCond label="금액">
+          <span className="inline-flex w-full items-center gap-[4px]">
+            <EcNumInput className="ec-input w-full text-right" aria-label="금액부터" placeholder="금액" value={amountFrom} onValue={setAmountFrom} />
+            <span>~</span>
+            <EcNumInput className="ec-input w-full text-right" aria-label="금액까지" value={amountTo} onValue={setAmountTo} />
+          </span>
+        </EcCond>
+        <EcCond label="적요">
+          <input className="ec-input w-full" placeholder="적요" value={memoCond} onChange={(e) => setMemoCond(e.target.value)} />
+        </EcCond>
+        <EcCond label="작성자" pick>
+          <CodePickerField label="작성자" hideLabel fill emptyLabel="전체" value={authorCond} onChange={setAuthorCond} items={authorItems} />
+        </EcCond>
+        <EcCond label="기타">
+          <label className="text-[12.5px] flex items-center gap-[4px]">
+            <input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} />
+            수정일자순(정렬)
+          </label>
         </EcCond>
       </EcStatusPanel>
 
@@ -295,7 +356,7 @@ export default function JournalListPage() {
       <Modal open={confirmDelete} title="알림" width={420} error={error} onClose={() => setConfirmDelete(false)}>
         <p className="mb-[12px]">전표를 삭제하겠습니까?<br />- 회계거래조회</p>
         <div className="flex gap-[5px]">
-          <button type="button" className="ec-btn ec-btn-primary" onClick={() => void removeChecked()}>확인</button>
+          <button type="button" className="ec-btn ec-btn-primary" disabled={picked.length === 0} onClick={() => void removeChecked()}>확인</button>
           <button type="button" className="ec-btn" onClick={() => setConfirmDelete(false)}>취소</button>
         </div>
       </Modal>

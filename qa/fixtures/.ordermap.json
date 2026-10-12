@@ -936,6 +936,10 @@
   "accounting/NoteListPage.tsx"
  ],
  [
+  "회계거래조회",
+  "accounting/JournalListPage.tsx"
+ ],
+ [
   "고정자산대장",
   "accounting/FixedAssetLedgerPage.tsx"
  ],
