@@ -85,7 +85,7 @@ public class StagedStockAdjustmentService {
     public StagedResponse apply(Long id, String username) {
         StagedStockAdjustment staged = get(id);
         requireRequested(staged);
-        stockAdjustmentService.create(new CreateAdjustmentRequest(
+        stockAdjustmentService.createWithoutStocktake(new CreateAdjustmentRequest(
                 StockAdjustmentType.ADJUST,
                 staged.getItem().getId(),
                 staged.getWarehouse().getId(),

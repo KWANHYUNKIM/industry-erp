@@ -36,6 +36,7 @@ public class StockAdjustmentService {
     private final WarehouseRepository warehouseRepository;
     private final StockService stockService;
     private final DocumentNoGenerator docNoGenerator;
+    private final StocktakeRepository stocktakeRepository;
 
     /**
      * 원본 [오천건이상조회] 와 같은 문턱. 이 위로는 눌러야 간다.
@@ -83,8 +84,22 @@ public class StockAdjustmentService {
                 found.stream().map(AdjustmentResponse::from).toList(), totalRows, truncated);
     }
 
+    /**
+     * 간편재고조정 — 재고조정(ADJUST)이면 <b>실사도 따로 한 장</b> 남긴다(원본 재고실사조회 '간편' 줄, 2026-10-12 실측).
+     * 단계별재고조정의 반영은 실사가 이미 단계별 요청으로 있어 {@link #createWithoutStocktake} 를 쓴다.
+     */
     @Transactional
     public AdjustmentResponse create(CreateAdjustmentRequest req, String username) {
+        return create(req, username, true);
+    }
+
+    /** 단계별재고조정 반영 — 실사는 단계별 요청이 들고 있어 간편 실사를 따로 남기지 않는다. */
+    @Transactional
+    public AdjustmentResponse createWithoutStocktake(CreateAdjustmentRequest req, String username) {
+        return create(req, username, false);
+    }
+
+    private AdjustmentResponse create(CreateAdjustmentRequest req, String username, boolean simpleStocktake) {
         Item item = itemRepository.findById(req.itemId())
                 .orElseThrow(() -> ApiException.notFound("품목을 찾을 수 없습니다. id=" + req.itemId()));
         Warehouse warehouse = warehouseRepository.findById(req.warehouseId())
@@ -136,7 +151,39 @@ public class StockAdjustmentService {
                 .handling(req.handling())
                 .createdBy(username)
                 .build();
-        return AdjustmentResponse.from(adjustmentRepository.save(adjustment));
+        StockAdjustment saved = adjustmentRepository.save(adjustment);
+        if (simpleStocktake && req.type() == StockAdjustmentType.ADJUST) {
+            stocktakeRepository.save(Stocktake.builder()
+                    .stocktakeNo(docNoGenerator.next("ST-", "stocktakes", "stocktake_no", "stocktake_date", date))
+                    .stocktakeDate(date)
+                    .warehouse(warehouse)
+                    .item(item)
+                    .actualQty(req.actualQty())
+                    .employeeId(req.employeeId())
+                    .adjustment(saved)
+                    .createdBy(username)
+                    .build());
+        }
+        return AdjustmentResponse.from(saved);
+    }
+
+    /** 원본 재고실사조회의 '간편' 줄 — 기간 안 간편 실사. */
+    @Transactional(readOnly = true)
+    public List<StockAdjustmentDtos.StocktakeResponse> listStocktakes(LocalDate from, LocalDate to) {
+        LocalDate f = from != null ? from : LocalDate.of(1, 1, 1);
+        LocalDate t = to != null ? to : LocalDate.of(9999, 12, 31);
+        return stocktakeRepository.findByPeriod(f, t).stream().map(StockAdjustmentDtos.StocktakeResponse::from).toList();
+    }
+
+    /**
+     * 원본 재고실사조회 [선택삭제] — 실사만 지운다. 그 실사로 맞춘 재고조정은 그대로 둔다
+     * (원본은 조정 · 실사를 따로 지운다 — 2026-10-12 실측. 실사를 지울 때 조정이 같이 지워지는지는 둘 다 따로 지워서 못 쟀다).
+     */
+    @Transactional
+    public void deleteStocktake(Long id) {
+        Stocktake s = stocktakeRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("재고실사를 찾을 수 없습니다. id=" + id));
+        stocktakeRepository.delete(s);
     }
 
     /**

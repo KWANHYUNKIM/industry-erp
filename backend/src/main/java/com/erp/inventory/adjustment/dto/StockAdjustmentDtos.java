@@ -163,4 +163,24 @@ public final class StockAdjustmentDtos {
             long totalRows,
             boolean truncated
     ) {}
+    /**
+     * 원본 재고실사조회의 '간편' 줄 — 간편재고조정이 남긴 실사. 조정을 지웠으면 adjust* 가 비어 있다(원본 [조정전표] 빈칸).
+     */
+    public record StocktakeResponse(
+            Long id, String stocktakeNo, LocalDate stocktakeDate,
+            Long warehouseId, String warehouseName,
+            Long itemId, String itemCode, String itemName, String spec,
+            BigDecimal actualQty, Long employeeId,
+            Long adjustmentId, String adjustNo, LocalDate adjustDate
+    ) {
+        public static StocktakeResponse from(com.erp.inventory.adjustment.Stocktake s) {
+            StockAdjustment a = s.getAdjustment();
+            return new StocktakeResponse(
+                    s.getId(), s.getStocktakeNo(), s.getStocktakeDate(),
+                    s.getWarehouse().getId(), s.getWarehouse().getName(),
+                    s.getItem().getId(), s.getItem().getCode(), s.getItem().getName(), s.getItem().getSpec(),
+                    s.getActualQty(), s.getEmployeeId(),
+                    a == null ? null : a.getId(), a == null ? null : a.getAdjustNo(), a == null ? null : a.getAdjustDate());
+        }
+    }
 }

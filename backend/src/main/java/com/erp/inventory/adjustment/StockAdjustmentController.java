@@ -51,6 +51,21 @@ public class StockAdjustmentController {
         return ResponseEntity.noContent().build();
     }
 
+    /** 원본 재고실사조회(E040613)의 '간편' 줄 — 간편재고조정이 남긴 실사. */
+    @GetMapping("/stocktakes")
+    public List<StockAdjustmentDtos.StocktakeResponse> stocktakes(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return stockAdjustmentService.listStocktakes(from, to);
+    }
+
+    /** 재고실사조회 [선택삭제] — 실사만 지운다(재고조정은 그대로). */
+    @DeleteMapping("/stocktakes/{id}")
+    public ResponseEntity<Void> deleteStocktake(@PathVariable Long id) {
+        stockAdjustmentService.deleteStocktake(id);
+        return ResponseEntity.noContent().build();
+    }
+
     /** 원본 자가사용입력(E040503) — 품목 여러 줄을 전표 한 장으로. */
     @PostMapping("/slips")
     public StockAdjustmentDtos.SlipResponse createSlip(@Valid @RequestBody StockAdjustmentDtos.SlipRequest req,

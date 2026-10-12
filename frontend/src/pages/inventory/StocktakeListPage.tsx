@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
@@ -13,8 +14,17 @@ interface AdjustmentList { rows: StockAdjustment[]; totalRows: number; truncated
 /** 단계별재고조정을 반영하면 서버가 적요 앞에 이 말 + 실사번호를 붙여 재고조정(ADJUST)을 만든다(StagedStockAdjustmentService.apply). */
 const STAGED_PREFIX = '단계별조정 '
 
+/** 간편재고조정이 남긴 실사(GET /stock-adjustments/stocktakes). 조정을 지웠으면 adjustNo 가 비어 있다. */
+interface SimpleStocktake {
+  id: number; stocktakeNo: string; stocktakeDate: string
+  warehouseId: number; warehouseName: string
+  itemId: number; itemName: string; spec: string | null
+  actualQty: number; employeeId: number | null
+  adjustNo: string | null; adjustDate: string | null
+}
+
 interface Line {
-  key: string; sort: '간편' | '단계별'; date: string; no: string
+  key: string; id: number; sort: '간편' | '단계별'; date: string; no: string
   warehouseId: number; warehouseName: string; person: string
   itemId: number; itemName: string; spec: string | null; qty: number; slip: string
 }
@@ -25,8 +35,9 @@ interface Line {
  * <p>조건: 구분(<b>전체</b> | 간편 | 단계별) · 기준일자(구간, 기본 <b>차월</b> — 다음 달 1일 ~ 말일, 빠른선택 끝에 전월+금월 · 종료일 · 차월) ·
  * 창고 · 품목 · 담당자. 열: 구분 · 입력일자 · 창고명 · 담당자 · 품목명[규격명] · 수량 · 조정전표.
  *
- * <p>간편 = 재고실사 화면에서 실사수량을 넣어 <b>바로</b> 맞춘 재고조정 — 우리는 실사를 따로 적지 않고 그 조정이 곧 실사 기록이다
- * (수량은 맞춘 뒤 수량, 조정전표는 그 조정 자신). 단계별 = 단계별재고조정의 실사 요청 — 수량은 실사수량, 조정전표는 반영할 때
+ * <p>간편 = 간편재고조정이 남긴 <b>실사</b>(stocktakes) — 수량은 실사수량, 조정전표는 그때 만든 재고조정.
+ * 원본은 실사와 조정이 따로 남는다(2026-10-12 실측): 조정을 지워도 실사는 조정전표 빈 채로 남고, 실사는 여기 [선택삭제]
+ * ('선택한 전표를 삭제 하겠습니까?')로 따로 지운다. 예전에는 조정을 그대로 실사로 보여 줘서 조정을 지우면 실사도 사라졌다. 단계별 = 단계별재고조정의 실사 요청 — 수량은 실사수량, 조정전표는 반영할 때
  * 생긴 재고조정(적요 '단계별조정 {실사번호}')이고 아직 안 반영했으면 비어 있다.
  * 담당자는 간편이 조정의 작성자, 단계별이 요청자다.
  */
@@ -39,7 +50,10 @@ export default function StocktakeListPage() {
   const [warehouse, setWarehouse] = useState('')
   const [item, setItem] = useState('')
   const [person, setPerson] = useState('')
+  const navigate = useNavigate()
   const [adjusts, setAdjusts] = useState<StockAdjustment[]>([])
+  const [simple, setSimple] = useState<SimpleStocktake[]>([])
+  const [picked, setPicked] = useState<Set<string>>(new Set())
   const [staged, setStaged] = useState<StagedAdjustment[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -49,12 +63,15 @@ export default function StocktakeListPage() {
     setLoading(true)
     setError('')
     try {
-      const [a, s] = await Promise.all([
+      const [a, s, t] = await Promise.all([
         api.get<AdjustmentList>('/stock-adjustments', { params: { from, type: 'ADJUST' } }),
         api.get<StagedAdjustment[]>('/staged-adjustments', { params: { from, to } }),
+        api.get<SimpleStocktake[]>('/stock-adjustments/stocktakes', { params: { from, to } }),
       ])
       setAdjusts(a.data.rows)
       setStaged(s.data)
+      setSimple(t.data)
+      setPicked(new Set())
     } catch (e) {
       setError(extractErrorMessage(e))
     } finally {
@@ -72,16 +89,15 @@ export default function StocktakeListPage() {
       if (reason.startsWith(STAGED_PREFIX)) slipOf.set(reason.slice(STAGED_PREFIX.length).split(' ')[0], a)
     }
     const out: Line[] = []
-    for (const a of adjusts) {
-      if (a.type !== 'ADJUST' || (a.reason ?? '').startsWith(STAGED_PREFIX)) continue
-      out.push({ key: `a${a.id}`, sort: '간편', date: a.adjustDate, no: a.adjustNo, warehouseId: a.warehouseId, warehouseName: a.warehouseName,
+    for (const t of simple) {
+      out.push({ key: `t${t.id}`, id: t.id, sort: '간편', date: t.stocktakeDate, no: t.stocktakeNo, warehouseId: t.warehouseId, warehouseName: t.warehouseName,
         /* 원본 [담당자]는 간편재고조정 창의 담당자다 — 비우면 빈칸(2026-10-12 실측). 작성자가 아니다. */
-        person: a.employeeId != null ? empName.get(a.employeeId) ?? '' : '', itemId: a.itemId, itemName: a.itemName, spec: a.spec ?? null, qty: Number(a.afterQty),
-        slip: dateNo(a.adjustDate, a.adjustNo) })
+        person: t.employeeId != null ? empName.get(t.employeeId) ?? '' : '', itemId: t.itemId, itemName: t.itemName, spec: t.spec, qty: Number(t.actualQty),
+        slip: t.adjustNo && t.adjustDate ? dateNo(t.adjustDate, t.adjustNo) : '' })
     }
     for (const s of staged) {
       const slip = slipOf.get(s.adjustNo)
-      out.push({ key: `s${s.id}`, sort: '단계별', date: s.requestDate, no: s.adjustNo, warehouseId: s.warehouseId, warehouseName: s.warehouseName,
+      out.push({ key: `s${s.id}`, id: s.id, sort: '단계별', date: s.requestDate, no: s.adjustNo, warehouseId: s.warehouseId, warehouseName: s.warehouseName,
         person: s.requester ?? '', itemId: s.itemId, itemName: s.itemName, spec: null, qty: Number(s.actualQty),
         slip: slip ? dateNo(slip.adjustDate, slip.adjustNo) : '' })
     }
@@ -92,10 +108,28 @@ export default function StocktakeListPage() {
       .filter((l) => !item || String(l.itemId) === item)
       .filter((l) => !person || l.person === person)
       .sort((a, b) => (a.date > b.date ? -1 : a.date < b.date ? 1 : b.no.localeCompare(a.no)))
-  }, [adjusts, staged, from, to, sort, warehouse, item, person, empName])
+  }, [adjusts, simple, staged, from, to, sort, warehouse, item, person, empName])
   const people = useMemo(() => [...new Set([
-    ...adjusts.map((a) => (a.employeeId != null ? empName.get(a.employeeId) : null)), ...staged.map((s) => s.requester),
-  ].filter(Boolean) as string[])].sort(), [adjusts, staged, empName])
+    ...simple.map((t) => (t.employeeId != null ? empName.get(t.employeeId) : null)), ...staged.map((s) => s.requester),
+  ].filter(Boolean) as string[])].sort(), [simple, staged, empName])
+  const allPicked = lines.length > 0 && lines.every((l) => picked.has(l.key))
+
+  /**
+   * 원본 [선택삭제] — 고른 실사를 지운다. 간편은 실사만(그때 맞춘 재고조정은 재고조정조회에 그대로 남는다),
+   * 단계별은 그 요청을 지운다(반영된 요청은 서버가 막는다 — 단계별재고조정 화면과 같은 규칙).
+   */
+  async function removePicked() {
+    if (picked.size === 0) return setError('삭제할 전표를 선택하세요.')
+    if (!confirm('선택한 전표를 삭제 하겠습니까?')) return
+    try {
+      for (const l of lines.filter((x) => picked.has(x.key))) {
+        await api.delete(l.sort === '간편' ? `/stock-adjustments/stocktakes/${l.id}` : `/staged-adjustments/${l.id}`)
+      }
+    } catch (e) {
+      setError(extractErrorMessage(e))
+    }
+    await load()
+  }
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '재고실사조회', [lines.length])
 
@@ -108,6 +142,10 @@ export default function StocktakeListPage() {
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: () => { setSort('전체'); setFrom(init.from); setTo(init.to); setWarehouse(''); setItem(''); setPerson('') } },
+        /* 원본 버튼줄 — 재고조정조회와 같은 두 갈래(2026-10-12 실측). */
+        { label: '간편재고조정', onClick: () => navigate('/inventory/transfer?tab=재고조정') },
+        { label: '단계별재고실사', onClick: () => navigate('/inventory/stocktake') },
+        { label: '선택삭제', onClick: () => void removePicked(), disabled: picked.size === 0 },
         { label: 'Excel' },
       ]}
     >
@@ -143,7 +181,10 @@ export default function StocktakeListPage() {
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th className="w-[34px]"></th>
+            <th className="w-[34px] text-center">
+              <input type="checkbox" aria-label="전체 선택" checked={allPicked}
+                     onChange={() => setPicked(allPicked ? new Set() : new Set(lines.map((l) => l.key)))} />
+            </th>
             <th className="text-center">구분</th>
             <th className="text-center">입력일자</th>
             <th>창고명</th>
@@ -160,7 +201,11 @@ export default function StocktakeListPage() {
             <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : lines.map((l, i) => (
             <tr key={l.key}>
-              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td className="text-center text-ec-hint whitespace-nowrap">
+                <input type="checkbox" aria-label={`${i + 1}줄 선택`} checked={picked.has(l.key)}
+                       onChange={() => setPicked((p) => { const n = new Set(p); if (n.has(l.key)) n.delete(l.key); else n.add(l.key); return n })} />
+                {' '}{i + 1}
+              </td>
               <td className="text-center">{l.sort}</td>
               <td className="text-center">{dateNo(l.date, l.no)}</td>
               <td>{l.warehouseName}</td>

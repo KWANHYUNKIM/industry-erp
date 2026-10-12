@@ -1,0 +1,29 @@
+{
+  "about": "재고실사조회(E040613) 간편 실사 — 원본은 간편재고조정을 하면 실사와 조정이 따로 남는다(2026-10-12 실측). 간편 조정(장부 +2)을 넣으면 실사 '간편' 줄이 조정전표와 함께 서고, 조정을 지우면 실사는 조정전표 빈 채로 남고, [선택삭제]('선택한 전표를 삭제 하겠습니까?')로 실사만 따로 지운다.",
+  "shots": [
+    {
+      "name": "재고실사조회 — 간편 실사가 조정과 따로 남고 [선택삭제]로 지운다",
+      "path": "/inventory/stocktake-list",
+      "steps": [
+        "wait:1000",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const st=(await window.__api('GET','/stock')).body;const a=st.find((s)=>Number(s.quantity)>=1);const r=await window.__api('POST','/stock-adjustments',{type:'ADJUST',itemId:a.itemId,warehouseId:a.warehouseId,actualQty:Number(a.quantity)+2,reason:'QA재고1 간편실사'});const d=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10);const t=(await window.__api('GET','/stock-adjustments/stocktakes?from='+d+'&to='+d)).body.find((x)=>x.adjustmentId===r.body.id);sessionStorage.setItem('stk',JSON.stringify({adj:r.body.id,adjNo:r.body.adjustNo,id:t&&t.id,no:t&&t.stocktakeNo,date:d}));return r.status+' '+(t&&t.stocktakeNo)})()",
+        "js:(()=>{const d=JSON.parse(sessionStorage.getItem('stk')).date;const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;for(const el of document.querySelectorAll('input[type=date]')){set.call(el,d);el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))}return true})()",
+        "wait:1200",
+        "js:window.__row = () => { const s=JSON.parse(sessionStorage.getItem('stk')); const dn=s.date.replace(/-/g,'/')+' -'+Number(s.no.split('-').pop()); return [...document.querySelectorAll('tbody tr')].find((t)=>t.cells.length===8&&t.cells[1].innerText.trim()==='간편'&&t.cells[2].innerText.trim()===dn) }; true",
+        "expect:(()=>{const s=JSON.parse(sessionStorage.getItem('stk'));const r=window.__row();return r&&r.cells[7].innerText.trim()===s.date.replace(/-/g,'/')+' -'+Number(s.adjNo.split('-').pop())})()",
+        "js:(async()=>{const s=JSON.parse(sessionStorage.getItem('stk'));return (await window.__api('DELETE','/stock-adjustments/'+s.adj)).status})()",
+        "click:검색(F8)",
+        "wait:1200",
+        "expect:(()=>{const r=window.__row();return r&&r.cells[7].innerText.trim()===''})()",
+        "js:window.confirm=(m)=>{window.__msg=m;return true}; window.__row().querySelector('input[type=checkbox]').click(); true",
+        "wait:200",
+        "click:선택삭제",
+        "wait:1200",
+        "expect:window.__msg==='선택한 전표를 삭제 하겠습니까?'",
+        "expect:!window.__row()",
+        "expect:(async()=>{const s=JSON.parse(sessionStorage.getItem('stk'));return !(await window.__api('GET','/stock-adjustments/stocktakes?from='+s.date+'&to='+s.date)).body.some((x)=>x.id===s.id)})()"
+      ]
+    }
+  ]
+}
