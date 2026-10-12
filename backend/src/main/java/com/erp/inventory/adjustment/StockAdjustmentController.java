@@ -50,4 +50,30 @@ public class StockAdjustmentController {
         stockAdjustmentService.delete(id, principal.getUsername());
         return ResponseEntity.noContent().build();
     }
+
+    /** 원본 자가사용입력(E040503) — 품목 여러 줄을 전표 한 장으로. */
+    @PostMapping("/slips")
+    public StockAdjustmentDtos.SlipResponse createSlip(@Valid @RequestBody StockAdjustmentDtos.SlipRequest req,
+                                                      @AuthenticationPrincipal UserPrincipal principal) {
+        return stockAdjustmentService.createSlip(req, principal.getUsername());
+    }
+
+    @GetMapping("/slips/{adjustNo}")
+    public StockAdjustmentDtos.SlipResponse getSlip(@PathVariable String adjustNo) {
+        return stockAdjustmentService.getSlip(adjustNo);
+    }
+
+    /** 자가사용수정 — 일자는 그대로 두고 나머지를 새로 쓴다. */
+    @PutMapping("/slips/{adjustNo}")
+    public StockAdjustmentDtos.SlipResponse updateSlip(@PathVariable String adjustNo,
+                                                      @Valid @RequestBody StockAdjustmentDtos.SlipRequest req,
+                                                      @AuthenticationPrincipal UserPrincipal principal) {
+        return stockAdjustmentService.updateSlip(adjustNo, req, principal.getUsername());
+    }
+
+    @DeleteMapping("/slips/{adjustNo}")
+    public ResponseEntity<Void> deleteSlip(@PathVariable String adjustNo, @AuthenticationPrincipal UserPrincipal principal) {
+        stockAdjustmentService.deleteSlip(adjustNo, principal.getUsername());
+        return ResponseEntity.noContent().build();
+    }
 }

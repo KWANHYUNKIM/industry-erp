@@ -28,9 +28,17 @@ public class StockAdjustment extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** 전표번호 (예: SA-20260714-0001) */
-    @Column(nullable = false, unique = true, length = 30)
+    /**
+     * 전표번호 (예: SA-20260714-0001). <b>여러 줄이 같은 번호를 나눠 든다</b> — 원본 자가사용입력은
+     * 품목 여러 줄을 전표 한 장으로 저장한다(V302). 유일한 것은 (번호, 줄번호)다.
+     */
+    @Column(nullable = false, length = 30)
     private String adjustNo;
+
+    /** 전표 안 줄 차례(1부터). 한 줄짜리를 만드는 화면(재고조정 …)은 늘 1 이다. */
+    @Builder.Default
+    @Column(name = "line_no", nullable = false)
+    private Integer lineNo = 1;
 
     @Column(nullable = false)
     private LocalDate adjustDate;
@@ -72,6 +80,13 @@ public class StockAdjustment extends BaseTimeEntity {
      */
     @Column(name = "employee_id")
     private Long employeeId;
+
+    /**
+     * 원본 자가사용입력 머리의 <b>[거래처]</b>(자가사용조회의 [거래처] 열 · 조건).
+     * inventory 는 trade 를 참조할 수 없어 담당자처럼 <b>id 만</b> 든다 — 이름은 화면이 거래처 목록에서 붙인다.
+     */
+    @Column(name = "partner_id")
+    private Long partnerId;
 
     @Column(length = 300)
     private String reason;

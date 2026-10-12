@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import Modal from '../../components/Modal'
+import SelfUseInputPage from './SelfUseInputPage'
+import { dateNo } from '../../utils/dateNo'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
@@ -7,7 +10,6 @@ import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { QUOTATION_PICKS, SELF_USE_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
-import { dateText } from '../../utils/dateText'
 import type { StockAdjustment } from '../../types/api'
 
 interface AdjustmentList { rows: StockAdjustment[]; totalRows: number; truncated: boolean }
@@ -19,9 +21,11 @@ interface AdjustmentList { rows: StockAdjustment[]; totalRows: number; truncated
  * 창고 · 프로젝트 · 거래처 · 품목코드 · 발송여부. 열: 입력일자(일자-No.) · 거래처 · 창고 · 품목 · 수량 · 담당자 · 인쇄.
  * 버튼줄 신규(F2) · …. 위에 탭 전체 · 결재중 · 미확인 · 확인.
  *
- * <p>우리 자가사용은 <b>품목 하나짜리</b> 재고조정(type SELF_USE)이라 [품목]이 곧 그 품목이고 '외 n건' 요약이 없다.
- * 수량은 나간 수(증감의 절댓값)다. 자가사용은 거래처를 들지 않아 [거래처] 조건 · 열이 없고, 결재 · 확인 단계가 없어 탭도 없다.
+ * <p>2026-10-12 다시 실측(입력 → 조회 → 수정 → 삭제): 조건은 <b>접혀</b> 있고 [Search(F3)] 로 편다(…조회 화면 공통).
+ * 한 줄이 <b>전표 한 장</b>이다 — 품목이 여럿이면 '투광등 100W 외 1건', 수량은 줄 합. [일자-No.] 를 누르면 그 자리에
+ * <b>자가사용수정</b> 창이 뜬다(일자 잠김 · [저장(F8) · 삭제 · 닫기]). 아래 [신규(F2)] 는 자가사용입력.
  * [발송여부]는 전표를 메일로 보내지 않아 없다. [인쇄] 열은 전표 한 장을 찍는 자리인데 자가사용 인쇄 양식이 없다.
+ * 탭 [전체 · 결재중 · 미확인 · 확인] 은 결재 · 확인 단계가 없어 두지 않는다.
  *
  * <p><b>불량처리조회</b>(C000088) — 같은 날 실측. 조건: 기준일자(기본 최근30일(+1개월), 빠른선택에 [말일]이 없다) · 창고 · 프로젝트 ·
  * 품목코드 · 담당자 · 불량유형 · 처리방법(체크, 다 켜짐 — 원본 회사는 폐기 · 품목대체 · 정상사용) · 기타(수정일자순) · 최종수정자 · 발송여부.
@@ -31,12 +35,18 @@ export default function StockMoveListPage({ kind }: { kind: 'SELF_USE' | 'DEFECT
   const selfUse = kind === 'SELF_USE'
   const title = selfUse ? '자가사용조회' : '불량처리조회'
   const navigate = useNavigate()
-  const pickers = useCondPickers(['warehouses', 'projects', 'items', 'employees'])
+  const pickers = useCondPickers(['warehouses', 'projects', 'items', 'employees', 'partners'])
   const init = periodOf('최근30일(+1개월)')!
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
   const [warehouse, setWarehouse] = useState('')
   const [project, setProject] = useState('')
+  const [partner, setPartner] = useState('')
+  /** 머리 검색상자 — 품목 · 거래처 · 창고 이름 낱말로 전표를 추린다. */
+  const [keyword, setKeyword] = useState('')
+  /** 자가사용수정 창 — 원본처럼 목록 위에 뜬다. */
+  const [editNo, setEditNo] = useState<string | null>(null)
+  const [picked, setPicked] = useState<Set<string>>(new Set())
   const [item, setItem] = useState('')
   const [employee, setEmployee] = useState('')
   const [defectKind, setDefectKind] = useState('')
@@ -44,6 +54,7 @@ export default function StockMoveListPage({ kind }: { kind: 'SELF_USE' | 'DEFECT
   const [handlingOff, setHandlingOff] = useState<Set<string>>(new Set())
   const [codeGroups, setCodeGroups] = useState<{ name: string; codes: { name: string }[] }[]>([])
   const [rows, setRows] = useState<StockAdjustment[]>([])
+  const partnerName = useMemo(() => new Map(pickers.partners.map((p) => [p.id, p.name])), [pickers.partners])
   const [truncated, setTruncated] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -74,28 +85,54 @@ export default function StockMoveListPage({ kind }: { kind: 'SELF_USE' | 'DEFECT
     .filter((r) => r.adjustDate >= from && r.adjustDate <= to)
     .filter((r) => !warehouse || String(r.warehouseId) === warehouse)
     .filter((r) => !project || String(r.projectId) === project)
-    .filter((r) => !item || String(r.itemId) === item)
+    .filter((r) => !partner || String(r.partnerId) === partner)
     .filter((r) => !employee || (r.employeeId != null && empName.get(r.employeeId) === employee))
     .filter((r) => !defectKind || (r.kind ?? '') === defectKind)
     .filter((r) => selfUse || !handlingOff.has(r.handling ?? ''))
     .sort((a, b) => (a.adjustDate > b.adjustDate ? -1 : a.adjustDate < b.adjustDate ? 1 : b.adjustNo.localeCompare(a.adjustNo))),
-  [rows, kind, selfUse, from, to, warehouse, project, item, employee, defectKind, handlingOff, empName])
+  [rows, kind, selfUse, from, to, warehouse, project, partner, employee, defectKind, handlingOff, empName])
+  /*
+   * 전표 한 장 = 한 줄. 같은 adjustNo 의 줄을 묶고 첫 줄 품목에 '외 n건', 수량은 줄 합(원본 그대로).
+   * [품목코드] 조건은 <b>그 품목이 든 전표</b>를 남긴다 — 줄 하나만 남기면 '외 n건' 이 틀린다.
+   */
+  const slips = useMemo(() => {
+    const m = new Map<string, StockAdjustment[]>()
+    for (const r of shown) m.set(r.adjustNo, [...(m.get(r.adjustNo) ?? []), r])
+    return [...m.values()]
+      .map((ls) => [...ls].sort((a, b) => (a.lineNo ?? 1) - (b.lineNo ?? 1)))
+      .filter((ls) => !item || ls.some((r) => String(r.itemId) === item))
+      .filter((ls) => !keyword.trim() || ls.some((r) => [r.itemName, r.itemCode, r.warehouseName,
+        r.partnerId != null ? partnerName.get(r.partnerId) : ''].some((v) => (v ?? '').includes(keyword.trim()))))
+  }, [shown, item, keyword, partnerName])
+
+  async function removePicked() {
+    if (!confirm('전표를 삭제하겠습니까?')) return
+    try {
+      for (const no of picked) await api.delete(`/stock-adjustments/slips/${encodeURIComponent(no)}`)
+      setPicked(new Set())
+      await load()
+    } catch (e) {
+      setError(extractErrorMessage(e))
+    }
+  }
   const tableRef = useRef<HTMLTableElement>(null)
-  useTableColumnCheck(tableRef, title, [shown.length])
+  useTableColumnCheck(tableRef, title, [slips.length])
   const codesOf = (g: string) => (codeGroups.find((x) => x.name === g)?.codes ?? []).map((c) => c.name)
   const handlings = codesOf('처리방법')
 
   return (
     <EcListShell
       title={title}
-      searchable={false}
+      search={keyword}
+      onSearchChange={setKeyword}
+      onSearch={() => void load()}
+      onNew={() => navigate(selfUse ? '/inventory/self-use-input' : '/inventory/transfer')}
       actions={[
-        { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setWarehouse(''); setProject(''); setItem(''); setEmployee(''); setDefectKind(''); setHandlingOff(new Set()) } },
-        { label: '신규(F2)', onClick: () => navigate('/inventory/transfer') },
+        { label: '선택삭제', onClick: () => void removePicked(), disabled: picked.size === 0 },
         { label: 'Excel' },
       ]}
     >
+      <p className="text-right text-[12px] mb-[4px]">{from.replace(/-/g, '/')} ~ {to.replace(/-/g, '/')}</p>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
@@ -112,6 +149,11 @@ export default function StockMoveListPage({ kind }: { kind: 'SELF_USE' | 'DEFECT
         <EcCond label="프로젝트" pick>
           <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체" value={project} onChange={setProject} items={pickers.projects} />
         </EcCond>
+        {selfUse && (
+          <EcCond label="거래처" pick>
+            <CodePickerField label="거래처" hideLabel width={220} emptyLabel="전체" value={partner} onChange={setPartner} items={pickers.partners} />
+          </EcCond>
+        )}
         <EcCond label="품목코드" pick>
           <CodePickerField label="품목코드" hideLabel width={220} emptyLabel="전체" value={item} onChange={setItem} items={pickers.items} />
         </EcCond>
@@ -145,8 +187,12 @@ export default function StockMoveListPage({ kind }: { kind: 'SELF_USE' | 'DEFECT
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th className="w-[34px]"></th>
-            <th className="text-center">입력일자</th>
+            <th className="w-[34px]">
+              <input type="checkbox" aria-label="전체 선택" checked={slips.length > 0 && picked.size === slips.length}
+                     onChange={(e) => setPicked(e.target.checked ? new Set(slips.map((ls) => ls[0].adjustNo)) : new Set())} />
+            </th>
+            <th>입력일자</th>
+            {selfUse && <th>거래처</th>}
             <th>창고</th>
             <th>품목</th>
             <th className="text-right">수량</th>
@@ -155,23 +201,38 @@ export default function StockMoveListPage({ kind }: { kind: 'SELF_USE' | 'DEFECT
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={6} className="ec-empty">불러오는 중…</td></tr>
-          ) : shown.length === 0 ? (
-            <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((r, i) => (
-            <tr key={r.id}>
-              <td className="text-center text-ec-hint">{i + 1}</td>
-              <td className="text-center">{dateText(r.adjustDate)} {r.adjustNo}</td>
-              <td>{r.warehouseName}</td>
-              <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
-              <td className="text-right">{Math.abs(Number(r.quantityChange)).toLocaleString('ko-KR')}</td>
-              {selfUse
-                ? <td>{r.employeeId != null ? empName.get(r.employeeId) ?? '' : ''}</td>
-                : <td>{r.handling ?? ''}</td>}
-            </tr>
-          ))}
+            <tr><td colSpan={selfUse ? 7 : 6} className="ec-empty">불러오는 중…</td></tr>
+          ) : slips.length === 0 ? (
+            <tr><td colSpan={selfUse ? 7 : 6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+          ) : slips.map((ls) => {
+            const r = ls[0]
+            const qty = ls.reduce((s, x) => s + Math.abs(Number(x.quantityChange)), 0)
+            return (
+              <tr key={r.adjustNo}>
+                <td className="text-center">
+                  <input type="checkbox" aria-label={`${r.adjustNo} 선택`} checked={picked.has(r.adjustNo)}
+                         onChange={() => setPicked((p) => { const n = new Set(p); if (n.has(r.adjustNo)) n.delete(r.adjustNo); else n.add(r.adjustNo); return n })} />
+                </td>
+                <td>
+                  {selfUse
+                    ? <a className="cursor-pointer" onClick={() => setEditNo(r.adjustNo)}>{dateNo(r.adjustDate, r.adjustNo)}</a>
+                    : dateNo(r.adjustDate, r.adjustNo)}
+                </td>
+                {selfUse && <td>{r.partnerId != null ? partnerName.get(r.partnerId) ?? '' : ''}</td>}
+                <td>{r.warehouseName}</td>
+                <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}{ls.length > 1 ? ` 외 ${ls.length - 1}건` : ''}</td>
+                <td className="text-right">{qty.toLocaleString('ko-KR')}</td>
+                {selfUse
+                  ? <td>{r.employeeId != null ? empName.get(r.employeeId) ?? '' : ''}</td>
+                  : <td>{r.handling ?? ''}</td>}
+              </tr>
+            )
+          })}
         </tbody>
       </table>
+      <Modal open={editNo != null} title="자가사용수정" width={1100} error={error} onClose={() => setEditNo(null)}>
+        {editNo && <SelfUseInputPage adjustNo={editNo} onDone={() => { setEditNo(null); void load() }} />}
+      </Modal>
     </EcListShell>
   )
 }

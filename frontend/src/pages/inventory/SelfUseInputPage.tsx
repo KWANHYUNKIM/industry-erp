@@ -1,0 +1,228 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import CodePickerField from '../../components/CodePickerField'
+import EcSlipShell from '../../components/EcSlipShell'
+import { EcCond } from '../../components/EcStatusPanel'
+import { ymd } from '../../components/EcPeriodPicks'
+import { api, extractErrorMessage } from '../../api/client'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import { useCondPickers } from '../../utils/useCondPickers'
+import { dateNo } from '../../utils/dateNo'
+import type { StockAdjustmentSlip } from '../../types/api'
+
+type Line = { itemId: string; quantity: string; kind: string }
+const blank = (): Line => ({ itemId: '', quantity: '', kind: '' })
+/** 원본 격자는 빈 줄 셋으로 뜬다. */
+const blankLines = () => [blank(), blank(), blank()]
+const num = (n: number) => n.toLocaleString('ko-KR')
+
+/**
+ * 재고 I › 기타이동 › 자가사용 › <b>자가사용입력</b>(E040503) · 자가사용조회에서 연 <b>자가사용수정</b> — 2026-10-12 loginaa 실측.
+ *
+ * <p>머리 [일자 · 거래처 / 담당자 · 창고 / 프로젝트], 아래 격자 [품목코드 · 품목명 · 규격 · 수량 · 사용유형] 에 품목을 여러 줄 넣어
+ * 전표 한 장으로 저장한다. 사용유형은 코드도움(원본 회사: 100 고객샘플용 · 200 직원증정용 · 300 연구개발용) — 우리는 공통코드 '사용유형'.
+ * 창고를 비우고 저장하면 막힌다. 저장하면 일자 · 창고는 그대로 두고 격자만 비운다. 격자 밑 합계줄은 수량 합.
+ * 수정 창은 일자가 잠기고 버튼이 [저장(F8) · 삭제 · 닫기], 삭제는 '전표를 삭제하겠습니까?' 를 묻는다.
+ *
+ * <p>원본에 있는데 두지 않은 것: 격자 위 [찾기(F3) · 정렬 · My품목 · 주문 · 구매 · 재고불러오기 · 바코드 · 전표 바코드 · 검증 · 전표불러오기],
+ * [새로운 항목 추가] 열, 아래 [저장/전표(F7) · 웹자료올리기], 수정 창의 [복사 · 이전 · 다음 · 보내기].
+ */
+export default function SelfUseInputPage({ adjustNo, onDone }: { adjustNo?: string; onDone?: () => void } = {}) {
+  const navigate = useNavigate()
+  const editing = !!adjustNo
+  const pickers = useCondPickers(['partners', 'warehouses', 'projects', 'items', 'employees'])
+  const [date, setDate] = useState(ymd(new Date()))
+  const [partnerId, setPartnerId] = useState('')
+  const [employeeId, setEmployeeId] = useState('')
+  const [warehouseId, setWarehouseId] = useState('')
+  const [projectId, setProjectId] = useState('')
+  const [lines, setLines] = useState<Line[]>(blankLines())
+  const [picked, setPicked] = useState<Set<number>>(new Set())
+  const [kinds, setKinds] = useState<string[]>([])
+  const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+
+  useEffect(() => {
+    api.get<{ name: string; codes: { name: string }[] }[]>('/codes')
+      .then((r) => setKinds((r.data.find((g) => g.name === '사용유형')?.codes ?? []).map((c) => c.name)))
+      .catch(() => setKinds([]))
+  }, [])
+
+  useEffect(() => {
+    if (!adjustNo) return
+    api.get<StockAdjustmentSlip>(`/stock-adjustments/slips/${encodeURIComponent(adjustNo)}`)
+      .then(({ data: s }) => {
+        setDate(s.date)
+        setPartnerId(s.partnerId != null ? String(s.partnerId) : '')
+        setEmployeeId(s.employeeId != null ? String(s.employeeId) : '')
+        setWarehouseId(String(s.warehouseId))
+        setProjectId(s.projectId != null ? String(s.projectId) : '')
+        setLines([...s.lines.map((l) => ({ itemId: String(l.itemId), quantity: String(Math.abs(Number(l.quantityChange))), kind: l.kind ?? '' })), blank()])
+      })
+      .catch((e) => setError(extractErrorMessage(e)))
+  }, [adjustNo])
+
+  const itemById = useMemo(() => new Map(pickers.items.map((i) => [i.value, i])), [pickers.items])
+  /* 담당자는 id 로 든다(inventory 는 hr 을 모른다) — 후보 값도 id 로 바꿔 준다. */
+  const employeeItems = useMemo(() => pickers.employees.map((e) => ({ ...e, value: String(e.id) })), [pickers.employees])
+  const kindItems = useMemo(() => kinds.map((k) => ({ value: k, name: k })), [kinds])
+
+  function setLine(i: number, patch: Partial<Line>) {
+    setLines((ls) => {
+      const next = ls.map((l, j) => (j === i ? { ...l, ...patch } : l))
+      // 마지막 줄에 품목을 넣으면 빈 줄을 하나 더 단다(원본 격자처럼 끝이 늘 비어 있다).
+      if (next[next.length - 1].itemId) next.push(blank())
+      return next
+    })
+  }
+
+  function reset() {
+    setLines(blankLines())
+    setPicked(new Set())
+    setError('')
+  }
+
+  async function save() {
+    setError(''); setNotice('')
+    if (!warehouseId) return setError('창고를 입력하세요.')
+    const filled = lines.filter((l) => l.itemId || l.quantity)
+    if (filled.length === 0 || filled.some((l) => !l.itemId)) return setError('품목을 입력하세요.')
+    if (filled.some((l) => !(Number(l.quantity) > 0))) return setError('수량을 입력하세요.')
+    const body = {
+      type: 'SELF_USE', date,
+      partnerId: partnerId ? Number(partnerId) : null,
+      employeeId: employeeId ? Number(employeeId) : null,
+      warehouseId: Number(warehouseId),
+      projectId: projectId ? Number(projectId) : null,
+      lines: filled.map((l) => ({ itemId: Number(l.itemId), quantity: Number(l.quantity), kind: l.kind || null })),
+    }
+    try {
+      const { data } = editing
+        ? await api.put<StockAdjustmentSlip>(`/stock-adjustments/slips/${encodeURIComponent(adjustNo!)}`, body)
+        : await api.post<StockAdjustmentSlip>('/stock-adjustments/slips', body)
+      if (editing) { onDone?.(); return }
+      setNotice(`${dateNo(data.date, data.adjustNo)} 저장되었습니다.`)
+      reset()
+    } catch (e) {
+      setError(extractErrorMessage(e))
+    }
+  }
+
+  async function remove() {
+    if (!adjustNo || !confirm('전표를 삭제하겠습니까?')) return
+    try {
+      await api.delete(`/stock-adjustments/slips/${encodeURIComponent(adjustNo)}`)
+      onDone?.()
+    } catch (e) {
+      setError(extractErrorMessage(e))
+    }
+  }
+
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, editing ? '자가사용수정' : '자가사용입력', [lines])
+  const totalQty = lines.reduce((s, l) => s + (Number(l.quantity) || 0), 0)
+  const allPicked = lines.length > 0 && picked.size === lines.length
+
+  return (
+    <EcSlipShell
+      title={editing ? '자가사용수정' : '자가사용입력'}
+      formTabs={[{ id: 'basic', label: '자가사용입력' }]} activeFormTab="basic"
+      actions={editing
+        ? [
+            { label: '저장(F8)', primary: true, submit: true, onClick: () => void save() },
+            { label: '삭제', onClick: () => void remove() },
+            { label: '닫기', onClick: () => onDone?.() },
+          ]
+        : [
+            { label: '저장(F8)', primary: true, submit: true, onClick: () => void save() },
+            { label: '다시 작성', onClick: reset },
+            { label: '리스트', onClick: () => navigate('/inventory/self-use') },
+          ]}>
+      <div>
+        {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+        {notice && <p className="ec-alert mb-[8px]">{notice}</p>}
+
+        <ul className="ec-form mb-[8px]">
+          <EcCond label="일자">
+            <input type="date" className="ec-input w-[150px]" value={date} disabled={editing}
+                   onChange={(e) => setDate(e.target.value)} />
+            {editing && adjustNo && <span className="ml-[6px]">-{Number(adjustNo.split('-').pop()) || ''}</span>}
+          </EcCond>
+          <EcCond label="거래처" pick>
+            <CodePickerField label="거래처" hideLabel fill pair placeholder="거래처" value={partnerId}
+                             onChange={setPartnerId} items={pickers.partners} />
+          </EcCond>
+          <EcCond label="담당자" pick>
+            <CodePickerField label="담당자" hideLabel fill pair placeholder="담당자" value={employeeId}
+                             onChange={setEmployeeId} items={employeeItems} />
+          </EcCond>
+          <EcCond label="창고" pick>
+            <CodePickerField label="창고" hideLabel fill pair placeholder="창고" value={warehouseId}
+                             onChange={setWarehouseId} items={pickers.warehouses} />
+          </EcCond>
+          <EcCond label="프로젝트" pick>
+            <CodePickerField label="프로젝트" hideLabel fill pair placeholder="프로젝트" value={projectId}
+                             onChange={setProjectId} items={pickers.projects} />
+          </EcCond>
+        </ul>
+
+        <div className="flex gap-[4px] mb-[4px]">
+          <button type="button" className="ec-btn ec-btn-sm" disabled={picked.size === 0}
+                  onClick={() => { setLines((ls) => { const n = ls.filter((_, i) => !picked.has(i)); return n.length ? n : blankLines() }); setPicked(new Set()) }}>
+            선택삭제
+          </button>
+        </div>
+        <div className="overflow-x-auto">
+          <table ref={tableRef} className="w-full">
+            <thead>
+              <tr>
+                <th className="w-[44px] text-center">
+                  <input type="checkbox" aria-label="전체 선택" checked={allPicked}
+                         onChange={() => setPicked(allPicked ? new Set() : new Set(lines.map((_, i) => i)))} />
+                </th>
+                <th className="w-[176px]">품목코드</th>
+                <th className="w-[194px]">품목명</th>
+                <th className="w-[133px]">규격</th>
+                <th className="w-[101px] text-right">수량</th>
+                <th>사용유형</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lines.map((l, i) => {
+                const it = itemById.get(l.itemId)
+                return (
+                  <tr key={i}>
+                    <td className="text-center whitespace-nowrap">
+                      <input type="checkbox" aria-label={`${i + 1}줄 선택`} checked={picked.has(i)}
+                             onChange={() => setPicked((p) => { const n = new Set(p); if (n.has(i)) n.delete(i); else n.add(i); return n })} />
+                      {' '}{i + 1}
+                    </td>
+                    <td>
+                      <CodePickerField label="품목코드" hideLabel fill value={l.itemId}
+                                       onChange={(v) => setLine(i, { itemId: v })} items={pickers.items} />
+                    </td>
+                    <td>{it?.name ?? ''}</td>
+                    <td>{it?.sub ?? ''}</td>
+                    <td>
+                      <input className="ec-input w-full text-right" inputMode="decimal" aria-label={`${i + 1}줄 수량`}
+                             value={l.quantity} onChange={(e) => setLine(i, { quantity: e.target.value.replace(/[^\d.]/g, '') })} />
+                    </td>
+                    <td>
+                      <CodePickerField label="사용유형" hideLabel fill value={l.kind}
+                                       onChange={(v) => setLine(i, { kind: v })} items={kindItems} />
+                    </td>
+                  </tr>
+                )
+              })}
+              <tr className="ec-total">
+                <td colSpan={4} />
+                <td className="text-right">{num(totalQty)}</td>
+                <td />
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </EcSlipShell>
+  )
+}

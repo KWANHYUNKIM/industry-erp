@@ -150,6 +150,107 @@ public class StockAdjustmentService {
     public void delete(Long id, String username) {
         StockAdjustment a = adjustmentRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("재고조정을 찾을 수 없습니다. id=" + id));
+        revert(a, username);
+        adjustmentRepository.delete(a);
+    }
+
+    /**
+     * 원본 <b>자가사용입력</b>(E040503) — 품목 여러 줄을 전표 한 장으로. 줄마다 그 창고 재고를 수량만큼 뺀다.
+     *
+     * <p>2026-10-12 loginaa 실측: 머리 [일자 · 거래처 · 담당자 · 창고 · 프로젝트], 격자 [품목코드 · 품목명 · 규격 · 수량 · 사용유형].
+     * 창고를 비우고 저장하면 창고 칸이 빨갛게 막힌다. 저장하면 같은 일자 · 창고를 둔 채 격자만 비운다.
+     * 재고조정(ADJUST)은 실사수량을 받는 다른 화면이라 여기로 받지 않는다.
+     */
+    @Transactional
+    public StockAdjustmentDtos.SlipResponse createSlip(StockAdjustmentDtos.SlipRequest req, String username) {
+        LocalDate date = req.date() != null ? req.date() : LocalDate.now();
+        String adjustNo = docNoGenerator.next("SA-", "stock_adjustments", "adjust_no", "adjust_date", date);
+        return writeSlip(adjustNo, date, req, username);
+    }
+
+    @Transactional(readOnly = true)
+    public StockAdjustmentDtos.SlipResponse getSlip(String adjustNo) {
+        return StockAdjustmentDtos.SlipResponse.of(slipRows(adjustNo));
+    }
+
+    /**
+     * 자가사용수정 — 원본처럼 <b>일자는 그대로</b> 두고(수정 창의 일자가 잠긴다) 나머지를 새로 쓴다.
+     * 예전 줄이 뺀 재고를 되돌린 뒤 새 줄을 다시 뺀다. 둘 다 한 트랜잭션이라 새 줄이 재고 부족으로
+     * 막히면 되돌린 것까지 함께 취소된다.
+     */
+    @Transactional
+    public StockAdjustmentDtos.SlipResponse updateSlip(String adjustNo, StockAdjustmentDtos.SlipRequest req, String username) {
+        List<StockAdjustment> old = slipRows(adjustNo);
+        LocalDate date = old.get(0).getAdjustDate();
+        old.forEach(a -> revert(a, username));
+        adjustmentRepository.deleteAll(old);
+        /* Hibernate 는 flush 때 insert 를 delete 보다 먼저 보낸다 — 같은 (번호, 줄번호)로 다시 넣으면 유일 제약에 걸린다. */
+        adjustmentRepository.flush();
+        return writeSlip(adjustNo, date, req, username);
+    }
+
+    /** 원본 자가사용수정의 [삭제] — '전표를 삭제하겠습니까?' 뒤 전표의 모든 줄을 지우고 재고를 되돌린다. */
+    @Transactional
+    public void deleteSlip(String adjustNo, String username) {
+        List<StockAdjustment> rows = slipRows(adjustNo);
+        rows.forEach(a -> revert(a, username));
+        adjustmentRepository.deleteAll(rows);
+    }
+
+    private List<StockAdjustment> slipRows(String adjustNo) {
+        List<StockAdjustment> rows = adjustmentRepository.findSlip(adjustNo);
+        if (rows.isEmpty()) {
+            throw ApiException.notFound("전표를 찾을 수 없습니다. " + adjustNo);
+        }
+        return rows;
+    }
+
+    private StockAdjustmentDtos.SlipResponse writeSlip(String adjustNo, LocalDate date,
+                                                      StockAdjustmentDtos.SlipRequest req, String username) {
+        if (req.type() == StockAdjustmentType.ADJUST) {
+            throw ApiException.badRequest("재고조정은 실사수량으로 입력하세요.");
+        }
+        Warehouse warehouse = warehouseRepository.findById(req.warehouseId())
+                .orElseThrow(() -> ApiException.notFound("창고를 찾을 수 없습니다. id=" + req.warehouseId()));
+        var project = req.projectId() == null ? null : projectService.get(req.projectId());
+        List<StockAdjustment> saved = new java.util.ArrayList<>();
+        int lineNo = 0;
+        for (StockAdjustmentDtos.SlipLine line : req.lines()) {
+            lineNo++;
+            Item item = itemRepository.findById(line.itemId())
+                    .orElseThrow(() -> ApiException.notFound("품목을 찾을 수 없습니다. id=" + line.itemId()));
+            BigDecimal qty = line.quantity();
+            if (qty.signum() <= 0) {
+                throw ApiException.badRequest(lineNo + "번째 줄: 수량은 0보다 커야 합니다.");
+            }
+            stockService.requireStockTracked(item);
+            String note = req.type().getDisplayName() + " " + adjustNo
+                    + (line.reason() != null && !line.reason().isBlank() ? " (" + line.reason() + ")" : "");
+            StockTransaction tx = stockService.applyDelta(item, warehouse, qty.negate(),
+                    StockTransactionType.OUTBOUND, null, date, note, username);
+            saved.add(adjustmentRepository.save(StockAdjustment.builder()
+                    .adjustNo(adjustNo)
+                    .lineNo(lineNo)
+                    .adjustDate(date)
+                    .type(req.type())
+                    .item(item)
+                    .warehouse(warehouse)
+                    .beforeQty(tx.getBalanceAfter().subtract(tx.getQuantityChange()))
+                    .quantityChange(tx.getQuantityChange())
+                    .afterQty(tx.getBalanceAfter())
+                    .project(project)
+                    .employeeId(req.employeeId())
+                    .partnerId(req.partnerId())
+                    .reason(line.reason())
+                    .kind(line.kind())
+                    .createdBy(username)
+                    .build()));
+        }
+        return StockAdjustmentDtos.SlipResponse.of(saved);
+    }
+
+    /** 한 줄이 바꾼 재고를 되돌린다(수불이력은 지우지 않고 반대 거래를 남긴다). */
+    private void revert(StockAdjustment a, String username) {
         BigDecimal back = a.getQuantityChange().negate();
         if (back.signum() != 0) {
             StockTransactionType type = a.getType() == StockAdjustmentType.ADJUST ? StockTransactionType.ADJUST
@@ -157,7 +258,6 @@ public class StockAdjustmentService {
             stockService.applyDelta(a.getItem(), a.getWarehouse(), back, type, null, a.getAdjustDate(),
                     a.getType().getDisplayName() + "취소 " + a.getAdjustNo(), username);
         }
-        adjustmentRepository.delete(a);
     }
 
     private BigDecimal required(BigDecimal value, String message) {

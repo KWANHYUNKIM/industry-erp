@@ -1436,6 +1436,24 @@ export interface StockAdjustment {
   /** 원본 [불량유형]·[사용유형] · [처리방법](불량처리). */
   kind?: string | null
   handling?: string | null
+  /** 전표 안 줄 차례 — 같은 adjustNo 의 줄들이 한 장이다(자가사용입력). */
+  lineNo?: number
+  /** 원본 자가사용입력 머리 [거래처]. 이름은 화면이 거래처 목록에서 붙인다. */
+  partnerId?: number | null
+}
+
+/** 원본 자가사용입력(E040503) 전표 한 장 — 머리 + 줄. */
+export interface StockAdjustmentSlip {
+  adjustNo: string
+  date: string
+  type: StockAdjustmentType
+  partnerId: number | null
+  employeeId: number | null
+  warehouseId: number
+  warehouseName: string
+  projectId: number | null
+  projectName: string | null
+  lines: StockAdjustment[]
 }
 
 // ===== 시리얼/로트 관리 =====

@@ -55,7 +55,11 @@ public final class StockAdjustmentDtos {
             Long projectId, String projectName, Long employeeId,
             String reason, String createdBy,
             /** 원본 [불량유형]·[사용유형]·[처리방법]. */
-            String kind, String handling
+            String kind, String handling,
+            /** 전표 안 줄 차례 — 같은 adjustNo 의 줄들이 한 장이다(자가사용입력). */
+            Integer lineNo,
+            /** 원본 머리 [거래처]. 이름은 화면이 거래처 목록에서 붙인다(inventory 는 trade 를 모른다). */
+            Long partnerId
     ) {
         public static AdjustmentResponse from(StockAdjustment a) {
             return new AdjustmentResponse(
@@ -71,7 +75,54 @@ public final class StockAdjustmentDtos {
                     a.getProject() != null ? a.getProject().getName() : null,
                     a.getEmployeeId(),
                     a.getReason(), a.getCreatedBy(),
-                    a.getKind(), a.getHandling());
+                    a.getKind(), a.getHandling(),
+                    a.getLineNo(), a.getPartnerId());
+        }
+    }
+
+    /**
+     * 원본 <b>자가사용입력</b>(E040503) 한 장 — 머리 [일자 · 거래처 · 담당자 · 창고 · 프로젝트] + 격자 [품목 · 수량 · 사용유형].
+     *
+     * <p>창고는 머리 한 칸이라 모든 줄이 같은 창고에서 나간다(원본 그대로). 수정할 때 일자는 막힌다 —
+     * 원본 자가사용수정 창의 일자가 회색으로 잠긴다. 그래서 수정 요청의 date 는 무시한다.
+     */
+    public record SlipRequest(
+            @NotNull(message = "유형을 선택하세요.") StockAdjustmentType type,
+            LocalDate date,
+            Long partnerId,
+            Long employeeId,
+            @NotNull(message = "창고를 입력하세요.") Long warehouseId,
+            Long projectId,
+            @jakarta.validation.constraints.NotEmpty(message = "품목을 입력하세요.")
+            List<@jakarta.validation.Valid SlipLine> lines
+    ) {}
+
+    public record SlipLine(
+            @NotNull(message = "품목을 입력하세요.") Long itemId,
+            @NotNull(message = "수량을 입력하세요.")
+            @jakarta.validation.constraints.Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
+            @Size(max = 30, message = "입력한 글자가 너무 깁니다. 30자까지 넣을 수 있습니다.")
+            String kind,
+            @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
+            String reason
+    ) {}
+
+    /** 전표 한 장 — 머리 값은 첫 줄의 것(모든 줄이 같다), 줄은 줄번호 차례. */
+    public record SlipResponse(
+            String adjustNo, LocalDate date, StockAdjustmentType type,
+            Long partnerId, Long employeeId,
+            Long warehouseId, String warehouseName,
+            Long projectId, String projectName,
+            List<AdjustmentResponse> lines
+    ) {
+        public static SlipResponse of(List<StockAdjustment> rows) {
+            StockAdjustment h = rows.get(0);
+            return new SlipResponse(h.getAdjustNo(), h.getAdjustDate(), h.getType(),
+                    h.getPartnerId(), h.getEmployeeId(),
+                    h.getWarehouse().getId(), h.getWarehouse().getName(),
+                    h.getProject() != null ? h.getProject().getId() : null,
+                    h.getProject() != null ? h.getProject().getName() : null,
+                    rows.stream().map(AdjustmentResponse::from).toList());
         }
     }
 

@@ -53,4 +53,9 @@ public interface StockAdjustmentRepository extends JpaRepository<StockAdjustment
            + "where a.adjustDate between :from and :to and a.type = :type")
     long countByPeriodAndType(@Param("from") LocalDate from, @Param("to") LocalDate to,
                               @Param("type") com.erp.inventory.adjustment.StockAdjustmentType type);
+
+    /** 전표 한 장(자가사용입력)의 줄들 — 줄번호 차례. */
+    @Query("select a from StockAdjustment a join fetch a.item join fetch a.warehouse left join fetch a.project "
+           + "where a.adjustNo = :adjustNo order by a.lineNo, a.id")
+    List<StockAdjustment> findSlip(@Param("adjustNo") String adjustNo);
 }
