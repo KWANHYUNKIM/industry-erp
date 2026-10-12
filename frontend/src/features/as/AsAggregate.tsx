@@ -21,7 +21,11 @@ import { weekOfYear } from '../../utils/statusAggregate'
  */
 export const AS_AGG_KEYS = ['일별', '주차별', '월별', '분기별', '반기별', '연별', '담당자', '창고', '관리항목',
   '거래처', '거래처그룹1', '품목명[규격]', '품목그룹1', '프로젝트'] as const
-export type AsAggKey = (typeof AS_AGG_KEYS)[number]
+/**
+ * 기타이동현황(불량처리 · 대체사용 · 폐기)의 집계조건창에는 [불량] 묶음 맨 앞에 <b>불량유형</b>이 더 있다
+ * (2026-10-12 불량처리현황 E040509 실측). A/S 후보에는 없으므로 AS_AGG_KEYS 에 넣지 않고 형만 넓힌다.
+ */
+export type AsAggKey = (typeof AS_AGG_KEYS)[number] | '불량유형'
 
 /** 집계가 읽는 줄 하나 — 화면마다 응답 모양이 달라 이 모양으로 옮겨 넘긴다. [이름, 코드]. */
 export interface AsAggLine {
@@ -35,6 +39,8 @@ export interface AsAggLine {
   itemGroup: string
   project: [string, string]
   qty: number
+  /** [불량유형] — 기타이동현황만 채운다. */
+  kind?: string
   /** 값 열이 여럿인 화면(품질검사현황)의 값 — <code>measures</code> 와 같은 차례. 없으면 [qty]. */
   vals?: number[]
 }
@@ -59,6 +65,7 @@ function axis(k: AsAggKey, x: AsAggLine): [string, string] {
     case '품목명[규격]': return [x.itemName + (x.itemSpec ? ` [${x.itemSpec}]` : ''), x.itemCode]
     case '품목그룹1': return [x.itemGroup, '']
     case '프로젝트': return x.project
+    case '불량유형': return [x.kind ?? '', '']
   }
 }
 

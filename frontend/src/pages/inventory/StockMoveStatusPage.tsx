@@ -13,6 +13,8 @@ import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
+import { AsAggControls, AsAggregateTable, type AsAggKey, type AsAggLine, type AsAggValue } from '../../features/as/AsAggregate'
+import { EcReportHead, EcReportFoot, reportDate, reportPeriod } from '../../components/EcReportFrame'
 
 /**
  * 재고 > 기타이동현황 — 자가사용(E040506) · 불량처리(E040509) · 대체사용(E040510) ·
@@ -25,8 +27,8 @@ import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
  * 다섯 화면이 같은 표를 유형만 바꿔 보여 주므로 한 컴포넌트에 `type` 을 넘긴다
  * (`StockAdjustmentType` 이 원본 다섯 메뉴와 그대로 대응한다).
  *
- * 원본 [구분]은 <b>내역 / 집계 / 라인별</b> 셋이지만 우리 기타이동 전표는 <b>한 줄짜리</b>라
- * 내역과 라인별이 같은 표가 된다. 없는 구분을 흉내내지 않고 [내역|집계] 둘만 둔다.
+ * 원본 [구분]은 ◉내역(일별 · 월별 · 라인별 · 전표별 · 품목별 · 전표별품목별 · 담당자별) · ○집계(집계조건1 · 2)다
+ * (2026-10-12 실측). 내역은 출력물 머리글 · 소계 · 합계 · 꼬리를 그린다.
  *
  * 원본 조건 중 프로젝트·담당자는 StockAdjustment 에 없어 넣지 않았다.
  *
@@ -96,6 +98,43 @@ interface AdjustmentList {
 }
 
 const num = (n: number) => n.toLocaleString()
+
+/** 원본 ◉내역 선택상자(차례 그대로). */
+const FORMS = ['일별', '월별', '라인별', '전표별', '품목별', '전표별품목별', '담당자별'] as const
+type Form = (typeof FORMS)[number]
+
+/** 원본 ◉내역 출력물 머리글(2026-10-12 실측) — 메뉴 이름과 다른 화면이 둘 있다. */
+const REPORT_TITLE: Record<AdjustKind, string> = {
+  SELF_USE: '자가사용현황',
+  DEFECT: '불량현황',
+  SUBSTITUTE: '대체사용현황',
+  DISPOSAL: '폐기리스트',
+  ADJUST: '재고조정현황',
+}
+/** 원본 [정렬/소계기준] 기본 소계(2026-10-12 실측). 없으면 합계만. */
+const SUB_BY: Partial<Record<AdjustKind, '일' | '월'>> = { DEFECT: '일', SELF_USE: '월', DISPOSAL: '월' }
+/**
+ * [정렬/소계기준] 고를 값 — 정렬은 원본 기본값([일자-No.] 오름차순) 하나로 두고, 소계를 일 · 월 · 없음 중에서 고른다.
+ * 기본은 화면마다 원본이 정해 둔 값(SUB_BY)이다.
+ */
+const SUBTOTALS = ['일자별', '월별', '소계없음'] as const
+type Subtotal = (typeof SUBTOTALS)[number]
+const defaultSub = (k: AdjustKind): Subtotal => (SUB_BY[k] === '일' ? '일자별' : SUB_BY[k] === '월' ? '월별' : '소계없음')
+
+/** 격자 열 하나 — 글자 칸은 묶음 첫 줄 값, 숫자 칸은 묶음 합. */
+interface Col { h: string; text?: (r: Adjustment) => string; num?: (r: Adjustment) => number | null; amount?: boolean }
+/** ◉내역 한 줄 — 라인별이면 줄 하나, 그 밖의 판이면 묶인 줄들. */
+interface Group { key: string; first: Adjustment; rows: Adjustment[]; dateCell: string }
+/** 여러 화면이 같이 쓰는 열. 원본은 규격을 품목명 뒤 대괄호에 한 칸 띄워 붙인다('인셀디스플레이 [5x5]'). */
+const C = {
+  dateNo: { h: '일자-No.' } as Col,
+  code: { h: '품목코드', text: (r: Adjustment) => r.itemCode } as Col,
+  item: (h: string): Col => ({ h, text: (r) => r.itemName + (r.spec ? ` [${r.spec}]` : '') }),
+  wh: { h: '창고명', text: (r: Adjustment) => r.warehouseName ?? '' } as Col,
+  memo: { h: '적요', text: (r: Adjustment) => r.reason ?? '' } as Col,
+}
+/** 원본 수량 꼴 — 소수 두 자리('7.00'). */
+const qty2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 /** 불량처리 전표를 데려가는 현황과 그 [처리방법]. */
 const HANDLING_OF: Partial<Record<AdjustKind, string>> = { DISPOSAL: '폐기', SUBSTITUTE: '품목대체' }
 
@@ -286,103 +325,130 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
     .filter((r) => !cond.partnerManager || partnerOf(r.partnerId)?.manager === cond.partnerManager)
 
   /*
-   * 원본 조건 판의 <b>[정렬/소계기준]</b> — 집계를 <b>무엇으로 묶을지</b> 고른다(사본 실측).
-   * 우리는 창고 × 품목으로 <b>박아 두어</b>, "이 사유로 얼마나 나갔나" 를 볼 수가 없었다.
-   * 기본값은 예전 그대로라 지금 보이던 표는 안 바뀐다.
+   * 원본 [구분] ◉내역 옆 선택상자 — <b>일별 · 월별 · 라인별(기본) · 전표별 · 품목별 · 전표별품목별 · 담당자별</b>
+   * (2026-10-12 불량처리현황 E040509 · 재고조정현황 E040608 실측, 일곱 다 같은 차례). 묶은 줄은 <b>처음 줄</b>의
+   * 값(불량유형 · 품목 …)을 두고 수량만 더한다 — 품목별에서 10/03 스크래치 9 + 10/04 불량화소 3 이
+   * '스크래치 · 2026/10/03 -1 · 12.00' 한 줄이 됐다. 일별 · 월별은 [일자-No.] 칸에 날짜 · 달만 적는다.
    */
-  const SUBTOTALS = ['창고·품목', '품목', '창고', '사유'] as const
-  const [subtotal, setSubtotal] = useState<typeof SUBTOTALS[number]>('창고·품목')
+  const [form, setForm] = useState<Form>('라인별')
+  /** ○집계 — 집계조건1 · 2 · 코드포함. 조건 없이 검색하면 원본처럼 막는다. */
+  const [agg, setAgg] = useState<AsAggValue>({ agg1: '', agg2: '', codeIncl: false })
+  useEffect(() => { setForm('라인별'); setAgg({ agg1: '', agg2: '', codeIncl: false }) }, [kind])
   /**
-   * 원본 [데이터 보기형식] · [그래프로 보기]. 다섯 화면(자가사용·불량처리·대체사용·폐기·
-   * 재고조정)이 한 파일이라 여기 한 번 만들면 다섯이 같이 풀린다.
-   *
-   * <p>무엇을 그리나 — <b>고른 [정렬/소계기준] 축으로 묶어 증감 수량</b>을 그린다.
-   * 줄 하나씩 그리면 같은 품목이 흩어져 막대가 수십 개로 늘어선다. 소계와 같은 축을
-   * 쓰므로 표에서 보던 묶음이 그대로 그림이 된다.
-   *
-   * <p>수량은 <b>절댓값</b>으로 그린다. 조정은 늘기도 줄기도 하는데 부호를 섞어 더하면
-   * 서로 지워져 '움직임이 없었다' 로 보인다 — 얼마나 움직였나를 보는 그림이다.
+   * 원본 [데이터 보기형식] · [그래프로 보기]. 품목으로 묶어 수량을 그린다.
+   * 수량은 <b>절댓값</b>으로 그린다 — 조정은 늘기도 줄기도 해 부호를 섞어 더하면 서로 지워진다.
    */
   const [view, setView] = useState<'표' | '그래프'>('표')
   const chartRows = useMemo(() => {
     const m = new Map<string, number>()
-    for (const r of shown) {
-      const label = subtotal === '품목' ? r.itemName
-        : subtotal === '창고' ? (r.warehouseName ?? '(창고 없음)')
-          : subtotal === '사유' ? ((r.reason ?? '').trim() || '(사유 없음)')
-            : `${r.warehouseName ?? '(창고 없음)'} · ${r.itemName}`
-      m.set(label, (m.get(label) ?? 0) + Math.abs(r.quantityChange))
-    }
+    for (const r of shown) m.set(r.itemName, (m.get(r.itemName) ?? 0) + Math.abs(r.quantityChange))
     return [...m].map(([label, value]) => ({ label, value }))
-  }, [shown, subtotal])
-
-  /** 집계 — 고른 기준으로 묶어 증감 합을 낸다. */
-  const summary = useMemo(() => {
-    const m = new Map<string, { warehouseName: string; itemCode: string; itemName: string; unit: string; change: number; count: number }>()
-    shown.forEach((r) => {
-      /* 묶는 열쇠와, 그 묶음에서 <b>안 쓰는 칸</b>은 비워 둔다 — 첫 줄 값이 남으면 거짓말이 된다. */
-      const k = subtotal === '품목' ? `i:${r.itemId}`
-        : subtotal === '창고' ? `w:${r.warehouseId}`
-          : subtotal === '사유' ? `r:${(r.reason ?? '').trim()}`
-            : `${r.warehouseId}:${r.itemId}`
-      const shell = subtotal === '품목'
-        ? { warehouseName: '', itemCode: r.itemCode, itemName: r.itemName }
-        : subtotal === '창고'
-          ? { warehouseName: r.warehouseName, itemCode: '', itemName: '' }
-          : subtotal === '사유'
-            ? { warehouseName: '', itemCode: '', itemName: (r.reason ?? '').trim() || '(적요 없음)' }
-            : { warehouseName: r.warehouseName, itemCode: r.itemCode, itemName: r.itemName }
-      const g = m.get(k) ?? { ...shell, unit: r.unit, change: 0, count: 0 }
-      g.change += r.quantityChange
-      g.count += 1
-      m.set(k, g)
-    })
-    return [...m.entries()].map(([k, g]) => ({ k, ...g }))
-      .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shown, subtotal])
+  }, [shown])
 
 /**
  * 원본의 <b>[금액(수량*입고단가)]</b>.
  *
  * <p>이름이 계산식 그대로다 — 전표에 적힌 <b>거래 금액이 아니라</b>
  * 그 품목을 <b>얼마에 사 왔는지</b>로 수량을 값으로 환산한 칸이다.
- * 그래서 "이 전표에는 단가가 없다" 는 것은 못 만드는 이유가 되지 않는다.
  * 평가단가는 재고자산·경영자보고서와 <b>같은 규칙</b>을 쓴다
  * (<code>stockCostMapFromLast</code>: 마지막 입고단가 → 없으면 품목 구매단가).
- *
- * <p>단가를 모르는 품목은 <b>빈칸</b>이다. 0 으로 채우면 "값이 0원" 으로 읽혀
- * 모르는 것과 구별이 안 되고, 합계도 조용히 줄어든다.
+ * 단가를 모르는 품목은 <b>빈칸</b>이다. 0 으로 채우면 "값이 0원" 으로 읽힌다.
  */
   const amountOf = (itemId: number, qty: number) => {
     const c = costById.get(itemId)
     return c == null ? null : qty * c
   }
-  /*
-   * 원본에서 이 칸을 두는 것은 <b>자가사용현황 · 재고조정현황</b> 둘이다
-   * (대체사용현황은 그 자리에 [정상수량]·[불량수량]을 둔다 — 다른 칸이다).
-   * 없는 화면에까지 달면 우리가 원본에 없는 열을 하나 더 두는 것이 된다.
+  /**
+   * 원본 [수량]은 <b>부호 없이</b> 나간 만큼 적는다(불량처리현황 '7.00' · 자가사용현황 '1.00' 실측).
+   * 재고조정만 [조정수량]이 늘고 주는 것이라 부호 그대로다.
    */
-  const hasAmount = kind === 'SELF_USE' || kind === 'ADJUST'
-  const totalChange = shown.reduce((n, r) => n + r.quantityChange, 0)
-  const totalAmount = shown.reduce((n, r) => n + (amountOf(r.itemId, r.quantityChange) ?? 0), 0)
-  /* 불량처리현황만 앞에 칸이 둘 더 붙는다 - 빈 줄의 colSpan 도 같이 움직여야 한다. */
-  /*
-   * 대체사용현황은 [수량] 자리에 <b>[불량수량] · [정상수량]</b> 두 칸을 둔다(원본 E040510). 불량품목 줄은 불량수량에,
-   * 품목대체의 정상품목 줄(normal)은 정상수량에 찍는다 — 2026-10-12 실측 '포장김치 1.00 / 배추 3.00'.
-   */
-  const split = kind === 'SUBSTITUTE'
+  const qtyOf = (r: Adjustment) => (kind === 'ADJUST' ? r.quantityChange : -r.quantityChange)
+  /* 대체사용현황 [불량수량] · [정상수량] — 불량품목 줄은 불량수량, 품목대체의 정상품목 줄(normal)은 정상수량(2026-10-12 실측). */
   const defectQtyOf = (r: Adjustment) => (r.normal ? null : -r.quantityChange)
   const normalQtyOf = (r: Adjustment) => (r.normal ? r.quantityChange : null)
-  const totalDefect = shown.reduce((n, r) => n + (defectQtyOf(r) ?? 0), 0)
-  const totalNormal = shown.reduce((n, r) => n + (normalQtyOf(r) ?? 0), 0)
-  const cols = 11 + (kind === 'DEFECT' ? 2 : 0) + (hasAmount ? 1 : 0) + (kind === 'SELF_USE' ? 1 : 0) + (split ? 1 : 0)
-  /* 화면에 따라 칸 수가 달라지므로 정적 검사로는 못 센다 - 렌더된 표를 직접 잰다. */
+
+  /**
+   * 원본 격자 열 — <b>다섯 화면이 서로 다르다</b>(2026-10-12 다섯 다 다시 잼). 원본에 없던 우리 열
+   * (번호 · 창고명 · 프로젝트 · 이전/이후재고 · 담당자)은 뺐다. 불량처리현황 끝의 '새로운 항목 추가'는
+   * 양식에 칸을 더하라는 자리표라 그리지 않는다.
+   */
+  const COLS: Col[] = kind === 'SELF_USE' ? [
+    C.dateNo, { h: '거래처명', text: (r) => partnerOf(r.partnerId)?.name ?? '' }, C.item('품목명[규격]'), C.wh,
+    { h: '수량', num: qtyOf }, { h: '금액(수량*입고단가)', num: (r) => amountOf(r.itemId, qtyOf(r)), amount: true }, C.memo,
+  ] : kind === 'DEFECT' ? [
+    { h: '불량유형', text: (r) => r.kind ?? '' }, { h: '처리방법', text: (r) => r.handling ?? '' },
+    C.dateNo, C.code, C.item('품목명[규격]'), { h: '수량', num: qtyOf },
+  ] : kind === 'SUBSTITUTE' ? [
+    C.dateNo, C.code, C.item('품목명[규격]'), { h: '불량수량', num: defectQtyOf }, { h: '정상수량', num: normalQtyOf }, C.memo,
+  ] : kind === 'DISPOSAL' ? [
+    C.dateNo, C.code, C.item('품목명[규격명]'), { h: '수량', num: qtyOf }, C.memo,
+  ] : [
+    C.dateNo, C.code, C.item('품목명[규격]'), C.wh,
+    { h: '장부수량', num: (r) => r.beforeQty }, { h: '실사수량', num: (r) => r.afterQty }, { h: '조정수량', num: qtyOf },
+    { h: '금액(수량*입고단가)', num: (r) => amountOf(r.itemId, qtyOf(r)), amount: true }, C.memo,
+  ]
+
+  /** 원본 정렬 기본값은 [일자-No.] 오름차순(정렬/소계 설정 창 실측). */
+  const ordered = useMemo(() => [...shown].sort((a, b) =>
+    a.adjustDate.localeCompare(b.adjustDate) || (Number(a.adjustNo.split('-').pop()) - Number(b.adjustNo.split('-').pop())) || a.id - b.id),
+  [shown])
+  const listRows: Group[] = useMemo(() => {
+    const dateCell = (r: Adjustment) => (kind === 'ADJUST' ? shortDateNo(r.adjustDate, r.adjustNo) : dateNo(r.adjustDate, r.adjustNo))
+    if (form === '라인별') return ordered.map((r) => ({ key: String(r.id), first: r, rows: [r], dateCell: dateCell(r) }))
+    const keyOf = (r: Adjustment) => form === '일별' ? r.adjustDate : form === '월별' ? r.adjustDate.slice(0, 7)
+      : form === '전표별' ? `${r.adjustDate}|${r.adjustNo}` : form === '품목별' ? String(r.itemId)
+        : form === '전표별품목별' ? `${r.adjustDate}|${r.adjustNo}|${r.itemId}` : String(r.employeeId ?? '')
+    const m = new Map<string, Adjustment[]>()
+    ordered.forEach((r) => m.set(keyOf(r), [...(m.get(keyOf(r)) ?? []), r]))
+    return [...m.entries()].map(([key, rs]) => ({
+      key, first: rs[0], rows: rs,
+      dateCell: form === '일별' ? reportDate(rs[0].adjustDate) : form === '월별' ? reportDate(rs[0].adjustDate).slice(0, 7) : dateCell(rs[0]),
+    }))
+  }, [ordered, form, kind])
+  /**
+   * 원본 소계 — [정렬/소계기준] 기본값이 화면마다 다르다(2026-10-12 실측): 불량처리현황은 <b>날마다</b>
+   * '2026/10/02 계', 자가사용현황 · 폐기현황은 <b>달마다</b> '2026/09 계'. 묶은 줄은 첫 줄의 날짜로 센다
+   * (품목별 실측). 대체사용 · 재고조정은 원본에 자료가 없어 소계를 못 봤다 — 지어내지 않고 합계만 둔다.
+   */
+  const [sub, setSub] = useState<Subtotal>(defaultSub(kind))
+  useEffect(() => { setSub(defaultSub(kind)) }, [kind])
+  const subKey = (g: Group) => (sub === '일자별' ? reportDate(g.first.adjustDate) : sub === '월별' ? reportDate(g.first.adjustDate).slice(0, 7) : '')
+  const sumOf = (c: Col, rs: Adjustment[]) => {
+    const vs = rs.map((r) => c.num!(r)).filter((v): v is number => v != null)
+    return vs.length ? vs.reduce((n, v) => n + v, 0) : null
+  }
+  const fmt = (c: Col, v: number | null) => (v == null ? '' : c.amount ? Math.round(v).toLocaleString() : qty2(v))
+  const firstNum = COLS.findIndex((c) => c.num)
+  const sumCells = (rs: Adjustment[], cls: string) => COLS.slice(firstNum).map((c, j) =>
+    <td key={j} className={c.num ? `text-right ${cls}` : cls}>{c.num ? fmt(c, sumOf(c, rs)) : ''}</td>)
+
+  /** ○집계가 읽는 줄 — 창고 · 프로젝트 코드는 마스터에서 잇는다. */
+  const aggLines: AsAggLine[] = shown.map((r) => ({
+    date: r.adjustDate, charge: empName(r.employeeId),
+    warehouse: [r.warehouseName ?? '', (warehouses.find((w) => w.id === r.warehouseId) as { code?: string } | undefined)?.code ?? ''],
+    mgmt: mgmt.nameOf(r.itemId) ?? '',
+    partner: [partnerOf(r.partnerId)?.name ?? '', partnerOf(r.partnerId)?.code ?? ''], partnerGroup: partnerOf(r.partnerId)?.partnerGroupName ?? '',
+    itemName: r.itemName, itemSpec: r.spec, itemCode: r.itemCode, itemGroup: mgmt.groupOf(r.itemId) ?? '',
+    project: [r.projectName ?? '', ''], qty: kind === 'SUBSTITUTE' ? Math.abs(r.quantityChange) : qtyOf(r), kind: r.kind ?? '',
+  }))
+  /*
+   * 집계조건 후보 — 불량처리현황 실측: 기준일자(일별 … 연별) · 불량(<b>불량유형</b> · 담당자 · 창고 · 관리항목) ·
+   * 품목(품목명[규격] · 품목그룹1·2·3) · 프로젝트(프로젝트 · 그룹1·2). 우리에 없는 그룹2·3 은 뺀다.
+   * 다른 넷은 같은 판을 쓰되 [불량유형] 대신 자가사용만 거래처 축을 더한다(그 전표만 거래처를 든다).
+   */
+  const aggKeys: AsAggKey[] = ['일별', '주차별', '월별', '분기별', '반기별', '연별',
+    ...(kind === 'DEFECT' || kind === 'SUBSTITUTE' || kind === 'DISPOSAL' ? ['불량유형' as const] : []),
+    '담당자', '창고', '관리항목', ...(kind === 'SELF_USE' ? ['거래처' as const, '거래처그룹1' as const] : []),
+    '품목명[규격]', '품목그룹1', '프로젝트']
+
+  /* 화면 · 판에 따라 칸 수가 달라지므로 정적 검사로는 못 센다 - 렌더된 표를 직접 잰다. */
   const tableRef = useRef<HTMLDivElement>(null)
-  useTableColumnCheck(tableRef, '기타이동현황', [kind, mode, shown.length])
+  useTableColumnCheck(tableRef, '기타이동현황', [kind, mode, form, listRows.length])
   const reset = () => {
     setMode('내역')
-    setSubtotal('창고·품목')
+    setForm('라인별')
+    setSub(defaultSub(kind))
+    setAgg({ agg1: '', agg2: '', codeIncl: false })
     setCond({
       from: init.from, to: init.to, warehouseId: '', item: '', category: '',
       reason: '', employee: '', spec: '', project: '',
@@ -407,25 +473,21 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
       ]}
     >
       <EcStatusPanel
+        modes={['내역', '집계']} mode={mode} onModeChange={(m) => setMode(m as '내역' | '집계')}
+        modeExtra={mode === '내역' ? (
+          <select className="ec-input w-[140px]" value={form} onChange={(e) => setForm(e.target.value as Form)}>
+            {FORMS.map((f) => <option key={f} value={f}>{f}</option>)}
+          </select>
+        ) : (
+          <AsAggControls value={agg} onChange={(p) => setAgg((a) => ({ ...a, ...p }))} keys={aggKeys} />
+        )}
         from={cond.from} to={cond.to}
         onPeriod={(r) => setC({ from: r.from, to: r.to })}
         picks={INQUIRY_PICKS}
         dateLabel="일자"
         view={view} onViewChange={setView}
-        subtotal={subtotal}
-        subtotals={SUBTOTALS}
-        onSubtotalChange={(v) => setSubtotal(v as typeof SUBTOTALS[number])}
+        subtotal={sub} subtotals={SUBTOTALS} onSubtotalChange={(v) => setSub(v as Subtotal)}
       >
-        <EcCond label="구분">
-          <div className="ec-pills">
-            {(['내역', '집계'] as const).map((m) => (
-              <button key={m} type="button" className={`ec-pill no-ec${mode === m ? ' active' : ''}`}
-                      onClick={() => setMode(m)}>
-                {m}
-              </button>
-            ))}
-          </div>
-        </EcCond>
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
                            value={cond.warehouseId} onChange={(v) => setC({ warehouseId: v })}
@@ -576,174 +638,61 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
         </p>
       )}
 
-      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
-        {mode === '내역' ? '건수' : '품목×창고'}{' '}
-        <b className="text-ec-text">{num(mode === '내역' ? shown.length : summary.length)}</b>
-        <span className="my-0 mx-[8px] text-ec-off">|</span>
-        증감계 <b style={{ color: totalChange < 0 ? 'var(--ec-danger)' : 'var(--ec-blue)', fontSize: 14 }}>{num(totalChange)}</b>
-      </div>
-
       <div className="overflow-x-auto" ref={tableRef}>
         {view === '그래프' ? (
           <EcBarChart rows={chartRows} unit="" emptyText="조회된 자료가 없습니다." />
-        ) : mode === '내역' ? (
-          <table className="w-full text-left">
-            <colgroup>
-              <col className="w-[4%]" /><col className="w-[16%]" /><col className="w-[11%]" />
-              <col /><col className="w-[12%]" />
-              <col className="w-[9%]" /><col className="w-[9%]" /><col className="w-[9%]" />
-              <col className="w-[9%]" /><col className="w-[13%]" />
-            </colgroup>
-            {/*
-              원본 격자는 <b>다섯 화면이 서로 다르다</b>(2026-09-09 다섯 다 실측).
-              자가사용(E040506): 일자-No. · 거래처명 · 품목명[규격] · 창고명 · 수량 ·
-                금액(수량*입고단가) · 적요
-              불량처리(E040509): <b>불량유형 · 처리방법</b> · 일자-No. · 품목코드 ·
-                품목명[규격] · 수량 · 적요
-              대체사용(E040510): 일자-No. · 품목코드 · 품목명[규격] ·
-                <b>불량수량 · 정상수량</b> · 적요
-              폐기(E040511):     일자-No. · 품목코드 · 품목명<b>[규격명]</b> · 수량 · 적요
-              재고조정(E040608): 일자-No. · 품목코드 · 품목명[규격] · 창고명 ·
-                <b>장부수량 · 실사수량 · 조정수량</b> · 금액(수량*입고단가) · 적요
-              한 표가 다섯을 겸하므로 <b>화면(kind)에 따라 이름을 갈라 적고</b> 그 화면에만
-              있는 칸은 그때만 그린다. 한 이름으로 통일하면 넷이 틀린다.
-              [불량수량]·[정상수량]은 2026-10-12 불량처리입력이 정상품목 줄을 들게 되어 만들었다.
-              프로젝트·담당자는 원본에 없지만 우리가 더 두는 열이다.
-            */}
-            <thead>
-              <tr>
-                <th></th>
-                {/* 불량처리현황만 이 둘을 <b>맨 앞</b>에 둔다. 거를 수는 있었는데 볼 수가 없었다. */}
-                {kind === 'DEFECT' && <th className="w-[110px]">불량유형</th>}
-                {kind === 'DEFECT' && <th className="w-[110px]">처리방법</th>}
-                {/* 원본은 일자와 번호를 한 칸에 적는다. */}
-                <th className="text-center">일자-No.</th>
-                {kind === 'SELF_USE' && <th>거래처명</th>}
-                <th>품목코드</th>
-                <th>{kind === 'DISPOSAL' ? '품목명[규격명]' : '품목명[규격]'}</th>
-                <th>창고명</th>
-                {/* 원본 조건에 [프로젝트]가 있다 — 거르려면 표에도 보여야 한다. */}
-                <th className="w-[110px]">프로젝트</th>
-                <th className="text-right">{kind === 'ADJUST' ? '장부수량' : '이전재고'}</th>
-                <th className="text-right">{kind === 'ADJUST' ? '실사수량' : '이후재고'}</th>
-                {split ? (
-                  <>
-                    <th className="text-right">불량수량</th>
-                    <th className="text-right">정상수량</th>
-                  </>
-                ) : <th className="text-right">{kind === 'ADJUST' ? '조정수량' : '수량'}</th>}
-                {hasAmount && <th className="w-[130px] text-right">금액(수량*입고단가)</th>}
-                {/* 원본 조건에 [담당자]가 있다 — 거르려면 표에도 보여야 한다. */}
-                <th className="w-[90px]">담당자</th>
-                <th>적요</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={cols} className="text-center text-ec-ink">불러오는 중…</td></tr>
-              ) : shown.length === 0 ? (
-                <tr><td colSpan={cols} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
-              ) : shown.map((r, i) => (
-                <tr key={r.id}>
-                  <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
-                  {kind === 'DEFECT' && <td className="text-ec-label">{r.kind ?? ''}</td>}
-                  {kind === 'DEFECT' && <td className="text-ec-label">{r.handling ?? ''}</td>}
-                  {/* 원본 재고조정현황만 '26/10/12-1' 처럼 연도 둘째 자리부터 적는다(2026-10-12 실측). */}
-                  <td className="text-center">{kind === 'ADJUST' ? shortDateNo(r.adjustDate, r.adjustNo) : dateNo(r.adjustDate, r.adjustNo)}</td>
-                  {kind === 'SELF_USE' && <td>{partnerOf(r.partnerId)?.name ?? ''}</td>}
-                  <td>{r.itemCode}</td>
-                  {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다 — 우리는 칸을 따로 두고 있었다. */}
-                  <td>{r.itemName}{r.spec ? ' [' + r.spec + ']' : ''}</td>
-                  <td>{r.warehouseName}</td>
-                  <td className="text-ec-label">{r.projectName ?? ''}</td>
-                  <td className="text-right text-ec-hint">{num(r.beforeQty)}</td>
-                  <td className="text-right">{num(r.afterQty)}</td>
-                  {split ? (
-                    <>
-                      <td className="text-right">{defectQtyOf(r) == null ? '' : num(defectQtyOf(r)!)}</td>
-                      <td className="text-right">{normalQtyOf(r) == null ? '' : num(normalQtyOf(r)!)}</td>
-                    </>
-                  ) : (
-                  <td style={{ textAlign: 'right', fontWeight: 700, color: r.quantityChange < 0 ? 'var(--ec-danger)' : 'var(--ec-blue)' }}>
-                    {num(r.quantityChange)} <span className="text-[11px] font-normal text-ec-hint">{r.unit}</span>
-                  </td>
-                  )}
-
-                  {hasAmount && (
-                    <td className="text-right text-ec-label">
-                      {amountOf(r.itemId, r.quantityChange) == null ? '' : num(amountOf(r.itemId, r.quantityChange)!)}
-                    </td>
-                  )}
-                  <td className="text-ec-label">{empName(r.employeeId)}</td>
-                  <td className="text-ec-label">{r.reason ?? ''}</td>
-                </tr>
-              ))}
-            </tbody>
-            {shown.length > 0 && (
-              <tfoot>
-                <tr>
-                  <td colSpan={cols - 3 - (hasAmount ? 1 : 0) - (split ? 1 : 0)} className="text-right font-bold bg-ec-page">합계</td>
-                  {split ? (
-                    <>
-                      <td className="text-right font-bold bg-ec-page">{num(totalDefect)}</td>
-                      <td className="text-right font-bold bg-ec-page">{num(totalNormal)}</td>
-                    </>
-                  ) : (
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: totalChange < 0 ? 'var(--ec-danger)' : 'var(--ec-blue)' }}>{num(totalChange)}</td>
-                  )}
-                  {hasAmount && (
-                    <td className="text-right font-bold bg-ec-page">{num(totalAmount)}</td>
-                  )}
-                  <td colSpan={2} className="bg-ec-page"></td>
-                </tr>
-              </tfoot>
-            )}
-          </table>
+        ) : mode === '집계' ? (
+          /* 원본 ○집계 판의 머리글은 화면 이름 그대로('불량처리현황')이고 꼬리에 [P.1] 이 없다(2026-10-12 실측). */
+          <AsAggregateTable title={TITLE[kind]} period={reportPeriod(cond.from, cond.to)} lines={aggLines} value={agg} />
         ) : (
+          <>
+          {/* 원본 ◉내역 출력물 머리글 — 불량처리현황은 '불량현황', 폐기현황은 '폐기리스트' 다(2026-10-12 실측). */}
+          <EcReportHead title={REPORT_TITLE[kind]} period={reportPeriod(cond.from, cond.to)} />
           <table className="w-full text-left">
-            <colgroup>
-              <col className="w-[5%]" /><col className="w-[20%]" />
-              <col className="w-[15%]" /><col />
-              <col className="w-[10%]" /><col className="w-[14%]" />
-            </colgroup>
             <thead>
               <tr>
-                <th></th>
-                {/* 묶는 기준에 따라 머리 이름이 바뀐다 — [사유]로 묶으면 품목명 자리에 사유가 온다. */}
-                <th>창고</th>
-                <th>품목코드</th>
-                <th>{subtotal === '사유' ? '사유' : '품목명'}</th>
-                <th className="text-right">건수</th>
-                <th className="text-right">증감계</th>
+                {COLS.map((c) => <th key={c.h} className={c.num ? 'text-right' : c.h === '일자-No.' ? 'text-center' : undefined}>{c.h}</th>)}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="text-center text-ec-ink">불러오는 중…</td></tr>
-              ) : summary.length === 0 ? (
-                <tr><td colSpan={6} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
-              ) : summary.map((g, i) => (
-                <tr key={g.k}>
-                  <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
-                  <td>{g.warehouseName}</td>
-                  <td>{g.itemCode}</td>
-                  <td>{g.itemName}</td>
-                  <td className="text-right text-ec-hint">{num(g.count)}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, color: g.change < 0 ? 'var(--ec-danger)' : 'var(--ec-blue)' }}>
-                    {num(g.change)} <span className="text-[11px] font-normal text-ec-hint">{g.unit}</span>
-                  </td>
-                </tr>
-              ))}
+                <tr><td colSpan={COLS.length} className="ec-empty">불러오는 중…</td></tr>
+              ) : listRows.length === 0 ? (
+                <tr><td colSpan={COLS.length} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              ) : listRows.flatMap((g, i) => {
+                const out = [
+                  <tr key={g.key}>
+                    {COLS.map((c) => (
+                      <td key={c.h} className={c.num ? 'text-right' : c.h === '일자-No.' ? 'text-center' : undefined}>
+                        {c.h === '일자-No.' ? g.dateCell : c.num ? fmt(c, sumOf(c, g.rows)) : c.text!(g.first)}
+                      </td>
+                    ))}
+                  </tr>,
+                ]
+                const k = subKey(g)
+                if (k && (i === listRows.length - 1 || subKey(listRows[i + 1]) !== k)) {
+                  const rs = listRows.filter((x) => subKey(x) === k).flatMap((x) => x.rows)
+                  out.push(
+                    <tr key={`${k}␟계`} className="ec-list-total">
+                      <td colSpan={firstNum} className="text-center font-bold">{k} 계</td>
+                      {sumCells(rs, 'font-bold')}
+                    </tr>,
+                  )
+                }
+                return out
+              })}
             </tbody>
-            {summary.length > 0 && (
+            {listRows.length > 0 && (
               <tfoot>
-                <tr>
-                  <td colSpan={5} className="text-right font-bold bg-ec-page">합계</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: totalChange < 0 ? 'var(--ec-danger)' : 'var(--ec-blue)' }}>{num(totalChange)}</td>
+                <tr className="ec-total">
+                  <td colSpan={firstNum} className="text-center">합계</td>
+                  {sumCells(listRows.flatMap((g) => g.rows), '')}
                 </tr>
               </tfoot>
             )}
           </table>
+          <EcReportFoot />
+          </>
         )}
       </div>
     </EcListShell>
