@@ -1,5 +1,5 @@
 {
-  "about": "기안서 구분(원본 E070107 '구분검색', 2026-10-12 잼) — 공통양식리스트 · 기안서작성 목록의 [구분] 열에 양식의 기본 구분 이름(휴가신청서 → 휴가신청서, 다른 양식은 빈칸), 기안서작성 창의 [구분] 칸이 그 값으로 열리고 구분검색 목록(01 지출결의서 · 02 휴가신청서 · 03 신청서 · 04 출장보고서)에서 고른다. node qa/shot.mjs qa/flows/approval-groups.json",
+  "about": "기안서 구분(원본 E070107 '구분검색', 2026-10-12 잼) — 공통양식리스트 · 기안서작성 목록의 [구분] 열에 양식의 기본 구분 이름(휴가신청서 → 휴가신청서, 다른 양식은 빈칸), 기안서작성 창의 [구분] 칸이 그 값으로 열리고 코드도움 '구분검색' 창(qa/flows/approval-group-search.json)에서 고른다. node qa/shot.mjs qa/flows/approval-groups.json",
   "shots": [
     {
       "name": "공통양식리스트 [구분]",
@@ -10,7 +10,7 @@
         "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((r) => r.cells[1] && r.cells[1].textContent.trim() === '출장복명서'); return !tr || tr.cells[2].textContent.trim() === '' })()",
         "js:[...document.querySelectorAll('tbody button')].find((b) => b.textContent.trim() === '휴가신청서').click(); true",
         "wait:600",
-        "expect:(() => { const s = document.querySelector('select[aria-label=\"구분\"]'); return !!s && s.value === '02' && [...s.options].map((o) => o.textContent.trim()).join('|') === '미설정|01 지출결의서|02 휴가신청서|03 신청서|04 출장보고서' })()"
+        "expect:document.querySelector('input[aria-label=\"구분\"]')?.value === '휴가신청서'"
       ]
     },
     {
@@ -21,12 +21,12 @@
         "expect:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((r) => r.cells[1] && r.cells[1].textContent.trim() === '휴가신청서'); return !!tr && tr.cells[2].textContent.trim() === '휴가신청서' })()",
         "js:[...document.querySelectorAll('tbody tr')].find((r) => r.cells[1] && r.cells[1].textContent.trim() === '휴가신청서').click(); true",
         "wait:800",
-        "expect:document.querySelector('select[aria-label=\"구분\"]')?.value === '휴가신청서'",
+        "expect:document.querySelector('input[aria-label=\"구분\"]')?.value === '휴가신청서'",
         "js:window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); true",
         "wait:400",
         "js:[...document.querySelectorAll('tbody tr')].find((r) => r.cells[1] && r.cells[1].textContent.trim() === '출장복명서').click(); true",
         "wait:800",
-        "expect:document.querySelector('select[aria-label=\"구분\"]')?.value === ''"
+        "expect:document.querySelector('input[aria-label=\"구분\"]')?.value === ''"
       ]
     }
   ]

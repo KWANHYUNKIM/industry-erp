@@ -8,6 +8,7 @@ import Modal from '../../components/Modal'
 import { useTableSort } from '../../utils/useTableSort'
 import { useShortcut } from '../../utils/useShortcut'
 import { fetchApprovalGroups, type ApprovalGroup, type WithGroup } from '../../features/approval/groups'
+import { ApprovalGroupField } from '../../features/approval/components/ApprovalGroupSearch'
 import type {
   ApprovalField, ApprovalFieldType, ApprovalFormTemplateAdmin, ApprovalPreset, MemberOption,
 } from '../../types/api'
@@ -328,10 +329,10 @@ function TemplateForm({ template, onError, onClose, onSaved, onDelete }: {
         </Field>
         {/* 원본 입력화면설정 › 기본값설정 › [구분] (직접지정 · 코드도움 '구분검색') */}
         <Field label="구분">
-          <select className="ec-input" aria-label="구분" value={groupCode} onChange={(e) => setGroupCode(e.target.value)}>
-            <option value="">미설정</option>
-            {groups.map((g) => <option key={g.id} value={g.code}>{g.code} {g.name}</option>)}
-          </select>
+          {/* 비우면 미설정. 창에서 구분을 늘리고([신규(F2)]) 이름을 고친다([수정]). */}
+          <ApprovalGroupField
+            value={groupCode ? { code: groupCode, name: groups.find((g) => g.code === groupCode)?.name ?? groupCode } : null}
+            onChange={(g) => { setGroupCode(g?.code ?? ''); fetchApprovalGroups().then(setGroups).catch(() => {}) }} />
         </Field>
         <Field label="사용여부">
           <select className="ec-input" value={active ? '1' : '0'} onChange={(e) => setActive(e.target.value === '1')} style={{ width: 100 }}>

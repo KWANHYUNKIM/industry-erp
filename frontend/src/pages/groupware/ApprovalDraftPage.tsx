@@ -13,6 +13,7 @@ import { ymd } from '../../components/EcPeriodPicks'
 import { useShortcut } from '../../utils/useShortcut'
 import { useTableSort } from '../../utils/useTableSort'
 import { fetchApprovalGroups, type ApprovalGroup, type WithGroup } from '../../features/approval/groups'
+import { ApprovalGroupField } from '../../features/approval/components/ApprovalGroupSearch'
 
 const TITLE = '기안서작성'
 // 글꼴 select 표시명 → 실제 CSS font-family 매핑
@@ -433,13 +434,10 @@ export default function ApprovalDraftPage() {
                     <th className="bg-ec-page">구분</th>
                     <td>
                       <div className="flex items-center gap-[24px] flex-wrap">
-                        {/* 원본 [구분] 코드도움 — 구분검색(그룹코드 · 그룹명)에서 고른다. 양식의 기본 구분으로 열린다. */}
-                        <select className="ec-input" aria-label="구분" value={category} onChange={(e) => setCategory(e.target.value)}
-                                style={{ width: 240 }}>
-                          <option value="">구분</option>
-                          {groups.map((g) => <option key={g.id} value={g.name}>{g.code} {g.name}</option>)}
-                          {category && !groups.some((g) => g.name === category) && <option value={category}>{category}</option>}
-                        </select>
+                        {/* 원본 [구분] 코드도움 — '구분검색' 창(그룹코드 · 그룹명, [신규(F2)][수정])에서 고른다. 양식의 기본 구분으로 열린다. */}
+                        <ApprovalGroupField
+                          value={category ? { code: groups.find((g) => g.name === category)?.code, name: category } : null}
+                          onChange={(g) => { setCategory(g?.name ?? ''); if (g && !groups.some((x) => x.id === g.id)) setGroups([...groups, g]) }} />
                         <span className="flex items-center gap-[8px]">
                           <span className="text-ec-label text-[12px]">출력양식</span>
                           <select className="ec-input" value={printFormat} onChange={(e) => setPrintFormat(e.target.value)} style={{ width: 200 }}>

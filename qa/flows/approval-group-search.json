@@ -1,0 +1,43 @@
+{
+  "about": "기안서 [구분] 코드도움 '구분검색' 창(원본 E070107, 2026-10-12 잼 — [그룹코드▼][그룹명▼], 하단 [신규(F2)][수정][닫기]). 기안서작성 창의 🔍 → 네 구분 → 신규로 하나 더(QA그룹웨어-구분) → 수정으로 이름 바꿈 → 그 줄을 눌러 고르면 [구분] 칸에 그 이름. 만든 구분은 남는다(지우는 기능이 원본에 없다). node qa/shot.mjs qa/flows/approval-group-search.json",
+  "shots": [
+    {
+      "name": "기안서작성 [구분] 구분검색 · 신규 · 수정 · 고르기",
+      "path": "/groupware/approval/draft",
+      "steps": [
+        "wait:1000",
+        "js:[...document.querySelectorAll('tbody tr')].find((r) => r.cells[1] && r.cells[1].textContent.trim() === '출장복명서').click(); true",
+        "wait:800",
+        "click:구분 코드도움",
+        "wait:600",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].find((x) => x.getAttribute('aria-label') === '구분검색'); if (!d) return false; const h = [...d.querySelectorAll('thead th')].map((t) => t.textContent.replace(/[▲▼]/g, '').trim()).filter(Boolean).join('|'); const codes = [...d.querySelectorAll('tbody tr')].map((r) => r.cells[1]?.textContent.trim()); return h === '그룹코드|그룹명' && ['01','02','03','04'].every((c) => codes.includes(c)) })()",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); return [...d.querySelectorAll('button')].filter((b) => !b.classList.contains('no-ec') && !b.classList.contains('close')).map((b) => b.textContent.trim()).join('|') === '신규(F2)|수정|닫기' })()",
+        "js:sessionStorage.setItem('qaGroup', 'Q' + String(Date.now()).slice(-6)); true",
+        "click:신규(F2)",
+        "wait:400",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().getAttribute('aria-label') === '구분등록'",
+        "click:저장(F8)",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().querySelector('input[aria-label=\"그룹코드\"]').classList.contains('border-ec-danger')",
+        "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; set(d.querySelector('input[aria-label=\"그룹코드\"]'), sessionStorage.getItem('qaGroup')); set(d.querySelector('input[aria-label=\"그룹명\"]'), 'QA그룹웨어-구분'); return true })()",
+        "wait:200",
+        "click:저장(F8)",
+        "wait:800",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); return d.getAttribute('aria-label') === '구분검색' && [...d.querySelectorAll('tbody tr')].some((r) => r.cells[1]?.textContent.trim() === sessionStorage.getItem('qaGroup') && r.cells[2]?.textContent.trim() === 'QA그룹웨어-구분') })()",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().querySelector('button:disabled')?.textContent.trim() === '수정'",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('tbody tr')].find((r) => r.cells[1]?.textContent.trim() === sessionStorage.getItem('qaGroup')).cells[0].click(); true",
+        "wait:300",
+        "click:수정",
+        "wait:400",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); return d.getAttribute('aria-label') === '구분수정' && !d.querySelector('input[aria-label=\"그룹코드\"]') })()",
+        "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const el = d.querySelector('input[aria-label=\"그룹명\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, 'QA그룹웨어-구분2'); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "wait:200",
+        "click:저장(F8)",
+        "wait:800",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('tbody tr')].find((r) => r.cells[1]?.textContent.trim() === sessionStorage.getItem('qaGroup')).cells[2].querySelector('button').click(); true",
+        "wait:500",
+        "expect:document.querySelector('input[aria-label=\"구분\"]')?.value === 'QA그룹웨어-구분2'",
+        "expect:![...document.querySelectorAll('[role=dialog]')].some((x) => x.getAttribute('aria-label') === '구분검색')"
+      ]
+    }
+  ]
+}
