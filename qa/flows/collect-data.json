@@ -1,5 +1,5 @@
 {
-  "about": "수집데이터등록(C001401) — 원본은 '이메일로 받은 문서를 모을 규칙'을 등록한다. 기본 줄 셋(거래명세서·견적서·발주서)이 처음부터 있고, 신규는 데이터코드 00001~, 같은 수신문서·보낸회사는 원본 문구로 막는다. 만든 줄은 지운다.",
+  "about": "수집데이터등록(C001401) — 원본은 '이메일로 받은 문서를 모을 규칙'을 등록한다. 기본 줄 셋(거래명세서·견적서·발주서)이 처음부터 있고, 신규는 데이터코드 00001~, 같은 수신문서·보낸회사는 원본 문구로 막는다. 수정 창은 [저장(F8)·삭제·닫기·H], [H]는 '이력' 창에 마지막 저장 때와 사람 한 줄. 만든 줄은 지운다.",
   "shots": [
     {
       "name": "기본 줄 셋 → 중복 거절 → 보낸회사 넣어 저장 → 조건 '거래명세서 AND 회사' → 지움",
@@ -20,6 +20,15 @@
         "setnear:보낸회사|QA데이터센터-회사",
         "click:저장(F8)",
         "expect:document.body.innerText.includes('거래명세서 AND QA데이터센터-회사')",
+        "js:[...document.querySelectorAll('a')].find((a) => a.textContent.trim() === 'QA데이터센터-명세서').click(); true",
+        "wait:600",
+        "expect:['저장(F8)','삭제','닫기','H'].every((t) => [...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].some((b) => b.textContent.trim() === t))",
+        "click:H",
+        "wait:400",
+        "expect:/\\d{4}\\/\\d{2}\\/\\d{2} 오[전후] \\d{1,2}:\\d{2}:\\d{2} \\[.+\\]/.test([...document.querySelectorAll('[role=dialog]')].pop().innerText)",
+        "clicklast:닫기",
+        "clicklast:닫기",
+        "wait:300",
         "apidel:/collect-data|QA데이터센터-명세서|name"
       ]
     }

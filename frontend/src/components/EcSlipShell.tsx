@@ -47,8 +47,8 @@ export interface SlipTab {
   onSelect?: () => void
 }
 
-/** ▴/▾ 드롭다운이 달린 버튼. 푸터·툴바·탭이 공유한다. */
-function MenuButton({
+/** ▴/▾ 드롭다운이 달린 버튼. 푸터·툴바·탭이 공유한다(입력 창의 [저장(F8)▴] 도 쓴다). */
+export function MenuButton({
   label, items, className = 'ec-btn', up, onMain, disabled, title,
 }: {
   label: ReactNode

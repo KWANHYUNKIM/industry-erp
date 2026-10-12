@@ -3,6 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
+import { MenuButton } from '../../components/EcSlipShell'
 import { api, extractErrorMessage } from '../../api/client'
 import { useShortcut } from '../../utils/useShortcut'
 import type { CollectData, CollectDocType } from '../../types/api'
@@ -29,6 +30,19 @@ const emptyForm = { code: '', name: '', docType: '' as CollectDocType | '', send
 /* 원본 조건(Search(F3) 판): 데이터코드 · 데이터명 · 수집대상 · 최초작성자 · 최종수정자 · 최초작성일자 · 최종작업일자 · 기타 */
 const emptyCond = { code: '', name: '', createdBy: '', updatedBy: '', madeFrom: '', madeTo: '', workedFrom: '', workedTo: '', byUpdated: false }
 
+/** 원본 이력 한 줄: 'yyyy/MM/dd 오후 h:mm:ss [사람]' — 마지막으로 저장한 때(없으면 처음 만든 때). */
+function historyLine(r: CollectData | null): string {
+  const at = r?.updatedAt ?? r?.createdAt
+  if (!r || !at) return ''
+  const d = new Date(at)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const h = d.getHours()
+  const ampm = h < 12 ? '오전' : '오후'
+  const h12 = h % 12 === 0 ? 12 : h % 12
+  const who = r.updatedBy ?? r.createdBy ?? ''
+  return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${ampm} ${h12}:${pad(d.getMinutes())}:${pad(d.getSeconds())} [${who}]`
+}
+
 export default function CollectSourcePage() {
   const [rows, setRows] = useState<CollectData[]>([])
   const [loading, setLoading] = useState(true)
@@ -42,6 +56,7 @@ export default function CollectSourcePage() {
   const [form, setForm] = useState(emptyForm)
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
 
   async function load() {
     setLoading(true); setError('')
@@ -209,15 +224,31 @@ export default function CollectSourcePage() {
             </div>
           </li>
         </ul>
+        {/* 원본 버튼줄 — 신규: [저장(F8)▴(저장/신규)] [다시작성] [닫기] · 수정: [저장(F8)] [삭제] [닫기] [H] */}
         <div className="flex gap-[4px] mt-[9px]">
-          <button className="ec-btn ec-btn-primary" onClick={() => save(false)} disabled={saving}>저장(F8)</button>
-          {editing ? (
+          {editing ? (<>
+            <button className="ec-btn ec-btn-primary" onClick={() => save(false)} disabled={saving}>저장(F8)</button>
             <button className="ec-btn" onClick={removeOne}>삭제</button>
-          ) : (<>
-            <button className="ec-btn" onClick={() => save(true)} disabled={saving}>저장/신규</button>
+            <button className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
+            <button className="ec-btn" onClick={() => setHistoryOpen(true)}>H</button>
+          </>) : (<>
+            <MenuButton label="저장(F8)" className="ec-btn ec-btn-primary" up disabled={saving}
+                        onMain={() => save(false)} items={[{ label: '저장/신규', onClick: () => save(true) }]} />
             <button className="ec-btn" onClick={() => setForm({ ...emptyForm, code: form.code })}>다시작성</button>
+            <button className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
           </>)}
-          <button className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
+        </div>
+      </Modal>
+
+      {/* 원본 [H] — '이력' 창에 마지막으로 저장한 때와 사람 한 줄(2026/10/12 오후 6:33:22 [GUEST]). 고치면 그 줄이 바뀐다. */}
+      <Modal open={historyOpen} title="이력" error={error} onClose={() => setHistoryOpen(false)} width={780}>
+        <table className="w-full">
+          <tbody>
+            <tr><td className="text-center">{historyLine(editing)}</td></tr>
+          </tbody>
+        </table>
+        <div className="flex gap-[4px] mt-[9px]">
+          <button className="ec-btn" onClick={() => setHistoryOpen(false)}>닫기</button>
         </div>
       </Modal>
     </EcListShell>
