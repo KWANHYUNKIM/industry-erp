@@ -62,6 +62,9 @@ public class ExpenseService {
                 .paymentMethod(req.paymentMethod())
                 .department(req.department())
                 .project(req.projectId() != null ? projectService.get(req.projectId()) : null)
+                .useDate(req.useDate())
+                .remarks(req.remarks())
+                .payType(req.payType())
                 .createdBy(username)
                 .build();
         Expense saved = expenseRepository.save(e);

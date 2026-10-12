@@ -55,6 +55,10 @@ interface Expense {
   projectId: number | null
   projectName: string | null
   createdBy: string | null
+  /** 원본 [사용일자] · [비고] · [결제구분] — 비용 전표에 V326 으로 생겼다(사용일자가 빈 예전 전표는 기준일자). */
+  useDate: string
+  remarks: string | null
+  payType: 'PERSONAL' | 'COMPANY' | null
 }
 
 /*
@@ -85,6 +89,12 @@ export default function ExpenseDetailPage() {
    */
   const [remarkCond, setRemarkCond] = useState('')
   const [payCond, setPayCond] = useState('')
+  /** 원본 [비고] · [결제구분](개인비용 · 회사비용) · [사용일자](두 번째 기간). */
+  const [noteCond, setNoteCond] = useState('')
+  const [payTypeCond, setPayTypeCond] = useState<'' | 'PERSONAL' | 'COMPANY'>('')
+  const [useUse, setUseUse] = useState(false)
+  const [useFrom, setUseFrom] = useState(initP.from)
+  const [useTo, setUseTo] = useState(initP.to)
   /** 원본 [거래처그룹1]. 거래처 마스터에 붙는 값이라 전표의 거래처명으로 잇는다. */
   const [partnerGroupCond, setPartnerGroupCond] = useState('')
   const pgroup = usePartnerGroups()
@@ -136,6 +146,9 @@ export default function ExpenseDetailPage() {
     .filter((r) => !projectCond || String(r.projectId) === projectCond)
     .filter((r) => !remarkCond || (r.content ?? '').includes(remarkCond))
     .filter((r) => !payCond || (r.paymentMethod ?? '') === payCond)
+    .filter((r) => !useUse || (r.useDate >= useFrom && r.useDate <= useTo))
+    .filter((r) => !noteCond || (r.remarks ?? '').includes(noteCond))
+    .filter((r) => !payTypeCond || r.payType === payTypeCond)
   const total = useMemo(() => shown.reduce((s, r) => s + r.amount, 0), [shown])
 
   return (
@@ -150,12 +163,10 @@ export default function ExpenseDetailPage() {
         */}
         {/*
           원본은 <b>[기준일자]와 [사용일자]를 따로</b> 둔다(2026-09-08 실측).
-          우리 비용 전표에는 날짜가 <code>expenseDate</code> 하나뿐이고 그것이
-          표에 [사용일자]로 찍히는 값이다 — 그래서 이 칸의 이름을 <b>[사용일자]</b>로
-          바로잡았다. 예전에는 [기준일자]라 적어 놓고 사용일자를 걸러, 이름과 거르는
-          값이 어긋나 있었다. 원본의 [기준일자]는 못 만든 것으로 남긴다.
+          2026-10-12 비용 전표에 사용일자(useDate, V326)가 생겨 첫 기간은 원본대로 [기준일자](expenseDate),
+          둘째 기간 [사용일자]는 [사용] 체크로 켠다(비용내역조회와 같은 모양).
         */}
-        <span className="text-[12.5px] text-ec-text">사용일자</span>
+        <span className="text-[12.5px] text-ec-text">기준일자</span>
         <input type="date" className="ec-input" value={from}
                onChange={(e) => setFrom(e.target.value)} style={{ width: 140 }} />
         <span className="my-0 mx-[2px] text-ec-hint">~</span>
@@ -163,6 +174,13 @@ export default function ExpenseDetailPage() {
                onChange={(e) => setTo(e.target.value)} style={{ width: 140 }} />
         <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={from}
           onPick={(r) => { setFrom(r.from); setTo(r.to) }} />
+        <span className="text-[12.5px] text-ec-text">사용일자</span>
+        <input type="date" className="ec-input w-[140px]" aria-label="사용일자부터" value={useFrom} disabled={!useUse} onChange={(e) => setUseFrom(e.target.value)} />
+        <span className="my-0 mx-[2px] text-ec-hint">~</span>
+        <input type="date" className="ec-input w-[140px]" aria-label="사용일자까지" value={useTo} disabled={!useUse} onChange={(e) => setUseTo(e.target.value)} />
+        <label className="inline-flex items-center gap-[3px] text-[12.5px]">
+          <input type="checkbox" checked={useUse} onChange={(e) => setUseUse(e.target.checked)} /> 사용
+        </label>
         <span className="text-[12.5px] text-ec-text">비용그룹</span>
         <select className="ec-input" value={groupCond} onChange={(e) => setGroupCond(e.target.value)} style={{ width: 150 }}>
           <option>전체</option>
@@ -193,6 +211,14 @@ export default function ExpenseDetailPage() {
           <option value="">전체</option>
           {[...new Set(rows.map((r) => r.paymentMethod).filter(Boolean))].map((m) => <option key={m as string}>{m}</option>)}
         </select>
+        <span className="text-[12.5px] text-ec-text">비고</span>
+        <input className="ec-input w-[130px]" aria-label="비고" value={noteCond} placeholder="비고" onChange={(e) => setNoteCond(e.target.value)} />
+        <span className="text-[12.5px] text-ec-text">결제구분</span>
+        {([['', '전체'], ['PERSONAL', '개인비용'], ['COMPANY', '회사비용']] as const).map(([v, l]) => (
+          <label key={v} className="inline-flex items-center gap-[3px] text-[12.5px]">
+            <input type="radio" name="expense-detail-pay-type" checked={payTypeCond === v} onChange={() => setPayTypeCond(v)} /> {l}
+          </label>
+        ))}
         <span className="text-[12.5px] text-ec-text">적요</span>
         <input className="ec-input" value={remarkCond} placeholder="적요"
                onChange={(e) => setRemarkCond(e.target.value)} style={{ width: 130 }} />
@@ -254,7 +280,7 @@ export default function ExpenseDetailPage() {
                 {r.department && <span className="text-ec-hint text-[11.5px]"> · {r.department}</span>}
               </td>
               <td className="text-right font-semibold">{r.amount.toLocaleString('ko-KR')}</td>
-              <td>{r.expenseDate.replace(/-/g, '/')}</td>
+              <td>{r.useDate.replace(/-/g, '/')}</td>
               <td>{r.content ?? ''}</td>
               <td>{r.partnerName ?? ''}</td>
             </tr>

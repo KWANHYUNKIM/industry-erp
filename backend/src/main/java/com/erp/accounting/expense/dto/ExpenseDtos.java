@@ -1,6 +1,7 @@
 package com.erp.accounting.expense.dto;
 
 import com.erp.accounting.expense.Expense;
+import com.erp.accounting.expense.ExpensePayType;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -28,7 +29,13 @@ public final class ExpenseDtos {
             @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
             String department,
             /** 귀속 프로젝트 (선택) */
-            Long projectId
+            Long projectId,
+            /** 원본 [사용일자] — 비면 기준일자와 같은 날. */
+            LocalDate useDate,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
+            String remarks,
+            /** 원본 [결제구분] — 개인비용 · 회사비용. 비면 정하지 않은 것. */
+            ExpensePayType payType
     ) {}
 
     public record ExpenseResponse(
@@ -50,7 +57,11 @@ public final class ExpenseDtos {
             BigDecimal vatAmount, BigDecimal totalAmount,
             String paymentMethod, String department,
             Long projectId, String projectName,
-            String createdBy
+            String createdBy,
+            /** 원본 [사용일자] — 전표에 없으면 기준일자. */
+            LocalDate useDate,
+            String remarks,
+            ExpensePayType payType, String payTypeName
     ) {
         public static ExpenseResponse from(Expense e) {
             String group = e.getAccount().getDetailCategory();
@@ -68,7 +79,10 @@ public final class ExpenseDtos {
                     e.getPaymentMethod(), e.getDepartment(),
                     e.getProject() != null ? e.getProject().getId() : null,
                     e.getProject() != null ? e.getProject().getName() : null,
-                    e.getCreatedBy());
+                    e.getCreatedBy(),
+                    e.getUseDate() != null ? e.getUseDate() : e.getExpenseDate(),
+                    e.getRemarks(),
+                    e.getPayType(), e.getPayType() != null ? e.getPayType().getDisplayName() : null);
         }
     }
 }

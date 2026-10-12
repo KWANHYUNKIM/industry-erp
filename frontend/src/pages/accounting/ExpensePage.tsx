@@ -36,7 +36,7 @@ export default function ExpensePage() {
   const [ok, setOk] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({
-    expenseDate: today(), accountId: '', content: '', partnerName: '', amount: '', vatAmount: '', paymentMethod: '법인카드', department: '', projectId: '',
+    expenseDate: today(), useDate: '', payType: '', remarks: '', accountId: '', content: '', partnerName: '', amount: '', vatAmount: '', paymentMethod: '법인카드', department: '', projectId: '',
   })
   const [projects, setProjects] = useState<Project[]>([])
   const [payments, setPayments] = useState<CommonCode[]>([])
@@ -79,6 +79,9 @@ export default function ExpensePage() {
         paymentMethod: form.paymentMethod || undefined,
         department: form.department || undefined,
         projectId: form.projectId ? Number(form.projectId) : undefined,
+        useDate: form.useDate || undefined,
+        remarks: form.remarks || undefined,
+        payType: form.payType || undefined,
       })
       /*
        * 저장하고 창만 닫혀 어느 번호로 들어갔는지·장부에 갔는지 안 보였다(39회차, 9회차 판매입력과 같은 꼴).
@@ -90,7 +93,7 @@ export default function ExpensePage() {
       setOk(`${res.data.docNo} 저장 · [${res.data.accountName}] ${Number(res.data.amount).toLocaleString()}원`
         + (vat ? ` + 부가세 ${vat.toLocaleString()}원(부가세대급금) = ${Number(res.data.totalAmount).toLocaleString()}원` : '')
         + ` — 회계전표 생성(대변 ${credit})`)
-      setForm((f) => ({ ...f, content: '', partnerName: '', amount: '', vatAmount: '', department: '' }))
+      setForm((f) => ({ ...f, useDate: '', remarks: '', content: '', partnerName: '', amount: '', vatAmount: '', department: '' }))
       setShowForm(false)
       load()
     } catch (err) {
@@ -142,6 +145,17 @@ export default function ExpensePage() {
           <div className="flex gap-[12px] flex-wrap items-end">
             <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">지출일</div>
               <input className="ec-input" type="date" value={form.expenseDate} onChange={(e) => set('expenseDate', e.target.value)} style={{ width: 140 }} /></label>
+            {/* 원본 비용내역입력(E060812): 머리 [결제구분](개인비용 · 회사비용) · [비고], 줄 [사용일자](비면 지출일과 같은 날). */}
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">사용일자</div>
+              <input className="ec-input w-[140px]" type="date" aria-label="사용일자" value={form.useDate} onChange={(e) => set('useDate', e.target.value)} /></label>
+            <div className="text-[12.5px]"><div className="text-ec-label mb-[3px]">결제구분</div>
+              {([['', '선택 안 함'], ['PERSONAL', '개인비용'], ['COMPANY', '회사비용']] as const).map(([v, l]) => (
+                <label key={v} className="inline-flex items-center gap-[3px] mr-[8px]">
+                  <input type="radio" name="expense-pay-type" checked={form.payType === v} onChange={() => set('payType', v)} /> {l}
+                </label>
+              ))}</div>
+            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">비고</div>
+              <input className="ec-input w-[160px]" aria-label="비고" value={form.remarks} onChange={(e) => set('remarks', e.target.value)} /></label>
             <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">계정과목 *</div>
               <select className="ec-input" value={form.accountId} onChange={(e) => set('accountId', e.target.value)} style={{ width: 180 }}>
                 <option value="">선택하세요</option>

@@ -82,6 +82,19 @@ public class Expense extends BaseTimeEntity {
     @Column(length = 50)
     private String createdBy;
 
+    /** 원본 줄의 [사용일자]. 비면 기준일자(expenseDate)와 같은 날이다(V326 전 전표). */
+    @Column(name = "use_date")
+    private LocalDate useDate;
+
+    /** 원본 머리의 [비고] — 줄의 [적요](content)와 따로다. */
+    @Column(length = 200)
+    private String remarks;
+
+    /** 원본 머리의 [결제구분] — 개인비용 · 회사비용. 결제수단(paymentMethod)과 다르다. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "pay_type", length = 10)
+    private ExpensePayType payType;
+
     /** 귀속 프로젝트. 없으면 일반 영업·간접비다 (억지로 채우면 프로젝트 손익이 거짓말을 한다). */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "project_id")

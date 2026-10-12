@@ -15,6 +15,7 @@ interface Expense {
   id: number; docNo: string; expenseDate: string; accountName: string; accountGroupName: string | null
   content: string | null; partnerId: number | null; partnerName: string | null; amount: number
   department: string | null; projectId: number | null; projectName: string | null; createdBy: string | null
+  useDate: string; remarks: string | null; payType: 'PERSONAL' | 'COMPANY' | null
 }
 
 /**
@@ -28,6 +29,8 @@ interface Expense {
  * JournalService.createFromExpense) — 그래서 회계반영여부는 늘 '확인(회계)' 이고, 미청구 · 미확인(회계)는 걸릴 전표가 없다.
  * 비용그룹명은 계정의 세부분류(현황과 같다), 사용자는 작성자다. [사용일자]는 옆 [사용] 체크로 켜는 두 번째 기간이다
  * (받을어음조회의 [만기일자] · [사용]과 같은 모양 — 2026-10-03 에 그 화면을 재며 알았다).
+ * 2026-10-12: 비용 전표에 원본 비용내역입력(E060812)의 [사용일자] · [비고] · [결제구분](개인비용 · 회사비용)이 생겨(V326)
+ * [사용일자] 기간 · [비고] · [결제구분] 조건이 제 값을 거른다(사용일자가 빈 예전 전표는 기준일자).
  */
 export default function ExpenseListPage() {
   const navigate = useNavigate()
@@ -35,7 +38,7 @@ export default function ExpenseListPage() {
   const init = periodOf('금월(~오늘)')!
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
-  /* 원본 [사용일자] 옆 [사용] 체크로 켜는 두 번째 기간. 우리 비용은 날짜가 하나뿐이라 같은 값을 한 번 더 거른다. */
+  /* 원본 [사용일자] 옆 [사용] 체크로 켜는 두 번째 기간 — 전표의 사용일자(V326)를 거른다. */
   const [useUse, setUseUse] = useState(false)
   const [useFrom, setUseFrom] = useState(init.from)
   const [useTo, setUseTo] = useState(init.to)
@@ -47,6 +50,8 @@ export default function ExpenseListPage() {
   const [project, setProject] = useState('')
   const [reflected, setReflected] = useState({ 미청구: true, '미확인(회계)': true, '확인(회계)': true })
   const [remark, setRemark] = useState('')
+  const [note, setNote] = useState('')
+  const [payType, setPayType] = useState<'' | 'PERSONAL' | 'COMPANY'>('')
   const [rows, setRows] = useState<Expense[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -67,7 +72,7 @@ export default function ExpenseListPage() {
 
   const shown = useMemo(() => rows
     .filter((r) => r.expenseDate >= from && r.expenseDate <= to)
-    .filter((r) => !useUse || (r.expenseDate >= useFrom && r.expenseDate <= useTo))
+    .filter((r) => !useUse || (r.useDate >= useFrom && r.useDate <= useTo))
     .filter((r) => !group || (r.accountGroupName ?? '') === group)
     .filter((r) => !account || r.accountName === account)
     .filter((r) => !user || (r.createdBy ?? '') === user)
@@ -76,8 +81,10 @@ export default function ExpenseListPage() {
     .filter((r) => !project || String(r.projectId) === project)
     .filter(() => reflected['확인(회계)'])
     .filter((r) => !remark || (r.content ?? '').includes(remark))
+    .filter((r) => !note || (r.remarks ?? '').includes(note))
+    .filter((r) => !payType || r.payType === payType)
     .sort((a, b) => (a.expenseDate > b.expenseDate ? -1 : a.expenseDate < b.expenseDate ? 1 : b.docNo.localeCompare(a.docNo))),
-  [rows, from, to, useUse, useFrom, useTo, group, account, user, partner, dept, project, reflected, remark])
+  [rows, from, to, useUse, useFrom, useTo, group, account, user, partner, dept, project, reflected, remark, note, payType])
   const groups = useMemo(() => [...new Set(rows.map((r) => r.accountGroupName).filter(Boolean) as string[])].sort(), [rows])
   const accounts = useMemo(() => [...new Set(rows.map((r) => r.accountName))].sort(), [rows])
   const users = useMemo(() => [...new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[])].sort(), [rows])
@@ -93,7 +100,7 @@ export default function ExpenseListPage() {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setGroup(''); setAccount(''); setUser(''); setPartner(''); setDept(''); setProject(''); setReflected({ 미청구: true, '미확인(회계)': true, '확인(회계)': true }); setRemark('') } },
+        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setGroup(''); setAccount(''); setUser(''); setPartner(''); setDept(''); setProject(''); setReflected({ 미청구: true, '미확인(회계)': true, '확인(회계)': true }); setRemark(''); setNote(''); setPayType(''); setUseUse(false) } },
         { label: '신규(F2)', onClick: () => navigate('/accounting/expense') },
       ]}
     >
@@ -133,6 +140,9 @@ export default function ExpenseListPage() {
         <EcCond label="프로젝트" pick>
           <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체" value={project} onChange={setProject} items={pickers.projects} />
         </EcCond>
+        <EcCond label="비고">
+          <input className="ec-input w-[220px]" aria-label="비고" value={note} onChange={(e) => setNote(e.target.value)} />
+        </EcCond>
         <EcCond label="회계반영여부">
           <label className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
             <input type="checkbox" checked={allOn} onChange={(e) => setReflected({ 미청구: e.target.checked, '미확인(회계)': e.target.checked, '확인(회계)': e.target.checked })} /> 전체
@@ -140,6 +150,13 @@ export default function ExpenseListPage() {
           {(['미청구', '미확인(회계)', '확인(회계)'] as const).map((k) => (
             <label key={k} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
               <input type="checkbox" checked={reflected[k]} onChange={(e) => setReflected((r) => ({ ...r, [k]: e.target.checked }))} /> {k}
+            </label>
+          ))}
+        </EcCond>
+        <EcCond label="결제구분">
+          {([['', '전체'], ['PERSONAL', '개인비용'], ['COMPANY', '회사비용']] as const).map(([v, l]) => (
+            <label key={v} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
+              <input type="radio" name="expense-list-pay-type" checked={payType === v} onChange={() => setPayType(v)} /> {l}
             </label>
           ))}
         </EcCond>
