@@ -1,0 +1,38 @@
+{
+  "about": "간이지급명세서(E030116) — 같은 자료구분 · 지급연월을 또 만들면 원본처럼 '이미 생성된 자료입니다.' 로 막고, 사업소득 [조회] 서식은 ⑤총 지급액(⑭번 합계) · '( [V]지급자 보관용 [ ]지급자 제출용 )' · 일련번호 15 줄 · ⑮세율 … ⑱계(⑯+⑰) 를 그린다(원본 2026/08 사업소득 2,119,828). 시험 자료(담당자 QA세무)는 끝에 지운다.",
+  "shots": [
+    {
+      "name": "중복 막기 · 사업소득 서식",
+      "path": "/accounting/simple-payment",
+      "steps": [
+        "wait:1000",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const d = await (await fetch('/api/simple-payment-statements', { headers: H })).json(); const ids = d.filter((s) => s.managerDept === 'QA세무').map((s) => s.id); if (ids.length) await fetch('/api/simple-payment-statements/delete', { method: 'POST', headers: H, body: JSON.stringify(ids) }); const r = await fetch('/api/simple-payment-statements', { method: 'POST', headers: H, body: JSON.stringify({ kind: 'BUSINESS', payYear: 2026, period: 1, reportDate: '2026-02-28', managerDept: 'QA세무', managerName: 'QA세무', managerPhone: '02-000-0000', submitter: 'DIRECT' }) }); return 'setup ' + r.status })()",
+        "js:(() => { location.reload(); return 'reload' })()",
+        "wait:2000",
+        "allowapi:400: /api/simple-payment-statements",
+        "click:신규(F2)",
+        "wait:600",
+        "choose:select#0|간이 거주자 사업소득",
+        "choose:select#2|2026",
+        "choose:select#3|1월",
+        "setnear:담당자 부서명|QA세무",
+        "setnear:담당자 성명|QA세무",
+        "setnear:담당자 전화번호|02-000-0000",
+        "click:저장(F8)",
+        "wait:800",
+        "expect:document.body.innerText.includes('이미 생성된 자료입니다.')",
+        "clicklast:닫기",
+        "wait:500",
+        "js:(() => { const tr = [...document.querySelectorAll('tr')].find((t) => t.innerText.includes('2026년 01 - 01월') && t.innerText.includes('사업소득')); [...tr.querySelectorAll('button, a')].find((b) => b.textContent.trim() === '조회').click(); return 'opened' })()",
+        "wait:1200",
+        "expect:document.body.innerText.includes('⑤ 총 지급액(⑭번 합계)') && document.body.innerText.includes('[V]지급자 보관용')",
+        "expect:[...document.querySelectorAll('tr')].some((t) => t.cells[0] && t.cells[0].innerText.trim() === '15')",
+        "expect:document.body.innerText.includes('⑱ 계(⑯+⑰)')",
+        "choose:select[aria-label=보관용]|지급자 제출용",
+        "wait:300",
+        "expect:document.body.innerText.includes('[V]지급자 제출용')",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const d = await (await fetch('/api/simple-payment-statements', { headers: H })).json(); const ids = d.filter((s) => s.managerDept === 'QA세무').map((s) => s.id); const r = await fetch('/api/simple-payment-statements/delete', { method: 'POST', headers: H, body: JSON.stringify(ids) }); return 'cleanup ' + r.status })()"
+      ]
+    }
+  ]
+}

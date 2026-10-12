@@ -5,6 +5,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import type { SimplePaymentKind, SimplePaymentSheet, SimplePaymentStatement } from '../../types/api'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import { fillAndPrint, openPrintWindow } from '../../utils/print'
 
 const won = (n: number | null | undefined) => (n == null ? '' : Number(n).toLocaleString('ko-KR'))
 const pad2 = (n: number) => String(n).padStart(2, '0')
@@ -60,8 +61,9 @@ function defaults(kind: SimplePaymentKind, keep?: Partial<Form>): Form {
  * 비우면 '부서명을 입력바랍니다.' · '성명을 입력바랍니다.' · '전화번호를 입력바랍니다.' 차례로 막는다.
  * [조회]는 국세청 서식 — 근로소득은 반기 사원별 근무기간 · 달별 급여 등, 사업 · 기타소득은 그 달 기타원천세를 소득자마다.
  *
- * <p>전자파일(생성 · 목록) · 이력 열은 국세청 제출 파일이라 두지 않았다. 원본 사업소득 서식의 ⑤총 지급액 칸은 비어 있고
- * (기타소득 서식은 합계가 찍힌다) 우리도 그렇게 찍는다.
+ * <p>전자파일(생성 · 목록) · 이력 열은 국세청 제출 파일이라 두지 않았다. ⑤총 지급액은 사업 · 기타소득 서식 모두 합계다
+ * (원본은 읽기전용 입력칸이라 innerText 로는 빈칸처럼 보인다 — 2026-10-13 2026/08 사업소득 2,119,828 · 기타소득 11,181,764).
+ * 같은 자료구분 · 지급연월은 두 번 못 만든다('이미 생성된 자료입니다.').
  */
 export default function SimplePaymentPage() {
   return <StatementListPage daily={false} />
@@ -243,10 +245,18 @@ export function StatementListPage({ daily }: { daily: boolean }) {
   )
 }
 
+/** 원본 서식 아래 [지급자 보관용 ▼] — 머리의 '( [V]지급자 보관용 [ ]지급자 제출용 )' 표시를 바꾼다. */
+type SheetCopy = 'KEEP' | 'SUBMIT'
+/** 사업 · 기타소득 서식의 소득자 줄 수(원본은 일련번호 1~15 를 늘 그린다). */
+const SHEET_ROWS = 15
+const SHEET_PRINT_CSS = 'body{font-family:sans-serif;font-size:11px;margin:16px}table{width:100%;border-collapse:collapse}th,td{border:1px solid;padding:2px 4px}'
+
 /** [조회] — 국세청 간이지급명세서 서식 1쪽. */
 function SheetModal({ id, company, onClose }: { id: number; company: Company | null; onClose: () => void }) {
   const [sheet, setSheet] = useState<SimplePaymentSheet | null>(null)
   const [error, setError] = useState('')
+  const [copy, setCopy] = useState<SheetCopy>('KEEP')
+  const paperRef = useRef<HTMLDivElement>(null)
   function load() {
     setError('')
     api.get<SimplePaymentSheet>(`/simple-payment-statements/${id}/sheet`)
@@ -257,14 +267,21 @@ function SheetModal({ id, company, onClose }: { id: number; company: Company | n
   const s = sheet?.statement
   const address = [company?.address, company?.addressDetail].filter(Boolean).join(' ')
   const [y, m, d] = (s?.reportDate ?? '').split('-')
+  const payee = s?.kind === 'BUSINESS' || s?.kind === 'OTHER'
+  function print() {
+    const win = openPrintWindow()
+    if (!win || !paperRef.current) return
+    fillAndPrint(win, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>간이지급명세서</title><style>${SHEET_PRINT_CSS}</style></head>`
+      + `<body>${paperRef.current.innerHTML}</body></html>`)
+  }
 
   return (
     <Modal open title={s?.kind === 'DAILY' ? '일용근로소득 지급명세서' : '간이지급명세서'} width={900} error={error} onClose={onClose}>
       {s && (
-        <div>
+        <div ref={paperRef}>
           {s.kind === 'LABOR' ? <LaborSheet sheet={sheet!} company={company} address={address} />
             : s.kind === 'DAILY' ? <DailySheet sheet={sheet!} company={company} address={address} />
-              : <PayeeSheet sheet={sheet!} company={company} address={address} />}
+              : <PayeeSheet sheet={sheet!} company={company} address={address} copy={copy} />}
           <p className="mt-[12px]">
             {s.kind === 'DAILY' ? '위와 같이 제출합니다.' : s.kind === 'LABOR' ? '원천징수의무자는 소득세법 제164조의3제1항에 따라 위의 내용을 제출하며 위 내용을 충분히 검토하고 원천징수의무자가 알고 있는 사실 그대로를 정확하게 적었음을 확인합니다.'
               : '지급자는 「소득세법」 제164조의3제1항에 따라 위의 내용을 제출하며, 위 내용을 충분히 검토하고 지급자가 알고 있는 사실 그대로를 정확하게 적었음을 확인합니다.'}
@@ -274,8 +291,16 @@ function SheetModal({ id, company, onClose }: { id: number; company: Company | n
         </div>
       )}
       <div className="flex gap-[6px] mt-[12px]">
+        {/* 원본 사업 · 기타소득 서식: [인쇄] · Excel · [새로불러오기] · [닫기] · H · 도장인쇄 · [지급자 보관용 ▼] */}
+        {payee && <button className="ec-btn ec-btn-primary" onClick={print}>인쇄</button>}
         <button className="ec-btn" onClick={load}>새로불러오기</button>
         <button className="ec-btn" onClick={onClose}>닫기</button>
+        {payee && (
+          <select className="ec-input w-[120px]" aria-label="보관용" value={copy} onChange={(e) => setCopy(e.target.value as SheetCopy)}>
+            <option value="KEEP">지급자 보관용</option>
+            <option value="SUBMIT">지급자 제출용</option>
+          </select>
+        )}
       </div>
     </Modal>
   )
@@ -395,7 +420,7 @@ export function DailySheet({ sheet, company, address }: { sheet: SimplePaymentSh
   )
 }
 
-function PayeeSheet({ sheet, company, address }: { sheet: SimplePaymentSheet; company: Company | null; address: string }) {
+function PayeeSheet({ sheet, company, address, copy }: { sheet: SimplePaymentSheet; company: Company | null; address: string; copy: SheetCopy }) {
   const s = sheet.statement
   const other = s.kind === 'OTHER'
   const gross = sheet.payees.reduce((t, r) => t + Number(r.gross), 0)
@@ -403,13 +428,14 @@ function PayeeSheet({ sheet, company, address }: { sheet: SimplePaymentSheet; co
   useTableColumnCheck(tableRef, '간이지급명세서', [sheet])
   return (
     <>
-      <p>소득세법 시행규칙 [별지 제24호의4서식(2)]</p>
+      <p className="flex justify-between"><span>■ 소득세법 시행규칙 [별지 제24호의4서식(2)] &lt;개정 2023.3.20.&gt;</span><span>({other ? '3쪽 중 제1쪽' : '4쪽 중 제1쪽'})</span></p>
       <div className="ec-report-title">간 이 지 급 명 세 서<br />({other ? '거 주 자 의 기 타 소 득' : '거 주 자 의 사 업 소 득'})</div>
+      <p className="text-center mb-[6px]">( [{copy === 'KEEP' ? 'V' : ' '}]지급자 보관용 &nbsp; [{copy === 'SUBMIT' ? 'V' : ' '}]지급자 제출용 )</p>
       <p className="mb-[4px]">① 지급자 인적사항 및 지급내용 합계사항</p>
       <table className="w-full ec-report ec-report-head400 mb-[12px]">
         <tbody>
-          <tr><th>① 상호(법인명, 성명)</th><th>② 사업자(주민)등록번호</th><th>③ 소재지(주소)</th><th>④ 소득인원</th><th>⑤ 총 지급액</th></tr>
-          <tr><td>{company?.name ?? ''}</td><td>{company?.bizRegNo ?? ''}</td><td>{address}</td><td className="text-right">{sheet.payees.length}</td><td className="text-right">{other ? won(gross) : ''}</td></tr>
+          <tr><th>① 상호(법인명, 성명)</th><th>② 사업자(주민)등록번호</th><th>③ 소재지(주소)</th><th>④ 소득인원</th><th>⑤ 총 지급액({other ? '⑮' : '⑭'}번 합계)</th></tr>
+          <tr><td>{company?.name ?? ''}</td><td>{company?.bizRegNo ?? ''}</td><td>{address}</td><td className="text-right">{sheet.payees.length}</td><td className="text-right">{won(gross)}</td></tr>
           <tr>
             <th>⑥ 지급연도</th><td>{s.payYear} 년</td>
             <th>⑦ 지급월</th>
@@ -426,13 +452,12 @@ function PayeeSheet({ sheet, company, address }: { sheet: SimplePaymentSheet; co
             {other && <th className="text-right">⑭ 지급건수</th>}
             <th className="text-right">{other ? '⑮ 지급액' : '⑭ 지급액'}</th>
             {other && <><th className="text-right">⑯ 필요경비</th><th className="text-right">⑰ 소득금액</th></>}
-            <th className="text-right">세율</th><th className="text-right">소득세</th><th className="text-right">지방소득세</th><th className="text-right">계</th>
+            <th className="text-right">{other ? '⑱ 세율' : '⑮ 세율'}</th><th className="text-right">{other ? '⑲ 소득세' : '⑯ 소득세'}</th>
+            <th className="text-right">{other ? '⑳ 지방소득세' : '⑰ 지방소득세'}</th><th className="text-right">{other ? '㉑ 계(⑲+⑳)' : '⑱ 계(⑯+⑰)'}</th>
           </tr>
         </thead>
         <tbody>
-          {sheet.payees.length === 0 ? (
-            <tr><td colSpan={other ? 15 : 12} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : sheet.payees.map((r, i) => (
+          {sheet.payees.map((r, i) => (
             <tr key={i}>
               <td className="text-center">{i + 1}</td>
               <td className="text-center">{s.payYear}</td>
@@ -448,6 +473,13 @@ function PayeeSheet({ sheet, company, address }: { sheet: SimplePaymentSheet; co
               <td className="text-right">{won(r.incomeTax)}</td>
               <td className="text-right">{won(r.localIncomeTax)}</td>
               <td className="text-right">{won(Number(r.incomeTax) + Number(r.localIncomeTax))}</td>
+            </tr>
+          ))}
+          {/* 원본 서식은 소득자가 적어도 일련번호 15 줄까지 빈 줄을 그린다 */}
+          {Array.from({ length: Math.max(0, SHEET_ROWS - sheet.payees.length) }, (_, k) => (
+            <tr key={`blank-${k}`}>
+              <td className="text-center">{sheet.payees.length + k + 1}</td>
+              {Array.from({ length: other ? 14 : 11 }, (_, c) => <td key={c}></td>)}
             </tr>
           ))}
         </tbody>
