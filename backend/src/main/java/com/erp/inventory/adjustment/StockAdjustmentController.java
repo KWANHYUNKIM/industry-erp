@@ -59,10 +59,10 @@ public class StockAdjustmentController {
         return stockAdjustmentService.listStocktakes(from, to);
     }
 
-    /** 재고실사조회 [선택삭제] — 실사만 지운다(재고조정은 그대로). */
+    /** 재고실사조회 [선택삭제] — 실사와 그 실사로 맞춘 재고조정을 같이 지우고 재고를 되돌린다. */
     @DeleteMapping("/stocktakes/{id}")
-    public ResponseEntity<Void> deleteStocktake(@PathVariable Long id) {
-        stockAdjustmentService.deleteStocktake(id);
+    public ResponseEntity<Void> deleteStocktake(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
+        stockAdjustmentService.deleteStocktake(id, principal.getUsername());
         return ResponseEntity.noContent().build();
     }
 

@@ -176,14 +176,19 @@ public class StockAdjustmentService {
     }
 
     /**
-     * 원본 재고실사조회 [선택삭제] — 실사만 지운다. 그 실사로 맞춘 재고조정은 그대로 둔다
-     * (원본은 조정 · 실사를 따로 지운다 — 2026-10-12 실측. 실사를 지울 때 조정이 같이 지워지는지는 둘 다 따로 지워서 못 쟀다).
+     * 원본 재고실사조회 [선택삭제] — 실사를 지우면 <b>그 실사로 맞춘 재고조정도 같이 지워지고 재고가 되돌아온다</b>
+     * (2026-10-13 loginaa 실측: 포장김치 본사창고 348 → 실사 350 간편재고조정, 재고실사조회에서 실사를 선택삭제하니
+     * 재고조정조회의 '간편 · 26/10/13-1 · -2' 가 사라지고 간편재고조정 창의 재고가 다시 348).
+     * 반대로 조정만 지우면 실사는 [조정전표] 빈 채로 남는다(2026-10-12 실측 — ON DELETE SET NULL).
      */
     @Transactional
-    public void deleteStocktake(Long id) {
+    public void deleteStocktake(Long id, String username) {
         Stocktake s = stocktakeRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("재고실사를 찾을 수 없습니다. id=" + id));
+        StockAdjustment a = s.getAdjustment();
         stocktakeRepository.delete(s);
+        stocktakeRepository.flush();
+        if (a != null) delete(a.getId(), username);
     }
 
     /**

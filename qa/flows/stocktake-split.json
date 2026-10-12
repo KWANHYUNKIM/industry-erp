@@ -42,6 +42,21 @@
         "expect:!window.__r()",
         "js:(async()=>{const s=JSON.parse(sessionStorage.getItem('stk2'));const a=await window.__api('DELETE','/stock-adjustments/'+s.adj);const b=await window.__api('DELETE','/stock-adjustments/stocktakes/'+s.id);return a.status+','+b.status})()"
       ]
+    },
+    {
+      "name": "재고실사조회 — 실사를 [선택삭제]하면 그 실사로 맞춘 재고조정도 같이 지워지고 재고가 되돌아온다(2026-10-13 실측)",
+      "path": "/inventory/stocktake-list",
+      "steps": [
+        "wait:1000",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const st=(await window.__api('GET','/stock')).body;const a=st.find((s)=>Number(s.quantity)>=1);const r=await window.__api('POST','/stock-adjustments',{type:'ADJUST',itemId:a.itemId,warehouseId:a.warehouseId,actualQty:Number(a.quantity)+2,reason:'QA재고1 실사삭제'});const d=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10);const t=(await window.__api('GET','/stock-adjustments/stocktakes?from='+d+'&to='+d)).body.find((x)=>x.adjustmentId===r.body.id);sessionStorage.setItem('stk3',JSON.stringify({adj:r.body.id,id:t.id,item:a.itemId,wh:a.warehouseId,before:Number(a.quantity),date:d}));return r.status})()",
+        "js:(()=>{const d=JSON.parse(sessionStorage.getItem('stk3')).date;const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;for(const el of document.querySelectorAll('input[type=date]')){set.call(el,d);el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))}return true})()",
+        "wait:1200",
+        "js:window.__row3 = () => { const s=JSON.parse(sessionStorage.getItem('stk3')); return [...document.querySelectorAll('tbody tr')].find((t)=>t.cells.length===8&&t.cells[1].innerText.trim()==='간편'&&t.querySelector('input[type=checkbox]')&&t.cells[7].innerText.trim()!=='') }; true",
+        "js:(async()=>{const s=JSON.parse(sessionStorage.getItem('stk3'));return (await window.__api('DELETE','/stock-adjustments/stocktakes/'+s.id)).status})()",
+        "expect:(async()=>{const s=JSON.parse(sessionStorage.getItem('stk3'));const l=(await window.__api('GET','/stock-adjustments?from='+s.date+'&to='+s.date+'&type=ADJUST')).body.rows;return !l.some((x)=>x.id===s.adj)})()",
+        "expect:(async()=>{const s=JSON.parse(sessionStorage.getItem('stk3'));const st=(await window.__api('GET','/stock')).body.find((x)=>x.itemId===s.item&&x.warehouseId===s.wh);return Number(st.quantity)===s.before})()"
+      ]
     }
   ]
 }
