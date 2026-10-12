@@ -617,6 +617,10 @@ const MENU: TopMenu[] = [
           /* 원본 자금계획 탭(2026-10-12 실측): 계획전표조회 · 계획전표현황 · 출력물(추정자금일보 · 월보 · 연보). */
           { label: '계획전표조회', to: '/accounting/fund-plans' },
           { label: '계획전표현황', to: '/accounting/fund-plans/status' },
+          { label: '출력물', children: [
+            { label: '추정자금월보', to: '/accounting/fund-plans/monthly' },
+            { label: '추정자금연보', to: '/accounting/fund-plans/yearly' },
+          ] },
           { label: '자금수지계획', to: '/accounting/cash-plan' },
         ],
       },
