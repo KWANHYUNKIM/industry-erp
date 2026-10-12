@@ -10,6 +10,8 @@ public interface BankCheckRepository extends JpaRepository<BankCheck, Long> {
 
     boolean existsByCheckNo(String checkNo);
 
+    java.util.Optional<BankCheck> findByCheckNo(String checkNo);
+
     @Query("select c from BankCheck c " +
            "left join fetch c.partner left join fetch c.bankAccount " +
            "where c.issueDate >= :from and c.issueDate <= :to " +

@@ -62,6 +62,13 @@ public class BankCheckController {
         return service.settle(id, req != null ? req : new SettleRequest(null), principal.getUsername());
     }
 
+    /** 수령(발행)수표내역입력 — 분개 없이 수표만 증가 · 감소 */
+    @PostMapping("/direct")
+    public List<CheckResponse> directEntry(@Valid @RequestBody BankCheckDtos.DirectEntryRequest req,
+                                           @AuthenticationPrincipal UserPrincipal principal) {
+        return service.directEntry(req, principal.getUsername());
+    }
+
     /** 수령(발행)수표조회 [선택삭제] — 감소 줄(입금 · 부도 · 결제 취소)과 증가 줄(수표 삭제) */
     @PostMapping("/delete")
     public void deleteMoves(@RequestBody BankCheckDtos.DeleteMovesRequest req,

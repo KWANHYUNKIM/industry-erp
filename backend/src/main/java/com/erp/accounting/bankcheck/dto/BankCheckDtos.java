@@ -38,6 +38,28 @@ public final class BankCheckDtos {
 
     public record SettleRequest(LocalDate settledDate) {}
 
+    /**
+     * 원본 수령(발행)수표내역입력 — 머리(전표일자 · 전표구분 증가/감소 · 거래처 · 수표계좌) + 줄(수표번호 · 금액 · 적요).
+     * 분개 없이 수표만 늘리고 줄인다.
+     */
+    public record DirectEntryRequest(
+            @NotNull(message = "수표 종류를 선택하세요.") CheckType type,
+            @NotNull(message = "전표일자를 입력하세요.") LocalDate date,
+            boolean increase,
+            Long partnerId,
+            @NotNull(message = "수표계좌를 선택하세요.") Long bankAccountId,
+            @jakarta.validation.constraints.NotEmpty(message = "수표번호를 입력하세요.")
+            java.util.List<@jakarta.validation.Valid DirectLine> lines
+    ) {}
+
+    public record DirectLine(
+            @Size(max = 30, message = "수표번호는 30자까지 넣을 수 있습니다.")
+            @NotBlank(message = "수표번호를 입력하세요.") String checkNo,
+            @NotNull(message = "금액을 입력하세요.") @Positive(message = "금액은 0보다 커야 합니다.") BigDecimal amount,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
+            String remark
+    ) {}
+
     /** 수령(발행)수표조회 [선택삭제] — 고른 줄의 수표 id 를 감소 · 증가로 나눠 보낸다. */
     public record DeleteMovesRequest(java.util.List<Long> decreaseIds, java.util.List<Long> increaseIds) {}
 
@@ -48,6 +70,8 @@ public final class BankCheckDtos {
             Long partnerId, String partnerName,
             Long bankAccountId, String bankAccountName,
             LocalDate settledDate, String remark, String createdBy, String updatedBy,
+            /* 원본 거래유형 '수표만증가' · '수표만감소' — 수표내역입력에서 분개 없이 넣은 수표 */
+            boolean directEntry,
             /* 원본 수령수표증가 · 감소현황의 [일자-No.] — 받을 때 · 손을 떠날 때 회계전표 번호. 목록에서만 채운다. */
             String issueJournalNo, String settleJournalNo
     ) {
@@ -65,7 +89,7 @@ public final class BankCheckDtos {
                     c.getBankAccount() != null ? c.getBankAccount().getId() : null,
                     c.getBankAccount() != null
                             ? c.getBankAccount().getBankName() + " " + c.getBankAccount().getAccountNo() : null,
-                    c.getSettledDate(), c.getRemark(), c.getCreatedBy(), c.getUpdatedBy(), issueJournalNo, settleJournalNo);
+                    c.getSettledDate(), c.getRemark(), c.getCreatedBy(), c.getUpdatedBy(), c.isDirectEntry(), issueJournalNo, settleJournalNo);
         }
     }
 }

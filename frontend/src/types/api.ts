@@ -1191,6 +1191,8 @@ export interface BankCheck {
   createdBy: string | null
   /** 원본 [최종수정자] — 입금 · 부도 · 결제와 그 취소를 한 사람 */
   updatedBy: string | null
+  /** 수표내역입력에서 분개 없이 넣은 수표 — 거래유형 '수표만증가' · '수표만감소' */
+  directEntry: boolean
   /** 받을 때(발행할 때) 회계전표 번호 — 원본 수령수표증가현황의 [일자-No.]. 목록에서만 온다. */
   issueJournalNo?: string | null
   /** 손을 떠날 때(입금 · 부도) 회계전표 번호 — 원본 수령수표감소현황의 [일자-No.]. 발행수표 결제는 분개가 없어 비어 있다. */

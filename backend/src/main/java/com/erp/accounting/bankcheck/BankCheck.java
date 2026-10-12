@@ -77,4 +77,12 @@ public class BankCheck extends BaseTimeEntity {
     /** 원본 수령(발행)수표조회의 [최종수정자] — 입금 · 부도 · 결제와 그 취소를 한 사람. */
     @Column(length = 50)
     private String updatedBy;
+
+    /**
+     * 원본 수령(발행)수표내역입력에서 분개 없이 직접 넣은 수표(거래유형 '수표만증가' · '수표만감소').
+     * 받을 때도 손을 떠날 때도 회계전표 · 계좌가 움직이지 않는다.
+     */
+    @Column(name = "direct_entry", nullable = false)
+    @Builder.Default
+    private boolean directEntry = false;
 }

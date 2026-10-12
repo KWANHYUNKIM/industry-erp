@@ -120,6 +120,7 @@ public class BankCheckService {
         BankCheck c = check(id);
         requireType(c, CheckType.RECEIVED, "받은수표만 입금할 수 있습니다");
         requireHeld(c, "입금");
+        requireJournaled(c);
 
         BankAccount account = bankAccount(req.bankAccountId());
         LocalDate date = req.depositDate() != null ? req.depositDate() : LocalDate.now();
@@ -142,6 +143,7 @@ public class BankCheckService {
         BankCheck c = check(id);
         requireType(c, CheckType.RECEIVED, "받은수표만 부도 처리할 수 있습니다");
         requireHeld(c, "부도");
+        requireJournaled(c);
 
         LocalDate date = req != null && req.settledDate() != null ? req.settledDate() : LocalDate.now();
         requireNotBeforeIssue(c, date, "부도일");
@@ -167,6 +169,49 @@ public class BankCheckService {
         c.setUpdatedBy(username);
         c.setSettledDate(date);
         return CheckResponse.from(c);
+    }
+
+    /**
+     * 원본 수령(발행)수표내역입력(수표조회의 [신규(F2)]) — 분개 없이 수표만 늘리거나 줄인다(2026-10-13 loginaa 실측: 거래유형 '수표만증가' · '수표만감소',
+     * [회계전표일자-No.] 빈칸). 증가는 줄마다 보유 수표를 하나 만들고, 감소는 같은 번호의 보유 수표를 손을 떠난 것으로 바꾼다
+     * (받은수표는 입금완료, 발행수표는 결제완료 자리). 분개로 받은 수표를 분개 없이 줄이면 받을수표 잔액만 남아 장부가 어긋나므로
+     * 감소는 이 창으로 넣은 수표에만 받는다.
+     */
+    @Transactional
+    public List<CheckResponse> directEntry(BankCheckDtos.DirectEntryRequest req, String username) {
+        BankAccount account = bankAccount(req.bankAccountId());
+        var partner = req.partnerId() == null ? null : partnerRepository.findById(req.partnerId())
+                .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + req.partnerId()));
+        List<CheckResponse> out = new java.util.ArrayList<>();
+        for (BankCheckDtos.DirectLine line : req.lines()) {
+            String no = line.checkNo().trim();
+            if (req.increase()) {
+                if (checkRepository.existsByCheckNo(no)) {
+                    throw ApiException.conflict("이미 등록된 수표번호입니다: " + no);
+                }
+                BankCheck c = BankCheck.builder()
+                        .checkNo(no).type(req.type()).status(CheckStatus.HELD)
+                        .issueDate(req.date()).amount(line.amount())
+                        .partner(partner).bankAccount(account).remark(line.remark())
+                        .createdBy(username).updatedBy(username).directEntry(true)
+                        .build();
+                out.add(CheckResponse.from(checkRepository.save(c)));
+            } else {
+                BankCheck c = checkRepository.findByCheckNo(no)
+                        .orElseThrow(() -> ApiException.notFound("수표를 찾을 수 없습니다: " + no));
+                requireType(c, req.type(), (req.type() == CheckType.RECEIVED ? "수령" : "발행") + "수표만 줄일 수 있습니다");
+                requireHeld(c, "감소");
+                if (!c.isDirectEntry()) {
+                    throw ApiException.badRequest(no + " 은(는) 회계전표로 받은 수표입니다 — 수표관리에서 입금 · 부도(결제) 처리하세요.");
+                }
+                requireNotBeforeIssue(c, req.date(), "전표일자");
+                c.setStatus(req.type() == CheckType.RECEIVED ? CheckStatus.DEPOSITED : CheckStatus.PAID);
+                c.setSettledDate(req.date());
+                c.setUpdatedBy(username);
+                out.add(CheckResponse.from(c));
+            }
+        }
+        return out;
     }
 
     /**
@@ -197,7 +242,7 @@ public class BankCheckService {
                 }
                 journalService.deleteEntry(e);
             }
-            if (c.getType() == CheckType.RECEIVED) c.setBankAccount(null);
+            if (c.getType() == CheckType.RECEIVED && !c.isDirectEntry()) c.setBankAccount(null);
             c.setStatus(CheckStatus.HELD);
             c.setSettledDate(null);
             c.setSettleJournalId(null);
@@ -232,6 +277,13 @@ public class BankCheckService {
         if (date.isBefore(c.getIssueDate())) {
             throw ApiException.badRequest(String.format("%s(%s)이 %s 의 %s일(%s)보다 빠를 수 없습니다.",
                     what, date, c.getCheckNo(), c.getType() == CheckType.RECEIVED ? "수령" : "발행", c.getIssueDate()));
+        }
+    }
+
+    /** 수표내역입력으로(분개 없이) 넣은 수표를 분개로 입금 · 부도하면 받은 분개 없이 받을수표가 빠진다. */
+    private static void requireJournaled(BankCheck c) {
+        if (c.isDirectEntry()) {
+            throw ApiException.badRequest(c.getCheckNo() + " 은(는) 수표내역입력으로 넣은 수표입니다 — 수령수표조회 [신규] 에서 감소로 넣으세요.");
         }
     }
 

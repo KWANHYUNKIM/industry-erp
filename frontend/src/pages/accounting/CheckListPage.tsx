@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
+import CheckDirectEntryModal from '../../features/bankcheck/components/CheckDirectEntryModal'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { QUOTATION_PICKS, periodOf } from '../../components/EcPeriodPicks'
@@ -24,7 +24,7 @@ interface Move { key: string; date: string; inc: boolean; c: BankCheck }
  * 버튼줄: 신규(F2) · (발행수표인쇄) · 선택삭제 · Excel.
  *
  * <p>한 줄은 수표가 아니라 <b>움직임</b>이다 — 받은 날 '수령수표증가', 입금 · 부도한 날 '수령수표감소'(발행은 발행 · 결제완료).
- * 우리 수표는 모두 수표관리 화면에서 직접 적으므로 [입력구분]은 늘 '직접입력'이다.
+ * [입력구분] 연결전표 = 수표관리에서 받아 분개가 생긴 수표, 직접입력 = [신규(F2)] 수표내역입력으로 분개 없이 넣은 수표.
  * [선택삭제]는 고른 <b>움직임</b>을 지운다 — 확인 창 '선택한 전표를 삭제 하겠습니까?'(알림 · 확인/취소, 2026-10-13 실측).
  * 감소 줄이면 입금 · 부도 · 결제를 취소해 수표가 보유로 돌아오고(입금 분개 · 계좌 입금도 되돌림), 증가 줄이면 수표를 지운다.
  * 원본은 감소 줄이 남은 수표의 증가 줄도 막지 않는다(감소만 홀로 남음) — 우리 수표는 한 장이라 그 감소를 먼저 취소하고 지운다.
@@ -32,7 +32,7 @@ interface Move { key: string; date: string; inc: boolean; c: BankCheck }
  * 원본 [수령수표내역입력](신규)에서 직접 넣은 줄의 거래유형은 '수표만증가' · '수표만감소', [일자] 칸은 '2026/10/13 -1' 처럼 일자-No. 다.
  * 우리 수표는 받는 순간 분개가 생기는 연결전표라 거래유형은 수령 · 입금완료 · 부도(발행 · 결제완료)로 둔다.
  * [최종수정자] = 마지막으로 입금 · 부도 · 결제나 그 취소를 한 사람. [인쇄] 열 · [발행수표인쇄]는 수표 용지 인쇄 이력인데 우리는 수표를 인쇄하지 않는다.
- * [신규(F2)]는 수표를 적는 수표관리 화면으로 보낸다. 원본 판이 비어 합계줄이 있는지 못 쟀다 — 증가 · 감소를 더한 합은 뜻이 없어 두지 않는다.
+ * [신규(F2)]는 원본처럼 수령(발행)수표내역입력 창을 연다(features/bankcheck/components/CheckDirectEntryModal).
  */
 export default function CheckListPage({ type }: { type: CheckType }) {
   const received = type === 'RECEIVED'
@@ -40,7 +40,6 @@ export default function CheckListPage({ type }: { type: CheckType }) {
   const acctLabel = received ? '수령수표계좌' : '발행수표계좌'
   const incName = received ? '수령수표증가' : '발행수표증가'
   const decName = received ? '수령수표감소' : '발행수표감소'
-  const navigate = useNavigate()
   const init = periodOf('최근30일(+1개월)')!
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
@@ -49,6 +48,7 @@ export default function CheckListPage({ type }: { type: CheckType }) {
   const [showDec, setShowDec] = useState(true)
   const [kind, setKind] = useState('')
   const [direct, setDirect] = useState(true)
+  const [linked, setLinked] = useState(true)
   const [partner, setPartner] = useState('')
   const [bankAccount, setBankAccount] = useState('')
   const [remark, setRemark] = useState('')
@@ -56,6 +56,7 @@ export default function CheckListPage({ type }: { type: CheckType }) {
   const [editor, setEditor] = useState('')
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [entryOpen, setEntryOpen] = useState(false)
   const [checks, setChecks] = useState<BankCheck[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -78,7 +79,7 @@ export default function CheckListPage({ type }: { type: CheckType }) {
   useEffect(() => { void load() }, [from, to, type])
 
   const ofType = useMemo(() => checks.filter((c) => c.type === type), [checks, type])
-  const kindOf = (m: Move) => (m.inc ? (received ? '수령' : '발행') : m.c.statusName)
+  const kindOf = (m: Move) => (m.c.directEntry ? (m.inc ? '수표만증가' : '수표만감소') : m.inc ? (received ? '수령' : '발행') : m.c.statusName)
   const moves = useMemo(() => {
     const out: Move[] = []
     for (const c of ofType) {
@@ -88,7 +89,7 @@ export default function CheckListPage({ type }: { type: CheckType }) {
     return out
       .filter((m) => m.date >= from && m.date <= to)
       .filter((m) => (m.inc ? showInc : showDec))
-      .filter(() => direct)
+      .filter((m) => (m.c.directEntry ? direct : linked))
       .filter((m) => !checkNo || m.c.checkNo.includes(checkNo))
       .filter((m) => !kind || kindOf(m) === kind)
       .filter((m) => !partner || String(m.c.partnerId) === partner)
@@ -99,7 +100,7 @@ export default function CheckListPage({ type }: { type: CheckType }) {
       // 원본은 최근 줄이 위 — 같은 날이면 나중에 생긴 움직임(감소)이 위.
       .sort((a, b) => (a.date > b.date ? -1 : a.date < b.date ? 1 : (a.inc === b.inc ? b.c.id - a.c.id : a.inc ? 1 : -1)))
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ofType, from, to, showInc, showDec, direct, checkNo, kind, partner, bankAccount, remark, author, editor])
+  }, [ofType, from, to, showInc, showDec, direct, linked, checkNo, kind, partner, bankAccount, remark, author, editor])
   const partners = useMemo(() => {
     const m = new Map<number, string>()
     ofType.forEach((c) => { if (c.partnerId != null) m.set(c.partnerId, c.partnerName ?? '') })
@@ -123,7 +124,7 @@ export default function CheckListPage({ type }: { type: CheckType }) {
       setError(extractErrorMessage(e))
     }
   }
-  const kinds = received ? ['수령', '입금완료', '부도'] : ['발행', '결제완료']
+  const kinds = received ? ['수령', '입금완료', '부도', '수표만증가', '수표만감소'] : ['발행', '결제완료', '수표만증가', '수표만감소']
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, title, [moves.length])
 
@@ -139,8 +140,8 @@ export default function CheckListPage({ type }: { type: CheckType }) {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setCheckNo(''); setShowInc(true); setShowDec(true); setKind(''); setDirect(true); setPartner(''); setBankAccount(''); setRemark(''); setAuthor(''); setEditor('') } },
-        { label: '신규(F2)', onClick: () => navigate('/accounting/checks') },
+        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setCheckNo(''); setShowInc(true); setShowDec(true); setKind(''); setDirect(true); setLinked(true); setPartner(''); setBankAccount(''); setRemark(''); setAuthor(''); setEditor('') } },
+        { label: '신규(F2)', onClick: () => setEntryOpen(true) },
         { label: '선택삭제', disabled: picked.size === 0, onClick: () => setConfirmDelete(true) },
         { label: 'Excel' },
       ]}
@@ -169,12 +170,10 @@ export default function CheckListPage({ type }: { type: CheckType }) {
             {kinds.map((k) => <option key={k} value={k}>{k}</option>)}
           </select>
         </EcCond>
-        {/* 원본 [입력구분] — 우리 수표는 모두 수표관리 화면에서 직접 적는다. 연결전표에서 생기는 수표가 없다. */}
+        {/* 원본 [입력구분] — 연결전표 = 받을 때 분개가 생기는 수표(수표관리) · 직접입력 = [신규] 수표내역입력(분개 없음). */}
         <EcCond label="입력구분">
-          {box('전체', direct, setDirect)}
-          <label className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px] text-ec-hint">
-            <input type="checkbox" checked={false} disabled /> 연결전표
-          </label>
+          {box('전체', direct && linked, (v) => { setDirect(v); setLinked(v) })}
+          {box('연결전표', linked, setLinked)}
           {box('직접입력', direct, setDirect)}
         </EcCond>
         <EcCond label="거래처" pick>
@@ -244,6 +243,7 @@ export default function CheckListPage({ type }: { type: CheckType }) {
         </tbody>
       </table>
 
+      <CheckDirectEntryModal type={type} open={entryOpen} onClose={() => setEntryOpen(false)} onSaved={() => void load()} />
       <Modal open={confirmDelete} title="알림" width={420} error={error} onClose={() => setConfirmDelete(false)}>
         <p className="mb-[12px]">선택한 전표를 삭제 하겠습니까?</p>
         <div className="flex gap-[5px]">
