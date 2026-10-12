@@ -32,7 +32,11 @@ type Method = 'FULL' | 'SAMPLING'
 interface LineForm { method: Method; itemId: string; quantity: string }
 const emptyLine = (): LineForm => ({ method: 'FULL', itemId: '', quantity: '' })
 const emptyLines = () => [emptyLine(), emptyLine(), emptyLine()]
-type Tab = '전체' | '진행중' | '완료'
+/*
+ * 원본 알약(2026-10-12 다시 잼): 전체 · 결재중 · 확인 · 진행중 · 완료. 결재중 · 확인은 전자결재(전표 확인) 상태라
+ * 결재를 걸지 않는 우리에게는 결재중이 늘 비고 확인은 전체와 같다(품질검사조회 · A/S접수조회와 같음).
+ */
+type Tab = '전체' | '결재중' | '확인' | '진행중' | '완료'
 /* 원본 [품목] — 'MSI BIG BANG Z77 MPOWER [1EA]', 여럿이면 '… 외 1건'. */
 const itemText = (r: QualityInspectionRequest) => {
   const first = r.lines[0]
@@ -201,7 +205,7 @@ export default function QualityRequestPage() {
   }
 
   const shown = useMemo(() => rows
-    .filter((r) => tab === '전체' || (tab === '진행중' ? r.status === 'REQUESTED' : r.status === 'INSPECTED'))
+    .filter((r) => tab === '전체' || tab === '확인' || (tab === '결재중' ? false : tab === '진행중' ? r.status === 'REQUESTED' : r.status === 'INSPECTED'))
     .filter((r) => !docCond || r.requestNo.includes(docCond) || r.requestDate.includes(docCond))
     .filter((r) => !reqCond || (r.requester ?? '') === reqCond)
     .filter((r) => !itemCond || r.lines.some((l) => String(l.itemId) === itemCond))
@@ -285,7 +289,7 @@ export default function QualityRequestPage() {
       </ul>
 
       <div className="ec-pills mb-[8px]">
-        {(['전체', '진행중', '완료'] as const).map((t) => (
+        {(['전체', '결재중', '확인', '진행중', '완료'] as const).map((t) => (
           <button key={t} type="button" className={`ec-pill no-ec${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>{t}</button>
         ))}
       </div>

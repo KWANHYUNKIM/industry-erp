@@ -209,7 +209,8 @@ export default function QualityRequestStatusPage() {
                 </tr>
               )),
               <tr key={`${g.n1}␟계`} className="ec-list-total">
-                <td colSpan={aggCols.length} className="text-center font-bold">{g.n1} 계</td>
+                {/* 원본은 이름이 빈 묶음(담당자 없는 요청)을 '[] 계' 로 적는다(2026-10-12 담당자별 실측). */}
+                <td colSpan={aggCols.length} className="text-center font-bold">{g.n1 || '[]'} 계</td>
                 <td className="text-right font-bold">{qty2(g.sum)}</td>
               </tr>,
             ])}
