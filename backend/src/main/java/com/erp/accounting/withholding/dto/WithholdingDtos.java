@@ -109,7 +109,9 @@ public final class WithholdingDtos {
             BigDecimal taxablePay,
             BigDecimal nonTaxablePay,
             BigDecimal incomeTax,
-            BigDecimal localIncomeTax
+            BigDecimal localIncomeTax,
+            /** (31) 급여구간 — 간이세액표 구간 '4,240,000~4,260,000'. 표 밖이면 null. */
+            String payBracket
     ) {}
 
     /** 원천징수부 — 소득자 한 사람의 귀속연도(기준연월까지) 근로소득 지급명세. */

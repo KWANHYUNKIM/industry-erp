@@ -45,6 +45,7 @@ public class WithholdingService {
     private static final Pattern MONTH = Pattern.compile("\\d{4}-\\d{2}");
 
     private final PayslipRepository payslipRepository;
+    private final WithholdingTaxCalculator taxCalculator;
     private final WithholdingReturnRepository returnRepository;
     private final com.erp.accounting.retirementpay.RetirementPayRepository retirementPayRepository;
     private final com.erp.hr.dailywork.DailyWorkService dailyWorkService;
@@ -181,8 +182,11 @@ public class WithholdingService {
                         BigDecimal nonTaxable = p.getLines().stream()
                                 .filter(l -> l.getKind() == PayslipLineKind.ALLOWANCE && !l.isTaxable())
                                 .map(PayslipLine::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
-                        return new WithholdingDtos.LedgerMonth(p.getPayMonth(), p.grossPay().subtract(nonTaxable), nonTaxable,
-                                deduction(p, INCOME_TAX), deduction(p, LOCAL_INCOME_TAX));
+                        BigDecimal taxable = p.grossPay().subtract(nonTaxable);
+                        long[] b = taxCalculator.bracketOf(taxable);
+                        String bracket = b == null ? null : String.format("%,d~%,d", b[0], b[1]);
+                        return new WithholdingDtos.LedgerMonth(p.getPayMonth(), taxable, nonTaxable,
+                                deduction(p, INCOME_TAX), deduction(p, LOCAL_INCOME_TAX), bracket);
                     })
                     .toList();
             out.add(new WithholdingDtos.LedgerEmployee(e.getId(), e.getCode(), e.getName(),

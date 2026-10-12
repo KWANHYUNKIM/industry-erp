@@ -2098,7 +2098,8 @@ export interface WithholdingLedgerEmployee {
   employeeName: string
   hireDate: string | null
   resignDate: string | null
-  months: { payMonth: string; taxablePay: number; nonTaxablePay: number; incomeTax: number; localIncomeTax: number }[]
+  /** payBracket — 원천징수부 (31) 급여구간(간이세액표 구간 '4,240,000~4,260,000'), 표 밖이면 null. */
+  months: { payMonth: string; taxablePay: number; nonTaxablePay: number; incomeTax: number; localIncomeTax: number; payBracket: string | null }[]
 }
 
 /** 퇴직금계산 (E030117) 목록 한 줄 */

@@ -83,6 +83,19 @@ public class WithholdingTaxCalculator {
         return t.setScale(0, RoundingMode.DOWN);
     }
 
+    /**
+     * 원천징수부(E020116) (31) 급여구간 — 간이세액표에서 월 과세급여가 든 구간 [이상, 미만](원).
+     * 원본 예: 4,259,000 → 4,240,000 ~ 4,260,000. 표 밖(770천원 미만 · 1,000만원 이상)이면 null.
+     */
+    public long[] bracketOf(BigDecimal monthlyTaxableIncome) {
+        if (monthlyTaxableIncome == null || monthlyTaxableIncome.signum() <= 0) return null;
+        long thousand = monthlyTaxableIncome.setScale(0, RoundingMode.DOWN).longValue() / 1000;
+        for (long[] r : rows) {
+            if (thousand >= r[0] && thousand < r[1]) return new long[]{r[0] * 1000, r[1] * 1000};
+        }
+        return null;
+    }
+
     /** 지방소득세 = 소득세의 10% (원 단위 절사) */
     public BigDecimal localIncomeTax(BigDecimal incomeTax) {
         if (incomeTax == null || incomeTax.signum() <= 0) return BigDecimal.ZERO;

@@ -19,6 +19,7 @@ type Status = '전체' | '재직자' | '퇴사자'
  * 기준연월까지 달마다 지급연월 · 총급여 · 계 · 소득세 · 지방소득세를 찍고 남은 달은 비운다.
  * 원본 예: 2026/10 기준 변종호 2026.01~10 급여 4,259,000 · 소득세 228,000 · 지방 22,800, 계 42,590,000 · 2,280,000 · 228,000.
  * 비과세(Ⅱ쪽, 식대 · 자가운전보조금 …)는 총급여에 넣지 않고 따로 적는다.
+ * (31) 급여구간은 그 달 과세급여가 든 간이세액표 구간(원본 4,259,000 → 4,240,000~4,260,000, 2026-10-12).
  */
 export default function WithholdingLedgerPage() {
   const [month, setMonth] = useState(ymd(new Date()).slice(0, 7))
@@ -138,6 +139,7 @@ function LedgerModal({ emp, month, company, onClose }: {
             <th rowSpan={2}>월별</th>
             <th rowSpan={2}>(15) 지급연월</th>
             <th colSpan={3}>1. 총 급 여</th>
+            <th rowSpan={2}>(31) 급여구간</th>
             <th colSpan={2}>2. 징수세액</th>
             <th rowSpan={2}>비과세 합계<br />(Ⅱ쪽)</th>
           </tr>
@@ -154,6 +156,7 @@ function LedgerModal({ emp, month, company, onClose }: {
               <td className="text-right">{m ? won(m.taxablePay) : ''}</td>
               <td className="text-right"></td>
               <td className="text-right">{m ? won(m.taxablePay) : ''}</td>
+              <td className="text-center whitespace-nowrap">{m?.payBracket ?? ''}</td>
               <td className="text-right">{m ? won(m.incomeTax) : ''}</td>
               <td className="text-right">{m ? won(m.localIncomeTax) : ''}</td>
               <td className="text-right">{m ? won(m.nonTaxablePay) : ''}</td>
@@ -166,6 +169,7 @@ function LedgerModal({ emp, month, company, onClose }: {
             <td className="text-right">{won(sum('taxablePay'))}</td>
             <td className="text-right"></td>
             <td className="text-right">{won(sum('taxablePay'))}</td>
+            <td></td>
             <td className="text-right">{won(sum('incomeTax'))}</td>
             <td className="text-right">{won(sum('localIncomeTax'))}</td>
             <td className="text-right">{won(sum('nonTaxablePay'))}</td>
