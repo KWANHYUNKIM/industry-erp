@@ -6,7 +6,8 @@ import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { QUOTATION_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
-import { dateText } from '../../utils/dateText'
+import { shortDateNo } from '../../utils/dateNo'
+import { useNavigate } from 'react-router-dom'
 import type { StockAdjustment } from '../../types/api'
 
 interface AdjustmentList { rows: StockAdjustment[]; totalRows: number; truncated: boolean }
@@ -22,9 +23,14 @@ const sortOf = (r: StockAdjustment) => ((r.reason ?? '').startsWith(STAGED_PREFI
  * 열: 구분 · 입력일자 · 창고 · 품목 · 수량 · 담당자. 버튼줄 간편재고조정 · 단계별재고실사 · 인쇄 · 선택삭제 · Excel · 이력조회.
  *
  * <p>간편 = 기타이동에서 바로 맞춘 재고조정, 단계별 = 단계별재고조정을 반영해 생긴 재고조정(적요가 '단계별조정 '으로 시작).
- * 수량은 장부를 바꾼 양(증감, 부호 그대로)이다. 원본 판이 비어 수량의 부호 · 줄 모양은 못 쟀다.
+ * <p>2026-10-12 실측(간편재고조정 C001 본사창고 장부 348 → 실사 350): 줄 '간편 · 26/10/12-1 · 본사창고 · 포장김치 [1KG] · <b>-2</b>' —
+ * 수량은 <b>장부 − 실사</b>(늘었으면 음수)다. 재고수불부도 '[조정]' 을 <b>출고 -2</b> 로 적는다(출고 전표의 수량이다).
+ * 입력일자는 링크가 아니다. [선택삭제]는 '선택한 전표를 삭제 하겠습니까?' 뒤 지우고, 실사 기록(재고실사조회)은 조정전표 칸만 빈 채로 남는다
+ * — 우리는 간편 실사를 조정과 따로 적지 않아 같이 사라진다.
  */
 export default function AdjustListPage() {
+  const navigate = useNavigate()
+  const [picked, setPicked] = useState<Set<number>>(new Set())
   const pickers = useCondPickers(['warehouses', 'items', 'employees'])
   const init = periodOf('최근30일(+1개월)')!
   const [sort, setSort] = useState<'전체' | '간편' | '단계별'>('전체')
@@ -45,6 +51,7 @@ export default function AdjustListPage() {
       const r = await api.get<AdjustmentList>('/stock-adjustments', { params: { from, to, type: 'ADJUST' } })
       setRows(r.data.rows)
       setTruncated(r.data.truncated)
+      setPicked(new Set())
     } catch (e) {
       setError(extractErrorMessage(e))
     } finally {
@@ -66,6 +73,19 @@ export default function AdjustListPage() {
   [rows, from, to, sort, warehouse, item, employee, empName])
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '재고조정조회', [shown.length])
+  const allPicked = shown.length > 0 && shown.every((r) => picked.has(r.id))
+
+  /** 원본 [선택삭제] — 고른 조정을 지우고 재고를 되돌린다(서버가 반대 거래를 남긴다). */
+  async function removePicked() {
+    if (picked.size === 0) return setError('삭제할 전표를 선택하세요.')
+    if (!confirm('선택한 전표를 삭제 하겠습니까?')) return
+    try {
+      for (const id of picked) await api.delete(`/stock-adjustments/${id}`)
+    } catch (e) {
+      setError(extractErrorMessage(e))
+    }
+    await load()
+  }
 
   return (
     <EcListShell
@@ -76,6 +96,9 @@ export default function AdjustListPage() {
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: () => { setSort('전체'); setFrom(init.from); setTo(init.to); setWarehouse(''); setItem(''); setEmployee('') } },
+        { label: '간편재고조정', onClick: () => navigate('/inventory/transfer?tab=재고조정') },
+        { label: '단계별재고실사', onClick: () => navigate('/inventory/stocktake') },
+        { label: '선택삭제', onClick: () => void removePicked(), disabled: picked.size === 0 },
         { label: 'Excel' },
       ]}
     >
@@ -111,7 +134,10 @@ export default function AdjustListPage() {
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
-            <th className="w-[34px]"></th>
+            <th className="w-[34px] text-center">
+              <input type="checkbox" aria-label="전체 선택" checked={allPicked}
+                     onChange={() => setPicked(allPicked ? new Set() : new Set(shown.map((r) => r.id)))} />
+            </th>
             <th className="text-center">구분</th>
             <th className="text-center">입력일자</th>
             <th>창고</th>
@@ -127,12 +153,17 @@ export default function AdjustListPage() {
             <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
-              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td className="text-center text-ec-hint whitespace-nowrap">
+                <input type="checkbox" aria-label={`${i + 1}줄 선택`} checked={picked.has(r.id)}
+                       onChange={() => setPicked((p) => { const n = new Set(p); if (n.has(r.id)) n.delete(r.id); else n.add(r.id); return n })} />
+                {' '}{i + 1}
+              </td>
               <td className="text-center">{sortOf(r)}</td>
-              <td className="text-center">{dateText(r.adjustDate)} {r.adjustNo}</td>
+              <td className="text-center">{shortDateNo(r.adjustDate, r.adjustNo)}</td>
               <td>{r.warehouseName}</td>
               <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
-              <td className="text-right">{Number(r.quantityChange).toLocaleString('ko-KR')}</td>
+              {/* 원본은 장부 − 실사(늘린 조정이 음수)다 — 우리 증감의 반대 부호. */}
+              <td className="text-right">{(-Number(r.quantityChange)).toLocaleString('ko-KR')}</td>
               <td>{r.employeeId != null ? empName.get(r.employeeId) ?? '' : ''}</td>
             </tr>
           ))}

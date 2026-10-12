@@ -6,7 +6,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { STOCKTAKE_LIST_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
-import { dateText } from '../../utils/dateText'
+import { dateNo } from '../../utils/dateNo'
 import type { StagedAdjustment, StockAdjustment } from '../../types/api'
 
 interface AdjustmentList { rows: StockAdjustment[]; totalRows: number; truncated: boolean }
@@ -31,7 +31,7 @@ interface Line {
  * 담당자는 간편이 조정의 작성자, 단계별이 요청자다.
  */
 export default function StocktakeListPage() {
-  const pickers = useCondPickers(['warehouses', 'items'])
+  const pickers = useCondPickers(['warehouses', 'items', 'employees'])
   const init = periodOf('차월')!
   const [sort, setSort] = useState<'전체' | '간편' | '단계별'>('전체')
   const [from, setFrom] = useState(init.from)
@@ -64,6 +64,7 @@ export default function StocktakeListPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { void load() }, [from, to])
 
+  const empName = useMemo(() => new Map(pickers.employees.map((e) => [(e as { id?: number }).id, e.name])), [pickers.employees])
   const lines = useMemo(() => {
     const slipOf = new Map<string, StockAdjustment>()
     for (const a of adjusts) {
@@ -74,14 +75,15 @@ export default function StocktakeListPage() {
     for (const a of adjusts) {
       if (a.type !== 'ADJUST' || (a.reason ?? '').startsWith(STAGED_PREFIX)) continue
       out.push({ key: `a${a.id}`, sort: '간편', date: a.adjustDate, no: a.adjustNo, warehouseId: a.warehouseId, warehouseName: a.warehouseName,
-        person: a.createdBy ?? '', itemId: a.itemId, itemName: a.itemName, spec: a.spec ?? null, qty: Number(a.afterQty),
-        slip: `${dateText(a.adjustDate)} ${a.adjustNo}` })
+        /* 원본 [담당자]는 간편재고조정 창의 담당자다 — 비우면 빈칸(2026-10-12 실측). 작성자가 아니다. */
+        person: a.employeeId != null ? empName.get(a.employeeId) ?? '' : '', itemId: a.itemId, itemName: a.itemName, spec: a.spec ?? null, qty: Number(a.afterQty),
+        slip: dateNo(a.adjustDate, a.adjustNo) })
     }
     for (const s of staged) {
       const slip = slipOf.get(s.adjustNo)
       out.push({ key: `s${s.id}`, sort: '단계별', date: s.requestDate, no: s.adjustNo, warehouseId: s.warehouseId, warehouseName: s.warehouseName,
         person: s.requester ?? '', itemId: s.itemId, itemName: s.itemName, spec: null, qty: Number(s.actualQty),
-        slip: slip ? `${dateText(slip.adjustDate)} ${slip.adjustNo}` : '' })
+        slip: slip ? dateNo(slip.adjustDate, slip.adjustNo) : '' })
     }
     return out
       .filter((l) => l.date >= from && l.date <= to)
@@ -90,10 +92,10 @@ export default function StocktakeListPage() {
       .filter((l) => !item || String(l.itemId) === item)
       .filter((l) => !person || l.person === person)
       .sort((a, b) => (a.date > b.date ? -1 : a.date < b.date ? 1 : b.no.localeCompare(a.no)))
-  }, [adjusts, staged, from, to, sort, warehouse, item, person])
+  }, [adjusts, staged, from, to, sort, warehouse, item, person, empName])
   const people = useMemo(() => [...new Set([
-    ...adjusts.map((a) => a.createdBy), ...staged.map((s) => s.requester),
-  ].filter(Boolean) as string[])].sort(), [adjusts, staged])
+    ...adjusts.map((a) => (a.employeeId != null ? empName.get(a.employeeId) : null)), ...staged.map((s) => s.requester),
+  ].filter(Boolean) as string[])].sort(), [adjusts, staged, empName])
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '재고실사조회', [lines.length])
 
@@ -160,11 +162,12 @@ export default function StocktakeListPage() {
             <tr key={l.key}>
               <td className="text-center text-ec-hint">{i + 1}</td>
               <td className="text-center">{l.sort}</td>
-              <td className="text-center">{dateText(l.date)} {l.no}</td>
+              <td className="text-center">{dateNo(l.date, l.no)}</td>
               <td>{l.warehouseName}</td>
               <td>{l.person}</td>
               <td>{l.itemName}{l.spec ? `[${l.spec}]` : ''}</td>
-              <td className="text-right">{l.qty.toLocaleString('ko-KR')}</td>
+              {/* 원본은 소수 둘째 자리까지 찍는다 — '350.00'. */}
+              <td className="text-right">{l.qty.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
               <td className="text-center">{l.slip}</td>
             </tr>
           ))}

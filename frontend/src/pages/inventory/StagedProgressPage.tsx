@@ -7,7 +7,7 @@ import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { STAGED_PROGRESS_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { dateText } from '../../utils/dateText'
-import type { StagedAdjustment } from '../../types/api'
+import type { StagedAdjustment, StockAdjustment } from '../../types/api'
 
 const num = (n: number) => (n === 0 ? '' : n.toLocaleString('ko-KR'))
 /** 원본 진행단계 알약(2026-10-03 실측): 지금 단계는 파랑 rgb(31,72,212), 나머지는 회색 rgb(134,141,147), 글자 흰색. */
@@ -27,8 +27,16 @@ const pill = (on: boolean): React.CSSProperties => ({
  * 원본에서 조정까지 끝난 줄은 '조정'만 파랬다. 반려된 건은 조정으로 못 가 실사가 마지막이다.
  * 담당자는 실사를 올린 사람(requester)이다. [이력] 열은 전표 변경 이력 창인데 우리는 이력을 따로 남기지 않는다.
  */
+/** 단계별재고조정을 반영하면 서버가 적요 앞에 이 말을 붙여 재고조정을 만든다 — 그것은 단계별 줄이 이미 맡는다. */
+const STAGED_PREFIX = '단계별조정 '
+/** 표 한 줄 — 단계별 실사 한 건이거나, 간편재고조정 한 건. */
+interface Row {
+  key: string; date: string; no: string; person: string; itemId: number; itemName: string
+  warehouseId: number; warehouseName: string; book: number; actual: number; diff: number; applied: boolean
+}
+
 export default function StagedProgressPage() {
-  const pickers = useCondPickers(['warehouses', 'items'])
+  const pickers = useCondPickers(['warehouses', 'items', 'employees'])
   const init = periodOf('금년')!
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
@@ -36,7 +44,8 @@ export default function StagedProgressPage() {
   const [item, setItem] = useState('')
   const [person, setPerson] = useState('')
   const [adjusted, setAdjusted] = useState<'전체' | '조정' | '미조정'>('전체')
-  const [rows, setRows] = useState<StagedAdjustment[]>([])
+  const [staged, setStaged] = useState<StagedAdjustment[]>([])
+  const [quick, setQuick] = useState<StockAdjustment[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -44,8 +53,12 @@ export default function StagedProgressPage() {
     setLoading(true)
     setError('')
     try {
-      const r = await api.get<StagedAdjustment[]>('/staged-adjustments', { params: { from, to } })
-      setRows(r.data)
+      const [r, q] = await Promise.all([
+        api.get<StagedAdjustment[]>('/staged-adjustments', { params: { from, to } }),
+        api.get<{ rows: StockAdjustment[] }>('/stock-adjustments', { params: { from, to, type: 'ADJUST' } }),
+      ])
+      setStaged(r.data)
+      setQuick(q.data.rows.filter((a) => !(a.reason ?? '').startsWith(STAGED_PREFIX)))
     } catch (e) {
       setError(extractErrorMessage(e))
     } finally {
@@ -55,15 +68,29 @@ export default function StagedProgressPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { void load() }, [from, to])
 
+  const empName = useMemo(() => new Map(pickers.employees.map((e) => [(e as { id?: number }).id, e.name])), [pickers.employees])
+  /*
+   * 원본은 <b>간편재고조정</b>도 이 표에 세운다 — 실사와 조정이 한꺼번에 끝나 '조정' 이 파랗고 장부 · 실사 · 차이가 찍힌다
+   * (2026-10-12 실측: C001 본사창고 348 → 350 → '2026/10/12 · (담당자 빈칸) · 포장김치 · 실사 조정 · 본사창고 · 348 · 350 · 2').
+   */
+  const rows = useMemo<Row[]>(() => [
+    ...staged.map((r) => ({ key: `s${r.id}`, date: r.requestDate, no: r.adjustNo, person: r.requester ?? '', itemId: r.itemId,
+      itemName: r.itemName, warehouseId: r.warehouseId, warehouseName: r.warehouseName,
+      book: Number(r.bookQty), actual: Number(r.actualQty), diff: Number(r.diff), applied: r.status === 'APPLIED' })),
+    ...quick.map((a) => ({ key: `a${a.id}`, date: a.adjustDate, no: a.adjustNo,
+      person: a.employeeId != null ? empName.get(a.employeeId) ?? '' : '', itemId: a.itemId, itemName: a.itemName,
+      warehouseId: a.warehouseId, warehouseName: a.warehouseName,
+      book: Number(a.beforeQty), actual: Number(a.afterQty), diff: Number(a.quantityChange), applied: true })),
+  ], [staged, quick, empName])
   const shown = useMemo(() => rows
-    .filter((r) => r.requestDate >= from && r.requestDate <= to)
+    .filter((r) => r.date >= from && r.date <= to)
     .filter((r) => !warehouse || String(r.warehouseId) === warehouse)
     .filter((r) => !item || String(r.itemId) === item)
-    .filter((r) => !person || (r.requester ?? '') === person)
-    .filter((r) => adjusted === '전체' || (adjusted === '조정') === (r.status === 'APPLIED'))
-    .sort((a, b) => (a.requestDate > b.requestDate ? -1 : a.requestDate < b.requestDate ? 1 : b.adjustNo.localeCompare(a.adjustNo))),
+    .filter((r) => !person || r.person === person)
+    .filter((r) => adjusted === '전체' || (adjusted === '조정') === r.applied)
+    .sort((a, b) => (a.date > b.date ? -1 : a.date < b.date ? 1 : b.no.localeCompare(a.no))),
   [rows, from, to, warehouse, item, person, adjusted])
-  const people = useMemo(() => [...new Set(rows.map((r) => r.requester).filter(Boolean) as string[])].sort(), [rows])
+  const people = useMemo(() => [...new Set(rows.map((r) => r.person).filter(Boolean))].sort(), [rows])
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '재고조정진행단계', [shown.length])
 
@@ -125,18 +152,18 @@ export default function StagedProgressPage() {
           ) : shown.length === 0 ? (
             <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r) => (
-            <tr key={r.id}>
-              <td className="text-center">{dateText(r.requestDate)}</td>
-              <td>{r.requester ?? ''}</td>
+            <tr key={r.key}>
+              <td className="text-center">{dateText(r.date)}</td>
+              <td>{r.person}</td>
               <td>{r.itemName}</td>
               <td className="text-center whitespace-nowrap">
-                <span style={pill(r.status !== 'APPLIED')}>실사</span>
-                <span style={pill(r.status === 'APPLIED')}>조정</span>
+                <span style={pill(!r.applied)}>실사</span>
+                <span style={pill(r.applied)}>조정</span>
               </td>
               <td>{r.warehouseName}</td>
-              <td className="text-right">{num(Number(r.bookQty))}</td>
-              <td className="text-right">{num(Number(r.actualQty))}</td>
-              <td className="text-right">{num(Number(r.diff))}</td>
+              <td className="text-right">{num(r.book)}</td>
+              <td className="text-right">{num(r.actual)}</td>
+              <td className="text-right">{num(r.diff)}</td>
             </tr>
           ))}
         </tbody>

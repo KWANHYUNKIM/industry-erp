@@ -7,3 +7,11 @@ export function dateNo(date: string, docNo: string): string {
   const seq = docNo.split('-').pop() ?? ''
   return `${date.replace(/-/g, '/')} -${Number(seq) || seq}`
 }
+
+/**
+ * 원본 재고조정조회 · 재고조정현황의 [입력일자] · [일자-No.] — '26/10/12-1'(2026-10-12 실측). 연도 둘째 자리부터, 번호 앞 칸이 없다.
+ */
+export function shortDateNo(date: string, docNo: string): string {
+  const seq = docNo.split('-').pop() ?? ''
+  return `${date.slice(2).replace(/-/g, '/')}-${Number(seq) || seq}`
+}

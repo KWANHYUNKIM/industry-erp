@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, StockAdjustment, StockAdjustmentType, StockRow, StockTransfer, Warehouse } from '../../types/api'
@@ -34,7 +35,9 @@ interface CodeRow { id: number; code: string; name: string }
 const initP = periodOf('금월(~오늘)')!
 
 export default function TransferPage() {
-  const [tab, setTab] = useState<Tab>('창고이동')
+  /* 재고조정조회의 [간편재고조정] 이 ?tab=재고조정 으로 연다. */
+  const [params] = useSearchParams()
+  const [tab, setTab] = useState<Tab>(() => (TABS as readonly string[]).includes(params.get('tab') ?? '') ? params.get('tab') as Tab : '창고이동')
   const [from, setFrom] = useState(initP.from)
   const [to, setTo] = useState(initP.to)
   const [transfers, setTransfers] = useState<StockTransfer[]>([])

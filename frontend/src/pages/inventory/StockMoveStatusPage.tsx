@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import { dateNo } from '../../utils/dateNo'
+import { dateNo, shortDateNo } from '../../utils/dateNo'
 import type { CodeOption, Warehouse } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
@@ -648,7 +648,8 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
                   <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
                   {kind === 'DEFECT' && <td className="text-ec-label">{r.kind ?? ''}</td>}
                   {kind === 'DEFECT' && <td className="text-ec-label">{r.handling ?? ''}</td>}
-                  <td className="text-center">{dateNo(r.adjustDate, r.adjustNo)}</td>
+                  {/* 원본 재고조정현황만 '26/10/12-1' 처럼 연도 둘째 자리부터 적는다(2026-10-12 실측). */}
+                  <td className="text-center">{kind === 'ADJUST' ? shortDateNo(r.adjustDate, r.adjustNo) : dateNo(r.adjustDate, r.adjustNo)}</td>
                   {kind === 'SELF_USE' && <td>{partnerOf(r.partnerId)?.name ?? ''}</td>}
                   <td>{r.itemCode}</td>
                   {/* 원본은 규격을 품목명 뒤 대괄호에 붙인다 — 우리는 칸을 따로 두고 있었다. */}
