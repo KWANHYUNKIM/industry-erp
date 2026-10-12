@@ -132,6 +132,7 @@ const FixedAssetMovementPage = lazy(() => import('../pages/accounting/FixedAsset
 const FixedAssetSlipListPage = lazy(() => import('../pages/accounting/FixedAssetSlipListPage'))
 const FastVoucherPage = lazy(() => import('../pages/accounting/FastVoucherPage'))
 const ReceiptPaymentPage = lazy(() => import('../pages/accounting/ReceiptPaymentPage'))
+const CashQuickEntryPage = lazy(() => import('../pages/accounting/CashQuickEntryPage'))
 const NonCashPage = lazy(() => import('../pages/accounting/NonCashPage'))
 const CheckPage = lazy(() => import('../pages/accounting/CheckPage'))
 const CheckHoldingPage = lazy(() => import('../pages/accounting/CheckHoldingPage'))
@@ -652,6 +653,18 @@ export default function AppRouter() {
         <Route path="/accounting/cash-withdraw" element={<CashTxnPage mode="withdraw" />} />
         {/* 원본 현금예금출금 › 영수증으로(E010402) — 출금계좌 · 계정 · 거래처명 · 금액 · 수수료 한 장. */}
         <Route path="/accounting/receipt-payment" element={<ReceiptPaymentPage />} />
+        {/* 회계 I › 현금거래 한 장짜리 입력 열한 종 — features/cashquick/kinds.ts */}
+        <Route path="/accounting/sales-collection" element={<CashQuickEntryPage key="SALES_COLLECTION" type="SALES_COLLECTION" />} />
+        <Route path="/accounting/card-sales-collection" element={<CashQuickEntryPage key="CARD_SALES_COLLECTION" type="CARD_SALES_COLLECTION" />} />
+        <Route path="/accounting/temp-deposit" element={<CashQuickEntryPage key="TEMP_DEPOSIT" type="TEMP_DEPOSIT" />} />
+        <Route path="/accounting/bank-borrowing" element={<CashQuickEntryPage key="BANK_BORROWING" type="BANK_BORROWING" />} />
+        <Route path="/accounting/other-deposit" element={<CashQuickEntryPage key="OTHER_DEPOSIT" type="OTHER_DEPOSIT" />} />
+        <Route path="/accounting/purchase-payment" element={<CashQuickEntryPage key="PURCHASE_PAYMENT" type="PURCHASE_PAYMENT" />} />
+        <Route path="/accounting/card-bill-payment" element={<CashQuickEntryPage key="CARD_BILL_PAYMENT" type="CARD_BILL_PAYMENT" />} />
+        <Route path="/accounting/account-transfer" element={<CashQuickEntryPage key="ACCOUNT_TRANSFER" type="ACCOUNT_TRANSFER" />} />
+        <Route path="/accounting/temp-withdraw" element={<CashQuickEntryPage key="TEMP_WITHDRAW" type="TEMP_WITHDRAW" />} />
+        <Route path="/accounting/loan-repayment" element={<CashQuickEntryPage key="LOAN_REPAYMENT" type="LOAN_REPAYMENT" />} />
+        <Route path="/accounting/other-withdraw" element={<CashQuickEntryPage key="OTHER_WITHDRAW" type="OTHER_WITHDRAW" />} />
         <Route path="/accounting/cash-details" element={<CashDetailPage />} />
         <Route path="/accounting/vouchers" element={<FastVoucherPage />} />
         <Route path="/accounting/non-cash" element={<NonCashPage />} />

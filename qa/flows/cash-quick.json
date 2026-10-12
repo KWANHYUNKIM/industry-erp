@@ -1,0 +1,43 @@
+{
+  "about": "현금거래 한 장짜리 입력(원본 회계 I › 현금거래, 2026-10-12 loginaa 실측). 계좌간이동 화면의 칸 차례가 원본 [전표일자 · 입금계좌 · 출금계좌 · 금액 · 수수료 · 적요 · 회계전표No.] 인지 보고, 5,000 · 수수료 100 을 저장해 회계전표조회 [금액] 5,100 · 분개 차) 입금계좌 5,000 · 지급수수료 100 / 대) 출금계좌 5,100 을 본 뒤, 전표번호를 눌러 같은 화면에서 [삭제] 한다. 카드매출대금회수는 통장입금액 9,700 · 3% → 수수료 300 · 총금액 10,000.",
+  "shots": [
+    {
+      "name": "계좌간이동 — 칸 차례 · API 로 한 장 저장",
+      "path": "/accounting/account-transfer",
+      "steps": [
+        "wait:2500",
+        "expect:[...document.querySelectorAll('.ec-form li .title')].map((t) => t.innerText.trim()).join('|') === '전표일자|입금계좌|출금계좌|금액|수수료|적요|회계전표No.'",
+        "expect:[...document.querySelectorAll('button')].map((b) => b.innerText.trim()).filter((t) => ['저장(F8)', '다시 작성', '리스트'].includes(t)).length === 3",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then((r) => r.json()); const bs = (await A('GET', '/bank-cards/accounts')).filter((b) => b.active && b.balance > 10000); const r = await A('POST', '/vouchers', { type: 'ACCOUNT_TRANSFER', voucherDate: new Date().toISOString().slice(0, 10), method: 'BANK', bankAccountId: bs[0].id, counterBankAccountId: bs[1].id, fee: 100, lines: [{ amount: 5000, description: 'QA회계1-흐름 계좌간' }] }); sessionStorage.setItem('cqId', r.id); sessionStorage.setItem('cqJe', r.journalEntryId); const j = await A('GET', '/journals/' + r.journalEntryId); sessionStorage.setItem('cqLines', j.lines.map((l) => l.accountCode + ':' + l.debit + ':' + l.credit).join(',')); return r.voucherNo })()",
+        "expect:sessionStorage.getItem('cqLines') === '103:5000:0,831:100:0,103:0:5100'"
+      ]
+    },
+    {
+      "name": "회계전표조회 [금액] 5,100 → 전표번호를 눌러 계좌간이동 화면 → [삭제]",
+      "path": "/accounting/journals",
+      "steps": [
+        "allowapi:404: /api/vouchers/",
+        "wait:3000",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA회계1-흐름 계좌간') && tr.innerText.includes('계좌간이동') && tr.innerText.includes('5,100'))",
+        "js:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('QA회계1-흐름 계좌간')).querySelector('a').click(); true",
+        "wait:2500",
+        "expect:location.pathname === '/accounting/account-transfer' && document.querySelector('input[aria-label=\"금액\"]').value === '5,000'",
+        "click:삭제",
+        "wait:500",
+        "expect:document.body.innerText.includes('전표를 삭제하겠습니까?')",
+        "clicklast:확인",
+        "wait:2000",
+        "expect:(async () => { const r = await fetch('/api/vouchers/' + sessionStorage.getItem('cqId'), { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }); return r.status === 404 })()"
+      ]
+    },
+    {
+      "name": "카드매출대금회수 — 칸 차례 · 총금액 · 수수료는 막힌 칸",
+      "path": "/accounting/card-sales-collection",
+      "steps": [
+        "wait:2500",
+        "expect:[...document.querySelectorAll('.ec-form li .title')].map((t) => t.innerText.trim()).join('|') === '전표일자|카드사|입금계좌|수수료율|통장입금액|수수료|총금액|적요|회계전표No.'",
+        "expect:document.querySelector('input[aria-label=\"수수료\"]').disabled && document.querySelector('input[aria-label=\"총금액\"]').disabled"
+      ]
+    }
+  ]
+}

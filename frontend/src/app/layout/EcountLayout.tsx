@@ -463,6 +463,22 @@ const MENU: TopMenu[] = [
         ],
       },
       {
+        /* 원본 회계 I › 현금거래(2026-10-12 loginaa) — 현금예금입금 · 현금예금출금 두 묶음. */
+        label: '현금거래',
+        nodes: [
+          { label: '현금예금입금', children: [
+            { label: '입금보고서', to: '/accounting/vouchers?type=DEPOSIT_REPORT' },
+            { label: '매출처로부터', to: '/accounting/sales-collection' }, { label: '카드매출대금회수', to: '/accounting/card-sales-collection' },
+            { label: '일시적으로(입금)', to: '/accounting/temp-deposit' }, { label: '은행차입으로', to: '/accounting/bank-borrowing' }, { label: '기타입금', to: '/accounting/other-deposit' },
+          ] },
+          { label: '현금예금출금', children: [
+            { label: '지출결의서', to: '/accounting/vouchers' }, { label: '매입처로', to: '/accounting/purchase-payment' },
+            { label: '영수증으로', to: '/accounting/receipt-payment' }, { label: '법인카드대금결제', to: '/accounting/card-bill-payment' }, { label: '계좌간이동', to: '/accounting/account-transfer' },
+            { label: '일시적으로(출금)', to: '/accounting/temp-withdraw' }, { label: '은행으로', to: '/accounting/loan-repayment' }, { label: '기타출금', to: '/accounting/other-withdraw' },
+          ] },
+        ],
+      },
+      {
         label: '어음거래',
         nodes: [
           { label: '어음등록(수취/발행)', to: '/accounting/notes' },

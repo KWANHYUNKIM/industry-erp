@@ -12,6 +12,7 @@ interface JournalListResponse {
   truncated: boolean
 }
 import { INQUIRY_FULL_PICKS, ymd } from '../../components/EcPeriodPicks'
+import { CASH_QUICK_KINDS, VOUCHER_SCREEN_BY_TYPE_NAME } from '../../features/cashquick/kinds'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -43,6 +44,9 @@ export default function JournalListPage() {
   const [voucherType, setVoucherType] = useState<Record<number, string>>({})
   /** 영수증으로 [거래처명] — 거래처 등록 없이 친 이름. 원본 회계거래조회가 그 글자를 [거래처명]에 찍는다. */
   const [payeeOf, setPayeeOf] = useState<Record<number, string>>({})
+  /** 현금거래(매출처로부터 · 은행차입으로 …)의 원본 [금액]은 금액+수수료다 — 은행차입으로 50,000 · 수수료 1,000 → 51,000(분개는 50,000). */
+  const [cashQuickTotal, setCashQuickTotal] = useState<Record<number, number>>({})
+  const amountOf = (r: JournalEntry) => cashQuickTotal[r.id] ?? r.totalDebit
   const typeLabel = (r: JournalEntry) => voucherType[r.id] ?? TYPE_NAME[r.sourceType] ?? r.sourceTypeName
   /* 원본 줄 색: 매출전표 분홍 · 매입전표 연두(td.danger · td.success). */
   const rowBg = (r: JournalEntry) => r.sourceType === 'SALES' ? 'bg-[var(--ec-bg-sales-row)]'
@@ -74,13 +78,15 @@ export default function JournalListPage() {
     api.get<JournalListResponse>('/journals', { params })
       .then((r) => { setRows(r.data.rows); setTotalRows(r.data.totalRows); setTruncated(r.data.truncated) })
       .catch((err) => { setError(extractErrorMessage(err)); setRows([]); setTotalRows(0); setTruncated(false) })
-    api.get<{ rows: { journalEntryId: number | null; typeName: string; payeeName: string | null }[] }>('/vouchers', { params: { ...(range ?? { from, to }), all: true } })
+    api.get<{ rows: { journalEntryId: number | null; type: string; typeName: string; payeeName: string | null; totalAmount: number }[] }>('/vouchers', { params: { ...(range ?? { from, to }), all: true } })
       .then((r) => {
         const vs = r.data.rows.filter((v) => v.journalEntryId)
         setVoucherType(Object.fromEntries(vs.map((v) => [v.journalEntryId!, v.typeName])))
         setPayeeOf(Object.fromEntries(vs.filter((v) => v.payeeName).map((v) => [v.journalEntryId!, v.payeeName!])))
+        setCashQuickTotal(Object.fromEntries(vs.filter((v) => CASH_QUICK_KINDS.some((k) => k.type === v.type))
+          .map((v) => [v.journalEntryId!, v.totalAmount])))
       })
-      .catch(() => { setVoucherType({}); setPayeeOf({}) })
+      .catch(() => { setVoucherType({}); setPayeeOf({}); setCashQuickTotal({}) })
   }
 
   useEffect(() => {
@@ -98,7 +104,7 @@ export default function JournalListPage() {
     !keyword || r.docNo.includes(keyword) || (r.description ?? '').includes(keyword) || (r.partnerName ?? '').includes(keyword)
   ), [rows, keyword])
 
-  const total = shown.reduce((a, r) => a + r.totalDebit, 0)
+  const total = shown.reduce((a, r) => a + amountOf(r), 0)
   const reset = () => { setFrom(firstOfYear()); setTo(today()); setKeyword('') }
 
   return (
@@ -167,12 +173,12 @@ export default function JournalListPage() {
                 <td>
                   {/* 원본: 전표번호를 누르면 그 전표의 입력 화면(지출결의서 · 입금보고서 …)이 열린다. 우리는 결의서만 열고 나머지는 분개를 펼친다. */}
                   <a className="text-ec-navy cursor-pointer" title={r.docNo}
-                     onClick={(e) => { if (voucherType[r.id]) { e.stopPropagation(); navigate(voucherType[r.id] === '영수증으로' ? `/accounting/receipt-payment?journal=${r.id}` : `/accounting/vouchers?journal=${r.id}`) } }}>
+                     onClick={(e) => { if (voucherType[r.id]) { e.stopPropagation(); navigate(`${VOUCHER_SCREEN_BY_TYPE_NAME[voucherType[r.id]] ?? '/accounting/vouchers'}?journal=${r.id}`) } }}>
                     {slipNo(r.docNo)}
                   </a>
                 </td>
                 <td>{typeLabel(r)}</td>
-                <td className="text-right">{won(r.totalDebit)}</td>
+                <td className="text-right">{won(amountOf(r))}</td>
                 <td>{r.partnerName ?? payeeOf[r.id] ?? ''}</td>
                 <td>{r.description}</td>
               </tr>
