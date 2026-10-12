@@ -363,7 +363,7 @@ export default function MedicalDeviceReportPage() {
             <input type="checkbox" checked={view.length > 0 && view.every((r) => picked.has(r.entryId))} disabled={view.length === 0}
                    onChange={(e) => setPicked(e.target.checked ? new Set(view.map((r) => r.entryId)) : new Set())} />
           </th>
-          <th className="w-[130px]">전표일자-No.</th>
+          <th className="w-[130px] text-center">전표일자-No.</th>
           <th className="w-[80px] text-center">보고기준월</th>
           <th className="w-[70px]">공급구분</th>
           <th className="w-[160px]">공급형태</th>
@@ -372,7 +372,7 @@ export default function MedicalDeviceReportPage() {
           <th className="w-[200px]">표준코드(UDI)</th>
           <th className="w-[80px] text-right">수량</th>
           <th className="w-[70px]">전송상태</th>
-          <th className="w-[130px]">전송일시</th>
+          <th className="w-[130px] text-center">전송일시</th>
         </tr></thead>
         <tbody>
           {loading ? (
@@ -386,7 +386,7 @@ export default function MedicalDeviceReportPage() {
                   const n = new Set(s); if (e.target.checked) n.add(r.entryId); else n.delete(r.entryId); return n
                 })} />
               </td>
-              <td><a className="ec-link cursor-pointer" onClick={() => openEdit(r.entryId)}>{r.docNo}</a></td>
+              <td className="text-center"><a className="ec-link cursor-pointer" onClick={() => openEdit(r.entryId)}>{r.docNo}</a></td>
               <td className="text-center">{r.reportMonth.replace('-', '/')}</td>
               <td>{r.supplyTypeName}</td>
               <td>{r.supplyShape}</td>
@@ -395,7 +395,7 @@ export default function MedicalDeviceReportPage() {
               <td>{r.udi}</td>
               <td className="text-right">{qty(r.quantity)}</td>
               <td>{r.transmitStatus}</td>
-              <td>{r.transmittedAt ? dateText(r.transmittedAt.slice(0, 10)) : ''}</td>
+              <td className="text-center">{r.transmittedAt ? dateText(r.transmittedAt.slice(0, 10)) : ''}</td>
             </tr>
           ))}
         </tbody>
