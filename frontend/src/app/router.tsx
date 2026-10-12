@@ -137,6 +137,8 @@ const BondLedgerPage = lazy(() => import('../pages/accounting/BondLedgerPage'))
 const BondFlowPage = lazy(() => import('../pages/accounting/BondFlowPage'))
 const BondStatusPage = lazy(() => import('../pages/accounting/BondStatusPage'))
 const BondPartnerLedgerPage = lazy(() => import('../pages/accounting/BondPartnerLedgerPage'))
+const BondDecreasePage = lazy(() => import('../pages/accounting/BondDecreasePage'))
+const BondBalanceAnalysisPage = lazy(() => import('../pages/accounting/BondBalanceAnalysisPage'))
 const ContractPage = lazy(() => import('../pages/accounting/ContractPage'))
 const CurrencyPage = lazy(() => import('../pages/settings/CurrencyPage'))
 const ExpensePage = lazy(() => import('../pages/accounting/ExpensePage'))
@@ -647,6 +649,7 @@ export default function AppRouter() {
         <Route path="/accounting/checks-issued-in" element={<CheckFlowPage type="ISSUED" flow="증가" />} />
         <Route path="/accounting/checks-issued-out" element={<CheckFlowPage type="ISSUED" flow="감소" />} />
         {/* 회계 II 채권관리 · 채무관리 — 채권(채무)내역 보조장부(2026-10-12 원본 E060403 · E060404 · E060405 · E060406 실측) */}
+        <Route path="/accounting/bonds/ar/decrease-entry" element={<BondDecreasePage side="RECEIVABLE" />} />
         <Route path="/accounting/bonds/ar" element={<BondListPage side="RECEIVABLE" />} />
         <Route path="/accounting/bonds/ar/ledger" element={<BondLedgerPage side="RECEIVABLE" />} />
         <Route path="/accounting/bonds/ar/increase" element={<BondFlowPage side="RECEIVABLE" direction="INCREASE" />} />
@@ -654,6 +657,8 @@ export default function AppRouter() {
         <Route path="/accounting/bonds/ar/status" element={<BondStatusPage side="RECEIVABLE" />} />
         <Route path="/accounting/bonds/ar/partner-ledger" element={<BondPartnerLedgerPage side="RECEIVABLE" />} />
         <Route path="/accounting/bonds/ar/partner-summary" element={<BondPartnerLedgerPage side="RECEIVABLE" summary />} />
+        <Route path="/accounting/bonds/ar/balance-analysis" element={<BondBalanceAnalysisPage side="RECEIVABLE" />} />
+        <Route path="/accounting/bonds/ap/decrease-entry" element={<BondDecreasePage side="PAYABLE" />} />
         <Route path="/accounting/bonds/ap" element={<BondListPage side="PAYABLE" />} />
         <Route path="/accounting/bonds/ap/ledger" element={<BondLedgerPage side="PAYABLE" />} />
         <Route path="/accounting/bonds/ap/increase" element={<BondFlowPage side="PAYABLE" direction="INCREASE" />} />
@@ -661,6 +666,7 @@ export default function AppRouter() {
         <Route path="/accounting/bonds/ap/status" element={<BondStatusPage side="PAYABLE" />} />
         <Route path="/accounting/bonds/ap/partner-ledger" element={<BondPartnerLedgerPage side="PAYABLE" />} />
         <Route path="/accounting/bonds/ap/partner-summary" element={<BondPartnerLedgerPage side="PAYABLE" summary />} />
+        <Route path="/accounting/bonds/ap/balance-analysis" element={<BondBalanceAnalysisPage side="PAYABLE" />} />
         <Route path="/accounting/checks-held" element={<CheckHoldingPage type="RECEIVED" />} />
         <Route path="/accounting/checks-issued" element={<CheckHoldingPage type="ISSUED" />} />
         <Route path="/accounting/contracts" element={<ContractPage />} />

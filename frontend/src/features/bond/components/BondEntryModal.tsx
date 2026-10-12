@@ -34,9 +34,22 @@ const blank = (date: string): Line => ({
  * <p>수정 창(줄의 [일자-No.] 를 누름): 제목 '…(수정)', 전표일자 · 증감구분은 글자로만 보이고 못 바꾼다.
  * 버튼줄 저장(F8) · 닫기 · 삭제. 원본의 [웹자료올리기] · [H] · [최종이력] 과 [Fn ▸ 중복확인] 은 두지 않았다(엑셀 업로드 · 이력 기능이 없다).
  */
-export default function BondEntryModal({ side, open, entryId, masters, onClose, onSaved }: {
+/** 채권감소등록 [채권만감소] 가 고른 채권으로 채워 여는 감소 창의 줄. */
+export interface BondPrefillLine {
+  accountId: number
+  partnerId: number | null
+  bondNo: string
+  amount: number
+  departmentId: number | null
+  projectId: number | null
+  memo: string | null
+}
+
+export default function BondEntryModal({ side, open, entryId, masters, onClose, onSaved, prefill }: {
   side: BondSide
   open: boolean
+  /** 신규 창을 감소로 · 이 줄들로 채워 연다(원본 채권감소등록 ▸ 채권만감소). */
+  prefill?: BondPrefillLine[] | null
   /** 수정할 장. 없으면 신규. */
   entryId: number | null
   masters: BondMasters
@@ -63,6 +76,17 @@ export default function BondEntryModal({ side, open, entryId, masters, onClose, 
   useEffect(() => {
     if (!open) return
     reset()
+    if (entryId == null && prefill && prefill.length) {
+      setDirection('DECREASE')
+      const ls = prefill.map((p) => ({
+        ...blank(today), accountId: String(p.accountId), partnerId: p.partnerId != null ? String(p.partnerId) : '',
+        bondNo: p.bondNo, amount: String(p.amount), departmentId: p.departmentId != null ? String(p.departmentId) : '',
+        projectId: p.projectId != null ? String(p.projectId) : '', memo: p.memo ?? '',
+      }))
+      /* 원본은 고른 줄 아래에 빈 줄을 붙여 네 줄로 보였다(한 줄 고름, 2026-10-12). */
+      setLines([...ls, ...Array.from({ length: Math.max(1, 4 - ls.length) }, () => blank(today))])
+      return
+    }
     if (entryId == null) return
     api.get<BondEntry>(`/bonds/${entryId}`).then((r) => {
       const e = r.data
@@ -79,7 +103,7 @@ export default function BondEntryModal({ side, open, entryId, masters, onClose, 
       setLines([...ls, ...Array.from({ length: Math.max(1, 4 - ls.length) }, () => blank(e.entryDate))])
     }).catch((e) => setError(extractErrorMessage(e)))
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, entryId])
+  }, [open, entryId, prefill])
 
   const editing = entryId != null
   const inc = direction === 'INCREASE'
