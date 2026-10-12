@@ -51,6 +51,16 @@ public class FastVoucherLine {
     @JoinColumn(name = "partner_id")
     private com.erp.trade.partner.BusinessPartner partner;
 
+    /**
+     * 가지급금정산서 격자의 [정산자] — 사원(2026-10-12 loginaa E010505 실측: 사원검색 창).
+     * hr 모듈을 참조하지 않으려고 id 와 고를 때의 이름만 든다. 대변 가지급금은 정산자별로 묶인다.
+     */
+    @Column(name = "employee_id")
+    private Long employeeId;
+
+    @Column(name = "employee_name", length = 100)
+    private String employeeName;
+
     /** 줄이 제 결제 계좌를 정했는지. false 는 옛 줄 — 머리 결제수단을 따른다. */
     @Column(nullable = false)
     @Builder.Default

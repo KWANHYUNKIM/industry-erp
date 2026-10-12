@@ -177,8 +177,17 @@ public class FastVoucherService {
         }
 
         BigDecimal advance = null;
-        if (v.getType() == FastVoucherType.ADVANCE_SETTLEMENT) {
-            if (req.advanceAmount() == null || req.advanceAmount().signum() <= 0) {
+        // 원본 가지급금정산서(E010505)는 줄마다 [정산자] 사원을 고르고 차) 줄 계정 / 대) 가지급금 으로 끝난다 —
+        // 돈이 오가지 않는다. 예전 화면은 머리에 [가지급금] 총액을 받아 반납 · 추가지급까지 분개했다(advanceAmount).
+        boolean perEmployee = v.getType() == FastVoucherType.ADVANCE_SETTLEMENT && req.advanceAmount() == null;
+        if (perEmployee) {
+            if (req.lines().stream().anyMatch(l -> l.employeeId() == null)) {
+                throw ApiException.badRequest("정산자: 자료를 입력 바랍니다.");
+            }
+            method = PaymentMethod.CASH;
+            v.setMethod(method);
+        } else if (v.getType() == FastVoucherType.ADVANCE_SETTLEMENT) {
+            if (req.advanceAmount().signum() <= 0) {
                 throw ApiException.badRequest("가지급금정산서는 먼저 지급했던 가지급금 금액이 필요합니다.");
             }
             if (method == PaymentMethod.CREDIT) {
@@ -201,6 +210,8 @@ public class FastVoucherService {
                     .ownSettlement(own)
                     .bankAccount(in.bankAccountId() != null ? bankAccount(in.bankAccountId()) : null)
                     .partner(in.partnerId() != null ? partner(in.partnerId()) : null)
+                    .employeeId(perEmployee ? in.employeeId() : null)
+                    .employeeName(perEmployee && in.employeeName() != null ? in.employeeName().trim() : null)
                     .build());
             if (headPartner == null && in.partnerId() != null) headPartner = v.getLines().get(v.getLines().size() - 1).getPartner();
         }
@@ -220,7 +231,8 @@ public class FastVoucherService {
                         .build());
             }
         } else {
-            v.setPayeeName(null);
+            // 가지급금정산서: 원본 회계거래조회 [거래처명]은 정산자 이름이다(26/10/12-17 · 고준희).
+            v.setPayeeName(perEmployee ? v.getLines().get(0).getEmployeeName() : null);
             v.setFee(BigDecimal.ZERO);
         }
         // 원본 회계거래조회 [거래처명]은 줄의 거래처다(26/10/13-2 지출결의서 · 스타벅스). 머리에 없으면 첫 거래처 줄.
@@ -233,6 +245,7 @@ public class FastVoucherService {
 
         // 계좌로 냈거나 받았으면 잔액과 입출금 내역도 움직인다(분개는 위에서 이미 만들었으므로 재생성하지 않는다).
         String memo = v.getType().getDisplayName() + " " + v.getVoucherNo();
+        if (perEmployee) return;   // 가지급금을 비용으로 바꿀 뿐 — 계좌는 움직이지 않는다
         if (v.getType() == FastVoucherType.ADVANCE_SETTLEMENT) {
             BigDecimal flow = v.getAdvanceAmount().subtract(v.getTotalAmount());
             if (bank != null && flow.signum() != 0) {

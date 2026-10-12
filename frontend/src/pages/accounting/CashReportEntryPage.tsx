@@ -23,14 +23,19 @@ import type { BankAccountRow, FastVoucher, Partner } from '../../types/api'
  * - 분개: 지출 차) 줄 계정 / 대) 그 줄의 계좌 계정 — 26/10/12-2 복리후생비(판) 15,000 / 현금 15,000, 둘 다 적요 'QA회계1 식대'.
  * - 빈 채로 저장 → 계정칸에 '계정코드를 입력 바랍니다.', 계정만 있고 계좌가 없으면 계좌칸에 '자료를 입력 바랍니다.'
  * - 수정: 일자는 막힌다. 삭제: '전표를 삭제하겠습니까?' → 분개도 같이 사라진다.
+ *
+ * FastEntry [가지급금정산서](E010505)도 같은 틀이다(2026-10-12 실측) — 첫 열이 계좌 대신 [정산자 검색](사원검색 창) ·
+ * [정산대상자명], 사원을 고르면 계정칸에 8109 복리후생비(판). 분개는 차) 줄 계정 / 대) 가지급금(정산자별로 묶음) —
+ * 26/10/12-17 고준희 복리후생비(판) 9,000 / 가지급금 9,000. 돈이 오가지 않아 계좌 잔액은 그대로다.
  */
 
-type Kind = 'EXPENSE_REPORT' | 'DEPOSIT_REPORT'
+type Kind = 'EXPENSE_REPORT' | 'DEPOSIT_REPORT' | 'ADVANCE_SETTLEMENT'
 
 interface AccountOption { id: number; code: string; name: string }
+interface EmployeeOption { id: number; code: string; name: string }
 
 interface Line {
-  /** '000' = 현금, 'b<id>' = 계좌, '' = 안 고름 */
+  /** '000' = 현금, 'b<id>' = 계좌, 'e<id>' = 정산자 사원(가지급금정산서), '' = 안 고름 */
   settle: string
   accountId: string
   partnerId: string
@@ -42,9 +47,19 @@ const blank = (): Line => ({ settle: '', accountId: '', partnerId: '', amount: '
 const START_ROWS = 3
 const won = (n: number) => n.toLocaleString('ko-KR')
 
-const CONF: Record<Kind, { title: string; settleHead: string; accountHead: string; defaultAccount: string }> = {
-  EXPENSE_REPORT: { title: '지출결의서', settleHead: '돈 나간 계좌', accountHead: '계정코드(차변)', defaultAccount: '811' },
-  DEPOSIT_REPORT: { title: '입금보고서', settleHead: '돈 들어온 계좌', accountHead: '계정코드(대변)', defaultAccount: '108' },
+interface Conf {
+  title: string; settleHead: string; settleNameHead: string; accountHead: string; partnerHead: string; defaultAccount: string
+  /** 첫 열 검색 창 — 계좌검색 · 사원검색 */
+  settlePicker: { title: string; codeHead: string; nameHead: string }
+}
+const BANK_PICKER = { title: '계좌검색', codeHead: '계좌코드', nameHead: '계좌명' }
+const CONF: Record<Kind, Conf> = {
+  EXPENSE_REPORT: { title: '지출결의서', settleHead: '돈 나간 계좌', settleNameHead: '돈 나간 계좌명', accountHead: '계정코드(차변)',
+    partnerHead: '거래처 검색', defaultAccount: '811', settlePicker: BANK_PICKER },
+  DEPOSIT_REPORT: { title: '입금보고서', settleHead: '돈 들어온 계좌', settleNameHead: '돈 들어온 계좌명', accountHead: '계정코드(대변)',
+    partnerHead: '거래처 검색', defaultAccount: '108', settlePicker: BANK_PICKER },
+  ADVANCE_SETTLEMENT: { title: '가지급금정산서', settleHead: '정산자', settleNameHead: '정산대상자명', accountHead: '계정코드(차변)',
+    partnerHead: '거래처', defaultAccount: '811', settlePicker: { title: '사원검색', codeHead: '사원코드', nameHead: '사원명' } },
 }
 
 /** 원본 계좌검색의 [계좌명] — 등록한 이름이 없으면 '은행-끝 4자리'(기업은행-1122). */
@@ -58,6 +73,7 @@ type CellErr = { row: number; col: 'settle' | 'account' | 'amount'; msg: string 
 
 export default function CashReportEntryPage({ kind }: { kind: Kind }) {
   const conf = CONF[kind]
+  const advance = kind === 'ADVANCE_SETTLEMENT'
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const editId = params.get('id')
@@ -66,6 +82,7 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
   const [accounts, setAccounts] = useState<AccountOption[]>([])
   const [banks, setBanks] = useState<BankAccountRow[]>([])
   const [partners, setPartners] = useState<Partner[]>([])
+  const [employees, setEmployees] = useState<EmployeeOption[]>([])
   const [editing, setEditing] = useState<FastVoucher | null>(null)
   const [date, setDate] = useState(ymd(new Date()))
   const [memo, setMemo] = useState('')
@@ -80,9 +97,10 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
       api.get<AccountOption[]>('/accounts'),
       api.get<BankAccountRow[]>('/bank-cards/accounts'),
       api.get<Partner[]>('/partners'),
-    ]).then(([a, b, p]) => { setAccounts(a.data); setBanks(b.data); setPartners(p.data) })
+      advance ? api.get<EmployeeOption[]>('/employees') : Promise.resolve({ data: [] as EmployeeOption[] }),
+    ]).then(([a, b, p, e]) => { setAccounts(a.data); setBanks(b.data); setPartners(p.data); setEmployees(e.data) })
       .catch((e) => setError(extractErrorMessage(e)))
-  }, [])
+  }, [advance])
 
   /* 회계전표조회에서 전표를 눌러 들어오면(?journal=) 그 전표를 만든 결의서를, ?id= 면 그 결의서를 연다. */
   useEffect(() => {
@@ -93,7 +111,7 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
       setDate(data.voucherDate)
       setMemo(data.description ?? '')
       const ls: Line[] = data.lines.map((l) => ({
-        settle: l.bankAccountId ? `b${l.bankAccountId}` : l.cash || data.method === 'CASH' ? '000'
+        settle: l.employeeId ? `e${l.employeeId}` : l.bankAccountId ? `b${l.bankAccountId}` : l.cash || data.method === 'CASH' ? '000'
           : data.bankAccountId ? `b${data.bankAccountId}` : '',
         accountId: String(l.accountId),
         partnerId: l.partnerId ? String(l.partnerId) : '',
@@ -106,10 +124,12 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [editId, journalId])
 
-  const settleItems: CodeItem[] = useMemo(() => [
-    ...banks.filter((b) => b.active).map((b) => ({ value: `b${b.id}`, code: b.code ?? b.accountNo, name: bankLabel(b) })),
-    { value: '000', code: '000', name: '현금' },
-  ], [banks])
+  const settleItems: CodeItem[] = useMemo(() => advance
+    ? employees.map((e) => ({ value: `e${e.id}`, code: e.code, name: e.name }))
+    : [
+      ...banks.filter((b) => b.active).map((b) => ({ value: `b${b.id}`, code: b.code ?? b.accountNo, name: bankLabel(b) })),
+      { value: '000', code: '000', name: '현금' },
+    ], [advance, banks, employees])
   const accountItems: CodeItem[] = useMemo(
     () => accounts.map((a) => ({ value: String(a.id), code: a.code, name: a.name })), [accounts])
   const partnerItems: CodeItem[] = useMemo(() => partnerCodeItems(partners), [partners])
@@ -136,7 +156,7 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
 
   function pickSettle(i: number, v: string) {
     const patch: Partial<Line> = { settle: v }
-    /* 원본: 계좌를 고르면 빈 계정칸에 기본 계정(지출 복리후생비 · 입금 외상매출금)이 찬다. */
+    /* 원본: 계좌(정산자)를 고르면 빈 계정칸에 기본 계정(지출 · 가지급금 복리후생비 · 입금 외상매출금)이 찬다. */
     if (v && !lines[i].accountId) {
       const def = accounts.find((a) => a.code === conf.defaultAccount)
       if (def) patch.accountId = String(def.id)
@@ -165,6 +185,8 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
         description: l.description.trim() || undefined,
         cash: l.settle === '000' || undefined,
         bankAccountId: l.settle.startsWith('b') ? Number(l.settle.slice(1)) : undefined,
+        employeeId: l.settle.startsWith('e') ? Number(l.settle.slice(1)) : undefined,
+        employeeName: l.settle.startsWith('e') ? settleItems.find((x) => x.value === l.settle)?.name : undefined,
         partnerId: l.partnerId ? Number(l.partnerId) : undefined,
       })),
     }
@@ -237,10 +259,10 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
               <tr>
                 <th />
                 <th>{conf.settleHead} 검색</th>
-                <th>{conf.settleHead}명</th>
+                <th>{conf.settleNameHead}</th>
                 <th>{conf.accountHead}</th>
                 <th>계정코드명</th>
-                <th>거래처 검색</th>
+                <th>{conf.partnerHead}</th>
                 <th>거래처명</th>
                 <th>금액</th>
                 <th>적요명</th>
@@ -251,7 +273,7 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
                 <tr key={i}>
                   <td className="pad text-center text-ec-hint">{i + 1}</td>
                   <td className="pad">
-                    <GridCode title="계좌검색" codeHead="계좌코드" nameHead="계좌명" items={settleItems}
+                    <GridCode {...conf.settlePicker} items={settleItems}
                               value={l.settle} onPick={(v) => pickSettle(i, v)} err={errAt(i, 'settle')} />
                   </td>
                   <td className="pad">{settleItems.find((x) => x.value === l.settle)?.name ?? ''}</td>

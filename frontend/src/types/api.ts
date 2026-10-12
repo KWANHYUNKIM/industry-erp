@@ -1241,6 +1241,9 @@ export interface VoucherLine {
   bankAccountName: string | null
   partnerCode: string | null
   partnerName: string | null
+  /** 가지급금정산서 [정산자] 사원 · [정산대상자명]. */
+  employeeId: number | null
+  employeeName: string | null
 }
 
 export interface FastVoucher {

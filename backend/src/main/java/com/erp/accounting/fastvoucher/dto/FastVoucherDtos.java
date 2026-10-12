@@ -30,10 +30,14 @@ public final class FastVoucherDtos {
             String description,
             Long bankAccountId,
             Boolean cash,
-            Long partnerId
+            Long partnerId,
+            /** 가지급금정산서 [정산자] 사원 — 이름은 employeeName 으로 함께 보낸다. */
+            Long employeeId,
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
+            String employeeName
     ) {
         public LineInput(Long accountId, BigDecimal amount, String description) {
-            this(accountId, amount, description, null, null, null);
+            this(accountId, amount, description, null, null, null, null, null);
         }
     }
 
@@ -71,7 +75,9 @@ public final class FastVoucherDtos {
             BigDecimal amount, String description,
             /** 줄의 결제 계좌 — cash 면 000 현금, 아니면 bankAccountId(없으면 머리 결제수단). */
             Long bankAccountId, Boolean cash, Long partnerId,
-            String bankAccountCode, String bankAccountName, String partnerCode, String partnerName
+            String bankAccountCode, String bankAccountName, String partnerCode, String partnerName,
+            /** 가지급금정산서 [정산자] · [정산대상자명]. */
+            Long employeeId, String employeeName
     ) {}
 
     public record VoucherResponse(
@@ -120,7 +126,8 @@ public final class FastVoucherDtos {
                                     l.getBankAccount() != null ? bankCode(l.getBankAccount()) : (l.isOwnSettlement() ? "000" : null),
                                     l.getBankAccount() != null ? bankName(l.getBankAccount()) : (l.isOwnSettlement() ? "현금" : null),
                                     l.getPartner() != null ? l.getPartner().getCode() : null,
-                                    l.getPartner() != null ? l.getPartner().getName() : null))
+                                    l.getPartner() != null ? l.getPartner().getName() : null,
+                                    l.getEmployeeId(), l.getEmployeeName()))
                             .toList(),
                     v.getPayeeName(), v.getFee(),
                     v.getCounterBankAccount() != null ? v.getCounterBankAccount().getId() : null,

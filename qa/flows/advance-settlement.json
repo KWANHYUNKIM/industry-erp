@@ -1,0 +1,22 @@
+{
+  "about": "가지급금정산서(원본 회계 I › FastEntry › 가지급금정산서 E010505, 2026-10-12 실측) — 빈 채로 [저장(F8)] → '계정코드를 입력 바랍니다.', [정산자 검색]에 사원 이름 Enter → 정산대상자명 · 계정 811 복리후생비가 찬다, 금액 9,000 · 적요 저장 → 빈 화면. 분개 차) 복리후생비 9,000 / 대) 가지급금 9,000(적요 같음), 회계거래조회 [거래처명] = 정산자. 시험 전표는 API 로 지운다. node qa/shot.mjs qa/flows/advance-settlement.json",
+  "shots": [
+    {
+      "name": "빈 저장 거절 → 정산자 줄 저장 → 분개",
+      "path": "/accounting/vouchers?type=ADVANCE_SETTLEMENT",
+      "steps": [
+        "expect:document.body.innerText.includes('정산대상자명')",
+        "click:저장(F8)",
+        "expect:document.body.innerText.includes('계정코드를 입력 바랍니다.')",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const es = await (await fetch('/api/employees', { headers: H })).json(); window.__emp = es.find((e) => es.filter((x) => (x.code + ' ' + x.name).includes(e.name)).length === 1); const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; const c = document.querySelector('input[aria-label=\"사원검색\"]'); set(c, window.__emp.name); c.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); return true })()",
+        "wait:300",
+        "expect:(() => { const tr = document.querySelector('table.ec-grid-input tbody tr'); return tr.innerText.includes(window.__emp.name) && tr.innerText.includes('복리후생비') })()",
+        "js:(() => { const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; set(document.querySelector('input[aria-label=\"1줄 금액\"]'), '9000'); set(document.querySelector('input[aria-label=\"1줄 적요명\"]'), 'QA회계1-flow 가지급정산'); return true })()",
+        "click:저장(F8)",
+        "wait:800",
+        "expect:!document.querySelector('table.ec-grid-input tbody tr').innerText.includes(window.__emp.name)",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const d = await (await fetch('/api/vouchers?type=ADVANCE_SETTLEMENT', { headers: H })).json(); const v = d.rows.find((r) => r.lines.some((l) => l.description === 'QA회계1-flow 가지급정산')); if (!v) return false; const j = await (await fetch('/api/journals/' + v.journalEntryId, { headers: H })).json(); const ok = v.payeeName === window.__emp.name && v.lines[0].employeeId === window.__emp.id && j.lines.some((l) => l.accountCode === '811' && Number(l.debit) === 9000) && j.lines.some((l) => l.accountCode === '134' && Number(l.credit) === 9000 && l.description === 'QA회계1-flow 가지급정산'); await fetch('/api/vouchers/' + v.id, { method: 'DELETE', headers: H }); return ok })()"
+      ]
+    }
+  ]
+}

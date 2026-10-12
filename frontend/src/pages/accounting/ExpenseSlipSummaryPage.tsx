@@ -17,7 +17,7 @@ const TYPE: Record<Side, string> = { 지출: 'EXPENSE_REPORT', 입금: 'DEPOSIT_
 const TITLE: Record<Side, string> = { 지출: '지출결의서집계', 입금: '입금보고서집계', 가지급금: '가지급금정산서집계' }
 type Unit = '라인별' | '계좌별계정별집계' | '대상자별계정별집계' | '계정별집계'
 
-interface VoucherLine { id: number; accountName: string; amount: number; description: string | null }
+interface VoucherLine { id: number; accountName: string; amount: number; description: string | null; employeeName?: string | null }
 interface Voucher {
   id: number; voucherNo: string; voucherDate: string; methodName: string; bankAccountName: string | null
   partnerName: string | null; journalDocNo: string | null; description: string | null; lines: VoucherLine[]
@@ -35,7 +35,7 @@ interface Row { key: string; date: string; no: string; bank: string; account: st
  *
  * <p>라인별: 일자-No. · 출금계좌명(입금계좌명 · 사원명) · 계정명 · 거래처명 · 적요 · 금액 · 수수료 · 부가세, 달마다 [YYYY/MM 계],
  * 끝 [합계](앞 다섯 칸 묶음). 한 줄은 간편전표(/vouchers?type=…)의 내역 한 줄이다. 계좌명은 그 전표의 계좌(없으면 결제수단 이름).
- * 간편전표에는 수수료 · 부가세 · 사원이 없어 그 칸은 비운다 — 사원명이 비므로 가지급금의 [사원] 조건도 두지 않는다.
+ * 간편전표에는 수수료 · 부가세가 없어 그 칸은 비운다. 가지급금의 [사원명]은 줄의 [정산자](2026-10-12 가지급금정산서 입력 화면부터).
  * 계좌별계정별집계 · 계정별집계 판은 원본을 못 재 계좌 · 계정으로 묶은 합만 찍는다.
  * [집계](○집계 판)는 아직 없고, 부서 · 프로젝트는 간편전표에 없다.
  */
@@ -77,9 +77,9 @@ export default function ExpenseSlipSummaryPage({ side = '지출' }: { side?: Sid
       const no = v.journalDocNo ?? v.voucherNo
       if (docNo && !no.includes(docNo)) continue
       if (partner && (v.partnerName ?? '') !== partner) continue
-      const bank = bankOf(v)
-      if (outAccount && bank !== outAccount) continue
       for (const l of v.lines) {
+        const bank = side === '가지급금' ? l.employeeName ?? '' : bankOf(v)
+        if (outAccount && bank !== outAccount) continue
         if (account && l.accountName !== account) continue
         out.push({ key: `${v.id}-${l.id}`, date: v.voucherDate, no, bank, account: l.accountName, partner: v.partnerName ?? '',
           text: l.description ?? v.description ?? '', amount: Number(l.amount), vat: 0 })
@@ -107,7 +107,7 @@ export default function ExpenseSlipSummaryPage({ side = '지출' }: { side?: Sid
   const partners = useMemo(() => [...new Set(vouchers.map((v) => v.partnerName).filter(Boolean) as string[])].sort(), [vouchers])
   const accounts = useMemo(() => [...new Set(vouchers.flatMap((v) => v.lines.map((l) => l.accountName)))].sort(), [vouchers])
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const banks = useMemo(() => [...new Set(vouchers.map(bankOf).filter(Boolean))].sort(), [vouchers, side])
+  const banks = useMemo(() => [...new Set(vouchers.flatMap((v) => side === '가지급금' ? v.lines.map((l) => l.employeeName ?? '') : [bankOf(v)]).filter(Boolean))].sort(), [vouchers, side])
 
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, title, [lines.length, unit])

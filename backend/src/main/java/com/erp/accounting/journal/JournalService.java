@@ -502,6 +502,19 @@ public class JournalService {
             }
             case ADVANCE_SETTLEMENT -> {
                 v.getLines().forEach(l -> addDebitAccount(e, l.getAccount(), l.getAmount(), lineDesc(l)));
+                if (v.getAdvanceAmount() == null) {
+                    // 원본(2026-10-12 loginaa 26/10/12-17): 차) 복리후생비(판) 9,000 [QA회계1 가지급정산] /
+                    // 대) 가지급금 9,000 [고준희 · QA회계1 가지급정산] — 대변은 정산자별로 묶고 적요는 그 첫 줄 적요.
+                    Map<Long, SettleGroup> byEmp = new LinkedHashMap<>();
+                    for (var l : v.getLines()) {
+                        SettleGroup g = byEmp.computeIfAbsent(l.getEmployeeId(), k -> new SettleGroup());
+                        g.amount = g.amount.add(l.getAmount());
+                        if (g.desc == null) g.desc = lineDesc(l);
+                    }
+                    Account adv = account("134");
+                    byEmp.values().forEach(g -> addCreditAccount(e, adv, g.amount, g.desc));
+                    break;
+                }
                 BigDecimal balance = v.getAdvanceAmount().subtract(v.getTotalAmount());
                 if (balance.signum() > 0) {                 // 덜 썼다 → 잔액 반납
                     addDebitAccount(e, settlement, balance, "가지급금 반납");
