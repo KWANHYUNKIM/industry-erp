@@ -1106,5 +1106,9 @@
  [
   "계정별원장",
   "accounting/AccountLedgerPage.tsx"
+ ],
+ [
+  "품질검사유형등록",
+  "quality/QualityTypePage.tsx"
  ]
 ]

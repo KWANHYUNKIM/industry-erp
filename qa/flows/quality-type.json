@@ -1,0 +1,23 @@
+{
+  "about": "품질검사유형등록(E040632) — 2026-10-12 원본 실측: 검사유형리스트 열 [유형코드 · 유형명 · 검사항목설정 · 품목설정]. [신규(F2)] 창(품질검사유형코드 · 품질검사유형명)을 비운 채 저장하면 두 칸이 빨개지고, 채워 저장하면 창이 닫히며 줄이 생긴다(설정 버튼은 회색). [검사항목등록] 에서 코드형식 항목을 만들고(코드 00001 미리 채움) [검사항목설정] 코드형검사항목1 에 넣으면 버튼이 파래진다. [사용중단/재사용 ▲] › 삭제('삭제하시겠습니까?')로 줄이 사라진다.",
+  "shots": [
+    {
+      "name": "신규 유형 → 빈 저장 막힘 → 저장 → 검사항목 등록 · 설정 → 삭제",
+      "path": "/quality/inspection-type",
+      "steps": [
+        "wait:2000",
+        "expect:[...document.querySelector('table thead tr').cells].map((c) => c.innerText.trim()).join('|') === '|유형코드|유형명|검사항목설정|품목설정'",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); const B = (t, root = document) => [...root.querySelectorAll('button')].find((b) => b.innerText.trim() === t); B('신규(F2)').click(); await W(400); B('저장(F8)', [...document.querySelectorAll('[role=dialog]')].pop()).click(); await W(300); return 'ok' })()",
+        "expect:[...document.querySelectorAll('[role=dialog] input')].filter((i) => i.className.includes('border-ec-danger')).length === 2",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); const B = (t, root = document) => [...root.querySelectorAll('button')].find((b) => b.innerText.trim() === t); const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; set(document.querySelector('input[aria-label=\"품질검사유형코드\"]'), 'QAFLOW2'); set(document.querySelector('input[aria-label=\"품질검사유형명\"]'), 'QA재고2-흐름검사'); await W(100); B('저장(F8)', [...document.querySelectorAll('[role=dialog]')].pop()).click(); await W(1200); return 'ok' })()",
+        "expect:!document.querySelector('[role=dialog]') && [...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes('QAFLOW2') && !r.querySelector('button.ec-btn-primary'))",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); const B = (t, root = document) => [...root.querySelectorAll('button')].find((b) => b.innerText.trim() === t); const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; B('검사항목등록').click(); await W(600); B('신규(F2)', [...document.querySelectorAll('[role=dialog]')].pop()).click(); await W(600); const code = document.querySelector('input[aria-label=\"검사항목코드\"]').value; sessionStorage.setItem('qcCode', code); set(document.querySelector('input[aria-label=\"검사항목명\"]'), 'QA재고2-흐름외관'); await W(100); B('저장(F8)', [...document.querySelectorAll('[role=dialog]')].pop()).click(); await W(1200); return code })()",
+        "expect:/^\\d{5}$/.test(sessionStorage.getItem('qcCode')) && [...document.querySelectorAll('[role=dialog] tbody tr')].some((r) => r.innerText.includes('QA재고2-흐름외관') && r.innerText.includes('코드형식') && r.innerText.includes('추가'))",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); const B = (t, root = document) => [...root.querySelectorAll('button')].find((b) => b.innerText.trim() === t); B('닫기', [...document.querySelectorAll('[role=dialog]')].pop()).click(); await W(300); const row = [...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QAFLOW2')); B('검사항목설정', row).click(); await W(800); return [...document.querySelectorAll('[role=dialog]')].pop().innerText.slice(0, 80) })()",
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); return ['코드형검사항목1', '숫자형검사항목4', '문자형검사항목4'].every((t) => d.innerText.includes(t)) })()",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); const B = (t, root = document) => [...root.querySelectorAll('button')].find((b) => b.innerText.trim() === t); window.confirm = () => true; B('닫기', [...document.querySelectorAll('[role=dialog]')].pop()).click(); await W(300); const row = [...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QAFLOW2')); row.querySelector('input[type=checkbox]').click(); await W(100); B('사용중단/재사용 ▲').click(); await W(100); B('삭제').click(); await W(1200); B('검사항목등록').click(); await W(600); const d = [...document.querySelectorAll('[role=dialog]')].pop(); const r2 = [...d.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QA재고2-흐름외관')); r2.querySelector('input[type=checkbox]').click(); await W(100); B('사용중단/재사용 ▲', d).click(); await W(100); B('삭제', d).click(); await W(1200); B('닫기', [...document.querySelectorAll('[role=dialog]')].pop()).click(); await W(300); return 'ok' })()",
+        "expect:![...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes('QAFLOW2'))"
+      ]
+    }
+  ]
+}
