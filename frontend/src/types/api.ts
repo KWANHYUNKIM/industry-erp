@@ -728,6 +728,8 @@ export interface WorkJournal {
   content: string
   /** 원본 '조회' 머리의 작성 시각 */
   createdAt: string | null
+  /** 답글이면 원글 id — 격자에는 원글(null)만 찍는다 */
+  parentId: number | null
 }
 
 // ===== 그룹웨어: 출퇴근 =====

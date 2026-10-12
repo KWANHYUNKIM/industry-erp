@@ -19,4 +19,7 @@ public interface WorkJournalRepository extends JpaRepository<WorkJournal, Long> 
             + "where j.reportDate between :from and :to "
             + "order by j.reportDate desc, j.id desc")
     List<WorkJournal> findWithRefsByPeriod(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /** 답글이 달렸나 — 원본은 답글이 있는 글을 지우지 못하게 막는다. */
+    boolean existsByParentId(Long parentId);
 }

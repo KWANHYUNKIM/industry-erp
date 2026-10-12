@@ -1,0 +1,52 @@
+{
+  "about": "업무일지 '조회' 창의 [답글(F8)] · [복사] · 답글 막힘(원본 E070304, 2026-10-12 실측) — 원글을 API 로 넣고 → 격자에서 열어 [답글(F8)] → 같은 칸이 채워진 작성 창에서 제목만 바꿔 저장 → 원글 아래 '↳ 1' 카드(격자에는 안 찍힌다) → 원글 [삭제] '답변이 있는 글은 삭제할 수 없습니다.' → 답글 [삭제] → 원글 [복사]는 같은 칸이 채워진 새 글 창. node qa/shot.mjs qa/flows/worklog-reply.json",
+  "shots": [
+    {
+      "name": "준비 — 원글 하나",
+      "path": "/groupware/worklog",
+      "steps": [
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const t = new Date(); const day = t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); const d = await (await fetch('/api/departments', { headers: H })).json(); const dept = d.find((x) => x.active).name; const r = await fetch('/api/work-journals', { method: 'POST', headers: H, body: JSON.stringify({ reportDate: day, department: dept, title: 'QA그룹웨어-원글', content: '' }) }); return r.status + ' ' + dept })()"
+      ]
+    },
+    {
+      "name": "답글 → 카드 · 원글 삭제 막힘 · 답글 삭제 · 복사",
+      "path": "/groupware/worklog",
+      "steps": [
+        "wait:800",
+        "js:window.__asked = []; window.confirm = (m) => { window.__asked.push(m); return true }; true",
+        "click:검색(F8)",
+        "wait:1000",
+        "js:[...document.querySelectorAll('tbody button')].find((b) => b.textContent.trim() === 'QA그룹웨어-원글').click(); true",
+        "wait:400",
+        "expect:document.querySelector('[role=dialog][aria-label=\"조회\"]')?.innerText.includes('QA그룹웨어-원글')",
+        "click:답글(F8)",
+        "wait:400",
+        "expect:(() => { const f = document.querySelector('[role=dialog][aria-label=\"업무일지게시글작성\"]'); return !!f && f.querySelector('input[placeholder=\"제목\"]').value === 'QA그룹웨어-원글' })()",
+        "js:(() => { const i = document.querySelector('[role=dialog][aria-label=\"업무일지게시글작성\"] input[placeholder=\"제목\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'QA그룹웨어-답글'); i.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "click:저장(F8)",
+        "wait:2500",
+        "expect:!document.querySelector('[role=dialog][aria-label=\"업무일지게시글작성\"]')",
+        "expect:(() => { const v = document.querySelector('[role=dialog][aria-label=\"조회\"]'); return !!v && v.innerText.includes('↳ 1') && v.innerText.includes('QA그룹웨어-답글') })()",
+        "expect:![...document.querySelectorAll('tbody button')].some((b) => b.textContent.trim() === 'QA그룹웨어-답글')",
+        "js:[...document.querySelectorAll('[role=dialog][aria-label=\"조회\"] button')].filter((b) => b.textContent.trim() === '삭제')[0].click(); true",
+        "wait:800",
+        "expect:document.querySelector('[role=dialog][aria-label=\"조회\"]').innerText.includes('답변이 있는 글은 삭제할 수 없습니다.')",
+        "expect:window.__asked.length === 0",
+        "js:[...document.querySelectorAll('[role=dialog][aria-label=\"조회\"] button')].filter((b) => b.textContent.trim() === '삭제')[1].click(); true",
+        "wait:2500",
+        "expect:(() => { const v = document.querySelector('[role=dialog][aria-label=\"조회\"]'); return !!v && v.innerText.includes('QA그룹웨어-원글') && !v.innerText.includes('QA그룹웨어-답글') })()",
+        "click:복사",
+        "wait:400",
+        "expect:(() => { const f = document.querySelector('[role=dialog][aria-label=\"업무일지게시글작성\"]'); return !!f && f.querySelector('input[placeholder=\"제목\"]').value === 'QA그룹웨어-원글' && !document.querySelector('[role=dialog][aria-label=\"조회\"]') })()",
+        "click:닫기"
+      ]
+    },
+    {
+      "name": "정리",
+      "path": "/groupware/worklog",
+      "steps": [
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const js = await (await fetch('/api/work-journals', { headers: H })).json(); const mine = js.filter((x) => x.title.startsWith('QA그룹웨어')).sort((a, b) => (b.parentId != null) - (a.parentId != null) || b.id - a.id); const out = []; for (const j of mine) out.push((await fetch('/api/work-journals/' + j.id, { method: 'DELETE', headers: H })).status); return 'del ' + out.join(',') })()"
+      ]
+    }
+  ]
+}

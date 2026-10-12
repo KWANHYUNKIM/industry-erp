@@ -56,6 +56,7 @@ public class WorkJournalService {
                 .project(req.projectId() != null ? projectService.get(req.projectId()) : null)
                 .title(req.title())
                 .content(req.content() != null ? req.content() : "")
+                .parentId(parentOf(req.parentId()))
                 .build();
 
         return WorkJournalResponse.from(workJournalRepository.save(journal));
@@ -80,7 +81,21 @@ public class WorkJournalService {
     /** 원본 '조회' 창의 [삭제] — '게시글을 삭제하면 복구할 수 없습니다.' 를 묻고 지운다. */
     @Transactional
     public void delete(Long id, String username) {
-        workJournalRepository.delete(mine(id, username, "지울"));
+        WorkJournal j = mine(id, username, "지울");
+        // 원본 E070304(2026-10-12 실측): 답글이 달린 글의 [삭제]는 이 안내만 띄우고 지우지 않는다.
+        if (workJournalRepository.existsByParentId(id)) {
+            throw ApiException.badRequest("답변이 있는 글은 삭제할 수 없습니다.\n\n답변 삭제 후 다시 시도 바랍니다.");
+        }
+        workJournalRepository.delete(j);
+    }
+
+    /** 답글의 원글이 있는지 본다. 없는 글에 답글을 달면 404. */
+    private Long parentOf(Long parentId) {
+        if (parentId == null) return null;
+        if (!workJournalRepository.existsById(parentId)) {
+            throw ApiException.notFound("업무일지를 찾을 수 없습니다. id=" + parentId);
+        }
+        return parentId;
     }
 
     private WorkJournal mine(Long id, String username, String action) {

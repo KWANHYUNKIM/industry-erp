@@ -20,7 +20,9 @@ public final class WorkJournalDtos {
             @Size(max = 200, message = "제목은 200자까지 넣을 수 있습니다.")
             @NotBlank(message = "제목을 입력하세요.") String title,
             /** 원본은 본문 없이도 저장된다(2026-10-03 실측) — 비우면 빈 글자로 둔다. */
-            String content
+            String content,
+            /** 답글이면 원글 id — 원본 '조회' 창 [답글(F8)] · [답변]. 고칠 때는 보내도 바뀌지 않는다. */
+            Long parentId
     ) {}
 
     public record WorkJournalResponse(
@@ -33,7 +35,9 @@ public final class WorkJournalDtos {
             Long projectId, String projectName,
             String title, String content,
             /** 원본 '조회' 머리의 작성 시각('2026/10/03 오후 6:20:13'). */
-            java.time.LocalDateTime createdAt
+            java.time.LocalDateTime createdAt,
+            /** 답글이면 원글 id. 격자에는 원글(null)만 찍는다. */
+            Long parentId
     ) {
         public static WorkJournalResponse from(WorkJournal j) {
             return new WorkJournalResponse(
@@ -43,7 +47,7 @@ public final class WorkJournalDtos {
                     j.getPartner() != null ? j.getPartner().getId() : null,
                     j.getProject() != null ? j.getProject().getId() : null,
                     j.getProject() != null ? j.getProject().getName() : null,
-                    j.getTitle(), j.getContent(), j.getCreatedAt());
+                    j.getTitle(), j.getContent(), j.getCreatedAt(), j.getParentId());
         }
     }
 }

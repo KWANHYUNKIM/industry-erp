@@ -55,7 +55,12 @@ const emptyForm = (): Form => ({ reportDate: today(), department: '', partnerNam
  * 업무보고일 : 20261005 · 부서 · 거래처 · 프로젝트, [삭제]는 '게시글을 삭제하면 복구할 수 없습니다. 삭제하겠습니까?'.
  * 우리는 일지 목록 하나였고 고치거나 지울 길이 없었다(서버에 PUT · DELETE 를 더했다).
  *
- * <p>두지 않은 것: 조회 창의 답글(F8) · 복사 · 답변 · R · 답글펼치기, 입력 창의 첨부 · 서식 편집기, 격자 둘째 칸의 쓰임(원본도 비어 있었다).
+ * <p><b>2026-10-12 답글 · 복사 · 답변을 더했다(원본에 QA그룹웨어-일지 · -답글을 넣어 재고 지웠다).</b>
+ * [답글(F8)] · 아래 [답변]은 그 글의 칸을 그대로 채운 '업무일지게시글작성' 창을 띄우고, 저장하면 '조회' 창의
+ * 원글 아래에 '↳ 1 제목 작성자 시각' 카드가 붙는다(답글 카드의 버튼은 [답글][수정][삭제]). 답글은 격자에 찍히지 않는다.
+ * [복사]는 같은 칸을 채운 새 글 창. 답글이 달린 글의 [삭제]는 '답변이 있는 글은 삭제할 수 없습니다. 답변 삭제 후 다시 시도 바랍니다.'
+ *
+ * <p>두지 않은 것: 조회 창의 R · 답글펼치기, 답글 창의 [본문보기], 입력 창의 첨부 · 서식 편집기, 격자 둘째 칸의 쓰임(원본도 비어 있었다).
  */
 export default function WorkLogPage() {
   const { user } = useAuth()
@@ -82,6 +87,8 @@ export default function WorkLogPage() {
   const [form, setForm] = useState<Form>(emptyForm)
   const setF = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }))
   const [viewing, setViewing] = useState<WorkJournal | null>(null)
+  /** 답글 창이면 원글 id — 저장할 때 parentId 로 보낸다. */
+  const [replyTo, setReplyTo] = useState<number | null>(null)
 
   useEffect(() => {
     api.get<DeptRow[]>('/departments')
@@ -100,10 +107,12 @@ export default function WorkLogPage() {
   }
   useShortcut('F8', () => void search(), view === 'cond' && !showForm && !viewing)
   useShortcut('F8', () => void submit(), showForm)
+  useShortcut('F8', () => { if (viewing) openReply(viewing) }, !!viewing && !showForm)
 
   const has = (v: string | null | undefined, q: string) => !q || (v ?? '').includes(q)
   const shown = rows.filter((r) =>
-    (!cond.dow || dow(r.reportDate) === cond.dow)
+    r.parentId == null
+    && (!cond.dow || dow(r.reportDate) === cond.dow)
     && has(r.department, cond.department)
     && (!cond.projectId || String(r.projectId ?? '') === cond.projectId)
     && has(r.partnerName, cond.partnerName)
@@ -122,19 +131,52 @@ export default function WorkLogPage() {
   const gridRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(gridRef, '업무일지 부서×일자', [view, days.length, deptRows.length])
 
+  /** '조회' 창의 원글 아래 답글들 — 답글의 답글까지, 단 차례(id)대로 깊이와 함께. */
+  function threadOf(root: WorkJournal): { r: WorkJournal; depth: number }[] {
+    const out: { r: WorkJournal; depth: number }[] = []
+    const walk = (pid: number, depth: number) => {
+      for (const c of rows.filter((x) => x.parentId === pid).sort((a, b) => a.id - b.id)) {
+        out.push({ r: c, depth })
+        walk(c.id, depth + 1)
+      }
+    }
+    walk(root.id, 1)
+    return out
+  }
+  const fill = (r: WorkJournal): Form => ({
+    reportDate: r.reportDate, department: r.department ?? '', partnerName: r.partnerName ?? '',
+    projectId: r.projectId != null ? String(r.projectId) : '', title: r.title, content: r.content ?? '',
+  })
+  /** 원본 [답글(F8)] · [답변] — 그 글의 칸을 그대로 채운 작성 창. '조회' 창은 열어 둔다. */
+  function openReply(r: WorkJournal) {
+    setEditId(null)
+    setReplyTo(r.id)
+    setForm(fill(r))
+    setError('')
+    setShowForm(true)
+  }
+  /** 원본 [복사] — 같은 칸을 채운 새 글. */
+  function openCopy(r: WorkJournal) {
+    setViewing(null)
+    setEditId(null)
+    setReplyTo(null)
+    setForm(fill(r))
+    setError('')
+    setShowForm(true)
+  }
+
   function openNew() {
+    setReplyTo(null)
     setEditId(null)
     setForm(emptyForm())
     setError('')
     setShowForm(true)
   }
   function openEdit(r: WorkJournal) {
-    setViewing(null)
+    if (r.parentId == null) setViewing(null)
+    setReplyTo(null)
     setEditId(r.id)
-    setForm({
-      reportDate: r.reportDate, department: r.department ?? '', partnerName: r.partnerName ?? '',
-      projectId: r.projectId != null ? String(r.projectId) : '', title: r.title, content: r.content ?? '',
-    })
+    setForm(fill(r))
     setError('')
     setShowForm(true)
   }
@@ -149,20 +191,26 @@ export default function WorkLogPage() {
       projectId: form.projectId ? Number(form.projectId) : undefined,
       title: form.title,
       content: form.content,
+      parentId: replyTo ?? undefined,
     }
     try {
       if (editId != null) await api.put(`/work-journals/${editId}`, body)
       else await api.post('/work-journals', body)
       setShowForm(false)
+      setReplyTo(null)
       if (view === 'result') void search()
     } catch (err) { setError(extractErrorMessage(err)) }
   }
 
   async function remove(r: WorkJournal) {
+    // 원본은 답글이 달린 글이면 묻지도 않고 이 안내만 띄운다(2026-10-12 실측). 서버도 같은 말로 막는다.
+    if (rows.some((x) => x.parentId === r.id)) return setError('답변이 있는 글은 삭제할 수 없습니다.\n\n답변 삭제 후 다시 시도 바랍니다.')
+    setError('')
     if (!window.confirm('게시글을 삭제하면 복구할 수 없습니다.\n삭제하겠습니까?')) return
     try {
       await api.delete(`/work-journals/${r.id}`)
-      setViewing(null)
+      // 답글을 지우면 '조회' 창은 원글을 띄운 채로 남는다(원본 실측).
+      if (r.parentId == null) setViewing(null)
       void search()
     } catch (err) { setError(extractErrorMessage(err)) }
   }
@@ -281,6 +329,43 @@ export default function WorkLogPage() {
         </div>
       )}
 
+      {/* 원본 '조회' */}
+      <Modal error={error} open={!!viewing} title="조회" width={780} onClose={() => setViewing(null)}>
+        {viewing && (
+          <>
+            {[{ r: viewing, depth: 0 }, ...threadOf(viewing)].map(({ r, depth }, n) => (
+              <div key={r.id} className={`border border-solid border-ec-line rounded-ec mb-[9px] ${depth > 0 ? 'ml-[12px]' : ''}`}>
+                <div className="flex flex-wrap items-baseline gap-[9px] py-[6px] px-[9px] bg-ec-page rounded-ec">
+                  {depth > 0 ? <span>↳ {n}</span> : <span>{r.id}</span>}
+                  <b>{r.title}</b>
+                  <span className="text-ec-navy">{r.authorName}</span>
+                  <span>{stampText(r.createdAt)}</span>
+                </div>
+                <div className="py-[9px] px-[9px] text-[12px] leading-[1.8]">
+                  <div>업무보고일 : {r.reportDate.replace(/-/g, '')}</div>
+                  <div>부서 : {r.department ?? ''}</div>
+                  <div>거래처 : {r.partnerName ?? ''}</div>
+                  <div>프로젝트 : {r.projectName ?? ''}</div>
+                  <div className="whitespace-pre-wrap mt-[6px]">{r.content ?? ''}</div>
+                </div>
+                <div className="flex gap-[6px] px-[9px] pb-[9px]">
+                  <button type="button" className="ec-btn" onClick={() => openReply(r)}>{depth === 0 ? '답글(F8)' : '답글'}</button>
+                  {depth === 0 && <button type="button" className="ec-btn" onClick={() => openCopy(r)}>복사</button>}
+                  <button type="button" className="ec-btn" onClick={() => openEdit(r)}>수정</button>
+                  <button type="button" className="ec-btn" onClick={() => void remove(r)}>삭제</button>
+                </div>
+              </div>
+            ))}
+            <div className="flex gap-[6px] mt-[10px]">
+              <button type="button" className="ec-btn ec-btn-primary" onClick={() => openReply(viewing)}>답변</button>
+              <button type="button" className="ec-btn" onClick={() => printOne(viewing)}>인쇄</button>
+              <button type="button" className="ec-btn" onClick={() => setViewing(null)}>닫기</button>
+            </div>
+          </>
+        )}
+      </Modal>
+
+      {/* 작성 창은 '조회' 창 위에 뜬다 — [답글] 은 조회 창을 연 채로 연다. */}
       {/* 원본 '업무일지게시글작성' */}
       <Modal error={error} open={showForm} title="업무일지게시글작성" width={780} onClose={() => setShowForm(false)}>
         <div className="text-right text-[12px] text-ec-ink mb-[6px]">작성자 : {user?.name ?? ''}</div>
@@ -312,33 +397,6 @@ export default function WorkLogPage() {
           <button type="button" className="ec-btn ec-btn-primary" onClick={() => void submit()}>저장(F8)</button>
           <button type="button" className="ec-btn" onClick={() => setShowForm(false)}>닫기</button>
         </div>
-      </Modal>
-
-      {/* 원본 '조회' */}
-      <Modal error={error} open={!!viewing} title="조회" width={780} onClose={() => setViewing(null)}>
-        {viewing && (
-          <>
-            <div className="flex flex-wrap items-baseline gap-[9px] py-[6px] px-[9px] bg-ec-page rounded-ec">
-              <span>{viewing.id}</span>
-              <b>{viewing.title}</b>
-              <span className="text-ec-navy">{viewing.authorName}</span>
-              <span>{stampText(viewing.createdAt)}</span>
-            </div>
-            <div className="py-[9px] px-[9px] text-[12px] leading-[1.8]">
-              <div>업무보고일 : {viewing.reportDate.replace(/-/g, '')}</div>
-              <div>부서 : {viewing.department ?? ''}</div>
-              <div>거래처 : {viewing.partnerName ?? ''}</div>
-              <div>프로젝트 : {viewing.projectName ?? ''}</div>
-              <div className="whitespace-pre-wrap mt-[6px]">{viewing.content ?? ''}</div>
-            </div>
-            <div className="flex gap-[6px] mt-[10px]">
-              <button type="button" className="ec-btn" onClick={() => openEdit(viewing)}>수정</button>
-              <button type="button" className="ec-btn" onClick={() => void remove(viewing)}>삭제</button>
-              <button type="button" className="ec-btn" onClick={() => printOne(viewing)}>인쇄</button>
-              <button type="button" className="ec-btn" onClick={() => setViewing(null)}>닫기</button>
-            </div>
-          </>
-        )}
       </Modal>
     </EcListShell>
   )
