@@ -6,6 +6,8 @@ import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 
 interface Emp { id: number; code: string; name: string; department: string | null; hireDate: string | null; resignDate: string | null }
+/** [퇴직금계산] 한 건에서 이 화면이 쓰는 것 */
+interface RetirePay { employeeId: number; retireDate: string | null; withholdingMonth: string | null; payDate: string | null }
 
 const slash = (d: string | null) => (d ? d.replace(/-/g, '/') : '')
 const month = (d: string | null) => (d ? d.slice(0, 7).replace('-', '/') : '')
@@ -18,12 +20,15 @@ const month = (d: string | null) => (d ? d.slice(0, 7).replace('-', '/') : '')
  *
  * <p>열: 번호 · 사번 · 성명 · 부서 · 입사일자 · 퇴사일자 · 중도정산귀속월 · 중도정산원천징수연월 · 퇴직소득귀속월 ·
  * 퇴직소득원천징수연월 · 퇴직소득지급일자. 줄은 사번 글자 차례(원본이 00001 · 002 · 1 · 10 · 11 … 로 찍는다).
- * 중도정산귀속월은 원본에서 모든 줄이 퇴사월이라 퇴사일자의 달을 찍는다. 중도정산원천징수연월과 퇴직소득 세 칸은
- * 연말정산 · 퇴직금 정산을 등록해야 생기는 값인데 우리에게 그 정산이 없어 비운다.
+ * 중도정산귀속월은 원본에서 모든 줄이 퇴사월이라 퇴사일자의 달을 찍는다. 중도정산원천징수연월은 중도정산이 없어 비운다.
+ * 퇴직소득 세 칸은 그 사원의 [퇴직금계산] 에서 읽는다 — 귀속월 = 퇴직금계산의 퇴사일 달(사원 퇴사일과 다를 수 있다:
+ * 원본 홍길동 퇴사 2024/10/01 · 귀속 2024/12 · 원천징수 2024/10 · 지급 2024/10/16), 원천징수연월 · 지급일자는 그대로(2026-10-12 실측).
+ * 한 사원에 여럿이면 지급일이 가장 늦은 것.
  * 세무신고사업장은 우리 회사가 사업장을 하나만 둔다. 원본의 [신규(F2)] · [선택삭제]는 퇴직정산 입력이라 두지 않는다.
  */
 export default function RetiredEmployeePage() {
   const [rows, setRows] = useState<Emp[]>([])
+  const [pays, setPays] = useState<Map<number, RetirePay>>(new Map())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [emp, setEmp] = useState('')
@@ -39,8 +44,17 @@ export default function RetiredEmployeePage() {
     setLoading(true)
     setError('')
     try {
-      const r = await api.get<Emp[]>('/employees/all')
+      const [r, p] = await Promise.all([
+        api.get<Emp[]>('/employees/all'),
+        api.get<RetirePay[]>('/retirement-pays', { params: { from: '1900-01-01', to: '2999-12-31' } }),
+      ])
       setRows(r.data)
+      const m = new Map<number, RetirePay>()
+      for (const x of p.data) {
+        const prev = m.get(x.employeeId)
+        if (!prev || (x.payDate ?? '') > (prev.payDate ?? '')) m.set(x.employeeId, x)
+      }
+      setPays(m)
     } catch (e) {
       setError(extractErrorMessage(e))
     } finally {
@@ -134,9 +148,9 @@ export default function RetiredEmployeePage() {
               <td className="text-center">{slash(r.resignDate)}</td>
               <td className="text-center">{month(r.resignDate)}</td>
               <td className="text-center"></td>
-              <td className="text-center"></td>
-              <td className="text-center"></td>
-              <td className="text-center"></td>
+              <td className="text-center">{month(pays.get(r.id)?.retireDate ?? null)}</td>
+              <td className="text-center">{(pays.get(r.id)?.withholdingMonth ?? '').replace('-', '/')}</td>
+              <td className="text-center">{slash(pays.get(r.id)?.payDate ?? null)}</td>
             </tr>
           ))}
         </tbody>
