@@ -367,7 +367,16 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
   const totalChange = shown.reduce((n, r) => n + r.quantityChange, 0)
   const totalAmount = shown.reduce((n, r) => n + (amountOf(r.itemId, r.quantityChange) ?? 0), 0)
   /* 불량처리현황만 앞에 칸이 둘 더 붙는다 - 빈 줄의 colSpan 도 같이 움직여야 한다. */
-  const cols = 11 + (kind === 'DEFECT' ? 2 : 0) + (hasAmount ? 1 : 0) + (kind === 'SELF_USE' ? 1 : 0)
+  /*
+   * 대체사용현황은 [수량] 자리에 <b>[불량수량] · [정상수량]</b> 두 칸을 둔다(원본 E040510). 불량품목 줄은 불량수량에,
+   * 품목대체의 정상품목 줄(normal)은 정상수량에 찍는다 — 2026-10-12 실측 '포장김치 1.00 / 배추 3.00'.
+   */
+  const split = kind === 'SUBSTITUTE'
+  const defectQtyOf = (r: Adjustment) => (r.normal ? null : -r.quantityChange)
+  const normalQtyOf = (r: Adjustment) => (r.normal ? r.quantityChange : null)
+  const totalDefect = shown.reduce((n, r) => n + (defectQtyOf(r) ?? 0), 0)
+  const totalNormal = shown.reduce((n, r) => n + (normalQtyOf(r) ?? 0), 0)
+  const cols = 11 + (kind === 'DEFECT' ? 2 : 0) + (hasAmount ? 1 : 0) + (kind === 'SELF_USE' ? 1 : 0) + (split ? 1 : 0)
   /* 화면에 따라 칸 수가 달라지므로 정적 검사로는 못 센다 - 렌더된 표를 직접 잰다. */
   const tableRef = useRef<HTMLDivElement>(null)
   useTableColumnCheck(tableRef, '기타이동현황', [kind, mode, shown.length])
@@ -598,7 +607,7 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
                 <b>장부수량 · 실사수량 · 조정수량</b> · 금액(수량*입고단가) · 적요
               한 표가 다섯을 겸하므로 <b>화면(kind)에 따라 이름을 갈라 적고</b> 그 화면에만
               있는 칸은 그때만 그린다. 한 이름으로 통일하면 넷이 틀린다.
-              못 만드는 것: [금액(수량*입고단가)]·[불량수량]·[정상수량](예외에 적었다).
+              [불량수량]·[정상수량]은 2026-10-12 불량처리입력이 정상품목 줄을 들게 되어 만들었다.
               프로젝트·담당자는 원본에 없지만 우리가 더 두는 열이다.
             */}
             <thead>
@@ -617,7 +626,12 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
                 <th className="w-[110px]">프로젝트</th>
                 <th className="text-right">{kind === 'ADJUST' ? '장부수량' : '이전재고'}</th>
                 <th className="text-right">{kind === 'ADJUST' ? '실사수량' : '이후재고'}</th>
-                <th className="text-right">{kind === 'ADJUST' ? '조정수량' : '수량'}</th>
+                {split ? (
+                  <>
+                    <th className="text-right">불량수량</th>
+                    <th className="text-right">정상수량</th>
+                  </>
+                ) : <th className="text-right">{kind === 'ADJUST' ? '조정수량' : '수량'}</th>}
                 {hasAmount && <th className="w-[130px] text-right">금액(수량*입고단가)</th>}
                 {/* 원본 조건에 [담당자]가 있다 — 거르려면 표에도 보여야 한다. */}
                 <th className="w-[90px]">담당자</th>
@@ -643,9 +657,16 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
                   <td className="text-ec-label">{r.projectName ?? ''}</td>
                   <td className="text-right text-ec-hint">{num(r.beforeQty)}</td>
                   <td className="text-right">{num(r.afterQty)}</td>
+                  {split ? (
+                    <>
+                      <td className="text-right">{defectQtyOf(r) == null ? '' : num(defectQtyOf(r)!)}</td>
+                      <td className="text-right">{normalQtyOf(r) == null ? '' : num(normalQtyOf(r)!)}</td>
+                    </>
+                  ) : (
                   <td style={{ textAlign: 'right', fontWeight: 700, color: r.quantityChange < 0 ? 'var(--ec-danger)' : 'var(--ec-blue)' }}>
                     {num(r.quantityChange)} <span className="text-[11px] font-normal text-ec-hint">{r.unit}</span>
                   </td>
+                  )}
 
                   {hasAmount && (
                     <td className="text-right text-ec-label">
@@ -660,8 +681,15 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
             {shown.length > 0 && (
               <tfoot>
                 <tr>
-                  <td colSpan={cols - 3 - (hasAmount ? 1 : 0)} className="text-right font-bold bg-ec-page">합계</td>
+                  <td colSpan={cols - 3 - (hasAmount ? 1 : 0) - (split ? 1 : 0)} className="text-right font-bold bg-ec-page">합계</td>
+                  {split ? (
+                    <>
+                      <td className="text-right font-bold bg-ec-page">{num(totalDefect)}</td>
+                      <td className="text-right font-bold bg-ec-page">{num(totalNormal)}</td>
+                    </>
+                  ) : (
                   <td style={{ textAlign: 'right', fontWeight: 700, background: 'var(--ec-bg-page)', color: totalChange < 0 ? 'var(--ec-danger)' : 'var(--ec-blue)' }}>{num(totalChange)}</td>
+                  )}
                   {hasAmount && (
                     <td className="text-right font-bold bg-ec-page">{num(totalAmount)}</td>
                   )}

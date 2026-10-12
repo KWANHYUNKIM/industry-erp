@@ -2641,24 +2641,6 @@
   ],
   "in": "backend/src/main/java/com/erp/trade/quotation/QuotationLine.java"
  },
- "대체사용현황|불량수량": {
-  "claim": "기타이동 전표는 증감 한 수만 든다",
-  "absent": [
-   "defectQty",
-   "goodQty",
-   "normalQty"
-  ],
-  "in": "backend/src/main/java/com/erp/inventory/adjustment/StockAdjustment.java"
- },
- "대체사용현황|정상수량": {
-  "claim": "기타이동 전표는 증감 한 수만 든다 - 불량분과 정상분을 갈라 적지 않는다",
-  "absent": [
-   "defectQty",
-   "goodQty",
-   "normalQty"
-  ],
-  "in": "backend/src/main/java/com/erp/inventory/adjustment/StockAdjustment.java"
- },
  "미구매현황|수량": {
   "claim": "우리 발주는 통째로 구매로 넘어간다 - 부분 입고를 남기지 않는다",
   "absent": [
