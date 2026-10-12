@@ -8,21 +8,21 @@ import { fillAndPrint, openPrintWindow } from '../../utils/print'
 import type { JournalEntry } from '../../types/api'
 
 interface JournalList { rows: JournalEntry[]; totalRows: number; truncated: boolean }
-interface AccountOpt { code: string; detailCategory: string | null }
+export interface AccountOpt { code: string; detailCategory: string | null }
 interface PartnerOpt { id: number; name: string; bizRegNo: string | null }
 interface Mark { journalEntryId: number; docKind: string; progress: string }
 /** 합계표 한 장의 계산서 한 장 — 거래처 · 전자 여부 · 금액. */
 interface Invoice { partnerId: number | null; partner: string; bizNo: string; personal: boolean; electronic: boolean; supply: number; vat: number }
 type Doc = '부가가치세신고서' | '매출세금계산서' | '매입세금계산서'
 const DOCS: Doc[] = ['부가가치세신고서', '매출세금계산서', '매입세금계산서']
-interface CompanyInfo {
+export interface CompanyInfo {
   name?: string; ceo?: string; bizRegNo?: string; bizType?: string; bizItem?: string
   tel?: string; email?: string; address?: string; addressDetail?: string
 }
 type Term = 1 | 2
 type Kind = '예정' | '확정'
 interface Amt { supply: number; vat: number }
-interface Sheet {
+export interface Sheet {
   year: number; term: Term; kind: Kind; first: number; last: number; end: number; from: string; to: string
   taxInvoice: Amt; zeroInvoice: Amt; purchaseGeneral: Amt; purchaseFixed: Amt
   salesInvoices: Invoice[]; purchaseInvoices: Invoice[]
@@ -30,7 +30,7 @@ interface Sheet {
 
 /** 원본 [신고기간] 기 고르기 — 1기 예정(1~3) · 1기 확정(4~6) · 2기 예정(7~9) · 2기 확정(10~12). */
 const TERM_OPTIONS = [['1PRELIM', '1기 예정(1~3)'], ['1FINAL', '1기 확정(4~6)'], ['2PRELIM', '2기 예정(7~9)'], ['2FINAL', '2기 확정(10~12)']] as const
-interface VatReturnRow {
+export interface VatReturnRow {
   id: number; filingType: 'REGULAR' | 'LATE'; returnKind: 'PRELIM' | 'FINAL' | 'MONTHLY'; year: number; monthFrom: number; monthTo: number
   includesOmitted: boolean; periodName: string; reportDate: string; dueDate: string; taxAgent: boolean; closure: boolean
 }
@@ -53,6 +53,65 @@ const PRINT_CSS = 'body{font-family:sans-serif;font-size:11px;margin:16px}'
   + 'table{border-collapse:collapse;width:100%;margin-bottom:8px}th,td{border:1px solid gray;padding:3px}'
   + '.text-right{text-align:right}.text-center{text-align:center}.ec-report-title{font-size:16px;font-weight:bold;text-align:center}'
 
+/** 신고서 한 장의 숫자 — 그 기간의 회계전표 · (세금)계산서발행/수령에서 센다. 부가세신고서 PDF 다운로드(E030216)도 쓴다. */
+export async function loadVatSheet(v: VatReturnRow, accounts: AccountOpt[]): Promise<Sheet> {
+  const first = v.monthFrom, last = v.monthTo
+  const end = new Date(v.year, last, 0).getDate()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const from = `${v.year}-${pad(first)}-01`, to = `${v.year}-${pad(last)}-${pad(end)}`
+  const [r, pr, mk, tv] = await Promise.all([
+    api.get<JournalList>('/journals', { params: { from, to, all: true } }),
+    api.get<PartnerOpt[]>('/partners'),
+    api.get<Mark[]>('/vat-invoice-marks'),
+    api.get<TaxVoucher[]>('/tax-vouchers', { params: { from, to } }),
+  ])
+  const partnerOf = new Map(pr.data.map((x) => [x.id, x]))
+  const markOf = new Map(mk.data.map((x) => [x.journalEntryId, x]))
+  const salesInvoices: Invoice[] = []
+  const purchaseInvoices: Invoice[] = []
+  const bizNoOf = (partnerId: number | null) => (partnerId != null ? partnerOf.get(partnerId)?.bizRegNo : null)?.replace(/-/g, '') ?? ''
+  const invoiceOf = (e: JournalEntry, a: Amt): Invoice => {
+    const bizNo = bizNoOf(e.partnerId)
+    const m = markOf.get(e.id)
+    /* 각종구분값변경의 종이(세금)계산서 · 기한후 발행은 '전자세금계산서 외의 발급분'. */
+    const electronic = !(m && (m.docKind === 'PAPER' || m.progress === 'LATE'))
+    return { partnerId: e.partnerId, partner: e.partnerName ?? '', bizNo, personal: bizNo.length === 13, electronic, supply: a.supply, vat: a.vat }
+  }
+  const cat = new Map(accounts.map((a) => [a.code, a.detailCategory ?? '']))
+  let taxInvoice = ZERO, zeroInvoice = ZERO, purchaseGeneral = ZERO, purchaseFixed = ZERO
+  for (const e of r.data.rows) {
+    const s = vatSlipAmounts(e.lines, '매출')
+    if (s) {
+      if (s.vat === 0) zeroInvoice = add(zeroInvoice, s)
+      else taxInvoice = add(taxInvoice, s)
+      salesInvoices.push(invoiceOf(e, s))
+    }
+    const b = vatSlipAmounts(e.lines, '매입')
+    if (b) {
+      const fixed = e.lines.some((l) => Number(l.debit) > 0 && FIXED_CATEGORIES.includes(cat.get(l.accountCode) ?? ''))
+      if (fixed) purchaseFixed = add(purchaseFixed, b)
+      else purchaseGeneral = add(purchaseGeneral, b)
+      purchaseInvoices.push(invoiceOf(e, b))
+    }
+  }
+  /* (세금)계산서발행/수령의 계산서 — 분개는 없지만 원본 매입/매출장에 실린다. 세금계산서 · 영세율 유형만 이 칸들로 센다. */
+  for (const t of tv.data) {
+    const a: Amt = { supply: Number(t.supplyAmount), vat: Number(t.vatAmount) }
+    const bizNo = bizNoOf(t.partnerId)
+    const inv: Invoice = { partnerId: t.partnerId, partner: t.partnerName, bizNo, personal: bizNo.length === 13, electronic: true, supply: a.supply, vat: a.vat }
+    if (t.side === 'SALES') {
+      if (t.vatType === '세금계산서') { taxInvoice = add(taxInvoice, a); salesInvoices.push(inv) }
+      else if (t.vatType === '영세율') { zeroInvoice = add(zeroInvoice, a); salesInvoices.push(inv) }
+    } else if (t.vatType === '세금계산서' || t.vatType.startsWith('세.계')) {
+      if (t.vatType.includes('고정')) purchaseFixed = add(purchaseFixed, a)
+      else purchaseGeneral = add(purchaseGeneral, a)
+      purchaseInvoices.push(inv)
+    }
+  }
+  return { year: v.year, term: first <= 6 ? 1 : 2, kind: v.returnKind === 'FINAL' ? '확정' : '예정', first, last, end, from, to,
+    taxInvoice, zeroInvoice, purchaseGeneral, purchaseFixed, salesInvoices, purchaseInvoices }
+}
+
 /**
  * 세무 › 부가세 › 부가세신고서(일반) › <b>부가가치세신고서(일반)</b>(E200928) — 2026-10-04 loginaa 실측.
  *
@@ -67,7 +126,10 @@ const PRINT_CSS = 'body{font-family:sans-serif;font-size:11px;margin:16px}'
  *
  * <p>첨부서류는 위 알약으로 고른다 — 매출 · 매입세금계산서 합계표까지.
  *
- * <p>두지 않은 것: 신고서 목록 저장([신규(F2)] · [선택삭제] · 이력) · 나머지 첨부서류 31종 · 휴폐업조회(홈택스) · 영수증서 · 전자파일 · PDF ·
+ * <p>신고서 목록은 원본처럼 [신규(F2)] 로 만들고 신고기간을 눌러 고치고 [선택삭제] 로 지운다(2026-10-12). 귀속연도는 지난해 ~ 올해,
+ * 그보다 앞선 해는 부가세신고서 PDF 다운로드(E030216, VatReturnPdfPage)에 선다.
+ *
+ * <p>두지 않은 것: 이력 · 나머지 첨부서류 31종 · 휴폐업조회(홈택스) · 영수증서 · 전자파일 · PDF ·
  * [자료입력](칸 손으로 고치기) · 예정신고누락분 · 그 밖의 공제 · 공제받지 못할 · 가산세 명세(모두 0 으로 그린다).
  */
 export default function VatReturnPage() {
@@ -107,66 +169,12 @@ export default function VatReturnPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { void load() }, [])
 
-  /* 신고서 하나의 숫자를 그 기간의 회계전표 · (세금)계산서발행/수령에서 센다. */
   async function search(v: VatReturnRow) {
     setError('')
-    const first = v.monthFrom, last = v.monthTo
-    const end = new Date(v.year, last, 0).getDate()
-    const pad = (n: number) => String(n).padStart(2, '0')
-    const from = `${v.year}-${pad(first)}-01`, to = `${v.year}-${pad(last)}-${pad(end)}`
     try {
-      const [r, pr, mk, tv] = await Promise.all([
-        api.get<JournalList>('/journals', { params: { from, to, all: true } }),
-        api.get<PartnerOpt[]>('/partners'),
-        api.get<Mark[]>('/vat-invoice-marks'),
-        api.get<TaxVoucher[]>('/tax-vouchers', { params: { from, to } }),
-      ])
-      const partnerOf = new Map(pr.data.map((x) => [x.id, x]))
-      const markOf = new Map(mk.data.map((x) => [x.journalEntryId, x]))
-      const salesInvoices: Invoice[] = []
-      const purchaseInvoices: Invoice[] = []
-      const bizNoOf = (partnerId: number | null) => (partnerId != null ? partnerOf.get(partnerId)?.bizRegNo : null)?.replace(/-/g, '') ?? ''
-      const invoiceOf = (e: JournalEntry, a: Amt): Invoice => {
-        const bizNo = bizNoOf(e.partnerId)
-        const m = markOf.get(e.id)
-        /* 각종구분값변경의 종이(세금)계산서 · 기한후 발행은 '전자세금계산서 외의 발급분'. */
-        const electronic = !(m && (m.docKind === 'PAPER' || m.progress === 'LATE'))
-        return { partnerId: e.partnerId, partner: e.partnerName ?? '', bizNo, personal: bizNo.length === 13, electronic, supply: a.supply, vat: a.vat }
-      }
-      const cat = new Map(accounts.map((a) => [a.code, a.detailCategory ?? '']))
-      let taxInvoice = ZERO, zeroInvoice = ZERO, purchaseGeneral = ZERO, purchaseFixed = ZERO
-      for (const e of r.data.rows) {
-        const s = vatSlipAmounts(e.lines, '매출')
-        if (s) {
-          if (s.vat === 0) zeroInvoice = add(zeroInvoice, s)
-          else taxInvoice = add(taxInvoice, s)
-          salesInvoices.push(invoiceOf(e, s))
-        }
-        const b = vatSlipAmounts(e.lines, '매입')
-        if (b) {
-          const fixed = e.lines.some((l) => Number(l.debit) > 0 && FIXED_CATEGORIES.includes(cat.get(l.accountCode) ?? ''))
-          if (fixed) purchaseFixed = add(purchaseFixed, b)
-          else purchaseGeneral = add(purchaseGeneral, b)
-          purchaseInvoices.push(invoiceOf(e, b))
-        }
-      }
-      /* (세금)계산서발행/수령의 계산서 — 분개는 없지만 원본 매입/매출장에 실린다. 세금계산서 · 영세율 유형만 이 칸들로 센다. */
-      for (const t of tv.data) {
-        const a: Amt = { supply: Number(t.supplyAmount), vat: Number(t.vatAmount) }
-        const bizNo = bizNoOf(t.partnerId)
-        const inv: Invoice = { partnerId: t.partnerId, partner: t.partnerName, bizNo, personal: bizNo.length === 13, electronic: true, supply: a.supply, vat: a.vat }
-        if (t.side === 'SALES') {
-          if (t.vatType === '세금계산서') { taxInvoice = add(taxInvoice, a); salesInvoices.push(inv) }
-          else if (t.vatType === '영세율') { zeroInvoice = add(zeroInvoice, a); salesInvoices.push(inv) }
-        } else if (t.vatType === '세금계산서' || t.vatType.startsWith('세.계')) {
-          if (t.vatType.includes('고정')) purchaseFixed = add(purchaseFixed, a)
-          else purchaseGeneral = add(purchaseGeneral, a)
-          purchaseInvoices.push(inv)
-        }
-      }
+      const s = await loadVatSheet(v, accounts)
       setDoc('부가가치세신고서')
-      setSheet({ year: v.year, term: first <= 6 ? 1 : 2, kind: v.returnKind === 'FINAL' ? '확정' : '예정', first, last, end, from, to,
-        taxInvoice, zeroInvoice, purchaseGeneral, purchaseFixed, salesInvoices, purchaseInvoices })
+      setSheet(s)
     } catch (e) {
       setSheet(null); setError(extractErrorMessage(e))
     }
@@ -350,7 +358,7 @@ export default function VatReturnPage() {
   )
 }
 
-function ReturnSheet({ s, c }: { s: Sheet; c: CompanyInfo | null }) {
+export function ReturnSheet({ s, c }: { s: Sheet; c: CompanyInfo | null }) {
   const p = s
   const pad = (n: number) => String(n).padStart(2, '0')
   const sales = add(s.taxInvoice, s.zeroInvoice)
