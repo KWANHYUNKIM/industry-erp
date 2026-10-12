@@ -7,11 +7,11 @@ import CodePickerField from '../../components/CodePickerField'
 import { bankItems, bankNameOf } from '../../utils/bankCodes'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
-import type { EmployeeMaster, EmployeePayType } from '../../types/api'
+import type { EmployeeMaster, EmployeePayType, PayItem } from '../../types/api'
 import { dateText } from '../../utils/dateText'
 import EmployeeBulkChange from '../../features/employee/components/EmployeeBulkChange'
+import EmployeePayItemTables from '../../features/employee/components/EmployeePayItemTables'
 
-const won = (n: number) => n.toLocaleString('ko-KR')
 const inputCls = 'ec-input w-full'
 
 interface DeptRow { id: number; name: string; code?: string | null }
@@ -34,7 +34,10 @@ type FormTab = '기본' | '급여지급사항' | '추가정보'
  *
  * <p>원본 폼에 있으나 담을 자리가 없어 그리지 않은 것: 외국어성명 · 주민등록번호 · 세대주여부 · 입사구분 · 직책 ·
  * 여권번호 · 프로젝트 · UserPay비밀번호 · 급여통장 · 우편번호 · 사진 · 첨부, [사원정보] 탭(기본 탭과 같은 칸),
- * [기타설정] 탭(4대보험 · 공제대상가족 · 간이세액표 …), 기본급 밖의 고정수당 · 월정공제 항목.
+ * [기타설정] 탭(4대보험 · 공제대상가족 · 간이세액표 …).
+ *
+ * <p>[급여지급사항] 은 기본급 + 고정수당 · 일급수당 · 시급수당 · 월정공제 항목마다 금액(features/employee/components/EmployeePayItemTables).
+ * 저장하면 사원 저장 뒤 /pay-settings/employees/{id}/items 로 통째로 바꾼다 — 급여계산이 그룹 금액보다 이 금액을 먼저 쓴다.
  */
 export default function EmployeePage() {
   const [rows, setRows] = useState<EmployeeMaster[]>([])
@@ -47,6 +50,9 @@ export default function EmployeePage() {
   const [checked, setChecked] = useState<Set<number>>(new Set())
   /** 원본 [변경] — 체크한 사원들의 항목을 한 번에 고친다. */
   const [bulkOpen, setBulkOpen] = useState(false)
+  /** 원본 [급여지급사항] — 수당·공제 항목과 이 사원의 금액(payItemId → 입력값) */
+  const [payItems, setPayItems] = useState<PayItem[]>([])
+  const [payVals, setPayVals] = useState<Map<number, string>>(new Map())
 
   const empty = {
     code: '', name: '', departmentId: '', jobTitle: '',
@@ -65,6 +71,7 @@ export default function EmployeePage() {
       .then((r) => setRows(r.data))
       .catch((e) => setError(extractErrorMessage(e)))
     api.get<DeptRow[]>('/departments').then((r) => setDepts(r.data)).catch(() => setDepts([]))
+    api.get<PayItem[]>('/pay-settings/items').then((r) => setPayItems(r.data)).catch(() => setPayItems([]))
   }
 
   useEffect(() => { load() }, [])
@@ -75,6 +82,7 @@ export default function EmployeePage() {
     setTab('기본')
     setFormError('')
     setForm(base)
+    if (base === empty) setPayVals(new Map())
     setShowForm(true)
     try {
       const r = await api.get<{ code: string }>('/employees/next-code')
@@ -97,6 +105,10 @@ export default function EmployeePage() {
       payType: e.payType, baseSalary: e.baseSalary == null ? '' : String(e.baseSalary),
       bankCode: e.bankCode ?? '', bankName: e.bankName ?? '', accountNo: e.accountNo ?? '', accountHolder: e.accountHolder ?? '',
     })
+    setPayVals(new Map())
+    api.get<{ payItemId: number; amount: number }[]>(`/pay-settings/employees/${e.id}/items`)
+      .then((r) => setPayVals(new Map(r.data.map((x) => [x.payItemId, String(Number(x.amount))]))))
+      .catch((err) => setFormError(extractErrorMessage(err)))
     setShowForm(true)
   }
 
@@ -131,6 +143,7 @@ export default function EmployeePage() {
       duty: form.duty,
     }
     try {
+      let id = editId
       if (editId) {
         const cur = rows.find((r) => r.id === editId)
         await api.put(`/employees/${editId}`, {
@@ -140,8 +153,10 @@ export default function EmployeePage() {
           active: !form.resignDate,
         })
       } else {
-        await api.post('/employees', { ...body, code: form.code.trim() || null })
+        id = (await api.post<{ id: number }>('/employees', { ...body, code: form.code.trim() || null })).data.id
       }
+      const cells = [...payVals.entries()].filter(([, v]) => v !== '').map(([payItemId, v]) => ({ payItemId, amount: Number(v) || 0 }))
+      if (id) await api.put(`/pay-settings/employees/${id}/items`, cells)
       setShowForm(false)
       load()
     } catch (err) {
@@ -403,23 +418,9 @@ export default function EmployeePage() {
                   ))}
                 </Field>
               </ul>
-              <p className="font-bold mb-[4px]">&gt; 고정수당</p>
-              <table className="w-full">
-                <thead><tr><th>수당항목명</th><th className="w-[45%]">내역</th></tr></thead>
-                <tbody>
-                  <tr>
-                    <td>기본급</td>
-                    <td>
-                      <input className="ec-input w-full text-right" inputMode="numeric" value={form.baseSalary}
-                             onChange={set('baseSalary')} />
-                    </td>
-                  </tr>
-                  <tr>
-                    <td></td>
-                    <td className="text-right font-bold">{won(Number(form.baseSalary.replace(/,/g, '')) || 0)}</td>
-                  </tr>
-                </tbody>
-              </table>
+              <EmployeePayItemTables items={payItems} baseSalary={form.baseSalary}
+                                     onBaseSalary={(raw) => setForm({ ...form, baseSalary: raw })}
+                                     vals={payVals} onVal={(id, raw) => setPayVals(new Map(payVals).set(id, raw))} />
             </>
           )}
 

@@ -118,6 +118,20 @@ public class PayrollService {
             }
         }
 
+        // 1-0) 원본 사원등록 [급여지급사항] — 이 사원에게 넣어 둔 고정수당 · 월정공제 금액이 그룹 금액보다 앞선다.
+        //      (원본: 출산보육수당 10,000 넣고 개인별계산 → 지급총액 +10,000, 지우면 되돌아감. 2026-10-12 실측)
+        java.util.Map<Long, BigDecimal> empAmounts = paySettingService.employeeAmounts(emp.getId());
+        for (var ea : empAmounts.entrySet()) {
+            PayItem item = paySettingService.item(ea.getKey());
+            if (!item.isActive() || item.getPayMethod() == PayMethod.HOURLY || item.getPayMethod() == PayMethod.DAILY) continue;
+            p.getLines().removeIf(l -> l.getKind() == item.getKind() && l.getName().equals(item.getName()));
+            if (ea.getValue().signum() == 0) continue;
+            p.addLine(PayslipLine.builder()
+                    .kind(item.getKind()).name(item.getName()).amount(ea.getValue())
+                    .taxable(item.isTaxable()).auto(false).build());
+        }
+        for (int i = 0; i < p.getLines().size(); i++) p.getLines().get(i).setLineNo(i + 1);
+
         // 1-1) 변동수당 — 원본 계산식 'R( 야근수당(급여지급사항) * 야근수당(근무기록확정) , 0 )' 처럼
         //      확정 근무기록 × 단가. 단가는 사원 그룹에 그 항목이 있으면 그 금액,
         //      없으면 항목 기본금액이다. 지급유형이 변동(시간) · 변동(일)인 항목만 셈한다.
@@ -132,6 +146,7 @@ public class PayrollService {
                     if (gl.getPayItem().getId().equals(item.getId())) unit = gl.resolveAmount();
                 }
             }
+            if (empAmounts.containsKey(item.getId())) unit = empAmounts.get(item.getId());   // [급여지급사항] 단가가 앞선다
             BigDecimal amount = unit.multiply(e.getValue()).setScale(0, java.math.RoundingMode.HALF_UP);
             if (amount.signum() == 0) continue;
             p.addLine(PayslipLine.builder()

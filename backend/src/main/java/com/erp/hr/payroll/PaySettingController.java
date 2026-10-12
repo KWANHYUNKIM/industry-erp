@@ -46,6 +46,18 @@ public class PaySettingController {
         service.deleteItem(id);
     }
 
+    /** 원본 사원등록 [급여지급사항] — 이 사원의 수당·공제 금액. */
+    @GetMapping("/employees/{employeeId}/items")
+    public List<PaySettingDtos.EmployeePayItemResponse> employeePayItems(@PathVariable Long employeeId) {
+        return service.findEmployeePayItems(employeeId);
+    }
+
+    @PutMapping("/employees/{employeeId}/items")
+    public List<PaySettingDtos.EmployeePayItemResponse> replaceEmployeePayItems(
+            @PathVariable Long employeeId, @Valid @RequestBody List<PaySettingDtos.@Valid EmployeePayItemInput> body) {
+        return service.replaceEmployeePayItems(employeeId, body);
+    }
+
     /** 원본 수당/공제그룹등록 [사원 등록] — 적용사원 목록. */
     @GetMapping("/groups/{id}/employees")
     public List<PaySettingDtos.GroupEmployeeResponse> groupEmployees(@PathVariable Long id) {

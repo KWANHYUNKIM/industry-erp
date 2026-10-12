@@ -29,6 +29,7 @@ public class PaySettingService {
     private final PayGroupEmployeeRepository groupEmployeeRepository;
     private final com.erp.hr.employee.EmployeeService employeeService;
     private final com.erp.common.DocumentNoGenerator documentNoGenerator;
+    private final EmployeePayItemRepository employeePayItemRepository;
 
     // ── 항목 ──────────────────────────────────────────────────────────
 
@@ -184,6 +185,43 @@ public class PaySettingService {
     public void deleteItem(Long id) {
         itemRepository.delete(item(id));
         itemRepository.flush();
+    }
+
+    // ── 사원등록 [급여지급사항] ─────────────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public List<PaySettingDtos.EmployeePayItemResponse> findEmployeePayItems(Long employeeId) {
+        return employeePayItemRepository.findWithItemByEmployeeId(employeeId).stream()
+                .map(e -> new PaySettingDtos.EmployeePayItemResponse(e.getPayItem().getId(), e.getPayItem().getName(), e.getAmount()))
+                .toList();
+    }
+
+    /** [저장(F8)] — 그 사원의 칸을 통째로 바꾼다. 빈 칸은 화면이 보내지 않는다. */
+    @Transactional
+    public List<PaySettingDtos.EmployeePayItemResponse> replaceEmployeePayItems(Long employeeId, List<PaySettingDtos.EmployeePayItemInput> inputs) {
+        employeeService.findAllIncludingResigned().stream().filter(e -> e.id().equals(employeeId)).findFirst()
+                .orElseThrow(() -> ApiException.notFound("사원을 찾을 수 없습니다. id=" + employeeId));
+        employeePayItemRepository.deleteByEmployeeId(employeeId);
+        employeePayItemRepository.flush();
+        Set<Long> seen = new HashSet<>();
+        for (var in : inputs == null ? List.<PaySettingDtos.EmployeePayItemInput>of() : inputs) {
+            if (!seen.add(in.payItemId())) {
+                throw ApiException.badRequest("같은 항목을 두 번 넣을 수 없습니다.");
+            }
+            employeePayItemRepository.save(EmployeePayItem.builder()
+                    .employeeId(employeeId).payItem(item(in.payItemId())).amount(in.amount()).build());
+        }
+        return findEmployeePayItems(employeeId);
+    }
+
+    /** 급여계산용 — 이 사원이 [급여지급사항]에 넣어 둔 항목 id → 금액. */
+    @Transactional(readOnly = true)
+    public java.util.Map<Long, BigDecimal> employeeAmounts(Long employeeId) {
+        var m = new java.util.LinkedHashMap<Long, BigDecimal>();
+        for (EmployeePayItem e : employeePayItemRepository.findWithItemByEmployeeId(employeeId)) {
+            m.put(e.getPayItem().getId(), e.getAmount());
+        }
+        return m;
     }
 
     // ── 내부 ──────────────────────────────────────────────────────────

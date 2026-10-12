@@ -174,4 +174,13 @@ public final class PaySettingDtos {
                             .toList());
         }
     }
+
+    /** 원본 사원등록 [급여지급사항] 한 칸 — 수당·공제항목과 이 사원의 금액(일급·시급수당은 단가). */
+    public record EmployeePayItemInput(
+            @jakarta.validation.constraints.NotNull(message = "항목을 고르세요.") Long payItemId,
+            @jakarta.validation.constraints.NotNull(message = "금액을 입력하세요.")
+            @jakarta.validation.constraints.PositiveOrZero(message = "금액은 0 이상이어야 합니다.") BigDecimal amount
+    ) {}
+
+    public record EmployeePayItemResponse(Long payItemId, String payItemName, BigDecimal amount) {}
 }
