@@ -13,15 +13,19 @@ interface JournalListResponse {
 }
 import { INQUIRY_FULL_PICKS, ymd } from '../../components/EcPeriodPicks'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
-import { dateText } from '../../utils/dateText'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const firstOfYear = () => `${new Date().getFullYear()}-01-01`
 const today = () => ymd(new Date())
 
-const SRC_COLOR: Record<string, string> = {
-  SALES: 'var(--ec-blue)', PURCHASE: '#a5561b', EXPENSE: '#7a4fb5', MANUAL: 'var(--ec-label)',
+/** 원본 [전표번호] 모양 — GL-20261012-0002 → 26/10/12-2 (회계거래조회 실측). */
+function slipNo(docNo: string) {
+  const m = /^[A-Z]+-(\d{2})(\d{2})(\d{2})(\d{2})-0*(\d+)$/.exec(docNo)
+  return m ? `${m[2]}/${m[3]}/${m[4]}-${m[5]}` : docNo
 }
+
+/** 원본 [거래유형] 이름 — 판매 회계반영은 '매출전표 I', 구매는 '매입전표 I', 직접 입력은 '일반전표'. */
+const TYPE_NAME: Record<string, string> = { SALES: '매출전표 I', PURCHASE: '매입전표 I', MANUAL: '일반전표' }
 
 /** 회계전표 조회 — 판매/구매 회계반영으로 생성된 분개(차변/대변)를 전표 단위로 조회. */
 export default function JournalListPage() {
@@ -35,6 +39,12 @@ export default function JournalListPage() {
   const wanted = Number(params.get('entryId')) || null
 
   const [rows, setRows] = useState<JournalEntry[]>([])
+  /** 간편전표 분개 → 그 결의서 종류(지출결의서 · 입금보고서 · 가지급금정산서). 원본 [거래유형]이 그 이름이다. */
+  const [voucherType, setVoucherType] = useState<Record<number, string>>({})
+  const typeLabel = (r: JournalEntry) => voucherType[r.id] ?? TYPE_NAME[r.sourceType] ?? r.sourceTypeName
+  /* 원본 줄 색: 매출전표 분홍 · 매입전표 연두(td.danger · td.success). */
+  const rowBg = (r: JournalEntry) => r.sourceType === 'SALES' ? 'bg-[var(--ec-bg-sales-row)]'
+    : r.sourceType === 'PURCHASE' ? 'bg-[var(--ec-bg-basic)]' : ''
   const [from, setFrom] = useState(firstOfYear())
   const [to, setTo] = useState(today())
   const [openId, setOpenId] = useState<number | null>(wanted)
@@ -62,6 +72,9 @@ export default function JournalListPage() {
     api.get<JournalListResponse>('/journals', { params })
       .then((r) => { setRows(r.data.rows); setTotalRows(r.data.totalRows); setTruncated(r.data.truncated) })
       .catch((err) => { setError(extractErrorMessage(err)); setRows([]); setTotalRows(0); setTruncated(false) })
+    api.get<{ rows: { journalEntryId: number | null; typeName: string }[] }>('/vouchers', { params: { ...(range ?? { from, to }), all: true } })
+      .then((r) => setVoucherType(Object.fromEntries(r.data.rows.filter((v) => v.journalEntryId).map((v) => [v.journalEntryId!, v.typeName]))))
+      .catch(() => setVoucherType({}))
   }
 
   useEffect(() => {
@@ -133,30 +146,33 @@ export default function JournalListPage() {
         <thead>
           <tr>
             <th className="w-[34px]"></th>
-            <th>전표번호</th><th>일자</th><th>적요</th><th>거래처</th><th>출처</th>
-            <th className="text-right">차변합</th><th className="text-right">대변합</th>
-            <th className="text-center">대차</th>
+            {/* 원본 회계거래조회 격자(2026-10-12 실측): 전표번호 · 거래유형 · 금액 · 거래처명 · 적요. 일자는 전표번호(26/10/12-2)가 든다. */}
+            <th>전표번호</th><th>거래유형</th>
+            <th className="text-right">금액</th><th>거래처명</th><th>적요</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={9} className="text-center text-ec-hint p-[20px]">조회된 회계전표가 없습니다. (판매/구매 화면에서 회계반영하면 생성됩니다)</td></tr>
+            <tr><td colSpan={6} className="text-center text-ec-hint p-[20px]">조회된 회계전표가 없습니다. (판매/구매 화면에서 회계반영하면 생성됩니다)</td></tr>
           ) : shown.map((r, i) => (
             <Fragment key={r.id}>
-              <tr onClick={() => setOpenId(openId === r.id ? null : r.id)} className="cursor-pointer">
+              <tr onClick={() => setOpenId(openId === r.id ? null : r.id)} className={`cursor-pointer ${rowBg(r)}`}>
                 <td className="text-center text-ec-hint">{i + 1}</td>
-                <td className="text-ec-blue font-semibold">{openId === r.id ? '▾ ' : '▸ '}{r.docNo}</td>
-                <td>{dateText(r.entryDate)}</td>
-                <td>{r.description}</td>
+                <td>
+                  {/* 원본: 전표번호를 누르면 그 전표의 입력 화면(지출결의서 · 입금보고서 …)이 열린다. 우리는 결의서만 열고 나머지는 분개를 펼친다. */}
+                  <a className="text-ec-navy cursor-pointer" title={r.docNo}
+                     onClick={(e) => { if (voucherType[r.id]) { e.stopPropagation(); navigate(`/accounting/vouchers?journal=${r.id}`) } }}>
+                    {slipNo(r.docNo)}
+                  </a>
+                </td>
+                <td>{typeLabel(r)}</td>
+                <td className="text-right">{won(r.totalDebit)}</td>
                 <td>{r.partnerName ?? ''}</td>
-                <td><span style={{ color: SRC_COLOR[r.sourceType], fontSize: 11.5 }}>{r.sourceTypeName}</span></td>
-                <td className="text-right font-bold">{won(r.totalDebit)}</td>
-                <td className="text-right font-bold">{won(r.totalCredit)}</td>
-                <td className="text-center">{r.balanced ? <span className="text-ec-success">✓</span> : <span className="text-ec-danger">✗</span>}</td>
+                <td>{r.description}</td>
               </tr>
               {openId === r.id && (
                 <tr className="no-ec">
-                  <td colSpan={9} className="p-0 bg-ec-page">
+                  <td colSpan={6} className="p-0 bg-ec-page">
                     <table className="w-full text-left my-[4px] mx-0">
                       <thead>
                         <tr><th className="w-[34px]"></th><th>계정코드</th><th>계정과목</th><th>적요</th><th className="text-right">차변</th><th className="text-right">대변</th></tr>
@@ -174,11 +190,6 @@ export default function JournalListPage() {
                         ))}
                       </tbody>
                     </table>
-                    {/* 원본 회계거래조회는 지출결의서 · 입금보고서 전표를 누르면 그 결의서를 열어 고치고 지운다. */}
-                    {(r.sourceType as string) === 'VOUCHER' && (
-                      <button type="button" className="ec-btn ec-btn-sm mb-[4px]"
-                              onClick={() => navigate(`/accounting/vouchers?journal=${r.id}`)}>결의서 열기</button>
-                    )}
                   </td>
                 </tr>
               )}
@@ -187,10 +198,9 @@ export default function JournalListPage() {
         </tbody>
         <tfoot>
           <tr className="font-bold bg-ec-page">
-            <td colSpan={6} className="text-right">합계 ({shown.length}건)</td>
+            <td colSpan={3} className="text-right">합계 ({shown.length}건)</td>
             <td className="text-right">{won(total)}</td>
-            <td className="text-right">{won(total)}</td>
-            <td></td>
+            <td colSpan={2}></td>
           </tr>
         </tfoot>
       </table>
