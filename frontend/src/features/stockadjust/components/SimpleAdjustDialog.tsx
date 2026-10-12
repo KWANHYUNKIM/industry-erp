@@ -21,7 +21,12 @@ import type { Item, StockRow, Warehouse } from '../../../types/api'
  * '요청된 [간편재고조정] 작업이 완료되었습니다.' (실측: 포장김치 본사창고 348 → 350, 재고조정조회 '간편 · 26/10/13-1 · -2').
  *
  * <p>기준일자는 열면 <b>전월 말일</b>이다(10/13 에 열어 2026/09/30, [전월]을 눌러도 같은 날) — 빠른선택은 그 기간의 끝날을 고른다.
- * [기타] 다섯 중 [대표품목환산수량합계](기본 켜짐)는 아직 없다 — 대표품목으로 묶어 세는 표를 따로 재지 않았다.
+ * 빠른선택 끝의 <b>[종료일]</b>은 기준일자를 그대로 두고 찾는다(2026-10-13 실측: 09/30 에서 눌러 09/30, [금일]로 10/13 을 만든 뒤 눌러 10/13).
+ * 기간 화면의 [종료일]이 '끝날만 오늘로' 인 것과 달리, 하루를 고르는 이 창에서는 그 하루가 곧 끝날이다.
+ *
+ * <p>[기타] 다섯 중 [대표품목환산수량합계](기본 켜짐)는 아직 없다 — 2026-10-13 원본에서 끄고 다시 찾아도 표가 한 줄도 안 바뀌었다
+ * (loginaa 품목에 대표품목이 걸린 것이 없다). 무엇을 바꾸는지 못 봤으니 지어내지 않는다.
+ * 조건 판의 [기본 · 전체] 탭은 두 쪽 조건이 같다(기준일자 · 창고 · 품목코드 · 기타) — 탭 없이 한 판으로 둔다.
  */
 const PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월'] as const
 const qty = (n: number) => (n ? n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '')
@@ -150,6 +155,7 @@ export default function SimpleAdjustDialog({ open, onClose, onDone }: { open: bo
           {PICKS.map((p) => (
             <button key={p} type="button" className="ec-btn" onClick={() => { const d = periodOf(p)?.to ?? ymd(new Date()); setDate(d); void search(d) }}>{p}</button>
           ))}
+          <button type="button" className="ec-btn" onClick={() => void search()}>종료일</button>
           <button type="button" className="ec-btn" onClick={() => { setDate(periodOf('전월')!.to); setWarehouse(''); setItem(''); setInclUntracked(false); setInclZeroWh(true); setInclZeroItem(false); setInclInactive(true) }}>다시 작성</button>
         </div>
         {notice && <p className="ec-alert ec-alert-success mb-[8px]">{notice}</p>}
