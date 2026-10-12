@@ -30,6 +30,7 @@ public class LotService {
     private final ItemRepository itemRepository;
     private final WarehouseRepository warehouseRepository;
     private final LotTransactionRepository lotTxRepository;
+    private final com.erp.inventory.project.ProjectService projectService;
 
     @Transactional(readOnly = true)
     public List<LotTransactionResponse> transactions() {
@@ -221,6 +222,85 @@ public class LotService {
             if (lotTxRepository.countByLot(lot) == 0) lotRepository.delete(lot);
         }
         lotRepository.flush();
+    }
+
+    /**
+     * 원본 '시리얼/로트No.내역입력' [전표구분] 의 차례와 로트 재고 방향(2026-10-12 실측: 구매 3 → 로트 재고 +3, 판매 3 → −3,
+     * 견적 3 → 그대로. 지우면 되돌아간다). 나머지는 재지 못해 품목 재고에서 그 전표가 하는 쪽을 따른다 —
+     * 들어오는 것(생산입고) +, 나가는 것(출하 · 생산소모 · 생산불출 · 자가사용 · 불량-폐기 · 불량-품목대체(불량품목)) −,
+     * 재고가 움직이지 않는 것(견적 · 주문 · 출하지시 · 발주 · A/S · 창고이동 · 정상사용 · 품질검사 · Invoice) 0.
+     */
+    public static final Map<String, Integer> MANUAL_DOC_SIGN = new java.util.LinkedHashMap<>();
+    static {
+        String[][] t = {
+            {"견적", "0"}, {"주문", "0"}, {"판매", "-1"}, {"출하지시", "0"}, {"출하", "-1"}, {"발주", "0"}, {"구매", "1"},
+            {"생산입고", "1"}, {"생산소모", "-1"}, {"A/S접수", "0"}, {"A/S수리", "0"}, {"창고이동", "0"}, {"생산불출", "-1"},
+            {"자가사용", "-1"}, {"불량-품목대체(불량품목)", "-1"}, {"불량-품목대체(정상품목)", "1"}, {"불량-정상사용", "0"},
+            {"불량-폐기", "-1"}, {"품질검사요청", "0"}, {"품질검사", "0"}, {"Invoice/Packing List", "0"},
+        };
+        for (String[] r : t) MANUAL_DOC_SIGN.put(r[0], Integer.parseInt(r[1]));
+    }
+
+    /** 원본 [신규(F2)] 내역입력 저장 — 등록된 로트여야 하고 그 품목의 로트여야 한다. 로트 재고를 전표구분 방향으로 움직인다. */
+    @Transactional
+    public LotTransactionResponse createManual(LotDtos.ManualTxRequest req) {
+        Integer sign = MANUAL_DOC_SIGN.get(req.docType());
+        if (sign == null) throw ApiException.badRequest("전표구분을 선택하세요.");
+        Lot lot = lotRepository.findByLotNo(req.lotNo().trim())
+                .orElseThrow(() -> ApiException.badRequest("등록되지 않은 시리얼/로트No. 입니다: " + req.lotNo()));
+        if (!lot.getItem().getId().equals(req.itemId())) {
+            throw ApiException.badRequest("시리얼/로트No. " + lot.getLotNo() + " 은(는) 다른 품목("
+                    + lot.getItem().getName() + ")의 것입니다.");
+        }
+        Warehouse wh = warehouseRepository.findById(req.warehouseId())
+                .orElseThrow(() -> ApiException.badRequest("창고를 찾을 수 없습니다."));
+        BigDecimal change = req.quantity().multiply(BigDecimal.valueOf(sign));
+        lot.setStockQty(lot.getStockQty().add(change));
+        LotTransaction t = lotTxRepository.save(LotTransaction.builder()
+                .lot(lot).txDate(req.txDate() != null ? req.txDate() : LocalDate.now())
+                .type(sign > 0 ? LotTxType.INBOUND : sign < 0 ? LotTxType.OUTBOUND : LotTxType.ADJUST)
+                /* 재고가 움직이지 않는 전표구분(견적 …)도 줄의 수량은 남긴다 — 원본 목록이 3.00 을 찍는다. */
+                .quantityChange(sign == 0 ? req.quantity() : change).balanceAfter(lot.getStockQty())
+                .note(blank(req.note())).docType(req.docType()).manual(true)
+                .warehouse(wh)
+                .project(req.projectId() == null ? null : projectService.get(req.projectId()))
+                .partnerName(blank(req.partnerName())).chargeName(blank(req.chargeName())).mgmtName(blank(req.mgmtName()))
+                .build());
+        return LotTransactionResponse.from(t);
+    }
+
+    /** 내역입력 고치기 — 원본 수정 창은 [일자] · [전표구분] 을 잠근다. 예전 수량을 되돌리고 새로 적는다. */
+    @Transactional
+    public LotTransactionResponse updateManual(Long id, LotDtos.ManualTxRequest req) {
+        LotTransaction old = lotTxRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("시리얼/로트No.내역을 찾을 수 없습니다. id=" + id));
+        if (!old.isManual()) throw ApiException.badRequest("전표에서 생긴 내역은 그 전표에서 고칩니다.");
+        LocalDate date = old.getTxDate();
+        String docType = old.getDocType();
+        deleteManual(List.of(id));
+        lotTxRepository.flush();
+        return createManual(new LotDtos.ManualTxRequest(date, docType, req.warehouseId(), req.itemId(), req.quantity(),
+                req.lotNo(), req.partnerName(), req.mgmtName(), req.chargeName(), req.projectId(), req.note()));
+    }
+
+    /** 원본 목록 [선택삭제] — 손으로 넣은 줄만. 지우면 로트 재고가 되돌아간다. */
+    @Transactional
+    public void deleteManual(List<Long> ids) {
+        for (Long id : ids) {
+            LotTransaction t = lotTxRepository.findById(id)
+                    .orElseThrow(() -> ApiException.notFound("시리얼/로트No.내역을 찾을 수 없습니다. id=" + id));
+            if (!t.isManual()) {
+                throw ApiException.badRequest("[" + (t.getDocType() != null ? t.getDocType() : t.getType().getDisplayName())
+                        + "] 에서 생긴 내역은 그 전표(화면)에서 지웁니다.");
+            }
+            Integer sign = MANUAL_DOC_SIGN.getOrDefault(t.getDocType(), 0);
+            if (sign != 0) t.getLot().setStockQty(t.getLot().getStockQty().subtract(t.getQuantityChange()));
+            lotTxRepository.delete(t);
+        }
+    }
+
+    private static String blank(String v) {
+        return v == null || v.isBlank() ? null : v.trim();
     }
 
     private void recordTx(Lot lot, LotTxType type, BigDecimal change, BigDecimal balanceAfter, String note) {

@@ -8,9 +8,11 @@ import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.time.LocalDate;
 
 public final class LotDtos {
@@ -51,7 +53,10 @@ public final class LotDtos {
             BigDecimal quantityChange, BigDecimal balanceAfter,
             String note, String createdBy,
             /* 원본 [전표구분] · [연결전표-No.] — 전표가 남긴 줄이면 '구매' · 'PO-…', 직접 남긴 줄이면 null. */
-            String docType, Long sourceId, String sourceNo, String partnerName
+            String docType, Long sourceId, String sourceNo, String partnerName,
+            /* [신규(F2)] 내역입력으로 손으로 넣은 줄과 그 창의 칸 — 그 줄만 목록에서 열어 고치고 [선택삭제] 로 지운다. */
+            boolean manual, Long txWarehouseId, String txWarehouseName, Long projectId, String projectName,
+            String chargeName, String mgmtName
     ) {
         public static LotTransactionResponse from(LotTransaction t) {
             Lot l = t.getLot();
@@ -65,7 +70,13 @@ public final class LotDtos {
                     t.getTxDate(), t.getType(), t.getType().getDisplayName(),
                     t.getQuantityChange(), t.getBalanceAfter(),
                     t.getNote(), t.getCreatedBy(),
-                    t.getDocType(), t.getSourceId(), t.getSourceNo(), t.getPartnerName());
+                    t.getDocType(), t.getSourceId(), t.getSourceNo(), t.getPartnerName(),
+                    t.isManual(),
+                    t.getWarehouse() != null ? t.getWarehouse().getId() : null,
+                    t.getWarehouse() != null ? t.getWarehouse().getName() : null,
+                    t.getProject() != null ? t.getProject().getId() : null,
+                    t.getProject() != null ? t.getProject().getName() : null,
+                    t.getChargeName(), t.getMgmtName());
         }
     }
 
@@ -78,6 +89,26 @@ public final class LotDtos {
             LocalDate expireDate,
             @NotNull(message = "입고수량을 입력하세요.") @Positive(message = "입고수량은 0보다 커야 합니다.") BigDecimal inboundQty
     ) {}
+
+    /**
+     * 원본 '시리얼/로트No.내역입력' 창(2026-10-12 실측). 빈 칸으로 저장하면 [창고 · 품목코드 · 수량 · 시리얼/로트No.] 네 칸이
+     * 빨개진다 — 그 넷이 필수다. 시리얼/로트No. 는 코드도움(등록된 로트)에서 고른다.
+     */
+    public record ManualTxRequest(
+            LocalDate txDate,
+            @NotBlank(message = "전표구분을 선택하세요.") @Size(max = 30, message = "전표구분은 30자까지 넣을 수 있습니다.") String docType,
+            @NotNull(message = "창고를 입력하세요.") Long warehouseId,
+            @NotNull(message = "품목코드를 입력하세요.") Long itemId,
+            @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
+            @NotBlank(message = "시리얼/로트No.를 입력하세요.") @Size(max = 50, message = "시리얼/로트No.은(는) 50자까지 넣을 수 있습니다.") String lotNo,
+            @Size(max = 100, message = "거래처는 100자까지 넣을 수 있습니다.") String partnerName,
+            @Size(max = 100, message = "관리항목은 100자까지 넣을 수 있습니다.") String mgmtName,
+            @Size(max = 50, message = "담당자는 50자까지 넣을 수 있습니다.") String chargeName,
+            Long projectId,
+            @Size(max = 300, message = "적요는 300자까지 넣을 수 있습니다.") String note
+    ) {}
+
+    public record DeleteTxRequest(@NotEmpty(message = "리스트에 선택된 자료가 없습니다.") List<Long> ids) {}
 
     public record ConsumeLotRequest(
             @NotNull(message = "출고수량을 입력하세요.") @Positive(message = "출고수량은 0보다 커야 합니다.") BigDecimal qty

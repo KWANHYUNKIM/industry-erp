@@ -51,6 +51,25 @@ public class LotController {
         return ResponseEntity.ok(lotService.create(req));
     }
 
+    /** 원본 시리얼/로트No.내역조회 [신규(F2)] — '시리얼/로트No.내역입력'. */
+    @PostMapping("/transactions")
+    public LotTransactionResponse createManual(@Valid @RequestBody com.erp.inventory.lot.dto.LotDtos.ManualTxRequest req) {
+        return lotService.createManual(req);
+    }
+
+    @PutMapping("/transactions/{id}")
+    public LotTransactionResponse updateManual(@PathVariable Long id,
+                                               @Valid @RequestBody com.erp.inventory.lot.dto.LotDtos.ManualTxRequest req) {
+        return lotService.updateManual(id, req);
+    }
+
+    /** 원본 목록 [선택삭제] — 손으로 넣은 줄만 지운다. */
+    @PostMapping("/transactions/delete")
+    public ResponseEntity<Void> deleteManual(@Valid @RequestBody com.erp.inventory.lot.dto.LotDtos.DeleteTxRequest req) {
+        lotService.deleteManual(req.ids());
+        return ResponseEntity.noContent().build();
+    }
+
     @PatchMapping("/{id}/consume")
     public LotResponse consume(@PathVariable Long id, @Valid @RequestBody ConsumeLotRequest req) {
         return lotService.consume(id, req);

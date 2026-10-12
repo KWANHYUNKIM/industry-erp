@@ -64,4 +64,26 @@ public class LotTransaction extends BaseTimeEntity {
 
     @Column(name = "created_by", length = 50)
     private String createdBy;
+
+    /*
+     * 원본 [신규(F2)] '시리얼/로트No.내역입력' 창으로 손으로 넣은 줄(2026-10-12 실측) — 연결전표 없이 [전표구분] 만 든다.
+     * 그 줄만 목록 [선택삭제] 로 지운다. 창의 [창고] · [프로젝트] · [담당자] · [관리항목] 도 그 줄에만 있다.
+     */
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean manual = false;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "warehouse_id")
+    private com.erp.inventory.warehouse.Warehouse warehouse;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id")
+    private com.erp.inventory.project.Project project;
+
+    @Column(name = "charge_name", length = 50)
+    private String chargeName;
+
+    @Column(name = "mgmt_name", length = 100)
+    private String mgmtName;
 }

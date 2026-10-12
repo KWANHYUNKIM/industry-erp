@@ -1544,6 +1544,14 @@ export interface LotTransaction {
   sourceId: number | null
   sourceNo: string | null
   partnerName: string | null
+  /** [신규(F2)] 내역입력으로 손으로 넣은 줄 — 그 줄만 열어 고치고 [선택삭제] 로 지운다. */
+  manual: boolean
+  txWarehouseId: number | null
+  txWarehouseName: string | null
+  projectId: number | null
+  projectName: string | null
+  chargeName: string | null
+  mgmtName: string | null
 }
 
 // ===== 고객관리(CRM) =====
