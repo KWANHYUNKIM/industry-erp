@@ -44,6 +44,12 @@ public class PayrollController {
         return ResponseEntity.ok(service.create(req, principal.getUsername()));
     }
 
+    /** 급여계산/대장 [일괄수정] — 급여내역수정 격자에서 고친 금액을 저장한다(세금을 다시 셈하지 않는다). */
+    @PutMapping("/amounts")
+    public List<PayslipResponse> updateAmounts(@Valid @RequestBody PayrollDtos.AmountEditRequest req) {
+        return service.updateAmounts(req.edits());
+    }
+
     @PostMapping("/{id}/confirm")
     public PayslipResponse confirm(@PathVariable Long id) {
         return service.confirm(id);

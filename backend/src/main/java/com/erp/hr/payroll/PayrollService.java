@@ -198,6 +198,39 @@ public class PayrollService {
         return PayslipResponse.from(p);
     }
 
+    /**
+     * 원본 [일괄수정] '급여내역수정'(2026-10-12 실측): 칸을 고치면 지급총액 · 공제총액 · 실지급액만 합으로 바뀌고
+     * 소득세 · 4대보험은 다시 셈하지 않는다. "금액을 직접 수정할 경우 해당 급여대장에만 적용되며 재계산시
+     * 수정내역이 유지되지 않습니다." — 그래서 사원 마스터는 건드리지 않는다. 0 으로 고친 줄은 지운다.
+     */
+    @Transactional
+    public List<PayslipResponse> updateAmounts(List<com.erp.hr.payroll.dto.PayrollDtos.AmountEdit> edits) {
+        List<PayslipResponse> out = new java.util.ArrayList<>();
+        for (var e : edits) {
+            Payslip p = getPayslip(e.payslipId());
+            if (p.getStatus() == PayslipStatus.CONFIRMED) {
+                throw ApiException.badRequest(p.getEmployee().getName() + "의 급여는 확정되어 수정할 수 없습니다.");
+            }
+            p.setBaseSalary(e.baseSalary());
+            for (var c : e.cells() == null ? List.<com.erp.hr.payroll.dto.PayrollDtos.AmountCell>of() : e.cells()) {
+                List<PayslipLine> same = p.getLines().stream()
+                        .filter(l -> l.getKind() == c.kind() && l.getName().equals(c.name().trim())).toList();
+                if (!same.isEmpty()) {
+                    same.get(0).setAmount(c.amount());
+                    same.stream().skip(1).forEach(p.getLines()::remove);
+                    if (c.amount().signum() == 0) p.getLines().remove(same.get(0));
+                } else if (c.amount().signum() != 0) {
+                    p.addLine(PayslipLine.builder().kind(c.kind()).name(c.name().trim()).amount(c.amount())
+                            .auto(false).taxable(c.kind() == PayslipLineKind.ALLOWANCE).build());
+                }
+            }
+            for (int i = 0; i < p.getLines().size(); i++) p.getLines().get(i).setLineNo(i + 1);
+            p.recalculate();
+            out.add(PayslipResponse.from(p));
+        }
+        return out;
+    }
+
     @Transactional
     public void delete(Long id) {
         Payslip p = getPayslip(id);

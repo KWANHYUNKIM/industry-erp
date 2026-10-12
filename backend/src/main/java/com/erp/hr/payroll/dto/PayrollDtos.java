@@ -15,6 +15,25 @@ public final class PayrollDtos {
 
     private PayrollDtos() {}
 
+    /** 원본 급여계산/대장 [일괄수정] '급여내역수정' 격자의 칸 하나 — 항목 이름 그대로(기본급은 따로). */
+    public record AmountCell(
+            @NotNull(message = "지급·공제 구분을 선택하세요.") PayslipLineKind kind,
+            @NotBlank(message = "항목명을 입력하세요.") @Size(max = 100, message = "항목명은 100자까지 넣을 수 있습니다.") String name,
+            @NotNull(message = "금액을 입력하세요.") @jakarta.validation.constraints.PositiveOrZero(message = "금액은 0 이상이어야 합니다.") BigDecimal amount
+    ) {}
+
+    /** [일괄수정] 사원(명세) 한 줄 — 기본급과 고친 칸들. 지급총액 · 공제총액 · 실지급액은 서버가 합으로 다시 낸다. */
+    public record AmountEdit(
+            @NotNull(message = "급여명세를 고르세요.") Long payslipId,
+            @NotNull(message = "기본급을 입력하세요.") @jakarta.validation.constraints.PositiveOrZero(message = "기본급은 0 이상이어야 합니다.") BigDecimal baseSalary,
+            @jakarta.validation.Valid List<AmountCell> cells
+    ) {}
+
+    /** [일괄수정] [저장(F8)] — 대상자로 고른 사원들의 명세. */
+    public record AmountEditRequest(
+            @NotNull(message = "수정할 급여를 고르세요.") @jakarta.validation.Valid List<AmountEdit> edits
+    ) {}
+
     /** 수당/공제 수동 항목 입력 */
     public record LineInput(
             @NotNull(message = "지급·공제 구분을 선택하세요.") PayslipLineKind kind,
