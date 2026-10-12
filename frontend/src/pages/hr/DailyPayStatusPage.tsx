@@ -6,6 +6,21 @@ import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcRep
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import { lastDay, monthRange, slashYm, won, type DailyReportLine } from '../../features/dailypay/report'
+import { CustomAggregateConds, CustomAggregateTable, EMPTY_AGG, type AggDim, type AggRecord, type AggState, type AggTarget } from '../../features/payroll/components/CustomAggregate'
+
+type Mode = '라인별' | '사용자지정집계'
+/**
+ * 원본 사용자지정집계 '집계조건검색'(2026-10-13 실측) — 귀속연월(월별 · 연별) · 급여정보(급여대장 · 부서 · 사원 · 프로젝트 · 지급구분) ·
+ * 사원정보(부서 · 프로젝트). 급여대장의 코드 열은 '귀속연월-NO'(2026/10-1), 지급구분은 00001 · 1차수, 월별은 코드 열이 없다.
+ * 일용 급여 줄에 프로젝트가 없어 프로젝트는 뺐다. 급여정보 부서 · 사원정보 부서는 둘 다 일용근로 사원의 지금 부서다.
+ */
+const AGG_DIMS: AggDim[] = [
+  { key: 'month', label: '월별', group: '귀속연월', codeLabel: null }, { key: 'year', label: '연별', group: '귀속연월', codeLabel: null },
+  { key: 'ledger', label: '급여대장', group: '급여정보', codeLabel: '귀속연월-NO' }, { key: 'dept', label: '부서', group: '급여정보' },
+  { key: 'emp', label: '사원', group: '급여정보' }, { key: 'payKind', label: '지급구분', group: '급여정보' },
+  { key: 'empDept', label: '부서', group: '사원정보' },
+]
+const days2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 /**
  * 관리 &gt; 일용근로급여관리 &gt; 일용근로 급여작업 &gt; <b>일용근로 급여현황</b> (원본 E020753).
@@ -14,9 +29,17 @@ import { lastDay, monthRange, slashYm, won, type DailyReportLine } from '../../f
  * 지급구분 · 부서 · 사원 · 확정여부(전체 · 미확정 · 확정). 결과 머리 '급여현황' · 회사명 · 기간, 격자 귀속연월-NO · 급여대장명 ·
  * 최종근무일 · 부서명 · 프로젝트명 · 성명 · 지급총액 · 공제총액 · 실지급액, 대장마다 '2026/07-1 계' 소계와 합계.
  * 빠른선택 전월 · 전월+금월 · 금년 · 전년 · 금월. 지급연월([사용]) · 부서 · 사원(여러 개 고르는 코드도움)을 거른다.
- * 구분은 라인별만, 지급구분 · 프로젝트명 · 사용자지정집계 · 결재방표시는 없다.
+ * 구분은 라인별 · 사용자지정집계(급여대장별부서별 · 급여대장별부서별라인별은 아직 없다), 지급구분 · 프로젝트명 · 결재방표시는 없다.
+ *
+ * <p>[사용자지정집계](2026-10-13 loginaa 실측 — 일용 대장 2026/10-1 에 잠깐만 2일 300,000 · 나일당 3일 300,000):
+ * 집계대상 수당금액(전체) · 지급총액 · 공제금액(전체) · 공제총액 · 실지급액 · <b>총근무일수</b>(급여현황에 없는 것, 2.00 꼴).
+ * 수당금액(전체)는 수당항목 열 '일근무', 공제금액(전체)는 값이 있는 공제 항목만(그날은 세금이 0 이라 열이 없었다).
+ * 사원 / 전부 · 비율 · 코드포함 → 사원코드 · 사원 · 일근무 · 일근무비율 · 지급총액 … 총근무일수비율(40 · 60), 합계 600,000 · 100 · 5.00.
+ * 결과 머리 제목은 '일용근로 급여현황'(라인별은 '급여현황').
  */
 export default function DailyPayStatusPage() {
+  const [mode, setMode] = useState<Mode>('라인별')
+  const [agg, setAgg] = useState<AggState>(EMPTY_AGG)
   const [range, setRange] = useState(monthRange('전월+금월'))
   const [shown, setShown] = useState(range)
   const [usePaid, setUsePaid] = useState(false)
@@ -53,9 +76,40 @@ export default function DailyPayStatusPage() {
   }), { gross: 0, ded: 0, net: 0 })
   const total = sum(list)
 
+  const deductCols = (['소득세', '지방소득세'] as const).filter((c) => list.some((r) => Number(c === '소득세' ? r.incomeTax : r.localTax)))
+  const aggTargets: AggTarget[] = [
+    { key: 'allow', label: '수당금액(전체)', cols: ['일근무'] }, { key: 'gross', label: '지급총액' },
+    { key: 'deduct', label: '공제금액(전체)', cols: deductCols }, { key: 'deductTotal', label: '공제총액' },
+    { key: 'net', label: '실지급액' }, { key: 'days', label: '총근무일수', format: days2 },
+  ]
+  const deptCode = (name: string) => depts.find((d) => d.name === name)?.code ?? name
+  const aggRecords: AggRecord[] = list.map((r) => {
+    const dept = { code: deptCode(r.department), name: r.department }
+    return {
+      dims: {
+        month: { code: r.payMonth, name: slashYm(r.payMonth) },
+        year: { code: r.payMonth.slice(0, 4), name: r.payMonth.slice(0, 4) },
+        ledger: { code: `${slashYm(r.payMonth)}-${r.seq}`, name: r.ledgerName },
+        dept, empDept: dept,
+        emp: { code: r.workerCode, name: r.workerName },
+        payKind: { code: String(r.seq).padStart(5, '0'), name: `${r.seq}차수` },
+      },
+      values: {
+        일근무: Number(r.grossPay), 지급총액: Number(r.grossPay), 소득세: Number(r.incomeTax), 지방소득세: Number(r.localTax),
+        공제총액: Number(r.incomeTax) + Number(r.localTax), 실지급액: Number(r.netPay), 총근무일수: Number(r.days),
+      },
+    }
+  })
+
   return (
     <EcListShell title="일용근로 급여현황" searchable={false} collapseConditions={false} actions={[{ label: '인쇄' }, { label: 'Excel' }]}>
       <ul className="ec-cond mb-[8px]">
+        <EcCond label="구분">
+          {(['라인별', '사용자지정집계'] as const).map((m) => (
+            <label key={m} className="mr-[10px]"><input type="radio" name="dps-mode" checked={mode === m} onChange={() => setMode(m)} /> {m}</label>
+          ))}
+          {mode === '사용자지정집계' && <CustomAggregateConds dims={AGG_DIMS} targets={aggTargets} value={agg} onChange={setAgg} />}
+        </EcCond>
         <EcCond label="귀속연월">
           <input type="month" className="ec-input w-[140px]" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
           ~
@@ -96,7 +150,10 @@ export default function DailyPayStatusPage() {
         ))}
       </div>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
-      <EcReportHead title="급여현황" period={reportPeriod(`${shown.from}-01`, lastDay(shown.to))} />
+      <EcReportHead title={mode === '사용자지정집계' ? '일용근로 급여현황' : '급여현황'} period={reportPeriod(`${shown.from}-01`, lastDay(shown.to))} />
+      {mode === '사용자지정집계' ? (
+        <CustomAggregateTable name="일용근로 급여현황" dims={AGG_DIMS} targets={aggTargets} records={aggRecords} agg={agg} />
+      ) : (
       <div className="overflow-x-auto">
         <table ref={tableRef} className="w-full text-left">
           <thead>
@@ -152,6 +209,7 @@ export default function DailyPayStatusPage() {
           </tbody>
         </table>
       </div>
+      )}
       <EcReportFoot />
     </EcListShell>
   )

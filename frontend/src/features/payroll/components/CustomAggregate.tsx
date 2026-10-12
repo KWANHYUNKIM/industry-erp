@@ -1,10 +1,14 @@
 import { useRef, type ReactNode } from 'react'
 import { useTableColumnCheck } from '../../../utils/assertTableColumns'
 
-/** 집계조건 하나 — 원본 '집계조건검색' 창의 갈래(귀속연월 · 급여정보 · 사원정보 …) 아래 항목. */
-export interface AggDim { key: string; label: string; group: string }
-/** 집계대상 하나 — cols 가 있으면 그 열들로 펼친다(수당금액(전체) → 기본급 · 식대 …). */
-export interface AggTarget { key: string; label: string; cols?: string[] }
+/**
+ * 집계조건 하나 — 원본 '집계조건검색' 창의 갈래(귀속연월 · 급여정보 · 사원정보 …) 아래 항목.
+ * codeLabel 은 [코드포함] 일 때 코드 열 머리(기본 '<이름>코드'), null 이면 코드 열이 없다
+ * (2026-10-13 일용근로 급여현황 실측: 급여대장 → '귀속연월-NO' 2026/10-1, 월별 → 코드 열 없음).
+ */
+export interface AggDim { key: string; label: string; group: string; codeLabel?: string | null }
+/** 집계대상 하나 — cols 가 있으면 그 열들로 펼친다(수당금액(전체) → 기본급 · 식대 …). format 은 그 열의 숫자 꼴(기본 쉼표 원). */
+export interface AggTarget { key: string; label: string; cols?: string[]; format?: (n: number) => string }
 /** 집계할 한 건 — 조건마다 코드 · 이름, 열마다 금액. */
 export interface AggRecord { dims: Record<string, { code: string; name: string }>; values: Record<string, number> }
 export interface AggState { conds: string[]; targets: string[]; ratio: boolean; withCode: boolean }
@@ -12,12 +16,13 @@ export const EMPTY_AGG: AggState = { conds: [], targets: [], ratio: false, withC
 
 const MAX_CONDS = 5
 const won = (n: number) => (n ? Number(n).toLocaleString('ko-KR') : '')
+const codeHead = (d: AggDim | undefined, key: string) => (d?.codeLabel === undefined ? `${d?.label ?? key}코드` : d.codeLabel)
 const byCode = (a: string, b: string) => a.localeCompare(b, 'ko', { numeric: true })
 
 /**
  * 원본 현황 화면 [구분] <b>사용자지정집계</b> 의 조건 줄(2026-10-12 loginaa 급여현황 E090115 실측).
  *
- * <p>집계조건1 을 고르면 2 가 열리고 … 5 까지. 이미 고른 조건은 다음 칸 목록에서 빠진다. 집계대상은 여러 개
+ * <p>처음엔 집계조건1 · 2 두 칸, 고를 때마다 한 칸씩 더 열려 5 까지(2026-10-13 일용근로 급여현황 실측: 0개 → 1 · 2, 1개 → 1~3, 3개 → 1~5). 이미 고른 조건은 다음 칸 목록에서 빠진다. 집계대상은 여러 개
  * (수당금액(전체) · 지급총액 · 공제금액(전체) · 공제총액 · 실지급액). 기타 □가로보기 □비율표시 □코드포함.
  * 원본은 조건 · 대상을 코드도움 창에서 고르고 조건마다 [코드순▾] 정렬을 둔다 — 우리는 고름칸 · 체크칸이고 늘 코드순이다.
  * 가로보기는 아직 없다.
@@ -25,7 +30,7 @@ const byCode = (a: string, b: string) => a.localeCompare(b, 'ko', { numeric: tru
 export function CustomAggregateConds({ dims, targets, value, onChange }: {
   dims: AggDim[]; targets: AggTarget[]; value: AggState; onChange: (v: AggState) => void
 }) {
-  const shown = Math.min(MAX_CONDS, value.conds.length + 1)
+  const shown = Math.min(MAX_CONDS, value.conds.length + 2)
   const groups = [...new Set(dims.map((d) => d.group))]
   const setCond = (i: number, key: string) => {
     const next = value.conds.slice(0, i)
@@ -77,6 +82,7 @@ export function CustomAggregateConds({ dims, targets, value, onChange }: {
 type Out =
   | { kind: 'leaf'; key: string; heads: ({ code: string; name: string; span: number } | null)[]; values: number[] }
   | { kind: 'sub'; key: string; level: number; label: string; values: number[] }
+type Leaf = Extract<Out, { kind: 'leaf' }>
 
 /**
  * 사용자지정집계 결과(2026-10-12 원본 실측): 열은 조건마다 [코드 ·] 이름, 대상마다 금액[ · 비율].
@@ -89,59 +95,66 @@ export function CustomAggregateTable({ dims, targets, records, agg: value, name 
 }) {
   const ref = useRef<HTMLTableElement>(null)
   const conds = value.conds.filter((k) => dims.some((d) => d.key === k))
-  const cols = targets.filter((t) => value.targets.includes(t.key)).flatMap((t) => t.cols ?? [t.label])
+  const picked = targets.filter((t) => value.targets.includes(t.key))
+  const cols = picked.flatMap((t) => t.cols ?? [t.label])
+  const fmts = picked.flatMap((t) => (t.cols ?? [t.label]).map(() => t.format ?? won))
   useTableColumnCheck(ref, `${name} 사용자지정집계`, [conds.join(), cols.join(), value.ratio, value.withCode])
 
   const sum = (rs: AggRecord[]) => cols.map((c) => rs.reduce((s, r) => s + (r.values[c] ?? 0), 0))
   const total = sum(records)
   const out: Out[] = []
-  /** 한 갈래를 펼치고 그 갈래가 차지한 줄 수(하위 소계 포함)를 돌려준다. */
-  const walk = (rs: AggRecord[], level: number, prefix: { code: string; name: string }[], path: string): number => {
+  /** 한 갈래를 펼친다 — 마지막 조건마다 한 줄, 그 위 조건이 끝날 때마다 소계 줄. */
+  const walk = (rs: AggRecord[], level: number, prefix: { code: string; name: string }[], path: string): void => {
     const key = conds[level]
     const groups = new Map<string, AggRecord[]>()
     for (const r of [...rs].sort((a, b) => byCode(a.dims[key]?.code ?? '', b.dims[key]?.code ?? ''))) {
       const k = r.dims[key]?.code ?? ''
       groups.set(k, [...(groups.get(k) ?? []), r])
     }
-    let count = 0
     for (const [code, g] of groups) {
       const head = { code, name: g[0].dims[key]?.name ?? '' }
       if (level === conds.length - 1) {
         out.push({ kind: 'leaf', key: `${path}|${code}`, heads: [...prefix, head].map((h) => ({ ...h, span: 1 })), values: sum(g) })
-        count++
         continue
       }
-      const at = out.length
-      const n = walk(g, level + 1, [...prefix, head], `${path}|${code}`)
-      // 첫 줄의 이 단계 칸이 아래 줄들을 세로로 덮는다
-      const first = out[at]
-      if (first.kind === 'leaf') first.heads[level] = { ...head, span: n }
-      for (let i = at + 1; i < at + n; i++) { const o = out[i]; if (o.kind === 'leaf') o.heads[level] = null }
+      walk(g, level + 1, [...prefix, head], `${path}|${code}`)
       out.push({ kind: 'sub', key: `s${path}|${code}`, level, label: `${head.name} 계`, values: sum(g) })
-      count += n + 1
     }
-    return count
   }
   if (conds.length > 0 && cols.length > 0) walk(records, 0, [], '')
+  // 소계 줄 사이에 붙은 줄끼리만 같은 상위 조건 칸을 세로로 합친다 — 소계 줄은 조건 칸 전체를 가로지른다
+  // (2026-10-13 일용근로 실측: 사원 · 급여대장 · 지급구분 · 월별 · 부서면 '2026/10 계' · '1차수 계' … 가 모두 조건 칸 9개를 덮는다).
+  const owner: (number | null)[] = conds.map(() => null)
+  for (let i = 0; i < out.length; i++) {
+    const cur = out[i]
+    if (cur.kind !== 'leaf') { owner.fill(null); continue }
+    let merging = true
+    for (let lv = 0; lv < conds.length - 1; lv++) {
+      const o = owner[lv]
+      const above = o === null ? null : (out[o] as Leaf).heads[lv]
+      if (merging && above && above.code === cur.heads[lv]?.code) { above.span++; cur.heads[lv] = null } else { merging = false; owner[lv] = i }
+    }
+  }
 
-  const perDim = value.withCode ? 2 : 1
-  const headWidth = conds.length * perDim
   const perCol = value.ratio ? 2 : 1
+  const dimOf = (k: string) => dims.find((d) => d.key === k)
+  const label = (k: string) => dimOf(k)?.label ?? k
+  const hasCode = (k: string) => value.withCode && codeHead(dimOf(k), k) !== null
+  const headWidth = conds.reduce((n, k) => n + (hasCode(k) ? 2 : 1), 0)
   const width = headWidth + cols.length * perCol
-  const label = (k: string) => dims.find((d) => d.key === k)?.label ?? k
   const pct = (v: number, i: number) => (total[i] ? String(Math.round((v / total[i]) * 100)) : '')
   const valueCells = (vs: number[], ratio: 'row' | 'sub' | 'total'): ReactNode[] => vs.flatMap((v, i) => {
-    const cells: ReactNode[] = [<td key={`v${i}`} className="text-right">{won(v)}</td>]
+    const cells: ReactNode[] = [<td key={`v${i}`} className="text-right">{v ? fmts[i](v) : ''}</td>]
     if (value.ratio) cells.push(<td key={`r${i}`} className="text-right">{ratio === 'row' ? pct(v, i) : ratio === 'total' ? (total[i] ? '100' : '') : ''}</td>)
     return cells
   })
 
   return (
     <div className="overflow-x-auto">
-      <table ref={ref} className="w-full text-left whitespace-nowrap">
+      <table ref={ref} className="ec-report w-full text-left whitespace-nowrap">
         <thead>
           <tr>
-            {conds.flatMap((k) => (value.withCode ? [<th key={`c${k}`}>{label(k)}코드</th>, <th key={k}>{label(k)}</th>] : [<th key={k}>{label(k)}</th>]))}
+            {conds.flatMap((k) => (hasCode(k) ? [<th key={`c${k}`}>{codeHead(dimOf(k), k)}</th>, <th key={k}>{label(k)}</th>] : [<th key={k}>{label(k)}</th>]))}
             {cols.flatMap((c) => (value.ratio ? [<th key={c} className="text-right">{c}</th>, <th key={`r${c}`} className="text-right">{c}비율</th>] : [<th key={c} className="text-right">{c}</th>]))}
           </tr>
         </thead>
@@ -152,19 +165,19 @@ export function CustomAggregateTable({ dims, targets, records, agg: value, name 
             <>
               {out.map((o) => (o.kind === 'leaf' ? (
                 <tr key={o.key}>
-                  {o.heads.flatMap((h, i) => (h === null ? [] : value.withCode
+                  {o.heads.flatMap((h, i) => (h === null ? [] : hasCode(conds[i])
                     ? [<td key={`c${i}`} rowSpan={h.span > 1 ? h.span : undefined}>{h.code}</td>, <td key={`n${i}`} rowSpan={h.span > 1 ? h.span : undefined}>{h.name}</td>]
                     : [<td key={`n${i}`} rowSpan={h.span > 1 ? h.span : undefined}>{h.name}</td>]))}
                   {valueCells(o.values, 'row')}
                 </tr>
               ) : (
-                <tr key={o.key} className="font-bold">
-                  <td colSpan={headWidth - o.level * perDim}>{o.label}</td>
+                <tr key={o.key} className="ec-total">
+                  <td colSpan={headWidth} className="text-center">{o.label}</td>
                   {valueCells(o.values, 'sub')}
                 </tr>
               )))}
-              <tr className="font-bold">
-                <td colSpan={headWidth}>합계</td>
+              <tr className="ec-total">
+                <td colSpan={headWidth} className="text-center">합계</td>
                 {valueCells(total, 'total')}
               </tr>
             </>
