@@ -182,7 +182,11 @@ export default function FieldWorkStatusPage() {
             </thead>
             <tbody>
               {rows.length === 0 && emptyDays.length === 0 ? (
-                <tr><td colSpan={8} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
+                /* 원본은 0건이어도 '등록된 데이터가 없습니다.' 를 쓰지 않는다 — 빈 '[] 계' 한 줄뿐이고 합계 줄도 없다(2026-10-12 도착전내역만보기 실측). */
+                <tr className="font-bold bg-ec-page">
+                  <td colSpan={4} className="text-center">[] 계</td>
+                  <td /><td /><td /><td />
+                </tr>
               ) : (
                 <>
                   {groups.map((g) => (
@@ -216,7 +220,7 @@ export default function FieldWorkStatusPage() {
                       {emptyDays.map((d) => <tr key={d}><td className="text-ec-navy">{reportDate(d)}</td><td colSpan={7} /></tr>)}
                       <tr className="font-bold bg-ec-page">
                         <td colSpan={4} className="text-center">[] 계</td>
-                        <td colSpan={4} />
+                        <td /><td /><td /><td />
                       </tr>
                     </>
                   )}

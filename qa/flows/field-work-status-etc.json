@@ -1,5 +1,5 @@
 {
-  "about": "외근현황 조건 [기타](원본 E070255) — [도착전내역만보기]는 주행후 계기판거리가 없는 운행만, [모든날짜표시]는 기록 없는 날도 일자만 한 줄씩 차량종류 묶음 뒤에 두고 '[] 계' 로 모은다. 시험 외근 둘(도착 · 도착전)은 API 로 만들고 지운다. node qa/shot.mjs qa/flows/field-work-status-etc.json",
+  "about": "외근현황 조건 [기타](원본 E070255) — [도착전내역만보기]는 주행후 계기판거리가 없는 운행만, [모든날짜표시]는 기록 없는 날도 일자만 한 줄씩 차량종류 묶음 뒤에 두고 '[] 계' 로 모은다. 0건이면 빈 '[] 계' 한 줄. 시험 외근 둘(도착 · 도착전)은 API 로 만들고 지운다. node qa/shot.mjs qa/flows/field-work-status-etc.json",
   "shots": [
     {
       "name": "준비",
@@ -31,6 +31,17 @@
       "path": "/groupware/field-work-status",
       "steps": [
         "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const rows = (await (await fetch('/api/field-works?from=2026-01-01&to=2026-12-31', { headers: H })).json()).rows.filter((r) => (r.purpose ?? '').startsWith('QA그룹웨어-')); const out = []; for (const r of rows) out.push((await fetch('/api/field-works/' + r.id, { method: 'DELETE', headers: H })).status); return 'del ' + out.join(',') })()"
+      ]
+    },
+    {
+      "name": "0건 — 원본은 빈 '[] 계' 한 줄뿐(합계 줄 · '등록된 데이터가 없습니다.' 없음, 2026-10-12 실측)",
+      "path": "/groupware/field-work-status",
+      "steps": [
+        "wait:600",
+        "js:(() => { const i = document.querySelector('input[placeholder=\"이동수단\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'QAGW-없는차'); i.dispatchEvent(new Event('input', { bubbles: true })); [...document.querySelectorAll('label')].find((l) => l.textContent.trim() === '도착전내역만보기').querySelector('input').click(); return true })()",
+        "click:검색(F8)",
+        "wait:800",
+        "expect:(() => { const trs = [...document.querySelectorAll('tbody tr')]; return trs.length === 1 && trs[0].innerText.trim() === '[] 계' && trs[0].cells.length === 5 && trs[0].cells[0].colSpan === 4 })()"
       ]
     }
   ]
