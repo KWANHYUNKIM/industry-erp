@@ -7,6 +7,7 @@ import CodePickerField from '../../components/CodePickerField'
 import Modal from '../../components/Modal'
 import { useCondPickers } from '../../utils/useCondPickers'
 import type { Lot, LotTransaction } from '../../types/api'
+import { dateNo } from '../../utils/dateNo'
 
 const qty2 = (n: number) => Number(n).toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
@@ -44,6 +45,7 @@ export default function LotAdjustPage() {
   const [notice, setNotice] = useState('')
   const [detail, setDetail] = useState<Lot | null>(null)
   const [detailRows, setDetailRows] = useState<LotTransaction[]>([])
+  const [detailSeq, setDetailSeq] = useState<Map<number, number>>(new Map())
 
   async function load() {
     setLoading(true)
@@ -105,6 +107,15 @@ export default function LotAdjustPage() {
     setDetail(l)
     try {
       const r = await api.get<LotTransaction[]>('/lots/transactions')
+      /* 원본 [일자-No.] '2026/10/04 -1' — 번호는 그날 시리얼/로트 줄의 차례(먼저 남긴 것이 1, 내역조회와 같은 규칙). */
+      const byDay = new Map<string, number>()
+      const seq = new Map<number, number>()
+      for (const t of [...r.data].sort((a, b) => a.id - b.id)) {
+        const n = (byDay.get(t.txDate) ?? 0) + 1
+        byDay.set(t.txDate, n)
+        seq.set(t.id, n)
+      }
+      setDetailSeq(seq)
       setDetailRows(r.data.filter((t) => t.lotId === l.id).sort((a, b) => (a.txDate < b.txDate ? 1 : a.txDate > b.txDate ? -1 : b.id - a.id)))
     } catch (e) {
       setError(extractErrorMessage(e))
@@ -204,12 +215,12 @@ export default function LotAdjustPage() {
               <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : detailRows.map((t) => (
               <tr key={t.id}>
-                <td className="text-center">{t.txDate.replace(/-/g, '/')}</td>
+                <td className="text-center">{`${t.txDate.replace(/-/g, '/')} -${detailSeq.get(t.id) ?? ''}`}</td>
                 <td>{t.itemName}{detail?.spec ? ` [${detail.spec}]` : ''}</td>
                 <td>{t.lotNo}</td>
-                <td className="text-right">{qty2(t.quantityChange)}</td>
+                <td className="text-right">{qty2(Math.abs(Number(t.quantityChange)))}</td>
                 <td className="text-center">{t.docType ?? t.typeName}</td>
-                <td>{t.sourceNo ?? ''}</td>
+                <td>{t.sourceNo ? dateNo(t.txDate, t.sourceNo) : ''}</td>
                 <td>{(t.expireDate ?? '').replace(/-/g, '/')}</td>
               </tr>
             ))}

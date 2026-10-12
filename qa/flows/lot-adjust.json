@@ -16,6 +16,7 @@
         "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const tx = (await (await fetch('/api/lots/transactions', { headers: H })).json()).filter((t) => t.lotId === Number(sessionStorage.getItem('adjLot'))); const last = tx.sort((a, b) => b.id - a.id)[0]; return last.docType === '재고조정' && Number(last.quantityChange) === 3 && Number(last.balanceAfter) === 5 })()",
         "js:(async () => { [...document.querySelectorAll('tbody button')].find((b) => b.innerText.trim() === '보기').click(); await new Promise((r) => setTimeout(r, 800)); return 'ok' })()",
         "expect:[...document.querySelectorAll('tr')].some((tr) => tr.innerText.includes('QA재고2-ADJ') && tr.innerText.includes('재고조정') && tr.innerText.includes('3.00'))",
+        "expect:[...document.querySelectorAll('.modal tr, [role=dialog] tr, tr')].some((tr) => tr.innerText.includes('재고조정') && /\\d{4}\\/\\d{2}\\/\\d{2} -\\d+/.test(tr.cells[0]?.innerText ?? ''))",
         "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const r = await fetch('/api/lots/' + sessionStorage.getItem('adjLot') + '/adjust', { method: 'PATCH', headers: H, body: JSON.stringify({ actualQty: 0, note: 'QA재고2 되돌림' }) }); return r.ok })()"
       ]
     }
