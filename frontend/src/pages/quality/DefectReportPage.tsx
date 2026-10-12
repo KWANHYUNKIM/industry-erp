@@ -34,8 +34,9 @@ interface ProductionRow {
  *       불량처리입력(E040507)의 처리방법 그대로이고, 원본에서 불량처리 '폐기' 로 저장한 것이 폐기현황에 1.00 으로
  *       선다(2026-10-12 C000088 실측). 그래서 폐기는 따로가 아니라 불량처리의 한 갈래로 같이 센다.</li>
  *   <li>불량률 밑은 <b>생산수량</b>이다: 원본 합계줄 생산 524 · 불량 2 → 불량률 <b>0</b>(2026-09-21 실측). 소수 자리를 안 찍는다.</li>
- *   <li>품질검사의 부적격이 [불량수량]에 드는지는 원본에서 못 쟀다 — 위 두 사실(처리방법 조건 · 메뉴가 기타이동)로
- *       불량처리만 센다. 검사 불량률은 품질검사현황이 본다.</li>
+ *   <li>품질검사의 부적격은 [불량수량]에 <b>안 든다</b>(2026-10-13 실측): 2024/01/01~2026/10/13 판의 불량수량 합계 40 이
+ *       같은 기간 불량처리현황 합계 40 과 같고, 그 기간 품질검사 부적격(MSI BIG BANG 5 · 8 · 2 …)이 있는 품목은 줄조차 없다.
+ *       검사 불량률은 품질검사현황이 본다.</li>
  * </ul>
  */
 
@@ -73,15 +74,18 @@ interface Row {
   defectRate: number
 }
 
-/** 원본 [처리방법] 후보(2026-09-08 실측) — 불량처리입력의 처리방법과 같다. */
-const HANDLINGS = ['전체', '폐기', '품목대체', '정상사용'] as const
+/** 원본 [처리방법] 후보(2026-09-08 실측) — 불량처리입력의 처리방법과 같다. [전체]는 체크 하나로 따로 그린다. */
+const HANDLINGS = ['폐기', '품목대체', '정상사용'] as const
 type Handling = typeof HANDLINGS[number]
 /** 불량처리 줄의 처리방법. 처리방법 없이 들어온 예전 줄과 옛 [폐기] 유형은 폐기다(입력의 기본값). */
-const handlingOf = (a: StockAdjustment): Exclude<Handling, '전체'> =>
-  a.type === 'DISPOSAL' ? '폐기' : ((a.handling as Exclude<Handling, '전체'> | null | undefined) || '폐기')
+const handlingOf = (a: StockAdjustment): Handling =>
+  a.type === 'DISPOSAL' ? '폐기' : ((a.handling as Handling | null | undefined) || '폐기')
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-/** 원본 불량률 — 소수 자리 없이(합계 2 ÷ 524 → 0). */
+/**
+ * 원본 불량률 — 소수 자리 없이 <b>반올림</b>(합계 2 ÷ 524 → 0, 2026-10-13 실측 줄 10 ÷ 540 = 1.85 → <b>2</b> ·
+ * 9 ÷ 540 = 1.67 → 2 · 합계 40 ÷ 2,791 = 1.43 → 1). 버림이었다면 1 이 섰다.
+ */
 const rateText = (r: number) => Math.round(r).toLocaleString('ko-KR')
 
 export default function DefectReportPage() {
@@ -111,7 +115,8 @@ export default function DefectReportPage() {
   /* 원본 [불량유형] — 공통코드 불량유형(DEFECT_TYPE). 불량처리 줄은 그 <b>이름</b>을 적는다. */
   const [defectTypeCond, setDefectTypeCond] = useState('')
   const [defectTypes, setDefectTypes] = useState<CommonCode[]>([])
-  const [handleCond, setHandleCond] = useState<Handling>('전체')
+  /* 원본 [처리방법]은 체크 넷(전체 · 폐기 · 품목대체 · 정상사용) — 다 켜짐이 기본(2026-10-13 E040512 실측). 끈 것만 담는다. */
+  const [handleOff, setHandleOff] = useState<Set<Handling>>(new Set())
   /*
    * 2026-09-08 에 원본(E040512)의 조건 판을 재니 <b>스물하나</b>다(사본에는 여덟).
    * 접힌 줄은 없다. 여기서 만든 셋: 품목구분 · 품목그룹1 · 규격.
@@ -188,7 +193,7 @@ export default function DefectReportPage() {
       if (!inPeriod(a.adjustDate)) continue
       if (a.type !== 'DEFECT' && a.type !== 'DISPOSAL') continue
       if (a.normal) continue   // 불량처리의 정상품목 줄(들어온 재고)은 불량이 아니다
-      if (handleCond !== '전체' && handlingOf(a) !== handleCond) continue
+      if (handleOff.has(handlingOf(a))) continue
       if (defectTypeName && (a.kind ?? '') !== defectTypeName) continue
       if (employeeCond && String(a.employeeId) !== employeeCond) continue
       if (whCond && String(a.warehouseId) !== whCond) continue
@@ -238,7 +243,7 @@ export default function DefectReportPage() {
        */
       .sort((a, b) => a.itemCode.localeCompare(b.itemCode))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [adjustments, productions, defectTypes, from, to, keyword, employeeCond, handleCond, whCond, projCond, defectTypeCond,
+  }, [adjustments, productions, defectTypes, from, to, keyword, employeeCond, handleOff, whCond, projCond, defectTypeCond,
       categoryCond, itemGroupCond, specCond, itemById, mgmt.groupOptions])
 
   /**
@@ -246,9 +251,9 @@ export default function DefectReportPage() {
    * '제품자재창고 계 2'). 우리 표에는 없어서 창고가 여럿이면 <b>어느 창고가 얼마인지</b>를
    * 사람이 눈으로 더해야 했다.
    *
-   * <p><b>소계의 불량률 칸은 비운다.</b> 원본에서 그 칸에 값이 서는지는 <b>못 봤다</b> —
-   * 실측한 세 소계가 다 한쪽 수만 가졌다(생산만 있거나 불량만 있거나). 모르는 것을
-   * 지어내느니 비워 둔다. 합계줄은 원본이 실제로 값을 찍어(524 · 2 · <b>0</b>) 그대로 낸다.
+   * <p><b>소계의 불량률</b>은 생산과 불량이 다 있을 때만 선다 — 2026-10-13 실측 '제4공장 계 2,250 · 10 · <b>0</b>',
+   * '제5공장 계 540 · 9 · <b>2</b>', 한쪽만 있는 '불량창고 계 · 21' · '제1공장 계 1 ·' 은 빈칸. 줄과 같은 규칙이다.
+   * 합계줄은 원본이 실제로 값을 찍어(524 · 2 · <b>0</b>) 그대로 낸다.
    */
   const groups = useMemo(() => subtotalBy(rows, (r) => r.warehouseName, {
     produced: (r) => r.producedQty,
@@ -301,10 +306,16 @@ export default function DefectReportPage() {
                            items={defectTypes.map((d) => ({ value: d.code, code: d.code, name: d.name }))} />
         </EcCond>
         <EcCond label="처리방법">
-          <select className="ec-input w-[100px]" value={handleCond}
-                  onChange={(e) => setHandleCond(e.target.value as Handling)}>
-            {HANDLINGS.map((h) => <option key={h}>{h}</option>)}
-          </select>
+          <label className="inline-flex items-center gap-[3px] mr-[10px]">
+            <input type="checkbox" checked={handleOff.size === 0}
+                   onChange={(e) => setHandleOff(e.target.checked ? new Set() : new Set(HANDLINGS))} /> 전체
+          </label>
+          {HANDLINGS.map((h) => (
+            <label key={h} className="inline-flex items-center gap-[3px] mr-[10px]">
+              <input type="checkbox" checked={!handleOff.has(h)}
+                     onChange={(e) => setHandleOff((s) => { const n = new Set(s); if (e.target.checked) n.delete(h); else n.add(h); return n })} /> {h}
+            </label>
+          ))}
         </EcCond>
         {/*
           원본 차례(2026-09-08 실측, 스물하나): 기준일자 · 창고 · (창고계층그룹) ·
@@ -383,12 +394,12 @@ export default function DefectReportPage() {
               <td className="text-right">{r.producedQty > 0 && r.defectQty > 0 ? rateText(r.defectRate) : ''}</td>
             </tr>
             )),
-            /* 원본 격자의 <b>[창고명] 계</b> 줄. 불량률 칸은 비운다(위 groups 주석). */
+            /* 원본 격자의 <b>[창고명] 계</b> 줄. 불량률은 생산 · 불량이 다 있을 때만(위 groups 주석). */
             <tr key={'sub' + gi} className="ec-total">
               <td colSpan={4} className="text-center">{g.label} 계</td>
               <td className="text-right">{g.sums.produced ? won(g.sums.produced) : ''}</td>
               <td className="text-right">{g.sums.defect ? won(g.sums.defect) : ''}</td>
-              <td />
+              <td className="text-right">{g.sums.produced > 0 && g.sums.defect > 0 ? rateText((g.sums.defect / g.sums.produced) * 100) : ''}</td>
             </tr>,
           ])}
         </tbody>

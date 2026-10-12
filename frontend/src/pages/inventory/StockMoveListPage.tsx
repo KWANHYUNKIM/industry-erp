@@ -120,7 +120,8 @@ export default function StockMoveListPage({ kind }: { kind: 'SELF_USE' | 'DEFECT
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, title, [slips.length])
   const codesOf = (g: string) => (codeGroups.find((x) => x.name === g)?.codes ?? []).map((c) => c.name)
-  const handlings = codesOf('처리방법')
+  /* 원본 [처리방법] 후보는 폐기 · 품목대체 · 정상사용 고정(2026-10-13 불량처리현황 실측) — 공통코드 DEFECT_HANDLING 은 원본에 없는 값이다. */
+  const handlings = ['폐기', '품목대체', '정상사용']
 
   return (
     <EcListShell
