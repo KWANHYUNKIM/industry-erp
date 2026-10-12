@@ -170,7 +170,7 @@ export default function CheckLedgerPage({ type }: { type: CheckType }) {
                 <td>{g.c.checkNo}</td>
                 <td>{g.c.bankAccountId != null ? acctNo.get(g.c.bankAccountId) ?? '' : ''}</td>
                 <td>{g.c.partnerName ?? ''}</td>
-                <td>{received ? account : (g.c.bankAccountId != null ? glByAccount.get(g.c.bankAccountId) ?? '' : '')}</td>
+                <td>{received && !g.c.directEntry ? account : (g.c.bankAccountId != null ? glByAccount.get(g.c.bankAccountId) ?? '' : '')}</td>
                 <td>{g.c.remark ?? ''}</td>
                 <td className="text-right">{won(l.inc)}</td>
                 <td className="text-right">{won(l.dec)}</td>
@@ -178,7 +178,7 @@ export default function CheckLedgerPage({ type }: { type: CheckType }) {
               </tr>
             )),
             <tr key={`${g.c.id}-sub`} style={SUB_ROW}>
-              <td colSpan={7}>{received ? account : (g.c.bankAccountId != null ? glByAccount.get(g.c.bankAccountId) ?? '' : '')} / {g.c.checkNo} 계</td>
+              <td colSpan={7}>{received && !g.c.directEntry ? account : (g.c.bankAccountId != null ? glByAccount.get(g.c.bankAccountId) ?? '' : '')} / {g.c.checkNo} 계</td>
               <td className="text-right">{won(g.inc)}</td>
               <td className="text-right">{won(g.dec)}</td>
               <td></td>

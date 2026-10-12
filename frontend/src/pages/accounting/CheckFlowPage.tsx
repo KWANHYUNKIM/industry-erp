@@ -36,12 +36,12 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
   /* 발행수표의 계정명 — 끊은 계좌의 총계정(분개가 대변에 쓰는 것). */
   const [glByAccount, setGlByAccount] = useState<Map<number, string>>(new Map())
   useEffect(() => {
-    if (received) return
+    /* 받은수표도 수표내역입력(분개 없음)으로 넣은 것은 그 수표계좌의 계정을 찍는다(2026-10-13 실측 — 5544332211 → 보통예금). */
     api.get<BankAccountRow[]>('/bank-cards/accounts')
       .then((r) => setGlByAccount(new Map(r.data.map((a) => [a.id, a.glAccountName]))))
       .catch(() => setGlByAccount(new Map()))
   }, [received])
-  const accountOf = (c: BankCheck) => (received ? account : (c.bankAccountId != null ? glByAccount.get(c.bankAccountId) ?? '' : ''))
+  const accountOf = (c: BankCheck) => (received && !c.directEntry ? account : (c.bankAccountId != null ? glByAccount.get(c.bankAccountId) ?? '' : ''))
   const init = periodOf('최근30일')!
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)

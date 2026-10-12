@@ -22,7 +22,8 @@ const SUB_ROW: React.CSSProperties = { fontWeight: 700, background: 'rgb(243, 24
  * 묶음끼리는 가장 늦은 수령일이 위다(실측: 2016/02/28 · 2016/01/15 · 2015/08/30 · 2015/04/01 차례).
  *
  * <p>기준일자에 아직 들고 있는(입금 · 부도 전) 받은수표를 센다 — 받은 날 ≤ 기준일자, 닫힌 날(settledDate)이 없거나 그 뒤.
- * 계정명은 우리 분개가 쓰는 <b>받을수표</b>(104)다 — 원본 회사는 보통예금을 찍었는데 그건 그 회사의 계정 설정이다.
+ * 계정명은 우리 분개가 쓰는 <b>받을수표</b>(104)다. 원본이 보통예금을 찍은 줄은 수표내역입력(분개 없음)으로 넣은 것이었다 —
+ * 그 수표는 고른 수표계좌의 계정을 찍는다(2026-10-13 실측: 계좌 5544332211 → 보통예금, 거래처 없으면 '[] 계' 묶음).
  * 부서 · 프로젝트는 수표(BankCheck)가 들지 않는다.
  *
  * <p><b>발행수표현황</b>(E060608)도 조건 · 열이 같다(조건의 [수령수표계좌] 자리가 [발행수표계좌], 첫 열이 [발행일자]) —
@@ -36,12 +37,12 @@ export default function CheckHoldingPage({ type }: { type: CheckType }) {
   /* 발행수표의 계정명 — 그 수표를 끊은 계좌의 총계정(당좌예금 등). */
   const [glByAccount, setGlByAccount] = useState<Map<number, string>>(new Map())
   useEffect(() => {
-    if (received) return
+    /* 받은수표도 수표내역입력(분개 없음)으로 넣은 것은 그 수표계좌의 계정을 찍는다(2026-10-13 실측 — 5544332211 → 보통예금). */
     api.get<BankAccountRow[]>('/bank-cards/accounts')
       .then((r) => setGlByAccount(new Map(r.data.map((a) => [a.id, a.glAccountName]))))
       .catch(() => setGlByAccount(new Map()))
   }, [received])
-  const accountOf = (c: BankCheck) => (received ? account : (c.bankAccountId != null ? glByAccount.get(c.bankAccountId) ?? '' : ''))
+  const accountOf = (c: BankCheck) => (received && !c.directEntry ? account : (c.bankAccountId != null ? glByAccount.get(c.bankAccountId) ?? '' : ''))
   const pickers = useCondPickers(['partners'])
   const init = periodOf('최근30일')!
   const [asOf, setAsOf] = useState(init.to)
