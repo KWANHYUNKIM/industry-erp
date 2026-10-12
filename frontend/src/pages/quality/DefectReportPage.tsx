@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import { api, extractErrorMessage } from '../../api/client'
-import type { CommonCode, Item, QualityInspection, StockAdjustment } from '../../types/api'
+import type { CommonCode, Item, StockAdjustment } from '../../types/api'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import EcListShell from '../../components/EcListShell'
 import { periodOf } from '../../components/EcPeriodPicks'
@@ -24,10 +24,19 @@ interface ProductionRow {
 }
 
 /**
- * 재고 II > 품질관리 — 불량률파악보고서 (이카운트 E040512)
- * 품질검사(검사수량·불량)와 기타이동의 불량처리·폐기 수량을 품목별로 모아 불량률을 파악한다.
- * 검사 목록 화면(QualityStatusPage)과 달리 품목 중심 종합 뷰다.
- * 데이터는 GET /api/quality-inspections + /api/stock-adjustments (백엔드 무변경).
+ * 재고 I > 기타이동 — 불량률파악보고서 (이카운트 E040512)
+ * 창고 × 품목마다 <b>생산수량</b>(생산실적)과 <b>불량수량</b>(불량처리)을 놓고 불량률 = 불량수량 ÷ 생산수량.
+ *
+ * <p>2026-10-13 원본 격자 일곱 열로 맞췄다 — [창고코드 · 창고명 · 품목코드 · 품목명[규격명] · 생산수량 · 불량수량 · 불량률].
+ * 예전에는 품질검사의 검사수량 · 검사불량으로 불량률을 내고 불량처리 · 폐기를 우리 열 둘로 따로 찍었다.
+ * <ul>
+ *   <li>[불량수량]은 <b>불량처리</b>다: 원본 [처리방법] 조건의 후보가 전체 · 폐기 · 품목대체 · 정상사용(2026-09-08 실측) —
+ *       불량처리입력(E040507)의 처리방법 그대로이고, 원본에서 불량처리 '폐기' 로 저장한 것이 폐기현황에 1.00 으로
+ *       선다(2026-10-12 C000088 실측). 그래서 폐기는 따로가 아니라 불량처리의 한 갈래로 같이 센다.</li>
+ *   <li>불량률 밑은 <b>생산수량</b>이다: 원본 합계줄 생산 524 · 불량 2 → 불량률 <b>0</b>(2026-09-21 실측). 소수 자리를 안 찍는다.</li>
+ *   <li>품질검사의 부적격이 [불량수량]에 드는지는 원본에서 못 쟀다 — 위 두 사실(처리방법 조건 · 메뉴가 기타이동)로
+ *       불량처리만 센다. 검사 불량률은 품질검사현황이 본다.</li>
+ * </ul>
  */
 
 interface Row {
@@ -35,7 +44,7 @@ interface Row {
    * 원본은 <b>창고 × 품목</b>으로 묶는다(2026-09-09 E040512 실측: 첫 두 칸이
    * [창고코드]·[창고명]). 우리는 품목 하나로만 묶고 있었다 — 같은 품목이라도
    * <b>어느 창고에서 불량이 났는지</b>가 안 보였다.
-   * 창고를 안 적은 검사·조정은 <b>(미지정)</b> 으로 한 덩어리가 된다 — 0 으로
+   * 창고를 안 적은 조정은 <b>(미지정)</b> 으로 한 덩어리가 된다 — 0 으로
    * 지어내거나 아무 창고에 붙이지 않는다.
    */
   warehouseName: string; warehouseCode: string
@@ -58,17 +67,26 @@ interface Row {
    * <b>창고별로 갈리는 줄만</b> 달라질 수 있다. 재면 그때 맞춘다.
    */
   producedQty: number
-  inspectedQty: number; inspectDefect: number; defectRate: number
-  defectHandled: number; disposed: number
+  /** 원본 [불량수량] — 불량처리(처리방법 폐기 · 품목대체 · 정상사용)로 나간 수량. 정상품목 줄은 뺀다. */
+  defectQty: number
+  /** 불량수량 ÷ 생산수량 × 100. 생산이 없으면 0. */
+  defectRate: number
 }
 
+/** 원본 [처리방법] 후보(2026-09-08 실측) — 불량처리입력의 처리방법과 같다. */
+const HANDLINGS = ['전체', '폐기', '품목대체', '정상사용'] as const
+type Handling = typeof HANDLINGS[number]
+/** 불량처리 줄의 처리방법. 처리방법 없이 들어온 예전 줄과 옛 [폐기] 유형은 폐기다(입력의 기본값). */
+const handlingOf = (a: StockAdjustment): Exclude<Handling, '전체'> =>
+  a.type === 'DISPOSAL' ? '폐기' : ((a.handling as Exclude<Handling, '전체'> | null | undefined) || '폐기')
+
 const won = (n: number) => n.toLocaleString('ko-KR')
-const rateColor = (r: number) => (r >= 5 ? 'var(--ec-danger)' : r >= 1 ? 'var(--ec-warn)' : 'var(--ec-success)')
+/** 원본 불량률 — 소수 자리 없이(합계 2 ÷ 524 → 0). */
+const rateText = (r: number) => Math.round(r).toLocaleString('ko-KR')
 
 export default function DefectReportPage() {
   /* 원본은 조건 판의 창고·거래처·품목·프로젝트를 모두 코드도움으로 둔다. */
-  const pickers = useCondPickers(['items', 'warehouses', 'projects'])
-  const [inspections, setInspections] = useState<QualityInspection[]>([])
+  const pickers = useCondPickers(['items', 'warehouses', 'projects', 'employees'])
   const [adjustments, setAdjustments] = useState<StockAdjustment[]>([])
   const [productions, setProductions] = useState<ProductionRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -83,28 +101,17 @@ export default function DefectReportPage() {
   const [to, setTo] = useState(periodOf('금월(~오늘)')!.to)
   const [keyword, setKeyword] = useState('')
   /*
-   * 원본 불량률파악보고서 조건 차례: 창고 · 프로젝트 · <b>담당자</b> · 불량유형 · <b>처리방법</b>.
-   *
-   * <p>[담당자]는 <b>검사자</b>다 — 누가 본 검사만 추릴 수 있어야 한다.
-   * [처리방법]은 불량을 <b>불량처리로 뺐나 폐기로 뺐나</b> 다(재고조정의 갈래).
-   * 둘 다 원자료에는 있는데 <b>합친 뒤라 화면에서 거를 수가 없었다</b> —
-   * 합치기 전에 건다. [창고]·[프로젝트]·[불량유형]은 품질검사에 그 값이 없다.
-   */
-  /*
-   * [창고]·[프로젝트]는 <b>품질검사에 그 칸이 없어</b> 일부러 안 만들었던 조건이다
-   * (창고로 거르면 재고조정 쪽만 걸러져 반쪽짜리 보고서가 됐다).
-   * 이제 검사·조정 <b>양쪽 다</b> 창고·프로젝트를 무니 제대로 거를 수 있다.
+   * 원본 조건 차례: 창고 · 프로젝트 · <b>담당자</b> · 불량유형 · <b>처리방법</b>.
+   * 다섯 다 <b>불량처리 전표</b>의 값이다(머리 담당자 · 발견창고 · 처리방법 · 프로젝트, 줄 불량유형).
+   * 생산실적은 창고 · 프로젝트만 함께 걸린다 — 담당자 · 불량유형 · 처리방법은 불량을 묻는 축이다.
    */
   const [whCond, setWhCond] = useState('')
   const [projCond, setProjCond] = useState('')
-  const [inspectorCond, setInspectorCond] = useState('')
-  /*
-   * 원본 [불량유형] — 공통코드 DEFECT_TYPE 의 코드도움이다(사본 실측 ddlBadType).
-   * 예전에는 '품질검사에 그 값이 없다' 고 적어 두고 뺐다. 이제 검사에 유형을 적으므로 만든다.
-   */
+  const [employeeCond, setEmployeeCond] = useState('')
+  /* 원본 [불량유형] — 공통코드 불량유형(DEFECT_TYPE). 불량처리 줄은 그 <b>이름</b>을 적는다. */
   const [defectTypeCond, setDefectTypeCond] = useState('')
   const [defectTypes, setDefectTypes] = useState<CommonCode[]>([])
-  const [handleCond, setHandleCond] = useState<'전체' | '불량' | '폐기'>('전체')
+  const [handleCond, setHandleCond] = useState<Handling>('전체')
   /*
    * 2026-09-08 에 원본(E040512)의 조건 판을 재니 <b>스물하나</b>다(사본에는 여덟).
    * 접힌 줄은 없다. 여기서 만든 셋: 품목구분 · 품목그룹1 · 규격.
@@ -123,27 +130,22 @@ export default function DefectReportPage() {
   async function load() {
     setLoading(true); setError('')
     try {
-      const [q, a, d, it, p] = await Promise.all([
-        /*
-         * <b>검사도 기간을 서버에 넘긴다.</b> 바로 아래 재고조정은 진작 넘기고 있었는데
-         * 이것만 전 기간을 받아 아래 inPeriod 로 걸렀다 — 옆줄이 하는 일을 이 줄만 안 했다.
-         */
-        api.get<QualityInspection[]>('/quality-inspections', { params: { from, to } }),
+      const [a, d, it, p] = await Promise.all([
         /*
          * <b>all: true</b> — 목록은 5,000 줄에서 자른다(원본 [오천건이상조회]). 이 화면은 줄을 보여 주는 게 아니라
-         * <b>더하는</b> 보고서라, 잘리면 불량처리·폐기 합계가 아무 표시 없이 작아진다(경영보고서와 같은 까닭).
+         * <b>더하는</b> 보고서라, 잘리면 불량수량 합계가 아무 표시 없이 작아진다(경영보고서와 같은 까닭).
          */
         api.get<{ rows: StockAdjustment[] }>('/stock-adjustments', { params: { from, to, all: true } }),
         api.get<CommonCode[]>('/codes/DEFECT_TYPE'),
         api.get<Item[]>('/items'),
         /*
          * 원본 [생산수량]의 재료 — <b>생산실적</b>이다(위 Row.producedQty 주석의 실측).
-         * 기간은 <b>생산일</b>로 보낸다: 이 화면의 [기준일자]가 검사·불량처리에 거는 것과
+         * 기간은 <b>생산일</b>로 보낸다: 이 화면의 [기준일자]가 불량처리에 거는 것과
          * 같은 축이다(작업지시가 언제 났는지를 묻는 자리가 아니다).
          */
         api.get<ProductionRow[]>('/productions', { params: { from, to } }),
       ])
-      setInspections(q.data); setAdjustments(a.data.rows); setDefectTypes(d.data); setItems(it.data)
+      setAdjustments(a.data.rows); setDefectTypes(d.data); setItems(it.data)
       setProductions(p.data)
     } catch (err) { setError(extractErrorMessage(err)) }
     finally { setLoading(false) }
@@ -158,8 +160,7 @@ export default function DefectReportPage() {
    * 그러니 수량이 아니라 <b>율</b>을 그린다 — 수량으로 그리면 많이 만든 품목이 늘 위에
    * 서서 '많이 만드니까 많이 틀린' 것과 '자주 틀리는' 것을 가릴 수가 없다.
    *
-   * <p>검사를 한 번도 안 한 품목(검사수량 0)은 뺀다. 불량률이 0 으로 잡혀 <b>멀쩡한 품목</b>
-   * 처럼 줄을 서는데, 실은 <b>모르는 품목</b>이다. 둘을 같은 막대로 그리면 안 된다.
+   * <p>생산이 없는 품목(생산수량 0)은 뺀다 — 율의 밑이 없어 <b>모르는 품목</b>이다.
    */
   const [view, setView] = useState<'표' | '그래프'>('표')
 
@@ -176,55 +177,37 @@ export default function DefectReportPage() {
       if (!r) {
         r = { warehouseName: w, warehouseCode: w === '(미지정)' ? '' : codeOfWarehouse(w),
           itemId, itemCode: code, itemName: name, spec: items.find((x) => x.id === itemId)?.spec ?? null, unit,
-          producedQty: 0,
-          inspectedQty: 0, inspectDefect: 0, defectRate: 0, defectHandled: 0, disposed: 0 }
+          producedQty: 0, defectQty: 0, defectRate: 0 }
         map.set(key, r)
       }
       return r
     }
-    for (const q of inspections) {
-      if (!inPeriod(q.inspectionDate)) continue
-      if (inspectorCond && (q.inspector ?? '') !== inspectorCond) continue
-      /*
-       * <b>합치기 전에</b> 건다. 품목별로 합친 뒤에는 어느 유형이 얼마였는지가 사라져
-       * 화면에서는 더 이상 거를 수가 없다.
-       *
-       * <p>재고조정(불량처리·폐기)에는 유형이 없다. 유형으로 물었으면 <b>검사만</b> 답한다 —
-       * 유형 없는 것을 끼워 주면 무엇으로 걸린 표인지 알 수 없다.
-       */
-      if (defectTypeCond && q.defectType !== defectTypeCond) continue
-      if (whCond && String(q.warehouseId) !== whCond) continue
-      if (projCond && String(q.projectId) !== projCond) continue
-      const r = get(q.warehouseName, q.itemId, q.itemCode, q.itemName, q.unit)
-      r.inspectedQty += q.inspectedQty; r.inspectDefect += q.defectQty
-    }
+    /* [불량유형] 코드도움은 코드를 주고, 불량처리 줄은 그 이름을 적는다. */
+    const defectTypeName = defectTypeCond ? (defectTypes.find((d) => d.code === defectTypeCond)?.name ?? defectTypeCond) : ''
     for (const a of adjustments) {
       if (!inPeriod(a.adjustDate)) continue
       if (a.type !== 'DEFECT' && a.type !== 'DISPOSAL') continue
       if (a.normal) continue   // 불량처리의 정상품목 줄(들어온 재고)은 불량이 아니다
-      if (defectTypeCond) continue   // 조정에는 불량유형이 없다 — 위 주석 참고
-      if (handleCond === '불량' && a.type !== 'DEFECT') continue
-      if (handleCond === '폐기' && a.type !== 'DISPOSAL') continue
+      if (handleCond !== '전체' && handlingOf(a) !== handleCond) continue
+      if (defectTypeName && (a.kind ?? '') !== defectTypeName) continue
+      if (employeeCond && String(a.employeeId) !== employeeCond) continue
       if (whCond && String(a.warehouseId) !== whCond) continue
       if (projCond && String(a.projectId) !== projCond) continue
       const r = get(a.warehouseName, a.itemId, a.itemCode, a.itemName, a.unit)
-      const qty = Math.abs(a.quantityChange)
-      if (a.type === 'DEFECT') r.defectHandled += qty
-      else r.disposed += qty
+      r.defectQty += Math.abs(a.quantityChange)
     }
     /*
-     * 원본 <b>[생산수량]</b>. 검사·불량처리와 <b>같은 줄에 얹는다</b> — 원본에서 줄은
+     * 원본 <b>[생산수량]</b>. 불량처리와 <b>같은 줄에 얹는다</b> — 원본에서 줄은
      * 둘의 합집합이라(송풍기 줄이 생산수량 없이 불량수량만 2였다), 생산만 있는 품목도
      * 줄이 선다.
      *
-     * <p>조건은 <b>검사·불량처리와 겹치는 것만</b> 건다. [불량유형]으로 물었으면 생산은
-     * 답하지 않는다 — 검사에만 있는 축이라, 끼워 주면 무엇으로 걸린 표인지 알 수 없다
-     * (바로 위 재고조정이 같은 까닭으로 빠진다). [검사자]도 마찬가지다.
+     * <p>조건은 <b>불량처리와 겹치는 것만</b>(창고 · 프로젝트) 건다. [불량유형] · [담당자]로 물었으면
+     * 생산은 답하지 않는다 — 불량 전표의 축이라, 끼워 주면 무엇으로 걸린 표인지 알 수 없다.
      * [처리방법]은 불량을 어떻게 뺐나를 묻는 것이라 생산과 상관이 없다.
      */
     for (const p of productions) {
       if (!inPeriod(p.productionDate)) continue
-      if (defectTypeCond || inspectorCond) continue
+      if (defectTypeCond || employeeCond) continue
       if (whCond && String(p.warehouseId) !== whCond) continue
       if (projCond && String(p.projectId) !== projCond) continue
       const r = get(p.warehouseName, p.productId, p.productCode, p.productName, p.productUnit)
@@ -232,7 +215,7 @@ export default function DefectReportPage() {
     }
     const kw = keyword.trim()
     const out = [...map.values()]
-    for (const r of out) r.defectRate = r.inspectedQty > 0 ? (r.inspectDefect / r.inspectedQty) * 100 : 0
+    for (const r of out) r.defectRate = r.producedQty > 0 ? (r.defectQty / r.producedQty) * 100 : 0
     return out
       // 품목 코드도움은 id 를 준다 — 이름이 같고 규격만 다른 품목이 섞이지 않게.
       .filter((r) => !kw || String(r.itemId) === kw)
@@ -255,7 +238,7 @@ export default function DefectReportPage() {
        */
       .sort((a, b) => a.itemCode.localeCompare(b.itemCode))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inspections, adjustments, productions, from, to, keyword, inspectorCond, handleCond, whCond, projCond, defectTypeCond,
+  }, [adjustments, productions, defectTypes, from, to, keyword, employeeCond, handleCond, whCond, projCond, defectTypeCond,
       categoryCond, itemGroupCond, specCond, itemById, mgmt.groupOptions])
 
   /**
@@ -269,18 +252,13 @@ export default function DefectReportPage() {
    */
   const groups = useMemo(() => subtotalBy(rows, (r) => r.warehouseName, {
     produced: (r) => r.producedQty,
-    inspected: (r) => r.inspectedQty,
-    defect: (r) => r.inspectDefect,
-    handled: (r) => r.defectHandled,
-    disposed: (r) => r.disposed,
+    defect: (r) => r.defectQty,
   }), [rows])
 
   const totals = useMemo(() => rows.reduce((s, r) => ({
-    produced: s.produced + r.producedQty,
-    inspected: s.inspected + r.inspectedQty, defect: s.defect + r.inspectDefect,
-    handled: s.handled + r.defectHandled, disposed: s.disposed + r.disposed,
-  }), { produced: 0, inspected: 0, defect: 0, handled: 0, disposed: 0 }), [rows])
-  const overallRate = totals.inspected > 0 ? (totals.defect / totals.inspected) * 100 : 0
+    produced: s.produced + r.producedQty, defect: s.defect + r.defectQty,
+  }), { produced: 0, defect: 0 }), [rows])
+  const overallRate = totals.produced > 0 ? (totals.defect / totals.produced) * 100 : 0
   const reset = () => { setFrom(''); setTo(''); setKeyword('') }
 
   return (
@@ -311,15 +289,10 @@ export default function DefectReportPage() {
                            value={projCond} onChange={setProjCond} items={pickers.projects} />
         </EcCond>
         <EcCond label="담당자" pick>
-          {/*
-            마스터를 고르는 칸은 코드도움이다. 다만 검사자는 <b>사원 마스터를 물지 않고</b>
-            검사에 이름으로 적히므로, 후보를 <b>실제로 검사한 사람들</b>에서 뽑는다 —
-            사원 목록에서 뽑으면 고를 수 있는데 아무것도 안 나오는 이름이 섞인다.
-          */}
+          {/* 불량처리 전표 머리의 [담당자](사원). */}
           <CodePickerField label="담당자" hideLabel width={150} emptyLabel="전체"
-                           value={inspectorCond} onChange={setInspectorCond}
-                           items={[...new Set(inspections.map((q) => q.inspector).filter(Boolean))]
-                             .map((n) => ({ value: n as string, name: n as string }))} />
+                           value={employeeCond} onChange={setEmployeeCond}
+                           items={pickers.employees.map((e) => ({ ...e, value: String(e.id) }))} />
         </EcCond>
         {/* 원본 차례: 창고 · 프로젝트 · 담당자 · <b>불량유형</b> · 처리방법. */}
         <EcCond label="불량유형" pick>
@@ -328,9 +301,9 @@ export default function DefectReportPage() {
                            items={defectTypes.map((d) => ({ value: d.code, code: d.code, name: d.name }))} />
         </EcCond>
         <EcCond label="처리방법">
-          <select className="ec-input" value={handleCond} style={{ width: 100 }}
-                  onChange={(e) => setHandleCond(e.target.value as '전체' | '불량' | '폐기')}>
-            <option>전체</option><option>불량</option><option>폐기</option>
+          <select className="ec-input w-[100px]" value={handleCond}
+                  onChange={(e) => setHandleCond(e.target.value as Handling)}>
+            {HANDLINGS.map((h) => <option key={h}>{h}</option>)}
           </select>
         </EcCond>
         {/*
@@ -362,20 +335,12 @@ export default function DefectReportPage() {
         </EcCond>
       </EcStatusPanel>
 
-      <div className="mb-[8px] text-[12.5px] text-ec-label text-right">
-        전체 불량률 <b style={{ color: rateColor(overallRate), fontSize: 15 }}>{overallRate.toFixed(2)}%</b>
-        <span className="my-0 mx-[8px] text-ec-off">|</span>
-        폐기계 <b style={{ color: '#6b3fb0', fontSize: 14 }}>{won(totals.disposed)}</b>
-      </div>
-
-      <p className="mb-2 text-xs text-ec-hint">품목별 검사 불량률 + 불량처리·폐기 수량 종합. 불량률 = 검사불량 ÷ 검사수량. 불량률 높은 순.</p>
-
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       {view === '그래프' ? (
         /* 표는 창고 순이지만 <b>그래프는 불량률 높은 순</b>이다 — 위 정렬 주석 참고. */
-        <EcBarChart unit=" %" emptyText="검사한 품목이 없습니다."
-                    rows={rows.filter((r) => r.inspectedQty > 0)
+        <EcBarChart unit=" %" emptyText="생산한 품목이 없습니다."
+                    rows={rows.filter((r) => r.producedQty > 0)
                       .map((r) => ({ label: r.itemName, value: Number(r.defectRate.toFixed(2)) }))
                       .sort((a, b) => b.value - a.value)} />
       ) : (
@@ -384,93 +349,57 @@ export default function DefectReportPage() {
       {/*
         열 폭 — 원본 <b>width:890px · table-layout:fixed · 110 / 110 / 110 / 230 / 110 / 110 / 110</b>
         (창고코드 · 창고명 · 품목코드 · 품목명[규격명] · 생산수량 · 불량수량 · 불량률, 2026-09-21 실측).
-        우리 [불량처리]가 원본 [불량수량] 자리라 110 을 준다. 번호·단위·검사수량·검사불량·폐기는
-        원본에 없는 우리 열이라 잴 원본이 없다 — 좁게 둔다.
+        <b>출력물 격자</b>(index.css .ec-report) — 줄무늬 없음(회색은 소계 · 합계줄뿐), 수량은 검정 · 보통 굵기.
+        원본에 없던 우리 열(번호 · 단위 · 검사수량 · 검사불량 · 불량처리 · 폐기)과 위 요약 줄은 2026-10-13 에 뺐다.
       */}
-      <table className="text-left ec-report ec-report-fixed">
-        {/*
-          <b>출력물 격자</b>(index.css .ec-report) — 2026-09-21 원본(E040512) getComputedStyle 실측.
-          이 화면은 <b>줄무늬가 없다</b>(회색은 소계·합계줄뿐) — 채권현황과 달라 stripe 를 안 켠다.
-          원본은 수량을 <b>검정·보통 굵기</b>로 찍는다. 빨강·갈색·보라 수량은 우리가 덧칠한 것이었다.
-          <b>[불량률] 칸 모양은 못 쟀다</b> — 원본 자료에서 그 칸이 줄마다 비어 있었다. 그래서 그 칸만
-          예전 모양(색·굵기)을 둔다.
-        */}
+      <table className="text-left ec-report ec-report-fixed w-[890px]">
         <thead>
           <tr>
-            <th className="w-[34px]"></th>
-            {/*
-              <b>불량률파악보고서(E040512) 2026-09-09 원본 격자 실측</b> — 열이 일곱이다:
-              [창고코드 · 창고명 · 품목코드 · <b>품목명[규격명]</b> · <b>생산수량</b> ·
-              <b>불량수량</b> · 불량률].
-              고친 것: 품목명 뒤에 규격을 대괄호로 붙였다(원본 이름 그대로).
-              [창고코드]·[창고명]은 <b>2026-09-09 에 만들었다</b> — 묶는 열쇠를
-              품목 하나에서 <b>창고 × 품목</b>으로 바꿨다. 창고를 안 적은 검사·조정은
-              <b>(미지정)</b> 한 덩어리가 된다(창고코드는 비운다).
-              <b>[생산수량]·[불량수량]은 우리 값이 아니다</b> — 우리 숫자는
-              <b>검사</b>에서 나온다(검사수량·검사불량). 생산수량이라 부르면
-              검사 안 한 생산분까지 센 것처럼 읽혀 거짓이 된다(예외에 적었다).
-              [단위]·[불량처리]·[폐기]는 우리 열이다.
-            */}
             <th className="w-[110px]">창고코드</th>
             <th className="w-[110px]">창고명</th>
             <th className="w-[110px]">품목코드</th>
             <th className="w-[230px]">품목명[규격명]</th>
-            <th className="text-center w-[46px]">단위</th>
-            {/* 원본 차례: 품목명[규격명] 다음이 [생산수량]이다(2026-09-21 실측). */}
             <th className="text-right w-[110px]">생산수량</th>
-            <th className="text-right w-[80px]">검사수량</th>
-            <th className="text-right w-[80px]">검사불량</th>
+            <th className="text-right w-[110px]">불량수량</th>
             <th className="text-right w-[110px]">불량률</th>
-            <th className="text-right w-[110px]">불량처리</th>
-            <th className="text-right w-[70px]">폐기</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={12} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={12} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : groups.flatMap((g, gi) => [
-            ...g.rows.map((r, i) => (
+            ...g.rows.map((r) => (
             <tr key={r.warehouseName + '\u0000' + r.itemId}>
-              <td className="text-center text-ec-hint">{i + 1}</td>
               <td>{r.warehouseCode}</td>
-              <td style={{ color: r.warehouseName === '(미지정)' ? 'var(--ec-text-hint)' : undefined }}>{r.warehouseName}</td>
+              <td className={r.warehouseName === '(미지정)' ? 'text-ec-hint' : undefined}>{r.warehouseName}</td>
               <td>{r.itemCode}</td>
               <td>{r.itemName}{r.spec ? ` [${r.spec}]` : ''}</td>
-              <td className="text-center text-ec-hint">{r.unit}</td>
-              {/* 원본도 생산이 없는 줄은 <b>빈칸</b>이다(송풍기 줄) — 0 으로 찍지 않는다. */}
+              {/* 원본은 그 자료가 없는 칸을 <b>빈칸</b>으로 둔다(송풍기 줄: 생산 빈칸 · 불량 2, 반제품 줄: 생산 156 · 불량 빈칸). */}
               <td className="text-right">{r.producedQty ? won(r.producedQty) : ''}</td>
-              <td className="text-right">{won(r.inspectedQty)}</td>
-              <td className="text-right">{r.inspectDefect ? won(r.inspectDefect) : ''}</td>
-              <td style={{ textAlign: 'right', fontWeight: 700, color: rateColor(r.defectRate) }}>{r.inspectedQty > 0 ? `${r.defectRate.toFixed(2)}%` : ''}</td>
-              <td className="text-right">{r.defectHandled ? won(r.defectHandled) : ''}</td>
-              <td className="text-right">{r.disposed ? won(r.disposed) : ''}</td>
+              <td className="text-right">{r.defectQty ? won(r.defectQty) : ''}</td>
+              {/* 생산과 불량이 다 있어야 율이 선다 — 원본 실측 줄들은 한쪽만 있어 다 빈칸이었다. */}
+              <td className="text-right">{r.producedQty > 0 && r.defectQty > 0 ? rateText(r.defectRate) : ''}</td>
             </tr>
             )),
             /* 원본 격자의 <b>[창고명] 계</b> 줄. 불량률 칸은 비운다(위 groups 주석). */
             <tr key={'sub' + gi} className="ec-total">
-              <td colSpan={5} className="text-center">{g.label} 계</td>
-              <td />
+              <td colSpan={4} className="text-center">{g.label} 계</td>
               <td className="text-right">{g.sums.produced ? won(g.sums.produced) : ''}</td>
-              <td className="text-right">{g.sums.inspected ? won(g.sums.inspected) : ''}</td>
               <td className="text-right">{g.sums.defect ? won(g.sums.defect) : ''}</td>
               <td />
-              <td className="text-right">{g.sums.handled ? won(g.sums.handled) : ''}</td>
-              <td className="text-right">{g.sums.disposed ? won(g.sums.disposed) : ''}</td>
             </tr>,
           ])}
         </tbody>
         {rows.length > 0 && (
           <tfoot>
+            {/* 원본 합계줄은 0 도 찍는다(524 · 2 · 0). */}
             <tr>
-              <td colSpan={6} className="text-center">합계</td>
+              <td colSpan={4} className="text-center">합계</td>
               <td className="text-right">{won(totals.produced)}</td>
-              <td className="text-right">{won(totals.inspected)}</td>
               <td className="text-right">{won(totals.defect)}</td>
-              <td style={{ textAlign: 'right', color: rateColor(overallRate) }}>{overallRate.toFixed(2)}%</td>
-              <td className="text-right">{won(totals.handled)}</td>
-              <td className="text-right">{won(totals.disposed)}</td>
+              <td className="text-right">{rateText(overallRate)}</td>
             </tr>
           </tfoot>
         )}

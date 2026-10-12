@@ -1,0 +1,37 @@
+{
+  "about": "불량률파악보고서(E040512) — 원본 격자 일곱 열 [창고코드 · 창고명 · 품목코드 · 품목명[규격명] · 생산수량 · 불량수량 · 불량률], [불량수량]은 불량처리(처리방법 폐기 · 품목대체 · 정상사용, 정상품목 줄 빼고), [처리방법] 후보 전체 · 폐기 · 품목대체 · 정상사용. 불량처리 두 장(폐기 2 · 품목대체 1 + 정상품목 3)을 넣고 숫자를 본 뒤 지운다.",
+  "shots": [
+    {
+      "name": "불량률파악보고서 — 열 일곱 · 처리방법 후보 넷, 폐기 2 + 품목대체 1 이 불량수량 +3 으로, 품목대체만 거르면 +1, 정상품목은 안 센다",
+      "path": "/quality/defect-report",
+      "steps": [
+        "wait:1200",
+        "expect:[...document.querySelectorAll('table.ec-report thead th')].map((t)=>t.innerText.trim()).join('|')==='창고코드|창고명|품목코드|품목명[규격명]|생산수량|불량수량|불량률'",
+        "expect:(()=>{const s=[...document.querySelectorAll('select')].find((x)=>[...x.options].some((o)=>o.text==='품목대체'));return s&&[...s.options].map((o)=>o.text).join('|')==='전체|폐기|품목대체|정상사용'})()",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:window.__cell = (wh, code) => { const tr=[...document.querySelectorAll('table.ec-report tbody tr')].find((t)=>t.cells.length===7&&t.cells[1].innerText.trim()===wh&&t.cells[2].innerText.trim()===code); return tr ? Number(tr.cells[5].innerText.replace(/,/g,'')||0) : 0 }; true",
+        "js:window.__handling = (v) => { const s=[...document.querySelectorAll('select')].find((x)=>[...x.options].some((o)=>o.text==='품목대체')); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,v); s.dispatchEvent(new Event('change',{bubbles:true})); return true }; true",
+        "js:(async()=>{const st=(await window.__api('GET','/stock')).body;const a=st.find((s)=>Number(s.quantity)>=10);const b=st.find((s)=>s.warehouseId===a.warehouseId&&s.itemId!==a.itemId);const its=(await window.__api('GET','/items')).body;const code=(id)=>its.find((i)=>i.id===id).code;sessionStorage.setItem('dr',JSON.stringify({wh:a.warehouseId,whName:a.warehouseName,a:a.itemId,b:b.itemId,ca:code(a.itemId),cb:code(b.itemId)}));return true})()",
+        "wait:600",
+        "js:(()=>{const d=JSON.parse(sessionStorage.getItem('dr'));sessionStorage.setItem('drBefore',JSON.stringify({a:window.__cell(d.whName,d.ca),b:window.__cell(d.whName,d.cb)}));window.__handling('품목대체');return true})()",
+        "wait:300",
+        "js:(()=>{const d=JSON.parse(sessionStorage.getItem('dr'));const x=JSON.parse(sessionStorage.getItem('drBefore'));x.subA=window.__cell(d.whName,d.ca);sessionStorage.setItem('drBefore',JSON.stringify(x));window.__handling('전체');return true})()",
+        "js:(async()=>{const d=JSON.parse(sessionStorage.getItem('dr'));const r1=await window.__api('POST','/stock-adjustments/slips',{type:'DEFECT',warehouseId:d.wh,handling:'폐기',lines:[{itemId:d.a,quantity:2,kind:'치수불량'}]});const r2=await window.__api('POST','/stock-adjustments/slips',{type:'DEFECT',warehouseId:d.wh,handling:'품목대체',lines:[{itemId:d.a,quantity:1,kind:'QA재고1'},{itemId:d.b,quantity:3,normal:true}]});sessionStorage.setItem('drNos',JSON.stringify([r1.body&&r1.body.adjustNo,r2.body&&r2.body.adjustNo]));return r1.status+','+r2.status})()",
+        "wait:600",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:(()=>{const d=JSON.parse(sessionStorage.getItem('dr'));const x=JSON.parse(sessionStorage.getItem('drBefore'));return window.__cell(d.whName,d.ca)===x.a+3})()",
+        "expect:(()=>{const d=JSON.parse(sessionStorage.getItem('dr'));const x=JSON.parse(sessionStorage.getItem('drBefore'));return window.__cell(d.whName,d.cb)===x.b})()",
+        "js:window.__handling('품목대체')",
+        "wait:300",
+        "expect:(()=>{const d=JSON.parse(sessionStorage.getItem('dr'));const x=JSON.parse(sessionStorage.getItem('drBefore'));return window.__cell(d.whName,d.ca)===x.subA+1})()",
+        "js:window.__handling('전체')",
+        "js:(async()=>{for(const no of JSON.parse(sessionStorage.getItem('drNos'))){if(no)await window.__api('DELETE','/stock-adjustments/slips/'+encodeURIComponent(no))}return true})()",
+        "wait:600",
+        "click:검색(F8)",
+        "wait:1500",
+        "expect:(()=>{const d=JSON.parse(sessionStorage.getItem('dr'));const x=JSON.parse(sessionStorage.getItem('drBefore'));return window.__cell(d.whName,d.ca)===x.a})()"
+      ]
+    }
+  ]
+}

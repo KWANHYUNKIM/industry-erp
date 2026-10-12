@@ -930,8 +930,8 @@
   "palette": 0
  },
  "pages/quality/DefectReportPage.tsx": {
-  "inline": 6,
-  "color": 1,
+  "inline": 0,
+  "color": 0,
   "palette": 0
  },
  "pages/quality/LotLedgerPage.tsx": {

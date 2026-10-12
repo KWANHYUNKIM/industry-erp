@@ -2685,13 +2685,6 @@
   ],
   "file": "trade/PurchaseRequestStatusPage.tsx"
  },
- "불량률파악보고서|불량수량": {
-  "claim": "우리 것은 검사에서 나온 [검사불량]이다",
-  "present": [
-   "inspectDefect"
-  ],
-  "file": "quality/DefectReportPage.tsx"
- },
  "생산입고/소모현황 I|보내는창고계층그룹": {
   "claim": "창고를 계층으로 묶는 마스터가 없다 — 평면이다",
   "absent": [
