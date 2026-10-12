@@ -41,4 +41,11 @@ public class Department extends BaseTimeEntity {
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;
+
+    /**
+     * 부서장 사원 id — 조직도등록 [부서장지정] · [부서장설정](원본 E090222). 없으면 null.
+     * 같은 hr 모듈의 Employee 가 이미 Department 를 @ManyToOne 으로 들고 있어, 되짚는 쪽은 id 만 든다.
+     */
+    @Column(name = "head_employee_id")
+    private Long headEmployeeId;
 }
