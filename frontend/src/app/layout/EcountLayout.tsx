@@ -454,6 +454,7 @@ const MENU: TopMenu[] = [
           { label: '일반전표입력', to: '/accounting/journal-entry' },
           { label: '현금예금입금', to: '/accounting/cash-deposit' },
           { label: '현금예금출금', to: '/accounting/cash-withdraw' },
+          { label: '영수증으로', to: '/accounting/receipt-payment' },
           { label: '계좌간이동·카드대금결제', to: '/accounting/cash-details' },
           { label: '지출결의서', to: '/accounting/vouchers' },
           { label: '입금보고서', to: '/accounting/vouchers?type=DEPOSIT_REPORT' },

@@ -47,7 +47,12 @@ public final class FastVoucherDtos {
             @PositiveOrZero(message = "가지급금은 0보다 작을 수 없습니다.") BigDecimal advanceAmount,
             @NotEmpty(message = "내역을 1줄 이상 입력하세요.") @Valid List<LineInput> lines,
             @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
-            String description
+            String description,
+            /** 영수증으로 [거래처명] — 글자 그대로. */
+            @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
+            String payeeName,
+            /** 영수증으로 [수수료]. */
+            @PositiveOrZero(message = "수수료는 0보다 작을 수 없습니다.") BigDecimal fee
     ) {}
 
     public record VoucherLineResponse(
@@ -68,7 +73,8 @@ public final class FastVoucherDtos {
             BigDecimal balance,
             Long journalEntryId, String journalDocNo,
             String description, String createdBy,
-            List<VoucherLineResponse> lines
+            List<VoucherLineResponse> lines,
+            String payeeName, BigDecimal fee
     ) {
         public static VoucherResponse from(FastVoucher v) {
             BigDecimal balance = v.getAdvanceAmount() != null
@@ -98,7 +104,8 @@ public final class FastVoucherDtos {
                                     l.getBankAccount() != null ? bankName(l.getBankAccount()) : (l.isOwnSettlement() ? "현금" : null),
                                     l.getPartner() != null ? l.getPartner().getCode() : null,
                                     l.getPartner() != null ? l.getPartner().getName() : null))
-                            .toList());
+                            .toList(),
+                    v.getPayeeName(), v.getFee());
         }
     }
 

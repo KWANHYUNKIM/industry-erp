@@ -72,6 +72,15 @@ public class FastVoucher extends BaseTimeEntity {
     @Column(length = 50)
     private String createdBy;
 
+    /** 영수증으로 [거래처명] — 거래처 등록 없이 친 이름(원본 'QA회계1-식당' 이 회계거래조회 거래처명에 그대로). */
+    @Column(length = 100)
+    private String payeeName;
+
+    /** 영수증으로 [수수료] — 지급수수료로 따로 분개하고 출금계좌에서는 금액+수수료가 나간다. */
+    @Column(nullable = false, precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal fee = BigDecimal.ZERO;
+
     @OneToMany(mappedBy = "voucher", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<FastVoucherLine> lines = new ArrayList<>();

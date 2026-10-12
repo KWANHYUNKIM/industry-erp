@@ -1201,7 +1201,7 @@ export interface NonCashTxn {
 
 // ===== FastEntry 간편전표 (지출결의서·입금보고서·가지급금정산서) =====
 
-export type FastVoucherType = 'EXPENSE_REPORT' | 'DEPOSIT_REPORT' | 'ADVANCE_SETTLEMENT'
+export type FastVoucherType = 'EXPENSE_REPORT' | 'DEPOSIT_REPORT' | 'ADVANCE_SETTLEMENT' | 'RECEIPT_PAYMENT'
 export type PaymentMethod = 'CASH' | 'BANK' | 'CREDIT'
 
 export interface VoucherLine {
@@ -1243,6 +1243,9 @@ export interface FastVoucher {
   description: string | null
   createdBy: string | null
   lines: VoucherLine[]
+  /** 영수증으로 [거래처명](친 글자) · [수수료] */
+  payeeName: string | null
+  fee: number
 }
 
 // ===== 고정자산 (회계 I) =====

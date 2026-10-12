@@ -126,6 +126,7 @@ const FixedAssetStockPage = lazy(() => import('../pages/accounting/FixedAssetSto
 const FixedAssetMovementPage = lazy(() => import('../pages/accounting/FixedAssetMovementPage'))
 const FixedAssetSlipListPage = lazy(() => import('../pages/accounting/FixedAssetSlipListPage'))
 const FastVoucherPage = lazy(() => import('../pages/accounting/FastVoucherPage'))
+const ReceiptPaymentPage = lazy(() => import('../pages/accounting/ReceiptPaymentPage'))
 const NonCashPage = lazy(() => import('../pages/accounting/NonCashPage'))
 const CheckPage = lazy(() => import('../pages/accounting/CheckPage'))
 const CheckHoldingPage = lazy(() => import('../pages/accounting/CheckHoldingPage'))
@@ -637,6 +638,8 @@ export default function AppRouter() {
         <Route path="/accounting/fixed-asset-slips" element={<FixedAssetSlipListPage />} />
         <Route path="/accounting/cash-deposit" element={<CashTxnPage mode="deposit" />} />
         <Route path="/accounting/cash-withdraw" element={<CashTxnPage mode="withdraw" />} />
+        {/* 원본 현금예금출금 › 영수증으로(E010402) — 출금계좌 · 계정 · 거래처명 · 금액 · 수수료 한 장. */}
+        <Route path="/accounting/receipt-payment" element={<ReceiptPaymentPage />} />
         <Route path="/accounting/cash-details" element={<CashDetailPage />} />
         <Route path="/accounting/vouchers" element={<FastVoucherPage />} />
         <Route path="/accounting/non-cash" element={<NonCashPage />} />

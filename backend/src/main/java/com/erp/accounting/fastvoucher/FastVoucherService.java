@@ -37,6 +37,7 @@ public class FastVoucherService {
     private static final String PAYABLE = "253";           // 미지급금
     private static final String RECEIVABLE = "108";        // 외상매출금
     private static final String ADVANCE = "134";           // 가지급금
+    private static final String FEE = "831";               // 지급수수료
 
     private final FastVoucherRepository voucherRepository;
     private final AccountRepository accountRepository;
@@ -191,6 +192,25 @@ public class FastVoucherService {
                     .partner(in.partnerId() != null ? partner(in.partnerId()) : null)
                     .build());
             if (headPartner == null && in.partnerId() != null) headPartner = v.getLines().get(v.getLines().size() - 1).getPartner();
+        }
+        // 영수증으로: [거래처명]은 친 글자 그대로, [수수료]는 지급수수료 줄로 — 출금계좌에서는 금액+수수료가 나간다.
+        if (v.getType() == FastVoucherType.RECEIPT_PAYMENT) {
+            v.setPayeeName(req.payeeName() != null && !req.payeeName().isBlank() ? req.payeeName().trim() : null);
+            BigDecimal fee = req.fee() != null ? req.fee() : BigDecimal.ZERO;
+            v.setFee(fee);
+            if (fee.signum() > 0) {
+                FastVoucherLine first = v.getLines().get(0);
+                v.addLine(FastVoucherLine.builder()
+                        .account(account(FEE))
+                        .amount(fee)
+                        .description("수수료")
+                        .ownSettlement(first.isOwnSettlement())
+                        .bankAccount(first.getBankAccount())
+                        .build());
+            }
+        } else {
+            v.setPayeeName(null);
+            v.setFee(BigDecimal.ZERO);
         }
         // 원본 회계거래조회 [거래처명]은 줄의 거래처다(26/10/13-2 지출결의서 · 스타벅스). 머리에 없으면 첫 거래처 줄.
         v.setPartner(headPartner);

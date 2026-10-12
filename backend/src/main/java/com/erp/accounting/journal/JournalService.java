@@ -492,7 +492,7 @@ public class JournalService {
                 desc, v.getPartner(), v.getCreatedBy());
 
         switch (v.getType()) {
-            case EXPENSE_REPORT -> {
+            case EXPENSE_REPORT, RECEIPT_PAYMENT -> {
                 v.getLines().forEach(l -> addDebitAccount(e, l.getAccount(), l.getAmount(), lineDesc(l)));
                 settlementGroups(v, settlementOf).forEach((acc, g) -> addCreditAccount(e, acc, g.amount, g.desc));
             }

@@ -40,6 +40,12 @@ const LINE_HINT: Record<FastVoucherType, { title: string; hint: string; division
     hint: '차)입금수단(현금·예금·외상매출금) / 대)수입계정들로 분개됩니다.',
     divisions: ['REVENUE', 'ASSET', 'LIABILITY'],
   },
+  /* 영수증으로는 이 목록이 아니라 ReceiptPaymentPage 가 그린다 — 타입을 채우려고만 둔다. */
+  RECEIPT_PAYMENT: {
+    title: '영수증으로',
+    hint: '차)계정 · 지급수수료 / 대)출금계좌로 분개됩니다.',
+    divisions: ['EXPENSE', 'ASSET'],
+  },
   ADVANCE_SETTLEMENT: {
     title: '실제 사용 내역',
     hint: '차)사용비용(+반납액) / 대)가지급금(+추가지급액)으로 분개됩니다. 가지급 지급 자체는 먼저 현금·계좌 출금(가지급금 계정)으로 처리하세요.',

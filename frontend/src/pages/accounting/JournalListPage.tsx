@@ -41,6 +41,8 @@ export default function JournalListPage() {
   const [rows, setRows] = useState<JournalEntry[]>([])
   /** 간편전표 분개 → 그 결의서 종류(지출결의서 · 입금보고서 · 가지급금정산서). 원본 [거래유형]이 그 이름이다. */
   const [voucherType, setVoucherType] = useState<Record<number, string>>({})
+  /** 영수증으로 [거래처명] — 거래처 등록 없이 친 이름. 원본 회계거래조회가 그 글자를 [거래처명]에 찍는다. */
+  const [payeeOf, setPayeeOf] = useState<Record<number, string>>({})
   const typeLabel = (r: JournalEntry) => voucherType[r.id] ?? TYPE_NAME[r.sourceType] ?? r.sourceTypeName
   /* 원본 줄 색: 매출전표 분홍 · 매입전표 연두(td.danger · td.success). */
   const rowBg = (r: JournalEntry) => r.sourceType === 'SALES' ? 'bg-[var(--ec-bg-sales-row)]'
@@ -72,9 +74,13 @@ export default function JournalListPage() {
     api.get<JournalListResponse>('/journals', { params })
       .then((r) => { setRows(r.data.rows); setTotalRows(r.data.totalRows); setTruncated(r.data.truncated) })
       .catch((err) => { setError(extractErrorMessage(err)); setRows([]); setTotalRows(0); setTruncated(false) })
-    api.get<{ rows: { journalEntryId: number | null; typeName: string }[] }>('/vouchers', { params: { ...(range ?? { from, to }), all: true } })
-      .then((r) => setVoucherType(Object.fromEntries(r.data.rows.filter((v) => v.journalEntryId).map((v) => [v.journalEntryId!, v.typeName]))))
-      .catch(() => setVoucherType({}))
+    api.get<{ rows: { journalEntryId: number | null; typeName: string; payeeName: string | null }[] }>('/vouchers', { params: { ...(range ?? { from, to }), all: true } })
+      .then((r) => {
+        const vs = r.data.rows.filter((v) => v.journalEntryId)
+        setVoucherType(Object.fromEntries(vs.map((v) => [v.journalEntryId!, v.typeName])))
+        setPayeeOf(Object.fromEntries(vs.filter((v) => v.payeeName).map((v) => [v.journalEntryId!, v.payeeName!])))
+      })
+      .catch(() => { setVoucherType({}); setPayeeOf({}) })
   }
 
   useEffect(() => {
@@ -161,13 +167,13 @@ export default function JournalListPage() {
                 <td>
                   {/* 원본: 전표번호를 누르면 그 전표의 입력 화면(지출결의서 · 입금보고서 …)이 열린다. 우리는 결의서만 열고 나머지는 분개를 펼친다. */}
                   <a className="text-ec-navy cursor-pointer" title={r.docNo}
-                     onClick={(e) => { if (voucherType[r.id]) { e.stopPropagation(); navigate(`/accounting/vouchers?journal=${r.id}`) } }}>
+                     onClick={(e) => { if (voucherType[r.id]) { e.stopPropagation(); navigate(voucherType[r.id] === '영수증으로' ? `/accounting/receipt-payment?journal=${r.id}` : `/accounting/vouchers?journal=${r.id}`) } }}>
                     {slipNo(r.docNo)}
                   </a>
                 </td>
                 <td>{typeLabel(r)}</td>
                 <td className="text-right">{won(r.totalDebit)}</td>
-                <td>{r.partnerName ?? ''}</td>
+                <td>{r.partnerName ?? payeeOf[r.id] ?? ''}</td>
                 <td>{r.description}</td>
               </tr>
               {openId === r.id && (
