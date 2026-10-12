@@ -1445,6 +1445,8 @@ export interface StockAdjustment {
   lineNo?: number
   /** 원본 자가사용입력 머리 [거래처]. 이름은 화면이 거래처 목록에서 붙인다. */
   partnerId?: number | null
+  /** 불량처리의 정상품목 줄(재고가 들어온 줄 — 품목대체 [정상품목] · 정상사용의 되돌아온 수량). */
+  normal?: boolean
 }
 
 /** 원본 자가사용입력(E040503) 전표 한 장 — 머리 + 줄. */

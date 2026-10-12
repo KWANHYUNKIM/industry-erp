@@ -201,6 +201,7 @@ export default function DefectReportPage() {
     for (const a of adjustments) {
       if (!inPeriod(a.adjustDate)) continue
       if (a.type !== 'DEFECT' && a.type !== 'DISPOSAL') continue
+      if (a.normal) continue   // 불량처리의 정상품목 줄(들어온 재고)은 불량이 아니다
       if (defectTypeCond) continue   // 조정에는 불량유형이 없다 — 위 주석 참고
       if (handleCond === '불량' && a.type !== 'DEFECT') continue
       if (handleCond === '폐기' && a.type !== 'DISPOSAL') continue

@@ -82,6 +82,8 @@ export default function StockMoveListPage({ kind }: { kind: 'SELF_USE' | 'DEFECT
   const empName = useMemo(() => new Map(pickers.employees.map((e) => [(e as { id?: number }).id, e.name])), [pickers.employees])
   const shown = useMemo(() => rows
     .filter((r) => r.type === kind)
+    /* 불량처리의 정상품목 줄(들어온 재고)은 빼고 센다 — 원본 불량처리조회는 품목대체 전표를 불량품목만으로 찍는다. */
+    .filter((r) => !r.normal)
     .filter((r) => r.adjustDate >= from && r.adjustDate <= to)
     .filter((r) => !warehouse || String(r.warehouseId) === warehouse)
     .filter((r) => !project || String(r.projectId) === project)

@@ -213,41 +213,73 @@ public class StockAdjustmentService {
         Warehouse warehouse = warehouseRepository.findById(req.warehouseId())
                 .orElseThrow(() -> ApiException.notFound("창고를 찾을 수 없습니다. id=" + req.warehouseId()));
         var project = req.projectId() == null ? null : projectService.get(req.projectId());
+        boolean substitute = req.type() == StockAdjustmentType.DEFECT && HANDLING_SUBSTITUTE.equals(req.handling());
+        boolean normalUse = req.type() == StockAdjustmentType.DEFECT && HANDLING_NORMAL_USE.equals(req.handling());
+        List<StockAdjustmentDtos.SlipLine> defective = req.lines().stream().filter(l -> !Boolean.TRUE.equals(l.normal())).toList();
+        if (defective.isEmpty()) {
+            throw ApiException.badRequest("불량품목을 입력하세요.");
+        }
+        if (!substitute && defective.size() != req.lines().size()) {
+            throw ApiException.badRequest("정상품목은 처리방법이 품목대체일 때만 넣을 수 있습니다.");
+        }
         List<StockAdjustment> saved = new java.util.ArrayList<>();
         int lineNo = 0;
-        for (StockAdjustmentDtos.SlipLine line : req.lines()) {
-            lineNo++;
-            Item item = itemRepository.findById(line.itemId())
-                    .orElseThrow(() -> ApiException.notFound("품목을 찾을 수 없습니다. id=" + line.itemId()));
-            BigDecimal qty = line.quantity();
-            if (qty.signum() <= 0) {
-                throw ApiException.badRequest(lineNo + "번째 줄: 수량은 0보다 커야 합니다.");
-            }
-            stockService.requireStockTracked(item);
-            String note = req.type().getDisplayName() + " " + adjustNo
-                    + (line.reason() != null && !line.reason().isBlank() ? " (" + line.reason() + ")" : "");
-            StockTransaction tx = stockService.applyDelta(item, warehouse, qty.negate(),
-                    StockTransactionType.OUTBOUND, null, date, note, username);
-            saved.add(adjustmentRepository.save(StockAdjustment.builder()
-                    .adjustNo(adjustNo)
-                    .lineNo(lineNo)
-                    .adjustDate(date)
-                    .type(req.type())
-                    .item(item)
-                    .warehouse(warehouse)
-                    .beforeQty(tx.getBalanceAfter().subtract(tx.getQuantityChange()))
-                    .quantityChange(tx.getQuantityChange())
-                    .afterQty(tx.getBalanceAfter())
-                    .project(project)
-                    .employeeId(req.employeeId())
-                    .partnerId(req.partnerId())
-                    .reason(line.reason())
-                    .kind(line.kind())
-                    .handling(req.handling())
-                    .createdBy(username)
-                    .build()));
+        /* 불량품목은 발견창고에서 나간다(폐기 · 품목대체 · 정상사용 모두). */
+        for (StockAdjustmentDtos.SlipLine line : defective) {
+            saved.add(writeLine(++lineNo, adjustNo, date, req, warehouse, project, line, false, username));
+        }
+        /*
+         * 품목대체의 [정상품목]은 발견창고로 들어온다. 정상사용은 원본이 같은 품목을 '[불량] - 정상사용' 으로
+         * 출고 1 · 입고 1 두 줄을 남겨 재고가 그대로다(2026-10-12 실측: 포장김치 799 → 800 → … 출고 · 입고 한 쌍)
+         * — 우리도 나간 줄마다 같은 수량이 들어오는 정상품목 줄을 붙인다.
+         */
+        List<StockAdjustmentDtos.SlipLine> incoming = substitute
+                ? req.lines().stream().filter(l -> Boolean.TRUE.equals(l.normal())).toList()
+                : normalUse ? defective : List.of();
+        for (StockAdjustmentDtos.SlipLine line : incoming) {
+            saved.add(writeLine(++lineNo, adjustNo, date, req, warehouse, project, line, true, username));
         }
         return StockAdjustmentDtos.SlipResponse.of(saved);
+    }
+
+    /** 원본 불량처리입력 [처리방법] 값. */
+    static final String HANDLING_SUBSTITUTE = "품목대체";
+    static final String HANDLING_NORMAL_USE = "정상사용";
+
+    /** 전표 한 줄 — 나가는 줄(inbound=false)은 재고를 빼고, 들어오는 줄은 더한다. */
+    private StockAdjustment writeLine(int lineNo, String adjustNo, LocalDate date, StockAdjustmentDtos.SlipRequest req,
+                                      Warehouse warehouse, com.erp.inventory.project.Project project,
+                                      StockAdjustmentDtos.SlipLine line, boolean inbound, String username) {
+        Item item = itemRepository.findById(line.itemId())
+                .orElseThrow(() -> ApiException.notFound("품목을 찾을 수 없습니다. id=" + line.itemId()));
+        BigDecimal qty = line.quantity();
+        if (qty.signum() <= 0) {
+            throw ApiException.badRequest(lineNo + "번째 줄: 수량은 0보다 커야 합니다.");
+        }
+        stockService.requireStockTracked(item);
+        String note = req.type().getDisplayName() + " " + adjustNo
+                + (req.handling() != null && !req.handling().isBlank() ? " - " + req.handling() : "")
+                + (line.reason() != null && !line.reason().isBlank() ? " (" + line.reason() + ")" : "");
+        StockTransaction tx = stockService.applyDelta(item, warehouse, inbound ? qty : qty.negate(),
+                inbound ? StockTransactionType.INBOUND : StockTransactionType.OUTBOUND, null, date, note, username);
+        return adjustmentRepository.save(StockAdjustment.builder()
+                .adjustNo(adjustNo)
+                .lineNo(lineNo)
+                .adjustDate(date)
+                .type(req.type())
+                .item(item)
+                .warehouse(warehouse)
+                .beforeQty(tx.getBalanceAfter().subtract(tx.getQuantityChange()))
+                .quantityChange(tx.getQuantityChange())
+                .afterQty(tx.getBalanceAfter())
+                .project(project)
+                .employeeId(req.employeeId())
+                .partnerId(req.partnerId())
+                .reason(line.reason())
+                .kind(line.kind())
+                .handling(req.handling())
+                .createdBy(username)
+                .build());
     }
 
     /** 한 줄이 바꾼 재고를 되돌린다(수불이력은 지우지 않고 반대 거래를 남긴다). */

@@ -59,7 +59,12 @@ public final class StockAdjustmentDtos {
             /** 전표 안 줄 차례 — 같은 adjustNo 의 줄들이 한 장이다(자가사용입력). */
             Integer lineNo,
             /** 원본 머리 [거래처]. 이름은 화면이 거래처 목록에서 붙인다(inventory 는 trade 를 모른다). */
-            Long partnerId
+            Long partnerId,
+            /**
+             * 불량처리 전표의 <b>정상품목</b> 줄인가 — 재고가 <b>들어온</b> 줄이다(품목대체의 [정상품목] 격자,
+             * 정상사용의 되돌아온 수량). 불량처리조회 · 불량처리현황 · 불량률은 이 줄을 빼고 센다.
+             */
+            boolean normal
     ) {
         public static AdjustmentResponse from(StockAdjustment a) {
             return new AdjustmentResponse(
@@ -76,7 +81,8 @@ public final class StockAdjustmentDtos {
                     a.getEmployeeId(),
                     a.getReason(), a.getCreatedBy(),
                     a.getKind(), a.getHandling(),
-                    a.getLineNo(), a.getPartnerId());
+                    a.getLineNo(), a.getPartnerId(),
+                    a.getType() == StockAdjustmentType.DEFECT && a.getQuantityChange().signum() > 0);
         }
     }
 
@@ -110,7 +116,13 @@ public final class StockAdjustmentDtos {
             @Size(max = 30, message = "입력한 글자가 너무 깁니다. 30자까지 넣을 수 있습니다.")
             String kind,
             @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
-            String reason
+            String reason,
+            /*
+             * 불량처리 [처리방법] 품목대체의 <b>[정상품목]</b> 격자 줄 — 발견창고로 <b>들어온다</b>(2026-10-12 실측:
+             * 포장김치 1 불량 + 배추 3 정상 → 재고수불부 포장김치 출고 1 · 배추 입고 3, 둘 다 '[불량] - 품목대체').
+             * 나머지 줄(불량품목)은 나간다. 안 주면 불량품목 줄이다.
+             */
+            Boolean normal
     ) {}
 
     /** 전표 한 장 — 머리 값은 첫 줄의 것(모든 줄이 같다), 줄은 줄번호 차례. */

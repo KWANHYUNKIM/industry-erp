@@ -63,6 +63,8 @@ interface Adjustment {
   beforeQty: number
   quantityChange: number
   afterQty: number
+  /** 불량처리의 정상품목 줄(들어온 재고). 대체사용현황만 세우고 나머지 현황은 뺀다. */
+  normal?: boolean
   reason: string | null
   createdBy: string | null
   /** 원본 조건 [담당자]. 서버는 진작 보내는데 화면이 받아 두지 않아 거를 수가 없었다. */
@@ -236,6 +238,11 @@ export default function StockMoveStatusPage({ kind }: { kind: AdjustKind }) {
 
   const shown = rows
     .filter((r) => r.type === kind || (r.type === 'DEFECT' && r.handling === HANDLING_OF[kind]))
+    /*
+     * 불량처리의 정상품목 줄(재고가 들어온 줄)은 원본 대체사용현황에만 [정상수량] 으로 선다
+     * (2026-10-12 실측: 포장김치 불량수량 1 · 배추 정상수량 3). 불량처리현황 · 폐기현황에는 안 선다.
+     */
+    .filter((r) => !r.normal || kind === 'SUBSTITUTE')
     /* 원본 [기타]. 재고조정 말고는 그 칸이 없으니 다른 유형에서는 걸지 않는다. */
     .filter((r) => kind !== 'ADJUST' || withZeroQty || r.quantityChange !== 0)
     .filter((r) => kind !== 'ADJUST' || withUntracked || !untracked.has(r.itemId))

@@ -11,6 +11,7 @@ import { dateNo } from '../../utils/dateNo'
 import type { StockAdjustmentSlip } from '../../types/api'
 
 type Line = { itemId: string; quantity: string; kind: string }
+type Grid = 'defect' | 'normal'
 const blank = (): Line => ({ itemId: '', quantity: '', kind: '' })
 /** 원본 격자는 빈 줄 셋으로 뜬다. */
 const blankLines = () => [blank(), blank(), blank()]
@@ -29,8 +30,13 @@ const num = (n: number) => n.toLocaleString('ko-KR')
  *
  * <p><b>불량처리입력</b>(E040507)도 이 화면이다(kind=DEFECT) — 같은 날 실측. 머리 [일자 · 담당자 / <b>발견창고</b> · <b>처리방법</b> / 프로젝트],
  * [거래처]는 없고 격자 끝 칸이 [불량유형]. 처리방법은 폐기(기본) · 품목대체 · 정상사용. 폐기로 저장하면 발견창고 재고가 수량만큼 빠지고
- * (재고수불부 '[불량] - 폐기' 출고 1) <b>폐기현황</b>에 그 줄이 선다. 품목대체를 고르면 원본은 [정상품목] 격자가 하나 더 열리는데
- * 우리는 아직 두지 않았다 — 정상품목이 어디로 들어가는지 재지 못했다.
+ * (재고수불부 '[불량] - 폐기' 출고 1) <b>폐기현황</b>에 그 줄이 선다.
+ *
+ * <p>품목대체를 고르면 격자 위에 알약 [불량품목 · 정상품목] 이 서고, [정상품목] 격자(품목코드 · 품목명 · 규격 · 수량 · 불량유형)에
+ * 넣은 품목은 <b>발견창고로 들어온다</b>(같은 날 실측: 포장김치 1 불량 + 배추 3 정상 → 재고수불부 포장김치 출고 1 · 배추 입고 3,
+ * 대체사용현황 '불량수량 1 · 정상수량 3'). 정상사용은 격자가 하나뿐이고 같은 품목이 출고 1 · 입고 1 로 남아 재고가 그대로다.
+ * 원본 품목대체의 [▸불량품목] 접힌 판(BOM풀기 · 바코드 · 입력자료불러오기)은 두지 않았다 — BOM 이 있는 품목(PC-STD)으로
+ * BOM풀기를 눌러도 원본 격자에 아무것도 안 들어와 무엇을 하는지 재지 못했다.
  */
 type MoveKind = 'SELF_USE' | 'DEFECT'
 const LABEL: Record<MoveKind, { name: string; list: string; warehouse: string; kind: string; kindCodes: string }> = {
@@ -53,6 +59,13 @@ export default function SelfUseInputPage({ adjustNo, onDone, kind = 'SELF_USE' }
   const [warehouseId, setWarehouseId] = useState('')
   const [projectId, setProjectId] = useState('')
   const [lines, setLines] = useState<Line[]>(blankLines())
+  /* 품목대체의 [정상품목] 격자 — 발견창고로 들어오는 품목. */
+  const [normals, setNormals] = useState<Line[]>(blankLines())
+  const [grid, setGrid] = useState<Grid>('defect')
+  const substitute = !selfUse && handling === '품목대체'
+  const showNormal = substitute && grid === 'normal'
+  const rows = showNormal ? normals : lines
+  const setRows = showNormal ? setNormals : setLines
   const [picked, setPicked] = useState<Set<number>>(new Set())
   const [kinds, setKinds] = useState<string[]>([])
   const [error, setError] = useState('')
@@ -74,7 +87,10 @@ export default function SelfUseInputPage({ adjustNo, onDone, kind = 'SELF_USE' }
         setWarehouseId(String(s.warehouseId))
         setProjectId(s.projectId != null ? String(s.projectId) : '')
         if (s.handling) setHandling(s.handling)
-        setLines([...s.lines.map((l) => ({ itemId: String(l.itemId), quantity: String(Math.abs(Number(l.quantityChange))), kind: l.kind ?? '' })), blank()])
+        const toLine = (l: StockAdjustmentSlip['lines'][number]) => ({ itemId: String(l.itemId), quantity: String(Math.abs(Number(l.quantityChange))), kind: l.kind ?? '' })
+        setLines([...s.lines.filter((l) => !l.normal).map(toLine), blank()])
+        /* 정상사용의 정상품목 줄은 서버가 불량 줄을 따라 붙인 것이라 격자로 펴지 않는다. */
+        if (s.handling === '품목대체') setNormals([...s.lines.filter((l) => l.normal).map(toLine), blank()])
       })
       .catch((e) => setError(extractErrorMessage(e)))
   }, [adjustNo])
@@ -85,7 +101,7 @@ export default function SelfUseInputPage({ adjustNo, onDone, kind = 'SELF_USE' }
   const kindItems = useMemo(() => kinds.map((k) => ({ value: k, name: k })), [kinds])
 
   function setLine(i: number, patch: Partial<Line>) {
-    setLines((ls) => {
+    setRows((ls) => {
       const next = ls.map((l, j) => (j === i ? { ...l, ...patch } : l))
       // 마지막 줄에 품목을 넣으면 빈 줄을 하나 더 단다(원본 격자처럼 끝이 늘 비어 있다).
       if (next[next.length - 1].itemId) next.push(blank())
@@ -95,6 +111,8 @@ export default function SelfUseInputPage({ adjustNo, onDone, kind = 'SELF_USE' }
 
   function reset() {
     setLines(blankLines())
+    setNormals(blankLines())
+    setGrid('defect')
     setPicked(new Set())
     setError('')
   }
@@ -103,8 +121,9 @@ export default function SelfUseInputPage({ adjustNo, onDone, kind = 'SELF_USE' }
     setError(''); setNotice('')
     if (!warehouseId) return setError(`${L.warehouse}를 입력하세요.`)
     const filled = lines.filter((l) => l.itemId || l.quantity)
-    if (filled.length === 0 || filled.some((l) => !l.itemId)) return setError('품목을 입력하세요.')
-    if (filled.some((l) => !(Number(l.quantity) > 0))) return setError('수량을 입력하세요.')
+    const filledNormal = substitute ? normals.filter((l) => l.itemId || l.quantity) : []
+    if (filled.length === 0 || [...filled, ...filledNormal].some((l) => !l.itemId)) return setError('품목을 입력하세요.')
+    if ([...filled, ...filledNormal].some((l) => !(Number(l.quantity) > 0))) return setError('수량을 입력하세요.')
     const body = {
       type: kind, date,
       partnerId: selfUse && partnerId ? Number(partnerId) : null,
@@ -112,7 +131,10 @@ export default function SelfUseInputPage({ adjustNo, onDone, kind = 'SELF_USE' }
       employeeId: employeeId ? Number(employeeId) : null,
       warehouseId: Number(warehouseId),
       projectId: projectId ? Number(projectId) : null,
-      lines: filled.map((l) => ({ itemId: Number(l.itemId), quantity: Number(l.quantity), kind: l.kind || null })),
+      lines: [
+        ...filled.map((l) => ({ itemId: Number(l.itemId), quantity: Number(l.quantity), kind: l.kind || null })),
+        ...filledNormal.map((l) => ({ itemId: Number(l.itemId), quantity: Number(l.quantity), kind: l.kind || null, normal: true })),
+      ],
     }
     try {
       const { data } = editing
@@ -137,9 +159,9 @@ export default function SelfUseInputPage({ adjustNo, onDone, kind = 'SELF_USE' }
   }
 
   const tableRef = useRef<HTMLTableElement>(null)
-  useTableColumnCheck(tableRef, `${L.name}${editing ? '수정' : '입력'}`, [lines])
-  const totalQty = lines.reduce((s, l) => s + (Number(l.quantity) || 0), 0)
-  const allPicked = lines.length > 0 && picked.size === lines.length
+  useTableColumnCheck(tableRef, `${L.name}${editing ? '수정' : '입력'}`, [rows])
+  const totalQty = rows.reduce((s, l) => s + (Number(l.quantity) || 0), 0)
+  const allPicked = rows.length > 0 && picked.size === rows.length
 
   return (
     <EcSlipShell
@@ -193,9 +215,18 @@ export default function SelfUseInputPage({ adjustNo, onDone, kind = 'SELF_USE' }
           </EcCond>
         </ul>
 
+        {substitute && (
+          <div className="ec-pills mb-[6px]" role="tablist">
+            {([['defect', '불량품목'], ['normal', '정상품목']] as const).map(([g, label]) => (
+              <button key={g} type="button" role="tab" aria-selected={grid === g}
+                      className={`ec-pill${grid === g ? ' active' : ''}`}
+                      onClick={() => { setGrid(g); setPicked(new Set()) }}>{label}</button>
+            ))}
+          </div>
+        )}
         <div className="flex gap-[4px] mb-[4px]">
           <button type="button" className="ec-btn ec-btn-sm" disabled={picked.size === 0}
-                  onClick={() => { setLines((ls) => { const n = ls.filter((_, i) => !picked.has(i)); return n.length ? n : blankLines() }); setPicked(new Set()) }}>
+                  onClick={() => { setRows((ls) => { const n = ls.filter((_, i) => !picked.has(i)); return n.length ? n : blankLines() }); setPicked(new Set()) }}>
             선택삭제
           </button>
         </div>
@@ -205,7 +236,7 @@ export default function SelfUseInputPage({ adjustNo, onDone, kind = 'SELF_USE' }
               <tr>
                 <th className="w-[44px] text-center">
                   <input type="checkbox" aria-label="전체 선택" checked={allPicked}
-                         onChange={() => setPicked(allPicked ? new Set() : new Set(lines.map((_, i) => i)))} />
+                         onChange={() => setPicked(allPicked ? new Set() : new Set(rows.map((_, i) => i)))} />
                 </th>
                 <th className="w-[176px]">품목코드</th>
                 <th className="w-[194px]">품목명</th>
@@ -215,7 +246,7 @@ export default function SelfUseInputPage({ adjustNo, onDone, kind = 'SELF_USE' }
               </tr>
             </thead>
             <tbody>
-              {lines.map((l, i) => {
+              {rows.map((l, i) => {
                 const it = itemById.get(l.itemId)
                 return (
                   <tr key={i}>
