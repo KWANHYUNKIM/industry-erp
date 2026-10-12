@@ -131,6 +131,10 @@ const CheckHoldingPage = lazy(() => import('../pages/accounting/CheckHoldingPage
 const CheckFlowPage = lazy(() => import('../pages/accounting/CheckFlowPage'))
 const CheckLedgerPage = lazy(() => import('../pages/accounting/CheckLedgerPage'))
 const CheckListPage = lazy(() => import('../pages/accounting/CheckListPage'))
+const BondListPage = lazy(() => import('../pages/accounting/BondListPage'))
+const BondLedgerPage = lazy(() => import('../pages/accounting/BondLedgerPage'))
+const BondFlowPage = lazy(() => import('../pages/accounting/BondFlowPage'))
+const BondStatusPage = lazy(() => import('../pages/accounting/BondStatusPage'))
 const ContractPage = lazy(() => import('../pages/accounting/ContractPage'))
 const CurrencyPage = lazy(() => import('../pages/settings/CurrencyPage'))
 const ExpensePage = lazy(() => import('../pages/accounting/ExpensePage'))
@@ -637,6 +641,17 @@ export default function AppRouter() {
         <Route path="/accounting/checks-out" element={<CheckFlowPage type="RECEIVED" flow="감소" />} />
         <Route path="/accounting/checks-issued-in" element={<CheckFlowPage type="ISSUED" flow="증가" />} />
         <Route path="/accounting/checks-issued-out" element={<CheckFlowPage type="ISSUED" flow="감소" />} />
+        {/* 회계 II 채권관리 · 채무관리 — 채권(채무)내역 보조장부(2026-10-12 원본 E060403 · E060404 · E060405 · E060406 실측) */}
+        <Route path="/accounting/bonds/ar" element={<BondListPage side="RECEIVABLE" />} />
+        <Route path="/accounting/bonds/ar/ledger" element={<BondLedgerPage side="RECEIVABLE" />} />
+        <Route path="/accounting/bonds/ar/increase" element={<BondFlowPage side="RECEIVABLE" direction="INCREASE" />} />
+        <Route path="/accounting/bonds/ar/decrease" element={<BondFlowPage side="RECEIVABLE" direction="DECREASE" />} />
+        <Route path="/accounting/bonds/ar/status" element={<BondStatusPage side="RECEIVABLE" />} />
+        <Route path="/accounting/bonds/ap" element={<BondListPage side="PAYABLE" />} />
+        <Route path="/accounting/bonds/ap/ledger" element={<BondLedgerPage side="PAYABLE" />} />
+        <Route path="/accounting/bonds/ap/increase" element={<BondFlowPage side="PAYABLE" direction="INCREASE" />} />
+        <Route path="/accounting/bonds/ap/decrease" element={<BondFlowPage side="PAYABLE" direction="DECREASE" />} />
+        <Route path="/accounting/bonds/ap/status" element={<BondStatusPage side="PAYABLE" />} />
         <Route path="/accounting/checks-held" element={<CheckHoldingPage type="RECEIVED" />} />
         <Route path="/accounting/checks-issued" element={<CheckHoldingPage type="ISSUED" />} />
         <Route path="/accounting/contracts" element={<ContractPage />} />

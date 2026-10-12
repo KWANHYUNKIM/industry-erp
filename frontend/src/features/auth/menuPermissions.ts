@@ -109,6 +109,8 @@ const RULES: Rule[] = [
   ['/accounting/checks-out', 'BANK'],
   ['/accounting/checks-issued-in', 'BANK'],
   ['/accounting/checks-issued-out', 'BANK'],
+  /* 회계 II 채권관리 · 채무관리 — 채권(채무)내역 보조장부(조회 · 거래내역 · 증가/감소현황 · 현황). */
+  ['/accounting/bonds', 'FINANCE'],
   ['/accounting/non-cash', 'BANK'],
   ['/accounting/notes', 'BANK'],
   ['/accounting/notes-ledger', 'BANK'],

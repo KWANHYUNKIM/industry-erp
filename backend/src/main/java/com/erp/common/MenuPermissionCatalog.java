@@ -101,7 +101,7 @@ public final class MenuPermissionCatalog {
                 "/api/card-issuers", "/api/payment-agencies");
         put(m, "FIXED_ASSET", "/api/fixed-assets");
         put(m, "FINANCE", "/api/budgets", "/api/contracts", "/api/incomes", "/api/expenses",
-                "/api/cash-plans");
+                "/api/cash-plans", "/api/bonds");
         put(m, "TAX", "/api/withholding", "/api/other-withholdings", "/api/corporate-tax",
                 "/api/medical-device-reports");
         // 관리
