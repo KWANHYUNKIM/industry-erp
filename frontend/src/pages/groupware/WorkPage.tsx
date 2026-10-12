@@ -520,6 +520,8 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
             </>
           )}
         </span>
+        {/* 원본 하단 [라벨설정] — '라벨조회' 창(2026-10-12 잼, [라벨] · [라벨변경]의 + 와 같은 창). */}
+        <button className="ec-btn" onClick={() => setMasterOpen(true)}>라벨설정</button>
         <button className="ec-btn" onClick={() => setOpened((v) => !v)}>{opened ? '모두접기' : '모두펼쳐보기'}</button>
         <button className="ec-btn disabled:opacity-45" disabled={selected.size === 0} onClick={() => void deleteSelected()}>선택삭제</button>
         <button className="ec-btn" onClick={() => void doExcel()}>Excel</button>
