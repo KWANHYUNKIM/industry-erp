@@ -2,6 +2,9 @@ import { Fragment, useEffect, useState } from 'react'
 import { exportTableToXlsx } from '../../utils/excel'
 import { openPrintWindow, fillAndPrint } from '../../utils/print'
 import { escapeHtml } from '../../utils/escapeHtml'
+import LabelChip from '../../features/board/components/LabelChip'
+import LabelMasterModal from '../../features/board/components/LabelMasterModal'
+import { fetchLabels, type BoardLabel } from '../../features/board/labels'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { WorkPost } from '../../types/api'
@@ -89,16 +92,23 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
   const from = periodFrom()
   const to = today()
 
+  /** 원본 '라벨조회' 의 라벨 마스터(코드 · 이름 · 색). */
+  const [labelMaster, setLabelMaster] = useState<BoardLabel[]>([])
+  const [masterOpen, setMasterOpen] = useState(false)
+
   // Search(F3) — 버튼 라벨이 약속한 단축키. 창이 떠 있을 때는 뒤 화면이 바뀌면 안 된다.
-  useShortcut('F3', load, !showForm && !viewing)
-  useShortcut('F2', openNew, !showForm && !viewing)
+  useShortcut('F3', load, !showForm && !viewing && !masterOpen)
+  useShortcut('F2', openNew, !showForm && !viewing && !masterOpen)
   useShortcut('F8', () => void submit(), showForm)
+
+  const colorOf = (name: string) => labelMaster.find((l) => l.name === name)?.color
 
   async function load() {
     setLoading(true)
     try {
-      const r = await api.get<WorkPost[]>('/work-posts', { params: { board } })
+      const [r, labs] = await Promise.all([api.get<WorkPost[]>('/work-posts', { params: { board } }), fetchLabels(board)])
       setRows(r.data)
+      setLabelMaster(labs)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -216,19 +226,38 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
 
   /*
    * 원본 [라벨변경](2026-10-03 실측): 글을 고르고 누르면 작은 판이 뜬다 — [전체] · 라벨마다 체크(여럿 고름),
-   * 아래 ↵(적용) · +(새 라벨) · ×(닫기). 원본 라벨은 [라벨설정]에서 회사가 정한 목록과 색이다. 우리는 라벨 마스터가
-   * 없어 이 게시판 글에 붙은 라벨을 후보로 세우고, + 로 새 이름을 더한다. 칩 색은 한 가지다.
+   * 아래 ↵(적용) · +(라벨조회 창) · ×(닫기). 후보는 '라벨조회' 에서 회사가 정한 라벨(사용중단 뺌), 칩은 그 색
+   * (2026-10-12 라벨 마스터를 만들어 이어 붙임).
    */
   const [labelOpen, setLabelOpen] = useState(false)
   const [labelPick, setLabelPick] = useState<Set<string>>(new Set())
-  const [labelNew, setLabelNew] = useState('')
-  const [labelExtra, setLabelExtra] = useState<string[]>([])
-  const knownLabels = [...new Set([...rows.flatMap((r) => r.labels ?? []), ...labelExtra])]
+  const knownLabels = labelMaster.filter((l) => l.active).map((l) => l.name)
+  /**
+   * 원본 제목줄 [라벨] — 펴면 전체 · 라벨없음 · 라벨마다 체크, ↵(적용) · +(라벨조회) · ×. 고른 라벨이 붙은 글만 본다.
+   * null 이면 거르지 않는다(전체).
+   */
+  const [labelFilter, setLabelFilter] = useState<Set<string> | null>(null)
+  const [filterOpen, setFilterOpen] = useState(false)
+  const [filterPick, setFilterPick] = useState<Set<string>>(new Set())
+  const NO_LABEL = '\u0000라벨없음'
+  const filterKeys = [NO_LABEL, ...knownLabels]
+  function openFilter() {
+    setFilterPick(new Set(labelFilter ?? filterKeys))
+    setFilterOpen((v) => !v)
+  }
+  function applyFilter() {
+    setLabelFilter(filterKeys.every((k) => filterPick.has(k)) ? null : new Set(filterPick))
+    setFilterOpen(false)
+  }
+  const passLabel = (r: WorkPost) => {
+    if (!labelFilter) return true
+    const ls = r.labels ?? []
+    return ls.length === 0 ? labelFilter.has(NO_LABEL) : ls.some((l) => labelFilter.has(l))
+  }
   function openLabels() {
     const targets = rows.filter((r) => selected.has(r.id))
     // 하나만 골랐으면 그 글의 라벨을 켜 두고 연다 — 고칠 때 지금 값에서 시작한다.
     setLabelPick(new Set(targets.length === 1 ? targets[0].labels ?? [] : []))
-    setLabelNew('')
     setLabelOpen(true)
   }
   const togglePick = (l: string) => setLabelPick((p) => { const n = new Set(p); if (n.has(l)) n.delete(l); else n.add(l); return n })
@@ -287,6 +316,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
   const shown = rows
     .filter((r) => r.postDate >= from && r.postDate <= to)
     .filter((r) => tab === '전체' || statusOf(r) === tab)
+    .filter(passLabel)
     .filter((r) => !keyword || r.title.includes(keyword) || (r.writerName ?? r.writer).includes(keyword))
   /*
    * 원본(2026-10-03 같은 글 넷을 넣어 견줌): 번호 붙은 줄은 공지 여부와 상관없이 <b>새 글부터</b>(15 · 14 · 13 · 12),
@@ -306,7 +336,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
         <td className={bg}>{r.postNo}</td>
         <td className={bg}>
           {/* 원본 [라벨] 칩 — 제목 앞(여백 3.6 4.5 2.7 · 둥글기 10 · 오른쪽 4.5, 실측) */}
-          {(r.labels ?? []).map((l) => <span key={l} className="ec-label-chip mr-[4.5px]">{l}</span>)}
+          {(r.labels ?? []).map((l) => <LabelChip key={l} name={l} color={colorOf(l)} className="mr-[4.5px]" />)}
           <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-left text-ec-navy"
                   onClick={() => openView(r)}>
             {r.title}
@@ -351,6 +381,35 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
           {board === 'NOTICE' && <span className="ec-pill no-ec">진행상태를 자유롭게 추가 가능합니다</span>}
         </div>
         <div className="ml-auto flex gap-[4px]">
+          <span className="relative">
+            <button type="button" className={`ec-btn${labelFilter ? ' ec-btn-primary' : ''}`} onClick={openFilter}>라벨</button>
+            {filterOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setFilterOpen(false)} />
+                <div role="dialog" aria-label="라벨"
+                     className="absolute top-full right-0 mt-[4px] z-[41] min-w-[160px] p-[9px] bg-ec-panel border border-ec-line border-solid rounded-ec shadow-lg">
+                  <label className="flex items-center gap-[6px] py-[3px] cursor-pointer">
+                    <input type="checkbox" checked={filterKeys.every((k) => filterPick.has(k))}
+                           onChange={(e) => setFilterPick(new Set(e.target.checked ? filterKeys : []))} />
+                    전체
+                  </label>
+                  {filterKeys.map((k) => (
+                    <label key={k} className="flex items-center gap-[6px] py-[3px] cursor-pointer">
+                      <input type="checkbox" checked={filterPick.has(k)}
+                             onChange={() => setFilterPick((p) => { const n = new Set(p); if (n.has(k)) n.delete(k); else n.add(k); return n })} />
+                      {k === NO_LABEL ? '라벨없음' : <LabelChip name={k} color={colorOf(k)} />}
+                    </label>
+                  ))}
+                  <div className="flex justify-between mt-[6px]">
+                    <button type="button" className="ec-btn ec-btn-sm ec-btn-primary" aria-label="적용" onClick={applyFilter}>↵</button>
+                    <button type="button" className="ec-btn ec-btn-sm" aria-label="라벨조회"
+                            onClick={() => { setFilterOpen(false); setMasterOpen(true) }}>+</button>
+                    <button type="button" className="ec-btn ec-btn-sm" aria-label="닫기" onClick={() => setFilterOpen(false)}>×</button>
+                  </div>
+                </div>
+              </>
+            )}
+          </span>
           <input className="ec-input w-[110px]" placeholder="입력 후 [Enter]" value={keyword}
                  onChange={(e) => setKeyword(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') load() }} />
           <button className="ec-btn ec-btn-primary" onClick={load}>Search(F3)</button>
@@ -427,7 +486,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
       <div className="flex gap-[6px] mt-[10px] pt-[8px] border-t border-t-ec-line-soft border-solid">
         {/*
           원본 하단: 신규(F2)·보내기·업무지원AI·진행상태변경·라벨변경·라벨설정·모두펼쳐보기·선택삭제·Excel·이력조회·웹자료올리기.
-          받쳐 줄 기능이 있는 것만 둔다 — 보내기·업무지원AI·라벨설정·이력조회는 아직 없다.
+          받쳐 줄 기능이 있는 것만 둔다 — 보내기·업무지원AI·이력조회는 아직 없다. 라벨설정은 [라벨] · [라벨변경]의 + (라벨조회 창).
           [인쇄]는 원본처럼 View 창 안에 있다. [웹자료올리기]는 입력 창의 첨부 자리다.
         */}
         <button className="ec-btn ec-btn-primary" onClick={openNew}>신규(F2)</button>
@@ -448,17 +507,13 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
                 {knownLabels.map((l) => (
                   <label key={l} className="flex items-center gap-[6px] py-[3px] cursor-pointer">
                     <input type="checkbox" checked={labelPick.has(l)} onChange={() => togglePick(l)} />
-                    <span className="ec-label-chip">{l}</span>
+                    <LabelChip name={l} color={colorOf(l)} />
                   </label>
                 ))}
-                <div className="flex items-center gap-[4px] mt-[6px]">
-                  <input className="ec-input w-[100px]" aria-label="새 라벨" maxLength={20} value={labelNew}
-                         onChange={(e) => setLabelNew(e.target.value)} placeholder="새 라벨" />
-                </div>
                 <div className="flex justify-between mt-[6px]">
                   <button type="button" className="ec-btn ec-btn-sm ec-btn-primary" aria-label="적용" onClick={() => void applyLabels()}>↵</button>
                   <button type="button" className="ec-btn ec-btn-sm" aria-label="라벨 더하기"
-                          onClick={() => { const v = labelNew.trim(); if (!v) return; setLabelExtra((x) => [...x, v]); setLabelPick((p) => new Set([...p, v])); setLabelNew('') }}>+</button>
+                          onClick={() => { setLabelOpen(false); setMasterOpen(true) }}>+</button>
                   <button type="button" className="ec-btn ec-btn-sm" aria-label="닫기" onClick={() => setLabelOpen(false)}>×</button>
                 </div>
               </div>
@@ -469,6 +524,8 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: '
         <button className="ec-btn disabled:opacity-45" disabled={selected.size === 0} onClick={() => void deleteSelected()}>선택삭제</button>
         <button className="ec-btn" onClick={() => void doExcel()}>Excel</button>
       </div>
+
+      {masterOpen && <LabelMasterModal board={board} onClose={() => { setMasterOpen(false); void load() }} />}
 
       {/* 원본 '공지사항입력' / '공지사항입력(수정)' 창 — 항목이 한 줄에 하나씩 세로로 놓인다. */}
       <Modal error={error} open={showForm} title={`${title}입력${editId != null ? '(수정)' : ''}`}

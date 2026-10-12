@@ -1,5 +1,5 @@
 {
-  "about": "공지사항 라벨(원본 E200080) — 글을 고르고 [라벨변경] → 판(전체 · 라벨 체크 · ↵ · + · ×) → 새 라벨을 + 로 더하고 ↵ 하면 제목 앞에 칩 → 다시 열면 그 라벨이 켜져 있고, 끄고 ↵ 하면 칩이 사라진다. 시험 글은 API 로 만들고 지운다. node qa/shot.mjs qa/flows/notice-labels.json",
+  "about": "공지사항 라벨(원본 E200080, 2026-10-12 다시 잼) — [라벨] › + → '라벨조회' → 신규(F2) '라벨등록'(라벨코드 · 라벨명 · 색상 팔레트 · 미리보기, 비우면 칸만 빨갛게) → 저장하면 목록에 색 칩 → 글을 고르고 [라벨변경]에서 그 라벨 ↵ → 제목 앞 칩이 그 색 → 제목줄 [라벨]로 거르기 → 라벨코드를 눌러 '라벨수정'(코드 막힘) › [사용중단/재사용 ▴] 삭제 → 글의 칩도 떨어짐. 시험 글은 API 로 만들고 지운다. node qa/shot.mjs qa/flows/notice-labels.json",
   "shots": [
     {
       "name": "준비",
@@ -9,33 +9,66 @@
       ]
     },
     {
-      "name": "라벨 달기 → 떼기",
+      "name": "라벨조회 → 등록 → 달기 → 거르기 → 삭제",
       "path": "/groupware/notice",
       "steps": [
         "wait:800",
-        "expect:[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '라벨변경').disabled",
-        "js:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('QA그룹웨어-라벨글') && tr.cells[0].textContent.trim() !== '').cells[0].click(); true",
+        "js:[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '라벨').click(); true",
+        "expect:document.querySelector('[role=dialog][aria-label=\"라벨\"]').innerText.includes('라벨없음')",
+        "js:document.querySelector('[role=dialog][aria-label=\"라벨\"] button[aria-label=\"라벨조회\"]').click(); true",
+        "wait:400",
+        "expect:document.querySelector('[role=dialog][aria-label=\"라벨조회\"]')?.innerText.includes('라벨코드')",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.textContent.trim() === '신규(F2)').click(); true",
+        "wait:300",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().getAttribute('aria-label') === '라벨등록' && [...document.querySelectorAll('[role=dialog]')].pop().innerText.includes('미리보기')",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.textContent.trim() === '저장(F8)').click(); true",
+        "expect:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('input.border-ec-danger')].length === 2",
+        "js:(() => { const i = [...document.querySelectorAll('[role=dialog] input')].reverse().find((x) => x.getAttribute('aria-label') === '라벨코드'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'QAG1'); i.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "js:(() => { const i = [...document.querySelectorAll('[role=dialog] input')].reverse().find((x) => x.getAttribute('aria-label') === '라벨명'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'QA그룹웨어-라벨'); i.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "js:[...document.querySelectorAll('[role=dialog]')].pop().querySelector('button[aria-label=\"색상\"]').click(); true",
+        "js:[...document.querySelectorAll('[role=dialog]')].pop().querySelector('button[aria-label=\"#33b579\"]').click(); true",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.textContent.trim() === '저장(F8)').click(); true",
+        "wait:600",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().getAttribute('aria-label') === '라벨조회' && [...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('.ec-label-chip')].some((c) => c.textContent === 'QA그룹웨어-라벨' && getComputedStyle(c).backgroundColor === 'rgb(51, 181, 121)')",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.textContent.trim() === '닫기').click(); true",
+        "wait:600",
+        "js:[...document.querySelectorAll('#work-list tbody tr')].find((tr) => tr.innerText.includes('QA그룹웨어-라벨글') && tr.cells[0].textContent.trim() !== '').cells[0].click(); true",
         "click:라벨변경",
-        "expect:!!document.querySelector('[role=dialog][aria-label=\"라벨변경\"]') && document.querySelector('[role=dialog][aria-label=\"라벨변경\"]').innerText.includes('전체')",
-        "js:(() => { const i = document.querySelector('input[aria-label=\"새 라벨\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'QA라벨'); i.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
-        "js:document.querySelector('button[aria-label=\"라벨 더하기\"]').click(); true",
-        "js:document.querySelector('button[aria-label=\"적용\"]').click(); true",
-        "wait:1000",
-        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA그룹웨어-라벨글') && tr.querySelector('.ec-label-chip')?.textContent === 'QA라벨')",
-        "js:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('QA그룹웨어-라벨글') && tr.cells[0].textContent.trim() !== '').cells[0].click(); true",
-        "click:라벨변경",
-        "expect:(() => { const l = [...document.querySelectorAll('[role=dialog][aria-label=\"라벨변경\"] label')].find((x) => x.textContent.includes('QA라벨')); return !!l && l.querySelector('input').checked })()",
-        "js:[...document.querySelectorAll('[role=dialog][aria-label=\"라벨변경\"] label')].find((x) => x.textContent.includes('QA라벨')).querySelector('input').click(); true",
-        "js:document.querySelector('button[aria-label=\"적용\"]').click(); true",
-        "wait:1000",
-        "expect:!([...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('QA그룹웨어-라벨글'))?.querySelector('.ec-label-chip'))"
+        "js:[...document.querySelectorAll('[role=dialog][aria-label=\"라벨변경\"] label')].find((l) => l.innerText.includes('QA그룹웨어-라벨')).querySelector('input').click(); true",
+        "js:document.querySelector('[role=dialog][aria-label=\"라벨변경\"] button[aria-label=\"적용\"]').click(); true",
+        "wait:800",
+        "expect:(() => { const c = [...[...document.querySelectorAll('#work-list tbody tr')].find((tr) => tr.innerText.includes('QA그룹웨어-라벨글') && tr.cells[0].textContent.trim() !== '').cells[2].querySelectorAll('.ec-label-chip')].find((c) => c.textContent === 'QA그룹웨어-라벨'); return !!c && getComputedStyle(c).backgroundColor === 'rgb(51, 181, 121)' })()",
+        "js:[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '라벨').click(); true",
+        "js:(() => { const d = document.querySelector('[role=dialog][aria-label=\"라벨\"]'); [...d.querySelectorAll('label')][0].querySelector('input').click(); return true })()",
+        "js:(() => { const d = document.querySelector('[role=dialog][aria-label=\"라벨\"]'); [...d.querySelectorAll('label')].find((l) => l.innerText.includes('QA그룹웨어-라벨')).querySelector('input').click(); return true })()",
+        "js:(() => { const d = document.querySelector('[role=dialog][aria-label=\"라벨\"]'); d.querySelector('button[aria-label=\"적용\"]').click(); return true })()",
+        "wait:400",
+        "expect:[...document.querySelectorAll('#work-list tbody tr')].filter((tr) => tr.cells[0].textContent.trim() !== '').every((tr) => tr.innerText.includes('QA그룹웨어-라벨'))",
+        "js:[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '라벨').click(); true",
+        "js:(() => { const d = document.querySelector('[role=dialog][aria-label=\"라벨\"]'); const all = [...d.querySelectorAll('label')][0].querySelector('input'); if (!all.checked) all.click(); return true })()",
+        "js:(() => { const d = document.querySelector('[role=dialog][aria-label=\"라벨\"]'); d.querySelector('button[aria-label=\"적용\"]').click(); return true })()",
+        "wait:300",
+        "expect:!document.querySelector('[role=dialog][aria-label=\"라벨\"]') && ![...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '라벨').classList.contains('ec-btn-primary')",
+        "js:[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '라벨').click(); true",
+        "js:document.querySelector('[role=dialog][aria-label=\"라벨\"] button[aria-label=\"라벨조회\"]').click(); true",
+        "wait:500",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('tbody button')].find((b) => b.textContent.trim() === 'QAG1').click(); true",
+        "wait:300",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().getAttribute('aria-label') === '라벨수정' && ![...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('input')].some((i) => i.getAttribute('aria-label') === '라벨코드')",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.textContent.trim() === '사용중단/재사용 ▴').click(); true",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.textContent.trim() === '삭제').click(); true",
+        "wait:600",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().getAttribute('aria-label') === '라벨조회' && ![...document.querySelectorAll('[role=dialog]')].pop().innerText.includes('QAG1')",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.textContent.trim() === '닫기').click(); true",
+        "wait:800",
+        "expect:!([...[...document.querySelectorAll('#work-list tbody tr')].find((tr) => tr.innerText.includes('QA그룹웨어-라벨글') && tr.cells[0].textContent.trim() !== '').cells[2].querySelectorAll('.ec-label-chip')].find((c) => c.textContent === 'QA그룹웨어-라벨'))"
       ]
     },
     {
       "name": "정리",
       "path": "/groupware/notice",
       "steps": [
-        "js:fetch('/api/work-posts/' + sessionStorage.getItem('qaLb'), { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => 'del ' + r.status)"
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const r = await fetch('/api/work-posts/' + sessionStorage.getItem('qaLb'), { method: 'DELETE', headers: H }); return 'del ' + r.status })()"
       ]
     }
   ]

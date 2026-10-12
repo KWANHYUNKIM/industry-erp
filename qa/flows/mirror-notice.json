@@ -1,5 +1,5 @@
 {
-  "about": "원본 loginaa 공지사항 자료를 우리 화면으로만 똑같이 넣고(신규 폼 · 공지사항여부 · 라벨변경) 목록이 원본과 같은 모양인지 본다 — 원본 2026-10-03: 맨 위 공지 둘([중요] 지출결의서 및 가지급금정산서 작성방법 · [외근] 근태/출장/외근 관련 법인차량 사용관련 공지건, 행번호 없음), 그 아래 1~4 새 글부터(2026.10 인사발령 공지 · 지출결의서… · 근태/… · 신규입사자 안내), 진행상태는 모두 '기본', 알약 [전체][기본]. 제목에 QA 를 붙이고 끝에 지운다. node qa/shot.mjs qa/flows/mirror-notice.json",
+  "about": "원본 loginaa 공지사항 자료를 우리 화면으로만 똑같이 넣고(신규 폼 · 공지사항여부 · 라벨변경) 목록이 원본과 같은 모양인지 본다 — 원본 2026-10-03: 맨 위 공지 둘([중요] 지출결의서 및 가지급금정산서 작성방법 · [외근] 근태/출장/외근 관련 법인차량 사용관련 공지건, 행번호 없음), 그 아래 1~4 새 글부터(2026.10 인사발령 공지 · 지출결의서… · 근태/… · 신규입사자 안내), 진행상태는 모두 '기본', 알약 [전체][기본]. 제목에 QA 를 붙이고 끝에 지운다. node qa/shot.mjs qa/flows/mirror-notice.json / 2026-10-12: 라벨은 원본 라벨조회처럼 마스터(01 중요 빨강 · 02 외근 하늘)에서 고르고 칩이 그 색.",
   "shots": [
     {
       "name": "글 넷을 신규 폼으로(오래된 것부터, 둘은 공지)",
@@ -13,17 +13,25 @@
       ]
     },
     {
+      "name": "라벨 마스터 — 원본 라벨조회의 01 중요(#f35c4e) · 02 외근(#29b6f6), 없을 때만",
+      "path": "/groupware/notice",
+      "steps": [
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const have = await (await fetch('/api/work-post-labels?board=NOTICE', { headers: H })).json(); const out = []; for (const [code, name, color] of [['01', '중요', '#f35c4e'], ['02', '외근', '#29b6f6']]) { if (have.some((l) => l.name === name)) { out.push(name + ' 있음'); continue } const c = have.some((l) => l.code === code) ? 'QA' + code : code; const r = await fetch('/api/work-post-labels', { method: 'POST', headers: H, body: JSON.stringify({ board: 'NOTICE', code: c, name, color }) }); out.push(name + ' ' + r.status) } return out.join(' · ') })()"
+      ]
+    },
+    {
       "name": "라벨 — 외근 · 중요를 [라벨변경]으로",
       "path": "/groupware/notice",
       "steps": [
         "wait:800",
-        "js:window.__label = (title, label) => new Promise((ok) => { const tr = [...document.querySelectorAll('#work-list tbody tr')].find((r) => r.innerText.includes(title) && r.cells[0].textContent.trim() !== ''); tr.cells[0].click(); setTimeout(() => { [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '라벨변경').click(); setTimeout(() => { const pop = document.querySelector('[role=dialog][aria-label=\"라벨변경\"]'); const known = [...pop.querySelectorAll('label')].find((l) => l.textContent.trim() === label); if (known) known.querySelector('input').click(); else { const i = pop.querySelector('input[aria-label=\"새 라벨\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, label); i.dispatchEvent(new Event('input', { bubbles: true })); setTimeout(() => pop.querySelector('button[aria-label=\"라벨 더하기\"]').click(), 100) } setTimeout(() => { pop.querySelector('button[aria-label=\"적용\"]').click(); setTimeout(ok, 1200) }, 400) }, 400) }, 300) }); true",
+        "js:window.__label = (title, label) => new Promise((ok) => { const tr = [...document.querySelectorAll('#work-list tbody tr')].find((r) => r.innerText.includes(title) && r.cells[0].textContent.trim() !== ''); tr.cells[0].click(); setTimeout(() => { [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '라벨변경').click(); setTimeout(() => { const pop = document.querySelector('[role=dialog][aria-label=\"라벨변경\"]'); const known = [...pop.querySelectorAll('label')].find((l) => l.textContent.trim() === label); known.querySelector('input').click(); setTimeout(() => { pop.querySelector('button[aria-label=\"적용\"]').click(); setTimeout(ok, 1200) }, 400) }, 400) }, 300) }); true",
         "js:window.__label('QA근태/출장/외근 관련 법인차량 사용관련 공지건', '외근').then(() => window.__label('QA지출결의서 및 가지급금정산서 작성방법', '중요')).then(() => 'labelled')",
         "wait:1500",
         "js:location.reload(); true",
         "wait:3500",
         "expect:(() => { const rows = [...document.querySelectorAll('#work-list tbody tr')].filter((r) => r.innerText.includes('QA')).map((r) => [r.cells[0].textContent.trim() === '' ? 'P' : 'N', (r.querySelector('.ec-label-chip')?.textContent ?? '-'), r.cells[2].innerText.replace(/^(중요|외근)/, '').trim(), r.cells[5].textContent.trim()].join(':')); return JSON.stringify(rows) === JSON.stringify(['P:중요:QA지출결의서 및 가지급금정산서 작성방법:기본', 'P:외근:QA근태/출장/외근 관련 법인차량 사용관련 공지건:기본', 'N:-:QA2026.10 인사발령 공지:기본', 'N:중요:QA지출결의서 및 가지급금정산서 작성방법:기본', 'N:외근:QA근태/출장/외근 관련 법인차량 사용관련 공지건:기본', 'N:-:QA신규입사자 안내:기본']) })()",
-        "expect:(() => { const nums = [...document.querySelectorAll('#work-list tbody tr')].filter((r) => r.innerText.includes('QA') && r.cells[0].textContent.trim() !== '').map((r) => r.cells[0].textContent.trim()); return nums.join(',') === '1,2,3,4' })()"
+        "expect:(() => { const nums = [...document.querySelectorAll('#work-list tbody tr')].filter((r) => r.innerText.includes('QA') && r.cells[0].textContent.trim() !== '').map((r) => r.cells[0].textContent.trim()); return nums.join(',') === '1,2,3,4' })()",
+        "expect:(() => { const c = [...document.querySelectorAll('#work-list .ec-label-chip')]; const bg = (t) => { const x = c.find((y) => y.textContent === t); return x && getComputedStyle(x).backgroundColor }; return bg('중요') === 'rgb(243, 92, 78)' && bg('외근') === 'rgb(41, 182, 246)' })()"
       ]
     },
     {
