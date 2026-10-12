@@ -301,9 +301,11 @@ public class WithholdingService {
                 health = health.add(deduction(p, "건강보험"));
                 employment = employment.add(deduction(p, "고용보험"));
             }
+            // 원천세 신고금액 = 그 달 신고서의 근로소득(간이세액) 총지급액(비과세 뺀 것) — 원본 2026/10 20,469,000,
+            // 급여총액 21,669,000 이라 차액 −1,200,000(2026-10-12 실측). 예전엔 비과세까지 든 급여총액을 내 차액이 늘 0 이었다.
             BigDecimal reported = reportedMonths.contains(m)
-                    ? slips.stream().filter(p -> p.getStatus() == PayslipStatus.CONFIRMED)
-                            .map(Payslip::grossPay).reduce(BigDecimal.ZERO, BigDecimal::add)
+                    ? statement(m).sections().stream().filter(sec -> "A01".equals(sec.code()))
+                            .map(WithholdingDtos.IncomeSection::grossPay).reduce(BigDecimal.ZERO, BigDecimal::add)
                     : BigDecimal.ZERO;
             out.add(new WithholdingDtos.PayrollTaxMonth(m, reported, gross.subtract(bonus), bonus, tax, local,
                     pension, health, employment));

@@ -6,9 +6,12 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { CorporateTaxChecklist, CorporateTaxCheckMemo } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import { EcReportFoot } from '../../components/EcReportFrame'
+import { loadVatSheet, type AccountOpt, type VatReturnRow } from './VatReturnPage'
 
 const won = (n: number | null | undefined) => (n == null ? '' : Number(n).toLocaleString('ko-KR'))
 const mm = (m: number) => `${String(m).padStart(2, '0')}월`
+/** 1번 표 한 줄 — 부가세신고서 한 장(기준월 = 신고기간 마지막 달). 기타 · 예정누락 · 면세는 우리 자료에 없어 0. */
+interface VatRow { key: number; month: number; taxInvoice: number; zeroInvoice: number }
 
 /** 원본 항목 4 ~ 15 — 표 없이 확인할 것만 적고 [메모등록]을 단다. 8 은 아래에 세부 넷. */
 const CHECK_ITEMS: { no: number; label: string; subs?: string[] }[] = [
@@ -32,8 +35,9 @@ const CHECK_ITEMS: { no: number; label: string; subs?: string[] }[] = [
  * 처음엔 조건 판 [기준연도](올해+1 · 올해 · <b>작년(기본)</b> · 재작년 · 직접입력)만 있고, [검색(F8)]을 누르면
  * 'YYYY년 법인세 CHECK LIST' 가 그려진다.
  * <ol>
- *   <li>부가세신고서 내역 — 저장한 부가세신고서 한 장이 한 행(기준월 = 신고기간 마지막 달). 우리에게는 부가세신고서를
- *       저장하는 화면이 없어 늘 '등록된 데이터가 없습니다.' 다.</li>
+ *   <li>부가세신고서 내역 — 저장한 부가세신고서(부가세신고서(일반)) 한 장이 한 행(기준월 = 신고기간 마지막 달) + 합계.
+ *       과세 세금계산서 = 신고서 (1), 영세율 세금계산서 = (5), 매출합계 = 줄 합. 원본 2026: '09월 396,450,000 · 0 · 0 · 0 · 0 · 0 · 396,450,000'
+ *       (2기 예정 신고서, 2026-10-12). 신고서가 없는 해는 '등록된 데이터가 없습니다.'.</li>
  *   <li>손익계산서 매출계정 내역 — 달별 매출액, 분기 끝 달에 분기만집계(석 달 합) · 분기별집계(1월부터 누계),
  *       6 · 12월에 반기별집계(누계), 12월에 합계. 원본 2026: 06월 557,327,000 · 557,327,000 · 557,327,000,
  *       09월 396,450,000 · 953,777,000, 12월 3,930,000 · 957,707,000 · 957,707,000 · 957,707,000.</li>
@@ -48,6 +52,7 @@ export default function CorporateTaxChecklistPage() {
   const [year, setYear] = useState(String(lastYear))
   const [direct, setDirect] = useState(false)
   const [data, setData] = useState<CorporateTaxChecklist | null>(null)
+  const [vatRows, setVatRows] = useState<VatRow[]>([])
   const [error, setError] = useState('')
   const [memoSection, setMemoSection] = useState<number | null>(null)
 
@@ -55,7 +60,15 @@ export default function CorporateTaxChecklistPage() {
     setError('')
     if (!/^\d{4}$/.test(year)) { setError('기준연도를 입력해주세요.'); return }
     try {
-      setData((await api.get<CorporateTaxChecklist>('/corporate-tax/checklist', { params: { year } })).data)
+      const [c, vr, ac] = await Promise.all([
+        api.get<CorporateTaxChecklist>('/corporate-tax/checklist', { params: { year } }),
+        api.get<VatReturnRow[]>('/vat-returns', { params: { fromYear: year, toYear: year } }),
+        api.get<AccountOpt[]>('/accounts'),
+      ])
+      const sheets = await Promise.all(vr.data.map((v) => loadVatSheet(v, ac.data).then((sh) => ({ v, sh }))))
+      setVatRows(sheets.map(({ v, sh }) => ({ key: v.id, month: v.monthTo, taxInvoice: sh.taxInvoice.supply, zeroInvoice: sh.zeroInvoice.supply }))
+        .sort((a, b) => a.month - b.month))
+      setData(c.data)
     } catch (e) {
       setError(extractErrorMessage(e))
     }
@@ -109,8 +122,35 @@ export default function CorporateTaxChecklistPage() {
               <tr><th>세금계산서</th><th>기타</th><th>세금계산서</th><th>기타</th></tr>
             </thead>
             <tbody>
-              <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              {vatRows.length === 0 ? (
+                <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              ) : vatRows.map((r) => (
+                <tr key={r.key}>
+                  <td>{mm(r.month)}</td>
+                  <td className="text-right">{won(r.taxInvoice)}</td>
+                  <td className="text-right">{won(0)}</td>
+                  <td className="text-right">{won(r.zeroInvoice)}</td>
+                  <td className="text-right">{won(0)}</td>
+                  <td className="text-right">{won(0)}</td>
+                  <td className="text-right">{won(0)}</td>
+                  <td className="text-right">{won(r.taxInvoice + r.zeroInvoice)}</td>
+                </tr>
+              ))}
             </tbody>
+            {vatRows.length > 0 && (
+              <tfoot>
+                <tr className="font-bold">
+                  <td>합계</td>
+                  <td className="text-right">{won(vatRows.reduce((t, r) => t + r.taxInvoice, 0))}</td>
+                  <td className="text-right">{won(0)}</td>
+                  <td className="text-right">{won(vatRows.reduce((t, r) => t + r.zeroInvoice, 0))}</td>
+                  <td className="text-right">{won(0)}</td>
+                  <td className="text-right">{won(0)}</td>
+                  <td className="text-right">{won(0)}</td>
+                  <td className="text-right">{won(vatRows.reduce((t, r) => t + r.taxInvoice + r.zeroInvoice, 0))}</td>
+                </tr>
+              </tfoot>
+            )}
           </table>
 
           <div className="flex justify-between mb-[4px]"><span>2. 손익계산서 매출계정 내역</span>{memoLink(2)}</div>
