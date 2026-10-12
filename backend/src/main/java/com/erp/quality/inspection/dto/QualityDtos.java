@@ -59,8 +59,21 @@ public final class QualityDtos {
             @PositiveOrZero(message = "부적격은 0 이상이어야 합니다.") BigDecimal defectQty,
             InspectionPass passResult,
             @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.")
-            String defectType
+            String defectType,
+            /* 원본 [검사항목] [내역] 창에서 적은 값 — 품목의 품질검사유형 칸. 안 주면 비운다. */
+            List<@Valid CheckValueRequest> checks
     ) {}
+
+    /** [검사항목] 값 하나 — 코드형식은 detailId(상세항목), 숫자형식 · 문자형식은 value. */
+    public record CheckValueRequest(
+            @NotNull(message = "검사항목을 선택하세요.") Long checkItemId,
+            Long detailId,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
+            String value
+    ) {}
+
+    /** 저장된 [검사항목] 값 — value 는 코드형식이면 고른 상세항목명이다. */
+    public record CheckValueResponse(Long checkItemId, Long detailId, String value) {}
 
     /** 원본 [종결여부] 바꾸기 — 진행중 ↔ 완료. */
     public record StatusRequest(@NotNull(message = "진행상태를 고르세요.") InspectionStatus status) {}
@@ -69,7 +82,8 @@ public final class QualityDtos {
             Long id, int lineNo, Long itemId, String itemCode, String itemName, String spec,
             InspectionMethod method, String methodName,
             BigDecimal quantity, BigDecimal sampleQty, BigDecimal goodQty, BigDecimal defectQty,
-            InspectionPass passResult, String passResultName, String defectType
+            InspectionPass passResult, String passResultName, String defectType,
+            List<CheckValueResponse> checks
     ) {
         public static InspectionLineResponse from(QualityInspectionLine l) {
             return new InspectionLineResponse(
@@ -77,7 +91,9 @@ public final class QualityDtos {
                     l.getItem().getSpec(),
                     l.getMethod(), l.getMethod().getDisplayName(),
                     l.getQuantity(), l.getSampleQty(), l.getSampleQty().subtract(l.getDefectQty()), l.getDefectQty(),
-                    l.getPassResult(), l.getPassResult().getDisplayName(), l.getDefectType());
+                    l.getPassResult(), l.getPassResult().getDisplayName(), l.getDefectType(),
+                    l.getChecks().stream()
+                            .map(c -> new CheckValueResponse(c.getCheckItemId(), c.getDetailId(), c.getValue())).toList());
         }
     }
 

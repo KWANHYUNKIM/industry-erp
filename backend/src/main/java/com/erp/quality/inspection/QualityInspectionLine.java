@@ -53,4 +53,11 @@ public class QualityInspectionLine {
     /** 원본 [부적격관리]의 불량유형(공통코드 DEFECT_TYPE) — 원본은 유형마다 수량을 나누는데 우리는 주된 유형 하나를 든다. */
     @Column(name = "defect_type", length = 50)
     private String defectType;
+
+    /** 원본 [검사항목] — 품목의 품질검사유형 칸 차례대로. */
+    @ElementCollection
+    @CollectionTable(name = "quality_inspection_line_checks", joinColumns = @JoinColumn(name = "line_id"))
+    @OrderColumn(name = "seq")
+    @Builder.Default
+    private java.util.List<QualityInspectionLineCheck> checks = new java.util.ArrayList<>();
 }

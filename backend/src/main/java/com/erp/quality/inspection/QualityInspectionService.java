@@ -11,6 +11,10 @@ import com.erp.quality.inspection.dto.QualityDtos.InspectionResponse;
 import com.erp.inventory.item.ItemService;
 import com.erp.inventory.lot.LotService;
 import com.erp.quality.inspection.dto.QualityDtos.InspectionLineRequest;
+import com.erp.quality.inspection.dto.QualityDtos.CheckValueRequest;
+import com.erp.quality.qctype.QcTypeService;
+import com.erp.quality.qctype.dto.QcTypeDtos.DetailResponse;
+import com.erp.quality.qctype.dto.QcTypeDtos.ItemCheckResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import com.erp.quality.inspection.dto.QualityDtos;
 
 @Service
@@ -32,6 +37,7 @@ public class QualityInspectionService {
     /* 다른 모듈의 값은 그 모듈의 service 를 거친다(CLAUDE.md 4.2). */
     private final WarehouseService warehouseService;
     private final ProjectService projectService;
+    private final QcTypeService qcTypeService;
     /* 같은 모듈 — [검사요청] 으로 불러온 요청의 종결여부를 다시 본다. */
     private final com.erp.quality.inspectionrequest.QualityInspectionRequestService requestService;
 
@@ -131,6 +137,7 @@ public class QualityInspectionService {
                     .quantity(lr.quantity()).sampleQty(sample).defectQty(defect).passResult(pass)
                     /* 불량이 없으면 유형도 없다 — 전량 양품인데 '치수불량' 이 붙어 있으면 헷갈린다. */
                     .defectType(defect.signum() > 0 ? blankToNull(lr.defectType()) : null)
+                    .checks(checksOf(item, lr.checks()))
                     .build());
             sampleSum = sampleSum.add(sample);
             defectSum = defectSum.add(defect);
@@ -162,6 +169,50 @@ public class QualityInspectionService {
         requestService.refreshStatus(r);
     }
 
+    /**
+     * 원본 [검사항목] [내역] — 품목에 붙은 품질검사유형의 칸만 받는다. 빈 값은 버린다(원본도 비워 두고 저장된다).
+     * 코드형식은 그 검사항목의 상세항목을 골라야 하고 이름을 값으로 남긴다. 숫자형식은 숫자여야 한다.
+     */
+    private List<QualityInspectionLineCheck> checksOf(Item item, List<CheckValueRequest> reqs) {
+        if (reqs == null || reqs.isEmpty()) return new java.util.ArrayList<>();
+        Map<Long, ItemCheckResponse> slots = qcTypeService.findItemChecks(item.getId()).stream()
+                .collect(java.util.stream.Collectors.toMap(ItemCheckResponse::checkItemId, c -> c, (a, b) -> a,
+                        java.util.LinkedHashMap::new));
+        Map<Long, QualityInspectionLineCheck> byItem = new java.util.HashMap<>();
+        for (CheckValueRequest r : reqs) {
+            ItemCheckResponse slot = slots.get(r.checkItemId());
+            if (slot == null) {
+                throw ApiException.badRequest("[" + item.getName() + "] 의 품질검사유형에 없는 검사항목입니다.");
+            }
+            QualityInspectionLineCheck c = switch (slot.format()) {
+                case CODE -> {
+                    if (r.detailId() == null) yield null;
+                    DetailResponse d = slot.details().stream().filter(x -> x.id().equals(r.detailId())).findFirst()
+                            .orElseThrow(() -> ApiException.badRequest("[" + slot.name() + "] 의 상세항목이 아닙니다."));
+                    yield new QualityInspectionLineCheck(slot.checkItemId(), d.id(), d.name());
+                }
+                case NUMBER -> {
+                    String v = blankToNull(r.value());
+                    if (v == null) yield null;
+                    try {
+                        new BigDecimal(v.replace(",", ""));
+                    } catch (NumberFormatException e) {
+                        throw ApiException.badRequest("[" + slot.name() + "] 은(는) 숫자로 입력 바랍니다.");
+                    }
+                    yield new QualityInspectionLineCheck(slot.checkItemId(), null, v.replace(",", ""));
+                }
+                case TEXT -> {
+                    String v = blankToNull(r.value());
+                    yield v == null ? null : new QualityInspectionLineCheck(slot.checkItemId(), null, v.trim());
+                }
+            };
+            if (c != null) byItem.put(c.getCheckItemId(), c);
+        }
+        /* 칸 차례(코드형 1~4 · 숫자형 1~4 · 문자형 1~4)대로 — 목록의 주황 꼬리표가 이 차례로 값을 잇는다. */
+        return slots.values().stream().map(s -> byItem.get(s.checkItemId())).filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.toCollection(java.util.ArrayList::new));
+    }
+
     /** 옛 모양(품목 하나) → 전수 줄 하나. 시료 = 검사수량, 부적격 = 불량수량. */
     private static List<InspectionLineRequest> legacyLine(CreateInspectionRequest req) {
         if (req.itemId() == null) return List.of();
@@ -171,7 +222,7 @@ public class QualityInspectionService {
             throw ApiException.badRequest("불량수량이 검사수량보다 클 수 없습니다.");
         }
         return List.of(new InspectionLineRequest(req.itemId(), InspectionMethod.FULL, req.inspectedQty(),
-                req.inspectedQty(), defect, null, req.defectType()));
+                req.inspectedQty(), defect, null, req.defectType(), null));
     }
 
     private QualityInspection getInspection(Long id) {

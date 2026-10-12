@@ -974,6 +974,25 @@ export interface QualityInspectionLine {
   passResult: 'NA' | 'PASS' | 'FAIL'
   passResultName: string
   defectType: string | null
+  /** 원본 [검사항목] — 품목의 품질검사유형 칸에 적은 값(코드형식은 고른 상세항목명). */
+  checks: QualityCheckValue[]
+}
+
+export interface QualityCheckValue {
+  checkItemId: number
+  detailId: number | null
+  value: string
+}
+
+/** 품질검사입력 [검사항목] [내역] 창의 한 칸 — 품목에 붙은 검사유형의 검사항목. */
+export interface QualityItemCheck {
+  checkItemId: number
+  code: string
+  name: string
+  format: 'CODE' | 'NUMBER' | 'TEXT'
+  slot: number
+  required: boolean
+  details: { id: number; code: string; name: string; active: boolean }[]
 }
 
 export type QualityRequestStatus = 'REQUESTED' | 'INSPECTED' | 'CANCELED'

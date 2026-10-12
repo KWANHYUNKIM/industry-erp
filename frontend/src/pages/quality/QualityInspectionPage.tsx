@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
-import type { CommonCode, Item, QualityInspection, QualityInspectionLine, QualityInspectionRequest } from '../../types/api'
+import type { CommonCode, Item, QualityCheckValue, QualityInspection, QualityInspectionLine, QualityInspectionRequest, QualityItemCheck } from '../../types/api'
 import { dateNo } from '../../utils/dateNo'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
@@ -32,8 +32,8 @@ const itemText = (r: QualityInspection) => {
 
 type Method = QualityInspectionLine['method']
 type Pass = QualityInspectionLine['passResult']
-interface LineForm { method: Method; itemId: string; quantity: string; sampleQty: string; defectQty: string; passResult: Pass; defectType: string }
-const emptyLine = (): LineForm => ({ method: 'FULL', itemId: '', quantity: '', sampleQty: '', defectQty: '', passResult: 'NA', defectType: '' })
+interface LineForm { method: Method; itemId: string; quantity: string; sampleQty: string; defectQty: string; passResult: Pass; defectType: string; checks: QualityCheckValue[] }
+const emptyLine = (): LineForm => ({ method: 'FULL', itemId: '', quantity: '', sampleQty: '', defectQty: '', passResult: 'NA', defectType: '', checks: [] })
 const emptyLines = () => [emptyLine(), emptyLine(), emptyLine()]
 const num = (v: string) => Number(v || 0)
 /* 전수면 시료 = 수량(원본은 시료 칸을 막고 수량을 그대로 찍는다). 적격 = 시료 − 부적격. */
@@ -177,6 +177,7 @@ export default function QualityInspectionPage() {
     setLines([...r.lines.map((l) => ({
       method: l.method, itemId: String(l.itemId), quantity: String(l.quantity), sampleQty: String(l.sampleQty),
       defectQty: l.defectQty ? String(l.defectQty) : '', passResult: l.passResult, defectType: l.defectType ?? '',
+      checks: l.checks ?? [],
     })), emptyLine()])
     setOpen(true)
   }
@@ -204,6 +205,7 @@ export default function QualityInspectionPage() {
         itemId: Number(l.itemId), method: l.method, quantity: num(l.quantity),
         sampleQty: sampleOf(l), defectQty: num(l.defectQty), passResult: l.passResult,
         defectType: l.defectType || undefined,
+        checks: l.checks.map((c) => ({ checkItemId: c.checkItemId, detailId: c.detailId ?? undefined, value: c.value })),
       })),
     }
     setSaving(true)
@@ -218,8 +220,49 @@ export default function QualityInspectionPage() {
       setSaving(false)
     }
   }
-  useShortcut('F8', save, open)
   useShortcut('F2', openNew, !open)
+
+  /*
+   * 원본 [검사항목] [내역] 창(2026-10-12 실측) — 제목 '검사항목', '품목명:○○', 품목에 붙은 품질검사유형의 칸
+   * (코드형 1~4 · 숫자형 1~4 · 문자형 1~4 차례). 코드형식은 상세항목을 고르고 나머지는 적는다. [적용(F8)] · [닫기].
+   * 유형이 없는 품목이면 '등록된 검사항목이 없습니다.' 창. 비워 두고 적용 · 저장해도 막지 않는다.
+   */
+  const [checkLine, setCheckLine] = useState<number | null>(null)
+  const [checkSlots, setCheckSlots] = useState<QualityItemCheck[]>([])
+  const [checkDraft, setCheckDraft] = useState<Record<number, { detailId: string; value: string }>>({})
+  const [noChecks, setNoChecks] = useState(false)
+  async function openChecks(i: number) {
+    const l = lines[i]
+    if (!l.itemId) return
+    try {
+      const r = await api.get<QualityItemCheck[]>(`/quality-types/item-checks/${l.itemId}`)
+      if (r.data.length === 0) return setNoChecks(true)
+      setCheckSlots(r.data)
+      setCheckDraft(Object.fromEntries(r.data.map((s) => {
+        const v = l.checks.find((c) => c.checkItemId === s.checkItemId)
+        return [s.checkItemId, { detailId: v?.detailId ? String(v.detailId) : '', value: v && !v.detailId ? v.value : '' }]
+      })))
+      setCheckLine(i)
+    } catch (err) { setFormError(extractErrorMessage(err)) }
+  }
+  function applyChecks() {
+    if (checkLine == null) return
+    const checks: QualityCheckValue[] = []
+    for (const s of checkSlots) {
+      const d = checkDraft[s.checkItemId]
+      if (!d) continue
+      if (s.format === 'CODE') {
+        const det = s.details.find((x) => String(x.id) === d.detailId)
+        if (det) checks.push({ checkItemId: s.checkItemId, detailId: det.id, value: det.name })
+      } else if (d.value.trim()) {
+        checks.push({ checkItemId: s.checkItemId, detailId: null, value: d.value.trim() })
+      }
+    }
+    setLine(checkLine, { checks })
+    setCheckLine(null)
+  }
+  useShortcut('F8', applyChecks, checkLine != null)
+  useShortcut('F8', save, open && checkLine == null)
 
   async function openPull() {
     setPullPick(null)
@@ -413,6 +456,7 @@ export default function QualityInspectionPage() {
             <th className="w-[70px] text-right">적격</th>
             <th className="w-[80px] text-right">부적격</th>
             <th className="w-[100px]">합격여부</th>
+            <th className="w-[110px] text-center">검사항목</th>
             <th className="w-[120px]">부적격관리</th>
           </tr></thead>
           <tbody>
@@ -430,7 +474,7 @@ export default function QualityInspectionPage() {
                   </td>
                   <td>
                     <CodePickerField label="품목" hideLabel fill emptyLabel="지우기" placeholder="품목코드" value={l.itemId}
-                                     onChange={(v) => setLine(i, { itemId: v })} items={itemPicks} />
+                                     onChange={(v) => setLine(i, { itemId: v, checks: v === l.itemId ? l.checks : [] })} items={itemPicks} />
                   </td>
                   <td>{it ? it.name : ''}</td>
                   <td><input className="ec-input w-full text-right" value={l.quantity} disabled={!l.itemId}
@@ -448,6 +492,15 @@ export default function QualityInspectionPage() {
                       <option value="PASS">합격</option>
                       <option value="FAIL">불합격</option>
                     </select>
+                  </td>
+                  <td className="text-center">
+                    {/* 원본 [검사항목] — 값을 적었으면 주황 꼬리표에 값을 잇고, 아니면 [내역]. 품목이 없으면 눌러도 안 열린다. */}
+                    <button type="button" className={l.checks.length
+                              ? 'inline-block max-w-full truncate rounded-[6px] px-[4px] leading-[15.3px] bg-[var(--ec-bg-tag)] text-white'
+                              : 'ec-link'}
+                            onClick={() => void openChecks(i)}>
+                      {l.checks.length ? l.checks.map((c) => c.value).join(' ') : '내역'}
+                    </button>
                   </td>
                   <td>
                     {/* 원본 [부적격관리] 는 불량유형마다 수량을 나눈다 — 우리는 주된 유형 하나를 고른다. */}
@@ -467,7 +520,7 @@ export default function QualityInspectionPage() {
             <td className="text-right">{qty0(sums.sample)}</td>
             <td className="text-right">{qty0(sums.good)}</td>
             <td className="text-right">{qty0(sums.defect)}</td>
-            <td colSpan={2}></td>
+            <td colSpan={3}></td>
           </tr></tfoot>
         </table>
 
@@ -477,6 +530,35 @@ export default function QualityInspectionPage() {
             ? <button className="ec-btn" onClick={() => { if (window.confirm('선택한 전표를 삭제 하겠습니까?')) void removeIds([editing.id]) }}>삭제</button>
             : <button className="ec-btn" onClick={() => setLines(emptyLines())}>다시 작성</button>}
           <button className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
+        </div>
+      </Modal>
+
+      <Modal open={checkLine != null} width={640} title="검사항목" error={formError} onClose={() => setCheckLine(null)}>
+        <p className="mb-[8px]">품목명:{checkLine != null ? itemById.get(lines[checkLine]?.itemId ?? '')?.name ?? '' : ''}</p>
+        <ul className="ec-form">
+          {checkSlots.map((s) => (
+            <li key={s.checkItemId}><div className="title">{s.name}</div><div className="form">
+              {s.format === 'CODE'
+                ? <CodePickerField label={s.name} hideLabel fill placeholder={s.name} emptyLabel="지우기"
+                                   value={checkDraft[s.checkItemId]?.detailId ?? ''}
+                                   onChange={(v) => setCheckDraft((d) => ({ ...d, [s.checkItemId]: { ...d[s.checkItemId], detailId: v } }))}
+                                   items={s.details.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+                : <input className={`ec-input w-full${s.format === 'NUMBER' ? ' text-right' : ''}`} placeholder={s.name}
+                         inputMode={s.format === 'NUMBER' ? 'decimal' : undefined}
+                         value={checkDraft[s.checkItemId]?.value ?? ''}
+                         onChange={(e) => setCheckDraft((d) => ({ ...d, [s.checkItemId]: { ...d[s.checkItemId], value: e.target.value } }))} />}
+            </div></li>
+          ))}
+        </ul>
+        <div className="flex gap-[4px] mt-[9px]">
+          <button className="ec-btn ec-btn-primary" onClick={applyChecks}>적용(F8)</button>
+          <button className="ec-btn" onClick={() => setCheckLine(null)}>닫기</button>
+        </div>
+      </Modal>
+      <Modal open={noChecks} width={420} title="검사항목" error={formError} onClose={() => setNoChecks(false)}>
+        <p className="text-center whitespace-pre-line my-[12px]">{'등록된 검사항목이 없습니다.\n품질검사유형등록에서 검사항목을 등록 바랍니다.'}</p>
+        <div className="flex justify-center">
+          <button className="ec-btn ec-btn-primary" onClick={() => setNoChecks(false)}>확인</button>
         </div>
       </Modal>
 

@@ -63,6 +63,12 @@ public class QcTypeController {
         return service.removeTypeItems(id, req);
     }
 
+    /** 품질검사입력 [검사항목] [내역] — 품목의 검사유형 칸. */
+    @GetMapping("/quality-types/item-checks/{itemId}")
+    public List<ItemCheckResponse> itemChecks(@PathVariable Long itemId) {
+        return service.findItemChecks(itemId);
+    }
+
     @GetMapping("/quality-types/item-settings")
     public List<ItemSettingResponse> itemSettings() {
         return service.findItemSettings();

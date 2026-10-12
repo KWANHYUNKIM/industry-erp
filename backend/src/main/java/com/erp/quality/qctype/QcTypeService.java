@@ -125,6 +125,36 @@ public class QcTypeService {
         return findSlots(typeId);
     }
 
+    /**
+     * 품질검사입력 [검사항목] [내역] — 품목에 붙은 (사용 중인) 검사유형의 칸, 코드형 1~4 · 숫자형 1~4 · 문자형 1~4 차례.
+     * 유형이 없으면 빈 목록 — 화면이 '등록된 검사항목이 없습니다.' 를 띄운다.
+     */
+    @Transactional(readOnly = true)
+    public List<ItemCheckResponse> findItemChecks(Long itemId) {
+        QcType t = typeRepository.findByItemId(itemId).stream().filter(QcType::isActive).findFirst().orElse(null);
+        if (t == null) {
+            return List.of();
+        }
+        Map<Long, QcCheckItem> items = checkItemRepository.findAllById(
+                        t.getCheckSlots().stream().map(QcTypeCheckSlot::getCheckItemId).toList()).stream()
+                .collect(Collectors.toMap(QcCheckItem::getId, Function.identity()));
+        return t.getCheckSlots().stream()
+                .filter(s -> items.containsKey(s.getCheckItemId()) && items.get(s.getCheckItemId()).isActive())
+                .sorted(Comparator.comparing((QcTypeCheckSlot s) -> items.get(s.getCheckItemId()).getFormat())
+                        .thenComparingInt(QcTypeCheckSlot::getSlot))
+                .map(s -> {
+                    QcCheckItem c = items.get(s.getCheckItemId());
+                    List<DetailResponse> details = c.getFormat() != QcCheckFormat.CODE ? List.of()
+                            : detailRepository.findByCheckItemIdOrderByCodeAsc(c.getId()).stream()
+                                    .filter(QcCheckItemDetail::isActive)
+                                    .map(d -> new DetailResponse(d.getId(), d.getCode(), d.getName(), d.isActive()))
+                                    .toList();
+                    return new ItemCheckResponse(c.getId(), c.getCode(), c.getName(), c.getFormat(), s.getSlot(),
+                            c.isRequired(), details);
+                })
+                .toList();
+    }
+
     /* ───────────── 품목설정 ───────────── */
 
     @Transactional(readOnly = true)

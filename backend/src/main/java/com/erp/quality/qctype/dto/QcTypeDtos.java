@@ -59,6 +59,14 @@ public final class QcTypeDtos {
     public record SaveSlotsRequest(@Valid List<SlotRequest> slots) {
     }
 
+    /**
+     * 품질검사입력 [검사항목] [내역] 창의 한 칸 — 품목에 붙은 검사유형의 검사항목.
+     * 코드형식이면 고를 상세항목(사용 중인 것)을 함께 준다.
+     */
+    public record ItemCheckResponse(Long checkItemId, String code, String name, QcCheckFormat format,
+                                    int slot, boolean required, List<DetailResponse> details) {
+    }
+
     public record TypeItemResponse(Long itemId, String code, String name, String spec) {
     }
 
