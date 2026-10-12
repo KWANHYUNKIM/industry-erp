@@ -16,4 +16,6 @@ public interface FastVoucherRepository extends JpaRepository<FastVoucher, Long> 
     List<FastVoucher> findAllWithRefs(FastVoucherType type,
                                       @org.springframework.data.repository.query.Param("from") java.time.LocalDate from,
                                       @org.springframework.data.repository.query.Param("to") java.time.LocalDate to);
+
+    java.util.Optional<FastVoucher> findByJournalEntryId(Long journalEntryId);
 }

@@ -37,4 +37,22 @@ public class FastVoucherLine {
 
     @Column(nullable = false)
     private Integer lineNo;
+
+    /**
+     * 원본 격자의 [돈 나간 계좌] · [돈 들어온 계좌] — 줄마다 정한다(2026-10-12 loginaa 실측).
+     * {@link #ownSettlement} 가 참이면 이 값이 그 줄의 결제 계좌이고, 비어 있으면 000 현금이다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "bank_account_id")
+    private com.erp.accounting.bankcard.BankAccount bankAccount;
+
+    /** 원본 격자의 [거래처] — 줄마다 다를 수 있다. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "partner_id")
+    private com.erp.trade.partner.BusinessPartner partner;
+
+    /** 줄이 제 결제 계좌를 정했는지. false 는 옛 줄 — 머리 결제수단을 따른다. */
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean ownSettlement = false;
 }

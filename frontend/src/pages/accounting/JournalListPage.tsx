@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import { api, extractErrorMessage } from '../../api/client'
 import type { JournalEntry } from '../../types/api'
@@ -25,6 +25,7 @@ const SRC_COLOR: Record<string, string> = {
 
 /** 회계전표 조회 — 판매/구매 회계반영으로 생성된 분개(차변/대변)를 전표 단위로 조회. */
 export default function JournalListPage() {
+  const navigate = useNavigate()
   /*
    * ?entryId= 로 특정 전표를 지목해서 들어온다 — 일괄회계반영·결제내역조회의
    * [회계전표No.] 가 여기로 보낸다. 목록만 열어 주면 사람이 다시 찾아야 하고,
@@ -173,6 +174,11 @@ export default function JournalListPage() {
                         ))}
                       </tbody>
                     </table>
+                    {/* 원본 회계거래조회는 지출결의서 · 입금보고서 전표를 누르면 그 결의서를 열어 고치고 지운다. */}
+                    {(r.sourceType as string) === 'VOUCHER' && (
+                      <button type="button" className="ec-btn ec-btn-sm mb-[4px]"
+                              onClick={() => navigate(`/accounting/vouchers?journal=${r.id}`)}>결의서 열기</button>
+                    )}
                   </td>
                 </tr>
               )}

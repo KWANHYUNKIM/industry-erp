@@ -10,6 +10,7 @@ import type { BankAccountRow, FastVoucher, FastVoucherType, Partner, PaymentMeth
 import { partnerCodeItems } from '../../utils/codeItems'
 import { periodOf, ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import CashReportEntryPage from './CashReportEntryPage'
 
 const today = () => ymd(new Date())
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -49,8 +50,21 @@ const LINE_HINT: Record<FastVoucherType, { title: string; hint: string; division
 interface LineForm { accountId: string; amount: string; description: string }
 const emptyLine = (): LineForm => ({ accountId: '', amount: '', description: '' })
 
-/** 회계 I > FastEntry — 지출결의서 · 입금보고서 · 가지급금정산서 (저장 즉시 복식부기 분개) */
+/**
+ * 회계 I > FastEntry — 지출결의서 · 입금보고서 · 가지급금정산서.
+ *
+ * 원본 지출결의서 · 입금보고서는 목록이 아니라 <b>입력 화면</b>이다(2026-10-12 loginaa 실측) —
+ * 줄마다 계좌 · 계정 · 거래처를 넣는 격자 화면(CashReportEntryPage)으로 연다. 가지급금정산서만 아직 예전 목록이다.
+ */
 export default function FastVoucherPage() {
+  const [params] = useSearchParams()
+  const t = params.get('type')
+  if (t === 'ADVANCE_SETTLEMENT') return <FastVoucherList />
+  return <CashReportEntryPage kind={t === 'DEPOSIT_REPORT' ? 'DEPOSIT_REPORT' : 'EXPENSE_REPORT'} />
+}
+
+/** 가지급금정산서 목록 + 등록 창 (저장 즉시 복식부기 분개) */
+function FastVoucherList() {
   /*
    * 메뉴에 [지출결의서]·[입금보고서]·[가지급금정산서] 세 항목이 있는데 셋 다 이 화면을
    * 가리켰다. 그래서 <b>무엇을 누르든 지출결의서가 떴다.</b> 메뉴가 ?type= 으로 지목한다.

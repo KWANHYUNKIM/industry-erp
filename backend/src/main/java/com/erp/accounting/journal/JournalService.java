@@ -473,7 +473,20 @@ public class JournalService {
      */
     @Transactional
     public JournalEntry createFromVoucher(com.erp.accounting.fastvoucher.FastVoucher v, Account settlement) {
-        String desc = v.getDescription() != null ? v.getDescription()
+        return createFromVoucher(v, settlement, l -> settlement);
+    }
+
+    /**
+     * 간편전표 → 분개. 지출결의서 · 입금보고서는 줄마다 결제 계좌가 다를 수 있어({@code settlementOf})
+     * 결제 쪽 줄을 계정별로 묶는다 — 원본 전표(2026-10-12 loginaa 26/10/12-2): 차) 복리후생비 15,000 [QA회계1 식대] /
+     * 대) 현금 15,000 [QA회계1 식대]. 결제 쪽 적요는 그 계정의 첫 줄 적요다.
+     */
+    @Transactional
+    public JournalEntry createFromVoucher(com.erp.accounting.fastvoucher.FastVoucher v, Account settlement,
+                                          Function<com.erp.accounting.fastvoucher.FastVoucherLine, Account> settlementOf) {
+        String firstDesc = v.getLines().isEmpty() ? null : v.getLines().get(0).getDescription();
+        String desc = v.getDescription() != null && !v.getDescription().isBlank() ? v.getDescription()
+                : firstDesc != null && !firstDesc.isBlank() ? firstDesc
                 : v.getType().getDisplayName() + " " + v.getVoucherNo();
         JournalEntry e = newEntry(JournalSourceType.VOUCHER, null, v.getVoucherDate(),
                 desc, v.getPartner(), v.getCreatedBy());
@@ -481,10 +494,10 @@ public class JournalService {
         switch (v.getType()) {
             case EXPENSE_REPORT -> {
                 v.getLines().forEach(l -> addDebitAccount(e, l.getAccount(), l.getAmount(), lineDesc(l)));
-                addCreditAccount(e, settlement, v.getTotalAmount(), settlement.getName());
+                settlementGroups(v, settlementOf).forEach((acc, g) -> addCreditAccount(e, acc, g.amount, g.desc));
             }
             case DEPOSIT_REPORT -> {
-                addDebitAccount(e, settlement, v.getTotalAmount(), settlement.getName());
+                settlementGroups(v, settlementOf).forEach((acc, g) -> addDebitAccount(e, acc, g.amount, g.desc));
                 v.getLines().forEach(l -> addCreditAccount(e, l.getAccount(), l.getAmount(), lineDesc(l)));
             }
             case ADVANCE_SETTLEMENT -> {
@@ -499,6 +512,20 @@ public class JournalService {
             }
         }
         return save(e);
+    }
+
+    private static final class SettleGroup { BigDecimal amount = BigDecimal.ZERO; String desc; }
+
+    private static Map<Account, SettleGroup> settlementGroups(com.erp.accounting.fastvoucher.FastVoucher v,
+            Function<com.erp.accounting.fastvoucher.FastVoucherLine, Account> settlementOf) {
+        Map<Account, SettleGroup> m = new LinkedHashMap<>();
+        for (var l : v.getLines()) {
+            Account acc = settlementOf.apply(l);
+            SettleGroup g = m.computeIfAbsent(acc, k -> new SettleGroup());
+            g.amount = g.amount.add(l.getAmount());
+            if (g.desc == null) g.desc = lineDesc(l);
+        }
+        return m;
     }
 
     private static String lineDesc(com.erp.accounting.fastvoucher.FastVoucherLine l) {

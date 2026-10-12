@@ -35,6 +35,28 @@ public class FastVoucherController {
         return service.list(type, from, to, all);
     }
 
+    @GetMapping("/{id}")
+    public VoucherResponse get(@PathVariable Long id) {
+        return service.get(id);
+    }
+
+    /** 회계전표조회에서 전표를 누르면 — 그 전표를 만든 결의서를 연다. */
+    @GetMapping("/by-journal/{journalEntryId}")
+    public VoucherResponse byJournal(@PathVariable Long journalEntryId) {
+        return service.findByJournal(journalEntryId);
+    }
+
+    @PutMapping("/{id}")
+    public VoucherResponse update(@PathVariable Long id, @Valid @RequestBody CreateVoucherRequest req,
+                                  @AuthenticationPrincipal UserPrincipal principal) {
+        return service.update(id, req, principal.getUsername());
+    }
+
+    @DeleteMapping("/{id}")
+    public void delete(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
+        service.delete(id, principal.getUsername());
+    }
+
     @PostMapping
     public VoucherResponse create(@Valid @RequestBody CreateVoucherRequest req,
                                   @AuthenticationPrincipal UserPrincipal principal) {

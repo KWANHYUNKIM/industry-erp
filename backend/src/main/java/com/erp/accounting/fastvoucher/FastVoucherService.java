@@ -14,6 +14,7 @@ import com.erp.accounting.fastvoucher.dto.FastVoucherDtos.VoucherResponse;
 import com.erp.accounting.account.AccountRepository;
 import com.erp.accounting.bankcard.BankAccountRepository;
 import com.erp.trade.partner.BusinessPartnerRepository;
+import com.erp.trade.partner.BusinessPartner;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -79,65 +80,154 @@ public class FastVoucherService {
     @Transactional
     public VoucherResponse create(CreateVoucherRequest req, String username) {
         LocalDate date = req.voucherDate() != null ? req.voucherDate() : LocalDate.now();
-        BigDecimal total = req.lines().stream()
-                .map(LineInput::amount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        BankAccount bank = null;
-        if (req.method() == PaymentMethod.BANK) {
-            if (req.bankAccountId() == null) {
-                throw ApiException.badRequest("계좌를 선택하세요.");
-            }
-            bank = bankAccountRepository.findById(req.bankAccountId())
-                    .orElseThrow(() -> ApiException.notFound("계좌를 찾을 수 없습니다. id=" + req.bankAccountId()));
-        }
-
-        BigDecimal advance = null;
-        if (req.type() == FastVoucherType.ADVANCE_SETTLEMENT) {
-            if (req.advanceAmount() == null || req.advanceAmount().signum() <= 0) {
-                throw ApiException.badRequest("가지급금정산서는 먼저 지급했던 가지급금 금액이 필요합니다.");
-            }
-            if (req.method() == PaymentMethod.CREDIT) {
-                throw ApiException.badRequest("가지급금 정산은 현금 또는 계좌로만 처리할 수 있습니다.");
-            }
-            advance = req.advanceAmount();
-        }
-
         FastVoucher v = FastVoucher.builder()
                 .voucherNo(docNoGenerator.next("FV-", "fast_vouchers", "voucher_no", "voucher_date", date))
                 .type(req.type())
                 .voucherDate(date)
-                .method(req.method())
-                .bankAccount(bank)
-                .partner(req.partnerId() != null
-                        ? partnerRepository.findById(req.partnerId())
-                            .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + req.partnerId()))
-                        : null)
-                .advanceAmount(advance)
-                .totalAmount(total)
-                .description(req.description())
                 .createdBy(username)
+                .totalAmount(BigDecimal.ZERO)
+                .method(req.method())
                 .build();
+        apply(v, req, username);
+        voucherRepository.save(v);
+        return VoucherResponse.from(v);
+    }
 
+    @Transactional(readOnly = true)
+    public VoucherResponse get(Long id) {
+        return VoucherResponse.from(find(id));
+    }
+
+    /** 회계전표조회에서 전표를 누르면 그 전표를 만든 지출결의서 · 입금보고서를 연다. */
+    @Transactional(readOnly = true)
+    public VoucherResponse findByJournal(Long journalEntryId) {
+        return voucherRepository.findByJournalEntryId(journalEntryId).map(VoucherResponse::from)
+                .orElseThrow(() -> ApiException.notFound("이 회계전표를 만든 결의서가 없습니다. id=" + journalEntryId));
+    }
+
+    /**
+     * 수정 — 원본은 회계거래조회에서 전표를 열어 줄을 고치고 [저장]한다(일자는 막혀 있다, 2026-10-12 loginaa 실측:
+     * 26/10/12-2 금액 12,000 → 15,000 저장 → 목록 · 전표 둘 다 15,000). 옛 분개 · 계좌 입출금을 되돌리고 새로 만든다.
+     */
+    @Transactional
+    public VoucherResponse update(Long id, CreateVoucherRequest req, String username) {
+        FastVoucher v = find(id);
+        if (req.type() != null && req.type() != v.getType()) {
+            throw ApiException.badRequest("전표 종류는 바꿀 수 없습니다.");
+        }
+        undo(v, username);
+        v.getLines().clear();
+        voucherRepository.flush();
+        if (req.method() != null) v.setMethod(req.method());
+        apply(v, req, username);
+        return VoucherResponse.from(v);
+    }
+
+    /** 삭제 — 분개 · 계좌 입출금을 함께 되돌린다(원본 회계거래조회 [삭제]). */
+    @Transactional
+    public void delete(Long id, String username) {
+        FastVoucher v = find(id);
+        undo(v, username);
+        voucherRepository.delete(v);
+    }
+
+    private FastVoucher find(Long id) {
+        return voucherRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("전표를 찾을 수 없습니다. id=" + id));
+    }
+
+    /** 이 전표가 만든 계좌 입출금을 되돌리고 분개를 지운다. */
+    private void undo(FastVoucher v, String username) {
+        JournalEntry old = v.getJournalEntry();
+        if (old == null) return;
+        bankCardService.reverseExternal(old, v.getType().getDisplayName() + " " + v.getVoucherNo() + " 취소", username);
+        v.setJournalEntry(null);
+        voucherRepository.flush();
+        journalService.deleteEntry(old);
+    }
+
+    /** 요청의 줄 · 머리를 전표에 싣고 분개 · 계좌 입출금을 만든다(등록 · 수정 공통). */
+    private void apply(FastVoucher v, CreateVoucherRequest req, String username) {
+        if (req.lines() == null || req.lines().isEmpty()) {
+            throw ApiException.badRequest("내역을 1줄 이상 입력하세요.");
+        }
+        PaymentMethod method = req.method() != null ? req.method() : PaymentMethod.CASH;
+        v.setMethod(method);
+        BigDecimal total = req.lines().stream().map(LineInput::amount).reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BankAccount bank = null;
+        boolean allOwn = req.lines().stream().allMatch(l -> Boolean.TRUE.equals(l.cash()) || l.bankAccountId() != null);
+        if (method == PaymentMethod.BANK && !allOwn) {
+            if (req.bankAccountId() == null) {
+                throw ApiException.badRequest("계좌를 선택하세요.");
+            }
+            bank = bankAccount(req.bankAccountId());
+        }
+
+        BigDecimal advance = null;
+        if (v.getType() == FastVoucherType.ADVANCE_SETTLEMENT) {
+            if (req.advanceAmount() == null || req.advanceAmount().signum() <= 0) {
+                throw ApiException.badRequest("가지급금정산서는 먼저 지급했던 가지급금 금액이 필요합니다.");
+            }
+            if (method == PaymentMethod.CREDIT) {
+                throw ApiException.badRequest("가지급금 정산은 현금 또는 계좌로만 처리할 수 있습니다.");
+            }
+            advance = req.advanceAmount();
+        }
+        v.setBankAccount(bank);
+        v.setAdvanceAmount(advance);
+        v.setTotalAmount(total);
+        v.setDescription(req.description());
+
+        BusinessPartner headPartner = req.partnerId() != null ? partner(req.partnerId()) : null;
         for (LineInput in : req.lines()) {
+            boolean own = Boolean.TRUE.equals(in.cash()) || in.bankAccountId() != null;
             v.addLine(FastVoucherLine.builder()
                     .account(account(in.accountId()))
                     .amount(in.amount())
                     .description(in.description())
+                    .ownSettlement(own)
+                    .bankAccount(in.bankAccountId() != null ? bankAccount(in.bankAccountId()) : null)
+                    .partner(in.partnerId() != null ? partner(in.partnerId()) : null)
                     .build());
+            if (headPartner == null && in.partnerId() != null) headPartner = v.getLines().get(v.getLines().size() - 1).getPartner();
         }
+        // 원본 회계거래조회 [거래처명]은 줄의 거래처다(26/10/13-2 지출결의서 · 스타벅스). 머리에 없으면 첫 거래처 줄.
+        v.setPartner(headPartner);
 
-        JournalEntry entry = journalService.createFromVoucher(v, settlementAccount(req.type(), req.method(), bank));
+        Account headSettlement = settlementAccount(v.getType(), method, bank);
+        JournalEntry entry = journalService.createFromVoucher(v, headSettlement,
+                l -> l.isOwnSettlement() ? (l.getBankAccount() != null ? l.getBankAccount().getGlAccount() : account(CASH)) : headSettlement);
         v.setJournalEntry(entry);
-        voucherRepository.save(v);
 
         // 계좌로 냈거나 받았으면 잔액과 입출금 내역도 움직인다(분개는 위에서 이미 만들었으므로 재생성하지 않는다).
-        BigDecimal cashFlow = bankFlow(v);
-        if (bank != null && cashFlow.signum() != 0) {
-            bankCardService.recordExternal(bank.getId(), cashFlow.signum() > 0, cashFlow.abs(), date,
-                    v.getType().getDisplayName() + " " + v.getVoucherNo(), entry, username);
+        String memo = v.getType().getDisplayName() + " " + v.getVoucherNo();
+        if (v.getType() == FastVoucherType.ADVANCE_SETTLEMENT) {
+            BigDecimal flow = v.getAdvanceAmount().subtract(v.getTotalAmount());
+            if (bank != null && flow.signum() != 0) {
+                bankCardService.recordExternal(bank.getId(), flow.signum() > 0, flow.abs(), v.getVoucherDate(), memo, entry, username);
+            }
+            return;
         }
-        return VoucherResponse.from(v);
+        boolean in = v.getType() == FastVoucherType.DEPOSIT_REPORT;
+        java.util.Map<Long, BigDecimal> byBank = new java.util.LinkedHashMap<>();
+        for (FastVoucherLine l : v.getLines()) {
+            BankAccount b = l.isOwnSettlement() ? l.getBankAccount() : bank;
+            if (b != null) byBank.merge(b.getId(), l.getAmount(), BigDecimal::add);
+        }
+        byBank.forEach((bankId, amt) -> {
+            if (amt.signum() != 0) bankCardService.recordExternal(bankId, in, amt, v.getVoucherDate(), memo, entry, username);
+        });
+    }
+
+    private BankAccount bankAccount(Long id) {
+        return bankAccountRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("계좌를 찾을 수 없습니다. id=" + id));
+    }
+
+    private BusinessPartner partner(Long id) {
+        return partnerRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + id));
     }
 
     /** 결제수단이 실제로 서는 계정 */
@@ -146,16 +236,6 @@ public class FastVoucherService {
             case CASH -> account(CASH);
             case BANK -> bank.getGlAccount();
             case CREDIT -> type == FastVoucherType.DEPOSIT_REPORT ? account(RECEIVABLE) : account(PAYABLE);
-        };
-    }
-
-    /** 계좌 잔액 변동량 (입금 +, 출금 -) */
-    private BigDecimal bankFlow(FastVoucher v) {
-        return switch (v.getType()) {
-            case EXPENSE_REPORT -> v.getTotalAmount().negate();
-            case DEPOSIT_REPORT -> v.getTotalAmount();
-            // 정산: 덜 썼으면 잔액이 계좌로 돌아오고, 더 썼으면 계좌에서 더 나간다
-            case ADVANCE_SETTLEMENT -> v.getAdvanceAmount().subtract(v.getTotalAmount());
         };
     }
 

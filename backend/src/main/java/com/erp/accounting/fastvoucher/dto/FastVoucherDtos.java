@@ -18,11 +18,23 @@ public final class FastVoucherDtos {
 
     private FastVoucherDtos() {}
 
+    /**
+     * 격자 한 줄. 원본 지출결의서 · 입금보고서는 줄마다 [돈 나간(들어온) 계좌] · [거래처]를 든다.
+     * {@code cash} 가 참이면 000 현금, {@code bankAccountId} 가 있으면 그 계좌 — 둘 다 없으면 머리 결제수단을 따른다(옛 호출).
+     */
     public record LineInput(
-            @NotNull(message = "계정을 선택하세요.") Long accountId,
-            @NotNull(message = "금액을 입력하세요.") @Positive(message = "금액은 0보다 커야 합니다.") BigDecimal amount,
-            String description
-    ) {}
+            @NotNull(message = "계정코드를 입력 바랍니다.") Long accountId,
+            @NotNull(message = "금액을 입력 바랍니다.") @Positive(message = "금액은 0보다 커야 합니다.") BigDecimal amount,
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.")
+            String description,
+            Long bankAccountId,
+            Boolean cash,
+            Long partnerId
+    ) {
+        public LineInput(Long accountId, BigDecimal amount, String description) {
+            this(accountId, amount, description, null, null, null);
+        }
+    }
 
     public record CreateVoucherRequest(
             @NotNull(message = "전표 종류를 선택하세요.") FastVoucherType type,
@@ -40,7 +52,10 @@ public final class FastVoucherDtos {
 
     public record VoucherLineResponse(
             Long id, int lineNo, Long accountId, String accountCode, String accountName,
-            BigDecimal amount, String description
+            BigDecimal amount, String description,
+            /** 줄의 결제 계좌 — cash 면 000 현금, 아니면 bankAccountId(없으면 머리 결제수단). */
+            Long bankAccountId, Boolean cash, Long partnerId,
+            String bankAccountCode, String bankAccountName, String partnerCode, String partnerName
     ) {}
 
     public record VoucherResponse(
@@ -75,9 +90,28 @@ public final class FastVoucherDtos {
                             .map(l -> new VoucherLineResponse(
                                     l.getId(), l.getLineNo(),
                                     l.getAccount().getId(), l.getAccount().getCode(), l.getAccount().getName(),
-                                    l.getAmount(), l.getDescription()))
+                                    l.getAmount(), l.getDescription(),
+                                    l.getBankAccount() != null ? l.getBankAccount().getId() : null,
+                                    l.isOwnSettlement() && l.getBankAccount() == null,
+                                    l.getPartner() != null ? l.getPartner().getId() : null,
+                                    l.getBankAccount() != null ? bankCode(l.getBankAccount()) : (l.isOwnSettlement() ? "000" : null),
+                                    l.getBankAccount() != null ? bankName(l.getBankAccount()) : (l.isOwnSettlement() ? "현금" : null),
+                                    l.getPartner() != null ? l.getPartner().getCode() : null,
+                                    l.getPartner() != null ? l.getPartner().getName() : null))
                             .toList());
         }
+    }
+
+    /** 원본 계좌검색의 [계좌코드] — 등록한 코드가 없으면 계좌번호. */
+    public static String bankCode(com.erp.accounting.bankcard.BankAccount b) {
+        return b.getCode() != null && !b.getCode().isBlank() ? b.getCode() : b.getAccountNo();
+    }
+
+    /** 원본 계좌검색의 [계좌명] — 등록한 이름이 없으면 '은행-계좌번호 끝 4자리'(기업은행-1122). */
+    public static String bankName(com.erp.accounting.bankcard.BankAccount b) {
+        if (b.getName() != null && !b.getName().isBlank()) return b.getName();
+        String no = b.getAccountNo() == null ? "" : b.getAccountNo().replaceAll("\\D", "");
+        return b.getBankName() + (no.length() >= 4 ? "-" + no.substring(no.length() - 4) : "");
     }
 
     /**

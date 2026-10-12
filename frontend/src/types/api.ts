@@ -1212,6 +1212,14 @@ export interface VoucherLine {
   accountName: string
   amount: number
   description: string | null
+  /** 줄의 결제 계좌 — 원본 [돈 나간(들어온) 계좌]. cash 면 000 현금, 둘 다 없으면 머리 결제수단(옛 줄). */
+  bankAccountId: number | null
+  cash: boolean
+  partnerId: number | null
+  bankAccountCode: string | null
+  bankAccountName: string | null
+  partnerCode: string | null
+  partnerName: string | null
 }
 
 export interface FastVoucher {
