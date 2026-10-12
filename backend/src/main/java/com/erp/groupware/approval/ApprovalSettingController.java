@@ -63,6 +63,18 @@ public class ApprovalSettingController {
         return service.updateGroup(id, req);
     }
 
+    @PatchMapping("/groups/{id}/active")
+    public com.erp.groupware.approval.dto.ApprovalSettingDtos.GroupResponse setGroupActive(
+            @PathVariable Long id, @RequestParam boolean active) {
+        return service.setGroupActive(id, active);
+    }
+
+    @DeleteMapping("/groups/{id}")
+    public ResponseEntity<Void> deleteGroup(@PathVariable Long id) {
+        service.deleteGroup(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/presets")
     public List<PresetResponse> presets() {
         return service.findPresets();

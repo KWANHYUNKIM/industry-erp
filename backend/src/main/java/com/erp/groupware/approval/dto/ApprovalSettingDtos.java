@@ -57,9 +57,9 @@ public final class ApprovalSettingDtos {
             @NotBlank(message = "그룹명을 입력하세요.") String name
     ) {}
 
-    public record GroupResponse(Long id, String code, String name) {
+    public record GroupResponse(Long id, String code, String name, boolean active) {
         public static GroupResponse from(ApprovalGroup g) {
-            return new GroupResponse(g.getId(), g.getCode(), g.getName());
+            return new GroupResponse(g.getId(), g.getCode(), g.getName(), g.isActive());
         }
     }
 

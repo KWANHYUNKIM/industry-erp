@@ -26,4 +26,9 @@ public class ApprovalGroup extends BaseTimeEntity {
 
     @Column(nullable = false, length = 50)
     private String name;
+
+    /** 원본 구분검색수정 [사용중단/재사용 ▲] — 사용중단이면 고르는 목록(구분검색)에 안 나온다. */
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean active = true;
 }

@@ -130,6 +130,26 @@ public class ApprovalSettingService {
         return ApprovalSettingDtos.GroupResponse.from(g);
     }
 
+    /** 원본 구분검색 [사용중단/재사용 ▲]. */
+    @Transactional
+    public ApprovalSettingDtos.GroupResponse setGroupActive(Long id, boolean active) {
+        ApprovalGroup g = groupRepository.findById(id).orElseThrow(() -> ApiException.notFound("구분을 찾을 수 없습니다. id=" + id));
+        g.setActive(active);
+        return ApprovalSettingDtos.GroupResponse.from(g);
+    }
+
+    /**
+     * 원본 구분검색수정 [사용중단/재사용 ▲] › 삭제('삭제하겠습니까?').
+     * 양식이 기본 구분으로 가리키고 있으면 막는다 — 지우면 그 양식의 [구분] 열이 말없이 빈칸이 된다.
+     */
+    @Transactional
+    public void deleteGroup(Long id) {
+        ApprovalGroup g = groupRepository.findById(id).orElseThrow(() -> ApiException.notFound("구분을 찾을 수 없습니다. id=" + id));
+        long used = templateRepository.findAll().stream().filter(t -> g.getCode().equals(t.getGroupCode())).count();
+        if (used > 0) throw ApiException.conflict("양식 " + used + "개가 기본 구분으로 쓰고 있어 삭제할 수 없습니다. 사용중단 하세요.");
+        groupRepository.delete(g);
+    }
+
     private String groupName(String code) {
         if (code == null || code.isBlank()) return null;
         return groupRepository.findByCode(code).map(ApprovalGroup::getName).orElse(null);
