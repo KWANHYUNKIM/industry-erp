@@ -412,8 +412,9 @@ public class WithholdingService {
     }
 
     private static WithholdingDtos.ComparisonRow row(String month, String kind, BigDecimal[] d, WithholdingDtos.IncomeSection sec) {
+        // 소득세는 견주지 않는다 — 원본 2026/10 근로소득 급여대장 소득세 625,010 · 신고내역 646,370 인데 금액(20,469,000)이 같아 차이여부가 빈칸(2026-10-12).
         boolean differs = sec != null && (d == null ? sec.grossPay().signum() != 0
-                : d[1].subtract(d[2]).compareTo(sec.grossPay()) != 0 || d[3].compareTo(sec.incomeTax()) != 0);
+                : d[1].subtract(d[2]).compareTo(sec.grossPay()) != 0);
         return new WithholdingDtos.ComparisonRow(month, kind, d == null ? 0 : d[0].intValue(),
                 d == null ? null : d[1], d == null ? null : d[2], d == null ? null : d[3], d == null ? null : d[4],
                 sec == null ? null : sec.count(), sec == null ? null : sec.grossPay(), sec == null ? null : sec.incomeTax(), differs);
