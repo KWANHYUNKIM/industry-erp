@@ -5,6 +5,7 @@ import com.erp.quality.inspection.QualityInspectionType;
 import com.erp.quality.inspectionrequest.QualityRequestStatus;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.Valid;
 import com.erp.quality.inspection.InspectionMethod;
 import com.erp.quality.inspection.QualityInspection;
@@ -42,14 +43,16 @@ public final class QualityRequestDtos {
     public record RequestLineReq(
             @NotNull(message = "품목을 선택하세요.") Long itemId,
             InspectionMethod method,
-            @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity
+            @NotNull(message = "수량을 입력하세요.") @Positive(message = "수량은 0보다 커야 합니다.") BigDecimal quantity,
+            /* 원본 [추가수량] — 비워도 된다. */
+            @PositiveOrZero(message = "추가수량은 0보다 작을 수 없습니다.") BigDecimal extraQty
     ) {}
 
     public record RequestLineResponse(Long id, int lineNo, Long itemId, String itemCode, String itemName, String spec,
-                                      InspectionMethod method, String methodName, BigDecimal quantity) {
+                                      InspectionMethod method, String methodName, BigDecimal quantity, BigDecimal extraQty) {
         public static RequestLineResponse from(QualityInspectionRequestLine l) {
             return new RequestLineResponse(l.getId(), l.getLineNo(), l.getItem().getId(), l.getItem().getCode(),
-                    l.getItem().getName(), l.getItem().getSpec(), l.getMethod(), l.getMethod().getDisplayName(), l.getQuantity());
+                    l.getItem().getName(), l.getItem().getSpec(), l.getMethod(), l.getMethod().getDisplayName(), l.getQuantity(), l.getExtraQty());
         }
     }
 

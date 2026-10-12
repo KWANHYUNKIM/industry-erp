@@ -1023,7 +1023,7 @@ export interface QualityInspectionRequest {
   requester: string | null
   remark: string | null
   /** 원본 품질검사요청입력의 품목 줄(2026-10-04 실측). 머리의 품목 · 요청수량은 여기서 모은 값이다. */
-  lines: { id: number; lineNo: number; itemId: number; itemCode: string; itemName: string; spec: string | null; method: 'FULL' | 'SAMPLING'; methodName: string; quantity: number }[]
+  lines: { id: number; lineNo: number; itemId: number; itemCode: string; itemName: string; spec: string | null; method: 'FULL' | 'SAMPLING'; methodName: string; quantity: number; extraQty: number | null }[]
   /** 원본 [연결전표] — 이 요청을 [검사요청] 으로 불러와 만든 검사들. */
   inspections: { id: number; inspectionNo: string; inspectionDate: string; quantity: number }[]
   inspectedQty: number

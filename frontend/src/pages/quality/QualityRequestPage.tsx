@@ -29,8 +29,9 @@ import { DocPullButton, type PullKind, type PulledLine } from '../../features/qu
  */
 
 type Method = 'FULL' | 'SAMPLING'
-interface LineForm { method: Method; itemId: string; quantity: string }
-const emptyLine = (): LineForm => ({ method: 'FULL', itemId: '', quantity: '' })
+/* [추가수량](2026-10-13 원본 실측) — 넣으면 [수량] 이 그 값으로 바뀐다(거꾸로는 안 바뀐다). 저장 뒤 다시 열어도 남는다. */
+interface LineForm { method: Method; itemId: string; extraQty: string; quantity: string }
+const emptyLine = (): LineForm => ({ method: 'FULL', itemId: '', extraQty: '', quantity: '' })
 const emptyLines = () => [emptyLine(), emptyLine(), emptyLine()]
 /*
  * 원본 알약(2026-10-12 다시 잼): 전체 · 결재중 · 확인 · 진행중 · 완료. 결재중 · 확인은 전자결재(전표 확인) 상태라
@@ -114,7 +115,7 @@ export default function QualityRequestPage() {
   /* 입력 판 [판매 · 발주 · 주문 · 구매] 불러오기(features/quality/DocPull) — 한 번 불러오면 단추가 사라진다. */
   const [pulled, setPulled] = useState(false)
   function applyPull(ls: PulledLine[]) {
-    setLines([...ls.map((l) => ({ method: 'FULL' as Method, itemId: String(l.itemId), quantity: String(Number(l.quantity)) })), emptyLine()])
+    setLines([...ls.map((l) => ({ method: 'FULL' as Method, itemId: String(l.itemId), extraQty: '', quantity: String(Number(l.quantity)) })), emptyLine()])
     setPulled(true)
   }
 
@@ -145,7 +146,7 @@ export default function QualityRequestPage() {
   function openEdit(r: QualityInspectionRequest) {
     setEditing(r); setFormError('')
     setF({ requestDate: r.requestDate, requester: r.requester ?? '', projectId: r.projectId ? String(r.projectId) : '', remark: r.remark ?? '' })
-    setLines([...r.lines.map((l) => ({ method: l.method, itemId: String(l.itemId), quantity: String(l.quantity) })), emptyLine()])
+    setLines([...r.lines.map((l) => ({ method: l.method, itemId: String(l.itemId), extraQty: l.extraQty == null ? '' : String(Number(l.extraQty)), quantity: String(l.quantity) })), emptyLine()])
     setOpen(true)
   }
   const setLine = (i: number, patch: Partial<LineForm>) =>
@@ -155,6 +156,7 @@ export default function QualityRequestPage() {
     })
   const filled = lines.filter((l) => l.itemId)
   const totalQty = filled.reduce((s, l) => s + Number(l.quantity || 0), 0)
+  const totalExtra = filled.reduce((s, l) => s + Number(l.extraQty || 0), 0)
 
   async function save() {
     setFormError('')
@@ -165,7 +167,7 @@ export default function QualityRequestPage() {
       requester: f.requester || undefined,
       projectId: f.projectId ? Number(f.projectId) : undefined,
       remark: f.remark || undefined,
-      lines: filled.map((l) => ({ itemId: Number(l.itemId), method: l.method, quantity: Number(l.quantity) })),
+      lines: filled.map((l) => ({ itemId: Number(l.itemId), method: l.method, quantity: Number(l.quantity), extraQty: l.extraQty === '' ? null : Number(l.extraQty) })),
     }
     setSaving(true)
     try {
@@ -389,6 +391,7 @@ export default function QualityRequestPage() {
             <th className="w-[180px]">품목코드</th>
             <th>품목명</th>
             <th className="w-[100px]">규격</th>
+            <th className="w-[100px] text-right">추가수량</th>
             <th className="w-[100px] text-right">수량</th>
           </tr></thead>
           <tbody>
@@ -409,13 +412,15 @@ export default function QualityRequestPage() {
                   </td>
                   <td>{it ? it.name : ''}</td>
                   <td>{it?.spec ?? ''}</td>
+                  <td><input className="ec-input w-full text-right" aria-label={`${i + 1}줄 추가수량`} value={l.extraQty} disabled={!l.itemId}
+                             onChange={(e) => setLine(i, { extraQty: e.target.value, quantity: e.target.value })} /></td>
                   <td><input className="ec-input w-full text-right" value={l.quantity} disabled={!l.itemId}
                              onChange={(e) => setLine(i, { quantity: e.target.value })} /></td>
                 </tr>
               )
             })}
           </tbody>
-          <tfoot><tr><td colSpan={5}></td><td className="text-right">{Math.round(totalQty).toLocaleString('ko-KR')}</td></tr></tfoot>
+          <tfoot><tr><td colSpan={5}></td><td className="text-right">{Math.round(totalExtra).toLocaleString('ko-KR')}</td><td className="text-right">{Math.round(totalQty).toLocaleString('ko-KR')}</td></tr></tfoot>
         </table>
         <div className="flex gap-[4px] mt-[9px]">
           <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>저장(F8)</button>

@@ -102,7 +102,7 @@ public class QualityInspectionRequestService {
             r.getLines().add(QualityInspectionRequestLine.builder()
                     .request(r).lineNo(no++).item(itemService.get(lr.itemId()))
                     .method(lr.method() != null ? lr.method() : com.erp.quality.inspection.InspectionMethod.FULL)
-                    .quantity(lr.quantity()).build());
+                    .quantity(lr.quantity()).extraQty(lr.extraQty()).build());
             total = total.add(lr.quantity());
         }
         /* 머리는 줄에서 모은 값 — 미검사현황 · 요청현황이 이것을 읽는다. */
@@ -125,7 +125,7 @@ public class QualityInspectionRequestService {
         return List.of(new RequestLineReq(req.itemId(),
                 "샘플링".equals(method) ? com.erp.quality.inspection.InspectionMethod.SAMPLING
                         : com.erp.quality.inspection.InspectionMethod.FULL,
-                req.requestQty()));
+                req.requestQty(), null));
     }
 
     /**

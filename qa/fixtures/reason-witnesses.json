@@ -2758,14 +2758,6 @@
   ],
   "in": "backend/src/main/java/com/erp/production/production/Production.java"
  },
- "품질검사요청입력|추가수량": {
-  "claim": "추가수량을 들지 않는다",
-  "absent": [
-   "additionalQty",
-   "extraQty"
-  ],
-  "in": "backend/src/main/java/com/erp/quality/inspectionrequest/QualityInspectionRequestLine.java"
- },
  "품질검사요청조회|창고": {
   "claim": "검사요청이 창고를 안 든다",
   "absent": [

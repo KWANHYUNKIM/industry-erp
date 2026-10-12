@@ -6,7 +6,7 @@ import jakarta.persistence.*;
 import java.math.BigDecimal;
 import lombok.*;
 
-/** 품질검사요청 품목 줄 — 원본 격자 [검사방법 · 품목코드 · 품목명 · 규격 · 수량](2026-10-04 실측). */
+/** 품질검사요청 품목 줄 — 원본 격자 [검사방법 · 품목코드 · 품목명 · 규격 · 추가수량 · 수량](2026-10-04 실측). */
 @Entity
 @Table(name = "quality_inspection_request_lines")
 @Getter
@@ -37,4 +37,8 @@ public class QualityInspectionRequestLine {
 
     @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal quantity;
+
+    /** 원본 [추가수량](2026-10-13 실측) — 넣으면 수량이 그 값이 되고, 저장 뒤 다시 열어도 남는다. 안 넣으면 null. */
+    @Column(name = "extra_qty", precision = 18, scale = 2)
+    private BigDecimal extraQty;
 }
