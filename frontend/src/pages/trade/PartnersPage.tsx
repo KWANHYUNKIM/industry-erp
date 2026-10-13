@@ -137,6 +137,9 @@ export default function PartnersPage() {
     전화: (p) => p.phone,
     모바일: (p) => p.mobile,
     검색창내용: (p) => p.searchKeyword,
+    전화번호: (p) => p.phone,
+    Email: (p) => p.email,
+    주소: (p) => p.address,
   })
   const shown = sort.sorted
   const [formTab, setFormTab] = useState<FormTab>('기본')
@@ -190,9 +193,18 @@ export default function PartnersPage() {
     setForm((prev) => ({ ...prev, [f]: v }))
   }
 
+  /**
+   * 원본 [신규] 는 거래처코드 칸에 다음 번호를 미리 채운다(loginaa: 10001 · 10003 이 있으면 10004).
+   * 다섯 자리 숫자 코드 중 가장 큰 것 + 1, 없으면 10001. 사람이 지우고 다른 코드를 써도 된다.
+   */
+  function nextCode() {
+    const nums = partners.map((x) => x.code).filter((c) => /^\d{5}$/.test(c)).map(Number)
+    return String(nums.length ? Math.max(...nums) + 1 : 10001)
+  }
+
   function openCreate() {
     setEditId(null)
-    setForm({ ...empty })
+    setForm({ ...empty, code: nextCode() })
     setFormTab('기본')
     setShowForm(true)
   }
@@ -228,6 +240,11 @@ export default function PartnersPage() {
   async function submit(e: FormEvent) {
     e.preventDefault()
     setError('')
+    /* 원본은 저장할 때 같은 코드가 있으면 [공지] 창으로 "이미 등록된 코드입니다." 를 띄우고 그 거래처를 보여 준다. */
+    if (editId == null) {
+      const dup = partners.find((x) => x.code === form.code.trim())
+      if (dup) { setError(`이미 등록된 코드입니다. ${dup.code} ${dup.name} ${dup.active ? '사용중' : '사용중단'}`); return }
+    }
     const body = {
       ...form,
       partnerGroupId: form.partnerGroupId ? Number(form.partnerGroupId) : null,
@@ -327,7 +344,7 @@ export default function PartnersPage() {
 
   async function toggleActive() {
     const targets = shown.filter((x) => checked.has(x.id))
-    if (targets.length === 0) return setError('사용중단하거나 되살릴 거래처를 고르세요.')
+    if (targets.length === 0) { alert(NO_PICK); return }
     const reviving = targets.every((x) => !x.active)
     setError('')
     try {
@@ -347,20 +364,39 @@ export default function PartnersPage() {
     }
   }
 
-  async function remove(p: Partner) {
-    if (!confirm(`거래처 '${p.name}'을(를) 삭제할까요?`)) return
+  /** 원본 리스트 버튼이 고른 줄 없이 눌렸을 때의 알림(거래처리스트 E010101 실측, 두 줄). */
+  const NO_PICK = '리스트에 선택된 자료가 없습니다.\n체크박스에 체크한 후 다시 시도 바랍니다.'
+
+  /**
+   * 원본은 줄마다 [삭제] 가 없다 — 체크한 줄을 [사용중단/재사용 ▴] 펼침의 [삭제] 로 지운다.
+   * 확인 창은 "삭제하겠습니까?" 하나, 지운 뒤에는 아무 말 없이 목록만 다시 그린다(loginaa 실측).
+   */
+  async function removeChecked() {
+    const targets = shown.filter((x) => checked.has(x.id))
+    if (targets.length === 0) { alert(NO_PICK); return }
+    if (!confirm('삭제하겠습니까?')) return
     try {
-      await api.delete(`/partners/${p.id}`)
+      for (const x of targets) await api.delete(`/partners/${x.id}`)
+      setChecked(new Set())
       load()
     } catch (err) {
       alert(extractErrorMessage(err))
+      load()
     }
   }
 
-  const typeColor = (t: string) =>
-    t === 'CUSTOMER' ? { bg: '#eef4ff', fg: 'var(--ec-blue)' }
-      : t === 'SUPPLIER' ? { bg: '#eefaf0', fg: '#2f8401' }
-        : { bg: '#f3eefb', fg: '#6b3fb0' }
+  /** [사용중단] · [재사용] — 펼침에서 하나만 고른다. 버튼 본체는 섞여 있으면 사용중단으로 맞춘다(기존 동작). */
+  async function setActiveChecked(active: boolean) {
+    const targets = shown.filter((x) => checked.has(x.id))
+    if (targets.length === 0) { alert(NO_PICK); return }
+    try {
+      for (const x of targets) await api.put(`/partners/${x.id}`, wholePartner(x, { active }))
+      setChecked(new Set())
+      load()
+    } catch (err) {
+      setError(extractErrorMessage(err))
+    }
+  }
 
   return (
     <EcListShell
@@ -369,18 +405,23 @@ export default function PartnersPage() {
       onSearchChange={setKeyword}
       onNew={openCreate}
       actions={[
-        // 원본 차례: 계층그룹 · 변경 · 사용중단/재사용 · Excel (사본 실측)
-        { label: '계층그룹', onClick: () => setGroupOpen(true) },
-        { label: `변경${checked.size ? ` (${checked.size})` : ''}`, onClick: () => {
-          if (checked.size === 0) { setError('바꿀 거래처를 고르세요.'); return }
-          setError(''); setBulkValue(''); setBulkOpen(true)
-        } },
+        // 원본 차례(loginaa 거래처리스트 실측): 신규(F2) · 관계설정 · 계층그룹 · 변경 · 사용중단/재사용 ▴ · Excel · 웹자료올리기
         /* 원본 [관계설정] — 고른 거래처의 대표거래처를 한 번에 정한다. */
         { label: `관계설정${checked.size ? ` (${checked.size})` : ''}`, onClick: () => {
-          if (checked.size === 0) { setError('대표거래처를 정할 거래처를 고르세요.'); return }
+          if (checked.size === 0) { alert(NO_PICK); return }
           setError(''); setBulkField('parentId'); setBulkValue(''); setBulkOpen(true)
         } },
-        { label: `사용중단/재사용${checked.size ? ` (${checked.size})` : ''}`, onClick: toggleActive },
+        { label: '계층그룹', onClick: () => setGroupOpen(true) },
+        { label: `변경${checked.size ? ` (${checked.size})` : ''}`, onClick: () => {
+          if (checked.size === 0) { alert(NO_PICK); return }
+          setError(''); setBulkValue(''); setBulkOpen(true)
+        } },
+        /* 원본 펼침: 사용중단 · 삭제 · 미사용코드조회 · 재사용. 미사용코드조회는 아직 없다(보드에 남김). */
+        { label: `사용중단/재사용${checked.size ? ` (${checked.size})` : ''}`, onClick: toggleActive, menu: [
+          { label: '사용중단', onClick: () => setActiveChecked(false) },
+          { label: '삭제', onClick: removeChecked },
+          { label: '재사용', onClick: () => setActiveChecked(true) },
+        ] },
         { label: 'Excel' },
         { label: '웹자료올리기', onClick: () => setWebOpen(true) },
       ]}
@@ -740,7 +781,7 @@ export default function PartnersPage() {
       )}</Modal>
 
       <div className="overflow-x-auto">
-        <table className="w-full text-left">
+        <table className="w-full text-center">
           <thead>
             <tr>
               <th className="w-[34px] text-center">
@@ -750,30 +791,23 @@ export default function PartnersPage() {
                          shown.every((x) => checked.has(x.id)) ? new Set() : new Set(shown.map((x) => x.id)),
                        )} />
               </th>
-              <th className="cursor-pointer" onClick={() => sort.toggle('거래처코드')}>거래처코드 {sort.mark('거래처코드')}</th>
-              <th className="cursor-pointer" onClick={() => sort.toggle('거래처명')}>거래처명 {sort.mark('거래처명')}</th>
-              <th className="cursor-pointer" onClick={() => sort.toggle('구분')}>구분 {sort.mark('구분')}</th>
-              <th>사업자번호</th>
-              <th className="cursor-pointer" onClick={() => sort.toggle('대표자명')}>대표자명 {sort.mark('대표자명')}</th>
-              <th className="cursor-pointer" onClick={() => sort.toggle('거래처그룹')}>거래처그룹 {sort.mark('거래처그룹')}</th>
-              <th>담당자</th>
-              <th className="cursor-pointer" onClick={() => sort.toggle('전화')}>전화 {sort.mark('전화')}</th>
-              <th className="cursor-pointer" onClick={() => sort.toggle('모바일')}>모바일 {sort.mark('모바일')}</th>
-              {/*
-                원본 거래처리스트의 [검색창내용] 열. 품목에는 넣었는데 거래처에는 빠져 있었다 —
-                별명을 적어 놓고도 목록에서는 그게 뭔지 볼 수가 없었다.
-              */}
-              <th className="cursor-pointer w-[140px]"onClick={() => sort.toggle('검색창내용')}>검색창내용 {sort.mark('검색창내용')}</th>
-              <th className="w-[90px] text-center">사용구분</th>
-              <th className="w-[90px] text-center">이체정보</th>
-              <th>관리</th>
+              {/* 원본 거래처리스트 기본 열(loginaa E010101 실측): 코드 · 거래처명 · 대표자명 · 전화번호 · Email · 주소 · 적요 · 사용구분 · 이체정보. 칸은 모두 가운데. */}
+              <th className="cursor-pointer text-center" onClick={() => sort.toggle('거래처코드')}>거래처코드 {sort.mark('거래처코드')}</th>
+              <th className="cursor-pointer text-center" onClick={() => sort.toggle('거래처명')}>거래처명 {sort.mark('거래처명')}</th>
+              <th className="cursor-pointer text-center" onClick={() => sort.toggle('대표자명')}>대표자명 {sort.mark('대표자명')}</th>
+              <th className="cursor-pointer text-center" onClick={() => sort.toggle('전화번호')}>전화번호 {sort.mark('전화번호')}</th>
+              <th className="cursor-pointer text-center" onClick={() => sort.toggle('Email')}>Email {sort.mark('Email')}</th>
+              <th className="cursor-pointer text-center" onClick={() => sort.toggle('주소')}>주소 {sort.mark('주소')}</th>
+              <th className="text-center">적요</th>
+              <th className="w-[64px] text-center">사용구분</th>
+              <th className="w-[65px] text-center">이체정보</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={14} className="ec-empty">불러오는 중…</td></tr>
+              <tr><td colSpan={10} className="ec-empty">불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={14} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : (
               shown.map((p) => (
                 <tr key={p.id} style={{ color: p.active ? undefined : 'var(--ec-text-hint)' }}>
@@ -784,38 +818,18 @@ export default function PartnersPage() {
                       return next
                     })} />
                   </td>
-                  {/* 원본은 코드·이름을 눌러 그 건을 연다(사본 실측: 두 칸이 링크다). */}
-                  <td>
-                    <button type="button" onClick={() => openEdit(p)}
-                            style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'monospace', fontSize: 12.5 }}>
-                      {p.code}
-                    </button>
-                  </td>
-                  <td>
-                    <button type="button" onClick={() => openEdit(p)}
-                            style={{ color: 'var(--ec-blue)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 12.5, textAlign: 'left' }}>
-                      {p.name}
-                    </button>
-                  </td>
-                  <td><span style={{ background: typeColor(p.type).bg, color: typeColor(p.type).fg, padding: '1px 6px', borderRadius: 3, fontSize: 11.5, fontWeight: 600 }}>{p.typeName}</span></td>
-                  <td>{p.bizRegNo ?? ''}</td>
-                  <td>{p.ceoName ?? ''}</td>
-                  <td>{p.partnerGroupName ?? ''}</td>
-                  <td>{p.manager ?? ''}</td>
-                  <td>{p.phone ?? ''}</td>
-                  <td>{p.mobile ?? ''}</td>
-                  <td className="text-ec-muted">{p.searchKeyword ?? ''}</td>
-                  <td style={{ textAlign: 'center', color: p.active ? 'var(--ec-success)' : 'var(--ec-danger)' }}>
-                    {p.active ? '사용' : '사용중단'}
-                  </td>
+                  {/* 원본은 코드·이름을 눌러 그 건을 연다(두 칸이 링크다). */}
+                  <td className="text-center"><button type="button" className="ec-link" onClick={() => openEdit(p)}>{p.code}</button></td>
+                  <td className="text-center"><button type="button" className="ec-link" onClick={() => openEdit(p)}>{p.name}</button></td>
+                  <td className="text-center">{p.ceoName ?? ''}</td>
+                  <td className="text-center">{p.phone ?? ''}</td>
+                  <td className="text-center">{p.email ?? ''}</td>
+                  <td className="text-center">{p.address ?? ''}</td>
+                  <td className="text-center">{p.remark ?? ''}</td>
+                  {/* 원본은 YES / NO 글자 그대로 찍는다. */}
+                  <td className="text-center">{p.active ? 'YES' : 'NO'}</td>
                   {/* 원본은 계좌가 있으면 '등록', 없으면 빈칸이다. 계좌번호를 목록에 늘어놓지 않는다. */}
-                  <td style={{ textAlign: 'center', color: p.accountNo ? 'var(--ec-blue)' : 'var(--ec-text-off)' }}>
-                    {p.accountNo ? '등록' : ''}
-                  </td>
-                  <td>
-                    <button onClick={() => openEdit(p)} style={{ color: 'var(--ec-blue)', marginRight: 8, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>수정</button>
-                    <button onClick={() => remove(p)} style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
-                  </td>
+                  <td className="text-center">{p.accountNo ? <span className="text-ec-navy">등록</span> : ''}</td>
                 </tr>
               ))
             )}

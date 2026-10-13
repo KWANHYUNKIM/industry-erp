@@ -1090,8 +1090,8 @@
   "palette": 0
  },
  "pages/trade/PartnersPage.tsx": {
-  "inline": 22,
-  "color": 9,
+  "inline": 15,
+  "color": 4,
   "palette": 0
  },
  "pages/trade/PayablePage.tsx": {
