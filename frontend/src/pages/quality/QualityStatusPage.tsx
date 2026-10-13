@@ -11,6 +11,7 @@ import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 import { EcReportHead, EcReportFoot, reportDate, reportPeriod } from '../../components/EcReportFrame'
 import { AsAggControls, AsAggregateTable, type AsAggKey, type AsAggLine } from '../../features/as/AsAggregate'
 import { usePartnerGroups } from '../../utils/partnerGroups'
+import { COMPARE_PERIODS, comparePeriodOf, fetchWindow, type ComparePeriod } from '../../utils/periods'
 
 /**
  * 재고 II > 품질관리 > 품질검사현황 (이카운트 E040623)
@@ -51,6 +52,8 @@ interface Filters {
   dateFrom: string
   /** 원본 [구분] — 검색할 때 걸린다. */
   gubun: '내역' | '집계'; form: Form; agg1: AsAggKey | ''; agg2: AsAggKey | ''; codeIncl: boolean
+  /** ○집계의 [비교기간] · [기타] 비율표시(2026-10-13 실측). */
+  compare: ComparePeriod; ratio: boolean
   /** 원본 품질검사현황 조건의 [창고]·[프로젝트]. 검사에 그 칸이 없어 못 걸렀다. */
   warehouse: string
   project: string
@@ -81,7 +84,7 @@ interface Filters {
  */
 const init = periodOf('금월(~오늘)')!
 
-const EMPTY_FILTERS: Filters = { dateFrom: init.from, dateTo: init.to, gubun: '내역', form: '라인별', agg1: '', agg2: '', codeIncl: false, type: '', item: '', warehouse: '', project: '', result: '', status: '', method: '', inspector: '',
+const EMPTY_FILTERS: Filters = { dateFrom: init.from, dateTo: init.to, gubun: '내역', form: '라인별', agg1: '', agg2: '', codeIncl: false, compare: '사용안함', ratio: false, type: '', item: '', warehouse: '', project: '', result: '', status: '', method: '', inspector: '',
   category: '', itemGroup: '', spec: '', defectType: '', remark: '' }
 
 
@@ -103,7 +106,7 @@ export default function QualityStatusPage() {
     setLoading(true)
     try {
       const [res, it] = await Promise.all([
-        api.get<QualityInspection[]>('/quality-inspections', { params: { from: filters.dateFrom || undefined, to: filters.dateTo || undefined } }),
+        api.get<QualityInspection[]>('/quality-inspections', { params: fetchWindow(filters.dateFrom, filters.dateTo, filters.gubun === '집계' ? filters.compare : '사용안함') }),
         api.get<Item[]>('/items'),
       ])
       setRows(res.data); setItems(it.data)
@@ -117,7 +120,7 @@ export default function QualityStatusPage() {
    * <b>기간을 서버에 보낸다.</b> 예전에는 조건 판에 [기간]을 물어 놓고 서버에는 아무것도
    * 안 보내, 전 기간을 받아 브라우저에서 걸렀다. 기간이 바뀌면 다시 물어본다.
    */
-  useEffect(() => { load() }, [filters.dateFrom, filters.dateTo])
+  useEffect(() => { load() }, [filters.dateFrom, filters.dateTo, filters.compare, filters.gubun])
 
   /**
    * 원본 [데이터 보기형식] · [그래프로 보기] — 조건 판 <b>맨 끝</b>이다(사본 실측:
@@ -132,15 +135,16 @@ export default function QualityStatusPage() {
    */
   const [view, setView] = useState<'표' | '그래프'>('표')
 
-  const shown = useMemo(() => {
+  /** 조건으로 거른 검사 — 기간만 따로 받는다([비교기간] 쪽은 옮긴 구간으로 다시 거른다). */
+  const pick = (from: string, to: string) => {
     const kw = keyword.trim()
     const f = filters
     return rows.filter((r) => {
       if (kw && !r.itemName.includes(kw) && !r.inspectionNo.includes(kw) && !(r.lotNo ?? '').includes(kw)) return false
-      if (f.dateFrom && r.inspectionDate < f.dateFrom) return false
+      if (from && r.inspectionDate < from) return false
       if (f.warehouse && (r.warehouseName ?? '') !== f.warehouse) return false
       if (f.project && (r.projectName ?? '') !== f.project) return false
-      if (f.dateTo && r.inspectionDate > f.dateTo) return false
+      if (to && r.inspectionDate > to) return false
       if (f.type && r.type !== f.type) return false
       if (f.item && !r.itemName.includes(f.item)) return false
       if (f.status && r.status !== f.status) return false
@@ -154,16 +158,22 @@ export default function QualityStatusPage() {
       if (f.remark && !(r.remark ?? '').includes(f.remark)) return false
       return true
     }).sort((a, b) => (a.inspectionDate < b.inspectionDate ? -1 : a.inspectionDate > b.inspectionDate ? 1 : a.id - b.id))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, keyword, filters, itemById, mgmt.groupOptions])
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const shown = useMemo(() => pick(filters.dateFrom, filters.dateTo), [rows, keyword, filters, itemById, mgmt.groupOptions])
+  const cmpRange = filters.gubun === '집계' ? comparePeriodOf(filters.dateFrom, filters.dateTo, filters.compare) : null
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const cmpShown = useMemo(() => (cmpRange ? pick(cmpRange.from, cmpRange.to) : []), [rows, keyword, filters, itemById, mgmt.groupOptions, cmpRange?.from, cmpRange?.to])
 
   /*
    * 원본 격자는 <b>검사 줄</b>이 한 줄이다(일자-No. · 검사방법 · 품목명[규격명] · 수량 · 시료 · 적격 · 부적격 · 합격여부).
    * 합격여부 · 검사방법 조건은 줄에 건다.
    */
-  const lineRows = useMemo(() => shown.flatMap((r) => r.lines
+  const toLineRows = (rs: QualityInspection[]) => rs.flatMap((r) => r.lines
     .filter((l) => (!filters.result || l.passResult === filters.result) && (!filters.method || l.method === filters.method))
-    .map((l) => ({ r, l }))), [shown, filters.result, filters.method])
+    .map((l) => ({ r, l })))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const lineRows = useMemo(() => toLineRows(shown), [shown, filters.result, filters.method])
   /* 머리에 <b>▼ 만 그려 놓고</b> 정렬은 없었다 — 눌러도 아무 일이 없었다. */
   const sort = useTableSort(shown, {
     검사일자: (r) => r.inspectionDate,
@@ -198,7 +208,7 @@ export default function QualityStatusPage() {
     const get = (u: string) => api.get<C[]>(u).then((r) => new Map(r.data.map((x) => [x.id, x.code] as [number, string]))).catch(() => new Map<number, string>())
     Promise.all([get('/warehouses'), get('/projects')]).then(([wh, pj]) => setCodes({ wh, pj }))
   }, [])
-  const aggLines: AsAggLine[] = lineRows.map(({ r, l }) => ({
+  const toAgg = (xs: { r: QualityInspection; l: QualityInspectionLine }[]): AsAggLine[] => xs.map(({ r, l }) => ({
     date: r.inspectionDate, charge: r.inspector ?? '',
     warehouse: [r.warehouseName ?? '', r.warehouseId != null ? codes.wh.get(r.warehouseId) ?? '' : ''],
     mgmt: mgmt.nameOf(l.itemId) ?? '', partner: ['', ''], partnerGroup: pgroup.groupOfName('') ?? '',
@@ -206,6 +216,7 @@ export default function QualityStatusPage() {
     project: [r.projectName ?? '', r.projectId != null ? codes.pj.get(r.projectId) ?? '' : ''],
     qty: Number(l.quantity), vals: [Number(l.quantity), Number(l.sampleQty), Number(l.goodQty), Number(l.defectQty)],
   }))
+  const aggLines = toAgg(lineRows)
 
   const activeCount = useMemo(() => {
     let n = 0
@@ -262,7 +273,8 @@ export default function QualityStatusPage() {
       ) : filters.gubun === '집계' ? (
         <AsAggregateTable title="품질검사현황" period={reportPeriod(filters.dateFrom, filters.dateTo)} lines={aggLines}
                           value={{ agg1: filters.agg1, agg2: filters.agg2, codeIncl: filters.codeIncl }}
-                          measures={MEASURES} blankZero={['부적격']} />
+                          measures={MEASURES} blankZero={['부적격']} ratio={filters.ratio}
+                          compare={cmpRange ? { period: reportPeriod(cmpRange.from, cmpRange.to), lines: toAgg(toLineRows(cmpShown)) } : undefined} />
       ) : (
       <>
       <EcReportHead title="품질검사현황" period={reportPeriod(filters.dateFrom, filters.dateTo)} />
@@ -383,6 +395,20 @@ function SearchPanel({
             </select>
           ) : (
             <AsAggControls value={{ agg1: draft.agg1, agg2: draft.agg2, codeIncl: draft.codeIncl }} onChange={onChange} />
+          )}
+          {/* 원본 ○집계 아래 줄 — [비교기간] 사용안함 … 전일동일기간, [기타] 가로보기 · 비율표시 · 코드포함(2026-10-13 실측). */}
+          {draft.gubun === '집계' && (
+            <span className="inline-flex flex-wrap items-center gap-[8px]">
+              <span className="text-ec-label">비교기간</span>
+              {COMPARE_PERIODS.map((k) => (
+                <label key={k} className="inline-flex items-center gap-[3px]">
+                  <input type="radio" name="qs-compare" checked={draft.compare === k} onChange={() => onChange({ compare: k })} /> {k}
+                </label>
+              ))}
+              <label className="inline-flex items-center gap-[3px]">
+                <input type="checkbox" checked={draft.ratio} onChange={(e) => onChange({ ratio: e.target.checked })} /> 비율표시
+              </label>
+            </span>
           )}
         </div>
       </div>
