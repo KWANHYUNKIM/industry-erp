@@ -66,6 +66,33 @@ public class ProjectPlanService {
         return ProjectPlanResponse.from(planRepository.save(plan));
     }
 
+    /**
+     * 원본 [프로젝트 계획항목 수정] 창의 저장(F8)(2026-10-14 E040636 실측 — 판매 계획을 고쳐 저장하면
+     * 목록 [판매] 가 바뀐 값으로 다시 찍힌다). 우리는 고칠 길이 없어 지우고 다시 넣어야 했다.
+     */
+    @Transactional
+    public ProjectPlanResponse update(Long id, CreateProjectPlanRequest req) {
+        ProjectPlan plan = planRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("프로젝트계획을 찾을 수 없습니다. id=" + id));
+        if (!plan.getProject().getId().equals(req.projectId())) {
+            plan.setProject(projectRepository.findById(req.projectId())
+                    .orElseThrow(() -> ApiException.notFound("프로젝트를 찾을 수 없습니다. id=" + req.projectId())));
+        }
+        BigDecimal purchase = req.planPurchase() != null ? req.planPurchase() : BigDecimal.ZERO;
+        BigDecimal labor = req.planLabor() != null ? req.planLabor() : BigDecimal.ZERO;
+        BigDecimal expense = req.planExpense() != null ? req.planExpense() : BigDecimal.ZERO;
+        BigDecimal cost = req.planCost();
+        if (cost.signum() == 0) cost = purchase.add(labor).add(expense);   // create 와 같은 규칙
+        plan.setPlanYear(req.planYear());
+        plan.setPlanRevenue(req.planRevenue());
+        plan.setPlanCost(cost);
+        plan.setPlanPurchase(purchase);
+        plan.setPlanLabor(labor);
+        plan.setPlanExpense(expense);
+        plan.setRemark(req.remark());
+        return ProjectPlanResponse.from(plan);
+    }
+
     @Transactional
     public void delete(Long id) {
         ProjectPlan plan = planRepository.findById(id)
@@ -75,15 +102,21 @@ public class ProjectPlanService {
 
     /** 계획 vs 실적(해당 연도 전표 집계) 대조. 실적은 프로젝트별 손익에서 가져온다. */
     @Transactional(readOnly = true)
-    public List<ComparisonRow> comparison(int year) {
-        List<ProjectPlan> plans = planRepository.findByYearWithProject(year);
+    public List<ComparisonRow> comparison(Integer year) {
+        List<ProjectPlan> plans = year != null
+                ? planRepository.findByYearWithProject(year)
+                : planRepository.findAllWithProject();
 
-        ProjectProfitSummary actual = projectProfitService.profit(
-                LocalDate.of(year, 1, 1), LocalDate.of(year, 12, 31));
-        Map<Long, ProjectProfitRow> actualByProject = actual.rows().stream()
-                .collect(Collectors.toMap(ProjectProfitRow::projectId, Function.identity()));
+        /* 실적은 계획 연도마다 그 해 전표로 모은다(연도를 안 주면 계획에 나온 해마다 한 번). */
+        Map<Integer, Map<Long, ProjectProfitRow>> actualByYear = new java.util.HashMap<>();
+        for (Integer y : plans.stream().map(ProjectPlan::getPlanYear).distinct().toList()) {
+            ProjectProfitSummary actual = projectProfitService.profit(LocalDate.of(y, 1, 1), LocalDate.of(y, 12, 31));
+            actualByYear.put(y, actual.rows().stream()
+                    .collect(Collectors.toMap(ProjectProfitRow::projectId, Function.identity())));
+        }
 
         return plans.stream().map(p -> {
+            Map<Long, ProjectProfitRow> actualByProject = actualByYear.getOrDefault(p.getPlanYear(), Map.of());
             BigDecimal planRevenue = p.getPlanRevenue();
             BigDecimal planCost = p.getPlanCost();
             BigDecimal planProfit = planRevenue.subtract(planCost);

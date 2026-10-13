@@ -24,8 +24,9 @@ public class ProjectPlanController {
         return service.findAll(year);
     }
 
+    /** 연도를 안 주면 모든 해의 계획 — 원본 프로젝트계획조회(E040636)는 연도 조건 없이 계획을 다 보여 준다. */
     @GetMapping("/comparison")
-    public List<ComparisonRow> comparison(@RequestParam int year) {
+    public List<ComparisonRow> comparison(@RequestParam(required = false) Integer year) {
         return service.comparison(year);
     }
 
@@ -43,6 +44,12 @@ public class ProjectPlanController {
             @Valid @RequestBody CreateProjectPlanRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(service.create(req, principal.getUsername()));
+    }
+
+    /** 원본 [프로젝트 계획항목 수정] 창의 저장(F8) — 2026-10-14 E040636 실측. */
+    @PutMapping("/{id}")
+    public ProjectPlanResponse update(@PathVariable Long id, @Valid @RequestBody CreateProjectPlanRequest req) {
+        return service.update(id, req);
     }
 
     @DeleteMapping("/{id}")
