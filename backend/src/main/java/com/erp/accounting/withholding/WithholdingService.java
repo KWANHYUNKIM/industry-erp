@@ -104,7 +104,7 @@ public class WithholdingService {
         List<WithholdingDtos.IncomeSection> sections = new ArrayList<>();
         // A01 총지급액은 <b>제출제외 비과세</b>만 뺀다 — 원본 2026/10 6명 20,469,000(급여대장 21,669,000 − 차량유지비 1,200,000).
         // 식대 등 제출대상 비과세(800,000)는 총지급액에 남는다(원본 간이소득내역 2026-10-13 실측). 예전엔 비과세를 모두 뺐다.
-        Set<String> excluded = submitExcludedNames();
+        Map<String, com.erp.hr.payroll.PayTaxFreeType> excluded = taxFreeTypes();
         BigDecimal nonTaxable = all.stream().filter(p -> p.getStatus() == PayslipStatus.CONFIRMED)
                 .map(p -> excludedNonTaxable(p, excluded)).reduce(BigDecimal.ZERO, BigDecimal::add);
         sections.add(new WithholdingDtos.IncomeSection("A01", "근로소득(간이세액)", rows.size(), totalGross.subtract(nonTaxable),
@@ -151,25 +151,41 @@ public class WithholdingService {
     }
 
     /**
-     * 지급명세서 <b>제출제외 비과세</b> 수당의 이름 — 수당항목의 비과세유형이 차량유지비(자가운전보조금)인 것.
+     * 수당 이름 → 비과세유형(수당항목등록). 지급명세서 <b>제출제외 비과세</b>는 차량유지비(자가운전보조금)인 것,
      * 식대 · 야간근로수당 · 보육수당은 제출대상 비과세라 신고서 총지급액에 남는다.
      */
-    private Set<String> submitExcludedNames() {
-        return paySettingService.findItems().stream()
-                .filter(i -> i.taxFreeType() == com.erp.hr.payroll.PayTaxFreeType.VEHICLE)
-                .map(com.erp.hr.payroll.dto.PaySettingDtos.PayItemResponse::name)
-                .collect(java.util.stream.Collectors.toSet());
+    private Map<String, com.erp.hr.payroll.PayTaxFreeType> taxFreeTypes() {
+        Map<String, com.erp.hr.payroll.PayTaxFreeType> m = new java.util.HashMap<>();
+        for (var i : paySettingService.findItems()) {
+            if (i.kind() == PayslipLineKind.ALLOWANCE && i.taxFreeType() != null) m.putIfAbsent(i.name(), i.taxFreeType());
+        }
+        return m;
     }
 
-    private static BigDecimal nonTaxableOf(Payslip p, Set<String> excluded, boolean wantExcluded) {
-        return p.getLines().stream()
-                .filter(l -> l.getKind() == PayslipLineKind.ALLOWANCE && !l.isTaxable()
-                        && excluded.contains(l.getName()) == wantExcluded)
-                .map(PayslipLine::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+    /**
+     * 명세 한 장의 <b>한도 안의</b> 비과세 — 유형마다 월 한도(PayTaxFreeType#getMonthlyLimit)까지만 비과세, 넘는 몫은 과세다.
+     * 급여계산(PayrollService.taxableIncome)과 같은 규칙: 유형을 모르는 비과세 줄(전액과세 유형 · 수당항목에 없는 이름)은 한도 없이 비과세.
+     * 예전엔 비과세 줄 금액을 한도 없이 더해 A01 총지급액 · 원천징수부 과세급여에서 한도 넘는 몫까지 빠졌다(관리 1ecdf6c3 지적).
+     * wantExcluded: true 면 제출제외(차량유지비)만, false 면 그 밖의 비과세만, null 이면 전부.
+     */
+    private static BigDecimal nonTaxableOf(Payslip p, Map<String, com.erp.hr.payroll.PayTaxFreeType> types, Boolean wantExcluded) {
+        Map<com.erp.hr.payroll.PayTaxFreeType, BigDecimal> byType = new java.util.EnumMap<>(com.erp.hr.payroll.PayTaxFreeType.class);
+        for (PayslipLine l : p.getLines()) {
+            if (l.getKind() != PayslipLineKind.ALLOWANCE || l.isTaxable()) continue;
+            byType.merge(types.getOrDefault(l.getName(), com.erp.hr.payroll.PayTaxFreeType.NONE), l.getAmount(), BigDecimal::add);
+        }
+        BigDecimal sum = BigDecimal.ZERO;
+        for (var e : byType.entrySet()) {
+            boolean excluded = e.getKey() == com.erp.hr.payroll.PayTaxFreeType.VEHICLE;
+            if (wantExcluded != null && excluded != wantExcluded) continue;
+            BigDecimal limit = e.getKey().getMonthlyLimit();
+            sum = sum.add(limit == null ? e.getValue() : e.getValue().min(limit));
+        }
+        return sum;
     }
 
-    private static BigDecimal excludedNonTaxable(Payslip p, Set<String> excluded) {
-        return nonTaxableOf(p, excluded, true);
+    private static BigDecimal excludedNonTaxable(Payslip p, Map<String, com.erp.hr.payroll.PayTaxFreeType> types) {
+        return nonTaxableOf(p, types, true);
     }
 
     /** 대장의 지급연월 — 지급일의 달(없으면 귀속연월). 원본 급여대장검색은 신고서 [지급연월] 과 같은 대장만 보인다. */
@@ -186,7 +202,7 @@ public class WithholdingService {
         if (payMonth == null || !MONTH.matcher(payMonth).matches()) {
             throw ApiException.badRequest("지급연월 형식이 올바르지 않습니다(YYYY-MM): " + payMonth);
         }
-        Set<String> excluded = submitExcludedNames();
+        Map<String, com.erp.hr.payroll.PayTaxFreeType> excluded = taxFreeTypes();
         var ledgers = payLedgerService.findAll().stream()
                 .sorted(java.util.Comparator.comparing(com.erp.hr.payroll.dto.PayLedgerDtos.LedgerResponse::id)).toList();
         Map<String, Integer> seq = new java.util.HashMap<>();
@@ -209,7 +225,7 @@ public class WithholdingService {
     public List<WithholdingDtos.SimpleIncomeRow> ledgerIncome(Long ledgerId) {
         var ledger = payLedgerService.findAll().stream().filter(l -> l.id().equals(ledgerId)).findFirst()
                 .orElseThrow(() -> ApiException.notFound("급여대장을 찾을 수 없습니다."));
-        Set<String> excluded = submitExcludedNames();
+        Map<String, com.erp.hr.payroll.PayTaxFreeType> excluded = taxFreeTypes();
         return payslipRepository.findByPayMonth(ledger.payMonth()).stream()
                 .sorted(java.util.Comparator.comparing((Payslip p) -> p.getEmployee().getCode()))
                 .map(p -> {
@@ -277,14 +293,13 @@ public class WithholdingService {
             }
         }
         List<WithholdingDtos.LedgerEmployee> out = new ArrayList<>();
+        Map<String, com.erp.hr.payroll.PayTaxFreeType> types = taxFreeTypes();
         for (List<Payslip> slips : byEmployee.values()) {
             var e = slips.get(0).getEmployee();
             List<WithholdingDtos.LedgerMonth> months = slips.stream()
                     .sorted(java.util.Comparator.comparing(Payslip::getPayMonth))
                     .map(p -> {
-                        BigDecimal nonTaxable = p.getLines().stream()
-                                .filter(l -> l.getKind() == PayslipLineKind.ALLOWANCE && !l.isTaxable())
-                                .map(PayslipLine::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+                        BigDecimal nonTaxable = nonTaxableOf(p, types, null);
                         BigDecimal taxable = p.grossPay().subtract(nonTaxable);
                         long[] b = taxCalculator.bracketOf(taxable);
                         String bracket = b == null ? null : String.format("%,d~%,d", b[0], b[1]);
@@ -436,7 +451,7 @@ public class WithholdingService {
         });
         List<WithholdingDtos.ComparisonRow> out = new ArrayList<>();
         Map<String, BigDecimal[]> total = new java.util.LinkedHashMap<>();
-        Set<String> excludedNames = submitExcludedNames();
+        Map<String, com.erp.hr.payroll.PayTaxFreeType> excludedNames = taxFreeTypes();
         for (int m = 1; m <= 12; m++) {
             String month = String.format("%s-%02d", prefix, m);
             java.time.YearMonth ym = java.time.YearMonth.parse(month);

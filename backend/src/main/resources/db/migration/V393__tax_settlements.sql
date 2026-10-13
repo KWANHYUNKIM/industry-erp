@@ -1,0 +1,86 @@
+-- 세무 › 원천징수 › 연말정산(E030109) · 중도정산(E030114) — 정산 한 건 · 종(전)근무지 · 공제 줄(plans/세무/연말정산.md 8.1).
+-- 금액은 원 단위 bigint(엔티티 long). 사원은 employee_id 로만 든다(엔티티는 Long — accounting 이 hr 엔티티를 새로 참조하지 않게).
+CREATE TABLE tax_settlements (
+    id bigserial PRIMARY KEY,
+    attribution_year integer NOT NULL,
+    employee_id bigint NOT NULL REFERENCES employees (id),
+    kind varchar(20) NOT NULL,
+    withholding_month varchar(7),
+    standard_auto boolean NOT NULL DEFAULT true,
+    child_credit boolean NOT NULL DEFAULT true,
+    single_rate boolean NOT NULL DEFAULT false,
+    basic_deduction_count integer NOT NULL DEFAULT 1,
+    memo varchar(500),
+    calculated_at timestamp(6),
+    cur_total_pay bigint NOT NULL DEFAULT 0,
+    cur_non_taxable bigint NOT NULL DEFAULT 0,
+    cur_national_pension bigint NOT NULL DEFAULT 0,
+    cur_health_insurance bigint NOT NULL DEFAULT 0,
+    cur_employment_insurance bigint NOT NULL DEFAULT 0,
+    cur_income_tax bigint NOT NULL DEFAULT 0,
+    cur_local_tax bigint NOT NULL DEFAULT 0,
+    total_salary bigint NOT NULL DEFAULT 0,
+    earned_income_deduction bigint NOT NULL DEFAULT 0,
+    earned_income_amount bigint NOT NULL DEFAULT 0,
+    income_deduction_total bigint NOT NULL DEFAULT 0,
+    tax_base bigint NOT NULL DEFAULT 0,
+    computed_tax bigint NOT NULL DEFAULT 0,
+    tax_reduction bigint NOT NULL DEFAULT 0,
+    tax_credit_total bigint NOT NULL DEFAULT 0,
+    standard_tax_credit bigint NOT NULL DEFAULT 0,
+    decided_income_tax bigint NOT NULL DEFAULT 0,
+    decided_local_tax bigint NOT NULL DEFAULT 0,
+    decided_rural_tax bigint NOT NULL DEFAULT 0,
+    prev_income_tax bigint NOT NULL DEFAULT 0,
+    prev_local_tax bigint NOT NULL DEFAULT 0,
+    balance_income_tax bigint NOT NULL DEFAULT 0,
+    balance_local_tax bigint NOT NULL DEFAULT 0,
+    created_at timestamp(6),
+    updated_at timestamp(6),
+    CONSTRAINT uk_tax_settlements_year_employee_kind UNIQUE (attribution_year, employee_id, kind),
+    CONSTRAINT tax_settlements_kind_check CHECK (kind IN ('YEAR_END', 'MID_TERM'))
+);
+CREATE INDEX idx_tax_settlements_employee_id ON tax_settlements (employee_id);
+
+CREATE TABLE tax_settlement_prev_employers (
+    id bigserial PRIMARY KEY,
+    settlement_id bigint NOT NULL REFERENCES tax_settlements (id) ON DELETE CASCADE,
+    line_no integer NOT NULL,
+    biz_no varchar(12) NOT NULL,
+    company_name varchar(100),
+    period_from date,
+    period_to date,
+    salary bigint NOT NULL DEFAULT 0,
+    bonus bigint NOT NULL DEFAULT 0,
+    other_pay bigint NOT NULL DEFAULT 0,
+    non_taxable bigint NOT NULL DEFAULT 0,
+    reduced_income bigint NOT NULL DEFAULT 0,
+    national_pension bigint NOT NULL DEFAULT 0,
+    other_pension bigint NOT NULL DEFAULT 0,
+    health_insurance bigint NOT NULL DEFAULT 0,
+    employment_insurance bigint NOT NULL DEFAULT 0,
+    decided_income_tax bigint NOT NULL DEFAULT 0,
+    decided_local_tax bigint NOT NULL DEFAULT 0,
+    decided_rural_tax bigint NOT NULL DEFAULT 0,
+    created_at timestamp(6),
+    updated_at timestamp(6)
+);
+CREATE INDEX idx_tax_settlement_prev_employers_settlement_id ON tax_settlement_prev_employers (settlement_id);
+
+CREATE TABLE tax_settlement_deductions (
+    id bigserial PRIMARY KEY,
+    settlement_id bigint NOT NULL REFERENCES tax_settlements (id) ON DELETE CASCADE,
+    line_no integer NOT NULL,
+    kind varchar(30) NOT NULL,
+    target_name varchar(50),
+    relation varchar(20),
+    data_source varchar(10) NOT NULL DEFAULT 'NTS',
+    unlimited boolean NOT NULL DEFAULT true,
+    amount bigint NOT NULL DEFAULT 0,
+    receipt_count integer,
+    created_at timestamp(6),
+    updated_at timestamp(6),
+    CONSTRAINT tax_settlement_deductions_kind_check CHECK (kind IN ('PROTECTION_INSURANCE', 'DISABLED_INSURANCE', 'MEDICAL')),
+    CONSTRAINT tax_settlement_deductions_data_source_check CHECK (data_source IN ('NTS', 'OTHER'))
+);
+CREATE INDEX idx_tax_settlement_deductions_settlement_id ON tax_settlement_deductions (settlement_id);

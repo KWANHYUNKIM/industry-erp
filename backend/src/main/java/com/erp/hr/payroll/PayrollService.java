@@ -356,6 +356,12 @@ public class PayrollService {
         for (int i = 0; i < p.getLines().size(); i++) p.getLines().get(i).setLineNo(i + 1);
     }
 
+    /** 저장된 명세 한 장의 과세급여(유형별 월 한도 적용) — 연말정산이 한 해 총급여 · 한도 안 비과세를 셀 때 쓴다(YearEndPayService). */
+    @Transactional(readOnly = true)
+    public BigDecimal taxablePay(Payslip p) {
+        return taxableIncome(p.getBaseSalary(), p);
+    }
+
     /**
      * 과세급여 = 기본급 + 과세 수당 + 비과세 수당 중 <b>유형별 월 한도를 넘는 몫</b>(PayTaxFreeType#getMonthlyLimit).
      * 원본 2026-10-13 실측: 변종호 연차수당(보육수당) 360,000 → 200,000 만 비과세, 과세급여 4,259,000.
