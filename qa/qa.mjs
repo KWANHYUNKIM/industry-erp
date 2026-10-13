@@ -2377,54 +2377,66 @@ async function scenarioBudget() {
   const accounts = await must('GET', '/accounts')
   const welfare = accounts.find((a) => a.code === '811')   // 복리후생비 (비용)
 
-  // 이미 편성된 예산이 있으면 지우고 다시 잡는다.
-  // 전표는 실행할 때마다 쌓이므로(삭제 API가 없다) 예산액을 '기존 집행액 + 여유'로 잡아야
-  // 몇 번을 돌려도 같은 결론이 나온다. 고정 금액을 쓰면 누적 집행액이 언젠가 예산을 넘어 깨진다.
-  const before = await must('GET', `/budgets?period=${PERIOD}`)
-  for (const row of before.rows) await must('DELETE', `/budgets/${row.id}`)
+  /*
+   * 예산 = 기준년도 × 계정 × 부서 × 프로젝트 × 12달(원본 월별예산조회 E020201, 2026-10-14 loginaa 실측).
+   * 실적은 출력물 자료(/budget-plans/report)의 전표 줄에서 모은다. 전표는 돌릴 때마다 쌓이므로 '앞 실적 + SPEND' 로 본다.
+   */
+  const YEAR = Number(PERIOD.slice(0, 4))
+  const MONTH = Number(PERIOD.slice(5, 7))
+  await must('POST', '/budget-plans/delete', { year: YEAR, accountIds: [welfare.id] })
+  const actualOf = (rep) => rep.actuals.filter((l) => l.accountId === welfare.id && l.date.startsWith(PERIOD))
+    .reduce((s, l) => s + Number(l.amount), 0)
 
   const SPEND = 300_000
-  const MARGIN = 200_000
-  const spendBefore = Number(before.rows.find((r) => r.accountId === welfare.id)?.actual ?? 0)
-  const BUDGET = spendBefore + SPEND + MARGIN
-
-  const budget = await must('POST', '/budgets', {
-    period: PERIOD, accountId: welfare.id, amount: BUDGET, remark: 'QA 복리후생 예산',
+  const BUDGET = 500_000
+  const months = Array(12).fill(0)
+  months[MONTH - 1] = BUDGET
+  const saved = await must('PUT', '/budget-plans/account', {
+    year: YEAR, accountId: welfare.id,
+    lines: [{ id: null, departmentId: null, projectId: null, remark: 'QA 복리후생 예산', months }],
   })
-  eq('편성 직후 예산액이 그대로', Number(budget.amount), BUDGET)
-  eq('편성 시점 집행액은 기존 전표 집계', Number(budget.actual), spendBefore)
+  eq('예산입력 저장 — 기타 · 기타 한 줄', saved.lines.length, 1)
+  eq('저장한 줄 총액', Number(saved.lines[0].total), BUDGET)
+  const list = await must('GET', `/budget-plans?year=${YEAR}`)
+  eq('월별예산조회 목록에 계정 총 예산액', Number(list.find((r) => r.accountId === welfare.id)?.total), BUDGET)
 
-  await rejects('같은 달 같은 계정 이중 편성은 거부', 'POST', '/budgets', {
-    period: PERIOD, accountId: welfare.id, amount: 500_000,
-  }, '이미 편성')
+  await rejects('같은 부서 · 프로젝트 두 줄은 거부', 'PUT', '/budget-plans/account', {
+    year: YEAR, accountId: welfare.id,
+    lines: [
+      { id: null, departmentId: null, projectId: null, remark: null, months },
+      { id: null, departmentId: null, projectId: null, remark: null, months },
+    ],
+  }, '두 줄')
+  await rejects('음수 예산은 거부', 'PUT', '/budget-plans/account', {
+    year: YEAR, accountId: welfare.id,
+    lines: [{ id: saved.lines[0].id, departmentId: null, projectId: null, remark: null, months: months.map((v, i) => (i === 0 ? -1 : v)) }],
+  }, '0 이상')
 
-  // 그 달에 복리후생비 전표를 하나 끊고, 집행실적이 따라오는지 본다
+  const before = actualOf(await must('GET', `/budget-plans/report?fromYear=${YEAR}&toYear=${YEAR}`))
+  // 그 달에 복리후생비 전표를 하나 끊고, 실적이 따라오는지 본다
   await must('POST', '/journals', {
     entryDate: FROM, description: 'QA 예산 집행 테스트',
     lines: [
-      { accountId: welfare.id, debit: SPEND },
+      { accountId: welfare.id, debit: SPEND, description: 'QA 예산 집행 줄' },
       { accountId: accounts.find((a) => a.code === '101').id, credit: SPEND },
     ],
   })
+  const report = await must('GET', `/budget-plans/report?fromYear=${YEAR}&toYear=${YEAR}`)
+  eq('실적이 회계전표에서 집계됨', actualOf(report), before + SPEND)
+  eq('실적 줄 적요는 전표 줄 적요', report.actuals.some((l) => l.accountId === welfare.id && l.description === 'QA 예산 집행 줄'), true)
+  eq('출력물 예산 줄의 그 달 금액', Number(report.plans.find((p) => p.accountId === welfare.id).months[MONTH - 1]), BUDGET)
 
-  const status = await must('GET', `/budgets?period=${PERIOD}`)
-  const row = status.rows.find((r) => r.accountId === welfare.id)
-  eq('집행실적이 회계전표에서 집계됨', Number(row.actual), spendBefore + SPEND)
-  eq('잔여 = 편성액 - 집행액', Number(row.remaining), BUDGET - Number(row.actual))
-  eq('잔여가 여유분과 일치', Number(row.remaining), MARGIN)
-  eq('집행률 = 집행액 / 편성액 × 100', Number(row.executionRate),
-    Math.round(Number(row.actual) / BUDGET * 1000) / 10)
-  eq('예산 내면 초과 아님', row.over, false)
-  eq('합계가 행 합계와 일치', Number(status.totalActual),
-    status.rows.reduce((s, r) => s + Number(r.actual), 0))
+  // 금액을 0 으로 고쳐도 줄은 남는다(원본도 지우는 단추가 없다)
+  const zero = await must('PUT', '/budget-plans/account', {
+    year: YEAR, accountId: welfare.id,
+    lines: [{ id: saved.lines[0].id, departmentId: null, projectId: null, remark: 'QA 복리후생 예산', months: Array(12).fill(0) }],
+  })
+  eq('0 으로 고친 줄이 남음', zero.lines.length, 1)
+  eq('0 으로 고친 줄 총액', Number(zero.lines[0].total), 0)
 
-  // 예산액을 집행액보다 낮추면 초과로 잡힌다
-  const lowered = await must('PUT', `/budgets/${budget.id}`, { amount: Number(row.actual) - 1 })
-  eq('편성액 수정이 반영됨', Number(lowered.amount), Number(row.actual) - 1)
-  eq('집행액이 편성액을 넘으면 초과', lowered.over, true)
-  eq('초과 시 잔여는 음수', Number(lowered.remaining) < 0, true)
-
-  await rejects('귀속월 형식이 틀리면 거부', 'GET', '/budgets?period=2026-13', undefined, '귀속월')
+  await must('POST', '/budget-plans/delete', { year: YEAR, accountIds: [welfare.id] })
+  eq('선택삭제 뒤 목록에서 빠짐',
+    (await must('GET', `/budget-plans?year=${YEAR}`)).some((r) => r.accountId === welfare.id), false)
 
   // ── 자금계획
   const plans = await must('GET', `/cash-plans?period=${PERIOD}`)
@@ -3556,8 +3568,8 @@ async function scenarioCreatedByFk() {
   // 이전 실행의 잔재 정리 (예산 → 사용자 순으로 지워야 FK 에 걸리지 않는다)
   const stale = (await must('GET', '/users')).find((u) => u.username === UNAME)
   if (stale) {
-    for (const b of (await must('GET', `/budgets?period=${PERIOD}`)).rows) {
-      await must('DELETE', `/budgets/${b.id}`)
+    for (const c of (await must('GET', `/cash-plans?period=${PERIOD}`)).plans) {
+      await must('DELETE', `/cash-plans/${c.id}`)
     }
     await must('DELETE', `/users/${stale.id}`)
   }
@@ -3593,23 +3605,23 @@ async function scenarioCreatedByFk() {
   eq('관리자가 아닌 사용자는 admin 이 아니다', mineP.admin, false)
   eq('역할에 붙은 권한 코드가 온다', Array.isArray(mineP.codes) && mineP.codes.length > 0, true)
 
-  const budget = await must('POST', '/budgets', {
-    period: PERIOD, accountId: welfare.id, amount: 500_000, remark: 'QA created_by FK',
+  const plan = await must('POST', '/cash-plans', {
+    period: PERIOD, type: 'OUTFLOW', category: 'QA created_by FK', amount: 500_000, remark: 'QA created_by FK',
   })
   token = adminToken
 
   const adminP = await must('GET', '/me/permissions')
   eq('관리자는 admin 으로 온다', adminP.admin, true)
 
-  const rows = (await must('GET', `/budgets?period=${PERIOD}`)).rows
-  eq('예산의 작성자가 그 사용자로 남음', rows.find((b) => b.id === budget.id) !== undefined, true)
+  const rows = (await must('GET', `/cash-plans?period=${PERIOD}`)).plans
+  eq('자금계획의 작성자가 그 사용자로 남음', rows.find((c) => c.id === plan.id) !== undefined, true)
 
   // 이제는 못 지운다 — DB FK(ON DELETE RESTRICT)가 막고, 서버가 이유를 말해준다
   await rejects('작성 이력이 있는 사용자는 삭제 거부', 'DELETE', `/users/${user2.id}`,
     undefined, '작성한 전표·문서가 있는 사용자는 삭제할 수 없습니다')
 
   // 이력을 지우면 다시 지울 수 있다
-  await must('DELETE', `/budgets/${budget.id}`)
+  await must('DELETE', `/cash-plans/${plan.id}`)
   await must('DELETE', `/users/${user2.id}`)
   eq('이력을 지운 뒤에는 삭제됨',
     (await must('GET', '/users')).some((u) => u.username === UNAME), false)

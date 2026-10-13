@@ -75,6 +75,7 @@ const NoteFlowPage = lazy(() => import('../pages/accounting/NoteFlowPage'))
 const NoteLedgerPage = lazy(() => import('../pages/accounting/NoteLedgerPage'))
 const NoteListPage = lazy(() => import('../pages/accounting/NoteListPage'))
 const BudgetPage = lazy(() => import('../pages/accounting/BudgetPage'))
+const BudgetReportPage = lazy(() => import('../pages/accounting/BudgetReportPage'))
 const CashPlanPage = lazy(() => import('../pages/accounting/CashPlanPage'))
 const FundPlanListPage = lazy(() => import('../pages/accounting/FundPlanListPage'))
 const FundPlanStatusPage = lazy(() => import('../pages/accounting/FundPlanStatusPage'))
@@ -638,6 +639,11 @@ export default function AppRouter() {
         <Route path="/accounting/notes-held" element={<NoteHoldingPage type="RECEIVABLE" />} />
         <Route path="/accounting/notes-unpaid" element={<NoteHoldingPage type="PAYABLE" />} />
         <Route path="/accounting/budget" element={<BudgetPage />} />
+        <Route path="/accounting/budget/status" element={<BudgetReportPage variant="status" />} />
+        <Route path="/accounting/budget/compare" element={<BudgetReportPage variant="compare" />} />
+        <Route path="/accounting/budget/control-ledger" element={<BudgetReportPage variant="controlLedger" />} />
+        <Route path="/accounting/budget/ledger" element={<BudgetReportPage variant="ledger" />} />
+        <Route path="/accounting/budget/control-compare" element={<BudgetReportPage variant="controlCompare" />} />
         <Route path="/accounting/cash-plan" element={<CashPlanPage />} />
         <Route path="/accounting/fund-plans" element={<FundPlanListPage />} />
         <Route path="/accounting/fund-plans/status" element={<FundPlanStatusPage />} />

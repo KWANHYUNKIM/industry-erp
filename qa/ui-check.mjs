@@ -7312,7 +7312,6 @@ console.log('\n■ 글자 칸이 표 길이만큼만 받나')
     'CreateWorkPostRequest.content': '업무게시글 본문은 TEXT 라 길이가 없다',
     'UpdateWorkPostRequest.content': '위와 같다',
     'SaveDraftRequest.body': '메일 본문은 TEXT 라 길이가 없다',
-    'UpdateBudgetRequest.remark': '예산 비고는 TEXT 라 길이가 없다',
     'CreateApprovalRequest.formType': '엔티티에서는 enum 이라 글자 길이가 없다',
     'CreateWarehouseRequest.kind': '위와 같다 — 창고 구분 enum',
     'UpdateWarehouseRequest.kind': '위와 같다',

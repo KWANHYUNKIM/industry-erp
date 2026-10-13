@@ -159,11 +159,6 @@
   "color": 2,
   "palette": 0
  },
- "pages/accounting/BudgetPage.tsx": {
-  "inline": 15,
-  "color": 5,
-  "palette": 0
- },
  "pages/accounting/CashBookPage.tsx": {
   "inline": 4,
   "color": 1,
