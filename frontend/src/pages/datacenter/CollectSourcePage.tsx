@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { EcCond } from '../../components/EcStatusPanel'
-import CodePickerField from '../../components/CodePickerField'
 import { MenuButton } from '../../components/EcSlipShell'
 import { api, extractErrorMessage } from '../../api/client'
 import { useShortcut } from '../../utils/useShortcut'
@@ -25,6 +24,9 @@ const DOCS: { value: CollectDocType; name: string; sub: string }[] = [
   { value: 'PURCHASE_ORDER', name: '발주서', sub: '구매관리' },
 ]
 
+/** 빈 필수칸 테두리 — 원본 div.validation(2026-10-13 실측). */
+const MISSING = 'rounded-[6px] border-[length:var(--ec-hair)] border-[color:var(--ec-text-danger)]'
+
 const emptyForm = { code: '', name: '', docType: '' as CollectDocType | '', senderCompany: '' }
 
 /* 원본 조건(Search(F3) 판): 데이터코드 · 데이터명 · 수집대상 · 최초작성자 · 최종수정자 · 최초작성일자 · 최종작업일자 · 기타 */
@@ -43,6 +45,64 @@ function historyLine(r: CollectData | null): string {
   return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${ampm} ${h12}:${pad(d.getMinutes())}:${pad(d.getSeconds())} [${who}]`
 }
 
+/**
+ * 원본 번호 칸(form-checkbox-numbered) — 번호가 곧 체크 칸이다(2026-10-13 실측: 18×17 · 둥글기 6 · 테두리 없음 ·
+ * 흰 바탕에 --ec-icon 번호, 고르면 파랑). 머리 칸은 번호 없이 전체 선택.
+ */
+function NumCheck({ no, on, disabled, onChange, label }: { no: number | ''; on: boolean; disabled?: boolean; onChange: () => void; label: string }) {
+  return (
+    <label className={`relative inline-block align-middle ${disabled ? '' : 'cursor-pointer'}`}>
+      <input type="checkbox" aria-label={label} checked={on} disabled={disabled} onChange={onChange}
+             className="absolute inset-0 m-0 opacity-0 cursor-pointer disabled:cursor-default" />
+      <span className={`inline-block w-[18px] h-[17px] leading-[17px] text-center rounded-[6px] ${
+        on ? 'bg-ec-blue text-ec-panel' : 'bg-ec-panel text-ec-icon'}`}>{no}</span>
+    </label>
+  )
+}
+
+const CONFIRM_TITLE = '경고'
+
+/**
+ * 원본 [수신문서] 코드도움(2026-10-13 실측) — 창 이름 '수신문서검색', 격자 [구분1 | 문서명] 에서 구분1 은
+ * 묶어 한 칸(영업관리: 거래명세서 · 견적서 / 구매관리: 발주서), 문서명이 링크, 오른쪽 위 검색칸, 아래 [닫기].
+ * 칸 옆 ✕ 로 고른 것을 지운다.
+ */
+function DocPicker({ value, disabled, onChange }: { value: CollectDocType | ''; disabled: boolean; onChange: (v: CollectDocType | '') => void }) {
+  const [open, setOpen] = useState(false)
+  const [q, setQ] = useState('')
+  const name = DOCS.find((d) => d.value === value)?.name ?? ''
+  const hits = DOCS.filter((d) => !q || d.name.includes(q) || d.sub.includes(q))
+  const groups = [...new Set(hits.map((d) => d.sub))].map((sub) => ({ sub, docs: hits.filter((d) => d.sub === sub) }))
+  return (
+    <div className="flex flex-1 items-center">
+      <button type="button" className="ec-btn ec-btn-sm shrink-0" title="수신문서 검색" disabled={disabled} onClick={() => { setQ(''); setOpen(true) }}>🔍</button>
+      <input className="ec-input w-full" placeholder="수신문서" readOnly disabled={disabled} value={name}
+             onClick={() => !disabled && setOpen(true)} />
+      {value && !disabled && <button type="button" className="ec-btn ec-btn-sm shrink-0" title="지우기" onClick={() => onChange('')}>✕</button>}
+      <Modal open={open} title="수신문서검색" onClose={() => setOpen(false)} width={780}>
+        <div className="flex items-center justify-between mb-[6px]">
+          <b>수신문서검색</b>
+          <input className="ec-input w-[110px]" placeholder="검색어 [Enter]" value={q} onChange={(e) => setQ(e.target.value)} />
+        </div>
+        <table className="w-full">
+          <thead><tr><th>구분1</th><th>문서명</th></tr></thead>
+          <tbody>
+            {groups.map((g) => g.docs.map((d, i) => (
+              <tr key={d.value}>
+                {i === 0 && <td rowSpan={g.docs.length} className="text-center">{g.sub}</td>}
+                <td className="text-center"><a className="ec-link cursor-pointer" onClick={() => { onChange(d.value); setOpen(false) }}>{d.name}</a></td>
+              </tr>
+            )))}
+          </tbody>
+        </table>
+        <div className="flex gap-[4px] mt-[9px]">
+          <button className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
+        </div>
+      </Modal>
+    </div>
+  )
+}
+
 export default function CollectSourcePage() {
   const [rows, setRows] = useState<CollectData[]>([])
   const [loading, setLoading] = useState(true)
@@ -57,6 +117,9 @@ export default function CollectSourcePage() {
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
+  /* 원본은 빈 필수칸에 글자 없이 그 칸만 빨간 테두리(0.5px 빨강 --ec-text-danger · 둥글기 6)를 두르고 데이터명에 커서를 둔다. */
+  const [missing, setMissing] = useState<{ name: boolean; doc: boolean }>({ name: false, doc: false })
+  const nameRef = useRef<HTMLInputElement>(null)
 
   async function load() {
     setLoading(true); setError('')
@@ -82,21 +145,22 @@ export default function CollectSourcePage() {
     : shown
 
   async function openNew() {
-    setEditing(null); setFormError('')
+    setEditing(null); setFormError(''); setMissing({ name: false, doc: false })
     let code = ''
     try { code = (await api.get<{ code: string }>('/collect-data/next-code')).data.code } catch { /* 저장할 때 서버가 매긴다 */ }
     setForm({ ...emptyForm, code }); setOpen(true)
   }
   function openEdit(r: CollectData) {
-    setEditing(r); setFormError('')
+    setEditing(r); setFormError(''); setMissing({ name: false, doc: false })
     setForm({ code: r.code ?? '', name: r.name, docType: r.docType, senderCompany: r.senderCompany ?? '' })
     setOpen(true)
   }
 
   async function save(next: boolean) {
     if (saving) return
-    if (!form.name.trim()) return setFormError('데이터명을 입력하세요.')
-    if (!form.docType) return setFormError('수신문서를 고르세요.')
+    const miss = { name: !form.name.trim(), doc: !form.docType }
+    setMissing(miss)
+    if (miss.name || miss.doc) { if (miss.name) nameRef.current?.focus(); return }
     setSaving(true); setFormError('')
     try {
       if (editing) {
@@ -112,8 +176,10 @@ export default function CollectSourcePage() {
   }
   useShortcut('F8', () => save(false), open)
 
+  /* 원본 삭제 확인은 브라우저 창이 아니라 화면 안의 작은 창이다: '삭제하겠습니까?' + [확인] [취소]. */
+  const [confirmFor, setConfirmFor] = useState<null | 'one' | 'checked'>(null)
   async function removeOne() {
-    if (!editing || !window.confirm('삭제하겠습니까?')) return
+    if (!editing) return
     try { await api.delete(`/collect-data/${editing.id}`); setOpen(false); load() }
     catch (err) { setFormError(extractErrorMessage(err)) }
   }
@@ -128,7 +194,6 @@ export default function CollectSourcePage() {
   async function removeChecked() {
     const ids = [...picked]
     if (ids.length === 0) return
-    if (!window.confirm('삭제하겠습니까?')) return
     const results = await Promise.allSettled(ids.map((id) => api.delete(`/collect-data/${id}`)))
     const failed = results.filter((r) => r.status === 'rejected').length
     setPicked(new Set())
@@ -141,7 +206,7 @@ export default function CollectSourcePage() {
   return (
     <EcListShell title="수집데이터등록" collapseConditions onNew={openNew}
                  search={keyword} onSearchChange={setKeyword} onSearch={load}
-                 actions={[{ label: '선택삭제', onClick: removeChecked, disabled: picked.size === 0 }]}>
+                 actions={[{ label: '선택삭제', onClick: () => setConfirmFor('checked'), disabled: picked.size === 0 }]}>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <ul className="ec-cond mb-[8px]">
@@ -163,25 +228,26 @@ export default function CollectSourcePage() {
 
       <table className="w-full ec-head700">
         <thead><tr>
+          {/* 원본 열 폭(1640 격자 실측): 번호 44 · 나머지가 1 : 2.5 : 1 : 3.5 : 1 (177 · 444 · 177 · 621 · 177). */}
           <th className="w-[44px] text-center">
-            <input type="checkbox" checked={allPicked} disabled={pickable.length === 0}
-                   onChange={() => setPicked(allPicked ? new Set() : new Set(pickable.map((r) => r.id)))} />
+            <NumCheck no="" label="전체 선택" on={allPicked} disabled={pickable.length === 0}
+                      onChange={() => setPicked(allPicked ? new Set() : new Set(pickable.map((r) => r.id)))} />
           </th>
-          <th className="w-[12%]">데이터코드</th>
-          <th className="w-[29%]">데이터명</th>
-          <th className="w-[12%]">진행상태</th>
+          <th className="w-[10.8%]">데이터코드</th>
+          <th className="w-[27.1%]">데이터명</th>
+          <th className="w-[10.8%]">진행상태</th>
           <th>조건</th>
-          <th className="w-[10%]">연결업무</th>
+          <th className="w-[10.8%]">연결업무</th>
         </tr></thead>
         <tbody>
           {loading ? (
             <tr><td colSpan={6} className="ec-empty">불러오는 중…</td></tr>
           ) : ordered.length === 0 ? (
             <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : ordered.map((r) => (
-            <tr key={r.id}>
+          ) : ordered.map((r, i) => (
+            <tr key={r.id} className={picked.has(r.id) ? '[&>td]:bg-[var(--ec-bg-row-picked)]' : ''}>
               <td className="text-center">
-                <input type="checkbox" disabled={r.builtIn} checked={picked.has(r.id)} onChange={() => togglePick(r.id)} />
+                <NumCheck no={i + 1} label="선택" disabled={r.builtIn} on={picked.has(r.id)} onChange={() => togglePick(r.id)} />
               </td>
               {/* 원본: 더한 줄만 코드 · 이름이 링크다(기본 줄은 열리지 않는다). */}
               <td>{r.builtIn ? '' : <a className="ec-link cursor-pointer" onClick={() => openEdit(r)}>{r.code}</a>}</td>
@@ -205,17 +271,16 @@ export default function CollectSourcePage() {
           </li>
           <li>
             <div className="title">데이터명</div>
-            <div className="form"><input className="ec-input w-full" placeholder="데이터명" autoFocus value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+            <div className="form"><div className={`flex w-full ${missing.name ? MISSING : ''}`}><input ref={nameRef} className="ec-input w-full" placeholder="데이터명" autoFocus onFocus={(e) => editing && e.target.select()} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div></div>
           </li>
           <li>
             <div className="title">수집대상</div>
             <div className="form flex-col items-stretch">
               <label className="flex items-center gap-[4px]"><input type="radio" checked readOnly disabled={!!editing} /> Email</label>
-              <div className="flex items-center gap-[4px]">
+              <div className={`flex items-center gap-[4px] ${missing.doc ? MISSING : ''}`}>
                 <span className="shrink-0 bg-ec-page text-ec-label rounded-ec px-[5px] py-[2px] text-[11px]">수신문서</span>
-                <CodePickerField label="수신문서" hideLabel fill emptyLabel="" placeholder="수신문서" disabled={!!editing}
-                                 value={form.docType} items={DOCS}
-                                 onChange={(v) => setForm({ ...form, docType: v as CollectDocType })} />
+                <DocPicker value={form.docType} disabled={!!editing}
+                           onChange={(v) => setForm({ ...form, docType: v })} />
               </div>
               <div className="flex items-center gap-[4px]">
                 <span className="shrink-0 bg-ec-page text-ec-label rounded-ec px-[5px] py-[2px] text-[11px]">보낸회사</span>
@@ -228,7 +293,7 @@ export default function CollectSourcePage() {
         <div className="flex gap-[4px] mt-[9px]">
           {editing ? (<>
             <button className="ec-btn ec-btn-primary" onClick={() => save(false)} disabled={saving}>저장(F8)</button>
-            <button className="ec-btn" onClick={removeOne}>삭제</button>
+            <button className="ec-btn" onClick={() => setConfirmFor('one')}>삭제</button>
             <button className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
             <button className="ec-btn" onClick={() => setHistoryOpen(true)}>H</button>
           </>) : (<>
@@ -237,6 +302,17 @@ export default function CollectSourcePage() {
             <button className="ec-btn" onClick={() => setForm({ ...emptyForm, code: form.code })}>다시작성</button>
             <button className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
           </>)}
+        </div>
+      </Modal>
+
+      <Modal open={confirmFor !== null} title={CONFIRM_TITLE} onClose={() => setConfirmFor(null)} width={460}>
+        <p className="min-h-[120px]">삭제하겠습니까?</p>
+        <div className="flex gap-[4px] mt-[9px]">
+          <button className="ec-btn ec-btn-primary" autoFocus onClick={() => {
+            const which = confirmFor; setConfirmFor(null)
+            if (which === 'one') removeOne(); else if (which === 'checked') removeChecked()
+          }}>확인</button>
+          <button className="ec-btn" onClick={() => setConfirmFor(null)}>취소</button>
         </div>
       </Modal>
 
