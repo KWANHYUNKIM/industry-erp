@@ -1,5 +1,7 @@
 package com.erp.inventory.adjustment;
 
+import com.erp.inventory.adjustment.dto.StagedAdjustmentDtos.BulkAdjustRequest;
+import com.erp.inventory.adjustment.dto.StagedAdjustmentDtos.BulkAdjustResult;
 import com.erp.inventory.adjustment.dto.StagedAdjustmentDtos.CreateStagedRequest;
 import com.erp.inventory.adjustment.dto.StagedAdjustmentDtos.StagedResponse;
 import com.erp.security.UserPrincipal;
@@ -34,6 +36,11 @@ public class StagedStockAdjustmentController {
             @Valid @RequestBody CreateStagedRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(service.create(req, principal.getUsername()));
+    }
+
+    @PostMapping("/adjust")
+    public BulkAdjustResult adjustAll(@Valid @RequestBody BulkAdjustRequest req, @AuthenticationPrincipal UserPrincipal principal) {
+        return service.adjustAll(req, principal.getUsername());
     }
 
     @PostMapping("/{id}/apply")

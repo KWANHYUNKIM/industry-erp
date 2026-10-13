@@ -3,6 +3,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import { useNavigate } from 'react-router-dom'
 import SimpleAdjustDialog from '../../features/stockadjust/components/SimpleAdjustDialog'
+import StagedAdjustDialog from '../../features/stockadjust/components/StagedAdjustDialog'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
@@ -12,7 +13,11 @@ import { dateText } from '../../utils/dateText'
 import type { StagedAdjustment, StockAdjustment } from '../../types/api'
 
 const num = (n: number) => (n === 0 ? '' : n.toLocaleString('ko-KR'))
-/** 원본 진행단계 알약(2026-10-03 실측): 지금 단계는 파랑 rgb(31,72,212), 나머지는 회색 rgb(134,141,147), 글자 흰색. */
+/**
+ * 원본 진행단계 알약(2026-10-03 실측): 파랑 rgb(31,72,212) · 회색 rgb(134,141,147), 글자 흰색.
+ * 2026-10-13 다시 재니 <b>[실사]는 늘 회색, [조정]은 늘 파랑</b>이다 — 조정 전 실사(포장김치 100)도, 조정한 뒤에도 같았다.
+ * 단계에 따라 바뀌는 색이 아니다. [실사]를 누르면 [조회 · 현황] 이 뜬다(재고실사조회 · 재고실사현황).
+ */
 const pill = (on: boolean): React.CSSProperties => ({
   display: 'inline-block', padding: '1px 6px', marginRight: 3, borderRadius: 3, fontSize: 11.5, color: '#fff',
   background: on ? 'rgb(31, 72, 212)' : 'rgb(134, 141, 147)',
@@ -42,6 +47,11 @@ export default function StagedProgressPage() {
   const init = periodOf('금년')!
   /* 원본 [간편재고조정] — 품목 × 창고 재고 표에서 실사수량을 넣는 창(SimpleAdjustDialog). */
   const [simpleOpen, setSimpleOpen] = useState(false)
+  /* 원본 [재고조정] — 단계별재고조정 창(StagedAdjustDialog). */
+  const [stagedOpen, setStagedOpen] = useState(false)
+  const [notice, setNotice] = useState('')
+  /* [실사] 알약을 누른 줄 — 그 아래 [조회 · 현황] 이 뜬다. */
+  const [menuFor, setMenuFor] = useState<string | null>(null)
   const navigate = useNavigate()
   const [from, setFrom] = useState(init.from)
   const [to, setTo] = useState(init.to)
@@ -81,7 +91,8 @@ export default function StagedProgressPage() {
   const rows = useMemo<Row[]>(() => [
     ...staged.map((r) => ({ key: `s${r.id}`, date: r.requestDate, no: r.adjustNo, person: r.requester ?? '', itemId: r.itemId,
       itemName: r.itemName, warehouseId: r.warehouseId, warehouseName: r.warehouseName,
-      book: Number(r.bookQty), actual: Number(r.actualQty), diff: Number(r.diff), applied: r.status === 'APPLIED' })),
+      /* 원본은 단계별 실사 줄의 [장부수량] · [차이]를 비운다(2026-10-13 실측 네 줄 모두 빈칸 — 실사수량만 찍는다). */
+      book: 0, actual: Number(r.actualQty), diff: 0, applied: r.status === 'APPLIED' })),
     ...quick.map((a) => ({ key: `a${a.id}`, date: a.adjustDate, no: a.adjustNo,
       person: a.employeeId != null ? empName.get(a.employeeId) ?? '' : '', itemId: a.itemId, itemName: a.itemName,
       warehouseId: a.warehouseId, warehouseName: a.warehouseName,
@@ -106,13 +117,17 @@ export default function StagedProgressPage() {
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setWarehouse(''); setItem(''); setPerson(''); setAdjusted('전체') } },
-        /* 원본 버튼줄 간편재고조정 · 단계별재고실사 · 재고조정(2026-10-12 실측) — [재고조정]은 무엇을 여는지 아직 안 쟀다. */
+        /* 원본 버튼줄 간편재고조정 · 단계별재고실사 · 재고조정(2026-10-12 실측). [재고조정]은 단계별재고조정 창을 연다(2026-10-13). */
         { label: '간편재고조정', onClick: () => setSimpleOpen(true) },
         { label: '단계별재고실사', onClick: () => navigate('/inventory/stocktake') },
+        { label: '재고조정', onClick: () => { setNotice(''); setStagedOpen(true) } },
         { label: 'Excel' },
       ]}
     >
       <SimpleAdjustDialog open={simpleOpen} onClose={() => setSimpleOpen(false)} onDone={() => void load()} />
+      <StagedAdjustDialog open={stagedOpen} onClose={() => setStagedOpen(false)}
+                          onDone={() => { setNotice('요청된 [단계별재고조정] 작업이 완료되었습니다.'); void load() }} />
+      {notice && <p className="ec-alert ec-alert-success mb-[8px]">{notice}</p>}
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
         <EcCond label="기준일자">
@@ -165,9 +180,15 @@ export default function StagedProgressPage() {
               <td className="text-center">{dateText(r.date)}</td>
               <td>{r.person}</td>
               <td>{r.itemName}</td>
-              <td className="text-center whitespace-nowrap">
-                <span style={pill(!r.applied)}>실사</span>
-                <span style={pill(r.applied)}>조정</span>
+              <td className="text-center whitespace-nowrap relative">
+                <button type="button" style={pill(false)} onClick={() => setMenuFor(menuFor === r.key ? null : r.key)}>실사</button>
+                <span style={pill(true)}>조정</span>
+                {menuFor === r.key && (
+                  <span className="absolute left-1/2 top-full z-10 bg-ec-panel border border-ec-line border-solid rounded-ec p-[4px] flex flex-col">
+                    <button type="button" className="ec-btn ec-btn-sm" onClick={() => navigate('/inventory/stocktake-list')}>조회</button>
+                    <button type="button" className="ec-btn ec-btn-sm" onClick={() => navigate('/inventory/stocktake-status')}>현황</button>
+                  </span>
+                )}
               </td>
               <td>{r.warehouseName}</td>
               <td className="text-right">{num(r.book)}</td>

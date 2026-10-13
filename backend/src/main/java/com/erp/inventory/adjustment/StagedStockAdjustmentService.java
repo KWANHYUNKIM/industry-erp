@@ -4,6 +4,8 @@ import com.erp.common.ApiException;
 import com.erp.common.DocumentNoGenerator;
 import com.erp.inventory.item.Item;
 import com.erp.inventory.warehouse.Warehouse;
+import com.erp.inventory.adjustment.dto.StagedAdjustmentDtos.BulkAdjustRequest;
+import com.erp.inventory.adjustment.dto.StagedAdjustmentDtos.BulkAdjustResult;
 import com.erp.inventory.adjustment.dto.StagedAdjustmentDtos.CreateStagedRequest;
 import com.erp.inventory.adjustment.dto.StagedAdjustmentDtos.StagedResponse;
 import com.erp.inventory.adjustment.dto.StockAdjustmentDtos.CreateAdjustmentRequest;
@@ -102,6 +104,68 @@ public class StagedStockAdjustmentService {
         staged.setStatus(StagedStatus.APPLIED);
         staged.setHandler(username);
         return StagedResponse.from(staged);
+    }
+
+    /**
+     * 원본 재고조정진행단계 [재고조정] → 단계별재고조정 [저장(F8)] (2026-10-13 loginaa 실측).
+     * <b>기준일자에 넣은</b> 단계별 실사를 그 날짜의 재고조정으로 만든다 — 실사 포장김치 본사창고 100(장부 348)을
+     * 기준일자 10/13 · 본사창고로 저장하니 재고조정조회에 '단계별 · 26/10/13-2 · 본사창고 · 포장김치 [1KG] · 248' 이 섰다.
+     * 조정일자는 오늘이 아니라 기준일자다. [실수량을 변경하지 않은 품목의 수량 0으로 조정]을 켜면
+     * 그 날 실사가 없는 품목 중 재고가 남은 것을 0 으로 맞춘다(창 문구 그대로).
+     */
+    @Transactional
+    public BulkAdjustResult adjustAll(BulkAdjustRequest req, String username) {
+        java.util.Set<Long> whs = req.warehouseIds() == null ? java.util.Set.of() : new java.util.HashSet<>(req.warehouseIds());
+        java.util.function.Predicate<Long> inScope = (wid) -> whs.isEmpty() || whs.contains(wid);
+        List<StagedStockAdjustment> counted = stagedRepository.findWithRefsByPeriod(req.date(), req.date()).stream()
+                .filter(s -> inScope.test(s.getWarehouse().getId()))
+                .toList();
+        int n = 0;
+        for (StagedStockAdjustment s : counted) {
+            if (s.getStatus() != StagedStatus.REQUESTED) continue;
+            /* 그 날 재고가 이미 실사수량이면 맞출 차이가 없다 — 조정 없이 반영으로만 넘긴다(같은 품목 실사가 둘이면 둘째가 그렇다). */
+            if (stockService.quantityOn(s.getItem().getId(), s.getWarehouse().getId(), req.date()).compareTo(s.getActualQty()) == 0) {
+                s.setStatus(StagedStatus.APPLIED);
+                s.setHandler(username);
+                continue;
+            }
+            applyOn(s, req.date(), req.reason(), username);
+            n++;
+        }
+        if (req.zeroUncounted()) {
+            java.util.Set<String> seen = new java.util.HashSet<>();
+            for (StagedStockAdjustment s : counted) seen.add(s.getItem().getId() + ":" + s.getWarehouse().getId());
+            for (var row : stockService.stockAsOf(req.date())) {
+                if (!inScope.test(row.warehouseId())) continue;
+                if (row.quantity() == null || row.quantity().signum() == 0) continue;
+                if (!seen.add(row.itemId() + ":" + row.warehouseId())) continue;
+                stockAdjustmentService.createWithoutStocktake(new CreateAdjustmentRequest(
+                        StockAdjustmentType.ADJUST, row.itemId(), row.warehouseId(), null, BigDecimal.ZERO, req.date(),
+                        null, null, stagedReason("단계별조정 실사없음", req.reason()), null, null), username);
+                n++;
+            }
+        }
+        return new BulkAdjustResult(n);
+    }
+
+    private void applyOn(StagedStockAdjustment staged, LocalDate date, String reason, String username) {
+        stockAdjustmentService.createWithoutStocktake(new CreateAdjustmentRequest(
+                StockAdjustmentType.ADJUST,
+                staged.getItem().getId(),
+                staged.getWarehouse().getId(),
+                null,
+                staged.getActualQty(),
+                date,
+                null, null,
+                stagedReason("단계별조정 " + staged.getAdjustNo(), reason != null && !reason.isBlank() ? reason : staged.getReason()),
+                null, null
+        ), username);
+        staged.setStatus(StagedStatus.APPLIED);
+        staged.setHandler(username);
+    }
+
+    private static String stagedReason(String head, String reason) {
+        return head + (reason != null && !reason.isBlank() ? " (" + reason + ")" : "");
     }
 
     @Transactional
