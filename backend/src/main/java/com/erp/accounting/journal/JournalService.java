@@ -305,6 +305,8 @@ public class JournalService {
                 : "판매 " + s.getDocNo();
         JournalEntry e = newEntry(JournalSourceType.SALES, s.getId(), s.getSaleDate(),
                 entryDesc, s.getPartner(), s.getCreatedBy());
+        /* 원본 판매 회계반영 전표의 부가세유형 — 매입/매출장 유형명이 '세금계산서'(2026-10-13 loginaa 실측). 면세 판매는 '계산서'. */
+        e.setVatType(s.isTaxable() ? "세금계산서" : "계산서");
 
         addDebit(e, "108", s.getTotalAmount(), seen ? lineDesc : "외상매출금");
         byAccount(s.getLines(),
@@ -331,6 +333,8 @@ public class JournalService {
         }
         JournalEntry e = newEntry(JournalSourceType.PURCHASE, p.getId(), p.getPurchaseDate(),
                 "구매 " + p.getDocNo(), p.getPartner(), p.getCreatedBy());
+        /* 판매와 같다 — 과세 구매 '세금계산서', 면세 '계산서'. */
+        e.setVatType(p.isTaxable() ? "세금계산서" : "계산서");
 
         byAccount(p.getLines(),
                 l -> stockAccountOf(l.getItem().getCategory()), l -> l.getSupplyAmount(),
