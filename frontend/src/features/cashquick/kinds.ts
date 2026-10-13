@@ -5,10 +5,15 @@
 export type CashQuickType =
   | 'SALES_COLLECTION' | 'CARD_SALES_COLLECTION' | 'TEMP_DEPOSIT' | 'BANK_BORROWING' | 'OTHER_DEPOSIT'
   | 'PURCHASE_PAYMENT' | 'CARD_BILL_PAYMENT' | 'ACCOUNT_TRANSFER' | 'TEMP_WITHDRAW' | 'LOAN_REPAYMENT' | 'OTHER_WITHDRAW'
+  /* 회계 I › 비현금거래 — 돈이 오가지 않는다(머리 계좌 · 수수료 없음). */
+  | 'RECEIPT_ONLY' | 'CARD_SLIP' | 'NONCASH_OTHER'
 
-/** 칸 종류. main = 머리 계좌(입금 · 출금계좌), counter = 맞은편 계좌(출금계좌 · 차입처). */
+/**
+ * 칸 종류. main = 머리 계좌(입금 · 출금계좌), counter = 맞은편 계좌(출금계좌 · 차입처),
+ * payee = 친 글자 그대로의 [거래처명](일반영수증 · 신용카드전표), creditAccount = 비현금거래 기타의 [대변계정].
+ */
 export type CashQuickField = 'main' | 'counter' | 'partner' | 'issuer' | 'feeRate' | 'amount' | 'fee' | 'total'
-  | 'employee' | 'card' | 'account'
+  | 'employee' | 'card' | 'account' | 'payee' | 'creditAccount'
 
 export interface CashQuickKind {
   type: CashQuickType
@@ -44,6 +49,17 @@ export const CASH_QUICK_KINDS: CashQuickKind[] = [
     fields: [['main', '출금계좌'], ['counter', '차입처'], ['amount', '원금상환액'], ['fee', '이자금액']] },
   { type: 'OTHER_WITHDRAW', title: '기타출금', typeName: '기타출금', path: '/accounting/other-withdraw',
     fields: [['main', '출금계좌'], ['partner', '거래처'], ['amount', '금액'], ['fee', '수수료'], ['account', '차변계정']] },
+  /*
+   * 회계 I › 비현금거래(2026-10-13 loginaa — 한 장씩 저장해 전표 인쇄로 분개를 봤다):
+   * 일반영수증 차) 계정 / 대) 가지급금(사원) · 신용카드전표 차) 계정 / 대) 미지급금(카드) · 기타 차) 차변계정 / 대) 대변계정.
+   * 회계거래조회 [거래유형]은 업무 이름 그대로, [거래처명]은 일반영수증 · 신용카드전표가 친 글자, 기타는 거래처.
+   */
+  { type: 'RECEIPT_ONLY', title: '영수증만수령-현재자금의 이동 없이 영수증만 가져온 경우', typeName: '일반영수증', path: '/accounting/noncash-receipt',
+    fields: [['account', '계정'], ['employee', '사원'], ['payee', '거래처명'], ['amount', '금액']] },
+  { type: 'CARD_SLIP', title: '카드전표수령-신용카드전표를 받은 경우', typeName: '신용카드전표', path: '/accounting/noncash-card',
+    fields: [['card', '카드'], ['account', '계정'], ['payee', '거래처명'], ['amount', '금액']] },
+  { type: 'NONCASH_OTHER', title: '기타-자금의이동없는경우', typeName: '기타', path: '/accounting/noncash-other',
+    fields: [['account', '차변계정'], ['creditAccount', '대변계정'], ['partner', '거래처'], ['amount', '금액']] },
 ]
 
 export const cashQuickKind = (type: CashQuickType) => CASH_QUICK_KINDS.find((k) => k.type === type)!

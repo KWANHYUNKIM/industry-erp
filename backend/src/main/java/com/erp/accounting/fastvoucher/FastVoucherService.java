@@ -300,7 +300,25 @@ public class FastVoucherService {
             case SALES_COLLECTION, PURCHASE_PAYMENT -> { if (req.partnerId() == null) throw ApiException.badRequest("거래처: 자료를 입력 바랍니다."); }
             case OTHER_DEPOSIT -> { if (in.accountId() == null) throw ApiException.badRequest("대변계정: 자료를 입력 바랍니다."); }
             case OTHER_WITHDRAW -> { if (in.accountId() == null) throw ApiException.badRequest("차변계정: 자료를 입력 바랍니다."); }
+            case RECEIPT_ONLY -> {
+                if (in.accountId() == null) throw ApiException.badRequest("계정: 자료를 입력 바랍니다.");
+                if (req.employeeId() == null) throw ApiException.badRequest("사원: 자료를 입력 바랍니다.");
+            }
+            case CARD_SLIP -> {
+                if (req.creditCardId() == null) throw ApiException.badRequest("카드: 자료를 입력 바랍니다.");
+                if (in.accountId() == null) throw ApiException.badRequest("계정: 자료를 입력 바랍니다.");
+            }
+            case NONCASH_OTHER -> {
+                if (in.accountId() == null) throw ApiException.badRequest("차변계정: 자료를 입력 바랍니다.");
+                if (req.lines().size() < 2 || req.lines().get(1).accountId() == null) throw ApiException.badRequest("대변계정: 자료를 입력 바랍니다.");
+            }
             default -> { }
+        }
+        // 비현금거래는 돈이 오가지 않는다 — 머리 계좌 · 수수료를 받지 않는다.
+        if (t.isNonCash()) {
+            main = null;
+            counter = null;
+            fee = BigDecimal.ZERO;
         }
 
         var card = req.creditCardId() != null ? creditCardRepository.findById(req.creditCardId())
@@ -326,6 +344,8 @@ public class FastVoucherService {
             case CARD_BILL_PAYMENT -> card.getCardName();
             case BANK_BORROWING, LOAN_REPAYMENT -> FastVoucherDtos.bankName(counter);
             case ACCOUNT_TRANSFER -> main != null ? FastVoucherDtos.bankName(main) : "현금";
+            // 일반영수증 · 신용카드전표 [거래처명]은 친 글자 그대로(원본 회계거래조회 'QA회계1-카드').
+            case RECEIPT_ONLY, CARD_SLIP -> req.payeeName() != null && !req.payeeName().isBlank() ? req.payeeName().trim() : null;
             default -> null;
         });
         v.setTotalAmount(amount.add(fee));
@@ -343,6 +363,27 @@ public class FastVoucherService {
         v.addLine(FastVoucherLine.builder()
                 .account(other).amount(amount).description(in.description())
                 .ownSettlement(true).bankAccount(main).build());
+
+        if (t.isNonCash()) {
+            // 원본(2026-10-13 저장해 전표 인쇄로 봄): 일반영수증 차) 복리후생비 1,000 / 대) 가지급금(고준희) 1,000,
+            // 신용카드전표 차) 복리후생비 1,100 / 대) 미지급금(하나SK5533) 1,100, 기타 차) 복리후생비 500 / 대) 미지급금 500.
+            Account credit = switch (t) {
+                case RECEIPT_ONLY -> account(ADVANCE);
+                case CARD_SLIP -> account(PAYABLE);
+                default -> account(req.lines().get(1).accountId());
+            };
+            if (t == FastVoucherType.NONCASH_OTHER) {
+                // 대변계정을 둘째 줄로 남긴다 — 수정 창이 다시 채운다.
+                v.addLine(FastVoucherLine.builder()
+                        .account(credit).amount(amount).description(in.description())
+                        .ownSettlement(true).build());
+            }
+            JournalEntry entry = journalService.createFromPostings(v, List.of(
+                    new JournalService.Posting(true, other, amount),
+                    new JournalService.Posting(false, credit, amount)));
+            v.setJournalEntry(entry);
+            return;
+        }
 
         Account feeAcc = (t == FastVoucherType.BANK_BORROWING || t == FastVoucherType.LOAN_REPAYMENT)
                 ? account(INTEREST) : account(FEE);

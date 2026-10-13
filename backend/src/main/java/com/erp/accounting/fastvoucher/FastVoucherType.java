@@ -33,7 +33,17 @@ public enum FastVoucherType {
     /** 은행으로(E010413): 차) 차입처 계좌 원금상환액 · 이자비용 이자금액 / 대) 출금계좌 합계. */
     LOAN_REPAYMENT("은행으로"),
     /** 기타출금(E010414): 차) 차변계정 금액 · 지급수수료 수수료 / 대) 출금계좌 금액+수수료. 현금이면 수수료를 못 넣는다. */
-    OTHER_WITHDRAW("기타출금");
+    OTHER_WITHDRAW("기타출금"),
+
+    /*
+     * 원본 회계 I › 비현금거래(2026-10-13 loginaa 실측) — 돈이 오가지 않는 한 장짜리 입력. 이름은 회계거래조회 [거래유형] 글자 그대로.
+     */
+    /** 증빙만수령 › 일반영수증(E010501 '영수증만수령-현재자금의 이동 없이 영수증만 가져온 경우'): 차) 계정 / 대) 가지급금(사원). */
+    RECEIPT_ONLY("일반영수증"),
+    /** 증빙만수령 › 신용카드전표('카드전표수령-신용카드전표를 받은 경우'): 차) 계정 / 대) 미지급금(카드). */
+    CARD_SLIP("신용카드전표"),
+    /** 기타(E010503 '기타-자금의이동없는경우'): 차) 차변계정 / 대) 대변계정. */
+    NONCASH_OTHER("기타");
 
     private final String displayName;
 
@@ -48,6 +58,11 @@ public enum FastVoucherType {
     /** 현금거래 한 장짜리 입력인가(줄 하나 + 머리 계좌 · 수수료로 분개를 정한다). */
     public boolean isCashQuick() {
         return ordinal() >= SALES_COLLECTION.ordinal();
+    }
+
+    /** 비현금거래 — 머리 계좌가 없고 계좌 입출금도 없다. */
+    public boolean isNonCash() {
+        return ordinal() >= RECEIPT_ONLY.ordinal();
     }
 
     /** 돈이 들어오는 쪽인가 — 머리 계좌가 [입금계좌]다. */

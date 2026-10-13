@@ -688,6 +688,9 @@ export default function AppRouter() {
         <Route path="/accounting/temp-withdraw" element={<CashQuickEntryPage key="TEMP_WITHDRAW" type="TEMP_WITHDRAW" />} />
         <Route path="/accounting/loan-repayment" element={<CashQuickEntryPage key="LOAN_REPAYMENT" type="LOAN_REPAYMENT" />} />
         <Route path="/accounting/other-withdraw" element={<CashQuickEntryPage key="OTHER_WITHDRAW" type="OTHER_WITHDRAW" />} />
+        <Route path="/accounting/noncash-receipt" element={<CashQuickEntryPage key="RECEIPT_ONLY" type="RECEIPT_ONLY" />} />
+        <Route path="/accounting/noncash-card" element={<CashQuickEntryPage key="CARD_SLIP" type="CARD_SLIP" />} />
+        <Route path="/accounting/noncash-other" element={<CashQuickEntryPage key="NONCASH_OTHER" type="NONCASH_OTHER" />} />
         <Route path="/accounting/cash-details" element={<CashDetailPage />} />
         <Route path="/accounting/vouchers" element={<FastVoucherPage />} />
         <Route path="/accounting/non-cash" element={<NonCashPage />} />

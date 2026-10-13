@@ -1,0 +1,51 @@
+{
+  "about": "비현금거래 한 장 입력 셋(원본 회계 I › 비현금거래, 2026-10-13 loginaa 에서 QA회계1 로 한 장씩 저장해 전표 인쇄로 봄 · 지움). 칸 차례가 원본 [전표일자 · 부서 · 프로젝트 · (계정 · 사원 · 거래처명 | 카드 · 계정 · 거래처명 | 차변계정 · 대변계정 · 거래처) · 금액 · 적요 · 회계전표No.] 인지 보고, API 로 저장해 분개(일반영수증 차) 811 1,000 / 대) 134 가지급금 · 신용카드전표 차) 811 1,100 / 대) 253 미지급금 · 기타 차) 811 500 / 대) 253)와 회계전표조회 [거래유형] 일반영수증 · 신용카드전표 · 기타, [거래처명](친 글자)을 본다. 업무 조건 '신용카드전표' 로 거르면 그 전표만. 전표번호를 누르면 같은 화면이 열리고 값이 채워진다 → [삭제] '전표를 삭제하겠습니까? - 카드전표수령-신용카드전표를 받은 경우'. 나머지 둘은 API 로 지운다.",
+  "shots": [
+    {
+      "name": "칸 차례 셋 · API 로 세 장 저장 · 분개",
+      "path": "/accounting/noncash-receipt",
+      "steps": [
+        "wait:2500",
+        "expect:[...document.querySelectorAll('.ec-form li .title')].map((t) => t.innerText.trim()).join('|') === '전표일자|부서|프로젝트|계정|사원|거래처명|금액|적요|회계전표No.'",
+        "expect:document.body.innerText.includes('영수증만수령-현재자금의 이동 없이 영수증만 가져온 경우')",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then((r) => r.json()); const acc = await A('GET', '/accounts'); const a = (c) => acc.find((x) => x.code === c).id; const emp = (await A('GET', '/employees'))[0]; const card = (await A('GET', '/bank-cards/cards')).find((c) => c.active); const d = new Date().toISOString().slice(0, 10); const r1 = await A('POST', '/vouchers', { type: 'RECEIPT_ONLY', voucherDate: d, method: 'CASH', employeeId: emp.id, payeeName: 'QA회계1-영수증', lines: [{ accountId: a('811'), amount: 1000, description: 'QA회계1-비현금 영수증' }] }); const r2 = await A('POST', '/vouchers', { type: 'CARD_SLIP', voucherDate: d, method: 'CASH', creditCardId: card.id, payeeName: 'QA회계1-카드', lines: [{ accountId: a('811'), amount: 1100, description: 'QA회계1-비현금 카드' }] }); const r3 = await A('POST', '/vouchers', { type: 'NONCASH_OTHER', voucherDate: d, method: 'CASH', lines: [{ accountId: a('811'), amount: 500, description: 'QA회계1-비현금 기타' }, { accountId: a('253'), amount: 500, description: 'QA회계1-비현금 기타' }] }); sessionStorage.setItem('ncIds', [r1.id, r2.id, r3.id].join(',')); const L = async (r) => (await A('GET', '/journals/' + r.journalEntryId)).lines.map((l) => l.accountCode + ':' + l.debit + ':' + l.credit).join(','); sessionStorage.setItem('ncLines', [await L(r1), await L(r2), await L(r3)].join(' / ')); return sessionStorage.getItem('ncLines') })()",
+        "expect:sessionStorage.getItem('ncLines') === '811:1000:0,134:0:1000 / 811:1100:0,253:0:1100 / 811:500:0,253:0:500'"
+      ]
+    },
+    {
+      "name": "칸 차례 — 신용카드전표 · 기타",
+      "path": "/accounting/noncash-other",
+      "steps": [
+        "wait:2500",
+        "expect:[...document.querySelectorAll('.ec-form li .title')].map((t) => t.innerText.trim()).join('|') === '전표일자|부서|프로젝트|차변계정|대변계정|거래처|금액|적요|회계전표No.'"
+      ]
+    },
+    {
+      "name": "회계전표조회 거래유형 · 업무 조건 → 신용카드전표 열어 [삭제]",
+      "path": "/accounting/journals",
+      "steps": [
+        "allowapi:404: /api/vouchers/",
+        "wait:3000",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA회계1-비현금 영수증') && tr.innerText.includes('일반영수증') && tr.innerText.includes('QA회계1-영수증') && tr.innerText.includes('1,000'))",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA회계1-비현금 카드') && tr.innerText.includes('신용카드전표') && tr.innerText.includes('QA회계1-카드') && tr.innerText.includes('1,100'))",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA회계1-비현금 기타') && [...tr.cells].some((c) => c.innerText.trim() === '기타'))",
+        "js:(()=>{document.querySelector('button[title=\"업무 선택\"]').click();return true})()",
+        "wait:300",
+        "js:(()=>{[...document.querySelectorAll('[role=dialog] tr')].find((t)=>t.cells[2]&&t.cells[2].innerText.trim()==='신용카드전표').click();return true})()",
+        "wait:200",
+        "js:(()=>{const b=[...document.querySelectorAll('[role=dialog] button')].filter((x)=>x.innerText.trim()==='확인');b[b.length-1].click();return true})()",
+        "wait:500",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA회계1-비현금 카드')) && ![...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA회계1-비현금 영수증'))",
+        "js:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('QA회계1-비현금 카드')).querySelector('a').click(); true",
+        "wait:2500",
+        "expect:location.pathname === '/accounting/noncash-card' && document.querySelector('input[aria-label=\"금액\"]').value === '1,100' && document.querySelector('input[aria-label=\"거래처명\"]').value === 'QA회계1-카드'",
+        "click:삭제",
+        "wait:500",
+        "expect:document.body.innerText.includes('전표를 삭제하겠습니까?') && document.body.innerText.includes('카드전표수령-신용카드전표를 받은 경우')",
+        "clicklast:확인",
+        "wait:2000",
+        "js:(async () => { const ids = sessionStorage.getItem('ncIds').split(','); const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const c = await fetch('/api/vouchers/' + ids[1], { headers: H }); const a = await fetch('/api/vouchers/' + ids[0], { method: 'DELETE', headers: H }); const b = await fetch('/api/vouchers/' + ids[2], { method: 'DELETE', headers: H }); return c.status + ' ' + a.status + ' ' + b.status })()"
+      ]
+    }
+  ]
+}

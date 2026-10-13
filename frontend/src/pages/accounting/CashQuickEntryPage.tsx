@@ -22,6 +22,9 @@ import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
  * 기타출금은 머리 계좌가 000 현금인데 수수료를 넣으면 '현금일경우 수수료를 입력할 수 없습니다.'
  * 카드매출대금회수는 카드사를 고르면 수수료율 · 입금계좌가 채워지고, 통장입금액 9,700 · 3% → 총금액 10,000 · 수수료 300(둘 다 막힌 칸).
  * 회계거래조회에서 전표번호를 누르면 일자가 막힌 같은 폼 + [삭제] '전표를 삭제하겠습니까? - 매출처로부터'.
+ *
+ * 회계 I › 비현금거래 셋(일반영수증 · 신용카드전표 · 기타, 2026-10-13 실측)도 같은 폼이다 — 머리 계좌 · 수수료가 없고,
+ * 저장하면 계정 · 사원 · 카드(기타는 차변 · 대변계정)가 남는다. 삭제 확인 '- 영수증만수령-현재자금의 이동 없이 영수증만 가져온 경우'.
  */
 
 interface AccountOption { id: number; code: string; name: string }
@@ -44,6 +47,7 @@ function grossOf(deposit: number, rate: number) {
 export default function CashQuickEntryPage({ type }: { type: CashQuickType }) {
   const kind = cashQuickKind(type)
   const has = (f: CashQuickField) => kind.fields.some(([k]) => k === f)
+  const nonCash = type === 'RECEIPT_ONLY' || type === 'CARD_SLIP' || type === 'NONCASH_OTHER'
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const editId = params.get('id')
@@ -69,6 +73,8 @@ export default function CashQuickEntryPage({ type }: { type: CashQuickType }) {
   const [issuerId, setIssuerId] = useState('')
   const [feeRate, setFeeRate] = useState('')
   const [accountId, setAccountId] = useState('')
+  const [creditAccountId, setCreditAccountId] = useState('')
+  const [payee, setPayee] = useState('')
   const [amount, setAmount] = useState('')
   const [fee, setFee] = useState('')
   const [memo, setMemo] = useState('')
@@ -80,7 +86,7 @@ export default function CashQuickEntryPage({ type }: { type: CashQuickType }) {
     const need = (f: CashQuickField) => has(f)
     Promise.all([
       api.get<BankAccountRow[]>('/bank-cards/accounts'),
-      need('account') ? api.get<AccountOption[]>('/accounts') : Promise.resolve({ data: [] as AccountOption[] }),
+      need('account') || need('creditAccount') ? api.get<AccountOption[]>('/accounts') : Promise.resolve({ data: [] as AccountOption[] }),
       need('partner') ? api.get<PartnerOption[]>('/partners') : Promise.resolve({ data: [] as PartnerOption[] }),
       need('employee') ? api.get<EmployeeOption[]>('/employees') : Promise.resolve({ data: [] as EmployeeOption[] }),
       need('card') ? api.get<CreditCardRow[]>('/bank-cards/cards') : Promise.resolve({ data: [] as CreditCardRow[] }),
@@ -94,7 +100,9 @@ export default function CashQuickEntryPage({ type }: { type: CashQuickType }) {
   /** 원본 [다시 작성]: 전부 비운다. 저장 뒤에는 머리 계좌 · 카드사 · 계정이 남는다(keep). */
   function reset(keep = false) {
     if (!keep) { setDate(ymd(new Date())); setMain(''); setIssuerId(''); setFeeRate(''); setAccountId('') }
-    setCounter(''); setPartnerId(''); setEmployeeId(''); setCardId(''); setAmount(''); setFee(''); setMemo(''); setError('')
+    /* 비현금거래는 원본처럼 저장 뒤에도 사원 · 카드 · 대변계정이 남는다. */
+    if (!keep || !nonCash) { setEmployeeId(''); setCardId(''); setCreditAccountId('') }
+    setCounter(''); setPartnerId(''); setPayee(''); setAmount(''); setFee(''); setMemo(''); setError('')
     setDepartmentId(''); setProjectId('')
   }
 
@@ -113,6 +121,8 @@ export default function CashQuickEntryPage({ type }: { type: CashQuickType }) {
       setIssuerId(data.cardIssuerId ? String(data.cardIssuerId) : '')
       setFeeRate(data.feeRate != null ? String(data.feeRate) : '')
       setAccountId(has('account') && l ? String(l.accountId) : '')
+      setCreditAccountId(has('creditAccount') && data.lines[1] ? String(data.lines[1].accountId) : '')
+      setPayee(has('payee') ? data.payeeName ?? '' : '')
       setAmount(l ? String(l.amount) : '')
       setFee(data.fee ? String(data.fee) : '')
       setMemo(l?.description ?? '')
@@ -158,19 +168,19 @@ export default function CashQuickEntryPage({ type }: { type: CashQuickType }) {
     for (const [f, l] of kind.fields) {
       const empty = (f === 'main' && !main) || (f === 'counter' && !counter) || (f === 'partner' && !partnerId)
         || (f === 'employee' && !employeeId) || (f === 'card' && !cardId) || (f === 'issuer' && !issuerId)
-        || (f === 'account' && !accountId) || (f === 'amount' && !(amountNum > 0))
+        || (f === 'account' && !accountId) || (f === 'creditAccount' && !creditAccountId) || (f === 'amount' && !(amountNum > 0))
       if (empty) return setError(`${l}: 자료를 입력 바랍니다.`)
     }
     if (type === 'OTHER_WITHDRAW' && main === '000' && feeNum > 0) return setError('현금일경우 수수료를 입력할 수 없습니다.')
     const body = {
       type,
       voucherDate: date,
-      method: main.startsWith('b') ? 'BANK' : 'CASH',
-      bankAccountId: main.startsWith('b') ? Number(main.slice(1)) : undefined,
+      method: !nonCash && main.startsWith('b') ? 'BANK' : 'CASH',
+      bankAccountId: !nonCash && main.startsWith('b') ? Number(main.slice(1)) : undefined,
       counterBankAccountId: counter ? Number(counter) : undefined,
       partnerId: partnerId ? Number(partnerId) : undefined,
       employeeId: employeeId ? Number(employeeId) : undefined,
-      payeeName: employeeId ? employees.find((e) => String(e.id) === employeeId)?.name : undefined,
+      payeeName: has('payee') ? payee.trim() || undefined : employeeId ? employees.find((e) => String(e.id) === employeeId)?.name : undefined,
       creditCardId: cardId ? Number(cardId) : undefined,
       cardIssuerId: issuerId ? Number(issuerId) : undefined,
       feeRate: has('feeRate') ? rateNum : undefined,
@@ -181,7 +191,7 @@ export default function CashQuickEntryPage({ type }: { type: CashQuickType }) {
         accountId: has('account') ? Number(accountId) : undefined,
         amount: amountNum,
         description: memo.trim() || undefined,
-      }],
+      }, ...(has('creditAccount') ? [{ accountId: Number(creditAccountId), amount: amountNum, description: memo.trim() || undefined }] : [])],
     }
     setSaving(true)
     try {
@@ -232,6 +242,10 @@ export default function CashQuickEntryPage({ type }: { type: CashQuickType }) {
         return <CodePickerField label={l} hideLabel pair fill emptyLabel="(없음)" value={issuerId} onChange={(v) => pickIssuer(v)} items={issuerItems} />
       case 'account':
         return <CodePickerField label={l} hideLabel pair fill emptyLabel="(없음)" value={accountId} onChange={(v) => setAccountId(v)} items={accountItems} />
+      case 'creditAccount':
+        return <CodePickerField label={l} hideLabel pair fill emptyLabel="(없음)" value={creditAccountId} onChange={(v) => setCreditAccountId(v)} items={accountItems} />
+      case 'payee':
+        return <input className="ec-input w-full" aria-label={l} placeholder={l} maxLength={100} value={payee} onChange={(e) => setPayee(e.target.value)} />
       case 'feeRate':
         return (
           <span className="inline-flex w-full items-center gap-[6px]">

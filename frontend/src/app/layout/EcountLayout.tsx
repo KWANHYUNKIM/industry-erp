@@ -492,6 +492,17 @@ const MENU: TopMenu[] = [
         ],
       },
       {
+        /* 원본 회계 I › 비현금거래(2026-10-13 loginaa) — 증빙만수령(일반영수증 · 신용카드전표 · 가지급금정산서) · 기타. */
+        label: '비현금거래',
+        nodes: [
+          { label: '증빙만수령', children: [
+            { label: '일반영수증', to: '/accounting/noncash-receipt' }, { label: '신용카드전표', to: '/accounting/noncash-card' },
+            { label: '가지급금정산서', to: '/accounting/vouchers?type=ADVANCE_SETTLEMENT' },
+          ] },
+          { label: '기타', to: '/accounting/noncash-other' },
+        ],
+      },
+      {
         label: '어음거래',
         nodes: [
           { label: '어음등록(수취/발행)', to: '/accounting/notes' },
