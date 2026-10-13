@@ -95,6 +95,24 @@ export interface AsAggValue {
   descs?: boolean[]
   /** 조건마다 [소계] 표시 — false 면 그 조건의 '… 계' 줄을 뺀다. 없으면 표시. */
   subs?: boolean[]
+  /**
+   * 조건마다 정렬 기준 선택상자 — '코드순' · '코드명순'(기준일자 축은 '시간순'), 마지막 조건만 값 열 이름(수량 …)이 더 붙는다.
+   * 비면 그 축의 첫 후보(2026-10-13 A/S수리현황 E040611 실측).
+   */
+  sorts?: string[]
+}
+
+/** 정렬 기준 후보 — 기준일자 축은 [시간순], 그 밖은 [코드순 · 코드명순], 마지막 조건이면 값 열 이름이 뒤에 붙는다. */
+export const sortOptions = (k: AsAggKey, last: boolean, measures: string[]) =>
+  [...(DATE_RANK_KEYS.includes(k) ? ['시간순'] : ['코드순', '코드명순']), ...(last ? measures : [])]
+const DATE_RANK_KEYS: AsAggKey[] = ['일별', '주차별', '월별', '분기별', '반기별', '연별']
+/** 두 줄의 j 번째 축을 고른 기준으로 견준다(올림). 값 기준이면 vi 번째 값. */
+function cmpAxis(mode: string, measures: string[], an: string, ac: string, bn: string, bc: string, av: number[], bv: number[]) {
+  const vi = measures.indexOf(mode)
+  if (vi >= 0) return (av[vi] ?? 0) - (bv[vi] ?? 0)
+  if (mode === '시간순') return an.localeCompare(bn, 'ko', { numeric: true })
+  if (mode === '코드명순') return an.localeCompare(bn, 'ko')
+  return (ac || an).localeCompare(bc || bn, 'ko')
 }
 
 /** 고른 집계조건을 차례대로 — 빈 칸에서 끊는다. */
@@ -119,12 +137,15 @@ const MAX_AGG = 5
  * 마지막 조건은 원래 소계가 없어 [소계] 단추가 서도 바뀌는 것이 없다. 단추 앞의 정렬 기준 선택상자(코드순 · 코드명순 ·
  * 값 열 / 기준일자 축은 시간순)는 아직 코드순 고정.
  */
-export function AsAggControls({ value, onChange, keys = AS_AGG_KEYS, sortSum = false }: {
+export function AsAggControls({ value, onChange, keys = AS_AGG_KEYS, sortSum = false, measures = ['수량'] }: {
   value: AsAggValue; onChange: (patch: Partial<AsAggValue>) => void; keys?: readonly AsAggKey[]
-  /** 조건 칸 옆 [정렬] · [소계] 단추 — 원본에 있는 화면만 켠다. */
+  /** 조건 칸 옆 정렬 기준 선택상자 · [정렬] · [소계] 단추 — 원본에 있는 화면만 켠다. */
   sortSum?: boolean
+  /** 값 열 이름 — 마지막 조건의 정렬 기준 후보에 붙는다. */
+  measures?: string[]
 }) {
   const descs = value.descs ?? []
+  const sorts = value.sorts ?? []
   const subs = value.subs ?? []
   const flip = (arr: boolean[], i: number, dflt: boolean) => Array.from({ length: MAX_AGG }, (_, j) => (j === i ? !(arr[j] ?? dflt) : (arr[j] ?? dflt)))
   const all: (AsAggKey | '')[] = [value.agg1, value.agg2, ...(value.more ?? [])]
@@ -145,6 +166,7 @@ export function AsAggControls({ value, onChange, keys = AS_AGG_KEYS, sortSum = f
       ...(sortSum ? {
         descs: Array.from({ length: MAX_AGG }, (_, j) => (j === i ? false : (descs[j] ?? false))),
         subs: Array.from({ length: MAX_AGG }, (_, j) => (j === i ? true : (subs[j] ?? true))),
+        sorts: Array.from({ length: MAX_AGG }, (_, j) => (j === i ? '' : (sorts[j] ?? ''))),
       } : {}),
     })
   }
@@ -156,6 +178,16 @@ export function AsAggControls({ value, onChange, keys = AS_AGG_KEYS, sortSum = f
           <option value=""></option>
           {keys.filter((k) => k === all[i] || !all.includes(k)).map((k) => <option key={k} value={k}>{k}</option>)}
         </select>
+        {sortSum && all[i] && (() => {
+          const opts = sortOptions(all[i] as AsAggKey, i === filled - 1, measures)
+          const cur = opts.includes(sorts[i] ?? '') ? sorts[i] : opts[0]
+          return (
+            <select className="ec-input w-[90px]" aria-label={`집계조건${i + 1} 정렬기준`} value={cur}
+                    onChange={(e) => onChange({ sorts: Array.from({ length: MAX_AGG }, (_, j) => (j === i ? e.target.value : (sorts[j] ?? ''))) })}>
+              {opts.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          )
+        })()}
         {sortSum && all[i] && (
           <span className="ec-btn-group">
             <button type="button" className="ec-btn ec-btn-sm" aria-label={`집계조건${i + 1} 정렬`} title={descs[i] ? '내림차순' : '오름차순'}
@@ -218,11 +250,11 @@ export function AsAggregateTable({ title, period, lines, value, measures = ['수
   const cellIf = (has: boolean, n: number, i: number) => (has ? cell(n, i) : '')
   const pct = (n: number, t: number) => (t === 0 ? '' : String(Math.round((n / t) * 100)))
   const dateAxis = !!compare && keys.some((k) => DATE_KEYS.includes(k))
-  /* 차례는 코드순(코드가 없으면 이름) — 원본 정렬 선택상자의 기본값. */
-  const key = (n: string, c: string) => c || n
+  /* 차례는 조건마다 고른 정렬 기준(비면 코드순 — 코드가 없으면 이름, 기준일자 축은 시간순). */
+  const modeOf = (j: number) => { const o = sortOptions(keys[j], j === keys.length - 1, measures); return o.includes(value.sorts?.[j] ?? '') ? value.sorts![j] : o[0] }
   const rows = [...m.values()].sort((a, b) => {
     for (let j = 0; j < keys.length; j++) {
-      const d = key(a.ns[j], a.cs[j]).localeCompare(key(b.ns[j], b.cs[j]), 'ko')
+      const d = cmpAxis(modeOf(j), measures, a.ns[j], a.cs[j], b.ns[j], b.cs[j], a.v, b.v)
       if (d) return descs[j] ? -d : d
     }
     return 0
@@ -236,9 +268,10 @@ export function AsAggregateTable({ title, period, lines, value, measures = ['수
   /** 두 줄이 처음 갈리는 조건 차례. */
   const diffAt = (a: Row, b: Row) => { let j = 0; while (j < keys.length && a.ns[j] === b.ns[j]) j++; return j }
   /* 값 칸 한 벌 — 비율표시면 값마다 비율이 뒤따른다. */
+  /* 소계 줄(bold)의 비율 칸은 빈칸 — 원본 A/S수리현황 '최혁순 계 | 2.00 | '(2026-10-13 실측). [합계] 줄만 100. */
   const valCells = (v: number[], has: boolean, tot: number[], keyp: string, bold = false) => v.flatMap((n, j) => [
     <td key={`${keyp}${j}`} className={`text-right${bold ? ' font-bold' : ''}`}>{cellIf(has, n, j)}</td>,
-    ...(showRatio ? [<td key={`${keyp}r${j}`} className={`text-right${bold ? ' font-bold' : ''}`}>{has ? pct(n, tot[j]) : ''}</td>] : []),
+    ...(showRatio ? [<td key={`${keyp}r${j}`} className={`text-right${bold ? ' font-bold' : ''}`}>{has && !bold ? pct(n, tot[j]) : ''}</td>] : []),
   ])
   const valHeads = (keyp: string) => measures.flatMap((h) => [
     <th key={`${keyp}${h}`} className="text-right">{h}</th>,
@@ -249,7 +282,7 @@ export function AsAggregateTable({ title, period, lines, value, measures = ['수
   useTableColumnCheck(ref, `${title} 집계`, [keys.join(','), codeIncl, rows.length, showRatio, !!compare])
   if (pivot && keys.length >= 2 && !compare) return (
     <AsPivotTable title={title} period={period} lines={lines} keys={keys} codeIncl={codeIncl} measures={measures} cell={cell} valsOf={valsOf}
-                  descs={descs} subs={value.subs ?? []} />
+                  descs={descs} subs={value.subs ?? []} sorts={value.sorts ?? []} />
   )
   return (
     <>
@@ -331,20 +364,32 @@ export function AsAggregateTable({ title, period, lines, value, measures = ['수
  * [가로보기] 판 — 마지막 조건의 값이 열 묶음이 되고, 묶음마다 값 열(measures)이 선다. 줄은 앞 조건들로 묶고
  * 마지막 줄 조건 앞까지 무리마다 '… 계'(눕기 전과 같은 규칙), 끝에 [합계].
  */
-function AsPivotTable({ title, period, lines, keys, codeIncl, measures, cell, valsOf, descs, subs }: {
+function AsPivotTable({ title, period, lines, keys, codeIncl, measures, cell, valsOf, descs, subs, sorts }: {
   title: string; period: string; lines: AsAggLine[]; keys: AsAggKey[]; codeIncl: boolean; measures: string[]
   cell: (n: number, i: number) => string; valsOf: (x: AsAggLine) => number[]
   /** 조건마다 [정렬] 내림 · [소계] 표시 — 눕힌 조건의 [정렬] 은 열 차례를 뒤집는다. */
   descs: boolean[]; subs: boolean[]
+  /** 조건마다 정렬 기준 — 눕힌 조건이 값 기준이면 열 합계로 줄 세운다. */
+  sorts: string[]
 }) {
   const rowKeys = keys.slice(0, -1)
   const colKey = keys[keys.length - 1]
   const key = (n: string, c: string) => c || n
   /* 열 — 눕힌 조건의 값, 코드순(기준일자 축은 이름이 곧 시간순). */
-  const colMap = new Map<string, string>()
-  for (const x of lines) { const [n, c] = axis(colKey, x); colMap.set(n, key(n, c)) }
+  const modeOf = (j: number) => { const o = sortOptions(keys[j], j === keys.length - 1, measures); return o.includes(sorts[j] ?? '') ? sorts[j] : o[0] }
+  const colMap = new Map<string, { c: string; v: number[] }>()
+  for (const x of lines) {
+    const [n, c] = axis(colKey, x)
+    const cur = colMap.get(n) ?? { c, v: measures.map(() => 0) }
+    valsOf(x).forEach((q, i) => { cur.v[i] += q })
+    colMap.set(n, cur)
+  }
   const colDesc = descs[keys.length - 1] ?? false
-  const colNames = [...colMap.entries()].sort((a, b) => a[1].localeCompare(b[1], 'ko', { numeric: true }) * (colDesc ? -1 : 1)).map(([n]) => n)
+  const colMode = modeOf(keys.length - 1)
+  const colNames = [...colMap.entries()].sort((a, b) => {
+    const d = cmpAxis(colMode === '코드순' ? '코드순' : colMode, measures, a[0], key(a[0], a[1].c), b[0], key(b[0], b[1].c), a[1].v, b[1].v)
+    return (d || a[1].c.localeCompare(b[1].c, 'ko', { numeric: true })) * (colDesc ? -1 : 1)
+  }).map(([n]) => n)
   type Row = { ns: string[]; cs: string[]; v: Map<string, number[]> }
   const m = new Map<string, Row>()
   for (const x of lines) {
@@ -360,7 +405,7 @@ function AsPivotTable({ title, period, lines, keys, codeIncl, measures, cell, va
   }
   const rows = [...m.values()].sort((a, b) => {
     for (let j = 0; j < rowKeys.length; j++) {
-      const d = key(a.ns[j], a.cs[j]).localeCompare(key(b.ns[j], b.cs[j]), 'ko')
+      const d = cmpAxis(modeOf(j), measures, a.ns[j], a.cs[j], b.ns[j], b.cs[j], [], [])
       if (d) return descs[j] ? -d : d
     }
     return 0

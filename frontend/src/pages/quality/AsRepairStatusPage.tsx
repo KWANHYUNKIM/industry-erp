@@ -11,6 +11,7 @@ import { AsAggControls, AsAggregateTable, AS_AGG_KEYS, type AsAggLine, type AsAg
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { dateNo } from '../../utils/dateNo'
+import { COMPARE_PERIODS, comparePeriodOf, fetchWindow, type ComparePeriod } from '../../utils/periods'
 
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 
@@ -38,7 +39,10 @@ const REPAIR_TYPES: Record<string, string> = { FREE_EXCHANGE: '무상교환', FR
  *
  * <p>[구분] ○집계 — 2026-10-04 실측: 집계조건 창의 후보가 A/S접수현황과 같고(A/S수리 묶음 = 담당자 · 창고 · 관리항목),
  * 담당자로 묶으면 [담당자 | 수량] 최혁순 1.00 · 합계 1.00. 수량은 수리 품목 줄의 수량을 더한다.
- * 머리글은 'A/S수리현황'(내역은 'AS수리현황'), 꼬리에 [P.1] 이 없다. 수리에는 프로젝트가 없어 그 축은 뺀다.
+ * 머리글은 'A/S수리현황'(내역은 'AS수리현황'), 꼬리에 [P.1] 이 없다.
+ * 2026-10-13 다시 잼: 집계조건 후보에 [프로젝트]가 있다 — 수리입력에 프로젝트 칸이 없어 값은 늘 빈칸([최혁순 | | 2.00]).
+ * 집계조건 3 ~ 5 · [집계대상](코드도움 후보는 수량 하나) · [비교기간] 다섯 · [기타] 가로보기 · 비율표시 · 코드포함은 품질검사현황과 같은 판.
+ * 비율표시의 소계 줄 비율 칸은 빈칸, 가로보기는 집계대상을 골라야 연다.
  * ◉내역 — 2026-10-04 원본에 두 줄 수리(A001 1 · QA2FIFO01 2)를 넣고 잼: <b>라인별은 수리 품목 줄마다 한 행</b>
  * (예전 우리는 수리 한 건이 한 행이고 첫 품목만 찍었다 — 그건 원본의 [전표별]이다), 일별은 [일자-No.] 칸에 2026/10/04.
  * 묶는 판은 A/S접수현황과 같다(처음 줄의 값). 소모(판매)금액은 수리 전표의 값이라 그 수리의 첫 줄에만 싣는다 —
@@ -64,6 +68,12 @@ export default function AsRepairStatusPage() {
   const [gubun, setGubun] = useState<'내역' | '집계'>('내역')
   const [form, setForm] = useState<Form>('라인별')
   const [agg, setAgg] = useState<AsAggValue>({ agg1: '', agg2: '', codeIncl: false })
+  /** ○집계 [집계대상] · [비교기간] · [기타] 가로보기 · 비율표시 — 검색할 때 걸린다(applied). */
+  const [target, setTarget] = useState(false)
+  const [compare, setCompare] = useState<ComparePeriod>('사용안함')
+  const [pivot, setPivot] = useState(false)
+  const [ratio, setRatio] = useState(false)
+  const [applied, setApplied] = useState({ compare: '사용안함' as ComparePeriod, pivot: false, ratio: false })
   const mgmt = useItemMgmt()
   const pgroup = usePartnerGroups()
   const [codes, setCodes] = useState<{ wh: Map<number, string>; pa: Map<number, string> }>({ wh: new Map(), pa: new Map() })
@@ -79,7 +89,7 @@ export default function AsRepairStatusPage() {
     setLoading(true)
     setError('')
     try {
-      setRows((await api.get<Repair[]>('/as-repairs', { params: { from, to } })).data)
+      setRows((await api.get<Repair[]>('/as-repairs', { params: fetchWindow(from, to, gubun === '집계' ? compare : '사용안함') })).data)
     } catch (e) {
       setError(extractErrorMessage(e))
     } finally {
@@ -88,8 +98,14 @@ export default function AsRepairStatusPage() {
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { void load() }, [from, to])
+  function search() {
+    if (gubun === '집계' && pivot && !target) { window.alert('집계대상에서 가로보기 대상을 선택바랍니다.'); return }
+    setApplied({ compare: gubun === '집계' ? compare : '사용안함', pivot, ratio })
+    void load()
+  }
 
-  const shown = useMemo(() => rows
+  const pick = (f: string, t: string) => rows
+    .filter((r) => r.repairDate >= f && r.repairDate <= t)
     .filter((r) => !useReceipt || (r.receiptDate != null && r.receiptDate >= recFrom && r.receiptDate <= recTo))
     .filter((r) => !warehouse || String(r.warehouseId) === warehouse)
     .filter((r) => !charge || r.charge === charge)
@@ -97,13 +113,15 @@ export default function AsRepairStatusPage() {
     .filter((r) => !repairType || r.repairType === repairType)
     .filter((r) => !partner || String(r.partnerId) === partner)
     .filter((r) => !item || r.lines.some((l) => String(l.itemId) === item))
-    .sort((a, b) => (a.repairDate < b.repairDate ? -1 : a.repairDate > b.repairDate ? 1 : a.repairNo.localeCompare(b.repairNo))),
-  [rows, useReceipt, recFrom, recTo, warehouse, charge, author, repairType, partner, item])
+    .sort((a, b) => (a.repairDate < b.repairDate ? -1 : a.repairDate > b.repairDate ? 1 : a.repairNo.localeCompare(b.repairNo)))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const shown = useMemo(() => pick(from, to), [rows, from, to, useReceipt, recFrom, recTo, warehouse, charge, author, repairType, partner, item])
+  const cmpRange = gubun === '집계' ? comparePeriodOf(from, to, applied.compare) : null
   const total = shown.reduce((a, r) => a + Number(r.saleAmount), 0)
   const charges = useMemo(() => [...new Set(rows.map((r) => r.charge).filter(Boolean))].sort(), [rows])
   const authors = useMemo(() => [...new Set(rows.map((r) => r.receiptCharge).filter(Boolean) as string[])].sort(), [rows])
   /** ○집계가 읽는 줄 — 수리 품목 줄마다 하나. */
-  const aggLines: AsAggLine[] = shown.flatMap((r) => r.lines.map((l) => ({
+  const toAgg = (rs: Repair[]): AsAggLine[] => rs.flatMap((r) => r.lines.map((l) => ({
     date: r.repairDate, charge: r.charge ?? '',
     warehouse: [r.warehouseName ?? '', codes.wh.get(r.warehouseId) ?? ''] as [string, string],
     mgmt: mgmt.nameOf(l.itemId) ?? '',
@@ -111,6 +129,7 @@ export default function AsRepairStatusPage() {
     itemName: l.itemName, itemSpec: l.itemSpec, itemCode: l.itemCode, itemGroup: mgmt.groupOf(l.itemId) ?? '',
     project: ['', ''] as [string, string], qty: Number(l.quantity),
   })))
+  const aggLines = toAgg(shown)
   /** ◉내역의 줄 — 라인별이면 수리 품목 줄마다, 아니면 고른 판으로 묶어 처음 줄의 값 + 금액 합. */
   const listRows = useMemo(() => {
     type L = { r: Repair; itemId: number | null; itemName: string; amt: number }
@@ -139,7 +158,7 @@ export default function AsRepairStatusPage() {
       title="A/S수리현황"
       searchable={false}
       actions={[
-        { label: '검색(F8)', primary: true, onClick: load },
+        { label: '검색(F8)', primary: true, onClick: search },
         { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setUseReceipt(false); setRecFrom(init.from); setRecTo(init.to); setWarehouse(''); setCharge(''); setAuthor(''); setRepairType(''); setPartner(''); setItem('') } },
         { label: '인쇄' },
         { label: 'Excel' },
@@ -159,7 +178,27 @@ export default function AsRepairStatusPage() {
                 {FORMS.map((f) => <option key={f} value={f}>{f}</option>)}
               </select>
             )
-              : <AsAggControls value={agg} onChange={(p) => setAgg((v) => ({ ...v, ...p }))} keys={AS_AGG_KEYS.filter((k) => k !== '프로젝트')} sortSum />}
+              : <AsAggControls value={agg} onChange={(p) => setAgg((v) => ({ ...v, ...p }))} keys={AS_AGG_KEYS} sortSum />}
+            {/* 원본 ○집계 차례 — 집계조건 · [집계대상] · [비교기간] · [기타](2026-10-13 E040611 실측, 품질검사현황과 같다). */}
+            {gubun === '집계' && (<>
+              <span className="text-ec-label">집계대상</span>
+              <label className="inline-flex items-center gap-[3px]">
+                <input type="checkbox" checked={target} onChange={(e) => setTarget(e.target.checked)} /> 수량
+              </label>
+              <span className="text-ec-label">비교기간</span>
+              {COMPARE_PERIODS.map((k) => (
+                <label key={k} className="inline-flex items-center gap-[3px]">
+                  <input type="radio" name="asr-compare" checked={compare === k} onChange={() => setCompare(k)} /> {k}
+                </label>
+              ))}
+              <span className="text-ec-label">기타</span>
+              <label className="inline-flex items-center gap-[3px]">
+                <input type="checkbox" checked={pivot} onChange={(e) => setPivot(e.target.checked)} /> 가로보기
+              </label>
+              <label className="inline-flex items-center gap-[3px]">
+                <input type="checkbox" checked={ratio} onChange={(e) => setRatio(e.target.checked)} /> 비율표시
+              </label>
+            </>)}
           </span>
         </EcCond>
         <EcCond label="기준일자">
@@ -204,7 +243,9 @@ export default function AsRepairStatusPage() {
       </ul>
 
       {gubun === '집계' ? (
-        <AsAggregateTable title="A/S수리현황" period={reportPeriod(from, to)} lines={aggLines} value={agg} />
+        <AsAggregateTable title="A/S수리현황" period={reportPeriod(from, to)} lines={aggLines} value={agg}
+                          ratio={applied.ratio} pivot={applied.pivot}
+                          compare={cmpRange ? { period: reportPeriod(cmpRange.from, cmpRange.to), lines: toAgg(pick(cmpRange.from, cmpRange.to)) } : undefined} />
       ) : (<>
       <EcReportHead title="AS수리현황" period={reportPeriod(from, to)} />
       <table ref={tableRef} className="w-full text-left">

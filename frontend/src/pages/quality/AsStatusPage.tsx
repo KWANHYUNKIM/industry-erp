@@ -10,6 +10,7 @@ import { useItemMgmt } from '../../utils/itemMgmtItems'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 import { EcReportHead, EcReportFoot, reportDate, reportPeriod } from '../../components/EcReportFrame'
 import { AsAggControls, AsAggregateTable, type AsAggKey, type AsAggLine } from '../../features/as/AsAggregate'
+import { COMPARE_PERIODS, comparePeriodOf, fetchWindow, type ComparePeriod } from '../../utils/periods'
 
 /**
  * 재고 II > A/S관리 > A/S접수현황 (이카운트 E040610). 데이터는 GET /api/as-requests 의 접수와 그 품목 줄.
@@ -71,6 +72,10 @@ interface Filters {
   gubun: '내역' | '집계'; form: Form; agg1: AsAggKey | ''; agg2: AsAggKey | ''; more: (AsAggKey | '')[]; codeIncl: boolean
   /** ○집계 조건 칸 옆 [정렬] · [소계] 단추(2026-10-13 원본 실측) — 조건 차례와 같은 자리. */
   descs: boolean[]; subs: boolean[]
+  /** 조건마다 정렬 기준 선택상자(코드순 · 코드명순 · 시간순 · 수량). */
+  sorts: string[]
+  /** ○집계 [집계대상](후보 수량 하나) · [비교기간] · [기타] 가로보기 · 비율표시 — 2026-10-13 원본 실측, A/S수리현황과 같은 판. */
+  target: boolean; compare: ComparePeriod; pivot: boolean; ratio: boolean
   warehouse: string; project: string
   partner: string; item: string; charge: string; status: '' | AsStatus
   /** 2026-09-08 실측으로 드러난 일곱. */
@@ -85,7 +90,7 @@ interface Filters {
  */
 const init = periodOf('금월(~오늘)')!
 
-const EMPTY_FILTERS: Filters = { dateFrom: init.from, dateTo: init.to, gubun: '내역', form: '라인별', agg1: '', agg2: '', more: [], codeIncl: false, descs: [], subs: [], warehouse: '', project: '', partner: '', item: '', charge: '', status: '',
+const EMPTY_FILTERS: Filters = { dateFrom: init.from, dateTo: init.to, gubun: '내역', form: '라인별', agg1: '', agg2: '', more: [], codeIncl: false, descs: [], subs: [], sorts: [], target: false, compare: '사용안함', pivot: false, ratio: false, warehouse: '', project: '', partner: '', item: '', charge: '', status: '',
   partnerGroup: '', category: '', itemGroup: '', schedFrom: '', schedTo: '', title: '', remark: '', author: '' }
 
 /** 원본 ◉내역 선택상자(차례 그대로). 거래처별라인별(전송용)은 내보내기용 판이라 두지 않는다. */
@@ -108,7 +113,7 @@ export default function AsStatusPage() {
     setLoading(true)
     try {
       const res = await api.get<AsRow[]>('/as-requests', {
-        params: { from: filters.dateFrom || undefined, to: filters.dateTo || undefined },
+        params: fetchWindow(filters.dateFrom, filters.dateTo, filters.gubun === '집계' ? filters.compare : '사용안함'),
       })
       setRows(res.data)
     } catch (err) {
@@ -121,7 +126,7 @@ export default function AsStatusPage() {
    * <b>기간을 서버에 보낸다.</b> 조건 판에 [기간]을 물어 놓고 서버에는 아무것도 안 보내
    * 전 기간을 받아 브라우저에서 걸렀다. 기간이 바뀌면 다시 물어본다.
    */
-  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [filters.dateFrom, filters.dateTo])
+  useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [filters.dateFrom, filters.dateTo, filters.compare, filters.gubun])
 
   /**
    * 원본 [데이터 보기형식] · [그래프로 보기] — 조건 판 <b>맨 끝</b>이다(사본 실측:
@@ -133,13 +138,14 @@ export default function AsStatusPage() {
    */
   const [view, setView] = useState<'표' | '그래프'>('표')
 
-  const shown = useMemo(() => {
+  /** 조건으로 거른 접수 — 기간만 따로 받는다([비교기간] 쪽은 옮긴 구간으로 다시 거른다). */
+  const pick = (from: string, to: string) => {
     const kw = keyword.trim()
     const f = filters
     return rows.filter((r) => {
       if (kw && !r.partnerName.includes(kw) && !r.itemName.includes(kw) && !r.asNo.includes(kw)) return false
-      if (f.dateFrom && r.receiptDate < f.dateFrom) return false
-      if (f.dateTo && r.receiptDate > f.dateTo) return false
+      if (from && r.receiptDate < from) return false
+      if (to && r.receiptDate > to) return false
       if (f.partner && !r.partnerName.includes(f.partner)) return false
       if (f.item && !(r.lines?.length ? r.lines.some((l) => l.itemName.includes(f.item)) : r.itemName.includes(f.item))) return false
       if (f.warehouse && (r.warehouseName ?? '') !== f.warehouse) return false
@@ -156,8 +162,10 @@ export default function AsStatusPage() {
       if (f.author && (r.createdBy ?? '') !== f.author) return false
       return true
     }).sort((a, b) => (a.receiptDate < b.receiptDate ? 1 : a.receiptDate > b.receiptDate ? -1 : b.id - a.id))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, keyword, filters, pgroup.groupOptions, mgmt.groupOptions])
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const shown = useMemo(() => pick(filters.dateFrom, filters.dateTo), [rows, keyword, filters, pgroup.groupOptions, mgmt.groupOptions])
+  const cmpRange = filters.gubun === '집계' ? comparePeriodOf(filters.dateFrom, filters.dateTo, filters.compare) : null
 
   const activeCount = useMemo(() => {
     let n = 0
@@ -169,7 +177,10 @@ export default function AsStatusPage() {
     return n
   }, [filters])
 
-  const applyDraft = () => { setFilters(draft); setPanelOpen(false) }
+  const applyDraft = () => {
+    if (draft.gubun === '집계' && draft.pivot && !draft.target) { window.alert('집계대상에서 가로보기 대상을 선택바랍니다.'); return }
+    setFilters(draft); setPanelOpen(false)
+  }
   const resetDraft = () => { setDraft(EMPTY_FILTERS); setFilters(EMPTY_FILTERS) }
   const openPanel = () => { setDraft(filters); setPanelOpen((v) => !v) }
 
@@ -183,9 +194,10 @@ export default function AsStatusPage() {
    * 원본 A/S접수현황은 접수 <b>품목 줄마다</b> 한 행이고 맨 아래 [합계]에 수량을 더한다(2026-10-03 실측).
    * 줄이 없는 옛 접수(줄 테이블 전)는 머리 품목 1개로 본다.
    */
-  const lineRows = sort.sorted.flatMap((r) => (r.lines?.length ? r.lines : [{ id: 0, itemId: r.itemId, itemCode: r.itemCode ?? '', itemName: r.itemName, itemSpec: r.itemSpec, quantity: 1 }])
+  const toLineRows = (rs: AsRow[]) => rs.flatMap((r) => (r.lines?.length ? r.lines : [{ id: 0, itemId: r.itemId, itemCode: r.itemCode ?? '', itemName: r.itemName, itemSpec: r.itemSpec, quantity: 1 }])
     .filter((l) => !filters.item || l.itemName.includes(filters.item))
     .map((l) => ({ r, l })))
+  const lineRows = toLineRows(sort.sorted)
 
   /*
    * ◉내역 — 고른 판으로 묶는다. 묶은 줄은 <b>처음 줄</b>의 값을 두고 수량만 더한다(원본 실측, 위 머리 주석).
@@ -216,7 +228,7 @@ export default function AsStatusPage() {
   }, [])
 
   /** ○집계가 읽는 줄 — 접수 품목 줄마다 하나. 코드는 마스터에서 잇는다. */
-  const aggLines: AsAggLine[] = lineRows.map(({ r, l }) => ({
+  const toAgg = (xs: { r: AsRow; l: AsLine }[]): AsAggLine[] => xs.map(({ r, l }) => ({
     date: r.receiptDate, charge: r.charge ?? '',
     warehouse: [r.warehouseName ?? '', r.warehouseId != null ? codes.wh.get(r.warehouseId) ?? '' : ''],
     mgmt: mgmt.nameOf(l.itemId) ?? '',
@@ -225,6 +237,7 @@ export default function AsStatusPage() {
     project: [r.projectName ?? '', r.projectId != null ? codes.pj.get(r.projectId) ?? '' : ''],
     qty: Number(l.quantity),
   }))
+  const aggLines = toAgg(lineRows)
   const totalQty = lineRows.reduce((a, x) => a + Number(x.l.quantity), 0)
 
   return (
@@ -260,7 +273,9 @@ export default function AsStatusPage() {
                     })()} />
       ) : filters.gubun === '집계' ? (
         <AsAggregateTable title="A/S접수현황" period={reportPeriod(filters.dateFrom, filters.dateTo)} lines={aggLines}
-                          value={{ agg1: filters.agg1, agg2: filters.agg2, more: filters.more, codeIncl: filters.codeIncl, descs: filters.descs, subs: filters.subs }} />
+                          value={{ agg1: filters.agg1, agg2: filters.agg2, more: filters.more, codeIncl: filters.codeIncl, descs: filters.descs, subs: filters.subs, sorts: filters.sorts }}
+                          ratio={filters.ratio} pivot={filters.pivot}
+                          compare={cmpRange ? { period: reportPeriod(cmpRange.from, cmpRange.to), lines: toAgg(toLineRows(pick(cmpRange.from, cmpRange.to))) } : undefined} />
       ) : (
       <>
       <EcReportHead title="AS접수현황" period={reportPeriod(filters.dateFrom, filters.dateTo)} />
@@ -364,7 +379,25 @@ function SearchPanel({
               {FORMS.map((f) => <option key={f} value={f}>{f}</option>)}
             </select>
           ) : (<>
-            <AsAggControls value={{ agg1: draft.agg1, agg2: draft.agg2, more: draft.more, codeIncl: draft.codeIncl, descs: draft.descs, subs: draft.subs }} onChange={onChange} sortSum />
+            <AsAggControls value={{ agg1: draft.agg1, agg2: draft.agg2, more: draft.more, codeIncl: draft.codeIncl, descs: draft.descs, subs: draft.subs, sorts: draft.sorts }} onChange={onChange} sortSum />
+            {/* 원본 ○집계 차례 — 집계조건 · [집계대상] · [비교기간] · [기타](2026-10-13 E040610 실측). */}
+            <span className="text-ec-label">집계대상</span>
+            <label className="inline-flex items-center gap-[3px]">
+              <input type="checkbox" checked={draft.target} onChange={(e) => onChange({ target: e.target.checked })} /> 수량
+            </label>
+            <span className="text-ec-label">비교기간</span>
+            {COMPARE_PERIODS.map((k) => (
+              <label key={k} className="inline-flex items-center gap-[3px]">
+                <input type="radio" name="as-compare" checked={draft.compare === k} onChange={() => onChange({ compare: k })} /> {k}
+              </label>
+            ))}
+            <span className="text-ec-label">기타</span>
+            <label className="inline-flex items-center gap-[3px]">
+              <input type="checkbox" checked={draft.pivot} onChange={(e) => onChange({ pivot: e.target.checked })} /> 가로보기
+            </label>
+            <label className="inline-flex items-center gap-[3px]">
+              <input type="checkbox" checked={draft.ratio} onChange={(e) => onChange({ ratio: e.target.checked })} /> 비율표시
+            </label>
           </>)}
         </div>
       </div>
