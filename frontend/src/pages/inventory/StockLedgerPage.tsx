@@ -130,7 +130,13 @@ export default function StockLedgerPage() {
   const [error, setError] = useState('')
 
   // 서버 필터(조회 버튼으로 반영)
-  const [filters, setFilters] = useState<ServerFilters>({ from: initP.from, to: initP.to, itemId: '', warehouseId: '', rollUp: false })
+  /*
+   * 재고잔량분석표의 [재고수량] 링크가 품목 · 기간을 주소로 넘긴다(원본도 그 품목 수불부를 넉 달치로 띄운다).
+   */
+  const [filters, setFilters] = useState<ServerFilters>(() => {
+    const q = new URLSearchParams(window.location.search)
+    return { from: q.get('from') ?? initP.from, to: q.get('to') ?? initP.to, itemId: q.get('itemId') ?? '', warehouseId: q.get('warehouseId') ?? '', rollUp: false }
+  })
   // 클라이언트 보조 필터
   const [typeFilter, setTypeFilter] = useState<'ALL' | TxType>('ALL')
   /*

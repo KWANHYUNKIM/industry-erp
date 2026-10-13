@@ -685,8 +685,8 @@
   "palette": 0
  },
  "pages/inventory/StockAnalysisPage.tsx": {
-  "inline": 7,
-  "color": 4,
+  "inline": 0,
+  "color": 0,
   "palette": 0
  },
  "pages/inventory/StockIoPage.tsx": {
