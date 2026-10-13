@@ -1,15 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import type { WithholdingLedgerEmployee } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
+import { fillAndPrint, openPrintWindow } from '../../utils/print'
 
 const won = (n: number) => Number(n).toLocaleString('ko-KR')
 type Company = { name?: string; ceo?: string; bizRegNo?: string; corpRegNo?: string; address?: string; addressDetail?: string }
 type Emp = { id: number; code: string; name: string }
 type Slot = { ym: string; pay: string; tax: number; paidOn: string }
+const PRINT_CSS = 'body{font-family:sans-serif;font-size:11px;margin:16px}table{width:100%;border-collapse:collapse}th,td{border:1px solid;padding:3px 4px}input{border:0;font:inherit;width:100%}'
 
 /**
  * 소득세확인서 (원본 세무 › 원천징수 › 세무신고 E030103, 2026-10-03 loginaa 실측).
@@ -18,7 +20,8 @@ type Slot = { ym: string; pay: string; tax: number; paidOn: string }
  * 「갑종근로소득에 대한 소득세원천징수확인서」. 달마다 ⑫급여액 · ⑬세액 · ⑭납부연월일을 두 단(왼쪽 7칸 · 오른쪽 6칸 + 계)에 찍는다.
  *  - 급여액은 <b>비과세까지 넣은 지급액</b>이다 — 원본 변종호 4,559,000 = 과세 4,259,000 + 비과세 300,000(원천징수부의 총급여와 다르다).
  *  - 세액은 소득세만(지방소득세 빼고): 228,000, 계 2,280,000.
- *  - 급여액 · 납부연월일 · 사용목적 · 제출처 · 소요수량(기본 1) · 세무대리인 칸은 원본도 손으로 고쳐 쓰는 칸이다(저장 안 함).
+ *  - 급여액 · 납부연월일 · 사용목적 · 제출처 · 소요수량(기본 1) · 발급번호 · 세무대리인(사업장소재지 · 등록번호 · 전화번호 · 이름)
+ *    칸은 원본도 손으로 고쳐 쓰는 칸이다(저장 안 함). 서식 아래 [새로불러오기] · [인쇄] · 도장인쇄(회사 도장 그림이 없어 뺐다).
  */
 export default function IncomeTaxCertPage() {
   const thisMonth = ymd(new Date()).slice(0, 7)
@@ -31,6 +34,16 @@ export default function IncomeTaxCertPage() {
   const [purpose, setPurpose] = useState('')
   const [submitTo, setSubmitTo] = useState('')
   const [count, setCount] = useState('1')
+  // 원본 서식의 손으로 쓰는 칸(2026-10-13 실측 txtBNo · txtAgentAddr · txtAgentNo · txtAgentTel · txtAgentName)
+  const [issueNo, setIssueNo] = useState('')
+  const [agent, setAgent] = useState({ addr: '', no: '', tel: '', name: '' })
+  const paperRef = useRef<HTMLTableElement>(null)
+  function print() {
+    const win = openPrintWindow()
+    if (!win || !paperRef.current) return
+    fillAndPrint(win, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>소득세확인서</title><style>${PRINT_CSS}</style></head>`
+      + `<body><table>${paperRef.current.innerHTML}</table></body></html>`)
+  }
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -77,7 +90,8 @@ export default function IncomeTaxCertPage() {
   }
 
   return (
-    <EcListShell title="소득세확인서" option={false} onSearch={search} actions={[{ label: '인쇄' }]}>
+    <EcListShell title="소득세확인서" option={false} onSearch={search}
+                 actions={found ? [{ label: '새로불러오기', onClick: () => void search() }, { label: '인쇄', primary: true, onClick: print }] : []}>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <ul className="ec-cond mb-[8px]">
@@ -98,10 +112,10 @@ export default function IncomeTaxCertPage() {
       </ul>
 
       {found && (
-        <table className="w-full ec-report">
+        <table ref={paperRef} className="w-full ec-report">
           <tbody>
             <tr>
-              <th>발급번호</th>
+              <th>발급번호<br /><input className="ec-input w-full" aria-label="발급번호" value={issueNo} onChange={(e) => setIssueNo(e.target.value)} /></th>
               <th colSpan={6}>갑종근로소득에 대한 소득세원천징수확인서</th>
               <th>처리기간<br />즉 시</th>
             </tr>
@@ -158,6 +172,24 @@ export default function IncomeTaxCertPage() {
                 위와 같이 원천징수하였음을 확인합니다.<br />
                 {today[0]} 년 {Number(today[1])} 월 {Number(today[2])} 일<br />
                 확인자(원천징수의무자) {company?.name ?? ''} (서명 또는 인)
+              </td>
+            </tr>
+            <tr>
+              <th rowSpan={2}>세무대리인</th>
+              <th>확인자 사업장소재지</th>
+              <td colSpan={6}><input className="ec-input w-full" aria-label="세무대리인 사업장소재지" value={agent.addr} onChange={(e) => setAgent({ ...agent, addr: e.target.value })} /></td>
+            </tr>
+            <tr>
+              <th>등록번호</th>
+              <td colSpan={2}><input className="ec-input w-full" aria-label="세무대리인 등록번호" value={agent.no} onChange={(e) => setAgent({ ...agent, no: e.target.value })} /></td>
+              <th>전화번호</th>
+              <td colSpan={3}><input className="ec-input w-full" aria-label="세무대리인 전화번호" value={agent.tel} onChange={(e) => setAgent({ ...agent, tel: e.target.value })} /></td>
+            </tr>
+            <tr>
+              <td colSpan={8}>
+                위와 같이 원천징수하였음을 확인합니다.<br />
+                {today[0]} 년 {Number(today[1])} 월 {Number(today[2])} 일<br />
+                세무대리인 <input className="ec-input w-[160px]" aria-label="세무대리인" value={agent.name} onChange={(e) => setAgent({ ...agent, name: e.target.value })} /> (인)
               </td>
             </tr>
           </tbody>
