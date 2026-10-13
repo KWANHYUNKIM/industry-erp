@@ -39,6 +39,11 @@ export async function openBrowser({ port = Number(process.env.CDP_PORT ?? 0), wi
   const profile = mkdtempSync(join(tmpdir(), 'erp-cdp-'))
   const chrome = spawn(CHROME, ['--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
     `--window-size=${width},${height}`, '--hide-scrollbars', 'about:blank'], { stdio: 'ignore' })
+  // 스크립트가 어떻게 끝나든(예외 · Ctrl-C · 작업자가 죽음) Chrome 을 같이 끈다 — 안 끄면 부모 없는 Chrome 이 남아
+  // 메모리를 쥔다(2026-10-13 남은 것 19벌이 스왑 2.4GB 를 쥐고 있었다).
+  const killChrome = () => { try { chrome.kill('SIGKILL') } catch { /* 이미 꺼짐 */ } }
+  process.once('exit', killChrome)
+  for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.once(sig, () => { killChrome(); process.exit(130) })
 
   let target
   for (let i = 0; i < 50 && !target; i++) {
