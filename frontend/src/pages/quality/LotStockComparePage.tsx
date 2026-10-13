@@ -124,7 +124,7 @@ export default function LotStockComparePage() {
         </EcCond>
       </ul>
 
-      {/* 원본 격자는 출력물 꼴 — 머리 12px 700 · 27.6(6px 3px 3px) · 본문 24.1(3px) · 합계 rgb(243,243,243) 700(2026-10-14 실측). */}
+      {/* 원본 격자는 출력물 꼴 — 머리 12px 700 · 27.6(6px 3px 3px) · 본문 24.1(3px) · 합계 회색(243 · 243 · 243) 700(2026-10-14 실측). */}
       <table className="ec-report w-full text-left">
         <thead>
           <tr>
