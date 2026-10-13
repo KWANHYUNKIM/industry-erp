@@ -264,8 +264,24 @@ main table,
 /* 목록 틀(EcListShell) 안의 격자 머리는 700 — 2026-10-13 원본 목록 6개(판매조회 · 카드사등록 · 거래처리스트 · 퇴사자리스트 ·
    사원리스트 · A/S수리현황) 모두 700, 전표 입력 격자(구매입력)만 400(위 전역 값). 판매조회는 th 400 + 안쪽 span 700 이라 보이는 것은 700.
    목록 틀 안의 팝업 입력 폼(.ec-modal), 칸에 입력칸이 든 입력 격자(원본 400), 원본이 400 인 출력물(ec-report-head400)은 뺀다. */
-#root .ec-list-shell table:not(.no-ec):not(.ec-report-head400):not(:has(tbody :is(input:not([type="checkbox"]), select, textarea))) thead th:not(.ec-modal *) {
+#root .ec-list-shell table:not(.no-ec):not(.ec-report-head400):not(:has(tbody :is(input:not([type="checkbox"]), select, textarea))) thead th:not(.ec-modal *):not(:has(input[type="checkbox"])) {
   font-weight: 700 !important;
+}
+/* 격자 체크칸 — 원본은 18×17.96(본문) · 18×17.14(머리) 칸을 가운데에 둔다(판매조회 · 주문서출고처리 · 근로계약현황 2026-10-14 실측).
+   그래서 체크칸이 있는 격자는 머리 34.7 · 줄 29.7 이고, 체크칸 없는 격자는 33.8 · 28.4 그대로다.
+   머리 체크칸 th 굵기는 원본도 400(글자 열만 700 — 위 규칙에서 뺐다). */
+#root table > tbody > tr > td > input[type="checkbox"],
+#root table > tfoot > tr > td > input[type="checkbox"] {
+  width: var(--ec-grid-cb-w);
+  height: var(--ec-grid-cb-h);
+  margin: 0;
+  vertical-align: middle;
+}
+#root table > thead > tr > th > input[type="checkbox"] {
+  width: var(--ec-grid-cb-w);
+  height: var(--ec-grid-cb-h-head);
+  margin: 0;
+  vertical-align: middle;
 }
 /*
  * 조회 목록 본문 — 2026-09-21 구매조회 실측(줄마다 읽음):
