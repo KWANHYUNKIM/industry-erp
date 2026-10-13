@@ -8,11 +8,11 @@ import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
 import Modal from '../../components/Modal'
-import EcPeriodPicks, { ymd, periodOf, QUALITY_REQUEST_PICKS } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { periodOf, QUALITY_REQUEST_PICKS } from '../../components/EcPeriodPicks'
 
 import { printDocuments } from '../../utils/printDocument'
 import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
-import { DocPullButton, type PullKind, type PulledLine } from '../../features/quality/DocPull'
+import QualityRequestScreen from '../../features/quality/components/QualityRequestForm'
 import { ecConfirm } from '../../components/EcDialog'
 
 /**
@@ -29,11 +29,6 @@ import { ecConfirm } from '../../components/EcDialog'
  * [결재중] · [확인] 알약(전자결재 · 전표 확인)은 없다. 예전 화면은 품목 하나짜리 요청에 검사완료 · 취소 단추를 손으로 눌렀다.
  */
 
-type Method = 'FULL' | 'SAMPLING'
-/* [추가수량](2026-10-13 원본 실측) — 넣으면 [수량] 이 그 값으로 바뀐다(거꾸로는 안 바뀐다). 저장 뒤 다시 열어도 남는다. */
-interface LineForm { method: Method; itemId: string; extraQty: string; quantity: string }
-const emptyLine = (): LineForm => ({ method: 'FULL', itemId: '', extraQty: '', quantity: '' })
-const emptyLines = () => [emptyLine(), emptyLine(), emptyLine()]
 /*
  * 원본 알약(2026-10-12 다시 잼): 전체 · 결재중 · 확인 · 진행중 · 완료. 결재중 · 확인은 전자결재(전표 확인) 상태라
  * 결재를 걸지 않는 우리에게는 결재중이 늘 비고 확인은 전체와 같다(품질검사조회 · A/S접수조회와 같음).
@@ -46,7 +41,6 @@ const itemText = (r: QualityInspectionRequest) => {
   if (r.lines.length > 1) return `${first.itemName} 외 ${r.lines.length - 1}건`
   return `${first.itemName}${first.spec ? ` [${first.spec}]` : ''}`
 }
-const today = () => ymd(new Date())
 
 /**
  * 원본 품질검사요청조회의 마지막 열 <b>[인쇄]</b> — 그 요청 한 건을 검사요청서로 찍는다.
@@ -83,8 +77,8 @@ async function printRequests(rs: QualityInspectionRequest[]) {
 }
 const printRequest = (r: QualityInspectionRequest) => printRequests([r])
 
-/** @param entry 원본 [..입력] 메뉴로 열었을 때 — 입력 창을 열고 뜬다. */
-export default function QualityRequestPage({ entry = false }: { entry?: boolean } = {}) {
+/** 입력은 features/quality/components/QualityRequestForm — 메뉴 [품질검사요청입력] 은 따로 된 입력 화면(QualityRequestEntryPage)이다. */
+export default function QualityRequestPage() {
   /**
    * 원본 조건 판 첫째 <b>[기준일자]</b>. 서버가 이 구간만 준다. 기본은 <b>최근30일(+1개월)</b>(2026-09-01 원본 실측).
    */
@@ -108,18 +102,7 @@ export default function QualityRequestPage({ entry = false }: { entry?: boolean 
 
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<QualityInspectionRequest | null>(null)
-  const [f, setF] = useState({ requestDate: today(), requester: '', projectId: '', remark: '' })
-  const [lines, setLines] = useState<LineForm[]>(emptyLines())
-  const [formError, setFormError] = useState('')
-  const [saving, setSaving] = useState(false)
   const [linksOf, setLinksOf] = useState<QualityInspectionRequest | null>(null)
-
-  /* 입력 판 [판매 · 발주 · 주문 · 구매] 불러오기(features/quality/DocPull) — 한 번 불러오면 단추가 사라진다. */
-  const [pulled, setPulled] = useState(false)
-  function applyPull(ls: PulledLine[]) {
-    setLines([...ls.map((l) => ({ method: 'FULL' as Method, itemId: String(l.itemId), extraQty: '', quantity: String(Number(l.quantity)) })), emptyLine()])
-    setPulled(true)
-  }
 
 
   async function load() {
@@ -136,53 +119,8 @@ export default function QualityRequestPage({ entry = false }: { entry?: boolean 
   }
   useEffect(() => { load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [pFrom, pTo])
 
-  const itemById = useMemo(() => new Map(items.map((it) => [String(it.id), it])), [items])
-  const itemPicks = useMemo(() => items.filter((it) => it.active !== false)
-    .map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword })), [items])
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { if (entry) openNew() }, [entry])
-  function openNew() {
-    setEditing(null); setFormError('')
-    setF({ requestDate: today(), requester: '', projectId: '', remark: '' })
-    setLines(emptyLines()); setPulled(false); setOpen(true)
-  }
-  function openEdit(r: QualityInspectionRequest) {
-    setEditing(r); setFormError('')
-    setF({ requestDate: r.requestDate, requester: r.requester ?? '', projectId: r.projectId ? String(r.projectId) : '', remark: r.remark ?? '' })
-    setLines([...r.lines.map((l) => ({ method: l.method, itemId: String(l.itemId), extraQty: l.extraQty == null ? '' : String(Number(l.extraQty)), quantity: String(l.quantity) })), emptyLine()])
-    setOpen(true)
-  }
-  const setLine = (i: number, patch: Partial<LineForm>) =>
-    setLines((ls) => {
-      const next = ls.map((l, j) => (j === i ? { ...l, ...patch } : l))
-      return next[next.length - 1].itemId ? [...next, emptyLine()] : next
-    })
-  const filled = lines.filter((l) => l.itemId)
-  const totalQty = filled.reduce((s, l) => s + Number(l.quantity || 0), 0)
-  const totalExtra = filled.reduce((s, l) => s + Number(l.extraQty || 0), 0)
-
-  async function save() {
-    setFormError('')
-    if (filled.length === 0) return setFormError('자료를 입력 바랍니다.')
-    if (filled.some((l) => !(Number(l.quantity) > 0))) return setFormError('수량은 0보다 커야 합니다.')
-    const body = {
-      requestDate: f.requestDate,
-      requester: f.requester || undefined,
-      projectId: f.projectId ? Number(f.projectId) : undefined,
-      remark: f.remark || undefined,
-      lines: filled.map((l) => ({ itemId: Number(l.itemId), method: l.method, quantity: Number(l.quantity), extraQty: l.extraQty === '' ? null : Number(l.extraQty) })),
-    }
-    setSaving(true)
-    try {
-      if (editing) await api.put(`/quality-inspection-requests/${editing.id}`, body)
-      else await api.post('/quality-inspection-requests', body)
-      setOpen(false)
-      await load()
-    } catch (err) { setFormError(extractErrorMessage(err)) }
-    finally { setSaving(false) }
-  }
-  useShortcut('F8', save, open)
+  function openNew() { setEditing(null); setOpen(true) }
+  function openEdit(r: QualityInspectionRequest) { setEditing(r); setOpen(true) }
   useShortcut('F2', openNew, !open)
 
   async function removeIds(ids: number[]) {
@@ -256,11 +194,8 @@ export default function QualityRequestPage({ entry = false }: { entry?: boolean 
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
-        {/*
-          원본 <b>조회</b>는 이 칸을 [품질검사요청No.] 라 부르고 <b>입력</b>은 [일자-No.] 라 부른다.
-          한 파일이 둘을 겸해 둘 다 맞출 수 없어 입력 쪽 이름을 쓴다 — 거르는 일은 같다.
-        */}
-        <EcCond label="일자-No.">
+        {/* 원본 조회는 이 칸을 [품질검사요청No.] 라 부른다(입력 화면은 [일자-No.] — 2026-10-14 입력을 따로 된 화면으로 나눴다). */}
+        <EcCond label="품질검사요청No.">
           <input className="ec-input" value={docCond} placeholder="요청일자 또는 요청번호"
                  onChange={(e) => setDocCond(e.target.value)} style={{ width: 190 }} />
         </EcCond>
@@ -385,77 +320,14 @@ export default function QualityRequestPage({ entry = false }: { entry?: boolean 
         </>)}
       </Modal>
 
-      <Modal open={open} width={900} error={formError} onClose={() => setOpen(false)}
+      <Modal open={open} width={900} error={error} onClose={() => setOpen(false)}
              title={editing ? '품질검사요청입력(수정)' : '품질검사요청입력'}>
-        <ul className="ec-form">
-          <li><div className="title">일자-No.</div><div className="form">
-            <input type="date" className="ec-input w-[150px]" value={f.requestDate} disabled={!!editing}
-                   onChange={(e) => setF((x) => ({ ...x, requestDate: e.target.value }))} />
-          </div></li>
-          <li><div className="title">담당자</div><div className="form">
-            <input className="ec-input w-full" placeholder="담당자" value={f.requester}
-                   onChange={(e) => setF((x) => ({ ...x, requester: e.target.value }))} />
-          </div></li>
-          <li><div className="title">프로젝트</div><div className="form">
-            <CodePickerField label="프로젝트" hideLabel fill emptyLabel="선택 안 함" placeholder="프로젝트" value={f.projectId}
-                             onChange={(v) => setF((x) => ({ ...x, projectId: v }))}
-                             items={projects.map((pj) => ({ value: String(pj.id), code: pj.code, name: pj.name }))} />
-          </div></li>
-          <li><div className="title">적요</div><div className="form">
-            <input className="ec-input w-full" placeholder="적요" value={f.remark}
-                   onChange={(e) => setF((x) => ({ ...x, remark: e.target.value }))} />
-          </div></li>
-        </ul>
-        {!editing && !pulled && (
-          <div className="flex gap-[4px] mt-[8px]">
-            {(['판매', '발주', '주문', '구매', '생산', '이동', 'A/S접수'] as PullKind[]).map((k) => <DocPullButton key={k} kind={k} onApply={applyPull} />)}
-          </div>
+        {open && (
+          <QualityRequestScreen editing={editing} items={items} projects={projects}
+                              onSaved={() => { setOpen(false); void load() }}
+                              onDeleted={() => { setOpen(false); void load() }}
+                              extraButtons={<button className="ec-btn" onClick={() => setOpen(false)}>닫기</button>} />
         )}
-        <table className="w-full ec-head700 mt-[8px]">
-          <thead><tr>
-            <th className="w-[34px]"></th>
-            <th className="w-[100px]">검사방법</th>
-            <th className="w-[180px]">품목코드</th>
-            <th>품목명</th>
-            <th className="w-[100px]">규격</th>
-            <th className="w-[100px] text-right">추가수량</th>
-            <th className="w-[100px] text-right">수량</th>
-          </tr></thead>
-          <tbody>
-            {lines.map((l, i) => {
-              const it = itemById.get(l.itemId)
-              return (
-                <tr key={i}>
-                  <td className="text-center">{i + 1}</td>
-                  <td>
-                    <select className="ec-input w-full" value={l.method} onChange={(e) => setLine(i, { method: e.target.value as Method })}>
-                      <option value="FULL">전수</option>
-                      <option value="SAMPLING">샘플링</option>
-                    </select>
-                  </td>
-                  <td>
-                    <CodePickerField label="품목" hideLabel fill emptyLabel="지우기" placeholder="품목코드" value={l.itemId}
-                                     onChange={(v) => setLine(i, { itemId: v })} items={itemPicks} />
-                  </td>
-                  <td>{it ? it.name : ''}</td>
-                  <td>{it?.spec ?? ''}</td>
-                  <td><input className="ec-input w-full text-right" aria-label={`${i + 1}줄 추가수량`} value={l.extraQty} disabled={!l.itemId}
-                             onChange={(e) => setLine(i, { extraQty: e.target.value, quantity: e.target.value })} /></td>
-                  <td><input className="ec-input w-full text-right" value={l.quantity} disabled={!l.itemId}
-                             onChange={(e) => setLine(i, { quantity: e.target.value })} /></td>
-                </tr>
-              )
-            })}
-          </tbody>
-          <tfoot><tr><td colSpan={5}></td><td className="text-right">{Math.round(totalExtra).toLocaleString('ko-KR')}</td><td className="text-right">{Math.round(totalQty).toLocaleString('ko-KR')}</td></tr></tfoot>
-        </table>
-        <div className="flex gap-[4px] mt-[9px]">
-          <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>저장(F8)</button>
-          {editing
-            ? <button className="ec-btn" onClick={async () => { if ((await ecConfirm('전표를 삭제하겠습니까?'))) void removeIds([editing.id]) }}>삭제</button>
-            : <button className="ec-btn" onClick={() => { setLines(emptyLines()); setPulled(false) }}>다시 작성</button>}
-          <button className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
-        </div>
       </Modal>
       <Modal error={error} open={statusOpen} title="진행상태변경" onClose={() => setStatusOpen(false)} width={320}>
         <p className="mb-[8px]">진행상태</p>

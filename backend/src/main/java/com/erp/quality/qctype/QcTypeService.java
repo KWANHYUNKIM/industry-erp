@@ -49,7 +49,7 @@ public class QcTypeService {
     public TypeResponse createType(CreateTypeRequest req) {
         String code = req.code().trim();
         if (typeRepository.existsByCode(code)) {
-            throw ApiException.conflict("이미 사용중인 품질검사유형코드입니다: " + code);
+            throw ApiException.conflict("이미 등록된 코드입니다."); // 원본 문구(2026-10-14 E040632 실측)
         }
         QcType t = typeRepository.save(QcType.builder().code(code).name(req.name().trim()).build());
         return new TypeResponse(t.getId(), t.getCode(), t.getName(), true, false, false);

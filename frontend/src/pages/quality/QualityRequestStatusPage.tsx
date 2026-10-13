@@ -381,7 +381,8 @@ export default function QualityRequestStatusPage() {
         )}
         <EcReportFoot />
       </>) : (<>
-      <EcReportHead title="품질검사요청현황내역" period={reportPeriod(from, to)} />
+      {/* 원본(2026-10-14): 자료가 없으면 머리글(제목 · 회사명 · 기간)과 [총합계] 줄 없이 '등록된 데이터가 없습니다.' 한 줄. */}
+      {(cmp || months.length > 0) && <EcReportHead title="품질검사요청현황내역" period={reportPeriod(from, to)} />}
       {cmp ? (
       <table ref={tableRef} className="w-full text-left">
         <thead>
@@ -466,12 +467,14 @@ export default function QualityRequestStatusPage() {
             </tr>,
           ])}
         </tbody>
+        {months.length > 0 && (
         <tfoot>
           <tr style={SUB_ROW}>
             <td colSpan={4} className="text-center">총합계</td>
             <td className="text-right">{qty(total)}</td>
           </tr>
         </tfoot>
+        )}
       </table>
       )}
       <EcReportFoot />

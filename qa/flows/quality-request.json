@@ -11,7 +11,7 @@
         "wait:600",
         "clicklast:저장(F8)",
         "wait:400",
-        "expect:document.body.innerText.includes('자료를 입력 바랍니다.')",
+        "expect:document.body.innerText.includes('그리드(표)에 최소 1줄 이상 입력되어야 합니다.')",
         "clicklast:닫기",
         "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const it = (await (await fetch('/api/items', { headers: H })).json()).filter((x) => x.active !== false); const r = await (await fetch('/api/quality-inspection-requests', { method: 'POST', headers: H, body: JSON.stringify({ requester: 'QA재고2', remark: 'QA재고2', lines: [{ itemId: it[0].id, method: 'FULL', quantity: 4 }, { itemId: it[1].id, method: 'SAMPLING', quantity: 2 }] }) })).json(); sessionStorage.setItem('qr', JSON.stringify({ id: r.id, items: [it[0].id, it[1].id], name: it[0].name })); return r.requestNo + ' ' + r.requestQty + ' ' + r.statusName })()",
         "js:location.reload(); true",

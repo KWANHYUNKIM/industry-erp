@@ -581,7 +581,7 @@
  ],
  [
   "품질검사요청입력",
-  "quality/QualityRequestPage.tsx"
+  "quality/QualityRequestEntryPage.tsx"
  ],
  [
   "창고등록",

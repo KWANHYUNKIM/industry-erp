@@ -2766,13 +2766,6 @@
   ],
   "in": "backend/src/main/java/com/erp/quality/inspectionrequest/QualityInspectionRequest.java"
  },
- "품질검사요청조회|품질검사요청No.": {
-  "claim": "원본 입력 화면은 같은 칸을 [일자-No.] 라 부른다",
-  "present": [
-   "일자-No."
-  ],
-  "file": "quality/QualityRequestPage.tsx"
- },
  "견적서조회|오더관리번호": {
   "claim": "견적에 오더관리 유형·진행단계를 걸지 않는다",
   "absent": [

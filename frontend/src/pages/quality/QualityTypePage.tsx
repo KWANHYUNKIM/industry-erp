@@ -132,7 +132,8 @@ export default function QualityTypePage() {
   async function bulkTypes(what: 'stop' | 'delete' | 'reuse') {
     const ids = [...typeChecks.checked]
     if (ids.length === 0) { setError('선택된 데이터가 없습니다.'); return }
-    if (what === 'delete' && !(await ecConfirm('삭제하시겠습니까?'))) return
+    /* 원본 확인 창 '삭제하겠습니까?'(2026-10-14 E040632 실측). */
+    if (what === 'delete' && !(await ecConfirm('삭제하겠습니까?'))) return
     const ok = await run(() => api.post('/quality-types/bulk', { ids, active: what === 'delete' ? null : what === 'reuse' }))
     if (ok) { typeChecks.clear(); void load() }
   }
@@ -284,12 +285,14 @@ export default function QualityTypePage() {
       </div>
 
       {/* 품질검사유형등록 */}
-      <Modal error={typeForm ? error : ''} open={typeForm != null} title="품질검사유형등록" width={760} onClose={() => setTypeForm(null)}>{typeForm && (
+      <Modal error={typeForm ? error : ''} open={typeForm != null} title={typeForm?.id != null ? '품질검사유형수정' : '품질검사유형등록'} width={760} onClose={() => setTypeForm(null)}>{typeForm && (
         <div>
           <div className="ec-form grid grid-cols-[130px_1fr] gap-y-[6px] items-center">
             <span className="text-ec-label">품질검사유형코드</span>
+            {/* 수정 창은 코드를 칸 없이 글자로만 적는다(2026-10-14 원본 '품질검사유형수정'). */}
+            {typeForm.id != null ? <span>{typeForm.code}</span> : (
             <input className={`ec-input ${typeInvalid && !typeForm.code.trim() ? 'border-ec-danger' : ''}`} aria-label="품질검사유형코드" placeholder="품질검사유형코드"
-                   value={typeForm.code} disabled={typeForm.id != null} onChange={(e) => setTypeForm({ ...typeForm, code: e.target.value })} />
+                   value={typeForm.code} onChange={(e) => setTypeForm({ ...typeForm, code: e.target.value })} />)}
             <span className="text-ec-label">품질검사유형명</span>
             <input className={`ec-input ${typeInvalid && !typeForm.name.trim() ? 'border-ec-danger' : ''}`} aria-label="품질검사유형명" placeholder="품질검사유형명"
                    value={typeForm.name} onChange={(e) => setTypeForm({ ...typeForm, name: e.target.value })} />

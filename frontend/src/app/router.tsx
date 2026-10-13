@@ -176,6 +176,7 @@ const ExpensePage = lazy(() => import('../pages/accounting/ExpensePage'))
 const IncomePage = lazy(() => import('../pages/accounting/IncomePage'))
 const QualityInspectionPage = lazy(() => import('../pages/quality/QualityInspectionPage'))
 const QualityRequestPage = lazy(() => import('../pages/quality/QualityRequestPage'))
+const QualityRequestEntryPage = lazy(() => import('../pages/quality/QualityRequestEntryPage'))
 const UninspectedPage = lazy(() => import('../pages/quality/UninspectedPage'))
 const QualityRequestStatusPage = lazy(() => import('../pages/quality/QualityRequestStatusPage'))
 const DefectReportPage = lazy(() => import('../pages/quality/DefectReportPage'))
@@ -800,7 +801,7 @@ export default function AppRouter() {
         <Route path="/quality/inspection-type" element={<QualityTypePage />} />
         <Route path="/quality/inspection-request" element={<QualityRequestPage />} />
         {/* 원본 품질검사요청입력(E040628) · 품질검사입력(E040621) 메뉴 — 같은 화면이 입력 창을 열고 뜬다. */}
-        <Route path="/quality/inspection-request-entry" element={<QualityRequestPage entry />} />
+        <Route path="/quality/inspection-request-entry" element={<QualityRequestEntryPage />} />
         <Route path="/quality/inspection-entry" element={<QualityInspectionPage entry />} />
         <Route path="/quality/uninspected" element={<UninspectedPage />} />
         <Route path="/quality/request-status" element={<QualityRequestStatusPage />} />

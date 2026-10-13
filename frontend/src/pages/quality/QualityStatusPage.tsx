@@ -305,44 +305,41 @@ export default function QualityStatusPage() {
             달마다 '2026/10 계' 소계와 맨 끝 [합계].
           */}
           <tr>
-            <th className="w-[34px]"></th>
-            <th className="cursor-pointer text-center" onClick={() => sort.toggle('검사일자')}>일자-No. {sort.mark('검사일자')}</th>
-            <th className="text-center">검사방법</th>
+            {/* 2026-10-14 원본: 앞 번호 칸 없음 · 머리에 ▼ 없음. */}
+            <th className="cursor-pointer" onClick={() => sort.toggle('검사일자')}>일자-No.</th>
+            <th>검사방법</th>
             <th>품목명[규격명]</th>
             <th className="text-right">수량</th>
             <th className="text-right">시료</th>
             <th className="text-right">적격</th>
             <th className="text-right">부적격</th>
-            <th className="text-center">합격여부</th>
+            <th>합격여부</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={9} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={8} className="ec-empty">불러오는 중…</td></tr>
           ) : listRows.length === 0 ? (
-            <tr><td colSpan={9} className="text-center text-ec-hint p-[20px]">
-              {rows.length === 0 ? '품질검사 내역이 없습니다.' : '검색조건에 맞는 자료가 없습니다.'}
-            </td></tr>
+            <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : listRows.flatMap((x, i) => {
             const out = [
               <tr key={x.key}>
-                <td className="text-center text-ec-hint">{i + 1}</td>
-                {/* 원본은 일자와 번호를 한 칸에 적는다(일별 · 월별은 날짜 · 달만). */}
-                <td className="text-center">{x.dateCell}</td>
-                <td className="text-center">{x.l.methodName}</td>
+                {/* 원본은 일자와 번호를 한 칸에 적는다(일별 · 월별은 날짜 · 달만). 일자 · 검사방법 · 합격여부는 왼쪽 정렬(2026-10-14 실측). */}
+                <td>{x.dateCell}</td>
+                <td>{x.l.methodName}</td>
                 <td>{x.l.itemName}{x.l.spec ? ` [${x.l.spec}]` : ''}</td>
                 <td className="text-right">{qty2(x.qty)}</td>
                 <td className="text-right">{qty2(x.sample)}</td>
                 <td className="text-right">{qty2(x.good)}</td>
                 <td className="text-right">{x.defect === 0 ? '' : qty2(x.defect)}</td>
-                <td className="text-center">{x.l.passResultName}</td>
+                <td>{x.l.passResultName}</td>
               </tr>,
             ]
             if (i === listRows.length - 1 || listRows[i + 1].month !== x.month) {
               const t = sumOf(listRows.filter((y) => y.month === x.month))
               out.push(
                 <tr key={`${x.month}-계`} className="ec-list-total">
-                  <td colSpan={4} className="text-center font-bold">{x.month.replace('-', '/')} 계</td>
+                  <td colSpan={3} className="text-center font-bold">{x.month.replace('-', '/')} 계</td>
                   <td className="text-right font-bold">{qty2(t.qty)}</td>
                   <td className="text-right font-bold">{qty2(t.sample)}</td>
                   <td className="text-right font-bold">{qty2(t.good)}</td>
@@ -358,7 +355,7 @@ export default function QualityStatusPage() {
           const t = sumOf(listRows)
           return (
             <tfoot><tr className="ec-total">
-              <td colSpan={4} className="text-center">합계</td>
+              <td colSpan={3} className="text-center">합계</td>
               <td className="text-right">{qty2(t.qty)}</td>
               <td className="text-right">{qty2(t.sample)}</td>
               <td className="text-right">{qty2(t.good)}</td>

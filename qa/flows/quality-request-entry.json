@@ -1,0 +1,28 @@
+{
+  "about": "품질검사요청입력(E040628) 따로 된 입력 화면 — 2026-10-14 원본: 메뉴가 조회 화면의 창이 아니라 입력 화면을 연다. 빈 저장은 '그리드(표)에 최소 1줄 이상 입력되어야 합니다.', 담당자를 비우고 저장하면 현황 [담당자명] 빈칸, 저장하면 빈 입력으로 남는다(아래 'HH:MM 임시저장되었습니다.'). 만든 요청은 지운다.",
+  "shots": [
+    {
+      "name": "빈 저장 막힘 → ITM-0001 × 3 저장 → 빈 입력 · 임시저장 안내 → 담당자 빈칸 → 지움",
+      "path": "/quality/inspection-request-entry",
+      "steps": [
+        "wait:1500",
+        "expect:document.body.innerText.includes('품질검사요청입력') && !document.querySelector('[role=dialog]')",
+        "clicklast:저장(F8)",
+        "wait:400",
+        "expect:document.body.innerText.includes('그리드(표)에 최소 1줄 이상 입력되어야 합니다.')",
+        "js:document.querySelector('input[placeholder=\"품목코드\"]').dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }))",
+        "wait:600",
+        "pickrow:ITM-0001",
+        "wait:400",
+        "set:input[aria-label=\"1줄 수량\"]|3",
+        "clicklast:저장(F8)",
+        "wait:1200",
+        "expect:document.body.innerText.includes('임시저장되었습니다.')",
+        "expect:document.querySelector('input[aria-label=\"1줄 수량\"]').value === '' && !document.body.innerText.includes('그리드(표)')",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const rs = await (await fetch('/api/quality-inspection-requests', { headers: H })).json(); const r = rs.filter((x) => x.lines?.[0]?.itemCode === 'ITM-0001' && Number(x.requestQty) === 3).sort((a, b) => b.id - a.id)[0]; sessionStorage.setItem('qre', JSON.stringify({ id: r?.id, requester: r?.requester ?? null })); return JSON.stringify({ id: r?.id, requester: r?.requester }) })()",
+        "expect:(() => { const x = JSON.parse(sessionStorage.getItem('qre') || '{}'); return !!x.id && x.requester === null })()",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const x = JSON.parse(sessionStorage.getItem('qre')); await fetch('/api/quality-inspection-requests/' + x.id, { method: 'DELETE', headers: H }); return 'deleted ' + x.id })()"
+      ]
+    }
+  ]
+}

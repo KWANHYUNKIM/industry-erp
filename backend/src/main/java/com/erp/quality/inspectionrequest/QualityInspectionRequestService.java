@@ -54,7 +54,11 @@ public class QualityInspectionRequestService {
     @Transactional
     public RequestResponse create(CreateRequestReq req, String username) {
         LocalDate date = req.requestDate() != null ? req.requestDate() : LocalDate.now();
-        String requester = (req.requester() != null && !req.requester().isBlank()) ? req.requester() : username;
+        /*
+         * 담당자를 안 보내면(구매 · 판매 입력이 만드는 요청) 로그인 사용자, 빈 글자로 보내면(입력 화면에서 비움) 빈칸 —
+         * 원본 품질검사요청입력은 담당자를 비우고 저장하면 현황 [담당자명] 이 빈칸이다(2026-10-14 실측).
+         */
+        String requester = req.requester() == null ? username : (req.requester().isBlank() ? null : req.requester());
         QualityInspectionRequest r = QualityInspectionRequest.builder()
                 .requestNo(generateNo(date))
                 .requestDate(date)
@@ -71,7 +75,7 @@ public class QualityInspectionRequestService {
     public RequestResponse update(Long id, CreateRequestReq req) {
         QualityInspectionRequest r = getRequest(id);
         if (req.type() != null) r.setType(req.type());
-        if (req.requester() != null && !req.requester().isBlank()) r.setRequester(req.requester());
+        if (req.requester() != null) r.setRequester(req.requester().isBlank() ? null : req.requester());
         applyContent(r, req);
         requestRepository.flush();
         refreshStatus(r);
