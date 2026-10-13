@@ -1,0 +1,30 @@
+{
+  "about": "관리 > 사원등록 [기타설정](E090101) · 급여계산(E090106) — 원본 2026-10-14 실측: 신규 사원 창의 건강보험 · 국민연금 · 고용보험 처음 값은 '안함'(증번호 · 보험료경감 · 장기요양 칸은 감춤). 그 사원(변동급)에 야근 3시간 × 10,000 → 확정 → 급여 = 야근 30,000 · 4대보험 없음 · 실지급 30,000. 귀속월 2일 이후 입사(넷 다 자동계산)면 그 달 국민연금 · 건강 · 장기요양 · 고용 모두 셈하지 않고, 1일 입사면 셈한다(원본 1,000,000 → 47,500 · 36,300 · 4,760 · 9,090). 시험 사원 · 수당 · 근무 · 명세는 지운다.",
+  "shots": [
+    {
+      "name": "새 사원 4대보험 안함 → 야근 30,000 / 입사월 규칙 → 정리",
+      "path": "/hr/employees",
+      "steps": [
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const r=await fetch('/api/pay-settings/items',{method:'POST',headers:h,body:JSON.stringify({code:'QAINS',name:'QA관리-야근',kind:'ALLOWANCE',defaultAmount:10000,sortOrder:97,payMethod:'HOURLY',taxFreeType:'NONE'})});return r.ok})()",
+        "js:location.reload();true",
+        "wait:4000",
+        "click:신규(F2)",
+        "wait:800",
+        "set:[role=dialog] input[placeholder=성명]|QA관리-신규보험",
+        "js:[...document.querySelectorAll('[role=dialog] button')].find(b=>b.textContent.trim()==='기타설정').click();true",
+        "wait:300",
+        "expect:[...document.querySelectorAll('[role=dialog] input[name=eps-health]')][2].checked&&[...document.querySelectorAll('[role=dialog] input[name=eps-pension]')][1].checked&&[...document.querySelectorAll('[role=dialog] input[name=eps-employment]')][2].checked",
+        "expect:!document.querySelector('[role=dialog] input[placeholder=증번호]')&&!document.querySelector('[role=dialog] input[name=eps-care]')",
+        "js:[...document.querySelectorAll('[role=dialog] button')].find(b=>b.textContent.trim()==='급여지급사항').click();true",
+        "wait:300",
+        "js:[...document.querySelectorAll('[role=dialog] input[name=emp-form-pay]')][1].click();true",
+        "clicklast:저장(F8)",
+        "wait:1200",
+        "expect:!document.querySelector('[role=dialog]')",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const e=(await (await fetch('/api/employees/all',{headers:h})).json()).find(x=>x.name==='QA관리-신규보험');const s=await (await fetch('/api/pay-settings/employees/'+e.id+'/settings',{headers:h})).json();const it=(await (await fetch('/api/pay-settings/items',{headers:h})).json()).find(x=>x.code==='QAINS');await fetch('/api/work-records',{method:'POST',headers:h,body:JSON.stringify({slipDate:'2091-03-10',lines:[{workDate:'2091-03-10',employeeId:e.id,payItemId:it.id,quantity:3}]})});const ld=await (await fetch('/api/work-records/confirms/2091-03/load',{headers:h})).json();await fetch('/api/work-records/confirms/2091-03',{method:'PUT',headers:h,body:JSON.stringify(ld.filter(r=>r.employeeId===e.id).map(r=>({employeeId:r.employeeId,payItemId:r.payItemId,quantity:r.quantity})))});const pay=async()=>{const p=await (await fetch('/api/payslips',{method:'POST',headers:h,body:JSON.stringify({employeeId:e.id,payMonth:'2091-03'})})).json();const g=n=>Number(((p.lines||[]).find(l=>l.name===n)||{}).amount||0);const r=[g('QA관리-야근'),['국민연금','건강보험','장기요양보험','고용보험'].map(g).join(','),Number(p.totalDeduction??p.deductionTotal??0),Number(p.netPay??0)].join('/');if(p.id)await fetch('/api/payslips/'+p.id,{method:'DELETE',headers:h});return r};const a=await pay();await fetch('/api/pay-settings/employees/'+e.id+'/settings',{method:'PUT',headers:h,body:JSON.stringify({...s,healthMode:'AUTO',pensionMode:'AUTO',employmentMode:'AUTO'})});const put=d=>fetch('/api/employees/'+e.id,{method:'PUT',headers:h,body:JSON.stringify({name:e.name,hireDate:d,payType:'VARIABLE',baseSalary:1000000,active:true})});await put('2091-03-14');const b=await pay();await put('2091-03-01');const c=await pay();sessionStorage.setItem('qaIns',[s.healthMode+s.pensionMode+s.employmentMode,a,b,c].join('|'));return true})()",
+        "expect:(()=>{const [m,a,b,c]=sessionStorage.getItem('qaIns').split('|');const ok=m==='NONENONENONE'&&a.startsWith('30000/0,0,0,0/')&&a.endsWith('/30000')&&b.split('/')[1]==='0,0,0,0'&&c.split('/')[1].split(',').every(v=>Number(v)>0);if(!ok)console.log('qaIns',sessionStorage.getItem('qaIns'));return ok})()",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'};const e=(await (await fetch('/api/employees/all',{headers:h})).json()).find(x=>x.name==='QA관리-신규보험');await fetch('/api/work-records/confirms/2091-03',{method:'DELETE',headers:h});const sl=(await (await fetch('/api/work-records?from=2091-03-01&to=2091-03-31',{headers:h})).json()).filter(x=>x.employeeLabel==='QA관리-신규보험');for(const x of sl)await fetch('/api/work-records/'+x.slipDate+'/'+x.slipNo,{method:'DELETE',headers:h});await fetch('/api/employees/'+e.id,{method:'DELETE',headers:h});const it=(await (await fetch('/api/pay-settings/items',{headers:h})).json()).find(x=>x.code==='QAINS');if(it)await fetch('/api/pay-settings/items/'+it.id,{method:'DELETE',headers:h});return true})()"
+      ]
+    }
+  ]
+}

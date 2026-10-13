@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import EcPeriodPicks, { STATUS_PICKS } from '../../components/EcPeriodPicks'
 import { EcCond } from '../../components/EcStatusPanel'
@@ -23,21 +23,22 @@ export default function AssignmentStatusPage() {
   const [lines, setLines] = useState<AssignmentLine[]>([])
   const [shownRange, setShownRange] = useState(range)
   const [error, setError] = useState('')
+  /** 원본은 [검색(F8)] 을 누르기 전에는 조건 판만 있고 격자가 없다(2026-10-14 실측). */
+  const [searched, setSearched] = useState(false)
   const tableRef = useRef<HTMLTableElement>(null)
 
   function search() {
     setError('')
     api.get<AssignmentLine[]>('/employees/assignment-slips', { params: { from: range.from, to: range.to } })
-      .then((r) => { setLines(r.data); setShownRange(range) }).catch((e) => setError(extractErrorMessage(e)))
+      .then((r) => { setLines(r.data); setShownRange(range); setSearched(true) }).catch((e) => setError(extractErrorMessage(e)))
   }
-  useEffect(() => { search() }, [])
 
   const shown = lines.filter((l) => matchAssignment(conds, l)
     && (employment === 'all' || (employment === 'active') === l.employeeActive))
   useTableColumnCheck(tableRef, '인사발령현황', [shown.length])
 
   return (
-    <EcListShell title="인사발령현황" searchable={false} collapseConditions={false} actions={[{ label: '인쇄' }, { label: 'Excel' }]}>
+    <EcListShell title="인사발령현황" searchable={false} actions={[{ label: '인쇄' }, { label: 'Excel' }]}>
       <ul className="ec-cond mb-[8px]">
         <AssignmentConds value={conds} onChange={setConds} lines={lines} />
         <EcCond label="재직구분">
@@ -47,19 +48,25 @@ export default function AssignmentStatusPage() {
             </label>
           ))}
         </EcCond>
+        {/* 원본 조건 판 끝 줄 [검색(F8)] 금일 … 설정 [다시 작성] — 판 안이라 누르면 셸이 판을 접는다 */}
+        <li className="wide">
+          <div className="flex flex-wrap items-center gap-[6px]">
+            <button type="button" className="ec-btn ec-btn-primary" onClick={search}>검색(F8)</button>
+            <EcPeriodPicks labels={STATUS_PICKS} currentFrom={range.from} onPick={(r) => setConds({ ...conds, range: r })} />
+            <button type="button" className="ec-btn" onClick={() => { setConds(initialAssignmentConds); setEmployment('all') }}>다시 작성</button>
+          </div>
+        </li>
       </ul>
-      <div className="flex flex-wrap items-center gap-[6px] mb-[8px]">
-        <button type="button" className="ec-btn ec-btn-primary" onClick={search}>검색(F8)</button>
-        <EcPeriodPicks labels={STATUS_PICKS} currentFrom={range.from} onPick={(r) => setConds({ ...conds, range: r })} />
-      </div>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {searched && <>
       <EcReportHead title="인사발령현황" period={reportPeriod(shownRange.from, shownRange.to)} />
       <div className="overflow-x-auto">
-        <table ref={tableRef} className="w-full text-left">
+        {/* 원본 출력물 격자(머리 6px 3px 3px · 27.6 / 본문 3px · 24.1 · 선 1px), 일자-No. · 발령일자만 가운데 */}
+        <table ref={tableRef} className="ec-report w-full text-left">
           <thead>
             <tr>
-              <th>일자-No.</th>
-              <th>발령일자</th>
+              <th className="text-center">일자-No.</th>
+              <th className="text-center">발령일자</th>
               <th>사번</th>
               <th>성명</th>
               <th>발령구분명</th>
@@ -76,8 +83,8 @@ export default function AssignmentStatusPage() {
               <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : shown.map((l) => (
               <tr key={l.id}>
-                <td>{slipLabel(l)}</td>
-                <td>{l.assignDate.replace(/-/g, '/')}</td>
+                <td className="text-center">{slipLabel(l)}</td>
+                <td className="text-center">{l.assignDate.replace(/-/g, '/')}</td>
                 <td>{l.employeeCode}</td>
                 <td>{l.employeeName}</td>
                 <td>{l.typeName}</td>
@@ -93,6 +100,7 @@ export default function AssignmentStatusPage() {
         </table>
       </div>
       <EcReportFoot />
+      </>}
     </EcListShell>
   )
 }

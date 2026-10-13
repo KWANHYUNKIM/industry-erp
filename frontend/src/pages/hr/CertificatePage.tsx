@@ -199,7 +199,7 @@ export default function CertificatePage() {
         </tbody>
       </table>
 
-      <Modal error={formError} open={formOpen} title="각종증명서등록" width={780} onClose={() => setFormOpen(false)}>
+      <Modal error={formError} open={formOpen} title="각종증명서등록" width={960} onClose={() => setFormOpen(false)}>
         <ul className="ec-form">
           <li className="wide">
             <span className="title">증명서종류</span>
