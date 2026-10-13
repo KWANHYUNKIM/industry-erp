@@ -16,7 +16,7 @@ const PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)
 
 const qty = (n: number) => Number(n).toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
-/** 출력물 한 줄 — 거래처 · 계약 · 항목이 같은 청구자료 줄을 더한 것. */
+/** 출력물 한 줄 — 거래처 하나의 청구자료 줄을 더한 것. */
 interface PrintRow {
   key: string; partnerId: number; partnerName: string; contractName: string; itemName: string
   quantity: number; supplyAmount: number; vatAmount: number; lines: BillLineView[]
@@ -34,8 +34,10 @@ interface PrintRow {
  * [상세] → '상세청구예정자료리스트' 창: 회사명 : … / 거래처명 · 기간, 거래처명 · 계약명 · 월/일(청구생성번호 '2026/10/13 -4') · 항목명 ·
  * 수량 · 공급가액 · 부가세 · 합계 · 적요, '합계'. 버튼 인쇄 · Email.
  *
- * <p>원본에서 줄 하나만 봐서 <b>묶는 단위</b>는 재지 못했다 — [상세] 가 청구생성번호를 따로 보여 주므로 본 판은 거래처 · 계약 · 항목으로
- * 묶는다고 보고, [상세] 는 그 거래처의 줄을 연다(창 머리가 '/ 거래처명' 이다). Email 은 바깥으로 나가는 일이라 막아 둔다.
+ * <p><b>거래처 하나가 한 줄</b>이다 — 같은 계약 줄로 청구자료를 한 장 더(2026/10/13 -5, 1 × 40,000) 만들었더니
+ * 'QA회계2-청구거래처 · QA회계2-청구인쇄 외 1건 · 이카운트 사용료 외 1건 · 3.00 · 120,000 · 12,000 · 132,000' 한 줄이 됐다
+ * ('외 N건' 은 같은 계약 · 항목이어도 청구자료 줄 수로 센다). [상세] 는 그 거래처의 줄을 연다(창 머리가 '/ 거래처명').
+ * Email 은 바깥으로 나가는 일이라 막아 둔다.
  * 거래처코드없는자료인쇄는 우리 거래처가 모두 코드를 가져 거를 것이 없다.
  */
 export default function ContractBillPrintPage() {
@@ -67,13 +69,16 @@ export default function ContractBillPrintPage() {
     applyFilter(rows, filter)
       .filter((r) => noCode || !!r.partnerCode)
       .forEach((r) => {
-        const key = `${r.partnerId}-${r.contractId}-${r.itemId}`
+        const key = String(r.partnerId)
         const g = m.get(key) ?? { key, partnerId: r.partnerId, partnerName: r.partnerName, contractName: r.contractName ?? r.contractCode,
           itemName: r.itemName, quantity: 0, supplyAmount: 0, vatAmount: 0, lines: [] }
         g.quantity += Number(r.quantity); g.supplyAmount += Number(r.supplyAmount); g.vatAmount += Number(r.vatAmount); g.lines.push(r)
         m.set(key, g)
       })
-    return [...m.values()].sort((a, b) => a.partnerName.localeCompare(b.partnerName) || a.contractName.localeCompare(b.contractName))
+    const more = (name: string, n: number) => (n > 1 ? `${name} 외 ${n - 1}건` : name)
+    return [...m.values()]
+      .map((g) => ({ ...g, contractName: more(g.contractName, g.lines.length), itemName: more(g.itemName, g.lines.length) }))
+      .sort((a, b) => a.partnerName.localeCompare(b.partnerName))
   }, [rows, filter, noCode])
   useTableColumnCheck(tableRef, '청구예정자료리스트', [printRows.length])
   const sum = (list: { quantity: number; supplyAmount: number; vatAmount: number }[], k: 'quantity' | 'supplyAmount' | 'vatAmount') =>
