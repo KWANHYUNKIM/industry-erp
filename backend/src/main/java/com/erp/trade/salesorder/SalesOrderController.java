@@ -6,6 +6,7 @@ import com.erp.trade.salesorder.dto.SalesOrderDtos.ShipRequest;
 import com.erp.trade.salesorder.dto.SalesOrderDtos.UnshippedLineResponse;
 import com.erp.trade.salesorder.dto.SalesOrderDtos.UnsoldLineResponse;
 import com.erp.trade.salesorder.dto.SalesOrderDtos.UpdateStatusRequest;
+import com.erp.trade.salesorder.dto.SalesOrderDtos.UpdateSalesOrderRequest;
 import com.erp.trade.shipment.dto.ShipmentDtos.ShipmentResponse;
 import com.erp.security.UserPrincipal;
 import com.erp.trade.shipment.ShipmentService;
@@ -58,6 +59,12 @@ public class SalesOrderController {
             @Valid @RequestBody CreateSalesOrderRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(salesOrderService.create(req, principal.getUsername()));
+    }
+
+    /** 주문수정 — 원본 주문서조회에서 [일자-No.] 를 눌러 뜨는 창. */
+    @PutMapping("/{id}")
+    public SalesOrderResponse update(@PathVariable Long id, @Valid @RequestBody UpdateSalesOrderRequest req) {
+        return salesOrderService.update(id, req);
     }
 
     @PatchMapping("/{id}/status")

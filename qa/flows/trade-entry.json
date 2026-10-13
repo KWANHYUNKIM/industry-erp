@@ -38,7 +38,7 @@
       "name": "주문서 등록 — 매출처·품목을 코드도움으로(9회차까지 긴 드롭다운이었다)",
       "path": "/sales/orders",
       "steps": [
-        "click:수주등록",
+        "click:신규(F2)",
         "click:매출처 선택",
         "pickrow:QA-CUST",
         "click:품목 선택",

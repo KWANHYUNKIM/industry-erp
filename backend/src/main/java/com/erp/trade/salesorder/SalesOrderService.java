@@ -10,6 +10,7 @@ import com.erp.common.DocumentNoGenerator;
 import com.erp.trade.partner.BusinessPartner;
 import com.erp.inventory.item.Item;
 import com.erp.trade.salesorder.dto.SalesOrderDtos.CreateSalesOrderRequest;
+import com.erp.trade.salesorder.dto.SalesOrderDtos.UpdateSalesOrderRequest;
 import com.erp.trade.salesorder.dto.SalesOrderDtos.OrderLineRequest;
 import com.erp.trade.salesorder.dto.SalesOrderDtos.SalesOrderResponse;
 import com.erp.trade.salesorder.dto.SalesOrderDtos.UnshippedLineResponse;
@@ -195,15 +196,52 @@ public class SalesOrderService {
                 .warehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()))
                 .project(req.projectId() == null ? null : projectService.get(req.projectId()))
                 .employee(req.employeeId() == null ? null : employeeService.get(req.employeeId()))
-                .status(SalesOrderStatus.RECEIVED)
+                /* 원본은 저장하자마자 [진행상태] 가 '진행중' 이다(2026-10-13 실측 — 접수 단계가 없다). */
+                .status(SalesOrderStatus.IN_PROGRESS)
                 .remark(req.remark())
                 .createdBy(username)
                 .build();
 
+        fillLines(order, req.lines(), taxable);
+        return SalesOrderResponse.from(salesOrderRepository.save(order));
+    }
+
+    /**
+     * 주문수정(원본 [일자-No.] 를 눌러 뜨는 창). 일자는 고치지 않는다 — 번호가 일자에 묶여 있다.
+     *
+     * <p>출하가 붙은 주문은 막는다. 출하 줄이 주문 <b>줄</b>을 가리키므로 줄을 갈아 끼우면
+     * 출하의 근거가 사라진다(미출하 잔량도 엉뚱해진다). 판매는 주문 머리와 품목으로만 잇기 때문에
+     * 고쳐도 미판매 잔량이 새 수량으로 다시 셈해진다.
+     */
+    @Transactional
+    public SalesOrderResponse update(Long id, UpdateSalesOrderRequest req) {
+        SalesOrder order = salesOrderRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("주문서를 찾을 수 없습니다. id=" + id));
+        if (shipmentRepository.existsBySalesOrderId(id)) {
+            throw ApiException.conflict("출하가 있어 고칠 수 없습니다. 먼저 출하를 지우세요: " + order.getOrderNo());
+        }
+        BusinessPartner partner = TradeMasters.requireUsable(partnerRepository.findById(req.partnerId())
+                .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + req.partnerId())));
+        if (!partner.getType().canSell()) {
+            throw ApiException.badRequest("매출처가 아닌 거래처에는 주문을 받을 수 없습니다: " + partner.getName());
+        }
+        order.setPartner(partner);
+        order.setDueDate(req.dueDate());
+        order.setWarehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()));
+        order.setProject(req.projectId() == null ? null : projectService.get(req.projectId()));
+        order.setEmployee(req.employeeId() == null ? null : employeeService.get(req.employeeId()));
+        order.setRemark(req.remark());
+        order.getLines().clear();
+        fillLines(order, req.lines(), req.taxable() == null || req.taxable());
+        refreshProgress(order);
+        return SalesOrderResponse.from(order);
+    }
+
+    private void fillLines(SalesOrder order, List<OrderLineRequest> reqLines, boolean taxable) {
         BigDecimal totalSupply = BigDecimal.ZERO;
         BigDecimal totalVat = BigDecimal.ZERO;
 
-        for (OrderLineRequest lr : req.lines()) {
+        for (OrderLineRequest lr : reqLines) {
             Item item = itemService.getUsable(lr.itemId());
             BigDecimal supply = VatAllocator.lineSupply(lr.quantity(), lr.unitPrice());
             BigDecimal vat = taxable ? supply.multiply(VAT_RATE).setScale(0, RoundingMode.HALF_UP) : BigDecimal.ZERO;
@@ -223,8 +261,6 @@ public class SalesOrderService {
         order.setSupplyAmount(totalSupply);
         order.setVatAmount(totalVat);
         order.setTotalAmount(totalSupply.add(totalVat));
-
-        return SalesOrderResponse.from(salesOrderRepository.save(order));
     }
 
     /**

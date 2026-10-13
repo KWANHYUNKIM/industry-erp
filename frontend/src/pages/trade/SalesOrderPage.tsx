@@ -21,7 +21,7 @@ const STATUS_LABEL: Record<OrderStatus, string> = { RECEIVED: '접수', IN_PROGR
 const STATUS_COLOR: Record<OrderStatus, string> = { RECEIVED: 'var(--ec-warn)', IN_PROGRESS: 'var(--ec-blue)', COMPLETED: 'var(--ec-success)', CANCELED: 'var(--ec-text-hint)' }
 const NEXT: Record<OrderStatus, OrderStatus | null> = { RECEIVED: 'IN_PROGRESS', IN_PROGRESS: 'COMPLETED', COMPLETED: null, CANCELED: null }
 
-interface OrderLine { itemId: number; itemName: string; unit: string; quantity: number; unitPrice: number; supplyAmount: number; vatAmount: number }
+interface OrderLine { itemId: number; itemName: string; spec?: string | null; unit: string; quantity: number; unitPrice: number; supplyAmount: number; vatAmount: number }
 interface SalesOrder {
   id: number; orderNo: string; partnerId: number; partnerName: string
   orderDate: string; dueDate: string | null; status: OrderStatus; statusName: string
@@ -32,6 +32,7 @@ interface SalesOrder {
   projectName: string | null
   /** 원본 [기타]의 [수정일자순(정렬)] 축. */
   updatedAt?: string | null
+  employeeId?: number | null
   employeeName: string | null
   supplyAmount: number; vatAmount: number; totalAmount: number; remark: string | null; lines: OrderLine[]
 }
@@ -63,6 +64,10 @@ export default function SalesOrderPage() {
   const [error, setError] = useState('')
   const [ok, setOk] = useState('')
   const [showForm, setShowForm] = useState(false)
+  /** 주문수정 — 원본은 [일자-No.] 를 누르면 같은 입력 창이 '주문수정' 으로 뜬다(2026-10-13 실측). */
+  const [editId, setEditId] = useState<number | null>(null)
+  /** 원본 목록 첫 칸의 체크 — [선택삭제] 가 이것을 지운다. */
+  const [checked, setChecked] = useState<Set<number>>(new Set())
   const [keyword, setKeyword] = useState('')
   const [statusFilter, setStatusFilter] = useState<'ALL' | OrderStatus>('ALL')
 
@@ -127,19 +132,68 @@ export default function SalesOrderPage() {
       .map((l) => ({ itemId: Number(l.itemId), quantity: Number(l.quantity), unitPrice: Number(l.unitPrice) }))
     if (!partnerId) return setError('거래처를 선택하세요.')
     if (validLines.length === 0) return setError('품목·수량·단가를 1줄 이상 입력하세요.')
+    const body = {
+      partnerId: Number(partnerId), dueDate: dueDate || undefined,
+      warehouseId: fWarehouse ? Number(fWarehouse) : undefined,
+      projectId: fProject ? Number(fProject) : undefined,
+      employeeId: fEmployee ? Number(fEmployee) : undefined,
+      taxable, remark: remark || undefined, lines: validLines,
+    }
     try {
-      const res = await api.post<SalesOrder>('/sales-orders', {
-        partnerId: Number(partnerId), orderDate, dueDate: dueDate || undefined,
-        warehouseId: fWarehouse ? Number(fWarehouse) : undefined,
-        projectId: fProject ? Number(fProject) : undefined,
-        employeeId: fEmployee ? Number(fEmployee) : undefined,
-        taxable, remark: remark || undefined, lines: validLines,
-      })
+      if (editId != null) {
+        /* 원본 주문수정: 저장하면 창이 닫히고 목록이 새 금액으로 다시 읽힌다. */
+        await api.put<SalesOrder>(`/sales-orders/${editId}`, body)
+        closeForm()
+        load()
+        return
+      }
+      const res = await api.post<SalesOrder>('/sales-orders', { ...body, orderDate })
       setOk(`${res.data.orderNo} 수주 등록 완료 (합계 ${won(res.data.totalAmount)}원)`)
       setLines([emptyLine()]); setRemark(''); setDueDate('')
       setFWarehouse(''); setFProject(''); setFEmployee('')
       load()
     } catch (err) { setError(extractErrorMessage(err)) }
+  }
+
+  function closeForm() {
+    setShowForm(false); setEditId(null); setError(''); setOk('')
+    setPartnerId(''); setOrderDate(today()); setDueDate(''); setTaxable(true); setRemark('')
+    setFWarehouse(''); setFProject(''); setFEmployee(''); setLines([emptyLine()])
+  }
+
+  function openEdit(o: SalesOrder) {
+    setError(''); setOk('')
+    setEditId(o.id)
+    setPartnerId(String(o.partnerId)); setOrderDate(o.orderDate); setDueDate(o.dueDate ?? '')
+    setTaxable(o.vatAmount > 0 || o.supplyAmount === 0); setRemark(o.remark ?? '')
+    setFWarehouse(o.warehouseId ? String(o.warehouseId) : '')
+    setFProject(o.projectId ? String(o.projectId) : '')
+    setFEmployee(o.employeeId ? String(o.employeeId) : '')
+    setLines([...o.lines.map((l) => ({ itemId: String(l.itemId), quantity: String(l.quantity), unitPrice: String(l.unitPrice) })), emptyLine()])
+    setShowForm(true)
+  }
+
+  /** 수정 창의 [삭제] — 원본 확인 문구 '전표를 삭제하겠습니까? - 주문서'. */
+  async function removeEditing() {
+    if (editId == null) return
+    if (!confirm('전표를 삭제하겠습니까?\n- 주문서')) return
+    try { await api.delete(`/sales-orders/${editId}`); closeForm(); load() }
+    catch (err) { setError(extractErrorMessage(err)) }
+  }
+
+  /** [선택삭제] — 고른 주문을 하나씩 지운다. 막힌 것(출하 · 판매가 붙은 것)은 이유를 모아 알린다. */
+  async function removeChecked() {
+    const ids = [...checked]
+    if (ids.length === 0) return alert('선택된 전표가 없습니다.')
+    if (!confirm(`전표를 삭제하겠습니까?\n- 주문서 ${ids.length}건`)) return
+    const fails: string[] = []
+    for (const id of ids) {
+      try { await api.delete(`/sales-orders/${id}`) }
+      catch (err) { fails.push(extractErrorMessage(err)) }
+    }
+    setChecked(new Set())
+    load()
+    if (fails.length) alert(fails.join('\n'))
   }
 
   async function advance(o: SalesOrder) {
@@ -151,12 +205,6 @@ export default function SalesOrderPage() {
   async function cancel(o: SalesOrder) {
     if (!confirm(`${o.orderNo} 주문을 취소할까요?`)) return
     try { await api.patch(`/sales-orders/${o.id}/status`, { status: 'CANCELED' }); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
-  }
-
-  async function remove(o: SalesOrder) {
-    if (!confirm(`${o.orderNo} 주문을 삭제할까요? 되돌릴 수 없습니다.`)) return
-    try { await api.delete(`/sales-orders/${o.id}`); load() }
     catch (err) { alert(extractErrorMessage(err)) }
   }
 
@@ -191,13 +239,13 @@ export default function SalesOrderPage() {
       title="주문서조회"
       search={keyword}
       onSearchChange={setKeyword}
-      newLabel={showForm ? '입력닫기' : '수주등록(F2)'}
-      onNew={() => setShowForm(true)}
-      actions={[{ label: 'Excel' }, { label: '인쇄' }]}
+      newLabel="신규(F2)"
+      onNew={() => { closeForm(); setShowForm(true) }}
+      actions={[{ label: '선택삭제', onClick: removeChecked, disabled: checked.size === 0 }, { label: 'Excel' }, { label: '인쇄' }]}
     >
       <p className="mb-2 text-xs text-ec-hint">매출처로부터 받은 주문(수주) 관리 · 접수 → 진행중 → 완료. 실제 출고는 판매입력에서.</p>
 
-      <Modal open={showForm} title="주문서입력" width={900} onClose={() => setShowForm(false)}>{(
+      <Modal open={showForm} title={editId != null ? '주문수정' : '주문서입력'} width={900} onClose={closeForm}>{(
         <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 12, marginBottom: 10 }}>
           <table className="w-full text-left mb-[8px] max-w-[820px]">
             <tbody>
@@ -253,7 +301,9 @@ export default function SalesOrderPage() {
               </tr>
               <tr>
                 <th style={th}>수주일자</th>
-                <td><input type="date" className={inputCls} value={orderDate} onChange={(e) => setOrderDate(e.target.value)} style={{ width: 150 }} /></td>
+                <td><input type="date" className={inputCls} value={orderDate} onChange={(e) => setOrderDate(e.target.value)} style={{ width: 150 }}
+                  /* 주문수정에서는 원본도 일자가 잠긴다 — 번호가 일자에 묶여 있다. */
+                  disabled={editId != null} /></td>
                 <th style={th}>납기일자</th>
                 <td><input type="date" className={inputCls} value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={{ width: 150 }} /></td>
               </tr>
@@ -303,6 +353,8 @@ export default function SalesOrderPage() {
           <div className="mt-[8px] flex items-center gap-[8px]">
             <input className={inputCls} placeholder="비고" value={remark} onChange={(e) => setRemark(e.target.value)} style={{ flex: 1, maxWidth: 400 }} />
             <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
+            {editId != null && <button type="button" className="ec-btn" onClick={removeEditing}>삭제</button>}
+            <button type="button" className="ec-btn" onClick={closeForm}>닫기</button>
           </div>
           {error && <p className="mt-2 rounded bg-ec-danger-bg px-3 py-2 text-sm text-ec-danger">{error}</p>}
           {ok && <p className="mt-2 rounded bg-ec-success-bg px-3 py-2 text-sm text-ec-success">{ok}</p>}
@@ -351,10 +403,14 @@ export default function SalesOrderPage() {
         <thead>
           <tr>
             <th className="w-[34px]"></th>
+            <th className="w-[28px] text-center">
+              <input type="checkbox" aria-label="전체 선택" checked={shown.length > 0 && shown.every((o) => checked.has(o.id))}
+                onChange={(e) => setChecked(e.target.checked ? new Set(shown.map((o) => o.id)) : new Set())} />
+            </th>
             {/* 원본 주문서조회 차례: 일자-No. · 거래처명 · 사원(담당)명 · 품목명 · 납기일자 · 주문금액합계 · 진행상태 (2026-10-03 실측). */}
             <th className="cursor-pointer" onClick={() => sort.toggle('수주일')}>일자-No. {sort.mark('수주일')}</th>
             <th className="cursor-pointer" onClick={() => sort.toggle('거래처')}>거래처명 {sort.mark('거래처')}</th>
-            <th className="w-[90px]">사원(담당)명</th><th>품목명</th><th>납기일자</th>
+            <th className="w-[90px]">사원(담당)명</th><th>품목명(요약)</th><th>납기일자</th>
             <th className="text-right">주문금액합계</th>
             <th className="text-center">진행상태</th>
             {/* 정할 수는 있는데 <b>목록에서 볼 수가 없으면</b> 반쪽이다 — 안 정한 수주는 빈칸이다. */}
@@ -364,14 +420,20 @@ export default function SalesOrderPage() {
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={12} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((o, i) => (
             <tr key={o.id}>
               <td className="text-center text-ec-hint">{i + 1}</td>
-              <td>{dateNo(o.orderDate, o.orderNo)}</td>
+              <td className="text-center">
+                <input type="checkbox" aria-label="선택" checked={checked.has(o.id)}
+                  onChange={(e) => setChecked((cur) => { const n = new Set(cur); if (e.target.checked) n.add(o.id); else n.delete(o.id); return n })} />
+              </td>
+              {/* 원본은 [일자-No.] 를 누르면 주문수정 창이 뜬다. */}
+              <td><a className="cursor-pointer" onClick={() => openEdit(o)}>{dateNo(o.orderDate, o.orderNo)}</a></td>
               <td>{o.partnerName}</td>
               <td>{o.employeeName ?? ''}</td>
-              <td>{o.lines[0]?.itemName}{o.lines.length > 1 ? ` 외 ${o.lines.length - 1}건` : ''}</td>
+              {/* 원본 '코카콜라 [355ml] 외 1건' — 첫 품목에 규격을 대괄호로 붙인다. */}
+              <td>{o.lines[0]?.itemName}{o.lines[0]?.spec ? ` [${o.lines[0].spec}]` : ''}{o.lines.length > 1 ? ` 외 ${o.lines.length - 1}건` : ''}</td>
               <td>{dateText(o.dueDate) || ''}</td>
               <td className="text-right">{won(o.totalAmount)}</td>
               <td style={{ textAlign: 'center', color: STATUS_COLOR[o.status], fontWeight: 700 }}>{o.statusName}</td>
@@ -380,7 +442,6 @@ export default function SalesOrderPage() {
               <td className="text-center whitespace-nowrap">
                 {NEXT[o.status] && <button className="no-ec" onClick={() => advance(o)} style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>→ {STATUS_LABEL[NEXT[o.status]!]}</button>}
                 {o.status !== 'COMPLETED' && o.status !== 'CANCELED' && <button className="no-ec" onClick={() => cancel(o)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12, marginRight: 6 }}>취소</button>}
-                <button className="no-ec" onClick={() => remove(o)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button>
               </td>
             </tr>
           ))}

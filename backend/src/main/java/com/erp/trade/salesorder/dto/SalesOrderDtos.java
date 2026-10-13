@@ -37,6 +37,23 @@ public final class SalesOrderDtos {
             @NotEmpty(message = "품목을 1개 이상 입력하세요.") @Valid List<OrderLineRequest> lines
     ) {}
 
+    /**
+     * 주문수정 — 원본 주문서조회(E040204)에서 [일자-No.]를 누르면 뜨는 창. 2026-10-13 실측:
+     * [일자]는 잠기고(번호가 일자에 묶인다) 거래처 · 담당자 · 출하창고 · 프로젝트 · 납기일자 · 품목 줄을 고친다.
+     * 그래서 일자는 받지 않는다.
+     */
+    public record UpdateSalesOrderRequest(
+            @NotNull(message = "거래처를 선택하세요.") Long partnerId,
+            LocalDate dueDate,
+            Long warehouseId,
+            Long projectId,
+            Long employeeId,
+            Boolean taxable,
+            @Size(max = 500, message = "입력한 글자가 너무 깁니다. 500자까지 넣을 수 있습니다.")
+            String remark,
+            @NotEmpty(message = "품목을 1개 이상 입력하세요.") @Valid List<OrderLineRequest> lines
+    ) {}
+
     public record UpdateStatusRequest(
             @NotNull(message = "진행상태를 선택하세요.") SalesOrderStatus status
     ) {}

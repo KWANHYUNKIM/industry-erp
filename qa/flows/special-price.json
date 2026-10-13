@@ -34,7 +34,7 @@
       "name": "수주 — 품목 먼저 → 매출처 → 777, 뒷정리",
       "path": "/sales/orders",
       "steps": [
-        "click:수주등록(F2)",
+        "click:신규(F2)",
         "js:document.querySelector('[role=dialog] input[placeholder=\"품목 선택\"]').click(); true",
         "pickrow:QA-PROD",
         "wait:600",

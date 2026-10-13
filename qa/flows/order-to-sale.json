@@ -5,7 +5,7 @@
       "name": "수주 4개 등록 — 합계 줄은 공급가액·부가세 제 열에, 부가세 포함 총액은 따로",
       "path": "/sales/orders",
       "steps": [
-        "click:수주등록(F2)",
+        "click:신규(F2)",
         "click:매출처 선택",
         "pickrow:QA-CUST",
         "js:document.querySelector('[role=dialog] input[placeholder=\"품목 선택\"]').click(); true",
