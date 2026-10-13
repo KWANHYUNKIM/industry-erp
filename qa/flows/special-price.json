@@ -21,13 +21,13 @@
       "name": "견적서 — 품목 먼저 → 거래처 → 777",
       "path": "/sales/quotations",
       "steps": [
-        "click:신규 견적",
-        "clicklast:품목 선택",
+        "click:신규(F2)",
+        "js:document.querySelector('.ec-modal button[title=\"품목 선택\"]').click(); true",
         "pickrow:QA-PROD",
         "wait:600",
-        "clicklast:거래처 선택",
+        "js:document.querySelector('.ec-modal button[title=\"거래처 선택\"]').click(); true",
         "pickrow:QA-CUST",
-        "expect:document.querySelectorAll('tbody tr:has(button[title=\"품목 선택\"]) input.text-right')[1]?.value === '777'"
+        "expect:document.querySelectorAll('.ec-modal tbody tr:has(button[title=\"품목 선택\"]) input.text-right')[1]?.value === '777'"
       ]
     },
     {
