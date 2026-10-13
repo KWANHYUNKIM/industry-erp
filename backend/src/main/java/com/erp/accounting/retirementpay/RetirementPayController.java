@@ -31,8 +31,13 @@ public class RetirementPayController {
 
     @GetMapping
     public List<RetirementPayResponse> list(@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-                                            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        return service.list(from, to);
+                                            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+                                            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate payFrom,
+                                            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate payTo,
+                                            @RequestParam(required = false) Long employeeId,
+                                            @RequestParam(required = false) Long departmentId,
+                                            @RequestParam(required = false) String employed) {
+        return service.list(from, to, payFrom, payTo, employeeId, departmentId, employed);
     }
 
     @GetMapping("/{id}")

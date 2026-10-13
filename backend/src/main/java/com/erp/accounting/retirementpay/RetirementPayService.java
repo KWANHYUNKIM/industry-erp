@@ -26,7 +26,8 @@ import java.util.regex.Pattern;
 /**
  * 퇴직금계산(E030117). 급여는 hr 의 PayrollService 로 읽는다(확정된 급여명세만).
  *
- * <p>원본 계산내역: 급여 계산기간 = 퇴사 3개월 전 달 ~ 퇴사월(9/10 퇴사 → 2026.06 ~ 2026.09),
+ * <p>원본 계산내역: 급여 계산기간 = 퇴사일 다음 날의 3개월 전이 든 달 ~ 퇴사월(9/10 퇴사 → 2026.06 ~ 2026.09 네 달,
+ * 9/30 말일 퇴사 → 2026.07 ~ 2026.09 세 달 — 2026-10-13 QA세무-퇴직 실측),
  * 상여 계산기간 = 퇴사월 11개월 전 ~ 퇴사월(2025.10 ~ 2026.09). 우리 급여에는 상여 구분이 없어
  * 이름에 '상여' 가 든 수당 줄을 상여로 본다(급여에서 빼고 상여로 옮긴다).
  */
@@ -42,7 +43,25 @@ public class RetirementPayService {
 
     @Transactional(readOnly = true)
     public List<RetirementPayResponse> list(LocalDate from, LocalDate to) {
-        return repository.findBetween(from, to).stream().map(RetirementPayResponse::from).toList();
+        return list(from, to, null, null, null, null, null);
+    }
+
+    /**
+     * 목록 조건(원본 E030117): 퇴직일자 연월 ~ 연월 · 지급일자 연월 ~ 연월([사용] 일 때만) · 사원 · 부서 ·
+     * 재직구분(ACTIVE 재직자 = 사원등록 퇴사일 없음, RETIRED 퇴사자).
+     */
+    @Transactional(readOnly = true)
+    public List<RetirementPayResponse> list(LocalDate from, LocalDate to, LocalDate payFrom, LocalDate payTo,
+                                            Long employeeId, Long departmentId, String employed) {
+        return repository.findBetween(from, to).stream()
+                .filter(r -> payFrom == null || !r.getPayDate().isBefore(payFrom))
+                .filter(r -> payTo == null || !r.getPayDate().isAfter(payTo))
+                .filter(r -> employeeId == null || employeeId.equals(r.getEmployee().getId()))
+                .filter(r -> departmentId == null || (r.getEmployee().getDepartment() != null
+                        && departmentId.equals(r.getEmployee().getDepartment().getId())))
+                .filter(r -> employed == null || employed.isBlank() || "ALL".equals(employed)
+                        || ("ACTIVE".equals(employed) == (r.getEmployee().getResignDate() == null)))
+                .map(RetirementPayResponse::from).toList();
     }
 
     @Transactional(readOnly = true)
@@ -60,6 +79,7 @@ public class RetirementPayService {
     @Transactional
     public RetirementPayResponse create(RetirementPayRequest req) {
         validate(req);
+        requireReason(req);
         Employee e = employeeService.get(req.employeeId());
         RetirementPay r = RetirementPay.builder().employee(e).build();
         apply(r, req, calc(e, req));
@@ -73,6 +93,7 @@ public class RetirementPayService {
                 req.startDate(), req.retireDate(), req.retireReason(), req.executive(), req.extraPay(),
                 req.retirementPay(), req.nonTaxable());
         validate(fixed);
+        requireReason(fixed);
         apply(r, fixed, calc(r.getEmployee(), fixed));
         return RetirementPayResponse.from(r);
     }
@@ -108,7 +129,8 @@ public class RetirementPayService {
     private Calculation calc(Employee e, RetirementPayRequest req) {
         LocalDate retire = req.retireDate();
         YearMonth retireYm = YearMonth.from(retire);
-        YearMonth wageFrom = YearMonth.from(retire.minusMonths(3));
+        // 퇴사일 다음 날에서 3개월 전 — 말일 퇴사(9/30)는 07 ~ 09 세 달, 달 중간 퇴사(9/10)는 06 ~ 09 네 달(원본 실측)
+        YearMonth wageFrom = YearMonth.from(retire.plusDays(1).minusMonths(3));
         YearMonth bonusFrom = retireYm.minusMonths(11);
 
         List<MonthAmount> wages = new ArrayList<>();
@@ -163,6 +185,15 @@ public class RetirementPayService {
         }
         if (req.retirementPay() != null && req.retirementPay().signum() < 0) {
             throw ApiException.badRequest("퇴직급여는 0 이상이어야 합니다.");
+        }
+    }
+
+    /** 원본 퇴직사유 드롭다운(필수): 정년퇴직 · 정리해고 · 자발적퇴직 · 임원퇴직 · 중간정산 · 기타. */
+    public static final List<String> REASONS = List.of("정년퇴직", "정리해고", "자발적퇴직", "임원퇴직", "중간정산", "기타");
+
+    private static void requireReason(RetirementPayRequest req) {
+        if (req.retireReason() == null || !REASONS.contains(req.retireReason())) {
+            throw ApiException.badRequest("퇴직사유를 선택 바랍니다.");
         }
     }
 

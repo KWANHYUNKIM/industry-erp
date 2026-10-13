@@ -115,10 +115,13 @@ public class WithholdingService {
             sections.add(new WithholdingDtos.IncomeSection("A03", "일용근로", daily.count(), daily.wage(),
                     daily.incomeTax(), daily.localIncomeTax()));
         }
-        // 퇴직소득 [A22 그 외] — 퇴직금계산의 원천징수연월이 이 달인 것. 연금계좌(A21) 이체는 우리에게 없다.
-        // 원본 2026/09 퇴직 1명 8,778,618 · 소득세 130,680 이 확인서 퇴직소득 줄로 간다(세무신고 묶음 남은 것).
+        // 퇴직소득 [A22 그 외] — 귀속연월(퇴직일자의 달)과 지급연월(퇴직금계산의 원천징수연월)이 둘 다 이 신고서와 맞는 것.
+        // 원본 2026-10-13: QA세무-퇴직(퇴사 2026/09/30 · 원천징수 2026/10)은 귀속 09 · 지급 10 신고서에만 A22 1 · 8,064,621 · 73,550,
+        // 귀속 10 · 지급 10 에는 안 실린다. 신고서 없이 부르면(비교표) 귀속연월로만 거른다. 연금계좌(A21) 이체는 우리에게 없다.
+        String retirePayMonth = ret != null ? ret.getPayMonth() : null;
         List<com.erp.accounting.retirementpay.RetirementPay> retires = retirementPayRepository.findAll().stream()
-                .filter(r -> month.equals(r.getWithholdingMonth())).toList();
+                .filter(r -> month.equals(java.time.YearMonth.from(r.getRetireDate()).toString())
+                        && (retirePayMonth == null || retirePayMonth.equals(r.getWithholdingMonth()))).toList();
         if (!retires.isEmpty()) {
             sections.add(new WithholdingDtos.IncomeSection("A22", "퇴직소득(그 외)",
                     (int) retires.stream().map(r -> r.getEmployee().getId()).distinct().count(),

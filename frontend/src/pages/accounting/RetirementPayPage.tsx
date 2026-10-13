@@ -10,6 +10,10 @@ import { ymd } from '../../components/EcPeriodPicks'
 const won = (n: number | null | undefined) => (n ? Number(n).toLocaleString('ko-KR') : '')
 const slash = (d?: string | null) => (d ? d.replace(/-/g, '/') : '')
 type Emp = { id: number; code: string; name: string; hireDate?: string | null; resignDate?: string | null; resignReason?: string | null }
+type Dept = { id: number; code?: string; name: string }
+/** 원본 퇴직사유 드롭다운(필수) — 사원등록 퇴사사유를 끌어오지 않는다(2026-10-13 QA세무-퇴직). */
+const REASONS = ['정년퇴직', '정리해고', '자발적퇴직', '임원퇴직', '중간정산', '기타']
+const monthEnd = (ym: string) => { const [y, m] = ym.split('-').map(Number); return ymd(new Date(y, m, 0)) }
 
 type Form = {
   id?: number
@@ -29,18 +33,27 @@ type Form = {
  * 퇴직금계산 (원본 세무 › 원천징수 › 퇴직정산 E030117, 2026-10-03 loginaa 실측).
  *
  * 목록: 퇴직일자(귀속) · 원천징수연월 · 사번 · 성명 · 부서 · 입사일자 · 기산일 · 퇴사일 · 지급일 · 퇴직금 ·
- * 소득세 · 지방소득세 · 농어촌특별세 · 공제총액 · 실지급액 · 인쇄. 기간 기본값은 작년 1월 1일 ~ 이번 달 말일.
+ * 소득세 · 지방소득세 · 농어촌특별세 · 공제총액 · 실지급액 · 인쇄. 조건은 접혀 있다(Search(F3) 로 내려옴):
+ * 퇴직일자 연월 ~ 연월(기본 작년 01 ~ 이번 달) · 지급일자 연월 ~ 연월 [사용] · 세무신고사업장 · 사원 · 부서 · 재직구분.
+ *
+ * 창 기본값(2026-10-13 실측): 지급일자 = 오늘, 원천징수연월 = 지급일자의 달(퇴사월이 아니다), 퇴직사유는 필수 드롭다운
+ * (안 고르면 '퇴직사유를 선택 바랍니다.'). 저장하면 창이 저장한 값으로 다시 그려져 열린 채 남는다.
  *
  * [신규]는 사원을 고르면 최근 3개월 급여 · 1년 상여로 평균임금 → 퇴직산출액(ⓖ × 30 × 재직일수 / 365)을 내고
  * 퇴직소득세를 셈한다. 퇴직급여 칸을 고치면 세금만 다시 센다(원본 '(15)퇴직급여 최종란에 금액 입력 후 Enter').
  */
 export default function RetirementPayPage() {
   const today = ymd(new Date())
-  const [from, setFrom] = useState(`${Number(today.slice(0, 4)) - 1}-01-01`)
-  const [to, setTo] = useState(() => {
-    const d = new Date(Number(today.slice(0, 4)), Number(today.slice(5, 7)), 0)
-    return ymd(d)
-  })
+  const [from, setFrom] = useState(`${Number(today.slice(0, 4)) - 1}-01`)
+  const [to, setTo] = useState(today.slice(0, 7))
+  const [usePay, setUsePay] = useState(false)
+  const [payFrom, setPayFrom] = useState(`${Number(today.slice(0, 4)) - 1}-01`)
+  const [payTo, setPayTo] = useState(today.slice(0, 7))
+  const [condEmp, setCondEmp] = useState('')
+  const [condDept, setCondDept] = useState('')
+  const [employed, setEmployed] = useState('ALL')
+  const [depts, setDepts] = useState<Dept[]>([])
+  const [reasonError, setReasonError] = useState(false)
   const [rows, setRows] = useState<RetirementPay[]>([])
   const [picked, setPicked] = useState<Set<number>>(new Set())
   const [emps, setEmps] = useState<Emp[]>([])
@@ -52,13 +65,18 @@ export default function RetirementPayPage() {
 
   function load() {
     setError('')
-    api.get<RetirementPay[]>('/retirement-pays', { params: { from, to } })
+    api.get<RetirementPay[]>('/retirement-pays', { params: {
+      from: `${from}-01`, to: monthEnd(to),
+      payFrom: usePay ? `${payFrom}-01` : undefined, payTo: usePay ? monthEnd(payTo) : undefined,
+      employeeId: condEmp || undefined, departmentId: condDept || undefined, employed,
+    } })
       .then((r) => { setRows(r.data); setPicked(new Set()) })
       .catch((e) => { setRows([]); setError(extractErrorMessage(e)) })
   }
   useEffect(() => {
     load()
     api.get<Emp[]>('/employees/all').then((r) => setEmps(r.data)).catch(() => setEmps([]))
+    api.get<Dept[]>('/departments').then((r) => setDepts(r.data)).catch(() => setDepts([]))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -85,9 +103,10 @@ export default function RetirementPayPage() {
   function pickEmployee(id: string) {
     const e = emps.find((x) => String(x.id) === id)
     const retire = e?.resignDate ?? today
+    // 원본: 지급일자 = 오늘, 원천징수연월(지급) = 지급일자의 달, 퇴직사유 = '퇴직사유 선택'(비어 있음)
     const f: Form = {
-      employeeId: id, withholdingMonth: retire.slice(0, 7), payDate: retire,
-      startDate: e?.hireDate ?? retire, retireDate: retire, retireReason: e?.resignReason ?? '', executive: false,
+      employeeId: id, withholdingMonth: today.slice(0, 7), payDate: today,
+      startDate: e?.hireDate ?? retire, retireDate: retire, retireReason: '', executive: false,
       extraPay: '', retirementPay: '', nonTaxable: '',
     }
     setForm(f)
@@ -106,10 +125,15 @@ export default function RetirementPayPage() {
   async function save() {
     if (!form) return
     setFormError('')
+    if (!form.retireReason) { setReasonError(true); return }
+    setReasonError(false)
     try {
-      if (form.id) await api.put(`/retirement-pays/${form.id}`, body(form, true))
-      else await api.post('/retirement-pays', body(form, true))
-      setForm(null); setCalc(null); load()
+      const saved = form.id
+        ? (await api.put<RetirementPay>(`/retirement-pays/${form.id}`, body(form, true))).data
+        : (await api.post<RetirementPay>('/retirement-pays', body(form, true))).data
+      // 원본은 안내 없이 목록 줄이 바뀌고, 창은 저장한 값으로 다시 그려져 열린 채 남는다
+      setForm({ ...form, id: saved.id, retirementPay: won(saved.retirementPay) })
+      load()
     } catch (e) {
       setFormError(extractErrorMessage(e))
     }
@@ -132,9 +156,14 @@ export default function RetirementPayPage() {
     <EcListShell
       title="퇴직금계산"
       onSearch={load}
-      onNew={() => { setFormError(''); setCalc(null); setForm({ employeeId: '', withholdingMonth: today.slice(0, 7), payDate: today, startDate: '', retireDate: today, retireReason: '', executive: false, extraPay: '', retirementPay: '', nonTaxable: '' }) }}
+      collapseConditions
+      option={false}
+      onNew={() => { setFormError(''); setReasonError(false); setCalc(null); setForm({ employeeId: '', withholdingMonth: today.slice(0, 7), payDate: today, startDate: '', retireDate: today, retireReason: '', executive: false, extraPay: '', retirementPay: '', nonTaxable: '' }) }}
       actions={[
+        { label: 'Email', disabled: true },   // 바깥 발송 — 누르지 않는다
         { label: '인쇄' },
+        // 원본은 안 고르고 누르면 '리스트에 선택된 자료가 없습니다.' 를 되묻는다 — 우리는 미리 잠근다(qa/ui-check '고른 줄에 대고 하는 버튼').
+        // 고르고 누르면 원본 그대로 '삭제하겠습니까?'
         { label: '선택삭제', onClick: () => setConfirmDelete(true), disabled: picked.size === 0 },
         { label: 'Excel' },
       ]}
@@ -143,10 +172,35 @@ export default function RetirementPayPage() {
 
       <ul className="ec-cond mb-[8px]">
         <EcCond label="퇴직일자">
-          <input type="date" className="ec-input w-[140px]" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span>~</span>
-          <input type="date" className="ec-input w-[140px]" value={to} onChange={(e) => setTo(e.target.value)} />
-          <button className="ec-btn ec-btn-primary" onClick={load}>검색(F8)</button>
+          <input type="month" className="ec-input w-[140px]" value={from} onChange={(e) => setFrom(e.target.value)} />
+          <span className="mx-1">~</span>
+          <input type="month" className="ec-input w-[140px]" value={to} onChange={(e) => setTo(e.target.value)} />
+        </EcCond>
+        <EcCond label="지급일자">
+          <input type="month" className="ec-input w-[140px]" value={payFrom} disabled={!usePay} onChange={(e) => setPayFrom(e.target.value)} />
+          <span className="mx-1">~</span>
+          <input type="month" className="ec-input w-[140px]" value={payTo} disabled={!usePay} onChange={(e) => setPayTo(e.target.value)} />
+          <label className="ml-2 inline-flex items-center gap-[3px]">
+            <input type="checkbox" checked={usePay} onChange={(e) => setUsePay(e.target.checked)} /> 사용
+          </label>
+        </EcCond>
+        <EcCond label="세무신고사업장">
+          <select className="ec-input w-[200px]" value="" disabled><option value="">전체</option></select>
+        </EcCond>
+        <EcCond label="사원" pick>
+          <CodePickerField label="사원" hideLabel width={200} emptyLabel="전체" value={condEmp} onChange={setCondEmp}
+                           items={emps.map((e) => ({ value: String(e.id), code: e.code, name: e.name }))} />
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={200} emptyLabel="전체" value={condDept} onChange={setCondDept}
+                           items={depts.map((d) => ({ value: String(d.id), code: d.code, name: d.name }))} />
+        </EcCond>
+        <EcCond label="재직구분">
+          {[['ALL', '전체'], ['ACTIVE', '재직자'], ['RETIRED', '퇴사자']].map(([v, l]) => (
+            <label key={v} className="mr-[9px] inline-flex items-center gap-[3px]">
+              <input type="radio" name="retire-employed" checked={employed === v} onChange={() => setEmployed(v)} /> {l}
+            </label>
+          ))}
         </EcCond>
       </ul>
 
@@ -221,13 +275,18 @@ export default function RetirementPayPage() {
             </li>
             <li>
               <div className="title">지급일자</div>
-              <div className="form"><input type="date" className="ec-input w-[150px]" value={form.payDate} onChange={(e) => set({ payDate: e.target.value })} /></div>
+              <div className="form"><input type="date" className="ec-input w-[150px]" value={form.payDate}
+                                           onChange={(e) => set({ payDate: e.target.value, withholdingMonth: e.target.value.slice(0, 7) || form.withholdingMonth })} /></div>
             </li>
             <li>
               <div className="title">퇴직사유</div>
               <div className="form">
-                {/* 원본 E030117 계산 창은 '퇴직사유 : 정리해고' 를 글자로만 보인다 — 사원등록 퇴사사유에서 온다(2026-10-13 김은빈). */}
-                <input className="ec-input w-[150px]" readOnly value={form.retireReason} />
+                <select className="ec-input w-[150px]" aria-label="퇴직사유" value={form.retireReason}
+                        onChange={(e) => { set({ retireReason: e.target.value }); if (e.target.value) setReasonError(false) }}>
+                  <option value="">퇴직사유 선택</option>
+                  {REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
+                </select>
+                {reasonError && <p className="text-ec-danger mt-[3px]">퇴직사유를 선택 바랍니다.</p>}
               </div>
             </li>
             <li>
@@ -259,7 +318,7 @@ export default function RetirementPayPage() {
                   <tr><th>ⓔ3개월 임금총액 (ⓐ+ⓒ+ⓓ)</th><td className="text-right">{Number(calc.total3m).toLocaleString('ko-KR')}</td></tr>
                   <tr><th>ⓕ3개월 근무일수</th><td className="text-right">{calc.workDays3m}</td></tr>
                   <tr><th>ⓖ1일 평균 임금(ⓔ/ⓕ)</th><td className="text-right">{Number(calc.dailyWage).toLocaleString('ko-KR', { minimumFractionDigits: 2 })}</td></tr>
-                  <tr><th>ⓗ재직일수</th><td className="text-right">{calc.serviceDays}</td></tr>
+                  <tr><th>ⓗ재직일수</th><td className="text-right">{calc.serviceDays.toLocaleString('ko-KR')}</td></tr>
                   <tr><th>ⓘ퇴직산출액 (ⓖ*30일*ⓗ/365) (윤년일 경우 366일)</th><td className="text-right">{Number(calc.computedPay).toLocaleString('ko-KR')}</td></tr>
                 </tbody>
               </table>
@@ -286,6 +345,10 @@ export default function RetirementPayPage() {
                   <tr><th>(32)퇴직소득과세표준 ((30)-(31))</th><td className="text-right">{won(calc.tax.taxBase)}</td></tr>
                   <tr><th>(33)환산산출세액 ((32)×세율)</th><td className="text-right">{won(calc.tax.convertedTax)}</td></tr>
                   <tr><th>(34)퇴직소득 산출세액 ((33)×정산근속연수/12배)</th><td className="text-right">{won(calc.tax.computedTax)}</td></tr>
+                  {/* (43)신고대상세액 — 10원 버리기 전(원본 73,550 · 7,355 · 계 80,905) */}
+                  <tr><th>(43)신고대상세액 소득세 · 지방소득세 · 계</th><td className="text-right">
+                    {won(calc.tax.computedTax)} · {won(Math.floor(Number(calc.tax.computedTax) / 10))} · {won(Number(calc.tax.computedTax) + Math.floor(Number(calc.tax.computedTax) / 10))}
+                  </td></tr>
                   <tr><th>(46)차감원천징수세액 소득세 · 지방소득세</th><td className="text-right">{won(calc.tax.incomeTax)} · {won(calc.tax.localIncomeTax)}</td></tr>
                 </tbody>
               </table>
@@ -302,7 +365,7 @@ export default function RetirementPayPage() {
 
       {confirmDelete && (
         <Modal open error={error} title="알림" onClose={() => setConfirmDelete(false)} width={420}>
-          <p className="text-[12px] mb-[12px]">삭제한 데이터는 복구되지 않습니다.<br />삭제하겠습니까?</p>
+          <p className="text-[12px] mb-[12px]">삭제하겠습니까?</p>
           <div className="flex gap-[6px]">
             <button className="ec-btn ec-btn-primary" onClick={doDelete}>확인</button>
             <button className="ec-btn" onClick={() => setConfirmDelete(false)}>취소</button>
