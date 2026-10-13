@@ -24,8 +24,8 @@ const blankEmps = (n = BLANK_LINES): EmpRow[] => Array.from({ length: n }, () =>
  *   <li>목록: 수당/공제그룹코드 · 수당/공제그룹명 · 사원([등록]). 버튼 신규(F2) · 사용중단/재사용 ▲ · Excel.</li>
  *   <li>[신규(F2)] 창: 그룹코드(00001 꼴 미리 채움) · 그룹명, [수당] 격자와 [공제] 격자 — 항목코드 · 항목명 · 단위 · 내역.
  *       항목코드를 넣으면 항목명과 단위('금액')가 채워진다. 버튼 저장(F8) · 다시 작성 · 닫기.</li>
- *   <li>[사원 등록] → '적용사원등록' 창: 사원번호 · 성명 · 부서 · 지급율(%). 여기 든 사원은 급여계산 때
- *       이 그룹의 수당 · 공제를 지급율만큼 받는다(서버 PayrollService).</li>
+ *   <li>[사원 등록] → '적용사원등록' 창: 사원번호 · 성명 · 부서 · 지급률(%). 여기 든 사원은 급여계산 때
+ *       이 그룹의 수당 · 공제를 지급률만큼 받는다(서버 PayrollService).</li>
  *   <li>[사용중단/재사용 ▲] 은 사용중단 · 삭제 · 재사용. 삭제는 '한번 지워진 자료는 복구될 수 없습니다.' 를 묻는다.</li>
  * </ul>
  * 웹자료올리기 · 격자 [찾기(F3)] · [정렬] 은 아직 없다.
@@ -43,6 +43,8 @@ export default function PayGroupListPage() {
   // 그룹 폼
   const [formOpen, setFormOpen] = useState(false)
   const [formError, setFormError] = useState('')
+  /** 원본은 그룹명이 비면 문구 없이 그 칸만 빨갛게 둔다. */
+  const [nameBad, setNameBad] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
   const [code, setCode] = useState('')
   const [name, setName] = useState('')
@@ -65,7 +67,7 @@ export default function PayGroupListPage() {
   const itemsOf = (kind: PayslipLineKind) => items.filter((i) => i.kind === kind)
 
   async function openNew() {
-    setEditId(null); setFormError(''); setName(''); setCode('')
+    setEditId(null); setFormError(''); setNameBad(false); setName(''); setCode('')
     setAllowances(blankLines()); setDeductions(blankLines())
     setFormOpen(true)
     // 원본처럼 다음 그룹코드를 미리 채운다 — 숫자 코드 중 가장 큰 것 + 1
@@ -74,7 +76,7 @@ export default function PayGroupListPage() {
   }
 
   function openEdit(g: PayGroup) {
-    setEditId(g.id); setFormError(''); setCode(g.code); setName(g.name)
+    setEditId(g.id); setFormError(''); setNameBad(false); setCode(g.code); setName(g.name)
     const rows = (kind: PayslipLineKind) => {
       const got = g.lines.filter((l) => l.kind === kind).map((l) => ({ payItemId: String(l.payItemId), amount: String(l.amount) }))
       return [...got, ...blankLines(Math.max(1, BLANK_LINES - got.length))]
@@ -85,7 +87,7 @@ export default function PayGroupListPage() {
 
   async function saveGroup(ev?: React.FormEvent) {
     ev?.preventDefault()
-    if (!name.trim()) { setFormError('수당/공제그룹명을 입력 바랍니다.'); return }
+    if (!name.trim()) { setNameBad(true); return }
     const lines = [...allowances, ...deductions]
       .filter((l) => l.payItemId)
       .map((l) => ({ payItemId: Number(l.payItemId), amount: l.amount === '' ? null : Number(l.amount.replace(/,/g, '')) }))
@@ -131,6 +133,11 @@ export default function PayGroupListPage() {
   /** ids 를 주면 그 항목만(수정 창의 [사용중단/재사용 ▲]), 안 주면 체크한 항목들. */
   async function applyToChecked(op: '사용중단' | '삭제' | '재사용', ids: Set<number> = checked) {
     setMenuOpen(false)
+    if (ids.size === 0) {
+      // 원본: 버튼은 늘 펼쳐지고, 고른 줄 없이 항목을 누르면 알림 창
+      window.alert('리스트에 선택된 자료가 없습니다.\n체크박스에 체크한 후 다시 시도 바랍니다.')
+      return
+    }
     if (op === '삭제' && !window.confirm('한번 지워진 자료는 복구될 수 없습니다.\n\n삭제하겠습니까?')) return
     try {
       for (const g of groups.filter((x) => ids.has(x.id))) {
@@ -205,7 +212,7 @@ export default function PayGroupListPage() {
       onSearch={() => undefined}
       onNew={openNew}
       actions={[
-        { label: '사용중단/재사용 ▲', onClick: () => setMenuOpen((v) => !v), disabled: checked.size === 0 },
+        { label: '사용중단/재사용 ▲', onClick: () => setMenuOpen((v) => !v) },
         { label: includeInactive ? '사용중단제외' : '사용중단포함', onClick: () => setIncludeInactive((v) => !v) },
         { label: 'Excel' },
       ]}
@@ -271,7 +278,9 @@ export default function PayGroupListPage() {
             <li>
               <span className="title">수당/공제그룹명</span>
               <div className="form">
-                <input className="ec-input w-full" value={name} placeholder="수당/공제그룹명" autoFocus onChange={(e) => setName(e.target.value)} />
+                <input className={`ec-input w-full${nameBad ? ' outline outline-1 outline-ec-danger' : ''}`} value={name}
+                       placeholder="수당/공제그룹명" autoFocus aria-invalid={nameBad}
+                       onChange={(e) => { setName(e.target.value); if (e.target.value.trim()) setNameBad(false) }} />
               </div>
             </li>
           </ul>
@@ -304,7 +313,7 @@ export default function PayGroupListPage() {
                 <th className="w-[34%]">사원번호</th>
                 <th>성명</th>
                 <th>부서</th>
-                <th className="w-[110px] text-right">지급율(%)</th>
+                <th className="w-[110px] text-right">지급률(%)</th>
               </tr>
             </thead>
             <tbody>

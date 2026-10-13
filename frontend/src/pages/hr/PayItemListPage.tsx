@@ -137,6 +137,11 @@ export default function PayItemListPage({ kind = 'ALLOWANCE' }: { kind?: Payslip
   async function applyToChecked(op: '사용중단' | '삭제' | '재사용') {
     setMenuOpen(false)
     const targets = rows.filter((r) => r.id && checked.has(r.id))
+    if (targets.length === 0) {
+      // 원본: 버튼은 늘 펼쳐지고, 고른 줄 없이 항목을 누르면 알림 창
+      window.alert('리스트에 선택된 자료가 없습니다.\n체크박스에 체크한 후 다시 시도 바랍니다.')
+      return
+    }
     if (op === '삭제' && !window.confirm('삭제하겠습니까?')) return
     try {
       for (const r of targets) {
@@ -160,17 +165,7 @@ export default function PayItemListPage({ kind = 'ALLOWANCE' }: { kind?: Payslip
       searchable={false}
       actions={[
         { label: '저장(F8)', onClick: save, primary: true },
-        {
-          label: '사용중단/재사용 ▲',
-          // 원본은 고른 줄이 없어도 버튼이 살아 있고, 누르면 알림 창으로 막는다
-          onClick: () => {
-            if (checked.size === 0) {
-              window.alert('리스트에 선택된 자료가 없습니다.\n체크박스에 체크한 후 다시 시도 바랍니다.')
-              return
-            }
-            setMenuOpen((v) => !v)
-          },
-        },
+        { label: '사용중단/재사용 ▲', onClick: () => setMenuOpen((v) => !v) },
         { label: includeInactive ? '사용중단제외' : '사용중단포함', onClick: () => setIncludeInactive((v) => !v) },
       ]}
     >
