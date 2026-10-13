@@ -23,6 +23,7 @@ public interface BankCheckRepository extends JpaRepository<BankCheck, Long> {
 
     @Query("select c from BankCheck c " +
            "left join fetch c.partner left join fetch c.bankAccount left join fetch c.project " +
+           "left join fetch c.sourceVoucher sv left join fetch sv.journalEntry " +
            "where c.issueDate >= :from and c.issueDate <= :to " +
            "order by c.issueDate desc, c.id desc")
     List<BankCheck> findAllWithRefs(@Param("from") java.time.LocalDate from,

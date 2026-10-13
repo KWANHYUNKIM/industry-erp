@@ -128,7 +128,11 @@ public final class BankCheckDtos {
             /* 손을 떠날 때 회계전표 id — 수표조회 감소 줄 [회계전표일자-No.] 를 누르면 그 입금보고서(수정) · 지출결의서(수정)를 연다. */
             Long settleJournalId,
             /* 원본 줄의 [부서] · [프로젝트] — 부서 이름은 화면이 부서 목록에서 붙인다(hr 를 참조하지 않는다). */
-            Long departmentId, Long projectId, String projectName
+            Long departmentId, Long projectId, String projectName,
+            /* 채권감소등록 [입금보고서작성] 수금형태 '수표'(채무감소 지급형태 '수표')로 늘어난 수표 — 원본 수표조회 증가 줄 거래유형 '입금보고서' · '지출결의서',
+               체크칸 막힘, [일자-No.] · [회계전표일자-No.] 가 그 전표(수정)를 연다(2026-10-14 실측). */
+            boolean issuedByVoucher,
+            Long issueJournalId
     ) {
         public static CheckResponse from(BankCheck c) {
             return from(c, null, null, false);
@@ -152,7 +156,10 @@ public final class BankCheckDtos {
                     c.getDirectInNo(), c.getDirectOutNo(), settledByVoucher, c.getSettleJournalId(),
                     c.getDepartmentId(),
                     c.getProject() != null ? c.getProject().getId() : null,
-                    c.getProject() != null ? c.getProject().getName() : null);
+                    c.getProject() != null ? c.getProject().getName() : null,
+                    c.getSourceVoucher() != null,
+                    c.getSourceVoucher() != null && c.getSourceVoucher().getJournalEntry() != null
+                            ? c.getSourceVoucher().getJournalEntry().getId() : null);
         }
     }
 }

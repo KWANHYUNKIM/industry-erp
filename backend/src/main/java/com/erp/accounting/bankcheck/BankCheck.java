@@ -107,4 +107,14 @@ public class BankCheck extends BaseTimeEntity {
 
     @Column(name = "direct_out_no")
     private Integer directOutNo;
+
+    /**
+     * 채권감소등록 [입금보고서작성] 수금형태 '수표'(채무감소등록 [지출결의서작성] 지급형태 '수표')로 늘어난 수표 — 그 입금보고서(지출결의서).
+     * 원본(2026-10-14 loginaa 실측) 수표조회 증가 줄의 거래유형 '입금보고서' · [회계전표일자-No.] 가 이 전표이고, 전표를 지우면
+     * 수표도 사라진다(FK ON DELETE CASCADE, V402). 돈은 수표계좌(입금보고서의 돈 들어온 계좌)로 이미 들어가 있으므로
+     * {@link #directEntry} 처럼 수표계좌 기준이다 — 입금처리의 대변 계정이 수표계좌의 계정(보통예금)이다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "source_voucher_id")
+    private com.erp.accounting.fastvoucher.FastVoucher sourceVoucher;
 }

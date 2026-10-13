@@ -116,6 +116,8 @@ public final class BondDtos {
             @NotNull(message = "금액을 입력 바랍니다.") @Positive(message = "금액은 0보다 커야 합니다.") BigDecimal amount,
             Long departmentId,
             Long projectId,
-            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String memo
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String memo,
+            /** 수금(지급)형태 '수표' — 수표번호입력 창의 번호. 있으면 그 줄 금액만큼 수령(발행)수표가 하나 는다(2026-10-14 실측). */
+            @Size(max = 30, message = "수표번호는 30자까지 넣을 수 있습니다.") String checkNo
     ) {}
 }

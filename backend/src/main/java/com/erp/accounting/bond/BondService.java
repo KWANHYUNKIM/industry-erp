@@ -47,6 +47,7 @@ public class BondService {
     private final ProjectService projectService;
     private final FastVoucherService fastVoucherService;
     private final FastVoucherRepository fastVoucherRepository;
+    private final com.erp.accounting.bankcheck.BankCheckService bankCheckService;
 
     /** 원본 선택삭제가 연결된 장을 뺄 때 쓰는 사유 글자(2026-10-13 실측). */
     public static final String LINKED_REASON = "파생관계로 연결된 전표";
@@ -87,6 +88,13 @@ public class BondService {
            채무 감소 2026/10/13 -2(출처업무 지출결의서)가 함께 생겨 잔액 30,000. */
         FastVoucherType type = side == BondSide.RECEIVABLE ? FastVoucherType.DEPOSIT_REPORT : FastVoucherType.EXPENSE_REPORT;
         boolean cash = Boolean.TRUE.equals(req.cash()) || req.bankAccountId() == null;
+        boolean byCheck = req.lines().stream().anyMatch(l -> l.checkNo() != null && !l.checkNo().isBlank());
+        if (byCheck && cash) {
+            throw ApiException.badRequest((side == BondSide.RECEIVABLE ? "입금계좌" : "출금계좌") + "를 입력 바랍니다.");
+        }
+        if (byCheck && req.lines().stream().anyMatch(l -> l.checkNo() == null || l.checkNo().isBlank())) {
+            throw ApiException.badRequest("수표번호를 입력 바랍니다.");
+        }
         List<LineInput> vLines = req.lines().stream().map(l -> new LineInput(
                 l.accountId(), l.amount(), blankToNull(l.memo()),
                 cash ? null : req.bankAccountId(), cash ? Boolean.TRUE : null, l.partnerId(), null, null)).toList();
@@ -102,6 +110,15 @@ public class BondService {
                 .build();
         e.replaceLines(toLines(req.lines().stream().map(BondService::toLineRequest).toList(), BondDirection.DECREASE));
         entryRepository.saveAndFlush(e);
+        /* 수금(지급)형태 '수표' — 원본은 같은 입금보고서(지출결의서)로 수령(발행)수표가 줄마다 하나 는다. 돈 들어온(나간) 계좌가 수표계좌다. */
+        if (byCheck) {
+            bankCheckService.createFromVoucher(
+                    side == BondSide.RECEIVABLE ? com.erp.accounting.bankcheck.CheckType.RECEIVED : com.erp.accounting.bankcheck.CheckType.ISSUED,
+                    req.date(), req.bankAccountId(), v.id(),
+                    req.lines().stream().map(l -> new com.erp.accounting.bankcheck.BankCheckService.VoucherCheckLine(
+                            l.checkNo(), l.amount(), l.partnerId(), l.departmentId(), l.projectId(), blankToNull(l.memo()))).toList(),
+                    username);
+        }
         return BondEntryResponse.from(load(e.getId()));
     }
 

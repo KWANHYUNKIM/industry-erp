@@ -72,6 +72,12 @@ public class BankCheckService {
                 issueNo.putIfAbsent(j.getSourceId(), j.getDocNo());
             }
         }
+        /* 채권(채무)감소의 입금보고서(지출결의서)로 늘어난 수표 — 증가 줄 [회계전표일자-No.] 는 그 전표(조회 쿼리가 함께 가져온다). */
+        for (BankCheck c : checks) {
+            if (c.getSourceVoucher() != null && c.getSourceVoucher().getJournalEntry() != null) {
+                issueNo.put(c.getId(), c.getSourceVoucher().getJournalEntry().getDocNo());
+            }
+        }
         java.util.List<Long> settleIds = checks.stream().map(BankCheck::getSettleJournalId).filter(java.util.Objects::nonNull).toList();
         java.util.Map<Long, String> settleNo = new java.util.HashMap<>();
         java.util.Set<Long> byVoucher = new java.util.HashSet<>();
@@ -225,6 +231,51 @@ public class BankCheckService {
         return out;
     }
 
+    /**
+     * 채권감소등록 [입금보고서작성] 수금형태 '수표' → 수표번호입력 → 입금보고서 [저장](채무감소등록 [지출결의서작성] 지급형태 '수표'가 거울) —
+     * 2026-10-14 loginaa 실측: 김치좋아 채권 98,000 · 입금계좌 1122334455 기업은행-1122 · 생성방식 자동생성 '26101403162966200001' →
+     * 입금보고서 2026/10/14 -9 [돈 들어온 계좌 기업은행-1122 · 계정코드(대변) 1089 외상매출금 · 김치좋아 · 98,000 · 추가정보 '채권 …, 수령수표 …']
+     * 와 함께 수령수표조회에 증가 줄 '2026/10/14 -5 · 증가 · 김치좋아 · 98,000 · 거래유형 입금보고서 · 2026/10/14 -9'(체크칸 막힘),
+     * 수령수표입금처리 목록에 '계정명 보통예금 · 수령수표계좌명 기업은행-1122'. 입금보고서를 지우면 수표도 사라진다.
+     * 채무 쪽: 도서출판책사 1,800,000 → 지출결의서 2026/10/14 -10 · 발행수표조회 '2026/10/14 -3 · 증가 · 도서출판책사 · 지출결의서'.
+     *
+     * <p>입금보고서의 돈 들어온 계좌가 수표계좌다 — 돈이 그 계좌 계정으로 이미 잡혔으므로 수표내역입력 수표처럼(directEntry) 수표계좌 기준이다.
+     * 수표 전표 번호(원본 [일자] '-5')는 전표 한 장에 하나.
+     */
+    @Transactional
+    public List<CheckResponse> createFromVoucher(CheckType type, LocalDate date, Long bankAccountId, Long voucherId,
+                                                 List<VoucherCheckLine> lines, String username) {
+        if (bankAccountId == null) {
+            throw ApiException.badRequest((type == CheckType.RECEIVED ? "입금계좌" : "출금계좌") + "를 입력 바랍니다.");
+        }
+        BankAccount account = bankAccount(bankAccountId);
+        var voucher = fastVoucherRepository.getReferenceById(voucherId);
+        int entryNo = nextEntryNo(type, date);
+        List<CheckResponse> out = new java.util.ArrayList<>();
+        for (VoucherCheckLine l : lines) {
+            String no = l.checkNo().trim();
+            if (checkRepository.existsByCheckNo(no)) {
+                throw ApiException.conflict("이미 등록된 수표번호입니다: " + no);
+            }
+            BankCheck c = checkRepository.save(BankCheck.builder()
+                    .checkNo(no).type(type).status(CheckStatus.HELD)
+                    .issueDate(date).amount(l.amount())
+                    .partner(l.partnerId() == null ? null : partnerRepository.findById(l.partnerId())
+                            .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + l.partnerId())))
+                    .bankAccount(account).remark(l.memo())
+                    .departmentId(l.departmentId()).project(project(l.projectId()))
+                    .createdBy(username).updatedBy(username).directEntry(true).directInNo(entryNo)
+                    .sourceVoucher(voucher)
+                    .build());
+            out.add(CheckResponse.from(c));
+        }
+        return out;
+    }
+
+    /** 입금보고서(지출결의서) 한 줄이 늘리는 수표. */
+    public record VoucherCheckLine(String checkNo, java.math.BigDecimal amount, Long partnerId,
+                                   Long departmentId, Long projectId, String memo) {}
+
     /** 받은수표 부도 — 현금은 움직이지 않고 채권으로 되돌린다 */
     @Transactional
     public CheckResponse dishonor(Long id, SettleRequest req, String username) {
@@ -308,6 +359,7 @@ public class BankCheckService {
         if (current.isEmpty()) {
             throw ApiException.notFound("전표를 찾을 수 없습니다: " + req.date() + " -" + req.entryNo());
         }
+        requireNotFromVoucher(current.get(0));
         java.util.Set<Long> mine = current.stream().map(BankCheck::getId).collect(java.util.stream.Collectors.toSet());
         java.util.Set<Long> kept = new java.util.HashSet<>();
         for (BankCheckDtos.DirectEditLine l : req.lines()) {
@@ -414,6 +466,7 @@ public class BankCheckService {
         java.util.Set<Long> inc = new java.util.LinkedHashSet<>(increaseIds == null ? List.of() : increaseIds);
         java.util.Set<Long> dec = new java.util.LinkedHashSet<>(decreaseIds == null ? List.of() : decreaseIds);
         for (Long id : inc) {
+            requireNotFromVoucher(check(id));
             if (check(id).getStatus() != CheckStatus.HELD) dec.add(id);
         }
         for (Long id : dec) {
@@ -509,6 +562,14 @@ public class BankCheckService {
     private static void requireJournaled(BankCheck c) {
         if (c.isDirectEntry()) {
             throw ApiException.badRequest(c.getCheckNo() + " 은(는) 수표내역입력으로 넣은 수표입니다 — 수령수표조회 [신규] 에서 감소로 넣으세요.");
+        }
+    }
+
+    /** 원본: 입금보고서(지출결의서)로 늘어난 증가 줄은 체크칸이 막혀 있다(2026-10-14 실측) — 그 전표를 지우면 함께 사라진다. */
+    private static void requireNotFromVoucher(BankCheck c) {
+        if (c.getSourceVoucher() != null) {
+            String doc = c.getType() == CheckType.RECEIVED ? "입금보고서" : "지출결의서";
+            throw ApiException.badRequest(c.getCheckNo() + " 은(는) " + doc + "로 증가한 수표입니다 — " + doc + "에서 삭제하세요.");
         }
     }
 
