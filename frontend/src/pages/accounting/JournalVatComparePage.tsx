@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { vatSlipAmounts, type VatSide } from '../../utils/vatSlip'
+import { vatEntrySide, vatSlipAmounts, type VatSide } from '../../utils/vatSlip'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import { dateNo } from '../../utils/dateNo'
@@ -45,7 +45,7 @@ const radio = <T extends string>(name: string, values: readonly T[], value: T, s
     </label>
   ))
 
-/** 매출전표 I · 매입전표 I 로 만든 전표는 부가세유형을 든다(응답 vatType · 출처 VAT_SALES · VAT_PURCHASE — 공용 타입엔 아직 없다). */
+/** 매출전표 I · 매입전표 I(그리고 판매 · 구매 회계반영) 전표는 부가세유형을 든다(응답 vatType — 공용 타입엔 아직 없다). 쪽은 vatEntrySide. */
 type VatEntry = JournalEntry & { vatType?: string | null }
 
 /**
@@ -55,7 +55,7 @@ type VatEntry = JournalEntry & { vatType?: string | null }
  */
 function materialOf(e: VatEntry): Material | null {
   if (e.vatType) {
-    const side: VatSide = (e.sourceType as string) === 'VAT_SALES' ? '매출' : '매입'
+    const side: VatSide = vatEntrySide(e) ?? '매입'
     const t = VAT_TYPES.find((v) => v.side === side && v.name === e.vatType)
     const a = vatSlipAmounts(e.lines, side)
       ?? { supply: e.lines.reduce((s, l) => s + Number(side === '매출' ? l.credit : l.debit), 0), vat: 0 }

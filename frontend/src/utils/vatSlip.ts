@@ -16,6 +16,22 @@ export const VAT_ACCOUNT: Record<VatSide, string> = { 매출: '255', 매입: '13
 
 interface Line { accountCode: string; debit: number | string; credit: number | string }
 
+/** 출처로 쪽이 정해지는 전표 — 매출전표 I · 판매 회계반영은 매출, 매입전표 I · 구매 회계반영은 매입. */
+const SALES_SOURCES = ['VAT_SALES', 'SALES']
+const PURCHASE_SOURCES = ['VAT_PURCHASE', 'PURCHASE']
+
+/**
+ * 부가세유형을 든 전표가 매출인지 매입인지 — 출처(sourceType)로 먼저 가르고, 그 밖의 출처는 부가세 줄(매출 255 · 매입 135)로.
+ * 둘 다 없으면 null. 예전엔 'VAT_SALES 가 아니면 매입' 이라 판매 회계반영 전표에 부가세유형이 붙으면 매입으로 갔다.
+ */
+export function vatEntrySide(e: { sourceType: string; lines: readonly Line[] }): VatSide | null {
+  if (SALES_SOURCES.includes(e.sourceType)) return '매출'
+  if (PURCHASE_SOURCES.includes(e.sourceType)) return '매입'
+  if (e.lines.some((l) => l.accountCode === VAT_ACCOUNT.매출)) return '매출'
+  if (e.lines.some((l) => l.accountCode === VAT_ACCOUNT.매입)) return '매입'
+  return null
+}
+
 /** 부가세 줄이 없으면 null — 세금계산서 전표가 아니다. */
 export function vatSlipAmounts(lines: readonly Line[], side: VatSide): { supply: number; vat: number } | null {
   const code = VAT_ACCOUNT[side]

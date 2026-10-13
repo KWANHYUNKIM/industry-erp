@@ -1,7 +1,7 @@
 /** 세금계산서 전표의 공급가액 · 부가세 — npm run test:unit */
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { vatSlipAmounts } from './vatSlip.ts'
+import { vatEntrySide, vatSlipAmounts } from './vatSlip.ts'
 
 const L = (accountCode: string, debit: number, credit: number) => ({ accountCode, debit, credit })
 
@@ -31,4 +31,16 @@ test('매출전표 I · 매입전표 I 의 수수료 두 줄(차 지급수수료
   assert.deepEqual(vatSlipAmounts([L('153', 100000, 0), L('135', 10000, 0), L('251', 0, 110000), L('831', 1000, 0), L('251', 0, 1000)], '매입'), { supply: 100000, vat: 10000 })
   /* 짝 없는 지급수수료(지출결의서)는 그대로 공급가액 */
   assert.deepEqual(vatSlipAmounts([L('831', 1000, 0), L('135', 100, 0), L('101', 0, 1100)], '매입'), { supply: 1000, vat: 100 })
+})
+
+test('부가세유형 전표의 쪽 — 판매 회계반영(SALES)은 매출, 구매(PURCHASE)는 매입, 그 밖은 부가세 줄', () => {
+  const sale = [L('108', 110, 0), L('404', 0, 100), L('255', 0, 10)]
+  const buy = [L('153', 100, 0), L('135', 10, 0), L('251', 0, 110)]
+  assert.equal(vatEntrySide({ sourceType: 'SALES', lines: sale }), '매출')
+  assert.equal(vatEntrySide({ sourceType: 'VAT_SALES', lines: [L('108', 100, 0), L('404', 0, 100)] }), '매출')
+  assert.equal(vatEntrySide({ sourceType: 'PURCHASE', lines: buy }), '매입')
+  assert.equal(vatEntrySide({ sourceType: 'VAT_PURCHASE', lines: [L('153', 100, 0), L('251', 0, 100)] }), '매입')
+  assert.equal(vatEntrySide({ sourceType: 'MANUAL', lines: sale }), '매출')
+  assert.equal(vatEntrySide({ sourceType: 'MANUAL', lines: buy }), '매입')
+  assert.equal(vatEntrySide({ sourceType: 'MANUAL', lines: [L('101', 1, 0), L('102', 0, 1)] }), null)
 })
