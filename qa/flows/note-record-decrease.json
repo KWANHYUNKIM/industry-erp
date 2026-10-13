@@ -1,5 +1,5 @@
 {
-  "about": "받을어음조회 [내역만등록] 전표구분 [감소](원본 2026-10-13 loginaa 실측: QA1-N3 어음만증가 뒤 감소 → 줄 [2026/10/13-4 · QA1-N3 · 감소 · 좋은컴퓨터 · 10,000 · 2026/10/13 · QA회계1 · 어음만감소 · (빈칸)], 감소 격자는 어음번호 · 금액 · 부서 · 프로젝트 · 적요 — 만기일자 열이 없다). 내역만 어음(부서 붙음)을 감소로 닫고 → 감소 줄 '어음만감소' · 회계전표일자-No. 빈칸 · 증가 줄은 체크가 막힘 → 감소 줄 체크 [선택삭제] → 어음이 다시 보유(증가 줄 체크 가능) → 지움. node qa/shot.mjs qa/flows/note-record-decrease.json",
+  "about": "받을어음조회 [내역만등록] 전표구분 [감소](원본 2026-10-13 loginaa 실측: QA1-N3 어음만증가 뒤 감소 → 줄 [2026/10/13-4 · QA1-N3 · 감소 · 좋은컴퓨터 · 10,000 · 2026/10/13 · QA회계1 · 어음만감소 · (빈칸)], 감소 격자는 어음번호 · 금액 · 부서 · 프로젝트 · 적요 — 만기일자 열이 없다). 내역만 어음(부서 붙음)을 감소로 닫고 → 감소 줄 '어음만감소' · 회계전표일자-No. 빈칸 · 증가 줄은 체크가 막힘 → 감소 줄 체크 [선택삭제] → 어음이 다시 보유(증가 줄 체크 가능) → 지움. node qa/shot.mjs qa/flows/note-record-decrease.json 감소 줄은 자기 적요(V361 close_remark)를 찍는다.",
   "shots": [
     {
       "name": "내역만등록 감소 → 선택삭제로 되돌림",
@@ -16,11 +16,12 @@
         "js:(() => { document.querySelector('[role=dialog] button[title=\"거래처코드 선택\"]').click(); return true })()",
         "wait:500",
         "pickrow:@rdP",
-        "js:(() => { const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; set(document.querySelector('input[aria-label=\"어음번호1\"]'), sessionStorage.getItem('rdNo')); set(document.querySelector('input[aria-label=\"금액1\"]'), '10000'); set(document.querySelector('input[aria-label=\"적요1\"]'), 'QA회계1'); return true })()",
+        "js:(() => { const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; set(document.querySelector('input[aria-label=\"어음번호1\"]'), sessionStorage.getItem('rdNo')); set(document.querySelector('input[aria-label=\"금액1\"]'), '10000'); set(document.querySelector('input[aria-label=\"적요1\"]'), 'QA회계1-감소'); return true })()",
         "wait:200",
         "js:(() => { [...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent.trim() === '저장(F8)').click(); return true })()",
         "wait:1500",
         "expect:(() => { const rows = [...document.querySelectorAll('tbody tr')].filter((t) => t.innerText.includes(sessionStorage.getItem('rdNo'))); const dec = rows.find((t) => t.cells[3].innerText.trim() === '감소'); const inc = rows.find((t) => t.cells[3].innerText.trim() === '증가'); return !!dec && !!inc && dec.innerText.includes('어음만감소') && dec.cells[dec.cells.length - 1].innerText.trim() === '' && !dec.querySelector('input[type=checkbox]').disabled && inc.querySelector('input[type=checkbox]').disabled })()",
+        "expect:(() => { const rows = [...document.querySelectorAll('tbody tr')].filter((t) => t.innerText.includes(sessionStorage.getItem('rdNo'))); const dec = rows.find((t) => t.cells[3].innerText.trim() === '감소'); const inc = rows.find((t) => t.cells[3].innerText.trim() === '증가'); return dec.cells[7].innerText.trim() === 'QA회계1-감소' && inc.cells[7].innerText.trim() !== 'QA회계1-감소' })()",
         "js:(() => { const tr = [...document.querySelectorAll('tbody tr')].find((t) => t.innerText.includes(sessionStorage.getItem('rdNo')) && t.cells[3].innerText.trim() === '감소'); tr.querySelector('input[type=checkbox]').click(); return true })()",
         "wait:200",
         "click:선택삭제",

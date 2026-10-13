@@ -19,10 +19,18 @@ import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 /** 원본 [내역만등록]으로 넣은 어음은 분개가 없다(recordOnly). 감소로 닫으면 상태 RECORD_DECREASED('어음만감소'). */
-type Note = PromissoryNote & { recordOnly?: boolean; departmentId?: number | null; projectId?: number | null }
+type Note = PromissoryNote & {
+  recordOnly?: boolean; departmentId?: number | null; projectId?: number | null
+  /** [내역만등록] 감소 줄의 자기 적요 · 부서 · 프로젝트(V361) — 원본 감소 줄은 증가 쪽이 아니라 이 값을 찍는다. */
+  closeRemark?: string | null; closeDepartmentId?: number | null; closeProjectId?: number | null
+}
 const recordDecreased = (n: Note) => (n.status as string) === 'RECORD_DECREASED'
 /** 어음 한 장이 남기는 움직임 — 받은(발행한) 날 증가, 손을 떠난 날(결제 · 할인 · 부도) 감소. */
 interface Move { key: string; date: string; inc: boolean; n: Note }
+/** 그 줄의 적요 · 부서 · 프로젝트 — 감소 줄은 감소 때 적은 값. */
+const lineRemark = (m: Move) => (m.inc ? m.n.remark : m.n.closeRemark) ?? ''
+const lineDept = (m: Move) => String((m.inc ? m.n.departmentId : m.n.closeDepartmentId) ?? '')
+const lineProject = (m: Move) => String((m.inc ? m.n.projectId : m.n.closeProjectId) ?? '')
 /** 내역만등록 창의 한 줄 */
 interface RecLine { noteNo: string; amount: string; dueDate: string; dept: string; project: string; remark: string }
 
@@ -125,10 +133,10 @@ export default function NoteListPage({ type }: { type: NoteType }) {
       .filter((m) => !kind || kindOf(m) === kind)
       .filter(() => direct)
       .filter((m) => !partner || String(m.n.partnerId) === partner)
-      .filter((m) => !remark || (m.n.remark ?? '').includes(remark))
+      .filter((m) => !remark || lineRemark(m).includes(remark))
       .filter((m) => !author || (m.n.createdBy ?? '') === author)
-      .filter((m) => !dept || String(m.n.departmentId ?? '') === dept)
-      .filter((m) => !project || String(m.n.projectId ?? '') === project)
+      .filter((m) => !dept || lineDept(m) === dept)
+      .filter((m) => !project || lineProject(m) === project)
       .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.n.noteNo.localeCompare(b.n.noteNo) || (a.inc ? -1 : 1)))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ofType, from, to, useDue, dueFrom, dueTo, noteNo, showInc, showDec, kind, direct, partner, remark, author, dept, project])
@@ -161,7 +169,8 @@ export default function NoteListPage({ type }: { type: NoteType }) {
     if (recDec && lines.some((l) => !l.noteNo.trim())) { setRecError('어음번호: 자료를 입력 바랍니다.'); return }
     try {
       for (const l of lines) {
-        if (recDec) await api.post('/notes/record-decrease', { type, noteNo: l.noteNo.trim(), date: recDate })
+        if (recDec) await api.post('/notes/record-decrease', { type, noteNo: l.noteNo.trim(), date: recDate, remark: l.remark.trim() || undefined,
+          departmentId: l.dept ? Number(l.dept) : undefined, projectId: l.project ? Number(l.project) : undefined })
         else await api.post('/notes', { type, partnerId: Number(recPartner), issueDate: recDate, dueDate: l.dueDate,
           amount: Number(l.amount), remark: l.remark.trim() || undefined, recordOnly: true, noteNo: l.noteNo.trim() || undefined,
           departmentId: l.dept ? Number(l.dept) : undefined, projectId: l.project ? Number(l.project) : undefined })
@@ -309,7 +318,7 @@ export default function NoteListPage({ type }: { type: NoteType }) {
               <td>{m.n.partnerName}</td>
               <td className="text-right">{won(Number(m.n.amount))}</td>
               <td className="text-center">{dateText(m.n.dueDate)}</td>
-              <td>{m.n.remark ?? ''}</td>
+              <td>{lineRemark(m)}</td>
               <td className="text-center">{kindOf(m)}</td>
               <td className="text-center">{journalOf(m)}</td>
             </tr>

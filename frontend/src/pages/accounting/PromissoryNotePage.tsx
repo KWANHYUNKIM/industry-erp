@@ -4,6 +4,8 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { BankAccountRow, NoteStatus, NoteSummary, Partner, PromissoryNote } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import CodePickerField from '../../components/CodePickerField'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => ymd(new Date())
@@ -233,6 +235,10 @@ function NoteForm({ partners, onClose, onSaved }: { partners: Partner[]; onClose
   const [amount, setAmount] = useState('')
   const [bankName, setBankName] = useState('')
   const [remark, setRemark] = useState('')
+  /* 원본 받을어음증가 창의 [부서] · [프로젝트](2026-10-13 loginaa 실측: 전표일자 · 회계전표No. · 부서 · 프로젝트 · 거래처 · 어음번호 · 만기일자 · 금액 · 적요). */
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const deptProject = useDeptProjectItems()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -248,6 +254,7 @@ function NoteForm({ partners, onClose, onSaved }: { partners: Partner[]; onClose
       const res = await api.post<PromissoryNote>('/notes', {
         type, partnerId: Number(partnerId), issueDate, dueDate,
         amount: Number(amount), bankName: bankName || undefined, remark: remark || undefined,
+        departmentId: dept ? Number(dept) : undefined, projectId: project ? Number(project) : undefined,
       })
       onSaved(res.data)
     } catch (err) {
@@ -279,6 +286,12 @@ function NoteForm({ partners, onClose, onSaved }: { partners: Partner[]; onClose
                     {type === 'RECEIVABLE' ? '차)받을어음 / 대)외상매출금' : '차)외상매입금 / 대)지급어음'}
                   </span>
                 </td>
+              </tr>
+              <tr>
+                <th className="bg-ec-page">부서</th>
+                <td><CodePickerField label="부서" hideLabel fill emptyLabel="" value={dept} onChange={setDept} items={deptProject.departments} /></td>
+                <th className="bg-ec-page">프로젝트</th>
+                <td><CodePickerField label="프로젝트" hideLabel fill emptyLabel="" value={project} onChange={setProject} items={deptProject.projects} /></td>
               </tr>
               <tr>
                 <th className="bg-ec-page">거래처<span className="text-ec-danger">*</span></th>

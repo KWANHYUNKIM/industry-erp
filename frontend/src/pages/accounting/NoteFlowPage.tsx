@@ -24,7 +24,9 @@ const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
  * <p>지급어음증가현황(E010632) · 감소현황(E010633)도 조건 · 열 · 기본값이 글자 하나까지 같다(같은 날 실측) — type 만 바꾼다.
  */
 /** 어음의 부서 · 프로젝트(공용 타입 PromissoryNote 에는 아직 없다). */
-type DP = { departmentId?: number | null; projectId?: number | null }
+type DP = { departmentId?: number | null; projectId?: number | null
+  /** [내역만등록] 감소 줄의 자기 적요 · 부서 · 프로젝트(V361) — 감소 현황은 이 값을 본다. */
+  closeRemark?: string | null; closeDepartmentId?: number | null; closeProjectId?: number | null }
 
 export default function NoteFlowPage({ type, flow }: { type: NoteType; flow: '증가' | '감소' }) {
   const title = type === 'RECEIVABLE'
@@ -69,16 +71,23 @@ export default function NoteFlowPage({ type, flow }: { type: NoteType; flow: '�
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { void load() }, [from, to, flow, type])
 
+  /** 감소 쪽에서 [내역만등록] 감소로 닫힌 어음은 감소 줄의 값, 그 밖은 어음(증가) 값. */
+  const dpOf = (n: PromissoryNote) => {
+    const d = n as PromissoryNote & DP
+    const own = flow !== '증가' && (n.status as string) === 'RECORD_DECREASED'
+    return own ? { dept: d.closeDepartmentId, project: d.closeProjectId, remark: d.closeRemark }
+      : { dept: d.departmentId, project: d.projectId, remark: n.remark }
+  }
   const dayOf = (n: PromissoryNote) => (flow === '증가' ? n.issueDate : n.closedDate ?? '')
   const shown = useMemo(() => notes
     .filter((n) => n.type === type)
     .filter((n) => { const d = dayOf(n); return !!d && d >= from && d <= to })
     .filter((n) => flow === '감소' || ((!dueFrom || n.dueDate >= dueFrom) && (!dueTo || n.dueDate <= dueTo)))
-    .filter((n) => !dept || String((n as DP).departmentId ?? '') === dept)
-    .filter((n) => !project || String((n as DP).projectId ?? '') === project)
+    .filter((n) => !dept || String(dpOf(n).dept ?? '') === dept)
+    .filter((n) => !project || String(dpOf(n).project ?? '') === project)
     .filter((n) => !partner || String(n.partnerId) === partner)
     .filter((n) => !noteNo || n.noteNo.includes(noteNo))
-    .filter((n) => !remark || (n.remark ?? '').includes(remark))
+    .filter((n) => !remark || (dpOf(n).remark ?? '').includes(remark))
     .sort((a, b) => (dayOf(a) < dayOf(b) ? -1 : dayOf(a) > dayOf(b) ? 1 : a.noteNo.localeCompare(b.noteNo))),
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [notes, type, flow, from, to, dueFrom, dueTo, partner, dept, project, noteNo, remark])
@@ -171,7 +180,7 @@ export default function NoteFlowPage({ type, flow }: { type: NoteType; flow: '�
               <td>{n.noteNo}</td>
               <td>{n.partnerName}</td>
               <td>{account}</td>
-              <td>{n.remark ?? ''}</td>
+              <td>{dpOf(n).remark ?? ''}</td>
               {flow === '증가' && <td className="text-center">{dateText(n.dueDate)}</td>}
               <td className="text-right">{won(Number(n.amount))}</td>
             </tr>
