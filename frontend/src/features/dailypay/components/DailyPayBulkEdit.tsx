@@ -26,8 +26,10 @@ const slash = (s: string) => s.replace(/-/g, '/')
  *
  * <p>원본 최종근무일 칸은 우리 대장 줄에 최종근무일이 없어(근무입력에서 셈한다) 고치지 못한다. [사전작업▲] · [삭제] 는 아직 없다.
  */
-export default function DailyPayBulkEdit({ ledger, bizRegNo, onClose, onSaved }: {
+export default function DailyPayBulkEdit({ ledger, bizRegNo, onClose, onSaved, lineIds }: {
   ledger: Ledger | null; bizRegNo: string; onClose: () => void; onSaved: () => void
+  /** 사원별급여조회 [귀속연월] 링크 — 대상자 선택 없이 그 줄만 '급여내역수정' 으로 연다(원본 E020135 실측). */
+  lineIds?: number[]
 }) {
   const [lines, setLines] = useState<DailyPayLineRow[]>([])
   const [workers, setWorkers] = useState<DailyWorkerRow[]>([])
@@ -44,7 +46,10 @@ export default function DailyPayBulkEdit({ ledger, bizRegNo, onClose, onSaved }:
     Promise.all([
       api.get<DailyPayLineRow[]>(`/hr/daily-pay-ledgers/${ledger.id}/lines`),
       api.get<DailyWorkerRow[]>('/hr/daily-workers'),
-    ]).then(([l, w]) => { setLines(l.data); setWorkers(w.data) }).catch((e) => setError(extractErrorMessage(e)))
+    ]).then(([l, w]) => {
+      setLines(l.data); setWorkers(w.data)
+      if (lineIds) setEditing(l.data.filter((x) => lineIds.includes(x.id)))
+    }).catch((e) => setError(extractErrorMessage(e)))
   }, [ledger])
 
   const worker = (id: number) => workers.find((w) => w.id === id)
@@ -86,7 +91,7 @@ export default function DailyPayBulkEdit({ ledger, bizRegNo, onClose, onSaved }:
 
   return (
     <>
-      <Modal error={error} open={!!ledger && !editing} title="급여수정 대상자 선택" width={780} onClose={onClose}>{(
+      <Modal error={error} open={!!ledger && !editing && !lineIds} title="급여수정 대상자 선택" width={780} onClose={onClose}>{(
         <>
           <div className="flex justify-end gap-[4px] mb-[8px]">
             <input className="ec-input w-[180px]" placeholder="입력 후 [Enter]" aria-label="급여수정 대상자 검색" value={query} onChange={(e) => setQuery(e.target.value)} />

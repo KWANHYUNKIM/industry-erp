@@ -79,7 +79,8 @@ public class WorkPostService {
                  * 진행상태가 회사가 정한 이름뿐이라 '완료로 바꾼 때' 가 따로 없다.
                  */
                 .completedAt(board.namedStages() ? java.time.LocalDateTime.now() : null)
-                .weekNo(board == PostBoard.MINUTES ? weekOf(req.weekNo()) : null)
+                // 팀별회의록도 입력 창에 [주 차 구분](주차검색 1 ~ 5주차)이 있다(2026-10-13 · 10-14 실측).
+                .weekNo(board == PostBoard.MINUTES || board == PostBoard.MEETING ? weekOf(req.weekNo()) : null)
                 .meetingLinks(board == PostBoard.MINUTES ? joinLinks(req.meetingLinks()) : null)
                 .extraFields(board.extraFields() ? blankToNull(req.extraFields()) : null)
                 .project(board == PostBoard.SIGN ? blankToNull(req.project()) : null)
@@ -105,6 +106,7 @@ public class WorkPostService {
             post.setProject(blankToNull(req.project()));
             post.setKanbanPost(kanbanOf(req.kanbanPostId()));
         }
+        if (post.getBoard() == PostBoard.MEETING) post.setWeekNo(weekOf(req.weekNo()));
         if (post.getBoard() == PostBoard.MINUTES) {
             post.setWeekNo(weekOf(req.weekNo()));
             post.setMeetingLinks(joinLinks(req.meetingLinks()));

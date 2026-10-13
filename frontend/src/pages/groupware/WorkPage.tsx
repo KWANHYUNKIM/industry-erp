@@ -105,6 +105,8 @@ type BoardCfg = {
   minutes?: boolean
   /** 입력 창 [참조자] 처음 값이 '전체'(원본 통합회의록 · 팀별회의록, 2026-10-14 · 10-13 실측). */
   ccAll?: boolean
+  /** 입력 창 첨부 아래 [주 차 구분](주차검색 1 ~ 5주차) — 팀별회의록(통합회의록은 minutes 가 그린다). */
+  weekPick?: boolean
   /** 업무관리 예시 게시판: 격자 열 차례(없으면 wide · minutes 로 정한 예전 꼴). */
   cols?: Col[]
   /** 업무관리 예시 게시판: 입력 창의 게시판별 입력항목. */
@@ -137,7 +139,7 @@ const BOARD_CFG: Record<PostBoardCode, BoardCfg> = {
   MEETING: {
     wide: false, labels: true, period: 'lastYear', stageLabel: '부서구분',
     stages: ['경영지원팀', '구매팀', '생산팀', '영업팀', '항목을 자유롭게 추가 할 수 있습니다.'],
-    defaultStage: '항목을 자유롭게 추가 할 수 있습니다.', ccAll: true,
+    defaultStage: '항목을 자유롭게 추가 할 수 있습니다.', ccAll: true, weekPick: true,
   },
   /* 간판제작 프로젝트관리(E200070, 2026-10-13 실측): 알약 [전체][수주견적][디자인팀 시안][자재발주, 제작][현장시공], 기본 기간 전년. */
   SIGN: { wide: true, stages: ['수주견적', '디자인팀 시안', '자재발주, 제작', '현장시공'], labels: true, period: 'lastYear' },
@@ -485,7 +487,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
       stage: namedStages ? (form.stage || firstStage) : null,
       // 수정은 통째로 덮는다 — 첨부를 안 보내면 서버가 뗀다(예전 수정이 그래서 첨부를 잃었다).
       attachmentId: attachment ? attachment.id : null,
-      weekNo: cfg.minutes ? form.weekNo : null,
+      weekNo: cfg.minutes || cfg.weekPick ? form.weekNo : null,
       meetingLinks: cfg.minutes ? form.links : null,
       extraFields: cfg.extras && Object.values(form.extra).some((v) => v.trim())
         ? JSON.stringify(Object.fromEntries(cfg.extras.map((x) => [x.name, (form.extra[x.name] ?? '').trim()]).filter(([, v]) => v)))
@@ -1151,7 +1153,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
               </div>
             </li>
           ))}
-          {cfg.minutes && (
+          {(cfg.minutes || cfg.weekPick) && (
             <li>
               <div className="title">주 차 구분</div>
               <div className="form gap-[4px] relative">

@@ -141,7 +141,8 @@ export default function ProjectPlanStatusPage() {
     <>
       <td className="text-right">{blankWon(s.plan)}</td>
       <td className="text-right">{blankWon(s.actual)}</td>
-      <td className="text-right">{won(s.actual - s.plan)}</td>
+      {/* 계획 기간 안인데 계획도 실적도 없는 달은 원본이 차이까지 비운다('2026.12 | | | |', 2026-10-14 실측). */}
+      <td className="text-right">{s.plan || s.actual ? won(s.actual - s.plan) : ''}</td>
       {withRate && <td className="text-right">{rate(s.actual, s.plan)}</td>}
     </>
   )
@@ -279,7 +280,8 @@ export default function ProjectPlanStatusPage() {
             period={metaLines}
             sub={sub}
           />
-          <table ref={tableRef} className="ec-report w-full text-left">
+          {/* 원본 격자는 이 화면만 작다(2026-10-14 실측): 머리 11px 400 · 본문 11px · 소계 · 손익 12px 700 — 같은 묶음 매출계획비교표는 12px. */}
+          <table ref={tableRef} className="ec-report ec-report-head400 w-full text-left [&_th]:text-[11px]! [&_td]:text-[11px]! [&_tr.ec-total_td]:text-[12px]!">
             <thead>
               <tr>
                 <th>프로젝트</th>

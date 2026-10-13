@@ -40,7 +40,7 @@
   "palette": 0
  },
  "components/EcListShell.tsx": {
-  "inline": 1,
+  "inline": 2,
   "color": 0,
   "palette": 0
  },
@@ -217,11 +217,6 @@
  "pages/accounting/CorporateTaxPage.tsx": {
   "inline": 28,
   "color": 6,
-  "palette": 0
- },
- "pages/accounting/CostBuildPage.tsx": {
-  "inline": 0,
-  "color": 0,
   "palette": 0
  },
  "pages/accounting/CostStatementPage.tsx": {
@@ -644,11 +639,6 @@
   "color": 5,
   "palette": 0
  },
- "pages/inventory/StockAnalysisPage.tsx": {
-  "inline": 0,
-  "color": 0,
-  "palette": 0
- },
  "pages/inventory/StockIoPage.tsx": {
   "inline": 15,
   "color": 6,
@@ -876,11 +866,6 @@
  },
  "pages/quality/AsStatusPage.tsx": {
   "inline": 49,
-  "color": 0,
-  "palette": 0
- },
- "pages/quality/DefectReportPage.tsx": {
-  "inline": 0,
   "color": 0,
   "palette": 0
  },

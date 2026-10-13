@@ -8,6 +8,8 @@ import { lastDay, monthRange, slashYm } from '../../features/dailypay/report'
 
 interface Row { payMonth: string; seq: number; paidMonth: string; payDate: string | null; workerId: number; workerCode: string; workerName: string; departmentId: number | null; payItem: string; days: number }
 
+/* 원본은 성명 순(2026-10-14: QA관리-순서 · 나일당 · 잠깐만 — 사원번호 00000 · 00002 · 00001). 글자 코드 순이라 영문이 한글보다 앞 */
+const byName = (a: { workerName: string }, b: { workerName: string }) => (a.workerName < b.workerName ? -1 : a.workerName > b.workerName ? 1 : 0)
 /**
  * 관리 &gt; 일용근로급여관리 &gt; 일용근로 급여작업 &gt; <b>일용근로 근무확정현황</b> (원본 E020754, 결과 제목 '근무기록확정현황').
  *
@@ -49,7 +51,7 @@ export default function DailyWorkConfirmStatusPage() {
     && (itemCond.length === 0 || itemCond.includes(r.payItem)))
   useTableColumnCheck(tableRef, '일용근로 근무확정현황', [list.length])
   const months = new Map<string, Row[]>()
-  for (const r of list) months.set(r.payMonth, [...(months.get(r.payMonth) ?? []), r])
+  for (const r of [...list].sort((a, b) => a.payMonth.localeCompare(b.payMonth) || a.seq - b.seq || byName(a, b))) months.set(r.payMonth, [...(months.get(r.payMonth) ?? []), r])
   const total = list.reduce((s, r) => s + Number(r.days), 0)
 
   return (

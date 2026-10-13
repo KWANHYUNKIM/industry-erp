@@ -1,5 +1,5 @@
 {
-  "about": "통합회의록(원본 E200066) · 팀별회의록(E200068) 입력 창 — 원본 2026-10-14 실측: 통합회의록 차례 제목('2026/10/14 ' 미리) · 진행상태(진행중 · 완료, 처음 진행중) · 전달자 '전체' · 공지사항여부 Y/N(처음 N) · 참조자 '전체'. 완료로 저장하면 그 글 진행상태가 완료. 팀별회의록도 참조자 처음 '전체'. 끝에 지운다. node qa/shot.mjs qa/flows/minutes-form.json",
+  "about": "통합회의록(원본 E200066) · 팀별회의록(E200068) 입력 창 — 원본 2026-10-14 실측: 통합회의록 차례 제목('2026/10/14 ' 미리) · 진행상태(진행중 · 완료, 처음 진행중) · 전달자 '전체' · 공지사항여부 Y/N(처음 N) · 참조자 '전체'. 완료로 저장하면 그 글 진행상태가 완료. 팀별회의록도 참조자 처음 '전체', 첨부 아래 [주 차 구분](주차검색 1 ~ 5주차) — 저장하면 weekNo. 끝에 지운다. node qa/shot.mjs qa/flows/minutes-form.json",
   "shots": [
     {
       "name": "통합회의록 신규 — 차례 · 처음 값 · 완료로 저장",
@@ -19,21 +19,31 @@
       ]
     },
     {
-      "name": "팀별회의록 신규 — 참조자 처음 '전체'",
+      "name": "팀별회의록 신규 — 참조자 처음 '전체' · 첨부 아래 [주 차 구분] 3주차로 저장",
       "path": "/groupware/meeting-board",
       "steps": [
         "wait:800",
         "click:신규(F2)",
         "wait:500",
         "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const li = [...d.querySelectorAll('.ec-form > li')].find((l) => l.querySelector('.title')?.textContent.trim() === '참조자'); return li.querySelector('.form button').textContent.trim() === '전체' })()",
-        "click:닫기"
+        "expect:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const t = [...d.querySelectorAll('.ec-form > li > .title')].map((x) => x.textContent.trim()); const i = t.indexOf('주 차 구분'); return i > 0 && t[i - 1] === '첨부' })()",
+        "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); d.querySelector('button[aria-label=\"주차검색\"]').click(); return true })()",
+        "wait:200",
+        "js:(() => { const m = document.querySelector('[role=dialog][aria-label=\"주차검색\"]'); [...m.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('3주차')).click(); return true })()",
+        "wait:200",
+        "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const i = d.querySelector('input[placeholder=\"제목\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'QA그룹웨어-팀별주차'); i.dispatchEvent(new Event('input', { bubbles: true })); const c = [...d.querySelectorAll('textarea')].pop(); Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(c, 'QA그룹웨어 팀별 주차'); c.dispatchEvent(new Event('input', { bubbles: true })); return true })()",
+        "wait:200",
+        "click:저장(F8)",
+        "wait:2000",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const ps = await (await fetch('/api/work-posts?board=MEETING', { headers: H })).json(); const p = ps.find((x) => x.title === 'QA그룹웨어-팀별주차'); return !!p && p.weekNo === 3 })()"
       ]
     },
     {
       "name": "정리",
       "path": "/groupware/minutes-board",
       "steps": [
-        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const ps = await (await fetch('/api/work-posts?board=MINUTES', { headers: H })).json(); const out = []; for (const p of ps.filter((x) => x.title.startsWith('QA그룹웨어-회의록상태'))) out.push((await fetch('/api/work-posts/' + p.id, { method: 'DELETE', headers: H })).status); return 'del ' + out.join(',') })()"
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const ps = await (await fetch('/api/work-posts?board=MINUTES', { headers: H })).json(); const out = []; for (const p of ps.filter((x) => x.title.startsWith('QA그룹웨어-회의록상태'))) out.push((await fetch('/api/work-posts/' + p.id, { method: 'DELETE', headers: H })).status); return 'del ' + out.join(',') })()",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const ps = await (await fetch('/api/work-posts?board=MEETING', { headers: H })).json(); const out = []; for (const p of ps.filter((x) => x.title.startsWith('QA그룹웨어-팀별주차'))) out.push((await fetch('/api/work-posts/' + p.id, { method: 'DELETE', headers: H })).status); return 'del ' + out.join(',') })()"
       ]
     }
   ]

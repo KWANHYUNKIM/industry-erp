@@ -1,13 +1,11 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState } from 'react'
 import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
-import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Project } from '../../types/api'
-import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { ecConfirm } from '../../components/EcDialog'
-import { EcCond } from '../../components/EcStatusPanel'
+import { PLAN_ITEMS, PlanHeadWindow, PlanLineListWindow, type PlanHead, type PlanItem } from '../../features/projectplan/components/ProjectPlanWindows'
 
 /**
  * 재고 II &gt; 계획관리 &gt; 프로젝트계획조회 / 프로젝트계획·실적현황
@@ -21,9 +19,9 @@ import { EcCond } from '../../components/EcStatusPanel'
  * <p>그날 조건도 다시 재어 대조했다 — 열하나로 대조표와 <b>글자 하나까지 같다</b>
  * (접힌 줄은 없다). 다만 <b>메뉴 이름과 화면 제목이 다르다</b> —
  * 메뉴는 [프로젝트계획조회] 인데 열리는 화면의 제목은 <b>[프로젝트계획 리스트]</b> 다.
- * 프로젝트별 연간 계획 매출·원가를 등록하고, 전표 집계 실적과 대조해 달성률을 본다.
- * 백엔드 신규: project_plans 테이블 + /api/project-plans, /api/project-plans/comparison?year=
- * 실적은 저장하지 않고 판매·구매·비용 전표를 프로젝트로 집계(ProjectProfitService)해 계산한다.
+ * 2026-10-14 원본 계획 모델로 바꿨다(plans/재고2/E040636.md): 계획마다 시작일 · 완료일 · 적요, 항목(판매 · 구매 · 노무비 · 경비)마다
+ * 계획 줄(금액 + 달별 금액). 목록 금액 열은 줄 [금액] 의 합, 실적현황 예상금액은 달별 금액. 창 셋은
+ * features/projectplan/components/ProjectPlanWindows(등록 · 수정 → 계획 리스트 → 계획 입력).
  */
 interface ComparisonRow {
   id: number
@@ -51,7 +49,6 @@ interface ComparisonRow {
 }
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const thisYear = () => Number(ymd(new Date()).slice(0, 4))
 
 /**
  * 금액 구간 조건. 원본은 [판매계획]·[구매계획]·[노무비계획]·[경비계획] 넷을 다
@@ -104,13 +101,10 @@ export default function ProjectPlanPage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [showForm, setShowForm] = useState(false)
-  /** 고치는 계획 id — 원본은 프로젝트코드 · 이름을 누르면 [프로젝트 계획항목 수정] 창이 열린다(2026-10-14 실측). */
-  const [editId, setEditId] = useState<number | null>(null)
-  const [formError, setFormError] = useState('')
-
-  const EMPTY = { projectId: '', planYear: String(thisYear()), planRevenue: '', planPurchase: '', planLabor: '', planExpense: '', remark: '' }
-  const [form, setForm] = useState(EMPTY)
+  /** [프로젝트 계획항목 등록 · 수정] 창 — undefined 닫힘 · null 신규 · 계획 id 수정. 원본은 코드 · 이름을 누르면 수정 창(2026-10-14 실측). */
+  const [headId, setHeadId] = useState<number | null | undefined>(undefined)
+  /** 항목 계획 리스트 창 — 목록 금액 링크 · 등록 창 항목 [등록] 이 연다. */
+  const [listOf, setListOf] = useState<{ plan: PlanHead; item: PlanItem } | null>(null)
 
   async function load() {
     setLoading(true); setError('')
@@ -127,45 +121,8 @@ export default function ProjectPlanPage() {
   }
   useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  function set(k: keyof typeof form, v: string) { setForm((f) => ({ ...f, [k]: v })) }
-
-  function openNew() { setEditId(null); setForm(EMPTY); setFormError(''); setShowForm(true) }
-  function openEdit(r: ComparisonRow) {
-    setEditId(r.id); setFormError('')
-    setForm({ projectId: String(r.projectId), planYear: String(r.planYear), planRevenue: String(r.planRevenue),
-      planPurchase: String(r.planPurchase), planLabor: String(r.planLabor), planExpense: String(r.planExpense), remark: r.remark ?? '' })
-    setShowForm(true)
-  }
-
-  async function submit(e: FormEvent) {
-    e.preventDefault(); setFormError('')
-    if (!form.projectId) return setFormError('프로젝트를 선택하세요.')
-    /* 계획원가는 따로 적는 칸이 없다(원본 항목은 판매 · 구매 · 노무비 · 경비 넷) — 0 을 보내면 서버가 셋의 합으로 채운다. */
-    const body = {
-      projectId: Number(form.projectId),
-      planYear: Number(form.planYear),
-      planRevenue: Number(form.planRevenue || 0),
-      planCost: 0,
-      planPurchase: Number(form.planPurchase || 0),
-      planLabor: Number(form.planLabor || 0),
-      planExpense: Number(form.planExpense || 0),
-      remark: form.remark || undefined,
-    }
-    try {
-      if (editId) await api.put(`/project-plans/${editId}`, body)
-      else await api.post('/project-plans', body)
-      /* 원본은 저장해도 안내 글 없이 창이 [수정] 으로 남는다 — 우리는 창을 닫고 목록을 다시 읽는다. */
-      setShowForm(false)
-      load()
-    } catch (err) { setFormError(extractErrorMessage(err)) }
-  }
-
-  /* 원본 수정 창 [삭제] — '삭제하겠습니까?'(2026-10-14 실측), 지우면 목록에서 빠지고 실적현황도 '등록된 데이터가 없습니다.' */
-  async function removeEditing() {
-    if (!editId || !(await ecConfirm('삭제하겠습니까?'))) return
-    try { await api.delete(`/project-plans/${editId}`); setShowForm(false); load() }
-    catch (err) { setFormError(extractErrorMessage(err)) }
-  }
+  const toHead = (r: ComparisonRow): PlanHead => ({ id: r.id, projectId: r.projectId, projectCode: r.projectCode,
+    projectName: r.projectName, startDate: r.startDate ?? '', endDate: r.endDate ?? '', remark: r.remark })
 
   const shown = rows
     .filter((r) => !projectCond || String(r.projectId) === projectCond)
@@ -187,7 +144,6 @@ export default function ProjectPlanPage() {
 
   /* 합계도 걸러진 것으로 낸다 — 한 프로젝트만 보면서 합계가 전체이면 숫자가 거짓말을 한다. */
   const inputCls = 'ec-input'
-  const years = [thisYear() + 1, thisYear(), thisYear() - 1, thisYear() - 2]
 
   /*
    * 원본 하단 단추줄의 <b>[선택삭제]</b> — 고른 줄을 한 번에 지운다. 줄마다 [삭제]는
@@ -215,7 +171,7 @@ export default function ProjectPlanPage() {
     <EcListShell
       /* 원본 화면 제목이 [프로젝트계획 리스트] 다(2026-09-01 원본 E040636 실측) */
       title="프로젝트계획 리스트"
-      onNew={openNew}
+      onNew={() => setHeadId(null)}
       actions={[
         /* 원본 차례: 신규(F2) · 선택삭제 · Excel (2026-10-14 실측). 고른 줄이 없으면 셸이 원본 알림을 띄운다. */
         { label: '선택삭제', onClick: removeChecked, selected: picked.size },
@@ -293,57 +249,12 @@ export default function ProjectPlanPage() {
 
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      {/*
-        원본 [프로젝트 계획항목 등록] · [프로젝트 계획항목 수정] 창(2026-10-14 실측): 프로젝트 · 시작일 · 완료일 · 적요 판 아래
-        항목 격자 01 판매(판매) · 02 구매(구매) · 03 노무비(계정) · 04 경비(계정) | 집계기준1~4 해당없음 | 계획등록 [등록],
-        단추 저장(F8) · (수정 때) 삭제 · 닫기 · H. 원본은 항목마다 [등록] 으로 달별 금액을 따로 적는다 —
-        우리 계획은 한 해 금액이라 항목 줄에 금액 칸을 둔다(남은 것: plans/재고2/E040636.md).
-      */}
-      <Modal error={formError} open={showForm} width={720}
-             title={editId ? '프로젝트 계획항목 수정' : '프로젝트 계획항목 등록'} onClose={() => setShowForm(false)}>{(
-        <form onSubmit={submit}>
-          <ul className="ec-form mb-[8px]">
-            <EcCond label="프로젝트" span={2}>
-              {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
-              <CodePickerField label="프로젝트" hideLabel width={320} placeholder="프로젝트" emptyLabel="선택 해제"
-                               value={form.projectId} onChange={(v) => set('projectId', v)}
-                               items={projects.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))} />
-            </EcCond>
-            {/* 원본은 [시작일] · [완료일](기본 오늘 ~ 그해 12/31) — 우리 계획은 한 해 단위라 계획연도. */}
-            <EcCond label="계획연도" span={2}>
-              <select className={inputCls} value={form.planYear} onChange={(e) => set('planYear', e.target.value)}>
-                {years.map((y) => <option key={y} value={y}>{y}</option>)}
-              </select>
-            </EcCond>
-            <EcCond label="적요" span={2}>
-              <input className={`${inputCls} w-full`} placeholder="적요" value={form.remark} onChange={(e) => set('remark', e.target.value)} />
-            </EcCond>
-          </ul>
-          <table className="w-full">
-            <thead>
-              <tr><th className="w-[70px]">항목코드</th><th>항목명</th><th>집계구분</th><th className="w-[180px] text-right">계획</th></tr>
-            </thead>
-            <tbody>
-              {PLAN_ITEMS.map((it) => (
-                <tr key={it.code}>
-                  <td>{it.code}</td>
-                  <td>{it.name}</td>
-                  <td>{it.kind}</td>
-                  <td>
-                    <input className={`${inputCls} text-right w-full`} type="number" step="any" aria-label={it.name}
-                           value={form[it.field]} onChange={(e) => set(it.field, e.target.value)} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="flex gap-[4px] mt-[8px]">
-            <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
-            {editId && <button type="button" className="ec-btn" onClick={() => void removeEditing()}>삭제</button>}
-            <button type="button" className="ec-btn" onClick={() => setShowForm(false)}>닫기</button>
-          </div>
-        </form>
-      )}</Modal>
+      <PlanHeadWindow open={headId !== undefined} planId={headId ?? null}
+                      projects={projects.map((p) => ({ value: String(p.id), code: p.code, name: p.name }))}
+                      onClose={() => setHeadId(undefined)} onChanged={() => void load()}
+                      onOpenItem={(plan, item) => setListOf({ plan, item })} />
+      <PlanLineListWindow plan={listOf?.plan ?? null} item={listOf?.item ?? null}
+                          onClose={() => setListOf(null)} onChanged={() => void load()} />
 
       <table className="w-full text-left">
         <thead>
@@ -372,15 +283,17 @@ export default function ProjectPlanPage() {
                 <input type="checkbox" checked={picked.has(r.id)} onChange={() => pick(r.id)} />
               </td>
               <td className="text-center text-ec-hint">{i + 1}</td>
-              {/* 원본은 코드 · 이름이 수정 창을, 금액이 그 항목의 계획 리스트를 연다 — 우리는 모두 수정 창. */}
-              <td><button type="button" className="ec-link" onClick={() => openEdit(r)}>{r.projectCode}</button></td>
-              <td><button type="button" className="ec-link" onClick={() => openEdit(r)}>{r.projectName}</button></td>
+              {/* 원본은 코드 · 이름이 수정 창을, 금액이 그 항목의 계획 리스트 창을 연다(2026-10-14 실측). */}
+              <td><button type="button" className="ec-link" onClick={() => setHeadId(r.id)}>{r.projectCode}</button></td>
+              <td><button type="button" className="ec-link" onClick={() => setHeadId(r.id)}>{r.projectName}</button></td>
+              {/* 계획의 시작일 · 완료일(프로젝트 마스터 날짜가 아니다). */}
               <td>{dateText(r.startDate) || ''}</td>
               <td>{dateText(r.endDate) || ''}</td>
-              <td className="text-right">{won(r.planRevenue)}</td>
-              <td className="text-right">{won(r.planPurchase)}</td>
-              <td className="text-right">{won(r.planLabor)}</td>
-              <td className="text-right">{won(r.planExpense)}</td>
+              {([r.planRevenue, r.planPurchase, r.planLabor, r.planExpense] as number[]).map((v, k) => (
+                <td key={k} className="text-right">
+                  <button type="button" className="ec-link" onClick={() => setListOf({ plan: toHead(r), item: PLAN_ITEMS[k] })}>{won(v)}</button>
+                </td>
+              ))}
             </tr>
           ))}
         </tbody>
@@ -388,11 +301,3 @@ export default function ProjectPlanPage() {
     </EcListShell>
   )
 }
-
-/* 원본 항목 격자(2026-10-14 실측) — 항목코드 · 항목명 · 집계구분. */
-const PLAN_ITEMS = [
-  { code: '01', name: '판매', kind: '판매', field: 'planRevenue' },
-  { code: '02', name: '구매', kind: '구매', field: 'planPurchase' },
-  { code: '03', name: '노무비', kind: '계정', field: 'planLabor' },
-  { code: '04', name: '경비', kind: '계정', field: 'planExpense' },
-] as const

@@ -45,7 +45,7 @@
         "expect:(() => { const r = window.__row(); return r.cells[5].innerText.trim() === '2.00' && r.cells[6].innerText.trim() === '입력' })()",
         "js:(() => { [...window.__row().querySelectorAll('a')].find((a) => a.textContent.trim() === '입력').click(); return true })()",
         "wait:3500",
-        "expect:location.pathname === '/sales/sell' && /2\\s+600\\s+60\\s+0\\s+660/.test(document.querySelector('tfoot').innerText)",
+        "expect:location.pathname === '/sales/sell' && /2\\s+600\\s+60\\s+660/.test(document.querySelector('tfoot').innerText)",
         "click:저장(F8)",
         "wait:3500",
         "expect:location.pathname === '/sales/order-release' && /^\\d{4}\\/\\d{2}\\/\\d{2}-\\d+$/.test(window.__row()?.cells[6].innerText.trim() ?? '')"

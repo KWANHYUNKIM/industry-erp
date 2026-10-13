@@ -10,6 +10,8 @@ import { CustomAggregateConds, CustomAggregateTable, EMPTY_AGG, type AggDim, typ
 
 type Mode = '라인별' | '급여대장별부서별' | '급여대장별부서별라인별' | '사용자지정집계'
 const MODES: Mode[] = ['라인별', '급여대장별부서별', '급여대장별부서별라인별', '사용자지정집계']
+/* 원본은 성명 순(2026-10-14: QA관리-순서 · 나일당 · 잠깐만 — 사원번호 00000 · 00002 · 00001). 글자 코드 순이라 영문이 한글보다 앞 */
+const byName = (a: { workerName: string }, b: { workerName: string }) => (a.workerName < b.workerName ? -1 : a.workerName > b.workerName ? 1 : 0)
 /** 원본 급여대장별부서별 · …라인별의 실지급액은 '500,000.00' 꼴(2026-10-13 실측) */
 const won2 = (n: number | string) => Number(n).toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 /**
@@ -79,7 +81,7 @@ export default function DailyPayStatusPage() {
     && (confirmed === 'all' || (confirmed === 'yes') === r.confirmed))
   useTableColumnCheck(tableRef, '일용근로 급여현황', [list.length])
   const groups = new Map<number, DailyReportLine[]>()
-  for (const r of list) groups.set(r.ledgerId, [...(groups.get(r.ledgerId) ?? []), r])
+  for (const r of [...list].sort((a, b) => a.payMonth.localeCompare(b.payMonth) || a.seq - b.seq || byName(a, b))) groups.set(r.ledgerId, [...(groups.get(r.ledgerId) ?? []), r])
   const sum = (ls: DailyReportLine[]) => ls.reduce((s, r) => ({
     gross: s.gross + Number(r.grossPay), ded: s.ded + Number(r.incomeTax) + Number(r.localTax), net: s.net + Number(r.netPay),
   }), { gross: 0, ded: 0, net: 0 })
@@ -186,7 +188,7 @@ export default function DailyPayStatusPage() {
                 {[...groups.values()].map((ls) => {
                   const s = sum(ls)
                   const ym = slashYm(ls[0].payMonth)
-                  const net = (n: number) => (mode === '라인별' ? won(n) : won2(n))
+                  const net = won2 /* 원본 라인별도 실지급액 '50,000.00' (2026-10-14) */
                   /* 부서별: 부서마다 한 줄(첫 사원 이름 · 합). 부서별라인별: 부서 · 성명 가나다. 라인별: 대장 순서 그대로 */
                   const lines: DailyReportLine[] = mode === '급여대장별부서별'
                     ? [...new Map(ls.map((r) => [r.department, r])).keys()].map((d) => {
@@ -225,7 +227,7 @@ export default function DailyPayStatusPage() {
                   <td colSpan={6}>합계</td>
                   <td className="text-right">{won(total.gross)}</td>
                   <td className="text-right">{total.ded ? won(total.ded) : ''}</td>
-                  <td className="text-right">{mode === '라인별' ? won(total.net) : won2(total.net)}</td>
+                  <td className="text-right">{won2(total.net)}</td>
                 </tr>
               </>
             )}

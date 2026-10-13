@@ -66,6 +66,8 @@ export default function DailyPayLedgerPage() {
   const [form, setForm] = useState(blankForm())
   const [confirmFor, setConfirmFor] = useState<Ledger | null>(null)
   const [cells, setCells] = useState<ConfirmRow[]>([])
+  /** 근로일수 칸 — 고치는 동안만 친 글자, 아니면 '1.00' 꼴(원본) */
+  const [wdFocus, setWdFocus] = useState<number | null>(null)
   const [confirmError, setConfirmError] = useState('')
   const [loadAsk, setLoadAsk] = useState(false)
   const [calcAsk, setCalcAsk] = useState<{ ledger: Ledger; ids: number[] | null } | null>(null)
@@ -140,7 +142,9 @@ export default function DailyPayLedgerPage() {
 
   async function openView(l: Ledger) {
     try {
-      setView({ ledger: l, lines: (await api.get<Line[]>(`/hr/daily-pay-ledgers/${l.id}/lines`)).data })
+      /* 급여대장 줄은 성명 순(원본 2026-10-14: QA관리-순서 00000 · 나일당 00002 · 잠깐만 00001) — 글자 코드 순 */
+      const lines = (await api.get<Line[]>(`/hr/daily-pay-ledgers/${l.id}/lines`)).data
+      setView({ ledger: l, lines: [...lines].sort((a, b) => (a.workerName < b.workerName ? -1 : a.workerName > b.workerName ? 1 : 0)) })
     } catch (e) {
       setError(extractErrorMessage(e))
     }
@@ -318,10 +322,24 @@ export default function DailyPayLedgerPage() {
                 <td>{c.department}</td>
                 <td />
                 <td>
-                  <input className="ec-input w-full text-right" inputMode="decimal" value={c.days ? String(c.days) : ''}
-                         onChange={(e) => setCells(cells.map((x, j) => (j === i ? { ...x, days: Number(e.target.value.replace(/[^0-9.]/g, '')) || 0 } : x)))} />
+                  {/* 원본(2026-10-14): 일근무를 고치면 근로일수가 같은 값으로 따라온다(2 → 2.00, 0.5 → 0.50, 2 → 4 면 4.00).
+                      근로일수를 고쳐도 일근무는 그대로(4.00 · 근로일수 1 로 저장되고 다시 열어도 그대로) */}
+                  <input className="ec-input w-full text-right" inputMode="decimal" aria-label={`${c.workerName} 일근무`} value={c.days ? String(c.days) : ''}
+                         onChange={(e) => {
+                           const days = Number(e.target.value.replace(/[^0-9.]/g, '')) || 0
+                           setCells(cells.map((x, j) => (j === i ? { ...x, days, workDays: days || null } : x)))
+                         }} />
                 </td>
-                <td className="text-right">{c.workDays != null ? Number(c.workDays).toFixed(2) : ''}</td>
+                <td>
+                  <input className="ec-input w-full text-right" inputMode="decimal" aria-label={`${c.workerName} 근로일수`}
+                         value={c.workDays == null ? '' : wdFocus === c.workerId ? String(c.workDays) : Number(c.workDays).toFixed(2)}
+                         onFocus={() => setWdFocus(c.workerId)}
+                         onChange={(e) => {
+                           const raw = e.target.value.replace(/[^0-9.]/g, '')
+                           setCells(cells.map((x, j) => (j === i ? { ...x, workDays: raw === '' ? null : Number(raw) } : x)))
+                         }}
+                         onBlur={() => setWdFocus(null)} />
+                </td>
               </tr>
             ))}
           </tbody>
