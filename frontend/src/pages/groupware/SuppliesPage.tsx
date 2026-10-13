@@ -49,6 +49,7 @@ type ReturnStatus = 'NOT_RETURNED' | 'RETURNED' | 'UNSPECIFIED'
 const RETURN_LABEL: Record<ReturnStatus, string> = {
   NOT_RETURNED: '미반납', RETURNED: '반납', UNSPECIFIED: '미지정',
 }
+const RETURN_KEYS: ReturnStatus[] = ['NOT_RETURNED', 'RETURNED', 'UNSPECIFIED']
 
 const VIEWS = ['기본', '일간', '월간', '공용품별'] as const
 type View = (typeof VIEWS)[number]
@@ -126,7 +127,8 @@ export default function SuppliesPage() {
   const [allDayCond, setAllDayCond] = useState(false)
   const [titleCond, setTitleCond] = useState('')
   const [remarkCond, setRemarkCond] = useState('')
-  const [returnCond, setReturnCond] = useState('')
+  /** 원본 [반납여부] — 체크칸 넷(전체 · 미반납 · 반납 · 미지정), 처음엔 미반납만 켜져 있다(2026-10-13 E070204 실측 — 반납으로 고치면 기본 목록에서 빠진다). */
+  const [returnCond, setReturnCond] = useState<Set<ReturnStatus>>(new Set(['NOT_RETURNED']))
   /** 원본 조건 [라벨] — 전체 · 라벨없음 · 라벨마다. */
   const [labelCond, setLabelCond] = useState('')
   /** 공용품관리 라벨 마스터(원본 '라벨검색창' · '라벨조회'). 목록 칩 색도 여기서. */
@@ -321,7 +323,7 @@ ${line('적요', u.remark)}${line('라벨', u.labelText)}${line('반납여부', 
     .filter((r) => allDayCond || !r.allDay)
     .filter((r) => !titleCond || r.title.includes(titleCond))
     .filter((r) => !remarkCond || (r.remark ?? '').includes(remarkCond))
-    .filter((r) => !returnCond || r.returnStatusName === returnCond)
+    .filter((r) => returnCond.size === 0 || returnCond.has(r.returnStatus))
     .filter((r) => !labelCond || (labelCond === '(라벨없음)' ? !r.labelText : r.labelText === labelCond))
     .filter((r) => !keyword
     || r.title.includes(keyword)
@@ -582,10 +584,24 @@ ${line('적요', u.remark)}${line('라벨', u.labelText)}${line('반납여부', 
           <input className="ec-input w-[140px]" value={remarkCond} placeholder="적요" onChange={(e) => setRemarkCond(e.target.value)} />
         </EcCond>
         <EcCond label="반납여부">
-          <select className="ec-input w-[100px]" value={returnCond} onChange={(e) => setReturnCond(e.target.value)}>
-            <option value="">전체</option>
-            {[...new Set(rows.map((r) => r.returnStatusName))].map((n) => <option key={n}>{n}</option>)}
-          </select>
+          <div className="flex items-center gap-[10px] text-[12px] text-ec-label">
+            <label className="flex items-center gap-[4px]">
+              <input type="checkbox" checked={returnCond.size === RETURN_KEYS.length}
+                     onChange={(e) => setReturnCond(new Set(e.target.checked ? RETURN_KEYS : []))} />
+              전체
+            </label>
+            {RETURN_KEYS.map((k) => (
+              <label key={k} className="flex items-center gap-[4px]">
+                <input type="checkbox" checked={returnCond.has(k)}
+                       onChange={(e) => setReturnCond((prev) => {
+                         const next = new Set(prev)
+                         if (e.target.checked) next.add(k); else next.delete(k)
+                         return next
+                       })} />
+                {RETURN_LABEL[k]}
+              </label>
+            ))}
+          </div>
         </EcCond>
         <EcCond label="전체시간표시">
           <label className="text-[12px] text-ec-label flex items-center gap-[4px]">

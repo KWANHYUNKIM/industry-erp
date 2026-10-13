@@ -1,5 +1,5 @@
 {
-  "about": "공용품관리(원본 E070204) — 올해 기간·알약 한 줄 → 신규(F2) 시간 기본값·빈 공용품 거절 → 저장하면 '2026/10/03 (토)' 줄 → 제목 눌러 '공용품관리' 창 → [수정]으로 반납 → [삭제]. 시험용 공용품(QAGW-SUP1)은 API 로 만들고 끝에 지운다. node qa/shot.mjs qa/flows/supplies.json",
+  "about": "공용품관리(원본 E070204) — 올해 기간·알약 한 줄 → 신규(F2) 시간 기본값·빈 공용품 거절 → 저장하면 '2026/10/03 (토)' 줄 → 제목 눌러 '공용품관리' 창 → [수정]으로 반납 → 기본 조건(반납여부 미반납)이라 목록에서 빠짐 → [반납] 켜고 [삭제]. 시험용 공용품(QAGW-SUP1)은 API 로 만들고 끝에 지운다. node qa/shot.mjs qa/flows/supplies.json",
   "shots": [
     {
       "name": "준비 — 시험용 공용품 QAGW-SUP1",
@@ -38,13 +38,16 @@
         "click:저장(F8)",
         "expect:!document.querySelector('[role=dialog]')",
         "wait:1000",
-        "expect:fetch('/api/supply-usages?from=2000-01-01&to=2100-12-31', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()).then((d) => d.some((u) => u.title === 'QA그룹웨어-사용' && u.returnStatus === 'RETURNED'))"
+        "expect:fetch('/api/supply-usages?from=2000-01-01&to=2100-12-31', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()).then((d) => d.some((u) => u.title === 'QA그룹웨어-사용' && u.returnStatus === 'RETURNED'))",
+        "expect:![...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA그룹웨어-사용'))"
       ]
     },
     {
       "name": "창의 [삭제] — 묻고 지우면 사라짐 · 시험용 공용품 정리",
       "path": "/groupware/supplies",
       "steps": [
+        "js:[...document.querySelectorAll('.ec-cond label')].find((l) => l.textContent.trim() === '반납').querySelector('input').click(); true",
+        "wait:300",
         "js:window.confirm = () => true; [...document.querySelectorAll('tbody button')].find((b) => b.textContent === 'QA그룹웨어-사용').click(); true",
         "click:삭제",
         "expect:![...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA그룹웨어-사용'))",
