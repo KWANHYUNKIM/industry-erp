@@ -24,7 +24,8 @@ type Status = '전체' | '재직자' | '퇴사자'
 export default function WithholdingLedgerPage() {
   const [month, setMonth] = useState(ymd(new Date()).slice(0, 7))
   const [employee, setEmployee] = useState('')
-  const [status, setStatus] = useState<Status>('전체')
+  const [status, setStatus] = useState<Status>('재직자')   // 원본 기본 ◉재직자 (2026-10-13)
+  const [picked, setPicked] = useState<Set<number>>(new Set())
   const [all, setAll] = useState<WithholdingLedgerEmployee[]>([])
   const [rows, setRows] = useState<WithholdingLedgerEmployee[] | null>(null)
   const [company, setCompany] = useState<Company | null>(null)
@@ -35,10 +36,11 @@ export default function WithholdingLedgerPage() {
     api.get<Company | null>('/company').then((r) => setCompany(r.data)).catch(() => setCompany(null))
   }, [])
 
-  async function search() {
+  async function search(m = month) {
     setError('')
     try {
-      const data = (await api.get<WithholdingLedgerEmployee[]>('/withholding/ledger', { params: { month } })).data
+      const data = (await api.get<WithholdingLedgerEmployee[]>('/withholding/ledger', { params: { month: m } })).data
+      setPicked(new Set())
       setAll(data)
       setRows(data.filter((e) =>
         (!employee || String(e.employeeId) === employee)
@@ -48,8 +50,21 @@ export default function WithholdingLedgerPage() {
     }
   }
 
+  const today = new Date()
+  const ym = (y: number, mo: number) => `${y}-${String(mo).padStart(2, '0')}`
+  const prev = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+  const quick: [string, string][] = [
+    ['금월(~오늘)', ym(today.getFullYear(), today.getMonth() + 1)],
+    ['전월', ym(prev.getFullYear(), prev.getMonth() + 1)],
+    ['금년', ym(today.getFullYear(), 12)],
+    ['전년', ym(today.getFullYear() - 1, 12)],
+  ]
+  const list = rows ?? []
+  const allPicked = list.length > 0 && picked.size === list.length
+  const toggle = (id: number) => setPicked((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n })
+
   return (
-    <EcListShell title="원천징수부" onSearch={search} actions={[{ label: '인쇄' }]}>
+    <EcListShell title="원천징수부" onSearch={() => search()} actions={[{ label: 'Email', disabled: true }, { label: '인쇄' }]}>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <ul className="ec-cond mb-[8px]">
@@ -69,8 +84,12 @@ export default function WithholdingLedgerPage() {
         </EcCond>
         <li className="full">
           <div className="form">
-            <button className="ec-btn ec-btn-primary" onClick={search}>검색(F8)</button>
-            <button className="ec-btn" onClick={() => { setMonth(ymd(new Date()).slice(0, 7)); setEmployee(''); setStatus('전체') }}>다시 작성</button>
+            <button className="ec-btn ec-btn-primary" onClick={() => search()}>검색(F8)</button>
+            {/* 원본 빠른선택 — 누르면 기준연월을 바꾸고 바로 조회한다(금월 2026/10 · 전월 2026/09 · 금년 2026/12 · 전년 2025/12) */}
+            {quick.map(([label, m]) => (
+              <button key={label} className="ec-btn" onClick={() => { setMonth(m); void search(m) }}>{label}</button>
+            ))}
+            <button className="ec-btn" onClick={() => { setMonth(ymd(new Date()).slice(0, 7)); setEmployee(''); setStatus('재직자') }}>다시 작성</button>
           </div>
         </li>
       </ul>
@@ -78,14 +97,18 @@ export default function WithholdingLedgerPage() {
       {rows && (
         <table className="w-full text-center">
           <thead>
-            <tr><th className="w-[47px]"></th><th>사원번호</th><th>사원명</th><th>인쇄</th></tr>
+            <tr><th className="w-[47px]"><input type="checkbox" aria-label="전체 선택" checked={allPicked}
+              onChange={() => setPicked(allPicked ? new Set() : new Set(list.map((e) => e.employeeId)))} /></th><th>사원번호</th><th>사원명</th><th>인쇄</th></tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
               <tr><td colSpan={4} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : rows.map((e, i) => (
               <tr key={e.employeeId}>
-                <td>{i + 1}</td>
+                <td className="whitespace-nowrap">
+                  <input type="checkbox" aria-label={`${e.employeeName} 선택`} checked={picked.has(e.employeeId)} onChange={() => toggle(e.employeeId)} />
+                  {' '}{i + 1}
+                </td>
                 <td>{e.employeeCode}</td>
                 <td>{e.employeeName}</td>
                 <td><a href="#" onClick={(ev) => { ev.preventDefault(); setViewing(e) }}>인쇄</a></td>

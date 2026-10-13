@@ -3,7 +3,7 @@ import EcListShell from '../../components/EcListShell'
 import CodePickerField from '../../components/CodePickerField'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
-import type { WithholdingLedgerEmployee } from '../../types/api'
+import type { WithholdingLedgerEmployee, WithholdingReturn } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 import { fillAndPrint, openPrintWindow } from '../../utils/print'
 
@@ -21,7 +21,9 @@ const PRINT_CSS = 'body{font-family:sans-serif;font-size:11px;margin:16px}table{
  *  - 급여액은 <b>비과세까지 넣은 지급액</b>이다 — 원본 변종호 4,559,000 = 과세 4,259,000 + 비과세 300,000(원천징수부의 총급여와 다르다).
  *  - 세액은 소득세만(지방소득세 빼고): 228,000, 계 2,280,000.
  *  - 급여액 · 납부연월일 · 사용목적 · 제출처 · 소요수량(기본 1) · 발급번호 · 세무대리인(사업장소재지 · 등록번호 · 전화번호 · 이름)
- *    칸은 원본도 손으로 고쳐 쓰는 칸이다(저장 안 함). 서식 아래 [새로불러오기] · [인쇄] · 도장인쇄(회사 도장 그림이 없어 뺐다).
+ *    칸은 원본도 손으로 고쳐 쓰는 칸이다(저장 안 함).
+ *  - ⑭납부연월일은 그 달을 귀속연월로 만든 <b>원천징수이행상황신고서의 신고일자</b>로 채워 나온다
+ *    (2026-10-13 원본: 신고서 2026/09 · 2026/10 → 2026.09 '2026.10.10' · 2026.10 '2026.11.10', 신고서 없는 달은 빈칸). 서식 아래 [새로불러오기] · [인쇄] · 도장인쇄(회사 도장 그림이 없어 뺐다).
  */
 export default function IncomeTaxCertPage() {
   const thisMonth = ymd(new Date()).slice(0, 7)
@@ -56,12 +58,16 @@ export default function IncomeTaxCertPage() {
     const emp = emps.find((e) => String(e.id) === employeeId)
     if (!emp) { setFound(null); return }
     try {
-      const data = (await api.get<WithholdingLedgerEmployee[]>('/withholding/ledger', { params: { from, month: to } })).data
+      const [data, returns] = await Promise.all([
+        api.get<WithholdingLedgerEmployee[]>('/withholding/ledger', { params: { from, month: to } }).then((r) => r.data),
+        api.get<WithholdingReturn[]>('/withholding/returns').then((r) => r.data),
+      ])
+      const filedOn = new Map(returns.map((r) => [r.attributionMonth, r.reportDate.replace(/-/g, '.')]))
       const mine = data.find((e) => e.employeeId === emp.id)
       setFound({
         emp,
         slots: (mine?.months ?? []).map((m) => ({
-          ym: m.payMonth, pay: won(Number(m.taxablePay) + Number(m.nonTaxablePay)), tax: Number(m.incomeTax), paidOn: '',
+          ym: m.payMonth, pay: won(Number(m.taxablePay) + Number(m.nonTaxablePay)), tax: Number(m.incomeTax), paidOn: filedOn.get(m.payMonth) ?? '',
         })),
       })
     } catch (e) {

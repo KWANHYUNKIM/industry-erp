@@ -21,7 +21,10 @@ const PRINT_CSS = 'body{font-family:sans-serif;font-size:11px;margin:16px}'
  * 머리 도구는 Search(F3) · 도움말뿐이다(Option 없음).
  *
  * <p>[PDF]는 고른 신고서의 서식 1쪽을 한 인쇄창에 차례로 찍는다 — 브라우저의 'PDF로 저장' 으로 받는다(원본은 PDF 파일을 바로 내려준다).
- * 사업장이 하나라 [세무신고사업장]은 두지 않았다.
+ *
+ * <p>2026-10-13 다시 잼: 조건은 접혀 있고 [Search(F3)] 를 누르면 판으로 내려온다(신고기간 2021 ~ 2024 · 세무신고사업장 코드도움 ·
+ * 검색(F8) · 다시작성). 목록 위 '회사명 : (주)… / 귀속연도 : 2021년도 ~ 2024년도' 의 회사명은 신고서가 없어도 회사정보에서 찍는다.
+ * 사업장이 하나라 [세무신고사업장]은 칸만 둔다(비우면 전부).
  */
 export default function WithholdingPdfPage() {
   const thisYear = new Date().getFullYear()
@@ -35,6 +38,10 @@ export default function WithholdingPdfPage() {
   const [error, setError] = useState('')
   const [printing, setPrinting] = useState<{ win: Window; sheets: { ret: WithholdingReturn; stmt: WithholdingStatement }[] } | null>(null)
   const sheetsRef = useRef<HTMLDivElement>(null)
+  const [companyName, setCompanyName] = useState('')
+  useEffect(() => {
+    api.get<{ name?: string } | null>('/company').then((r) => setCompanyName(r.data?.name ?? '')).catch(() => setCompanyName(''))
+  }, [])
 
   async function search() {
     setError('')
@@ -59,7 +66,7 @@ export default function WithholdingPdfPage() {
     if (!win) return
     try {
       const sheets = await Promise.all(targets.map(async (ret) => ({
-        ret, stmt: (await api.get<WithholdingStatement>('/withholding/statement', { params: { month: ret.attributionMonth } })).data,
+        ret, stmt: (await api.get<WithholdingStatement>('/withholding/statement', { params: { month: ret.attributionMonth, returnId: ret.id } })).data,
       })))
       setPrinting({ win, sheets })
     } catch (e) {
@@ -77,10 +84,9 @@ export default function WithholdingPdfPage() {
 
   const list = rows ?? []
   const allPicked = list.length > 0 && picked.size === list.length
-  const company = list[0]
 
   return (
-    <EcListShell title="원천세신고서 PDF 다운로드" onSearch={search} option={false}
+    <EcListShell title="원천세신고서 PDF 다운로드" onSearch={search} option={false} collapseConditions
                  actions={[{ label: 'PDF', primary: true, onClick: pdf, disabled: picked.size === 0 }]}>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
@@ -94,16 +100,13 @@ export default function WithholdingPdfPage() {
             {years.map((y) => <option key={y} value={y}>{y}</option>)}
           </select>
         </EcCond>
-        <li className="full">
-          <div className="form">
-            <button className="ec-btn ec-btn-primary" onClick={search}>검색(F8)</button>
-            <button className="ec-btn" onClick={() => { setFrom(thisYear - 5); setTo(thisYear - 2) }}>다시작성</button>
-          </div>
-        </li>
+        <EcCond label="세무신고사업장">
+          <input className="ec-input w-full" placeholder="세무신고사업장" aria-label="세무신고사업장" />
+        </EcCond>
       </ul>
 
       <p className="text-right mb-[6px]">
-        회사명 : {company?.companyName ?? ''} / 귀속연도 : {Math.min(from, to)}년도 ~ {Math.max(from, to)}년도
+        회사명 : {companyName} / 귀속연도 : {Math.min(from, to)}년도 ~ {Math.max(from, to)}년도
       </p>
       <table className="w-full text-center">
         <thead>

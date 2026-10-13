@@ -30,10 +30,14 @@ const BLANK_ROWS = 9
  * 조건 [귀속연월] · [신고일자] 로 <b>만들어 둔 원천징수이행상황신고서</b>를 찾아, 소득구분마다
  * 귀속년월 · 지급년월 · 총인원 · 총지급액 · 소득세등 · 농어촌특별세를 확인서 서식에 찍는다(9줄 칸).
  * 신고서가 없는 달은 칸이 빈 채로 나온다.
+ *
+ * <p>2026-10-13 다시 잼: [귀속연월] 은 <b>그 해 1월 ~ 고른 달</b>의 신고서를 귀속 차례로 모두 찍는다(신고서 2026/09 · 2026/10 이 있을 때
+ * 10 → '근로 09 · 퇴직 09 · 근로 10' 세 줄, 09 → 09 두 줄, 08 → 빈 칸). [신고일자] 는 기본 오늘이고 거르지 않는다
+ * (09/13 으로 바꿔도 세 줄 그대로).
  */
 export default function WithholdingConfirmPage() {
   const [month, setMonth] = useState(ymd(new Date()).slice(0, 7))
-  const [reportDate, setReportDate] = useState('')
+  const [reportDate, setReportDate] = useState(ymd(new Date()))
   const [company, setCompany] = useState<Company | null>(null)
   const [lines, setLines] = useState<Line[]>([])
   const [error, setError] = useState('')
@@ -46,10 +50,11 @@ export default function WithholdingConfirmPage() {
     setError('')
     try {
       const all = (await api.get<WithholdingReturn[]>('/withholding/returns')).data
-      const picked = all.filter((r) => r.attributionMonth === month && (!reportDate || r.reportDate === reportDate))
+      const picked = all.filter((r) => r.attributionMonth >= `${month.slice(0, 4)}-01` && r.attributionMonth <= month)
+        .sort((a, b) => a.attributionMonth.localeCompare(b.attributionMonth))
       const out: Line[] = []
       for (const r of picked) {
-        const stmt = (await api.get<WithholdingStatement>('/withholding/statement', { params: { month: r.attributionMonth } })).data
+        const stmt = (await api.get<WithholdingStatement>('/withholding/statement', { params: { month: r.attributionMonth, returnId: r.id } })).data
         const by = new Map<string, Line>()
         for (const s of stmt.sections) {
           const kind = KIND[s.code]
