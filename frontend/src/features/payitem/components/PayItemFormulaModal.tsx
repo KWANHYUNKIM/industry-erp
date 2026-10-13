@@ -40,7 +40,7 @@ const showMonth = (m: string) => m.replace('-', '/')
  *
  * <p>원본 계산식 칸은 계산도구 · 항목을 눌러 쌓는 칸이다. 우리는 글자로도 고칠 수 있게 두고 누르면 커서 자리에 넣는다.
  * 틀린 식을 저장하면 서버가 원본 문구 '계산식이 유효하지 않습니다. 확인후 다시 설정 바랍니다.' 로 막는다.
- * 신규의 적용시점 처음 값은 이번 달이다(원본 2026/10). SUMIFS( 조건부 합계 · [ ] 는 아직 없다.
+ * 신규의 적용시점 처음 값은 이번 달이다(원본 2026/10). [SUMIFS( 조건부 합계] 는 SumifsModal 로 글자를 만든다. [ ] 는 아직 없다.
  *
  * <p>공제항목등록도 같은 창이다(kind='DEDUCTION' — 공제항목코드 · 공제항목명, 찾기 목록에 공제 · 기타 · 계산항목 산출금액).
  * 계산식등록 줄 끝 [조건] 을 켜면 원본처럼 조건1 · [참1] · [거짓1] 세 줄과 계산도구 (조건) AND · OR · = · &gt; · &lt; · &gt;= · &lt;= · &lt;&gt; 가 붙고,
@@ -61,6 +61,7 @@ export default function PayItemFormulaModal({ item, formulas, onClose, onChanged
   const [checked, setChecked] = useState<Set<number>>(new Set())
   const [vars, setVars] = useState<VariableGroup[]>([])
   const [find, setFind] = useState('')
+  const [sumifs, setSumifs] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const word = kind === 'DEDUCTION' ? '공제' : '수당'
   /** 원본 계산식등록 줄 끝 [조건] — 켜면 조건1 · [참1] · [거짓1] 세 줄. 지금 커서가 있는 줄 */
@@ -271,7 +272,12 @@ export default function PayItemFormulaModal({ item, formulas, onClose, onChanged
           </table>
           <div className="mt-[8px] mb-[4px] font-bold">계산도구</div>
           <div className="grid grid-cols-3 gap-[4px] mobile:grid-cols-2">
-            {TOOLS.map(([token, label]) => (
+            {TOOLS.slice(0, 10).map(([token, label]) => (
+              <button key={token + label} type="button" className="ec-btn ec-btn-sm justify-start"
+                      onClick={() => insert(token)}>{token.trim()} {label}</button>
+            ))}
+            <button type="button" className="ec-btn ec-btn-sm justify-start" onClick={() => setSumifs(true)}>SUMIFS( 조건부 합계</button>
+            {TOOLS.slice(10).map(([token, label]) => (
               <button key={token + label} type="button" className="ec-btn ec-btn-sm justify-start"
                       onClick={() => insert(token)}>{token.trim()} {label}</button>
             ))}
@@ -310,6 +316,77 @@ export default function PayItemFormulaModal({ item, formulas, onClose, onChanged
         <button type="button" className="ec-btn ec-btn-primary" onClick={save}>저장(F8)</button>
         <button type="button" className="ec-btn" onClick={() => open(editing)}>다시 작성</button>
         <button type="button" className="ec-btn" onClick={() => { setMode('list'); setError(null) }}>리스트</button>
+        <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
+      </div>
+      {sumifs && <SumifsModal onClose={() => setSumifs(false)} onApply={(t) => { setSumifs(false); insert(t) }} />}
+    </Modal>
+  )
+}
+
+const SUMIFS_TARGETS = [['수당', '수당금액', '수당항목코드'], ['공제', '공제금액', '공제항목코드']] as const
+const SUMIFS_BASES = [
+  '귀속연도동일(이번 지급사항 제외)', '귀속연도 동일(~귀속연월)(이번지급사항제외)', '귀속연월동일(이번 지급사항 제외)',
+]
+
+/**
+ * 원본 계산도구 [SUMIFS( 조건부 합계] 창 '조건부 합계검색'(2026-10-13 실측): 합산대상 · 합산기준 · 조건 1~5, 적용(F8) · 닫기.
+ * 적용하면 SumIfs(공제,항목금액,합산기준 in (＂귀속연월동일(이번 지급사항 제외)＂),공제항목코드 in ("07","99")) 를 넣는다.
+ * 원본 합산대상은 수당금액 · 비과세금액 · 감면금액 · 공제금액 · … · 실지급액, 합산기준에는 정산기간도, 조건에는 수당구분 · 비과세유형코드 ·
+ * 월정급여여부 · 연결계정 · 항목금액도 있는데 우리는 우리 급여명세로 셀 수 있는 수당 · 공제 금액 × 귀속연도 · 연월 × 항목코드만 둔다.
+ */
+function SumifsModal({ onClose, onApply }: { onClose: () => void; onApply: (token: string) => void }) {
+  const [target, setTarget] = useState(0)
+  const [basis, setBasis] = useState(SUMIFS_BASES[0])
+  const [items, setItems] = useState<{ code: string; name: string; kind: string }[]>([])
+  const [codes, setCodes] = useState<Set<string>>(new Set())
+  const [word, label, condName] = SUMIFS_TARGETS[target]
+  useEffect(() => {
+    api.get<{ code: string; name: string; kind: string }[]>('/pay-settings/items').then((r) => setItems(r.data)).catch(() => setItems([]))
+  }, [])
+  const mine = items.filter((i) => i.kind === (target === 0 ? 'ALLOWANCE' : 'DEDUCTION'))
+  function apply() {
+    const cond = codes.size ? `,${condName} in (${[...codes].map((c) => `"${c}"`).join(',')})` : ''
+    onApply(`SumIfs(${word},항목금액,합산기준 in (＂${basis}＂)${cond}) `)
+  }
+  return (
+    <Modal open title="조건부 합계검색" onClose={onClose} width={640}>
+      <ul className="ec-form">
+        <li className="wide">
+          <span className="title">합산대상</span>
+          <div className="form">
+            <select className="ec-input w-full" aria-label="합산대상" value={target}
+                    onChange={(e) => { setTarget(Number(e.target.value)); setCodes(new Set()) }}>
+              {SUMIFS_TARGETS.map((t, i) => <option key={t[0]} value={i}>{t[1]}</option>)}
+            </select>
+          </div>
+        </li>
+        <li className="wide">
+          <span className="title">합산기준</span>
+          <div className="form">
+            <select className="ec-input w-full" aria-label="합산기준" value={basis} onChange={(e) => setBasis(e.target.value)}>
+              {SUMIFS_BASES.map((b) => <option key={b} value={b}>{b}</option>)}
+            </select>
+          </div>
+        </li>
+        <li className="wide">
+          <span className="title">조건 1</span>
+          <div className="form">
+            <div className="mb-[4px]">{label === '수당금액' ? '수당항목코드' : '공제항목코드'}</div>
+            {mine.map((i) => (
+              <label key={i.code} className="inline-flex items-center gap-[4px] mr-[12px]">
+                <input type="checkbox" checked={codes.has(i.code)} onChange={() => {
+                  const next = new Set(codes)
+                  if (next.has(i.code)) next.delete(i.code); else next.add(i.code)
+                  setCodes(next)
+                }} />
+                {i.code} {i.name}
+              </label>
+            ))}
+          </div>
+        </li>
+      </ul>
+      <div className="flex flex-wrap gap-[6px] mt-[12px]">
+        <button type="button" className="ec-btn ec-btn-primary" onClick={apply}>적용(F8)</button>
         <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
       </div>
     </Modal>

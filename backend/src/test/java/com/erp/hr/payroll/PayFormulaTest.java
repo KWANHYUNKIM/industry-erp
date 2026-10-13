@@ -81,4 +81,15 @@ class PayFormulaTest {
         String f = "F( ( 소득세(공제구분) * 0.1 ) * 0.1 ) * 10";   // 원본 주민세 — 10원 미만 절사
         assertEquals(0, new BigDecimal("12340").compareTo(eval(f, Map.of("소득세(공제)", new BigDecimal("123456")))));
     }
+
+    /** 원본 조건부 합계검색 [적용] 이 넣는 글자(2026-10-13 실측) — 값은 급여계산이 넘기는 Sumifs 가 낸다. */
+    @Test
+    void SUMIFS_조건부합계() {
+        PayFormula.Sumifs h = (t, b, c) -> t.equals("공제") && c.get("공제항목코드").equals(java.util.List.of("07", "99"))
+                ? new BigDecimal("1000") : BigDecimal.ZERO;
+        assertEquals(0, new BigDecimal("2000").compareTo(PayFormula.evaluate(
+                "SumIfs(공제,항목금액,합산기준 in (＂귀속연월동일(이번 지급사항 제외)＂),공제항목코드 in (\"07\",\"99\")) * 2", Map.of(), h)));
+        assertThrows(IllegalArgumentException.class, () -> PayFormula.evaluate(      // 정산기간 · 비과세유형코드는 우리가 셀 수 없다
+                "SumIfs(수당,항목금액,합산기준 in (＂귀속연도동일(이번 지급사항 제외)＂),비과세유형코드 in (\"80001\"))", Map.of(), h));
+    }
 }

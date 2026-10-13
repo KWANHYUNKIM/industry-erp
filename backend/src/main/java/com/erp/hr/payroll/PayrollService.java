@@ -345,7 +345,7 @@ public class PayrollService {
         java.util.Map<String, BigDecimal> vars = formulaVars(p, employeeId, baseSalary, group, empAmounts, worked);
         for (PayItem item : sortedItems(PayslipLineKind.ALLOWANCE)) {
             if ("기본급".equals(item.getName())) continue;
-            BigDecimal amount = solve(formulas, item, vars);
+            BigDecimal amount = solve(formulas, item, vars, history(employeeId, payMonth));
             if (amount == null) continue;
             vars.put(item.getName() + "(수당)", amount);
             replaceLine(p, item, amount);
@@ -388,12 +388,45 @@ public class PayrollService {
             vars.put(item.getName() + "(공제)", sumDeduction(p, item.getName()));
         }
         for (PayItem item : deductions) {
-            BigDecimal amount = solve(formulas, item, vars);
+            BigDecimal amount = solve(formulas, item, vars, history(employeeId, payMonth));
             if (amount == null) continue;
             vars.put(item.getName() + "(공제)", amount);
             replaceLine(p, item, amount);
         }
         for (int i = 0; i < p.getLines().size(); i++) p.getLines().get(i).setLineNo(i + 1);
+    }
+
+    /**
+     * 원본 SUMIFS( 조건부 합계 — 이 사원의 다른 귀속월 급여에서 조건에 맞는 수당 · 공제 줄 금액의 합.
+     * 합산기준: 귀속연도동일 = 같은 해의 다른 달 전부, 귀속연도 동일(~귀속연월) = 같은 해 이번 달 전까지,
+     * 귀속연월동일 = 같은 달의 다른 급여(우리는 사원 · 귀속월에 급여가 하나뿐이라 0). 조건은 항목코드(줄 이름 → 항목).
+     */
+    private PayFormula.Sumifs history(Long employeeId, String payMonth) {
+        return (target, basis, conds) -> {
+            PayslipLineKind kind = "수당".equals(target) ? PayslipLineKind.ALLOWANCE : PayslipLineKind.DEDUCTION;
+            java.util.List<String> codes = conds.get(kind == PayslipLineKind.ALLOWANCE ? "수당항목코드" : "공제항목코드");
+            if (conds.size() > (codes == null ? 0 : 1)) throw new IllegalArgumentException(PayFormula.INVALID);
+            java.util.Set<String> names = new java.util.HashSet<>();
+            if (codes != null) {
+                for (PayItem i : sortedItems(kind)) if (codes.contains(i.getCode())) names.add(i.getName());
+                if (kind == PayslipLineKind.ALLOWANCE && sortedItems(kind).stream()
+                        .anyMatch(i -> "기본급".equals(i.getName()) && codes.contains(i.getCode()))) names.add("기본급");
+            }
+            BigDecimal sum = BigDecimal.ZERO;
+            for (Payslip other : payslipRepository.findByYear(payMonth.substring(0, 5))) {
+                if (!other.getEmployee().getId().equals(employeeId) || other.getPayMonth().equals(payMonth)) continue;
+                if (basis.startsWith("귀속연월동일")) continue;                       // 같은 달 다른 급여는 우리에게 없다
+                if (basis.contains("~귀속연월") && other.getPayMonth().compareTo(payMonth) > 0) continue;
+                if (kind == PayslipLineKind.ALLOWANCE && (codes == null || names.contains("기본급"))) {
+                    sum = sum.add(other.getBaseSalary() == null ? BigDecimal.ZERO : other.getBaseSalary());
+                }
+                for (PayslipLine l : other.getLines()) {
+                    if (l.getKind() != kind || (codes != null && !names.contains(l.getName()))) continue;
+                    sum = sum.add(l.getAmount());
+                }
+            }
+            return sum;
+        };
     }
 
     private java.util.List<PayItem> sortedItems(PayslipLineKind kind) {
@@ -407,11 +440,12 @@ public class PayrollService {
     }
 
     /** 귀속월에 걸리는 식이 있으면 푼 값(원 단위 반올림), 없거나 사용중단 항목이면 null. */
-    private static BigDecimal solve(java.util.Map<Long, String> formulas, PayItem item, java.util.Map<String, BigDecimal> vars) {
+    private static BigDecimal solve(java.util.Map<Long, String> formulas, PayItem item, java.util.Map<String, BigDecimal> vars,
+                                    PayFormula.Sumifs history) {
         String f = formulas.get(item.getId());
         if (f == null || !item.isActive()) return null;
         try {
-            return PayFormula.evaluate(f, vars).setScale(0, RoundingMode.HALF_UP);
+            return PayFormula.evaluate(f, vars, history).setScale(0, RoundingMode.HALF_UP);
         } catch (IllegalArgumentException | ArithmeticException e) {
             throw ApiException.badRequest("[" + item.getName() + "] " + PayFormula.INVALID);
         }
