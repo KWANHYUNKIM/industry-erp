@@ -188,32 +188,61 @@ public final class PaySettingDtos {
      * 비운 칸은 처음 값(자동계산 · 가입 · 공제대상아님 · 0명 · 100%).
      */
     public record EmployeePayrollSettingRequest(
-            com.erp.hr.payroll.InsuranceCalc healthMode,
+            com.erp.hr.payroll.InsuranceBasis healthMode,
+            @PositiveOrZero(message = "보수월액은 0 이상이어야 합니다.") BigDecimal healthBaseAmount,
+            @Size(max = 30) String healthCardNo,
+            Boolean insuranceReduction,
             Boolean longTermCare,
             com.erp.hr.payroll.InsuranceCalc pensionMode,
             @PositiveOrZero(message = "기준소득월액은 0 이상이어야 합니다.") BigDecimal pensionBaseAmount,
-            com.erp.hr.payroll.InsuranceCalc employmentMode,
+            com.erp.hr.payroll.InsuranceBasis employmentMode,
+            @PositiveOrZero(message = "보수월액은 0 이상이어야 합니다.") BigDecimal employmentBaseAmount,
             Boolean spouseDeduction,
             @PositiveOrZero(message = "공제대상가족은 0 이상이어야 합니다.") Integer dependents,
             @PositiveOrZero(message = "자녀수는 0 이상이어야 합니다.") Integer children,
-            Integer taxScale
+            Integer taxScale,
+            Boolean religiousWorker,
+            com.erp.hr.payroll.HouseholdType householdType,
+            Boolean homeless,
+            Boolean foreigner,
+            @Size(max = 50) String nationality,
+            Boolean nonResident,
+            @Size(max = 50) String residenceCountry,
+            Boolean singleTaxRate,
+            Boolean domesticDispatched
     ) {}
 
     public record EmployeePayrollSettingResponse(
-            com.erp.hr.payroll.InsuranceCalc healthMode,
+            com.erp.hr.payroll.InsuranceBasis healthMode,
+            BigDecimal healthBaseAmount,
+            String healthCardNo,
+            boolean insuranceReduction,
             boolean longTermCare,
             com.erp.hr.payroll.InsuranceCalc pensionMode,
             BigDecimal pensionBaseAmount,
-            com.erp.hr.payroll.InsuranceCalc employmentMode,
+            com.erp.hr.payroll.InsuranceBasis employmentMode,
+            BigDecimal employmentBaseAmount,
             boolean spouseDeduction,
             int dependents,
             int children,
-            int taxScale
+            int taxScale,
+            boolean religiousWorker,
+            com.erp.hr.payroll.HouseholdType householdType,
+            boolean homeless,
+            boolean foreigner,
+            String nationality,
+            boolean nonResident,
+            String residenceCountry,
+            boolean singleTaxRate,
+            boolean domesticDispatched
     ) {
         public static EmployeePayrollSettingResponse from(com.erp.hr.payroll.EmployeePayrollSetting s) {
-            return new EmployeePayrollSettingResponse(s.getHealthMode(), s.isLongTermCare(), s.getPensionMode(),
-                    s.getPensionBaseAmount(), s.getEmploymentMode(), s.isSpouseDeduction(), s.getDependents(),
-                    s.getChildren(), s.getTaxScale());
+            return new EmployeePayrollSettingResponse(s.getHealthMode(), s.getHealthBaseAmount(), s.getHealthCardNo(),
+                    s.isInsuranceReduction(), s.isLongTermCare(), s.getPensionMode(),
+                    s.getPensionBaseAmount(), s.getEmploymentMode(), s.getEmploymentBaseAmount(), s.isSpouseDeduction(),
+                    s.getDependents(), s.getChildren(), s.getTaxScale(), s.isReligiousWorker(), s.getHouseholdType(),
+                    s.isHomeless(), s.isForeigner(), s.getNationality(), s.isNonResident(), s.getResidenceCountry(),
+                    s.isSingleTaxRate(), s.isDomesticDispatched());
         }
     }
 }

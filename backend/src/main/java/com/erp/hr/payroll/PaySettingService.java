@@ -239,16 +239,36 @@ public class PaySettingService {
         }
         EmployeePayrollSetting s = payrollSettingRepository.findByEmployeeId(employeeId)
                 .orElseGet(() -> EmployeePayrollSetting.defaults(employeeId));
-        s.setHealthMode(req.healthMode() == null ? InsuranceCalc.AUTO : req.healthMode());
+        if (req.pensionMode() != null && req.pensionMode() != InsuranceCalc.AUTO && req.pensionMode() != InsuranceCalc.NONE) {
+            throw ApiException.badRequest("국민연금은 기준소득월액기준 · 안함 중 하나입니다.");
+        }
+        s.setHealthMode(req.healthMode() == null ? InsuranceBasis.AUTO : req.healthMode());
+        s.setHealthBaseAmount(req.healthBaseAmount());
+        s.setHealthCardNo(blankToNull(req.healthCardNo()));
+        s.setInsuranceReduction(Boolean.TRUE.equals(req.insuranceReduction()));
         s.setLongTermCare(req.longTermCare() == null || req.longTermCare());
         s.setPensionMode(req.pensionMode() == null ? InsuranceCalc.AUTO : req.pensionMode());
         s.setPensionBaseAmount(req.pensionBaseAmount());
-        s.setEmploymentMode(req.employmentMode() == null ? InsuranceCalc.AUTO : req.employmentMode());
+        s.setEmploymentMode(req.employmentMode() == null ? InsuranceBasis.AUTO : req.employmentMode());
+        s.setEmploymentBaseAmount(req.employmentBaseAmount());
         s.setSpouseDeduction(Boolean.TRUE.equals(req.spouseDeduction()));
         s.setDependents(req.dependents() == null ? 0 : req.dependents());
         s.setChildren(req.children() == null ? 0 : req.children());
         s.setTaxScale(scale);
+        s.setReligiousWorker(Boolean.TRUE.equals(req.religiousWorker()));
+        s.setHouseholdType(req.householdType() == null ? HouseholdType.HEAD : req.householdType());
+        s.setHomeless(Boolean.TRUE.equals(req.homeless()));
+        s.setForeigner(Boolean.TRUE.equals(req.foreigner()));
+        s.setNationality(blankToNull(req.nationality()));
+        s.setNonResident(Boolean.TRUE.equals(req.nonResident()));
+        s.setResidenceCountry(blankToNull(req.residenceCountry()));
+        s.setSingleTaxRate(Boolean.TRUE.equals(req.singleTaxRate()));
+        s.setDomesticDispatched(Boolean.TRUE.equals(req.domesticDispatched()));
         return PaySettingDtos.EmployeePayrollSettingResponse.from(payrollSettingRepository.save(s));
+    }
+
+    private static String blankToNull(String v) {
+        return v == null || v.isBlank() ? null : v.trim();
     }
 
     /** 급여계산용 — 이 사원이 [급여지급사항]에 넣어 둔 항목 id → 금액. */

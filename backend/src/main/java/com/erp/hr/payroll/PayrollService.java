@@ -194,16 +194,24 @@ public class PayrollService {
         // 원본 사원등록 [기타설정] — '안함' 이면 그 보험 줄이 없다(0 은 addAutoDeduction 이 넣지 않는다).
         // 국민연금은 기준소득월액이 있으면 급여가 아니라 그 값에 요율(원본 실측: 급여가 바뀌어도 그대로).
         EmployeePayrollSetting setting = paySettingService.payrollSetting(emp.getId());
-        BigDecimal pensionIncome = setting.getPensionBaseAmount() != null ? setting.getPensionBaseAmount() : taxableIncome;
+        // 단일세율(외국인근로자 19 %)이면 비과세 수당도 소득으로 본다 — 원본 실측: 지급총액 4,138,000(식대 100,000 포함)에
+        // 소득세 786,220 = × 19 %, 건강 148,760 · 고용 37,240 도 지급총액 기준.
+        BigDecimal insuredIncome = setting.isSingleTaxRate() ? grossPay(baseSalary, p) : taxableIncome;
+        BigDecimal pensionIncome = setting.getPensionBaseAmount() != null ? setting.getPensionBaseAmount() : insuredIncome;
         BigDecimal pension = setting.getPensionMode() == InsuranceCalc.NONE ? BigDecimal.ZERO
                 : round(SocialInsuranceRates.pensionBase(pensionIncome, ym)
                 .multiply(SocialInsuranceRates.pension(ym)));        // 기준소득월액 상·하한 안에서
-        BigDecimal health = setting.getHealthMode() == InsuranceCalc.NONE ? BigDecimal.ZERO
-                : round(taxableIncome.multiply(SocialInsuranceRates.health(ym)));
+        // '보수월액기준' 은 원본도 급여계산이 셈하지 않는다(실측: 보수월액 3,000,000 을 넣어도 건강보험 칸이 빈다).
+        BigDecimal health = setting.getHealthMode() != InsuranceBasis.AUTO ? BigDecimal.ZERO
+                : round(insuredIncome.multiply(SocialInsuranceRates.health(ym)));
         BigDecimal care = !setting.isLongTermCare() ? BigDecimal.ZERO
                 : round(health.multiply(SocialInsuranceRates.longTermCareOfHealth(ym)));   // 장기요양은 건강보험료 기준
-        BigDecimal employment = setting.getEmploymentMode() == InsuranceCalc.NONE ? BigDecimal.ZERO
-                : round(taxableIncome.multiply(SocialInsuranceRates.employment(ym)));
+        if (setting.isInsuranceReduction()) {
+            // 보험료경감 '대상' — 장기요양만 30 % 경감, 10원 미만 버림을 한 번 더(원본 실측 19,070 × 0.7 = 13,349 → 13,340).
+            care = round(care.multiply(new BigDecimal("0.7")));
+        }
+        BigDecimal employment = setting.getEmploymentMode() != InsuranceBasis.AUTO ? BigDecimal.ZERO
+                : round(insuredIncome.multiply(SocialInsuranceRates.employment(ym)));
 
         addAutoDeduction(p, "국민연금", pension);
         addAutoDeduction(p, "건강보험", health);
@@ -213,8 +221,10 @@ public class PayrollService {
         // 3) 원천징수. 손으로 넣은 소득세가 있으면 그 값을 그대로 두고 자동 계산하지 않는다
         //    (부양가족 반영 등 회사가 정한 세액을 서버가 덮어쓰면 안 된다).
         if (!hasDeduction(p, WithholdingService.INCOME_TAX)) {
-            BigDecimal incomeTax = taxCalculator.monthlyIncomeTax(taxableIncome,
-                    setting.familyCount(), setting.getChildren(), setting.getTaxScale());
+            BigDecimal incomeTax = setting.isSingleTaxRate()
+                    ? round(insuredIncome.multiply(SINGLE_TAX_RATE))
+                    : taxCalculator.monthlyIncomeTax(taxableIncome,
+                        setting.familyCount(), setting.getChildren(), setting.getTaxScale());
             addAutoDeduction(p, WithholdingService.INCOME_TAX, incomeTax);
         }
         if (!hasDeduction(p, WithholdingService.LOCAL_INCOME_TAX)) {
@@ -316,6 +326,16 @@ public class PayrollService {
         if (amount.signum() <= 0) return;
         p.addLine(PayslipLine.builder()
                 .kind(PayslipLineKind.DEDUCTION).name(name).amount(amount).auto(true).build());
+    }
+
+    /** 외국인근로자 단일세율(조세특례제한법 제18조의2) — 원본 [기타설정] 단일세율 */
+    private static final BigDecimal SINGLE_TAX_RATE = new BigDecimal("0.19");
+
+    /** 지급총액 — 기본급 + 모든 수당(비과세 포함) */
+    private static BigDecimal grossPay(BigDecimal baseSalary, Payslip p) {
+        return baseSalary.add(p.getLines().stream()
+                .filter(l -> l.getKind() == PayslipLineKind.ALLOWANCE)
+                .map(PayslipLine::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add));
     }
 
     private BigDecimal round(BigDecimal v) {

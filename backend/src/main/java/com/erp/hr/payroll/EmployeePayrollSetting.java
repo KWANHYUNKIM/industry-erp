@@ -37,7 +37,19 @@ public class EmployeePayrollSetting extends BaseTimeEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "health_mode", nullable = false, length = 10)
     @Builder.Default
-    private InsuranceCalc healthMode = InsuranceCalc.AUTO;
+    private InsuranceBasis healthMode = InsuranceBasis.AUTO;
+
+    /** 건강보험 보수월액 — '보수월액기준' 일 때 칸이 보인다. 원본도 급여계산에 쓰지 않는다(실측). */
+    @Column(name = "health_base_amount", precision = 18, scale = 2)
+    private BigDecimal healthBaseAmount;
+
+    /** 건강보험 증번호 */
+    @Column(name = "health_card_no", length = 30)
+    private String healthCardNo;
+
+    /** 보험료경감 대상 — 장기요양보험료만 0.7 배(원본 실측 19,070 → 13,340) */
+    @Column(name = "insurance_reduction", nullable = false)
+    private boolean insuranceReduction;
 
     /** 장기요양보험가입여부 — 가입이면 건강보험료 × 장기요양 비율 */
     @Column(name = "long_term_care", nullable = false)
@@ -56,7 +68,11 @@ public class EmployeePayrollSetting extends BaseTimeEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "employment_mode", nullable = false, length = 10)
     @Builder.Default
-    private InsuranceCalc employmentMode = InsuranceCalc.AUTO;
+    private InsuranceBasis employmentMode = InsuranceBasis.AUTO;
+
+    /** 고용보험 보수월액 — '보수월액기준' 일 때 */
+    @Column(name = "employment_base_amount", precision = 18, scale = 2)
+    private BigDecimal employmentBaseAmount;
 
     /** 배우자 공제 */
     @Column(name = "spouse_deduction", nullable = false)
@@ -74,6 +90,44 @@ public class EmployeePayrollSetting extends BaseTimeEntity {
     @Column(name = "tax_scale", nullable = false)
     @Builder.Default
     private int taxScale = 100;
+
+    /** 종교관련종사자 여/부 — 급여 셈에 변화 없음(실측) */
+    @Column(name = "religious_worker", nullable = false)
+    private boolean religiousWorker;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "household_type", nullable = false, length = 20)
+    @Builder.Default
+    private HouseholdType householdType = HouseholdType.HEAD;
+
+    /** 무주택자 여부 — 여(무주택자) 면 true. 급여 셈에 변화 없음(실측) */
+    @Column(nullable = false)
+    private boolean homeless;
+
+    /** 외국인 — 이것만으로는 급여 셈에 변화 없음(실측). 단일세율과 함께 쓴다 */
+    @Column(nullable = false)
+    private boolean foreigner;
+
+    @Column(length = 50)
+    private String nationality;
+
+    /** 비거주자 — 급여 셈에 변화 없음(실측) */
+    @Column(name = "non_resident", nullable = false)
+    private boolean nonResident;
+
+    @Column(name = "residence_country", length = 50)
+    private String residenceCountry;
+
+    /**
+     * 단일세율(외국인근로자 19 %) — 소득세 = 지급총액(비과세 수당 포함) × 19 %, 4대보험 기준도 지급총액.
+     * 원본 실측(외국인 · 단일세율): 4,138,000 → 소득세 786,220 · 지방 78,620 · 건강 148,760 · 고용 37,240.
+     */
+    @Column(name = "single_tax_rate", nullable = false)
+    private boolean singleTaxRate;
+
+    /** 국내파견 근로자(고소득) — 값만 둔다(재지 않음) */
+    @Column(name = "domestic_dispatched", nullable = false)
+    private boolean domesticDispatched;
 
     /** 간이세액표의 공제대상가족 수 — 본인 + 배우자 + 공제대상가족 */
     public int familyCount() {
