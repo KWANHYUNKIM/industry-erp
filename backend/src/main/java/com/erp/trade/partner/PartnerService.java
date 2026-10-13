@@ -200,6 +200,8 @@ public class PartnerService {
         BusinessPartner p = getPartner(id);
         p.setSalesPriceGroup(priceGroupCode(req.salesPriceGroup()));
         p.setPurchasePriceGroup(priceGroupCode(req.purchasePriceGroup()));
+        // 원본 '거래처특별단가그룹수정' [H] 는 저장할 때마다 그 시각 한 줄로 바뀐다(E040120 실측) — 거래처 이력에 '수정'
+        changeHistory.record(HISTORY_TARGET, id, ChangeHistoryService.UPDATED);
         return PartnerResponse.from(p);
     }
 
