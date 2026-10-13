@@ -85,4 +85,14 @@ public class BankCheck extends BaseTimeEntity {
     @Column(name = "direct_entry", nullable = false)
     @Builder.Default
     private boolean directEntry = false;
+
+    /**
+     * 수표내역입력 전표 번호(원본 [일자-No.] 의 No.) — 늘린 전표 · 줄인 전표. 분개로 움직인 수표는 비어 있다(그쪽은 회계전표 번호).
+     * {@code check_entry_counters} 가 (수표 종류, 날짜) 마다 매기고 지운 번호는 다시 주지 않는다.
+     */
+    @Column(name = "direct_in_no")
+    private Integer directInNo;
+
+    @Column(name = "direct_out_no")
+    private Integer directOutNo;
 }

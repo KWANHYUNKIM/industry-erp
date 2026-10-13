@@ -159,6 +159,8 @@ const OWNED_HERE = new Map([
   ['ScheduleEvent|repeatGroup', '반복설정으로 펼쳐 넣을 때 서버가 묶음 값을 매긴다 — 등록 요청의 repeat 에서 나온다(원본 E070201 반복설정 창)'],
   ['ScheduleEvent|repeatRule', '등록 요청 repeat.summary(원본 요약보기 글)를 서버가 펼친 줄마다 찍는다 — 우리는 고칠 때 반복을 다시 펼치지 않는다'],
   ['Check|directEntry', '수령(발행)수표조회 [신규] 수표내역입력(POST /checks/direct)에서 들어온 수표에 서버가 켠다 — 수표관리 등록 창에는 그 칸이 없다(원본 거래유형 수표만증가 · 2026-10-13 실측)'],
+  ['Check|directInNo', '수표내역입력 전표 번호 — 서버가 (수표 종류, 날짜) 마다 check_entry_counters 로 매긴다(원본 [일자] \'2026/10/13 -5\', 지운 번호 재사용 없음 · 2026-10-13 실측)'],
+  ['Check|directOutNo', '수표내역입력 감소 전표 번호 — directInNo 와 같은 번호 줄에서 서버가 매긴다'],
   ['CostPeriod|generated', '원가생성/수정 원가계산 [생성](POST /cost-periods/{id}/generate)이 켠다 — 원본 기본등록 창에는 그 칸이 없다(2026-10-12 실측)'],
   ['WorkPost|labels', '공지사항 하단 [라벨변경] 판의 전용 자리(PATCH …/{id}/labels)에서 정한다 — 원본 E200080 글쓰기 창에는 라벨 칸이 없다'],
   ['Department|orgExcluded', '조직도등록 Fn › 미포함 · 하위부서추가 전용 자리(PUT …/{id}/org)에서 정한다 — 부서 등록 · 수정 창에는 원본도 그 칸이 없다'],

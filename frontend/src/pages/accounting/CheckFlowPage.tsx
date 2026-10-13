@@ -20,7 +20,8 @@ const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
  *
  * <p>[일자-No.]는 그 움직임을 적은 회계전표다 — 받을 때 분개(source_id)와 손을 떠날 때 분개(V239 settle_journal_id).
  * [거래유형]은 원본 현황 판에 자료가 없어 못 쟀다 — 우리는 그 움직임의 이름(수령 · 입금완료 · 부도)을 열에 적고 같은 값으로 거른다.
- * 수표내역입력으로 분개 없이 넣은 수표는 수령수표조회에서 잰 값(2026-10-13) '수표만증가' · '수표만감소' 를 쓴다 — [일자-No.] 도 빈칸.
+ * 수표내역입력으로 분개 없이 넣은 수표는 수령수표조회에서 잰 값(2026-10-13) '수표만증가' · '수표만감소' 를 쓰고, [일자-No.] 는 그 수표 전표 번호('2026/10/13 -5').
+ * 같은 날 같은 번호(한 전표의 여러 줄)는 수표번호 차례.
  * 부서 · 프로젝트는 수표에 없다.
  *
  * <p>수령수표는 줄을 거래처마다 묶는다(2026-10-13 QA회계2 수표 셋으로 잼 — 증가 · 감소 둘 다): 거래처코드 차례(거래처 없는 묶음이 먼저),
@@ -78,7 +79,12 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
   useEffect(() => { void load() }, [from, to, flow, type])
 
   const dayOf = (c: BankCheck) => (flow === '증가' ? c.issueDate : c.settledDate ?? '')
-  const noOf = (c: BankCheck) => (flow === '증가' ? c.issueJournalNo : c.settleJournalNo) ?? ''
+  /* 수표내역입력으로 넣은 움직임은 그 전표 자체 번호(원본 '2026/10/13 -5'), 분개로 움직인 것은 회계전표 번호. */
+  const entryNoOf = (c: BankCheck) => (flow === '증가' ? c.directInNo : c.directOutNo) ?? null
+  const noOf = (c: BankCheck) => {
+    const n = entryNoOf(c)
+    return n != null ? `-${n}` : (flow === '증가' ? c.issueJournalNo : c.settleJournalNo) ?? ''
+  }
   const kindOf = (c: BankCheck) => (c.directEntry ? (flow === '증가' ? '수표만증가' : '수표만감소')
     : flow === '증가' ? (received ? '수령' : '발행') : c.statusName)
   const shown = useMemo(() => checks
@@ -90,7 +96,8 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
     .filter((c) => !remark || (c.remark ?? '').includes(remark))
     .filter((c) => !author || (c.createdBy ?? '') === author)
     .filter((c) => !kind || kindOf(c) === kind)
-    .sort((a, b) => (dayOf(a) < dayOf(b) ? -1 : dayOf(a) > dayOf(b) ? 1 : a.checkNo.localeCompare(b.checkNo))),
+    .sort((a, b) => (dayOf(a) < dayOf(b) ? -1 : dayOf(a) > dayOf(b) ? 1
+      : (entryNoOf(a) ?? 0) - (entryNoOf(b) ?? 0) || a.checkNo.localeCompare(b.checkNo))),
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [checks, type, flow, from, to, partner, bankAccount, checkNo, remark, author, kind])
   const total = shown.reduce((a, c) => a + Number(c.amount), 0)

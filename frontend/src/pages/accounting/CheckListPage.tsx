@@ -29,7 +29,8 @@ interface Move { key: string; date: string; inc: boolean; c: BankCheck }
  * 감소 줄이면 입금 · 부도 · 결제를 취소해 수표가 보유로 돌아오고(입금 분개 · 계좌 입금도 되돌림), 증가 줄이면 수표를 지운다.
  * 원본은 감소 줄이 남은 수표의 증가 줄도 막지 않는다(감소만 홀로 남음) — 우리 수표는 한 장이라 그 감소를 먼저 취소하고 지운다.
  * 원본 판(2026-10-13 QA회계2 수표 1장 증가 · 감소): 증감구분 '증가' · '감소', 최근 줄이 위, 합계줄 없음.
- * 원본 [수령수표내역입력](신규)에서 직접 넣은 줄의 거래유형은 '수표만증가' · '수표만감소', [일자] 칸은 '2026/10/13 -1' 처럼 일자-No. 다.
+ * 원본 [수령수표내역입력](신규)에서 직접 넣은 줄의 거래유형은 '수표만증가' · '수표만감소', [일자] 칸은 '2026/10/13 -1' 처럼 일자-No. 다
+ * (수표 전표 자체 번호 — (수표 종류, 날짜) 마다 1 부터, 증가 · 감소 전표가 같은 줄을 쓰고 지운 번호는 다시 안 준다. 한 전표의 여러 줄은 같은 번호).
  * 우리 수표는 받는 순간 분개가 생기는 연결전표라 거래유형은 수령 · 입금완료 · 부도(발행 · 결제완료)로 둔다.
  * [최종수정자] = 마지막으로 입금 · 부도 · 결제나 그 취소를 한 사람. [인쇄] 열 · [발행수표인쇄]는 수표 용지 인쇄 이력인데 우리는 수표를 인쇄하지 않는다.
  * [신규(F2)]는 원본처럼 수령(발행)수표내역입력 창을 연다(features/bankcheck/components/CheckDirectEntryModal).
@@ -80,6 +81,8 @@ export default function CheckListPage({ type }: { type: CheckType }) {
 
   const ofType = useMemo(() => checks.filter((c) => c.type === type), [checks, type])
   const kindOf = (m: Move) => (m.c.directEntry ? (m.inc ? '수표만증가' : '수표만감소') : m.inc ? (received ? '수령' : '발행') : m.c.statusName)
+  /* 수표내역입력 전표 번호(원본 [일자] '2026/10/13 -5' 의 5) — 분개로 움직인 줄은 없다. */
+  const entryNo = (m: Move) => (m.inc ? m.c.directInNo : m.c.directOutNo) ?? null
   const moves = useMemo(() => {
     const out: Move[] = []
     for (const c of ofType) {
@@ -97,8 +100,9 @@ export default function CheckListPage({ type }: { type: CheckType }) {
       .filter((m) => !remark || (m.c.remark ?? '').includes(remark))
       .filter((m) => !author || (m.c.createdBy ?? '') === author)
       .filter((m) => !editor || (m.c.updatedBy ?? '') === editor)
-      // 원본은 최근 줄이 위 — 같은 날이면 나중에 생긴 움직임(감소)이 위.
-      .sort((a, b) => (a.date > b.date ? -1 : a.date < b.date ? 1 : (a.inc === b.inc ? b.c.id - a.c.id : a.inc ? 1 : -1)))
+      // 원본은 최근 줄이 위 — 같은 날이면 전표 번호가 큰(나중) 것, 번호가 없으면 나중에 생긴 움직임(감소)이 위.
+      .sort((a, b) => (a.date > b.date ? -1 : a.date < b.date ? 1
+        : (entryNo(b) ?? 0) - (entryNo(a) ?? 0) || (a.inc === b.inc ? b.c.id - a.c.id : a.inc ? 1 : -1)))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ofType, from, to, showInc, showDec, direct, linked, checkNo, kind, partner, bankAccount, remark, author, editor])
   const partners = useMemo(() => {
@@ -229,7 +233,7 @@ export default function CheckListPage({ type }: { type: CheckType }) {
                   <input type="checkbox" aria-label={`${m.c.checkNo} ${m.inc ? incName : decName} 선택`} checked={picked.has(m.key)}
                          onChange={(e) => setPicked((s) => { const n = new Set(s); if (e.target.checked) n.add(m.key); else n.delete(m.key); return n })} />
                 </td>
-                <td className="text-center">{dateText(m.date)}</td>
+                <td className="text-center">{dateText(m.date)}{entryNo(m) != null ? ` -${entryNo(m)}` : ''}</td>
                 <td>{m.c.checkNo}</td>
                 <td className="text-center">{m.inc ? '증가' : '감소'}</td>
                 <td>{m.c.partnerName ?? ''}</td>

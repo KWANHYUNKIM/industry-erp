@@ -73,7 +73,9 @@ public final class BankCheckDtos {
             /* 원본 거래유형 '수표만증가' · '수표만감소' — 수표내역입력에서 분개 없이 넣은 수표 */
             boolean directEntry,
             /* 원본 수령수표증가 · 감소현황의 [일자-No.] — 받을 때 · 손을 떠날 때 회계전표 번호. 목록에서만 채운다. */
-            String issueJournalNo, String settleJournalNo
+            String issueJournalNo, String settleJournalNo,
+            /* 수표내역입력 전표 번호 — 원본 [일자] '2026/10/13 -5' 의 5. 늘린 전표 · 줄인 전표. */
+            Integer directInNo, Integer directOutNo
     ) {
         public static CheckResponse from(BankCheck c) {
             return from(c, null, null);
@@ -89,7 +91,8 @@ public final class BankCheckDtos {
                     c.getBankAccount() != null ? c.getBankAccount().getId() : null,
                     c.getBankAccount() != null
                             ? c.getBankAccount().getBankName() + " " + c.getBankAccount().getAccountNo() : null,
-                    c.getSettledDate(), c.getRemark(), c.getCreatedBy(), c.getUpdatedBy(), c.isDirectEntry(), issueJournalNo, settleJournalNo);
+                    c.getSettledDate(), c.getRemark(), c.getCreatedBy(), c.getUpdatedBy(), c.isDirectEntry(), issueJournalNo, settleJournalNo,
+                    c.getDirectInNo(), c.getDirectOutNo());
         }
     }
 }

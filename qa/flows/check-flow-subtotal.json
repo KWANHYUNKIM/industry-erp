@@ -1,5 +1,5 @@
 {
-  "about": "수령수표증가현황 · 감소현황 — 거래처마다 묶어 '거래처명 계'(거래처 없으면 '[] 계') 줄과 '합계'. 수표내역입력(API)으로 거래처 없는 수표 둘 · 있는 수표 하나를 넣고 감소까지 한 뒤 두 화면의 줄 차례 · 소계를 본다(2026-10-13 원본 실측과 같은 모양). 끝에 지운다.",
+  "about": "수령수표증가현황 · 감소현황 — [일자-No.] 는 수표 전표 자체 번호(전표마다 하나씩 늘어난다), 거래처마다 묶어 '거래처명 계'(거래처 없으면 '[] 계') 줄과 '합계'. 수표내역입력(API)으로 거래처 없는 수표 둘 · 있는 수표 하나를 넣고 감소까지 한 뒤 두 화면의 줄 차례 · 소계를 본다(2026-10-13 원본 실측과 같은 모양). 끝에 지운다.",
   "shots": [
     {
       "name": "증가현황 — '[] 계' 15,000 · '거래처명 계' 20,000 · 합계 35,000",
@@ -11,6 +11,7 @@
         "wait:1500",
         "js:window.__rows=()=>{const nos=JSON.parse(sessionStorage.getItem('nos'));const trs=[...document.querySelectorAll('tbody tr')];const out=[];trs.forEach((t,i)=>{if(nos.some((n)=>t.innerText.includes(n)))out.push(i)});return {trs,idx:out}};true",
         "expect:(()=>{const {trs,idx}=window.__rows();const nos=JSON.parse(sessionStorage.getItem('nos'));const a=trs.findIndex((t)=>t.innerText.includes(nos[0])),c=trs.findIndex((t)=>t.innerText.includes(nos[2])),b=trs.findIndex((t)=>t.innerText.includes(nos[1]));const subB=trs.slice(b+1).find((t)=>t.cells.length===2);return idx.length===3&&a<c&&trs.slice(c+1).some((t)=>t.cells.length===2&&t.cells[0].innerText.trim()==='[] 계')&&!!subB&&subB.cells[0].innerText.trim()===sessionStorage.getItem('pName')+' 계'&&subB.cells[0].colSpan===6})()",
+        "expect:(()=>{const nos=JSON.parse(sessionStorage.getItem('nos'));const no=(n)=>{const t=[...document.querySelectorAll('tbody tr')].find((r)=>r.innerText.includes(n));const m=/ -(\\d+)$/.exec(t.cells[0].innerText.trim());return m?Number(m[1]):NaN};const a=no(nos[0]),b=no(nos[1]),c=no(nos[2]);return b===a+1&&c===a+2})()",
         "expect:(()=>{const t=document.querySelector('tfoot tr');return t.cells[0].innerText.trim()==='합계'&&getComputedStyle(t.cells[0]).textAlign==='center'})()"
       ]
     },

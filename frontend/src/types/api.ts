@@ -1197,6 +1197,9 @@ export interface BankCheck {
   issueJournalNo?: string | null
   /** 손을 떠날 때(입금 · 부도) 회계전표 번호 — 원본 수령수표감소현황의 [일자-No.]. 발행수표 결제는 분개가 없어 비어 있다. */
   settleJournalNo?: string | null
+  /** 수표내역입력 전표 번호 — 원본 [일자] '2026/10/13 -5' 의 5(늘린 전표 · 줄인 전표). */
+  directInNo?: number | null
+  directOutNo?: number | null
 }
 
 // ===== 비현금거래 (대체전표) =====

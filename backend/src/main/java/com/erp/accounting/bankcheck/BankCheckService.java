@@ -38,6 +38,9 @@ public class BankCheckService {
     private final JournalEntryRepository journalRepository;
     private final BankCardService bankCardService;
 
+    @jakarta.persistence.PersistenceContext
+    private jakarta.persistence.EntityManager em;
+
     @Transactional(readOnly = true)
     public List<CheckResponse> findAll() {
         return findAll(null, null);
@@ -183,6 +186,7 @@ public class BankCheckService {
         var partner = req.partnerId() == null ? null : partnerRepository.findById(req.partnerId())
                 .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + req.partnerId()));
         List<CheckResponse> out = new java.util.ArrayList<>();
+        int entryNo = nextEntryNo(req.type(), req.date());
         for (BankCheckDtos.DirectLine line : req.lines()) {
             String no = line.checkNo().trim();
             if (req.increase()) {
@@ -193,7 +197,7 @@ public class BankCheckService {
                         .checkNo(no).type(req.type()).status(CheckStatus.HELD)
                         .issueDate(req.date()).amount(line.amount())
                         .partner(partner).bankAccount(account).remark(line.remark())
-                        .createdBy(username).updatedBy(username).directEntry(true)
+                        .createdBy(username).updatedBy(username).directEntry(true).directInNo(entryNo)
                         .build();
                 out.add(CheckResponse.from(checkRepository.save(c)));
             } else {
@@ -207,6 +211,7 @@ public class BankCheckService {
                 requireNotBeforeIssue(c, req.date(), "전표일자");
                 c.setStatus(req.type() == CheckType.RECEIVED ? CheckStatus.DEPOSITED : CheckStatus.PAID);
                 c.setSettledDate(req.date());
+                c.setDirectOutNo(entryNo);
                 c.setUpdatedBy(username);
                 out.add(CheckResponse.from(c));
             }
@@ -246,6 +251,7 @@ public class BankCheckService {
             c.setStatus(CheckStatus.HELD);
             c.setSettledDate(null);
             c.setSettleJournalId(null);
+            c.setDirectOutNo(null);
             c.setUpdatedBy(username);
         }
         for (Long id : inc) {
@@ -261,6 +267,21 @@ public class BankCheckService {
     }
 
     // ── 내부 ──────────────────────────────────────────────────────────
+
+    /**
+     * 수표내역입력 전표 번호 — (수표 종류, 날짜) 마다 1 부터, 지운 번호는 다시 주지 않는다(원본 실측: -1 ~ -4 를 지운 뒤 -5).
+     * upsert 한 줄이 행 잠금으로 동시 저장을 줄 세운다.
+     */
+    private int nextEntryNo(CheckType type, LocalDate date) {
+        Object n = em.createNativeQuery(
+                        "insert into check_entry_counters (check_type, entry_date, last_no) values (:t, :d, 1)"
+                                + " on conflict (check_type, entry_date) do update set last_no = check_entry_counters.last_no + 1"
+                                + " returning last_no")
+                .setParameter("t", type.name())
+                .setParameter("d", date)
+                .getSingleResult();
+        return ((Number) n).intValue();
+    }
 
     private void requireType(BankCheck c, CheckType type, String message) {
         if (c.getType() != type) {
