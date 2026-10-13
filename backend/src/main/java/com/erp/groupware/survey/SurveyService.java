@@ -245,6 +245,20 @@ public class SurveyService {
                 .toList();
     }
 
+    /**
+     * 원본 설문조사조회 [설문조사 참여여부] '보기' → '설문조사참여여부'(2026-10-13 실측) —
+     * 설문대상자마다 [소속부서][성명][ID][참여여부 O/X]. 익명 설문도 O/X 는 낸다(무엇을 답했는지는 아니다).
+     */
+    @Transactional(readOnly = true)
+    public List<com.erp.groupware.survey.dto.SurveyDtos.ParticipantDto> participants(Long id) {
+        Survey s = getSurvey(id);
+        return s.getTargets().stream()
+                .map(SurveyTarget::getUser)
+                .map(u -> new com.erp.groupware.survey.dto.SurveyDtos.ParticipantDto(
+                        u.getDepartment(), u.getName(), u.getUsername(), answered(s, u.getUsername())))
+                .toList();
+    }
+
     // ── 내부 ────────────────────────────────────────────────────────────────
 
     private Survey getSurvey(Long id) {

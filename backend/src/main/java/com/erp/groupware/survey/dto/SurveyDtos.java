@@ -176,4 +176,7 @@ public final class SurveyDtos {
             return a.values();
         }
     }
+
+    /** 원본 '설문조사참여여부' 한 줄 — 소속부서 · 성명 · ID · 참여여부. */
+    public record ParticipantDto(String department, String name, String username, boolean participated) {}
 }

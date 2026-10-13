@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef} from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcListShell from '../../components/EcListShell'
@@ -80,6 +80,33 @@ export default function SurveyInputPage() {
   const [uploading, setUploading] = useState(false)
   // 원본은 빈 줄 3개로 시작한다.
   const [rows, setRows] = useState<QuestionRow[]>([emptyRow(), emptyRow(), emptyRow()])
+  /**
+   * 원본 설문조사조회 '설문조사' 창의 [수정] · [복사] 가 이 입력 화면을 그 설문으로 채워 연다(2026-10-13 실측 버튼).
+   * ?edit=<id> 면 저장이 그 설문을 고치고(PATCH), ?copy=<id> 면 새 설문으로 저장한다.
+   */
+  const [params] = useSearchParams()
+  const editId = params.get('edit') ? Number(params.get('edit')) : null
+  const copyId = params.get('copy') ? Number(params.get('copy')) : null
+  const [editStatus, setEditStatus] = useState<string | null>(null)
+  useEffect(() => {
+    const id = editId ?? copyId
+    if (id == null) return
+    api.get<SurveyDoc>(`/surveys/${id}`).then(({ data: d }) => {
+      setTitle(d.title)
+      if (d.endAt) { setEndDate(d.endAt.slice(0, 10)); setEndTime(d.endAt.slice(11, 16)) }
+      setScope(d.targetScope as 'INTERNAL' | 'EXTERNAL')
+      setTargets((d.targets ?? []).map((t) => String(t.userId)))
+      setAnonymous(d.anonymous)
+      setVisibility(d.resultVisibility as 'ALL' | 'PARTIAL' | 'NONE')
+      setUseHeader(!!d.headerText); setHeaderText(d.headerText ?? '')
+      const att = d as SurveyDoc & { attachmentId?: number | null; attachmentName?: string | null }
+      if (editId != null && att.attachmentId) setAttachment({ id: att.attachmentId, name: att.attachmentName ?? '' })
+      const qs = d.questions.map((q) => ({ type: q.type, content: q.content, required: q.required,
+        options: [...q.options, '', '', '', '', ''].slice(0, 5) }))
+      setRows(qs.length >= 3 ? qs : [...qs, ...Array.from({ length: 3 - qs.length }, emptyRow)])
+      if (editId != null) setEditStatus(d.status)
+    }).catch((err) => setError(extractErrorMessage(err)))
+  }, [editId, copyId])
 
   useEffect(() => {
     api.get<UserRow[]>('/users').then((r) => setUsers(r.data)).catch(() => {})
@@ -139,6 +166,14 @@ export default function SurveyInputPage() {
     // 원본 [저장]은 '설문조사를 진행하시겠습니까?' 를 먼저 묻는다.
     if (!draft && !window.confirm('설문조사를 진행하시겠습니까?')) return
     try {
+      if (editId != null) {
+        const { draft: _d, ...body } = payload(draft)
+        void _d
+        // 초안을 [저장] 하면 그때 발송(진행중)이 된다. 이미 진행 중인 설문은 상태를 그대로 둔다.
+        const r = await api.patch<SurveyDoc>(`/surveys/${editId}`, { ...body, status: !draft && editStatus === 'DRAFT' ? 'OPEN' : null })
+        setOk(`저장되었습니다. (게시글번호 ${r.data.postNo})`)
+        return
+      }
       const r = await api.post<SurveyDoc>('/surveys', payload(draft))
       setOk(`${draft ? '초안으로 저장' : '설문 발송'}되었습니다. (게시글번호 ${r.data.postNo})`)
       setTitle(''); setTargets([]); setHeaderText(''); setUseHeader(false)

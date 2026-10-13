@@ -1,5 +1,5 @@
 {
-  "about": "설문 한 바퀴를 화면만으로 — 설문조사입력(제목 · 외부 · 단답형 질문 하나) [저장] '설문조사를 진행하시겠습니까?' → 설문조사 목록 [응답하기] → 답 넣고 [제출] → '참여' → 설문조사현황 [검색(F8)] 출력물에 응답 × 질문 한 줄. 끝에 지운다. node qa/shot.mjs qa/flows/survey-roundtrip.json",
+  "about": "설문 한 바퀴를 화면만으로 — 설문조사입력(제목 · 외부 · 단답형 질문 하나) [저장] '설문조사를 진행하시겠습니까?' → 설문조사 목록 제목 → '설문조사' 창 [참여하기] → 답 넣고 [제출] → 내 응답(answeredByMe) → 설문조사현황 [검색(F8)] 출력물에 응답 × 질문 한 줄. 끝에 지운다. node qa/shot.mjs qa/flows/survey-roundtrip.json",
   "shots": [
     {
       "name": "설문조사입력 — 화면으로 저장",
@@ -20,11 +20,13 @@
       "path": "/groupware/survey",
       "steps": [
         "wait:1200",
-        "js:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('QA그룹웨어-화면설문')).querySelectorAll('button').forEach((b) => { if (b.textContent.trim() === '응답하기') b.click() }); true",
+        "js:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('QA그룹웨어-화면설문')).querySelector('td:nth-child(5) a').click(); true",
+        "wait:400",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.textContent.trim() === '참여하기').click(); true",
         "wait:800",
         "js:(() => { const d = [...document.querySelectorAll('[role=dialog]')].pop(); const i = [...d.querySelectorAll('input')].find((x) => x.type !== 'radio' && x.type !== 'checkbox' && x.type !== 'date'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'QA김치찌개'); i.dispatchEvent(new Event('input', { bubbles: true })); [...d.querySelectorAll('button')].find((b) => b.textContent.trim() === '제출').click(); return true })()",
         "wait:1200",
-        "expect:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('QA그룹웨어-화면설문'))?.innerText.includes('참여')"
+        "expect:fetch('/api/surveys', { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()).then((ss) => ss.find((x) => x.title === 'QA그룹웨어-화면설문')?.answeredByMe === true)"
       ]
     },
     {

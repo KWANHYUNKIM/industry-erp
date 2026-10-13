@@ -70,6 +70,12 @@ public class SurveyController {
         return surveyService.responses(id, principal.getUsername());
     }
 
+    /** 원본 [설문조사 참여여부] '보기' — 대상자마다 참여 O/X. */
+    @GetMapping("/{id}/participants")
+    public List<com.erp.groupware.survey.dto.SurveyDtos.ParticipantDto> participants(@PathVariable Long id) {
+        return surveyService.participants(id);
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         surveyService.delete(id);

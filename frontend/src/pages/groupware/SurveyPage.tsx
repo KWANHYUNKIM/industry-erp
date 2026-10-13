@@ -23,11 +23,18 @@ type Tab = (typeof TABS)[number]
 const TAB_STATUS: Record<Exclude<Tab, '전체'>, SurveyStatus> = {
   초안: 'DRAFT', 진행중: 'OPEN', 완료: 'CLOSED', 미발송: 'UNSENT',
 }
-const STATUS_COLOR: Record<SurveyStatus, string> = {
-  DRAFT: 'var(--ec-text-hint)', OPEN: 'var(--ec-blue)', CLOSED: 'var(--ec-success)', UNSENT: 'var(--ec-warn)',
-}
 
 const dateOf = (iso: string | null) => (iso ? iso.slice(0, 10).replace(/-/g, '/') : '')
+/** 원본 칸 글 '2026/09/23 오전 9:57:08' (2026-10-13 실측). */
+const dateTimeOf = (iso: string | null) => {
+  if (!iso) return ''
+  const h = Number(iso.slice(11, 13))
+  const rest = iso.slice(13, 19) || ':00:00'
+  return `${dateOf(iso)} ${h < 12 ? '오전' : '오후'} ${h % 12 === 0 ? 12 : h % 12}${rest.length === 6 ? rest : rest + ':00'}`
+}
+/** '설문조사' 창 머리 '설문기간 : 2026/09/23 ~ 2026/09/26 오후 1:00'. */
+const periodOf = (r: SurveyDoc) => `설문기간 : ${dateOf(r.createdAt)} ~ ${dateTimeOf(r.endAt).replace(/:\d{2}$/, '')}`
+interface Participant { department: string | null; name: string; username: string; participated: boolean }
 const COLS = ['3.2%', '9.1%', '11%', '11%', '24.7%', '7.8%', '7.1%', '7.8%', '18.2%']
 
 export default function SurveyPage() {
@@ -57,6 +64,19 @@ export default function SurveyPage() {
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [answering, setAnswering] = useState<SurveyDoc | null>(null)
   const [result, setResult] = useState<SurveyResult | null>(null)
+  /** 원본 제목 → '설문조사' 창(보기 · 답하기 · [설문결과보기][수정][복사][삭제][닫기]). */
+  const [viewing, setViewing] = useState<SurveyDoc | null>(null)
+  /** 원본 [설문조사 참여여부] '보기' → '설문조사참여여부'. */
+  const [participants, setParticipants] = useState<Participant[] | null>(null)
+  async function openParticipants(s: SurveyDoc) {
+    try { setParticipants((await api.get<Participant[]>(`/surveys/${s.id}/participants`)).data) }
+    catch (err) { alert(extractErrorMessage(err)) }
+  }
+  async function removeOne(s: SurveyDoc) {
+    if (!confirm('삭제하시겠습니까?')) return
+    try { await api.delete(`/surveys/${s.id}`); setViewing(null); void load() }
+    catch (err) { alert(extractErrorMessage(err)) }
+  }
 
   async function load() {
     setError('')
@@ -120,21 +140,17 @@ export default function SurveyPage() {
          * <p>원본 차례상 <b>[선택삭제] 앞</b>이다(신규(F2) · 대화방 · 선택삭제).
          */
         { label: '대화방', onClick: () => openAppBarPanel('messenger') },
+        // 2026-10-13 원본 하단은 [신규(F2)][Email][대화방][선택삭제] 뿐이다 — 예전에 둔 [미리보기] · [Excel] 은 뺐다.
+        // [Email] 은 설문을 메일로 보내는 것이라 원본에서 눌러 보지 않았다(바깥으로 나감) — 두지 않는다.
         { label: '선택삭제', onClick: removeSelected, disabled: selected.size === 0 },
-        /*
-         * 원본 [미리보기] — '설문 미리보기 화면이 없다' 고 적고 뺐는데, 셸이 이미
-         * 인쇄용 종이를 만든다. 없던 것은 <b>대화상자를 안 띄우는 길</b>뿐이었다.
-         * 원본 차례상 <b>[선택삭제] 뒤</b>다.
-         */
-        { label: '미리보기' },
-
-        { label: 'Excel' },
       ]}
     >
       <div className="ec-pills" style={{ marginBottom: 6 }}>
+        {/* 원본: 왼쪽 전체 · 초안 · 진행중 · 완료, 오른쪽 끝에 미발송. 건수는 붙지 않는다(2026-10-13 실측). */}
         {TABS.map((t) => (
-          <button key={t} type="button" className={`ec-pill no-ec${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>
-            {t} {tabCount(t)}
+          <button key={t} type="button" className={`ec-pill no-ec${tab === t ? ' active' : ''}${t === '미발송' ? ' ml-auto' : ''}`}
+                  title={`${tabCount(t)}건`} onClick={() => setTab(t)}>
+            {t}
           </button>
         ))}
       </div>
@@ -205,39 +221,30 @@ export default function SurveyPage() {
               >
                 {i + 1}
               </td>
-              <td className="text-center">{r.postNo}</td>
-              <td className="text-center">{dateOf(r.createdAt)}</td>
-              <td className="text-center">{dateOf(r.endAt)}</td>
-              <td>
-                {r.title}
-                <span className="ml-[6px] text-ec-label text-[11.5px]">
-                  문항 {r.questionCount}
-                  {r.anonymous && ' · 익명'}
-                </span>
-              </td>
-              <td className="text-center">{r.writerName ?? ''}</td>
-              <td style={{ textAlign: 'center', color: STATUS_COLOR[r.status] }}>{r.statusName}</td>
-              <td className="text-center">
-                <button className="ec-btn ec-btn-sm" onClick={() => void openResult(r)}>결과</button>
-              </td>
-              <td className="text-center">
-                {/* 종료일이 지난 설문에 [응답하기] 를 띄우면 눌러도 400 만 난다 — 상태가 '진행중'
-                    이어도 시간으로 닫히므로 expired 를 같이 본다. */}
-                {r.answeredByMe ? (
-                  <span className="text-ec-success">참여</span>
-                ) : r.status === 'OPEN' && !r.expired ? (
-                  <button className="ec-btn ec-btn-sm ec-btn-primary" onClick={() => setAnswering(r)}>응답하기</button>
-                ) : (
-                  <span className="text-ec-label">{r.expired && r.status === 'OPEN' ? '기간종료' : '미참여'}</span>
-                )}
-                <span className="ml-[6px] text-ec-label text-[11.5px]">
-                  {r.responseCount}/{r.targetCount || '-'}
-                </span>
-              </td>
+              {/* 원본(2026-10-13): 게시글번호 · 제목 · 작성자 · 보기 둘은 링크(--ec-link), 일시는 '오전/오후 h:mm:ss', 진행상태는 검정 글. */}
+              <td className="text-center"><a className="cursor-pointer" onClick={() => setViewing(r)}>{r.postNo}</a></td>
+              <td className="text-center">{dateTimeOf(r.createdAt)}</td>
+              <td className="text-center">{dateTimeOf(r.endAt)}</td>
+              <td><a className="cursor-pointer" onClick={() => setViewing(r)}>{r.title}</a></td>
+              <td className="text-center"><a>{r.writerName ?? ''}</a></td>
+              <td className="text-center">{r.statusName}</td>
+              <td className="text-center"><a className="cursor-pointer" onClick={() => void openResult(r)}>보기</a></td>
+              <td className="text-center"><a className="cursor-pointer" onClick={() => void openParticipants(r)}>보기</a></td>
             </tr>
           ))}
         </tbody>
       </table>
+
+      {viewing && (
+        <ViewModal survey={viewing} onClose={() => setViewing(null)}
+                   onResult={() => void openResult(viewing)}
+                   onParticipants={() => void openParticipants(viewing)}
+                   onAnswer={() => { setAnswering(viewing); setViewing(null) }}
+                   onEdit={() => navigate(`/groupware/survey-input?edit=${viewing.id}`)}
+                   onCopy={() => navigate(`/groupware/survey-input?copy=${viewing.id}`)}
+                   onDelete={() => void removeOne(viewing)} />
+      )}
+      {participants && <ParticipantsModal rows={participants} onClose={() => setParticipants(null)} />}
 
       {answering && (
         <AnswerModal
@@ -353,40 +360,113 @@ function AnswerModal({ survey, onClose, onDone }: { survey: SurveyDoc; onClose: 
   )
 }
 
+/**
+ * 원본 제목을 누르면 뜨는 '설문조사' 창(2026-10-13 실측) — 위 [설문대상자(35) 👤], 둥근 판(머리 --ec-bg-disabled '설문기간 : … ' + 머리말),
+ * 질문마다 둥근 판(머리 질문 제목, 안에 보기). 하단 [설문결과보기][수정][복사][삭제][닫기].
+ * 답할 수 있는 설문이면 [참여하기] 로 답하기 창을 연다(원본은 완료된 설문만 재서 답하는 단추 이름은 못 쟀다).
+ */
+function ViewModal({ survey: r, onClose, onResult, onParticipants, onAnswer, onEdit, onCopy, onDelete }: {
+  survey: SurveyDoc; onClose: () => void; onResult: () => void; onParticipants: () => void; onAnswer: () => void
+  onEdit: () => void; onCopy: () => void; onDelete: () => void
+}) {
+  const canAnswer = r.status === 'OPEN' && !r.expired && !r.answeredByMe
+  return (
+    <Modal open title="설문조사" width={780} onClose={onClose}>
+      <a className="cursor-pointer text-[12px]" onClick={onParticipants}>설문대상자({r.targetCount}) 👤</a>
+      <div className="mt-[8px] mb-[12px] bg-ec-panel border border-ec-line border-solid rounded-[20px] overflow-hidden">
+        <div className="bg-ec-disabled font-bold py-[10px] px-[9px]">{periodOf(r)}</div>
+        <div className="whitespace-pre-wrap py-[10px] px-[9px] min-h-[24px]">{r.headerText ?? ''}</div>
+      </div>
+      {r.questions.map((q) => (
+        <div key={q.id} className="mb-[12px] bg-ec-panel border border-ec-line border-solid rounded-[20px] overflow-hidden">
+          <div className="bg-ec-disabled py-[10px] px-[9px]">{q.content}{q.required && <span className="text-ec-danger ml-[4px]">*</span>}</div>
+          <div className="py-[10px] px-[18px]">
+            {q.usesOptions ? q.options.map((o) => (
+              <label key={o} className="flex items-center gap-[6px] py-[3px]">
+                <input type={q.type === 'SINGLE' || q.type === 'SINGLE_ETC' ? 'radio' : 'checkbox'} disabled /> {o}
+              </label>
+            )) : <span className="text-ec-hint">{q.typeName}</span>}
+          </div>
+        </div>
+      ))}
+      <div className="flex gap-[6px] mt-[10px]">
+        <button type="button" className="ec-btn ec-btn-primary" onClick={onResult}>설문결과보기</button>
+        {canAnswer && <button type="button" className="ec-btn" onClick={onAnswer}>참여하기</button>}
+        <button type="button" className="ec-btn" onClick={onEdit}>수정</button>
+        <button type="button" className="ec-btn" onClick={onCopy}>복사</button>
+        <button type="button" className="ec-btn" onClick={onDelete}>삭제</button>
+        <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
+      </div>
+    </Modal>
+  )
+}
+
+/** 원본 '설문조사참여여부' — [소속부서][성명][ID][참여여부 O/X], 하단 [닫기]. */
+function ParticipantsModal({ rows, onClose }: { rows: Participant[]; onClose: () => void }) {
+  return (
+    <Modal open title="설문조사참여여부" width={780} onClose={onClose}>
+      <div className="text-[14px] font-bold mb-[12px]">설문조사참여여부</div>
+      <div className="max-h-[400px] overflow-y-auto">
+        <table className="w-full table-fixed text-left">
+          <thead><tr><th>소속부서</th><th>성명</th><th>ID</th><th>참여여부</th></tr></thead>
+          <tbody>
+            {rows.length === 0 ? (
+              <tr><td colSpan={4} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            ) : rows.map((p) => (
+              <tr key={p.username}><td>{p.department ?? ''}</td><td>{p.name}</td><td>{p.username}</td><td>{p.participated ? 'O' : 'X'}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="flex gap-[6px] mt-[10px]"><button type="button" className="ec-btn" onClick={onClose}>닫기</button></div>
+    </Modal>
+  )
+}
+
+/**
+ * 원본 '설문조사 결과보기'(2026-10-13 실측) — 둥근 판: 머리(--ec-bg-disabled) '요약' · 설문대상자수 · 설문응답자수 · 설문미응답자수, 아래 머리말.
+ * 질문마다 제목 줄 + 격자 [항목][응답자수][응답비율 0.00%][전체응답자수(칸 합침, 'N명')]. 서술형은 답 원문 줄.
+ * 하단 [닫기](원본 [인쇄▲][Excel] 은 두지 않았다).
+ */
 function ResultModal({ result, onClose }: { result: SurveyResult; onClose: () => void }) {
   return (
-    <Modal open title={`${result.title} — 결과`} width={640} onClose={onClose}>
-      <div className="text-[13px]">
-        <p className="mb-[10px] text-ec-label">
-          대상 {result.targetCount}명 · 응답 {result.responseCount}건 · 응답률 {result.responseRate}%
-          {result.anonymous && ' · 익명'}
-        </p>
-        {result.questions.map((q) => {
-          const max = Math.max(1, ...Object.values(q.counts))
-          return (
-            <div key={q.questionId} className="mb-[14px]">
-              <div className="font-semibold">
-                {q.seq}. {q.content}
-                <span className="ml-[6px] text-ec-label font-normal text-[11.5px]">
-                  {q.typeName} · 응답 {q.answeredCount}
-                </span>
-              </div>
-              {Object.entries(q.counts).map(([opt, n]) => (
-                <div key={opt} className="flex items-center gap-[6px] pl-[12px] mt-[2px]">
-                  <span className="w-[130px] overflow-hidden text-ellipsis whitespace-nowrap">{opt}</span>
-                  <span style={{ height: 10, background: 'var(--ec-blue)', width: `${(n / max) * 60}%`, minWidth: n ? 3 : 0 }} />
-                  <span className="text-ec-label">{n}</span>
-                </div>
-              ))}
-              {q.texts.length > 0 && (
-                <ul className="pl-[28px] mt-[4px] mx-0 mb-0 text-ec-text">
-                  {q.texts.map((t, i) => <li key={i}>{t}</li>)}
-                </ul>
-              )}
-            </div>
-          )
-        })}
+    <Modal open title="설문조사 결과보기" width={780} onClose={onClose}>
+      <div className="text-[14px] font-bold mb-[8px]">설문조사 결과보기</div>
+      <div className="mb-[10px] bg-ec-panel border border-ec-line border-solid rounded-[20px] overflow-hidden">
+        <div className="bg-ec-disabled py-[8px] px-[9px] leading-[22px]">
+          <div className="font-bold">요약</div>
+          <div>설문대상자수 : {result.targetCount}</div>
+          <div>설문응답자수 : {result.responseCount}</div>
+          <div>설문미응답자수 : {Math.max(0, result.targetCount - result.responseCount)}</div>
+        </div>
       </div>
+      {result.questions.map((q) => {
+        const opts = Object.entries(q.counts)
+        return (
+          <div key={q.questionId} className="mb-[12px]">
+            <div className="mb-[6px]">{q.content}</div>
+            <table className="w-full table-fixed text-left">
+              <thead><tr><th>항목</th><th>응답자수</th><th>응답비율</th><th>전체응답자수</th></tr></thead>
+              <tbody>
+                {opts.length === 0 ? (
+                  q.texts.length === 0
+                    ? <tr><td colSpan={3}>&nbsp;</td><td>{q.answeredCount}명</td></tr>
+                    : q.texts.map((t, i) => (
+                      <tr key={i}><td colSpan={3}>{t}</td>{i === 0 && <td rowSpan={q.texts.length}>{q.answeredCount}명</td>}</tr>
+                    ))
+                ) : opts.map(([opt, n], i) => (
+                  <tr key={opt}>
+                    <td>{opt}</td><td>{n}</td>
+                    <td>{(q.answeredCount ? (n * 100) / q.answeredCount : 0).toFixed(2)}%</td>
+                    {i === 0 && <td rowSpan={opts.length}>{q.answeredCount}명</td>}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      })}
+      <div className="flex gap-[6px] mt-[10px]"><button type="button" className="ec-btn" onClick={onClose}>닫기</button></div>
     </Modal>
   )
 }

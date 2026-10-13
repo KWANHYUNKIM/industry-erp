@@ -1,0 +1,41 @@
+{
+  "about": "설문조사조회(원본 E070257, 2026-10-13 실측) — 알약 전체·초안·진행중·완료 + 오른쪽 미발송(건수 없음), 하단 [신규(F2)][대화방][선택삭제], 일시 '오전/오후', 제목 → '설문조사' 창(설문대상자(N) · '설문기간 : …' · [설문결과보기][수정][복사][삭제][닫기]) → '설문조사 결과보기'(요약 · 항목/응답자수/응답비율/전체응답자수), [설문조사 참여여부] 보기 → '설문조사참여여부'(소속부서·성명·ID·참여여부 X → 답하면 O), [복사] → 입력 화면에 같은 제목. 시험 설문은 API 로 만들고 지운다. node qa/shot.mjs qa/flows/survey-view.json",
+  "shots": [
+    {
+      "name": "설문조사 보기 · 결과 · 참여여부",
+      "path": "/groupware/survey",
+      "steps": [
+        "wait:800",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const old = await (await fetch('/api/surveys', { headers: H })).json(); for (const s of old.filter((x) => x.title === 'QA그룹웨어-설문보기')) await fetch('/api/surveys/' + s.id, { method: 'DELETE', headers: H }); const me = await (await fetch('/api/auth/me', { headers: H })).json(); const end = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10); const r = await (await fetch('/api/surveys', { method: 'POST', headers: H, body: JSON.stringify({ title: 'QA그룹웨어-설문보기', endAt: end + 'T13:00:00', targetScope: 'INTERNAL', anonymous: false, resultVisibility: 'ALL', headerText: 'QA 머리말', attachmentId: null, targetUserIds: [me.id], draft: false, questions: [{ seq: 1, type: 'SINGLE', content: 'QA장소', option1: '가', option2: '나', option3: null, option4: null, option5: null, required: true }] }) })).json(); sessionStorage.qaSurvey = r.id; location.reload(); return r.id })()",
+        "wait:1500",
+        "expect:[...document.querySelectorAll('.ec-pill')].slice(0, 5).map((b) => b.textContent.trim()).join(',') === '전체,초안,진행중,완료,미발송'",
+        "expect:![...document.querySelectorAll('button')].some((b) => ['미리보기', 'Excel'].includes(b.textContent.trim()))",
+        "expect:[...document.querySelectorAll('tbody tr')].some((r) => r.innerText.includes('QA그룹웨어-설문보기') && / 오후 1:00:00/.test(r.cells[3].textContent))",
+        "js:[...document.querySelectorAll('tbody a')].find((a) => a.textContent === 'QA그룹웨어-설문보기').click(); true",
+        "wait:400",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().getAttribute('aria-label') === '설문조사' && document.body.innerText.includes('설문대상자(1)') && /설문기간 : \\d{4}\\/\\d{2}\\/\\d{2} ~ \\d{4}\\/\\d{2}\\/\\d{2} 오후 1:00/.test(document.body.innerText) && document.body.innerText.includes('QA 머리말')",
+        "expect:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button.ec-btn')].map((b) => b.textContent.trim()).join(',') === '설문결과보기,참여하기,수정,복사,삭제,닫기'",
+        "click:설문결과보기",
+        "wait:500",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().getAttribute('aria-label') === '설문조사 결과보기' && document.body.innerText.includes('설문대상자수 : 1') && document.body.innerText.includes('설문미응답자수 : 1') && document.body.innerText.includes('0.00%')",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.textContent === '닫기').click(); [...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.textContent === '닫기').click(); true",
+        "wait:300",
+        "js:[...[...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QA그룹웨어-설문보기')).querySelectorAll('a')].filter((a) => a.textContent === '보기')[1].click(); true",
+        "wait:500",
+        "expect:[...document.querySelectorAll('[role=dialog]')].pop().getAttribute('aria-label') === '설문조사참여여부' && [...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('thead th')].map((t) => t.textContent).join(',') === '소속부서,성명,ID,참여여부' && [...document.querySelectorAll('[role=dialog] tbody tr')].pop().cells[3].textContent === 'X'",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.textContent === '닫기').click(); true",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const s = await (await fetch('/api/surveys/' + sessionStorage.qaSurvey, { headers: H })).json(); const r = await fetch('/api/surveys/' + s.id + '/respond', { method: 'POST', headers: H, body: JSON.stringify({ answers: [{ questionId: s.questions[0].id, values: ['가'] }] }) }); return 'respond ' + r.status })()",
+        "js:[...[...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QA그룹웨어-설문보기')).querySelectorAll('a')].filter((a) => a.textContent === '보기')[1].click(); true",
+        "wait:500",
+        "expect:[...document.querySelectorAll('[role=dialog] tbody tr')].pop().cells[3].textContent === 'O'",
+        "js:[...[...document.querySelectorAll('[role=dialog]')].pop().querySelectorAll('button')].find((b) => b.textContent === '닫기').click(); true",
+        "js:[...document.querySelectorAll('tbody a')].find((a) => a.textContent === 'QA그룹웨어-설문보기').click(); true",
+        "wait:300",
+        "click:복사",
+        "wait:1200",
+        "expect:location.pathname === '/groupware/survey-input' && [...document.querySelectorAll('input')].some((i) => i.value === 'QA그룹웨어-설문보기')",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const r = await fetch('/api/surveys/' + sessionStorage.qaSurvey, { method: 'DELETE', headers: H }); return 'cleanup ' + r.status })()"
+      ]
+    }
+  ]
+}
