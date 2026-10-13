@@ -6,6 +6,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { SELF_USE_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
+import { shortDateNo } from '../../utils/dateNo'
 import type { PurchaseOrder, PurchaseOrderStatus } from '../../types/api'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
@@ -157,9 +158,11 @@ export default function PurchaseRequestListPage() {
           ) : shown.map((o, i) => (
             <tr key={o.id}>
               <td className="text-center text-ec-hint">{i + 1}</td>
-              <td className="text-center">{yy(o.orderDate)} {o.orderNo}</td>
+              {/* 원본 '26/10/12-2' — 그날 일련번호만 붙인다. 우리 전표번호(PO-20261012-0002)를 통째로 찍고 있었다(2026-10-13 실측). */}
+              <td className="text-center">{shortDateNo(o.orderDate, o.orderNo)}</td>
               <td>{o.partnerName}</td>
-              <td>{o.lines[0]?.itemName ?? ''}{o.lines.length > 1 ? ` 외 ${o.lines.length - 1}건` : ''}</td>
+              {/* 원본 '비밀의정원 [96페이지] 외 1건' — 첫 품목에 규격을 붙인다. */}
+              <td>{o.lines[0]?.itemName ?? ''}{o.lines[0]?.spec ? ` [${o.lines[0].spec}]` : ''}{o.lines.length > 1 ? ` 외 ${o.lines.length - 1}건` : ''}</td>
               <td className="text-center">{yy(o.dueDate)}</td>
               <td className="text-right">{o.lines.reduce((a, l) => a + Number(l.quantity), 0).toLocaleString('ko-KR')}</td>
               <td className="text-right">{won(Number(o.totalAmount))}</td>
