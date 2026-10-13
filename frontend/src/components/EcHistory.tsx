@@ -15,7 +15,7 @@ export function historyTime(iso: string): string {
 /**
  * 수정 · 조회 창 하단 [H] → '이력' — 원본은 어느 화면이든 같은 창이다
  * (거래처등록 C000009 · 일정관리 E070201 · 공용품관리 E070204, 2026-10-13 loginaa 실측).
- * 격자 [No.][작업자ID(대문자, 링크색)][작업일시][상태 신규 · 수정 · 삭제 · 사용중단 · 재사용], 하단 [닫기].
+ * 창 960, 격자 [No.][작업자ID(대문자, 링크색)][작업일시][상태 신규 · 수정 · 삭제 · 사용중단 · 재사용], 하단 [닫기].
  * 일정 · 공용품은 머리에 '[2026/10/13 -4]'(일자 - 그날 차례)가 붙는다(head). 거래처는 없다.
  *
  * @param url  이력을 읽을 주소(예: /schedule-events/12/history, /change-history?target=PARTNER&id=3)
@@ -27,10 +27,11 @@ export function EcHistoryModal({ url, head, onClose }: { url: string; head?: str
     api.get<HistoryRow[]>(url).then((r) => setRows(r.data)).catch((e) => setError(extractErrorMessage(e)))
   }, [url])
   return (
-    <Modal open title="이력" width={780} onClose={onClose} error={error}>
+    <Modal open title="이력" width={960} onClose={onClose} error={error}>
       {head && <div className="text-[12px] mb-[6px]">{head}</div>}
       <table className="w-full">
-        <thead><tr><th className="w-[40px]" /><th>작업자ID</th><th>작업일시</th><th>상태</th></tr></thead>
+        {/* 원본 열 폭 53 · 222 · 444 · 222(창 960, 거래처등록 실측) */}
+        <thead><tr><th className="w-[53px]" /><th className="w-[222px]">작업자ID</th><th className="w-[444px]">작업일시</th><th className="w-[222px]">상태</th></tr></thead>
         <tbody>
           {rows.map((r) => (
             <tr key={r.seq}>
