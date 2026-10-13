@@ -1,0 +1,34 @@
+{
+  "about": "지출증빙현황 열 = 매출매입자료의 부가세유형(2026-10-13 loginaa 실측: 매입전표 I 로 1539 원재료에 [현금영수증 50,000 · 부가세 5,000] · [계산서 200,000] 저장 → 금월 머리 [계정코드 · 계정명 · 세금계산서 · 계산서 · 현금영수증 · 증빙없음 · 합계], 현금영수증 50,000 링크 → 비교 창 '현금영수증 · 50,000 · 5,000 · 55,000', 계산서 링크 → 부가세유형 조건 '계산서'). 우리 매입전표 I(API)로 같은 두 장을 153 원재료에 넣고 153 만 표시로 둔 채 금월 조회 → 링크 → 조건 → 지우고 계정설정을 되돌린다. CDP_PORT=<포트> node qa/shot.mjs qa/flows/expense-evidence-vattype.json",
+  "shots": [
+    {
+      "name": "현금영수증 · 계산서 열 → 비교 창",
+      "path": "/accounting/corporate-tax/expense-evidence",
+      "steps": [
+        "wait:1000",
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const get = async (p) => (await fetch('/api' + p, { headers: H })).json(); const acc = await get('/accounts'); const a153 = acc.find((a) => a.code === '153'), a251 = acc.find((a) => a.code === '251'); const p = (await get('/partners'))[0]; const ids = []; for (const [vt, sup, vat] of [['현금영수증', 50000, 5000], ['계산서', 200000, 0]]) { const r = await (await fetch('/api/journals/vat-slip', { method: 'POST', headers: H, body: JSON.stringify({ sales: false, vatType: vt, partnerId: p.id, supplyAmount: sup, vatAmount: vat, description: 'QA세무 ' + vt, accountId: a153.id, settleAccountId: a251.id }) })).json(); ids.push(r.id) } sessionStorage.setItem('evv-ids', JSON.stringify(ids)); const ev = await get('/expense-evidence/accounts'); sessionStorage.setItem('evv-shown', JSON.stringify(ev.filter((x) => x.shown).map((x) => x.id))); await fetch('/api/expense-evidence/accounts', { method: 'PUT', headers: H, body: JSON.stringify({ shownIds: [a153.id] }) }); return ids })()",
+        "js:(() => { const d = new Date(); window.__ym = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); const set = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; document.querySelectorAll('input[type=month]').forEach((i) => set(i, window.__ym)); return window.__ym })()",
+        "click:검색(F8)",
+        "wait:1200",
+        "js:[...document.querySelectorAll('thead th')].map((t) => t.innerText.trim()).join('|')",
+        "expect:(() => { const h = [...document.querySelectorAll('thead th')].map((t) => t.innerText.trim()); const i = h.indexOf('계산서'), j = h.indexOf('현금영수증'); return i > 1 && j === i + 1 && h[h.length - 2] === '증빙없음' && (h.indexOf('세금계산서') < 0 || h.indexOf('세금계산서') < i) })()",
+        "js:(() => { const h = [...document.querySelectorAll('thead th')].map((t) => t.innerText.trim()); const r = [...document.querySelectorAll('tbody tr')].find((t) => t.cells[0]?.innerText.trim() === '153'); window.__row = r; return r.innerText.replace(/\\s+/g, ' ') + ' / 현금영수증 칸 ' + r.cells[h.indexOf('현금영수증')].innerText })()",
+        "expect:(() => { const h = [...document.querySelectorAll('thead th')].map((t) => t.innerText.trim()); const r = window.__row; return Number(r.cells[h.indexOf('현금영수증')].innerText.replace(/,/g, '')) >= 50000 && Number(r.cells[h.indexOf('계산서')].innerText.replace(/,/g, '')) >= 200000 })()",
+        "js:(() => { const h = [...document.querySelectorAll('thead th')].map((t) => t.innerText.trim()); window.__row.cells[h.indexOf('현금영수증')].querySelector('button').click(); return true })()",
+        "wait:1800",
+        "expect:[...document.querySelectorAll('[role=dialog] tbody tr')].some((t) => t.innerText.includes('현금영수증') && t.innerText.includes('55,000') && t.innerText.includes('5,000'))",
+        "expect:[...document.querySelectorAll('[role=dialog] tbody tr:not(.ec-total)')].filter((t) => t.cells[6]?.innerText.trim()).every((t) => t.cells[6].innerText.trim() === '현금영수증')",
+        "js:document.querySelector('[role=dialog] button[aria-label=\"닫기\"]').click(); true",
+        "wait:600",
+        "js:(() => { const h = [...document.querySelectorAll('thead th')].map((t) => t.innerText.trim()); [...document.querySelectorAll('tbody tr')].find((t) => t.cells[0]?.innerText.trim() === '153').cells[h.indexOf('계산서')].querySelector('button').click(); return true })()",
+        "wait:1800",
+        "expect:[...document.querySelectorAll('[role=dialog] tbody tr')].some((t) => t.innerText.includes('계산서') && t.innerText.includes('200,000'))",
+        "js:[...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent.trim() === 'Search(F3)').click(); true",
+        "wait:600",
+        "expect:[...document.querySelectorAll('[role=dialog] .ec-cond input')].map((i) => i.value).join('|').includes('계산서')",
+        "js:document.querySelector('[role=dialog] button[aria-label=\"닫기\"]').click(); true",
+        "expect:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; await fetch('/api/expense-evidence/accounts', { method: 'PUT', headers: H, body: JSON.stringify({ shownIds: JSON.parse(sessionStorage.getItem('evv-shown') || '[]') }) }); let ok = true; for (const id of JSON.parse(sessionStorage.getItem('evv-ids') || '[]')) ok = (await fetch('/api/journals/' + id, { method: 'DELETE', headers: H })).ok && ok; return ok })()"
+      ]
+    }
+  ]
+}

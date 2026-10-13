@@ -4,7 +4,7 @@ import Modal from '../../components/Modal'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import type { ExpenseEvidenceAccount, ExpenseEvidenceStatus } from '../../types/api'
-import { JournalVatCompareView, type JvcInit } from './JournalVatComparePage'
+import { JournalVatCompareView, VAT_TYPES, type JvcInit } from './JournalVatComparePage'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { EcReportFoot } from '../../components/EcReportFrame'
 
@@ -40,7 +40,8 @@ function rangeOf(label: string, fiscalStart: number, today = new Date()): Range 
  * <p>증빙은 분개 줄의 전표에 이어진 매출매입자료의 유형이고 없으면 '증빙없음'. 원본 실측: 8109 복리후생비(판)
  * 2026/01~10 증빙없음 7,962,500 · 합계 7,962,500. 금액 링크 → <b>전표vs매출매입자료비교</b>
  * [전표자료: 전표번호 · 계정 · 거래처 · 차변 · 대변 | 매출매입자료: 매출매입번호 · 유형명 · 거래처 · 공급가액 · 부가세 · 합계] + 합계.
- * 우리 매출매입자료는 매입/매출장과 같이 매입 부가세(135) 줄이 든 회계전표이고 유형은 늘 세금계산서다.
+ * 열은 부가세유형 이름 그대로 — 매출전표 I · 매입전표 I 전표는 그 유형(현금영수증 · 계산서 · 카드매입 …), 그 밖은 부가세(135) 줄이
+ * 있으면 세금계산서(2026-10-13 원본: 세금계산서 · 계산서 · 현금영수증 · 증빙없음 차례).
  * 2026-10-13 원본 1469 상품만 표시로 두고 이번기수: 머리 [계정코드 · 계정명 · 세금계산서 · 증빙없음 · 합계] 모두 가운데(.ec-report 머리 공통),
  * '1469 상품 321,782,000 · (빈칸) · 321,782,000' — 세금계산서가 증빙없음 앞이고 0 은 빈칸, 금액이 없는 계정은 줄이 없다.
  */
@@ -203,16 +204,23 @@ function AccountSettingModal({ onClose, onSaved }: { onClose: () => void; onSave
 /**
  * 금액 링크 → 원본은 [전표vs매출매입자료비교] 화면을 조건 판 · 쪽번호 · 인쇄 · Excel 까지 통째로 창에 띄운다(2026-10-13 loginaa 실측).
  * 채우는 조건: 조회일자 = 기준월 첫날 ~ 끝날 · 계정명 = 그 계정 ·
- * 세금계산서 칸이면 부가세유형 '세금계산서' + 전표기준 '매출매입자료 있는 것만' + 조회자료 '전체',
+ * 증빙 칸이면 부가세유형 = 그 칸 이름(매입 코드 먼저 — '계산서' 칸 → 23) + 전표기준 '매출매입자료 있는 것만' + 조회자료 '전체',
  * 증빙없음 칸이면 전표기준 '매출매입자료 없는 것만'(조회자료 줄은 숨는다).
  */
+/** 칸 이름 → 부가세유형코드. 매입 쪽 이름을 먼저 찾고 없으면 매출(카드매출 …). 합계 칸(null)은 조건 없음. */
+function vatCodesOf(kind: string | null): string[] {
+  if (!kind) return []
+  const t = VAT_TYPES.find((v) => v.side === '매입' && v.name === kind) ?? VAT_TYPES.find((v) => v.name === kind)
+  return t ? [t.code] : []
+}
+
 function CompareModal({ range, accountId, kind, onClose }: {
   range: Range; accountId: number | null; kind: string | null; onClose: () => void
 }) {
   const init: JvcInit = {
     from: `${range.from}-01`, to: `${range.to}-${pad2(lastDay(range.to))}`,
     accountIds: accountId != null ? [String(accountId)] : [],
-    ...(kind === '증빙없음' ? { has: '없는것' as const } : { has: '있는것' as const, mismatch: '전체' as const, vatTypes: ['21'] }),
+    ...(kind === '증빙없음' ? { has: '없는것' as const } : { has: '있는것' as const, mismatch: '전체' as const, vatTypes: vatCodesOf(kind) }),
   }
   return (
     <Modal open title="전표vs매출매입자료비교" width={1100} onClose={onClose}>

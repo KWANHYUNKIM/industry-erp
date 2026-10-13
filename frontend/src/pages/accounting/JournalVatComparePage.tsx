@@ -21,7 +21,7 @@ interface Pair { e: JournalEntry; m: Material | null; lines: JournalEntry['lines
 interface Opt { id: number; code: string; name: string }
 
 /** 원본 [부가세유형] 코드도움(부가세유형코드) — 2026-10-13 loginaa 실측 34개. */
-const VAT_TYPES: { side: VatSide; code: string; name: string }[] = ([
+export const VAT_TYPES: { side: VatSide; code: string; name: string }[] = ([
   ['매출', '11', '세금계산서'], ['매출', '12', '영세율'], ['매출', '13', '계산서'], ['매출', '14', '소매매출'], ['매출', '16', '수출'],
   ['매출', '17', '카드매출'], ['매출', '18', '계산서(고정자산)'], ['매출', '19', '세.계(고정자산)'], ['매출', '1A', '소매(면세)'],
   ['매출', '1B', '카드매출(면세)'], ['매출', '1C', '현금영수증(면세)'], ['매출', '1D', '현금영수증'], ['매출', '1F', '매입자발행세금계산서'],
@@ -45,11 +45,24 @@ const radio = <T extends string>(name: string, values: readonly T[], value: T, s
     </label>
   ))
 
-/** 회계전표의 매출매입자료 — 부가세 줄(매출 255 · 매입 135)에서 읽는다. 두 쪽 다 있으면 매출을 쓴다. */
-function materialOf(e: JournalEntry): Material | null {
+/** 매출전표 I · 매입전표 I 로 만든 전표는 부가세유형을 든다(응답 vatType · 출처 VAT_SALES · VAT_PURCHASE — 공용 타입엔 아직 없다). */
+type VatEntry = JournalEntry & { vatType?: string | null }
+
+/**
+ * 회계전표의 매출매입자료. 부가세유형을 든 전표(매출전표 I · 매입전표 I)는 그 유형 · 쪽으로 — 계산서 · 영세율처럼 부가세가 0 이면
+ * 부가세 줄이 없으므로 공급가액은 정상 쪽(매입 차변 · 매출 대변) 줄의 합이다.
+ * 그 밖은 부가세 줄(매출 255 · 매입 135)에서 읽고 유형은 세금계산서 · 계산서(부가세 0). 두 쪽 다 있으면 매출을 쓴다.
+ */
+function materialOf(e: VatEntry): Material | null {
+  if (e.vatType) {
+    const side: VatSide = (e.sourceType as string) === 'VAT_SALES' ? '매출' : '매입'
+    const t = VAT_TYPES.find((v) => v.side === side && v.name === e.vatType)
+    const a = vatSlipAmounts(e.lines, side)
+      ?? { supply: e.lines.reduce((s, l) => s + Number(side === '매출' ? l.credit : l.debit), 0), vat: 0 }
+    return { side, code: t?.code ?? '', name: e.vatType, supply: a.supply, vat: a.vat, total: a.supply + a.vat }
+  }
   for (const side of ['매출', '매입'] as VatSide[]) {
     const a = vatSlipAmounts(e.lines, side)
-    /* 우리 매출매입자료는 부가세 줄에서 나오므로 유형은 세금계산서 · 계산서(부가세 0) 둘뿐이다. */
     const code = side === '매출' ? (a?.vat === 0 ? '13' : '11') : (a?.vat === 0 ? '23' : '21')
     if (a) return { side, code, name: a.vat === 0 ? '계산서' : '세금계산서', supply: a.supply, vat: a.vat, total: a.supply + a.vat }
   }
@@ -66,7 +79,10 @@ function materialOf(e: JournalEntry): Material | null {
  * 전표 한 장의 줄마다 한 줄, 첫 줄에만 전표번호와 매출매입자료. 끝에 합계(원본 2026/07~09 전체 255,585,000 · 255,585,000 · 232,350,000 ·
  * 23,235,000 · 255,585,000).
  *
- * <p>우리 매출매입자료는 회계전표의 부가세 줄에서 나온다(회계 I 매입매출전표와 같은 셈) — 그래서 거래처는 늘 같고, 합계불일치는 전표에
+ * <p>우리 매출매입자료는 회계전표의 부가세 줄에서 나오고, 매출전표 I · 매입전표 I 전표는 그 부가세유형을 든다 — [부가세유형] 조건이
+ * 그 유형으로 거른다(2026-10-13 원본 지출증빙현황 '계산서' 링크 → 부가세유형 '계산서' 가 채워진 채 2026/10/13 -8 원재료 200,000 ·
+ * 매출매입자료 2026/10/13 -4 계산서 200,000 · 0 · 200,000). 원본 매출매입번호는 전표번호와 따로 매기지만 우리는 전표번호를 쓴다.
+ * 거래처는 늘 같고, 합계불일치는 전표에
  * 부가세 · 공급가액 말고 다른 줄이 차변(매입) · 대변(매출)으로 더 섰을 때 생긴다. 줄 거래처는 전표 머리 거래처다.
  *
  * <p>2026-10-13 다시 잼: [계정명](여러 개 · 코드도움) · [거래처] · [부가세유형](부가세유형코드 34개, 여러 개) 조건 — 계정명을 고르면 그 계정 줄만 보이고
