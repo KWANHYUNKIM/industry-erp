@@ -31,6 +31,15 @@ public class EmployeeService {
     private final DepartmentService departmentService;
     private final DocumentNoGenerator documentNoGenerator;
     private final EmployeeHrDetailRepository hrDetailRepository;
+    private final com.erp.common.history.ChangeHistoryService changeHistory;
+
+    /** 인사발령 전표 [H] 이력의 대상 이름(common/history). 한 번 정하면 바꾸지 않는다. */
+    public static final String SLIP_HISTORY_TARGET = "ASSIGNMENT_SLIP";
+
+    /** 인사발령 전표 하나(일자 · 차례)를 이력 열쇠 하나로 — 2026-10-14 -1 → 20261014001. */
+    public static long slipHistoryId(LocalDate slipDate, int slipNo) {
+        return (slipDate.getYear() * 10000L + slipDate.getMonthValue() * 100L + slipDate.getDayOfMonth()) * 1000L + slipNo;
+    }
     /** 사원등록 [급여지급사항] — 사원을 지우면 같이 지운다(사원의 일부다). */
     private final com.erp.hr.payroll.EmployeePayItemRepository employeePayItemRepository;
     private final com.erp.hr.payroll.EmployeePayrollSettingRepository employeePayrollSettingRepository;
@@ -337,7 +346,10 @@ public class EmployeeService {
      */
     @Transactional
     public List<AssignmentResponse> createAssignmentSlip(AssignmentSlipRequest req, String username) {
-        return saveSlipLines(req, nextSlipNo(req.slipDate()), username);
+        int slipNo = nextSlipNo(req.slipDate());
+        List<AssignmentResponse> out = saveSlipLines(req, slipNo, username);
+        changeHistory.record(SLIP_HISTORY_TARGET, slipHistoryId(req.slipDate(), slipNo), com.erp.common.history.ChangeHistoryService.CREATED);
+        return out;
     }
 
     /** 인사발령입력수정 — 일자는 막히고 줄을 통째로 바꾼다. 지운 줄이 사원에 옮긴 값은 되돌리지 않는다(원본도 같다). */
@@ -347,7 +359,9 @@ public class EmployeeService {
         if (old.isEmpty()) throw ApiException.notFound("인사발령 전표를 찾을 수 없습니다.");
         assignmentRepository.deleteAll(old);
         assignmentRepository.flush();
-        return saveSlipLines(new AssignmentSlipRequest(slipDate, req.reflect(), req.lines()), slipNo, username);
+        List<AssignmentResponse> out = saveSlipLines(new AssignmentSlipRequest(slipDate, req.reflect(), req.lines()), slipNo, username);
+        changeHistory.record(SLIP_HISTORY_TARGET, slipHistoryId(slipDate, slipNo), com.erp.common.history.ChangeHistoryService.UPDATED);
+        return out;
     }
 
     /** 인사발령 전표 삭제('전표를 삭제하겠습니까?'). */
@@ -356,6 +370,7 @@ public class EmployeeService {
         List<EmployeeAssignment> old = assignmentRepository.findSlip(slipDate, slipNo);
         if (old.isEmpty()) throw ApiException.notFound("인사발령 전표를 찾을 수 없습니다.");
         assignmentRepository.deleteAll(old);
+        changeHistory.record(SLIP_HISTORY_TARGET, slipHistoryId(slipDate, slipNo), com.erp.common.history.ChangeHistoryService.DELETED);
     }
 
     private List<AssignmentResponse> saveSlipLines(AssignmentSlipRequest req, int slipNo, String username) {

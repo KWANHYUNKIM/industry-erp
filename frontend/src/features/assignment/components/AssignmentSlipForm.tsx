@@ -8,6 +8,10 @@ import { ymd } from '../../../utils/periods'
 import { ASSIGNMENT_KINDS, type AssignmentKind, type AssignmentLine } from '../types'
 import GridFindButton from '../../../components/GridFindButton'
 import { ecConfirm } from '../../../components/EcDialog'
+import { EcHistoryModal } from '../../../components/EcHistory'
+
+/** 서버 EmployeeService.slipHistoryId 와 같은 열쇠 — 2026-10-14 -1 → 20261014001 */
+const slipHistoryId = (date: string, no: number) => Number(date.replaceAll('-', '')) * 1000 + no
 
 interface Row {
   assignDate: string
@@ -38,7 +42,8 @@ const hireKindItems = (cur: string) => (cur && !HIRE_KINDS.some((k) => k.value =
  *       버튼은 저장(F8) · 다시 작성 · 닫기. 저장하면 새 전표가 된다(원래 전표는 그대로).</li>
  * </ul>
  * 발령구분 · 입사구분은 원본이 회사가 등록하는 코드다. 우리 발령구분은 '인사발령'(직위 · 부서만) 외에 입사 · 전보 · 승진 ·
- * 퇴사 · 재입사(재직상태까지 바꾼다)를 고르고, 입사구분은 원본 코드 100 신입 · 200 경력을 고른다. H(이력)는 없다.
+ * 퇴사 · 재입사(재직상태까지 바꾼다)를 고르고, 입사구분은 원본 코드 100 신입 · 200 경력을 고른다.
+ * 수정 창 끝 [H](2026-10-14 실측): '이력' 창 머리 '[2026/10/14 -1]', 격자 작업자ID · 작업일시 · 상태(신규 → 수정), 하단 [닫기].
  */
 export default function AssignmentSlipForm({
   slipDate: editDate, slipNo: editNo, onSaved, onClose, onTitleChange,
@@ -52,6 +57,7 @@ export default function AssignmentSlipForm({
 }) {
   /** 원본 수정 창 [복사] — 같은 줄로 새 전표를 쓰는 중 */
   const [copied, setCopied] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
   const editing = !!(editDate && editNo) && !copied
   const [slipDate, setSlipDate] = useState(editDate ?? ymd(new Date()))
   const [rows, setRows] = useState<Row[]>(Array.from({ length: BLANK_ROWS }, blank))
@@ -226,6 +232,14 @@ export default function AssignmentSlipForm({
             <button type="button" className="ec-btn" onClick={copy}>복사</button>
             <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
             <button type="button" className="ec-btn" onClick={remove}>삭제</button>
+            <button type="button" className="ec-btn" onClick={() => setHistoryOpen(true)}>H</button>
+            {historyOpen && editDate && editNo && (
+              <EcHistoryModal
+                url={`/change-history?target=ASSIGNMENT_SLIP&id=${slipHistoryId(editDate, editNo)}`}
+                head={`[${editDate.replaceAll('-', '/')} -${editNo}]`}
+                onClose={() => setHistoryOpen(false)}
+              />
+            )}
           </>
         ) : copied ? (
           <>

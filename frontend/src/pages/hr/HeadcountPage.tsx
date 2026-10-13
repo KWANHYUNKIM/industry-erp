@@ -11,8 +11,9 @@ import { EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 interface Emp { id: number; name: string; department: string | null; jobTitle: string | null; hireDate: string | null; resignDate: string | null; hireKind?: string | null }
 type Mode = '일별' | '월별'
 
-const count = (n: number) => (n === 0 ? '' : n.toLocaleString('ko-KR'))
 const two = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+/** 입사 · 퇴사 인원 — 없으면 빈칸, 있으면 '1.00'(2026-10-14 원본 QA관리-발령 입사일 줄 실측) */
+const count = (n: number) => (n === 0 ? '' : two(n))
 
 /**
  * 관리 &gt; 인사관리 &gt; 인사관리현황 &gt; <b>인원현황</b>(E020609) — 2026-10-03 loginaa 실측.
@@ -22,7 +23,7 @@ const two = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2,
  *
  * <p>표: 일자 · 입사자 · 입사인원 · 퇴사자 · 퇴사인원 · 총인원, 끝 [합계](두 칸 묶음). 일별은 하루 한 줄(2026/10/01),
  * 월별은 한 달 한 줄(2025/01). 입사자 · 퇴사자 칸은 그날(그달) 들어오고 나간 사람 이름, 총인원은 그날(달 끝) 재직 인원(소수 두 자리).
- * 합계는 입사 · 퇴사 인원만 더한다. 사원은 퇴사자까지(/employees/all) 받아 입사일자 · 퇴사일자로 센다.
+ * [합계] 줄은 칸이 모두 빈다 — 2026-10-14 원본에서 QA관리-발령 1명을 넣은 달도 입사인원 합계가 비었다. 사원은 퇴사자까지(/employees/all) 받아 입사일자 · 퇴사일자로 센다.
  * 사용자지정집계 판은 아직 없고, 프로젝트는 사원에 없다. 입사구분은 사원등록 [입사구분](100 신입 · 200 경력)을 본다.
  */
 export default function HeadcountPage() {
@@ -58,8 +59,6 @@ export default function HeadcountPage() {
     .filter((e) => hireKind.length === 0 || hireKind.includes(e.hireKind ?? '')), [emps, dept, title, hireKind])
 
   const rows = useMemo(() => headcountRows(picked, mode, from, to), [picked, mode, from, to])
-  const hiredSum = rows.reduce((s, r) => s + r.hired.length, 0)
-  const resignedSum = rows.reduce((s, r) => s + r.resigned.length, 0)
   const depts = [...new Set(emps.map((e) => e.department).filter((v): v is string => !!v))].sort()
   const titles = [...new Set(emps.map((e) => e.jobTitle).filter((v): v is string => !!v))].sort()
 
@@ -152,9 +151,9 @@ export default function HeadcountPage() {
               ))}
               <tr className="ec-total">
                 <td colSpan={2} className="text-center">합계</td>
-                <td className="text-right">{count(hiredSum)}</td>
+                <td className="text-right"></td>
                 <td></td>
-                <td className="text-right">{count(resignedSum)}</td>
+                <td className="text-right"></td>
                 <td className="text-right"></td>
               </tr>
             </>
