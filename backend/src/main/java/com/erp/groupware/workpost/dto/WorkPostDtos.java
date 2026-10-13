@@ -37,7 +37,10 @@ public final class WorkPostDtos {
             /** 통합회의록 부서 칸(경영지원팀 · 구매팀 · 생산팀 · 영업팀 회의록)에 이을 팀별회의록 글 id, 칸 차례대로(빈 칸은 null). */
             java.util.List<Long> meetingLinks,
             /** 업무관리 예시 게시판의 입력항목(이름:값 JSON). 다른 게시판은 무시한다. */
-            @Size(max = 2000, message = "입력항목이 너무 깁니다.") String extraFields
+            @Size(max = 2000, message = "입력항목이 너무 깁니다.") String extraFields,
+            /** 간판제작 [프로젝트] · [칸반연결](진행현황 칸반 글 id). 다른 게시판은 무시한다. */
+            @Size(max = 100, message = "프로젝트는 100자까지 넣을 수 있습니다.") String project,
+            Long kanbanPostId
     ) {}
 
     /**
@@ -66,7 +69,10 @@ public final class WorkPostDtos {
             /** 통합회의록 부서 칸에 이은 팀별회의록 글 id(칸 차례대로, 빈 칸은 null). */
             java.util.List<Long> meetingLinks,
             /** 업무관리 예시 게시판의 입력항목(이름:값 JSON). 수정은 통째로 덮는다. */
-            @Size(max = 2000, message = "입력항목이 너무 깁니다.") String extraFields
+            @Size(max = 2000, message = "입력항목이 너무 깁니다.") String extraFields,
+            /** 간판제작 [프로젝트] · [칸반연결](진행현황 칸반 글 id). 다른 게시판은 무시한다. */
+            @Size(max = 100, message = "프로젝트는 100자까지 넣을 수 있습니다.") String project,
+            Long kanbanPostId
     ) {}
 
     /** 원본 '조회자 현황'의 오른쪽 한 줄 — 이름 · 최초조회일시 · 최종조회일시. */
@@ -136,7 +142,10 @@ public final class WorkPostDtos {
             /** 통합회의록 부서 칸마다 이은 팀별회의록 글 id(칸 차례대로, 빈 칸은 null). 다른 게시판은 빈 목록. */
             java.util.List<Long> meetingLinks,
             /** 업무관리 예시 게시판의 입력항목(이름:값 JSON). 없으면 null. */
-            String extraFields
+            String extraFields,
+            /** 간판제작 [프로젝트] · [칸반연결](📅 프로젝트 진행현황 칸반 글 id). 다른 게시판은 null. */
+            String project,
+            Long kanbanPostId
     ) {
         public static WorkPostResponse from(WorkPost p, String writerName) {
             var f = p.getAttachment();
@@ -157,7 +166,9 @@ public final class WorkPostDtos {
                     p.getStage(),
                     p.getWeekNo(),
                     parseLinks(p.getMeetingLinks()),
-                    p.getExtraFields());
+                    p.getExtraFields(),
+                    p.getProject(),
+                    p.getKanbanPost() != null ? p.getKanbanPost().getId() : null);
         }
 
         /** '12,,,15' → [12, null, null, 15]. 빈 글자 · null 이면 빈 목록. */

@@ -132,4 +132,16 @@ public class WorkPost extends BaseTimeEntity {
      */
     @Column(name = "extra_fields", length = 2000)
     private String extraFields;
+
+    /** 간판제작({@link PostBoard#SIGN}) 입력 창 [프로젝트] — 진행현황 칸반 판의 열 이름. 다른 게시판은 null. */
+    @Column(length = 100)
+    private String project;
+
+    /**
+     * 간판제작 입력 창 [칸반연결] — 이 글을 카드로 보여 줄 📅 프로젝트 진행현황 칸반({@link PostBoard#PROJECT_KANBAN}) 글.
+     * 그 칸반 글을 지우면 연결만 끊긴다(ON DELETE SET NULL).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "kanban_post_id")
+    private WorkPost kanbanPost;
 }

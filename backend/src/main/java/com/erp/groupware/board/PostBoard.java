@@ -53,7 +53,17 @@ public enum PostBoard {
     /** 차량관리 게시판(예시) › 🚗 2. 차량 증빙관리 (E200180). 진행중 · 완료. */
     CAR_DOC("🚗 2. 차량 증빙관리"),
     /** 차량관리 게시판(예시) › 🚗 3. 차량 운행관리 (E200182). 진행중 · 완료. */
-    CAR_RUN("🚗 3. 차량 운행관리");
+    CAR_RUN("🚗 3. 차량 운행관리"),
+    /**
+     * 업무관리 › 🔸 칸반보드 활용 예시 🔸 (E200190, 2026-10-14 실측). 목록이 표가 아니라 칸반 판 — 열 = 진행상태 7
+     * (직접 test 해보세요 · 신규문의 · 고객요청사항 · 고객사 미팅 · 견적 · 계약-개발팀 인계 · 진행안함), 입력 창 처음 값 '신규문의'.
+     */
+    KANBAN_SAMPLE("🔸 칸반보드 활용 예시 🔸"),
+    /**
+     * 공유정보 › 프로젝트 진행관리(예시) › 📅 프로젝트 진행현황 칸반 (E200072, 2026-10-13 실측). 진행중 · 완료.
+     * 글 View 본문이 칸반 판 — 그 글에 [칸반연결] 한 간판제작({@link #SIGN}) 글을 열 = [프로젝트] · 줄 = 진행상태로 모은다.
+     */
+    PROJECT_KANBAN("📅 프로젝트 진행현황 칸반");
 
     /**
      * 게시글번호를 이 게시판 혼자 세는가. 2026-10-13 원본: 공지사항(…16)과 팀별회의록(…16)의 번호가 겹치고,
@@ -64,7 +74,8 @@ public enum PostBoard {
     /** 진행상태 이름을 회사가 정한 게시판인가 — 그 이름은 status(진행중/완료)가 아니라 stage 에 적는다. */
     public boolean namedStages() {
         return this == SHARED || this == MEETING || this == SIGN
-                || this == SITE_LOG || this == DEV_LOG || this == CONSULT || this == VISIT || this == CONTRACT || this == AS_CARE;
+                || this == SITE_LOG || this == DEV_LOG || this == CONSULT || this == VISIT || this == CONTRACT || this == AS_CARE
+                || this == KANBAN_SAMPLE;
     }
 
     /**

@@ -82,6 +82,8 @@ public class WorkPostService {
                 .weekNo(board == PostBoard.MINUTES ? weekOf(req.weekNo()) : null)
                 .meetingLinks(board == PostBoard.MINUTES ? joinLinks(req.meetingLinks()) : null)
                 .extraFields(board.extraFields() ? blankToNull(req.extraFields()) : null)
+                .project(board == PostBoard.SIGN ? blankToNull(req.project()) : null)
+                .kanbanPost(board == PostBoard.SIGN ? kanbanOf(req.kanbanPostId()) : null)
                 .build();
         return WorkPostResponse.from(workPostRepository.save(post), displayName(writer));
     }
@@ -99,6 +101,10 @@ public class WorkPostService {
         post.setAttachment(attachmentOf(req.attachmentId()));
         if (post.getBoard().namedStages()) post.setStage(blankToNull(req.stage()));
         if (post.getBoard().extraFields()) post.setExtraFields(blankToNull(req.extraFields()));
+        if (post.getBoard() == PostBoard.SIGN) {
+            post.setProject(blankToNull(req.project()));
+            post.setKanbanPost(kanbanOf(req.kanbanPostId()));
+        }
         if (post.getBoard() == PostBoard.MINUTES) {
             post.setWeekNo(weekOf(req.weekNo()));
             post.setMeetingLinks(joinLinks(req.meetingLinks()));
@@ -136,6 +142,14 @@ public class WorkPostService {
             sb.append(m.getId());
         }
         return sb.toString();
+    }
+
+    /** 간판제작 [칸반연결] — 📅 프로젝트 진행현황 칸반 게시판 글만 이을 수 있다. */
+    private WorkPost kanbanOf(Long id) {
+        if (id == null) return null;
+        return workPostRepository.findById(id)
+                .filter(x -> x.getBoard() == PostBoard.PROJECT_KANBAN)
+                .orElseThrow(() -> ApiException.badRequest("프로젝트 진행현황 칸반 글을 찾을 수 없습니다. id=" + id));
     }
 
     private static String blankToNull(String s) { return s == null || s.isBlank() ? null : s.trim(); }
