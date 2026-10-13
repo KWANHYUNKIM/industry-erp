@@ -41,7 +41,7 @@ public class SpecialPriceItemGroup extends BaseTimeEntity {
     @Builder.Default
     private BigDecimal adjustRate = BigDecimal.ZERO;
 
-    /** 조정_단위처리 앞 칸 — '소수0자리미만' 꼴 */
+    /** 조정_단위처리 앞 칸 — '소수6자리미만' … '원미만' · '천원미만' */
     @Column(name = "round_unit", nullable = false, length = 20)
     private String roundUnit;
 

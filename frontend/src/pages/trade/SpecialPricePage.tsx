@@ -20,7 +20,7 @@ import { EcCond } from '../../components/EcStatusPanel'
  *       <b>품목그룹별</b>(품목그룹코드 · 품목그룹명 · 특별단가그룹명 · 품목그룹별 조정내역) · <b>적용단가</b>(품목 × 그룹마다 실제로 걸리는 값).</li>
  *   <li>[신규(F2)] 특별단가그룹등록(코드 · 이름, 빈 칸은 글 없이 빨간 테두리) · 품목별특별단가등록(특별단가그룹코드 — 마지막에 쓴 그룹이 차 있다 ·
  *       품목 · 적용단가 · VAT포함, 같은 그룹에 같은 품목 '이미 특별단가그룹에 존재하는 코드입니다.') · 품목그룹추가(특별단가그룹코드 · 품목그룹 ·
- *       단가기준 출고단가 · 조정_비율(%) · 조정_단위처리 소수0자리미만 · 반올림). 버튼 저장(F8) · 다시 작성 · 닫기.</li>
+ *       단가기준 출고단가(입고단가 · 단가A~J) · 조정_비율(%) · 조정_단위처리 소수6자리미만(… 소수1자리미만 · 원미만 · 십원 · 백원 · 천원미만) · 반올림(절상 · 절사)). 버튼 저장(F8) · 다시 작성 · 닫기.</li>
  *   <li>[거래처설정] 창: 구분 · 거래처코드 · 거래처명, 추가 · 선택삭제 · 닫기. [추가] '거래처추가': 특별단가그룹 · 특별단가그룹명 · 거래처 ·
  *       구분(영업단가그룹 · 구매단가그룹 체크칸). [창고설정] 도 같은 꼴(구분 · 창고코드 · 창고명).</li>
  * </ul>
@@ -29,7 +29,9 @@ import { EcCond } from '../../components/EcStatusPanel'
 
 type Pill = '특별단가그룹' | '품목별' | '품목그룹별' | '적용단가'
 const PILLS: Pill[] = ['특별단가그룹', '품목별', '품목그룹별', '적용단가']
-const NO_PICK = '리스트에 선택된 자료가 없습니다.\n체크박스에 체크한 후 다시 시도 바랍니다.'
+const NO_PICK = '리스트에 선택된 자료가 없습니다.\n\n체크박스에 체크한 후 다시 시도 바랍니다.'
+/** 원본 [특별단가그룹] 삭제 확인 글(2026-10-14 실측) — 막지 않고 그 그룹의 줄을 함께 지운다. */
+const GROUP_DELETE_CONFIRM = '해당 특별단가그룹으로 등록된\n품목별, 품목그룹별, 적용단가 설정도 모두 삭제됩니다.\n\n계속 진행하시겠습니까?'
 const LAST_GROUP_KEY = 'erp.specialPrice.lastGroup'
 const won = (n: number | null | undefined) => (n == null ? '' : Number(n).toLocaleString('ko-KR'))
 const SET_TAG = 'inline-block rounded-[6px] px-[1.8px] py-[0.9px] text-[12px] leading-[13.2px] bg-[var(--ec-tag-warn)] text-[var(--ec-bg-panel)] no-underline'
@@ -69,7 +71,7 @@ export default function SpecialPricePage() {
   const [partners, setPartners] = useState<Partner[]>([])
   const [warehouses, setWarehouses] = useState<Simple[]>([])
   const [options, setOptions] = useState<{ priceBases: string[]; roundUnits: string[]; roundModes: string[] }>(
-    { priceBases: ['출고단가', '입고단가'], roundUnits: ['소수0자리미만'], roundModes: ['반올림'] })
+    { priceBases: ['출고단가'], roundUnits: ['소수6자리미만'], roundModes: ['반올림'] })
   const [error, setError] = useState('')
   const [quick, setQuick] = useState('')
   /** Search(F3) 조건 — 원본 [사용구분](기본 사용) · [수정일자순(정렬)] */
@@ -118,11 +120,15 @@ export default function SpecialPricePage() {
   const warehouseItems = warehouses.filter((w) => w.active !== false).map((w) => ({ value: String(w.id), code: w.code, name: w.name }))
 
   // ── 특별단가그룹 창 ──
+  const [dupGroup, setDupGroup] = useState<SpecialPriceGroup | null>(null)
   const [gForm, setGForm] = useState<{ open: boolean; id: number | null; code: string; name: string; bad: boolean; error: string }>(
     { open: false, id: null, code: '', name: '', bad: false, error: '' })
   async function saveGroup(e?: FormEvent) {
     e?.preventDefault()
     if (!gForm.code.trim() || !gForm.name.trim()) { setGForm({ ...gForm, bad: true }); return }
+    // 원본: 있는 코드로 신규 저장하면 [공지] '이미 등록된 코드입니다.' 와 그 그룹 한 줄 — 등록 창은 열린 채.
+    const same = gForm.id ? undefined : groups.find((g) => g.code === gForm.code.trim())
+    if (same) { setDupGroup(same); return }
     try {
       if (gForm.id) await api.put(`/special-prices/groups/${gForm.id}`, { code: gForm.code, name: gForm.name })
       else await api.post('/special-prices/groups', { code: gForm.code, name: gForm.name })
@@ -152,7 +158,7 @@ export default function SpecialPricePage() {
 
   // ── 품목그룹별 창 ──
   const emptyIgForm = { open: false, id: null as number | null, groupId: '', itemGroupId: '', priceBasis: '출고단가', adjustRate: '',
-    roundUnit: '소수0자리미만', roundMode: '반올림', bad: false, error: '' }
+    roundUnit: '소수6자리미만', roundMode: '반올림', bad: false, error: '' }
   const [gpForm, setGpForm] = useState(emptyIgForm)
   function openIgForm(r?: SpecialPriceItemGroup, copy = false) {
     setGpForm(r ? { open: true, id: copy ? null : r.id, groupId: String(r.groupId), itemGroupId: copy ? '' : String(r.itemGroupId),
@@ -199,7 +205,8 @@ export default function SpecialPricePage() {
   async function removeMembers() {
     if (!member) return
     const picked = members.filter((_, i) => memberChecked.has(i))
-    if (picked.length === 0) { void ecAlert(NO_PICK); return }
+    if (picked.length === 0) { void ecAlert('삭제할 항목을 선택 바랍니다.'); return }   // 원본 거래처설정 · 창고설정 [선택삭제]
+    if (!(await ecConfirm('삭제하겠습니까?'))) return
     try {
       for (const m of picked) {
         if (member.kind === 'partners') await api.delete(`/special-prices/groups/${member.group.id}/partners/${m.targetId}`, { params: { tradeType: m.tradeType } })
@@ -229,7 +236,7 @@ export default function SpecialPricePage() {
     setMenuOpen(false)
     const ids = [...checked]
     if (ids.length === 0) { void ecAlert(NO_PICK); return }
-    if (op === '삭제' && !(await ecConfirm('삭제하겠습니까?'))) return
+    if (op === '삭제' && !(await ecConfirm(pill === '특별단가그룹' ? GROUP_DELETE_CONFIRM : '삭제하겠습니까?'))) return
     const params = { params: { active: op === '재사용' } }
     try {
       for (const id of ids) {
@@ -429,6 +436,20 @@ export default function SpecialPricePage() {
         </form>
       )}</Modal>
 
+      {/* 원본 [공지] — 있는 특별단가그룹코드로 신규 저장(2026-10-14 실측). 자료 칸은 '특별단가그룹 등록'. */}
+      <Modal open={dupGroup != null} title="공지" width={480} onClose={() => setDupGroup(null)}>{dupGroup && (
+        <div className="p-[4px]">
+          <p className="mt-0 mb-[8px] text-[12.5px]">이미 등록된 코드입니다.</p>
+          <table className="w-full">
+            <thead><tr><th>특별단가그룹코드</th><th>특별단가그룹명</th><th>사용구분</th><th>자료</th></tr></thead>
+            <tbody><tr className="text-center">
+              <td>{dupGroup.code}</td><td>{dupGroup.name}</td><td>{dupGroup.active ? '사용중' : '사용중단'}</td><td>특별단가그룹 등록</td>
+            </tr></tbody>
+          </table>
+          <div className="mt-[12px] flex justify-end"><button type="button" className="ec-btn" onClick={() => setDupGroup(null)}>닫기</button></div>
+        </div>
+      )}</Modal>
+
       {/* 품목별특별단가등록 */}
       <Modal error={iForm.error} open={iForm.open} title="품목별특별단가등록" width={959} onClose={() => setIForm({ ...iForm, open: false })}>{(
         <form onSubmit={saveItemPrice}>
@@ -474,7 +495,7 @@ export default function SpecialPricePage() {
             </div></li>
             <li className="wide"><span className="title">조정_단위처리</span><div className="form flex gap-[6px]">
               <select className="ec-input flex-1" value={gpForm.roundUnit} onChange={(e) => setGpForm({ ...gpForm, roundUnit: e.target.value })}>
-                {options.roundUnits.map((o) => <option key={o}>{o}</option>)}
+                {(options.roundUnits.includes(gpForm.roundUnit) ? options.roundUnits : [gpForm.roundUnit, ...options.roundUnits]).map((o) => <option key={o}>{o}</option>)}
               </select>
               <select className="ec-input flex-1" value={gpForm.roundMode} onChange={(e) => setGpForm({ ...gpForm, roundMode: e.target.value })}>
                 {options.roundModes.map((o) => <option key={o}>{o}</option>)}

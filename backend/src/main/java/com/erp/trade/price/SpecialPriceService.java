@@ -32,10 +32,15 @@ import java.util.*;
 @RequiredArgsConstructor
 public class SpecialPriceService {
 
-    public static final List<String> PRICE_BASES = List.of("출고단가", "입고단가");
-    public static final List<String> ROUND_UNITS =
-            List.of("소수3자리미만", "소수2자리미만", "소수1자리미만", "소수0자리미만", "십원미만", "백원미만", "천원미만");
-    public static final List<String> ROUND_MODES = List.of("반올림", "절사", "절상");
+    /** 품목그룹추가 [단가기준] — 원본 고르는 값 그대로(2026-10-14 실측): 출고단가 · 입고단가 · 단가A ~ 단가J */
+    public static final List<String> PRICE_BASES = List.of("출고단가", "입고단가",
+            "단가A", "단가B", "단가C", "단가D", "단가E", "단가F", "단가G", "단가H", "단가I", "단가J");
+    /** 단가적용순서설정에서 '기준단가' 줄의 기능명 — 여기 닿으면 특별단가를 더 찾지 않는다. */
+    private static final List<String> ORDER_BASE_LINES = List.of("출고단가", "입고단가");
+    /** 품목그룹추가 [조정_단위처리] 앞 칸 — 원본 차례 그대로(첫 값이 기본). */
+    public static final List<String> ROUND_UNITS = List.of("소수6자리미만", "소수5자리미만", "소수4자리미만", "소수3자리미만",
+            "소수2자리미만", "소수1자리미만", "원미만", "십원미만", "백원미만", "천원미만");
+    public static final List<String> ROUND_MODES = List.of("반올림", "절상", "절사");
 
     private final SpecialPriceGroupRepository groupRepository;
     private final SpecialPriceRepository priceRepository;
@@ -64,7 +69,7 @@ public class SpecialPriceService {
     @Transactional
     public GroupResponse createGroup(SaveGroupRequest req, String username) {
         String code = req.code().trim();
-        if (groupRepository.existsByCode(code)) throw ApiException.conflict("이미 특별단가그룹등록에 존재하는 코드입니다.");
+        if (groupRepository.existsByCode(code)) throw ApiException.conflict("이미 등록된 코드입니다.");   // 원본 [공지] 창 글(화면이 그 그룹을 같이 보인다)
         SpecialPriceGroup g = groupRepository.save(SpecialPriceGroup.builder()
                 .code(code).name(req.name().trim()).active(true).createdBy(username).build());
         return GroupResponse.of(g, false, false, false, false);
@@ -84,11 +89,12 @@ public class SpecialPriceService {
 
     @Transactional
     public void deleteGroup(Long id) {
+        // 원본은 막지 않는다 — '해당 특별단가그룹으로 등록된 품목별, 품목그룹별, 적용단가 설정도 모두 삭제됩니다.'
+        // 거래처의 단가그룹(코드)은 거래처 쪽 값이라 남는다 — 같은 코드로 다시 만들면 그 거래처가 다시 붙는다(2026-10-14 실측).
         SpecialPriceGroup g = group(id);
-        if (priceRepository.existsByGroupId(id) || itemGroupPriceRepository.existsByGroupId(id)
-                || warehouseLinkRepository.existsByGroupId(id) || partnerService.priceGroupCodesInUse().contains(g.getCode())) {
-            throw ApiException.conflict("거래처 · 창고 · 품목 · 품목그룹이 설정된 특별단가그룹은 삭제할 수 없습니다: " + g.getCode());
-        }
+        priceRepository.deleteByGroupId(id);
+        itemGroupPriceRepository.deleteByGroupId(id);
+        warehouseLinkRepository.deleteByGroupId(id);
         groupRepository.delete(g);
     }
 
@@ -246,7 +252,8 @@ public class SpecialPriceService {
 
     private void applyAdjust(SpecialPriceItemGroup row, SaveItemGroupPriceRequest req) {
         String basis = blankOr(req.priceBasis(), "출고단가");
-        String unit = blankOr(req.roundUnit(), "소수0자리미만");
+        String unit = blankOr(req.roundUnit(), ROUND_UNITS.get(0));
+        if ("소수0자리미만".equals(unit)) unit = "원미만";   // 옛 이름(원본에 없는 값)
         String mode = blankOr(req.roundMode(), "반올림");
         if (!PRICE_BASES.contains(basis)) throw ApiException.badRequest("단가기준은 " + String.join(" · ", PRICE_BASES) + " 중 하나입니다.");
         if (!ROUND_UNITS.contains(unit)) throw ApiException.badRequest("조정_단위처리는 " + String.join(" · ", ROUND_UNITS) + " 중 하나입니다.");
@@ -271,6 +278,9 @@ public class SpecialPriceService {
     static BigDecimal adjust(BigDecimal base, SpecialPriceItemGroup g) {
         BigDecimal raw = base.multiply(BigDecimal.valueOf(100).add(g.getAdjustRate())).divide(BigDecimal.valueOf(100), 10, RoundingMode.HALF_UP);
         int scale = switch (g.getRoundUnit()) {
+            case "소수6자리미만" -> 6;
+            case "소수5자리미만" -> 5;
+            case "소수4자리미만" -> 4;
             case "소수3자리미만" -> 3;
             case "소수2자리미만" -> 2;
             case "소수1자리미만" -> 1;
@@ -286,6 +296,17 @@ public class SpecialPriceService {
         };
         BigDecimal r = raw.setScale(scale, mode);
         return scale < 0 ? r.setScale(0) : r;
+    }
+
+    /** [단가기준] 의 값 — 출고단가 · 입고단가 · 단가A ~ J(품목등록 [단가] 탭). */
+    static BigDecimal basePrice(String basis, BigDecimal unitPrice, BigDecimal purchasePrice, List<BigDecimal> gradePrices) {
+        BigDecimal v;
+        if ("입고단가".equals(basis)) v = purchasePrice;
+        else if (basis != null && basis.length() == 3 && basis.startsWith("단가")) {
+            int k = basis.charAt(2) - 'A';
+            v = gradePrices != null && k >= 0 && k < gradePrices.size() ? gradePrices.get(k) : null;
+        } else v = unitPrice;
+        return v != null ? v : BigDecimal.ZERO;
     }
 
     // ── 적용단가 ─────────────────────────────────────────────
@@ -311,10 +332,10 @@ public class SpecialPriceService {
                 if (!g.isActive() || !g.getGroup().isActive()) continue;
                 for (ItemResponse i : items) {
                     if (!g.getItemGroup().getId().equals(i.itemGroupId()) || !seen.add(i.id() + ":" + g.getGroup().getId())) continue;
-                    BigDecimal base = "입고단가".equals(g.getPriceBasis()) ? i.purchasePrice() : i.unitPrice();
+                    BigDecimal base = basePrice(g.getPriceBasis(), i.unitPrice(), i.purchasePrice(), i.gradePrices());
                     out.add(new AppliedPriceRow(i.id(), i.code(), i.name(), i.spec(), i.itemGroupName(),
                             "품목그룹별", g.getGroup().getCode(), g.getGroup().getName(), adjustText(g),
-                            adjust(base != null ? base : BigDecimal.ZERO, g), false));
+                            adjust(base, g), false));
                 }
             }
         }
@@ -337,7 +358,7 @@ public class SpecialPriceService {
         for (PriceOrderLine line : lines) {
             if (!line.active()) continue;
             String fn = line.functionName();
-            if (PRICE_BASES.contains(fn)) break;                     // 기준단가 — 화면이 채운 값 그대로
+            if (ORDER_BASE_LINES.contains(fn)) break;                     // 기준단가 — 화면이 채운 값 그대로
             boolean byWarehouse = fn.startsWith("창고별특별단가");
             boolean byPartner = fn.startsWith("거래처별특별단가");
             if (!byWarehouse && !byPartner) continue;                // 최종단가 · 거래처조정률 — 아직 계산 안 함
@@ -353,8 +374,8 @@ public class SpecialPriceService {
                 if (item.getItemGroup() == null) continue;
                 var hit = itemGroupPriceRepository.findActive(g.getId(), item.getItemGroup().getId());
                 if (hit.isPresent()) {
-                    BigDecimal base = "입고단가".equals(hit.get().getPriceBasis()) ? item.getPurchasePrice() : item.getUnitPrice();
-                    return new ResolveResponse(true, adjust(base != null ? base : BigDecimal.ZERO, hit.get()), fn,
+                    BigDecimal base = basePrice(hit.get().getPriceBasis(), item.getUnitPrice(), item.getPurchasePrice(), item.getGradePrices());
+                    return new ResolveResponse(true, adjust(base, hit.get()), fn,
                             g.getCode(), g.getName(), false);
                 }
             }
