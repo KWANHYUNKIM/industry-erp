@@ -33,7 +33,8 @@ const itemText = (r: QualityInspection) => {
 
 type Method = QualityInspectionLine['method']
 type Pass = QualityInspectionLine['passResult']
-interface LineForm { method: Method; itemId: string; quantity: string; sampleQty: string; defectQty: string; passResult: Pass; defectType: string; checks: QualityCheckValue[] }
+/* slotCount — [내역] 창에서 적용할 때 본 그 품목의 검사항목 칸 수(검증용, 서버로 안 보낸다). */
+interface LineForm { method: Method; itemId: string; quantity: string; sampleQty: string; defectQty: string; passResult: Pass; defectType: string; checks: QualityCheckValue[]; slotCount?: number }
 const emptyLine = (): LineForm => ({ method: 'FULL', itemId: '', quantity: '', sampleQty: '', defectQty: '', passResult: 'NA', defectType: '', checks: [] })
 const emptyLines = () => [emptyLine(), emptyLine(), emptyLine()]
 const num = (v: string) => Number(v || 0)
@@ -200,6 +201,9 @@ export default function QualityInspectionPage({ entry = false }: { entry?: boole
     setFormError('')
     if (filled.length === 0) return setFormError('자료를 입력 바랍니다.')
     if (filled.some((l) => sampleOf(l) > num(l.quantity))) return setFormError('시료는 수량보다 클 수 없습니다.')
+    /* 2026-10-14 원본 실측: [내역] 에서 외관검사만 고르고 적용 → 저장하면 그 칸이 빨개지며 '검사항목을 입력 바랍니다.'
+       (셋 다 채우면 저장). 하나도 안 적은 줄은 예전 실측대로 막지 않는다. */
+    if (filled.some((l) => l.slotCount != null && l.checks.length > 0 && l.checks.length < l.slotCount)) return setFormError('검사항목을 입력 바랍니다.')
     const body = {
       inspectionDate: f.inspectionDate,
       inspector: f.inspector || undefined,
@@ -229,7 +233,7 @@ export default function QualityInspectionPage({ entry = false }: { entry?: boole
   /*
    * 원본 [검사항목] [내역] 창(2026-10-12 실측) — 제목 '검사항목', '품목명:○○', 품목에 붙은 품질검사유형의 칸
    * (코드형 1~4 · 숫자형 1~4 · 문자형 1~4 차례). 코드형식은 상세항목을 고르고 나머지는 적는다. [적용(F8)] · [닫기].
-   * 유형이 없는 품목이면 '등록된 검사항목이 없습니다.' 창. 비워 두고 적용 · 저장해도 막지 않는다.
+   * 유형이 없는 품목이면 '등록된 검사항목이 없습니다.' 창. 다 비워 두면 막지 않고, 일부만 적으면 저장 때 막는다(2026-10-14).
    */
   const [checkLine, setCheckLine] = useState<number | null>(null)
   const [checkSlots, setCheckSlots] = useState<QualityItemCheck[]>([])
@@ -262,7 +266,7 @@ export default function QualityInspectionPage({ entry = false }: { entry?: boole
         checks.push({ checkItemId: s.checkItemId, detailId: null, value: d.value.trim() })
       }
     }
-    setLine(checkLine, { checks })
+    setLine(checkLine, { checks, slotCount: checkSlots.length })
     setCheckLine(null)
   }
   useShortcut('F8', applyChecks, checkLine != null)
@@ -286,6 +290,8 @@ export default function QualityInspectionPage({ entry = false }: { entry?: boole
       quantity: String(partial && r.lines.length === 1 ? r.remainingQty : l.quantity),
     })), emptyLine()])
     setRequestId(r.id)
+    /* 원본은 불러온 뒤 불러오기 단추(판매 · 검사요청 · 발주 …)를 거둔다 — 찾기 · 정렬 · My품목 · 재고불러오기 · 바코드 · 검증만 남는다(2026-10-14). */
+    setPulled(true)
     setPullOpen(false)
   }
 

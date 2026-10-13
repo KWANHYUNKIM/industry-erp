@@ -129,17 +129,13 @@ public class QualityInspectionRequestService {
     }
 
     /**
-     * 이어진 검사로 [종결여부] 를 다시 본다 — 검사한 수량이 요청 수량에 닿으면 완료, 아니면 진행중.
-     * 품질검사를 저장 · 수정 · 삭제할 때마다 부른다. 취소한 요청은 건드리지 않는다.
+     * 이어진 검사가 바뀔 때 부른다 — <b>[종결여부] 는 건드리지 않는다.</b>
+     * 2026-10-14 원본 실측: 요청 3 을 [잔량적용] 으로 다 검사해도 요청은 '진행중' 그대로였고(미검사현황에서만 빠진다),
+     * 종결은 목록의 [종결여부] · [진행상태변경] 으로 손으로 한다. 예전 우리는 다 검사하면 '완료' 로 돌렸다.
      */
     @Transactional
     public void refreshStatus(QualityInspectionRequest r) {
-        if (r.getStatus() == QualityRequestStatus.CANCELED) return;
-        BigDecimal inspected = inspectionRepository.findByRequestIds(List.of(r.getId())).stream()
-                .flatMap(q -> q.getLines().stream()).map(l -> l.getQuantity())
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        r.setStatus(inspected.compareTo(r.getRequestQty()) >= 0 && inspected.signum() > 0
-                ? QualityRequestStatus.INSPECTED : QualityRequestStatus.REQUESTED);
+        // 일부러 비워 둔다 — 위 설명.
     }
 
     @Transactional(readOnly = true)
@@ -168,9 +164,12 @@ public class QualityInspectionRequestService {
     @Transactional
     public void delete(Long id) {
         QualityInspectionRequest r = getRequest(id);
-        if (!inspectionRepository.findByRequestIds(List.of(id)).isEmpty()) {
-            throw ApiException.badRequest("이 요청으로 만든 품질검사가 있어 삭제할 수 없습니다. 품질검사를 먼저 지우세요.");
-        }
+        /*
+         * 2026-10-14 원본 실측: 검사가 이어진 요청도 '전표를 삭제하겠습니까? / - 품질검사요청조회' [확인] 으로 지워지고,
+         * 그 검사는 품질검사조회에 그대로 남는다. 그래서 막지 않고 검사의 요청 연결만 끊는다.
+         */
+        inspectionRepository.findByRequestIds(List.of(id)).forEach(q -> q.setRequest(null));
+        inspectionRepository.flush();
         requestRepository.delete(r);
     }
 

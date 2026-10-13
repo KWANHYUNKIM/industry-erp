@@ -239,7 +239,8 @@ export default function QualityRequestPage({ entry = false }: { entry?: boolean 
         { label: '진행상태변경', selected: picked.size, onClick: () => setStatusOpen(true) },
         { label: '인쇄', disabled: picked.size === 0, onClick: () => void printRequests(rows.filter((r) => picked.has(r.id))) },
         { label: '선택삭제', selected: picked.size,
-          onClick: async () => { if ((await ecConfirm('전표를 삭제하겠습니까?'))) void removeIds([...picked]) } },
+          /* 원본 확인 창 '전표를 삭제하겠습니까? / - 품질검사요청조회'(2026-10-14) — 검사가 이어진 요청도 지워진다. */
+          onClick: async () => { if ((await ecConfirm('전표를 삭제하겠습니까?\n- 품질검사요청조회'))) void removeIds([...picked]) } },
         { label: 'Excel' },
       ]}
     >
@@ -334,32 +335,54 @@ export default function QualityRequestPage({ entry = false }: { entry?: boolean 
               <td>{r.requester ?? ''}</td>
               <td>{itemText(r)}</td>
               <td className="text-right">{Math.round(r.requestQty).toLocaleString('ko-KR')}</td>
-              <td>{r.inspections.map((q) => dateNo(q.inspectionDate, q.inspectionNo)).join(', ')}</td>
+              {/* 원본 [연결전표] — [검사요청] 으로 불러와 검사해도 빈칸이었다(2026-10-14). 검사는 [진행상태] 조회 창에 뜬다. */}
+              <td></td>
               <td className="text-center">
                 <button type="button" className={`ec-link${r.status === 'INSPECTED' ? ' text-ec-warn' : ''}`}
                         disabled={r.status === 'CANCELED'} onClick={() => toggleStatus(r)}>{r.statusName}</button>
               </td>
-              <td className="text-center"><button type="button" className="ec-link" onClick={() => setLinksOf(r)}>조회</button></td>
+              {/* 원본: 이 요청으로 만든 전표가 있으면 [조회] 가 주황 꼬리표로 찍힌다(2026-10-14). */}
+              <td className="text-center"><button type="button" onClick={() => setLinksOf(r)}
+                className={r.inspections.length ? 'inline-block rounded-[6px] px-[4px] leading-[15.3px] bg-[var(--ec-bg-tag)] text-white' : 'ec-link'}>조회</button></td>
               <td className="text-center"><button type="button" className="ec-link" onClick={() => printRequest(r)}>인쇄</button></td>
             </tr>
           ))}
         </tbody>
       </table>
 
-      <Modal open={!!linksOf} width={520} title="진행상태" error={error} onClose={() => setLinksOf(null)}>
-        {linksOf && (
+      {/*
+        원본 [진행상태] 조회 창 '생성한 전표'(2026-10-14 실측): '품질검사요청조회 : 2026/10/14 -1',
+        열 품목코드 · 품목명 · 규격 · 수량 · 잔량(0 이면 빈칸) · 생성한 전표('품질검사') · 생성한 전표일자-No., 단추 신규(F2) · 닫기.
+      */}
+      <Modal open={!!linksOf} width={780} title="생성한 전표" error={error} onClose={() => setLinksOf(null)}>
+        {linksOf && (<>
+          <p className="mb-[6px]">품질검사요청조회 : {dateNo(linksOf.requestDate, linksOf.requestNo)}</p>
           <table className="w-full text-left">
-            <thead><tr><th>품질검사</th><th className="text-right">수량</th></tr></thead>
+            <thead><tr>
+              <th>품목코드</th><th>품목명</th><th>규격</th><th className="text-right">수량</th><th className="text-right">잔량</th>
+              <th className="text-center">생성한 전표</th><th className="text-center">생성한 전표일자-No.</th>
+            </tr></thead>
             <tbody>
-              {linksOf.inspections.length === 0
-                ? <tr><td colSpan={2} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-                : linksOf.inspections.map((q) => (
-                  <tr key={q.id}><td>{dateNo(q.inspectionDate, q.inspectionNo)}</td><td className="text-right">{Math.round(q.quantity).toLocaleString('ko-KR')}</td></tr>
-                ))}
+              {linksOf.lines.flatMap((l) => {
+                const left = linksOf.lines.length === 1 ? linksOf.remainingQty : null
+                const base = [l.itemCode, l.itemName, l.spec ?? '', Math.round(l.quantity).toLocaleString('ko-KR'),
+                  left ? Math.round(left).toLocaleString('ko-KR') : '']
+                const qs = linksOf.inspections.length ? linksOf.inspections : [null]
+                return qs.map((q) => (
+                  <tr key={`${l.id}-${q?.id ?? 0}`}>
+                    {base.map((v, k) => <td key={k} className={k >= 3 ? 'text-right' : undefined}>{v}</td>)}
+                    <td className="text-center">{q ? '품질검사' : ''}</td>
+                    <td className="text-center">{q ? dateNo(q.inspectionDate, q.inspectionNo) : ''}</td>
+                  </tr>
+                ))
+              })}
             </tbody>
-            <tfoot><tr><td>남은 수량</td><td className="text-right">{Math.round(linksOf.remainingQty).toLocaleString('ko-KR')}</td></tr></tfoot>
           </table>
-        )}
+          <div className="flex gap-[4px] mt-[9px]">
+            <button className="ec-btn ec-btn-primary" onClick={() => { setLinksOf(null); openNew() }}>신규(F2)</button>
+            <button className="ec-btn" onClick={() => setLinksOf(null)}>닫기</button>
+          </div>
+        </>)}
       </Modal>
 
       <Modal open={open} width={900} error={formError} onClose={() => setOpen(false)}
