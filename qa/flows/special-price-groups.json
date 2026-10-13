@@ -15,14 +15,13 @@
         "click:저장(F8)",
         "expect:!document.querySelector('[role=dialog]') && [...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA-J1G'))",
         "js:Promise.all(['/special-prices/groups', '/items'].map((p) => window.__api('GET', p))).then(([gs, it]) => window.__api('POST', '/special-prices', { groupId: gs.body.find((x) => x.code === 'QA-J1G').id, itemId: it.body.find((x) => x.code === 'QA-PROD').id, unitPrice: 700 })).then((r) => r.status)",
-        "click:품목별",
-        "click:특별단가그룹",
         "js:location.reload(); true",
         "wait:1500",
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
         "expect:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('QA-J1G'))?.querySelector('a.no-underline')?.innerText === '품목설정'",
-        "click:품목별",
+        "js:[...document.querySelectorAll('.ec-pill')].find((b) => b.textContent.trim() === '품목별').click(); true",
         "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA재고1-특가그룹') && tr.innerText.includes('700'))",
-        "click:적용단가",
+        "js:[...document.querySelectorAll('.ec-pill')].find((b) => b.textContent.trim() === '적용단가').click(); true",
         "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA재고1-특가그룹') && tr.innerText.includes('품목별단가') && tr.innerText.includes('700'))",
         "js:window.__api('GET', '/special-prices/groups').then(async (r) => { const g = r.body.find((x) => x.code === 'QA-J1G'); for (const p of (await window.__api('GET', '/special-prices')).body.filter((x) => x.groupId === g.id)) await window.__api('DELETE', '/special-prices/' + p.id); return (await window.__api('DELETE', '/special-prices/groups/' + g.id)).status })"
       ]
