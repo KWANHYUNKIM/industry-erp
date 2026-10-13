@@ -1,5 +1,6 @@
 package com.erp.groupware.supply;
 
+import com.erp.groupware.supply.dto.SupplyUsageDtos.ChangeSupplyLabelRequest;
 import com.erp.groupware.supply.dto.SupplyUsageDtos.CreateSupplyUsageRequest;
 import com.erp.groupware.supply.dto.SupplyUsageDtos.SupplyUsageResponse;
 import com.erp.groupware.supply.dto.SupplyUsageDtos.UpdateSupplyUsageRequest;
@@ -39,9 +40,17 @@ public class SupplyUsageController {
         return service.update(id, req);
     }
 
+    /** 원본 하단 [라벨변경] — 체크한 줄들에 라벨을 붙인다. */
+    @PutMapping("/label")
+    public ResponseEntity<Void> changeLabel(@Valid @RequestBody ChangeSupplyLabelRequest req) {
+        service.changeLabel(req);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** scope: 반복 줄일 때 ONE(이번 일정만, 기본) · FOLLOWING(향후 모든 일정) · ALL(전체 반복일정). */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        service.delete(id);
+    public ResponseEntity<Void> delete(@PathVariable Long id, @RequestParam(required = false) String scope) {
+        service.delete(id, scope);
         return ResponseEntity.noContent().build();
     }
 }

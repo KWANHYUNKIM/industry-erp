@@ -70,4 +70,12 @@ public class SupplyUsage extends BaseTimeEntity {
     @Column(name = "all_day", nullable = false)
     @Builder.Default
     private boolean allDay = false;
+
+    /** 원본 [반복설정] 으로 같이 생긴 줄들의 묶음. 수정 · 삭제가 '이번 일정만 / 향후 모든 일정 / 전체 반복일정' 을 묻는다. */
+    @Column(name = "repeat_group", length = 40)
+    private String repeatGroup;
+
+    /** 반복설정 요약보기 글('매일, 2026/10/13 부터 2026/10/15 까지'). */
+    @Column(name = "repeat_rule", length = 200)
+    private String repeatRule;
 }

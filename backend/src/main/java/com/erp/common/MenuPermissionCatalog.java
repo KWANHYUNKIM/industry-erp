@@ -85,7 +85,7 @@ public final class MenuPermissionCatalog {
                 "/api/material-issues",
                 // 공용품은 문서상 groupware 소관인데 여기 묶여 있다. 사용내역만 떼어 옮기면
                 // 짝이 갈라지므로 둘을 붙여 둔다 — 옮길 거면 같이 옮긴다.
-                "/api/supplies", "/api/supply-usages");
+                "/api/supplies", "/api/supply-usages", "/api/supply-labels");
         put(m, "STOCK_MOVE", "/api/stock", "/api/stock-transfers", "/api/stock-adjustments",
                 "/api/staged-adjustments");
         put(m, "QUALITY", "/api/quality-inspections", "/api/quality-inspection-requests", "/api/as-requests", "/api/as-repairs",

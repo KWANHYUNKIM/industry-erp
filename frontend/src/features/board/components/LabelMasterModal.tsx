@@ -33,11 +33,16 @@ function StopMenu({ disabled, onPick }: { disabled?: boolean; onPick: (a: 'stop'
  * 비우고 저장하면 문구 없이 빈 칸만 빨갛다. 저장하면 목록으로 돌아온다. 수정 창에서는 코드가 막히고
  * [사용중단/재사용 ▲] 이 붙는다 — [삭제]는 묻지 않고 지운다.
  */
-export default function LabelMasterModal({ board, onClose, endpoint = '/work-post-labels', title = '라벨조회' }: {
+export default function LabelMasterModal({ board, onClose, endpoint = '/work-post-labels', title = '라벨조회', onPick }: {
   board: string; onClose: () => void
   /** 라벨 마스터 API — 일정관리는 '/schedule-labels'(원본 '라벨검색' 창). */
   endpoint?: string
   title?: string
+  /**
+   * 고르기 창으로 쓴다 — 원본 공용품관리 [라벨] 🔍 · [라벨변경] 의 '라벨검색창'(E070204, 2026-10-13 실측).
+   * 라벨코드를 누르면 그 라벨을 돌려준다. 하단은 [적용(F8)][신규(F2)][닫기], 위에 [사용중단포함](끄면 사용중단 라벨을 숨긴다).
+   */
+  onPick?: (l: BoardLabel) => void
 }) {
   const [labels, setLabels] = useState<BoardLabel[]>([])
   const [keyword, setKeyword] = useState('')
@@ -47,6 +52,7 @@ export default function LabelMasterModal({ board, onClose, endpoint = '/work-pos
   const [edit, setEdit] = useState<{ id: number | null; code: string; name: string; color: string } | null>(null)
   const [invalid, setInvalid] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [withStopped, setWithStopped] = useState(false)
 
   async function load() {
     try { setLabels(endpoint === '/work-post-labels' ? await fetchLabels(board) : (await api.get<BoardLabel[]>(endpoint)).data) } catch (err) { setError(extractErrorMessage(err)) }
@@ -56,6 +62,9 @@ export default function LabelMasterModal({ board, onClose, endpoint = '/work-pos
   const openNew = () => { setInvalid(false); setEdit({ id: null, code: '', name: '', color: LABEL_DEFAULT_COLOR }) }
   useShortcut('F2', openNew, !edit)
   useShortcut('F8', () => void save(), !!edit)
+  /** 고르기 창의 [적용(F8)] — 체크한 첫 라벨. */
+  const pickChecked = () => { const l = labels.find((x) => checked.has(x.id)); if (l && onPick) onPick(l) }
+  useShortcut('F8', pickChecked, !edit && !!onPick)
 
   async function save() {
     if (!edit) return
@@ -84,13 +93,19 @@ export default function LabelMasterModal({ board, onClose, endpoint = '/work-pos
   }
 
   const shown = labels.filter((l) => !keyword || l.code.includes(keyword) || l.name.includes(keyword))
+    .filter((l) => !onPick || withStopped || l.active)
 
   return (
     <>
       <Modal open title={title} width={760} error={edit ? null : error} onClose={onClose}>
         <div className="flex items-center mb-[8px]">
           <span className="text-[14px] font-bold">{title}</span>
-          <div className="ml-auto flex gap-[4px]">
+          <div className="ml-auto flex gap-[4px] items-center">
+            {onPick && (
+              <label className="inline-flex items-center gap-[4px] text-[12px] mr-[6px] cursor-pointer">
+                <input type="checkbox" checked={withStopped} onChange={(e) => setWithStopped(e.target.checked)} />사용중단포함
+              </label>
+            )}
             <input className="ec-input w-[110px]" placeholder="입력 후 [Enter]" aria-label="라벨 검색" value={keyword}
                    onChange={(e) => setKeyword(e.target.value)} />
             <button type="button" className="ec-btn ec-btn-primary" onClick={() => void load()}>Search(F3)</button>
@@ -113,7 +128,7 @@ export default function LabelMasterModal({ board, onClose, endpoint = '/work-pos
                     onClick={() => setChecked((s) => { const n = new Set(s); if (n.has(l.id)) n.delete(l.id); else n.add(l.id); return n })}>{i + 1}</td>
                 <td>
                   <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-navy"
-                          onClick={() => { setInvalid(false); setEdit({ id: l.id, code: l.code, name: l.name, color: l.color }) }}>{l.code}</button>
+                          onClick={() => { if (onPick) { onPick(l); return } setInvalid(false); setEdit({ id: l.id, code: l.code, name: l.name, color: l.color }) }}>{l.code}</button>
                   {!l.active && <span className="ml-[6px] text-[11px]">(사용중단)</span>}
                 </td>
                 <td><LabelChip name={l.name} color={l.color} /></td>
@@ -121,11 +136,19 @@ export default function LabelMasterModal({ board, onClose, endpoint = '/work-pos
             ))}
           </tbody>
         </table>
-        <div className="flex gap-[6px] mt-[14px]">
-          <button type="button" className="ec-btn ec-btn-primary" onClick={openNew}>신규(F2)</button>
-          <StopMenu disabled={checked.size === 0} onPick={(a) => void act([...checked], a)} />
-          <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
-        </div>
+        {onPick ? (
+          <div className="flex gap-[6px] mt-[14px]">
+            <button type="button" className="ec-btn ec-btn-primary" disabled={checked.size === 0} onClick={pickChecked}>적용(F8)</button>
+            <button type="button" className="ec-btn" onClick={openNew}>신규(F2)</button>
+            <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
+          </div>
+        ) : (
+          <div className="flex gap-[6px] mt-[14px]">
+            <button type="button" className="ec-btn ec-btn-primary" onClick={openNew}>신규(F2)</button>
+            <StopMenu disabled={checked.size === 0} onPick={(a) => void act([...checked], a)} />
+            <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
+          </div>
+        )}
       </Modal>
 
       {edit && (

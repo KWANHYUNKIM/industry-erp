@@ -11,6 +11,12 @@ import { useShortcut } from '../../utils/useShortcut'
 import { openPrintWindow, fillAndPrint } from '../../utils/print'
 import { escapeHtml } from '../../utils/escapeHtml'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import { defaultRepeat, repeatSummary, type RepeatRule } from '../../utils/scheduleRepeat'
+import RepeatModal from '../../features/schedule/components/RepeatModal'
+import RepeatScopeModal, { type RepeatScope } from '../../features/schedule/components/RepeatScopeModal'
+import LabelMasterModal from '../../features/board/components/LabelMasterModal'
+import LabelChip from '../../features/board/components/LabelChip'
+import type { BoardLabel } from '../../features/board/labels'
 
 /**
  * 그룹웨어 > 사내관리 > 공용품관리 (이카운트 E070204)
@@ -60,7 +66,11 @@ interface Usage {
   useDate: string; startTime: string | null; endTime: string | null; allDay: boolean
   title: string; remark: string | null; labelText: string | null
   returnStatus: ReturnStatus; returnStatusName: string
+  repeatGroup: string | null; repeatRule: string | null
 }
+
+/** 원본 '공용품관리' 조회 창의 [삭제] 문구(E070204, 2026-10-13 실측 — 일정관리와 같다). */
+const DELETE_ASK = '선택한 일정이 삭제 됩니다.\n한번 지워진 자료는 복구 될 수 없습니다.\n\n계속 진행 하겠습니까?'
 
 /** 일간 · 공용품별 시간 줄 — 원본은 AM 08:00 ~ PM 06:00 한 시간 간격이다. */
 const HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
@@ -91,6 +101,8 @@ function monthWeeks(c: Date): Date[][] {
 /** '2026/01/23 (금)' */
 const dayText = (d: string) => `${d.replace(/-/g, '/')} (${DOW[new Date(d).getDay()]})`
 const pad2 = (n: number) => String(n).padStart(2, '0')
+/** 공용품관리 라벨 칩 — 게시판 칩(둥글기 10)과 달리 둥글기 5 · 여백 4 5 3 · 오른쪽 5(2026-10-13 실측). */
+const CHIP = 'rounded-[5px] pt-[4px] px-[5px] pb-[3px] mr-[5px]'
 
 type Form = {
   supply: string; user: string; date: string; start: string; end: string; allDay: boolean
@@ -115,6 +127,21 @@ export default function SuppliesPage() {
   const [titleCond, setTitleCond] = useState('')
   const [remarkCond, setRemarkCond] = useState('')
   const [returnCond, setReturnCond] = useState('')
+  /** 원본 조건 [라벨] — 전체 · 라벨없음 · 라벨마다. */
+  const [labelCond, setLabelCond] = useState('')
+  /** 공용품관리 라벨 마스터(원본 '라벨검색창' · '라벨조회'). 목록 칩 색도 여기서. */
+  const [labels, setLabels] = useState<BoardLabel[]>([])
+  /** 원본 목록 첫 칸 체크(번호 칸) — 하단 [라벨변경] 이 이 줄들에 붙인다. */
+  const [checked, setChecked] = useState<Set<number>>(new Set())
+  /** 열어 둔 라벨 창 — form: 입력 창 [라벨] 🔍 · change: 하단 [라벨변경] · manage: 라벨조회. */
+  const [labelWin, setLabelWin] = useState<'form' | 'change' | null>(null)
+  /** 원본 [반복설정] — 새로 넣을 때만. 적용하면 날마다 한 줄씩 생긴다. */
+  const [repeat, setRepeat] = useState<RepeatRule | null>(null)
+  const [showRepeat, setShowRepeat] = useState(false)
+  /** 반복 줄의 [수정] · [삭제] 가 먼저 묻는 범위(원본 '반복일정수정' · '반복일정삭제'). */
+  const [askScope, setAskScope] = useState<{ action: 'edit' | 'delete'; u: Usage } | null>(null)
+  const [editScope, setEditScope] = useState<RepeatScope>('ONE')
+  const [editing, setEditing] = useState<Usage | null>(null)
 
   /** 원본 기본 기간: 올해 1월 1일 ~ 12월 31일. */
   const year = new Date().getFullYear()
@@ -152,22 +179,48 @@ export default function SuppliesPage() {
   }
   useEffect(() => { void load() }, [from, to])
 
+  const loadLabels = () => api.get<BoardLabel[]>('/supply-labels').then((r) => setLabels(r.data)).catch(() => {})
   useEffect(() => {
+    void loadLabels()
     api.get<Supply[]>('/supplies').then((r) => setSupplies(r.data)).catch(() => {})
     api.get<UserRow[]>('/users').then((r) => setUsers(r.data)).catch(() => {})
   }, [])
 
   function openNew() {
     setEditId(null)
+    setEditing(null)
+    setRepeat(null)
     setForm(newForm())
     setError('')
     setShowForm(true)
   }
 
-  /** 조회 창의 [수정] — 같은 입력 창을 그 내역으로 채워 띄운다. */
-  function openEdit(u: Usage) {
+  const fill = (u: Usage): Form => ({
+    supply: String(u.supplyItemId), user: String(u.userId), date: u.useDate,
+    start: u.startTime ?? '', end: u.endTime ?? '', allDay: u.allDay,
+    title: u.title, remark: u.remark ?? '', label: u.labelText ?? '', ret: u.returnStatus,
+  })
+
+  /**
+   * 조회 창의 [복사] — 같은 값(공용품 · 사용자 · 날짜/시간 · 제목 …)을 채운 새 '공용품관리등록' 창. 반복설정은 따라오지 않는다
+   * (원본 2026-10-13 실측: 반복 줄을 복사하니 그 날 · 그 시간 · 제목이 차고 [반복설정] 은 빈 채였다).
+   */
+  function openCopy(u: Usage) {
+    setViewing(null)
+    setEditId(null)
+    setEditing(null)
+    setRepeat(null)
+    setForm(fill(u))
+    setError('')
+    setShowForm(true)
+  }
+
+  /** 조회 창의 [수정] — 같은 입력 창을 그 내역으로 채워 띄운다. 반복 줄이면 먼저 범위를 묻는다(askEdit). */
+  function openEdit(u: Usage, scope: RepeatScope = 'ONE') {
     setViewing(null)
     setEditId(u.id)
+    setEditing(u)
+    setEditScope(scope)
     setForm({
       supply: String(u.supplyItemId), user: String(u.userId), date: u.useDate,
       start: u.startTime ?? '', end: u.endTime ?? '', allDay: u.allDay,
@@ -177,8 +230,11 @@ export default function SuppliesPage() {
     setShowForm(true)
   }
 
-  useShortcut('F2', openNew, !showForm && !viewing && !showMaster)
-  useShortcut('F8', () => void submit(), showForm)
+  const askEdit = (u: Usage) => (u.repeatGroup ? setAskScope({ action: 'edit', u }) : openEdit(u))
+  const askRemove = (u: Usage) => (u.repeatGroup ? setAskScope({ action: 'delete', u }) : void removeOne(u.id))
+
+  useShortcut('F2', openNew, !showForm && !viewing && !showMaster && !labelWin)
+  useShortcut('F8', () => void submit(), showForm && !showRepeat && !labelWin)
 
   async function submit(e?: FormEvent) {
     e?.preventDefault()
@@ -193,22 +249,37 @@ export default function SuppliesPage() {
       labelText: form.label, returnStatus: form.ret,
     }
     try {
-      if (editId != null) await api.put(`/supply-usages/${editId}`, body)
-      else await api.post<Usage>('/supply-usages', { ...body, remark: form.remark || undefined, labelText: form.label || undefined })
+      if (editId != null) await api.put(`/supply-usages/${editId}`, { ...body, scope: editScope })
+      else await api.post<Usage>('/supply-usages', {
+        ...body, remark: form.remark || undefined, labelText: form.label || undefined,
+        repeat: repeat ? { ...repeat, summary: repeatSummary(repeat) } : undefined,
+      })
       setShowForm(false)
       setEditId(null)
+      setRepeat(null)
       void load()
     } catch (err) { setError(extractErrorMessage(err)) }
   }
 
-  async function removeOne(id: number) {
-    if (!confirm('삭제하겠습니까?')) return
+  async function removeOne(id: number, scope?: RepeatScope) {
+    if (!confirm(DELETE_ASK)) return
     try {
-      await api.delete(`/supply-usages/${id}`)
+      await api.delete(`/supply-usages/${id}`, { params: scope ? { scope } : undefined })
       setViewing(null)
       void load()
     } catch (err) { setError(extractErrorMessage(err)) }
   }
+
+  /** 원본 하단 [라벨변경] → '라벨검색창' 에서 고른 라벨을 체크한 줄에만 붙인다(말없이 목록이 바뀐다). */
+  async function changeLabel(l: BoardLabel) {
+    setLabelWin(null)
+    try {
+      await api.put('/supply-usages/label', { ids: [...checked], labelText: l.name })
+      setChecked(new Set())
+      void load()
+    } catch (err) { setError(extractErrorMessage(err)) }
+  }
+  const labelColor = (name: string | null) => labels.find((l) => l.name === name)?.color
 
   async function addSupply(e: FormEvent) {
     e.preventDefault()
@@ -251,6 +322,7 @@ ${line('적요', u.remark)}${line('라벨', u.labelText)}${line('반납여부', 
     .filter((r) => !titleCond || r.title.includes(titleCond))
     .filter((r) => !remarkCond || (r.remark ?? '').includes(remarkCond))
     .filter((r) => !returnCond || r.returnStatusName === returnCond)
+    .filter((r) => !labelCond || (labelCond === '(라벨없음)' ? !r.labelText : r.labelText === labelCond))
     .filter((r) => !keyword
     || r.title.includes(keyword)
     || r.supplyItemName.includes(keyword)
@@ -300,8 +372,11 @@ ${line('적요', u.remark)}${line('라벨', u.labelText)}${line('반납여부', 
       onSearchChange={setKeyword}
       onNew={openNew}
       collapseConditions
-      // 원본 하단: 기본 [미리보기][인쇄][Excel] · 일간 [인쇄][Excel] · 월간 · 공용품별 [인쇄]
-      actions={view === '기본' ? [{ label: '미리보기' }, { label: '인쇄' }, { label: 'Excel' }]
+      // 원본 하단: 기본 [미리보기][라벨변경 ▾][인쇄][Excel] · 일간 [인쇄][Excel] · 월간 · 공용품별 [인쇄]
+      actions={view === '기본' ? [{ label: '미리보기' },
+        // 원본(E070204)은 안 고르고 누르면 '리스트에 선택된 자료가 없습니다.' 를 띄운다 — 우리는 미리 잠근다(ui-check 규칙).
+        { label: '라벨변경', disabled: checked.size === 0, onClick: () => setLabelWin('change') },
+        { label: '인쇄' }, { label: 'Excel' }]
         : view === '일간' ? [{ label: '인쇄' }, { label: 'Excel' }] : [{ label: '인쇄' }]}
     >
       {/* 원본 '공용품관리등록' 창 — 항목이 한 줄에 하나씩 */}
@@ -339,6 +414,16 @@ ${line('적요', u.remark)}${line('라벨', u.labelText)}${line('반납여부', 
                 <label className="ml-[10px] text-[12px] inline-flex items-center gap-[4px]">
                   <input type="checkbox" checked={form.allDay} onChange={(e) => set('allDay', e.target.checked)} /> 종일
                 </label>
+                {/* 원본 [반복설정] — 적용하면 그 자리에 주황 요약 글('매일, 2026/10/13 부터 2026/10/15 까지'). 고칠 때는 적힌 글만. */}
+                {editId != null
+                  ? (editing?.repeatRule && <span className="rounded-ec bg-ec-warn text-ec-panel py-[2px] px-[6px] text-[12px]" aria-label="반복설정">{editing.repeatRule}</span>)
+                  : (
+                    <button type="button" aria-label="반복설정" onClick={() => setShowRepeat(true)}
+                            className={repeat ? 'no-ec rounded-ec bg-ec-warn text-ec-panel py-[2px] px-[6px] border-0 cursor-pointer text-[12px]'
+                                              : 'no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-navy text-[12px]'}>
+                      {repeat ? repeatSummary(repeat) : '반복설정'}
+                    </button>
+                  )}
               </div>
             </li>
             <li className="wide">
@@ -354,8 +439,12 @@ ${line('적요', u.remark)}${line('라벨', u.labelText)}${line('반납여부', 
             </li>
             <li className="wide">
               <div className="title">라벨</div>
-              <div className="form"><input className="ec-input w-full" placeholder="라벨" value={form.label}
-                                           onChange={(e) => set('label', e.target.value)} /></div>
+              {/* 원본 [라벨] 🔍 — '라벨검색창' 에서 라벨코드를 누르면 채워진다. */}
+              <div className="form">
+                <button type="button" className="ec-btn ec-btn-sm" aria-label="라벨 검색" onClick={() => setLabelWin('form')}>🔍</button>
+                <input className="ec-input flex-1" placeholder="라벨" aria-label="라벨" value={form.label}
+                       onChange={(e) => set('label', e.target.value)} />
+              </div>
             </li>
             <li className="wide">
               <div className="title">반납여부</div>
@@ -383,7 +472,8 @@ ${line('적요', u.remark)}${line('라벨', u.labelText)}${line('반납여부', 
               <tbody>
                 {([
                   ['공용품', viewing.supplyItemName], ['사용자', viewing.userName], ['날짜/시간', timeText(viewing)],
-                  ['제목', viewing.title], ['적요', viewing.remark ?? ''], ['라벨', viewing.labelText ?? ''],
+                  ['제목', viewing.title], ['적요', viewing.remark ?? ''],
+                  ['라벨', viewing.labelText ? <LabelChip name={viewing.labelText} color={labelColor(viewing.labelText)} className={CHIP} /> : ''],
                   ['반납여부', RETURN_LABEL[viewing.returnStatus]],
                 ] as const).map(([k, v]) => (
                   <tr key={k}><th className="w-[160px] bg-ec-page">{k}</th><td>{v}</td></tr>
@@ -391,14 +481,37 @@ ${line('적요', u.remark)}${line('라벨', u.labelText)}${line('반납여부', 
               </tbody>
             </table>
             <div className="flex gap-[6px]">
-              <button className="ec-btn ec-btn-primary" onClick={() => openEdit(viewing)}>수정</button>
+              {/* 원본 차례: [수정][인쇄][복사][닫기][삭제][H] — [H](이력)는 받쳐 줄 기록이 없어 넣지 않았다. */}
+              <button className="ec-btn ec-btn-primary" onClick={() => askEdit(viewing)}>수정</button>
               <button className="ec-btn" onClick={() => printOne(viewing)}>인쇄</button>
+              <button className="ec-btn" onClick={() => openCopy(viewing)}>복사</button>
               <button className="ec-btn" onClick={() => setViewing(null)}>닫기</button>
-              <button className="ec-btn" onClick={() => void removeOne(viewing.id)}>삭제</button>
+              <button className="ec-btn" onClick={() => askRemove(viewing)}>삭제</button>
             </div>
           </>
         )}
       </Modal>
+
+      {showRepeat && (
+        <RepeatModal value={repeat ?? defaultRepeat(form.date)}
+                     onApply={(r) => { setRepeat(r); setShowRepeat(false) }}
+                     onRemove={() => { setRepeat(null); setShowRepeat(false) }}
+                     onClose={() => setShowRepeat(false)} />
+      )}
+      {askScope && (
+        <RepeatScopeModal title={askScope.action === 'edit' ? '반복일정수정' : '반복일정삭제'} onClose={() => setAskScope(null)}
+                          onApply={(sc) => {
+                            const { action, u } = askScope
+                            setAskScope(null)
+                            if (action === 'edit') openEdit(u, sc)
+                            else void removeOne(u.id, sc)
+                          }} />
+      )}
+      {labelWin && (
+        <LabelMasterModal board="SUPPLY" endpoint="/supply-labels" title="라벨검색창"
+                          onPick={(l) => { if (labelWin === 'form') { set('label', l.name); setLabelWin(null) } else void changeLabel(l) }}
+                          onClose={() => { setLabelWin(null); void loadLabels() }} />
+      )}
 
       <Modal error={error} open={showMaster} title="공용품 등록·관리" width={560} onClose={() => setShowMaster(false)}>
         <div>
@@ -455,6 +568,13 @@ ${line('적요', u.remark)}${line('라벨', u.labelText)}${line('반납여부', 
                            value={itemCond} onChange={setItemCond}
                            items={supplies.map((x) => ({ value: x.name, code: x.code, name: x.name }))} />
         </EcCond>
+        <EcCond label="라벨">
+          <select className="ec-input w-[140px]" aria-label="라벨 조건" value={labelCond} onChange={(e) => setLabelCond(e.target.value)}>
+            <option value="">전체</option>
+            <option value="(라벨없음)">라벨없음</option>
+            {labels.map((l) => <option key={l.id} value={l.name}>{l.name}</option>)}
+          </select>
+        </EcCond>
         <EcCond label="제목">
           <input className="ec-input w-[140px]" value={titleCond} placeholder="제목" onChange={(e) => setTitleCond(e.target.value)} />
         </EcCond>
@@ -481,7 +601,10 @@ ${line('적요', u.remark)}${line('라벨', u.labelText)}${line('반납여부', 
       <table className="w-full text-left table-fixed">
         <thead>
           <tr>
-            <th className="w-[2%]"></th>
+            <th className="w-[2%] text-center">
+              <input type="checkbox" aria-label="전체 선택" checked={shown.length > 0 && shown.every((r) => checked.has(r.id))}
+                     onChange={() => setChecked(shown.length > 0 && shown.every((r) => checked.has(r.id)) ? new Set() : new Set(shown.map((r) => r.id)))} />
+            </th>
             <th className="w-[8.5%]">일자</th>
             <th className="w-[4.6%] text-center">시작시간</th>
             <th className="w-[4.6%] text-center">종료시간</th>
@@ -497,12 +620,19 @@ ${line('적요', u.remark)}${line('라벨', u.labelText)}${line('반납여부', 
             <tr><td colSpan={9} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r, i) => (
             <tr key={r.id}>
-              <td className="text-center bg-ec-stripe text-ec-hint">{i + 1}</td>
+              {/* 원본 번호 칸이 체크 칸이다(form-checkbox-numbered) — 누르면 고른다. */}
+              <td role="checkbox" aria-checked={checked.has(r.id)} aria-label={`${i + 1}번 선택`}
+                  className={`text-center cursor-pointer select-none ${checked.has(r.id) ? 'bg-ec-blue-wash text-ec-navy font-bold' : 'bg-ec-stripe text-ec-hint'}`}
+                  onClick={() => setChecked((prev) => { const n = new Set(prev); if (n.has(r.id)) n.delete(r.id); else n.add(r.id); return n })}>{i + 1}</td>
               <td><button type="button" className={linkCls} onClick={() => setViewing(r)}>{dayText(r.useDate)}</button></td>
               <td className="text-center">{r.allDay ? '종일' : (r.startTime ?? '')}</td>
               <td className="text-center">{r.allDay ? '' : (r.endTime ?? '')}</td>
               <td>{r.supplyItemName}</td>
-              <td><button type="button" className={linkCls} onClick={() => setViewing(r)}>{r.title}</button></td>
+              <td>
+                {/* 원본: 라벨이 붙은 줄은 제목 앞에 라벨 칩(라벨 색 · 흰 글자 · 둥글기 5 · 여백 4 5 3 · 오른쪽 5, 실측) */}
+                {r.labelText && <LabelChip name={r.labelText} color={labelColor(r.labelText)} className={CHIP} />}
+                <button type="button" className={linkCls} onClick={() => setViewing(r)}>{r.title}</button>
+              </td>
               <td>{r.remark ?? ''}</td>
               <td>{r.userName}</td>
               <td>{RETURN_LABEL[r.returnStatus]}</td>

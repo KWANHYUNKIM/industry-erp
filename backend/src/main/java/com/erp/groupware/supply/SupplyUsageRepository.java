@@ -16,4 +16,8 @@ public interface SupplyUsageRepository extends JpaRepository<SupplyUsage, Long> 
     List<SupplyUsage> findInPeriod(@Param("from") LocalDate from, @Param("to") LocalDate to);
 
     boolean existsBySupplyItemId(Long supplyItemId);
+
+    List<SupplyUsage> findByRepeatGroup(String repeatGroup);
+
+    List<SupplyUsage> findByLabelText(String labelText);
 }
