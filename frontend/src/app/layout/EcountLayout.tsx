@@ -931,8 +931,9 @@ const MENU: TopMenu[] = [
           ] },
           { label: '🔔 공지사항', to: '/groupware/notice' },
           // 2026-10-13 원본: 회의록(예시) › 통합회의록 · 팀별회의록 게시판, 프로젝트 진행관리(예시) › 간판제작 · 진행현황 칸반.
-          // 통합회의록 · 칸반은 아직 없다(plans/그룹웨어.md 남은 것).
+          // 칸반은 아직 없다(plans/그룹웨어.md 남은 것).
           { label: '회의록(예시)', children: [
+            { label: '통합회의록', to: '/groupware/minutes-board' },
             { label: '팀별회의록 게시판', to: '/groupware/meeting-board' },
           ] },
           { label: '프로젝트 진행관리(예시)', children: [

@@ -1612,7 +1612,7 @@ export type WorkPostStatus = 'IN_PROGRESS' | 'DONE'
 export interface WorkPost {
   id: number
   /** 게시판. 게시글번호는 게시판을 가로질러 한 줄기라 목록 번호에 구멍이 보인다 */
-  board: 'WORK' | 'NOTICE' | 'SHARED' | 'MEETING' | 'SIGN'
+  board: 'WORK' | 'NOTICE' | 'SHARED' | 'MEETING' | 'SIGN' | 'MINUTES'
   boardName: string
   postNo: number
   postDate: string
@@ -1643,6 +1643,10 @@ export interface WorkPost {
   labels: string[]
   /** 회사가 정한 진행상태 이름(SHARED · MEETING · SIGN). 그 밖의 게시판은 null */
   stage?: string | null
+  /** 통합회의록 [주 차 구분] 1 ~ 5. 그 밖의 게시판은 null */
+  weekNo?: number | null
+  /** 통합회의록 부서 칸(경영지원팀 · 구매팀 · 생산팀 · 영업팀 회의록)에 이은 팀별회의록 글 id, 칸 차례대로(빈 칸 null) */
+  meetingLinks?: (number | null)[]
 }
 
 // ===== ECDrive 문서 드라이브 =====

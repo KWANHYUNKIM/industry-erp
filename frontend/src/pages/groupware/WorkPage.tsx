@@ -48,10 +48,24 @@ function stampText(iso?: string | null) {
 }
 
 /** forwardAll: 원본 [전달자] 의 '전체'(켬) / '선택'(이름을 고른다). */
-type Form = { title: string; content: string; forwardAll: boolean; forwardTo: string[]; ccTo: string[]; notice: boolean; postDate: string; stage: string }
-const emptyForm = (stage = ''): Form => ({ title: '', content: '', forwardAll: true, forwardTo: [], ccTo: [], notice: false, postDate: today(), stage })
+type Form = {
+  title: string; content: string; forwardAll: boolean; forwardTo: string[]; ccTo: string[]; notice: boolean; postDate: string; stage: string
+  /** 통합회의록 [주 차 구분] 1 ~ 5 · 부서 칸마다 이은 팀별회의록 글 id(MINUTE_TEAMS 차례). */
+  weekNo: number | null; links: (number | null)[]
+}
+const emptyForm = (stage = ''): Form => ({
+  title: '', content: '', forwardAll: true, forwardTo: [], ccTo: [], notice: false, postDate: today(), stage, weekNo: null, links: [null, null, null, null],
+})
 
-export type PostBoardCode = 'WORK' | 'NOTICE' | 'SHARED' | 'MEETING' | 'SIGN'
+export type PostBoardCode = 'WORK' | 'NOTICE' | 'SHARED' | 'MEETING' | 'SIGN' | 'MINUTES'
+
+/**
+ * 통합회의록(E200066, 2026-10-13 실측)의 부서 칸 — 격자 머리 '경영지원팀 회의록 · 구매팀 회의록 · 생산팀 회의록 · 영업팀 회의록',
+ * View 의 '경영지원팀(클릭)' …. 칸마다 🔍 '팀별회의록 게시판검색창' 에서 글을 하나 [적용] 한다.
+ */
+const MINUTE_TEAMS = ['경영지원팀', '구매팀', '생산팀', '영업팀']
+/** 원본 '주차검색': 코드 1 ~ 5, 항목명 '1주차' …. */
+const WEEKS = [1, 2, 3, 4, 5]
 
 /**
  * 게시판마다 다른 것(2026-10-13 원본 실측).
@@ -64,6 +78,8 @@ export type PostBoardCode = 'WORK' | 'NOTICE' | 'SHARED' | 'MEETING' | 'SIGN'
 type BoardCfg = {
   wide: boolean; stages: string[] | null; labels: boolean; period: 'yearBack' | 'lastYear'
   stageLabel?: string; defaultStage?: string
+  /** 통합회의록 꼴: 작성자 · 전달자 · 진행상태 열 대신 부서 회의록 넷 · 주 차, 입력 창에 부서 칸 · [주 차 구분]. */
+  minutes?: boolean
 }
 const BOARD_CFG: Record<PostBoardCode, BoardCfg> = {
   WORK: { wide: false, stages: null, labels: true, period: 'yearBack' },
@@ -80,6 +96,11 @@ const BOARD_CFG: Record<PostBoardCode, BoardCfg> = {
   },
   /* 간판제작 프로젝트관리(E200070, 2026-10-13 실측): 알약 [전체][수주견적][디자인팀 시안][자재발주, 제작][현장시공], 기본 기간 전년. */
   SIGN: { wide: true, stages: ['수주견적', '디자인팀 시안', '자재발주, 제작', '현장시공'], labels: true, period: 'lastYear' },
+  /*
+   * 통합회의록(E200066, 2026-10-13 직접 등록 · 수정 · 삭제): 알약 [전체][진행중][완료], 기본 기간 전년, 라벨 없음.
+   * 격자 게시글번호 · 제목 · 경영지원팀 회의록 · 구매팀 회의록 · 생산팀 회의록 · 영업팀 회의록 · 주 차 · 첨부 · 조회.
+   */
+  MINUTES: { wide: false, stages: null, labels: false, period: 'lastYear', minutes: true },
 }
 
 /**
@@ -109,7 +130,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
   const cfg = BOARD_CFG[board]
   /** 서버가 stage 를 적는 게시판(공지사항의 '기본'은 화면에서만 붙이는 이름이라 뺀다). */
   const namedStages = board === 'SHARED' || board === 'MEETING' || board === 'SIGN'
-  const colCount = cfg.wide ? 9 : 8
+  const colCount = cfg.minutes ? 10 : cfg.wide ? 9 : 8
   const [rows, setRows] = useState<WorkPost[]>([])
   const [tab, setTab] = useState<string>('전체')
   /*
@@ -138,6 +159,15 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
   const [opened, setOpened] = useState(false)
   /** View 창에 띄운 글. */
   const [viewing, setViewing] = useState<WorkPost | null>(null)
+  /** 통합회의록이 잇는 팀별회의록 게시판 글(부서 칸 제목 · View 의 펼친 본문 · 🔍 검색창). */
+  const [meetingPosts, setMeetingPosts] = useState<WorkPost[]>([])
+  /** 🔍 '팀별회의록 게시판검색창' 을 띄운 부서 칸(MINUTE_TEAMS 의 차례). */
+  const [linkPickFor, setLinkPickFor] = useState<number | null>(null)
+  const [linkTab, setLinkTab] = useState('전체')
+  const [weekMenu, setWeekMenu] = useState(false)
+  /** View 에서 펼친 부서 칸('경영지원팀(클릭)'). */
+  const [openTeams, setOpenTeams] = useState<Set<number>>(new Set())
+  const meetingTitle = (id: number | null | undefined) => (id == null ? '' : meetingPosts.find((m) => m.id === id)?.title ?? '')
 
   /*
    * 조회 기간 — 원본 [Search(F3)] 를 검색창이 빈 채로 누르면 내려오는 조건 판의 [게시일]. 판에서 고친 값은
@@ -192,9 +222,14 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
   async function load() {
     setLoading(true)
     try {
-      const [r, labs] = await Promise.all([api.get<WorkPost[]>('/work-posts', { params: { board } }), fetchLabels(board)])
+      const [r, labs, meet] = await Promise.all([
+        api.get<WorkPost[]>('/work-posts', { params: { board } }),
+        cfg.labels ? fetchLabels(board) : Promise.resolve([] as BoardLabel[]),
+        cfg.minutes ? api.get<WorkPost[]>('/work-posts', { params: { board: 'MEETING' } }).then((x) => x.data) : Promise.resolve([] as WorkPost[]),
+      ])
       setRows(r.data)
       setLabelMaster(labs)
+      setMeetingPosts(meet)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -210,6 +245,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
    */
   function openView(r: WorkPost) {
     setViewing(r)
+    setOpenTeams(new Set())
     api.post<WorkPost>(`/work-posts/${r.id}/read`)
       .then((res) => {
         setRows((prev) => prev.map((x) => (x.id === r.id ? res.data : x)))
@@ -220,7 +256,8 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
 
   function openNew() {
     setEditId(null)
-    setForm(emptyForm())
+    // 원본 통합회의록 입력 창은 제목에 오늘 날짜가 미리 들어 있다('2026/10/13 ').
+    setForm({ ...emptyForm(), title: cfg.minutes ? `${dateText(today())} ` : '' })
     setAttachment(null)
     setError('')
     setShowForm(true)
@@ -234,6 +271,8 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
       title: r.title, content: r.content,
       forwardAll: !r.forwardTo, forwardTo: splitNames(r.forwardTo), ccTo: splitNames(r.ccTo),
       notice: r.notice, postDate: r.postDate, stage: r.stage ?? '',
+      weekNo: r.weekNo ?? null,
+      links: MINUTE_TEAMS.map((_, i) => r.meetingLinks?.[i] ?? null),
     })
     setAttachment(r.attachmentId ? { id: r.attachmentId, name: r.attachmentName ?? '첨부' } : null)
     setError('')
@@ -281,7 +320,8 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
   async function submit() {
     setError('')
     if (!form.title.trim()) return setError('제목을 입력하세요.')
-    if (!form.content.trim()) return setError('내용을 입력하세요.')
+    // 통합회의록은 내용 없이도 저장된다(원본 2026-10-13 — 부서 칸 · 주 차만 넣고 저장).
+    if (!cfg.minutes && !form.content.trim()) return setError('내용을 입력하세요.')
     if (!form.forwardAll && form.forwardTo.length === 0) return setError('전달자를 선택하세요.')
     const common = {
       title: form.title, content: form.content,
@@ -292,6 +332,8 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
       stage: namedStages ? (form.stage || firstStage) : null,
       // 수정은 통째로 덮는다 — 첨부를 안 보내면 서버가 뗀다(예전 수정이 그래서 첨부를 잃었다).
       attachmentId: attachment ? attachment.id : null,
+      weekNo: cfg.minutes ? form.weekNo : null,
+      meetingLinks: cfg.minutes ? form.links : null,
     }
     try {
       if (editId != null) {
@@ -454,10 +496,20 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
             {r.title}
           </button>
         </td>
-        <td className={bg}>{r.writerName ?? r.writer}</td>
-        <td className={bg}>{r.forwardTo ?? ''}</td>
-        {cfg.wide && <td className={`${bg} text-center`}>{r.completedAt ? dateText(r.completedAt.slice(0, 10)) : ''}</td>}
-        <td className={`${bg} text-ec-navy`}>{statusOf(r)}</td>
+        {cfg.minutes ? (
+          <>
+            {/* 원본 부서 칸 — 이은 팀별회의록 글의 제목(링크 아님) */}
+            {MINUTE_TEAMS.map((t, i) => <td key={t} className={bg}>{meetingTitle(r.meetingLinks?.[i])}</td>)}
+            <td className={bg}>{r.weekNo ? `${r.weekNo}주차` : ''}</td>
+          </>
+        ) : (
+          <>
+            <td className={bg}>{r.writerName ?? r.writer}</td>
+            <td className={bg}>{r.forwardTo ?? ''}</td>
+            {cfg.wide && <td className={`${bg} text-center`}>{r.completedAt ? dateText(r.completedAt.slice(0, 10)) : ''}</td>}
+            <td className={`${bg} text-ec-navy`}>{statusOf(r)}</td>
+          </>
+        )}
         {/* 원본 [첨부]. 파일이 없으면 원본도 빈 칸이다. */}
         <td className={`${bg} text-center`}>
           {r.attachmentId && (
@@ -584,10 +636,19 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
               {/* 원본 컬럼 순서: 게시글번호 · 제목 · 작성자명 · 전달자 · 진행상태 · 첨부 · 조회 */}
               <th className="w-[90px] text-center">{cfg.wide ? '번호' : '게시글번호'}</th>
               <th className="text-center">제목</th>
-              <th className="w-[100px] text-center">{cfg.wide ? '작성자' : '작성자명'}</th>
-              <th className="w-[150px] text-center">전달자</th>
-              {cfg.wide && <th className="w-[100px] text-center">완료일</th>}
-              <th className="w-[150px] text-center">{stageLabel}</th>
+              {cfg.minutes ? (
+                <>
+                  {MINUTE_TEAMS.map((t) => <th key={t} className="w-[150px] text-center">{t} 회의록</th>)}
+                  <th className="w-[80px] text-center">주 차</th>
+                </>
+              ) : (
+                <>
+                  <th className="w-[100px] text-center">{cfg.wide ? '작성자' : '작성자명'}</th>
+                  <th className="w-[150px] text-center">전달자</th>
+                  {cfg.wide && <th className="w-[100px] text-center">완료일</th>}
+                  <th className="w-[150px] text-center">{stageLabel}</th>
+                </>
+              )}
               <th className="w-[60px] text-center">첨부</th>
               <th className="w-[60px] text-center">조회</th>
             </tr>
@@ -775,6 +836,53 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
               </EcFileDrop>
             </div>
           </li>
+          {/* 원본 통합회의록 입력 창: 첨부 아래 부서 칸 넷(두 칸씩) · [주 차 구분](코드 🔍 · 이름). */}
+          {cfg.minutes && MINUTE_TEAMS.map((t, i) => (
+            <li key={t}>
+              <div className="title">{t} 회의록</div>
+              <div className="form gap-[4px]">
+                <div className="flex-1 flex items-center gap-[4px] ec-input">
+                  <button type="button" aria-label={`${t} 회의록 검색`} className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-hint"
+                          onClick={() => { setLinkTab('전체'); setLinkPickFor(i) }}>🔍</button>
+                  <span className={`flex-1 truncate ${form.links[i] == null ? 'text-ec-hint' : ''}`}>
+                    {form.links[i] == null ? `${t} 회의록` : meetingTitle(form.links[i])}
+                  </span>
+                  {form.links[i] != null && (
+                    <button type="button" aria-label={`${t} 회의록 지우기`} className="no-ec bg-transparent border-0 p-0 cursor-pointer"
+                            onClick={() => set('links', form.links.map((x, j) => (j === i ? null : x)))}>×</button>
+                  )}
+                </div>
+              </div>
+            </li>
+          ))}
+          {cfg.minutes && (
+            <li>
+              <div className="title">주 차 구분</div>
+              <div className="form gap-[4px] relative">
+                <span className="ec-input w-[80px]">{form.weekNo ?? ''}</span>
+                <button type="button" aria-label="주차검색" className="ec-btn" onClick={() => setWeekMenu((v) => !v)}>🔍</button>
+                <span className="ec-input flex-1">{form.weekNo ? `${form.weekNo}주차` : ''}</span>
+                {weekMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setWeekMenu(false)} />
+                    <div role="dialog" aria-label="주차검색"
+                         className="absolute top-full left-0 mt-[2px] z-[41] min-w-[220px] p-[6px] bg-ec-panel border border-ec-line border-solid rounded-ec shadow-lg">
+                      <table className="w-full text-left">
+                        <thead><tr><th className="text-center">코드</th><th className="text-center">항목명</th></tr></thead>
+                        <tbody>
+                          {WEEKS.map((w) => (
+                            <tr key={w} className="cursor-pointer" onClick={() => { set('weekNo', w); setWeekMenu(false) }}>
+                              <td className="text-center text-ec-navy">{w}</td><td className="text-ec-navy">{w}주차</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+              </div>
+            </li>
+          )}
         </ul>
         <textarea className="ec-input w-full h-[160px] py-[8px] resize-y" value={form.content}
                   onChange={(e) => set('content', e.target.value)} />
@@ -819,6 +927,33 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
               </li>
             </ul>
             <div className="whitespace-pre-wrap text-[12px] text-ec-ink min-h-[120px] px-[12px]">{viewing.content}</div>
+            {/* 원본 통합회의록View: 부서마다 '경영지원팀(클릭)' 판 — 누르면 이은 팀별회의록 글의 제목 · 본문이 펴진다. */}
+            {cfg.minutes && (
+              <div className="grid grid-cols-2 gap-[8px] mt-[8px]">
+                {MINUTE_TEAMS.map((t, i) => {
+                  const m = meetingPosts.find((x) => x.id === viewing.meetingLinks?.[i])
+                  const on = openTeams.has(i)
+                  return (
+                    <div key={t} className="bg-ec-page rounded-ec">
+                      <button type="button" className="no-ec w-full text-left bg-transparent border-0 px-[12px] py-[8px] cursor-pointer font-bold text-[12px] text-ec-ink"
+                              onClick={() => setOpenTeams((p) => { const n = new Set(p); if (n.has(i)) n.delete(i); else n.add(i); return n })}>
+                        {t}(클릭)
+                      </button>
+                      {on && (
+                        <div className="px-[12px] pb-[10px] text-[12px] text-ec-ink">
+                          {m ? (
+                            <>
+                              <div className="text-[14px] font-bold mb-[6px]">{m.title}</div>
+                              <div className="whitespace-pre-wrap">{m.content}</div>
+                            </>
+                          ) : <div className="ec-empty">등록된 데이터가 없습니다.</div>}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
             <div className="flex gap-[6px] mt-[10px]">
               <button className="ec-btn" onClick={() => openEdit(viewing)}>수정</button>
               <button className="ec-btn" onClick={() => removeOne(viewing.id)}>삭제</button>
@@ -827,6 +962,53 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
             </div>
           </>
         )}
+      </Modal>
+
+      {/*
+        원본 '팀별회의록 게시판검색창'(2026-10-13): 부서구분 알약 [전체][경영지원팀]… — 처음은 [전체], 격자 맨 앞 '적용' 링크,
+        게시글번호 · 제목 · 작성자명 · 전달자 · 부서구분 · 첨부 · 조회, 하단 신규(F2) · 리스트 · 닫기. 우리는 기간으로 거르지 않는다.
+      */}
+      <Modal error={error} open={linkPickFor != null} title="팀별회의록 게시판검색창" width={780} onClose={() => setLinkPickFor(null)}>
+        <div className="ec-pills mb-[8px]">
+          {['전체', ...(BOARD_CFG.MEETING.stages ?? [])].map((t) => (
+            <button key={t} type="button" className={`ec-pill no-ec${linkTab === t ? ' active' : ''}`} onClick={() => setLinkTab(t)}>{t}</button>
+          ))}
+        </div>
+        <table className="w-full text-left">
+          <thead>
+            <tr>
+              <th className="w-[50px]" /><th className="w-[70px] text-center">게시글번호</th><th className="text-center">제목</th>
+              <th className="w-[90px] text-center">작성자명</th><th className="w-[90px] text-center">전달자</th>
+              <th className="w-[100px] text-center">부서구분</th><th className="w-[50px] text-center">첨부</th><th className="w-[50px] text-center">조회</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(() => {
+              const list = meetingPosts
+                .filter((m) => linkTab === '전체' || (m.stage ?? BOARD_CFG.MEETING.defaultStage) === linkTab)
+                .sort((a, b) => b.postNo - a.postNo)
+              if (list.length === 0) return <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              return list.map((m) => (
+                <tr key={m.id}>
+                  <td className="text-center">
+                    <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-navy"
+                            onClick={() => { const i = linkPickFor!; set('links', form.links.map((x, j) => (j === i ? m.id : x))); setLinkPickFor(null) }}>적용</button>
+                  </td>
+                  <td className="text-center">{m.postNo}</td>
+                  <td>{m.title}</td>
+                  <td>{m.writerName ?? m.writer}</td>
+                  <td>{m.forwardTo ?? ''}</td>
+                  <td>{m.stage ?? BOARD_CFG.MEETING.defaultStage}</td>
+                  <td className="text-center">{m.attachmentId ? '📎' : ''}</td>
+                  <td className="text-center text-ec-navy">R</td>
+                </tr>
+              ))
+            })()}
+          </tbody>
+        </table>
+        <div className="flex gap-[6px] mt-[10px]">
+          <button type="button" className="ec-btn" onClick={() => setLinkPickFor(null)}>닫기</button>
+        </div>
       </Modal>
 
       {/* 원본 '알림' 창 — 삭제하겠습니까? [확인][취소] (2026-10-13 통합게시판 View [삭제] 실측) */}

@@ -353,6 +353,7 @@ const DailyWagePage = lazy(() => import('../pages/hr/DailyWagePage'))
 const NoticePage = lazy(() => import('../pages/groupware/NoticePage'))
 const SharedBoardPage = lazy(() => import('../pages/groupware/SharedBoardPage'))
 const MeetingBoardPage = lazy(() => import('../pages/groupware/MeetingBoardPage'))
+const MinutesBoardPage = lazy(() => import('../pages/groupware/MinutesBoardPage'))
 const SignBoardPage = lazy(() => import('../pages/groupware/SignBoardPage'))
 const SchedulePage = lazy(() => import('../pages/groupware/SchedulePage'))
 const SurveyPage = lazy(() => import('../pages/groupware/SurveyPage'))
@@ -828,6 +829,7 @@ export default function AppRouter() {
         <Route path="/groupware/org" element={<OrgChartPage />} />
         <Route path="/groupware/notice" element={<NoticePage />} />
         <Route path="/groupware/shared-board" element={<SharedBoardPage />} />
+        <Route path="/groupware/minutes-board" element={<MinutesBoardPage />} />
         <Route path="/groupware/meeting-board" element={<MeetingBoardPage />} />
         <Route path="/groupware/sign-board" element={<SignBoardPage />} />
         <Route path="/groupware/schedule" element={<SchedulePage />} />
