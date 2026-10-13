@@ -24,6 +24,7 @@
  *                                   번호정규식 자리에 @키 를 주면 sessionStorage[키] 의 번호를 쓴다(화면을 옮겨 다니는 시험)
  *
  * out 을 빼면 캡처 없이 단계만 돈다(qa/flows/*.json — 화면 회귀 시험).
+ * "finally": ["js:<식>"] 를 주면 중간에 멈춰도 끝에 그 식을 돈다 — 시험 자료 정리(만든 번호는 sessionStorage 에 담아 둔다).
  * "as": "아이디|비번" 을 주면 그 화면은 그 계정으로 연다(결재자 등). 다음 화면부터 다시 admin.
  *
  * 실행 중 난 JS 예외·실패한 API 응답(4xx/5xx)은 찍어 주고, 있으면 실패로 끝낸다.
@@ -151,6 +152,14 @@ try {
     }
   }
 } finally {
+  // "finally": ["js:…"] — 중간 단계가 던져 시험이 멈춰도 정리는 돈다(2026-10-14 daily-pay-reports 가
+  // 멈출 때마다 'QA관리-일용R' 사원 · 2091/12 대장을 하나씩 남겼다). 정리 실패는 찍기만 한다.
+  for (const step of scenario.finally ?? []) {
+    try {
+      const v = await b.evaluate(step.replace(/^js:/, ''))
+      if (v !== true && v !== undefined && v !== null) console.log('  🧹', String(v).slice(0, 300))
+    } catch (e) { console.log('  ⚠ 정리 실패:', e.message) }
+  }
   await b.close()
 }
 if (failed) process.exit(1)

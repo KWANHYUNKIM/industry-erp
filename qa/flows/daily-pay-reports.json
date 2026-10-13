@@ -126,9 +126,12 @@
         "wait:300",
         "expect:!document.querySelector('table').innerText.includes('111-222')",
         "expect:document.querySelector('.ec-report-head').textContent.includes('회사명 :')&&[...document.querySelectorAll('table thead th')][0].innerText.trim()==='급여통장 은행코드'",
-        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const q=JSON.parse(sessionStorage.getItem('qaDr'));const a=await fetch('/api/hr/daily-pay-ledgers/'+q.l,{method:'DELETE',headers:h});const b=await fetch('/api/hr/daily-workers/'+q.w,{method:'DELETE',headers:h});sessionStorage.setItem('qaDrClean',String(a.ok&&b.ok));return true})()",
+        "js:(async()=>{const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const q=JSON.parse(sessionStorage.getItem('qaDr'));const a=await fetch('/api/hr/daily-pay-ledgers/'+q.l,{method:'DELETE',headers:h});const b=await fetch('/api/hr/daily-workers/'+q.w,{method:'DELETE',headers:h});sessionStorage.setItem('qaDrClean',String(a.ok&&b.ok));if(a.ok&&b.ok)sessionStorage.removeItem('qaDr');return true})()",
         "expect:sessionStorage.getItem('qaDrClean')==='true'"
       ]
     }
+  ],
+  "finally": [
+    "js:(async()=>{const q=JSON.parse(sessionStorage.getItem('qaDr')||'null');if(!q)return true;const h={Authorization:'Bearer '+localStorage.getItem('erp_token')};const a=await fetch('/api/hr/daily-pay-ledgers/'+q.l,{method:'DELETE',headers:h});const b=await fetch('/api/hr/daily-workers/'+q.w,{method:'DELETE',headers:h});return '중간에 멈춘 시험 자료 정리: 대장 '+a.status+' · 사원 '+b.status})()"
   ]
 }
