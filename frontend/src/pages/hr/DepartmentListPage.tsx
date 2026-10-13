@@ -7,6 +7,22 @@ import { api, extractErrorMessage } from '../../api/client'
 import type { Department } from '../../types/api'
 import DepartmentHierarchy from '../../features/department/components/DepartmentHierarchy'
 import EditStateMenu from '../../components/EditStateMenu'
+import { EcCond } from '../../components/EcStatusPanel'
+
+/** 원본 리스트 버튼이 고른 줄 없이 눌렸을 때의 알림(부서리스트 · 창고 · 거래처 같은 글). */
+const NO_PICK = '리스트에 선택된 자료가 없습니다.\n체크박스에 체크한 후 다시 시도 바랍니다.'
+
+/** 원본 번호 칸(form-checkbox-numbered) — 번호가 곧 체크 칸이다. 고르면 파랑. */
+function NumCheck({ no, on, onChange, label }: { no: number | ''; on: boolean; onChange: () => void; label: string }) {
+  return (
+    <label className="relative inline-block align-middle cursor-pointer">
+      <input type="checkbox" aria-label={label} checked={on} onChange={onChange}
+             className="absolute inset-0 m-0 opacity-0 cursor-pointer" />
+      <span className={`inline-block w-[18px] h-[17px] leading-[17px] text-center rounded-[6px] ${
+        on ? 'bg-ec-blue text-ec-panel' : 'bg-ec-panel text-ec-icon hover:bg-ec-row-hover'}`}>{no}</span>
+    </label>
+  )
+}
 
 /**
  * 관리 &gt; 급여관리 &gt; 기본사항등록 &gt; <b>부서등록</b> (원본 E010105, 화면 제목 '부서리스트').
@@ -28,7 +44,13 @@ export default function DepartmentListPage() {
   const [error, setError] = useState('')
   const [checked, setChecked] = useState<Set<number>>(new Set())
   const [quick, setQuick] = useState('')
-  const [includeInactive, setIncludeInactive] = useState(false)
+  /**
+   * 원본 [Search(F3)] 조건(2026-10-13 재고 I › 기초등록 › 부서등록 실측): 부서코드 · 부서명 · 사용구분(전체 · <b>사용</b> · 사용중단).
+   * 사용중단한 부서는 기본 화면에서 사라진다. 우리는 하단에 [사용중단포함] 단추를 따로 두었었다(원본에 없다).
+   */
+  const [cond, setCond] = useState<{ code: string; name: string; use: 'ALL' | 'Y' | 'N' }>({ code: '', name: '', use: 'Y' })
+  /** 마지막 [저장] 이 부서명이 비어 막혔는가 — 원본은 글 없이 그 칸만 빨갛다. */
+  const [invalid, setInvalid] = useState(false)
   const [hierOpen, setHierOpen] = useState(false)
   const tableRef = useRef<HTMLTableElement>(null)
 
@@ -46,7 +68,7 @@ export default function DepartmentListPage() {
   useEffect(() => { load() }, [])
 
   async function openNew() {
-    setEditId(null); setFormError(''); setName(''); setParentId(''); setCode('')
+    setEditId(null); setFormError(''); setInvalid(false); setName(''); setParentId(''); setCode('')
     setFormOpen(true)
     try {
       const r = await api.get<{ code: string }>('/departments/next-code')
@@ -55,14 +77,15 @@ export default function DepartmentListPage() {
   }
 
   function openEdit(d: Department) {
-    setEditId(d.id); setFormError(''); setCode(d.code); setName(d.name)
+    setEditId(d.id); setFormError(''); setInvalid(false); setCode(d.code); setName(d.name)
     setParentId(d.parentId ? String(d.parentId) : '')
     setFormOpen(true)
   }
 
   async function save(ev?: React.FormEvent) {
     ev?.preventDefault()
-    if (!name.trim()) { setFormError('부서명을 입력 바랍니다.'); return }
+    if (!name.trim()) { setInvalid(true); return }
+    setInvalid(false)
     const cur = rows.find((r) => r.id === editId)
     try {
       if (editId) {
@@ -84,6 +107,7 @@ export default function DepartmentListPage() {
   /** ids 를 주면 그 항목만(수정 창의 [사용중단/재사용 ▲]), 안 주면 체크한 항목들. */
   async function applyToChecked(op: '사용중단' | '삭제' | '재사용', ids: Set<number> = checked) {
     setMenuOpen(false)
+    if (ids.size === 0) { alert(NO_PICK); return }
     if (op === '삭제' && !window.confirm(
       '삭제하시겠습니까?\n\n조직도에 포함된 부서인 경우에는 조직도에서도 하위부서를 포함하여 모두 삭제됩니다.')) return
     try {
@@ -99,8 +123,9 @@ export default function DepartmentListPage() {
   }
 
   const shownRows = rows
-    .filter((d) => includeInactive || d.active)
+    .filter((d) => cond.use === 'ALL' || (cond.use === 'Y') === d.active)
     .filter((d) => !quick || d.code.includes(quick) || d.name.includes(quick))
+    .filter((d) => d.code.includes(cond.code.trim()) && d.name.includes(cond.name.trim()))
     .sort((a, b) => a.code.localeCompare(b.code))
   const sort = useTableSort(shownRows, {
     부서코드: (d) => d.code,
@@ -117,14 +142,24 @@ export default function DepartmentListPage() {
       search={quick}
       onSearchChange={setQuick}
       onSearch={() => undefined}
+      collapseConditions
       onNew={openNew}
       actions={[
         { label: '계층그룹', onClick: () => setHierOpen(true) },
-        { label: '사용중단/재사용 ▲', onClick: () => setMenuOpen((v) => !v), disabled: checked.size === 0 },
-        { label: includeInactive ? '사용중단제외' : '사용중단포함', onClick: () => setIncludeInactive((v) => !v) },
+        /* 원본은 고른 줄이 없어도 펼친다 — 항목을 누르면 '리스트에 선택된 자료가 없습니다.' */
+        { label: '사용중단/재사용 ▲', onClick: () => setMenuOpen((v) => !v) },
         { label: 'Excel' },
       ]}
     >
+      <ul className="ec-cond">
+        <EcCond label="부서코드"><input className="ec-input w-full" placeholder="부서코드" value={cond.code} onChange={(e) => setCond({ ...cond, code: e.target.value })} /></EcCond>
+        <EcCond label="부서명"><input className="ec-input w-full" placeholder="부서명" value={cond.name} onChange={(e) => setCond({ ...cond, name: e.target.value })} /></EcCond>
+        <EcCond label="사용구분">
+          {([['ALL', '전체'], ['Y', '사용'], ['N', '사용중단']] as const).map(([v, l]) => (
+            <label key={v} className="mr-[10px]"><input type="radio" name="dept-use" checked={cond.use === v} onChange={() => setCond({ ...cond, use: v })} /> {l}</label>
+          ))}
+        </EcCond>
+      </ul>
       {hierOpen && <DepartmentHierarchy departments={rows} onClose={() => setHierOpen(false)} onChanged={load} />}
       {menuOpen && (
         <>
@@ -142,8 +177,8 @@ export default function DepartmentListPage() {
         <thead>
           <tr>
             <th className="w-[34px] text-center">
-              <input type="checkbox" checked={allChecked}
-                     onChange={() => setChecked(allChecked ? new Set() : new Set(shown.map((d) => d.id)))} />
+              <NumCheck no="" label="전체 선택" on={allChecked}
+                        onChange={() => setChecked(allChecked ? new Set() : new Set(shown.map((d) => d.id)))} />
             </th>
             <th className="cursor-pointer" onClick={() => sort.toggle('부서코드')}>부서코드 {sort.mark('부서코드')}</th>
             <th className="cursor-pointer" onClick={() => sort.toggle('부서명')}>부서명 {sort.mark('부서명')}</th>
@@ -154,10 +189,10 @@ export default function DepartmentListPage() {
         <tbody>
           {shown.length === 0 ? (
             <tr><td colSpan={5} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((d) => (
+          ) : shown.map((d, i) => (
             <tr key={d.id} className={d.active ? undefined : 'text-ec-hint'}>
               <td className="text-center">
-                <input type="checkbox" checked={checked.has(d.id)}
+                <NumCheck no={i + 1} label="선택" on={checked.has(d.id)}
                        onChange={() => {
                          const next = new Set(checked)
                          if (next.has(d.id)) next.delete(d.id); else next.add(d.id)
@@ -173,7 +208,8 @@ export default function DepartmentListPage() {
         </tbody>
       </table>
 
-      <Modal error={formError} open={formOpen} title="부서등록" width={720} onClose={() => setFormOpen(false)}>{(
+      {/* 원본 창 이름: 신규 '부서등록', 수정 '부서수정'(2026-10-13 실측). */}
+      <Modal error={formError} open={formOpen} title={editId ? '부서수정' : '부서등록'} width={720} onClose={() => setFormOpen(false)}>{(
         <form onSubmit={save}>
           <ul className="ec-form">
             <li className="wide">
@@ -185,7 +221,8 @@ export default function DepartmentListPage() {
             <li className="wide">
               <span className="title">부서명</span>
               <div className="form">
-                <input className="ec-input w-full" value={name} placeholder="부서명" autoFocus onChange={(e) => setName(e.target.value)} />
+                <input className={`ec-input w-full ${invalid && !name.trim() ? 'border-[color:var(--ec-text-danger)]' : ''}`}
+                       aria-invalid={invalid && !name.trim()} value={name} placeholder="부서명" autoFocus onChange={(e) => setName(e.target.value)} />
               </div>
             </li>
             <li className="wide">
