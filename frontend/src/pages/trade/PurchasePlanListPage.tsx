@@ -341,7 +341,9 @@ export default function PurchasePlanListPage() {
           <tbody>
             {/* 우리 발주계획은 같은 전표의 다음 단계다 — 발주로 넘어갔으면 그 번호 하나. */}
             {ordered(orderOf.status)
-              ? <tr><td className="text-center">1</td><td className="text-center">{dateNo(orderOf.date, orderOf.no)}</td></tr>
+              /* 원본: [No.] 는 줄 번호가 아니라 그 계획의 번호, [발주번호] 는 파란 링크(누르면 발주서) — 2026-10-13 실측 '2026/10/13 -2 | 2026/10/13 -1'. */
+              ? <tr><td className="text-center">{dateNo(orderOf.date, orderOf.no)}</td>
+                  <td className="text-center"><a className="ec-link" onClick={() => navigate('/sales/purchase-orders')}>{dateNo(orderOf.date, orderOf.no)}</a></td></tr>
               : <tr><td colSpan={2} className="ec-empty">
                   발주서가 작성되지 않았습니다.<br />
                   [구매관리] &gt; [발주서입력]에서 [계획] 버튼을 통해 발주서를 작성하면 연결된 발주서 번호를 확인 할 수 있습니다.
