@@ -8,12 +8,16 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import { ymd } from '../../utils/periods'
 import GridFindButton from '../../components/GridFindButton'
+import { ecConfirm } from '../../components/EcDialog'
 
 interface Worker { id: number; code: string; name: string; dailyWage: number | null }
-interface Row { workDate: string; workerId: string; quantity: string; amount: string }
+/** item: 수당항목('02' 일근무 — 원본도 사원을 골라도 비어 있고 따로 고른다). autoAmt: 금액이 일근무 × 근무기록으로 채워진 값(저장하지 않는다). */
+interface Row { workDate: string; workerId: string; item: string; quantity: string; amount: string; autoAmt: boolean }
 interface SlipLine { workDate: string; workerId: number; quantity: number; amount: number | null }
 interface Slip { slipDate: string; slipNo: number; lines: SlipLine[] }
-const blank = (): Row => ({ workDate: '', workerId: '', quantity: '', amount: '' })
+const blank = (): Row => ({ workDate: '', workerId: '', item: '', quantity: '', amount: '', autoAmt: false })
+/** 일용근로 수당리스트의 항목(원본 기본 02 일근무 하나). */
+const ITEMS = [{ value: '02', code: '02', name: '일근무' }]
 const BLANK_ROWS = 3
 
 /**
@@ -24,6 +28,10 @@ const BLANK_ROWS = 3
  * 근무일자는 사원을 골라도 비어 있다(달력에서 고른다). 금액은 비워 두면 급여계산이 일근무 × 근무기록으로 셈한다.
  * 저장하면 안내 없이 폼이 비워진다. 버튼 저장(F8) · 다시 작성 · 리스트 · 웹자료올리기(없음).
  * 일용근로 수당등록이 없어 수당항목은 일근무 하나다. 찾기(F3) · 정렬 · 조건별 불러오기는 없다.
+ *
+ * <p>2026-10-14 다시 잼(원본 QA관리-일근 · 일근무 150,000): 사원을 골라도 수당항목은 비어 있고 따로 고른다(고르면 단위 '변동(일)').
+ * 근무기록을 넣으면 금액이 일근무 × 근무기록(2 → 300,000)으로 바로 채워지지만 저장되지 않는다 — 전표를 다시 열면 금액이 비어 있고,
+ * 근무기록을 고치면 다시 채워진다(3 → 450,000). 근무일자 · 수당항목이 비면 저장 때 문구 없이 그 칸 테두리만 빨갛다.
  */
 export default function DailyWorkInputPage() {
   const nav = useNavigate()
@@ -38,6 +46,8 @@ export default function DailyWorkInputPage() {
   /** 원본 [조건별 불러오기] — 근무입력과 같은 창. 수당항목은 일근무 하나라 그 열 하나다. */
   const [loadOpen, setLoadOpen] = useState(false)
   const [error, setError] = useState('')
+  /** 저장을 눌렀는데 빈 필수칸(근무일자 · 수당항목)이 있었다 — 원본은 문구 없이 그 칸 테두리만 빨강. */
+  const [missing, setMissing] = useState(false)
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '일용근로 근무입력', [rows.length])
 
@@ -47,10 +57,12 @@ export default function DailyWorkInputPage() {
 
   function reset() {
     setError('')
+    setMissing(false)
     if (!editDate || !editNo) { setRows(Array.from({ length: BLANK_ROWS }, blank)); return }
     api.get<Slip>(`/hr/daily-work-entries/${editDate}/${editNo}`).then((r) => {
       const got = r.data.lines.map((l) => ({
-        workDate: l.workDate, workerId: String(l.workerId), quantity: String(l.quantity), amount: l.amount == null ? '' : String(l.amount),
+        workDate: l.workDate, workerId: String(l.workerId), item: '02', quantity: String(l.quantity),
+        amount: l.amount == null ? '' : String(l.amount), autoAmt: false,
       }))
       setRows([...got, ...Array.from({ length: Math.max(1, BLANK_ROWS - got.length) }, blank)])
     }).catch((e) => setError(extractErrorMessage(e)))
@@ -59,23 +71,36 @@ export default function DailyWorkInputPage() {
 
   function edit(i: number, patch: Partial<Row>) {
     setRows((rs) => {
-      const next = rs.map((r, j) => (j === i ? { ...r, ...patch } : r))
+      const next = rs.map((r, j) => {
+        if (j !== i) return r
+        const n = { ...r, ...patch }
+        // 원본: 근무기록을 넣으면 금액 = 일근무 × 근무기록(직접 넣은 금액은 그대로)
+        if ('quantity' in patch && (n.amount === '' || n.autoAmt)) {
+          const wage = workers.find((w) => String(w.id) === n.workerId)?.dailyWage
+          const q = Number(n.quantity)
+          if (wage != null && q > 0) { n.amount = String(Math.round(wage * q)); n.autoAmt = true }
+          else if (n.autoAmt) { n.amount = ''; n.autoAmt = false }
+        }
+        if ('amount' in patch) n.autoAmt = false
+        return n
+      })
       return next[next.length - 1].workerId ? [...next, blank()] : next
     })
   }
 
   async function save() {
     setError('')
-    const filled = rows.filter((r) => r.workerId || r.quantity)
+    setMissing(false)
+    const filled = rows.filter((r) => r.workerId || r.item || r.quantity)
     if (filled.length === 0) { setError('근무기록을 한 줄 이상 넣으세요.'); return }
     for (const r of filled) {
-      if (!r.workDate) { setError('근무일자를 확인바랍니다.'); return }
+      if (!r.workDate || !r.item) { setMissing(true); return }   // 원본: 문구 없이 칸 테두리만 빨강
       if (!r.workerId) { setError('사원을 선택 바랍니다.'); return }
       if (!r.quantity || Number(r.quantity) <= 0) { setError('근무기록을 입력 바랍니다.'); return }
     }
     const body = {
       slipDate,
-      lines: filled.map((r) => ({ workDate: r.workDate, workerId: Number(r.workerId), quantity: Number(r.quantity), amount: r.amount === '' ? null : Number(r.amount) })),
+      lines: filled.map((r) => ({ workDate: r.workDate, workerId: Number(r.workerId), quantity: Number(r.quantity), amount: r.amount === '' || r.autoAmt ? null : Number(r.amount) })),
     }
     try {
       if (editDate && editNo) {
@@ -90,6 +115,18 @@ export default function DailyWorkInputPage() {
     }
   }
 
+  /** 원본 수정 창 [삭제] — '한번 지워진 자료는 복구될 수 없습니다. 삭제하겠습니까?' → 안내 없이 사라진다. */
+  async function remove() {
+    if (!editDate || !editNo) return
+    if (!(await ecConfirm('한번 지워진 자료는 복구될 수 없습니다. 삭제하겠습니까?'))) return
+    try {
+      await api.delete(`/hr/daily-work-entries/${editDate}/${editNo}`)
+      nav('/hr/daily-work-list')
+    } catch (e) {
+      setError(extractErrorMessage(e))
+    }
+  }
+
   const qty = rows.reduce((s, r) => s + (Number(r.quantity) || 0), 0)
   const amt = rows.reduce((s, r) => s + (Number(r.amount) || 0), 0)
 
@@ -97,7 +134,12 @@ export default function DailyWorkInputPage() {
     <EcListShell
       title="일용근로 근무입력"
       searchable={false}
-      actions={[
+      actions={editDate && editNo ? [
+        // 원본 수정 창 버튼줄: 저장(F8) · 복사 · 닫기 · 삭제 · H (복사 · H 는 아직 없다)
+        { label: '저장(F8)', onClick: save, primary: true },
+        { label: '닫기', onClick: () => nav('/hr/daily-work-list') },
+        { label: '삭제', onClick: remove },
+      ] : [
         { label: '저장(F8)', onClick: save, primary: true },
         { label: '다시 작성', onClick: reset },
         { label: '리스트', onClick: () => nav('/hr/daily-work-list') },
@@ -123,38 +165,48 @@ export default function DailyWorkInputPage() {
                           items={[{ value: '02', code: '02', name: '일근무' }]}
                           onApply={(lines) => {
                             setRows((rs) => [...rs.filter((r) => r.workerId || r.workDate || r.quantity || r.amount),
-                              ...lines.map((l) => ({ workDate: l.workDate, workerId: l.who, quantity: l.quantity, amount: '' })), blank()])
+                              ...lines.map((l) => ({ workDate: l.workDate, workerId: l.who, item: '02', quantity: l.quantity, amount: '', autoAmt: false })), blank()])
                             setLoadOpen(false)
                           }} />
       <GridSortModal open={sortOpen} error={error} keys={['근무일자', '사원', '수당항목'] as const} initial={['사원', '수당항목']} rows={rows}
-                     keyOf={(r, k) => k === '근무일자' ? r.workDate : k === '사원' ? workers.find((w) => String(w.id) === r.workerId)?.code ?? '' : ''}
-                     isFilled={(r) => !!(r.workerId || r.workDate || r.quantity || r.amount)}
+                     keyOf={(r, k) => k === '근무일자' ? r.workDate : k === '사원' ? workers.find((w) => String(w.id) === r.workerId)?.code ?? '' : r.item}
+                     isFilled={(r) => !!(r.workerId || r.workDate || r.item || r.quantity || r.amount)}
                      onApply={(sorted) => { setRows(sorted); setSortOpen(false) }} onClose={() => setSortOpen(false)} />
       <div className="overflow-x-auto">
         <table ref={tableRef} className="w-full text-left">
           <thead>
             <tr>
               <th className="w-[34px]"></th>
-              <th className="w-[160px]">근무일자</th>
+              <th className="w-[302px]">근무일자</th>
               <th>사원</th>
-              <th>수당항목</th>
-              <th className="w-[100px] text-center">단위</th>
-              <th className="w-[110px] text-right">근무기록</th>
-              <th className="w-[130px] text-right">금액</th>
+              <th className="w-[239px]">수당항목</th>
+              <th className="w-[146px] text-center">단위</th>
+              <th className="w-[140px] text-right">근무기록</th>
+              <th className="w-[140px] text-right">금액</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((r, i) => (
+            {rows.map((r, i) => {
+              const used = !!(r.workerId || r.item || r.quantity)
+              const badDate = missing && used && !r.workDate
+              const badItem = missing && used && !r.item
+              return (
               <tr key={i}>
                 <td className="text-center text-ec-hint">{i + 1}</td>
-                <td><input type="date" className="ec-input w-full" value={r.workDate} onChange={(e) => edit(i, { workDate: e.target.value })} /></td>
+                <td><input type="date" className={`ec-input w-full ${badDate ? 'border-ec-danger' : ''}`} aria-invalid={badDate}
+                           value={r.workDate} onChange={(e) => edit(i, { workDate: e.target.value })} /></td>
                 <td>
                   <CodePickerField label="사원" hideLabel fill placeholder="사원" emptyLabel="선택 해제"
                                    value={r.workerId} onChange={(v) => edit(i, { workerId: v })}
                                    items={workers.map((w) => ({ value: String(w.id), code: w.code, name: w.name }))} />
                 </td>
-                <td>{r.workerId ? '일근무' : ''}</td>
-                <td className="text-center">{r.workerId ? '변동(일)' : ''}</td>
+                <td>
+                  <div className={badItem ? 'border border-ec-danger rounded-ec' : ''} aria-invalid={badItem}>
+                    <CodePickerField label="수당항목" hideLabel fill placeholder="수당항목" emptyLabel="선택 해제"
+                                     value={r.item} onChange={(v) => edit(i, { item: v })} items={ITEMS} />
+                  </div>
+                </td>
+                <td className="text-center">{r.item ? '변동(일)' : ''}</td>
                 <td>
                   <input className="ec-input w-full text-right" inputMode="decimal" value={r.quantity}
                          onChange={(e) => edit(i, { quantity: e.target.value.replace(/[^0-9.]/g, '') })} />
@@ -164,7 +216,8 @@ export default function DailyWorkInputPage() {
                          onChange={(e) => edit(i, { amount: e.target.value.replace(/[^0-9]/g, '') })} />
                 </td>
               </tr>
-            ))}
+              )
+            })}
             <tr>
               <td colSpan={5}></td>
               <td className="text-right font-bold">{qty.toFixed(2)}</td>
