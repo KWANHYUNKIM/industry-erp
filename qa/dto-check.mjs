@@ -156,6 +156,8 @@ function resolveEntity(stem) {
  * 한 화면에서만 서버가 채우는 값은 여기 적는다.
  */
 const OWNED_HERE = new Map([
+  ['Bill|salesCreated', '청구예정자료의 판매생성여부 — 회계/판매일괄반영(원본 E060906)이 켠다. 청구자료생성 · 수정 창에는 그 칸이 없다(2026-10-13 실측)'],
+  ['Bill|accountingReflected', '청구예정자료의 회계반영여부 — 회계/판매일괄반영(원본 E060906)이 켠다. 청구자료생성 · 수정 창에는 그 칸이 없다'],
   ['ScheduleEvent|repeatGroup', '반복설정으로 펼쳐 넣을 때 서버가 묶음 값을 매긴다 — 등록 요청의 repeat 에서 나온다(원본 E070201 반복설정 창)'],
   ['ScheduleEvent|repeatRule', '등록 요청 repeat.summary(원본 요약보기 글)를 서버가 펼친 줄마다 찍는다 — 우리는 고칠 때 반복을 다시 펼치지 않는다'],
   ['Check|directEntry', '수령(발행)수표조회 [신규] 수표내역입력(POST /checks/direct)에서 들어온 수표에 서버가 켠다 — 수표관리 등록 창에는 그 칸이 없다(원본 거래유형 수표만증가 · 2026-10-13 실측)'],

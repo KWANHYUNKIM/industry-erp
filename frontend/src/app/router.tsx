@@ -147,6 +147,10 @@ const BondPartnerLedgerPage = lazy(() => import('../pages/accounting/BondPartner
 const BondDecreasePage = lazy(() => import('../pages/accounting/BondDecreasePage'))
 const BondBalanceAnalysisPage = lazy(() => import('../pages/accounting/BondBalanceAnalysisPage'))
 const ContractPage = lazy(() => import('../pages/accounting/ContractPage'))
+const ContractItemPage = lazy(() => import('../pages/accounting/ContractItemPage'))
+const BillingContractEntryPage = lazy(() => import('../pages/accounting/BillingContractEntryPage'))
+const BillingContractListPage = lazy(() => import('../pages/accounting/BillingContractListPage'))
+const ContractBillPage = lazy(() => import('../pages/accounting/ContractBillPage'))
 const CurrencyPage = lazy(() => import('../pages/settings/CurrencyPage'))
 const ExpensePage = lazy(() => import('../pages/accounting/ExpensePage'))
 const IncomePage = lazy(() => import('../pages/accounting/IncomePage'))
@@ -700,6 +704,10 @@ export default function AppRouter() {
         <Route path="/accounting/checks-held" element={<CheckHoldingPage type="RECEIVED" />} />
         <Route path="/accounting/checks-issued" element={<CheckHoldingPage type="ISSUED" />} />
         <Route path="/accounting/contracts" element={<ContractPage />} />
+        <Route path="/accounting/contract-items" element={<ContractItemPage />} />
+        <Route path="/accounting/billing-contracts/new" element={<BillingContractEntryPage />} />
+        <Route path="/accounting/billing-contracts" element={<BillingContractListPage />} />
+        <Route path="/accounting/contract-bills" element={<ContractBillPage />} />
         <Route path="/settings/currencies" element={<CurrencyPage />} />
         <Route path="/accounting/expense" element={<ExpensePage />} />
         <Route path="/accounting/income" element={<IncomePage />} />

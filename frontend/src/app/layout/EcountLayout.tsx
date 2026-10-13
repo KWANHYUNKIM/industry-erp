@@ -607,6 +607,10 @@ const MENU: TopMenu[] = [
       {
         label: '계약관리',
         nodes: [
+          { label: '계약항목등록', to: '/accounting/contract-items' },
+          { label: '계약입력', to: '/accounting/billing-contracts/new' },
+          { label: '계약조회', to: '/accounting/billing-contracts' },
+          { label: '청구예정자료생성', to: '/accounting/contract-bills' },
           { label: '계약관리·전자계약', to: '/accounting/contracts' },
         ],
       },
