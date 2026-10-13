@@ -1118,5 +1118,17 @@
  [
   "품질검사유형등록",
   "quality/QualityTypePage.tsx"
+ ],
+ [
+  "인쇄용결재라인등록(회계)",
+  "settings/PrintSignLinePage.tsx"
+ ],
+ [
+  "인쇄용결재라인등록(관리)",
+  "settings/PrintSignLinePage.tsx"
+ ],
+ [
+  "인쇄용결재라인등록(재고)",
+  "settings/PrintSignLinePage.tsx"
  ]
 ]

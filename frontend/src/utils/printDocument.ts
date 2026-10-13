@@ -1,5 +1,5 @@
 import { api } from '../api/client'
-import { fillAndPrint, openPrintWindow, type PrintSignLine } from './print'
+import { fillAndPrint, openPrintWindow, signLineHtml, signModuleOf, type PrintSignLine } from './print'
 import { amountToKorean } from './amountToKorean'
 import { escapeHtml } from './escapeHtml'
 
@@ -108,20 +108,13 @@ const CSS = `
   .sum .korean { font-size: 12px; }
   .remark { margin-top: 8px; font-size: 11px; color: #46505d; white-space: pre-wrap; }
   .foot { margin-top: 10px; font-size: 10.5px; color: #6b7480; }
-  /* 결재란: 도장을 찍을 자리라 칸을 넉넉히 비워둔다 */
-  table.signline th { padding: 2px 10px; font-size: 10px; border: 1px solid #c9d1da; background: #eff3f8; }
-  table.signline td.sign { height: 42px; min-width: 56px; text-align: center; vertical-align: bottom;
-                           font-size: 10px; border: 1px solid #c9d1da; }
+  /* 결재란: 원본 인쇄용결재라인 — 머리 26 · 도장 칸 51, 폭 · 글자는 설정값(utils/print.ts signLineHtml) */
+  table.signline { table-layout: fixed; }
+  table.signline th { height: 26px; padding: 0; font-weight: 400; background: #eff3f8; }
+  table.signline td.sign { height: 51px; padding: 0; }
   @page { size: A4 portrait; margin: 12mm; }
   @media print { body { margin: 0; } .doc { page-break-after: always; } .doc:last-child { page-break-after: auto; } }
 `
-
-function signLineHtml(line?: PrintSignLine | null): string {
-  if (!line || line.slots.length === 0) return ''
-  const heads = line.slots.map((s) => `<th>${escapeHtml(s.title)}</th>`).join('')
-  const cells = line.slots.map((s) => `<td class="sign">${escapeHtml(s.signerName ?? '')}</td>`).join('')
-  return `<table class="signline"><thead><tr>${heads}</tr></thead><tbody><tr>${cells}</tr></tbody></table>`
-}
 
 function documentHtml(o: PrintDocumentOptions): string {
   const supply = o.lines.reduce((a, l) => a + Number(l.supplyAmount || 0), 0)
@@ -211,7 +204,7 @@ function documentHtml(o: PrintDocumentOptions): string {
  */
 async function defaultSignLine(): Promise<PrintSignLine | null> {
   try {
-    const r = await api.get<PrintSignLine>('/print-sign-lines/default')
+    const r = await api.get<PrintSignLine>('/print-sign-lines/default', { params: { module: signModuleOf(window.location.pathname) } })
     return r.status === 204 ? null : r.data
   } catch {
     return null

@@ -2877,20 +2877,27 @@ export interface MallOverview {
 
 // ===== 인쇄용 결재라인 =====
 
-export interface SignSlot {
-  id: number
+/** 인쇄용결재라인등록(원본 E010106 · E090102) — 모듈마다 결재라인 1 · 2 */
+export type SignModule = 'ACCOUNTING' | 'INVENTORY' | 'MANAGEMENT'
+
+export interface SignSlotRow {
   slotOrder: number
-  title: string
-  signerName: string | null
+  title: string | null
+  widthPx: number | null
+  fontPx: number | null
 }
 
-export interface SignLine {
-  id: number
-  name: string
-  defaultLine: boolean
-  active: boolean
-  remark: string | null
-  slots: SignSlot[]
+export interface SignLineRow {
+  lineNo: number
+  labelName: string | null
+  labelWidth: number | null
+  labelFont: number | null
+  slots: SignSlotRow[]
+}
+
+export interface SignLineSet {
+  module: SignModule
+  lines: SignLineRow[]
 }
 
 // ===== 프로젝트 (기초등록 마스터) · 프로젝트별 손익 =====

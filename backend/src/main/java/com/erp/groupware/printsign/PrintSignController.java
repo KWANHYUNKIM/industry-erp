@@ -1,16 +1,14 @@
 package com.erp.groupware.printsign;
 
-import com.erp.groupware.printsign.dto.PrintSignDtos.SignLineRequest;
-import com.erp.groupware.printsign.dto.PrintSignDtos.SignLineResponse;
+import com.erp.groupware.printsign.dto.PrintSignDtos.LineResponse;
+import com.erp.groupware.printsign.dto.PrintSignDtos.ModuleResponse;
+import com.erp.groupware.printsign.dto.PrintSignDtos.SaveRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import com.erp.groupware.printsign.dto.PrintSignDtos;
-
-/** 인쇄용 결재라인 — 출력물에 찍히는 담당/검토/승인 칸. */
+/** 인쇄용결재라인등록 — 모듈(ACCOUNTING · INVENTORY · MANAGEMENT)마다 결재라인 1 · 2. */
 @RestController
 @RequestMapping("/api/print-sign-lines")
 @RequiredArgsConstructor
@@ -19,35 +17,19 @@ public class PrintSignController {
     private final PrintSignService service;
 
     @GetMapping
-    public List<SignLineResponse> list() {
-        return service.findAll();
+    public ModuleResponse get(@RequestParam(required = false) String module) {
+        return service.find(PrintSignService.parseModule(module));
     }
 
-    /** 목록 인쇄가 쓰는 기본 결재란 (없으면 본문 없음) */
+    @PutMapping
+    public ModuleResponse save(@RequestParam(required = false) String module, @Valid @RequestBody SaveRequest req) {
+        return service.save(PrintSignService.parseModule(module), req);
+    }
+
+    /** 출력물이 찍는 결재라인 1(모듈을 안 주면 회계). 찍을 칸이 없으면 본문 없음. */
     @GetMapping("/default")
-    public ResponseEntity<SignLineResponse> defaultLine() {
-        SignLineResponse d = service.findDefault();
-        return d != null ? ResponseEntity.ok(d) : ResponseEntity.noContent().build();
-    }
-
-    @PostMapping
-    public ResponseEntity<SignLineResponse> create(@Valid @RequestBody SignLineRequest req) {
-        return ResponseEntity.ok(service.create(req));
-    }
-
-    @PutMapping("/{id}")
-    public SignLineResponse update(@PathVariable Long id, @Valid @RequestBody SignLineRequest req) {
-        return service.update(id, req);
-    }
-
-    @PostMapping("/{id}/default")
-    public SignLineResponse setDefault(@PathVariable Long id) {
-        return service.setDefault(id);
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        service.delete(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<LineResponse> forPrint(@RequestParam(required = false) String module) {
+        LineResponse line = service.findForPrint(PrintSignService.parseModule(module));
+        return line != null ? ResponseEntity.ok(line) : ResponseEntity.noContent().build();
     }
 }

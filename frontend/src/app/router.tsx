@@ -797,6 +797,9 @@ export default function AppRouter() {
         <Route path="/settings/defaults" element={<DefaultsPage />} />
         <Route path="/mypage/folders" element={<MyFolderPage />} />
         <Route path="/settings/print-sign" element={<PrintSignLinePage />} />
+        {/* 인쇄용결재라인등록 — 회계 I 메뉴는 [회계], 관리 메뉴는 [관리] 알약이 켜진 채로 연다(원본 E010106 · E090102) */}
+        <Route path="/accounting/print-sign" element={<PrintSignLinePage />} />
+        <Route path="/hr/print-sign" element={<PrintSignLinePage />} />
         <Route path="/settings/etc" element={<EtcSystemPage />} />
         <Route path="/settings/codes" element={<CommonCodePage />} />
         <Route path="/settings/design-system" element={<DesignSystemPage />} />

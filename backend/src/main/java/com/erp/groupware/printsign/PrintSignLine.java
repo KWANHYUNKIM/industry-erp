@@ -8,13 +8,10 @@ import java.util.List;
 import com.erp.common.BaseTimeEntity;
 
 /**
- * 인쇄용 결재라인(결재란). 출력물 우측 상단에 찍히는 담당/검토/승인 칸이다.
+ * 인쇄용 결재라인(원본 E010106 회계 · 재고 · E090102 관리). 모듈마다 결재라인 1 · 2 두 벌이다.
  *
- * 전자결재(ApprovalDocument)와는 다르다. 저건 시스템에서 실제로 결재를 받는 것이고,
- * 이건 종이에 도장을 찍을 빈 칸을 그려주는 것이다. 그래서 결재자 이름은 선택이다 —
- * 이름을 비워두면 빈 칸으로 인쇄된다.
- *
- * 기본(default) 결재란은 하나만 둔다. 목록 화면의 [인쇄]는 그 기본 결재란을 쓴다.
+ * 줄 맨 왼쪽의 좁은 [결재라인] 칸(명칭 · 가로 · 글자) 다음에 결재자 1 ~ 9 칸이 붙는다.
+ * 전자결재(ApprovalDocument)와는 다르다 — 이건 종이에 도장을 찍을 빈 칸을 그려 주는 것이다.
  */
 @Entity
 @Table(name = "print_sign_lines")
@@ -29,21 +26,23 @@ public class PrintSignLine extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** 서식명 (예: 거래명세서 결재란) */
-    @Column(nullable = false, unique = true, length = 100)
-    private String name;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private PrintSignModule module;
 
-    /** 목록 인쇄에 쓰는 기본 결재란인지 */
-    @Column(name = "is_default", nullable = false)
-    @Builder.Default
-    private boolean defaultLine = false;
+    /** 결재라인 1 · 2 */
+    @Column(name = "line_no", nullable = false)
+    private Integer lineNo;
 
-    @Column(nullable = false)
-    @Builder.Default
-    private boolean active = true;
+    /** 맨 왼쪽 [결재라인] 칸 — 명칭 · 가로(px) · 글자(px) */
+    @Column(name = "label_name", length = 30)
+    private String labelName;
 
-    @Column(length = 200)
-    private String remark;
+    @Column(name = "label_width")
+    private Integer labelWidth;
+
+    @Column(name = "label_font")
+    private Integer labelFont;
 
     @OneToMany(mappedBy = "signLine", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("slotOrder asc")

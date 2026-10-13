@@ -2876,57 +2876,30 @@ async function scenarioApprovalSetting() {
 }
 
 async function scenarioPrintSign() {
-  section('■ 시나리오 23. 인쇄용 결재라인 (기본 결재란은 항상 하나)')
+  section('■ 시나리오 23. 인쇄용결재라인등록 (원본 E010106 — 모듈마다 결재라인 1 · 2)')
 
-  const seeded = await must('GET', '/print-sign-lines')
-  eq('기본 결재란이 시드됨', seeded.some((l) => l.defaultLine), true)
-  eq('기본 결재란은 하나뿐', seeded.filter((l) => l.defaultLine).length, 1)
+  // 관리는 저장한 적이 없으면 원본 처음 값(결재라인 28 · 담당 · 대리 · 과장 60 · 차장 ~ 회장 가로 빈칸)
+  const mgmt = await must('GET', '/print-sign-lines?module=MANAGEMENT')
+  eq('결재라인 1 · 2 두 벌', mgmt.lines.map((l) => l.lineNo).join(','), '1,2')
+  eq('결재자 9칸', mgmt.lines[0].slots.length, 9)
 
-  const NAME = `${P}검사 결재란`
-  const existing = seeded.find((l) => l.name === NAME)
-  if (existing && !existing.defaultLine) await must('DELETE', `/print-sign-lines/${existing.id}`)
+  const before = await must('GET', '/print-sign-lines?module=INVENTORY')
+  const body = (lines) => ({ lines: lines.map((l) => ({ lineNo: l.lineNo, labelName: l.labelName, labelWidth: l.labelWidth,
+    labelFont: l.labelFont, slots: l.slots.map((s) => ({ title: s.title, widthPx: s.widthPx, fontPx: s.fontPx })) })) })
 
-  const line = (existing && existing.defaultLine) ? existing : await must('POST', '/print-sign-lines', {
-    name: NAME, active: true, remark: 'QA',
-    slots: [{ title: '작성' }, { title: '검토', signerName: '홍길동' }],
-  })
-  eq('칸 순서가 입력 순서대로 매겨짐', line.slots.map((s) => s.slotOrder).join(','), '1,2')
-  isNull('결재자 이름을 비우면 빈 칸으로 남음', line.slots[0].signerName)
-  eq('이름을 넣은 칸은 그대로 보관', line.slots[1].signerName, '홍길동')
+  const edited = structuredClone(before.lines)
+  edited[0].slots[7] = { ...edited[0].slots[7], title: `${P}결재`, widthPx: null, fontPx: 11 }
+  const saved = await must('PUT', '/print-sign-lines?module=INVENTORY', body(edited))
+  eq('명칭만 넣은 칸은 가로 80 으로 채움(원본 저장 규칙)', saved.lines[0].slots[7].widthPx, 80)
 
-  await rejects('중복 서식명은 거부', 'POST', '/print-sign-lines', {
-    name: NAME, slots: [{ title: '담당' }],
-  }, '이미 등록된 결재란')
+  const print = await must('GET', '/print-sign-lines/default?module=INVENTORY')
+  eq('인쇄는 명칭 · 가로가 있는 칸만', print.slots.every((s) => s.title && s.widthPx), true)
+  eq('방금 넣은 칸이 인쇄에 나옴', print.slots.some((s) => s.title === `${P}결재`), true)
 
-  await rejects('결재 칸 없이 등록은 거부', 'POST', '/print-sign-lines', {
-    name: `${P}빈 결재란`, slots: [],
-  }, '1개 이상')
+  await rejects('없는 모듈은 거부', 'GET', '/print-sign-lines?module=NOPE', undefined, '알 수 없는 모듈')
 
-  // 기본 지정은 배타적이다 — 새로 지정하면 이전 기본이 내려온다
-  const before = (await must('GET', '/print-sign-lines')).find((l) => l.defaultLine)
-  await must('POST', `/print-sign-lines/${line.id}/default`)
-  const after = await must('GET', '/print-sign-lines')
-  eq('새 기본이 지정됨', after.find((l) => l.id === line.id).defaultLine, true)
-  eq('기본은 여전히 하나뿐', after.filter((l) => l.defaultLine).length, 1)
-  if (before.id !== line.id) {
-    eq('이전 기본은 내려옴', after.find((l) => l.id === before.id).defaultLine, false)
-  }
-
-  const def = await must('GET', '/print-sign-lines/default')
-  eq('기본 결재란 조회가 방금 지정한 것', def.id, line.id)
-
-  await rejects('기본 결재란은 삭제 불가', 'DELETE', `/print-sign-lines/${line.id}`, undefined, '기본 결재란은 삭제할 수 없습니다')
-
-  // 칸을 갈아끼워도 순서 유니크 제약에 걸리지 않는다 (삭제 후 삽입)
-  const updated = await must('PUT', `/print-sign-lines/${line.id}`, {
-    name: NAME, active: true, defaultLine: true,
-    slots: [{ title: '담당', signerName: '김담당' }, { title: '팀장' }, { title: '대표' }],
-  })
-  eq('칸을 갈아끼우면 새 구성으로 저장', updated.slots.map((s) => s.title).join(','), '담당,팀장,대표')
-  eq('갈아끼운 뒤에도 순서는 1..n', updated.slots.map((s) => s.slotOrder).join(','), '1,2,3')
-
-  // 원래 기본을 되돌려 둔다 (다른 실행에 영향 주지 않게)
-  if (before.id !== line.id) await must('POST', `/print-sign-lines/${before.id}/default`)
+  // 되돌린다
+  await must('PUT', '/print-sign-lines?module=INVENTORY', body(before.lines))
 }
 
 /** 급여 수당/공제그룹(비과세 반영) · 급여이체(계좌 출금 + 자동 분개) */

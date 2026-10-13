@@ -14,26 +14,41 @@ const PRINT_CSS = `
   @page { size: A4 landscape; margin: 12mm; }
   @media print { body { margin: 0; } }
   .head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-  /* 결재란: 도장을 찍을 자리라 칸을 넉넉히 비워둔다 */
-  table.signline { width: auto; margin-bottom: 8px; }
-  table.signline th { padding: 2px 10px; font-size: 10px; }
-  table.signline td.sign { height: 42px; min-width: 56px; text-align: center; vertical-align: bottom; font-size: 10px; }
+  /* 결재란: 원본 인쇄용결재라인 — 머리 26 · 도장 칸 51 높이, 폭 · 글자는 결재라인 설정값 */
+  table.signline { width: auto; table-layout: fixed; margin-bottom: 8px; }
+  table.signline th { height: 26px; padding: 0; font-weight: 400; }
+  table.signline td.sign { height: 51px; padding: 0; }
 `
 
 
-/** 화면의 테이블을 인쇄용 창으로 띄운다. 인쇄할 행이 없으면 false. */
-/** 인쇄용 결재란. 슬롯 이름이 비면 도장을 찍을 빈 칸으로 나간다. */
+/**
+ * 인쇄용 결재라인(원본 E010106 · E090102) 결재라인 1 — 맨 왼쪽 [결재라인] 칸 + 결재자 칸.
+ * 서버(GET /print-sign-lines/default)는 명칭 · 가로가 둘 다 있는 결재자만 준다.
+ */
 export interface PrintSignLine {
-  name: string
-  slots: { title: string; signerName: string | null }[]
+  labelName: string | null
+  labelWidth: number | null
+  labelFont: number | null
+  slots: { title: string | null; widthPx: number | null; fontPx: number | null }[]
 }
 
-/** 출력물 우측 상단 결재란. 없으면 아무것도 그리지 않는다. */
-function signLineHtml(line?: PrintSignLine | null): string {
+const px = (n: number | null | undefined) => (n ? `${Math.round(n)}px` : '')
+
+/** 출력물 우측 상단 결재란. 그릴 칸이 없으면 아무것도 그리지 않는다. 인쇄 창 · 화면 미리보기가 같이 쓴다. */
+export function signLineHtml(line?: PrintSignLine | null): string {
   if (!line || line.slots.length === 0) return ''
-  const heads = line.slots.map((s) => `<th>${escapeHtml(s.title)}</th>`).join('')
-  const cells = line.slots.map((s) => `<td class="sign">${escapeHtml(s.signerName ?? '')}</td>`).join('')
-  return `<table class="signline"><thead><tr>${heads}</tr></thead><tbody><tr>${cells}</tr></tbody></table>`
+  const b = 'border:1px solid #c9d1da;'
+  const label = `<th rowspan="2" style="${b}width:${px(line.labelWidth)};font-size:${px(line.labelFont)}">${escapeHtml(line.labelName ?? '')}</th>`
+  const heads = line.slots.map((s) => `<th style="${b}width:${px(s.widthPx)};font-size:${px(s.fontPx)}">${escapeHtml(s.title ?? '')}</th>`).join('')
+  const cells = line.slots.map((s) => `<td class="sign" style="${b}width:${px(s.widthPx)}"></td>`).join('')
+  return `<table class="signline" style="border-collapse:collapse"><thead><tr>${label}${heads}</tr></thead><tbody><tr>${cells}</tr></tbody></table>`
+}
+
+/** 화면 주소로 그 출력물의 모듈을 정한다 — 회계 · 관리(급여) · 그 밖은 재고 */
+export function signModuleOf(path: string): 'ACCOUNTING' | 'INVENTORY' | 'MANAGEMENT' {
+  if (path.startsWith('/accounting') || path.startsWith('/tax')) return 'ACCOUNTING'
+  if (path.startsWith('/hr')) return 'MANAGEMENT'
+  return 'INVENTORY'
 }
 
 /**

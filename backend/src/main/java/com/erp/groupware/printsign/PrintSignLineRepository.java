@@ -8,14 +8,8 @@ import java.util.Optional;
 
 public interface PrintSignLineRepository extends JpaRepository<PrintSignLine, Long> {
 
-    @Query("select distinct l from PrintSignLine l left join fetch l.slots order by l.id")
-    List<PrintSignLine> findAllWithSlots();
+    @Query("select distinct l from PrintSignLine l left join fetch l.slots where l.module = :module order by l.lineNo")
+    List<PrintSignLine> findByModuleWithSlots(PrintSignModule module);
 
-    @Query("select distinct l from PrintSignLine l left join fetch l.slots " +
-            "where l.defaultLine = true and l.active = true")
-    Optional<PrintSignLine> findDefault();
-
-    boolean existsByName(String name);
-
-    List<PrintSignLine> findByDefaultLineTrue();
+    Optional<PrintSignLine> findByModuleAndLineNo(PrintSignModule module, Integer lineNo);
 }

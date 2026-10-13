@@ -460,6 +460,8 @@ const MENU: TopMenu[] = [
           { label: '카드등록', to: '/accounting/cards' },
           /* 원본 E010104 계좌등록(계좌리스트) */
           { label: '계좌등록', to: '/accounting/bank-accounts' },
+          /* 원본 E010106 — 알약 회계 · 재고 · 관리 중 [회계] 가 켜진 채로 연다 */
+          { label: '인쇄용결재라인등록(회계)', to: '/accounting/print-sign' },
           { label: '계좌/카드', to: '/accounting/bank-cards' },
           { label: '카드사등록', to: '/accounting/card-issuers' },
           { label: '결제대행사등록', to: '/accounting/payment-agencies' },
@@ -732,8 +734,8 @@ const MENU: TopMenu[] = [
             { label: '수당/공제그룹등록', to: '/hr/pay-groups' },
             { label: '부서등록', to: '/hr/departments' },
             { label: '프로젝트등록', to: '/inventory/projects' },
-            // 원본 인쇄용결재라인등록(관리) E090102 — 회계 · 재고 · 관리 알약 중 [관리]. 우리 결재란 화면은 모듈별이 아니다(보드).
-            { label: '인쇄용결재라인등록(관리)', to: '/settings/print-sign' },
+            // 원본 인쇄용결재라인등록(관리) E090102 — 회계 · 재고 · 관리 알약 중 [관리] 가 켜진 채로 연다(화면은 회계1 의 E010106 과 같다)
+            { label: '인쇄용결재라인등록(관리)', to: '/hr/print-sign' },
             { label: '담당자별 실적', to: '/hr/performance' },
           ] },
           { label: '근무기록', children: [

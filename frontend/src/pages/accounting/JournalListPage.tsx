@@ -244,6 +244,8 @@ export default function JournalListPage() {
       /* [검색(F8)]이 조건 판만 닫고 목록은 그대로였다 — 새로 넣은 전표가 안 보였다. 다시 읽는다. */
       onSearch={load}
       title="회계전표조회"
+      /* 회계 출력물은 인쇄용결재라인등록(회계) 결재라인 1 을 찍는다(원본 회계거래조회 › 전표 인쇄) */
+      signLine
       search={keyword}
       onSearchChange={setKeyword}
       actions={[
