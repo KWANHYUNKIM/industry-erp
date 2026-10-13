@@ -385,8 +385,8 @@
   "palette": 0
  },
  "pages/accounting/ProjectPlanPage.tsx": {
-  "inline": 29,
-  "color": 1,
+  "inline": 13,
+  "color": 0,
   "palette": 0
  },
  "pages/accounting/ProjectProfitPage.tsx": {
