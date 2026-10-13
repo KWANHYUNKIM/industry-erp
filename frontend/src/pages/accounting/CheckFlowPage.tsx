@@ -10,6 +10,8 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { dateText } from '../../utils/dateText'
 import { EcReportFoot, EcReportHead, reportPeriod } from '../../components/EcReportFrame'
 import type { BankAccountRow, BankCheck, CheckType } from '../../types/api'
+import { CheckSortModal, SortHead, arrange, sortSetup, useHeadSort, type SortSetup } from '../../features/bankcheck/components/CheckSortSetup'
+import type { SortValue } from '../../utils/useTableSort'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
@@ -28,8 +30,10 @@ const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
  *
  * <p>수령수표는 줄을 거래처마다 묶는다(2026-10-13 QA회계2 수표 셋으로 잼 — 증가 · 감소 둘 다): 거래처코드 차례(거래처 없는 묶음이 먼저),
  * 묶음 안은 일자-No. 차례, 묶음 끝에 '거래처명 계'(거래처 없으면 '[] 계', 가운데 · 굵게 · 회색) 줄, 맨 끝 '합계'(가운데).
- * 발행수표증가현황은 같은 날 잰 판에 거래처 묶음 · '계' 줄이 없다(합계만) — 발행 증가는 묶지 않는다.
- * 발행수표감소현황은 묶는다(2026-10-13 QA회계2 수표만감소 1줄로 잼 — '[] 계' 5,000 · '합계' 5,000).
+ * <b>증가현황은 묶음이 하나뿐이면 '계' 줄이 없다</b>(합계만 — 2026-10-14 수령수표증가현황 실측: 김치좋아 한 장 → '합계 35,000',
+ * (주)구로를 더하면 '(주)구로 계 25,000' · '김치좋아 계 35,000' · '합계 60,000'). 10-13 의 '발행 증가는 안 묶는다' 는 거래처 한 곳 판이었다.
+ * 감소현황은 한 묶음 판에도 '계' 가 있었다(2026-10-13 발행 수표만감소 1줄 '[] 계' 5,000 · 10-14 수령 입금보고서 1줄 '[] 계' 30,000) — 그대로 둔다.
+ * 조건 [정렬/소계기준] [설정] 과 머리 정렬은 CheckSortSetup — 기본 1 거래처명(표시) · 2 · 3 없음(감소현황 실측).
  *
  * <p><b>발행수표증가현황</b>(E060611) · <b>감소현황</b>(E060612)도 조건 · 열이 같다(계좌 조건이 [발행수표계좌]). 증가는 발행한 날,
  * 감소는 은행에서 빠져나간(결제완료) 날이다. 계정명은 끊은 계좌의 총계정이고, 결제는 분개를 안 만들어(발행 때 이미 반영)
@@ -41,8 +45,8 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
     ? (flow === '증가' ? '수령수표증가현황' : '수령수표감소현황')
     : (flow === '증가' ? '발행수표증가현황' : '발행수표감소현황')
   const acctLabel = received ? '수령수표계좌' : '발행수표계좌'
-  /* 거래처 묶음 · '계' 줄 — 수령은 증가 · 감소 둘 다, 발행은 감소만(원본 실측). */
-  const grouped = received || flow === '감소'
+  /* '계' 줄 — 증가는 묶음이 둘 이상일 때만, 감소는 하나여도(원본 실측). */
+  const minGroups = flow === '증가' ? 2 : 1
   const account = '받을수표'
   /* 발행수표의 계정명 — 끊은 계좌의 총계정(분개가 대변에 쓰는 것). */
   const [glByAccount, setGlByAccount] = useState<Map<number, string>>(new Map())
@@ -64,6 +68,7 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
   const [checkNo, setCheckNo] = useState('')
   const [remark, setRemark] = useState('')
   const [author, setAuthor] = useState('')
+  const [editor, setEditor] = useState('')
   const [kind, setKind] = useState('')
   const [checks, setChecks] = useState<BankCheck[]>([])
   const [loading, setLoading] = useState(true)
@@ -114,25 +119,35 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
     .filter((c) => !checkNo || c.checkNo.includes(checkNo))
     .filter((c) => !remark || (c.remark ?? '').includes(remark))
     .filter((c) => !author || (c.createdBy ?? '') === author)
+    .filter((c) => !editor || (c.updatedBy ?? '') === editor)
     .filter((c) => !kind || kindOf(c) === kind)
     .sort((a, b) => (dayOf(a) < dayOf(b) ? -1 : dayOf(a) > dayOf(b) ? 1
       : (entryNoOf(a) ?? 0) - (entryNoOf(b) ?? 0) || a.checkNo.localeCompare(b.checkNo))),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  [checks, type, flow, from, to, partner, dept, project, bankAccount, checkNo, remark, author, kind])
+  [checks, type, flow, from, to, partner, dept, project, bankAccount, checkNo, remark, author, editor, kind])
   const total = shown.reduce((a, c) => a + Number(c.amount), 0)
   const pickers = useCondPickers(['partners'])
   const codeOf = (partnerId: number | null) => pickers.partners.find((p) => p.id === partnerId)?.code ?? ''
-  const groups = useMemo(() => {
-    const by = new Map<string, BankCheck[]>()
-    for (const c of shown) {
-      const k = grouped ? String(partnerOf(c) ?? '') : ''
-      by.set(k, [...(by.get(k) ?? []), c])
-    }
-    return [...by.values()]
-      .map((cs) => ({ cs, code: partnerOf(cs[0]) == null ? '' : codeOf(partnerOf(cs[0])), sum: cs.reduce((a, c) => a + Number(c.amount), 0) }))
-      .sort((a, b) => a.code.localeCompare(b.code))
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shown, pickers.partners, grouped])
+  const [setup, setSetup] = useState<SortSetup>(() => sortSetup(['거래처명', true]))
+  const [setupOpen, setSetupOpen] = useState(false)
+  const headSort = useHeadSort()
+  const COLS = ['일자-No.', '수표번호', '거래처명', '계정명', '거래유형', '적요', '금액']
+  /* 거래처 묶음 차례는 거래처코드(거래처 없는 묶음이 먼저 — 2026-10-13 셋으로 잰 판). */
+  const getters: Record<string, (c: BankCheck) => SortValue> = {
+    '일자-No.': (c) => `${dayOf(c)} ${String(entryNoOf(c) ?? 0).padStart(6, '0')}`,
+    수표번호: (c) => c.checkNo,
+    거래처명: (c) => (partnerOf(c) == null ? '' : `${codeOf(partnerOf(c))}\u0000${partnerOf(c)}`),
+    계정명: (c) => accountOf(c),
+    거래유형: (c) => kindOf(c),
+    적요: (c) => c.remark ?? '',
+    금액: (c) => Number(c.amount),
+  }
+  const { groups, subKey } = arrange(shown, setup, getters, (c) => Number(c.amount), headSort)
+  const showSub = !!subKey && groups.length >= minGroups
+  const subLabel = (c: BankCheck) => subKey === '거래처명'
+    ? `${partnerOf(c) != null && c.partnerName ? c.partnerName : `[${partnerOf(c) == null ? '' : codeOf(partnerOf(c))}]`} 계`
+    : subKey === '금액' ? `${won(Number(c.amount))} 계` : subKey === '일자-No.' ? `${dateText(dayOf(c))} ${noOf(c)} 계`
+    : `${subKey ? String(getters[subKey](c) ?? '') : ''} 계`
   const ofType = useMemo(() => checks.filter((c) => c.type === type), [checks, type])
   const partners = useMemo(() => {
     const m = new Map<number, string>()
@@ -141,6 +156,7 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
   }, [ofType])
   const accounts = useMemo(() => [...new Set(ofType.map((c) => c.bankAccountName).filter(Boolean) as string[])].sort(), [ofType])
   const authors = useMemo(() => [...new Set(ofType.map((c) => c.createdBy).filter(Boolean) as string[])].sort(), [ofType])
+  const editors = useMemo(() => [...new Set(ofType.map((c) => c.updatedBy).filter(Boolean) as string[])].sort(), [ofType])
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, title, [shown.length])
 
@@ -150,7 +166,7 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setPartner(''); setDept(''); setProject(''); setBankAccount(''); setCheckNo(''); setRemark(''); setAuthor(''); setKind('') } },
+        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setPartner(''); setDept(''); setProject(''); setBankAccount(''); setCheckNo(''); setRemark(''); setAuthor(''); setEditor(''); setKind('') } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -200,20 +216,24 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
           <CodePickerField label="최초작성자" hideLabel width={170} emptyLabel="전체" value={author} onChange={setAuthor}
                            items={authors.map((a) => ({ value: a, name: a }))} />
         </EcCond>
+        <EcCond label="최종수정자" pick>
+          <CodePickerField label="최종수정자" hideLabel width={170} emptyLabel="전체" value={editor} onChange={setEditor}
+                           items={editors.map((a) => ({ value: a, name: a }))} />
+        </EcCond>
+        <EcCond label="정렬/소계기준">
+          <a href="#" className="text-ec-navy" onClick={(e) => { e.preventDefault(); setSetupOpen(true) }}>설정</a>
+        </EcCond>
       </ul>
+      <CheckSortModal open={setupOpen} options={COLS} value={setup}
+                      onApply={(s) => { setSetup(s); headSort.reset(); setSetupOpen(false) }} onClose={() => setSetupOpen(false)} />
 
       {/* 원본 출력물 머리 — 제목 24px · '회사명 :' · 기간, 아래 [P.1] · 출력한 때(2026-10-14 실측) */}
       <EcReportHead title={title} period={reportPeriod(from, to)} />
       <table ref={tableRef} className="ec-report w-full text-left">
         <thead>
           <tr>
-            <th>일자-No.</th>
-            <th>수표번호</th>
-            <th>거래처명</th>
-            <th>계정명</th>
-            <th>거래유형</th>
-            <th>적요</th>
-            <th className="text-right">금액</th>
+            {COLS.slice(0, 6).map((h) => <SortHead key={h} label={h} sort={headSort} />)}
+            <SortHead label="금액" sort={headSort} className="text-right" />
           </tr>
         </thead>
         <tbody>
@@ -222,7 +242,7 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
           ) : shown.length === 0 ? (
             <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : groups.flatMap((g) => [
-            ...g.cs.map((c) => (
+            ...g.rows.map((c) => (
               <tr key={c.id}>
                 <td>{dateText(dayOf(c))} {noOf(c)}</td>
                 <td>{c.checkNo}</td>
@@ -233,18 +253,20 @@ export default function CheckFlowPage({ type, flow }: { type: CheckType; flow: '
                 <td className="text-right">{won(Number(c.amount))}</td>
               </tr>
             )),
-            ...(grouped ? [<tr key={`sub-${g.cs[0].id}`} className="font-bold bg-ec-stripe">
-              <td colSpan={6} className="text-center">{partnerOf(g.cs[0]) != null && g.cs[0].partnerName ? g.cs[0].partnerName : `[${g.code}]`} 계</td>
+            ...(showSub ? [<tr key={`sub-${g.key}`} className="font-bold bg-ec-stripe">
+              <td colSpan={6} className="text-center">{subLabel(g.rows[0])}</td>
               <td className="text-right">{won(g.sum)}</td>
             </tr>] : []),
           ])}
         </tbody>
-        <tfoot>
-          <tr style={{ fontWeight: 700, background: 'rgb(243, 243, 243)' }}>
-            <td colSpan={6} className="text-center">합계</td>
-            <td className="text-right">{won(total)}</td>
-          </tr>
-        </tfoot>
+        {setup.total && (
+          <tfoot>
+            <tr style={{ fontWeight: 700, background: 'rgb(243, 243, 243)' }}>
+              <td colSpan={6} className="text-center">합계</td>
+              <td className="text-right">{won(total)}</td>
+            </tr>
+          </tfoot>
+        )}
       </table>
       <EcReportFoot />
     </EcListShell>

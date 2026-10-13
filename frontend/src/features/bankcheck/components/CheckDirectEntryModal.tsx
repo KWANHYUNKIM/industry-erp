@@ -9,6 +9,8 @@ import { ymd } from '../../../components/EcPeriodPicks'
 import { EcHistoryModal } from '../../../components/EcHistory'
 import { useDeptProjectItems } from '../../cashquick/useDeptProject'
 import { dateText } from '../../../utils/dateText'
+import { requireSelection } from '../../../components/EcDialog'
+import NumCheck from './NumCheck'
 import type { BankAccountRow, BankCheck, CheckType, Partner } from '../../../types/api'
 
 interface Line { id?: number; checkNo: string; amount: string; remark: string; departmentId: string; projectId: string }
@@ -62,11 +64,13 @@ export default function CheckDirectEntryModal({ type, open, onClose, onSaved, vo
   const [busy, setBusy] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
+  /* 줄 첫 칸 번호 체크칸으로 고른 줄 — 격자 위 [선택삭제] 가 그 줄을 비운다(2026-10-14 실측: 줄은 남고 번호는 그대로, 확인 창 없음). */
+  const [picked, setPicked] = useState<Set<number>>(new Set())
   const { departments, projects } = useDeptProjectItems()
   const editing = !!voucher
 
   function reset() {
-    setAccountErr(false); setError('')
+    setAccountErr(false); setError(''); setPicked(new Set())
     if (voucher) {
       const first = voucher.checks[0]
       setDate(voucher.date); setIncrease(voucher.increase)
@@ -182,11 +186,24 @@ export default function CheckDirectEntryModal({ type, open, onClose, onSaved, vo
           </li>
         </ul>
 
+        {/* 원본 격자 위 툴바 — [찾기(F3)] [선택삭제](h22 · btn-sm). 고른 줄 없이 [선택삭제] → '리스트에 선택된 자료가 없습니다.' */}
+        <div className="flex gap-[5px] mb-[4px]">
+          <button type="button" className="ec-btn ec-btn-sm" onClick={() => {
+            if (!requireSelection(picked.size)) return
+            setLines((ls) => ls.map((l, i) => (picked.has(i) ? blank() : l)))
+            setPicked(new Set())
+          }}>선택삭제</button>
+        </div>
         <div className="overflow-x-auto">
-          <table className="ec-grid-input no-ec table-fixed min-w-[800px] [&_tbody_tr]:h-[30px]">
+          <table className="ec-grid-input no-ec table-fixed min-w-[800px] [&_tbody_tr]:h-[36.5px] [&_td.pad]:p-[5.4px_2.7px] [&_tbody_input]:h-[var(--ec-grid-ctl-h)] [&_tbody_select]:h-[var(--ec-grid-ctl-h)] [&_tbody_button]:h-[var(--ec-grid-ctl-h)] [&_th]:leading-[1.42857] [&_tfoot_td]:leading-[1.42857]">
             <thead>
               <tr>
-                <th className="w-[34px]" />
+                {/* 원본 첫 두 칸 — 번호 체크칸(41) · 줄 옮기기 ⬇(43, fa-arrow-circle-down — 무엇을 하는지 못 잼) */}
+                <th className="w-[41px] text-center [&>label]:h-[17px]">
+                  <NumCheck no="" head label="전체 선택" on={lines.length > 0 && picked.size === lines.length}
+                            onChange={(v) => setPicked(v ? new Set(lines.map((_, i) => i)) : new Set())} />
+                </th>
+                <th className="w-[43px] text-center"><span aria-hidden className="inline-block w-[14px] h-[14px] leading-[14px] rounded-full bg-ec-navy text-ec-panel text-[10px]">↓</span></th>
                 <th className="w-[240px]">수표번호</th>
                 <th>금액</th>
                 <th className="w-[140px]">부서</th>
@@ -197,7 +214,11 @@ export default function CheckDirectEntryModal({ type, open, onClose, onSaved, vo
             <tbody>
               {lines.map((l, i) => (
                 <tr key={i}>
-                  <td className="pad text-center text-ec-hint">{i + 1}</td>
+                  <td className="pad text-center">
+                    <NumCheck no={i + 1} label={`${i + 1}줄 선택`} on={picked.has(i)}
+                              onChange={(v) => setPicked((p) => { const n = new Set(p); if (v) n.add(i); else n.delete(i); return n })} />
+                  </td>
+                  <td className="pad text-center"><span aria-hidden className="inline-block w-[14px] h-[14px] leading-[14px] rounded-full bg-ec-navy text-ec-panel text-[10px]">↓</span></td>
                   <td className="pad">
                     <input className="ec-input w-full" aria-label={`${i + 1}줄 수표번호`} maxLength={30} value={l.checkNo}
                            onFocus={() => { if (!l.checkNo) setLine(i, { checkNo: newCheckNo(i + 1) }) }}
@@ -228,7 +249,7 @@ export default function CheckDirectEntryModal({ type, open, onClose, onSaved, vo
             </tbody>
             <tfoot>
               <tr>
-                <td colSpan={2} />
+                <td colSpan={3} />
                 <td className="text-right">{won(total)}</td>
                 <td colSpan={3} />
               </tr>

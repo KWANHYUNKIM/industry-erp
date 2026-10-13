@@ -10,6 +10,8 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { dateText } from '../../utils/dateText'
 import { EcReportFoot, EcReportHead, reportDate } from '../../components/EcReportFrame'
 import type { BankAccountRow, BankCheck, CheckType } from '../../types/api'
+import { CheckSortModal, SortHead, arrange, sortSetup, useHeadSort, type SortSetup } from '../../features/bankcheck/components/CheckSortSetup'
+import type { SortValue } from '../../utils/useTableSort'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 /** 원본 소계 · 합계줄 모양(2026-10-02 실측): 바탕 rgb(243,243,243) · 굵게. */
@@ -21,6 +23,9 @@ const SUB_ROW: React.CSSProperties = { fontWeight: 700, background: 'rgb(243, 24
  * <p>조건: 기준일자(<b>하루</b>, 빠른선택 금일 … 전월 · 종료일 · 최근30일 — 기본 [최근30일]의 끝날 = 오늘) · 계정 · 수표번호 ·
  * 수령수표계좌 · 부서 · 프로젝트. 열: 수령일자 · 수표번호 · 거래처명 · 계정명 · 적요 · 금액.
  * 줄은 <b>거래처마다 묶이고</b> 묶음 끝에 '거래처명 [코드] 계' 줄(바탕 회색 · 굵게), 맨 끝에 '합계'. 묶음 안은 수령일 오름차순,
+ * <b>묶음이 하나뿐이면 '계' 줄이 없다</b>(합계만 — 2026-10-14 실측: 김치좋아 35,000 한 장 → '합계 35,000',
+ * (주)구로 25,000 을 더하면 '(주)구로 [00010] 계' · '김치좋아 [1234567004] 계' · '합계 60,000').
+ * 조건 [정렬/소계기준] [설정] 과 머리 정렬은 features/bankcheck/components/CheckSortSetup — 기본 1 거래처명(표시) · 2 수령일자 · 3 없음.
  * 묶음끼리는 <b>거래처명 차례</b> — 한글 이름이 먼저, 영문 이름은 뒤(2026-10-14 실측: (주)구로 · 구로조명유통 · 김치좋아 ·
  * 휴대폰매장아울렛 · Bisket World 차례 — 2026/10/14 에 받은 김치좋아가 2015 년 묶음들 사이에 섰다).
  *
@@ -85,24 +90,27 @@ export default function CheckHoldingPage({ type }: { type: CheckType }) {
   [checks, type, asOf, checkNo, bankAccount, dept, project])
 
   const codeOf = (partnerId: number | null) => pickers.partners.find((p) => p.id === partnerId)?.code ?? ''
-  const groups = useMemo(() => {
-    const by = new Map<string, BankCheck[]>()
-    for (const c of held) {
-      const k = String(c.partnerId ?? '')
-      by.set(k, [...(by.get(k) ?? []), c])
-    }
-    return [...by.values()]
-      .map((cs) => {
-        cs.sort((a, b) => (a.issueDate < b.issueDate ? -1 : a.issueDate > b.issueDate ? 1 : a.checkNo.localeCompare(b.checkNo)))
-        return { cs, last: cs[cs.length - 1].issueDate, sum: cs.reduce((a, c) => a + Number(c.amount), 0) }
-      })
-      .sort((a, b) => {
-        const an = a.cs[0].partnerName ?? '', bn = b.cs[0].partnerName ?? ''
-        const rank = (n: string) => (!n ? 2 : /^[A-Za-z]/.test(n) ? 1 : 0)
-        return rank(an) - rank(bn) || an.localeCompare(bn, 'ko')
-      })
-  }, [held])
+  const dateHead = received ? '수령일자' : '발행일자'
+  const [setup, setSetup] = useState<SortSetup>(() => sortSetup(['거래처명', true], [dateHead, false]))
+  const [setupOpen, setSetupOpen] = useState(false)
+  const headSort = useHeadSort()
+  /* 정렬 · 묶음 값 — 거래처명은 한글 이름이 먼저, 영문 이름은 뒤, 거래처 없는 묶음은 끝(원본 실측 차례). 같은 이름이면 거래처로 가른다. */
+  const rank = (n: string) => (!n ? 2 : /^[A-Za-z]/.test(n) ? 1 : 0)
+  const getters: Record<string, (c: BankCheck) => SortValue> = {
+    [dateHead]: (c) => c.issueDate,
+    수표번호: (c) => c.checkNo,
+    거래처명: (c) => `${rank(c.partnerName ?? '')}${c.partnerName ?? ''}\u0000${c.partnerId ?? ''}`,
+    계정명: (c) => accountOf(c),
+    적요: (c) => c.remark ?? '',
+    금액: (c) => Number(c.amount),
+  }
+  const { groups, subKey } = arrange(held, setup, getters, (c) => Number(c.amount), headSort)
   const total = groups.reduce((a, g) => a + g.sum, 0)
+  /* '계' 줄 글 — 거래처면 '이름 [코드] 계', 다른 기준이면 그 값 + ' 계'. */
+  const subLabel = (c: BankCheck) => subKey === '거래처명' ? `${c.partnerName ? `${c.partnerName} ` : ''}[${codeOf(c.partnerId)}] 계`
+    : subKey === dateHead ? `${dateText(c.issueDate)} 계` : subKey === '금액' ? `${won(Number(c.amount))} 계`
+    : `${subKey ? String(getters[subKey](c) ?? '') : ''} 계`
+  const showSub = !!subKey && groups.length > 1
   const accounts = useMemo(() => [...new Set(checks.map((c) => c.bankAccountName).filter(Boolean) as string[])].sort(), [checks])
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, title, [groups.length])
@@ -145,19 +153,20 @@ export default function CheckHoldingPage({ type }: { type: CheckType }) {
         <EcCond label="프로젝트" pick>
           <CodePickerField label="프로젝트" hideLabel width={200} emptyLabel="전체" value={project} onChange={setProject} items={projects} />
         </EcCond>
+        <EcCond label="정렬/소계기준">
+          <a href="#" className="text-ec-navy" onClick={(e) => { e.preventDefault(); setSetupOpen(true) }}>설정</a>
+        </EcCond>
       </ul>
+      <CheckSortModal open={setupOpen} options={[dateHead, '수표번호', '거래처명', '계정명', '적요', '금액']} value={setup}
+                      onApply={(s) => { setSetup(s); headSort.reset(); setSetupOpen(false) }} onClose={() => setSetupOpen(false)} />
 
       {/* 원본 출력물 머리 — 제목 24px · '회사명 :' · 기준일자, 아래 [P.1] · 출력한 때(2026-10-14 실측) */}
       <EcReportHead title={title} period={reportDate(asOf)} />
       <table ref={tableRef} className="ec-report w-full text-left">
         <thead>
           <tr>
-            <th>{received ? '수령일자' : '발행일자'}</th>
-            <th>수표번호</th>
-            <th>거래처명</th>
-            <th>계정명</th>
-            <th>적요</th>
-            <th className="text-right">금액</th>
+            {[dateHead, '수표번호', '거래처명', '계정명', '적요'].map((h) => <SortHead key={h} label={h} sort={headSort} />)}
+            <SortHead label="금액" sort={headSort} className="text-right" />
           </tr>
         </thead>
         <tbody>
@@ -166,7 +175,7 @@ export default function CheckHoldingPage({ type }: { type: CheckType }) {
           ) : groups.length === 0 ? (
             <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : groups.flatMap((g) => [
-            ...g.cs.map((c) => (
+            ...g.rows.map((c) => (
               <tr key={c.id}>
                 <td>{dateText(c.issueDate)}</td>
                 <td>{c.checkNo}</td>
@@ -176,14 +185,14 @@ export default function CheckHoldingPage({ type }: { type: CheckType }) {
                 <td className="text-right">{won(Number(c.amount))}</td>
               </tr>
             )),
-            <tr key={`sub-${g.cs[0].id}`} style={SUB_ROW}>
-              <td colSpan={5} className="text-center">{g.cs[0].partnerName ? `${g.cs[0].partnerName} ` : ''}[{codeOf(g.cs[0].partnerId) ?? ''}] 계</td>
+            ...(showSub ? [<tr key={`sub-${g.key}`} style={SUB_ROW}>
+              <td colSpan={5} className="text-center">{subLabel(g.rows[0])}</td>
               <td className="text-right">{won(g.sum)}</td>
-            </tr>,
+            </tr>] : []),
           ])}
         </tbody>
         {/* 원본 발행수표현황 빈 판은 '등록된 데이터가 없습니다.' 한 줄뿐 — 합계 줄이 없다(2026-10-14 실측) */}
-        {groups.length > 0 && (
+        {groups.length > 0 && setup.total && (
           <tfoot>
             <tr style={SUB_ROW}>
               <td colSpan={5} className="text-center">합계</td>
