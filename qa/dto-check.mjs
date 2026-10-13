@@ -156,6 +156,10 @@ function resolveEntity(stem) {
  * 한 화면에서만 서버가 채우는 값은 여기 적는다.
  */
 const OWNED_HERE = new Map([
+  ['ProjectPlan|planRevenue', '프로젝트계획(E040636) 항목 01 판매 계획 줄 [금액] 의 합 — 계획 입력 창(POST · PUT /project-plans/…/lines)이 바꾸고 서버가 다시 적는다(원본 등록 창 판에는 금액 칸이 없다, 2026-10-14 실측)'],
+  ['ProjectPlan|planPurchase', '항목 02 구매 계획 줄 [금액] 의 합 — planRevenue 와 같다'],
+  ['ProjectPlan|planLabor', '항목 03 노무비 계획 줄 [금액] 의 합 — planRevenue 와 같다'],
+  ['ProjectPlan|planExpense', '항목 04 경비 계획 줄 [금액] 의 합 — planRevenue 와 같다'],
   ['Lot|useYn', '시리얼/로트No.등록 목록 · 수정 창 [사용중단/재사용] 전용 자리(POST /lots/use)에서 정한다 — 원본 생성 · 수정 창에는 사용구분 칸이 없다(2026-10-13 실측, plans/재고2/E040617.md)'],
   ['Bill|salesCreated', '청구예정자료의 판매생성여부 — 회계/판매일괄반영(원본 E060906)이 켠다. 청구자료생성 · 수정 창에는 그 칸이 없다(2026-10-13 실측)'],
   ['Bill|accountingReflected', '청구예정자료의 회계반영여부 — 회계/판매일괄반영(원본 E060906)이 켠다. 청구자료생성 · 수정 창에는 그 칸이 없다'],

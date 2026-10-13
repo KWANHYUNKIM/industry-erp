@@ -2,7 +2,10 @@ package com.erp.accounting.project;
 
 import com.erp.accounting.project.dto.ProjectPlanDtos.ComparisonRow;
 import com.erp.accounting.project.dto.ProjectPlanDtos.CreateProjectPlanRequest;
+import com.erp.accounting.project.dto.ProjectPlanDtos.ProjectPlanLineRequest;
+import com.erp.accounting.project.dto.ProjectPlanDtos.ProjectPlanLineResponse;
 import com.erp.accounting.project.dto.ProjectPlanDtos.ProjectPlanResponse;
+import com.erp.accounting.project.dto.ProjectPlanDtos.StatusCell;
 import com.erp.security.UserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -10,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.YearMonth;
 import java.util.List;
 
 @RestController
@@ -32,11 +36,13 @@ public class ProjectPlanController {
 
     /** 프로젝트계획/실적현황(E040637). 달은 YYYY-MM. */
     @GetMapping("/status")
-    public List<com.erp.accounting.project.dto.ProjectPlanDtos.StatusCell> status(
-            @RequestParam List<Long> projectIds,
-            @RequestParam String from,
-            @RequestParam String to) {
-        return service.status(projectIds, java.time.YearMonth.parse(from), java.time.YearMonth.parse(to));
+    public List<StatusCell> status(@RequestParam List<Long> projectIds, @RequestParam String from, @RequestParam String to) {
+        return service.status(projectIds, YearMonth.parse(from), YearMonth.parse(to));
+    }
+
+    @GetMapping("/{id}")
+    public ProjectPlanResponse get(@PathVariable Long id) {
+        return service.get(id);
     }
 
     @PostMapping
@@ -55,6 +61,29 @@ public class ProjectPlanController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         service.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** 항목 계획 리스트 창 — item 은 항목코드 01 ~ 04(안 주면 다). */
+    @GetMapping("/{id}/lines")
+    public List<ProjectPlanLineResponse> lines(@PathVariable Long id, @RequestParam(required = false) String item) {
+        return service.lines(id, item);
+    }
+
+    /** 계획 입력 창 저장(F8). */
+    @PostMapping("/{id}/lines")
+    public ProjectPlanLineResponse addLine(@PathVariable Long id, @Valid @RequestBody ProjectPlanLineRequest req) {
+        return service.addLine(id, req);
+    }
+
+    @PutMapping("/lines/{lineId}")
+    public ProjectPlanLineResponse updateLine(@PathVariable Long lineId, @Valid @RequestBody ProjectPlanLineRequest req) {
+        return service.updateLine(lineId, req);
+    }
+
+    @DeleteMapping("/lines/{lineId}")
+    public ResponseEntity<Void> deleteLine(@PathVariable Long lineId) {
+        service.deleteLine(lineId);
         return ResponseEntity.noContent().build();
     }
 }

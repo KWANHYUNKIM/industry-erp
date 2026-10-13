@@ -2,12 +2,16 @@ package com.erp.accounting.project;
 
 import com.erp.accounting.project.dto.ProjectPlanDtos.ComparisonRow;
 import com.erp.accounting.project.dto.ProjectPlanDtos.CreateProjectPlanRequest;
+import com.erp.accounting.project.dto.ProjectPlanDtos.MonthAmount;
+import com.erp.accounting.project.dto.ProjectPlanDtos.ProjectPlanLineRequest;
+import com.erp.accounting.project.dto.ProjectPlanDtos.ProjectPlanLineResponse;
 import com.erp.accounting.project.dto.ProjectPlanDtos.ProjectPlanResponse;
+import com.erp.accounting.project.dto.ProjectPlanDtos.StatusCell;
 import com.erp.accounting.project.dto.ProjectProfitDtos.ProjectProfitRow;
 import com.erp.accounting.project.dto.ProjectProfitDtos.ProjectProfitSummary;
 import com.erp.common.ApiException;
 import com.erp.inventory.project.Project;
-import com.erp.inventory.project.ProjectRepository;
+import com.erp.inventory.project.ProjectService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,18 +19,30 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.util.List;
-import java.util.Map;
+import java.time.YearMonth;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/**
+ * 프로젝트계획조회(E040636) · 프로젝트계획/실적현황(E040637) — 2026-10-14 loginaa 실측(plans/재고2/E040636.md).
+ *
+ * <p>원본 계획 모델: 계획 머리(프로젝트 · 시작일 · 완료일 · 적요) + 항목(01 판매 · 02 구매 · 03 노무비 · 04 경비)마다
+ * 계획 줄(적요 · 금액 · 달별 금액) 여러 개. 목록 금액 열은 그 항목 줄들의 [금액] 합이고,
+ * 실적현황 예상금액은 달별 금액이다(둘은 따로 저장된다).
+ */
 @Service
 @RequiredArgsConstructor
 public class ProjectPlanService {
 
     private final ProjectPlanRepository planRepository;
-    private final ProjectRepository projectRepository;
+    private final ProjectPlanLineRepository lineRepository;
+    private final ProjectService projectService;
     private final ProjectProfitService projectProfitService;
+
+    /** 원본 항목코드 → 실적현황 항목 글자. */
+    private static final Map<String, String> ITEM_NAME = Map.of("01", "판매", "02", "구매", "03", "노무비", "04", "경비");
+    private static final List<String> ITEM_ORDER = List.of("판매", "구매", "노무비", "경비");
 
     @Transactional(readOnly = true)
     public List<ProjectPlanResponse> findAll(Integer year) {
@@ -36,79 +52,137 @@ public class ProjectPlanService {
         return rows.stream().map(ProjectPlanResponse::from).toList();
     }
 
+    @Transactional(readOnly = true)
+    public ProjectPlanResponse get(Long id) {
+        return ProjectPlanResponse.from(plan(id));
+    }
+
     @Transactional
     public ProjectPlanResponse create(CreateProjectPlanRequest req, String username) {
-        Project project = projectRepository.findById(req.projectId())
-                .orElseThrow(() -> ApiException.notFound("프로젝트를 찾을 수 없습니다. id=" + req.projectId()));
-        /* 원본 격자의 [구매]·[노무비]·[경비] — 안 주면 0 이다(엔티티 기본값과 같게 둔다). */
-        BigDecimal purchase = req.planPurchase() != null ? req.planPurchase() : BigDecimal.ZERO;
-        BigDecimal labor = req.planLabor() != null ? req.planLabor() : BigDecimal.ZERO;
-        BigDecimal expense = req.planExpense() != null ? req.planExpense() : BigDecimal.ZERO;
-        /*
-         * 계획원가는 그 셋의 합계다(화면 주석). 목록은 [구매]·[노무비]·[경비] 만 보여 주고
-         * 계획이익은 계획매출 − 계획원가로 내는데, 셋만 적고 계획원가를 비우면 원가 0 으로 읽혀
-         * <b>계획이익 = 계획매출</b>(이익률 100%)이 됐다. 비웠으면 셋의 합으로 채운다 —
-         * 따로 적었으면 그 값을 존중한다.
-         */
-        BigDecimal cost = req.planCost();
-        if (cost.signum() == 0) cost = purchase.add(labor).add(expense);
+        checkPeriod(req.startDate(), req.endDate());
+        Project project = projectService.get(req.projectId());
         ProjectPlan plan = ProjectPlan.builder()
                 .project(project)
-                .planYear(req.planYear())
-                .planRevenue(req.planRevenue())
-                .planCost(cost)
-                .planPurchase(purchase)
-                .planLabor(labor)
-                .planExpense(expense)
+                .planYear(req.startDate().getYear())
+                .startDate(req.startDate())
+                .endDate(req.endDate())
                 .remark(req.remark())
                 .createdBy(username)
                 .build();
         return ProjectPlanResponse.from(planRepository.save(plan));
     }
 
-    /**
-     * 원본 [프로젝트 계획항목 수정] 창의 저장(F8)(2026-10-14 E040636 실측 — 판매 계획을 고쳐 저장하면
-     * 목록 [판매] 가 바뀐 값으로 다시 찍힌다). 우리는 고칠 길이 없어 지우고 다시 넣어야 했다.
-     */
+    /** 원본 [프로젝트 계획항목 수정] 창의 저장(F8). 항목 계획 줄은 그대로 둔다. */
     @Transactional
     public ProjectPlanResponse update(Long id, CreateProjectPlanRequest req) {
-        ProjectPlan plan = planRepository.findById(id)
-                .orElseThrow(() -> ApiException.notFound("프로젝트계획을 찾을 수 없습니다. id=" + id));
-        if (!plan.getProject().getId().equals(req.projectId())) {
-            plan.setProject(projectRepository.findById(req.projectId())
-                    .orElseThrow(() -> ApiException.notFound("프로젝트를 찾을 수 없습니다. id=" + req.projectId())));
-        }
-        BigDecimal purchase = req.planPurchase() != null ? req.planPurchase() : BigDecimal.ZERO;
-        BigDecimal labor = req.planLabor() != null ? req.planLabor() : BigDecimal.ZERO;
-        BigDecimal expense = req.planExpense() != null ? req.planExpense() : BigDecimal.ZERO;
-        BigDecimal cost = req.planCost();
-        if (cost.signum() == 0) cost = purchase.add(labor).add(expense);   // create 와 같은 규칙
-        plan.setPlanYear(req.planYear());
-        plan.setPlanRevenue(req.planRevenue());
-        plan.setPlanCost(cost);
-        plan.setPlanPurchase(purchase);
-        plan.setPlanLabor(labor);
-        plan.setPlanExpense(expense);
+        checkPeriod(req.startDate(), req.endDate());
+        ProjectPlan plan = plan(id);
+        if (!plan.getProject().getId().equals(req.projectId())) plan.setProject(projectService.get(req.projectId()));
+        plan.setStartDate(req.startDate());
+        plan.setEndDate(req.endDate());
+        plan.setPlanYear(req.startDate().getYear());
         plan.setRemark(req.remark());
         return ProjectPlanResponse.from(plan);
     }
 
+    /** 수정 창 [삭제] — 항목 계획 줄 · 달 칸도 같이 사라진다(원본 실측, DB 는 ON DELETE CASCADE). */
     @Transactional
     public void delete(Long id) {
-        ProjectPlan plan = planRepository.findById(id)
-                .orElseThrow(() -> ApiException.notFound("프로젝트계획을 찾을 수 없습니다. id=" + id));
+        ProjectPlan plan = plan(id);
+        lineRepository.deleteAll(lineRepository.findByPlanId(id));
         planRepository.delete(plan);
     }
 
-    /** 계획 vs 실적(해당 연도 전표 집계) 대조. 실적은 프로젝트별 손익에서 가져온다. */
+    // ---- 항목 계획 줄 — '<이름> [<코드>] <항목> 계획 리스트' · '… 계획 입력' 창 ----
+
+    @Transactional(readOnly = true)
+    public List<ProjectPlanLineResponse> lines(Long planId, String itemCode) {
+        plan(planId);
+        return lineRepository.findByPlanIdWithMonths(planId).stream()
+                .filter(l -> itemCode == null || itemCode.equals(l.getItemCode()))
+                .map(ProjectPlanLineResponse::from).toList();
+    }
+
+    @Transactional
+    public ProjectPlanLineResponse addLine(Long planId, ProjectPlanLineRequest req) {
+        ProjectPlan plan = plan(planId);
+        ProjectPlanLine line = ProjectPlanLine.builder().plan(plan).itemCode(req.itemCode()).build();
+        fill(line, req);
+        lineRepository.save(line);
+        resum(plan);
+        return ProjectPlanLineResponse.from(line);
+    }
+
+    @Transactional
+    public ProjectPlanLineResponse updateLine(Long lineId, ProjectPlanLineRequest req) {
+        ProjectPlanLine line = line(lineId);
+        fill(line, req);
+        resum(line.getPlan());
+        return ProjectPlanLineResponse.from(line);
+    }
+
+    @Transactional
+    public void deleteLine(Long lineId) {
+        ProjectPlanLine line = line(lineId);
+        ProjectPlan plan = line.getPlan();
+        lineRepository.delete(line);
+        lineRepository.flush();
+        resum(plan);
+    }
+
+    private void fill(ProjectPlanLine line, ProjectPlanLineRequest req) {
+        ProjectPlan plan = line.getPlan();
+        YearMonth first = YearMonth.from(plan.getStartDate());
+        YearMonth last = YearMonth.from(plan.getEndDate());
+        line.setRemark(req.remark());
+        line.setAmount(req.amount() != null ? req.amount() : BigDecimal.ZERO);
+        Map<String, BigDecimal> want = new LinkedHashMap<>();
+        for (MonthAmount m : req.months() == null ? List.<MonthAmount>of() : req.months()) {
+            YearMonth ym = YearMonth.parse(m.ym());
+            if (ym.isBefore(first) || ym.isAfter(last)) throw ApiException.badRequest("계획 기간 밖의 달입니다. " + m.ym());
+            want.put(m.ym(), m.amount() != null ? m.amount() : BigDecimal.ZERO);
+        }
+        line.getMonths().removeIf(m -> !want.containsKey(m.getYm()));
+        for (ProjectPlanLineMonth m : line.getMonths()) m.setAmount(want.remove(m.getYm()));
+        want.forEach((ym, amt) -> line.getMonths().add(ProjectPlanLineMonth.builder().line(line).ym(ym).amount(amt).build()));
+        line.getMonths().sort(Comparator.comparing(ProjectPlanLineMonth::getYm));
+    }
+
+    /** 계획 머리의 네 항목 금액 = 그 항목 줄 [금액] 의 합(목록 [판매] · [구매] · [노무비] · [경비]). */
+    private void resum(ProjectPlan plan) {
+        Map<String, BigDecimal> sum = new HashMap<>();
+        for (ProjectPlanLine l : lineRepository.findByPlanId(plan.getId())) sum.merge(l.getItemCode(), l.getAmount(), BigDecimal::add);
+        plan.setPlanRevenue(sum.getOrDefault("01", BigDecimal.ZERO));
+        plan.setPlanPurchase(sum.getOrDefault("02", BigDecimal.ZERO));
+        plan.setPlanLabor(sum.getOrDefault("03", BigDecimal.ZERO));
+        plan.setPlanExpense(sum.getOrDefault("04", BigDecimal.ZERO));
+        plan.setPlanCost(plan.getPlanPurchase().add(plan.getPlanLabor()).add(plan.getPlanExpense()));
+    }
+
+    private ProjectPlan plan(Long id) {
+        return planRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("프로젝트계획을 찾을 수 없습니다. id=" + id));
+    }
+
+    private ProjectPlanLine line(Long id) {
+        return lineRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("계획을 찾을 수 없습니다. id=" + id));
+    }
+
+    private static void checkPeriod(LocalDate start, LocalDate end) {
+        if (end.isBefore(start)) throw ApiException.badRequest("완료일이 시작일보다 빠릅니다.");
+        if (YearMonth.from(start).plusMonths(120).isBefore(YearMonth.from(end)))
+            throw ApiException.badRequest("계획 기간은 10년 안으로 넣으세요.");
+    }
+
+    /** 프로젝트계획 리스트 — 계획 vs 실적(계획 연도의 전표 집계). */
     @Transactional(readOnly = true)
     public List<ComparisonRow> comparison(Integer year) {
         List<ProjectPlan> plans = year != null
                 ? planRepository.findByYearWithProject(year)
                 : planRepository.findAllWithProject();
 
-        /* 실적은 계획 연도마다 그 해 전표로 모은다(연도를 안 주면 계획에 나온 해마다 한 번). */
-        Map<Integer, Map<Long, ProjectProfitRow>> actualByYear = new java.util.HashMap<>();
+        Map<Integer, Map<Long, ProjectProfitRow>> actualByYear = new HashMap<>();
         for (Integer y : plans.stream().map(ProjectPlan::getPlanYear).distinct().toList()) {
             ProjectProfitSummary actual = projectProfitService.profit(LocalDate.of(y, 1, 1), LocalDate.of(y, 12, 31));
             actualByYear.put(y, actual.rows().stream()
@@ -133,88 +207,84 @@ public class ProjectPlanService {
                     actRevenue, actCost, actProfit,
                     rate(actRevenue, planRevenue), rate(actProfit, planProfit),
                     p.getPlanPurchase(), p.getPlanLabor(), p.getPlanExpense(),
-                    p.getProject().getStartDate(), p.getProject().getEndDate(), p.getRemark(),
+                    p.getStartDate(), p.getEndDate(), p.getRemark(),
                     p.getUpdatedAt());
         }).toList();
     }
 
     /**
-     * 프로젝트계획/실적현황(E040637) — 2026-10-13 loginaa 실측.
+     * 프로젝트계획/실적현황(E040637) — 2026-10-14 loginaa 실측.
      *
-     * <p>원본 계획은 판매(수익) · 구매 · 노무비 · 경비(비용) 네 항목이고, 프로젝트 기간의 달에 놓인다
-     * (20260901A: 판매 20,000,000 · 구매 10,000,000 → '2026.09' 한 줄씩). 우리 계획은 연 단위라
-     * 프로젝트 시작달이 그 해이면 시작달에, 아니면 그 해 1월에 놓는다(원본 계획이 모두 한 달짜리 프로젝트라
-     * 여러 달에 어떻게 나누는지는 아직 못 쟀다).
+     * <p>예상금액은 항목 계획 줄의 <b>달별 금액</b>이다. 계획이 있는 항목은 <b>계획 기간 안의 달마다 줄이 선다</b>
+     * (값이 없어도 — 원본 2026/10/14 ~ 12/31 계획, 10월 100,000 · 11월 200,000 → 2026.12 빈 줄),
+     * 계획 기간 밖의 달은 줄이 없다(한 달짜리 계획을 1년으로 검색하면 그 달 한 줄).
      *
      * <p>실적은 판매(공급가액) · 구매(공급가액) · 비용 전표를 그 달 · 그 프로젝트로 모은다(ProjectProfitService).
      * 노무비는 우리 전표에 프로젝트로 모을 자리가 없어 실적이 늘 비어 있다.
      */
     @Transactional(readOnly = true)
-    public List<com.erp.accounting.project.dto.ProjectPlanDtos.StatusCell> status(
-            List<Long> projectIds, java.time.YearMonth from, java.time.YearMonth to) {
+    public List<StatusCell> status(List<Long> projectIds, YearMonth from, YearMonth to) {
         if (projectIds == null || projectIds.isEmpty()) return List.of();
-        if (to.isBefore(from)) { java.time.YearMonth t = from; from = to; to = t; }
+        if (to.isBefore(from)) { YearMonth t = from; from = to; to = t; }
         if (from.plusMonths(120).isBefore(to)) throw ApiException.badRequest("기준일자는 10년 안으로 고르세요.");
 
-        java.util.Set<Long> ids = new java.util.LinkedHashSet<>(projectIds);
-        java.util.Map<Long, Project> projects = new java.util.LinkedHashMap<>();
-        for (Project p : projectRepository.findAllById(ids)) projects.put(p.getId(), p);
+        Set<Long> ids = new LinkedHashSet<>(projectIds);
+        Map<Long, Project> projects = new LinkedHashMap<>();
+        for (Long id : ids) projects.put(id, projectService.get(id));
 
         // (프로젝트, 항목, 달) → [예상, 실적]
-        java.util.Map<String, BigDecimal[]> cells = new java.util.LinkedHashMap<>();
-        java.util.function.BiConsumer<String, BigDecimal[]> put = (k, v) -> cells.merge(k, v,
-                (a, b) -> new BigDecimal[]{a[0].add(b[0]), a[1].add(b[1])});
+        Map<String, BigDecimal[]> cells = new LinkedHashMap<>();
 
-        for (ProjectPlan plan : planRepository.findByProjectIdsWithProject(ids)) {
-            Project p = plan.getProject();
-            java.time.YearMonth ym = (p.getStartDate() != null && p.getStartDate().getYear() == plan.getPlanYear())
-                    ? java.time.YearMonth.from(p.getStartDate())
-                    : java.time.YearMonth.of(plan.getPlanYear(), 1);
-            if (ym.isBefore(from) || ym.isAfter(to)) continue;
-            putPlan(put, p.getId(), "판매", ym, plan.getPlanRevenue());
-            putPlan(put, p.getId(), "구매", ym, plan.getPlanPurchase());
-            putPlan(put, p.getId(), "노무비", ym, plan.getPlanLabor());
-            putPlan(put, p.getId(), "경비", ym, plan.getPlanExpense());
-        }
-
-        for (java.time.YearMonth ym = from; !ym.isAfter(to); ym = ym.plusMonths(1)) {
-            ProjectProfitSummary s = projectProfitService.profit(ym.atDay(1), ym.atEndOfMonth());
-            for (ProjectProfitRow r : s.rows()) {
-                if (!ids.contains(r.projectId())) continue;
-                putActual(put, r.projectId(), "판매", ym, r.revenue());
-                putActual(put, r.projectId(), "구매", ym, r.purchaseCost());
-                putActual(put, r.projectId(), "경비", ym, r.expense());
+        List<ProjectPlan> plans = planRepository.findByProjectIdsWithProject(ids);
+        Map<Long, List<ProjectPlanLine>> linesByPlan = plans.isEmpty() ? Map.of()
+                : lineRepository.findByPlanIdsWithMonths(plans.stream().map(ProjectPlan::getId).toList()).stream()
+                .collect(Collectors.groupingBy(l -> l.getPlan().getId()));
+        for (ProjectPlan plan : plans) {
+            YearMonth a = YearMonth.from(plan.getStartDate());
+            YearMonth b = YearMonth.from(plan.getEndDate());
+            if (a.isBefore(from)) a = from;
+            if (b.isAfter(to)) b = to;
+            Long pid = plan.getProject().getId();
+            for (ProjectPlanLine l : linesByPlan.getOrDefault(plan.getId(), List.of())) {
+                String item = ITEM_NAME.get(l.getItemCode());
+                Map<String, BigDecimal> byYm = new HashMap<>();
+                for (ProjectPlanLineMonth m : l.getMonths()) byYm.merge(m.getYm(), m.getAmount(), BigDecimal::add);
+                for (YearMonth ym = a; !ym.isAfter(b); ym = ym.plusMonths(1)) {
+                    BigDecimal v = byYm.getOrDefault(ym.toString(), BigDecimal.ZERO);
+                    cells.merge(pid + "|" + item + "|" + ym, new BigDecimal[]{v, BigDecimal.ZERO},
+                            (x, y) -> new BigDecimal[]{x[0].add(y[0]), x[1].add(y[1])});
+                }
             }
         }
 
-        List<com.erp.accounting.project.dto.ProjectPlanDtos.StatusCell> out = new java.util.ArrayList<>();
+        for (YearMonth ym = from; !ym.isAfter(to); ym = ym.plusMonths(1)) {
+            ProjectProfitSummary s = projectProfitService.profit(ym.atDay(1), ym.atEndOfMonth());
+            for (ProjectProfitRow r : s.rows()) {
+                if (!ids.contains(r.projectId())) continue;
+                putActual(cells, r.projectId(), "판매", ym, r.revenue());
+                putActual(cells, r.projectId(), "구매", ym, r.purchaseCost());
+                putActual(cells, r.projectId(), "경비", ym, r.expense());
+            }
+        }
+
+        List<StatusCell> out = new ArrayList<>();
         for (var e : cells.entrySet()) {
             String[] k = e.getKey().split("\\|");
             Project p = projects.get(Long.valueOf(k[0]));
             if (p == null) continue;
-            out.add(new com.erp.accounting.project.dto.ProjectPlanDtos.StatusCell(
-                    p.getId(), p.getCode(), p.getName(), p.getStartDate(), p.getEndDate(),
+            out.add(new StatusCell(p.getId(), p.getCode(), p.getName(), p.getStartDate(), p.getEndDate(),
                     k[1], k[2], e.getValue()[0], e.getValue()[1]));
         }
-        out.sort(java.util.Comparator
-                .comparing(com.erp.accounting.project.dto.ProjectPlanDtos.StatusCell::projectCode)
+        out.sort(Comparator.comparing(StatusCell::projectCode)
                 .thenComparing(c -> ITEM_ORDER.indexOf(c.item()))
-                .thenComparing(com.erp.accounting.project.dto.ProjectPlanDtos.StatusCell::month));
+                .thenComparing(StatusCell::month));
         return out;
     }
 
-    private static final List<String> ITEM_ORDER = List.of("판매", "구매", "노무비", "경비");
-
-    private static void putPlan(java.util.function.BiConsumer<String, BigDecimal[]> put,
-                                Long projectId, String item, java.time.YearMonth ym, BigDecimal v) {
+    private static void putActual(Map<String, BigDecimal[]> cells, Long projectId, String item, YearMonth ym, BigDecimal v) {
         if (v == null || v.signum() == 0) return;
-        put.accept(projectId + "|" + item + "|" + ym, new BigDecimal[]{v, BigDecimal.ZERO});
-    }
-
-    private static void putActual(java.util.function.BiConsumer<String, BigDecimal[]> put,
-                                  Long projectId, String item, java.time.YearMonth ym, BigDecimal v) {
-        if (v == null || v.signum() == 0) return;
-        put.accept(projectId + "|" + item + "|" + ym, new BigDecimal[]{BigDecimal.ZERO, v});
+        cells.merge(projectId + "|" + item + "|" + ym, new BigDecimal[]{BigDecimal.ZERO, v},
+                (x, y) -> new BigDecimal[]{x[0].add(y[0]), x[1].add(y[1])});
     }
 
     /** 달성률(%) = 실적/계획*100. 계획이 0 이하이면 0으로 둔다(나눗셈·음수 왜곡 방지). */
