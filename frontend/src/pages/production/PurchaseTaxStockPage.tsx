@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTableColumnCheck } from '../../utils/assertTableColumns'
+import { changeJournalStatus, deleteJournals } from '../../features/taxstock/journalStatus'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
@@ -7,13 +9,18 @@ import Modal from '../../components/Modal'
 import EcPeriodPicks, { AS_PICKS, SALES_TAX_LIST_PICKS, SALES_TAX_STOCK_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import { dateText } from '../../utils/dateText'
+import { dateNo } from '../../utils/dateNo'
 
 interface JournalLine { accountCode: string; accountName: string; debit: number; credit: number; description: string | null }
 interface Journal {
   id: number; docNo: string; entryDate: string; description: string | null
   partnerId: number | null; partnerName: string | null; sourceType: string; sourceTypeName: string
+  confirmStatus?: 'UNCONFIRMED' | 'IN_APPROVAL' | 'CONFIRMED'
   lines: JournalLine[]
 }
+/** 조회(list) 위 알약 — 원본 E040218 · E040219 '전체 · 결재중 · 미확인 · 확인', 열면 <b>확인</b>(2026-10-13 실측). */
+type Tab = '전체' | '결재중' | '미확인' | '확인'
+const TAB_STATUS: Record<Exclude<Tab, '전체'>, NonNullable<Journal['confirmStatus']>> = { 결재중: 'IN_APPROVAL', 미확인: 'UNCONFIRMED', 확인: 'CONFIRMED' }
 
 /** 부가세대급금 — 매입부가세가 걸리는 계정. 매출은 부가세예수금(255). */
 const VAT_PAID = '135'
@@ -37,8 +44,10 @@ const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
  */
 /**
  * <p><b>매출(세금)계산서조회(재고)</b>(E040218, 같은 날 실측)는 같은 전표를 <b>목록</b>으로 본다(list) — 열 일자 - 번호 · 거래처명 · 공급가액 ·
- * 부가세 · 합 계 · 내역보기 · 인쇄, 달 소계 · 합계줄이 없고 기본은 최근30일(+1개월). 위 탭 전체 · 결재중 · 미확인 · 확인은
- * 회계전표에 결재 · 확인 상태가 없어 두지 않았다. <b>매입(세금)계산서조회(재고)</b>(E040219)도 같은 판이다(조건에 [발송여부]만 없다).
+ * 부가세 · 합 계 · 내역보기 · 인쇄, 달 소계 · 합계줄이 없고 기본은 최근30일(+1개월). <b>매입(세금)계산서조회(재고)</b>(E040219)도 같은 판이다
+ * (조건에 [발송여부]만 없다). 위 알약 전체 · 결재중 · 미확인 · 확인(열면 확인)은 회계전표의 진행상태다(V329 · V334) —
+ * 2026-10-13 E040219 실측: 하단은 탭마다 다르다 — 전체 '대화방 · 인쇄 · 선택삭제 · Excel', 미확인 '… 인쇄 · <b>확인</b> · 선택삭제 …',
+ * 확인 '… 인쇄 · <b>확인취소</b> · 선택삭제 …'. 맨 앞 열은 고르기 칸. 대화방은 우리에게 없다.
  */
 export default function PurchaseTaxStockPage({ kind = 'PURCHASE', list = false }: { kind?: 'PURCHASE' | 'SALES'; list?: boolean }) {
   const sales = kind === 'SALES'
@@ -64,6 +73,8 @@ export default function PurchaseTaxStockPage({ kind = 'PURCHASE', list = false }
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [detail, setDetail] = useState<Journal | null>(null)
+  const [tab, setTab] = useState<Tab>('확인')
+  const [checked, setChecked] = useState<Set<number>>(new Set())
 
   async function load() {
     setLoading(true); setError('')
@@ -100,9 +111,35 @@ export default function PurchaseTaxStockPage({ kind = 'PURCHASE', list = false }
     .filter((j) => !partner || (j.partnerName ?? '') === partner)
     .filter((j) => !pmgrCond || pmgr.managerOfName(j.partnerName) === pmgrCond)
     .filter((j) => !taxOnly || (j.partnerId != null && taxReportOf.get(j.partnerId) !== false))
+    /* 조회는 위 알약, 현황은 조건 [상태](라디오, 기본 확인 — E040320 2026-10-13 실측)가 같은 값을 고른다. */
+    .filter((j) => tab === '전체' || (j.confirmStatus ?? 'CONFIRMED') === TAB_STATUS[tab])
     .sort((a, b) => (a.entryDate < b.entryDate ? -1 : a.entryDate > b.entryDate ? 1 : a.docNo.localeCompare(b.docNo))),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  [rows, docNo, partner, pmgrCond, pmgr.options, taxOnly, taxReportOf])
+  [rows, docNo, partner, pmgrCond, pmgr.options, taxOnly, taxReportOf, list, tab])
+  const picked = shown.filter((j) => checked.has(j.id))
+  const tableRef = useRef<HTMLTableElement>(null)
+  useTableColumnCheck(tableRef, list ? (sales ? '매출(세금)계산서조회(재고)' : '매입(세금)계산서조회(재고)') : sales ? '매출(세금)계산서현황(재고)' : '매입(세금)계산서현황(재고)', [list, shown.length])
+
+  /** 원본 [확인] · [확인취소] — 고른 전표의 진행상태를 미확인 ↔ 확인(회계거래조회와 같은 /journals/status). */
+  async function changeStatus(status: 'CONFIRMED' | 'UNCONFIRMED') {
+    if (picked.length === 0) { setError('바꿀 전표를 고르세요.'); return }
+    setError('')
+    try {
+      await changeJournalStatus(picked.map((x) => x.id), status)
+      setChecked(new Set())
+      void load()
+    } catch (err) { setError(extractErrorMessage(err)) }
+  }
+  /** 원본 [선택삭제]. 구매 · 판매에서 온 전표는 회계반영 취소로만 지워진다 — 서버가 막으면 그 까닭을 보인다. */
+  async function removeChecked() {
+    if (picked.length === 0) return
+    if (!confirm('선택한 전표를 삭제 하겠습니까?')) return
+    const results = await deleteJournals(picked.map((x) => x.id))
+    const failed = results.filter((x) => x.status === 'rejected') as PromiseRejectedResult[]
+    setChecked(new Set())
+    void load()
+    if (failed.length > 0) setError(`${picked.length - failed.length}건 삭제, ${failed.length}건 실패 — ${extractErrorMessage(failed[0].reason)}`)
+  }
   const months = useMemo(() => {
     const m = new Map<string, Journal[]>()
     shown.forEach((j) => { const k = j.entryDate.slice(0, 7); m.set(k, [...(m.get(k) ?? []), j]) })
@@ -120,6 +157,9 @@ export default function PurchaseTaxStockPage({ kind = 'PURCHASE', list = false }
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setDocNo(''); setPartner('') } },
         { label: '인쇄' },
+        ...(list && tab === '미확인' ? [{ label: '확인', disabled: picked.length === 0, onClick: () => void changeStatus('CONFIRMED') }] : []),
+        ...(list && tab === '확인' ? [{ label: '확인취소', disabled: picked.length === 0, onClick: () => void changeStatus('UNCONFIRMED') }] : []),
+        ...(list ? [{ label: '선택삭제', disabled: picked.length === 0, onClick: () => void removeChecked() }] : []),
         { label: 'Excel' },
       ]}
     >
@@ -151,12 +191,34 @@ export default function PurchaseTaxStockPage({ kind = 'PURCHASE', list = false }
             </label>
           </EcCond>
         )}
+        {!list && (
+          <EcCond label="상태">
+            {(['전체', '결재중', '미확인', '확인'] as const).map((t) => (
+              <label key={t} className="inline-flex items-center gap-[3px] mr-[10px] text-[12.5px]">
+                <input type="radio" name="tax-stock-status" checked={tab === t} onChange={() => setTab(t)} /> {t}
+              </label>
+            ))}
+          </EcCond>
+        )}
       </ul>
 
       {!list && <h3 className="text-[13px] font-bold mt-[4px] mx-0 mb-[6px]">{sales ? '매출청구서현황' : '매입청구서현황'} <span className="font-normal text-ec-hint">{dateText(from)} ~ {dateText(to)}</span></h3>}
-      <table className="w-full text-left">
+      {list && (
+        <div className="ec-pills mb-[8px]">
+          {(['전체', '결재중', '미확인', '확인'] as const).map((t) => (
+            <button key={t} type="button" className={`ec-pill no-ec${tab === t ? ' active' : ''}`} onClick={() => { setTab(t); setChecked(new Set()) }}>{t}</button>
+          ))}
+        </div>
+      )}
+      <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
+            {list && (
+              <th className="w-[28px] text-center">
+                <input type="checkbox" aria-label="전체 선택" checked={shown.length > 0 && shown.every((j) => checked.has(j.id))}
+                  onChange={(e) => setChecked(e.target.checked ? new Set(shown.map((j) => j.id)) : new Set())} />
+              </th>
+            )}
             <th className="text-center">{list ? '일자 - 번호' : '일자-No.'}</th>
             <th>거래처명</th>
             <th className="text-right">공급가액</th>
@@ -167,23 +229,25 @@ export default function PurchaseTaxStockPage({ kind = 'PURCHASE', list = false }
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={6} className="ec-empty">불러오는 중…</td></tr>
+            <tr><td colSpan={list ? 7 : 6} className="ec-empty">불러오는 중…</td></tr>
           ) : shown.length === 0 ? (
-            <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={list ? 7 : 6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : list ? [...shown].reverse().map((j) => {
             /* 조회(목록)는 최근 것이 위다 — 원본 2026/10/28 · 10/02 · 09/28 차례(실측). */
             const s = sumOf(j)
             return (
               <tr key={j.id}>
-                <td className="text-center">{dateText(j.entryDate)} {j.docNo}</td>
+                <td className="text-center">
+                  <input type="checkbox" aria-label="선택" checked={checked.has(j.id)}
+                    onChange={(e) => setChecked((cur) => { const n = new Set(cur); if (e.target.checked) n.add(j.id); else n.delete(j.id); return n })} />
+                </td>
+                {/* 원본 '2026/10/26 -1' — 그날 일련번호만 붙인다. */}
+                <td className="text-center"><a className="ec-link">{dateNo(j.entryDate, j.docNo)}</a></td>
                 <td>{j.partnerName ?? ''}</td>
                 <td className="text-right">{won(s.supply)}</td>
                 <td className="text-right">{won(s.vat)}</td>
                 <td className="text-right">{won(s.total)}</td>
-                <td className="text-center">
-                  <button type="button" className="no-ec" onClick={() => setDetail(j)}
-                          style={{ border: 'none', background: 'none', color: 'var(--ec-blue)', cursor: 'pointer', fontSize: 12 }}>내역보기</button>
-                </td>
+                <td className="text-center"><a className="ec-link" onClick={() => setDetail(j)}>내역보기</a></td>
               </tr>
             )
           }) : months.flatMap(([m, js]) => {

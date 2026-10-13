@@ -207,7 +207,8 @@ const MENU: TopMenu[] = [
           { label: '구매할인현황', to: '/sales/purchase-discount' },
           { label: '회계미반영현황 (구매)', to: '/sales/accounting-reflection?kind=purchase&view=unposted' },
           { label: '거래처별채무', to: '/sales/ledger-payable' },
-          { label: '구매일괄회계반영', children: [{ label: '회계반영/미반영', to: '/sales/accounting-reflection?kind=purchase&view=batch' }] },
+          // 원본 구매일괄회계반영 › 구매일괄회계반영 · 매입(세금)계산서조회(재고)(2026-10-13 실측)
+          { label: '구매일괄회계반영', children: [{ label: '구매일괄회계반영', to: '/sales/accounting-reflection?kind=purchase&view=batch' }, { label: '매입(세금)계산서조회(재고)', to: '/production/purchase-tax-list' }] },
         ],
       },
       {

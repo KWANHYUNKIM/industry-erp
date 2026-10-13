@@ -4224,13 +4224,6 @@
   ],
   "in": "frontend/src/pages/production/PurchaseTaxStockPage.tsx"
  },
- "매입(세금)계산서현황(재고)|상태": {
-  "claim": "이 화면이 회계전표 진행상태로 거르지 않는다",
-  "absent": [
-   "confirmStatus"
-  ],
-  "in": "frontend/src/pages/production/PurchaseTaxStockPage.tsx"
- },
  "보유어음현황|정렬/소계기준": {
   "claim": "만기일자 오름차순 하나로 세운다",
   "present": [
@@ -4789,13 +4782,6 @@
   "claim": "이 화면이 아직 회계전표 줄의 프로젝트로 거르지 않는다",
   "absent": [
    "projectId"
-  ],
-  "in": "frontend/src/pages/production/PurchaseTaxStockPage.tsx"
- },
- "매출(세금)계산서현황(재고)|상태": {
-  "claim": "이 화면이 회계전표 진행상태로 거르지 않는다",
-  "absent": [
-   "confirmStatus"
   ],
   "in": "frontend/src/pages/production/PurchaseTaxStockPage.tsx"
  },
