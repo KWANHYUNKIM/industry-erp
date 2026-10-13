@@ -6,10 +6,12 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { WithholdingSlip, WithholdingSlipListRow } from '../../types/api'
+import { ymd } from '../../utils/periods'
 
 const won = (n: number) => Math.trunc(n).toLocaleString('ko-KR')
 const ym = (s: string) => s.replace('-', '/')
-const today = () => new Date().toISOString().slice(0, 10)
+/** 오늘(이 기기 시각) — toISOString 은 UTC 라 한국 오전 9시 전에는 하루 전이 됐다(원본 기본 2026/10/14, 우리 10/13). */
+const today = () => ymd(new Date())
 const TYPES = ['사업소득', '이자배당소득', '기타소득', '비거주자사업기타소득']
 
 /**

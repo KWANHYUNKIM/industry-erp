@@ -273,8 +273,9 @@ public class OtherWithholdingService {
                 throw ApiException.badRequest("소득코드가 올바르지 않습니다: " + code);
             }
             if (OTHER_RATES.stream().noneMatch(r -> r.compareTo(taxRate) == 0)) throw ApiException.badRequest("세율은 0% · 15% · 20% · 30% 중에서 고르세요.");
-            if (l.expenseRate() == null) throw ApiException.badRequest("필요경비율을 선택바랍니다.");
-            if (EXPENSE_RATES.stream().noneMatch(r -> r.compareTo(l.expenseRate()) == 0)) throw ApiException.badRequest("필요경비율은 0% · 60% · 70% · 80% · 90% 중에서 고르세요.");
+            // 필요경비율 '====' (안 고름)은 경비 0 으로 저장된다 — 원본 2026-10-14 소득코드 62 · 300,000 → 필요경비 빈칸 · 소득금액 300,000 · 20% 60,000.
+            BigDecimal er = l.expenseRate() == null ? BigDecimal.ZERO : l.expenseRate();
+            if (EXPENSE_RATES.stream().noneMatch(r -> r.compareTo(er) == 0)) throw ApiException.badRequest("필요경비율은 0% · 60% · 70% · 80% · 90% 중에서 고르세요.");
             expenseRate = l.expenseRate();
         } else if (type == IncomeType.NON_RESIDENT) {
             // 원본 비거주자사업기타소득 — 소득코드 40 · 41 · 42 · 61 · 62, 필요경비율 0 · 70 · 80, 세율은 직접(조세조약).

@@ -6,6 +6,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { IncomeType, WithholdingCodeItem, WithholdingPayee, WithholdingSlip } from '../../types/api'
+import { ymd } from '../../utils/periods'
 
 type Kind = 'BUSINESS' | 'INTEREST' | 'OTHER' | 'NON_RESIDENT'
 
@@ -53,7 +54,8 @@ const blankLine = (kind: Kind): Line => ({
   interest: { ...EMPTY_INTEREST },
 })
 const won = (n: number) => (n ? Math.trunc(n).toLocaleString('ko-KR') : '')
-const today = () => new Date().toISOString().slice(0, 10)
+/** 오늘(이 기기 시각) — toISOString 은 UTC 라 한국 오전 9시 전에는 하루 전이 됐다(원본 기본 2026/10/14, 우리 10/13). */
+const today = () => ymd(new Date())
 const floor10 = (n: number) => Math.floor(Math.floor(n) / 10) * 10
 
 /** 서버와 같은 셈 — 필요경비 원 미만 버림, 소득세 · 지방소득세 10원 미만 버림(원본 1,231,233 → 738,739 · 98,490 · 9,840). */
@@ -194,13 +196,14 @@ export default function OtherWithholdingInputPage() {
     setError(''); setNotice('')
     const filled = lines.filter((l) => l.payeeId || l.grossAmount || l.incomeCode || l.description)
     if (filled.length === 0 || filled.some((l) => !(Number(l.grossAmount) > 0))) return setError('지급총액을 입력바랍니다.')
-    if ((kind === 'OTHER' || kind === 'NON_RESIDENT') && filled.some((l) => l.expenseRate === '')) return setError('필요경비율을 선택바랍니다.')
+    // 기타소득은 '====' 그대로 저장된다(경비 0, 원본 2026-10-14 소득코드 62) — 비거주자만 고르게 한다
+    if (kind === 'NON_RESIDENT' && filled.some((l) => l.expenseRate === '')) return setError('필요경비율을 선택바랍니다.')
     if (kind === 'NON_RESIDENT' && filled.some((l) => l.taxRate === '')) return setError('세율을 입력바랍니다.')
     const body = {
       payDate, attributionMonth, payMonth, incomeType: kind as IncomeType,
       lines: filled.map((l) => ({
         payeeId: l.payeeId ? Number(l.payeeId) : null, incomeCode: l.incomeCode || null, grossAmount: Number(l.grossAmount),
-        expenseRate: kind === 'OTHER' || kind === 'NON_RESIDENT' ? Number(l.expenseRate) : null, taxRate: Number(l.taxRate), description: l.description || null,
+        expenseRate: kind === 'NON_RESIDENT' || (kind === 'OTHER' && l.expenseRate !== '') ? Number(l.expenseRate) : null, taxRate: Number(l.taxRate), description: l.description || null,
         industryName: kind === 'BUSINESS' ? l.industryName ?? null : null,
         taxExempt: l.taxExempt ?? null,
         interest: kind === 'INTEREST' ? {

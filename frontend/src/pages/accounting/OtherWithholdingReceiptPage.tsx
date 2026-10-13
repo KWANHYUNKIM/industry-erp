@@ -7,6 +7,7 @@ import { fillAndPrint, openPrintWindow } from '../../utils/print'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import type { WithholdingReceiptPayee } from '../../types/api'
 import type { Company } from './SimplePaymentPage'
+import { ymd } from '../../utils/periods'
 
 type Kind = 'BUSINESS' | 'INTEREST' | 'OTHER' | 'NON_RESIDENT'
 const KINDS: { value: Kind; label: string }[] = [
@@ -53,7 +54,7 @@ export default function OtherWithholdingReceiptPage() {
   const [payee, setPayee] = useState('')
   const [from, setFrom] = useState(`${year}-01`)
   const [to, setTo] = useState(thisMonth())
-  const [submitDate, setSubmitDate] = useState(new Date().toISOString().slice(0, 10))
+  const [submitDate, setSubmitDate] = useState(ymd(new Date()))
   const [forIssuer, setForIssuer] = useState(true)
   const [perLine, setPerLine] = useState(false)
   const [shownPerLine, setShownPerLine] = useState(false)
