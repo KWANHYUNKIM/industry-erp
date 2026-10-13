@@ -25,7 +25,7 @@ interface Slip { slipDate: string; slipNo: number; lines: SlipLine[] }
  * <ul>
  *   <li>머리 [일자](오늘) + 격자: 근무일자 · 사원 · 수당항목 · 단위 · 근무기록, 끝에 근무기록 합계줄.
  *       사원 · 수당항목은 코드로 고르고, 단위는 수당항목의 지급유형(변동(시간) …)이 찍힌다.</li>
- *   <li>근무일자가 비면 '근무일자를 확인바랍니다.' 로 막힌다. 저장하면 폼이 비워진다(▲ 저장/신규).</li>
+ *   <li>근무일자가 비면 저장이 막히고 그 칸 테두리만 빨갛다(문구 없음 — 2026-10-14 원본 재 봄). 저장하면 안내 없이 폼이 비워진다(▲ 저장/신규).</li>
  *   <li>버튼 저장(F8) · 다시 작성 · 리스트(근무조회) · 웹자료올리기.</li>
  * </ul>
  * 저장한 근무기록은 급여계산이 그 달 변동수당으로 셈한다(근무시간 × 단가). 근무조회의 [전표일자]를 누르면 이 화면이 그 전표로 열린다.
@@ -43,7 +43,7 @@ export default function WorkInputPage() {
   const [employees, setEmployees] = useState<EmployeeMaster[]>([])
   const [items, setItems] = useState<PayItem[]>([])
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [dateMissing, setDateMissing] = useState(false)
   const [sortOpen, setSortOpen] = useState(false)
   const [loadOpen, setLoadOpen] = useState(false)
   const tableRef = useRef<HTMLTableElement>(null)
@@ -81,10 +81,11 @@ export default function WorkInputPage() {
 
   async function save() {
     setError('')
+    setDateMissing(false)
     const filled = rows.filter((r) => r.employeeId || r.payItemId || r.quantity)
     if (filled.length === 0) { setError('근무기록을 한 줄 이상 넣으세요.'); return }
     for (const r of filled) {
-      if (!r.workDate) { setError('근무일자를 확인바랍니다.'); return }
+      if (!r.workDate) { setDateMissing(true); return }   // 원본: 문구 없이 칸 테두리만 빨강
       if (!r.employeeId) { setError('사원을 선택 바랍니다.'); return }
       if (!r.payItemId) { setError('수당항목을 선택 바랍니다.'); return }
       if (!r.quantity || Number(r.quantity) <= 0) { setError('근무기록을 입력 바랍니다.'); return }
@@ -98,9 +99,7 @@ export default function WorkInputPage() {
         await api.put(`/work-records/${editDate}/${editNo}`, body)
         nav('/hr/work-list')
       } else {
-        const r = await api.post<Slip>('/work-records', body)
-        setNotice(`${r.data.slipDate.replace(/-/g, '/')} -${r.data.slipNo} 저장`)
-        window.setTimeout(() => setNotice(''), 2500)
+        await api.post<Slip>('/work-records', body)   // 원본은 저장 뒤 안내 없이 폼만 비운다
         setRows(Array.from({ length: BLANK_ROWS }, blank))   // 원본 기본은 저장/신규 — 폼을 비운다
       }
     } catch (e) {
@@ -121,7 +120,6 @@ export default function WorkInputPage() {
       ]}
     >
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
-      {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
       <ul className="ec-form mb-[8px]">
         <li>
           <span className="title">일자</span>
@@ -167,7 +165,11 @@ export default function WorkInputPage() {
             return (
               <tr key={i}>
                 <td className="text-center text-ec-hint">{i + 1}</td>
-                <td><input type="date" className="ec-input w-full" value={r.workDate} onChange={(e) => edit(i, { workDate: e.target.value })} /></td>
+                <td>
+                  {(() => { const bad = dateMissing && !r.workDate && !!(r.employeeId || r.payItemId || r.quantity)
+                    return <input type="date" className={`ec-input w-full ${bad ? 'border-ec-danger' : ''}`} aria-invalid={bad} title={bad ? '근무일자를 확인바랍니다.' : undefined}
+                                  value={r.workDate} onChange={(e) => edit(i, { workDate: e.target.value })} /> })()}
+                </td>
                 <td>
                   <CodePickerField label="사원" hideLabel fill placeholder="사원" emptyLabel="선택 해제"
                                    value={r.employeeId} onChange={(v) => edit(i, { employeeId: v })}
