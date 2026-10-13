@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -37,7 +38,16 @@ public final class OrderReleaseDtos {
             String partnerName, String warehouseName) {}
 
     /** itemCode · itemName — 출고증의 품목코드 · 품목명 열. */
-    public record DetailLine(Long itemId, BigDecimal quantity, BigDecimal unitPrice, String itemCode, String itemName) {}
+    public record DetailLine(Long itemId, BigDecimal quantity, BigDecimal unitPrice, String itemCode, String itemName,
+                             /** '주문서출고처리수정' 창의 줄 — 처리 줄 id · 규격 · [추가수량](주문수량 − 다른 처리 건 수량). */
+                             Long lineId, String spec, BigDecimal addableQty) {}
+
+    /** '주문서출고처리수정' [저장(F8)] — 줄마다 수량. 0 도 받는다(원본 실측). */
+    public record UpdateReleaseRequest(@NotEmpty @Valid List<UpdateReleaseLine> lines) {}
+
+    public record UpdateReleaseLine(
+            @NotNull Long lineId,
+            @NotNull(message = "수량을 입력하세요.") @PositiveOrZero(message = "수량은 0 이상이어야 합니다.") BigDecimal quantity) {}
 
     /** '출고등록' 창 [저장(F8)] — 일자와 고른 주문 줄의 출고수량. 처리구분은 '처리' 하나뿐이라 받지 않는다. */
     public record CreateReleaseRequest(

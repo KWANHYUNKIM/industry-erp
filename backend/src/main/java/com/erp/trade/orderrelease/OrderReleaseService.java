@@ -79,6 +79,8 @@ public class OrderReleaseService {
     public ReleaseDetail detail(Long id) {
         OrderRelease r = find(id);
         SalesOrder o = r.getSalesOrder();
+        Map<Long, BigDecimal> released = releasedByLine(
+                r.getLines().stream().map(l -> l.getSalesOrderLine().getId()).toList());
         boolean taxable = o.getVatAmount().signum() > 0 || o.getSupplyAmount().signum() == 0;
         return new ReleaseDetail(r.getId(), r.getReleaseNo(), r.getReleaseDate(),
                 o.getId(), o.getOrderNo(), o.getOrderDate(), o.getPartner().getId(),
@@ -86,9 +88,14 @@ public class OrderReleaseService {
                 o.getProject() != null ? o.getProject().getId() : null,
                 o.getEmployee() != null ? o.getEmployee().getId() : null,
                 taxable, r.getSale() != null ? r.getSale().getId() : null,
-                r.getLines().stream().map(l -> new DetailLine(l.getSalesOrderLine().getItem().getId(),
-                        l.getQuantity(), l.getSalesOrderLine().getUnitPrice(),
-                        l.getSalesOrderLine().getItem().getCode(), l.getSalesOrderLine().getItem().getName())).toList(),
+                r.getLines().stream().map(l -> {
+                    SalesOrderLine ol = l.getSalesOrderLine();
+                    // [추가수량] = 주문수량 − 다른 처리 건이 낸 수량(이 건을 빼고 낼 수 있는 만큼).
+                    BigDecimal others = released.getOrDefault(ol.getId(), BigDecimal.ZERO).subtract(l.getQuantity());
+                    return new DetailLine(ol.getItem().getId(), l.getQuantity(), ol.getUnitPrice(),
+                            ol.getItem().getCode(), ol.getItem().getName(),
+                            l.getId(), ol.getItem().getSpec(), ol.getQuantity().subtract(others));
+                }).toList(),
                 o.getPartner().getName(), o.getWarehouse() != null ? o.getWarehouse().getName() : null);
     }
 
@@ -102,14 +109,10 @@ public class OrderReleaseService {
         req.lines().forEach(l -> qtyByLine.merge(l.orderLineId(), l.quantity(), BigDecimal::add));
         List<SalesOrderLine> lines = salesOrderLineRepository.findWithOrderByIds(qtyByLine.keySet());
         if (lines.size() != qtyByLine.size()) throw ApiException.notFound("주문서를 찾을 수 없습니다.");
-        Map<Long, BigDecimal> released = releasedByLine(qtyByLine.keySet());
-        for (SalesOrderLine l : lines) {
-            BigDecimal rest = l.getQuantity().subtract(released.getOrDefault(l.getId(), BigDecimal.ZERO));
-            if (qtyByLine.get(l.getId()).compareTo(rest) > 0) {
-                throw ApiException.badRequest("출고수량이 잔량(" + rest.stripTrailingZeros().toPlainString()
-                        + ")보다 많습니다. - " + l.getItem().getName());
-            }
-        }
+        /*
+         * 잔량보다 많이 내보내도 막지 않는다 — 원본에서 잔량 10 인 줄에 15 를 넣고 [저장(F8)] 하니 안내 없이 저장되고
+         * 그 줄이 미처리에서 사라졌다(2026-10-13 셋째 실측). 잔량이 0 이하가 되면 미처리에서 빠질 뿐이다.
+         */
         /*
          * 주문마다 한 건씩, <b>화면에 보이던 차례대로</b> 번호를 매긴다 — 원본에서 -6 · -5 두 주문을 함께 출고하면
          * 목록 위의 -6 이 출고 -1, -5 가 -2 가 됐다(2026-10-13 실측). 조회 결과의 차례는 정해져 있지 않아 요청 차례로 맞춘다.
@@ -132,6 +135,19 @@ public class OrderReleaseService {
             made.add(toRow(releaseRepository.save(r)));
         }
         return made;
+    }
+
+    /**
+     * '주문서출고처리수정' [저장(F8)] — 줄마다 [수량] 을 고친다. 0 도 받는다: 원본에서 0 으로 저장하니 안내 없이 저장되고
+     * 처리 건은 남은 채 [출고수량합계] 가 빈칸이 됐다. 15 → 4 로 고치면 미처리 잔량이 10 − 4 = 6 이 됐다(2026-10-13 실측).
+     */
+    @Transactional
+    public ReleaseRow update(Long id, UpdateReleaseRequest req) {
+        OrderRelease r = find(id);
+        Map<Long, BigDecimal> qty = new HashMap<>();
+        req.lines().forEach(l -> qty.put(l.lineId(), l.quantity()));
+        r.getLines().forEach(l -> { BigDecimal q = qty.get(l.getId()); if (q != null) l.setQuantity(q); });
+        return toRow(r);
     }
 
     /** [처리취소] — 처리만 지운다. 이 건으로 만든 판매는 남는다(원본 그대로). */

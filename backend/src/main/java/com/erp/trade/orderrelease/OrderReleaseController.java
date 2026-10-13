@@ -45,6 +45,11 @@ public class OrderReleaseController {
         return service.create(req, principal.getUsername());
     }
 
+    @PutMapping("/{id}")
+    public ReleaseRow update(@PathVariable Long id, @Valid @RequestBody UpdateReleaseRequest req) {
+        return service.update(id, req);
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         service.delete(id);

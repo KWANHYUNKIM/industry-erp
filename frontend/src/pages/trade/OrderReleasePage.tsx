@@ -11,6 +11,7 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { dateNo } from '../../utils/dateNo'
 import { useShortcut } from '../../utils/useShortcut'
+import { useTableSort } from '../../utils/useTableSort'
 import { fillAndPrint, openPrintWindow } from '../../utils/print'
 import { releaseSlipHtml, type ReleaseSlip } from '../../utils/releaseSlipDocument'
 
@@ -31,7 +32,17 @@ import { releaseSlipHtml, type ReleaseSlip } from '../../utils/releaseSlipDocume
  *   [판매] 칸이 같은 판매(2026/10/13-7)를 가리킨다. 처리 탭에서 둘을 골라 하단 [판매입력] 해도 같다.
  * - [인쇄] 열 → '출 고 증' 미리보기(창고 · 출고일자 · 납품처 · 품목코드 · 품목명 · 수량 · 인수). [처리취소] 는 '처리취소하겠습니까?'.
  *
- * 아직 없는 것: Email(바깥 발송) · 처리구분변경(처리구분이 '처리' 하나뿐이라 바꿀 데가 없어 안 쟀다).
+ * 2026-10-13 셋째 실측(데모 주문 2026/10/13-1 울트라 로션 잔량 10 으로 써 보고 지움):
+ * - 잔량 10 에 출고수량 15 를 넣고 [출고] 해도 막지 않는다 — 저장되고 그 줄이 미처리에서 사라진다.
+ * - 처리 탭 첫 [일자-No.](출고) 도 링크 → '주문서출고처리수정' 창: 일자 · 주문번호 · 거래처 · 처리구분 + 줄(품목 · 규격 ·
+ *   추가수량 · 수량). 수량 15 → 4 로 [저장(F8)] 하면 안내 없이 닫히고 미처리 잔량이 6. 0 으로 저장해도 받고 합계가 빈칸.
+ *   창의 [처리취소] 는 '전표를 삭제하겠습니까?' 를 묻고 지운다.
+ * - [처리구분변경] → '처리구분변경' 창(처리구분: 처리 하나) [저장(F8)] · [닫기].
+ * - 하단 버튼은 잠그지 않는다. 안 고르고 누르면 [출고] · [판매입력] · [인쇄] 는 '리스트에 선택된 자료가 없습니다.…',
+ *   [처리구분변경] · [처리취소] 는 '선택된 자료가 없습니다.\n<버튼>할 자료를 체크한 후 다시 시도 바랍니다.'
+ * - 번호 칸이 체크 칸이다(form-checkbox-numbered — 흰 동그라미 안 회색 번호, 고르면 파랑). 미처리 머리는 출고수량 말고 ▼ 정렬.
+ *
+ * 아직 없는 것: Email(바깥 발송) · 수정 창의 [저장/전표(F7)] · [H](안 눌러 봄).
  */
 type Tab = 'PENDING' | 'DONE'
 
@@ -43,6 +54,12 @@ interface PendingLine {
   dueDate: string | null; remark: string | null; orderUpdatedAt: string | null
 }
 
+interface ReleaseEditLine { lineId: number; itemName: string; spec: string | null; addableQty: number; quantity: number }
+interface ReleaseEdit {
+  id: number; releaseNo: string; releaseDate: string; orderNo: string; orderDate: string; partnerName: string
+  lines: ReleaseEditLine[]
+}
+
 interface ReleaseRow {
   id: number; releaseNo: string; releaseDate: string
   orderId: number; orderNo: string; orderDate: string
@@ -52,8 +69,24 @@ interface ReleaseRow {
 
 const PICKS = ['금일', '전일', '금주(~오늘)', '전주', '금월(~오늘)', '전월', '종료일', '최근30일'] as const
 const NO_PICK = '리스트에 선택된 자료가 없습니다.\n\n체크박스에 체크한 후 다시 시도 바랍니다.'
+/** 원본 [처리구분변경] · [처리취소] 는 버튼 이름을 넣어 묻는다. */
+const noPickFor = (what: string) => `선택된 자료가 없습니다.\n${what}할 자료를 체크한 후 다시 시도 바랍니다.`
 const qtyText = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const slash = (d: string | null) => (d ? d.replace(/-/g, '/') : '')
+/** 수량 칸 — 원본은 0 을 빈칸으로 그린다(수정 창에서 0 으로 저장한 건의 출고수량합계). */
+const qtyOrBlank = (n: number) => (n === 0 ? '' : qtyText(n))
+
+/** 원본 번호 칸(form-checkbox-numbered) — 번호가 곧 체크 칸이다. 안 고르면 흰 동그라미에 회색 번호, 고르면 파랑. */
+function NumCheck({ no, on, onChange, label }: { no: number | ''; on: boolean; onChange: (on: boolean) => void; label: string }) {
+  return (
+    <label className="relative inline-block align-middle cursor-pointer">
+      <input type="checkbox" aria-label={label} checked={on} onChange={(e) => onChange(e.target.checked)}
+        className="absolute inset-0 m-0 opacity-0 cursor-pointer" />
+      <span className={`inline-block w-[18px] leading-[17px] text-center rounded-[6px] border-[length:var(--ec-hair)] ${
+        on ? 'bg-ec-blue border-ec-blue text-ec-panel' : 'bg-ec-panel border-ec-line text-ec-icon'}`}>{no}</span>
+    </label>
+  )
+}
 
 export default function OrderReleasePage() {
   const navigate = useNavigate()
@@ -87,6 +120,14 @@ export default function OrderReleasePage() {
   /** 출고등록 창의 [판매입력] — 켜고 저장하면 방금 만든 처리 건들로 판매입력을 연다. */
   const [regSale, setRegSale] = useState(false)
   useShortcut('F8', () => void saveRelease(), regOpen)
+  /** '주문서출고처리수정' 창 — 처리 탭 첫 [일자-No.]. */
+  const [edit, setEdit] = useState<ReleaseEdit | null>(null)
+  const [editQty, setEditQty] = useState<Record<number, string>>({})
+  const [editError, setEditError] = useState('')
+  useShortcut('F8', () => void saveEdit(), edit != null)
+  /** '처리구분변경' 창 — 처리구분이 '처리' 하나뿐이라 저장해도 바뀌는 것이 없다. */
+  const [kindOpen, setKindOpen] = useState(false)
+  useShortcut('F8', () => setKindOpen(false), kindOpen)
 
   async function load() {
     setLoading(true); setError('')
@@ -110,6 +151,15 @@ export default function OrderReleasePage() {
     .filter((p) => !partnerCond || String(p.partnerId) === partnerCond)
     .filter((p) => !itemCond || String(p.itemId) === itemCond), [pending, byUpdated, domestic, foreign, whCond, projCond, partnerCond, itemCond])
 
+  const sort = useTableSort(shownPending, {
+    '일자-No.': (p) => `${p.orderDate} ${p.orderNo}`,
+    거래처명: (p) => p.partnerName,
+    품목명: (p) => p.itemName,
+    잔량: (p) => p.remainQty,
+    납기일자: (p) => p.dueDate,
+    적요: (p) => p.remark,
+  })
+
   function toggle(id: number, on: boolean, remain?: number) {
     setChecked((s) => { const n = new Set(s); if (on) n.add(id); else n.delete(id); return n })
     // 원본: 체크하면 비어 있던 [출고수량] 이 잔량으로 찬다.
@@ -128,10 +178,48 @@ export default function OrderReleasePage() {
     } catch (err) { setRegError(extractErrorMessage(err)) }
   }
 
+  /** [출고] — 안 고르고 누르면 원본처럼 알린다(버튼을 잠그지 않는다). */
+  function openRegister() {
+    if (checked.size === 0) return alert(NO_PICK)
+    setRegError(''); setRegDate(ymd(new Date())); setRegOpen(true)
+  }
+
+  /** 처리 탭 첫 [일자-No.] → '주문서출고처리수정'. */
+  async function openEdit(id: number) {
+    setEditError('')
+    try {
+      const d = (await api.get<ReleaseEdit>(`/order-releases/${id}`)).data
+      setEdit(d)
+      setEditQty(Object.fromEntries(d.lines.map((l) => [l.lineId, String(l.quantity)])))
+    } catch (err) { setError(extractErrorMessage(err)) }
+  }
+
+  async function saveEdit() {
+    if (!edit) return
+    setEditError('')
+    try {
+      await api.put(`/order-releases/${edit.id}`, {
+        lines: edit.lines.map((l) => ({ lineId: l.lineId, quantity: Number(editQty[l.lineId] || 0) })),
+      })
+      setEdit(null)
+      void load()
+    } catch (err) { setEditError(extractErrorMessage(err)) }
+  }
+
+  /** 수정 창 [처리취소] — 원본 문구 '전표를 삭제하겠습니까?'. */
+  async function deleteEdit() {
+    if (!edit || !confirm('전표를 삭제하겠습니까?\n- 주문서출고처리수정')) return
+    try {
+      await api.delete(`/order-releases/${edit.id}`)
+      setEdit(null)
+      void load()
+    } catch (err) { setEditError(extractErrorMessage(err)) }
+  }
+
   /** [처리취소] — 판매가 걸린 건이 있으면 원본 문구로 묻는다. */
   async function cancelChecked() {
     const rows = done.filter((r) => checked.has(r.id))
-    if (rows.length === 0) return alert(NO_PICK)
+    if (rows.length === 0) return alert(noPickFor('처리취소'))
     if (rows.some((r) => r.saleId != null)
       ? !confirm('이미 판매입력된 전표가 있습니다.\n진행하겠습니까?')
       : !confirm('처리취소하겠습니까?')) return
@@ -172,14 +260,15 @@ export default function OrderReleasePage() {
       onSearch={load}
       actions={tab === 'PENDING'
         ? [
-            { label: '출고', primary: true, disabled: checked.size === 0, onClick: () => { setRegError(''); setRegDate(ymd(new Date())); setRegOpen(true) } },
+            { label: '출고', primary: true, onClick: openRegister },
             { label: 'Excel' },
           ]
         : [
-            { label: '판매입력', primary: true, disabled: checked.size === 0, onClick: saleFromChecked },
+            { label: '판매입력', primary: true, onClick: saleFromChecked },
             { label: '인쇄', onClick: () => void printSlips(done.filter((r) => checked.has(r.id)).map((r) => r.id)) },
             { label: 'Excel' },
-            { label: '처리취소', disabled: checked.size === 0, onClick: () => void cancelChecked() },
+            { label: '처리구분변경', onClick: () => (checked.size === 0 ? alert(noPickFor('처리구분변경')) : setKindOpen(true)) },
+            { label: '처리취소', onClick: () => void cancelChecked() },
           ]}
     >
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
@@ -232,26 +321,26 @@ export default function OrderReleasePage() {
         <table className="w-full">
           <thead>
             <tr>
-              <th className="w-[34px] text-center">
-                <input type="checkbox" aria-label="전체 선택" checked={allChecked}
-                  onChange={(e) => shownPending.forEach((p) => toggle(p.orderLineId, e.target.checked, p.remainQty))} />
+              <th className="w-[48px] text-center">
+                <NumCheck no="" label="전체 선택" on={allChecked}
+                  onChange={(on) => shownPending.forEach((p) => toggle(p.orderLineId, on, p.remainQty))} />
               </th>
-              <th>일자-No.</th>
-              <th>거래처명</th>
-              <th>품목명[규격명]</th>
-              <th className="text-right">잔량</th>
+              <th className="cursor-pointer" onClick={() => sort.toggle('일자-No.')}>일자-No. {sort.mark('일자-No.')}</th>
+              <th className="cursor-pointer" onClick={() => sort.toggle('거래처명')}>거래처명 {sort.mark('거래처명')}</th>
+              <th className="cursor-pointer" onClick={() => sort.toggle('품목명')}>품목명[규격명] {sort.mark('품목명')}</th>
+              <th className="text-right cursor-pointer" onClick={() => sort.toggle('잔량')}>잔량 {sort.mark('잔량')}</th>
               <th className="text-right">출고수량</th>
-              <th>납기일자</th>
-              <th>적요</th>
+              <th className="cursor-pointer" onClick={() => sort.toggle('납기일자')}>납기일자 {sort.mark('납기일자')}</th>
+              <th className="cursor-pointer" onClick={() => sort.toggle('적요')}>적요 {sort.mark('적요')}</th>
             </tr>
           </thead>
           <tbody>
             {loading ? <EcEmptyRow colSpan={8} loading /> : shownPending.length === 0 && <EcEmptyRow colSpan={8} />}
-            {!loading && shownPending.map((p) => (
+            {!loading && sort.sorted.map((p, i) => (
               <tr key={p.orderLineId}>
                 <td className="text-center">
-                  <input type="checkbox" aria-label="선택" checked={checked.has(p.orderLineId)}
-                    onChange={(e) => toggle(p.orderLineId, e.target.checked, p.remainQty)} />
+                  <NumCheck no={i + 1} label="선택" on={checked.has(p.orderLineId)}
+                    onChange={(on) => toggle(p.orderLineId, on, p.remainQty)} />
                 </td>
                 <td><a className="cursor-pointer" onClick={() => navigate(`/sales/orders?edit=${p.orderId}`)}>{dateNo(p.orderDate, p.orderNo)}</a></td>
                 <td>{p.partnerName}</td>
@@ -271,9 +360,8 @@ export default function OrderReleasePage() {
         <table className="w-full">
           <thead>
             <tr>
-              <th className="w-[34px] text-center">
-                <input type="checkbox" aria-label="전체 선택" checked={allChecked}
-                  onChange={(e) => done.forEach((r) => toggle(r.id, e.target.checked))} />
+              <th className="w-[48px] text-center">
+                <NumCheck no="" label="전체 선택" on={allChecked} onChange={(on) => done.forEach((r) => toggle(r.id, on))} />
               </th>
               <th>일자-No.</th>
               <th>일자-No.</th>
@@ -286,16 +374,16 @@ export default function OrderReleasePage() {
           </thead>
           <tbody>
             {loading ? <EcEmptyRow colSpan={8} loading /> : done.length === 0 && <EcEmptyRow colSpan={8} />}
-            {!loading && done.map((r) => (
+            {!loading && done.map((r, i) => (
               <tr key={r.id}>
                 <td className="text-center">
-                  <input type="checkbox" aria-label="선택" checked={checked.has(r.id)} onChange={(e) => toggle(r.id, e.target.checked)} />
+                  <NumCheck no={i + 1} label="선택" on={checked.has(r.id)} onChange={(on) => toggle(r.id, on)} />
                 </td>
-                <td>{dateNo(r.releaseDate, r.releaseNo)}</td>
+                <td><a className="cursor-pointer" onClick={() => void openEdit(r.id)}>{dateNo(r.releaseDate, r.releaseNo)}</a></td>
                 <td><a className="cursor-pointer" onClick={() => navigate(`/sales/orders?edit=${r.orderId}`)}>{dateNo(r.orderDate, r.orderNo)}</a></td>
                 <td>{r.partnerName}</td>
                 <td>{r.itemSummary}</td>
-                <td className="text-right">{qtyText(r.totalQty)}</td>
+                <td className="text-right">{qtyOrBlank(r.totalQty)}</td>
                 <td className="text-center">
                   {r.saleId != null && r.saleNo && r.saleDate
                     ? <a className="cursor-pointer" onClick={() => navigate(`/sales/sell?edit=${r.saleId}`)}>{dateNo(r.saleDate, r.saleNo).replace(' -', '-')}</a>
@@ -329,6 +417,66 @@ export default function OrderReleasePage() {
           <label className="inline-flex items-center gap-[3px] ml-[6px]">
             <input type="checkbox" checked={regSale} onChange={(e) => setRegSale(e.target.checked)} /> 판매입력
           </label>
+        </div>
+      </Modal>
+
+      <Modal open={edit != null} error={editError} title="주문서출고처리수정" width={760} onClose={() => setEdit(null)}>
+        {edit && (<>
+          <div className="ec-form">
+            <div className="grid grid-cols-2 gap-[6px] items-center">
+              <span className="flex items-center gap-[10px]">
+                <span className="w-[93px] text-ec-label">일자</span>{dateNo(edit.releaseDate, edit.releaseNo)}
+              </span>
+              <span />
+              <span className="flex items-center gap-[10px]">
+                <span className="w-[93px] text-ec-label">주문번호</span>{dateNo(edit.orderDate, edit.orderNo)}
+              </span>
+              <span className="flex items-center gap-[10px]">
+                <span className="w-[93px] text-ec-label">거래처</span>{edit.partnerName}
+              </span>
+              <label className="flex items-center gap-[10px]">
+                <span className="w-[93px] text-ec-label">처리구분</span>
+                <select className="ec-input flex-1" value="처리" onChange={() => {}}><option>처리</option></select>
+              </label>
+            </div>
+          </div>
+          <table className="w-full mt-[9px]">
+            <thead>
+              <tr><th className="w-[48px]" /><th>품목</th><th>규격</th><th className="text-right">추가수량</th><th>수량</th></tr>
+            </thead>
+            <tbody>
+              {edit.lines.map((l, i) => (
+                <tr key={l.lineId}>
+                  <td className="text-center"><NumCheck no={i + 1} label="선택" on={false} onChange={() => {}} /></td>
+                  <td>{l.itemName}</td>
+                  <td>{l.spec ?? ''}</td>
+                  <td className="text-right">{l.addableQty.toLocaleString('ko-KR')}</td>
+                  <td className="w-[130px]">
+                    <EcNumInput className="ec-input w-full text-right" value={editQty[l.lineId] ?? ''}
+                      onValue={(v) => setEditQty((q) => ({ ...q, [l.lineId]: v }))} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="flex gap-[4px] mt-[9px]">
+            <button type="button" className="ec-btn ec-btn-primary" onClick={() => void saveEdit()}>저장(F8)</button>
+            <button type="button" className="ec-btn" onClick={() => setEdit(null)}>닫기</button>
+            <button type="button" className="ec-btn" onClick={() => void deleteEdit()}>처리취소</button>
+          </div>
+        </>)}
+      </Modal>
+
+      <Modal open={kindOpen} error={error} title="처리구분변경" width={760} onClose={() => setKindOpen(false)}>
+        <div className="ec-form">
+          <label className="flex items-center gap-[10px]">
+            <span className="w-[93px] text-ec-label">처리구분</span>
+            <select className="ec-input flex-1" value="처리" onChange={() => {}}><option>처리</option></select>
+          </label>
+        </div>
+        <div className="flex gap-[4px] mt-[9px]">
+          <button type="button" className="ec-btn ec-btn-primary" onClick={() => setKindOpen(false)}>저장(F8)</button>
+          <button type="button" className="ec-btn" onClick={() => setKindOpen(false)}>닫기</button>
         </div>
       </Modal>
     </EcListShell>
