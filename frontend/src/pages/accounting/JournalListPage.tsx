@@ -102,7 +102,9 @@ export default function JournalListPage() {
   /** 전표번호를 누르면 열리는 입력 화면 — 결의서 · 현금거래는 그 화면, 매출전표 I · 매입전표 I 은 그 수정 창. 나머지는 분개를 펼친다. */
   const screenOf = (r: JournalEntry) => voucherType[r.id]
     ? `${VOUCHER_SCREEN_BY_TYPE_NAME[voucherType[r.id]] ?? '/accounting/vouchers'}?journal=${r.id}`
-    : VAT_SLIP_SCREEN[r.sourceType] ? `${VAT_SLIP_SCREEN[r.sourceType]}?journal=${r.id}` : null
+    : VAT_SLIP_SCREEN[r.sourceType] ? `${VAT_SLIP_SCREEN[r.sourceType]}?journal=${r.id}`
+    /* 일반전표(E010201) — 전표번호를 누르면 일반전표 수정 창(원본 실측). 현금거래 · 영수증으로 간편전표는 빼고. */
+    : r.sourceType === 'MANUAL' && cashQuickTotal[r.id] == null && payeeOf[r.id] == null ? `/accounting/journal-entry?journal=${r.id}` : null
   const typeLabel = (r: JournalEntry) => voucherType[r.id] ?? noteLabel(r) ?? TYPE_NAME[r.sourceType] ?? r.sourceTypeName
   /* 원본 줄 색: 매출전표 분홍 · 매입전표 연두(td.danger · td.success). */
   const rowBg = (r: JournalEntry) => (r.sourceType as string) === 'SALES' || (r.sourceType as string) === 'VAT_SALES' ? 'bg-[var(--ec-bg-sales-row)]'

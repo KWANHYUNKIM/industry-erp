@@ -473,7 +473,7 @@ const MENU: TopMenu[] = [
       {
         label: 'FastEntry',
         nodes: [
-          { label: '일반전표입력', to: '/accounting/journal-entry' },
+          { label: '일반전표', to: '/accounting/journal-entry' },
           { label: '현금예금입금', to: '/accounting/cash-deposit' },
           { label: '현금예금출금', to: '/accounting/cash-withdraw' },
           { label: '영수증으로', to: '/accounting/receipt-payment' },

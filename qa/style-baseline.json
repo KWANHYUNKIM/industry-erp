@@ -319,11 +319,6 @@
   "color": 2,
   "palette": 0
  },
- "pages/accounting/JournalEntryPage.tsx": {
-  "inline": 9,
-  "color": 2,
-  "palette": 0
- },
  "pages/accounting/JournalHistoryPage.tsx": {
   "inline": 12,
   "color": 0,

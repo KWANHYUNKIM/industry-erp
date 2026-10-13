@@ -1,123 +1,374 @@
-import { useEffect, useMemo, useState, useRef} from 'react'
-import { useNavigate } from 'react-router-dom'
-import EcListShell from '../../components/EcListShell'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import Modal from '../../components/Modal'
+import type { JournalEntry } from '../../types/api'
+import EcSlipShell from '../../components/EcSlipShell'
+import EcDateField from '../../components/EcDateField'
+import EcNumInput from '../../components/EcNumInput'
+import CodePickerField, { type CodeItem } from '../../components/CodePickerField'
+import { EcCond } from '../../components/EcStatusPanel'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
+import { useCondPickers } from '../../utils/useCondPickers'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
+import { journalNeighbors } from '../../utils/journalNav'
 import { ymd } from '../../components/EcPeriodPicks'
 
-interface Account { id: number; code: string; name: string; division: string }
-interface Row { accountId: string; debit: string; credit: string; description: string }
+interface Account { id: number; code: string; name: string }
+/** 줄 구분 — 원본 선택상자 1출 · 2입 · 3차 · 4대 중 잰 둘(차변 · 대변). */
+type Side = '3' | '4'
+interface Row { side: Side; accountId: string; partnerId: string; debit: string; credit: string; description: string; departmentId: string }
 
 const won = (n: number) => n.toLocaleString('ko-KR')
+const num = (v: string) => Number(String(v).replace(/,/g, '')) || 0
 const today = () => ymd(new Date())
-const emptyRow = (): Row => ({ accountId: '', debit: '', credit: '', description: '' })
+const emptyRow = (side: Side = '3'): Row => ({ side, accountId: '', partnerId: '', debit: '', credit: '', description: '', departmentId: '' })
+const blankRows = () => [emptyRow(), emptyRow(), emptyRow()]
+const TEMP_KEY = 'temp-journal-entry'
+const CONFIRM_LABEL: Record<string, string> = { IN_APPROVAL: '결재중', UNCONFIRMED: '미확인', CONFIRMED: '확인' }
 
-/** 일반전표 입력 — 차변/대변 라인을 직접 입력해 회계전표를 만든다. 차변합=대변합이어야 저장된다. */
+function workTime(iso?: string | null) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
+/**
+ * 회계 I › FastEntry › <b>일반전표</b>(E010201) — 2026-10-13 loginaa 실측(plans/회계1/E010201.md).
+ *
+ * <p>입력 판: 전표일자 · 구분(일반전표) · 회계전표No. · 첨언내용. 격자: 구분(3차 · 4대) · 계정코드 · 계정명 · 거래처코드 · 거래처명 ·
+ * 차변 · 대변 · 적요코드 · 적요 · 추가정보([입력]) · 부서. 처음 3줄, 아래로 내려가면 줄이 는다. 합계줄 차변 · 대변 합과 적요 칸에 차액.
+ * 계정코드 칸에 이름 일부를 치고 Enter → '계정검색'(한 건이면 바로 고른다). 다음 줄 적요 칸에 들어가면 윗줄 적요가 따라온다.
+ *
+ * <p>검증(원본 글자): 계정 없이 저장 → 계정코드 칸 '계정코드를 입력 바랍니다.' · 차대가 다르면 알림
+ * '대차금액이 맞지 않아 저장할 수 없습니다.' / '대변과 차변의 전표금액을 확인 바랍니다.'
+ * 계정에 추가항목유형이 없으면 [입력] → '해당 계정에 입력 가능한 추가정보가 없습니다.'
+ *
+ * <p>[저장(F8)]은 안내 없이 빈 화면(전표일자는 그대로). 칸을 떠날 때마다 임시저장 — 다시 열면 위에 '임시저장된 내역' 줄.
+ * 회계거래조회에서 전표번호를 누르면 수정 창(?journal=id): 전표일자 막힘, 버튼 저장(F8) · 저장/전표(F7) · 복사 · 이전 · 다음 · 닫기 · 삭제 · H,
+ * 삭제 확인 '전표를 삭제하겠습니까?' + '- 일반전표'. 저장하면 닫혀 회계거래조회로.
+ *
+ * <p>두지 않은 것(plans/회계1.md 남은 것): 구분 1출 · 2입 · 적요코드(적요 마스터 없음) · 찾기(F3) · 전표불러오기 · 자금계획 … 툴바 ·
+ * 회계전표No. 직접 지정 · 웹자료올리기 · 보내기 · 수정 창 [확인취소] · 프로젝트 열(원본 이 회사 설정으로 숨김).
+ */
 export default function JournalEntryPage() {
   const navigate = useNavigate()
+  const [params] = useSearchParams()
+  const editId = Number(params.get('journal')) || null
+  const pickers = useCondPickers(['partners'])
+  const deptProject = useDeptProjectItems()
   const [accounts, setAccounts] = useState<Account[]>([])
   const [entryDate, setEntryDate] = useState(today())
-  const [description, setDescription] = useState('')
-  const [rows, setRows] = useState<Row[]>([emptyRow(), emptyRow()])
+  const [memo, setMemo] = useState('')
+  const [rows, setRows] = useState<Row[]>(blankRows)
+  const [loaded, setLoaded] = useState<JournalEntry | null>(null)
   const [error, setError] = useState('')
+  /** 계정 없이 저장했을 때 빨갛게 두르는 줄 — 원본은 그 칸 위에 말풍선을 띄운다. */
+  const [missing, setMissing] = useState<number | null>(null)
+  const [unbalanced, setUnbalanced] = useState(false)
+  const [noExtra, setNoExtra] = useState<number | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [hasTemp, setHasTemp] = useState(false)
+  const [savedAt, setSavedAt] = useState('')
 
   useEffect(() => {
     api.get<Account[]>('/accounts').then((r) => setAccounts(r.data)).catch((e) => setError(extractErrorMessage(e)))
   }, [])
+  useEffect(() => {
+    if (editId) return
+    try { setHasTemp(!!localStorage.getItem(TEMP_KEY)) } catch { setHasTemp(false) }
+  }, [editId])
 
-  const totalDebit = useMemo(() => rows.reduce((a, r) => a + (Number(r.debit) || 0), 0), [rows])
-  const totalCredit = useMemo(() => rows.reduce((a, r) => a + (Number(r.credit) || 0), 0), [rows])
-  const balanced = totalDebit === totalCredit && totalDebit > 0
+  /* 수정 창 — 분개 줄을 그대로 되살린다. */
+  useEffect(() => {
+    if (!editId) return
+    api.get<JournalEntry>(`/journals/${editId}`).then(({ data: e }) => {
+      setLoaded(e)
+      setEntryDate(e.entryDate)
+      setMemo(e.memo ?? '')
+      const rs: Row[] = e.lines.map((l) => ({
+        side: l.debit > 0 ? '3' : '4', accountId: String(l.accountId), partnerId: l.partnerId ? String(l.partnerId) : '',
+        debit: l.debit > 0 ? String(l.debit) : '', credit: l.credit > 0 ? String(l.credit) : '',
+        description: l.description ?? '', departmentId: l.departmentId ? String(l.departmentId) : '',
+      }))
+      setRows([...rs, emptyRow(), emptyRow()])
+    }).catch((err) => setError(extractErrorMessage(err)))
+  }, [editId])
+
+  const accountItems: CodeItem[] = useMemo(() => accounts.map((a) => ({ value: String(a.id), code: a.code, name: a.name })), [accounts])
+  const totalDebit = rows.reduce((a, r) => a + (r.side === '3' ? num(r.debit) : 0), 0)
+  const totalCredit = rows.reduce((a, r) => a + (r.side === '4' ? num(r.credit) : 0), 0)
+  const diff = Math.abs(totalDebit - totalCredit)
 
   function setRow(i: number, patch: Partial<Row>) {
     setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)))
+    setMissing(null)
+  }
+  /** 원본: 처음 3줄, 둘째 줄부터 들어가면 아래에 빈 줄이 붙어 늘 몇 줄 여유가 있다. */
+  function grow(i: number) {
+    const want = i === 0 ? 3 : i + 4
+    setRows((rs) => (rs.length >= want ? rs : [...rs, ...Array.from({ length: want - rs.length }, () => emptyRow())]))
+  }
+  /** 적요 칸에 들어가면 비어 있을 때 윗줄 적요를 가져온다(원본 실측). */
+  function carryMemo(i: number) {
+    if (i === 0 || rows[i].description) return
+    const above = rows[i - 1]?.description
+    if (above) setRow(i, { description: above })
   }
 
-  async function save() {
+  /* ── 임시저장: 칸을 떠날 때마다(원본 '오후 11:35 임시저장되었습니다.') ── */
+  function tempSave() {
+    if (editId || !rows.some((r) => r.accountId || num(r.debit) || num(r.credit))) return
+    try {
+      localStorage.setItem(TEMP_KEY, JSON.stringify({ entryDate, memo, rows }))
+      setSavedAt(`${new Date().toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' })} 임시저장되었습니다.`)
+    } catch { /* 저장소가 막혀도 입력은 이어 간다 */ }
+  }
+  function applyTemp() {
+    try {
+      const s = JSON.parse(localStorage.getItem(TEMP_KEY) ?? 'null')
+      if (s) { setEntryDate(s.entryDate ?? today()); setMemo(s.memo ?? ''); setRows(Array.isArray(s.rows) && s.rows.length ? s.rows : blankRows()) }
+    } catch { /* 읽을 수 없으면 그냥 둔다 */ }
+    setHasTemp(false)
+  }
+  function deleteTemp() {
+    try { localStorage.removeItem(TEMP_KEY) } catch { /* 무시 */ }
+    setHasTemp(false); setSavedAt('')
+  }
+
+  function reset() {
+    setRows(blankRows()); setMemo(''); setMissing(null); setError('')
+  }
+
+  async function save(thenSlip = false) {
     setError('')
-    if (!description.trim()) return setError('적요를 입력하세요.')
-    const lines = rows
-      .filter((r) => r.accountId && (Number(r.debit) > 0 || Number(r.credit) > 0))
-      .map((r) => ({
-        accountId: Number(r.accountId),
-        debit: Number(r.debit) || 0,
-        credit: Number(r.credit) || 0,
-        description: r.description || undefined,
-      }))
-    if (lines.length < 2) return setError('차변·대변 최소 2줄을 입력하세요.')
-    if (!balanced) return setError(`차변합(${won(totalDebit)})과 대변합(${won(totalCredit)})이 일치해야 합니다.`)
+    const filled = rows.filter((r) => r.accountId || num(r.debit) || num(r.credit))
+    if (filled.length === 0 || filled.some((r) => !r.accountId)) {
+      setMissing(filled.length === 0 ? 0 : rows.findIndex((r) => (num(r.debit) || num(r.credit)) && !r.accountId))
+      return
+    }
+    if (totalDebit !== totalCredit || totalDebit === 0) { setUnbalanced(true); return }
     setSaving(true)
     try {
-      await api.post('/journals', { entryDate, description, lines })
-      navigate('/accounting/journals')
-    } catch (err) {
-      setError(extractErrorMessage(err))
+      const body = {
+        entryDate, memo: memo.trim() || undefined,
+        lines: filled.map((r) => ({
+          accountId: Number(r.accountId),
+          debit: r.side === '3' ? num(r.debit) : 0,
+          credit: r.side === '4' ? num(r.credit) : 0,
+          description: r.description.trim() || undefined,
+          partnerId: r.partnerId ? Number(r.partnerId) : undefined,
+          departmentId: r.departmentId ? Number(r.departmentId) : undefined,
+        })),
+      }
+      const { data } = editId
+        ? await api.put<JournalEntry>(`/journals/${editId}`, body)
+        : await api.post<JournalEntry>('/journals', body)
+      if (!editId) deleteTemp()
+      if (thenSlip) navigate(`/accounting/journals?entryId=${data.id}`)
+      else if (editId) navigate('/accounting/journals')
+      else reset()   // 원본: 안내 없이 빈 입력 화면(전표일자는 그대로)
+    } catch (e) {
+      const msg = extractErrorMessage(e)
+      if (msg.includes('대차금액')) setUnbalanced(true)
+      else setError(msg)
     } finally {
       setSaving(false)
     }
   }
 
+  async function remove() {
+    if (!editId) return
+    try {
+      await api.delete(`/journals/${editId}`)
+      setConfirmDelete(false)
+      navigate('/accounting/journals')
+    } catch (e) {
+      setError(extractErrorMessage(e))
+    }
+  }
 
-  /* 칸이 자료 따라 변하는 격자라 정적으로 못 센다 — 렌더된 표를 직접 잰다. */
+  /** [복사] — 같은 줄로 새 전표를 연다(일자는 오늘). */
+  function copy() {
+    const keep = rows
+    navigate('/accounting/journal-entry')
+    setTimeout(() => { setLoaded(null); setEntryDate(today()); setRows(keep) }, 0)
+  }
+
+  const nav = editId ? journalNeighbors(`/accounting/journal-entry?journal=${editId}`) : { prev: null, next: null }
+  const actions = editId
+    ? [
+        { label: '저장(F8)', primary: true, submit: true, disabled: saving },
+        { label: '저장/전표(F7)', onClick: () => void save(true), disabled: saving },
+        { label: '복사', onClick: copy },
+        { label: '이전', onClick: () => nav.prev && navigate(nav.prev), disabled: !nav.prev },
+        { label: '다음', onClick: () => nav.next && navigate(nav.next), disabled: !nav.next },
+        { label: '닫기', onClick: () => navigate('/accounting/journals') },
+        { label: '삭제', onClick: () => setConfirmDelete(true) },
+        { label: 'H', onClick: () => setHistoryOpen(true) },
+      ]
+    : [
+        { label: '저장(F8)', primary: true, submit: true, disabled: saving },
+        { label: '저장/전표(F7)', onClick: () => void save(true), disabled: saving },
+        { label: '다시 작성', onClick: reset },
+        { label: '리스트', onClick: () => navigate('/accounting/journals') },
+      ]
+
   const tableRef = useRef<HTMLTableElement>(null)
-  useTableColumnCheck(tableRef, '일반전표입력', [])
+  useTableColumnCheck(tableRef, '일반전표', [])
+  const slipNo = loaded ? loaded.docNo.replace(/^.*-0*/, '') : ''
 
   return (
-    <EcListShell title="일반전표입력" actions={[{ label: 'Excel' }, { label: '인쇄' }]}>
-      <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label">
-        <span>전표일자</span>
-        <input type="date" className="ec-input" value={entryDate} onChange={(e) => setEntryDate(e.target.value)} style={{ width: 150 }} />
-        <span className="ml-[8px]">적요</span>
-        <input className="ec-input" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="예: 자본금 납입" style={{ width: 300 }} />
-      </div>
+    <>
+    <form onSubmit={(e) => { e.preventDefault(); void save() }} onBlur={tempSave}>
+      <EcSlipShell title="일반전표" formTabs={[{ id: 'basic', label: '일반전표' }]} activeFormTab="basic"
+                   tempSave={hasTemp ? { onApply: applyTemp, onDelete: deleteTemp } : null} savedAt={savedAt} actions={actions}>
+        {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+        <ul className="ec-form mb-[8px]">
+          <EcCond label="전표일자" span={2}>
+            <div className="flex items-center gap-[4px]">
+              <EcDateField value={entryDate} onChange={setEntryDate} disabled={!!editId} />
+              {slipNo && <span>- {slipNo}</span>}
+            </div>
+          </EcCond>
+          <EcCond label="구분" span={2}>
+            <select className="ec-input w-full" aria-label="구분" value="일반전표" disabled={!!editId} onChange={() => undefined}>
+              <option value="일반전표">일반전표</option>
+            </select>
+          </EcCond>
+          <EcCond label="회계전표No." span={2}>
+            <input className="ec-input w-full" aria-label="회계전표No." placeholder="회계전표No." readOnly value="" />
+          </EcCond>
+          <EcCond label="첨언내용" span="full">
+            <textarea className="ec-input w-full h-[52px]" aria-label="첨언내용" placeholder="첨언내용" maxLength={1000}
+                      value={memo} onChange={(e) => setMemo(e.target.value)} />
+          </EcCond>
+        </ul>
 
-      {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
-
-      <table ref={tableRef} className="w-full text-left max-w-[900px]">
-        <thead>
-          <tr>
-            <th className="w-[34px]"></th><th>계정과목</th>
-            <th className="text-right w-[160px]">차변</th><th className="text-right w-[160px]">대변</th>
-            <th>적요</th><th className="w-[44px]"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r, i) => (
-            <tr key={i}>
-              <td className="text-center text-ec-hint">{i + 1}</td>
-              <td>
-                <select className="ec-input" value={r.accountId} onChange={(e) => setRow(i, { accountId: e.target.value })} style={{ width: '100%' }}>
-                  <option value="">계정 선택</option>
-                  {accounts.map((a) => <option key={a.id} value={a.id}>{a.code} {a.name}</option>)}
-                </select>
-              </td>
-              <td><input className="ec-input" type="number" value={r.debit} onChange={(e) => setRow(i, { debit: e.target.value, credit: '' })} style={{ width: '100%', textAlign: 'right' }} /></td>
-              <td><input className="ec-input" type="number" value={r.credit} onChange={(e) => setRow(i, { credit: e.target.value, debit: '' })} style={{ width: '100%', textAlign: 'right' }} /></td>
-              <td><input className="ec-input" value={r.description} onChange={(e) => setRow(i, { description: e.target.value })} style={{ width: '100%' }} /></td>
-              <td className="text-center">
-                {rows.length > 2 && <button className="ec-btn" onClick={() => setRows((rs) => rs.filter((_, idx) => idx !== i))} title="행 삭제">×</button>}
-              </td>
+        <table ref={tableRef} className="w-full text-left">
+          <thead>
+            <tr>
+              <th className="w-[48px]"></th><th className="w-[90px] text-center">구분</th>
+              <th className="text-center">계정코드</th><th className="text-center">계정명</th>
+              <th className="text-center">거래처코드</th><th className="text-center">거래처명</th>
+              <th className="text-center w-[150px]">차변</th><th className="text-center w-[150px]">대변</th>
+              <th className="text-center w-[90px]">적요코드</th><th className="text-center">적요</th>
+              <th className="text-center w-[70px]">추가정보</th><th className="text-center w-[130px]">부서</th>
             </tr>
-          ))}
-        </tbody>
-        <tfoot>
-          <tr className="font-bold bg-ec-page">
-            <td colSpan={2} className="text-right">합계</td>
-            <td style={{ textAlign: 'right', color: '#1a4d8f' }}>{won(totalDebit)}</td>
-            <td style={{ textAlign: 'right', color: '#a5561b' }}>{won(totalCredit)}</td>
-            <td colSpan={2} style={{ color: balanced ? 'var(--ec-success)' : 'var(--ec-danger)', fontSize: 12 }}>
-              {totalDebit === 0 ? '' : balanced ? '대차평형 ✓' : `차액 ${won(Math.abs(totalDebit - totalCredit))}`}
-            </td>
-          </tr>
-        </tfoot>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={i} onFocus={() => grow(i)}>
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td>
+                  <select className="ec-input w-full" aria-label={`${i + 1}줄 구분`} value={r.side}
+                          onChange={(e) => {
+                            const side = e.target.value as Side
+                            const amt = r.side === '3' ? r.debit : r.credit
+                            setRow(i, side === '3' ? { side, debit: amt, credit: '' } : { side, credit: amt, debit: '' })
+                          }}>
+                    <option value="3">3차</option>
+                    <option value="4">4대</option>
+                  </select>
+                </td>
+                <td colSpan={2} className={missing === i ? 'outline outline-1 outline-[var(--ec-danger)]' : ''}
+                    title={missing === i ? '계정코드를 입력 바랍니다.' : undefined}>
+                  <CodePickerField label="계정" popupTitle="계정검색" hideLabel pair fill emptyLabel="(없음)"
+                                   value={r.accountId} onChange={(v) => setRow(i, { accountId: v })} items={accountItems} />
+                  {missing === i && <div className="text-ec-danger text-[11px]">계정코드를 입력 바랍니다.</div>}
+                </td>
+                <td colSpan={2}>
+                  <CodePickerField label="거래처" hideLabel pair fill emptyLabel="(없음)"
+                                   value={r.partnerId} onChange={(v) => setRow(i, { partnerId: v })} items={pickers.partners} />
+                </td>
+                <td>
+                  <EcNumInput className="ec-input w-full text-right" aria-label={`${i + 1}줄 차변`} disabled={r.side !== '3'}
+                              value={r.debit} onValue={(v) => setRow(i, { debit: v })} />
+                </td>
+                <td>
+                  <EcNumInput className="ec-input w-full text-right" aria-label={`${i + 1}줄 대변`} disabled={r.side !== '4'}
+                              value={r.credit} onValue={(v) => setRow(i, { credit: v })} />
+                </td>
+                <td><input className="ec-input w-full" aria-label={`${i + 1}줄 적요코드`} readOnly value="" /></td>
+                <td>
+                  <input className="ec-input w-full" aria-label={`${i + 1}줄 적요`} maxLength={300} value={r.description}
+                         onFocus={() => carryMemo(i)} onChange={(e) => setRow(i, { description: e.target.value })} />
+                </td>
+                <td className="text-center relative">
+                  <a className="text-ec-navy cursor-pointer" onClick={() => r.accountId && setNoExtra(noExtra === i ? null : i)}>입력</a>
+                  {noExtra === i && (
+                    <div className="ec-alert absolute right-0 top-full z-10 whitespace-nowrap">해당 계정에 입력 가능한 추가정보가 없습니다.</div>
+                  )}
+                </td>
+                <td>
+                  <CodePickerField label="부서" hideLabel fill emptyLabel="(없음)" value={r.departmentId}
+                                   onChange={(v) => setRow(i, { departmentId: v })} items={deptProject.departments} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={6}></td>
+              <td className="text-right">{won(totalDebit)}</td>
+              <td className="text-right">{won(totalCredit)}</td>
+              <td></td>
+              <td className="text-right">{diff ? won(diff) : ''}</td>
+              <td colSpan={2}></td>
+            </tr>
+          </tfoot>
+        </table>
+      </EcSlipShell>
+    </form>
 
-      <div className="flex gap-[6px] mt-[12px]">
-        <button className="ec-btn" onClick={() => setRows((rs) => [...rs, emptyRow()])}>+ 행 추가</button>
-        <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving || !balanced}>{saving ? '저장 중…' : '저장(F8)'}</button>
-        <button className="ec-btn" onClick={() => navigate('/accounting/journals')}>전표조회로</button>
-      </div>
-    </EcListShell>
+      <Modal open={unbalanced} title="알림" width={620} error={error} onClose={() => setUnbalanced(false)}>
+        <p className="mb-[8px]">아래의 경우 처리가 불가능합니다.<br />자세한 내용은 아래의 사항을 참고하시기 바랍니다.<br />아래 사항을 수정 후 다시 진행하시기 바랍니다.</p>
+        <table className="w-full">
+          <thead><tr><th className="w-[90px]">구분</th><th className="w-[120px]">해당 메뉴</th><th>사유</th></tr></thead>
+          <tbody>
+            <tr><td></td><td></td><td>대차금액이 맞지 않아 저장할 수 없습니다.<br /><br />대변과 차변의 전표금액을 확인 바랍니다.</td></tr>
+          </tbody>
+        </table>
+        <div className="flex gap-[5px] mt-[8px]">
+          <button type="button" className="ec-btn" onClick={() => setUnbalanced(false)}>닫기</button>
+        </div>
+      </Modal>
+
+      <Modal open={historyOpen} title="전표이력보기" width={780} error={error} onClose={() => setHistoryOpen(false)}>
+        <p className="mb-[6px]">전표번호 : {entryDate.replace(/-/g, '/')} -{slipNo}</p>
+        <table className="w-full">
+          <thead><tr><th className="w-[34px]"></th><th className="text-center">작업자ID</th><th className="text-center">작업일시</th><th className="text-center">전표종류</th><th className="text-center">상태</th></tr></thead>
+          <tbody>
+            {loaded && [
+              { who: loaded.createdBy, at: loaded.createdAt, state: '신규' },
+              ...(loaded.updatedAt && loaded.createdAt && workTime(loaded.updatedAt) !== workTime(loaded.createdAt)
+                ? [{ who: (loaded as JournalEntry & { updatedBy?: string | null }).updatedBy ?? loaded.createdBy, at: loaded.updatedAt, state: '수정' }] : []),
+            ].map((h, i) => (
+              <tr key={i}>
+                <td className="text-center">{i + 1}</td>
+                <td className="text-center text-ec-navy">{(h.who ?? '').toUpperCase()}</td>
+                <td className="text-center">{workTime(h.at)}</td>
+                <td className="text-center">{CONFIRM_LABEL[(loaded as JournalEntry & { confirmStatus?: string }).confirmStatus ?? ''] ?? ''}</td>
+                <td className="text-center">{h.state}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="flex gap-[5px] mt-[8px]">
+          <button type="button" className="ec-btn ec-btn-primary" onClick={() => setHistoryOpen(false)}>닫기</button>
+        </div>
+      </Modal>
+
+      <Modal open={confirmDelete} title="알림" width={420} error={error} onClose={() => setConfirmDelete(false)}>
+        <p className="mb-[12px]">전표를 삭제하겠습니까?<br />- 일반전표</p>
+        <div className="flex gap-[5px]">
+          <button type="button" className="ec-btn ec-btn-primary" onClick={() => void remove()}>확인</button>
+          <button type="button" className="ec-btn" onClick={() => setConfirmDelete(false)}>취소</button>
+        </div>
+      </Modal>
+    </>
   )
 }

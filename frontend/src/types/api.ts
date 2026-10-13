@@ -1709,6 +1709,12 @@ export interface JournalLine {
   debit: number
   credit: number
   description: string | null
+  departmentId?: number | null
+  projectId?: number | null
+  /** 줄 거래처(일반전표 격자 거래처코드 · 거래처명) */
+  partnerId?: number | null
+  partnerCode?: string | null
+  partnerName?: string | null
 }
 
 export interface JournalEntry {
@@ -1729,6 +1735,8 @@ export interface JournalEntry {
   createdBy?: string | null
   createdAt?: string | null
   updatedAt?: string | null
+  /** 일반전표 [첨언내용] */
+  memo?: string | null
 }
 
 export interface LedgerRow {
