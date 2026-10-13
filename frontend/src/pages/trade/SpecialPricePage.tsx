@@ -251,7 +251,10 @@ export default function SpecialPricePage() {
           else await api.patch(`/special-prices/item-groups/${id}/active`, null, params)
         }
       }
-    } catch (err) { setError(extractErrorMessage(err)) }
+    } catch (err) {
+      // load() 가 error 를 비우므로 알림 창으로 — 예전엔 409 가 나도 아무 말 없이 목록만 다시 그렸다.
+      void ecAlert(extractErrorMessage(err))
+    }
     setChecked(new Set()); void load()
   }
 

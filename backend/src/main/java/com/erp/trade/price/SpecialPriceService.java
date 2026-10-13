@@ -90,8 +90,13 @@ public class SpecialPriceService {
     @Transactional
     public void deleteGroup(Long id) {
         // 원본은 막지 않는다 — '해당 특별단가그룹으로 등록된 품목별, 품목그룹별, 적용단가 설정도 모두 삭제됩니다.'
-        // 거래처의 단가그룹(코드)은 거래처 쪽 값이라 남는다 — 같은 코드로 다시 만들면 그 거래처가 다시 붙는다(2026-10-14 실측).
+        // 원본은 거래처의 단가그룹(코드)이 거래처 쪽 값이라 남는다 — 같은 코드로 다시 만들면 그 거래처가 다시 붙는다(2026-10-14 실측).
+        // 우리는 business_partners.*_price_group 이 그룹 코드를 FK 로 물고 있어(각종코드변경 ON UPDATE CASCADE) 비운다. 다시 붙이려면 거래처설정에서.
         SpecialPriceGroup g = group(id);
+        for (BusinessPartner p : partnerService.inPriceGroup(g.getCode())) {
+            partnerService.releasePriceGroup(p.getId(), g.getCode(), true);
+            partnerService.releasePriceGroup(p.getId(), g.getCode(), false);
+        }
         priceRepository.deleteByGroupId(id);
         itemGroupPriceRepository.deleteByGroupId(id);
         warehouseLinkRepository.deleteByGroupId(id);
