@@ -25,6 +25,7 @@ function defaultPeriod() {
  * <p>조건 [지급일자(기본 한 달 전 ~ 한 달 뒤 전날) · 귀속연월 · 지급연월(둘 다 [사용]을 켜야 건다) · 소득구분 · 소득자 · 소득코드],
  * 출력물은 지급 줄마다 [지급일자-No. · 귀속연월 · 지급연월 · 소득자명 · 소득구분 · 소득코드 · 지급총액 · 세액합계 ·
  * 세무신고사업장번호 · 세무신고사업장], 달이 바뀔 때 '2026/08 계' 소계, 끝에 '합계'. 소득자가 빈 줄도 찍는다(조회 · 집계와 다르다).
+ * 조건 판은 펼쳐서 시작하고 [검색(F8)] 뒤 접힌다(원본 2026-10-14 — 머리에 빠른 검색칸 없음, 검색 뒤 Search(F3)).
  * 사업소득의 소득코드는 원본처럼 '00'. 지급일자-No. 를 누르면 그 전표를 연다. 자료가 없으면 '등록된 데이터가 없습니다.'.
  *
  * <p>두지 않은 것: 조건의 세무신고사업장 · 금액 범위 · 세율 · 적요 · 작성자 · 수정일자순, 아래 [인쇄 · Excel].
@@ -77,7 +78,7 @@ export default function OtherWithholdingStatusPage() {
   const sum = (rs: WithholdingLineReportRow[], k: 'grossAmount' | 'taxTotal') => rs.reduce((a, r) => a + Number(r[k]), 0)
 
   return (
-    <EcListShell title="기타원천세현황" onSearch={search}>
+    <EcListShell title="기타원천세현황" onSearch={search} searchable={false}>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <ul className="ec-cond mb-[8px]">

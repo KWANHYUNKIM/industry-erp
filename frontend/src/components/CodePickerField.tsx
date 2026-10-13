@@ -47,8 +47,10 @@ export default function CodePickerField({
    * 안 고르면 전체라는 뜻은 [전체] 지우기 항목(emptyLabel)이 말해 준다.
    */
   label, value, onChange, items, width = 170, placeholder, emptyLabel = '전체', disabled,
-  hideLabel, multiple, values, onChangeMulti, fill, pair, columns, popupTitle, onNew, plain, hideNew,
+  hideLabel, multiple, values, onChangeMulti, fill, pair, columns, popupTitle, onNew, plain, hideNew, showCode,
 }: {
+  /** 고른 뒤 칸에 이름 대신 코드를 적는다(원본 기타원천세입력 업종구분코드 940909 · 소득코드 62 — 이름은 옆 열이 보인다). */
+  showCode?: boolean
   /** 코드도움 창의 격자 열(대상마다 다르다 — CodeSearchModal). 없으면 항목 모양을 보고 고른다. */
   columns?: CodeColumn[]
   /** 창 제목(기본 `${label}검색`) */
@@ -134,7 +136,7 @@ export default function CodePickerField({
     ? (pickedItems.length === 0 ? ''
       : pickedItems.length === 1 ? labelOf(pickedItems[0])
       : `${labelOf(pickedItems[0])} 외 ${pickedItems.length - 1}명`)
-    : (selected ? labelOf(selected) : '')
+    : (selected ? (showCode ? (selected.code ?? selected.value) : labelOf(selected)) : '')
   /** 단일 선택 — 고르는 즉시 닫는다. */
   function pick(item: CodeItem | null) {
     onChange?.(item ? item.value : '', item)

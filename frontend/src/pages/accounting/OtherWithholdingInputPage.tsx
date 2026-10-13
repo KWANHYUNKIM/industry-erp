@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import CodePickerField from '../../components/CodePickerField'
 import EcSlipShell from '../../components/EcSlipShell'
+import { ecConfirm } from '../../components/EcDialog'
 import { EcCond } from '../../components/EcStatusPanel'
 import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
@@ -79,8 +80,10 @@ function calc(l: Line, kind: Kind) {
  * (76 강연료 등 → 60% · 20%, 64 → 90% · 20%, 62 처럼 원본도 '====' 로 두는 코드는 사람이 고른다).
  * 아래 [저장(F8) · 다시 작성 · 리스트]. 지급총액이 빈 줄에서 막는 문구는 원본 그대로 '지급총액을 입력바랍니다.'.
  *
- * <p>원본에 있는데 두지 않은 것: 비거주자사업기타소득(우리에게 그 소득구분이 없다) · 이자배당의 계좌번호 · 과세구분 ·
- * 조세특례 · 금융상품 · 유가증권 등 지급명세서 전용 칸 · [찾기(F3)] · [소액부징수] · [과세최저한] · [웹자료올리기] · 농어촌특별세.
+ * 코드칸(업종구분코드 · 소득코드 · 과세구분코드 …)은 고르면 이름이 아니라 코드를 찍는다(원본 940909 · 62 · O · 13).
+ * 저장하면 말 없이 격자를 비운다(원본도 안내 없음). 수정 창은 지급일자 · 소득구분이 잠기고 [저장(F8) · 닫기 · 삭제].
+ *
+ * <p>원본에 있는데 두지 않은 것: [찾기(F3)] · [웹자료올리기] · 수정 창의 [복사] · [H] · 농어촌특별세 값(열만 있음, 원본도 빈칸).
  */
 export default function OtherWithholdingInputPage() {
   const navigate = useNavigate()
@@ -100,7 +103,6 @@ export default function OtherWithholdingInputPage() {
   const [interestCodes, setInterestCodes] = useState<Record<string, WithholdingCodeItem[]>>({})
   const [company, setCompany] = useState<{ name: string; bizRegNo: string | null } | null>(null)
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
 
   useEffect(() => {
     api.get<WithholdingPayee[]>('/withholding-payees').then((r) => setPayees(r.data)).catch(() => setPayees([]))
@@ -157,7 +159,7 @@ export default function OtherWithholdingInputPage() {
   }
 
   function codePicker(label: string, k: string, value: string, onChange: (v: string) => void) {
-    return <CodePickerField label={label} hideLabel fill emptyLabel="(없음)" value={value} onChange={onChange}
+    return <CodePickerField label={label} hideLabel fill showCode emptyLabel="(없음)" value={value} onChange={onChange}
                             items={(interestCodes[k] ?? []).map((c) => ({ value: c.code, code: c.code, name: c.name }))} />
   }
 
@@ -193,7 +195,7 @@ export default function OtherWithholdingInputPage() {
   }
 
   async function save() {
-    setError(''); setNotice('')
+    setError('')
     const filled = lines.filter((l) => l.payeeId || l.grossAmount || l.incomeCode || l.description)
     if (filled.length === 0 || filled.some((l) => !(Number(l.grossAmount) > 0))) return setError('지급총액을 입력바랍니다.')
     // 기타소득은 '====' 그대로 저장된다(경비 0, 원본 2026-10-14 소득코드 62) — 비거주자만 고르게 한다
@@ -214,12 +216,26 @@ export default function OtherWithholdingInputPage() {
       })),
     }
     try {
-      const { data } = editing
-        ? await api.put<WithholdingSlip>(`/other-withholdings/slips/${editing.date}/${editing.seq}`, body)
-        : await api.post<WithholdingSlip>('/other-withholdings/slips', body)
-      setNotice(`${data.slipNo} 저장되었습니다.`)
-      if (editing) navigate('/accounting/other-withholding')
-      else reset()
+      // 저장 뒤 안내는 없다 — 원본은 말 없이 격자를 비운다(2026-10-14 실측)
+      if (editing) {
+        await api.put<WithholdingSlip>(`/other-withholdings/slips/${editing.date}/${editing.seq}`, body)
+        navigate('/accounting/other-withholding')
+      } else {
+        await api.post<WithholdingSlip>('/other-withholdings/slips', body)
+        reset()
+      }
+    } catch (e) {
+      setError(extractErrorMessage(e))
+    }
+  }
+
+  /** 수정 창의 [삭제] — 원본 기타원천세수정 E030315 확인 창 글자 그대로, 지우면 조회로 돌아간다. */
+  async function remove() {
+    if (!editing) return
+    if (!(await ecConfirm('삭제한 데이터는 복구되지 않습니다.\n삭제하겠습니까?'))) return
+    try {
+      await api.post('/other-withholdings/slips/delete', [{ payDate: editing.date, slipSeq: editing.seq }])
+      navigate('/accounting/other-withholding')
     } catch (e) {
       setError(extractErrorMessage(e))
     }
@@ -238,17 +254,21 @@ export default function OtherWithholdingInputPage() {
     <EcSlipShell
       title={`기타원천세입력${editing ? ` (${editing.date.replace(/-/g, '/')}-${editing.seq})` : ''}`}
       formTabs={[{ id: 'lines', label: '내역' }]} activeFormTab="lines"
-      actions={[
+      // 원본: 입력은 [저장(F8) · 다시 작성 · 리스트], 수정 창은 [저장(F8) · 복사 · 닫기 · 삭제 · H](복사 · H 는 아직 없다)
+      actions={editing ? [
+        { label: '저장(F8)', primary: true, onClick: () => void save() },
+        { label: '닫기', onClick: () => navigate('/accounting/other-withholding') },
+        { label: '삭제', onClick: () => void remove() },
+      ] : [
         { label: '저장(F8)', primary: true, onClick: () => void save() },
         { label: '다시 작성', onClick: reset },
         { label: '리스트', onClick: () => navigate('/accounting/other-withholding') },
       ]}>
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
-      {notice && <p className="ec-alert mb-[8px]">{notice}</p>}
 
       <ul className="ec-form mb-[8px]">
         <EcCond label="지급일자">
-          <input type="date" className="ec-input w-[150px]" value={payDate} onChange={(e) => setPayDate(e.target.value)} />
+          <input type="date" className="ec-input w-[150px]" value={payDate} disabled={!!editing} onChange={(e) => setPayDate(e.target.value)} />
         </EcCond>
         <EcCond label="소득구분">
           <select className="ec-input w-full" value={kind} disabled={!!editing} onChange={(e) => changeKind(e.target.value as Kind)}>
@@ -293,6 +313,7 @@ export default function OtherWithholdingInputPage() {
               <th className="text-center">세율{kind === 'BUSINESS' ? '' : '(%)'}</th>
               <th className="text-right">{kind === 'INTEREST' || kind === 'NON_RESIDENT' ? '세액' : '소득세'}</th>
               <th className="text-right">지방소득세</th>
+              {kind === 'INTEREST' && <th className="text-right">농어촌특별세</th>}
               <th className="text-right">합계</th>
               <th className="text-right">실지급액</th>
               <th className="text-center">적요</th>
@@ -322,7 +343,7 @@ export default function OtherWithholdingInputPage() {
                   <td className="text-center">{payee ? payee.kindName.replace(' ', '') : ''}</td>
                   {kind === 'BUSINESS' && <>
                     <td className="min-w-[150px]">
-                      <CodePickerField label="업종구분코드" hideLabel fill emptyLabel="(없음)" value={l.incomeCode}
+                      <CodePickerField label="업종구분코드" hideLabel fill showCode emptyLabel="(없음)" value={l.incomeCode}
                                        onChange={(v) => setLine(i, { incomeCode: v, industryName: null })}
                                        items={industries.map((c) => ({ value: c.code, code: c.code, name: c.name }))} />
                     </td>
@@ -330,14 +351,14 @@ export default function OtherWithholdingInputPage() {
                   </>}
                   {kind === 'OTHER' && (
                     <td className="min-w-[120px]">
-                      <CodePickerField label="소득코드" hideLabel fill emptyLabel="(없음)" value={l.incomeCode}
+                      <CodePickerField label="소득코드" hideLabel fill showCode emptyLabel="(없음)" value={l.incomeCode}
                                        onChange={(v) => pickOtherCode(i, v)}
                                        items={otherCodes.map((c) => ({ value: c.code, code: c.code, name: c.name }))} />
                     </td>
                   )}
                   {kind === 'NON_RESIDENT' && (
                     <td className="min-w-[120px]">
-                      <CodePickerField label="소득코드" hideLabel fill emptyLabel="(없음)" value={l.incomeCode}
+                      <CodePickerField label="소득코드" hideLabel fill showCode emptyLabel="(없음)" value={l.incomeCode}
                                        onChange={(v) => { const c = nrCodes.find((x) => x.code === v); setLine(i, { incomeCode: v, ...(c ? { expenseRate: c.rate1 ?? '' } : {}) }) }}
                                        items={nrCodes.map((c) => ({ value: c.code, code: c.code, name: c.name }))} />
                     </td>
@@ -373,6 +394,7 @@ export default function OtherWithholdingInputPage() {
                   </td>
                   <td className="text-right">{won(s.tax)}</td>
                   <td className="text-right">{won(s.local)}</td>
+                  {kind === 'INTEREST' && <td />}
                   <td className="text-right">{won(s.total)}</td>
                   <td className="text-right">{won(s.gross ? s.net : 0)}</td>
                   <td>
@@ -402,6 +424,7 @@ export default function OtherWithholdingInputPage() {
               <td />
               <td className="text-right">{won(total.tax)}</td>
               <td className="text-right">{won(total.local)}</td>
+              {kind === 'INTEREST' && <td />}
               <td className="text-right">{won(total.total)}</td>
               <td className="text-right">{won(total.net)}</td>
               <td />
