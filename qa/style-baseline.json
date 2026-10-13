@@ -414,11 +414,6 @@
   "color": 4,
   "palette": 0
  },
- "pages/accounting/StandardCostPage.tsx": {
-  "inline": 4,
-  "color": 0,
-  "palette": 0
- },
  "pages/accounting/TaxInvoiceJournalPage.tsx": {
   "inline": 7,
   "color": 2,
