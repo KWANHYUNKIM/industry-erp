@@ -22,7 +22,10 @@ public final class JournalDtos {
             @NotNull(message = "계정을 선택하세요.") Long accountId,
             BigDecimal debit,
             BigDecimal credit,
-            String description
+            String description,
+            /** 줄의 [부서] · [프로젝트] (원본 일반전표 격자) */
+            Long departmentId,
+            Long projectId
     ) {}
 
     /** 일반전표 직접입력. 차변합=대변합이어야 저장된다. */
@@ -50,13 +53,15 @@ public final class JournalDtos {
     public record JournalLineResponse(
             Long id, int lineNo,
             Long accountId, String accountCode, String accountName,
-            BigDecimal debit, BigDecimal credit, String description
+            BigDecimal debit, BigDecimal credit, String description,
+            Long departmentId, Long projectId
     ) {
         public static JournalLineResponse from(JournalLine l) {
             return new JournalLineResponse(
                     l.getId(), l.getLineNo(),
                     l.getAccount().getId(), l.getAccount().getCode(), l.getAccount().getName(),
-                    l.getDebit(), l.getCredit(), l.getDescription());
+                    l.getDebit(), l.getCredit(), l.getDescription(),
+                    l.getDepartmentId(), l.getProjectId());
         }
     }
 

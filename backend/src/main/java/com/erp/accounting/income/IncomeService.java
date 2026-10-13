@@ -113,8 +113,8 @@ public class IncomeService {
                     .orElseThrow(() -> ApiException.badRequest("계정과목이 없습니다: " + ACC_RECEIVABLE));
             entry = journalService.createManual(new CreateJournalRequest(
                     date, desc, null,
-                    List.of(new ManualLineInput(receivable.getId(), req.amount(), null, "외상매출금"),
-                            new ManualLineInput(account.getId(), null, req.amount(), account.getName()))),
+                    List.of(new ManualLineInput(receivable.getId(), req.amount(), null, "외상매출금", null, null),
+                            new ManualLineInput(account.getId(), null, req.amount(), account.getName(), null, null))),
                     username);
         }
 

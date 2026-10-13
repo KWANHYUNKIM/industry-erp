@@ -44,4 +44,15 @@ public class JournalLine {
     @Column(name = "line_no", nullable = false)
     @Builder.Default
     private Integer lineNo = 1;
+
+    /**
+     * 줄의 [부서] — 원본 전표 인쇄에서 줄마다 적요 칸 위에 부서명이 찍힌다(2026-10-13 loginaa 26/10/13-5).
+     * 장부 · 재무제표 · 경영자료가 이것으로 거른다. hr 를 참조하지 않으려 id 만 든다.
+     */
+    @Column(name = "department_id")
+    private Long departmentId;
+
+    /** 줄의 [프로젝트]. */
+    @Column(name = "project_id")
+    private Long projectId;
 }

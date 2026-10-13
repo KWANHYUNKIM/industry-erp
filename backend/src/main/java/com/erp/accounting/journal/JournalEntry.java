@@ -65,6 +65,17 @@ public class JournalEntry extends BaseTimeEntity {
     @Builder.Default
     private List<JournalLine> lines = new ArrayList<>();
 
+    /**
+     * 머리에서 고른 [부서] · [프로젝트]를 모든 줄에 붙인다 — 원본 영수증으로 [부서 개발팀] 전표는 차 · 대 두 줄 모두 개발팀이다
+     * (2026-10-13 loginaa 26/10/13-5). 이미 줄에 따로 적힌 값은 두고, 비어 있는 줄만 채운다.
+     */
+    public void stampDeptProject(Long departmentId, Long projectId) {
+        for (JournalLine l : lines) {
+            if (l.getDepartmentId() == null) l.setDepartmentId(departmentId);
+            if (l.getProjectId() == null) l.setProjectId(projectId);
+        }
+    }
+
     public void addLine(JournalLine line) {
         line.setEntry(this);
         line.setLineNo(this.lines.size() + 1);

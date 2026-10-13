@@ -85,7 +85,8 @@ public class JournalService {
             }
             e.addLine(JournalLine.builder()
                     .account(account(in.accountId())).debit(debit).credit(credit)
-                    .description(in.description()).build());
+                    .description(in.description())
+                    .departmentId(in.departmentId()).projectId(in.projectId()).build());
         }
         return save(e);
     }
@@ -416,6 +417,7 @@ public class JournalService {
                 addCredit(e, "110", n.getAmount(), "받을어음");
             }
         }
+        e.stampDeptProject(n.getDepartmentId(), n.getProjectId());
         return save(e);
     }
 
@@ -545,6 +547,7 @@ public class JournalService {
                 addCredit(e, "134", v.getAdvanceAmount(), "가지급금 정산");
             }
         }
+        e.stampDeptProject(v.getDepartmentId(), v.getProjectId());
         return save(e);
     }
 
@@ -567,6 +570,7 @@ public class JournalService {
             if (p.debit()) addDebitAccount(e, p.account(), p.amount(), desc);
             else addCreditAccount(e, p.account(), p.amount(), desc);
         }
+        e.stampDeptProject(v.getDepartmentId(), v.getProjectId());
         return save(e);
     }
 
