@@ -10,7 +10,12 @@
         "js:[...document.querySelectorAll('table.ec-report tbody tr')].slice(-2).map((r) => r.innerText.replace(/\\s+/g, ' ')).join(' / ')",
         "expect:[...document.querySelectorAll('table.ec-report thead th')].map((t) => t.innerText.trim()).join('|') === '거래처|수량|판매액|이익|이익율'",
         "expect:document.body.innerText.includes('회사명 :')",
-        "expect:(() => { const rows = [...document.querySelectorAll('table.ec-report tbody tr')]; const last = rows[rows.length - 1]; if (!last || last.cells[0].innerText.trim() !== '합계') return rows.length === 1; const n = (s) => Number(s.replace(/[,%]/g, '')); const rev = n(last.cells[2].innerText), pf = n(last.cells[3].innerText); return /^\\d[\\d,]*\\.\\d\\d$/.test(last.cells[1].innerText.trim()) && last.cells[4].innerText.trim() === (rev ? Math.round(pf / rev * 100) + '%' : '') })()"
+        "expect:(() => { const rows = [...document.querySelectorAll('table.ec-report tbody tr')]; const last = rows[rows.length - 1]; if (!last || last.cells[0].innerText.trim() !== '합계') return rows.length === 1; const n = (s) => Number(s.replace(/[,%]/g, '')); const rev = n(last.cells[2].innerText), pf = n(last.cells[3].innerText); return /^\\d[\\d,]*\\.\\d\\d$/.test(last.cells[1].innerText.trim()) && last.cells[4].innerText.trim() === (rev ? Math.round(pf / rev * 100) + '%' : '') })()",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); [...document.querySelectorAll('label')].find((x) => x.innerText.trim() === '전월동일기간').querySelector('input').click(); await W(2500); return [...document.querySelectorAll('table.ec-report thead tr')].map((r) => r.innerText.replace(/\\s+/g, ' ')).join(' / ') })()",
+        "expect:(() => { const hr = [...document.querySelectorAll('table.ec-report thead tr')]; return hr.length === 2 && hr[0].cells[0].rowSpan === 2 && /^\\d{4}\\/\\d{2}\\/\\d{2} ~ \\d{4}\\/\\d{2}\\/\\d{2}$/.test(hr[0].cells[2].innerText.trim()) && hr[1].innerText.replace(/\\s+/g, '|') === '수량|판매액|이익|이익율|수량|판매액|이익|이익율' })()",
+        "expect:(() => { const rows = [...document.querySelectorAll('table.ec-report tbody tr')]; const last = rows[rows.length - 1]; return last.cells[0].innerText.trim() === '합계' && last.cells.length === 9 })()",
+        "js:(async () => { const sel = document.querySelector('select[aria-label=\"집계조건2\"]'); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(sel, 'month'); sel.dispatchEvent(new Event('change', { bubbles: true })); await new Promise((r) => setTimeout(r, 400)); return 'ok' })()",
+        "expect:document.body.innerText.includes('집계조건 기준일자, 시간순정렬시 비교기간은 사용할 수 없습니다.')"
       ]
     }
   ]

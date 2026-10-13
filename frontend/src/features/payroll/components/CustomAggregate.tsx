@@ -94,20 +94,37 @@ type Leaf = Extract<Out, { kind: 'leaf' }>
  * 같은 상위 조건의 줄은 그 칸을 세로로 합친다. 비율은 합계에 대한 % 를 반올림한 정수, 소계 줄은 비우고 합계는 100.
  * (부서 · 사원 / 지급총액 · 실지급액: 인사팀 신문섭 6,660,000 · 15 … 인사팀 계 6,660,000 … 합계 43,338,000 · 100)
  */
-export function CustomAggregateTable({ dims, targets, records, agg: value, name }: {
+/**
+ * {@code compare} — 원본 [비교기간](2026-10-13 일별이익현황 실측): 조건 열은 한 번만(머리 두 줄을 세로로 합침), 그 옆에
+ * 기간마다 '2026/10/01 ~ 2026/10/13' 머리 아래 고른 대상 열을 한 벌씩. 줄은 두 기간 어느 쪽에든 있는 묶음, 끝에 합계.
+ */
+export function CustomAggregateTable({ dims, targets, records, agg: value, name, compare }: {
   dims: AggDim[]; targets: AggTarget[]; records: AggRecord[]; agg: AggState; name: string
+  compare?: { records: AggRecord[]; labels: [string, string] }
 }) {
   const ref = useRef<HTMLTableElement>(null)
   const conds = value.conds.filter((k) => dims.some((d) => d.key === k))
   const picked = targets.filter((t) => value.targets.includes(t.key))
-  const cols = picked.flatMap((t) => t.cols ?? [t.label])
-  const fmts = picked.flatMap((t) => (t.cols ?? [t.label]).map(() => t.format ?? won))
-  useTableColumnCheck(ref, `${name} 사용자지정집계`, [conds.join(), cols.join(), value.ratio, value.withCode])
+  const base = picked.flatMap((t) => t.cols ?? [t.label])
+  /* 비교 구간의 값은 열 이름 앞에 CMP 를 붙여 같은 기록에 싣는다 — 묶기 · 소계 · 합계를 한 번에 돈다. */
+  const CMP = '\u241f'
+  const cols = compare ? [...base, ...base.map((c) => CMP + c)] : base
+  const baseFmts = picked.flatMap((t) => (t.cols ?? [t.label]).map(() => t.format ?? won))
+  const fmts = compare ? [...baseFmts, ...baseFmts] : baseFmts
+  useTableColumnCheck(ref, `${name} 사용자지정집계`, [conds.join(), cols.join(), value.ratio, value.withCode, !!compare])
 
-  const calcs = picked.flatMap((t) => (t.cols ?? [t.label]).map(() => t.calc))
+  const baseCalcs = picked.flatMap((t) => (t.cols ?? [t.label]).map(() => t.calc))
+  const calcs = compare ? [...baseCalcs, ...baseCalcs] : baseCalcs
   const sumOf = (rs: AggRecord[], c: string) => rs.reduce((s, r) => s + (r.values[c] ?? 0), 0)
-  const sum = (rs: AggRecord[]) => cols.map((c, i) => { const f = calcs[i]; return f ? f((k) => sumOf(rs, k)) : sumOf(rs, c) })
-  const total = sum(records)
+  const sum = (rs: AggRecord[]) => cols.map((c, i) => {
+    const f = calcs[i]
+    const pre = compare && i >= base.length ? CMP : ''
+    return f ? f((k) => sumOf(rs, pre + k)) : sumOf(rs, c)
+  })
+  const all: AggRecord[] = compare ? [...records, ...compare.records.map((r) => ({
+    dims: r.dims, values: Object.fromEntries(Object.entries(r.values).map(([k, v]) => [CMP + k, v])),
+  }))] : records
+  const total = sum(all)
   const out: Out[] = []
   /** 한 갈래를 펼친다 — 마지막 조건마다 한 줄, 그 위 조건이 끝날 때마다 소계 줄. */
   const walk = (rs: AggRecord[], level: number, prefix: { code: string; name: string }[], path: string): void => {
@@ -127,7 +144,7 @@ export function CustomAggregateTable({ dims, targets, records, agg: value, name 
       out.push({ kind: 'sub', key: `s${path}|${code}`, level, label: `${head.name} 계`, values: sum(g) })
     }
   }
-  if (conds.length > 0 && cols.length > 0) walk(records, 0, [], '')
+  if (conds.length > 0 && cols.length > 0) walk(all, 0, [], '')
   // 소계 줄 사이에 붙은 줄끼리만 같은 상위 조건 칸을 세로로 합친다 — 소계 줄은 조건 칸 전체를 가로지른다
   // (2026-10-13 일용근로 실측: 사원 · 급여대장 · 지급구분 · 월별 · 부서면 '2026/10 계' · '1차수 계' … 가 모두 조건 칸 9개를 덮는다).
   const owner: (number | null)[] = conds.map(() => null)
@@ -160,9 +177,18 @@ export function CustomAggregateTable({ dims, targets, records, agg: value, name 
       <table ref={ref} className="ec-report w-full text-left whitespace-nowrap">
         <thead>
           <tr>
-            {conds.flatMap((k) => (hasCode(k) ? [<th key={`c${k}`}>{codeHead(dimOf(k), k)}</th>, <th key={k}>{label(k)}</th>] : [<th key={k}>{label(k)}</th>]))}
-            {cols.flatMap((c) => (value.ratio ? [<th key={c} className="text-right">{c}</th>, <th key={`r${c}`} className="text-right">{c}비율</th>] : [<th key={c} className="text-right">{c}</th>]))}
+            {conds.flatMap((k) => (hasCode(k)
+              ? [<th key={`c${k}`} rowSpan={compare ? 2 : undefined}>{codeHead(dimOf(k), k)}</th>, <th key={k} rowSpan={compare ? 2 : undefined}>{label(k)}</th>]
+              : [<th key={k} rowSpan={compare ? 2 : undefined}>{label(k)}</th>]))}
+            {compare
+              ? compare.labels.map((p) => <th key={p} colSpan={base.length * perCol} className="text-center">{p}</th>)
+              : cols.flatMap((c) => (value.ratio ? [<th key={c} className="text-right">{c}</th>, <th key={`r${c}`} className="text-right">{c}비율</th>] : [<th key={c} className="text-right">{c}</th>]))}
           </tr>
+          {compare && (
+            <tr>
+              {cols.flatMap((c) => { const n = c.replace(CMP, ''); return value.ratio ? [<th key={c} className="text-right">{n}</th>, <th key={`r${c}`} className="text-right">{n}비율</th>] : [<th key={c} className="text-right">{n}</th>] })}
+            </tr>
+          )}
         </thead>
         <tbody>
           {out.length === 0 ? (

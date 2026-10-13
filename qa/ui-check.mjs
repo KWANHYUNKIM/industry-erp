@@ -7350,6 +7350,7 @@ console.log('\n■ 수량·금액 칸이 음수를 그냥 받지 않나')
     'CreateAssetRequest.declineRate': '정률법일 때만 뜻이 있다 — 그때만 0 초과를 본다(FixedAssetService)',
     'TaxVoucherRequest.supplyAmount': '음수는 마이너스(수정) 계산서라 받는다 — 원본 (세금)계산서발행/수령이 공급가액 -100,000 · 부가세 -10,000 을 그대로 저장했다(2026-10-12 실측)',
     'TaxVoucherRequest.vatAmount': '공급가액과 같은 이유 — 마이너스 계산서의 부가세는 음수다(2026-10-12 원본 -10,000 저장)',
+    'AdjustLotRequest.actualQty': '음수 로트 재고를 받는다 — 원본 시리얼/로트No.재고조정(E040634)이 합계 -1 을 저장했다(2026-10-13 ryu_0025 실측, 되돌림)',
     'CreateSettlementRequest.amount': '음수는 되돌린 돈(수금 − = 매출처 환불, 지급 − = 매입처 환급)이라 받는다 — 0 만 서비스가 막는다(SettlementService.create, 27회차)',
   }
   const 숫자 = /(BigDecimal|Integer|Long|int|long|Double|double)\s+(\w+)$/

@@ -6,6 +6,7 @@ import Modal from '../../components/Modal'
 import { costOf, sumExtraCost, type CostBasis } from '../../utils/costBasis'
 import EcStatusPanel, { EcCond } from '../../components/EcStatusPanel'
 import { INQUIRY_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
+import { COMPARE_PERIODS, comparePeriodOf, type ComparePeriod } from '../../utils/periods'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import CodePickerField from '../../components/CodePickerField'
 import { useCondPickers } from '../../utils/useCondPickers'
@@ -236,9 +237,10 @@ export default function DailyProfitPage() {
   })
 
   /** 조건을 통과한 판매 라인 하나하나. 모든 구분이 여기서 갈라져 나간다. */
-  const lines = useMemo(() => sales
-    .filter((d) => !cond.from || d.saleDate >= cond.from)
-    .filter((d) => !cond.to || d.saleDate <= cond.to)
+  /** 판매 전표 → 조건을 통과한 줄. 비교기간도 같은 규칙으로 줄을 낸다(기간만 다르다). */
+  const linesOf = (docs: SalesDoc[], from: string, to: string) => docs
+    .filter((d) => !from || d.saleDate >= from)
+    .filter((d) => !to || d.saleDate <= to)
     .filter((d) => !cond.warehouseId || String(d.warehouseId) === cond.warehouseId)
     .filter((d) => !cond.project || String(d.projectId) === cond.project)
     .filter((d) => !cond.partner || String(d.partnerId) === cond.partner)
@@ -272,14 +274,36 @@ export default function DailyProfitPage() {
           /** 판매부대비용. 원본 [판매부대비용] 열. 안 적었으면 0 이다. */
           extraCost: Number(l.extraCost ?? 0),
         }
-      })),
+      }))
+
+  const lines = useMemo(() => linesOf(sales, cond.from, cond.to),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [sales, cond, tradeKind, withVat, basis, costByItemPeriod, lastPurchasePrice, unitPrices])
 
+  /*
+   * 원본 사용자지정집계의 [비교기간] — 사용안함 · 전년 · 전월 · 전주 · 전일동일기간(2026-10-13 실측).
+   * 고르면 그 구간 판매를 따로 받아 같은 줄 규칙으로 셈한다. 원가 [선입선출(판매)] 는 기준일자 끝날까지 셈한 표를 같이 쓴다
+   * (비교 구간은 그보다 앞이라 이미 들어 있다).
+   */
+  const [compare, setCompare] = useState<ComparePeriod>('사용안함')
+  const cmpRange = mode === '사용자지정집계' ? comparePeriodOf(cond.from, cond.to, compare) : null
+  const [cmpSales, setCmpSales] = useState<SalesDoc[]>([])
+  useEffect(() => {
+    if (!cmpRange) { setCmpSales([]); return }
+    api.get<SalesDoc[]>('/sales', { params: { from: cmpRange.from, to: cmpRange.to } })
+      .then((r) => setCmpSales(r.data)).catch((err) => setError(extractErrorMessage(err)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cmpRange?.from, cmpRange?.to])
+  const cmpLines = useMemo(() => (cmpRange ? linesOf(cmpSales, cmpRange.from, cmpRange.to) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [cmpSales, cmpRange?.from, cmpRange?.to, cond, tradeKind, withVat, basis, costByItemPeriod, lastPurchasePrice, unitPrices])
+  /* 원본은 기준일자 축과 비교기간을 같이 못 쓴다(품질검사현황에서 잰 문구와 같다). */
+  const dateAxis = agg.conds.some((k) => k === 'day' || k === 'month' || k === 'year')
+
   /** 사용자지정집계가 묶는 한 건 — 판매 줄 하나. 원가를 모르는 줄은 원가 · 이익을 0 으로 더한다(판매액은 그대로). */
-  const aggRecords = useMemo(() => {
+  const recordsOf = (ls: typeof lines) => {
     const pcode = new Map(pickers.partners.map((p) => [p.value, p.code]))
-    return lines.map((l) => {
+    return ls.map((l) => {
       const d = l.date.replace(/-/g, '/')
       const cost = l.cost ?? 0, profit = l.profit ?? 0
       const pg = pgroup.groupOfName(l.partnerName) ?? ''
@@ -299,8 +323,11 @@ export default function DailyProfitPage() {
         values: { 수량: l.quantity, 판매액: l.revenue, 원가: cost, 이익: profit, 판매부대비용: l.extraCost, 부대비용포함이익: profit - l.extraCost },
       }
     })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lines, pickers.partners])
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const aggRecords = useMemo(() => recordsOf(lines), [lines, pickers.partners])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const cmpRecords = useMemo(() => recordsOf(cmpLines), [cmpLines, pickers.partners])
 
   /** 구분에 따라 묶는다. 라인별은 안 묶고, 나머지는 키를 만들어 합친다. */
   const rows = useMemo(() => {
@@ -431,6 +458,16 @@ export default function DailyProfitPage() {
             ))}
           </div>
           {mode === '사용자지정집계' && <CustomAggregateConds dims={PROFIT_DIMS} targets={PROFIT_TARGETS} value={agg} onChange={setAgg} />}
+          {mode === '사용자지정집계' && (
+            <span className="inline-flex flex-wrap items-center gap-[8px] mt-[4px]">
+              <span className="inline-block w-[70px] rounded-ec bg-ec-disabled px-[6px] text-ec-label">비교기간</span>
+              {COMPARE_PERIODS.map((k) => (
+                <label key={k} className="inline-flex items-center gap-[3px]">
+                  <input type="radio" name="dp-compare" checked={compare === k} onChange={() => setCompare(k)} /> {k}
+                </label>
+              ))}
+            </span>
+          )}
         </EcCond>
         <EcCond label="창고" pick>
           <CodePickerField label="창고" hideLabel width={200} emptyLabel="전체"
@@ -565,7 +602,12 @@ export default function DailyProfitPage() {
 
       {mode === '사용자지정집계' ? (<>
         <EcReportHead title="일별이익현황" period={reportPeriod(cond.from, cond.to)} />
-        <CustomAggregateTable dims={PROFIT_DIMS} targets={PROFIT_TARGETS} records={aggRecords} agg={agg} name="일별이익현황" />
+        {cmpRange && dateAxis ? (
+          <p className="ec-alert ec-alert-danger">집계조건 기준일자, 시간순정렬시 비교기간은 사용할 수 없습니다.</p>
+        ) : (
+          <CustomAggregateTable dims={PROFIT_DIMS} targets={PROFIT_TARGETS} records={aggRecords} agg={agg} name="일별이익현황"
+                                compare={cmpRange ? { records: cmpRecords, labels: [reportPeriod(cond.from, cond.to), reportPeriod(cmpRange.from, cmpRange.to)] } : undefined} />
+        )}
         <EcReportFoot />
       </>) : (
       <div ref={tableRef} className="overflow-x-auto">
