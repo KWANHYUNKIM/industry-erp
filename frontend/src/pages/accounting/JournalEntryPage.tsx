@@ -15,8 +15,14 @@ import { journalNeighbors } from '../../utils/journalNav'
 import { ymd } from '../../components/EcPeriodPicks'
 
 interface Account { id: number; code: string; name: string }
-/** 줄 구분 — 원본 선택상자 1출 · 2입 · 3차 · 4대 중 잰 둘(차변 · 대변). */
-type Side = '3' | '4'
+/**
+ * 줄 구분 — 원본 선택상자 1출 · 2입 · 3차 · 4대(2026-10-14 실측).
+ * 1출: 금액을 차변에 넣으면 대변 칸에도 같은 금액이 서고(합계 양쪽), 저장하면 상대 줄 '대 현금' 이 붙는다(계정별원장 1019 현금 대변).
+ * 2입: 차변을 건너뛰고 대변에 넣는다 — 차변에 같은 금액, 상대 줄 '차 현금'.
+ */
+type Side = '1' | '2' | '3' | '4'
+/** 1출 · 2입 줄은 금액 칸 하나가 차 · 대 양쪽이다. */
+const isDebitIn = (s: Side) => s === '1' || s === '3'
 interface Row { side: Side; accountId: string; partnerId: string; debit: string; credit: string; description: string; departmentId: string }
 
 const won = (n: number) => n.toLocaleString('ko-KR')
@@ -49,7 +55,9 @@ function workTime(iso?: string | null) {
  * 회계거래조회에서 전표번호를 누르면 수정 창(?journal=id): 전표일자 막힘, 버튼 저장(F8) · 저장/전표(F7) · 복사 · 이전 · 다음 · 닫기 · 삭제 · H,
  * 삭제 확인 '전표를 삭제하겠습니까?' + '- 일반전표'. 저장하면 닫혀 회계거래조회로.
  *
- * <p>두지 않은 것(plans/회계1.md 남은 것): 구분 1출 · 2입 · 적요코드(적요 마스터 없음) · 찾기(F3) · 전표불러오기 · 자금계획 … 툴바 ·
+ * <p>1출 · 2입: 줄 하나에 금액 하나, 저장하면 현금 상대 줄이 붙는다(다시 열면 3차 · 4대 두 줄로 보인다 — 원본은 1출 한 줄 그대로).
+ *
+ * <p>두지 않은 것(plans/회계1.md 남은 것): 적요코드(적요 마스터 없음) · 찾기(F3) · 전표불러오기 · 자금계획 … 툴바 ·
  * 회계전표No. 직접 지정 · 웹자료올리기 · 보내기 · 수정 창 [확인취소] · 프로젝트 열(원본 이 회사 설정으로 숨김).
  */
 export default function JournalEntryPage() {
@@ -99,8 +107,11 @@ export default function JournalEntryPage() {
   }, [editId])
 
   const accountItems: CodeItem[] = useMemo(() => accounts.map((a) => ({ value: String(a.id), code: a.code, name: a.name })), [accounts])
-  const totalDebit = rows.reduce((a, r) => a + (r.side === '3' ? num(r.debit) : 0), 0)
-  const totalCredit = rows.reduce((a, r) => a + (r.side === '4' ? num(r.credit) : 0), 0)
+  const amountOf = (r: Row) => num(isDebitIn(r.side) ? r.debit : r.credit)
+  const totalDebit = rows.reduce((a, r) => a + (r.side === '4' ? 0 : amountOf(r)), 0)
+  const totalCredit = rows.reduce((a, r) => a + (r.side === '3' ? 0 : amountOf(r)), 0)
+  /** 1출 · 2입의 상대 줄 계정 — 우리 표준계정 101 현금(원본 1019). */
+  const cashId = accounts.find((a) => a.code === '101')?.id ?? accounts.find((a) => a.name === '현금')?.id
   const diff = Math.abs(totalDebit - totalCredit)
 
   function setRow(i: number, patch: Partial<Row>) {
@@ -145,24 +156,32 @@ export default function JournalEntryPage() {
 
   async function save(thenSlip = false) {
     setError('')
-    const filled = rows.filter((r) => r.accountId || num(r.debit) || num(r.credit))
+    const filled = rows.filter((r) => r.accountId || amountOf(r))
     if (filled.length === 0 || filled.some((r) => !r.accountId)) {
-      setMissing(filled.length === 0 ? 0 : rows.findIndex((r) => (num(r.debit) || num(r.credit)) && !r.accountId))
+      setMissing(filled.length === 0 ? 0 : rows.findIndex((r) => amountOf(r) && !r.accountId))
       return
     }
     if (totalDebit !== totalCredit || totalDebit === 0) { setUnbalanced(true); return }
+    if (filled.some((r) => r.side === '1' || r.side === '2') && !cashId) { setError('현금 계정(101)이 없습니다.'); return }
     setSaving(true)
     try {
       const body = {
         entryDate, memo: memo.trim() || undefined,
-        lines: filled.map((r) => ({
-          accountId: Number(r.accountId),
-          debit: r.side === '3' ? num(r.debit) : 0,
-          credit: r.side === '4' ? num(r.credit) : 0,
-          description: r.description.trim() || undefined,
-          partnerId: r.partnerId ? Number(r.partnerId) : undefined,
-          departmentId: r.departmentId ? Number(r.departmentId) : undefined,
-        })),
+        lines: filled.flatMap((r) => {
+          const amt = amountOf(r)
+          const line = {
+            accountId: Number(r.accountId),
+            debit: isDebitIn(r.side) ? amt : 0,
+            credit: isDebitIn(r.side) ? 0 : amt,
+            description: r.description.trim() || undefined,
+            partnerId: r.partnerId ? Number(r.partnerId) : undefined,
+            departmentId: r.departmentId ? Number(r.departmentId) : undefined,
+          }
+          if (r.side === '3' || r.side === '4') return [line]
+          // 1출 → 대 현금 · 2입 → 차 현금 (원본: 줄 하나로 넣어도 현금 원장에 상대 금액이 선다)
+          const cash = { ...line, accountId: Number(cashId), partnerId: undefined, debit: line.credit, credit: line.debit }
+          return [line, cash]
+        }),
       }
       const { data } = editId
         ? await api.put<JournalEntry>(`/journals/${editId}`, body)
@@ -267,9 +286,11 @@ export default function JournalEntryPage() {
                   <select className="ec-input w-full" aria-label={`${i + 1}줄 구분`} value={r.side}
                           onChange={(e) => {
                             const side = e.target.value as Side
-                            const amt = r.side === '3' ? r.debit : r.credit
-                            setRow(i, side === '3' ? { side, debit: amt, credit: '' } : { side, credit: amt, debit: '' })
+                            const amt = isDebitIn(r.side) ? r.debit : r.credit
+                            setRow(i, isDebitIn(side) ? { side, debit: amt, credit: '' } : { side, credit: amt, debit: '' })
                           }}>
+                    <option value="1">1출</option>
+                    <option value="2">2입</option>
                     <option value="3">3차</option>
                     <option value="4">4대</option>
                   </select>
@@ -285,12 +306,12 @@ export default function JournalEntryPage() {
                                    value={r.partnerId} onChange={(v) => setRow(i, { partnerId: v })} items={pickers.partners} />
                 </td>
                 <td>
-                  <EcNumInput className="ec-input w-full text-right" aria-label={`${i + 1}줄 차변`} disabled={r.side !== '3'}
-                              value={r.debit} onValue={(v) => setRow(i, { debit: v })} />
+                  <EcNumInput className="ec-input w-full text-right" aria-label={`${i + 1}줄 차변`} disabled={!isDebitIn(r.side)}
+                              value={r.side === '2' ? r.credit : r.debit} onValue={(v) => setRow(i, { debit: v })} />
                 </td>
                 <td>
-                  <EcNumInput className="ec-input w-full text-right" aria-label={`${i + 1}줄 대변`} disabled={r.side !== '4'}
-                              value={r.credit} onValue={(v) => setRow(i, { credit: v })} />
+                  <EcNumInput className="ec-input w-full text-right" aria-label={`${i + 1}줄 대변`} disabled={isDebitIn(r.side)}
+                              value={r.side === '1' ? r.debit : r.credit} onValue={(v) => setRow(i, { credit: v })} />
                 </td>
                 <td><input className="ec-input w-full" aria-label={`${i + 1}줄 적요코드`} readOnly value="" /></td>
                 <td>
