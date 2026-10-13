@@ -29,4 +29,8 @@ public class DailyWorkConfirm {
 
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal days;
+
+    /** 근로일수 — 근무한 날의 수(0.5 일근무도 하루). 원본 E020139(2026-10-14): 일근무 4.5 · 근로일수 5.00. 옛 행은 비어 있다. */
+    @Column(name = "work_days", precision = 10, scale = 2)
+    private BigDecimal workDays;
 }

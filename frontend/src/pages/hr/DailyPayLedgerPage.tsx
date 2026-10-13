@@ -14,7 +14,7 @@ interface Ledger {
   periodFrom: string; periodTo: string; confirmed: boolean; workConfirmCount: number; headcount: number; grossTotal: number
   directAmountCount: number
 }
-interface ConfirmRow { workerId: number; workerCode: string; workerName: string; lastWorkDate: string | null; department: string; days: number }
+interface ConfirmRow { workerId: number; workerCode: string; workerName: string; lastWorkDate: string | null; department: string; days: number; amount: number; workDays: number | null }
 type Line = DailyPayLineRow
 
 const won = (n: number) => Number(n).toLocaleString('ko-KR')
@@ -30,7 +30,11 @@ const monthEnd = (ym: string) => { const [y, m] = ym.split('-').map(Number); ret
  *       금액직접입력) · 급여계산(전체계산 · 개인별계산) · 급여대장(조회 · 일괄수정 · 확정 · 삭제) · 명세서(조회 · Email) · 인원수.</li>
  *   <li>[신규(F2)] '급여정보입력': 귀속연월 · 지급구분(1차수) · 원천세신고 사업자번호 · 대상기간(그 달 1일 ~ 말일) · 지급일(오늘) ·
  *       지급연월 · 급여대장명칭 · 대상프로젝트. 저장하면 '2026/10 1차수 (급여)' 대장이 목록 위에 붙는다.</li>
- *   <li>근무기록확정: 사원번호 · 사원명 · 최종근무일 · 부서명 · 프로젝트 · 일근무 · 근로일수(일근무를 넣으면 같은 값). 저장하면 [n].</li>
+ *   <li>근무기록확정: 사원번호 · 사원명 · 최종근무일 · 부서명 · 프로젝트 · 일근무 · (숨은 일근무 금액) · 근로일수. 저장하면 [n].
+ *       2026-10-14 다시 잼: [근무기록] 은 '일별근무기록불러오기' 창(⊙ 입력한 근무기록이 나타나지 않는 경우 · 수당명 ( 근무기록방법 ) '일근무 (일)'
+ *       체크 · [적용] [닫기]) → [적용] '해당 항목에 이미 등록된 근무기록자료는 삭제된 후 불러온 근태관리자료로 대체됩니다. 진행 하겠습니까?'
+ *       → 잠깐만 1 · 1 · 0.5 · 1 · 1 이 일근무 4.50 · 근로일수 <b>5.00</b>(근무한 날의 수) · 숨은 일근무 금액 675,000, 근무 없는 사원은 빈칸.
+ *       저장하면 근로일수도 남는다(다시 열어도 5.00).</li>
  *   <li>전체계산: '기존 자료를 삭제하고 다시 계산합니다. 급여대장에서 직접 수정한 내역은 유지되지 않습니다. 전체 계산을 진행하시겠습니까?'
  *       (□ 지급총액 0 이하 제외 — 켜짐) → 급여대장 창: 성명 · 최종근무일 · 일근무(일수 · 금액) · 지급총액 · 소득세 · 지방소득세 ·
  *       공제총액 · 실지급액, 총합계. 일근무 150,000 × 2 → 300,000 · 세금 0 · 실지급 300,000.
@@ -63,6 +67,7 @@ export default function DailyPayLedgerPage() {
   const [confirmFor, setConfirmFor] = useState<Ledger | null>(null)
   const [cells, setCells] = useState<ConfirmRow[]>([])
   const [confirmError, setConfirmError] = useState('')
+  const [loadAsk, setLoadAsk] = useState(false)
   const [calcAsk, setCalcAsk] = useState<{ ledger: Ledger; ids: number[] | null } | null>(null)
   const [excludeZero, setExcludeZero] = useState(true)
   const [pickFor, setPickFor] = useState<Ledger | null>(null)
@@ -115,7 +120,7 @@ export default function DailyPayLedgerPage() {
   async function saveConfirm() {
     if (!confirmFor) return
     try {
-      await api.put(`/hr/daily-pay-ledgers/${confirmFor.id}/work-confirms`, cells.map((c) => ({ workerId: c.workerId, days: c.days })))
+      await api.put(`/hr/daily-pay-ledgers/${confirmFor.id}/work-confirms`, cells.map((c) => ({ workerId: c.workerId, days: c.days, workDays: c.workDays })))
       setConfirmFor(null)
       load()
     } catch (e) {
@@ -287,7 +292,7 @@ export default function DailyPayLedgerPage() {
 
       <Modal error={confirmError} open={!!confirmFor} title="근무기록확정" width={900} onClose={() => setConfirmFor(null)}>
         <div className="flex items-center gap-[6px] mb-[8px]">
-          <button type="button" className="ec-btn ec-btn-sm" onClick={loadEntries}>근무기록</button>
+          <button type="button" className="ec-btn ec-btn-sm" onClick={() => setLoadAsk(true)}>근무기록</button>
           <span className="text-ec-hint">{confirmFor ? `${slash(confirmFor.periodFrom)} ~ ${slash(confirmFor.periodTo)}` : ''}</span>
         </div>
         <table ref={confirmRef} className="w-full text-left">
@@ -297,24 +302,26 @@ export default function DailyPayLedgerPage() {
               <th>사원명</th>
               <th className="text-center">최종근무일</th>
               <th>부서명</th>
+              <th>프로젝트</th>
               <th className="w-[120px] text-right">일근무</th>
               <th className="w-[120px] text-right">근로일수</th>
             </tr>
           </thead>
           <tbody>
             {cells.length === 0 ? (
-              <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : cells.map((c, i) => (
               <tr key={c.workerId}>
                 <td>{c.workerCode}</td>
                 <td>{c.workerName}</td>
                 <td className="text-center">{c.lastWorkDate ? slash(c.lastWorkDate) : ''}</td>
                 <td>{c.department}</td>
+                <td />
                 <td>
                   <input className="ec-input w-full text-right" inputMode="decimal" value={c.days ? String(c.days) : ''}
                          onChange={(e) => setCells(cells.map((x, j) => (j === i ? { ...x, days: Number(e.target.value.replace(/[^0-9.]/g, '')) || 0 } : x)))} />
                 </td>
-                <td className="text-right">{c.days ? Number(c.days).toFixed(2) : ''}</td>
+                <td className="text-right">{c.workDays != null ? Number(c.workDays).toFixed(2) : ''}</td>
               </tr>
             ))}
           </tbody>
@@ -323,6 +330,23 @@ export default function DailyPayLedgerPage() {
           <button type="button" className="ec-btn ec-btn-primary" onClick={saveConfirm}>저장(F8)</button>
           <button type="button" className="ec-btn" onClick={() => setConfirmFor(null)}>닫기</button>
           <button type="button" className="ec-btn" onClick={deleteConfirm}>삭제</button>
+        </div>
+      </Modal>
+
+      <Modal open={loadAsk} title="일별근무기록불러오기" width={760} onClose={() => setLoadAsk(false)}>
+        <b className="block mb-[12px]">일별근무기록불러오기</b>
+        <p className="text-ec-danger mb-[6px]">⊙ 입력한 근무기록이 나타나지 않는 경우</p>
+        <table className="w-full text-left">
+          <thead><tr><th className="w-[34px] text-center"><input type="checkbox" checked readOnly aria-label="전체 선택" /></th><th className="text-center">수당명 ( 근무기록방법 )</th></tr></thead>
+          <tbody><tr><td className="text-center"><input type="checkbox" checked readOnly aria-label="일근무 선택" /></td><td>일근무 (일)</td></tr></tbody>
+        </table>
+        <div className="flex gap-[6px] mt-[12px]">
+          <button type="button" className="ec-btn ec-btn-primary" onClick={async () => {
+            if (!(await ecConfirm('해당 항목에 이미 등록된 근무기록자료는 삭제된 후 불러온 근태관리자료로 대체됩니다.\n진행 하겠습니까?'))) return
+            setLoadAsk(false)
+            loadEntries()
+          }}>적용</button>
+          <button type="button" className="ec-btn" onClick={() => setLoadAsk(false)}>닫기</button>
         </div>
       </Modal>
 

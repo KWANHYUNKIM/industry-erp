@@ -91,38 +91,54 @@ public class DailyPayService {
         return toResponse(l);
     }
 
-    /** 근무기록확정 창 — 일용근로 사원 전부, 저장한 일근무(없으면 0)와 대상기간의 최종근무일. */
+    /** 근무기록확정 창 — 일용근로 사원 전부, 저장한 일근무(없으면 0) · 근로일수와 대상기간의 최종근무일. */
     @Transactional(readOnly = true)
     public List<ConfirmRow> confirms(Long ledgerId) {
         DailyPayLedger l = get(ledgerId);
-        Map<Long, BigDecimal> saved = new HashMap<>();
-        for (DailyWorkConfirm c : confirmRepository.findByLedger(ledgerId)) saved.put(c.getWorker().getId(), c.getDays());
+        Map<Long, DailyWorkConfirm> saved = new HashMap<>();
+        for (DailyWorkConfirm c : confirmRepository.findByLedger(ledgerId)) saved.put(c.getWorker().getId(), c);
         Map<Long, LocalDate> last = new HashMap<>();
         for (DailyWorkEntry e : entryRepository.findInWorkPeriod(l.getPeriodFrom(), l.getPeriodTo())) {
             last.merge(e.getWorker().getId(), e.getWorkDate(), (a, b) -> a.isAfter(b) ? a : b);
         }
         return workerRepository.findAllWithRefs().stream()
-                .map(w -> new ConfirmRow(w.getId(), w.getCode(), w.getName(), last.get(w.getId()),
-                        w.getDepartment() != null ? w.getDepartment().getName() : "",
-                        saved.getOrDefault(w.getId(), BigDecimal.ZERO)))
+                .map(w -> {
+                    DailyWorkConfirm c = saved.get(w.getId());
+                    BigDecimal days = c != null ? c.getDays() : BigDecimal.ZERO;
+                    return confirmRow(w, last.get(w.getId()), days, c != null ? c.getWorkDays() : null);
+                })
                 .toList();
     }
 
-    /** 근무기록확정 [근무기록] — 대상기간 근무입력의 근무기록을 사원마다 더해 내놓는다(저장하지 않는다). */
+    /**
+     * 근무기록확정 [근무기록] — 대상기간 근무입력의 근무기록을 사원마다 더해 내놓는다(저장하지 않는다).
+     * 근로일수는 근무한 날의 수다 — 원본(2026-10-14) 잠깐만 1 · 1 · 0.5 · 1 · 1 → 일근무 4.50 · 근로일수 5.00, 근무 없는 사원은 빈칸.
+     */
     @Transactional(readOnly = true)
     public List<ConfirmRow> loadFromEntries(Long ledgerId) {
         DailyPayLedger l = get(ledgerId);
         Map<Long, BigDecimal> sum = new HashMap<>();
         Map<Long, LocalDate> last = new HashMap<>();
+        Map<Long, java.util.Set<LocalDate>> dates = new HashMap<>();
         for (DailyWorkEntry e : entryRepository.findInWorkPeriod(l.getPeriodFrom(), l.getPeriodTo())) {
             sum.merge(e.getWorker().getId(), e.getQuantity(), BigDecimal::add);
             last.merge(e.getWorker().getId(), e.getWorkDate(), (a, b) -> a.isAfter(b) ? a : b);
+            dates.computeIfAbsent(e.getWorker().getId(), k -> new java.util.HashSet<>()).add(e.getWorkDate());
         }
         return workerRepository.findAllWithRefs().stream()
-                .map(w -> new ConfirmRow(w.getId(), w.getCode(), w.getName(), last.get(w.getId()),
-                        w.getDepartment() != null ? w.getDepartment().getName() : "",
-                        sum.getOrDefault(w.getId(), BigDecimal.ZERO)))
+                .map(w -> {
+                    java.util.Set<LocalDate> d = dates.get(w.getId());
+                    return confirmRow(w, last.get(w.getId()), sum.getOrDefault(w.getId(), BigDecimal.ZERO),
+                            d == null ? null : BigDecimal.valueOf(d.size()));
+                })
                 .toList();
+    }
+
+    /** 원본 [일근무 금액] 은 숨은 열 — 일근무 × 사원의 일근무 단가(675,000 = 4.5 × 150,000). */
+    private ConfirmRow confirmRow(DailyWorker w, LocalDate last, BigDecimal days, BigDecimal workDays) {
+        BigDecimal wage = w.getDailyWage() != null ? w.getDailyWage() : BigDecimal.ZERO;
+        return new ConfirmRow(w.getId(), w.getCode(), w.getName(), last,
+                w.getDepartment() != null ? w.getDepartment().getName() : "", days, days.multiply(wage), workDays);
     }
 
     @Transactional
@@ -134,7 +150,7 @@ public class DailyPayService {
             if (c.days() == null || c.days().signum() == 0) continue;
             DailyWorker w = workerRepository.findById(c.workerId())
                     .orElseThrow(() -> ApiException.notFound("일용근로 사원을 찾을 수 없습니다."));
-            confirmRepository.save(DailyWorkConfirm.builder().ledger(l).worker(w).days(c.days()).build());
+            confirmRepository.save(DailyWorkConfirm.builder().ledger(l).worker(w).days(c.days()).workDays(c.workDays()).build());
         }
         return confirms(ledgerId);
     }

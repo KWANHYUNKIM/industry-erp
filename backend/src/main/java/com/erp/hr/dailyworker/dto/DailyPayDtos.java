@@ -32,11 +32,13 @@ public class DailyPayDtos {
 
     /** 근무기록확정 창 한 줄 — 원본 사원번호 · 사원명 · 최종근무일 · 부서명 · 일근무 · 근로일수. */
     public record ConfirmRow(
-            Long workerId, String workerCode, String workerName, LocalDate lastWorkDate, String department, BigDecimal days
+            Long workerId, String workerCode, String workerName, LocalDate lastWorkDate, String department, BigDecimal days,
+            BigDecimal amount, BigDecimal workDays
     ) {}
 
     public record ConfirmCell(@NotNull(message = "사원을 선택 바랍니다.") Long workerId,
-                              @PositiveOrZero(message = "일근무는 0 이상이어야 합니다.") BigDecimal days) {}
+                              @PositiveOrZero(message = "일근무는 0 이상이어야 합니다.") BigDecimal days,
+                              @PositiveOrZero(message = "근로일수는 0 이상이어야 합니다.") BigDecimal workDays) {}
 
     public record CalculateResponse(int calculated, int skipped) {}
 
