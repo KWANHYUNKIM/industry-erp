@@ -456,7 +456,6 @@ const MENU: TopMenu[] = [
         label: '기초등록',
         nodes: [
           { label: '거래처등록', to: '/sales/partners' },
-          { label: '계정과목등록', to: '/accounting/accounts' },
           /* 원본 사이트맵 E010103 카드등록(카드리스트). 계좌입출금 · 카드사용은 아래 [계좌/카드] 화면에 남아 있다. */
           { label: '카드등록', to: '/accounting/cards' },
           /* 원본 E010104 계좌등록(계좌리스트) */
@@ -464,6 +463,8 @@ const MENU: TopMenu[] = [
           { label: '계좌/카드', to: '/accounting/bank-cards' },
           { label: '카드사등록', to: '/accounting/card-issuers' },
           { label: '결제대행사등록', to: '/accounting/payment-agencies' },
+          /* 원본 사이트맵 차례: … 결제대행사등록 · 추가항목유형등록 · 사원(담당)등록 · 계정등록(E010107) · 각종코드변경 · 외화등록 */
+          { label: '계정등록', to: '/accounting/accounts' },
           { label: '외화등록', to: '/settings/currencies' },
         ],
       },
