@@ -5,7 +5,6 @@ import type { Warehouse } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import EcFileDrop from '../../components/EcFileDrop'
-import { useAuth } from '../../features/auth/AuthContext'
 import { useTableSort } from '../../utils/useTableSort'
 
 const inputCls = 'ec-input w-full'
@@ -20,14 +19,28 @@ const KINDS = ['창고', '공장', '외주'] as const
 interface ProcessRow { id: number; name: string; active: boolean }
 interface PartnerRow { id: number; code: string; name: string; type: string }
 
+/** 원본 번호 칸(form-checkbox-numbered) — 번호가 곧 체크 칸이다. 고르면 파랑. */
+function NumCheck({ no, on, onChange, label }: { no: number | ''; on: boolean; onChange: () => void; label: string }) {
+  return (
+    <label className="relative inline-block align-middle cursor-pointer">
+      <input type="checkbox" aria-label={label} checked={on} onChange={onChange}
+             className="absolute inset-0 m-0 opacity-0 cursor-pointer" />
+      <span className={`inline-block w-[18px] h-[17px] leading-[17px] text-center rounded-[6px] ${
+        on ? 'bg-ec-blue text-ec-panel' : 'bg-ec-panel text-ec-icon hover:bg-ec-row-hover'}`}>{no}</span>
+    </label>
+  )
+}
+
 export default function WarehousesPage() {
-  const { companyName } = useAuth()
   const [useCond, setUseCond] = useState<'전체' | '사용' | '중단'>('전체')
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  /** 저장 결과 안내 — 예전엔 창이 닫히고 목록만 다시 떴다(QA 19회차). */
-  const [ok, setOk] = useState('')
+  /**
+   * 마지막 [저장] 이 창고명이 비어 막혔는가. 원본(E040102 2026-10-13 실측)은 글 없이
+   * 창고명 칸에 빨간 테두리를 두르고 탭에 빨간 '!' 를 단다. 저장하면 말 없이 창을 닫는다.
+   */
+  const [invalid, setInvalid] = useState(false)
   const [showForm, setShowForm] = useState(false)
   /** 원본 창고등록리스트의 [사용중단/재사용]에 쓸 줄 고르기. */
   const [checked, setChecked] = useState<Set<number>>(new Set())
@@ -87,6 +100,8 @@ export default function WarehousesPage() {
   async function submit(e: FormEvent) {
     e.preventDefault()
     setError('')
+    if (!form.name.trim()) { setInvalid(true); return }
+    setInvalid(false)
     try {
       const body = {
         name: form.name, location: form.location, kind: form.kind,
@@ -100,7 +115,6 @@ export default function WarehousesPage() {
       } else {
         await api.post('/warehouses', { code: form.code, ...body })
       }
-      setOk(`${form.kind} [${form.code}] ${form.name} ${editId ? '수정' : '등록'} 완료`)
       setEditId(null)
       setForm({ code: '', name: '', location: '', kind: '창고', processId: '', outsourcingPartnerId: '' })
       setShowForm(false)
@@ -120,8 +134,22 @@ export default function WarehousesPage() {
    */
   async function toggleActive() {
     const targets = warehouses.filter((w) => checked.has(w.id))
-    if (targets.length === 0) { setError('사용중단하거나 되살릴 창고를 고르세요.'); return }
+    if (targets.length === 0) { alert(NO_PICK); return }
     const reviving = targets.every((w) => !w.active)
+    await setActive(targets, reviving)
+  }
+
+  /** 원본 리스트 버튼이 고른 줄 없이 눌렸을 때의 알림(창고등록리스트 E040102 실측 — 거래처리스트와 같은 글). */
+  const NO_PICK = '리스트에 선택된 자료가 없습니다.\n체크박스에 체크한 후 다시 시도 바랍니다.'
+
+  /** 펼침의 [사용중단] · [재사용] — 고른 줄만. */
+  async function setActiveChecked(active: boolean) {
+    const targets = warehouses.filter((w) => checked.has(w.id))
+    if (targets.length === 0) { alert(NO_PICK); return }
+    await setActive(targets, active)
+  }
+
+  async function setActive(targets: Warehouse[], reviving: boolean) {
     setError('')
     const results = await Promise.allSettled(targets.map((w) => api.put(`/warehouses/${w.id}`, {
       name: w.name, location: w.location, kind: w.kind,
@@ -134,14 +162,39 @@ export default function WarehousesPage() {
     if (failed > 0) setError(`${targets.length - failed}건 ${reviving ? '재사용' : '사용중단'}, ${failed}건 실패.`)
   }
 
-  async function remove(w: Warehouse) {
-    if (!confirm(`창고 '${w.name}'을(를) 삭제할까요?`)) return
+  /**
+   * 원본은 줄마다 [삭제] 가 없다 — 체크한 줄을 [사용중단/재사용 ▴] 펼침(사용중단 · 삭제 · 재사용)의 [삭제] 로 지운다.
+   * 확인 창 '삭제하겠습니까?', 지운 뒤에는 말 없이 목록만 다시 그린다(거래처리스트와 같은 틀).
+   */
+  async function removeChecked() {
+    const targets = warehouses.filter((w) => checked.has(w.id))
+    if (targets.length === 0) { alert(NO_PICK); return }
+    if (!confirm('삭제하겠습니까?')) return
     try {
-      await api.delete(`/warehouses/${w.id}`)
-      load()
+      for (const w of targets) await api.delete(`/warehouses/${w.id}`)
     } catch (err) {
       alert(extractErrorMessage(err))
     }
+    setChecked(new Set())
+    load()
+  }
+
+  /** 수정 창의 [사용중단/재사용] — 열어 둔 창고 하나를 뒤집고 창을 닫는다. */
+  async function toggleOne(id: number) {
+    const w = warehouses.find((x) => x.id === id)
+    if (!w) return
+    await setActive([w], !w.active)
+    setShowForm(false)
+    setEditId(null)
+  }
+
+  /**
+   * 원본 [신규] 는 창고코드에 다음 번호를 채운다(loginaa: 00000 · 00001 이 있으면 00002 — 자릿수를 지킨다).
+   * 다섯 자리 숫자 코드 중 가장 큰 것 + 1, 없으면 00001.
+   */
+  function nextCode() {
+    const nums = warehouses.map((w) => w.code).filter((c) => /^\d{5}$/.test(c)).map(Number)
+    return String(nums.length ? Math.max(...nums) + 1 : 1).padStart(5, '0')
   }
 
 
@@ -164,20 +217,24 @@ export default function WarehousesPage() {
 
   return (
     <EcListShell
-      title="창고등록 리스트"
-      onNew={() => { setEditId(null); setForm({ code: '', name: '', location: '', kind: '창고', processId: '', outsourcingPartnerId: '' }); setShowForm(true) }}
+      title="창고등록리스트"
+      onNew={() => { setEditId(null); setInvalid(false); setForm({ code: nextCode(), name: '', location: '', kind: '창고', processId: '', outsourcingPartnerId: '' }); setShowForm(true) }}
       actions={[{ label: '계층그룹', onClick: () => setGroupOpen(true) },
-                { label: `사용중단/재사용${checked.size ? ` (${checked.size})` : ''}`, onClick: toggleActive },
+                /* 원본 펼침: 사용중단 · 삭제 · 재사용(E040102 실측). */
+                { label: `사용중단/재사용${checked.size ? ` (${checked.size})` : ''}`, onClick: toggleActive, menu: [
+                  { label: '사용중단', onClick: () => setActiveChecked(false) },
+                  { label: '삭제', onClick: removeChecked },
+                  { label: '재사용', onClick: () => setActiveChecked(true) },
+                ] },
                 { label: 'Excel' },
                 { label: '웹자료올리기', onClick: () => setWebOpen(true) }]}
     >
       {error && <p className="mb-2 rounded bg-ec-danger-bg px-3 py-2 text-sm text-ec-danger">{error}</p>}
-      {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
       <Modal error={error} open={showForm} title={editId ? '창고수정' : '창고등록'} onClose={() => { setShowForm(false); setEditId(null) }}>{(
         <form onSubmit={submit} style={{ marginTop: 8, marginBottom: 8, border: '1px solid var(--ec-border)', background: '#fff', padding: 14 }}>
           <div className="text-[13px] font-extrabold text-ec-navy mb-[8px]">
-            {editId ? '창고 수정' : '새 창고 등록'}
+            {editId ? '창고수정' : '창고등록'}
           </div>
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
@@ -189,7 +246,9 @@ export default function WarehousesPage() {
             </div>
             <div>
               <label className="mb-1 block text-sm text-ec-label">창고명 *</label>
-              <input className={inputCls} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              <input className={`${inputCls} ${invalid && !form.name.trim() ? 'border-[color:var(--ec-text-danger)]' : ''}`}
+                     aria-invalid={invalid && !form.name.trim()} placeholder="창고명"
+                     value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
             <div>
               <label className="mb-1 block text-sm text-ec-label">위치</label>
@@ -198,7 +257,8 @@ export default function WarehousesPage() {
             <div>
               <label className="mb-1 block text-sm text-ec-label">구분</label>
               <select className={inputCls} value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}>
-                {KINDS.map((k) => <option key={k}>{k}</option>)}
+                {/* 원본 이름표: 창고 · 공장 · 공장(외주비관리). 값은 그대로 '외주'. */}
+                {KINDS.map((k) => <option key={k} value={k}>{k === '외주' ? '공장(외주비관리)' : k}</option>)}
               </select>
             </div>
             {/* 구분에 맞는 칸만 낸다. 창고인데 생산공정을 고르게 두면 뜻 없는 값이 쌓인다. */}
@@ -223,8 +283,14 @@ export default function WarehousesPage() {
               </div>
             )}
           </div>
-          <div className="mt-[12px] flex justify-end">
-            <button type="submit" className="ec-btn ec-btn-primary">등록</button>
+          {/* 원본: 신규 저장(F8) · 다시 작성 · 웹자료올리기 · 닫기 / 수정 저장(F8) · 다시 작성 · 사용중단/재사용 · 닫기 · H(이력 — 남은 것). */}
+          <div className="mt-[12px] flex justify-end gap-[4px]">
+            <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
+            <button type="button" className="ec-btn" onClick={() => setForm((f) => ({ ...f, name: '', location: '', kind: '창고', processId: '', outsourcingPartnerId: '' }))}>다시 작성</button>
+            {editId != null
+              ? <button type="button" className="ec-btn" onClick={() => toggleOne(editId)}>사용중단/재사용</button>
+              : <button type="button" className="ec-btn" onClick={() => setWebOpen(true)}>웹자료올리기</button>}
+            <button type="button" className="ec-btn" onClick={() => { setShowForm(false); setEditId(null) }}>닫기</button>
           </div>
         </form>
       )}</Modal>
@@ -242,39 +308,31 @@ export default function WarehousesPage() {
           <thead>
             <tr>
               <th className="w-[34px] text-center">
-                <input type="checkbox"
-                       checked={warehouses.length > 0 && warehouses.every((w) => checked.has(w.id))}
-                       onChange={() => setChecked(
-                         warehouses.every((w) => checked.has(w.id)) ? new Set() : new Set(warehouses.map((w) => w.id)),
-                       )} />
+                <NumCheck no="" label="전체 선택"
+                          on={warehouses.length > 0 && warehouses.every((w) => checked.has(w.id))}
+                          onChange={() => setChecked(
+                            warehouses.every((w) => checked.has(w.id)) ? new Set() : new Set(warehouses.map((w) => w.id)),
+                          )} />
               </th>
               <th className="cursor-pointer" onClick={() => sort.toggle('창고코드')}>창고코드 {sort.mark('창고코드')}</th>
               <th className="cursor-pointer" onClick={() => sort.toggle('창고명')}>창고명 {sort.mark('창고명')}</th>
               <th className="w-[70px] text-center cursor-pointer" onClick={() => sort.toggle('구분')}>구분 {sort.mark('구분')}</th>
               <th className="text-center w-[120px] cursor-pointer" onClick={() => sort.toggle('생산공정명')}>생산공정명 {sort.mark('생산공정명')}</th>
               <th className="text-center w-[140px] cursor-pointer" onClick={() => sort.toggle('외주거래처명')}>외주거래처명 {sort.mark('외주거래처명')}</th>
-              <th>위치</th>
+              {/* 원본 창고등록리스트 열(loginaa E040102 2026-10-13 실측): 창고코드 · 창고명 · 구분 · 생산공정명 · 외주거래처명 · 사용. 위치 · 추가사업장명 · 관리 열은 없다. */}
               <th className="text-center cursor-pointer" onClick={() => sort.toggle('사용')}>사용 {sort.mark('사용')}</th>
-              {/*
-                원본 창고등록리스트의 마지막 열 [추가사업장명]. 사본에서는 모든 창고가
-                <b>본 사업장(주식회사 팜인)</b> 하나로 찍혀 있다.
-                우리에겐 추가사업장 마스터가 없다 — 그래서 지어내지 않고 <b>로그인한 회사</b>를
-                그대로 적는다. 추가사업장을 만들면 그때 이 칸이 갈라진다.
-              */}
-              <th className="text-center w-[150px]">추가사업장명</th>
-              <th>관리</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={10} className="ec-empty">불러오는 중…</td></tr>
+              <tr><td colSpan={7} className="ec-empty">불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : (
-              shown.map((w) => (
+              shown.map((w, i) => (
                 <tr key={w.id} style={{ color: w.active ? undefined : 'var(--ec-text-hint)' }}>
                   <td className="text-center">
-                    <input type="checkbox" checked={checked.has(w.id)} onChange={() => setChecked((prev) => {
+                    <NumCheck no={i + 1} label="선택" on={checked.has(w.id)} onChange={() => setChecked((prev) => {
                       const next = new Set(prev)
                       if (next.has(w.id)) next.delete(w.id); else next.add(w.id)
                       return next
@@ -303,12 +361,8 @@ export default function WarehousesPage() {
                   <td className="text-center text-ec-label">
                     {partners.find((pt) => pt.id === w.outsourcingPartnerId)?.name ?? ''}
                   </td>
-                  <td>{w.location ?? ''}</td>
-                  <td className="text-center">{w.active ? 'YES' : 'NO'}</td>
-                  <td className="text-center text-ec-label">{companyName ?? ''}</td>
-                  <td>
-                    <button onClick={() => remove(w)} style={{ color: 'var(--ec-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>삭제</button>
-                  </td>
+                  {/* 원본은 'Yes' · 'No'(거래처리스트의 YES 와 다르다). */}
+                  <td className="text-center">{w.active ? 'Yes' : 'No'}</td>
                 </tr>
               ))
             )}
