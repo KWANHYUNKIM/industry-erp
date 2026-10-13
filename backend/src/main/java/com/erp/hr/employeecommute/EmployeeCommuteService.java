@@ -31,6 +31,11 @@ public class EmployeeCommuteService {
     public CommuteResponse clock(ClockRequest req) {
         LocalDate day = req.at().toLocalDate();
         var existing = repository.findByEmployee_IdAndWorkDate(req.employeeId(), day);
+        if (Boolean.TRUE.equals(req.out()) && existing.isEmpty())
+            throw ApiException.badRequest("출근시간이 없습니다. [신규(F2)]로 출근을 먼저 입력바랍니다.");
+        // 원본 2026-10-13 실측: [신규(F2)] 창에서 그날 이미 출근한 사원으로 다시 [출근]을 누르면 막는다
+        if (Boolean.FALSE.equals(req.out()) && existing.isPresent() && existing.get().getClockOut() == null)
+            throw ApiException.conflict("출근시간이 입력되어 있습니다.\n해당 일자를 클릭하여 퇴근시간을 입력바랍니다.");
         if (existing.isEmpty()) {
             EmployeeCommute c = EmployeeCommute.builder()
                     .employee(employeeService.get(req.employeeId()))

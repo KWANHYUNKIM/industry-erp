@@ -19,6 +19,8 @@ const longTime = (dt: string | null) => {
   const [d, t] = dt.split('T'); const [h, m, s] = t.split(':').map((x) => Number(x.slice(0, 2)))
   return `${slash(d)} ${h < 12 ? '오전' : '오후'} ${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, '0')}:${String(s || 0).padStart(2, '0')}`
 }
+/** 2026-10-13T09:07:00 → '오전 9:07'(원본 창 오른쪽 이력 글자) */
+const hm = (dt: string) => { const t = dt.split('T')[1]; const [h, m] = t.split(':').map(Number); return `${h < 12 ? '오전' : '오후'} ${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, '0')}` }
 const nowLocal = () => { const d = new Date(); return `${ymd(d)}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` }
 
 /**
@@ -29,7 +31,10 @@ const nowLocal = () => { const d = new Date(); return `${ymd(d)}T${String(d.getH
  *   <li>[월별] 달력(이전 · 오늘 · 다음, 2026/10) — 기록이 있는 날에 '1(1 + 0)'(모두(내근 + 외근)). [리스트] 오늘 하루 —
  *       일자 · 사원명 · 소속부서 · 출근시간(2026/10/03 오후 8:23:33) · 퇴근시간 · 내/외근. 버튼 신규(F2) · 선택삭제 · Excel.</li>
  *   <li>[신규(F2)] '출/퇴근기록부' 창: 큰 시계, 사원(코드도움) · 장소(사무실, □외근) · 시간(지금) · □오전반차설정 · 사유, [출근].
- *       그날 처음이면 출근, 이미 출근했으면 퇴근으로 들어간다.</li>
+ *       2026-10-13 실측: 그날 이미 출근한 사원으로 다시 [출근]을 누르면 '출근시간이 입력되어 있습니다. / 해당 일자를 클릭하여
+ *       퇴근시간을 입력바랍니다.' 로 막는다. 퇴근은 [리스트]에서 그 [일자]를 눌러 연 창의 [퇴근] — 사원은 막혀 있고 외근 칸이 없으며,
+ *       오른쪽에 '▸ [출근 10/13 오전 9:07]  2026/10/13 오전 9:07' 이력이 선다. 퇴근 뒤 다시 열면 이력 두 줄과 [출근].
+ *       외근으로 출근하면 달력 '1(0 + 1)'(내근 + 외근). 원본 퇴근 창의 □오후반차설정은 우리에게 없다.</li>
  *   <li>선택삭제 '선택한 사원의 근무기록을 삭제하겠습니까?'.</li>
  * </ul>
  * 그룹웨어 출/퇴근기록부(ID)는 로그인 계정 단위, 이 화면은 사원 단위라 따로 담는다. 외부시스템과 ERP연동 · 웹자료올리기는 없다.
@@ -45,6 +50,8 @@ export default function EmployeeCommutePage() {
   const [open, setOpen] = useState(false)
   const [formError, setFormError] = useState('')
   const [form, setForm] = useState({ employeeId: '', place: '사무실', outside: false, at: nowLocal(), morningHalf: false, reason: '' })
+  /** 리스트 [일자]로 연 기록 — 있으면 퇴근(또는 퇴근 뒤 출근) 창 */
+  const [record, setRecord] = useState<Commute | null>(null)
   const tableRef = useRef<HTMLTableElement>(null)
 
   const [y, m] = month.split('-').map(Number)
@@ -62,12 +69,19 @@ export default function EmployeeCommutePage() {
   }, [])
   useTableColumnCheck(tableRef, '출/퇴근기록부(사원)', [rows.length, view])
 
-  const already = rows.find((r) => String(r.employeeId) === form.employeeId && r.workDate === form.at.slice(0, 10))
+  const out = record !== null && !record.clockOut
+  function openRecord(r: Commute) {
+    setRecord(r)
+    setForm({ employeeId: String(r.employeeId), place: r.place ?? '사무실', outside: r.outside, at: nowLocal(), morningHalf: false, reason: '' })
+    setFormError('')
+    setOpen(true)
+  }
   async function clock() {
     if (!form.employeeId) { setFormError('사원을 입력 바랍니다.'); return }
     try {
       await api.post('/hr/employee-commutes/clock', {
         employeeId: Number(form.employeeId), at: `${form.at}:00`, place: form.place, outside: form.outside, morningHalf: form.morningHalf, reason: form.reason || null,
+        out,
       })
       setOpen(false)
       load()
@@ -98,7 +112,7 @@ export default function EmployeeCommutePage() {
     <EcListShell
       title="출/퇴근기록부(사원)"
       searchable={false}
-      onNew={() => { setForm({ employeeId: '', place: '사무실', outside: false, at: nowLocal(), morningHalf: false, reason: '' }); setFormError(''); setOpen(true) }}
+      onNew={() => { setRecord(null); setForm({ employeeId: '', place: '사무실', outside: false, at: nowLocal(), morningHalf: false, reason: '' }); setFormError(''); setOpen(true) }}
       actions={view === '리스트' ? [{ label: '선택삭제', onClick: deleteChecked, disabled: checked.size === 0 }, { label: 'Excel' }] : []}
     >
       <div className="text-center font-bold text-[18px] mb-[8px]">출/퇴근기록부(사원)</div>
@@ -172,7 +186,9 @@ export default function EmployeeCommutePage() {
                     <input type="checkbox" checked={checked.has(r.id)}
                            onChange={() => { const n = new Set(checked); if (n.has(r.id)) n.delete(r.id); else n.add(r.id); setChecked(n) }} />
                   </td>
-                  <td className="text-center">{slash(r.workDate)}</td>
+                  <td className="text-center">
+                    <a href="#" onClick={(e) => { e.preventDefault(); openRecord(r) }}>{slash(r.workDate)}</a>
+                  </td>
                   <td>{r.employeeName}</td>
                   <td>{r.department}</td>
                   <td>{longTime(r.clockIn)}</td>
@@ -187,31 +203,43 @@ export default function EmployeeCommutePage() {
 
       <Modal error={formError} open={open} title="출/퇴근기록부" width={640} onClose={() => setOpen(false)}>
         <div className="text-center font-bold text-[32px] text-ec-blue mb-[8px]">{longTime(`${form.at}:00`).split(' ').slice(1).join(' ')}</div>
-        <ul className="ec-form">
+        <div className="flex gap-[10px] mobile:flex-col">
+        <ul className="ec-form flex-1">
           <li className="wide">
             <span className="title">사원</span>
             <div className="form">
-              <CodePickerField label="사원" hideLabel fill placeholder="사원" emptyLabel="선택 해제"
-                               value={form.employeeId} onChange={(v) => setForm({ ...form, employeeId: v })}
-                               items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+              {record ? (
+                <span className="flex gap-[6px]">
+                  <input className="ec-input w-[120px]" aria-label="사원코드" value={record.employeeCode} disabled />
+                  <input className="ec-input flex-1" aria-label="사원명" value={record.employeeName} disabled />
+                </span>
+              ) : (
+                <CodePickerField label="사원" hideLabel fill placeholder="사원" emptyLabel="선택 해제"
+                                 value={form.employeeId} onChange={(v) => setForm({ ...form, employeeId: v })}
+                                 items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+              )}
             </div>
           </li>
           <li className="wide">
             <span className="title">장소</span>
             <div className="form flex items-center gap-[8px]">
               <input className="ec-input flex-1" value={form.place} onChange={(e) => setForm({ ...form, place: e.target.value })} />
-              <label className="inline-flex items-center gap-[4px]">
-                <input type="checkbox" checked={form.outside} onChange={(e) => setForm({ ...form, outside: e.target.checked })} /> 외근
-              </label>
+              {!out && (
+                <label className="inline-flex items-center gap-[4px]">
+                  <input type="checkbox" checked={form.outside} onChange={(e) => setForm({ ...form, outside: e.target.checked })} /> 외근
+                </label>
+              )}
             </div>
           </li>
           <li className="wide">
             <span className="title">시간</span>
             <div className="form">
               <input type="datetime-local" className="ec-input w-[220px]" value={form.at} onChange={(e) => setForm({ ...form, at: e.target.value })} />
-              <label className="flex items-center gap-[4px] mt-[4px]">
-                <input type="checkbox" checked={form.morningHalf} onChange={(e) => setForm({ ...form, morningHalf: e.target.checked })} /> 오전반차설정
-              </label>
+              {!out && (
+                <label className="flex items-center gap-[4px] mt-[4px]">
+                  <input type="checkbox" checked={form.morningHalf} onChange={(e) => setForm({ ...form, morningHalf: e.target.checked })} /> 오전반차설정
+                </label>
+              )}
             </div>
           </li>
           <li className="wide">
@@ -219,8 +247,17 @@ export default function EmployeeCommutePage() {
             <div className="form"><input className="ec-input w-full" placeholder="사유" value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} /></div>
           </li>
         </ul>
+        <ul className="w-[220px] mobile:w-full" aria-label="출퇴근 이력">
+          {record && ([['출근', record.clockIn], ['퇴근', record.clockOut]] as const).filter(([, t]) => t).map(([k, t]) => (
+            <li key={k} className="flex justify-between gap-[6px] rounded-ec bg-ec-disabled px-[8px] py-[6px] mb-[4px]">
+              <span>▸ [{k} {slash(t!.slice(5, 10))} {hm(t!)}]</span>
+              <span>{slash(t!.slice(0, 10))} {hm(t!)}</span>
+            </li>
+          ))}
+        </ul>
+        </div>
         <div className="flex gap-[6px] mt-[12px]">
-          <button type="button" className="ec-btn ec-btn-primary" onClick={clock}>{already && !already.clockOut ? '퇴근' : '출근'}</button>
+          <button type="button" className="ec-btn ec-btn-primary" onClick={clock}>{out ? '퇴근' : '출근'}</button>
           <button type="button" className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
         </div>
       </Modal>

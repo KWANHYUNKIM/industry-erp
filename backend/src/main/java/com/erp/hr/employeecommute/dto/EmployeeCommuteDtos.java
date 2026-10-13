@@ -9,14 +9,19 @@ import java.time.LocalDateTime;
 
 public class EmployeeCommuteDtos {
 
-    /** 원본 출/퇴근기록부 창 — 사원 · 장소(□외근) · 시간 · □오전반차설정 · 사유. 그날 처음이면 출근, 두 번째면 퇴근. */
+    /**
+     * 원본 출/퇴근기록부 창 — 사원 · 장소(□외근) · 시간 · □오전반차설정 · 사유.
+     * out: false = [신규(F2)] 창의 [출근](그날 이미 출근했으면 막는다), true = 그날 기록을 열어 [퇴근],
+     * 비우면 예전처럼 처음이면 출근 · 두 번째면 퇴근(API 시험이 쓴다).
+     */
     public record ClockRequest(
             @NotNull(message = "사원을 입력 바랍니다.") Long employeeId,
             @NotNull(message = "시간을 입력 바랍니다.") LocalDateTime at,
             @Size(max = 50, message = "입력한 글자가 너무 깁니다. 50자까지 넣을 수 있습니다.") String place,
             boolean outside,
             boolean morningHalf,
-            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String reason
+            @Size(max = 200, message = "입력한 글자가 너무 깁니다. 200자까지 넣을 수 있습니다.") String reason,
+            Boolean out
     ) {}
 
     public record CommuteResponse(
