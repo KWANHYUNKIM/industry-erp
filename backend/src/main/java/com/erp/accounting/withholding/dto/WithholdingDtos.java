@@ -140,10 +140,14 @@ public final class WithholdingDtos {
             BigDecimal pension, BigDecimal health, BigDecimal employment
     ) {}
 
-    /** 소득자료제출집계표 한 줄 — 매수(소득자 수) · 건수(명세 줄) · 소득(수입)금액 · 소득세 · 지방소득세. */
-    /** corporateTax — 소득자가 법인인 줄의 세액. 원본은 그 세액을 ⑬ 소득세가 아니라 ⑭ 법인세 칸에 찍는다. */
-    public record IncomeSubmission(String kind, int pages, int count, BigDecimal income,
-                                   BigDecimal incomeTax, BigDecimal corporateTax, BigDecimal localIncomeTax) {}
+    /**
+     * 소득자료제출집계표 한 줄 — 매수(지급조서 장수) · 건수(명세 줄) · 소득(수입)금액 · 소득세 · 법인세 · 농어촌특별세 · 지방소득세.
+     * kind = [출력구분], label = 서식의 ⑨ 소득종류(연말정산 · 중도정산 → 근로소득, 비거주자사업소득 → 사업기타소득 (비거주자)).
+     * corporateTax — 소득자가 법인인 줄의 세액. 원본은 그 세액을 ⑬ 소득세가 아니라 ⑭ 법인세 칸에 찍는다.
+     */
+    public record IncomeSubmission(String kind, String label, int pages, int count, BigDecimal income,
+                                   BigDecimal incomeTax, BigDecimal corporateTax, BigDecimal ruralTax,
+                                   BigDecimal localIncomeTax) {}
 
     /** 원천징수영수증(일용직) 한 사원 — 원본 목록 [사원번호 · 사원명 · 총지급액 · 비과세총액 · 소득세 · 지방소득세] + 근무일수 · 최종근무일. */
     public record DailyReceipt(Long employeeId, String employeeCode, String employeeName, int days, LocalDate lastDate,

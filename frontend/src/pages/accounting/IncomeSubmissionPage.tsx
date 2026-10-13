@@ -6,9 +6,11 @@ import type { IncomeSubmission } from '../../types/api'
 import { ymd } from '../../components/EcPeriodPicks'
 
 const won = (n: number) => (Number(n) ? Number(n).toLocaleString('ko-KR') : '')
+/** 정산 · 퇴직 서식은 자료가 있으면 0 도 찍는다(원본 2026 퇴직소득 ⑭ 법인세 · ⑮ 농어촌특별세 '0', 2025 ⑬ 소득세 '0'). */
+const zero = (n: number) => Number(n).toLocaleString('ko-KR')
 type Company = { name?: string; ceo?: string; bizRegNo?: string; corpRegNo?: string; tel?: string; address?: string; addressDetail?: string }
 
-const KINDS = ['연말정산', '중도정산', '연말정산+중도정산', '퇴직소득', '사업소득', '이자소득', '배당소득', '기타소득']
+const KINDS = ['연말정산', '중도정산', '연말정산+중도정산', '퇴직소득', '사업소득', '이자소득', '배당소득', '기타소득', '비거주자사업소득']
 /** 정산 · 퇴직은 귀속연월을 늘 쓰고(원본 '사용' 이 잠겨 켜져 있음) 지급연월 칸이 없다. */
 const SETTLEMENT = new Set(['연말정산', '중도정산', '연말정산+중도정산', '퇴직소득'])
 
@@ -20,7 +22,8 @@ const SETTLEMENT = new Set(['연말정산', '중도정산', '연말정산+중도
  * 소득자료제출집계표 한 장 — 징수의무자 인적사항 · 제출내용 [귀속연도 · 제출 연월일 · 소득종류 · 매수 · 건수 · 소득(수입)금액 ·
  * 소득세 · 법인세 · 농어촌특별세 · 지방소득세] · 작성요령. 원본 2025 사업소득: 4 · 10 · 14,926,000 · 447,780 · 44,770.
  *
- * <p>우리는 기타원천세가 지급일 하나만 들어서 귀속연월과 지급연월을 같은 날짜로 거른다. 연말정산 · 중도정산 · 퇴직소득은 정산 자료가 없어 0.
+ * <p>사업 · 이자 · 배당 · 기타소득은 기타원천세를 귀속연월로(지급연월 '사용' 이면 지급일로도) 거른다. 퇴직소득은 퇴직금계산(퇴직일자의 달),
+ * 연말정산 · 중도정산은 정산내역 — 소득종류는 '근로소득', 제출 연월일은 '2026년 10월 14일' 처럼 붙여 쓰고 0 도 찍는다(2026-10-14 실측).
  */
 export default function IncomeSubmissionPage() {
   const lastYear = new Date().getFullYear() - 1
@@ -45,18 +48,24 @@ export default function IncomeSubmissionPage() {
 
   async function search() {
     setError('')
-    // 귀속 · 지급 둘 다 쓰면 겹치는 기간, 하나만 쓰면 그것, 둘 다 안 쓰면 귀속연도 한 해
-    const ranges = [attr.use || SETTLEMENT.has(kind) ? attr : null, !SETTLEMENT.has(kind) && paid.use ? paid : null].filter(Boolean) as { from: string; to: string }[]
-    const from = ranges.length ? ranges.map((r) => r.from).sort().pop()! : `${year}-01`
-    const to = ranges.length ? ranges.map((r) => r.to).sort()[0] : `${year}-12`
+    // 귀속연월을 안 쓰면 귀속연도 한 해
+    const useAttr = attr.use || SETTLEMENT.has(kind)
+    const attrFrom = useAttr ? attr.from : `${year}-01`
+    const attrTo = useAttr ? attr.to : `${year}-12`
     try {
-      setResult((await api.get<IncomeSubmission>('/withholding/income-submission', { params: { kind, from, to } })).data)
+      // 지급연월은 사업 · 이자 · 배당 · 기타소득에서 '사용' 일 때만 따로 보낸다(귀속연월과 겹치는 기간이 아니라 지급일로 한 번 더 거른다).
+      const pay = !SETTLEMENT.has(kind) && paid.use ? { payFrom: paid.from, payTo: paid.to } : {}
+      setResult((await api.get<IncomeSubmission>('/withholding/income-submission', { params: { kind, from: attrFrom, to: attrTo, ...pay } })).data)
     } catch (e) {
       setResult(null); setError(extractErrorMessage(e))
     }
   }
 
   const [sy, sm, sd] = submitDate.split('-')
+  const settled = result !== null && SETTLEMENT.has(result.kind.split('+')[0]) && result.count > 0
+  const money = settled ? zero : won
+  // 원본: 정산 · 퇴직 서식은 '2026년 10월 14일', 사업 · 이자 · 배당 · 기타는 '2026 년 10 월 14 일'
+  const submitted = result !== null && SETTLEMENT.has(result.kind.split('+')[0]) ? `${sy}년 ${sm}월 ${sd}일` : `${sy} 년 ${sm} 월 ${sd} 일`
   const address = [company?.address, company?.addressDetail].filter(Boolean).join(' ')
   const range = (v: { use: boolean; from: string; to: string }, set: (v: { use: boolean; from: string; to: string }) => void, locked = false) => (
     <>
@@ -126,15 +135,15 @@ export default function IncomeSubmissionPage() {
             <tbody>
               <tr>
                 <td className="text-center">{year}</td>
-                <td className="text-center">{sy} 년 {sm} 월 {sd} 일</td>
-                <td className="text-center">{result.kind}</td>
-                <td className="text-right">{result.pages}</td>
-                <td className="text-right">{result.count}</td>
-                <td className="text-right">{won(result.income)}</td>
-                <td className="text-right">{won(result.incomeTax)}</td>
-                <td className="text-right">{won(result.corporateTax)}</td>
-                <td></td>
-                <td className="text-right">{won(result.localIncomeTax)}</td>
+                <td className="text-center">{submitted}</td>
+                <td className="text-center">{result.label}</td>
+                <td className="text-right">{result.pages || ''}</td>
+                <td className="text-right">{result.count || ''}</td>
+                <td className="text-right">{money(result.income)}</td>
+                <td className="text-right">{money(result.incomeTax)}</td>
+                <td className="text-right">{money(result.corporateTax)}</td>
+                <td className="text-right">{money(result.ruralTax)}</td>
+                <td className="text-right">{money(result.localIncomeTax)}</td>
               </tr>
             </tbody>
           </table>
@@ -151,6 +160,7 @@ export default function IncomeSubmissionPage() {
             <p>5. 원천징수액 : 근로·사업연말·연금소득·퇴직소득은 결정세액을 기재하고 이자·배당·사업·기타소득의 경우에는 원천징수세액을 기재합니다.</p>
             <p>※ 해당 지급명세서를 서면으로 제출하는 경우에만 작성합니다.</p>
           </div>
+          <p className="text-right">297㎜×210㎜ (백상지 60g/㎡)</p>
         </div>
       )}
     </EcListShell>

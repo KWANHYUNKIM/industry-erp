@@ -69,11 +69,13 @@ public class WithholdingController {
         return service.comparison(year);
     }
 
-    /** 소득자료제출집계표 (E030508) — kind 는 원본 [출력구분] 이름(사업소득 · 기타소득 …), 귀속연월 from ~ to. */
+    /** 소득자료제출집계표 (E030508) — kind 는 원본 [출력구분] 이름(사업소득 · 기타소득 …), 귀속연월 from ~ to, 지급연월 payFrom ~ payTo(선택). */
     @GetMapping("/income-submission")
     public WithholdingDtos.IncomeSubmission incomeSubmission(@RequestParam String kind, @RequestParam String from,
-                                                            @RequestParam String to) {
-        return incomeSubmissionService.summary(kind, from, to);
+                                                            @RequestParam String to,
+                                                            @RequestParam(required = false) String payFrom,
+                                                            @RequestParam(required = false) String payTo) {
+        return incomeSubmissionService.summary(kind, from, to, payFrom, payTo);
     }
 
     /** 신고서 [신규] 직접지정 '급여대장검색' — 그 지급연월의 급여대장 */

@@ -3384,7 +3384,7 @@ export interface SimplePaymentSheet {
 }
 
 /** 소득자료제출집계표(E030508) — GET /withholding/income-submission */
-export interface IncomeSubmission { kind: string; pages: number; count: number; income: number; incomeTax: number; corporateTax: number; localIncomeTax: number }
+export interface IncomeSubmission { kind: string; label: string; pages: number; count: number; income: number; incomeTax: number; corporateTax: number; ruralTax: number; localIncomeTax: number }
 
 /** 원천징수영수증(일용직, C000733) — GET /withholding/daily-receipts?month= */
 export interface DailyReceipt {
