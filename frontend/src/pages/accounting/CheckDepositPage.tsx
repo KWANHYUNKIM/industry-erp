@@ -93,17 +93,17 @@ export default function CheckDepositPage() {
               <input type="checkbox" aria-label="전체선택" checked={held.length > 0 && held.every((c) => picked.has(c.id))}
                      onChange={(e) => held.forEach((c) => toggle(c.id, e.target.checked))} />
             </th>
-            <th className="text-center">수표번호</th>
-            <th className="text-center">수령일자</th>
-            <th className="text-center">계정명</th>
-            <th className="text-center">수령수표계좌명</th>
-            <th className="text-center">거래처코드</th>
-            <th className="text-center">거래처명</th>
-            <th className="text-center">잔액</th>
-            <th className="text-center">감소금액</th>
-            <th className="text-center">적요</th>
-            <th className="text-center">부서명</th>
-            <th className="text-center">프로젝트명</th>
+            <th>수표번호</th>
+            <th>수령일자</th>
+            <th>계정명</th>
+            <th>수령수표계좌명</th>
+            <th>거래처코드</th>
+            <th>거래처명</th>
+            <th className="text-right">잔액</th>
+            <th className="text-right">감소금액</th>
+            <th>적요</th>
+            <th>부서명</th>
+            <th>프로젝트명</th>
           </tr>
         </thead>
         <tbody>
@@ -123,10 +123,9 @@ export default function CheckDepositPage() {
               <td>{partnerCode(c.partnerId)}</td>
               <td>{c.partnerName ?? ''}</td>
               <td className="text-right">{won(Number(c.amount))}</td>
-              <td className="text-right">
-                {/* 원본은 체크하면 잔액 전부가 들어간다 — 수표는 한 장을 통째로 입금한다(일부 감소는 아직 못 잼). */}
-                <input className="ec-input w-full text-right" aria-label={`${c.checkNo} 감소금액`} readOnly
-                       value={picked.has(c.id) ? won(Number(c.amount)) : ''} onFocus={() => { if (!picked.has(c.id)) toggle(c.id, true) }} />
+              {/* 원본은 체크하면 잔액 전부가 들어간다 — 수표는 한 장을 통째로 입금한다(일부 감소 · 칸 입력은 아직 못 잼, 글자로 보인다). */}
+              <td className="text-right cursor-pointer" aria-label={`${c.checkNo} 감소금액`} onClick={() => { if (!picked.has(c.id)) toggle(c.id, true) }}>
+                {picked.has(c.id) ? won(Number(c.amount)) : ''}
               </td>
               <td>{c.remark ?? ''}</td>
               <td />
@@ -136,7 +135,8 @@ export default function CheckDepositPage() {
         </tbody>
         {held.length > 0 && (
           <tfoot>
-            <tr>
+            {/* 원본 합계줄은 700(회색 바탕 · 여백 2.7px 은 토큰이 없어 남은 것) */}
+            <tr className="font-bold">
               <td colSpan={7} className="text-center">합 계</td>
               <td className="text-right">{won(total)}</td>
               <td className="text-right">{pickedTotal ? won(pickedTotal) : ''}</td>
@@ -146,7 +146,7 @@ export default function CheckDepositPage() {
         )}
       </table>
 
-      <Modal open={alert} title="알림" width={420} onClose={() => setAlert(false)}>
+      <Modal open={alert} title="알림" width={420} error={error} onClose={() => setAlert(false)}>
         <p className="mb-[12px]">리스트에 선택된 자료가 없습니다.<br /><br />체크박스에 체크한 후 다시 시도 바랍니다.</p>
         <button type="button" className="ec-btn ec-btn-primary" onClick={() => setAlert(false)}>확인</button>
       </Modal>
