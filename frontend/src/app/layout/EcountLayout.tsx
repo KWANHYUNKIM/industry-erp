@@ -35,8 +35,10 @@ const MENU: TopMenu[] = [
       // 아직 폴더를 하나도 만들지 않은 사람에게 보이는 자리(원본 그대로의 안내 두 줄) — 누르면 폴더 설정으로 간다.
       // 폴더를 만들면 이 탭 대신 그 사람의 폴더들이 선다(아래 withMyFolders · 서버 /api/my-folders).
       { label: '나만의 업무 폴더를 만들수 있습니다.', nodes: [
-        { label: '사용할 메뉴를 직접 설정할 수 있습니다.', to: '/mypage/folders' },
-        { label: '메뉴명도 수정 가능합니다.', to: '/mypage/folders' },
+        // 원본도 안내 문구가 아니라 메뉴명을 바꿔 둔 바로가기 둘이다(일정관리 · 익명게시판, 2026-10-13 loginaa).
+        // 폴더 편집은 사용자 동그라미 → [My Page설정](원본: 개인기능설정 › My Page설정).
+        { label: '사용할 메뉴를 직접 설정할 수 있습니다.', to: '/groupware/schedule' },
+        { label: '메뉴명도 수정 가능합니다.', to: '/groupware/anonymous-board' },
       ] },
       { label: '예시1. 제조업', nodes: [
         { label: '기초정보', children: [
@@ -1145,17 +1147,17 @@ export const FLAT_MENU: FlatItem[] = MENU.flatMap((m) =>
 )
 
 /**
- * 사용자가 만든 업무 폴더를 MyPage 2단 메뉴 맨 앞에 세운다. 하나도 없으면 원본 안내 탭을 그대로 둔다.
- * 폴더마다 끝에 [폴더 설정] 을 단다 — 메뉴를 담고 이름을 고치는 자리로 가는 길이 메뉴 안에 있어야 한다.
+ * 사용자가 만든 업무 폴더를 MyPage 2단 메뉴 끝에 세운다(원본: MyPage설정에서 그룹추가 → 예시4 뒤에 붙는다).
+ * 폴더 편집은 사용자 동그라미 → [My Page설정] 이다 — 원본 폴더 안에는 설정으로 가는 메뉴가 없다.
  */
 function withMyFolders(folders: MyFolder[] | null): TopMenu[] {
   if (!folders || folders.length === 0) return MENU
   const [my, ...rest] = MENU
   const own: Tab[] = folders.map((f) => ({
     label: f.name,
-    nodes: [...f.items.map((i) => ({ label: i.label, to: i.path })), { label: '폴더 설정', to: '/mypage/folders' }],
+    nodes: f.items.map((i) => ({ label: i.label, to: i.path })),
   }))
-  return [{ ...my, tabs: [...own, ...my.tabs.slice(1)] }, ...rest]
+  return [{ ...my, tabs: [...my.tabs, ...own] }, ...rest]
 }
 
 export default function EcountLayout() {
@@ -1484,6 +1486,7 @@ export default function EcountLayout() {
             <div className="ec-popover" onMouseLeave={() => setUserOpen(false)}>
               <div className="font-bold text-ec-text">{user?.name}</div>
               <div className="text-[11px] text-ec-hint mb-[8px]">{user?.roles.join(', ')}</div>
+              <button className="ec-btn w-full justify-center mb-[4px]" onClick={() => { setUserOpen(false); navigate('/mypage/folders') }}>My Page설정</button>
               <button className="ec-btn" onClick={logout} style={{ width: '100%', justifyContent: 'center' }}>로그아웃</button>
             </div>
           )}
