@@ -22,6 +22,12 @@ import { weekOfYear } from '../../utils/statusAggregate'
  *   <li>품질검사현황 [비교기간](2026-10-13 실측, 품목명[규격] · 전월동일기간) — 이름 열은 머리 두 줄을 묶고(rowspan 2),
  *       값 열이 구간마다 한 벌씩: 첫 줄 '2026/10/01 ~ 2026/10/13' | '2026/09/01 ~ 2026/09/13', 둘째 줄 값 이름 두 번.
  *       조건에 기준일자 축이 있으면 "집계조건 기준일자, 시간순정렬시 비교기간은 사용할 수 없습니다.". <code>compare</code> 로 켠다.</li>
+ *   <li>품질검사현황 <b>집계조건 3~5</b>(2026-10-13 실측) — 조건 칸은 채운 수 + 2 개까지 열린다(처음 1 · 2, 1 을 고르면 3,
+ *       3 을 고르면 4 · 5). 담당자 · 창고 · 품목명[규격] · 월별 넷이면 줄은 [정재원 | | 인텔… | 2026/10], 그다음
+ *       '인텔… 계'(마지막 조건 앞까지의 무리마다 소계, 깊은 것부터), 창고가 빈 무리는 '[] 계', '정재원 계', [합계].
+ *       소계 줄 다음 줄은 앞 칸을 다시 적는다(정재원이 두 번 나온다) — 바로 앞 줄과 같은 앞 칸만 비운다.
+ *       기준일자 축은 굵은 것부터만 — 월별 뒤에 연별을 고르면 "집계조건은 연별-반기별-분기별-월별-주차별-일별 순서로만
+ *       입력가능합니다.". [가로보기] 는 '집계대상에서 가로보기 대상을 선택바랍니다.' 만 확인했다(대상 창을 못 열어 아직 없다).</li>
  * </ul>
  */
 export const AS_AGG_KEYS = ['일별', '주차별', '월별', '분기별', '반기별', '연별', '담당자', '창고', '관리항목',
@@ -76,23 +82,54 @@ function axis(k: AsAggKey, x: AsAggLine): [string, string] {
 
 const qty2 = (n: number) => Number(n).toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
-export interface AsAggValue { agg1: AsAggKey | ''; agg2: AsAggKey | ''; codeIncl: boolean }
+export interface AsAggValue {
+  agg1: AsAggKey | ''; agg2: AsAggKey | ''; codeIncl: boolean
+  /** 집계조건 3 · 4 · 5(원본 품질검사현황은 다섯까지 연다). */
+  more?: (AsAggKey | '')[]
+}
 
-/** 조건 판의 [구분] ○집계 쪽 — 집계조건1 · 2 · [기타] 코드포함. */
+/** 고른 집계조건을 차례대로 — 빈 칸에서 끊는다. */
+export const aggKeys = (v: AsAggValue): AsAggKey[] => {
+  const all = [v.agg1, v.agg2, ...(v.more ?? [])]
+  const out: AsAggKey[] = []
+  for (const k of all) { if (!k) break; out.push(k) }
+  return out
+}
+
+/** 기준일자 축의 굵기 — 연별이 가장 굵다. 뒤 조건이 앞 조건보다 굵으면 원본이 막는다. */
+const DATE_RANK: Partial<Record<AsAggKey, number>> = { 연별: 0, 반기별: 1, 분기별: 2, 월별: 3, 주차별: 4, 일별: 5 }
+const DATE_ORDER_MSG = '집계조건은 연별-반기별-분기별-월별-주차별-일별 순서로만 입력가능합니다.'
+const MAX_AGG = 5
+
+/** 조건 판의 [구분] ○집계 쪽 — 집계조건1 ~ 5(채운 수 + 2 칸까지) · [기타] 코드포함. */
 export function AsAggControls({ value, onChange, keys = AS_AGG_KEYS }: {
   value: AsAggValue; onChange: (patch: Partial<AsAggValue>) => void; keys?: readonly AsAggKey[]
 }) {
+  const all: (AsAggKey | '')[] = [value.agg1, value.agg2, ...(value.more ?? [])]
+  const filled = aggKeys(value).length
+  const shown = Math.min(MAX_AGG, filled + 2)
+  function set(i: number, k: AsAggKey | '') {
+    const next = [...all]
+    while (next.length < MAX_AGG) next.push('')
+    const prevDates = next.slice(0, i).filter((x): x is AsAggKey => !!x && DATE_RANK[x] != null)
+    if (k && DATE_RANK[k] != null && prevDates.some((d) => (DATE_RANK[d] ?? 0) > (DATE_RANK[k] ?? 0))) {
+      window.alert(DATE_ORDER_MSG)
+      return
+    }
+    next[i] = k
+    /* 가운데를 비우면 뒤는 끊긴다 — 원본도 빈 칸 뒤 조건은 보지 않는다. */
+    onChange({ agg1: next[0], agg2: next[1], more: next.slice(2) })
+  }
   return (<>
-    집계조건1
-    <select className="ec-input w-[120px]" value={value.agg1} onChange={(e) => onChange({ agg1: e.target.value as AsAggKey | '' })}>
-      <option value=""></option>
-      {keys.map((k) => <option key={k} value={k}>{k}</option>)}
-    </select>
-    집계조건2
-    <select className="ec-input w-[120px]" value={value.agg2} onChange={(e) => onChange({ agg2: e.target.value as AsAggKey | '' })}>
-      <option value=""></option>
-      {keys.filter((k) => k !== value.agg1).map((k) => <option key={k} value={k}>{k}</option>)}
-    </select>
+    {Array.from({ length: shown }, (_, i) => (
+      <span key={i} className="contents">
+        집계조건{i + 1}
+        <select className="ec-input w-[120px]" aria-label={`집계조건${i + 1}`} value={all[i] ?? ''} onChange={(e) => set(i, e.target.value as AsAggKey | '')}>
+          <option value=""></option>
+          {keys.filter((k) => k === all[i] || !all.includes(k)).map((k) => <option key={k} value={k}>{k}</option>)}
+        </select>
+      </span>
+    ))}
     <label className="inline-flex items-center gap-[3px]">
       <input type="checkbox" checked={value.codeIncl} onChange={(e) => onChange({ codeIncl: e.target.checked })} /> 코드포함
     </label>
@@ -115,16 +152,18 @@ export function AsAggregateTable({ title, period, lines, value, measures = ['수
   /** 값 열마다 다른 숫자 꼴 — Invoice/Packing List Status 의 [공급가액]은 소수 없이 찍는다(기본은 소수 두 자리). */
   formats?: Record<string, (n: number) => string>
 }) {
-  const { agg1, agg2, codeIncl } = value
+  const { codeIncl } = value
+  const keys = aggKeys(value)
+  const agg1 = keys[0] ?? ''
   const valsOf = (x: AsAggLine) => x.vals ?? [x.qty]
-  type Row = { n1: string; c1: string; n2: string; c2: string; v: number[]; p: number[]; hasV: boolean; hasP: boolean }
+  type Row = { ns: string[]; cs: string[]; v: number[]; p: number[]; hasV: boolean; hasP: boolean }
   const m = new Map<string, Row>()
-  if (agg1) {
+  if (keys.length) {
     const add = (x: AsAggLine, side: 'v' | 'p') => {
-      const [n1, c1] = axis(agg1, x)
-      const [n2, c2] = agg2 ? axis(agg2, x) : ['', '']
-      const k = `${n1}␟${n2}`
-      const cur = m.get(k) ?? { n1, c1, n2, c2, v: measures.map(() => 0), p: measures.map(() => 0), hasV: false, hasP: false }
+      const ax = keys.map((k) => axis(k, x))
+      const ns = ax.map((a) => a[0]); const cs = ax.map((a) => a[1])
+      const k = ns.join('␟')
+      const cur = m.get(k) ?? { ns, cs, v: measures.map(() => 0), p: measures.map(() => 0), hasV: false, hasP: false }
       valsOf(x).forEach((n, i) => { cur[side][i] += n })
       if (side === 'v') cur.hasV = true; else cur.hasP = true
       m.set(k, cur)
@@ -137,16 +176,24 @@ export function AsAggregateTable({ title, period, lines, value, measures = ['수
   /** 비교 쪽에만 있는 줄은 지금 쪽 값 칸이 빈칸 — 반대도 같다. */
   const cellIf = (has: boolean, n: number, i: number) => (has ? cell(n, i) : '')
   const pct = (n: number, t: number) => (t === 0 ? '' : String(Math.round((n / t) * 100)))
-  const dateAxis = !!compare && [agg1, agg2].some((k) => k && DATE_KEYS.includes(k))
+  const dateAxis = !!compare && keys.some((k) => DATE_KEYS.includes(k))
   /* 차례는 코드순(코드가 없으면 이름) — 원본 정렬 선택상자의 기본값. */
   const key = (n: string, c: string) => c || n
-  const rows = [...m.values()].sort((a, b) => key(a.n1, a.c1).localeCompare(key(b.n1, b.c1), 'ko') || key(a.n2, a.c2).localeCompare(key(b.n2, b.c2), 'ko'))
-  const head = (k: AsAggKey | '') => (k ? [...(codeIncl && CODED.includes(k) ? [`${k}코드`] : []), k] : [])
-  const cells = (n: string, c: string, k: AsAggKey | '') => (k ? [...(codeIncl && CODED.includes(k) ? [c] : []), n] : [])
-  const cols = [...head(agg1), ...head(agg2)]
+  const rows = [...m.values()].sort((a, b) => {
+    for (let j = 0; j < keys.length; j++) {
+      const d = key(a.ns[j], a.cs[j]).localeCompare(key(b.ns[j], b.cs[j]), 'ko')
+      if (d) return d
+    }
+    return 0
+  })
+  const head = (k: AsAggKey) => [...(codeIncl && CODED.includes(k) ? [`${k}코드`] : []), k]
+  const cellsOf = (n: string, c: string, k: AsAggKey) => [...(codeIncl && CODED.includes(k) ? [c] : []), n]
+  const cols = keys.flatMap(head)
   const total = sum(lines.map((x) => ({ v: valsOf(x) })))
   const ptotal = sum((compare?.lines ?? []).map((x) => ({ v: valsOf(x) })))
   const showRatio = ratio && !compare
+  /** 두 줄이 처음 갈리는 조건 차례. */
+  const diffAt = (a: Row, b: Row) => { let j = 0; while (j < keys.length && a.ns[j] === b.ns[j]) j++; return j }
   /* 값 칸 한 벌 — 비율표시면 값마다 비율이 뒤따른다. */
   const valCells = (v: number[], has: boolean, tot: number[], keyp: string, bold = false) => v.flatMap((n, j) => [
     <td key={`${keyp}${j}`} className={`text-right${bold ? ' font-bold' : ''}`}>{cellIf(has, n, j)}</td>,
@@ -156,9 +203,9 @@ export function AsAggregateTable({ title, period, lines, value, measures = ['수
     <th key={`${keyp}${h}`} className="text-right">{h}</th>,
     ...(showRatio ? [<th key={`${keyp}${h}비율`} className="text-right">{h}비율</th>] : []),
   ])
-  /* 조건2 · 코드포함에 따라 열이 는다 — 렌더된 표를 직접 잰다. */
+  /* 조건 수 · 코드포함에 따라 열이 는다 — 렌더된 표를 직접 잰다. */
   const ref = useRef<HTMLTableElement>(null)
-  useTableColumnCheck(ref, `${title} 집계`, [agg1, agg2, codeIncl, rows.length, showRatio, !!compare])
+  useTableColumnCheck(ref, `${title} 집계`, [keys.join(','), codeIncl, rows.length, showRatio, !!compare])
   return (
     <>
       <EcReportHead title={title} period={period} />
@@ -187,21 +234,28 @@ export function AsAggregateTable({ title, period, lines, value, measures = ['수
             {rows.length === 0 ? (
               <tr><td colSpan={cols.length + measures.length * (compare ? 2 : showRatio ? 2 : 1)} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : rows.flatMap((g, i) => {
-              const first = i === 0 || rows[i - 1].n1 !== g.n1
-              const last = i === rows.length - 1 || rows[i + 1].n1 !== g.n1
-              const grp = rows.filter((x) => x.n1 === g.n1)
+              /*
+               * 앞 칸을 비우는 것은 바로 앞 줄과 같은 앞 조건뿐이다. 그 사이에 소계 줄이 끼면(앞 줄과 마지막 조건 앞에서
+               * 갈림) 다시 다 적는다 — 원본 네 조건 판에서 '정재원' 이 소계 다음 줄에 또 나왔다.
+               */
+              const d = i === 0 ? 0 : diffAt(rows[i - 1], g)
+              const showFrom = d <= keys.length - 2 ? 0 : d
+              const next = rows[i + 1]
+              const nd = next ? diffAt(g, next) : 0
               const out = [
-                <tr key={`${g.n1}␟${g.n2}`}>
-                  {cells(g.n1, g.c1, agg1).map((v, j) => <td key={j}>{!agg2 || first ? v : ''}</td>)}
-                  {cells(g.n2, g.c2, agg2).map((v, j) => <td key={`b${j}`}>{v}</td>)}
+                <tr key={g.ns.join('␟')}>
+                  {keys.flatMap((k, j) => cellsOf(g.ns[j], g.cs[j], k).map((v, q) => <td key={`${j}-${q}`}>{j >= showFrom ? v : ''}</td>))}
                   {valCells(g.v, g.hasV, total, 'v')}
                   {compare && valCells(g.p, g.hasP, ptotal, 'p')}
                 </tr>,
               ]
-              if (agg2 && last) {
+              /* 마지막 조건 앞까지 — 끝난 무리마다 깊은 것부터 소계. 이름이 빈 무리는 '[] 계'(원본 창고 빈 칸). */
+              for (let L = keys.length - 2; L >= 0; L--) {
+                if (next && nd > L) continue
+                const grp = rows.filter((x) => x.ns.slice(0, L + 1).join('␟') === g.ns.slice(0, L + 1).join('␟'))
                 out.push(
-                  <tr key={`${g.n1}␟계`} className="ec-list-total">
-                    <td colSpan={cols.length} className="text-center font-bold">{g.n1} 계</td>
+                  <tr key={`${g.ns.slice(0, L + 1).join('␟')}␟계${L}`} className="ec-list-total">
+                    <td colSpan={cols.length} className="text-center font-bold">{g.ns[L] || '[]'} 계</td>
                     {valCells(sum(grp), grp.some((x) => x.hasV), total, 's', true)}
                     {compare && valCells(sum(grp.map((x) => ({ v: x.p }))), grp.some((x) => x.hasP), ptotal, 'sp', true)}
                   </tr>,

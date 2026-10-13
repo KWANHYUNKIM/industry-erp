@@ -68,7 +68,7 @@ interface Filters {
    * 수리가 이번 달인 건이 통째로 빠진다.
    */
   /** 원본 [구분] — ◉내역(아래 선택상자) · ○집계(집계조건1 · 2 · 코드포함). 검색할 때 걸린다. */
-  gubun: '내역' | '집계'; form: Form; agg1: AsAggKey | ''; agg2: AsAggKey | ''; codeIncl: boolean
+  gubun: '내역' | '집계'; form: Form; agg1: AsAggKey | ''; agg2: AsAggKey | ''; more: (AsAggKey | '')[]; codeIncl: boolean
   warehouse: string; project: string
   partner: string; item: string; charge: string; status: '' | AsStatus
   /** 2026-09-08 실측으로 드러난 일곱. */
@@ -83,7 +83,7 @@ interface Filters {
  */
 const init = periodOf('금월(~오늘)')!
 
-const EMPTY_FILTERS: Filters = { dateFrom: init.from, dateTo: init.to, gubun: '내역', form: '라인별', agg1: '', agg2: '', codeIncl: false, warehouse: '', project: '', partner: '', item: '', charge: '', status: '',
+const EMPTY_FILTERS: Filters = { dateFrom: init.from, dateTo: init.to, gubun: '내역', form: '라인별', agg1: '', agg2: '', more: [], codeIncl: false, warehouse: '', project: '', partner: '', item: '', charge: '', status: '',
   partnerGroup: '', category: '', itemGroup: '', schedFrom: '', schedTo: '', title: '', remark: '', author: '' }
 
 /** 원본 ◉내역 선택상자(차례 그대로). 거래처별라인별(전송용)은 내보내기용 판이라 두지 않는다. */
@@ -258,7 +258,7 @@ export default function AsStatusPage() {
                     })()} />
       ) : filters.gubun === '집계' ? (
         <AsAggregateTable title="A/S접수현황" period={reportPeriod(filters.dateFrom, filters.dateTo)} lines={aggLines}
-                          value={{ agg1: filters.agg1, agg2: filters.agg2, codeIncl: filters.codeIncl }} />
+                          value={{ agg1: filters.agg1, agg2: filters.agg2, more: filters.more, codeIncl: filters.codeIncl }} />
       ) : (
       <>
       <EcReportHead title="AS접수현황" period={reportPeriod(filters.dateFrom, filters.dateTo)} />
@@ -362,7 +362,7 @@ function SearchPanel({
               {FORMS.map((f) => <option key={f} value={f}>{f}</option>)}
             </select>
           ) : (<>
-            <AsAggControls value={{ agg1: draft.agg1, agg2: draft.agg2, codeIncl: draft.codeIncl }} onChange={onChange} />
+            <AsAggControls value={{ agg1: draft.agg1, agg2: draft.agg2, more: draft.more, codeIncl: draft.codeIncl }} onChange={onChange} />
           </>)}
         </div>
       </div>
