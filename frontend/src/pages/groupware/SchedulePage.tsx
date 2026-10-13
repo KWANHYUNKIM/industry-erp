@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
@@ -61,7 +62,7 @@ const CAL_COLOR: Record<CalKey, string> = {
 /** 색은 캘린더마다 다르다 — 토큰 이름만 넘겨 그린다(화면 코드에 색 값을 쓰지 않는다). */
 const paint = (color: string) => (el: HTMLElement | null) => { if (el) el.style.backgroundColor = color }
 /** 다른 캘린더(휴가 · 납기)의 막대 하나 — 일정이 아니라 다른 화면의 자료다. */
-interface ExtraBar { key: string; date: string; text: string; cal: CalKey }
+interface ExtraBar { key: string; date: string; text: string; cal: CalKey; orderId?: number }
 interface VacationLite { id: number; empName: string; type: string; startDate: string; endDate: string | null; status?: string }
 interface OrderLite { id: number; partnerName: string; dueDate: string | null; warehouseName: string | null; lines: { lineId: number; itemName: string }[] }
 
@@ -210,6 +211,7 @@ export default function SchedulePage() {
   const [categoryCode, setCategoryCode] = useState('')
   const loadCategories = () => api.get<ScheduleCategory[]>('/schedule-categories').then((r) => setCategories(r.data)).catch(() => {})
   const [extras, setExtras] = useState<ExtraBar[]>([])
+  const navigate = useNavigate()
   const [rows, setRows] = useState<ScheduleEvent[]>([])
   const [error, setError] = useState('')
   /** 입력 창. editId 가 있으면 고치는 중. */
@@ -277,7 +279,7 @@ export default function SchedulePage() {
     if (cals.has('DUE')) jobs.push(api.get<OrderLite[]>('/sales-orders').then((r) => {
       for (const o of r.data) {
         if (!o.dueDate) continue
-        for (const l of o.lines) out.push({ key: `D${l.lineId}`, date: o.dueDate, text: `[${o.partnerName}] ${l.itemName} ${o.warehouseName ?? ''}`.trim(), cal: 'DUE' })
+        for (const l of o.lines) out.push({ key: `D${l.lineId}`, date: o.dueDate, text: `[${o.partnerName}] ${l.itemName} ${o.warehouseName ?? ''}`.trim(), cal: 'DUE', orderId: o.id })
       }
     }))
     Promise.all(jobs).then(() => setExtras(out)).catch((err) => setError(extractErrorMessage(err)))
@@ -763,8 +765,10 @@ ${line('날짜/시간', timeText(r))}${line('참석자', r.attendees)}${line('�
                                 </button>
                               ))}
                               {extras.filter((x) => x.date === key).map((x) => (
+                                /* 원본: 납기 막대를 누르면 그 주문의 '주문수정' 창이 뜬다(2026-10-13 실측) — 주문서 화면의 ?edit= 로 연다. */
                                 <div key={x.key} title={x.text} ref={paint(CAL_COLOR[x.cal])}
-                                     className="truncate w-full py-[3.6px] px-[0.9px] text-ec-ink">{x.text}</div>
+                                     onClick={x.orderId ? (e) => { e.stopPropagation(); navigate(`/sales/orders?edit=${x.orderId}`) } : undefined}
+                                     className={`truncate w-full py-[3.6px] px-[0.9px] text-ec-ink ${x.orderId ? 'cursor-pointer' : ''}`}>{x.text}</div>
                               ))}
                             </>
                           )}

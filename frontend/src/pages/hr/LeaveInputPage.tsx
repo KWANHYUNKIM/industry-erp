@@ -29,7 +29,7 @@ import type { EmployeeMaster } from '../../types/api'
  */
 interface UserRow { id: number; name: string; department: string | null; employeeId: number | null }
 interface CommuteKind { id: number; code: string; name: string; type: string; active: boolean }
-interface ReflectLine { workDate: string; employeeId: number; employeeName: string; kindId: number; kindName: string; amount: number }
+interface ReflectLine { workDate: string; employeeId: number; employeeName: string; kindId: number; kindName: string; amount: number; note: string | null }
 const monthStart = () => { const d = new Date(); return ymd(new Date(d.getFullYear(), d.getMonth(), 1)) }
 
 interface LineInput {
@@ -127,6 +127,8 @@ export default function LeaveInputPage() {
       const userOf = (empId: number) => users.find((u) => u.employeeId === empId)
       const made = r.data.filter((x) => userOf(x.employeeId)).map((x) => ({
         ...emptyLine(x.workDate), userId: String(userOf(x.employeeId)!.id), type: x.kindName, days: String(x.amount),
+        /* 원본 일별 줄의 적요 '출근: 10:30 / 퇴근: 16:20' — 기간별은 빈칸 */
+        reason: x.note ?? '',
       }))
       const missing = [...new Set(r.data.filter((x) => !userOf(x.employeeId)).map((x) => x.employeeName))]
       setLines((prev) => {

@@ -66,6 +66,8 @@ public class CommuteRuleDtos {
     /** 근태입력 '출/퇴근기록' [적용] 한 줄 — 근태일자 · 사원 · 근태항목 · 근태(일/시간). */
     public record ReflectLine(
             java.time.LocalDate workDate, Long employeeId, String employeeCode, String employeeName, String departmentName,
-            Long kindId, String kindCode, String kindName, java.math.BigDecimal amount
+            Long kindId, String kindCode, String kindName, java.math.BigDecimal amount,
+            /** 일별 줄의 적요 '출근: 10:30 / 퇴근: 16:20' — 기간별은 null */
+            String note
     ) {}
 }

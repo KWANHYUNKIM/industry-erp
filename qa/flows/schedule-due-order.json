@@ -1,0 +1,27 @@
+{
+  "about": "일정관리(원본 E070201) 납기일자확인용 캘린더의 막대를 누르면 그 주문의 '주문수정' 창 — 원본 실측(2026-10-13). 우리는 주문서 화면(/sales/orders?edit=<id>)으로 가서 주문수정 창을 연다. 오늘 납기 시험 주문(적요 QA그룹웨어-납기)을 API 로 만들고 지운다. node qa/shot.mjs qa/flows/schedule-due-order.json",
+  "shots": [
+    {
+      "name": "납기 막대 → 주문수정",
+      "path": "/groupware/schedule",
+      "steps": [
+        "wait:800",
+        "js:(async () => { const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const ps = await (await fetch('/api/partners', { headers: H })).json(); const is = await (await fetch('/api/items', { headers: H })).json(); const P = (Array.isArray(ps) ? ps : ps.content)[0]; const I = (Array.isArray(is) ? is : is.content)[0]; const d = new Date(); const t = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const r = await fetch('/api/sales-orders', { method: 'POST', headers: H, body: JSON.stringify({ partnerId: P.id, orderDate: t, dueDate: t, remark: 'QA그룹웨어-납기', lines: [{ itemId: I.id, quantity: 1, unitPrice: 1000 }] }) }); const o = await r.json(); sessionStorage.setItem('qaDueOrder', o.id ? String(o.id) : ''); return r.status + ' ' + o.id })()",
+        "expect:!!sessionStorage.getItem('qaDueOrder')",
+        "js:document.querySelector('input[aria-label=\"납기일자확인용 캘린더\"]').click(); true",
+        "wait:1200",
+        "js:const t = [...document.querySelectorAll('div.cursor-pointer[title]')].find((d) => d.title.startsWith('[') && d.title.includes(']')); t.click(); t.title",
+        "wait:2000",
+        "expect:location.pathname === '/sales/orders' && !location.search.includes('edit=')",
+        "expect:[...document.querySelectorAll('[role=dialog]')].some((d) => (d.getAttribute('aria-label') || d.textContent).includes('주문수정'))"
+      ]
+    },
+    {
+      "name": "정리",
+      "path": "/sales/orders",
+      "steps": [
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const id = sessionStorage.getItem('qaDueOrder'); return id ? 'del ' + (await fetch('/api/sales-orders/' + id, { method: 'DELETE', headers: H })).status : 'none' })()"
+      ]
+    }
+  ]
+}

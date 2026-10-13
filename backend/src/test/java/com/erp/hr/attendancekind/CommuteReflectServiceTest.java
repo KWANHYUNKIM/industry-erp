@@ -45,12 +45,12 @@ class CommuteReflectServiceTest {
     }
 
     @Test
-    void 지각_시간은_출근분을_올려_5_15() {
+    void 지각_시간은_출근을_가까운_분으로_5_15() {
         assertEquals(new BigDecimal("5.15"), amount(rule(CommuteRuleMethod.LATE, true, true)));
     }
 
     @Test
-    void 조퇴_시간은_퇴근분을_버려_3_82() {
+    void 조퇴_시간은_퇴근을_가까운_분으로_3_82() {
         assertEquals(new BigDecimal("3.82"), amount(rule(CommuteRuleMethod.EARLY_LEAVE, true, true)));
     }
 
@@ -76,5 +76,70 @@ class CommuteReflectServiceTest {
         CommuteRule r = rule(CommuteRuleMethod.LATE, false, true);
         r.setWeekdays("0101110"); // 화요일 빼기
         assertNull(amount(r));
+    }
+
+    // ---- 2026-10-13 2차 실측: 10/05(월) 출근 10:30:25 · 퇴근 16:20:24, 직접설정 09:00~18:00 · 시간 ----
+    private static final LocalDate MON = LocalDate.of(2026, 10, 5);
+
+    private static BigDecimal late(CommuteRule r, LocalDateTime in) {
+        EmployeeCommute c = EmployeeCommute.builder().workDate(in.toLocalDate()).clockIn(in).build();
+        return CommuteReflectService.amount(r, c, List.of(EmployeeCommuteEvent.builder().commute(c).kind(EmployeeCommuteEvent.IN).at(in).build()));
+    }
+
+    private static CommuteRule lateHour() {
+        CommuteRule r = rule(CommuteRuleMethod.LATE, true, true);
+        r.setWeekdays("0111111");
+        return r;
+    }
+
+    @Test
+    void 초는_가까운_분으로_반올림한다() {
+        assertEquals(new BigDecimal("1.50"), late(lateHour(), MON.atTime(10, 30, 25)));          // 90분
+        assertEquals(new BigDecimal("1.52"), late(lateHour(), MON.plusDays(5).atTime(10, 30, 48))); // 토 91분
+    }
+
+    @Test
+    void 제외시간을_뺀_뒤_최대시간() {
+        CommuteRule r = lateHour();
+        r.setEx1From("0|10:00"); r.setEx1To("0|10:20"); r.setMaxHours(1); r.setMaxMinutes(0);
+        assertEquals(new BigDecimal("1.00"), late(r, MON.atTime(10, 30, 25)));
+    }
+
+    @Test
+    void 제외시간을_뺀_뒤_최소시간() {
+        CommuteRule r = lateHour();
+        r.setEx1From("0|10:00"); r.setEx1To("0|10:20"); r.setMinHours(1); r.setMinMinutes(15);
+        assertNull(late(r, MON.atTime(10, 30, 25))); // 70 < 75
+    }
+
+    @Test
+    void 반영단위_뒤에_최소시간() {
+        CommuteRule r = lateHour();
+        r.setUnitMinutes(40);
+        assertEquals(new BigDecimal("1.33"), late(r, MON.atTime(10, 30, 25))); // 90 → 80
+        r.setMinHours(1); r.setMinMinutes(25);
+        assertNull(late(r, MON.atTime(10, 30, 25))); // 80 < 85
+    }
+
+    @Test
+    void 최대시간_뒤에_반영단위() {
+        CommuteRule r = lateHour();
+        r.setUnitMinutes(40); r.setMaxHours(1); r.setMaxMinutes(0);
+        assertEquals(new BigDecimal("0.67"), late(r, MON.atTime(10, 30, 25))); // 90 → 60 → 40
+    }
+
+    @Test
+    void 업무일_휴일은_달력이_없어_반영하지_않는다() {
+        CommuteRule r = lateHour();
+        r.setDayKind(CommuteRuleDayKind.WORKDAY);
+        assertNull(late(r, MON.atTime(10, 30, 25)));
+        r.setDayKind(CommuteRuleDayKind.HOLIDAY);
+        assertNull(late(r, MON.plusDays(5).atTime(10, 30, 48)));
+    }
+
+    @Test
+    void 일별_적요() {
+        EmployeeCommute c = EmployeeCommute.builder().workDate(MON).clockIn(MON.atTime(10, 30, 25)).build();
+        assertEquals("출근: 10:30 / 퇴근: 00:00", CommuteReflectService.note(c, List.of()));
     }
 }

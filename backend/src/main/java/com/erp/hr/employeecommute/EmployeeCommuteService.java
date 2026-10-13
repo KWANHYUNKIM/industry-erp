@@ -104,8 +104,17 @@ public class EmployeeCommuteService {
     @Transactional
     public CommuteResponse deleteEvent(Long eventId) {
         EmployeeCommuteEvent ev = getEvent(eventId);
-        if (ev.isIn()) throw ApiException.badRequest("출근 기록은 지울 수 없습니다. 근무기록을 [선택삭제] 하십시오.");
         EmployeeCommute c = ev.getCommute();
+        List<EmployeeCommuteEvent> events = sync(c);
+        // 원본 2026-10-13 실측: [삭제]는 맨 뒤 이력 줄에만 있다 — 퇴근이 있으면 출근 줄은 [저장][H] 뿐,
+        // 출근만 있는 날은 출근 줄 [삭제]가 확인 없이 그날 근무기록을 통째로 지운다.
+        if (!events.isEmpty() && !events.get(events.size() - 1).getId().equals(ev.getId()))
+            throw ApiException.badRequest("마지막 출/퇴근 기록부터 삭제할 수 있습니다.");
+        if (events.size() == 1) {
+            eventRepository.delete(ev);
+            repository.delete(c);
+            return null;
+        }
         eventRepository.delete(ev);
         eventRepository.flush();
         return CommuteResponse.from(c, sync(c));

@@ -39,7 +39,7 @@ public class EmployeeCommuteController {
         return service.updateEvent(eventId, req, worker(principal));
     }
 
-    /** 창 오른쪽 퇴근 이력 [삭제] */
+    /** 창 오른쪽 맨 뒤 이력 [삭제] — 출근만 있던 날이면 그날 기록을 지우고 null */
     @DeleteMapping("/events/{eventId}")
     public CommuteResponse deleteEvent(@PathVariable Long eventId) {
         return service.deleteEvent(eventId);

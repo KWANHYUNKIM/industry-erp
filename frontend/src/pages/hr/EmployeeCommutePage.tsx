@@ -45,8 +45,9 @@ const nowLocal = () => { const d = new Date(); return `${ymd(d)}T${String(d.getH
  *   <li>2026-10-13 2차 실측: 달력 날짜 칸을 누르면 그 날짜 · 지금 시각으로 [출근] 창, 'n(내근 + 외근)'(풍선 '근무자(내근+외근)')을
  *       누르면 그날 '출/퇴근기록부(사원)' 목록 창(입력 후 [Enter] · Search(F3) · 2026/10/12 ~2026/10/12 · 같은 격자 ·
  *       신규(F2) · 선택삭제 · Excel · 닫기). 퇴근 창은 외근 칸 없이 □오후반차설정. 퇴근 뒤 다시 열면 [출근] — 다시 출근하면
- *       줄은 그대로 하나이고 퇴근시간 옆에 '+1'. 오른쪽 이력 줄을 펼치면 장소 · 시간 · 반차 · 사유 [저장], 퇴근 줄은 [삭제]
- *       (확인 없이 지우고 목록 창으로). 이력의 [H](변경이력)는 없다.</li>
+ *       줄은 그대로 하나이고 퇴근시간 옆에 '+1'. 오른쪽 이력 줄을 펼치면 장소 · 시간 · 반차 · 사유 [저장], 맨 뒤 줄만 [삭제]
+ *       (확인 없이 지우고 목록 창으로). 3차 실측: 퇴근이 있으면 출근 줄은 [저장][H] 뿐, 출근만 있는 날은 출근 줄 [삭제]로
+ *       그날 근무기록이 통째로 지워지고 목록 창은 '등록된 데이터가 없습니다.'.</li>
  *   <li>선택삭제 '선택한 사원의 근무기록을 삭제하겠습니까?'.</li>
  * </ul>
  * 그룹웨어 출/퇴근기록부(ID)는 로그인 계정 단위, 이 화면은 사원 단위라 따로 담는다. 외부시스템과 ERP연동 · 웹자료올리기는 없다.
@@ -144,7 +145,7 @@ export default function EmployeeCommutePage() {
       setFormError(extractErrorMessage(e))
     }
   }
-  /** 원본: 퇴근 이력의 [삭제]는 확인 창 없이 지우고 창을 닫는다 */
+  /** 원본: 맨 뒤 이력 줄의 [삭제]는 확인 창 없이 지우고 창을 닫는다(출근만 있던 날이면 그날 기록이 사라진다) */
   async function deleteEvent(ev: CommuteEvent) {
     try {
       await api.delete(`/hr/employee-commutes/events/${ev.id}`)
@@ -363,7 +364,8 @@ export default function EmployeeCommutePage() {
                     </label>
                     <div className="flex gap-[4px]">
                       <button type="button" className="ec-btn ec-btn-primary ec-btn-sm" onClick={() => saveEvent(ev)}>저장</button>
-                      {ev.kind === 'OUT' && <button type="button" className="ec-btn ec-btn-sm" onClick={() => deleteEvent(ev)}>삭제</button>}
+                      {/* 원본: [삭제]는 맨 뒤 이력 줄에만 — 출근만 있는 날은 출근 줄 [삭제]가 그날 기록을 지운다 */}
+                      {ev.id === last?.id && <button type="button" className="ec-btn ec-btn-sm" onClick={() => deleteEvent(ev)}>삭제</button>}
                       <button type="button" className="ec-btn ec-btn-sm" onClick={() => setAuditOf(ev)}>H</button>
                     </div>
                   </div>
