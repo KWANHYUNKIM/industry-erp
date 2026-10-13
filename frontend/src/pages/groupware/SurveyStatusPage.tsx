@@ -6,7 +6,7 @@ import EcPeriodPicks, { STATUS_PICKS, periodOf, ymd } from '../../components/EcP
 import { EcReportHead, EcReportFoot, reportPeriod, reportDate } from '../../components/EcReportFrame'
 import type { SurveyDoc } from '../../types/api'
 import { useShortcut } from '../../utils/useShortcut'
-import { useTableSort } from '../../utils/useTableSort'
+import EcSortSubtotalModal, { emptySortSubtotal, sortBySubtotal, type SortSubtotal } from '../../components/EcSortSubtotalModal'
 
 /**
  * 그룹웨어 > 공유정보 > 설문조사 > 설문조사현황 (이카운트 E070258)
@@ -24,8 +24,10 @@ import { useTableSort } from '../../utils/useTableSort'
  * 그 설문 하나만 폈다. 원본 격자는 <b>응답 × 질문 하나가 한 줄</b>이다 — 이제 검색하면 고른 설문들의 응답을
  * 그 모양으로 바로 편다. 응답이 없는 설문은 줄이 없다(loginaa 자료가 0건이라 원본에서 확인은 못 했다).
  *
- * <p>원본 조건에 없던 우리 것([진행] 라디오, 정렬/소계 알약과 소계 표)은 뺐다. 원본 [정렬/소계기준 설정] ·
- * [종료일] 빠른선택 · 적용양식 바꾸기는 받쳐 줄 것이 없어 두지 않았다.
+ * <p>원본 조건에 없던 우리 것([진행] 라디오, 정렬/소계 알약과 소계 표)은 뺐다. [종료일] 빠른선택 · 적용양식 바꾸기는 아직 없다.
+ * <p>[정렬/소계기준 설정] 은 '정렬/소계/합계 설정' 창이다(2026-10-13 실측 — 기준 없음 · 작성일 · 게시글번호 · 설문종료일, 처음엔
+ * 1번이 작성일 · 올림차순 · 소계 표시안함, 합계영역 표시안함). 소계를 켜면 1번 기준 값이 바뀔 때마다 '값 계' 줄, 합계를 켜면 끝에 '합계' 줄.
+ * loginaa 설문 응답이 0건이라 원본 소계 줄 모양은 재지 못했다 — 다른 현황의 '[값] 계' 모양을 따랐다.
  */
 
 interface UserRow { id: number; name: string; username: string }
@@ -48,6 +50,9 @@ interface Line {
  * [전월+금월]을 눌러도 '2026/09/01 ~ 2026/10/03' 이다(작성일이라 아직 안 온 날은 볼 것이 없다).
  * 공용 periodOf 는 다른 화면을 위해 금월 말일까지라 여기서만 오늘로 자른다.
  */
+/** [적용/저장] 한 정렬/소계 기준을 담아 두는 자리. */
+const SORT_KEY = 'survey-status-sort'
+
 function initPeriod() {
   const p = periodOf('전월+금월')!
   const today = ymd(new Date())
@@ -127,11 +132,35 @@ export default function SurveyStatusPage() {
 
   useShortcut('F8', () => void search(), view === 'cond')
 
-  const sort = useTableSort(lines, {
-    작성일: (l) => l.createdAt,
-    게시글번호: (l) => l.postNo,
-    설문종료일: (l) => l.endAt,
+  /** 원본 [정렬/소계기준 설정] — [적용/저장] 하면 다음에 열 때도 그대로(이 브라우저에만). */
+  const [sortCfg, setSortCfg] = useState<SortSubtotal>(() => {
+    try { const x = localStorage.getItem(SORT_KEY); if (x) return JSON.parse(x) as SortSubtotal } catch { /* 저장소를 못 쓰면 기본값 */ }
+    return emptySortSubtotal('작성일')
   })
+  const [showSort, setShowSort] = useState(false)
+  const keyOf = (l: Line, k: string) => (k === '작성일' ? l.createdAt : k === '게시글번호' ? l.postNo : k === '설문종료일' ? l.endAt : '')
+  const sorted = sortBySubtotal(lines, sortCfg, keyOf)
+  /** 출력물 머리를 누르면 1번 기준이 그 열로, 다시 누르면 방향이 바뀐다. */
+  const toggleHead = (k: string) => setSortCfg((c) => {
+    const [first, ...rest] = c.lines
+    return { ...c, lines: [first.key === k ? { ...first, desc: !first.desc } : { key: k, desc: false, subtotal: first.subtotal }, ...rest] }
+  })
+  /** 출력물 머리 ▲▼ — 다른 화면의 useTableSort 와 같은 이름(sort.toggle · sort.mark)으로 쓴다. */
+  const sort = {
+    toggle: toggleHead,
+    mark: (k: string) => (sortCfg.lines[0].key === k ? (sortCfg.lines[0].desc ? '▼' : '▲') : ''),
+  }
+  /** 소계 · 합계 줄을 끼운 출력 줄. */
+  const first = sortCfg.lines[0]
+  const outRows: ({ kind: 'line'; l: Line } | { kind: 'sub' | 'total'; label: string; key: string })[] = []
+  sorted.forEach((l, i) => {
+    outRows.push({ kind: 'line', l })
+    if (first.key && first.subtotal) {
+      const cur = keyOf(l, first.key), next = sorted[i + 1] ? keyOf(sorted[i + 1], first.key) : undefined
+      if (cur !== next) outRows.push({ kind: 'sub', label: `${cur || ''} 계`, key: `sub-${i}` })
+    }
+  })
+  if (sortCfg.total && sorted.length > 0) outRows.push({ kind: 'total', label: '합계', key: 'total' })
 
   return (
     <EcListShell
@@ -204,17 +233,11 @@ export default function SurveyStatusPage() {
               <div className="title">적용양식</div>
               <div className="form"><select className="ec-input flex-1" value="기본" disabled><option value="기본">기본(수정불가)</option></select></div>
             </li>
-            {/* 원본 [정렬/소계기준 설정]은 창을 띄워 고른다. 우리는 소계가 없어 정렬만 고른다 — 출력물 머리의 ▲▼ 와 같이 움직인다. */}
+            {/* 원본 [정렬/소계기준] [설정] — '정렬/소계/합계 설정' 창. */}
             <li className="wide">
               <div className="title">정렬/소계기준</div>
               <div className="form">
-                <select className="ec-input w-[160px]" aria-label="정렬기준" value={sort.sortKey ?? ''}
-                        onChange={(e) => sort.setSort(e.target.value || null)}>
-                  <option value="">(기본)</option>
-                  <option value="작성일">작성일</option>
-                  <option value="게시글번호">게시글번호</option>
-                  <option value="설문종료일">설문종료일</option>
-                </select>
+                <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-navy" onClick={() => setShowSort(true)}>설정</button>
               </div>
             </li>
           </ul>
@@ -238,18 +261,28 @@ export default function SurveyStatusPage() {
               </tr>
             </thead>
             <tbody>
-              {sort.sorted.length === 0 ? (
+              {outRows.length === 0 ? (
                 <tr><td colSpan={7} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
-              ) : sort.sorted.map((l) => (
-                <tr key={l.key}>
-                  <td>{l.createdAt}</td><td>{l.postNo}</td><td>{l.endAt}</td>
-                  <td>{l.respondent}</td><td>{l.title}</td><td>{l.question}</td><td>{l.answer}</td>
+              ) : outRows.map((r) => r.kind === 'line' ? (
+                <tr key={r.l.key}>
+                  <td>{r.l.createdAt}</td><td>{r.l.postNo}</td><td>{r.l.endAt}</td>
+                  <td>{r.l.respondent}</td><td>{r.l.title}</td><td>{r.l.question}</td><td>{r.l.answer}</td>
+                </tr>
+              ) : (
+                <tr key={r.key} className="bg-ec-page font-bold" data-row={r.kind}>
+                  <td colSpan={7}>{r.label}</td>
                 </tr>
               ))}
             </tbody>
           </table>
           <EcReportFoot />
         </>
+      )}
+      {showSort && (
+        <EcSortSubtotalModal keys={['작성일', '게시글번호', '설문종료일']} value={sortCfg}
+                             onApply={(v) => { setSortCfg(v); setShowSort(false) }}
+                             onSave={(v) => { try { localStorage.setItem(SORT_KEY, JSON.stringify(v)) } catch { /* 저장소를 못 쓰면 이번만 */ } }}
+                             onClose={() => setShowSort(false)} />
       )}
     </EcListShell>
   )
