@@ -193,8 +193,9 @@ public class JournalService {
         e.setPartner(partner);
         String vatType = req.vatType().trim();
         e.setVatType(vatType);
-        e.setEInvoiceKind("세금계산서".equals(vatType) && req.eInvoiceKind() != null && !req.eInvoiceKind().isBlank()
-                ? req.eInvoiceKind().trim() : null);
+        // [전자종류]는 세금계산서만이 아니다 — 매출 영세율 · 계산서 …, 매입 세금계산서(불공) · (수입) … 에도 붙는다(2026-10-13 실측).
+        // 어느 유형에 붙는지는 화면이 정해 보낸다(VatSlipPage hasEKind). 예전엔 세금계산서가 아니면 버려 영세율의 '종이' 가 사라졌다.
+        e.setEInvoiceKind(req.eInvoiceKind() != null && !req.eInvoiceKind().isBlank() ? req.eInvoiceKind().trim() : null);
         e.setVatOmitted(Boolean.TRUE.equals(req.vatOmitted()));
         e.setVatDetail(sales ? com.erp.accounting.journal.dto.JournalDtos.writeVatDetail(req.vatDetail()) : null);
         Account main = account(req.accountId());

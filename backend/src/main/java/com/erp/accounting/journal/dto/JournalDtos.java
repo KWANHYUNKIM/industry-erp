@@ -57,7 +57,7 @@ public final class JournalDtos {
             @NotNull(message = "입금계좌: 자료를 입력 바랍니다.") Long settleAccountId,
             /** [수수료] — 차) 지급수수료(831) / 대) 입금(출금)계좌(2026-10-13 실측: 매출 · 매입 모두 같은 모양). */
             @PositiveOrZero(message = "수수료는 0 이상이어야 합니다.") BigDecimal feeAmount,
-            /** [전자종류] — 부가세유형이 세금계산서일 때만. */
+            /** [전자종류] — 붙는 유형(매출 세금계산서 · 영세율 · 계산서 …, 매입 세금계산서 · 불공 · 수입 …)에서만 화면이 보낸다. */
             @Size(max = 30, message = "전자종류는 30자까지입니다.") String eInvoiceKind,
             /** [예정누락분] true = 예정누락 */
             Boolean vatOmitted,

@@ -1,0 +1,18 @@
+{
+  "about": "매입전표 I [전자종류]가 붙는 유형(2026-10-13 loginaa 매입전표 I 신규에서 부가세유형을 하나씩 골라 잼): 세금계산서 · 영세율 · 계산서 · 세금계산서(불공) · 세금계산서(수입) · 세.계(고정-수입) · 세.계(고정-불공) · 계산서(고정자산)는 유형 아래 표지에 '전자(세금)계산서-신규', 현금영수증 · 카드매입 · 매입자발행세금계산서 · 기타매입은 없다. 세금계산서가 아닌 유형(세금계산서(불공))의 전자종류 '종이(세금)계산서' 가 저장된다 — 예전엔 서버가 세금계산서가 아니면 버렸다(매출 영세율도 같았다). 만든 전표는 지운다.",
+  "shots": [
+    {
+      "name": "유형별 전자종류 표지 · 불공 + 종이 저장",
+      "path": "/accounting/purchase-slip",
+      "steps": [
+        "wait:2500",
+        "js:window.__vt = (v) => { const s = document.querySelector('select[aria-label=\"부가세유형\"]'); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s, v); s.dispatchEvent(new Event('change', { bubbles: true })); }; window.__chip = () => [...document.querySelectorAll('.ec-label-chip')].some((c) => c.innerText.trim() === '전자(세금)계산서-신규'); true",
+        "js:(async () => { const out = []; for (const t of ['세금계산서', '영세율', '계산서', '세금계산서(불공)', '세금계산서(수입)', '세.계(고정-수입)', '세.계(고정-불공)', '계산서(고정자산)', '현금영수증', '카드매입', '매입자발행세금계산서', '기타매입']) { window.__vt(t); await new Promise((r) => setTimeout(r, 150)); out.push(t + ':' + (window.__chip() ? 'Y' : 'N')); } sessionStorage.setItem('pekChips', out.join(',')); return out.join(',') })()",
+        "expect:sessionStorage.getItem('pekChips') === '세금계산서:Y,영세율:Y,계산서:Y,세금계산서(불공):Y,세금계산서(수입):Y,세.계(고정-수입):Y,세.계(고정-불공):Y,계산서(고정자산):Y,현금영수증:N,카드매입:N,매입자발행세금계산서:N,기타매입:N'",
+        "js:(async () => { const A = (m, u, b) => fetch('/api' + u, { method: m, headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }).then((r) => r.json()); const acc = await A('GET', '/accounts'); const a = (c) => acc.find((x) => x.code === c).id; const p = (await A('GET', '/partners'))[0]; const d = new Date(); const ymd = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const e = await A('POST', '/journals/vat-slip', { sales: false, entryDate: ymd, vatType: '세금계산서(불공)', partnerId: p.id, supplyAmount: 1000, vatAmount: 100, description: 'QA회계1 불공 종이', accountId: a('153'), settleAccountId: a('251'), eInvoiceKind: '종이(세금)계산서' }); sessionStorage.setItem('pekJ', e.id); const g = await A('GET', '/journals/' + e.id); return g.vatType + ' ' + g.eInvoiceKind })()",
+        "expect:(async () => { const g = await fetch('/api/journals/' + sessionStorage.getItem('pekJ'), { headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } }).then((r) => r.json()); return g.eInvoiceKind === '종이(세금)계산서' })()",
+        "expect:(async () => (await fetch('/api/journals/' + sessionStorage.getItem('pekJ'), { method: 'DELETE', headers: { Authorization: 'Bearer ' + localStorage.getItem('erp_token') } })).ok)()"
+      ]
+    }
+  ]
+}
