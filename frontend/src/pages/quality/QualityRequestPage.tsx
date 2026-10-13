@@ -83,7 +83,8 @@ async function printRequests(rs: QualityInspectionRequest[]) {
 }
 const printRequest = (r: QualityInspectionRequest) => printRequests([r])
 
-export default function QualityRequestPage() {
+/** @param entry 원본 [..입력] 메뉴로 열었을 때 — 입력 창을 열고 뜬다. */
+export default function QualityRequestPage({ entry = false }: { entry?: boolean } = {}) {
   /**
    * 원본 조건 판 첫째 <b>[기준일자]</b>. 서버가 이 구간만 준다. 기본은 <b>최근30일(+1개월)</b>(2026-09-01 원본 실측).
    */
@@ -139,6 +140,8 @@ export default function QualityRequestPage() {
   const itemPicks = useMemo(() => items.filter((it) => it.active !== false)
     .map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword })), [items])
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (entry) openNew() }, [entry])
   function openNew() {
     setEditing(null); setFormError('')
     setF({ requestDate: today(), requester: '', projectId: '', remark: '' })

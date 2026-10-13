@@ -86,7 +86,8 @@ async function printInspections(rs: QualityInspection[]) {
  * [출처] 는 [검사요청] 으로 불러온 검사만 '검사요청' 으로 찍는다 — 구매 · 생산 … 에서 불러오기와 [확인] 알약(전표 확인 결재)은 아직 없다.
  * 조건 판은 원본 조건 대조표의 것(기준일자 · 품목 · 창고 · 프로젝트)을 그대로 둔다.
  */
-export default function QualityInspectionPage() {
+/** @param entry 원본 [..입력] 메뉴로 열었을 때 — 입력 창을 열고 뜬다. */
+export default function QualityInspectionPage({ entry = false }: { entry?: boolean } = {}) {
   const pickers = useCondPickers(['items', 'warehouses', 'projects'])
   const init = periodOf('최근30일(+1개월)')!
   const [from, setFrom] = useState(init.from)
@@ -162,6 +163,8 @@ export default function QualityInspectionPage() {
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '품질검사조회', [shown.length])
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (entry) openNew() }, [entry])
   function openNew() {
     setEditing(null); setFormError('')
     setF({ inspectionDate: today(), inspector: '', remark: '' })

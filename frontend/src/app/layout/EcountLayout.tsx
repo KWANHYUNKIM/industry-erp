@@ -392,7 +392,17 @@ const MENU: TopMenu[] = [
         ],
       },
       { label: '시리얼/로트No.', nodes: [{ label: '시리얼/로트No.', to: '/quality/serial-lot' }, { label: '시리얼/로트No.내역조회', to: '/quality/lot-tx-list' }, { label: '시리얼/로트No.내역현황', to: '/quality/lot-tx-status' }, { label: '시리얼/로트No.재고조정', to: '/quality/lot-adjust' }, { label: '시리얼/로트No.재고수불부', to: '/quality/lot-ledger' }, { label: '시리얼/로트No.재고현황', to: '/quality/lot-stock' }, { label: '품목vs시리얼재고수량비교', to: '/quality/lot-compare' }] },
-      { label: '품질관리', nodes: [{ label: '품질검사요청', to: '/quality/inspection-request' }, { label: '품질검사요청현황', to: '/quality/request-status' }, { label: '미검사현황', to: '/quality/uninspected' }, { label: '품질검사유형등록', to: '/quality/inspection-type' }, { label: '품질관리', to: '/quality/inspection' }, { label: '품질검사현황', to: '/quality/inspection-status' }, { label: '불량률파악보고서', to: '/quality/defect-report' }] },
+      {
+        /*
+         * 원본 사이트맵(2026-10-14): 품질검사요청(입력 · 조회 · 현황 · 미검사현황) · 품질검사(유형등록 · 입력 · 조회 · 현황) 두 묶음.
+         * 불량률파악보고서는 원본 재고 I › 기타이동현황 에 있다(우리도 거기 있다) — 여기서는 뺐다(라우트는 그대로).
+         */
+        label: '품질관리',
+        nodes: [
+          { label: '품질검사요청', children: [{ label: '품질검사요청입력', to: '/quality/inspection-request-entry' }, { label: '품질검사요청조회', to: '/quality/inspection-request' }, { label: '품질검사요청현황', to: '/quality/request-status' }, { label: '미검사현황', to: '/quality/uninspected' }] },
+          { label: '품질검사', children: [{ label: '품질검사유형등록', to: '/quality/inspection-type' }, { label: '품질검사입력', to: '/quality/inspection-entry' }, { label: '품질검사조회', to: '/quality/inspection' }, { label: '품질검사현황', to: '/quality/inspection-status' }] },
+        ],
+      },
       {
         label: '계획관리',
         nodes: [

@@ -796,6 +796,9 @@ export default function AppRouter() {
         <Route path="/quality/inspection-status" element={<QualityStatusPage />} />
         <Route path="/quality/inspection-type" element={<QualityTypePage />} />
         <Route path="/quality/inspection-request" element={<QualityRequestPage />} />
+        {/* 원본 품질검사요청입력(E040628) · 품질검사입력(E040621) 메뉴 — 같은 화면이 입력 창을 열고 뜬다. */}
+        <Route path="/quality/inspection-request-entry" element={<QualityRequestPage entry />} />
+        <Route path="/quality/inspection-entry" element={<QualityInspectionPage entry />} />
         <Route path="/quality/uninspected" element={<UninspectedPage />} />
         <Route path="/quality/request-status" element={<QualityRequestStatusPage />} />
         <Route path="/quality/defect-report" element={<DefectReportPage />} />
