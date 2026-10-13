@@ -158,29 +158,31 @@ async function seed() {
 
 /** 수주 → 판매 전환 → 미판매 잔량 (미판매현황 E040212) */
 /**
- * <b>특별단가는 거래처별이 그룹별보다 먼저다.</b>
+ * <b>특별단가는 특별단가그룹에 붙고, 거래처가 그 그룹을 든다</b>(원본 E040124 — 2026-10-14 원본 모델로).
  *
- * 특별단가등록·단가적용순서설정 화면은 오래전부터 있었는데 <b>전표입력이 그 값을 한 번도
- * 안 불렀다.</b> 특별단가를 등록해 놓고 판매입력을 열면 그냥 표준단가가 채워졌고,
- * 두 마스터 화면은 저장만 되고 아무 데도 영향이 없었다.
- * 이제 전표입력이 resolve 를 부른다 — 여기서 그 해석 규칙을 못 박는다.
+ * 그룹 → 품목별 적용단가 → 거래처의 영업단가그룹 = 그 그룹 → 판매 resolve 가 그 값. 단가적용순서설정의
+ * 거래처별특별단가(품목별) 이 '사용' 일 때만 걸리고, 줄 사용중단 · 설정 끄기 · 삭제 · 거래처 떼기에 따라 사라진다.
  */
 async function scenarioSpecialPrice(f) {
   section('■ 특별단가 해석')
 
   const ask = async () => (await must('GET',
     `/special-prices/resolve?tradeType=SALES&itemId=${f.product.id}&partnerId=${f.customer.id}`))
+  const GCODE = `${P}SPG`
 
   // 지난 회차가 중간에 멈춰 남긴 것이 있으면 먼저 치운다 — 안 그러면 '등록 전' 이 성립하지 않는다.
-  for (const sp0 of (await must('GET', '/special-prices'))
-    .filter((x) => x.itemName === f.product.name && x.unitPrice === 77000)) {
-    await call('DELETE', `/special-prices/${sp0.id}`)
+  const leftover = (await must('GET', '/special-prices/groups')).find((g) => g.code === GCODE)
+  if (leftover) {
+    for (const sp0 of (await must('GET', '/special-prices')).filter((x) => x.groupId === leftover.id)) {
+      await call('DELETE', `/special-prices/${sp0.id}`)
+    }
+    for (const m of await must('GET', `/special-prices/groups/${leftover.id}/partners`)) {
+      await call('DELETE', `/special-prices/groups/${leftover.id}/partners/${m.targetId}?tradeType=${m.tradeType}`)
+    }
+    await call('DELETE', `/special-prices/groups/${leftover.id}`)
   }
+  const keepPartnerGroup = (await must('GET', '/partners')).find((p) => p.id === f.customer.id)?.salesPriceGroup ?? null
 
-  /*
-   * 단가적용순서설정에서 [거래처별특별단가] 가 '사용' 이어야 특별단가가 걸린다(51회차 — 설정과 상관없이 늘 걸렸다).
-   * 지금 설정을 받아 두고 켠 뒤 시험하고, 끝에 되돌린다.
-   */
   const savedOrder = await must('GET', '/price-order-settings?category=SALES')
   const withPartner = (on) => savedOrder.map((l) => (l.functionName === '거래처별특별단가(품목별)' ? { ...l, active: on } : l))
   await must('PUT', '/price-order-settings', { category: 'SALES', settings: withPartner(true) })
@@ -189,27 +191,40 @@ async function scenarioSpecialPrice(f) {
   eq('등록 전에는 특별단가가 없다', before.found, false)
   eq('없을 때 단가는 null 이다(0 이 아니다)', before.unitPrice, null)
 
-  const sp = await must('POST', '/special-prices', {
-    tradeType: 'SALES', itemId: f.product.id, partnerId: f.customer.id, unitPrice: 77000,
-  })
+  const g = await must('POST', '/special-prices/groups', { code: GCODE, name: `${P}특별단가그룹` })
+  const dupGroup = await call('POST', '/special-prices/groups', { code: GCODE, name: 'x' })
+  eq('같은 그룹코드는 막는다', dupGroup.status, 409)
+  const sp = await must('POST', '/special-prices', { groupId: g.id, itemId: f.product.id, unitPrice: 77000 })
+  const dupItem = await call('POST', '/special-prices', { groupId: g.id, itemId: f.product.id, unitPrice: 1 })
+  eq('한 그룹에 같은 품목은 한 번 — 원본 문구', dupItem.data?.message, '이미 특별단가그룹에 존재하는 코드입니다.')
+  eq('그룹에 거래처가 없으면 아직 안 건다', (await ask()).found, false)
+
+  await must('POST', `/special-prices/groups/${g.id}/partners`, { targetId: f.customer.id, sales: true, purchase: false })
+  const members = await must('GET', `/special-prices/groups/${g.id}/partners`)
+  eq('거래처설정에 영업으로 붙는다', members.map((m) => m.tradeTypeName).join(','), '영업')
   const after = await ask()
-  eq('거래처별 특별단가를 찾는다', after.found, true)
+  eq('거래처의 영업단가그룹 단가를 찾는다', after.found, true)
   eq('그 단가를 그대로 준다', Number(after.unitPrice), 77000)
-  eq('어디서 왔는지 밝힌다', after.source, 'PARTNER')
+  eq('어느 단가적용순서 줄에서 왔는지 밝힌다', after.source, '거래처별특별단가(품목별)')
+  eq('구매에는 안 건다(구매단가그룹이 아니다)', (await must('GET',
+    `/special-prices/resolve?tradeType=PURCHASE&itemId=${f.product.id}&partnerId=${f.customer.id}`)).found, false)
 
-  // 껐다 켜면 해석도 따라간다 — 화면에서 '사용안함' 으로 돌린 단가가 계속 붙으면 안 된다
   await must('PATCH', `/special-prices/${sp.id}/active?active=false`)
-  eq('사용안함으로 돌리면 안 찾는다', (await ask()).found, false)
+  eq('사용중단하면 안 찾는다', (await ask()).found, false)
   await must('PATCH', `/special-prices/${sp.id}/active?active=true`)
-  eq('다시 켜면 또 찾는다', (await ask()).found, true)
+  eq('재사용하면 또 찾는다', (await ask()).found, true)
 
-  // 설정에서 거래처별특별단가를 '사용안함' 으로 두면 등록돼 있어도 안 건다 — 원본 기본값이 그렇다
-  await must('PUT', '/price-order-settings', { category: 'SALES', settings: withPartner(false).map((l) => (l.functionName.startsWith('거래처별특별단가') ? { ...l, active: false } : l)) })
-  eq('단가적용순서설정에서 거래처별특별단가를 끄면 안 건다', (await ask()).found, false)
+  await must('PUT', '/price-order-settings', { category: 'SALES', settings: withPartner(false).map((l) => (l.functionName.includes('특별단가') ? { ...l, active: false } : l)) })
+  eq('단가적용순서설정에서 특별단가 줄을 끄면 안 건다', (await ask()).found, false)
   await must('PUT', '/price-order-settings', { category: 'SALES', settings: withPartner(true) })
 
+  const blocked = await call('DELETE', `/special-prices/groups/${g.id}`)
+  eq('단가 · 거래처가 붙은 그룹은 못 지운다', blocked.status, 409)
   await must('DELETE', `/special-prices/${sp.id}`)
-  eq('지우면 표준단가로 돌아간다', (await ask()).found, false)
+  eq('지우면 기준단가로 돌아간다', (await ask()).found, false)
+  await must('DELETE', `/special-prices/groups/${g.id}/partners/${f.customer.id}?tradeType=SALES`)
+  await must('DELETE', `/special-prices/groups/${g.id}`)
+  if (keepPartnerGroup) await must('POST', `/special-prices/groups/${(await must('GET', '/special-prices/groups')).find((x) => x.code === keepPartnerGroup).id}/partners`, { targetId: f.customer.id, sales: true, purchase: false })
   await must('PUT', '/price-order-settings', { category: 'SALES', settings: savedOrder })   // 설정 되돌림
 }
 
@@ -7257,13 +7272,18 @@ async function scenarioPartnerContactAndBank() {
     await call('DELETE', `/partners/${x.id}`)
   }
 
+  // 단가그룹 칸은 특별단가그룹 코드다(E040124 원본 모델) — 시험용 그룹 둘을 먼저 둔다(있으면 그대로).
+  const haveGroups = (await must('GET', '/special-prices/groups')).map((g) => g.code)
+  for (const c of [`${P}A`, `${P}B`]) {
+    if (!haveGroups.includes(c)) await must('POST', '/special-prices/groups', { code: c, name: `${P}단가그룹${c.slice(-1)}` })
+  }
   const made = await must('POST', '/partners', {
     code, name: `${P}거래처`, type: 'CUSTOMER',
     phone: '02-000-0000', mobile: '010-1234-5678',
     email: 'qa@example.test', fax: '02-000-0001', creditLimit: 5000000,
     bankName: '국민', accountNo: '123-45-678910', accountHolder: '홍길동',
     postalCode: '13529', address: '경기 성남시 분당구',
-    salesPriceGroup: 'A', purchasePriceGroup: 'B',
+    salesPriceGroup: `${P}A`, purchasePriceGroup: `${P}B`,
   })
 
   // 원본 거래처등록 [기본] 탭의 [주소1 우편번호]. 주소 안에 섞어 적으면
@@ -7273,8 +7293,9 @@ async function scenarioPartnerContactAndBank() {
 
   // 단가그룹은 특별단가등록의 '그룹별' 이 보는 값인데, 폼에 칸이 없어
   // PATCH /partners/{id}/price-group 을 직접 부르지 않으면 정할 수가 없었다.
-  eq('판매단가그룹을 등록에서 정할 수 있다', made.salesPriceGroup, 'A')
-  eq('구매단가그룹도 마찬가지다', made.purchasePriceGroup, 'B')
+  eq('판매단가그룹을 등록에서 정할 수 있다', made.salesPriceGroup, `${P}A`)
+  eq('구매단가그룹도 마찬가지다', made.purchasePriceGroup, `${P}B`)
+  eq('없는 그룹코드는 막는다', (await call('PATCH', `/partners/${made.id}/price-group`, { salesPriceGroup: 'NO-SUCH-GROUP' })).status, 400)
   eq('모바일이 실린다', made.mobile, '010-1234-5678')
 
   /*
@@ -10572,6 +10593,13 @@ async function main() {
     process.exit(fail > 0 ? 1 : 0)
   }
 
+  // 중도정산만(node qa/qa.mjs midterm) — 퇴직처리 → 대상자 → 원천징수연월 → 계산처리 → 퇴사 거두면 같이 지워짐.
+  if (cmd === 'midterm') {
+    await scenarioMidTermSettlement()
+    console.log(`\n통과 ${pass} · 실패 ${fail}`)
+    process.exit(fail > 0 ? 1 : 0)
+  }
+
   // A/S 소모 쪽만(node qa/qa.mjs as) — 수리 · 판매연결전표 · 소모현황.
   if (cmd === 'as') {
     await scenarioAsConsumption(fixtures)
@@ -10738,6 +10766,7 @@ async function main() {
   await scenarioExpenseEvidence()
   await scenarioSimplePayment()
   await scenarioYearEndSettlement()
+  await scenarioMidTermSettlement()
   await scenarioPressedTwice(fixtures)
   await scenarioNoPermission()
   await scenarioNewCompany()
@@ -11588,6 +11617,38 @@ async function scenarioYearEndSettlement() {
   }
   await must('POST', '/tax-settlements/delete', [s.id])
   eq('선택삭제하면 목록에서 사라진다', (await must('GET', `/tax-settlements?year=${Y}&kind=YEAR_END`)).some((x) => x.id === s.id), false)
+}
+
+/**
+ * 중도정산등록/수정(E030114, plans/세무/E030114.md 4장 흐름표) — QA세무01 을 퇴직처리(2026/09/30) → 중도정산 대상자 후보 →
+ * 대상자추가 → 원천징수연월 2026/10 → 계산처리 → 퇴사자리스트 [선택삭제](퇴사 거둠) 하면 중도정산도 사라진다.
+ */
+async function scenarioMidTermSettlement() {
+  section('■ 중도정산 — 퇴직처리 · 대상자 · 원천징수연월 · 계산처리 · 퇴사 거두면 같이 삭제')
+  const Y = 2026
+  const emp = (await must('GET', '/employees/all')).find((e) => e.code === 'QA세무01')
+  if (!emp) { eq('QA세무01 사원이 있다', false, true); return }
+  // 퇴직처리는 입사일자 · 퇴사사유를 그대로 넣고, 퇴사를 거두면 재직으로 돌아온다 — 따로 되돌릴 것이 없다
+  for (const x of await must('GET', `/tax-settlements?year=${Y}&kind=MID_TERM`)) if (x.employeeId === emp.id) await must('POST', '/tax-settlements/delete', [x.id])
+  eq('재직이면 중도정산 후보가 아니다', (await must('GET', `/tax-settlements/candidates?year=${Y}&kind=MID_TERM`)).some((c) => c.employeeId === emp.id), false)
+  await must('PUT', `/employees/${emp.id}/retirement`, { hireDate: emp.hireDate, resignDate: `${Y}-09-30`, resignReason: emp.resignReason ?? 'QA세무 중도정산' })
+  try {
+    eq('귀속연도에 퇴사하면 후보', (await must('GET', `/tax-settlements/candidates?year=${Y}&kind=MID_TERM`)).some((c) => c.employeeId === emp.id), true)
+    await rejects('대상자를 안 고르면 막는다', 'POST', '/tax-settlements/targets', { attributionYear: Y, kind: 'MID_TERM', employeeIds: [] }, '등록할 사원이 선택되지 않았습니다.')
+    const [s] = await must('POST', '/tax-settlements/targets', { attributionYear: Y, kind: 'MID_TERM', employeeIds: [emp.id] })
+    eq('대상자추가 직후 원천징수연월은 빈칸', s.withholdingMonth, null)
+    await rejects('원천징수연월 꼴이 틀리면 막는다', 'PUT', `/tax-settlements/${s.id}/withholding-month`, { withholdingMonth: '2026-13' }, '원천징수연월을 입력 바랍니다.')
+    eq('원천징수연월 저장', (await must('PUT', `/tax-settlements/${s.id}/withholding-month`, { withholdingMonth: `${Y}-10` })).withholdingMonth, `${Y}-10`)
+    await rejects('계산처리할 사원을 안 고르면 막는다', 'POST', '/tax-settlements/calculate', [], '계산처리할 사원이 선택되지 않았습니다.')
+    const [c] = await must('POST', '/tax-settlements/calculate', [s.id])
+    eq('계산처리 뒤에도 원천징수연월 그대로 · 계산 시각', `${c.withholdingMonth}/${!!c.calculatedAt}`, `${Y}-10/true`)
+    eq('연말정산 목록에는 안 보인다', (await must('GET', `/tax-settlements?year=${Y}&kind=YEAR_END`)).some((x) => x.id === s.id), false)
+  } finally {
+    await must('POST', '/employees/retirement/cancel', [emp.id])
+  }
+  eq('퇴사를 거두면 중도정산도 사라진다(원본 "중도정산한 내역이 삭제 됩니다.")',
+    (await must('GET', `/tax-settlements?year=${Y}&kind=MID_TERM`)).some((x) => x.employeeId === emp.id), false)
+  eq('사원은 재직으로 돌아온다', (await must('GET', '/employees/all')).find((e) => e.id === emp.id)?.active, true)
 }
 
 async function scenarioCommuteRule() {

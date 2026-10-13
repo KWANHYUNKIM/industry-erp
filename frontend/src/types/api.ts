@@ -853,29 +853,88 @@ export interface PriceOrderLine {
 
 export type SpecialPriceType = 'SALES' | 'PURCHASE'
 
+/** 특별단가그룹 — 원본 [특별단가그룹] 알약. has* 는 그 칸 링크가 주황 알약인가(무언가 붙었나). */
+export interface SpecialPriceGroup {
+  id: number
+  code: string
+  name: string
+  active: boolean
+  hasPartners: boolean
+  hasWarehouses: boolean
+  hasItems: boolean
+  hasItemGroups: boolean
+  updatedAt: string | null
+}
+
+/** 품목별 특별단가 — 그룹 × 품목 = 적용단가 · VAT포함 */
 export interface SpecialPrice {
   id: number
-  tradeType: SpecialPriceType
+  groupId: number
+  groupCode: string
+  groupName: string
   itemId: number
   itemCode: string
   itemName: string
-  unit: string
-  partnerId: number | null
-  partnerName: string | null
-  priceGroup: string | null
+  spec: string | null
+  unit: string | null
+  itemGroupName: string | null
   unitPrice: number
+  vatIncluded: boolean
   active: boolean
   remark: string | null
-  createdBy: string | null
-  /** 원본 [수정일자순] 정렬이 쓰는 값. BaseTimeEntity 가 들고 있던 것이다. */
   updatedAt: string | null
+}
+
+/** 품목그룹별 특별단가 — 그룹 × 품목그룹 = 단가기준 · 조정_비율 · 조정_단위처리 */
+export interface SpecialPriceItemGroup {
+  id: number
+  groupId: number
+  groupCode: string
+  groupName: string
+  itemGroupId: number
+  itemGroupCode: string
+  itemGroupName: string
+  priceBasis: string
+  adjustRate: number
+  roundUnit: string
+  roundMode: string
+  adjustText: string
+  active: boolean
+}
+
+/** 적용단가 알약 한 줄 */
+export interface SpecialPriceApplied {
+  itemId: number
+  itemCode: string
+  itemName: string
+  spec: string | null
+  itemGroupName: string | null
+  kind: string
+  groupCode: string
+  groupName: string
+  adjustText: string
+  unitPrice: number
+  vatIncluded: boolean
+}
+
+/** 거래처설정 · 창고설정 한 줄 — 구분 · 코드 · 이름 */
+export interface SpecialPriceMember {
+  id: number
+  tradeType: SpecialPriceType
+  tradeTypeName: string
+  targetId: number
+  code: string
+  name: string
 }
 
 export interface SpecialPriceResolve {
   found: boolean
   unitPrice: number | null
-  source: 'PARTNER' | 'GROUP' | null
-  priceGroup: string | null
+  /** 걸린 단가적용순서 줄 — '거래처별특별단가(품목별)' … */
+  source: string | null
+  groupCode: string | null
+  groupName: string | null
+  vatIncluded: boolean
 }
 
 // ===== 카드사(E010109) / 결제대행사(E010114) 기초등록 마스터 =====

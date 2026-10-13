@@ -3,321 +3,572 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Item, Partner, SpecialPrice, SpecialPriceResolve, SpecialPriceType } from '../../types/api'
+import type {
+  Item, Partner, SpecialPrice, SpecialPriceApplied, SpecialPriceGroup, SpecialPriceItemGroup, SpecialPriceMember,
+} from '../../types/api'
 import { partnerCodeItems } from '../../utils/codeItems'
-import { ecConfirm } from '../../components/EcDialog'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
+import { EcCond } from '../../components/EcStatusPanel'
 
 /**
- * 회계/재고 기초등록 > 특별단가등록 (이카운트 E040124)
- * 표준단가(Item.unitPrice)를 덮어쓰는 예외 단가 마스터. 적용범위는 거래처별 또는 특별단가그룹별 중 하나.
- * 백엔드 신규: special_prices 테이블 + /api/special-prices (+ /resolve 유효단가 해석).
- * 그룹은 거래처특별단가그룹(E040120)에서 각 거래처에 지정한 salesPriceGroup/purchasePriceGroup 과 짝을 이룬다.
+ * 재고 I › 기초등록 › 단가관리 › <b>특별단가등록</b> (원본 E040124, 화면 제목 '특별단가리스트').
+ *
+ * <p>2026-10-14 loginaa 실측(plans/재고1/E040124.md) — 원본 모델 그대로:
+ * <ul>
+ *   <li>알약 넷: <b>특별단가그룹</b>(코드 · 이름 · 거래처설정 · 창고설정 · 품목설정 · 품목그룹설정 — 뒤 넷은 줄마다 링크,
+ *       무언가 붙었으면 주황 알약) · <b>품목별</b>(품목코드 · 품목명[규격] · 품목그룹명 · 특별단가그룹명 · 적용단가 · Vat포함여부) ·
+ *       <b>품목그룹별</b>(품목그룹코드 · 품목그룹명 · 특별단가그룹명 · 품목그룹별 조정내역) · <b>적용단가</b>(품목 × 그룹마다 실제로 걸리는 값).</li>
+ *   <li>[신규(F2)] 특별단가그룹등록(코드 · 이름, 빈 칸은 글 없이 빨간 테두리) · 품목별특별단가등록(특별단가그룹코드 — 마지막에 쓴 그룹이 차 있다 ·
+ *       품목 · 적용단가 · VAT포함, 같은 그룹에 같은 품목 '이미 특별단가그룹에 존재하는 코드입니다.') · 품목그룹추가(특별단가그룹코드 · 품목그룹 ·
+ *       단가기준 출고단가 · 조정_비율(%) · 조정_단위처리 소수0자리미만 · 반올림). 버튼 저장(F8) · 다시 작성 · 닫기.</li>
+ *   <li>[거래처설정] 창: 구분 · 거래처코드 · 거래처명, 추가 · 선택삭제 · 닫기. [추가] '거래처추가': 특별단가그룹 · 특별단가그룹명 · 거래처 ·
+ *       구분(영업단가그룹 · 구매단가그룹 체크칸). [창고설정] 도 같은 꼴(구분 · 창고코드 · 창고명).</li>
+ * </ul>
+ * 판매 · 구매입력이 단가를 불러올 때(/special-prices/resolve) 단가적용순서설정의 '사용' 줄 차례로 이 값들을 본다.
  */
 
-// 거래처특별단가그룹 페이지와 동일한 그룹 목록(단가그룹 마스터)
-const SALES_GROUPS = ['일반가', '대리점가', '특판가']
-const PURCHASE_GROUPS = ['표준매입가', '계약단가']
+type Pill = '특별단가그룹' | '품목별' | '품목그룹별' | '적용단가'
+const PILLS: Pill[] = ['특별단가그룹', '품목별', '품목그룹별', '적용단가']
+const NO_PICK = '리스트에 선택된 자료가 없습니다.\n체크박스에 체크한 후 다시 시도 바랍니다.'
+const LAST_GROUP_KEY = 'erp.specialPrice.lastGroup'
+const won = (n: number | null | undefined) => (n == null ? '' : Number(n).toLocaleString('ko-KR'))
+const SET_TAG = 'inline-block rounded-[6px] px-[1.8px] py-[0.9px] text-[12px] leading-[13.2px] bg-[var(--ec-tag-warn)] text-[var(--ec-bg-panel)] no-underline'
+const BAD = 'border-[color:var(--ec-text-danger)]'
+/** 코드도움 칸이 비어 막혔을 때 — 원본처럼 글 없이 빨간 테두리만 */
+const BAD_BOX = 'outline outline-1 outline-[color:var(--ec-text-danger)] rounded-[10px]'
 
-const won = (n: number) => n.toLocaleString('ko-KR')
-const typeLabel: Record<SpecialPriceType, string> = { SALES: '판매', PURCHASE: '구매' }
+interface Simple { id: number; code: string; name: string; active?: boolean; spec?: string | null; searchKeyword?: string | null }
+type Member = { kind: 'partners' | 'warehouses'; group: SpecialPriceGroup }
+
+function readLastGroup(): string {
+  try { return localStorage.getItem(LAST_GROUP_KEY) ?? '' } catch { return '' }
+}
+function writeLastGroup(id: string) {
+  try { localStorage.setItem(LAST_GROUP_KEY, id) } catch { /* 저장소가 막혀도 입력은 된다 */ }
+}
+
+/** 원본 번호 칸 — 번호가 곧 체크 칸이다. */
+function NumCheck({ no, on, onChange }: { no: number | ''; on: boolean; onChange: () => void }) {
+  return (
+    <label className="relative inline-block align-middle cursor-pointer">
+      <input type="checkbox" aria-label="선택" checked={on} onChange={onChange} className="absolute inset-0 m-0 opacity-0 cursor-pointer" />
+      <span className={`inline-block w-[18px] h-[17px] leading-[17px] text-center rounded-[6px] ${
+        on ? 'bg-ec-blue text-ec-panel' : 'bg-ec-panel text-ec-icon hover:bg-ec-row-hover'}`}>{no}</span>
+    </label>
+  )
+}
 
 export default function SpecialPricePage() {
-  const [useCond, setUseCond] = useState<'전체' | '사용' | '중단'>('전체')
-  const [sortRecent, setSortRecent] = useState(false)
-  const [rows, setRows] = useState<SpecialPrice[]>([])
-  const [items, setItems] = useState<Item[]>([])
+  const [pill, setPill] = useState<Pill>('특별단가그룹')
+  const [groups, setGroups] = useState<SpecialPriceGroup[]>([])
+  const [prices, setPrices] = useState<SpecialPrice[]>([])
+  const [igPrices, setIgPrices] = useState<SpecialPriceItemGroup[]>([])
+  const [applied, setApplied] = useState<SpecialPriceApplied[]>([])
+  const [items, setItems] = useState<(Item & Simple)[]>([])
+  const [itemGroups, setItemGroups] = useState<Simple[]>([])
   const [partners, setPartners] = useState<Partner[]>([])
-  const [loading, setLoading] = useState(true)
+  const [warehouses, setWarehouses] = useState<Simple[]>([])
+  const [options, setOptions] = useState<{ priceBases: string[]; roundUnits: string[]; roundModes: string[] }>(
+    { priceBases: ['출고단가', '입고단가'], roundUnits: ['소수0자리미만'], roundModes: ['반올림'] })
   const [error, setError] = useState('')
-  const [ok, setOk] = useState('')
-  /*
-   * 단가적용순서설정에서 거래처별특별단가가 '사용' 인가(판매·구매). 꺼져 있으면 여기 등록한 단가가 전표에 안 걸린다 —
-   * 원본 기본값이 꺼짐이라, 등록하고 "왜 안 들어오지" 가 되기 쉬웠다(51회차). 그 사실을 이 화면에서 알린다.
-   */
+  const [quick, setQuick] = useState('')
+  /** Search(F3) 조건 — 원본 [사용구분](기본 사용) · [수정일자순(정렬)] */
+  const [useCond, setUseCond] = useState<'ALL' | 'Y' | 'N'>('Y')
+  const [byUpdated, setByUpdated] = useState(false)
+  const [checked, setChecked] = useState<Set<number>>(new Set())
+  const [menuOpen, setMenuOpen] = useState(false)
+  /** 단가적용순서설정에서 특별단가 줄이 '사용' 인가 — 꺼져 있으면 등록해도 전표에 안 걸린다. */
   const [enabled, setEnabled] = useState<{ SALES: boolean; PURCHASE: boolean } | null>(null)
-  useEffect(() => {
-    Promise.all((['SALES', 'PURCHASE'] as const).map((t) => api.get<boolean>('/special-prices/enabled', { params: { tradeType: t } })))
-      .then(([s, p]) => setEnabled({ SALES: s.data, PURCHASE: p.data }))
-      .catch(() => setEnabled(null))
-  }, [])
-  const [tab, setTab] = useState<'ALL' | SpecialPriceType>('ALL')
-  const [showForm, setShowForm] = useState(false)
-
-  const [form, setForm] = useState({
-    tradeType: 'SALES' as SpecialPriceType,
-    itemId: '',
-    scope: 'partner' as 'partner' | 'group',
-    partnerId: '',
-    priceGroup: '',
-    unitPrice: '',
-    remark: '',
-  })
-
-  // 유효단가 조회(resolve) 테스터
-  const [rv, setRv] = useState({ tradeType: 'SALES' as SpecialPriceType, itemId: '', partnerId: '' })
-  const [rvResult, setRvResult] = useState<SpecialPriceResolve | null>(null)
 
   async function load() {
-    setLoading(true); setError('')
+    setError('')
     try {
-      const [sp, it, pt] = await Promise.all([
+      const [g, p, ig, ap] = await Promise.all([
+        api.get<SpecialPriceGroup[]>('/special-prices/groups'),
         api.get<SpecialPrice[]>('/special-prices'),
-        api.get<Item[]>('/items'),
-        api.get<Partner[]>('/partners'),
+        api.get<SpecialPriceItemGroup[]>('/special-prices/item-groups'),
+        api.get<SpecialPriceApplied[]>('/special-prices/applied'),
       ])
-      setRows(sp.data); setItems(it.data); setPartners(pt.data)
-    } catch (err) { setError(extractErrorMessage(err)) }
-    finally { setLoading(false) }
+      setGroups(g.data); setPrices(p.data); setIgPrices(ig.data); setApplied(ap.data)
+    } catch (e) { setError(extractErrorMessage(e)) }
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    void load()
+    Promise.allSettled([
+      api.get<(Item & Simple)[]>('/items'), api.get<Simple[]>('/item-groups'), api.get<Partner[]>('/partners'),
+      api.get<Simple[]>('/warehouses'), api.get<typeof options>('/special-prices/item-groups/options'),
+    ]).then(([it, ig, pt, wh, op]) => {
+      if (it.status === 'fulfilled') setItems(it.value.data)
+      if (ig.status === 'fulfilled') setItemGroups(ig.value.data)
+      if (pt.status === 'fulfilled') setPartners(pt.value.data)
+      if (wh.status === 'fulfilled') setWarehouses(wh.value.data)
+      if (op.status === 'fulfilled') setOptions(op.value.data)
+    })
+    Promise.all((['SALES', 'PURCHASE'] as const).map((t) => api.get<boolean>('/special-prices/enabled', { params: { tradeType: t } })))
+      .then(([s, p]) => setEnabled({ SALES: s.data, PURCHASE: p.data })).catch(() => setEnabled(null))
+  }, [])
 
-  function set(k: keyof typeof form, v: string) { setForm((f) => ({ ...f, [k]: v })) }
+  function switchPill(p: Pill) { setPill(p); setChecked(new Set()); setMenuOpen(false) }
+  const toggle = (id: number) => setChecked((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
 
-  const groupOptions = form.tradeType === 'SALES' ? SALES_GROUPS : PURCHASE_GROUPS
-  const rvGroupHint = useMemo(() => {
-    const p = partners.find((p) => String(p.id) === rv.partnerId)
-    if (!p) return ''
-    return rv.tradeType === 'SALES' ? (p.salesPriceGroup ?? '') : (p.purchasePriceGroup ?? '')
-  }, [partners, rv])
+  // ── 코드도움 목록 ──
+  const groupItems = groups.map((g) => ({ value: String(g.id), code: g.code, name: g.name, stopped: !g.active }))
+  const itemItems = items.filter((i) => i.active !== false).map((i) => ({ value: String(i.id), code: i.code, name: i.name, sub: i.spec, alias: i.searchKeyword }))
+  const itemGroupItems = itemGroups.filter((g) => g.active !== false).map((g) => ({ value: String(g.id), code: g.code, name: g.name }))
+  const warehouseItems = warehouses.filter((w) => w.active !== false).map((w) => ({ value: String(w.id), code: w.code, name: w.name }))
 
-  async function submit(e: FormEvent) {
-    e.preventDefault(); setError(''); setOk('')
-    if (!form.itemId) return setError('품목을 선택하세요.')
-    if (form.scope === 'partner' && !form.partnerId) return setError('거래처를 선택하세요.')
-    if (form.scope === 'group' && !form.priceGroup) return setError('특별단가그룹을 선택하세요.')
+  // ── 특별단가그룹 창 ──
+  const [gForm, setGForm] = useState<{ open: boolean; id: number | null; code: string; name: string; bad: boolean; error: string }>(
+    { open: false, id: null, code: '', name: '', bad: false, error: '' })
+  async function saveGroup(e?: FormEvent) {
+    e?.preventDefault()
+    if (!gForm.code.trim() || !gForm.name.trim()) { setGForm({ ...gForm, bad: true }); return }
     try {
-      await api.post('/special-prices', {
-        tradeType: form.tradeType,
-        itemId: Number(form.itemId),
-        partnerId: form.scope === 'partner' ? Number(form.partnerId) : undefined,
-        priceGroup: form.scope === 'group' ? form.priceGroup : undefined,
-        unitPrice: Number(form.unitPrice || 0),
-        remark: form.remark || undefined,
-      })
-      setOk('특별단가가 등록되었습니다.')
-      setForm({ tradeType: form.tradeType, itemId: '', scope: form.scope, partnerId: '', priceGroup: '', unitPrice: '', remark: '' })
-      setShowForm(false)
-      load()
-    } catch (err) { setError(extractErrorMessage(err)) }
+      if (gForm.id) await api.put(`/special-prices/groups/${gForm.id}`, { code: gForm.code, name: gForm.name })
+      else await api.post('/special-prices/groups', { code: gForm.code, name: gForm.name })
+      setGForm({ ...gForm, open: false }); void load()
+    } catch (err) { setGForm({ ...gForm, error: extractErrorMessage(err) }) }
   }
 
-  async function toggleActive(r: SpecialPrice) {
-    setError(''); setOk('')
-    try { await api.patch(`/special-prices/${r.id}/active`, null, { params: { active: !r.active } }); load() }
-    catch (err) { setError(extractErrorMessage(err)) }
+  // ── 품목별 창 ──
+  const emptyItemForm = { open: false, id: null as number | null, groupId: '', itemId: '', unitPrice: '', vat: false, bad: false, error: '' }
+  const [iForm, setIForm] = useState(emptyItemForm)
+  function openItemForm(r?: SpecialPrice, copy = false) {
+    setIForm(r ? { open: true, id: copy ? null : r.id, groupId: String(r.groupId), itemId: copy ? '' : String(r.itemId),
+      unitPrice: String(r.unitPrice ?? ''), vat: r.vatIncluded, bad: false, error: '' }
+      : { ...emptyItemForm, open: true, groupId: readLastGroup() })
   }
-
-  async function remove(id: number) {
-    if (!(await ecConfirm('이 특별단가를 삭제할까요?'))) return
-    setError(''); setOk('')
-    try { await api.delete(`/special-prices/${id}`); load() }
-    catch (err) { setError(extractErrorMessage(err)) }
-  }
-
-  async function doResolve() {
-    setError(''); setRvResult(null)
-    if (!rv.itemId || !rv.partnerId) return setError('유효단가 조회: 품목과 거래처를 선택하세요.')
+  async function saveItemPrice(e?: FormEvent) {
+    e?.preventDefault()
+    if (!iForm.groupId || !iForm.itemId) { setIForm({ ...iForm, bad: true }); return }
+    const body = { groupId: Number(iForm.groupId), itemId: Number(iForm.itemId), unitPrice: Number(iForm.unitPrice || 0), vatIncluded: iForm.vat }
     try {
-      const r = await api.get<SpecialPriceResolve>('/special-prices/resolve', {
-        params: { tradeType: rv.tradeType, itemId: Number(rv.itemId), partnerId: Number(rv.partnerId) },
-      })
-      setRvResult(r.data)
-    } catch (err) { setError(extractErrorMessage(err)) }
+      if (iForm.id) await api.put(`/special-prices/${iForm.id}`, body)
+      else await api.post('/special-prices', body)
+      writeLastGroup(iForm.groupId)
+      setIForm({ ...iForm, open: false }); void load()
+    } catch (err) { setIForm({ ...iForm, error: extractErrorMessage(err) }) }
   }
 
-  /*
-   * 원본 특별단가등록의 <b>[수정일자순]</b> 정렬. 최근에 고친 단가부터 보는 것이
-   * 실제 쓰임이다 — 어제 누가 무엇을 바꿨나를 맨 위에서 본다.
-   * 값은 BaseTimeEntity 가 이미 들고 있었는데 <b>응답에 안 실려</b> 쓸 수가 없었다.
-   */
-  const visible = rows.filter((r) => tab === 'ALL' || r.tradeType === tab)
-    .filter((r) => useCond === '전체' || (r.active ? '사용' : '중단') === useCond)
-    .slice()
-    .sort((a, b) => (sortRecent
-      ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '')
-      : 0))
-  const inputCls = 'ec-input'
-
-  /*
-   * 원본 특별단가등록의 <b>[사용중단/재사용]</b> — 고른 단가를 한 번에 세운다.
-   * 줄마다 누르는 자리는 진작 있었지만, 단가는 <b>거래처를 옮기거나 품목을 접을 때</b>
-   * 열 줄 스무 줄이 한꺼번에 죽는다. 하나씩 누르라는 것은 안 접겠다는 말과 같다.
-   *
-   * <p>고른 것이 모두 중단이면 되살리고, 하나라도 살아 있으면 중단한다.
-   * 서버에 <code>PATCH …/active</code> 가 이미 있어 통째로 다시 보낼 일은 없다.
-   */
-  const [picked, setPicked] = useState<Set<number>>(new Set())
-  const pick = (id: number) => setPicked((s) => {
-    const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n
-  })
-
-  async function toggleActiveMany() {
-    const targets = visible.filter((r) => picked.has(r.id))
-    if (targets.length === 0) { setError('사용중단하거나 되살릴 단가를 고르세요.'); return }
-    const reviving = targets.every((r) => !r.active)
-    setError(''); setOk('')
+  // ── 품목그룹별 창 ──
+  const emptyIgForm = { open: false, id: null as number | null, groupId: '', itemGroupId: '', priceBasis: '출고단가', adjustRate: '',
+    roundUnit: '소수0자리미만', roundMode: '반올림', bad: false, error: '' }
+  const [gpForm, setGpForm] = useState(emptyIgForm)
+  function openIgForm(r?: SpecialPriceItemGroup, copy = false) {
+    setGpForm(r ? { open: true, id: copy ? null : r.id, groupId: String(r.groupId), itemGroupId: copy ? '' : String(r.itemGroupId),
+      priceBasis: r.priceBasis, adjustRate: String(r.adjustRate ?? ''), roundUnit: r.roundUnit, roundMode: r.roundMode, bad: false, error: '' }
+      : { ...emptyIgForm, open: true, groupId: readLastGroup() })
+  }
+  async function saveIgPrice(e?: FormEvent) {
+    e?.preventDefault()
+    if (!gpForm.groupId || !gpForm.itemGroupId) { setGpForm({ ...gpForm, bad: true }); return }
+    const body = { groupId: Number(gpForm.groupId), itemGroupId: Number(gpForm.itemGroupId), priceBasis: gpForm.priceBasis,
+      adjustRate: Number(gpForm.adjustRate || 0), roundUnit: gpForm.roundUnit, roundMode: gpForm.roundMode }
     try {
-      for (const r of targets) {
-        await api.patch(`/special-prices/${r.id}/active`, null, { params: { active: reviving } })
+      if (gpForm.id) await api.put(`/special-prices/item-groups/${gpForm.id}`, body)
+      else await api.post('/special-prices/item-groups', body)
+      writeLastGroup(gpForm.groupId)
+      setGpForm({ ...gpForm, open: false }); void load()
+    } catch (err) { setGpForm({ ...gpForm, error: extractErrorMessage(err) }) }
+  }
+
+  // ── 거래처설정 · 창고설정 ──
+  const [member, setMember] = useState<Member | null>(null)
+  const [members, setMembers] = useState<SpecialPriceMember[]>([])
+  const [memberChecked, setMemberChecked] = useState<Set<number>>(new Set())
+  const [add, setAdd] = useState<{ open: boolean; targetId: string; sales: boolean; purchase: boolean; bad: boolean; error: string }>(
+    { open: false, targetId: '', sales: false, purchase: false, bad: false, error: '' })
+  async function loadMembers(m: Member) {
+    const r = m.kind === 'warehouses'
+      ? await api.get<SpecialPriceMember[]>(`/special-prices/groups/${m.group.id}/warehouses`)
+      : await api.get<SpecialPriceMember[]>(`/special-prices/groups/${m.group.id}/partners`)
+    setMembers(r.data); setMemberChecked(new Set())
+  }
+  function openMember(m: Member) { setMember(m); setMembers([]); void loadMembers(m).catch((e) => setError(extractErrorMessage(e))) }
+  async function saveMember(e?: FormEvent) {
+    e?.preventDefault()
+    if (!member) return
+    if (!add.targetId) { setAdd({ ...add, bad: true }); return }
+    try {
+      const body = { targetId: Number(add.targetId), sales: add.sales, purchase: add.purchase }
+      if (member.kind === 'warehouses') await api.post(`/special-prices/groups/${member.group.id}/warehouses`, body)
+      else await api.post(`/special-prices/groups/${member.group.id}/partners`, body)
+      setAdd({ ...add, open: false }); await loadMembers(member); void load()
+    } catch (err) { setAdd({ ...add, error: extractErrorMessage(err) }) }
+  }
+  async function removeMembers() {
+    if (!member) return
+    const picked = members.filter((_, i) => memberChecked.has(i))
+    if (picked.length === 0) { void ecAlert(NO_PICK); return }
+    try {
+      for (const m of picked) {
+        if (member.kind === 'partners') await api.delete(`/special-prices/groups/${member.group.id}/partners/${m.targetId}`, { params: { tradeType: m.tradeType } })
+        else await api.delete(`/special-prices/warehouse-links/${m.id}`)
       }
-      setPicked(new Set())
-      load()
+      await loadMembers(member); void load()
     } catch (err) { setError(extractErrorMessage(err)) }
   }
+
+  // ── 품목설정 · 품목그룹설정(그 그룹의 품목별 · 품목그룹별 줄) ──
+  const [scope, setScope] = useState<{ kind: '품목설정' | '품목그룹설정'; group: SpecialPriceGroup } | null>(null)
+
+  // ── 보이는 줄 ──
+  const q = quick.trim().toLowerCase()
+  const hit = (...v: (string | null | undefined)[]) => !q || v.some((x) => (x ?? '').toLowerCase().includes(q))
+  const use = (active: boolean) => useCond === 'ALL' || (useCond === 'Y') === active
+  const recent = <T extends { updatedAt?: string | null }>(rows: T[]) =>
+    (byUpdated ? [...rows].sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '')) : rows)
+  const shownGroups = recent(groups.filter((g) => use(g.active) && hit(g.code, g.name)))
+  const shownPrices = recent(prices.filter((r) => use(r.active) && hit(r.itemCode, r.itemName, r.groupName)))
+  const shownIg = igPrices.filter((r) => use(r.active) && hit(r.itemGroupCode, r.itemGroupName, r.groupName))
+  const shownApplied = applied.filter((r) => hit(r.itemCode, r.itemName, r.groupName))
+  const rowsNow: { id: number; active: boolean }[] =
+    pill === '특별단가그룹' ? shownGroups : pill === '품목별' ? shownPrices : pill === '품목그룹별' ? shownIg : []
+
+  async function apply(op: '사용중단' | '삭제' | '재사용') {
+    setMenuOpen(false)
+    const ids = [...checked]
+    if (ids.length === 0) { void ecAlert(NO_PICK); return }
+    if (op === '삭제' && !(await ecConfirm('삭제하겠습니까?'))) return
+    const params = { params: { active: op === '재사용' } }
+    try {
+      for (const id of ids) {
+        if (pill === '특별단가그룹') {
+          if (op === '삭제') await api.delete(`/special-prices/groups/${id}`)
+          else await api.patch(`/special-prices/groups/${id}/active`, null, params)
+        } else if (pill === '품목별') {
+          if (op === '삭제') await api.delete(`/special-prices/${id}`)
+          else await api.patch(`/special-prices/${id}/active`, null, params)
+        } else {
+          if (op === '삭제') await api.delete(`/special-prices/item-groups/${id}`)
+          else await api.patch(`/special-prices/item-groups/${id}/active`, null, params)
+        }
+      }
+    } catch (err) { setError(extractErrorMessage(err)) }
+    setChecked(new Set()); void load()
+  }
+
+  function firstPicked<T extends { id: number }>(rows: T[]): T | null {
+    const r = rows.find((x) => checked.has(x.id))
+    if (!r) void ecAlert(NO_PICK)
+    return r ?? null
+  }
+
+  const actions = [
+    ...(pill === '특별단가그룹' ? [] : [
+      { label: '변경', onClick: () => { if (pill === '품목별') { const r = firstPicked(shownPrices); if (r) openItemForm(r) } else { const r = firstPicked(shownIg); if (r) openIgForm(r) } } },
+      { label: '복사', onClick: () => { if (pill === '품목별') { const r = firstPicked(shownPrices); if (r) openItemForm(r, true) } else { const r = firstPicked(shownIg); if (r) openIgForm(r, true) } } },
+    ]),
+    { label: '사용중단/재사용', onClick: () => setMenuOpen((v) => !v) },
+    { label: 'Excel' },
+    { label: '웹자료올리기' },
+  ].filter((x) => pill !== '적용단가' || x.label === 'Excel')
+
+  const allChecked = rowsNow.length > 0 && rowsNow.every((r) => checked.has(r.id))
+  const toggleAll = () => setChecked(allChecked ? new Set() : new Set(rowsNow.map((r) => r.id)))
+  const link = (on: boolean, label: string, go: () => void) => (
+    <a href="#" className={on ? SET_TAG : undefined} onClick={(e) => { e.preventDefault(); go() }}>{label}</a>
+  )
+  const itemLabel = (r: { itemName: string; spec: string | null }) => (r.spec ? `${r.itemName} [${r.spec}]` : r.itemName)
+  const memberTargets = member?.kind === 'warehouses' ? warehouseItems : partnerCodeItems(partners)
+  const scopeRows = useMemo(() => {
+    if (!scope) return { items: [] as SpecialPrice[], groups: [] as SpecialPriceItemGroup[] }
+    return { items: prices.filter((r) => r.groupId === scope.group.id), groups: igPrices.filter((r) => r.groupId === scope.group.id) }
+  }, [scope, prices, igPrices])
+
+  const formButtons = (onReset: () => void, onClose: () => void) => (
+    <div className="flex gap-[6px] mt-[12px]">
+      <button type="submit" className="ec-btn ec-btn-primary">저장(F8)</button>
+      <button type="button" className="ec-btn" onClick={onReset}>다시 작성</button>
+      <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
+    </div>
+  )
 
   return (
     <EcListShell
-      title="특별단가등록"
-      onNew={() => setShowForm(true)}
-      actions={[
-        { label: '새로고침', onClick: load },
-        /* 원본 차례: 신규(F2) · 사용중단/재사용 · Excel (사본 실측) */
-        { label: `사용중단/재사용${picked.size ? ` (${picked.size})` : ''}`, onClick: toggleActiveMany },
-        { label: 'Excel' },
-        { label: '인쇄' },
-      ]}
+      title="특별단가리스트"
+      search={quick}
+      onSearchChange={setQuick}
+      onSearch={() => undefined}
+      onNew={pill === '적용단가' ? undefined : () => {
+        if (pill === '특별단가그룹') setGForm({ open: true, id: null, code: '', name: '', bad: false, error: '' })
+        else if (pill === '품목별') openItemForm()
+        else openIgForm()
+      }}
+      actions={actions}
+      collapseConditions
     >
-      <p className="mb-2 text-xs text-ec-hint">표준단가를 덮어쓰는 예외 단가. 적용범위는 거래처별 또는 특별단가그룹별 중 하나. 유효단가는 거래처별을 먼저, 없으면 거래처의 단가그룹을 적용.</p>
-
-      <div className="flex gap-[6px] mb-[10px]">
-        {(['ALL', 'SALES', 'PURCHASE'] as const).map((t) => (
-          <button key={t} className={`ec-btn ${tab === t ? 'ec-btn-primary' : ''}`} onClick={() => setTab(t)}>
-            {t === 'ALL' ? '전체' : typeLabel[t]}
-          </button>
+      <ul className="ec-cond">
+        <EcCond label="사용구분">
+          {([['ALL', '전체'], ['Y', '사용'], ['N', '사용중단']] as const).map(([v, l]) => (
+            <label key={v} className="mr-[10px]"><input type="radio" name="sp-use" checked={useCond === v} onChange={() => setUseCond(v)} /> {l}</label>
+          ))}
+        </EcCond>
+        <EcCond label="수정일자순(정렬)">
+          <label><input type="checkbox" checked={byUpdated} onChange={(e) => setByUpdated(e.target.checked)} /> 수정일자순</label>
+        </EcCond>
+      </ul>
+      <div className="ec-pills mb-[8px]">
+        {PILLS.map((p) => (
+          <button key={p} type="button" className={`ec-pill ${pill === p ? 'active' : ''}`} onClick={() => switchPill(p)}>{p}</button>
         ))}
       </div>
-
+      {menuOpen && (
+        <>
+          <div className="ec-backdrop-clear" onClick={() => setMenuOpen(false)} />
+          <div className="ec-menu fixed top-auto right-auto bottom-[44px] left-[300px] mobile:left-[16px]">
+            {(['사용중단', '삭제', '재사용'] as const).map((op) => <button key={op} type="button" onClick={() => void apply(op)}>{op}</button>)}
+          </div>
+        </>
+      )}
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {enabled && (!enabled.SALES || !enabled.PURCHASE) && (
-        <p style={{ background: '#fdf7ec', color: '#8a6a1e', padding: '6px 10px', fontSize: 12.5, borderRadius: 3, marginBottom: 8 }}>
-          단가적용순서설정에서 [거래처별특별단가] 가 {!enabled.SALES && !enabled.PURCHASE ? '영업·구매 모두' : !enabled.SALES ? '영업관리' : '구매관리'} '사용안함' 입니다 —
-          여기 등록한 특별단가가 그쪽 전표에 걸리지 않습니다. <a href="/inventory/price-order" className="text-ec-blue">단가적용순서설정</a> 에서 '사용' 으로 바꾸세요.
+        <p className="ec-alert ec-alert-info mb-[8px]">
+          단가적용순서설정에서 특별단가(창고별 · 거래처별)가 {!enabled.SALES && !enabled.PURCHASE ? '영업 · 구매 모두' : !enabled.SALES ? '영업관리' : '구매관리'} '사용안함' 입니다 —
+          여기 등록한 특별단가가 그쪽 전표에 걸리지 않습니다. <a href="/inventory/price-order" className="text-ec-blue">단가적용순서설정</a>
         </p>
       )}
-      {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
-      {/* 유효단가 조회(resolve) — 거래처별→그룹별 폴백 확인 */}
-      <div className="flex gap-[8px] items-end flex-wrap border border-ec-line border-solid bg-ec-page p-[10px] mb-[10px]">
-        <span className="text-[12px] font-bold text-ec-text">유효단가 조회</span>
-        <select className={inputCls} value={rv.tradeType} onChange={(e) => setRv((s) => ({ ...s, tradeType: e.target.value as SpecialPriceType }))} style={{ width: 90 }}>
-          <option value="SALES">판매</option><option value="PURCHASE">구매</option>
-        </select>
-        {/* 긴 드롭다운이었다 — 코드도움으로(QA 21회차). */}
-        <CodePickerField label="품목" hideLabel width={200} placeholder="품목" emptyLabel="선택 해제"
-                         value={rv.itemId} onChange={(v) => setRv((s) => ({ ...s, itemId: v }))}
-                         items={items.map((i) => ({ value: String(i.id), code: i.code, name: i.name, sub: i.spec, alias: i.searchKeyword }))} />
-        <CodePickerField label="거래처" hideLabel width={200} emptyLabel="선택 안 함" placeholder="거래처 선택"
-                         value={rv.partnerId} onChange={(v) => setRv((s) => ({ ...s, partnerId: v }))}
-                         items={partnerCodeItems(partners)} />
-        {rv.partnerId && <span className="text-[11.5px] text-ec-hint">단가그룹: {rvGroupHint || '(미지정)'}</span>}
-        <button className="ec-btn" onClick={doResolve}>조회</button>
-        {rvResult && (
-          <span style={{ fontSize: 12.5, fontWeight: 700, color: rvResult.found ? 'var(--ec-blue)' : 'var(--ec-text-hint)' }}>
-            {rvResult.found
-              ? `특별단가 ${won(rvResult.unitPrice ?? 0)} (${rvResult.source === 'PARTNER' ? '거래처별' : `그룹별·${rvResult.priceGroup}`})`
-              : '특별단가 없음 → 표준단가 적용'}
-          </span>
-        )}
-      </div>
+      {pill === '특별단가그룹' && (
+        <table className="w-full text-left">
+          <thead><tr>
+            <th className="w-[34px] text-center"><NumCheck no="" on={allChecked} onChange={toggleAll} /></th><th>특별단가그룹코드</th><th>특별단가그룹명</th>
+            <th className="text-center">거래처설정</th><th className="text-center">창고설정</th>
+            <th className="text-center">품목설정</th><th className="text-center">품목그룹설정</th>
+          </tr></thead>
+          <tbody>
+            {shownGroups.length === 0 ? <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              : shownGroups.map((g, i) => (
+                <tr key={g.id} className={g.active ? undefined : 'text-ec-hint'}>
+                  <td className="text-center"><NumCheck no={i + 1} on={checked.has(g.id)} onChange={() => toggle(g.id)} /></td>
+                  <td><a href="#" onClick={(e) => { e.preventDefault(); setGForm({ open: true, id: g.id, code: g.code, name: g.name, bad: false, error: '' }) }}>{g.code}</a></td>
+                  <td><a href="#" onClick={(e) => { e.preventDefault(); setGForm({ open: true, id: g.id, code: g.code, name: g.name, bad: false, error: '' }) }}>{g.name}</a></td>
+                  <td className="text-center">{link(g.hasPartners, '거래처설정', () => openMember({ kind: 'partners', group: g }))}</td>
+                  <td className="text-center">{link(g.hasWarehouses, '창고설정', () => openMember({ kind: 'warehouses', group: g }))}</td>
+                  <td className="text-center">{link(g.hasItems, '품목설정', () => setScope({ kind: '품목설정', group: g }))}</td>
+                  <td className="text-center">{link(g.hasItemGroups, '품목그룹설정', () => setScope({ kind: '품목그룹설정', group: g }))}</td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      )}
 
-      <Modal error={error} open={showForm} title="특별단가 등록" onClose={() => setShowForm(false)}>{(
-        <form onSubmit={submit} style={{ border: '1px solid var(--ec-border)', background: '#fff', padding: 14, marginTop: 8, marginBottom: 8 }}>
-          <div className="flex gap-[12px] flex-wrap items-end">
-            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">구분 *</div>
-              <select className={inputCls} value={form.tradeType} onChange={(e) => { set('tradeType', e.target.value); set('priceGroup', '') }} style={{ width: 100 }}>
-                <option value="SALES">판매</option><option value="PURCHASE">구매</option>
-              </select></label>
-            <div className="text-[12.5px]"><div className="text-ec-label mb-[3px]">품목 *</div>
-              <CodePickerField label="품목" hideLabel width={220} placeholder="품목" emptyLabel="선택 해제"
-                               value={form.itemId} onChange={(v) => set('itemId', v)}
-                               items={items.filter((i) => i.active !== false || String(i.id) === form.itemId).map((i) => ({ value: String(i.id), code: i.code, name: i.name, sub: i.spec, alias: i.searchKeyword }))} /></div>
-            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">적용범위 *</div>
-              <select className={inputCls} value={form.scope} onChange={(e) => set('scope', e.target.value)} style={{ width: 120 }}>
-                <option value="partner">거래처별</option><option value="group">그룹별</option>
-              </select></label>
-            {form.scope === 'partner' ? (
-              <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">거래처 *</div>
-                <CodePickerField label="거래처" hideLabel width={220} emptyLabel="선택 안 함" placeholder="선택하세요"
-                                 value={form.partnerId} onChange={(v) => set('partnerId', v)}
-                                 items={partnerCodeItems(partners)} /></label>
-            ) : (
-              <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">특별단가그룹 *</div>
-                <select className={inputCls} value={form.priceGroup} onChange={(e) => set('priceGroup', e.target.value)} style={{ width: 160 }}>
-                  <option value="">선택하세요</option>
-                  {groupOptions.map((g) => <option key={g} value={g}>{g}</option>)}
-                </select></label>
-            )}
-            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">특별단가 *</div>
-              <input className={`${inputCls} text-right`} type="number" step="any" value={form.unitPrice} onChange={(e) => set('unitPrice', e.target.value)} style={{ width: 140 }} /></label>
-            <label className="text-[12.5px] flex-1 min-w-[160px]"><div className="text-ec-label mb-[3px]">비고</div>
-              <input className={inputCls} value={form.remark} onChange={(e) => set('remark', e.target.value)} style={{ width: '100%' }} /></label>
-            <button type="submit" className="ec-btn ec-btn-primary">저장</button>
-          </div>
+      {pill === '품목별' && (
+        <table className="w-full text-left">
+          <thead><tr>
+            <th className="w-[34px] text-center"><NumCheck no="" on={allChecked} onChange={toggleAll} /></th><th>품목코드</th><th>품목명[규격]</th><th>품목그룹명</th><th>특별단가그룹명</th>
+            <th className="text-right">적용단가</th><th className="text-center">Vat포함여부</th>
+          </tr></thead>
+          <tbody>
+            {shownPrices.length === 0 ? <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              : shownPrices.map((r, i) => (
+                <tr key={r.id} className={r.active ? undefined : 'text-ec-hint'}>
+                  <td className="text-center"><NumCheck no={i + 1} on={checked.has(r.id)} onChange={() => toggle(r.id)} /></td>
+                  <td><a href="#" onClick={(e) => { e.preventDefault(); openItemForm(r) }}>{r.itemCode}</a></td>
+                  <td>{itemLabel(r)}</td><td>{r.itemGroupName ?? ''}</td><td>{r.groupName}</td>
+                  <td className="text-right">{won(r.unitPrice)}</td><td className="text-center">{r.vatIncluded ? '포함' : '미포함'}</td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      )}
+
+      {pill === '품목그룹별' && (
+        <table className="w-full text-left">
+          <thead><tr>
+            <th className="w-[34px] text-center"><NumCheck no="" on={allChecked} onChange={toggleAll} /></th><th>품목그룹코드</th><th>품목그룹명</th><th>특별단가그룹명</th><th>품목그룹별 조정내역</th>
+          </tr></thead>
+          <tbody>
+            {shownIg.length === 0 ? <tr><td colSpan={5} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              : shownIg.map((r, i) => (
+                <tr key={r.id} className={r.active ? undefined : 'text-ec-hint'}>
+                  <td className="text-center"><NumCheck no={i + 1} on={checked.has(r.id)} onChange={() => toggle(r.id)} /></td>
+                  <td><a href="#" onClick={(e) => { e.preventDefault(); openIgForm(r) }}>{r.itemGroupCode}</a></td>
+                  <td>{r.itemGroupName}</td><td>{r.groupName}</td><td>{r.adjustText}</td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      )}
+
+      {pill === '적용단가' && (
+        <table className="w-full text-left">
+          <thead><tr>
+            <th>품목코드</th><th>품목명[규격]</th><th>품목그룹명</th><th>구분</th><th>특별단가그룹명</th>
+            <th>품목그룹별 조정내역</th><th className="text-right">적용단가</th><th className="text-center">Vat포함여부</th>
+          </tr></thead>
+          <tbody>
+            {shownApplied.length === 0 ? <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              : shownApplied.map((r) => (
+                <tr key={`${r.itemId}-${r.groupCode}`}>
+                  <td>{r.itemCode}</td><td>{itemLabel(r)}</td><td>{r.itemGroupName ?? ''}</td><td>{r.kind}</td>
+                  <td>{r.groupName}</td><td>{r.adjustText}</td>
+                  <td className="text-right">{won(r.unitPrice)}</td><td className="text-center">{r.vatIncluded ? '포함' : '미포함'}</td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      )}
+
+      {/* 특별단가그룹등록 · 수정 */}
+      <Modal error={gForm.error} open={gForm.open} title={gForm.id ? '특별단가그룹수정' : '특별단가그룹등록'} width={760} onClose={() => setGForm({ ...gForm, open: false })}>{(
+        <form onSubmit={saveGroup}>
+          <ul className="ec-form">
+            <li className="wide"><span className="title">특별단가그룹코드</span><div className="form">
+              {gForm.id ? <span>{gForm.code}</span> : (
+                <input className={`ec-input w-full ${gForm.bad && !gForm.code.trim() ? BAD : ''}`} placeholder="특별단가그룹코드" autoFocus
+                       value={gForm.code} onChange={(e) => setGForm({ ...gForm, code: e.target.value })} />)}
+            </div></li>
+            <li className="wide"><span className="title">특별단가그룹명</span><div className="form">
+              <input className={`ec-input w-full ${gForm.bad && !gForm.name.trim() ? BAD : ''}`} placeholder="특별단가그룹명"
+                     value={gForm.name} onChange={(e) => setGForm({ ...gForm, name: e.target.value })} />
+            </div></li>
+          </ul>
+          {formButtons(() => setGForm({ ...gForm, code: gForm.id ? gForm.code : '', name: gForm.id ? (groups.find((g) => g.id === gForm.id)?.name ?? '') : '', bad: false }),
+            () => setGForm({ ...gForm, open: false }))}
         </form>
       )}</Modal>
 
-      {/* 원본 조건 [사용구분]. 사용/중단이 표에는 찍히는데 거를 수가 없었다. */}
-      <div className="flex items-center gap-[6px] mb-[8px] text-[12.5px] text-ec-label">
-        <span>사용구분</span>
-        <select className="ec-input" value={useCond} onChange={(e) => setUseCond(e.target.value as '전체' | '사용' | '중단')} style={{ width: 100 }}>
-          <option>전체</option><option>사용</option><option>중단</option>
-        </select>
-        {/* 원본 조건 [수정일자순(정렬)] — 최근에 고친 단가부터 본다. */}
-        <label className="flex items-center gap-[4px] ml-[8px] cursor-pointer">
-          <input type="checkbox" checked={sortRecent} onChange={(e) => setSortRecent(e.target.checked)} />
-          수정일자순(정렬)
-        </label>
-      </div>
+      {/* 품목별특별단가등록 */}
+      <Modal error={iForm.error} open={iForm.open} title="품목별특별단가등록" width={959} onClose={() => setIForm({ ...iForm, open: false })}>{(
+        <form onSubmit={saveItemPrice}>
+          <ul className="ec-form">
+            <li className="wide"><span className="title">특별단가그룹코드</span><div className={`form ${iForm.bad && !iForm.groupId ? BAD_BOX : ''}`}>
+              <CodePickerField label="특별단가그룹코드" hideLabel fill placeholder="특별단가그룹코드" disabled={!!iForm.id}
+                               value={iForm.groupId} onChange={(v) => setIForm({ ...iForm, groupId: v })} items={groupItems} />
+            </div></li>
+            <li className="wide"><span className="title">품목</span><div className={`form ${iForm.bad && !iForm.itemId ? BAD_BOX : ''}`}>
+              <CodePickerField label="품목" hideLabel fill placeholder="품목" disabled={!!iForm.id}
+                               value={iForm.itemId} onChange={(v) => setIForm({ ...iForm, itemId: v })} items={itemItems} />
+            </div></li>
+            <li className="wide"><span className="title">적용단가</span><div className="form flex items-center gap-[8px]">
+              <input className="ec-input text-right flex-1" placeholder="적용단가" inputMode="decimal"
+                     value={iForm.unitPrice} onChange={(e) => setIForm({ ...iForm, unitPrice: e.target.value.replace(/[^0-9.]/g, '') })} />
+              <label className="whitespace-nowrap"><input type="checkbox" checked={iForm.vat} onChange={(e) => setIForm({ ...iForm, vat: e.target.checked })} /> VAT포함</label>
+            </div></li>
+          </ul>
+          {formButtons(() => setIForm({ ...iForm, itemId: iForm.id ? iForm.itemId : '', unitPrice: '', vat: false, bad: false }), () => setIForm({ ...iForm, open: false }))}
+        </form>
+      )}</Modal>
 
-      <table className="w-full text-left">
-        <thead>
-          <tr>
-            <th className="w-[28px] text-center"></th>
-            <th className="w-[34px]"></th>
-            <th className="w-[60px]">구분</th>
-            <th>품목</th>
-            {/*
-              원본은 <b>[적용범위] 한 칸에 뭉치지 않고</b> 무엇으로 좁혔는지를 열로 나눈다
-              (특별단가그룹코드 · 특별단가그룹명 · 거래처설정 · 창고설정 · 품목설정 · 품목그룹설정).
-              우리가 가진 둘(그룹·거래처)을 갈라 낸다 — 뭉쳐 두면 그룹만 훑을 수가 없다.
-            */}
-            <th className="w-[130px]">특별단가그룹명</th>
-            <th className="w-[130px]">거래처설정</th>
-            <th className="text-right">특별단가</th>
-            <th>비고</th>
-            <th className="text-center w-[90px]">사용여부</th>
-            <th className="text-center w-[50px]">삭제</th>
-          </tr>
-        </thead>
-        <tbody>
-          {loading ? (
-            <tr><td colSpan={10} className="ec-empty">불러오는 중…</td></tr>
-          ) : visible.length === 0 ? (
-            <tr><td colSpan={10} className="text-center text-ec-hint p-[20px]">등록된 특별단가가 없습니다. 우측 상단에서 등록하세요.</td></tr>
-          ) : visible.map((r, i) => (
-            <tr key={r.id} style={{ opacity: r.active ? 1 : 0.5 }}>
-              <td className="text-center">
-                <input type="checkbox" checked={picked.has(r.id)} onChange={() => pick(r.id)} />
-              </td>
-              <td className="text-center text-ec-hint">{i + 1}</td>
-              <td>{typeLabel[r.tradeType]}</td>
-              <td><span className="text-ec-hint mr-[5px]">{r.itemCode}</span>{r.itemName}</td>
-              <td className="text-ec-label">{r.priceGroup ?? ''}</td>
-              <td className="text-ec-label">{r.partnerName ?? ''}</td>
-              <td className="text-right font-semibold text-ec-blue">{won(r.unitPrice)}</td>
-              <td className="text-ec-muted">{r.remark ?? ''}</td>
-              <td className="text-center">
-                <button className="no-ec" onClick={() => toggleActive(r)} style={{ border: '1px solid var(--ec-border)', background: r.active ? 'var(--ec-success-bg)' : 'var(--ec-bg-page)', color: r.active ? 'var(--ec-success)' : 'var(--ec-text-hint)', cursor: 'pointer', fontSize: 11.5, padding: '2px 8px', borderRadius: 3 }}>
-                  {r.active ? '사용' : '사용중단'}
-                </button>
-              </td>
-              <td className="text-center">
-                <button className="no-ec" onClick={() => remove(r.id)} style={{ border: 'none', background: 'none', color: 'var(--ec-danger)', cursor: 'pointer', fontSize: 12 }}>삭제</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {/* 품목그룹추가 */}
+      <Modal error={gpForm.error} open={gpForm.open} title={gpForm.id ? '품목그룹수정' : '품목그룹추가'} width={959} onClose={() => setGpForm({ ...gpForm, open: false })}>{(
+        <form onSubmit={saveIgPrice}>
+          <ul className="ec-form">
+            <li className="wide"><span className="title">특별단가그룹코드</span><div className={`form ${gpForm.bad && !gpForm.groupId ? BAD_BOX : ''}`}>
+              <CodePickerField label="특별단가그룹코드" hideLabel fill placeholder="특별단가그룹코드" disabled={!!gpForm.id}
+                               value={gpForm.groupId} onChange={(v) => setGpForm({ ...gpForm, groupId: v })} items={groupItems} />
+            </div></li>
+            <li className="wide"><span className="title">품목그룹</span><div className={`form ${gpForm.bad && !gpForm.itemGroupId ? BAD_BOX : ''}`}>
+              <CodePickerField label="품목그룹" hideLabel fill placeholder="품목그룹" disabled={!!gpForm.id}
+                               value={gpForm.itemGroupId} onChange={(v) => setGpForm({ ...gpForm, itemGroupId: v })} items={itemGroupItems} />
+            </div></li>
+            <li className="wide"><span className="title">단가기준</span><div className="form">
+              <select className="ec-input w-full" value={gpForm.priceBasis} onChange={(e) => setGpForm({ ...gpForm, priceBasis: e.target.value })}>
+                {options.priceBases.map((o) => <option key={o}>{o}</option>)}
+              </select>
+            </div></li>
+            <li className="wide"><span className="title">조정_비율(%)</span><div className="form">
+              <input className="ec-input w-full text-right" placeholder="조정_비율(%)" inputMode="decimal"
+                     value={gpForm.adjustRate} onChange={(e) => setGpForm({ ...gpForm, adjustRate: e.target.value.replace(/[^0-9.-]/g, '') })} />
+            </div></li>
+            <li className="wide"><span className="title">조정_단위처리</span><div className="form flex gap-[6px]">
+              <select className="ec-input flex-1" value={gpForm.roundUnit} onChange={(e) => setGpForm({ ...gpForm, roundUnit: e.target.value })}>
+                {options.roundUnits.map((o) => <option key={o}>{o}</option>)}
+              </select>
+              <select className="ec-input flex-1" value={gpForm.roundMode} onChange={(e) => setGpForm({ ...gpForm, roundMode: e.target.value })}>
+                {options.roundModes.map((o) => <option key={o}>{o}</option>)}
+              </select>
+            </div></li>
+          </ul>
+          {formButtons(() => setGpForm({ ...emptyIgForm, open: true, id: gpForm.id, groupId: gpForm.groupId, itemGroupId: gpForm.id ? gpForm.itemGroupId : '' }),
+            () => setGpForm({ ...gpForm, open: false }))}
+        </form>
+      )}</Modal>
+
+      {/* 거래처설정 · 창고설정 */}
+      <Modal error={error} open={!!member} title={member?.kind === 'warehouses' ? '창고설정' : '거래처설정'} width={760} onClose={() => setMember(null)}>{(
+        <div>
+          <table className="w-full text-left">
+            <thead><tr>
+              <th className="w-[34px]"></th><th>구분</th>
+              <th>{member?.kind === 'warehouses' ? '창고코드' : '거래처코드'}</th><th>{member?.kind === 'warehouses' ? '창고명' : '거래처명'}</th>
+            </tr></thead>
+            <tbody>
+              {members.length === 0 ? <tr><td colSpan={4} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+                : members.map((m, i) => (
+                  <tr key={`${m.tradeType}-${m.id}`}>
+                    <td className="text-center"><NumCheck no={i + 1} on={memberChecked.has(i)}
+                      onChange={() => setMemberChecked((s) => { const n = new Set(s); if (n.has(i)) n.delete(i); else n.add(i); return n })} /></td>
+                    <td>{m.tradeTypeName}</td><td>{m.code}</td><td>{m.name}</td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+          <div className="flex gap-[6px] mt-[12px]">
+            <button type="button" className="ec-btn ec-btn-primary" onClick={() => setAdd({ open: true, targetId: '', sales: false, purchase: false, bad: false, error: '' })}>추가</button>
+            <button type="button" className="ec-btn" onClick={() => void removeMembers()}>선택삭제</button>
+            <button type="button" className="ec-btn" onClick={() => setMember(null)}>닫기</button>
+          </div>
+        </div>
+      )}</Modal>
+
+      <Modal error={add.error} open={add.open && !!member} title={member?.kind === 'warehouses' ? '창고추가' : '거래처추가'} width={760} onClose={() => setAdd({ ...add, open: false })}>{(
+        <form onSubmit={saveMember}>
+          <ul className="ec-form">
+            <li className="wide"><span className="title">특별단가그룹</span><div className="form"><span>{member?.group.code}</span></div></li>
+            <li className="wide"><span className="title">특별단가그룹명</span><div className="form"><span>{member?.group.name}</span></div></li>
+            <li className="wide"><span className="title">{member?.kind === 'warehouses' ? '창고' : '거래처'}</span>
+              <div className={`form ${add.bad && !add.targetId ? BAD_BOX : ''}`}>
+                <CodePickerField label={member?.kind === 'warehouses' ? '창고' : '거래처'} hideLabel fill
+                                 placeholder={member?.kind === 'warehouses' ? '창고' : '거래처'}
+                                 value={add.targetId} onChange={(v) => setAdd({ ...add, targetId: v })} items={memberTargets} />
+              </div></li>
+            <li className="wide"><span className="title">구분</span><div className="form flex gap-[12px]">
+              <label><input type="checkbox" checked={add.sales} onChange={(e) => setAdd({ ...add, sales: e.target.checked })} /> 영업단가그룹</label>
+              <label><input type="checkbox" checked={add.purchase} onChange={(e) => setAdd({ ...add, purchase: e.target.checked })} /> 구매단가그룹</label>
+            </div></li>
+          </ul>
+          {formButtons(() => setAdd({ ...add, targetId: '', sales: false, purchase: false, bad: false, error: '' }), () => setAdd({ ...add, open: false }))}
+        </form>
+      )}</Modal>
+
+      {/* 품목설정 · 품목그룹설정 — 그 그룹의 줄 */}
+      <Modal error={error} open={!!scope} title={scope?.kind ?? ''} width={959} onClose={() => setScope(null)}>{(
+        <div>
+          {scope?.kind === '품목설정' ? (
+            <table className="w-full text-left">
+              <thead><tr><th>품목코드</th><th>품목명[규격]</th><th>품목그룹명</th><th>특별단가그룹명</th><th className="text-right">적용단가</th><th className="text-center">Vat포함여부</th></tr></thead>
+              <tbody>
+                {scopeRows.items.length === 0 ? <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+                  : scopeRows.items.map((r) => (
+                    <tr key={r.id}><td>{r.itemCode}</td><td>{itemLabel(r)}</td><td>{r.itemGroupName ?? ''}</td><td>{r.groupName}</td>
+                      <td className="text-right">{won(r.unitPrice)}</td><td className="text-center">{r.vatIncluded ? '포함' : '미포함'}</td></tr>
+                  ))}
+              </tbody>
+            </table>
+          ) : (
+            <table className="w-full text-left">
+              <thead><tr><th>품목그룹코드</th><th>품목그룹명</th><th>특별단가그룹명</th><th>품목그룹별 조정내역</th></tr></thead>
+              <tbody>
+                {scopeRows.groups.length === 0 ? <tr><td colSpan={4} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+                  : scopeRows.groups.map((r) => (
+                    <tr key={r.id}><td>{r.itemGroupCode}</td><td>{r.itemGroupName}</td><td>{r.groupName}</td><td>{r.adjustText}</td></tr>
+                  ))}
+              </tbody>
+            </table>
+          )}
+          <div className="flex gap-[6px] mt-[12px]">
+            <button type="button" className="ec-btn ec-btn-primary" onClick={() => {
+              const g = scope?.group; setScope(null)
+              if (!g) return
+              writeLastGroup(String(g.id))
+              if (scope?.kind === '품목설정') openItemForm(); else openIgForm()
+            }}>신규(F2)</button>
+            <button type="button" className="ec-btn" onClick={() => setScope(null)}>닫기</button>
+          </div>
+        </div>
+      )}</Modal>
     </EcListShell>
   )
 }

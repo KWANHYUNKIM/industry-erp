@@ -33,10 +33,8 @@ type Axis = '품목' | '거래처'
 type Sort = '코드순' | '코드명순'
 
 interface Partner { id: number; code: string | null; name: string; salesPriceGroup: string | null; purchasePriceGroup: string | null }
-interface SpecialPrice {
-  tradeType: 'SALES' | 'PURCHASE'; itemId: number; partnerId: number | null; priceGroup: string | null
-  unitPrice: number; active: boolean
-}
+/** 특별단가(E040124) — 그룹 × 품목 적용단가. 품목그룹별은 적용단가 알약(/applied)의 '품목그룹별' 줄로 본다. */
+interface SpecialPrice { kind?: string; groupCode: string; itemId: number; unitPrice: number; active?: boolean }
 
 /** 단가 칸 하나 — 출고 · 입고 · A ~ J. 창이 이 칸에 커서를 둔다. */
 type PriceKey = 'unitPrice' | 'purchasePrice' | `g${number}`
@@ -82,7 +80,7 @@ export default function ItemPricePage() {
     try {
       setItems((await api.get<Item[]>('/items')).data)
       // 거래처 · 특별단가는 영업 권한이 없으면 못 읽는다 — 품목 단가만으로도 화면은 돈다.
-      const [p, s] = await Promise.allSettled([api.get<Partner[]>('/partners'), api.get<SpecialPrice[]>('/special-prices')])
+      const [p, s] = await Promise.allSettled([api.get<Partner[]>('/partners'), api.get<SpecialPrice[]>('/special-prices/applied')])
       if (p.status === 'fulfilled') setPartners(p.value.data)
       if (s.status === 'fulfilled') setSpecials(s.value.data)
     } catch (err) { setError(extractErrorMessage(err)) }
@@ -106,10 +104,11 @@ export default function ItemPricePage() {
 
   const specialOf = (type: 'SALES' | 'PURCHASE', itemId: number, byGroup: boolean) => {
     if (!partner) return 0
+    // 거래처가 든 특별단가그룹(영업 · 구매 단가그룹 칸 = 그룹 코드)의 적용단가 — 품목별단가 · 품목그룹별
     const group = type === 'SALES' ? partner.salesPriceGroup : partner.purchasePriceGroup
-    const hit = specials.find((s) => s.active && s.tradeType === type && s.itemId === itemId &&
-      (byGroup ? !!group && s.partnerId == null && s.priceGroup === group : s.partnerId === partner.id))
-    return hit?.unitPrice ?? 0
+    const hit = !!group && specials.find((s) => s.groupCode === group && s.itemId === itemId &&
+      s.kind === (byGroup ? '품목그룹별' : '품목별단가'))
+    return hit ? hit.unitPrice : 0
   }
 
   const rows = useMemo(() => {

@@ -66,6 +66,12 @@ public class ItemGroupService {
         }
     }
 
+    /** 다른 서비스가 품목그룹 엔티티를 얻는 진입점 (리포지토리를 직접 주입하지 않도록) — 특별단가 품목그룹별. */
+    @Transactional(readOnly = true)
+    public ItemGroup get(Long id) {
+        return getItemGroup(id);
+    }
+
     private ItemGroup getItemGroup(Long id) {
         return itemGroupRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("품목그룹을 찾을 수 없습니다. id=" + id));

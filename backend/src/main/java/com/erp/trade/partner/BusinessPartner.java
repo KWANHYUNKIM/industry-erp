@@ -126,11 +126,11 @@ public class BusinessPartner extends BaseTimeEntity {
     @Column(length = 300)
     private String address;
 
-    /** 영업(매출) 특별단가그룹명 */
+    /** 영업단가그룹 — 특별단가그룹(special_price_groups) 코드. DB FK(ON UPDATE CASCADE). */
     @Column(length = 50)
     private String salesPriceGroup;
 
-    /** 구매(매입) 특별단가그룹명 */
+    /** 구매단가그룹 — 특별단가그룹 코드. DB FK(ON UPDATE CASCADE). */
     @Column(length = 50)
     private String purchasePriceGroup;
 

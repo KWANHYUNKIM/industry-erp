@@ -35,4 +35,15 @@ public interface BusinessPartnerRepository extends JpaRepository<BusinessPartner
     @Query("select p from BusinessPartner p left join fetch p.partnerGroup left join fetch p.parent order by p.code")
     List<BusinessPartner> findAllWithGroup();
 
+    /** 특별단가등록 [거래처설정] — 이 특별단가그룹 코드를 영업 또는 구매 단가그룹으로 든 거래처. */
+    @Query("select p from BusinessPartner p where p.salesPriceGroup = :code or p.purchasePriceGroup = :code order by p.code")
+    List<BusinessPartner> findByPriceGroup(@Param("code") String code);
+
+    /** 영업 · 구매 단가그룹으로 쓰이는 특별단가그룹 코드 — 특별단가그룹 격자의 '거래처설정' 주황 표시. */
+    @Query("select distinct p.salesPriceGroup from BusinessPartner p where p.salesPriceGroup is not null")
+    List<String> salesPriceGroupsInUse();
+
+    @Query("select distinct p.purchasePriceGroup from BusinessPartner p where p.purchasePriceGroup is not null")
+    List<String> purchasePriceGroupsInUse();
+
 }

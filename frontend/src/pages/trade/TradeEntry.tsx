@@ -1,3 +1,4 @@
+import { resolveSpecialPrice } from '../../features/price/specialPrice'
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../features/auth/AuthContext'
@@ -759,19 +760,15 @@ export default function TradeEntry({ mode, adjust = false }: { mode: Mode; adjus
    * 한 번도 안 불렀다.</b> 특별단가를 등록해 놓고 판매입력을 열면 그냥 표준단가가 채워졌고,
    * 두 마스터 화면은 저장만 되고 아무 데도 영향이 없었다.
    *
-   * <p>서버가 이미 순서를 판단한다(거래처별 → 그 거래처의 단가그룹별). 화면은 부르기만 한다.
+   * <p>서버가 단가적용순서설정의 '사용' 줄을 차례로 본다(창고별 · 거래처별 특별단가). 화면은 부르기만 한다.
    * 못 찾으면 표준단가를 그대로 둔다 — 특별단가가 없다는 뜻이지 0 이라는 뜻이 아니다.
    */
   async function applySpecialPrice(idx: number, itemId: string, partnerOverride?: string) {
     const pid = partnerOverride ?? partnerId
-    if (!pid || !itemId) return
-    try {
-      const r = await api.get<{ found: boolean; unitPrice: number | null }>('/special-prices/resolve', {
-        params: { tradeType: mode === 'sales' ? 'SALES' : 'PURCHASE', itemId, partnerId: pid },
-      })
-      if (!r.data.found || r.data.unitPrice == null) return
-      setLines((ls) => ls.map((l, i) => (i === idx ? { ...l, unitPrice: String(r.data.unitPrice) } : l)))
-    } catch { /* 특별단가를 못 읽어도 전표입력은 계속돼야 한다 */ }
+    // 창고별특별단가도 단가적용순서에 있다(E040124 [창고설정]) — 거래처 없이 창고만으로도 걸릴 수 있다.
+    const p = await resolveSpecialPrice(mode === 'sales' ? 'SALES' : 'PURCHASE', itemId, pid, warehouseId)
+    if (p == null) return
+    setLines((ls) => ls.map((l, i) => (i === idx ? { ...l, unitPrice: String(p) } : l)))
   }
 
   /*

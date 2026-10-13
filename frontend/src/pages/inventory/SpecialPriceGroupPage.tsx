@@ -7,8 +7,6 @@ import EcListShell from '../../components/EcListShell'
 import { useTableSort } from '../../utils/useTableSort'
 import { ecAlert } from '../../components/EcDialog'
 
-const SALES_GROUPS = ['일반가', '대리점가', '특판가']
-const PURCHASE_GROUPS = ['표준매입가', '계약단가']
 
 /** 재고 기초등록 > 거래처특별단가그룹 — 거래처별 영업/구매 단가그룹 지정(실제 저장) */
 export default function SpecialPriceGroupPage() {
@@ -25,6 +23,17 @@ export default function SpecialPriceGroupPage() {
   const [purchaseGroupCond, setPurchaseGroupCond] = useState('전체')
   const [groups, setGroups] = useState<Record<number, { sales: string; purchase: string }>>({})
   const [saving, setSaving] = useState(false)
+  /*
+   * 단가그룹 = 특별단가등록(E040124)의 특별단가그룹(코드 · 이름). 예전엔 그룹 이름 다섯이 화면 코드에 박혀 있었다.
+   * 거래처 칸에는 그룹 <b>코드</b>가 든다.
+   */
+  const [priceGroups, setPriceGroups] = useState<{ code: string; name: string; active: boolean }[]>([])
+  useEffect(() => {
+    api.get<{ code: string; name: string; active: boolean }[]>('/special-prices/groups')
+      .then((r) => setPriceGroups(r.data)).catch(() => setPriceGroups([]))
+  }, [])
+  const groupOptions = (cur: string) => priceGroups.filter((g) => g.active || g.code === cur)
+    .map((g) => <option key={g.code} value={g.code}>{g.name}</option>)
 
   async function load() {
     setLoading(true)
@@ -117,12 +126,12 @@ export default function SpecialPriceGroupPage() {
         <span>영업단가그룹</span>
         <select className="ec-input" value={salesGroupCond} onChange={(e) => setSalesGroupCond(e.target.value)} style={{ width: 120 }}>
           <option>전체</option>
-          {SALES_GROUPS.map((g) => <option key={g} value={g}>{g}</option>)}
+          {groupOptions(salesGroupCond)}
         </select>
         <span>구매단가그룹</span>
         <select className="ec-input" value={purchaseGroupCond} onChange={(e) => setPurchaseGroupCond(e.target.value)} style={{ width: 120 }}>
           <option>전체</option>
-          {PURCHASE_GROUPS.map((g) => <option key={g} value={g}>{g}</option>)}
+          {groupOptions(purchaseGroupCond)}
         </select>
       </div>
 
@@ -157,13 +166,13 @@ export default function SpecialPriceGroupPage() {
               <td className="text-right">
                 <select className="ec-input" value={groups[p.id]?.sales ?? ''} onChange={(e) => setGroup(p.id, 'sales', e.target.value)} style={{ width: '100%' }}>
                   <option value="">(미지정)</option>
-                  {SALES_GROUPS.map((g) => <option key={g} value={g}>{g}</option>)}
+                  {groupOptions(groups[p.id]?.sales ?? '')}
                 </select>
               </td>
               <td className="text-center">
                 <select className="ec-input" value={groups[p.id]?.purchase ?? ''} onChange={(e) => setGroup(p.id, 'purchase', e.target.value)} style={{ width: '100%' }}>
                   <option value="">(미지정)</option>
-                  {PURCHASE_GROUPS.map((g) => <option key={g} value={g}>{g}</option>)}
+                  {groupOptions(groups[p.id]?.purchase ?? '')}
                 </select>
               </td>
             </tr>

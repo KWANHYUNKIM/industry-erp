@@ -21,6 +21,8 @@ public class PartnerService {
 
     private final BusinessPartnerRepository partnerRepository;
     private final PartnerGroupRepository partnerGroupRepository;
+    /** 영업 · 구매 단가그룹 칸이 드는 특별단가그룹 코드가 있는지 본다(같은 모듈 trade). */
+    private final com.erp.trade.price.SpecialPriceGroupRepository specialPriceGroupRepository;
     /** 수정 창 [H] 의 이력 — 원본 거래처등록 C000009 */
     private final ChangeHistoryService changeHistory;
     public static final String HISTORY_TARGET = "PARTNER";
@@ -83,8 +85,8 @@ public class PartnerService {
                 .accountNo(req.accountNo())
                 .accountHolder(req.accountHolder())
                 .postalCode(req.postalCode())
-                .salesPriceGroup(emptyToNull(req.salesPriceGroup()))
-                .purchasePriceGroup(emptyToNull(req.purchasePriceGroup()))
+                .salesPriceGroup(priceGroupCode(req.salesPriceGroup()))
+                .purchasePriceGroup(priceGroupCode(req.purchasePriceGroup()))
                 .searchKeyword(emptyToNull(req.searchKeyword()))
                 .address(req.address())
                 .partnerGroup(groupOf(req.partnerGroupId()))
@@ -134,8 +136,8 @@ public class PartnerService {
         p.setAccountNo(req.accountNo());
         p.setAccountHolder(req.accountHolder());
         p.setPostalCode(req.postalCode());
-        p.setSalesPriceGroup(emptyToNull(req.salesPriceGroup()));
-        p.setPurchasePriceGroup(emptyToNull(req.purchasePriceGroup()));
+        p.setSalesPriceGroup(priceGroupCode(req.salesPriceGroup()));
+        p.setPurchasePriceGroup(priceGroupCode(req.purchasePriceGroup()));
         p.setSearchKeyword(emptyToNull(req.searchKeyword()));
         p.setAddress(req.address());
         p.setPartnerGroup(groupOf(req.partnerGroupId()));
@@ -196,8 +198,8 @@ public class PartnerService {
     @Transactional
     public PartnerResponse updatePriceGroup(Long id, UpdatePriceGroupRequest req) {
         BusinessPartner p = getPartner(id);
-        p.setSalesPriceGroup(emptyToNull(req.salesPriceGroup()));
-        p.setPurchasePriceGroup(emptyToNull(req.purchasePriceGroup()));
+        p.setSalesPriceGroup(priceGroupCode(req.salesPriceGroup()));
+        p.setPurchasePriceGroup(priceGroupCode(req.purchasePriceGroup()));
         return PartnerResponse.from(p);
     }
 
@@ -209,6 +211,49 @@ public class PartnerService {
 
     private static String emptyToNull(String v) {
         return (v == null || v.isBlank()) ? null : v;
+    }
+
+    /**
+     * 영업 · 구매 단가그룹 칸 = 특별단가등록(E040124)의 특별단가그룹 <b>코드</b>(DB FK, 코드가 바뀌면 따라 바뀐다).
+     * 예전엔 아무 글자나 받아 그룹 이름이 화면 코드에 박혀 있었다.
+     */
+    private String priceGroupCode(String v) {
+        String code = emptyToNull(v);
+        if (code == null) return null;
+        code = code.trim();
+        if (!specialPriceGroupRepository.existsByCode(code)) {
+            throw ApiException.badRequest("등록되지 않은 특별단가그룹코드입니다: " + code);
+        }
+        return code;
+    }
+
+    /** 특별단가등록 [거래처설정] 격자 — 이 그룹을 영업 또는 구매 단가그룹으로 든 거래처. */
+    @Transactional(readOnly = true)
+    public List<BusinessPartner> inPriceGroup(String code) {
+        return partnerRepository.findByPriceGroup(code);
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.Set<String> priceGroupCodesInUse() {
+        java.util.Set<String> s = new java.util.HashSet<>(partnerRepository.salesPriceGroupsInUse());
+        s.addAll(partnerRepository.purchasePriceGroupsInUse());
+        return s;
+    }
+
+    /** 거래처추가 — 영업 · 구매 단가그룹을 이 코드로(null 이면 그 칸은 그대로). 거래처는 구분마다 그룹 하나다. */
+    @Transactional
+    public void assignPriceGroup(Long id, String salesCode, String purchaseCode) {
+        BusinessPartner p = getPartner(id);
+        if (salesCode != null) p.setSalesPriceGroup(priceGroupCode(salesCode));
+        if (purchaseCode != null) p.setPurchasePriceGroup(priceGroupCode(purchaseCode));
+    }
+
+    /** 거래처설정 [선택삭제] — 그 칸이 이 그룹일 때만 비운다. */
+    @Transactional
+    public void releasePriceGroup(Long id, String code, boolean sales) {
+        BusinessPartner p = getPartner(id);
+        if (sales && code.equals(p.getSalesPriceGroup())) p.setSalesPriceGroup(null);
+        if (!sales && code.equals(p.getPurchasePriceGroup())) p.setPurchasePriceGroup(null);
     }
 
     /** 다른 서비스가 거래처 엔티티를 얻는 진입점 (리포지토리를 직접 주입하지 않도록). */

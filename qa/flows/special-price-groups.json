@@ -1,0 +1,31 @@
+{
+  "about": "특별단가등록(E040124) 원본 모델 — [특별단가그룹] 신규(F2): 빈 칸 저장은 글 없이 빨간 테두리 → 코드 · 이름 넣고 저장하면 말 없이 닫히고 줄이 붙는다. 품목별 단가(API) → [품목별] · [적용단가] 알약에 보이고 [특별단가그룹] 의 '품목설정' 이 주황 알약. 끝에 지운다.",
+  "shots": [
+    {
+      "name": "특별단가그룹 신규 → 품목별 · 적용단가 → 지움",
+      "path": "/sales/special-price",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:window.__api('GET', '/special-prices/groups').then(async (r) => { const g = r.body.find((x) => x.code === 'QA-J1G'); if (g) { for (const p of (await window.__api('GET', '/special-prices')).body.filter((x) => x.groupId === g.id)) await window.__api('DELETE', '/special-prices/' + p.id); await window.__api('DELETE', '/special-prices/groups/' + g.id) } return true })",
+        "click:신규(F2)",
+        "click:저장(F8)",
+        "expect:document.querySelector('[role=dialog] input[placeholder=\"특별단가그룹코드\"]').className.includes('text-danger')",
+        "set:[role=dialog] input[placeholder=\"특별단가그룹코드\"]|QA-J1G",
+        "set:[role=dialog] input[placeholder=\"특별단가그룹명\"]|QA재고1-특가그룹",
+        "click:저장(F8)",
+        "expect:!document.querySelector('[role=dialog]') && [...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA-J1G'))",
+        "js:Promise.all(['/special-prices/groups', '/items'].map((p) => window.__api('GET', p))).then(([gs, it]) => window.__api('POST', '/special-prices', { groupId: gs.body.find((x) => x.code === 'QA-J1G').id, itemId: it.body.find((x) => x.code === 'QA-PROD').id, unitPrice: 700 })).then((r) => r.status)",
+        "click:품목별",
+        "click:특별단가그룹",
+        "js:location.reload(); true",
+        "wait:1500",
+        "expect:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('QA-J1G'))?.querySelector('a.no-underline')?.innerText === '품목설정'",
+        "click:품목별",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA재고1-특가그룹') && tr.innerText.includes('700'))",
+        "click:적용단가",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA재고1-특가그룹') && tr.innerText.includes('품목별단가') && tr.innerText.includes('700'))",
+        "js:window.__api('GET', '/special-prices/groups').then(async (r) => { const g = r.body.find((x) => x.code === 'QA-J1G'); for (const p of (await window.__api('GET', '/special-prices')).body.filter((x) => x.groupId === g.id)) await window.__api('DELETE', '/special-prices/' + p.id); return (await window.__api('DELETE', '/special-prices/groups/' + g.id)).status })"
+      ]
+    }
+  ]
+}

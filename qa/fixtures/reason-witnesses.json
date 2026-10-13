@@ -201,27 +201,6 @@
   ],
   "file": "trade/LedgerPage.tsx"
  },
- "특별단가등록|창고설정": {
-  "claim": "창고로 좁히는 특별단가를 만들지 않는다",
-  "absent": [
-   "Warehouse"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/price/SpecialPrice.java"
- },
- "특별단가등록|품목그룹설정": {
-  "claim": "품목그룹으로 좁히는 특별단가를 만들지 않는다",
-  "absent": [
-   "ItemGroup"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/price/SpecialPrice.java"
- },
- "특별단가등록|특별단가그룹코드": {
-  "claim": "단가그룹은 이름만 든다 — 코드 마스터가 아니다",
-  "absent": [
-   "PriceGroup"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/price/SpecialPrice.java"
- },
  "외화등록|금액소수점": {
   "claim": "통화별 소수점 자릿수를 우리 마스터가 안 든다",
   "absent": [
@@ -1867,46 +1846,6 @@
    "identifyNo"
   ],
   "in": "backend/src/main/java/com/erp/trade/settlement/Settlement.java"
- },
- "특별단가등록|품목설정": {
-  "claim": "우리 특별단가는 늘 품목 하나에 붙는다",
-  "absent": [
-   "Warehouse",
-   "ItemGroup"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/price/SpecialPrice.java"
- },
- "특별단가등록|특별단가그룹": {
-  "claim": "우리는 품목별 단가 한 축이다",
-  "absent": [
-   "Warehouse",
-   "ItemGroup"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/price/SpecialPrice.java"
- },
- "특별단가등록|품목별": {
-  "claim": "우리는 품목별 단가 한 축이다",
-  "absent": [
-   "Warehouse",
-   "ItemGroup"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/price/SpecialPrice.java"
- },
- "특별단가등록|품목그룹별": {
-  "claim": "우리는 품목별 단가 한 축이다",
-  "absent": [
-   "Warehouse",
-   "ItemGroup"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/price/SpecialPrice.java"
- },
- "특별단가등록|적용단가": {
-  "claim": "우리는 품목별 단가 한 축이다",
-  "absent": [
-   "Warehouse",
-   "ItemGroup"
-  ],
-  "in": "backend/src/main/java/com/erp/trade/price/SpecialPrice.java"
  },
  "발주서입력|추가수량": {
   "claim": "수량을 둘로 나눠 적지 않는다",

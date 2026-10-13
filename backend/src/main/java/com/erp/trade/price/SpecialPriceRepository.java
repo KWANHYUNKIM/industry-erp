@@ -5,30 +5,18 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface SpecialPriceRepository extends JpaRepository<SpecialPrice, Long> {
 
-    @Query("select sp from SpecialPrice sp " +
-            "join fetch sp.item " +
-            "left join fetch sp.partner " +
-            "order by sp.tradeType asc, sp.item.name asc, sp.id desc")
+    @Query("select sp from SpecialPrice sp join fetch sp.group join fetch sp.item i left join fetch i.itemGroup " +
+            "order by i.code asc, sp.group.code asc")
     List<SpecialPrice> findAllWithRefs();
 
-    /** 거래처별 특별단가(활성) — resolve 1순위 */
-    @Query("select sp from SpecialPrice sp " +
-            "where sp.tradeType = :type and sp.active = true " +
-            "and sp.item.id = :itemId and sp.partner.id = :partnerId " +
-            "order by sp.id desc")
-    List<SpecialPrice> findActiveByPartner(@Param("type") SpecialPriceType type,
-                                           @Param("itemId") Long itemId,
-                                           @Param("partnerId") Long partnerId);
+    boolean existsByGroupIdAndItemId(Long groupId, Long itemId);
 
-    /** 특별단가그룹별 특별단가(활성) — resolve 2순위 */
-    @Query("select sp from SpecialPrice sp " +
-            "where sp.tradeType = :type and sp.active = true " +
-            "and sp.item.id = :itemId and sp.partner is null and sp.priceGroup = :priceGroup " +
-            "order by sp.id desc")
-    List<SpecialPrice> findActiveByGroup(@Param("type") SpecialPriceType type,
-                                         @Param("itemId") Long itemId,
-                                         @Param("priceGroup") String priceGroup);
+    boolean existsByGroupId(Long groupId);
+
+    @Query("select sp from SpecialPrice sp where sp.group.id = :groupId and sp.item.id = :itemId and sp.active = true")
+    Optional<SpecialPrice> findActive(@Param("groupId") Long groupId, @Param("itemId") Long itemId);
 }
