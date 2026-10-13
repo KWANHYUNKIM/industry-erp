@@ -131,11 +131,45 @@ public class PromissoryNoteService {
                 .bankName(req.bankName())
                 .remark(req.remark())
                 .createdBy(username)
+                .departmentId(req.departmentId())
+                .projectId(req.projectId())
                 .build();
         noteRepository.save(n);
 
         /* [내역만등록]은 분개를 만들지 않는다(원본: 회계거래조회에 전표가 생기지 않는다). */
         if (!recordOnly) journalService.createFromNote(n, NoteEvent.ISSUE);
+        return NoteResponse.from(n);
+    }
+
+    /**
+     * 원본 [내역만등록] 전표구분 [감소] — 어음번호로 찾은 보유 어음을 분개 없이 닫는다(거래유형 '어음만감소').
+     * 2026-10-13 loginaa 실측: QA1-N3 증가(어음만증가) 뒤 감소 → 받을어음조회 [2026/10/13-4 · QA1-N3 · 감소 · … · 어음만감소 · (빈칸)].
+     * 원본은 없는 어음번호도 받지만(QA1-N9 감소가 만기일자 빈칸으로 저장됨) 우리는 어음 한 장이 줄 하나라 있는 어음만 닫는다.
+     */
+    @Transactional
+    public NoteResponse recordDecrease(PromissoryNoteDtos.RecordDecreaseRequest req) {
+        String no = req.noteNo().trim();
+        PromissoryNote n = noteRepository.findByNoteNo(no)
+                .filter(x -> x.getType() == req.type())
+                .orElseThrow(() -> ApiException.badRequest("어음번호를 찾을 수 없습니다: " + no));
+        n = held(n.getId(), "감소");
+        LocalDate date = req.date() != null ? req.date() : LocalDate.now();
+        requireNotBeforeIssue(n, date, "감소일");
+        n.setStatus(NoteStatus.RECORD_DECREASED);
+        n.setClosedDate(date);
+        return NoteResponse.from(n);
+    }
+
+    /** [내역만등록] 감소 줄 지우기 — 어음을 다시 보유로 돌린다. 감소로 닫힌 어음만. */
+    @Transactional
+    public NoteResponse cancelRecordDecrease(Long id) {
+        PromissoryNote n = noteRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("어음을 찾을 수 없습니다. id=" + id));
+        if (n.getStatus() != NoteStatus.RECORD_DECREASED) {
+            throw ApiException.conflict(n.getNoteNo() + " 은(는) [내역만등록] 감소로 닫힌 어음이 아닙니다.");
+        }
+        n.setStatus(NoteStatus.HELD);
+        n.setClosedDate(null);
         return NoteResponse.from(n);
     }
 

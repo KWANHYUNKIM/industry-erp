@@ -30,7 +30,20 @@ public final class PromissoryNoteDtos {
             /** 원본 [내역만등록] — 회계전표 없이 내역만. 이때만 [어음번호]를 사람이 적는다(비우면 서버가 매긴다). */
             Boolean recordOnly,
             @Size(max = 30, message = "어음번호는 30자까지 넣을 수 있습니다.")
-            String noteNo
+            String noteNo,
+            /** 원본 받을어음증가 · [내역만등록] 의 [부서] · [프로젝트] */
+            Long departmentId,
+            Long projectId
+    ) {}
+
+    /**
+     * 원본 [내역만등록] 전표구분 [감소] — 받아 둔(발행한) 어음을 분개 없이 닫는다.
+     * 격자 [어음번호 · 금액 · 부서 · 프로젝트 · 적요] 중 어음번호로 어음을 찾는다.
+     */
+    public record RecordDecreaseRequest(
+            @NotNull(message = "어음 구분을 선택하세요.") NoteType type,
+            @NotNull(message = "어음번호: 자료를 입력 바랍니다.") @Size(max = 30, message = "어음번호는 30자까지 넣을 수 있습니다.") String noteNo,
+            LocalDate date
     ) {}
 
     /** 만기결제. 예금계좌를 지정하지 않으면 보통예금(103)으로 분개한다. */
@@ -58,7 +71,9 @@ public final class PromissoryNoteDtos {
             LocalDate closedDate, BigDecimal discountFee,
             String bankName, String remark, String createdBy,
             /** 원본 [내역만등록]으로 넣은 것(분개 없음) */
-            boolean recordOnly
+            boolean recordOnly,
+            Long departmentId,
+            Long projectId
     ) {
         public static NoteResponse from(PromissoryNote n) {
             return new NoteResponse(
@@ -68,7 +83,8 @@ public final class PromissoryNoteDtos {
                     n.getIssueDate(), n.getDueDate(), n.getAmount(),
                     n.getStatus(), n.getStatus().getDisplayName(),
                     n.getClosedDate(), n.getDiscountFee(),
-                    n.getBankName(), n.getRemark(), n.getCreatedBy(), n.isRecordOnly());
+                    n.getBankName(), n.getRemark(), n.getCreatedBy(), n.isRecordOnly(),
+                    n.getDepartmentId(), n.getProjectId());
         }
     }
 

@@ -14,15 +14,17 @@ import EcDateField from '../../components/EcDateField'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { ymd } from '../../components/EcPeriodPicks'
 import type { NoteSummary, NoteType, PromissoryNote } from '../../types/api'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
-/** 원본 [내역만등록]으로 넣은 어음은 분개가 없다(recordOnly). */
-type Note = PromissoryNote & { recordOnly?: boolean }
+/** 원본 [내역만등록]으로 넣은 어음은 분개가 없다(recordOnly). 감소로 닫으면 상태 RECORD_DECREASED('어음만감소'). */
+type Note = PromissoryNote & { recordOnly?: boolean; departmentId?: number | null; projectId?: number | null }
+const recordDecreased = (n: Note) => (n.status as string) === 'RECORD_DECREASED'
 /** 어음 한 장이 남기는 움직임 — 받은(발행한) 날 증가, 손을 떠난 날(결제 · 할인 · 부도) 감소. */
 interface Move { key: string; date: string; inc: boolean; n: Note }
 /** 내역만등록 창의 한 줄 */
-interface RecLine { noteNo: string; amount: string; dueDate: string; remark: string }
+interface RecLine { noteNo: string; amount: string; dueDate: string; dept: string; project: string; remark: string }
 
 /**
  * 회계 I &gt; 어음거래 &gt; 받을어음 &gt; <b>받을어음조회</b>(E010622) — 2026-10-03 loginaa 실측(빈 판).
@@ -33,7 +35,7 @@ interface RecLine { noteNo: string; amount: string; dueDate: string; remark: str
  * 버튼줄 받을어음증가 · 내역만등록 · 선택삭제 · Excel. 수령수표조회와 같은 판이다.
  *
  * <p>한 줄은 어음이 아니라 <b>움직임</b>이다 — 받은 날 '어음증가', 결제 · 할인 · 부도로 손을 떠난 날 '어음감소'.
- * 우리 어음은 모두 어음등록 화면에서 직접 적어 입력구분은 늘 '직접입력'이다. 부서 · 프로젝트는 어음이 들지 않는다.
+ * 우리 어음은 모두 어음등록 화면에서 직접 적어 입력구분은 늘 '직접입력'이다. 부서 · 프로젝트는 [내역만등록]에서 적은 것만 든다.
  * <b>회계전표일자-No.</b>: 증가 줄은 수취/발행 분개(출처 어음 · 그 어음 id), 감소 줄은 닫힌 날 적요에 어음번호가 든 분개
  * (만기결제 · 할인 입금은 계좌 입출금이, 부도는 어음이 만든다 — JournalService.createFromNote 주석).
  * 첫 칸 체크로 골라 <b>[선택삭제]</b> — 보유 중인 어음만 지워진다(서버가 막는다, 수취 분개도 같이 지운다).
@@ -57,13 +59,18 @@ export default function NoteListPage({ type }: { type: NoteType }) {
   const [partner, setPartner] = useState('')
   const [remark, setRemark] = useState('')
   const [author, setAuthor] = useState('')
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const deptProject = useDeptProjectItems()
   const [notes, setNotes] = useState<Note[]>([])
   /* 원본 [내역만등록] '받을어음내역입력' 창(2026-10-13 실측) — 전표일자 · 전표구분 · 거래처코드 · 계정코드 + 격자. */
   const pickers = useCondPickers(['partners'])
-  const blankLine = (): RecLine => ({ noteNo: '', amount: '', dueDate: ymd(new Date()), remark: '' })
+  const blankLine = (): RecLine => ({ noteNo: '', amount: '', dueDate: ymd(new Date()), dept: '', project: '', remark: '' })
   const [recOpen, setRecOpen] = useState(false)
   const [recDate, setRecDate] = useState(ymd(new Date()))
   const [recPartner, setRecPartner] = useState('')
+  /** 원본 [전표구분] 증가 · 감소. 감소 격자는 만기일자 열이 없다(어음번호 · 금액 · 부서 · 프로젝트 · 적요). */
+  const [recDec, setRecDec] = useState(false)
   const [recLines, setRecLines] = useState<RecLine[]>([blankLine(), blankLine(), blankLine()])
   const [recError, setRecError] = useState('')
   const recName = receivable ? '받을어음내역입력' : '지급어음내역입력'
@@ -96,7 +103,7 @@ export default function NoteListPage({ type }: { type: NoteType }) {
   useEffect(() => { void load() }, [from, to, type])
 
   const ofType = useMemo(() => notes.filter((n) => n.type === type), [notes, type])
-  /* 원본 거래유형(2026-10-13 실측): 받을어음증가 화면으로 넣은 것 '받을어음증가', [내역만등록] '어음만증가'. 감소 쪽 이름은 못 쟀다. */
+  /* 원본 거래유형(2026-10-13 실측): 받을어음증가 화면으로 넣은 것 '받을어음증가', [내역만등록] 증가 '어음만증가' · 감소 '어음만감소'. */
   const kindOf = (m: Move) => (m.inc ? (m.n.recordOnly ? '어음만증가' : receivable ? '받을어음증가' : '지급어음증가') : m.n.statusName)
   /** 원본 [일자] '2026/10/13-2' — 그날 넣은 어음 중 몇 번째(id 차례). 감소 줄은 날짜만. */
   const dayNo = (m: Move) => {
@@ -120,9 +127,11 @@ export default function NoteListPage({ type }: { type: NoteType }) {
       .filter((m) => !partner || String(m.n.partnerId) === partner)
       .filter((m) => !remark || (m.n.remark ?? '').includes(remark))
       .filter((m) => !author || (m.n.createdBy ?? '') === author)
+      .filter((m) => !dept || String(m.n.departmentId ?? '') === dept)
+      .filter((m) => !project || String(m.n.projectId ?? '') === project)
       .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.n.noteNo.localeCompare(b.n.noteNo) || (a.inc ? -1 : 1)))
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ofType, from, to, useDue, dueFrom, dueTo, noteNo, showInc, showDec, kind, direct, partner, remark, author])
+  }, [ofType, from, to, useDue, dueFrom, dueTo, noteNo, showInc, showDec, kind, direct, partner, remark, author, dept, project])
   const partners = useMemo(() => {
     const m = new Map<number, string>()
     ofType.forEach((n) => m.set(n.partnerId, n.partnerName))
@@ -132,6 +141,7 @@ export default function NoteListPage({ type }: { type: NoteType }) {
   const kinds = useMemo(() => [...new Set([receivable ? '받을어음증가' : '지급어음증가', '어음만증가', ...ofType.filter((n) => n.closedDate).map((n) => n.statusName)])], [ofType, receivable])
   /** 회계전표일자-No. — '2026/10/13 -3'. 증가는 출처(어음 · id), 감소는 닫힌 날 적요의 어음번호로 찾는다. */
   const journalOf = (m: Move) => {
+    if (!m.inc && recordDecreased(m.n)) return ''
     const j = m.inc
       ? journals.find((x) => x.sourceType === 'NOTE' && x.sourceId === m.n.id)
       : journals.find((x) => x.entryDate === m.date && (x.description ?? '').includes(m.n.noteNo))
@@ -139,8 +149,8 @@ export default function NoteListPage({ type }: { type: NoteType }) {
   }
   const picked = moves.filter((m) => checked.has(m.key))
   /* 원본은 회계전표가 붙은 줄을 체크할 수 없다(받을어음증가 줄을 눌러도 체크되지 않고 '리스트에 선택된 자료가 없습니다.').
-     전표 있는 어음은 회계거래조회에서 전표째 지운다. [내역만등록] 줄만 고를 수 있다. */
-  const selectable = (m: Move) => m.inc && !!m.n.recordOnly && m.n.status === 'HELD'
+     전표 있는 어음은 회계거래조회에서 전표째 지운다. [내역만등록] 줄만 고를 수 있다 — 감소 줄을 지우면 어음이 다시 보유로 돌아온다. */
+  const selectable = (m: Move) => (m.inc ? !!m.n.recordOnly && m.n.status === 'HELD' : recordDecreased(m.n))
 
   async function saveRecord() {
     setRecError('')
@@ -148,10 +158,13 @@ export default function NoteListPage({ type }: { type: NoteType }) {
     const lines = recLines.filter((l) => l.noteNo.trim() || Number(l.amount) > 0)
     if (lines.length === 0) { setRecError('자료를 입력 바랍니다.'); return }
     if (lines.some((l) => !(Number(l.amount) > 0))) { setRecError('금액: 자료를 입력 바랍니다.'); return }
+    if (recDec && lines.some((l) => !l.noteNo.trim())) { setRecError('어음번호: 자료를 입력 바랍니다.'); return }
     try {
       for (const l of lines) {
-        await api.post('/notes', { type, partnerId: Number(recPartner), issueDate: recDate, dueDate: l.dueDate,
-          amount: Number(l.amount), remark: l.remark.trim() || undefined, recordOnly: true, noteNo: l.noteNo.trim() || undefined })
+        if (recDec) await api.post('/notes/record-decrease', { type, noteNo: l.noteNo.trim(), date: recDate })
+        else await api.post('/notes', { type, partnerId: Number(recPartner), issueDate: recDate, dueDate: l.dueDate,
+          amount: Number(l.amount), remark: l.remark.trim() || undefined, recordOnly: true, noteNo: l.noteNo.trim() || undefined,
+          departmentId: l.dept ? Number(l.dept) : undefined, projectId: l.project ? Number(l.project) : undefined })
       }
       setRecOpen(false)
       setRecLines([blankLine(), blankLine(), blankLine()])
@@ -161,13 +174,16 @@ export default function NoteListPage({ type }: { type: NoteType }) {
     }
   }
 
-  /** 원본 [선택삭제]. 고른 줄의 어음을 지운다 — 보유 중이 아니면 서버가 막고 그 까닭을 띄운다. */
+  /** 원본 [선택삭제]. 증가 줄은 어음을 지우고, 감소 줄은 어음을 다시 보유로 돌린다(감소를 먼저). */
   async function removeChecked() {
     setConfirmDelete(false)
-    const ids = [...new Set(picked.map((m) => m.n.id))]
-    if (ids.length === 0) { setError('지울 줄을 고르세요.'); return }
+    if (picked.length === 0) { setError('지울 줄을 고르세요.'); return }
     setError('')
-    const results = await Promise.allSettled(ids.map((id) => api.delete(`/notes/${id}`)))
+    const decs = picked.filter((m) => !m.inc).map((m) => () => api.delete(`/notes/${m.n.id}/record-decrease`))
+    const incs = picked.filter((m) => m.inc).map((m) => () => api.delete(`/notes/${m.n.id}`))
+    const ids = [...decs, ...incs]
+    const results: PromiseSettledResult<unknown>[] = []
+    for (const run of ids) results.push(await run().then((v) => ({ status: 'fulfilled', value: v }) as const, (reason) => ({ status: 'rejected', reason }) as const))
     const failed = results.filter((x) => x.status === 'rejected') as PromiseRejectedResult[]
     await load()
     if (failed.length > 0) setError(`${ids.length - failed.length}건 삭제, ${failed.length}건 실패 — ${extractErrorMessage(failed[0].reason)}`)
@@ -188,9 +204,9 @@ export default function NoteListPage({ type }: { type: NoteType }) {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setUseDue(false); setNoteNo(''); setShowInc(true); setShowDec(true); setKind(''); setDirect(true); setPartner(''); setRemark(''); setAuthor('') } },
+        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setUseDue(false); setNoteNo(''); setShowInc(true); setShowDec(true); setKind(''); setDirect(true); setPartner(''); setDept(''); setProject(''); setRemark(''); setAuthor('') } },
         { label: receivable ? '받을어음증가' : '지급어음증가', onClick: () => navigate('/accounting/notes') },
-        { label: '내역만등록', onClick: () => { setRecError(''); setRecDate(ymd(new Date())); setRecOpen(true) } },
+        { label: '내역만등록', onClick: () => { setRecError(''); setRecDate(ymd(new Date())); setRecDec(false); setRecOpen(true) } },
         { label: `선택삭제${checked.size ? ` (${checked.size})` : ''}`, onClick: () => setConfirmDelete(true), disabled: checked.size === 0 },
         { label: 'Excel' },
       ]}
@@ -237,6 +253,12 @@ export default function NoteListPage({ type }: { type: NoteType }) {
         </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={220} emptyLabel="전체" value={partner} onChange={setPartner} items={partners} />
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={220} emptyLabel="전체" value={dept} onChange={setDept} items={deptProject.departments} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체" value={project} onChange={setProject} items={deptProject.projects} />
         </EcCond>
         <EcCond label="적요">
           <input className="ec-input" value={remark} onChange={(e) => setRemark(e.target.value)} style={{ width: 220 }} />
@@ -308,9 +330,11 @@ export default function NoteListPage({ type }: { type: NoteType }) {
         {/* 창 머리 — 조회 조건이 아니라 입력 칸이라 EcCond(조건 판) 대신 이름표 + 칸으로 그린다. */}
         <div className="grid grid-cols-[90px_1fr_90px_1fr] items-center gap-[6px] mb-[8px] text-[12.5px]">
           <span>전표일자</span><EcDateField value={recDate} onChange={setRecDate} />
-          {/* 원본 [전표구분] 증가 · 감소 — 감소(내역만 줄이기)는 아직 없다. */}
+          {/* 원본 [전표구분] 증가 · 감소 — 감소는 받아 둔 어음을 어음번호로 찾아 분개 없이 닫는다(거래유형 '어음만감소'). */}
           <span>전표구분</span>
-          <select className="ec-input w-full" aria-label="전표구분" value="증가" disabled><option>증가</option></select>
+          <select className="ec-input w-full" aria-label="전표구분" value={recDec ? '감소' : '증가'} onChange={(e) => setRecDec(e.target.value === '감소')}>
+            <option>증가</option><option>감소</option>
+          </select>
           <span>거래처코드</span>
           <CodePickerField label="거래처코드" hideLabel fill emptyLabel="(없음)" value={recPartner} onChange={setRecPartner} items={pickers.partners} />
           <span>계정코드</span>
@@ -318,7 +342,7 @@ export default function NoteListPage({ type }: { type: NoteType }) {
         </div>
         <table className="w-full text-left mb-[8px]">
           <thead>
-            <tr><th className="w-[30px]"></th><th>어음번호</th><th className="text-right">금액</th><th className="text-center">만기일자</th><th>적요</th></tr>
+            <tr><th className="w-[30px]"></th><th>어음번호</th><th className="text-right">금액</th>{!recDec && <th className="text-center">만기일자</th>}<th>부서</th><th>프로젝트</th><th>적요</th></tr>
           </thead>
           <tbody>
             {recLines.map((l, i) => (
@@ -328,8 +352,12 @@ export default function NoteListPage({ type }: { type: NoteType }) {
                            onChange={(e) => setRecLines((p) => p.map((x, j) => (j === i ? { ...x, noteNo: e.target.value } : x)))} /></td>
                 <td><EcNumInput className="ec-input w-full text-right" aria-label={`금액${i + 1}`} value={l.amount}
                                 onValue={(v) => setRecLines((p) => p.map((x, j) => (j === i ? { ...x, amount: v } : x)))} /></td>
-                <td className="text-center"><EcDateField value={l.dueDate}
-                                onChange={(v) => setRecLines((p) => p.map((x, j) => (j === i ? { ...x, dueDate: v } : x)))} /></td>
+                {!recDec && <td className="text-center"><EcDateField value={l.dueDate}
+                                onChange={(v) => setRecLines((p) => p.map((x, j) => (j === i ? { ...x, dueDate: v } : x)))} /></td>}
+                <td><CodePickerField label={`부서${i + 1}`} hideLabel fill emptyLabel="" value={l.dept} items={deptProject.departments}
+                                     onChange={(v) => setRecLines((p) => p.map((x, j) => (j === i ? { ...x, dept: v } : x)))} /></td>
+                <td><CodePickerField label={`프로젝트${i + 1}`} hideLabel fill emptyLabel="" value={l.project} items={deptProject.projects}
+                                     onChange={(v) => setRecLines((p) => p.map((x, j) => (j === i ? { ...x, project: v } : x)))} /></td>
                 <td><input className="ec-input w-full" aria-label={`적요${i + 1}`} maxLength={300} value={l.remark}
                            onChange={(e) => setRecLines((p) => p.map((x, j) => (j === i ? { ...x, remark: e.target.value } : x)))} /></td>
               </tr>
@@ -339,7 +367,7 @@ export default function NoteListPage({ type }: { type: NoteType }) {
             <tr className="font-bold bg-ec-page">
               <td colSpan={2}></td>
               <td className="text-right">{won(recLines.reduce((a, l) => a + (Number(l.amount) || 0), 0))}</td>
-              <td colSpan={2}></td>
+              <td colSpan={recDec ? 3 : 4}></td>
             </tr>
           </tfoot>
         </table>

@@ -4,6 +4,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import EcPeriodPicks, { NOTE_FLOW_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import { noteLedgerGroups } from '../../utils/noteLedger'
@@ -24,6 +25,9 @@ const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR')
  * 예전엔 기간 안 증감만 더해, 기간 앞에 받아 기간 안에 결제된 어음은 잔액이 음수로 찍히고 들고만 있던 어음은 안 보였다.
  * 이월 줄은 같은 판인 수령수표거래내역(실측)처럼 '이월잔액'(잔액 칸에만 값)으로 둔다. 묶음 끝에 '소계' 한 줄을 둔다.
  */
+/** 어음의 부서 · 프로젝트(공용 타입 PromissoryNote 에는 아직 없다). */
+type DP = { departmentId?: number | null; projectId?: number | null }
+
 export default function NoteLedgerPage({ type }: { type: NoteType }) {
   const title = type === 'RECEIVABLE' ? '받을어음거래내역' : '지급어음거래내역'
   const account = type === 'RECEIVABLE' ? '받을어음' : '지급어음'
@@ -32,6 +36,10 @@ export default function NoteLedgerPage({ type }: { type: NoteType }) {
   const [to, setTo] = useState(init.to)
   const [noteNo, setNoteNo] = useState('')
   const [partner, setPartner] = useState('')
+  /* 원본 조건 [부서] · [프로젝트] — 어음의 부서 · 프로젝트는 [내역만등록]에서 적은 것만 든다(V340). */
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const deptProject = useDeptProjectItems()
   const [basis, setBasis] = useState<'거래처별' | '거래처/어음번호별'>('거래처별')
   const [withZero, setWithZero] = useState(true)
   const [notes, setNotes] = useState<PromissoryNote[]>([])
@@ -60,10 +68,12 @@ export default function NoteLedgerPage({ type }: { type: NoteType }) {
     notes
       .filter((n) => n.type === type)
       .filter((n) => !noteNo || n.noteNo.includes(noteNo))
+      .filter((n) => !dept || String((n as DP).departmentId ?? '') === dept)
+      .filter((n) => !project || String((n as DP).projectId ?? '') === project)
       .filter((n) => !partner || String(n.partnerId) === partner),
     from, to, basis,
   ).filter((g) => withZero || g.bal !== 0),
-  [notes, type, from, to, noteNo, partner, basis, withZero])
+  [notes, type, from, to, noteNo, partner, dept, project, basis, withZero])
 
   const partners = useMemo(() => {
     const m = new Map<number, string>()
@@ -80,7 +90,7 @@ export default function NoteLedgerPage({ type }: { type: NoteType }) {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setNoteNo(''); setPartner(''); setBasis('거래처별'); setWithZero(true) } },
+        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setNoteNo(''); setPartner(''); setDept(''); setProject(''); setBasis('거래처별'); setWithZero(true) } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -106,6 +116,12 @@ export default function NoteLedgerPage({ type }: { type: NoteType }) {
         </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={220} emptyLabel="전체" value={partner} onChange={setPartner} items={partners} />
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={220} emptyLabel="전체" value={dept} onChange={setDept} items={deptProject.departments} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체" value={project} onChange={setProject} items={deptProject.projects} />
         </EcCond>
         <EcCond label="조회기준">
           {(['거래처별', '거래처/어음번호별'] as const).map((b) => (

@@ -4,6 +4,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import EcPeriodPicks, { NOTE_FLOW_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import type { NoteSummary, NoteType, PromissoryNote } from '../../types/api'
@@ -22,6 +23,9 @@ const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
  *
  * <p>지급어음증가현황(E010632) · 감소현황(E010633)도 조건 · 열 · 기본값이 글자 하나까지 같다(같은 날 실측) — type 만 바꾼다.
  */
+/** 어음의 부서 · 프로젝트(공용 타입 PromissoryNote 에는 아직 없다). */
+type DP = { departmentId?: number | null; projectId?: number | null }
+
 export default function NoteFlowPage({ type, flow }: { type: NoteType; flow: '증가' | '감소' }) {
   const title = type === 'RECEIVABLE'
     ? (flow === '증가' ? '받을어음증가현황' : '받을어음감소현황')
@@ -33,6 +37,10 @@ export default function NoteFlowPage({ type, flow }: { type: NoteType; flow: '�
   const [dueFrom, setDueFrom] = useState('')
   const [dueTo, setDueTo] = useState('')
   const [partner, setPartner] = useState('')
+  /* 원본 조건 [부서] · [프로젝트] — 어음의 부서 · 프로젝트는 [내역만등록]에서 적은 것만 든다(V340). */
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const deptProject = useDeptProjectItems()
   const [noteNo, setNoteNo] = useState('')
   const [remark, setRemark] = useState('')
   const [notes, setNotes] = useState<PromissoryNote[]>([])
@@ -66,12 +74,14 @@ export default function NoteFlowPage({ type, flow }: { type: NoteType; flow: '�
     .filter((n) => n.type === type)
     .filter((n) => { const d = dayOf(n); return !!d && d >= from && d <= to })
     .filter((n) => flow === '감소' || ((!dueFrom || n.dueDate >= dueFrom) && (!dueTo || n.dueDate <= dueTo)))
+    .filter((n) => !dept || String((n as DP).departmentId ?? '') === dept)
+    .filter((n) => !project || String((n as DP).projectId ?? '') === project)
     .filter((n) => !partner || String(n.partnerId) === partner)
     .filter((n) => !noteNo || n.noteNo.includes(noteNo))
     .filter((n) => !remark || (n.remark ?? '').includes(remark))
     .sort((a, b) => (dayOf(a) < dayOf(b) ? -1 : dayOf(a) > dayOf(b) ? 1 : a.noteNo.localeCompare(b.noteNo))),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  [notes, type, flow, from, to, dueFrom, dueTo, partner, noteNo, remark])
+  [notes, type, flow, from, to, dueFrom, dueTo, partner, dept, project, noteNo, remark])
   const total = shown.reduce((a, n) => a + Number(n.amount), 0)
   const partners = useMemo(() => {
     const m = new Map<number, string>()
@@ -89,7 +99,7 @@ export default function NoteFlowPage({ type, flow }: { type: NoteType; flow: '�
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setDueFrom(''); setDueTo(''); setPartner(''); setNoteNo(''); setRemark('') } },
+        { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setDueFrom(''); setDueTo(''); setPartner(''); setDept(''); setProject(''); setNoteNo(''); setRemark('') } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -113,6 +123,12 @@ export default function NoteFlowPage({ type, flow }: { type: NoteType; flow: '�
         )}
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={220} emptyLabel="전체" value={partner} onChange={setPartner} items={partners} />
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={220} emptyLabel="전체" value={dept} onChange={setDept} items={deptProject.departments} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체" value={project} onChange={setProject} items={deptProject.projects} />
         </EcCond>
         {/* 원본 [계정] — 이 화면의 어음 계정은 하나다(받을어음 · 지급어음). */}
         <EcCond label="계정">

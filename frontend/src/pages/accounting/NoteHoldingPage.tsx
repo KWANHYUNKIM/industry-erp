@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
+import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import EcPeriodPicks, { SETTLE_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
 import type { NoteSummary, NoteType, PromissoryNote } from '../../types/api'
@@ -21,6 +22,9 @@ const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
  * <b>뒤</b>인 어음을 그날 들고 있던 것으로 센다. 우리 어음은 나눠 갚지 않으므로 잔액은 곧 액면이다.
  * 부서 · 프로젝트는 어음(PromissoryNote)이 들지 않는다.
  */
+/** 어음의 부서 · 프로젝트(공용 타입 PromissoryNote 에는 아직 없다). */
+type DP = { departmentId?: number | null; projectId?: number | null }
+
 export default function NoteHoldingPage({ type }: { type: NoteType }) {
   const title = type === 'RECEIVABLE' ? '보유어음현황' : '미지급어음현황'
   const account = type === 'RECEIVABLE' ? '받을어음' : '지급어음'
@@ -30,6 +34,10 @@ export default function NoteHoldingPage({ type }: { type: NoteType }) {
   const [dueTo, setDueTo] = useState('')
   const [noteNo, setNoteNo] = useState('')
   const [partner, setPartner] = useState('')
+  /* 원본 조건 [부서] · [프로젝트] — 어음의 부서 · 프로젝트는 [내역만등록]에서 적은 것만 든다(V340). */
+  const [dept, setDept] = useState('')
+  const [project, setProject] = useState('')
+  const deptProject = useDeptProjectItems()
   const [notes, setNotes] = useState<PromissoryNote[]>([])
   const [truncated, setTruncated] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -58,9 +66,11 @@ export default function NoteHoldingPage({ type }: { type: NoteType }) {
     .filter((n) => !dueFrom || n.dueDate >= dueFrom)
     .filter((n) => !dueTo || n.dueDate <= dueTo)
     .filter((n) => !noteNo || n.noteNo.includes(noteNo))
+    .filter((n) => !dept || String((n as DP).departmentId ?? '') === dept)
+    .filter((n) => !project || String((n as DP).projectId ?? '') === project)
     .filter((n) => !partner || String(n.partnerId) === partner)
     .sort((a, b) => (a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : a.noteNo.localeCompare(b.noteNo))),
-  [notes, type, asOf, dueFrom, dueTo, noteNo, partner])
+  [notes, type, asOf, dueFrom, dueTo, noteNo, partner, dept, project])
   const total = shown.reduce((a, n) => a + Number(n.amount), 0)
   const partners = useMemo(() => {
     const m = new Map<number, string>()
@@ -74,7 +84,7 @@ export default function NoteHoldingPage({ type }: { type: NoteType }) {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setAsOf(init.to); setDueFrom(''); setDueTo(''); setNoteNo(''); setPartner('') } },
+        { label: '다시 작성', onClick: () => { setAsOf(init.to); setDueFrom(''); setDueTo(''); setNoteNo(''); setPartner(''); setDept(''); setProject('') } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
@@ -103,6 +113,12 @@ export default function NoteHoldingPage({ type }: { type: NoteType }) {
         </EcCond>
         <EcCond label="거래처" pick>
           <CodePickerField label="거래처" hideLabel width={220} emptyLabel="전체" value={partner} onChange={setPartner} items={partners} />
+        </EcCond>
+        <EcCond label="부서" pick>
+          <CodePickerField label="부서" hideLabel width={220} emptyLabel="전체" value={dept} onChange={setDept} items={deptProject.departments} />
+        </EcCond>
+        <EcCond label="프로젝트" pick>
+          <CodePickerField label="프로젝트" hideLabel width={220} emptyLabel="전체" value={project} onChange={setProject} items={deptProject.projects} />
         </EcCond>
       </ul>
 

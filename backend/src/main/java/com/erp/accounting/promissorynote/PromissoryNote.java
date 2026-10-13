@@ -79,4 +79,12 @@ public class PromissoryNote extends BaseTimeEntity {
     @Column(name = "record_only", nullable = false)
     @Builder.Default
     private boolean recordOnly = false;
+
+    /** 원본 받을어음증가 · [내역만등록] 의 [부서] — hr 를 참조하지 않으려 id 만 든다(2026-10-13 실측). */
+    @Column(name = "department_id")
+    private Long departmentId;
+
+    /** 원본 받을어음증가 · [내역만등록] 의 [프로젝트]. */
+    @Column(name = "project_id")
+    private Long projectId;
 }

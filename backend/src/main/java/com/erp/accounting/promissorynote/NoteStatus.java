@@ -5,7 +5,9 @@ public enum NoteStatus {
     HELD("보유"),
     SETTLED("결제완료"),
     DISCOUNTED("할인"),
-    DISHONORED("부도");
+    DISHONORED("부도"),
+    /** 원본 [내역만등록] 전표구분 [감소] — 분개 없이 내역만 닫는다(받을어음조회 거래유형 '어음만감소', 2026-10-13 실측). */
+    RECORD_DECREASED("어음만감소");
 
     private final String displayName;
 

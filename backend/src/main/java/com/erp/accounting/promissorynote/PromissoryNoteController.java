@@ -59,6 +59,18 @@ public class PromissoryNoteController {
         return service.discount(id, req, principal.getUsername());
     }
 
+    /** 원본 [내역만등록] 전표구분 [감소] — 분개 없이 닫는다 */
+    @PostMapping("/record-decrease")
+    public NoteResponse recordDecrease(@Valid @RequestBody com.erp.accounting.promissorynote.dto.PromissoryNoteDtos.RecordDecreaseRequest req) {
+        return service.recordDecrease(req);
+    }
+
+    /** [내역만등록] 감소 줄 지우기 — 다시 보유로 */
+    @DeleteMapping("/{id}/record-decrease")
+    public NoteResponse cancelRecordDecrease(@PathVariable Long id) {
+        return service.cancelRecordDecrease(id);
+    }
+
     /** 삭제 — 보유 중인 어음만 */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {

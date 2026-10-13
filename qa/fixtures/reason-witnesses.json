@@ -4241,38 +4241,6 @@
   ],
   "in": "frontend/src/pages/production/PurchaseTaxStockPage.tsx"
  },
- "보유어음현황|부서": {
-  "claim": "어음에 부서가 없다",
-  "absent": [
-   "Department",
-   "department"
-  ],
-  "in": "backend/src/main/java/com/erp/accounting/promissorynote/PromissoryNote.java"
- },
- "보유어음현황|프로젝트": {
-  "claim": "어음에 프로젝트가 없다",
-  "absent": [
-   "Project",
-   "project"
-  ],
-  "in": "backend/src/main/java/com/erp/accounting/promissorynote/PromissoryNote.java"
- },
- "미지급어음현황|부서": {
-  "claim": "어음에 부서가 없다",
-  "absent": [
-   "Department",
-   "department"
-  ],
-  "in": "backend/src/main/java/com/erp/accounting/promissorynote/PromissoryNote.java"
- },
- "미지급어음현황|프로젝트": {
-  "claim": "어음에 프로젝트가 없다",
-  "absent": [
-   "Project",
-   "project"
-  ],
-  "in": "backend/src/main/java/com/erp/accounting/promissorynote/PromissoryNote.java"
- },
  "보유어음현황|정렬/소계기준": {
   "claim": "만기일자 오름차순 하나로 세운다",
   "present": [
@@ -4297,22 +4265,6 @@
    "key={n.id}"
   ]
  },
- "받을어음증가현황|부서": {
-  "claim": "어음에 부서가 없다",
-  "absent": [
-   "Department",
-   "department"
-  ],
-  "in": "backend/src/main/java/com/erp/accounting/promissorynote/PromissoryNote.java"
- },
- "받을어음증가현황|프로젝트": {
-  "claim": "어음에 프로젝트가 없다",
-  "absent": [
-   "Project",
-   "project"
-  ],
-  "in": "backend/src/main/java/com/erp/accounting/promissorynote/PromissoryNote.java"
- },
  "받을어음증가현황|정렬/소계기준": {
   "claim": "일자 오름차순 하나로 세운다",
   "present": [
@@ -4324,22 +4276,6 @@
   "present": [
    "key={n.id}"
   ]
- },
- "받을어음감소현황|부서": {
-  "claim": "어음에 부서가 없다",
-  "absent": [
-   "Department",
-   "department"
-  ],
-  "in": "backend/src/main/java/com/erp/accounting/promissorynote/PromissoryNote.java"
- },
- "받을어음감소현황|프로젝트": {
-  "claim": "어음에 프로젝트가 없다",
-  "absent": [
-   "Project",
-   "project"
-  ],
-  "in": "backend/src/main/java/com/erp/accounting/promissorynote/PromissoryNote.java"
  },
  "받을어음감소현황|정렬/소계기준": {
   "claim": "일자 오름차순 하나로 세운다",
@@ -4353,22 +4289,6 @@
    "key={n.id}"
   ]
  },
- "지급어음증가현황|부서": {
-  "claim": "어음에 부서가 없다",
-  "absent": [
-   "Department",
-   "department"
-  ],
-  "in": "backend/src/main/java/com/erp/accounting/promissorynote/PromissoryNote.java"
- },
- "지급어음증가현황|프로젝트": {
-  "claim": "어음에 프로젝트가 없다",
-  "absent": [
-   "Project",
-   "project"
-  ],
-  "in": "backend/src/main/java/com/erp/accounting/promissorynote/PromissoryNote.java"
- },
  "지급어음증가현황|정렬/소계기준": {
   "claim": "일자 오름차순 하나로 세운다",
   "present": [
@@ -4380,22 +4300,6 @@
   "present": [
    "key={n.id}"
   ]
- },
- "지급어음감소현황|부서": {
-  "claim": "어음에 부서가 없다",
-  "absent": [
-   "Department",
-   "department"
-  ],
-  "in": "backend/src/main/java/com/erp/accounting/promissorynote/PromissoryNote.java"
- },
- "지급어음감소현황|프로젝트": {
-  "claim": "어음에 프로젝트가 없다",
-  "absent": [
-   "Project",
-   "project"
-  ],
-  "in": "backend/src/main/java/com/erp/accounting/promissorynote/PromissoryNote.java"
  },
  "지급어음감소현황|정렬/소계기준": {
   "claim": "일자 오름차순 하나로 세운다",
@@ -4409,43 +4313,11 @@
    "key={n.id}"
   ]
  },
- "받을어음거래내역|부서": {
-  "claim": "어음에 부서가 없다",
-  "absent": [
-   "Department",
-   "department"
-  ],
-  "in": "backend/src/main/java/com/erp/accounting/promissorynote/PromissoryNote.java"
- },
- "받을어음거래내역|프로젝트": {
-  "claim": "어음에 프로젝트가 없다",
-  "absent": [
-   "Project",
-   "project"
-  ],
-  "in": "backend/src/main/java/com/erp/accounting/promissorynote/PromissoryNote.java"
- },
  "받을어음거래내역|데이터 보기형식": {
   "claim": "움직임 한 건이 한 줄인 원장이다",
   "present": [
    "g.lines.map"
   ]
- },
- "지급어음거래내역|부서": {
-  "claim": "어음에 부서가 없다",
-  "absent": [
-   "Department",
-   "department"
-  ],
-  "in": "backend/src/main/java/com/erp/accounting/promissorynote/PromissoryNote.java"
- },
- "지급어음거래내역|프로젝트": {
-  "claim": "어음에 프로젝트가 없다",
-  "absent": [
-   "Project",
-   "project"
-  ],
-  "in": "backend/src/main/java/com/erp/accounting/promissorynote/PromissoryNote.java"
  },
  "지급어음거래내역|데이터 보기형식": {
   "claim": "움직임 한 건이 한 줄인 원장이다",
@@ -5024,38 +4896,6 @@
    "sendStatus"
   ],
   "in": "backend/src/main/java/com/erp/quality/asrequest/AsRequest.java"
- },
- "받을어음조회|부서": {
-  "claim": "어음에 부서가 없다",
-  "absent": [
-   "department",
-   "Department"
-  ],
-  "in": "backend/src/main/java/com/erp/accounting/promissorynote/PromissoryNote.java"
- },
- "받을어음조회|프로젝트": {
-  "claim": "어음에 프로젝트가 없다",
-  "absent": [
-   "project",
-   "Project"
-  ],
-  "in": "backend/src/main/java/com/erp/accounting/promissorynote/PromissoryNote.java"
- },
- "지급어음조회|부서": {
-  "claim": "어음에 부서가 없다",
-  "absent": [
-   "department",
-   "Department"
-  ],
-  "in": "backend/src/main/java/com/erp/accounting/promissorynote/PromissoryNote.java"
- },
- "지급어음조회|프로젝트": {
-  "claim": "어음에 프로젝트가 없다",
-  "absent": [
-   "project",
-   "Project"
-  ],
-  "in": "backend/src/main/java/com/erp/accounting/promissorynote/PromissoryNote.java"
  },
  "고정자산대장|부서": {
   "claim": "고정자산에 부서가 없다",
