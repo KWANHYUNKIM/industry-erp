@@ -8,7 +8,7 @@ import LabelMasterModal from '../../features/board/components/LabelMasterModal'
 import { fetchLabels, type BoardLabel } from '../../features/board/labels'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
-import type { WorkPost } from '../../types/api'
+import type { WorkPost, WorkPostStatus } from '../../types/api'
 import EcPeriodPicks, { ymd, BOARD_PICKS } from '../../components/EcPeriodPicks'
 import UserPickModal from '../../features/schedule/components/UserPickModal'
 import { useShortcut } from '../../utils/useShortcut'
@@ -52,6 +52,10 @@ function stampText(iso?: string | null) {
 /** forwardAll: 원본 [전달자] 의 '전체'(켬) / '선택'(이름을 고른다). */
 type Form = {
   title: string; content: string; forwardAll: boolean; forwardTo: string[]; ccTo: string[]; notice: boolean; postDate: string; stage: string
+  /** 원본 [참조자] 의 '전체'(통합회의록 · 팀별회의록은 처음 값이 '전체' — BoardCfg.ccAll). 다른 게시판은 늘 '선택'. */
+  ccAll: boolean
+  /** 통합회의록 입력 창 [진행상태] 진행중 · 완료(WORK 꼴 진행상태 — 저장 뒤 /status 로 맞춘다). */
+  status: WorkPostStatus
   /** 통합회의록 [주 차 구분] 1 ~ 5 · 부서 칸마다 이은 팀별회의록 글 id(MINUTE_TEAMS 차례). */
   weekNo: number | null; links: (number | null)[]
   /** 업무관리 예시 게시판의 입력항목(이름 → 값). BoardCfg.extras. */
@@ -61,7 +65,7 @@ type Form = {
 }
 const emptyForm = (stage = ''): Form => ({
   title: '', content: '', forwardAll: true, forwardTo: [], ccTo: [], notice: false, postDate: today(), stage, weekNo: null, links: [null, null, null, null], extra: {},
-  project: '', kanbanPostId: null,
+  project: '', kanbanPostId: null, ccAll: false, status: 'IN_PROGRESS',
 })
 
 export type PostBoardCode = 'WORK' | 'NOTICE' | 'SHARED' | 'MEETING' | 'SIGN' | 'MINUTES'
@@ -96,8 +100,11 @@ const WEEKS = [1, 2, 3, 4, 5]
 type BoardCfg = {
   wide: boolean; stages: string[] | null; labels: boolean; period: 'yearBack' | 'lastYear'
   stageLabel?: string; defaultStage?: string
-  /** 통합회의록 꼴: 작성자 · 전달자 · 진행상태 열 대신 부서 회의록 넷 · 주 차, 입력 창에 부서 칸 · [주 차 구분]. */
+  /** 통합회의록 꼴: 작성자 · 전달자 · 진행상태 열 대신 부서 회의록 넷 · 주 차, 입력 창에 부서 칸 · [주 차 구분].
+   *  입력 창 차례도 원본대로 제목 · 진행상태(진행중 · 완료) · 전달자 · 공지사항여부(Y · N 라디오, 처음 N) · 참조자(2026-10-14 실측). */
   minutes?: boolean
+  /** 입력 창 [참조자] 처음 값이 '전체'(원본 통합회의록 · 팀별회의록, 2026-10-14 · 10-13 실측). */
+  ccAll?: boolean
   /** 업무관리 예시 게시판: 격자 열 차례(없으면 wide · minutes 로 정한 예전 꼴). */
   cols?: Col[]
   /** 업무관리 예시 게시판: 입력 창의 게시판별 입력항목. */
@@ -130,7 +137,7 @@ const BOARD_CFG: Record<PostBoardCode, BoardCfg> = {
   MEETING: {
     wide: false, labels: true, period: 'lastYear', stageLabel: '부서구분',
     stages: ['경영지원팀', '구매팀', '생산팀', '영업팀', '항목을 자유롭게 추가 할 수 있습니다.'],
-    defaultStage: '항목을 자유롭게 추가 할 수 있습니다.',
+    defaultStage: '항목을 자유롭게 추가 할 수 있습니다.', ccAll: true,
   },
   /* 간판제작 프로젝트관리(E200070, 2026-10-13 실측): 알약 [전체][수주견적][디자인팀 시안][자재발주, 제작][현장시공], 기본 기간 전년. */
   SIGN: { wide: true, stages: ['수주견적', '디자인팀 시안', '자재발주, 제작', '현장시공'], labels: true, period: 'lastYear' },
@@ -138,7 +145,7 @@ const BOARD_CFG: Record<PostBoardCode, BoardCfg> = {
    * 통합회의록(E200066, 2026-10-13 직접 등록 · 수정 · 삭제): 알약 [전체][진행중][완료], 기본 기간 전년, 라벨 없음.
    * 격자 게시글번호 · 제목 · 경영지원팀 회의록 · 구매팀 회의록 · 생산팀 회의록 · 영업팀 회의록 · 주 차 · 첨부 · 조회.
    */
-  MINUTES: { wide: false, stages: null, labels: false, period: 'lastYear', minutes: true, contentOptional: true },
+  MINUTES: { wide: false, stages: null, labels: false, period: 'lastYear', minutes: true, contentOptional: true, ccAll: true },
   /*
    * 업무관리 의 예시 게시판(2026-10-14 loginaa 목록 · 입력 창 실측). 원본 목록의 글은 모두 '이카운트' 가 쓴 예시라
    * 우리 쪽은 빈 게시판으로 시작한다. 원본에서 🚗 1. 차량 정보관리에 제목만 넣고 저장 → 저장됨(본문 없이), 번호는 그 게시판 혼자 센다.
@@ -319,6 +326,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
   const [pickFor, setPickFor] = useState<'forwardTo' | 'ccTo' | null>(null)
   /** 전달자 '전체 / 선택' 고르기 판. */
   const [forwardMenu, setForwardMenu] = useState(false)
+  const [ccMenu, setCcMenu] = useState(false)
   /** 하단 [진행상태변경 ▲] 의 진행상태 목록 판. */
   const [stageMenu, setStageMenu] = useState(false)
   /** 바깥 기능 버튼(보내기 · 업무지원AI · 이력조회 · 웹자료올리기)을 눌렀을 때의 안내. */
@@ -383,7 +391,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
   function openNew() {
     setEditId(null)
     // 원본 통합회의록 입력 창은 제목에 오늘 날짜가 미리 들어 있다('2026/10/13 ').
-    setForm({ ...emptyForm(), title: cfg.minutes ? `${dateText(today())} ` : '', content: cfg.template ?? '' })
+    setForm({ ...emptyForm(), title: cfg.minutes ? `${dateText(today())} ` : '', content: cfg.template ?? '', ccAll: !!cfg.ccAll })
     setAttachment(null)
     setError('')
     setShowForm(true)
@@ -396,6 +404,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
     setForm({
       title: r.title, content: r.content,
       forwardAll: !r.forwardTo, forwardTo: splitNames(r.forwardTo), ccTo: splitNames(r.ccTo),
+      ccAll: !!cfg.ccAll && !r.ccTo, status: r.status,
       notice: r.notice, postDate: r.postDate, stage: r.stage ?? '',
       weekNo: r.weekNo ?? null,
       links: MINUTE_TEAMS.map((_, i) => r.meetingLinks?.[i] ?? null),
@@ -445,6 +454,22 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
     }
   }
 
+  /** 입력 창 [제목] 줄 — 통합회의록은 맨 위, 다른 게시판은 참조자 아래. */
+  const titleRow = (
+    <li className="wide">
+      <div className="title">제목</div>
+      <div className="form flex-col items-start">
+        <input className="ec-input w-full" placeholder="제목" value={form.title}
+               onChange={(e) => set('title', e.target.value)} />
+        {/* 원본은 제목 칸 바로 아래에 [공지사항여부]를 단다. 켜면 목록 맨 위에 한 번 더 붙는다. */}
+        {!cfg.minutes && <label className="inline-flex items-center gap-[6px] text-[12px] cursor-pointer">
+          공지사항여부
+          <input type="checkbox" checked={form.notice} onChange={(e) => set('notice', e.target.checked)} />
+        </label>}
+      </div>
+    </li>
+  )
+
   async function submit() {
     setError('')
     if (!form.title.trim()) return setError('제목을 입력하세요.')
@@ -455,7 +480,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
       title: form.title, content: form.content,
       // 전달자 '전체' 는 null 로 둔다. 알림은 보내지 않는다 — 우리는 누구에게 전달했는지 적어 두기만 한다.
       forwardTo: form.forwardAll ? null : form.forwardTo.join(', '),
-      ccTo: form.ccTo.length ? form.ccTo.join(', ') : null,
+      ccTo: form.ccAll || !form.ccTo.length ? null : form.ccTo.join(', '),
       notice: form.notice,
       stage: namedStages ? (form.stage || firstStage) : null,
       // 수정은 통째로 덮는다 — 첨부를 안 보내면 서버가 뗀다(예전 수정이 그래서 첨부를 잃었다).
@@ -471,12 +496,15 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
     try {
       if (editId != null) {
         // 원본: 수정 저장 뒤에는 목록이 아니라 그 글의 View 로 돌아간다(2026-10-13 실측).
-        const res = await api.put<WorkPost>(`/work-posts/${editId}`, common)
+        let res = await api.put<WorkPost>(`/work-posts/${editId}`, common)
+        // 통합회의록 [진행상태] — 저장 요청에는 칸이 없어 바뀌었을 때만 /status 로 맞춘다.
+        if (cfg.minutes && res.data.status !== form.status) res = await api.patch<WorkPost>(`/work-posts/${editId}/status`, { status: form.status })
         setShowForm(false)
         setEditId(null)
         setViewing(res.data)
       } else {
-        await api.post('/work-posts', { ...common, board, postDate: form.postDate })
+        const res = await api.post<WorkPost>('/work-posts', { ...common, board, postDate: form.postDate })
+        if (cfg.minutes && form.status !== 'IN_PROGRESS') await api.patch(`/work-posts/${res.data.id}/status`, { status: form.status })
         setShowForm(false)
       }
       load()
@@ -968,6 +996,19 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
       <Modal error={error} open={showForm} title={`${title}입력${editId != null ? '(수정)' : ''}`}
              onClose={() => setShowForm(false)} width={780}>
         <ul className="ec-form mb-[10px]">
+          {cfg.minutes && titleRow}
+          {/* 원본 통합회의록 [진행상태] — 진행중 · 완료(처음 진행중). 원본 고르기의 '==' 는 두지 않았다. */}
+          {cfg.minutes && (
+            <li className="wide">
+              <div className="title">진행상태</div>
+              <div className="form">
+                <select className="ec-input w-[260px]" aria-label="진행상태" value={form.status} onChange={(e) => set('status', e.target.value as WorkPostStatus)}>
+                  <option value="IN_PROGRESS">진행중</option>
+                  <option value="DONE">완료</option>
+                </select>
+              </div>
+            </li>
+          )}
           {/* 원본 입력 창 맨 위 [진행상태] — 회사가 정한 이름(통합게시판 'Default' 하나). */}
           {namedStages && (
             <li className="wide">
@@ -1006,27 +1047,45 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
                                               onRemove={(n) => set('forwardTo', form.forwardTo.filter((x) => x !== n))} />}
             </div>
           </li>
+          {cfg.minutes && (
+            <li className="wide">
+              <div className="title">공지사항여부</div>
+              <div className="form gap-[12px] text-[12px]">
+                {([['Y', true], ['N', false]] as const).map(([t, v]) => (
+                  <label key={t} className="inline-flex items-center gap-[4px] cursor-pointer">
+                    <input type="radio" name="minutes-notice" checked={form.notice === v} onChange={() => set('notice', v)} /> {t}
+                  </label>
+                ))}
+              </div>
+            </li>
+          )}
           <li className="wide">
             <div className="title">참조자</div>
-            <div className="form gap-[6px]">
-              <span className="text-ec-ink">선택</span>
-              <NameChips names={form.ccTo} placeholder="참조자" onPick={() => setPickFor('ccTo')}
-                         onRemove={(n) => set('ccTo', form.ccTo.filter((x) => x !== n))} />
+            <div className="form gap-[6px] relative">
+              {cfg.ccAll ? (
+                <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-navy underline"
+                        onClick={() => setCcMenu((v) => !v)}>{form.ccAll ? '전체' : '선택'}</button>
+              ) : <span className="text-ec-ink">선택</span>}
+              {ccMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setCcMenu(false)} />
+                  <ul role="menu" aria-label="참조자"
+                      className="absolute top-full left-0 mt-[2px] z-[41] min-w-[110px] py-[4px] bg-ec-panel border border-ec-line border-solid rounded-ec shadow-lg">
+                    {(['전체', '선택'] as const).map((m) => (
+                      <li key={m}>
+                        <button type="button" role="menuitem" className="no-ec w-full text-left px-[10px] py-[4px] bg-transparent border-0 cursor-pointer hover:bg-ec-blue-wash"
+                                onClick={() => { setCcMenu(false); set('ccAll', m === '전체') }}>{m}</button>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+              {!form.ccAll && <NameChips names={form.ccTo} placeholder="참조자" onPick={() => setPickFor('ccTo')}
+                                         onRemove={(n) => set('ccTo', form.ccTo.filter((x) => x !== n))} />}
             </div>
           </li>
-          {/* 원본 차례: 진행상태 · 권한 · 비밀번호 · 전달자 · 참조자 · 제목(+공지사항여부) · 첨부 */}
-          <li className="wide">
-            <div className="title">제목</div>
-            <div className="form flex-col items-start">
-              <input className="ec-input w-full" placeholder="제목" value={form.title}
-                     onChange={(e) => set('title', e.target.value)} />
-              {/* 원본은 제목 칸 바로 아래에 [공지사항여부]를 단다. 켜면 목록 맨 위에 한 번 더 붙는다. */}
-              <label className="inline-flex items-center gap-[6px] text-[12px] cursor-pointer">
-                공지사항여부
-                <input type="checkbox" checked={form.notice} onChange={(e) => set('notice', e.target.checked)} />
-              </label>
-            </div>
-          </li>
+          {/* 원본 차례: 진행상태 · 권한 · 비밀번호 · 전달자 · 참조자 · 제목(+공지사항여부) · 첨부 (통합회의록은 제목이 맨 위 · 공지는 Y/N 줄) */}
+          {!cfg.minutes && titleRow}
           {/* 원본 간판제작 입력 창 [프로젝트] · [칸반연결] — 📅 프로젝트 진행현황 칸반 글의 판에 이 글이 [프로젝트] 열의 카드로 뜬다. */}
           {board === 'SIGN' && (
             <>
