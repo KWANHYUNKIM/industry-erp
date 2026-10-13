@@ -596,15 +596,15 @@ export default function QuotationPage() {
               <input type="checkbox" aria-label="전체 선택" checked={shown.length > 0 && shown.every((q) => picked.has(q.id))}
                 onChange={(e) => setPicked(e.target.checked ? new Set(shown.map((q) => q.id)) : new Set())} />
             </th>
-            <th>일자-No.</th>
-            <th>거래처명</th>
-            <th>사원(담당)명</th>
+            <th className="w-[152px]">일자-No.</th>
+            <th className="w-[299px]">거래처명</th>
+            <th className="w-[121px]">사원(담당)명</th>
             <th>품목명(요약)</th>
-            <th>유효기간</th>
-            <th className="text-right">견적금액합계</th>
-            <th className="text-center">진행상태</th>
-            <th className="text-center">생성한전표</th>
-            <th className="text-center">인쇄</th>
+            <th className="w-[121px]">유효기간</th>
+            <th className="w-[143px] text-right">견적금액합계</th>
+            <th className="w-[106px] text-center">진행상태</th>
+            <th className="w-[123px] text-center">생성한전표</th>
+            <th className="w-[55px] text-center">인쇄</th>
           </tr>
         </thead>
         <tbody>
