@@ -87,7 +87,9 @@ public class OrderReleaseService {
                 o.getEmployee() != null ? o.getEmployee().getId() : null,
                 taxable, r.getSale() != null ? r.getSale().getId() : null,
                 r.getLines().stream().map(l -> new DetailLine(l.getSalesOrderLine().getItem().getId(),
-                        l.getQuantity(), l.getSalesOrderLine().getUnitPrice())).toList());
+                        l.getQuantity(), l.getSalesOrderLine().getUnitPrice(),
+                        l.getSalesOrderLine().getItem().getCode(), l.getSalesOrderLine().getItem().getName())).toList(),
+                o.getPartner().getName(), o.getWarehouse() != null ? o.getWarehouse().getName() : null);
     }
 
     /**
@@ -108,6 +110,13 @@ public class OrderReleaseService {
                         + ")보다 많습니다. - " + l.getItem().getName());
             }
         }
+        /*
+         * 주문마다 한 건씩, <b>화면에 보이던 차례대로</b> 번호를 매긴다 — 원본에서 -6 · -5 두 주문을 함께 출고하면
+         * 목록 위의 -6 이 출고 -1, -5 가 -2 가 됐다(2026-10-13 실측). 조회 결과의 차례는 정해져 있지 않아 요청 차례로 맞춘다.
+         */
+        List<Long> askOrder = new ArrayList<>(qtyByLine.keySet());
+        lines = new ArrayList<>(lines);
+        lines.sort(Comparator.comparingInt(l -> askOrder.indexOf(l.getId())));
         Map<SalesOrder, List<SalesOrderLine>> byOrder = lines.stream()
                 .collect(Collectors.groupingBy(SalesOrderLine::getSalesOrder, LinkedHashMap::new, Collectors.toList()));
         List<ReleaseRow> made = new ArrayList<>();

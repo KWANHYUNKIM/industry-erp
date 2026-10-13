@@ -294,6 +294,7 @@ export default function TradeEntry({ mode, adjust = false }: { mode: Mode; adjus
    * 거래처 · 출하창고 · 품목 · 수량(주문 단가)으로 차서 뜨고, 저장하면 처리 탭 [판매] 칸이 그 판매 일자-No. 로 바뀐다(2026-10-13 실측).
    */
   const fromReleaseId = mode === 'sales' ? searchParams.get('fromRelease') : null
+  const releaseIds = (fromReleaseId ?? '').split(',').filter(Boolean)
   const releaseLoaded = useRef(false)
 
   // ── 마스터 ─────────────────────────────────────────────
@@ -527,23 +528,30 @@ export default function TradeEntry({ mode, adjust = false }: { mode: Mode; adjus
   useEffect(() => {
     if (!fromReleaseId || releaseLoaded.current) return
     releaseLoaded.current = true
-    void api.get<ReleaseDetail>(`/order-releases/${fromReleaseId}`).then(({ data: r }) => {
+    /*
+     * 여러 건(?fromRelease=1,2)이면 <b>한 판매로 묶는다</b> — 원본 처리 탭에서 두 건을 골라 [판매입력] 하거나
+     * 출고등록 창의 [판매입력] 을 켜고 두 주문을 한 번에 출고하면 판매입력 창에 두 주문의 품목이 한꺼번에 차고,
+     * 저장하면 두 처리 건의 [판매] 칸이 같은 판매(2026/10/13-7)를 가리킨다(2026-10-13 실측). 머리는 첫 건을 따른다.
+     */
+    void Promise.all(releaseIds.map((id) => api.get<ReleaseDetail>(`/order-releases/${id}`))).then((res) => {
+      const rs = res.map((x) => x.data)
+      const r = rs[0]
       setPartnerId(String(r.partnerId))
       if (r.warehouseId != null) setWarehouseId(String(r.warehouseId))
       setProjectId(r.projectId != null ? String(r.projectId) : '')
       setEmployeeId(r.employeeId != null ? String(r.employeeId) : '')
       setTaxable(r.taxable)
       setLines([
-        ...r.lines.map((l) => ({
+        ...rs.flatMap((rr) => rr.lines.map((l) => ({
           ...emptyLine(),
           itemId: String(l.itemId),
           quantity: String(l.quantity),
           unitPrice: String(l.unitPrice),
-          sourceOrderId: String(r.orderId),
+          sourceOrderId: String(rr.orderId),
           sourceDocType: '주문서',
-          sourceDocDate: r.orderDate,
-          sourceDocNo: r.orderNo,
-        })),
+          sourceDocDate: rr.orderDate,
+          sourceDocNo: rr.orderNo,
+        }))),
         emptyLine(),
       ])
     }).catch((err) => flash(extractErrorMessage(err)))
@@ -1297,7 +1305,7 @@ export default function TradeEntry({ mode, adjust = false }: { mode: Mode; adjus
       deleteTemp()
       if (fromReleaseId && !editing) {
         // 출고처리 건에 이 판매를 걸고 처리 탭으로 돌아간다 — 원본도 창이 닫히고 [판매] 칸에 일자-No. 가 찍힌다.
-        await api.patch(`/order-releases/${fromReleaseId}/sale`, { saleId: res.data.id })
+        await Promise.all(releaseIds.map((id) => api.patch(`/order-releases/${id}/sale`, { saleId: res.data.id })))
           .catch(() => flash('판매는 저장했지만 출고처리에 잇지 못했습니다.'))
         navigate('/sales/order-release?tab=처리')
         return

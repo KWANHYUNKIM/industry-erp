@@ -11,6 +11,8 @@ import { EcCond } from '../../components/EcStatusPanel'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { dateNo } from '../../utils/dateNo'
 import { useShortcut } from '../../utils/useShortcut'
+import { fillAndPrint, openPrintWindow } from '../../utils/print'
+import { releaseSlipHtml, type ReleaseSlip } from '../../utils/releaseSlipDocument'
 
 /**
  * 주문서출고처리(원본 E040230 · 재고 I › 영업관리 › 주문서). 2026-10-13 loginaa 직접 써 보며 잰 것:
@@ -23,8 +25,13 @@ import { useShortcut } from '../../utils/useShortcut'
  *   하단 [판매입력] · Email · 인쇄 · Excel · 처리구분변경 · [처리취소].
  *   [처리취소] 는 판매가 있으면 '이미 판매입력된 전표가 있습니다. 진행하겠습니까?' 를 묻고, 처리만 지운다(판매는 남고 잔량이 돌아온다).
  *
- * 아직 없는 것: Email(바깥 발송) · 처리구분변경(처리구분이 '처리' 하나뿐이라 바꿀 데가 없어 안 쟀다) · 인쇄 열 ·
- * 출고등록 창의 [판매입력] 체크(켜고 저장하는 흐름은 안 쟀다).
+ * 2026-10-13 둘째 실측(QA재고1 주문 -5 · -6 을 함께 출고):
+ * - 여러 주문을 한 번에 [출고] 하면 <b>주문마다 한 건</b>(목록 위의 -6 이 출고 -1, -5 가 -2). 출고등록 창의 거래처 칸은 비어 있다.
+ * - 출고등록 창 [판매입력] 을 켜고 저장하면 판매입력 창이 <b>두 주문의 품목을 한꺼번에</b> 담아 뜨고, 저장하면 두 처리 건의
+ *   [판매] 칸이 같은 판매(2026/10/13-7)를 가리킨다. 처리 탭에서 둘을 골라 하단 [판매입력] 해도 같다.
+ * - [인쇄] 열 → '출 고 증' 미리보기(창고 · 출고일자 · 납품처 · 품목코드 · 품목명 · 수량 · 인수). [처리취소] 는 '처리취소하겠습니까?'.
+ *
+ * 아직 없는 것: Email(바깥 발송) · 처리구분변경(처리구분이 '처리' 하나뿐이라 바꿀 데가 없어 안 쟀다).
  */
 type Tab = 'PENDING' | 'DONE'
 
@@ -77,6 +84,8 @@ export default function OrderReleasePage() {
   const [regOpen, setRegOpen] = useState(false)
   const [regDate, setRegDate] = useState(ymd(new Date()))
   const [regError, setRegError] = useState('')
+  /** 출고등록 창의 [판매입력] — 켜고 저장하면 방금 만든 처리 건들로 판매입력을 연다. */
+  const [regSale, setRegSale] = useState(false)
   useShortcut('F8', () => void saveRelease(), regOpen)
 
   async function load() {
@@ -112,8 +121,9 @@ export default function OrderReleasePage() {
     const lines = shownPending.filter((p) => checked.has(p.orderLineId))
       .map((p) => ({ orderLineId: p.orderLineId, quantity: Number(qty[p.orderLineId] || p.remainQty) }))
     try {
-      await api.post('/order-releases', { releaseDate: regDate, lines })
+      const made = (await api.post<ReleaseRow[]>('/order-releases', { releaseDate: regDate, lines })).data
       setRegOpen(false); setChecked(new Set()); setQty({})
+      if (regSale && made.length > 0) { navigate(`/sales/sell?fromRelease=${made.map((r) => r.id).join(',')}`); return }
       void load()
     } catch (err) { setRegError(extractErrorMessage(err)) }
   }
@@ -122,7 +132,9 @@ export default function OrderReleasePage() {
   async function cancelChecked() {
     const rows = done.filter((r) => checked.has(r.id))
     if (rows.length === 0) return alert(NO_PICK)
-    if (rows.some((r) => r.saleId != null) && !confirm('이미 판매입력된 전표가 있습니다.\n진행하겠습니까?')) return
+    if (rows.some((r) => r.saleId != null)
+      ? !confirm('이미 판매입력된 전표가 있습니다.\n진행하겠습니까?')
+      : !confirm('처리취소하겠습니까?')) return
     const fails: string[] = []
     for (const r of rows) {
       try { await api.delete(`/order-releases/${r.id}`) } catch (err) { fails.push(extractErrorMessage(err)) }
@@ -132,11 +144,22 @@ export default function OrderReleasePage() {
     if (fails.length) alert(fails.join('\n'))
   }
 
-  /** 하단 [판매입력] — 고른 건 중 아직 판매가 없는 첫 건으로 판매입력을 연다. */
+  /** 하단 [판매입력] — 고른 건 중 아직 판매가 없는 것들을 <b>한 판매로 묶어</b> 판매입력을 연다(원본도 그렇다). */
   function saleFromChecked() {
-    const r = done.find((x) => checked.has(x.id) && x.saleId == null)
-    if (!r) return alert(checked.size === 0 ? NO_PICK : '이미 판매입력된 전표가 있습니다.')
-    navigate(`/sales/sell?fromRelease=${r.id}`)
+    const rs = done.filter((x) => checked.has(x.id) && x.saleId == null)
+    if (rs.length === 0) return alert(checked.size === 0 ? NO_PICK : '이미 판매입력된 전표가 있습니다.')
+    navigate(`/sales/sell?fromRelease=${rs.map((r) => r.id).join(',')}`)
+  }
+
+  /** [인쇄] — 출고증 미리보기. 창은 누른 순간 열어 두고(팝업 차단) 내용은 받아 와서 채운다. */
+  async function printSlips(ids: number[]) {
+    if (ids.length === 0) return alert(NO_PICK)
+    const win = openPrintWindow()
+    if (!win) return
+    try {
+      const ds = await Promise.all(ids.map((id) => api.get<ReleaseSlip>(`/order-releases/${id}`)))
+      fillAndPrint(win, releaseSlipHtml(ds.map((d) => d.data)), false)
+    } catch (err) { win.close(); setError(extractErrorMessage(err)) }
   }
 
   const rows = tab === 'PENDING' ? shownPending : done
@@ -154,7 +177,7 @@ export default function OrderReleasePage() {
           ]
         : [
             { label: '판매입력', primary: true, disabled: checked.size === 0, onClick: saleFromChecked },
-            { label: '인쇄' },
+            { label: '인쇄', onClick: () => void printSlips(done.filter((r) => checked.has(r.id)).map((r) => r.id)) },
             { label: 'Excel' },
             { label: '처리취소', disabled: checked.size === 0, onClick: () => void cancelChecked() },
           ]}
@@ -258,10 +281,11 @@ export default function OrderReleasePage() {
               <th>품목</th>
               <th className="text-right">출고수량합계</th>
               <th className="text-center">판매</th>
+              <th className="text-center">인쇄</th>
             </tr>
           </thead>
           <tbody>
-            {loading ? <EcEmptyRow colSpan={7} loading /> : done.length === 0 && <EcEmptyRow colSpan={7} />}
+            {loading ? <EcEmptyRow colSpan={8} loading /> : done.length === 0 && <EcEmptyRow colSpan={8} />}
             {!loading && done.map((r) => (
               <tr key={r.id}>
                 <td className="text-center">
@@ -277,6 +301,7 @@ export default function OrderReleasePage() {
                     ? <a className="cursor-pointer" onClick={() => navigate(`/sales/sell?edit=${r.saleId}`)}>{dateNo(r.saleDate, r.saleNo).replace(' -', '-')}</a>
                     : <a className="cursor-pointer" onClick={() => navigate(`/sales/sell?fromRelease=${r.id}`)}>입력</a>}
                 </td>
+                <td className="text-center"><a className="cursor-pointer" onClick={() => void printSlips([r.id])}>인쇄</a></td>
               </tr>
             ))}
           </tbody>
@@ -301,6 +326,9 @@ export default function OrderReleasePage() {
         <div className="flex gap-[4px] mt-[9px]">
           <button type="button" className="ec-btn ec-btn-primary" onClick={() => void saveRelease()}>저장(F8)</button>
           <button type="button" className="ec-btn" onClick={() => setRegOpen(false)}>닫기</button>
+          <label className="inline-flex items-center gap-[3px] ml-[6px]">
+            <input type="checkbox" checked={regSale} onChange={(e) => setRegSale(e.target.checked)} /> 판매입력
+          </label>
         </div>
       </Modal>
     </EcListShell>

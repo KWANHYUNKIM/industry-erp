@@ -32,9 +32,12 @@ public final class OrderReleaseDtos {
             Long id, String releaseNo, LocalDate releaseDate,
             Long orderId, String orderNo, LocalDate orderDate,
             Long partnerId, Long warehouseId, Long projectId, Long employeeId, boolean taxable,
-            Long saleId, List<DetailLine> lines) {}
+            Long saleId, List<DetailLine> lines,
+            /** 처리 탭 [인쇄] '출 고 증' 의 창고 · 납품처(2026-10-13 실측: 창고 본사창고 · 납품처 QA재고1-거래처). */
+            String partnerName, String warehouseName) {}
 
-    public record DetailLine(Long itemId, BigDecimal quantity, BigDecimal unitPrice) {}
+    /** itemCode · itemName — 출고증의 품목코드 · 품목명 열. */
+    public record DetailLine(Long itemId, BigDecimal quantity, BigDecimal unitPrice, String itemCode, String itemName) {}
 
     /** '출고등록' 창 [저장(F8)] — 일자와 고른 주문 줄의 출고수량. 처리구분은 '처리' 하나뿐이라 받지 않는다. */
     public record CreateReleaseRequest(
