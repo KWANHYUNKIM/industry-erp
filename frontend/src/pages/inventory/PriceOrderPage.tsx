@@ -119,7 +119,8 @@ export default function PriceOrderPage() {
             {loading ? (
               <tr><td colSpan={4} className="ec-empty">불러오는 중…</td></tr>
             ) : lines.map((l, i) => (
-              <tr key={l.functionName}>
+              // 원본 줄 높이 36.5(라디오 칸) — 우리 28.9 였다
+              <tr key={l.functionName} className="h-[36.5px]">
                 <td>{l.functionName}</td>
                 <td className="text-right">{i + 1}</td>
                 <td className="text-center">
