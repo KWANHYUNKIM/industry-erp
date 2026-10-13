@@ -4,7 +4,6 @@ import com.erp.inventory.lot.Lot;
 import com.erp.inventory.lot.LotTransaction;
 import com.erp.inventory.lot.LotStatus;
 import com.erp.inventory.lot.LotTxType;
-import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -21,7 +20,7 @@ public final class LotDtos {
 
     /** 로트 실사 조정 요청. 실사수량으로 로트 재고를 맞춘다. */
     public record AdjustLotRequest(
-            @PositiveOrZero(message = "실사수량은 0 이상이어야 합니다.")
+            /* 음수 허용 — 원본 시리얼/로트No.재고조정이 -1 을 저장한다(2026-10-13 실측). */
             @NotNull(message = "실사수량을 입력하세요.") BigDecimal actualQty,
             @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
             String note

@@ -129,10 +129,12 @@ public class LotService {
     @Transactional
     public LotResponse adjust(Long id, AdjustLotRequest req) {
         Lot lot = getLot(id);
+        /*
+         * 음수도 받는다 — 원본 시리얼/로트No.재고조정(E040634)은 [합계]에 -1 을 넣어 저장해도 '저장되었습니다.' 이고
+         * 그 로트 잔량이 -1.00 이 된다(2026-10-13 ryu_0025 0 → -1 → 0 실측). 원본 로트 재고는 원래 음수가 흔하다
+         * (재고현황에 -1.00 · -5.00 줄이 그대로 찍힌다).
+         */
         BigDecimal target = req.actualQty();
-        if (target.signum() < 0) {
-            throw ApiException.badRequest("실사수량은 0 이상이어야 합니다.");
-        }
         BigDecimal delta = target.subtract(lot.getStockQty());
         if (delta.signum() == 0) {
             throw ApiException.badRequest("실사수량이 현재고와 같습니다. 조정할 차이가 없습니다.");

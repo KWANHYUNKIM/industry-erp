@@ -19,6 +19,16 @@
         "expect:[...document.querySelectorAll('.modal tr, [role=dialog] tr, tr')].some((tr) => tr.innerText.includes('재고조정') && /\\d{4}\\/\\d{2}\\/\\d{2} -\\d+/.test(tr.cells[0]?.innerText ?? ''))",
         "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const r = await fetch('/api/lots/' + sessionStorage.getItem('adjLot') + '/adjust', { method: 'PATCH', headers: H, body: JSON.stringify({ actualQty: 0, note: 'QA재고2 되돌림' }) }); return r.ok })()"
       ]
+    },
+    {
+      "name": "합계에 -1 → 저장되었습니다 · 잔량 -1 (원본 E040634 는 음수를 저장한다, 2026-10-13 실측) → 0 으로 되돌림",
+      "path": "/quality/lot-adjust",
+      "steps": [
+        "wait:2500",
+        "js:(async () => { const S = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; const W = (ms) => new Promise((r) => setTimeout(r, ms)); S([...document.querySelectorAll('input')].find((x) => !x.type || x.type === 'text' ? x.closest('li')?.innerText.includes('시리얼/로트No.') : false), 'QA재고2-ADJ'); await W(300); S(document.querySelector('input[aria-label=\"QA재고2-ADJ 합계\"]'), '-1'); S(document.querySelector('input[aria-label=\"QA재고2-ADJ 적요\"]'), 'QA재고2'); await W(200); [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === '저장(F8)').click(); await W(1500); return 'ok' })()",
+        "expect:document.body.innerText.includes('저장되었습니다.') && Number(document.querySelector('input[aria-label=\"QA재고2-ADJ 합계\"]').value) === -1",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const lot = (await (await fetch('/api/lots', { headers: H })).json()).find((x) => x.lotNo === 'QA재고2-ADJ'); const ok = Number(lot.stockQty) === -1; await fetch('/api/lots/' + lot.id + '/adjust', { method: 'PATCH', headers: H, body: JSON.stringify({ actualQty: 0, note: 'QA재고2 되돌림' }) }); return ok })()"
+      ]
     }
   ]
 }
