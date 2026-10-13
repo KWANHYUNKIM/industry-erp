@@ -584,6 +584,10 @@
   "quality/QualityRequestEntryPage.tsx"
  ],
  [
+  "품질검사입력",
+  "quality/QualityInspectionEntryPage.tsx"
+ ],
+ [
   "창고등록",
   "inventory/WarehousesPage.tsx"
  ],

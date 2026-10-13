@@ -29,7 +29,7 @@
       ]
     },
     {
-      "name": "[검사요청] → 요청 고르기 → [잔량적용] 으로 줄이 차고 → 저장하면 요청이 완료 · 연결전표 → 지움",
+      "name": "[검사요청] → 요청 고르기 → [잔량적용] 으로 줄이 차고 → 저장해도 요청은 진행중 · 잔량 0 · 검사 하나 이어짐(원본 2026-10-14) · [출처] 빈칸 → 지움",
       "path": "/quality/inspection",
       "steps": [
         "wait:1500",
@@ -45,9 +45,11 @@
         "expect:[...document.querySelectorAll('[role=dialog] tbody input.text-right')][0].value === '3'",
         "clicklast:저장(F8)",
         "wait:1500",
-        "expect:(async () => { const x = JSON.parse(sessionStorage.getItem('qp')); const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const r = (await (await fetch('/api/quality-inspection-requests', { headers: H })).json()).find((y) => y.id === x.id); x.q = r.inspections[0] && r.inspections[0].id; sessionStorage.setItem('qp', JSON.stringify(x)); return r.status === 'INSPECTED' && r.inspections.length === 1 })()",
-        "expect:[...document.querySelectorAll('tbody tr')].some((t) => t.cells[7] && t.cells[7].innerText.trim() === '검사요청')",
-        "expect:(async () => { const x = JSON.parse(sessionStorage.getItem('qp')); const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; await fetch('/api/quality-inspections/' + x.q, { method: 'DELETE', headers: H }); const d = await fetch('/api/quality-inspection-requests/' + x.id, { method: 'DELETE', headers: H }); return d.status === 204 })()"
+        "js:(async () => { const x = JSON.parse(sessionStorage.getItem('qp')); const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const r = (await (await fetch('/api/quality-inspection-requests', { headers: H })).json()).find((y) => y.id === x.id); x.q = r.inspections[0] && r.inspections[0].id; x.st = r.status; x.left = Number(r.remainingQty); x.n = r.inspections.length; sessionStorage.setItem('qp', JSON.stringify(x)); return JSON.stringify({ q: x.q, st: x.st, left: x.left, n: x.n }) })()",
+        "expect:(() => { const x = JSON.parse(sessionStorage.getItem('qp')); return !!x.q && x.st === 'REQUESTED' && x.left === 0 && x.n === 1 })()",
+        "expect:(() => { const x = JSON.parse(sessionStorage.getItem('qp')); const trs = [...document.querySelectorAll('tbody tr')].filter((t) => t.cells[7]); return trs.length > 0 && trs.every((t) => t.cells[7].innerText.trim() === '') })()",
+        "js:(async () => { const x = JSON.parse(sessionStorage.getItem('qp')); const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token') }; const a = await fetch('/api/quality-inspections/' + x.q, { method: 'DELETE', headers: H }); const d = await fetch('/api/quality-inspection-requests/' + x.id, { method: 'DELETE', headers: H }); x.del = a.status + ',' + d.status; sessionStorage.setItem('qp', JSON.stringify(x)); return 'delete ' + x.del })()",
+        "expect:JSON.parse(sessionStorage.getItem('qp')).del === '204,204'"
       ]
     }
   ]
