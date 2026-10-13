@@ -8,7 +8,10 @@ import { api, extractErrorMessage } from '../../api/client'
 import { lastDay, monthRange, slashYm, won, type DailyReportLine } from '../../features/dailypay/report'
 import { CustomAggregateConds, CustomAggregateTable, EMPTY_AGG, type AggDim, type AggRecord, type AggState, type AggTarget } from '../../features/payroll/components/CustomAggregate'
 
-type Mode = '라인별' | '사용자지정집계'
+type Mode = '라인별' | '급여대장별부서별' | '급여대장별부서별라인별' | '사용자지정집계'
+const MODES: Mode[] = ['라인별', '급여대장별부서별', '급여대장별부서별라인별', '사용자지정집계']
+/** 원본 급여대장별부서별 · …라인별의 실지급액은 '500,000.00' 꼴(2026-10-13 실측) */
+const won2 = (n: number | string) => Number(n).toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 /**
  * 원본 사용자지정집계 '집계조건검색'(2026-10-13 실측) — 귀속연월(월별 · 연별) · 급여정보(급여대장 · 부서 · 사원 · 프로젝트 · 지급구분) ·
  * 사원정보(부서 · 프로젝트). 급여대장의 코드 열은 '귀속연월-NO'(2026/10-1), 지급구분은 00001 · 1차수, 월별은 코드 열이 없다.
@@ -29,7 +32,13 @@ const days2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 
  * 지급구분 · 부서 · 사원 · 확정여부(전체 · 미확정 · 확정). 결과 머리 '급여현황' · 회사명 · 기간, 격자 귀속연월-NO · 급여대장명 ·
  * 최종근무일 · 부서명 · 프로젝트명 · 성명 · 지급총액 · 공제총액 · 실지급액, 대장마다 '2026/07-1 계' 소계와 합계.
  * 빠른선택 전월 · 전월+금월 · 금년 · 전년 · 금월. 지급연월([사용]) · 부서 · 사원(여러 개 고르는 코드도움)을 거른다.
- * 구분은 라인별 · 사용자지정집계(급여대장별부서별 · 급여대장별부서별라인별은 아직 없다), 지급구분 · 프로젝트명 · 결재방표시는 없다.
+ * 지급구분 · 결재방표시는 없다. 프로젝트명 열은 원본처럼 두지만 일용 급여 줄에 프로젝트가 없어 늘 비어 있다.
+ *
+ * <p>[급여대장별부서별] · [급여대장별부서별라인별](2026-10-13 실측 — QA관리-일용대장 2026/10-1 에 잠깐만(00001) 300,000 ·
+ * 나일당(00002) 200,000, 둘 다 부서 없음, 재고 지움): 열은 라인별과 같다.
+ * 부서별은 대장 × 부서마다 한 줄 '2026/10 -1 · QA관리-일용대장 · · · · 잠깐만 · 500,000 · · 500,000.00'(성명은 그 부서의 첫 사원),
+ * 소계 '2026/10 계'(차수 없음) · 합계. 부서별라인별은 사원마다 한 줄, 성명 가나다(나일당 → 잠깐만), 소계 '2026/10-1 계' · 합계.
+ * 두 구분 모두 실지급액이 '500,000.00' 꼴이다.
  *
  * <p>[사용자지정집계](2026-10-13 loginaa 실측 — 일용 대장 2026/10-1 에 잠깐만 2일 300,000 · 나일당 3일 300,000):
  * 집계대상 수당금액(전체) · 지급총액 · 공제금액(전체) · 공제총액 · 실지급액 · <b>총근무일수</b>(급여현황에 없는 것, 2.00 꼴).
@@ -105,7 +114,7 @@ export default function DailyPayStatusPage() {
     <EcListShell title="일용근로 급여현황" searchable={false} collapseConditions={false} actions={[{ label: '인쇄' }, { label: 'Excel' }]}>
       <ul className="ec-cond mb-[8px]">
         <EcCond label="구분">
-          {(['라인별', '사용자지정집계'] as const).map((m) => (
+          {MODES.map((m) => (
             <label key={m} className="mr-[10px]"><input type="radio" name="dps-mode" checked={mode === m} onChange={() => setMode(m)} /> {m}</label>
           ))}
           {mode === '사용자지정집계' && <CustomAggregateConds dims={AGG_DIMS} targets={aggTargets} value={agg} onChange={setAgg} />}
@@ -162,6 +171,7 @@ export default function DailyPayStatusPage() {
               <th>급여대장명</th>
               <th className="text-center">최종근무일</th>
               <th>부서명</th>
+              <th>프로젝트명</th>
               <th>성명</th>
               <th className="text-right">지급총액</th>
               <th className="text-right">공제총액</th>
@@ -170,39 +180,52 @@ export default function DailyPayStatusPage() {
           </thead>
           <tbody>
             {list.length === 0 ? (
-              <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : (
               <>
                 {[...groups.values()].map((ls) => {
                   const s = sum(ls)
+                  const ym = slashYm(ls[0].payMonth)
+                  const net = (n: number) => (mode === '라인별' ? won(n) : won2(n))
+                  /* 부서별: 부서마다 한 줄(첫 사원 이름 · 합). 부서별라인별: 부서 · 성명 가나다. 라인별: 대장 순서 그대로 */
+                  const lines: DailyReportLine[] = mode === '급여대장별부서별'
+                    ? [...new Map(ls.map((r) => [r.department, r])).keys()].map((d) => {
+                        const inDept = ls.filter((r) => r.department === d)
+                        const t = sum(inDept)
+                        return { ...inDept[0], lineId: -inDept[0].lineId, grossPay: t.gross, incomeTax: t.ded, localTax: 0, netPay: t.net, lastWorkDate: null }
+                      })
+                    : mode === '급여대장별부서별라인별'
+                      ? [...ls].sort((a, b) => a.department.localeCompare(b.department, 'ko') || a.workerName.localeCompare(b.workerName, 'ko'))
+                      : ls
                   return (
                     <Fragment key={ls[0].ledgerId}>
-                      {ls.map((r) => (
+                      {lines.map((r) => (
                         <tr key={r.lineId}>
-                          <td>{slashYm(r.payMonth)} -{r.seq}</td>
+                          <td>{ym} -{r.seq}</td>
                           <td>{r.ledgerName}</td>
                           <td className="text-center">{r.lastWorkDate?.replace(/-/g, '/') ?? ''}</td>
                           <td>{r.department}</td>
+                          <td></td>
                           <td>{r.workerName}</td>
                           <td className="text-right">{won(r.grossPay)}</td>
                           <td className="text-right">{Number(r.incomeTax) + Number(r.localTax) ? won(Number(r.incomeTax) + Number(r.localTax)) : ''}</td>
-                          <td className="text-right">{won(r.netPay)}</td>
+                          <td className="text-right">{net(r.netPay)}</td>
                         </tr>
                       ))}
                       <tr className="font-bold">
-                        <td colSpan={5}>{slashYm(ls[0].payMonth)}-{ls[0].seq} 계</td>
+                        <td colSpan={6}>{mode === '급여대장별부서별' ? `${ym} 계` : `${ym}-${ls[0].seq} 계`}</td>
                         <td className="text-right">{won(s.gross)}</td>
                         <td className="text-right">{s.ded ? won(s.ded) : ''}</td>
-                        <td className="text-right">{won(s.net)}</td>
+                        <td className="text-right">{net(s.net)}</td>
                       </tr>
                     </Fragment>
                   )
                 })}
                 <tr className="font-bold">
-                  <td colSpan={5}>합계</td>
+                  <td colSpan={6}>합계</td>
                   <td className="text-right">{won(total.gross)}</td>
                   <td className="text-right">{total.ded ? won(total.ded) : ''}</td>
-                  <td className="text-right">{won(total.net)}</td>
+                  <td className="text-right">{mode === '라인별' ? won(total.net) : won2(total.net)}</td>
                 </tr>
               </>
             )}
