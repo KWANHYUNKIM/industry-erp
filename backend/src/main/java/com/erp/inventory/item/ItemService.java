@@ -7,6 +7,7 @@ import com.erp.common.StoredFileRepository;
 import com.erp.inventory.item.dto.ItemDtos.CreateItemRequest;
 import com.erp.inventory.item.dto.ItemDtos.ItemResponse;
 import com.erp.inventory.item.dto.ItemDtos.UpdateItemRequest;
+import com.erp.inventory.item.dto.ItemDtos.UpdateItemPricesRequest;
 import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -65,6 +66,7 @@ public class ItemService {
                 .managementItem(req.managementItemId() == null ? null : managementItemService.getUsable(req.managementItemId()))
                 .active(true)
                 .build();
+        if (req.gradePrices() != null) item.setGradePrices(req.gradePrices());
         applyExtras(item, req.remark(), req.vatRateSales(), req.vatRatePurchase(),
                 req.subcontractPrice(), req.leadTimeDays(), req.minPurchaseUnit(),
                 req.setItem(), req.sharedItem(), req.itemType(), req.parentItemId(),
@@ -83,6 +85,8 @@ public class ItemService {
         item.setCategory(req.category());
         item.setUnitPrice(req.unitPrice());
         item.setPurchasePrice(req.purchasePrice() != null ? req.purchasePrice() : BigDecimal.ZERO);
+        // 안 주면 그대로 — 단가 탭을 모르는 호출(일괄 변경 등)이 A ~ J 를 0 으로 지우지 않게.
+        if (req.gradePrices() != null) item.setGradePrices(req.gradePrices());
         item.setItemGroup(groupOf(req.itemGroupId()));
         item.setSafetyStock(req.safetyStock());
         item.setBarcode(req.barcode());
@@ -101,6 +105,19 @@ public class ItemService {
         if (req.active() != null) {
             item.setActive(req.active());
         }
+        return ItemResponse.from(item);
+    }
+
+    /**
+     * 품목별단가(E040122) 의 단가 칸을 눌러 뜨는 품목등록 [단가] 탭 저장 — 단가만 고친다.
+     * 전체 수정(PUT)을 쓰면 화면이 품목의 다른 칸을 모두 다시 보내야 해서, 빠뜨린 칸(구매처 · 이미지 …)이 지워진다.
+     */
+    @Transactional
+    public ItemResponse updatePrices(Long id, UpdateItemPricesRequest req) {
+        Item item = getItem(id);
+        if (req.unitPrice() != null) item.setUnitPrice(req.unitPrice());
+        if (req.purchasePrice() != null) item.setPurchasePrice(req.purchasePrice());
+        if (req.gradePrices() != null) item.setGradePrices(req.gradePrices());
         return ItemResponse.from(item);
     }
 

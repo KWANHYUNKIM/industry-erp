@@ -905,83 +905,83 @@
   ]
  },
  "단가A": {
-  "claim": "품목 단가는 판매·구매 둘이다",
-  "in": "backend/src/main/java/com/erp/inventory/item/Item.java",
+  "claim": "품목등록 조회 판에 단가A ~ J 범위 칸이 없다",
+  "in": "frontend/src/pages/inventory/ItemsPage.tsx",
   "absent": [
-   "priceA",
-   "priceGrade"
+   "gradeFrom",
+   "gradeTo"
   ]
  },
  "단가B": {
-  "claim": "품목 단가는 판매·구매 둘이다",
-  "in": "backend/src/main/java/com/erp/inventory/item/Item.java",
+  "claim": "품목등록 조회 판에 단가A ~ J 범위 칸이 없다",
+  "in": "frontend/src/pages/inventory/ItemsPage.tsx",
   "absent": [
-   "priceA",
-   "priceGrade"
+   "gradeFrom",
+   "gradeTo"
   ]
  },
  "단가C": {
-  "claim": "품목 단가는 판매·구매 둘이다",
-  "in": "backend/src/main/java/com/erp/inventory/item/Item.java",
+  "claim": "품목등록 조회 판에 단가A ~ J 범위 칸이 없다",
+  "in": "frontend/src/pages/inventory/ItemsPage.tsx",
   "absent": [
-   "priceA",
-   "priceGrade"
+   "gradeFrom",
+   "gradeTo"
   ]
  },
  "단가D": {
-  "claim": "품목 단가는 판매·구매 둘이다",
-  "in": "backend/src/main/java/com/erp/inventory/item/Item.java",
+  "claim": "품목등록 조회 판에 단가A ~ J 범위 칸이 없다",
+  "in": "frontend/src/pages/inventory/ItemsPage.tsx",
   "absent": [
-   "priceA",
-   "priceGrade"
+   "gradeFrom",
+   "gradeTo"
   ]
  },
  "단가E": {
-  "claim": "품목 단가는 판매·구매 둘이다",
-  "in": "backend/src/main/java/com/erp/inventory/item/Item.java",
+  "claim": "품목등록 조회 판에 단가A ~ J 범위 칸이 없다",
+  "in": "frontend/src/pages/inventory/ItemsPage.tsx",
   "absent": [
-   "priceA",
-   "priceGrade"
+   "gradeFrom",
+   "gradeTo"
   ]
  },
  "단가F": {
-  "claim": "품목 단가는 판매·구매 둘이다",
-  "in": "backend/src/main/java/com/erp/inventory/item/Item.java",
+  "claim": "품목등록 조회 판에 단가A ~ J 범위 칸이 없다",
+  "in": "frontend/src/pages/inventory/ItemsPage.tsx",
   "absent": [
-   "priceA",
-   "priceGrade"
+   "gradeFrom",
+   "gradeTo"
   ]
  },
  "단가G": {
-  "claim": "품목 단가는 판매·구매 둘이다",
-  "in": "backend/src/main/java/com/erp/inventory/item/Item.java",
+  "claim": "품목등록 조회 판에 단가A ~ J 범위 칸이 없다",
+  "in": "frontend/src/pages/inventory/ItemsPage.tsx",
   "absent": [
-   "priceA",
-   "priceGrade"
+   "gradeFrom",
+   "gradeTo"
   ]
  },
  "단가H": {
-  "claim": "품목 단가는 판매·구매 둘이다",
-  "in": "backend/src/main/java/com/erp/inventory/item/Item.java",
+  "claim": "품목등록 조회 판에 단가A ~ J 범위 칸이 없다",
+  "in": "frontend/src/pages/inventory/ItemsPage.tsx",
   "absent": [
-   "priceA",
-   "priceGrade"
+   "gradeFrom",
+   "gradeTo"
   ]
  },
  "단가I": {
-  "claim": "품목 단가는 판매·구매 둘이다",
-  "in": "backend/src/main/java/com/erp/inventory/item/Item.java",
+  "claim": "품목등록 조회 판에 단가A ~ J 범위 칸이 없다",
+  "in": "frontend/src/pages/inventory/ItemsPage.tsx",
   "absent": [
-   "priceA",
-   "priceGrade"
+   "gradeFrom",
+   "gradeTo"
   ]
  },
  "단가J": {
-  "claim": "품목 단가는 판매·구매 둘이다",
-  "in": "backend/src/main/java/com/erp/inventory/item/Item.java",
+  "claim": "품목등록 조회 판에 단가A ~ J 범위 칸이 없다",
+  "in": "frontend/src/pages/inventory/ItemsPage.tsx",
   "absent": [
-   "priceA",
-   "priceGrade"
+   "gradeFrom",
+   "gradeTo"
   ]
  },
  "안전재고관리-주문서": {

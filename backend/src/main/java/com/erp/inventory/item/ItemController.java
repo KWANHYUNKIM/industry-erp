@@ -3,6 +3,7 @@ package com.erp.inventory.item;
 import com.erp.inventory.item.dto.ItemDtos.CreateItemRequest;
 import com.erp.inventory.item.dto.ItemDtos.ItemResponse;
 import com.erp.inventory.item.dto.ItemDtos.UpdateItemRequest;
+import com.erp.inventory.item.dto.ItemDtos.UpdateItemPricesRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -44,6 +45,12 @@ public class ItemController {
     @PutMapping("/{id}")
     public ItemResponse update(@PathVariable Long id, @Valid @RequestBody UpdateItemRequest req) {
         return itemService.update(id, req);
+    }
+
+    /** 품목별단가 화면 — 단가(출고 · 입고 · A ~ J)만 고친다. */
+    @PatchMapping("/{id}/prices")
+    public ItemResponse updatePrices(@PathVariable Long id, @Valid @RequestBody UpdateItemPricesRequest req) {
+        return itemService.updatePrices(id, req);
     }
 
     @DeleteMapping("/{id}")

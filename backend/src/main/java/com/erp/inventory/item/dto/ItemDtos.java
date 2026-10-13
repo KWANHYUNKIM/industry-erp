@@ -26,6 +26,9 @@ public final class ItemDtos {
             @NotNull(message = "단가를 입력하세요.") @PositiveOrZero(message = "단가는 0 이상이어야 합니다.") BigDecimal unitPrice,
             /** 구매(입고) 기준단가. 안 주면 0 — "구매 기준단가를 안 정했다" 는 뜻이다. */
             @PositiveOrZero(message = "구매단가는 0 이상이어야 합니다.") BigDecimal purchasePrice,
+            /** 단가A ~ 단가J (원본 품목등록 [단가] 탭). 차례대로 열 칸. 안 주면 수정 때는 그대로 둔다. */
+            @Size(max = 10, message = "단가는 A ~ J 열 칸입니다.")
+            java.util.List<@PositiveOrZero(message = "단가는 0 이상이어야 합니다.") BigDecimal> gradePrices,
             @NotNull(message = "안전재고를 입력하세요.") @PositiveOrZero(message = "안전재고는 0 이상이어야 합니다.") BigDecimal safetyStock,
             /**
              * 원본 품목등록 리스트의 [구매처명] — 이 품목을 늘 사 오는 곳 (선택).
@@ -100,6 +103,9 @@ public final class ItemDtos {
             @PositiveOrZero(message = "단가는 0 이상이어야 합니다.") BigDecimal unitPrice,
             /** 구매(입고) 기준단가. 안 주면 0 — "구매 기준단가를 안 정했다" 는 뜻이다. */
             @PositiveOrZero(message = "구매단가는 0 이상이어야 합니다.") BigDecimal purchasePrice,
+            /** 단가A ~ 단가J (원본 품목등록 [단가] 탭). 차례대로 열 칸. 안 주면 수정 때는 그대로 둔다. */
+            @Size(max = 10, message = "단가는 A ~ J 열 칸입니다.")
+            java.util.List<@PositiveOrZero(message = "단가는 0 이상이어야 합니다.") BigDecimal> gradePrices,
             @NotNull(message = "안전재고를 입력하세요.")
             @PositiveOrZero(message = "안전재고는 0 이상이어야 합니다.") BigDecimal safetyStock,
             /**
@@ -157,6 +163,14 @@ public final class ItemDtos {
             Boolean active
     ) {}
 
+    /** 품목별단가에서 단가만 고칠 때. 안 준 칸은 그대로 둔다. */
+    public record UpdateItemPricesRequest(
+            @PositiveOrZero(message = "단가는 0 이상이어야 합니다.") BigDecimal unitPrice,
+            @PositiveOrZero(message = "구매단가는 0 이상이어야 합니다.") BigDecimal purchasePrice,
+            @Size(max = 10, message = "단가는 A ~ J 열 칸입니다.")
+            java.util.List<@PositiveOrZero(message = "단가는 0 이상이어야 합니다.") BigDecimal> gradePrices
+    ) {}
+
     public record ItemResponse(
             Long id,
             String code,
@@ -168,6 +182,8 @@ public final class ItemDtos {
             BigDecimal unitPrice,
             /** 구매(입고) 기준단가. 0 이면 안 정한 것이다. */
             BigDecimal purchasePrice,
+            /** 단가A ~ 단가J. 늘 열 칸. */
+            java.util.List<BigDecimal> gradePrices,
             Long itemGroupId,
             String itemGroupName,
             BigDecimal safetyStock,
@@ -208,6 +224,7 @@ public final class ItemDtos {
                     item.getCategory().getDisplayName(),
                     item.getUnitPrice(),
                     item.getPurchasePrice(),
+                    item.getGradePrices(),
                     item.getItemGroup() != null ? item.getItemGroup().getId() : null,
                     item.getItemGroup() != null ? item.getItemGroup().getName() : null,
                     item.getSafetyStock(),

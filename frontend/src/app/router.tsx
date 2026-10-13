@@ -29,6 +29,7 @@ const StockMoveStatusPage = lazy(() => import('../pages/inventory/StockMoveStatu
 const ManageItemsPage = lazy(() => import('../pages/inventory/ManageItemsPage'))
 const PriceOrderPage = lazy(() => import('../pages/inventory/PriceOrderPage'))
 const SpecialPriceGroupPage = lazy(() => import('../pages/inventory/SpecialPriceGroupPage'))
+const ItemPricePage = lazy(() => import('../pages/inventory/ItemPricePage'))
 const PartnersPage = lazy(() => import('../pages/trade/PartnersPage'))
 const TradeEntry = lazy(() => import('../pages/trade/TradeEntry'))
 const LedgerPage = lazy(() => import('../pages/trade/LedgerPage'))
@@ -402,6 +403,7 @@ export default function AppRouter() {
         <Route path="/inventory/manage-items" element={<ManageItemsPage />} />
         <Route path="/inventory/price-order" element={<PriceOrderPage />} />
         <Route path="/inventory/special-price-group" element={<SpecialPriceGroupPage />} />
+        <Route path="/inventory/item-prices" element={<ItemPricePage />} />
         <Route path="/inventory/stock-io" element={<StockIoPage />} />
         <Route path="/inventory/ledger" element={<StockLedgerPage />} />
         <Route path="/inventory/recalc" element={<StockRecalcPage />} />

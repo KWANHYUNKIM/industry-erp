@@ -77,6 +77,57 @@ public class Item extends BaseTimeEntity {
     @Builder.Default
     private BigDecimal purchasePrice = BigDecimal.ZERO;
 
+    /*
+     * 원본 품목등록 [단가] 탭의 단가A ~ 단가J. 품목별단가(E040122) 가 이 열 칸을 그대로 늘어놓는다.
+     * 출고단가 · 입고단가와 따로 두는 '등급 단가' 다 — 단가적용순서설정에서 고를 수 있는 값.
+     */
+    @Column(name = "price_a", nullable = false, precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal priceA = BigDecimal.ZERO;
+    @Column(name = "price_b", nullable = false, precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal priceB = BigDecimal.ZERO;
+    @Column(name = "price_c", nullable = false, precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal priceC = BigDecimal.ZERO;
+    @Column(name = "price_d", nullable = false, precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal priceD = BigDecimal.ZERO;
+    @Column(name = "price_e", nullable = false, precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal priceE = BigDecimal.ZERO;
+    @Column(name = "price_f", nullable = false, precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal priceF = BigDecimal.ZERO;
+    @Column(name = "price_g", nullable = false, precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal priceG = BigDecimal.ZERO;
+    @Column(name = "price_h", nullable = false, precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal priceH = BigDecimal.ZERO;
+    @Column(name = "price_i", nullable = false, precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal priceI = BigDecimal.ZERO;
+    @Column(name = "price_j", nullable = false, precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal priceJ = BigDecimal.ZERO;
+
+    /** 단가A ~ 단가J 를 차례대로. 화면 · DTO 는 열 칸을 목록 하나로 주고받는다. */
+    public java.util.List<BigDecimal> getGradePrices() {
+        return java.util.List.of(priceA, priceB, priceC, priceD, priceE, priceF, priceG, priceH, priceI, priceJ);
+    }
+
+    /** 단가A ~ 단가J 를 차례대로 넣는다. 모자란 칸 · null 은 0. */
+    public void setGradePrices(java.util.List<BigDecimal> prices) {
+        BigDecimal[] v = new BigDecimal[10];
+        for (int i = 0; i < 10; i++) {
+            BigDecimal p = prices != null && i < prices.size() ? prices.get(i) : null;
+            v[i] = p != null ? p : BigDecimal.ZERO;
+        }
+        priceA = v[0]; priceB = v[1]; priceC = v[2]; priceD = v[3]; priceE = v[4];
+        priceF = v[5]; priceG = v[6]; priceH = v[7]; priceI = v[8]; priceJ = v[9];
+    }
+
     /** 안전재고 (이 수량 미만이면 경고) */
     @Column(nullable = false, precision = 18, scale = 2)
     @Builder.Default

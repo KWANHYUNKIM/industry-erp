@@ -86,6 +86,8 @@ export interface Item {
   unitPrice: number
   /** 구매(입고) 기준단가. 0 이면 안 정한 것이고, 구매할인현황이 할인을 계산하지 않는다. */
   purchasePrice: number
+  /** 단가A ~ 단가J (원본 품목등록 [단가] 탭). 늘 열 칸. */
+  gradePrices: number[]
   safetyStock: number
   barcode: string | null
   /** 원본 품목등록 리스트의 [이미지]. 파일이 없으면 둘 다 null. */

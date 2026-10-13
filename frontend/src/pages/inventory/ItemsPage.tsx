@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { GRADE_LABELS } from '../../utils/gradePrices'
 import { api, extractErrorMessage } from '../../api/client'
 import type { CodeOption, GroupMaster, Item, ManagementItem, Partner } from '../../types/api'
 import EcListShell from '../../components/EcListShell'
@@ -22,6 +23,8 @@ type FormTab = typeof FORM_TABS[number]
 /** 품질검사 유형·방법. 품질 모듈이 쓰는 값과 같다(사본 실측). */
 const QC_TYPES = ['수입검사', '공정검사', '출하검사']
 const QC_METHODS = ['전수', '샘플링']
+
+const ZERO_GRADES = GRADE_LABELS.map(() => '0')
 
 const emptyForm = {
   code: '',
@@ -64,6 +67,7 @@ export default function ItemsPage() {
   /** 원본 [재고조정] — 고른 품목으로 조정 화면을 연다. */
   const navigate = useNavigate()
   const [items, setItems] = useState<Item[]>([])
+  const [grades, setGrades] = useState<string[]>(ZERO_GRADES)
   const [categories, setCategories] = useState<CodeOption[]>([])
   const [mgmtItems, setMgmtItems] = useState<ManagementItem[]>([])
   const [itemGroups, setItemGroups] = useState<GroupMaster[]>([])
@@ -115,6 +119,7 @@ export default function ItemsPage() {
     setFormTab('품목정보')
     setEditId(null)
     setForm({ ...emptyForm })
+    setGrades(ZERO_GRADES)
     setImage(null)
     setShowForm(true)
   }
@@ -139,6 +144,7 @@ export default function ItemsPage() {
     /* 고치려고 열 때도 첫 탭부터 — 앞서 보던 탭이 남아 있으면 코드가 안 보인다. */
     setFormTab('품목정보')
     setEditId(item.id)
+    setGrades(GRADE_LABELS.map((_, i) => String(item.gradePrices?.[i] ?? 0)))
     setForm({
       code: item.code,
       name: item.name,
@@ -189,6 +195,7 @@ export default function ItemsPage() {
       ...form,
       unitPrice: Number(form.unitPrice),
       purchasePrice: Number(form.purchasePrice),
+      gradePrices: grades.map(Number),
       safetyStock: Number(form.safetyStock),
       stockTracked: form.stockTracked === 'Y',
       active: form.active === 'Y',
@@ -663,6 +670,13 @@ export default function ItemsPage() {
                 <input type="number" className={inputCls} value={form.purchasePrice} onChange={(e) => set('purchasePrice', e.target.value)}
                        title="구매할인현황의 기준입니다. 0 이면 기준을 안 정한 것으로 보고 할인을 계산하지 않습니다." />
               </div>
+              {GRADE_LABELS.map((g, i) => (
+                <div key={g}>
+                  <label className="mb-1 block text-sm text-ec-label">단가{g}</label>
+                  <input type="number" step="any" className={inputCls} value={grades[i]}
+                         onChange={(e) => setGrades((v) => v.map((x, j) => (j === i ? e.target.value : x)))} />
+                </div>
+              ))}
               <div>
                 <label className="mb-1 block text-sm text-ec-label">외주비단가</label>
                 <input type="number" step="any" className={inputCls} value={form.subcontractPrice}
