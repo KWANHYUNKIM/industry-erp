@@ -471,17 +471,19 @@ const MENU: TopMenu[] = [
         ],
       },
       {
+        /* 원본 회계 I › FastEntry(2026-10-14 loginaa) — 일반전표 · 지출결의서 · 입금보고서 · 가지급금정산서 · 자동생성전표조회 · 잔액조정입력(넷).
+           예전에 여기 섞여 있던 현금예금입금 · 현금예금출금 · 계좌간이동·카드대금결제는 현금거래로, 비현금거래(대체전표)는 비현금거래로 옮겼다. */
         label: 'FastEntry',
         nodes: [
           { label: '일반전표', to: '/accounting/journal-entry' },
-          { label: '현금예금입금', to: '/accounting/cash-deposit' },
-          { label: '현금예금출금', to: '/accounting/cash-withdraw' },
-          { label: '영수증으로', to: '/accounting/receipt-payment' },
-          { label: '계좌간이동·카드대금결제', to: '/accounting/cash-details' },
           { label: '지출결의서', to: '/accounting/vouchers' },
           { label: '입금보고서', to: '/accounting/vouchers?type=DEPOSIT_REPORT' },
           { label: '가지급금정산서', to: '/accounting/vouchers?type=ADVANCE_SETTLEMENT' },
-          { label: '비현금거래(대체전표)', to: '/accounting/non-cash' },
+          { label: '자동생성전표조회', to: '/accounting/auto-journals' },
+          { label: '잔액조정입력', children: [
+            { label: '잔액조정입력', to: '/accounting/balance-adjust' }, { label: '잔액실사조회', to: '/accounting/balance-audits' },
+            { label: '잔액조정조회', to: '/accounting/balance-adjustments' }, { label: '잔액조정현황', to: '/accounting/balance-adjust-status' },
+          ] },
         ],
       },
       {
@@ -506,6 +508,11 @@ const MENU: TopMenu[] = [
             { label: '영수증으로', to: '/accounting/receipt-payment' }, { label: '법인카드대금결제', to: '/accounting/card-bill-payment' }, { label: '계좌간이동', to: '/accounting/account-transfer' },
             { label: '일시적으로(출금)', to: '/accounting/temp-withdraw' }, { label: '은행으로', to: '/accounting/loan-repayment' }, { label: '기타출금', to: '/accounting/other-withdraw' },
           ] },
+          /* 원본에 없는 우리 간편입력(현금예금 한 화면 · 계좌/카드 권한) — FastEntry 에서 옮겨 왔다. */
+          { label: '간편입력', children: [
+            { label: '현금예금입금', to: '/accounting/cash-deposit' }, { label: '현금예금출금', to: '/accounting/cash-withdraw' },
+            { label: '계좌간이동·카드대금결제', to: '/accounting/cash-details' },
+          ] },
         ],
       },
       {
@@ -517,6 +524,7 @@ const MENU: TopMenu[] = [
             { label: '가지급금정산서', to: '/accounting/vouchers?type=ADVANCE_SETTLEMENT' },
           ] },
           { label: '기타', to: '/accounting/noncash-other' },
+          { label: '비현금거래(대체전표)', to: '/accounting/non-cash' },
         ],
       },
       {

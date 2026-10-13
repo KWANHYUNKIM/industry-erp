@@ -124,6 +124,10 @@ const BalanceSheetPage = lazy(() => import('../pages/accounting/BalanceSheetPage
 const IncomeStatementPage = lazy(() => import('../pages/accounting/IncomeStatementPage'))
 const TaxInvoicePage = lazy(() => import('../pages/accounting/TaxInvoicePage'))
 const JournalEntryPage = lazy(() => import('../pages/accounting/JournalEntryPage'))
+const AutoJournalListPage = lazy(() => import('../pages/accounting/AutoJournalListPage'))
+const BalanceAdjustPage = lazy(() => import('../pages/accounting/BalanceAdjustPage'))
+const BalanceAdjustListPage = lazy(() => import('../pages/accounting/BalanceAdjustListPage'))
+const BalanceAdjustStatusPage = lazy(() => import('../pages/accounting/BalanceAdjustStatusPage'))
 const VatSlipPage = lazy(() => import('../pages/accounting/VatSlipPage'))
 const CashTxnPage = lazy(() => import('../pages/accounting/CashTxnPage'))
 const CashDetailPage = lazy(() => import('../pages/accounting/CashDetailPage'))
@@ -685,6 +689,11 @@ export default function AppRouter() {
         <Route path="/accounting/tax-invoice-sales" element={<TaxInvoicePage type="SALES" />} />
         <Route path="/accounting/tax-invoice-purchase" element={<TaxInvoicePage type="PURCHASE" />} />
         <Route path="/accounting/journal-entry" element={<JournalEntryPage />} />
+        <Route path="/accounting/auto-journals" element={<AutoJournalListPage />} />
+        <Route path="/accounting/balance-adjust" element={<BalanceAdjustPage />} />
+        <Route path="/accounting/balance-audits" element={<BalanceAdjustListPage audit />} />
+        <Route path="/accounting/balance-adjustments" element={<BalanceAdjustListPage />} />
+        <Route path="/accounting/balance-adjust-status" element={<BalanceAdjustStatusPage />} />
         <Route path="/accounting/sales-slip" element={<VatSlipPage sales />} />
         <Route path="/accounting/purchase-slip" element={<VatSlipPage sales={false} />} />
         <Route path="/accounting/bank-cards" element={<BankCardPage />} />
