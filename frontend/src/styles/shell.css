@@ -790,7 +790,59 @@
     padding-bottom: 8.1px;
   }
 
-  /* ★ 즐겨찾기 · 앱 모음 펼침 — 머리 바로 아래 */
+  /* ★ 즐겨찾기 — 원본(2026-10-14 폭 375 실측): 북마크 줄이 머리 아래(51)부터 창 바닥까지 덮는 흰 판(wrapper-frame-bookmark)이
+     된다 — 본문은 밀지 않는다. 메뉴검색이 한 줄을 다 쓰고(348×20.3 · 바탕 page · 둥글기 20, 안 오른쪽에 [사이트맵] 74×20),
+     안내 · 북마크는 두 칸씩(183×24.6 · 여백 6.3 8.1 · 위아래 2.7). */
+  .ec-bookbar.m-open {
+    display: flex;
+    position: fixed;
+    top: 51px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 60;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: 0;
+    height: auto;
+    padding: 0 4.5px;
+    overflow-y: auto;
+    background: #fff;
+    border-bottom: 1px solid var(--ec-line);
+  }
+  .ec-bookbar.m-open .ec-bookbar-search {
+    flex: 0 0 calc(100% - 9px);
+    margin: 4.5px 9px 0 0;
+    padding: 4.5px;
+  }
+  .ec-bookbar.m-open .ec-bookbar-search > input {
+    width: 100%;
+    height: 20.3px;
+    padding: 3.6px 82.8px 2.7px 22.5px;
+    background: var(--ec-bg-page);
+  }
+  .ec-bookbar.m-open .ec-chip {
+    right: 4.5px;
+    height: 20px;
+    padding: 0 18px;
+    line-height: 20px;
+  }
+  .ec-bookbar.m-open .ec-bookbar-hint,
+  .ec-bookbar.m-open .ec-bookmark {
+    flex: 0 0 50%;
+    display: block;
+    height: 24.6px;
+    margin: 2.7px 0;
+    padding: 6.3px 8.1px;
+    border-radius: var(--ec-radius);
+    line-height: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ec-bookbar.m-open .ec-bookbar-pin { display: none; }
+
+  /* 앱 모음 펼침 — 머리 바로 아래 */
   .ec-m-panel {
     position: fixed;
     top: 54px;

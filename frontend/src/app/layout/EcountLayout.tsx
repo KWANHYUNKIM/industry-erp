@@ -735,7 +735,16 @@ const MENU: TopMenu[] = [
       },
       {
         label: '예산관리',
-        nodes: [{ label: '예산편성·집행현황', to: '/accounting/budget' }],
+        nodes: [
+          { label: '월별예산조회', to: '/accounting/budget' },
+          { label: '출력물', children: [
+            { label: '예산현황', to: '/accounting/budget/status' },
+            { label: '예산-실적비교표', to: '/accounting/budget/compare' },
+            { label: '통제예산-실적대장', to: '/accounting/budget/control-ledger' },
+            { label: '예산-실적대장', to: '/accounting/budget/ledger' },
+            { label: '통제예산-실적비교표', to: '/accounting/budget/control-compare' },
+          ] },
+        ],
       },
       {
         label: '수입비용',
@@ -1521,7 +1530,8 @@ export default function EcountLayout() {
   return (
     <div className="ec-shell">
       {/* ===== 최상단 북마크 줄 ===== */}
-      <div className="ec-bookbar">
+      {/* 휴대폰 폭에서 ★ 를 누르면 이 줄이 머리 아래를 덮는 판이 된다(shell.css .ec-bookbar.m-open, 원본 wrapper-frame-bookmark) */}
+      <div className={`ec-bookbar${mPanel === 'fav' ? ' m-open' : ''}`}>
         <div className="ec-bookbar-search">
           <span className="icon">🔍</span>
           <input
@@ -1607,19 +1617,6 @@ export default function EcountLayout() {
       </div>
 
       {drawer && mobileDrawer(drawer)}
-      {mPanel === 'fav' && (
-        <div className="ec-m-panel">
-          {bookmarks.length === 0 && <div className="text-ec-hint p-[9px]">★ 자주 사용하는 메뉴를 즐겨찾기로 추가할 수 있습니다</div>}
-          {bookmarks.map((b, i) => (
-            <NavLink key={b.path + i} to={b.path} className={({ isActive }) => `ec-lnb-leaf${isActive ? ' active' : ''}`}>{b.label}</NavLink>
-          ))}
-          {currentLeaf && (
-            <button className="ec-btn mt-[6px] w-full justify-center" onClick={toggleBookmark}>
-              {bookmarked ? '★ 이 화면을 즐겨찾기에서 빼기' : '☆ 이 화면을 즐겨찾기에 담기'}
-            </button>
-          )}
-        </div>
-      )}
       {mPanel === 'apps' && (
         <div className="ec-m-panel ec-m-apps-grid">
           {APPS.map((a, i) => (
