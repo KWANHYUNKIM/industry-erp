@@ -95,7 +95,8 @@ export default function BondStatusPage({ side }: { side: BondSide }) {
         </EcCond>
       </ul>
 
-      <table ref={tableRef} className="ec-report w-full text-left">
+      {/* 조회 목록 격자(table-list) — 출력물(.ec-report)이 아니다. 머리 굵게 · 계 줄 247(2026-10-13 실측) */}
+      <table ref={tableRef} className="ec-head700 w-full text-left">
         <thead>
           <tr>
             <th>발생일자</th>
@@ -124,7 +125,7 @@ export default function BondStatusPage({ side }: { side: BondSide }) {
                 <td className="text-right">{won(b.balance)}</td>
               </tr>
             )),
-            <tr key={`${k}-s`} className="ec-total">
+            <tr key={`${k}-s`} className="ec-list-total [&_td]:!font-bold">
               <td colSpan={6} className="text-center">{g.name} 계</td>
               <td className="text-right">{won(g.total)}</td>
             </tr>,
@@ -132,7 +133,7 @@ export default function BondStatusPage({ side }: { side: BondSide }) {
         </tbody>
         {groups.length > 0 && (
           <tfoot>
-            <tr>
+            <tr className="ec-list-total [&_td]:!font-bold">
               <td colSpan={6} className="text-center">총합계</td>
               <td className="text-right">{won(total)}</td>
             </tr>

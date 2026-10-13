@@ -15,6 +15,8 @@ import { dateNo, flatten, sideWord, won, type BondDirection, type BondRow, type 
  * <p>조건(펼쳐 둠): 구분(내역 · 집계 · 라인별) · 비교기간 · 기준일자(기본 <b>최근30일</b>) · 채권 만기일자(증가만) · 거래처 · 부서 · 프로젝트 · 계정 · 채권번호 · 적요.
  * 열(증가): 일자-No. · 채권번호 · 거래처명 · 계정명 · 적요 · 채권 만기일자 · 금액. 감소는 만기일자 열이 없다.
  * 거래처마다 '{거래처명} 계', 맨 끝 '총합계'. 버튼줄 인쇄 · Excel(화면).
+ * 격자는 출력물(.ec-report)이 아니라 <b>조회 목록 격자</b>다(2026-10-13 실측 table-list: 머리 33.8 · 윗선 파랑회색 · 줄 28.4 ·
+ * 여백 9px 2.7px 7.2px / 5.4px 2.7px). 계 · 총합계 줄은 굵게 · 바탕 247 · 이름 가운데 — 거래내역(.ec-report, 243)과 다르다.
  * 증가 50,000(김치좋아) → 증가현황 한 줄 50,000 · 김치좋아 계 50,000 · 총합계 50,000. 감소 20,000 → 감소현황 같은 꼴로 20,000.
  *
  * <p>[구분]은 '내역'만 둔다 — 집계 · 라인별 · [비교기간] · 그래프로 보기는 원본에서 펼친 모양을 아직 못 쟀다.
@@ -128,7 +130,8 @@ export default function BondFlowPage({ side, direction }: { side: BondSide; dire
         </EcCond>
       </ul>
 
-      <table ref={tableRef} className="ec-report w-full text-left">
+      <table ref={tableRef} className="ec-head700 w-full text-left">
+        {/* 현황 머리는 굵다(원본 700, .ec-head700) — 조회 화면 머리(400)와 다르다 */}
         <thead>
           <tr>
             <th>일자-No.</th>
@@ -157,17 +160,17 @@ export default function BondFlowPage({ side, direction }: { side: BondSide; dire
                 <td className="text-right">{won(Number(r.amount))}</td>
               </tr>
             )),
-            <tr key={`${k}-s`} className="ec-total">
-              <td colSpan={cols - 1} className="text-center">{g.name} 계</td>
-              <td className="text-right">{won(g.total)}</td>
+            <tr key={`${k}-s`} className="ec-list-total">
+              <td colSpan={cols - 1} className="text-center !font-bold">{g.name} 계</td>
+              <td className="text-right !font-bold">{won(g.total)}</td>
             </tr>,
           ])}
         </tbody>
         {groups.length > 0 && (
           <tfoot>
-            <tr>
-              <td colSpan={cols - 1} className="text-center">총합계</td>
-              <td className="text-right">{won(total)}</td>
+            <tr className="ec-list-total">
+              <td colSpan={cols - 1} className="text-center !font-bold">총합계</td>
+              <td className="text-right !font-bold">{won(total)}</td>
             </tr>
           </tfoot>
         )}
