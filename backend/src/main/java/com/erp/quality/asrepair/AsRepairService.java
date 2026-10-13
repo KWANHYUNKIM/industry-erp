@@ -30,7 +30,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * A/S수리(E040605 입력 · E040606 조회). 수리는 재고를 안 움직이고, 부품 · 수리비는 판매연결전표로 판매를 만든다
- * (2026-10-03 원본: 수리조회 [생성한 전표] → '판매연결전표' 창의 [신규]).
+ * (2026-10-03 원본: 수리조회 [생성한 전표] → '판매연결전표' 창의 [신규]). 2026-10-13 실측: 판매연결 1개 → 재고수불부 출고 1
+ * (1,411 → 1,410), 수리 저장 자체는 재고를 안 움직인다.
  */
 @Service
 @RequiredArgsConstructor
@@ -86,15 +87,14 @@ public class AsRepairService {
         return get(id);
     }
 
-    /** 판매연결전표가 남아 있으면 지우지 않는다 — 판매를 먼저 지워 재고 · 매출을 되돌린다. */
+    /**
+     * 원본은 판매연결전표가 있어도 수리를 지우고, <b>판매는 그대로 남긴다</b>(2026-10-13 실측 — 수리 삭제 뒤 재고수불부의
+     * 판매 출고 1 이 그대로, 판매는 따로 지웠다). 그래서 잇는 줄만 끊고 판매 · 재고 · 매출은 건드리지 않는다.
+     */
     @Transactional
     public void delete(Long id) {
         AsRepair r = find(id);
-        long linked = saleLinkRepository.countByRepairId(id);
-        if (linked > 0) {
-            throw ApiException.badRequest(String.format(
-                    "%s 에 판매연결전표 %d건이 남아 있습니다 — 판매를 먼저 지운 뒤 삭제하세요.", r.getRepairNo(), linked));
-        }
+        saleLinkRepository.deleteAll(saleLinkRepository.findByRepairId(id));
         repository.delete(r);
     }
 
@@ -105,8 +105,10 @@ public class AsRepairService {
         List<SalesLineRequest> lines = req.lines().stream()
                 .map(l -> new SalesLineRequest(l.itemId(), l.quantity(), l.unitPrice(), null, null, null, null, null, null))
                 .toList();
+        Long partnerId = r.getPartner() != null ? r.getPartner().getId() : req.partnerId();
+        if (partnerId == null) throw ApiException.badRequest("거래처를 선택하세요.");
         SalesResponse sale = salesService.create(new CreateSalesRequest(
-                r.getPartner().getId(), r.getWarehouse().getId(),
+                partnerId, r.getWarehouse().getId(),
                 req.saleDate() != null ? req.saleDate() : r.getRepairDate(),
                 null, null, "A/S수리 " + r.getRepairNo(), null, null, null, lines), user);
         saleLinkRepository.save(AsRepairSale.builder().repair(r).salesId(sale.id()).build());
@@ -125,7 +127,7 @@ public class AsRepairService {
     }
 
     private void apply(AsRepair r, RepairRequest req) {
-        r.setPartner(partnerService.get(req.partnerId()));
+        r.setPartner(req.partnerId() == null ? null : partnerService.get(req.partnerId()));
         r.setWarehouse(warehouseService.getUsable(req.warehouseId()));
         r.setAsRequest(req.asRequestId() == null ? null : asRequestRepository.findById(req.asRequestId())
                 .orElseThrow(() -> ApiException.notFound("A/S 접수를 찾을 수 없습니다. id=" + req.asRequestId())));
@@ -168,7 +170,8 @@ public class AsRepairService {
                         first != null ? first.getItem().getId() : null,
                         first != null ? first.getItem().getName() : null, r.getCharge(),
                         r.getRepairType(), r.getStatus(), r.getTitle(), r.getContent(), r.getCreatedBy(),
-                        r.getPartner().getId(), r.getPartner().getName(), r.getWarehouse().getId(),
+                        r.getPartner() != null ? r.getPartner().getId() : null,
+                        r.getPartner() != null ? r.getPartner().getName() : null, r.getWarehouse().getId(),
                         req != null ? req.getReceiptDate() : null, req != null ? req.getCharge() : null,
                         req != null && req.getProject() != null ? req.getProject().getId() : null,
                         s.id(), s.docNo(), s.saleDate(),

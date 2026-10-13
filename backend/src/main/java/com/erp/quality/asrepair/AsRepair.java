@@ -33,7 +33,8 @@ public class AsRepair extends BaseTimeEntity {
     @Column(name = "repair_date", nullable = false)
     private LocalDate repairDate;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    /** 원본 A/S수리입력은 [거래처] 없이도 저장한다(2026-10-13 실측 — 빈 저장에 담당자 · 창고 · 수리유형 · 품목만 빨갛다). */
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "partner_id")
     private BusinessPartner partner;
 

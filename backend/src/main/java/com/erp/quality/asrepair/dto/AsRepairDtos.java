@@ -26,12 +26,14 @@ public final class AsRepairDtos {
 
     public record RepairRequest(
             LocalDate repairDate,
-            @NotNull(message = "거래처를 선택하세요.") Long partnerId,
+            /* 원본은 [거래처] 없이도 저장한다 — 불러온 접수에 거래처가 없으면 빈 채로(2026-10-13 실측). */
+            Long partnerId,
             /* 원본은 [담당자] 없이 저장하지 않는다(2026-10-03 실측, 빨간 테두리). */
             @NotBlank(message = "담당자를 입력하세요.") @Size(max = 50) String charge,
             @NotNull(message = "창고를 선택하세요.") Long warehouseId,
             Long asRequestId,
-            AsRepairType repairType,
+            /* 원본은 [수리유형] 없이 저장하지 않는다(빈 저장에 빨간 테두리, 2026-10-13 실측). */
+            @NotNull(message = "수리유형을 선택하세요.") AsRepairType repairType,
             @Size(max = 200) String title,
             @Size(max = 1000) String content,
             AsRepairStatus status,
@@ -70,7 +72,8 @@ public final class AsRepairDtos {
             BigDecimal amount = sales.stream().map(LinkedSale::totalAmount)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
             return new RepairResponse(r.getId(), r.getRepairNo(), r.getRepairDate(),
-                    r.getPartner().getId(), r.getPartner().getName(),
+                    r.getPartner() != null ? r.getPartner().getId() : null,
+                    r.getPartner() != null ? r.getPartner().getName() : null,
                     r.getAsRequest() != null ? r.getAsRequest().getId() : null,
                     r.getAsRequest() != null ? r.getAsRequest().getAsNo() : null,
                     r.getAsRequest() != null ? r.getAsRequest().getReceiptDate() : null,
@@ -97,6 +100,8 @@ public final class AsRepairDtos {
 
     public record LinkSaleRequest(
             LocalDate saleDate,
+            /** 수리에 거래처가 없을 때 판매의 거래처 — 우리 판매는 거래처가 있어야 한다(원본 판매는 비워도 저장된다). */
+            Long partnerId,
             @NotEmpty(message = "품목을 1개 이상 입력하세요.") List<@Valid SaleLineRequest> lines
     ) {}
 
