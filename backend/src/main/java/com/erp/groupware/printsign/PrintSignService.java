@@ -37,6 +37,13 @@ public class PrintSignService {
             PrintSignModule.MANAGEMENT, new Integer[]{28, 60, 60, 60, null, null, null, null});
 
     private final PrintSignLineRepository repository;
+    private final com.erp.common.history.ChangeHistoryService changeHistory;
+
+    /**
+     * 하단 [H] — 원본은 그 모듈 결재라인을 마지막으로 저장한 때 · 사람 한 줄('2026/10/14 오전 4:12:13 [GUEST]', E040111 실측).
+     * 바꾼 것 없이 저장해도 그 시각으로 바뀐다. 모듈마다 id 0 하나.
+     */
+    public static final String HISTORY_PREFIX = "PRINT_SIGN_";
 
     @Transactional(readOnly = true)
     public ModuleResponse find(PrintSignModule module) {
@@ -84,6 +91,7 @@ public class PrintSignService {
                         .build());
             }
         }
+        changeHistory.record(HISTORY_PREFIX + module.name(), 0L, com.erp.common.history.ChangeHistoryService.UPDATED);
         return find(module);
     }
 

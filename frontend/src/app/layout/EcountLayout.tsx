@@ -120,6 +120,8 @@ const MENU: TopMenu[] = [
           { label: '거래처특별단가그룹등록', to: '/inventory/special-price-group' },
           { label: '특별단가등록', to: '/sales/special-price' },
           { label: '품목별단가', to: '/inventory/item-prices' },
+          /* 원본 사이트맵 차례: … 품목별단가 · 사원(담당)등록(E010110 — 우리에게 없음) · 인쇄용결재라인등록(재고) E040111 · 외화등록 · 각종코드변경 */
+          { label: '인쇄용결재라인등록(재고)', to: '/inventory/print-sign' },
           { label: '외화등록', to: '/settings/currencies' },
         ],
       },
@@ -1115,6 +1117,21 @@ const MENU: TopMenu[] = [
           { label: '메일함(사내·공용)', to: '/groupware/mail' },
           { label: '쪽지(수발신내역)', to: '/groupware/messages' },
           { label: '커뮤니케이션센터', to: '/groupware/messages' },
+        ],
+      },
+      {
+        // 원본 사이트맵 그룹웨어 끝 묶음(2026-10-14). 이름에 '게시판' 이 붙어도 다목적 전표다(일자-No. + 격자 줄).
+        label: '다목적관리',
+        nodes: [
+          { label: '*다목적게시판*', children: [{ label: '다목적 게시판 입력항목은', to: '/groupware/multi-input' }] },
+          {
+            label: '영업',
+            children: [
+              { label: '영업자별 계약상황', to: '/groupware/sales-contract' },
+              { label: '채권회수 상황판', to: '/groupware/bond-collect' },
+            ],
+          },
+          { label: '월근태보고', children: [{ label: '월근태', to: '/groupware/monthly-attendance' }] },
         ],
       },
     ],

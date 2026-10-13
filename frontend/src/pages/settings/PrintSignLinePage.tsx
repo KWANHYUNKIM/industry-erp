@@ -5,6 +5,7 @@ import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { SignLineSet, SignLineRow, SignModule } from '../../types/api'
 import { signLineHtml } from '../../utils/print'
+import { EcHistoryModal } from '../../components/EcHistory'
 
 /** 원본 알약 [회계] · [재고] · [관리] — 메뉴마다 켜져 있는 알약이 다르다(회계 I → 회계, 관리 → 관리) */
 const MODULES: { key: SignModule; label: string }[] = [
@@ -29,7 +30,9 @@ function moduleOf(path: string): SignModule {
 const num = (v: string): number | null => (v.trim() === '' ? null : Math.max(0, Math.round(Number(v))) || null)
 
 /**
- * 인쇄용결재라인등록(원본 E010106 회계 · E090102 관리) — 모듈마다 결재라인 1 · 2.
+ * 인쇄용결재라인등록(원본 E010106 회계 · E040111 재고 · E090102 관리) — 모듈마다 결재라인 1 · 2.
+ * 하단 [H] = 그 모듈 결재라인을 마지막으로 저장한 때 · 사람 한 줄(2026-10-14 E040111 실측 '2026/10/14 오전 4:12:13 [GUEST]',
+ * 바꾼 것 없이 저장해도 그 시각으로 바뀐다 — 서버 PrintSignService.HISTORY_PREFIX + 모듈, id 0).
  * 줄마다 맨 왼쪽 [결재라인] 칸 + 결재자 1 ~ 9(명칭 · 가로크기(px) · 글자크기(px)). 출력물은 자기 모듈의 결재라인 1 을 찍는다.
  */
 export default function PrintSignLinePage() {
@@ -39,6 +42,7 @@ export default function PrintSignLinePage() {
   const [open, setOpen] = useState<[boolean, boolean]>([true, true])
   const [error, setError] = useState('')
   const [preview, setPreview] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
 
   useEffect(() => { setModule(moduleOf(pathname)) }, [pathname])
 
@@ -77,6 +81,7 @@ export default function PrintSignLinePage() {
       actions={[
         { label: '저장(F8)', primary: true, onClick: () => void save() },
         { label: '미리보기', onClick: () => setPreview(true) },
+        { label: 'H', onClick: () => setHistoryOpen(true) },
       ]}
     >
       <div className="ec-pills mb-[8px]">
@@ -124,6 +129,7 @@ export default function PrintSignLinePage() {
         </section>
       ))}
 
+      {historyOpen && <EcHistoryModal url={`/change-history?target=PRINT_SIGN_${module}&id=0`} last onClose={() => setHistoryOpen(false)} />}
       <Modal open={preview} title="결재라인 미리보기" onClose={() => setPreview(false)} width={760}>
         {lines.map((l) => (
           <div key={l.lineNo} className="mb-[12px]">
