@@ -9,8 +9,22 @@ import { api, extractErrorMessage } from '../../api/client'
 import { ymd } from '../../utils/periods'
 import { ecConfirm } from '../../components/EcDialog'
 
-interface Line { id: number; workDate: string; workerId: number; workerCode: string; workerName: string; payItem: string; quantity: number }
+interface Line { id: number; lineNo: number; workDate: string; workerId: number; workerCode: string; workerName: string; payItem: string; quantity: number }
 interface Row extends Line { slipDate: string; slipNo: number }
+/** 근무조회 한 줄 = 전표 하나. 사원 '잠깐만 외 1건', 근무일자 · 수당항목 · 근무기록은 첫 줄 값(원본 E020751 2026-10-14). */
+interface SlipRow { slipDate: string; slipNo: number; first: Row; lines: Row[] }
+
+/** 원본 번호 칸(form-checkbox-numbered) — 번호가 곧 체크 칸이다. 고르면 파랑. */
+function NumCheck({ no, on, onChange, label }: { no: number | ''; on: boolean; onChange: () => void; label: string }) {
+  return (
+    <label className="relative inline-flex align-middle cursor-pointer">
+      <input type="checkbox" aria-label={label} checked={on} onChange={onChange}
+             className="absolute inset-0 m-0 opacity-0 cursor-pointer" />
+      <span className={`inline-block w-[18px] h-[17px] leading-[17px] text-center rounded-[6px] ${
+        on ? 'bg-ec-blue text-ec-panel' : 'bg-ec-panel text-ec-icon hover:bg-ec-row-hover'}`}>{no}</span>
+    </label>
+  )
+}
 
 const monthToToday = () => {
   const d = new Date()
@@ -25,6 +39,10 @@ const monthToToday = () => {
  * [전표일자]를 누르면 근무입력이 그 전표로 열린다.
  * 조건 판은 접혀 있고 [Search(F3)]로 편다(원본 실측) — 기준일자(전표일자) · 근무일자([사용]) · 사원 · 수당항목 · 부서 ·
  * 프로젝트그룹1, 빠른선택 금일 · 전일 · 금주(~오늘) · 전주 · 금월(~오늘) · 전월 · 종료일. 프로젝트그룹1(근무 전표에 프로젝트가 없다) · 이력은 없다.
+ * 2026-10-14 다시 잼: 줄은 <b>전표마다 한 행</b>이다 — QA관리-일조 2.00(10/14) + 나일당 0.50(10/13) 전표가
+ * '2026/10/14 -2 · (첫 줄 근무일자) · QA관리-일조 외 1건 · 일근무 · 2.00'(근무기록은 합 2.5 가 아니라 첫 줄 값). 번호 칸(form-checkbox-numbered),
+ * 기간 '2026/10/01 ~2026/10/14'. [선택삭제]는 고른 줄이 없으면 '리스트에 선택된 자료가 없습니다.' 알림, 고르면 '삭제하겠습니까?' → 안내 없이 사라진다.
+ * 원본 오른쪽 위 [이력](근무조회 이력조회 — 지운 전표도 남는다)은 우리에게 일용 근무 이력 표가 없어 아직 없다.
  */
 export default function DailyWorkListPage() {
   const nav = useNavigate()
@@ -54,19 +72,29 @@ export default function DailyWorkListPage() {
   useEffect(() => { load() }, [])
 
   const deptOf = new Map(workers.map((w) => [w.id, w.departmentId]))
-  const shown = rows.filter((r) => (!useWorkDate || (r.workDate >= workRange.from && r.workDate <= workRange.to))
+  const lineOk = (r: Row) => (!useWorkDate || (r.workDate >= workRange.from && r.workDate <= workRange.to))
     && (workerCond.length === 0 || workerCond.includes(String(r.workerId)))
     && (itemCond.length === 0 || itemCond.includes(r.payItem))
-    && (deptCond.length === 0 || deptCond.includes(String(deptOf.get(r.workerId) ?? ''))))
+    && (deptCond.length === 0 || deptCond.includes(String(deptOf.get(r.workerId) ?? '')))
+  const keyOf = (r: { slipDate: string; slipNo: number }) => `${r.slipDate}/${r.slipNo}`
+  // 전표마다 묶는다 — 줄 차례는 lineNo(입력 차례). 조건은 줄 하나라도 맞으면 그 전표가 보인다(급여 근무조회 E090105 와 같다).
+  const slips: SlipRow[] = []
+  const byKey = new Map<string, SlipRow>()
+  for (const r of [...rows].sort((a, b) => a.lineNo - b.lineNo || a.id - b.id)) {
+    const k = keyOf(r)
+    const s = byKey.get(k)
+    if (s) s.lines.push(r)
+    else { const n = { slipDate: r.slipDate, slipNo: r.slipNo, first: r, lines: [r] }; byKey.set(k, n); slips.push(n) }
+  }
+  const order = new Map(rows.map((r, i) => [keyOf(r), i]))
+  slips.sort((a, b) => (order.get(keyOf(a)) ?? 0) - (order.get(keyOf(b)) ?? 0))
+  const shown = slips.filter((s) => s.lines.some(lineOk))
   useTableColumnCheck(tableRef, '일용근로 근무조회', [shown.length])
 
-  const keyOf = (r: Row) => `${r.slipDate}/${r.slipNo}`
-
   async function deleteChecked() {
-    if (checked.size === 0 || !(await ecConfirm('삭제하시겠습니까?'))) return
+    if (checked.size === 0 || !(await ecConfirm('삭제하겠습니까?'))) return
     try {
-      const slips = new Map(shown.filter((r) => checked.has(keyOf(r))).map((r) => [keyOf(r), r]))
-      for (const r of slips.values()) await api.delete(`/hr/daily-work-entries/${r.slipDate}/${r.slipNo}`)
+      for (const r of shown.filter((x) => checked.has(keyOf(x)))) await api.delete(`/hr/daily-work-entries/${r.slipDate}/${r.slipNo}`)
     } catch (e) {
       setError(extractErrorMessage(e))
     }
@@ -123,13 +151,13 @@ export default function DailyWorkListPage() {
           <EcPeriodPicks labels={INQUIRY_PICKS} currentFrom={range.from} onPick={setRange} />
         </li>
       </ul>
-      <div className="text-right text-ec-hint mb-[4px]">{shownRange.from.replace(/-/g, '/')} ~ {shownRange.to.replace(/-/g, '/')}</div>
+      <div className="text-right text-ec-hint mb-[4px]">{shownRange.from.replace(/-/g, '/')} ~{shownRange.to.replace(/-/g, '/')}</div>
       <table ref={tableRef} className="w-full text-left">
         <thead>
           <tr>
             <th className="w-[34px] text-center">
-              <input type="checkbox" checked={allChecked}
-                     onChange={() => setChecked(allChecked ? new Set() : new Set(shown.map(keyOf)))} />
+              <NumCheck no="" label="전체 선택" on={allChecked}
+                        onChange={() => setChecked(allChecked ? new Set() : new Set(shown.map(keyOf)))} />
             </th>
             <th className="text-center">전표일자</th>
             <th className="text-center">근무일자</th>
@@ -141,10 +169,10 @@ export default function DailyWorkListPage() {
         <tbody>
           {shown.length === 0 ? (
             <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-          ) : shown.map((r) => (
-            <tr key={r.id}>
+          ) : shown.map((r, i) => (
+            <tr key={keyOf(r)}>
               <td className="text-center">
-                <input type="checkbox" checked={checked.has(keyOf(r))}
+                <NumCheck no={i + 1} label="선택" on={checked.has(keyOf(r))}
                        onChange={() => {
                          const next = new Set(checked)
                          if (next.has(keyOf(r))) next.delete(keyOf(r)); else next.add(keyOf(r))
@@ -156,10 +184,10 @@ export default function DailyWorkListPage() {
                   {r.slipDate.replace(/-/g, '/')} -{r.slipNo}
                 </a>
               </td>
-              <td className="text-center">{r.workDate.replace(/-/g, '/')}</td>
-              <td>{r.workerName}</td>
-              <td>{r.payItem}</td>
-              <td className="text-right">{Number(r.quantity).toFixed(2)}</td>
+              <td className="text-center">{r.first.workDate.replace(/-/g, '/')}</td>
+              <td>{r.first.workerName}{r.lines.length > 1 ? ` 외 ${r.lines.length - 1}건` : ''}</td>
+              <td>{r.first.payItem}</td>
+              <td className="text-right">{Number(r.first.quantity).toFixed(2)}</td>
             </tr>
           ))}
         </tbody>
