@@ -97,6 +97,10 @@ const RULES: Rule[] = [
   // 회계
   ['/accounting/tax-invoice', 'TAX_INVOICE'],
   ['/accounting/bank-cards', 'BANK'],
+  ['/accounting/bank-txns', 'BANK'],
+  ['/accounting/card-purchases', 'BANK'],
+  ['/accounting/card-sales', 'BANK'],
+  ['/accounting/pg-sales', 'BANK'],
   ['/accounting/cards', 'BANK'],
   ['/accounting/bank-accounts', 'BANK'],
   ['/accounting/card-issuers', 'BANK'],

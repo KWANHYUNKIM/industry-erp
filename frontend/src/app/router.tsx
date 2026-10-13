@@ -133,6 +133,7 @@ const VatSlipPage = lazy(() => import('../pages/accounting/VatSlipPage'))
 const CashTxnPage = lazy(() => import('../pages/accounting/CashTxnPage'))
 const CashDetailPage = lazy(() => import('../pages/accounting/CashDetailPage'))
 const BankCardPage = lazy(() => import('../pages/accounting/BankCardPage'))
+const LinkedTxnListPage = lazy(() => import('../pages/accounting/LinkedTxnListPage'))
 const CardListPage = lazy(() => import('../pages/accounting/CardListPage'))
 const BankAccountListPage = lazy(() => import('../pages/accounting/BankAccountListPage'))
 const FixedAssetPage = lazy(() => import('../pages/accounting/FixedAssetPage'))
@@ -706,6 +707,11 @@ export default function AppRouter() {
         <Route path="/accounting/sales-slip" element={<VatSlipPage sales />} />
         <Route path="/accounting/purchase-slip" element={<VatSlipPage sales={false} />} />
         <Route path="/accounting/bank-cards" element={<BankCardPage />} />
+        {/* 원본 회계 I › 계좌/카드 네 화면(C001137 · E010206 · E010215 · E010207) */}
+        <Route path="/accounting/bank-txns" element={<LinkedTxnListPage key="bank" kind="bank" />} />
+        <Route path="/accounting/card-purchases" element={<LinkedTxnListPage key="cardBuy" kind="cardBuy" />} />
+        <Route path="/accounting/card-sales" element={<LinkedTxnListPage key="cardSale" kind="cardSale" />} />
+        <Route path="/accounting/pg-sales" element={<LinkedTxnListPage key="pg" kind="pg" />} />
         <Route path="/accounting/cards" element={<CardListPage />} />
         <Route path="/accounting/bank-accounts" element={<BankAccountListPage />} />
         <Route path="/accounting/fixed-assets" element={<FixedAssetPage />} />

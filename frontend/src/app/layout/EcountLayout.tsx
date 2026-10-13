@@ -573,6 +573,16 @@ const MENU: TopMenu[] = [
         ],
       },
       {
+        /* 원본 회계 I › 계좌/카드(2026-10-14 loginaa) — 은행 · 카드사 · 결제대행사에서 긁어 온 줄을 보고 전표로 만드는 네 화면. */
+        label: '계좌/카드',
+        nodes: [
+          { label: '입/출금계좌 조회', to: '/accounting/bank-txns' },
+          { label: '카드매입조회', to: '/accounting/card-purchases' },
+          { label: '카드매출조회', to: '/accounting/card-sales' },
+          { label: '결제대행사매출조회', to: '/accounting/pg-sales' },
+        ],
+      },
+      {
         label: '회계거래관리',
         nodes: [
           { label: '회계거래조회', to: '/accounting/journals' },
