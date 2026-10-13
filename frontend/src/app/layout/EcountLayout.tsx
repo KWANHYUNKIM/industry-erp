@@ -390,6 +390,9 @@ const MENU: TopMenu[] = [
           { label: '매출계획현황', to: '/sales/sales-plan-status' },
           /* 원본 매출계획 > [매출계획비교표](E040626) — 기간 안 계획과 판매 전부를 표시조건으로 견주는 출력물(2026-10-04). */
           { label: '매출계획비교표', to: '/sales/sales-plan-compare' },
+          /* 원본 프로젝트계획 > [프로젝트계획조회](E040636) · [프로젝트계획/실적현황](E040637) — 2026-10-13. */
+          { label: '프로젝트계획조회', to: '/accounting/project-plan' },
+          { label: '프로젝트계획/실적현황', to: '/accounting/project-plan-status' },
           { label: '생산계획(MPS)', to: '/production/planning' },
           /* 원본 생산/외주 탭의 표기는 [생산계획/MRP생성] 이다(사본 좌측 메뉴 실측). */
           { label: '생산계획/MRP생성', to: '/production/mrp' },

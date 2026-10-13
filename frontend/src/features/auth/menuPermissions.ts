@@ -154,6 +154,7 @@ const RULES: Rule[] = [
   ['/accounting/monthly-profit', 'PROFIT'],
   ['/accounting/daily-profit', 'PROFIT'],
   ['/accounting/project-profit', 'PROFIT'],
+  ['/accounting/project-plan-status', 'PROFIT'],
   ['/accounting/project-plan', 'PROFIT'],
   ['/accounting', 'ACCOUNTING'], // accounts · journals · vouchers · 재무제표 · 원장 …
 

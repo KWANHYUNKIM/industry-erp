@@ -105,6 +105,85 @@ public class ProjectPlanService {
         }).toList();
     }
 
+    /**
+     * 프로젝트계획/실적현황(E040637) — 2026-10-13 loginaa 실측.
+     *
+     * <p>원본 계획은 판매(수익) · 구매 · 노무비 · 경비(비용) 네 항목이고, 프로젝트 기간의 달에 놓인다
+     * (20260901A: 판매 20,000,000 · 구매 10,000,000 → '2026.09' 한 줄씩). 우리 계획은 연 단위라
+     * 프로젝트 시작달이 그 해이면 시작달에, 아니면 그 해 1월에 놓는다(원본 계획이 모두 한 달짜리 프로젝트라
+     * 여러 달에 어떻게 나누는지는 아직 못 쟀다).
+     *
+     * <p>실적은 판매(공급가액) · 구매(공급가액) · 비용 전표를 그 달 · 그 프로젝트로 모은다(ProjectProfitService).
+     * 노무비는 우리 전표에 프로젝트로 모을 자리가 없어 실적이 늘 비어 있다.
+     */
+    @Transactional(readOnly = true)
+    public List<com.erp.accounting.project.dto.ProjectPlanDtos.StatusCell> status(
+            List<Long> projectIds, java.time.YearMonth from, java.time.YearMonth to) {
+        if (projectIds == null || projectIds.isEmpty()) return List.of();
+        if (to.isBefore(from)) { java.time.YearMonth t = from; from = to; to = t; }
+        if (from.plusMonths(120).isBefore(to)) throw ApiException.badRequest("기준일자는 10년 안으로 고르세요.");
+
+        java.util.Set<Long> ids = new java.util.LinkedHashSet<>(projectIds);
+        java.util.Map<Long, Project> projects = new java.util.LinkedHashMap<>();
+        for (Project p : projectRepository.findAllById(ids)) projects.put(p.getId(), p);
+
+        // (프로젝트, 항목, 달) → [예상, 실적]
+        java.util.Map<String, BigDecimal[]> cells = new java.util.LinkedHashMap<>();
+        java.util.function.BiConsumer<String, BigDecimal[]> put = (k, v) -> cells.merge(k, v,
+                (a, b) -> new BigDecimal[]{a[0].add(b[0]), a[1].add(b[1])});
+
+        for (ProjectPlan plan : planRepository.findByProjectIdsWithProject(ids)) {
+            Project p = plan.getProject();
+            java.time.YearMonth ym = (p.getStartDate() != null && p.getStartDate().getYear() == plan.getPlanYear())
+                    ? java.time.YearMonth.from(p.getStartDate())
+                    : java.time.YearMonth.of(plan.getPlanYear(), 1);
+            if (ym.isBefore(from) || ym.isAfter(to)) continue;
+            putPlan(put, p.getId(), "판매", ym, plan.getPlanRevenue());
+            putPlan(put, p.getId(), "구매", ym, plan.getPlanPurchase());
+            putPlan(put, p.getId(), "노무비", ym, plan.getPlanLabor());
+            putPlan(put, p.getId(), "경비", ym, plan.getPlanExpense());
+        }
+
+        for (java.time.YearMonth ym = from; !ym.isAfter(to); ym = ym.plusMonths(1)) {
+            ProjectProfitSummary s = projectProfitService.profit(ym.atDay(1), ym.atEndOfMonth());
+            for (ProjectProfitRow r : s.rows()) {
+                if (!ids.contains(r.projectId())) continue;
+                putActual(put, r.projectId(), "판매", ym, r.revenue());
+                putActual(put, r.projectId(), "구매", ym, r.purchaseCost());
+                putActual(put, r.projectId(), "경비", ym, r.expense());
+            }
+        }
+
+        List<com.erp.accounting.project.dto.ProjectPlanDtos.StatusCell> out = new java.util.ArrayList<>();
+        for (var e : cells.entrySet()) {
+            String[] k = e.getKey().split("\\|");
+            Project p = projects.get(Long.valueOf(k[0]));
+            if (p == null) continue;
+            out.add(new com.erp.accounting.project.dto.ProjectPlanDtos.StatusCell(
+                    p.getId(), p.getCode(), p.getName(), p.getStartDate(), p.getEndDate(),
+                    k[1], k[2], e.getValue()[0], e.getValue()[1]));
+        }
+        out.sort(java.util.Comparator
+                .comparing(com.erp.accounting.project.dto.ProjectPlanDtos.StatusCell::projectCode)
+                .thenComparing(c -> ITEM_ORDER.indexOf(c.item()))
+                .thenComparing(com.erp.accounting.project.dto.ProjectPlanDtos.StatusCell::month));
+        return out;
+    }
+
+    private static final List<String> ITEM_ORDER = List.of("판매", "구매", "노무비", "경비");
+
+    private static void putPlan(java.util.function.BiConsumer<String, BigDecimal[]> put,
+                                Long projectId, String item, java.time.YearMonth ym, BigDecimal v) {
+        if (v == null || v.signum() == 0) return;
+        put.accept(projectId + "|" + item + "|" + ym, new BigDecimal[]{v, BigDecimal.ZERO});
+    }
+
+    private static void putActual(java.util.function.BiConsumer<String, BigDecimal[]> put,
+                                  Long projectId, String item, java.time.YearMonth ym, BigDecimal v) {
+        if (v == null || v.signum() == 0) return;
+        put.accept(projectId + "|" + item + "|" + ym, new BigDecimal[]{BigDecimal.ZERO, v});
+    }
+
     /** 달성률(%) = 실적/계획*100. 계획이 0 이하이면 0으로 둔다(나눗셈·음수 왜곡 방지). */
     private BigDecimal rate(BigDecimal actual, BigDecimal plan) {
         if (plan == null || plan.signum() <= 0) return BigDecimal.ZERO;

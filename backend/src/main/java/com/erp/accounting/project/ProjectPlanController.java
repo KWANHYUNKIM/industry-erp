@@ -29,6 +29,15 @@ public class ProjectPlanController {
         return service.comparison(year);
     }
 
+    /** 프로젝트계획/실적현황(E040637). 달은 YYYY-MM. */
+    @GetMapping("/status")
+    public List<com.erp.accounting.project.dto.ProjectPlanDtos.StatusCell> status(
+            @RequestParam List<Long> projectIds,
+            @RequestParam String from,
+            @RequestParam String to) {
+        return service.status(projectIds, java.time.YearMonth.parse(from), java.time.YearMonth.parse(to));
+    }
+
     @PostMapping
     public ResponseEntity<ProjectPlanResponse> create(
             @Valid @RequestBody CreateProjectPlanRequest req,

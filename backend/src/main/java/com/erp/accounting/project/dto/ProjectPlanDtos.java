@@ -75,4 +75,15 @@ public final class ProjectPlanDtos {
              */
             java.time.LocalDateTime updatedAt
     ) {}
+
+    /**
+     * 프로젝트계획/실적현황(E040637) 한 칸 — 프로젝트 · 항목(판매 · 구매 · 노무비 · 경비) · 달 하나의 예상과 실적.
+     * 달마다 한 줄이라 화면이 [기간구분](월별 · 분기별 · 반기별 · 연별 · 집계)으로 다시 묶는다.
+     */
+    public record StatusCell(
+            Long projectId, String projectCode, String projectName,
+            LocalDate startDate, LocalDate endDate,
+            String item, String month,
+            BigDecimal plan, BigDecimal actual
+    ) {}
 }
