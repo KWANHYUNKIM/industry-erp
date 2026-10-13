@@ -13,7 +13,21 @@ interface Contact {
   email: string | null
   jobTitle: string
   resignDate: string | null
+  /** 원본 [생년월일] — 우리 사원에 칸이 없어 지금은 늘 비어 온다(원본 loginaa 도 전부 빈칸). */
+  birthDate?: string | null
 }
+
+/** 원본 [생년월일] 조건 처음 값 — 이번 달 1일 ~ 말일, [사용] 꺼짐(2026-10-14 E070202 실측). */
+function monthRange() {
+  const d = new Date()
+  const y = String(d.getFullYear())
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const last = String(new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate())
+  return { fy: y, fm: m, fd: '01', ty: y, tm: m, td: last }
+}
+type BirthCond = ReturnType<typeof monthRange>
+const YEARS = Array.from({ length: 100 }, (_, i) => String(new Date().getFullYear() - i))
+const MONTHS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'))
 
 /** 원본 조건 [사원구분] — 전체 · 재직자 · 퇴사자, 처음엔 재직자(2026-10-13 E070202 실측). */
 type EmpKind = 'ALL' | 'ACTIVE' | 'RESIGNED'
@@ -32,12 +46,13 @@ const PAGE = 10
  * <p>원본 실측: 머리 [성명▼][부서▼][전화▼][모바일▼][Email▼][생년월일▼] — 전부 눌러 정렬한다. 행번호 칸이 없다.
  * 쪽번호는 표 <b>위</b>에 붙는다(① 2 3 » [ ] / 3). 검색창은 제목 줄 오른쪽 하나뿐이다.
  *
- * <p><b>[생년월일]은 두지 않았다.</b> 우리 사원(hr.Employee)에 생년월일 칸이 없다 — 원본 loginaa 회사도
- * 전부 빈칸이었다. 늘 빈 열을 그려 두면 '값이 없다' 가 아니라 '아직 안 적었다' 로 읽힌다.
- * 사원 칸을 늘리는 것은 관리 모듈 일이라 보드에 적어 두었다.
+ * <p><b>[생년월일]</b>(2026-10-14) — 원본 loginaa 는 열이 있고 전부 빈칸이다. 우리도 열을 그리고 응답의 birthDate 를 찍는다
+ * (우리 사원 hr.Employee 에는 아직 칸이 없어 늘 빈칸 — 사원 칸을 늘리는 것은 관리 모듈 몫). 조건 [생년월일] 은
+ * 년 ▾ / 월 ▾ / 일 ~ 년 ▾ / 월 ▾ / 일 ☐사용 — 처음엔 이번 달 1일 ~ 말일, [사용] 꺼짐. 켜면 그 기간에 든 사람만
+ * (생년월일이 빈 사람은 빠진다 — 원본도 켜고 검색하면 '등록된 데이터가 없습니다.').
  *
  * <p><b>2026-10-13 조건 판.</b> 원본 [Search(F3)] 를 누르면 조건이 내려온다 — 성명 · 부서 · 직위/직급 · 전화 · 모바일 ·
- * Email · 생년월일(사용) · 사원구분(전체 · <b>재직자</b> · 퇴사자). 처음엔 재직자만 보인다. 생년월일은 위와 같은 이유로 뺐다.
+ * Email · 생년월일(사용) · 사원구분(전체 · <b>재직자</b> · 퇴사자). 처음엔 재직자만 보인다.
  */
 export default function EmployeeContactPage() {
   const [rows, setRows] = useState<Contact[]>([])
@@ -51,6 +66,12 @@ export default function EmployeeContactPage() {
   const [mobileCond, setMobileCond] = useState('')
   const [emailCond, setEmailCond] = useState('')
   const [kind, setKind] = useState<EmpKind>('ACTIVE')
+  const [birth, setBirth] = useState<BirthCond>(monthRange)
+  const [birthOn, setBirthOn] = useState(false)
+  const setB = (k: keyof BirthCond, v: string) => setBirth((b) => ({ ...b, [k]: v }))
+  const day2 = (d: string) => (d.trim() || '1').padStart(2, '0')
+  const birthFrom = `${birth.fy}-${birth.fm}-${day2(birth.fd)}`
+  const birthTo = `${birth.ty}-${birth.tm}-${day2(birth.td)}`
 
   useEffect(() => {
     api.get<Contact[]>('/employees')
@@ -66,6 +87,7 @@ export default function EmployeeContactPage() {
       && (!titleCond || r.jobTitle === titleCond) && has(r.phone, phoneCond)
       && has(r.mobile, mobileCond) && has(r.email, emailCond))
     .filter((r) => kind === 'ALL' || (kind === 'ACTIVE' ? !r.resignDate : !!r.resignDate))
+    .filter((r) => !birthOn || (!!r.birthDate && r.birthDate >= birthFrom && r.birthDate <= birthTo))
   const uniq = (vs: string[]) => [...new Set(vs.filter(Boolean))].sort()
   const sort = useTableSort(filtered, {
     성명: (r) => r.name,
@@ -73,14 +95,15 @@ export default function EmployeeContactPage() {
     전화: (r) => r.phone,
     모바일: (r) => r.mobile,
     Email: (r) => r.email,
+    생년월일: (r) => r.birthDate ?? '',
   })
   const pages = Math.max(1, Math.ceil(sort.sorted.length / PAGE))
   const cur = Math.min(page, pages)
   const shown = sort.sorted.slice((cur - 1) * PAGE, cur * PAGE)
 
-  useEffect(() => { setPage(1) }, [keyword, nameCond, deptCond, titleCond, phoneCond, mobileCond, emailCond, kind])
+  useEffect(() => { setPage(1) }, [keyword, nameCond, deptCond, titleCond, phoneCond, mobileCond, emailCond, kind, birthOn, birthFrom, birthTo])
 
-  const th = (k: '성명' | '부서' | '전화' | '모바일' | 'Email') => (
+  const th = (k: '성명' | '부서' | '전화' | '모바일' | 'Email' | '생년월일') => (
     <th className="cursor-pointer text-ec-navy" onClick={() => sort.toggle(k)}>{k} {sort.mark(k)}</th>
   )
 
@@ -93,7 +116,7 @@ export default function EmployeeContactPage() {
     >
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
-      {/* 원본 차례: 성명 · 부서 · 직위/직급 · 전화 · 모바일 · Email · (생년월일) · 사원구분 — 접어 두고 [Search(F3)] 로 편다 */}
+      {/* 원본 차례: 성명 · 부서 · 직위/직급 · 전화 · 모바일 · Email · 생년월일 · 사원구분 — 접어 두고 [Search(F3)] 로 편다 */}
       <ul className="ec-cond mb-[6px]">
         <EcCond label="성명">
           <input className="ec-input w-[140px]" aria-label="성명" value={nameCond} onChange={(e) => setNameCond(e.target.value)} />
@@ -118,6 +141,30 @@ export default function EmployeeContactPage() {
         </EcCond>
         <EcCond label="Email">
           <input className="ec-input w-[140px]" aria-label="Email" value={emailCond} onChange={(e) => setEmailCond(e.target.value)} />
+        </EcCond>
+        <EcCond label="생년월일">
+          <div className="flex items-center gap-[4px] text-[12px] text-ec-label">
+            {(['f', 't'] as const).map((side, i) => (
+              <span key={side} className="flex items-center gap-[4px]">
+                {i === 1 && <span>~</span>}
+                <select className="ec-input w-[70px]" aria-label={`생년월일 ${i ? '끝' : '시작'} 년`} value={birth[`${side}y`]}
+                        onChange={(e) => setB(`${side}y`, e.target.value)}>
+                  {YEARS.map((y) => <option key={y}>{y}</option>)}
+                </select>
+                <span>/</span>
+                <select className="ec-input w-[54px]" aria-label={`생년월일 ${i ? '끝' : '시작'} 월`} value={birth[`${side}m`]}
+                        onChange={(e) => setB(`${side}m`, e.target.value)}>
+                  {MONTHS.map((m) => <option key={m}>{m}</option>)}
+                </select>
+                <span>/</span>
+                <input className="ec-input w-[36px] text-center" aria-label={`생년월일 ${i ? '끝' : '시작'} 일`} maxLength={2}
+                       value={birth[`${side}d`]} onChange={(e) => setB(`${side}d`, e.target.value.replace(/\D/g, ''))} />
+              </span>
+            ))}
+            <label className="flex items-center gap-[4px] ml-[6px]">
+              <input type="checkbox" aria-label="생년월일 사용" checked={birthOn} onChange={(e) => setBirthOn(e.target.checked)} /> 사용
+            </label>
+          </div>
         </EcCond>
         <EcCond label="사원구분">
           <div className="flex items-center gap-[10px] text-[12px] text-ec-label">
@@ -149,11 +196,11 @@ export default function EmployeeContactPage() {
 
       <table className="w-full text-left table-fixed">
         <thead>
-          <tr>{th('성명')}{th('부서')}{th('전화')}{th('모바일')}{th('Email')}</tr>
+          <tr>{th('성명')}{th('부서')}{th('전화')}{th('모바일')}{th('Email')}{th('생년월일')}</tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={5} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={6} className="text-center text-ec-ink">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((r) => (
             <tr key={r.id}>
               <td>{r.name}</td>
@@ -161,6 +208,7 @@ export default function EmployeeContactPage() {
               <td>{r.phone ?? ''}</td>
               <td>{r.mobile ?? ''}</td>
               <td>{r.email ?? ''}</td>
+              <td>{r.birthDate ? r.birthDate.replace(/-/g, '/') : ''}</td>
             </tr>
           ))}
         </tbody>
