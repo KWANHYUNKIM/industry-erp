@@ -25,8 +25,9 @@ public class RetirementPayController {
     public java.util.List<com.erp.accounting.retirementpay.dto.RetirementPayDtos.EstimateRow> estimate(
             @RequestParam String baseMonth, @RequestParam(required = false) String employeeCode,
             @RequestParam(required = false) Long departmentId,
-            @RequestParam(defaultValue = "false") boolean includeUnderOneYear) {
-        return estimateService.estimate(baseMonth, employeeCode, departmentId, includeUnderOneYear);
+            @RequestParam(defaultValue = "false") boolean includeUnderOneYear,
+            @RequestParam(defaultValue = "false") boolean midSettlement) {
+        return estimateService.estimate(baseMonth, employeeCode, departmentId, includeUnderOneYear, midSettlement);
     }
 
     @GetMapping

@@ -65,8 +65,9 @@ public class WithholdingController {
 
     /** 원천세신고자료비교표 (E030104) — 기준연도 달마다 구분별 자료 vs 신고내역, 끝에 합계. */
     @GetMapping("/comparison")
-    public List<WithholdingDtos.ComparisonRow> comparison(@RequestParam int year) {
-        return service.comparison(year);
+    public List<WithholdingDtos.ComparisonRow> comparison(@RequestParam int year,
+                                                          @RequestParam(defaultValue = "false") boolean byPayMonth) {
+        return service.comparison(year, byPayMonth);
     }
 
     /** 소득자료제출집계표 (E030508) — kind 는 원본 [출력구분] 이름(사업소득 · 기타소득 …), 귀속연월 from ~ to, 지급연월 payFrom ~ payTo(선택). */

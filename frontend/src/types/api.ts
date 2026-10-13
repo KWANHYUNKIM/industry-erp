@@ -3394,7 +3394,7 @@ export interface DailyReceipt {
 
 /** 퇴직급여추계액(E030108) — GET /retirement-pays/estimate */
 export interface RetirementEstimateRow {
-  employeeId: number; employeeCode: string | null; employeeName: string; startDate: string
+  employeeId: number; employeeCode: string | null; employeeName: string; hireDate: string; startDate: string
   threeMonthPay: number; bonusThreeMonths: number; years: number; months: number; days: number
   threeMonthDays: number; serviceDays: number; retirementPay: number
 }

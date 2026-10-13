@@ -31,7 +31,14 @@ import java.util.*;
  *       (변종호 2/15 → 11/01: 1 + 28 − 15 = 14일).</li>
  *   <li>1년 미만자는 [1년 미만자 포함]을 켜야 나온다.</li>
  * </ul>
- * 급여는 급여명세의 귀속연월로 센다(원본 [급여반영기준] 기본은 지급일). 정산시작일은 입사일이다(중간정산이 없다).
+ * 급여는 급여명세의 귀속연월로 센다(원본 [급여반영기준] 기본은 지급일).
+ *
+ * <p>[정산시작일] ○중간정산기준(2026-10-14 원본 2026/10): 그 사원의 퇴직금계산 중 기준월 말일까지의 가장 늦은 퇴사일 + 1일부터 센다
+ * (변종호 입사 2019/02/15 · 퇴직금계산 퇴사 2026/08/19 → 정산시작일 2026/08/20 · 근속 0년 2월 12일 · 재직 73일 · 931,109.
+ * 홍재혁은 퇴직일자(귀속)가 02/21 · 02/20 · 01/21 셋이지만 퇴사일이 모두 02/20 이라 2025/02/21). 퇴직금계산이 없으면 입사일.
+ * 이때 격자에 [입사일] 열이 더 붙는다. 1년 미만 판정은 두 기준 모두 <b>입사일</b>로 한다 — 중간정산기준에서 고준희(입사 2024/10/01,
+ * 정산시작 2026/08/27 · 66일)는 [1년 미만자 포함] 없이도 나온다. 입사기준 2025/09 고준희 365일(1년 0월 0일)은 나오고
+ * 2025/08 334일은 [1년 미만자 포함] 을 켜야 나온다(29명 → 30명).
  */
 @Service
 @RequiredArgsConstructor
@@ -41,9 +48,17 @@ public class RetirementEstimateService {
 
     private final EmployeeService employeeService;
     private final PayrollService payrollService;
+    private final RetirementPayRepository retirementPayRepository;
 
     @Transactional(readOnly = true)
     public List<EstimateRow> estimate(String baseMonth, String employeeCode, Long departmentId, boolean includeUnderOneYear) {
+        return estimate(baseMonth, employeeCode, departmentId, includeUnderOneYear, false);
+    }
+
+    /** midSettlement: [정산시작일] ○중간정산기준 — 퇴직금계산의 마지막 퇴사일 다음 날부터 센다. */
+    @Transactional(readOnly = true)
+    public List<EstimateRow> estimate(String baseMonth, String employeeCode, Long departmentId, boolean includeUnderOneYear,
+                                      boolean midSettlement) {
         YearMonth base;
         try {
             base = YearMonth.parse(baseMonth);
@@ -64,14 +79,23 @@ public class RetirementEstimateService {
             }
         }
 
+        Map<Long, LocalDate> lastSettled = new HashMap<>();
+        if (midSettlement) {
+            for (RetirementPay r : retirementPayRepository.findAll()) {
+                if (r.getRetireDate() == null || r.getRetireDate().isAfter(end)) continue;
+                lastSettled.merge(r.getEmployee().getId(), r.getRetireDate(), (a, b) -> a.isAfter(b) ? a : b);
+            }
+        }
+
         List<EstimateRow> rows = new ArrayList<>();
         for (EmployeeResponse e : employeeService.findAll()) {
             if (e.hireDate() == null || e.hireDate().isAfter(end)) continue;
             if (employeeCode != null && !employeeCode.isBlank() && !employeeCode.equals(e.code())) continue;
             if (departmentId != null && !departmentId.equals(e.departmentId())) continue;
-            LocalDate start = e.hireDate();
+            if (!includeUnderOneYear && e.hireDate().plusYears(1).isAfter(end.plusDays(1))) continue;
+            LocalDate settled = lastSettled.get(e.id());
+            LocalDate start = settled != null && settled.isAfter(e.hireDate()) ? settled.plusDays(1) : e.hireDate();
             long serviceDays = ChronoUnit.DAYS.between(start, end) + 1;
-            if (!includeUnderOneYear && start.plusYears(1).isAfter(end.plusDays(1))) continue;
             int[] ymd = tenure(start, end.plusDays(1));
             BigDecimal p3 = pay3.getOrDefault(e.id(), BigDecimal.ZERO);
             BigDecimal b3 = bonus12.getOrDefault(e.id(), BigDecimal.ZERO).multiply(BigDecimal.valueOf(3))
@@ -81,10 +105,10 @@ public class RetirementEstimateService {
             BigDecimal daily = p3.add(b3).divide(BigDecimal.valueOf(threeMonthDays), 2, RoundingMode.HALF_UP);
             BigDecimal amount = daily.multiply(BigDecimal.valueOf(30)).multiply(BigDecimal.valueOf(serviceDays))
                     .divide(BigDecimal.valueOf(365), 0, RoundingMode.HALF_UP);
-            rows.add(new EstimateRow(e.id(), e.code(), e.name(), start, p3, b3, ymd[0], ymd[1], ymd[2],
+            rows.add(new EstimateRow(e.id(), e.code(), e.name(), e.hireDate(), start, p3, b3, ymd[0], ymd[1], ymd[2],
                     threeMonthDays, serviceDays, amount));
         }
-        rows.sort(Comparator.comparing(EstimateRow::startDate).thenComparing(r -> Objects.toString(r.employeeCode(), "")));
+        rows.sort(Comparator.comparing(EstimateRow::hireDate).thenComparing(r -> Objects.toString(r.employeeCode(), "")));
         return rows;
     }
 

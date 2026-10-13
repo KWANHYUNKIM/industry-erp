@@ -19,7 +19,9 @@ type Company = { name?: string; bizRegNo?: string }
  * <p>차이여부는 신고서가 있고 금액(지급총액 − 제출제외)이 다를 때만 — 소득세가 달라도 빈칸이다(원본 2026/10 근로소득 625,010 · 646,370, 2026-10-12).
  * 다를 때는 주황 체크(fa-check, 색은 --ec-bg-tag 와 같은 246·136·45) 하나 — 2026-10-13 원본에 QA 로 2026/10 신고서를 만들어 금액을 20,000,000 으로 고쳐 잼
  * (급여대장 21,669,000 − 1,200,000 = 20,469,000 과 다름), 누르면 아무것도 안 열린다. 잰 뒤 신고서는 지움.
- * 중도퇴사 · 연말정산 · 법인원천은 자료가 없어 빈다. 중도퇴사기준은 고를 수 있지만 쓰는 자료가 없다.
+ * 2026-10-14 다시 대조: 일용근로는 일용근로 급여대장(귀속연월) · 퇴직소득은 퇴직금계산의 퇴직일자(귀속) 달 · 인원은 그 달 사원 수
+ * (원본 2025 01월 1 · 02월 2 10,721 · 11월 1 178,678 · 합계 7 189,399 — 중도퇴사기준을 바꿔도 같음), 연말정산 · 중도퇴사는 정산내역(총급여+비과세 · 결정세액).
+ * 중도퇴사기준은 중도정산 줄만 바꾼다(◉귀속 = 퇴사일 달, ○지급연월 = 원천징수연월).
  */
 export default function WithholdingComparisonPage() {
   const thisYear = new Date().getFullYear()
@@ -36,7 +38,7 @@ export default function WithholdingComparisonPage() {
   async function search() {
     setError('')
     try {
-      setRows((await api.get<WithholdingComparisonRow[]>('/withholding/comparison', { params: { year } })).data)
+      setRows((await api.get<WithholdingComparisonRow[]>('/withholding/comparison', { params: { year, byPayMonth: retireBasis === '지급연월' } })).data)
     } catch (e) {
       setRows([]); setError(extractErrorMessage(e))
     }

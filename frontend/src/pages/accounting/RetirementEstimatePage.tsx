@@ -15,7 +15,9 @@ type Dept = { id: number; name: string }
  * 급여반영기준 · 상여반영기준(○귀속연월 ◉지급일) · 기타구분(□1년 미만자 포함), [검색(F8) · 다시작성].
  * 격자 [No. · 사원번호 · 성명 · 정산시작일 · 3개월동안급여 · 1년상여합계(3개월로환산) · 근속일수(년 · 월 · 일) · 3개월근무일수 ·
  * 재직일수 · 퇴직급여] + '합계 [n명]', 하단 [인쇄 · Excel]. 원본 2026/10 합계 [30명] 129,210,221.
- * 우리 급여명세는 귀속연월 하나라 급여 · 상여반영기준은 늘 귀속연월로 센다. 중간정산이 없어 정산시작일은 늘 입사일이다.
+ * 우리 급여명세는 귀속연월 하나라 급여 · 상여반영기준은 늘 귀속연월로 센다.
+ * ○중간정산기준(2026-10-14 실측): 퇴직금계산의 마지막 퇴사일 다음 날부터 세고, 격자에 [입사일] 열이 정산시작일 앞에 붙는다
+ * (입사일은 '2019 / 02 / 15', 정산시작일은 '2026/08/20' 꼴). 1년 미만 판정은 늘 입사일로 한다.
  */
 export default function RetirementEstimatePage() {
   const today = new Date()
@@ -29,6 +31,7 @@ export default function RetirementEstimatePage() {
   const [underOne, setUnderOne] = useState(false)
   const [depts, setDepts] = useState<Dept[]>([])
   const [rows, setRows] = useState<RetirementEstimateRow[] | null>(null)
+  const [mid, setMid] = useState(false)   // 검색한 때의 정산시작일 기준 — 열 구성은 결과를 따른다
   const [error, setError] = useState('')
   const tableRef = useRef<HTMLTableElement>(null)
   useTableColumnCheck(tableRef, '퇴직급여추계액', [rows])
@@ -45,8 +48,10 @@ export default function RetirementEstimatePage() {
         employeeCode: employeeCode.trim() || undefined,
         departmentId: departmentId || undefined,
         includeUnderOneYear: underOne,
+        midSettlement: startBasis === '중간정산기준',
       }
       setRows((await api.get<RetirementEstimateRow[]>('/retirement-pays/estimate', { params })).data)
+      setMid(startBasis === '중간정산기준')
     } catch (e) {
       setRows([]); setError(extractErrorMessage(e))
     }
@@ -110,7 +115,7 @@ export default function RetirementEstimatePage() {
         <table ref={tableRef} className="w-full">
           <thead>
             <tr>
-              <th rowSpan={2}>No.</th><th rowSpan={2}>사원번호</th><th rowSpan={2}>성명</th><th rowSpan={2}>정산시작일</th>
+              <th rowSpan={2}>No.</th><th rowSpan={2}>사원번호</th><th rowSpan={2}>성명</th>{mid && <th rowSpan={2}>입사일</th>}<th rowSpan={2}>정산시작일</th>
               <th rowSpan={2}>3개월동안급여</th><th rowSpan={2}>1년상여합계<br />(3개월로환산)</th>
               <th colSpan={3}>근속일수</th>
               <th rowSpan={2}>3개월근무일수</th><th rowSpan={2}>재직일수</th><th rowSpan={2}>퇴직급여</th>
@@ -119,13 +124,14 @@ export default function RetirementEstimatePage() {
           </thead>
           <tbody>
             {list.length === 0 ? (
-              <tr><td colSpan={12} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+              <tr><td colSpan={mid ? 13 : 12} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
             ) : list.map((r, i) => (
               <tr key={r.employeeId}>
                 <td className="text-center">{i + 1}</td>
                 <td>{r.employeeCode ?? ''}</td>
                 <td>{r.employeeName}</td>
-                <td className="text-center">{r.startDate.replace(/-/g, ' / ')}</td>
+                {mid && <td className="text-center">{r.hireDate.replace(/-/g, ' / ')}</td>}
+                <td className="text-center">{r.startDate.replace(/-/g, mid ? '/' : ' / ')}</td>
                 <td className="text-right">{won(r.threeMonthPay)}</td>
                 <td className="text-right">{won(r.bonusThreeMonths)}</td>
                 <td className="text-right">{r.years}</td>
@@ -140,7 +146,7 @@ export default function RetirementEstimatePage() {
           {list.length > 0 && (
             <tfoot>
               <tr>
-                <td colSpan={11} className="text-center">합계 [{list.length}명]</td>
+                <td colSpan={mid ? 12 : 11} className="text-center">합계 [{list.length}명]</td>
                 <td className="text-right">{won(list.reduce((t, r) => t + Number(r.retirementPay), 0))}</td>
               </tr>
             </tfoot>
