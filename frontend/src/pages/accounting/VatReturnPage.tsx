@@ -552,6 +552,11 @@ export default function VatReturnPage() {
                 </label>
                 <span>예정누락 {!form.monthly && form.returnKind === 'FINAL'
                   ? `${String((form.term - 1) * 6 + 1).padStart(2, '0')}월 ~ ${String((form.term - 1) * 6 + 3).padStart(2, '0')}월` : '=== ~ ==='}</span>
+                {/* 원본 2026-10-13: 예정 · 확정 모두 막힌 ◉제출 ○미제출(다른 때 풀리는지는 못 잼). */}
+                <span>계산서합계표{' '}
+                  <label className="inline-flex items-center gap-[3px] mr-[10px]"><input type="radio" disabled checked readOnly /> 제출</label>
+                  <label className="inline-flex items-center gap-[3px]"><input type="radio" disabled checked={false} readOnly /> 미제출</label>
+                </span>
               </div>
             </EcCond>
             <EcCond label="신고작성일자" span={2}>
