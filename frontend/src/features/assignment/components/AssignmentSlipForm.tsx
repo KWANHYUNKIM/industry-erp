@@ -9,6 +9,14 @@ import { ASSIGNMENT_KINDS, type AssignmentKind, type AssignmentLine } from '../t
 import GridFindButton from '../../../components/GridFindButton'
 import { ecConfirm } from '../../../components/EcDialog'
 import { EcHistoryModal } from '../../../components/EcHistory'
+import type { CodeColumn } from '../../../components/CodeSearchModal'
+
+/** 사번 🔍 — 원본은 '사원검색' 창, 열 사원번호 · 성명 · 부서명(2026-10-14 실측) */
+const EMPLOYEE_COLUMNS: CodeColumn[] = [
+  { head: '사원번호', width: 311, link: true, cell: (i) => i.code ?? '' },
+  { head: '성명', width: 311, link: true, cell: (i) => i.name },
+  { head: '부서명', width: 311, cell: (i) => i.sub ?? '' },
+]
 
 /** 서버 EmployeeService.slipHistoryId 와 같은 열쇠 — 2026-10-14 -1 → 20261014001 */
 const slipHistoryId = (date: string, no: number) => Number(date.replaceAll('-', '')) * 1000 + no
@@ -58,6 +66,8 @@ export default function AssignmentSlipForm({
   /** 원본 수정 창 [복사] — 같은 줄로 새 전표를 쓰는 중 */
   const [copied, setCopied] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
+  /** 발령구분 빈 채 [저장] — 원본은 문구 없이 그 칸 테두리만 빨갛다(2026-10-12 · 14 실측) */
+  const [typeMissing, setTypeMissing] = useState(false)
   const editing = !!(editDate && editNo) && !copied
   const [slipDate, setSlipDate] = useState(editDate ?? ymd(new Date()))
   const [rows, setRows] = useState<Row[]>(Array.from({ length: BLANK_ROWS }, blank))
@@ -119,7 +129,8 @@ export default function AssignmentSlipForm({
   function askSave() {
     setError('')
     if (filled.length === 0) { setError('사번을 입력 바랍니다.'); return }
-    if (filled.some((r) => !r.type)) { setError('발령구분을 입력 바랍니다.'); return }
+    setTypeMissing(false)
+    if (filled.some((r) => !r.type)) { setTypeMissing(true); return }
     setReflect(true)
     setConfirmOpen(true)
   }
@@ -195,12 +206,13 @@ export default function AssignmentSlipForm({
                   <td><input type="date" className="ec-input w-full" value={r.assignDate} onChange={(e) => edit(i, { assignDate: e.target.value })} /></td>
                   <td>
                     <CodePickerField label="사번" hideLabel fill placeholder="사번" emptyLabel="선택 해제"
+                                     popupTitle="사원검색" columns={EMPLOYEE_COLUMNS}
                                      value={r.employeeId} onChange={(v) => pickEmployee(i, v)}
-                                     items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+                                     items={employees.map((x) => ({ value: String(x.id), code: x.code, name: x.name, sub: x.department }))} />
                   </td>
                   <td>{emp?.name ?? ''}</td>
                   <td>
-                    <select className="ec-input w-full" value={r.type} onChange={(e) => edit(i, { type: e.target.value as AssignmentKind })}>
+                    <select className={`ec-input w-full ${typeMissing && r.employeeId && !r.type ? 'border-ec-danger' : ''}`} aria-invalid={typeMissing && !!r.employeeId && !r.type} value={r.type} onChange={(e) => edit(i, { type: e.target.value as AssignmentKind })}>
                       <option value=""></option>
                       {ASSIGNMENT_KINDS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                     </select>

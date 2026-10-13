@@ -16,6 +16,7 @@ import EmployeePayrollSettingPanel, {
   type PayrollSettingForm, type PayrollSettingResponse,
 } from '../../features/employee/components/EmployeePayrollSettingPanel'
 import { ecConfirm } from '../../components/EcDialog'
+import { ymd } from '../../utils/periods'
 
 const inputCls = 'ec-input w-full'
 
@@ -72,7 +73,8 @@ export default function EmployeePage() {
 
   const empty = {
     code: '', name: '', departmentId: '', jobTitle: '',
-    hireDate: new Date().toISOString().slice(0, 10), resignDate: '', resignReason: '',
+    // 오늘(이 컴퓨터 시각) — toISOString 은 UTC 라 새벽 0~9시에 어제가 들어갔다(2026-10-14 01:40 원본은 2026/10/14)
+    hireDate: ymd(new Date()), resignDate: '', resignReason: '',
     phone: '', mobile: '', email: '', zipcode: '', address: '', remark: '',
     foreignName1: '', foreignName2: '', household: '세대주',
     payType: 'FIXED' as EmployeePayType, baseSalary: '',
