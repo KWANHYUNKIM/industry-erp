@@ -190,6 +190,20 @@ public class BorService {
         return m;
     }
 
+    /**
+     * 품목마다 <b>첫 공정</b>(작업순서가 가장 앞선 쓰는 작업의 공정) — {id, 공정명}. 원가계산내역의 [생산공정명] 열과
+     * [대상] 선택공정이 쓴다(원본 E040802 원가계산내역 2026-10-13 실측: 제품 줄에 '조립' · '포장').
+     */
+    @Transactional(readOnly = true)
+    public java.util.Map<Long, Object[]> firstProcessByProduct() {
+        java.util.Map<Long, Object[]> m = new java.util.HashMap<>();
+        for (BorOperation o : borRepository.findAllWithRefs()) {
+            if (!o.isActive()) continue;
+            m.putIfAbsent(o.getProduct().getId(), new Object[]{o.getProcess().getId(), o.getProcess().getName()});
+        }
+        return m;
+    }
+
     private void requireFreeSeq(Long productId, Integer seq, Long excludeId) {
         borRepository.findByProduct_IdAndSeq(productId, seq).ifPresent(found -> {
             if (!found.getId().equals(excludeId)) {

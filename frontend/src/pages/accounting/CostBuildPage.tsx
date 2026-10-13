@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
-import CodePickerField from '../../components/CodePickerField'
 import { useNavigate } from 'react-router-dom'
 import { ymd } from '../../components/EcPeriodPicks'
 import ProcessExpenseModal from './ProcessExpenseModal'
 import CostChecklistModal, { type CostChecklistKind } from './CostChecklistModal'
+import CostLedgerModal, { type CostLedgerMode } from './CostLedgerModal'
 
 /**
  * 재고 II &gt; 이익관리 &gt; 월별이익 &gt; <b>원가생성/수정</b>(E040802) — 2026-10-12 loginaa 실측.
@@ -18,37 +18,18 @@ import CostChecklistModal, { type CostChecklistKind } from './CostChecklistModal
  * 총평균법/선입선출법/최종매입원가법 · 외주비기준 품목등록/실외주비)이고, 저장하면 맨 위에 줄이 생기며 원가생성전 점검사항이 뜬다.
  * [삭제] 는 '삭제한 데이터는 복구되지 않습니다. 삭제하겠습니까?' 를 묻는다.
  *
- * <p>예전 우리는 이 화면을 <b>품목별 원가 표</b>로 그렸다(품목 · 기간 · 재료비 …, 위에 [기준년월] · [계산기준] 조건). 그 표는
- * 원본에서 원가계산 [수정] 이 여는 자리라 그리로 옮겼다.
+ * <p>원가계산 [수정] · [기말금액재계산] 은 대상(전체 · 선택공정) 창 → '원가계산내역' 창이다(CostLedgerModal, 2026-10-13 실측).
+ * 예전 우리는 [수정] 에 품목별 표준원가 표를 띄웠다 — 그 표는 표준원가현황 화면이 이미 가진 것이고 원본 [수정] 은 그것이 아니어서 뺐다.
+ * 지나간 줄의 [원가현황] 은 조회 · 수량비교 · 전월금액비교, [기타] 는 회계반영 · 이력을 아래로 펼친다.
+ *
+ * <p>기타 [회계반영] 은 원본이 '자동생성전표조회 &gt; Option &gt; 자동생성설정' 의 자동대체(대체분개시점이 그 연월에 유효한 것)로
+ * 전표를 만든다. loginaa 에 그 설정이 없어 원본도 '선택된 연월에 대체분개시점이 유효한 자동대체가 존재하지 않습니다.' 만 알렸고,
+ * 우리에게도 자동대체 설정이 없어 같은 안내를 한다 — 분개 계정을 재지 못해 지어내지 않았다.
  *
  * <p>선입선출법은 입고 레이어(어느 입고분이 얼마에 들어와 남았나)를 남기지 않아 못 한다 — 기간은 만들 수 있지만
  * [표준원가생성] 이 막는다. [수량비교] · [전월금액비교] · [이력] 은 CostChecklistModal(2026-10-13).
- * [기말금액재계산] · [회계반영] · [웹자료올리기] 는 아직 없다.
+ * [웹자료올리기] 는 아직 없다.
  */
-interface Item { id: number; code: string; name: string; spec?: string | null; searchKeyword?: string | null; active?: boolean }
-interface Cost {
-  id: number
-  itemId: number
-  itemCode: string
-  itemName: string
-  period: string
-  materialCost: number
-  laborCost: number
-  overheadCost: number
-  standardTotal: number
-  actualMaterial: number
-  actualLabor: number
-  actualOverhead: number
-  actualTotal: number
-}
-
-const thisMonth = () => ymd(new Date()).slice(0, 7)
-const emptyForm = () => ({
-  itemId: '', period: thisMonth(),
-  materialCost: '', laborCost: '', overheadCost: '',
-  actualMaterial: '', actualLabor: '', actualOverhead: '',
-})
-
 interface Period {
   id: number; startMonth: string; endMonth: string
   method: 'TOTAL_AVERAGE' | 'FIFO' | 'LAST_PURCHASE'; methodName: string
@@ -64,8 +45,6 @@ const nextMonth = (m: string) => { const [y, mo] = m.split('-').map(Number); con
 export default function CostBuildPage() {
   const navigate = useNavigate()
   const [periods, setPeriods] = useState<Period[]>([])
-  const [rows, setRows] = useState<Cost[]>([])
-  const [items, setItems] = useState<Item[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [ok, setOk] = useState('')
@@ -78,28 +57,19 @@ export default function CostBuildPage() {
     return { startMonth: start, endMonth: start, method: 'TOTAL_AVERAGE' as Period['method'], outsourcingBasis: 'ITEM' as Period['outsourcingBasis'] }
   }
   const [reg, setReg] = useState(blankReg())
-  /* ── 원가계산 [수정] — 그 기간의 품목별 원가 ── */
-  const [editPeriod, setEditPeriod] = useState<Period | null>(null)
-  const [showForm, setShowForm] = useState(false)
-  const [editId, setEditId] = useState<number | null>(null)
-  const [form, setForm] = useState(emptyForm())
-  const [keyword, setKeyword] = useState('')
   /** 사전작업(노무비/경비등록)을 여는 기준년월. 실제원가 계산이 이 달을 본다. */
   const [expensePeriod, setExpensePeriod] = useState<string | null>(null)
   /** 원가현황 [수량비교] · [전월금액비교] · 기타 [이력] 창. */
   const [checklist, setChecklist] = useState<{ id: number; kind: CostChecklistKind } | null>(null)
+  /** 원가계산 [수정] · [기말금액재계산] — 대상 창 → 원가계산내역. */
+  const [ledger, setLedger] = useState<{ id: number; mode: CostLedgerMode } | null>(null)
+  /** 지나간 줄의 [원가현황] · [기타] 펼침 — `${기간id}:${열}`. */
+  const [menu, setMenu] = useState<string | null>(null)
 
   async function load() {
     setLoading(true)
     try {
-      const [p, c, it] = await Promise.all([
-        api.get<Period[]>('/cost-periods'),
-        api.get<Cost[]>('/costs'),
-        api.get<Item[]>('/items'),
-      ])
-      setPeriods(p.data)
-      setRows(c.data)
-      setItems(it.data)
+      setPeriods((await api.get<Period[]>('/cost-periods')).data)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -117,7 +87,6 @@ export default function CostBuildPage() {
       setRegOpen(false); setCheckOpen(true); load()
     } catch (err) { setError(extractErrorMessage(err)) }
   }
-
   async function run(p: Period, what: 'standard' | 'generate') {
     setError(''); setOk('')
     try {
@@ -135,52 +104,31 @@ export default function CostBuildPage() {
       load()
     } catch (err) { setError(extractErrorMessage(err)) }
   }
-
-  function set(k: keyof ReturnType<typeof emptyForm>, v: string) { setForm((f) => ({ ...f, [k]: v })) }
-  function openNew() {
-    setEditId(null)
-    setForm({ ...emptyForm(), period: editPeriod?.startMonth ?? thisMonth() })
-    setShowForm(true)
+  /** 기타 [회계반영] — 우리에게 자동대체(자동생성설정)가 없으니 원본이 그 설정이 없을 때 하는 안내를 그대로 한다. */
+  function reflect() {
+    window.alert('선택된 연월에 대체분개시점이 유효한 자동대체가 존재하지 않습니다.\n\n자동생성전표조회 > Option > 자동생성설정을 확인 바랍니다.')
   }
-  function openEdit(r: Cost) {
-    setEditId(r.id)
-    setForm({
-      itemId: String(r.itemId), period: r.period,
-      materialCost: String(r.materialCost), laborCost: String(r.laborCost), overheadCost: String(r.overheadCost),
-      actualMaterial: String(r.actualMaterial), actualLabor: String(r.actualLabor), actualOverhead: String(r.actualOverhead),
-    })
-    setShowForm(true)
-  }
-  const num = (v: string) => (v === '' ? 0 : Number(v))
-  async function submit() {
-    setError('')
-    if (!editId && !form.itemId) return setError('품목을 선택하세요.')
-    if (!form.period) return setError('적용기간을 입력하세요.')
-    try {
-      const body = {
-        materialCost: num(form.materialCost), laborCost: num(form.laborCost), overheadCost: num(form.overheadCost),
-        actualMaterial: num(form.actualMaterial), actualLabor: num(form.actualLabor), actualOverhead: num(form.actualOverhead),
-      }
-      if (editId) await api.put(`/costs/${editId}`, body)
-      else await api.post('/costs', { itemId: Number(form.itemId), period: form.period, ...body })
-      setShowForm(false); setEditId(null); load()
-    } catch (err) { setError(extractErrorMessage(err)) }
-  }
-  async function remove(r: Cost) {
-    if (!window.confirm(`[${r.itemName}] ${r.period} 원가를 삭제할까요?`)) return
-    setError(''); setOk('')
-    try { await api.delete(`/costs/${r.id}`); load() } catch (err) { setError(extractErrorMessage(err)) }
-  }
-
-  const shown = rows
-    .filter((r) => editPeriod != null && r.period >= editPeriod.startMonth && r.period <= editPeriod.endMonth)
-    .filter((r) => !keyword || r.itemName.includes(keyword) || r.itemCode.includes(keyword))
-  const total = useMemo(() => shown.reduce((s, r) => s + r.standardTotal, 0), [shown])
-  const editItemName = editId ? rows.find((r) => r.id === editId)?.itemName : ''
 
   const link = (label: string, onClick?: () => void) => (
     <div><button type="button" className="ec-link" disabled={!onClick} onClick={onClick}>{label}</button></div>
   )
+  /** 지나간 줄의 파란 [원가현황] · [기타] — 누르면 아래로 펼친다(원본 실측). */
+  const dropdown = (p: Period, label: string, picks: [string, () => void][]) => {
+    const key = `${p.id}:${label}`
+    return (
+      <span className="relative block">
+        <button type="button" className="ec-btn ec-btn-primary w-full" onClick={() => setMenu(menu === key ? null : key)}>{label}</button>
+        {menu === key && (
+          <>
+            <div className="ec-backdrop-clear" onClick={() => setMenu(null)} />
+            <div className="ec-menu left-0">
+              {picks.map(([l, f]) => <button key={l} type="button" onClick={() => { setMenu(null); f() }}>{l}</button>)}
+            </div>
+          </>
+        )}
+      </span>
+    )
+  }
 
   return (
     <EcListShell title="원가생성/수정">
@@ -188,7 +136,8 @@ export default function CostBuildPage() {
         <ProcessExpenseModal period={expensePeriod} onClose={() => setExpensePeriod(null)} />
       )}
       {checklist && <CostChecklistModal periodId={checklist.id} kind={checklist.kind} onClose={() => setChecklist(null)} />}
-      {error && !regOpen && !editPeriod && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+      {ledger && <CostLedgerModal periodId={ledger.id} mode={ledger.mode} onClose={() => setLedger(null)} />}
+      {error && !regOpen && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       {ok && <p className="ec-alert ec-alert-success mb-[8px]">{ok}</p>}
 
       <table className="w-full">
@@ -216,7 +165,8 @@ export default function CostBuildPage() {
                   </td>
                   <td className="text-center">
                     {link('생성', () => void run(p, 'generate'))}
-                    {p.generated && link('수정', () => { setError(''); setKeyword(''); setEditPeriod(p) })}
+                    {p.generated && link('수정', () => { setError(''); setLedger({ id: p.id, mode: 'edit' }) })}
+                    {p.generated && link('기말금액재계산', () => { setError(''); setLedger({ id: p.id, mode: 'recalc' }) })}
                   </td>
                   <td className="text-center">
                     {link('조회', () => navigate('/accounting/actual-cost'))}
@@ -225,6 +175,7 @@ export default function CostBuildPage() {
                     {link('삭제', () => void removePeriod(p))}
                   </td>
                   <td className="text-center">
+                    {link('회계반영', reflect)}
                     {link('이력', () => setChecklist({ id: p.id, kind: 'history' }))}
                   </td>
                 </>
@@ -232,8 +183,15 @@ export default function CostBuildPage() {
                 <>
                   <td><button type="button" className="ec-btn w-full" disabled>사전작업</button></td>
                   <td><button type="button" className="ec-btn w-full" disabled>원가계산</button></td>
-                  <td><button type="button" className="ec-btn ec-btn-primary w-full" onClick={() => navigate('/accounting/actual-cost')}>원가현황</button></td>
-                  <td><button type="button" className="ec-btn ec-btn-primary w-full" disabled>기타</button></td>
+                  <td>{dropdown(p, '원가현황', [
+                    ['조회', () => navigate('/accounting/actual-cost')],
+                    ['수량비교', () => setChecklist({ id: p.id, kind: 'qty' })],
+                    ['전월금액비교', () => setChecklist({ id: p.id, kind: 'amount' })],
+                  ])}</td>
+                  <td>{dropdown(p, '기타', [
+                    ['회계반영', reflect],
+                    ['이력', () => setChecklist({ id: p.id, kind: 'history' })],
+                  ])}</td>
                 </>
               )}
             </tr>
@@ -275,85 +233,6 @@ export default function CostBuildPage() {
             <button type="button" className="ec-btn ec-btn-primary" onClick={() => void saveReg()}>저장(F8)</button>
             <button type="button" className="ec-btn" onClick={() => setReg(blankReg())}>다시 작성</button>
             <button type="button" className="ec-btn" onClick={() => setRegOpen(false)}>닫기</button>
-          </div>
-        </div>
-      )}</Modal>
-
-      <Modal error={editPeriod && !showForm ? error : ''} open={editPeriod != null && !showForm}
-             title={editPeriod ? `원가수정 — ${ym(editPeriod.startMonth)} ~ ${ym(editPeriod.endMonth)}` : '원가수정'}
-             width={980} onClose={() => setEditPeriod(null)}>{(
-        <div>
-          <div className="flex items-center gap-[6px] mb-[8px]">
-            <input className="ec-input w-[200px]" placeholder="품목코드 · 품목명" aria-label="품목 찾기" value={keyword} onChange={(e) => setKeyword(e.target.value)} />
-            <span className="ml-auto text-ec-label">표준원가 합계 <b className="text-ec-navy">{total.toLocaleString()}</b></span>
-          </div>
-          <table className="w-full text-left">
-            <thead>
-              <tr>
-                <th className="w-[34px]"></th>
-                <th className="w-[90px]">품목코드</th>
-                <th>품목명</th>
-                <th className="w-[80px]">기간</th>
-                <th className="text-right">재료비</th>
-                <th className="text-right">노무비</th>
-                <th className="text-right">경비</th>
-                <th className="text-right">표준원가</th>
-                <th className="w-[70px] text-center"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {shown.length === 0 ? (
-                <tr><td colSpan={9} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-              ) : shown.map((r, i) => (
-                <tr key={r.id}>
-                  <td className="text-center text-ec-hint">{i + 1}</td>
-                  <td>{r.itemCode}</td>
-                  <td>{r.itemName}</td>
-                  <td>{r.period}</td>
-                  <td className="text-right">{r.materialCost.toLocaleString()}</td>
-                  <td className="text-right">{r.laborCost.toLocaleString()}</td>
-                  <td className="text-right">{r.overheadCost.toLocaleString()}</td>
-                  <td className="text-right font-bold">{r.standardTotal.toLocaleString()}</td>
-                  <td className="text-center whitespace-nowrap">
-                    <button type="button" className="ec-link mr-[6px]" onClick={() => openEdit(r)}>수정</button>
-                    <button type="button" className="ec-link text-ec-danger" onClick={() => void remove(r)}>삭제</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="flex gap-[4px] mt-[10px]">
-            <button type="button" className="ec-btn ec-btn-primary" onClick={openNew}>신규(F2)</button>
-            <button type="button" className="ec-btn" onClick={() => setEditPeriod(null)}>닫기</button>
-          </div>
-        </div>
-      )}</Modal>
-
-      <Modal error={showForm ? error : ''} open={showForm} title={editId ? `원가 수정 — ${editItemName}` : '원가 등록'} onClose={() => setShowForm(false)}>{(
-        <div>
-          <div className="flex gap-[12px] flex-wrap items-end">
-            <div className="text-[12.5px]"><div className="text-ec-label mb-[3px]">품목 *</div>
-              {editId ? (
-                <input className="ec-input w-[180px]" value={editItemName ?? ''} disabled />
-              ) : (
-                <CodePickerField label="품목" hideLabel width={180} placeholder="품목" emptyLabel="선택 해제"
-                                 value={form.itemId} onChange={(v) => set('itemId', v)}
-                                 items={items.filter((it) => it.active !== false).map((it) => ({ value: String(it.id), code: it.code, name: it.name, sub: it.spec, alias: it.searchKeyword }))} />
-              )}
-            </div>
-            <label className="text-[12.5px]"><div className="text-ec-label mb-[3px]">적용기간 *</div>
-              <input className="ec-input w-[110px]" placeholder="2026-06" value={form.period} onChange={(e) => set('period', e.target.value)} disabled={!!editId} /></label>
-          </div>
-          <div className="flex gap-[12px] flex-wrap items-end mt-[10px]">
-            {([['materialCost', '표준재료비'], ['laborCost', '표준노무비'], ['overheadCost', '표준경비'],
-               ['actualMaterial', '실제재료비'], ['actualLabor', '실제노무비'], ['actualOverhead', '실제경비']] as const).map(([k, l]) => (
-              <label key={k} className="text-[12.5px]"><div className="text-ec-label mb-[3px]">{l}</div>
-                <input className="ec-input text-right w-[110px]" type="number" step="any" aria-label={l} value={form[k]} onChange={(e) => set(k, e.target.value)} /></label>
-            ))}
-          </div>
-          <div className="flex gap-[4px] mt-[10px]">
-            <button type="button" className="ec-btn ec-btn-primary" onClick={() => void submit()}>저장(F8)</button>
-            <button type="button" className="ec-btn" onClick={() => setShowForm(false)}>닫기</button>
           </div>
         </div>
       )}</Modal>

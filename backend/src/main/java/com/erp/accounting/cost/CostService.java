@@ -401,6 +401,17 @@ public class CostService {
         return updated;
     }
 
+    /** 원가계산내역 [생산입고] — 그 달(yyyy-MM) 품목별 생산수량. */
+    @Transactional(readOnly = true)
+    public Map<Long, BigDecimal> producedQty(String period) {
+        Map<Long, BigDecimal> out = new HashMap<>();
+        for (Production pr : productionRepository.findAll()) {
+            if (!period.equals(pr.getProductionDate().toString().substring(0, 7))) continue;
+            out.merge(pr.getProduct().getId(), pr.getProducedQty(), BigDecimal::add);
+        }
+        return out;
+    }
+
     private Item getItem(Long id) {
         return itemRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("품목을 찾을 수 없습니다. id=" + id));

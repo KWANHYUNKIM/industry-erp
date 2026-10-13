@@ -3,6 +3,9 @@ package com.erp.accounting.cost;
 import com.erp.accounting.cost.dto.CostPeriodDtos.CostPeriodResponse;
 import com.erp.accounting.cost.dto.CostPeriodDtos.CostRunResult;
 import com.erp.accounting.cost.dto.CostPeriodDtos.CreateCostPeriodRequest;
+import com.erp.accounting.cost.dto.CostPeriodDtos.Ledger;
+import com.erp.accounting.cost.dto.CostPeriodDtos.LedgerDetail;
+import com.erp.accounting.cost.dto.CostPeriodDtos.UpdateLedgerRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -55,6 +58,35 @@ public class CostPeriodController {
     @GetMapping("/{id}/history")
     public List<com.erp.accounting.cost.dto.CostPeriodDtos.HistoryRow> history(@PathVariable Long id) {
         return service.history(id);
+    }
+
+    /** 원가계산 [수정] → 대상 [적용] — 원가계산내역. processId 를 주면 그 공정 품목만(선택공정). */
+    @GetMapping("/{id}/ledger")
+    public Ledger ledger(@PathVariable Long id, @RequestParam(required = false) Long processId) {
+        return service.ledger(id, processId);
+    }
+
+    /** 원가계산 [기말금액재계산] → 대상 [적용]. */
+    @PostMapping("/{id}/ledger/recalc")
+    public Ledger recalc(@PathVariable Long id, @RequestParam(required = false) Long processId) {
+        return service.recalcClosing(id, processId);
+    }
+
+    /** 원가계산내역 체크 → [변경] 원가수정 창. */
+    @GetMapping("/{id}/ledger/{itemId}")
+    public LedgerDetail ledgerDetail(@PathVariable Long id, @PathVariable Long itemId) {
+        return service.ledgerDetail(id, itemId);
+    }
+
+    @PutMapping("/{id}/ledger/{itemId}")
+    public LedgerDetail updateLedger(@PathVariable Long id, @PathVariable Long itemId, @Valid @RequestBody UpdateLedgerRequest req) {
+        return service.updateLedger(id, itemId, req);
+    }
+
+    @DeleteMapping("/{id}/ledger/{itemId}")
+    public ResponseEntity<Void> deleteLedger(@PathVariable Long id, @PathVariable Long itemId) {
+        service.deleteLedger(id, itemId);
+        return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/{id}")
