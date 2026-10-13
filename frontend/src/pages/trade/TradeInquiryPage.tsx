@@ -11,6 +11,7 @@ import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
 import type { SalesConfirmStatus, SalesDoc, PurchaseDoc, Partner, TradeLine } from '../../types/api'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 /** 판매조회 / 구매조회 — 전표(문서) 단위 조회. 행 클릭 시 품목 상세 펼침. */
 type Mode = 'sales' | 'purchase'
@@ -189,7 +190,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
       await api.post(`/sales/${d.id}/${kind}`)
       load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     }
   }
 
@@ -203,15 +204,15 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
    */
   async function confirmSelected() {
     const targets = shown.filter((d) => selected.has(d.id))
-    if (targets.length === 0) return alert('진행상태를 바꿀 전표를 고르세요.')
+    if (targets.length === 0) return ecAlert('진행상태를 바꿀 전표를 고르세요.')
     const kind = targets.every((d) => d.confirmStatus === 'CONFIRMED') ? 'unconfirm' : 'confirm'
-    if (!window.confirm(`${targets.length}건을 ${kind === 'confirm' ? '확인' : '확인해제'}할까요?`)) return
+    if (!(await ecConfirm(`${targets.length}건을 ${kind === 'confirm' ? '확인' : '확인해제'}할까요?`))) return
     try {
       for (const d of targets) await api.post(`/sales/${d.id}/${kind}`)
       setSelected(new Set())
       load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     }
   }
 
@@ -238,18 +239,18 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
    * 되돌릴 수 없는 조작이라 한 번 더 묻는다.
    */
   async function deleteDoc(d: NormalDoc) {
-    const ok = window.confirm(
+    const ok = (await ecConfirm(
       `${d.docNo} 전표를 삭제합니다.\n\n`
       + `${isSales ? '출고' : '입고'}했던 재고가 되돌아갑니다 (품목 ${d.lines.length}건, 합계 ${won(d.totalAmount)}원).\n`
       + '이 작업은 되돌릴 수 없습니다. 진행할까요?',
-    )
+    ))
     if (!ok) return
     try {
       await api.delete(`${cfg.url}/${d.id}`)
       setOpenId(null)
       load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     }
   }
 
@@ -385,7 +386,7 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
     const targets = picked.filter((d) => !d.accountingReflected)
     const already = picked.length - targets.length
     if (targets.length === 0) { setError(`고른 ${picked.length}건이 이미 회계에 반영돼 있습니다.`); return }
-    if (!confirm(`전표 ${targets.length}건을 회계로 넘길까요?${already ? ` (이미 반영된 ${already}건은 뺍니다)` : ''}`)) return
+    if (!(await ecConfirm(`전표 ${targets.length}건을 회계로 넘길까요?${already ? ` (이미 반영된 ${already}건은 뺍니다)` : ''}`))) return
     try {
       const r = await api.post<{ reflectedCount: number }>('/accounting-reflection/reflect',
         { kind: isSales ? 'SALES' : 'PURCHASE', ids: targets.map((d) => d.id) })
@@ -400,15 +401,15 @@ export default function TradeInquiryPage({ mode }: { mode: Mode }) {
   async function deleteSelected() {
     const ids = shown.filter((d) => selected.has(d.id)).map((d) => d.id)
     if (ids.length === 0) { setError('지울 전표를 고르세요. 행번호 칸을 누르면 선택됩니다.'); return }
-    if (!confirm(`전표 ${ids.length}건을 지울까요? 재고도 함께 되돌아갑니다.`)) return
+    if (!(await ecConfirm(`전표 ${ids.length}건을 지울까요? 재고도 함께 되돌아갑니다.`))) return
     /*
      * 원본 판매조회는 회계반영된 판매를 지우면 '회계반영된 전표의 경우, 매출전표의 삭제 여부를 선택해주시기 바랍니다'
      * 창을 띄우고 [매출전표포함](기본 체크)으로 회계전표까지 같이 지운다(2026-10-06 loginaa 실측).
      * 포함하지 않고 판매만 지우는 길은 원본도 '거래불일치가 발생할 수 있다' 고 경고하는 길이라 두지 않는다.
      */
     const reflected = isSales ? shown.filter((d) => selected.has(d.id) && d.accountingReflected) : []
-    if (reflected.length > 0 && !confirm(
-      `회계반영된 전표 ${reflected.length}건(${reflected.map((d) => d.docNo).join(', ')})은 매출전표(회계전표)까지 함께 지웁니다. 계속할까요?`)) return
+    if (reflected.length > 0 && !(await ecConfirm(
+      `회계반영된 전표 ${reflected.length}건(${reflected.map((d) => d.docNo).join(', ')})은 매출전표(회계전표)까지 함께 지웁니다. 계속할까요?`))) return
     const failed: string[] = []
     for (const id of ids) {
       try {

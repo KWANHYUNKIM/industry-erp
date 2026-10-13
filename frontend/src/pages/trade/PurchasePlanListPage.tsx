@@ -13,6 +13,7 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import PurchaseRequestForm from '../../features/purchaserequest/PurchaseRequestForm'
 import PlanQtyAdjustModal, { type AdjustLine } from '../../features/purchaseplan/PlanQtyAdjustModal'
 import type { PurchaseOrder, PurchaseOrderStatus } from '../../types/api'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const qty = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -167,10 +168,10 @@ export default function PurchasePlanListPage() {
   }
 
   const picked = rows.filter((r) => checked.has(r.key))
-  const needPick = () => { alert('리스트에 선택된 자료가 없습니다.\n\n체크박스에 체크한 후 다시 시도 바랍니다.'); return false }
+  const needPick = () => { void ecAlert('리스트에 선택된 자료가 없습니다.\n\n체크박스에 체크한 후 다시 시도 바랍니다.'); return false }
   async function removeChecked() {
     if (picked.length === 0) return needPick()
-    if (!confirm('삭제하겠습니까?')) return
+    if (!(await ecConfirm('삭제하겠습니까?'))) return
     /* 우리 계획은 발주서 한 장이다 — 고른 줄이 든 전표를 지운다(원본에서 여러 줄 전표의 한 줄만 고른 경우는 못 재 봤다). */
     const ids = [...new Set(picked.map((r) => r.orderId))]
     const results = await Promise.allSettled(ids.map((id) => api.delete(`/purchase-orders/${id}`)))

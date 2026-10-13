@@ -10,6 +10,7 @@ import EcPeriodPicks, { ymd, periodOf, EXPORT_PICKS } from '../../components/EcP
 import ExportSlipPickModal, { type PickedSlip } from '../../features/export/components/ExportSlipPickModal'
 import ExportMappingModal, { type ExportMapping } from '../../features/export/components/ExportMappingModal'
 import { requireSelection } from '../../components/EcDialog'
+import { ecConfirm } from '../../components/EcDialog'
 
 const fx = (n: number) => Number(n).toLocaleString('en-US', { maximumFractionDigits: 2 })
 const today = () => ymd(new Date())
@@ -117,7 +118,7 @@ export default function ExportPage() {
   }
   async function removePicked() {
     if (picked.length === 0) { setError('선택된 자료가 없습니다.'); return }
-    if (!window.confirm('한번 지워진 자료는 복구될 수 없습니다. 선택한 항목을 삭제 하겠습니까?')) return
+    if (!(await ecConfirm('한번 지워진 자료는 복구될 수 없습니다. 선택한 항목을 삭제 하겠습니까?'))) return
     try {
       for (const id of picked) await api.delete(`/exports/${id}`)
       setNotice('삭제되었습니다.'); load()

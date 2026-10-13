@@ -10,6 +10,7 @@ import EcFileDrop from '../../components/EcFileDrop'
 import CodePickerField from '../../components/CodePickerField'
 import EcHistoryButton from '../../components/EcHistory'
 import GroupMasterModal from '../../components/GroupMasterModal'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 const inputCls = 'ec-input w-full'
 
@@ -371,7 +372,7 @@ export default function PartnersPage() {
 
   async function toggleActive() {
     const targets = shown.filter((x) => checked.has(x.id))
-    if (targets.length === 0) { alert(NO_PICK); return }
+    if (targets.length === 0) { void ecAlert(NO_PICK); return }
     const reviving = targets.every((x) => !x.active)
     setError('')
     try {
@@ -413,14 +414,14 @@ export default function PartnersPage() {
    */
   async function removeChecked() {
     const targets = shown.filter((x) => checked.has(x.id))
-    if (targets.length === 0) { alert(NO_PICK); return }
-    if (!confirm('삭제하겠습니까?')) return
+    if (targets.length === 0) { void ecAlert(NO_PICK); return }
+    if (!(await ecConfirm('삭제하겠습니까?'))) return
     try {
       for (const x of targets) await api.delete(`/partners/${x.id}`)
       setChecked(new Set())
       load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
       load()
     }
   }
@@ -428,7 +429,7 @@ export default function PartnersPage() {
   /** [사용중단] · [재사용] — 펼침에서 하나만 고른다. 버튼 본체는 섞여 있으면 사용중단으로 맞춘다(기존 동작). */
   async function setActiveChecked(active: boolean) {
     const targets = shown.filter((x) => checked.has(x.id))
-    if (targets.length === 0) { alert(NO_PICK); return }
+    if (targets.length === 0) { void ecAlert(NO_PICK); return }
     try {
       for (const x of targets) await api.put(`/partners/${x.id}`, wholePartner(x, { active }))
       setChecked(new Set())
@@ -448,12 +449,12 @@ export default function PartnersPage() {
         // 원본 차례(loginaa 거래처리스트 실측): 신규(F2) · 관계설정 · 계층그룹 · 변경 · 사용중단/재사용 ▴ · Excel · 웹자료올리기
         /* 원본 [관계설정] — 고른 거래처의 대표거래처를 한 번에 정한다. */
         { label: `관계설정${checked.size ? ` (${checked.size})` : ''}`, onClick: () => {
-          if (checked.size === 0) { alert(NO_PICK); return }
+          if (checked.size === 0) { void ecAlert(NO_PICK); return }
           setError(''); setBulkField('parentId'); setBulkValue(''); setBulkOpen(true)
         } },
         { label: '계층그룹', onClick: () => setGroupOpen(true) },
         { label: `변경${checked.size ? ` (${checked.size})` : ''}`, onClick: () => {
-          if (checked.size === 0) { alert(NO_PICK); return }
+          if (checked.size === 0) { void ecAlert(NO_PICK); return }
           setError(''); setBulkValue(''); setBulkOpen(true)
         } },
         /* 원본 펼침: 사용중단 · 삭제 · 미사용코드조회 · 재사용. 미사용코드조회(기준일자 동안 전표가 없는 거래처)는 아직 없다 — 전표 쓰임을 모으는 API 가 없다(plans/재고1.md 남은 것). */

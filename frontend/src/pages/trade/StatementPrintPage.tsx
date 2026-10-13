@@ -13,6 +13,7 @@ import { partnerCodeItems } from '../../utils/codeItems'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { subtotalBy } from '../../utils/subtotalBy'
 import { dateText } from '../../utils/dateText'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 /**
  * 영업 > 거래명세서인쇄 (이카운트 E040210)
@@ -204,13 +205,13 @@ export default function StatementPrintPage() {
 
   async function printSelected() {
     const targets = shown.filter((d) => checked.includes(d.id))
-    if (targets.length === 0) return alert('인쇄할 명세서를 선택하세요.')
+    if (targets.length === 0) return ecAlert('인쇄할 명세서를 선택하세요.')
     await printDocuments(targets.map(toDocument))
   }
 
   async function printAllShown() {
-    if (shown.length === 0) return alert('인쇄할 명세서가 없습니다.')
-    if (shown.length > 30 && !window.confirm(`${shown.length}건을 한 번에 인쇄합니다. 계속할까요?`)) return
+    if (shown.length === 0) return ecAlert('인쇄할 명세서가 없습니다.')
+    if (shown.length > 30 && !(await ecConfirm(`${shown.length}건을 한 번에 인쇄합니다. 계속할까요?`))) return
     await printDocuments(shown.map(toDocument))
   }
 

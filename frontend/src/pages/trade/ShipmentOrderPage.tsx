@@ -14,6 +14,7 @@ import { dateText } from '../../utils/dateText'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerManagers } from '../../utils/partnerManagers'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 /** 영업 > 출하지시서 — 출하지시(READY) 등록 → 출하처리(SHIPPED). 백엔드 /shipments 연동 */
 type ShipStatus = 'READY' | 'SHIPPED' | 'CANCELED'
@@ -221,18 +222,18 @@ export default function ShipmentOrderPage() {
 
   async function advance(s: Shipment) {
     try { await api.patch(`/shipments/${s.id}/status`, { status: 'SHIPPED' }); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
+    catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
   async function cancel(s: Shipment) {
-    if (!confirm(`${s.shipNo} 출하지시를 취소할까요?`)) return
+    if (!(await ecConfirm(`${s.shipNo} 출하지시를 취소할까요?`))) return
     try { await api.patch(`/shipments/${s.id}/status`, { status: 'CANCELED' }); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
+    catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   async function remove(s: Shipment) {
-    if (!confirm(`${s.shipNo} 출하지시를 삭제할까요? 되돌릴 수 없습니다.`)) return
+    if (!(await ecConfirm(`${s.shipNo} 출하지시를 삭제할까요? 되돌릴 수 없습니다.`))) return
     try { await api.delete(`/shipments/${s.id}`); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
+    catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   /*

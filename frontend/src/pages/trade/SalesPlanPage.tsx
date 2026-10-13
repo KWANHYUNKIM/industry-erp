@@ -12,6 +12,7 @@ import { subtotalBy } from '../../utils/subtotalBy'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { usePartnerManagers } from '../../utils/partnerManagers'
+import { ecConfirm } from '../../components/EcDialog'
 
 /**
  * 재고 II > 계획관리 > 매출계획 / 매출계획비교표 (이카운트 E040624·E040625·E040626·E040640)
@@ -296,7 +297,7 @@ export default function SalesPlanPage() {
   async function removeChecked() {
     const ids = [...picked]
     if (ids.length === 0) { setError('삭제할 매출계획을(를) 고르세요.'); return }
-    if (!window.confirm(`고른 ${ids.length}건을 삭제할까요?`)) return
+    if (!(await ecConfirm(`고른 ${ids.length}건을 삭제할까요?`))) return
     const results = await Promise.allSettled(ids.map((id) => api.delete(`/sales-plans/${id}`)))
     const failed = results.filter((r) => r.status === 'rejected').length
     setPicked(new Set())

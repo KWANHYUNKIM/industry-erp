@@ -20,6 +20,7 @@ import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { usePartnerManagers } from '../../utils/partnerManagers'
 import CustomFieldsPanel from '../../components/CustomFieldsPanel'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => ymd(new Date())
@@ -248,28 +249,28 @@ export default function PurchaseOrderPage() {
     const dueDate = window.prompt(`${po.orderNo} 납기 요청일 (YYYY-MM-DD)`, po.dueDate ?? today())
     if (dueDate === null) return
     try { await api.post(`/purchase-orders/${po.id}/plan`, { dueDate: dueDate || null }); flash(`${po.orderNo} 발주계획 확정`); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
+    catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   async function confirm(po: PurchaseOrder) {
     try { await api.post(`/purchase-orders/${po.id}/confirm`); flash(`${po.orderNo} 발주확정 — 매입처로 발주`); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
+    catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   async function cancel(po: PurchaseOrder) {
-    if (!window.confirm(`${po.orderNo}을(를) 취소할까요?`)) return
+    if (!(await ecConfirm(`${po.orderNo}을(를) 취소할까요?`))) return
     try { await api.post(`/purchase-orders/${po.id}/cancel`); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
+    catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   async function remove(po: PurchaseOrder) {
-    if (!window.confirm(`${po.orderNo}을(를) 삭제할까요? 되돌릴 수 없습니다.`)) return
+    if (!(await ecConfirm(`${po.orderNo}을(를) 삭제할까요? 되돌릴 수 없습니다.`))) return
     try { await api.delete(`/purchase-orders/${po.id}`); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
+    catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   async function receive(po: PurchaseOrder) {
-    if (warehouses.length === 0) return alert('입고할 창고가 없습니다. 창고를 먼저 등록하세요.')
+    if (warehouses.length === 0) return ecAlert('입고할 창고가 없습니다. 창고를 먼저 등록하세요.')
     const wh = warehouses[0]
     const picked = window.prompt(
       `입고 창고를 선택하세요.\n${warehouses.map((w) => `${w.id}: ${w.name}`).join('\n')}`,
@@ -277,13 +278,13 @@ export default function PurchaseOrderPage() {
     )
     if (picked === null) return
     const warehouseId = Number(picked)
-    if (!warehouses.some((w) => w.id === warehouseId)) return alert('창고 번호가 올바르지 않습니다.')
+    if (!warehouses.some((w) => w.id === warehouseId)) return ecAlert('창고 번호가 올바르지 않습니다.')
     try {
       const r = await api.post(`/purchase-orders/${po.id}/receive`, { warehouseId, purchaseDate: today() })
       flash(`구매전표 ${r.data.docNo} 생성 — 재고 입고 완료`)
       load()
-      if (window.confirm('생성된 구매전표를 확인할까요?')) navigate('/sales/purchase-list')
-    } catch (err) { alert(extractErrorMessage(err)) }
+      if ((await ecConfirm('생성된 구매전표를 확인할까요?'))) navigate('/sales/purchase-list')
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
 
@@ -328,7 +329,7 @@ export default function PurchaseOrderPage() {
     const ids = [...picked]
     if (ids.length === 0) { setError('삭제할 발주서를 고르세요.'); return }
     /* 이 파일의 confirm 은 발주 확정이다 — 브라우저 것을 쓰려면 window 를 붙여야 한다. */
-    if (!window.confirm(`고른 ${ids.length}건을 삭제할까요?`)) return
+    if (!(await ecConfirm(`고른 ${ids.length}건을 삭제할까요?`))) return
     const results = await Promise.allSettled(ids.map((id) => api.delete(`/purchase-orders/${id}`)))
     const failed = results.filter((r) => r.status === 'rejected').length
     setPicked(new Set())

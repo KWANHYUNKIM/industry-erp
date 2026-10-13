@@ -7,6 +7,7 @@ import type { Item, MallOrder, MallOrderStatus, MallOverview, Partner, Warehouse
 import { partnerCodeItems } from '../../utils/codeItems'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 const today = () => ymd(new Date())
@@ -70,12 +71,12 @@ export default function MallPage() {
   const tabCount = (t: Tab) => orders.filter((o) => t === '전체' || o.status === TAB_STATUS[t]).length
 
   async function act(o: MallOrder, action: 'confirm' | 'cancel') {
-    if (action === 'cancel' && !window.confirm(`${o.mallOrderNo} 주문을 취소할까요?`)) return
+    if (action === 'cancel' && !(await ecConfirm(`${o.mallOrderNo} 주문을 취소할까요?`))) return
     try {
       await api.post(`/mall-orders/${o.id}/${action}`)
       flash(action === 'confirm' ? '주문을 확인했습니다.' : '주문을 취소했습니다.')
       load()
-    } catch (err) { alert(extractErrorMessage(err)) }
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   async function mapItem(o: MallOrder, itemId: string) {
@@ -84,7 +85,7 @@ export default function MallPage() {
       await api.put(`/mall-orders/${o.id}/item`, { itemId: Number(itemId) })
       flash('품목을 매핑했습니다.')
       load()
-    } catch (err) { alert(extractErrorMessage(err)) }
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
 

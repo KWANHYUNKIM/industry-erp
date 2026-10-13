@@ -5,6 +5,7 @@ import CodePickerField from '../../components/CodePickerField'
 import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, MallItemMapping } from '../../types/api'
+import { ecConfirm } from '../../components/EcDialog'
 
 /**
  * 재고 I > 쇼핑몰관리 > 쇼핑몰품목코드연결 (이카운트 E041004)
@@ -85,7 +86,7 @@ export default function MallItemMappingPage() {
   }
 
   async function remove(id: number) {
-    if (!confirm('이 연결을 삭제할까요?')) return
+    if (!(await ecConfirm('이 연결을 삭제할까요?'))) return
     setError('')
     try { await api.delete(`/mall-item-mappings/${id}`); load() }
     catch (err) { setError(extractErrorMessage(err)) }
@@ -112,7 +113,7 @@ export default function MallItemMappingPage() {
   async function removeChecked() {
     const ids = [...picked]
     if (ids.length === 0) { setError('삭제할 연결을(를) 고르세요.'); return }
-    if (!window.confirm(`고른 ${ids.length}건을 삭제할까요?`)) return
+    if (!(await ecConfirm(`고른 ${ids.length}건을 삭제할까요?`))) return
     const results = await Promise.allSettled(ids.map((id) => api.delete(`/mall-item-mappings/${id}`)))
     const failed = results.filter((r) => r.status === 'rejected').length
     setPicked(new Set())

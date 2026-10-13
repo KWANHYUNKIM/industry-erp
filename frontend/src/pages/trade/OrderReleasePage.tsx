@@ -14,6 +14,7 @@ import { useShortcut } from '../../utils/useShortcut'
 import { useTableSort } from '../../utils/useTableSort'
 import { fillAndPrint, openPrintWindow } from '../../utils/print'
 import { releaseSlipHtml, type ReleaseSlip } from '../../utils/releaseSlipDocument'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 /**
  * 주문서출고처리(원본 E040230 · 재고 I › 영업관리 › 주문서). 2026-10-13 loginaa 직접 써 보며 잰 것:
@@ -180,7 +181,7 @@ export default function OrderReleasePage() {
 
   /** [출고] — 안 고르고 누르면 원본처럼 알린다(버튼을 잠그지 않는다). */
   function openRegister() {
-    if (checked.size === 0) return alert(NO_PICK)
+    if (checked.size === 0) return ecAlert(NO_PICK)
     setRegError(''); setRegDate(ymd(new Date())); setRegOpen(true)
   }
 
@@ -208,7 +209,7 @@ export default function OrderReleasePage() {
 
   /** 수정 창 [처리취소] — 원본 문구 '전표를 삭제하겠습니까?'. */
   async function deleteEdit() {
-    if (!edit || !confirm('전표를 삭제하겠습니까?\n- 주문서출고처리수정')) return
+    if (!edit || !(await ecConfirm('전표를 삭제하겠습니까?\n- 주문서출고처리수정'))) return
     try {
       await api.delete(`/order-releases/${edit.id}`)
       setEdit(null)
@@ -219,29 +220,29 @@ export default function OrderReleasePage() {
   /** [처리취소] — 판매가 걸린 건이 있으면 원본 문구로 묻는다. */
   async function cancelChecked() {
     const rows = done.filter((r) => checked.has(r.id))
-    if (rows.length === 0) return alert(noPickFor('처리취소'))
+    if (rows.length === 0) return ecAlert(noPickFor('처리취소'))
     if (rows.some((r) => r.saleId != null)
-      ? !confirm('이미 판매입력된 전표가 있습니다.\n진행하겠습니까?')
-      : !confirm('처리취소하겠습니까?')) return
+      ? !(await ecConfirm('이미 판매입력된 전표가 있습니다.\n진행하겠습니까?'))
+      : !(await ecConfirm('처리취소하겠습니까?'))) return
     const fails: string[] = []
     for (const r of rows) {
       try { await api.delete(`/order-releases/${r.id}`) } catch (err) { fails.push(extractErrorMessage(err)) }
     }
     setChecked(new Set())
     void load()
-    if (fails.length) alert(fails.join('\n'))
+    if (fails.length) void ecAlert(fails.join('\n'))
   }
 
   /** 하단 [판매입력] — 고른 건 중 아직 판매가 없는 것들을 <b>한 판매로 묶어</b> 판매입력을 연다(원본도 그렇다). */
   function saleFromChecked() {
     const rs = done.filter((x) => checked.has(x.id) && x.saleId == null)
-    if (rs.length === 0) return alert(checked.size === 0 ? NO_PICK : '이미 판매입력된 전표가 있습니다.')
+    if (rs.length === 0) return ecAlert(checked.size === 0 ? NO_PICK : '이미 판매입력된 전표가 있습니다.')
     navigate(`/sales/sell?fromRelease=${rs.map((r) => r.id).join(',')}`)
   }
 
   /** [인쇄] — 출고증 미리보기. 창은 누른 순간 열어 두고(팝업 차단) 내용은 받아 와서 채운다. */
   async function printSlips(ids: number[]) {
-    if (ids.length === 0) return alert(NO_PICK)
+    if (ids.length === 0) return ecAlert(NO_PICK)
     const win = openPrintWindow()
     if (!win) return
     try {
@@ -267,7 +268,7 @@ export default function OrderReleasePage() {
             { label: '판매입력', primary: true, onClick: saleFromChecked },
             { label: '인쇄', onClick: () => void printSlips(done.filter((r) => checked.has(r.id)).map((r) => r.id)) },
             { label: 'Excel' },
-            { label: '처리구분변경', onClick: () => (checked.size === 0 ? alert(noPickFor('처리구분변경')) : setKindOpen(true)) },
+            { label: '처리구분변경', onClick: () => (checked.size === 0 ? ecAlert(noPickFor('처리구분변경')) : setKindOpen(true)) },
             { label: '처리취소', onClick: () => void cancelChecked() },
           ]}
     >

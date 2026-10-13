@@ -5,6 +5,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { Item, Partner, SpecialPrice, SpecialPriceResolve, SpecialPriceType } from '../../types/api'
 import { partnerCodeItems } from '../../utils/codeItems'
+import { ecConfirm } from '../../components/EcDialog'
 
 /**
  * 회계/재고 기초등록 > 특별단가등록 (이카운트 E040124)
@@ -107,7 +108,7 @@ export default function SpecialPricePage() {
   }
 
   async function remove(id: number) {
-    if (!confirm('이 특별단가를 삭제할까요?')) return
+    if (!(await ecConfirm('이 특별단가를 삭제할까요?'))) return
     setError(''); setOk('')
     try { await api.delete(`/special-prices/${id}`); load() }
     catch (err) { setError(extractErrorMessage(err)) }

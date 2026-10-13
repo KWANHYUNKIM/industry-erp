@@ -7,6 +7,7 @@ import { useTableSort } from '../../utils/useTableSort'
 import Modal from '../../components/Modal'
 import { ymd } from '../../components/EcPeriodPicks'
 import { dateText } from '../../utils/dateText'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 type SettlementType = 'RECEIPT' | 'PAYMENT'
 
@@ -114,10 +115,10 @@ export default function SettlementPage() {
    * 잔액에 그대로 반영되므로 오타 하나가 잔액을 영구히 틀리게 만든다.
    */
   async function remove(r: Settlement) {
-    if (!window.confirm(`${r.docNo} (${r.typeName} ${won(r.amount)}원) 전표를 삭제할까요?
-거래처 잔액에서 이 금액이 빠집니다.`)) return
+    if (!(await ecConfirm(`${r.docNo} (${r.typeName} ${won(r.amount)}원) 전표를 삭제할까요?
+거래처 잔액에서 이 금액이 빠집니다.`))) return
     try { await api.delete(`/settlements/${r.id}`); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
+    catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
 

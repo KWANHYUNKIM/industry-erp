@@ -9,6 +9,7 @@ import { useCondPickers } from '../../utils/useCondPickers'
 import { useShortcut } from '../../utils/useShortcut'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { dateNo } from '../../utils/dateNo'
+import { ecConfirm } from '../../components/EcDialog'
 
 /** 서버 한 줄 — 같은 planNo 의 줄들이 한 전표다. */
 interface PlanRow {
@@ -157,7 +158,7 @@ export default function SalesPlanListPage() {
       onNew={openNew}
       actions={[
         { label: '선택삭제', selected: picked.size,
-          onClick: () => { if (window.confirm('선택한 전표를 삭제 하겠습니까?')) void removeDocs([...picked]) } },
+          onClick: async () => { if ((await ecConfirm('선택한 전표를 삭제 하겠습니까?'))) void removeDocs([...picked]) } },
         { label: 'Excel' },
       ]}
     >
@@ -272,7 +273,7 @@ export default function SalesPlanListPage() {
         <div className="flex gap-[4px] mt-[9px]">
           <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>저장(F8)</button>
           {editing
-            ? <button className="ec-btn" onClick={() => { if (window.confirm('선택한 전표를 삭제 하겠습니까?')) void removeDocs([editing.planNo]) }}>삭제</button>
+            ? <button className="ec-btn" onClick={async () => { if ((await ecConfirm('선택한 전표를 삭제 하겠습니까?'))) void removeDocs([editing.planNo]) }}>삭제</button>
             : <button className="ec-btn" onClick={() => setLines(emptyLines())}>다시 작성</button>}
           <button className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
         </div>

@@ -17,6 +17,7 @@ import { lineSupply, roundWon } from '../../utils/lineSupply'
 import EcNumInput from '../../components/EcNumInput'
 import { dateText } from '../../utils/dateText'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 type OrderStatus = 'RECEIVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED'
 /**
@@ -211,7 +212,7 @@ export default function SalesOrderPage() {
   /** 수정 창의 [삭제] — 원본 확인 문구 '전표를 삭제하겠습니까? - 주문서'. */
   async function removeEditing() {
     if (editId == null) return
-    if (!confirm('전표를 삭제하겠습니까?\n- 주문서')) return
+    if (!(await ecConfirm('전표를 삭제하겠습니까?\n- 주문서'))) return
     try { await api.delete(`/sales-orders/${editId}`); closeForm(); load() }
     catch (err) { setError(extractErrorMessage(err)) }
   }
@@ -219,8 +220,8 @@ export default function SalesOrderPage() {
   /** [선택삭제] — 고른 주문을 하나씩 지운다. 막힌 것(출하 · 판매가 붙은 것)은 이유를 모아 알린다. */
   async function removeChecked() {
     const ids = [...checked]
-    if (ids.length === 0) return alert('선택된 전표가 없습니다.')
-    if (!confirm(`전표를 삭제하겠습니까?\n- 주문서 ${ids.length}건`)) return
+    if (ids.length === 0) return ecAlert('선택된 전표가 없습니다.')
+    if (!(await ecConfirm(`전표를 삭제하겠습니까?\n- 주문서 ${ids.length}건`))) return
     const fails: string[] = []
     for (const id of ids) {
       try { await api.delete(`/sales-orders/${id}`) }
@@ -228,7 +229,7 @@ export default function SalesOrderPage() {
     }
     setChecked(new Set())
     load()
-    if (fails.length) alert(fails.join('\n'))
+    if (fails.length) void ecAlert(fails.join('\n'))
   }
 
   /**
@@ -236,7 +237,7 @@ export default function SalesOrderPage() {
    * 우리 셸은 고른 줄이 있어야 도는 버튼을 미리 잠근다(ui-check 1-s13). 문구는 잠금이 풀린 채 불릴 때를 위해 남긴다.
    */
   function openStatusMenu() {
-    if (checked.size === 0) return alert('리스트에 선택된 자료가 없습니다.\n\n체크박스에 체크한 후 다시 시도 바랍니다.')
+    if (checked.size === 0) return ecAlert('리스트에 선택된 자료가 없습니다.\n\n체크박스에 체크한 후 다시 시도 바랍니다.')
     const btn = [...document.querySelectorAll<HTMLButtonElement>('.ec-footer button')].find((b) => b.textContent?.trim() === '진행상태변경')
     const r = btn?.getBoundingClientRect()
     setStatusMenu({ left: r?.left ?? 200, bottom: r ? window.innerHeight - r.top + 4 : 48 })
@@ -250,7 +251,7 @@ export default function SalesOrderPage() {
     }
     setChecked(new Set())
     load()
-    if (fails.length) alert(fails.join('\n'))
+    if (fails.length) void ecAlert(fails.join('\n'))
   }
 
   /**
@@ -267,13 +268,13 @@ export default function SalesOrderPage() {
   function step(dir: -1 | 1) {
     const i = shown.findIndex((o) => o.id === editId)
     const target = i < 0 ? undefined : shown[i + dir]
-    if (!target) return alert(dir < 0 ? '다음에 표시할 전표가 없습니다.' : '이전에 표시할 전표가 없습니다.')
+    if (!target) return ecAlert(dir < 0 ? '다음에 표시할 전표가 없습니다.' : '이전에 표시할 전표가 없습니다.')
     openEdit(target)
   }
 
   async function openGenerated(o: SalesOrder) {
     try { setGenerated({ order: o, rows: (await api.get<GeneratedRow[]>(`/sales-orders/${o.id}/generated`)).data }) }
-    catch (err) { alert(extractErrorMessage(err)) }
+    catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   /** 줄의 [인쇄] — 원본 '주 문 서' 양식(수신 · 납기일자 · 일련번호 · 담당자 · 금액 한글 · 품목코드 · 품목명[규격] …). */

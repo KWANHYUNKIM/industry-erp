@@ -17,6 +17,7 @@ import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
 import { partnerCodeItems } from '../../utils/codeItems'
 import { lineSupply } from '../../utils/lineSupply'
 import EcNumInput from '../../components/EcNumInput'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => ymd(new Date())
@@ -235,7 +236,7 @@ export default function QuotationPage() {
 
   async function send(q: Quotation) {
     try { await api.post(`/quotations/${q.id}/send`); flash(`${q.quoteNo} 발송`); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
+    catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   useEffect(() => { loadSupplierParty().then(setCompany) }, [])
@@ -264,27 +265,27 @@ export default function QuotationPage() {
   }
 
   async function convert(q: Quotation) {
-    if (!window.confirm(`${q.quoteNo}을(를) 수주로 전환할까요?`)) return
+    if (!(await ecConfirm(`${q.quoteNo}을(를) 수주로 전환할까요?`))) return
     try {
       const r = await api.post(`/quotations/${q.id}/convert`)
       flash(`수주 ${r.data.orderNo} 생성됨`)
       load()
-      if (window.confirm('생성된 수주 화면으로 이동할까요?')) navigate('/sales/orders')
-    } catch (err) { alert(extractErrorMessage(err)) }
+      if ((await ecConfirm('생성된 수주 화면으로 이동할까요?'))) navigate('/sales/orders')
+    } catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   async function cancel(q: Quotation) {
-    if (!window.confirm(`${q.quoteNo}을(를) 취소할까요?`)) return
+    if (!(await ecConfirm(`${q.quoteNo}을(를) 취소할까요?`))) return
     try { await api.post(`/quotations/${q.id}/cancel`); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
+    catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   // 취소는 문서를 남긴 채 상태만 바꾼다. 잘못 만든 견적서는 지우는 게 맞다 —
   // 취소로 덮어 두면 목록이 죽은 문서로 계속 불어난다.
   async function remove(q: Quotation) {
-    if (!window.confirm(`${q.quoteNo}을(를) 삭제할까요? 되돌릴 수 없습니다.`)) return
+    if (!(await ecConfirm(`${q.quoteNo}을(를) 삭제할까요? 되돌릴 수 없습니다.`))) return
     try { await api.delete(`/quotations/${q.id}`); load() }
-    catch (err) { alert(extractErrorMessage(err)) }
+    catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
   /*
@@ -320,7 +321,7 @@ export default function QuotationPage() {
   async function removeChecked() {
     const ids = [...picked]
     if (ids.length === 0) { setError('삭제할 견적서을(를) 고르세요.'); return }
-    if (!window.confirm(`고른 ${ids.length}건을 삭제할까요?`)) return
+    if (!(await ecConfirm(`고른 ${ids.length}건을 삭제할까요?`))) return
     const results = await Promise.allSettled(ids.map((id) => api.delete(`/quotations/${id}`)))
     const failed = results.filter((r) => r.status === 'rejected').length
     setPicked(new Set())

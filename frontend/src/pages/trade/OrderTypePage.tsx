@@ -5,6 +5,7 @@ import { api, extractErrorMessage } from '../../api/client'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { FLAT_MENU } from '../../app/layout/EcountLayout'
 import CodePickerField from '../../components/CodePickerField'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 /**
  * 영업 > 오더관리유형등록.
@@ -151,12 +152,12 @@ export default function OrderTypePage() {
   }
 
   async function remove(t: OrderType) {
-    if (!confirm(`오더유형 '${t.name}'을(를) 삭제할까요?`)) return
+    if (!(await ecConfirm(`오더유형 '${t.name}'을(를) 삭제할까요?`))) return
     try {
       await api.delete(`/order-types/${t.id}`)
       load()
     } catch (err) {
-      alert(extractErrorMessage(err))
+      void ecAlert(extractErrorMessage(err))
     }
   }
 

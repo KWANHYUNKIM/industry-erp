@@ -12,6 +12,7 @@ import PurchaseRequestForm from '../../features/purchaserequest/PurchaseRequestF
 import { purchaseRequestDocument } from '../../features/purchaserequest/purchaseRequestDocument'
 import Modal from '../../components/Modal'
 import { printDocuments } from '../../utils/printDocument'
+import { ecAlert, ecConfirm } from '../../components/EcDialog'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 /** 원본 날짜 모양 — 연도를 두 자리로 찍는다(26/10/12-2 · 25/07/12, 2026-10-03 실측). */
@@ -128,7 +129,7 @@ export default function PurchaseRequestListPage() {
   function step(dir: 1 | -1) {
     const at = shown.findIndex((o) => o.id === form?.order?.id)
     const target = at < 0 ? undefined : shown[at + dir]
-    if (!target) return alert(dir < 0 ? '다음에 표시할 전표가 없습니다.' : '이전에 표시할 전표가 없습니다.')
+    if (!target) return ecAlert(dir < 0 ? '다음에 표시할 전표가 없습니다.' : '이전에 표시할 전표가 없습니다.')
     openForm(target)
   }
   /** 원본 [진행상태변경] · [종결여부] — 고른 줄을 한 번에 미확인 / 진행중 / 완료로. */
@@ -145,7 +146,7 @@ export default function PurchaseRequestListPage() {
     setOtherMenu(null)
     const targets = shown.filter((o) => checked.has(o.id))
     const notReq = targets.filter((o) => o.status !== 'REQUESTED')
-    if (notReq.length > 0) return alert(`이미 발주계획으로 넘어간 발주요청입니다.\n- ${notReq.map((o) => shortDateNo(o.orderDate, o.orderNo)).join(', ')}`)
+    if (notReq.length > 0) return ecAlert(`이미 발주계획으로 넘어간 발주요청입니다.\n- ${notReq.map((o) => shortDateNo(o.orderDate, o.orderNo)).join(', ')}`)
     const results = await Promise.allSettled(targets.map((o) => api.post(`/purchase-orders/${o.id}/plan`, {})))
     const failed = results.filter((r) => r.status === 'rejected') as PromiseRejectedResult[]
     if (failed.length > 0) setError(`${failed.length}건을 넘기지 못했습니다: ${extractErrorMessage(failed[0].reason)}`)
@@ -159,7 +160,7 @@ export default function PurchaseRequestListPage() {
   async function removeChecked() {
     const ids = shown.filter((o) => checked.has(o.id)).map((o) => o.id)
     if (ids.length === 0) return
-    if (!confirm(`전표를 삭제하겠습니까?\n- 발주요청 ${ids.length}건`)) return
+    if (!(await ecConfirm(`전표를 삭제하겠습니까?\n- 발주요청 ${ids.length}건`))) return
     const results = await Promise.allSettled(ids.map((id) => api.delete(`/purchase-orders/${id}`)))
     const failed = results.filter((r) => r.status === 'rejected') as PromiseRejectedResult[]
     if (failed.length > 0) setError(`${failed.length}건을 지우지 못했습니다: ${extractErrorMessage(failed[0].reason)}`)

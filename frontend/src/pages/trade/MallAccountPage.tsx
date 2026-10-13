@@ -5,6 +5,7 @@ import CodePickerField from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import type { MallAccount, MallAccountType, Partner } from '../../types/api'
 import { partnerCodeItems } from '../../utils/codeItems'
+import { ecConfirm } from '../../components/EcDialog'
 
 /**
  * 재고 I > 쇼핑몰관리 > 쇼핑몰등록 (이카운트 C000664)
@@ -69,7 +70,7 @@ export default function MallAccountPage() {
   }
 
   async function remove(id: number) {
-    if (!confirm('이 쇼핑몰을 삭제할까요?')) return
+    if (!(await ecConfirm('이 쇼핑몰을 삭제할까요?'))) return
     setError('')
     try { await api.delete(`/mall-accounts/${id}`); load() }
     catch (err) { setError(extractErrorMessage(err)) }
