@@ -89,6 +89,7 @@
   --ec-lh-grid: 1.428571;                   /* 격자 칸 줄 간격 17.1429px */
   --ec-ctl-h: 26px;                         /* 버튼 · 입력칸 · 고르기 */
   --ec-ctl-h-sm: 22px;                      /* 격자 툴바 버튼 */
+  --ec-grid-ctl-h: 25.2px;                  /* 입력 격자 칸 안 입력(원본 span.grid-input-data — 일반전표 · 지출결의서 2026-10-14 실측, 줄 36.5) */
   --ec-pad-btn: 0 9px;                      /* 원본 6.3px 9px — 높이는 --ec-ctl-h 로 */
   --ec-btn-min-w: 47.5px;                   /* 원본 btn 최소 폭(알림 [확인] · 하단 [신규(F2)] [인쇄] …) */
   --ec-pad-input: 0 5.4px;

@@ -568,7 +568,7 @@ const MENU: TopMenu[] = [
       {
         label: '회계거래관리',
         nodes: [
-          { label: '회계전표조회', to: '/accounting/journals' },
+          { label: '회계거래조회', to: '/accounting/journals' },
           { label: '회계반영/미반영', to: '/sales/accounting-reflection' },
           { label: '증빙센터', to: '/accounting/evidence-center' },
         ],

@@ -9,6 +9,7 @@ import type { CodeItem } from '../../components/CodePickerField'
 import { api, extractErrorMessage } from '../../api/client'
 import { ymd } from '../../components/EcPeriodPicks'
 import { partnerCodeItems } from '../../utils/codeItems'
+import SlipGridTools, { type SlipTool } from '../../features/fastentry/components/SlipGridTools'
 import type { BankAccountRow, FastVoucher, Partner } from '../../types/api'
 
 /**
@@ -49,17 +50,22 @@ const won = (n: number) => n.toLocaleString('ko-KR')
 
 interface Conf {
   title: string; settleHead: string; settleNameHead: string; accountHead: string; partnerHead: string; defaultAccount: string
+  /** 격자 위 툴바 — 원본 화면마다 다르다(SlipGridTools). */
+  tools: SlipTool[]
   /** 첫 열 검색 창 — 계좌검색 · 사원검색 */
   settlePicker: { title: string; codeHead: string; nameHead: string }
 }
 const BANK_PICKER = { title: '계좌검색', codeHead: '계좌코드', nameHead: '계좌명' }
 const CONF: Record<Kind, Conf> = {
   EXPENSE_REPORT: { title: '지출결의서', settleHead: '돈 나간 계좌', settleNameHead: '돈 나간 계좌명', accountHead: '계정코드(차변)',
-    partnerHead: '거래처 검색', defaultAccount: '811', settlePicker: BANK_PICKER },
+    partnerHead: '거래처 검색', defaultAccount: '811', settlePicker: BANK_PICKER,
+    tools: ['찾기(F3)', '보류', '자금계획', '계좌입출금내역', '카드매입내역', '계정별잔액'] },
   DEPOSIT_REPORT: { title: '입금보고서', settleHead: '돈 들어온 계좌', settleNameHead: '돈 들어온 계좌명', accountHead: '계정코드(대변)',
-    partnerHead: '거래처 검색', defaultAccount: '108', settlePicker: BANK_PICKER },
+    partnerHead: '거래처 검색', defaultAccount: '108', settlePicker: BANK_PICKER,
+    tools: ['찾기(F3)', '보류', '자금계획', '계좌입출금내역', '결제대행사내역'] },
   ADVANCE_SETTLEMENT: { title: '가지급금정산서', settleHead: '정산자', settleNameHead: '정산대상자명', accountHead: '계정코드(차변)',
-    partnerHead: '거래처', defaultAccount: '811', settlePicker: { title: '사원검색', codeHead: '사원코드', nameHead: '사원명' } },
+    partnerHead: '거래처', defaultAccount: '811', settlePicker: { title: '사원검색', codeHead: '사원코드', nameHead: '사원명' },
+    tools: ['찾기(F3)', '보류'] },
 }
 
 /** 원본 계좌검색의 [계좌명] — 등록한 이름이 없으면 '은행-끝 4자리'(기업은행-1122). */
@@ -249,8 +255,11 @@ export default function CashReportEntryPage({ kind }: { kind: Kind }) {
           </EcCond>
         </ul>
 
+        <SlipGridTools tools={conf.tools} />
         <div className="overflow-x-auto">
-          <table className="ec-grid-input no-ec table-fixed min-w-[1100px] [&_tbody_tr]:h-[36.5px] [&_td.pad]:p-[5.4px_2.7px]">
+          {/* 원본 본문 줄 36.5 = 칸 안 입력(span.grid-input-data) 25.2 + 위아래 5.4 — 우리 입력칸 26 이 줄을 37.3 으로 밀었다.
+              머리 33.8 = 9 + 7.2 + 줄높이 17.14(12px × 1.42857) — 우리 줄높이 18 이 34.7 로 만들었다. */}
+          <table className="ec-grid-input no-ec table-fixed min-w-[1100px] [&_tbody_tr]:h-[36.5px] [&_td.pad]:p-[5.4px_2.7px] [&_tbody_input]:h-[var(--ec-grid-ctl-h)] [&_tbody_select]:h-[var(--ec-grid-ctl-h)] [&_tbody_button]:h-[var(--ec-grid-ctl-h)] [&_th]:leading-[1.42857] [&_tfoot_td]:leading-[1.42857]">
             <colgroup>
               <col className="w-[42px]" /><col className="w-[208px]" /><col className="w-[206px]" /><col className="w-[198px]" />
               <col className="w-[151px]" /><col className="w-[178px]" /><col className="w-[151px]" /><col className="w-[167px]" /><col />

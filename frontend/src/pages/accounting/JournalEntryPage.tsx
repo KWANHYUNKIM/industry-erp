@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import Modal from '../../components/Modal'
 import type { JournalEntry } from '../../types/api'
 import EcSlipShell from '../../components/EcSlipShell'
+import SlipGridTools from '../../features/fastentry/components/SlipGridTools'
 import EcDateField from '../../components/EcDateField'
 import EcNumInput from '../../components/EcNumInput'
 import CodePickerField, { type CodeItem } from '../../components/CodePickerField'
@@ -57,7 +58,8 @@ function workTime(iso?: string | null) {
  *
  * <p>1출 · 2입: 줄 하나에 금액 하나, 저장하면 현금 상대 줄이 붙는다(다시 열면 3차 · 4대 두 줄로 보인다 — 원본은 1출 한 줄 그대로).
  *
- * <p>두지 않은 것(plans/회계1.md 남은 것): 적요코드(적요 마스터 없음) · 찾기(F3) · 전표불러오기 · 자금계획 … 툴바 ·
+ * <p>격자 위 툴바는 원본 그대로 [찾기(F3)] · [전표불러오기](SlipGridTools — 받쳐 줄 기능이 없어 모양만).
+ * <p>두지 않은 것(plans/회계1.md 남은 것): 적요코드(적요 마스터 없음) ·
  * 회계전표No. 직접 지정 · 웹자료올리기 · 보내기 · 수정 창 [확인취소] · 프로젝트 열(원본 이 회사 설정으로 숨김).
  */
 export default function JournalEntryPage() {
@@ -267,7 +269,9 @@ export default function JournalEntryPage() {
           </EcCond>
         </ul>
 
-        <table ref={tableRef} className="w-full text-left">
+        <SlipGridTools tools={['찾기(F3)', '전표불러오기']} />
+        {/* 원본 본문 줄 36.5 = 칸 안 입력(span.grid-input-data) 25.2 + 위아래 5.4 — 우리 입력칸 26 이 줄을 37.3 으로 밀었다. */}
+        <table ref={tableRef} className="w-full text-left [&_tbody_input]:h-[var(--ec-grid-ctl-h)] [&_tbody_select]:h-[var(--ec-grid-ctl-h)] [&_tbody_button]:h-[var(--ec-grid-ctl-h)]">
           <thead>
             <tr>
               <th className="w-[48px]"></th><th className="w-[90px] text-center">구분</th>
