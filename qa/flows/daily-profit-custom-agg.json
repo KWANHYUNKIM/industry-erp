@@ -17,6 +17,16 @@
         "js:(async () => { const sel = document.querySelector('select[aria-label=\"집계조건2\"]'); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(sel, 'month'); sel.dispatchEvent(new Event('change', { bubbles: true })); await new Promise((r) => setTimeout(r, 400)); return 'ok' })()",
         "expect:document.body.innerText.includes('집계조건 기준일자, 시간순정렬시 비교기간은 사용할 수 없습니다.')"
       ]
+    },
+    {
+      "name": "[가로보기] 거래처 · 담당자 / 판매액 · 이익 → 담당자를 열로 펴고 거래처 줄마다 '계'",
+      "path": "/accounting/daily-profit",
+      "steps": [
+        "wait:3000",
+        "js:(async () => { const W = (ms) => new Promise((r) => setTimeout(r, ms)); [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === '사용자지정집계').click(); await W(400); const set = (n, v) => { const sel = document.querySelector(`select[aria-label=\"집계조건${n}\"]`); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(sel, v); sel.dispatchEvent(new Event('change', { bubbles: true })) }; set(1, 'partner'); await W(200); set(2, 'employee'); await W(200); for (const t of ['판매액', '이익', '가로보기']) { const l = [...document.querySelectorAll('label')].find((x) => x.innerText.trim() === t && x.querySelector('input[type=checkbox]')); l.querySelector('input').click(); await W(100) } await W(400); return [...document.querySelectorAll('table.ec-report thead tr')].map((r) => r.innerText.replace(/\\s+/g, '|')).join(' / ') })()",
+        "expect:(() => { const hr = [...document.querySelectorAll('table.ec-report thead tr')]; if (hr.length !== 2) return false; const top = [...hr[0].cells]; return top[0].innerText.trim() === '거래처' && top[0].rowSpan === 2 && top.slice(1).every((c) => c.colSpan === 2) && [...hr[1].cells].every((c, i) => c.innerText.trim() === (i % 2 ? '이익' : '판매액')) })()",
+        "expect:(() => { const rows = [...document.querySelectorAll('table.ec-report tbody tr')]; if (rows.length === 1) return true; const last = rows[rows.length - 1]; if (last.cells[0].innerText.trim() !== '합계') return false; for (let i = 0; i + 1 < rows.length - 1; i += 2) { if (rows[i + 1].cells[0].innerText.trim() !== rows[i].cells[0].innerText.trim() + ' 계') return false } return true })()"
+      ]
     }
   ]
 }

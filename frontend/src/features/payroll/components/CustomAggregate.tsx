@@ -15,8 +15,9 @@ export interface AggTarget {
 }
 /** 집계할 한 건 — 조건마다 코드 · 이름, 열마다 금액. */
 export interface AggRecord { dims: Record<string, { code: string; name: string }>; values: Record<string, number> }
-export interface AggState { conds: string[]; targets: string[]; ratio: boolean; withCode: boolean }
-export const EMPTY_AGG: AggState = { conds: [], targets: [], ratio: false, withCode: false }
+/** horizontal — 원본 [가로보기]. 없으면 꺼짐(이 값을 아직 안 넣는 화면이 있다). */
+export interface AggState { conds: string[]; targets: string[]; ratio: boolean; withCode: boolean; horizontal?: boolean }
+export const EMPTY_AGG: AggState = { conds: [], targets: [], ratio: false, withCode: false, horizontal: false }
 
 const MAX_CONDS = 5
 const won = (n: number) => (n ? Number(n).toLocaleString('ko-KR') : '')
@@ -29,7 +30,7 @@ const byCode = (a: string, b: string) => a.localeCompare(b, 'ko', { numeric: tru
  * <p>처음엔 집계조건1 · 2 두 칸, 고를 때마다 한 칸씩 더 열려 5 까지(2026-10-13 일용근로 급여현황 실측: 0개 → 1 · 2, 1개 → 1~3, 3개 → 1~5). 이미 고른 조건은 다음 칸 목록에서 빠진다. 집계대상은 여러 개
  * (수당금액(전체) · 지급총액 · 공제금액(전체) · 공제총액 · 실지급액). 기타 □가로보기 □비율표시 □코드포함.
  * 원본은 조건 · 대상을 코드도움 창에서 고르고 조건마다 [코드순▾] 정렬을 둔다 — 우리는 고름칸 · 체크칸이고 늘 코드순이다.
- * 가로보기는 아직 없다.
+ * [가로보기]는 조건이 둘 이상일 때 마지막 조건을 열로 편다(CustomAggregateTable).
  */
 export function CustomAggregateConds({ dims, targets, value, onChange }: {
   dims: AggDim[]; targets: AggTarget[]; value: AggState; onChange: (v: AggState) => void
@@ -69,8 +70,8 @@ export function CustomAggregateConds({ dims, targets, value, onChange }: {
       </div>
       <div className="flex flex-wrap items-center gap-[6px]">
         <span className="inline-block w-[70px] rounded-ec bg-ec-disabled px-[6px] text-ec-label">기타</span>
-        <label className="inline-flex items-center gap-[3px] mr-[6px] text-ec-hint" title="원본의 가로보기 — 아직 없다">
-          <input type="checkbox" disabled /> 가로보기
+        <label className="inline-flex items-center gap-[3px] mr-[6px]">
+          <input type="checkbox" checked={!!value.horizontal} onChange={(e) => onChange({ ...value, horizontal: e.target.checked })} /> 가로보기
         </label>
         <label className="inline-flex items-center gap-[3px] mr-[6px]">
           <input type="checkbox" checked={value.ratio} onChange={(e) => onChange({ ...value, ratio: e.target.checked })} /> 비율표시
@@ -98,32 +99,55 @@ type Leaf = Extract<Out, { kind: 'leaf' }>
  * {@code compare} — 원본 [비교기간](2026-10-13 일별이익현황 실측): 조건 열은 한 번만(머리 두 줄을 세로로 합침), 그 옆에
  * 기간마다 '2026/10/01 ~ 2026/10/13' 머리 아래 고른 대상 열을 한 벌씩. 줄은 두 기간 어느 쪽에든 있는 묶음, 끝에 합계.
  */
+/**
+ * [가로보기](2026-10-13 일별이익현황 실측, 거래처 · 담당자 / 판매액 · 이익): <b>마지막 조건을 열로 편다</b> —
+ * 머리 위 줄 [거래처(두 줄 합침) · 최혁순(2) · 변종호(2) · 최현경(2)], 아래 줄 [판매액 · 이익 …]. 펼친 값은 코드 순, 끝에 합계 열은 없다.
+ * 줄은 남은 조건마다 한 줄이고, 펼치기 전 그 자리에 있던 소계가 그대로 남는다 — 조건이 둘이면 거래처 줄마다 바로 아래
+ * '(주)삼성 계' 가 같은 숫자로 붙는다. 끝에 합계. 조건이 하나면 펼치지 않는다(원본에서 못 쟀다). [비교기간]과는 같이 쓰지 않는다.
+ */
 export function CustomAggregateTable({ dims, targets, records, agg: value, name, compare }: {
   dims: AggDim[]; targets: AggTarget[]; records: AggRecord[]; agg: AggState; name: string
   compare?: { records: AggRecord[]; labels: [string, string] }
 }) {
   const ref = useRef<HTMLTableElement>(null)
-  const conds = value.conds.filter((k) => dims.some((d) => d.key === k))
+  const allConds = value.conds.filter((k) => dims.some((d) => d.key === k))
+  const pivotKey = !compare && value.horizontal && allConds.length >= 2 ? allConds[allConds.length - 1] : null
+  const conds = pivotKey ? allConds.slice(0, -1) : allConds
   const picked = targets.filter((t) => value.targets.includes(t.key))
   const base = picked.flatMap((t) => t.cols ?? [t.label])
-  /* 비교 구간의 값은 열 이름 앞에 CMP 를 붙여 같은 기록에 싣는다 — 묶기 · 소계 · 합계를 한 번에 돈다. */
-  const CMP = '\u241f'
-  const cols = compare ? [...base, ...base.map((c) => CMP + c)] : base
+  /*
+   * 열 묶음 — 비교기간이면 두 기간, 가로보기면 펼친 조건의 값마다. 묶음 i 의 값은 열 이름 앞에 '묶음i' + SEP 를 붙여
+   * 같은 기록에 싣는다 — 묶기 · 소계 · 합계를 한 번에 돈다. 묶음이 없으면 접두가 빈 글자다.
+   */
+  const SEP = '\u241f'
+  const pivots = pivotKey
+    ? [...new Map(records.map((r) => [r.dims[pivotKey]?.code ?? '', r.dims[pivotKey]?.name ?? ''])).entries()]
+      .sort((a, b) => byCode(a[0], b[0]))
+    : []
+  const bands: { prefix: string; label: string }[] = compare
+    ? [{ prefix: '', label: compare.labels[0] }, { prefix: `1${SEP}`, label: compare.labels[1] }]
+    : pivotKey ? pivots.map(([code, nm], i) => ({ prefix: `${i}${SEP}`, label: nm || code })) : [{ prefix: '', label: '' }]
+  const banded = bands.length > 1 || !!pivotKey
+  const cols = bands.flatMap((b) => base.map((c) => b.prefix + c))
   const baseFmts = picked.flatMap((t) => (t.cols ?? [t.label]).map(() => t.format ?? won))
-  const fmts = compare ? [...baseFmts, ...baseFmts] : baseFmts
-  useTableColumnCheck(ref, `${name} 사용자지정집계`, [conds.join(), cols.join(), value.ratio, value.withCode, !!compare])
+  const fmts = bands.flatMap(() => baseFmts)
+  useTableColumnCheck(ref, `${name} 사용자지정집계`, [allConds.join(), cols.join(), value.ratio, value.withCode, !!compare, !!pivotKey])
 
   const baseCalcs = picked.flatMap((t) => (t.cols ?? [t.label]).map(() => t.calc))
-  const calcs = compare ? [...baseCalcs, ...baseCalcs] : baseCalcs
+  const calcs = bands.flatMap(() => baseCalcs)
   const sumOf = (rs: AggRecord[], c: string) => rs.reduce((s, r) => s + (r.values[c] ?? 0), 0)
   const sum = (rs: AggRecord[]) => cols.map((c, i) => {
     const f = calcs[i]
-    const pre = compare && i >= base.length ? CMP : ''
+    const pre = bands[Math.floor(i / Math.max(base.length, 1))]?.prefix ?? ''
     return f ? f((k) => sumOf(rs, pre + k)) : sumOf(rs, c)
   })
-  const all: AggRecord[] = compare ? [...records, ...compare.records.map((r) => ({
-    dims: r.dims, values: Object.fromEntries(Object.entries(r.values).map(([k, v]) => [CMP + k, v])),
-  }))] : records
+  const tag = (r: AggRecord, prefix: string): AggRecord => ({
+    dims: r.dims, values: Object.fromEntries(Object.entries(r.values).map(([k, v]) => [prefix + k, v])),
+  })
+  const pivotIndex = new Map(pivots.map(([code], i) => [code, i]))
+  const all: AggRecord[] = compare ? [...records, ...compare.records.map((r) => tag(r, `1${SEP}`))]
+    : pivotKey ? records.map((r) => tag(r, `${pivotIndex.get(r.dims[pivotKey]?.code ?? '')}${SEP}`))
+      : records
   const total = sum(all)
   const out: Out[] = []
   /** 한 갈래를 펼친다 — 마지막 조건마다 한 줄, 그 위 조건이 끝날 때마다 소계 줄. */
@@ -138,6 +162,8 @@ export function CustomAggregateTable({ dims, targets, records, agg: value, name,
       const head = { code, name: g[0].dims[key]?.name ?? '' }
       if (level === conds.length - 1) {
         out.push({ kind: 'leaf', key: `${path}|${code}`, heads: [...prefix, head].map((h) => ({ ...h, span: 1 })), values: sum(g) })
+        /* 가로보기는 펼치기 전 이 자리의 소계를 남긴다(원본: '(주)삼성' 바로 아래 '(주)삼성 계'). */
+        if (pivotKey) out.push({ kind: 'sub', key: `s${path}|${code}`, level, label: `${head.name} 계`, values: sum(g) })
         continue
       }
       walk(g, level + 1, [...prefix, head], `${path}|${code}`)
@@ -178,15 +204,15 @@ export function CustomAggregateTable({ dims, targets, records, agg: value, name,
         <thead>
           <tr>
             {conds.flatMap((k) => (hasCode(k)
-              ? [<th key={`c${k}`} rowSpan={compare ? 2 : undefined}>{codeHead(dimOf(k), k)}</th>, <th key={k} rowSpan={compare ? 2 : undefined}>{label(k)}</th>]
-              : [<th key={k} rowSpan={compare ? 2 : undefined}>{label(k)}</th>]))}
-            {compare
-              ? compare.labels.map((p) => <th key={p} colSpan={base.length * perCol} className="text-center">{p}</th>)
+              ? [<th key={`c${k}`} rowSpan={banded ? 2 : undefined}>{codeHead(dimOf(k), k)}</th>, <th key={k} rowSpan={banded ? 2 : undefined}>{label(k)}</th>]
+              : [<th key={k} rowSpan={banded ? 2 : undefined}>{label(k)}</th>]))}
+            {banded
+              ? bands.map((b) => <th key={b.prefix} colSpan={base.length * perCol} className="text-center">{b.label}</th>)
               : cols.flatMap((c) => (value.ratio ? [<th key={c} className="text-right">{c}</th>, <th key={`r${c}`} className="text-right">{c}비율</th>] : [<th key={c} className="text-right">{c}</th>]))}
           </tr>
-          {compare && (
+          {banded && (
             <tr>
-              {cols.flatMap((c) => { const n = c.replace(CMP, ''); return value.ratio ? [<th key={c} className="text-right">{n}</th>, <th key={`r${c}`} className="text-right">{n}비율</th>] : [<th key={c} className="text-right">{n}</th>] })}
+              {cols.flatMap((c) => { const n = c.slice(c.indexOf(SEP) + 1); return value.ratio ? [<th key={c} className="text-right">{n}</th>, <th key={`r${c}`} className="text-right">{n}비율</th>] : [<th key={c} className="text-right">{n}</th>] })}
             </tr>
           )}
         </thead>
