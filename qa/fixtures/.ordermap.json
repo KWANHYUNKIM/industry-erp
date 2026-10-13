@@ -689,7 +689,7 @@
  ],
  [
   "결제대행사등록",
-  "accounting/PaymentMastersPage.tsx"
+  "accounting/PaymentAgencyListPage.tsx"
  ],
  [
   "사원등록",
