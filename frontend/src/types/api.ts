@@ -1283,6 +1283,10 @@ export interface BankCheck {
   departmentId?: number | null
   projectId?: number | null
   projectName?: string | null
+  /** 채권감소 [입금보고서작성] 수금형태 '수표'(채무감소 지급형태 '수표')로 늘어난 수표 — 증가 줄 거래유형 '입금보고서' · '지출결의서', 체크칸 막힘. */
+  issuedByVoucher?: boolean
+  /** 그 입금보고서(지출결의서)의 회계전표 id — 증가 줄 [일자-No.] · [회계전표일자-No.] 가 그 전표(수정)를 연다. */
+  issueJournalId?: number | null
 }
 
 // ===== 비현금거래 (대체전표) =====
@@ -1690,6 +1694,8 @@ export interface WorkPost {
   id: number
   /** 게시판. 게시글번호는 게시판을 가로질러 한 줄기라 목록 번호에 구멍이 보인다 */
   board: 'WORK' | 'NOTICE' | 'SHARED' | 'MEETING' | 'SIGN' | 'MINUTES'
+    | 'AI_GUIDE' | 'SITE_LOG' | 'SITE_STATUS' | 'DEV_LOG' | 'DEV_STATUS' | 'CONSULT' | 'VISIT' | 'CONTRACT' | 'AS_CARE'
+    | 'CAR_INFO' | 'CAR_DOC' | 'CAR_RUN' | 'KANBAN_SAMPLE' | 'PROJECT_KANBAN'
   boardName: string
   postNo: number
   postDate: string
@@ -1726,6 +1732,10 @@ export interface WorkPost {
   meetingLinks?: (number | null)[]
   /** 업무관리 예시 게시판의 입력항목(이름:값 JSON). 없으면 null. */
   extraFields?: string | null
+  /** 간판제작 [프로젝트] — 📅 프로젝트 진행현황 칸반 판의 열 이름. 그 밖의 게시판은 null */
+  project?: string | null
+  /** 간판제작 [칸반연결] — 📅 프로젝트 진행현황 칸반 글 id. 그 밖의 게시판은 null */
+  kanbanPostId?: number | null
 }
 
 // ===== ECDrive 문서 드라이브 =====

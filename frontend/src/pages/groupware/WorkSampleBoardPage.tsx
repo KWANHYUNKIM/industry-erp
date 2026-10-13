@@ -8,6 +8,7 @@ import WorkPage, { type PostBoardCode } from './WorkPage'
  */
 export const WORK_SAMPLE_BOARDS: { path: string; board: PostBoardCode; title: string }[] = [
   { path: '/groupware/ai-guide', board: 'AI_GUIDE', title: '🔹 이카운트 AI 활용 예시 🔹' },
+  { path: '/groupware/kanban-sample', board: 'KANBAN_SAMPLE', title: '🔸 칸반보드 활용 예시 🔸' },
   { path: '/groupware/site-log', board: 'SITE_LOG', title: '🏗️ 현장공사일지' },
   { path: '/groupware/site-status', board: 'SITE_STATUS', title: '📊 공사진행현황' },
   { path: '/groupware/dev-log', board: 'DEV_LOG', title: '📅 개발업무일지' },

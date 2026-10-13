@@ -371,6 +371,7 @@ const SharedBoardPage = lazy(() => import('../pages/groupware/SharedBoardPage'))
 const MeetingBoardPage = lazy(() => import('../pages/groupware/MeetingBoardPage'))
 const MinutesBoardPage = lazy(() => import('../pages/groupware/MinutesBoardPage'))
 const SignBoardPage = lazy(() => import('../pages/groupware/SignBoardPage'))
+const ProjectKanbanPage = lazy(() => import('../pages/groupware/ProjectKanbanPage'))
 const SchedulePage = lazy(() => import('../pages/groupware/SchedulePage'))
 const SurveyPage = lazy(() => import('../pages/groupware/SurveyPage'))
 const AccountingReflectionPage = lazy(() => import('../pages/trade/AccountingReflectionPage'))
@@ -842,6 +843,7 @@ export default function AppRouter() {
         <Route path="/groupware/approval/settings" element={<ApprovalSettingPage />} />
         <Route path="/groupware/drive" element={<EcDrivePage />} />
         <Route path="/groupware/ai-guide" element={<WorkSampleBoardPage />} />
+        <Route path="/groupware/kanban-sample" element={<WorkSampleBoardPage />} />
         <Route path="/groupware/site-log" element={<WorkSampleBoardPage />} />
         <Route path="/groupware/site-status" element={<WorkSampleBoardPage />} />
         <Route path="/groupware/dev-log" element={<WorkSampleBoardPage />} />
@@ -880,6 +882,7 @@ export default function AppRouter() {
         <Route path="/groupware/minutes-board" element={<MinutesBoardPage />} />
         <Route path="/groupware/meeting-board" element={<MeetingBoardPage />} />
         <Route path="/groupware/sign-board" element={<SignBoardPage />} />
+        <Route path="/groupware/project-kanban" element={<ProjectKanbanPage />} />
         <Route path="/groupware/schedule" element={<SchedulePage />} />
         <Route path="/groupware/survey" element={<SurveyPage />} />
         <Route path="/groupware/supplies" element={<SuppliesPage />} />

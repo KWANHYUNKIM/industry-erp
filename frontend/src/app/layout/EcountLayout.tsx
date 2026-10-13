@@ -972,6 +972,7 @@ const MENU: TopMenu[] = [
           ] },
           { label: '프로젝트 진행관리(예시)', children: [
             { label: '🛠️간판제작 프로젝트관리', to: '/groupware/sign-board' },
+            { label: '📅 프로젝트 진행현황 칸반', to: '/groupware/project-kanban' },
           ] },
           {
             label: '사내관리',
@@ -1024,6 +1025,7 @@ const MENU: TopMenu[] = [
         nodes: [
           // 원본 사이트맵 차례(2026-10-14): 예시 게시판들 → ECDrive → 업무일지 → 출/퇴근. 게시판은 회사가 만든 예시라 이름에 이모지가 붙는다.
           { label: '🔹 이카운트 AI 활용 예시 🔹', to: '/groupware/ai-guide' },
+          { label: '🔸 칸반보드 활용 예시 🔸', to: '/groupware/kanban-sample' },
           {
             label: '칸반보드(건설업)',
             children: [

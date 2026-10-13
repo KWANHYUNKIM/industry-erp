@@ -16,6 +16,7 @@ import { downloadStoredFile, formatBytes } from '../../utils/fileDownload'
 import EcFileDrop from '../../components/EcFileDrop'
 import { dateText } from '../../utils/dateText'
 import { requireSelection } from '../../components/EcDialog'
+import EcKanban, { type KanbanCard, type KanbanTone } from '../../components/EcKanban'
 
 const today = () => ymd(new Date())
 
@@ -55,14 +56,18 @@ type Form = {
   weekNo: number | null; links: (number | null)[]
   /** 업무관리 예시 게시판의 입력항목(이름 → 값). BoardCfg.extras. */
   extra: Record<string, string>
+  /** 간판제작 [프로젝트] · [칸반연결](📅 프로젝트 진행현황 칸반 글 id). */
+  project: string; kanbanPostId: number | null
 }
 const emptyForm = (stage = ''): Form => ({
   title: '', content: '', forwardAll: true, forwardTo: [], ccTo: [], notice: false, postDate: today(), stage, weekNo: null, links: [null, null, null, null], extra: {},
+  project: '', kanbanPostId: null,
 })
 
 export type PostBoardCode = 'WORK' | 'NOTICE' | 'SHARED' | 'MEETING' | 'SIGN' | 'MINUTES'
   | 'AI_GUIDE' | 'SITE_LOG' | 'SITE_STATUS' | 'DEV_LOG' | 'DEV_STATUS'
   | 'CONSULT' | 'VISIT' | 'CONTRACT' | 'AS_CARE' | 'CAR_INFO' | 'CAR_DOC' | 'CAR_RUN'
+  | 'KANBAN_SAMPLE' | 'PROJECT_KANBAN'
 
 /**
  * 격자 열(업무관리 예시 게시판 — 원본은 게시판마다 열을 고른다). 'x:이름' 은 입력항목 값, 'x:이름|머리' 는 머리 글자가 다를 때.
@@ -101,6 +106,15 @@ type BoardCfg = {
   freePill?: boolean
   /** 본문 없이 저장되는가(서버 PostBoard#contentOptional). */
   contentOptional?: boolean
+  /**
+   * 목록이 표가 아니라 칸반 판(🔸 칸반보드 활용 예시 🔸 E200190). order = 판의 열 차례(입력 창 고르기 차례 stages 와 다르다),
+   * tones = 열마다 카드 색, closed = 제목이 빨간 끝난 열. 알약 · 기간 글자가 없다.
+   */
+  kanban?: { order: string[]; tones: Record<string, KanbanTone>; closed: string[] }
+  /** 새 글 본문에 미리 채우는 양식. */
+  template?: string
+  /** 카드 아랫줄에 보일 입력항목 이름(칸반). */
+  subField?: string
 }
 /** 원본 '계약관리 게시판(예시)' 셋 — 진행상태 '기본' 하나, 격자는 공지사항과 같은 꼴(2026-10-14 실측). */
 const PLAIN_COLS: Col[] = ['no', 'title', 'writer', 'forward', 'stage']
@@ -164,10 +178,30 @@ const BOARD_CFG: Record<PostBoardCode, BoardCfg> = {
   CAR_DOC: { ...SAMPLE, labels: true, stages: null, freePill: true, cols: PLAIN_COLS },
   // 🚗 3. 차량 운행관리 (E200182): 게시글번호 · 제목 · 차량증빙 · 차량정보 · 작성자명 · 진행상태, 라벨 없음.
   CAR_RUN: { ...SAMPLE, labels: false, stages: null, freePill: true, cols: ['no', 'title', 'x:차량증빙', 'x:차량정보', 'writer', 'stage'] },
+  /*
+   * 🔸 칸반보드 활용 예시 🔸 (E200190, 2026-10-14 실측): 목록 = 칸반 판(열 = 진행상태 7 + 건수), 조건 판 게시일 최근 1년.
+   * 입력 창 [진행상태] 처음 값 '신규문의' · 고르기 차례는 '견적' 이 맨 앞(판 열 차례와 다르다) · 본문 '*고객정보*' 양식 · [담당자].
+   */
+  KANBAN_SAMPLE: {
+    ...SAMPLE, period: 'yearBack', labels: true, defaultStage: '신규문의',
+    stages: ['견적', '직접 test 해보세요', '신규문의', '고객요청사항', '고객사 미팅', '계약-개발팀 인계', '진행안함'],
+    kanban: {
+      order: ['직접 test 해보세요', '신규문의', '고객요청사항', '고객사 미팅', '견적', '계약-개발팀 인계', '진행안함'],
+      tones: { '직접 test 해보세요': 'pink', 신규문의: 'yellow', 고객요청사항: 'yellow', '고객사 미팅': 'yellow', 견적: 'yellow', '계약-개발팀 인계': 'yellow', 진행안함: 'plain' },
+      closed: ['진행안함'],
+    },
+    extras: [{ name: '담당자', type: 'text' }], subField: '담당자',
+    template: '*고객정보*\n\n회사명:\n업종:\n담당자/직급:\n연락처:\n주소:\n기존 프로그램:\n니즈:\n\n영업 담당자는 담당자에 본인 이름을 걸어주시고, 진행중 라벨을 달아주세요.\n고객 리드 건 진행 상황은 답글 형태로 남겨주세요.',
+  },
+  /*
+   * 📅 프로젝트 진행현황 칸반 (E200072, 2026-10-13 실측): 간판제작과 같은 E0725xx 꼴(번호 · 제목 · 작성자 · 전달자 · 완료일 · 진행상태),
+   * 알약 진행중 · 완료, 기본 기간 전년. 글 View 본문이 칸반 판 — 이 글에 [칸반연결] 한 간판제작 글(열 = [프로젝트], 줄 = 진행상태).
+   */
+  PROJECT_KANBAN: { wide: true, stages: null, labels: true, period: 'lastYear' },
 }
 
 /** 서버가 진행상태 이름을 stage 에 적는 게시판(PostBoard#namedStages). */
-const NAMED_STAGE_BOARDS = new Set<PostBoardCode>(['SHARED', 'MEETING', 'SIGN', 'SITE_LOG', 'DEV_LOG', 'CONSULT', 'VISIT', 'CONTRACT', 'AS_CARE'])
+const NAMED_STAGE_BOARDS = new Set<PostBoardCode>(['SHARED', 'MEETING', 'SIGN', 'SITE_LOG', 'DEV_LOG', 'CONSULT', 'VISIT', 'CONTRACT', 'AS_CARE', 'KANBAN_SAMPLE'])
 const colHead = (c: Col, stageLabel: string) => {
   if (c.startsWith('x:')) { const [k, h] = c.slice(2).split('|'); return h ?? k }
   return ({ no: '게시글번호', dateNo: '일자-No.', title: '제목', writer: '작성자명', forward: '전달자', stage: stageLabel, postDate: '일자' } as Record<string, string>)[c]
@@ -241,6 +275,15 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
   const [weekMenu, setWeekMenu] = useState(false)
   /** View 에서 펼친 부서 칸('경영지원팀(클릭)'). */
   const [openTeams, setOpenTeams] = useState<Set<number>>(new Set())
+  /** 간판제작 ↔ 📅 프로젝트 진행현황 칸반: 간판제작 입력 창 [칸반연결] 후보 · 칸반 글 View 판의 카드(간판제작 글과 그 라벨 색). */
+  const [kanbanPosts, setKanbanPosts] = useState<WorkPost[]>([])
+  const [signPosts, setSignPosts] = useState<WorkPost[]>([])
+  const [signLabels, setSignLabels] = useState<BoardLabel[]>([])
+  /** View 칸반 판에서 고른 카드 · [카드접기]. */
+  const [boardPick, setBoardPick] = useState<Set<number>>(new Set())
+  const [cardsFolded, setCardsFolded] = useState(false)
+  /** View 칸반 판에서 누른 카드(간판제작 글) — 판 아래에 제목 · 본문을 편다. */
+  const [cardView, setCardView] = useState<WorkPost | null>(null)
   const meetingTitle = (id: number | null | undefined) => (id == null ? '' : meetingPosts.find((m) => m.id === id)?.title ?? '')
 
   /*
@@ -296,14 +339,21 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
   async function load() {
     setLoading(true)
     try {
-      const [r, labs, meet] = await Promise.all([
+      const none = Promise.resolve([] as WorkPost[])
+      const [r, labs, meet, kan, sign, signLabs] = await Promise.all([
         api.get<WorkPost[]>('/work-posts', { params: { board } }),
         cfg.labels ? fetchLabels(board) : Promise.resolve([] as BoardLabel[]),
-        cfg.minutes ? api.get<WorkPost[]>('/work-posts', { params: { board: 'MEETING' } }).then((x) => x.data) : Promise.resolve([] as WorkPost[]),
+        cfg.minutes ? api.get<WorkPost[]>('/work-posts', { params: { board: 'MEETING' } }).then((x) => x.data) : none,
+        board === 'SIGN' ? api.get<WorkPost[]>('/work-posts', { params: { board: 'PROJECT_KANBAN' } }).then((x) => x.data) : none,
+        board === 'PROJECT_KANBAN' ? api.get<WorkPost[]>('/work-posts', { params: { board: 'SIGN' } }).then((x) => x.data) : none,
+        board === 'PROJECT_KANBAN' ? fetchLabels('SIGN') : Promise.resolve([] as BoardLabel[]),
       ])
       setRows(r.data)
       setLabelMaster(labs)
       setMeetingPosts(meet)
+      setKanbanPosts(kan)
+      setSignPosts(sign)
+      setSignLabels(signLabs)
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -319,6 +369,8 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
    */
   function openView(r: WorkPost) {
     setViewing(r)
+    setBoardPick(new Set())
+    setCardView(null)
     setOpenTeams(new Set())
     api.post<WorkPost>(`/work-posts/${r.id}/read`)
       .then((res) => {
@@ -331,7 +383,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
   function openNew() {
     setEditId(null)
     // 원본 통합회의록 입력 창은 제목에 오늘 날짜가 미리 들어 있다('2026/10/13 ').
-    setForm({ ...emptyForm(), title: cfg.minutes ? `${dateText(today())} ` : '' })
+    setForm({ ...emptyForm(), title: cfg.minutes ? `${dateText(today())} ` : '', content: cfg.template ?? '' })
     setAttachment(null)
     setError('')
     setShowForm(true)
@@ -348,6 +400,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
       weekNo: r.weekNo ?? null,
       links: MINUTE_TEAMS.map((_, i) => r.meetingLinks?.[i] ?? null),
       extra: parseExtra(r.extraFields),
+      project: r.project ?? '', kanbanPostId: r.kanbanPostId ?? null,
     })
     setAttachment(r.attachmentId ? { id: r.attachmentId, name: r.attachmentName ?? '첨부' } : null)
     setError('')
@@ -412,6 +465,8 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
       extraFields: cfg.extras && Object.values(form.extra).some((v) => v.trim())
         ? JSON.stringify(Object.fromEntries(cfg.extras.map((x) => [x.name, (form.extra[x.name] ?? '').trim()]).filter(([, v]) => v)))
         : null,
+      project: board === 'SIGN' ? form.project.trim() || null : null,
+      kanbanPostId: board === 'SIGN' ? form.kanbanPostId : null,
     }
     try {
       if (editId != null) {
@@ -639,13 +694,64 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
     )
   }
 
+  /**
+   * 칸반 카드 한 장 — 라벨 칩 · 제목 · N(아직 아무도 안 연 글) · 아랫줄(담당자). 답글 수는 우리 게시판에 답글이 없어 붙지 않는다.
+   * 원본 N 은 '내가 안 읽은 글' 로 보이는데 우리 응답에는 조회수만 있어 '조회 0' 으로 본다.
+   */
+  const toCard = (r: WorkPost, col: string, lane?: string, colors: BoardLabel[] = labelMaster): KanbanCard => ({
+    id: r.id, col, lane, title: r.title, bold: r.notice, isNew: (r.viewCount ?? 0) === 0,
+    chips: (r.labels ?? []).map((l) => ({ name: l, color: colors.find((x) => x.name === l)?.color })),
+    sub: cfg.subField ? parseExtra(r.extraFields)[cfg.subField] : undefined,
+  })
+  /** 카드를 끌어 놓으면 진행상태가 바뀐다(= [진행상태변경]). */
+  async function moveStage(id: number, stage: string) {
+    try { await api.patch(`/work-posts/${id}/status`, { stage }) } catch (err) { setError(extractErrorMessage(err)) }
+    void load()
+  }
+
+  /** 하단 [라벨변경] · [라벨설정] — 칸반 게시판은 줄 끝에 둔다(원본 차례). */
+  const labelButtons = (
+    <>
+        {cfg.labels && <span className="relative">
+          <button className="ec-btn" onClick={() => { if (requireSelection(selected.size)) openLabels() }}>라벨변경</button>
+          {labelOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setLabelOpen(false)} />
+              <div role="dialog" aria-label="라벨변경"
+                   className="absolute bottom-full left-0 mb-[4px] z-[41] min-w-[160px] p-[9px] bg-ec-panel border border-ec-line border-solid rounded-ec shadow-lg">
+                <label className="flex items-center gap-[6px] py-[3px] cursor-pointer">
+                  <input type="checkbox" checked={knownLabels.length > 0 && knownLabels.every((l) => labelPick.has(l))}
+                         onChange={(e) => setLabelPick(new Set(e.target.checked ? knownLabels : []))} />
+                  전체
+                </label>
+                {knownLabels.map((l) => (
+                  <label key={l} className="flex items-center gap-[6px] py-[3px] cursor-pointer">
+                    <input type="checkbox" checked={labelPick.has(l)} onChange={() => togglePick(l)} />
+                    <LabelChip name={l} color={colorOf(l)} />
+                  </label>
+                ))}
+                <div className="flex justify-between mt-[6px]">
+                  <button type="button" className="ec-btn ec-btn-sm ec-btn-primary" aria-label="적용" onClick={() => void applyLabels()}>↵</button>
+                  <button type="button" className="ec-btn ec-btn-sm" aria-label="라벨 더하기"
+                          onClick={() => { setLabelOpen(false); setMasterOpen(true) }}>+</button>
+                  <button type="button" className="ec-btn ec-btn-sm" aria-label="닫기" onClick={() => setLabelOpen(false)}>×</button>
+                </div>
+              </div>
+            </>
+          )}
+        </span>}
+        {/* 원본 하단 [라벨설정] — '라벨조회' 창(2026-10-12 잼, [라벨] · [라벨변경]의 + 와 같은 창). 통합게시판에는 없다. */}
+        {cfg.labels && <button className="ec-btn" onClick={() => setMasterOpen(true)}>라벨설정</button>}
+    </>
+  )
+
   return (
     <div className="flex flex-col min-h-[100%]">
       <div className="flex items-center mb-[8px]">
         <span className="text-ec-star text-[14px] mr-[4px]">☆</span>
         <span className="text-[15px] font-extrabold text-ec-text">{title}</span>
         {/* 상태 알약은 원본처럼 제목 바로 옆에 붙는다. */}
-        <div className="ec-pills ml-[8px]">
+        {!cfg.kanban && <div className="ec-pills ml-[8px]">
           {['전체', ...statuses].map((t) => (
             <button
               key={t} type="button" onClick={() => setTab(t)}
@@ -656,7 +762,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
           ))}
           {/* 원본 공지사항은 알약 끝에 이 안내가 붙는다(누르면 회사 진행상태 설정 — 우리에게는 아직 없다). */}
           {(board === 'NOTICE' || cfg.freePill) && <span className="ec-pill no-ec">진행상태를 자유롭게 추가 가능합니다</span>}
-        </div>
+        </div>}
         <div className="ml-auto flex gap-[4px]">
           {cfg.labels && <span className="relative">
             <button type="button" className={`ec-btn${labelFilter ? ' ec-btn-primary' : ''}`} onClick={openFilter}>라벨</button>
@@ -732,9 +838,18 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
       {info && <p className="ec-alert mb-[8px]" onClick={() => setInfo('')}>{info}</p>}
 
       {/* 원본 목록 오른쪽 위의 조회 기간 */}
-      <div className="text-right text-[12px] text-ec-ink mb-[4px]">{dateText(from)} ~ {dateText(to)}</div>
+      {!cfg.kanban && <div className="text-right text-[12px] text-ec-ink mb-[4px]">{dateText(from)} ~ {dateText(to)}</div>}
 
       <div id="work-list" ref={gridRef} className="flex-1 min-h-0">
+        {cfg.kanban ? (
+          <EcKanban
+            columns={cfg.kanban.order.map((st) => ({ key: st, name: st, tone: cfg.kanban!.tones[st], closed: cfg.kanban!.closed.includes(st) }))}
+            cards={numbered.map((r) => toCard(r, statusOf(r)))}
+            selected={selected}
+            onToggle={(ids, on) => setSelected((p) => { const n = new Set(p); ids.forEach((id) => (on ? n.add(id) : n.delete(id))); return n })}
+            onOpen={(c) => { const r = rows.find((x) => x.id === c.id); if (r) openView(r) }}
+            onMove={(c, col) => void moveStage(c.id, col)} />
+        ) : (
         <table className="w-full text-left">
           <thead>
             <tr>
@@ -806,6 +921,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
             )}
           </tbody>
         </table>
+        )}
       </div>
 
       <div className="flex gap-[6px] mt-[10px] pt-[8px] border-t border-t-ec-line-soft border-solid">
@@ -836,41 +952,14 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
             </>
           )}
         </span>
-        {cfg.labels && <span className="relative">
-          <button className="ec-btn" onClick={() => { if (requireSelection(selected.size)) openLabels() }}>라벨변경</button>
-          {labelOpen && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setLabelOpen(false)} />
-              <div role="dialog" aria-label="라벨변경"
-                   className="absolute bottom-full left-0 mb-[4px] z-[41] min-w-[160px] p-[9px] bg-ec-panel border border-ec-line border-solid rounded-ec shadow-lg">
-                <label className="flex items-center gap-[6px] py-[3px] cursor-pointer">
-                  <input type="checkbox" checked={knownLabels.length > 0 && knownLabels.every((l) => labelPick.has(l))}
-                         onChange={(e) => setLabelPick(new Set(e.target.checked ? knownLabels : []))} />
-                  전체
-                </label>
-                {knownLabels.map((l) => (
-                  <label key={l} className="flex items-center gap-[6px] py-[3px] cursor-pointer">
-                    <input type="checkbox" checked={labelPick.has(l)} onChange={() => togglePick(l)} />
-                    <LabelChip name={l} color={colorOf(l)} />
-                  </label>
-                ))}
-                <div className="flex justify-between mt-[6px]">
-                  <button type="button" className="ec-btn ec-btn-sm ec-btn-primary" aria-label="적용" onClick={() => void applyLabels()}>↵</button>
-                  <button type="button" className="ec-btn ec-btn-sm" aria-label="라벨 더하기"
-                          onClick={() => { setLabelOpen(false); setMasterOpen(true) }}>+</button>
-                  <button type="button" className="ec-btn ec-btn-sm" aria-label="닫기" onClick={() => setLabelOpen(false)}>×</button>
-                </div>
-              </div>
-            </>
-          )}
-        </span>}
-        {/* 원본 하단 [라벨설정] — '라벨조회' 창(2026-10-12 잼, [라벨] · [라벨변경]의 + 와 같은 창). 통합게시판에는 없다. */}
-        {cfg.labels && <button className="ec-btn" onClick={() => setMasterOpen(true)}>라벨설정</button>}
-        <button className="ec-btn" onClick={() => setOpened((v) => !v)}>{opened ? '모두접기' : '모두펼쳐보기'}</button>
+        {!cfg.kanban && labelButtons}
+        {/* 원본 칸반 게시판(E200190) 하단: … 진행상태변경 · 선택삭제 · Excel · 이력조회 · 라벨변경 · 라벨설정 — 모두펼쳐보기 · 웹자료올리기 없음 */}
+        {!cfg.kanban && <button className="ec-btn" onClick={() => setOpened((v) => !v)}>{opened ? '모두접기' : '모두펼쳐보기'}</button>}
         <button className="ec-btn" onClick={() => { if (requireSelection(selected.size)) void deleteSelected() }}>선택삭제</button>
         <button className="ec-btn" onClick={() => void doExcel()}>Excel</button>
         <button className="ec-btn" onClick={() => setInfo('이력조회는 아직 지원하지 않습니다.')}>이력조회</button>
-        <button className="ec-btn" onClick={() => setInfo('웹자료올리기는 지원하지 않습니다 — 신규(F2) 입력 창의 [첨부] 를 쓰세요.')}>웹자료올리기</button>
+        {cfg.kanban ? labelButtons
+          : <button className="ec-btn" onClick={() => setInfo('웹자료올리기는 지원하지 않습니다 — 신규(F2) 입력 창의 [첨부] 를 쓰세요.')}>웹자료올리기</button>}
       </div>
 
       {masterOpen && <LabelMasterModal board={board} onClose={() => { setMasterOpen(false); void load() }} />}
@@ -938,6 +1027,28 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
               </label>
             </div>
           </li>
+          {/* 원본 간판제작 입력 창 [프로젝트] · [칸반연결] — 📅 프로젝트 진행현황 칸반 글의 판에 이 글이 [프로젝트] 열의 카드로 뜬다. */}
+          {board === 'SIGN' && (
+            <>
+              <li>
+                <div className="title">프로젝트</div>
+                <div className="form">
+                  <input className="ec-input w-full" placeholder="프로젝트" aria-label="프로젝트" value={form.project}
+                         onChange={(e) => set('project', e.target.value)} />
+                </div>
+              </li>
+              <li>
+                <div className="title">칸반연결</div>
+                <div className="form">
+                  <select className="ec-input w-full" aria-label="칸반연결" value={form.kanbanPostId ?? ''}
+                          onChange={(e) => set('kanbanPostId', e.target.value ? Number(e.target.value) : null)}>
+                    <option value="">(연결 안 함)</option>
+                    {kanbanPosts.map((k) => <option key={k.id} value={k.id}>{k.postNo} {k.title}</option>)}
+                  </select>
+                </div>
+              </li>
+            </>
+          )}
           {/* 게시판별 입력항목(원본 🚗 1. 차량 정보관리: 제목 아래 [출고일자] · [차량번호]). */}
           {cfg.extras?.map((x) => (
             <li key={x.name}>
@@ -1053,6 +1164,42 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
               </li>
             </ul>
             <div className="whitespace-pre-wrap text-[12px] text-ec-ink min-h-[120px] px-[12px]">{viewing.content}</div>
+            {/*
+              원본 '📅 프로젝트 진행현황 칸반View' 본문 판(2026-10-13): 열 = 이 글에 [칸반연결] 한 간판제작 글의 [프로젝트] + 건수,
+              줄 = 간판제작 진행상태, 카드 = 그 글(라벨 칩 + 제목). 판 아래 신규 ▲ · 선택삭제 · 카드접기 · 더보기(신규 ▲ 판은 못 잼 — 뺌).
+              카드를 다른 줄로 끌어 놓으면 그 간판제작 글의 진행상태가 바뀐다.
+            */}
+            {board === 'PROJECT_KANBAN' && (() => {
+              const linked = signPosts.filter((x) => x.kanbanPostId === viewing.id).sort((a, b) => a.postNo - b.postNo)
+              const projects = [...new Set(linked.map((x) => x.project ?? ''))]
+              const signStages = BOARD_CFG.SIGN.stages ?? []
+              return (
+                <div className="mt-[8px]">
+                  {linked.length === 0 ? <div className="ec-empty">등록된 데이터가 없습니다.</div> : (
+                    <EcKanban
+                      columns={projects.map((p) => ({ key: p, name: p || '(프로젝트 없음)' }))}
+                      lanes={signStages.map((st) => ({ key: st, name: st }))}
+                      cards={linked.map((x) => toCard(x, x.project ?? '', x.stage ?? signStages[0], signLabels))}
+                      selected={boardPick} hideSub={cardsFolded}
+                      onToggle={(ids, on) => setBoardPick((p) => { const n = new Set(p); ids.forEach((id) => (on ? n.add(id) : n.delete(id))); return n })}
+                      onOpen={(c) => setCardView(signPosts.find((x) => x.id === c.id) ?? null)}
+                      onMove={(c, _col, lane) => { if (lane && lane !== c.lane) void moveStage(c.id, lane) }} />
+                  )}
+                  <div className="flex gap-[6px] mt-[6px]">
+                    <button type="button" className="ec-btn ec-btn-sm"
+                            onClick={() => { if (requireSelection(boardPick.size)) setConfirmIds([...boardPick]) }}>선택삭제</button>
+                    <button type="button" className="ec-btn ec-btn-sm" onClick={() => setCardsFolded((v) => !v)}>{cardsFolded ? '카드펼치기' : '카드접기'}</button>
+                  </div>
+                  {cardView && (
+                    <div className="bg-ec-page rounded-ec px-[12px] py-[8px] mt-[6px] text-[12px] text-ec-ink">
+                      <div className="font-bold mb-[4px]">{cardView.postNo} | {cardView.title} | {cardView.writerName ?? cardView.writer} | {cardView.stage ?? ''}</div>
+                      <div className="whitespace-pre-wrap">{cardView.content}</div>
+                      <button type="button" className="ec-btn ec-btn-sm mt-[6px]" onClick={() => setCardView(null)}>닫기</button>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
             {/* 원본 통합회의록View: 부서마다 '경영지원팀(클릭)' 판 — 누르면 이은 팀별회의록 글의 제목 · 본문이 펴진다. */}
             {cfg.minutes && (
               <div className="grid grid-cols-2 gap-[8px] mt-[8px]">
