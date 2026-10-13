@@ -373,7 +373,7 @@
  ],
  [
   "카드등록",
-  "accounting/BankCardPage.tsx"
+  "accounting/CardListPage.tsx"
  ],
  [
   "계좌등록",
@@ -569,7 +569,7 @@
  ],
  [
   "A/S접수입력",
-  "quality/AsManagePage.tsx"
+  "quality/AsReceiptEntryPage.tsx"
  ],
  [
   "A/S접수조회",

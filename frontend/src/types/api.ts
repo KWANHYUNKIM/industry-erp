@@ -1364,6 +1364,10 @@ export interface BankAccountRow {
   balance: number
   active: boolean
   remark: string | null
+  /** 원본 계좌등록의 [검색창내용] · [이체정보] 적요1 · 적요2. */
+  searchText: string | null
+  transferRemark1: string | null
+  transferRemark2: string | null
 }
 
 export interface CreditCardRow {
@@ -1383,7 +1387,20 @@ export interface CreditCardRow {
   settlementDay: number | null
   active: boolean
   remark: string | null
+  /** 원본 카드등록의 [카드구분] — 신용카드 · 체크카드. */
+  cardKind: CardKind
+  cardKindName: string
+  /** 원본 [사업용 카드 구분]. */
+  businessUse: boolean
+  /** 원본 [계정] — 카드사용 분개의 대변(기본 미지급금). */
+  glAccountId: number | null
+  glAccountCode: string | null
+  /** 원본 [카드관리자] · [검색창내용]. */
+  manager: string | null
+  searchText: string | null
 }
+
+export type CardKind = 'CREDIT' | 'CHECK'
 
 export interface BankTxn {
   id: number

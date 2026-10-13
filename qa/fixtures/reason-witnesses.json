@@ -1934,32 +1934,12 @@
   ],
   "in": "backend/src/main/java/com/erp/trade/price/SpecialPrice.java"
  },
- "카드등록|카드관리자": {
-  "claim": "우리 카드는 명의자(ownerName)만 든다",
-  "absent": [
-   "manager",
-   "Manager",
-   "Employee"
-  ],
-  "in": "backend/src/main/java/com/erp/accounting/bankcard/CreditCard.java"
- },
- "카드등록|검색창내용": {
-  "claim": "카드 마스터에 찾기용 별칭 칸이 없다",
-  "absent": [
-   "alias",
-   "nickname",
-   "searchKeyword"
-  ],
-  "in": "backend/src/main/java/com/erp/accounting/bankcard/CreditCard.java"
- },
  "계좌등록|이체정보": {
-  "claim": "자동이체 설정을 들지 않는다",
+  "claim": "계좌/카드 화면에 [이체정보] 칸을 아직 안 붙였다",
   "absent": [
-   "Transfer",
-   "transfer",
-   "autoDebit"
+   "이체정보"
   ],
-  "in": "backend/src/main/java/com/erp/accounting/bankcard/BankAccount.java"
+  "in": "frontend/src/pages/accounting/BankCardPage.tsx"
  },
  "발주서입력|추가수량": {
   "claim": "수량을 둘로 나눠 적지 않는다",
