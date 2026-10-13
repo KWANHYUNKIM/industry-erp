@@ -18,6 +18,11 @@ import EmployeePayrollSettingPanel, {
 
 const inputCls = 'ec-input w-full'
 
+/** 원본 직위/직급 코드도움 목록(코드 · 이름) — 원본은 이름 차례로 띄운다 */
+const JOB_POSITIONS: [string, string][] = [
+  ['300', '과장'], ['200', '대리'], ['600', '대표이사'], ['700', '부장'], ['100', '사원'], ['500', '이사'], ['400', '차장'],
+]
+
 interface DeptRow { id: number; name: string; code?: string | null }
 
 type FormTab = '기본' | '급여지급사항' | '추가정보' | '기타설정'
@@ -340,6 +345,8 @@ export default function EmployeePage() {
               <Field label="외국어성명1">
                 <input className={inputCls} value={form.foreignName1} onChange={set('foreignName1')} placeholder="외국어성명1" />
               </Field>
+              {/* 원본은 두 칸씩 짝을 맞춘다 — 주민등록번호(개인정보라 두지 않는다) 자리를 비워 [세대주여부]가 오른쪽에 온다 */}
+              <li className="mobile:hidden" aria-hidden />
               <Field label="세대주여부">
                 <div className="flex flex-wrap gap-[10px]">
                   {['세대주', '세대원', '세대주의 배우자'].map((h) => (
@@ -359,8 +366,12 @@ export default function EmployeePage() {
                                  items={[{ value: '신입', code: '100', name: '신입' }, { value: '경력', code: '200', name: '경력' },
                                    ...(form.hireKind && !['신입', '경력'].includes(form.hireKind) ? [{ value: form.hireKind, name: form.hireKind }] : [])]} />
               </Field>
+              {/* 원본 [직위/직급] 코드도움(2026-10-13 실측) — 100 사원 · 200 대리 · 300 과장 · 400 차장 · 500 이사 · 600 대표이사 · 700 부장, 이름 차례 */}
               <Field label="직위/직급">
-                <input className={inputCls} value={form.jobTitle} onChange={set('jobTitle')} placeholder="직위/직급" />
+                <CodePickerField label="직위/직급" hideLabel fill placeholder="직위/직급" emptyLabel="선택 해제"
+                                 value={form.jobTitle} onChange={(v) => setForm({ ...form, jobTitle: v })}
+                                 items={[...JOB_POSITIONS.map(([code, name]) => ({ value: name, code, name })),
+                                   ...(form.jobTitle && !JOB_POSITIONS.some(([, n]) => n === form.jobTitle) ? [{ value: form.jobTitle, name: form.jobTitle }] : [])]} />
               </Field>
               {/* 원본 [직책] 코드도움 — 100 팀원 · 200 팀장 */}
               <Field label="직책">
@@ -381,6 +392,8 @@ export default function EmployeePage() {
               <Field label="모바일">
                 <input className={inputCls} value={form.mobile} onChange={set('mobile')} placeholder="모바일" />
               </Field>
+              {/* 여권번호(개인정보) 자리 — 비워 [Email]이 오른쪽 칸 */}
+              <li className="mobile:hidden" aria-hidden />
               <Field label="Email">
                 <input className={inputCls} value={form.email} onChange={set('email')} placeholder="Email" />
               </Field>
@@ -392,6 +405,8 @@ export default function EmployeePage() {
                   items={depts.map((d) => ({ value: String(d.id), code: d.code ?? undefined, name: d.name }))}
                 />
               </Field>
+              {/* [부서코드] 오른쪽은 원본 [프로젝트] — 사원에 프로젝트가 없어 비운다(보드) */}
+              <li className="mobile:hidden" aria-hidden />
               {/* 원본 [급여통장] — 은행 · 계좌번호 · 예금주 세 칸을 한 이름표 아래 쌓는다 */}
               <Field label="급여통장" wide>
                 <div className="flex gap-[6px] w-full mobile:flex-col">

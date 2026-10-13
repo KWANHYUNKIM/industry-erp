@@ -120,8 +120,9 @@ export default function PayItemListPage({ kind = 'ALLOWANCE' }: { kind?: Payslip
         if (r.id) await api.put(`/pay-settings/items/${r.id}`, body(r))
         else await api.post('/pay-settings/items', body(r))
       }
-      // 원본은 저장해도 안내 없이 표시순서로 다시 그린다
+      // 원본은 저장해도 안내 없이 표시순서로 다시 그린다. 새 항목은 서버가 계산식 한 줄(2010/01 ~)을 달아 주므로 식도 다시 읽는다
       load()
+      loadFormulas()
     } catch (e) {
       setError(extractErrorMessage(e))
       load()

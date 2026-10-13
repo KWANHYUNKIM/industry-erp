@@ -56,7 +56,21 @@ public class PaySettingService {
                 .active(req.active() == null || req.active())
                 .build();
         applyListFields(i, req);
-        return PayItemResponse.from(itemRepository.save(i));
+        PayItem saved = itemRepository.save(i);
+        formulaRepository.save(PayItemFormula.builder()
+                .payItem(saved).effectiveFrom(DEFAULT_FORMULA_FROM).formula(defaultFormula(saved)).build());
+        return PayItemResponse.from(saved);
+    }
+
+    /** 원본은 새 항목을 저장하면 계산식리스트에 '2010/01 ~' 한 줄을 스스로 단다(2026-10-13 수당 · 공제 둘 다 실측). */
+    static final String DEFAULT_FORMULA_FROM = "2010-01";
+
+    /** 원본 새 항목의 계산식 — 고정은 R( 이름(급여지급사항) , 0 ), 변동(일 · 시간)은 근무기록확정을 곱한다(원본 야근수당 식과 같은 꼴). */
+    static String defaultFormula(PayItem item) {
+        String n = item.getName().trim();
+        boolean worked = item.getKind() == PayslipLineKind.ALLOWANCE
+                && (item.getPayMethod() == PayMethod.HOURLY || item.getPayMethod() == PayMethod.DAILY);
+        return worked ? "R( " + n + "(급여지급사항) * " + n + "(근무기록확정) , 0 )" : "R( " + n + "(급여지급사항) , 0 )";
     }
 
     @Transactional
