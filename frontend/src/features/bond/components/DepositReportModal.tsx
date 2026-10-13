@@ -3,6 +3,7 @@ import { api, extractErrorMessage } from '../../../api/client'
 import Modal from '../../../components/Modal'
 import EcDateField from '../../../components/EcDateField'
 import EcNumInput from '../../../components/EcNumInput'
+import { EcCond } from '../../../components/EcStatusPanel'
 import GridCode from '../../../components/GridCode'
 import type { CodeItem } from '../../../components/CodePickerField'
 import { ymd } from '../../../components/EcPeriodPicks'
@@ -139,31 +140,26 @@ export default function DepositReportModal({ picks, masters, onClose, onSaved }:
     <>
       <Modal open={picks != null && lines == null} title="입금보고서작성" width={780} error={error} onClose={onClose}>
         <ul className="ec-form mb-[8px]">
-          <li className="flex items-start gap-[8px] py-[4px]">
-            <span className="w-[120px] text-ec-label pt-[4px]">수금형태</span>
-            <span className="flex-1 flex flex-col gap-[6px]">
+          <EcCond label="수금형태" span={2}>
+            <span className="flex flex-col gap-[6px] w-full">
               {radio('collect', collect, (v) => { setCollect(v); setNote('') },
                 [['CASH', '현금/예금'], ['NOTE', '어음'], ['CHECK', '수표'], ['OTHER', '기타계정']])}
-              <span className={`block${settleErr ? ' outline outline-1 outline-ec-danger rounded-ec' : ''}`}>
-                <span className="inline-flex w-full items-center gap-[6px]">
-                  <span className="text-ec-label whitespace-nowrap">입금계좌</span>
-                  <span className="flex-1">
-                    <GridCode title="계좌검색" codeHead="입금계좌" nameHead="계좌명" items={settleItems}
-                              value={settle} onPick={(v) => { setSettle(v); setSettleErr(false) }} />
-                  </span>
-                  <span className="min-w-[120px]">{settleName}</span>
+              <span className={`flex w-full items-center gap-[6px]${settleErr ? ' outline outline-1 outline-ec-danger rounded-ec' : ''}`}>
+                <span className="text-ec-label whitespace-nowrap">입금계좌</span>
+                <span className="w-[160px]">
+                  <GridCode title="계좌검색" codeHead="입금계좌" nameHead="계좌명" items={settleItems}
+                            value={settle} onPick={(v) => { setSettle(v); setSettleErr(false) }} />
                 </span>
+                <span className="flex-1">{settleName}</span>
               </span>
             </span>
-          </li>
-          <li className="flex items-center gap-[8px] py-[4px]">
-            <span className="w-[120px] text-ec-label">적요</span>
+          </EcCond>
+          <EcCond label="적요" span={2}>
             {radio('memoMode', memoMode, setMemoMode, [['SAME', '증가적요동일'], ['BONDNO', '채권번호'], ['DIRECT', '직접입력']])}
-          </li>
-          <li className="flex items-center gap-[8px] py-[4px]">
-            <span className="w-[120px] text-ec-label">전표 묶음기준</span>
+          </EcCond>
+          <EcCond label="전표 묶음기준" span={2}>
             {radio('group', group, setGroup, [['LINE', '라인별'], ['PARTNER', '거래처별/계정별']])}
-          </li>
+          </EcCond>
         </ul>
         {note && <p className="ec-alert ec-alert-danger mb-[8px]">{note}</p>}
         <div className="flex gap-[5px] mt-[14px]">
@@ -174,15 +170,13 @@ export default function DepositReportModal({ picks, masters, onClose, onSaved }:
 
       <Modal open={picks != null && lines != null} title="입금보고서" width={1100} error={error} onClose={onClose}>
         <ul className="ec-form mb-[8px]">
-          <li className="flex items-center gap-[8px] py-[4px]">
-            <span className="w-[120px] text-ec-label">일자</span>
+          <EcCond label="일자" span={2}>
             <EcDateField value={date} onChange={setDate} />
-          </li>
-          <li className="flex items-center gap-[8px] py-[4px]">
-            <span className="w-[120px] text-ec-label">첨언내용</span>
-            <textarea className="ec-input flex-1 h-[37px] resize-y" placeholder="첨언내용" maxLength={200}
+          </EcCond>
+          <EcCond label="첨언내용" span={2}>
+            <textarea className="ec-input w-full h-[37px] resize-y" placeholder="첨언내용" maxLength={200}
                       value={memo} onChange={(e) => setMemo(e.target.value)} />
-          </li>
+          </EcCond>
         </ul>
         <div className="overflow-x-auto">
           <table className="ec-grid-input no-ec table-fixed min-w-[1000px]">
