@@ -12,6 +12,8 @@ import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { EcReportHead, EcReportFoot, reportPeriod } from '../../components/EcReportFrame'
 import { AsAggControls, AsAggregateTable, type AsAggKey, type AsAggLine, type AsAggValue } from '../../features/as/AsAggregate'
 
+const fullDateNo = (date: string, no: string) => `${date.replace(/-/g, '/')}-${Number(no.split('-').pop()) || no.split('-').pop()}`
+
 /**
  * 품질 > A/S소모현황 (이카운트 E040641 A/S소모현황)
  * A/S 수리에 소모된 부품 — 소모는 <b>A/S수리에 이어진 판매(판매연결전표)의 줄</b>이다(2026-10-03 원본 실측).
@@ -322,10 +324,11 @@ export default function AsConsumptionPage() {
           ) : shownLines.map((l, i) => (
             <tr key={`${l.salesId}-${i}`}>
               <td className="text-center text-ec-hint">{i + 1}</td>
-              <td className="text-center">{`${l.repairDate.slice(2).replace(/-/g, '/')}-${Number(l.repairNo.split('-').pop())}`}</td>
+              {/* 원본 소모현황은 두 번호 모두 '2026/10/13-2' — 네 자리 연도, 번호 앞 칸 없음(2026-10-13 실측). */}
+              <td className="text-center">{fullDateNo(l.repairDate, l.repairNo)}</td>
               <td>{l.repairItemName ?? ''}</td>
               <td>{l.charge}</td>
-              <td>{l.salesDocNo}</td>
+              <td>{fullDateNo(l.saleDate, l.salesDocNo)}</td>
               <td>{l.itemName}</td>
               <td className="text-right">{won(Number(l.quantity))}</td>
               <td className="text-right">{l.unitPrice != null ? won(Number(l.unitPrice)) : ''}</td>

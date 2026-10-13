@@ -388,7 +388,7 @@ const MENU: TopMenu[] = [
         label: 'A/S관리',
         nodes: [
           { label: 'A/S접수', children: [{ label: 'A/S접수입력', to: '/quality/as-entry' }, { label: 'A/S접수조회', to: '/quality/as' }, { label: 'A/S접수현황', to: '/quality/as-status' }] },
-          { label: 'A/S수리', children: [{ label: 'A/S수리조회', to: '/quality/as-repair-list' }, { label: 'A/S수리현황', to: '/quality/as-repair-status' }, { label: 'A/S소모현황', to: '/quality/as-consumption' }] },
+          { label: 'A/S수리', children: [{ label: 'A/S수리입력', to: '/quality/as-repair-entry' }, { label: 'A/S수리조회', to: '/quality/as-repair-list' }, { label: 'A/S수리현황', to: '/quality/as-repair-status' }, { label: 'A/S소모현황', to: '/quality/as-consumption' }] },
         ],
       },
       { label: '시리얼/로트No.', nodes: [{ label: '시리얼/로트No.', to: '/quality/serial-lot' }, { label: '시리얼/로트No.내역조회', to: '/quality/lot-tx-list' }, { label: '시리얼/로트No.내역현황', to: '/quality/lot-tx-status' }, { label: '시리얼/로트No.재고조정', to: '/quality/lot-adjust' }, { label: '시리얼/로트No.재고수불부', to: '/quality/lot-ledger' }, { label: '시리얼/로트No.재고현황', to: '/quality/lot-stock' }, { label: '품목vs시리얼재고수량비교', to: '/quality/lot-compare' }] },

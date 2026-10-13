@@ -5,11 +5,12 @@ import EcListShell from '../../components/EcListShell'
 import Modal from '../../components/Modal'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
-import EcPeriodPicks, { AS_REPAIR_LIST_PICKS, periodOf, ymd } from '../../components/EcPeriodPicks'
+import EcPeriodPicks, { AS_REPAIR_LIST_PICKS, periodOf } from '../../components/EcPeriodPicks'
 import { useCondPickers } from '../../utils/useCondPickers'
 import { useShortcut } from '../../utils/useShortcut'
 import { loadSupplierParty, printDocuments } from '../../utils/printDocument'
 import type { Item, Partner, Warehouse } from '../../types/api'
+import AsRepairScreen, { asRepairBody, blankRepairDraft, blankRepairLines, repairDateNo, type AsRepairDraft, type AsReqPick, type RepairFormLine, type RepairType } from '../../features/as/AsRepairForm'
 
 /**
  * 재고 II › A/S관리 › A/S수리조회(E040606) · A/S수리입력(E040605) · 판매연결전표
@@ -20,45 +21,34 @@ import type { Item, Partner, Warehouse } from '../../types/api'
  *       수리진행상태 + 품목 격자. 예전 우리 화면은 접수의 상태(처리중 · 완료)를 수리로 보여 줄 뿐이었다.</li>
  *   <li>수리 자체는 재고를 움직이지 않는다. 부품 · 수리비는 [생성한 전표] → <b>판매연결전표</b>의 [신규]로 판매를
  *       만들어 잇는다 — 재고 차감 · 매출은 그 판매가 한다. [금액] = 이어진 판매 합계.</li>
- *   <li>판매가 남아 있으면 수리를 지우지 않는다(판매를 먼저 지워 재고 · 매출을 되돌린다).</li>
+ *   <li>판매가 이어져 있어도 수리를 지운다 — <b>판매는 그대로 남는다</b>(2026-10-13 실측, 판매는 따로 지운다).</li>
+ *   <li>수리에 거래처가 없으면(거래처 없는 접수를 불러온 수리) 판매연결전표 [신규]에서 거래처를 고른다 —
+ *       원본 판매는 거래처 없이도 저장되지만 우리 판매는 거래처가 있어야 한다(재고1 판매입력 규칙).</li>
  * </ul>
  */
 const won = (n: number) => Math.round(Number(n)).toLocaleString('ko-KR')
 const yy = (d: string | null) => (d ? `${d.slice(2, 4)}/${d.slice(5, 7)}/${d.slice(8, 10)}` : '')
-const dateNo = (date: string, no: string | null) => {
-  const seq = (no ?? '').split('-').pop() ?? ''
-  return `${yy(date)}-${Number(seq) || seq}`
-}
+const dateNo = repairDateNo
 
-type RepairType = 'FREE_EXCHANGE' | 'FREE_REPAIR' | 'PAID_EXCHANGE' | 'PAID_REPAIR' | 'RETURN'
-/* 원본 [수리유형] 코드도움 — 01 무상교환 · 02 무상수리 · 05 유상교환 · 06 유상수리 · 11 반품. */
-const REPAIR_TYPES: { value: RepairType; code: string; name: string }[] = [
-  { value: 'FREE_EXCHANGE', code: '01', name: '무상교환' }, { value: 'FREE_REPAIR', code: '02', name: '무상수리' },
-  { value: 'PAID_EXCHANGE', code: '05', name: '유상교환' }, { value: 'PAID_REPAIR', code: '06', name: '유상수리' },
-  { value: 'RETURN', code: '11', name: '반품' },
-]
 type Status = 'IN_PROGRESS' | 'COMPLETED'
 const STATUS_LABEL: Record<Status, string> = { IN_PROGRESS: '진행중', COMPLETED: '완료' }
 
 interface RepairLine { id: number; lineNo: number; itemId: number; itemCode: string; itemName: string; itemSpec: string | null; quantity: number }
 interface LinkedSale { salesId: number; docNo: string; saleDate: string; supplyAmount: number; vatAmount: number; totalAmount: number }
 interface Repair {
-  id: number; repairNo: string; repairDate: string; partnerId: number; partnerName: string
+  id: number; repairNo: string; repairDate: string; partnerId: number | null; partnerName: string | null
   asRequestId: number | null; asNo: string | null; receiptDate: string | null
   warehouseId: number; warehouseName: string; charge: string
   repairType: RepairType | null; repairTypeName: string | null; title: string | null; content: string | null
   status: Status; statusName: string; lines: RepairLine[]; saleAmount: number; sales: LinkedSale[]
   updatedAt: string | null
 }
-interface AsReq { id: number; asNo: string; receiptDate: string; partnerId: number | null; partnerName: string; title: string | null; warehouseId: number | null; lines: { itemId: number; quantity: number }[] }
 /*
  * 원본 탭 [전체 · 확인 · 진행중 · 완료](2026-10-04 실측). [확인]은 진행상태가 아니라 <b>전표상태</b>다 — [진행상태변경] 메뉴가
  * '전표상태: 확인' 과 '진행상태: 진행중 · 완료' 둘로 나뉜다. 원본 수리 26건이 모두 확인이었고 미확인으로 돌리는 길이 없다
  * (결재를 거치지 않는 회사). 우리도 저장한 수리는 모두 확인이라 [확인] 탭은 전체와 같다.
  */
 type Tab = '전체' | '확인' | '진행중' | '완료'
-type FormLine = { itemId: string; quantity: string }
-const blankLines = (): FormLine[] => [{ itemId: '', quantity: '' }, { itemId: '', quantity: '' }, { itemId: '', quantity: '' }]
 
 export default function AsRepairListPage() {
   const pickers = useCondPickers(['partners', 'items'])
@@ -77,7 +67,7 @@ export default function AsRepairListPage() {
   const [partners, setPartners] = useState<Partner[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
-  const [asReqs, setAsReqs] = useState<AsReq[]>([])
+  const [asReqs, setAsReqs] = useState<AsReqPick[]>([])
 
   async function load() {
     setLoading(true); setError('')
@@ -87,7 +77,7 @@ export default function AsRepairListPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { void load() }, [from, to])
   useEffect(() => {
-    Promise.all([api.get<Partner[]>('/partners'), api.get<Item[]>('/items'), api.get<Warehouse[]>('/warehouses'), api.get<AsReq[]>('/as-requests')])
+    Promise.all([api.get<Partner[]>('/partners'), api.get<Item[]>('/items'), api.get<Warehouse[]>('/warehouses'), api.get<AsReqPick[]>('/as-requests')])
       .then(([p, i, w, a]) => { setPartners(p.data); setItems(i.data); setWarehouses(w.data); setAsReqs(a.data) })
       .catch(() => {})
   }, [])
@@ -107,60 +97,34 @@ export default function AsRepairListPage() {
   /* ── A/S수리입력 · 수정 ─────────────────────────────────────── */
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Repair | null>(null)
-  const [f, setF] = useState({ repairDate: ymd(new Date()), partnerId: '', charge: '', warehouseId: '', asRequestId: '',
-    repairType: '' as RepairType | '', title: '', content: '', status: 'IN_PROGRESS' as Status })
-  const [lines, setLines] = useState<FormLine[]>(blankLines())
+  const [f, setF] = useState<AsRepairDraft>(blankRepairDraft())
+  const [lines, setLines] = useState<RepairFormLine[]>(blankRepairLines())
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
-  const setFv = (k: keyof typeof f, v: string) => setF((x) => ({ ...x, [k]: v }))
 
   function openNew() {
-    setEditing(null); setFormError(''); setLines(blankLines())
+    setEditing(null); setFormError(''); setLines(blankRepairLines())
     /* 원본은 저장 뒤 새 창에 [담당자] · [창고]를 남긴다. */
-    setF((x) => ({ repairDate: ymd(new Date()), partnerId: '', charge: x.charge, warehouseId: x.warehouseId, asRequestId: '',
-      repairType: '', title: '', content: '', status: 'IN_PROGRESS' }))
+    setF((x) => blankRepairDraft(x))
     setOpen(true)
   }
   function openEdit(r: Repair) {
     setEditing(r); setFormError('')
-    setF({ repairDate: r.repairDate, partnerId: String(r.partnerId), charge: r.charge, warehouseId: String(r.warehouseId),
-      asRequestId: r.asRequestId ? String(r.asRequestId) : '', repairType: r.repairType ?? '', title: r.title ?? '',
+    setF({ repairDate: r.repairDate, partnerId: r.partnerId ? String(r.partnerId) : '', charge: r.charge, warehouseId: String(r.warehouseId),
+      asRequestId: r.asRequestId ? String(r.asRequestId) : '', repairType: (r.repairType ?? '') as RepairType | '', title: r.title ?? '',
       content: r.content ?? '', status: r.status })
     setLines([...r.lines.map((l) => ({ itemId: String(l.itemId), quantity: String(l.quantity) })), { itemId: '', quantity: '' }])
     setOpen(true)
   }
-  /* 원본 줄 도구 [A/S접수] — 고른 접수의 거래처 · 제목 · 품목 줄을 불러온다. */
-  function pullAsRequest(id: string) {
-    setFv('asRequestId', id)
-    const a = asReqs.find((x) => String(x.id) === id)
-    if (!a) return
-    setF((x) => ({ ...x, asRequestId: id, partnerId: a.partnerId ? String(a.partnerId) : x.partnerId, title: x.title || (a.title ?? ''),
-      warehouseId: x.warehouseId || (a.warehouseId ? String(a.warehouseId) : '') }))
-    setLines([...a.lines.map((l) => ({ itemId: String(l.itemId), quantity: String(l.quantity) })), { itemId: '', quantity: '' }])
-  }
-  const setLine = (i: number, patch: Partial<FormLine>) => setLines((ls) => {
-    const n = ls.map((l, k) => (k === i ? { ...l, ...patch } : l))
-    if (n[n.length - 1].itemId) n.push({ itemId: '', quantity: '' })
-    return n
-  })
-  const filled = lines.filter((l) => l.itemId)
 
   async function save() {
     if (saving || !open) return
-    if (!f.partnerId) return setFormError('거래처를 선택하세요.')
-    if (!f.charge.trim()) return setFormError('담당자를 입력하세요.')
-    if (!f.warehouseId) return setFormError('창고를 선택하세요.')
-    if (filled.length === 0) return setFormError('품목을 1개 이상 입력하세요.')
+    const built = asRepairBody(f, lines)
+    if ('error' in built) return setFormError(built.error)
     setSaving(true); setFormError('')
-    const body = {
-      repairDate: f.repairDate, partnerId: Number(f.partnerId), charge: f.charge, warehouseId: Number(f.warehouseId),
-      asRequestId: f.asRequestId ? Number(f.asRequestId) : null, repairType: f.repairType || null,
-      title: f.title, content: f.content, status: f.status,
-      lines: filled.map((l) => ({ itemId: Number(l.itemId), quantity: Number(l.quantity) || 1 })),
-    }
     try {
-      if (editing) { await api.put(`/as-repairs/${editing.id}`, body); setOpen(false) }
-      else { await api.post('/as-repairs', body); openNew() }
+      if (editing) { await api.put(`/as-repairs/${editing.id}`, built.body); setOpen(false) }
+      else { await api.post('/as-repairs', built.body); openNew() }
       load()
     } catch (e) { setFormError(extractErrorMessage(e)) } finally { setSaving(false) }
   }
@@ -184,14 +148,22 @@ export default function AsRepairListPage() {
   const [saleFor, setSaleFor] = useState<Repair | null>(null)
   const [saleLines, setSaleLines] = useState<{ itemId: string; quantity: string; unitPrice: string }[]>([])
   const [saleError, setSaleError] = useState('')
+  const [salePartner, setSalePartner] = useState('')
   useShortcut('F8', save, open && !saleFor)
-  function openSales(r: Repair) { setSaleFor(r); setSaleError(''); setSaleLines([{ itemId: '', quantity: '', unitPrice: '' }]) }
+  /* 원본 [신규]는 수리의 품목 줄 · 품목 단가를 판매 줄로 미리 채운다(2026-10-13 실측 — 투광등 100W 1 × 350,000). */
+  function openSales(r: Repair) {
+    setSaleFor(r); setSaleError(''); setSalePartner('')
+    setSaleLines([...r.lines.map((l) => ({ itemId: String(l.itemId), quantity: String(l.quantity),
+      unitPrice: String(items.find((x) => x.id === l.itemId)?.unitPrice || '') })), { itemId: '', quantity: '', unitPrice: '' }])
+  }
   async function addSale() {
     if (!saleFor) return
     const ls = saleLines.filter((l) => l.itemId)
     if (ls.length === 0) return setSaleError('품목을 1개 이상 입력하세요.')
+    if (!saleFor.partnerId && !salePartner) return setSaleError('거래처를 선택하세요.')
     try {
       const r = (await api.post<Repair>(`/as-repairs/${saleFor.id}/sales`, {
+        partnerId: saleFor.partnerId ? null : Number(salePartner),
         lines: ls.map((l) => ({ itemId: Number(l.itemId), quantity: Number(l.quantity), unitPrice: Number(l.unitPrice) })),
       })).data
       setSaleFor(r); setSaleLines([{ itemId: '', quantity: '', unitPrice: '' }]); setSaleError(''); load()
@@ -221,7 +193,7 @@ export default function AsRepairListPage() {
     await printDocuments(rs.map((r) => ({
       title: 'A/S 수리내역', docNo: r.repairNo, docDate: r.repairDate,
       supplier: ours ?? { label: '수리처', name: '(회사정보 미등록)' },
-      customer: { label: '의뢰처', name: r.partnerName },
+      customer: { label: '의뢰처', name: r.partnerName ?? '' },
       extra: [{ label: '제목', value: r.title }, { label: '수리유형', value: r.repairTypeName }, { label: '수리담당자', value: r.charge }, { label: '수리진행상태', value: r.statusName }],
       remark: r.content, hideAmounts: true,
       lines: r.lines.map((l) => ({ itemName: l.itemName, spec: l.itemSpec ?? undefined, unit: '', quantity: l.quantity, unitPrice: 0, supplyAmount: 0, vatAmount: 0 })),
@@ -231,7 +203,6 @@ export default function AsRepairListPage() {
 
   const partnerPicks = partners.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))
   const itemPicks = items.map((x) => ({ value: String(x.id), code: x.code, name: x.name, sub: x.spec }))
-  const itemById = new Map(items.map((x) => [String(x.id), x]))
 
   return (
     <EcListShell
@@ -310,7 +281,7 @@ export default function AsRepairListPage() {
               </td>
               <td className="text-center"><a className="ec-link cursor-pointer" onClick={() => openEdit(r)}>{dateNo(r.repairDate, r.repairNo)}</a></td>
               <td className="text-center">{r.receiptDate ? dateNo(r.receiptDate, r.asNo) : ''}</td>
-              <td>{r.partnerName}</td>
+              <td>{r.partnerName ?? ''}</td>
               <td>{r.title ?? ''}</td>
               <td>{r.content ?? ''}</td>
               <td>{r.lines[0] ? `${r.lines[0].itemName}${r.lines[0].itemSpec ? ` [${r.lines[0].itemSpec}]` : ''}${r.lines.length > 1 ? ` 외 ${r.lines.length - 1}건` : ''}` : ''}</td>
@@ -324,65 +295,13 @@ export default function AsRepairListPage() {
       </table>
 
       <Modal open={open} width={980} error={formError} onClose={() => setOpen(false)} title={editing ? 'A/S수리수정' : 'A/S수리입력'}>
-        <ul className="ec-form">
-          <li><div className="title">일자</div><div className="form">
-            <input type="date" className="ec-input w-[150px]" value={f.repairDate} disabled={!!editing} onChange={(e) => setFv('repairDate', e.target.value)} />
-          </div></li>
-          <li><div className="title">거래처</div><div className="form">
-            <CodePickerField label="거래처" hideLabel fill emptyLabel="" placeholder="거래처" value={f.partnerId} onChange={(v) => setFv('partnerId', v)} items={partnerPicks} />
-          </div></li>
-          <li><div className="title">담당자</div><div className="form">
-            <input className="ec-input w-full" placeholder="담당자" value={f.charge} onChange={(e) => setFv('charge', e.target.value)} />
-          </div></li>
-          <li><div className="title">창고</div><div className="form">
-            <CodePickerField label="창고" hideLabel fill emptyLabel="" placeholder="창고" value={f.warehouseId} onChange={(v) => setFv('warehouseId', v)}
-                             items={warehouses.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
-          </div></li>
-          <li><div className="title">접수일자</div><div className="form">
-            <CodePickerField label="A/S접수" hideLabel fill emptyLabel="선택 안 함" placeholder="A/S접수" value={f.asRequestId} onChange={pullAsRequest}
-                             items={asReqs.map((a) => ({ value: String(a.id), code: dateNo(a.receiptDate, a.asNo), name: `${a.partnerName} ${a.title ?? ''}` }))} />
-          </div></li>
-          <li><div className="title">수리유형</div><div className="form">
-            <CodePickerField label="수리유형" hideLabel fill emptyLabel="선택 안 함" placeholder="수리유형" value={f.repairType} onChange={(v) => setFv('repairType', v)}
-                             items={REPAIR_TYPES.map((t) => ({ value: t.value, code: t.code, name: t.name }))} />
-          </div></li>
-          <li className="wide"><div className="title">제목</div><div className="form">
-            <input className="ec-input w-full" placeholder="제목" value={f.title} onChange={(e) => setFv('title', e.target.value)} />
-          </div></li>
-          <li className="wide"><div className="title">소모(판매)금액</div><div className="form">{won(editing?.saleAmount ?? 0)}</div></li>
-          <li className="wide"><div className="title">수리내용</div><div className="form">
-            <textarea className="ec-input w-full h-[52px]" placeholder="수리내용" value={f.content} onChange={(e) => setFv('content', e.target.value)} />
-          </div></li>
-          <li><div className="title">수리진행상태</div><div className="form">
-            <select className="ec-input w-[150px]" value={f.status} onChange={(e) => setFv('status', e.target.value)}>
-              <option value="IN_PROGRESS">진행중</option><option value="COMPLETED">완료</option>
-            </select>
-          </div></li>
-        </ul>
-        <table className="w-full ec-head700 mt-[8px]">
-          <thead><tr><th className="w-[34px]"></th><th className="w-[200px]">품목코드</th><th>품목명</th><th className="w-[160px]">규격</th><th className="w-[110px] text-right">수량</th></tr></thead>
-          <tbody>
-            {lines.map((l, i) => {
-              const it = itemById.get(l.itemId)
-              return (
-                <tr key={i}>
-                  <td className="text-center">{i + 1}</td>
-                  <td><CodePickerField label="품목" hideLabel fill emptyLabel="지우기" placeholder="품목코드" value={l.itemId}
-                                       onChange={(v) => setLine(i, { itemId: v, quantity: l.quantity || (v ? '1' : '') })} items={itemPicks} /></td>
-                  <td>{it?.name ?? ''}</td>
-                  <td>{it?.spec ?? ''}</td>
-                  <td><input className="ec-input w-full text-right" value={l.quantity} disabled={!l.itemId} onChange={(e) => setLine(i, { quantity: e.target.value })} /></td>
-                </tr>
-              )
-            })}
-          </tbody>
-          <tfoot><tr><td colSpan={4}></td><td className="text-right">{won(filled.reduce((a, l) => a + (Number(l.quantity) || 0), 0))}</td></tr></tfoot>
-        </table>
+        <AsRepairScreen f={f} setF={setF} lines={lines} setLines={setLines} editing={!!editing} saleAmount={editing?.saleAmount ?? 0}
+                        partners={partners} warehouses={warehouses} items={items} asReqs={asReqs} />
         <div className="flex gap-[4px] mt-[9px]">
           <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>저장(F8)</button>
           {editing
             ? <button className="ec-btn" onClick={removeOne}>삭제</button>
-            : <button className="ec-btn" onClick={() => { setLines(blankLines()); setF((x) => ({ ...x, partnerId: '', asRequestId: '', title: '', content: '' })) }}>다시 작성</button>}
+            : <button className="ec-btn" onClick={() => { setLines(blankRepairLines()); setF((x) => blankRepairDraft(x)) }}>다시 작성</button>}
           <button className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
         </div>
       </Modal>
@@ -403,6 +322,13 @@ export default function AsRepairListPage() {
           </tbody>
         </table>
         <div className="font-bold mb-[4px]">신규 — 부품 · 수리비를 판매로 잡는다(재고가 빠지고 매출이 선다)</div>
+        {saleFor && !saleFor.partnerId && (
+          <div className="flex items-center gap-[6px] mb-[6px]">
+            <span>거래처</span>
+            <CodePickerField label="판매 거래처" hideLabel width={260} emptyLabel="" placeholder="거래처" value={salePartner} onChange={setSalePartner}
+                             items={partnerPicks} />
+          </div>
+        )}
         <table className="w-full ec-head700">
           <thead><tr><th>품목</th><th className="w-[100px] text-right">수량</th><th className="w-[120px] text-right">단가</th></tr></thead>
           <tbody>

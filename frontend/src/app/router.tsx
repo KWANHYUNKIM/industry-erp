@@ -183,6 +183,7 @@ const AsReceiptEntryPage = lazy(() => import('../pages/quality/AsReceiptEntryPag
 const AsStatusPage = lazy(() => import('../pages/quality/AsStatusPage'))
 const AsRepairStatusPage = lazy(() => import('../pages/quality/AsRepairStatusPage'))
 const AsRepairListPage = lazy(() => import('../pages/quality/AsRepairListPage'))
+const AsRepairEntryPage = lazy(() => import('../pages/quality/AsRepairEntryPage'))
 const AsConsumptionPage = lazy(() => import('../pages/quality/AsConsumptionPage'))
 const QualityTypePage = lazy(() => import('../pages/quality/QualityTypePage'))
 const CompanyInfoPage = lazy(() => import('../pages/settings/CompanyInfoPage'))
@@ -778,6 +779,7 @@ export default function AppRouter() {
         <Route path="/quality/as" element={<AsManagePage />} />
         <Route path="/quality/as-entry" element={<AsReceiptEntryPage />} />
         <Route path="/quality/as-status" element={<AsStatusPage />} />
+        <Route path="/quality/as-repair-entry" element={<AsRepairEntryPage />} />
         <Route path="/quality/as-repair-list" element={<AsRepairListPage />} />
         <Route path="/quality/as-repair-status" element={<AsRepairStatusPage />} />
         <Route path="/quality/as-consumption" element={<AsConsumptionPage />} />

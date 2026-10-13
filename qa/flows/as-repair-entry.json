@@ -1,0 +1,30 @@
+{
+  "about": "A/S수리입력(E040605) 메뉴 화면 — 2026-10-13 원본 직접 입력: 빈 저장은 담당자 · 창고 · 수리유형 · 품목에서 막고 거래처는 막지 않는다. [A/S접수]로 거래처 없는 접수를 불러오면 거래처는 빈 채, 창고 · 제목 · 접수내용 → 수리내용 · 품목 줄이 들어오고 그대로 저장된다. 저장 뒤 빈 화면에 담당자 · 창고만 남는다. 만든 접수 · 수리는 지운다.",
+  "shots": [
+    {
+      "name": "거래처 없는 접수 불러오기 → 담당자 · 수리유형 막기 → 거래처 없이 저장",
+      "path": "/quality/as-repair-entry",
+      "steps": [
+        "wait:3000",
+        "js:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const wh = await fetch('/api/warehouses', { headers: H }).then((x) => x.json()); const it = await fetch('/api/items', { headers: H }).then((x) => x.json()); const w = wh.find((x) => x.code === 'WH-01') ?? wh[0]; const a = await fetch('/api/as-requests', { method: 'POST', headers: H, body: JSON.stringify({ warehouseId: w.id, title: 'QA재고2-수리입력흐름', symptom: 'QA재고2 접수내용', lines: [{ itemId: it[0].id, quantity: 2 }] }) }).then((x) => x.json()); sessionStorage.setItem('repEntryAs', a.id); sessionStorage.setItem('repEntryWh', w.name); return a.asNo })()",
+        "js:location.reload(); true",
+        "wait:3500",
+        "click:저장(F8)",
+        "expect:document.querySelector('.ec-alert')?.textContent === '담당자를 입력하세요.'",
+        "js:document.querySelector('button[title=\"A/S접수 선택\"]').click(); true",
+        "wait:600",
+        "js:[...document.querySelectorAll('tr')].find((tr) => tr.innerText.includes('QA재고2-수리입력흐름')).click(); true",
+        "wait:500",
+        "expect:document.querySelector('input[placeholder=\"거래처\"]').value === '' && document.querySelector('input[placeholder=\"제목\"]').value === 'QA재고2-수리입력흐름' && document.querySelector('textarea[placeholder=\"수리내용\"]').value === 'QA재고2 접수내용' && document.querySelector('input[placeholder=\"창고\"]').value === sessionStorage.getItem('repEntryWh')",
+        "setnear:담당자|QA재고2기사",
+        "click:저장(F8)",
+        "expect:document.querySelector('.ec-alert')?.textContent === '수리유형을 선택하세요.'",
+        "pick:수리유형:02",
+        "click:저장(F8)",
+        "wait:1200",
+        "expect:!document.querySelector('.ec-alert') && document.querySelector('input[placeholder=\"담당자\"]').value === 'QA재고2기사' && document.querySelector('input[placeholder=\"창고\"]').value === sessionStorage.getItem('repEntryWh') && document.querySelector('input[placeholder=\"제목\"]').value === ''",
+        "expect:(async () => { const H = { Authorization: 'Bearer ' + localStorage.getItem('erp_token'), 'Content-Type': 'application/json' }; const t = new Date(); const ymd = t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); const rs = await fetch('/api/as-repairs?from=' + ymd + '&to=' + ymd, { headers: H }).then((x) => x.json()); const r = rs.find((x) => x.title === 'QA재고2-수리입력흐름'); if (!r) return false; const d1 = await fetch('/api/as-repairs/' + r.id, { method: 'DELETE', headers: H }); const d2 = await fetch('/api/as-requests/' + sessionStorage.getItem('repEntryAs'), { method: 'DELETE', headers: H }); return r.partnerId === null && r.repairType === 'FREE_REPAIR' && String(r.asRequestId) === sessionStorage.getItem('repEntryAs') && r.lines.length === 1 && d1.status < 300 && d2.status < 300 })()"
+      ]
+    }
+  ]
+}
