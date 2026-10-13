@@ -50,7 +50,7 @@ interface Repair {
   status: Status; statusName: string; lines: RepairLine[]; saleAmount: number; sales: LinkedSale[]
   updatedAt: string | null
 }
-interface AsReq { id: number; asNo: string; receiptDate: string; partnerId: number; partnerName: string; title: string | null; warehouseId: number | null; lines: { itemId: number; quantity: number }[] }
+interface AsReq { id: number; asNo: string; receiptDate: string; partnerId: number | null; partnerName: string; title: string | null; warehouseId: number | null; lines: { itemId: number; quantity: number }[] }
 /*
  * 원본 탭 [전체 · 확인 · 진행중 · 완료](2026-10-04 실측). [확인]은 진행상태가 아니라 <b>전표상태</b>다 — [진행상태변경] 메뉴가
  * '전표상태: 확인' 과 '진행상태: 진행중 · 완료' 둘로 나뉜다. 원본 수리 26건이 모두 확인이었고 미확인으로 돌리는 길이 없다
@@ -134,7 +134,7 @@ export default function AsRepairListPage() {
     setFv('asRequestId', id)
     const a = asReqs.find((x) => String(x.id) === id)
     if (!a) return
-    setF((x) => ({ ...x, asRequestId: id, partnerId: String(a.partnerId), title: x.title || (a.title ?? ''),
+    setF((x) => ({ ...x, asRequestId: id, partnerId: a.partnerId ? String(a.partnerId) : x.partnerId, title: x.title || (a.title ?? ''),
       warehouseId: x.warehouseId || (a.warehouseId ? String(a.warehouseId) : '') }))
     setLines([...a.lines.map((l) => ({ itemId: String(l.itemId), quantity: String(l.quantity) })), { itemId: '', quantity: '' }])
   }

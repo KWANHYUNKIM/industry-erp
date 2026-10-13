@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import CodePickerField from '../../components/CodePickerField'
 import type { Item, Partner, Warehouse } from '../../types/api'
@@ -12,6 +12,9 @@ import { dateText } from '../../utils/dateText'
 import { useItemMgmt } from '../../utils/itemMgmtItems'
 import { usePartnerGroups } from '../../utils/partnerGroups'
 import { useShortcut } from '../../utils/useShortcut'
+import AsReceiptScreen from '../../features/as/AsReceiptForm'
+import { AS_STAGES as STAGES, AS_STAGE_LABEL as LABEL, asReceiptBody, blankAsDraft, emptyAsLines,
+  type AsFormLine, type AsReceiptDraft, type AsStatus } from '../../features/as/AsReceiptForm'
 
 /**
  * 재고 II › A/S관리 › A/S접수조회(E040602) · A/S접수입력(E040601) · A/S접수수정
@@ -28,14 +31,12 @@ import { useShortcut } from '../../utils/useShortcut'
  */
 const won = (n: number) => n.toLocaleString('ko-KR')
 
-type AsStatus = 'RECEIVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED'
-/* 원본 접수진행상태 — 000 접수 · 200 수리중 · 300 완료. [취소]는 우리 것이다(소모부품을 되돌리는 문). */
-const LABEL: Record<AsStatus, string> = { RECEIVED: '접수', IN_PROGRESS: '수리중', COMPLETED: '완료', CANCELED: '취소' }
-const STAGES: AsStatus[] = ['RECEIVED', 'IN_PROGRESS', 'COMPLETED', 'CANCELED']
+/* 접수진행상태 · 입력 칸은 features/as/AsReceiptForm 에 있다(메뉴의 A/S접수입력 화면과 같이 쓴다). */
 
 interface AsLine { id: number; lineNo: number; itemId: number; itemCode: string; itemName: string; itemSpec: string | null; quantity: number }
 interface AsRow {
-  id: number; asNo: string; partnerId: number; partnerName: string; itemId: number; itemName: string
+  /** 원본은 [거래처] 없이도 접수를 받는다 — partnerId 가 비고 partnerName 은 '' 다. */
+  id: number; asNo: string; partnerId: number | null; partnerName: string; itemId: number; itemName: string
   receiptDate: string; title: string | null; scheduledDate: string | null
   warehouseId: number | null; warehouseName: string | null
   projectId: number | null; projectName: string | null
@@ -81,8 +82,6 @@ async function printAsReceipts(rs: AsRow[], title = 'A/S 접수증') {
 }
 const printAsReceipt = (r: AsRow, title?: string) => printAsReceipts([r], title)
 
-type FormLine = { itemId: string; quantity: string }
-const emptyLines = (): FormLine[] => [{ itemId: '', quantity: '' }, { itemId: '', quantity: '' }, { itemId: '', quantity: '' }]
 
 export default function AsManagePage() {
   const [rows, setRows] = useState<AsRow[]>([])
@@ -163,64 +162,48 @@ export default function AsManagePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load() }, [from, to])
 
-  const customers = useMemo(() => partners.filter((p) => p.type === 'CUSTOMER' || p.type === 'BOTH'), [partners])
 
   /* ── A/S접수입력 · A/S접수수정 ─────────────────────────────── */
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<AsRow | null>(null)
-  const [f, setF] = useState({
-    receiptDate: today(), partnerId: '', charge: '', warehouseId: '', status: 'RECEIVED' as AsStatus,
-    scheduledDate: today(), projectId: '', title: '', symptom: '',
-  })
-  const [lines, setLines] = useState<FormLine[]>(emptyLines())
+  const [f, setF] = useState<AsReceiptDraft>(blankAsDraft())
+  const [lines, setLines] = useState<AsFormLine[]>(emptyAsLines())
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
-  const setFv = (k: keyof typeof f, v: string) => setF((x) => ({ ...x, [k]: v }))
 
   function openNew() {
-    setEditing(null); setFormError(''); setLines(emptyLines())
+    setEditing(null); setFormError(''); setLines(emptyAsLines())
     /* 원본은 저장 뒤 새 창에 [창고]를 그대로 남긴다 — 같은 창고로 잇달아 받는다. */
-    setF((x) => ({ receiptDate: today(), partnerId: '', charge: '', warehouseId: x.warehouseId, status: 'RECEIVED',
-      scheduledDate: today(), projectId: '', title: '', symptom: '' }))
+    setF((x) => blankAsDraft(x.warehouseId))
     setOpen(true)
   }
   async function openEdit(r: AsRow) {
     setEditing(r); setFormError('')
-    setF({ receiptDate: r.receiptDate, partnerId: String(r.partnerId), charge: r.charge ?? '',
+    setF({ receiptDate: r.receiptDate, partnerId: r.partnerId ? String(r.partnerId) : '', charge: r.charge ?? '',
       warehouseId: r.warehouseId ? String(r.warehouseId) : '', status: r.status,
       scheduledDate: r.scheduledDate ?? '', projectId: r.projectId ? String(r.projectId) : '',
       title: r.title ?? '', symptom: r.symptom ?? '' })
     setLines([...r.lines.map((l) => ({ itemId: String(l.itemId), quantity: String(l.quantity) })), { itemId: '', quantity: '' }])
     setOpen(true)
   }
-  const setLine = (i: number, patch: Partial<FormLine>) => setLines((ls) => {
-    const n = ls.map((l, k) => (k === i ? { ...l, ...patch } : l))
-    /* 마지막 줄을 채우면 빈 줄을 하나 더 단다(원본 격자처럼). */
-    if (n[n.length - 1].itemId) n.push({ itemId: '', quantity: '' })
-    return n
-  })
-  const filled = lines.filter((l) => l.itemId)
-  const totalQty = filled.reduce((a, l) => a + (Number(l.quantity) || 0), 0)
+  /* 원본 수정 창 [복사] — 같은 내용으로 새 접수 창을 연다(일자는 오늘, 진행상태는 접수). */
+  function copyEditing() {
+    setEditing(null); setFormError('')
+    setF((x) => ({ ...x, receiptDate: today(), status: 'RECEIVED' }))
+    setLines((ls) => ls.map((l) => ({ ...l })))
+  }
 
   async function save() {
     if (saving) return
-    if (!f.partnerId) return setFormError('거래처를 선택하세요.')
-    if (!f.warehouseId) return setFormError('창고를 선택하세요.')
-    if (filled.length === 0) return setFormError('품목을 1개 이상 입력하세요.')
-    if (filled.some((l) => !(Number(l.quantity) > 0))) return setFormError('수량은 0보다 커야 합니다.')
+    const built = asReceiptBody(f, lines)
+    if ('error' in built) return setFormError(built.error)
     setSaving(true); setFormError('')
-    const body = {
-      partnerId: Number(f.partnerId), warehouseId: Number(f.warehouseId),
-      projectId: f.projectId ? Number(f.projectId) : undefined,
-      title: f.title, scheduledDate: f.scheduledDate || undefined, symptom: f.symptom, charge: f.charge,
-      lines: filled.map((l) => ({ itemId: Number(l.itemId), quantity: Number(l.quantity) })),
-    }
     try {
       if (editing) {
-        await api.patch(`/as-requests/${editing.id}`, { ...body, status: f.status })
+        await api.patch(`/as-requests/${editing.id}`, built.body)
         setOpen(false)
       } else {
-        await api.post('/as-requests', { ...body, receiptDate: f.receiptDate })
+        await api.post('/as-requests', { ...built.body, receiptDate: f.receiptDate })
         openNew()   /* 원본은 저장하면 빈 입력 창으로 돌아간다. */
       }
       load()
@@ -295,9 +278,9 @@ export default function AsManagePage() {
   })
   const shown = sort.sorted
   const pickable = shown.map((r) => r.id)
+  /* 수정 창의 [이전] · [다음] 은 목록에 보이는 차례로 옮겨 간다. */
+  const editIdx = editing ? shown.findIndex((r) => r.id === editing.id) : -1
   const allPicked = pickable.length > 0 && pickable.every((id) => picked.has(id))
-  const itemPicks = useMemo(() => items.map((x) => ({ value: String(x.id), code: x.code, name: x.name, sub: x.spec })), [items])
-  const itemById = useMemo(() => new Map(items.map((x) => [String(x.id), x])), [items])
 
   return (
     <EcListShell
@@ -334,7 +317,7 @@ export default function AsManagePage() {
         <span className="ml-[8px]">거래처</span>
         <CodePickerField label="거래처" hideLabel width={150} emptyLabel="전체"
                          value={partnerCond} onChange={setPartnerCond}
-                         items={[...new Map(rows.map((r) => [r.partnerId, r.partnerName])).entries()]
+                         items={[...new Map(rows.filter((r) => r.partnerId != null).map((r) => [r.partnerId, r.partnerName])).entries()]
                            .sort((a, b) => a[1].localeCompare(b[1], 'ko')).map(([id, n]) => ({ value: String(id), name: n }))} />
         <span className="ml-[8px]">거래처그룹1</span>
         <CodePickerField label="거래처그룹1" hideLabel width={140} emptyLabel="전체"
@@ -483,80 +466,22 @@ export default function AsManagePage() {
 
       <Modal open={open} width={980} error={formError} onClose={() => setOpen(false)}
              title={editing ? 'A/S접수수정' : 'A/S접수입력'}>
-        <ul className="ec-form">
-          <li><div className="title">일자</div><div className="form">
-            {/* 원본 수정 창은 일자를 잠근다. */}
-            <input type="date" className="ec-input w-[150px]" value={f.receiptDate} disabled={!!editing}
-                   onChange={(e) => setFv('receiptDate', e.target.value)} />
-          </div></li>
-          <li><div className="title">거래처</div><div className="form">
-            <CodePickerField label="거래처" hideLabel fill emptyLabel="" placeholder="거래처" value={f.partnerId}
-                             onChange={(v) => setFv('partnerId', v)}
-                             items={customers.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
-          </div></li>
-          <li><div className="title">담당자</div><div className="form">
-            <input className="ec-input w-full" placeholder="담당자" value={f.charge} onChange={(e) => setFv('charge', e.target.value)} />
-          </div></li>
-          <li><div className="title">창고</div><div className="form">
-            <CodePickerField label="창고" hideLabel fill emptyLabel="" placeholder="창고" value={f.warehouseId}
-                             onChange={(v) => setFv('warehouseId', v)}
-                             items={warehouses.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
-          </div></li>
-          <li><div className="title">접수진행상태</div><div className="form">
-            <select className="ec-input w-[150px]" value={f.status} disabled={!editing}
-                    onChange={(e) => setFv('status', e.target.value)}>
-              {STAGES.map((s) => <option key={s} value={s}>{LABEL[s]}</option>)}
-            </select>
-          </div></li>
-          <li><div className="title">수리예정일자</div><div className="form">
-            <input type="date" className="ec-input w-[150px]" value={f.scheduledDate} onChange={(e) => setFv('scheduledDate', e.target.value)} />
-          </div></li>
-          <li><div className="title">프로젝트</div><div className="form">
-            <CodePickerField label="프로젝트" hideLabel fill emptyLabel="선택 안 함" placeholder="프로젝트" value={f.projectId}
-                             onChange={(v) => setFv('projectId', v)}
-                             items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
-          </div></li>
-          <li className="wide"><div className="title">제목</div><div className="form">
-            <input className="ec-input w-full" placeholder="제목" value={f.title} onChange={(e) => setFv('title', e.target.value)} />
-          </div></li>
-          <li className="wide"><div className="title">접수내용</div><div className="form">
-            <textarea className="ec-input w-full h-[52px]" placeholder="접수내용" value={f.symptom} onChange={(e) => setFv('symptom', e.target.value)} />
-          </div></li>
-        </ul>
-
-        <table className="w-full ec-head700 mt-[8px]">
-          <thead><tr>
-            <th className="w-[34px]"></th>
-            <th className="w-[200px]">품목코드</th>
-            <th>품목명</th>
-            <th className="w-[120px] text-right">수량</th>
-          </tr></thead>
-          <tbody>
-            {lines.map((l, i) => {
-              const it = itemById.get(l.itemId)
-              return (
-                <tr key={i}>
-                  <td className="text-center">{i + 1}</td>
-                  <td>
-                    <CodePickerField label="품목" hideLabel fill emptyLabel="지우기" placeholder="품목코드" value={l.itemId}
-                                     onChange={(v) => setLine(i, { itemId: v, quantity: l.quantity || (v ? '1' : '') })} items={itemPicks} />
-                  </td>
-                  <td>{it ? `${it.name}${it.spec ? ` [${it.spec}]` : ''}` : ''}</td>
-                  <td><input className="ec-input w-full text-right" value={l.quantity} disabled={!l.itemId}
-                             onChange={(e) => setLine(i, { quantity: e.target.value })} /></td>
-                </tr>
-              )
-            })}
-          </tbody>
-          <tfoot><tr><td colSpan={3}></td><td className="text-right">{won(totalQty)}</td></tr></tfoot>
-        </table>
+        <AsReceiptScreen f={f} setF={setF} lines={lines} setLines={setLines} editing={!!editing} invalid={formError}
+                         partners={partners} warehouses={warehouses} projects={projects} items={items} />
 
         <div className="flex gap-[4px] mt-[9px]">
           <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>저장(F8)</button>
-          {editing
-            ? <button className="ec-btn" onClick={removeOne}>삭제</button>
-            : <button className="ec-btn" onClick={() => { setLines(emptyLines()); setF((x) => ({ ...x, partnerId: '', title: '', symptom: '' })) }}>다시 작성</button>}
-          <button className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
+          {/* 원본 수정 창 버튼줄: 저장(F8) · 저장/전표(F7) · 복사 · 이전 · 다음 · 닫기 · 삭제 · 보내기 · H(2026-10-13 실측). */}
+          {editing ? <>
+            <button className="ec-btn" onClick={copyEditing}>복사</button>
+            <button className="ec-btn" disabled={editIdx <= 0} onClick={() => void openEdit(shown[editIdx - 1])}>이전</button>
+            <button className="ec-btn" disabled={editIdx < 0 || editIdx >= shown.length - 1} onClick={() => void openEdit(shown[editIdx + 1])}>다음</button>
+            <button className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
+            <button className="ec-btn" onClick={removeOne}>삭제</button>
+          </> : <>
+            <button className="ec-btn" onClick={() => { setLines(emptyAsLines()); setF((x) => blankAsDraft(x.warehouseId)); setFormError('') }}>다시 작성</button>
+            <button className="ec-btn" onClick={() => setOpen(false)}>닫기</button>
+          </>}
         </div>
 
       </Modal>
