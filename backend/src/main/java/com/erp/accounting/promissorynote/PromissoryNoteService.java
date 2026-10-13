@@ -157,6 +157,9 @@ public class PromissoryNoteService {
         requireNotBeforeIssue(n, date, "감소일");
         n.setStatus(NoteStatus.RECORD_DECREASED);
         n.setClosedDate(date);
+        n.setCloseRemark(req.remark() == null || req.remark().isBlank() ? null : req.remark().trim());
+        n.setCloseDepartmentId(req.departmentId());
+        n.setCloseProjectId(req.projectId());
         return NoteResponse.from(n);
     }
 
@@ -170,6 +173,9 @@ public class PromissoryNoteService {
         }
         n.setStatus(NoteStatus.HELD);
         n.setClosedDate(null);
+        n.setCloseRemark(null);
+        n.setCloseDepartmentId(null);
+        n.setCloseProjectId(null);
         return NoteResponse.from(n);
     }
 

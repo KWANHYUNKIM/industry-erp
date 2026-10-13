@@ -43,7 +43,11 @@ public final class PromissoryNoteDtos {
     public record RecordDecreaseRequest(
             @NotNull(message = "어음 구분을 선택하세요.") NoteType type,
             @NotNull(message = "어음번호: 자료를 입력 바랍니다.") @Size(max = 30, message = "어음번호는 30자까지 넣을 수 있습니다.") String noteNo,
-            LocalDate date
+            LocalDate date,
+            /** 감소 줄의 적요 · 부서 · 프로젝트(증가 쪽 값과 따로) */
+            @Size(max = 300, message = "적요는 300자까지 넣을 수 있습니다.") String remark,
+            Long departmentId,
+            Long projectId
     ) {}
 
     /** 만기결제. 예금계좌를 지정하지 않으면 보통예금(103)으로 분개한다. */
@@ -73,7 +77,11 @@ public final class PromissoryNoteDtos {
             /** 원본 [내역만등록]으로 넣은 것(분개 없음) */
             boolean recordOnly,
             Long departmentId,
-            Long projectId
+            Long projectId,
+            /** [내역만등록] 감소 줄의 적요 · 부서 · 프로젝트 */
+            String closeRemark,
+            Long closeDepartmentId,
+            Long closeProjectId
     ) {
         public static NoteResponse from(PromissoryNote n) {
             return new NoteResponse(
@@ -84,7 +92,8 @@ public final class PromissoryNoteDtos {
                     n.getStatus(), n.getStatus().getDisplayName(),
                     n.getClosedDate(), n.getDiscountFee(),
                     n.getBankName(), n.getRemark(), n.getCreatedBy(), n.isRecordOnly(),
-                    n.getDepartmentId(), n.getProjectId());
+                    n.getDepartmentId(), n.getProjectId(),
+                    n.getCloseRemark(), n.getCloseDepartmentId(), n.getCloseProjectId());
         }
     }
 

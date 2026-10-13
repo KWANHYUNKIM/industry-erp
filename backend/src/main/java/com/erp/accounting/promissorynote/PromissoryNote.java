@@ -87,4 +87,17 @@ public class PromissoryNote extends BaseTimeEntity {
     /** 원본 받을어음증가 · [내역만등록] 의 [프로젝트]. */
     @Column(name = "project_id")
     private Long projectId;
+
+    /**
+     * [내역만등록] 감소 줄의 자기 적요 · 부서 · 프로젝트 — 원본 감소 격자는 어음번호 · 금액 · 부서 · 프로젝트 · 적요를 따로 받고
+     * 받을어음조회 감소 줄이 그 값을 찍는다(2026-10-13 loginaa 실측). 증가 쪽 값(remark · departmentId · projectId)과 따로 든다.
+     */
+    @Column(name = "close_remark", length = 300)
+    private String closeRemark;
+
+    @Column(name = "close_department_id")
+    private Long closeDepartmentId;
+
+    @Column(name = "close_project_id")
+    private Long closeProjectId;
 }
