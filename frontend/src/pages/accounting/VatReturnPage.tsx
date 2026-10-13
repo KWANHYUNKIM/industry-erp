@@ -26,6 +26,24 @@ const DOC_TITLE: Record<DocCode, string> = {
 }
 interface DocSummary { docCode: DocCode; writtenAt: string }
 interface DocStored { docCode: DocCode; data: string; writtenAt: string }
+/** [신고서등] 창을 열 때 찍어 둔 서류 상태 — 만든 때와 자료가 있나. */
+interface DocShown { at: string; filled: boolean }
+
+const nz = (a?: Amt) => !!a && (a.supply !== 0 || a.vat !== 0)
+/**
+ * 서류에 자료가 있나 — 원본 [조회] 주황 꼬리표는 자료가 든 서류에만 붙는다(2026-10-13 loginaa 2기 예정:
+ * 카드 전표를 지운 뒤 다시 불러 0 이 된 6 집계표 · 15 수령명세서는 만들어 둔 서류인데도 꼬리표가 없다).
+ */
+function filledOf(code: DocCode, s: Sheet): boolean {
+  const c = s.cards
+  switch (code) {
+    case 'RETURN': return [s.taxInvoice, s.zeroInvoice, s.purchaseGeneral, s.purchaseFixed, s.cardSales, s.otherPurchase].some(nz)
+    case 'SALES_INVOICE': return s.salesInvoices.length > 0
+    case 'PURCHASE_INVOICE': return s.purchaseInvoices.length > 0
+    case 'CARD_SALES': return !!c && c.saleCard + c.saleCash + c.saleCardFree + c.saleCashFree !== 0
+    case 'CARD_RECEIPT': return !!c && c.recvCash.n + c.recvCard.n > 0
+  }
+}
 export interface CompanyInfo {
   name?: string; ceo?: string; bizRegNo?: string; bizType?: string; bizItem?: string
   tel?: string; email?: string; address?: string; addressDetail?: string
@@ -239,6 +257,11 @@ export default function VatReturnPage() {
   /** [신고서등 › 조회] 로 연 '부가세신고서(첨부서류)' 창 — 그 신고서와 저장된 서류의 만든 때. */
   const [win, setWin] = useState<VatReturnRow | null>(null)
   const [written, setWritten] = useState<Partial<Record<DocCode, string>>>({})
+  /**
+   * 창을 연 때의 서류 상태 — 원본은 경고 줄 · 꼬리표를 창을 열 때만 그린다(2026-10-13 실측: 첨부서류를 [새로불러오기] 해도
+   * 그 창에서는 경고가 안 뜨고 닫았다 다시 열어야 뜨며, 신고서를 [새로불러오기] 한 뒤에도 그 창에는 경고가 남는다).
+   */
+  const [shown, setShown] = useState<Partial<Record<DocCode, DocShown>>>({})
   /** 연 서류 한 장. */
   const [view, setView] = useState<{ code: DocCode; sheet: Sheet } | null>(null)
   /** 원본 '알림' 창 — 글줄과 [확인] · [취소]. */
@@ -267,12 +290,16 @@ export default function VatReturnPage() {
   async function loadWritten(v: VatReturnRow) {
     const r = await api.get<DocSummary[]>(`/vat-returns/${v.id}/docs`)
     setWritten(Object.fromEntries(r.data.map((d) => [d.docCode, d.writtenAt])))
+    return r.data
   }
 
   async function openWin(v: VatReturnRow) {
     setError('')
     try {
-      await loadWritten(v)
+      const list = await loadWritten(v)
+      const docs = await Promise.all(list.map((d) => api.get<DocStored | ''>(`/vat-returns/${v.id}/docs/${d.docCode}`)))
+      setShown(Object.fromEntries(docs.flatMap((r) => r.data
+        ? [[r.data.docCode, { at: r.data.writtenAt, filled: filledOf(r.data.docCode, JSON.parse(r.data.data) as Sheet) }]] : [])))
       setWin(v)
     } catch (e) {
       setError(extractErrorMessage(e))
@@ -328,8 +355,11 @@ export default function VatReturnPage() {
   }
 
   const returnAt = written.RETURN
-  /** 신고서보다 늦게 만든 첨부서류가 있나. */
+  /** 신고서보다 늦게 만든 첨부서류가 있나 — 신고서 [조회] 의 '다시 작성' 물음은 지금 상태로. */
   const stale = !!returnAt && ATTACHMENTS.some(([, c]) => (written[c] ?? '') > returnAt)
+  /** 창을 연 때 — 경고 줄 · 꼬리표. 신고서가 뒤처졌으면 신고서 꼬리표도 없다(실측). */
+  const shownAt = shown.RETURN?.at
+  const shownStale = !!shownAt && ATTACHMENTS.some(([, c]) => (shown[c]?.at ?? '') > shownAt)
 
   const openNew = () => {
     const due = dueOf(initYear, (q + 1) * 3)
@@ -433,20 +463,20 @@ export default function VatReturnPage() {
               </tr>
             </tbody>
           </table>
-          {stale && returnAt && (
-            <p className="text-[var(--ec-text-danger)] mb-[6px]">부가세신고서 최종수정일 {stamp(returnAt)} 이후로 수정된 서류가 있습니다.</p>
+          {shownStale && shownAt && (
+            <p className="text-[var(--ec-text-danger)] mb-[6px]">부가세신고서 최종수정일 {stamp(shownAt)} 이후로 수정된 서류가 있습니다.</p>
           )}
           <table className="w-full mb-[6px]">
             <thead><tr><th>신고서</th><th className="text-center w-[90px]">조회</th><th className="text-center w-[110px]">새로불러오기</th></tr></thead>
             <tbody>
-              <DocRow no={1} name="부가가치세신고서" written={!!returnAt} onOpen={() => openDoc('RETURN')} onReload={() => reloadDoc('RETURN')} />
+              <DocRow no={1} name="부가가치세신고서" written={!!shown.RETURN?.filled && !shownStale} onOpen={() => openDoc('RETURN')} onReload={() => reloadDoc('RETURN')} />
             </tbody>
           </table>
           <table className="w-full">
             <thead><tr><th>첨부서류명</th><th className="text-center w-[90px]">조회</th><th className="text-center w-[110px]">새로불러오기</th></tr></thead>
             <tbody>
               {ATTACHMENTS.map(([no, code, name]) => (
-                <DocRow key={code} no={no} name={name} written={!!written[code]} onOpen={() => openDoc(code)} onReload={() => reloadDoc(code)} />
+                <DocRow key={code} no={no} name={name} written={!!shown[code]?.filled} onOpen={() => openDoc(code)} onReload={() => reloadDoc(code)} />
               ))}
             </tbody>
           </table>
@@ -550,7 +580,7 @@ export default function VatReturnPage() {
   )
 }
 
-/** 원본 [신고서등] 창 한 줄 — 만들어 둔 서류는 [조회] 가 주황 꼬리표(2026-10-13 실측 --ec-bg-tag). */
+/** 원본 [신고서등] 창 한 줄 — 자료가 든 서류는 [조회] 가 주황 꼬리표(2026-10-13 실측 --ec-bg-tag). */
 function DocRow({ no, name, written, onOpen, onReload }: { no: number; name: string; written: boolean; onOpen: () => void; onReload: () => void }) {
   return (
     <tr>
