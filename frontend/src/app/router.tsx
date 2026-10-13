@@ -55,6 +55,7 @@ const DailyPaymentStatementPage = lazy(() => import('../pages/accounting/DailyPa
 const DailyReceiptPage = lazy(() => import('../pages/accounting/DailyReceiptPage'))
 const RetirementEstimatePage = lazy(() => import('../pages/accounting/RetirementEstimatePage'))
 const WithholdingComparisonPage = lazy(() => import('../pages/accounting/WithholdingComparisonPage'))
+const YearEndReviewPage = lazy(() => import('../pages/accounting/YearEndReviewPage'))
 const WithholdingLedgerPage = lazy(() => import('../pages/accounting/WithholdingLedgerPage'))
 const IncomeTaxCertPage = lazy(() => import('../pages/accounting/IncomeTaxCertPage'))
 const RetirementPayPage = lazy(() => import('../pages/accounting/RetirementPayPage'))
@@ -614,6 +615,8 @@ export default function AppRouter() {
         <Route path="/accounting/withholding/mid-settlement-pdf" element={<MidTermPdfPage />} />
         <Route path="/accounting/withholding/retirement-estimate" element={<RetirementEstimatePage />} />
         <Route path="/accounting/withholding/comparison" element={<WithholdingComparisonPage />} />
+        <Route path="/accounting/withholding/year-end-review-1" element={<YearEndReviewPage part={1} />} />
+        <Route path="/accounting/withholding/year-end-review-2" element={<YearEndReviewPage part={2} />} />
         <Route path="/accounting/withholding/confirm" element={<WithholdingConfirmPage />} />
         <Route path="/accounting/withholding/ledger" element={<WithholdingLedgerPage />} />
         <Route path="/accounting/withholding/income-tax-cert" element={<IncomeTaxCertPage />} />

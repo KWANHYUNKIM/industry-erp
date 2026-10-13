@@ -923,6 +923,8 @@ const MENU: TopMenu[] = [
           { label: '출력물', children: [
             { label: '퇴직급여추계액', to: '/accounting/withholding/retirement-estimate' },
             { label: '원천세신고자료비교표', to: '/accounting/withholding/comparison' },
+            { label: '연말정산검토표 I', to: '/accounting/withholding/year-end-review-1' },
+            { label: '연말정산검토표 II', to: '/accounting/withholding/year-end-review-2' },
             { label: '근로소득원천징수영수증', to: '/accounting/withholding?tab=영수증' },
           ] },
         ],
