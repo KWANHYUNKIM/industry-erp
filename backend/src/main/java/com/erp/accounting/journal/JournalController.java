@@ -2,6 +2,7 @@ package com.erp.accounting.journal;
 
 import com.erp.accounting.journal.dto.JournalDtos.AccountLedgerResponse;
 import com.erp.accounting.journal.dto.JournalDtos.BalanceSheetResponse;
+import com.erp.accounting.journal.dto.JournalDtos.GroupedAccountSum;
 import com.erp.accounting.journal.dto.JournalDtos.CashTxnRequest;
 import com.erp.accounting.journal.dto.JournalDtos.CreateJournalRequest;
 import com.erp.accounting.journal.dto.JournalDtos.IncomeStatementResponse;
@@ -120,6 +121,17 @@ public class JournalController {
             @RequestParam(required = false) Long departmentId,
             @RequestParam(required = false) Long projectId) {
         return service.balanceSheet(asOf, departmentId, projectId);
+    }
+
+    /** 재무제표 · 원가명세서 [부서표시방법] · [프로젝트표시방법] 종 · 횡 — 부서(프로젝트)마다 계정 합 */
+    @GetMapping("/account-sums-by")
+    public List<GroupedAccountSum> accountSumsBy(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam String by,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) Long projectId) {
+        return service.accountSumsBy(from, to, by, departmentId, projectId);
     }
 
     /** 손익계산서 */

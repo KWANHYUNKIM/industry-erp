@@ -88,6 +88,31 @@ public interface JournalLineRepository extends JpaRepository<JournalLine, Long> 
     List<Object[]> sumByAccountIn(@Param("from") LocalDate from, @Param("to") LocalDate to,
                                   @Param("dept") long dept, @Param("proj") long proj);
 
+    /**
+     * 재무제표 · 원가명세서 [부서표시방법] 종 · 횡 — {@link #sumByAccountIn} 을 부서마다 나눈다.
+     * 첫 칸이 부서 id(부서 없는 줄은 null = 원본 '기타').
+     */
+    @Query("select l.departmentId, l.account.id, l.account.code, l.account.name, l.account.division, " +
+            "coalesce(sum(l.debit),0), coalesce(sum(l.credit),0) " +
+            "from JournalLine l join l.entry e " +
+            "where e.entryDate between :from and :to " +
+            "and (:dept = 0 or l.departmentId = :dept) and (:proj = 0 or l.projectId = :proj) " +
+            "group by l.departmentId, l.account.id, l.account.code, l.account.name, l.account.division " +
+            "order by l.account.code")
+    List<Object[]> sumByDepartmentAndAccountIn(@Param("from") LocalDate from, @Param("to") LocalDate to,
+                                               @Param("dept") long dept, @Param("proj") long proj);
+
+    /** [프로젝트표시방법] 종 · 횡 — 첫 칸이 프로젝트 id(없는 줄은 null). */
+    @Query("select l.projectId, l.account.id, l.account.code, l.account.name, l.account.division, " +
+            "coalesce(sum(l.debit),0), coalesce(sum(l.credit),0) " +
+            "from JournalLine l join l.entry e " +
+            "where e.entryDate between :from and :to " +
+            "and (:dept = 0 or l.departmentId = :dept) and (:proj = 0 or l.projectId = :proj) " +
+            "group by l.projectId, l.account.id, l.account.code, l.account.name, l.account.division " +
+            "order by l.account.code")
+    List<Object[]> sumByProjectAndAccountIn(@Param("from") LocalDate from, @Param("to") LocalDate to,
+                                            @Param("dept") long dept, @Param("proj") long proj);
+
     /** 법인세Checklist [2. 손익계산서 매출계정 내역]: 손익계산서 '매출액' 계정(대변 − 차변)을 달별로 */
     @Query("select year(e.entryDate), month(e.entryDate), coalesce(sum(l.credit - l.debit),0) " +
             "from JournalLine l join l.entry e join l.account a " +

@@ -220,6 +220,15 @@ public final class JournalDtos {
             String accountCode, String accountName, AccountDivision division, BigDecimal amount
     ) {}
 
+    /**
+     * 재무제표 · 원가명세서 [부서표시방법] · [프로젝트표시방법] 종 · 횡 — 부서(또는 프로젝트)마다 계정 차변합 · 대변합.
+     * groupId 가 null 이면 부서(프로젝트)가 없는 줄(원본 '기타').
+     */
+    public record GroupedAccountSum(
+            Long groupId, Long accountId, String accountCode, String accountName, AccountDivision division,
+            BigDecimal debit, BigDecimal credit
+    ) {}
+
     public record BalanceSheetResponse(
             LocalDate asOf,
             List<StatementRow> assets, BigDecimal totalAssets,

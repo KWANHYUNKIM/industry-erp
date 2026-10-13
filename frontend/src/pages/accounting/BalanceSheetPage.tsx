@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
@@ -7,8 +7,10 @@ import { useAuth } from '../../features/auth/AuthContext'
 import type { BalanceSheet, StatementRow } from '../../types/api'
 import { useDeptProjectItems } from '../../features/cashquick/useDeptProject'
 import CodePickerField from '../../components/CodePickerField'
-
-const BOLD: React.CSSProperties = { fontWeight: 700 }
+import {
+  fetchSplit, groupsOf, HorizontalStatementTable, ShowModeConds, StatementTable, toBalanceSheet, useShowModes,
+  type SLine, type Split,
+} from '../../features/statement/showMode'
 
 /** 달(YYYY-MM)의 말일. */
 const monthEnd = (ym: string) => {
@@ -70,7 +72,8 @@ function build(rows: StatementRow[], division: 'ASSET' | 'LIABILITY' | 'EQUITY',
  * 1. 자산 &gt; 1) 유동자산 &gt; (1) 당좌자산 처럼 묶음 줄과 자산총계 · 부채총계 · 자본총계 · 부채와자본총계 줄이 굵다.
  * 비교 쪽이 비면 원본은 '-' 를 찍지만 우리는 빈 칸 규칙(ui-check '없음을 줄표로 그리는 칸이 없다')을 따라 비운다. 원본은 묶음 아래를 '현금 및 현금성자산 · 매출채권' 같은 표시 항목으로 찍는데 우리 계정은 그 항목을 들지 않아
  * 계정을 그대로 한 줄씩 찍는다. 회사 기수 번호를 들지 않아 머리는 'YYYY년 (기준)' 이다.
- * [당기누계]는 손익 쪽 비교라 재무상태표에서 뜻을 못 쟀고, [부서] · [프로젝트]는 회계전표 줄의 것(V343)으로 거르고, 표시방법은 아직 없다.
+ * [당기누계]는 손익 쪽 비교라 재무상태표에서 뜻을 못 쟀고, [부서] · [프로젝트]는 회계전표 줄의 것(V343)으로 거른다.
+ * [부서표시방법] · [프로젝트표시방법] 종 · 횡은 features/statement/showMode(손익계산서에서 잰 규칙)로 그린다.
  */
 export default function BalanceSheetPage() {
   /* 원본 조건 [부서] · [프로젝트] — 서버가 회계전표 줄의 것(V343)으로 거른다. */
@@ -89,6 +92,9 @@ export default function BalanceSheetPage() {
   const [base, setBase] = useState<BalanceSheet | null>(null)
   const [cmp, setCmp] = useState<BalanceSheet | null>(null)
   const [error, setError] = useState('')
+  const modes = useShowModes(() => setCompare('선택안함'))
+  const [splitBase, setSplitBase] = useState<Split | null>(null)
+  const [splitCmp, setSplitCmp] = useState<Split | null>(null)
 
   useEffect(() => {
     api.get<(AccountOpt & { name: string; division: string })[]>('/accounts').then((r) => setAccounts(r.data)).catch(() => setAccounts([]))
@@ -113,12 +119,14 @@ export default function BalanceSheetPage() {
     Promise.all([
       api.get<BalanceSheet>('/journals/balance-sheet', { params: { ...dp, asOf: monthEnd(month) } }),
       compareAsOf ? api.get<BalanceSheet>('/journals/balance-sheet', { params: { ...dp, asOf: compareAsOf } }) : Promise.resolve(null),
+      modes.by ? fetchSplit(modes.by, { to: monthEnd(month) }, dp) : Promise.resolve(null),
+      modes.by && modes.mode === '종' && compareAsOf ? fetchSplit(modes.by, { to: compareAsOf }, dp) : Promise.resolve(null),
     ])
-      .then(([b, c]) => { setBase(b.data); setCmp(c ? c.data : null) })
+      .then(([b, c, sb, sc]) => { setBase(b.data); setCmp(c ? c.data : null); setSplitBase(sb); setSplitCmp(sc) })
       .catch((err) => setError(extractErrorMessage(err)))
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load() }, [dept, project, month, compareAsOf])
+  useEffect(() => { load() }, [dept, project, month, compareAsOf, modes.by, modes.mode])
 
   const catOf = useMemo(() => new Map(accounts.map((a) => [a.code, a.detailCategory ?? ''])), [accounts])
   /** [잔액0포함]이면 잔액이 없는 재무상태표 계정도 0 으로 세운다. */
@@ -126,25 +134,6 @@ export default function BalanceSheetPage() {
     ? [...rows, ...accounts.filter((a) => a.division === division && !rows.some((r) => r.accountCode === a.code))
         .map((a) => ({ accountCode: a.code, accountName: a.name, division: a.division, amount: 0 }) as StatementRow)]
     : rows
-
-  const sections = useMemo(() => {
-    if (!base) return []
-    const val = (sheet: BalanceSheet | null, code: string) => {
-      if (!sheet) return null
-      const r = [...sheet.assets, ...sheet.liabilities, ...sheet.equity].find((x) => x.accountCode === code)
-      return r ? Number(r.amount) : 0
-    }
-    const equity = (s: BalanceSheet | null) => (s ? [...s.equity] : [])
-    return ([
-      ['1. 자산', 'ASSET', pad(base.assets, 'ASSET'), '자산총계'],
-      ['2. 부채', 'LIABILITY', pad(base.liabilities, 'LIABILITY'), '부채총계'],
-      ['3. 자본', 'EQUITY', pad(equity(base), 'EQUITY'), '자본총계'],
-    ] as const).map(([label, division, rows, totalLabel]) => ({
-      label, division, totalLabel, parts: build(rows, division, catOf),
-      val: (code: string) => [Number(rows.find((r) => r.accountCode === code)?.amount ?? 0), val(cmp, code)] as const,
-    }))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [base, cmp, catOf, withZero, accounts])
 
   const fmt = (n: number | null) => (n == null ? '' : n === 0 ? '' : Math.round(thousand ? n / 1000 : n).toLocaleString('ko-KR'))
   const tot = (s: BalanceSheet | null, k: 'A' | 'L' | 'E') => {
@@ -154,18 +143,62 @@ export default function BalanceSheetPage() {
     return Number(s.totalEquity) + Number(s.netIncome)
   }
 
+  /** 한 장의 줄 — 집계는 전체, 종은 부서(프로젝트)마다, 횡은 열마다 같은 셈을 쓴다. */
+  const linesOf = (bs: BalanceSheet, cs: BalanceSheet | null): SLine[] => {
+    const val = (sheet: BalanceSheet | null, code: string) => {
+      if (!sheet) return null
+      const r = [...sheet.assets, ...sheet.liabilities, ...sheet.equity].find((x) => x.accountCode === code)
+      return r ? Number(r.amount) : 0
+    }
+    const out: SLine[] = []
+    const push = (key: string, label: string, left: SLine['left'], right: SLine['right'], bold = false) => out.push({ key, label, left, right, bold })
+    for (const [label, division, rows, totalLabel] of [
+      ['1. 자산', 'ASSET', pad(bs.assets, 'ASSET'), '자산총계'],
+      ['2. 부채', 'LIABILITY', pad(bs.liabilities, 'LIABILITY'), '부채총계'],
+      ['3. 자본', 'EQUITY', pad([...bs.equity], 'EQUITY'), '자본총계'],
+    ] as const) {
+      const v = (code: string) => [Number(rows.find((r) => r.accountCode === code)?.amount ?? 0), val(cs, code)] as const
+      const sum = (side: 0 | 1, rs: StatementRow[]) =>
+        side === 0 ? rs.reduce((t, r) => t + v(r.accountCode)[0], 0) : cs ? rs.reduce((t, r) => t + (v(r.accountCode)[1] ?? 0), 0) : null
+      const k = division === 'ASSET' ? 'A' : division === 'LIABILITY' ? 'L' : 'E'
+      push(`d:${division}`, label, [null, null], [null, null], true)
+      for (const p of build(rows, division, catOf)) {
+        const all = p.subs.flatMap((x) => x.rows)
+        push(`p:${division}:${p.label}`, p.label, [null, sum(0, all)], [null, sum(1, all)], true)
+        for (const sub of p.subs) {
+          if (sub.label) push(`s:${division}:${p.label}:${sub.label}`, sub.label, [null, sum(0, sub.rows)], [null, sum(1, sub.rows)], true)
+          for (const r of sub.rows) { const [b, c] = v(r.accountCode); push(`a:${r.accountCode}`, r.accountName, [b, null], [c, null]) }
+        }
+      }
+      if (division === 'EQUITY') push('ni', '(당기순이익)', [Number(bs.netIncome), null], [cs ? Number(cs.netIncome) : null, null])
+      push(`t:${division}`, totalLabel, [null, tot(bs, k)], [null, tot(cs, k)], true)
+    }
+    push('le', '부채와자본총계', [null, (tot(bs, 'L') ?? 0) + (tot(bs, 'E') ?? 0)],
+      [null, cs ? (tot(cs, 'L') ?? 0) + (tot(cs, 'E') ?? 0) : null], true)
+    return out
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const mainLines = useMemo(() => (base ? linesOf(base, cmp) : []), [base, cmp, catOf, withZero, accounts])
+  const groups = useMemo(() => {
+    if (!modes.by || !splitBase) return []
+    const items = modes.by === 'department' ? deptProject.departments : deptProject.projects
+    return groupsOf(modes.mode, modes.by, items, new Set(splitBase.keys()))
+  }, [modes.by, modes.mode, splitBase, deptProject])
+  const groupBs = (s: Split | null, key: string, asOf: string) => toBalanceSheet(s?.get(key) ?? [], asOf)
+
   const tableRef = useRef<HTMLTableElement>(null)
-  useTableColumnCheck(tableRef, '재무상태표', [sections.length, compare])
+  useTableColumnCheck(tableRef, '재무상태표', [mainLines.length, compare, modes.mode, groups.length])
 
   const yearOf = (d: string | null) => (d ? `${d.slice(0, 4)}년` : '')
-  const row = (label: React.ReactNode, a: [number | null, number | null] | null, b: [number | null, number | null] | null, bold = false) => (
-    <tr style={bold ? BOLD : undefined}>
-      <td>{label}</td>
-      <td className="text-right">{a ? fmt(a[0]) : ''}</td>
-      <td className="text-right">{a ? fmt(a[1]) : ''}</td>
-      <td className="text-right">{b && cmp ? fmt(b[0]) : ''}</td>
-      <td className="text-right">{b && cmp ? fmt(b[1]) : ''}</td>
-    </tr>
+  const heads: [string, string] = [`${yearOf(base?.asOf ?? null)} (기준)`, cmp ? `${yearOf(cmp.asOf)} (비교)` : '(비교)']
+  const head = (suffix?: string) => (
+    <>
+      <h3 className="text-[20px] font-bold text-center mt-[6px] mx-0 mb-[12px]">재무상태표</h3>
+      <div className="flex justify-between text-[12px] mt-0 mx-0 mb-[4px]">
+        <span>회사명 : {companyName ?? ''}{suffix ? ` / ${suffix}` : ''}</span>
+        <span>{month.replace('-', '/')} 현재{thousand ? ' (단위 : 천원)' : ''}</span>
+      </div>
+    </>
   )
 
   return (
@@ -174,13 +207,14 @@ export default function BalanceSheetPage() {
       searchable={false}
       actions={[
         { label: '검색(F8)', primary: true, onClick: load },
-        { label: '다시 작성', onClick: () => { setDept(''); setProject(''); setMonth(thisMonth()); setCompare('직전기수'); setThousand(false); setWithZero(false) } },
+        { label: '다시 작성', onClick: () => { setDept(''); setProject(''); modes.reset(); setMonth(thisMonth()); setCompare('직전기수'); setThousand(false); setWithZero(false) } },
         { label: '인쇄' },
         { label: 'Excel' },
       ]}
     >
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
+        <ShowModeConds m={modes} name="bs" />
         <EcCond label="기준일자">
           <input type="month" className="ec-input" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} style={{ width: 130, marginRight: 10 }} />
           {COMPARES.map((v) => (
@@ -207,58 +241,26 @@ export default function BalanceSheetPage() {
         </EcCond>
       </ul>
 
-      {base && (
+      {base && (!modes.by || modes.mode === '집계') && (
         <>
-          <h3 className="text-[20px] font-bold text-center mt-[6px] mx-0 mb-[12px]">재무상태표</h3>
-          <div className="flex justify-between text-[12px] mt-0 mx-0 mb-[4px]">
-            <span>회사명 : {companyName ?? ''}</span>
-            <span>{month.replace('-', '/')} 현재{thousand ? ' (단위 : 천원)' : ''}</span>
-          </div>
-          <table ref={tableRef} className="w-full text-left">
-            <thead>
-              <tr>
-                <th>재무제표표시명</th>
-                <th colSpan={2} className="text-center">{yearOf(base.asOf)} (기준)</th>
-                <th colSpan={2} className="text-center">{cmp ? `${yearOf(cmp.asOf)} (비교)` : '(비교)'}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sections.map((s) => {
-                const k = s.division === 'ASSET' ? 'A' : s.division === 'LIABILITY' ? 'L' : 'E'
-                return (
-                  <Fragment key={s.label}>
-                    {row(s.label, null, null, true)}
-                    {s.parts.map((p) => {
-                      const sum = (sheet: 'base' | 'cmp', rows: StatementRow[]) =>
-                        sheet === 'base' ? rows.reduce((t, r) => t + s.val(r.accountCode)[0], 0)
-                          : cmp ? rows.reduce((t, r) => t + (s.val(r.accountCode)[1] ?? 0), 0) : null
-                      const all = p.subs.flatMap((x) => x.rows)
-                      return (
-                        <Fragment key={p.label}>
-                          {row(p.label, [null, sum('base', all)], [null, sum('cmp', all)], true)}
-                          {p.subs.map((sub) => (
-                            <Fragment key={sub.label}>
-                              {sub.label && row(sub.label, [null, sum('base', sub.rows)], [null, sum('cmp', sub.rows)], true)}
-                              {sub.rows.map((r) => {
-                                const [b, c] = s.val(r.accountCode)
-                                return <Fragment key={r.accountCode}>{row(r.accountName, [b, null], [c, null])}</Fragment>
-                              })}
-                            </Fragment>
-                          ))}
-                        </Fragment>
-                      )
-                    })}
-                    {s.division === 'EQUITY' && row('(당기순이익)', [Number(base.netIncome), null], [cmp ? Number(cmp.netIncome) : null, null])}
-                    {row(s.totalLabel, [null, tot(base, k)], [null, tot(cmp, k)], true)}
-                  </Fragment>
-                )
-              })}
-              {row('부채와자본총계', [null, (tot(base, 'L') ?? 0) + (tot(base, 'E') ?? 0)],
-                [null, cmp ? (tot(cmp, 'L') ?? 0) + (tot(cmp, 'E') ?? 0) : null], true)}
-            </tbody>
-          </table>
+          {head()}
+          <StatementTable ref={tableRef} lines={mainLines} heads={heads} showCmp={!!cmp} fmt={fmt} />
         </>
       )}
+      {base && modes.by && splitBase && modes.mode === '횡' && (
+        <>
+          {head()}
+          <HorizontalStatementTable ref={tableRef} total={linesOf(base, null)} fmt={fmt}
+            cols={groups.map((g) => ({ head: g.head, lines: linesOf(groupBs(splitBase, g.key, base.asOf), null) }))} />
+        </>
+      )}
+      {base && modes.by && splitBase && modes.mode === '종' && groups.map((g, i) => (
+        <div key={g.key} className={i > 0 ? 'mt-[24px]' : undefined}>
+          {head(g.label)}
+          <StatementTable ref={i === 0 ? tableRef : undefined} heads={heads} showCmp={!!splitCmp} fmt={fmt}
+            lines={linesOf(groupBs(splitBase, g.key, base.asOf), splitCmp && compareAsOf ? groupBs(splitCmp, g.key, compareAsOf) : null)} />
+        </div>
+      ))}
     </EcListShell>
   )
 }

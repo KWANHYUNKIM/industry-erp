@@ -5,6 +5,7 @@ import com.erp.accounting.account.Account;
 import com.erp.accounting.account.AccountDivision;
 import com.erp.accounting.journal.dto.JournalDtos.AccountLedgerResponse;
 import com.erp.accounting.journal.dto.JournalDtos.BalanceSheetResponse;
+import com.erp.accounting.journal.dto.JournalDtos.GroupedAccountSum;
 import com.erp.accounting.journal.dto.JournalDtos.IncomeStatementResponse;
 import com.erp.accounting.journal.dto.JournalDtos.JournalEntryResponse;
 import com.erp.accounting.journal.dto.JournalDtos.LedgerRow;
@@ -175,6 +176,20 @@ public class JournalQueryService {
         boolean balanced = totalAssets.compareTo(totalLiab.add(totalEquity).add(netIncome)) == 0;
         return new BalanceSheetResponse(asOf, assets, totalAssets, liabilities, totalLiab,
                 equity, totalEquity, netIncome, balanced);
+    }
+
+    /**
+     * 재무제표 · 원가명세서 [부서표시방법] · [프로젝트표시방법] 종 · 횡 — 기간의 계정 합을 부서(by=department)나
+     * 프로젝트(by=project)마다 나눠 준다. from 이 없으면 처음부터(재무상태표 누적).
+     */
+    @Transactional(readOnly = true)
+    public List<GroupedAccountSum> accountSumsBy(LocalDate from, LocalDate to, String by, Long dept, Long proj) {
+        LocalDate f = from == null ? EPOCH : from;
+        List<Object[]> raw = "project".equals(by)
+                ? lineRepository.sumByProjectAndAccountIn(f, to, nz(dept), nz(proj))
+                : lineRepository.sumByDepartmentAndAccountIn(f, to, nz(dept), nz(proj));
+        return raw.stream().map((r) -> new GroupedAccountSum((Long) r[0], (Long) r[1], (String) r[2], (String) r[3],
+                (AccountDivision) r[4], (BigDecimal) r[5], (BigDecimal) r[6])).toList();
     }
 
     /** 손익계산서: from~to 기간. 당기순이익 = 수익 - 비용. */

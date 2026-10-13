@@ -150,7 +150,7 @@
   "palette": 0
  },
  "pages/accounting/BalanceSheetPage.tsx": {
-  "inline": 4,
+  "inline": 3,
   "color": 0,
   "palette": 0
  },
@@ -230,7 +230,7 @@
   "palette": 0
  },
  "pages/accounting/CostStatementPage.tsx": {
-  "inline": 6,
+  "inline": 5,
   "color": 0,
   "palette": 0
  },
@@ -305,7 +305,7 @@
   "palette": 0
  },
  "pages/accounting/IncomeStatementPage.tsx": {
-  "inline": 6,
+  "inline": 5,
   "color": 0,
   "palette": 0
  },

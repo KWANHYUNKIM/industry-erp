@@ -1,0 +1,33 @@
+{
+  "about": "회계 I › 주요재무제표 [부서표시방법] · [프로젝트표시방법] 집계 · 종 · 횡 (2026-10-13 원본 손익계산서 실측): 종은 부서마다 한 장(자료 있는 부서만, 부서 없는 줄이 먼저 '00(기타부서)', 회사명 뒤 ' / 코드(이름)'), 횡은 한 표에 합계 · 등록된 부서 전부 · 기타 열. 한쪽을 종 · 횡으로 바꾸면 다른 쪽이 집계로, 비교가 선택안함으로.",
+  "shots": [
+    { "path": "/accounting/income-statement", "steps": [
+      "wait:1500",
+      "js:document.querySelectorAll('input[name=is-dept]')[1].click()",
+      "wait:1500",
+      "expect:[...document.querySelectorAll('span')].filter(s => /회사명 : .* \\/ 00\\(기타부서\\)/.test(s.textContent)).length === 1",
+      "expect:document.querySelectorAll('table').length >= 2",
+      "expect:document.querySelectorAll('input[name=is-proj]')[0].checked",
+      "js:document.querySelectorAll('input[name=is-proj]')[2].click()",
+      "wait:1500",
+      "expect:document.querySelectorAll('input[name=is-dept]')[0].checked",
+      "expect:(() => { const h = [...document.querySelectorAll('table thead th')].map(t => t.textContent); return h[1] === '합계' && h[h.length - 1] === '기타' })()",
+      "expect:(() => { const r = [...document.querySelectorAll('table tbody tr')].find(t => t.cells[0].textContent === '12. 당기순이익'); return r && r.cells.length > 5 })()"
+    ] },
+    { "path": "/accounting/balance-sheet", "steps": [
+      "wait:1500",
+      "js:document.querySelectorAll('input[name=bs-dept]')[2].click()",
+      "wait:1500",
+      "expect:(() => { const h = [...document.querySelectorAll('table thead th')].map(t => t.textContent); return h[1] === '합계' && h[h.length - 1] === '기타' })()",
+      "js:document.querySelectorAll('input[name=bs-dept]')[1].click()",
+      "wait:1500",
+      "expect:document.querySelectorAll('table').length >= 1"
+    ] },
+    { "path": "/accounting/cost-statement", "steps": [
+      "wait:1500",
+      "js:document.querySelectorAll('input[name=cs-proj]')[2].click()",
+      "wait:2500",
+      "expect:(() => { const h = [...document.querySelectorAll('table thead th')].map(t => t.textContent); return h[1] === '합계' && h[h.length - 1] === '기타' })()"
+    ] }
+  ]
+}
