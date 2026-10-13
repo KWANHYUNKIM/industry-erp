@@ -38,10 +38,23 @@ public class QuotationController {
         return ResponseEntity.ok(service.create(req, principal.getUsername()));
     }
 
-    /** 발송 처리 (작성 → 발송) */
-    @PostMapping("/{id}/send")
-    public QuotationResponse send(@PathVariable Long id) {
-        return service.markSent(id);
+    /** 견적서수정 — [일자-No.] 로 연 창의 [저장(F8)]. */
+    @PutMapping("/{id}")
+    public QuotationResponse update(@PathVariable Long id, @Valid @RequestBody CreateQuotationRequest req) {
+        return service.update(id, req);
+    }
+
+    /** 하단 [진행상태변경] — 미확인 · 진행중 · 완료. */
+    @PatchMapping("/{id}/status")
+    public QuotationResponse updateStatus(@PathVariable Long id,
+                                          @RequestBody QuotationDtos.UpdateQuotationStatusRequest req) {
+        return service.updateStatus(id, req.status());
+    }
+
+    /** 줄의 [생성한전표] '조회' — 이 견적에서 만든 주문서. */
+    @GetMapping("/{id}/generated")
+    public List<QuotationDtos.GeneratedSlipRow> generated(@PathVariable Long id) {
+        return service.generatedSlips(id);
     }
 
     @PostMapping("/{id}/cancel")

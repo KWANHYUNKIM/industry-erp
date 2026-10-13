@@ -2079,7 +2079,7 @@ export interface PayrollTransfer {
 
 // ===== 견적서 =====
 
-export type QuotationStatus = 'DRAFT' | 'SENT' | 'CONVERTED' | 'CANCELLED'
+export type QuotationStatus = 'UNCONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
 
 export interface QuoteLine {
   id: number

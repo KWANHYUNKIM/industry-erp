@@ -1322,19 +1322,33 @@ async function scenarioSettings() {
 
 /** 견적 → 발송 → 수주전환 (영업 흐름 시작점) */
 async function scenarioQuotation(f) {
-  section('■ 시나리오 6. 견적서 → 발송 → 수주전환')
+  section('■ 시나리오 6. 견적서 → 진행상태변경 → 수주전환 → 수정')
 
   const quote = await must('POST', '/quotations', {
     partnerId: f.customer.id, quoteDate: '2026-07-14', validUntil: '2026-07-31', taxable: true,
     lines: [{ itemId: f.product.id, quantity: 10, unitPrice: 5000 }],
   })
-  eq('신규 견적 상태는 작성', quote.statusName, '작성')
+  eq('신규 견적 상태는 진행중(원본 실측)', quote.statusName, '진행중')
   eq('공급가액 = 수량 × 단가', Number(quote.supplyAmount), 50000)
   eq('부가세 10% 자동계산', Number(quote.vatAmount), 5000)
   eq('합계 = 공급가액 + 부가세', Number(quote.totalAmount), 55000)
   isNull('전환 전에는 수주 연결 없음', quote.convertedOrderId)
 
-  eq('발송 처리 후 상태는 발송', (await must('POST', `/quotations/${quote.id}/send`)).statusName, '발송')
+  eq('[진행상태변경] 완료', (await must('PATCH', `/quotations/${quote.id}/status`, { status: 'COMPLETED' })).statusName, '완료')
+  eq('[진행상태변경] 미확인', (await must('PATCH', `/quotations/${quote.id}/status`, { status: 'UNCONFIRMED' })).statusName, '미확인')
+  await rejects('[진행상태변경] 취소는 고를 수 없다', 'PATCH', `/quotations/${quote.id}/status`, { status: 'CANCELLED' }, '진행상태')
+  const edited = await must('PUT', `/quotations/${quote.id}`, {
+    partnerId: f.customer.id, quoteDate: '2026-07-14', validUntil: '2026-07-31', taxable: true,
+    lines: [{ itemId: f.product.id, quantity: 11, unitPrice: 5000 }],
+  })
+  eq('견적서수정: 번호 그대로', edited.quoteNo, quote.quoteNo)
+  eq('견적서수정: 줄을 바꾸면 공급가액이 다시 매겨진다', Number(edited.supplyAmount), 55000)
+  const back = await must('PUT', `/quotations/${quote.id}`, {
+    partnerId: f.customer.id, quoteDate: '2026-07-14', validUntil: '2026-07-31', taxable: true,
+    lines: [{ itemId: f.product.id, quantity: 10, unitPrice: 5000 }],
+  })
+  eq('견적서수정: 되돌림', Number(back.totalAmount), 55000)
+  eq('[생성한전표] 전환 전에는 주문서 없음', (await must('GET', `/quotations/${quote.id}/generated`))[0]?.slipType ?? null, null)
 
   const order = await must('POST', `/quotations/${quote.id}/convert`)
   eq('전환된 수주는 접수 상태', order.statusName, '접수')
@@ -1345,7 +1359,8 @@ async function scenarioQuotation(f) {
   isNull('견적 유효기한을 납기로 옮기지 않는다', order.dueDate)
 
   const converted = (await must('GET', '/quotations')).find((q) => q.id === quote.id)
-  eq('전환 후 견적 상태는 수주전환', converted.statusName, '수주전환')
+  eq('전환해도 견적 진행상태는 그대로(원본 실측)', converted.statusName, '미확인')
+  eq('[생성한전표] 전환 뒤 주문서 번호', (await must('GET', `/quotations/${quote.id}/generated`))[0]?.slipNo, order.orderNo)
   eq('견적에 생성된 수주가 FK로 연결됨', converted.convertedOrderId, order.id)
 
   await rejects('전환된 견적 재전환은 거부', 'POST', `/quotations/${quote.id}/convert`, undefined, '이미')

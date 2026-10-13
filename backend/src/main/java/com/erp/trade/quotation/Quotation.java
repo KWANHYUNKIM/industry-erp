@@ -61,7 +61,7 @@ public class Quotation extends BaseTimeEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default
-    private QuotationStatus status = QuotationStatus.DRAFT;
+    private QuotationStatus status = QuotationStatus.IN_PROGRESS;
 
     @Column(name = "supply_amount", nullable = false, precision = 18, scale = 2)
     @Builder.Default

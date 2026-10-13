@@ -1,25 +1,28 @@
 {
-  "about": "영업 한 바퀴를 화면으로 — 견적 작성 → 수주전환 → 미출하현황에서 출하지시 → 출하지시서에서 출하완료 → 주문이 완료로. node qa/shot.mjs qa/flows/sales-cycle.json — 만든 전표는 끝에 지운다. 견적 목록은 번호를 원본처럼 '2026/10/01 -5' 로 적는다.",
+  "about": "영업 한 바퀴를 화면으로 — 견적 작성 → [다른전표생성] › 주문서 → 미출하현황에서 출하지시 → 출하지시서에서 출하완료 → 주문이 완료로. node qa/shot.mjs qa/flows/sales-cycle.json — 만든 전표는 끝에 지운다. 견적 목록은 번호를 원본처럼 '2026/10/01 -5' 로 적는다(견적서조회 E040202 2026-10-14 실측 — 저장 뒤 말 없음, [생성한전표] '조회' 에 주문서 번호).",
   "shots": [
     {
-      "name": "견적서 작성 → 번호와 함께 '작성 완료', [수주전환] → 수주 번호",
+      "name": "견적서입력 → 말 없이 목록에 한 줄, [진행상태] 진행중 · 고른 줄 [다른전표생성] › 주문서 → [생성한전표] 에 주문서 번호",
       "path": "/sales/quotations",
       "steps": [
-        "click:신규 견적",
-        "clicklast:거래처 선택",
+        "click:신규(F2)",
+        "js:document.querySelector('.ec-modal button[title=\"거래처 선택\"]').click(); true",
         "pickrow:QA-CUST",
-        "clicklast:품목 선택",
+        "js:document.querySelector('.ec-modal button[title=\"품목 선택\"]').click(); true",
         "pickrow:QA-PROD",
-        "set:tbody tr:has(button[title=\"품목 선택\"]) input[type=number]#0|2",
-        "set:tbody tr:has(button[title=\"품목 선택\"]) input[type=number]#1|1000",
+        "set:.ec-modal tbody tr:has(button[title=\"품목 선택\"]) input.text-right#0|2",
+        "set:.ec-modal tbody tr:has(button[title=\"품목 선택\"]) input.text-right#1|1000",
         "click:저장(F8)",
-        "expect:/QT-[0-9]{8}-[0-9]{4} 견적서 작성 완료/.test(document.body.innerText)",
-        "js:sessionStorage.setItem('qaQuote', document.body.innerText.match(/QT-[0-9]{8}-[0-9]{4}(?= 견적서 작성 완료)/)[0]); true",
-        "js:{ const q = sessionStorage.getItem('qaQuote'); const [, d, n] = q.split('-'); sessionStorage.setItem('qaQuoteRow', d.slice(0,4)+'/'+d.slice(4,6)+'/'+d.slice(6)+' -'+Number(n)); } true",
+        "expect:!document.querySelector('.ec-modal')",
+        "js:fetch('/api/quotations',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()).then((d)=>{const q=d.filter((x)=>x.partnerName&&x.lines[0]&&x.lines[0].itemCode==='QA-PROD').sort((a,b)=>b.id-a.id)[0];sessionStorage.setItem('qaQuote',q.quoteNo);sessionStorage.setItem('qaQuoteStatus',q.statusName);const [, dd, n]=q.quoteNo.split('-');sessionStorage.setItem('qaQuoteRow',dd.slice(0,4)+'/'+dd.slice(4,6)+'/'+dd.slice(6)+' -'+Number(n));return true})",
+        "expect:sessionStorage.getItem('qaQuoteStatus') === '진행중'",
         "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes(sessionStorage.getItem('qaQuoteRow')))",
-        "js:let n = 0; window.confirm = () => n++ === 0; [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('qaQuoteRow'))).querySelectorAll('button').forEach((b) => { if (b.textContent.trim() === '수주전환') b.click() }); true",
-        "expect:/수주 SN-[0-9]{8}-[0-9]{4} 생성됨/.test(document.body.innerText)",
-        "js:sessionStorage.setItem('qaOrder', document.body.innerText.match(/SN-[0-9]{8}-[0-9]{4}(?= 생성됨)/)[0]); true"
+        "js:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('qaQuoteRow'))).querySelector('input[type=checkbox]').click(); true",
+        "click:다른전표생성",
+        "js:window.confirm = () => false; [...document.querySelectorAll('[role=menu] button')].find((b) => b.textContent.trim() === '주문서').click(); true",
+        "js:new Promise((ok) => setTimeout(ok, 1500)).then(() => fetch('/api/quotations',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}})).then((r)=>r.json()).then((d)=>{const q=d.find((x)=>x.quoteNo===sessionStorage.getItem('qaQuote'));return fetch('/api/sales-orders',{headers:{Authorization:'Bearer '+localStorage.getItem('erp_token')}}).then((r)=>r.json()).then((o)=>{sessionStorage.setItem('qaOrder',o.find((x)=>x.id===q.convertedOrderId).orderNo);return true})})",
+        "js:[...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes(sessionStorage.getItem('qaQuoteRow'))).querySelectorAll('a').forEach((a) => { if (a.textContent.trim() === '조회') a.click() }); true",
+        "expect:document.querySelector('.ec-modal') && document.querySelector('.ec-modal').innerText.includes(sessionStorage.getItem('qaOrder').replace(/^[A-Z]+-(\\d{4})(\\d{2})(\\d{2})-0*(\\d+)$/, '$1/$2/$3 -$4'))"
       ]
     },
     {

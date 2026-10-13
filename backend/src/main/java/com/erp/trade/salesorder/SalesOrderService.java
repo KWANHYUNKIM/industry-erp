@@ -26,7 +26,6 @@ import com.erp.trade.ordertype.OrderTypeStepRepository;
 import com.erp.inventory.item.ItemService;
 import com.erp.trade.shipment.ShipmentRepository;
 import com.erp.trade.quotation.QuotationRepository;
-import com.erp.trade.quotation.QuotationStatus;
 import com.erp.trade.shipment.ShipmentStatus;
 import com.erp.trade.shipment.ShipmentLineRepository;
 import lombok.RequiredArgsConstructor;
@@ -450,12 +449,8 @@ public class SalesOrderService {
         // 수주는 "견적서를 먼저 되돌리라" 해서 둘이 서로를 막는다. 전환을 되돌리는 기능도 없다.
         // 수주가 사라지면 그 견적서는 전환된 적 없는 상태로 돌아가는 것이 맞다.
         //
-        // 되돌릴 상태는 SENT 로 둔다. 발송 시각을 따로 저장하지 않아 전환 직전이 작성이었는지
-        // 발송이었는지 알 수 없는데, 견적은 보통 고객에게 보낸 뒤 수주로 넘어간다.
-        quotationRepository.findByConvertedOrderId(id).ifPresent(q -> {
-            q.setConvertedOrderId(null);
-            q.setStatus(QuotationStatus.SENT);
-        });
+        // 진행상태는 건드리지 않는다 — 원본은 주문서를 만들어도 견적의 진행상태가 그대로다(사람이 [진행상태변경] 으로 옮긴다).
+        quotationRepository.findByConvertedOrderId(id).ifPresent(q -> q.setConvertedOrderId(null));
         salesOrderRepository.delete(order);
     }
 

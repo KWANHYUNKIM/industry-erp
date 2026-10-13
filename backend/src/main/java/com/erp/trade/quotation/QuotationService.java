@@ -84,14 +84,43 @@ public class QuotationService {
                 .partner(partner)
                 .warehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()))
                 .project(req.projectId() == null ? null : projectService.get(req.projectId()))
-                .status(QuotationStatus.DRAFT)
+                .status(QuotationStatus.IN_PROGRESS)
                 .remark(req.remark())
                 .createdBy(username)
                 .build();
 
+        fillLines(q, req.lines(), taxable);
+        return QuotationResponse.from(quotationRepository.save(q));
+    }
+
+    /**
+     * 견적서수정 — 원본은 [일자-No.] 를 누르면 같은 입력 창이 자료를 든 채 열리고 [저장(F8)] 으로 고친다
+     * (2026-10-14 실측: 하단 저장(F8) · 저장/전표(F7) · 복사 · 이전 · 다음 · 닫기 · 삭제 · H · 최종이력).
+     * 번호(일자-No.)와 진행상태는 그대로 두고, 머리 칸과 줄을 통째로 바꾼다.
+     */
+    @Transactional
+    public QuotationResponse update(Long id, CreateQuotationRequest req) {
+        Quotation q = get(id);
+        BusinessPartner partner = TradeMasters.requireUsable(partnerRepository.findById(req.partnerId())
+                .orElseThrow(() -> ApiException.notFound("거래처를 찾을 수 없습니다. id=" + req.partnerId())));
+        if (!partner.getType().canSell()) {
+            throw ApiException.badRequest("매출처가 아닌 거래처에는 견적을 낼 수 없습니다: " + partner.getName());
+        }
+        q.setPartner(partner);
+        if (req.quoteDate() != null) q.setQuoteDate(req.quoteDate());
+        q.setValidUntil(req.validUntil());
+        q.setWarehouse(req.warehouseId() == null ? null : warehouseService.getUsable(req.warehouseId()));
+        q.setProject(req.projectId() == null ? null : projectService.get(req.projectId()));
+        q.setRemark(req.remark());
+        q.getLines().clear();
+        fillLines(q, req.lines(), req.taxable() == null || req.taxable());
+        return QuotationResponse.from(q);
+    }
+
+    private void fillLines(Quotation q, List<QuoteLineRequest> lines, boolean taxable) {
         BigDecimal totalSupply = BigDecimal.ZERO;
         BigDecimal totalVat = BigDecimal.ZERO;
-        for (QuoteLineRequest lr : req.lines()) {
+        for (QuoteLineRequest lr : lines) {
             Item item = itemService.getUsable(lr.itemId());
             BigDecimal supply = VatAllocator.lineSupply(lr.quantity(), lr.unitPrice());
             // 원 단위로 반올림한다 — 수주서(SalesOrderService)와 같은 규칙. 안 하면 777원 줄의 부가세가
@@ -106,36 +135,53 @@ public class QuotationService {
         q.setSupplyAmount(totalSupply);
         q.setVatAmount(totalVat);
         q.setTotalAmount(totalSupply.add(totalVat));
-
-        return QuotationResponse.from(quotationRepository.save(q));
     }
 
-    /** 발송 처리 (작성 → 발송) */
+    /**
+     * 하단 [진행상태변경] — 원본 메뉴 '▾미확인 › 미확인', '▾확인 › 진행중 · 완료'(2026-10-14 견적서조회 실측).
+     * 고른 줄을 그 상태로 옮기고 말 없이 목록이 바뀐다. 취소는 고를 수 없다(원본에 없다).
+     */
     @Transactional
-    public QuotationResponse markSent(Long id) {
-        Quotation q = get(id);
-        if (q.getStatus() != QuotationStatus.DRAFT) {
-            throw ApiException.badRequest("작성 상태의 견적서만 발송할 수 있습니다.");
+    public QuotationResponse updateStatus(Long id, QuotationStatus status) {
+        if (status == null || status == QuotationStatus.CANCELLED) {
+            throw ApiException.badRequest("진행상태는 미확인 · 진행중 · 완료 중에서 고릅니다.");
         }
-        q.setStatus(QuotationStatus.SENT);
+        Quotation q = get(id);
+        q.setStatus(status);
         return QuotationResponse.from(q);
+    }
+
+    /**
+     * 줄의 [생성한전표] '조회' — 이 견적에서 만든 주문서. 견적 줄마다 한 줄, 주문서로 넘어갔으면 그 일자-No.
+     * 우리 견적은 통째로 한 번 전환하므로 잔량은 넘어갔으면 0, 아니면 견적 수량이다.
+     */
+    @Transactional(readOnly = true)
+    public List<QuotationDtos.GeneratedSlipRow> generatedSlips(Long id) {
+        Quotation q = get(id);
+        SalesOrderResponse order = q.getConvertedOrderId() == null ? null : salesOrderService.findOne(q.getConvertedOrderId());
+        return q.getLines().stream().map(l -> new QuotationDtos.GeneratedSlipRow(
+                l.getItem().getCode(), l.getItem().getName(), l.getItem().getSpec(),
+                l.getQuantity(), order == null ? l.getQuantity() : BigDecimal.ZERO,
+                order == null ? null : "주문서",
+                order == null ? null : order.orderDate(),
+                order == null ? null : order.orderNo())).toList();
     }
 
     @Transactional
     public QuotationResponse cancel(Long id) {
         Quotation q = get(id);
-        if (q.getStatus() == QuotationStatus.CONVERTED) {
+        if (q.getConvertedOrderId() != null) {
             throw ApiException.badRequest("이미 수주 전환된 견적서는 취소할 수 없습니다.");
         }
         q.setStatus(QuotationStatus.CANCELLED);
         return QuotationResponse.from(q);
     }
 
-    /** 수주 전환: 견적 라인으로 SalesOrder 를 생성하고 견적을 CONVERTED 로 만든다. */
+    /** 수주 전환(원본 [다른전표생성] › 주문서): 견적 라인으로 SalesOrder 를 생성하고 견적에 그 주문을 잇는다. */
     @Transactional
     public SalesOrderResponse convertToOrder(Long id, String username) {
         Quotation q = get(id);
-        if (q.getStatus() == QuotationStatus.CONVERTED) {
+        if (q.getConvertedOrderId() != null) {
             throw ApiException.conflict("이미 수주 전환된 견적서입니다: " + q.getQuoteNo());
         }
         if (q.getStatus() == QuotationStatus.CANCELLED) {
@@ -164,7 +210,7 @@ public class QuotationService {
                 taxable, "견적 " + q.getQuoteNo() + " 전환", orderLines);
 
         SalesOrderResponse order = salesOrderService.create(orderReq, username);
-        q.setStatus(QuotationStatus.CONVERTED);
+        /* 진행상태는 그대로 둔다 — 원본은 주문서를 만들어도 견적이 '진행중' 이다(2026-10-14 실측). */
         q.setConvertedOrderId(order.id());
         return order;
     }

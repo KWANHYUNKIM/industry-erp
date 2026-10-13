@@ -86,4 +86,14 @@ public final class QuotationDtos {
                     q.getLines().stream().map(QuoteLineResponse::from).toList());
         }
     }
+
+    /** 하단 [진행상태변경] 이 보내는 값 — 미확인 · 진행중 · 완료. */
+    public record UpdateQuotationStatusRequest(QuotationStatus status) {}
+
+    /** 줄의 [생성한전표] '조회' 창 한 줄(주문서조회의 같은 창과 같은 꼴, 각자 정의 — CLAUDE.md 8장). */
+    public record GeneratedSlipRow(
+            String itemCode, String itemName, String spec,
+            BigDecimal quantity, BigDecimal remaining,
+            String slipType, LocalDate slipDate, String slipNo
+    ) {}
 }

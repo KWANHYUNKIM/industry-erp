@@ -1,12 +1,13 @@
 import { resolveSpecialPrice } from '../../features/price/specialPrice'
-import { Fragment, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import { COMPARE_PERIODS, comparePeriodOf, fetchWindow, type ComparePeriod } from '../../components/EcPeriodPicks'
 import EcBarChart from '../../components/EcBarChart'
 import CodePickerField from '../../components/CodePickerField'
 import CustomFieldsPanel from '../../components/CustomFieldsPanel'
+import Modal from '../../components/Modal'
 import { api, extractErrorMessage } from '../../api/client'
 import { loadSupplierParty, printDocuments, type DocParty } from '../../utils/printDocument'
 import type { Item, Partner, Quotation, QuotationStatus } from '../../types/api'
@@ -22,13 +23,20 @@ import { ecAlert, ecConfirm } from '../../components/EcDialog'
 const won = (n: number) => n.toLocaleString('ko-KR')
 const today = () => ymd(new Date())
 
-const TABS = ['전체', '작성', '발송', '수주전환', '취소'] as const
-type Tab = (typeof TABS)[number]
-const TAB_STATUS: Record<Exclude<Tab, '전체'>, QuotationStatus> = {
-  작성: 'DRAFT', 발송: 'SENT', 수주전환: 'CONVERTED', 취소: 'CANCELLED',
+/**
+ * 원본 견적서조회(E040202) 위 알약 — '전체 · 결재중 · 미확인 · 확인 ▸ 진행중 – 완료'(2026-10-14 loginaa 실측, C-Portal 은 견적에 없다).
+ * 결재는 우리에게 그 길이 없어 늘 비어 있다. 취소(예전 자료)는 전체에서만 보인다.
+ */
+type Tab = 'ALL' | 'APPROVAL' | 'UNCONFIRMED' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED'
+const TABS: [Tab, string][] = [['ALL', '전체'], ['APPROVAL', '결재중'], ['UNCONFIRMED', '미확인'], ['CONFIRMED', '확인 ▸'], ['IN_PROGRESS', '진행중'], ['COMPLETED', '완료']]
+const TAB_MATCH: Record<Tab, (s: QuotationStatus) => boolean> = {
+  ALL: () => true, APPROVAL: () => false, UNCONFIRMED: (s) => s === 'UNCONFIRMED',
+  CONFIRMED: (s) => s === 'IN_PROGRESS' || s === 'COMPLETED', IN_PROGRESS: (s) => s === 'IN_PROGRESS', COMPLETED: (s) => s === 'COMPLETED',
 }
-const statusColor = (s: QuotationStatus) =>
-  s === 'CONVERTED' ? 'var(--ec-success)' : s === 'CANCELLED' ? 'var(--ec-text-hint)' : s === 'SENT' ? 'var(--ec-blue)' : 'var(--ec-label)'
+/** [생성한전표] → '생성한 전표' 창 한 줄(서버 QuotationDtos.GeneratedSlipRow). */
+interface GeneratedRow { itemCode: string; itemName: string; spec: string | null; quantity: number; remaining: number; slipType: string | null; slipDate: string | null; slipNo: string | null }
+/** 생성한전표가 있으면 원본처럼 주황 꼬리표(2026-10-14 실측: 바탕 rgb(246, 136, 45) · 흰 글자 · 여백 0.9px 1.8px · 높이 16.3). */
+const GEN_TAG = 'inline-block rounded-[6px] px-[1.8px] py-[0.9px] text-[12px] leading-[13.2px] bg-[var(--ec-tag-warn)] text-[var(--ec-bg-panel)] no-underline'
 
 interface LineForm { itemId: string; quantity: string; unitPrice: string }
 const emptyLine = (): LineForm => ({ itemId: '', quantity: '', unitPrice: '' })
@@ -36,15 +44,26 @@ const emptyLine = (): LineForm => ({ itemId: '', quantity: '', unitPrice: '' })
 /** 견적서 — 영업 흐름의 시작점. 작성→발송→수주전환. 부가세 10% 자동. */
 export default function QuotationPage() {
   const navigate = useNavigate()
+  /*
+   * 메뉴 [견적서현황](E040208)은 같은 자료를 <b>줄 단위</b>로 편다 — ?view=status 로 연다(판매일괄회계반영과 같은 방식).
+   * 원본 현황 격자: 일자-No. · 품목명(규격) · 수량 · 단가 · 공급가액 · 거래처명 · 적요(2026-09-09 실측).
+   */
+  const [params] = useSearchParams()
+  const statusView = params.get('view') === 'status'
   const [rows, setRows] = useState<Quotation[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [partners, setPartners] = useState<Partner[]>([])
   const [warehouses, setWarehouses] = useState<{ id: number; code: string; name: string }[]>([])
   const [projects, setProjects] = useState<{ id: number; code: string; name: string }[]>([])
-  const [tab, setTab] = useState<Tab>('전체')
-  const [openId, setOpenId] = useState<number | null>(null)
+  const [tab, setTab] = useState<Tab>('ALL')
+  /** 빠른 검색칸(Search(F3) 옆) — 거래처명 · 일자-No. */
+  const [keyword, setKeyword] = useState('')
+  /** 하단 [진행상태변경 ▴] · [다른전표생성 ▴] 메뉴 — 버튼 위로 뜬다. */
+  const [menuAt, setMenuAt] = useState<{ kind: 'status' | 'gen'; left: number; bottom: number } | null>(null)
+  const [generated, setGenerated] = useState<{ quote: Quotation; rows: GeneratedRow[] } | null>(null)
+  /** 견적서수정 — [일자-No.] 로 연 견적. */
+  const [editing, setEditing] = useState<Quotation | null>(null)
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
   const [showForm, setShowForm] = useState(false)
   /*
    * 원본 견적서조회는 <b>기준일자</b>를 들고 [최근30일(+1개월)] 로 열린다(사본 실측 —
@@ -81,8 +100,6 @@ export default function QuotationPage() {
     setAuthorCond(''); setSpecCond(''); setRemarkCond(''); setValidCond(''); setPmCond('')
     setUpFrom(''); setUpTo('')
   }
-
-  const flash = (m: string) => { setNotice(m); window.setTimeout(() => setNotice(''), 2500) }
 
   /* 원본 [구분]의 비교기간 — load 가 그 구간까지 받으므로 load 보다 먼저 둔다. */
   const [compare, setCompare] = useState<ComparePeriod>('사용안함')
@@ -175,7 +192,8 @@ export default function QuotationPage() {
   const [menu, setMenu] = useState<'현황' | '집계'>('현황')
 
   const shown = useMemo(() => rows
-    .filter((r) => tab === '전체' || r.status === TAB_STATUS[tab])
+    .filter((r) => TAB_MATCH[tab](r.status))
+    .filter((r) => !keyword || r.partnerName.includes(keyword) || dateNo(r).includes(keyword))
     .filter((r) => (!from || r.quoteDate >= from) && (!to || r.quoteDate <= to))
     .filter((r) => !noCond || r.quoteNo.includes(noCond))
     /* 이름은 겹칠 수 있다 — id 로 거른다(QA 9회차). */
@@ -193,19 +211,14 @@ export default function QuotationPage() {
     .filter((r) => !upTo || ((r.updatedAt ?? '') !== '' && r.updatedAt!.slice(0, 10) <= upTo))
     .filter((r) => !itemCond || r.lines.some((l) => String(l.itemId) === itemCond))
     .filter((r) => mgmt.hits(r.lines.map((l) => l.itemId), mgmtCond))
-    .filter((r) => sentCond === '전체'
-      || (sentCond === '발송') === (r.status === 'SENT' || r.status === 'CONVERTED'))
+    /* 원본 [발송여부] 는 Email · 보내기로 내보냈는가다 — 우리는 견적을 밖으로 보내지 않으므로 모두 미발송이다. */
+    .filter(() => sentCond !== '발송')
     /* 원본 [수정일자순(정렬)] — 고친 순으로 본다. 안 고친 건은 만든 때가 곧 고친 때다. */
     .sort((a, b) => (byUpdated ? (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') || b.id - a.id : 0)),
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
-    [rows, tab, from, to, itemCond, sentCond, whCond, projCond, noCond, mgmtCond, mgmt.options,
+    [rows, tab, keyword, from, to, itemCond, sentCond, whCond, projCond, noCond, mgmtCond, mgmt.options,
       byUpdated, authorCond, partnerCond, specCond, remarkCond, validCond, pmCond, partners,
       upFrom, upTo])
-  /* 비교기간을 켜면 앞 구간까지 받아 온다 — 탭의 건수는 지금 구간만 센다. */
-  const tabCount = (t: Tab) => rows
-    .filter((r) => (!from || r.quoteDate >= from) && (!to || r.quoteDate <= to))
-    .filter((r) => t === '전체' || r.status === TAB_STATUS[t]).length
-
   /**
    * 원본 [구분]의 <b>비교기간</b>. 같은 길이의 앞 구간을 같은 조건으로 다시 세어
    * <b>합계만</b> 견준다 — 목록을 두 벌 그리지 않는다(주문서현황과 같은 방식).
@@ -215,7 +228,7 @@ export default function QuotationPage() {
     if (!prevRange) return { count: 0, supply: 0 }
     return rows
       .filter((r) => r.quoteDate >= prevRange.from && r.quoteDate <= prevRange.to)
-      .filter((r) => tab === '전체' || r.status === TAB_STATUS[tab])
+      .filter((r) => TAB_MATCH[tab](r.status))
       .filter((r) => !noCond || r.quoteNo.includes(noCond))
       .filter((r) => !whCond || String(r.warehouseId) === whCond)
       .filter((r) => !projCond || String(r.projectId) === projCond)
@@ -233,11 +246,6 @@ export default function QuotationPage() {
     }
     return [...m.values()].sort((a, b) => b.supply - a.supply)
   }, [shown])
-
-  async function send(q: Quotation) {
-    try { await api.post(`/quotations/${q.id}/send`); flash(`${q.quoteNo} 발송`); load() }
-    catch (err) { void ecAlert(extractErrorMessage(err)) }
-  }
 
   useEffect(() => { loadSupplierParty().then(setCompany) }, [])
 
@@ -264,27 +272,46 @@ export default function QuotationPage() {
     }])
   }
 
-  async function convert(q: Quotation) {
-    if (!(await ecConfirm(`${q.quoteNo}을(를) 수주로 전환할까요?`))) return
-    try {
-      const r = await api.post(`/quotations/${q.id}/convert`)
-      flash(`수주 ${r.data.orderNo} 생성됨`)
-      load()
-      if ((await ecConfirm('생성된 수주 화면으로 이동할까요?'))) navigate('/sales/orders')
-    } catch (err) { void ecAlert(extractErrorMessage(err)) }
+  /**
+   * 하단 [다른전표생성 ▴] › 주문서 — 원본은 고른 견적으로 '주문서입력' 창을 미리 채워 띄운다(거래처 · 품목 줄 · 일자 오늘, 2026-10-14 실측).
+   * 우리는 같은 내용으로 바로 주문서를 만든다(창 없이 — 남은 것). 고른 것이 여럿이면 한 장씩.
+   */
+  async function convertChecked() {
+    setMenuAt(null)
+    const targets = shown.filter((q) => picked.has(q.id))
+    const fails: string[] = []
+    const made: string[] = []
+    for (const q of targets) {
+      try { made.push((await api.post<{ orderNo: string }>(`/quotations/${q.id}/convert`)).data.orderNo) }
+      catch (err) { fails.push(extractErrorMessage(err)) }
+    }
+    setPicked(new Set())
+    load()
+    if (fails.length) void ecAlert(fails.join('\n'))
+    else if (made.length && (await ecConfirm(`주문서 ${made.join(', ')} 을(를) 만들었습니다. 주문서조회로 이동할까요?`))) navigate('/sales/orders')
   }
 
-  async function cancel(q: Quotation) {
-    if (!(await ecConfirm(`${q.quoteNo}을(를) 취소할까요?`))) return
-    try { await api.post(`/quotations/${q.id}/cancel`); load() }
-    catch (err) { void ecAlert(extractErrorMessage(err)) }
+  /** 하단 [진행상태변경] · [다른전표생성] — 버튼 위에 메뉴를 띄운다. 고른 줄이 없으면 셸이 먼저 알린다. */
+  function openMenu(kind: 'status' | 'gen', label: string) {
+    const btn = [...document.querySelectorAll<HTMLButtonElement>('.ec-footer button')].find((b) => b.textContent?.trim() === label)
+    const r = btn?.getBoundingClientRect()
+    setMenuAt({ kind, left: r?.left ?? 200, bottom: r ? window.innerHeight - r.top + 4 : 48 })
+  }
+  /** 원본 메뉴 '▾미확인 › 미확인', '▾확인 › 진행중 · 완료' — 고르면 말 없이 목록이 바뀐다. */
+  async function changeStatus(status: QuotationStatus) {
+    setMenuAt(null)
+    const fails: string[] = []
+    for (const id of picked) {
+      try { await api.patch(`/quotations/${id}/status`, { status }) }
+      catch (err) { fails.push(extractErrorMessage(err)) }
+    }
+    setPicked(new Set())
+    load()
+    if (fails.length) void ecAlert(fails.join('\n'))
   }
 
-  // 취소는 문서를 남긴 채 상태만 바꾼다. 잘못 만든 견적서는 지우는 게 맞다 —
-  // 취소로 덮어 두면 목록이 죽은 문서로 계속 불어난다.
-  async function remove(q: Quotation) {
-    if (!(await ecConfirm(`${q.quoteNo}을(를) 삭제할까요? 되돌릴 수 없습니다.`))) return
-    try { await api.delete(`/quotations/${q.id}`); load() }
+  async function openGenerated(q: Quotation) {
+    try { setGenerated({ quote: q, rows: (await api.get<GeneratedRow[]>(`/quotations/${q.id}/generated`)).data }) }
     catch (err) { void ecAlert(extractErrorMessage(err)) }
   }
 
@@ -299,28 +326,8 @@ export default function QuotationPage() {
     const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n
   })
 
-  /*
-   * 원본 하단 단추줄의 <b>[진행상태변경]</b> — 고른 줄을 한 번에 <b>발송</b> 으로 넘긴다.
-   * 수주전환은 한꺼번에 하지 않는다 — 전환은 수주를 새로 만드는 일이라, 열 건을 한 번에
-   * 누르면 무엇이 만들어졌는지 사람이 못 따라간다.
-   */
-  async function bulkStatus() {
-    const targets = shown.filter((q) => picked.has(q.id) && q.status === 'DRAFT')
-    const skipped = picked.size - targets.length
-    if (targets.length === 0) { setError('아직 안 보낸 견적서를 고르세요 — 그 줄만 한 번에 발송합니다.'); return }
-    const results = await Promise.allSettled(targets.map((q) => api.post(`/quotations/${q.id}/send`)))
-    const failed = results.filter((r) => r.status === 'rejected').length
-    setPicked(new Set())
-    setError([
-      failed ? `${failed}건은 발송하지 못했습니다.` : '',
-      skipped ? `${skipped}건은 이미 보낸 견적서라 건너뛰었습니다.` : '',
-    ].filter(Boolean).join(' '))
-    load()
-  }
-
   async function removeChecked() {
     const ids = [...picked]
-    if (ids.length === 0) { setError('삭제할 견적서을(를) 고르세요.'); return }
     if (!(await ecConfirm(`고른 ${ids.length}건을 삭제할까요?`))) return
     const results = await Promise.allSettled(ids.map((id) => api.delete(`/quotations/${id}`)))
     const failed = results.filter((r) => r.status === 'rejected').length
@@ -331,25 +338,63 @@ export default function QuotationPage() {
 
   return (
     <EcListShell
-      title="견적서"
-      /* 원본 [신규(F2)] 는 아래 단추줄 맨 앞이다 — 표 위에 따로 두지 않는다. */
-      newLabel={showForm ? '입력닫기' : '신규 견적(F2)'}
-      onNew={() => setShowForm((v) => !v)}
+      onSearch={load}
+      onReset={reset}
+      title={statusView ? '견적서현황' : '견적서조회'}
+      search={keyword}
+      onSearchChange={setKeyword}
+      newLabel="신규(F2)"
+      onNew={() => { setEditing(null); setShowForm(true) }}
+      /* 원본 차례(2026-10-14 실측): 신규(F2) · Email · 진행상태변경 · 보내기 · 인쇄 · 바코드(품목) · 다른전표생성 · 전자결재 · 선택삭제 · Excel(표시형식) · 이력조회 · 웹자료올리기 — 바깥 발송 · 결재는 뺀다. */
       actions={[
-      /* 원본 차례: 신규(F2) · 다시 작성 · 진행상태변경 · 인쇄 · 선택삭제 · Excel (사본 실측) */
-      { label: '다시 작성', onClick: reset },
-      { label: `진행상태변경${picked.size ? ` (${picked.size})` : ''}`, onClick: bulkStatus },
-      { label: '인쇄' },
-      { label: `선택삭제${picked.size ? ` (${picked.size})` : ''}`, onClick: removeChecked },
-      { label: 'Excel' },
-    ]}>
-      <div className="flex items-center gap-[6px] mb-[8px]">
-        <button className="ec-btn" onClick={load}>새로고침</button>
-        <span className="ml-[8px] text-[12px] text-ec-hint">견적 → 발송 → 수주전환. 부가세 10% 자동.</span>
-      </div>
+        { label: '진행상태변경', onClick: () => openMenu('status', '진행상태변경'), selected: picked.size },
+        { label: '인쇄' },
+        { label: '다른전표생성', onClick: () => openMenu('gen', '다른전표생성'), selected: picked.size },
+        { label: '선택삭제', onClick: removeChecked, selected: picked.size },
+        { label: 'Excel' },
+      ]}>
+      {menuAt && (
+        <>
+          <div className="ec-backdrop-clear" onClick={() => setMenuAt(null)} />
+          {menuAt.kind === 'status' ? (
+            <div className="ec-menu fixed" style={{ left: menuAt.left, bottom: menuAt.bottom }} role="menu" aria-label="진행상태변경">
+              <div className="px-[10px] pt-[4px] text-ec-label">▾ 미확인</div>
+              <button onClick={() => changeStatus('UNCONFIRMED')}>미확인</button>
+              <div className="px-[10px] pt-[4px] text-ec-label">▾ 확인</div>
+              <button onClick={() => changeStatus('IN_PROGRESS')}>진행중</button>
+              <button onClick={() => changeStatus('COMPLETED')}>완료</button>
+            </div>
+          ) : (
+            <div className="ec-menu fixed" style={{ left: menuAt.left, bottom: menuAt.bottom }} role="menu" aria-label="다른전표생성">
+              <button onClick={() => void convertChecked()}>주문서</button>
+            </div>
+          )}
+        </>
+      )}
+
+      <Modal open={generated != null} title="생성한 전표" width={760} onClose={() => setGenerated(null)}>{generated && (
+        <div>
+          <p className="mb-[6px]">견적서조회 : {dateNo(generated.quote)}</p>
+          <table className="w-full text-left">
+            <thead><tr>
+              <th>품목코드</th><th>품목명</th><th>규격</th><th className="text-right">수량</th><th className="text-right">잔량</th>
+              <th>생성한 전표</th><th>생성한 전표일자-No.</th>
+            </tr></thead>
+            <tbody>
+              {generated.rows.map((r, i) => (
+                <tr key={i}>
+                  <td>{r.itemCode}</td><td>{r.itemName}</td><td>{r.spec ?? ''}</td>
+                  <td className="text-right">{won(r.quantity)}</td><td className="text-right">{won(r.remaining)}</td>
+                  <td>{r.slipType ?? ''}</td><td>{r.slipDate && r.slipNo ? dateNo({ quoteDate: r.slipDate, quoteNo: r.slipNo }) : ''}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="mt-[8px]"><button type="button" className="ec-btn" onClick={() => setGenerated(null)}>닫기</button></div>
+        </div>
+      )}</Modal>
 
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
-      {notice && <div className="ec-alert ec-alert-info mb-[6px]">{notice}</div>}
 
       {/* 상태 필터는 원본에서 알약(pill)이다 — 선택된 것만 파란 알약으로 채워진다. */}
       {/* 원본 조건 차례: … 거래처 · <b>품목</b> · 발송여부 */}
@@ -479,14 +524,10 @@ export default function QuotationPage() {
         </EcCond>
       </ul>
 
-      <div className="ec-pills" style={{ marginBottom: 6 }}>
-        {TABS.map((t) => (
-          <button
-            key={t} type="button" onClick={() => setTab(t)}
-            className={`ec-pill no-ec${tab === t ? ' active' : ''}`}
-          >
-            {t} ({tabCount(t)})
-          </button>
+      {/* 원본 제목 옆 알약: 전체 · 결재중 · 미확인 · 확인 ▸ 진행중 – 완료 */}
+      <div className="ec-pills mb-[8px]">
+        {TABS.map(([k, label]) => (
+          <button key={k} type="button" className={`ec-pill no-ec${tab === k ? ' active' : ''}`} onClick={() => setTab(k)}>{label}</button>
         ))}
       </div>
 
@@ -521,15 +562,40 @@ export default function QuotationPage() {
           </table>
         </>
       ) : (
+      statusView ? (
+      <table className="w-full text-left">
+        <thead><tr>
+          <th className="w-[34px]"></th>
+          <th>일자-No.</th><th>품목명(규격)</th><th className="text-right">수량</th><th className="text-right">단가</th>
+          <th className="text-right">공급가액</th><th>거래처명</th><th>적요</th>
+        </tr></thead>
+        <tbody>
+          {shown.length === 0 ? (
+            <tr><td colSpan={8} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+          ) : shown.flatMap((q) => q.lines.map((l) => ({ q, l }))).map(({ q, l }, i) => (
+            <tr key={`${q.id}-${l.id}`}>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td><a className="cursor-pointer" onClick={() => { setEditing(q); setShowForm(true) }}>{dateNo(q)}</a></td>
+              <td>{l.itemName}{l.spec ? ` [${l.spec}]` : ''}</td>
+              <td className="text-right">{won(l.quantity)}</td>
+              <td className="text-right">{won(l.unitPrice)}</td>
+              <td className="text-right">{won(l.supplyAmount)}</td>
+              <td>{q.partnerName}</td>
+              <td>{q.remark ?? ''}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      ) : (
       <table className="w-full text-left">
         <thead>
           <tr>
-            {/*
-              원본 견적서조회(E040202) 열과 순서 그대로다(실측 74·295·297·236·533·236·277·106·106·106).
-              일자와 번호는 원본처럼 한 칸에 적는다('2026/08/03 -1').
-            */}
-            <th className="w-[28px] text-center"></th>
+            {/* 원본 견적서조회(E040202) 열과 순서(2026-10-14 실측 폭 38 · 152 · 299 · 121 · 475 · 121 · 143 · 106 · 123 · 55, 머리 모두 가운데). */}
             <th className="w-[34px]"></th>
+            <th className="w-[28px] text-center">
+              <input type="checkbox" aria-label="전체 선택" checked={shown.length > 0 && shown.every((q) => picked.has(q.id))}
+                onChange={(e) => setPicked(e.target.checked ? new Set(shown.map((q) => q.id)) : new Set())} />
+            </th>
             <th>일자-No.</th>
             <th>거래처명</th>
             <th>사원(담당)명</th>
@@ -539,168 +605,130 @@ export default function QuotationPage() {
             <th className="text-center">진행상태</th>
             <th className="text-center">생성한전표</th>
             <th className="text-center">인쇄</th>
-            {/*
-              <b>견적서현황(E040208) 2026-09-09 원본 격자 실측</b> —
-              [일자-No. · 품목명(규격) · 수량 · 단가 · 공급가액 · 거래처명 · <b>적요</b>] 일곱 칸이다.
-              원본 현황은 <b>줄 단위</b>로 편다(전표 하나가 품목 수만큼 줄이 된다).
-              우리는 전표 한 줄에 펼침 표로 줄을 담으므로, 줄 쪽 칸(품목명(규격)·수량·단가·공급가액)은
-              펼침 표가, 전표 쪽 칸(일자-No.·거래처명·적요)은 이 표가 낸다.
-              <p>이 계정에는 견적 자료가 없어 <b>격자가 비어 있었다</b> — 칸의 정렬은 못 쟀다(대조표에 '?').
-              지어내지 않는다.
-              <p>[적요]는 응답이 <code>remark</code> 로 <b>진작 싣고 있었는데 아무 데도 안 찍었다.</b>
-            */}
-            <th>적요</th>
-            {/* 아래는 원본에 없지만 우리가 더 보여 주는 열이다. 원본 열을 밀어내지 않도록 뒤에 둔다. */}
-            <th className="text-right">공급가액</th><th className="text-right">부가세</th>
-            <th className="text-center">처리</th>
           </tr>
         </thead>
         <tbody>
           {shown.length === 0 ? (
-            <tr><td colSpan={15} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={11} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : shown.map((q, i) => (
-            <Fragment key={q.id}>
-              <tr onClick={() => setOpenId(openId === q.id ? null : q.id)} className="cursor-pointer">
-                <td className="text-center">
-                  <input type="checkbox" checked={picked.has(q.id)} onChange={() => pick(q.id)} />
-                </td>
-                <td className="text-center text-ec-hint">{i + 1}</td>
-                <td className="text-ec-blue font-semibold">
-                  {openId === q.id ? '▾ ' : '▸ '}{dateNo(q)}
-                </td>
-                <td>{q.partnerName}</td>
-                <td>{q.createdBy ?? ''}</td>
-                <td className="text-ec-label">
-                  {q.lines[0]?.itemName ?? ''}{q.lines.length > 1 ? ` 외 ${q.lines.length - 1}건` : ''}
-                </td>
-                <td>{q.validUntil ?? ''}</td>
-                <td className="text-right font-bold">{won(q.totalAmount)}</td>
-                <td className="text-center"><span style={{ color: statusColor(q.status) }}>{q.statusName}</span></td>
-                <td className="text-center text-ec-success text-[11.5px]">
-                  {/* 원본 '생성한전표' — 이 견적서에서 만들어진 전표. 우리는 수주만 만든다. */}
-                  {q.convertedOrderId ? `수주 #${q.convertedOrderId}` : ''}
-                </td>
-                <td className="text-center" onClick={(e) => e.stopPropagation()}>
-                  <button className="ec-btn ec-btn-sm" onClick={() => printQuote(q)}>인쇄</button>
-                </td>
-                <td className="text-ec-label">{q.remark ?? ''}</td>
-                <td className="text-right">{won(q.supplyAmount)}</td>
-                <td className="text-right text-ec-hint">{won(q.vatAmount)}</td>
-                <td className="text-center" onClick={(e) => e.stopPropagation()}>
-                  <div className="inline-flex gap-[3px]">
-                    {q.status === 'DRAFT' && <button className="ec-btn ec-btn-sm" onClick={() => send(q)}>발송</button>}
-                    {(q.status === 'DRAFT' || q.status === 'SENT') && <button className="ec-btn ec-btn-sm ec-btn-primary" onClick={() => convert(q)}>수주전환</button>}
-                    {q.status !== 'CONVERTED' && q.status !== 'CANCELLED' && <button className="ec-btn ec-btn-sm" style={{ color: 'var(--ec-danger)' }} onClick={() => cancel(q)}>취소</button>}
-                    <button className="ec-btn ec-btn-sm" style={{ color: 'var(--ec-danger)' }} onClick={() => remove(q)}>삭제</button>
-                  </div>
-                </td>
-              </tr>
-              {openId === q.id && (
-                <tr className="no-ec">
-                  <td colSpan={15} className="p-0 bg-ec-page">
-                    <table className="w-full text-left my-[4px] mx-0">
-                      {/* 원본 현황의 줄 칸이다 — 규격은 응답이 <code>spec</code> 으로 싣고 있었다. */}
-                      <thead><tr><th className="w-[34px]"></th><th>품목코드</th><th>품목명(규격)</th><th className="text-right">수량</th><th className="text-right">단가</th><th className="text-right">공급가액</th><th className="text-right">부가세</th></tr></thead>
-                      <tbody>
-                        {q.lines.map((l) => (
-                          <tr key={l.id}>
-                            <td className="text-center text-ec-hint">{l.lineNo}</td>
-                            <td>{l.itemCode}</td>
-                            <td>{l.itemName}{l.spec ? ` (${l.spec})` : ''}</td>
-                            <td className="text-right">{won(l.quantity)} {l.unit}</td>
-                            <td className="text-right">{won(l.unitPrice)}</td>
-                            <td className="text-right">{won(l.supplyAmount)}</td>
-                            <td className="text-right text-ec-hint">{won(l.vatAmount)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    {/*
-                      <b>추가항목(사용자정의).</b> 원본 견적서조회에는 [문자형식1~5]·[장문형식1]이
-                      <b>칸 이름째로</b> 박혀 있다(사본 실측). 우리는 반대로 — Self-Customizing >
-                      사용자정의필드에서 [견적서]로 <b>이름을 지어</b> 정의하면 여기 뜬다.
-
-                      <p>열 예외에 그렇게 적어 두었는데, 정작 이 화면이
-                      <code>/custom-fields</code> 를 <b>한 번도 안 불렀다</b> — 정의해도 뜰 자리가
-                      없었으니 이유가 아니라 <b>할 일</b>이었다. 발주서에서 똑같은 것을 잡았다.
-                      정의가 없으면 아무것도 안 그린다(안 쓰는 회사의 화면은 그대로다).
-
-                      <p>줄(격자 열)은 아직이다 — 원본 견적 격자의 추가 칸은 따로 재야 하고,
-                      입력 격자를 손봐야 하는 별개의 일이라 여기서 반만 만들어 두지 않는다.
-                    */}
-                    <div className="pt-0 px-[6px] pb-[8px]">
-                      <CustomFieldsPanel entityType="QUOTE" entityId={q.id} />
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </Fragment>
+            <tr key={q.id}>
+              <td className="text-center text-ec-hint">{i + 1}</td>
+              <td className="text-center"><input type="checkbox" aria-label="선택" checked={picked.has(q.id)} onChange={() => pick(q.id)} /></td>
+              {/* 원본은 [일자-No.] 를 누르면 그 견적이 든 입력 창이 뜬다. */}
+              <td><a className="cursor-pointer" onClick={() => { setEditing(q); setShowForm(true) }}>{dateNo(q)}</a></td>
+              <td>{q.partnerName}</td>
+              <td>{q.createdBy ?? ''}</td>
+              {/* 원본 '포장재 [30cm*40cm]' · '코카콜라 [355ml] 외 1건' — 첫 품목에 규격을 대괄호로. */}
+              <td>{q.lines[0]?.itemName ?? ''}{q.lines[0]?.spec ? ` [${q.lines[0].spec}]` : ''}{q.lines.length > 1 ? ` 외 ${q.lines.length - 1}건` : ''}</td>
+              <td>{q.validUntil ? q.validUntil.replace(/-/g, '/') : ''}</td>
+              <td className="text-right">{won(q.totalAmount)}</td>
+              <td className="text-center text-ec-navy">{q.statusName}</td>
+              <td className="text-center"><a className={`cursor-pointer${q.convertedOrderId ? ` ${GEN_TAG}` : ''}`} onClick={() => void openGenerated(q)}>조회</a></td>
+              <td className="text-center"><a className="cursor-pointer" onClick={() => void printQuote(q)}>인쇄</a></td>
+            </tr>
           ))}
         </tbody>
       </table>
-      )}
+      ))}
 
-      {showForm && <QuotationForm items={items} partners={partners} warehouses={warehouses} projects={projects} onClose={() => setShowForm(false)} onSaved={(msg) => { setShowForm(false); flash(msg); load() }} />}
+      {showForm && <QuotationForm key={editing?.id ?? 'new'} editing={editing} items={items} partners={partners} warehouses={warehouses} projects={projects}
+        onClose={() => { setShowForm(false); setEditing(null) }}
+        onSaved={() => { setShowForm(false); setEditing(null); load() }} />}
     </EcListShell>
   )
 }
 
-function QuotationForm({ items, partners, warehouses, projects, onClose, onSaved }: {
+/**
+ * 견적서입력 · 견적서수정 창 — 원본 견적서입력(E040201) 2026-10-14 loginaa 실측.
+ * 머리: 일자 · 거래처 · (담당자) · 출하창고 · (거래유형 · 통화) · 프로젝트. 격자: 품목코드 · 품목명 · 규격 · 수량 · 단가 · 공급가액 · 부가세 · 합계.
+ * 품목을 고르면 수량은 비어 있고 단가는 품목 출고단가(없으면 0). 3 × 1,001 → 공급가액 3,003 · 부가세 300 · 합계 3,303.
+ * 줄 없이 저장하면 '알림' 창의 '그리드(표)에 최소 1줄 이상 입력되어야 합니다.', 출하창고는 비워도 저장된다. 저장하면 말 없이 새 창이 된다.
+ * 수정 창 하단: 저장(F8) · 저장/전표(F7) · 복사 · 이전 · 다음 · 닫기 · 삭제 · H · 최종이력 — 삭제 확인 '전표를 삭제하겠습니까?\n- 견적서', 지우면 말 없이 목록에서 빠진다.
+ */
+function QuotationForm({ editing, items, partners, warehouses, projects, onClose, onSaved }: {
+  editing: Quotation | null
   items: Item[]; partners: Partner[]
   warehouses: { id: number; code: string; name: string }[]
   projects: { id: number; code: string; name: string }[]
-  onClose: () => void; onSaved: (msg: string) => void
+  onClose: () => void; onSaved: () => void
 }) {
-  const [partnerId, setPartnerId] = useState('')
-  const [quoteDate, setQuoteDate] = useState(today())
-  /* 원본 견적서의 [창고]·[프로젝트]. 판매전표는 이미 물고 있는데 견적만 없었다. */
-  const [fWarehouse, setFWarehouse] = useState('')
-  const [fProject, setFProject] = useState('')
-  const [validUntil, setValidUntil] = useState('')
-  const [lines, setLines] = useState<LineForm[]>([emptyLine()])
+  const init = () => ({
+    partnerId: editing ? String(editing.partnerId) : '',
+    quoteDate: editing?.quoteDate ?? today(),
+    warehouse: editing?.warehouseId ? String(editing.warehouseId) : '',
+    project: editing?.projectId ? String(editing.projectId) : '',
+    validUntil: editing?.validUntil ?? '',
+    lines: editing && editing.lines.length
+      ? [...editing.lines.map((l) => ({ itemId: String(l.itemId), quantity: String(l.quantity), unitPrice: String(l.unitPrice) })), emptyLine(), emptyLine()]
+      : [emptyLine(), emptyLine(), emptyLine()],
+  })
+  const [partnerId, setPartnerId] = useState(init().partnerId)
+  const [quoteDate, setQuoteDate] = useState(init().quoteDate)
+  /* 원본 견적서의 [출하창고]·[프로젝트]. 판매전표는 이미 물고 있는데 견적만 없었다. */
+  const [fWarehouse, setFWarehouse] = useState(init().warehouse)
+  const [fProject, setFProject] = useState(init().project)
+  const [validUntil, setValidUntil] = useState(init().validUntil)
+  const [lines, setLines] = useState<LineForm[]>(init().lines)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [partnerMissing, setPartnerMissing] = useState(false)
 
+  function reset() {
+    const v = init()
+    setPartnerId(v.partnerId); setQuoteDate(v.quoteDate); setFWarehouse(v.warehouse); setFProject(v.project)
+    setValidUntil(v.validUntil); setLines(v.lines); setError(''); setPartnerMissing(false)
+  }
   function setLine(i: number, patch: Partial<LineForm>) {
-    setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)))
+    setLines((ls) => {
+      const next = ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l))
+      /* 원본 격자는 빈 줄이 늘 남아 있다 — 마지막 줄에 품목을 넣으면 빈 줄을 하나 더 붙인다. */
+      return next[next.length - 1].itemId ? [...next, emptyLine()] : next
+    })
   }
   function pickItem(i: number, itemId: string) {
     const it = items.find((x) => String(x.id) === itemId)
-    setLine(i, { itemId, unitPrice: it ? String(it.unitPrice) : '' })
+    setLine(i, { itemId, unitPrice: it ? String(it.unitPrice ?? 0) : '' })
     // 거래처의 특별단가가 있으면 덮는다(50회차 — 견적서는 특별단가를 몰랐다).
     void resolveSpecialPrice('SALES', itemId, partnerId).then((p) => { if (p != null) setLine(i, { unitPrice: String(p) }) })
   }
   /** 거래처를 고르면 담긴 품목의 특별단가를 다시 찾는다 — 품목을 먼저 담아도 걸리게(49회차와 같은 까닭). */
   function choosePartner(v: string) {
-    setPartnerId(v)
+    setPartnerId(v); setPartnerMissing(false)
     lines.forEach((l, i) => {
       if (l.itemId) void resolveSpecialPrice('SALES', l.itemId, v).then((p) => { if (p != null) setLine(i, { unitPrice: String(p) }) })
     })
   }
 
   const calc = lines.map((l) => lineSupply(Number(l.quantity) || 0, Number(l.unitPrice) || 0))
-  const supply = calc.reduce((a, b) => a + b, 0)
   /*
    * 부가세는 <b>줄마다</b> 원 단위로 반올림해 더한다 — 서버(QuotationService)가 그렇게 저장한다.
-   * 합계에 한 번 반올림하면 1,665원 줄 둘이 333원(저장은 167+167=334원)으로 미리보기와 저장값이 갈렸다.
    * ÷10 으로 재는 것은 ×0.1 의 부동소수 오차(…4999)를 피하려는 것이다.
    */
-  const vat = calc.reduce((a, s) => a + Math.round(s / 10), 0)
+  const vats = calc.map((c) => Math.round(c / 10))
+  const supply = calc.reduce((a, b) => a + b, 0)
+  const vat = vats.reduce((a, b) => a + b, 0)
+  const qtySum = lines.reduce((a, l) => a + (l.itemId ? Number(l.quantity) || 0 : 0), 0)
 
   async function save() {
     setError('')
-    if (!partnerId) return setError('거래처를 선택하세요.')
     const payload = lines
-      .filter((l) => l.itemId && Number(l.quantity) > 0 && Number(l.unitPrice) > 0)
-      .map((l) => ({ itemId: Number(l.itemId), quantity: Number(l.quantity), unitPrice: Number(l.unitPrice) }))
-    if (payload.length === 0) return setError('품목을 1개 이상 입력하세요.')
+      .filter((l) => l.itemId)
+      .map((l) => ({ itemId: Number(l.itemId), quantity: Number(l.quantity) || 0, unitPrice: Number(l.unitPrice) || 0 }))
+    if (payload.length === 0) {
+      return ecAlert('아래의 경우 처리가 불가능합니다.\n자세한 내용은 아래의 사항을 참고하시기 바랍니다.\n아래 사항을 수정 후 다시 진행하시기 바랍니다.\n\n'
+        + `${quoteDate.replace(/-/g, '')} 견적서입력 - 그리드(표)에 최소 1줄 이상 입력되어야 합니다.`)
+    }
+    /* 거래처가 비면 원본 입력 화면들처럼 글 없이 그 칸만 빨갛게(판매 · 주문서와 같다). */
+    if (!partnerId) { setPartnerMissing(true); return }
     setSaving(true)
     try {
-      const res = await api.post<{ quoteNo: string; totalAmount: number }>('/quotations', { partnerId: Number(partnerId), quoteDate,
+      const body = { partnerId: Number(partnerId), quoteDate,
         warehouseId: fWarehouse ? Number(fWarehouse) : undefined,
         projectId: fProject ? Number(fProject) : undefined,
-        validUntil: validUntil || undefined, taxable: true, lines: payload })
-      onSaved(`${res.data.quoteNo} 견적서 작성 완료 (합계 ${res.data.totalAmount.toLocaleString('ko-KR')}원)`)
+        validUntil: validUntil || undefined, taxable: true, lines: payload }
+      if (editing) await api.put(`/quotations/${editing.id}`, body)
+      else await api.post('/quotations', body)
+      onSaved()
     } catch (err) {
       setError(extractErrorMessage(err))
     } finally {
@@ -708,84 +736,100 @@ function QuotationForm({ items, partners, warehouses, projects, onClose, onSaved
     }
   }
 
-  return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,36,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: 720, maxWidth: '94vw', maxHeight: '90vh', overflow: 'auto', border: '1px solid var(--ec-border)', borderRadius: 4, boxShadow: '0 10px 40px rgba(20,36,68,0.3)' }}>
-        <div className="flex items-center py-[12px] px-[16px] border-b border-b-ec-line border-solid bg-ec-page">
-          <span className="font-extrabold text-ec-navy">견적서 작성</span>
-          <span onClick={onClose} className="ml-auto cursor-pointer text-[18px] text-ec-hint">×</span>
-        </div>
-        <div className="p-[16px]">
-          {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
-          <table className="w-full text-left mb-[12px]">
-            <tbody>
-              <tr>
-                <th className="w-[90px] bg-ec-page">거래처<span className="text-ec-danger">*</span></th>
-                <td>
-                  {/*
-                    드롭다운이었다 — 거래처가 수백 곳이면 스크롤로 찾아야 했고, 다른 입력칸(창고·프로젝트·품목)은
-                    다 코드도움이라 이 칸만 달랐다. 코드·이름·대표자·전화로 찾는 공용 코드도움으로. 매입 전용 거래처는 뺀다.
-                  */}
-                  <CodePickerField label="거래처" hideLabel width={240} emptyLabel="선택 안 함" placeholder="매출처 선택"
-                                   value={partnerId} onChange={choosePartner}
-                                   items={partnerCodeItems(partners.filter((p) => p.type !== 'SUPPLIER'))} />
-                </td>
-                <th className="w-[70px] bg-ec-page">견적일</th>
-                <td><input type="date" className="ec-input" value={quoteDate} onChange={(e) => setQuoteDate(e.target.value)} style={{ width: 150 }} /></td>
-              </tr>
-              <tr>
-                <th className="bg-ec-page">유효기한</th>
-                <td><input type="date" className="ec-input" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} style={{ width: 150 }} /></td>
-                <th className="bg-ec-page">창고</th>
-                <td>
-                  <CodePickerField label="창고" hideLabel width={200} emptyLabel="선택 안 함"
-                                   value={fWarehouse} onChange={setFWarehouse}
-                                   items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name }))} />
-                </td>
-              </tr>
-              <tr>
-                <th className="bg-ec-page">프로젝트</th>
-                <td colSpan={3}>
-                  <CodePickerField label="프로젝트" hideLabel width={240} emptyLabel="선택 안 함"
-                                   value={fProject} onChange={setFProject}
-                                   items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
-                </td>
-              </tr>
-            </tbody>
-          </table>
+  async function removeThis() {
+    if (!editing || !(await ecConfirm('전표를 삭제하겠습니까?\n- 견적서'))) return
+    try { await api.delete(`/quotations/${editing.id}`); onSaved() }
+    catch (err) { void ecAlert(extractErrorMessage(err)) }
+  }
 
-          <table className="w-full text-left">
-            <thead><tr><th className="w-[34px]"></th><th>품목</th><th className="w-[90px] text-right">수량</th><th className="w-[110px] text-right">단가</th><th className="text-right">공급가액</th><th className="w-[40px]"></th></tr></thead>
-            <tbody>
-              {lines.map((l, i) => (
+  const th = 'w-[90px] bg-ec-page'
+  return (
+    <Modal open title={editing ? '견적서수정' : '견적서입력'} width={960} onClose={onClose}>
+      <div>
+        {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+        <table className="w-full text-left mb-[8px]">
+          <tbody>
+            <tr>
+              <th className={th}>일자-No.</th>
+              <td>
+                <input type="date" className="ec-input w-[150px]" value={quoteDate} onChange={(e) => setQuoteDate(e.target.value)} />
+                {editing && <span className="ml-[6px] text-ec-label">{editing.quoteNo.split('-').pop()?.replace(/^0+/, '-')}</span>}
+              </td>
+              <th className={th}>거래처</th>
+              <td className={partnerMissing ? 'ec-invalid' : undefined}>
+                <CodePickerField label="거래처" hideLabel width={240} emptyLabel="선택 안 함" placeholder="거래처"
+                                 value={partnerId} onChange={choosePartner}
+                                 items={partnerCodeItems(partners.filter((p) => p.type !== 'SUPPLIER'))} />
+              </td>
+            </tr>
+            <tr>
+              <th className={th}>출하창고</th>
+              <td>
+                <CodePickerField label="출하창고" hideLabel width={240} emptyLabel="선택 안 함" placeholder="출하창고"
+                                 value={fWarehouse} onChange={setFWarehouse}
+                                 items={warehouses.map((w) => ({ value: String(w.id), code: w.code, name: w.name }))} />
+              </td>
+              <th className={th}>프로젝트</th>
+              <td>
+                <CodePickerField label="프로젝트" hideLabel width={240} emptyLabel="선택 안 함" placeholder="프로젝트"
+                                 value={fProject} onChange={setFProject}
+                                 items={projects.map((x) => ({ value: String(x.id), code: x.code, name: x.name }))} />
+              </td>
+            </tr>
+            <tr>
+              <th className={th}>유효기간</th>
+              <td colSpan={3}><input type="date" className="ec-input w-[150px]" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} /></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <table className="w-full text-left">
+          <thead><tr>
+            <th className="w-[37px]"></th><th>품목코드 · 품목명</th><th className="w-[141px]">규격</th>
+            <th className="w-[100px] text-right">수량</th><th className="w-[129px] text-right">단가</th>
+            <th className="w-[129px] text-right">공급가액</th><th className="w-[129px] text-right">부가세</th><th className="w-[119px] text-right">합계</th>
+          </tr></thead>
+          <tbody>
+            {lines.map((l, i) => {
+              const it = items.find((x) => String(x.id) === l.itemId)
+              return (
                 <tr key={i}>
                   <td className="text-center text-ec-hint">{i + 1}</td>
                   <td>
-                    <CodePickerField label="품목" hideLabel fill placeholder="품목 선택" emptyLabel="선택 해제"
+                    <CodePickerField label="품목" hideLabel fill placeholder="품목코드" emptyLabel="선택 해제"
                                      value={l.itemId} onChange={(v) => pickItem(i, v)}
-                                     items={items.map((it) => ({ value: String(it.id), code: it.code, name: it.name, alias: it.searchKeyword, sub: it.spec }))} />
+                                     items={items.map((x) => ({ value: String(x.id), code: x.code, name: x.name, alias: x.searchKeyword, sub: x.spec }))} />
                   </td>
+                  <td>{it?.spec ?? ''}</td>
                   <td><EcNumInput className="ec-input w-full text-right" value={l.quantity} onValue={(v) => setLine(i, { quantity: v })} /></td>
                   <td><EcNumInput className="ec-input w-full text-right" value={l.unitPrice} onValue={(v) => setLine(i, { unitPrice: v })} /></td>
-                  <td className="text-right">{won(calc[i])}</td>
-                  <td className="text-center">{lines.length > 1 && <button className="ec-btn" onClick={() => setLines((ls) => ls.filter((_, idx) => idx !== i))}>×</button>}</td>
+                  <td className="text-right">{l.itemId ? won(calc[i]) : ''}</td>
+                  <td className="text-right">{l.itemId ? won(vats[i]) : ''}</td>
+                  <td className="text-right">{l.itemId ? won(calc[i] + vats[i]) : ''}</td>
                 </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="font-bold bg-ec-page">
-                <td colSpan={4} className="text-right">공급가액 / 부가세 / 합계</td>
-                <td className="text-right" colSpan={2}>{won(supply)} / {won(vat)} / <span className="text-ec-navy">{won(supply + vat)}</span></td>
-              </tr>
-            </tfoot>
-          </table>
-          <button className="ec-btn" style={{ marginTop: 8 }} onClick={() => setLines((ls) => [...ls, emptyLine()])}>+ 행 추가</button>
-        </div>
-        <div className="flex gap-[6px] py-[10px] px-[16px] border-t border-t-ec-line border-solid">
-          <button className="ec-btn ec-btn-primary" onClick={save} disabled={saving}>{saving ? '저장 중…' : '저장(F8)'}</button>
-          <button className="ec-btn" style={{ marginLeft: 'auto' }} onClick={onClose}>닫기</button>
+              )
+            })}
+          </tbody>
+          <tfoot>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={3}></td>
+              <td className="text-right">{won(qtySum)}</td>
+              <td></td>
+              <td className="text-right">{won(supply)}</td>
+              <td className="text-right">{won(vat)}</td>
+              <td className="text-right">{won(supply + vat)}</td>
+            </tr>
+          </tfoot>
+        </table>
+        {/* 추가항목(사용자정의) — Self-Customizing › 사용자정의필드의 [견적서] 정의가 있으면 여기 뜬다(저장된 견적만). */}
+        {editing && <div className="pt-[6px]"><CustomFieldsPanel entityType="QUOTE" entityId={editing.id} /></div>}
+        <div className="flex gap-[6px] mt-[10px]">
+          <button className="ec-btn ec-btn-primary" onClick={() => void save()} disabled={saving}>저장(F8)</button>
+          <button className="ec-btn" onClick={reset}>다시 작성</button>
+          <button className="ec-btn" onClick={onClose}>{editing ? '닫기' : '리스트'}</button>
+          {editing && <button className="ec-btn" onClick={() => void removeThis()}>삭제</button>}
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }

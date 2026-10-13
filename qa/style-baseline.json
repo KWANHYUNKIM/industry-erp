@@ -1115,8 +1115,8 @@
   "palette": 0
  },
  "pages/trade/QuotationPage.tsx": {
-  "inline": 21,
-  "color": 3,
+  "inline": 13,
+  "color": 1,
   "palette": 0
  },
  "pages/trade/SalesOrderPage.tsx": {

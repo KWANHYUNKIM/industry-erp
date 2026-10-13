@@ -296,7 +296,7 @@ const MENU: TopMenu[] = [
             label: '영업관리현황',
             children: [
               { label: '판매현황', to: '/sales/sales-status' },
-              { label: '견적서현황', to: '/sales/quotations' },
+              { label: '견적서현황', to: '/sales/quotations?view=status' },
               { label: '주문서현황', to: '/sales/order-status' },
               { label: '출하지시서현황', to: '/sales/shipment-order-status' },
               { label: '출하현황', to: '/sales/shipment' },

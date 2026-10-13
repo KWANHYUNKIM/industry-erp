@@ -39,9 +39,10 @@ import ItemSuggestInput from '../../features/item/components/ItemSuggestInput'
  * 이 화면의 기간 빠른선택은 '종료일'과 '전월+금월'이 둘 다 붙는다(원본 확인).
  */
 
-/** 미주문 = 아직 수주 전환/취소되지 않은 상태 */
-const OPEN_STATUS: QuotationStatus[] = ['DRAFT', 'SENT']
-const statusColor = (s: QuotationStatus) => (s === 'SENT' ? 'var(--ec-blue)' : 'var(--ec-label)')
+/** 진행상태 고르기 — 원본 견적 진행상태(미확인 · 진행중 · 완료). 미주문은 상태가 아니라 '주문서로 아직 안 넘어간 것'이다. */
+const OPEN_STATUS: QuotationStatus[] = ['UNCONFIRMED', 'IN_PROGRESS', 'COMPLETED']
+const STATUS_NAME: Record<QuotationStatus, string> = { UNCONFIRMED: '미확인', IN_PROGRESS: '진행중', COMPLETED: '완료', CANCELLED: '취소' }
+const statusColor = (s: QuotationStatus) => (s === 'IN_PROGRESS' ? 'var(--ec-blue)' : 'var(--ec-label)')
 
 interface Row {
   key: string
@@ -165,7 +166,7 @@ export default function UnorderedStatusPage() {
       const today = todayStr()
       const flat: Row[] = []
       for (const q of res.data) {
-        if (!OPEN_STATUS.includes(q.status)) continue   // 수주전환·취소 견적은 미주문 아님
+        if (q.convertedOrderId != null || q.status === 'CANCELLED') continue   // 주문서로 넘어간 · 취소한 견적은 미주문 아님
         q.lines.forEach((l) => flat.push({
           key: `${q.id}-${l.id}`,
           date: q.quoteDate,
@@ -408,7 +409,7 @@ export default function UnorderedStatusPage() {
           <select className="ec-input" value={filters.status} style={{ width: 120 }}
                   onChange={(e) => setF({ status: e.target.value as Filters['status'] })}>
             <option value="">전체</option>
-            {OPEN_STATUS.map((k) => <option key={k} value={k}>{k === 'DRAFT' ? '작성' : '발송'}</option>)}
+            {OPEN_STATUS.map((k) => <option key={k} value={k}>{STATUS_NAME[k]}</option>)}
           </select>
         </EcCond>
         <EcCond label="작성자">
