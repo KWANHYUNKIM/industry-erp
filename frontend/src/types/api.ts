@@ -1652,6 +1652,8 @@ export interface WorkPost {
   weekNo?: number | null
   /** 통합회의록 부서 칸(경영지원팀 · 구매팀 · 생산팀 · 영업팀 회의록)에 이은 팀별회의록 글 id, 칸 차례대로(빈 칸 null) */
   meetingLinks?: (number | null)[]
+  /** 업무관리 예시 게시판의 입력항목(이름:값 JSON). 없으면 null. */
+  extraFields?: string | null
 }
 
 // ===== ECDrive 문서 드라이브 =====

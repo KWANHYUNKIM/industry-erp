@@ -1001,6 +1001,39 @@ const MENU: TopMenu[] = [
       {
         label: '업무관리',
         nodes: [
+          // 원본 사이트맵 차례(2026-10-14): 예시 게시판들 → ECDrive → 업무일지 → 출/퇴근. 게시판은 회사가 만든 예시라 이름에 이모지가 붙는다.
+          { label: '🔹 이카운트 AI 활용 예시 🔹', to: '/groupware/ai-guide' },
+          {
+            label: '칸반보드(건설업)',
+            children: [
+              { label: '🏗️ 현장공사일지', to: '/groupware/site-log' },
+              { label: '📊 공사진행현황', to: '/groupware/site-status' },
+            ],
+          },
+          {
+            label: '칸반보드(IT개발업)',
+            children: [
+              { label: '📅 개발업무일지', to: '/groupware/dev-log' },
+              { label: '📈 개발진행현황', to: '/groupware/dev-status' },
+            ],
+          },
+          {
+            label: '계약관리 게시판 (예시)',
+            children: [
+              { label: '🎧 상담 이력관리', to: '/groupware/consult-board' },
+              { label: '🤝🏻 영업 방문관리', to: '/groupware/visit-board' },
+              { label: '📑 최종 계약관리', to: '/groupware/contract-board' },
+              { label: '🛠️ A/S 관리', to: '/groupware/as-board' },
+            ],
+          },
+          {
+            label: '차량관리 게시판 (예시)',
+            children: [
+              { label: '🚗 1. 차량 정보관리', to: '/groupware/car-info' },
+              { label: '🚗 2. 차량 증빙관리', to: '/groupware/car-doc' },
+              { label: '🚗 3. 차량 운행관리', to: '/groupware/car-run' },
+            ],
+          },
           { label: 'ECDrive', to: '/groupware/drive' },
           // 원본에서 '업무관리게시판'은 묶음이고 그 안에 게시판('WORK')이 있다.
           // 우리가 따로 두던 '업무관리게시판' 화면은 WORK 와 같은 것이라 지웠다.

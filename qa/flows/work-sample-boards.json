@@ -1,0 +1,58 @@
+{
+  "about": "그룹웨어 › 업무관리 의 예시 게시판(원본 2026-10-14 loginaa 실측) — 🚗 1. 차량 정보관리(E200172): 격자 게시글번호 · 제목 · 차량번호 · 출고일자 · 작성자명 · 전달자 · 진행상태 · 첨부 · 조회, 알약 [전체][진행중][완료][진행상태를 자유롭게 추가 가능합니다]. 제목 · 출고일자 · 차량번호만 넣고 본문 없이 [저장(F8)] → 저장된다. 기본 기간이 전년이라 목록에 안 보이고 [Search(F3)] [금년] [검색(F8)] 로 보인다. [선택삭제] '삭제하겠습니까?' 로 지운다. 다른 게시판은 머리 글자만 본다. node qa/shot.mjs qa/flows/work-sample-boards.json",
+  "shots": [
+    {
+      "name": "차량 정보관리 — 머리 · 알약 · 본문 없이 저장 → 금년 → 줄 → 선택삭제",
+      "path": "/groupware/car-info",
+      "steps": [
+        "wait:800",
+        "expect:[...document.querySelectorAll('thead th')].map((t) => t.textContent.trim()).slice(1).join(',') === '게시글번호,제목,차량번호,출고일자,작성자명,전달자,진행상태,첨부,조회'",
+        "expect:[...document.querySelectorAll('.ec-pill')].map((p) => p.textContent.trim()).join(',') === '전체,진행중,완료,진행상태를 자유롭게 추가 가능합니다'",
+        "click:신규(F2)",
+        "wait:500",
+        "js:(() => { const d = document.querySelector('[role=dialog]'); const put = (el, v) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })) }; put(d.querySelector('input[placeholder=\"제목\"]'), 'QA그룹웨어- 차량 정보 시험'); put(d.querySelector('input[aria-label=\"차량번호\"]'), 'QA12가3456'); put(d.querySelector('input[aria-label=\"출고일자\"]'), '2026-10-14'); return true })()",
+        "click:저장(F8)",
+        "wait:1200",
+        "expect:!document.querySelector('[role=dialog]')",
+        "expect:![...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA그룹웨어- 차량 정보 시험'))",
+        "click:Search(F3)",
+        "wait:400",
+        "click:금년",
+        "click:검색(F8)",
+        "wait:1000",
+        "expect:[...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA그룹웨어- 차량 정보 시험') && tr.innerText.includes('QA12가3456') && tr.innerText.includes('2026/10/14') && tr.innerText.includes('진행중'))",
+        "js:window.confirm = () => true; const tr = [...document.querySelectorAll('tbody tr')].find((r) => r.innerText.includes('QA그룹웨어- 차량 정보 시험')); tr.cells[0].click(); true",
+        "click:선택삭제",
+        "wait:400",
+        "clicklast:확인",
+        "wait:1200",
+        "expect:![...document.querySelectorAll('tbody tr')].some((tr) => tr.innerText.includes('QA그룹웨어- 차량 정보 시험'))"
+      ]
+    },
+    {
+      "name": "현장공사일지 — 현장명 열 · 공정 흐름",
+      "path": "/groupware/site-log",
+      "steps": [
+        "wait:800",
+        "expect:[...document.querySelectorAll('thead th')].map((t) => t.textContent.trim()).slice(1).join(',') === '게시글번호,현장명,제목,작성자명,전달자,공정 흐름,첨부,조회'",
+        "expect:[...document.querySelectorAll('.ec-pill')].map((p) => p.textContent.trim()).join(',') === '전체,지반조사,측량,기초굴토,가설'"
+      ]
+    },
+    {
+      "name": "AI 활용 예시 — 다섯 열",
+      "path": "/groupware/ai-guide",
+      "steps": [
+        "wait:800",
+        "expect:[...document.querySelectorAll('thead th')].map((t) => t.textContent.trim()).slice(1).join(',') === '게시글번호,제목,작성자명,첨부,조회'"
+      ]
+    },
+    {
+      "name": "차량 운행관리 — 차량증빙 · 차량정보",
+      "path": "/groupware/car-run",
+      "steps": [
+        "wait:800",
+        "expect:[...document.querySelectorAll('thead th')].map((t) => t.textContent.trim()).slice(1).join(',') === '게시글번호,제목,차량증빙,차량정보,작성자명,진행상태,첨부,조회'"
+      ]
+    }
+  ]
+}

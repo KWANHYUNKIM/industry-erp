@@ -201,6 +201,7 @@ const MyApprovalPage = lazy(() => import('../pages/groupware/MyApprovalPage'))
 const ApprovalAllPage = lazy(() => import('../pages/groupware/ApprovalAllPage'))
 const ApprovalSettingPage = lazy(() => import('../pages/groupware/ApprovalSettingPage'))
 const EcDrivePage = lazy(() => import('../pages/groupware/EcDrivePage'))
+const WorkSampleBoardPage = lazy(() => import('../pages/groupware/WorkSampleBoardPage'))
 const AnonymousBoardPage = lazy(() => import('../pages/groupware/AnonymousBoardPage'))
 const FieldWorkPage = lazy(() => import('../pages/groupware/FieldWorkPage'))
 const FieldWorkStatusPage = lazy(() => import('../pages/groupware/FieldWorkStatusPage'))
@@ -820,6 +821,18 @@ export default function AppRouter() {
         <Route path="/groupware/approval/all" element={<ApprovalAllPage />} />
         <Route path="/groupware/approval/settings" element={<ApprovalSettingPage />} />
         <Route path="/groupware/drive" element={<EcDrivePage />} />
+        <Route path="/groupware/ai-guide" element={<WorkSampleBoardPage />} />
+        <Route path="/groupware/site-log" element={<WorkSampleBoardPage />} />
+        <Route path="/groupware/site-status" element={<WorkSampleBoardPage />} />
+        <Route path="/groupware/dev-log" element={<WorkSampleBoardPage />} />
+        <Route path="/groupware/dev-status" element={<WorkSampleBoardPage />} />
+        <Route path="/groupware/consult-board" element={<WorkSampleBoardPage />} />
+        <Route path="/groupware/visit-board" element={<WorkSampleBoardPage />} />
+        <Route path="/groupware/contract-board" element={<WorkSampleBoardPage />} />
+        <Route path="/groupware/as-board" element={<WorkSampleBoardPage />} />
+        <Route path="/groupware/car-info" element={<WorkSampleBoardPage />} />
+        <Route path="/groupware/car-doc" element={<WorkSampleBoardPage />} />
+        <Route path="/groupware/car-run" element={<WorkSampleBoardPage />} />
         <Route path="/groupware/anonymous-board" element={<AnonymousBoardPage />} />
         <Route path="/groupware/field-works" element={<FieldWorkPage />} />
         <Route path="/groupware/field-work-status" element={<FieldWorkStatusPage />} />

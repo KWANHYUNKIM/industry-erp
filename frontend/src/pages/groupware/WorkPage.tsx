@@ -53,12 +53,24 @@ type Form = {
   title: string; content: string; forwardAll: boolean; forwardTo: string[]; ccTo: string[]; notice: boolean; postDate: string; stage: string
   /** 통합회의록 [주 차 구분] 1 ~ 5 · 부서 칸마다 이은 팀별회의록 글 id(MINUTE_TEAMS 차례). */
   weekNo: number | null; links: (number | null)[]
+  /** 업무관리 예시 게시판의 입력항목(이름 → 값). BoardCfg.extras. */
+  extra: Record<string, string>
 }
 const emptyForm = (stage = ''): Form => ({
-  title: '', content: '', forwardAll: true, forwardTo: [], ccTo: [], notice: false, postDate: today(), stage, weekNo: null, links: [null, null, null, null],
+  title: '', content: '', forwardAll: true, forwardTo: [], ccTo: [], notice: false, postDate: today(), stage, weekNo: null, links: [null, null, null, null], extra: {},
 })
 
 export type PostBoardCode = 'WORK' | 'NOTICE' | 'SHARED' | 'MEETING' | 'SIGN' | 'MINUTES'
+  | 'AI_GUIDE' | 'SITE_LOG' | 'SITE_STATUS' | 'DEV_LOG' | 'DEV_STATUS'
+  | 'CONSULT' | 'VISIT' | 'CONTRACT' | 'AS_CARE' | 'CAR_INFO' | 'CAR_DOC' | 'CAR_RUN'
+
+/**
+ * 격자 열(업무관리 예시 게시판 — 원본은 게시판마다 열을 고른다). 'x:이름' 은 입력항목 값, 'x:이름|머리' 는 머리 글자가 다를 때.
+ * 행머리(선택) · 첨부 · 조회는 늘 앞뒤에 붙는다.
+ */
+type Col = 'no' | 'dateNo' | 'title' | 'writer' | 'forward' | 'stage' | 'postDate' | `x:${string}`
+/** 입력 창의 게시판별 입력항목. 원본 '항목추가' 로 회사가 고른 칸이다. */
+type Extra = { name: string; type: 'text' | 'date' }
 
 /**
  * 통합회의록(E200066, 2026-10-13 실측)의 부서 칸 — 격자 머리 '경영지원팀 회의록 · 구매팀 회의록 · 생산팀 회의록 · 영업팀 회의록',
@@ -81,7 +93,18 @@ type BoardCfg = {
   stageLabel?: string; defaultStage?: string
   /** 통합회의록 꼴: 작성자 · 전달자 · 진행상태 열 대신 부서 회의록 넷 · 주 차, 입력 창에 부서 칸 · [주 차 구분]. */
   minutes?: boolean
+  /** 업무관리 예시 게시판: 격자 열 차례(없으면 wide · minutes 로 정한 예전 꼴). */
+  cols?: Col[]
+  /** 업무관리 예시 게시판: 입력 창의 게시판별 입력항목. */
+  extras?: Extra[]
+  /** 알약 끝의 '진행상태를 자유롭게 추가 가능합니다' (원본 공지사항 · 계약관리 · 차량관리 게시판). */
+  freePill?: boolean
+  /** 본문 없이 저장되는가(서버 PostBoard#contentOptional). */
+  contentOptional?: boolean
 }
+/** 원본 '계약관리 게시판(예시)' 셋 — 진행상태 '기본' 하나, 격자는 공지사항과 같은 꼴(2026-10-14 실측). */
+const PLAIN_COLS: Col[] = ['no', 'title', 'writer', 'forward', 'stage']
+const SAMPLE = { wide: false, period: 'lastYear', contentOptional: true } as const
 const BOARD_CFG: Record<PostBoardCode, BoardCfg> = {
   WORK: { wide: false, stages: null, labels: true, period: 'yearBack' },
   NOTICE: { wide: false, stages: ['기본'], labels: true, period: 'yearBack' },
@@ -101,7 +124,57 @@ const BOARD_CFG: Record<PostBoardCode, BoardCfg> = {
    * 통합회의록(E200066, 2026-10-13 직접 등록 · 수정 · 삭제): 알약 [전체][진행중][완료], 기본 기간 전년, 라벨 없음.
    * 격자 게시글번호 · 제목 · 경영지원팀 회의록 · 구매팀 회의록 · 생산팀 회의록 · 영업팀 회의록 · 주 차 · 첨부 · 조회.
    */
-  MINUTES: { wide: false, stages: null, labels: false, period: 'lastYear', minutes: true },
+  MINUTES: { wide: false, stages: null, labels: false, period: 'lastYear', minutes: true, contentOptional: true },
+  /*
+   * 업무관리 의 예시 게시판(2026-10-14 loginaa 목록 · 입력 창 실측). 원본 목록의 글은 모두 '이카운트' 가 쓴 예시라
+   * 우리 쪽은 빈 게시판으로 시작한다. 원본에서 🚗 1. 차량 정보관리에 제목만 넣고 저장 → 저장됨(본문 없이), 번호는 그 게시판 혼자 센다.
+   */
+  // 🔹 이카운트 AI 활용 예시 🔹 (E200188): 게시글번호 · 제목 · 작성자명 · 첨부 · 조회, 알약 진행중 · 완료, 기본 기간 최근 1년, 라벨 없음.
+  AI_GUIDE: { ...SAMPLE, period: 'yearBack', stages: null, labels: false, cols: ['no', 'title', 'writer'] },
+  // 🏗️ 현장공사일지 (E200176): 게시글번호 · 현장명 · 제목 · 작성자명 · 전달자 · 공정 흐름. 입력 창 [공정 흐름] 처음 값 '측량'.
+  SITE_LOG: {
+    ...SAMPLE, labels: true, stageLabel: '공정 흐름', stages: ['지반조사', '측량', '기초굴토', '가설'], defaultStage: '측량',
+    cols: ['no', 'x:현장명', 'title', 'writer', 'forward', 'stage'], extras: [{ name: '현장명', type: 'text' }],
+  },
+  // 📊 공사진행현황 (E200178): 일자-No. · 게시글번호 · 제목 · 작성자명 · 전달자 · 진행상태, 알약 진행중 · 완료, 라벨 없음.
+  SITE_STATUS: { ...SAMPLE, stages: null, labels: false, cols: ['dateNo', 'no', 'title', 'writer', 'forward', 'stage'] },
+  // 📅 개발업무일지 (E200174): 게시글번호 · 프로젝트명 · 제목 · 작성자명 · 진행상태. 입력 창 [진행상태] 처음 값 '기획', 거래처 · 프로젝트 · 담당자 · 비고.
+  DEV_LOG: {
+    ...SAMPLE, labels: true, stages: ['요구분석', '기획', '디자인', '개발', '테스트', '디버깅', '오픈(완료)'], defaultStage: '기획',
+    cols: ['no', 'x:프로젝트|프로젝트명', 'title', 'writer', 'stage'],
+    extras: [{ name: '거래처', type: 'text' }, { name: '프로젝트', type: 'text' }, { name: '담당자', type: 'text' }, { name: '비고', type: 'text' }],
+  },
+  // 📈 개발진행현황 (E200186): 게시글번호 · 제목 · 전달자 · 일자 · 작성자명 · 진행상태, 알약 진행중 · 완료.
+  DEV_STATUS: { ...SAMPLE, stages: null, labels: true, cols: ['no', 'title', 'forward', 'postDate', 'writer', 'stage'] },
+  // 계약관리 게시판(예시) 🎧 · 🤝🏻 · 📑 (E200166 · E200168 · E200170): 알약 [전체][기본][진행상태를 자유롭게 추가 가능합니다].
+  CONSULT: { ...SAMPLE, labels: true, stages: ['기본'], freePill: true, cols: PLAIN_COLS },
+  VISIT: { ...SAMPLE, labels: true, stages: ['기본'], freePill: true, cols: PLAIN_COLS },
+  CONTRACT: { ...SAMPLE, labels: true, stages: ['기본'], freePill: true, cols: PLAIN_COLS },
+  // 🛠️ A/S 관리 (E200184): 게시글번호 · 수리요청일 · 제목 · 작성자명 · 전달자 · 진행상태, 알약 [전체][기본].
+  AS_CARE: {
+    ...SAMPLE, labels: true, stages: ['기본'], cols: ['no', 'x:수리요청일', 'title', 'writer', 'forward', 'stage'],
+    extras: [{ name: '수리요청일', type: 'date' }],
+  },
+  // 🚗 1. 차량 정보관리 (E200172): 게시글번호 · 제목 · 차량번호 · 출고일자 · 작성자명 · 전달자 · 진행상태. 입력 창 제목 아래 [출고일자] · [차량번호].
+  CAR_INFO: {
+    ...SAMPLE, labels: true, stages: null, freePill: true, cols: ['no', 'title', 'x:차량번호', 'x:출고일자', 'writer', 'forward', 'stage'],
+    extras: [{ name: '출고일자', type: 'date' }, { name: '차량번호', type: 'text' }],
+  },
+  // 🚗 2. 차량 증빙관리 (E200180): 공지사항 꼴, 알약 진행중 · 완료 + 자유롭게 추가.
+  CAR_DOC: { ...SAMPLE, labels: true, stages: null, freePill: true, cols: PLAIN_COLS },
+  // 🚗 3. 차량 운행관리 (E200182): 게시글번호 · 제목 · 차량증빙 · 차량정보 · 작성자명 · 진행상태, 라벨 없음.
+  CAR_RUN: { ...SAMPLE, labels: false, stages: null, freePill: true, cols: ['no', 'title', 'x:차량증빙', 'x:차량정보', 'writer', 'stage'] },
+}
+
+/** 서버가 진행상태 이름을 stage 에 적는 게시판(PostBoard#namedStages). */
+const NAMED_STAGE_BOARDS = new Set<PostBoardCode>(['SHARED', 'MEETING', 'SIGN', 'SITE_LOG', 'DEV_LOG', 'CONSULT', 'VISIT', 'CONTRACT', 'AS_CARE'])
+const colHead = (c: Col, stageLabel: string) => {
+  if (c.startsWith('x:')) { const [k, h] = c.slice(2).split('|'); return h ?? k }
+  return ({ no: '게시글번호', dateNo: '일자-No.', title: '제목', writer: '작성자명', forward: '전달자', stage: stageLabel, postDate: '일자' } as Record<string, string>)[c]
+}
+function parseExtra(json?: string | null): Record<string, string> {
+  if (!json) return {}
+  try { const o = JSON.parse(json); return o && typeof o === 'object' ? o : {} } catch { return {} }
 }
 
 /**
@@ -130,8 +203,8 @@ const BOARD_CFG: Record<PostBoardCode, BoardCfg> = {
 export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: PostBoardCode; title?: string } = {}) {
   const cfg = BOARD_CFG[board]
   /** 서버가 stage 를 적는 게시판(공지사항의 '기본'은 화면에서만 붙이는 이름이라 뺀다). */
-  const namedStages = board === 'SHARED' || board === 'MEETING' || board === 'SIGN'
-  const colCount = cfg.minutes ? 10 : cfg.wide ? 9 : 8
+  const namedStages = NAMED_STAGE_BOARDS.has(board)
+  const colCount = cfg.cols ? cfg.cols.length + 3 : cfg.minutes ? 10 : cfg.wide ? 9 : 8
   const [rows, setRows] = useState<WorkPost[]>([])
   const [tab, setTab] = useState<string>('전체')
   /*
@@ -274,6 +347,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
       notice: r.notice, postDate: r.postDate, stage: r.stage ?? '',
       weekNo: r.weekNo ?? null,
       links: MINUTE_TEAMS.map((_, i) => r.meetingLinks?.[i] ?? null),
+      extra: parseExtra(r.extraFields),
     })
     setAttachment(r.attachmentId ? { id: r.attachmentId, name: r.attachmentName ?? '첨부' } : null)
     setError('')
@@ -322,7 +396,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
     setError('')
     if (!form.title.trim()) return setError('제목을 입력하세요.')
     // 통합회의록은 내용 없이도 저장된다(원본 2026-10-13 — 부서 칸 · 주 차만 넣고 저장).
-    if (!cfg.minutes && !form.content.trim()) return setError('내용을 입력하세요.')
+    if (!cfg.contentOptional && !form.content.trim()) return setError('내용을 입력하세요.')
     if (!form.forwardAll && form.forwardTo.length === 0) return setError('전달자를 선택하세요.')
     const common = {
       title: form.title, content: form.content,
@@ -335,6 +409,9 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
       attachmentId: attachment ? attachment.id : null,
       weekNo: cfg.minutes ? form.weekNo : null,
       meetingLinks: cfg.minutes ? form.links : null,
+      extraFields: cfg.extras && Object.values(form.extra).some((v) => v.trim())
+        ? JSON.stringify(Object.fromEntries(cfg.extras.map((x) => [x.name, (form.extra[x.name] ?? '').trim()]).filter(([, v]) => v)))
+        : null,
     }
     try {
       if (editId != null) {
@@ -486,6 +563,40 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
   /** 격자 한 줄의 데이터 칸(게시글번호부터). 맨 위 공지 줄과 번호 붙은 줄이 같이 쓴다. */
   const cells = (r: WorkPost, pin: boolean) => {
     const bg = pin ? 'bg-ec-pinned' : ''
+    if (cfg.cols) {
+      const ex = parseExtra(r.extraFields)
+      return (
+        <>
+          {cfg.cols.map((c) => {
+            if (c === 'title') return (
+              <td key={c} className={bg}>
+                {cfg.labels && (r.labels ?? []).map((l) => <LabelChip key={l} name={l} color={colorOf(l)} className="mr-[4.5px]" />)}
+                <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-left text-ec-navy"
+                        onClick={() => openView(r)}>{r.title}</button>
+              </td>
+            )
+            if (c.startsWith('x:')) {
+              const v = ex[c.slice(2).split('|')[0]] ?? ''
+              return <td key={c} className={`${bg}${/^\d{4}-\d\d-\d\d$/.test(v) ? ' text-center' : ''}`}>{/^\d{4}-\d\d-\d\d$/.test(v) ? dateText(v) : v}</td>
+            }
+            const text = c === 'no' ? r.postNo : c === 'dateNo' ? `${dateText(r.postDate)} -1` : c === 'writer' ? (r.writerName ?? r.writer)
+              : c === 'forward' ? (r.forwardTo ?? '') : c === 'postDate' ? dateText(r.postDate) : statusOf(r)
+            return <td key={c} className={`${bg}${c === 'stage' ? ' text-ec-navy' : ''}${c === 'postDate' || c === 'dateNo' ? ' text-center' : ''}`}>{text}</td>
+          })}
+          <td className={`${bg} text-center`}>
+            {r.attachmentId && (
+              <span title={`${r.attachmentName} (${formatBytes(r.attachmentSize ?? 0)})`}
+                    onClick={() => void downloadStoredFile(r.attachmentId!, r.attachmentName ?? '첨부')}
+                    className="cursor-pointer text-ec-blue">📎</span>
+            )}
+          </td>
+          <td className={`${bg} text-center`}>
+            <button type="button" className="no-ec bg-transparent border-0 p-0 cursor-pointer text-ec-navy"
+                    title={`연 횟수 ${r.viewCount ?? 0}`} onClick={() => void openReaders(r)}>R</button>
+          </td>
+        </>
+      )
+    }
     return (
       <>
         <td className={bg}>{r.postNo}</td>
@@ -544,7 +655,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
             </button>
           ))}
           {/* 원본 공지사항은 알약 끝에 이 안내가 붙는다(누르면 회사 진행상태 설정 — 우리에게는 아직 없다). */}
-          {board === 'NOTICE' && <span className="ec-pill no-ec">진행상태를 자유롭게 추가 가능합니다</span>}
+          {(board === 'NOTICE' || cfg.freePill) && <span className="ec-pill no-ec">진행상태를 자유롭게 추가 가능합니다</span>}
         </div>
         <div className="ml-auto flex gap-[4px]">
           {cfg.labels && <span className="relative">
@@ -635,6 +746,9 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
                 {shown.length > 0 && selected.size === shown.length ? '☑' : ''}
               </th>
               {/* 원본 컬럼 순서: 게시글번호 · 제목 · 작성자명 · 전달자 · 진행상태 · 첨부 · 조회 */}
+              {cfg.cols ? cfg.cols.map((c) => (
+                <th key={c} className={`${c === 'title' ? '' : c === 'stage' || c === 'forward' ? 'w-[150px] ' : 'w-[100px] '}text-center`}>{colHead(c, stageLabel)}</th>
+              )) : <>
               <th className="w-[90px] text-center">{cfg.wide ? '번호' : '게시글번호'}</th>
               <th className="text-center">제목</th>
               {cfg.minutes ? (
@@ -650,6 +764,7 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
                   <th className="w-[150px] text-center">{stageLabel}</th>
                 </>
               )}
+              </>}
               <th className="w-[60px] text-center">첨부</th>
               <th className="w-[60px] text-center">조회</th>
             </tr>
@@ -823,6 +938,16 @@ export default function WorkPage({ board = 'WORK', title = 'WORK' }: { board?: P
               </label>
             </div>
           </li>
+          {/* 게시판별 입력항목(원본 🚗 1. 차량 정보관리: 제목 아래 [출고일자] · [차량번호]). */}
+          {cfg.extras?.map((x) => (
+            <li key={x.name}>
+              <div className="title">{x.name}</div>
+              <div className="form">
+                <input className="ec-input w-full" type={x.type} placeholder={x.name} aria-label={x.name}
+                       value={form.extra[x.name] ?? ''} onChange={(e) => set('extra', { ...form.extra, [x.name]: e.target.value })} />
+              </div>
+            </li>
+          ))}
           <li className="wide">
             <div className="title">첨부</div>
             <div className="form">
