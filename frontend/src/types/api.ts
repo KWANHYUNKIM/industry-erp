@@ -3355,7 +3355,7 @@ export interface SimplePaymentStatement {
 export interface SimplePaymentSheet {
   statement: SimplePaymentStatement
   labor: { employeeName: string; workFrom: string; workTo: string; monthlyPay: (number | null)[]; total: number }[]
-  payees: { payeeName: string; payeeRegNo: string | null; count: number; gross: number; expense: number; taxable: number;
+  payees: { payeeName: string; payeeRegNo: string | null; incomeCode: string | null; count: number; gross: number; expense: number; taxable: number;
     rate: number; incomeTax: number; localIncomeTax: number }[]
   daily: { name: string; days: number; lastDate: string | null; taxable: number; incomeTax: number; localIncomeTax: number }[]
 }

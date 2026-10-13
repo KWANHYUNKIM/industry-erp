@@ -63,7 +63,11 @@ function defaults(kind: SimplePaymentKind, keep?: Partial<Form>): Form {
  *
  * <p>전자파일(생성 · 목록) · 이력 열은 국세청 제출 파일이라 두지 않았다. ⑤총 지급액은 사업 · 기타소득 서식 모두 합계다
  * (원본은 읽기전용 입력칸이라 innerText 로는 빈칸처럼 보인다 — 2026-10-13 2026/08 사업소득 2,119,828 · 기타소득 11,181,764).
- * 같은 자료구분 · 지급연월은 두 번 못 만든다('이미 생성된 자료입니다.').
+ * 같은 자료구분 · 지급연월은 두 번 못 만든다('이미 생성된 자료입니다.'). 수정 창은 자료구분 · 지급연월이 잠긴다.
+ *
+ * <p>사업 · 기타소득 서식은 만들 때의 기타원천세를 담아 두고, 그 뒤에 넣은 지급은 [새로불러오기] 를 눌러야 들어온다
+ * (2026-10-14 원본 QA세무-강사 2026/10: 1,000,000 으로 만들고 200,000 을 더 넣어도 1,000,000 → [새로불러오기] 1,200,000).
+ * 같은 소득자 · 업종코드는 한 줄로 합치고, 기타소득은 소득코드 76 · 79 만 싣는다.
  */
 export default function SimplePaymentPage() {
   return <StatementListPage daily={false} />
@@ -177,7 +181,7 @@ export function StatementListPage({ daily }: { daily: boolean }) {
         <Modal open error={formError} title={daily ? '일용근로지급명세서파일생성' : '간이지급명세서파일생성'} width={760} onClose={() => setForm(null)}>
           <ul className="ec-form">
             {!daily && <><EcCond label="자료구분" span={2}>
-              <select className="ec-input w-full" value={form.kind}
+              <select className="ec-input w-full" value={form.kind} disabled={!!form.id}
                       onChange={(e) => setForm(defaults(e.target.value as SimplePaymentKind, form))}>
                 {KINDS.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}
               </select>
@@ -188,11 +192,11 @@ export function StatementListPage({ daily }: { daily: boolean }) {
               </select>
             </EcCond></>}
             <EcCond label="지급연월" span={2}>
-              <select className="ec-input w-[160px]" value={form.payYear}
+              <select className="ec-input w-[160px]" value={form.payYear} disabled={!!form.id && !daily}
                       onChange={(e) => setForm({ ...form, payYear: Number(e.target.value) })}>
                 {years.map((y) => <option key={y} value={y}>{y}</option>)}
               </select>
-              <select className="ec-input w-[160px]" value={form.period}
+              <select className="ec-input w-[160px]" value={form.period} disabled={!!form.id && !daily}
                       onChange={(e) => setForm({ ...form, period: Number(e.target.value) })}>
                 {form.kind === 'LABOR'
                   ? <><option value={1}>상반기(1~6)</option><option value={2}>하반기(7~12)</option></>
@@ -256,10 +260,18 @@ function SheetModal({ id, company, onClose }: { id: number; company: Company | n
   const [sheet, setSheet] = useState<SimplePaymentSheet | null>(null)
   const [error, setError] = useState('')
   const [copy, setCopy] = useState<SheetCopy>('KEEP')
+  const [confirmReload, setConfirmReload] = useState(false)
   const paperRef = useRef<HTMLDivElement>(null)
   function load() {
     setError('')
     api.get<SimplePaymentSheet>(`/simple-payment-statements/${id}/sheet`)
+      .then((r) => setSheet(r.data)).catch((e) => setError(extractErrorMessage(e)))
+  }
+  /** 원본 [새로불러오기] — 확인 창 뒤 그 달 기타원천세를 다시 세어 담아 둔다(사업 · 기타소득). */
+  function reload() {
+    setConfirmReload(false)
+    setError('')
+    api.post<SimplePaymentSheet>(`/simple-payment-statements/${id}/reload`)
       .then((r) => setSheet(r.data)).catch((e) => setError(extractErrorMessage(e)))
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -293,7 +305,7 @@ function SheetModal({ id, company, onClose }: { id: number; company: Company | n
       <div className="flex gap-[6px] mt-[12px]">
         {/* 원본 사업 · 기타소득 서식: [인쇄] · Excel · [새로불러오기] · [닫기] · H · 도장인쇄 · [지급자 보관용 ▼] */}
         {payee && <button className="ec-btn ec-btn-primary" onClick={print}>인쇄</button>}
-        <button className="ec-btn" onClick={load}>새로불러오기</button>
+        <button className="ec-btn" onClick={() => (payee ? setConfirmReload(true) : load())}>새로불러오기</button>
         <button className="ec-btn" onClick={onClose}>닫기</button>
         {payee && (
           <select className="ec-input w-[120px]" aria-label="보관용" value={copy} onChange={(e) => setCopy(e.target.value as SheetCopy)}>
@@ -302,6 +314,15 @@ function SheetModal({ id, company, onClose }: { id: number; company: Company | n
           </select>
         )}
       </div>
+      {confirmReload && (
+        <Modal open title="확인" width={420} onClose={() => setConfirmReload(false)}>
+          <p className="mb-[12px]">직접 수정한 사항은 유지되지 않으며,<br />입력된 자료를 바탕으로 새로 불러옵니다.<br />진행하시겠습니까?</p>
+          <div className="flex gap-[6px]">
+            <button className="ec-btn ec-btn-primary" onClick={reload}>확인</button>
+            <button className="ec-btn" onClick={() => setConfirmReload(false)}>취소</button>
+          </div>
+        </Modal>
+      )}
     </Modal>
   )
 }
@@ -312,8 +333,9 @@ function LaborSheet({ sheet, company, address }: { sheet: SimplePaymentSheet; co
   const total = sheet.labor.reduce((t, r) => t + Number(r.total), 0)
   return (
     <>
-      <p>소득세법 시행규칙 [별지 제24호의4서식(1)]</p>
-      <div className="ec-report-title">간이지급명세서<br />(근로소득)</div>
+      <p className="flex justify-between"><span>■ 소득세법 시행규칙 [별지 제24호의4서식(1)] &lt;개정 2021.7.1&gt;</span><span>(3쪽 중 제1쪽)</span></p>
+      <div className="ec-report-title">간이지급명세서(근로소득)</div>
+      <p className="text-center mb-[6px]">( [V]지급자 보관용 &nbsp; [ ]지급자 제출용 )</p>
       <p className="mb-[4px]">① 원천징수의무자 인적사항 및 지급내용 합계사항</p>
       <table className="w-full ec-report ec-report-head400 mb-[12px]">
         <tbody>
@@ -324,22 +346,25 @@ function LaborSheet({ sheet, company, address }: { sheet: SimplePaymentSheet; co
             <th>⑧ 귀속연도</th><td>{s.payYear} 년</td>
             <th>⑨ 지급 시기</th><td colSpan={3}>[{s.period === 1 ? 'V' : ' '}]상반기(1월~6월) [{s.period === 2 ? 'V' : ' '}]하반기(7월~12월)</td>
           </tr>
-          <tr><th>⑩ 근로자 총 인원</th><td className="text-right">{sheet.labor.length}</td><th>⑪ 과세소득</th><td colSpan={3} className="text-right">{won(total)}</td></tr>
+          <tr><th>⑩근로자 총 인원</th><td className="text-right">{sheet.labor.length} 명</td><th>⑪과세소득 (⑱번 합계 + ⑲번 합계)</th><td colSpan={3} className="text-right">{won(total)}</td></tr>
         </tbody>
       </table>
       <p className="mb-[4px]">② 소득자 인적사항 및 근로소득 내용</p>
       <table className="w-full ec-report ec-report-head400">
         <thead>
-          <tr><th className="text-center">일련번호</th><th>⑬ 성명</th><th>⑯ 근무기간</th><th className="text-center">⑰ 지급월</th><th className="text-right">⑱ 급여 등</th><th>⑲ 인정상여</th></tr>
+          <tr><th rowSpan={2} className="text-center">일련번호</th><th>⑫주민등록번호</th><th>⑭내·외국인</th><th rowSpan={2}>⑯근무기간</th><th rowSpan={2} className="text-center">⑰지급월</th><th rowSpan={2} className="text-right">⑱급여 등</th><th rowSpan={2}>⑲인정상여</th></tr>
+          <tr><th>⑬성명</th><th>⑮거주자구분</th></tr>
         </thead>
         <tbody>
           {sheet.labor.length === 0 ? (
-            <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            <tr><td colSpan={7} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
           ) : sheet.labor.flatMap((r, i) => [
             ...months.map((mo, k) => (
               <tr key={`${i}-${mo}`}>
                 {k === 0 && <td rowSpan={7} className="text-center">{i + 1}</td>}
                 {k === 0 && <td rowSpan={7}>{r.employeeName}</td>}
+                {/* 원본 ⑭내·외국인 · ⑮거주자구분 — 내국인 · 거주자 '1' */}
+                {k === 0 && <td rowSpan={7} className="text-center">1<br />1</td>}
                 {k === 0 && <td rowSpan={7}>{dot(r.workFrom)}-{dot(r.workTo)}</td>}
                 <td className="text-center">{mo - (s.period === 1 ? 0 : 6)}월/{mo}월</td>
                 <td className="text-right">{won(r.monthlyPay[k])}</td>
@@ -428,6 +453,7 @@ function PayeeSheet({ sheet, company, address, copy }: { sheet: SimplePaymentShe
   useTableColumnCheck(tableRef, '간이지급명세서', [sheet])
   return (
     <>
+      {other && <p className="mb-[4px]">※ 거주자의 기타소득 간이지급명세서는 소득코드 76(강연료 등), 79(자문료 등)에 해당하는 자료만 제출합니다.</p>}
       <p className="flex justify-between"><span>■ 소득세법 시행규칙 [별지 제24호의4서식(2)] &lt;개정 2023.3.20.&gt;</span><span>({other ? '3쪽 중 제1쪽' : '4쪽 중 제1쪽'})</span></p>
       <div className="ec-report-title">간 이 지 급 명 세 서<br />({other ? '거 주 자 의 기 타 소 득' : '거 주 자 의 사 업 소 득'})</div>
       <p className="text-center mb-[6px]">( [{copy === 'KEEP' ? 'V' : ' '}]지급자 보관용 &nbsp; [{copy === 'SUBMIT' ? 'V' : ' '}]지급자 제출용 )</p>
@@ -436,11 +462,13 @@ function PayeeSheet({ sheet, company, address, copy }: { sheet: SimplePaymentShe
         <tbody>
           <tr><th>① 상호(법인명, 성명)</th><th>② 사업자(주민)등록번호</th><th>③ 소재지(주소)</th><th>④ 소득인원</th><th>⑤ 총 지급액({other ? '⑮' : '⑭'}번 합계)</th></tr>
           <tr><td>{company?.name ?? ''}</td><td>{company?.bizRegNo ?? ''}</td><td>{address}</td><td className="text-right">{sheet.payees.length}</td><td className="text-right">{won(gross)}</td></tr>
-          <tr>
-            <th>⑥ 지급연도</th><td>{s.payYear} 년</td>
-            <th>⑦ 지급월</th>
-            <td colSpan={2}>{Array.from({ length: 12 }, (_, i) => `[${s.period === i + 1 ? 'O' : ' '}] ${i + 1}월`).join('  ')}</td>
-          </tr>
+          {/* 원본: 1~6월 · 7~12월 두 줄, 해당 월에 'O' */}
+          {[0, 6].map((from) => (
+            <tr key={from}>
+              {from === 0 && <><th rowSpan={2}>⑥ 지급연도</th><td rowSpan={2}>{s.payYear} 년</td><th rowSpan={2}>⑦지급월 (해당 월에 "O")</th></>}
+              <td colSpan={2}>{Array.from({ length: 6 }, (_, i) => `[${s.period === from + i + 1 ? 'O' : ' '}] ${from + i + 1}월`).join('  ')}</td>
+            </tr>
+          ))}
         </tbody>
       </table>
       <p className="mb-[4px]">② 소득자 인적사항 및 {other ? '기타소득' : '사업소득'} 내용</p>
@@ -462,7 +490,7 @@ function PayeeSheet({ sheet, company, address, copy }: { sheet: SimplePaymentShe
               <td className="text-center">{i + 1}</td>
               <td className="text-center">{s.payYear}</td>
               <td className="text-center">{pad2(s.period)}</td>
-              <td></td>
+              <td className="text-center">{r.incomeCode ?? ''}</td>
               <td>{r.payeeName}</td>
               <td>{r.payeeRegNo ?? ''}</td>
               <td></td>

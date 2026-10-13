@@ -11,6 +11,9 @@ import com.erp.accounting.simplepayment.dto.SimplePaymentDtos.StatementResponse;
 import com.erp.accounting.withholding.WithholdingService;
 import com.erp.accounting.withholding.dto.WithholdingDtos;
 import com.erp.common.ApiException;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,11 +37,14 @@ import java.util.*;
 public class SimplePaymentService {
 
     static final String DUPLICATE = "이미 생성된 자료입니다.";
+    /** 원본 기타소득 서식 머리: '거주자의 기타소득 간이지급명세서는 소득코드 76(강연료 등), 79(자문료 등)에 해당하는 자료만 제출합니다.' */
+    static final Set<String> OTHER_CODES = Set.of("76", "79");
 
     private final SimplePaymentStatementRepository repository;
     private final OtherWithholdingRepository otherWithholdingRepository;
     private final WithholdingService withholdingService;
     private final com.erp.hr.dailywork.DailyWorkService dailyWorkService;
+    private final ObjectMapper objectMapper;
 
     /** daily 면 지급명세서(일용직)만, 아니면 간이지급명세서(일용 빼고). */
     @Transactional(readOnly = true)
@@ -63,6 +69,7 @@ public class SimplePaymentService {
         }
         SimplePaymentStatement s = SimplePaymentStatement.builder().build();
         apply(s, req);
+        if (isPayee(s.getKind())) s.setSheetSnapshot(write(countPayees(s)));
         return toResponse(repository.save(s));
     }
 
@@ -70,6 +77,11 @@ public class SimplePaymentService {
     public StatementResponse update(Long id, StatementRequest req) {
         checkPeriod(req);
         SimplePaymentStatement s = find(id);
+        // 원본 수정 창은 자료구분 · 지급연월이 잠겨 있다 — 신고일자 · 담당자 · 제출자만 바뀐다
+        if (s.getKind() != SimplePaymentKind.DAILY
+                && (req.kind() != s.getKind() || !req.payYear().equals(s.getPayYear()) || !req.period().equals(s.getPeriod()))) {
+            throw ApiException.badRequest("자료구분 · 지급연월은 바꿀 수 없습니다.");
+        }
         if (req.kind() != SimplePaymentKind.DAILY
                 && repository.existsByKindAndPayYearAndPeriodAndIdNot(req.kind(), req.payYear(), req.period(), id)) {
             throw ApiException.badRequest(DUPLICATE);
@@ -110,21 +122,64 @@ public class SimplePaymentService {
                     .toList();
             return new SheetResponse(toResponse(s), List.of(), List.of(), rows);
         }
+        List<PayeeRow> rows = s.getSheetSnapshot() != null ? read(s.getSheetSnapshot()) : countPayees(s);
+        return new SheetResponse(toResponse(s), List.of(), rows, List.of());
+    }
+
+    /**
+     * [새로불러오기] — 원본 확인 창 '직접 수정한 사항은 유지되지 않으며, 입력된 자료를 바탕으로 새로 불러옵니다.' 뒤
+     * 그 달 기타원천세를 다시 세어 담아 둔다(다시 열어도 새 숫자). 근로 · 일용은 늘 새로 세므로 그대로 보인다.
+     */
+    @Transactional
+    public SheetResponse reload(Long id) {
+        SimplePaymentStatement s = find(id);
+        if (isPayee(s.getKind())) s.setSheetSnapshot(write(countPayees(s)));
+        return sheet(id);
+    }
+
+    private static boolean isPayee(SimplePaymentKind kind) {
+        return kind == SimplePaymentKind.BUSINESS || kind == SimplePaymentKind.OTHER;
+    }
+
+    /**
+     * 그 달 기타원천세를 소득자 · 업종(소득)코드마다 한 줄로 — 원본 같은 소득자 · 940909 두 건(1,000,000 + 200,000)은
+     * 한 줄 1,200,000. 기타소득은 소득코드 76 · 79 만(62 300,000 은 빠진다).
+     */
+    private List<PayeeRow> countPayees(SimplePaymentStatement s) {
+        YearMonth ym = YearMonth.of(s.getPayYear(), s.getPeriod());
         Map<String, List<OtherWithholding>> byPayee = new LinkedHashMap<>();
         for (OtherWithholding w : otherWithholdingRepository.findBetween(ym.atDay(1), ym.atEndOfMonth())) {
             if (w.getIncomeType() != s.getKind().getIncomeType()) continue;
-            byPayee.computeIfAbsent(w.getPayeeName() + "\u0000" + Objects.toString(w.getPayeeRegNo(), ""), k -> new ArrayList<>()).add(w);
+            if (s.getKind() == SimplePaymentKind.OTHER && !OTHER_CODES.contains(Objects.toString(w.getIncomeCode(), ""))) continue;
+            byPayee.computeIfAbsent(w.getPayeeName() + "\u0000" + Objects.toString(w.getPayeeRegNo(), "")
+                    + "\u0000" + Objects.toString(w.getIncomeCode(), ""), k -> new ArrayList<>()).add(w);
         }
         List<PayeeRow> rows = new ArrayList<>();
         int rate = s.getKind().getIncomeType().getTaxRate().movePointRight(2).setScale(0, RoundingMode.HALF_UP).intValue();
         byPayee.values().forEach(list -> {
             OtherWithholding first = list.get(0);
-            rows.add(new PayeeRow(first.getPayeeName(), first.getPayeeRegNo(), list.size(),
+            rows.add(new PayeeRow(first.getPayeeName(), first.getPayeeRegNo(), first.getIncomeCode(), list.size(),
                     sum(list, OtherWithholding::getGrossAmount), sum(list, OtherWithholding::getExpenseAmount),
                     sum(list, OtherWithholding::getTaxableAmount), rate,
                     sum(list, OtherWithholding::getIncomeTax), sum(list, OtherWithholding::getLocalIncomeTax)));
         });
-        return new SheetResponse(toResponse(s), List.of(), rows, List.of());
+        return rows;
+    }
+
+    private String write(List<PayeeRow> rows) {
+        try {
+            return objectMapper.writeValueAsString(rows);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private List<PayeeRow> read(String json) {
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<PayeeRow>>() {});
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     private static BigDecimal sum(List<OtherWithholding> list, java.util.function.Function<OtherWithholding, BigDecimal> f) {

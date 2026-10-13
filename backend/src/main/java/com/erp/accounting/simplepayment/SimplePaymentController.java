@@ -43,4 +43,9 @@ public class SimplePaymentController {
     public SheetResponse sheet(@PathVariable Long id) {
         return service.sheet(id);
     }
+
+    @PostMapping("/{id}/reload")
+    public SheetResponse reload(@PathVariable Long id) {
+        return service.reload(id);
+    }
 }

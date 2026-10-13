@@ -41,7 +41,7 @@ public final class SimplePaymentDtos {
     public record LaborRow(String employeeName, LocalDate workFrom, LocalDate workTo, List<BigDecimal> monthlyPay,
                            BigDecimal total) {}
 
-    /** 사업 · 기타소득 한 소득자 — 그 달 기타원천세 지급을 소득자마다 묶는다. rate 는 % 정수. */
-    public record PayeeRow(String payeeName, String payeeRegNo, int count, BigDecimal gross, BigDecimal expense,
+    /** 사업 · 기타소득 한 소득자 — 그 달 기타원천세 지급을 소득자 · 업종(소득)코드마다 묶는다. rate 는 % 정수. */
+    public record PayeeRow(String payeeName, String payeeRegNo, String incomeCode, int count, BigDecimal gross, BigDecimal expense,
                            BigDecimal taxable, int rate, BigDecimal incomeTax, BigDecimal localIncomeTax) {}
 }
