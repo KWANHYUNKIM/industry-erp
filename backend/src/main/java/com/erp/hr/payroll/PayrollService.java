@@ -42,6 +42,7 @@ public class PayrollService {
     private final WithholdingTaxCalculator taxCalculator;
     private final PayDirectAmountRepository payDirectAmountRepository;
     private final PayFormulaService payFormulaService;
+    private final SocialInsuranceRateService insuranceRateService;
 
     @Transactional(readOnly = true)
     public List<PayslipResponse> payroll(String month) {
@@ -204,20 +205,24 @@ public class PayrollService {
         // 소득세 786,220 = × 19 %, 건강 148,760 · 고용 37,240 도 지급총액 기준.
         BigDecimal insuredIncome = setting.isSingleTaxRate() ? grossPay(baseSalary, p) : taxableIncome;
         BigDecimal pensionIncome = setting.getPensionBaseAmount() != null ? setting.getPensionBaseAmount() : insuredIncome;
+        // 요율 — 회사가 그 해를 정했으면(공제항목등록 Option › 세율/세액등록) 그것, 없으면 법정 요율.
+        SocialInsuranceRateService.Rates rates = insuranceRateService.rates(ym);
         BigDecimal pension = setting.getPensionMode() == InsuranceCalc.NONE ? BigDecimal.ZERO
                 : round(SocialInsuranceRates.pensionBase(pensionIncome, ym)
-                .multiply(SocialInsuranceRates.pension(ym)));        // 기준소득월액 상·하한 안에서
+                .multiply(rates.pension()));        // 기준소득월액 상·하한 안에서
         // '보수월액기준' 은 원본도 급여계산이 셈하지 않는다(실측: 보수월액 3,000,000 을 넣어도 건강보험 칸이 빈다).
-        BigDecimal health = setting.getHealthMode() != InsuranceBasis.AUTO ? BigDecimal.ZERO
-                : round(insuredIncome.multiply(SocialInsuranceRates.health(ym)));
-        BigDecimal care = !setting.isLongTermCare() ? BigDecimal.ZERO
-                : round(health.multiply(SocialInsuranceRates.longTermCareOfHealth(ym)));   // 장기요양은 건강보험료 기준
+        BigDecimal healthRaw = insuredIncome.multiply(rates.health());
+        BigDecimal health = setting.getHealthMode() != InsuranceBasis.AUTO ? BigDecimal.ZERO : round(healthRaw);
+        // 장기요양 = 건강보험 <b>산출액(10원 버림 전)</b> × 비율. 버린 건강보험료에 곱하면 원본과 10원 어긋난다
+        // (원본 실측 과세 3,030,000: 107,413.5 × 12.95 % = 13,910.05 → 13,910, 버린 107,410 × 12.95 % 면 13,900).
+        BigDecimal care = !setting.isLongTermCare() || setting.getHealthMode() != InsuranceBasis.AUTO ? BigDecimal.ZERO
+                : round(healthRaw.multiply(rates.longTermCareOfHealth()));
         if (setting.isInsuranceReduction()) {
             // 보험료경감 '대상' — 장기요양만 30 % 경감, 10원 미만 버림을 한 번 더(원본 실측 19,070 × 0.7 = 13,349 → 13,340).
             care = round(care.multiply(new BigDecimal("0.7")));
         }
         BigDecimal employment = setting.getEmploymentMode() != InsuranceBasis.AUTO ? BigDecimal.ZERO
-                : round(insuredIncome.multiply(SocialInsuranceRates.employment(ym)));
+                : round(insuredIncome.multiply(rates.employment()));
 
         addAutoDeduction(p, "국민연금", pension);
         addAutoDeduction(p, "건강보험", health);
