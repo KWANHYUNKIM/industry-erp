@@ -71,12 +71,15 @@ export default function SurveyPage() {
   const [viewing, setViewing] = useState<SurveyDoc | null>(null)
   /** 원본 [설문조사 참여여부] '보기' → '설문조사참여여부'. */
   const [participants, setParticipants] = useState<Participant[] | null>(null)
+  /** 원본 '설문조사' 창 [H] → '이력'. */
+  const [history, setHistory] = useState<SurveyDoc | null>(null)
   async function openParticipants(s: SurveyDoc) {
     try { setParticipants((await api.get<Participant[]>(`/surveys/${s.id}/participants`)).data) }
     catch (err) { alert(extractErrorMessage(err)) }
   }
   async function removeOne(s: SurveyDoc) {
-    if (!confirm('삭제하시겠습니까?')) return
+    // 원본 '설문조사' 창 [삭제] 문구(2026-10-13 실측).
+    if (!confirm('삭제한 데이터는 복구되지 않습니다.\n\n삭제하겠습니까?')) return
     try { await api.delete(`/surveys/${s.id}`); setViewing(null); void load() }
     catch (err) { alert(extractErrorMessage(err)) }
   }
@@ -245,8 +248,10 @@ export default function SurveyPage() {
                    onAnswer={() => { setAnswering(viewing); setViewing(null) }}
                    onEdit={() => navigate(`/groupware/survey-input?edit=${viewing.id}`)}
                    onCopy={() => navigate(`/groupware/survey-input?copy=${viewing.id}`)}
-                   onDelete={() => void removeOne(viewing)} />
+                   onDelete={() => void removeOne(viewing)}
+                   onHistory={() => setHistory(viewing)} />
       )}
+      {history && <HistoryModal survey={history} onClose={() => setHistory(null)} />}
       {participants && <ParticipantsModal rows={participants} onClose={() => setParticipants(null)} />}
 
       {answering && (
@@ -368,9 +373,9 @@ function AnswerModal({ survey, onClose, onDone }: { survey: SurveyDoc; onClose: 
  * 질문마다 둥근 판(머리 질문 제목, 안에 보기). 하단 [설문결과보기][수정][복사][삭제][닫기].
  * 답할 수 있는 설문이면 [참여하기] 로 답하기 창을 연다(원본은 완료된 설문만 재서 답하는 단추 이름은 못 쟀다).
  */
-function ViewModal({ survey: r, onClose, onResult, onParticipants, onAnswer, onEdit, onCopy, onDelete }: {
+function ViewModal({ survey: r, onClose, onResult, onParticipants, onAnswer, onEdit, onCopy, onDelete, onHistory }: {
   survey: SurveyDoc; onClose: () => void; onResult: () => void; onParticipants: () => void; onAnswer: () => void
-  onEdit: () => void; onCopy: () => void; onDelete: () => void
+  onEdit: () => void; onCopy: () => void; onDelete: () => void; onHistory: () => void
 }) {
   const canAnswer = r.status === 'OPEN' && !r.expired && !r.answeredByMe
   return (
@@ -398,6 +403,29 @@ function ViewModal({ survey: r, onClose, onResult, onParticipants, onAnswer, onE
         <button type="button" className="ec-btn" onClick={onEdit}>수정</button>
         <button type="button" className="ec-btn" onClick={onCopy}>복사</button>
         <button type="button" className="ec-btn" onClick={onDelete}>삭제</button>
+        <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
+        <button type="button" className="ec-btn" onClick={onHistory}>H</button>
+      </div>
+    </Modal>
+  )
+}
+
+/**
+ * 원본 '설문조사' 창 [H] 의 '이력'(2026-10-13 실측) — '게시글번호 : 22', 격자 [순번][작업자ID][작업일시][상태], 하단 [닫기].
+ * 원본 22번은 '1 · GUEST · 2026/09/23 오전 9:57:09 · 신규' 한 줄이었다. 우리는 고친 사람을 남기지 않아 '신규' 줄만 그린다.
+ */
+function HistoryModal({ survey: r, onClose }: { survey: SurveyDoc; onClose: () => void }) {
+  return (
+    <Modal open title="이력" width={780} onClose={onClose}>
+      <div className="text-[14px] font-bold mb-[12px]">이력</div>
+      <div className="text-[12px] mb-[6px]">게시글번호 : {r.postNo}</div>
+      <table className="w-full">
+        <thead><tr><th>순번</th><th>작업자ID</th><th>작업일시</th><th>상태</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td className="text-ec-navy">{r.createdBy}</td><td>{dateTimeOf(r.createdAt)}</td><td className="text-ec-navy">신규</td></tr>
+        </tbody>
+      </table>
+      <div className="flex gap-[6px] mt-[10px]">
         <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
       </div>
     </Modal>
