@@ -1,0 +1,33 @@
+{
+  "about": "판매 회계반영 전표의 부가세유형(143a6896) — 판매 둘(과세 QA완제품 1 × 1,000 · 면세 1 × 1,000, 비고 QA회계1)을 API 로 만들어 회계반영하면 전표 vatType 이 과세 '세금계산서' · 면세 '계산서'. 전표vs매출매입자료비교(매출/매입구분 ◉매출 · 조회자료 ◉전체)에서 두 전표가 매출 쪽에 선다: 과세 유형명 세금계산서 1,000 · 100 · 1,100, 면세 계산서 1,000 · 0 · 1,000. ◉매입으로 바꾸면 둘 다 없다(8a542a4c 이전에는 부가세유형을 든 SALES 전표가 매입으로 갔다). 만든 판매는 [매출전표포함] 삭제로 지운다.",
+  "shots": [
+    {
+      "name": "판매 둘 회계반영 → 전표 vatType",
+      "path": "/accounting/vat/journal-compare",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(async()=>{const [pa,it,wh]=await Promise.all(['/partners','/items','/warehouses'].map((p)=>window.__api('GET',p)));const c=pa.body.find((x)=>x.code==='QA-CUST'),i=it.body.find((x)=>x.code==='QA-PROD'),w=wh.body.find((x)=>x.code==='QA-WH')??wh.body[0];const d=new Date();const ymd=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');sessionStorage.setItem('rvDay',ymd);const ids=[];for(const taxable of [true,false]){const s=(await window.__api('POST','/sales',{saleDate:ymd,partnerId:c.id,warehouseId:w.id,taxable,remark:'QA회계1',lines:[{itemId:i.id,quantity:1,unitPrice:1000}]})).body;ids.push(s.id)}sessionStorage.setItem('rvIds',JSON.stringify(ids));const r=await window.__api('POST','/accounting-reflection/reflect',{kind:'SALES',ids});const js=(await window.__api('GET','/journals?from='+ymd+'&to='+ymd+'&all=true')).body.rows.filter((e)=>e.sourceType==='SALES'&&ids.includes(e.sourceId));const by=(id)=>js.find((e)=>e.sourceId===id);const no=(e)=>e.entryDate.replace(/-/g,'/')+' -'+Number(e.docNo.split('-').pop());sessionStorage.setItem('rvTax',no(by(ids[0])));sessionStorage.setItem('rvFree',no(by(ids[1])));sessionStorage.setItem('rvTypes',by(ids[0]).vatType+'|'+by(ids[1]).vatType);return r.body.reflectedCount+' '+sessionStorage.getItem('rvTypes')})()",
+        "expect:sessionStorage.getItem('rvTypes')==='세금계산서|계산서'",
+        "js:(()=>{const d=sessionStorage.getItem('rvDay');const ds=document.querySelectorAll('input[type=date]');const set=(el)=>{Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,d);el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))};set(ds[0]);set(ds[1]);document.querySelectorAll('input[name=jvc-side]')[1].click();document.querySelectorAll('input[name=jvc-mismatch]')[0].click();return true})()",
+        "wait:300",
+        "clicklast:검색(F8)",
+        "wait:1500",
+        "expect:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[0]&&t.cells[0].innerText.trim()===sessionStorage.getItem('rvTax'));return !!tr&&tr.cells[5].innerText.trim()===sessionStorage.getItem('rvTax')&&tr.cells[6].innerText.trim()==='세금계산서'&&tr.cells[8].innerText.trim()==='1,000'&&tr.cells[9].innerText.trim()==='100'&&tr.cells[10].innerText.trim()==='1,100'})()",
+        "expect:(()=>{const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.cells[0]&&t.cells[0].innerText.trim()===sessionStorage.getItem('rvFree'));return !!tr&&tr.cells[6].innerText.trim()==='계산서'&&tr.cells[8].innerText.trim()==='1,000'&&tr.cells[9].innerText.trim()==='0'&&tr.cells[10].innerText.trim()==='1,000'})()"
+      ]
+    },
+    {
+      "name": "◉매입이면 두 전표가 없다 · 지우기",
+      "path": "/accounting/vat/journal-compare",
+      "steps": [
+        "js:window.__api = (m, p, b) => fetch('/api' + p, { method: m, headers: {Authorization:'Bearer '+localStorage.getItem('erp_token'),'Content-Type':'application/json'}, body: b ? JSON.stringify(b) : undefined }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) })); true",
+        "js:(()=>{const d=sessionStorage.getItem('rvDay');const ds=document.querySelectorAll('input[type=date]');const set=(el)=>{Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,d);el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))};set(ds[0]);set(ds[1]);document.querySelectorAll('input[name=jvc-side]')[2].click();document.querySelectorAll('input[name=jvc-mismatch]')[0].click();return true})()",
+        "wait:300",
+        "clicklast:검색(F8)",
+        "wait:1500",
+        "expect:document.querySelector('table.ec-report')&&![...document.querySelectorAll('tbody tr')].some((t)=>t.cells[0]&&[sessionStorage.getItem('rvTax'),sessionStorage.getItem('rvFree')].includes(t.cells[0].innerText.trim()))",
+        "js:(async()=>{const r=await window.__api('POST','/accounting-reflection/delete-sales-with-journal',{kind:'SALES',ids:JSON.parse(sessionStorage.getItem('rvIds'))});return r.status+' '+JSON.stringify(r.body)})()"
+      ]
+    }
+  ]
+}
