@@ -29,13 +29,17 @@ export const reportPeriod = (from: string | null | undefined, to?: string | null
   return `${a} ~ ${b}`
 }
 
-export function EcReportHead({ title, period }: { title: string; period: string }) {
+/**
+ * {@code sub} — 회사명 뒤에 ' / ' 로 붙는 것. 원본 시리얼/로트No.재고현황의 로트를 눌러 뜬 수불부 창은
+ * '회사명 : (주)가장많이쓰는ERP / 울트라 스킨' 처럼 품목명을 붙인다(2026-10-13 실측).
+ */
+export function EcReportHead({ title, period, sub }: { title: string; period: string; sub?: string }) {
   const { companyName } = useAuth()
   return (
     <div className="ec-report-head">
       <div className="ec-report-title">{title}</div>
       <div className="ec-report-meta">
-        <span>회사명 : {companyName ?? ''}</span>
+        <span>회사명 : {companyName ?? ''}{sub ? ` / ${sub}` : ''}</span>
         <span>{period}</span>
       </div>
     </div>

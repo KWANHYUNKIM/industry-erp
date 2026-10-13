@@ -3,9 +3,12 @@ import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { ymd, INQUIRY_PICKS, periodOf } from '../../components/EcPeriodPicks'
+import Modal from '../../components/Modal'
+import { EcReportHead, EcReportFoot, reportDate, reportPeriod } from '../../components/EcReportFrame'
 import { api, extractErrorMessage } from '../../api/client'
-import type { Lot } from '../../types/api'
+import type { Lot, LotTransaction } from '../../types/api'
 import { dateText } from '../../utils/dateText'
+import { dateNo } from '../../utils/dateNo'
 import { expiryDirectRange } from '../../utils/expiryRange'
 
 /**
@@ -30,6 +33,105 @@ const MODES = ['시리얼/로트No.', '시리얼/로트No.(창고별)'] as const
 type Mode = typeof MODES[number]
 
 const num = (n: number) => n.toLocaleString('ko-KR')
+/* 원본 격자의 수량은 소수 둘째 자리까지 찍는다(-3.00 · 1.00 · 합계 325.00, 2026-10-13 실측). */
+const qty2 = (n: number) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+/** 원본 격자 한 줄 — <b>품목 × 시리얼/로트No.</b> 하나. 우리 로트는 창고마다 따로라 창고를 넘어 더한다. */
+type Row = { key: string; itemId: number; itemCode: string; itemName: string; spec: string | null
+  lotNo: string; expireDate: string | null; stockQty: number }
+
+/**
+ * 원본에서 시리얼/로트No. 를 누르면 뜨는 <b>시리얼/로트No.재고수불부</b> 창(2026-10-13 실측) —
+ * 그 품목 · 그 로트만, 기간은 기준일자 석 달 전 달 초하루부터 기준일자까지(기준일자 2026/10/13 → 2026/07/01 ~ 2026/10/13).
+ * 머리는 '회사명 : … / 품목명', 줄은 수불부와 같다: [전월이월] → 움직인 줄 → '○○ 계' → 합계.
+ */
+function LotLedgerModal({ row, asOf, onClose }: { row: Row; asOf: string; onClose: () => void }) {
+  const [moves, setMoves] = useState<LotTransaction[]>([])
+  const [error, setError] = useState('')
+  const from = useMemo(() => {
+    const [y, m] = asOf.split('-').map(Number)
+    const d = new Date(y, m - 1 - 3, 1)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
+  }, [asOf])
+  useEffect(() => {
+    api.get<LotTransaction[]>('/lots/transactions', { params: { to: asOf || undefined } })
+      .then((res) => setMoves(res.data.filter((t) => t.itemId === row.itemId && t.lotNo === row.lotNo)
+        .sort((x, y) => (x.txDate < y.txDate ? -1 : x.txDate > y.txDate ? 1 : x.id - y.id))))
+      .catch((err) => setError(extractErrorMessage(err)))
+  }, [row, asOf])
+  const opening = moves.filter((t) => t.txDate < from).reduce((a, t) => a + Number(t.quantityChange), 0)
+  const inside = moves.filter((t) => t.txDate >= from)
+  const inQty = inside.reduce((a, t) => a + Math.max(Number(t.quantityChange), 0), 0)
+  const outQty = inside.reduce((a, t) => a + Math.max(-Number(t.quantityChange), 0), 0)
+  let bal = opening
+  return (
+    <Modal open title="시리얼/로트No.재고수불부" onClose={onClose} width={720} error={error}>
+      <EcReportHead title="시리얼/로트No.재고수불부" period={reportPeriod(from, asOf)} sub={row.itemName} />
+      <table className="ec-report w-full text-left">
+        <thead>
+          <tr>
+            <th>품목명</th>
+            <th>시리얼/로트No.</th>
+            <th className="text-center">유효기한</th>
+            <th className="text-center">전표구분</th>
+            <th>거래처명</th>
+            <th>적요</th>
+            <th className="text-right">입고수량</th>
+            <th className="text-right">출고수량</th>
+            <th className="text-right">재고수량</th>
+            <th className="text-center">연결전표</th>
+          </tr>
+        </thead>
+        <tbody>
+          {opening !== 0 && (
+            <tr>
+              <td colSpan={8} className="text-center font-bold text-ec-danger">전월이월</td>
+              <td className="text-right font-bold">{qty2(opening)}</td>
+              <td></td>
+            </tr>
+          )}
+          {inside.map((t) => {
+            const q = Number(t.quantityChange)
+            bal += q
+            return (
+              <tr key={t.id}>
+                <td>{t.itemName}</td>
+                <td>{t.lotNo}</td>
+                <td className="text-center">{t.expireDate ? dateText(t.expireDate) : ''}</td>
+                <td className="text-center">{t.docType ?? t.typeName}</td>
+                <td>{t.partnerName ?? ''}</td>
+                <td>{t.docType ? '' : (t.note ?? '')}</td>
+                <td className="text-right">{q > 0 ? qty2(q) : ''}</td>
+                <td className="text-right">{q < 0 ? qty2(-q) : ''}</td>
+                <td className="text-right">{qty2(bal)}</td>
+                <td className="text-center ec-link">{t.sourceNo ? dateNo(t.txDate, t.sourceNo) : ''}</td>
+              </tr>)
+          })}
+          <tr className="ec-total">
+            <td colSpan={6} className="text-center">{row.lotNo} 계</td>
+            <td className="text-right">{inQty ? qty2(inQty) : ''}</td>
+            <td className="text-right">{outQty ? qty2(outQty) : ''}</td>
+            <td></td>
+            <td></td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colSpan={6} className="text-center">합계</td>
+            <td className="text-right">{inQty ? qty2(inQty) : ''}</td>
+            <td className="text-right">{outQty ? qty2(outQty) : ''}</td>
+            <td className="text-right">{qty2(opening + inQty - outQty)}</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+      <EcReportFoot />
+      <div className="flex gap-[4px] mt-[8px]">
+        <button type="button" className="ec-btn" onClick={onClose}>닫기</button>
+      </div>
+    </Modal>
+  )
+}
 
 export default function LotStockStatusPage() {
   const [lots, setLots] = useState<Lot[]>([])
@@ -82,6 +184,8 @@ export default function LotStockStatusPage() {
     return lots.filter((l) => {
       if (!withHeld && l.held) return false
       if (expiryOpt !== '사용안함' && (!l.expireDate || (expFrom && l.expireDate < expFrom) || (expTo && l.expireDate > expTo))) return false
+      /* 원본은 잔량 0 인 로트를 아예 안 찍는다 — [재고수량] 셋을 다 켜도 0.00 줄이 없다(2026-10-13 실측, 343줄 중 0). */
+      if (l.stockQty === 0) return false
       if (l.stockQty === 1 ? !qtyOne : !qtyOther) return false
       if (lotNo && l.lotNo !== lotNo) return false
       if (warehouse && l.warehouseName !== warehouse) return false
@@ -104,7 +208,25 @@ export default function LotStockStatusPage() {
     return [...map.values()].sort((a, b) => a.warehouse.localeCompare(b.warehouse, 'ko'))
   }, [shown])
 
-  const totalQty = useMemo(() => shown.reduce((s, l) => s + l.stockQty, 0), [shown])
+
+  /**
+   * 원본 격자(2026-10-13 실측): 품목코드 · 품목명 · 규격 · 시리얼/로트No. · 유효기한 · 재고수량, 끝에 합계.
+   * 줄 차례는 시리얼/로트No. → 품목코드('(01)…' 이 'BEN_0001' 보다 앞, 같은 로트면 G002 → H001).
+   */
+  const rows = useMemo(() => {
+    const m = new Map<string, Row>()
+    for (const l of shown) {
+      const key = `${l.itemId}|${l.lotNo}`
+      const cur = m.get(key)
+      if (cur) cur.stockQty += l.stockQty
+      else m.set(key, { key, itemId: l.itemId, itemCode: l.itemCode, itemName: l.itemName, spec: l.spec,
+        lotNo: l.lotNo, expireDate: l.expireDate, stockQty: l.stockQty })
+    }
+    const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
+    return [...m.values()].filter((r) => r.stockQty !== 0)
+      .sort((a, b) => cmp(a.lotNo, b.lotNo) || cmp(a.itemCode, b.itemCode))
+  }, [shown])
+  const [ledgerOf, setLedgerOf] = useState<Row | null>(null)
 
   return (
     <EcListShell
@@ -114,10 +236,6 @@ export default function LotStockStatusPage() {
       onSearch={load}
       actions={[{ label: '새로고침', onClick: () => load() }, { label: 'Excel' }, { label: '인쇄' }]}
     >
-      <p className="mb-2 text-xs text-ec-hint">
-        기준일자 시점의 로트 잔량. 그 날 뒤에 일어난 움직임을 되돌려 계산한다.
-      </p>
-
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
 
       <ul className="ec-cond" style={{ marginBottom: 8 }}>
@@ -196,11 +314,6 @@ export default function LotStockStatusPage() {
         </EcCond>
       </ul>
 
-      <div className="mb-[8px] text-[12.5px] text-ec-label">
-        {dateText(asOf)} 시점 · 로트 <b className="text-ec-text">{num(shown.length)}</b>건 ·
-        잔량 <b className="text-ec-navy">{num(totalQty)}</b>
-      </div>
-
       {mode === '시리얼/로트No.(창고별)' ? (
         <table className="w-full text-left">
           <thead>
@@ -226,43 +339,49 @@ export default function LotStockStatusPage() {
             ))}
           </tbody>
         </table>
-      ) : (
-        <table className="w-full text-left">
+      ) : (<>
+        <EcReportHead title="시리얼/로트No.재고현황" period={reportDate(asOf)} />
+        <table className="ec-report w-full text-left">
           <thead>
             <tr>
-              <th className="w-[34px]"></th>
-              <th className="w-[150px]">시리얼/로트No.</th>
-              <th className="w-[110px]">품목코드</th>
+              <th className="w-[119px]">품목코드</th>
               <th>품목명</th>
-              <th className="w-[100px]">규격</th>
-              <th className="w-[120px]">창고</th>
-              <th className="w-[100px]">입고일자</th>
-              <th className="w-[100px]">유효기한</th>
-              <th className="w-[110px] text-right">재고수량</th>
-              <th className="w-[70px] text-center">상태</th>
+              <th className="w-[90px]">규격</th>
+              <th className="w-[130px]">시리얼/로트No.</th>
+              <th className="w-[80px] text-center">유효기한</th>
+              <th className="w-[80px] text-right">재고수량</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={10} className="ec-empty">불러오는 중…</td></tr>
-            ) : shown.length === 0 ? (
-              <tr><td colSpan={10} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
-            ) : shown.map((l, i) => (
-              <tr key={l.id}>
-                <td className="text-center text-ec-hint">{i + 1}</td>
-                <td>{l.lotNo}</td>
-                <td className="text-ec-label">{l.itemCode}</td>
-                <td>{l.itemName}</td>
-                <td className="text-ec-label">{l.spec ?? ''}</td>
-                <td style={{ color: l.warehouseName ? undefined : 'var(--ec-text-off)' }}>{l.warehouseName ?? '(미지정)'}</td>
-                <td>{dateText(l.inboundDate)}</td>
-                <td style={{ color: l.expireDate ? 'var(--ec-label)' : 'var(--ec-text-off)' }}>{dateText(l.expireDate) || ''}</td>
-                <td className="text-right">{num(l.stockQty)}</td>
-                <td style={{ textAlign: 'center', color: l.held ? 'var(--ec-warn)' : 'var(--ec-label)' }}>{l.statusName}</td>
+              <tr><td colSpan={6} className="ec-empty">불러오는 중…</td></tr>
+            ) : rows.length === 0 ? (
+              <tr><td colSpan={6} className="ec-empty">등록된 데이터가 없습니다.</td></tr>
+            ) : rows.map((r) => (
+              <tr key={r.key}>
+                <td>{r.itemCode}</td>
+                <td>{r.itemName}</td>
+                <td>{r.spec ?? ''}</td>
+                <td>
+                  <button type="button" className="ec-link" onClick={() => setLedgerOf(r)}>{r.lotNo}</button>
+                </td>
+                <td className="text-center">{r.expireDate ? reportDate(r.expireDate) : ''}</td>
+                <td className="text-right">{qty2(r.stockQty)}</td>
               </tr>
             ))}
           </tbody>
+          {rows.length > 0 && (
+            <tfoot>
+              <tr>
+                <td colSpan={5} className="text-center">합계</td>
+                <td className="text-right">{qty2(rows.reduce((a, r) => a + r.stockQty, 0))}</td>
+              </tr>
+            </tfoot>
+          )}
         </table>
+        <EcReportFoot />
+        {ledgerOf && <LotLedgerModal row={ledgerOf} asOf={asOf} onClose={() => setLedgerOf(null)} />}
+      </>
       )}
     </EcListShell>
   )

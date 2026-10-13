@@ -267,11 +267,10 @@ export default function QualityRequestStatusPage() {
             ) : aggGroups.flatMap((g) => [
               ...g.rows.map((x, i) => (
                 <tr key={`${g.n1}␟${x.n2}`}>
-                  <td>{i === 0 && x.q != null ? g.n1 : ''}</td>
-                  {agg2 && <td>{x.q != null ? x.n2 : ''}</td>}
+                  {/* 이름 칸은 머리처럼 aggCols 로 돈다 — 첫 칸은 묶음 이름(첫 줄만), 둘째 칸은 집계조건2 이름. */}
+                  {aggCols.map((k, j) => <td key={k}>{x.q == null ? '' : j === 0 ? (i === 0 ? g.n1 : '') : x.n2}</td>)}
                   <td className="text-right">{x.q != null ? qty2(x.q) : ''}</td>
-                  {cmp && <td>{i === 0 && x.p != null ? g.n1 : ''}</td>}
-                  {cmp && agg2 && <td>{x.p != null ? x.n2 : ''}</td>}
+                  {cmp && aggCols.map((k, j) => <td key={`p-${k}`}>{x.p == null ? '' : j === 0 ? (i === 0 ? g.n1 : '') : x.n2}</td>)}
                   {cmp && <td className="text-right">{x.p != null ? qty2(x.p) : ''}</td>}
                 </tr>
               )),
