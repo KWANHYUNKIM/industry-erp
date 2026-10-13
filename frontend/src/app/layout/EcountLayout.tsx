@@ -622,6 +622,7 @@ const MENU: TopMenu[] = [
           { label: '계약입력', to: '/accounting/billing-contracts/new' },
           { label: '계약조회', to: '/accounting/billing-contracts' },
           { label: '계약단가/수량일괄변경', to: '/accounting/contract-price-change' },
+          { label: '계약현황', to: '/accounting/contract-status' },
           { label: '청구예정자료생성', to: '/accounting/contract-bills' },
           { label: '회계/판매일괄반영', to: '/accounting/contract-reflect' },
           { label: '회계미반영현황(계약)', to: '/accounting/contract-unreflected' },

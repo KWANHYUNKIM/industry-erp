@@ -64,7 +64,7 @@ public class BillingContractController {
         return service.update(id, req, principal.getUsername());
     }
 
-    /** 계약단가/수량일괄변경(E060904) [검색(F8)] */
+    /** 계약단가/수량일괄변경(E060904) [검색(F8)] · 계약현황(E060912) — 계약일자로 고른 계약 줄. */
     @GetMapping("/price-change")
     public List<BillingContractDtos.PriceChangeLine> priceChangeLines(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
