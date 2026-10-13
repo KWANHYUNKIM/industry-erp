@@ -30,6 +30,12 @@ const GROUPS: { kind: string; total: string; rows: { key: string; label: string 
   { kind: '타발행', total: '타발행 계', rows: [{ key: 'ELSEWHERE', label: '타발행' }] },
   { kind: '기한후발행', total: '기한후발행 계', rows: [{ key: 'LATE', label: '기한후발행' }] },
 ]
+/**
+ * 원본 (세금)계산서진행단계(요약의 구분 글자를 누르면 뜨는 창)의 [계산서분류] — 계산서 · 계산서(고정자산) · 세금계산서 ·
+ * 세금계산서(고정자산) · 영세율. 2026-10-13 loginaa 2026/01 ~ 2026/10: 요약 미발행 38건 954,407,000 · 95,440,700 =
+ * 진행단계 미발행 탭 38건(줄이 회계전표 일자-No. — 같은 회계전표를 센다).
+ */
+const INVOICE_TYPES = ['세금계산서', '세.계(고정자산)', '영세율', '계산서', '계산서(고정자산)']
 const PICKS = ['금월(~오늘)', '전월', '이번기수', '직전기수', '직전분기', '직전반기'] as const
 const won = (n: number) => (n === 0 ? '' : Math.round(n).toLocaleString('ko-KR'))
 const ym = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
@@ -57,7 +63,8 @@ function bucketOf(m: Mark | undefined): string {
  * [종류 · 구분 · 건수 · 공급가액 계 · 부가세계], 묶음(종이 · 미전송 · 전송완료 · 타발행 · 기한후발행)마다 계, 끝에 합계.
  * 원본 2026/09 이카운트 4,000,000 · 400,000 한 건이 미전송 › 미발행.
  * 줄은 매출 부가세 줄(255)이 든 회계전표 한 장, 종이 · 타발행 · 기한후발행은 각종구분값변경에서 매긴 값이다.
- * 계산서는 부가세가 0 인 전표다.
+ * 부가세유형이 있으면 그것으로 가른다(INVOICE_TYPES — 카드매출 · 현금영수증은 뺀다, 계산서 · 계산서(고정자산)는 [구분 계산서]).
+ * 유형이 없는 전표(판매 회계반영 등)는 예전대로 부가세가 0 이면 계산서다.
  *
  * <p>두지 않은 것: 부서 · 프로젝트 · 결재방표시 조건, [전체] 탭, 구분 글자를 눌러 여는 내역 창, [설정] · [다시 작성].
  */
@@ -87,9 +94,17 @@ export default function SalesTaxSummaryPage() {
       ])
       const marks = new Map(m.data.map((x) => [x.journalEntryId, x]))
       const cells = new Map<string, Cell>()
-      for (const e of j.data.rows) {
-        const amt = vatSlipAmounts(e.lines, '매출')
-        if (!amt || (kind === '세금계산서') !== (amt.vat !== 0)) continue
+      for (const e of j.data.rows as (JournalEntry & { vatType?: string | null })[]) {
+        const vt = e.vatType?.trim()
+        /* 부가세유형이 붙은 전표(매출전표 I 등)는 (세금)계산서 유형만 — 카드매출 · 현금영수증 · 소매 · 수출 … 은 계산서가 아니다. */
+        if (vt && !INVOICE_TYPES.includes(vt)) continue
+        let amt = vatSlipAmounts(e.lines, '매출')
+        /* 계산서(면세)는 부가세 줄이 없다 — 매출 계정 대변이 곧 공급가액(지급수수료 831 짝은 지운다). */
+        if (!amt && vt?.startsWith('계산서')) {
+          amt = { supply: e.lines.reduce((t, l) => t + Number(l.credit) - (l.accountCode === '831' ? Number(l.debit) : 0), 0), vat: 0 }
+        }
+        const isInvoice = vt ? !vt.startsWith('계산서') : amt?.vat !== 0
+        if (!amt || (kind === '세금계산서') !== isInvoice) continue
         const key = bucketOf(marks.get(e.id))
         const c = cells.get(key) ?? { count: 0, supply: 0, vat: 0 }
         cells.set(key, { count: c.count + 1, supply: c.supply + amt.supply, vat: c.vat + amt.vat })
