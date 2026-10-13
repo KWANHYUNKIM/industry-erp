@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
@@ -23,10 +24,12 @@ export default function BondStatusPage({ side }: { side: BondSide }) {
   const word = sideWord(side)
   const title = `${word}현황`
   const masters = useBondMasters()
-  const [asOf, setAsOf] = useState(ymd(new Date()))
-  const [account, setAccount] = useState('')
+  // 채권잔액분석표의 [거래처코드] 가 이 화면을 그 거래처 · 계정으로 연다(원본은 채권현황 창 — 2026-10-13 실측)
+  const [params] = useSearchParams()
+  const [asOf, setAsOf] = useState(params.get('asOf') ?? ymd(new Date()))
+  const [account, setAccount] = useState(params.get('account') ?? '')
   const [bondNo, setBondNo] = useState('')
-  const [partner, setPartner] = useState('')
+  const [partner, setPartner] = useState(params.get('partner') ?? '')
   const [rows, setRows] = useState<BondRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')

@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
 import { EcCond } from '../../components/EcStatusPanel'
 import CodePickerField from '../../components/CodePickerField'
 import EcPeriodPicks, { periodOf } from '../../components/EcPeriodPicks'
 import { fetchBonds, useBondMasters } from '../../features/bond/api'
+import BondEntryModal from '../../features/bond/components/BondEntryModal'
 import { BOND_STATUS_PICKS } from '../../features/bond/ledger'
 import { bondKey, flatten, signed, sideWord, won, type BondRow, type BondSide } from '../../features/bond/types'
 
@@ -31,17 +33,26 @@ interface Bond {
  *       총합계 줄의 이월잔액 칸은 비어 있다(원본 그대로).</li>
  * </ul>
  * 버튼줄 인쇄 · Excel(화면) · Email · 자동알림 — Email · 자동알림은 바깥으로 보내는 기능이라 두지 않는다.
+ *
+ * <p>2026-10-13 다시 잼: 격자는 출력물(.ec-report)이 아니라 <b>조회 목록 격자(table-list)</b> — 머리 700 · 33.8, 줄 28.4,
+ * '이월잔액' · '총합계' 줄 700 · 바탕 247(이월잔액 이름 칸만 243), 표 사이 9. 관리대장의 [일자] 는 링크(남색) →
+ * '채권내역입력(수정)' 창. 가운데: 일자 · 만기일자, 왼쪽: 채권번호 · 적요. 기간을 전일(10/12)로 하면 10/13 줄은 빠진다.
+ * 거래처채권관리대장인쇄의 [거래처코드] · [인쇄] 는 이 화면(집계)을 그 거래처로 연다(?partners=).
  */
 export default function BondPartnerLedgerPage({ side, summary = false }: { side: BondSide; summary?: boolean }) {
   const word = sideWord(side)
   const title = `거래처${word}${summary ? '집계' : ''}관리대장`
   const init = periodOf('금월(~오늘)')!
   const masters = useBondMasters()
-  const [from, setFrom] = useState(init.from)
-  const [to, setTo] = useState(init.to)
+  const navigate = useNavigate()
+  const [params] = useSearchParams()
+  const [from, setFrom] = useState(params.get('from') ?? init.from)
+  const [to, setTo] = useState(params.get('to') ?? init.to)
   const [account, setAccount] = useState('')
   const [bondNo, setBondNo] = useState('')
   const [partner, setPartner] = useState('')
+  const only = useMemo(() => new Set((params.get('partners') ?? '').split(',').filter(Boolean)), [params])
+  const [modal, setModal] = useState<number | null>(null)
   const [rows, setRows] = useState<BondRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -67,6 +78,7 @@ export default function BondPartnerLedgerPage({ side, summary = false }: { side:
       .filter((r) => !account || String(r.accountId) === account)
       .filter((r) => !bondNo || r.bondNo.includes(bondNo))
       .filter((r) => !partner || String(r.partnerId) === partner)
+      .filter((r) => only.size === 0 || only.has(String(r.partnerId)))
       .sort((a, b) => (a.entryDate < b.entryDate ? -1 : a.entryDate > b.entryDate ? 1 : a.entryNo - b.entryNo || a.lineNo - b.lineNo))
     for (const r of sorted) {
       const k = bondKey(r)
@@ -90,7 +102,7 @@ export default function BondPartnerLedgerPage({ side, summary = false }: { side:
     return [...byPartner.entries()]
       .sort((a, b) => a[1].code.localeCompare(b[1].code))
       .map(([k, p]) => ({ key: k, bonds: p.bonds.sort((a, b) => a.head.bondNo.localeCompare(b.head.bondNo)) }))
-  }, [rows, from, to, account, bondNo, partner])
+  }, [rows, from, to, account, bondNo, partner, only])
   const cell = (n: number) => (n ? won(n) : '')
   const day = (d: string | null | undefined) => (d ? d.replaceAll('-', '/') : '')
 
@@ -133,13 +145,13 @@ export default function BondPartnerLedgerPage({ side, summary = false }: { side:
           const dec = p.bonds.reduce((a, g) => a + g.dec, 0)
           const bal = p.bonds.reduce((a, g) => a + g.closing, 0)
           return summary ? (
-            <table key={p.key} className="ec-report w-full text-left mb-[8px]">
+            <table key={p.key} className="ec-head700 w-full text-left mb-[9px]">
               <thead>
                 <tr>
-                  <th>발생일자</th>
+                  <th className="text-center">발생일자</th>
                   <th>{word}번호</th>
                   <th>적요</th>
-                  <th>만기일자</th>
+                  <th className="text-center">만기일자</th>
                   <th className="text-right">이월잔액</th>
                   <th className="text-right">증가금액</th>
                   <th className="text-right">감소금액</th>
@@ -149,10 +161,10 @@ export default function BondPartnerLedgerPage({ side, summary = false }: { side:
               <tbody>
                 {p.bonds.map((g) => (
                   <tr key={g.key}>
-                    <td>{day(g.issue?.entryDate ?? g.head.entryDate)}</td>
+                    <td className="text-center">{day(g.issue?.entryDate ?? g.head.entryDate)}</td>
                     <td>{g.head.bondNo}</td>
                     <td>{g.issue?.memo ?? ''}</td>
-                    <td>{day(g.issue?.dueDate)}</td>
+                    <td className="text-center">{day(g.issue?.dueDate)}</td>
                     <td className="text-right">{cell(g.opening)}</td>
                     <td className="text-right">{cell(g.inc)}</td>
                     <td className="text-right">{cell(g.dec)}</td>
@@ -161,9 +173,9 @@ export default function BondPartnerLedgerPage({ side, summary = false }: { side:
                 ))}
               </tbody>
               <tfoot>
-                <tr>
+                <tr className="ec-list-total [&_td]:!font-bold">
                   <td colSpan={4} className="text-center">총합계</td>
-                  <td />
+                  <td className="text-center" />
                   <td className="text-right">{cell(inc)}</td>
                   <td className="text-right">{cell(dec)}</td>
                   <td className="text-right">{won(bal)}</td>
@@ -171,13 +183,13 @@ export default function BondPartnerLedgerPage({ side, summary = false }: { side:
               </tfoot>
             </table>
           ) : (
-            <table key={p.key} className="ec-report w-full text-left mb-[8px]">
+            <table key={p.key} className="ec-head700 w-full text-left mb-[9px]">
               <thead>
                 <tr>
-                  <th>일자</th>
+                  <th className="text-center">일자</th>
                   <th>{word}번호</th>
                   <th>적요</th>
-                  <th>{word} 만기일자</th>
+                  <th className="text-center">{word} 만기일자</th>
                   <th className="text-right">증가금액</th>
                   <th className="text-right">감소금액</th>
                   <th className="text-right">잔액</th>
@@ -186,18 +198,23 @@ export default function BondPartnerLedgerPage({ side, summary = false }: { side:
               <tbody>
                 {p.bonds.flatMap((g) => [
                   ...(Math.round(g.opening) !== 0 ? [
-                    <tr key={`${g.key}-o`} className="ec-total">
-                      <td colSpan={4} className="text-center">{g.head.bondNo} 이월잔액</td>
+                    <tr key={`${g.key}-o`} className="ec-list-total [&_td]:!font-bold">
+                      <td colSpan={4} className="text-center !bg-[var(--ec-report-stripe)]">{g.head.bondNo} 이월잔액</td>
                       <td /><td />
                       <td className="text-right">{won(g.opening)}</td>
                     </tr>,
                   ] : []),
                   ...g.lines.map(({ r, balance }) => (
                     <tr key={r.id}>
-                      <td>{day(r.entryDate)}</td>
+                      <td className="text-center">
+                        <button type="button" className="ec-link"
+                                onClick={() => (r.journalEntryId != null
+                                  ? navigate(`/accounting/vouchers?journal=${r.journalEntryId}`)
+                                  : setModal(r.entryId))}>{day(r.entryDate)}</button>
+                      </td>
                       <td>{r.bondNo}</td>
                       <td>{r.memo ?? ''}</td>
-                      <td>{day(r.dueDate)}</td>
+                      <td className="text-center">{day(r.dueDate)}</td>
                       <td className="text-right">{r.direction === 'INCREASE' ? won(Number(r.amount)) : ''}</td>
                       <td className="text-right">{r.direction === 'DECREASE' ? won(Number(r.amount)) : ''}</td>
                       <td className="text-right">{won(balance)}</td>
@@ -206,7 +223,7 @@ export default function BondPartnerLedgerPage({ side, summary = false }: { side:
                 ])}
               </tbody>
               <tfoot>
-                <tr>
+                <tr className="ec-list-total [&_td]:!font-bold">
                   <td colSpan={4} className="text-center">총합계</td>
                   <td className="text-right">{cell(inc)}</td>
                   <td className="text-right">{cell(dec)}</td>
@@ -216,6 +233,8 @@ export default function BondPartnerLedgerPage({ side, summary = false }: { side:
             </table>
           )
         })}
+      <BondEntryModal side={side} open={modal != null} entryId={modal} masters={masters}
+                      onClose={() => setModal(null)} onSaved={() => void load()} />
     </EcListShell>
   )
 }

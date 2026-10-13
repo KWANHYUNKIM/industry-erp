@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useTableColumnCheck } from '../../utils/assertTableColumns'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
@@ -48,11 +49,16 @@ interface Row {
  * <p>우리 거래처의 담당자는 이름 글자뿐이라 [담당자코드]는 사원 목록에서 같은 이름을 찾아 붙인다.
  * [미회수월수]는 남은 채권 중 가장 이른 발생월부터 센 달 수다 — 원본에서 12달 넘는 것('12 개월초과')만 봤고, 그 안쪽 글자 모양은 못 쟀다.
  * [대표거래처합산]은 대표거래처로 묶는 화면이 아직 없어 두지 않는다.
+ *
+ * <p>2026-10-13 다시 잼: 격자는 출력물(.ec-report)이 아니라 <b>조회 목록 격자(table-list)</b> — 머리 700 · 33.8(두 줄 다 가운데),
+ * 줄 28.4. '{담당} 계' · '총합계' 줄은 이름이 <b>네 칸</b>(담당자코드 ~ 거래처명)을 차지하고 700 · 바탕 247.
+ * [미회수월수] 는 오른쪽, [거래처코드] 는 링크(남색) → 그 거래처 · 계정으로 연 '채권현황' 창.
  */
 export default function BondBalanceAnalysisPage({ side }: { side: BondSide }) {
   const word = sideWord(side)
   const title = `${word}잔액분석표`
   const masters = useBondMasters()
+  const navigate = useNavigate()
   const [asOf, setAsOf] = useState(ymd(new Date()))
   const [account, setAccount] = useState('')
   const [partner, setPartner] = useState('')
@@ -137,13 +143,14 @@ export default function BondBalanceAnalysisPage({ side }: { side: BondSide }) {
   const monthText = (ym: string) => ym.replace('-', '/')
 
   const sumRow = (key: string, label: string, s: ReturnType<typeof sum>) => (
-    <tr key={key} className="ec-total">
-      <td colSpan={6} className="text-center">{label}</td>
+    <tr key={key} className="ec-list-total [&_td]:!font-bold">
+      <td colSpan={4} className="text-center">{label}</td>
+      <td className="text-center" /><td className="text-center" />
       <td className="text-right">{won(s.balance)}</td>
-      <td />
+      <td className="text-center" />
       {s.aging.map((n, i) => <td key={`a${i}`} className="text-right">{cell(n)}</td>)}
       {s.due.map((n, i) => <td key={`d${i}`} className="text-right">{cell(n)}</td>)}
-      <td /><td />
+      <td className="text-center" /><td className="text-center" />
     </tr>
   )
 
@@ -180,7 +187,7 @@ export default function BondBalanceAnalysisPage({ side }: { side: BondSide }) {
       </ul>
 
       <div className="overflow-x-auto">
-        <table ref={tableRef} className="ec-report w-full text-left min-w-[1600px]">
+        <table ref={tableRef} className="ec-head700 w-full text-left min-w-[1600px]">
           <thead>
             <tr>
               <th rowSpan={2}>담당자코드</th>
@@ -213,12 +220,17 @@ export default function BondBalanceAnalysisPage({ side }: { side: BondSide }) {
                 <tr key={r.key}>
                   <td>{r.managerCode}</td>
                   <td>{r.managerName}</td>
-                  <td className="text-ec-navy">{r.partnerCode}</td>
+                  <td>
+                    <button type="button" className="ec-link"
+                            onClick={() => navigate(`${side === 'RECEIVABLE' ? '/accounting/bonds/ar/status' : '/accounting/bonds/ap/status'}?asOf=${asOf}&partner=${r.key.split('/')[0]}&account=${r.key.split('/')[1]}`)}>
+                      {r.partnerCode}
+                    </button>
+                  </td>
                   <td>{r.partnerName}</td>
                   <td className="text-right">{r.creditLimit ? won(r.creditLimit) : ''}</td>
                   <td>{r.accountName}</td>
                   <td className="text-right">{won(r.balance)}</td>
-                  <td>{r.months > 12 ? '12 개월초과' : String(r.months)}</td>
+                  <td className="text-right">{r.months > 12 ? '12 개월초과' : String(r.months)}</td>
                   {r.aging.map((n, i) => <td key={`a${i}`} className="text-right">{cell(n)}</td>)}
                   {r.due.map((n, i) => <td key={`d${i}`} className="text-right">{cell(n)}</td>)}
                   <td>{r.mobile}</td>
