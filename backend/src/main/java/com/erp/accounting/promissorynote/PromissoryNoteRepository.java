@@ -7,6 +7,8 @@ import java.util.List;
 
 public interface PromissoryNoteRepository extends JpaRepository<PromissoryNote, Long> {
 
+    boolean existsByNoteNo(String noteNo);
+
     @Query("select n from PromissoryNote n join fetch n.partner " +
            "where n.issueDate >= :from and n.issueDate <= :to " +
            "order by n.dueDate asc, n.id desc")

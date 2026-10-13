@@ -82,11 +82,11 @@
       ]
     },
     {
-      "name": "받을어음조회 — 오늘 받은 어음이 '어음증가' 줄로, 원본 열 차례대로 뜬다",
+      "name": "받을어음조회 — 오늘 받은 어음이 '증가' 줄로(원본 2026-10-13 실측 글자), 원본 열 차례대로 뜬다",
       "path": "/accounting/notes-list",
       "steps": [
         "wait:2000",
-        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('nhNo')));return h==='일자|어음번호|증감구분|거래처명|금액|만기일자|적요|거래유형'&&!!tr&&tr.cells[2].innerText.trim()==='어음증가'})()"
+        "expect:(()=>{const h=[...document.querySelectorAll('table thead th')].map((t)=>t.innerText.trim()).join('|');const tr=[...document.querySelectorAll('tbody tr')].find((t)=>t.innerText.includes(sessionStorage.getItem('nhNo')));return h==='|일자|어음번호|증감구분|거래처명|금액|만기일자|적요|거래유형|회계전표일자-No.'&&!!tr&&tr.cells[3].innerText.trim()==='증가'})()"
       ]
     },
     {

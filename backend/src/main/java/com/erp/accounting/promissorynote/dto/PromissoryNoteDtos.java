@@ -26,7 +26,11 @@ public final class PromissoryNoteDtos {
             @Size(max = 100, message = "입력한 글자가 너무 깁니다. 100자까지 넣을 수 있습니다.")
             String bankName,
             @Size(max = 300, message = "입력한 글자가 너무 깁니다. 300자까지 넣을 수 있습니다.")
-            String remark
+            String remark,
+            /** 원본 [내역만등록] — 회계전표 없이 내역만. 이때만 [어음번호]를 사람이 적는다(비우면 서버가 매긴다). */
+            Boolean recordOnly,
+            @Size(max = 30, message = "어음번호는 30자까지 넣을 수 있습니다.")
+            String noteNo
     ) {}
 
     /** 만기결제. 예금계좌를 지정하지 않으면 보통예금(103)으로 분개한다. */
@@ -52,7 +56,9 @@ public final class PromissoryNoteDtos {
             LocalDate issueDate, LocalDate dueDate, BigDecimal amount,
             NoteStatus status, String statusName,
             LocalDate closedDate, BigDecimal discountFee,
-            String bankName, String remark, String createdBy
+            String bankName, String remark, String createdBy,
+            /** 원본 [내역만등록]으로 넣은 것(분개 없음) */
+            boolean recordOnly
     ) {
         public static NoteResponse from(PromissoryNote n) {
             return new NoteResponse(
@@ -62,7 +68,7 @@ public final class PromissoryNoteDtos {
                     n.getIssueDate(), n.getDueDate(), n.getAmount(),
                     n.getStatus(), n.getStatus().getDisplayName(),
                     n.getClosedDate(), n.getDiscountFee(),
-                    n.getBankName(), n.getRemark(), n.getCreatedBy());
+                    n.getBankName(), n.getRemark(), n.getCreatedBy(), n.isRecordOnly());
         }
     }
 

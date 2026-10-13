@@ -110,8 +110,18 @@ public class PromissoryNoteService {
             throw ApiException.badRequest("만기일이 발행일보다 빠를 수 없습니다.");
         }
 
+        boolean recordOnly = Boolean.TRUE.equals(req.recordOnly());
+        String typedNo = req.noteNo() != null && !req.noteNo().isBlank() ? req.noteNo().trim() : null;
+        if (typedNo != null && !recordOnly) {
+            throw ApiException.badRequest("어음번호는 [내역만등록]에서만 적습니다.");
+        }
+        if (typedNo != null && noteRepository.existsByNoteNo(typedNo)) {
+            throw ApiException.conflict("이미 있는 어음번호입니다: " + typedNo);
+        }
         PromissoryNote n = PromissoryNote.builder()
-                .noteNo(docNoGenerator.next("BN-", "promissory_notes", "note_no", "issue_date", issueDate))
+                .noteNo(typedNo != null ? typedNo
+                        : docNoGenerator.next("BN-", "promissory_notes", "note_no", "issue_date", issueDate))
+                .recordOnly(recordOnly)
                 .type(req.type())
                 .partner(partner)
                 .issueDate(issueDate)
@@ -124,7 +134,8 @@ public class PromissoryNoteService {
                 .build();
         noteRepository.save(n);
 
-        journalService.createFromNote(n, NoteEvent.ISSUE);
+        /* [내역만등록]은 분개를 만들지 않는다(원본: 회계거래조회에 전표가 생기지 않는다). */
+        if (!recordOnly) journalService.createFromNote(n, NoteEvent.ISSUE);
         return NoteResponse.from(n);
     }
 
@@ -226,7 +237,7 @@ public class PromissoryNoteService {
     public void delete(Long id) {
         PromissoryNote n = held(id, "삭제");
         noteRepository.delete(n);
-        journalService.deleteBySource(com.erp.accounting.journal.JournalSourceType.NOTE, id);
+        if (!n.isRecordOnly()) journalService.deleteBySource(com.erp.accounting.journal.JournalSourceType.NOTE, id);
     }
 
     /**

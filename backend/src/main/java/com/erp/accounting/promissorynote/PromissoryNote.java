@@ -71,4 +71,12 @@ public class PromissoryNote extends BaseTimeEntity {
 
     @Column(name = "created_by", length = 50)
     private String createdBy;
+
+    /**
+     * 원본 [내역만등록] — 회계전표 없이 내역만 적은 어음(받을어음조회 거래유형 '어음만증가', 회계전표일자-No. 빈칸).
+     * 2026-10-13 loginaa 실측. 분개가 없으니 지울 때도 분개를 찾지 않는다.
+     */
+    @Column(name = "record_only", nullable = false)
+    @Builder.Default
+    private boolean recordOnly = false;
 }

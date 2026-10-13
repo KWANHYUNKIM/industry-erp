@@ -9,12 +9,20 @@ import EcPeriodPicks, { QUOTATION_PICKS, periodOf } from '../../components/EcPer
 import { dateText } from '../../utils/dateText'
 import { dateNo } from '../../utils/dateNo'
 import Modal from '../../components/Modal'
+import EcNumInput from '../../components/EcNumInput'
+import EcDateField from '../../components/EcDateField'
+import { useCondPickers } from '../../utils/useCondPickers'
+import { ymd } from '../../components/EcPeriodPicks'
 import type { NoteSummary, NoteType, PromissoryNote } from '../../types/api'
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
+/** 원본 [내역만등록]으로 넣은 어음은 분개가 없다(recordOnly). */
+type Note = PromissoryNote & { recordOnly?: boolean }
 /** 어음 한 장이 남기는 움직임 — 받은(발행한) 날 증가, 손을 떠난 날(결제 · 할인 · 부도) 감소. */
-interface Move { key: string; date: string; inc: boolean; n: PromissoryNote }
+interface Move { key: string; date: string; inc: boolean; n: Note }
+/** 내역만등록 창의 한 줄 */
+interface RecLine { noteNo: string; amount: string; dueDate: string; remark: string }
 
 /**
  * 회계 I &gt; 어음거래 &gt; 받을어음 &gt; <b>받을어음조회</b>(E010622) — 2026-10-03 loginaa 실측(빈 판).
@@ -49,7 +57,16 @@ export default function NoteListPage({ type }: { type: NoteType }) {
   const [partner, setPartner] = useState('')
   const [remark, setRemark] = useState('')
   const [author, setAuthor] = useState('')
-  const [notes, setNotes] = useState<PromissoryNote[]>([])
+  const [notes, setNotes] = useState<Note[]>([])
+  /* 원본 [내역만등록] '받을어음내역입력' 창(2026-10-13 실측) — 전표일자 · 전표구분 · 거래처코드 · 계정코드 + 격자. */
+  const pickers = useCondPickers(['partners'])
+  const blankLine = (): RecLine => ({ noteNo: '', amount: '', dueDate: ymd(new Date()), remark: '' })
+  const [recOpen, setRecOpen] = useState(false)
+  const [recDate, setRecDate] = useState(ymd(new Date()))
+  const [recPartner, setRecPartner] = useState('')
+  const [recLines, setRecLines] = useState<RecLine[]>([blankLine(), blankLine(), blankLine()])
+  const [recError, setRecError] = useState('')
+  const recName = receivable ? '받을어음내역입력' : '지급어음내역입력'
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   /** 어음 줄 → 회계전표일자-No. 를 찾으려고 같은 기간의 회계전표를 받는다. */
@@ -79,7 +96,14 @@ export default function NoteListPage({ type }: { type: NoteType }) {
   useEffect(() => { void load() }, [from, to, type])
 
   const ofType = useMemo(() => notes.filter((n) => n.type === type), [notes, type])
-  const kindOf = (m: Move) => (m.inc ? (receivable ? '수취' : '발행') : m.n.statusName)
+  /* 원본 거래유형(2026-10-13 실측): 받을어음증가 화면으로 넣은 것 '받을어음증가', [내역만등록] '어음만증가'. 감소 쪽 이름은 못 쟀다. */
+  const kindOf = (m: Move) => (m.inc ? (m.n.recordOnly ? '어음만증가' : receivable ? '받을어음증가' : '지급어음증가') : m.n.statusName)
+  /** 원본 [일자] '2026/10/13-2' — 그날 넣은 어음 중 몇 번째(id 차례). 감소 줄은 날짜만. */
+  const dayNo = (m: Move) => {
+    if (!m.inc) return dateText(m.date)
+    const seq = ofType.filter((x) => x.issueDate === m.n.issueDate && x.id <= m.n.id).length
+    return `${dateText(m.date)}-${seq}`
+  }
   const moves = useMemo(() => {
     const out: Move[] = []
     for (const n of ofType) {
@@ -105,7 +129,7 @@ export default function NoteListPage({ type }: { type: NoteType }) {
     return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1])).map(([id, name]) => ({ value: String(id), name }))
   }, [ofType])
   const authors = useMemo(() => [...new Set(ofType.map((n) => n.createdBy).filter(Boolean) as string[])].sort(), [ofType])
-  const kinds = useMemo(() => [...new Set([receivable ? '수취' : '발행', ...ofType.filter((n) => n.closedDate).map((n) => n.statusName)])], [ofType, receivable])
+  const kinds = useMemo(() => [...new Set([receivable ? '받을어음증가' : '지급어음증가', '어음만증가', ...ofType.filter((n) => n.closedDate).map((n) => n.statusName)])], [ofType, receivable])
   /** 회계전표일자-No. — '2026/10/13 -3'. 증가는 출처(어음 · id), 감소는 닫힌 날 적요의 어음번호로 찾는다. */
   const journalOf = (m: Move) => {
     const j = m.inc
@@ -114,6 +138,28 @@ export default function NoteListPage({ type }: { type: NoteType }) {
     return j ? dateNo(j.entryDate, j.docNo) : ''
   }
   const picked = moves.filter((m) => checked.has(m.key))
+  /* 원본은 회계전표가 붙은 줄을 체크할 수 없다(받을어음증가 줄을 눌러도 체크되지 않고 '리스트에 선택된 자료가 없습니다.').
+     전표 있는 어음은 회계거래조회에서 전표째 지운다. [내역만등록] 줄만 고를 수 있다. */
+  const selectable = (m: Move) => m.inc && !!m.n.recordOnly && m.n.status === 'HELD'
+
+  async function saveRecord() {
+    setRecError('')
+    if (!recPartner) { setRecError('거래처코드: 자료를 입력 바랍니다.'); return }
+    const lines = recLines.filter((l) => l.noteNo.trim() || Number(l.amount) > 0)
+    if (lines.length === 0) { setRecError('자료를 입력 바랍니다.'); return }
+    if (lines.some((l) => !(Number(l.amount) > 0))) { setRecError('금액: 자료를 입력 바랍니다.'); return }
+    try {
+      for (const l of lines) {
+        await api.post('/notes', { type, partnerId: Number(recPartner), issueDate: recDate, dueDate: l.dueDate,
+          amount: Number(l.amount), remark: l.remark.trim() || undefined, recordOnly: true, noteNo: l.noteNo.trim() || undefined })
+      }
+      setRecOpen(false)
+      setRecLines([blankLine(), blankLine(), blankLine()])
+      await load()
+    } catch (e) {
+      setRecError(extractErrorMessage(e))
+    }
+  }
 
   /** 원본 [선택삭제]. 고른 줄의 어음을 지운다 — 보유 중이 아니면 서버가 막고 그 까닭을 띄운다. */
   async function removeChecked() {
@@ -144,6 +190,7 @@ export default function NoteListPage({ type }: { type: NoteType }) {
         { label: '검색(F8)', primary: true, onClick: load },
         { label: '다시 작성', onClick: () => { setFrom(init.from); setTo(init.to); setUseDue(false); setNoteNo(''); setShowInc(true); setShowDec(true); setKind(''); setDirect(true); setPartner(''); setRemark(''); setAuthor('') } },
         { label: receivable ? '받을어음증가' : '지급어음증가', onClick: () => navigate('/accounting/notes') },
+        { label: '내역만등록', onClick: () => { setRecError(''); setRecDate(ymd(new Date())); setRecOpen(true) } },
         { label: `선택삭제${checked.size ? ` (${checked.size})` : ''}`, onClick: () => setConfirmDelete(true), disabled: checked.size === 0 },
         { label: 'Excel' },
       ]}
@@ -204,12 +251,12 @@ export default function NoteListPage({ type }: { type: NoteType }) {
         <thead>
           <tr>
             <th className="w-[30px]">
-              <input type="checkbox" aria-label="전체 선택" checked={moves.length > 0 && moves.every((m) => checked.has(m.key))}
-                     onChange={(e) => setChecked(e.target.checked ? new Set(moves.map((m) => m.key)) : new Set())} />
+              <input type="checkbox" aria-label="전체 선택" checked={moves.some(selectable) && moves.filter(selectable).every((m) => checked.has(m.key))}
+                     onChange={(e) => setChecked(e.target.checked ? new Set(moves.filter(selectable).map((m) => m.key)) : new Set())} />
             </th>
-            <th className="text-center">일자</th>
+            <th>일자</th>
             <th>어음번호</th>
-            <th className="text-center">증감구분</th>
+            <th>증감구분</th>
             <th>거래처명</th>
             <th className="text-right">금액</th>
             <th className="text-center">만기일자</th>
@@ -227,15 +274,16 @@ export default function NoteListPage({ type }: { type: NoteType }) {
             <tr key={m.key}>
               <td className="text-center">
                 <input type="checkbox" aria-label={`${m.n.noteNo} ${m.inc ? '증가' : '감소'} 선택`} checked={checked.has(m.key)}
+                       disabled={!selectable(m)}
                        onChange={(e) => setChecked((prev) => {
                          const next = new Set(prev)
                          if (e.target.checked) next.add(m.key); else next.delete(m.key)
                          return next
                        })} />
               </td>
-              <td className="text-center">{dateText(m.date)}</td>
+              <td>{dayNo(m)}</td>
               <td>{m.n.noteNo}</td>
-              <td className="text-center">{m.inc ? '어음증가' : '어음감소'}</td>
+              <td>{m.inc ? '증가' : '감소'}</td>
               <td>{m.n.partnerName}</td>
               <td className="text-right">{won(Number(m.n.amount))}</td>
               <td className="text-center">{dateText(m.n.dueDate)}</td>
@@ -247,12 +295,58 @@ export default function NoteListPage({ type }: { type: NoteType }) {
         </tbody>
       </table>
 
-      {/* 원본 회계거래조회 [선택삭제] 창과 같은 꼴('전표를 삭제하겠습니까? - 화면이름'). 이 화면의 창은 자료가 없어 못 쟀다. */}
+      {/* 원본 창(2026-10-13 실측): '전표를 삭제하겠습니까? - 받을어음내역입력'. */}
       <Modal open={confirmDelete} title="알림" width={420} error={error} onClose={() => setConfirmDelete(false)}>
-        <p className="mb-[12px]">전표를 삭제하겠습니까?<br />- {title}</p>
+        <p className="mb-[12px]">전표를 삭제하겠습니까?<br />- {recName}</p>
         <div className="flex gap-[5px]">
           <button type="button" className="ec-btn ec-btn-primary" disabled={picked.length === 0} onClick={() => void removeChecked()}>확인</button>
           <button type="button" className="ec-btn" onClick={() => setConfirmDelete(false)}>취소</button>
+        </div>
+      </Modal>
+
+      <Modal open={recOpen} title={receivable ? '받을어음내역입력' : '지급어음내역입력'} width={760} error={recError} onClose={() => setRecOpen(false)}>
+        {/* 창 머리 — 조회 조건이 아니라 입력 칸이라 EcCond(조건 판) 대신 이름표 + 칸으로 그린다. */}
+        <div className="grid grid-cols-[90px_1fr_90px_1fr] items-center gap-[6px] mb-[8px] text-[12.5px]">
+          <span>전표일자</span><EcDateField value={recDate} onChange={setRecDate} />
+          {/* 원본 [전표구분] 증가 · 감소 — 감소(내역만 줄이기)는 아직 없다. */}
+          <span>전표구분</span>
+          <select className="ec-input w-full" aria-label="전표구분" value="증가" disabled><option>증가</option></select>
+          <span>거래처코드</span>
+          <CodePickerField label="거래처코드" hideLabel fill emptyLabel="(없음)" value={recPartner} onChange={setRecPartner} items={pickers.partners} />
+          <span>계정코드</span>
+          <input className="ec-input w-full" aria-label="계정코드" disabled value={receivable ? '110 받을어음' : '252 지급어음'} />
+        </div>
+        <table className="w-full text-left mb-[8px]">
+          <thead>
+            <tr><th className="w-[30px]"></th><th>어음번호</th><th className="text-right">금액</th><th className="text-center">만기일자</th><th>적요</th></tr>
+          </thead>
+          <tbody>
+            {recLines.map((l, i) => (
+              <tr key={i}>
+                <td className="text-center text-ec-hint">{i + 1}</td>
+                <td><input className="ec-input w-full" aria-label={`어음번호${i + 1}`} maxLength={30} value={l.noteNo}
+                           onChange={(e) => setRecLines((p) => p.map((x, j) => (j === i ? { ...x, noteNo: e.target.value } : x)))} /></td>
+                <td><EcNumInput className="ec-input w-full text-right" aria-label={`금액${i + 1}`} value={l.amount}
+                                onValue={(v) => setRecLines((p) => p.map((x, j) => (j === i ? { ...x, amount: v } : x)))} /></td>
+                <td className="text-center"><EcDateField value={l.dueDate}
+                                onChange={(v) => setRecLines((p) => p.map((x, j) => (j === i ? { ...x, dueDate: v } : x)))} /></td>
+                <td><input className="ec-input w-full" aria-label={`적요${i + 1}`} maxLength={300} value={l.remark}
+                           onChange={(e) => setRecLines((p) => p.map((x, j) => (j === i ? { ...x, remark: e.target.value } : x)))} /></td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="font-bold bg-ec-page">
+              <td colSpan={2}></td>
+              <td className="text-right">{won(recLines.reduce((a, l) => a + (Number(l.amount) || 0), 0))}</td>
+              <td colSpan={2}></td>
+            </tr>
+          </tfoot>
+        </table>
+        <div className="flex gap-[5px]">
+          <button type="button" className="ec-btn ec-btn-primary" onClick={() => void saveRecord()}>저장(F8)</button>
+          <button type="button" className="ec-btn" onClick={() => { setRecPartner(''); setRecLines([blankLine(), blankLine(), blankLine()]); setRecError('') }}>다시 작성</button>
+          <button type="button" className="ec-btn" onClick={() => setRecOpen(false)}>닫기</button>
         </div>
       </Modal>
     </EcListShell>
