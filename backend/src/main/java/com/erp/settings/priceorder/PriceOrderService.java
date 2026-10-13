@@ -15,6 +15,7 @@ import com.erp.settings.priceorder.dto.PriceOrderDtos;
 public class PriceOrderService {
 
     private final PriceOrderSettingRepository repository;
+    private final com.erp.common.history.ChangeHistoryService historyService;
 
     /** 미설정 시 노출할 기본 단가적용순서 기능 목록 */
     private static final List<String> DEFAULT_FUNCTIONS = List.of(
@@ -44,10 +45,16 @@ public class PriceOrderService {
          * 그 줄을 한 줄도 안 넣었으니 실제로는 아무 일도 안 하는데 화면만 그렇게 말했다.
          * 원본대로 출고단가만 켠다(이미 저장한 회사의 값은 그대로다 - 여기는 미저장일 때만 탄다).
          */
+        /*
+         * 2026-10-14 원본 실측: 마지막 줄이 영업관리(E040126)는 [출고단가], 구매관리(E040125)는 <b>[입고단가]</b>다.
+         * 우리는 구매관리 탭에도 출고단가를 냈다 — 사는 값의 기준이 파는 값으로 적혀 있었다.
+         */
+        String base = cat.equals("PURCHASE") ? "입고단가" : "출고단가";
         return java.util.stream.IntStream.range(0, DEFAULT_FUNCTIONS.size())
-                .mapToObj(i -> new PriceOrderLine(
-                        DEFAULT_FUNCTIONS.get(i), i + 1,
-                        "출고단가".equals(DEFAULT_FUNCTIONS.get(i))))
+                .mapToObj(i -> {
+                    String name = i == DEFAULT_FUNCTIONS.size() - 1 ? base : DEFAULT_FUNCTIONS.get(i);
+                    return new PriceOrderLine(name, i + 1, name.equals(base));
+                })
                 .toList();
     }
 
@@ -64,6 +71,8 @@ public class PriceOrderService {
                     .active(line.active())
                     .build());
         }
+        // 원본 [H] '이력' — 마지막으로 고친 때 · 사람 한 줄(영업 · 구매 탭 따로). 대상 id 1 영업 · 2 구매.
+        historyService.record("PRICE_ORDER", cat.equals("SALES") ? 1L : 2L, com.erp.common.history.ChangeHistoryService.UPDATED);
         return get(cat);
     }
 
