@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, extractErrorMessage } from '../../api/client'
 import EcListShell from '../../components/EcListShell'
+import { EcCond } from '../../components/EcStatusPanel'
 import { useTableSort } from '../../utils/useTableSort'
 
 interface Contact {
@@ -10,7 +11,13 @@ interface Contact {
   phone: string | null
   mobile: string | null
   email: string | null
+  jobTitle: string
+  resignDate: string | null
 }
+
+/** 원본 조건 [사원구분] — 전체 · 재직자 · 퇴사자, 처음엔 재직자(2026-10-13 E070202 실측). */
+type EmpKind = 'ALL' | 'ACTIVE' | 'RESIGNED'
+const EMP_KINDS: [EmpKind, string][] = [['ALL', '전체'], ['ACTIVE', '재직자'], ['RESIGNED', '퇴사자']]
 
 /** 원본은 한 쪽에 10명씩 편다(사원 23명 → 1 2 3 / 3, 2026-10-03 실측). */
 const PAGE = 10
@@ -28,12 +35,22 @@ const PAGE = 10
  * <p><b>[생년월일]은 두지 않았다.</b> 우리 사원(hr.Employee)에 생년월일 칸이 없다 — 원본 loginaa 회사도
  * 전부 빈칸이었다. 늘 빈 열을 그려 두면 '값이 없다' 가 아니라 '아직 안 적었다' 로 읽힌다.
  * 사원 칸을 늘리는 것은 관리 모듈 일이라 보드에 적어 두었다.
+ *
+ * <p><b>2026-10-13 조건 판.</b> 원본 [Search(F3)] 를 누르면 조건이 내려온다 — 성명 · 부서 · 직위/직급 · 전화 · 모바일 ·
+ * Email · 생년월일(사용) · 사원구분(전체 · <b>재직자</b> · 퇴사자). 처음엔 재직자만 보인다. 생년월일은 위와 같은 이유로 뺐다.
  */
 export default function EmployeeContactPage() {
   const [rows, setRows] = useState<Contact[]>([])
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
   const [page, setPage] = useState(1)
+  const [nameCond, setNameCond] = useState('')
+  const [deptCond, setDeptCond] = useState('')
+  const [titleCond, setTitleCond] = useState('')
+  const [phoneCond, setPhoneCond] = useState('')
+  const [mobileCond, setMobileCond] = useState('')
+  const [emailCond, setEmailCond] = useState('')
+  const [kind, setKind] = useState<EmpKind>('ACTIVE')
 
   useEffect(() => {
     api.get<Contact[]>('/employees')
@@ -41,8 +58,15 @@ export default function EmployeeContactPage() {
       .catch((err) => setError(extractErrorMessage(err)))
   }, [])
 
-  const filtered = rows.filter((r) => !keyword
-    || [r.name, r.department, r.phone, r.mobile, r.email].some((v) => (v ?? '').includes(keyword)))
+  const has = (v: string | null, q: string) => !q || (v ?? '').includes(q)
+  const filtered = rows
+    .filter((r) => !keyword
+      || [r.name, r.department, r.phone, r.mobile, r.email].some((v) => (v ?? '').includes(keyword)))
+    .filter((r) => has(r.name, nameCond) && (!deptCond || r.department === deptCond)
+      && (!titleCond || r.jobTitle === titleCond) && has(r.phone, phoneCond)
+      && has(r.mobile, mobileCond) && has(r.email, emailCond))
+    .filter((r) => kind === 'ALL' || (kind === 'ACTIVE' ? !r.resignDate : !!r.resignDate))
+  const uniq = (vs: string[]) => [...new Set(vs.filter(Boolean))].sort()
   const sort = useTableSort(filtered, {
     성명: (r) => r.name,
     부서: (r) => r.department,
@@ -54,7 +78,7 @@ export default function EmployeeContactPage() {
   const cur = Math.min(page, pages)
   const shown = sort.sorted.slice((cur - 1) * PAGE, cur * PAGE)
 
-  useEffect(() => { setPage(1) }, [keyword])
+  useEffect(() => { setPage(1) }, [keyword, nameCond, deptCond, titleCond, phoneCond, mobileCond, emailCond, kind])
 
   const th = (k: '성명' | '부서' | '전화' | '모바일' | 'Email') => (
     <th className="cursor-pointer text-ec-navy" onClick={() => sort.toggle(k)}>{k} {sort.mark(k)}</th>
@@ -68,6 +92,43 @@ export default function EmployeeContactPage() {
       actions={[{ label: 'Excel' }]}
     >
       {error && <p className="ec-alert ec-alert-danger mb-[8px]">{error}</p>}
+
+      {/* 원본 차례: 성명 · 부서 · 직위/직급 · 전화 · 모바일 · Email · (생년월일) · 사원구분 — 접어 두고 [Search(F3)] 로 편다 */}
+      <ul className="ec-cond mb-[6px]">
+        <EcCond label="성명">
+          <input className="ec-input w-[140px]" aria-label="성명" value={nameCond} onChange={(e) => setNameCond(e.target.value)} />
+        </EcCond>
+        <EcCond label="부서" pick>
+          <select className="ec-input w-[140px]" aria-label="부서" value={deptCond} onChange={(e) => setDeptCond(e.target.value)}>
+            <option value="">선택</option>
+            {uniq(rows.map((r) => r.department)).map((d) => <option key={d}>{d}</option>)}
+          </select>
+        </EcCond>
+        <EcCond label="직위/직급" pick>
+          <select className="ec-input w-[140px]" aria-label="직위/직급" value={titleCond} onChange={(e) => setTitleCond(e.target.value)}>
+            <option value="">선택</option>
+            {uniq(rows.map((r) => r.jobTitle)).map((d) => <option key={d}>{d}</option>)}
+          </select>
+        </EcCond>
+        <EcCond label="전화">
+          <input className="ec-input w-[140px]" aria-label="전화" value={phoneCond} onChange={(e) => setPhoneCond(e.target.value)} />
+        </EcCond>
+        <EcCond label="모바일">
+          <input className="ec-input w-[140px]" aria-label="모바일" value={mobileCond} onChange={(e) => setMobileCond(e.target.value)} />
+        </EcCond>
+        <EcCond label="Email">
+          <input className="ec-input w-[140px]" aria-label="Email" value={emailCond} onChange={(e) => setEmailCond(e.target.value)} />
+        </EcCond>
+        <EcCond label="사원구분">
+          <div className="flex items-center gap-[10px] text-[12px] text-ec-label">
+            {EMP_KINDS.map(([k, label]) => (
+              <label key={k} className="flex items-center gap-[4px]">
+                <input type="radio" name="emp-kind" checked={kind === k} onChange={() => setKind(k)} /> {label}
+              </label>
+            ))}
+          </div>
+        </EcCond>
+      </ul>
 
       {/* 원본 쪽번호 — 표 위 */}
       <div className="flex items-center gap-[6px] mb-[4px]">
