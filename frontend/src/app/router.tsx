@@ -49,6 +49,7 @@ const WithholdingPage = lazy(() => import('../pages/accounting/WithholdingPage')
 const WithholdingConfirmPage = lazy(() => import('../pages/accounting/WithholdingConfirmPage'))
 const WithholdingPdfPage = lazy(() => import('../pages/accounting/WithholdingPdfPage'))
 const SimplePaymentPage = lazy(() => import('../pages/accounting/SimplePaymentPage'))
+const PaymentStatementFilePage = lazy(() => import('../pages/accounting/PaymentStatementFilePage'))
 const IncomeSubmissionPage = lazy(() => import('../pages/accounting/IncomeSubmissionPage'))
 const DailyPaymentStatementPage = lazy(() => import('../pages/accounting/DailyPaymentStatementPage'))
 const DailyReceiptPage = lazy(() => import('../pages/accounting/DailyReceiptPage'))
@@ -599,6 +600,7 @@ export default function AppRouter() {
         <Route path="/accounting/withholding" element={<WithholdingPage />} />
         <Route path="/accounting/withholding/pdf" element={<WithholdingPdfPage />} />
         <Route path="/accounting/simple-payment" element={<SimplePaymentPage />} />
+        <Route path="/accounting/withholding/payment-statement-file" element={<PaymentStatementFilePage />} />
         <Route path="/accounting/withholding/income-submission" element={<IncomeSubmissionPage />} />
         <Route path="/accounting/withholding/daily-statement" element={<DailyPaymentStatementPage />} />
         <Route path="/accounting/withholding/daily-receipt" element={<DailyReceiptPage />} />

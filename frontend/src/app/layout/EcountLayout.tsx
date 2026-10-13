@@ -886,6 +886,7 @@ const MENU: TopMenu[] = [
           ] },
           { label: '간이지급명세서', to: '/accounting/simple-payment' },
           { label: '지급명세서', children: [
+            { label: '지급명세서파일생성', to: '/accounting/withholding/payment-statement-file' },
             { label: '소득자료제출집계표', to: '/accounting/withholding/income-submission' },
           ] },
           { label: '일용근로', children: [
