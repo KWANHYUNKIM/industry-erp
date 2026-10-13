@@ -38,4 +38,7 @@ public interface ContractBillRepository extends JpaRepository<ContractBill, Long
     @Query("select l from ContractBillLine l join fetch l.bill where l.journalEntryId is not null")
     List<ContractBillLine> findReflectedLines();
 
+    /** 청구예정자료미생성현황 — 이미 만든 (계약 줄, 청구예정월) 짝. */
+    @Query("select l.contractLine.id, l.billMonth from ContractBillLine l where l.billMonth >= :fromMonth and l.billMonth <= :toMonth")
+    List<Object[]> findBilledMonths(@Param("fromMonth") String fromMonth, @Param("toMonth") String toMonth);
 }

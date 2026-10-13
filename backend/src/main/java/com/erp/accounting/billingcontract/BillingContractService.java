@@ -156,6 +156,27 @@ public class BillingContractService {
         return out;
     }
 
+    /** 계약 줄이 청구되는 달 하나. */
+    public record ScheduledMonth(BillingContractLine line, YearMonth month) {}
+
+    /**
+     * 청구예정자료미생성현황(E060909) — 청구예정월 구간 안에서 계약 줄이 청구되는 달마다 하나(청구단위 가리지 않음).
+     * 청구되는 달: 그 줄의 청구예정월에 들고, 계약 청구기간(청구시작일 ~ 청구종료일)이 그 달에 걸친다 — [계약] 찾기와 같다.
+     */
+    @Transactional(readOnly = true)
+    public List<ScheduledMonth> scheduled(YearMonth fromMonth, YearMonth toMonth) {
+        List<ScheduledMonth> out = new ArrayList<>();
+        for (BillingContractLine l : repository.findLinesActiveBetween(fromMonth.atDay(1), toMonth.atEndOfMonth())) {
+            BillingContract c = l.getContract();
+            for (YearMonth m = fromMonth; !m.isAfter(toMonth); m = m.plusMonths(1)) {
+                if (!l.billsIn(m.getMonthValue())) continue;
+                if (c.getBillEnd().isBefore(m.atDay(1)) || c.getBillStart().isAfter(m.atEndOfMonth())) continue;
+                out.add(new ScheduledMonth(l, m));
+            }
+        }
+        return out;
+    }
+
     /** 청구예정자료 쪽이 계약 줄을 얻는 진입점. */
     @Transactional(readOnly = true)
     public List<BillingContractLine> lines(List<Long> ids) {

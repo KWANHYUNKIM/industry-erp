@@ -28,6 +28,14 @@ public class ContractBillController {
         return service.findAll(from, to);
     }
 
+    /** 청구예정자료미생성현황(E060909) — 청구예정월(일자로 받아 달로 본다) 안의 아직 안 만든 청구. */
+    @GetMapping("/unbilled")
+    public List<ContractBillDtos.UnbilledLine> unbilled(@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+                                                        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+                                                        @RequestParam(defaultValue = "false") boolean includeZero) {
+        return service.unbilled(java.time.YearMonth.from(from), java.time.YearMonth.from(to), includeZero);
+    }
+
     /** 회계/판매일괄반영(E060906) · 회계미반영현황(계약)(E060908) — 청구자료 줄. reflected=false 면 미반영만. */
     @GetMapping("/lines")
     public List<ContractBillDtos.BillLineView> lines(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,

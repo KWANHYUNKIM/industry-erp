@@ -70,6 +70,24 @@ public final class ContractBillDtos {
      * 회계/판매일괄반영(E060906) · 회계미반영현황(계약)(E060908) 한 줄 — 청구자료 줄과 그 계약 · 거래처 · 항목.
      * 화면이 거래처별로 묶고(일괄반영) 조건(계약 · 계약항목 · 거래처 · 담당자 · 부가세유형 · 청구단위 · 내.외자 · 부서 · 프로젝트)으로 거른다.
      */
+    /** 청구예정자료미생성현황 한 줄 — 계약 줄 × 청구예정월. */
+    public record UnbilledLine(
+            Long contractLineId, Long contractId, LocalDate contractDate, Integer docNo, String contractCode, String contractName,
+            Long partnerId, String partnerName, Long employeeId, Long departmentId, Long projectId, String vatType, boolean foreignCurrency,
+            Long itemId, String itemName, String billMonth, BigDecimal quantity, BigDecimal unitPrice, BigDecimal supplyAmount,
+            BigDecimal vatAmount, Long billingUnitId, String billingUnitName, String remark
+    ) {
+        public static UnbilledLine from(BillingContractLine l, String month) {
+            var c = l.getContract();
+            return new UnbilledLine(l.getId(), c.getId(), c.getContractDate(), c.getDocNo(), c.getCode(), c.getName(),
+                    c.getPartner().getId(), c.getPartner().getName(), c.getEmployeeId(), c.getDepartmentId(),
+                    c.getProject() != null ? c.getProject().getId() : null, c.getVatType(), c.isForeignCurrency(),
+                    l.getItem().getId(), l.getItem().getName(), month, l.getQuantity(), l.getUnitPrice(), l.getSupplyAmount(), l.getVatAmount(),
+                    l.getBillingUnit() != null ? l.getBillingUnit().getId() : null, l.getBillingUnit() != null ? l.getBillingUnit().getName() : null,
+                    l.getRemark());
+        }
+    }
+
     public record BillLineView(
             Long lineId, Long billId, LocalDate billDate, Integer billDocNo, String vatType, Long journalEntryId,
             Long contractId, String contractCode, String contractName,

@@ -102,6 +102,20 @@ public class ContractBillService {
         }
     }
 
+    /**
+     * 청구예정자료미생성현황(E060909) — 청구예정월 구간에서 계약 줄이 청구될 달 중 아직 청구예정자료를 만들지 않은 것.
+     * 원본 기본은 금액 0 인 줄을 빼고, [금액0포함] 이면 넣는다.
+     */
+    @Transactional(readOnly = true)
+    public List<ContractBillDtos.UnbilledLine> unbilled(java.time.YearMonth from, java.time.YearMonth to, boolean includeZero) {
+        java.util.Set<String> billed = new java.util.HashSet<>();
+        for (Object[] r : repository.findBilledMonths(from.toString(), to.toString())) billed.add(r[0] + "@" + r[1]);
+        return contractService.scheduled(from, to).stream()
+                .filter((s) -> !billed.contains(s.line().getId() + "@" + s.month()))
+                .filter((s) -> includeZero || s.line().getSupplyAmount().signum() != 0)
+                .map((s) -> ContractBillDtos.UnbilledLine.from(s.line(), s.month().toString())).toList();
+    }
+
     /** 회계/판매일괄반영 · 회계미반영현황(계약) — 청구자료생성일자 안의 줄 전부. reflected=false 면 아직 반영 안 된 줄만. */
     @Transactional(readOnly = true)
     public List<BillLineView> lines(LocalDate from, LocalDate to, Boolean reflected) {
